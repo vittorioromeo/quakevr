@@ -1024,3 +1024,79 @@ Full `xr_runtime_test.sh xrexit`: before the change 0 failed (this worktree's sh
 > Thanks! In 1.0.1, exiting Quake VR from SteamVR's menu closes the game properly (your settings are saved) instead of
 > leaving it running flat on the desktop. If you'd rather have the old behaviour, VR Settings > Headset > *Exit From
 > Runtime Menu* > Play Flat.
+## Continue, level-start autosaves, the hub remembers the campaign (1.0.1, 2026-10-10, worktree `contgame`)
+
+A player's report: "the game doesn't seem to save its progress; after restarting, the hub shows the first campaign as
+default; no 'continue previous game'".
+
+**What there was in 1.0.0.** Quake's own saves (the Save and Load menus' s0..s19, `save <name>`), and Ironwail's
+autosave, on by default: `sv_autosave 1`, a save into `autosave/<map>.sav` after about `sv_autosave_interval` (30)
+seconds of quiet play (not hurt, not firing, standing still; sooner after a secret, health or a teleport;
+`Host_CheckAutosave`). Nothing showed those autosaves except Ironwail's skill menu (Play Custom Map > a map > *Resume*).
+They were made in the hub and the tutorial too. The hub's campaign choice is `vr_activestartpaknameidx`, archived. But
+every way back to the hub (`vr_campaign_hub`, `map vrstart` from another campaign, the hub's portal from a campaign)
+went through `selectCampaign(0)`, and that set the choice to Quake. Choosing Dimension of the Past, of the Machine or
+Dawn of the Machine set it to 0 as well ("the legacy selector only describes three campaigns"). So after a restart, or
+any return to the hub, the stones showed QUAKE selected.
+
+**What 1.0.1 adds** (`Quake/vr/vr_continue.cpp`, new):
+- **An autosave as each level starts**: a map or a changelevel, not a load. It is made 1.5 s in (`qcvm->time` 2.5),
+  once the player is in, with no score needed (`vr_autosave_level_start 1`, archived). It goes through Ironwail's
+  gates: `sv_autosave` on, single player, alive, not in an intermission, no god/noclip/notarget. It is queued with
+  `Cbuf_InsertText`, so it runs next, before any queued command. Ironwail's interval autosaves are unchanged and still
+  go to the same file.
+- **No autosaves on Quake VR's own maps** (`vr*`: the hub, the tutorial, the calibration room, the firing range):
+  `VR_AutosaveAllowed`.
+- **One autosave file per campaign's map**: `autosave/<map>.sav` for Quake's (Ironwail's name, so 1.0.0's still
+  count), `autosave/<folder>/<map>.sav` for hipnotic, rogue, dopa, mg1 and mg3. Their `start` and `end` maps share
+  names. `VR_AutosaveName` is also used by the skill menu's *Resume* and by `load` completion (`SaveList_Init`). The
+  player's own saves are never written.
+- **Continue**: the newest save of all, by file time: `*.sav`, `autosave/*.sav` and `autosave/<folder>/*.sav`. It must
+  load here: version 5, a `// qvr_save` line of a format this build reads, the campaign keys with this mission-pack
+  installation, and a campaign that can start now (`VR_SaveCampaign`, a quiet copy of `VR_CanLoadCampaignSave`'s
+  checks). It must be of a campaign's map, not a `vr*` one. Every campaign saves into the one `quakevr` folder, so the
+  newest save belongs to the campaign played last. Loading it switches its campaign first, through the existing
+  `VR_CanLoadCampaignSave`. From a multiplayer server it first puts back `maxplayers 1; deathmatch 0; coop 0`.
+  - **Main menu**: a *Continue* row at the top, on its own above the VR rows. It shows only when there is a save. On
+    its right, in small text: the save's map title and name, then its campaign and how long ago ("The Gateway (start)
+    / Dimension of the Machine, 5 minutes ago"). The cursor starts on it at the menu's first opening in a session.
+    During a campaign's game it asks first ("The game in progress ends: you go to ..."). In the hub it loads at once.
+  - **Hub**: a stone lectern with a CONTINUE button, left of the quick-start stand (tutorial, calibration), in line
+    with its front. A screen above the button shows the save's map, campaign and time. QC's `func_button` removes the
+    button when there is no save (`vr_continue_available`, set as a Quake VR map spawns). The lectern then stands
+    empty. The button is the generator's last entity, so a 1.0.0 save's edicts and brush models keep their numbers.
+    This needed a recompile (`vrstart_gen.py --compile`, the final preset, about 14 minutes). The unchanged map
+    recompiled first looked the same as the shipped one in a screenshot of the arrival. The lightmaps are not
+    byte-identical, which is the light tool's usual run-to-run difference.
+  - `vr_continue` (the command), and `vr_continue_info` (Debug > Tests > Saves > *What Continue Would Load*: the save,
+    and the newer ones passed over).
+- **The hub remembers the campaign**: `selectCampaign` syncs the hub's choice only when a campaign's map is chosen. It
+  does not sync for Quake VR's own maps or for Setup's preparation (`VR_SelectCampaignNoMap`). It syncs every campaign,
+  3-5 too. A campaign map's spawn also makes the choice that campaign, which covers a save loaded in the campaign
+  already active. The hub's stones then show the campaign last played as SELECTED, across restarts (the cvar was
+  archived already).
+
+**Tests** (mock, `sv_autosave 1`; the kit's autoexec turns autosaves off):
+- `map e1m1`, `changelevel e1m2`: `autosave/e1m1.sav`, then `autosave/e1m2.sav`. `vr_continue_info`: "Castle of the
+  Damned (e1m2), Quake, just now".
+- A new game process: `vr_continue` loads `autosave/e1m2`, map e1m2.
+- `vr_campaign_select mg1`: `autosave/mg1/start.sav`. Then `vr_campaign_hub`: `vr_activestartpaknameidx` stays 4 and
+  `vr_continue_available` is 1.
+- A new process (Quake's campaign active): `vr_continue` loads `autosave/mg1/start`. `vr_campaign` is 4, the map is
+  start, and the written config has `vr_activestartpaknameidx "4"`.
+- The main menu screenshot shows the Continue row and its two lines.
+- The hub: see below.
+
+**Decisions for the author:**
+- How often: a save at every level start, plus Ironwail's interval saves (about every 30 s of quiet play, as in 1.0.0).
+  One file per map, never pruned. A long campaign leaves a few dozen 200-400 KB files in `autosave/`.
+  `vr_autosave_level_start 0` turns the level-start ones off; `sv_autosave 0` turns all of them off. Neither has a menu
+  row yet.
+- Continue loads the newest save, whichever kind. A manual save made after the last autosave wins, and so does an
+  autosave made after it.
+- When there is no save, the hub's lectern stands empty, because the button is removed. The other choice is a dimmed
+  "no saved game yet" button.
+
+**In the headset:** finish a level, quit, start again. The main menu's Continue should show the next level. Open the
+hub's Continue screen, press it, and check that you land there. Play a level of Dimension of the Machine, quit,
+restart: the hub's DIMENSION OF THE MACHINE stone should be SELECTED, and Continue should switch campaigns.

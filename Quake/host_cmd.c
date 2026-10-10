@@ -1459,6 +1459,26 @@ void SaveList_Init (void)
 				FileList_Add (savename, &savelist);
 		}
 	}
+
+	// QVR: the other campaigns' autosaves, autosave/<folder>/ (VR_AutosaveName)
+	{
+		int c;
+		for (c = 1; c < VR_CampaignCount (); c++)
+		{
+			const char *folder = VR_CampaignFolder (c);
+			if ((size_t) q_snprintf (dirname, sizeof (dirname), "%s/autosave/%s", com_gamedir, folder) >= sizeof (dirname))
+				continue;
+			for (find = Sys_FindFirst (dirname, "sav"); find; find = Sys_FindNext (find))
+			{
+				char filename[MAX_QPATH];
+				if (find->attribs & FA_DIRECTORY)
+					continue;
+				COM_StripExtension (find->name, filename, sizeof (filename));
+				if ((size_t) q_snprintf (savename, sizeof (savename), "autosave/%s/%s", folder, filename) < sizeof (savename))
+					FileList_Add (savename, &savelist);
+			}
+		}
+	}
 }
 
 //==============================================================================
@@ -2768,6 +2788,7 @@ static void Host_Loadgame_f (void)
 	VR_CheckLoadedReferences (entnum); // QVR: a reference past the loaded edicts is the world (a dev warning)
 	qcvm->time = time;
 	sv.autosave.time = time;
+	sv.autosave.level_started = true; // QVR: a loaded game is not a level's start (vr_continue.cpp)
 
 	VR_HeapFree (start);
 	start = NULL;

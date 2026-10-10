@@ -3107,6 +3107,10 @@ QVR_CVAR(vr_mg1_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg3_status, "0", CVAR_ROM)
 QVR_CVAR(vr_honey_context, "0", CVAR_ROM) // actual start map source is Honey, never inferred from its name
 
+// Continue and the autosaves (vr_continue.cpp).
+QVR_CVAR(vr_autosave_level_start, "1", CVAR_ARCHIVE) // with sv_autosave on: an autosave as each campaign map starts (a map, a changelevel; not a load), besides Ironwail's every sv_autosave_interval seconds of quiet play. 0: Ironwail's only
+QVR_CVAR(vr_continue_available, "0", CVAR_ROM)       // a save Continue would load (the hub's Continue button shows only then: QC buttons.qc)
+
 QVR_CVAR(vr_mg_world_test, "0", CVAR_NONE) // Debug > Tests: 1 report authored native fog; 2 environment acceptance with a destructive e5m1 barrel test
 
 QVR_CVAR(vr_mg_trigger_test, "0", CVAR_NONE) // Debug > Tests: 1 shared triggers, 2 authored mge5m2 route, 3 lightning damage, 4 teleporter retarget

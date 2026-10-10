@@ -97,6 +97,7 @@ typedef struct
 		double	hurt_time;				// last time the player was hurt
 		double	shoot_time;				// last time the player attacked
 		double	cheat;					// time spent with cheats active since last autosave
+		qboolean	level_started;		// QVR: the level's start autosaved, or not to be (a loaded game: vr_autosave_level_start)
 	}			autosave;
 
 	struct

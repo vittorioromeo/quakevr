@@ -1046,8 +1046,11 @@ Host_CheckAutosave
 static void Host_CheckAutosave (void)
 {
 	float health_change, speed, elapsed, score;
+	char autosavename[MAX_QPATH]; // QVR
 
 	if (!sv_autosave.value || sv_autosave_interval.value <= 0.f || svs.maxclients != 1 || sv_player->v.health <= 0.f || cl.intermission)
+		return;
+	if (!VR_AutosaveAllowed (sv.name)) // QVR: none on Quake VR's own maps (the hub, the tutorial...: vr_continue.cpp)
 		return;
 
 	if (cls.signon == SIGNONS)
@@ -1080,6 +1083,20 @@ static void Host_CheckAutosave (void)
 	{
 		sv.autosave.cheat += host_frametime;
 		return;
+	}
+
+	// QVR: an autosave as the level starts (a map or a changelevel; a loaded game is not one: Host_Loadgame_f), the
+	// player in and a moment into it, whatever the score: vr_autosave_level_start, Continue's (vr_continue.cpp)
+	if (!sv.autosave.level_started && cls.signon == SIGNONS && qcvm->time >= 2.5)
+	{
+		sv.autosave.level_started = true;
+		if (Cvar_VariableValue ("vr_autosave_level_start"))
+		{
+			VR_AutosaveName (sv.name, autosavename, sizeof (autosavename));
+			sv.autosave.time = qcvm->time;
+			Cbuf_InsertText (va ("save \"%s\" 0\n", autosavename)); // (next, before any queued command)
+			return;
+		}
 	}
 
 	// Don't save if the player has been hurt recently
@@ -1126,7 +1143,8 @@ static void Host_CheckAutosave (void)
 
 	sv.autosave.time = qcvm->time;
 	sv.autosave.cheat = 0;
-	Cbuf_AddText (va ("save \"autosave/%s\" 0\n", sv.name));
+	VR_AutosaveName (sv.name, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>/<map> for the other campaigns
+	Cbuf_AddText (va ("save \"%s\" 0\n", autosavename));
 }
 
 /*

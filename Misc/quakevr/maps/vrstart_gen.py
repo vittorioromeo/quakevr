@@ -833,6 +833,11 @@ def build_arrival(mw):
     out.append(box(qx - 40, qy - 4, g + 6, qx + 40, qy + 4, g + 70, wood("board", (1, 0, 0))))
     for sx in (-44, 44):
         post(out, qx + sx, qy, g - 10, g + 76, 4)
+    # the Continue lectern, left of the stand (its button: build_entities' last entity), as the campaigns' lecterns
+    cx, cy = CONTINUE_STAND
+    hw = LECTERN_HALF
+    out.append(chamfer_box(cx - hw, cy, g - 6, cx + hw, cy + 22, g + 62, 2, T("block", scale=0.5)))
+    out.append(chamfer_box(cx - hw - 3, cy - 3, g + 62, cx + hw + 3, cy + 25, g + 68, 2, T("trim", scale=0.5)))
     # a campfire's ring of stones
     fx, fy = CAMPFIRE
     for i in range(9):
@@ -851,6 +856,7 @@ def build_arrival(mw):
 
 WELCOME = (-1350, -690)                  # the welcome board (faces south, left of the way up)
 QUICK = (-1040, -730)                    # the quick-start stand (tutorial, calibration)
+CONTINUE_STAND = (-1125, -734)           # the Continue lectern (its south face, in line with the stand's front)
 CAMPFIRE = (-1400, -830)
 
 
@@ -1646,6 +1652,11 @@ def build_entities(mw):
         mw.add(k)
     for (x, y) in ((-900, 400), (300, 500), (900, -300), (-700, -700)):
         mw.add({"classname": "ambient_swamp1", "origin": "%d %d %d" % (x, y, height(x, y) + 40)})
+    # ---- last of all (so that a 1.0.0 save's edicts and brush models keep their numbers): the Continue button (1.0.1,
+    # a player's "after a restart there is no 'continue'"): the newest save of a campaign's map loaded (vr_continue,
+    # Quake/vr/vr_continue.cpp). QC's func_button removes it when there is none (vr_continue_available); the engine
+    # shows the save's map, campaign and time on a screen above it (vr_setup.cpp's drawOptionScreens).
+    button(mw, "CONTINUE", "vr_continue", CONTINUE_STAND[0], CONTINUE_STAND[1], 14 + 42, 90)
 
 
 WORLD_KEYS = {

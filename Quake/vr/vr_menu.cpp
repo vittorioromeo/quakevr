@@ -6441,6 +6441,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_prepare_models campaign: the active campaign's own folder's models (progs/, every subfolder) and "
                   "their limbs loaded now. Setup's preparation does this on the start map of each installed campaign "
                   "with a folder of its own (Dimension of the Machine, Dawn of the Machine)."),
+        header("Saves"),
+        command("What Continue Would Load", "vr_continue_info")
+            .help("vr_continue_info: the save the main menu's Continue row and the hub's Continue button load (the newest "
+                  "loadable save of a campaign's map, an autosave or your own) and the newer ones passed over, printed."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

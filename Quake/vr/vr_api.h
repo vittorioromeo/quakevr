@@ -547,6 +547,20 @@ const char *VR_CampaignStartMap(int index);
 int VR_CampaignFolderOnlyWhenActive(int index);	// its folder searched only while it is the active campaign (dopa, mg1, mg3)
 int VR_SelectCampaignNoMap(int index);			// made the active one, no map started (0: it cannot be played; nothing changed)
 void VR_GameFolderName(const char *path, char *out, size_t size); // a search path's game folder ("C:/Quake/hipnotic/pak0.pak": hipnotic)
+int VR_SaveCampaign(const char *text);			// a save's campaign (vr_save_campaign), -1 if VR_CanLoadCampaignSave would refuse it (quiet)
+const char *VR_CampaignTitle(int index);		// "Quake", "Scourge of Armagon", ...
+int VR_ActiveCampaign(void);
+int VR_CampaignForMap(const char *map);			// the campaign a map's name says it is of (e1m1: Quake; start: the active one's)
+
+// Continue and the autosaves (vr_continue.cpp): the newest save of a campaign's map (manual or automatic: Ironwail's
+// sv_autosave, plus one as each level starts), offered by the main menu's Continue row and the hub's Continue button.
+void VR_AutosaveName(const char *map, char *out, size_t size); // "autosave/e1m2" (Quake's), "autosave/<folder>/<map>" (the others')
+int VR_AutosaveAllowed(const char *map);		// 0 on Quake VR's own maps (vr*: the hub, the tutorial, the calibration room...)
+void VR_ContinueRefresh(void);					// looks for the newest loadable save again (the main menu opened, a VR map spawned)
+int VR_ContinueAvailable(void);
+void VR_ContinueDescribe(char *title, size_t titlesize, char *detail, size_t detailsize); // "the Installation (e1m2)", "Quake, 5 minutes ago"
+void VR_ContinueStart(void);					// loads it (its campaign made the active one first: VR_CanLoadCampaignSave)
+void VR_RegisterContinue(void);
 
 // Music read in place (vr_music.cpp): a CD track from the game folders on the search path, or from the owned
 // rerelease/store installs where they are (never mounted, copied or written), per campaign.

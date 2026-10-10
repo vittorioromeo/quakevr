@@ -1418,12 +1418,14 @@ static void M_Confirm_Mousemove (float x, float y)
 //=============================================================================
 /* MAIN MENU */
 
-int	m_main_cursor = 4; // QVR: MAIN_CAMPAIGNS (below): the playing group's first row (Select Campaign), below the VR rows
+int	m_main_cursor = 5; // QVR: MAIN_CAMPAIGNS (below): the playing group's first row (Select Campaign), below the VR rows
 int m_main_mods;
+qboolean m_main_continue_offered; // QVR: the cursor put on Continue once, at the menu's first opening with a save to continue
 
 enum
 {
-	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp), the first row
+	MAIN_CONTINUE, // QVR: the newest save of a campaign's map (vr_continue.cpp), the first row; shown only when there is one
+	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp)
 	MAIN_VRTUTORIAL, // QVR: the tutorial (as the Play page's Tutorial), confirmed
 	MAIN_VRHUB, // QVR: the VR hub (vr_hub_map, as the Play page's VR Hub), confirmed
 	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), after the VR places; Back from them to this menu
@@ -1444,7 +1446,7 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"VR Calibration", "VR Tutorial", "VR Hub", "VR Settings", "Select Campaign", "Single Player", "Multiplayer", "Download Maps",
+	"Continue", "VR Calibration", "VR Tutorial", "VR Hub", "VR Settings", "Select Campaign", "Single Player", "Multiplayer", "Download Maps",
 	"Play Custom Map", "Options", "Advanced VR", "Mods", "Quit",
 };
 
@@ -1457,6 +1459,8 @@ const char *M_Main_RowLabel (void) // QVR: menu_vr pos
 // for it (Advanced VR > HUD and Menus > Menu; Options > Mods has it).
 static qboolean M_Main_Shown (int item)
 {
+	if (item == MAIN_CONTINUE) // QVR: only with a save to continue (vr_continue.cpp)
+		return VR_ContinueAvailable ();
 	return item != MAIN_MODS || (m_main_mods && VR_MenuMainShowsMods ());
 }
 
@@ -1467,6 +1471,8 @@ static qboolean M_Main_Shown (int item)
 // vrfiringrange_2026-10-08_00-02-55).
 static qboolean M_Main_GroupStart (int item)
 {
+	if (item == MAIN_VRCALIBRATION) // QVR: Continue on its own above the VR rows, when shown
+		return M_Main_Shown (MAIN_CONTINUE);
 	return item == MAIN_CAMPAIGNS || item == MAIN_MAPLIBRARY || item == MAIN_OPTIONS || item == MAIN_QUIT;
 }
 
@@ -1487,6 +1493,17 @@ void M_Menu_Main_f (void)
 		m_main_cursor = MAIN_OPTIONS;
 		M_Options_SelectMods ();
 	}
+
+	// QVR: Continue (vr_continue.cpp): the saves looked at again; the cursor on it the first time it is offered, off it
+	// when there is none (the playing group's first row)
+	VR_ContinueRefresh ();
+	if (M_Main_Shown (MAIN_CONTINUE) && !m_main_continue_offered)
+	{
+		m_main_continue_offered = true;
+		m_main_cursor = MAIN_CONTINUE;
+	}
+	if (!M_Main_Shown (MAIN_CONTINUE) && m_main_cursor == MAIN_CONTINUE)
+		m_main_cursor = MAIN_CAMPAIGNS;
 }
 
 
@@ -1530,6 +1547,30 @@ static int M_Main_RowY (int item, int step, int gap)
 		if (M_Main_GroupStart (i))
 			y += gap;
 	return y;
+}
+
+// QVR: Continue's save in two small lines right of its row (as far right as the canvas goes), the row's right end
+// moved to theirs (M_ContentRightBelow: the corner's version box keeps clear of them).
+static void M_Main_DrawContinue (int row)
+{
+	drawtransform_t transform;
+	float left, top, right, bottom;
+	char title[96], detail[96];
+	int x = (int) m_main_row_right[MAIN_CONTINUE] + 10, chars;
+
+	VR_ContinueDescribe (title, sizeof (title), detail, sizeof (detail));
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
+	chars = (int) (right - 4 - x) / 8;
+	if (chars < 8)
+		return;
+	if ((int) strlen (title) > chars)
+		title[chars] = 0;
+	if ((int) strlen (detail) > chars)
+		detail[chars] = 0;
+	M_PrintWhite (x, row + 1, title);
+	M_Print (x, row + 11, detail);
+	m_main_row_right[MAIN_CONTINUE] = (float) (x + 8 * q_max ((int) strlen (title), (int) strlen (detail)));
 }
 
 void M_Main_Draw (void)
@@ -1583,6 +1624,7 @@ void M_Main_Draw (void)
 				else
 					M_PrintEx (74, row + 1, 16, "MODS");
 				break;
+			case MAIN_CONTINUE: M_PrintEx (74, row + 1, 16, "CONTINUE"); break;
 			case MAIN_VRCALIBRATION: M_PrintEx (74, row + 1, 16, "VR CALIBRATION"); break;
 			case MAIN_VRTUTORIAL: M_PrintEx (74, row + 1, 16, "VR TUTORIAL"); break;
 			case MAIN_VRHUB: M_PrintEx (74, row + 1, 16, "VR HUB"); break;
@@ -1594,6 +1636,10 @@ void M_Main_Draw (void)
 			}
 		}
 	}
+
+	// QVR: Continue's save beside it, small: its map, its campaign and when (vr_continue.cpp)
+	if (M_Main_Shown (MAIN_CONTINUE))
+		M_Main_DrawContinue (M_Main_RowY (MAIN_CONTINUE, step, gap));
 
 	M_DrawQuakeCursor (54, M_Main_RowY (m_main_cursor, step, gap));
 }
@@ -1627,6 +1673,15 @@ static void M_Main_StartTutorial (void)
 	key_dest = key_game;
 	m_state = m_none;
 	VR_StartTutorial ();
+}
+
+// QVR: Continue's (confirmed when a game was running): the menu closed, the save loaded (its campaign first).
+static void M_Main_Continue (void)
+{
+	IN_Activate ();
+	key_dest = key_game;
+	m_state = m_none;
+	VR_ContinueStart ();
 }
 
 static void M_Main_StartHub (void)
@@ -1668,6 +1723,18 @@ void M_Main_Key (int key)
 
 		switch (m_main_cursor)
 		{
+		case MAIN_CONTINUE: // QVR: the newest save (vr_continue.cpp); confirmed when a campaign's game is running
+			if (sv.active && VR_AutosaveAllowed (sv.name)) // (a campaign's map: not the hub, the tutorial...)
+			{
+				char title[96], detail[96];
+				VR_ContinueDescribe (title, sizeof (title), detail, sizeof (detail));
+				M_Confirm (va ("Continue from your last save?\n\nThe game in progress ends: you go to\n%s\n%s.", title, detail),
+					"Continue", "Cancel", 0.f, M_Main_Continue);
+			}
+			else
+				M_Main_Continue ();
+			break;
+
 		case MAIN_VRCALIBRATION: // QVR: the calibration room (vr_setup)
 			M_Confirm (sv.active
 				? "Start VR Calibration?\n\nThe game in progress ends: you go\nto the calibration room, and the\ncalibration starts by itself."
@@ -2502,10 +2569,12 @@ void M_SetSkillMenuMap (const char *name)
 void M_Menu_Skill_f (void)
 {
 	char autosave[MAX_OSPATH];
+	char autosavename[MAX_QPATH]; // QVR
 
 	m_skill_canresume = false;
 	m_skill_lastplayed = 0;
-	q_snprintf (autosave, sizeof (autosave), "%s/autosave/%s.sav", com_gamedir, m_skill_mapname);
+	VR_AutosaveName (m_skill_mapname, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>/<map> for the other campaigns
+	q_snprintf (autosave, sizeof (autosave), "%s/%s.sav", com_gamedir, autosavename);
 	if (Sys_FileExists (autosave))
 	{
 		time_t now, lastplayed;
@@ -2633,7 +2702,9 @@ void M_Skill_Key (int key)
 		if (m_skill_cursor == 4)
 		{
 			// Resume autosave
-			Cbuf_AddText (va ("load \"autosave/%s\"\n", m_skill_mapname));
+			char autosavename[MAX_QPATH]; // QVR: autosave/<folder>/<map> for the other campaigns
+			VR_AutosaveName (m_skill_mapname, autosavename, sizeof (autosavename));
+			Cbuf_AddText (va ("load \"%s\"\n", autosavename));
 		}
 		else
 		{

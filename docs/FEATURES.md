@@ -362,6 +362,12 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
 - **Official campaigns** (the main menu's *Select Campaign*, or Play > Official Campaigns): the re-release's Dimension of the
   Past, Dimension of the Machine (with its Horde mode) and Dawn of the Machine (with its Bloody Nightmare difficulty)
   play natively in VR, in single player, when you own them. See [INSTALL.md](INSTALL.md#official-campaigns).
+- **Continue and autosaves:** the game saves itself as each level starts and every half minute or so of quiet play
+  (`autosave\<map>.sav`; the other campaigns' in `autosave\<campaign>\`; never over your own saves, never in the hub
+  or the tutorial, never in multiplayer). *Continue*, the main menu's first row and the button beside the hub's
+  quick-start stand, loads your newest save of any campaign, its map, campaign and time shown, the campaign switched
+  to first. The hub's campaign stones keep the campaign you last played selected. `vr_autosave_level_start 0`: no
+  level-start saves; `sv_autosave 0`: no autosaves at all.
 - **Map Library** (the main menu, or the corner's *Map Library*): browse [Quaddicted](https://www.quaddicted.com/)'s
   archive of custom maps, then download, install and play one in the game; *Uninstall* and *Reinstall* manage what you
   installed, and the download cache is capped (Debug > Tools > *Download Cache Size*). See

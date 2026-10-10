@@ -511,13 +511,15 @@ void discoverCampaigns()
 // `syncHub`: the hub's choice (vr_activestartpaknameidx, archived) made the active campaign's too: when a campaign is
 // chosen (the selector, a map or a changelevel that picks one), never when the game folders are only rebuilt (a map
 // package mounted, a mission pack re-added): that would undo a choice made at the hub's buttons before its portal.
+// Nor when Quake's campaign is made active only for one of Quake VR's own maps (the hub, the tutorial, the calibration
+// room: 1.0.1, a player's "after restarting, the hub shows the first campaign"), nor by Setup's preparation: the hub
+// shows the campaign last played as the one chosen, across restarts (3, 4 and 5 too: the hub's lecterns name them all).
 void publishCampaign(bool syncHub = false)
 {
     if(!Cvar_FindVar("vr_campaign")) { return; }
     Cvar_SetROM("vr_honey_context", "0");
-    // The archived legacy hub selector only describes the original three campaigns.
     if(syncHub)
-    { Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, activeCampaign <= 2 ? activeCampaign : 0); }
+    { Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, activeCampaign); }
     Cvar_SetROM("vr_campaign", va("%d", activeCampaign));
     Cvar_SetROM("vr_campaign_schema", va("%d", campaigns[activeCampaign].schema));
     for(int i = 3; i < int(countof(campaigns)); ++i)
@@ -820,7 +822,7 @@ extern "C" void VR_InitCampaignDirectories()
 
 namespace
 {
-bool selectCampaign(int selected, bool developer, bool start)
+bool selectCampaign(int selected, bool developer, bool start, bool syncHub = true)
 {
     if(selected < 0 || selected >= int(countof(campaigns))) { return false; }
     Campaign& c = campaigns[selected];
@@ -852,7 +854,7 @@ bool selectCampaign(int selected, bool developer, bool start)
     const bool changed = activeCampaign != selected;
     activeCampaign = selected;
     developerNative = developer && selected >= 3; // (only the native campaigns have gates it opens)
-    publishCampaign(true);
+    publishCampaign(syncHub);
     if(changed || !gameDirAlreadyAdded(vrGameDir))
     {
         rebuildingCampaign = true;
@@ -898,7 +900,7 @@ void campaignHubCommand()
 {
     const char* map = Cmd_Argc() > 1 ? Cmd_Argv(1) : VR_HubMap();
     if(!VR_IsVrMap(map)) { map = VR_HubMap(); }
-    if(selectCampaign(0, false, false)) { Cbuf_InsertText(va("map %s\n", map)); }
+    if(selectCampaign(0, false, false, false)) { Cbuf_InsertText(va("map %s\n", map)); }
 }
 } // namespace
 
@@ -935,7 +937,7 @@ extern "C" const char* VR_CampaignStartMap(int index)
 { return index >= 0 && index < int(countof(campaigns)) ? campaigns[index].start : ""; }
 extern "C" int VR_CampaignFolderOnlyWhenActive(int index) { return index >= 3 && index < int(countof(campaigns)); }
 extern "C" int VR_SelectCampaignNoMap(int index)
-{ return !VR_CampaignUnavailable(index) && selectCampaign(index, false, false) ? 1 : 0; }
+{ return !VR_CampaignUnavailable(index) && selectCampaign(index, false, false, false) ? 1 : 0; }
 extern "C" void VR_GameFolderName(const char* path, char* out, size_t size) { gameFolderName(path, out, size); }
 
 extern "C" void VR_BeforeAddGameDirectory(const char* dir)
@@ -1181,7 +1183,7 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
 {
     if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
     if(VR_IsVrMap(map))
-    { return activeCampaign == 0 || selectCampaign(0, false, false); }
+    { return activeCampaign == 0 || selectCampaign(0, false, false, false); }
     int requested = campaignForMap(map, activeCampaign);
     if(!strcmp(map, "start") && activeCampaign <= 2)
     {
@@ -1224,7 +1226,7 @@ extern "C" void VR_CheckSpawnCampaignMap(const char* map)
         if(requested <= 2 && activeCampaign <= 2 && campaigns[requested].status == 1)
         {
             activeCampaign = requested;
-            publishCampaign(true);
+            publishCampaign(!VR_IsVrMap(map));
         }
         else
         {
@@ -1234,6 +1236,12 @@ extern "C" void VR_CheckSpawnCampaignMap(const char* map)
     }
     if(soloOnly(activeCampaign) && !developerNative && campaignMultiplayerRequested())
     { Host_Error("VR: %s is single-player only; set coop 0, deathmatch 0 and maxplayers 1", campaigns[activeCampaign].title); }
+    // A campaign's map running (a save loaded in the campaign already active too): the hub's choice is the campaign
+    // last played (publishCampaign).
+    if(!VR_IsVrMap(map) && static_cast<int>(qvr::vr_activestartpaknameidx.value) != activeCampaign)
+    { Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, activeCampaign); }
+    // The hub's Continue button (QC buttons.qc: shown only when there is a save to continue) reads it as it spawns.
+    if(VR_IsVrMap(map)) { VR_ContinueRefresh(); }
     char source[MAX_OSPATH] = {};
     if(COM_FileExists(va("maps/%s.bsp", map), nullptr))
     { gameFolderName(com_filesource, source, sizeof(source)); }
@@ -1280,6 +1288,30 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
     }
     return 1;
 }
+
+// VR_CanLoadCampaignSave's checks, quietly and changing nothing (Continue, vr_continue.cpp: which save it offers): the
+// save's campaign (vr_save_campaign), or -1 when it would be refused (no keys, another mission-pack installation, a
+// campaign this game can't start now).
+extern "C" int VR_SaveCampaign(const char* text)
+{
+    const char* marker = strstr(text, "\"vr_save_packmask\"");
+    const char* context = strstr(text, "\"vr_save_campaign\"");
+    if(!marker || !context) { return -1; }
+    if(!gameDirAlreadyAdded(vrGameDir)) { return 0; }
+    COM_Parse(marker + strlen("\"vr_save_packmask\""));
+    if(Q_atoi(com_token) != 1 + (packStatus[0] == 1) + 2 * (packStatus[1] == 1)) { return -1; }
+    COM_Parse(context + strlen("\"vr_save_campaign\""));
+    const int saved = Q_atoi(com_token);
+    if(saved < 0 || saved >= int(countof(campaigns)) || VR_CampaignUnavailable(saved)) { return -1; }
+    return saved;
+}
+
+extern "C" const char* VR_CampaignTitle(int index)
+{ return index >= 0 && index < int(countof(campaigns)) ? campaigns[index].title : ""; }
+
+extern "C" int VR_ActiveCampaign() { return activeCampaign; }
+extern "C" int VR_CampaignForMap(const char* map)
+{ return gameDirAlreadyAdded(vrGameDir) ? campaignForMap(map, activeCampaign) : activeCampaign; }
 
 extern "C" int VR_IsNewCampaignDirectory(const char* dir) { return campaignIndex(dir) >= 3; }
 extern "C" int VR_IsNativeCampaignLaunch()

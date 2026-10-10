@@ -478,6 +478,13 @@ void() func_button =
 {
     if(MG_MonsterInhibited()) return;
     if(MG_WorldCampaign()) MG_ButtonInit();
+    // The hub's Continue button ("vr_continue"): there only when there is a save to continue (the engine's
+    // vr_continue_available, looked at as a Quake VR map spawns: vr_continue.cpp); its save is shown over it.
+    if(self.buttonEffect == 3 && substring(self.targetname, 0, 11) == "vr_continue" && !cvar("vr_continue_available"))
+    {
+        remove(self);
+        return;
+    }
     if(button_campaign_unavailable())
     {
         self.worldtext = strcat(self.worldtext, "\n(unavailable)");

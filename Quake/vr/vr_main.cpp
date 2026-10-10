@@ -1870,6 +1870,7 @@ extern "C" void VR_Init()
     imgprefetch::start(); // the images the start-up and the first map load decode, decoded ahead (the file system is up)
     registerCvars();
     VR_RegisterPackStatus();
+    VR_RegisterContinue();
     jobs::registerCommands();
     edictindex::registerCommands();
     weapons::registerCvars();
