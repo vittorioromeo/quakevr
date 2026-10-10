@@ -7,7 +7,7 @@
 //   - gl_debug.log: a debug GL context (SDL_GL_CONTEXT_DEBUG_FLAG) and synchronous GL debug output, every message with
 //     its source, type, id and severity; each id's first 10, then every 100th, with counts (a summary at the end);
 //   - openxr_debug.log: the XR_EXT_debug_utils messenger (all severities and types: the loader's and the runtime's
-//     messages), Khronos' core validation layer when it is installed (never shipped: ROUND21.md), the context checks;
+//     messages), Khronos' core validation layer when it is installed (never shipped: ROUND22.md), the context checks;
 //   - debug_output.log: whatever the process says to a debugger (OutputDebugString): the OpenXR loader's log
 //     (XR_LOADER_DEBUG=all), runtimes', drivers';
 //   - crash/: the crash report and dump, if any;

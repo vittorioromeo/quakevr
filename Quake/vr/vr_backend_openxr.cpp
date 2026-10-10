@@ -46,7 +46,7 @@ namespace
 // xrEnumerateSwapchainImages, a null read (virtualdesktop-openxr.dll+0x9a668): its OpenGL path takes the swapchain's
 // GL images as made once its D3D11 images are, and reads the first of none. The D3D11 images are fetched before the
 // image structs' type is checked, so an earlier call that failed that check (an API layer's, enumerating the game's
-// swapchain as D3D11 or Vulkan ones) leaves the swapchain in that state (ROUND21.md, "VDXR swapchain crash").
+// swapchain as D3D11 or Vulkan ones) leaves the swapchain in that state (ROUND22.md, "VDXR swapchain crash").
 struct Fault
 {
     DWORD code{0};
@@ -1249,7 +1249,7 @@ private:
             }
         }
         // Diagnostics mode: Khronos' core validation layer, only when it is installed (or in openxr_layers\ beside the
-        // exe: XR_API_LAYER_PATH, vr_diagnostics.cpp). Not shipped (ROUND21.md, "Diagnostics mode").
+        // exe: XR_API_LAYER_PATH, vr_diagnostics.cpp). Not shipped (ROUND22.md, "Diagnostics mode").
         za::Vector<const char*> layers;
         if(VR_DiagnosticsOn())
         {
