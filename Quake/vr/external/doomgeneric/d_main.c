@@ -166,6 +166,33 @@ extern  boolean setsizeneeded;
 extern  int             showMessages;
 void R_ExecuteSetViewSize (void);
 
+#ifdef QVR_DOOM
+// QVR: the screen melt a step at each frame drawn (D_Display), instead of a loop sleeping until it ends: the engine
+// draws its own frames meanwhile. The game's tics wait for it (doomgeneric_Tick), as vanilla's loop made them.
+static boolean qvr_wiping = false;
+static int qvr_wipestart;
+
+static void D_WipeStep(void)
+{
+    int nowtime = I_GetTime ();
+    int tics = nowtime - qvr_wipestart;
+
+    if (tics <= 0)
+        return;
+    qvr_wipestart = nowtime;
+    if (wipe_ScreenWipe(wipe_Melt, 0, 0, SCREENWIDTH, SCREENHEIGHT, tics))
+        qvr_wiping = false;
+    I_UpdateNoBlit ();
+    M_Drawer ();                            // menu is drawn even on top of wipes
+    I_FinishUpdate ();                      // page flip or blit buffer
+}
+
+boolean D_Wiping(void)
+{
+    return qvr_wiping;
+}
+#endif
+
 void D_Display (void)
 {
     static  boolean		viewactivestate = false;
@@ -184,6 +211,13 @@ void D_Display (void)
 
     if (nodrawers)
     	return;                    // for comparative timing / profiling
+#ifdef QVR_DOOM
+    if (qvr_wiping)
+    {
+        D_WipeStep();
+        return;
+    }
+#endif
 		
     redrawsbar = false;
     
@@ -308,6 +342,12 @@ void D_Display (void)
     // wipe update
     wipe_EndScreen(0, 0, SCREENWIDTH, SCREENHEIGHT);
 
+#ifdef QVR_DOOM
+    (void)wipestart; (void)nowtime; (void)tics; (void)done;
+    qvr_wipestart = I_GetTime () - 1;
+    qvr_wiping = true;
+    D_WipeStep();
+#else
     wipestart = I_GetTime () - 1;
 
     do
@@ -326,6 +366,7 @@ void D_Display (void)
 	M_Drawer ();                            // menu is drawn even on top of wipes
 	I_FinishUpdate ();                      // page flip or blit buffer
     } while (!done);
+#endif
 }
 
 //
@@ -407,6 +448,11 @@ void doomgeneric_Tick()
     // frame syncronous IO operations
     I_StartFrame ();
 
+#ifdef QVR_DOOM
+    if (qvr_wiping)
+        NetUpdate (); // QVR: the tics wait for the melt (they run after it, as vanilla's)
+    else
+#endif
     TryRunTics (); // will run at least one tic
 
     S_UpdateSounds (players[consoleplayer].mo);// move positional sounds
@@ -1072,6 +1118,9 @@ static void D_Endoom(void)
     // in screensaver or control test mode. Only show it once the
     // game has actually started.
 
+#ifdef QVR_DOOM
+    return; // QVR: no ENDOOM text screen (it exit()s)
+#endif
     if (!show_endoom || !main_loop_started
      || screensaver_mode || M_CheckParm("-testcontrols") > 0)
     {

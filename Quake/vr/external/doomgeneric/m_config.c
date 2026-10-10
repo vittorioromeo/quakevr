@@ -2040,8 +2040,16 @@ float M_GetFloatVariable(char *name)
 // Get the path to the default configuration dir to use, if NULL
 // is passed to M_SetConfigDir.
 
+#ifdef QVR_DOOM
+extern char *qvr_doom_data_dir; // QVR: qvr_doom_dll.c (qvr_doom_init's data_dir)
+#endif
+
 static char *GetDefaultConfigDir(void)
 {
+#ifdef QVR_DOOM
+    if (qvr_doom_data_dir != NULL)
+        return M_StringDuplicate(qvr_doom_data_dir);
+#endif
     char *result = (char *)malloc(2);
     result[0] = '.';
     result[1] = '\0';
@@ -2087,7 +2095,7 @@ void M_SetConfigDir(char *dir)
 char *M_GetSaveGameDir(char *iwadname)
 {
     char *savegamedir;
-#if ORIGCODE
+#if ORIGCODE || defined(QVR_DOOM)
     char *topdir;
 #endif
 
@@ -2100,7 +2108,7 @@ char *M_GetSaveGameDir(char *iwadname)
     }
     else
     {
-#if ORIGCODE
+#if ORIGCODE || defined(QVR_DOOM) // QVR: <data dir>savegames/<iwad>/
         // ~/.chocolate-doom/savegames
 
         topdir = M_StringJoin(configdir, "savegame", NULL);
