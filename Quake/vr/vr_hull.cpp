@@ -1884,10 +1884,25 @@ public:
         n = glm::dvec3{mp.normal[0], mp.normal[1], mp.normal[2]};
         d = mp.dist;
         Poly parts[2];
+        // An axial plane (its normal exactly an axis: the table's are snapped) gives each point's distance as its
+        // coordinate less d, so a piece's range of them is its bounds' (finish's, of the same points) less d, the same
+        // numbers splitPoly works out point by point: a piece all on one side goes there whole without that pass.
+        const int axis = mp.type < 3 ? mp.type : -1;
         for(Frag& f : frags)
         {
             double tlo, thi;
-            const int whole = splitPoly(ZA_MOVE(f.poly), n, d, parts[0], parts[1], tlo, thi);
+            int whole;
+            if(axis >= 0 && ((tlo = f.lo[axis] - d) >= -onEpsilon || (thi = f.hi[axis] - d) <= onEpsilon))
+            {
+                thi = f.hi[axis] - d;
+                whole = tlo >= -onEpsilon ? 0 : 1;
+                parts[whole] = ZA_MOVE(f.poly);
+                parts[whole ^ 1].clear();
+            }
+            else
+            {
+                whole = splitPoly(ZA_MOVE(f.poly), n, d, parts[0], parts[1], tlo, thi);
+            }
             for(int side = 0; side < 2; ++side)
             {
                 if(parts[side].empty())
