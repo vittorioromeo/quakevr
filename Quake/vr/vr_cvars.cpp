@@ -673,8 +673,10 @@ const DefaultChange defaultChanges[] = {
     {121, &vr_climb_leniency, "2"},
     {121, &vr_climb_leniency_air, "4"},
     {121, &vr_climb_air_grab_time, "0.3"},
+    // 122: the "Loading..." notice off (1.0.0 release blocker: deferring a level change crashed a campaign switch).
+    {122, &vr_loading_notice, "1"},
 };
-constexpr int configVersion = 121;
+constexpr int configVersion = 122;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
