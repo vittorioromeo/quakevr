@@ -241,6 +241,10 @@ def g3_jump_climb():
     walk(2918, 704, 4, 100)
     c("vr_mock_turn_to 0")
     w(60)
+    # (back from beyond the 40 barrier the run's momentum carries him ~15 units past 2918, out of the rungs' reach:
+    # walked up to the ladder again once he has stopped)
+    walk(2920, 704, 4, 60)
+    w(30)
     hands = ("off", "main")
     for i, z in enumerate((76, 96, 116, 136)):
         h, other = hands[i % 2], hands[1 - i % 2]
