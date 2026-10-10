@@ -258,14 +258,15 @@ static float TexMgr_Smoothstep (float a, float b, float x)
 }
 
 // A box blur of radius r across and down (clamped at the edges), in place; `n` channels interleaved (at most 4).
-// Running sums: across along each row, down with a sum per column (row by row, in memory order).
-static void TexMgr_BoxBlur (float *a, int n, int w, int h, int r, float *tmp)
+// Running sums: across along each row, down with a sum per column (row by row, in memory order). `scratch`: w h n + w n
+// floats of the caller's (any thread), or NULL: the hunk's (the main thread).
+static void TexMgr_BoxBlur (float *a, int n, int w, int h, int r, float *scratch)
 {
-	int		stride = w * n, mark = Hunk_LowMark ();
+	int		stride = w * n, mark = scratch ? 0 : Hunk_LowMark ();
 	float	inv = 1.f / (2 * r + 1);
-	float	*copy = (float *) Hunk_AllocNoFill (w * h * n * sizeof (float)), *sums = (float *) Hunk_AllocNoFill (stride * sizeof (float));
+	float	*copy = scratch ? scratch : (float *) Hunk_AllocNoFill (w * h * n * sizeof (float));
+	float	*sums = scratch ? scratch + w * h * n : (float *) Hunk_AllocNoFill (stride * sizeof (float));
 
-	(void) tmp;
 	TexMgr_ForRows (h, w * h, [&] (int y)
 	{
 		float *row = a + y * stride, *out = copy + y * stride, sum[4];
@@ -307,15 +308,17 @@ static void TexMgr_BoxBlur (float *a, int n, int w, int h, int r, float *tmp)
 			}
 		}
 	});
-	Hunk_FreeToLowMark (mark);
+	if (!scratch)
+		Hunk_FreeToLowMark (mark);
 }
 
 // `out` (3 channels): `in` blurred over the islands only (a convolution normalised by `wgt`, the islands' coverage):
-// three box passes of radius r (a Gaussian of sigma sqrt(r (r + 1))), or with r 0 a 1 2 1 pass (sigma 0.7).
-static void TexMgr_BlurIslands (float *out, const float *in, const float *wgt, int w, int h, int r, float *tmp)
+// three box passes of radius r (a Gaussian of sigma sqrt(r (r + 1))), or with r 0 a 1 2 1 pass (sigma 0.7). `scratch`:
+// w h 8 + w 4 floats of the caller's (any thread), or NULL: the hunk's (the main thread).
+static void TexMgr_BlurIslands (float *out, const float *in, const float *wgt, int w, int h, int r, float *scratch)
 {
-	int		pass, count = w * h, mark = Hunk_LowMark ();
-	float	*acc = (float *) Hunk_AllocNoFill (count * 4 * sizeof (float));
+	int		pass, count = w * h, mark = scratch ? 0 : Hunk_LowMark ();
+	float	*acc = scratch ? scratch : (float *) Hunk_AllocNoFill (count * 4 * sizeof (float));
 
 	TexMgr_ForRows (h, count, [&] (int y)
 	{
@@ -329,7 +332,7 @@ static void TexMgr_BlurIslands (float *out, const float *in, const float *wgt, i
 	});
 	if (r <= 0)
 	{
-		float *copy = (float *) Hunk_AllocNoFill (count * 4 * sizeof (float));
+		float *copy = scratch ? scratch + count * 4 : (float *) Hunk_AllocNoFill (count * 4 * sizeof (float));
 		for (pass = 0; pass < 2; pass++)
 		{
 			memcpy (copy, acc, count * 4 * sizeof (float));
@@ -348,7 +351,7 @@ static void TexMgr_BlurIslands (float *out, const float *in, const float *wgt, i
 	}
 	else
 		for (pass = 0; pass < 3; pass++)
-			TexMgr_BoxBlur (acc, 4, w, h, r, tmp);
+			TexMgr_BoxBlur (acc, 4, w, h, r, scratch ? scratch + count * 4 : NULL);
 	TexMgr_ForRows (h, count, [&] (int y)
 	{
 		for (int i = y * w; i < (y + 1) * w; i++)
@@ -359,7 +362,8 @@ static void TexMgr_BlurIslands (float *out, const float *in, const float *wgt, i
 			out[i*3+2] = acc[i*4+2] * k;
 		}
 	});
-	Hunk_FreeToLowMark (mark);
+	if (!scratch)
+		Hunk_FreeToLowMark (mark);
 }
 
 // The slopes of the three channels of `img` at x, y (central differences, clamped at the edges), per texel.
@@ -379,8 +383,8 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 {
 	static constexpr int	radius[SKIN_FORMS] = {1, 3, 5};			// sigma 1.4, 3.5, 5.5 texels (of the model's skin)
 	static constexpr float	formweight[SKIN_FORMS] = {0.8f, 0.9f, 0.7f};
-	int		i, s, mark, count = width * height, hist[256], seen, below;
-	float	*col, *blurred, *wgt, *gx, *gy, *jt, *tmp, *lum, *h = NULL, *fine, *forms;
+	int		i, s, mark, count = width * height, below;
+	float	*col, *wgt, *gx, *gy, *jt, *lum, *h = NULL, *fine, *forms;
 	short	*bins;
 	float	noise;
 	double	start = Sys_DoubleTime (), tformed, theights, tfine;
@@ -389,7 +393,6 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 		return;
 	mark = Hunk_LowMark ();
 	col = (float *) Hunk_AllocNoFill (count * 3 * sizeof (float));
-	blurred = (float *) Hunk_AllocNoFill (count * 3 * sizeof (float));
 	jt = (float *) Hunk_AllocNoFill (count * 3 * sizeof (float));
 	wgt = (float *) Hunk_AllocNoFill (count * sizeof (float));
 	gx = (float *) Hunk_Alloc (count * sizeof (float));
@@ -397,7 +400,6 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 	fine = (float *) Hunk_AllocNoFill (count * sizeof (float));
 	forms = (float *) Hunk_AllocNoFill (count * sizeof (float));
 	lum = (float *) Hunk_AllocNoFill (count * sizeof (float));
-	tmp = (float *) Hunk_AllocNoFill (q_max (width, height) * sizeof (float));
 	bins = (short *) Hunk_AllocNoFill (count * sizeof (short)); // the edges' slopes' histogram bins (-1: off the islands)
 
 	// brightness and two colour differences; the islands' coverage; the materials' weights for edges and forms
@@ -426,77 +428,132 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 	}
 	});
 
-	// edges: the slopes of the 1 2 1 blur, kept where coherent (the structure tensor, over about 1.4 texels) and
-	// over the noise (the median slope within the islands)
-	TexMgr_BlurIslands (blurred, col, wgt, width, height, 0, tmp);
-	TexMgr_ForRows (height, count, [&] (int row)
+	// The edges (fine) and the three forms worked out at once on the pool, each from col and wgt into its own buffers
+	// (heap, not the hunk: other threads), their slopes then added to gx, gy in the order one thread adds them (fine,
+	// then the forms by size): the same sums. Larger images (more than 512 x 512: replacement skins, buffers of 200
+	// bytes a texel) take the steps in turn on this thread's buffers, adding as they go.
+	const qboolean together = count <= 512 * 512;
+	const int sets = together ? 1 + SKIN_FORMS : 1, blurfloats = count * 8 + width * 4;
+	float *extra = (float *) VR_HeapMalloc ((size_t) sets * (count * 3 + blurfloats + (together ? count * 2 : 0)) * sizeof (float));
+	float *setblurred[1 + SKIN_FORMS], *setscratch[1 + SKIN_FORMS], *setx[1 + SKIN_FORMS], *sety[1 + SKIN_FORMS];
+	for (s = 0; s < 1 + SKIN_FORMS; s++)
 	{
-		float sd[6];
-		for (int sx = 0; sx < width; sx++)
-		{
-			int si = row * width + sx;
-			TexMgr_Slopes (blurred, width, height, sx, row, sd);
-			jt[si*3+0] = sd[0] * sd[0];
-			jt[si*3+1] = sd[1] * sd[1];
-			jt[si*3+2] = sd[0] * sd[1];
-			bins[si] = wgt[si] >= 1.f ? (short) CLAMP (0, (int)(sqrtf (sd[0] * sd[0] + sd[1] * sd[1]) * 1024.f), 255) : -1;
-		}
-	});
-	memset (hist, 0, sizeof (hist));
-	for (i = 0, seen = 0; i < count; i++)
-		if (bins[i] >= 0)
-		{
-			hist[bins[i]]++;
-			seen++;
-		}
-	for (s = 0; s < 3; s++)
-		TexMgr_BoxBlur (jt, 3, width, height, 1, tmp);
-	for (i = 0, below = 0; i < 255 && below + hist[i] < seen / 2; i++)
-		below += hist[i];
-	noise = (i + 0.5f) / 1024.f;
-	TexMgr_ForRows (height, count, [&] (int y)
-	{
-		float d[6];
-		for (int x = 0; x < width; x++)
-		{
-			float gl, gc, jxx, jyy, jxy, tr, coh, keep;
-			int i = y * width + x;
-			TexMgr_Slopes (blurred, width, height, x, y, d);
-			gl = d[0] * d[0] + d[1] * d[1];
-			gc = d[2] * d[2] + d[3] * d[3] + d[4] * d[4] + d[5] * d[5];
-			jxx = jt[i*3+0]; jyy = jt[i*3+1]; jxy = jt[i*3+2];
-			tr = jxx + jyy;
-			coh = tr > 1e-12f ? ((jxx - jyy) * (jxx - jyy) + 4.f * jxy * jxy) / (tr * tr) : 0.f; // ((l1 - l2) / (l1 + l2))^2
-			keep = TexMgr_Smoothstep (noise * 0.8f, noise * 2.5f, sqrtf (gl)) * (0.35f + 0.65f * coh) *
-				gl / (gl + SKIN_COLOR * gc + 1e-9f) * fine[i] * SKIN_FINE;
-			gx[i] += d[0] * keep;
-			gy[i] += d[1] * keep;
-		}
-	});
-
+		float *base = extra + (size_t) (together ? s : 0) * (count * 3 + blurfloats + (together ? count * 2 : 0));
+		setblurred[s] = base;
+		setscratch[s] = base + count * 3;
+		setx[s] = together ? base + count * 3 + blurfloats : gx; // (in turn: added straight to gx, gy)
+		sety[s] = together ? setx[s] + count : gy;
+	}
 	tfine = Sys_DoubleTime ();
-	// forms: the slopes of broader blurs (a blurred step's slope falls as 1 / sigma: made up for by its square root)
-	for (s = 0; s < SKIN_FORMS; s++)
+	qvr::jobs::parallelFor (normalmapSite, 1 + SKIN_FORMS, 1, [&] (za::SizeT begin, za::SizeT end)
 	{
-		int r = radius[s] * q_max (1, (int)(texelsperunit + 0.5f)); // an image finer than the skin: as wide on the model
-		float k = formweight[s] * sqrtf (sqrtf (r * (r + 1.f)));
-		TexMgr_BlurIslands (blurred, col, wgt, width, height, r, tmp);
+		for (za::SizeT step = begin; step < end; step++)
+		{
+			float *const blur = setblurred[step], *const scratch = setscratch[step], *const ox = setx[step], *const oy = sety[step];
+			const bool add = ox == gx;
+			if (step == 0)
+			{
+				// edges: the slopes of the 1 2 1 blur, kept where coherent (the structure tensor, over about 1.4 texels) and
+				// over the noise (the median slope within the islands)
+				int fhist[256], fseen, fbelow, fi;
+				float fnoise;
+				TexMgr_BlurIslands (blur, col, wgt, width, height, 0, scratch);
+				TexMgr_ForRows (height, count, [&] (int row)
+				{
+					float sd[6];
+					for (int sx = 0; sx < width; sx++)
+					{
+						int si = row * width + sx;
+						TexMgr_Slopes (blur, width, height, sx, row, sd);
+						jt[si*3+0] = sd[0] * sd[0];
+						jt[si*3+1] = sd[1] * sd[1];
+						jt[si*3+2] = sd[0] * sd[1];
+						bins[si] = wgt[si] >= 1.f ? (short) CLAMP (0, (int)(sqrtf (sd[0] * sd[0] + sd[1] * sd[1]) * 1024.f), 255) : -1;
+					}
+				});
+				memset (fhist, 0, sizeof (fhist));
+				for (fi = 0, fseen = 0; fi < count; fi++)
+					if (bins[fi] >= 0)
+					{
+						fhist[bins[fi]]++;
+						fseen++;
+					}
+				for (fi = 0; fi < 3; fi++)
+					TexMgr_BoxBlur (jt, 3, width, height, 1, scratch);
+				for (fi = 0, fbelow = 0; fi < 255 && fbelow + fhist[fi] < fseen / 2; fi++)
+					fbelow += fhist[fi];
+				fnoise = (fi + 0.5f) / 1024.f;
+				noise = fnoise;
+				TexMgr_ForRows (height, count, [&] (int y)
+				{
+					float d[6];
+					for (int x = 0; x < width; x++)
+					{
+						float gl, gc, jxx, jyy, jxy, tr, coh, keep;
+						int i = y * width + x;
+						TexMgr_Slopes (blur, width, height, x, y, d);
+						gl = d[0] * d[0] + d[1] * d[1];
+						gc = d[2] * d[2] + d[3] * d[3] + d[4] * d[4] + d[5] * d[5];
+						jxx = jt[i*3+0]; jyy = jt[i*3+1]; jxy = jt[i*3+2];
+						tr = jxx + jyy;
+						coh = tr > 1e-12f ? ((jxx - jyy) * (jxx - jyy) + 4.f * jxy * jxy) / (tr * tr) : 0.f; // ((l1 - l2) / (l1 + l2))^2
+						keep = TexMgr_Smoothstep (fnoise * 0.8f, fnoise * 2.5f, sqrtf (gl)) * (0.35f + 0.65f * coh) *
+							gl / (gl + SKIN_COLOR * gc + 1e-9f) * fine[i] * SKIN_FINE;
+						if (add)
+						{
+							ox[i] += d[0] * keep;
+							oy[i] += d[1] * keep;
+						}
+						else
+						{
+							ox[i] = d[0] * keep;
+							oy[i] = d[1] * keep;
+						}
+					}
+				});
+				continue;
+			}
+			// forms: the slopes of broader blurs (a blurred step's slope falls as 1 / sigma: made up for by its square root)
+			const int fs = (int) step - 1;
+			int r = radius[fs] * q_max (1, (int)(texelsperunit + 0.5f)); // an image finer than the skin: as wide on the model
+			float k = formweight[fs] * sqrtf (sqrtf (r * (r + 1.f)));
+			TexMgr_BlurIslands (blur, col, wgt, width, height, r, scratch);
+			TexMgr_ForRows (height, count, [&] (int y)
+			{
+				float d[6];
+				for (int x = 0; x < width; x++)
+				{
+					float gl, gc;
+					int i = y * width + x;
+					TexMgr_Slopes (blur, width, height, x, y, d);
+					gl = d[0] * d[0] + d[1] * d[1];
+					gc = d[2] * d[2] + d[3] * d[3] + d[4] * d[4] + d[5] * d[5];
+					gl = k * forms[i] * gl / (gl + SKIN_COLOR * gc + 1e-9f);
+					if (add)
+					{
+						ox[i] += d[0] * gl;
+						oy[i] += d[1] * gl;
+					}
+					else
+					{
+						ox[i] = d[0] * gl;
+						oy[i] = d[1] * gl;
+					}
+				}
+			});
+		}
+	}, together);
+	if (together)
 		TexMgr_ForRows (height, count, [&] (int y)
 		{
-			float d[6];
-			for (int x = 0; x < width; x++)
-			{
-				float gl, gc;
-				int i = y * width + x;
-				TexMgr_Slopes (blurred, width, height, x, y, d);
-				gl = d[0] * d[0] + d[1] * d[1];
-				gc = d[2] * d[2] + d[3] * d[3] + d[4] * d[4] + d[5] * d[5];
-				gl = k * forms[i] * gl / (gl + SKIN_COLOR * gc + 1e-9f);
-				gx[i] += d[0] * gl;
-				gy[i] += d[1] * gl;
-			}
+			for (int i = y * width; i < (y + 1) * width; i++)
+				for (int step = 0; step < 1 + SKIN_FORMS; step++)
+				{
+					gx[i] += setx[step][i];
+					gy[i] += sety[step][i];
+				}
 		});
-	}
+	VR_HeapFree (extra);
 
 	tformed = Sys_DoubleTime ();
 	if (heights)
@@ -547,7 +604,7 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 	}
 	});
 	Hunk_FreeToLowMark (mark);
-	Con_DPrintf ("skin normal map %d x %d made in %.1f ms (fine %.1f forms %.1f heights %.1f)" "\n", width, height, (Sys_DoubleTime () - start) * 1000.0, (tfine-start)*1000.0, (tformed-tfine)*1000.0, (theights-tformed)*1000.0);
+	Con_DPrintf ("skin normal map %d x %d made in %.1f ms (colours %.1f edges and forms %.1f heights %.1f)" "\n", width, height, (Sys_DoubleTime () - start) * 1000.0, (tfine-start)*1000.0, (tformed-tfine)*1000.0, (theights-tformed)*1000.0);
 }
 
 /*
