@@ -223,6 +223,7 @@ void main()
 
 [[nodiscard]] GLuint compileShader(GLenum type, const za::String& source, const char* name)
 {
+    VR_GLStep("compile %s %s shader", name, type == GL_VERTEX_SHADER ? "vertex" : type == GL_FRAGMENT_SHADER ? "fragment" : "compute");
     const GLuint shader = GL_CreateShaderFunc(type);
     const char* text = source.cStr();
     GL_ShaderSourceFunc(shader, 1, &text, nullptr);
@@ -263,6 +264,7 @@ void main()
         GL_AttachShaderFunc(p, vs);
     }
     GL_AttachShaderFunc(p, s);
+    VR_GLStep("link %s", name);
     GL_LinkProgramFunc(p);
     if(vs)
     {

@@ -170,6 +170,30 @@ void VR_AddonForSave (const char *savepath, const char *map);	// Host_Loadgame_f
 void VR_AddonOnSave (const char *savepath);	// Host_Savegame_f: the active map package noted beside the save
 void VR_NoteMapSpawn (const char *map);	// SV_SpawnServer: the map and the map package mounted, the crash report's context line
 void VR_SetCrashContext (const char *what);	// vr_crash.cpp: that line (qvr_crash.txt's second)
+void VR_SetCrashGpu (const char *line);	// vr_crash.cpp: GL_Init: the GPU, its driver's GL version and the safe mode, the report's "GPU:" line
+// The GL start-up's breadcrumbs and safe mode (vr_glsafe.cpp; ROUND21.md "AMD start-up crash").
+enum
+{
+	VR_GLSAFE_BUFFER_STORAGE = 1 << 0,	// persistent, coherent mapped buffers (GL_ARB_buffer_storage)
+	VR_GLSAFE_BINDLESS = 1 << 1,		// GL_ARB_bindless_texture
+	VR_GLSAFE_MULTI_BIND = 1 << 2,		// GL_ARB_multi_bind
+	VR_GLSAFE_CLIP_CONTROL = 1 << 3,	// GL_ARB_clip_control: reversed Z, float depth
+	VR_GLSAFE_VIEWPORT_LAYER = 1 << 4,	// the shadow casters' layered draws (gl_ViewportIndex in vertex shaders)
+	VR_GLSAFE_DEBUG_OUTPUT = 1 << 5,	// -gldebug's callback
+	VR_GLSAFE_MSAA = 1 << 6,		// multisampled scene targets
+	VR_GLSAFE_SHADOW_ATLAS = 1 << 7		// the shadow atlas at most 4096
+};
+void VR_GLStep (const char *fmt, ...) FUNC_PRINTF(1,2);	// a breadcrumb, before the GL call it names: the crash report's last steps; gl_startup.log while the game starts
+int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the last `count` breadcrumbs, a line each; how many
+void VR_GLStartupBegin (void);	// VID_Init, before the window: the last start's log read, safe mode decided
+void VR_GLStartupVendor (const char *vendor, const char *renderer, const char *version);	// GL_Init: the vendor's workarounds
+int VR_GLSafeOff (int feature);	// nonzero: VR_GLSAFE_* off this run (safe mode or a vendor workaround; logged once)
+int VR_GLSafeMode (void);	// nonzero: safe mode this run
+const char *VR_GLSafeDescribe (void);	// "off", "on (-glsafe)", ...
+void VR_GLFrame (void);	// GL_EndRendering, before the swap
+void VR_GLMapSpawned (const char *map);	// VR_NoteMapSpawn
+void VR_GLStartupShutdown (int error);	// Host_Shutdown: the start-up's log ended (a quit, an error)
+void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status
 unsigned VR_DescribeCallers (char *out, int outSize, int skip, int depth);	// vr_crash.cpp: the caller's stack as one line ("fn (file.c:12) < caller ..."); a hash of it (0: none; not Windows)
 const char *VR_ModelFile (const char *name);	// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)
 int VR_ModelReplacementOk (const char *name, const char *md5mesh);	// loadMd5Replacement: 0 refuses a jointed hand the rig can't use (vr_handrig.cpp)

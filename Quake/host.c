@@ -1783,6 +1783,7 @@ void Host_Shutdown(void)
 		return;
 	}
 	isdown = true;
+	VR_GLStartupShutdown (host_parms->errstate != 0); // QVR: a quit or an error ends the GL start-up's log well (vr/vr_glsafe.cpp)
 
 // keep Con_Printf from trying to update the screen
 	scr_disabled_for_loading = true;

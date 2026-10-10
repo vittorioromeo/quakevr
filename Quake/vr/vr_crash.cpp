@@ -64,6 +64,8 @@ extern "C" int VR_VersionIsDev (void)
 
 extern "C" void Con_DebugLog (const char *msg); // console.c: -condebug's qconsole.log
 extern "C" char com_gamedir[];                  // common.c: the game folder (the report names it)
+extern "C" int VR_GLRecentSteps (char *out, int outSize, int count); // vr_glsafe.cpp: the last GL breadcrumbs
+extern "C" const char *VR_GLSafeDescribe (void);                       // vr_glsafe.cpp: the run's GL safe mode
 
 /* Crash reports (docs/vr-port/TESTING.md, "Crash reports"). Every fatal end of the game writes one:
  *   - a crash: an exception no one handles (an access violation, a stack overflow, ...) on any thread: the unhandled
@@ -178,6 +180,16 @@ int reportLen = 0;
 int reportHeadLen = 0; // the report's head (what, where, the stack): what stderr, the log and the dialog get
 char dialogText[4096];
 char frameText[1024];
+char crashGpu[512]; // VR_SetCrashGpu: the report's "GPU:" line
+char glSteps[6144]; // the last GL breadcrumbs (VR_GLRecentSteps, vr_glsafe.cpp)
+// The main thread's context and stack, copied the moment another thread crashed (requestReport; a GL driver's own
+// thread: what the game had asked of it). The walk reads the copy: the main thread runs on while the report is written.
+constexpr SIZE_T mainStackMax = 512 * 1024;
+unsigned char mainStack[mainStackMax];
+DWORD64 mainStackLo = 0;
+DWORD64 mainStackHi = 0;
+CONTEXT mainContext;
+bool mainCaptured = false;
 wchar_t wideText[8192];
 wchar_t widePath[MAX_PATH * 2];
 
@@ -398,7 +410,7 @@ bool lockDbgHelpForReport ()
 
 // The stack from the thread's context (StackWalk64: the unwind tables), at most 64 frames.
 // The frames above the one holding startPc (0: none; not among the top 16: none).
-int framesAbove (const CONTEXT *start, HANDLE thread, DWORD64 startPc)
+int framesAbove (const CONTEXT *start, HANDLE thread, DWORD64 startPc, PREAD_PROCESS_MEMORY_ROUTINE64 readMemory)
 {
 	CONTEXT ctx = *start;
 	STACKFRAME64 sf;
@@ -412,16 +424,17 @@ int framesAbove (const CONTEXT *start, HANDLE thread, DWORD64 startPc)
 	sf.AddrPC.Offset = ctx.Eip; sf.AddrFrame.Offset = ctx.Ebp; sf.AddrStack.Offset = ctx.Esp;
 #endif
 	sf.AddrPC.Mode = sf.AddrFrame.Mode = sf.AddrStack.Mode = AddrModeFlat;
-	for (i = 0; i < 16 && dbgHelp.stackWalk64 (QVR_MACHINE, GetCurrentProcess (), thread, &sf, &ctx, NULL,
+	for (i = 0; i < 16 && dbgHelp.stackWalk64 (QVR_MACHINE, GetCurrentProcess (), thread, &sf, &ctx, readMemory,
 			dbgHelp.functionTableAccess, dbgHelp.getModuleBase, NULL); i++)
 		if (sf.AddrPC.Offset == startPc)
 			return i;
 	return 0;
 }
 
-void appendStack (const CONTEXT *start, HANDLE thread, DWORD64 startPc)
+// readMemory: NULL reads the process (the thread's own stack as it is now).
+void appendStack (const CONTEXT *start, HANDLE thread, DWORD64 startPc, PREAD_PROCESS_MEMORY_ROUTINE64 readMemory)
 {
-	const int skip = framesAbove (start, thread, startPc);
+	const int skip = framesAbove (start, thread, startPc, readMemory);
 	CONTEXT ctx = *start;
 	STACKFRAME64 sf;
 	int i, shown = 0;
@@ -440,7 +453,7 @@ void appendStack (const CONTEXT *start, HANDLE thread, DWORD64 startPc)
 	}
 	DWORD64 lastPc = 0;
 	int repeats = 0; // the last frame's repeats not printed (a recursion: one line for them)
-	for (i = 0; i < 1000 + skip && shown < 64 && dbgHelp.stackWalk64 (QVR_MACHINE, GetCurrentProcess (), thread, &sf, &ctx, NULL,
+	for (i = 0; i < 1000 + skip && shown < 64 && dbgHelp.stackWalk64 (QVR_MACHINE, GetCurrentProcess (), thread, &sf, &ctx, readMemory,
 			dbgHelp.functionTableAccess, dbgHelp.getModuleBase, NULL); i++)
 	{
 		if (!sf.AddrPC.Offset)
@@ -590,6 +603,7 @@ void appendHeader (const CrashRequest &req)
 	}
 	appendf ("When: %04u-%02u-%02u %02u:%02u:%02u, %.1f s after start\n", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond,
 		(double)(GetTickCount64 () - startTick) / 1000.0);
+	appendf ("GPU: %s; GL safe mode %s\n", crashGpu[0] ? crashGpu : "no GL context yet", VR_GLSafeDescribe ());
 	appendf ("Map: %s; game folder %s\n", crashContext[0] ? crashContext : "no map spawned yet", com_gamedir[0] ? com_gamedir : "not set yet");
 	appendf ("Files: %s and %s\n", reportPath, dumpPath);
 	appendf ("\nStack (thread %lu):\n", (unsigned long)req.threadId);
@@ -601,13 +615,60 @@ void tryStack (const CrashRequest *req)
 	__try
 	{
 		HANDLE th = OpenThread (THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, req->threadId);
-		appendStack (req->ep->ContextRecord, th ? th : GetCurrentThread (), req->startPc);
+		appendStack (req->ep->ContextRecord, th ? th : GetCurrentThread (), req->startPc, NULL);
 		if (th)
 			CloseHandle (th);
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
 		appendf ("  (the stack walk failed: the .dmp has it)\n");
+	}
+}
+
+// The main thread's stack copied at the crash (snapshotMainThread), when another thread crashed.
+BOOL CALLBACK readMainStack (HANDLE process, DWORD64 base, PVOID buffer, DWORD size, LPDWORD read)
+{
+	SIZE_T got = 0;
+	BOOL ok;
+	if (base >= mainStackLo && base + size <= mainStackHi)
+	{
+		memcpy (buffer, mainStack + (base - mainStackLo), size);
+		*read = size;
+		return TRUE;
+	}
+	ok = ReadProcessMemory (process, (LPCVOID)(uintptr_t)base, buffer, size, &got);
+	*read = (DWORD)got;
+	return ok;
+}
+
+void tryMainStack (const CrashRequest *req)
+{
+	if (!mainCaptured || req->threadId == mainThreadId)
+		return;
+	__try
+	{
+		appendf ("\nThe main thread's stack when it crashed (thread %lu):\n", (unsigned long)mainThreadId);
+		HANDLE th = OpenThread (THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, mainThreadId);
+		appendStack (&mainContext, th ? th : GetCurrentThread (), 0, readMainStack);
+		if (th)
+			CloseHandle (th);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		appendf ("  (the walk failed: the .dmp has it)\n");
+	}
+}
+
+// The last GL steps (vr_glsafe.cpp): the start-up's, and the shaders compiled since.
+void tryGLSteps ()
+{
+	__try
+	{
+		if (VR_GLRecentSteps (glSteps, sizeof (glSteps), 12) > 0)
+			appendf ("\nLast GL steps (oldest first; each named before its GL calls ran):\n%s", glSteps);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
 	}
 }
 
@@ -711,6 +772,8 @@ void writeReport (const CrashRequest &req)
 	}
 	tryHeader (&req);
 	tryStack (&req);
+	tryMainStack (&req);
+	tryGLSteps ();
 	reportHeadLen = reportLen;
 	appendf ("\nCommand line: %s\n", GetCommandLineA ());
 	appendf ("\nModules (base, size, file):\n");
@@ -773,6 +836,51 @@ void startReporter ()
 /* Asks for the report of the calling thread's failure and waits for it. false: no report from this call (this
  * thread's report is under way already: a crash in the shutdown after an error's report, or in the report itself).
  * A second thread failing while another's report is under way never returns: that one ends the process. */
+/* Another thread crashed: the main thread's context and stack copied now (it is suspended only for that: no lock it
+ * may hold is waited for), before it runs on. A stack overflow's thread has no room for this. */
+void snapshotMainThread (EXCEPTION_POINTERS *ep)
+{
+	HANDLE th;
+	if (!mainThreadId || GetCurrentThreadId () == mainThreadId || !ep || ep->ExceptionRecord->ExceptionCode == EXCEPTION_STACK_OVERFLOW)
+		return;
+	th = OpenThread (THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, mainThreadId);
+	if (!th)
+		return;
+	if (SuspendThread (th) != (DWORD)-1)
+	{
+		__try
+		{
+			MEMORY_BASIC_INFORMATION mbi;
+			memset (&mainContext, 0, sizeof (mainContext));
+			mainContext.ContextFlags = CONTEXT_FULL;
+			if (GetThreadContext (th, &mainContext))
+			{
+#ifdef _M_X64
+				const DWORD64 lo = mainContext.Rsp;
+#else
+				const DWORD64 lo = mainContext.Esp;
+#endif
+				if (VirtualQuery ((LPCVOID)(uintptr_t)lo, &mbi, sizeof (mbi)))
+				{
+					DWORD64 hi = (DWORD64)(uintptr_t)mbi.BaseAddress + mbi.RegionSize;
+					if (hi - lo > mainStackMax)
+						hi = lo + mainStackMax;
+					memcpy (mainStack, (const void *)(uintptr_t)lo, (size_t)(hi - lo));
+					mainStackLo = lo;
+					mainStackHi = hi;
+					mainCaptured = true;
+				}
+			}
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			mainCaptured = false;
+		}
+		ResumeThread (th);
+	}
+	CloseHandle (th);
+}
+
 bool requestReport (EXCEPTION_POINTERS *ep, const char *what, DWORD64 startPc, bool dialog, const wchar_t *dialogTitle)
 {
 	const DWORD me = GetCurrentThreadId ();
@@ -787,6 +895,7 @@ bool requestReport (EXCEPTION_POINTERS *ep, const char *what, DWORD64 startPc, b
 		for (;;)
 			Sleep (INFINITE);
 	}
+	snapshotMainThread (what ? NULL : ep); // (an exception's: an error or a failed check names its own place)
 	reporter.req.ep = ep;
 	reporter.req.what = what;
 	reporter.req.threadId = me;
@@ -924,6 +1033,11 @@ extern "C" __declspec(noinline) void VR_FatalError (const char *message)
 extern "C" const char *VR_LastCrashReport (void)
 {
 	return reportPath;
+}
+
+extern "C" void VR_SetCrashGpu (const char *line)
+{
+	snprintf (crashGpu, sizeof (crashGpu), "%s", line ? line : "");
 }
 
 extern "C" void VR_SetCrashContext (const char *what)
@@ -1121,6 +1235,11 @@ extern "C" const char *VR_LastCrashReport (void)
 extern "C" void VR_SetCrashContext (const char *what)
 {
 	(void) what;
+}
+
+extern "C" void VR_SetCrashGpu (const char *line)
+{
+	(void) line;
 }
 
 extern "C" void VR_SetCrashDir (const char *dir)

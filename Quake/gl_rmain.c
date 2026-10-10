@@ -244,6 +244,8 @@ void GL_CreateFrameBuffers (void)
 	/* scene framebuffer (color + depth + stencil, potentially multisampled) */
 	framebufs.scene.samples = VR_SceneSamples (Q_nextPow2 ((int) q_max (1.f, vid_fsaa.value))); // QVR
 	framebufs.scene.samples = CLAMP (1, framebufs.scene.samples, framebufs.max_samples);
+	if (framebufs.scene.samples > 1 && VR_GLSafeOff (VR_GLSAFE_MSAA)) // QVR: safe mode (vr/vr_glsafe.cpp)
+		framebufs.scene.samples = 1;
 
 	framebufs.scene.color_tex = GL_CreateFBOAttachment (color_format, framebufs.scene.samples, GL_NEAREST, "scene colors");
 	framebufs.scene.depth_stencil_tex = GL_CreateFBOAttachment (depth_format, framebufs.scene.samples, GL_NEAREST, "scene depth/stencil");

@@ -451,6 +451,14 @@ QVR_CVAR(vr_nearclip_held, "2", CVAR_ARCHIVE)
 // The eyes' depth buffer: 1 32-bit float (with reversed Z, precise at any distance with a small near plane), 0 24-bit
 // fixed point as the window's. Applies when the eyes' framebuffers are next made (vr_restart).
 QVR_CVAR(vr_depth_float, "1", CVAR_ARCHIVE)
+// GL safe mode (vr_glsafe.cpp; read before the window opens, so a change applies at the next start): 1 the optional GL
+// features off (persistent mapped buffers, bindless, multi-bind, clip control, layered shadow casters, debug output,
+// MSAA, the 8192 shadow atlas), each logged; also "-glsafe", and automatic after a start that crashed before its first
+// map (Debug > Startup; vr_glsafe_status, vr_glsafe_retry).
+QVR_CVAR(vr_glsafe, "0", CVAR_ARCHIVE)
+// GL vendor workarounds at start-up: 1 on AMD/ATI bindless textures off (as -nobindless: 1.0.0 crashed in AMD's driver
+// at start-up on an RX 7900 XTX, and started with it), 0 every feature the driver offers.
+QVR_CVAR(vr_gl_workarounds, "1", CVAR_ARCHIVE)
 
 // The OpenXR runtime (vr_xr_runtime.hpp; an XR_RUNTIME_JSON the game was started with wins): 4 Auto, the one whose app is
 // running (Virtual Desktop's Streamer: VDXR, or SteamVR when VD's own setting says so; SteamVR; Meta's OVRServer), else the system's active one; 0 the system's

@@ -143,6 +143,7 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		strings[numstrings++] = extradefs;
 	strings[numstrings++] = source;
 
+	VR_GLStep ("compile %s %s shader", name, typestr); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	shader = GL_CreateShaderFunc (type);
 	GL_ObjectLabelFunc (GL_SHADER, shader, -1, name);
 	GL_ShaderSourceFunc (shader, numstrings, strings, NULL);
@@ -180,6 +181,7 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 		++shaders;
 	}
 
+	VR_GLStep ("link %s", name); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	GL_LinkProgramFunc (program);
 	GL_GetProgramivFunc (program, GL_LINK_STATUS, &status);
 
@@ -376,13 +378,13 @@ void GL_CreateShaders (void)
 				for (poseverttype = 0; poseverttype < 3; poseverttype++) 
 					glprogs.alias[oit][mode][alphatest][poseverttype] =
 					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias|OIT %d; MODE %d; ALPHATEST %d; POSEVERTTYPE %d", oit, mode, alphatest, poseverttype);
-	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR
-		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|POSEVERTTYPE %d", poseverttype);
+	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR; MODE 0 (standard) in these: an undefined name in #if is an error in GLSL (strict drivers)
+		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|MODE 0; POSEVERTTYPE %d", poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: into all their faces at once (vr/vr_lighting.cpp)
 		glprogs.alias_depth_layered[poseverttype] = gl_viewport_layer_able ?
-			GL_CreateProgram (alias_vertex_shader, NULL, "alias depth layered|POSEVERTTYPE %d; LAYERED %d", poseverttype, gl_viewport_layer_able) : 0;
+			GL_CreateProgram (alias_vertex_shader, NULL, "alias depth layered|MODE 0; POSEVERTTYPE %d; LAYERED %d", poseverttype, gl_viewport_layer_able) : 0;
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: wounds painted on models (vr/vr_wounds.cpp)
-		glprogs.woundpaint[poseverttype] = GL_CreateProgram (alias_vertex_shader, wound_paint_fragment_shader, "wound paint|POSEVERTTYPE %d; WOUNDPAINT 1", poseverttype);
+		glprogs.woundpaint[poseverttype] = GL_CreateProgram (alias_vertex_shader, wound_paint_fragment_shader, "wound paint|MODE 0; POSEVERTTYPE %d; WOUNDPAINT 1", poseverttype);
 	glprogs.woundpaintbox = GL_CreateProgram (wound_paint_box_vertex_shader, wound_paint_fragment_shader, "wound paint box"); // QVR: a held brush model's (vr/vr_wounds.cpp)
 
 	glprogs.debug3d = GL_CreateProgram (debug3d_vertex_shader, debug3d_fragment_shader, "debug3d");

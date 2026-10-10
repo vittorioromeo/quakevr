@@ -1051,7 +1051,9 @@ static void GL_CheckExtensions (void)
 		glmarkers = true;
 
 #ifdef NDEBUG
-	if (COM_CheckParm("-gldebug"))
+	if (COM_CheckParm("-gldebug") && !VR_GLSafeOff (VR_GLSAFE_DEBUG_OUTPUT)) // QVR: safe mode
+#else
+	if (!VR_GLSafeOff (VR_GLSAFE_DEBUG_OUTPUT)) // QVR: safe mode
 #endif
 	{
 		glmarkers = true;
@@ -1104,18 +1106,21 @@ static void GL_CheckExtensions (void)
 
 	gl_buffer_storage_able =
 		!COM_CheckParm ("-nobufferstorage") &&
+		!VR_GLSafeOff (VR_GLSAFE_BUFFER_STORAGE) && // QVR: safe mode, vendor workarounds (vr/vr_glsafe.cpp)
 		GL_FindExtension ("GL_ARB_buffer_storage") &&
 		GL_InitFunctions (gl_arb_buffer_storage_functions, false)
 	;
 
 	gl_multi_bind_able =
 		!COM_CheckParm ("-nomultibind") &&
+		!VR_GLSafeOff (VR_GLSAFE_MULTI_BIND) && // QVR: safe mode, vendor workarounds (vr/vr_glsafe.cpp)
 		GL_FindExtension ("GL_ARB_multi_bind") &&
 		GL_InitFunctions (gl_arb_multi_bind_functions, false)
 	;
 
 	gl_bindless_able =
 		!COM_CheckParm ("-nobindless") &&
+		!VR_GLSafeOff (VR_GLSAFE_BINDLESS) && // QVR: safe mode, vendor workarounds (vr/vr_glsafe.cpp)
 		GL_FindExtension ("GL_ARB_bindless_texture") &&
 		GL_FindExtension ("GL_ARB_shader_draw_parameters") &&
 		GL_InitFunctions (gl_arb_bindless_texture_functions, false)
@@ -1123,6 +1128,7 @@ static void GL_CheckExtensions (void)
 
 	gl_clipcontrol_able =
 		!COM_CheckParm ("-noclipcontrol") &&
+		!VR_GLSafeOff (VR_GLSAFE_CLIP_CONTROL) && // QVR: safe mode, vendor workarounds (vr/vr_glsafe.cpp)
 		GL_FindExtension ("GL_ARB_clip_control") &&
 		GL_InitFunctions (gl_arb_clip_control_functions, false)
 	;
@@ -1130,6 +1136,7 @@ static void GL_CheckExtensions (void)
 	// QVR: the shadow maps' casters drawn into all their faces at once (vr/vr_lighting.cpp, vr_shadow_layered)
 	gl_viewport_layer_able =
 		COM_CheckParm ("-noviewportlayer") ? 0 :
+		VR_GLSafeOff (VR_GLSAFE_VIEWPORT_LAYER) ? 0 : // safe mode; off on AMD/ATI (vr_gl_workarounds)
 		GL_FindExtension ("GL_ARB_shader_viewport_layer_array") ? 1 :
 		GL_FindExtension ("GL_AMD_vertex_shader_viewport_index") ? 2 :
 		GL_FindExtension ("GL_NV_viewport_array2") ? 3 : 0
@@ -1312,6 +1319,12 @@ static void GL_Init (void)
 	Con_SafePrintf ("GL_VENDOR:   %s\n", gl_vendor);
 	Con_SafePrintf ("GL_RENDERER: %s\n", gl_renderer);
 	Con_SafePrintf ("GL_VERSION:  %s\n", gl_version);
+	VR_GLStartupVendor (gl_vendor, gl_renderer, gl_version); // QVR: breadcrumbs, AMD's workarounds (vr/vr_glsafe.cpp)
+	{
+		char gpu[512];
+		q_snprintf (gpu, sizeof (gpu), "%s | %s | GL %s", gl_vendor ? gl_vendor : "?", gl_renderer ? gl_renderer : "?", gl_version ? gl_version : "?");
+		VR_SetCrashGpu (gpu); // QVR: the crash report's "GPU:" line
+	}
 
 	if (gl_version == NULL || sscanf(gl_version, "%d.%d", &gl_version_major, &gl_version_minor) < 2)
 	{
@@ -1322,8 +1335,10 @@ static void GL_Init (void)
 	if (gl_version_number < MIN_GL_VERSION)
 		Sys_Error("OpenGL " MIN_GL_VERSION_STR " required, found %d.%d\n", gl_version_major, gl_version_minor);
 
+	VR_GLStep ("GL functions and extensions (GL_CheckExtensions)"); // QVR
 	GL_CheckExtensions ();
 
+	VR_GLStep ("vertex array, buffer alignments"); // QVR
 	GL_GenVertexArraysFunc (1, &globalvao);
 	GL_BindVertexArrayFunc (globalvao);
 
@@ -1358,12 +1373,17 @@ static void GL_Init (void)
 	//johnfitz
 
 	VR_TIMED ("shaders compiled and linked (GL_CreateShaders)", GL_CreateShaders ()); // QVR: start-up timing (vr_startup_times)
+	VR_GLStep ("framebuffers (GL_CreateFrameBuffers)"); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	GL_CreateFrameBuffers ();
+	VR_GLStep ("light tiles (GLLight_CreateResources)");
 	GLLight_CreateResources ();
+	VR_GLStep ("palette (GLPalette_CreateResources)");
 	GLPalette_CreateResources ();
 
 	GL_ClearBufferBindings ();
+	VR_GLStep ("frame resources (GL_CreateFrameResources: %s buffers)", gl_buffer_storage_able ? "persistent mapped" : "plain");
 	GL_CreateFrameResources ();
+	VR_GLStep ("GL_Init done");
 }
 
 /*
@@ -1420,6 +1440,7 @@ void GL_EndRendering (void)
 	if (!scr_skipupdate)
 		VR_FrameDrawn (); // QVR: vr_screenshot_frames
 
+	VR_GLFrame (); // QVR: the start-up's breadcrumbs (vr/vr_glsafe.cpp)
 	if (!scr_skipupdate && !VR_SkipSwap ()) // QVR: unpaced test frames present only now and then
 	{
 		SDL_GL_SwapWindow(draw_context);
@@ -1626,6 +1647,8 @@ void	VID_Init (void)
 		"gl_compress_textures",
 		"r_softemu_metric",
 		"scr_pixelaspect",
+		"vr_glsafe", // QVR: GL safe mode, decided before the window opens (vr/vr_glsafe.cpp)
+		"vr_gl_workarounds",
 	};
 #define num_readvars	Q_COUNTOF(read_vars)
 
@@ -1698,6 +1721,7 @@ void	VID_Init (void)
 		CFG_CloseConfig();
 	}
 	CFG_ReadCvarOverrides(read_vars, num_readvars);
+	VR_GLStartupBegin (); // QVR: the last start's gl_startup.log read, this one's begun, safe mode decided
 
 	VID_InitModelist();
 	VID_InitMouseCursors();
@@ -1770,12 +1794,15 @@ void	VID_Init (void)
 	vid.colormap = host_colormap;
 	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 
+	VR_GLStep ("window and GL 4.3 core context (VID_SetMode %dx%d, fullscreen %d)", width, height, fullscreen); // QVR
 	VID_SetMode (width, height, refreshrate, fullscreen);
+	VR_GLStep ("vsync (VID_ApplyVSync)"); // QVR
 	VID_ApplyVSync ();
 
 	PL_SetWindowIcon();
 
 	GL_Init ();
+	VR_GLStep ("GL state (GL_SetupState)"); // QVR
 	GL_SetupState ();
 	cmd = Cmd_AddCommand ("gl_info", GL_Info_f); //johnfitz
 	if (cmd)

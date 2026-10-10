@@ -5140,6 +5140,19 @@ za::Vector<Item> pageDebugProfiling()
         command("Error: Host_Error", "vr_crash_test hosterror")
             .help("vr_crash_test hosterror: an error that ends the game session but not the program: back to the console, "
                   "with its caller's stack printed."),
+        header("Startup (GL safe mode)"),
+        toggle("GL Safe Mode", vr_glsafe)
+            .help("vr_glsafe, from the next start: the optional GL features off (persistent mapped buffers, bindless textures, "
+                  "multi-bind, clip control, layered shadow casters, debug output, MSAA, the 8192 shadow atlas), each one "
+                  "logged. Also -glsafe, and on by itself after a start that crashed before its first map."),
+        toggle("AMD Workarounds", vr_gl_workarounds)
+            .help("vr_gl_workarounds, from the next start: on AMD/ATI GPUs bindless textures off, as -nobindless (1.0.0 crashed "
+                  "in AMD's driver at start-up with them). Off: every feature the driver offers."),
+        command("GL Safe Mode Status", "vr_glsafe_status")
+            .help("vr_glsafe_status: whether this run is in safe mode and why, each feature, and the last GL steps "
+                  "(quakevr/crash/gl_startup.log has the start-up's)."),
+        command("Retry the Full Renderer", "vr_glsafe_retry")
+            .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
     };
 }
 

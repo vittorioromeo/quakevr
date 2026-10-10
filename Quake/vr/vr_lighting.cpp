@@ -1692,7 +1692,9 @@ extern "C" void VR_RenderShadowMaps(void)
     }
 
     // Pack this frame's faces.
-    const int atlasSize = static_cast<int>(pow2Floor(za::clamp(vr_shadow_atlas.value, 1024.f, 8192.f)));
+    // At most 8192, the driver's largest texture, and 4096 in GL safe mode (vr_glsafe.cpp).
+    const float atlasMax = VR_GLSafeOff(VR_GLSAFE_SHADOW_ATLAS) ? 4096.f : static_cast<float>(za::clamp(gl_max_texture_size, 1024, 8192));
+    const int atlasSize = static_cast<int>(pow2Floor(za::clamp(vr_shadow_atlas.value, 1024.f, atlasMax)));
     za::Vector<Request>& requests = shadowScratch.requests;
     requests.clear();
     for(DlightSlot& slot : dlightSlots)

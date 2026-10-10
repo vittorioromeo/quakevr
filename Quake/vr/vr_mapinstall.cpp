@@ -2482,6 +2482,7 @@ extern "C" void VR_NoteMapSpawn(const char* map)
         line += ", no map package";
     }
     VR_SetCrashContext(line.cStr());
+    VR_GLMapSpawned(map); // the GL start-up's end (vr_glsafe.cpp)
 }
 
 // `save`: the package mounted now, noted beside the save (removed when there is none).

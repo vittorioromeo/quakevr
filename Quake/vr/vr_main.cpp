@@ -1827,6 +1827,7 @@ extern "C" void VR_Init()
     state = new State{};
 
     VR_TimeInit(); // vr_startup_times, vr_walltime
+    VR_GLSafeInit(); // vr_glsafe_retry, vr_glsafe_status
     jobs::start(); // the game's thread pool (vr_jobs.hpp), first: the systems below post to it
     imgprefetch::start(); // the images the start-up and the first map load decode, decoded ahead (the file system is up)
     registerCvars();

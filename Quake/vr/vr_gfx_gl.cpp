@@ -411,6 +411,7 @@ bool programFailed[shadeCount][2][2]{};
 
 [[nodiscard]] GLuint compile(GLenum type, const char* source, const char* name)
 {
+    VR_GLStep("compile %s %s shader", name, type == GL_VERTEX_SHADER ? "vertex" : type == GL_FRAGMENT_SHADER ? "fragment" : "compute");
     const GLuint shader = GL_CreateShaderFunc(type);
     GL_ShaderSourceFunc(shader, 1, &source, nullptr);
     GL_CompileShaderFunc(shader);
@@ -971,6 +972,7 @@ unsigned glProgram(const char* vertex, const char* fragment, const char* name)
     {
         GL_AttachShaderFunc(p, fs);
     }
+    VR_GLStep("link %s", name);
     GL_LinkProgramFunc(p);
     GL_DeleteShaderFunc(vs);
     if(fs)
