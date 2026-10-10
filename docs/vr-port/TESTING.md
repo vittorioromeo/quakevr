@@ -251,6 +251,15 @@ Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn)
 prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`
 compares every slot's hotspots, muzzle and hand with round 20's placement.
 
+Anchors (ROUND22.md, "Anchors are points on the models' surfaces"): `vr_anchor_where` (Debug > Reports > Weapon Anchors)
+prints the held weapons' muzzle, ammo button and screen, magazine and well, in the world and in the gun's own frame;
+`vr_anchor_info <model> <anchor>` where an anchor binds, `vr_anchor_nearest <model> x y z` the anchor of the nearest
+surface point, `vr_anchor_from_index <model> <index>` a legacy index's point, `vr_anchor_compare <model> <index>
+<anchor>` the two in every pose. `Misc/quakevr/anchors.py` (py 3.13: numpy): `table`/`compare-commands` the
+conversion's check, `selftest` every anchor on its model renumbered, `check <model> [old]` a model edit. With
+`vr_fixed_frames 1`, `sv_random_seed`, `vr_particle_seed`, a firing scene's `vr_anchor_where` lines are the same every
+run (A/B between builds).
+
 Fitted hands, second pass: `vr_grasp_bench [n]` times each hand's grasp solve on what it holds (the first solve, and
 again n times: min, median, max in microseconds; the first is a real one, not a remembered one: afresh solves with the
 same inputs are remembered since 2026-09-30, and `vr_debug_grasp 1` then prints them at under a microsecond); `vr_debug_grasp_trace 3` writes both hands' joints, solves and drift

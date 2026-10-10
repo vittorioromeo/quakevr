@@ -12,12 +12,15 @@
 #
 # Usage (from the repository root):
 #   python Misc/quakevr/anchors.py list                     every anchor in use and where it binds on its model
+#   python Misc/quakevr/anchors.py selftest                 every anchor bound on its model renumbered (vertices and
+#                                                           triangles reversed): it must stay where it is in every pose
 #   python Misc/quakevr/anchors.py check <model.mdl> [old]  the anchors on that model: within TOLERANCE of the surface
 #                                                           in every pose (against `old`: moved at most TOLERANCE)
 # The conversion from indices to points (vr_wofs_version 41, round 22), kept for the record:
-#   python Misc/quakevr/anchors.py convert-commands         the engine commands converting every legacy anchor
+#   python Misc/quakevr/anchors.py convert-commands [rev]   the engine commands converting every legacy anchor
 #                                                           (vr_anchor_from_index: run them, keep the console log)
-#   python Misc/quakevr/anchors.py apply <log>              writes the log's points into the three sources
+#   python Misc/quakevr/anchors.py apply <log> [rev]        writes the log's points into the three sources (rev: over
+#                                                           the anchors that were indices at git <rev>)
 #   python Misc/quakevr/anchors.py compare-commands <rev>   vr_anchor_compare for each anchor: the index at git <rev>
 #                                                           against the point now
 #   python Misc/quakevr/anchors.py table <log>              the comparison's table (engine and this script's own)
@@ -126,6 +129,7 @@ def closest_on_triangle(p, a, b, c):
 class Binding:
     def __init__(self, verts, weights, tri=-1, distance=0.0, ties=0, legacy=False):
         self.verts, self.weights, self.tri, self.distance, self.ties, self.legacy = verts, weights, tri, distance, ties, legacy
+        self.corner = False
 
     def key(self):
         """What it moves with: {vertex: weight}."""
@@ -139,10 +143,10 @@ class Binding:
 class Mesh:
     """A model file's triangles and poses in its own coordinates (pose 0: frame 0, a group's first: the rest)."""
 
-    def __init__(self, path):
+    def __init__(self, path, model=None):
         import mdlpolish as mp
         self.path = path
-        self.m = mp.Model(path)
+        self.m = model if model is not None else mp.Model(path)
         self.tris = [t[1:] for t in self.m.tris]
         self.poses = [[tuple(float(x) for x in v) for v in self.m.positions(p)] for p in range(self.m.num_poses())]
         self.rest = self.poses[0]
@@ -163,9 +167,10 @@ class Mesh:
             dk = _dist(p, self.rest[tri[k]])
             if dk < bd:
                 best, bd = k, dk
+        b = Binding(tuple(tri), w, t, d)
         if best >= 0:
-            w, d = tuple(1.0 if k == best else 0.0 for k in range(3)), bd
-        return Binding(tuple(tri), w, t, d)
+            b.weights, b.distance, b.corner = tuple(1.0 if k == best else 0.0 for k in range(3)), bd, True
+        return b
 
     def bind(self, text):
         a = parse(text)
@@ -177,8 +182,10 @@ class Mesh:
         all_ = [self.bind_triangle(t, p) for t in range(len(self.tris))]
         nearest = min(b.distance for b in all_)
         tied = [b for b in all_ if b.distance <= nearest + TIE]
-        out = next((b for b in tied if b.tri == hint), tied[0])
-        out.ties = sum(1 for b in tied if not _same(out, b))
+        # (as vr_anchor.cpp: the hint; else those on a corner, the first; ties: the others there binding elsewhere)
+        any_corner = any(b.corner for b in tied)
+        out = next((b for b in tied if b.tri == hint), None) or next(b for b in tied if b.corner or not any_corner)
+        out.ties = sum(1 for b in tied if (b.corner or not any_corner) and not _same(out, b))
         return out
 
     def position(self, b, pose):
@@ -194,6 +201,28 @@ class Mesh:
 def _same(a, b):
     ka, kb = a.key(), b.key()
     return all(abs(kb.get(v, 0.0) - w) <= 1e-4 for v, w in ka.items())
+
+
+def anchor_vertices(m, texts):
+    """The vertices of mdlpolish model `m` that the anchors are on (a point bound to a triangle's corner; a legacy index's
+    vertex): for the generators that keep those vertices where they are (refine_light.py, reuv_weapons.py)."""
+    mesh = Mesh(getattr(m, "path", ""), m)
+    out = set()
+    for text in texts:
+        b = mesh.bind(text)
+        if b.legacy or b.corner:
+            out.add(b.verts[b.weights.index(max(b.weights))])
+    return out
+
+
+def strip_indices(m, texts):
+    """Those vertices as their first indices in m's strip order (what the generators kept before round 22, when anchors
+    were strip-order indices: reuv_weapons.keep_anchors keeps every chart that leaves them naming the same places)."""
+    order = Mesh(getattr(m, "path", ""), m).order()
+    first = {}
+    for i, v in enumerate(order):
+        first.setdefault(v, i)
+    return sorted(first[v] for v in anchor_vertices(m, texts) if v in first)
 
 
 def text_of(point, hint=-1):
@@ -278,9 +307,9 @@ def check(path, old_path=None, anchors=None, tolerance=TOLERANCE):
 # ----------------------------------------------------------------------------
 # The conversion (round 22)
 
-def convert_commands():
+def convert_commands(rev=None):
     seen, cmds = set(), []
-    for where, model, text in collect():
+    for where, model, text in collect(rev):
         a = parse(text)
         if a[0] == "legacy" and model and model != "-1" and (model, a[1]) not in seen:
             seen.add((model, a[1]))
@@ -288,7 +317,11 @@ def convert_commands():
     return cmds
 
 
-def apply(log):
+def apply(log, rev=None):
+    """Writes the log's conversions over the anchors: each that is a legacy index now (or was at git `rev`: converted
+    again, as after a change to the conversion)."""
+    before = [parse(t) for w, m, t in collect(rev)] if rev else None
+    seen = [0]
     conv = {}
     for m, i, t in re.findall(r'anchor_from_index (\S+) (-?\d+) "([^"]*)"', open(log, encoding="utf-8", errors="replace").read()):
         conv[(m, int(i))] = t
@@ -297,6 +330,9 @@ def apply(log):
     def fix(m, group, model):
         """The match with its group `group` (an anchor's text on `model`) converted, if the log has it."""
         a = parse(m.group(group))
+        if before is not None:
+            a = before[seen[0]]
+            seen[0] += 1
         if a[0] != "legacy" or (model, a[1]) not in conv:
             return m.group(0)
         counts[model] = counts.get(model, 0) + 1
@@ -306,6 +342,7 @@ def apply(log):
     inc = _read(INC)
     ids = {int(s): v for s, k, v in INC_RE.findall(inc) if k == "ID"}
     inc = INC_RE.sub(lambda m: fix(m, 3, ids.get(int(m.group(1)), "")) if m.group(2) in KEYS else m.group(0), inc)
+    # (collect() lists vr_weapons.inc, then the magazines, then the shells: the same order as here)
     open(os.path.join(ROOT, INC), "w", encoding="utf-8", newline=chr(10)).write(inc)
     view = MAG_RE.sub(lambda m: fix(m, 2, "progs/" + m.group(1)), _read(VIEW))
     open(os.path.join(ROOT, VIEW), "w", encoding="utf-8", newline=chr(10)).write(view)
@@ -363,6 +400,45 @@ def table(log, rev):
     print("%d anchors, worst %.5f model units" % (rows, worst_all))
 
 
+def renumbered(mesh):
+    """A copy of `mesh` with its vertices and triangles in reverse order and each triangle's corners turned: the same
+    surface in every pose, numbered otherwise (what an edit in Blender may do)."""
+    import copy
+    n = len(mesh.rest)
+    out = copy.copy(mesh)
+    out.poses = [list(reversed(P)) for P in mesh.poses]
+    out.rest = out.poses[0]
+    out.tris = [(n - 1 - c, n - 1 - a, n - 1 - b) for a, b, c in reversed(mesh.tris)]
+    out._order = None
+    return out
+
+
+def selftest():
+    """Every anchor in use, bound on its model and on the model renumbered: where it is in every pose, both ways. An
+    anchor whose text has a hint (a triangle number) may move: the hint names another triangle after a renumbering."""
+    worst, moved, n = 0.0, [], 0
+    meshes = {}
+    for where, model, text in collect():
+        path = model_file(model)
+        a = parse(text)
+        if not path or a[0] != "point":
+            continue
+        mesh = meshes.setdefault(path, Mesh(path))
+        other = meshes.setdefault(path + "#renumbered", renumbered(mesh))
+        b, c = mesh.bind(text), other.bind(text)
+        d = max(_dist(mesh.position(b, p), other.position(c, p)) for p in range(len(mesh.poses)))
+        n += 1
+        if d > 1e-4:
+            moved.append((where, model, text, d))
+        elif a[2] < 0:
+            worst = max(worst, d)
+    for m in moved:
+        print("moved when renumbered: %s %s \"%s\": %.3f%s" % (m + ("" if parse(m[2])[2] >= 0 else "  (NO HINT)",)))
+    print("%d anchors bound on their models renumbered: %d moved (hinted: the hint names another triangle), the others "
+          "%.6f at most" % (n, len(moved), worst))
+    return not any(parse(m[2])[2] < 0 for m in moved)
+
+
 def main():
     args = sys.argv[1:]
     sys.path.insert(0, HERE)
@@ -377,6 +453,8 @@ def main():
             b = mesh.bind(text)
             print("%-48s %-28s %-30s %s" % (where, model, text, "legacy vertex %d" % b.verts[0] if b.legacy else
                                             "triangle %d, %.4f off, %d ties" % (b.tri, b.distance, b.ties)))
+    elif args[0] == "selftest":
+        sys.exit(0 if selftest() else 1)
     elif args[0] == "check":
         bad = 0
         for where, text, worst, line in check(args[1], args[2] if len(args) > 2 else None):
@@ -384,9 +462,9 @@ def main():
             print("%-48s %-30s %s" % (where, text, line))
         sys.exit(1 if bad else 0)
     elif args[0] == "convert-commands":
-        print(";".join(convert_commands()))
+        print(";".join(convert_commands(args[1] if len(args) > 1 else None)))
     elif args[0] == "apply":
-        apply(args[1])
+        apply(args[1], args[2] if len(args) > 2 else None)
     elif args[0] == "compare-commands":
         print(";".join(compare_commands(args[1])))
     elif args[0] == "table":

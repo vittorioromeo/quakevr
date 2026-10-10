@@ -285,7 +285,9 @@ def fix(path, report_only=False):
     import polish_weapons  # (here: it imports this module)
     from improve_weapons import strip_order
     order = strip_order(m.tris)
-    kept = sorted({order[a] for a in polish_weapons.slot_anchors().get(os.path.basename(path), ())} & set(dead_v))
+    import anchors
+    in_use = [text for _, text in polish_weapons.slot_anchors().get(os.path.basename(path), ())]
+    kept = sorted(anchors.anchor_vertices(m, in_use) & set(dead_v))
     assert len(kept) <= 1, "anchors on more than one of the sides' vertices: %s" % kept
     first = kept[0] if kept else dead_v[0]
     poses = rl.pose_arrays(m)

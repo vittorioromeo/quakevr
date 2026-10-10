@@ -106,9 +106,10 @@ class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
                                    "they fit (every vertex moves a little, the anchors too). Off: the export refuses "
                                    "and selects them")
     allow_remap: BoolProperty(name="Remap Anchors", default=False,
-                              description="If deleted or changed triangles make an anchor index name another vertex, "
-                                          "write the model anyway and print the new indices to set. Off: the export "
-                                          "refuses")
+                              description="If deleted or changed triangles make a legacy anchor index (one number: "
+                                          "settings from before round 22; the shipped anchors are points on the "
+                                          "surface) name another vertex, write the model anyway and print the new "
+                                          "indices to set. Off: the export refuses")
     bake_normals: BoolProperty(name="Bake Normal Map", default=True,
                                description="Bake its normal map again from the exported model (<model>.mdl_0_norm.png"
                                            ": its bevels, seams and tiles' relief; bake_normals.py). A map painted or "
@@ -153,7 +154,7 @@ class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
                 "the engine reads its lens: %s; " % lens[0][len("lens "):].split(":")[0].strip() if lens else
                 "checks passed, ", os.path.splitext(model)[0]))
         else:
-            self.report({'INFO'}, "anchors unchanged, no new holes; in the game: vr_model_reload")
+            self.report({'INFO'}, "anchors in place, no new holes; in the game: vr_model_reload")
         return {'FINISHED'}
 
 
