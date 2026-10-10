@@ -149,6 +149,7 @@ int VR_ImageCachePut (const char *name, FILE *f, int length, unsigned char *pixe
 int VR_NormalCacheMode (void);	// vr_normalmap_cache: 0 off, 1 on, 2 check
 int VR_NormalCacheLoad (const char *build, unsigned long long key, unsigned char *rgba, int width, int height);
 void VR_NormalCacheStore (const char *build, unsigned long long key, const unsigned char *rgba, int width, int height);
+void VR_TexCacheFinishWrites (void); // the cache files still being written finished (VR_Shutdown)
 void VR_NormalCacheChecked (int same, const char *name);	// vr_normalmap_cache 2: a map made again against its file	// end of _Host_Frame: the first frame drawn ends the start-up, and a load once signed on
 
 // Filesystem (common.c).

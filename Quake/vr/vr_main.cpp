@@ -1832,6 +1832,7 @@ extern "C" void VR_Shutdown()
         state = nullptr;
     }
     voicenotes::finishWrites(); // the screenshots and notes still being saved (VR or not)
+    VR_TexCacheFinishWrites(); // the normal maps' cache files still being written (vr_texcache.cpp)
     audio::shutdown(); // (its simulations finished, Steam Audio's objects released, phonon.dll unloaded)
     jobs::shutdown(); // last: whatever the systems above left queued run, the workers joined
 }

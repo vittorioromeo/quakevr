@@ -9,6 +9,7 @@
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
+#include "vr_jobs.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -85,25 +86,52 @@ bool readFile(const za::String& path, const char (&magic)[5], unsigned& a, unsig
     return ok;
 }
 
+// The files being written on the game's pool (writeFile; the main thread's list): finished at the latest by
+// finishWrites (the game's shutdown), the oldest waited for when too many are under way (each holds its bytes).
+za::Vector<qvr::jobs::Future<void>> writes;
+constexpr za::SizeT writesMost = 64;
+
+// A file written (its folder made, other builds' pruned, here), then its bytes written and renamed into place on the
+// pool: a file a map's first load makes per skin, 1-2 ms each on the main thread (open, write, close, rename) that no
+// one waited for. Until it is renamed into place it is not there: the same key asked for meanwhile is made again (the
+// same bytes), as before its first write.
 void writeFile(const char* kind, const char* build, const za::String& path, const char (&magic)[5], unsigned a, unsigned b,
     const void* data, size_t length)
 {
     prune(kind, build);
     qvr::files::createDirectories(dirFor(kind, build).cStr());
     const za::String tmp = path + va(".%u.tmp", static_cast<unsigned>(Sys_DoubleTime() * 1e6) & 0xffffffu);
-    FILE* out = Sys_fopen(tmp.cStr(), "wb");
-    if(!out)
-    {
-        return;
-    }
+    za::Vector<unsigned char> bytes;
     const unsigned header[3] = {version, a, b};
-    bool ok = fwrite(magic, 1, 4, out) == 4 && fwrite(header, 1, sizeof(header), out) == sizeof(header) &&
-              (length == 0 || fwrite(data, 1, length, out) == length);
-    ok = fclose(out) == 0 && ok;
-    if(!ok || !qvr::files::rename(tmp.cStr(), path.cStr()))
+    bytes.resize(4 + sizeof(header) + length);
+    memcpy(bytes.data(), magic, 4);
+    memcpy(bytes.data() + 4, header, sizeof(header));
+    if(length)
     {
-        qvr::files::remove(tmp.cStr());
+        memcpy(bytes.data() + 4 + sizeof(header), data, length);
     }
+    while(!writes.empty() && writes.front().ready())
+    {
+        writes.erase(writes.begin());
+    }
+    if(writes.size() >= writesMost)
+    {
+        writes.front().wait();
+        writes.erase(writes.begin());
+    }
+    writes.pushBack(qvr::jobs::async([tmp, path, bytes = ZA_MOVE(bytes)] {
+        FILE* out = Sys_fopen(tmp.cStr(), "wb");
+        if(!out)
+        {
+            return;
+        }
+        bool ok = fwrite(bytes.data(), 1, bytes.size(), out) == bytes.size();
+        ok = fclose(out) == 0 && ok;
+        if(!ok || !qvr::files::rename(tmp.cStr(), path.cStr()))
+        {
+            qvr::files::remove(tmp.cStr());
+        }
+    }));
 }
 
 constexpr char normalMagic[5] = "QVRN";
@@ -134,6 +162,12 @@ extern "C" void VR_NormalCacheStore(const char* build, unsigned long long key, c
 {
     writeFile("normalmaps", build, fileFor("normalmaps", build, key, "nrm"), normalMagic, static_cast<unsigned>(width),
         static_cast<unsigned>(height), rgba, static_cast<size_t>(width) * height * 4);
+}
+
+// The files still being written finished (VR_Shutdown, before the pool goes).
+extern "C" void VR_TexCacheFinishWrites(void)
+{
+    writes.clear(); // (each Future waits for its write)
 }
 
 extern "C" void VR_NormalCacheChecked(int same, const char* name)
