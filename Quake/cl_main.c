@@ -126,7 +126,7 @@ QVR: the models were reset (a game or campaign switch: COM_SwitchGameInternal, a
 disconnected): nothing of the client's points at them any more. Its state as at start-up, before any map: what a map's
 load does first (CL_ClearState), without freeing the memory (the hunk is the next map's to free). Frames run before the
 next map (the "Loading..." notice's, vr_loading.cpp; the menus) then see no world, as at start-up, not a world model
-whose slot was cleared (no nodes: "Mod_PointInLeaf: bad model"; ROUND21.md, "The Loading... crash, root cause").
+whose slot was cleared (no nodes: "Mod_PointInLeaf: bad model"; ROUND22.md, "The Loading... crash, root cause").
 =====================
 */
 void CL_ForgetModels (void)

@@ -79,7 +79,7 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   **Done in part (2026-10-10, `decal101`)**: the same image, world+brush 3.02 -> 2.74 ms at 2782 (marks 1.10 -> 0.82);
   the options left with a visible change are in PERF_DECISIONS.md 15, for him.
 
-### Map and game loading (ROUND21.md, "Load-time speedups without their drawbacks (1.0.1, 2026-10-10, worktree `load101`)")
+### Map and game loading (ROUND22.md, "Load-time speedups without their drawbacks (1.0.1, 2026-10-10, worktree `load101`)")
 
 - **Model loading in parallel** (the calibration room's alias models, now 270 of the 430 ms: texture uploads, skins'
   decoding and copies, md5 replacements): the loaders share the hunk, cache and GL; would need each loader split into

@@ -34,7 +34,7 @@ struct Pending
 };
 Pending pending;
 // (A campaign switch's map, its longest load, is put off too: the switch left no world, as at start-up, not a cleared
-// one: CL_ForgetModels; ROUND21.md, "The Loading... crash, root cause".)
+// one: CL_ForgetModels; ROUND22.md, "The Loading... crash, root cause".)
 double previewUntil = 0.0; // vr_loading_preview: the notice shown without a load until then (realtime)
 
 constexpr int framesToShow = 2; // (one is enough when the runtime shows it; the second covers a frame it dropped)
