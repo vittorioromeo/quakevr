@@ -255,6 +255,15 @@ you like). Throws stay true in it. Combat > *Bullet Time*.
   its screen (Tips > Screens > *Game Messages as Hologram*); centre prints float in front of you. HUD and Menus >
   *Wrist Gadget* sets its arm, size, placement and colours.
 - **Status bar:** the classic Quake status bar on a hand (VR Settings > *HUD: Status bar*).
+- **Doom on the wrist gadget** (VR Settings > *Doom on the Wrist Gadget*; `vr_doom`): a real game of Doom on the
+  gadget's screen, running in real time beside Quake (Quake's pause pauses it; closing it keeps its place). The screen
+  is a **touchscreen**: touch it with your other hand's index fingertip (a buzz as it touches; buttons light up under
+  your finger): a drag stick moves and turns, FIRE, USE, Doom's menu, the map, weapons, always run; tap Doom's menu
+  items; press through the screen while steering to fire. Raise the gadget and look at it, and its hand's stick and
+  buttons play Doom until you lower it (Controls: Touch Only, Controller and Touch, Controller Only). Its sounds come
+  from the gadget. Freedoom is included; your own DOOM, DOOM II or Final DOOM is found on Steam and GOG, or dropped
+  into `quakevr/doom/wads`, and played instead. A big floating panel instead of the gadget, for comfort. No music yet.
+  docs/vr-port/DOOM.md.
 - **Menus** float in front of you, with modern sliders, switches and drop-down lists. Point with the laser from your
   hand, pull the trigger to click, and drag sliders. The sticks work too. *Back to Game* is at the top left, or you
   can hold the menu button. Any controller opens the menu by clicking both sticks together (*Menu Button*: or

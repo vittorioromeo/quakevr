@@ -388,6 +388,14 @@ not water-vised by VisPatch, so it looks opaque.
 
 QVR:U's own maps (the hub, tutorial and firing range) are already relit in the package.
 
+## Doom on the wrist gadget
+
+The wrist gadget plays Doom (VR Settings > *Doom on the Wrist Gadget*). Freedoom, free and included, is played unless
+you own DOOM: a Steam copy (The Ultimate DOOM, DOOM II, Final DOOM, DOOM + DOOM II) or a GOG one is found by itself.
+Any other copy: drop `DOOM.WAD` (or `DOOM1.WAD`, `DOOM2.WAD`, `TNT.WAD`, `PLUTONIA.WAD`) into `quakevr\doom\wads\`
+(the Doom page's *Open the WAD Folder* opens it); the page shows which one is in use and lets you pick another. Doom's
+settings and saves are in `quakevr\doom\`.
+
 ## Voice notes
 
 Voice notes (see [FEATURES.md](FEATURES.md#playtesting-tools)) are saved as `.wav` files in `quakevr\notes\`. To turn

@@ -180,6 +180,9 @@ them all, and each page's *Reset This Page* puts its settings back. [docs/SETTIN
 
 - **Wrist gadget HUD:** health, armour, ammo and stamina on a CRT screen on your forearm, with the game's messages as
   a hologram. The classic status bar on a hand is still there.
+- **Doom on your wrist:** a real game of Doom on the gadget's screen, running beside Quake: a touchscreen under your
+  fingertip, or the gadget hand's stick while you look at it. Freedoom is included; your own DOOM (Steam, GOG, or
+  `DOOM.WAD` dropped into `quakevr\doom\wads`) is found and played instead.
 - **Flashlight** on your belt: a shadow-casting torch you switch, take in hand, flip with a flick, or clip on a gun
   or your head.
 - **VR menus** with a laser, live previews, drop-down lists, **search** (with your recent results), a **console**

@@ -29,6 +29,7 @@ articles, talks and other engines' source are credited with where they came from
 | **FTEQCC** (QuakeC compiler) | the FTE team | GPL-2.0 | used to build `progs.dat` |
 | **ericw-tools** 2.0.0-alpha11 (`light`, used by `relight_maps.py`, `relight_quakevr_maps.py` and the in-game relighting, `vr_relight.cpp`; `qbsp`, `vis` and `light` for `vrexample` and the TrenchBroom profiles; [release](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11)) | Eric Wasylishen, Kevin Shanahan (Tyrann), David Walton (Spike) and contributors | GPL-3.0 | `light.exe` shipped unchanged in the package's `quakevr/tools/ericw-tools` (with `gpl_v3.txt` and a notice saying where its source is), run as a separate program by the in-game relighting: an aggregate, not linked (docs/RELIGHTING.md, "ericw-tools' licence"); the committed `quakevr/maps` are its output |
 | **Embree** 4 (`embree4.dll`) and **oneTBB** (`tbb12.dll`, `tbbmalloc.dll`), the libraries ericw-tools' `light` needs | Intel Corporation | Apache-2.0 | shipped beside `light.exe` in `quakevr/tools/ericw-tools` (its release zip's, unchanged; `LICENSE-embree.txt`) |
+| **doomgeneric** (commit `dcb7a8db`, [ozkl/doomgeneric](https://github.com/ozkl/doomgeneric)): Doom with a few platform functions, the wrist gadget's Doom (docs/vr-port/DOOM.md) | ozkl; built on **Chocolate Doom** (Simon Howard and contributors) and the **Doom** source release (id Software, 1997) | GPL-2.0 | `Quake/vr/external/doomgeneric` (upstream's files with small `QVR_DOOM` patches listed in its `README.QVR.md`; `LICENSE`), built into `qvr_doom.dll` with `Quake/vr/doom/qvr_doom_dll.c` |
 | **TrenchBroom** 2026.2's `Quake.fgd` and Quake game configuration ([TrenchBroom](https://github.com/TrenchBroom/TrenchBroom); the FGD by autolycus, CZG and later authors) | the TrenchBroom authors | GPL-3.0 | `Misc/trenchbroom/vendor/Quake.fgd` (unchanged), the base of `Misc/trenchbroom/QuakeVR/GameConfig.cfg` and `quakevr.fgd` (docs/vr-port/MAPPING.md) |
 
 ## Quake VR (the original port)
@@ -47,6 +48,7 @@ articles, talks and other engines' source are credited with where they came from
 
 ## Data and assets
 
+- **Freedoom** 0.13.0 (Phase 1 and Phase 2: `freedoom1.wad`, `freedoom2.wad`, [freedoom.github.io](https://freedoom.github.io), the release zip's SHA-256 checked against its signed CHECKSUM): the free IWADs the wrist gadget's Doom plays when the player owns no DOOM. Contributors to the Freedoom project, BSD-3-Clause: `quakevr/doom/FREEDOOM-COPYING.txt`, `FREEDOOM-CREDITS.txt`, shipped unchanged. id Software's DOOM WADs are never shipped: the player's own are found (Steam, GOG, `quakevr/doom/wads`).
 - Quake's own models, sounds, textures and maps belong to id Software. The player's copies are used; `relight_maps.py`
   re-lights them locally and nothing derived from them is distributed.
 - **The Map Library** (`vr_mapindex.cpp`, `vr_mapinstall.cpp`) lists and downloads custom maps from

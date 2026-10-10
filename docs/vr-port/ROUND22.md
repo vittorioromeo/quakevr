@@ -1175,3 +1175,47 @@ autosave; Continue shows none and s0 respectively.
 **In the headset:** nothing new beyond the 1.0.1 items. After installing, the main menu has no Continue row until a
 level has started.
 - 1.0.1 Installer Statement: two claims instead of three ("does *not* mean a low-quality result", "... a lack of care, passion, or expertise"); CLI text, self-tests, screenshot harness, README and INSTALLER.md updated; Statement page fits at default and minimum size.
+## Doom on the wrist gadget, and the gadget's touchscreen (feature branch, 2026-10-11, worktree `wristdoom`)
+
+Not for 1.0.1: branch `agent/wristdoom`, shipped when Vittorio says so. Design, controls, the touch layout, the
+touchscreen's interface for other apps and the decisions: [DOOM.md](DOOM.md).
+
+- **Doom** is `qvr_doom.dll` (doomgeneric `dcb7a8db`, GPL-2, vendored in `Quake/vr/external/doomgeneric` with small
+  `QVR_DOOM` patches: `README.QVR.md`), built by the solution (`qvr_doom.vcxproj`) beside the exe and loaded when
+  first opened (`vr_doom`): only `qvr_doom_*` exported, Doom's globals its own; its memory a private heap and its C
+  runtime static, so a shutdown frees all and a restart loads it afresh; `I_Error`/`I_Quit` return to the engine.
+  Its clock is the engine's frames (a tic run when one is due); it runs in real time beside Quake, which never pauses
+  for it; Quake's pause pauses it. Cost: 0.02 ms a frame on average, 0.18 ms at most (a tic run and drawn), the screen
+  0.005 ms of CPU; nothing before it is opened.
+- **WADs**: Freedoom 0.13.0 (Phase 1 and 2, BSD-3; the zip's SHA-256 checked) in `quakevr/doom/`; the player's own
+  found on Steam (every library), GOG (the registry), `quakevr/doom/wads/` (the drop-in folder, its README tracked so
+  the package makes it) and `vr_doom_wad_dir`, official ones known by MD5; the automatic pick prefers them; a WAD
+  that fails falls back to the next.
+- **The touchscreen** (`vr_touch.cpp`, `vr_touch_*`): the other hand's index fingertip on the gadget's screen (or the
+  big panel) as touches (from in front only, hysteresis, debounce, a hard press through the face, a buzz), and an
+  immediate-mode widget kit; while an app takes the gadget's screen the bullet-time tap is off.
+- **Doom's controls**: the touch overlay (a drag stick, FIRE, USE, MENU, MAP, W-/W+, RUN, LOCK, X; Doom's menu by tapping
+  its items, or UP/DOWN/OK/BACK; YES/NO), and while Doom has the focus (looked at 0.5 s, or touched; lost 0.5 s out of
+  view) the gadget hand's stick and buttons (Quake sees them let go); `vr_doom_controls` 0 touch only, 1 both, 2 the
+  controller only. Sounds: the engine's sounds at the gadget (`VR_SndMemory` makes Doom's DMX lumps WAVs), quieter.
+  Music: not done (the silent music module; Nuked-OPL3 and Chocolate Doom's OPL player would do it).
+- Menu: VR Settings > *Doom on the Wrist Gadget* (also Wrist Gadget > *Doom*; `menu_vr 171`); Debug > Tests: Doom Info,
+  Show Touches, Debug, Restart. `vr_gadget_screen_dump` writes Doom's screen while it shows. Mock:
+  `vr_mock_hand_to <hand> touch <x> <y> [<cm>]`.
+
+**Verified headless (the mock):** Freedoom started in 11-13 ms; the picture on the raised gadget (a screenshot), the
+overlay hovered and in Doom's menu (`vr_gadget_screen_dump`); by touch: MENU, a tap on New Game (menu tap: Enter), OK,
+OK: E1M1; the MOVE stick walked Doom's player from x -416 to 119; FIRE held: ammo 50 to 48, its sounds played through
+the engine (one channel playing, `-Sound`); the off stick unfocused moved Quake's player (y -352 to -68) and not
+Doom's; focused (the look) Doom's (x -416 to 76) and not Quake's; Quake's menu froze both clocks (186 tics), closing it
+resumed them; looking away returned the controls and Doom kept running (201 to 246 tics); touch only: the stick stayed
+Quake's; `vr_doom_args "-warp 9 9"`: Phase 1's init error reported, Phase 2 tried and started; a restart reloaded the
+DLL with fresh globals; the DLL exports only its eleven functions; `vr_menu_path_check`: 0 missing.
+
+**In the headset:** open Doom (VR Settings > Doom on the Wrist Gadget), raise the wrist and look: does the stick take
+Doom over quickly enough, and give it back as you lower the arm, without surprises in Quake? Touch the screen: is the
+touch distance right (Touch Distance, Release Distance), are the buttons big enough, does the cursor help, does the
+hard press fire when you mean it? Play a level by touch only and by the stick; try Doom's menu by tapping items, save
+and load. Is the picture readable on the gadget (CRT Look, 4:3 Picture), is the big panel comfortable? Are Doom's
+sounds from the wrist at a good level against Quake's (Volume)? Drop your own DOOM.WAD into quakevr/doom/wads and pick
+it on the page.

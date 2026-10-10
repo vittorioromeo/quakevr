@@ -47,6 +47,7 @@ packager's folder (custom maps, mod folders, saves, configs, screenshots, notes,
 | Engine | `ironwail.exe`, `ironwail.pak` | 11 MB | `ironwail.pak` is looked up in the working directory first, then in each `-basedir` |
 | Spatial audio | `phonon.dll` (Steam Audio 4.8.1) | 51 MB | loaded at run time by `vr_steamaudio.cpp` |
 | OpenXR | `openxr_loader.dll` | 2.6 MB | Khronos loader |
+| Doom on the wrist gadget | `qvr_doom.dll` (doomgeneric, GPL-2), `quakevr\doom\` (Freedoom 0.13.0 `freedoom1.wad`, `freedoom2.wad`, BSD-3, with its licence and credits; `wads\README.txt`, so the drop-in folder exists) | 58 MB | the DLL loaded when Doom is first opened (docs/vr-port/DOOM.md) |
 | SDL, network, zip | `SDL2.dll`, `libcurl.dll`, `zlib1.dll` | 3 MB | miniz (zip) is compiled in |
 | Audio codecs | `libFLAC-8`, `libogg-0`, `libvorbis-0`, `libvorbisfile-3`, `libopus-0`, `libopusfile-0`, `libmpg123-0`, `libxmp`, `libmad-0`, `libmikmod-3` `.dll` | ~2 MB | `ironwail.vcxproj` links vorbis, opus, FLAC, mpg123 and xmp; `libmad` and `libmikmod` look unused (verify) |
 | Launcher | `QuakeVR.bat`: `start "" "%~dp0ironwail.exe" -game quakevr %*` | | the working directory is the caller's |
