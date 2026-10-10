@@ -2510,6 +2510,7 @@ void SaveData_Fill (savedata_t *save)
 		save->spawn_parms[i] = svs.clients->spawn_parms[i];
 	save->skill = current_skill;
 	save->time = qcvm->time;
+	VR_SaveContext (save->vrcontext, sizeof (save->vrcontext)); // QVR: the campaign, the map package, the titles
 
 	/* determine buffer size */
 	size = sizeof (*save->knownstrings) * qcvm->numknownstrings;
@@ -2621,6 +2622,7 @@ void SaveData_WriteHeader (savedata_t *save)
 	fprintf (save->file, "// qvr_save %d progs %04x build %s\n", VR_SAVE_FORMAT, save->progscrc, VR_BuildVersion ());
 	for (i = 1; i <= save->nummodels; i++)
 		fprintf (save->file, "// qvr_model %d %s\n", i, save->models[i]);
+	fputs (save->vrcontext, save->file); // QVR: // qvr_campaign, qvr_package, ... (vr_continue.cpp)
 
 	ED_WriteGlobals (save);
 }

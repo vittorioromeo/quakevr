@@ -20,6 +20,7 @@ touchscreen), `Quake/vr/doom/` (the DLL's interface and glue), `Quake/vr/externa
    stick and buttons are Quake's again, and Doom keeps running.
 3. Or touch: bring your other hand's index fingertip to the screen. The touch controls appear while your finger is near
    (see "Touch controls"); every touch buzzes your hand. A touch also gives Doom the focus.
+   **The secret handshake**: press the gadget's side button (the light on/off one) 6 times in quick succession (`vr_doom_light_presses` 6, each within `vr_doom_light_gap` 0.4 s of the last; 0: off) and Doom opens on the gadget with a strong buzz. One press of the same button then closes it, toggling nothing. The presses are counted before the button's cooldown (`vr_gadget_button_cooldown` 0.6 s would swallow quick ones), and the light is put back as it was before the first press, so the handshake never leaves it flipped. Test aid: `vr_gadget_button_press` (Debug > Tests).
 4. Close it the same way, or with the touch bar's X: the HUD is back, Doom waits where it was. Doom's own *Quit Game*
    ends it (its settings saved). Quake's menu, the console or the runtime's menu pause Doom with Quake.
 

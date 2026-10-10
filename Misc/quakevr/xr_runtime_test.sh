@@ -363,11 +363,44 @@ else echo "PASS: vr_xr_vendor_profiles 0: no vendor profile asked"; fi
 export FAKEXR_EXTENSIONS=XR_BD_controller_interaction FAKEXR_REJECT_PATH=left/input/menu/click
 bash "$KIT/run.sh" "$NAME" -Script "$S;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/vendorreject.log"
 cp -f "$XRLOG" "$OUT/vendorreject_openxr.txt"
-check "$OUT/vendorreject_openxr.txt" "vendor profiles: a path turned down, the basic bindings taken" \
-    "pico_neo3_controller turned down its bindings; its basic ones: taken" "OpenXR: started"
-check "$LOG" "vendor profiles: the basic bindings, no menu button" "pico_neo3_controller: /user/hand/left/input/menu/click turned down" \
-    "pico_neo3_controller: 20 bindings"
-unset FAKEXR_HEADSET FAKEXR_EXTENSIONS FAKEXR_REJECT_PATH
+check "$OUT/vendorreject_openxr.txt" "vendor profiles: a path turned down, only that one dropped" \
+    "pico_neo3_controller: /user/hand/left/input/menu/click turned down by the runtime" \
+    "bindings suggested for /interaction_profiles/bytedance/pico_neo3_controller \(28 of 29: 1 turned down\)" "OpenXR: started"
+check "$LOG" "vendor profiles: every binding but the menu button" "pico_neo3_controller: /user/hand/left/input/menu/click turned down" \
+    "pico_neo3_controller: 28 bindings"
+unset FAKEXR_EXTENSIONS
+# 9b. A runtime turning down some of Touch's paths (1.0.1, ROUND22.md "Controls as if another controller": one bad path
+# lost the whole profile, and the runtime played Quest controllers as another): the finger sensors turned down, the
+# rest of Touch kept (grips, A/B/X/Y, triggers), the runtime plays the hands as Touch, the game logs the profile and the
+# controller keys. Then every full profile turned down: the simple controller, and the limited-controls warning.
+: > "$LOG"
+export FAKEXR_REJECT_PATH="oculus/touch=thumbstick/touch;oculus/touch=trigger/touch"
+bash "$KIT/run.sh" "$NAME" -Script "$S;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/touchreject.log"
+cp -f "$XRLOG" "$OUT/touchreject_openxr.txt"
+check "$OUT/touchreject_openxr.txt" "Touch: its finger sensors turned down, the rest kept" \
+    "touch_controller: /user/hand/left/input/thumbstick/touch turned down by the runtime" \
+    "bindings suggested for /interaction_profiles/oculus/touch_controller \(25 of 29: 4 turned down\)" \
+    "the (left|right) hand's controller profile: /interaction_profiles/oculus/touch_controller" \
+    "the controller keys: LTRIGGER \"\+offhandattack\".*LSHOULDER \"\+graboff\".*ABUTTON \"\+jump\""
+check "$LOG" "Touch: the runtime holds grips, triggers, A/B/X/Y" \
+    "played as /interaction_profiles/oculus/touch_controller, bound: .*right/input/trigger/value.*left/input/squeeze/value.*right/input/squeeze/value.*left/input/x/click.*right/input/a/click.*right/input/b/click"
+if grep "played as /interaction_profiles/oculus/touch_controller" "$LOG" | grep -q "thumbstick/touch\|trigger/touch"; then
+    echo "FAIL: Touch: a turned-down path still bound"; fails=$((fails + 1))
+else echo "PASS: Touch: the turned-down paths left out"; fi
+: > "$LOG"
+export FAKEXR_REJECT_PATH="oculus/touch=/user;microsoft=/user;index=/user;vive_controller=/user"
+bash "$KIT/run.sh" "$NAME" -Script "$S;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/simple.log"
+cp -f "$XRLOG" "$OUT/simple_openxr.txt"
+check "$OUT/simple_openxr.txt" "every full profile turned down: the simple controller, said" \
+    "no bindings for /interaction_profiles/oculus/touch_controller: the runtime does not have it" \
+    "WARNING: OpenXR: the runtime plays the (left|right) controller as /interaction_profiles/khr/simple_controller"
+unset FAKEXR_HEADSET FAKEXR_REJECT_PATH
+# 9c. Gamepad bindings over the VR ones (Ironwail's own: the grips weapon cycling, no grab on any controller key):
+# vr_startgame's check (vr_bindings_check here) sets vr_bindings.cfg again.
+bash "$KIT/run.sh" "$NAME" -Script "bind LTRIGGER +jump;unbind LSHOULDER;unbind RSHOULDER;vr_bindings_check;wait5;bind LSHOULDER;bind RSHOULDER;bind LTRIGGER;toggleconsole;quit" \
+    -Filter "grab on any controller key|LSHOULDER|RSHOULDER|LTRIGGER" > "$OUT/guard.log"
+check "$OUT/guard.log" "gamepad bindings: the VR ones set again" "no grab on any controller key \(LTRIGGER \"\+jump\"" \
+    "\"LSHOULDER\" = \"\+graboff\"" "\"RSHOULDER\" = \"\+grabmain\"" "\"LTRIGGER\" = \"\+offhandattack\""
 # 10. The runtime ending the session (FAKEXR_END at xrWaitFrame 150, ROUND22.md "Exit from the runtime's menu"): exit (the
 # player quit the game from SteamVR's dashboard: STOPPING, then EXITING after xrEndSession): the game quits at once
 # (vr_xr_exit_quits 1; the script's own echo never comes), the session and instance destroyed; vr_xr_exit_quits 0: flat;

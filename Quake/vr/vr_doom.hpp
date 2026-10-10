@@ -30,6 +30,10 @@ void frame();
 
 // Doom is shown on the gadget's screen now (its HUD replaced).
 [[nodiscard]] bool onGadget();
+// The gadget's side button's secret (vr_doom_light_presses quick presses): opens Doom on the gadget / closes it again
+// (vr_gearlights.cpp). Doom keeps its state when closed.
+void openFromButton();
+void closeFromButton();
 // The texture the gadget's screen shows meanwhile (renderScreen made it; 0: none yet) and its virtual screen's size.
 [[nodiscard]] gfx::Texture gadgetTexture();
 // Its target (vr_gadget_screen_dump writes it while Doom shows).

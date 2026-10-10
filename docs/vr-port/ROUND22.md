@@ -1101,6 +1101,65 @@ any return to the hub, the stones showed QUAKE selected.
 hub's Continue screen, press it, and check that you land there. Play a level of Dimension of the Machine, quit,
 restart: the hub's DIMENSION OF THE MACHINE stone should be SELECTED, and Continue should switch campaigns.
 
+## One save folder; every save knows its campaign and map package (1.0.1, 2026-10-11, worktree `saves1`)
+
+The author's design, replacing `contgame`'s per-campaign autosave folders (`Quake/vr/vr_continue.cpp`):
+- **One folder**: `quakevr/` and `quakevr/autosave/`. Autosave names are unique across campaigns and map packages:
+  `autosave/<map>.sav` for Quake's campaign (Ironwail's name: its Play Custom Map *Resume*, 1.0.0's autosaves),
+  `autosave/<campaign folder>~<map>.sav` for the others (`mg1~start.sav`), `autosave/<package>~<map>.sav` for a Map
+  Library package's map. `<package>` is the first 16 hex digits of its sha256, the name of its `qvr_addons` folder
+  (a title is unknown until the map index arrives and can change upstream; the hex is stable). The map part is
+  sanitised (letters, digits, `_ - .`). The name comes from what is running: the active campaign and the mounted
+  package (`VR_AutosaveName`), never from the map's name. The skill menu's *Resume* predicts it for a map about to start
+  (`VR_AutosaveNameForLaunch`: the `map` command's own campaign check and the package the map is in).
+- **Migration**: at start-up, `autosave/<folder>/<map>.sav` (and its `.addon`) is moved to
+  `autosave/<folder>~<map>.sav`, logged (`Saves: autosave/mg1/start.sav moved to autosave/mg1~start.sav`); the emptied
+  folder goes. A file whose new name is taken stays where it is, logged.
+- **Every save says what it was played as**: comment lines after the model list (`SaveData_WriteHeader`; COM_Parse
+  skips them, so 1.0.0 still reads these saves; no format change): `// qvr_campaign <n>`, `// qvr_package <sha256>`
+  (nothing after the key: none), `// qvr_package_title <title>`, `// qvr_map_title <the level's full title>`. An older
+  save: the campaign from its `vr_save_campaign` global, the package from the `<save>.addon` beside it (still written,
+  so 1.0.0 builds keep finding it).
+- **Loading any save** (Load menu, `load`, Continue, Ironwail's autoload; all are `Host_Loadgame_f`): its package must
+  be installed (`VR_SavePackageReady`: else a console line and a centre message, nothing changed), then its campaign is
+  made the active one (`VR_CanLoadCampaignSave`, as before; a campaign that can't start now also gets a centre
+  message), its package mounted (`VR_AddonForSave`, the key first), and its map run in the save's campaign
+  (`VR_CanLoadSaveMap`, new: the save's key, not the map's name; the spawn check `VR_CheckSpawnCampaignMap` takes it
+  for that one spawn). The campaign switch is the existing path (selectCampaign, then the package's reload).
+- **Continue** scans `*.sav` and `autosave/*.sav` only (Doom's saves, in `quakevr/doom/`, are never seen). A save
+  whose package is not installed is passed over, said once in the console. Its second line names the package for a
+  package's save ("Base To Hell (basetohell) / Base To Hell, just now").
+- **Load and Save menus**: each slot shows "<campaign or package> - <map title>" (`VR_SaveMenuLabel`, 39 characters;
+  the package's title once when it is the map's title). The kill count of Quake's comment is no longer shown.
+- `vr_save_info [save]`: one save's or every save's campaign, package, map title and menu line (Debug > Tests > Saves >
+  *List the Saves*).
+- Unchanged: no autosaves on `vr*` maps, in multiplayer, or under `-prepare` (`e03a275d0`).
+
+**Tests** (mock, `sv_autosave 1`; the author's index cache and packages linked in by `bench_maps.ps1`):
+- `vr_campaign_select id1`, `mg3`, `mg1`, then `maps_play` Base To Hell: `autosave/start.sav`, `autosave/mg3~start.sav`,
+  `autosave/mg1~start.sav` and `autosave/4108605842870e05~basetohell.sav` side by side. The package's save:
+  `qvr_campaign 4` (the custom map ran in Dimension of the Machine, the campaign active when it was played), its sha
+  and "Base To Hell".
+- A new process, the hub (Quake's campaign): `vr_continue` loads that autosave, mounts Base To Hell's folder;
+  `vr_campaign` 4, map basetohell.
+- A Dissolution of Eternity save (`s3`, map start) loaded with Quake active from the hub: `vr_campaign` 2,
+  `vr_activestartpaknameidx` 2, map start. The Load menu shows "Dissolution of Eternity - Introduction" in slot 3.
+- 1.0.0 saves (the author's `s1.sav`, map vrstart, and `autosave/e1m2.sav`, build 1.0.0-dev 2026-10-09) loaded from
+  Dimension of the Machine: Quake's campaign, maps vrstart and e1m2 (the usual "saved by build" warning).
+- Base To Hell taken out of the installed list (the registry copy): Continue passes its newer autosave over with the
+  message and offers `autosave/e1m2`; `load` of it is refused ("which is not installed: not loaded"), e1m2 stays.
+- Migration: `autosave/mg1/start.sav` (+ `.addon`) moved to `mg1~start.sav`; `autosave/mg3/start.sav` left (taken).
+- `map e1m1`, `save s2`, `load s2`: fine; `s2` says campaign 0, package none.
+
+**Decisions for the author:**
+- A Map Library map runs in whatever campaign is active when it starts (as before: here Dimension of the Machine's), and
+  its saves remember that. Starting packages always in Quake's campaign would be a separate change.
+- The package part of the name is the sha's first 16 hex digits, not the title (stable, matches `qvr_addons`).
+- A save whose package is gone is refused rather than loaded into another package that has a map of the same name.
+
+**In the headset:** play a Map Library map right after a Dimension of the Machine level, quit, restart, press
+Continue: you should be back in the custom map. Open Load: each slot names its campaign or package and its level.
+
 ## Pre-release verification of 1.0.1: every test, a synthetic installation (2026-10-11, worktree `test101`)
 
 Commit under test `abfc18bcb` (origin/vr-ironwail). Everything ran headless. Nothing was published or pushed. The
@@ -1220,3 +1279,105 @@ hard press fire when you mean it? Play a level by touch only and by the stick; t
 and load. Is the picture readable on the gadget (CRT Look, 4:3 Picture), is the big panel comfortable? Are Doom's
 sounds from the wrist at a good level against Quake's (Volume)? Drop your own DOOM.WAD into quakevr/doom/wads and pick
 it on the page.
+
+## Controls as if another controller: binding audit, per-path fallback, profile logging, the bindings guard (1.0.1, 2026-10-11, worktree `bindfix`)
+
+**The report** (1.0.0, fresh GOG Quake, Quest 3 through Virtual Desktop, VDXR 1.0.10): the grips grab nothing but the
+flashlight, A does not jump but the *left trigger* does, no climbing. His `qvr_openxr.txt`: VDXR 1.0.10 (older than the
+author's 1.1.0), 31 extensions, `XR_META_touch_controller_plus` not offered, session FOCUSED; 1.0.0 logged nothing about
+bindings or profiles.
+
+**What the symptoms match: Ironwail's own gamepad bindings, not another controller profile.** Ironwail's default
+config (`Quake/default_cfg.h`, `Misc/pak/default.cfg`, which ships in `ironwail.pak`) binds `LTRIGGER +jump`,
+`RTRIGGER +attack`, `LSHOULDER "impulse 12"`, `RSHOULDER "impulse 10"`, and nothing on `ABUTTON`. The VR controllers are
+those same gamepad keys (vr_input.cpp: trigger LTRIGGER/RTRIGGER, grip LSHOULDER/RSHOULDER, A/X ABUTTON/XBUTTON...):
+with those bindings the left trigger jumps, the right one fires, the grips cycle weapons (no `+grabmain`/`+graboff`, so
+no grabbing and no climbing), A does nothing; only the flashlight still takes a grip because flashlight.cpp reads the
+grip before the key (vr_input.cpp's `flashlight::Button::Grip`). That is his report exactly. A wrong *profile* would
+look different: VDXR plays any profile on Touch controllers and remaps (the simple controller's `select` on the
+trigger, its menu on the menu button), so A would do nothing, but the left trigger would be the off hand's trigger, not
+a jump.
+
+**The OpenXR audit (VDXR read from its source, `mbucchia/VirtualDesktop-OpenXR`, `action.cpp`/`mappings.cpp`, current and
+as of 2025-12-06, which 1.0.10 is: it offers `XR_EXT_active_action_set_priority`, added then).** VDXR's
+`xrSuggestInteractionProfileBindings` turns a whole suggestion down (`XR_ERROR_PATH_UNSUPPORTED`) for an unknown profile
+or one path its table lacks; it then picks Touch if suggested, else WMR, Index, Vive, simple, in that order ("Emulate
+Index controllers": Index first). Every path the game suggests for Touch is in VDXR's Touch table (x/y/a/b click and
+touch, left menu, squeeze/value, trigger value and touch, thumbstick, its click and touch, grip pose, haptic: no
+thumbrest, no proximity, no extension path), so the Touch suggestion is taken by VDXR 1.0.10 and 1.1.0 alike. Against
+the OpenXR 1.0/1.1 specification every profile's paths are valid (khr/simple, oculus/touch, valve/index, htc/vive,
+microsoft/motion, and the vendor ones: bytedance pico_neo3/pico4, htc vive_cosmos/vive_focus3, hp/mixed_reality,
+samsung/odyssey). One real bug: Quest 3's profile was asked as `/interaction_profiles/meta/touch_controller_plus`; its
+name is `/interaction_profiles/meta/touch_plus_controller` (XR_META_touch_controller_plus, OpenXR 1.1 core). The wrong
+name was always turned down, harmlessly: every runtime played Quest 3 controllers as Touch ones. *Decision:* it is no
+longer suggested at all (the 1.0.0 behaviour, the only one ever tested); `updateControllers` knows the right name.
+
+**Changes.**
+- `suggest` (vr_backend_openxr.cpp): a turned-down suggestion is rebuilt one binding at a time (the grip pose first),
+  each binding the runtime turns down dropped and named (`WARNING: OpenXR: <profile>: <path> turned down by the
+  runtime (<result>): not bound`, console and `qvr_openxr.txt`), the rest suggested; none taken means the runtime lacks
+  the profile (`no bindings for <profile>: the runtime does not have it`, the log only). Every profile goes through it;
+  the vendor profiles' hand-written "basic" fallback lists are gone (a turned-down menu button now costs only the menu
+  button, 28 of 29 bindings, not 9). Every suggestion is logged: `OpenXR: bindings suggested for <profile> (n)` or
+  `(k of n: m turned down)`.
+- Controller profiles (`updateControllers`): looked up at the session's start (`controller profiles at the session's
+  start: left ..., right ...`, usually "none yet"), at each `XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED`, and every
+  2 s while a hand has none (a missed event); each change logged (`OpenXR: the left hand's controller profile: ...`,
+  console and log), named in the crash report's VR line (`; controllers oculus/touch_controller /
+  oculus/touch_controller`), and printed by `vr_debug_buttons` as before. A profile without the game's buttons (the
+  simple controller, or one the game has no bindings for) gets a warning once a start: console, log, and a centre print
+  once a game is on ("Your controllers are played as ...: controls may be limited").
+- `qvr_openxr.txt` at the session's start: `OpenXR: the controller keys: LTRIGGER "+offhandattack", RTRIGGER ...` (the
+  eight button keys' bindings), so a report shows gamepad bindings at once.
+- The bindings guard, `vr_bindings_guard` (default 1; archived; 0 never): after every start-up config (`vr_startgame`,
+  after `autoexec.cfg`), no grab bound to any controller key (trigger, grip, A/B/X/Y, stick click keys) means another
+  config's gamepad bindings: a console warning naming LTRIGGER/LSHOULDER/RSHOULDER/ABUTTON's bindings and the loose
+  `config.cfg`/`autoexec.cfg`/`ironwail.cfg` files on the search path (where they may have come from), then
+  `exec vr_bindings.cfg`. A grip rebound to another grab (any binding containing "grab", an alias so named) is left
+  alone. `vr_bindings_check` runs it by hand; `vr_bindings_reset` sets `vr_bindings.cfg` whatever the version (Debug >
+  Logging > *Restore Controller Bindings*).
+- Fake runtime (Misc/quakevr/fakexr): `FAKEXR_REJECT_PATH` takes several entries (`;`), each `profile=path` for one
+  profile only; accepted suggestions are kept (each replaces the profile's last), and `xrAttachSessionActionSets` picks
+  the profile as VDXR does (or `FAKEXR_PROFILE`), logs it with its bound paths, answers
+  `xrGetCurrentInteractionProfile` and sends `XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED`.
+- `xr_runtime_test.sh`: part 9's turned-down menu button now drops only that path (28 of 29); 9b: Touch with its
+  finger sensors turned down (`oculus/touch=thumbstick/touch;oculus/touch=trigger/touch`): 25 of 29 kept, the runtime
+  holds trigger, squeeze, X/A/B, the hands are Touch, the controller keys logged; every full profile turned down: the
+  simple controller and its warning; 9c: `bind LTRIGGER +jump; unbind LSHOULDER; unbind RSHOULDER; vr_bindings_check`:
+  the warning, then LSHOULDER `+graboff`, RSHOULDER `+grabmain`, LTRIGGER `+offhandattack`.
+
+**Where the gamepad bindings came from: not found.** At a first start the order is `default.cfg` (Quake VR's: the VR
+bindings), `config.cfg` (the game folder's `ironwail.cfg`; at a first start any `config.cfg` on the search path, e.g.
+`id1/config.cfg` of the Quake folder, written by another source port with `unbindall` and Ironwail/Quakespasm's gamepad
+bindings), `quakevr.cfg` (`vr_checkbindings`: at `vr_bindings_version` 0, a first start, `vr_bindings.cfg` again over
+whatever came before), `autoexec.cfg` (any on the search path, every start: the Quake folder's `id1/autoexec.cfg`
+too). So a foreign `config.cfg` alone is repaired at a first start; candidates are an `autoexec.cfg` that binds or
+`unbindall`s, a saved `ironwail.cfg` already at bindings version 3 with gamepad bindings (an earlier install or run),
+or the bindings changed in the game (Ironwail's key menus). 1.0.1's guard repairs all of these at the next start and
+names the loose config files it finds; the player's answers below should tell which.
+
+**What to ask the player:**
+1. Open the menu, the corner's *Console*, and type `bind LTRIGGER`, `bind LSHOULDER`, `bind ABUTTON`: send what they
+   say (expected with the bug: `"+jump"`, `"impulse 12"`, not bound).
+2. Send `quakevr\qvr_openxr.txt` and `quakevr\ironwail.cfg` from the Quake VR install folder (the folder the
+   installer installed to, with `quakevr` in it).
+3. Any `config.cfg` or `autoexec.cfg` in the GOG Quake folder's `id1` (and `rerelease\id1`), and in
+   `%USERPROFILE%\Saved Games\Nightdive Studios\Quake` and `%USERPROFILE%\Saved Games\Ironwail`? Did he run another
+   source port (Ironwail, vkQuake, Quakespasm) in that GOG folder before?
+4. How he starts the game (the installer's shortcut, Virtual Desktop's game list, Steam, his own shortcut), and whether he
+   used *Reset to Defaults* or Ironwail's key-binding menus.
+5. Virtual Desktop: the streamer's OpenXR runtime setting (VDXR or SteamVR), and whether "Emulate Index controllers"
+   (or similar controller-emulation options) is on.
+
+**Workaround on 1.0.0:** menu, corner *Console*, type `exec vr_bindings.cfg` (the VR bindings; saved at quit). If they
+come back wrong at the next start, something runs after Quake VR's configs: an `autoexec.cfg` (question 3); renaming it
+fixes it. Switching Virtual Desktop's OpenXR runtime to SteamVR (or `+vr_xr_runtime 2`) would not help if this is the
+bindings, which is what the symptoms say; it is the thing to try only if `bind LTRIGGER` already says
+`+offhandattack`.
+
+**In the headset:** with VDXR and with SteamVR: the first lines of `qvr_openxr.txt` after a start (each profile
+`bindings suggested ... (n)`, no `turned down`), `the left hand's controller profile: /interaction_profiles/oculus/
+touch_controller` (with VD's "Emulate Index controllers": valve/index_controller), `the controller keys:` with the VR
+bindings; triggers, grips, A/B/X/Y as before. Then in the console `bind LSHOULDER "impulse 12"; bind RSHOULDER
+"impulse 10"; bind LTRIGGER +jump`, quit and start again: the console says the bindings were set again, the grips grab.
+Doom opens from the wrist gadget's side button too: 6 presses within 0.4 s each (`vr_doom_light_presses`, `vr_doom_light_gap`), counted before the button's cooldown, the light put back as it was; one press then closes Doom without toggling the light; `vr_gadget_button_press` (Debug > Tests); DOOM.md.

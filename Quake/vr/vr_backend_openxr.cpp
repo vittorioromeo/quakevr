@@ -12,6 +12,7 @@
 #ifdef QVR_HAVE_OPENXR
 
 #include "vr_engine.hpp"
+#include "vr_input.hpp"
 #include "vr_profile.hpp"
 #include "vr_xr_runtime.hpp"
 
@@ -931,7 +932,7 @@ private:
         VR_GLStep("OpenXR: %s", text);
         VR_DiagnosticsNote(va("step: %s\n", text));
         xrruntime::logLine(va("%s OpenXR: %s\n", wallClock(), text));
-        VR_SetCrashVr(va("%s; last OpenXR step: %s", crashBase, text));
+        setCrashVr(text);
     }
 
     // An OpenXR call under vr_xr_guard's handler: a crash inside the runtime is logged and returned as a failure, the
@@ -1158,50 +1159,124 @@ private:
     };
     Controller controller[2]{Controller::Other, Controller::Other}; // per side (0 left)
 
+    // The profile the runtime plays each hand's controller as (xrGetCurrentInteractionProfile): its bindings in
+    // suggestBindings are the buttons the game gets. Looked up when the session starts running and at each
+    // XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED (and when vr_debug_buttons is turned on); a change is logged in
+    // qvr_openxr.txt and the console, and named in the crash report's VR line. VDXR may report Index controllers for
+    // Quest ones ("Emulate Index controllers").
+    char profileName[2][XR_MAX_PATH_LENGTH]{}; // per side (0 left); "" none yet
+    bool limitedWarned{false};                  // the limited-controls warning given (once a start)
+    char limitedNotice[320]{};                  // to centre-print once in a game (pollEvents)
+
+    // Profiles suggestBindings has buttons for (the simple controller has only a trigger and a menu button).
+    static constexpr const char* fullProfiles[] = {"/interaction_profiles/oculus/touch_controller",
+        "/interaction_profiles/meta/touch_plus_controller", "/interaction_profiles/valve/index_controller",
+        "/interaction_profiles/htc/vive_controller", "/interaction_profiles/microsoft/motion_controller",
+        "/interaction_profiles/bytedance/pico_neo3_controller", "/interaction_profiles/bytedance/pico4_controller",
+        "/interaction_profiles/htc/vive_cosmos_controller", "/interaction_profiles/htc/vive_focus3_controller",
+        "/interaction_profiles/hp/mixed_reality_controller", "/interaction_profiles/samsung/odyssey_controller"};
+
+    [[nodiscard]] static const char* shortProfile(const char* name)
+    {
+        const char* prefix = "/interaction_profiles/";
+        return strncmp(name, prefix, strlen(prefix)) ? name : name + strlen(prefix);
+    }
+
+    // The crash report's VR line: the runtime and headset, the controllers' profiles once known, and the last step.
+    void setCrashVr(const char* lastStep)
+    {
+        char controllers[2 * XR_MAX_PATH_LENGTH + 32] = "";
+        if(profileName[0][0] || profileName[1][0])
+        {
+            q_snprintf(controllers, sizeof(controllers), "; controllers %s / %s",
+                profileName[0][0] ? shortProfile(profileName[0]) : "none", profileName[1][0] ? shortProfile(profileName[1]) : "none");
+        }
+        VR_SetCrashVr(lastStep ? va("%s%s; last OpenXR step: %s", crashBase, controllers, lastStep)
+                               : va("%s%s", crashBase, controllers));
+    }
+
     void updateControllers()
     {
+        bool changed = false;
         for(int side = 0; side < 2; side++)
         {
+            const char* hand = side == 0 ? "left" : "right";
             XrInteractionProfileState state{XR_TYPE_INTERACTION_PROFILE_STATE};
             controller[side] = Controller::Other;
-            if(!XR_SUCCEEDED(xrGetCurrentInteractionProfile(session, handPaths[side], &state)) ||
-                state.interactionProfile == XR_NULL_PATH)
+            char name[XR_MAX_PATH_LENGTH]{};
+            const XrResult r = xrGetCurrentInteractionProfile(session, handPaths[side], &state);
+            if(XR_SUCCEEDED(r) && state.interactionProfile != XR_NULL_PATH)
             {
-                if(vr_debug_buttons.value)
-                {
-                    Con_Printf("VR buttons: the %s hand: no interaction profile (%s)\n", side == 0 ? "left" : "right", runtime);
-                }
-                continue;
+                uint32_t len = 0;
+                xrPathToString(instance, state.interactionProfile, sizeof(name), &len, name);
+            }
+            if(strcmp(name, profileName[side]) != 0)
+            {
+                q_strlcpy(profileName[side], name, sizeof(profileName[side]));
+                changed = true;
+                char line[XR_MAX_PATH_LENGTH + 96];
+                q_snprintf(line, sizeof(line), "OpenXR: the %s hand's controller profile: %s%s\n", hand, name[0] ? name : "none",
+                    XR_SUCCEEDED(r) ? "" : " (xrGetCurrentInteractionProfile failed)");
+                Con_Printf("%s", line);
+                xrruntime::logLine(va("%s %s", wallClock(), line));
             }
             if(vr_debug_buttons.value)
             {
-                // (Which of suggestBindings' profiles the runtime took: its bindings are the buttons the game gets. VDXR
-                // may report Index controllers for Quest ones: "Emulate Index controllers".)
-                char name[XR_MAX_PATH_LENGTH]{};
-                uint32_t len = 0;
-                xrPathToString(instance, state.interactionProfile, sizeof(name), &len, name);
-                Con_Printf("VR buttons: the %s hand: interaction profile %s (%s)\n", side == 0 ? "left" : "right", name, runtime);
+                Con_Printf("VR buttons: the %s hand: %s%s (%s)\n", hand, name[0] ? "interaction profile " : "no interaction profile",
+                    name, runtime);
             }
-            if(state.interactionProfile == path("/interaction_profiles/oculus/touch_controller") ||
-                state.interactionProfile == path("/interaction_profiles/meta/touch_controller_plus"))
+            if(!name[0])
+            {
+                continue;
+            }
+
+            if(!strcmp(name, "/interaction_profiles/oculus/touch_controller") ||
+                !strcmp(name, "/interaction_profiles/meta/touch_plus_controller"))
             {
                 controller[side] = Controller::Touch;
             }
-            else if(state.interactionProfile == path("/interaction_profiles/bytedance/pico_neo3_controller") ||
-                    state.interactionProfile == path("/interaction_profiles/bytedance/pico4_controller") ||
-                    state.interactionProfile == path("/interaction_profiles/htc/vive_cosmos_controller") ||
-                    state.interactionProfile == path("/interaction_profiles/htc/vive_focus3_controller"))
+            else if(!strcmp(name, "/interaction_profiles/bytedance/pico_neo3_controller") ||
+                    !strcmp(name, "/interaction_profiles/bytedance/pico4_controller") ||
+                    !strcmp(name, "/interaction_profiles/htc/vive_cosmos_controller") ||
+                    !strcmp(name, "/interaction_profiles/htc/vive_focus3_controller"))
             {
                 // Shaped as Touch controllers (a handle, a stick and two face buttons): Touch's legacy grip is the nearest
                 // the released offsets have (ROUND22.md, "Menu on any controller").
                 controller[side] = Controller::Touch;
             }
-            else if(state.interactionProfile == path("/interaction_profiles/valve/index_controller"))
+            else if(!strcmp(name, "/interaction_profiles/valve/index_controller"))
             {
                 // Virtual Desktop's "Emulate Index controllers" reports Index controllers for what
                 // are Quest controllers: VDXR's grip is Meta's Touch one whatever the profile.
                 controller[side] = vdxr ? Controller::Touch : Controller::Index;
             }
+
+            // A profile without the game's buttons (the simple controller: a trigger and a menu button; or one the game
+            // has no bindings for): said once a start, in the console, qvr_openxr.txt and in the game.
+            bool full = false;
+            for(const char* known : fullProfiles)
+            {
+                full = full || !strcmp(name, known);
+            }
+            if(!full && !limitedWarned)
+            {
+                limitedWarned = true;
+                const char* line = va("OpenXR: the runtime plays the %s controller as %s, which has few of the game's "
+                                      "buttons (no grips, no A/B/X/Y): grabbing, climbing and jumping may not work. Its "
+                                      "controller bindings for the game were turned down or it does not know the "
+                                      "controllers; qvr_openxr.txt has the details\n",
+                    hand, name);
+                Con_Warning("%s", line);
+                xrruntime::logLine(va("WARNING: %s", line)); // (xrruntime::warn's log is the start's only)
+                q_snprintf(limitedNotice, sizeof(limitedNotice),
+                    "Your controllers are played as \"%s\":\ncontrols may be limited (no grips or A/B/X/Y).\nSee qvr_openxr.txt "
+                    "in the quakevr folder.",
+                    shortProfile(name));
+            }
+        }
+        if(changed)
+        {
+            setCrashVr(nullptr);
         }
     }
 
@@ -1672,38 +1747,72 @@ private:
         const char* path;
     };
 
-    bool suggest(const char* profile, za::InitializerList<Binding> bindings)
+    [[nodiscard]] XrResult suggestList(XrPath profile, const za::Vector<XrActionSuggestedBinding>& list) const
     {
-        za::Vector<XrActionSuggestedBinding> suggested;
-        for(const Binding& b : bindings)
-        {
-            suggested.pushBack({*b.action, path(b.path)});
-        }
-
         XrInteractionProfileSuggestedBinding info{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
-        info.interactionProfile = path(profile);
-        info.suggestedBindings = suggested.data();
-        info.countSuggestedBindings = static_cast<uint32_t>(suggested.size());
-        const XrResult r = xrSuggestInteractionProfileBindings(instance, &info);
-        if(!XR_SUCCEEDED(r))
-        {
-            Con_DPrintf("OpenXR: no bindings for %s (%d)\n", profile, static_cast<int>(r));
-            return false;
-        }
-        return true;
+        info.interactionProfile = profile;
+        info.suggestedBindings = list.data();
+        info.countSuggestedBindings = static_cast<uint32_t>(list.size());
+        return xrSuggestInteractionProfileBindings(instance, &info);
     }
 
-    // A vendor's profile (vr_xr_vendor_profiles): all its buttons, or, should the runtime turn one of their paths down
-    // (the whole profile goes then), its basic ones (no menu button: vr_menu_button's gestures; no finger sensors).
-    void suggestVendor(const char* profile, za::InitializerList<Binding> full, za::InitializerList<Binding> basic)
+    // One profile's bindings (1.0.1, ROUND22.md "Controls as if another controller"). A runtime turns a whole suggestion
+    // down for a single path it lacks (XR_ERROR_PATH_UNSUPPORTED), and then plays the controllers as another profile the
+    // game bound (Touch as a simple controller: no grips, no A/B). So when the whole is turned down, the bindings are
+    // added again one at a time (the grip pose first), each one the runtime turns down dropped and named (qvr_openxr.txt
+    // and the console), the rest kept: one bad path costs that path, never the profile. None taken: the runtime does not
+    // have the profile at all (another vendor's, an extension's), which is expected and said in qvr_openxr.txt only.
+    bool suggest(const char* profile, za::InitializerList<Binding> bindings)
     {
-        if(suggest(profile, full))
+        const XrPath profilePath = path(profile);
+        za::Vector<XrActionSuggestedBinding> all;
+        for(const Binding& b : bindings)
         {
-            xrruntime::logLine(va("OpenXR: bindings suggested for %s\n", profile));
-            return;
+            all.pushBack({*b.action, path(b.path)});
         }
-        const bool took = suggest(profile, basic);
-        xrruntime::logLine(va("OpenXR: %s turned down its bindings; its basic ones: %s\n", profile, took ? "taken" : "turned down too"));
+        const int count = static_cast<int>(all.size());
+        const XrResult whole = suggestList(profilePath, all);
+        if(XR_SUCCEEDED(whole))
+        {
+            xrruntime::logLine(va("OpenXR: bindings suggested for %s (%d)\n", profile, count));
+            return true;
+        }
+
+        char result[XR_MAX_RESULT_STRING_SIZE] = "";
+        xrResultToString(instance, whole, result);
+        za::Vector<XrActionSuggestedBinding> kept;
+        za::Vector<int> dropped; // indexes into bindings
+        bool lastTurnedDown = false;
+        for(int i = 0; i < count; i++)
+        {
+            kept.pushBack(all[i]);
+            lastTurnedDown = !XR_SUCCEEDED(suggestList(profilePath, kept));
+            if(lastTurnedDown)
+            {
+                kept.popBack();
+                dropped.pushBack(i);
+            }
+        }
+        if(kept.empty())
+        {
+            xrruntime::logLine(va("OpenXR: no bindings for %s: the runtime does not have it (%s)\n", profile, result));
+            return false;
+        }
+        // (A turned-down call changes nothing, but a runtime might not hold to that: the kept ones once more.)
+        if(lastTurnedDown && !XR_SUCCEEDED(suggestList(profilePath, kept)))
+        {
+            xrruntime::warn("OpenXR: %s: its bindings turned down (%s), and its %d accepted one by one too\n", profile,
+                result, static_cast<int>(kept.size()));
+            return false;
+        }
+        for(const int i : dropped)
+        {
+            xrruntime::warn("OpenXR: %s: %s turned down by the runtime (%s): not bound\n", profile, bindings.begin()[i].path,
+                result);
+        }
+        xrruntime::logLine(va("OpenXR: bindings suggested for %s (%d of %d: %d turned down)\n", profile,
+            static_cast<int>(kept.size()), count, static_cast<int>(dropped.size())));
+        return true;
     }
 
     // The actions are the controllers' physical controls; the game assigns them through key
@@ -1719,23 +1828,23 @@ private:
                 QVR_BOTH(triggerValueAction, "input/select/click"),
                 QVR_BOTH(menuAction, "input/menu/click"), QVR_BOTH(hapticAction, "output/haptic")});
 
-        for(const char* touch : {"/interaction_profiles/oculus/touch_controller",
-                "/interaction_profiles/meta/touch_controller_plus"})
-        {
-            suggest(touch,
-                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
-                    QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
-                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
-                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
-                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
-                    {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic"),
-                    QVR_BOTH(triggerValueAction, "input/trigger/value"),
-                    QVR_BOTH(gripValueAction, "input/squeeze/value"),
-                    QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"),
-                    {&thumbTouchAction, QVR_L("input/x/touch")}, {&thumbTouchAction, QVR_L("input/y/touch")},
-                    {&thumbTouchAction, QVR_R("input/a/touch")}, {&thumbTouchAction, QVR_R("input/b/touch")},
-                    QVR_BOTH(triggerTouchAction, "input/trigger/touch")});
-        }
+        // Touch: the core profile's paths only (OpenXR 1.0, no extension's; VDXR 1.0.x and 1.1 take every one). Quest 3's
+        // own profile (XR_META_touch_controller_plus: /interaction_profiles/meta/touch_plus_controller) is not suggested:
+        // 1.0.0 asked for it under a wrong name (meta/touch_controller_plus, turned down), so every runtime has played
+        // Quest 3 controllers as Touch ones, with these bindings; that stays.
+        suggest("/interaction_profiles/oculus/touch_controller",
+            {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
+                QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
+                {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic"),
+                QVR_BOTH(triggerValueAction, "input/trigger/value"),
+                QVR_BOTH(gripValueAction, "input/squeeze/value"),
+                QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"),
+                {&thumbTouchAction, QVR_L("input/x/touch")}, {&thumbTouchAction, QVR_L("input/y/touch")},
+                {&thumbTouchAction, QVR_R("input/a/touch")}, {&thumbTouchAction, QVR_R("input/b/touch")},
+                QVR_BOTH(triggerTouchAction, "input/trigger/touch")});
 
         // No menu button: the left B opens the menu.
         suggest("/interaction_profiles/valve/index_controller",
@@ -1778,7 +1887,7 @@ private:
             for(const char* pico : {"/interaction_profiles/bytedance/pico_neo3_controller",
                     "/interaction_profiles/bytedance/pico4_controller"})
             {
-                suggestVendor(pico,
+                suggest(pico,
                     {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
                         QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
                         QVR_BOTH(stickClickAction, "input/thumbstick/click"),
@@ -1790,20 +1899,13 @@ private:
                         QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"),
                         {&thumbTouchAction, QVR_L("input/x/touch")}, {&thumbTouchAction, QVR_L("input/y/touch")},
                         {&thumbTouchAction, QVR_R("input/a/touch")}, {&thumbTouchAction, QVR_R("input/b/touch")},
-                        QVR_BOTH(triggerTouchAction, "input/trigger/touch")},
-                    {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
-                        QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
-                        QVR_BOTH(stickClickAction, "input/thumbstick/click"),
-                        {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
-                        {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
-                        QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
-                        QVR_BOTH(gripValueAction, "input/squeeze/value")});
+                        QVR_BOTH(triggerTouchAction, "input/trigger/touch")});
             }
         }
         // The HTC ones' grips as clicks (the Focus 3's value came in a later revision: not asked).
         if(vendorProfile[VendorCosmos])
         {
-            suggestVendor("/interaction_profiles/htc/vive_cosmos_controller",
+            suggest("/interaction_profiles/htc/vive_cosmos_controller",
                 {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
                     QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
                     QVR_BOTH(stickClickAction, "input/thumbstick/click"),
@@ -1811,17 +1913,11 @@ private:
                     {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
                     {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic"),
                     QVR_BOTH(triggerValueAction, "input/trigger/value"), QVR_BOTH(gripValueAction, "input/squeeze/click"),
-                    QVR_BOTH(thumbTouchAction, "input/thumbstick/touch")},
-                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
-                    QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
-                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
-                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
-                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
-                    QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value")});
+                    QVR_BOTH(thumbTouchAction, "input/thumbstick/touch")});
         }
         if(vendorProfile[VendorFocus3])
         {
-            suggestVendor("/interaction_profiles/htc/vive_focus3_controller",
+            suggest("/interaction_profiles/htc/vive_focus3_controller",
                 {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
                     QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
                     QVR_BOTH(stickClickAction, "input/thumbstick/click"),
@@ -1830,36 +1926,24 @@ private:
                     {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic"),
                     QVR_BOTH(triggerValueAction, "input/trigger/value"), QVR_BOTH(gripValueAction, "input/squeeze/click"),
                     QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"), QVR_BOTH(thumbTouchAction, "input/thumbrest/touch"),
-                    QVR_BOTH(triggerTouchAction, "input/trigger/touch")},
-                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
-                    QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
-                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
-                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
-                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
-                    QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value")});
+                    QVR_BOTH(triggerTouchAction, "input/trigger/touch")});
         }
         // The Reverb G2: A/B and X/Y as on Touch (the WMR profile has none), a menu button on each hand.
         if(vendorProfile[VendorHp])
         {
-            suggestVendor("/interaction_profiles/hp/mixed_reality_controller",
+            suggest("/interaction_profiles/hp/mixed_reality_controller",
                 {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
                     QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
                     QVR_BOTH(stickClickAction, "input/thumbstick/click"),
                     {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
                     {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
                     QVR_BOTH(menuAction, "input/menu/click"), QVR_BOTH(hapticAction, "output/haptic"),
-                    QVR_BOTH(triggerValueAction, "input/trigger/value"), QVR_BOTH(gripValueAction, "input/squeeze/value")},
-                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
-                    QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
-                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
-                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
-                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
-                    QVR_BOTH(hapticAction, "output/haptic")});
+                    QVR_BOTH(triggerValueAction, "input/trigger/value"), QVR_BOTH(gripValueAction, "input/squeeze/value")});
         }
         // As the WMR controllers (the same controls).
         if(vendorProfile[VendorOdyssey])
         {
-            suggestVendor("/interaction_profiles/samsung/odyssey_controller",
+            suggest("/interaction_profiles/samsung/odyssey_controller",
                 {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
                     QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
                     QVR_BOTH(stickClickAction, "input/thumbstick/click"),
@@ -1867,12 +1951,7 @@ private:
                     {&secondaryAction, QVR_R("input/menu/click")}, {&menuAction, QVR_L("input/menu/click")},
                     QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
                     QVR_BOTH(gripValueAction, "input/squeeze/click"),
-                    QVR_BOTH(thumbTouchAction, "input/trackpad/touch")},
-                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
-                    QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
-                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
-                    QVR_BOTH(primaryAction, "input/trackpad/click"), {&secondaryAction, QVR_R("input/menu/click")},
-                    {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic")});
+                    QVR_BOTH(thumbTouchAction, "input/trackpad/touch")});
         }
 
 #undef QVR_BOTH
@@ -2172,6 +2251,37 @@ private:
         XrSessionBeginInfo beginInfo{XR_TYPE_SESSION_BEGIN_INFO};
         beginInfo.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
         sessionRunning = check(xrBeginSession(session, &beginInfo), "xrBeginSession");
+        if(sessionRunning)
+        {
+            // (Usually none yet: runtimes pick them at the first xrSyncActions, and say so with an event.)
+            updateControllers();
+            xrruntime::logLine(va("OpenXR: controller profiles at the session's start: left %s, right %s\n",
+                profileName[0][0] ? profileName[0] : "none yet", profileName[1][0] ? profileName[1] : "none yet"));
+            // What the buttons' keys do (a config's gamepad bindings over the VR ones look like the wrong profile).
+            char keys[640];
+            qvr::input::describeBindings(keys, sizeof(keys));
+            xrruntime::logLine(va("OpenXR: the controller keys: %s\n", keys));
+            nextProfileCheck = 0.0;
+        }
+    }
+
+    double nextProfileCheck{0.0}; // pollEvents: a hand without a profile looked up again every 2 s (an event missed)
+
+    // Each frame: the hands' profiles if a runtime has not said (a hand with none, every 2 s); the limited-controls
+    // warning centre-printed once a game is on (updateControllers).
+    void checkControllers()
+    {
+        const double now = Sys_DoubleTime();
+        if(sessionRunning && (!profileName[0][0] || !profileName[1][0]) && now >= nextProfileCheck)
+        {
+            nextProfileCheck = now + 2.0;
+            updateControllers();
+        }
+        if(limitedNotice[0] && cls.signon == SIGNONS && key_dest == key_game)
+        {
+            SCR_CenterPrint(limitedNotice);
+            limitedNotice[0] = '\0';
+        }
     }
 
     // Returns false if the session is lost or the application should exit VR.
@@ -2186,6 +2296,7 @@ private:
                 updateControllers();
             }
         }
+        checkControllers();
         XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
         while(xrPollEvent(instance, &event) == XR_SUCCESS)
         {

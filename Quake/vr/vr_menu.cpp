@@ -2901,6 +2901,12 @@ void hologramTestMessage()
             .help("How long you look at the raised gadget before its stick and buttons go to Doom (0: only a touch)."),
         slider("Out of View to Unfocus", vr_doom_focus_grace, 0.1f, 3.f, 0.1f, "%.1f s")
             .help("How long the gadget may be out of view (lowered, looked away from) before they come back to Quake."),
+        slider("Light Button Presses", vr_doom_light_presses, 0.f, 10.f, 1.f, "%.0f")
+            .help("Press the gadget's side button (the light on/off one) this many times in quick succession to open "
+                  "Doom on the gadget; one press of it then closes Doom again, without toggling the light (0: off). "
+                  "The light itself keeps toggling with each press and is put back as it was."),
+        slider("Light Press Gap", vr_doom_light_gap, 0.1f, 1.f, 0.05f, "%.2f s")
+            .help("The longest time between two of those presses."),
         toggle("Pause When Not Focused", vr_doom_pause_unfocused)
             .help("Off: Doom keeps running while you play Quake. On: it pauses until you look at it or touch it."),
         header("Picture and Sound"),
@@ -4750,6 +4756,9 @@ za::Vector<Item> pageDebugViews()
                   "striking volume (your hand's surface blue, the gun's butt orange, white on the zone); And Print "
                   "Sync: also prints each frame how far the zone is from the drawn gadget. The settings: HUD and Menus "
                   "> Wrist Gadget."),
+        command("Press the Gadget Button", "vr_gadget_button_press")
+            .help("vr_gadget_button_press: a press of the wrist gadget's side button without a fingertip (the light; "
+                  "six quick ones open Doom, one closes it)."),
         command("Gear Lights Info", "vr_gear_lights_info")
             .help("vr_gear_lights_info: the gear lights' state, the side button's place and your fingertip's distance to "
                   "it, and the stealth AI's light on you now."),
@@ -4896,6 +4905,10 @@ za::Vector<Item> pageDebugLogging()
             .help("Each controller button pressed and let go: the hand, the button, its key and binding, and what took it "
                   "(the posing mode, a voice note, the flashlight); and the controller profile the headset's runtime "
                   "picked for each hand (Virtual Desktop can report Index controllers). For a button that does nothing."),
+        command("Restore Controller Bindings", "vr_bindings_reset")
+            .help("vr_bindings_reset: the controller buttons' keys bound as Quake VR ships them again (quakevr/"
+                  "vr_bindings.cfg: triggers fire, grips grab, A jumps...). For controls that act as a gamepad's (the left "
+                  "trigger jumping, the grips changing weapons)."),
         toggle("Wounds", vr_wounds_debug).help("Each wound painted on a model."),
         cycle("Grasp", vr_debug_grasp, {{0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"}})
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),
@@ -6529,6 +6542,9 @@ za::Vector<Item> pageDebugTests()
         command("What Continue Would Load", "vr_continue_info")
             .help("vr_continue_info: the save the main menu's Continue row and the hub's Continue button load (the newest "
                   "loadable save of a campaign's map, an autosave or your own) and the newer ones passed over, printed."),
+        command("List the Saves", "vr_save_info")
+            .help("vr_save_info: every save in the game folder and autosave/, each with what it was played as (its "
+                  "campaign, its Map Library package), its map's title and its line in the Load menu, printed."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")
