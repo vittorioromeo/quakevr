@@ -631,7 +631,7 @@ stop at a seam instead of reading the skin's other parts past it
 */
 static void TexMgr_AuthoredHeights (gltexture_t *glt, byte *data, int *kind)
 {
-	int x, y, i, n = glt->width * glt->height;
+	int x, i, n = glt->width * glt->height;
 
 	*kind &= ~NORMALMAP_FLAT;
 	for (i = 0; i < n && data[i * 4 + 3] == 255; i++)
@@ -644,14 +644,29 @@ static void TexMgr_AuthoredHeights (gltexture_t *glt, byte *data, int *kind)
 	TexMgr_EnsureHeightMask (); // (only now: most authored maps are flat, VR_SetHeightMaskLazy)
 	if (!heightmask)
 		return;
-	for (y = 0; y < (int) glt->height; y++)
-		for (x = 0; x < (int) glt->width; x++)
+	// Each texel as before (the same sums), its rows shared out on the pool (TexMgr_ForRows: 60 ms of every start's
+	// calibration room, the body's and the hands' 1024 x 1024 maps, on one thread), the mask's column of each x
+	// worked out once; a texel at the top (255) stays there, as the sum gives.
+	{
+		const int width = (int) glt->width, height = (int) glt->height;
+		const float scale = glt->width / (float) heightmask_width; // the mask's texels in these
+		int *columns = (int *) VR_HeapMalloc (sizeof (int) * (size_t) width);
+		for (x = 0; x < width; x++)
+			columns[x] = x * heightmask_width / width;
+		TexMgr_ForRows (height, width * height, [&] (int row)
 		{
-			int mx = x * heightmask_width / glt->width, my = y * heightmask_height / glt->height;
-			float d = heightmask[my * heightmask_width + mx] * (glt->width / (float) heightmask_width); // in these texels
-			byte *a = &data[(y * glt->width + x) * 4 + 3];
-			*a = (byte) (255 - (int) ((255 - *a) * CLAMP (0.f, (d - 0.5f) / HEIGHT_RIM, 1.f) + 0.5f));
-		}
+			const byte *mask = heightmask + (row * heightmask_height / height) * heightmask_width;
+			byte *a = data + (size_t) row * width * 4 + 3;
+			for (int col = 0; col < width; col++, a += 4)
+			{
+				if (*a == 255)
+					continue;
+				float d = mask[columns[col]] * scale; // in these texels
+				*a = (byte) (255 - (int) ((255 - *a) * CLAMP (0.f, (d - 0.5f) / HEIGHT_RIM, 1.f) + 0.5f));
+			}
+		});
+		VR_HeapFree (columns);
+	}
 }
 
 /*
