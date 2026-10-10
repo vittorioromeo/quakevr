@@ -233,6 +233,7 @@ struct Bound
     int tri{-1};           // the triangle bound to (-1: a legacy anchor's vertex)
     float distance{0.f};   // from the anchor's point to the surface (model units)
     int ties{0};           // other triangles as near that bind elsewhere (a hint picks among them)
+    bool corner{false};    // snapped to a corner of the triangle
     bool legacy{false};
 };
 
@@ -614,6 +615,7 @@ struct Closest
             b.weight[k] = k == corner ? 1.f : 0.f;
         }
         b.distance = cornerDistance;
+        b.corner = true;
     }
     return b;
 }
@@ -643,6 +645,33 @@ struct Closest
     return true;
 }
 
+// The bindings `s` could take: the triangles as near as the nearest (within the text's rounding) and, if any of them puts
+// the point on a corner (a vertex anchor), only those (not a triangle of another part passing that close), in the file's
+// order; the hint among them even if it doesn't.
+void candidates(const Mesh& m, const Spec& s, za::Vector<Bound>& out)
+{
+    out.clear();
+    float nearest = 1e30f;
+    bool anyCorner = false;
+    for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
+    {
+        nearest = glm::min(nearest, bindTriangle(m, t, s.point).distance);
+    }
+    for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
+    {
+        const Bound b = bindTriangle(m, t, s.point);
+        anyCorner = anyCorner || (b.distance <= nearest + tieDistance && b.corner);
+    }
+    for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
+    {
+        const Bound b = bindTriangle(m, t, s.point);
+        if(b.distance <= nearest + tieDistance && (!anyCorner || b.corner || t == s.hint))
+        {
+            out.pushBack(b);
+        }
+    }
+}
+
 [[nodiscard]] Bound bind(Mesh& m, const Spec& s)
 {
     Bound out;
@@ -658,35 +687,22 @@ struct Closest
         return out;
     }
 
-    float nearest = 1e30f;
-    for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
+    za::Vector<Bound> tied;
+    candidates(m, s, tied);
+    // The hint if it is one of them, else the first. `ties`: the others that bind elsewhere (another vertex in the same
+    // place: two parts touching there, a collapsed muzzle flash): the triangle order picks, which an edit may change.
+    out = tied[0];
+    for(const Bound& b : tied)
     {
-        nearest = glm::min(nearest, bindTriangle(m, t, s.point).distance);
-    }
-    // The first triangle as near (or the hint, if it is one), and how many others as near bind elsewhere.
-    bool found = false;
-    for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
-    {
-        const Bound b = bindTriangle(m, t, s.point);
-        if(b.distance > nearest + tieDistance)
+        if(b.tri == s.hint)
         {
-            continue;
-        }
-        if(!found || t == s.hint)
-        {
-            const int ties = out.ties;
             out = b;
-            out.ties = ties;
-            found = true;
         }
     }
-    for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
+    out.ties = 0;
+    for(const Bound& b : tied)
     {
-        const Bound b = bindTriangle(m, t, s.point);
-        if(b.distance <= nearest + tieDistance && !sameBinding(out, b))
-        {
-            out.ties++;
-        }
+        out.ties += !sameBinding(out, b);
     }
     return out;
 }
@@ -936,12 +952,22 @@ bool legacyToText(const char* modelName, int index, za::String& out, bool* exact
     {
         *exact = true;
     }
-    if(followsVertex(bind(m, s)))
+    // Without a hint when every binding the point could take goes where the vertex goes (the triangle order then doesn't
+    // matter: an edit may renumber them).
+    za::Vector<Bound> tied;
+    candidates(m, s, tied);
+    bool allFollow = !tied.empty();
+    for(const Bound& b : tied)
+    {
+        allFollow = allFollow && followsVertex(b);
+    }
+    if(allFollow)
     {
         out = plain;
         return true;
     }
-    // The first of the vertex's triangles that binds the point to where it goes, as the hint.
+    // Another vertex in the same place (two parts touching there, a collapsed muzzle flash) that moves elsewhere: the first
+    // of the vertex's triangles that binds the point to where it goes, as the hint (so the triangle order doesn't pick).
     for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
     {
         const Triangle& tri = m.tris[t];
@@ -959,7 +985,7 @@ bool legacyToText(const char* modelName, int index, za::String& out, bool* exact
     }
     if(exact)
     {
-        *exact = false; // none does: the point as it is (vr_anchor_compare says how far off)
+        *exact = followsVertex(bind(m, s)); // none does: the point as it is (vr_anchor_compare says how far off)
     }
     out = plain;
     return true;

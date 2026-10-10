@@ -4,11 +4,13 @@
 #
 # - The header's scale and origin (the weapon Scale pivots about the origin; the anchors and ports are in model space),
 #   the frames (count, names, groups), the skins (count, size, groups).
-# - Every old vertex's index, and the old triangles in their places: vr_anchor.cpp's strip order, which the anchors
-#   index, depends on them. An old vertex keeps its index whatever is done to it (deleted, it stays in the file
-#   unused); new vertices and triangles go after the old ones, and a new triangle never uses an old vertex (it gets
-#   a twin at the same place), so no old strip changes. An old triangle deleted or changed (other corners, other
-#   winding) leaves its place: the export then checks every anchor.
+# - The anchors (vr_anchor.hpp): points on the surface since round 22, bound to the nearest triangle as the engine
+#   does; the export reports where each is in every frame, before and after (mdl.anchor_report: MOVED past 0.01
+#   units), whatever the numbering. Every old vertex's index, and the old triangles in their places, are still kept
+#   (byte for byte; and vr_anchor.cpp's strip order, which legacy anchor indices -- one number, settings from before
+#   round 22 -- index, depends on them): an old vertex keeps its index whatever is done to it (deleted, it stays in
+#   the file unused); new vertices and triangles go after the old ones, and a new triangle never uses an old vertex (it
+#   gets a twin at the same place), so no old strip changes.
 # - Bytes: a vertex, a texel, a normal, a frame's bounds that didn't change are written as they were read, so an
 #   unedited model comes back byte for byte.
 #

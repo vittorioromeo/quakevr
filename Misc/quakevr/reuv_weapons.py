@@ -763,7 +763,9 @@ def fix(path, report_only=False, src_dir=SRC):
         for i in c:
             face_panel.setdefault(i, home)
     import polish_weapons  # (here: it imports this module)
-    charts, dropped = keep_anchors(m, charts, area, sorted(polish_weapons.slot_anchors().get(name, ())))
+    import anchors
+    in_use = [text for _, text in polish_weapons.slot_anchors().get(name, ())]
+    charts, dropped = keep_anchors(m, charts, area, anchors.strip_indices(m, in_use))
     chosen = sorted(i for c, _ in charts for i in c)
     if dropped:
         print("    %d charts (%d faces) left as they were: re-mapping them would move a weapon anchor" % (

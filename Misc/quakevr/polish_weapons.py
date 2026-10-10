@@ -11,9 +11,11 @@
 #
 # What stays (mdlpolish.py): the header's scale and origin (what the weapon offsets and Scale apply about), every
 # old vertex's bytes and index, every old triangle, UV and texel but the edge wear's. New vertices and triangles are
-# appended, sharing no vertex with the old ones, so vr_anchor.cpp's strip order -- every anchor index (hand, muzzle,
-# two-handed grip, ammo screen and button, shell port) -- names the same vertex at the same place (checked here for
-# every anchor of every slot using the model), the hotspots (model space) stay where they were, and the new parts
+# appended, sharing no vertex with the old ones, so every anchor (hand, muzzle, two-handed grip, ammo screen and button,
+# magazine mount, shell port: points on the surface, vr_anchor.hpp) stays on the surface where it was in every pose
+# (checked here for every anchor in use on the model: within anchors.TOLERANCE, bound on the old model and on the new
+# as the engine binds them, anchors.py; before round 22 the anchors were vertex indices and had to keep their
+# vertex), the hotspots (model space) stay where they were, and the new parts
 # fit inside the old bounds (the write fails otherwise). The new parts keep clear of where the hands hold the gun
 # (the grips, triggers, foregrips, pumps): the fitted fingers close on the same surfaces as before.
 # The double shotgun then goes through reuv_shot2.py (POST): its fore-end's stretched UVs re-mapped and repainted,
@@ -48,6 +50,7 @@ import refine_light
 import reuv_shot2
 import reuv_weapons
 from improve_weapons import strip_order
+import anchors
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "src_models", "r21")
@@ -394,34 +397,36 @@ POST["v_plasma.mdl"] = lambda path: (refine_light.fix(path), reuv_weapons.fix(pa
 # ----------------------------------------------------------------------------
 
 def slot_anchors():
-    """{model file: set of anchor indices} from vr_weapons.inc's defaults."""
-    d = {}
-    for s, k, v in re.findall(r'QVR_WEAPON_DEFAULT\((\d+), (\w+), "([^"]*)"\)', open(INC).read()):
-        d.setdefault(int(s), {})[k] = v
+    """{model file: [(where, anchor text)]}: the anchors in use (anchors.collect: vr_weapons.inc's defaults, the
+    magazines' mounts, the shells' ports)."""
     out = {}
-    for s, keys in d.items():
-        m = keys.get("ID", "")
-        if not m.startswith("progs/"):
-            continue
-        a = out.setdefault(m[len("progs/"):], set())
-        for k in ("HandAnchorVertex", "MuzzleAnchorVertex", "TwoHHandAnchorVertex", "WpnButtonAnchorVertex",
-                  "WpnTextAnchorVertex"):
-            if k in keys:
-                a.add(int(float(keys[k])))
-    # The magazines' anchors (vr_view.cpp magMounts: the vertex whose kick moves the magazine and its well).
-    for gun, a in re.findall(r'"progs/vr_mag_on_(v_\w+\.mdl)", (\d+),', open(VIEW).read()):
-        out.setdefault(gun, set()).add(int(a))
+    for where, model, text in anchors.collect():
+        if model.startswith("progs/"):
+            out.setdefault(model[len("progs/"):], []).append((where, text))
     return out
 
 
-def anchors_of(path, anchors):
-    m = mp.Model(path)
-    order = strip_order(m.tris)
-    poses = [np.frombuffer(bytes(m.pose_bytes(p)), np.uint8).reshape(-1, 4) for p in range(m.num_poses())]
-    # The position's bytes in every pose (not the normal's: an anchor is a place, and fix_inverted_normals may turn its
-    # normal; nor the vertex's index: vr_anchor.cpp reads only the place, and a re-map's copy of a vertex
-    # (reuv_weapons.py) is at its vertex's place in every pose).
-    return {a: tuple(bytes(P[order[a]][:3]) for P in poses) if a < len(order) else None for a in anchors}
+def anchors_of(path, texts):
+    """{(where, text): (distance from the surface at rest, [its place in every pose])} on the model at `path`, bound as
+    the engine binds it (anchors.py; a point is bound to the nearest triangle, so the vertex numbering may change)."""
+    mesh = anchors.Mesh(path)
+    out = {}
+    for where, text in texts:
+        b = mesh.bind(text)
+        out[(where, text)] = (b.distance, [mesh.position(b, p) for p in range(len(mesh.poses))])
+    return out
+
+
+def moved_anchors(before, after):
+    """[(where, text, how far)]: the anchors more than anchors.TOLERANCE off the new surface at rest, or moved more than
+    that in any pose."""
+    out = []
+    for key, (d0, p0) in before.items():
+        d1, p1 = after[key]
+        far = max([d1] + [math.dist(a, b) for a, b in zip(p0, p1)])
+        if far > anchors.TOLERANCE:
+            out.append(key + (far,))
+    return out
 
 
 def polish(name, out_dir):
@@ -450,25 +455,27 @@ def main():
     args = sys.argv[1:]
     out_dir = args[0] if args and not args[0].endswith(".mdl") else os.path.join(HERE, "..", "..", "quakevr", "progs")
     names = [a for a in args if a.endswith(".mdl")] or sorted(list(RECIPES) + WEAR_ONLY)
-    anchors = slot_anchors()
+    in_use = slot_anchors()
     # The files edited in Blender since a generator wrote them are not overwritten (genguard.py: --keep-edited, --force).
     guard = genguard.Guard("polish_weapons.py", [os.path.join(out_dir, n) for n in names] +
                            [os.path.join(out_dir, x) for n in names for x in SPLIT_OUTPUTS.get(n, [])])
     bad = 0
     for name in names:
-        before = anchors_of(os.path.join(SRC, name), anchors.get(name, set()))
-        # An anchor on this script's own parts (a magazine's, past the source's vertices): where the shipped file has it.
+        texts = in_use.get(name, [])
+        before = anchors_of(os.path.join(SRC, name), texts)
+        # An anchor on this script's own parts (a magazine's, not on the source's surface): where the shipped file has it.
         shipped = os.path.join(HERE, "..", "..", "quakevr", "progs", name)
-        if None in before.values() and os.path.exists(shipped):
-            before.update({a: p for a, p in anchors_of(shipped, [a for a in before if before[a] is None]).items()})
+        far = [k for k, (d, _) in before.items() if d > anchors.TOLERANCE]
+        if far and os.path.exists(shipped):
+            before.update({k: v for k, v in anchors_of(shipped, far).items()})
         old_nt, tris, verts, rows, texels = polish(name, out_dir)
-        after = anchors_of(os.path.join(out_dir, name), anchors.get(name, set()))
-        moved = [a for a in before if before[a] != after[a]]
+        after = anchors_of(os.path.join(out_dir, name), texts)
+        moved = moved_anchors(before, after)
         bad += len(moved)
         print("%-13s %4d -> %4d triangles (+%3d, x%.2f), %3d new vertices, %2d new skin rows, %4d texels worn; "
-              "anchors %s%s" % (name, old_nt, old_nt + tris, tris, (old_nt + tris) / old_nt, verts, rows, texels,
-                                ", ".join(str(a) for a in sorted(before)) or "none",
-                                "" if not moved else "  MOVED: %s" % moved))
+              "%d anchors%s" % (name, old_nt, old_nt + tris, tris, (old_nt + tris) / old_nt, verts, rows, texels,
+                                len(texts), "" if not moved else "  MOVED: %s" % "; ".join(
+                                    "%s \"%s\" %.3f" % m for m in moved)))
     guard.finish()
     if bad:
         sys.exit("anchors moved")

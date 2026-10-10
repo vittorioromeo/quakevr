@@ -9082,11 +9082,10 @@ void hotspotsCheck_f()
 }
 
 
-#define QVR_ANCHOR_TEXT(slot, key) weapons::cvar(slot, key)->string
 // vr_anchor_where: each hand's weapon as drawn this frame, its anchors (the muzzle, the ammo button and screen with their
 // offsets) and its magazine's and well's places (moved by their mount's anchor), in the world and in the gun's own frame
 // (its drawn matrix undone: what the anchors alone decide, the gun's motion taken out). For comparing builds and checking
-// a model edit in the game (Debug > Tools > Weapon Anchors).
+// a model edit in the game (Debug > Reports > Weapon Anchors).
 void anchorWhere_f()
 {
     for(int hand = 0; hand < 2; hand++)
@@ -9107,11 +9106,11 @@ void anchorWhere_f()
             Con_Printf("anchors hand %d %s frame %d %s %.4f %.4f %.4f local %.4f %.4f %.4f\n", hand, ve.ent.model->name,
                 ve.ent.frame, what, w.x, w.y, w.z, l.x, l.y, l.z);
         };
-        print("muzzle", anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::MuzzleAnchorVertex),
+        print("muzzle", anchorPosition(ve, weapons::cvar(slot, Key::MuzzleAnchorVertex)->string,
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ)));
-        print("button", anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::WpnButtonAnchorVertex),
+        print("button", anchorPosition(ve, weapons::cvar(slot, Key::WpnButtonAnchorVertex)->string,
             weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ)));
-        print("text", anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::WpnTextAnchorVertex),
+        print("text", anchorPosition(ve, weapons::cvar(slot, Key::WpnTextAnchorVertex)->string,
             weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ)));
         for(const ViewEntity* part : {&entities.mag[hand], &entities.well[hand]})
         {
@@ -9122,8 +9121,6 @@ void anchorWhere_f()
         }
     }
 }
-#undef QVR_ANCHOR_TEXT
-
 // vr_dumpview: lists the VR view entities.
 void holsterPoseCheck(weapons::HolsterKind kind, const qmodel_t* model, const glm::vec3& inPos, const glm::vec3& inFwd,
     const glm::vec3& inUp)
