@@ -115,6 +115,16 @@ prints it.
 
 ## If something goes wrong
 
+**The quickest report:** the Start menu's **Quake VR Unleashed (Diagnostics)** shortcut (or `-diagnostics`) puts
+everything in `quakevr\diagnostics\<date>_<time>`, which opens when you quit:
+- the console;
+- the GL driver's messages;
+- the OpenXR loader's and runtime's messages;
+- the crash report;
+- SteamVR's and Virtual Desktop's logs.
+
+Send that folder zipped.
+
 Add `-condebug` to the command line (or `QuakeVR.bat -condebug`): the console goes to `qconsole.log` in the Quake folder, which
 is the most useful thing to send me along with a description. In particular:
 

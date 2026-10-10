@@ -501,3 +501,60 @@ now a check of its own.
   2. Close the overlays, or turn off Steam's in-game overlay.
   3. Start SteamVR from VD's menu, then the game with `+vr_xr_runtime 2`: SteamVR only, no fallback. (`vr_xr_runtime`:
      0 the system's active runtime, 1 VDXR, 2 SteamVR, 3 a manifest, 4 Auto.)
+
+## Diagnostics mode (1.0.1, 2026-10-10, worktree `vdxr`)
+
+The author asked for a single switch that collects everything a crash report needs. It is `-diagnostics`, also
+`vr_diagnostics 1` (from the next start; Debug > Crashes > Diagnostics Mode), and the installer's new Start menu
+shortcut **Quake VR Unleashed (Diagnostics)**. Everything goes into `quakevr/diagnostics/<date>_<time>/`, which is
+printed at the start and opened in Explorer at a quit (`Quake/vr/vr_diagnostics.cpp`):
+- `console.log`: the console. With `-diagnostics` it starts at the first line after the filesystem
+  (`LOG_Reopen`); with the cvar it starts at the window's creation.
+- `gl_debug.log`: GL debug output.
+  - The GL context is created with `SDL_GL_CONTEXT_DEBUG_FLAG`, and debug output is synchronous, as with
+    `-gldebug`. GL safe mode still turns it off.
+  - Each message is logged with its source, type, id and severity: an id's first 10, then every 100th, and a
+    summary by id at the end.
+  - The game sends one message of its own, so the file always shows that the output works. The driver's
+    notifications go only to this file, not to stdout.
+- `openxr_debug.log`: the `XR_EXT_debug_utils` messenger, with all severities. It holds both the loader's messages
+  (`OpenXR-Loader ... Completed loader trampoline`) and the runtime's, plus the backend's steps and the API layers
+  the loader lists.
+  - `vr_diagnostics_xr 2` also chains the messenger to `xrCreateInstance`, to get the loader's messages from the
+    instance's creation. This is not the default: with a runtime that doesn't offer the extension, loader 1.1.63
+    fails that `xrCreateInstance` (-1). The next one then gets `XR_ERROR_LIMIT_REACHED`, so VR is off for that run.
+  - Mode 1 (the default) creates the messenger after the instance exists, so a runtime without the extension costs
+    nothing.
+  - The message-type bit `XR_DEBUG_UTILS_MESSAGE_TYPE_CONFORMANCE_BIT_EXT` is left out.
+- `debug_output.log`: everything sent to a debugger with OutputDebugString. A vectored handler catches the exception
+  that OutputDebugString raises, so this works without a debugger.
+  - The game's own `Sys_Printf` lines are left out, and so is the narrow copy that Windows makes of each wide line.
+  - On the author's PC this catches the OBS mirror layer's log ("XR_APILAYER_NOVENDOR_OBSMirror layer ... is
+    active"): API layers and runtimes often log there.
+  - `XR_LOADER_DEBUG=all` is set, but this loader reads it when it loads with the game, which is before that. Its
+    messages come through the messenger instead.
+- `crash/`: the crash report and dump (`VR_SetCrashDir`).
+- `diagnostics.txt`: the build and the command line, then at the end how the run ended and which logs were copied.
+  At a quit and in the crash handler it also lists these copies:
+  - `gl_startup.log`;
+  - `qvr_openxr.txt`;
+  - SteamVR's `vrserver.txt`, `vrcompositor.txt`, `vrmonitor.txt`, `vrclient_ironwail.txt` and `vrstartup.txt`,
+    found through the registry's `SteamPath`;
+  - Virtual Desktop's `%ProgramData%\Virtual Desktop\OpenXR.log` (VDXR's, found by the file name inside its DLL and on
+    the author's PC) and `StreamerLog.txt`.
+
+  Only logs written during the run are copied. Meta's are not looked for.
+
+**Off** (the default): no folder is made and nothing runs. The only cost is one branch in the GL debug callback,
+which is installed only with `-gldebug`. Checked: a run without the flag adds no folder.
+
+**Khronos' core validation layer** is not on this machine and is not shipped. Diagnostics mode enables
+`XR_APILAYER_LUNARG_core_validation` when the loader lists it, either installed or in an `openxr_layers\` folder
+beside the exe (diagnostics sets `XR_API_LAYER_PATH` to that folder). Shipping it would take
+`XrApiLayer_core_validation.dll` and its `.json` manifest, built from OpenXR-SDK-Source (Apache-2.0: ship the license
+text and a NOTICE). It is a few MB, and it should be built at the loader's version (1.1.63).
+
+**Tests**: `xr_runtime_test.sh` part 8 (75 checks in all, all pass). The fake runtime offers `XR_EXT_debug_utils` with
+`FAKEXR_DEBUG_UTILS`; its messenger sends 3 messages. The installer's self-tests pass 37/37: the shortcut's arguments
+and its place, and the shortcut counts after install, update and uninstall. The installer's screenshot harness was not
+run, because it opens a window.

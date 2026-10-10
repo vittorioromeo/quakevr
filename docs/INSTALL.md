@@ -431,6 +431,19 @@ only comes back after restarting SteamVR or Virtual Desktop too, it's them.
 
 ## Troubleshooting and bug reports
 
+**If the game crashes, or VR doesn't start, run the Start menu's Quake VR Unleashed (Diagnostics) shortcut and send us
+the folder it names.** You can also add `-diagnostics` to the command line, or use `QuakeVR.bat -diagnostics` for a
+zip install. Play until the problem happens, then quit. The game puts everything a report needs in one folder,
+`quakevr\diagnostics\<date>_<time>`, and opens that folder when you quit:
+- the console;
+- the graphics driver's messages;
+- the OpenXR runtime's and loader's messages;
+- the crash report, if there is one;
+- copies of SteamVR's and Virtual Desktop's logs from that run.
+
+Zip the folder and attach it. This mode is slower, so use it only for a report. Debug > Crashes > Diagnostics Mode turns
+it on from the next start.
+
 Start the game with the Start menu's **Quake VR Unleashed (log for bug reports)** (or add `-condebug` to its command
 line; `QuakeVR.bat -condebug` for a zip install). The console goes to `qconsole.log` in the folder the game started
 in (the QVR:U folder), which is the most useful thing to attach to a report. If the game crashes or stops on an
@@ -450,7 +463,8 @@ need *Developer*.
 | Water isn't see-through | Needs maps relit with the VisPatch files (by the installer, the script, or in the game with *See-Through Liquids*), and *Transparency > Water Alpha* below 1 (0.3 by default). See [RELIGHTING.md](RELIGHTING.md#troubleshooting). |
 | No sound | Check the Windows output device (your headset's audio) and Ironwail's volume options. |
 | Slow or stuttering | See [Performance](#performance). |
-| A crash | `qconsole.log` up to the crash, the crash report and its `.dmp` (`quakevr\crash\`), and what you were doing. |
+| A crash | Run the **Diagnostics** shortcut, make it crash again and send the `quakevr\diagnostics\<date>_<time>` folder. Otherwise send `qconsole.log` up to the crash, the crash report and its `.dmp` (`quakevr\crash\`). Either way, say what you were doing. |
+| VR starts then fails, or crashes at the first frame | Set `vr_xr_api_layers 0` (Debug > Crashes > OpenXR API Layers). This turns off overlays' and toolkits' OpenXR layers. Close overlays such as RivaTuner, Discord's and Steam's. With Virtual Desktop, also try its OpenXR runtime set to SteamVR, with SteamVR started first. `vr_xr_runtime_explain` lists the layers and the other programs' DLLs in the game. |
 | Settings in a mess | *Options > Reset All*, or delete `quakevr\ironwail.cfg` for a completely fresh start (the installer's *Install again from scratch* with *Reset settings* does the same, keeping a backup). |
 
 Report bugs and ideas on the [GitHub issues page](https://github.com/vittorioromeo/quakevr/issues), with the log,
