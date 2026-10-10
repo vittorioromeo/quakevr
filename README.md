@@ -1,6 +1,6 @@
-<p style="text-align: center"><img src="docs/images/quakevr-unleashed-wide.webp" alt="Quake VR: UNLEASHED" width="760"></p>
+<p style="text-align: center" align="center"><img src="docs/images/quakevr-unleashed-wide.webp" alt="Quake VR: UNLEASHED" width="760"></p>
 
-<p style="text-align: center">
+<p style="text-align: center" align="center">
 
 *id Software's Quake (1996), rebuilt for virtual reality*
 
@@ -15,7 +15,7 @@ The mod aims to give total freedom to the player, turning most interactions into
 
 The original campaign and all official mission packs are fully playable. QVR:U also features an in-game map browser to play custom content from Quaddicted.
 
-<p style="text-align: center">
+<p style="text-align: center" align="center">
 
 [![Quake VR: UNLEASHED trailer](https://img.youtube.com/vi/TRj7xRLuT64/mqdefault.jpg)](https://www.youtube.com/watch?v=TRj7xRLuT64)
 
@@ -34,7 +34,7 @@ SteamVR's OpenVR (see [comparison](#compared-with-the-original-quake-vr)).
 
 ---
 
-<p style="text-align: center">
+<p style="text-align: center" align="center">
 
 [**Getting started**](#getting-started) | [**Configuration**](#configuration) | [**Features**](#features) | [**Compared with the original**](#compared-with-the-original-quake-vr) | [**Documentation**](#documentation) | [**Building from source**](#building-from-source) | [**Support**](#support) | [**Credits and licence**](#credits-and-licence)
 
