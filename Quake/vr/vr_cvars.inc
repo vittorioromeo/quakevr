@@ -378,6 +378,7 @@ QVR_CVAR(vr_bullettime_trigger, "0", CVAR_ARCHIVE)    // what starts and stops i
 QVR_CVAR(vr_bullettime_tap, "1", CVAR_ARCHIVE)        // 1: a hard tap on the gadget's screen starts and stops it; 0: not
 QVR_CVAR(vr_bullettime_tap_gesture, "1", CVAR_ARCHIVE) // the screen tap's gesture: 0 a single tap; 1 a double tap (two taps within vr_bullettime_tap_double_window, each at vr_bullettime_tap_double_speed or more)
 QVR_CVAR(vr_bullettime_tap_double_window, "0.8", CVAR_ARCHIVE) // seconds: a double tap's second tap must come this soon after its first (the volume lifted off the screen between them)
+QVR_CVAR(vr_bullettime_tap_min_gap, "0.05", CVAR_ARCHIVE) // seconds: a double tap's second tap no sooner than this after its first (sooner: a new first tap; an arm wiggled or flicked fast is no double tap)
 QVR_CVAR(vr_bullettime_tap_double_speed, "0.2", CVAR_ARCHIVE) // m/s: a double tap's least speed into the screen, per tap (instead of vr_bullettime_tap_speed)
 QVR_CVAR(vr_bullettime_tap_speed, "0.5", CVAR_ARCHIVE) // m/s: the least speed into the screen (the hands' speed towards each other along its normal: both may move)
 QVR_CVAR(vr_bullettime_tap_angle, "80", CVAR_ARCHIVE) // degrees: how far off straight into the screen the strike may come (a swing across it comes from the side)

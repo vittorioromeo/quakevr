@@ -310,7 +310,7 @@ struct Against
 // have no speed towards each other, and are ignored anyway unless vr_bullettime_tap_twohanded. After a tap counts, the
 // volume must lift off the face before the next can (a bounce, or a hand left resting, is never a second tap). With
 // vr_bullettime_tap_gesture 1 (Double Tap) it takes two taps, each at vr_bullettime_tap_double_speed or more, the second
-// within vr_bullettime_tap_double_window of the first; one alone does nothing.
+// within vr_bullettime_tap_double_window of the first but no sooner than vr_bullettime_tap_min_gap; one alone does nothing.
 void tapScreen(const hands::State& s, int hand, const Screen& z)
 {
     const bool allowed = (vr_bullettime_tap_holding.value != 0.f || held::handEmpty(hand)) &&
@@ -437,7 +437,11 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
             }
         }
         char what[160];
-        const bool second = twice && state.firstTapAt >= 0.0;
+        // A second tap sooner than vr_bullettime_tap_min_gap after the first (an arm wiggled or flicked: two contacts
+        // in a blink) is no double tap: it counts as a new first one.
+        const bool tooSoon = twice && state.firstTapAt >= 0.0 &&
+                             realtime - state.firstTapAt < za::max(0.f, vr_bullettime_tap_min_gap.value);
+        const bool second = twice && state.firstTapAt >= 0.0 && !tooSoon;
         q_snprintf(what, sizeof(what), "%sscreen tapped by the %s%s%s%s%s%s at %.2f m/s", second ? "double tap: " : "",
             partName(struck[0]), parts > 1 ? " (and the " : "", parts > 1 ? partName(struck[1]) : "",
             parts > 2 ? ", the " : "", parts > 2 ? partName(struck[2]) : "", parts > 1 ? ")" : "", state.tapPeak);
@@ -452,7 +456,8 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
             gadget::tapFeedback(false); // a click and a glitch of the screen
             if(vr_debug_bullettime.value)
             {
-                Con_Printf("bullet time: first tap (%s); the second within %.2f s\n", what, vr_bullettime_tap_double_window.value);
+                Con_Printf("bullet time: first tap%s (%s); the second within %.2f s\n", tooSoon ? " (again: the last too soon)" : "",
+                    what, vr_bullettime_tap_double_window.value);
             }
             return;
         }
