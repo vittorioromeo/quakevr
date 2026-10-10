@@ -1,3 +1,9 @@
+<p style="text-align: center" align="center">
+<a href="https://ko-fi.com/vittorioromeovee"><img src="https://img.shields.io/badge/Ko--fi-Support%20me-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white" alt="Support me on Ko-fi"></a>
+<a href="https://paypal.me/vittorioromeocpp"><img src="https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal&logoColor=white" alt="Donate with PayPal"></a>
+<a href="https://discord.me/quakevr"><img src="https://img.shields.io/badge/Discord-Join%20us-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord"></a>
+</p>
+
 <p style="text-align: center" align="center"><img src="docs/images/quakevr-unleashed-wide.webp" alt="Quake VR: UNLEASHED" width="760"></p>
 
 <p style="text-align: center" align="center">
