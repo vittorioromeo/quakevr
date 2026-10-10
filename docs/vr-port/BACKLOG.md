@@ -77,13 +77,14 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   reverted (no gain, 0.6-0.9% of the pixels changed). `vr_decal_max` lowered to 768 meanwhile (config version 118).
   Leads: fewer marks a bucket, a smaller record or a cheaper early-out, merging overlapping marks.
 
-### Map and game loading (ROUND21.md, "Map and game loading", 2026-10-10: each has a drawback)
+### Map and game loading (ROUND21.md, "Load-time speedups without their drawbacks (1.0.1)", 2026-10-10)
 
-- **Shader program binaries cached on disk** (`GL_ARB_get_program_binary`, 200 ms of every start): driver bugs with it.
-- **Box3D world mesh kept across map changes** (47-50 ms a return to the hub): needs a content key, not name and counts.
-- **Normal maps made after the load** (most of a cold first visit's 0.3-0.8 s): flat shading for a moment, then the maps.
-- **A thinner memory log GL object count** (`vr_memstats_log`: 13-15 ms of every load): its leak check sees fewer loads.
-- **Model loading in parallel** (the first map's 430 ms of alias models): the loaders share the hunk, cache and GL.
+- **Model loading in parallel** (the calibration room's alias models, now 270 of the 430 ms: texture uploads, skins'
+  decoding and copies, md5 replacements): the loaders share the hunk, cache and GL; would need each loader split into
+  a decode into its own buffers (on the pool) and a commit in order on the main thread. Two exact pieces done instead.
+- **Shader program binaries** (`GL_ARB_get_program_binary`, 200 ms of every start): tried, no gain on NVIDIA (the
+  driver takes as long to load its binaries as to build from its own shader cache: 191 against 192 ms; asking for them
+  made the first start's link 25.9 s). Worth a try on AMD or Intel only.
 
 ### Art (ROUND21.md, "For the author": Blender)
 
