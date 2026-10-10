@@ -563,7 +563,7 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
             h.flashAt = -1.0;
             continue;
         }
-        const glm::vec3 muzzle = view::anchorPosition(w, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+        const glm::vec3 muzzle = view::anchorPosition(w, weapons::cvar(slot, Key::MuzzleAnchorVertex)->string,
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
         const glm::vec3 o = view::modelPoint(w, glm::vec3{0.f});
         const glm::vec3 ax = view::modelPoint(w, glm::vec3{1.f, 0.f, 0.f}) - o;

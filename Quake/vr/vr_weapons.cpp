@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_weapons.hpp"
+#include "vr_anchor.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
@@ -155,8 +156,10 @@ namespace
 // placeholders before). 38: the author's Super Axe (slot 24: Offset Z and its first hotspot, 2026-10-08), each key only
 // where the config still held its old default. 39: the author's nailgun foregrip (slot 3: its first hotspot, the evening
 // of 2026-10-08), each key only where the config still held its old default. 40: slot 26 (the toolgun,
-// Misc/quakevr/make_toolgun.py; an unused placeholder before). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 40;
+// Misc/quakevr/make_toolgun.py; an unused placeholder before). 41: none reset (round 22: the anchors are points on the models'
+// surfaces, not vertex indices: a config's legacy anchor indices converted to the points of their vertices, once:
+// convertAnchors; vr_anchor.hpp). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 41;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -209,6 +212,48 @@ void takeWhereOld(za::Span<const OldDefault> changes)
             Cvar_SetQuick(&var, var.default_string);
         }
     }
+}
+
+// The anchor keys (vr_anchor.hpp's text).
+constexpr Key anchorKeys[] = {Key::HandAnchorVertex, Key::MuzzleAnchorVertex, Key::TwoHHandAnchorVertex,
+    Key::WpnButtonAnchorVertex, Key::WpnTextAnchorVertex};
+
+// Every legacy anchor index of the config (vr_wofs_version < 41) to the point of its vertex on the slot's model (a slot
+// without a model file, or still at a legacy default -- the unused slots' "0" -- keeps it: legacy indices are still read).
+// A config's old default becomes the new default's text exactly (the defaults were converted the same way).
+void convertAnchors()
+{
+    const double start = Sys_DoubleTime();
+    int converted = 0;
+    int kept = 0;
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        const char* model = cvarAt(slot, Key::ID).string;
+        for(const Key key : anchorKeys)
+        {
+            cvar_t& var = cvarAt(slot, key);
+            if(!anchor::isLegacy(var.string))
+            {
+                continue;
+            }
+            if(anchor::isLegacy(var.default_string) && Q_atoi(var.string) == Q_atoi(var.default_string))
+            {
+                continue;
+            }
+            za::String text;
+            if(model[0] && anchor::legacyToText(model, static_cast<int>(Q_atof(var.string)), text))
+            {
+                Cvar_SetQuick(&var, text.cStr());
+                converted++;
+            }
+            else
+            {
+                kept++;
+            }
+        }
+    }
+    Con_DPrintf("Weapon settings: %d anchor indices converted to points, %d kept (no model file), %.0f ms\n", converted, kept,
+        (Sys_DoubleTime() - start) * 1000.0);
 }
 
 // The configs are read before anything asks for a slot.
@@ -540,6 +585,10 @@ void migrate()
     if(vr_wofs_version.value < 40) // the toolgun (an unused placeholder before)
     {
         resetSlot(26);
+    }
+    if(vr_wofs_version.value < 41) // the anchors: points, not vertex indices (last: the resets above give points already)
+    {
+        convertAnchors();
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

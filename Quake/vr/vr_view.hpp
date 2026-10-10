@@ -35,13 +35,16 @@ struct ViewEntity
 // Null if `e` is not a VR view entity.
 [[nodiscard]] const ViewEntity* find(const entity_t* e);
 
-// World position of an anchor vertex of `ve`'s model, with `extra` offsets applied in the
+// World position of an anchor of `ve`'s model (its text: vr_anchor.hpp), with `extra` offsets applied in the
 // entity's (mirrored) space before the model's own scaling.
-[[nodiscard]] glm::vec3 anchorPosition(const ViewEntity& ve, int anchorIndex, const glm::vec3& extra);
+[[nodiscard]] glm::vec3 anchorPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra);
+
+// The same for the model's vertex `vertex` (its file's order).
+[[nodiscard]] glm::vec3 vertexPosition(const ViewEntity& ve, int vertex, const glm::vec3& extra);
 
 // The same for any alias entity (a weapon lying in the world), drawn mirrored or not.
 [[nodiscard]] glm::vec3 entityAnchorPosition(
-    const entity_t& e, bool mirrored, float zeroBlend, int anchorIndex, const glm::vec3& extra);
+    const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra);
 
 // Immersive reloading: the reference point of the round `hand` holds (a magazine's top, moved by its
 // vr_reload_mag_<kind>_x/y/z, and its radius in `radius`; a shell's middle, radius -1), as drawn. False: it holds none.

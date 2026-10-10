@@ -56,7 +56,7 @@ enum Flags : int
 // +z up; mirrored with the model in the off hand), picked on the models (v_shot: just out of the
 // ejection port on the receiver's right side, improve_weapons3.py; v_shot2: the two chambers at the
 // breech). Casings go out along `dir` at `speed` metres per second, tumbling about `spinAxis`
-// (model space) at `spin` radians per second. `anchor` is a vertex near the ports (an anchor index, see
+// (model space) at `spin` radians per second. `anchor` is a point near the ports (an anchor, see
 // vr_anchor.hpp) whose move from frame 0 moves them with the firing animation (the recoil).
 struct Weapon
 {
@@ -69,13 +69,14 @@ struct Weapon
     float spin;
     float smoke;  // puff at the port,
     int sparks;   // and sparks
-    int anchor;
+    const char* anchor;
 };
 
 constexpr Weapon weaponTable[] = {
-    {modelmeta::Id::VShot, 1, {{14.5f, -2.75f, 4.65f}}, {{-0.3f, -1.f, 0.65f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3, 70},
+    {modelmeta::Id::VShot, 1, {{14.5f, -2.75f, 4.65f}}, {{-0.3f, -1.f, 0.65f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3,
+        "14.372 -1.7654 6.1451"},
     {modelmeta::Id::VShot2, 2, {{11.6f, 1.2f, 6.9f}, {11.6f, -1.2f, 6.9f}}, {{-1.f, 0.15f, 0.5f}, {-1.f, -0.15f, 0.5f}},
-        1.6f, {0.f, 1.f, 0.f}, 9.f, 1.5f, 1, 17},
+        1.6f, {0.f, 1.f, 0.f}, 9.f, 1.5f, 1, "11.6867 1.5246 7.4443"},
 };
 
 // The casings' models (the QC's `kind`).
@@ -207,13 +208,13 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
 // Where the firing animation has moved the ports from frame 0 (model units).
 [[nodiscard]] glm::vec3 animationShift(const view::ViewEntity& ve, const Weapon& w)
 {
-    if(w.anchor < 0 || !ve.ent.model || ve.ent.model->type != mod_alias)
+    if(!w.anchor || !ve.ent.model || ve.ent.model->type != mod_alias)
     {
         return glm::vec3{0.f};
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(ve.ent.model));
-    const glm::vec3 now = anchor::posedVertex(ve.ent, w.anchor, ve.zeroBlend);
-    const glm::vec3 rest = anchor::posedVertex(ve.ent, w.anchor, 1.f);
+    const glm::vec3 now = anchor::posedAnchor(ve.ent, w.anchor, ve.zeroBlend);
+    const glm::vec3 rest = anchor::posedAnchor(ve.ent, w.anchor, 1.f);
     return (now - rest) * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
 }
 
