@@ -11,6 +11,7 @@ Defaults 10-09 afternoon: melee (speed 3.2, damage 1.1, stamina), enemy weapons,
 Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap); each tap clicks and glitches the gadget screen, activation plays two rising blips (Combat > Bullet Time > Screen Tap: volume / glitch; too much on top of bullet time's own sound?); your stealth/holding/tap values are now defaults
 
 [New this week]
+Main menu bottom-left: 'Recording Settings' row (above the spectator switch) lights under the laser, opens Recording, Back returns; with OBS running the three rows stack; Jump Out of Water below Swimming at Standard
 Tutorial: your wording is in the map (only fix: lesson 1 'hold' the left stick to run); welcome floats in front of you (not the wrist); calibration/tutorial floating text ~18% bigger; tips appear ~15% earlier/farther; BULLET TIME board before the arena; halls 12a/12b looked pitch black headless: check their lighting
 Fresh install starts at walk (cl_alwaysrun 0); your config keeps its value
 Morning decisions: wrist gadget tile says ARMOUR; arena plays Scourge of Armagon's Ranger Infiltration at the door, back to Aftermath when cleared, two dogs fewer; Max Decals shows 768
