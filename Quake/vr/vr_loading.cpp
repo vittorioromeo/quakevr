@@ -33,6 +33,10 @@ struct Pending
     double since{0.0};   // realtime when it was put off
 };
 Pending pending;
+// The game folders were switched (a campaign change: COM_ReloadVRGame) and every model reset, the client's world
+// among them, until a new world is in: no level change is put off then. Frames drawn meanwhile would run the world's
+// per-frame work (Mod_PointInLeaf and the like) on a model with no nodes: "Mod_PointInLeaf: bad model".
+bool worldReset = false;
 double previewUntil = 0.0; // vr_loading_preview: the notice shown without a load until then (realtime)
 
 constexpr int framesToShow = 2; // (one is enough when the runtime shows it; the second covers a frame it dropped)
@@ -111,6 +115,10 @@ void registerCommands()
 
 void frame()
 {
+    if(worldReset && cls.state == ca_connected && cls.signon == SIGNONS)
+    {
+        worldReset = false;
+    }
     pending.going = false; // (a second run that never reached VR_LoadingDefer: refused before it)
     if(!pending.waiting)
     {
@@ -160,7 +168,7 @@ extern "C" int VR_LoadingDefer(void)
         loading::pending.command = ZA_MOVE(line); // another load meanwhile: the latest one runs (once)
         return 1;
     }
-    if(!loading::canShow())
+    if(loading::worldReset || !loading::canShow())
     {
         return 0;
     }
@@ -171,6 +179,12 @@ extern "C" int VR_LoadingDefer(void)
     loading::queueNotice(); // (this frame's eyes have it too)
     Cbuf_InsertText("vr_loading_wait");
     return 1;
+}
+
+extern "C" void VR_LoadingGameChanged(void)
+{
+    cl.worldmodel = nullptr; // (its slot was cleared: as before any map, every world user skips it)
+    loading::worldReset = true;
 }
 
 extern "C" int VR_LoadingPlaque(void)

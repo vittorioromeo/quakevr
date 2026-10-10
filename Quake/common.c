@@ -2808,6 +2808,7 @@ static void COM_SwitchGameInternal (const char *paths, qboolean vrCampaign)
 	//clear out and reload appropriate data
 	Cache_FlushExcept (VR_ModelCacheKept); // QVR: Cache_Flush but the kept models'
 	Mod_ResetAll();
+	VR_LoadingGameChanged (); // QVR: the client's world model was among them (vr_loading.cpp)
 	Sky_ClearAll();
 	if (!isDedicated)
 	{
