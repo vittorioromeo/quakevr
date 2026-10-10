@@ -10719,3 +10719,33 @@ the next GL call), an early-out in `choose` (planes rarely lose before the end).
 tutorial's portal to the hub; a return to the hub from a map (about 100 ms quicker); a first visit to a monster-heavy map
 (e1m2, hip2m3, an MG1 map: a third to a half quicker); nothing should look or play differently (the same trees, normal
 maps, rigs, wave mesh and gun pieces).
+
+## Gameplay profiled in realistic scenarios; gun shapes on disk (2026-10-10)
+
+The author's request: profile the gameplay itself (loading aside) in realistic scenarios, optimize with few drawbacks.
+Numbers and method: BENCHMARKS.md, "Gameplay profiling pass (2026-10-10)"; trade-offs: PERF_DECISIONS.md items 13-15.
+
+**The scenarios** (`qvrbench.py`, group `play`): `play_e1m1_fight` (E1M1's computer room, grunts and dogs, the shotgun
+aimed at the nearest monster by the mock, a shot every 50 frames), `play_e1m1_lights` (the same room, rockets every 70
+frames, the flashlight on), `play_vrstart_walk` (the mock autopilot from the hub's spawn up to the gate's terrace, then
+a look round), `play_teleporters_turn` (vrteleporters' T room, three gates, the head turning), `play_props_fire` (40
+props, burning crates and corpses, wall torches, a nudge every 2 s); with `mg3_map1_awake` for a big expansion fight.
+At his settings all hold 90 Hz at 2048 eyes; the steady CPU frame is 1.6-2.6 ms, no game function over 0.1 ms.
+
+**Gun shapes on disk** (`vr_gun_pieces_cache`, default 1; Debug > Profiling and Memory > Gun Shapes on Disk, Gun Shapes
+Stats): the hitches in play were the guns' convex pieces (vr_convex.cpp), cut on the main thread the first time each
+gun becomes a body in a session: the first grunt's gun dropped 35 ms, the ogre's chainsaw 84, the shotguns 23-24, the
+nailguns 30-42, the knight's sword 19 (also the player's guns at the first map). They are now written to
+`cache/gunpieces/<build>/<key>.gpc` (vr_texcache.cpp's files, through vr_diskcache.hpp: written on the pool, renamed into
+place) and read back at the next session's first cut. The key is a hash of everything `decompose` reads (the
+triangles, the cell, tolerance and piece count), the folder `convex::build()` (vr_convex.cpp's compile time and Box3D's
+version), so a changed cutter never reads old pieces; the file holds the pieces' points exactly as cut. 2: read, then
+cut anyway and compared (a warning per difference). Checked: 5 of 5 the same in `play_e1m1_fight`; two files corrupted
+by hand were cut and written again; e1m1 then the firing range read 18 guns' pieces with nothing cut. Worst frame (paced,
+medians of 3): `play_e1m1_fight` 38.5 -> 11.9 ms, `play_e1m1_lights` 51.2 -> 16.4; `gore_first_cuts`' enforcer
+51.9 -> 11.3, death knight 22.6 -> 11.2. Setup's preparation run (vrcalibration, vrtutorial, vrstart) now leaves
+vrstart's four guns (crowbar, shotguns, nailgun) on disk too; the others are cut at their first use of the first session (item 13).
+
+**In the headset:** the first fight of a session (from the second session after this build): the first grunt's,
+enforcer's or knight's death and the first gun dropped or picked up should not stutter; guns lying about, held and
+thrown behave as before (the same pieces).

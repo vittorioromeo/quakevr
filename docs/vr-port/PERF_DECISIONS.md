@@ -217,6 +217,48 @@ for, or behaviour-visible:
 - `traceline` (`point_visible`, `VR_Stealth_WalkNow`), `movetogoal` (`ai_run`, `VR_Stealth_WalkNow`): the engine's
   traces and steps.
 
+## Gameplay pass (2026-10-10)
+
+BENCHMARKS.md, "Gameplay profiling pass (2026-10-10)": realistic scenarios (the `play` group, `mg3_map1_awake`) at his
+settings hold 90 Hz on this machine; the guns' first cuts (the hitches) are fixed with no trade-off (kept on disk,
+`vr_gun_pieces_cache`). Measured and left:
+
+### 13. The monsters' guns in the very first session
+
+The pieces are on disk from a gun's first cut on; Setup's preparation run (vr_prepare.cpp: vrcalibration, vrtutorial,
+vrstart) cuts only the guns those maps make at their load (vrstart's four: crowbar, shotgun, super shotgun, nailgun). The first session
+after an install still cuts each monster's gun at its first drop: the grunt's 35 ms (the enforcer's first death a 52 ms frame), the knights'
+swords 19 (the death knight's first death a 23 ms frame), the ogre's chainsaw 84.
+- **Option**: the preparation run also makes each monster's dropped gun once (as a death drops it: the keys are the
+  dropped entity's drawn triangles, so it must be made the game's way), on its last map.
+- **Win**: no 20-85 ms frame at the first death of each kind in the first session.
+- **Drawback**: a change to Setup's preparation (a few seconds more, a new step) just before a release.
+- **Recommendation**: later, not for this release.
+
+### 14. Ironwail's per-frame upload buffer starts at 1 MB
+
+`GL_Upload` (gl_rmisc.c) grows the frames' shared upload buffer by half again whenever a frame's uploads pass it
+(3 frames in flight, persistently mapped). In `play_e1m1_lights` the first big explosion grows it to 5 MB: that frame
+spends 2.3 ms making the buffers and more writing into fresh pages (`particle verts` 3.8 ms, `decal buffers upload`
+2.3): the scenario's worst frame, 16.4 ms, once a session; vrstart and the props grow it to 1.5 MB at the load.
+- **Option**: start it at 8 MB.
+- **Win**: that one frame (about 5-8 ms, once a session).
+- **Drawback**: 21 MB more host-visible memory (24 MB for the three frames), an engine default changed.
+- **Recommendation**: worth it; his call (a memory change).
+
+### 15. The marks on the world in a rocket fight (GPU)
+
+`play_e1m1_lights` at his eyes: GPU 7.54 ms a frame, p99 12.48 (frames over the 11.1 ms budget). At 2048, the world's
+pass is 2.67 ms, and 1.34 of it is the ~900 marks the gibs and explosions leave (`vr_decals 0`: 1.33 ms; the
+flashlight's shadow, `vr_shadow_dlights 0` and `r_dynamic 0` change nothing measurable). Each pixel walks the marks of
+its cell's bucket (up to 64, each a whole 80-byte record read before its early-out tests).
+- **Options**: (a) the shader reads a mark's normal and middle first and the rest only past the early-out (the same
+  image; unmeasured: the driver may already do it); (b) a lower `vr_decal_max` or fewer marks a bucket (visual: fewer
+  marks kept where they pile up).
+- **Win**: up to ~1.3 ms of GPU at 2048 (about 2.4 at his eyes) in fights that leave many marks; (a) likely a part.
+- **Drawback**: (a) a world shader change to verify by image comparison; (b) visible.
+- **Recommendation**: try (a) next round with screenshots compared; (b) his call.
+
 ## Leads (2026-10-08 follow-up)
 
 Done in the follow-up (BENCHMARKS.md, "Follow-up: the leads with no trade-off"): particle lighting on the pool's
@@ -244,6 +286,10 @@ Still open (no trade-off unless said):
   frame (`collectWorld`/`addSurface`, ~0.12 ms in `combined`, whose test lights stand still). Kept per light while its
   place, radius and the world are the same it would be the same list; most lights in play move (the flashlight,
   rockets, muzzle flashes), so the win is mostly the benchmark's. Not done.
+- **The throw estimate in every move** (vr_client.cpp, `throwing::estimate` for both hands, 2026-10-10): 0.1 ms a
+  frame (`localFit`: a binary search of the samples for each Gauss point). Each piece of the fit lies between two known
+  samples, so the search could be skipped, exactly the same only while the track's times are in order (the spin's
+  times, `spinTime`, carry a lag per sample): not done, the gain small.
 - **NVML's start**: the first VRAM read (`gpustats::requestVram`) initialises NVML on a worker (0.12 s, once); fine
   as it is, noted because it shows in every window's VTune profile.
 

@@ -28,7 +28,7 @@ bash kit/bench.sh list [<group>]
 - `<agent>`: any worktree with a kit game folder (`new_agent.sh <agent>`), or `cleanup`. The build in that tree is
   measured; build it first (`build.sh`).
 - `--scenarios`: `all`, a group (`core`, `idle`, `teleporters`, `combat`, `melee`, `server`, `physics`, `gore`, `vfx`,
-  `lights`, `liquids`, `textures`, `features`, `loading`, `maps`, `flat`, `control`), scenario names, or a comma list
+  `lights`, `liquids`, `textures`, `features`, `loading`, `maps`, `flat`, `control`, `play`: realistic gameplay), scenario names, or a comma list
   of them. Default `core` (13 scenarios, the round's quick picture).
 - Timing runs (the default) are **exclusive** (`run.sh --exclusive`: nothing else runs on the machine) and **paced**
   like a 90 Hz headset (`-RealTime`, `host_maxfps` = `--hz`). `--fast` runs the frames unpaced (throughput, the way
@@ -179,6 +179,11 @@ settings) compare with new runs under the new names (`qvrbench.py`'s `renamed`).
 | `tour_mg3_<map>` | mg3/maps | map1, map2, secret2 (MG3) | Dawn of the Machine's map at skill 2: the spawn and five pickups' places, four ways each, monsters asleep. Needs the owned rerelease MG3 data (`vr_campaign_native mg3` in the script). |
 | `mg3_<map>_awake` | mg3/combat | map1, map2, secret2 (MG3) | The map's whole count (`vr_test_monsters 4`: the deferred ones brought in) woken at once (`vr_test_monsters 2`), hunting the god-mode player at the spawn. |
 | `mg3_<map>_kill`, `mg3_map2_kill_r32` | mg3/gore | map1, map2, secret2 (MG3) | As `_awake`, then every monster killed in one frame (`vr_test_monsters 3`), `vr_ragdoll_max` 8 (shipped) or 32: the deaths' frame (`blow`) and the bodies falling (`after`). |
+| `play_e1m1_fight` | play/combat | e1m1 (skill 2) | Realistic play: E1M1's computer room (`setpos 1312 1150 -240`, its 4 grunts ahead), 3 dogs and 2 grunts more, hostile; the shotgun in the main hand aimed at the nearest live monster (`vr_mock_hand_aim main monster`), a shot every 50 frames. |
+| `play_e1m1_lights` | play/lights | e1m1 (skill 2) | The same room with 3 grunts and a dog more (E1M1's own kinds: their ragdoll rigs made at the map's start), the flashlight on, the rocket launcher fired every 70 frames: a fight's dynamic lights, explosions, gibs, blood. |
+| `play_vrstart_walk` | play/maps | vrstart | The hub as first seen: the mock autopilot walks the pier and the stairs to the gate's terrace (`vr_mock_walk_to`), then the head turns round once over the island. |
+| `play_teleporters_turn` | play/teleporters | vrteleporters | The T room's middle (`setpos -1280 600 24`): its east, north and west (loop) gates, the head turned 90 degrees either way twice: one to three portal views a frame. |
+| `play_props_fire` | play/physics | vrfiringrange | 40 props (`vr_physics_bigpile 40 260 mixed`), 3 crates and 2 grunt corpses set on fire (`vr_burn_test 1`), 4 wall torches, a small blast in the pile every 180 frames. |
 | `combined` | combat/physics/vfx/lights/core | vrfiringrange | Everything at once (the perf suite's combined): the frame's worst realistic mix. |
 
 ### Tours of complex custom maps
@@ -512,6 +517,46 @@ fights are not identical run to run): `ai_crowd_64` 498 -> 456 (-8%), `gore_slas
 `decals_1024_stream` 150 -> 150 (a shot between frames). A build is 0.03-0.14 ms (1024 large marks: 0.14), so the
 saving is at most a few hundredths of a millisecond a frame in fights; the point is the eyes agreeing
 (`vr_decal_eyes_test 90`: 0 of 90 frames different). `Misc/quakevr/decal_grid_test.py`: 766 exact comparisons, pass.
+
+### Gameplay profiling pass (2026-10-10)
+
+The author's request: profile the gameplay itself (no loading), in realistic scenarios, and optimize with few
+drawbacks. The `play` group (above) and `mg3_map1_awake` (a big expansion fight: MG3's map1, its whole count awake),
+his settings of 2026-10-10 (his `quakevr/ironwail.cfg`: shadow atlas 8192, `vr_shadow_dlights 8`,
+`vr_shadow_maplights 4`, `vid_fsaa 0`), paced at 90 Hz, exclusive, eyes 2048, 900 frames, medians of 3. ms; CPU =
+`cpu_busy_ms`, GPU = `gpu_3d_ms`. Before: `kit/benchresults/playprof_base` (`play_e1m1_lights`: the final build with
+`vr_gun_pieces_cache 0`, `playprof_lights_nocache`: the scenario's monsters were changed after the first baseline);
+after: `playprof_gun` (the guns' pieces read from the disk, as from a player's second session on).
+
+| scenario | CPU p50 before | after | CPU p99 before | after | worst frame before | after | GPU 3D avg before | after | GPU 3D p99 before | after |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `play_e1m1_fight` | 1.82 | 1.83 | 3.21 | 2.79 | 38.5 | **11.9** | 2.76 | 2.70 | 3.69 | 3.53 |
+| `play_e1m1_lights` | 2.33 | 2.35 | 5.07 | 5.20 | 51.2 | **16.4** | 4.40 | 4.32 | 7.82 | 7.75 |
+| `play_vrstart_walk` | 1.96 | 1.95 | 2.50 | 2.41 | 11.4 | 11.5 | 2.27 | 2.25 | 2.87 | 2.89 |
+| `play_teleporters_turn` | 2.09 | 2.14 | 3.08 | 2.98 | 11.5 | 11.3 | 3.09 | 2.97 | 4.92 | 4.76 |
+| `play_props_fire` | 2.22 | 2.22 | 2.85 | 2.86 | 11.4 | 11.4 | 2.90 | 2.89 | 3.57 | 3.28 |
+| `mg3_map1_awake` | 1.61 | 1.63 | 2.82 | 2.85 | 11.3 | 11.4 | 2.17 | 2.09 | 2.46 | 2.46 |
+
+- **Every scenario holds 90 Hz** on this machine at 2048; the steady CPU frame is 1.6-2.6 ms, spread thin (VTune on
+  `play_e1m1_lights`, the window alone: no game function over 0.1 ms a frame; the main thread mostly waits for the
+  GPU when unpaced).
+- **The hitches were the guns' convex pieces** (vr_convex.cpp, cut on the main thread the first time a gun is made as
+  a body in a session): the first grunt's gun dropped 35 ms, a shotgun 24, the nailguns 30-42, the knight's sword 19,
+  the ogre's chainsaw 84 (`box3d sync` in the hitch log). Fixed: kept on disk (`vr_gun_pieces_cache`, cache/gunpieces;
+  ROUND21.md "Gun shapes on disk"). `gore_first_cuts` (first limb cut of each kind; most drop a gun): enforcer 51.9 ->
+  11.3 ms, death knight 22.6 -> 11.2, the rest at or under 12.9 from the second session. The first session after an
+  install still cuts the monsters' guns (the preparation run cuts only those its three maps make: PERF_DECISIONS.md
+  item 13).
+- `play_e1m1_lights`' remaining worst frame (16.4 ms, once): the first big explosion grows Ironwail's per-frame upload
+  buffer (1 MB to 5 MB: `particle verts` 3.8 ms, `decal buffers upload` 2.3 ms on fresh pages; PERF_DECISIONS.md item 14).
+- **GPU at his eyes** (`--eye 2782`, about his 2688 x 2880, one run): `play_e1m1_fight` 4.26 ms (p99 5.83),
+  `play_teleporters_turn` 4.68 (7.31), `play_e1m1_lights` 7.54 (p99 12.48: frames over the 11.1 ms budget in the
+  rocket fight). Its world pass is 4.75 ms of it; at 2048, 1.34 of its 2.67 ms are the ~900 marks on the world
+  (`vr_decals 0`: 1.33 ms), the flashlight's shadow and the dynamic lights' about nothing (PERF_DECISIONS.md item 15).
+- Measured and left (each under 0.1 ms a frame): the throw estimate sent with every move (`throwing::localFit`, a
+  binary search per Gauss point: 0.1 ms a frame for both hands), the wounds' and bodies' water tests
+  (`Mod_PointInLeaf`, `SV_HullPointContents`: 0.07), the shadowed torches' world casters in the hub (0.2 ms in
+  `play_vrstart_walk`: the declined dlight caster cache).
 
 ## Profiling in the game
 
