@@ -88,6 +88,7 @@ static class ScreenshotHarness
 
         InstallRecord record;
         List<(LogLevel, string)> lines;
+        var installed = false; // a real install into options.Target, not the made-up record below
         if ((options.Package is not null || (options.Feeds.Count > 0 && options.Downloads is not null)) && options.Target is not null && options.ShortcutsDir is not null)
         {
             await vm.RunInstallForHarness();
@@ -99,6 +100,7 @@ static class ScreenshotHarness
                 return 1;
             }
             record = vm.Record;
+            installed = true;
             lines = [.. vm.Log.Select(l => (l.Level, l.Text))];
             report.AppendLine($"installed: {record.Version} into {options.Target}");
         }
@@ -149,8 +151,9 @@ static class ScreenshotHarness
             await Save(offlineView, Path.Combine(dir, "4b-install-no-release-online.png"));
         }
 
-        // Started again after the install: the Welcome page offers the update and the removal.
-        if (vm.Record is not null)
+        // Started again after the install: the Welcome page offers the update and the removal (only after a real install:
+        // the made-up record leaves no install behind to find).
+        if (installed)
         {
             var again = new MainViewModel(new WindowsSystemProbe(), options);
             var againView = new ShellView { DataContext = again };
