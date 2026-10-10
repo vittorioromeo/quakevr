@@ -30,11 +30,7 @@ SteamVR's OpenVR (see [comparison](#compared-with-the-original-quake-vr)).
 
 ---
 
-<p style="text-align: center" align="center">
-
-[**Getting started**](#getting-started) | [**Configuration**](#configuration) | [**Features**](#features) | [**Compared with the original**](#compared-with-the-original-quake-vr) | [**Documentation**](#documentation) | [**Building from source**](#building-from-source) | [**Support**](#support) | [**Credits and licence**](#credits-and-licence)
-
-</p>
+[**Getting started**](#getting-started) | [**Configuration**](#configuration) | [**Features**](#features) | [**Compared with the original**](#compared-with-the-original-quake-vr) | [**Documentation**](#documentation) | [**Building from source**](#building-from-source) | [**Support**](#support) | [**Credits**](#credits-and-licence)
 
 ---
 
