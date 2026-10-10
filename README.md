@@ -1,9 +1,7 @@
 <p style="text-align: center" align="center"><img src="docs/images/quakevr-unleashed-wide.webp" alt="Quake VR: UNLEASHED" width="760"></p>
 
 <p style="text-align: center" align="center">
-
-*id Software's Quake (1996), rebuilt for virtual reality*
-
+<i>id Software's Quake (1996), rebuilt for virtual reality</i>
 </p>
 
 <br>
@@ -16,12 +14,10 @@ The mod aims to give total freedom to the player, turning most interactions into
 The original campaign and all official mission packs are fully playable. QVR:U also features an in-game map browser to play custom content from Quaddicted.
 
 <p style="text-align: center" align="center">
-
-[![Quake VR: UNLEASHED trailer](https://img.youtube.com/vi/TRj7xRLuT64/mqdefault.jpg)](https://www.youtube.com/watch?v=TRj7xRLuT64)
-
-_**[Quake VR: UNLEASHED 🔥 | Release Trailer
-](https://www.youtube.com/watch?v=TRj7xRLuT64)**_
-
+<a href="https://www.youtube.com/watch?v=TRj7xRLuT64"><img src="https://img.youtube.com/vi/TRj7xRLuT64/mqdefault.jpg"></img></a>
+</p>
+<p style="text-align: center" align="center">
+<a href="https://www.youtube.com/watch?v=TRj7xRLuT64"><i><b>Quake VR: UNLEASHED 🔥 | Release Trailer</b></i></a>
 </p>
 
 QVR:U runs on the [Ironwail](https://github.com/andrei-drexler/ironwail) engine and talks to your headset
