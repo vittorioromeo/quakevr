@@ -10447,3 +10447,26 @@ a slow stroke to 1.08 for a fast one, +-0.02 each time; vr_physics.cpp `soundAt`
 | new swim_hard1..3 | 650-750 Hz | 1.6-3.2% | 0.1% | 40-111 ms | 0.30-0.45 |
 
 Test: `Misc/quakevr/swim/swim_sound_test.sh <agent>` (now 11 checks: the strokes' pitch 0.86-1.10, the faster no lower).
+
+## Test prerelease v1.0.0-test.2: the updater from test.1 (2026-10-10)
+
+Published for Vittorio to try updating his test.1 install: `make_release.ps1 -Version 1.0.0-test.2 -BumpVersion -Publish
+-NoDraft -NoBranchPush -Notes <"Test build for the author: not a release. Fixes since test.1: ...">` from
+`agent/testrel2` (default checks; the version commit dropped afterwards, the tag carries it: `4af732cb`). test.1 stays.
+Delete both when he is done: `gh release delete v1.0.0-test.2 --repo vittorioromeo/quakevr --yes --cleanup-tag` (and
+the same for v1.0.0-test.1), then `git tag -d v1.0.0-test.2 v1.0.0-test.1`.
+
+- **Fixed first:** the Statement page showed the claims' `*not*` asterisks. `AiStatement.SplitEmphasis`/`Plain`: the
+  wizard sets the span as an italic Run (screen readers get the plain text); the console's `statement` keeps the
+  asterisks. The screenshot harness's Start clean check now runs only after a real install (`--package/--feed`,
+  `--target`, `--shortcuts-dir`): with the made-up record it found no install and failed.
+- **Checked online:** the four assets downloaded back = the local SHA-256; the release list gained only v1.0.0-test.2
+  (prerelease; Latest still `textures-2026-10-03`); the downloaded exe's ProductVersion is `1.0.0-test.2+4af732cb`;
+  `qvr-setup feed` (defaults) reads the tag's feed first and finds 1.0.0-test.2.
+- **His update, in a sandbox:** `qvr-setup install --feed <test.1 feed>` (1797 files), a config line, a save and a
+  screenshot added; `qvr-setup update --feed <test.2 feed>`: "installed 1.0.0-test.1, package 1.0.0-test.2: newer ->
+  update", 9 files copied, verify intact, the three player files kept. `reinstall --clean`: the three moved into
+  `backups\<date> reinstall` (checked), a fresh 1798-file install, verify intact. The downloaded test.2 Setup's
+  off-screen Welcome page over a test.1 install: "Quake VR: Unleashed 1.0.0-test.1 is installed / Update to
+  1.0.0-test.2: only the program files that changed are replaced.", Remove..., Install again from scratch..., Use
+  another install..., the Start clean box (unticked), footer button Update, corner `Installer 1.0.0-test.2`.
