@@ -1005,9 +1005,20 @@ void setOpen(bool open)
     }
     if(open)
     {
-        if(!session.running && !start(chosenWad()))
+        // (An automatic pick that fails to start is marked failed: the next one is tried.)
+        const bool automatic = !vr_doom_wad.string || !vr_doom_wad.string[0];
+        while(!session.running)
         {
-            return;
+            const int wad = chosenWad();
+            if(start(wad))
+            {
+                break;
+            }
+            if(!automatic || wad < 0 || chosenWad() == wad)
+            {
+                return;
+            }
+            Con_Printf("Doom: trying %s instead\n", catalog.wads[chosenWad()].name.cStr());
         }
         session.open = true;
         session.lastTick = -1.0;
@@ -1517,6 +1528,14 @@ void info_f()
         Con_Printf("  at %d %d facing %d, kills %d items %d secrets %d; %d tics, %d frames, %d sounds\n", st.x, st.y,
             st.angle, st.kills, st.items, st.secrets, st.tics, st.frames, st.sounds);
         Con_Printf("  tick %.3f ms (most %.3f), screen %.3f ms\n", session.tickMs, session.tickMsMax, session.renderMs);
+        int playing = 0;
+        for(int c = 0; c < 16; c++)
+        {
+            playing += findChannel(c) ? 1 : 0;
+        }
+        const glm::vec3 o = hands::current().playerOrigin;
+        Con_Printf("  Quake's time %.2f s (%s), the player at %.0f %.0f; Doom's sounds playing now %d\n", cl.time,
+            quakeRunning() ? "running" : "paused", o.x, o.y, playing);
     }
     touch::Surface z;
     const hands::State& hs = hands::current();
@@ -1670,6 +1689,11 @@ bool onGadget()
 gfx::Texture gadgetTexture()
 {
     return session.running && session.open ? screen.texture : 0;
+}
+
+const gfx::Target& screenTarget()
+{
+    return screen;
 }
 
 void renderScreen()

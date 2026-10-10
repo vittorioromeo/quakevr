@@ -60,3 +60,8 @@
 /crash/
 # Diagnostics mode's folders (vr_diagnostics.cpp: quakevr/diagnostics/<date>_<time>/)
 /diagnostics/
+# Doom on the wrist gadget (vr_doom): its settings and saves, and the player's own WADs dropped in
+/doom/*.cfg
+/doom/savegame/
+/doom/wads/*
+!/doom/wads/README.txt
