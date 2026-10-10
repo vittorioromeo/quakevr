@@ -658,8 +658,11 @@ const DefaultChange defaultChanges[] = {
     // 118: 768 marks kept, not 1024 (the author, 2026-10-11: "Lower the default to 768"; PERF_DECISIONS 15: the marks
     // are about half the world's GPU pass in a gory fight). A config at the old default takes it.
     {118, &vr_decal_max, "1024"},
+    // 119: fewer barrels (the author, 2026-10-11): the roll 0.15 -> 0.1 (about 19% -> 13% of crates and barrels in a
+    // headless count over 64 layouts). A config at the old 0.15 takes it.
+    {119, &vr_crates_barrels, "0.15"},
 };
-constexpr int configVersion = 118;
+constexpr int configVersion = 119;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
