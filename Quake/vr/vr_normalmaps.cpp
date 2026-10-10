@@ -53,7 +53,7 @@ round. Tangent space: x along the texture's s, y up its rows (green up). With `h
 mapping walks (TexMgr_ShadingToHeights), `texelsperunit` how fine the texture is in the world; else 255.
 ================
 */
-static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int height, float texelsperunit);
+static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int height, float texelsperunit, float *scratch = NULL);
 
 /*
 ================
@@ -65,11 +65,13 @@ seams, which the bumps on the model's own light (vr_normalmap_models) would show
 */
 #define DILATE_TEXELS 4
 
-static void TexMgr_DilateIslands (float *lum, int width, int height)
+// `scratch`: 3 w h floats of the caller's (any thread), or NULL: the hunk's (the main thread).
+static void TexMgr_DilateIslands (float *lum, int width, int height, float *scratch = NULL)
 {
-	int		x, y, pass, mark = Hunk_LowMark ();
-	byte	*in = (byte *) Hunk_AllocNoFill (width * height), *next = (byte *) Hunk_AllocNoFill (width * height);
-	float	*src = (float *) Hunk_AllocNoFill (width * height * sizeof (float));
+	int		x, y, pass, mark = scratch ? 0 : Hunk_LowMark ();
+	byte	*in = scratch ? (byte *) scratch : (byte *) Hunk_AllocNoFill (width * height);
+	byte	*next = scratch ? (byte *) (scratch + width * height) : (byte *) Hunk_AllocNoFill (width * height);
+	float	*src = scratch ? scratch + 2 * width * height : (float *) Hunk_AllocNoFill (width * height * sizeof (float));
 
 	for (y = 0; y < height; y++)
 		for (x = 0; x < width; x++)
@@ -105,7 +107,8 @@ static void TexMgr_DilateIslands (float *lum, int width, int height)
 		});
 		memcpy (in, next, width * height);
 	}
-	Hunk_FreeToLowMark (mark);
+	if (!scratch)
+		Hunk_FreeToLowMark (mark);
 }
 
 static void TexMgr_ShadingToNormals (byte *data, int width, int height, float scale, qboolean heights, float texelsperunit)
@@ -167,14 +170,15 @@ range, HEIGHT_LOW of its texels at the bottom and 1 - HEIGHT_HIGH at the top, th
 is taken as HEIGHT_MINRANGE at least: shallower. The texture tiles: the edges wrap round.
 ================
 */
-static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int height, float texelsperunit)
+// `scratch`: w h floats of the caller's (any thread), or NULL: the hunk's (the main thread).
+static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int height, float texelsperunit, float *scratch)
 {
 	int		i, pass, passes, mark, count = width * height;
 	int		histogram[256], seen;
 	float	*tmp, lo, hi, range;
 
-	mark = Hunk_LowMark ();
-	tmp = (float *) Hunk_AllocNoFill (count * sizeof (float));
+	mark = scratch ? 0 : Hunk_LowMark ();
+	tmp = scratch ? scratch : (float *) Hunk_AllocNoFill (count * sizeof (float));
 	memcpy (h, lum, count * sizeof (float));
 	passes = texelsperunit > 1.5f ? 2 : 1;
 	for (pass = 0; pass < passes; pass++)
@@ -221,7 +225,8 @@ static void TexMgr_ShadingToHeights (const float *lum, float *h, int width, int 
 				h[y * width + x] = 1.f - (1.f - h[y * width + x]) * CLAMP (0.f, (d - 0.5f) / HEIGHT_RIM, 1.f);
 			}
 		});
-	Hunk_FreeToLowMark (mark);
+	if (!scratch)
+		Hunk_FreeToLowMark (mark);
 }
 
 /*
@@ -387,7 +392,7 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 	float	*col, *wgt, *gx, *gy, *jt, *lum, *h = NULL, *fine, *forms;
 	short	*bins;
 	float	noise;
-	double	start = Sys_DoubleTime (), tformed, theights, tfine;
+	double	start = Sys_DoubleTime (), tformed, tfine;
 
 	if (width < 3 || height < 3)
 		return;
@@ -434,6 +439,10 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 	// bytes a texel) take the steps in turn on this thread's buffers, adding as they go.
 	const qboolean together = count <= 512 * 512;
 	const int sets = together ? 1 + SKIN_FORMS : 1, blurfloats = count * 8 + width * 4;
+	// the heights (from lum alone) a step of their own too, in buffers of their own (3 + 1 w h floats)
+	float *heightscratch = heights ? (float *) VR_HeapMalloc ((size_t) count * 4 * sizeof (float)) : NULL;
+	if (heights)
+		h = (float *) Hunk_AllocNoFill (count * sizeof (float));
 	float *extra = (float *) VR_HeapMalloc ((size_t) sets * (count * 3 + blurfloats + (together ? count * 2 : 0)) * sizeof (float));
 	float *setblurred[1 + SKIN_FORMS], *setscratch[1 + SKIN_FORMS], *setx[1 + SKIN_FORMS], *sety[1 + SKIN_FORMS];
 	for (s = 0; s < 1 + SKIN_FORMS; s++)
@@ -445,10 +454,20 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 		sety[s] = together ? setx[s] + count : gy;
 	}
 	tfine = Sys_DoubleTime ();
-	qvr::jobs::parallelFor (normalmapSite, 1 + SKIN_FORMS, 1, [&] (za::SizeT begin, za::SizeT end)
+	qvr::jobs::parallelFor (normalmapSite, 2 + SKIN_FORMS, 1, [&] (za::SizeT begin, za::SizeT end)
 	{
 		for (za::SizeT step = begin; step < end; step++)
 		{
+			if (step == 1 + SKIN_FORMS)
+			{
+				if (heights)
+				{
+					if (heightmask)
+						TexMgr_DilateIslands (lum, width, height, heightscratch);
+					TexMgr_ShadingToHeights (lum, h, width, height, texelsperunit, heightscratch + 3 * count);
+				}
+				continue;
+			}
 			float *const blur = setblurred[step], *const scratch = setscratch[step], *const ox = setx[step], *const oy = sety[step];
 			const bool add = ox == gx;
 			if (step == 0)
@@ -554,16 +573,10 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 				}
 		});
 	VR_HeapFree (extra);
+	if (heightscratch)
+		VR_HeapFree (heightscratch);
 
 	tformed = Sys_DoubleTime ();
-	if (heights)
-	{
-		if (heightmask)
-			TexMgr_DilateIslands (lum, width, height);
-		h = (float *) Hunk_AllocNoFill (count * sizeof (float));
-		TexMgr_ShadingToHeights (lum, h, width, height, texelsperunit);
-	}
-	theights = Sys_DoubleTime ();
 	// relative to the skin's own relief: its 90th percentile of tilt made SKIN_P90 (within a factor of 3 either way),
 	// so that a dark or a soft skin gets as much shape as a contrasty one
 	{
@@ -604,7 +617,7 @@ static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale
 	}
 	});
 	Hunk_FreeToLowMark (mark);
-	Con_DPrintf ("skin normal map %d x %d made in %.1f ms (colours %.1f edges and forms %.1f heights %.1f)" "\n", width, height, (Sys_DoubleTime () - start) * 1000.0, (tfine-start)*1000.0, (tformed-tfine)*1000.0, (theights-tformed)*1000.0);
+	Con_DPrintf ("skin normal map %d x %d made in %.1f ms (colours %.1f edges, forms and heights %.1f)" "\n", width, height, (Sys_DoubleTime () - start) * 1000.0, (tfine-start)*1000.0, (tformed-tfine)*1000.0);
 }
 
 /*
