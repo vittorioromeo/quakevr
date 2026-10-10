@@ -794,7 +794,19 @@ var tests = new List<(string Name, Action Body)>
         Environment.SetEnvironmentVariable(InstallerSettings.FeedEnvVar, old);
         True(new InstallerSettings().HasDefaultFeeds, "the defaults are the release hosts'");
         True(!new InstallerSettings { FeedUrls = ["http://127.0.0.1:1/latest.json"] }.HasDefaultFeeds, "another feed is a test feed");
-        Eq("https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json", string.Join("|", new InstallerSettings().FeedUrls), "one feed: the GitHub release's");
+        const string latest = "https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json";
+        Eq(latest, string.Join("|", InstallerSettings.DefaultFeedUrls("1.0.0")), "a final release: one feed, the Latest release's");
+        Eq(latest, string.Join("|", InstallerSettings.DefaultFeedUrls("")), "no version: the Latest release's");
+        // A prerelease is never GitHub's Latest: its own tag's feed first (it finds its own package), then Latest's.
+        Eq("https://github.com/vittorioromeo/quakevr/releases/download/v1.0.0-test.1/latest.json|" + latest,
+            string.Join("|", InstallerSettings.DefaultFeedUrls("1.0.0-test.1")), "a prerelease: its own tag's feed first");
+        Eq("https://github.com/vittorioromeo/quakevr/releases/download/v1.1.0-rc.2/latest.json|" + latest,
+            string.Join("|", InstallerSettings.DefaultFeedUrls("1.1.0-rc.2 (2026-10-10 abcdef12)")), "a prerelease's version text: the tag from its number and suffix");
+        // The build's own version decides the defaults (make_release.ps1 builds with /p:Version=<the release's>).
+        Eq(string.Join("|", InstallerSettings.DefaultFeedUrls(InstallerBuild.Version)), string.Join("|", new InstallerSettings().FeedUrls), "the defaults follow this build's version");
+        True(ReleaseVersion.Parse(InstallerBuild.Version).Number is not null && !InstallerBuild.Version.Contains('+'), $"this build's version reads ({InstallerBuild.Version}), without +commit");
+        Eq(InstallerBuild.Version, InstallerBuild.Read(typeof(InstallerSettings).Assembly), "Core's version, read again");
+        True(new InstallerSettings { FeedUrls = InstallerSettings.DefaultFeedUrls(InstallerBuild.Version) }.HasDefaultFeeds, "this build's own feeds are no test");
         True(new InstallerSettings { FeedUrls = ["https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json"] }.HasDefaultFeeds, "the GitHub feed is no test");
         True(!new InstallerSettings { FeedUrls = ["https://vittorioromeo.com/quakevr/latest.json"] }.HasDefaultFeeds, "the site's old feed is no release host any more");
     }),

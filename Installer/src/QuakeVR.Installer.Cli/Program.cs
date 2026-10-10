@@ -88,6 +88,7 @@ List<Uri> Feeds(string key)
     if (list.Count == 0)
     {
         list = new InstallerSettings().FeedUrls;
+        Console.WriteLine($"feeds (Setup {InstallerBuild.Version}): {string.Join(" then ", list)}");
     }
     else if (!InstallerSettings.IsReleaseHostFeeds(list))
     {

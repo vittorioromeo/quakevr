@@ -114,9 +114,12 @@ the update check's feed) never serves it; its own feed is
 `https://github.com/vittorioromeo/quakevr/releases/download/v<version>/latest.json`.
 `make_release.ps1 -Version 1.1.0-beta.1 -BumpVersion -Publish -NoDraft` publishes it as a prerelease (`-Final` refuses
 one), then checks that it is a published prerelease and not Latest (`gh release list`; nothing edited) and runs the
-online check against its own feed (step 10's checks). `-CheckOnline` does the same for a prerelease. Testers point the
-installer at that feed (`QVR_SETUP_FEED`, `qvr-setup install --feed`). GitHub notifies the repository's release
-watchers of a published prerelease too.
+online check against its own feed (step 10's checks). `-CheckOnline` does the same for a prerelease. A prerelease's own
+`QuakeVR-Setup.exe` (and its `qvr-setup`) reads its own tag's feed first, then Latest's (`InstallerSettings.DefaultFeedUrls`:
+the build's informational version, `/p:Version`, has the suffix; a final release reads Latest's alone), so a plain run
+installs that prerelease; another build points at it with `QVR_SETUP_FEED` or `qvr-setup install --feed`. The game's
+update notice still reads Latest's feed only (a prerelease game is told about the next final release). GitHub notifies
+the repository's release watchers of a published prerelease too.
 
 `-NoBranchPush` (prereleases only) never pushes the branch: the tag, pushed alone, carries its commit (the version
 commit stays local). A **rehearsal** of the whole path (done 2026-10-10: build, checks, tag, upload, online check) from

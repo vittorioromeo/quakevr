@@ -56,7 +56,7 @@ about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and Smart
 | `--textures <zip>` | The HD texture pack, already downloaded |
 | `--target <dir>` | The install folder (default `%LOCALAPPDATA%\Programs\QuakeVR`) |
 | `--shortcuts-dir <dir>` | Shortcuts go to `<dir>\Desktop` and `<dir>\Programs` instead of the real desktop and Start menu (tests) |
-| `--feed <url>` | Where `latest.json` is read (repeatable; default: the GitHub release's, the only feed). Also `installer-settings.json` beside the exe |
+| `--feed <url>` | Where `latest.json` is read (repeatable; default: the GitHub Latest release's; a prerelease's Setup reads its own tag's first). Also `installer-settings.json` beside the exe |
 | `--downloads <dir>` | Where downloads go (default `%LOCALAPPDATA%\QuakeVR-Installer\downloads`) |
 | `--screenshots <dir>` | Render every page to PNG and exit, no window (the Statement page unanswered, mixed and all YES; exit 1 unless its Continue is enabled exactly with YES to all four, or unless both Play buttons mute the installer: a 0.3 s fade, then silence, with the game's start recorded instead of run); `fit.txt` (also printed) says which page would scroll, and by how much, at the default size, on 1366x768 at 100%, on 1080p at 150% and in the window at its minimum size; `7-*-150pct*.png` are renders at 150%, `7c-statement-minimum.png` the Statement page at the minimum size (with `--package --target --shortcuts-dir` it runs a real install into those folders first) |
 | `--offline` | Never ask the network: the online release counts as unavailable (the "Use a local package" path) |

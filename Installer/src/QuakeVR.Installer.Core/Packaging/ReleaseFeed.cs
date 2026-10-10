@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -139,10 +140,19 @@ public static class GitHubReleases
 /// <c>installer-settings.json</c> beside the exe, or <c>--feed</c>) points them elsewhere.</summary>
 public sealed class InstallerSettings
 {
-    public List<string> FeedUrls { get; set; } =
-    [
-        "https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json",
-    ];
+    public List<string> FeedUrls { get; set; } = DefaultFeedUrls(InstallerBuild.Version);
+
+    /// <summary>GitHub's Latest release's feed: what a final release's installer reads (the newest release).</summary>
+    public const string LatestFeed = "https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json";
+
+    /// <summary>One release's own feed, by its version (<c>releases/download/v&lt;version&gt;/latest.json</c>).</summary>
+    public static string TagFeed(string version) => $"https://github.com/vittorioromeo/quakevr/releases/download/v{version}/latest.json";
+
+    /// <summary>The release hosts' feeds for an installer of <paramref name="ownVersion"/>: a final release reads
+    /// Latest's alone (it wants the newest). A prerelease (<c>x.y.z-suffix</c>) is never GitHub's Latest, so its own
+    /// tag's feed comes first (it finds its own package), then Latest's (docs/vr-port/RELEASING.md, "Prereleases").</summary>
+    public static List<string> DefaultFeedUrls(string? ownVersion) =>
+        ReleaseVersion.Parse(ownVersion) is { Number: not null, Suffix: not null } v ? [TagFeed(v.Short), LatestFeed] : [LatestFeed];
 
     public string GitHubApi { get; set; } = "https://api.github.com/repos/vittorioromeo/quakevr/releases/latest";
 
@@ -188,5 +198,22 @@ public sealed class InstallerSettings
             return new InstallerSettings();
         }
         return JsonSerializer.Deserialize<InstallerSettings>(File.ReadAllText(path), PackageManifest.Json) ?? new InstallerSettings();
+    }
+}
+
+/// <summary>This installer's own build.</summary>
+public static class InstallerBuild
+{
+    /// <summary>Its version as the release named it (<c>1.0.0</c>, <c>1.0.0-beta.1</c>): the assembly's informational
+    /// version (make_release.ps1's <c>/p:Version</c>, else the repository's VERSION file) without the <c>+commit</c>
+    /// the SDK appends. The assembly and file versions drop a prerelease suffix, so they cannot say this.</summary>
+    public static string Version { get; } = Read(typeof(InstallerBuild).Assembly);
+
+    public static string Read(Assembly assembly)
+    {
+        var text = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString(3) ?? "";
+        var plus = text.IndexOf('+');
+        return plus >= 0 ? text[..plus] : text;
     }
 }

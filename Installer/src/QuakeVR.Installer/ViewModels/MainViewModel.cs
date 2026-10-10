@@ -260,7 +260,7 @@ public sealed class MainViewModel : ObservableObject
     // ---- Pages and navigation ------------------------------------------------------------------------------------
 
     public ObservableCollection<StepItem> Steps { get; }
-    public string InstallerVersion => $"Installer {typeof(MainViewModel).Assembly.GetName().Version?.ToString(3)}";
+    public string InstallerVersion => $"Installer {InstallerBuild.Version}";
 
     /// <summary>A test run says so on every page: another feed than the release hosts' (--feed, QVR_SETUP_FEED,
     /// installer-settings.json), a sandbox. Null for a real install.</summary>
