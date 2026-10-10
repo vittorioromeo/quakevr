@@ -1834,9 +1834,9 @@ QVR_CVAR(vr_climb, "0", CVAR_ARCHIVE)                 // on as shipped (vr_defau
 QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a ledge must be to take hold of
 QVR_CVAR(vr_climb_fling, "1", CVAR_ARCHIVE)           // how much letting go flings you with the hands' motion (capped; 0 none)
 QVR_CVAR(vr_climb_blast_letgo, "30", CVAR_ARCHIVE)   // a blast this strong (damage) or more knocks you off a hold: you let go and it throws you (0: never); an enemy shove always does
-QVR_CVAR(vr_climb_leniency, "2", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
-QVR_CVAR(vr_climb_leniency_air, "4", CVAR_ARCHIVE)   // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
-QVR_CVAR(vr_climb_air_grab_time, "0.3", CVAR_ARCHIVE) // s: a grip pressed at no hold keeps looking for one this long while it stays pressed, in the air (a ledge jumped at: taken as the hand comes over or down onto it; 0: only at the press)
+QVR_CVAR(vr_climb_leniency, "2.5", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
+QVR_CVAR(vr_climb_leniency_air, "4.5", CVAR_ARCHIVE)   // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
+QVR_CVAR(vr_climb_air_grab_time, "0.325", CVAR_ARCHIVE) // s: a grip pressed at no hold keeps looking for one this long while it stays pressed, in the air (a ledge jumped at: taken as the hand comes over or down onto it; 0: only at the press)
 QVR_CVAR(vr_climb_mantle_grunt, "0.6", CVAR_ARCHIVE) // volume (0..1) of the player's grunt as a mantle pulls him up onto a ledge (which: vr_climb_mantle_grunt_sound); 0 off
 QVR_CVAR(vr_climb_mantle_grunt_sound, "4", CVAR_ARCHIVE) // the mantle's grunt (vr_climb.cpp mantleGrunts): 0 the jump's (player/plyrjmp8.wav), 1 a hard landing's (player/land2.wav), 2 the jump's deeper, 3 a hard landing's deeper (both made from id's as they load), 4 a short pain grunt (player/pain2.wav)
 QVR_CVAR(vr_climb_mantle_lenient, "1", CVAR_ARCHIVE) // 1: a mantle onto a sloping top (rising or falling away from the lip, or across it) finds its spot on the slope, up to vr_climb_mantle_slope (vr_climb.cpp findMantleSloped; tried when the level search finds none); 0: level tops only, as before
@@ -2730,7 +2730,7 @@ QVR_CVAR(vr_reload_mode, "3", CVAR_ARCHIVE)
 // the right; Z up (times the height calibration, as the holsters'). Reach: units a hand must be within to be at it (the
 // holsters' competition: the one a hand is most within). Pitch, Yaw, Roll: degrees, its top away from the body, about
 // where the hand reaches for it; Size: times the model's.
-QVR_CVAR(vr_ammo_pouch_x, "3.02", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_x, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_z, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_thresh, "5", CVAR_ARCHIVE)

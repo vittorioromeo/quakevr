@@ -469,7 +469,7 @@ const DefaultChange defaultChanges[] = {
     // 100: the author's settings at the firing range, 2026-10-07 (his note vrfiringrange_2026-10-07_22-08-51: "make all
     // the tweaks I'm making the new defaults"; ROUND21.md, "Reloading: the firing range notes of 10-07").
     {100, &vr_ammo_pouch_counter, "1"}, // 0
-    {100, &vr_ammo_pouch_x, "0"}, // 3.02
+    {100, &vr_ammo_pouch_x, "0"}, // 3.02 (121: 3)
     {100, &vr_decap_pop_sg_falloff, "4"}, // 1.5
     {100, &vr_flashlight_flick_speed, "600"}, // 800
     {100, &vr_knockdown_ledge_drop, "64"}, // 16
@@ -666,8 +666,15 @@ const DefaultChange defaultChanges[] = {
     // times 1.15: vrtutorial_gen.py TIP_REACH). A config at the old defaults takes them.
     {120, &vr_tips_delay, "0.5"},
     {120, &vr_tips_distance, "150"},
+    // 121: the author's values (2026-10-10, his config): the ammo pouch's forward offset 3.02 -> 3; climbing a little
+    // more lenient ("slightly increased the climbing values"): the leniency 2 -> 2.5 cm, mid-air 4 -> 4.5 cm, the air
+    // grab time 0.3 -> 0.325 s. A config at the old defaults takes them.
+    {121, &vr_ammo_pouch_x, "3.02"},
+    {121, &vr_climb_leniency, "2"},
+    {121, &vr_climb_leniency_air, "4"},
+    {121, &vr_climb_air_grab_time, "0.3"},
 };
-constexpr int configVersion = 120;
+constexpr int configVersion = 121;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
