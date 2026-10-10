@@ -586,6 +586,8 @@ typedef struct glprogs_s {
 	/* 3d */
 	GLuint		world[2][3][3];		// [OIT][standard/dithered/banded][solid/alpha test/water]
 	GLuint		world_pdo[3];		// QVR: [standard/dithered/banded] solid, not OIT, writing the parallax hits' depth (vr_parallax_depth_write)
+	GLuint		world_decal_retro[2][3];	// QVR: [OIT][standard/dithered/banded] solid, with the decals' retro textures' code (world[][][solid] and world_pdo go without it, NO_DECAL_RETRO): made when first needed (GL_WorldDecalRetroProgram)
+	GLuint		world_pdo_decal_retro[3];	// QVR: [standard/dithered/banded] world_pdo's, the same
 	GLuint		water[2][2];		// [OIT][dither]
 	GLuint		skystencil;
 	GLuint		world_depth;		// QVR: the opaque world's depth pre-pass (r_world.c)
@@ -617,6 +619,7 @@ void GL_UseProgram (GLuint program);
 void GL_ClearCachedProgram (void);
 void GL_CreateShaders (void);
 void GL_DeleteShaders (void);
+GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
 void GL_ReloadShaders_f (void); // QVR: tests (vr_shader_reload)
 
 typedef struct glframebufs_s {

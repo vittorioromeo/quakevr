@@ -515,6 +515,8 @@ static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean 
 		dither = r_softemu_lightmap_banding.value > 0.f ? 2 : 0;
 		break;
 	}
+	if (!alphatest && r_framedata.decalclock[3] > 0.5f) // QVR: the decals with retro textures (VR_DecalsFrame: their set)
+		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit);
 	if (pdo && !oit && !alphatest) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
 		return glprogs.world_pdo[dither];
 	return glprogs.world[oit][dither][alphatest];

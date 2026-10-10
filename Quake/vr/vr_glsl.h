@@ -1314,8 +1314,8 @@ LIQUID_SWELL \
 // and its clustered forward decals do: each pixel finds the decals over it and puts them on its texture, before its
 // light, where the parallax mapping moved it (so they follow the relief as the texture does, and take the light, the
 // sheen and the fog as it does). The decals are found in a grid over the world, 32 units a cell, hashed into buckets
-// (DecalGrid: [0] the buckets' mask, then each bucket's list's start << 8 | its length (64 at most, the newest), then
-// the lists). A decal is on a face turned towards its normal (60 degrees at most) whose plane passes within n.w of its
+// (DecalGrid: [0] the buckets' mask, then each bucket's list's start << 8 | its length (64 at most, the newest, of
+// those whose cells there reach the decal's rectangle: vr_decals.cpp worldBuckets), then the lists). A decal is on a face turned towards its normal (60 degrees at most) whose plane passes within n.w of its
 // middle, over its rectangle (projected along its normal), as clipToWorld laid the meshes. Spreading (a pool, a run), darkening (drying), showing
 // and fading are worked out from its age, as appendDecal's; with retro textures on decals, read through their set: m = its texel (premultiplied, times its colour) + 1 - its
 // alpha, on the texture as the meshes' modulating blend put it on the lit scene (multiplications: in any order).
@@ -1362,15 +1362,14 @@ LIQUID_SWELL \
 "	const vec2 inset = vec2(0.5 / 2048.0, 0.5 / 1024.0);\n" \
 "	const vec2 cellsize = vec2(1.0 / 8.0, 1.0 / 4.0);\n" \
 "	const vec2 span = cellsize - 2.0 * inset;\n" \
-"	// the world's own retro set (its normal and specular maps are read after): kept, the decals' own used here\n" \
-"	int world_retro = Retro;\n" \
-"	vec4 world_p0 = RetroP0, world_p1 = RetroP1, world_p2 = RetroP2;\n" \
-"	vec2 world_grid = RetroGrid;\n" \
-"	float world_far = RetroFar;\n" \
 "	for (uint k = 0u; k < count; k++)\n" \
 "	{\n" \
 "		Decal d = Decals[DecalGrid[first + k]];\n" \
 "		if (dot(facing, d.n.xyz) < 0.5 || abs(dot(d.centre.xyz - q, facing)) > d.n.w) // its middle within n.w of this face's plane\n" \
+"			continue;\n" \
+"		// outside its rectangle at its full size (it only spreads to it; a little larger, for rounding): no more worked out\n" \
+"		vec3 off = p - d.centre.xyz;\n" \
+"		if (abs(dot(off, d.u.xyz)) > d.u.w * 1.001 + 0.01 || abs(dot(off, d.v.xyz)) > d.v.w * 1.001 + 0.01)\n" \
 "			continue;\n" \
 "		float age = DecalClock.x - d.time.x;\n" \
 "		float a = clamp((DecalClock.y - age) / 5.0, 0.0, 1.0);\n" \
@@ -1386,9 +1385,8 @@ LIQUID_SWELL \
 "		}\n" \
 "		float su = max(s, 1e-3), sv = run ? 1.0 : su;\n" \
 "		// where in it at its full size: drawn in towards where it spreads from (its middle; a run's top, its -u end)\n" \
-"		vec3 r = p - d.centre.xyz;\n" \
 "		float from = run ? -d.u.w : 0.0;\n" \
-"		vec2 st = vec2((from + (dot(r, d.u.xyz) - from) / su) / d.u.w, dot(r, d.v.xyz) / (sv * d.v.w)) * 0.5 + 0.5;\n" \
+"		vec2 st = vec2((from + (dot(off, d.u.xyz) - from) / su) / d.u.w, dot(off, d.v.xyz) / (sv * d.v.w)) * 0.5 + 0.5;\n" \
 "		if (any(lessThan(st, vec2(0.0))) || any(greaterThan(st, vec2(1.0))))\n" \
 "			continue;\n" \
 "		int cell = int(d.centre.w + 0.5);\n" \
@@ -1397,9 +1395,16 @@ LIQUID_SWELL \
 "		vec2 gx = vec2(dot(dpdx, d.u.xyz), dot(dpdx, d.v.xyz)) * k2;\n" \
 "		vec2 gy = vec2(dot(dpdy, d.u.xyz), dot(dpdy, d.v.xyz)) * k2;\n" \
 "		// with retro textures on decals (vr_retro): as the meshes' shader read them, the atlas's whole size its Quake\n" \
-"		// texels; blocky, pulled to the palette, premultiplied\n" \
+"		// texels; blocky, pulled to the palette, premultiplied (not in the programs made without them, NO_DECAL_RETRO:\n" \
+"		// R_ChooseBModelProgram's while the decals have no retro set; the code alone cost a quarter of the marks' time)\n" \
+"#ifndef NO_DECAL_RETRO\n" \
 "		if (DecalClock.w > 0.5)\n" \
 "		{\n" \
+"			// the world's own retro set (its normal and specular maps are read after): kept, the decal's own used here\n" \
+"			int world_retro = Retro;\n" \
+"			vec4 world_p0 = RetroP0, world_p1 = RetroP1, world_p2 = RetroP2;\n" \
+"			vec2 world_grid = RetroGrid;\n" \
+"			float world_far = RetroFar;\n" \
 "			Retro = 0;\n" \
 "			RetroBegin(DecalClock.w, vec2(2048.0, 1024.0), gx, gy, dpdx, dpdy, facing);\n" \
 "			if (Retro > 0)\n" \
@@ -1409,9 +1414,18 @@ LIQUID_SWELL \
 "				vec4 q = RetroQuantPremul(RetroSample(DecalAtlas, at, gx, gy, false) * vec4(vec3(a * dk), a), floor(at * RetroGrid));\n" \
 "				RetroLodReads = false;\n" \
 "				m *= q.rgb + (1.0 - q.a);\n" \
-"				continue;\n" \
 "			}\n" \
+"			bool decal_retro = Retro > 0;\n" \
+"			Retro = world_retro;\n" \
+"			RetroP0 = world_p0;\n" \
+"			RetroP1 = world_p1;\n" \
+"			RetroP2 = world_p2;\n" \
+"			RetroGrid = world_grid;\n" \
+"			RetroFar = world_far;\n" \
+"			if (decal_retro)\n" \
+"				continue;\n" \
 "		}\n" \
+"#endif\n" \
 "		// filtered over the pixel's footprint by hand: the mip level of its narrower way, up to 4 reads along the longer\n" \
 "		// (textureGrad's own, in llvmpipe, put a faint line along some rows of pixel quads)\n" \
 "		vec2 tx = gx * vec2(2048.0, 1024.0), ty = gy * vec2(2048.0, 1024.0);\n" \
@@ -1427,12 +1441,6 @@ LIQUID_SWELL \
 "		float dark = 1.0 - darken * min(1.0, age / max(d.time.y, 8.0));\n" \
 "		m *= texel.rgb * (a * dark) + (1.0 - texel.a * a);\n" \
 "	}\n" \
-"	Retro = world_retro;\n" \
-"	RetroP0 = world_p0;\n" \
-"	RetroP1 = world_p1;\n" \
-"	RetroP2 = world_p2;\n" \
-"	RetroGrid = world_grid;\n" \
-"	RetroFar = world_far;\n" \
 "	return m;\n" \
 "}\n"
 

@@ -347,9 +347,10 @@ void GL_CreateShaders (void)
 	for (oit = 0; oit < 2; oit++)
 		for (dither = 0; dither < 3; dither++)
 			for (mode = 0; mode < 3; mode++)
-				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d", oit, dither, mode);
+				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d%s", oit, dither, mode,
+					mode == WORLDSHADER_SOLID ? "; NO_DECAL_RETRO 1" : ""); // QVR: the decals' retro textures' code: GL_WorldDecalRetroProgram's
 	for (dither = 0; dither < 3; dither++) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
-		glprogs.world_pdo[dither] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo|OIT 0; DITHER %d; MODE %d; PDO 1", dither, WORLDSHADER_SOLID);
+		glprogs.world_pdo[dither] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo|OIT 0; DITHER %d; MODE %d; PDO 1; NO_DECAL_RETRO 1", dither, WORLDSHADER_SOLID);
 
 	for (dither = 0; dither < 2; dither++)
 	{
@@ -393,6 +394,28 @@ void GL_CreateShaders (void)
 	for (mode = 0; mode < 3; mode++)
 		glprogs.palette_init[mode] = GL_CreateComputeProgram (palette_init_compute_shader, "palette init|MODE %d", mode);
 	glprogs.palette_postprocess = GL_CreateComputeProgram (palette_postprocess_compute_shader, "palette postprocess");
+}
+
+/*
+=============
+GL_WorldDecalRetroProgram
+
+QVR: the solid world's program with the decals' retro textures' code (vr_retro: the decals have a retro set), made the
+first time it is needed. The others go without it (NO_DECAL_RETRO): its mere presence slowed the decals' loop by a
+quarter (PERF_DECISIONS.md 15), and making these at the start would add to every start's shaders.
+=============
+*/
+GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo)
+{
+	GLuint *program = pdo ? &glprogs.world_pdo_decal_retro[dither] : &glprogs.world_decal_retro[oit][dither];
+	if (!*program)
+	{
+		if (pdo)
+			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo decal retro|OIT 0; DITHER %d; MODE %d; PDO 1", dither, WORLDSHADER_SOLID);
+		else
+			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world decal retro|OIT %d; DITHER %d; MODE %d", oit, dither, WORLDSHADER_SOLID);
+	}
+	return *program;
 }
 
 /*
