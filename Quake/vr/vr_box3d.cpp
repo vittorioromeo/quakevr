@@ -1407,7 +1407,10 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
 // The world's mesh is made once per map and world scale and kept while the map is (a saved game loaded, a restart:
 // Box3D's world is made again, not the mesh). A few scales are kept: a take's replay (vr_motion_play) sets the world
 // scale it was recorded at and puts the user's back, and each eval take loads the map at the user's scale first; the
-// mesh (in metres) isn't made again for either (35 ms each, twice per take).
+// mesh (in metres) isn't made again for either (35 ms each, twice per take). Other maps' meshes are kept too
+// (vr_box3d_mesh_keep_maps: a return to the hub, 47-50 ms of its load), each by all that worldMesh reads of its map
+// (MeshInputs: the faces it makes, in order, with their corners' numbers and points), compared whole: an edited map
+// of the same name and counts is a new mesh.
 struct MeshCache
 {
     char name[MAX_QPATH]{};
@@ -1416,14 +1419,101 @@ struct MeshCache
     bool junctions{true};
     b3MeshData* mesh{nullptr};
     MeshStats stats;
+    za::U64 inputsKey{0};          // MeshInputs' hash
+    za::Vector<za::U32> inputs;    // MeshInputs' words
+    za::U32 serial{0};             // (MeshInputs' check: this entry's inputs found the same as the map's)
 };
-za::Vector<MeshCache> meshCache; // this map's, the latest used last
+za::Vector<MeshCache> meshCache; // the latest used last
 constexpr size_t meshCacheScales = 4;
+za::U32 meshCacheSerial = 0;
+
+// What worldMesh reads of a map (beside the scale and vr_box3d_mesh_junctions), as words: the faces it makes (not sky
+// or liquid, 3 corners or more), each its corner count, its normal and its corners (the vertex's number and point).
+// Made once a map load (beforeLoad: a few ms on vrstart; the map's model is freed and loaded again at each), kept for
+// the map's frames; `same` lists the cache entries found equal to it (their serials), so a frame's check compares no
+// words.
+struct MeshInputs
+{
+    const qmodel_t* map{nullptr};
+    za::U64 key{0};
+    za::Vector<za::U32> words;
+    za::Vector<za::U32> same;
+};
+MeshInputs meshInputs;
+
+[[nodiscard]] za::U32 floatWord(float f)
+{
+    return ZA_BIT_CAST(za::U32, f);
+}
+
+const MeshInputs& inputsOf(const qmodel_t* map)
+{
+    MeshInputs& in = meshInputs;
+    if(in.map == map)
+    {
+        return in;
+    }
+    in.map = map;
+    in.same.clear();
+    in.words.clear();
+    in.words.pushBack(static_cast<za::U32>(map->numvertexes));
+    for(int i = 0; i < map->nummodelsurfaces; i++)
+    {
+        const msurface_t& surf = map->surfaces[map->firstmodelsurface + i];
+        if(surf.flags & (SURF_DRAWSKY | SURF_DRAWTURB) || surf.numedges < 3) // (worldMesh's)
+        {
+            continue;
+        }
+        const float sign = (surf.flags & SURF_PLANEBACK) ? -1.f : 1.f;
+        in.words.pushBack(static_cast<za::U32>(surf.numedges));
+        for(int k = 0; k < 3; k++)
+        {
+            in.words.pushBack(floatWord(sign * surf.plane->normal[k]));
+        }
+        for(int k = 0; k < surf.numedges; k++)
+        {
+            const int e = map->surfedges[surf.firstedge + k];
+            const unsigned v = e >= 0 ? map->edges[e].v[0] : map->edges[-e].v[1];
+            in.words.pushBack(v);
+            for(int c = 0; c < 3; c++)
+            {
+                in.words.pushBack(floatWord(map->vertexes[v].position[c]));
+            }
+        }
+    }
+    za::U64 h = 14695981039346656037ull; // (FNV-1a over the words)
+    for(const za::U32 w : in.words)
+    {
+        h = (h ^ w) * 1099511628211ull;
+    }
+    in.key = h;
+    return in;
+}
 
 [[nodiscard]] bool sameMap(const MeshCache& c, const qmodel_t* map)
 {
-    return !strcmp(c.name, map->name) && c.vertexes == map->numvertexes && c.surfaces == map->numsurfaces &&
-           c.junctions == (vr_box3d_mesh_junctions.value != 0.f);
+    if(strcmp(c.name, map->name) || c.vertexes != map->numvertexes || c.surfaces != map->numsurfaces ||
+       c.junctions != (vr_box3d_mesh_junctions.value != 0.f))
+    {
+        return false;
+    }
+    MeshInputs& in = meshInputs;
+    (void)inputsOf(map);
+    if(c.inputsKey != in.key)
+    {
+        return false;
+    }
+    if(za::find(in.same.begin(), in.same.end(), c.serial) != in.same.end())
+    {
+        return true;
+    }
+    if(c.inputs.size() != in.words.size() ||
+       memcmp(c.inputs.data(), in.words.data(), in.words.size() * sizeof(za::U32)) != 0)
+    {
+        return false;
+    }
+    in.same.pushBack(c.serial);
+    return true;
 }
 
 void settleMesh();
@@ -1450,13 +1540,49 @@ void settleMesh();
 }
 
 // (Only with the world destroyed: a mesh let go may be the one its shape used.)
-// A mesh made, into the cache (the latest used last): another map's (or other settings'), and the least recently used
-// scale beyond the few kept, let go first.
-MeshCache& addMesh(const MeshCache& made, const qmodel_t* map)
+// A mesh made, into the cache (the latest used last): the least recently used let go first, beyond the few scales of
+// this map and the few other maps kept (vr_box3d_mesh_keep_maps; another setting's, at once).
+MeshCache& addMesh(MeshCache&& made, const qmodel_t* map)
 {
-    for(auto it = meshCache.begin(); it != meshCache.end();)
+    const int keepMaps = za::clamp(static_cast<int>(vr_box3d_mesh_keep_maps.value), 0, 8);
+    const bool junctions = vr_box3d_mesh_junctions.value != 0.f;
+    // Kept: this map's newest scales, then the other maps' newest (one scale each), newest first.
+    za::Vector<za::U8> keep(meshCache.size(), 0);
     {
-        if(!sameMap(*it, map) || meshCache.size() >= meshCacheScales)
+        size_t scales = 1; // (the one being added)
+        za::Vector<const MeshCache*> others;
+        for(size_t i = meshCache.size(); i-- > 0;)
+        {
+            const MeshCache& c = meshCache[i];
+            if(c.junctions != junctions)
+            {
+                continue;
+            }
+            if(sameMap(c, map))
+            {
+                if(scales < meshCacheScales)
+                {
+                    keep[i] = 1;
+                    scales++;
+                }
+                continue;
+            }
+            bool counted = false;
+            for(const MeshCache* o : others)
+            {
+                counted = counted || (!strcmp(o->name, c.name) && o->inputsKey == c.inputsKey);
+            }
+            if(!counted && others.size() < static_cast<size_t>(keepMaps))
+            {
+                others.pushBack(&c);
+                keep[i] = 1;
+            }
+        }
+    }
+    size_t index = 0;
+    for(auto it = meshCache.begin(); it != meshCache.end(); index++)
+    {
+        if(!keep[index] && !(world && world->mesh == it->mesh)) // (never the one the world's shape uses)
         {
             if(it->mesh)
             {
@@ -1469,7 +1595,12 @@ MeshCache& addMesh(const MeshCache& made, const qmodel_t* map)
             ++it;
         }
     }
-    MeshCache& c = meshCache.emplaceBack(made);
+    MeshCache& c = meshCache.emplaceBack(ZA_MOVE(made));
+    const MeshInputs& in = inputsOf(map);
+    c.inputsKey = in.key;
+    c.inputs = in.words;
+    c.serial = ++meshCacheSerial;
+    meshInputs.same.pushBack(c.serial);
     if(vr_debug_box3d.value)
     {
         // (its bytes' hash, FNV-1a: the same made on the pool or not)
@@ -1507,7 +1638,7 @@ void settleMesh()
     made.mesh = pendingMesh.job.get();
     made.stats = pendingMesh.key.stats;
     VR_TimeAdd("box3d: the world's mesh, waited for (made on the pool)", Sys_DoubleTime() - t0);
-    (void)addMesh(made, pendingMesh.map);
+    (void)addMesh(ZA_MOVE(made), pendingMesh.map);
 }
 
 [[nodiscard]] b3MeshData* cachedWorldMesh(const qmodel_t* map, float m2u)
@@ -1524,7 +1655,7 @@ void settleMesh()
     made.m2u = m2u;
     made.junctions = vr_box3d_mesh_junctions.value != 0.f;
     made.mesh = worldMesh(map, m2u, made.junctions, made.stats);
-    return addMesh(made, map).mesh;
+    return addMesh(ZA_MOVE(made), map).mesh;
 }
 
 // A convex region as the intersection of half-spaces dot(n, p) <= d: its corners (triples of planes meeting inside
@@ -10244,9 +10375,20 @@ void beforeLoad()
         return;
     }
     const float m2u = units::metresToUnits();
-    if(findMesh(map, m2u))
+    const double t0 = Sys_DoubleTime();
+    (void)inputsOf(map); // (what the mesh is made of, read once for this load)
+    VR_TimeAdd("box3d: the world mesh's key (its faces read)", Sys_DoubleTime() - t0);
+    if(MeshCache* found = findMesh(map, m2u))
     {
-        return; // (kept: the same map again)
+        za::rotate(found, found + 1, meshCache.data() + meshCache.size()); // the latest used last
+        if(vr_debug_box3d.value)
+        {
+            const MeshCache& c = meshCache.back();
+            Con_Printf("box3d: the mesh of %s kept (%d triangles; %.1f MB, its key %.1f MB)\n", map->name,
+                c.stats.triangles, c.mesh ? c.mesh->byteCount / 1048576.0 : 0.0,
+                static_cast<double>(c.inputs.size() * sizeof(za::U32)) / 1048576.0);
+        }
+        return; // (kept: the same map again, or one played before)
     }
     PendingMesh& p = pendingMesh;
     p.key = MeshCache{};
@@ -10264,6 +10406,8 @@ void beforeLoad()
 void finishLoads()
 {
     settleMesh();
+    meshInputs.map = nullptr; // (the map's model goes with the hunk: read again at the next load's)
+    meshInputs.same.clear();
 }
 
 bool toss(edict_t* ent)

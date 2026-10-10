@@ -276,6 +276,7 @@ QVR_CVAR(vr_box3d_player_hold, "1", CVAR_ARCHIVE) // ... but a player inside one
 QVR_CVAR(vr_box3d_gun_pieces, "12", CVAR_NONE)      // the guns' bodies (held, and lying as props) in at most this many convex pieces that follow the drawn gun (vr_convex.cpp: the shotgun's shell port, the wells, the gaps between parts left open); 0 or 1: one hull round each
 QVR_CVAR(vr_gun_pieces_cache, "1", CVAR_NONE)     // the guns' convex pieces kept on disk (cache/gunpieces, vr_box3d.cpp gunPieces: 10-85 ms a gun, the first time one is dropped, picked up or holstered in a session; the same pieces read back); 0 cut every session; 2 read, then cut anyway and compared (vr_gun_pieces_cache_stats)
 QVR_CVAR(vr_box3d_mesh_junctions, "1", CVAR_NONE)  // the world mesh with its T-junctions joined (no bumps at the seams between faces); 0: the faces as the BSP has them
+QVR_CVAR(vr_box3d_mesh_keep_maps, "2", CVAR_NONE)  // the world meshes of this many maps played before kept beside this map's (vr_box3d.cpp MeshCache: a return to the hub not made again, 47-50 ms; each kept by all it was made of, compared whole); 0: only this map's
 QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken and put to sleep; 2: every awake body every frame
 // Physics sounds (vr_physsound.cpp; ROUND21.md, "Physics sounds"): props knocking and scraping, a climbing hand's grab.
 QVR_CVAR(vr_physsound, "2", CVAR_ARCHIVE)             // all of them: their volume (0 off; up to 2: over 1 the client multiplies them, vr_audio.cpp)
