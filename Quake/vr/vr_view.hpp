@@ -252,6 +252,7 @@ struct DrawnWeapon
 
 // vr_hotspots_check: the migrated hotspots against the old two-handed grips, every slot, either hand.
 void hotspotsCheck_f();
+void anchorWhere_f(); // vr_anchor_where
 
 // vr_weapon_hotspot_here <1..4> [<type>] [main|off]: hotspot n of the weapon in the main hand (or the named one) put
 // where the other hand is now, as a grip (1) or the type given (3: a cup) -- the Weapon Offsets page's "Put It Where the
