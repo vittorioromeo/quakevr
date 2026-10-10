@@ -214,6 +214,9 @@ def paint(kind, variant=False):
     return bytes(px)
 
 
+TUCK = 0.04  # how far a well's walls end inside its lip band
+
+
 def magwell(hx, hy, top, wall=0.32, height=1.1, sunk=None):
     """A magazine's well (its receiver, drawn on the gun: vr_view.cpp setupMagazines): a steel collar round the magazine's
     top end, flush with the gun at the seat (the magazine's top, local z `top`) and down its length `height`, its walls
@@ -224,19 +227,22 @@ def magwell(hx, hy, top, wall=0.32, height=1.1, sunk=None):
     rolled 180 degrees about its seat)."""
     m = Mesh()
     gx, gy = hx + 0.08, hy + 0.08
+    # The collar's walls stop TUCK inside the lip band (0.16 tall) rather than at its face: their ends in the band's
+    # face plane fought it (z-fighting under the gun; polishing pass 2026-10-10, check_mdl_art.py "zfight").
     if sunk is not None:
-        lo, hi = top - height + sunk, top + sunk  # (out along the magazine; `sunk` of it inside the body)
+        lo, hi = top - height + sunk, top + sunk - TUCK  # (out along the magazine; `sunk` of it inside the body)
         for sx in (-1.0, 1.0):
-            m.box((sx * (gx + wall / 2), 0.0, (lo + hi) / 2), (wall / 2, gy + wall, height / 2), "steel", cap_region="foot")
+            m.box((sx * (gx + wall / 2), 0.0, (lo + hi) / 2), (wall / 2, gy + wall, (hi - lo) / 2), "steel",
+                  cap_region="foot")
         for sy in (-1.0, 1.0):
-            m.box((0.0, sy * (gy + wall / 2), (lo + hi) / 2), (gx, wall / 2, height / 2), "steel", cap_region="foot")
-        m.box((0.0, 0.0, hi - 0.08), (gx + wall + 0.06, gy + wall + 0.06, 0.08), "band", cap_region="band")
+            m.box((0.0, sy * (gy + wall / 2), (lo + hi) / 2), (gx, wall / 2, (hi - lo) / 2), "steel", cap_region="foot")
+        m.box((0.0, 0.0, top + sunk - 0.08), (gx + wall + 0.06, gy + wall + 0.06, 0.08), "band", cap_region="band")
         return m
-    zc = top - height / 2
+    lo, hi = top - height + TUCK, top
     for sx in (-1.0, 1.0):
-        m.box((sx * (gx + wall / 2), 0.0, zc), (wall / 2, gy + wall, height / 2), "steel", cap_region="foot")
+        m.box((sx * (gx + wall / 2), 0.0, (lo + hi) / 2), (wall / 2, gy + wall, (hi - lo) / 2), "steel", cap_region="foot")
     for sy in (-1.0, 1.0):
-        m.box((0.0, sy * (gy + wall / 2), zc), (gx, wall / 2, height / 2), "steel", cap_region="foot")
+        m.box((0.0, sy * (gy + wall / 2), (lo + hi) / 2), (gx, wall / 2, (hi - lo) / 2), "steel", cap_region="foot")
     m.box((0.0, 0.0, top - height + 0.08), (gx + wall + 0.06, gy + wall + 0.06, 0.08), "band", cap_region="band")
     return m
 

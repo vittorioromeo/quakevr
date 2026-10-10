@@ -633,7 +633,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_lava.mdl": {
-  "sha256": "9d38c0399cca8b044f75765515532ade82f011dffb9cb3d117adf4111b037616",
+  "sha256": "afd7722391136a32ead6fdb616bc47ead2aca847c47e01cf9b448c8ace26beb2",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_lava.mdl_0_norm.png": {
@@ -641,7 +641,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_lava2.mdl": {
-  "sha256": "ca128118dd81dc3391e03f189905a72c60e1613abc8573c4129765855ae7f7d3",
+  "sha256": "08c9d694c2933375361e3ff42d54af201e6a7161c34602cd52bcac65f12aaf64",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_lava2.mdl_0_norm.png": {
@@ -649,7 +649,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_light.mdl": {
-  "sha256": "8aa3959b0cf25cbe626e980dd95ce52e9098b059d0897b7cb401aa9198fba9dd",
+  "sha256": "032cd3e6e268ef3f1c1be310555e160055cf971adda18046feeb5e7c28a6443f",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_light.mdl_0_norm.png": {
@@ -657,7 +657,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_nail.mdl": {
-  "sha256": "9d38c0399cca8b044f75765515532ade82f011dffb9cb3d117adf4111b037616",
+  "sha256": "afd7722391136a32ead6fdb616bc47ead2aca847c47e01cf9b448c8ace26beb2",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_nail.mdl_0_norm.png": {
@@ -665,7 +665,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_nail2.mdl": {
-  "sha256": "ca128118dd81dc3391e03f189905a72c60e1613abc8573c4129765855ae7f7d3",
+  "sha256": "08c9d694c2933375361e3ff42d54af201e6a7161c34602cd52bcac65f12aaf64",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_nail2.mdl_0_norm.png": {
@@ -673,7 +673,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_plasma.mdl": {
-  "sha256": "8aa3959b0cf25cbe626e980dd95ce52e9098b059d0897b7cb401aa9198fba9dd",
+  "sha256": "032cd3e6e268ef3f1c1be310555e160055cf971adda18046feeb5e7c28a6443f",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_plasma.mdl_0_norm.png": {
