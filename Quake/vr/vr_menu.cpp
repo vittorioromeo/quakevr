@@ -4896,6 +4896,10 @@ za::Vector<Item> pageDebugLogging()
             .help("Each controller button pressed and let go: the hand, the button, its key and binding, and what took it "
                   "(the posing mode, a voice note, the flashlight); and the controller profile the headset's runtime "
                   "picked for each hand (Virtual Desktop can report Index controllers). For a button that does nothing."),
+        command("Restore Controller Bindings", "vr_bindings_reset")
+            .help("vr_bindings_reset: the controller buttons' keys bound as Quake VR ships them again (quakevr/"
+                  "vr_bindings.cfg: triggers fire, grips grab, A jumps...). For controls that act as a gamepad's (the left "
+                  "trigger jumping, the grips changing weapons)."),
         toggle("Wounds", vr_wounds_debug).help("Each wound painted on a model."),
         cycle("Grasp", vr_debug_grasp, {{0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"}})
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),

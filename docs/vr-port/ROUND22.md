@@ -1279,3 +1279,104 @@ hard press fire when you mean it? Play a level by touch only and by the stick; t
 and load. Is the picture readable on the gadget (CRT Look, 4:3 Picture), is the big panel comfortable? Are Doom's
 sounds from the wrist at a good level against Quake's (Volume)? Drop your own DOOM.WAD into quakevr/doom/wads and pick
 it on the page.
+
+## Controls as if another controller: binding audit, per-path fallback, profile logging, the bindings guard (1.0.1, 2026-10-11, worktree `bindfix`)
+
+**The report** (1.0.0, fresh GOG Quake, Quest 3 through Virtual Desktop, VDXR 1.0.10): the grips grab nothing but the
+flashlight, A does not jump but the *left trigger* does, no climbing. His `qvr_openxr.txt`: VDXR 1.0.10 (older than the
+author's 1.1.0), 31 extensions, `XR_META_touch_controller_plus` not offered, session FOCUSED; 1.0.0 logged nothing about
+bindings or profiles.
+
+**What the symptoms match: Ironwail's own gamepad bindings, not another controller profile.** Ironwail's default
+config (`Quake/default_cfg.h`, `Misc/pak/default.cfg`, which ships in `ironwail.pak`) binds `LTRIGGER +jump`,
+`RTRIGGER +attack`, `LSHOULDER "impulse 12"`, `RSHOULDER "impulse 10"`, and nothing on `ABUTTON`. The VR controllers are
+those same gamepad keys (vr_input.cpp: trigger LTRIGGER/RTRIGGER, grip LSHOULDER/RSHOULDER, A/X ABUTTON/XBUTTON...):
+with those bindings the left trigger jumps, the right one fires, the grips cycle weapons (no `+grabmain`/`+graboff`, so
+no grabbing and no climbing), A does nothing; only the flashlight still takes a grip because flashlight.cpp reads the
+grip before the key (vr_input.cpp's `flashlight::Button::Grip`). That is his report exactly. A wrong *profile* would
+look different: VDXR plays any profile on Touch controllers and remaps (the simple controller's `select` on the
+trigger, its menu on the menu button), so A would do nothing, but the left trigger would be the off hand's trigger, not
+a jump.
+
+**The OpenXR audit (VDXR read from its source, `mbucchia/VirtualDesktop-OpenXR`, `action.cpp`/`mappings.cpp`, current and
+as of 2025-12-06, which 1.0.10 is: it offers `XR_EXT_active_action_set_priority`, added then).** VDXR's
+`xrSuggestInteractionProfileBindings` turns a whole suggestion down (`XR_ERROR_PATH_UNSUPPORTED`) for an unknown profile
+or one path its table lacks; it then picks Touch if suggested, else WMR, Index, Vive, simple, in that order ("Emulate
+Index controllers": Index first). Every path the game suggests for Touch is in VDXR's Touch table (x/y/a/b click and
+touch, left menu, squeeze/value, trigger value and touch, thumbstick, its click and touch, grip pose, haptic: no
+thumbrest, no proximity, no extension path), so the Touch suggestion is taken by VDXR 1.0.10 and 1.1.0 alike. Against
+the OpenXR 1.0/1.1 specification every profile's paths are valid (khr/simple, oculus/touch, valve/index, htc/vive,
+microsoft/motion, and the vendor ones: bytedance pico_neo3/pico4, htc vive_cosmos/vive_focus3, hp/mixed_reality,
+samsung/odyssey). One real bug: Quest 3's profile was asked as `/interaction_profiles/meta/touch_controller_plus`; its
+name is `/interaction_profiles/meta/touch_plus_controller` (XR_META_touch_controller_plus, OpenXR 1.1 core). The wrong
+name was always turned down, harmlessly: every runtime played Quest 3 controllers as Touch ones. *Decision:* it is no
+longer suggested at all (the 1.0.0 behaviour, the only one ever tested); `updateControllers` knows the right name.
+
+**Changes.**
+- `suggest` (vr_backend_openxr.cpp): a turned-down suggestion is rebuilt one binding at a time (the grip pose first),
+  each binding the runtime turns down dropped and named (`WARNING: OpenXR: <profile>: <path> turned down by the
+  runtime (<result>): not bound`, console and `qvr_openxr.txt`), the rest suggested; none taken means the runtime lacks
+  the profile (`no bindings for <profile>: the runtime does not have it`, the log only). Every profile goes through it;
+  the vendor profiles' hand-written "basic" fallback lists are gone (a turned-down menu button now costs only the menu
+  button, 28 of 29 bindings, not 9). Every suggestion is logged: `OpenXR: bindings suggested for <profile> (n)` or
+  `(k of n: m turned down)`.
+- Controller profiles (`updateControllers`): looked up at the session's start (`controller profiles at the session's
+  start: left ..., right ...`, usually "none yet"), at each `XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED`, and every
+  2 s while a hand has none (a missed event); each change logged (`OpenXR: the left hand's controller profile: ...`,
+  console and log), named in the crash report's VR line (`; controllers oculus/touch_controller /
+  oculus/touch_controller`), and printed by `vr_debug_buttons` as before. A profile without the game's buttons (the
+  simple controller, or one the game has no bindings for) gets a warning once a start: console, log, and a centre print
+  once a game is on ("Your controllers are played as ...: controls may be limited").
+- `qvr_openxr.txt` at the session's start: `OpenXR: the controller keys: LTRIGGER "+offhandattack", RTRIGGER ...` (the
+  eight button keys' bindings), so a report shows gamepad bindings at once.
+- The bindings guard, `vr_bindings_guard` (default 1; archived; 0 never): after every start-up config (`vr_startgame`,
+  after `autoexec.cfg`), no grab bound to any controller key (trigger, grip, A/B/X/Y, stick click keys) means another
+  config's gamepad bindings: a console warning naming LTRIGGER/LSHOULDER/RSHOULDER/ABUTTON's bindings and the loose
+  `config.cfg`/`autoexec.cfg`/`ironwail.cfg` files on the search path (where they may have come from), then
+  `exec vr_bindings.cfg`. A grip rebound to another grab (any binding containing "grab", an alias so named) is left
+  alone. `vr_bindings_check` runs it by hand; `vr_bindings_reset` sets `vr_bindings.cfg` whatever the version (Debug >
+  Logging > *Restore Controller Bindings*).
+- Fake runtime (Misc/quakevr/fakexr): `FAKEXR_REJECT_PATH` takes several entries (`;`), each `profile=path` for one
+  profile only; accepted suggestions are kept (each replaces the profile's last), and `xrAttachSessionActionSets` picks
+  the profile as VDXR does (or `FAKEXR_PROFILE`), logs it with its bound paths, answers
+  `xrGetCurrentInteractionProfile` and sends `XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED`.
+- `xr_runtime_test.sh`: part 9's turned-down menu button now drops only that path (28 of 29); 9b: Touch with its
+  finger sensors turned down (`oculus/touch=thumbstick/touch;oculus/touch=trigger/touch`): 25 of 29 kept, the runtime
+  holds trigger, squeeze, X/A/B, the hands are Touch, the controller keys logged; every full profile turned down: the
+  simple controller and its warning; 9c: `bind LTRIGGER +jump; unbind LSHOULDER; unbind RSHOULDER; vr_bindings_check`:
+  the warning, then LSHOULDER `+graboff`, RSHOULDER `+grabmain`, LTRIGGER `+offhandattack`.
+
+**Where the gamepad bindings came from: not found.** At a first start the order is `default.cfg` (Quake VR's: the VR
+bindings), `config.cfg` (the game folder's `ironwail.cfg`; at a first start any `config.cfg` on the search path, e.g.
+`id1/config.cfg` of the Quake folder, written by another source port with `unbindall` and Ironwail/Quakespasm's gamepad
+bindings), `quakevr.cfg` (`vr_checkbindings`: at `vr_bindings_version` 0, a first start, `vr_bindings.cfg` again over
+whatever came before), `autoexec.cfg` (any on the search path, every start: the Quake folder's `id1/autoexec.cfg`
+too). So a foreign `config.cfg` alone is repaired at a first start; candidates are an `autoexec.cfg` that binds or
+`unbindall`s, a saved `ironwail.cfg` already at bindings version 3 with gamepad bindings (an earlier install or run),
+or the bindings changed in the game (Ironwail's key menus). 1.0.1's guard repairs all of these at the next start and
+names the loose config files it finds; the player's answers below should tell which.
+
+**What to ask the player:**
+1. Open the menu, the corner's *Console*, and type `bind LTRIGGER`, `bind LSHOULDER`, `bind ABUTTON`: send what they
+   say (expected with the bug: `"+jump"`, `"impulse 12"`, not bound).
+2. Send `quakevr\qvr_openxr.txt` and `quakevr\ironwail.cfg` from the Quake VR install folder (the folder the
+   installer installed to, with `quakevr` in it).
+3. Any `config.cfg` or `autoexec.cfg` in the GOG Quake folder's `id1` (and `rerelease\id1`), and in
+   `%USERPROFILE%\Saved Games\Nightdive Studios\Quake` and `%USERPROFILE%\Saved Games\Ironwail`? Did he run another
+   source port (Ironwail, vkQuake, Quakespasm) in that GOG folder before?
+4. How he starts the game (the installer's shortcut, Virtual Desktop's game list, Steam, his own shortcut), and whether he
+   used *Reset to Defaults* or Ironwail's key-binding menus.
+5. Virtual Desktop: the streamer's OpenXR runtime setting (VDXR or SteamVR), and whether "Emulate Index controllers"
+   (or similar controller-emulation options) is on.
+
+**Workaround on 1.0.0:** menu, corner *Console*, type `exec vr_bindings.cfg` (the VR bindings; saved at quit). If they
+come back wrong at the next start, something runs after Quake VR's configs: an `autoexec.cfg` (question 3); renaming it
+fixes it. Switching Virtual Desktop's OpenXR runtime to SteamVR (or `+vr_xr_runtime 2`) would not help if this is the
+bindings, which is what the symptoms say; it is the thing to try only if `bind LTRIGGER` already says
+`+offhandattack`.
+
+**In the headset:** with VDXR and with SteamVR: the first lines of `qvr_openxr.txt` after a start (each profile
+`bindings suggested ... (n)`, no `turned down`), `the left hand's controller profile: /interaction_profiles/oculus/
+touch_controller` (with VD's "Emulate Index controllers": valve/index_controller), `the controller keys:` with the VR
+bindings; triggers, grips, A/B/X/Y as before. Then in the console `bind LSHOULDER "impulse 12"; bind RSHOULDER
+"impulse 10"; bind LTRIGGER +jump`, quit and start again: the console says the bindings were set again, the grips grab.

@@ -328,6 +328,11 @@ Handed* on, nothing needs rebinding.
   trackpad clicks as A/X and the right menu button as B. **Pico, Vive Cosmos and Focus 3, HP Reverb G2 and Samsung
   Odyssey** controllers get their own bindings when the runtime offers their profile (`vr_xr_vendor_profiles 1`,
   the default), each with its left menu button as the menu.
+- **Controls that act as a gamepad's** (the left trigger jumps, the grips change weapons, A does nothing): another
+  config's gamepad bindings over the VR ones. At each start, with no grab on any controller key, the game sets the VR
+  bindings again and says so in the console (`vr_bindings_guard 1`, the default; 0 never). Debug > Logging > *Restore
+  Controller Bindings* (`vr_bindings_reset`) sets them by hand. `qvr_openxr.txt` (in `quakevr`) names the controller
+  profile the runtime plays each hand as, and the buttons' bindings.
 - **Menu Button** (VR Settings > Controls, and HUD and Menus > Menu; `vr_menu_button`): for a controller whose menu
   button never reaches the game (a Pico under SteamVR, which keeps it for its own menu). *Or Both Sticks* (the
   default): click both sticks together, within a third of a second. *Hold Y* / *Hold B*: hold it for a moment in

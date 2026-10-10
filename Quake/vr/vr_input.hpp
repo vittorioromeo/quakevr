@@ -10,6 +10,13 @@ namespace qvr::input
 
 void init();
 
+// After the start-up configs (vr_startgame): the controller keys with no grab bound to any (another config's gamepad
+// bindings) get quakevr/vr_bindings.cfg again (vr_bindings_guard).
+void guardBindings();
+
+// The controller keys' bindings in a line (and guardBindings' repair, if any): qvr_openxr.txt at the session's start.
+void describeBindings(char* out, size_t size);
+
 // Once per host frame with the backend's input.
 void update(const InputState& in);
 

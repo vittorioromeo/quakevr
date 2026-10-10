@@ -23,7 +23,13 @@
 //                         the game's vendor controller profiles); each xrSuggestInteractionProfileBindings is logged
 //                         (its profile and binding count)
 //   FAKEXR_REJECT_PATH    a binding path's text: a suggestion holding a path that contains it is turned down
-//                         (XR_ERROR_PATH_UNSUPPORTED), as a runtime turns down a path its profile lacks
+//                         (XR_ERROR_PATH_UNSUPPORTED), as a runtime turns down a path its profile lacks; several
+//                         separated by ';', each one "profile=path" for one profile's only (texts contained in them,
+//                         e.g. "oculus/touch=thumbstick/touch;left/input/menu/click")
+//   FAKEXR_PROFILE        the profile the hands are played as (a text contained in it), if it was suggested; else the
+//                         first suggested of Touch, WMR, Index, Vive, simple (as VDXR picks). Said at
+//                         xrAttachSessionActionSets (logged with its bindings), by xrGetCurrentInteractionProfile and
+//                         by an XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED
 //   FAKEXR_D3D11          copies that load d3d11.dll at xrCreateInstance and free it at xrDestroyInstance (as VDXR
 //                         does), logging whether it is still loaded after (the game keeps it: vr_backend_openxr.cpp)
 //
@@ -230,6 +236,16 @@ struct Headset
     int frames{0}, projections{0}, held{0}, quads{0}, empty{0}, focusLost{0};
     char paths[512][128]{};
     int pathCount{0};
+    // The profiles' last accepted suggestions (xrSuggestInteractionProfileBindings), and the one the hands are played as.
+    struct Suggestion
+    {
+        XrPath profile{XR_NULL_PATH};
+        XrPath bindings[128]{};
+        uint32_t count{0};
+    };
+    Suggestion suggestions[24];
+    int suggestionCount{0};
+    XrPath current{XR_NULL_PATH};
 };
 Headset hs;
 
@@ -354,8 +370,10 @@ XRAPI_ATTR XrResult XRAPI_CALL endSession(XrSession)
     return XR_SUCCESS;
 }
 
-// In the state queue: an XrEventDataInstanceLossPending rather than a state (FAKEXR_END instanceloss).
+// In the state queue: an XrEventDataInstanceLossPending rather than a state (FAKEXR_END instanceloss); an
+// XrEventDataInteractionProfileChanged (xrAttachSessionActionSets).
 constexpr XrSessionState instanceLossEvent = XR_SESSION_STATE_MAX_ENUM;
+constexpr XrSessionState profileChangedEvent = static_cast<XrSessionState>(XR_SESSION_STATE_MAX_ENUM - 1);
 
 XRAPI_ATTR XrResult XRAPI_CALL pollEvent(XrInstance, XrEventDataBuffer* buffer)
 {
@@ -370,6 +388,15 @@ XRAPI_ATTR XrResult XRAPI_CALL pollEvent(XrInstance, XrEventDataBuffer* buffer)
         loss->type = XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING;
         loss->next = nullptr;
         loss->lossTime = nowNs() + 1000000000;
+        return XR_SUCCESS;
+    }
+    if(hs.queue[hs.queueHead] == profileChangedEvent)
+    {
+        hs.queueHead = (hs.queueHead + 1) % 32;
+        auto* profile = reinterpret_cast<XrEventDataInteractionProfileChanged*>(buffer);
+        profile->type = XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED;
+        profile->next = nullptr;
+        profile->session = hs.session;
         return XR_SUCCESS;
     }
     auto* changed = reinterpret_cast<XrEventDataSessionStateChanged*>(buffer);
@@ -711,19 +738,47 @@ XRAPI_ATTR XrResult XRAPI_CALL pathToString(XrInstance, XrPath path, uint32_t ca
     return XR_SUCCESS;
 }
 
-// Logged with its profile and binding count; FAKEXR_REJECT_PATH turns down one holding that path.
+// FAKEXR_REJECT_PATH's entries: one turning this binding of this profile down.
+[[nodiscard]] bool rejected(const char* profile, const char* binding)
+{
+    char list[1024] = "";
+    if(GetEnvironmentVariableA("FAKEXR_REJECT_PATH", list, sizeof(list)) == 0 || !list[0])
+    {
+        return false;
+    }
+    char* context = nullptr;
+    for(char* entry = strtok_s(list, ";", &context); entry; entry = strtok_s(nullptr, ";", &context))
+    {
+        char* path = entry;
+        if(char* eq = strchr(entry, '='))
+        {
+            *eq = '\0';
+            path = eq + 1;
+            if(!strstr(profile, entry))
+            {
+                continue;
+            }
+        }
+        if(path[0] && strstr(binding, path))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Logged with its profile and binding count; FAKEXR_REJECT_PATH turns down one holding a path it names. Accepted, it
+// replaces the profile's last (as the specification has it).
 XRAPI_ATTR XrResult XRAPI_CALL suggestBindings(XrInstance instance, const XrInteractionProfileSuggestedBinding* info)
 {
     char profile[256] = "?";
     uint32_t len = 0;
     pathToString(instance, info->interactionProfile, sizeof(profile), &len, profile);
-    char reject[256] = "";
-    const bool rejecting = GetEnvironmentVariableA("FAKEXR_REJECT_PATH", reject, sizeof(reject)) != 0 && reject[0];
-    for(uint32_t i = 0; rejecting && i < info->countSuggestedBindings; i++)
+    for(uint32_t i = 0; i < info->countSuggestedBindings; i++)
     {
         char binding[256] = "";
         pathToString(instance, info->suggestedBindings[i].binding, sizeof(binding), &len, binding);
-        if(strstr(binding, reject))
+        if(rejected(profile, binding))
         {
             char text[600];
             _snprintf_s(text, sizeof(text), _TRUNCATE, "xrSuggestInteractionProfileBindings %s: %s turned down", profile, binding);
@@ -735,6 +790,72 @@ XRAPI_ATTR XrResult XRAPI_CALL suggestBindings(XrInstance instance, const XrInte
     _snprintf_s(text, sizeof(text), _TRUNCATE, "xrSuggestInteractionProfileBindings %s: %u bindings", profile,
         info->countSuggestedBindings);
     log(text);
+
+    Headset::Suggestion* kept = nullptr;
+    for(int i = 0; i < hs.suggestionCount && !kept; i++)
+    {
+        kept = hs.suggestions[i].profile == info->interactionProfile ? &hs.suggestions[i] : nullptr;
+    }
+    if(!kept && hs.suggestionCount < 24)
+    {
+        kept = &hs.suggestions[hs.suggestionCount++];
+    }
+    if(kept)
+    {
+        kept->profile = info->interactionProfile;
+        kept->count = info->countSuggestedBindings < 128 ? info->countSuggestedBindings : 128;
+        for(uint32_t i = 0; i < kept->count; i++)
+        {
+            kept->bindings[i] = info->suggestedBindings[i].binding;
+        }
+    }
+    return XR_SUCCESS;
+}
+
+// The profile the hands are played as (FAKEXR_PROFILE, or VDXR's order), logged with its bindings; the game told.
+XRAPI_ATTR XrResult XRAPI_CALL attachSessionActionSets(XrSession, const XrSessionActionSetsAttachInfo*)
+{
+    char wanted[256] = "";
+    GetEnvironmentVariableA("FAKEXR_PROFILE", wanted, sizeof(wanted));
+    const char* order[] = {wanted, "/interaction_profiles/oculus/touch_controller",
+        "/interaction_profiles/microsoft/motion_controller", "/interaction_profiles/valve/index_controller",
+        "/interaction_profiles/htc/vive_controller", "/interaction_profiles/khr/simple_controller"};
+    const Headset::Suggestion* chosen = nullptr;
+    for(const char* name : order)
+    {
+        for(int i = 0; name[0] && i < hs.suggestionCount && !chosen; i++)
+        {
+            char profile[256] = "";
+            uint32_t len = 0;
+            pathToString(fakeInstance, hs.suggestions[i].profile, sizeof(profile), &len, profile);
+            const bool match = name == wanted ? strstr(profile, name) != nullptr : !strcmp(profile, name);
+            chosen = match ? &hs.suggestions[i] : nullptr;
+        }
+        if(chosen)
+        {
+            break;
+        }
+    }
+    hs.current = chosen ? chosen->profile : XR_NULL_PATH;
+    char text[8192];
+    uint32_t len = 0;
+    char profile[256] = "none";
+    if(chosen)
+    {
+        pathToString(fakeInstance, chosen->profile, sizeof(profile), &len, profile);
+    }
+    int at = _snprintf_s(text, sizeof(text), _TRUNCATE, "xrAttachSessionActionSets: the hands played as %s, bound:", profile);
+    for(uint32_t i = 0; chosen && i < chosen->count && at > 0 && at < static_cast<int>(sizeof(text)) - 140; i++)
+    {
+        char binding[128] = "";
+        pathToString(fakeInstance, chosen->bindings[i], sizeof(binding), &len, binding);
+        at += _snprintf_s(text + at, sizeof(text) - at, _TRUNCATE, " %s", binding);
+    }
+    log(text);
+    if(chosen)
+    {
+        pushState(profileChangedEvent);
+    }
     return XR_SUCCESS;
 }
 
@@ -778,7 +899,7 @@ XRAPI_ATTR XrResult XRAPI_CALL getActionStateVector2f(XrSession, const XrActionS
 
 XRAPI_ATTR XrResult XRAPI_CALL getCurrentInteractionProfile(XrSession, XrPath, XrInteractionProfileState* state)
 {
-    state->interactionProfile = XR_NULL_PATH;
+    state->interactionProfile = hs.current;
     return XR_SUCCESS;
 }
 
@@ -847,7 +968,7 @@ const Entry headsetEntries[] = {
     {"xrCreateAction", reinterpret_cast<PFN_xrVoidFunction>(createAction)},
     {"xrDestroyAction", reinterpret_cast<PFN_xrVoidFunction>(succeed)},
     {"xrSuggestInteractionProfileBindings", reinterpret_cast<PFN_xrVoidFunction>(suggestBindings)},
-    {"xrAttachSessionActionSets", reinterpret_cast<PFN_xrVoidFunction>(succeed)},
+    {"xrAttachSessionActionSets", reinterpret_cast<PFN_xrVoidFunction>(attachSessionActionSets)},
     {"xrSyncActions", reinterpret_cast<PFN_xrVoidFunction>(syncActions)},
     {"xrGetActionStateBoolean", reinterpret_cast<PFN_xrVoidFunction>(getActionStateBoolean)},
     {"xrGetActionStateFloat", reinterpret_cast<PFN_xrVoidFunction>(getActionStateFloat)},

@@ -293,6 +293,9 @@ void VR_StartGame_f()
         return;
     }
 
+    // Every config has run (autoexec.cfg too): the controller keys still the VR ones?
+    qvr::input::guardBindings();
+
     // (A vr_motion_eval from the start-up script loads its own map: neither the hub nor the demos meanwhile.)
     if(qvr::motion::evaluating())
     {
