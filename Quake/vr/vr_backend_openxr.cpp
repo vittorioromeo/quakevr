@@ -652,6 +652,12 @@ private:
     Pose panelPlaced; // the same
     Pose lastHead; // the last valid head pose, which the panel is placed in front of
     XrSessionState sessionState{XR_SESSION_STATE_UNKNOWN};
+    // The session's last states as they came (sessionStates()), the oldest dropped; and why the session ended.
+    static constexpr int stateTrailMax = 12;
+    const char* stateTrail[stateTrailMax]{}; // stateName()s, the instance's loss too (string literals)
+    int stateTrailCount{0};
+    char stateTrailText[stateTrailMax * 24]{};
+    SessionEnd endReason{SessionEnd::Lost};
     bool sessionRunning{false};
     bool swapIntervalChanged{false};
     bool frameBegun{false};
@@ -816,6 +822,36 @@ private:
             case XR_SESSION_STATE_EXITING: return "EXITING";
             default: return "UNKNOWN";
         }
+    }
+
+    // A state (or the instance's loss) into the trail sessionStates() gives, the oldest dropped past stateTrailMax.
+    void noteState(const char* name)
+    {
+        if(stateTrailCount == stateTrailMax)
+        {
+            for(int i = 1; i < stateTrailMax; i++)
+            {
+                stateTrail[i - 1] = stateTrail[i];
+            }
+            stateTrailCount--;
+        }
+        stateTrail[stateTrailCount++] = name;
+        stateTrailText[0] = '\0';
+        for(int i = 0; i < stateTrailCount; i++)
+        {
+            q_strlcat(stateTrailText, i ? " > " : "", sizeof(stateTrailText));
+            q_strlcat(stateTrailText, stateTrail[i], sizeof(stateTrailText));
+        }
+    }
+
+    [[nodiscard]] SessionEnd sessionEnd() const override
+    {
+        return endReason;
+    }
+
+    [[nodiscard]] const char* sessionStates() const override
+    {
+        return stateTrailText;
     }
 
     // Reads an eye's hidden area (the triangles the lenses never show).
@@ -1226,6 +1262,9 @@ private:
     {
         systemId = XR_NULL_SYSTEM_ID;
         sessionState = XR_SESSION_STATE_UNKNOWN;
+        stateTrailCount = 0;
+        stateTrailText[0] = '\0';
+        endReason = SessionEnd::Lost;
         visibilityMaskExtension = false;
         for(bool& v : vendorProfile)
         {
@@ -2152,7 +2191,13 @@ private:
         {
             switch(event.type)
             {
-                case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING: return false;
+                case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING:
+                    // The runtime is going away (SteamVR shut down, updated...): flat (vr_restart starts VR again).
+                    noteState("INSTANCE_LOSS_PENDING");
+                    endReason = SessionEnd::Lost;
+                    xrruntime::logLine(va("%s instance loss pending: the runtime is going away (states: %s)\n", wallClock(),
+                        stateTrailText));
+                    return false;
                 case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED: updateControllers(); break;
                 case XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR:
                 {
@@ -2167,6 +2212,7 @@ private:
                 {
                     const auto& changed = reinterpret_cast<const XrEventDataSessionStateChanged&>(event);
                     sessionState = changed.state;
+                    noteState(stateName(sessionState));
                     xrruntime::logLine(va("%s session %s%s\n", wallClock(), stateName(sessionState),
                         sessionState == XR_SESSION_STATE_VISIBLE
                             ? (vr_xr_unfocused.value != 0.f ? " (no input focus, e.g. the runtime's menu: the last frame "
@@ -2180,12 +2226,31 @@ private:
                     }
                     else if(sessionState == XR_SESSION_STATE_STOPPING)
                     {
-                        xrEndSession(session);
+                        // Ended as the runtime asks; what comes next says why: READY (it starts again: the headset
+                        // back on, the runtime restarted), EXITING (the player quit the game from the runtime's menu),
+                        // LOSS_PENDING (the headset or runtime gone).
+                        if(sessionRunning)
+                        {
+                            check(xrEndSession(session), "xrEndSession");
+                        }
                         sessionRunning = false;
+                        xrruntime::logLine(va("%s session ended (xrEndSession): waiting for the runtime: READY starts it "
+                                              "again, EXITING quits the game (vr_xr_exit_quits)\n",
+                            wallClock()));
                     }
-                    else if(sessionState == XR_SESSION_STATE_EXITING ||
-                            sessionState == XR_SESSION_STATE_LOSS_PENDING)
+                    else if(sessionState == XR_SESSION_STATE_EXITING)
                     {
+                        endReason = SessionEnd::Exit;
+                        xrruntime::logLine(va("%s the runtime asks the game to exit (states: %s)\n", wallClock(),
+                            stateTrailText));
+                        return false;
+                    }
+                    else if(sessionState == XR_SESSION_STATE_LOSS_PENDING)
+                    {
+                        endReason = SessionEnd::Lost;
+                        xrruntime::logLine(va("%s session loss pending: the headset or the runtime is going away "
+                                              "(states: %s)\n",
+                            wallClock(), stateTrailText));
                         return false;
                     }
                     break;

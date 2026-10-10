@@ -8135,6 +8135,9 @@ za::Vector<Item> pageMain()
             .help("While the runtime's own menu has the controllers, a single player game pauses as the game's own menu pauses it (the monsters wait, the game's time stands still) and resumes as you come back; or it keeps running. Multiplayer always runs on."),
         slider("Runtime Menu Volume", vr_xr_unfocused_volume, 0.f, 1.f, 0.1f, "%.1f").advanced()
             .help("The game's sounds while the runtime's menu pauses it: 0 silent, 1 unchanged. The music pauses."),
+        cycle("Exit From Runtime Menu", vr_xr_exit_quits, {{1.f, "Quit the Game"}, {0.f, "Play Flat"}}).advanced()
+            .help("Exiting the game from the runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's): the game "
+                  "quits, your settings saved; or it keeps running flat on the desktop (Restart VR brings the headset back)."),
         toggle("Late Image Acquire", vr_xr_late_acquire).advanced()
             .help("Each eye's headset image is taken from the runtime only once its scene is drawn, so the runtime's wait for it (SteamVR copying the last one out) overlaps the drawing. Off: before the scene, the old way, to compare."),
         toggle("Vendor Controller Profiles", vr_xr_vendor_profiles).advanced()

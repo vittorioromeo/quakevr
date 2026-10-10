@@ -1169,6 +1169,13 @@ fake offer more extensions (Pico's, HTC's, HP's, Samsung's), and the fake logs e
 `vr_xr_vendor_profiles 0` asks none; `FAKEXR_REJECT_PATH=left/input/menu/click` turns the Pico's down, and its basic
 bindings (no menu button, no finger sensors) are taken.
 
+Part 10: the runtime ending the session (`vr_xr_exit_quits`, round 22 "Exit from the runtime's menu quits the game").
+`FAKEXR_END=n:kind` ends it at `xrWaitFrame` n: `exit` (STOPPING, then IDLE > EXITING after `xrEndSession`: the game
+quits at once, exit code 0; with `vr_xr_exit_quits 0` it plays flat), `restart` (READY again: VR goes on), `loss`
+(LOSS_PENDING) and `instanceloss` (flat, said why). The states are checked in `qvr_openxr.txt`, not the console: the
+console wraps lines past about 120 columns (the hidden window is 960 wide), so a long line, or one holding the
+worktree's path, can split (part 2c's relative `library_path` check reads `qvr_openxr.txt` for the same reason).
+
 Menu gestures (`vr_menu_button`, round 22 "Menu on any controller"), with `vr_debug_buttons 1` (each prints `VR
 buttons: <hand>'s <gesture>: opens the menu` / `closes the menu`): `vr_mock_button off stickclick 1;wait2;vr_mock_button
 main stickclick 1` (both sticks, the second click taken), `vr_mock_button off secondary 1;wait150` with

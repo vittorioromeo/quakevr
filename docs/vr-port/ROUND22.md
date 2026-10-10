@@ -955,3 +955,72 @@ list of files in `id1` (any .cfg, any pak beyond pak1.pak) and whether `%USERPRO
 `Saved Games\Nightdive Studios\Quake` has a quakevr folder. Workaround meanwhile: start with
 `ironwail.exe -basedir "<Quake folder>" -game quakevr` from the folder Quake VR is in, move `id1\autoexec.cfg` aside,
 and move any quakevr folder out of those Saved Games folders.
+## Exit from the runtime's menu quits the game (1.0.1, 2026-10-10, worktree `xrexit`)
+
+Player report (Pico Neo 3 through SteamVR): "using exit in SteamVR kills mod but game still work in flatscreen". When
+the player quits an app from SteamVR's dashboard, the runtime ends the session as OpenXR says: FOCUSED > VISIBLE >
+SYNCHRONIZED > STOPPING. The app calls `xrEndSession`, and the runtime then sends IDLE > EXITING. EXITING means "end
+the XR experience, don't restart it". 1.0.0 treated EXITING like a lost session: it stopped VR and kept playing flat on
+the desktop. Virtual Desktop's and Meta's "quit" go through the same EXITING.
+
+What the game does now (`pollEvents` in `vr_backend_openxr.cpp`, `sessionEnded` in `vr_main.cpp`):
+- **STOPPING**: `xrEndSession` (only if the session was begun; it is now checked and logged), then wait. What comes
+  next tells the cases apart. `qvr_openxr.txt` says `session ended (xrEndSession): waiting for the runtime`.
+- **READY** after it (the headset back on, the runtime restarting the app's session): the session begins again and
+  VR goes on. This was already the case.
+- **EXITING**: with `vr_xr_exit_quits 1` (new, archived, default 1) the game quits as closing the window does
+  (`CL_Disconnect`, `Sys_Quit`; `Host_Shutdown` saves the config). It first destroys the session and the instance
+  (`stopBackend`). With `0` it plays on flat, the 1.0.0 behaviour (`vr_restart` starts VR again). Menu: VR Settings >
+  Headset > *Exit From Runtime Menu* (advanced): Quit the Game / Play Flat.
+- **LOSS_PENDING**, and `XrEventDataInstanceLossPending` (the runtime going away: SteamVR shut down or updating): flat,
+  as before. The message now says why and how to get back: `VR: openxr session lost: playing flat (the headset or the
+  runtime went away; vr_restart, VR Settings > Restart VR, starts VR again)`. There is no automatic reconnect. A
+  runtime that went away needs `xrCreateInstance` again, and polling for it each frame would stall the game. Restart VR
+  does it on demand.
+- Every end prints `VR: the session's last states: ...`, the last 12 states as the runtime gave them, to the console
+  and to `qvr_openxr.txt`. Example: `IDLE > READY > SYNCHRONIZED > VISIBLE > FOCUSED > VISIBLE > SYNCHRONIZED >
+  STOPPING > IDLE > EXITING`. The OpenXR log also gets `the runtime asks the game to exit (states: ...)`, `session loss
+  pending` or `instance loss pending`.
+
+Fake runtime (`Misc/quakevr/fakexr`): `FAKEXR_END=n:kind` ends the session at `xrWaitFrame` n the way runtimes do:
+- `exit`: VISIBLE, SYNCHRONIZED, STOPPING, then IDLE and EXITING after `xrEndSession`.
+- `restart`: the same, then READY.
+- `loss`: LOSS_PENDING.
+- `instanceloss`: the instance-loss event.
+
+Its `xrEndSession` now fails with `XR_ERROR_SESSION_NOT_STOPPING` outside STOPPING, as the spec says, and logs each call.
+
+`xr_runtime_test.sh` part 10 (13 checks):
+- exit: the game quits at once with exit code 0, before the script's own `echo` and `quit`; the fake logs
+  `xrEndSession`, then `xrDestroySession` and `xrDestroyInstance`; `qvr_openxr.txt` has the states in order.
+- `vr_xr_exit_quits 0`: flat, and the game runs on.
+- restart: READY > SYNCHRONIZED > FOCUSED again, the game still in VR, no end reported.
+- loss and instance loss: flat, with their states.
+- `xrEndSession` is never called outside STOPPING.
+
+**Part 2c's failing check was not a regression.** "A relative library_path resolved" matched the line `OpenXR:
+other_openxr.json's library is the one loaded: <path>` in the console log. The hidden test window is 960 wide, so the
+console wraps at about 120 columns, and that line is 55 characters plus the DLL's path. The path's length depends on the
+worktree's name: `xrexit` gives 119 characters and passes, while a name two letters longer (`menubind`) gives 121 and
+wraps. Neither the xrval nor the menubind commit touched `vr_xr_runtime.cpp` or part 2c; they only added test parts. The check now reads the same
+line from `qvr_openxr.txt`, which is not wrapped (copied after the run as `cmdline_openxr.txt`). The new part 10 also
+checks the long state lines in `qvr_openxr.txt` for the same reason.
+
+Full `xr_runtime_test.sh xrexit`: before the change 0 failed (this worktree's short name hid 2c's wrap); after:
+98 checks, 0 failed.
+
+**In the headset** (the author, or the Pico player):
+- SteamVR: in game, open the dashboard and use its exit/quit for Quake VR. The game should close within a second, and
+  `quakevr/qvr_openxr.txt` should end with `the runtime asks the game to exit` and the states. Check that a setting
+  changed just before is still there at the next start (the config is saved).
+- Virtual Desktop (VDXR) and Meta Link: quit from their menus. The game should close the same way. If it stays open,
+  the last lines of `qvr_openxr.txt` show which states the runtime sent.
+- Take the headset off for a minute and put it back on. The game should go on in VR, not quit. Runtimes that stop the
+  session when the headset sleeps send STOPPING and then READY, not EXITING.
+- Close SteamVR itself while the game runs. Expected: flat, with the `session lost` message, or, if SteamVR sends
+  EXITING, a quit. Either is fine, but note which one happens.
+
+**Reply to the player** (draft):
+> Thanks! In 1.0.1, exiting Quake VR from SteamVR's menu closes the game properly (your settings are saved) instead of
+> leaving it running flat on the desktop. If you'd rather have the old behaviour, VR Settings > Headset > *Exit From
+> Runtime Menu* > Play Flat.

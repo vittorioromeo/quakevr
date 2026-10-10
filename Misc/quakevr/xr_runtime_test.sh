@@ -169,9 +169,12 @@ JSON
 S="vr_xr_test 1;vr_xr_test_runtimes \"$ALL\";vr_xr_test_active \"$ST\";vr_xr_test_processes VirtualDesktop.Streamer.exe;echo CMDLINE1;vr_xr_runtime_explain;vr_xr_runtime 4;echo CMDLINE4;vr_xr_runtime_explain"
 S="$S;vr_xr_runtime 3;vr_xr_runtime_json \"$F/rel/other_openxr.json\";vr_backend openxr;wait20;toggleconsole;quit"
 bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -ExtraArgs "+vr_xr_runtime 1" -Filter "CMDLINE|choice:|command line|OpenXR|^  [0-9]\." > "$OUT/cmdline.log"
+cp -f "$XRLOG" "$OUT/cmdline_openxr.txt"
 L="$OUT/cmdline.log"
 check $L "+vr_xr_runtime 1 on the command line: said so" "CMDLINE1" "set on the command line \(\+vr_xr_runtime 1\): set again at every start"     "choice: Virtual Desktop \(VDXR\): Virtual Desktop \(VDXR\) - chosen on the command line$"     "CMDLINE4" "the command line's \+vr_xr_runtime 1 is set again at the next start" "choice: Auto: Virtual Desktop \(VDXR\) - Streamer running$"
-check $L "a relative library_path resolved" "trying other_openxr.json" "the loader loaded FakeXR fakexr_other"     "other_openxr.json's library is the one loaded: .*scratch.fakexr.fakexr_other\.dll"
+# (In qvr_openxr.txt, not the console: the console wraps a line past its width, and the path's length goes with the
+# worktree's name: a longer one split it, and this check failed in some worktrees only.)
+check "$OUT/cmdline_openxr.txt" "a relative library_path resolved" "trying other_openxr.json" "the loader loaded FakeXR fakexr_other"     "other_openxr.json's library is the one loaded: .*scratch.fakexr.fakexr_other\.dll"
 
 # 3. An XR_RUNTIME_JSON the game was started with wins (and is left as it is).
 export XR_RUNTIME_JSON="$(cygpath -w "$ME")"
@@ -365,4 +368,39 @@ check "$OUT/vendorreject_openxr.txt" "vendor profiles: a path turned down, the b
 check "$LOG" "vendor profiles: the basic bindings, no menu button" "pico_neo3_controller: /user/hand/left/input/menu/click turned down" \
     "pico_neo3_controller: 20 bindings"
 unset FAKEXR_HEADSET FAKEXR_EXTENSIONS FAKEXR_REJECT_PATH
+# 10. The runtime ending the session (FAKEXR_END at xrWaitFrame 150, ROUND22.md "Exit from the runtime's menu"): exit (the
+# player quit the game from SteamVR's dashboard: STOPPING, then EXITING after xrEndSession): the game quits at once
+# (vr_xr_exit_quits 1; the script's own echo never comes), the session and instance destroyed; vr_xr_exit_quits 0: flat;
+# restart (READY again after IDLE): the session begun again, the game in VR; loss and instanceloss: flat, said why.
+P="vr_xr_test 1;vr_xr_runtime 2;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_backend openxr;map start"
+export FAKEXR_HEADSET=fakexr_steam
+for kind in exit exit0 restart loss instanceloss; do
+    LOG="$OUT/end_${kind}_fake.log"; : > "$LOG"
+    export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_END="150:${kind%0}"
+    q=1; [ "$kind" = exit0 ] && q=0
+    bash "$KIT/run.sh" "$NAME" -Script "$P;vr_xr_exit_quits $q;wait400;echo STILLRUNNING;vr_xr_exit_quits 1;toggleconsole;quit" -Full         -Filter "VR: |STILLRUNNING|^exit=|TIMEOUT|ENGINE" > "$OUT/end_$kind.log"
+    cp -f "$XRLOG" "$OUT/end_${kind}_openxr.txt"
+done
+unset FAKEXR_HEADSET FAKEXR_END
+# (The states in qvr_openxr.txt: the console wraps the long line.)
+L="$OUT/end_exit.log"
+check $L "exit from the runtime's menu: the game quits" "^exit=0" "VR: the runtime asked the game to exit: quitting \(vr_xr_exit_quits 1\)" \
+    "VR: stopping openxr backend"
+if grep -q "STILLRUNNING" $L; then echo "FAIL: the game ran on after the runtime's exit"; fails=$((fails + 1)); else echo "PASS: quit at the runtime's exit, not the script's"; fi
+check "$OUT/end_exit_fake.log" "exit: the session ended, then destroyed with the instance" "the session ends: exit" "xrEndSession$" \
+    "xrDestroySession" "xrDestroyInstance"
+if grep -q "NOT_STOPPING" "$OUT"/end_*_fake.log; then echo "FAIL: xrEndSession outside STOPPING"; fails=$((fails + 1)); else echo "PASS: xrEndSession only when STOPPING"; fi
+check "$OUT/end_exit_openxr.txt" "exit: qvr_openxr.txt names the states" "session STOPPING" "session ended \(xrEndSession\): waiting for the runtime" \
+    "session IDLE" "session EXITING" "the runtime asks the game to exit \(states: .*STOPPING > IDLE > EXITING\)" \
+    "VR: the runtime asked the game to exit: quitting" "VR: the session's last states: .*FOCUSED > VISIBLE > SYNCHRONIZED > STOPPING > IDLE > EXITING$"
+check "$OUT/end_exit0.log" "vr_xr_exit_quits 0: flat" "VR: the runtime asked the game to exit: playing flat \(vr_xr_exit_quits 0" \
+    "VR: stopping openxr backend" "STILLRUNNING"
+check "$OUT/end_restart_openxr.txt" "restart: the session begun again" "session STOPPING" "session ended \(xrEndSession\)" "session IDLE" \
+    "session READY" "session SYNCHRONIZED" "session FOCUSED"
+check "$OUT/end_restart.log" "restart: the game plays on in VR" "STILLRUNNING" "VR: stopping openxr backend"
+if grep -q "session lost\|asked the game to exit" "$OUT/end_restart.log"; then echo "FAIL: restart taken for an end"; fails=$((fails + 1)); else echo "PASS: restart: no end said"; fi
+check "$OUT/end_loss.log" "loss: flat, said why" "VR: openxr session lost: playing flat" "VR: stopping openxr backend" "STILLRUNNING"
+check "$OUT/end_loss_openxr.txt" "loss: the states" "session loss pending" "VR: the session's last states: .*FOCUSED > LOSS_PENDING$"
+check "$OUT/end_instanceloss.log" "instance loss: flat, said why" "VR: openxr session lost: playing flat" "VR: stopping openxr backend" "STILLRUNNING"
+check "$OUT/end_instanceloss_openxr.txt" "instance loss: the states" "instance loss pending" "VR: the session's last states: .*FOCUSED > INSTANCE_LOSS_PENDING$"
 echo "xr_runtime_test: $fails failed"

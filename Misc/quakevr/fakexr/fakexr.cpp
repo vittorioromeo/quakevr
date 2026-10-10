@@ -12,6 +12,10 @@
 //   FAKEXR_EYE            WxH, the eyes' recommended size (400x440)
 //   FAKEXR_SYSTEM         the headset's name (systemName: "FakeXR headset"), e.g. "Meta Quest 3" (its panel known)
 //   FAKEXR_UNFOCUS        a-b: the session VISIBLE (not focused: as with SteamVR's dashboard) from xrWaitFrame a to b
+//   FAKEXR_END            n:kind, the session ended at xrWaitFrame n as the runtimes end it: exit (the player quit the
+//                         game from the runtime's menu: VISIBLE, SYNCHRONIZED, STOPPING; after xrEndSession IDLE, then
+//                         EXITING), restart (the same, then READY again: the headset back on), loss (LOSS_PENDING),
+//                         instanceloss (XrEventDataInstanceLossPending)
 //   FAKEXR_FAULT_IMAGES   copies whose xrEnumerateSwapchainImages crashes filling the images (a null read, as VDXR
 //                         1.1.0's did: the game's vr_xr_guard catches it); FAKEXR_FAULT_SRGB: only sRGB swapchains'
 //   FAKEXR_DEBUG_UTILS    copies that offer XR_EXT_debug_utils: a messenger that sends 3 messages once made
@@ -218,6 +222,9 @@ struct Headset
     XrSession session{XR_NULL_HANDLE};
     int frame{0}; // xrWaitFrame calls
     int unfocusFrom{-1}, unfocusTo{-1};
+    int endAt{-1};      // FAKEXR_END's frame
+    char endKind[16]{}; // and kind
+    bool exitAfterStop{false}, readyAfterStop{false};
     uint32_t eyeWidth{400}, eyeHeight{440};
     int periodMs{0};
     int frames{0}, projections{0}, held{0}, quads{0}, empty{0}, focusLost{0};
@@ -291,6 +298,10 @@ XRAPI_ATTR XrResult XRAPI_CALL createSession(XrInstance, const XrSessionCreateIn
     {
         sscanf(text, "%d-%d", &hs.unfocusFrom, &hs.unfocusTo);
     }
+    if(GetEnvironmentVariableA("FAKEXR_END", text, sizeof(text)))
+    {
+        sscanf(text, "%d:%15s", &hs.endAt, hs.endKind);
+    }
     if(GetEnvironmentVariableA("FAKEXR_PERIOD_MS", text, sizeof(text)))
     {
         hs.periodMs = atoi(text);
@@ -324,15 +335,42 @@ XRAPI_ATTR XrResult XRAPI_CALL beginSession(XrSession, const XrSessionBeginInfo*
 
 XRAPI_ATTR XrResult XRAPI_CALL endSession(XrSession)
 {
+    if(hs.state != XR_SESSION_STATE_STOPPING)
+    {
+        log("xrEndSession: not STOPPING (XR_ERROR_SESSION_NOT_STOPPING)");
+        return XR_ERROR_SESSION_NOT_STOPPING;
+    }
+    log("xrEndSession");
     pushState(XR_SESSION_STATE_IDLE);
+    if(hs.exitAfterStop)
+    {
+        pushState(XR_SESSION_STATE_EXITING);
+    }
+    if(hs.readyAfterStop)
+    {
+        pushState(XR_SESSION_STATE_READY);
+    }
+    hs.exitAfterStop = hs.readyAfterStop = false;
     return XR_SUCCESS;
 }
+
+// In the state queue: an XrEventDataInstanceLossPending rather than a state (FAKEXR_END instanceloss).
+constexpr XrSessionState instanceLossEvent = XR_SESSION_STATE_MAX_ENUM;
 
 XRAPI_ATTR XrResult XRAPI_CALL pollEvent(XrInstance, XrEventDataBuffer* buffer)
 {
     if(hs.queueHead == hs.queueTail)
     {
         return XR_EVENT_UNAVAILABLE;
+    }
+    if(hs.queue[hs.queueHead] == instanceLossEvent)
+    {
+        hs.queueHead = (hs.queueHead + 1) % 32;
+        auto* loss = reinterpret_cast<XrEventDataInstanceLossPending*>(buffer);
+        loss->type = XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING;
+        loss->next = nullptr;
+        loss->lossTime = nowNs() + 1000000000;
+        return XR_SUCCESS;
     }
     auto* changed = reinterpret_cast<XrEventDataSessionStateChanged*>(buffer);
     changed->type = XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED;
@@ -496,6 +534,31 @@ XRAPI_ATTR XrResult XRAPI_CALL waitFrame(XrSession, const XrFrameWaitInfo*, XrFr
     {
         pushState(XR_SESSION_STATE_FOCUSED);
         log("the focus back");
+    }
+    if(hs.frame == hs.endAt)
+    {
+        char text[64];
+        _snprintf_s(text, sizeof(text), _TRUNCATE, "the session ends: %s (FAKEXR_END)", hs.endKind);
+        log(text);
+        if(!strcmp(hs.endKind, "loss"))
+        {
+            pushState(XR_SESSION_STATE_LOSS_PENDING);
+        }
+        else if(!strcmp(hs.endKind, "instanceloss"))
+        {
+            pushState(instanceLossEvent);
+        }
+        else
+        {
+            hs.exitAfterStop = !strcmp(hs.endKind, "exit");
+            hs.readyAfterStop = !strcmp(hs.endKind, "restart");
+            if(hs.state == XR_SESSION_STATE_FOCUSED)
+            {
+                pushState(XR_SESSION_STATE_VISIBLE);
+            }
+            pushState(XR_SESSION_STATE_SYNCHRONIZED);
+            pushState(XR_SESSION_STATE_STOPPING);
+        }
     }
     if(hs.periodMs > 0)
     {

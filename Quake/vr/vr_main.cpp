@@ -199,6 +199,43 @@ void startBackend()
     state->backend = ZA_MOVE(backend);
 }
 
+// The runtime ended the session (beginFrame returned false). The runtime asking the game to exit (the player quit it
+// from SteamVR's dashboard, Virtual Desktop's or Meta's menu: OpenXR's EXITING) quits the game, as the console's quit
+// does, the config saved (vr_xr_exit_quits 1; 0 1.0.0's way: flat); the headset or runtime lost: flat, VR restartable.
+void sessionEnded()
+{
+    const bool exit = state->backend->sessionEnd() == qvr::Backend::SessionEnd::Exit;
+    const bool quit = exit && vr_xr_exit_quits.value != 0.f;
+    const char* line = quit   ? "VR: the runtime asked the game to exit: quitting (vr_xr_exit_quits 1)\n"
+                       : exit ? "VR: the runtime asked the game to exit: playing flat (vr_xr_exit_quits 0; vr_restart starts "
+                                "VR again)\n"
+                              : va("VR: %s session lost: playing flat (the headset or the runtime went away; vr_restart, VR "
+                                   "Settings > Restart VR, starts VR again)\n",
+                                    state->backend->name());
+    if(quit)
+    {
+        Con_Printf("%s", line);
+    }
+    else
+    {
+        Con_Warning("%s", line);
+    }
+    xrruntime::logLine(line);
+    const char* states = state->backend->sessionStates();
+    if(states[0])
+    {
+        const char* statesLine = va("VR: the session's last states: %s\n", states);
+        Con_Printf("%s", statesLine);
+        xrruntime::logLine(statesLine);
+    }
+    stopBackend(); // the session and the instance destroyed (before the quit too)
+    if(quit)
+    {
+        CL_Disconnect(); // as closing the window does (in_sdl.c): Host_Shutdown saves the config
+        Sys_Quit();
+    }
+}
+
 void onBackendSettingChanged(cvar_t* /* var */)
 {
     // Applied at the start of the next frame, not from inside the cvar callback, so that
@@ -2032,8 +2069,7 @@ extern "C" void VR_BeginFrame()
     QVR_PROFILE("vr frame setup"); // the rest: the recorder, the texts queued anew, the input
     if(!began)
     {
-        Con_Warning("VR: %s session lost\n", state->backend->name());
-        stopBackend();
+        sessionEnded();
     }
     if(state->backend)
     {

@@ -509,6 +509,10 @@ QVR_CVAR(vr_xr_unfocused, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_unfocused_pause, "1", CVAR_ARCHIVE)
 // The game's volume while vr_xr_unfocused_pause holds it (0 silent .. 1 unchanged), faded over a tenth of a second.
 QVR_CVAR(vr_xr_unfocused_volume, "0", CVAR_ARCHIVE)
+// The runtime asking the game to exit (OpenXR's session EXITING: the player quit it from SteamVR's dashboard, Virtual
+// Desktop's or Meta's menu): 1 the game quits as the console's quit does (the config saved); 0 it plays on flat (1.0.0's
+// way; vr_restart starts VR again). The headset or runtime lost (LOSS_PENDING) always plays on flat.
+QVR_CVAR(vr_xr_exit_quits, "1", CVAR_ARCHIVE)
 // Debug: 1 the game acts as if the runtime's menu had the focus (vr_xr_unfocused_pause's pause, on any backend: the
 // mock's too); 0 only the runtime says.
 QVR_CVAR(vr_debug_runtime_menu, "0", CVAR_NONE)
