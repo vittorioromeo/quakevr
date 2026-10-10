@@ -127,6 +127,7 @@ picks one of the variants at random (`vr_physics.cpp`, `variant`). Round 20's no
 | `shell_plip1..3.wav` | a spent casing dropping into water (round 21) | `plip1`, `plip3` and `plip4` above, pitched up 1.5, 1.4 and 1.65 times and cut to 0.2 s by `make_sounds.py` | |
 | `slosh1..4.wav` | wading | [342932](https://freesound.org/people/ryansitz/sounds/342932/): *Wading in Shallow Water.wav*, ryansitz | 4.83-5.50, 6.30-6.95, 12.35-13.00, 24.20-24.95 |
 | `stroke1..4.wav` | swimming strokes | [390006](https://freesound.org/people/morganveilleux/sounds/390006/): *moving around in water- woosh, splash*, morganveilleux | 1.15-2.05, 2.45-3.30, 3.55-4.50, 7.00-7.80 |
+| `swim_soft1..3.wav`, `swim_hard1..3.wav` | a hand's stroke under water (2026-10-10) | `slosh1..3.wav` above, slowed to 0.58-0.78 of their speed, low-passed, their loudness evened out and laid on a gentle swell, a few low bubbles added, by `make_sounds.py` (`swim_stroke`) | |
 
 ### Chainsaw sounds (`quakevr/sound/vr/saw_*.wav`)
 

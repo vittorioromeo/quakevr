@@ -10402,3 +10402,48 @@ checks: self-tests, install harness, smoke launch, online check). Kept until he 
   `1.0.0-test.1+7c406a35`; `qvr-setup feed` with no URL (the build's defaults) found 1.0.0-test.1 through its tag's
   feed; a sandboxed `qvr-setup install --feed <tag feed>` downloaded and installed 1797 files, verify intact; the
   feed's hdtextures point at `assets-2026-10-08` (200, 614919925 bytes = the pinned size).
+
+## A weapon's blood through its animations; swim strokes that sound like water (2026-10-10)
+
+The author, playing a fresh install: "A bloodied shotgun's texture reverts to a clean texture while the pump reload
+animation is playing ... Worth checking this for all weapons and animations", and "The swimming sounds you added for
+the hands today sound more like melee swings, they should sound more like moving water around."
+
+**Blood on a gun drawn as parts.** A weapon's blood is a mask keyed by the entity that shows it (vr_wounds.cpp
+`gearFrame`). While the auto pump strokes (vr_view.cpp `setupPumps`) the shotgun is not drawn: the gun without its
+fore-end and the fore-end are (`vr_pumpbody_on_v_shot.mdl`, `vr_pump_on_v_shot.mdl`, the gun's very skin), and they had
+no mask: clean for the 0.3 s of the stroke. Only the open super shotgun's parts read their gun's blood
+(`view::ssgPartSource`). Now `view::gunPartsOf` / `gunPartSource` name every stand-in: the open super shotgun's
+parts, the auto pump's two, and the model a hand's gun morphs out of on an ammo switch. A part reads the gun's mask when
+its skin is as wide and at least as tall (`readsAsGun`), and blood is painted and washed through the parts.
+An ammo switch (the lava nailguns, the multi-rocket launchers, the plasma gun) changes the gun's model: `sameLayout`
+was false, so its blood was hidden while switched and freed the next time it was painted. A gun and its other ammo's
+model with skins of the same size now count as one layout (the mission packs' models are reskins of id's: 95-98% of
+their texel coordinates are the same), so the blood stays across the switch.
+
+Sweep (`vr_wounds_debug 4`, Debug > Gore Tests > Log Weapon Blood as Drawn: each bloody weapon drawn, once a frame,
+with its blood or `blood none`): every weapon (ids 2-19) bloodied in the main hand, then idle, fire, the ammo switch,
+fire again, the eject button, holstered (right chest), drawn, dropped (its prop), taken from the floor, and one in the
+off hand bloodied and fired. Before: the pump's parts were `blood none` for 75 frames a shot. After: no `blood none`
+on any weapon in any state. Picture check: the bloody shotgun's blood pixels (its own: bloody minus `vr_gore_gear 0`)
+are 18163 at rest and 16412 with the fore-end held back (`vr_autopump_hold 0.4`; before the fix the gun's blood was
+gone then).
+Not covered: the magazines and the magazine guns' wells (separate models with their own 64x64 skins: they never took
+blood), and a carried box's put-away copy (vr_collectfx.cpp draws a copy, without the box's blood, for its 0.2 s).
+
+**Swim strokes as water.** The synthesised `swim_soft1..3` / `swim_hard1..3` were a band of noise swelling and
+rolling off: the shape of a swing's whoosh, even low-passed. They are now made from the recorded sloshes (`slosh1..3`,
+wading in shallow water, CC0) by make_sounds.py `swim_stroke`: slowed to 0.58-0.66 (soft) and 0.70-0.78 (brisk)
+of their speed, low-passed twice (520 Hz, brisk 850 Hz), their loudness evened out over 50 ms (the gurgles kept, the
+splashes' edges rounded off) and laid on a stroke's shape (a raised-cosine swell of 150 ms, brisk 90 ms, then a
+roll-off), with a few low bubbles (260-700 Hz, chirping up). The strokes' pitch now follows their speed too (0.88 for
+a slow stroke to 1.08 for a fast one, +-0.02 each time; vr_physics.cpp `soundAt` sends a pitch, near the surface too).
+
+| | centroid | energy over 1.5 kHz | over 3 kHz | to half loudness | texture (5 ms / 60 ms loudness spread) |
+|---|---|---|---|---|---|
+| old swim_soft1..3 | 430-500 Hz | 2.4-3.5% | 0.3-0.6% | 39-60 ms | 0.26-0.28 |
+| new swim_soft1..3 | 510-600 Hz | 0.6-0.9% | 0.0% | 56-132 ms | 0.28-0.38 |
+| old swim_hard1..3 | 640-730 Hz | 6.3-9.8% | 1.1-1.5% | 21-25 ms | 0.25-0.30 |
+| new swim_hard1..3 | 650-750 Hz | 1.6-3.2% | 0.1% | 40-111 ms | 0.30-0.45 |
+
+Test: `Misc/quakevr/swim/swim_sound_test.sh <agent>` (now 11 checks: the strokes' pitch 0.86-1.10, the faster no lower).

@@ -51,7 +51,8 @@
 #   rock1..3.wav, brick1..3.wav  a rock's thud and a brick's clack (QC vr_debris.qc): landing, knocked, thrown into
 #                 something or struck with; three each, a little apart in pitch
 #   swim_soft1..3.wav, swim_hard1..3.wav  a hand's swimming stroke under water (vr_physics.cpp strokeFeedback): water
-#                 moved aside, muffled and churning, with a few bubbles; the brisk strokes' (_hard) quicker and brighter
+#                 pushed aside, made from the recorded sloshes (slosh1..3.wav, read from the output folder): slowed,
+#                 muffled, swelling in gently, with a few low bubbles; the brisk strokes' (_hard) quicker and brighter
 #   squish1..4.wav, squish_s1..4.wav  a gib landing or sticking (QC vr_carry.qc VR_Gib_Touch, vr_smallgibs.qc;
 #                 vr_physsound.cpp's flesh): a wet slap, a soft low thud and the squelch of bubbles popping in it; the
 #                 small gibs' (_s) higher, shorter and lighter
@@ -499,41 +500,50 @@ def slap_whoosh(pitch, seed):
     return finish(out, 0.55)
 
 
-def swim_stroke(pitch, seed, hard):
-    """A hand sweeping water aside as it swims (vr_physics.cpp strokeFeedback; vrfiringrange_2026-10-08_22-26-37:
-    "sounds like moving water with your hands"): no air's swish (a slap's) but water's, muffled and low: a band of
-    noise that swells as the hand drives and rolls off after it, churning (its loudness wobbling, a gurgle), with a
-    few bubbles shed from the fingers (decaying sines chirping up, as small bubbles ring). `hard`: a brisk stroke's,
-    quicker to swell, brighter and with more bubbles; else a gentle one's, slower, darker, longer."""
+def swim_stroke(source, pitch, seed, hard):
+    """A hand pushing water aside as it swims (vr_physics.cpp strokeFeedback; vrfiringrange_2026-10-08_22-26-37: "sounds
+    like moving water with your hands"; 2026-10-10: the noise swell it was "sounds more like melee swings"): water itself,
+    not air. A recorded slosh (`source`, slosh1..4.wav: wading in shallow water) played slower and lower (`pitch`: the
+    water's mass, heard through water) and muffled (a two-pole low-pass: no airy hiss, no whoosh) is the texture: its
+    loudness evened out (over 50 ms: its gurgles and churning kept, its splashes' sharp edges rounded off) and laid on
+    a stroke's own shape, swelling in gently (a raised-cosine onset, no transient) and rolling off, with a few low
+    bubbles shed from the fingers (decaying sines chirping up softly, as bubbles ring). `hard`: a brisk stroke's, a
+    little brighter, quicker to swell and shorter, more bubbles; else a gentle one's, darker, slower and longer."""
     rng = random.Random(seed)
-    n = int(RATE * (0.5 if hard else 0.6))
-    peak = (0.05 if hard else 0.09) / pitch  # played as the hand passes its fastest: a short swell
-    tail = 0.11 if hard else 0.15
-    lo_c, hi_c = (380.0, 1300.0) if hard else (260.0, 760.0)
-    water_lo, water_lo2, water_hi = VarLowPass(), VarLowPass(), VarLowPass()
-    churn_rate = rng.uniform(9.0, 14.0)
-    churn_phase = rng.uniform(0.0, 2 * math.pi)
+    src = pitched(read_wav(source), pitch)
+    n = min(len(src), int(RATE * (0.62 if hard else 0.75)))
+    cut = 850.0 if hard else 520.0
+    lp1, lp2, hp = OnePole(cut), OnePole(cut), OnePole(70.0)
+    y = []
+    for i in range(n):
+        v = lp2(lp1(src[i]))
+        y.append(v - hp(v))  # (no rumble under it)
+    # Its loudness over 50 ms (centred), to even it out.
+    w = int(RATE * 0.05)
+    acc = [0.0]
+    for v in y:
+        acc.append(acc[-1] + v * v)
+    level = [math.sqrt((acc[min(n, i + w // 2)] - acc[max(0, i - w // 2)]) / w) for i in range(n)]
+    floor = max(level) * 0.05
+    onset = 0.09 if hard else 0.15   # (the old noise swell's half came in 20-25 ms: a swing's)
+    decay = 0.16 if hard else 0.22
     bubbles = []
-    for _ in range(7 if hard else 3):
-        at = peak * rng.uniform(0.4, 1.0) + rng.uniform(0.0, 0.22)
-        f0 = rng.uniform(600.0, 1500.0 if hard else 1100.0) * pitch
-        bubbles.append((at, f0, rng.uniform(0.010, 0.026), rng.uniform(0.25, 0.6), rng.uniform(4.0, 12.0)))
+    for _ in range(6 if hard else 4):
+        at = rng.uniform(0.06, 0.4 if hard else 0.5)
+        f0 = rng.uniform(260.0, 700.0 if hard else 520.0)
+        bubbles.append((at, f0, rng.uniform(0.02, 0.045), rng.uniform(0.3, 0.7), rng.uniform(3.0, 8.0)))
     out = []
     for i in range(n):
         t = i / RATE
-        noise = rng.uniform(-1, 1)
-        swell = (t / peak) ** 1.5 if t < peak else math.exp(-(t - peak) / tail)
-        centre = (lo_c + (hi_c - lo_c) * swell) * pitch
-        lo = water_lo2(water_lo(noise, centre), centre)
-        band = lo - water_hi(lo, centre * 0.25)
-        churn = 1.0 + 0.35 * math.sin(2 * math.pi * churn_rate * t + churn_phase)
+        texture = math.tanh(0.6 * y[i] / max(level[i], floor)) / 0.6
+        shape = 0.5 - 0.5 * math.cos(math.pi * t / onset) if t < onset else math.exp(-(t - onset) / decay)
         bub = 0.0
-        for at, f0, decay, amp, rise in bubbles:
+        for at, f0, d, amp, rise in bubbles:
             u = t - at
-            if 0.0 <= u < decay * 6:
-                bub += amp * math.sin(2 * math.pi * f0 * (u + rise * u * u)) * math.exp(-u / decay) * min(1.0, u / 0.001)
-        out.append(math.tanh(band * swell * churn * 6.0 + bub * 0.3))
-    return finish(out, 0.8 if hard else 0.7, 0.05)
+            if 0.0 <= u < d * 6:
+                bub += amp * math.sin(2 * math.pi * f0 * (u + rise * u * u)) * math.exp(-u / d) * min(1.0, u / 0.006)
+        out.append(shape * (texture + 0.25 * bub))
+    return finish(out, 0.75 if hard else 0.65, 0.05)
 
 
 # ---- The crowbar (QC vr_crowbar.qc; docs/vr-port/ROUND21.md, "The crowbar"): a hexagonal steel bar 67 cm long rings
@@ -1335,10 +1345,12 @@ def main():
         write_wav(os.path.join(out, name), slap_whoosh(pitch, 171 + k))
         print(name + " -> " + os.path.normpath(out))
     # Swimming strokes under water (vr_physics.cpp strokeFeedback): three gentle, three brisk, a little apart in pitch.
-    for kind, hard, seed in (("swim_soft", False, 811), ("swim_hard", True, 821)):
-        for k, pitch in enumerate((1.0, 0.9, 1.1)):
+    # (Made from the recorded sloshes in the folder they are in: slower and lower, the gentle ones more so.)
+    for kind, hard, seed, pitches in (("swim_soft", False, 811, (0.62, 0.58, 0.66)), ("swim_hard", True, 821, (0.74, 0.7, 0.78))):
+        for k, pitch in enumerate(pitches):
             name = "%s%d.wav" % (kind, k + 1)
-            write_wav(os.path.join(out, name), swim_stroke(pitch, seed + k, hard))
+            source = os.path.join(out, "slosh%d.wav" % (k + 1))
+            write_wav(os.path.join(out, name), swim_stroke(source, pitch, seed + k, hard))
             print(name + " -> " + os.path.normpath(out))
     # The crowbar (QC vr_crowbar.qc): three blows on a body, two on a wall, a little apart in pitch.
     for k, pitch in enumerate((1.0, 0.93, 1.07)):

@@ -3,7 +3,7 @@
 # vrfiringrange_2026-10-08_22-26-37), headless, on vrfiringrange (its pool; docs/vr-port/TESTING.md, "Swimming"):
 #   1. an open hand swung across on dry land: the slap's whoosh (the control) and it wakes monsters (show_hostile)
 #   2. in the pool, 6 s of strokes (swim_plays.py cycle_edge.txt): each hand's strokes heard (vr/swim_* or vr/stroke*),
-#      no slap's whoosh, no knights' swing, show_hostile not renewed
+#      pitched with their speed (0.86..1.10), no slap's whoosh, no knights' swing, show_hostile not renewed
 #   3. the same open hand swung across under water: no whoosh, no slap, show_hostile not renewed
 #   4. a closed fist punched under water: the swing counts (show_hostile set) but it doesn't whoosh
 # Prints PASS/FAIL per check; exits 1 on a failure. Saves in quakevr/ (qvr_swim_*.sav).
@@ -34,7 +34,12 @@ check $(echo "$dry" | grep -q "slap_whoosh" && echo 1 || echo 0) "dry land: an o
 check $([ -n "$hd" ] && echo 1 || echo 0) "dry land: the slap wakes monsters ($hd)"
 n=$(echo "$cyc" | grep -cE "VR water sound: vr/(swim_|stroke)")
 check $([ "$n" -ge 4 ] && [ "$n" -le 16 ] && echo 1 || echo 0) "swimming: the strokes heard, not spammy ($n in 6 s, both hands)"
-echo "$cyc" | grep -E "VR water sound: vr/(swim_|stroke)" | sed -E 's/.*vr\/([a-z_]+)[0-9].wav, volume/\1/' | sort | uniq -c | head -5
+echo "$cyc" | grep -E "VR water sound: vr/(swim_|stroke)" | sed -E 's/.*vr\/([a-z_]+)[0-9].wav, volume.*/\1/' | sort | uniq -c | head -5
+# Their pitch with the stroke's speed (2026-10-10): 0.86..1.10, the louder (faster) no lower than the quieter (but for the
+# +-0.02 apart each time).
+pv=$(echo "$cyc" | grep -E "VR water sound: vr/(swim_|stroke)" | sed -E 's/.*volume ([0-9.]+), pitch ([0-9.]+).*/\1 \2/')
+check $(echo "$pv" | awk 'NF == 2 { n++; if($2 < 0.86 || $2 > 1.10) bad = 1; if(n == 1 || $1 < lv) { lv = $1; lp = $2 } if(n == 1 || $1 > hv) { hv = $1; hp = $2 } }
+    END { print (n > 0 && !bad && hp >= lp - 0.045) ? 1 : 0 }') "swimming: the strokes' pitch with their speed (volume pitch: $(echo $pv))"
 check $(echo "$cyc" | grep -qE "slap_whoosh|knight/sword" && echo 0 || echo 1) "swimming: no slap whoosh, no swing"
 check $([ "$hc" = "$hd" ] && echo 1 || echo 0) "swimming: wakes nothing ($hd -> $hc)"
 check $(echo "$slp" | grep -qE "slap_whoosh|vr/slap[0-9]" && echo 0 || echo 1) "under water: an open hand swung across neither whooshes nor slaps"

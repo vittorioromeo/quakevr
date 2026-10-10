@@ -864,9 +864,9 @@ double soundFrame = -1.0;
 int soundsThisFrame = 0;
 
 // Sounds at a point (not an entity's): the world's entity, on the auto channel, with the position
-// given -- what SV_StartSound sends, where a sound is. At most a few a frame (a shotgun's pellets).
-// `sound`: its precache index (variant).
-bool soundAt(const glm::vec3& at, int sound, float volume, float attenuation = 1.f)
+// given -- what SV_StartSound sends, where a sound is, at playback rate `pitch` (1 as recorded). At most
+// a few a frame (a shotgun's pellets). `sound`: its precache index (variant).
+bool soundAt(const glm::vec3& at, int sound, float volume, float attenuation = 1.f, float pitch = 1.f)
 {
     if(VR_NoLiquidEffects(sv.worldmodel, &at.x)) { return false; }
     const float master = CLAMP(0.f, vr_water_sounds.value, 1.f);
@@ -881,55 +881,19 @@ bool soundAt(const glm::vec3& at, int sound, float volume, float attenuation = 1
         soundFrame = qcvm->time;
         soundsThisFrame = 0;
     }
-    if(soundsThisFrame >= 3 || sv.datagram.cursize > MAX_DATAGRAM - 21)
+    if(soundsThisFrame >= 3 || sv.datagram.cursize > MAX_DATAGRAM - 23)
     {
         return true; // played enough of them this frame
     }
     soundsThisFrame++;
     if(developer.value >= 2)
     {
-        Con_Printf("VR water sound: %s, volume %.2f\n", sv.sound_precache[index], vol / 255.f);
+        Con_Printf("VR water sound: %s, volume %.2f, pitch %.2f\n", sv.sound_precache[index], vol / 255.f, pitch);
     }
-
-    int mask = 0;
-    if(vol != DEFAULT_SOUND_PACKET_VOLUME)
+    const vec3_t origin{at.x, at.y, at.z};
+    if(!SV_WriteSound(&sv.datagram, 0, 0, index, vol, attenuation, origin, pitch)) // (the world, channel 0: auto)
     {
-        mask |= SND_VOLUME;
-    }
-    if(attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
-    {
-        mask |= SND_ATTENUATION;
-    }
-    if(index >= 256)
-    {
-        if(sv.protocol == PROTOCOL_NETQUAKE)
-        {
-            return false;
-        }
-        mask |= SND_LARGESOUND;
-    }
-    MSG_WriteByte(&sv.datagram, svc_sound);
-    MSG_WriteByte(&sv.datagram, mask);
-    if(mask & SND_VOLUME)
-    {
-        MSG_WriteByte(&sv.datagram, vol);
-    }
-    if(mask & SND_ATTENUATION)
-    {
-        MSG_WriteByte(&sv.datagram, static_cast<int>(attenuation * 64.f));
-    }
-    MSG_WriteShort(&sv.datagram, 0); // the world, channel 0 (auto)
-    if(mask & SND_LARGESOUND)
-    {
-        MSG_WriteShort(&sv.datagram, index);
-    }
-    else
-    {
-        MSG_WriteByte(&sv.datagram, index);
-    }
-    for(int i = 0; i < 3; i++)
-    {
-        MSG_WriteCoord(&sv.datagram, at[i], sv.protocolflags);
+        return false;
     }
     VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
     return true;
@@ -1178,8 +1142,9 @@ void waterFeedback(edict_t* ent)
 
 // A swimming stroke's sound, from the hand, once a stroke that passed its power gate, as the hand
 // passes its fastest (VR_AfterWaterMove): each hand its own (vrfiringrange_2026-10-08_22-26-37), as
-// loud as the stroke was fast. Near the surface, the recorded strokes (water thrown about) and a
-// splash; deeper, water swept aside (make_sounds.py's swim_soft, or swim_hard for a brisk stroke).
+// loud as the stroke was fast, its pitch from its speed too. Near the surface, the recorded strokes
+// (water thrown about) and a splash; deeper, water pushed aside (make_sounds.py's swim_soft, or swim_hard
+// for a brisk stroke: recorded sloshes slowed, muffled and swelling in gently; 2026-10-10).
 // The open hands' slaps and whooshes are not heard under water (QC vr_melee.qc VR_Melee_Slaps).
 void strokeFeedback(edict_t* ent, int handIndex, const glm::vec3& hand, float peak)
 {
@@ -1192,14 +1157,17 @@ void strokeFeedback(edict_t* ent, int handIndex, const glm::vec3& hand, float pe
     }
     w->stroke[handIndex] = qcvm->time;
     const float hard = CLAMP(0.f, (peak - 1.f) / 2.5f, 1.f);
+    // Its pitch with its speed too: a slow sweep's water deeper, a brisk one's a little higher (and a little
+    // apart each time).
+    const float pitch = 0.88f + 0.2f * hard + 0.04f * (static_cast<float>(rand() % 1001) / 1000.f - 0.5f);
     glm::vec3 at;
     if(surfaceOver(hand, 10.f, at))
     {
-        soundAt(hand, variant(WaterSound::Stroke), 0.3f + 0.55f * hard);
+        soundAt(hand, variant(WaterSound::Stroke), 0.3f + 0.55f * hard, 1.f, pitch);
         sendSplash(at, glm::vec3{0.f, 0.f, 1.f}, 3.f + 4.f * hard);
         return;
     }
-    soundAt(hand, variant(peak >= 2.2f ? WaterSound::SwimHard : WaterSound::SwimSoft), 0.25f + 0.65f * hard);
+    soundAt(hand, variant(peak >= 2.2f ? WaterSound::SwimHard : WaterSound::SwimSoft), 0.25f + 0.65f * hard, 1.f, pitch);
 }
 
 // A thing's size for its splash: the half diagonal of its model (or its box).

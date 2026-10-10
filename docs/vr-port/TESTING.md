@@ -143,7 +143,7 @@ or -90 (off) turns the palm back towards the body. For the air, nothing prints a
 `bprint` after `T_Damage` in `WaterMove` for the run (as for ROUND21.md's table).
 Swimming sounds (ROUND21.md, "Swimming strokes sound as water, not as slaps"): `bash
 Misc/quakevr/swim/swim_sound_test.sh <agent>` (strokes heard per hand, no slap or whoosh under water, a punch still
-counts; `developer 2` prints each `VR water sound`).
+counts, the strokes' pitch with their speed; `developer 2` prints each `VR water sound` with its volume and pitch).
 Out of the water by hand (ROUND21.md, "Out of the water by hand; ..."): `vr_campaign_native mg3; vr_climb 1; map map1`, `setpos 64
 1000 -160 0 90 0; noclip`, `+jump` (stays at the surface) and `vr_mock_stick off 0 1` for 120 frames: `vr_water_jump 1` lifts you
 onto the lip (z -104), 0 leaves you in the water at y 1080 (but with `vr_climb 0`: Quake's lift). `developer 1` prints
@@ -299,7 +299,9 @@ box (100 health, 101 shells, 102 an explosive box, 103 a small one, 104 an explo
 Blood on you and your gear (ROUND21.md, "Blood on you, your weapons and props"): `vr_gore_spatter_test blow|saw|shot|gib [distance]`
 throws a blow's, a cut's, a close shot's or a gib's blood onto you and what the main hand holds; `vr_gore_spatter_test arm [main|off] [count]` bleeding marks on one forearm alone (the mirroring check, chunky or fine: none on the other arm; `vr_wounds_dump` writes your body's two layers, `_right` the right side's); `vr_gore_spatter_test prop` a blow on the held prop's side facing you (`vr_test_spawn_hold 1` with `+grabmain` held puts `vr_test_spawn`'s box or crate into the main hand: ROUND21.md, "Blood on every prop you hold"); `propblow` the held thing swung away from you (the far side takes it; a box lists its six sides); `holster <0..5>` blood just out from a holster's weapon; `burst [distance] [size]` a gibbing ahead onto what lies near (ROUND21.md, "Blood on holstered weapons, on things lying near"); `vr_gore_hands_info` counts
 each hand's, the body's and your gear's blood (texels); `vr_wounds_debug 1` prints spatters, gib strikes and the gear's
-moves. A real chainsaw cut: firing range, `vr_weapon_grip_mode 1; impulse 164; vr_test_spawn 3; impulse 241; impulse 230;
+moves; `vr_wounds_debug 4` each bloody weapon drawn, once a frame, with its blood or `blood none` (the parts drawn in
+its place too: the auto pump's, the open super shotgun's, an ammo switch's outgoing model; ROUND21.md, "A weapon's
+blood through its animations"). A real chainsaw cut: firing range, `vr_weapon_grip_mode 1; impulse 164; vr_test_spawn 3; impulse 241; impulse 230;
 vr_mock_hand main 0.0 1.1 -0.62 70 0 0; +attack` (a shambler: about six cuts a second); a gibbing next to you:
 `vr_test_spawn 0; vr_test_spawn_dist 16; vr_test_spawn_dead 2; impulse 241`; hands held where the eyeshots show their
 backs and forearms: `vr_mock_look 50 0; vr_mock_hand off -0.18 1.05 -0.45 20 0 0; vr_mock_hand main 0.18 1.05 -0.45 20 0 0`.
