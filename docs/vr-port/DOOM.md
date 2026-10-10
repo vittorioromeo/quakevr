@@ -146,7 +146,9 @@ shutdown. It is loaded when Doom is first opened; until then nothing of it costs
 - **The focus** is given by a look (the screen raised, facing you within `vr_doom_focus_angle` 25 degrees, for
   `vr_doom_focus_look` 0.5 s) or a touch, and taken back after `vr_doom_focus_grace` (0.5 s) out of view or by Quake's
   menu. Only the gadget hand's stick and buttons go to Doom (its menu button stays Quake's); the other hand is never
-  taken. Quake sees them let go while Doom has them. `vr_doom_pause_unfocused 1` pauses Doom while it hasn't the focus.
+  taken. Quake sees them let go while Doom has them. They change hands only once let go (the stick centred, no
+  button held): walking in Quake as you raise the wrist goes on until you let go, and so does walking in Doom as you
+  lower it. `vr_doom_pause_unfocused 1` pauses Doom while it hasn't the focus.
 - **Doom shows instead of the HUD** while open (the gadget's one screen). The hologram, the notify log and the side
   button keep working.
 - **The installer** needs no step: `quakevr/doom/wads/README.txt` is tracked, so the package (an allowlist of tracked

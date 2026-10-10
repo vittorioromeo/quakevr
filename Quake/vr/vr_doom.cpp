@@ -631,6 +631,7 @@ struct Session
     // The controller (the gadget hand's), as last seen while it had the focus.
     HandInput pad{};
     bool padValid{false};
+    bool padDoom{false};  // the gadget hand's stick and buttons are Doom's (they change hands only when let go)
     double repeatAt[4]{}; // the stick's menu arrows' next repeat
     bool stickDir[4]{};   // up, down, left, right held
     // Touch.
@@ -1167,7 +1168,7 @@ void stickArrows(glm::vec2 v, bool menu)
 
 void controllerKeys()
 {
-    if(!session.focused || !session.padValid || vr_doom_controls.value < 1.f)
+    if(!session.padDoom || !session.padValid || vr_doom_controls.value < 1.f)
     {
         for(bool& d : session.stickDir)
         {
@@ -1826,9 +1827,28 @@ void pickWad(int i)
 bool takesOffHand(const InputState& in)
 {
     const int g = hands::gadgetHand();
-    session.pad = in.hands[g];
+    const HandInput& p = in.hands[g];
+    session.pad = p;
     session.padValid = true;
-    return session.running && session.open && session.focused && vr_doom_controls.value >= 1.f && quakeRunning();
+    // The stick and buttons go to Doom with the focus, and back to Quake without it, but only once they are let go (the
+    // stick centred, no button held): walking in Quake as you raise the wrist goes on until you let go, and so does
+    // walking in Doom as you lower it. Without Doom running (closed, Quake paused) they are Quake's at once.
+    const bool doomWants = session.running && session.open && session.focused && vr_doom_controls.value >= 1.f && quakeRunning();
+    const bool idle = !p.trigger && !p.grip && !p.primary && !p.secondary && !p.stickClick && glm::length(p.stick) < 0.3f;
+    if(!session.running || !session.open || !quakeRunning())
+    {
+        session.padDoom = false;
+    }
+    else if(doomWants != session.padDoom && idle)
+    {
+        session.padDoom = doomWants;
+        if(vr_debug_doom.value)
+        {
+            Con_Printf("Doom: the %s hand's stick and buttons are %s's\n", g == HAND_OFF ? "off" : "main",
+                doomWants ? "Doom" : "Quake");
+        }
+    }
+    return session.padDoom;
 }
 
 } // namespace qvr::doom
