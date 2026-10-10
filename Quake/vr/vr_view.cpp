@@ -4,6 +4,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_rope.hpp"
+#include "vr_touch.hpp"
 #include "vr_view.hpp"
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
@@ -6436,6 +6437,7 @@ void gadgetTouches(const hands::State& s, bool posingNow)
     if(oncePerFrame.gadgetTouches != host_framecount && !posingNow)
     {
         oncePerFrame.gadgetTouches = host_framecount;
+        touch::viewFrame(s); // the touchscreen (an app on the gadget: Doom), before the screen tap it overrides
         bullettime::viewFrame(s);
         gearlights::viewFrame(s);
         bullettime::Screen sc;

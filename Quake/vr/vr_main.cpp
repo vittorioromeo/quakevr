@@ -47,6 +47,7 @@
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_doom.hpp"
 #include "vr_physics.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
@@ -1990,6 +1991,7 @@ extern "C" void VR_Init()
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
     envmap::init(); // vr_envmap_dump
     profile::init();
+    doom::init(); // vr_doom and its commands (qvr_doom.dll loaded when first opened)
     audio::init(); // spatial audio's commands (vr_snd_info, vr_snd_test...); Steam Audio is loaded on first use
     mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
     update::registerCommands(); // vr_update_status, vr_update_check_now, vr_update_compare (vr_update.cpp)
@@ -2016,6 +2018,7 @@ extern "C" void VR_StopDownloads()
 
 extern "C" void VR_Shutdown()
 {
+    doom::shutdown(); // Doom's settings saved, qvr_doom.dll unloaded
     hull::finishLoads(); // (a map load's builds, if a quit came in the middle of one)
     box3d::finishLoads();
     mapindex::finish(); // the map index fetch, cancelled and joined (vr_mapindex.cpp)
@@ -2101,6 +2104,7 @@ extern "C" void VR_BeginFrame()
     profile::overlay();  // the profiler's panel (vr_profile_overlay)
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
+    doom::frame(); // Doom on the wrist gadget (vr_doom): its clock, its keys, its sounds at the gadget
     bullettime::frame(); // (vr_debug_gadget_button 3: the tap's frame-start check; the tap itself: the view's)
     gearlights::frame(); // the gear lights eased (the side button: the view's, as the gadget is drawn)
     flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)

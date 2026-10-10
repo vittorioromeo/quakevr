@@ -12,6 +12,7 @@
 // its last 16 lines for it: Con_NotifyLine), laid out by vr_text3d facing the viewer.
 
 #include "vr_gadget.hpp"
+#include "vr_doom.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_body.hpp"
 #include "vr_portals.hpp"
@@ -2294,15 +2295,19 @@ void renderScreen()
 {
     QVR_GPU_PROFILE("gadget screen");
     text3d::renderScreens(); // the weapons' ammo screens' images too
+    doom::renderScreen(); // Doom's picture and its touch controls (vr_doom), while it is open and can be seen
     if(!active())
     {
         return;
     }
 
-    gfx::ensureTarget(target, width * 2, height * 2, true, "gadget screen"); // mipmaps: for its text's glow
-    gfx::begin2D(target, width, height);
-    layout();
-    gfx::end2D();
+    if(!doom::onGadget()) // (Doom shows instead: the HUD isn't drawn)
+    {
+        gfx::ensureTarget(target, width * 2, height * 2, true, "gadget screen"); // mipmaps: for its text's glow
+        gfx::begin2D(target, width, height);
+        layout();
+        gfx::end2D();
+    }
     renderHologram();
     renderFps();
 
@@ -2317,7 +2322,10 @@ void renderScreen()
 
 void drawScreen()
 {
-    if(!active() || !current.valid || !target.texture)
+    doom::drawPanel(); // (vr_doom_panel: Doom's floating panel)
+    // Doom open on the gadget (vr_doom): its picture instead of the HUD's.
+    const gfx::Texture doomTexture = doom::onGadget() ? doom::gadgetTexture() : 0;
+    if(!active() || !current.valid || (!target.texture && !doomTexture))
     {
         return;
     }
@@ -2352,6 +2360,20 @@ void drawScreen()
         tapFx.glitchFrames = 0;
     }
     const float g = za::max(k > 0.f ? glitch(realtime) * za::min(k, 1.f) : 0.f, tap);
+    if(doomTexture)
+    {
+        // Doom's: its own CRT strength (vr_doom_crt, half the HUD's: a picture, not text), a scanline a pixel, no glow.
+        const float dk = za::clamp(k * vr_doom_crt.value * 0.5f, 0.f, 2.f);
+        glm::vec3 corner2;
+        glm::vec2 size2;
+        screenRect(corner2, size2);
+        gfx::draw(quad, gfx::sceneViewProjection(),
+            {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
+                .params = {time, dk, za::min(g, tap), 0.f},
+                .screen = {200.f * size2.x / size2.y, 200.f, 1.f}, .trueColor = true},
+            doomTexture);
+        return;
+    }
     gfx::draw(quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
             .params = {time, k, g, textGlow()},

@@ -18,6 +18,7 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
+#include "vr_doom.hpp"
 #include "vr_main.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
@@ -445,7 +446,20 @@ void update(const InputState& tracked)
 {
     // Without VR, everything is released (keys held when the session ends must come up).
     const bool active = vrActive();
-    const InputState& in = active ? tracked : released;
+    const InputState& raw = active ? tracked : released;
+    // Doom on the wrist gadget with the focus takes the gadget hand's stick and buttons (its menu button stays Quake's):
+    // Quake sees them let go meanwhile (vr_doom.hpp).
+    InputState masked;
+    const bool doomTakes = doom::takesOffHand(raw);
+    if(doomTakes)
+    {
+        masked = raw;
+        const int g = hands::gadgetHand();
+        HandInput none;
+        none.menu = raw.hands[g].menu;
+        masked.hands[g] = none;
+    }
+    const InputState& in = doomTakes ? masked : raw;
 
     // The sticks by what they do: the moving one (vr_stick_swap: the right), the turning one.
     const HandInput& off = in.hands[hands::moveHand()];

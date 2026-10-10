@@ -682,6 +682,37 @@ QVR_CVAR(vr_gadget_fingertip_yaw, "0", CVAR_ARCHIVE)  // ... inward (towards the
 QVR_CVAR(vr_gadget_fingertip_roll, "0", CVAR_ARCHIVE) // ... and rolled about the hand's forward (positive: its top outward)
 QVR_CVAR(vr_gadget_button_cooldown, "0.2", CVAR_ARCHIVE) // real seconds after a press before the next counts (no double toggles)
 QVR_CVAR(vr_debug_gadget_button, "0", CVAR_NONE)      // Debug > Show Gadget Button: 1 its hit volume drawn (green ready, yellow pressed, red cooling down), the fingertip (the drawn index fingertip white, joined to the tuned one) and its presses printed; 2 also the screen tap's zone and the tapping hand's striking volume (the drawn hand's surface, the gun's butt; white: on the zone); 3 also prints each frame how far the zone is from the drawn gadget (and how far off the old frame-start test was)
+// The touchscreen (vr_touch.cpp): the other hand's index fingertip on the gadget's screen (or a floating panel) while an
+// app takes it (Doom); distances in cm from the screen's face (docs/vr-port/DOOM.md, "The touchscreen").
+QVR_CVAR(vr_touch_press, "0.5", CVAR_ARCHIVE)          // a touch begins with the fingertip this near the face (or through it), having come from in front
+QVR_CVAR(vr_touch_release, "1.2", CVAR_ARCHIVE)        // ... and ends this far off it (above vr_touch_press: no flicker)
+QVR_CVAR(vr_touch_depth, "4", CVAR_ARCHIVE)            // ... or this far through it
+QVR_CVAR(vr_touch_hard, "1.5", CVAR_ARCHIVE)           // pressed this far through the face: a hard press (Doom: fire while steering)
+QVR_CVAR(vr_touch_hover, "4", CVAR_ARCHIVE)            // in front within this: hovering (the widget under it lights up, a cursor shows)
+QVR_CVAR(vr_touch_margin, "0.5", CVAR_ARCHIVE)         // a touch counts this far past the screen's edges (on the edge)
+QVR_CVAR(vr_touch_debounce, "0.06", CVAR_ARCHIVE)      // s: a new touch no sooner after the last ended
+QVR_CVAR(vr_touch_haptic, "0.3", CVAR_ARCHIVE)         // the touching hand's buzz as a touch begins (0 none, 1 strong)
+QVR_CVAR(vr_debug_touch, "0", CVAR_NONE)               // Debug: 1 touches' starts and ends printed, 2 every frame's fingertip against the screen
+// Doom on the wrist gadget (vr_doom.cpp, docs/vr-port/DOOM.md): qvr_doom.dll, loaded when first opened (vr_doom).
+QVR_CVAR(vr_doom_wad, "", CVAR_ARCHIVE)                // the IWAD (a path, or a file name vr_doom_wads lists); empty: your own DOOM/DOOM II when found (Steam, GOG, quakevr/doom/wads), else Freedoom
+QVR_CVAR(vr_doom_wad_dir, "", CVAR_ARCHIVE)            // another folder searched for IWADs (besides quakevr/doom/wads and the stores)
+QVR_CVAR(vr_doom_args, "", CVAR_ARCHIVE)               // more of Doom's command line (-file my.wad, -skill 4, -warp 1 1, -fast)
+QVR_CVAR(vr_doom_controls, "1", CVAR_ARCHIVE)          // 0 touch only (the sticks and buttons stay Quake's); 1 the touchscreen and, while Doom has the focus, the gadget hand's stick and buttons; 2 those only (no touch controls)
+QVR_CVAR(vr_doom_overlay, "0", CVAR_ARCHIVE)           // the touch controls drawn: 0 while the fingertip is near (always with touch only), 1 always, 2 never
+QVR_CVAR(vr_doom_hard_fire, "1", CVAR_ARCHIVE)         // a hard press (vr_touch_hard) on the move stick or the picture fires
+QVR_CVAR(vr_doom_always_run, "1", CVAR_ARCHIVE)        // Doom's always run (the touch bar's RUN)
+QVR_CVAR(vr_doom_volume, "0.5", CVAR_ARCHIVE)          // Doom's sounds (from the gadget) against the game's
+QVR_CVAR(vr_doom_attenuation, "2", CVAR_ARCHIVE)       // how fast they fade with distance (Quake's: 1 normal, 3 a small source; 0 everywhere)
+QVR_CVAR(vr_doom_focus_look, "0.5", CVAR_ARCHIVE)      // s the screen must be looked at (raised, facing you, within vr_doom_focus_angle) for Doom to take the controls (0: only a touch gives it)
+QVR_CVAR(vr_doom_focus_angle, "25", CVAR_ARCHIVE)      // degrees off the view's middle the screen may be and count as looked at
+QVR_CVAR(vr_doom_focus_grace, "0.5", CVAR_ARCHIVE)     // s out of view before the controls go back to Quake
+QVR_CVAR(vr_doom_pause_unfocused, "0", CVAR_ARCHIVE)   // 1: Doom pauses whenever it hasn't the focus; 0: it keeps running (Quake's pause pauses it always)
+QVR_CVAR(vr_doom_aspect, "1", CVAR_ARCHIVE)            // 1: the picture 4:3, as Doom was shown (bars at the sides); 0: stretched over the screen
+QVR_CVAR(vr_doom_crt, "1", CVAR_ARCHIVE)               // the CRT look on Doom's picture, times vr_gadget_crt's (0: a clean picture)
+QVR_CVAR(vr_doom_panel, "0", CVAR_ARCHIVE)             // 1: Doom on a big floating panel in front of you (placed when turned on, moving with you; touch it too) instead of the gadget
+QVR_CVAR(vr_doom_panel_size, "0.5", CVAR_ARCHIVE)      // m: the panel's width
+QVR_CVAR(vr_doom_panel_distance, "0.6", CVAR_ARCHIVE)  // m: how far in front it is placed
+QVR_CVAR(vr_debug_doom, "0", CVAR_NONE)                // Debug: 1 Doom's text, focus changes and menu taps printed, 2 every key sent
 QVR_CVAR(vr_gadget_crt, "1", CVAR_ARCHIVE)            // the screen looks like a small CRT (scanlines, a flicker, faint static, now and then a glitch): strength (0 off, up to 2)
 QVR_CVAR(vr_player_hue, "128", CVAR_ARCHIVE)          // the player's colour (vr_hue.hpp): the hue (degrees; 128 green, 40 amber, 200 blue) of the gadget's and weapons' screens, the sights, the force grab, the teleport arc, the crosshair, the menu laser (each: -1 follows it),
 QVR_CVAR(vr_player_saturation, "1", CVAR_ARCHIVE)     // and how saturated they are (1 as made, 0 white, up to 2)

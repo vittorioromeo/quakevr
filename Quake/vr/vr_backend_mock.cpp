@@ -6,6 +6,7 @@
 
 #include "vr_angvel.hpp"
 #include "vr_backend.hpp"
+#include "vr_touch.hpp"
 #include "vr_body.hpp"
 #include "vr_box3d.hpp"
 #include "vr_bullettime.hpp"
@@ -469,6 +470,8 @@ void mockLook_f()
 // (1 its feed end, 0 its middle, -1 its far end), `out` units off its side (vr_reload.qc: grips and hits on its box);
 // "magpalm": the palm's middle there instead of the hand's point, "magheld" the middle of what it holds (the solid
 // magazine's tests: vr_reload_mag_collide).
+// "vr_mock_hand_to <main|off> touch <x> <y> [<cm>]": its fingertip `cm` in front of the touchscreen (vr_touch.hpp: the
+// screen an app asks touches of, Doom's) at its pixel (x, y).
 // "vr_mock_hand_to <main|off> wbutton <front|side|back|degrees> [<units>] [<azimuth>]": its fingertip `units` (2) off the
 // other gun's ammo button, in front of its face, beside it or behind it, or `degrees` off its face (0 front, 180 behind)
 // turned `azimuth` degrees round it (vr_weapon_button_cone).
@@ -797,6 +800,20 @@ void mockHandTo_f()
         moveHandTo(hand, target);
         return;
     }
+    if(hand >= 0 && Cmd_Argc() >= 5 && !q_strcasecmp(Cmd_Argv(2), "touch"))
+    {
+        // The touchscreen (vr_touch.hpp): the fingertip `cm` (0) in front of the screen an app asks touches of, at its
+        // pixel (x, y); a step to 0 or under touches it, back out to 2 lets go.
+        glm::vec3 target{0.f};
+        if(!touch::handTarget(hand, Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Cmd_Argc() >= 6 ? Q_atof(Cmd_Argv(5)) : 0.f,
+               target))
+        {
+            Con_Printf("vr_mock_hand_to: no touchscreen asked for (Doom: vr_doom 1)\n");
+            return;
+        }
+        moveHandTo(hand, target);
+        return;
+    }
     if((ragdollPart || by) && hand >= 0)
     {
         // A ragdoll's limb (vr_ragdoll: the grab tests), `units` over its middle; or where the hand is moved by a
@@ -832,6 +849,7 @@ void mockHandTo_f()
     if(hand < 0 || (!weapon && !spot && !carried && !inHeld && !button && !wrist && !heldSpot && Cmd_Argc() != 5))
     {
         Con_Printf("usage: vr_mock_hand_to <main|off> <x> <y> <z>\n"
+                   "       vr_mock_hand_to <main|off> touch <x> <y> [<cm in front>]\n"
                    "       vr_mock_hand_to <main|off> weapon <fraction> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> spot <hotspot index> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> carried\n"

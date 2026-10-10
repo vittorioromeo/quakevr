@@ -3,6 +3,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_touch.hpp"
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
@@ -611,7 +612,9 @@ void viewFrame(const hands::State& s)
     state.viewValid = s.valid;
     Screen z;
     // A stick press starts it instead (vr_bullettime_trigger): the screen tap does nothing.
-    if(!inGame() || key_dest != key_game || !s.valid || stickHand() >= 0 || vr_bullettime_tap.value == 0.f || !tapZone(z))
+    // (An app on the gadget's screen takes its touches: the tap is off meanwhile, vr_touch.hpp.)
+    if(!inGame() || key_dest != key_game || !s.valid || stickHand() >= 0 || vr_bullettime_tap.value == 0.f || !tapZone(z) ||
+        touch::takesGadgetScreen())
     {
         state.tapPeak = 0.f;
         return;
