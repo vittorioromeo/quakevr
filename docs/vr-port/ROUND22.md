@@ -729,7 +729,7 @@ of the railing (fall protection along the whole ledge) is unchanged.
   diff is the railing's brushes only (one more brush; 2655); the .bsp's entity lump is identical to HEAD's (351
   entities, same keys and order); texts, music and banners untouched.
 - **Climb test** (headless, `vr_fixed_frames 1; vr_climb 1`, `setpos 728 -541 -120 0 90 0`, a hand-over-hand play with a
-  20-unit stroke, grips at the rungs: `scratch/mkplay2.py s6t 6 1.835 -0.733 0.667 1.78 -0.87`): new map: five strokes
+  20-unit stroke (hands at y 1.835, forward -0.733, pulled down 0.667; the top grab at 1.78, -0.87): new map: five strokes
   up, then "mantle ... up to 56.0, onto (724.4 -490.6 56.0)": on the mezzanine. The same play on HEAD's map: "no room to
   mantle" at every stroke up to z 4, then he lets go and falls. (`climb_plays.py ladder`, tuned to vrclimb, finds no
   hold in this harness: its hands sit 6 units over the rungs.)
