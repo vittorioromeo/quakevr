@@ -10847,3 +10847,40 @@ last level could be dropped the same way (550 MB at once without the budget, abo
 
 **In the headset:** nothing to see: the first hub visit after an install (or Setup's preparation) should take about as
 long as before and the PC should not page; the hitboxes are the same trees.
+
+## The last synthetic installation test before 1.0.0 (2026-10-10)
+
+The release path end to end, headless, nothing published (worktree `finaltest`, commit 0339519e; scripts and logs in its
+`scratch/ft/`). A fake Steam Quake folder (`steamapps/common/Quake`: id1's two paks, and a `quakevr` folder with the
+author's own `ironwail.cfg` (Menu Detail Developer, voice notes on, no first start) plus an `autoexec.cfg`, both echoing a
+marker): the trap of a dev config beside a player's install.
+
+| Step | Result | Numbers |
+|---|---|---|
+| `make_release.ps1 -Local -QuakeDir <fake>` | pass | 1:54 (incremental); self-tests 37/37; zip = allowlist (1,798 files); latest.json read back; packaged Setup's harness install + verify; smoke launch |
+| `qvr-setup install --package QuakeVR.zip --sandbox --quake <fake> --relight --prepare` | pass | 45.1 s: files ~4 s, preparation 41.6 s (calibration 1.2, tutorial 0.4, hub 4.7 s; 38 maps relit, "first-start relight not pending"); the hidden game's peak working set 2.67 GB, peak commit 5.0 GB; `cache/hulls` 7 files, 107 MB; the fake Quake folder unwritten |
+| `qvr-setup install --feed http://127.0.0.1:8517/latest.json` (local server) + `verify` | pass | 5.0 s, all files intact |
+| First start (the shortcut's command line, mock, hidden) | pass | no ironwail.cfg or autoexec exec'd (no marker), Menu Detail 0, voice notes 0, `vr_setup_pending` 1; VR Calibration with the welcome (0.07 s welcome, 7.07 intro), stickman shown 15,550 frames, hidden 0; no relight line; process to first frame 1.57-1.61 s |
+| Calibration to its end, the doorway | pass | the untrusted body result's page closed, "done. ... leads to the tutorial", board paths 4/0 missing |
+| Tutorial | pass | track 3, the welcome (gadget and centre print), "tips: held" 1.3 -> 10.3 s, skill 0, load 242-249 ms; rooms 1-5 played (14 gates); the arena from its start: track 9, waves, cleared, track 3 |
+| Tutorial -> hub (`vr_loading_notice 2`) | pass | changelevel 540-588 ms; hulls: 7 trees read from the disk cache (115-119 ms), 0 compiled for the world, 0 written; board paths 4/0; the notice draws (`vr_loading_preview` shot) |
+| e1m1 (Normal) | pass | load 271-313 ms; Kill All: every monster died (ragdolls, corpses), no error |
+| Second start | pass | its own `ironwail.cfg`; search path has no `quakevr` from the Quake folder; the hub |
+| `update` to a 1.0.1 test package (`qvr-setup manifest`) `--prepare` | pass | 12.8 s (preparation 11.3: caches warm); 3 files copied; the player's edited `quakevr.cfg` backed up then restored; config, saves, body calibration kept; verify intact |
+| `reinstall --clean --prepare` | pass | 15.0 s; 21 files moved to `backups\<date> reinstall` (settings, saves, personal), relit maps and caches kept; the next start is a first start again |
+
+Found:
+
+- **The playthrough script had drifted** (`vrtutorial_playtest.py`): from beyond the 40 barrier the walk back to the
+  ladder overshot by ~15 units and the third rung was out of reach (every later gate failed, the kit's build too). Fixed
+  (walked up again once stopped). Still stale, not fixed: the keycard flies off when the crate breaks (known), the
+  weapons gate ends 12 units past its bound, and the arena can keep a wave-2 monster down in the pit (x 755-930,
+  y -976, z -246) where the mock can't aim: 2 of 4 runs did not clear (the final run used Kill All after two rounds of
+  the fight loop). Worth a look in the headset: can a player see and shoot a monster down there?
+- **The mock's autopilot outlives a level change**: `vr_mock_walk_to` from the tutorial's portal went on walking in the
+  hub, from its dry spawn (-1192 -1312 48) into the lake. A test tool's matter; the hub's arrival itself is dry.
+- The body result's page: the first `togglemenu` goes to the main menu, the second closes it and the calibration goes
+  on ("close the menu to go on"). In the headset: does the menu button close it in one press?
+- The game reads the machine's own Steam rerelease (`localization`, read only) whatever Quake folder is given.
+- GitHub's `releases/latest/download/latest.json` is a 404 tonight (no game release is Latest yet): `qvr-setup update`
+  without `--package` stops there; the release's Latest guard covers it.
