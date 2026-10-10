@@ -5078,6 +5078,10 @@ za::Vector<Item> pageDebugProfiling()
         header("Memory"),
         cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
             .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
+        cycle("Memory Log: GL Count", "vr_memstats_glscan", {{0.f, "Every name"}, {1.f, "Skip free names"}, {2.f, "Both, compared"}})
+            .help("vr_memstats_glscan: the log's count of GL objects at each map load. Skip free names (5 ms): the names "
+                  "the driver hands out as free are not asked about, the same count; every name (13 ms): each asked up "
+                  "to 4096 past the last object; both: compared at every load, printed."),
         toggle("Memory Log: GPU", vr_memstats_log_gpu)
             .help("Also sample the GPU for the Memory Log (its clocks, slowdowns, and each program's use of it: SteamVR, "
                   "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture)."),

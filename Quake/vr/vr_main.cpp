@@ -99,6 +99,7 @@
 #include "vr_cleanskins.hpp"
 #include "vr_toolgun.hpp"
 
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Abort.hpp"
 #include "Zancle/Base/Assert.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -391,14 +392,26 @@ extern "C" __declspec(dllimport) int __stdcall K32GetProcessMemoryInfo(void* pro
     unsigned long size);
 #endif
 
-// Live GL objects of a kind: the names that are objects, from 1 until 4096 in a row are not.
+// Live GL objects of a kind: the names that are objects, from 1 until 4096 in a row are not. `freeNames` (sorted; may
+// be empty): names known to be no object (glGen*'s: freeGlNames), counted as misses without asking glIs*.
 using GlIsFn = GLboolean(APIENTRY*)(GLuint);
-int countGlObjects(GlIsFn isObject, GLuint& highest)
+int countGlObjects(GlIsFn isObject, GLuint& highest, const za::Vector<GLuint>& freeNames = {})
 {
     int count = 0;
     highest = 0;
+    const GLuint* f = freeNames.data();
+    const GLuint* const fEnd = f + freeNames.size();
     for(GLuint name = 1, misses = 0; misses < 4096 && name < (1u << 22); name++)
     {
+        while(f != fEnd && *f < name)
+        {
+            ++f;
+        }
+        if(f != fEnd && *f == name)
+        {
+            misses++;
+            continue;
+        }
         if(isObject(name))
         {
             count++;
@@ -412,6 +425,41 @@ int countGlObjects(GlIsFn isObject, GLuint& highest)
     }
     return count;
 }
+
+// The memory log's count at each load (vr_memstats_glscan 1): each glIs* call waits for the driver's thread (0.5 us
+// each, 12-13 ms for some 25,000), and most names it asks about are no object: the gaps between them and the 4096 after
+// the last. glGen* hands out names that are no object (the GL spec: "names not currently in use"), so one glGen* call
+// of a few thousand names (deleted again at once) answers for all of those: the count skips them and asks glIs* only
+// about the rest. The same count by construction (vr_memstats_glscan 2 checks it); a driver that hands out other names
+// (never reused, from a counter) only saves less. Programs have no glGen* (glCreateProgram makes one at a time): asked
+// as before.
+struct GlFreeNames
+{
+    za::Vector<GLuint> textures, buffers, framebuffers, queries;
+    // How many to ask for next time, per kind: the last count's gaps (its highest name less its objects) and the 4096
+    // after the last, with a margin (a shortfall only asks glIs* about the names past them).
+    za::U32 want[4]{8192, 8192, 8192, 8192};
+};
+GlFreeNames glFreeNames;
+
+using GlGenFn = void(APIENTRY*)(GLsizei, GLuint*);
+using GlDeleteFn = void(APIENTRY*)(GLsizei, const GLuint*);
+
+void freeGlNames(za::Vector<GLuint>& out, za::U32 want, GlGenFn gen, GlDeleteFn remove)
+{
+    out.clear();
+    if(!gen || !remove)
+    {
+        return;
+    }
+    out.resize(want);
+    gen(static_cast<GLsizei>(want), out.data());
+    remove(static_cast<GLsizei>(want), out.data());
+    za::quickSort(out.begin(), out.end());
+}
+
+void APIENTRY genTextures(GLsizei n, GLuint* names) { glGenTextures(n, names); }
+void APIENTRY deleteTextures(GLsizei n, const GLuint* names) { glDeleteTextures(n, names); }
 
 struct MemSample
 {
@@ -453,7 +501,8 @@ MemStatsCalls memStatsCalls;
 
 // queryGpu: the GPU's memory asked of GL (its glGets wait for the driver's thread: 2-4 ms when the GPU is busy; the
 // memory log and the status line read NVML's on a worker instead, gpustats::latestVram, where there is one).
-MemSample sampleMemory(bool scanGl = true, bool queryGpu = true)
+// skipFree: the names glGen* hands out not asked about (GlFreeNames: the same count, a tenth of the calls).
+MemSample sampleMemory(bool scanGl = true, bool queryGpu = true, bool skipFree = false)
 {
     MemSample m;
 
@@ -520,13 +569,33 @@ MemSample sampleMemory(bool scanGl = true, bool queryGpu = true)
         isQuery = reinterpret_cast<GlIsFn>(SDL_GL_GetProcAddress("glIsQuery"));
         isProgram = reinterpret_cast<GlIsFn>(SDL_GL_GetProcAddress("glIsProgram"));
     }
+    GlFreeNames& fn = glFreeNames;
+    if(skipFree)
+    {
+        freeGlNames(fn.textures, fn.want[0], genTextures, deleteTextures);
+        freeGlNames(fn.buffers, fn.want[1], GL_GenBuffersFunc, GL_DeleteBuffersFunc);
+        freeGlNames(fn.framebuffers, fn.want[2], GL_GenFramebuffersFunc, GL_DeleteFramebuffersFunc);
+        freeGlNames(fn.queries, fn.want[3], GL_GenQueriesFunc, GL_DeleteQueriesFunc);
+    }
+    const za::Vector<GLuint> none;
     GLuint highest = 0;
-    m.glTextures = countGlObjects(glIsTexture, highest);
-    const auto count = [&](GlIsFn fn) { return fn ? countGlObjects(fn, highest) : -1; };
-    m.buffers = count(isBuffer);
-    m.framebuffers = count(isFramebuffer);
-    m.queries = count(isQuery);
-    m.programs = count(isProgram);
+    const auto count = [&](GlIsFn is, const za::Vector<GLuint>& skip, za::U32* want) {
+        if(!is)
+        {
+            return -1;
+        }
+        const int n = countGlObjects(is, highest, skipFree ? skip : none);
+        if(want)
+        {
+            *want = za::min<za::U32>(65536u, highest - static_cast<za::U32>(n) + 4096u + 256u);
+        }
+        return n;
+    };
+    m.glTextures = count(glIsTexture, fn.textures, skipFree ? &fn.want[0] : nullptr);
+    m.buffers = count(isBuffer, fn.buffers, skipFree ? &fn.want[1] : nullptr);
+    m.framebuffers = count(isFramebuffer, fn.framebuffers, skipFree ? &fn.want[2] : nullptr);
+    m.queries = count(isQuery, fn.queries, skipFree ? &fn.want[3] : nullptr);
+    m.programs = count(isProgram, none, nullptr);
     m.scanMs = static_cast<double>(scanClock.getElapsedTime().asMicroseconds()) / 1e3;
     return m;
 }
@@ -999,7 +1068,8 @@ MemLog memLog;
 
 // The GL objects counted as each map loads (VR_NewMap): every name tested with glIs* up to 4096 past the last one found,
 // some 25,000 calls that wait for the driver's thread, 12-13 ms: a dropped frame when a row did it in play. A count
-// that grows from one load to the next is a leak; the rows repeat the last load's.
+// that grows from one load to the next is a leak; the rows repeat the last load's. vr_memstats_glscan 1 (GlFreeNames):
+// the names glGen* hands out not asked about, the same count in a few ms; 2: both, compared.
 MemSample glCounted;
 
 void countGlForLog()
@@ -1009,7 +1079,21 @@ void countGlForLog()
         return;
     }
     QVR_PROFILE("memory log");
-    glCounted = sampleMemory(true);
+    const int mode = static_cast<int>(vr_memstats_glscan.value);
+    glCounted = sampleMemory(true, true, mode > 0);
+    if(mode < 2)
+    {
+        return;
+    }
+    const MemSample whole = sampleMemory(true);
+    const MemSample& c = glCounted;
+    const bool same = c.glTextures == whole.glTextures && c.buffers == whole.buffers &&
+                      c.framebuffers == whole.framebuffers && c.queries == whole.queries && c.programs == whole.programs;
+    Con_Printf("vr_memstats_glscan 2: %s; %.2f ms skipping glGen*'s names, %.2f ms every name (textures %d %d, buffers "
+               "%d %d, framebuffers %d %d, queries %d %d, programs %d %d)\n",
+        same ? "the same counts" : "THE COUNTS DIFFER", c.scanMs, whole.scanMs, c.glTextures, whole.glTextures,
+        c.buffers, whole.buffers, c.framebuffers, whole.framebuffers, c.queries, whole.queries, c.programs,
+        whole.programs);
 }
 
 void writeMemLogRow(const char* reason)
