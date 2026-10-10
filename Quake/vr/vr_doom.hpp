@@ -32,6 +32,8 @@ void frame();
 [[nodiscard]] bool onGadget();
 // The texture the gadget's screen shows meanwhile (renderScreen made it; 0: none yet) and its virtual screen's size.
 [[nodiscard]] gfx::Texture gadgetTexture();
+// Its target (vr_gadget_screen_dump writes it while Doom shows).
+[[nodiscard]] const gfx::Target& screenTarget();
 // Draws Doom's screen into its texture, in the 2D pass (gadget::renderScreen): only while the gadget is shown.
 void renderScreen();
 // The floating panel (vr_doom_panel 1), in each eye's scene after the opaque entities (with the gadget's screen).

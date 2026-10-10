@@ -1608,7 +1608,7 @@ static const int scantokey[128] =
 
 static void SaveDefaultCollection(default_collection_t *collection)
 {
-#if ORIGCODE
+#if ORIGCODE || defined(QVR_DOOM) // QVR: the settings saved and loaded (default.cfg)
     default_t *defaults;
     int i, v;
     FILE *f;
@@ -1770,7 +1770,7 @@ static void SetVariable(default_t *def, char *value)
 
 static void LoadDefaultCollection(default_collection_t *collection)
 {
-#if ORIGCODE
+#if ORIGCODE || defined(QVR_DOOM) // QVR
     FILE *f;
     default_t *def;
     char defname[80];

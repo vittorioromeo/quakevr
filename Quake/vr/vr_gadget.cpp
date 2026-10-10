@@ -2594,6 +2594,8 @@ void gadgetInfo_f()
 // vr_gadget_screen_dump [name]: the screen's image as drawn this frame (before the CRT and the glow), flat, to screenshots/<name>.png (default gadget_screen), for tests.
 void screenDump_f()
 {
+    // (Doom's picture and its touch controls while Doom shows: vr_doom.)
+    const gfx::Target& target = doom::onGadget() && doom::gadgetTexture() ? doom::screenTarget() : gadget::target;
     if(!target.texture || !target.framebuffer)
     {
         Con_Printf("vr_gadget_screen_dump: no screen yet\n");

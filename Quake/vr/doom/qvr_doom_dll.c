@@ -442,7 +442,26 @@ QVR_DOOM_EXPORT int qvr_doom_init(const qvr_doom_host* h, const char* iwad, cons
     escapeSet = 1;
     doomgeneric_Create(argCount, argStore);
 
-    /* The engine's controls: the next and previous weapon on keys of their own. */
+    /* The engine's controls send these keys whatever default.cfg says (it can't keep doomgeneric's own codes over 127:
+       they would load as none), and the next and previous weapon on keys of their own. */
+    key_right = KEY_RIGHTARROW;
+    key_left = KEY_LEFTARROW;
+    key_up = KEY_UPARROW;
+    key_down = KEY_DOWNARROW;
+    key_strafeleft = KEY_STRAFE_L;
+    key_straferight = KEY_STRAFE_R;
+    key_fire = KEY_FIRE;
+    key_use = KEY_USE;
+    key_map_toggle = KEY_TAB;
+    key_menu_activate = KEY_ESCAPE;
+    key_menu_forward = KEY_ENTER;
+    key_menu_confirm = 'y';
+    key_menu_abort = 'n';
+    key_menu_back = KEY_BACKSPACE;
+    key_menu_up = KEY_UPARROW;
+    key_menu_down = KEY_DOWNARROW;
+    key_menu_left = KEY_LEFTARROW;
+    key_menu_right = KEY_RIGHTARROW;
     key_nextweapon = QVR_DOOM_KEY_NEXTWEAPON;
     key_prevweapon = QVR_DOOM_KEY_PREVWEAPON;
     escapeSet = 0;
