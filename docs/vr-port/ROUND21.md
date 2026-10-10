@@ -11314,3 +11314,57 @@ could paint 512 x 512, but would replace his repaint).
 **In the headset:** the super nailgun's barrels, the rocket launcher's front, the grappling hook's front cap,
 Mjolnir's head and the plasma gun's sides up close: the paint as before, finer, no streaks; reload the super nailgun
 and plasma gun (magazine anchors) and holster each.
+## Decals on the world: a quarter cheaper, the same image (2026-10-10, worktree `decal101`)
+
+BACKLOG "Optimise decals", PERF_DECISIONS.md 15. `play_e1m1_lights` at his eyes (2782, `--exclusive`), GPU ms:
+
+| | world+brush | the marks' share | gpu 3D | grid build (CPU, a frame) |
+|---|---|---|---|---|
+| before (HEAD~3) | 3.02 | 1.10 | 6.51 | 0.06 |
+| after | 2.74 | 0.82 | 6.44 (6.26 in a second set) | 0.07 |
+| no marks (`vr_decals 0`) | 1.93 | 0 | 5.59 | 0 |
+
+(2 runs each, back to back; a first set: 3.09 -> 2.76.) CPU busy is too noisy in this scenario to show a change.
+
+**Where the time went** (variants of the shader timed in the same scenario; sampled counters in the shader for a test
+build: each world pixel walked 12 marks of its bucket, 8.6 passed the facing test, 1.6 lay inside a mark's rectangle,
+1.4 drew one):
+- the loop over a bucket (index, then the 80-byte record, then the tests) about 0.4 ms; the work past the early-outs
+  the rest. Texture reads and their filtering cost almost nothing while the retro path's code was there (0.24 ms
+  without it); at most one mark walked a pixel: 0.04 ms.
+- the decals' retro textures' path (RetroBegin, RetroSample, the palette), skipped by a uniform branch when off, still
+  cost 0.23 ms by its presence (the compiler's registers round the loop). Splitting the loop in two under that branch
+  did not help; leaving the code out did.
+- Tried, no gain: the loop unrolled by 2 (none) or 4 (0.5 ms worse: registers), the record's fields read lazily, the
+  decals found before the world's texture reads (less kept live round the loop), the world's retro set saved only round
+  a retro mark (kept: the code it leaves in the retro programs is smaller).
+
+**What changed** (all the same image):
+- `vr_decals.cpp` worldBuckets: a mark still counts in every cell of its box (and the bucket keeps the newest 64 of
+  what it counted), but is listed only in the buckets of the cells reaching its rectangle at its full size (projected
+  along its normal; the parallax's 12-unit reach is not needed there: the shader looks the cell up at the moved point
+  itself). The count pass packs counted and listed in each bucket's header and flags the counted memberships for the
+  fill. Fight: 10.5k grid entries of 18k counted; `vr_decal_count` prints both.
+- `vr_glsl.h` DecalsAt: a pixel outside a mark's rectangle at its full size (it only spreads to it; with room for
+  rounding) skips the age, spread and filtering. The world's retro set is saved and put back round a retro mark only.
+- `gl_shaders.c`: the solid world's and its pdo programs are made with `NO_DECAL_RETRO 1` (no decal retro code);
+  `GL_WorldDecalRetroProgram` makes the ones with it the first time the decals have a retro set (`vr_retro`), so the
+  start compiles as many programs as before (233 ms warm; a first start after an update compiles everything anyway).
+- `vr_decal_stress [count] [size] [splatter|pool|wall|run]` (Debug > Test Effects > Decal Stress ...): spreading pools,
+  splatters and runs on the wall ahead, `rand` seeded so that they are laid the same way each time.
+
+**Checked the same**: in one session, paused (`showpause 0; pause`), each view shot with the old path (every cell
+listed, no early-out, the program with the retro code) and the new, twice each: start.bsp with 626 stressed marks
+(splatters, pools, wall marks, runs; 31 buckets capped) and the rocket fight's 768 marks (26 capped): 0 pixels
+different in the static views (max 0); where something still moved (a gib, a flame) old/new differed no more than
+old/old. With retro textures on decals (`vr_retro 1`): the same (old and new use the retro program). HEAD's shader
+against the new across sessions (retro on): the marks' pixels the same; only the fireplace's light differs, as it does
+between two sessions of one build.
+
+**Options left, each a visible change** (his call; PERF_DECISIONS.md 15): capping a bucket on what reaches its cells
+(old marks show again where they pile up: 1.43 -> 1.67 marks drawn a pixel in the fight) with 16-unit cells, about 0.1
+ms more but a 1.2 MB grid at each build (0.3 now); one atlas read a mark (up to 0.24 ms; blurrier or shimmering at
+grazing angles); a lower `vr_decal_max`.
+
+**In the headset**: a rocket fight's blood and scorch marks look as before (pools spreading, runs down walls, marks on
+slopes and stairs); with Retro Textures on decals the first time (a short pause while its programs are made).

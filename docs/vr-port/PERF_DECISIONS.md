@@ -266,6 +266,17 @@ its cell's bucket (up to 64, each a whole 80-byte record read before its early-o
 - **Win**: up to ~1.3 ms of GPU at 2048 (about 2.4 at his eyes) in fights that leave many marks.
 - **Drawback**: visible (fewer marks kept where they pile up).
 - **Recommendation**: his call; the fights hold 90 Hz on this machine at 2048, not at his eyes in a rocket fight.
+- **Done (2026-10-10, worktree `decal101`), the same image**: world+brush GPU at 2782 3.02 -> 2.74 ms (the marks'
+  share 1.10 -> 0.82; no marks 1.93), back to back, 2 runs each. Three changes: a mark listed only in the grid cells
+  that reach its rectangle (a bucket still keeps the newest 64 of all it counted: the same marks drawn; 10.5k grid
+  entries instead of 18k), the shader's early-out on a mark's full-size rectangle before its age, spread and filtering,
+  and the solid world's programs without the decals' retro textures' code (made when they first have a retro set): that
+  code's mere presence cost a quarter of the marks' time. The grid's build 0.06 -> 0.07 ms a frame. ROUND21.md,
+  "Decals on the world: a quarter cheaper, the same image".
+- **Options left (visible)**: a bucket capping on the marks reaching its cells (fewer capped: old marks show again where
+  they pile up) with 16-unit cells: about 0.1 ms more, a 1.2 MB grid uploaded at each build (0.3 now); one atlas read a
+  mark instead of up to 4 along a grazing view: up to 0.24 ms (blurrier or shimmering marks at grazing angles); a lower
+  `vr_decal_max`.
 
 ## Leads (2026-10-08 follow-up)
 

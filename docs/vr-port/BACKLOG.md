@@ -76,6 +76,8 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   64 marks, a whole 80-byte record each before its early-out). Reading a mark's normal and middle first was tried and
   reverted (no gain, 0.6-0.9% of the pixels changed). `vr_decal_max` lowered to 768 meanwhile (config version 118).
   Leads: fewer marks a bucket, a smaller record or a cheaper early-out, merging overlapping marks.
+  **Done in part (2026-10-10, `decal101`)**: the same image, world+brush 3.02 -> 2.74 ms at 2782 (marks 1.10 -> 0.82);
+  the options left with a visible change are in PERF_DECISIONS.md 15, for him.
 
 ### Map and game loading (ROUND21.md, "Load-time speedups without their drawbacks (1.0.1, 2026-10-10, worktree `load101`)")
 
