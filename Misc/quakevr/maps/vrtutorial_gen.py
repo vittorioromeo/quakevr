@@ -1302,7 +1302,8 @@ def build_room9():
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 192, 1, 1, 260)
     checkpoint("cp9", 4704, 288, LOW, 180)
     banner(N.join(["LESSON 9: DARKNESS", "Your flashlight hangs on your torso:", "grip it; pull the trigger to switch",
-                   "it on or off."]), 4640, r["y0"] + 4, LOW + 120, 90, "0.28")
+                   "it on or off. Hold it to your temple", "(helmet) or to a gun in your other hand",
+                   "and press B or Y: it clips on."]), 4640, r["y0"] + 4, LOW + 120, 90, "0.28")
     # (a tip shows through a closed door: each in this room and the course waits till the player is in it)
     with late():
         trigger("r9v_in", (4544, 176, LOW), (4736, 336, LOW + 96), target="r9v_in")
