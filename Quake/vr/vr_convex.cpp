@@ -9,6 +9,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
+#include "vr_jobs.hpp"
 
 #include <box3d/collision.h>
 #include <math.h>
@@ -530,6 +531,8 @@ struct Work
 
 } // namespace
 
+jobs::Site cutsSite{"convex cuts"}; // (decompose's shortlisted cuts weighed at once: vr_jobs_sites)
+
 bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, za::Vector<Piece>& pieces, Report* report)
 {
     const double start = Sys_DoubleTime();
@@ -618,36 +621,48 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
         float bestScore = w.hull->volume * 0.995f;
         int bestAxis = -1;
         float bestPlane = 0.f;
+        // (each cut's halves weighed on the pool, each into its own slot; the best then taken in the cuts' order, as one
+        // after another would)
+        za::Array<float, 3 * shortlisted> scores{};
+        za::Array<bool, 3 * shortlisted> oks{};
+        jobs::parallelFor(cutsSite, static_cast<za::SizeT>(foundCount), 1,
+            [&](za::SizeT begin, za::SizeT end)
+            {
+                za::Vector<b3Vec3> halfA, halfB;
+                for(za::SizeT c = begin; c < end; c++)
+                {
+                    const int axis = found[c].axis;
+                    const float plane = found[c].plane;
+                    Region ra = w.region, rb = w.region;
+                    ra.hi[axis] = plane;
+                    ra.cut[axis][1] = true;
+                    rb.lo[axis] = plane;
+                    rb.cut[axis][0] = true;
+                    regionPoints(corners, g, ra, halfA);
+                    regionPoints(corners, g, rb, halfB);
+                    // (Their volumes only: hulls of a fixed budget, near enough to compare.)
+                    b3HullData* ha = hull(halfA.data(), static_cast<int>(halfA.size()), 24);
+                    b3HullData* hb = hull(halfB.data(), static_cast<int>(halfB.size()), 24);
+                    // (A half of no hull: nothing there, or too flat to be one; with points, not a cut to make.)
+                    oks[c] = (ha || halfA.size() < 4) && (hb || halfB.size() < 4) && (ha || hb);
+                    scores[c] = (ha ? ha->volume : 0.f) + (hb ? hb->volume : 0.f);
+                    if(ha)
+                    {
+                        b3DestroyHull(ha);
+                    }
+                    if(hb)
+                    {
+                        b3DestroyHull(hb);
+                    }
+                }
+            });
         for(int c = 0; c < foundCount; c++)
         {
-            const int axis = found[static_cast<size_t>(c)].axis;
-            const float plane = found[static_cast<size_t>(c)].plane;
-            Region ra = w.region, rb = w.region;
-            ra.hi[axis] = plane;
-            ra.cut[axis][1] = true;
-            rb.lo[axis] = plane;
-            rb.cut[axis][0] = true;
-            regionPoints(corners, g, ra, pointsA);
-            regionPoints(corners, g, rb, pointsB);
-            // (Their volumes only: hulls of a fixed budget, near enough to compare.)
-            b3HullData* ha = hull(pointsA.data(), static_cast<int>(pointsA.size()), 24);
-            b3HullData* hb = hull(pointsB.data(), static_cast<int>(pointsB.size()), 24);
-            // (A half of no hull: nothing there, or too flat to be one; with points, not a cut to make.)
-            const bool ok = (ha || pointsA.size() < 4) && (hb || pointsB.size() < 4) && (ha || hb);
-            const float score = (ha ? ha->volume : 0.f) + (hb ? hb->volume : 0.f);
-            if(ha)
+            if(oks[static_cast<size_t>(c)] && scores[static_cast<size_t>(c)] < bestScore)
             {
-                b3DestroyHull(ha);
-            }
-            if(hb)
-            {
-                b3DestroyHull(hb);
-            }
-            if(ok && score < bestScore)
-            {
-                bestScore = score;
-                bestAxis = axis;
-                bestPlane = plane;
+                bestScore = scores[static_cast<size_t>(c)];
+                bestAxis = found[static_cast<size_t>(c)].axis;
+                bestPlane = found[static_cast<size_t>(c)].plane;
             }
         }
         if(bestAxis < 0)
