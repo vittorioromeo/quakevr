@@ -10884,3 +10884,27 @@ Found:
 - The game reads the machine's own Steam rerelease (`localization`, read only) whatever Quake folder is given.
 - GitHub's `releases/latest/download/latest.json` is a 404 tonight (no game release is Latest yet): `qvr-setup update`
   without `--package` stops there; the release's Latest guard covers it.
+
+## The last test's two findings, fixed (2026-10-10, worktree `lastfix`)
+
+- **VR Calibration's body page**: the headset's menu button already closed it in one press (`menuButton` ->
+  `menuui::backToGame`, not `togglemenu`; the mock's `vr_mock_button off menu` confirmed it: "done" the same frame).
+  `togglemenu` went to the main menu first, and Back (B, Y, Escape, the page's Back) went up the tree to the page above,
+  the menu still open and the calibration still waiting. Now, while the setup waits on Body Calibration's page (paused,
+  or the body's result not trusted: `setup::waitsOnMenu`), Back from that page and `togglemenu` close the menu at once
+  as the menu button does. The result is still not applied (the page's Apply is the only way). Tested: the untrusted
+  result's page closed by one `togglemenu`, one B and one menu-button press (each: "done", menu closed); paused, one
+  `togglemenu` and one B each restart it.
+- **The arena's pit**: the stuck monster was a **dog** (wave 2's or 3's), leapt or knocked into the pit; down there it
+  pressed against the pit's east wall towards the player (`vr_test_monsters 1` with `developer 1` now lists each live
+  monster, its enemy and whether it sees the player: "sees the player 0" every report), never found the north stairs,
+  and from the floor it can only be seen from the pit's edge looking down (from the opposite railing or the stairs). A
+  player who doesn't think to look into the pit would find the arena never clearing. Fix (QC, `func_vr_spawner`, only
+  vrtutorial uses it): a monster more than 64 units below the spot it came in at, out of the player's sight for 10 s,
+  comes back to that spot with a teleporter's flash (`spawner <name>: its monster_dog stranded out of sight ...`).
+  Seeded arena runs (`vrtutorial_playtest.py script --god --from arena --seed N`, seeds 1-6): 6/6 cleared, 2 returns;
+  before, seed 3 never cleared (a dog in the pit for the rest of the run). No map rebuild.
+- `vrtutorial_playtest.py` takes `--seed`. Its full run is still not green, both test-tool matters: the keycard is
+  sometimes not found after the crate breaks (one of two runs), and room 8's hand loading often throws the shells
+  instead of loading them, so the range's door stays shut (the player stops at x 4772, the door) and every later gate
+  fails. Not fixed (not cheap: the mock's loading motion).
