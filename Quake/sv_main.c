@@ -484,8 +484,8 @@ void SV_SendServerinfo (client_t *client)
 
 // send music
 	MSG_WriteByte (&client->message, svc_cdtrack);
-	MSG_WriteByte (&client->message, qcvm->edicts->v.sounds);
-	MSG_WriteByte (&client->message, qcvm->edicts->v.sounds);
+	MSG_WriteByte (&client->message, VR_ServerMusicTrack ((int)qcvm->edicts->v.sounds)); // QVR: target_vr_music's
+	MSG_WriteByte (&client->message, VR_ServerMusicTrack ((int)qcvm->edicts->v.sounds));
 
 // set view
 	MSG_WriteByte (&client->message, svc_setview);

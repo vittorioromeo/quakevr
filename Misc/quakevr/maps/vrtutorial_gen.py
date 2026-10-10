@@ -1558,13 +1558,33 @@ def build_room12():
                    "the settings, the firing range."]), 832, gy + 20, LOW + 176, 90, "0.3")
 
 
+# ---- The music and the welcome. Quake's CD tracks (id1's, Nine Inch Nails' soundtrack: 2 to 11; only references:
+# they play from the player's own Quake, its music folders, at his music volume; none there: silence). The author asked
+# (2026-10-10) for something atmospheric through the tutorial, something pumping in the arena, and back after it.
+MUSIC = 3          # "Aftermath": an ambient drone, unsettling but calm (worldspawn's "sounds")
+MUSIC_ARENA = 9    # "Damnation": its pounding drums, the most driving of id1's
+WELCOME = ["Welcome to the tutorial!", "", "In this short level, you'll learn", "how to play Quake VR: UNLEASHED.", "",
+           "You can skip the tutorial from the", "main menu's VR HUB (not recommended", "for first-time players)."]
+
+
+def build_extras():
+    # (written last, as late() has them: the playthrough's edict numbers stay as they were)
+    with late():
+        # the arena's track from the moment the door shuts (r12_go) until it is cleared (r12_won): the map's again
+        ent("target_vr_music", 1300, -600, LOW + 96, targetname="r12_go", sounds=MUSIC_ARENA)
+        ent("target_vr_music", 830, -900, LOW + 96, targetname="r12_won", sounds=0)
+        # the welcome in the middle of the view as soon as he is in (before any tip: a tip waits 0.5 s), for 8 s (no tip
+        # meanwhile: vr_tips.cpp)
+        ent("target_vr_message", 96, 256, 64, message=N.join(WELCOME), wait=8, delay=0.1)
+
+
 ROOMS = [build_room1, build_bend, build_room2, build_room3, build_room4, build_room5, build_room6, build_room7,
-         build_room8, build_room9, build_room10, build_room11, build_room12]
+         build_room8, build_room9, build_room10, build_room11, build_room12, build_extras]
 
 
 WORLD_KEYS = {
     "classname": "worldspawn", "mapversion": "220", "wad": ";".join(WADS),
-    "_tb_mod": "hipnotic;rogue;quakevr", "message": "Quake VR: Tutorial", "worldtype": "2", "sounds": "0",
+    "_tb_mod": "hipnotic;rogue;quakevr", "message": "Quake VR: Tutorial", "worldtype": "2", "sounds": str(MUSIC),
     "sky": "qvrday", "light": "0", "_sunlight": "260", "_sunlight_mangle": "225 -55 0",
     "_sunlight_color": "1 0.96 0.88", "_sunlight2": "420", "_sunlight2_color": "0.6 0.72 1.0", "_bounce": "1",
     "_vr_debris": "0", "_vr_crates": "0", "_qvr_prelit": "1",

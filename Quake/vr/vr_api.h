@@ -188,6 +188,7 @@ int VR_EdictIndex_Find (int start, int field, const char *s);	// PF_Find: the ne
 int VR_EdictIndex_FindFlags (int start, int field, int flags);	// PF_findflags: the same
 int VR_MonsterFrozen (struct edict_s *ent);	// SV_Physics, past the clients: a living monster frozen (vr_freeze_monsters): skipped
 void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is sent
+int VR_ServerMusicTrack (int mapTrack);	// SV_SendServerinfo: the CD track (QC vr_music_track, set by target_vr_music; else the map's)
 void VR_OnBeginLoadGame (void);			// Host_Loadgame_f, before SV_SpawnServer
 void VR_CheckLoadedReferences (int num_edicts);	// Host_Loadgame_f, the edicts parsed: an entity reference past them is the world (a dev warning)
 void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are restored

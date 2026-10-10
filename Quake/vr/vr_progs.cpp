@@ -212,6 +212,7 @@ extern "C" void VR_OnProgsLoaded()
 
         b.spawnServerFromSaveFile = globalFloat("spawnServerFromSaveFile");
         b.playerTimeOffset = globalFloat("vr_player_time_offset");
+        b.musicTrack = globalFloat("vr_music_track");
         for(int i = 0; i < numExtSpawnParms; i++)
         {
             b.extSpawnParms[i] = globalFloat(va("parm%d", firstExtSpawnParm + i));
@@ -503,6 +504,14 @@ extern "C" void VR_OnSpawnServerAfterLoad()
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerAfterLoad);
     timed("VR after load: QuakeC");
     loadingSaveGame = false;
+}
+
+// The CD track a connecting client is told (svc_serverinfo's svc_cdtrack): the one the map's QC switched to
+// (target_vr_music: vr_music_track, kept in a saved game), else the map's own (worldspawn's "sounds").
+extern "C" int VR_ServerMusicTrack(int mapTrack)
+{
+    const float* track = sv_bindings.musicTrack;
+    return track && *track >= 1.f && *track <= 255.f ? static_cast<int>(*track) : mapTrack;
 }
 
 extern "C" void VR_OnBeginLoadGame()

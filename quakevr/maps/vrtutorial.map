@@ -9,7 +9,7 @@
 "_tb_mod" "hipnotic;rogue;quakevr"
 "message" "Quake VR: Tutorial"
 "worldtype" "2"
-"sounds" "0"
+"sounds" "3"
 "sky" "qvrday"
 "light" "0"
 "_sunlight" "260"
@@ -26917,4 +26917,26 @@
 ( 4480 336 -144 ) ( 4288 336 -48 ) ( 4288 336 -144 ) trigger [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
 ( 4480 176 -144 ) ( 4480 176 -48 ) ( 4480 336 -144 ) trigger [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
+}
+// entity 386
+{
+"classname" "target_vr_music"
+"origin" "1300 -600 -48"
+"targetname" "r12_go"
+"sounds" "9"
+}
+// entity 387
+{
+"classname" "target_vr_music"
+"origin" "830 -900 -48"
+"targetname" "r12_won"
+"sounds" "0"
+}
+// entity 388
+{
+"classname" "target_vr_message"
+"origin" "96 256 64"
+"message" "Welcome to the tutorial!\n\nIn this short level, you'll learn\nhow to play Quake VR: UNLEASHED.\n\nYou can skip the tutorial from the\nmain menu's VR HUB (not recommended\nfor first-time players)."
+"wait" "8"
+"delay" "0.1"
 }

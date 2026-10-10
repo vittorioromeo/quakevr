@@ -1333,6 +1333,7 @@ void CL_ParseServerMessage (void)
 		case svc_cdtrack:
 			cl.cdtrack = MSG_ReadByte ();
 			cl.looptrack = MSG_ReadByte ();
+			Con_DPrintf ("svc_cdtrack: track %d (at %.1f)\n", cl.cdtrack, cl.time); // QVR (the tests)
 			if ( (cls.demoplayback || cls.demorecording) && (cls.forcetrack != -1) )
 				BGM_PlayCDtrack ((byte)cls.forcetrack, true);
 			else

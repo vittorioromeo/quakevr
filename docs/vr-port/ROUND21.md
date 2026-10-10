@@ -10470,3 +10470,37 @@ the same for v1.0.0-test.1), then `git tag -d v1.0.0-test.2 v1.0.0-test.1`.
   off-screen Welcome page over a test.1 install: "Quake VR: Unleashed 1.0.0-test.1 is installed / Update to
   1.0.0-test.2: only the program files that changed are replaced.", Remove..., Install again from scratch..., Use
   another install..., the Start clean box (unticked), footer button Update, corner `Installer 1.0.0-test.2`.
+
+## The tutorial's welcome; music in the calibration room and the tutorial (2026-10-10)
+
+The author (release-candidate feedback): the tutorial started abruptly, and the calibration room and the tutorial had
+no music.
+
+- **The welcome:** `target_vr_message` (QC vr_tutorial.qc): its `message` centre-printed to every player for `wait` s
+  (8), sent again each second (a centre print lasts `scr_centertime`; the same one again keeps it on, in view and in
+  the wrist's hologram); with no `targetname` it starts by itself `delay` s (1) after the map starts. vrtutorial's says
+  his words, with the real main menu row named: "Welcome to the tutorial! In this short level, you'll learn how to play
+  Quake VR: UNLEASHED. You can skip the tutorial from the main menu's VR HUB (not recommended for first-time players)."
+  (the main menu's VR HUB asks "Go to the VR Hub?" and leaves the tutorial).
+- **Tips wait for a centre print** (vr_tips.cpp `frame`, `SCR_CenterPrintShowing`): no new tip starts while one is up,
+  its delay counted from when it is gone (a tip already showing stays). For every centre print, not only the welcome
+  (a trigger's message and a tip never on show at once). `developer 1`: `tips: held while a centre print is up`, `tips:
+  the centre print gone`.
+- **Music** (CD track numbers only: they play from the player's own Quake, id1's tracks, at his music volume; none
+  there: silence, as before): the calibration room 6 ("Parallel Dimensions"), the tutorial 3 ("Aftermath"), its arena
+  9 ("Damnation") from the door shutting (`r12_go`) until "Arena cleared!" (`r12_won`), then 3 again. Chosen from id1
+  only (every owner has it; no mission pack's). `target_vr_music` (QC): `sounds` N, or 0 for the map's own; it sets the
+  saved global `vr_music_track` and sends `svc_cdtrack`; the engine's serverinfo sends `VR_ServerMusicTrack` (that
+  global, else worldspawn's `sounds`), so a game loaded mid-fight plays the arena's (QC can't write the world's `sounds`
+  while the game runs). A checkpoint respawn changes nothing (the fight goes on); a restart is the map's start (3).
+  `developer 1`: `svc_cdtrack: track N` (client), `music: track N` (QC).
+- **Maps:** the generators say the same (`vrtutorial_gen.py` `MUSIC`, `MUSIC_ARENA`, `WELCOME`, `build_extras` in
+  `late()`: the playthrough's edict numbers kept; `make_vrcalibration_map.py` `MUSIC`); the .bsp entity lumps edited in
+  place (`bsp_set_entities.py --from-file`: worldspawn's `sounds`, the three new entities appended), no recompile.
+  (The calibration .map regenerated also gained `"_qvr_prelit" "1"`, which its generator already wrote; its .bsp lump
+  was left without it.)
+- **Checked (headless):** the start: `svc_cdtrack 3`, the welcome first sent at 1.5 s (the player in), last at 9.5,
+  tips held from 1.5 to 10.5, then `t2_move` (fast and `-RealTime`; with the welcome a second later, a 0.5 s tip could
+  come first: vrtutorial's starts at 0.1 s, sent once the player is in). The arena (the playthrough from `arena`, god): 9 at the door, 3 at "Arena cleared". A save mid-
+  fight loaded: 9; then killed, back at cp12: no change; a save after the arena: 3; mid-fight `restart`: 3. The
+  calibration room: 6. The welcome in view (eye image, `vr_messages_hologram 0`).

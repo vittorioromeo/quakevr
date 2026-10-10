@@ -89,6 +89,7 @@ struct Showing
 };
 Showing showing;
 int pendingTest = -1; // vr_tips_test's tip, shown once back in the game (the menu or the console closed)
+bool centerHeld = false; // new tips held back by a centre print (frame(); for its dev messages)
 
 // The tips, in the order they are considered: the built-in ones, then the map's. `t` indexes both.
 [[nodiscard]] int tipTotal()
@@ -920,6 +921,23 @@ void frame()
     {
         drawShowing();
         return;
+    }
+    // A centre print up (the tutorial's welcome, a trigger's message): no new tip until it is gone, its delay counted
+    // from then (the two never on show at once; the author, 2026-10-10).
+    if(SCR_CenterPrintShowing())
+    {
+        if(!centerHeld)
+        {
+            Con_DPrintf("tips: held while a centre print is up (at %.1f)\n", cl.time);
+        }
+        centerHeld = true;
+        candidate.tip = -1;
+        return;
+    }
+    if(centerHeld)
+    {
+        Con_DPrintf("tips: the centre print gone (at %.1f)\n", cl.time);
+        centerHeld = false;
     }
     // The first tip not shown yet whose subject is near and seen; it shows once it has been so for its delay.
     for(int t = 0; t < tipTotal(); t++)

@@ -382,12 +382,18 @@ E.append(entity({"classname": "light", "light": "280", "wait": "0.6", "_color": 
 E.append(entity({"classname": "light", "light": "260", "wait": "1.2", "_color": "0.5 0.6 1", "origin": f"0 {PASS_Y + 24} 48"}))
 
 
+# The room's music: a CD track of Quake's own (id1's, Nine Inch Nails' soundtrack; only a reference: it plays from the
+# player's own Quake, at his music volume; none there: silence). Calm and otherworldly for setting up (the author,
+# 2026-10-10): 6, "Parallel Dimensions", its slow synth drones.
+MUSIC = 6
+
+
 def write(path):
     with open(path, "w", newline="\n") as f:
         f.write('// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/make_vrcalibration_map.py: edit that, not this.\n'
                 '// entity 0\n{\n"classname" "worldspawn"\n"mapversion" "220"\n'
                 f'"wad" "{";".join(WADS)}"\n"_tb_mod" "hipnotic;rogue;quakevr"\n'
-                '"message" "VR Calibration"\n"worldtype" "2"\n"light" "20"\n"_vr_debris" "0"\n"_vr_crates" "0"\n'
+                f'"message" "VR Calibration"\n"worldtype" "2"\n"sounds" "{MUSIC}"\n"light" "20"\n"_vr_debris" "0"\n"_vr_crates" "0"\n'
                 '"_qvr_prelit" "1"\n')  # (lit here: the game's relight batches pass it over)
         f.write("\n".join(B) + "\n}\n")
         for i, e in enumerate(E):

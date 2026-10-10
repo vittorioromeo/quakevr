@@ -32,6 +32,7 @@ void SCR_UpdateScreen (void);
 
 void SCR_UpdateZoom (void);
 void SCR_CenterPrint (const char *str);
+qboolean SCR_CenterPrintShowing (void); // QVR: a centre print is up (the tips wait: vr_tips.cpp)
 
 void SCR_BeginLoadingPlaque (void);
 void SCR_EndLoadingPlaque (void);

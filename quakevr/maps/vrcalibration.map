@@ -9,9 +9,11 @@
 "_tb_mod" "hipnotic;rogue;quakevr"
 "message" "VR Calibration"
 "worldtype" "2"
+"sounds" "6"
 "light" "20"
 "_vr_debris" "0"
 "_vr_crates" "0"
+"_qvr_prelit" "1"
 {
 ( -176 -240 -16 ) ( 176 -240 -16 ) ( 176 176 -16 ) sfloor4_2 [ 1 0 0 32 ] [ 0 -1 0 32 ] 0 1 1
 ( -176 -240 -16 ) ( 176 -240 0 ) ( 176 -240 -16 ) sfloor4_2 [ 1 0 0 32 ] [ 0 0 -1 0 ] 0 1 1

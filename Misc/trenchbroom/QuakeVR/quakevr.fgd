@@ -4024,6 +4024,20 @@ when touched."
 	]
 ]
 
+@PointClass color(153 76 255) size(-8 -8 -8, 8 8 8) =
+	target_vr_message : "Quake VR: a message ('message') in the middle of every player's view (and in the wrist's hologram) for 'wait' seconds (default 8), not the usual 2; no new tip shows until it is gone. Shown when used, or with no 'targetname' by itself
+'delay' seconds (default 1) after the map starts."
+[
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+]
+
+@PointClass color(153 76 255) size(-8 -8 -8, 8 8 8) =
+	target_vr_music : "Quake VR: when used, the music changes to CD track 'sounds' (as worldspawn's 'sounds': 2 to 11 are Quake's own), or back to the map's own track with 'sounds' 0. The tracks play from the player's own Quake (its music folders), at his music volume; none there: silence, as the map's own. A saved game keeps the track."
+[
+]
+
 @PointClass base(PlayerClass) =
 	testplayerstart : "Testing player start"
 [

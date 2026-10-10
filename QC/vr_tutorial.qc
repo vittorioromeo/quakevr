@@ -1,7 +1,8 @@
 // vr_tutorial.qc -- the scripting entities of the tutorial (vrtutorial; Misc/quakevr/maps/vrtutorial_gen.py), for
 // any map: a door that waits for full health (trigger_vr_health_gate), monsters made on demand that report when they
-// are dead (func_vr_spawner), target boards that break (func_vr_target), supplies that come back (func_vr_restock), and
-// checkpoints a dead player comes back to instead of the level restarting (info_vr_checkpoint). vr_crate's
+// are dead (func_vr_spawner), target boards that break (func_vr_target), supplies that come back (func_vr_restock),
+// checkpoints a dead player comes back to instead of the level restarting (info_vr_checkpoint), the music changed
+// (target_vr_music) and a message held in the middle of the view (target_vr_message). vr_crate's
 // "contents" (vr_crates.qc) and func_vr_tip's TRIGGERED flag (vr_tips.qc) are the other two.
 
 // (Their fields: vr_fields.qc, "The tutorial's scripting".)
@@ -513,6 +514,93 @@ float() VR_Checkpoint_Respawn =
     self.items = self.items | keys;
     dprint(sprintf("checkpoint: back at %v\n", self.origin));
     return TRUE;
+};
+
+// ----------------------------------------------------------------------------
+// target_vr_music
+
+// The CD track target_vr_music switched to (0: the map's own, worldspawn's "sounds"). Saved with the game: the engine
+// tells a connecting client this one in place of the map's (VR_ServerMusicTrack), so a game loaded mid-fight plays it.
+float vr_music_track;
+
+void() target_vr_music_use =
+{
+    vr_music_track = self.sounds;
+    float track = self.sounds ? self.sounds : world.sounds;
+    WriteByte(MSG_ALL, SVC_CDTRACK);
+    WriteByte(MSG_ALL, track);
+    WriteByte(MSG_ALL, track);
+    dprint(sprintf("music: track %g at %g\n", track, time));
+};
+
+/*QUAKED target_vr_music (0.6 0.3 1) (-8 -8 -8) (8 8 8)
+Quake VR: when used, the music changes to CD track "sounds" (as worldspawn's "sounds": 2 to 11 are Quake's own), or
+back to the map's own track with "sounds" 0. The tracks play from the player's own Quake (its music folders), at his
+music volume; none there: silence, as the map's own. A saved game keeps the track.
+*/
+void() target_vr_music =
+{
+    self.use = target_vr_music_use;
+};
+
+// ----------------------------------------------------------------------------
+// target_vr_message
+
+void() target_vr_message_think =
+{
+    if(self.cnt && time >= self.attack_finished)
+    {
+        dprint(sprintf("message: last sent at %g\n", time));
+        self.nextthink = 0; // (kept, not removed: the edicts the game spawns later stay where they were)
+        return;
+    }
+    float sent = FALSE;
+    for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    {
+        if(p.flags & FL_CLIENT)
+        {
+            centerprint(p, self.message);
+            if(!self.cnt)
+            {
+                sound(p, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
+            }
+            sent = TRUE;
+        }
+    }
+    if(sent && !self.cnt)
+    {
+        self.cnt = TRUE;
+        self.attack_finished = time + self.wait;
+        dprint(sprintf("message: first sent at %g, until %g\n", time, self.attack_finished));
+    }
+    // (sent again each second: a centre print shows for scr_centertime, and the same one again keeps it on)
+    self.nextthink = time + (sent ? 1 : 0.1);
+};
+
+void() target_vr_message_use =
+{
+    self.cnt = FALSE;
+    self.think = target_vr_message_think;
+    self.nextthink = time + 0.05;
+};
+
+/*QUAKED target_vr_message (0.6 0.3 1) (-8 -8 -8) (8 8 8)
+Quake VR: a message ("message") in the middle of every player's view (and in the wrist's hologram) for "wait" seconds
+(default 8), not the usual 2; no new tip shows until it is gone. Shown when used, or with no "targetname" by itself
+"delay" seconds (default 1) after the map starts.
+*/
+void() target_vr_message =
+{
+    if(self.wait <= 0)
+    {
+        self.wait = 8;
+    }
+    self.use = target_vr_message_use;
+    if(self.targetname == "")
+    {
+        self.think = target_vr_message_think;
+        self.nextthink = time + (self.delay > 0 ? self.delay : 1);
+    }
 };
 
 // ----------------------------------------------------------------------------

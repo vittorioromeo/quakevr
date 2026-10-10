@@ -376,6 +376,12 @@ void SCR_CheckDrawCenterString (void)
 	SCR_DrawCenterString ();
 }
 
+// QVR: a centre print is up (in view or in the wrist's hologram): new tips wait until it is gone (vr_tips.cpp).
+qboolean SCR_CenterPrintShowing (void)
+{
+	return scr_center_lines > 0 && scr_centertime_off > 0.f && !cl.intermission;
+}
+
 void SCR_ClearCenterString (void)
 {
 	scr_centertime_off = 0;
