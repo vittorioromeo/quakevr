@@ -275,7 +275,8 @@ Flow flow;
 struct SetupScratch
 {
     za::String text;
-    auto members() { return qvr::mem::list(text); }
+    za::String wrapped; // drawViewText's, its long lines broken
+    auto members() { return qvr::mem::list(text, wrapped); }
 };
 mem::Scratch<SetupScratch> scratch{"setup"};
 
@@ -733,6 +734,63 @@ void stop_f()
 
 } // namespace
 
+namespace
+{
+
+// The view's text: its characters' size (text3d units of 8 a character: 0.42 units, about 0.85 degrees each at 0.9 m
+// ahead with World Scale 1.2) and its longest line (about 37 degrees across; a longer one is broken at its last space
+// before that). The author, 2026-10-10: "increase the size ... by roughly 15-20%" (0.045 before: 18% larger now).
+constexpr float viewTextScale = 0.053f;
+constexpr size_t viewTextColumns = 44;
+constexpr size_t noSpace = ~size_t{0}; // (wrapLines: no space in the line yet)
+
+// `text` into `out`, each line longer than `columns` broken at its last space (a plain or a gold one) at or before
+// it (a word longer than that: where it reaches it).
+void wrapLines(za::StringView text, size_t columns, za::String& out)
+{
+    out.clear();
+    size_t lineStart = 0; // in out
+    size_t lastSpace = noSpace;
+    for(const char c : text)
+    {
+        if(c == '\n')
+        {
+            out += c;
+            lineStart = out.size();
+            lastSpace = noSpace;
+            continue;
+        }
+        if(out.size() - lineStart >= columns)
+        {
+            if((c & 0x7f) == ' ') // (a space just past the line: the break, in its place)
+            {
+                out += '\n';
+                lineStart = out.size();
+                lastSpace = noSpace;
+                continue;
+            }
+            if(lastSpace != noSpace && lastSpace > lineStart)
+            {
+                out[lastSpace] = '\n';
+                lineStart = lastSpace + 1;
+            }
+            else
+            {
+                out += '\n';
+                lineStart = out.size();
+            }
+            lastSpace = noSpace;
+        }
+        if((c & 0x7f) == ' ')
+        {
+            lastSpace = out.size();
+        }
+        out += c;
+    }
+}
+
+} // namespace
+
 void drawViewText(za::StringView text, float drop)
 {
     const hands::State& s = hands::current();
@@ -743,7 +801,9 @@ void drawViewText(za::StringView text, float drop)
     const float m2u = units::metresToUnits();
     const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
     const glm::vec3 at = s.head + fwd * (0.9f * m2u) - glm::vec3{0.f, 0.f, drop * m2u};
-    text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.045f);
+    za::String& wrapped = scratch.wrapped;
+    wrapLines(text, viewTextColumns, wrapped);
+    text3d::queueOverlay(wrapped, at, glm::vec3{0.f, s.headAngles.y, 0.f}, viewTextScale);
 }
 
 void init()
