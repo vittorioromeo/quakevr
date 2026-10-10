@@ -418,12 +418,15 @@ var tests = new List<(string Name, Action Body)>
             LaunchCommand.Arguments(@"C:\Games\Quake\", @"C:\Users\p\QuakeVR", LaunchVariant.Vr), "vr (trailing backslash dropped)");
         True(LaunchCommand.Arguments("a", "b", LaunchVariant.Flat).EndsWith(" +vr_enabled 0"), "flat");
         True(LaunchCommand.Arguments("a", "b", LaunchVariant.Log).EndsWith(" -condebug"), "log");
+        True(LaunchCommand.Arguments("a", "b", LaunchVariant.Diagnostics).EndsWith(" -diagnostics"), "diagnostics");
         var all = ShortcutPlanner.Plan(new ShortcutOptions { DesktopDir = @"T:\Desk", StartMenuDir = @"T:\Prog" }, @"Q:\Quake", @"T:\QVR");
-        Eq(5, all.Count, "desktop + 4 in the Start menu");
+        Eq(6, all.Count, "desktop + 5 in the Start menu");
+        Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (Diagnostics).lnk", all[4].LinkPath, "diagnostics in the Start menu");
+        True(all[4].Arguments.EndsWith(" -diagnostics", StringComparison.Ordinal), "the diagnostics shortcut's -diagnostics");
         Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (flat screen).lnk", all[2].LinkPath, "flat in the Start menu");
         Eq(@"T:\QVR", all[0].WorkingDirectory, "start in the Quake VR folder");
         var desktopOnly = ShortcutPlanner.Plan(new ShortcutOptions { DesktopDir = @"T:\Desk", StartMenu = false, Log = false }, @"Q:\Quake", @"T:\QVR");
-        Eq(2, desktopOnly.Count, "desktop: VR + flat");
+        Eq(2, desktopOnly.Count, "desktop: VR + flat (no diagnostics shortcut on the desktop)");
         Eq(0, ShortcutPlanner.Plan(new ShortcutOptions { Desktop = false, StartMenu = false }, "q", "v").Count, "none");
     }),
     (".lnk round trip through IShellLink", () =>
@@ -482,7 +485,8 @@ var tests = new List<(string Name, Action Body)>
             PackagePath = zip, TargetDir = target, QuakeDir = quake, Shortcuts = options, RelightOnFirstRun = true,
         }, progress, CancellationToken.None);
         Eq(11, record.Files.Count, "files installed");
-        Eq(5, record.Shortcuts.Count, "shortcuts");
+        Eq(6, record.Shortcuts.Count, "shortcuts");
+        True(File.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed", "Quake VR Unleashed (Diagnostics).lnk")), "the diagnostics shortcut");
         True(record.RelightPending, "relight pending");
         True(File.Exists(Path.Combine(target, "quakevr", "progs.dat")), "progs.dat");
         True(!Directory.EnumerateFiles(target, "*.qvrnew", SearchOption.AllDirectories).Any(), "no staging leftovers");
@@ -512,7 +516,7 @@ var tests = new List<(string Name, Action Body)>
         Eq("player config", File.ReadAllText(Path.Combine(target, "quakevr", "ironwail.cfg")), "config kept");
         True(File.Exists(Path.Combine(target, "quakevr", "s0.sav")), "save kept");
         True(!File.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed", "Quake VR Unleashed (flat screen).lnk")), "stale shortcut removed");
-        Eq(4, r2.Shortcuts.Count, "shortcuts after update");
+        Eq(5, r2.Shortcuts.Count, "shortcuts after update");
         Eq(record.InstalledAt, r2.InstalledAt, "install date kept");
 
         // A shortcut of the same name the player made elsewhere is never deleted.
@@ -522,7 +526,7 @@ var tests = new List<(string Name, Action Body)>
 
         File.AppendAllText(Path.Combine(target, "quakevr", "default.cfg"), "\n// player edit");
         var u = Uninstaller.Uninstall(target, new UninstallOptions());
-        Eq(4, u.ShortcutsRemoved, "shortcuts removed");
+        Eq(5, u.ShortcutsRemoved, "shortcuts removed");
         True(!Directory.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed")), "Start menu folder removed");
         True(File.Exists(foreign), "foreign shortcut still there");
         Eq("quakevr/default.cfg", string.Join("|", u.ChangedKept), "changed shipped file kept");
@@ -1446,7 +1450,7 @@ var tests = new List<(string Name, Action Body)>
         True(File.ReadAllText(Path.Combine(backup.Dir, "quakevr", "vr_defaults.cfg")).Contains("fov 110"), "the player's vr_defaults.cfg backed up");
         Eq(0, Backup.Verify(backup.Dir).Count, "backup checked");
         True(!FirstStartRelight.Pending(target) && !r2.RelightPending && r2.Choices.RelightOnFirstRun, "relight inputs unchanged: no relight, still chosen");
-        Eq(5, r2.Shortcuts.Count, "shortcuts kept");
+        Eq(6, r2.Shortcuts.Count, "shortcuts kept");
         Eq(quakeBefore, Snapshot(quake), "Quake folder untouched");
 
         // v3 ships a new light: the relight is asked again. An update from the console (no shortcut folders) keeps the shortcuts.
@@ -1456,7 +1460,7 @@ var tests = new List<(string Name, Action Body)>
             TargetDir = target, QuakeDir = quake, RelightOnFirstRun = true,
         }, null, CancellationToken.None);
         True(FirstStartRelight.Pending(target) && r3.RelightPending, "a new light.exe: relight at the next start");
-        Eq(5, r3.Shortcuts.Count, "console update: shortcuts kept");
+        Eq(6, r3.Shortcuts.Count, "console update: shortcuts kept");
         True(File.Exists(Path.Combine(shortcuts, "Desktop", "Quake VR Unleashed.lnk")), "desktop shortcut still there");
         True(before.All(kv => Hashes()[kv.Key] == kv.Value), "player files still identical");
         // A fresh folder with Mode = Update is a normal full install.

@@ -8,6 +8,10 @@ public enum LaunchVariant
     Flat,
     /// <summary>In the headset, writing qconsole.log for a bug report (<c>-condebug</c>).</summary>
     Log,
+    /// <summary>In the headset, in the game's diagnostics mode (<c>-diagnostics</c>): a debug GL context, the OpenXR debug
+    /// messages, the console, the crash report and the runtimes' logs in quakevr\diagnostics\&lt;date&gt;_&lt;time&gt;
+    /// (Quake/vr/vr_diagnostics.cpp). Start menu only.</summary>
+    Diagnostics,
 }
 
 /// <summary>
@@ -29,6 +33,7 @@ public static class LaunchCommand
         {
             LaunchVariant.Flat => " +vr_enabled 0",
             LaunchVariant.Log => " -condebug",
+            LaunchVariant.Diagnostics => " -diagnostics",
             _ => "",
         };
         return string.IsNullOrWhiteSpace(extra) ? args : args + " " + extra.Trim();
