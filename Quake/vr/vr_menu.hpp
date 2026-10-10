@@ -73,6 +73,12 @@ void init();
 // Ironwail's menus as menu.c's M_ContentRightBelow says (the main menu's rows as drawn, the others M_ContentExtent's).
 // The corner's version label and update notice keep right of it (vr_menubrand.cpp).
 [[nodiscard]] float contentRightBelow(float y);
+// And the leftmost (1e9: nothing there): a flat screen's Recording button keeps left of it (vr_menuui.cpp).
+[[nodiscard]] float contentLeftBelow(float y);
+
+// "Recording" (the corner's button, bottom left): Graphics > Recording (the desktop window's view, the spectator camera,
+// OBS) from any menu, at any Menu Detail (VR Settings links to it at Standard too); Back returns where it was pressed.
+void jumpToRecording();
 
 // Menu Detail at Developer (vr_menu_level 2): the tuning and testing pages, the corner's Checklist button.
 [[nodiscard]] bool developerLevel();

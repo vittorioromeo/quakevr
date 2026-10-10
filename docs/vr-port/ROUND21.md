@@ -10977,3 +10977,31 @@ gadget.
   worldtext::viewMessageShowing()`).
 - `developer 1`: `view message: 8.0 s at 1.50 (in view | centre print)`. Checked headless in vrtutorial: sent at 1.5,
   tips held from 1.5 to 9.5 (flat: 9.4), then the first tip; the screenshot shows it in front of the view at eye level.
+
+## A Recording button in the menus' bottom left corner; Jump Out of Water in VR Settings (2026-10-10, worktree `recbtn`)
+
+His requests: a button in the menu's bottom left corner that opens the recording menu, and "Jump Out of Water" below
+"Swimming" in the basic VR Settings too.
+
+- **Recording button** (vr_menuui.cpp). In the headset (the VR menu style) it is a row of the bottom left corner's stack,
+  styled as its neighbours: row 0 the spectator camera's switch (unchanged, in the corner), row 1 "Recording Settings"
+  (short "Recording" where the column is narrow; a film camera icon, the label as the corner's buttons'), row 2 OBS's row
+  when shown (it was row 1). The spectator preview goes above the top row, and the column's banner now ends above the
+  rows (`menuui::cornerRowsTop`; before, only above the panel's bottom). The laser lights it with a tick; the trigger
+  opens Graphics > Recording (`menu::jumpToRecording`: `openFromAnywhere`, so Back returns to the menu it was pressed
+  on, the main menu included). Laser only, like the switch and OBS's row (the sticks' corner selection covers the top
+  column only).
+- On a flat screen (VR off, with `vr_menu_flat_shortcuts`) it is a small box in the canvas's bottom left corner in the
+  version box's style (its corner distance, padding and 5-pixel letters: "Recording"), lit under the desktop mouse, a
+  click opens the page. It is drawn only where nothing the menu draws reaches beside it (`menu::contentLeftBelow`, new,
+  the mirror of `contentRightBelow`; menu.c `M_ContentLeftBelow`: the main menu's rows from their cursor's column x 54,
+  the others `M_ContentLeft` down to `M_ContentExtent`'s bottom) nor the flat banner comes down to it.
+- **Menu Detail:** the Recording page (65) is listed at Advanced but VR Settings already links to it at Standard, and
+  its 49 rows show at Standard; the button opens it at every level without raising Menu Detail.
+- Tests: `vr_mock_laser recording`, `vr_mock_mouse recording [click]`; `menu_vr pos` prints `recording button ...`
+  (the headset's row, or the flat box and why it was left out). Checked headless: the headset at vr_menu_height 1.35 and
+  1 (main menu, Levels list, VR Settings; no overlap, banner above the rows), with OBS's row (mock server: three rows),
+  the flat screen at 960x540, 640x480 and 1600x600 (main menu, Options, VR Settings); press, page 65 at Standard, Escape
+  back to the main menu. `obs_test.py` 15/15 (OBS's row at row 2).
+- **Jump Out of Water** (`vr_water_jump`, toggle, the same help as Movement > Swimming's) right below Swimming on the VR
+  Settings page (Standard). `vr_menu_dump 0` lists it there; no menu path changed (`vr_menu_path_check` 0 missing).

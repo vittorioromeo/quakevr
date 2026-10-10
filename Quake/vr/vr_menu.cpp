@@ -85,6 +85,7 @@ const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu
 extern int m_singleplayer_cursor; // menu.c: Single Player's (menu_vr pos)
 int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
 float M_ContentRightBelow(float y); // menu.c: how far right its menu shown draws below y (the main menu's rows as drawn)
+float M_ContentLeftBelow(float y);  // menu.c: and how far left (1e9: nothing below y)
 int M_TextLeft(void); // menu.c: its leftmost text (Ironwail's lists; 320 for Quake's menus)
 void M_Main_Layout(int* step, int* gap); // menu.c: the main menu's rows' spacing and its groups' gaps
 }
@@ -11926,6 +11927,7 @@ void qvr::menu::command_f()
                     m_state == m_vr ? static_cast<int>(menu::contentLeft()) : M_TextLeft());
             }
             menuui::printVersionLabel();
+            menuui::printRecordingButton();
         }
         if(key_dest != key_menu || m_state != m_vr)
         {
@@ -12227,6 +12229,33 @@ float qvr::menu::contentRightBelow(float y)
     return right;
 }
 
+float qvr::menu::contentLeftBelow(float y)
+{
+    if(m_state != m_vr)
+    {
+        return M_ContentLeftBelow(y);
+    }
+    const auto build = pages[page].build;
+    const Layout l = layout();
+    if(build == pageConsole || build == pageSearch || build == pageMaps)
+    {
+        return y < static_cast<float>(l.bottom) ? contentLeft() : 1e9f; // (down to the bottom)
+    }
+    // As contentRightBelow: the rows down to the help's box (or the bottom), the help under them.
+    const za::Vector<Item>& list = menuPages.built[page];
+    const bool help = hasHelp(list);
+    float left = 1e9f;
+    if(y < static_cast<float>(help ? l.helpTop - 4 : l.bottom - 8))
+    {
+        left = static_cast<float>(pageRowsLeft());
+    }
+    if(help && y < static_cast<float>(l.helpTop + 8 * helpBoxLines()))
+    {
+        left = za::fmin(left, static_cast<float>((320 - 8 * helpColumns()) / 2 - 5));
+    }
+    return left;
+}
+
 bool qvr::menu::developerLevel()
 {
     return menuLevel() >= LevelDeveloper;
@@ -12261,6 +12290,17 @@ void qvr::menu::jumpToRelighting()
     {
         Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(pages[target].level)); // (as the corner's Advanced VR)
     }
+    if(m_state == m_vr && page == target)
+    {
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    openFromAnywhere(target); // (Back: where it was pressed)
+}
+
+void qvr::menu::jumpToRecording()
+{
+    const int target = pageIndex(pageRecording);
     if(m_state == m_vr && page == target)
     {
         S_LocalSound("misc/menu1.wav");
