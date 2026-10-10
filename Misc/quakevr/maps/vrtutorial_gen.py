@@ -1471,6 +1471,7 @@ ARENA_POOL = ((704, -1120), (960, -992))
 MEZZ_N = ((256, -512), (1408, -384))
 MEZZ_W = ((256, -1408), (384, -512))
 MEZZ_Z = LOW + 176
+MEZZ_N_GAP = (688, 768)  # the north mezzanine railing's gap over its ladder (x 704-752)
 
 
 def build_room12():
@@ -1491,7 +1492,11 @@ def build_room12():
         out.append(cylinder((391, -1000, LOW + z), (391, -952, LOW + z), 1.75, 8, TX["rung"]))
     # (on the north mezzanine's edge, its posts 0.5 in from it: at -520 it stood 8 out, in the air off the ledge; the
     # author, 2026-10-10: "detached from the actual ledge")
-    railing(out, (384, MEZZ_N[0][1] + 2), (1408, MEZZ_N[0][1] + 2), MEZZ_Z, 36)
+    # A gap where the ladder (x 704-752) arrives, 16 clear each side of it: the climb's top step leads straight on
+    # (the author, 1.0.1: the railing over the ladder's top made him climb over it). West of it posts every 76 (304
+    # long: whole-unit posts), east of it every 64 as before.
+    for x0, x1, every in ((384, MEZZ_N_GAP[0], 76), (MEZZ_N_GAP[1], 1408, 64)):
+        railing(out, (x0, MEZZ_N[0][1] + 2), (x1, MEZZ_N[0][1] + 2), MEZZ_Z, 36, every)
     # the pit, its stairs, the pool at its bottom
     (px0, py0), (px1, py1) = PIT
     air("arena_pit", (px0, py0, LOW - 128), (px1, py1, LOW), style=bands(TX["panel5"]))

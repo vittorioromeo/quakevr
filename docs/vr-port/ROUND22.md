@@ -718,3 +718,26 @@ finds invalid instead of passing them down. It is in Debug > Crashes > Diagnosti
 **To test with a headset**: start with the Diagnostics shortcut, play a minute, and quit. Then open
 `quakevr\diagnostics\<date>_<time>\openxr_validation.log`. Anything other than the header, the initialize/destroy
 lines and the known false positive is a real finding about the game's OpenXR calls on that runtime.
+## Patch 1.0.1: the arena's mezzanine ladder tops out through the railing (2026-10-10, worktree `ladder`)
+
+The north mezzanine's ladder (x 704-752, its rungs on the ledge's face at y -519) came up under the railing that
+`tutmap101` moved onto the ledge (y -510): the climb's top step met the rails, and he had to climb over them. The author
+approved a gap. `vrtutorial_gen.py`: the railing is two runs, x 384-688 (posts every 76: whole units) and 768-1408
+(every 64, as before), each with end posts; the gap (`MEZZ_N_GAP`, 688-768) is the ladder plus 16 each side. The rest
+of the railing (fall protection along the whole ledge) is unchanged.
+- Compiled with `--compile --preset final` (the shipped build, as `tutmap101`); `--check 300000`: 0 holes. The .map's
+  diff is the railing's brushes only (one more brush; 2655); the .bsp's entity lump is identical to HEAD's (351
+  entities, same keys and order); texts, music and banners untouched.
+- **Climb test** (headless, `vr_fixed_frames 1; vr_climb 1`, `setpos 728 -541 -120 0 90 0`, a hand-over-hand play with a
+  20-unit stroke, grips at the rungs: `scratch/mkplay2.py s6t 6 1.835 -0.733 0.667 1.78 -0.87`): new map: five strokes
+  up, then "mantle ... up to 56.0, onto (724.4 -490.6 56.0)": on the mezzanine. The same play on HEAD's map: "no room to
+  mantle" at every stroke up to z 4, then he lets go and falls. (`climb_plays.py ladder`, tuned to vrclimb, finds no
+  hold in this harness: its hands sit 6 units over the rungs.)
+- **Arena** (`vrtutorial_playtest.py --from arena`, mortal): seeds 1-3 cleared and alive (101, 25, 25); seed 2's first
+  run stopped at the arena's south door (health 62) and cleared on two reruns: the runs are not repeatable to the frame.
+  HEAD's map the same way (45, 62, 23, all cleared). With `--god`, both maps end some seeds in the pit (the mock's
+  walks), as `tutmap101` found.
+- Loads clean; before/after shot from over the arena floor: the rails stop either side of the ladder's top.
+
+For VR: climb the north mezzanine's ladder (right of the arena door) and step off its top onto the ledge; the railing
+should still stop a walk off the edge everywhere else.
