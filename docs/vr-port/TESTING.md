@@ -991,7 +991,7 @@ final flat image, `vr_eyeshot 3` for both eyes and `vr_window_view 2` for the
 spectator. `vr_portals_view` reports the number rendered by the last camera.
 Change `vr_portals_maxviews` live to 1, 4 and 8: one gate at 1, all three at
 4/8, with the correct distinct rooms and destination entities. Graphics >
-Teleporters > Visible Gates exposes this 1..8 limit (default 4). Views do not
+Teleporters > Visible Teleporters exposes this 1..8 limit (default 4). Views do not
 recurse, and additional passes increase rendering/shadow cost.
 
 ### Parry interrupts (2026-10-05)

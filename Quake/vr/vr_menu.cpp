@@ -5921,8 +5921,8 @@ za::Vector<Item> pageDebugTests()
             .help("Every live monster of the map hunts you at once, as if it had seen you: the full count's AI "
                   "(the benchmarks' mg3_*_awake). Reload afterward."),
         command("Whole-Map Monsters: Kill All", "vr_test_monsters 3")
-            .help("Every live monster of the map dies at once (just enough damage: deaths, corpses and up to Most "
-                  "Ragdolls ragdolls, vr_ragdoll_max). The benchmarks' mg3_*_kill. Reload afterward."),
+            .help("Every live monster of the map dies at once (just enough damage: deaths, corpses and as many ragdolls "
+                  "as Most Ragdolls allows (vr_ragdoll_max). The benchmarks' mg3_*_kill. Reload afterward."),
         open("Stealth AI", pageIndex(pageStealthTests))
             .help("The stealth AI's scenes on e1m1 (Combat > Stealth AI): seeing, hearing, touch, investigating."),
         open("Machine Horde Tests", pageIndex(pageMachineHordeTests))
@@ -6591,7 +6591,7 @@ za::Vector<Item> pageDebugTests()
                   "the engine acts on, so the reasons printed are the ones applied."),
         command("Torch Light Views", "vr_portals_lightviews")
             .help("vr_portals_lightviews [x y z]: the views whose torches and flames light this frame - your own, each "
-                  "gate's in front of you and the gates seen within those, as deep as Gates Within Gates - each with its "
+                  "gate's in front of you and the gates seen within those, as deep as Teleporters Within Teleporters - each with its "
                   "eye carried through, and what making them costs. With a point: how far a torch there counts as "
                   "(none: no view sees it)."),
         command("The View Through A Gate, Read Back", "vr_portals_shot")
@@ -6642,7 +6642,7 @@ za::Vector<Item> pageDebugTests()
         command("Into the Loop", "setpos -1560 560 24 0 180 0; noclip")
             .help("In vrteleporters: 40 units from the loop's west gate, which comes out of the east one: you see your own "
                   "back (with its head) and, through the gate beyond it, yourself again, as many gates deep as Graphics > "
-                  "Teleporters > Gates Within Gates (vr_portals_view prints the views drawn at each depth)."),
+                  "Teleporters > Teleporters Within Teleporters (vr_portals_view prints the views drawn at each depth)."),
         command("To the Heights and Water", "setpos -400 -960 24 0 180 0; noclip")
             .help("In vrteleporters: facing the floor-level gate that comes out over the 128-high platform; the pool's two "
                   "gates are in the east and south walls."),

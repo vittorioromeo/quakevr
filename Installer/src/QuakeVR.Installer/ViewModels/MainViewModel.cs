@@ -942,7 +942,7 @@ public sealed class MainViewModel : ObservableObject
             SystemChecks.Add(vr.SuggestVdxr
                 ? new CheckItem(CheckStatus.Info, "Virtual Desktop", "Installed. Quake VR plays best through its own OpenXR runtime (VDXR), as the author plays it.",
                     "The game picks VDXR by itself while the Streamer is running (or SteamVR, when that's the OpenXR runtime chosen in the Streamer; VR Settings > OpenXR Runtime: Auto). Keep the Streamer's \"Emulate Index controllers\" off.")
-                : new CheckItem(CheckStatus.Ok, "Virtual Desktop", "Installed, and its runtime (VDXR) is active: the author's setup.",
+                : new CheckItem(CheckStatus.Ok, "Virtual Desktop", "Installed, and its runtime (VDXR) is active: the developer's setup.",
                     "Keep the Streamer's \"Emulate Index controllers\" off."));
         }
         else
@@ -1672,7 +1672,7 @@ public sealed class MainViewModel : ObservableObject
         if (_report?.Vr.SuggestVdxr == true)
         {
             DoneNotes.Add(new CheckItem(CheckStatus.Info, "Virtual Desktop",
-                "The game picks Virtual Desktop's runtime (VDXR), the author's setup, by itself while the Streamer is running (or SteamVR, when that's the OpenXR runtime chosen in the Streamer; VR Settings > OpenXR Runtime: Auto)."));
+                "The game picks Virtual Desktop's runtime (VDXR), the developer's setup, by itself while the Streamer is running (or SteamVR, when that's the OpenXR runtime chosen in the Streamer; VR Settings > OpenXR Runtime: Auto)."));
         }
         Raise(nameof(SteamLaunchOptions), nameof(SteamExePath));
     }

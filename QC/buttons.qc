@@ -911,27 +911,27 @@ void() func_enemy_dispenser_use =
         {
             if(choice >= 40 && substring(mdl, 0, 6) == "owned/")
             {
-                centerprint(activator, "Needs Dawn of the Machine (mg3)");
+                centerprint(activator, "Needs Dawn of the Machine (from the Quake re-release)");
             }
             else if(choice >= 30 && choice <= 33)
             {
-                centerprint(activator, "Needs the registered Quake (pak1.pak)");
+                centerprint(activator, "Needs the full Quake (not the shareware)");
             }
             else if(choice >= 30)
             {
-                centerprint(activator, "Needs Dawn of the Machine (its rerelease folder, mg3)");
+                centerprint(activator, "Needs Dawn of the Machine (from the Quake re-release)");
             }
             else if(choice >= 14)
             {
-                centerprint(activator, "Needs Dissolution of Eternity (rogue)");
+                centerprint(activator, "Needs Dissolution of Eternity (a Quake mission pack)");
             }
             else if(choice >= 12)
             {
-                centerprint(activator, "Needs Scourge of Armagon (hipnotic)");
+                centerprint(activator, "Needs Scourge of Armagon (a Quake mission pack)");
             }
             else
             {
-                centerprint(activator, "Needs the registered Quake (pak1.pak)");
+                centerprint(activator, "Needs the full Quake (not the shareware)");
             }
         }
 

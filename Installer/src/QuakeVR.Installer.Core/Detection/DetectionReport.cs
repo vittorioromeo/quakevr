@@ -18,7 +18,7 @@ public sealed record DetectionReport(
     }
 
     /// <summary>The Quake the installer picks by itself: the first playable one, preferring one that has both the
-    /// original game and the rerelease (the author's setup).</summary>
+    /// original game and the rerelease (the developer's setup).</summary>
     public QuakeInstall? DefaultQuake =>
         Quakes.FirstOrDefault(q => q.Original.Playable && q.Rerelease.Playable) ?? Quakes.FirstOrDefault(q => q.Playable);
 
