@@ -15,14 +15,15 @@ const string Usage = """
                       (--target <dir> [--shortcuts-dir <dir>] | --sandbox <dir>) [--quake <dir>]
                       [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
                       [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register] --accept-statement
-                      [--hd] [--no-feed] [--dry-run]
+                      [--hd] [--no-feed] [--dry-run] [--prepare]
                       (--feed: the package downloaded as the window does; QVR_SETUP_FEED is the default feed. --hd: the
                        HD textures, the feed's hdtextures, else the installer's built-in pack (also with --package: the feed
                        is asked, and not needed; --no-feed never asks it). --dry-run: prints what would be downloaded and
-                       from where, then stops. --sandbox: <dir>\QuakeVR, shortcuts in <dir>\_shortcuts, downloads in <dir>\_downloads)
+                       from where, then stops. --sandbox: <dir>\QuakeVR, shortcuts in <dir>\_shortcuts, downloads in <dir>\_downloads.
+                       --prepare: then the game's preparation, as the window does: see prepare)
     qvr-setup update [--target <dir> | --sandbox <dir>] [--package <zip|folder> | --feed <url>] [--no-feed] [--dry-run]
                       [--downloads <dir>] [--quake <dir>] [--shortcuts-dir <dir>] [--setup-from <QuakeVR-Setup.exe>]
-                      [--registry-file <json> | --register]
+                      [--registry-file <json> | --register] [--prepare]
                       (the install found as detect prints it; a newer package (or another build) updates, the same or an
                        older one repairs (never a downgrade). Only program files that differ are copied; your files are
                        kept; files you changed are backed up first; HD textures only when the pack changed; the relight
@@ -35,6 +36,11 @@ const string Usage = """
                        tips seen, checklist ticks, maps and mods added by hand; --clean: all three, a new install's start
                        but for the relit maps and caches) are moved into <install>\backups\<date> reinstall, checked,
                        then the full install runs; --dry-run lists them)
+    qvr-setup prepare [--target <dir> | --sandbox <dir>] [--quake <dir>] [--relight] [--no-relight]
+                      (the game started hidden (-prepare: no headset, no config written): Quake VR's first maps loaded once
+                       for its disk caches (vrstart's first load 12 s to under 1 s), then, when the first-start relight is
+                       pending (or --relight), every map relit as the game's first start would; a finished relight removes
+                       the first-start marker. Progress in <install>\quakevr\cache\setup_prepare.txt. Ctrl+C stops it)
     qvr-setup statement                              (prints the author's statement on AI usage; install needs --accept-statement)
     qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
     qvr-setup verify --target <dir>
@@ -146,6 +152,31 @@ ShortcutOptions ShortcutsFor(string? shortcutsDir, InstallChoices? choices) => s
         DesktopDir = Path.Combine(shortcutsDir, "Desktop"), StartMenuDir = Path.Combine(shortcutsDir, "Programs"),
     };
 
+// The game's preparation run (GamePreparation): its progress on the console; 0 when it got to its end.
+int Prepare(string target, string quake, bool relight)
+{
+    Console.WriteLine($"preparing the game{(relight ? " and relighting every map" : "")} (the game hidden; Ctrl+C stops it)");
+    using var stop = new CancellationTokenSource();
+    Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Cancel(); };
+    var lastStatus = "";
+    var result = GamePreparation.Run(target, quake, relight, new SyncProgress<PreparationProgress>(p =>
+    {
+        if (p.Log is not null)
+        {
+            Console.WriteLine($"{(p.Level switch { LogLevel.Warning => "warning: ", LogLevel.Error => "error: ", _ => "" })}{p.Log}");
+        }
+        if (p.Status is { Length: > 0 } st && st != lastStatus && (p.Log is null || !st.StartsWith("Relighting the maps", StringComparison.Ordinal)))
+        {
+            lastStatus = st;
+            Console.WriteLine($"  {(p.Fraction is { } f ? $"{100 * f,3:0}% " : "")}{st}");
+        }
+    }), stop.Token);
+    Console.WriteLine($"prepare: {(result.Finished ? "done" : $"stopped: {result.Error}")} in {result.Elapsed.TotalSeconds:0.0} s; maps {result.MapsOk} ok, {result.MapsFailed} failed" +
+                      (relight ? $"; relight {(result.RelightDone ? "done" : "not finished")} ({result.Relit} relit, {result.RelightSkipped} skipped, {result.RelightFailed} failed)" : "") +
+                      $"; first-start relight {(FirstStartRelight.Pending(target) ? "still pending" : "not pending")}");
+    return result.Finished ? 0 : 1;
+}
+
 // install, and reinstall's second half (reinstall: the found install, and the files to set aside first).
 async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? reinstall)
 {
@@ -249,7 +280,7 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
     var engine = new InstallEngine();
     var record = engine.Install(plan, log, CancellationToken.None);
     Console.WriteLine($"installed {record.Files.Count} files, {record.Shortcuts.Count} shortcuts{(engine.LastBackup is { } b ? $"; backup: {b.Dir} ({b.Files.Count} files)" : "")}");
-    return 0;
+    return Flag("prepare") ? Prepare(target, quake, record.RelightPending) : 0;
 }
 
 // qvr-setup reinstall: the found install, the files the choice sets aside (dry run: listed), then InstallCommand.
@@ -382,7 +413,23 @@ async Task<int> UpdateCommand()
     }, log, CancellationToken.None);
     Console.WriteLine($"{mode.ToString().ToLowerInvariant()}: {record.Version}, {engine.LastPlan?.ToCopy.Count() ?? 0} files copied, {record.Files.Count} recorded" +
                       $"{(engine.LastBackup is { } b ? $"; backup: {b.Dir} ({b.Files.Count} files)" : "")}");
-    return 0;
+    return Flag("prepare") ? Prepare(install.Dir, quake, record.RelightPending) : 0;
+}
+
+// qvr-setup prepare: the found install's game prepared (GamePreparation).
+int PrepareCommand()
+{
+    var sandbox = Opt("sandbox") is { } sb ? new Sandbox(sb) : null;
+    var found = FindInstall(sandbox, Opt("target"));
+    if (found.Picked is not { } install)
+    {
+        Console.Write(found.Format());
+        Console.WriteLine("no install to prepare");
+        return 1;
+    }
+    var quake = Opt("quake") ?? install.Record.QuakeDir;
+    var relight = !Flag("no-relight") && (Flag("relight") || FirstStartRelight.Pending(install.Dir) || install.Record.RelightPending);
+    return Prepare(install.Dir, quake, relight);
 }
 
 try
@@ -416,6 +463,8 @@ try
             return await ReinstallCommand();
         case "update":
             return await UpdateCommand();
+        case "prepare":
+            return PrepareCommand();
         case "uninstall":
         {
             var r = Uninstaller.Uninstall(Opt("target") ?? throw new ArgumentException("--target is required"),

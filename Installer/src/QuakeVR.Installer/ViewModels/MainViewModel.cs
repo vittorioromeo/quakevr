@@ -60,6 +60,8 @@ public sealed class StartupOptions
     public bool Extras { get; set; }
     /// <summary>Never install the VC++ runtime (it is only detected).</summary>
     public bool NoPrerequisites { get; set; }
+    /// <summary>No preparation run after the install (GamePreparation): the game does that work at its first start.</summary>
+    public bool NoPrepare { get; set; }
     /// <summary>Say what the VC++ runtime's install would do; download and run nothing (tests; the harness always).</summary>
     public bool VcRedistDryRun { get; set; }
     /// <summary>Remove the install in --target (Apps &amp; Features' Uninstall): the Remove dialogs, or none with --quiet.</summary>
@@ -110,6 +112,7 @@ public sealed class StartupOptions
                 case "--silent": o.Silent = true; break;
                 case "--extras": o.Extras = true; break;
                 case "--no-prerequisites": o.NoPrerequisites = true; break;
+                case "--no-prepare": o.NoPrepare = true; break;
                 case "--vcredist-dry-run": o.VcRedistDryRun = true; break;
                 case "--uninstall": o.Uninstall = true; break;
                 case "--quiet": o.Quiet = true; break;
@@ -702,6 +705,7 @@ public sealed class MainViewModel : ObservableObject
             });
             Record = await new InstallEngine().InstallAsync(plan, progress, ct);
             await EnsureVcRuntimeAsync(http, ct);
+            await PrepareGameAsync(ct);
             LoadExisting();
             BuildDoneNotes();
             GoTo(Page.Done);
@@ -1361,6 +1365,7 @@ public sealed class MainViewModel : ObservableObject
             };
             Record = await new InstallEngine().InstallAsync(plan, progress, ct);
             await EnsureVcRuntimeAsync(http, ct);
+            await PrepareGameAsync(ct);
             LoadExisting();
             BuildDoneNotes();
             GoTo(Page.Done);
@@ -1420,6 +1425,79 @@ public sealed class MainViewModel : ObservableObject
         }, progress, ct);
         AddLog(VcResult.RuntimeReady ? LogLevel.Success : VcResult.Outcome == VcRedistOutcome.DryRun ? LogLevel.Info : LogLevel.Warning, VcResult.Message);
     }
+
+    /// <summary>The game's preparation after an install, an update or a repair (GamePreparation): Quake VR's first maps
+    /// loaded once with the game hidden (their disk caches: the hub's first load 12 s to under 1 s), then every map relit
+    /// when the relight is pending, so the first start in the headset waits for neither. Never fatal: Cancel (Skip) or a
+    /// failure leaves it to the game's first start, as before (the first-start relight's marker stays). Not in the screenshot
+    /// harness, with --no-prepare, or when the VC++ runtime the game needs is missing.</summary>
+    async Task PrepareGameAsync(CancellationToken ct)
+    {
+        PrepareResult = null;
+        if (Record is not { } record || _options.Screenshots is not null || _options.NoPrepare || VcResult is { RuntimeReady: false } || ct.IsCancellationRequested)
+        {
+            return;
+        }
+        Preparing = true;
+        try
+        {
+            Progress = 0;
+            StatusText = "Preparing the game";
+            var progress = new Progress<PreparationProgress>(p =>
+            {
+                if (p.Fraction is { } f)
+                {
+                    Progress = 100 * f;
+                }
+                if (p.Status is { Length: > 0 } st)
+                {
+                    StatusText = st;
+                }
+                if (p.Log is not null)
+                {
+                    AddLog(p.Level, p.Log);
+                }
+            });
+            var relight = record.RelightPending;
+            var result = await GamePreparation.RunAsync(InstallDir, record.QuakeDir, relight, progress, ct);
+            PrepareResult = result;
+            var later = relight ? "the game does it at its first start instead, and relights the maps then." : "the game does it at its first start instead.";
+            if (result.Cancelled)
+            {
+                AddLog(LogLevel.Warning, $"Preparing the game skipped: {later}");
+            }
+            else if (!result.Finished)
+            {
+                AddLog(LogLevel.Warning, $"Preparing the game stopped ({result.Error}): {later}");
+            }
+            else
+            {
+                AddLog(LogLevel.Success, $"The game is prepared ({result.Elapsed.TotalSeconds:0} s).");
+            }
+            Record = InstallRecord.Load(InstallDir) ?? record; // (RelightPending cleared by a finished relight)
+        }
+        finally
+        {
+            Preparing = false;
+        }
+    }
+
+    /// <summary>What the last preparation run did (null: none ran).</summary>
+    public PreparationResult? PrepareResult { get; private set; }
+
+    /// <summary>The preparation run is going: the footer's Cancel skips it.</summary>
+    public bool Preparing
+    {
+        get => _preparing;
+        private set { if (Set(ref _preparing, value)) { Raise(nameof(CancelText), nameof(InstallSubtitle)); } }
+    }
+    bool _preparing;
+
+    public string CancelText => Preparing ? "Skip" : "Cancel";
+
+    public string InstallSubtitle => Preparing
+        ? "The files are in place. Now the game is started hidden once to do its first-start work, so your first start in the headset doesn't wait for it. Skip leaves it to the game."
+        : "Every file is checked against the release's SHA-256 as it is copied.";
 
     /// <summary>What the last install did about the VC++ runtime (null: nothing needed).</summary>
     public VcRedistResult? VcResult { get; private set; }
@@ -1560,6 +1638,12 @@ public sealed class MainViewModel : ObservableObject
         DoneNotes.Clear();
         DoneNotes.Add(new CheckItem(CheckStatus.Info, "First start: VR Calibration",
             "The game takes you to the calibration room once: your height and body, then the main settings on its wall buttons."));
+        if (PrepareResult is { Finished: true } prepared)
+        {
+            DoneNotes.Add(new CheckItem(CheckStatus.Ok, "Prepared", prepared.RelightAsked && prepared.RelightDone
+                ? $"The game's first maps are ready to load at once, and every map is relit with the HD textures ({prepared.Relit} relit now{(prepared.RelightSkipped > 0 ? $", {prepared.RelightSkipped} kept from before" : "")}): the first start relights nothing. Later: Graphics > Relighting."
+                : "The game's first maps are ready to load at once (the hub's first load was about 10 seconds without it)."));
+        }
         if (Record?.RelightPending == true)
         {
             // The installer relights nothing itself: the game does, once, and skips what it relit before (an update).
@@ -1637,8 +1721,16 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    internal void SimulateDone(InstallRecord record)
+    internal void SimulatePreparing(double percent, string status, IEnumerable<(LogLevel, string)> lines)
     {
+        SimulateInstallProgress(percent, status, lines);
+        Preparing = true;
+    }
+
+    internal void SimulateDone(InstallRecord record, PreparationResult? prepared = null)
+    {
+        Preparing = false;
+        PrepareResult = prepared;
         Installing = false;
         CommandManager.InvalidateRequerySuggested();
         Record = record;

@@ -10504,3 +10504,63 @@ no music.
   come first: vrtutorial's starts at 0.1 s, sent once the player is in). The arena (the playthrough from `arena`, god): 9 at the door, 3 at "Arena cleared". A save mid-
   fight loaded: 9; then killed, back at cp12: no change; a save after the arena: 3; mid-fight `restart`: 3. The
   calibration room: 6. The welcome in view (eye image, `vr_messages_hologram 0`).
+## Level changes: "Loading..." in the headset; the first start's hub hitch and relight moved into Setup (2026-10-10)
+
+The author's release-candidate feedback (items 6 and 7): entering the tutorial's portal to the hub froze the game for
+10-15 s with nothing on screen; vrstart was slow to load ("is it getting relit?"); relight at install, not in game.
+
+**Measured first** (run.sh, exclusive, the mock headset; `vr_startup_times`; fresh-install-like: `quakevr/cache` moved
+aside, no relit maps):
+
+| load (ms) | cold (empty caches: every first start, and the first after each update) | cold, the first-start relight running beside it | after the preparation run | warm (later starts) |
+|---|---|---|---|---|
+| `map vrtutorial` | 1,805-1,939 | 2,302 | 947 | 952 |
+| tutorial -> `changelevel vrstart` | **11,961** | **13,776** | **763** | 765 |
+
+Where vrstart's cold 12.0 s went: **the world's compiled hulls, 10,626 ms** (`hull: ... waited for (built on the
+pool)`: seven trees, the player's crouch levels and the monsters' boxes, 107 MB in `cache/hulls/<build>/`, HULLS.md
+"Kept on disk"), the entities' spawn 590, alias models 513, normal maps 454 (cache empty), textures 399, the kinds'
+probes 418, rigs 130, liquids 114. **Not the relight**: Quake VR's own maps ship lit and the batch skips them (11 of
+them); the first-start batch running beside the load cost about 1.8 s more (light runs below normal priority). The hull
+cache is keyed by vr_hull.cpp's build, so every release (and every update) pays the 10 s once, at the hub.
+
+**Setup's preparation run** (INSTALLER.md section 13, "Preparation run"): after the files and the VC++ runtime, Setup
+starts the game hidden with `-prepare <QVR>\quakevr\cache\setup_prepare.txt [-preparerelight] -vrmock -noconfigwrite
+-noautoexec -nosound -nomapindex -noaddons` (and the test runs' `QVR_TEST_HIDDEN`/`QVR_TEST_BACKGROUND`/
+`QVR_NO_ERROR_DIALOG`). The engine (`Quake/vr/vr_prepare.cpp`, started by `vr_startgame` instead of the hub) loads
+vrcalibration, vrtutorial (Easy) and vrstart as a first start does (their hulls, AO and normal maps written to the disk
+caches), then with `-preparerelight` runs `vr_relight_batch everything` (the game's own relight: the same outputs and
+`.relight` stamps, so the game's staleness check finds them current), writes a line per step, and quits. Setup shows it on
+the Install page (bar, log, the footer's Cancel reads **Skip**) and, when the relight ended with no map failed or
+cancelled, removes the first-start marker and clears `relightPending`; otherwise the marker stays (the in-game relight is
+the fallback, as are new maps: Graphics > Relighting). It runs after every install, update and repair; never fatal.
+ericw-tools is not downloaded: the package already ships `light.exe` (GPL source zip beside the release); the game's
+pinned download stays the fallback. Console: `qvr-setup install|update ... --prepare`, `qvr-setup prepare`.
+
+- **Tested:** installer self-tests 37/37 (new: the progress lines, the command line, the marker removed only by a
+  finished relight, no game -> never fatal); the screenshot harness (new `4-preparing.png`, `5-done-prepared.png`, every
+  page fits). End to end in `scratch/sb1` (a fake Quake folder: id1's two paks hard-linked): `qvr-setup install --package
+  <test package> --sandbox --quake <fake> --relight --accept-statement --prepare`: 1,797 files, then the preparation in
+  92 s (maps 2.2 / 0.8 / 13.5 s; 38 maps relit in 0:28 on 32 cores), "first-start relight not pending". The sandbox
+  game's first start (its shortcut's command line, hidden, mock): VR Calibration, no "Relight: a first start" line;
+  `vr_relight_batch everything` there: "0 maps relit, 38 skipped (relit with these settings already)"; vrstart 767 ms.
+- **Not tested:** the window's real install with the preparation (a GUI); a PC without a GPU driver able to start the
+  hidden game (Setup then logs "stopped early" and leaves the marker).
+
+**"Loading..." in the headset** (`Quake/vr/vr_loading.cpp`, `vr_loading_notice` 1): a level change blocks the main
+thread, and the runtime meanwhile keeps showing the last submitted frame (then its own "not responding" view). Now
+`changelevel` (exits, map transition teleporters), `map` (menu starts), `load` (saves, the relight's reload) and
+`restart` (a death's reload) are put off (`VR_LoadingDefer`): "Loading..." is drawn 1.2 m ahead of the eyes (text3d's
+overlay: over everything, 4 cm characters on a dark backing, pitch and yaw of the head) and the command runs again once
+two headset frames with the eye images were submitted (`vr_loading_wait` holds the command buffer, so later commands keep
+their order: `changelevel vrstart; status` prints `map: vrstart`). The frame the runtime then keeps showing during the
+load is the notice, reprojected where it was drawn. With no world drawn (a map started from the menus before any map)
+the 2D canvas, shown on the runtime's panel, gets Quake's loading plaque. Off for the mock headset (test runs keep their
+frame timing) unless `vr_loading_notice 2`. Debug > (the gameplay tests page) > **Loading Notice**: the setting, **Loading
+Notice Hold** (`vr_loading_hold` 0/1/3 s: the notice held up before each load, to look at it), **Preview Loading
+Notice** (`vr_loading_preview [s]`), **Restart Map (Shows It)**. Not done: frames kept submitted during the load itself
+(the load is one blocking call; with the caches prepared the longest first-start load is now about 1 s).
+
+To try in VR: install with Setup (the Install page's preparation: "Relighting: n of m maps", Skip works), then the first
+start: no relight indicator on the wrist, and the tutorial's portal to the hub shows "Loading..." for under a second
+instead of a 10-15 s freeze. Debug > Loading Notice Hold 3 s shows the notice long enough to judge its size and place.

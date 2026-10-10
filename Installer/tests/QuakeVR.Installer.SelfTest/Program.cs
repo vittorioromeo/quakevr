@@ -586,6 +586,83 @@ var tests = new List<(string Name, Action Body)>
         Uninstaller.Uninstall(target, new UninstallOptions());
         Eq(2, FirstStartRelight.RelitCopies(target), "an uninstall keeps them (the player's files)");
     }),
+    ("game preparation: the engine's progress lines read, its command line, the marker removed only by a finished relight", () =>
+    {
+        PreparationResult Read(bool relight, params string[] lines)
+        {
+            var r = new PreparationResult { RelightAsked = relight };
+            foreach (var l in lines)
+            {
+                GamePreparation.Apply(r, l);
+            }
+            return r;
+        }
+        string[] maps = ["start 1.0.0 (2026-10-10 abc)", "step maps 1 3 vrcalibration", "map vrcalibration ok 1.5", "step maps 2 3 vrtutorial",
+            "map vrtutorial ok 0.6", "step maps 3 3 vrstart", "map vrstart failed 600.0", "result maps ok=2 failed=1"];
+        var r = Read(false, [.. maps, "done"]);
+        True(r.Started && r.Finished, "started, finished");
+        Eq(2, r.MapsOk, "maps ok");
+        Eq(1, r.MapsFailed, "maps failed");
+        var p = GamePreparation.Apply(new PreparationResult(), "step maps 3 3 vrstart");
+        True(p?.Status?.Contains("the hub") == true && p.Fraction is > 0.6 and < 0.7, "the hub's step: its name, two thirds of the bar without a relight");
+        p = GamePreparation.Apply(new PreparationResult { RelightAsked = true }, "relight 50 Relighting: 12 of 79 maps (00:41)");
+        True(p?.Fraction is > 0.5 and < 0.6 && p.Status == "Relighting: 12 of 79 maps (00:41)", "relight's progress: the maps' part then half the rest; the game's status");
+        r = Read(true, [.. maps, "step relight", "relight 99 x", "result relight ended=1 maps=12 relit=10 skipped=2 failed=0 cancelled=0 own=11 | 10 maps relit, 2 skipped in 0:42", "done"]);
+        True(r.RelightDone, "relight done");
+        Eq(10, r.Relit, "relit");
+        Eq(2, r.RelightSkipped, "skipped");
+        Eq("10 maps relit, 2 skipped in 0:42", r.RelightStatus, "the game's status line");
+        True(!Read(true, "result relight ended=1 maps=12 relit=9 skipped=2 failed=1 cancelled=0 own=11 | x", "done").RelightDone, "a map failed: not done");
+        True(!Read(true, "result relight ended=1 maps=12 relit=9 skipped=0 failed=0 cancelled=3 own=11 | x", "done").RelightDone, "cancelled: not done");
+        True(!Read(true, "result relight ended=0 maps=0 relit=0 skipped=0 failed=0 cancelled=0 own=0 | ericw-tools' light not found", "done").RelightDone, "no light.exe: not done");
+        True(GamePreparation.Apply(new PreparationResult(), "Prepare: something else") is null, "other lines ignored");
+
+        // The command line: the shortcut's, then the run's switches (no headset, no config written), hidden, no dialog.
+        var quake = Dir("prep-quake");
+        Fixtures.MakeOriginal(quake);
+        var target = Path.Combine(run, "prep-QuakeVR");
+        var record = new InstallEngine().Install(new InstallPlan
+        {
+            PackagePath = Fixtures.MakePackage(Dir("prep-pkg"), "v1"), TargetDir = target, QuakeDir = quake, RelightOnFirstRun = true,
+        }, null, CancellationToken.None);
+        var info = GamePreparation.StartInfo(target, quake, relight: true);
+        True(info.Arguments.StartsWith(LaunchCommand.Arguments(quake, target, LaunchVariant.Vr), StringComparison.Ordinal), "the shortcut's arguments first");
+        foreach (var a in new[] { "-prepare \"", "-preparerelight", "-vrmock", "-noconfigwrite", "-noautoexec", "-nosound" })
+        {
+            True(info.Arguments.Contains(a, StringComparison.Ordinal), $"argument {a}");
+        }
+        True(!GamePreparation.StartInfo(target, quake, relight: false).Arguments.Contains("-preparerelight"), "no relight: no -preparerelight");
+        Eq("1", info.Environment["QVR_TEST_HIDDEN"], "hidden");
+        Eq("1", info.Environment["QVR_NO_ERROR_DIALOG"], "no error dialog");
+        Eq(target, info.WorkingDirectory, "started in the install");
+        // The engine writes the lines read here (Quake/vr/vr_prepare.cpp), when the checkout is there.
+        for (var d = new DirectoryInfo(AppContext.BaseDirectory); d is not null; d = d.Parent)
+        {
+            var cpp = Path.Combine(d.FullName, "Quake", "vr", "vr_prepare.cpp");
+            if (File.Exists(cpp))
+            {
+                var src = File.ReadAllText(cpp);
+                True(src.Contains("\"-prepare\"") && src.Contains("\"-preparerelight\"") &&
+                     src.Contains("result relight ended=%d maps=%d relit=%d skipped=%d failed=%d cancelled=%d") &&
+                     src.Contains("\"step maps %d %d %s\"") && src.Contains("\"map %s ok %.1f\"") && src.Contains("line(\"done\")"), "the engine's lines");
+                break;
+            }
+        }
+
+        // No game to start (the fixture's package has none that runs): never fatal, the marker stays.
+        True(record.RelightPending && FirstStartRelight.Pending(target), "relight pending after the install");
+        var noGame = GamePreparation.Run(target, quake, true, null, CancellationToken.None);
+        True(!noGame.Finished && noGame.Error is not null, $"no game: not finished ({noGame.Error})");
+        True(FirstStartRelight.Pending(target) && InstallRecord.Load(target)!.RelightPending, "no game: the marker and RelightPending stay");
+        // A finished run whose relight did not finish leaves them; a finished relight removes them.
+        GamePreparation.Conclude(target, Read(true, "result relight ended=1 maps=3 relit=2 skipped=0 failed=1 cancelled=0 own=0 | x", "done"));
+        True(FirstStartRelight.Pending(target), "a failed map: the marker stays (the game relights at its first start)");
+        GamePreparation.Conclude(target, Read(true, "result relight ended=1 maps=3 relit=3 skipped=0 failed=0 cancelled=0 own=0 | x"));
+        True(FirstStartRelight.Pending(target), "not finished (no done line): the marker stays");
+        GamePreparation.Conclude(target, Read(true, "result relight ended=1 maps=3 relit=3 skipped=0 failed=0 cancelled=0 own=0 | x", "done"));
+        True(!FirstStartRelight.Pending(target) && !InstallRecord.Load(target)!.RelightPending, "a finished relight: the marker removed, RelightPending cleared");
+        Eq(0, Uninstaller.Verify(target).Count, "verify clean after");
+    }),
     ("apps & features: the entry in a test registry root, Setup's copy in the install, removed by the uninstall", () =>
     {
         // The registry is a made-up root (a JSON file); the real one is never written. HKLM is refused outright.

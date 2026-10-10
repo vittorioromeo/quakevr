@@ -22,6 +22,7 @@
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
+#include "vr_loading.hpp"
 #include "vr_main.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_menuui.hpp"
@@ -995,6 +996,7 @@ extern "C" int VR_RenderView()
     be->endFrame(eyesRendered == 2);
     profile::end();
     bench::submitted();
+    loading::submitted(eyesRendered == 2); // (the level change's notice was in them: vr_loading.cpp)
 
     // The window's spectator camera, once the headset has its images: it does not delay them.
     if(window::view() == window::View::Spectator && eyesRendered == 2)

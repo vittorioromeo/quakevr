@@ -5,7 +5,7 @@
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
             <TextBlock Text="{Binding InstallTitle}" Style="{StaticResource PageTitle}" />
-            <TextBlock Style="{StaticResource PageSubtitle}" Text="Every file is checked against the release's SHA-256 as it is copied." />
+            <TextBlock Style="{StaticResource PageSubtitle}" Text="{Binding InstallSubtitle}" />
             <DockPanel Margin="0,30,0,10">
                 <!-- The percentage in Quake's status-bar digits once Quake is found. -->
                 <skin:QuakeDigits DockPanel.Dock="Right" Text="{Binding ProgressText}" DigitHeight="30" Foreground="{StaticResource Text}" />

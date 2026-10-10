@@ -191,7 +191,7 @@
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                         <Button Content="Back" Style="{StaticResource GhostButton}" Command="{Binding BackCommand}" sfx:UiSounds.Kind="Back"
                                 Visibility="{Binding ShowBack, Converter={StaticResource BoolToVis}}" Margin="0,0,10,0" />
-                        <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}" sfx:UiSounds.Kind="Back"
+                        <Button Content="{Binding CancelText}" Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}" sfx:UiSounds.Kind="Back"
                                 Visibility="{Binding Installing, Converter={StaticResource BoolToVis}}" />
                         <Button Content="{Binding NextText}" Style="{StaticResource AccentButton}" Command="{Binding NextCommand}" MinWidth="120"
                                 Visibility="{Binding ShowNext, Converter={StaticResource BoolToVis}}" IsDefault="True" />

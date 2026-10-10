@@ -32,6 +32,14 @@ void shutdown();
 // A relighting (one map or a batch) is running.
 [[nodiscard]] bool running();
 
+// The last batch's counts (the installer's preparation run, vr_prepare.cpp): `ended` once one ended (or was cancelled).
+struct BatchResult
+{
+    bool ended{false};
+    int maps{0}, relit{0}, skipped{0}, failed{0}, cancelled{0}, alreadyLit{0};
+};
+[[nodiscard]] BatchResult lastBatch();
+
 // How far the relighting running (or the last one) is, 0..1, the maps weighed by their size; -1: none this session.
 [[nodiscard]] float progress();
 

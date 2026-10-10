@@ -95,8 +95,9 @@ original data. What changes:
      Program Files: the game writes its settings, saves and relit maps there.
    - **HD textures** (highly recommended, about 0.6 GB): the Quake Revitalization Project's map textures, for Quake and
      the mission packs you own. See [HD textures](#hd-textures-qrp).
-   - **Relight the maps at the first start** (highly recommended): the game relights your maps in the background the
-     first time it starts, with light from lamps, lava and glowing panels. VisPatch's data (about 2.5 MB, from
+   - **Relight the maps** (highly recommended): at the end of the install the game, started hidden, relights your
+     maps with light from lamps, lava and glowing panels (about a minute on a fast PC; *Skip* leaves it to the game's
+     first start, which then relights them in the background). VisPatch's data (about 2.5 MB, from
      SourceForge) comes with it, for see-through water. See [Relit maps](#relit-maps-and-see-through-water).
    - **Shortcuts** on the desktop and in the Start menu.
    - **Package:** downloaded from the latest release by default. A `QuakeVR.zip` (or a `QuakeVR` folder) next to
@@ -359,8 +360,9 @@ were compiled with liquids as solid walls for visibility, so engines keep their 
 files add water-aware visibility. QVR:U loads the relit maps in place of the originals. id Software's maps can't be
 redistributed, so they are made on your PC, once, into `quakevr\relit\` (about 210 MB).
 
-**With the installer:** tick *Relight the maps at the first start*. It also downloads VisPatch's data into
-`quakevr\tools\vispatch`, and the game relights every map in the background the first time it starts.
+**With the installer:** tick *Relight the maps*. It also downloads VisPatch's data into `quakevr\tools\vispatch`,
+and at the end of the install the game (started hidden) relights every map; skipped or interrupted, the game relights
+them in the background the first time it starts.
 
 **In the game:** *Advanced VR > Graphics > Relighting* (Menu Detail: Advanced) relights the map you are in, an
 episode, a game or every map, in the background while you play, with brightness sliders. With the VisPatch files in

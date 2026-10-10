@@ -31,6 +31,7 @@
 #include "vr_highlights.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
+#include "vr_loading.hpp"
 #include "vr_limits.hpp"
 #include "vr_mapindex.hpp"
 #include "vr_update.hpp"
@@ -54,6 +55,7 @@
 #include "vr_motion.hpp"
 #include "vr_zancle.hpp"
 #include "vr_posing.hpp"
+#include "vr_prepare.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bigfont.hpp"
 #include "vr_bodycal.hpp"
@@ -255,6 +257,14 @@ void VR_StartGame_f()
     // (A vr_motion_eval from the start-up script loads its own map: neither the hub nor the demos meanwhile.)
     if(qvr::motion::evaluating())
     {
+        return;
+    }
+
+    // The installer's preparation run (-prepare): its maps and relight, then it quits; not the first start's relight
+    // either (its marker is the installer's fallback when this one did not finish).
+    if(qvr::prepare::active())
+    {
+        qvr::prepare::start();
         return;
     }
 
@@ -1781,6 +1791,7 @@ extern "C" void VR_Init()
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
     relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)
+    loading::registerCommands(); // vr_loading_wait (vr_loading.cpp)
     cheats::registerCommands(); // vr_scene_clean, vr_scene_count (vr_cheats.cpp)
 
     state->restartRequested = true;
@@ -1876,6 +1887,7 @@ extern "C" void VR_BeginFrame()
     bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
     stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
     setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
+    loading::frame();    // "Loading..." while a level change waits for the headset to show it (vr_loading.cpp)
     retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
     configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)
     memLogFrame();
@@ -2069,6 +2081,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::obs::poll(); // OBS's recording state, and the menus' state to its thread (vr_obs.cpp)
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
     qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)
+    qvr::prepare::frame(); // the installer's preparation run's steps (-prepare: vr_prepare.cpp)
     qvr::motion::hostFrameEnd();
     qvr::allocsites::frameEnd();
     qvr::inputlag::frameEnd(); // vr_inputlag_test

@@ -64,6 +64,7 @@ about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and Smart
 | `--reduce-motion` | Animations off, as with Windows' "Animation effects" off |
 | `--silent` | No sound |
 | `--no-prerequisites` | Never install the VC++ runtime (it is still detected) |
+| `--no-prepare` | No preparation run after the install (the game hidden once: its first maps' disk caches and the pending relight, `GamePreparation`; docs/vr-port/INSTALLER.md section 13): the game's first start does that work instead |
 | `--uninstall [--quiet]` | Remove the install in `--target` (default: the install this copy of Setup is in, `<QVR>\setup`): the Remove dialogs, or none with `--quiet`. Apps & Features runs this. From the install's own copy it restarts from a copy in `%TEMP%` first |
 | `--sandbox <dir>` | A test install kept in `<dir>`: the game in `<dir>\QuakeVR`, shortcuts in `<dir>\_shortcuts`, downloads in `<dir>\_downloads`, no Apps & Features entry, the VC++ runtime only checked (`Misc\release\test_local_release.ps1`). A yellow bar says SANDBOX |
 | `QVR_SETUP_FEED` (environment) | Like `--feed` (several separated by `;`); `--feed` wins. Any feed other than the release hosts' shows a yellow TEST FEED bar on every page and `[TEST]` in the title |

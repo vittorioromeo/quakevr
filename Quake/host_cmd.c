@@ -2005,6 +2005,8 @@ static void Host_Map_f (void)
 	if (cmd_source != src_command)
 		return;
 
+	if (VR_LoadingDefer ()) // QVR: "Loading..." shown in the headset first (vr_loading.cpp): this runs again then
+		return;
 	VR_TimeLoadCommand (va ("map %s", Cmd_Argv(1))); // QVR: load timing from the command (vr_startup_times)
 	if (!VR_AddonForMapCommand(Cmd_Argv(1))) // QVR: a map package's folder mounted, or the stock game's again
 		return;
@@ -2156,6 +2158,8 @@ static void Host_Changelevel_f (void)
 	q_strlcpy (level, Cmd_Argv(1), sizeof(level));
 	if (!strcmp (sv.name, level) && Host_AutoLoad ())
 		return;
+	if (VR_LoadingDefer ()) // QVR: "Loading..." shown in the headset first (vr_loading.cpp): this runs again then
+		return;
 	VR_TimeLoadCommand (va ("changelevel %s", level)); // QVR: load timing from the command (vr_startup_times)
 
 	if (cls.state != ca_dedicated)
@@ -2192,6 +2196,8 @@ static void Host_Restart_f (void)
 	if (!(Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "fresh")) && Host_AutoLoad ())
 		return;
 
+	if (VR_LoadingDefer ()) // QVR: "Loading..." shown in the headset first (vr_loading.cpp): this runs again then
+		return;
 	q_strlcpy (mapname, sv.name, sizeof(mapname));	// mapname gets cleared in spawnserver
 	VR_TimeLoadCommand (va ("restart %s", mapname)); // QVR: load timing from the command (vr_startup_times)
 	PR_SwitchQCVM(&sv.qcvm);
@@ -2598,6 +2604,8 @@ static void Host_Loadgame_f (void)
 		Host_InvalidateSave (relname);
 		return;
 	}
+	if (VR_LoadingDefer ()) // QVR: "Loading..." shown in the headset first (vr_loading.cpp): this runs again then
+		return;
 
 	Con_SafePrintf ("Loading game from ");
 	Con_LinkPrintf (name, "%s", relname);

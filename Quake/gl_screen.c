@@ -2259,9 +2259,13 @@ void SCR_UpdateScreen (void)
 		Draw_FadeScreen (1.f);
 		SCR_DrawNotifyString ();
 	}
-	else if (scr_drawloading) //loading
+	else if (scr_drawloading || VR_LoadingPlaque ()) //loading (QVR: or a level change waiting for the headset's notice, no world drawn)
 	{
+		qboolean waited = !scr_drawloading; // QVR
+		scr_drawloading = true; // QVR: (SCR_DrawLoading draws only then)
 		SCR_DrawLoading ();
+		if (waited) // QVR
+			scr_drawloading = false;
 		SCR_DrawSbar (); // QVR
 		M_Draw ();
 	}

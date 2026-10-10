@@ -3917,6 +3917,19 @@ bool running()
     return batch.active;
 }
 
+BatchResult lastBatch()
+{
+    BatchResult r;
+    r.ended = !batch.active && batch.ended > 0.0 && !batch.single;
+    r.maps = static_cast<int>(batch.items.size());
+    r.relit = batch.relit;
+    r.skipped = batch.skipped;
+    r.failed = batch.failed;
+    r.cancelled = batch.cancelled;
+    r.alreadyLit = batch.alreadyLit;
+    return r;
+}
+
 const char* statusLine()
 {
     if(batch.active)

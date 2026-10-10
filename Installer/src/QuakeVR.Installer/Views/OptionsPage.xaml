@@ -88,9 +88,9 @@
                         <TextBlock DockPanel.Dock="Right" Text="about a minute" Style="{StaticResource Size}" />
                         <CheckBox IsChecked="{Binding Relight}">
                             <StackPanel>
-                                <TextBlock Text="Relight the maps at the first start (highly recommended)" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Text="Relight the maps (highly recommended)" Style="{StaticResource Body}" FontWeight="SemiBold" />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0"
-                                           Text="Light from lamps, lava and glowing panels, made on your PC by the game's Relighting tool." />
+                                           Text="Light from lamps, lava and glowing panels, made on your PC by the game's Relighting tool at the end of the install (skipped: at the game's first start)." />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Foreground="{StaticResource Faint}"
                                            Text="With see-through water: VisPatch's data for your games is downloaded with it (about 2.5 MB, from SourceForge)." />
                             </StackPanel>

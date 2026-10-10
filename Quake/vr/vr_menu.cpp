@@ -6496,6 +6496,19 @@ za::Vector<Item> pageDebugTests()
         command("Quarter Stamina", "vr_stamina_set 0.25").help("vr_stamina_set 0.25: a quarter of your stamina left (the run a little slower: Slower When Tired)."),
         command("Restore Stamina", "vr_stamina_set 1").help("vr_stamina_set 1: rested."),
         toggle("Hold Stamina", vr_debug_stamina_hold).help("Keeps your stamina where it is, or where the buttons above put it: nothing spends it and it doesn't come back (vr_debug_stamina_hold)."),
+        header("Loading Notice"),
+        cycle("Loading Notice", vr_loading_notice, {{0.f, "Off"}, {1.f, "Headset"}, {2.f, "Mock Too"}})
+            .help("\"Loading...\" in front of you before a level change (a map's exit, a map transition, a map started "
+                  "from the menus, a save loaded, a death's restart): the load waits until two headset frames showed "
+                  "it, as the runtime keeps showing the last frame while the game loads (vr_loading_notice). Mock Too: "
+                  "the mock headset's test runs too."),
+        cycle("Loading Notice Hold", vr_loading_hold, {{0.f, "Off"}, {1.f, "1 s"}, {3.f, "3 s"}})
+            .help("Keeps the notice up this long before each load starts, to look at it (vr_loading_hold; Off: two "
+                  "frames)."),
+        command("Preview Loading Notice", "vr_loading_preview 3")
+            .help("Shows the notice for 3 seconds without a load (vr_loading_preview [seconds])."),
+        command("Restart Map (Shows It)", "restart fresh")
+            .help("Starts this map again from its beginning, through the notice (restart fresh)."),
         header("Stuck in Walls"),
         toggle("Unstick", vr_unstick)
             .help("Found inside a wall, a door, a button or a lift, you're moved to the nearest free spot (vr_unstick). "

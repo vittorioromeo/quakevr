@@ -118,6 +118,21 @@ static class ScreenshotHarness
         vm.SimulateInstallProgress(64, "Copying HD textures", lines.TakeWhile(l => !l.Item2.Contains("copied and checked")));
         await Save(view, Path.Combine(dir, "4-install.png"));
 
+        // The game's preparation after the files (GamePreparation): the relight's progress, the footer's Skip.
+        vm.SimulatePreparing(57, "Relighting: 16 of 38 maps (0:12)",
+        [
+            (LogLevel.Info, "Preparing the game (1.0.0): its first maps loaded once, then every map relit, so the first start doesn't wait for them."),
+            (LogLevel.Info, "Prepared the calibration room (2.2 s)."),
+            (LogLevel.Info, "Prepared the tutorial (0.8 s)."),
+            (LogLevel.Info, "Prepared the hub (13.5 s)."),
+            (LogLevel.Info, "Relighting every map with ericw-tools (the game's own relight, as at its first start)."),
+        ]);
+        await Save(view, Path.Combine(dir, "4-preparing.png"));
+        report.AppendLine($"preparing: cancel button '{vm.CancelText}'");
+
+        vm.SimulateDone(new InstallRecord { Version = record.Version, QuakeDir = record.QuakeDir },
+            new PreparationResult { Started = true, Finished = true, MapsOk = 3, RelightAsked = true, RelightDone = true, Relit = 38 });
+        await Save(view, Path.Combine(dir, "5-done-prepared.png"));
         vm.SimulateDone(record);
         await Save(view, Path.Combine(dir, "5-done.png"));
         if (await PlayMuteCheck(vm, view, report) is { } muteFailed)
