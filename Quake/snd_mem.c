@@ -139,6 +139,15 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 		}
 	}
 
+	// QVR: a sound made in memory (the wrist gadget's Doom's effects: vr_doom.cpp)
+	if (!data)
+	{
+		int memsize = 0;
+		data = VR_SndMemory (s->name, &memsize);
+		if (data)
+			com_filesize = memsize;
+	}
+
 	if (!data)
 	{
 		Con_Printf ("Couldn't load %s\n", namebuffer);

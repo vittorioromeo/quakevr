@@ -409,4 +409,9 @@ void debugDraw(const hands::State& s)
     }
 }
 
+glm::vec3 pressingFingertip(const hands::State& s, int hand)
+{
+    return fingertip(s, hand);
+}
+
 } // namespace qvr::gearlights

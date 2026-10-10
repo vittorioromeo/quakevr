@@ -39,6 +39,7 @@ void Draw_Character (int x, int y, int num);
 void Draw_CharacterEx (float x, float y, float dimx, float dimy, int num);
 void Draw_Pic (int x, int y, qpic_t *pic);
 void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, const float *rgb, float alpha);
+struct gltexture_s; void Draw_TextureRect (float x, float y, float w, float h, struct gltexture_s *tex, float alpha); // QVR: a texture drawn whole (vr_gfx_gl.cpp draw2D::picture)
 void Draw_TransPicTranslate (int x, int y, qpic_t *pic, int top, int bottom); //johnfitz -- more parameters
 void Draw_ConsoleBackground (void); //johnfitz -- removed parameter int lines
 void Draw_TileClear (int x, int y, int w, int h);
