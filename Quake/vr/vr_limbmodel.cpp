@@ -599,6 +599,22 @@ void prebuild()
         return;
     }
     const double t0 = Sys_DoubleTime();
+    // Their rigs made first, all at once on the pool (warmRigs): limbInfo below asks for each kind's rig in turn, which
+    // derived them one after another here (tens of milliseconds each), before the server's own warmRigs.
+    za::Vector<qmodel_t*> rigged;
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    {
+        const edict_t* ent = EDICT_NUM(num);
+        const int index = static_cast<int>(ent->v.modelindex);
+        if(!ent->free && (static_cast<int>(ent->v.flags) & FL_MONSTER) && index > 0 && index < MAX_MODELS &&
+            sv.model_precache[index] && sv.models[index] &&
+            za::find(rigged.begin(), rigged.end(), sv.models[index]) == rigged.end())
+        {
+            rigged.pushBack(sv.models[index]);
+        }
+    }
+    ragdoll::warmRigs(rigged.data(), static_cast<int>(rigged.size()));
+    VR_TimeAdd("  their monsters' rigs (warmRigs)", Sys_DoubleTime() - t0);
     za::Vector<int> seen;
     int made = 0;
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
