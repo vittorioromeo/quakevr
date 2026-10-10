@@ -1122,7 +1122,7 @@ touchscreen's interface for other apps and the decisions: [DOOM.md](DOOM.md).
   immediate-mode widget kit; while an app takes the gadget's screen the bullet-time tap is off.
 - **Doom's controls**: the touch overlay (a drag stick, FIRE, USE, MENU, MAP, W-/W+, RUN, LOCK, X; Doom's menu by tapping
   its items, or UP/DOWN/OK/BACK; YES/NO), and while Doom has the focus (looked at 0.5 s, or touched; lost 0.5 s out of
-  view) the gadget hand's stick and buttons (Quake sees them let go); `vr_doom_controls` 0 touch only, 1 both, 2 the
+  view) the gadget hand's stick and buttons (Quake sees them let go; they change hands only once let go); `vr_doom_controls` 0 touch only, 1 both, 2 the
   controller only. Sounds: the engine's sounds at the gadget (`VR_SndMemory` makes Doom's DMX lumps WAVs), quieter.
   Music: not done (the silent music module; Nuked-OPL3 and Chocolate Doom's OPL player would do it).
 - Menu: VR Settings > *Doom on the Wrist Gadget* (also Wrist Gadget > *Doom*; `menu_vr 171`); Debug > Tests: Doom Info,
@@ -1134,7 +1134,8 @@ overlay hovered and in Doom's menu (`vr_gadget_screen_dump`); by touch: MENU, a 
 OK: E1M1; the MOVE stick walked Doom's player from x -416 to 119; FIRE held: ammo 50 to 48, its sounds played through
 the engine (one channel playing, `-Sound`); the off stick unfocused moved Quake's player (y -352 to -68) and not
 Doom's; focused (the look) Doom's (x -416 to 76) and not Quake's; Quake's menu froze both clocks (186 tics), closing it
-resumed them; looking away returned the controls and Doom kept running (201 to 246 tics); touch only: the stick stayed
+resumed them; looking away returned the controls and Doom kept running (201 to 246 tics); the off stick held as the focus came kept walking
+Quake's player (y -352 to 115) and not Doom's, until let go and pushed again (Doom's x -416 to -236); touch only: the stick stayed
 Quake's; `vr_doom_args "-warp 9 9"`: Phase 1's init error reported, Phase 2 tried and started; a restart reloaded the
 DLL with fresh globals; the DLL exports only its eleven functions; `vr_menu_path_check`: 0 missing.
 
