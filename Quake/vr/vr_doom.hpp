@@ -43,4 +43,12 @@ void drawPanel();
 // none of the off hand's buttons or its stick; its keys held before are let go).
 [[nodiscard]] bool takesOffHand(const InputState& in);
 
+// The menu's Doom page (vr_menu.cpp): the state in a line, the WADs found (searched when first asked; row -1 is "the
+// best found"), each row's text and help (its path), and picking one (vr_doom_wad; Doom restarted on it if running).
+[[nodiscard]] const char* menuStatus();
+[[nodiscard]] int wadCount();
+[[nodiscard]] const char* wadRow(int i);
+[[nodiscard]] const char* wadHelp(int i);
+void pickWad(int i);
+
 } // namespace qvr::doom
