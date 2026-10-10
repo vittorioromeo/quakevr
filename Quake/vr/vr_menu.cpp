@@ -7822,6 +7822,9 @@ za::Vector<Item> pageMain()
         cycle("Swimming", vr_swim, {{1.f, "Immersive"}, {0.f, "Vanilla"}})
             .help("Immersive: in water the stick slows and strokes of your hands move you. Vanilla: the stick swims as in "
                   "Quake."),
+        toggle("Jump Out of Water", "vr_water_jump") // (the author: here too, as on Movement > Swimming)
+            .help("On (Quake's): swimming against an edge with room above it lifts you out. Off: you climb out with your "
+                  "hands, grabbing the edge (needs Climbing on; with Climbing off, Quake's jump out stays)."),
 
         header("Comfort"),
         cycle("Vignette", vr_comfort_vignette, {{0.f, "Off"}, {1.f, "Moving and Turning"}, {2.f, "Moving Only"}, {3.f, "Turning Only"}})
