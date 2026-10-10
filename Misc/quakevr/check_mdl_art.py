@@ -362,19 +362,16 @@ def check(a, verbose):
         acc = np.zeros_like(a.pos)
         for c in range(3):
             np.add.at(acc, a.tris[:, c], nn * area[:, None])
-        # Each vertex against its own triangles (flat-shaded parts give every face its own vertices; a vertex shared
-        # by two faces of a thin part would otherwise average to nothing).
-        inv = []
-        for i in range(len(a.pos)):
-            f = acc[i]
-            if np.linalg.norm(f) < 1e-9:
-                continue
-            d = float(a.vnorm[i] @ (f / np.linalg.norm(f)))
-            if d < -0.2:
-                inv.append((i, d))
+        # Each vertex against every triangle using it (mdlpolish.fix_inverted_normals' test): a vertex shared by the
+        # two sides of a thin sheet agrees with one of them and is not counted.
+        best = np.full(len(a.pos), -2.0)
+        for c in range(3):
+            d = np.where(area > 1e-9, (a.vnorm[a.tris[:, c]] * nn).sum(1), -2.0)
+            np.maximum.at(best, a.tris[:, c], d)
+        inv = [(int(i), float(best[i])) for i in np.nonzero((best > -2.0) & (best < 0.0))[0]]
         if inv:
-            add("MED" if len(inv) > 3 else "LOW", "normal", len(inv), "vertex normals pointing against their faces",
-                ["vert %d at %s dot %.2f" % (i, a.pos[i].round(1).tolist(), d) for i, d in inv[:10]])
+            add("MED" if len(inv) > 3 else "LOW", "normal", len(inv), "vertex normals pointing against all their faces",
+                ["vert %d at %s best dot %.2f" % (i, a.pos[i].round(1).tolist(), d) for i, d in inv[:10]])
 
     # z-fighting: same plane, same facing, overlapping, different texels
     zf = []
@@ -426,7 +423,8 @@ def check(a, verbose):
             vals = img[(ys * sy + sy / 2).astype(int), (xs * sx + sx / 2).astype(int), :3].astype(np.float64) / 127.5 - 1
             neg = (vals[:, 2] < -0.05).sum()
             if neg:
-                add("HIGH", "normalmap", int(neg), "covered texels with a normal facing into the surface (z < 0)")
+                add("HIGH" if neg > 0.01 * len(vals) else "LOW", "normalmap", int(neg),
+                    "covered texels with a normal facing into the surface (z < 0), of %d" % len(vals))
             # The ring outside the islands: flat or stray normals there bleed in with linear filtering.
             ring = []
             for y, x in np.argwhere(~used):

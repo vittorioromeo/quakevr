@@ -10749,3 +10749,49 @@ vrstart's four guns (crowbar, shotguns, nailgun) on disk too; the others are cut
 **In the headset:** the first fight of a session (from the second session after this build): the first grunt's,
 enforcer's or knight's death and the first gun dropped or picked up should not stutter; guns lying about, held and
 thrown behave as before (the same pieces).
+
+## Art polishing pass: the VR weapons, gear and IK body (2026-10-10)
+
+The author's request: a general polishing pass over the models and textures of the VR weapons and the IK bodies (UVs,
+small look fixes, no big art changes). Found with a tool rather than by eye: **`Misc/quakevr/check_mdl_art.py`**
+(`py -3.13 Misc/quakevr/check_mdl_art.py [-v] [files]`, default every v_*.mdl, magazine, shell, round, pump, pouch,
+gadget, flashlight, holster, pauldron, the finger models and `hand_rig`/`vrbody*.md5mesh`): UVs out of the skin,
+streaks (triangles of real size whose UVs are a line over varied texels), stretch over 4:1 and low texel density,
+non-mirrored UV overlap, lone fullbright specks, seam-ring bleed, vertex normals against all their triangles, coplanar
+same-facing overlapping triangles (z-fighting), normal maps (size against the skin, z < 0). With `check_mdl_holes.py`
+for holes. Every generator was first rerun into scratch: all reproduce the shipped files byte for byte (the ammo
+pouch's differ only in unused texels: the old grenade squares); `make_ssg_open.py` ignores its output argument.
+
+**Fixed:**
+- **Magazine wells z-fought** under the nailguns, super nailguns, thunderbolt and plasma gun: the collar's four walls
+  ended in the lip band's bottom face plane (9 coplanar pairs per well, steel against the band's colour). `make_mags.py`
+  `TUCK` 0.04: the walls end inside the band. Bounds, header and every other vertex unchanged; their normal maps not
+  rebaked (Blender), the tucked ends are hidden.
+- **Vertex normals pointing against every triangle using them** (lit from the wrong side: dark patches): the laser
+  cannon's grip and keel (17 vertices; offline shading against face lighting on the changed pixels 19 -> 8), a few in
+  other poses of the nailguns, shotgun, rocket launchers and lightning gun. `mdlpolish.fix_inverted_normals`, the last
+  step of `polish_weapons.py` for every model; only normal bytes change. Its anchors check now compares the anchor's
+  position bytes (an anchor is a place; its normal may turn). A vertex shared by both sides of a thin sheet agrees
+  with one side and is left (turning those made the lightning gun's top worse).
+
+**Checked and left (design or invisible):** the IK body and hand are clean (no streaks, density even, the hand's blood
+skins differ from skin 0 only in red); fullbright specks on the proximity gun, plasma gun and multi launchers are the
+skins' own glowing dither; UVs at s = skin width on the pouches, holster and pauldrons wrap half a texel (0.3 mm);
+seam-ring bleed on the generated gear is the region's own border (8-bit skins are nearest-sampled); the ammo pouch's
+coplanar shells are the hidden ones of frame 0; the other coplanar pairs (plasma gun's front, holster tip, shotgun
+collar, double shotgun breech) show under 0.15% of their model's pixels; the shells' open loops are the mouths, closed by
+the dark disc inside.
+
+**For the author (not done: art decisions or Blender):**
+1. Stretched UVs as the double shotgun's were (reuv_shot2.py's re-map and repaint would fix them the same way): the
+   lightning gun's (and plasma gun's) side panels (triangles 72, 79, 82: 20-70:1, about 9% of what is seen of it); the
+   super nailgun (31% of its pixels over 3:1), rocket launcher (24%), grappling hook (22%, its front cap folded onto a
+   line), Mjolnir (21%); smaller streaks under the nailgun's and shotgun's bodies, on the enforcer rifle's top front.
+2. Normal maps baked before a later change: `v_shot.mdl` and its pump parts (the loading port's re-mapped lining),
+   `vr_shell.mdl` (repainted spent), the six magazine wells (this pass's tuck): `bake_normals.py <model>` (Blender).
+   The crowbar's map has 400 of 347k pixels with z < 0 (sharp bevels); a clamp in the baker would remove them.
+3. The body skins (256 x 256) have about a sixth of the hands' texel density at the wrist (hands 17.7 texels per model
+   unit at their scale): a sharper sleeve would match the hands better.
+
+**In the headset:** look under the nailgun, super nailgun or thunderbolt with immersive reloading (the magazine out and
+in): the well's lip should not shimmer. The laser cannon's grip and underside should be lit like the rest of it.
