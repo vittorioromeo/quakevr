@@ -1101,6 +1101,65 @@ any return to the hub, the stones showed QUAKE selected.
 hub's Continue screen, press it, and check that you land there. Play a level of Dimension of the Machine, quit,
 restart: the hub's DIMENSION OF THE MACHINE stone should be SELECTED, and Continue should switch campaigns.
 
+## One save folder; every save knows its campaign and map package (1.0.1, 2026-10-11, worktree `saves1`)
+
+The author's design, replacing `contgame`'s per-campaign autosave folders (`Quake/vr/vr_continue.cpp`):
+- **One folder**: `quakevr/` and `quakevr/autosave/`. Autosave names are unique across campaigns and map packages:
+  `autosave/<map>.sav` for Quake's campaign (Ironwail's name: its Play Custom Map *Resume*, 1.0.0's autosaves),
+  `autosave/<campaign folder>~<map>.sav` for the others (`mg1~start.sav`), `autosave/<package>~<map>.sav` for a Map
+  Library package's map. `<package>` is the first 16 hex digits of its sha256, the name of its `qvr_addons` folder
+  (a title is unknown until the map index arrives and can change upstream; the hex is stable). The map part is
+  sanitised (letters, digits, `_ - .`). The name comes from what is running: the active campaign and the mounted
+  package (`VR_AutosaveName`), never from the map's name. The skill menu's *Resume* predicts it for a map about to start
+  (`VR_AutosaveNameForLaunch`: the `map` command's own campaign check and the package the map is in).
+- **Migration**: at start-up, `autosave/<folder>/<map>.sav` (and its `.addon`) is moved to
+  `autosave/<folder>~<map>.sav`, logged (`Saves: autosave/mg1/start.sav moved to autosave/mg1~start.sav`); the emptied
+  folder goes. A file whose new name is taken stays where it is, logged.
+- **Every save says what it was played as**: comment lines after the model list (`SaveData_WriteHeader`; COM_Parse
+  skips them, so 1.0.0 still reads these saves; no format change): `// qvr_campaign <n>`, `// qvr_package <sha256>`
+  (nothing after the key: none), `// qvr_package_title <title>`, `// qvr_map_title <the level's full title>`. An older
+  save: the campaign from its `vr_save_campaign` global, the package from the `<save>.addon` beside it (still written,
+  so 1.0.0 builds keep finding it).
+- **Loading any save** (Load menu, `load`, Continue, Ironwail's autoload; all are `Host_Loadgame_f`): its package must
+  be installed (`VR_SavePackageReady`: else a console line and a centre message, nothing changed), then its campaign is
+  made the active one (`VR_CanLoadCampaignSave`, as before; a campaign that can't start now also gets a centre
+  message), its package mounted (`VR_AddonForSave`, the key first), and its map run in the save's campaign
+  (`VR_CanLoadSaveMap`, new: the save's key, not the map's name; the spawn check `VR_CheckSpawnCampaignMap` takes it
+  for that one spawn). The campaign switch is the existing path (selectCampaign, then the package's reload).
+- **Continue** scans `*.sav` and `autosave/*.sav` only (Doom's saves, in `quakevr/doom/`, are never seen). A save
+  whose package is not installed is passed over, said once in the console. Its second line names the package for a
+  package's save ("Base To Hell (basetohell) / Base To Hell, just now").
+- **Load and Save menus**: each slot shows "<campaign or package> - <map title>" (`VR_SaveMenuLabel`, 39 characters;
+  the package's title once when it is the map's title). The kill count of Quake's comment is no longer shown.
+- `vr_save_info [save]`: one save's or every save's campaign, package, map title and menu line (Debug > Tests > Saves >
+  *List the Saves*).
+- Unchanged: no autosaves on `vr*` maps, in multiplayer, or under `-prepare` (`e03a275d0`).
+
+**Tests** (mock, `sv_autosave 1`; the author's index cache and packages linked in by `bench_maps.ps1`):
+- `vr_campaign_select id1`, `mg3`, `mg1`, then `maps_play` Base To Hell: `autosave/start.sav`, `autosave/mg3~start.sav`,
+  `autosave/mg1~start.sav` and `autosave/4108605842870e05~basetohell.sav` side by side. The package's save:
+  `qvr_campaign 4` (the custom map ran in Dimension of the Machine, the campaign active when it was played), its sha
+  and "Base To Hell".
+- A new process, the hub (Quake's campaign): `vr_continue` loads that autosave, mounts Base To Hell's folder;
+  `vr_campaign` 4, map basetohell.
+- A Dissolution of Eternity save (`s3`, map start) loaded with Quake active from the hub: `vr_campaign` 2,
+  `vr_activestartpaknameidx` 2, map start. The Load menu shows "Dissolution of Eternity - Introduction" in slot 3.
+- 1.0.0 saves (the author's `s1.sav`, map vrstart, and `autosave/e1m2.sav`, build 1.0.0-dev 2026-10-09) loaded from
+  Dimension of the Machine: Quake's campaign, maps vrstart and e1m2 (the usual "saved by build" warning).
+- Base To Hell taken out of the installed list (the registry copy): Continue passes its newer autosave over with the
+  message and offers `autosave/e1m2`; `load` of it is refused ("which is not installed: not loaded"), e1m2 stays.
+- Migration: `autosave/mg1/start.sav` (+ `.addon`) moved to `mg1~start.sav`; `autosave/mg3/start.sav` left (taken).
+- `map e1m1`, `save s2`, `load s2`: fine; `s2` says campaign 0, package none.
+
+**Decisions for the author:**
+- A Map Library map runs in whatever campaign is active when it starts (as before: here Dimension of the Machine's), and
+  its saves remember that. Starting packages always in Quake's campaign would be a separate change.
+- The package part of the name is the sha's first 16 hex digits, not the title (stable, matches `qvr_addons`).
+- A save whose package is gone is refused rather than loaded into another package that has a map of the same name.
+
+**In the headset:** play a Map Library map right after a Dimension of the Machine level, quit, restart, press
+Continue: you should be back in the custom map. Open Load: each slot names its campaign or package and its level.
+
 ## Pre-release verification of 1.0.1: every test, a synthetic installation (2026-10-11, worktree `test101`)
 
 Commit under test `abfc18bcb` (origin/vr-ironwail). Everything ran headless. Nothing was published or pushed. The

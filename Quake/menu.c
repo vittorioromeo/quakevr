@@ -1948,6 +1948,7 @@ void M_ScanSaves (void)
 {
 	int	i, j;
 	char	name[MAX_OSPATH];
+	char	path[MAX_OSPATH]; // QVR
 	FILE	*f;
 	int	version;
 
@@ -1955,8 +1956,8 @@ void M_ScanSaves (void)
 	{
 		strcpy (m_filenames[i], "--- UNUSED SLOT ---");
 		loadable[i] = false;
-		q_snprintf (name, sizeof(name), "%s/s%i.sav", com_gamedir, i);
-		f = Sys_fopen (name, "r");
+		q_snprintf (path, sizeof(path), "%s/s%i.sav", com_gamedir, i);
+		f = Sys_fopen (path, "r");
 		if (!f) {
 			continue;
 		}
@@ -1975,6 +1976,8 @@ void M_ScanSaves (void)
 		}
 		loadable[i] = true;
 		fclose (f);
+		// QVR: what it was played as, and the level: "Dimension of the Machine - The Gateway" (vr_continue.cpp)
+		VR_SaveMenuLabel (path, m_filenames[i], sizeof (m_filenames[i]));
 	}
 }
 
@@ -2573,7 +2576,7 @@ void M_Menu_Skill_f (void)
 
 	m_skill_canresume = false;
 	m_skill_lastplayed = 0;
-	VR_AutosaveName (m_skill_mapname, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>/<map> for the other campaigns
+	VR_AutosaveNameForLaunch (m_skill_mapname, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>~<map> for the other campaigns, <package>~<map> for a map package's
 	q_snprintf (autosave, sizeof (autosave), "%s/%s.sav", com_gamedir, autosavename);
 	if (Sys_FileExists (autosave))
 	{
@@ -2702,8 +2705,8 @@ void M_Skill_Key (int key)
 		if (m_skill_cursor == 4)
 		{
 			// Resume autosave
-			char autosavename[MAX_QPATH]; // QVR: autosave/<folder>/<map> for the other campaigns
-			VR_AutosaveName (m_skill_mapname, autosavename, sizeof (autosavename));
+			char autosavename[MAX_QPATH]; // QVR: autosave/<folder>~<map> for the other campaigns
+			VR_AutosaveNameForLaunch (m_skill_mapname, autosavename, sizeof (autosavename));
 			Cbuf_AddText (va ("load \"%s\"\n", autosavename));
 		}
 		else

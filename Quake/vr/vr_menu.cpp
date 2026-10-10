@@ -6529,6 +6529,9 @@ za::Vector<Item> pageDebugTests()
         command("What Continue Would Load", "vr_continue_info")
             .help("vr_continue_info: the save the main menu's Continue row and the hub's Continue button load (the newest "
                   "loadable save of a campaign's map, an autosave or your own) and the newer ones passed over, printed."),
+        command("List the Saves", "vr_save_info")
+            .help("vr_save_info: every save in the game folder and autosave/, each with what it was played as (its "
+                  "campaign, its Map Library package), its map's title and its line in the Load menu, printed."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

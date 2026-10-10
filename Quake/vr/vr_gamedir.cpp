@@ -1204,6 +1204,41 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
     return 1;
 }
 
+namespace
+{
+// A save's campaign (its vr_save_campaign global, world.qc), -1 when it has none.
+int savedCampaignKey(const char* text)
+{
+    const char* context = strstr(text, "\"vr_save_campaign\"");
+    if(!context) { return -1; }
+    COM_Parse(context + strlen("\"vr_save_campaign\""));
+    const int saved = Q_atoi(com_token);
+    return saved >= 0 && saved < int(countof(campaigns)) ? saved : -1;
+}
+
+// The load about to spawn its map (VR_CanLoadSaveMap): the map, and the save's campaign it runs in whatever its name
+// says (a map package's "start", an "e1m1x"). Taken by that spawn's VR_CheckSpawnCampaignMap, and by any spawn.
+int spawnSaveCampaign = -1;
+char spawnSaveMap[MAX_QPATH] = {};
+} // namespace
+
+// `load`: the save's map in the save's campaign (VR_CanLoadCampaignSave made it the active one): a save belongs to the
+// campaign it was played in, never to the one its map's name suggests. A save without the key: the map's own check.
+extern "C" int VR_CanLoadSaveMap(const char* map, const char* text)
+{
+    spawnSaveCampaign = -1;
+    const int saved = savedCampaignKey(text);
+    if(!gameDirAlreadyAdded(vrGameDir) || VR_IsVrMap(map) || saved < 0) { return VR_CanLoadCampaignMap(map); }
+    if(saved != activeCampaign && !selectCampaign(saved, saved >= 3 && !campaigns[saved].nativeReady, false)) { return 0; }
+    char source[MAX_OSPATH] = {};
+    if(COM_FileExists(va("maps/%s.bsp", map), nullptr))
+    { gameFolderName(com_filesource, source, sizeof(source)); }
+    Cvar_SetROM("vr_honey_context", !q_strcasecmp(source, "honey") ? "1" : "0");
+    spawnSaveCampaign = saved;
+    q_strlcpy(spawnSaveMap, map, sizeof(spawnSaveMap));
+    return 1;
+}
+
 // SV_SpawnServer (every spawn: map, changelevel, restart, load): the map against the campaign already chosen, never a
 // switch. A switch rebuilds the game folders and shuts the server down, which cannot happen inside a spawn (the
 // server's progs are switched in: PR_SwitchQCVM's "already active"); map and load choose the campaign before they
@@ -1221,6 +1256,8 @@ extern "C" void VR_CheckSpawnCampaignMap(const char* map)
         requested = legacy >= 0 && legacy <= 2 ? legacy : activeCampaign;
     }
     if(VR_IsVrMap(map)) { requested = 0; }
+    else if(spawnSaveCampaign >= 0 && !strcmp(map, spawnSaveMap)) { requested = spawnSaveCampaign; } // (a load's)
+    spawnSaveCampaign = -1;
     if(requested != activeCampaign)
     {
         if(requested <= 2 && activeCampaign <= 2 && campaigns[requested].status == 1)
@@ -1281,10 +1318,21 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
         // Ready campaign saves obey ordinary data/solo readiness, including when already active.
         // Keep unfinished developer-save behavior for the campaigns still being ported.
         if(savedCampaign >= 3 && campaigns[savedCampaign].nativeReady)
-        { if(!selectCampaign(savedCampaign, false, false)) { return 0; } }
+        {
+            if(!selectCampaign(savedCampaign, false, false))
+            {
+                SCR_CenterPrint(va("This save is of %s,\nwhich can't be started now:\nnot loaded (see the console)",
+                    campaigns[savedCampaign].title));
+                return 0;
+            }
+        }
         else if(savedCampaign != activeCampaign &&
                 !selectCampaign(savedCampaign, savedCampaign >= 3 && !campaigns[savedCampaign].nativeReady, false))
-        { return 0; }
+        {
+            SCR_CenterPrint(va("This save is of %s,\nwhich can't be started now:\nnot loaded (see the console)",
+                campaigns[savedCampaign].title));
+            return 0;
+        }
     }
     return 1;
 }

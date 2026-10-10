@@ -166,7 +166,7 @@ void VR_CheckSpawnCampaignMap (const char *map);	// SV_SpawnServer: the map agai
 void VR_ReloadVRGameKeepCampaign (void);	// vr_gamedir.cpp: the game folders rebuilt, the selected campaign kept
 int VR_QuakeVRMounted (void);	// vr_gamedir.cpp: quakevr is on the search path	// common.c: a map package's folder on top of the search path (vr_mapinstall.cpp)
 int VR_AddonForMapCommand (const char *map);	// Host_Map_f: the map package the map is played from made the active one (0: refused)
-void VR_AddonForSave (const char *savepath, const char *map);	// Host_Loadgame_f: the save's map package made the active one
+void VR_AddonForSave (const char *text, const char *savepath, const char *map);	// Host_Loadgame_f: the save's map package made the active one
 void VR_AddonOnSave (const char *savepath);	// Host_Savegame_f: the active map package noted beside the save
 void VR_NoteMapSpawn (const char *map);	// SV_SpawnServer: the map and the map package mounted, the crash report's context line
 void VR_SetCrashContext (const char *what);	// vr_crash.cpp: that line (qvr_crash.txt's second)
@@ -523,6 +523,7 @@ int VR_IsVrMap(const char *map);			// vrstart, vrtutorial, vrfiringrange: Quake 
 const char *VR_HubMap(void);				// the hub the game starts in and returns to: vrstart
 int VR_CanChangeCampaignMap(const char *map);
 int VR_CanLoadCampaignSave(const char *text);
+int VR_CanLoadSaveMap(const char *map, const char *text);	// Host_Loadgame_f: the save's map in its campaign (vr_save_campaign), not its name's
 
 // Official campaign context and read-only source roots.
 const char *VR_GameDirectoryRoot(const char *dir, int index);
@@ -551,11 +552,18 @@ void VR_GameFolderName(const char *path, char *out, size_t size); // a search pa
 int VR_SaveCampaign(const char *text);			// a save's campaign (vr_save_campaign), -1 if VR_CanLoadCampaignSave would refuse it (quiet)
 const char *VR_CampaignTitle(int index);		// "Quake", "Scourge of Armagon", ...
 int VR_ActiveCampaign(void);
-int VR_CampaignForMap(const char *map);			// the campaign a map's name says it is of (e1m1: Quake; start: the active one's)
+int VR_CampaignForMap(const char *map);			// the campaign a map's name says it is of (e1m1: Quake; start: the active one's): the map's own check only, never a save's campaign
 
 // Continue and the autosaves (vr_continue.cpp): the newest save of a campaign's map (manual or automatic: Ironwail's
 // sv_autosave, plus one as each level starts), offered by the main menu's Continue row and the hub's Continue button.
-void VR_AutosaveName(const char *map, char *out, size_t size); // "autosave/e1m2" (Quake's), "autosave/<folder>/<map>" (the others')
+// One save folder: autosave/<map> (Quake's), autosave/<campaign folder>~<map> (the others'), autosave/<package>~<map>
+// (a Map Library package's: its sha256's first 16).
+void VR_AutosaveName(const char *map, char *out, size_t size); // the running game's: the active campaign, the mounted map package
+void VR_AutosaveNameForLaunch(const char *map, char *out, size_t size); // a map about to be started (the skill menu's Resume)
+void VR_SaveContext(char *out, size_t size);	// SaveData_Fill: the save's context lines (// qvr_campaign, qvr_package, ...)
+int VR_SavePackage(const char *text, const char *savepath, char *sha, size_t size); // the save's map package ("": none); 0: it doesn't say
+int VR_SavePackageReady(const char *text, const char *savepath); // 0 (said, on screen too) when its map package is not installed
+int VR_SaveMenuLabel(const char *path, char *out, size_t size);	// the Load/Save menus' line: "Dimension of the Machine - The Gateway"
 int VR_AutosaveAllowed(const char *map);		// 0 on Quake VR's own maps (vr*: the hub, the tutorial, the calibration room...)
 void VR_ContinueRefresh(void);					// looks for the newest loadable save again (the main menu opened, a VR map spawned)
 int VR_ContinueAvailable(void);

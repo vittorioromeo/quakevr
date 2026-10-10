@@ -1147,7 +1147,7 @@ static void Host_CheckAutosave (void)
 
 	sv.autosave.time = qcvm->time;
 	sv.autosave.cheat = 0;
-	VR_AutosaveName (sv.name, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>/<map> for the other campaigns
+	VR_AutosaveName (sv.name, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>~<map> for the other campaigns, <package>~<map> for a map package
 	Cbuf_AddText (va ("save \"%s\" 0\n", autosavename));
 }
 

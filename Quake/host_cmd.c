@@ -1460,25 +1460,6 @@ void SaveList_Init (void)
 		}
 	}
 
-	// QVR: the other campaigns' autosaves, autosave/<folder>/ (VR_AutosaveName)
-	{
-		int c;
-		for (c = 1; c < VR_CampaignCount (); c++)
-		{
-			const char *folder = VR_CampaignFolder (c);
-			if ((size_t) q_snprintf (dirname, sizeof (dirname), "%s/autosave/%s", com_gamedir, folder) >= sizeof (dirname))
-				continue;
-			for (find = Sys_FindFirst (dirname, "sav"); find; find = Sys_FindNext (find))
-			{
-				char filename[MAX_QPATH];
-				if (find->attribs & FA_DIRECTORY)
-					continue;
-				COM_StripExtension (find->name, filename, sizeof (filename));
-				if ((size_t) q_snprintf (savename, sizeof (savename), "autosave/%s/%s", folder, filename) < sizeof (savename))
-					FileList_Add (savename, &savelist);
-			}
-		}
-	}
 }
 
 //==============================================================================
@@ -2646,7 +2627,8 @@ static void Host_Loadgame_f (void)
 		return;
 	}
 
-	if (!VR_CanLoadCampaignSave(start) || !VR_ReadSaveInfo (start, relname)) // QVR: + its build and model list
+	// QVR: its map package installed, its campaign made the active one, its build and model list
+	if (!VR_SavePackageReady (start, name) || !VR_CanLoadCampaignSave(start) || !VR_ReadSaveInfo (start, relname))
     {
         VR_HeapFree(start);
         start = NULL;
@@ -2698,8 +2680,8 @@ static void Host_Loadgame_f (void)
 	data = COM_ParseStringNewline (data);
 	q_strlcpy (mapname, com_token, sizeof(mapname));
 	data = COM_ParseFloatNewline (data, &time);
-	VR_AddonForSave (name, mapname); // QVR: the map package the save was made in, mounted (before the disconnect below)
-	if (!VR_CanLoadCampaignMap (mapname)) // QVR: the map's campaign chosen now: SV_SpawnServer never switches
+	VR_AddonForSave (start, name, mapname); // QVR: the map package the save was made in, mounted (before the disconnect below)
+	if (!VR_CanLoadSaveMap (mapname, start)) // QVR: the save's campaign kept for its map: SV_SpawnServer never switches
 	{
 		VR_HeapFree (start);
 		start = NULL;
