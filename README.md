@@ -4,6 +4,9 @@
 <a href="https://discord.me/quakevr"><img src="https://img.shields.io/badge/Discord-Join%20us-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord"></a>
 </p>
 
+<br>
+<br>
+
 <p style="text-align: center" align="center"><img src="docs/images/quakevr-unleashed-wide.webp" alt="Quake VR: UNLEASHED" width="760"></p>
 
 <p style="text-align: center" align="center">
