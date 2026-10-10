@@ -706,7 +706,7 @@ float(float xHand, entity xArmor) VR_Armor_LetGo =
     }
 
     dprint("armour: not worn, yours is as good\n");
-    sprint(self, VR_Armor_IsShard(xArmor) ? "Your armor is full\n" : "Your armor is better\n");
+    sprint(self, VR_Armor_IsShard(xArmor) ? "Your armour is full\n" : "Your armour is better\n");
     sound(self, CHAN_ITEM, "player/land.wav", 0.6, ATTN_NORM);
     if(self.ishuman)
     {

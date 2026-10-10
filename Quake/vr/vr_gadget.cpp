@@ -759,7 +759,7 @@ void layout()
     // Health (the face its icon; red under 25) and armour.
     const int face = r.health >= 100 ? 4 : CLAMP(0, r.health / 20, 4);
     tile(0, 0, "HEALTH", PicFace + face, r.health, false, r.health < 25 ? blinking(pal.warn) : pal.value, pal);
-    tile(1, 0, "ARMOR", r.armorType >= 0 ? PicArmor + r.armorType : -1, r.armor, false, r.armor > 0 ? pal.value : pal.dim, pal);
+    tile(1, 0, "ARMOUR", r.armorType >= 0 ? PicArmor + r.armorType : -1, r.armor, false, r.armor > 0 ? pal.value : pal.dim, pal);
     stealthGem(r, pal);
 
     // Each hand's weapon's ammo (red when empty; "--" for a weapon without).
