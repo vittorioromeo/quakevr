@@ -247,46 +247,69 @@ static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h)
 	{
 		const float *p = corners + i * 6;
 		float	area, xmin = FLT_MAX, xmax = -FLT_MAX, ymin = FLT_MAX, ymax = -FLT_MAX;
+		float	ex[3], ey[3], lim[3], sign;
+		qboolean degenerate[3];
 		for (j = 0; j < 3; j++)
 		{
 			xmin = q_min (xmin, p[j*2]); xmax = q_max (xmax, p[j*2]);
 			ymin = q_min (ymin, p[j*2+1]); ymax = q_max (ymax, p[j*2+1]);
 		}
 		area = (p[2] - p[0]) * (p[5] - p[1]) - (p[3] - p[1]) * (p[4] - p[0]);
+		sign = area < 0.f ? -1.f : 1.f;
+		// each edge's direction and how far outside it a texel's middle may be (worked out once a triangle, not a texel)
+		for (j = 0; j < 3; j++)
+		{
+			const float *a = p + j * 2, *b = p + ((j + 1) % 3) * 2;
+			float len;
+			ex[j] = b[0] - a[0];
+			ey[j] = b[1] - a[1];
+			len = sqrtf (ex[j] * ex[j] + ey[j] * ey[j]);
+			degenerate[j] = len <= 0.f;
+			lim[j] = -0.7f * len;
+		}
 		for (y = CLAMP (0, (int) floorf (ymin - 1.f), h - 1); y <= CLAMP (0, (int) ceilf (ymax + 1.f), h - 1); y++)
 			for (x = CLAMP (0, (int) floorf (xmin - 1.f), w - 1); x <= CLAMP (0, (int) ceilf (xmax + 1.f), w - 1); x++)
 			{
 				float c[2] = {x + 0.5f, y + 0.5f};
 				qboolean inside = true;
+				if (mask[y * w + x]) // (already in an island: it stays)
+					continue;
 				for (j = 0; j < 3 && inside; j++)
 				{
-					const float *a = p + j * 2, *b = p + ((j + 1) % 3) * 2;
-					float ex = b[0] - a[0], ey = b[1] - a[1], len = sqrtf (ex * ex + ey * ey);
-					float e = (ex * (c[1] - a[1]) - ey * (c[0] - a[0])) * (area < 0.f ? -1.f : 1.f);
-					inside = len <= 0.f || e >= -0.7f * len;
+					const float *a = p + j * 2;
+					float e = (ex[j] * (c[1] - a[1]) - ey[j] * (c[0] - a[0])) * sign;
+					inside = degenerate[j] || e >= lim[j];
 				}
 				if (inside)
 					mask[y * w + x] = 255;
 			}
 	}
-	// how far inside, in texels (0 outside; the skin's edges are outside)
+	// how far inside, in texels (0 outside; the skin's edges are outside): each texel the least of its neighbours' (as
+	// this pass has left them, in rows) plus one, 1 at the skin's border (a neighbour outside counts as 0)
 	for (k = 0; k < 3; k++)
 	{
 		for (y = 0; y < h; y++)
+		{
+			byte *row = mask + y * w;
+			const qboolean edgerow = y == 0 || y == h - 1;
 			for (x = 0; x < w; x++)
 			{
-				int d = mask[y * w + x], dx, dy;
+				int d = row[x], n;
 				if (!d)
 					continue;
-				for (dy = -1; dy <= 1; dy++)
-					for (dx = -1; dx <= 1; dx++)
-					{
-						int nx = x + dx, ny = y + dy;
-						int n = nx < 0 || ny < 0 || nx >= w || ny >= h ? 0 : mask[ny * w + nx];
-						d = q_min (d, n + 1);
-					}
-				mask[y * w + x] = (byte) d;
+				if (edgerow || x == 0 || x == w - 1)
+				{
+					row[x] = 1;
+					continue;
+				}
+				{
+					const byte *up = row - w, *down = row + w;
+					n = q_min (q_min (q_min (up[x - 1], up[x]), q_min (up[x + 1], row[x - 1])),
+						q_min (q_min (row[x + 1], down[x - 1]), q_min (down[x], down[x + 1])));
+				}
+				row[x] = (byte) q_min (d, n + 1);
 			}
+		}
 	}
 	return mask;
 }
