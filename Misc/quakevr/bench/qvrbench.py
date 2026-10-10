@@ -418,6 +418,63 @@ def scenarios():
                 f"(vr_test_monsters 3, vr_ragdoll_max {cap}): the deaths' frame, the bodies falling.",
                 header=MG3, hostile=True, setup=[f"vr_ragdoll_max {cap}", "vr_test_monsters 4"] + waits(30)
                 + ["vr_test_monsters 2"], warm=90, load_wait=240, body=blow("vr_test_monsters 3"))
+    # ---- play: realistic gameplay (BENCHMARKS.md, "Gameplay profiling pass (2026-10-10)"): what a player meets in a
+    # session, not a stress test. The player shoots as one would (the main hand aimed at the nearest monster, a shot
+    # every so often), walks (the mock autopilot) and looks about (the head turned a little each few frames).
+    E1M1_ROOM = "1312 1150 -240 0 270 0"  # E1M1's computer room: 4 grunts of the map ahead (y 928-1008)
+    gun = lambda wid: ["vr_weapon_grip_mode 1", "impulse 9", "wait", f"impulse {150 + wid}", "wait",
+                       "vr_mock_hand main 0.2 1.0 -0.3 0 0 0", "vr_mock_hand_aim main monster"]
+    shoot_every = lambda n: blasts_every(n, lambda i, r: ["+attack", "wait", "wait", "wait", "-attack"])
+    add("play_e1m1_fight", ["play", "combat"], "E1M1's computer room: grunts and dogs, the player's shotgun", "e1m1",
+        "Skill 2, E1M1's 4 grunts there and 3 dogs and 2 grunts more spawned, hostile; the player's shotgun aimed at the "
+        "nearest live monster, a shot every 50 frames: a normal fight's AI, hitscan, gore, decals, ragdolls.",
+        header=["skill 2"], pos=E1M1_ROOM, hostile=True,
+        setup=[f"vr_physics_spawn monster_dog 110 {l}" for l in (-60, 0, 60)]
+        + [f"vr_physics_spawn monster_army 200 {l}" for l in (-90, 90)] + gun(4), warm=30, body=shoot_every(50))
+    add("play_e1m1_lights", ["play", "lights"], "E1M1's computer room: rockets, grunts' fire, the flashlight", "e1m1",
+        "play_e1m1_fight's room with 3 grunts and a dog more (E1M1's own kinds: their ragdoll rigs made at the "
+        "map's start), the flashlight on (its shadow), the rocket launcher fired every 70 frames: the dynamic lights of "
+        "a fight (rockets, explosions, muzzle flashes) and their shadows.", header=["skill 2"], pos=E1M1_ROOM, hostile=True,
+        setup=["vr_flashlight 1", "vr_flashlight_shadows 1", "vr_flashlight_give left", "wait", "vr_flashlight_toggle",
+               "vr_mock_hand off -0.2 1.3 -0.35 0 0 0"]
+        + [f"vr_physics_spawn monster_army 190 {l}" for l in (-100, 0, 100)] + ["vr_physics_spawn monster_dog 120 0"]
+        + gun(10), warm=30, body=shoot_every(70))
+
+    def hub_walk(frames):
+        """vrstart: from the spawn along the pier and up the stairs to the gate's terrace (the mock autopilot), then the
+        head turned round once, looking over the island."""
+        out = ["vr_mock_walk_to -1200 -900 24"] + waits(250) + ["vr_mock_walk_to -1160 -520 24"] + waits(200)
+        out += ["vr_mock_walk_to off"]
+        rest = max(0, frames - 450)
+        for k in range(rest // 3):
+            out += [f"vr_mock_look 0 {(k * 3 * 360 // max(1, rest)) % 360}"] + waits(3)
+        return out
+    add("play_vrstart_walk", ["play", "maps"], "vrstart: the walk from the spawn up to the terrace, looking round", "vrstart",
+        "The hub as a player first sees it: walking the pier and the stairs (braziers, torches, boards, the "
+        "campaign gate), then turning round on the terrace over the whole island.", body=hub_walk, warm=60)
+
+    def gate_turn(frames):
+        """vrteleporters' T room: the head turned from the east gate past the north one to the west (loop) gate and back."""
+        out = []
+        for k in range(frames // 3):
+            out += [f"vr_mock_look 0 {90 * math.sin(k * 3 * 2 * math.pi / 450):.1f}"] + waits(3)
+        return out
+    add("play_teleporters_turn", ["play", "teleporters"], "vrteleporters' T room: three gates, the head turning", "vrteleporters",
+        "The T room's middle (its east, north and west gates: the west one the loop, gates within gates), the head "
+        "turned 90 degrees either way twice: one to three portal views a frame as in a hub of teleporters.",
+        pos="-1280 600 24 0 90 0", body=gate_turn, warm=30)
+    add("play_props_fire", ["play", "physics"], "40 props, burning crates and corpses, wall torches, nudged now and then",
+        RANGE, "A room's worth of props (vr_physics_bigpile mixed 40), 3 crates and 2 grunt corpses set on fire, 4 wall "
+        "torches, a small blast in the pile every 180 frames: Box3D waking and settling, flames on bodies, crate "
+        "pieces, fire particles and lights.",
+        setup=["vr_walltorch 1", "vr_fire_particles 1", "vr_physics_bigpile 40 260 mixed"]
+        + [f"vr_physics_spawn light_torch_small_walltorch {120 + (i // 2) * 60} {(i % 2 - 0.5) * 160:g}" for i in range(4)]
+        + [x for d, k in ((200, 109), (160, 109), (130, 107)) for x in (f"vr_test_spawn_dist {d}", f"vr_test_spawn {k}",
+           "impulse 241", "wait", "wait", "wait", "wait", "wait", "vr_burn_test 1", "wait", "wait")]
+        + [x for l in (40, -40) for x in ("vr_test_spawn 0", "vr_test_spawn_dead 1", "vr_test_spawn_dist 90",
+           f"vr_mock_look 0 {l}", "impulse 241", "wait", "wait", "wait", "wait", "wait", "vr_test_spawn_dead 0",
+           "vr_burn_test 1", "wait", "wait")] + ["vr_mock_look 0 0"], warm=60,
+        body=blasts_every(180, lambda i, r: ["vr_physics_blast 60 -556 40 15"]))
     add("combined", ["combat", "physics", "vfx", "lights", "core"], "300 props + 24 grunts + 16 lights + dense particles",
         RANGE, "Everything at once (the perf suite's combined): the frame's worst realistic mix.", hostile=True,
         setup=["vr_physics_bigpile mixed 300"] + [f"vr_physics_spawn monster_army {160 + (i // 6) * 48} {(i % 6 - 2.5) * 40:g}" for i in range(24)]
