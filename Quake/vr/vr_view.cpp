@@ -9083,9 +9083,10 @@ void hotspotsCheck_f()
 
 
 #define QVR_ANCHOR_TEXT(slot, key) weapons::cvar(slot, key)->string
-// vr_anchor_where: each hand's weapon as drawn this frame, its anchors in the world (the muzzle, the ammo button and
-// screen with their offsets) and its magazine's and well's places (moved by their mount's anchor): for comparing builds
-// and checking a model edit in the game (Debug > Tools > Weapon Anchors).
+// vr_anchor_where: each hand's weapon as drawn this frame, its anchors (the muzzle, the ammo button and screen with their
+// offsets) and its magazine's and well's places (moved by their mount's anchor), in the world and in the gun's own frame
+// (its drawn matrix undone: what the anchors alone decide, the gun's motion taken out). For comparing builds and checking
+// a model edit in the game (Debug > Tools > Weapon Anchors).
 void anchorWhere_f()
 {
     for(int hand = 0; hand < 2; hand++)
@@ -9097,21 +9098,26 @@ void anchorWhere_f()
             Con_Printf("anchors hand %d: no weapon\n", hand);
             continue;
         }
-        const glm::vec3 muzzle = anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::MuzzleAnchorVertex),
-            weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
-        const glm::vec3 button = anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::WpnButtonAnchorVertex),
-            weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ));
-        const glm::vec3 text = anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::WpnTextAnchorVertex),
-            weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
-        Con_Printf("anchors hand %d %s frame %d zb %.3f muzzle %.4f %.4f %.4f button %.4f %.4f %.4f text %.4f %.4f %.4f\n",
-            hand, ve.ent.model->name, ve.ent.frame, ve.zeroBlend, muzzle.x, muzzle.y, muzzle.z, button.x, button.y, button.z,
-            text.x, text.y, text.z);
+        float m[16];
+        render::anchorMatrix(ve, glm::vec3{0.f}, m);
+        const glm::mat4 toLocal = glm::inverse(glm::mat4{glm::vec4{m[0], m[1], m[2], m[3]}, glm::vec4{m[4], m[5], m[6], m[7]},
+            glm::vec4{m[8], m[9], m[10], m[11]}, glm::vec4{m[12], m[13], m[14], m[15]}});
+        const auto print = [&](const char* what, const glm::vec3& w) {
+            const glm::vec3 l{toLocal * glm::vec4{w, 1.f}};
+            Con_Printf("anchors hand %d %s frame %d %s %.4f %.4f %.4f local %.4f %.4f %.4f\n", hand, ve.ent.model->name,
+                ve.ent.frame, what, w.x, w.y, w.z, l.x, l.y, l.z);
+        };
+        print("muzzle", anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::MuzzleAnchorVertex),
+            weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ)));
+        print("button", anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::WpnButtonAnchorVertex),
+            weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ)));
+        print("text", anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::WpnTextAnchorVertex),
+            weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ)));
         for(const ViewEntity* part : {&entities.mag[hand], &entities.well[hand]})
         {
             if(part->visible && part->ent.model)
             {
-                Con_Printf("anchors hand %d %s at %.4f %.4f %.4f\n", hand, part->ent.model->name, part->ent.origin[0],
-                    part->ent.origin[1], part->ent.origin[2]);
+                print(part->ent.model->name, glm::vec3{part->ent.origin[0], part->ent.origin[1], part->ent.origin[2]});
             }
         }
     }
