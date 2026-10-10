@@ -10709,8 +10709,7 @@ the next GL call), an early-out in `choose` (planes rarely lose before the end).
 - **The memory log's GL object count** (`vr_memstats_log`, on by default: 13-15 ms of every load): could be skipped
   when the log is off or counted less often (its leak check would see fewer loads).
 - **The hull build's peak memory** (10.8 GB working set for vrstart's first build, in Setup's preparation and after
-  each update): fewer trees at once would lower it and take longer; Face's 8 inline points could be fewer (more heap
-  spills).
+  each update): done, about 2.7 GB ("The hull build's memory", below).
 - In the test runs `map: campaign (game folders)` costs 80-190 ms at the first `map`: an artifact of run.sh's
   `-game hipnotic -game rogue -game quakevr` (the active campaign starts as rogue); the shipped `-game quakevr` does not
   switch.
@@ -10795,3 +10794,56 @@ the dark disc inside.
 
 **In the headset:** look under the nailgun, super nailgun or thunderbolt with immersive reloading (the magazine out and
 in): the well's lip should not shimmer. The laser cannon's grip and underside should be lit like the rest of it.
+## The hull build's memory: vrstart's first build from 11 GB to under 3 (2026-10-10)
+
+vrstart's first (uncached) hull build, run on players' PCs by Setup's `-prepare` and at the first hub visit if skipped,
+peaked at 10.9-11.9 GB of working set (14-15 GB committed): a 16 GB machine would swap. Measured with a poller of the
+process (`scratch/memwatch.ps1`: private bytes and working set every 25 ms, the peaks at exit), tutorial to vrstart
+(`changelevel`), the trees compiled (`vr_hull_cache 0`, or an empty cache folder), run.sh `--exclusive`.
+
+**What held it** (counted in the build): the units of the tree's top 10 levels each kept a copy of their pieces for a
+redo if the merge's check failed: 11 copies of every tree's pieces, 9.8 GB for the seven trees (a piece averages 19.5
+faces of 4.5 points; a Face was 256 bytes, its 8 inline points most of it). The pieces being split at once were about
+1 GB more, the heap's held memory (the load keeps what it frees: `vr_heap_load_hold`) the rest.
+
+**Changes** (`vr_hull.cpp`; every tree the same bytes):
+
+1. **Copies kept only where a redo can start**: the top and the top's last level (the units below fail up to them),
+   and the subtrees of the top's levels. The splits between asked for no plane in any of vrstart's 2,765 (only a piece
+   cut back to its brush's bounds asks one there), so their checks never fail; if one ever does, the tree is redone
+   from the top on the merging thread (the build on one thread's work, about 12 s for a vrstart tree). Copying there
+   and freeing after the split was tried: 5 GB of short-lived copies that the held heap did not always reuse (11 GB in
+   some runs).
+2. **The copies packed** (`PackedFrags`: each face's points as many as it has): 954 to 550 MB at the last level.
+3. **A face's inline points 8 to 5** (`windingInline`; more spill to the heap): the pieces being split 1.06 to
+   0.86 GB, and no slower (every map's tree compiles 10-30% quicker, below).
+4. **A split's sides given room for the faces each can get**, not all of the piece's.
+5. **The trees compiled within a memory budget** (`vr_hull_build_mb`, default 1024; Debug > Hitbox Build Memory):
+   a compile is estimated at 16 KB a brush of the world's (vrstart: about 330 MB a tree, so three at once); one that
+   would pass the budget is queued, not waited for on a worker: the compile that ends next runs it on its thread
+   (`gatedCompile`; the load's jobs and `compileTrees`, a width change's, both). One always runs. 0: no limit.
+
+| tutorial -> vrstart, compiled | peak working set | peak commit | hulls waited |
+|---|---|---|---|
+| before | 10.9-11.9 GB | 13.8-14.6 GB | 4.39-4.43 s |
+| 1-4, all seven trees at once (`vr_hull_build_mb 0`) | 3.1-3.6 GB | 5.7-6.3 GB | 3.9-4.4 s |
+| 1-5, budget 1024 (shipped) | 2.6-2.75 GB | 5.1-5.2 GB | 4.3-4.5 s |
+| 1-5, budget 700 (two at once) | 2.3-2.4 GB | 4.7-4.8 GB | 4.7-5.0 s |
+| empty cache folder (the real first visit, the files written), budget 1024 | 2.65 GB | 5.1 GB | 4.40 s |
+
+(The process holds 0.7 GB of working set and 2.8 GB committed before the build. One run each row unless a range;
+the heap's reuse makes a few hundred MB of run-to-run noise.) `map` of each of 12 maps, the trees' summed compile
+times, before and after: vrstart 18.6 to 11.0 s (seven trees; waited 3.65 to 3.68 s), hip2m3 327 to 237 ms, e4m7 114
+to 88 ms, the others alike.
+
+**Checked**: the tree hashes of 69 trees of 12 maps (vrstart, vrtutorial, vrcalibration, e1m1, e1m2, e1m6, e2m2,
+e4m7, hip1m1, hip2m3, r1m1, r2m6) the old code's, also with merge failures forced (every third kept or deep unit; and
+every third split of the levels between, each redone from the top); `vr_hull_keeptest`, `vr_hull_cachetest`,
+`vr_hull_cache 2` (7 the same); a width change on vrstart (four trees through `compileTrees`: 2.0 GB peak).
+
+Not done: a split of the levels between could keep nothing and a failed one be redone from the top's copy by
+splitting it again down its path (the top's copy could then go too, regrown from the brushes); kept copies of the
+last level could be dropped the same way (550 MB at once without the budget, about 240 with it).
+
+**In the headset:** nothing to see: the first hub visit after an install (or Setup's preparation) should take about as
+long as before and the PC should not page; the hitboxes are the same trees.

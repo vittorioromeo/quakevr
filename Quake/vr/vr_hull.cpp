@@ -18,6 +18,8 @@
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Chrono/Clock.hpp"
+#include "Zancle/Concurrency/AtomicMutex.hpp"
+#include "Zancle/Concurrency/LockGuard.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/SmallVector.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -132,10 +134,12 @@ mem::Cache<Brushes> built{"hull brushes", mem::MapChange};
 // split by each node's plane on the way down; at a solid (or sky: solid to Quake's clipping hulls) leaf what is
 // left is that leaf's brush.
 
-// A face's points, in place up to 8 (PROFILING_2026-10.md, "Hull build: the containers": a winding starts as 4 points
+// A face's points, in place up to 5 (PROFILING_2026-10.md, "Hull build: the containers": a winding starts as 4 points
 // and gains one at most a cut; measured on warden, ad_grendel, e4m7 and e1m1: 4.1-4.6 points on average, 9 at the 99th
-// percentile, 24 at most; 98.5% of warden's and 99.97% of the others' fit). Over 8 they spill to the heap.
-constexpr za::SizeT windingInline = 8;
+// percentile, 24 at most). Over 5 they spill to the heap. It was 8 (98.5% of warden's and 99.97% of the others' fit), but
+// the pieces held at once are most of a big map's build memory, a face's in place points most of a piece's bytes:
+// vrstart's 7 trees' pieces at once 1.06 to 0.86 GB, no slower (ROUND21.md, "The hull build's memory").
+constexpr za::SizeT windingInline = 5;
 using Winding = za::SmallVector<glm::dvec3, windingInline>;
 
 struct Face
@@ -289,15 +293,24 @@ int splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back, 
     // faces' splits.
     za::SmallVector<double, 96> dists;
     double lo = 1e300, hi = -1e300;
+    // The faces each side can get (all but those splitWinding leaves wholly to the other side): what each side's Poly
+    // is given room for (not all of p's: the pieces held at once are most of the build's memory).
+    za::SizeT frontFaces = 0, backFaces = 0;
     for(const Face& f : p)
     {
+        double flo = 1e300, fhi = -1e300;
         for(const glm::dvec3& v : f.w)
         {
             const double t = glm::dot(n, v) - d;
             dists.pushBack(t);
-            lo = za::min(lo, t);
-            hi = za::max(hi, t);
+            flo = za::min(flo, t);
+            fhi = za::max(fhi, t);
         }
+        lo = za::min(lo, flo);
+        hi = za::max(hi, fhi);
+        const bool whole = f.w.size() >= 3;
+        frontFaces += !(whole && flo < -onEpsilon && fhi <= onEpsilon);
+        backFaces += !(whole && fhi > onEpsilon && flo >= -onEpsilon);
     }
     tlo = lo;
     thi = hi;
@@ -318,8 +331,8 @@ int splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back, 
     // The cap: the plane's winding clipped by each face in turn (two windings, each clip into the other).
     Winding caps[2] = {baseWinding(n, d), {}};
     int cap = 0;
-    front.reserve(p.size() + 1); // (each side: a face of each of p's at most, and the cap: references stay valid)
-    back.reserve(p.size() + 1);
+    front.reserve(frontFaces + 1); // (and the cap: references stay valid)
+    back.reserve(backFaces + 1);
     const double* at = dists.data();
     for(Face& f : p)
     {
@@ -1463,10 +1476,12 @@ struct Tree
     za::SizeT slowestPieces = 0, units = 0;
     int solidLeaves = 0, emptyLeaves = 0;
     bool fromDisk = false;                     // the world's tree read from the disk cache (vr_hull_cache)
+    int cutBack = 0;                           // the world's compile (or file): its pieces cut back (reported by settle)
     auto members()
     {
         return qvr::mem::list(nodes, planes, heads, index, indexed, keptNodes, keptPlanes, keptSolid, keptEmpty, keptHeads,
-            forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone, fromDisk, growMs, unitsMs, mergeMs, slowestMs, slowestPieces, units);
+            forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone, fromDisk, cutBack, growMs, unitsMs, mergeMs, slowestMs,
+            slowestPieces, units);
     }
 };
 mem::Cache<Tree> tree{"hull tree", mem::MapChange};
@@ -2351,12 +2366,97 @@ private:
 // - Below the top's levels a unit of many pieces (shareBig or more) is split further, down to shareDeepest: a tree's
 //   splits are often far from balanced (vrstart's 28x56 tree: a unit of 20,423 pieces at the top's last level, 9.5 s of
 //   its 10.9 alone). Those deeper units keep no input (a copy of their pieces at every level would cost gigabytes): one
-//   whose check fails fails the unit above it, up to the nearest that kept its input (a unit of the top's levels), which
-//   is then done again on the merging thread as before (the same work as without the deeper split, at worst).
+//   whose check fails fails the unit above it, up to the nearest that kept its input (a unit of the top's last level,
+//   or a subtree of the top's levels), which is then done again on the merging thread as before (the same work as
+//   without the deeper split, at worst). The splits of the top's levels above the last keep none either, but the top
+//   (speculate).
+// - What is kept is packed (PackedFrags: about half a Face's bytes), and the pieces of all the trees compiled at once are
+//   held within a memory budget (gatedCompile): vrstart's first build peaked at 10.9 GB of working set, now about 3
+//   (ROUND21.md, "The hull build's memory").
 constexpr int shareDepth = 10;         // the top's levels: up to 1024 subtrees
 constexpr za::SizeT shareMin = 48;   // fewer pieces: a subtree of their own (not split further here)
 constexpr za::SizeT shareBig = 512;  // below the top's levels: this many pieces or more split further
 constexpr int shareDeepest = -24;    // ... down to this depth (the top's levels count down to 0)
+
+// A unit's pieces kept for a redo (emit), packed: each face's points as many as it has (a Face holds windingInline in
+// place, 4.5 used on average), the same numbers, unpacked into the same pieces.
+struct PackedFrags
+{
+    struct Piece
+    {
+        glm::dvec3 lo, hi;
+        const Brush* brush;
+        int live;
+        za::U32 faces;
+    };
+    struct Side
+    {
+        glm::dvec3 normal;
+        double dist;
+        int tag;
+        za::U32 points;
+    };
+    za::Vector<Piece> pieces;
+    za::Vector<Side> faces;
+    za::Vector<glm::dvec3> points;
+};
+
+PackedFrags pack(const Frags& frags)
+{
+    PackedFrags p;
+    za::SizeT faces = 0, points = 0;
+    for(const Frag& f : frags)
+    {
+        faces += f.poly.size();
+        for(const Face& face : f.poly)
+        {
+            points += face.w.size();
+        }
+    }
+    p.pieces.reserve(frags.size());
+    p.faces.reserve(faces);
+    p.points.reserve(points);
+    for(const Frag& f : frags)
+    {
+        p.pieces.pushBack(PackedFrags::Piece{f.lo, f.hi, f.brush, f.live, static_cast<za::U32>(f.poly.size())});
+        for(const Face& face : f.poly)
+        {
+            p.faces.pushBack(PackedFrags::Side{face.normal, face.dist, face.tag, static_cast<za::U32>(face.w.size())});
+            for(const glm::dvec3& v : face.w)
+            {
+                p.points.pushBack(v);
+            }
+        }
+    }
+    return p;
+}
+
+Frags unpack(const PackedFrags& p)
+{
+    Frags frags;
+    frags.reserve(p.pieces.size());
+    za::SizeT face = 0, point = 0;
+    for(const PackedFrags::Piece& piece : p.pieces)
+    {
+        Frag f;
+        f.lo = piece.lo;
+        f.hi = piece.hi;
+        f.brush = piece.brush;
+        f.live = piece.live;
+        f.poly.resize(piece.faces);
+        for(Face& out : f.poly)
+        {
+            const PackedFrags::Side& side = p.faces[face++];
+            out.normal = side.normal;
+            out.dist = side.dist;
+            out.tag = side.tag;
+            out.w = Winding(p.points.data() + point, p.points.data() + point + side.points);
+            point += side.points;
+        }
+        frags.pushBack(ZA_MOVE(f));
+    }
+    return frags;
+}
 
 struct Unit
 {
@@ -2367,15 +2467,15 @@ struct Unit
     za::Vector<int> map;            // its planes' numbers in the tree's table (the merge)
     int solid = 0, empty = 0, rebounded = 0;
     // A node's: a leaf (kind 0: root its contents), a split (kind 1: split, kids), a subtree (kind 2: root and nodes,
-    // numbered from 0); input: its pieces (done again from them if the merge's check fails), kept only by the units of
-    // the top's levels (kept).
+    // numbered from 0); input: its pieces (done again from them if the merge's check fails), packed, kept only by the
+    // top, the top's last level and the subtrees of the top's levels (kept).
     int kind = 0;
     bool kept = false;
     int root = 0;
     int split = 0;
     za::UniquePtr<Unit> kids[2]{nullptr, nullptr};
     za::Vector<mclipnode_t> nodes;
-    Frags input;
+    PackedFrags input;
     double ms = 0.0;      // (kind 2) its build's time, and its pieces (the tree's report)
     za::SizeT pieces = 0;
 };
@@ -2507,7 +2607,7 @@ void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth)
         u.kind = 2;
         if(u.kept)
         {
-            u.input = frags;
+            u.input = pack(frags);
         }
         u.pieces = frags.size();
         const auto t0 = za::Clock::nowNanoseconds();
@@ -2522,9 +2622,16 @@ void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth)
     else
     {
         u.kind = 1;
+        // A split's input kept only by the top and the top's last level (the units below fail up to those). The levels
+        // between keep none: their own checks fail only if their split asked for a plane (a piece cut back to its
+        // brush's bounds: none of vrstart's 2765 splits there did), and such a failure is redone from the top (the whole
+        // tree on the merging thread, as the build on one thread). A copy each, freed after the split, was 5 GB of
+        // transient copies for vrstart (and the heap, holding what a load frees, did not always use it again: 11 GB at
+        // times).
+        u.kept = u.kept && (!u.parent || depth == 0);
         if(u.kept)
         {
-            u.input = frags;
+            u.input = pack(frags);
         }
         Frags sides[2];
         glm::dvec3 n;
@@ -2569,7 +2676,8 @@ bool emit(TreeBuilder& tb, Unit& u, Merge& m, int& root)
             return false;
         }
         ++m.redone;
-        root = tb.build(u.input);
+        Frags input = unpack(u.input);
+        root = tb.build(input);
         m.own(saved, tb.count(), u);
         return true;
     };
@@ -2809,7 +2917,7 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch 
         const auto g2 = za::Clock::nowNanoseconds();
         m.start = tb.count();
         m.owner.clear();
-        (void)emit(tb, top, m, root); // (top keeps its input: never false)
+        (void)emit(tb, top, m, root); // (top keeps its input, or can't fail: never false)
         const auto g3 = za::Clock::nowNanoseconds();
         t.growMs += za::nanosecondsToMilliseconds(g1 - g0);
         t.unitsMs += za::nanosecondsToMilliseconds(g2 - g1);
@@ -3456,7 +3564,7 @@ struct Pending
 {
     jobs::Future<void> brushes;         // build(): the map as brushes
     za::Vector<Tree*> trees;           // being compiled, each by its job below (after the brushes)
-    za::Vector<jobs::Future<int>> run; // (their pieces cut back)
+    za::Vector<jobs::Future<void>> run;
     glm::vec3 playerExt{0.f};           // the player's tree's box, if it is one of them
     double posted = 0.0;                // when the builds were handed out (the load's report)
     bool kept = false;                  // the brushes (and the trees found) the last load's of the same map
@@ -3509,26 +3617,6 @@ void reportTree(const Tree& t, int rebounded)
         t.ext.x * 2.f, t.ext.z * 2.f, static_cast<int>(t.nodes.size()), static_cast<int>(t.planes.size()), t.ms, t.redone);
     Con_DPrintf("hull:   brushes grown %.0f ms, units built %.0f ms, merged %.0f ms; %d units, the slowest %.0f ms (%d pieces)\n",
         t.growMs, t.unitsMs, t.mergeMs, static_cast<int>(t.units), t.slowestMs, static_cast<int>(t.slowestPieces));
-}
-
-jobs::Site treesSite{"hull trees"}; // (its parallelFor: vr_jobs_sites)
-
-// These trees compiled at once on the pool (the main thread one of them), reported in their order.
-void compileTrees(const za::Vector<Tree*>& todo, const Brushes& b)
-{
-    za::Vector<int> rebounded(todo.size(), 0);
-    jobs::parallelFor(treesSite, todo.size(), 1,
-        [&](za::SizeT begin, za::SizeT end)
-        {
-            for(za::SizeT i = begin; i < end; ++i)
-            {
-                rebounded[i] = compileWorldTree(*todo[i], b);
-            }
-        });
-    for(za::SizeT i = 0; i < todo.size(); ++i)
-    {
-        reportTree(*todo[i], rebounded[i]);
-    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -3800,12 +3888,128 @@ void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
 
 za::U32 hashOf(const Tree& t);
 
-// The world's tree in t from the disk, else compiled (and written when it took long enough); the pieces cut back.
-int diskOrCompile(Tree& t, const Brushes& b, const DiskJob& d)
+// ---------------------------------------------------------------------------------------------------------------
+// The world's trees compiled at once within a memory budget (vr_hull_build_mb). A compile holds its pieces while it
+// runs, about buildBytesPerBrush a brush of the world's at its peak (vrstart: 33k a tree, 300-400 MB; its seven trees
+// at once took 3.7 GB of working set, three at a time 2.9: ROUND21.md, "The hull build's memory"). A compile that would
+// pass the budget while others run is queued, not waited for on a thread: the compile that ends next runs it on its own
+// thread (its job, or its parallelFor chunk, ends after it), so the pool's workers keep working meanwhile. One always
+// runs, whatever its size. A tree is the same bytes whichever thread compiles it and when.
+
+constexpr za::U64 buildBytesPerBrush = 16u << 10;
+
+// A tree to compile (and write to the disk, when it took long enough: disk.mode not 0).
+struct GateWork
 {
+    Tree* tree = nullptr;
+    const Brushes* brushes = nullptr;
+    DiskJob disk;
+    za::U64 cost = 0;   // its estimate (bytes)
+    za::U64 budget = 0; // vr_hull_build_mb when it was handed out (bytes; the main thread's read)
+};
+
+struct BuildGate
+{
+    za::AtomicMutex lock;
+    za::U64 inUse = 0;          // the compiles under way's estimates
+    za::Vector<GateWork> queue; // waiting, in the order they came
+};
+BuildGate buildGate;
+
+// vr_hull_build_mb in bytes (the main thread).
+za::U64 buildBudget()
+{
+    return vr_hull_build_mb.value > 0.f ? static_cast<za::U64>(vr_hull_build_mb.value) << 20 : ~za::U64{0};
+}
+
+// t's compile from b (built: its world's brushes counted).
+GateWork gateWork(Tree& t, const Brushes& b, DiskJob d, za::U64 budget)
+{
+    GateWork w;
+    w.tree = &t;
+    w.brushes = &b;
+    w.disk = ZA_MOVE(d);
+    const za::U64 brushes = b.subs.empty() ? 0 : b.subs[0].numBrushes + b.clips.size();
+    w.cost = brushes * buildBytesPerBrush;
+    w.budget = budget;
+    return w;
+}
+
+// w's tree compiled (its pieces cut back in cutBack), then written to the disk if it took long enough.
+void compileWork(const GateWork& w)
+{
+    Tree& t = *w.tree;
+    t.cutBack = compileWorldTree(t, *w.brushes);
+    if(w.disk.mode != 0 && t.ms >= diskMinMs && t.heads[0] >= 0)
+    {
+        diskWrite(t, w.disk, t.cutBack);
+    }
+}
+
+// w compiled on this thread now if the budget allows, else queued; then, as each compile here ends, the first queued
+// one that fits (any, once none is under way).
+void gatedCompile(GateWork w)
+{
+    {
+        za::LockGuard guard{buildGate.lock};
+        if(buildGate.inUse != 0 && buildGate.inUse + w.cost > w.budget)
+        {
+            buildGate.queue.pushBack(ZA_MOVE(w));
+            return;
+        }
+        buildGate.inUse += w.cost;
+    }
+    while(true)
+    {
+        compileWork(w);
+        za::LockGuard guard{buildGate.lock};
+        buildGate.inUse -= w.cost;
+        za::Vector<GateWork>& queue = buildGate.queue;
+        za::SizeT next = 0;
+        while(next < queue.size() && buildGate.inUse != 0 && buildGate.inUse + queue[next].cost > queue[next].budget)
+        {
+            ++next;
+        }
+        if(next == queue.size())
+        {
+            return;
+        }
+        w = ZA_MOVE(queue[next]);
+        queue.erase(queue.begin() + static_cast<za::PtrDiffT>(next));
+        buildGate.inUse += w.cost;
+    }
+}
+
+jobs::Site treesSite{"hull trees"}; // (its parallelFor: vr_jobs_sites)
+
+// These trees compiled at once on the pool within the budget (the main thread one of them), reported in their order.
+void compileTrees(const za::Vector<Tree*>& todo, const Brushes& b)
+{
+    const za::U64 budget = buildBudget();
+    jobs::parallelFor(treesSite, todo.size(), 1,
+        [&](za::SizeT begin, za::SizeT end)
+        {
+            for(za::SizeT i = begin; i < end; ++i)
+            {
+                gatedCompile(gateWork(*todo[i], b, DiskJob{}, budget));
+            }
+        });
+    for(Tree* t : todo)
+    {
+        reportTree(*t, t->cutBack);
+    }
+}
+
+// The world's tree in t from the disk (its pieces cut back in cutBack), else compiled within the budget (and written
+// when it took long enough: gatedCompile).
+void diskOrCompile(Tree& t, const Brushes& b, GateWork w)
+{
+    const DiskJob& d = w.disk;
     if(d.mode == 0 || (!t.heads.empty() && t.heads[0] >= 0) || !t.planes.empty() || !t.nodes.empty())
     {
-        return compileWorldTree(t, b); // (not a fresh tree: a file holds a fresh tree's build)
+        w.disk.mode = 0; // (not a fresh tree: a file holds a fresh tree's build)
+        gatedCompile(ZA_MOVE(w));
+        return;
     }
     t.heads.resize(b.subs.size(), -1);
     const auto t0 = za::Clock::nowNanoseconds();
@@ -3831,27 +4035,23 @@ int diskOrCompile(Tree& t, const Brushes& b, const DiskJob& d)
                               ZA_MEMCMP(fresh.planes.data(), t.planes.data(), t.planes.size() * sizeof(mplane_t)) == 0;
             ++(same ? diskCounts.same : diskCounts.differed);
         }
-        return rebounded;
+        t.cutBack = rebounded;
+        return;
     }
     ++diskCounts.missed;
-    rebounded = compileWorldTree(t, b);
-    if(t.ms >= diskMinMs && t.heads[0] >= 0)
-    {
-        diskWrite(t, d, rebounded);
-    }
-    return rebounded;
+    gatedCompile(ZA_MOVE(w));
 }
 
 // A tree compiled on the pool once the brushes are built (or read from the disk: vr_hull_cache).
 void postTree(Tree* t)
 {
     pending.trees.pushBack(t);
-    DiskJob d = diskJob(*t, sv.worldmodel);
+    t->cutBack = 0;
     pending.run.pushBack(jobs::async(
-        [t, d = ZA_MOVE(d)]
+        [t, d = diskJob(*t, sv.worldmodel), budget = buildBudget()]() mutable
         {
             pending.brushes.wait(); // (only waited on until settle: nothing else touches it meanwhile)
-            return diskOrCompile(*t, built, d);
+            diskOrCompile(*t, built, gateWork(*t, built, ZA_MOVE(d), budget));
         }));
 }
 
@@ -3862,14 +4062,13 @@ void settle()
         return;
     }
     const double t0 = Sys_DoubleTime();
-    za::Vector<jobs::Future<int>> run = ZA_MOVE(pending.run);
+    za::Vector<jobs::Future<void>> run = ZA_MOVE(pending.run);
     za::Vector<Tree*> trees = ZA_MOVE(pending.trees);
     pending.run.clear();
     pending.trees.clear();
-    za::Vector<int> rebounded;
-    for(jobs::Future<int>& f : run)
+    for(jobs::Future<void>& f : run)
     {
-        rebounded.pushBack(f.get());
+        f.get(); // (a compile queued by one ends with the job of the compile that ran it: all are done after these)
     }
     pending.brushes.get();
     const double t1 = Sys_DoubleTime();
@@ -3877,9 +4076,15 @@ void settle()
     Con_DPrintf("hull: %s %s as %d brushes in %.1f ms (on the pool; waited %.1f ms, %.1f ms after they began)\n",
         sv.worldmodel ? sv.worldmodel->name : "?", pending.kept ? "kept from its last load" : "rebuilt",
         static_cast<int>(built.brushes.size()), built.ms, (t1 - t0) * 1000.0, (t1 - pending.posted) * 1000.0);
-    for(za::SizeT i = 0; i < trees.size(); ++i)
+    if(!trees.empty() && !built.subs.empty())
     {
-        reportTree(*trees[i], rebounded[i]);
+        const za::U64 cost = (built.subs[0].numBrushes + built.clips.size()) * buildBytesPerBrush;
+        Con_DPrintf("hull: %d trees, about %.0f MB each while compiled (vr_hull_build_mb %g)\n", static_cast<int>(trees.size()),
+            static_cast<double>(cost) / 1048576.0, static_cast<double>(vr_hull_build_mb.value));
+    }
+    for(const Tree* t : trees)
+    {
+        reportTree(*t, t->cutBack);
     }
 }
 

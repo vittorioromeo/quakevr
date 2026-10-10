@@ -6556,6 +6556,10 @@ za::Vector<Item> pageDebugTests()
             .help("A big map's compiled hulls kept on disk (cache/hulls) and read at its next load instead of compiled "
                   "again (vrstart: 9 s to 0.1 s). Check: read, then compiled anyway and compared (Hitbox Stats counts "
                   "them). Off: compiled at every load (vr_hull_cache)."),
+        cycle("Hitbox Build Memory", vr_hull_build_mb, {{0.f, "No Limit"}, {512.f, "512 MB"}, {1024.f, "1 GB"}, {2048.f, "2 GB"}})
+            .help("How much memory a big map's hitbox build (its first load after an install or update) may hold at once "
+                  "(estimated): past it a tree's build waits for another to end. vrstart: about 330 MB a tree, three at "
+                  "once in 1 GB. No Limit: all at once (about 1 GB more, 5-10% quicker) (vr_hull_build_mb)."),
         command("Hitbox Keep Test", "vr_hull_keeptest")
             .help("Builds the map's brushes and compiled hulls again from scratch and prints whether the server's (kept "
                   "from the last load, or built with this one) are the same (vr_hull_keeptest)."),
