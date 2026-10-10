@@ -113,3 +113,10 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
   the plasma and other missile functions may credit the wrong weapon against targets that take only some.
 - **A thrown laser cannon's Quake box** (`weapons.qc`, `WeaponIdToThrowBounds`): the old note said its bounds were
   wrong; unchecked since Box3D took thrown weapons' collision.
+
+## Code signing (decided 2026-10-10: ship unsigned)
+
+- Revisit if Defender/antivirus flags the installer or the audience widens. Options: SignPath Foundation (free; needs a
+  release first, a GitHub Actions build of the signed files, per-release approval, a "Code signing policy" section;
+  publisher shows "SignPath Foundation"), or Certum Open Source Code Signing (~EUR 50-100/yr, his name; a `signtool`
+  step in `make_release.ps1` before the hashes).
