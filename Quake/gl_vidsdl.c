@@ -469,6 +469,9 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #ifndef NDEBUG
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+#else
+		if (VR_DiagnosticsOn ()) // QVR: diagnostics mode: a debug context (every GL message; vr/vr_diagnostics.cpp)
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #endif
 		draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
 		if (!draw_context) { // scale back SDL_GL_DEPTH_SIZE
@@ -944,6 +947,8 @@ static void APIENTRY GL_DebugCallback (GLenum source, GLenum type, GLuint id, GL
 	const char *str_type = "";
 	const char *str_severity = "";
 
+	VR_DiagnosticsGL (source, type, id, severity, message); // QVR: diagnostics mode: gl_debug.log (vr/vr_diagnostics.cpp)
+
 	switch (source)
 	{
 		case GL_DEBUG_SOURCE_API:				str_source = "api"; break;
@@ -984,6 +989,8 @@ static void APIENTRY GL_DebugCallback (GLenum source, GLenum type, GLuint id, GL
 
 	if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
 	{
+		if (VR_DiagnosticsOn ()) // QVR: (in gl_debug.log; the driver's many notes kept off stdout)
+			return;
 		Sys_Printf ("GL %s %s[#%u/%s]: %s\n", str_source, str_type, id, str_severity, message);
 	}
 	else
@@ -1051,7 +1058,7 @@ static void GL_CheckExtensions (void)
 		glmarkers = true;
 
 #ifdef NDEBUG
-	if (COM_CheckParm("-gldebug") && !VR_GLSafeOff (VR_GLSAFE_DEBUG_OUTPUT)) // QVR: safe mode
+	if ((COM_CheckParm("-gldebug") || VR_DiagnosticsOn ()) && !VR_GLSafeOff (VR_GLSAFE_DEBUG_OUTPUT)) // QVR: safe mode, diagnostics
 #else
 	if (!VR_GLSafeOff (VR_GLSAFE_DEBUG_OUTPUT)) // QVR: safe mode
 #endif
@@ -1060,6 +1067,10 @@ static void GL_CheckExtensions (void)
 		GL_DebugMessageCallbackFunc (&GL_DebugCallback, NULL);
 		glEnable (GL_DEBUG_OUTPUT);
 		glEnable (GL_DEBUG_OUTPUT_SYNCHRONOUS);
+		// QVR: diagnostics mode: one message of our own, so gl_debug.log shows the output works (vr/vr_diagnostics.cpp).
+		if (VR_DiagnosticsOn ())
+			GL_DebugMessageInsertFunc (GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER, 1, GL_DEBUG_SEVERITY_NOTIFICATION, -1,
+				"Quake VR diagnostics: GL debug output on (synchronous)");
 	}
 
 	// anisotropic filtering
@@ -1648,6 +1659,7 @@ void	VID_Init (void)
 		"r_softemu_metric",
 		"scr_pixelaspect",
 		"vr_glsafe", // QVR: GL safe mode, decided before the window opens (vr/vr_glsafe.cpp)
+		"vr_diagnostics", // QVR: diagnostics mode, from before the window (vr/vr_diagnostics.cpp)
 		"vr_gl_workarounds",
 	};
 #define num_readvars	Q_COUNTOF(read_vars)
@@ -1721,6 +1733,7 @@ void	VID_Init (void)
 		CFG_CloseConfig();
 	}
 	CFG_ReadCvarOverrides(read_vars, num_readvars);
+	VR_DiagnosticsBegin (); // QVR: vr_diagnostics 1 (-diagnostics began it already: vr/vr_diagnostics.cpp)
 	VR_GLStartupBegin (); // QVR: the last start's gl_startup.log read, this one's begun, safe mode decided
 
 	VID_InitModelist();

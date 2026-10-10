@@ -14,6 +14,7 @@
 //   FAKEXR_UNFOCUS        a-b: the session VISIBLE (not focused: as with SteamVR's dashboard) from xrWaitFrame a to b
 //   FAKEXR_FAULT_IMAGES   copies whose xrEnumerateSwapchainImages crashes filling the images (a null read, as VDXR
 //                         1.1.0's did: the game's vr_xr_guard catches it); FAKEXR_FAULT_SRGB: only sRGB swapchains'
+//   FAKEXR_DEBUG_UTILS    copies that offer XR_EXT_debug_utils: a messenger that sends 3 messages once made
 //   FAKEXR_D3D11          copies that load d3d11.dll at xrCreateInstance and free it at xrDestroyInstance (as VDXR
 //                         does), logging whether it is still loaded after (the game keeps it: vr_backend_openxr.cpp)
 //
@@ -83,13 +84,43 @@ XRAPI_ATTR XrResult XRAPI_CALL enumerateInstanceExtensionProperties(
     {
         return XR_ERROR_API_LAYER_NOT_PRESENT;
     }
-    *count = 1;
+    const bool debugUtils = listed("FAKEXR_DEBUG_UTILS");
+    *count = debugUtils ? 2 : 1;
     if(capacity == 0)
     {
         return XR_SUCCESS;
     }
     strcpy(properties[0].extensionName, "XR_KHR_opengl_enable"); // (the game's graphics binding)
     properties[0].extensionVersion = 10;
+    if(debugUtils && capacity > 1)
+    {
+        strcpy(properties[1].extensionName, "XR_EXT_debug_utils");
+        properties[1].extensionVersion = 5;
+    }
+    return XR_SUCCESS;
+}
+
+// FAKEXR_DEBUG_UTILS: a messenger that says hello once made (the game's diagnostics mode logs it).
+XRAPI_ATTR XrResult XRAPI_CALL createDebugUtilsMessenger(
+    XrInstance, const XrDebugUtilsMessengerCreateInfoEXT* info, XrDebugUtilsMessengerEXT* messenger)
+{
+    *messenger = reinterpret_cast<XrDebugUtilsMessengerEXT>(static_cast<uintptr_t>(0xd1a6));
+    XrDebugUtilsMessengerCallbackDataEXT data{XR_TYPE_DEBUG_UTILS_MESSENGER_CALLBACK_DATA_EXT};
+    data.messageId = "FAKEXR-hello";
+    data.functionName = "xrCreateDebugUtilsMessengerEXT";
+    data.message = "the fake runtime's messenger is on";
+    for(int i = 0; i < 3; i++)
+    {
+        info->userCallback(XR_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT, XR_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT, &data,
+            info->userData);
+    }
+    log("xrCreateDebugUtilsMessengerEXT");
+    return XR_SUCCESS;
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL destroyDebugUtilsMessenger(XrDebugUtilsMessengerEXT)
+{
+    log("xrDestroyDebugUtilsMessengerEXT");
     return XR_SUCCESS;
 }
 
@@ -669,6 +700,8 @@ const Entry entries[] = {
     {"xrGetInstanceProcAddr", reinterpret_cast<PFN_xrVoidFunction>(getInstanceProcAddr)},
     {"xrEnumerateInstanceExtensionProperties", reinterpret_cast<PFN_xrVoidFunction>(enumerateInstanceExtensionProperties)},
     {"xrCreateInstance", reinterpret_cast<PFN_xrVoidFunction>(createInstance)},
+    {"xrCreateDebugUtilsMessengerEXT", reinterpret_cast<PFN_xrVoidFunction>(createDebugUtilsMessenger)},
+    {"xrDestroyDebugUtilsMessengerEXT", reinterpret_cast<PFN_xrVoidFunction>(destroyDebugUtilsMessenger)},
     {"xrDestroyInstance", reinterpret_cast<PFN_xrVoidFunction>(destroyInstance)},
     {"xrGetInstanceProperties", reinterpret_cast<PFN_xrVoidFunction>(getInstanceProperties)},
     {"xrGetSystem", reinterpret_cast<PFN_xrVoidFunction>(getSystem)},

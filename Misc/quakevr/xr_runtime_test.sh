@@ -296,4 +296,27 @@ check "$OUT/dropctx_openxr.txt" "the GL context made current again before the sw
     "xrCreateSwapchain \(left eye\): GL context 0+, DC 0+ current" "the game's GL context wasn't current on this thread .*made current again: done" \
     "xrCreateSwapchain \(left eye\): 400x440 GL_SRGB8_ALPHA8, 3 images" "OpenXR: started"
 if grep -q "NO GL CONTEXT" "$LOG"; then echo "FAIL: the fake runtime saw no GL context"; fails=$((fails + 1)); else echo "PASS: the fake runtime always had the GL context"; fi
+# 8. Diagnostics mode (-diagnostics): <game folder>/diagnostics/<date>_<time> gets the console, the GL debug output (a
+# message of the game's own first), the OpenXR debug messenger's messages (the fake runtime's with FAKEXR_DEBUG_UTILS,
+# and the loader's), what is said to a debugger, the crash report, the logs copied; off by default: no folder.
+export FAKEXR_LOG="$(cygpath -w "$OUT/diag_fake.log")" FAKEXR_HEADSET=fakexr_steam FAKEXR_DEBUG_UTILS=fakexr_steam
+DIAGS="C:/OHWorkspace/qvr-kit/bases/$NAME/qbase/quakevr/diagnostics"
+before=$(ls "$DIAGS" 2>/dev/null | wc -l)
+S="vr_xr_test 1;vr_xr_runtime 2;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_backend openxr;map start;wait60;vr_diagnostics_status;vr_crash_test av"
+bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -ExtraArgs "-diagnostics" -Filter "iagnostics|ENGINE CRASH" > "$OUT/diag.log"
+unset FAKEXR_HEADSET FAKEXR_DEBUG_UTILS
+DIAG="$DIAGS/$(ls "$DIAGS" | tail -1)"
+check "$DIAG/console.log" "diagnostics: the console" "Diagnostics mode \(-diagnostics\): logs go to .*diagnostics" "Diagnostics mode on"
+check "$DIAG/gl_debug.log" "diagnostics: GL debug output" "Quake VR diagnostics: GL debug output on"
+check "$DIAG/openxr_debug.log" "diagnostics: the OpenXR messenger" "debug messenger: on \(XR_EXT_debug_utils\)" \
+    "\[info\] FAKEXR-hello xrCreateDebugUtilsMessengerEXT \(1 so far\)" "OpenXR-Loader" "step: xrCreateSession"
+check "$DIAG/diagnostics.txt" "diagnostics: the summary, the logs copied after the crash" "diagnostics \(-diagnostics\)" \
+    "debug_output.log: OutputDebugString .*: caught" "Ended: a crash" "Logs copied:" "gl_startup.log -> gl_startup.log"
+if ls "$DIAG"/crash/*.txt > /dev/null 2>&1 && [ -f "$DIAG/debug_output.log" ]; then echo "PASS: diagnostics: the crash report and debug_output.log in the folder"
+else echo "FAIL: diagnostics: no crash report or debug_output.log in $DIAG"; fails=$((fails + 1)); fi
+mid=$(ls "$DIAGS" | wc -l)
+bash "$KIT/run.sh" "$NAME" -Script "wait5;toggleconsole;quit" -Filter "iagnostics" > /dev/null
+after=$(ls "$DIAGS" | wc -l)
+if [ "$mid" -eq $((before + 1)) ] && [ "$after" -eq "$mid" ]; then echo "PASS: diagnostics: one folder for -diagnostics, none without"
+else echo "FAIL: diagnostics folders: $before -> $mid -> $after"; fails=$((fails + 1)); fi
 echo "xr_runtime_test: $fails failed"

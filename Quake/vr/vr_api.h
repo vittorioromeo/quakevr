@@ -186,6 +186,16 @@ enum
 };
 void VR_GLStep (const char *fmt, ...) FUNC_PRINTF(1,2);	// a breadcrumb, before the GL call it names: the crash report's last steps; gl_startup.log while the game starts
 int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the last `count` breadcrumbs, a line each; how many
+// Diagnostics mode (vr_diagnostics.cpp): -diagnostics or vr_diagnostics 1.
+void VR_DiagnosticsBegin (void);	// Host_Init after the filesystem (-diagnostics), VID_Init (vr_diagnostics): the folder made
+void VR_DiagnosticsOwnOutput (int on);	// Sys_Printf around its OutputDebugString
+int VR_DiagnosticsOn (void);	// nonzero: diagnostics mode this run
+const char *VR_DiagnosticsDir (void);	// its folder ("" when off)
+void VR_DiagnosticsGL (unsigned source, unsigned type, unsigned id, unsigned severity, const char *message);	// a GL debug message: gl_debug.log
+void VR_DiagnosticsXr (const char *severity, const char *messageId, const char *function, const char *message);	// an OpenXR debug message (any thread): openxr_debug.log
+void VR_DiagnosticsNote (const char *line);	// a line of the backend's in openxr_debug.log
+void VR_DiagnosticsEnd (int crashed);	// Host_Shutdown (0), the crash handler (1): summaries, the logs copied
+void VR_DiagnosticsInit (void);	// VR_Init: vr_diagnostics_status
 void VR_GLStartupBegin (void);	// VID_Init, before the window: the last start's log read, safe mode decided
 void VR_GLStartupVendor (const char *vendor, const char *renderer, const char *version);	// GL_Init: the vendor's workarounds
 int VR_GLSafeOff (int feature);	// nonzero: VR_GLSAFE_* off this run (safe mode or a vendor workaround; logged once)

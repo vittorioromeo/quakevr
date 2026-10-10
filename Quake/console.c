@@ -2620,6 +2620,30 @@ void LOG_Init (quakeparms_t *parms)
 
 }
 
+/*
+================
+LOG_Reopen
+
+QVR: the console log from here on in path (diagnostics mode: vr/vr_diagnostics.cpp), with or without -condebug
+================
+*/
+void LOG_Reopen (const char *path)
+{
+	time_t	now = time (NULL);
+	char	session[24];
+	int	fd = open (path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	if (fd == -1)
+	{
+		fprintf (stderr, "Error: Unable to create log file %s\n", path);
+		return;
+	}
+	if (log_fd != -1)
+		close (log_fd);
+	log_fd = fd;
+	strftime (session, sizeof(session), "%m/%d/%Y %H:%M:%S", localtime(&now));
+	Con_DebugLog (va("LOG started on: %s \n", session));
+}
+
 void LOG_Close (void)
 {
 	if (log_fd == -1)

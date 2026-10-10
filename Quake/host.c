@@ -1671,6 +1671,7 @@ void Host_Init (void)
 	COM_Init ();
 	COM_InitFilesystem ();
 	VR_SetCrashDir (com_gamedir); // QVR: crash reports in <game folder>/crash (quakevr/crash; vr_crash.cpp)
+	VR_DiagnosticsBegin (); // QVR: -diagnostics: everything in <game folder>/diagnostics/<date>_<time> (vr/vr_diagnostics.cpp)
 	VR_TimeMark ("filesystem (paks, game dirs)"); // QVR
 	Host_InitLocal ();
 	W_LoadWadFile (); //johnfitz -- filename is now hard-coded for honesty
@@ -1784,6 +1785,7 @@ void Host_Shutdown(void)
 	}
 	isdown = true;
 	VR_GLStartupShutdown (host_parms->errstate != 0); // QVR: a quit or an error ends the GL start-up's log well (vr/vr_glsafe.cpp)
+	VR_DiagnosticsEnd (0); // QVR: diagnostics mode: the summaries, the logs copied, the folder shown (vr/vr_diagnostics.cpp)
 
 // keep Con_Printf from trying to update the screen
 	scr_disabled_for_loading = true;

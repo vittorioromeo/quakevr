@@ -1134,7 +1134,9 @@ void Sys_Printf (const char *fmt, ...)
 		fputws (wtext, stdout);
 	}
 
+	VR_DiagnosticsOwnOutput (1); // QVR: not in diagnostics' debug_output.log (vr/vr_diagnostics.cpp)
 	OutputDebugStringW (wtext);
+	VR_DiagnosticsOwnOutput (0);
 }
 
 void Sys_Quit (void)

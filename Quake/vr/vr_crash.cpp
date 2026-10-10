@@ -65,6 +65,7 @@ extern "C" int VR_VersionIsDev (void)
 extern "C" void Con_DebugLog (const char *msg); // console.c: -condebug's qconsole.log
 extern "C" char com_gamedir[];                  // common.c: the game folder (the report names it)
 extern "C" int VR_GLRecentSteps (char *out, int outSize, int count); // vr_glsafe.cpp: the last GL breadcrumbs
+extern "C" void VR_DiagnosticsEnd (int crashed); // vr_diagnostics.cpp: diagnostics mode's logs copied
 extern "C" const char *VR_GLSafeDescribe (void);                       // vr_glsafe.cpp: the run's GL safe mode
 
 /* Crash reports (docs/vr-port/TESTING.md, "Crash reports"). Every fatal end of the game writes one:
@@ -739,6 +740,18 @@ void tryLog ()
 	}
 }
 
+// Diagnostics mode: the logs copied beside the report (vr_diagnostics.cpp).
+void tryDiagnostics ()
+{
+	__try
+	{
+		VR_DiagnosticsEnd (1);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
+}
+
 void showDialog (const CrashRequest &req)
 {
 	const EXCEPTION_RECORD *er = req.ep->ExceptionRecord;
@@ -785,6 +798,7 @@ void writeReport (const CrashRequest &req)
 	if (testRun)
 		writeFileUtf8Path ("qvr_crash.txt", report, reportLen); // (the kit's run.ps1 prints it)
 	tryDump (&req);
+	tryDiagnostics ();
 	if (locked)
 		ReleaseSRWLockExclusive (&dbgHelpLock);
 }

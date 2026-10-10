@@ -481,6 +481,13 @@ QVR_CVAR(vr_xr_keep_graphics_dlls, "1", CVAR_NONE)
 // access violation: VDXR 1.1.0's null read in xrEnumerateSwapchainImages, 1.0.1) is caught: logged, that start fails
 // (Auto tries the next runtime, else flat) instead of the game; 0 the game crashes with its report (for a debugger).
 QVR_CVAR(vr_xr_guard, "1", CVAR_NONE)
+// 1: diagnostics mode from the next start (as -diagnostics, from the window's creation): a debug GL context and its
+// messages, the OpenXR loader's and debug messenger's output, the console, the crash report and the runtimes' logs in
+// <game folder>/diagnostics/<date>_<time> (vr_diagnostics.cpp). Slower: for a bug report only.
+QVR_CVAR(vr_diagnostics, "0", CVAR_ARCHIVE)
+// Diagnostics mode's OpenXR messages: 1 the XR_EXT_debug_utils messenger once the instance is made; 2 also chained to
+// its creation (the loader's messages while it is made); 0 none.
+QVR_CVAR(vr_diagnostics_xr, "1", CVAR_NONE)
 // 1: the next eye swapchain is requested with no GL context current (once; the game makes it current again first,
 // logged: the test of that check, Misc/quakevr/xr_runtime_test.sh part 7).
 QVR_CVAR(vr_xr_test_drop_context, "0", CVAR_NONE)

@@ -5153,6 +5153,13 @@ za::Vector<Item> pageDebugProfiling()
                   "(quakevr/crash/gl_startup.log has the start-up's)."),
         command("Retry the Full Renderer", "vr_glsafe_retry")
             .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
+        header("Diagnostics"),
+        toggle("Diagnostics Mode", vr_diagnostics)
+            .help("vr_diagnostics, from the next start (as -diagnostics or the Diagnostics shortcut): a debug GL context and "
+                  "its messages, the OpenXR debug messenger, what is said to a debugger, the console, the crash report and "
+                  "the runtimes' logs, all in quakevr/diagnostics/<date>_<time>. Slower: for a bug report only."),
+        command("Diagnostics Status", "vr_diagnostics_status")
+            .help("vr_diagnostics_status: whether this run is in diagnostics mode, its folder and the messages so far."),
         header("Startup (OpenXR runtime)"),
         toggle("Runtime Crash Guard", vr_xr_guard)
             .help("vr_xr_guard: a crash inside the OpenXR runtime while the game makes its eye images or stops it is caught "

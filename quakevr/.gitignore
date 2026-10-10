@@ -58,3 +58,5 @@
 /qvr_openxr.txt
 # Crash reports (vr_crash.cpp: quakevr/crash/<date>_<time>.txt and .dmp)
 /crash/
+# Diagnostics mode's folders (vr_diagnostics.cpp: quakevr/diagnostics/<date>_<time>/)
+/diagnostics/
