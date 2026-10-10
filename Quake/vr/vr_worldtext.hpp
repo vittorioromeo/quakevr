@@ -60,6 +60,7 @@ void serverFloatText(const glm::vec3& pos, const char* text, const glm::vec3& co
 void clientReset();
 void clientParse(int subcmd); // QVR_SVC_WORLDTEXT_*
 void clientParseFloatText();  // QVR_SVC_FLOATTEXT
+void clientParseViewMessage(); // QVR_SVC_VIEWMESSAGE
 void clientWriteAll(sizebuf_t* msg); // the client's texts, for a demo recorded mid-game
 [[nodiscard]] const za::Vector<WorldText>& clientTexts();
 // Which list clientTexts() is: a new number at each clientReset (a new map or connection; never 0), so that what is
@@ -68,5 +69,14 @@ void clientWriteAll(sizebuf_t* msg); // the client's texts, for a demo recorded 
 
 // The floating texts still showing at client time `now` (those done are dropped).
 [[nodiscard]] const za::Vector<FloatText>& clientFloatTexts(double now);
+
+// A view message (QC viewmessage: target_vr_message, the tutorial's welcome): floating in the middle of the view, at eye
+// level, as VR Calibration's text (setup::drawViewText), for the seconds the server says; not in the wrist gadget's
+// hologram. Without a headset, a centre print held that long instead. Showing (VR): new tips wait (vr_tips.cpp), as for a
+// centre print.
+[[nodiscard]] bool viewMessageShowing();
+// Once a frame (vr_main.cpp, after the texts are cleared): the view message drawn while it lasts (in game: not in a menu,
+// paused or at the intermission).
+void viewMessageFrame();
 
 } // namespace qvr::worldtext

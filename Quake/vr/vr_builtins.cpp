@@ -1888,6 +1888,12 @@ void PF_playershock()
     server::sendShock(G_EDICT(OFS_PARM0), shock::KindSelfHit, G_VECTOR(OFS_PARM2), G_FLOAT(OFS_PARM1), 0.f);
 }
 
+// viewmessage(player, text, seconds): `text` in the middle of `player`'s view for `seconds` (vr_server.hpp).
+void PF_viewmessage()
+{
+    server::sendViewMessage(G_EDICT(OFS_PARM0), G_STRING(OFS_PARM1), G_FLOAT(OFS_PARM2));
+}
+
 void PF_watershock()
 {
     server::sendShock(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_PARM1),
@@ -2314,6 +2320,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"tracer", PF_tracer},
     {"watershock", PF_watershock},
     {"playershock", PF_playershock},
+    {"viewmessage", PF_viewmessage},
     {"portal_ai_sight", PF_portal_ai_sight},
     {"portal_ai_map", PF_portal_ai_map},
     {"portal_ai_client", PF_portal_ai_client},

@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include "Zancle/String/StringView.hpp"
+
 namespace qvr::setup
 {
 
@@ -45,5 +47,9 @@ void frame();
 // The calibration room's doorway, on the board over it ("{calibration exit}" in a board's text, vr_worldtext.cpp): "VR
 // TUTORIAL" at a first start (vr_tutorial_started 0: QC changelevel_touch sends it there), else "VR HUB".
 [[nodiscard]] const char* exitBoardName();
+
+// `text` floating ahead of the eyes (0.9 m, turned with the head's yaw), `drop` metres below them: the calibration's steps
+// and welcome (0), the view messages (QC viewmessage: vr_worldtext.cpp). Queued for this frame (text3d's overlay).
+void drawViewText(za::StringView text, float drop);
 
 } // namespace qvr::setup

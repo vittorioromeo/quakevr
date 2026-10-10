@@ -851,6 +851,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_WORLDTEXT_HALIGN:
         case QVR_SVC_WORLDTEXT_SCALE: worldtext::clientParse(subcmd); break;
         case QVR_SVC_FLOATTEXT: worldtext::clientParseFloatText(); break;
+        case QVR_SVC_VIEWMESSAGE: worldtext::clientParseViewMessage(); break;
         case QVR_SVC_TIP_MAKE:
         case QVR_SVC_TIP_NAME:
         case QVR_SVC_TIP_TEXT:

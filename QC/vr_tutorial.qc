@@ -621,45 +621,36 @@ void() target_vr_music =
 
 void() target_vr_message_think =
 {
-    if(self.cnt && time >= self.attack_finished)
-    {
-        dprint(sprintf("message: last sent at %g\n", time));
-        self.nextthink = 0; // (kept, not removed: the edicts the game spawns later stay where they were)
-        return;
-    }
     float sent = FALSE;
     for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
     {
         if(p.flags & FL_CLIENT)
         {
-            centerprint(p, self.message);
-            if(!self.cnt)
-            {
-                sound(p, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
-            }
+            // (Held by the client for "wait" seconds: in the middle of the view, or a centre print on a flat screen.)
+            viewmessage(p, self.message, self.wait);
+            sound(p, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
             sent = TRUE;
         }
     }
-    if(sent && !self.cnt)
+    if(sent)
     {
-        self.cnt = TRUE;
-        self.attack_finished = time + self.wait;
-        dprint(sprintf("message: first sent at %g, until %g\n", time, self.attack_finished));
+        dprint(sprintf("message: sent at %g, for %g s\n", time, self.wait));
+        self.nextthink = 0; // (kept, not removed: the edicts the game spawns later stay where they were)
+        return;
     }
-    // (sent again each second: a centre print shows for scr_centertime, and the same one again keeps it on)
-    self.nextthink = time + (sent ? 1 : 0.1);
+    self.nextthink = time + 0.1; // no player yet
 };
 
 void() target_vr_message_use =
 {
-    self.cnt = FALSE;
     self.think = target_vr_message_think;
     self.nextthink = time + 0.05;
 };
 
 /*QUAKED target_vr_message (0.6 0.3 1) (-8 -8 -8) (8 8 8)
-Quake VR: a message ("message") in the middle of every player's view (and in the wrist's hologram) for "wait" seconds
-(default 8), not the usual 2; no new tip shows until it is gone. Shown when used, or with no "targetname" by itself
+Quake VR: a message ("message") floating in the middle of every player's view (at eye level, as VR Calibration's text;
+not in the wrist's hologram) for "wait" seconds (default 8), not a centre print's 2; on a flat screen a centre print held
+that long. No new tip shows until it is gone. Shown when used, or with no "targetname" by itself
 "delay" seconds (default 1) after the map starts.
 */
 void() target_vr_message =

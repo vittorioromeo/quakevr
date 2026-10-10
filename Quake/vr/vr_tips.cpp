@@ -12,6 +12,7 @@
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 #include "vr_walltorch.hpp"
+#include "vr_worldtext.hpp"
 
 #include "Zancle/Algorithm/LowerBound.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -923,8 +924,9 @@ void frame()
         return;
     }
     // A centre print up (the tutorial's welcome, a trigger's message): no new tip until it is gone, its delay counted
-    // from then (the two never on show at once; the author, 2026-10-10).
-    if(SCR_CenterPrintShowing())
+    // from then (the two never on show at once; the author, 2026-10-10). A view message (target_vr_message's, in the
+    // middle of the view: vr_worldtext.cpp) likewise.
+    if(SCR_CenterPrintShowing() || worldtext::viewMessageShowing())
     {
         if(!centerHeld)
         {

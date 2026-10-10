@@ -10958,3 +10958,22 @@ the tag carries it: `72827da8`). test.1 and test.2 are already deleted from GitH
   screenshot added. `qvr-setup update` (default feeds): "newer -> update", 21 files copied, the 3 player files kept,
   verify intact. The downloaded test.3 Setup's off-screen harness (no `--feed`) over another such install: Welcome
   "1.0.0-test.2 is installed / Update to 1.0.0-test.3", and it updated it (install.json 1.0.0-test.3, the save kept).
+
+## The tutorial's welcome in the middle of the view, as the calibration's (2026-10-10)
+
+The author: the tutorial's intro should show in the centre of the view like the calibration messages, not on the wrist
+gadget.
+
+- **`target_vr_message`** (QC vr_tutorial.qc) now calls the new builtin `viewmessage(player, text, seconds)` once per
+  player with its `wait` (no more re-sending each second); its entity keys are unchanged (vrtutorial's lump works as is).
+  The server sends `QVR_SVC_VIEWMESSAGE` (33: `[short seconds * 10][string]`, reliable, to that player;
+  vr_server.cpp `sendViewMessage`). The client (vr_worldtext.cpp) holds it `seconds` of client time and draws it each
+  frame in game (not in a menu, paused or at the intermission) with VR Calibration's own text: `setup::drawViewText`
+  (vr_setup.cpp's step text, now shared: 0.9 m ahead, turned with the head's yaw, at eye level as the welcome, scale
+  0.045). Its first line is gold when a blank line follows (as the calibration's titles). It never goes through
+  `SCR_CenterPrint`, so the wrist's hologram doesn't show it. Without a headset (`vr_enabled 0`) it is a centre print
+  held that long (`SCR_CenterPrintFor`, gl_screen.c). A new map clears it; a game saved and loaded mid-message drops it.
+- **Tips** wait for it as for a centre print (vr_tips.cpp: `SCR_CenterPrintShowing() ||
+  worldtext::viewMessageShowing()`).
+- `developer 1`: `view message: 8.0 s at 1.50 (in view | centre print)`. Checked headless in vrtutorial: sent at 1.5,
+  tips held from 1.5 to 9.5 (flat: 9.4), then the first tip; the screenshot shows it in front of the view at eye level.

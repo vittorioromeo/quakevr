@@ -441,15 +441,7 @@ void afterBody()
 // The step's text, floating ahead of the eyes (as Body Calibration's), `drop` metres below them.
 void drawText(za::StringView text, float drop = 0.18f)
 {
-    const hands::State& s = hands::current();
-    if(!s.valid)
-    {
-        return;
-    }
-    const float m2u = units::metresToUnits();
-    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
-    const glm::vec3 at = s.head + fwd * (0.9f * m2u) - glm::vec3{0.f, 0.f, drop * m2u};
-    text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.045f);
+    drawViewText(text, drop);
 }
 
 void heightFrame(double now, za::String& text)
@@ -740,6 +732,19 @@ void stop_f()
 }
 
 } // namespace
+
+void drawViewText(za::StringView text, float drop)
+{
+    const hands::State& s = hands::current();
+    if(!s.valid)
+    {
+        return;
+    }
+    const float m2u = units::metresToUnits();
+    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
+    const glm::vec3 at = s.head + fwd * (0.9f * m2u) - glm::vec3{0.f, 0.f, drop * m2u};
+    text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.045f);
+}
 
 void init()
 {
