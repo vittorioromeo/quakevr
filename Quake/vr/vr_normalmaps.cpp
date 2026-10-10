@@ -850,8 +850,7 @@ extern "C" int VR_MakeNormalMap (gltexture_t *glt, byte *data, int kind, int wor
 					VR_NormalCacheStore (TexMgr_NormalCacheBuild (), key, data, glt->width, glt->height);
 			}
 			Hunk_FreeToLowMark (cmark);
-			VR_TimeAdd (hit && cache == 1 ? "normal maps of skins read from the cache" : "normal maps made from skins", Sys_DoubleTime () - t0);
-		}
+			VR_TimeAdd (hit && cache == 1 ? "normal maps of skins read from the cache" : "normal maps made from skins", Sys_DoubleTime () - t0);		}
 		else
 		{
 			TexMgr_EnsureHeightMask ();

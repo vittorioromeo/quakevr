@@ -33,4 +33,10 @@ void start();
 // Each host frame's end: the steps advanced.
 void frame();
 
+// vr_prepare_models (single player, a map in play; Setup's preparation run's last map, Debug > Tests): every alias
+// model of the game's folders (progs/*.mdl: the paks' and the folders', the first of each name as the game finds it)
+// precached now, then the whole limbs of each monster's model with a ragdoll rig (as vr_limbs_prebuild makes a map's
+// monsters'): their skins' normal maps are made and kept on disk (cache/normalmaps) here, not at a first visit's load.
+void precacheModels_f();
+
 } // namespace qvr::prepare

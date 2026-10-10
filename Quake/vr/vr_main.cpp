@@ -1940,6 +1940,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
+    Cmd_AddCommand("vr_prepare_models", prepare::precacheModels_f); // (Setup's preparation run, vr_prepare.cpp)
     Cmd_AddCommand("vr_vram_report", vram::report_f);
     allocsites::registerCommands(); // vr_alloc_sites
     Cmd_AddCommand("vr_crash_test", VR_CrashTest_f);

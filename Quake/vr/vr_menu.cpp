@@ -6376,6 +6376,10 @@ za::Vector<Item> pageDebugTests()
                   "swords, the ogre's chainsaw, the random drops') dropped in rows ahead of you as a death drops it; "
                   "their convex pieces' cut times printed (box3d: ..., read from the disk or cut). Setup's preparation "
                   "run does this on the hub."),
+        command("Every Model and Limb Precached", "vr_prepare_models")
+            .help("vr_prepare_models: every model of the game's folders (progs/*.mdl) and every monster's limbs loaded now, "
+                  "so their skins' normal maps are made and kept on disk (cache/normalmaps) instead of at a map's first "
+                  "load. Setup's preparation run does this on the hub (2-3 s; the count and time printed)."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")
