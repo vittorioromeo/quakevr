@@ -7857,6 +7857,25 @@ float M_ContentRightBelow (float y)
 	return y < bottom ? right : -1e9f;
 }
 
+// QVR: and how far left, 1e9 where nothing it draws reaches below y: the main menu's rows as last drawn (from their
+// cursor's column), the others as M_ContentLeft and M_ContentExtent say. A flat screen's Recording button in the bottom
+// left corner keeps left of it (vr_menuui.cpp).
+float M_ContentLeftBelow (float y)
+{
+	float right, bottom;
+	int i;
+
+	if (m_state == m_main)
+	{
+		for (i = 0; i < MAIN_ITEMS; i++)
+			if (m_main_row_bottom[i] > y)
+				return 54.f; // (M_DrawQuakeCursor's column)
+		return 1e9f;
+	}
+	M_ContentExtent (&right, &bottom);
+	return y < bottom ? (float) M_ContentLeft () : 1e9f;
+}
+
 // QVR: where the menu shown draws its leftmost text, for the flat screen's banner (vr_menubrand.cpp): the lists' left
 // (their cursor's column); Quake's menus, laid out round the plaque's column, 320 (nothing in its way).
 int M_TextLeft (void)

@@ -85,14 +85,14 @@ selected row (with the header above it), its scroll and the page Back goes to. W
 and place in the tree. `menu_vr dump` prints every page reached from VR Settings and its rows (MDPAGE/MDROW lines);
 `python Misc/quakevr/menu_coverage.py before.log after.log` compares two dumps (every setting and action still on a
 page, the tree, pages over 30 rows; ROUND21.md, "Menus reorganized"). Page numbers: 13 Grappling Hook, 23 Weapon
-Offsets, 41 Held Object Offsets, 42 Weapon Weights, 43 Held Object Weights, 44 and on the pages added then, 65 Recording. `vr_mock_laser back|search|console|settings|advanced|levels|maps|relighting|checklist|spectator|obs`
+Offsets, 41 Held Object Offsets, 42 Weapon Weights, 43 Held Object Weights, 44 and on the pages added then, 65 Recording. `vr_mock_laser back|search|console|settings|advanced|levels|maps|relighting|checklist|spectator|recording|obs`
 (or `<x> <y>` in menu coordinates; `off`) puts the main hand's laser on a corner button or a spot, whatever the hand's
 pose; then `vr_mock_button main trigger 1` / `0` clicks. `vr_mock_laser kofi` (`vr_mock_mouse kofi click` on a flat screen) points at the version box's Ko-fi link (ROUND21.md, "The menus' Ko-fi link and corner boxes"); with `vr_menu_link_dryrun 1` (and in any hidden kit run) a press prints `menu link: opening <url> (<n>)` instead of opening the browser. `vr_mock_laser update` / `vr_mock_mouse update [click]` point at the update notice above it (shown with `vr_update_test_version 9.9.9`, or a newer feed: `vr_update_url <feed>; vr_update_check_now`; `Misc/quakevr/update_notice_test.py` runs the whole check against a local server). The OBS row above the spectator switch (`vr_mock_laser obs`): `Misc/quakevr/obs_test.py` runs it against a mock obs-websocket server (`obs_mock_server.py`; ROUND21.md, "OBS's recording from the menus"). `vr_mock_button off stickclick 1` / `0` gives the corner
 buttons the selection, `vr_mock_stick off 0 -1` (then `0 0`) moves down, `vr_mock_button main primary` presses;
 `vr_mock_stick main 0 -1` scrolls a page. Back to Game: `vr_mock_button main menu 1; wait90; vr_mock_button main menu
 0`, reopened by `togglemenu`. Across a restart: `writeconfig <file>` writes `vr_menu_positions`; exec that line at the
 next start (the kit puts `ironwail.cfg` back after each run). Flat screen (`vr_enabled 0`; ROUND21.md, "Corner buttons
-on a flat screen"): `vr_mock_mouse <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | checklist [click]`
+on a flat screen"): `vr_mock_mouse <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | checklist | recording [click]`
 moves the desktop mouse there (M_Mousemove) and clicks; `vr_mock_key <key>` presses a key (`uparrow`, `enter`,
 `rthumb`...) and prints the menu and the corner button selected; `vid_unlock` before `vid_width`/`vid_restart` changes
 the kit's window size.

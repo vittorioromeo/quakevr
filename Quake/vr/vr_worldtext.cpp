@@ -2,6 +2,7 @@
 
 #include "vr_worldtext.hpp"
 #include "vr_engine.hpp"
+#include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_protocol.hpp"
 #include "vr_setup.hpp"
@@ -30,6 +31,16 @@ za::Vector<WorldText> serverTexts;
 za::Vector<WorldText> clientTextList;
 za::Vector<FloatText> clientFloatTextList;
 unsigned clientListGeneration{1}; // clientGeneration
+
+// The view message (clientParseViewMessage): its text (the first line gold when a blank line follows, as VR
+// Calibration's titles), from and to (client time); none: an empty text.
+struct ViewMessage
+{
+    za::String text;
+    double start{0.0};
+    double end{0.0};
+};
+ViewMessage viewMessage;
 
 [[nodiscard]] WorldText& serverText(int handle)
 {
@@ -246,6 +257,7 @@ void clientReset()
 {
     clientTextList.clear();
     clientFloatTextList.clear();
+    viewMessage = ViewMessage{};
     clientListGeneration = clientListGeneration == ~0u ? 1u : clientListGeneration + 1u;
 }
 
@@ -273,6 +285,44 @@ void clientParseFloatText()
     {
         clientFloatTextList.pushBack(ZA_MOVE(ft));
     }
+}
+
+void clientParseViewMessage()
+{
+    const float seconds = static_cast<float>(MSG_ReadShort()) / 10.f;
+    const char* text = MSG_ReadString();
+    Con_DPrintf("view message: %.1f s at %.2f (%s)\n", seconds, cl.time, vrActive() ? "in view" : "centre print");
+    if(!vrActive())
+    {
+        // A flat screen: the centre print, held that long.
+        SCR_CenterPrintFor(text, seconds);
+        viewMessage = ViewMessage{};
+        return;
+    }
+    viewMessage.text.clear();
+    const char* blank = strstr(text, "\n\n");
+    for(const char* c = text; *c; c++)
+    {
+        viewMessage.text += static_cast<char>(blank && c < blank ? (*c | 0x80) : *c);
+    }
+    viewMessage.start = cl.time;
+    viewMessage.end = cl.time + seconds;
+}
+
+bool viewMessageShowing()
+{
+    // (Not from before a jump back in time: a demo restarted.)
+    return !viewMessage.text.empty() && cl.time < viewMessage.end && cl.time >= viewMessage.start - 1.0 &&
+           !cl.intermission;
+}
+
+void viewMessageFrame()
+{
+    if(!viewMessageShowing() || key_dest != key_game || cl.paused)
+    {
+        return;
+    }
+    setup::drawViewText(viewMessage.text, 0.f); // as the calibration's welcome
 }
 
 const za::Vector<FloatText>& clientFloatTexts(double now)

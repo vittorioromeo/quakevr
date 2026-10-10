@@ -354,6 +354,14 @@ void SCR_DrawCenterString (void) //actually do the drawing
 	GL_PopCanvasColor ();
 }
 
+// QVR: a centre print shown `seconds` at least (QC viewmessage without a headset: vr_worldtext.cpp).
+void SCR_CenterPrintFor (const char *str, float seconds)
+{
+	SCR_CenterPrint (str);
+	if (scr_center_lines > 0)
+		scr_centertime_off = q_max (scr_centertime_off, seconds);
+}
+
 void SCR_CheckDrawCenterString (void)
 {
 	if (scr_center_lines > scr_erase_lines)

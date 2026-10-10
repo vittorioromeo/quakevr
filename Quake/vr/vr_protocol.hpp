@@ -65,6 +65,7 @@ enum SvcQuakeVr : int
     QVR_SVC_TIP_FLAGS = 30,       // [short handle][byte]: its flags (qvr::tips::Flags)
     QVR_SVC_RULES = 31,           // [byte count]([string cvar][float value]) x count: server rules' values (vr_serverrules.cpp; reliable, with the spawn state and on a change)
     QVR_SVC_COLLECT = 32,         // [byte hand][byte hotspot][short entity][short modelindex][float3 origin][float3 angles]: a thing that hand put away at that holster or pouch, drawn going in (vr_collectfx.cpp; to that player only; into a gun lying about, to everyone who can see it)
+    QVR_SVC_VIEWMESSAGE = 33,     // [short seconds * 10][string]: a message floating in the middle of the view that long (QC viewmessage: target_vr_message; vr_worldtext.cpp); to that player only, reliable
 };
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
 

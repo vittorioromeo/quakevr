@@ -6,6 +6,16 @@
 Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
 
 [New this week]
+Main menu bottom-left: 'Recording Settings' row (above the spectator switch) lights under the laser, opens Recording, Back returns; with OBS running the three rows stack; Jump Out of Water below Swimming at Standard
+Tutorial: your wording is in the map (only fix: lesson 1 'hold' the left stick to run); welcome floats in front of you (not the wrist); calibration/tutorial floating text ~18% bigger; tips appear ~15% earlier/farther; BULLET TIME board before the arena; halls 12a/12b looked pitch black headless: check their lighting
+Fresh install starts at walk (cl_alwaysrun 0); your config keeps its value
+Morning decisions: wrist gadget tile says ARMOUR; arena plays Scourge of Armagon's Ranger Infiltration at the door, back to Aftermath when cleared, two dogs fewer; Max Decals shows 768
+Calibration: with an untrusted body result page, one B (or menu button) closes the menu and calibration finishes
+Tutorial arena: a dog knocked into the pit comes back to its spawn with a flash after ~10 s (stay away from the edge); the arena always clears
+Art polish: under the nailgun/super nailgun/thunderbolt with a magazine in and out, the well's lip no longer shimmers; the laser cannon's grip and underside are lit like the rest
+Calibration: welcome readable at eye level (~7 s); stickman stays in front from the intro through every pose (turn your head between the height step and the first pose); doorway board/summary say tutorial on first start, VR hub afterwards
+Setup: after install/update a 'Relighting n of m' bar with Skip; first start has no relight; tutorial->hub portal shows 'Loading...' briefly (no 10-15 s freeze); Debug > Loading Notice Hold 3 s to judge size/placement
+Tutorial: welcome message readable (~9 s) and no tip until it's gone; music: calibration track 6, tutorial 3, arena 9 then back to 3 when cleared (tell me if any track should change)
 Climbing grab leniency (your working copy, not the release test): try a slightly higher vr_climb_leniency (now 2 cm; e.g. 3-4) and vr_climb_leniency_air (now 4 cm; e.g. 5-6) on climbable ledges; tell me the values that feel right to make them the defaults
 West stairs / lava / water: MG1 start's west-facing stairs with your head naturally low, walking slowly and jumping (a short catch at the very top crest may remain); step into lava and out: you keep burning 3 s (Burning > You Burn After Lava); shove a grunt off vrstart's island near the shore (gets up on the slope) and far out (gives up after ~3 s and sinks)
 Bodies in liquids: throw corpses/knocked-down enemies into water, slime, lava: braked on entry, float face down (knights/enforcers sink), no fall damage into deep liquid; in lava they burn and gib after 4 s (Ragdolls > In Water, Slime and Lava; Gameplay > Liquid Breaks Falls; Burning > Corpses); a knocked-down enemy getting up in deep water is untested

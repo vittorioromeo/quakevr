@@ -25,6 +25,12 @@ void printVersionLabel();
 [[nodiscard]] bool versionLinkSpot(float& x, float& y);
 [[nodiscard]] bool updateLinkSpot(float& x, float& y);
 [[nodiscard]] bool versionLinkPress();
+// menu_vr pos: the Recording button (bottom left: the headset's row above the spectator camera's switch, or a flat
+// screen's small box) as last drawn, or why it was left out.
+void printRecordingButton();
+// The top of the headset's bottom left rows (menu y: the Recording button's, or OBS's above it; far below the menu
+// without the VR menu style): the column's banner ends above it (vr_menubrand.cpp).
+[[nodiscard]] float cornerRowsTop();
 // Whether the menus' mouse spot (m_mousex, m_mousey) is a pointer there: the laser on the panel in the headset (the VR
 // menu style), the desktop mouse on a flat screen (ui_mouse; to light something up, `hover`: once it has moved over the
 // menus).
@@ -92,9 +98,10 @@ void backToGame(int hand);
 [[nodiscard]] float statusBottom(float contentRight);
 void focusToolbar(int dir);
 
-// vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | spectator | kofi | off
-// (tests): the main hand's laser on a spot of the menu, on one of the corner's buttons, on the spectator camera's switch
-// (bottom left) or on the version box's Ko-fi link (bottom right), whatever the hand's pose.
+// vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | spectator | recording | kofi |
+// off (tests): the main hand's laser on a spot of the menu, on one of the corner's buttons, on the spectator camera's
+// switch or the Recording button (bottom left) or on the version box's Ko-fi link (bottom right), whatever the hand's
+// pose.
 void mockLaser_f();
 
 // vr_mock_mouse <x> <y> | <button> [click] (tests, flat screen): the desktop mouse moved to a spot of the menu (menu

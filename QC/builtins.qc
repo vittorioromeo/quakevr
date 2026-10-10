@@ -421,6 +421,9 @@ void(float h, float v) vr_tip_setdelay = #0;   // seconds near before it shows (
 void(float h, float v) vr_tip_setflags = #0;   // qvr::tips::Flags (QVR_TIP_* below)
 
 void(vector org, string text, vector colour, float scale) floattext = #0; // a text rising from `org` and fading (1.5 s), facing the viewer, for every client
+// `text` floating in the middle of `player`'s view (eye level, as VR Calibration's text; not the wrist's hologram) for
+// `seconds`; without a headset, a centre print held that long (target_vr_message; vr_server.hpp). No new tip meanwhile.
+void(entity player, string text, float seconds) viewmessage = #0;
 
 void(float to, vector v) WriteVec3 = #0; // three WriteCoords
 

@@ -4025,7 +4025,7 @@ when touched."
 ]
 
 @PointClass color(153 76 255) size(-8 -8 -8, 8 8 8) =
-	target_vr_message : "Quake VR: a message ('message') in the middle of every player's view (and in the wrist's hologram) for 'wait' seconds (default 8), not the usual 2; no new tip shows until it is gone. Shown when used, or with no 'targetname' by itself
+	target_vr_message : "Quake VR: a message ('message') floating in the middle of every player's view (at eye level, as VR Calibration's text; not in the wrist's hologram) for 'wait' seconds (default 8), not a centre print's 2; on a flat screen a centre print held that long. No new tip shows until it is gone. Shown when used, or with no 'targetname' by itself
 'delay' seconds (default 1) after the map starts."
 [
 	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."

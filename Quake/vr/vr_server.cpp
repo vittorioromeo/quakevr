@@ -1232,6 +1232,19 @@ void sendEject(edict_t* player, int hand, int kind, int count, int flags, float 
     MSG_WriteByte(msg, CLAMP(0, static_cast<int>(delay * 100.f + 0.5f), 255));
 }
 
+void sendViewMessage(edict_t* player, const char* text, float seconds)
+{
+    sizebuf_t* msg = clientMessage(player);
+    if(!msg)
+    {
+        return;
+    }
+    MSG_WriteByte(msg, svc_quakevr);
+    MSG_WriteByte(msg, QVR_SVC_VIEWMESSAGE);
+    MSG_WriteShort(msg, CLAMP(0, static_cast<int>(seconds * 10.f + 0.5f), 32767));
+    MSG_WriteString(msg, text);
+}
+
 void sendShock(edict_t* player, int kind, const float org[3], float radius, float duration)
 {
     sizebuf_t* msg = nullptr;

@@ -695,7 +695,7 @@ same name in two maps is two tips; `vr_tips_reset` (VR Settings > Tips > Show Ti
 | key | default | what it does |
 | --- | --- | --- |
 | `message` | — | its text; `\n` starts a new line. Without it the tip removes itself. |
-| `distance` | 0 | range in units (0: `vr_tips_distance`, 150). |
+| `distance` | 0 | range in units (0: `vr_tips_distance`, 175). |
 | `target` / `targetname` | — | another entity's `targetname`: the tip follows it, live. Neither: a fixed point at its origin. |
 | `tipname` | — | names the tip: its key in `vr_tips_seen`, and what `vr_tips_test` takes. Falls back to `targetname`. |
 | `tip_size` | 0 | its text size (0: `vr_tips_size`; 1 is about 1.5 degrees a character). |
@@ -10958,3 +10958,50 @@ the tag carries it: `72827da8`). test.1 and test.2 are already deleted from GitH
   screenshot added. `qvr-setup update` (default feeds): "newer -> update", 21 files copied, the 3 player files kept,
   verify intact. The downloaded test.3 Setup's off-screen harness (no `--feed`) over another such install: Welcome
   "1.0.0-test.2 is installed / Update to 1.0.0-test.3", and it updated it (install.json 1.0.0-test.3, the save kept).
+
+## The tutorial's welcome in the middle of the view, as the calibration's (2026-10-10)
+
+The author: the tutorial's intro should show in the centre of the view like the calibration messages, not on the wrist
+gadget.
+
+- **`target_vr_message`** (QC vr_tutorial.qc) now calls the new builtin `viewmessage(player, text, seconds)` once per
+  player with its `wait` (no more re-sending each second); its entity keys are unchanged (vrtutorial's lump works as is).
+  The server sends `QVR_SVC_VIEWMESSAGE` (33: `[short seconds * 10][string]`, reliable, to that player;
+  vr_server.cpp `sendViewMessage`). The client (vr_worldtext.cpp) holds it `seconds` of client time and draws it each
+  frame in game (not in a menu, paused or at the intermission) with VR Calibration's own text: `setup::drawViewText`
+  (vr_setup.cpp's step text, now shared: 0.9 m ahead, turned with the head's yaw, at eye level as the welcome, scale
+  0.045). Its first line is gold when a blank line follows (as the calibration's titles). It never goes through
+  `SCR_CenterPrint`, so the wrist's hologram doesn't show it. Without a headset (`vr_enabled 0`) it is a centre print
+  held that long (`SCR_CenterPrintFor`, gl_screen.c). A new map clears it; a game saved and loaded mid-message drops it.
+- **Tips** wait for it as for a centre print (vr_tips.cpp: `SCR_CenterPrintShowing() ||
+  worldtext::viewMessageShowing()`).
+- `developer 1`: `view message: 8.0 s at 1.50 (in view | centre print)`. Checked headless in vrtutorial: sent at 1.5,
+  tips held from 1.5 to 9.5 (flat: 9.4), then the first tip; the screenshot shows it in front of the view at eye level.
+
+## A Recording button in the menus' bottom left corner; Jump Out of Water in VR Settings (2026-10-10, worktree `recbtn`)
+
+His requests: a button in the menu's bottom left corner that opens the recording menu, and "Jump Out of Water" below
+"Swimming" in the basic VR Settings too.
+
+- **Recording button** (vr_menuui.cpp). In the headset (the VR menu style) it is a row of the bottom left corner's stack,
+  styled as its neighbours: row 0 the spectator camera's switch (unchanged, in the corner), row 1 "Recording Settings"
+  (short "Recording" where the column is narrow; a film camera icon, the label as the corner's buttons'), row 2 OBS's row
+  when shown (it was row 1). The spectator preview goes above the top row, and the column's banner now ends above the
+  rows (`menuui::cornerRowsTop`; before, only above the panel's bottom). The laser lights it with a tick; the trigger
+  opens Graphics > Recording (`menu::jumpToRecording`: `openFromAnywhere`, so Back returns to the menu it was pressed
+  on, the main menu included). Laser only, like the switch and OBS's row (the sticks' corner selection covers the top
+  column only).
+- On a flat screen (VR off, with `vr_menu_flat_shortcuts`) it is a small box in the canvas's bottom left corner in the
+  version box's style (its corner distance, padding and 5-pixel letters: "Recording"), lit under the desktop mouse, a
+  click opens the page. It is drawn only where nothing the menu draws reaches beside it (`menu::contentLeftBelow`, new,
+  the mirror of `contentRightBelow`; menu.c `M_ContentLeftBelow`: the main menu's rows from their cursor's column x 54,
+  the others `M_ContentLeft` down to `M_ContentExtent`'s bottom) nor the flat banner comes down to it.
+- **Menu Detail:** the Recording page (65) is listed at Advanced but VR Settings already links to it at Standard, and
+  its 49 rows show at Standard; the button opens it at every level without raising Menu Detail.
+- Tests: `vr_mock_laser recording`, `vr_mock_mouse recording [click]`; `menu_vr pos` prints `recording button ...`
+  (the headset's row, or the flat box and why it was left out). Checked headless: the headset at vr_menu_height 1.35 and
+  1 (main menu, Levels list, VR Settings; no overlap, banner above the rows), with OBS's row (mock server: three rows),
+  the flat screen at 960x540, 640x480 and 1600x600 (main menu, Options, VR Settings); press, page 65 at Standard, Escape
+  back to the main menu. `obs_test.py` 15/15 (OBS's row at row 2).
+- **Jump Out of Water** (`vr_water_jump`, toggle, the same help as Movement > Swimming's) right below Swimming on the VR
+  Settings page (Standard). `vr_menu_dump 0` lists it there; no menu path changed (`vr_menu_path_check` 0 missing).

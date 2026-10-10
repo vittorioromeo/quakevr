@@ -1888,6 +1888,7 @@ extern "C" void VR_BeginFrame()
     bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
     stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
     setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
+    worldtext::viewMessageFrame(); // a view message (target_vr_message): in the middle of the view while it lasts
     loading::frame();    // "Loading..." while a level change waits for the headset to show it (vr_loading.cpp)
     retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
     configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)

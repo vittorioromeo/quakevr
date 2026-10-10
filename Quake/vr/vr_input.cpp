@@ -524,8 +524,8 @@ bool primaryHeld(int hand)
 
 } // namespace qvr::input
 
-// Thumbstick locomotion. Running or walking as with the keyboard: running (cl_alwaysrun, the
-// default; the speed button switches) is cl_movespeedkey times the speed, and the stick, being
+// Thumbstick locomotion. Running or walking as with the keyboard (walking: cl_alwaysrun 0, the
+// default; the speed button switches): running is cl_movespeedkey times the speed, and the stick, being
 // analog, moves at cl_forwardspeed in every direction (as the old engine did). The server steers by
 // the head (.v_viewangle): with
 // vr_movement_mode 1 the stick moves relative to the head; with 0 it moves where the moving hand

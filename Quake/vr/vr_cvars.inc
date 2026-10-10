@@ -655,10 +655,10 @@ QVR_CVAR(vr_messages_hologram_only, "0", CVAR_ARCHIVE) // QVR round 21: 1: the g
 QVR_CVAR(vr_loading_notice, "1", CVAR_ARCHIVE)        // "Loading..." in front of you before a level change (changelevel, a map transition, map, load, restart: vr_loading.cpp): the load waits until two headset frames showed it, as the runtime keeps showing the last frame while the game loads; 0 off, 1 in the headset, 2 the mock headset too (tests)
 QVR_CVAR(vr_loading_hold, "0", CVAR_NONE)            // Debug > Tests, Loading Notice Hold: seconds the notice stays before the load starts (0: two frames), to look at it
 QVR_CVAR(vr_tips, "1", CVAR_ARCHIVE)                  // tips for new players (vr_tips.cpp), each shown once, the first time you come near what it is about and can see it: 0 off, 1 a CRT screen floating by it (as the maps' text boards) with a cable to it, 2 in the wrist gadget's hologram (it waits to be seen, chiming from the gadget; the panel when there is no hologram)
-QVR_CVAR(vr_tips_distance, "150", CVAR_ARCHIVE)       // how near (units, 32 a metre or so) you must come to what a tip is about
+QVR_CVAR(vr_tips_distance, "175", CVAR_ARCHIVE)       // (150 before vr_cfg_version 120) how near (units, 32 a metre or so) you must come to what a tip is about
 QVR_CVAR(vr_tips_line_of_sight, "1", CVAR_ARCHIVE)    // 1: only when nothing hides it from your eyes (the world's walls)
 QVR_CVAR(vr_tips_view_angle, "35", CVAR_ARCHIVE)      // degrees from where you look it must be within (0: anywhere)
-QVR_CVAR(vr_tips_delay, "0.5", CVAR_ARCHIVE)          // seconds it must stay near and seen before the tip shows
+QVR_CVAR(vr_tips_delay, "0.35", CVAR_ARCHIVE)         // (0.5 before vr_cfg_version 120) seconds it must stay near and seen before the tip shows
 QVR_CVAR(vr_tips_time, "10", CVAR_ARCHIVE)            // seconds a tip shows (the hologram's: once seen)
 QVR_CVAR(vr_tips_facing, "0", CVAR_ARCHIVE)           // the floating screen: 0 turned towards your eyes and level, 1 square to your view (flat in front of you, tilting with your head)
 QVR_CVAR(vr_tips_size, "1", CVAR_ARCHIVE)             // the floating panel's text size (1: about 1.5 degrees a character)
