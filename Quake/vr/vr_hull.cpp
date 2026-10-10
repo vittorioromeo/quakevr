@@ -2386,6 +2386,10 @@ struct Merge
     za::SizeT start = 0;
     za::Vector<const Unit*> owner; // [plane - start]
     int redone = 0;                 // units done again on the merging thread
+    // (buildModelsAtOnce: a model's unit, its base the tree's table before any model) a plane it added may be one an
+    // earlier model added since, of exactly the same values: the one-thread build finds that one, and each later ask
+    // is checked against it all the same.
+    bool reuse = false;
 
     // A plane number of u's (or of the units above it) in the tree's table.
     [[nodiscard]] int real(const Unit& u, int id) const
@@ -2456,12 +2460,28 @@ struct Merge
                 continue;
             }
             // One it added: the table's must be new to it (not one it or the units above it could see or had) and the same.
-            if(static_cast<za::SizeT>(got) < start || mine(got, u) || !same(tb.planeAt(got), u.planes[id - u.baseCount]))
+            // (reuse: or one an earlier model added, not given to another of its planes)
+            const bool earlier = reuse && static_cast<za::SizeT>(got) < start && static_cast<za::SizeT>(got) >= u.baseCount;
+            if((static_cast<za::SizeT>(got) < start && !earlier) || (!earlier && mine(got, u)) ||
+                !same(tb.planeAt(got), u.planes[id - u.baseCount]))
             {
                 return false;
             }
+            if(earlier)
+            {
+                for(const int other : u.map)
+                {
+                    if(other == got)
+                    {
+                        return false;
+                    }
+                }
+            }
             to = got;
-            own(static_cast<za::SizeT>(got), static_cast<za::SizeT>(got) + 1, u);
+            if(!earlier)
+            {
+                own(static_cast<za::SizeT>(got), static_cast<za::SizeT>(got) + 1, u);
+            }
         }
         return true;
     }
@@ -2842,6 +2862,148 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch 
     }
     t.ms += za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
     return tb.rebounded;
+}
+
+jobs::Site modelsSite{"hull models"}; // (buildModelsAtOnce's units and merges: vr_jobs_sites)
+
+// The trees of these models (subs, in order) for each of these trees, as buildTree makes them one model after another,
+// but all at once: each model of each tree built on the pool as a unit over its tree's table as it is now (only read
+// meanwhile: a map's doors, lifts and walls are small, 940 builds of 1-2 ms on mge5m2, a tree's in a row 190 ms), then
+// each tree's units merged in the models' order as the units of a tree's top are (Merge, emit: every plane asked of the
+// tree's table again, the unit's taken only if each answer is the one it had). A model whose check fails (a plane
+// nearly the same as one an earlier model added) is built again by buildTree there, as before. counts: the models built.
+void buildModelsAtOnce(const za::Vector<Tree*>& sizes, const Brushes& b, const za::Vector<za::SizeT>& subs,
+    za::Vector<int>& counts)
+{
+    struct Job
+    {
+        za::SizeT size = 0, sub = 0;
+    };
+    za::Vector<Job> work;
+    za::Vector<za::UniquePtr<TreeBuilder>> bases; // (made here: their index brought up to date before the pool reads it)
+    for(za::SizeT i = 0; i < sizes.size(); ++i)
+    {
+        Tree& t = *sizes[i];
+        if(t.heads.size() < b.subs.size())
+        {
+            t.heads.resize(b.subs.size(), -1);
+        }
+        bases.pushBack(za::makeUnique<TreeBuilder>(t));
+        for(const za::SizeT sub : subs)
+        {
+            if(t.heads[sub] < 0)
+            {
+                work.pushBack(Job{i, sub});
+            }
+        }
+    }
+    // The planes the table will give the models' brushes' own planes (most of their asks), asked of a builder over each
+    // tree's table in the models' order, as one thread would (growAllOnPool's `given`): a unit cuts with those, so an
+    // earlier model's nearly equal plane is the one it uses too.
+    za::Vector<za::Vector<mplane_t>> given(sizes.size());
+    za::Vector<za::SizeT> givenAt(work.size()); // [unit]: its first brush's planes in given[its tree]
+    jobs::parallelFor(modelsSite, sizes.size(), 1,
+        [&](za::SizeT begin, za::SizeT end)
+        {
+            for(za::SizeT i = begin; i < end; ++i)
+            {
+                za::Vector<mplane_t> planes;
+                za::Vector<mclipnode_t> nodes;
+                int solid = 0, empty = 0;
+                za::Vector<PlaneAsk> log;
+                TreeBuilder pb{*bases[i], planes, nodes, solid, empty, log};
+                const glm::dvec3 ext{sizes[i]->ext};
+                for(za::SizeT k = 0; k < work.size(); ++k)
+                {
+                    if(work[k].size != i)
+                    {
+                        continue;
+                    }
+                    givenAt[k] = given[i].size();
+                    const SubModel& sm = b.subs[work[k].sub];
+                    for(za::U32 n = 0; n < sm.numBrushes; ++n)
+                    {
+                        const Brush& br = b.brushes[sm.firstBrush + n];
+                        for(za::U32 q = 0; q < br.count; ++q)
+                        {
+                            const Plane& pl = b.planes[br.first + q];
+                            given[i].pushBack(pb.planeAt(pb.plane(glm::dvec3{pl.normal}, pl.dist + support(pl, ext))));
+                        }
+                    }
+                }
+            }
+        });
+    za::Vector<Unit> units(work.size());
+    jobs::parallelFor(modelsSite, work.size(), 1,
+        [&](za::SizeT begin, za::SizeT end)
+        {
+            for(za::SizeT k = begin; k < end; ++k)
+            {
+                const Job& j = work[k];
+                const Tree& t = *sizes[j.size];
+                Unit& u = units[k];
+                const auto t0 = za::Clock::nowNanoseconds();
+                u.baseCount = bases[j.size]->count();
+                TreeBuilder ub{*bases[j.size], u.planes, u.nodes, u.solid, u.empty, u.log};
+                const glm::dvec3 ext{t.ext};
+                const SubModel& sm = b.subs[j.sub];
+                Frags frags;
+                const mplane_t* g = given[j.size].data() + givenAt[k];
+                for(za::U32 i = 0; i < sm.numBrushes; ++i)
+                {
+                    const Brush& br = b.brushes[sm.firstBrush + i];
+                    Frag f;
+                    if(ub.grow(b, br, ext, f, g))
+                    {
+                        frags.pushBack(ZA_MOVE(f));
+                    }
+                    g += br.count;
+                }
+                u.kind = 2;
+                u.root = ub.build(frags);
+                u.rebounded = ub.rebounded;
+                u.ms = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
+            }
+        });
+    bases.clear();
+    jobs::parallelFor(modelsSite, sizes.size(), 1,
+        [&](za::SizeT begin, za::SizeT end)
+        {
+            for(za::SizeT i = begin; i < end; ++i)
+            {
+                Tree& t = *sizes[i];
+                TreeBuilder tb{t};
+                for(za::SizeT k = 0; k < work.size(); ++k)
+                {
+                    if(work[k].size != i)
+                    {
+                        continue;
+                    }
+                    const za::SizeT sub = work[k].sub;
+                    Merge m;
+                    m.start = tb.count();
+                    m.reuse = true;
+                    int root = 0;
+                    if(emit(tb, units[k], m, root))
+                    {
+                        if(root < 0) // (a lone leaf: a node of its own, as buildTree gives it)
+                        {
+                            const int node = static_cast<int>(t.nodes.size());
+                            t.nodes.pushBack(mclipnode_t{tb.plane(glm::dvec3{0.0, 0.0, 1.0}, 0.0), {root, root}});
+                            root = node;
+                        }
+                        t.heads[sub] = root;
+                        t.ms += units[k].ms;
+                    }
+                    else
+                    {
+                        ++t.redone;
+                        (void)buildTree(t, b, sub, nullptr, false);
+                    }
+                    ++counts[i];
+                }
+            }
+        });
 }
 
 // Quake's trace of a point (the box's centre) through a model's tree.
@@ -5147,21 +5309,7 @@ void prepareBrushModels()
         if(t.forClipnodes == built.clipnodes) sizes.pushBack(&t);
     }
     za::Vector<int> counts(sizes.size(), 0);
-    jobs::parallelFor(treesSite, sizes.size(), 1,
-        [&](za::SizeT begin, za::SizeT end)
-        {
-            for(za::SizeT i = begin; i < end; ++i)
-            {
-                Tree& t = *sizes[i];
-                if(t.heads.size() < built.subs.size()) t.heads.resize(built.subs.size(), -1);
-                for(const za::SizeT sub : subs)
-                {
-                    if(t.heads[sub] >= 0) continue;
-                    buildTree(t, built, sub, nullptr, false);
-                    ++counts[i];
-                }
-            }
-        });
+    buildModelsAtOnce(sizes, built, subs, counts);
     int count = 0;
     for(const int n : counts) count += n;
     if(built.subs.size() == built.worldSubs) // (with an external model's tree in them, a reload gets the world's alone)
