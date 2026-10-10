@@ -6,6 +6,7 @@
 Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
 
 [New this week]
+Decals (25% cheaper, same image): rocket-fight blood and scorch marks look as before (pools, runs down walls, slopes, stairs); first time Retro Textures applies to decals: a short hitch is expected
 Re-mapped guns up close: plasma gun, super nailgun, rocket launcher, grappling hook cap, Mjolnir (no stretched panels, paint matches); reload the SNG and plasma gun; holster each (holster untested headless); crowbar/shotgun/pump normal maps
 Setup on a fresh install: preparation ~3.5 s longer; then first session: first grunt/knight/ogre deaths don't hitch, first visits to e1m1/e1m2 and hub returns feel quicker, nothing looks different
 Nailgun + thunderbolt: look under them with the magazine in and out (inset pocket with a steel lip, like the SNG); thunderbolt both sides up close: symmetric, slots recessed, repainted lower faces
