@@ -7162,7 +7162,7 @@ entity_t* holsteredWeapon(int stat)
     return nullptr;
 }
 
-int ssgPartsOf(const entity_t* gun, entity_t* out[2])
+int gunPartsOf(const entity_t* gun, entity_t* out[2])
 {
     if(!gun)
     {
@@ -7184,6 +7184,10 @@ int ssgPartsOf(const entity_t* gun, entity_t* out[2])
     {
         if(gun == &entities.weapon[hand].ent)
         {
+            if(entities.pumpBody[hand].visible) // (the shotgun's auto pump stroking: setupPumps)
+            {
+                return both(entities.pumpBody[hand], entities.pump[hand]);
+            }
             return ssgHands[hand].parts ? both(entities.ssgFrame[hand], entities.ssgBarrels[hand]) : 0;
         }
     }
@@ -7204,7 +7208,7 @@ int ssgPartsOf(const entity_t* gun, entity_t* out[2])
     return 0;
 }
 
-const entity_t* ssgPartSource(const entity_t* part)
+const entity_t* gunPartSource(const entity_t* part)
 {
     if(!part)
     {
@@ -7212,7 +7216,8 @@ const entity_t* ssgPartSource(const entity_t* part)
     }
     for(int hand = 0; hand < 2; hand++)
     {
-        if(part == &entities.ssgFrame[hand].ent || part == &entities.ssgBarrels[hand].ent)
+        if(part == &entities.ssgFrame[hand].ent || part == &entities.ssgBarrels[hand].ent ||
+           part == &entities.pumpBody[hand].ent || part == &entities.pump[hand].ent || part == &entities.weaponMorph[hand].ent)
         {
             return &entities.weapon[hand].ent;
         }

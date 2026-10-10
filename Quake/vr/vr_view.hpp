@@ -138,11 +138,13 @@ struct WeaponFrame
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).
 [[nodiscard]] entity_t* holsteredWeapon(int stat);
-// The super shotgun broken open is drawn in its two parts (their skin the gun's, rows added under it for the breech
-// plates): the parts drawn this frame in place of the gun entity `gun` (a hand's, a holster's, a lying prop's; 0: none,
-// it is drawn itself), and the gun a part stands for (null: not a part). Its blood (vr_wounds.cpp) stays on it open.
-[[nodiscard]] int ssgPartsOf(const entity_t* gun, entity_t* out[2]);
-[[nodiscard]] const entity_t* ssgPartSource(const entity_t* part);
+// A gun drawn as parts in its place: the super shotgun broken open (its frame and barrels, their skin the gun's with rows
+// added under it for the breech plates), the shotgun while its auto pump strokes (the gun without its fore-end and the
+// fore-end, the gun's very skin). The parts drawn this frame in place of the gun entity `gun` (a hand's, a holster's, a
+// lying prop's; 0: none, it is drawn itself), and the gun a part stands for (null: not a part; the model a hand's gun
+// morphs out of stands for it too). Its blood (vr_wounds.cpp) stays on it through them: one gun, one blood.
+[[nodiscard]] int gunPartsOf(const entity_t* gun, entity_t* out[2]);
+[[nodiscard]] const entity_t* gunPartSource(const entity_t* part);
 // Whether models `a` and `b` are the same gun (one is the other's other ammo's: its button switched it).
 [[nodiscard]] bool sameGun(const qmodel_t* a, const qmodel_t* b);
 

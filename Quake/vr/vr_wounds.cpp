@@ -534,8 +534,33 @@ void paintModel(entity_t* e, int n, const float* splats, int side)
     return t ? static_cast<int>(t->source_height) : hdr->skinheight;
 }
 
-// The open super shotgun's part `part` reads (and takes) the blood of the gun `gun` it stands for (view::ssgPartsOf):
-// its skin the gun's with rows added under it, so its mask's height read as this much more (1: the same).
+// ... and its width.
+[[nodiscard]] int skinCols(const qmodel_t* model)
+{
+    if(!model || model->type != mod_alias)
+    {
+        return 0;
+    }
+    auto* hdr = static_cast<aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(!hdr || hdr->numskins <= 0)
+    {
+        return 0;
+    }
+    const gltexture_t* t = hdr->gltextures[0][0];
+    return t ? static_cast<int>(t->source_width) : hdr->skinwidth;
+}
+
+// Whether part `part` of gun `gun` reads the gun's mask (view::gunPartsOf): its skin as wide, as tall or taller (rows
+// added under it).
+[[nodiscard]] bool readsAsGun(const entity_t* part, const entity_t* gun)
+{
+    const int w = skinCols(gun->model);
+    return w > 0 && skinCols(part->model) == w && skinRows(part->model) >= skinRows(gun->model);
+}
+
+// A gun's part `part` reads (and takes) the blood of the gun `gun` it stands for (view::gunPartsOf): the open super
+// shotgun's skin the gun's with rows added under it, so its mask's height read as this much more (1: the same, the auto
+// pump's).
 [[nodiscard]] float partRows(const entity_t* part, const entity_t* gun)
 {
     const int a = skinRows(part ? part->model : nullptr);
@@ -543,10 +568,11 @@ void paintModel(entity_t* e, int n, const float* splats, int side)
     return a > b && b > 0 ? static_cast<float>(a) / static_cast<float>(b) : 1.f;
 }
 
-// What `e` is drawn as this frame: itself, or the open super shotgun's parts (painted, washed through them).
+// What `e` is drawn as this frame: itself, or its parts (the open super shotgun's, the auto pump's: painted, washed
+// through them).
 [[nodiscard]] int drawnAs(entity_t* e, entity_t* out[2])
 {
-    const int n = view::ssgPartsOf(e, out);
+    const int n = view::gunPartsOf(e, out);
     if(n > 0)
     {
         return n;
@@ -661,6 +687,12 @@ constexpr float boxTexels = 2.5f; // a unit (the monsters' skins' about 2)
     const qmodel_t* shorter = la > lb ? b : a;
     const size_t ls = za::min(la, lb);
     if(strncmp(longer->name, shorter->name, ls) == 0 && strcmp(longer->name + ls, "#rag") == 0)
+    {
+        return true;
+    }
+    // A gun and its other ammo's (view::sameGun: the lava nailguns, the multi-rocket launchers, the plasma gun: the mission
+    // packs' reskins of id's, their skins laid out alike): one gun, its blood kept across an ammo switch.
+    if(view::sameGun(a, b) && skinCols(a) == skinCols(b) && skinRows(a) == skinRows(b) && skinCols(a) > 0)
     {
         return true;
     }
@@ -3540,6 +3572,82 @@ void info_f()
 
 } // namespace qvr::wounds
 
+namespace qvr::wounds
+{
+namespace
+{
+
+// vr_wounds_debug 4: each alias entity drawn that shows a bloody weapon (a hand's, a holster's, a prop's, or a part drawn
+// in its place), once a frame, with its blood or without: "wounds: drawn <model> frame F: weapon #W blood L|none".
+int drawnLogFrame = -1;
+za::Vector<const entity_t*> drawnLogged;
+
+void logDrawn(const entity_t* e, const entity_t* key, int layer)
+{
+    if(vr_wounds_debug.value < 4.f || !e->model || maskOfWeapon.empty())
+    {
+        return;
+    }
+    int weapon = layer >= 0 ? masks[static_cast<za::SizeT>(layer)].weapon : 0;
+    bool isWeapon = false;
+    const int hand = weapon ? -1 : view::handOf(key, isWeapon);
+    weapon = hand >= 0 && isWeapon ? handWeapon(hand) : weapon;
+    if(!weapon && inWorld(key))
+    {
+        weapon = entityWeapon(static_cast<int>(key - cl_entities));
+    }
+    for(int stat = 0; stat < protocol::numHolsters && !weapon; stat++)
+    {
+        weapon = key == view::holsteredWeapon(stat) ? cl.stats[protocol::STAT_QVR_HOLSTERWEAPONUID0 + stat] : 0;
+    }
+    // (A part drawn in a gun's place not taken for its gun: "progs/vr_<part>_on_<gun>.mdl", polish_weapons.py
+    // SPLIT_OUTPUTS: listed too; not the magazines and their wells, drawn with the gun, their skins their own.)
+    const bool part = !weapon && strstr(e->model->name, "_on_v_") != nullptr && !strstr(e->model->name, "/vr_mag");
+    if(!part && (!weapon || maskOfWeapon.find(weapon) == maskOfWeapon.end()))
+    {
+        return; // (not a weapon with blood on it)
+    }
+    if(drawnLogFrame != host_framecount)
+    {
+        drawnLogFrame = host_framecount;
+        drawnLogged.clear();
+    }
+    for(const entity_t* x : drawnLogged)
+    {
+        if(x == e)
+        {
+            return;
+        }
+    }
+    drawnLogged.pushBack(e);
+    if(layer >= 0)
+    {
+        Con_Printf("wounds: drawn %s frame %d: weapon #%d blood %d\n", e->model->name, e->frame, weapon, layer);
+    }
+    else
+    {
+        Con_Printf("wounds: drawn %s frame %d: weapon #%d blood none\n", e->model->name, e->frame, weapon);
+    }
+}
+
+// The mask entity `e` draws (its own, or the gun's it is a part of: `key`), or -1.
+int aliasMask(const entity_t* e, const entity_t*& key, const entity_t*& gun)
+{
+    // A part drawn in a gun's place (the open super shotgun's, the auto pump's, the gun it morphs out of): the gun's blood.
+    gun = maskOf.empty() ? nullptr : view::gunPartSource(e);
+    key = gun ? gun : e;
+    const auto it = maskOf.find(key);
+    if(it == maskOf.end())
+    {
+        return -1;
+    }
+    const Mask& m = masks[static_cast<za::SizeT>(it->second)];
+    return sameLayout(m.model, key->model) && (!gun || readsAsGun(e, gun)) ? it->second : -1;
+}
+
+} // namespace
+} // namespace qvr::wounds
+
 extern "C" void VR_AliasWound(const entity_t* e, float out[4], float side[4])
 {
     using namespace qvr::wounds;
@@ -3550,30 +3658,26 @@ extern "C" void VR_AliasWound(const entity_t* e, float out[4], float side[4])
     {
         return;
     }
-    // The open super shotgun's parts: the gun's blood (its mask, read over their taller skin).
-    const entity_t* gun = maskOf.empty() ? nullptr : qvr::view::ssgPartSource(e);
-    const entity_t* key = gun ? gun : e;
-    const auto it = maskOf.find(key);
-    if(it == maskOf.end())
+    const entity_t* key = e;
+    const entity_t* gun = nullptr;
+    const int layer = aliasMask(e, key, gun);
+    logDrawn(e, key, layer);
+    if(layer < 0)
     {
         return;
     }
-    Mask& m = masks[static_cast<za::SizeT>(it->second)];
-    if(!sameLayout(m.model, key->model))
-    {
-        return;
-    }
+    Mask& m = masks[static_cast<za::SizeT>(layer)];
     m.lastDrawn = vr_gametime;
-    out[0] = isFine(it->second) ? -static_cast<float>(layerIn(it->second) + 1) : static_cast<float>(it->second + 1);
+    out[0] = isFine(layer) ? -static_cast<float>(layerIn(layer) + 1) : static_cast<float>(layer + 1);
     out[1] = static_cast<float>(m.w);
     out[2] = gun ? static_cast<float>(za::lround(static_cast<float>(m.h) * partRows(e, gun))) : static_cast<float>(m.h);
     out[3] = static_cast<float>(za::fmod(cl.time, 1000.0));
-    if(isSided(it->second))
+    if(isSided(layer))
     {
         side[0] = m.sides[0];
         side[1] = m.sides[1];
     }
-    if(!isFine(it->second) && m.otherSlot >= 0 && bloodArray)
+    if(!isFine(layer) && m.otherSlot >= 0 && bloodArray)
     {
         side[2] = -static_cast<float>(m.otherSlot + 1); // (chunky, yours: the blood on it not yours, its bloodArray layer)
     }
