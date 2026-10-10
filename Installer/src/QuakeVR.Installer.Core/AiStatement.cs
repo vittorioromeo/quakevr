@@ -4,8 +4,8 @@ namespace QuakeVR.Installer.Core;
 
 /// <summary>
 /// Vittorio's statement on AI usage (the wizard's "Statement" page, after Welcome; <c>qvr-setup install</c> prints it and
-/// needs <c>--accept-statement</c>). Three claims, each answered YES or NO; each starts unanswered and, once answered,
-/// can only be switched between YES and NO, never back to unanswered. Going on needs YES to all three. The answers live
+/// needs <c>--accept-statement</c>). Two claims, each answered YES or NO; each starts unanswered and, once answered,
+/// can only be switched between YES and NO, never back to unanswered. Going on needs YES to both. The answers live
 /// only in this object for the session: never saved, never sent.
 /// </summary>
 public sealed class AiStatement
@@ -29,8 +29,7 @@ public sealed class AiStatement
     public static readonly IReadOnlyList<string> Claims =
     [
         "I recognize that AI-assisted development does *not* mean a low-quality result.",
-        "I recognize that AI-assisted development does *not* mean the author lacks expertise.",
-        "I recognize that AI-assisted development does *not* mean the author cared or worked less.",
+        "I recognize that AI-assisted development does *not* mean a lack of care, passion, or expertise.",
     ];
 
     readonly bool?[] _answers = new bool?[Claims.Count];

@@ -1174,3 +1174,4 @@ autosave; Continue shows none and s0 respectively.
 
 **In the headset:** nothing new beyond the 1.0.1 items. After installing, the main menu has no Continue row until a
 level has started.
+- 1.0.1 Installer Statement: two claims instead of three ("does *not* mean a low-quality result", "... a lack of care, passion, or expertise"); CLI text, self-tests, screenshot harness, README and INSTALLER.md updated; Statement page fits at default and minimum size.
