@@ -2880,7 +2880,9 @@ void buildModelsAtOnce(const za::Vector<Tree*>& sizes, const Brushes& b, const z
         za::SizeT size = 0, sub = 0;
     };
     za::Vector<Job> work;
-    za::Vector<za::UniquePtr<TreeBuilder>> bases; // (made here: their index brought up to date before the pool reads it)
+    // (each made by its tree's task below, which brings the tree's plane index up to date: a tree read from the disk
+    // cache indexes all its planes, 300,000 on vrstart; done before the units read it)
+    za::Vector<za::UniquePtr<TreeBuilder>> bases(sizes.size());
     for(za::SizeT i = 0; i < sizes.size(); ++i)
     {
         Tree& t = *sizes[i];
@@ -2888,7 +2890,6 @@ void buildModelsAtOnce(const za::Vector<Tree*>& sizes, const Brushes& b, const z
         {
             t.heads.resize(b.subs.size(), -1);
         }
-        bases.pushBack(za::makeUnique<TreeBuilder>(t));
         for(const za::SizeT sub : subs)
         {
             if(t.heads[sub] < 0)
@@ -2907,6 +2908,7 @@ void buildModelsAtOnce(const za::Vector<Tree*>& sizes, const Brushes& b, const z
         {
             for(za::SizeT i = begin; i < end; ++i)
             {
+                bases[i] = za::makeUnique<TreeBuilder>(*sizes[i]);
                 za::Vector<mplane_t> planes;
                 za::Vector<mclipnode_t> nodes;
                 int solid = 0, empty = 0;
