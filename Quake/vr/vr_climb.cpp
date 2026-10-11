@@ -2123,6 +2123,7 @@ static void climbPreThink(edict_t* ent)
         g.ledge.ent = nullptr; // (kept as its number: entNum)
         g.mapGeneration = ledges::generation();
         g.prop = ledge->prop;
+        g.light = false; // (set below for a prop's; a stale one would stop a later mover carrying the body)
         g.propMap.edges.clear();
         g.propMap.samples.clear();
         float propMass = 0.f;
@@ -2156,8 +2157,10 @@ static void climbPreThink(edict_t* ent)
         physsound::grab(ent, ledge->hold, ledge->ent); // a slap and a tap of the hold's material
         if(debug())
         {
-            Con_Printf("climb: %s hand holds at %.1f (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s%s%s\n",
-                handName(h), ledge->top, ledge->out.x, ledge->out.y, hand.x, hand.y, hand.z, ledge->hold.x, ledge->hold.y,
+            // (", light" on a hold not on a prop: a light prop's flag left on the hand, which would stop a model the
+            // QC moves carrying the body; prop_climb_test.sh's lift case. Early in the line: the log wraps it.)
+            Con_Printf("climb: %s hand holds at %.1f%s (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s%s%s\n",
+                handName(h), ledge->top, !g.prop && g.light ? ", light" : "", ledge->out.x, ledge->out.y, hand.x, hand.y, hand.z, ledge->hold.x, ledge->hold.y,
                 ledge->hold.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], hanging ? ", both hands" : "", how,
                 retry ? va(", pressed %.0f ms before, in the air", (time - c.missedAt[h]) * 1000.0) : "",
                 g.prop ? va(", prop %d (%s, %.0f kg)", g.entNum, g.light ? "light" : "heavy", propMass) : "");
