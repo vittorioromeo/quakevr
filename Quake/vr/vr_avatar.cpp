@@ -561,6 +561,14 @@ ArmCostTrace costTrace;
 // stays while the hand bends; there is no drawn arm to spare a strained wrist.
 bool easeWrists = true;
 
+// The body being posed has bare forearms (vrbody*_bare: vr_body_bracers 0), their ends fitted round the jointed hand
+// (make_vrbody.py: hand_ring), which the wrist and hand bones scale with the hand as drawn (solveArm).
+bool bareArms = false;
+
+// make_vrbody.py's HAND_UNIT: metres of the modelled body a hand unit at the default sizes, the size the bare
+// forearms' ends are fitted to the hand at.
+constexpr float handUnit = 0.01286f;
+
 // vr_debug_arm: a drawn arm's IK, in the body's axes (forward, left, up; cm from the chest) and in the tracking
 // space's (metres from the head: right, up, back; to set up vr_mock_hand poses): the shoulder, the elbow (and where
 // the pole alone put it), the wrist, the elbow's angle and swing, the hand's axes, and the wrist's turn against the
@@ -970,6 +978,15 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     h = Bone{};
     h.pos = elbow + foreDir * l;
     h.rot = handRot;
+
+    // Bare forearms: their ends, fitted round the hand at the default sizes, as big as the hand is drawn against the
+    // body (the hand bone's axes are the hand's: x its x, y its y either way, z its -z); the wrist's ring across.
+    if(bareArms && handPose.unit.x > 0.f)
+    {
+        const glm::vec3 grow = glm::clamp(handPose.unit / (b.m2w * handUnit), glm::vec3{0.5f}, glm::vec3{2.f});
+        h.shape = glm::mat3{glm::vec3{grow.x, 0.f, 0.f}, glm::vec3{0.f, grow.y, 0.f}, glm::vec3{0.f, 0.f, grow.z}};
+        w.shape = w.shape * glm::mat3{glm::vec3{1.f, 0.f, 0.f}, glm::vec3{0.f, grow.y, 0.f}, glm::vec3{0.f, 0.f, grow.z}};
+    }
 }
 
 // The legs' clock: seconds since they were last posed (0 the first time, and for a second pose in
@@ -1434,6 +1451,7 @@ struct ModelInfo
     const qmodel_t* model{nullptr};
     za::String name; // the model's (its slot is reused by another after a game change)
     bool usable{false};
+    bool bare{false}; // bare forearms (progs/vrbody*_bare)
     za::Array<int, JointCount> boneOf{};
 };
 
@@ -1737,6 +1755,7 @@ bool usable(qmodel_t* model)
     }
 
     info.usable = true;
+    info.bare = strstr(model->name, "_bare.") != nullptr; // (progs/vrbody*_bare.mdl)
     return true;
 }
 
@@ -1746,6 +1765,8 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     Body b;
     solveTorso(s, b);
     debugHead = s.head;
+    const ModelInfo* known = infoOf(model);
+    bareArms = known && known->bare;
 
     // The left arm reaches for the left controller (HAND_OFF, left-handed too), the right for the right.
     solveArm(b, 0, handPoses[HAND_OFF]);
@@ -1933,7 +1954,7 @@ bool forearmFrame(int hand, float along, ForearmFrame& out)
     return true;
 }
 
-void forearmGirth(int build, float along, float& hint, float& other)
+void forearmGirth(int build, float along, float& hint, float& other, bool bare)
 {
     // make_vrbody.py: BUILDS' muscularity m (0.9, 1.2, 1.5), forearms fm = 1.08 m, wrists wm = 1 + 0.3 (m - 1); the
     // bracer's rings (loft "bracer") at 0.13, 0.19 and 0.225 m from the elbow and at the wrist (0.26).
@@ -1944,10 +1965,25 @@ void forearmGirth(int build, float along, float& hint, float& other)
     {
         float at, u, v;
     };
-    const Ring rings[] = {{0.13f, 0.049f * fm, 0.043f * fm},
+    Ring rings[] = {{0.13f, 0.049f * fm, 0.043f * fm},
         {0.19f, za::max(0.041f * wm, 0.040f), za::max(0.033f * wm, 0.0335f)},
         {0.225f, za::max(0.0385f * wm, 0.039f), za::max(0.030f * wm, 0.0325f)},
         {0.26f, za::max(0.036f * wm, 0.037f), za::max(0.027f * wm, 0.0295f)}};
+    if(bare)
+    {
+        // make_vrbody.py's bare_rings: the skin's ring at 0.15 m, then smoothly down to the hand's wrist (its fitted
+        // ring's extents, the back's and the palm's sides averaged), the jointed hand at the default size.
+        constexpr float handU = 0.0285f, handV = 0.0187f;
+        const float u15 = glm::mix(0.046f * fm, 0.037f * wm, 3.f / 7.f);
+        const float v15 = glm::mix(0.040f * fm, 0.029f * wm, 3.f / 7.f);
+        const float places[] = {0.15f, 0.19f, 0.225f, 0.26f};
+        for(int k = 0; k < 4; k++)
+        {
+            const float t = (places[k] - 0.15f) / 0.11f;
+            const float ease = 1.f - t * t * (3.f - 2.f * t);
+            rings[k] = {places[k], handU + (u15 - handU) * ease, handV + (v15 - handV) * ease};
+        }
+    }
     const float at = CLAMP(rings[0].at, along * 0.26f, rings[3].at);
     int k = 1;
     while(k < 3 && rings[k].at < at)
@@ -1965,6 +2001,7 @@ void solveArms(const hands::State& s, const HandPose handPoses[2])
     Body b;
     solveTorso(s, b);
     easeWrists = false;
+    bareArms = false; // (no body drawn: its frames only)
     solveArm(b, 0, handPoses[HAND_OFF]);
     solveArm(b, 1, handPoses[HAND_MAIN]);
     easeWrists = true;

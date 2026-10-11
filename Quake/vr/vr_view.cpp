@@ -865,6 +865,31 @@ qmodel_t* view::magazineModelOf(const qmodel_t* gun)
     return mount ? viewModel(mount->model) : nullptr;
 }
 
+namespace
+{
+
+// The body's model for a build (0 lean, 1 athletic, 2 brawny), with the bracers or bare forearms (vr_body_bracers 0:
+// progs/vrbody*_bare, make_vrbody.py; fitted round the jointed hand, so only with it: vr_hand_rig).
+[[nodiscard]] const char* bodyModelName(int build, bool bare)
+{
+    if(bare)
+    {
+        return build <= 0 ? "progs/vrbody_lean_bare.mdl" : build >= 2 ? "progs/vrbody_brawny_bare.mdl" : "progs/vrbody_bare.mdl";
+    }
+    return build <= 0 ? "progs/vrbody_lean.mdl" : build >= 2 ? "progs/vrbody_brawny.mdl" : "progs/vrbody.mdl";
+}
+
+// The bare forearms' skin at the wrist turned to the hand's (view::skinTint): make_vrbody.py's "wrist tint", the jointed
+// hand's clean skin round its wrist over the arms' skin (progs/vrbody_00_00.tga) there, channel by channel.
+constexpr float bareTint[3] = {0.753f, 0.692f, 0.653f};
+
+[[nodiscard]] bool bareForearms()
+{
+    return !vr_body_bracers.value && vr_hand_rig.value;
+}
+
+} // namespace
+
 void view::prepareModels()
 {
     if(!vr_enabled.value) // (in VR, even before its session runs: the first map loads as it starts)
@@ -876,7 +901,11 @@ void view::prepareModels()
     if(vr_body_mode.value >= 1.f)
     {
         const int build = static_cast<int>(vr_body_build.value);
-        names.pushBack(build <= 0 ? "progs/vrbody_lean.mdl" : build >= 2 ? "progs/vrbody_brawny.mdl" : "progs/vrbody.mdl");
+        if(bareForearms())
+        {
+            names.pushBack(bodyModelName(build, true));
+        }
+        names.pushBack(bodyModelName(build, false));
         names.pushBack("progs/vrbody.mdl");
         if(vr_body_pauldrons.value)
         {
@@ -3108,8 +3137,9 @@ void updateFist(const hands::State& s, int hand)
     held::setFist(hand, local);
 }
 
-bool gripFrameCommandRegistered = false; // (vr_grip_frame, vr_gear_status: registered on the first call)
+bool gripFrameCommandRegistered = false; // (vr_grip_frame, vr_gear_status, vr_body_wrist_info: registered on the first call)
 void gearStatus_f();
+void wristInfo_f();
 
 // Held props' grips (grip::setHandFrame): where the empty hand's palm and grip channel are in its frame (the move's place
 // and angles), every frame; not measured without the jointed hand (the default hand's are used).
@@ -3122,6 +3152,7 @@ void updateGripFrame(const hands::State& s, int hand)
         gripFrameCommandRegistered = true;
         Cmd_AddCommand("vr_grip_frame", gripFrame_f);
         Cmd_AddCommand("vr_gear_status", gearStatus_f);
+        Cmd_AddCommand("vr_body_wrist_info", wristInfo_f);
     }
     grip::HandFrame f;
     qmodel_t* const model = viewModel(handrig::modelName);
@@ -6294,6 +6325,12 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
         hp.up = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}) - hp.wrist);
         hp.back = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, -1.f, 0.f}) - hp.wrist);
         hp.forward = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{1.f, 0.f, 0.f}) - hp.wrist);
+        if(rigHands[hand].drawn) // (its size: the bare forearms' ends fit round it, avatar.cpp)
+        {
+            hp.unit = {glm::distance(view::modelPoint(base, handWrist + glm::vec3{1.f, 0.f, 0.f}), hp.wrist),
+                glm::distance(view::modelPoint(base, handWrist + glm::vec3{0.f, 1.f, 0.f}), hp.wrist),
+                glm::distance(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}), hp.wrist)};
+        }
     }
     else
     {
@@ -6339,8 +6376,40 @@ bool emptyHandImpl(const hands::State& s, int hand, view::EmptyHand& out)
     return true;
 }
 
-// The build of the body drawn this frame (0 lean, 1 athletic, 2 brawny; the wrist gadget's straps fit its bracer).
+// The build of the body drawn this frame (0 lean, 1 athletic, 2 brawny; the wrist gadget's straps fit its bracer), and
+// whether its forearms are bare (vr_body_bracers 0: no straps, the gadget rests on the skin).
 int drawnBuild = 1;
+bool drawnBare = false;
+
+// The light your body was last drawn in (view::bareLight, view::bareShade): with bare forearms the hands are drawn in
+// it too, so that the skin is lit alike on both sides of the wrist (each model's light, its direction and the light
+// round it are otherwise sampled at its own place: the body's round the torso, a hand's round the hand).
+struct BareLight
+{
+    int frame{-1}; // host_framecount when the body's was kept (-1: never)
+    glm::vec3 color{0.f};
+    float dir[4]{0.f, 0.f, 0.f, 0.f};
+    float ambient[6][4]{};
+    glm::vec3 hand[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's own (vr_body_wrist_info)
+};
+BareLight bareLit;
+
+// A hand drawn in the body's light (bare forearms, the body's light kept this frame or the last): its hand, else -1.
+[[nodiscard]] int bareLitHand(const entity_t* e)
+{
+    if(!drawnBare || bareLit.frame < host_framecount - 1)
+    {
+        return -1;
+    }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(e == &entities.hand[hand][FingerBase].ent && rigHands[hand].drawn)
+        {
+            return hand;
+        }
+    }
+    return -1;
+}
 
 // The wrist gadget (vr_hud_mode 1): over the back of the off hand's forearm, just behind the
 // wrist, its screen facing out of the back of the hand like a watch's. It reads like one: with
@@ -6418,9 +6487,20 @@ void setupGadget(const hands::State& s)
     const glm::mat3 turn = glm::mat3_cast(glm::quat{glm::radians(
         glm::vec3{vr_gadget_pitch.value, vr_gadget_yaw.value, vr_gadget_roll.value})});
 
+    // On a bare forearm (vr_body_bracers 0) it rests on the skin: lower by how much thinner than the bracer it is there.
+    float rest = 0.045f;
+    if(drawnBare && onForearm && fa.length > 1e-3f)
+    {
+        const float along = 1.f - behind / fa.length;
+        float bu, bv, su, sv;
+        avatar::forearmGirth(build, along, bu, bv, false);
+        avatar::forearmGirth(build, along, su, sv, true);
+        rest += sv - bv;
+    }
+
     gadget::Pose pose;
     pose.valid = true;
-    pose.origin = wrist - dir * (0.085f * m2w) + out * (0.045f * m2w + 0.35f * scale) + axes * offset * (0.01f * m2w);
+    pose.origin = wrist - dir * (0.085f * m2w) + out * (rest * m2w + 0.35f * scale) + axes * offset * (0.01f * m2w);
     pose.axes = axes * turn;
     pose.scale = scale;
     gadget::setPose(pose);
@@ -6441,8 +6521,9 @@ void setupGadget(const hands::State& s)
     ve.lightMultiply = tint > 0.f;
     ve.lightMod = glm::mix(glm::vec3{1.f}, hsv(vr_gadget_tint_hue.value, 1.f, 1.f) * 1.4f, tint);
 
-    // The straps, under the lugs (make_gadget.py: x -+1.25, the band 0.3 either side of it).
-    if(!onForearm || fa.length <= 1e-3f)
+    // The straps, under the lugs (make_gadget.py: x -+1.25, the band 0.3 either side of it); none on bare forearms
+    // (vr_body_bracers 0 hides them with the bracers).
+    if(!onForearm || fa.length <= 1e-3f || drawnBare)
     {
         return;
     }
@@ -6461,8 +6542,8 @@ void setupGadget(const hands::State& s)
         }
         const float edge = halfWidth / fa.length;
         float wu, wv, eu, ev; // the bracer's semi-axes at the band's wrist edge and elbow edge
-        avatar::forearmGirth(build, along + edge, wu, wv);
-        avatar::forearmGirth(build, along - edge, eu, ev);
+        avatar::forearmGirth(build, along + edge, wu, wv, false);
+        avatar::forearmGirth(build, along - edge, eu, ev, false);
         wu += margin, wv += margin, eu += margin, ev += margin;
         const float taper = CLAMP(0.f, za::max(eu / wu, ev / wv) - 1.f, strapTaper);
         view::ViewEntity& strap = entities.gadgetStrap[i];
@@ -6585,15 +6666,25 @@ void setupBody(const hands::State& s)
     entities.body.visible = false;
     avatar::hide();
     drawnBuild = 1;
+    drawnBare = false;
 
     // Not while dead (the view lies on the floor) or at the end of a level.
     const bool alive = cl.stats[STAT_HEALTH] > 0 && !cl.intermission;
     if(mode >= 1 && alive)
     {
-        // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic) or vrbody_brawny.
+        // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic) or vrbody_brawny; their bare forearms'
+        // (vr_body_bracers 0) if both hands are the jointed hand they are fitted round.
         const int build = static_cast<int>(vr_body_build.value);
-        const char* name = build <= 0 ? "progs/vrbody_lean.mdl" : build >= 2 ? "progs/vrbody_brawny.mdl" : "progs/vrbody.mdl";
-        qmodel_t* model = viewModel(name);
+        qmodel_t* model = nullptr;
+        if(bareForearms() && rigHands[0].drawn && rigHands[1].drawn)
+        {
+            model = viewModel(bodyModelName(build, true));
+            drawnBare = avatar::usable(model);
+        }
+        if(!drawnBare)
+        {
+            model = viewModel(bodyModelName(build, false));
+        }
         if(!avatar::usable(model))
         {
             model = viewModel("progs/vrbody.mdl");
@@ -6601,6 +6692,7 @@ void setupBody(const hands::State& s)
         if(avatar::usable(model))
         {
             drawnBuild = model == viewModel("progs/vrbody.mdl") ? 1 : CLAMP(0, build, 2);
+            drawnBare = drawnBare && model == viewModel(bodyModelName(build, true));
             const avatar::HandPose handPoses[2] = {drawnHand(s, 0), drawnHand(s, 1)};
 
             view::ViewEntity& ve = entities.body;
@@ -6609,6 +6701,49 @@ void setupBody(const hands::State& s)
             showPlayerState(ve, s);
         }
     }
+}
+
+// vr_body_wrist_info: per hand, how big the drawn hand is against the body (metres of the modelled body a hand unit, along
+// the hand's x, y, z) and how far the body's posed wrist is from the hand's.
+void wristInfo_f()
+{
+    const hands::State& s = hands::current();
+    const float m2w = units::metresToUnits() * units::bodyScale();
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const view::ViewEntity& base = entities.hand[hand][FingerBase];
+        if(!s.valid || !base.ent.model)
+        {
+            Con_Printf("wrist %d: no hand drawn\n", hand);
+            continue;
+        }
+        const glm::vec3 w = rigHands[hand].drawn ? vec3Of(handrig::data::wrist) : glm::vec3{-6.86f, -1.08f, 1.42f};
+        const glm::vec3 o = view::modelPoint(base, w);
+        const glm::vec3 k{glm::distance(view::modelPoint(base, w + glm::vec3{1.f, 0.f, 0.f}), o) / m2w,
+            glm::distance(view::modelPoint(base, w + glm::vec3{0.f, 1.f, 0.f}), o) / m2w,
+            glm::distance(view::modelPoint(base, w + glm::vec3{0.f, 0.f, 1.f}), o) / m2w};
+        avatar::ForearmFrame f;
+        const float gap = entities.body.visible && avatar::forearmFrame(hand, 1.f, f) ? glm::distance(f.point, o) / m2w : -1.f;
+        // The wrist from the controller in the play space's axes (as vr_mock_hand and vr_mock_camera take them: x right,
+        // y up, -z forward), metres.
+        const glm::vec3 d = (o - s.gripPos[hand]) / units::metresToUnits();
+        const float yaw = glm::radians(s.turnYaw);
+        const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f}, right{za::sin(yaw), -za::cos(yaw), 0.f};
+        // The forearm's direction there (play space) and the wrist's bend: the hand's forward against it, degrees.
+        const glm::vec3 handFwd = glm::normalize(view::modelPoint(base, w + glm::vec3{1.f, 0.f, 0.f}) - o);
+        const glm::vec3 fa = gap >= 0.f ? f.axes[0] : handFwd;
+        Con_Printf("wrist %d: rig %d, body %s%s, m/unit %.5f %.5f %.5f, arm's wrist off the hand's %.2f mm; the wrist from "
+                   "the controller %.3f %.3f %.3f m, the forearm along %.3f %.3f %.3f (play space), the wrist bent %.0f deg\n",
+            hand, rigHands[hand].drawn ? 1 : 0,
+            entities.body.visible && entities.body.ent.model ? entities.body.ent.model->name : "-", drawnBare ? " (bare)" : "",
+            k.x, k.y, k.z, gap * 1000.f, glm::dot(d, right), d.z, -glm::dot(d, fwd), glm::dot(fa, right), fa.z,
+            -glm::dot(fa, fwd), glm::degrees(za::acos(CLAMP(-1.f, glm::dot(fa, handFwd), 1.f))));
+    }
+    Con_Printf("wrist light: body %.3f %.3f %.3f, off hand %.3f %.3f %.3f, main hand %.3f %.3f %.3f (its own; drawn in the "
+               "body's: %s)\n",
+        bareLit.color.x, bareLit.color.y, bareLit.color.z, bareLit.hand[0].x, bareLit.hand[0].y,
+        bareLit.hand[0].z, bareLit.hand[1].x, bareLit.hand[1].y, bareLit.hand[1].z,
+        bareLitHand(&entities.hand[0][FingerBase].ent) >= 0 ? "yes" : "no");
 }
 
 // Blood dripping from the wounds (vr_body_blood, vr_bodyblood.cpp): from the hands where they are
@@ -7062,6 +7197,110 @@ const entity_t* cloneSource(const entity_t* e)
     }
     const auto i = static_cast<int>((p - clone) / sizeof(ViewEntity));
     return &clones[i].ent == e ? &reinterpret_cast<const ViewEntity*>(&entities)[i].ent : nullptr;
+}
+
+void bareLight(const entity_t* e, float lightcolor[3])
+{
+    if(e == &entities.body.ent)
+    {
+        bareLit.color = {lightcolor[0], lightcolor[1], lightcolor[2]};
+        return;
+    }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(e == &entities.hand[hand][FingerBase].ent)
+        {
+            bareLit.hand[hand] = {lightcolor[0], lightcolor[1], lightcolor[2]};
+        }
+    }
+    if(bareLitHand(e) >= 0)
+    {
+        lightcolor[0] = bareLit.color.x;
+        lightcolor[1] = bareLit.color.y;
+        lightcolor[2] = bareLit.color.z;
+    }
+}
+
+void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4])
+{
+    if(e == &entities.body.ent)
+    {
+        bareLit.frame = host_framecount;
+        for(int k = 0; k < 4; k++)
+        {
+            bareLit.dir[k] = lightdir[k];
+        }
+        for(int f = 0; f < 6; f++)
+        {
+            for(int k = 0; k < 4; k++)
+            {
+                bareLit.ambient[f][k] = ambient[f][k];
+            }
+        }
+        return;
+    }
+    if(bareLitHand(e) < 0)
+    {
+        return;
+    }
+    for(int k = 0; k < 4; k++)
+    {
+        lightdir[k] = bareLit.dir[k];
+    }
+    for(int f = 0; f < 6; f++)
+    {
+        for(int k = 0; k < 3; k++)
+        {
+            ambient[f][k] = bareLit.ambient[f][k];
+        }
+    }
+    ambient[0][3] = bareLit.ambient[0][3]; // how much it applies, how much of the directional shading stays (the rest
+    ambient[1][3] = bareLit.ambient[1][3]; // of the .w are a morph's: the hand's own)
+}
+
+bool skinTint(const entity_t* e, float tint[4], float range[4])
+{
+    if(!drawnBare)
+    {
+        return false;
+    }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const entity_t* he = &entities.hand[hand][FingerBase].ent;
+        if((e == he || cloneSource(e) == he) && rigHands[hand].drawn)
+        {
+            // The jointed hand's end inside the arm (behind its wrist ring: make_hand_rig.py's first palm ring and the
+            // thumb's base) folded onto the wrist's middle line (the alias shader's QVR_ALIAS_VS_HANDFOLD): the bare
+            // forearm fits the hand's wrist closely, and that end would come out through its skin as the wrist bends.
+            constexpr float foldBehind = 0.2f; // hand units behind the wrist
+            tint[0] = tint[1] = tint[2] = 0.f;
+            tint[3] = -1.f;
+            range[0] = handrig::data::wrist[0] - foldBehind;
+            range[1] = handrig::data::wrist[1];
+            range[2] = handrig::data::wrist[2];
+            range[3] = 0.f;
+            return true;
+        }
+    }
+    if(e != &entities.body.ent && cloneSource(e) != &entities.body.ent)
+    {
+        return false;
+    }
+    // make_vrbody.py (bare): the arms' skin block (u 0 .. 0.5, v 0 .. 0.4 less its 4-texel pad), the forearm's rings 1/9
+    // of its height apart; the tint grows from the ring at 0.19 m (8/9) to the wrist's ring and is whole over the base
+    // of the hand. Its colour: the jointed hand's clean skin round its wrist over the arm's there (make_vrbody.py
+    // prints it as "wrist tint"), so that the arm meets the hand in the hand's colour.
+    constexpr float pad = 2.f / 128.f, blockV = 0.4f - 2.f * pad;
+    constexpr float lipVpos = 1.f - 2.f * (1.1f * 0.01286f) / 0.14f / 9.f; // HAND_LIP * HAND_UNIT past the wrist
+    tint[0] = bareTint[0];
+    tint[1] = bareTint[1];
+    tint[2] = bareTint[2];
+    tint[3] = 1.f;
+    range[0] = 0.5f;
+    range[1] = pad + blockV * (8.f / 9.f);
+    range[2] = pad + blockV * lipVpos;
+    range[3] = 0.4f;
+    return true;
 }
 
 bool heldRoundRef(int hand, glm::vec3& out, float* radius)

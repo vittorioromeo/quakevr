@@ -307,6 +307,15 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         ZA_MEMSET(out->woundside, 0, sizeof(out->woundside));
     }
     VR_RetroAlias(e, hdr, standard ? 1 : 0, out->retro, out->retropart); // retro textures (vr_retro.cpp): its set, its skin's Quake size
+    if(standard) // bare forearms: the hands in your body's light (its direction and the light round it)
+    {
+        view::bareShade(e, out->lightdir, out->ambient);
+    }
+    if(!standard || !view::skinTint(e, out->skintint, out->skintintrange)) // bare forearms' ends to the hand's skin
+    {
+        ZA_MEMSET(out->skintint, 0, sizeof(out->skintint));
+        ZA_MEMSET(out->skintintrange, 0, sizeof(out->skintintrange));
+    }
     out->retro[3] = standard ? VR_RetroLightSkinScale(e->model, hdr, e->skinnum) : 0.f; // retro lighting (vr_retrolight.cpp): its Quake texels' share
 }
 
@@ -443,4 +452,5 @@ extern "C" void VR_AliasLightModifier(const entity_t* e, float lightcolor[3])
             lightcolor[i] *= ve->lightMod[i];
         }
     }
+    view::bareLight(e, lightcolor); // bare forearms: the hands in your body's light
 }

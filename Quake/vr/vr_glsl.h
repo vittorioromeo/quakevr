@@ -2350,6 +2350,25 @@ SPECULAR_AA_FUNCTIONS
 "}\n" \
 "\n"
 
+// a jointed hand on a bare forearm (vr/vr_view.cpp skinTint: SkinTint.w < 0): its end inside the arm (bind x below
+// SkinTintRange.x) folded onto the wrist's middle line (SkinTintRange.yz), a cone within the arm however the wrist
+// bends, never through its skin
+#define QVR_ALIAS_VS_HANDFOLD \
+"#if POSEVERTTYPE == 1\n" \
+"	bind_pos = in_pos;\n" \
+"	if (inst.SkinTint.w < 0.0 && in_pos.x < inst.SkinTintRange.x)\n" \
+"		bind_pos.yz = inst.SkinTintRange.yz;\n" \
+"#endif\n"
+
+// bare forearms' ends tinted to the hand's skin (vr/vr_view.cpp skinTint): the arms' skin block's rows towards the wrist
+// (SkinTintRange) times SkinTint's colour, more and more of it, all of it at the wrist where the hand comes out
+#define QVR_ALIAS_FS_SKINTINT \
+"	{\n" \
+"		vec4 st = instances[in_instance].SkinTint, sr = instances[in_instance].SkinTintRange;\n" \
+"		if (st.w > 0.0 && in_texcoord.x < sr.x && in_texcoord.y < sr.w)\n" \
+"			result.rgb *= mix(vec3(1.0), st.rgb, st.w * smoothstep(sr.y, sr.z, in_texcoord.y));\n" \
+"	}\n"
+
 // parallax occlusion mapping on the skin's heights
 #define QVR_ALIAS_FS_PARALLAX \
 "	// QVR: parallax occlusion mapping (vr_parallax_models) on the skin's heights, in the triangle's own frame, with\n" \

@@ -1302,6 +1302,8 @@ NOISE_FUNCTIONS
 "	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own); w retro lighting's (vr_retrolight.h): a Quake texel's share of the texture's (0: 1)\n"\
 "	vec4	PortalClip; // QVR: this instance's teleporter half\n"\
 "	vec4	RetroPart; // QVR: your body's parts by bone (vr/vr_retro.cpp bodyParts): xy the low bits of bones 0..23, 24..47, zw the high bits\n"\
+"	vec4	SkinTint; // QVR: bare forearms' ends tinted to the hand's skin (vr/vr_view.cpp skinTint): rgb times the skin, w how much (0 none)\n"\
+"	vec4	SkinTintRange; // QVR: ... where in the skin: x below this u, y from this v (none) to z (all), w below this v\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1355,6 +1357,7 @@ ALIAS_INSTANCE_BUFFER
 "		mat3x4 BonePoses[];\n"
 "	};\n"
 "\n"
+"	vec3 bind_pos; // QVR: in_pos, a bare forearm's hand's end inside the arm folded in (QVR_ALIAS_VS_HANDFOLD)\n"
 "	PoseVertex GetPoseVertex(uint pose)\n"
 "	{\n"
 "		mat3x4 blendmat = BonePoses[pose + in_indices.x] * in_weights.x;\n"
@@ -1365,7 +1368,7 @@ ALIAS_INSTANCE_BUFFER
 "			blendmat += BonePoses[pose + in_indices.w] * in_weights.w;\n"
 "		}\n"
 "		mat4x3 anim = transpose(blendmat);\n"
-"		return PoseVertex((anim * vec4(in_pos, 1.0)).xyz, (anim * vec4(in_nor.xyz, 0.0)).xyz);\n"
+"		return PoseVertex((anim * vec4(bind_pos, 1.0)).xyz, (anim * vec4(in_nor.xyz, 0.0)).xyz);\n"
 "	}\n"
 "\n"
 "#else // PV_QUAKE1 || PV_MD3\n"
@@ -1425,6 +1428,7 @@ QVR_ALIAS_VS_OUTPUTS // QVR: the alias vertex shader's Quake VR outputs
 "	out_fbboost = inst.Glow.z; // QVR\n"
 "	out_pdepth = inst.Glow.w; // QVR: parallax mapping's depth (vr_parallax_models)\n"
 "	out_texcoord = in_uv;\n"
+QVR_ALIAS_VS_HANDFOLD // QVR: a bare forearm's hand's end inside the arm folded in (vr/vr_view.cpp skinTint)
 "	PoseVertex pose1 = GetPoseVertex(inst.Pose1);\n"
 "	PoseVertex pose2 = GetPoseVertex(inst.Pose2);\n"
 "	mat4x3 worldmatrix = transpose(mat3x4(inst.WorldMatrix[0], inst.WorldMatrix[1], inst.WorldMatrix[2]));\n"
@@ -1516,6 +1520,7 @@ QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights
 "	RetroBegin(in_retroset, retro.y > 0.0 ? retro.yz : vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
 "	vec4 result = Retro > 0 ? RetroSample(Tex, uv, duvdx, duvdy, true) : textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
+QVR_ALIAS_FS_SKINTINT // QVR: bare forearms' ends tinted to the hand's skin
 "#if ALPHATEST\n"
 "	// QVR: alpha to coverage (vr_alpha_coverage with MSAA; opaque draws): the alpha sharpened to about a pixel's\n"
 "	// width round the cutoff gives the samples covered; without it, Quake's test\n"
