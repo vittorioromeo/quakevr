@@ -77,8 +77,9 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     <ClCompile Update="..\..\Quake\quakedef.c">
       <AdditionalOptions>/std:c11 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <!-- Box3D (Quake/vr/external/box3d/README.md): the physics library, C17, single-threaded. No FMA contraction (its
-         cross-platform determinism relies on it; the build has no FMA instructions anyway, x64's baseline). -->
+    <!-- Box3D (Quake/vr/external/box3d/README.md): the physics library, C17, run on the engine's job pool. No FMA
+         contraction (its cross-platform determinism relies on it; the build has no FMA instructions anyway: x64's
+         baseline, and the AVX2 kernels below do not enable FMA). -->
     <ClCompile Include="..\..\Quake\vr\external\box3d\src\*.c">
       <CompileAs>CompileAsC</CompileAs>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
@@ -86,7 +87,15 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)box3d\</ObjectFileName>
     </ClCompile>
-    <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
+    <!-- wide8.c: Box3D's AVX2 kernels (contact solver, convex manifolds), picked at run time only on a CPU with AVX2
+         (src/simd.c b3GetSIMDWidth; wide4.c is the SSE2 copy), so the exe still runs without AVX2. clang compiles them
+         for AVX2 by a pragma around them (src/core.h B3_AVX2_BEGIN), not by /arch: the rest of the program stays at the
+         x64 baseline. intrin.h is included first because verstable.h includes it inside that pragma, where clang 19
+         refuses its declarations (_xend: "attribute 'target' multiversioning"). -->
+    <ClCompile Update="..\..\Quake\vr\external\box3d\src\wide8.c">
+      <AdditionalOptions>/FIintrin.h %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\src\*.inl;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
     <!-- The C heap (Quake/vr/vr_crtheap.c): its report (vr_crtheap_info.c), a C file each; QVR_MIMALLOC with mimalloc. -->
     <ClCompile Include="..\..\Quake\vr\vr_crtheap.c;..\..\Quake\vr\vr_crtheap_info.c">
       <CompileAs>CompileAsC</CompileAs>

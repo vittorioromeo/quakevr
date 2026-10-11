@@ -52,19 +52,6 @@ float b3GetLengthUnitsPerMeter( void )
 	return b3_lengthUnitsPerMeter;
 }
 
-static float b3_stallThreshold = FLT_MAX;
-
-void b3SetStallThreshold( float seconds )
-{
-	B3_ASSERT( b3IsValidFloat( seconds ) && seconds > 0.0f );
-	b3_stallThreshold = seconds;
-}
-
-float b3GetStallThreshold( void )
-{
-	return b3_stallThreshold;
-}
-
 static int b3DefaultAssertFcn( const char* condition, const char* fileName, int lineNumber )
 {
 	printf( "BOX3D ASSERTION: %s, %s, line %d\n", condition, fileName, lineNumber );
@@ -202,7 +189,7 @@ void b3Free( void* mem, size_t size )
 
 	if ( b3_freeFcn != NULL )
 	{
-		size_t alignedSize = ( ( size - 1 ) | ( B3_ALIGNMENT - 1 ) ) + 1;
+		size_t alignedSize = size > 0 ? ( ( size - 1 ) | ( B3_ALIGNMENT - 1 ) ) + 1 : 0;
 		b3_freeFcn( mem, alignedSize );
 	}
 	else
