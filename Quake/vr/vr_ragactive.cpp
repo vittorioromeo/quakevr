@@ -2199,7 +2199,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
         h.weight = h.want == 0.f && h.weight < 0.01f ? 0.f : h.weight;
         if(h.weight > 0.f && limbWhole(s, p, arm))
         {
-            apply(arm, h.goal, h.weight, h.strength);
+            apply(arm, h.goal, h.weight, h.strength * za::max(vr_ragdoll_active_env_arms.value, 0.f));
         }
     }
     if(e.curl > 0.f)
@@ -3627,7 +3627,7 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
                 continue;
             }
             const auto ub = static_cast<uint32_t>(b);
-            const float amp = (ch == Channel::Legs ? writheLegs : writheTorso) * env;
+            const float amp = (ch == Channel::Legs ? writheLegs : writheTorso) * env * za::max(vr_ragdoll_active_writhe.value, 0.f);
             const float hz = 0.7f + 0.8f * roll(m.seed, 16u + ub);
             const float phase = twoPi * (hz * w + roll(m.seed, 48u + ub));
             const float angle = amp * za::sin(phase);

@@ -2271,6 +2271,7 @@ QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made
 QVR_CVAR(vr_ragdoll_joint_stiffness, "0", CVAR_ARCHIVE) // Hz: a spring in each joint pulling it back towards how he stood (0 none; 1-3 a body with some tone left)
 QVR_CVAR(vr_ragdoll_limits, "1", CVAR_ARCHIVE)        // the joints' limits (cone, twist, the knees' and elbows' range) times this (0.25 stiff .. 1.5 loose)
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
+QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)  // a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
 QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (an old config's 2: the same)
 QVR_CVAR(vr_ragdoll_grab_force, "3000", CVAR_ARCHIVE) // N: the most a hand pulls a held limb with (3000: a grunt lifted by his chest sags a unit; 1500: about 18)
 QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
@@ -2373,6 +2374,7 @@ QVR_CVAR(vr_ragdoll_active_crawl_time, "3", CVAR_ARCHIVE) // s: how long he craw
 QVR_CVAR(vr_ragdoll_active_crawl_force, "1.3", CVAR_ARCHIVE) // body weights: his arms' pull along the floor at most
 QVR_CVAR(vr_ragdoll_active_dismember, "1", CVAR_ARCHIVE) // a dying monster losing a limb reacts: his free hand to the stump and a writhe, on one leg a try at keeping his balance before he falls, with no legs a crawl on his arms; 0: as any death
 QVR_CVAR(vr_ragdoll_active_dismember_time, "3", CVAR_ARCHIVE) // s: how long he writhes holding the stump once down
+QVR_CVAR(vr_ragdoll_active_writhe, "1", CVAR_ARCHIVE)   // times how far his torso and legs stir as he writhes (0 still .. 3)
 QVR_CVAR(vr_ragdoll_active_balance_time, "1.2", CVAR_ARCHIVE) // s: on one leg, how long he tries to keep his balance at most
 QVR_CVAR(vr_ragdoll_active_balance_lean, "15", CVAR_ARCHIVE) // degrees: and he falls once leaning this far from how he stood
 QVR_CVAR(vr_test_cut, "0", CVAR_NONE)                   // n: a sword's cut at the nearest monster's left arm (1), right arm (2), left leg (3), right leg (4), both legs (5), left forearm (6), left shin (7), head (8): the live one nearest you killed by it, or with n + 10 the dead one nearest you (QC vr_limbs_test.qc VR_TestCut_Frame; the active ragdolls' dismemberment tests)
@@ -2401,6 +2403,7 @@ QVR_CVAR(vr_ragdoll_active_env_ledge, "1", CVAR_ARCHIVE) // falling past a ledge
 QVR_CVAR(vr_ragdoll_active_env_grip, "1.2", CVAR_ARCHIVE) // body weights a hand holding a ledge takes at most (a lean's: a third of it; a heavy monster less); past it he slips off
 QVR_CVAR(vr_ragdoll_active_env_hang, "1.8", CVAR_ARCHIVE) // s: about how long he hangs from a ledge (each 0.45 to 1.65 times it)
 QVR_CVAR(vr_ragdoll_active_stagger_steps, "6", CVAR_ARCHIVE) // a shoved monster's backpedal: at most this many steps back (1..10); one whose balance the shove beat (the knockdown's roll under its chance) gives way after 3 or 4 of them
+QVR_CVAR(vr_ragdoll_active_env_arms, "1", CVAR_ARCHIVE)  // times the strength of his arms reaching for what is round him (a catch, a lean, a ledge's hold, a brace; 0..2)
 // Living hit reactions (vr_hitreact.cpp, QC/vr_hitreact.qc; ROUND22.md, "Active ragdolls: living hit reactions")
 QVR_CVAR(vr_hit_react, "1", CVAR_ARCHIVE)             // a living monster struck flinches where it was struck (its AI untouched): 1 its rig's bones kicked round their joints (the head snaps, an arm swings, a leg's knee buckles; a model with no rig tilted whole), 2 every model tilted whole, 0 off. The server's sends the blows and slows the steps (vr_hit_react_slow); each client draws by its own
 QVR_CVAR(vr_hit_react_strength, "1", CVAR_ARCHIVE)    // times the kicks' size (0..3)

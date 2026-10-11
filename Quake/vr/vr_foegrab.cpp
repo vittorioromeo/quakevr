@@ -876,7 +876,7 @@ void walkTest_f()
         walkTest.ent, walkTest.speed, seconds);
 }
 
-// vr_foegrab_throw_test [way] [twist]: the live monster nearest the first player thrown as both his hands' turn would
+// vr_foegrab_throw_test [way] [twist] [edict]: the live monster nearest the first player thrown as both his hands' turn would
 // (its kind and health decide; no hands needed): way 0 to his left, 1 to his right, 2 towards him, 3 away; `twist` the
 // hands' turn of it about the vertical (degrees/s, + to the left). Its fall is traced (ThrowTrace). For tests (Debug >
 // Tests > Holding Enemies).
@@ -889,7 +889,13 @@ void throwTest_f()
     }
     const VmScope vm;
     edict_t* player = EDICT_NUM(1);
-    edict_t* m = nearestMonster();
+    // (A third argument: that edict instead of the nearest, if it is a live monster: vr_ragdoll_act's.)
+    const int only = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : 0;
+    edict_t* m = only > svs.maxclients && only < qcvm->num_edicts ? EDICT_NUM(only) : nearestMonster();
+    if(m && (m->free || !(static_cast<int>(m->v.flags) & FL_MONSTER) || m->v.health <= 0.f))
+    {
+        m = nullptr;
+    }
     if(!m)
     {
         Con_Printf("vr_foegrab_throw_test: no live monster\n");

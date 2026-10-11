@@ -68,6 +68,7 @@
 #include "vr_profile.hpp"
 #include "vr_portals.hpp"
 #include "vr_progs.hpp"
+#include "vr_ragtest.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
@@ -1983,6 +1984,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_hotspot_fit", view::hotspotFit_f);
     anchor::registerCommands();
     portals::registerCommands(); // vr_portals_info
+    ragtest::registerCommands(); // vr_ragdoll_act
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);

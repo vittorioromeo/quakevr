@@ -3447,3 +3447,87 @@ other hand on a light prop. There the body lagged by half the prop's motion unti
 
 **In the headset:** with `vr_climb_prop_mass` 70 (a large crate light), one hand on a large crate, the other on an
 explosive box someone shoves (or a blast moves): you go with the box, your arm doesn't straighten first.
+## Ragdoll tests, tuning, self-collision (feature branch, 2026-10-12, worktree `ragtools`)
+
+His asks: a testing menu that triggers each active-ragdoll behaviour on the nearest supported enemy; customization
+options (strength, chance, time) for them; and "ragdoll limbs can overlap with each other, is that the case?" (yes: a
+ragdoll's parts were one negative collision group, `filter.groupIndex = -num`).
+
+### Debug > Tests > Ragdoll Behaviours (`vr_ragtest.cpp`, `vr_menu_ragtests.inc`)
+
+- One table (`actions` in `vr_ragtest.cpp`) is the menu's rows and the console's `vr_ragdoll_act <name> [entity]` (no
+  name: the list; `status`: fired, began, missed). Each row: its settings that must be on, a Fire (how it is set going)
+  and a Began (what of `ragactive::State` says it is under way), and a time to begin by. The console says
+  `ragact: <name> on <class> (<num>): began after N s: <what>` or `NOT begun in N s (<why>)`. A new behaviour (ragmove's
+  backpedal, a pull-up, a hop) is one row plus its two small functions; the menu and the test follow.
+- Target: the nearest grunt, enforcer, knight, death knight, ogre or zombie standing (box3d::activeKind, not a ragdoll
+  now; the zombie only for what it can do: it dies only beheaded and never crawls). QC's test aids take it alone through
+  the new QC global `vr_test_only` (`VR_TestOnly`, `VR_TestSkips`: vr_test_kill, vr_test_hit, vr_test_cut, which then
+  reaches past 400 units, and VR_Knockdown_Test); `vr_foegrab_throw_test` takes an entity as its third argument.
+- Fired in the server's frame (`ragtest::frame` from VR_PhysicsFrameEnd), not the console command's: a QC blow's
+  messages (the flinch, the blood) sent from a command were cleared before they reached the client.
+- Rows: deaths (body, head: collapse, arm, leg, holding the wound, stumbling on, crawling away), lost limbs (arm,
+  forearm, leg: one-leg balance, shin, both legs: crawl on the arms, beheaded), liquids (paddle, lava and slime flail),
+  walls and ledges (lean and slide, grab a ledge and hang, catch the fall), living monsters (flinch: body, head, arm;
+  knee buckle and limp; stagger and recover; stagger and fall; the two-hand throw; knocked down then get up).
+- Forcing, for one death only (`ragtest::Force`, read by vr_box3d.cpp's startActiveDeath, deathMotion and driveActive):
+  the wound's or the crawl's chance made sure (the cvar's value swapped round `beginDeath`), no pelvis pin, a stumble's
+  walk (1.5 x Stumble From, at least 160 u/s, no kill push), a monster moved by the test standing still (no stumble
+  from the jump), a liquid felt everywhere when he stands in none (on dry land: his strokes, no buoyancy).
+- Places: the lean moves him to the nearest wall within 384 units (16 rays from his chest, room for his box, his back
+  to it, 20 units off); the ledge to the nearest lip within 512 (a drop of 96 or more, his way clear, his back to it,
+  no kill push: env_test.sh's scene); he is killed 0.15 s after (his place drawn first). The crawl and the catch turn
+  him away and shoot him in the back (he lands face down; the catch harder, Killing Blows 2 and no pin). Other
+  settings a row needs are set round its one call and put back (Knockdowns' Chance 0.01 or 100, Killing Blows).
+- The page also has: a grunt, enforcer, knight, death knight, ogre or zombie ahead, Notarget On/Off, Clean Slate
+  (every monster removed, `vr_scene_clean all`), Draw Their Targets, Log Each Behaviour, How Many Began, Active
+  Ragdolls Now, and a link to the settings. With the menu open the game runs only while nothing hunts you
+  (`VR_MenuRunsGame`): a test begins as the menu closes otherwise.
+- `vr_menu_press <page title> > <row label>`: a menu button pressed from the console (the headless test's).
+
+### Tuning (Gibs and Corpses > Ragdolls)
+
+Limbs Meet Each Other (below), Test Them (the page above), and sliders for the cvars that had none: Muscle Stiffness
+(`vr_ragdoll_active_hertz` 2-20 Hz), Muscle Damping (`_damping`), Muscle Torque (`_torque`), Thrown by His Death and
+Thrown For (`_pin`, `_pin_time`), Headshot Strength (`_headshot`), Stumble From (`_stumble`), Crawl Time and Crawl Pull
+(`_crawl_time`, `_crawl_force`), Writhe Size (new `vr_ragdoll_active_writhe` 1: times the writhe's swing), Arms'
+Strength (new `vr_ragdoll_active_env_arms` 1: times the reach strength of a catch, lean, ledge hold or brace), Shove's
+Push, Stagger Travel, Stagger Balance, Stagger Recovery Blend (`_stagger_push`, `_travel`, `_pin`, `_blend`), Get-Up Lift,
+Pace and Blend (`_getup_pin`, `_pace`, `_blend`). The two new cvars are one multiplication each in vr_ragactive.cpp (the
+env hands' `apply`, the writhe's amplitude); nothing else there changed.
+
+### Self-collision (`vr_ragdoll_self_collide` 1)
+
+- Its parts no longer share a group: catCorpse in their mask, `shouldCollide` deciding (`selfMeets`): jointed
+  neighbours never (Box3D's collideConnected), a loose piece (his gun) never, and parts whose cores (70% of each
+  shape) overlap not yet: asked again as their boxes move, they meet once out of each other's core; a shallow overlap
+  is pushed out by the contact. Other ragdolls meet them by `vr_ragdoll_collide_each`, decided there too.
+- Each step (`preSolve`'s `selfTouches`; the shapes ask for it only with self-collision on): no contact for an arm its
+  drive reaches with (a hand to a wound or a stump, a catch, a lean, a ledge's hold) nor for parts deep in each other.
+  Without it the hand to the stump was held 39 units off (ogre; 9 before) and a hand let go inside his side was pushed
+  out at once (4400 J at 2 s, an ogre's death).
+- `vr_ragdoll_list` prints `self: N of its M unjointed part pairs overlapping`.
+
+Measured (`Misc/quakevr/ragdoll/selfcollide_test.sh`; off -> on):
+- overlap: 8 monsters (grunts, enforcers, knights, death knight, ogre) killed by body, head, arm and leg shots, at rest
+  after 8 s: 49 -> 10 overlapping pairs in all (another run: 42 -> 17 before the preSolve).
+- cost (8 grunts killed at once, --exclusive): the step 0.405 -> 0.468 ms while they fall, 0.200 -> 0.278 ms while they
+  settle (pairs 0.016 -> 0.020); about 0.01 ms a ragdoll.
+- pile (4 grunts on one spot, e1m1): every part asleep at 10 s both ways, the same heights.
+- active_test (deaths, head, crawl; 5 monsters), dismember_test, env_test, stagger_test with `EXTRA="vr_ragdoll_self_collide
+  0/1"` (new: EXTRA in the first three): no error or NaN; energy and spin once let go 0 in all but env_test's knight wall
+  (65 J once; its seeds 0-3 off and on both slide on to 4 s); hand to stump as before (ogre arm 9, forearm 6). stagger_test's
+  ogre steady/fall and the death knight's and ogre's thrown-and-landed FAIL both ways (as on next); its `taken` case
+  missed its moment once with it on (the knockdown lay 0.8 s longer). A knight's get-up pelvis error 15 units (3 off).
+
+### The headless test (`Misc/quakevr/ragdoll/ragtest_test.sh <agent>`, MON=n)
+
+Reads the table, presses every button (vr_menu_press) on a fresh monster on vrtesthall, one game for all, and prints
+PASS/FAIL per button. Grunt 27/27, knight 27/27, enforcer 26-27/27 and death knight 26-27/27 (the ledge: a backward
+death falls past the lip about half the time), ogre 26/27 (two-hand stagger: the ogre recovers), zombie 13/13 (14 not
+its). The catch is pressed three times (a grunt's second death falls back whatever: no catch; the help says press again).
+
+**In the headset:** Debug > Tests > Ragdoll Behaviours: A Grunt Ahead, Notarget On, then each button; the console's
+`ragact:` line says whether it began. Gibs and Corpses > Ragdolls: Limbs Meet Each Other on and off on a pile, a body
+folded over a crate, a wound held; the new sliders. Known (ragmove's): the death knight's arms reach a lip but miss it
+at speed; a crawling ragdoll's env log repeats "lets go (curl, crawling)" every frame.
