@@ -1682,3 +1682,36 @@ at most 401 u/s, the body 122, no damage; zombie 6 of 6 (403, 105, none). The 11
 
 **In the headset:** judo-throw a mummy (Dissolution of Eternity) and a zombie a few times on flat ground: they land and
 lie or get up, no fall damage, no thrashing. Nothing in their hands changes (the flesh was never seen down).
+## Hide holstered weapons per pair (2026-10-11, worktree `holsterhide`)
+
+The author: "Is there an option to hide weapons stored in the shoulder (highest) holders? Sometimes the holstered model
+interferes with the view." He chose a simple toggle per pair; all but the shoulder pair drawn by default; one row in
+VR Settings, all three under Advanced.
+
+His "shoulder (highest)" pair is the code's **shoulder** pair (body::LeftShoulder/RightShoulder, QC hotspots 3 and 4:
+on the back, reached over the shoulders; `vr_shoulder_offset_z` 16 + `vr_shoulder_holster_offset_z` -0.25, above the
+chest's "upper" pair at 8.5). VR Settings > Holster Calibration calls them "Back Holsters".
+
+- `vr_holster_weapons_draw_hip` 1, `vr_holster_weapons_draw_upper` 1, `vr_holster_weapons_draw_shoulder` 0 (archived):
+  0 hides that pair's guns in `setupHolsters` (vr_view.cpp) as death does (`vr_dead_hide_gear`): the gun's view entity
+  has no model, so nothing of it is drawn anywhere (the eyes, the desktop window and spectator camera, the body clone,
+  shadows), nor its button, ammo screen, magazine, well, open super shotgun parts, lava glow or blood. The holster
+  sleeve (`legholster.mdl`, hips and chest only) stays: the holster is there, only the gun is hidden. The Weapon Offsets
+  Holstered preview and a holster posing session still show the gun (editing tools).
+- Taking and holstering are untouched (server hotspots, reach, haptics, sounds). The draw blend: a gun drawn from a
+  hidden holster appears in the hand at once, and one put in vanishes at once (no ease from or to an unseen pose).
+  `vr_collect_fx` (a box or key shrinking into a holster) is unchanged: it is what is put away, not the holstered gun.
+- Config migration: `vr_cfg_version` 127 sets `vr_holster_weapons_draw_shoulder` 0 in a config that has it 1.
+- Menus: VR Settings > Holster Calibration: **Shoulder Holster Weapons**; Advanced VR Options > Body and Display
+  (its Setup group; after Holster Models): **Hip / Chest / Shoulder Holster Weapons**.
+- `vr_gear_status` adds a line: `gear: holstered guns drawn: hips N of M, chest N of M, shoulders N of M` (drawn of
+  held).
+
+Test (`scratch/holsterhide_test.sh`): both shoulder and both chest holsters filled (`impulse 154`, `vr_test_weaponinst
+4`, then `1` into hotspots 3, 4, 8, 9, sticky grip): defaults `hips 2 of 2, chest 2 of 2, shoulders 0 of 2`; shoulders
+on `2 of 2` each; all off `0 of 2` each; the mock main hand at the hidden right shoulder holster, grip: the gun (#8) in
+the hand; let go there: back in hotspot 4. Migration: a 126 config with the shoulders 1 loads as 0, version 127.
+
+**In the headset:** look over your shoulders and down at your chest with guns in every holster: the back pair's guns
+gone, the hips' and chest's there. Reach over a shoulder and take the hidden gun, put it back (buzz and sound as ever).
+Toggle Shoulder Holster Weapons in VR Settings and the three on Body and Display.

@@ -3203,6 +3203,25 @@ void gearStatus_f()
         pouchGrenades, entities.pouch.visible ? 1 : 0, entities.flashlight.visible ? 1 : 0, flashlight::cordDrawn() ? 1 : 0,
         gadget::active() ? 1 : 0, entities.gadget.visible ? 1 : 0, straps, entities.body.visible ? 1 : 0, pauldrons,
         panel::statusBarOnHand() ? 1 : 0);
+    // Each pair's guns drawn, of those it holds (vr_holster_weapons_draw_*).
+    const auto pair = [](int left, int bodyLeft, char* out, int size) {
+        const int drawn = (entities.holster[left].visible ? 1 : 0) + (entities.holster[left + 1].visible ? 1 : 0);
+        int held = 0;
+        for(int stat = bodyLeft; stat < bodyLeft + 2; stat++)
+        {
+            const qmodel_t* model = precachedModel(cl.stats[STAT_QVR_HOLSTERWEAPONMODEL0 + stat]);
+            held += model && !isHandModel(model) ? 1 : 0;
+        }
+        q_snprintf(out, size, "%d of %d", drawn, held);
+    };
+    char hips[16], chest[16], back[16];
+    pair(LeftHip, body::LeftHip, hips, sizeof(hips));
+    pair(LeftUpper, body::LeftUpper, chest, sizeof(chest));
+    pair(LeftShoulder, body::LeftShoulder, back, sizeof(back));
+    Con_Printf("gear: holstered guns drawn: hips %s, chest %s, shoulders %s (vr_holster_weapons_draw_hip %g, _upper %g, "
+               "_shoulder %g)\n",
+        hips, chest, back, vr_holster_weapons_draw_hip.value, vr_holster_weapons_draw_upper.value,
+        vr_holster_weapons_draw_shoulder.value);
 }
 
 // vr_grip_frame: the hands' grip frames (grip::HandFrame), for the default hand's (vr_grip.cpp defaultFrame).
@@ -5528,7 +5547,13 @@ void setupHolsters(const hands::State& s, bool queueTexts)
             model = posing::session().model; // where it was left (floatingHolster)
             clip = -1;
         }
-        if(isHandModel(model) || (deadHidden && !previewHere && !posedHere))
+        // The pair's guns not drawn by choice (vr_holster_weapons_draw_*): as dead, none of it, though they are taken
+        // and put away there as ever. A gun drawn from it appears in the hand (no draw blend from an unseen pose).
+        const cvar_t& drawPair = kind == weapons::HolsterKind::Shoulder ? vr_holster_weapons_draw_shoulder
+                                 : kind == weapons::HolsterKind::Upper  ? vr_holster_weapons_draw_upper
+                                                                        : vr_holster_weapons_draw_hip;
+        const bool pairHidden = drawPair.value == 0.f;
+        if(isHandModel(model) || ((deadHidden || pairHidden) && !previewHere && !posedHere))
         {
             model = nullptr;
         }
