@@ -2010,7 +2010,9 @@ physgun should turn what it holds by the wrist (and with the body), the sticks s
   them is cheaper than reading a file.
 - **Tools by a button:** the gun's stick press is the next tool, with X/A held the one before (`vr_toolgun_next`), a
   pulse in the gun's hand; the gun's own screen already says the tool (and the spawn choice, the joint). The stick
-  press was the stick's own key otherwise (RTHUMB `+reloadmain`, LTHUMB `+speed`), which the toolgun doesn't use; it
+  press was the stick's own key otherwise (RTHUMB `+reloadmain`, LTHUMB `+speed`). With the toolgun in the off hand
+  that is the move stick's press, so the run/walk switch is lost while the toolgun is held (walking with the panel open
+  included). It is swallowed while the trigger holds something (the stick pushed hard while adjusting a held prop). It
   is left to bullet time when `vr_bullettime_trigger` names that stick (`bullettime::ownsStick`). The menu gesture
   (both stick presses) still opens the menu (it is read first; the first press also turns the tool).
 - **The physgun's wrist** (`vr_toolgun_physgun_wrist` 1): what it holds keeps the turn it had to the gun's hand when

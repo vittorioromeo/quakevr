@@ -141,8 +141,9 @@ hand's: the off hand's while the gun is in the main hand), `vr_mock_button main 
 
 - `Misc/quakevr/toolgun_panel_test.sh <agent> [--shots]`: the panel's tiles hit by their pixels, the tools cycled by the
   stick press (the gun's screen each time), the Joint and Hinge tiles, God Mode, the Panel Size slider dragged, the
-  physgun turning a crate with the hand's roll and yaw, snapping, and a grunt by its yaw alone (ROUND22.md, "The
-  toolgun's own panel").
+  physgun turning a crate with the hand's roll and yaw, snapping, the stick press swallowed while the crate is held, a
+  grunt by its yaw alone (and not spun as the hand goes over the top), Remove's long button found by name, More closed
+  by the stick press (ROUND22.md, "The toolgun's own panel" and "Review fixes").
 - `Misc/quakevr/toolgun_joint_menu_test.sh <agent> [--debug]`: the joint tiles clicked with the laser (every choice from
   every other, 70 picks) after the physgun held a crate and with a joint half made, each kind then made and unjoined,
   the gun in either hand (ROUND21.md, "Toolgun: the joint choice crash").
