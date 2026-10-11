@@ -5,6 +5,7 @@
 
 #include "vr_brushes.hpp"
 
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_ledges.hpp"
@@ -687,6 +688,7 @@ struct Registry
     za::U32 revisions{0};   // the models made (each its own revision)
     bool sweep{false};      // a world began: its brush entities without a brush removed (a saved game's), once
     bool uploadAll{false};  // the map's buffers made again (R_NewMap): every slot written again
+    int lastSpawned{0};     // vr_brush_spawn's last thing (vr_brush_ent last)
     char texture[16]{};     // the texture new brushes get
     const qmodel_t* defaultFor{nullptr}; // the world the default texture (readouts.texture) was found for
 };
@@ -1150,7 +1152,7 @@ void here_f()
     vec3_t start{static_cast<float>(centre.x), static_cast<float>(centre.y), static_cast<float>(centre.z)};
     vec3_t end{start[0], start[1], start[2] - 512.f};
     const trace_t tr = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, player);
-    const double floorZ = tr.endpos[2];
+    const double floorZ = tr.fraction < 1.f && tr.plane.normal[2] > 0.999f ? tr.plane.dist : tr.endpos[2]; // (the floor's plane: on it)
     centre.x = za::round(centre.x / 8.0) * 8.0;
     centre.y = za::round(centre.y / 8.0) * 8.0;
     const glm::dvec3 lo{centre.x - size * 0.5, centre.y - size * 0.5, za::round(floorZ)};
@@ -1290,9 +1292,10 @@ void list_f()
         glm::dvec3 lo, hi;
         const bool ok = bounds(b, lo, hi);
         const Entry* e = entryOf(b.id);
-        Con_Printf("  %d: entity %d, rev %u, %d faces, %s, %.0f %.0f %.0f .. %.0f %.0f %.0f%s\n", b.id, e ? e->edict : 0, b.rev,
-            static_cast<int>(b.faces.size()), b.faces.empty() ? "-" : b.faces[0].texture, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z,
-            ok ? "" : " (no volume)");
+        const int marks = decals::countIn(glm::vec3{lo} - glm::vec3{2.f}, glm::vec3{hi} + glm::vec3{2.f});
+        Con_Printf("  %d: entity %d, rev %u, %d faces, %s, %.0f %.0f %.0f .. %.0f %.0f %.0f, %d decals%s\n", b.id, e ? e->edict : 0,
+            b.rev, static_cast<int>(b.faces.size()), b.faces.empty() ? "-" : b.faces[0].texture, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z,
+            marks, ok ? "" : " (no volume)");
     });
 }
 
@@ -1307,6 +1310,79 @@ void text_f()
     za::String text;
     toText(*find(id), text);
     Con_Printf("%s", text.cStr());
+}
+
+// vr_brush_spawn <classname> <x y z> [yaw] [drop] (tests): a thing made there by its spawn function (as the toolgun's
+// Spawn tool: a monster on a box); "drop": a prop let fall from there (its bottom at z: a crate dropped onto a box).
+void spawn_f()
+{
+    glm::dvec3 at;
+    if(Cmd_Argc() < 5 || !parseVec(2, at))
+    {
+        Con_Printf("usage: vr_brush_spawn <classname> <x y z> [yaw]\n");
+        return;
+    }
+    if(!serverReady())
+    {
+        return;
+    }
+    const float yaw = Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 0.f;
+    edict_t* e = box3d::spawnClass(Cmd_Argv(1), glm::vec3{at}, glm::vec3{0.f, yaw, 0.f}, nullptr, nullptr, 0.f);
+    if(e)
+    {
+        const ServerVm vm;
+        registry.lastSpawned = NUM_FOR_EDICT(e);
+        Con_Printf("brush: spawned %d %s\n", registry.lastSpawned, Cmd_Argv(1));
+        if(Cmd_Argc() > 6 && !q_strcasecmp(Cmd_Argv(6), "drop"))
+        {
+            // (a prop made there lies still, asleep, where its placing put it: held there awake, its bottom at z, it falls)
+            Cbuf_InsertText(va("vr_physics_stack %d 1 %g %g %g\n", registry.lastSpawned, at.x, at.y, at.z));
+        }
+    }
+}
+
+// vr_brush_ent <entity> (tests): where it is, what it stands on (a brush's: its id) and whether it lives.
+void ent_f()
+{
+    if(!serverReady() || Cmd_Argc() < 2)
+    {
+        return;
+    }
+    const ServerVm vm;
+    const int num = !q_strcasecmp(Cmd_Argv(1), "last") ? registry.lastSpawned : Q_atoi(Cmd_Argv(1));
+    if(num <= 0 || num >= qcvm->num_edicts)
+    {
+        Con_Printf("brush ent: no entity %d\n", num);
+        return;
+    }
+    edict_t* e = EDICT_NUM(num);
+    const int ground = (static_cast<int>(e->v.flags) & FL_ONGROUND) ? NUM_FOR_EDICT(PROG_TO_EDICT(e->v.groundentity)) : -1;
+    Con_Printf("brush ent: %d %s at %.1f %.1f %.1f, %s, ground %d%s, health %.0f\n", num, e->free ? "(free)" : PR_GetString(e->v.classname),
+        e->v.origin[0], e->v.origin[1], e->v.origin[2], (static_cast<int>(e->v.flags) & FL_ONGROUND) ? "on ground" : "in the air",
+        ground, ground > 0 && ofEntity(ground) ? va(" (brush %d)", ofEntity(ground)) : "", e->v.health);
+}
+
+// vr_brush_trace <x y z> <X Y Z> [size] (tests): Quake's trace from one point to the other (a point, or a box `size`
+// across: 32 the player's hull 1), as QC's traceline with nomonsters: where it stops and on what.
+void trace_f()
+{
+    glm::dvec3 a, c;
+    if(!parseVec(1, a) || !parseVec(4, c) || !serverReady())
+    {
+        Con_Printf("usage: vr_brush_trace <x y z> <X Y Z> [size]\n");
+        return;
+    }
+    const ServerVm vm;
+    const float half = Cmd_Argc() > 7 ? Q_atof(Cmd_Argv(7)) * 0.5f : 0.f;
+    vec3_t start{static_cast<float>(a.x), static_cast<float>(a.y), static_cast<float>(a.z)};
+    vec3_t end{static_cast<float>(c.x), static_cast<float>(c.y), static_cast<float>(c.z)};
+    vec3_t mins{-half, -half, half > 0.f ? -24.f : 0.f}, maxs{half, half, half > 0.f ? 32.f : 0.f};
+    const trace_t tr = SV_Move(start, mins, maxs, end, MOVE_NOMONSTERS, EDICT_NUM(1)); // (not the world: what it owns, all, would be passed by)
+    const int num = tr.ent ? NUM_FOR_EDICT(tr.ent) : -1;
+    Con_Printf("brush trace: fraction %.3f, end %.1f %.1f %.1f, normal %.2f %.2f %.2f, entity %d%s%s%s\n", tr.fraction,
+        tr.endpos[0], tr.endpos[1], tr.endpos[2], tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2], num,
+        num > 0 && ofEntity(num) ? va(" (brush %d)", ofEntity(num)) : "", tr.startsolid ? ", start solid" : "",
+        tr.allsolid ? ", all solid" : "");
 }
 
 void textures_f()
@@ -2343,6 +2419,9 @@ void registerCommands()
     Cmd_AddCommand("vr_brush_text", text_f);
     Cmd_AddCommand("vr_brush_textures", textures_f);
     Cmd_AddCommand("vr_brush_selftest", selftest_f);
+    Cmd_AddCommand("vr_brush_spawn", spawn_f);
+    Cmd_AddCommand("vr_brush_ent", ent_f);
+    Cmd_AddCommand("vr_brush_trace", trace_f);
 }
 
 } // namespace qvr::brushes

@@ -1881,6 +1881,17 @@ void clear()
     gore::clear();
 }
 
+int countIn(const glm::vec3& lo, const glm::vec3& hi)
+{
+    int n = 0;
+    for(za::SizeT k = 0; k < decals.size(); k++)
+    {
+        const Decal& d = decals[k];
+        n += !d.tris.empty() && !glm::any(glm::lessThan(d.centre, lo)) && !glm::any(glm::greaterThan(d.centre, hi)) ? 1 : 0;
+    }
+    return n;
+}
+
 void removeIn(const glm::vec3& lo, const glm::vec3& hi)
 {
     for(za::SizeT k = 0; k < decals.size(); k++)
