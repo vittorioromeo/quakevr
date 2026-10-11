@@ -9,6 +9,7 @@
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_ledges.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -690,16 +691,20 @@ struct Registry
     bool uploadAll{false};  // the map's buffers made again (R_NewMap): every slot written again
     int lastSpawned{0};     // vr_brush_spawn's last thing (vr_brush_ent last)
     char texture[16]{};     // the texture new brushes get
-    const qmodel_t* defaultFor{nullptr}; // the world the default texture (readouts.texture) was found for
 };
 Registry registry;
 
-// Readouts (vr_brush_list's text, the texture's name handed out).
-struct Readouts
+// The world's textures a brush may have (usableTexture), in its order, and its default (the most used plain one), found
+// once a world (the panel asks each frame): the main thread's. Emptied at a map change (the world's textures go with
+// the hunk; a later world may be in the same slot) and a game directory change.
+struct TextureCache
 {
-    char texture[16];
+    const qmodel_t* world{nullptr};
+    za::Vector<texture_t*> usable;
+    char defaultName[16]{};
+    auto members() { return mem::list(world, usable, defaultName); }
 };
-Readouts readouts;
+mem::Cache<TextureCache> textureCache{"brush textures", mem::MapChange | mem::GameDirChange};
 
 [[nodiscard]] Entry* entryOf(int id)
 {
@@ -2070,53 +2075,35 @@ bool usableTexture(const texture_t* t)
            q_strncasecmp(t->name, "notexture", 9) != 0;
 }
 
-int textureCount()
+namespace
 {
+
+// The world's usable textures and its default (textureCache), found for the world now (again after a map change).
+[[nodiscard]] const TextureCache& textures()
+{
+    TextureCache& c = textureCache;
     const qmodel_t* w = sv.worldmodel ? sv.worldmodel : cl.worldmodel;
+    if(c.world == w && !c.usable.empty())
+    {
+        return c;
+    }
+    c.world = w;
+    c.usable.clear();
+    c.defaultName[0] = 0;
     if(!w || !w->textures)
     {
-        return 0;
-    }
-    int n = 0;
-    for(int i = 0; i < w->numtextures; i++)
-    {
-        n += usableTexture(w->textures[i]) ? 1 : 0;
-    }
-    return n;
-}
-
-texture_t* textureAt(int index)
-{
-    const qmodel_t* w = sv.worldmodel ? sv.worldmodel : cl.worldmodel;
-    if(!w || !w->textures || index < 0)
-    {
-        return nullptr;
+        return c;
     }
     for(int i = 0; i < w->numtextures; i++)
     {
-        if(usableTexture(w->textures[i]) && index-- == 0)
+        if(usableTexture(w->textures[i]))
         {
-            return w->textures[i];
+            c.usable.pushBack(w->textures[i]);
         }
     }
-    return nullptr;
-}
-
-const char* currentTexture()
-{
-    if(registry.texture[0] && usableTexture(worldTexture(registry.texture)))
-    {
-        return registry.texture;
-    }
-    // The map's most used plain texture (its walls'), found once a map.
-    const qmodel_t* w = sv.worldmodel ? sv.worldmodel : cl.worldmodel;
-    if(w && registry.defaultFor == w && readouts.texture[0])
-    {
-        return readouts.texture;
-    }
-    registry.defaultFor = w;
-    const texture_t* best = textureAt(0);
-    if(w && w->textures && w->surfaces)
+    // The map's most used plain texture (its walls').
+    const texture_t* best = c.usable.empty() ? nullptr : c.usable[0];
+    if(w->surfaces)
     {
         za::Vector<int> uses(static_cast<za::SizeT>(w->numtextures), 0);
         for(int i = 0; i < w->numsurfaces; i++)
@@ -2140,8 +2127,31 @@ const char* currentTexture()
             }
         }
     }
-    q_strlcpy(readouts.texture, best ? best->name : "base", sizeof(readouts.texture));
-    return readouts.texture;
+    q_strlcpy(c.defaultName, best ? best->name : "base", sizeof(c.defaultName));
+    return c;
+}
+
+} // namespace
+
+int textureCount()
+{
+    return static_cast<int>(textures().usable.size());
+}
+
+texture_t* textureAt(int index)
+{
+    const TextureCache& c = textures();
+    return index >= 0 && index < static_cast<int>(c.usable.size()) ? c.usable[static_cast<za::SizeT>(index)] : nullptr;
+}
+
+const char* currentTexture()
+{
+    if(registry.texture[0] && usableTexture(worldTexture(registry.texture)))
+    {
+        return registry.texture;
+    }
+    const TextureCache& c = textures();
+    return c.defaultName[0] ? c.defaultName : "base";
 }
 
 void setCurrentTexture(const char* name)
