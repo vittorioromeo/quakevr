@@ -729,8 +729,8 @@ void physgunPage(Ui& ui)
     if(ui.mode == Mode::Draw)
     {
         paragraph(pad + 2.f, 48.f, panelWidth - pad * 2.f - 4.f, 6.f,
-            "Hold the trigger on a thing to drag it; turn your wrist (or yourself) to turn it. The other trigger freezes "
-            "it. X/A held: the sticks move it, its turn snaps.",
+            "Hold the trigger on a thing to drag it; your wrist turns it. The other trigger freezes it. While held: gun "
+            "stick nearer/farther and turn, other stick up/down/aside. X/A held: snap.",
             true);
     }
     toggleRow(ui, Rect{pad, 90.f, panelWidth - pad, 106.f}, "Turn With the Wrist", vr_toolgun_physgun_wrist);

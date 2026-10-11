@@ -3395,3 +3395,32 @@ lying. Save and load keep them (and their sleep). ragdoll_test flat, cap, save u
 **In the headset:** MG3's start map and map2b: the placed ogres (and shamblers) lie on their blood pools; walk up to
 one, take a limb, lift and drag it, cut it, shoot it to gibs. Walking on, the bodies left behind lie still as placed.
 Open question: a placed ogre is heavy (200 kg) lifted by the head in the mock (24 units behind the hand after 30 up).
+
+## The physgun's sticks without X/A; a light prop's hold no longer dilutes a lift's carry (2026-10-11, worktree `physsticks`)
+
+### The physgun: both sticks drive the hold (review g2 F2)
+
+His design: while the physgun holds something, both sticks act on it with no button, and the player neither walks nor
+turns until it is let go. `vr_toolgun.cpp` (`physgunHolds`, `sticksFrame`, `sticksTaken`, `button`):
+
+- The mapping is the X/A one it had: the gun's stick forward/back pushes it away / pulls it in, left/right turns it
+  (about Sticks Turn, `vr_toolgun_turn_axis`, yaw by default); the other stick raises/lowers it and moves it aside. The
+  wrist still turns it as before.
+- Stick presses during a hold: the gun's (with or without X/A, and even when bullet time owns that stick) and the other
+  hand's (its `+speed`, `+reloadmain` or bullet time) are swallowed: a hard push on a stick never changes the tool, drops
+  the prop, reloads or starts bullet time.
+- Snapping is now only the modifier: X/A held snaps its angles to `vr_toolgun_snap` (15), so stick turns are smooth
+  without it. New: letting go of X/A keeps the snapped angles (the snap's correction is baked into the turn, both in
+  wrist mode and `vr_toolgun_physgun_wrist 0`) instead of springing back to the unsnapped ones. F2's "wrist 0 also
+  snaps" is moot: nothing snaps without X/A.
+- Spawn's ghost, Scale and Brush keep X/A held for the sticks (no hold to own them otherwise).
+- The Physgun page's text, TOOLGUN.md's buttons and sticks tables, the headers' comments updated.
+
+**Tests** (`Misc/quakevr/toolgun_panel_test.sh physsticks`: PASS): holding a crate, no button, the gun stick (0.8, 1)
+and the other (1, 1) for 30 frames: distance 68 -> 95, raised 45 -> 66, turned (yaw 2.4 -> -27.9), unsnapped; the
+player's position and yaw unchanged; each stick's press swallowed (still Physgun, still holding); X/A: angles
+(-5.7, -27.9, 22.9) -> (0, -30, 30); X/A let go: still (0, -30, 30); the crate let go: the off stick walks 134 units.
+
+**In the headset:** take a crate with the physgun: both sticks move and turn it smoothly and you stay put; push a stick
+hard (click): nothing happens; hold X/A while turning: 15 degree steps, let go of X/A: it stays at the step; let go of
+the crate: you walk and turn again.
