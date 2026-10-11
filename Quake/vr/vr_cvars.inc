@@ -3242,7 +3242,7 @@ QVR_CVAR(vr_stealth_test_kinds, "0", CVAR_NONE)      // tests: the kinds scene's
 QVR_CVAR(vr_stealth_test_quitclient, "0", CVAR_NONE) // tests: the coop scene (vr_stealth_test 102) tells the other player's game to quit at its end (stealth_mp_test.sh)
 
 // The toolgun (vr_toolgun.cpp, QC vr_toolgun.qc; docs/vr-port/TOOLGUN.md): its menu's settings and its tools'.
-QVR_CVAR(vr_toolgun_tool, "0", CVAR_ARCHIVE)          // the tool the trigger uses: 0 spawn, 1 remove, 2 physgun, 3 scale, 4 joint
+QVR_CVAR(vr_toolgun_tool, "0", CVAR_ARCHIVE)          // the tool the trigger uses: 0 spawn, 1 remove, 2 physgun, 3 scale, 4 joint, 5 brush
 QVR_CVAR(vr_toolgun_joint, "0", CVAR_ARCHIVE)         // the joint tool's: 0 weld, 1 ball, 2 hinge, 3 slider, 4 rope, 5 spring, 6 unjoin (removes a prop's joints)
 QVR_CVAR(vr_toolgun_scale_uniform, "1", CVAR_ARCHIVE) // the scale tool's face handles scale the whole prop (1) or along their axis alone (0); corners always the whole
 QVR_CVAR(vr_toolgun_turn_axis, "1", CVAR_ARCHIVE)     // X/A held, the gun's stick left and right turns the ghost or the held thing about: 0 its pitch, 1 its yaw, 2 its roll

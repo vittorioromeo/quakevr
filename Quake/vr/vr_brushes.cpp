@@ -2103,7 +2103,9 @@ const char* currentTexture()
         for(int i = 0; i < w->numtextures; i++)
         {
             const texture_t* t = w->textures[i];
-            if(usableTexture(t) && t->type == TEXTYPE_DEFAULT && t->name[0] != '+' && uses[static_cast<za::SizeT>(i)] > most)
+            // (a wall's texture: not a trim strip, a light's or a button's)
+            if(usableTexture(t) && t->type == TEXTYPE_DEFAULT && t->name[0] != '+' && t->width >= 32 && t->height >= 32 &&
+                uses[static_cast<za::SizeT>(i)] > most)
             {
                 most = uses[static_cast<za::SizeT>(i)];
                 best = t;
