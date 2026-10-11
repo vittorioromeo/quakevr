@@ -8,6 +8,7 @@
 
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -564,6 +565,320 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
     d.crawled = glm::length(glm::vec2{pelvis - d.crawlStart});
 }
 
+// ---- Liquids ----
+// (vr_ragactive.hpp, Swim.) Its pelvis, chest and head looked at each frame: a swim begins once its pelvis or chest is
+// in water with water still deepEnough over it (not lying in a puddle), or in lava or slime at all, within liquidWindow
+// of its death; it stops half a second after all three are out of every liquid. In water: a dog paddle (the hands
+// circling ahead of the chest, pulling down and back), a bicycle kick, the torso straight, the head tipped back and held
+// up (a lift while it is under) for its first part, all slowing and weakening as it drowns, then limp (it floats face
+// down, or sinks, as before). In lava or slime: each hand and foot thrown to a new random place every 0.13-0.18 s, the
+// torso arching and twisting, the head thrashing, all strong, fading fast; the burning is the QC's (vr_burning.qc).
+constexpr float liquidWindow = 6.f;   // s since the death: a body falling in later is a corpse, it doesn't swim
+constexpr float deepEnough = 10.f;    // units of water over the pelvis or chest for a swim to begin
+constexpr float headLiftShare = 0.3f; // body weights: the head (and chest) held up at most, while the head is under
+constexpr float twoPi = 6.2831853f;
+
+[[nodiscard]] glm::vec3 centre(const Parts& p, int b)
+{
+    return glmv(b3Body_GetWorldCenter(p.body[b]));
+}
+
+// The parts the swim looks at besides the pelvis: the chest and the head (-1: none, or cut off).
+struct SwimParts
+{
+    int chest{-1}, head{-1};
+};
+
+[[nodiscard]] SwimParts swimParts(const Parts& p)
+{
+    SwimParts out;
+    for(int b = 1; b < p.count; b++)
+    {
+        const ragdoll::Bone& bone = p.rig->bones[b];
+        if(cut(p, b) || bone.joint == ragdoll::Joint::Loose)
+        {
+            continue;
+        }
+        if(bone.role == modelmeta::BoneRole::Chest && out.chest < 0)
+        {
+            out.chest = b;
+        }
+        if(b == p.rig->head || (out.head < 0 && bone.role == modelmeta::BoneRole::Head))
+        {
+            out.head = b;
+        }
+    }
+    return out;
+}
+
+[[nodiscard]] bool liquidsOn()
+{
+    return vr_ragdoll_active_liquids.value != 0.f;
+}
+
+// The liquid it is to swim in now (None: not deep enough in any).
+[[nodiscard]] Liquid enteredLiquid(const Parts& p, const Context& c, const SwimParts& sp)
+{
+    const glm::vec3 above{0.f, 0.f, deepEnough / p.m2u};
+    for(const int b : {0, sp.chest})
+    {
+        if(b < 0 || cut(p, b))
+        {
+            continue;
+        }
+        const glm::vec3 at = centre(p, b);
+        const Liquid l = c.liquidAt(at);
+        if(l == Liquid::Lava || l == Liquid::Slime || (l == Liquid::Water && c.liquidAt(at + above) == Liquid::Water))
+        {
+            return l;
+        }
+    }
+    return Liquid::None;
+}
+
+[[nodiscard]] const char* liquidName(Liquid l)
+{
+    return l == Liquid::Water ? "water" : l == Liquid::Slime ? "slime" : l == Liquid::Lava ? "lava" : "none";
+}
+
+void startSwim(State& s, const Parts& p, const Context& c, Liquid l, float t)
+{
+    Swim& w = s.swim;
+    w.liquid = l;
+    w.from = c.now;
+    w.outSince = -1.0;
+    w.seed = hash(static_cast<uint32_t>(c.num) * 2654435761u ^ static_cast<uint32_t>(s.begun * 72.0),
+        static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u + 17u);
+    w.phase = roll(w.seed, 1u) * twoPi;
+    const bool water = l == Liquid::Water;
+    const float most = water ? vr_ragdoll_active_paddle.value : vr_ragdoll_active_flail.value * (l == Liquid::Slime ? 1.4f : 1.f);
+    const float T = za::clamp(most, 0.2f, 30.f) * (0.8f + 0.4f * roll(w.seed, 2u));
+    w.length = T;
+    // His death's own pieces given up: the pin, the step, the hand on the wound, the crawl; no clip (the strokes lead).
+    Death& d = s.death;
+    d.stepLeg = -1;
+    d.woundArm = -1;
+    d.crawl = false;
+    d.stumble = false;
+    for(Reach& r : s.reach)
+    {
+        r = Reach{};
+    }
+    dropPin(s.pin);
+    s.clip.first = -1;
+    const auto set = [&](Channel ch, float from, float a, float b) {
+        s.fade[static_cast<za::SizeT>(ch)] = Fade{from, 0.f, t + a * T, t + b * T};
+    };
+    if(water)
+    {
+        set(Channel::Arms, 0.9f, 0.35f, 1.f);
+        set(Channel::Legs, 0.7f, 0.3f, 0.9f);
+        set(Channel::Torso, 0.45f, 0.25f, 0.8f);
+        set(Channel::Head, 0.8f, 0.35f, 0.75f);
+    }
+    else
+    {
+        set(Channel::Arms, 1.f, 0.4f, 1.f);
+        set(Channel::Legs, 1.f, 0.3f, 1.f);
+        set(Channel::Torso, 0.8f, 0.3f, 0.9f);
+        set(Channel::Head, 0.8f, 0.3f, 0.9f);
+    }
+    s.on = true;
+    if(vr_debug_ragdoll.value)
+    {
+        Con_Printf("ragdoll: %d in %s %.2f s after its death: %s for %.1f s\n", c.num, liquidName(l), t,
+            water ? "paddles" : "flails", T);
+    }
+}
+
+// Out of the liquid: its strengths fade from what they are over 0.4 s.
+void stopSwim(State& s, const Context& c, float t)
+{
+    for(Fade& f : s.fade)
+    {
+        f = Fade{fadeAt(f, t), 0.f, t, t + 0.4f};
+    }
+    for(Reach& r : s.reach)
+    {
+        r.weight = 0.f;
+    }
+    if(vr_debug_ragdoll.value)
+    {
+        Con_Printf("ragdoll: %d out of the %s after %.2f s: stops\n", c.num, liquidName(s.swim.liquid), c.now - s.swim.from);
+    }
+    s.swim.liquid = Liquid::None;
+}
+
+// A flailing limb's k-th place (its frame: x forward, y left, z up), thrown about its own side.
+[[nodiscard]] glm::vec3 flailDir(uint32_t seed, int limb, uint32_t k)
+{
+    const uint32_t h = hash(seed, static_cast<uint32_t>(limb) * 977u + k);
+    const glm::vec3 r{roll(h, 1u) * 2.f - 1.f, roll(h, 2u) * 2.f - 1.f, roll(h, 3u) * 2.f - 1.f};
+    const float side = (limb % 2) == 0 ? 1.f : -1.f;
+    const glm::vec3 bias = limb < 2 ? glm::vec3{0.3f, 0.6f * side, 0.5f} : glm::vec3{0.3f, 0.3f * side, -0.9f};
+    const glm::vec3 v = r + bias;
+    return glm::length(v) > 1e-3f ? glm::normalize(v) : glm::vec3{0.f, 0.f, -1.f};
+}
+
+// Each frame (after deathFrame): begins, stops, or sets the strokes' targets and reaches over the clip's.
+void swimFrame(State& s, const Parts& p, const Context& c, float t)
+{
+    Swim& w = s.swim;
+    if(w.liquid == Liquid::None)
+    {
+        if(w.from >= 0.0 || !c.liquidAt || !liquidsOn() || !s.death.on || s.death.collapse || t > liquidWindow)
+        {
+            return;
+        }
+        const Liquid l = enteredLiquid(p, c, swimParts(p));
+        if(l == Liquid::None)
+        {
+            return;
+        }
+        startSwim(s, p, c, l, t);
+    }
+    const SwimParts sp = swimParts(p);
+    bool in = false;
+    bool headIn = false;
+    if(c.liquidAt && liquidsOn())
+    {
+        for(const int b : {0, sp.chest, sp.head})
+        {
+            const bool here = b >= 0 && c.liquidAt(centre(p, b)) != Liquid::None;
+            in = in || here;
+            headIn = headIn || (here && b == sp.head);
+        }
+    }
+    if(!in)
+    {
+        if(w.outSince < 0.0)
+        {
+            w.outSince = c.now;
+        }
+        if(c.now - w.outSince > 0.5 || !c.liquidAt || !liquidsOn())
+        {
+            stopSwim(s, c, t);
+            return;
+        }
+    }
+    else
+    {
+        w.outSince = -1.0;
+    }
+    const bool water = w.liquid == Liquid::Water;
+    const float T = w.length;
+    const float ts = static_cast<float>(c.now - w.from);
+    // Its vigour (1 .. 0): the arms' strength over what it began with. Slower strokes as it weakens.
+    const Fade& fa = s.fade[static_cast<za::SizeT>(Channel::Arms)];
+    const float v = za::clamp(fadeAt(fa, t) / za::max(fa.from, 1e-3f), 0.f, 1.f);
+    const float hz = water ? 0.6f + 0.7f * v : 2.2f + 1.6f * v;
+    w.phase += twoPi * hz * c.dt;
+    if(w.phase > 64.f * twoPi)
+    {
+        w.phase -= 64.f * twoPi;
+    }
+    const glm::quat qc = bodyRot(p, sp.chest >= 0 ? sp.chest : 0), qp = bodyRot(p, 0);
+    const glm::vec3 x{1.f, 0.f, 0.f}, y{0.f, 1.f, 0.f}, z{0.f, 0.f, 1.f};
+    // The torso and head (the limbs' bones beyond their reaches: as he stood).
+    const float head = water ? -0.6f * (1.f - smooth((ts - 0.3f * T) / (0.4f * T))) : 0.f;
+    for(int b = 1; b < p.count; b++)
+    {
+        if(!drivable(s, p, b))
+        {
+            continue;
+        }
+        glm::quat q{1.f, 0.f, 0.f, 0.f};
+        const Channel ch = channelOf(p.rig->bones[b]);
+        if(ch == Channel::Head)
+        {
+            q = water ? glm::angleAxis(head, y)
+                      : glm::angleAxis(0.5f * v * za::sin(twoPi * 2.7f * ts), z) *
+                            glm::angleAxis(-0.25f * v * (1.f + za::sin(twoPi * 1.9f * ts)), y);
+        }
+        else if(ch == Channel::Torso && !water)
+        {
+            q = glm::angleAxis(0.35f * v * za::sin(twoPi * 2.f * ts), y) * glm::angleAxis(0.3f * v * za::sin(twoPi * 1.6f * ts + 1.3f), x) *
+                glm::angleAxis(0.25f * v * za::sin(twoPi * 1.3f * ts + 2.1f), z);
+        }
+        s.target[static_cast<za::SizeT>(b)] = glm::normalize(q);
+    }
+    // The limbs: a reach each (no strength of its own: their channels' fades lead).
+    const float a = 0.4f + 0.6f * v;
+    for(int limb = 0; limb < limbCount; limb++)
+    {
+        Reach& r = s.reach[static_cast<za::SizeT>(limb)];
+        if(!limbWhole(s, p, limb))
+        {
+            r.weight = 0.f;
+            continue;
+        }
+        const int u = s.chain[static_cast<za::SizeT>(limb)][0];
+        const glm::vec3 root = worldPoint(p, u, p.rig->bones[u].pivot);
+        const float len = limbLength(s, p, limb);
+        const float side = (limb % 2) == 0 ? 1.f : -1.f;
+        const bool arm = limb < 2;
+        const glm::quat& q = arm ? qc : qp;
+        const glm::vec3 F = q * x, L = q * y, U = q * z;
+        glm::vec3 goal;
+        if(water && arm)
+        {
+            const float ph = w.phase + (limb == 1 ? 3.14159265f : 0.f);
+            goal = root + F * (len * (0.5f + 0.3f * a * za::cos(ph))) + U * (len * (-0.15f - 0.3f * a * za::sin(ph))) +
+                   L * (side * 0.15f * len);
+        }
+        else if(water)
+        {
+            const float ph = 1.25f * w.phase + (limb == 3 ? 3.14159265f : 0.f);
+            goal = root - U * (len * (0.85f - 0.25f * a * (0.5f + 0.5f * za::cos(ph)))) + F * (len * 0.25f * a * za::sin(ph)) +
+                   L * (side * 0.08f * len);
+        }
+        else
+        {
+            const float hop = 0.13f + 0.05f * roll(w.seed, 10u + static_cast<uint32_t>(limb));
+            const float f = ts / hop;
+            const auto k = static_cast<uint32_t>(f);
+            const glm::vec3 d0 = flailDir(w.seed, limb, k), d1 = flailDir(w.seed, limb, k + 1u);
+            const glm::vec3 d = glm::normalize(glm::mix(d0, d1, smooth(f - static_cast<float>(k))) + glm::vec3{1e-4f});
+            goal = root + (F * d.x + L * d.y + U * d.z) * (0.85f * len);
+        }
+        r.goal = goal;
+        r.weight = 1.f;
+        r.strength = 0.f;
+    }
+    // The head held up while it is under, for the first part of the paddle (half on the head, half on the chest).
+    w.headLift = 0.f;
+    if(water && headIn && sp.head >= 0)
+    {
+        const float keep = 1.f - smooth((ts - 0.4f * T) / (0.3f * T));
+        w.headLift = headLiftShare * s.totalMass * c.gravity * keep * s.base;
+        if(w.headLift > 0.f)
+        {
+            const b3Vec3 f{0.f, 0.f, 0.5f * w.headLift};
+            b3Body_ApplyForceToCenter(p.body[sp.head], f, true);
+            b3Body_ApplyForceToCenter(p.body[sp.chest >= 0 ? sp.chest : 0], f, true);
+        }
+    }
+    if(c.trace)
+    {
+        // (Its limbs' motion: each hand's or foot's part's speed against the part its limb hangs from, m/s, averaged.)
+        float limbs = 0.f;
+        int n = 0;
+        for(int limb = 0; limb < limbCount; limb++)
+        {
+            if(limbWhole(s, p, limb))
+            {
+                const int u = s.chain[static_cast<za::SizeT>(limb)][0], lo = s.chain[static_cast<za::SizeT>(limb)][1];
+                const int base = p.rig->bones[u].parent;
+                limbs += glm::length(glmv(b3Body_GetLinearVelocity(p.body[lo])) - glmv(b3Body_GetLinearVelocity(p.body[base])));
+                n++;
+            }
+        }
+        const float hz2 = sp.head >= 0 ? centre(p, sp.head).z * p.m2u : 0.f;
+        Con_Printf("ragswim %d %.3f l %d v %.2f head %d %.1f lift %.0f limbs %.2f\n", c.num, static_cast<float>(c.now - c.born),
+            static_cast<int>(w.liquid), v, headIn ? 1 : 0, hz2, w.headLift, limbs / static_cast<float>(za::max(n, 1)));
+    }
+}
+
 void trace(const State& s, const Parts& p, const Context& c, float t)
 {
     za::Array<float, channelCount> err{}, str{};
@@ -864,6 +1179,11 @@ void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
     d.crawl = di.crawler && roll(di.seed, 2u) < vr_ragdoll_active_crawl.value && limbWhole(s, p, 0) && limbWhole(s, p, 1);
 }
 
+bool liquidPending(const State& s, double now)
+{
+    return liquidsOn() && s.death.on && !s.death.collapse && s.swim.from < 0.0 && now - s.begun <= liquidWindow;
+}
+
 void weaken(State& s, float keep)
 {
     s.base *= za::clamp(keep, 0.f, 1.f);
@@ -874,6 +1194,14 @@ void drive(State& s, const Parts& p, const Context& c)
     if(!p.rig)
     {
         return;
+    }
+    if(!s.on && c.liquidAt && liquidPending(s, c.now)) // (limp now, falling into a liquid: a swim wakes it)
+    {
+        const Liquid l = enteredLiquid(p, c, swimParts(p));
+        if(l != Liquid::None)
+        {
+            startSwim(s, p, c, l, static_cast<float>(c.now - s.begun));
+        }
     }
     if(!s.on)
     {
@@ -920,6 +1248,7 @@ void drive(State& s, const Parts& p, const Context& c)
     {
         deathFrame(s, p, c, t);
     }
+    swimFrame(s, p, c, t);
     // The reaches over the clip's pose (and no speed fed forward where they lead).
     for(int limb = 0; limb < limbCount; limb++)
     {

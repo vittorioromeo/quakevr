@@ -4120,12 +4120,26 @@ float activeFloorBelow(const glm::vec3& at, float depth)
     return hit.z;
 }
 
+[[nodiscard]] int liquidAt(const glm::vec3& p); // (below: "Ragdolls and corpses in water")
+
+// The liquid at `at` (metres), for a dying body's swim (vr_ragactive.cpp, "Liquids").
+ragactive::Liquid activeLiquidAt(const glm::vec3& at)
+{
+    switch(liquidAt(at * world->m2u))
+    {
+        case CONTENTS_WATER: return ragactive::Liquid::Water;
+        case CONTENTS_SLIME: return ragactive::Liquid::Slime;
+        case CONTENTS_LAVA: return ragactive::Liquid::Lava;
+        default: return ragactive::Liquid::None;
+    }
+}
+
 void driveActive(Slot& s, float dt)
 {
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
     const int every = static_cast<int>(vr_ragdoll_active_trace.value);
     const bool trace = every > 0 && static_cast<int>(qcvm->time * 72.0 + 0.5) % every == 0;
-    if(!r.active.on && !trace)
+    if(!r.active.on && !trace && !ragactive::liquidPending(r.active, qcvm->time))
     {
         return;
     }
@@ -4145,6 +4159,7 @@ void driveActive(Slot& s, float dt)
         c.held |= g.num == r.num && g.part >= 0 && g.part < r.count ? (1u << g.part) : 0u;
     }
     c.floorBelow = activeFloorBelow;
+    c.liquidAt = activeLiquidAt;
     c.num = r.num;
     c.born = r.born;
     c.trace = trace;
