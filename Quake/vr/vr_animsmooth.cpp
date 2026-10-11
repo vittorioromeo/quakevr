@@ -884,8 +884,8 @@ void pin_f()
 // vr_anim_smooth_info [model]: the models drawn smoothed, their predictions and rigs.
 void info_f()
 {
-    Con_Printf("animsmooth: %d splines drawn since the last info: %d with the lerp before, %d with a frame expected after, "
-               "%d with limbs swung\n", stats.splines, stats.history, stats.ahead, stats.swung);
+    Con_Printf("animsmooth: %d splines drawn since the last info, %d with limbs swung: %d with the lerp before, %d with a "
+               "frame expected after\n", stats.splines, stats.swung, stats.history, stats.ahead);
     Con_Printf("animsmooth: pinned entity %d, traced entity %d (-1: none)\n", pin.ent, trace.ent);
     stats = Stats{};
     for(const auto& [model, mp] : smoothCache.models)
