@@ -5,6 +5,7 @@
 #include "vr_avatar.hpp"
 #include "vr_coil.hpp"
 #include "vr_body.hpp"
+#include "vr_bodyclone.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
 #include "vr_held.hpp"
@@ -2513,6 +2514,16 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     if(vr_show_flashlight_zones.value)
     {
         drawZones(s, glm::mat4{1.f}, eyes, true);
+    }
+    // The body's mirror image while a menu page tweaks the body (vr_bodyclone.cpp): the head's zones round its head (from
+    // your own view they are round your eyes), with the zones shown or while a row of the head's is chosen.
+    if(glm::mat4 mirror; bodyclone::mirror(mirror))
+    {
+        const cvar_t* chosen = menu::selectedSetting();
+        if(vr_show_flashlight_zones.value || (chosen && !strncmp(chosen->name, "vr_flashlight_head", 18)))
+        {
+            drawZones(s, mirror, eyes, false);
+        }
     }
     drawMountPreview();
     if(st.mode != Mode::Mounted && st.mode != Mode::OnHead && vr_flashlight_cord.value != 0.f) // (on the head, the cord runs behind the neck)

@@ -3,6 +3,7 @@
 #include "vr_cvars.hpp"
 #include "vr_body.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_bodyclone.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_props.hpp"
@@ -1112,6 +1113,7 @@ void registerCvars()
 
     Cvar_RegisterVariable(&vr_backend);
     Cmd_AddCommand("vr_migrate_config", migrateConfig_f);
+    Cmd_AddCommand("vr_menu_body_clone_info", bodyclone::info_f);
     Cmd_AddCommand("vr_default", default_f);
     Cmd_AddCommand("vr_savedefaults", saveDefaults_f);
 }

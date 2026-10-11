@@ -785,6 +785,11 @@ QVR_CVAR(vr_menu_sharpen, "1", CVAR_ARCHIVE)         // with vr_menu_resolution:
 QVR_CVAR(vr_menu_remember, "1", CVAR_ARCHIVE)         // opening the menu after "Back to game" (the panel's top-left button, or holding the menu button) returns to the page it closed on
 QVR_CVAR(vr_menu_dropdown, "4", CVAR_ARCHIVE)          // a VR page's choice row with this many choices or more opens a list of them on a click or Enter / A (vr_menu.cpp; left and right still step; 0: never, a click steps)
 QVR_CVAR(vr_menu_help_wpm, "200", CVAR_ARCHIVE)        // the VR pages' help under the list: a help longer than its box shows a part at a time, each kept as long as reading its words takes at this many words a minute (vr_menu.cpp drawHelp; 60 to 600)
+// The body's mirror image while a VR page tweaks something worn on it (vr_bodyclone.cpp; ROUND22.md, "A clone of the body
+// while tweaking"; Debug > Views).
+QVR_CVAR(vr_menu_body_clone, "1", CVAR_ARCHIVE)          // 1: shown while such a page or row is; 2: on every VR page (tests); 0: never
+QVR_CVAR(vr_menu_body_clone_distance, "1.4", CVAR_ARCHIVE) // metres from your eyes to the image's (0.5 to 5)
+QVR_CVAR(vr_menu_body_clone_side, "0", CVAR_ARCHIVE)     // where, beside the menu panel: 0 the side away from the main hand, 1 left, 2 right, 3 straight ahead (behind the panel)
 QVR_CVAR(vr_tutorial_started, "0", CVAR_ARCHIVE)      // 1: the tutorial (vrtutorial) has been started once (its worldspawn sets it, QC vr_tutorial.qc): VR starts in the hub; 0 (a new install): vr_startgame and the first calibration's way out go to the tutorial (vr_main.cpp startGameCommands, QC changelevel_touch); configs from before vr_cfg_version 103 have it 1
 // The trailer scene (maps/vrtrailer; QC vr_trailer.qc): Debug > Tests > Trailer Scene.
 QVR_CVAR(vr_trailer_reset, "0", CVAR_NONE)            // 1: the scene as at its start (the grunt, the Super Axe on its pedestal, the player at the start); QC sets it back to 0

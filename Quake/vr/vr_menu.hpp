@@ -117,4 +117,10 @@ bool scroll(int rows);
 // holding it): the flashlight draws the torch's place on it (vr_flashlight.cpp drawMountPreview); false otherwise.
 [[nodiscard]] bool flashlightMountPreview(int& hand);
 
+// The body's mirror image (vr_bodyclone.cpp): a VR page that tweaks something worn on the body is shown (Flashlight - On a
+// Gun or Head, Weapon Offsets - Holstered), or a row of such a setting has been chosen on the page shown (the holsters',
+// the pouches', the flashlight's place on the body and its head zones, the wrist gadget's mount, the virtual stock's, the
+// pauldrons'): kept while that page stays. vr_menu_body_clone 2: any VR page.
+[[nodiscard]] bool bodyClonePage();
+
 } // namespace qvr::menu

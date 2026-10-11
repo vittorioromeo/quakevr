@@ -2,6 +2,7 @@
 // (VR_Get*HolsterPos, VR_In*HolsterDistance and VR_Move's computeHotSpot).
 
 #include "vr_body.hpp"
+#include "vr_bodyclone.hpp"
 #include "vr_engine.hpp"
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
@@ -602,6 +603,18 @@ void queueDebug(const hands::State& s)
         return;
     }
 
+    // Each zone also on the body's mirror image while a menu page tweaks the body (vr_bodyclone.cpp), at the same place on
+    // it.
+    glm::mat4 mirror;
+    const bool cloned = bodyclone::mirror(mirror);
+    const auto mark = [&](const glm::vec3& p, float size, const glm::vec4& color) {
+        lines::point(p, size, color);
+        if(cloned)
+        {
+            lines::point(glm::vec3{mirror * glm::vec4{p, 1.f}}, size, color);
+        }
+    };
+
     const cvar_t* shown[HolsterCount] = {&vr_show_shoulder_holsters, &vr_show_shoulder_holsters,
         &vr_show_hip_holsters, &vr_show_hip_holsters, &vr_show_upper_holsters, &vr_show_upper_holsters};
     // VR Settings > Holster Calibration: the pair whose slider is chosen, shown while it is.
@@ -625,20 +638,20 @@ void queueDebug(const hands::State& s)
         const int hs = holsterHotspot(holster);
         const bool hovered = s.hotspot[HAND_OFF] == hs || s.hotspot[HAND_MAIN] == hs;
         const glm::vec4 color = hovered ? glm::vec4{0.2f, 1.f, 0.2f, 0.35f} : glm::vec4{1.f, 0.9f, 0.2f, 0.25f};
-        lines::point(holsterPosition(s, holster), threshold(holster) * 2.f, color);
+        mark(holsterPosition(s, holster), threshold(holster) * 2.f, color);
     }
 
     if(vr_show_grenade_pouch.value && pouchEnabled())
     {
         const bool hovered = s.hotspot[HAND_OFF] == HS_GRENADE_POUCH || s.hotspot[HAND_MAIN] == HS_GRENADE_POUCH;
         const glm::vec4 color = hovered ? glm::vec4{0.2f, 1.f, 0.2f, 0.35f} : glm::vec4{1.f, 0.9f, 0.2f, 0.25f};
-        lines::point(pouchPosition(s), pouchReach() * 2.f, color);
+        mark(pouchPosition(s), pouchReach() * 2.f, color);
     }
     if(vr_show_grenade_pouch.value && ammoPouchEnabled())
     {
         const bool hovered = s.hotspot[HAND_OFF] == HS_AMMO_POUCH || s.hotspot[HAND_MAIN] == HS_AMMO_POUCH;
         const glm::vec4 color = hovered ? glm::vec4{0.2f, 1.f, 0.2f, 0.35f} : glm::vec4{1.f, 0.9f, 0.2f, 0.25f};
-        lines::point(ammoPouchPosition(s), ammoPouchReach() * 2.f, color);
+        mark(ammoPouchPosition(s), ammoPouchReach() * 2.f, color);
     }
 
     if(vr_show_virtual_stock.value)
@@ -647,7 +660,7 @@ void queueDebug(const hands::State& s)
         for(int side = 0; side < 2; side++)
         {
             const glm::vec3 pos = chestAnchor(s, shoulder);
-            lines::point(pos, vr_virtual_stock_thresh.value * 2.f, {0.3f, 0.6f, 1.f, 0.25f});
+            mark(pos, vr_virtual_stock_thresh.value * 2.f, {0.3f, 0.6f, 1.f, 0.25f});
             shoulder.y = -shoulder.y;
         }
     }

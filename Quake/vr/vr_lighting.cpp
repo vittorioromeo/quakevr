@@ -14,6 +14,7 @@
 #include "vr_modellight.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
+#include "vr_view.hpp"
 #include "vr_water.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
@@ -489,6 +490,10 @@ void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool se
         }
         if(VR_IsViewEntity(e))
         {
+            if(view::cloneSource(e))
+            {
+                continue; // the body's mirror image (vr_bodyclone.cpp): drawn only
+            }
             const bool body = modelmeta::has(e->model, modelmeta::Trait::ContainsBody);
             if(selfCasters <= 0 || (selfCasters == 1 && !body) ||
                 glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, light) > radius + viewEntityReach(e))

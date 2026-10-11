@@ -1476,3 +1476,53 @@ on a fresh config, that is why: either promote 1.3 or fold it into Push/Lift (31
 
 **Test:** `vr_cfg_version 123`, the five at the old values (the grunt at a hand-set 0.66), `vr_migrate_config` →
 240, 120, 200, 30 at default, the grunt kept at 0.66, `vr_cfg_version` 124.
+
+## 1.0.1: a clone of the body while tweaking
+
+His voice note: "It's really hard to tweak the flashlight head zone because you can't really see it from the first
+person perspective. When I'm tweaking the flashlight zones, the holsters, the ammo pouch, and anything attached to the
+player's body, a clone of the body should appear in front of the player while the tweaking menu is open."
+
+- **What:** while a VR page tweaks something worn on the body, the body as drawn this frame (with its head), the hands,
+  the holsters and what is in them, the pouches, the gadget and the torch are drawn again, 1.4 m from the eyes, facing
+  you, **as a mirror** (reflected about a vertical plane half way: your right hand moves the image's hand on your
+  right, as in a bathroom mirror; chosen over a turned copy, whose left and right read swapped). The zones drawn on the
+  body for the page are drawn on the image at the same places, live with the sliders: body::queueDebug's (the holster
+  pair whose calibration row is chosen, Show Hip/Chest/Back Holsters, Show Grenade Pouch's pouches, the virtual stock)
+  and the flashlight's head zones (temples, forehead) and the held torch's middle, which from your own view are skipped
+  (round your eyes). The head zones show on the image with Show Flashlight Zones, or while a `vr_flashlight_head*` row
+  is chosen.
+- **When** (menu::bodyClonePage): the menu open on a VR page, and either the page is *Flashlight - On a Gun or Head* or
+  *Weapon Offsets - Holstered*, or a row of a body setting has been chosen on the page shown (then kept until you leave
+  the page: VR Settings' holster calibration and ammo pouch rows, the hip/shoulder/upper holster and grenade pouch
+  rows, Flashlight's belt Forward/Up/Out/Lean Out and Head Clip Range, Wrist Gadget's Size and mount, the virtual
+  stock's, the pauldrons'). Off as the menu closes.
+- **Where** (vr_bodyclone.cpp): beside the menu panel (it is drawn over everything, so an image behind it would be
+  hidden): the panel's half width, the image's (0.45 m) and 4 degrees off its middle, on the side away from the main
+  hand (its laser works the menu). The mirror stays put while you stand within 0.6 m of where it was placed and the
+  panel keeps its yaw: lean in and the image comes closer, as a mirror's.
+- **How** (vr_view.cpp addClones): each worn or held view entity (not the guns lying about, the review's ghosts or the
+  enemies' flashes) gets a copy in a parallel array (`clones`, one per Entities slot) with its place reflected and its
+  turn the reflected one (a turn and a flip across the model's Y, so `mirrored` toggles, as the off hand's models).
+  view::find() gives the copy's own ViewEntity; view::cloneSource() maps it back for the hooks keyed on the entity:
+  VR_AliasBonePoses (the source's bones: the body's with its head, its shadow-map skin) and avatar::modelScale. Not a
+  shadow caster (collectAliases skips it), not solid. The window's spectator view sees it too.
+- **Settings** (archived; Debug > Views): `vr_menu_body_clone` 1 (*Body Clone While Tweaking*: 0 off, 2 every VR page,
+  for tests), `vr_menu_body_clone_distance` 1.4 m (0.5 to 5), `vr_menu_body_clone_side` 0 (away from the main hand; 1
+  left, 2 right, 3 straight ahead, behind the panel). `vr_menu_body_clone_info` prints whether it is shown, its yaw,
+  where its eyes are and how many entities it drew.
+- **Cost:** menu closed, one test of `key_dest` a frame (bodyclone::mirror's first call); open, about 19 more alias
+  models (the body's skinning shared).
+
+**Tests** (headless mock, e1m1): VR Settings on *Height* → off; *Hip Holsters Forward* → on, yaw 155 (view 90: 65
+degrees left of the panel, the main hand on the right), its eyes 1.40 m off, 19 entities, the body among them; back
+on *Height* → still on (kept on the page); *Body* page → off; *Ammo Pouch Forward* → on; `vr_menu_body_clone 0` → off;
+the menu closed → off. *Flashlight - On a Gun or Head*, *Wrist Gadget > Along the Arm*, *Weapon Offsets - Holstered*,
+*Flashlight > Forward* → on; the Debug > Views row cycles it to 2. Eye shots (`vr_eyeshot 1`, `vr_mock_look 15 65`):
+the image with its head, hands and gadget, the head zone's rings round its head; with *Hip Holsters Forward*
+(`vr_mock_look 30 65`): the hip pair's spheres at its hips.
+
+**In the headset:** open Flashlight > On a Gun or Head (or VR Settings and pick a holster or ammo pouch row): the
+image beside the menu, left of it if right-handed; raise your right hand: the image's hand on your right rises. Move
+Head Zone Up: the balls round the image's head move. Check the image is not inside a wall in tight rooms (it is
+depth-tested: a wall nearer hides it; Body Clone Side or Distance then).

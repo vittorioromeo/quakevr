@@ -35,6 +35,10 @@ struct ViewEntity
 // Null if `e` is not a VR view entity.
 [[nodiscard]] const ViewEntity* find(const entity_t* e);
 
+// The view entity a copy in the body's mirror image (vr_bodyclone.cpp) is of; null if `e` is not one. (find() gives the
+// copy's own ViewEntity: its place, turn and mirroring the image's.)
+[[nodiscard]] const entity_t* cloneSource(const entity_t* e);
+
 // World position of an anchor vertex of `ve`'s model, with `extra` offsets applied in the
 // entity's (mirrored) space before the model's own scaling.
 [[nodiscard]] glm::vec3 anchorPosition(const ViewEntity& ve, int anchorIndex, const glm::vec3& extra);

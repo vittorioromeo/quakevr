@@ -24,6 +24,7 @@
 #include "vr_panel.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_body.hpp"
+#include "vr_bodyclone.hpp"
 #include "vr_bodyblood.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
@@ -590,6 +591,10 @@ struct Entities
 };
 
 Entities entities;
+// The body's mirror image while a menu page tweaks it (vr_bodyclone.cpp, addClones): each view entity worn or held drawn
+// again reflected, by the one at its own index in Entities (one run of ViewEntity: find()).
+constexpr int viewEntityCount = static_cast<int>(sizeof(Entities) / sizeof(view::ViewEntity));
+view::ViewEntity clones[viewEntityCount];
 int lastAddedFrame = -1;
 const entity_t* worldWeaponsNear[maxWorldWeapons]{}; // setupWorldWeapons' nearest, for their magazines (setupMagazines)
 int pouchCounterFrame = -1; // the ammo pouch's counter queued in this frame (setupAmmoPouch: the view may be set up twice)
@@ -755,6 +760,47 @@ void forEachEntity(F&& f)
     {
         f(ve);
     }
+}
+
+// Drawn in the body's mirror image (addClones): what is worn or held, not the guns lying about (their buttons, magazines
+// and wells, the open super shotguns), the motion review's ghosts or the enemies' muzzle flashes.
+[[nodiscard]] bool worn(const view::ViewEntity& ve)
+{
+    const auto among = [&ve](const auto& list) {
+        return &ve >= &list[0] && &ve < &list[0] + sizeof(list) / sizeof(list[0]);
+    };
+    return !among(entities.worldButton) && !among(entities.worldFrontButton) && !among(entities.worldMag) &&
+           !among(entities.worldWell) && !among(entities.worldSsgFrame) && !among(entities.worldSsgBarrels) &&
+           !among(entities.ghost) && !among(entities.enemyFlash);
+}
+
+// The copy of `ve` in the body's mirror image (vr_bodyclone.cpp), `mirror` the world to it: its place reflected and its
+// turn the reflected one (a reflection is a turn and a flip: the model flipped across its Y, as the off hand's, so
+// mirrored the other way). The renderer's hooks give it its source's bones (VR_AliasBonePoses: the body's with its head)
+// and scale (avatar::modelScale).
+view::ViewEntity& addClone(const view::ViewEntity& ve, const glm::mat4& mirror)
+{
+    view::ViewEntity& c = clones[&ve - reinterpret_cast<const view::ViewEntity*>(&entities)];
+    c = ve;
+    const glm::mat3 h{mirror};
+    const glm::vec3 o = glm::vec3{mirror * glm::vec4{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2], 1.f}};
+    float r[16];
+    vec3_t zero{0.f, 0.f, 0.f}, angles{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+    R_EntityMatrix(r, zero, angles, ENTSCALE_DEFAULT);
+    // R_EntityMatrix's columns: forward (cy cp, sy cp, sp), left (.., .., cp sr), up (.., .., cr cp).
+    const glm::vec3 f = h * glm::vec3{r[0], r[1], r[2]};
+    const glm::vec3 l = -(h * glm::vec3{r[4], r[5], r[6]});
+    const glm::vec3 u = h * glm::vec3{r[8], r[9], r[10]};
+    const glm::vec3 a{glm::degrees(za::asin(za::clamp(f.z, -1.f, 1.f))), glm::degrees(za::atan2(f.y, f.x)),
+        glm::degrees(za::atan2(l.z, u.z))};
+    for(int i = 0; i < 3; i++)
+    {
+        c.ent.origin[i] = o[i];
+        c.ent.angles[i] = a[i];
+    }
+    c.mirrored = !ve.mirrored;
+    c.lightShift = h * ve.lightShift;
+    return c;
 }
 
 [[nodiscard]] bool isHandModel(const qmodel_t* model)
@@ -6990,6 +7036,13 @@ const ViewEntity* find(const entity_t* e)
     const auto* p = reinterpret_cast<const unsigned char*>(e);
     if(p < first || p >= first + sizeof(entities))
     {
+        // The body's mirror image (addClones): its own copy, mirrored the other way.
+        const auto* clone = reinterpret_cast<const unsigned char*>(clones);
+        if(p >= clone && p < clone + sizeof(clones))
+        {
+            const ViewEntity* c = clones + (p - clone) / sizeof(ViewEntity);
+            return &c->ent == e ? c : nullptr;
+        }
         return nullptr;
     }
 
@@ -6997,6 +7050,18 @@ const ViewEntity* find(const entity_t* e)
     static_assert(sizeof(Entities) % sizeof(ViewEntity) == 0 && alignof(Entities) == alignof(ViewEntity));
     const auto* ve = reinterpret_cast<const ViewEntity*>(&entities) + (p - first) / sizeof(ViewEntity);
     return &ve->ent == e ? ve : nullptr;
+}
+
+const entity_t* cloneSource(const entity_t* e)
+{
+    const auto* clone = reinterpret_cast<const unsigned char*>(clones);
+    const auto* p = reinterpret_cast<const unsigned char*>(e);
+    if(p < clone || p >= clone + sizeof(clones))
+    {
+        return nullptr;
+    }
+    const auto i = static_cast<int>((p - clone) / sizeof(ViewEntity));
+    return &clones[i].ent == e ? &reinterpret_cast<const ViewEntity*>(&entities)[i].ent : nullptr;
 }
 
 bool heldRoundRef(int hand, glm::vec3& out, float* radius)
@@ -8068,13 +8133,26 @@ extern "C" void VR_SetupViewEntities()
     // The muzzle flashes on the weapons as drawn now (vr_weaponfx.cpp).
     weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
 
-    forEachEntity([](view::ViewEntity& ve) {
+    glm::mat4 mirror;
+    const bool cloned = bodyclone::mirror(mirror);
+    int clonesDrawn = 0;
+    forEachEntity([&](view::ViewEntity& ve) {
         if(ve.visible && ve.ent.model && !hiddenForShot(ve) && !drawnAsPump(ve) && !drawnInParts(ve) &&
            cl_numvisedicts < MAX_VISEDICTS)
         {
             cl_visedicts[cl_numvisedicts++] = &ve.ent;
+            if(cloned && worn(ve) && cl_numvisedicts < MAX_VISEDICTS)
+            {
+                cl_visedicts[cl_numvisedicts++] = &addClone(ve, mirror).ent;
+                clonesDrawn++;
+            }
         }
     });
+    if(cloned)
+    {
+        const view::ViewEntity& body = clones[&entities.body - reinterpret_cast<view::ViewEntity*>(&entities)];
+        bodyclone::noteDrawn(clonesDrawn, entities.body.visible, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]});
+    }
 
     // Spent casings thrown out of the weapons (vr_shells.cpp).
     shells::frame(entities.weapon);

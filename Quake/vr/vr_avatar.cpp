@@ -1983,6 +1983,10 @@ bool shoulder(int side, Shoulder& out)
 
 float modelScale(const entity_t* e)
 {
+    if(const entity_t* source = view::cloneSource(e))
+    {
+        e = source; // (the body's mirror image: vr_bodyclone.cpp)
+    }
     return e && e == posed.ent ? posed.scale : 0.f;
 }
 
@@ -2019,6 +2023,17 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
     if(const int ragdollBones = qvr::ragdoll::bonePoses(e, matrices))
     {
         return ragdollBones; // a ragdoll (vr_ragdoll.cpp)
+    }
+    if(const entity_t* source = qvr::view::cloneSource(e))
+    {
+        // The body's mirror image (vr_bodyclone.cpp): its source's bones, the body's with its head (it is seen from
+        // outside).
+        const int count = VR_AliasBonePoses(source, matrices);
+        if(count && matrices && source == posed.ent)
+        {
+            *matrices = posed.shadowSkin.data();
+        }
+        return count;
     }
     if(!e || e != posed.ent)
     {

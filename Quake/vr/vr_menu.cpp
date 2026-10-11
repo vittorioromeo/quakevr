@@ -4719,6 +4719,16 @@ void checklistUndo()
 za::Vector<Item> pageDebugViews()
 {
     return {
+        cycle("Body Clone While Tweaking", vr_menu_body_clone, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Every VR Page"}})
+            .help("While a page tweaks something worn on your body (the holsters, the pouches, the flashlight on your belt "
+                  "or head and its zones, the wrist gadget's mount, the virtual stock), a mirror image of your body beside "
+                  "the menu, facing you, with the zones drawn on it too. Every VR Page: on any page (a test). "
+                  "vr_menu_body_clone_info prints where it is."),
+        slider("Body Clone Distance", vr_menu_body_clone_distance, 0.8f, 3.f, 0.1f, "%.1f m").extend(0.5f, 5.f)
+            .help("From your eyes to the image's."),
+        cycle("Body Clone Side", vr_menu_body_clone_side,
+            {{0.f, "Away from Main Hand"}, {1.f, "Left"}, {2.f, "Right"}, {3.f, "Straight Ahead"}})
+            .help("Beside the menu panel, on this side; Straight Ahead: behind the panel (drawn over it)."),
         toggle("Animated Surfaces", vr_anim_surface)
             .help("On: an animated texture's frames (the wall buttons' lit and dim frames) share one surface: the same "
                   "bumps, parallax depth, sheen and detail, only their colours and glow change. Off: each frame its own "
@@ -12250,6 +12260,58 @@ bool qvr::menu::flashlightMountPreview(int& hand)
     }
     hand = weaponOffsetsHand;
     return true;
+}
+
+namespace
+{
+
+int bodyCloneLatch = -1; // the page a row tweaking the body was chosen on (bodyClonePage), while it stays shown
+
+// A setting placing (or showing) something worn on the body: the holsters, the pouches, the flashlight on the belt and
+// on the head, the wrist gadget's mount, the virtual stock, the pauldrons.
+[[nodiscard]] bool tweaksBody(const char* name)
+{
+    constexpr const char* prefixes[] = {"vr_menu_holster_", "vr_hip_offset_", "vr_hip_holster_", "vr_shoulder_holster_",
+        "vr_upper_holster_", "vr_leg_holster_", "vr_grenade_pouch", "vr_ammo_pouch", "vr_flashlight_head",
+        "vr_shoulder_offset_", "vr_virtual_stock", "vr_body_pauldron"};
+    constexpr const char* names[] = {"vr_show_hip_holsters", "vr_show_shoulder_holsters", "vr_show_upper_holsters",
+        "vr_show_grenade_pouch", "vr_show_flashlight_zones", "vr_show_virtual_stock", "vr_flashlight_forward",
+        "vr_flashlight_up", "vr_flashlight_out", "vr_flashlight_tilt", "vr_gadget_scale", "vr_gadget_x", "vr_gadget_y",
+        "vr_gadget_z", "vr_gadget_pitch", "vr_gadget_yaw", "vr_gadget_roll"};
+    for(const char* p : prefixes)
+    {
+        if(!strncmp(name, p, strlen(p)))
+        {
+            return true;
+        }
+    }
+    for(const char* n : names)
+    {
+        if(!strcmp(name, n))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+bool qvr::menu::bodyClonePage()
+{
+    if(key_dest != key_menu || m_state != m_vr || page < 0 || page >= pageCount)
+    {
+        bodyCloneLatch = -1;
+        return false;
+    }
+    const PageBuilder b = pages[page].build;
+    if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || bodyCloneLatch == page)
+    {
+        return true;
+    }
+    const cvar_t* chosen = selectedSetting();
+    bodyCloneLatch = chosen && tweaksBody(chosen->name) ? page : -1;
+    return bodyCloneLatch == page;
 }
 
 int qvr::menu::currentPage()
