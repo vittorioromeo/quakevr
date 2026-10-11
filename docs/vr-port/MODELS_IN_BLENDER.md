@@ -110,8 +110,7 @@ The export writes the `.mdl` and keeps:
 - the header's scale and origin (the weapon's Scale turns about the origin);
 - the frame count, names and groups; the skin count and size;
 - **every old vertex's index**: a deleted vertex stays in the file, unused. New vertices and triangles go after the old
-  ones, and new triangles never share a vertex with old ones, so the old triangles' strip order (what a legacy anchor
-  index, from before round 22, numbers) doesn't change;
+  ones (so a diff of the file shows your edit; the anchors don't depend on the numbering);
 - every byte you didn't change (vertex, normal, texel, frame bounds). **An unedited model comes back byte for byte.**
 
 Faces with more than 3 corners are split into triangles, in your mesh too: the model is triangles.
@@ -131,21 +130,23 @@ snapped to the model's grid, which is what the game draws.
 ### Anchors
 
 The game places things on a weapon at anchors (vr_weapons.inc's `*_av` settings and your `vr_wofs_*_av`; the
-magazine mounts in vr_view.cpp, the shell ejection ports in vr_shells.cpp):
+magazine mounts in vr_view.cpp, the shell ejection ports in vr_shells.cpp, the monsters' guns in vr_weaponfx.cpp):
 
 - the hand's anchor (`hand_av`), and the off hand's for two-handed guns (`2h_hand_av`);
 - the muzzle (`muzzle_av`): shots, flashes, the laser sight;
 - the ammo screen and its button (`wpntxt_av`, `wpnbtn_av`);
-- the magazine's mount (its kick moves the magazine and its well) and the shell ejection port.
+- the magazine's mount (its kick moves the magazine and its well) and the shell ejection port;
+- on `soldier.mdl` and `enforcer.mdl`, the gun's muzzle and rear (their middles: the shot's flash and direction).
 
 An anchor is a **point on the model's surface**, in its own coordinates as frame 0 has them (the numbers Blender's
-N panel shows for a vertex of the basis shape, and `vr_anchor_info` prints): `"x y z"`, or `"x y z t"` with a triangle
-number `t` that picks among triangles equally near (two parts touching there that move apart in the animation). The
-game binds the point to the nearest triangle of frame 0 and moves it with that triangle in every frame, so the anchor
-follows the animation (the kick, the pump, the double barrel opening) whatever the vertices' numbering: **edit freely**,
-just keep the surface where the anchors are. (Before round 22 an anchor was a vertex index in QuakeSpasm's old strip
-order, which an edit could change under it; a lone number is still read that way, and the config's were converted to
-points once: vr_wofs_version 41.)
+N panel shows for a vertex of the basis shape, and `vr_anchor_info` prints): `"x y z"`. The game binds the point to
+the nearest triangle of frame 0 and moves it with that triangle in every frame, so the anchor follows the animation
+(the kick, the pump, the double barrel opening) whatever the vertices' numbering: **edit freely**, just keep the
+surface where the anchors are. Where two parts touch at the point (triangles equally near that move apart in the
+animation: a muzzle flash folded onto the barrel's tip), the first in the file's order is taken, which an edit may
+change: put such an anchor a little off the seam, on the part it belongs to (`vr_anchor_info` and `vr_anchor_nearest`
+say when a point is on one). (Before round 22 an anchor was a vertex index in QuakeSpasm's old strip order; a config's
+were replaced by the defaults' points once, vr_wofs_version 41, and a lone number is no longer read.)
 
 Your weapon poses hang off them. The report lists each anchor on the model, bound on the old model and on the new:
 
@@ -158,20 +159,18 @@ Your weapon poses hang off them. The report lists each anchor on the model, boun
 - **MOVED:** the surface under it moved. The export writes the model, and warns. Whatever hangs off the anchor moves
   with it: check the weapon's poses in the game. "off the new surface" means the surface it was on is gone: pick the
   anchor again (below).
-- **RENAMED** (legacy indices only): deleted or changed old triangles changed the strip order, and a one-number anchor
-  now names another vertex. The export **refuses** and writes nothing unless you tick **Remap Anchors**; better, set
-  that anchor as a point (`vr_anchor_from_index <model> <index>` in the game prints it, on the old model).
 
 To pick an anchor in the game (the developer console):
 
 - `vr_anchor_nearest progs/v_shot.mdl <x> <y> <z>` prints the anchor of the surface point nearest a point (paste it:
   `vr_wofs_muzzle_av_02 "33.0657 -0.6615 3.013"`; in `Quake/vr/vr_weapons.inc` to ship it);
 - `vr_anchor_info progs/v_shot.mdl <anchor>` says where an anchor binds (its triangle, its weights, how far off the
-  surface it is, and whether other triangles as near would bind it elsewhere);
+  surface it is, and whether other triangles as near would take it elsewhere in some frame);
 - `vr_anchor_where` (Debug > Reports > Weapon Anchors) prints where the held weapons' anchors are this frame.
 
 `Misc/quakevr/anchors.py check <model.mdl> [old.mdl]` checks the anchors on a model outside Blender (each within 0.1
-units of the surface in every frame, and of where it was on the old model).
+units of the surface in every frame, and of where it was on the old model); `anchors.py point <model.mdl> <vertex>`
+prints the anchor at a vertex.
 
 ### The box
 
@@ -403,7 +402,6 @@ file and redo your edits, or keep yours and pass `--keep-edited`.
 | Message | What to do |
 |---|---|
 | `N vertices (selected) are outside the model's box in frames ...` | Pull them back inside, or tick Grow the Box (section 2, [The box](#the-box)). |
-| `N anchors would name other vertices ...` | A legacy (one-number) anchor's strip order changed under it. Set it as a point (`vr_anchor_from_index` on the old model), or tick Remap Anchors and set the indices it prints. |
 | `the model has N frames and the object M shape keys` | Put the shape keys back (import again, or undo). |
 | `the skin image ... is WxH; the model's skin is ...` | Scale the image back to the skin's size. |
 | `the flat area at the skin's top-left corner grew or changed colour` (a warning) | Repaint texel (0, 0) and the area round it as they were. |

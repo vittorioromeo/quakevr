@@ -254,9 +254,9 @@ compares every slot's hotspots, muzzle and hand with round 20's placement.
 Anchors (ROUND22.md, "Anchors are points on the models' surfaces"): `vr_anchor_where` (Debug > Reports > Weapon Anchors)
 prints the held weapons' muzzle, ammo button and screen, magazine and well, in the world and in the gun's own frame;
 `vr_anchor_info <model> <anchor>` where an anchor binds, `vr_anchor_nearest <model> x y z` the anchor of the nearest
-surface point, `vr_anchor_from_index <model> <index>` a legacy index's point, `vr_anchor_compare <model> <index>
-<anchor>` the two in every pose. `Misc/quakevr/anchors.py` (py 3.13: numpy): `table`/`compare-commands` the
-conversion's check, `selftest` every anchor on its model renumbered, `check <model> [old]` a model edit. With
+surface point. `Misc/quakevr/anchors.py` (py 3.13: numpy): `selftest` every anchor on its model renumbered, `check
+<model> [old]` a model edit, `point <model> <vertex>` a vertex's anchor. ROUND22.md, "Anchors without vertex indices"
+has the probe that dumps every anchor in every pose of its model (base against branch: 0.00000). With
 `vr_fixed_frames 1`, `sv_random_seed`, `vr_particle_seed`, a firing scene's `vr_anchor_where` lines are the same every
 run (A/B between builds).
 
