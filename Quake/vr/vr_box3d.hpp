@@ -6,6 +6,8 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Vocabulary/FunctionRef.hpp"
 
 namespace qvr::box3d
@@ -169,6 +171,50 @@ bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm:
 
 // The loose prop nearest the first player (its edict number; 0 none): the tests' "nearest".
 [[nodiscard]] int nearestProp();
+
+// Climbing props (vr_climb_props; vr_climb.cpp, "Holds on props"). A loose solid prop's shape: its body's convex pieces'
+// faces in its body's frame (units: a point p there is at turn * p + origin, ClimbBody), made once for its body and
+// kept while it is (a body made again: made again).
+struct ClimbShape
+{
+    struct Face
+    {
+        glm::vec3 normal{0.f, 0.f, 1.f}; // outwards
+        int first{0}, count{0};          // its corners (corner[first .. first + count): round it)
+    };
+    za::Vector<glm::vec3> points;
+    za::Vector<int> corner; // per corner of a face: its point,
+    za::Vector<int> across; // and the face over the edge from it to the face's next corner
+    za::Vector<Face> faces;
+};
+[[nodiscard]] za::SizeT heldBytes(const ClimbShape& s);
+// A prop's body now (world units).
+struct ClimbBody
+{
+    glm::vec3 origin{0.f};
+    glm::mat3 turn{1.f};
+    glm::vec3 centre{0.f};   // its centre of mass,
+    glm::vec3 velocity{0.f}; // its velocity (units/s),
+    glm::vec3 spin{0.f};     // and spin (rad/s, world)
+    float mass{0.f};         // kg (propMass)
+    bool fixed{false};       // not moved by forces (pinned: a kinematic body)
+    bool asleep{false};
+    // The velocity of the point `p` (units) on it.
+    [[nodiscard]] glm::vec3 pointVelocity(const glm::vec3& p) const
+    {
+        return velocity + glm::cross(spin, p - centre);
+    }
+};
+// The loose solid prop `num`'s shape (Box3D's prop, SOLID_BBOX: a crate, a barrel, an explosive box; not one in a hand,
+// a ragdoll or a corpse), its body now into `body`; null if it is not one (or without Box3D's world).
+[[nodiscard]] const ClimbShape* climbShape(int num, ClimbBody& body);
+// Its body alone (false: not one, as climbShape).
+[[nodiscard]] bool climbBody(int num, ClimbBody& body);
+// A climbing hand's pull on the prop `num` (a light one): the weight of `kg` (Box3D's gravity: Quake's) along `dir` (unit,
+// world) at `at` (units), through this frame's step.
+void climbPull(int num, const glm::vec3& at, const glm::vec3& dir, float kg);
+// Whether the line from `from` to `to` (units) meets a solid prop's shape (one climbShape takes), other than `skip`.
+[[nodiscard]] bool climbRay(const glm::vec3& from, const glm::vec3& to, int skip = 0);
 
 // Ragdolls (vr_ragdoll; vr_box3d.cpp, "Ragdolls"). Whether edict `num` is one.
 [[nodiscard]] bool isRagdoll(int num);

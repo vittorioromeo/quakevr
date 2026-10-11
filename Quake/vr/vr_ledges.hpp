@@ -10,6 +10,12 @@
 #include "vr_zancle.hpp"
 
 
+namespace qvr::box3d
+{
+struct ClimbShape;
+struct ClimbBody;
+} // namespace qvr::box3d
+
 namespace qvr::ledges
 {
 
@@ -79,6 +85,21 @@ private:
     mutable za::Vector<uint32_t> seen;         // nearby(): an edge already listed this query
     mutable uint32_t stamp{0};
 };
+
+// A solid prop's ledges as it lies now (vr_climb_props; vr_climb.cpp, "Holds on props"), in world space: each edge of
+// its convex pieces' walkable tops (normal z at least minTopNormal) where the face beyond it falls away (not walkable
+// too), with one sample: where the drop starts (half a unit out, or as far as its own side flares out under the lip
+// over minDrop; past edgeReach: no ledge) and the top's depth at its middle. Those whose box touches mins..maxs,
+// appended to `out` (its grid not made: nearby() finds none of them). The checks when a hold is taken see the rest (the
+// room over it, the drop, other props). Its edict number `num` per ledge appended to `nums`.
+void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody& body, const glm::vec3& mins,
+    const glm::vec3& maxs, Map& out, za::Vector<int>& nums);
+
+// The heap memory a map holds (a scratch map's: vr_mem.hpp).
+[[nodiscard]] inline za::SizeT heldBytes(const Map& m)
+{
+    return m.bytes() - sizeof(Map);
+}
 
 // The ledge map of a brush model (the world, or one of its inline models, "*N"); nullptr for any other model. Made
 // the first time it's asked for (the world's and its inline models' when the map loads, with Climbing on), kept until

@@ -4787,8 +4787,9 @@ za::Vector<Item> pageDebugViews()
             .help("Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
                   "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),
         cycle("Show Ledges", vr_debug_ledges, {{0.f, "Off"}, {256.f, "Within 256 units"}, {1.f, "Within 512 units"}, {1024.f, "Within 1024 units"}})
-            .help("The ledge map round you, what climbing holds: lips green (on moving brushes pink), a tick out every 8 units "
-                  "(yellow where the drop starts further out). Built even with climbing off."),
+            .help("The ledge map round you, what climbing holds: lips green (on moving brushes pink; on props orange, as they "
+                  "lie now: Climb Props), a tick out every 8 units (yellow where the drop starts further out). Built even with "
+                  "climbing off."),
         toggle("Log Empty Hand Against Held", vr_debug_hand_collide)
             .help("Prints, each frame an empty hand meets the weapon or the thing the other hand holds, how near the real "
                   "and the drawn hand's palm and knuckles are to its surface, how far the drawn hand and the thing are "
@@ -6544,6 +6545,28 @@ za::Vector<Item> pageDebugTests()
         command("To the Jump Wall", "setpos -40 -310 24 0 0 0; noclip")
             .help("In vrclimb: you facing a wall 96 high, 40 units ahead: walk into it, jump and grab its top (Climbing: "
                   "Mid-Air Grab Window)."),
+        command("A Large Crate Ahead", "vr_test_spawn_dist 40; vr_test_spawn 120; impulse 241")
+            .help("vr_test_spawn 120: a large crate (65 kg, 48 high) 40 units ahead, a face square to you: climb it "
+                  "(Climbing: Climb Props). 121: two stacked, 122: one lying on its side, 123: a small one on a large one, "
+                  "124: a small one."),
+        command("Two Large Crates Stacked Ahead", "vr_test_spawn_dist 40; vr_test_spawn 121; impulse 241")
+            .help("vr_test_spawn 121: two large crates, one on the other (96 high), 40 units ahead."),
+        command("A Large Crate on Its Side Ahead", "vr_test_spawn_dist 40; vr_test_spawn 122; impulse 241")
+            .help("vr_test_spawn 122: a large crate lying on its side (40 high), 40 units ahead."),
+        slider("Props Hold Like the Level From", "vr_climb_prop_mass", 0.f, 200.f, 5.f, "%.0f kg")
+            .help("vr_climb_prop_mass: a prop at least this heavy holds like a wall while you hang from it; lighter, your "
+                  "weight pulls it (Light Prop Pull) and it tips or slides towards you, and your hand lets go. Large crate "
+                  "65, explosive box 80, small crate 40, barrel 30. 0: every prop holds."),
+        slider("Light Prop Pull", "vr_climb_prop_pull", 0.f, 100.f, 5.f, "%.0f kg")
+            .help("vr_climb_prop_pull: the most weight a hand on a light prop pulls it with (your weight, Box3D's Player "
+                  "Mass, shared by the holding hands, towards your body)."),
+        slider("Prop Hold Tips Off At", "vr_climb_prop_tilt", 0.f, 45.f, 1.f, "%.0f deg")
+            .help("vr_climb_prop_tilt: a prop's top turned this far from how it lay when you took hold lets your hand go."),
+        slider("Light Prop Slips Off At", "vr_climb_prop_slip", 0.f, 32.f, 1.f, "%.0f units")
+            .help("vr_climb_prop_slip: a light prop's hold moved this far from where you took it lets your hand go."),
+        slider("Prop Knocked Away At", "vr_climb_prop_letgo_speed", 0.f, 600.f, 25.f, "%.0f u/s")
+            .help("vr_climb_prop_letgo_speed: a held prop's hold whose speed changes this much in a frame (a blast, a hit) "
+                  "lets your hand go."),
         header("Weapon Pickups (pickuptest: ... in the console)"),
         command("Every Weapon Pickup Ahead", "vr_pickup_test 1")
             .help("vr_pickup_test 1: every weapon pickup (the mission pack's when loaded) in rows ahead of you, each with "

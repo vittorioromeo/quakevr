@@ -4941,6 +4941,13 @@ void() ImpulseCommands =
             traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, self); // (on the floor)
             spawned = VR_Crate_TestSpawn(trace_endpos, spawnKind == 107 ? 1 : 2, spawnPlayer.v_viewangle_y + 30, spawnKind == 109);
         }
+        else if(spawnKind >= 120 && spawnKind <= 124)
+        {
+            // The climbing tests' crates, square to you (VR_Crate_ClimbTestSpawn): 120 a large one, 121 two large ones
+            // stacked, 122 a large one on its side, 123 a small one on a large one, 124 a small one.
+            traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, self); // (on the floor)
+            spawned = VR_Crate_ClimbTestSpawn(trace_endpos, spawnPlayer.v_viewangle_y, spawnKind - 119);
+        }
         else if(spawnKind == 111 || spawnKind == 112)
         {
             // A barrel (vr_crates.qc's vr_barrel: vrstart's), upright or lying across your view (it may roll).
