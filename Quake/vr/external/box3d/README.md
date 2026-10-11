@@ -3,7 +3,7 @@
 Erin Catto's 3D rigid-body physics engine, the successor to Box2D. MIT licence (`LICENSE`).
 
 - Upstream: https://github.com/erincatto/box3d
-- Version: 0.1.0 (alpha)
+- Version: 0.1.0 (alpha) and later work on main (`b3GetVersion` says 0.2.0, the next)
 - Commit: `5d83df83ab47172c2c745b44315e7538ead02397` (2026-10-07, "Improve compound serialization (#183)")
 
 Only the library is vendored: `src/` (the C17 sources and their private headers) and `include/box3d/` (the
@@ -29,7 +29,7 @@ physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cm
   clang 19 refuses its declarations ("attribute 'target' multiversioning"; a build fix, the sources unchanged).
   `BOX3D_DISABLE_AVX2` would leave the AVX2 copy out. Quake VR's `vr_box3d_avx2` (0: the SSE2 copy, for comparing;
   Debug > Profiling) is applied to its world before each step (`b3World_EnableSSE2Fallback`), and the console says
-  at the first map which one runs (`box3d: Box3D 0.1.0, AVX2 kernels (8 lanes)`);
+  at the first map which one runs (`box3d: Box3D 0.2.0, AVX2 kernels (8 lanes)`). Both give the same results to the bit (`vr_physics_mtbench`'s world hash);
 - threads: the step runs on the engine's job pool (`vr_box3d.cpp`, "Box3D on the pool"): the world is created with
   task callbacks (`enqueueStepTask`, `finishStepTask`) that hand each of Box3D's tasks to a pool worker as a
   `jobs::Task`, or run it on the stepping thread as it waits; Box3D's own scheduler (`src/scheduler.c`) and threads
