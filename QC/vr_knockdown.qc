@@ -17,8 +17,9 @@
 //   drops; Killed: VR_Knockdown_FastForwardDeath): the ragdoll stays as it lies. Gibbed, it gibs; beheaded or its head
 //   blown off, the ragdoll goes on headless. Thrown or dropped down there, it takes fall damage as a standing monster does
 //   (combat.qc VR_Monster_Fall, from its ragdoll's hardest landing on the level: vr_box3d.cpp callFalls).
-// - Room: when the ragdolls are at vr_ragdoll_max, the oldest dead one goes (removed), else the oldest knocked-down one
-//   is killed and removed (VR_Knockdown_MakeRoom); no room at all: no knockdown.
+// - Room: when the ragdolls are at vr_ragdoll_max, the oldest dead one goes (removed; a mapper's corpse no player is near
+//   lies as placed again), else the oldest knocked-down one is killed and removed (VR_Knockdown_MakeRoom); no room at
+//   all: no knockdown.
 // - Getting up, after vr_knockdown_time_min to _max seconds: the engine fits its get-up's first frame to how the body
 //   lies and looks for room to stand there and around it (vr_knockdown_search: never through a wall, a floor or a
 //   ceiling; none: it stays down, trying again every vr_knockdown_retry seconds), the hands holding it let go, and the
@@ -65,6 +66,21 @@ void(entity e) VR_Knockdown_RemoveBody =
     remove(e);
 };
 
+// Whether a player is near placed corpse `e` (vr_mg_corpses.qc): within 1.5 times vr_corpse_placed_wake, where the
+// engine wakes it (vr_box3d.cpp) and only farther lets a woken one that is no ragdoll sleep again.
+float(entity e) VR_PlacedCorpse_Near =
+{
+    float reach = max(0, cvar("vr_corpse_placed_wake")) * 1.5;
+    for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    {
+        if(vlen(p.origin - e.origin) < reach)
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
 // Room for one more ragdoll (vr_ragdoll_max): the oldest dead ragdoll goes first, else the oldest knocked-down monster
 // (but `xFor`) is killed and goes. FALSE: none can.
 float(entity xFor) VR_Knockdown_MakeRoom =
@@ -83,13 +99,16 @@ float(entity xFor) VR_Knockdown_MakeRoom =
         entity x = nextent(world);
         while(x)
         {
-            if(x != xFor && isragdoll(x))
+            // (A placed corpse put to sleep: its ragdoll goes at the engine's next sync, vr_box3d.cpp.)
+            if(x != xFor && isragdoll(x) && x.vr_corpse_placed != 1)
             {
                 count = count + 1;
                 if(x.health <= 0)
                 {
-                    // (A dead player's own body stays while he is dead: his death view is on it, vr_deathdoll.qc.)
-                    if(!VR_DeathDoll_InUse(x) && (dead == world || x.vr_corpse_since < dead.vr_corpse_since))
+                    // (A dead player's own body stays while he is dead: his death view is on it, vr_deathdoll.qc. A
+                    // placed corpse a player is near stays a ragdoll: he may be about to take it.)
+                    if(!VR_DeathDoll_InUse(x) && !(x.vr_corpse_placed && VR_PlacedCorpse_Near(x)) &&
+                       (dead == world || x.vr_corpse_since < dead.vr_corpse_since))
                     {
                         dead = x;
                     }
@@ -109,9 +128,17 @@ float(entity xFor) VR_Knockdown_MakeRoom =
         {
             if(cvar_hget(cvarh_vr_knockdown_debug))
             {
-                dprint(sprintf("knockdown: ragdolls at %g: a dead %s's body goes\n", most, dead.classname));
+                dprint(sprintf("knockdown: ragdolls at %g: a dead %s's body %s\n", most, dead.classname,
+                    dead.vr_corpse_placed ? "lies as placed again" : "goes"));
             }
-            VR_Knockdown_RemoveBody(dead);
+            if(dead.vr_corpse_placed)
+            {
+                dead.vr_corpse_placed = 1; // (a mapper's corpse stays: asleep, as placed; its ragdoll goes)
+            }
+            else
+            {
+                VR_Knockdown_RemoveBody(dead);
+            }
         }
         else if(alive != world)
         {

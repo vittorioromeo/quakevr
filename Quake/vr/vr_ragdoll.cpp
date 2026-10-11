@@ -946,6 +946,9 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ||
         hdr->numverts != table.numVerts || hdr->numposes < 2 || table.count > maxBones)
     {
+        // (Said once a model, not only to developers: another .mdl or an .md5 in its place, a model pack's, leaves that
+        // monster's dead without ragdolls; a player's console shows why. rigFor remembers the failure.)
+        log.developer = false;
         q_snprintf(log.text, sizeof(log.text),
             "ragdoll: %s is not the model its seed table was made for (%d vertices, the table's %d; pose type %d; %d poses; "
             "surfaces %s)\n",
@@ -1831,6 +1834,18 @@ float deathProgress(const Rig& rig, int frame)
         }
     }
     return -1.f;
+}
+
+int deathEnd(const Rig& rig, int frame)
+{
+    for(int i = 0; i < rig.deaths; i++)
+    {
+        if(frame >= rig.deathFirst[i] && frame <= rig.deathLast[i])
+        {
+            return rig.deathLast[i];
+        }
+    }
+    return -1;
 }
 
 uint32_t headBones(const Rig& rig)

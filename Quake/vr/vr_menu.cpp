@@ -4123,6 +4123,11 @@ void hologramTestMessage()
             .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
                   "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "
                   "blends into the get-up from the floor (vr_ragdoll_active_getup)."),
+        toggle("Placed Corpses Are Bodies", vr_corpse_placed)
+            .help("The corpses a map places (Dimension and Dawn of the Machine) are dead monsters' bodies: shot, gibbed and "
+                  "burnt, and ragdolls you take and cut once you come near. Off: scenery. The next map load (vr_corpse_placed)."),
+        slider("Placed Corpses Wake At", vr_corpse_placed_wake, 64.f, 512.f, 16.f, "%.0f units")
+            .help("How near you come before a placed corpse becomes a ragdoll (vr_corpse_placed_wake)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
@@ -5463,6 +5468,9 @@ za::Vector<Item> pageDebugReports()
         command("Pin Nearest Monster Mid-Swing", "vr_anim_smooth_pin 41 42 0.5 -1 -1 ogre").help("vr_anim_smooth_pin <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]: a monster (here the nearest ogre: its chainsaw swing) drawn held between two frames, to compare Model Animation's settings on it; vr_anim_smooth_pin off lets it go."),
         command("Unpin Monster", "vr_anim_smooth_pin off").help("vr_anim_smooth_pin off: the pinned monster animates again."),
         slider("Limb Fit Limit", "vr_anim_smooth_rig_error", 0.25f, 5.f, 0.25f, "%.2f units").help("vr_anim_smooth_rig_error: a bone fitted to a frame worse than this (rms) isn't swung between it and its neighbours; a vertex further off its bone swings less (none at twice it)."),
+        command("Corpse Poses", "vr_corpse_poses").help("vr_corpse_poses [1]: every dead monster and placed corpse: its model, "
+                                                         "frame and where that is in its death, a ragdoll or why not; those "
+                                                         "drawn mid-death (upright) are counted as not lying. 1: the counts only."),
         command("Corpses in the Physics", "vr_corpse_list").help("vr_corpse_list: each corpse's body (fixed or pushable, box or pose, mass), where it lies, and what touches it (Gibs and Corpses > Corpse Collision)."),
         command("Held Props", "vr_carry_check").help("vr_carry_check: each held prop's place and axes in the hand, drawn vs where the game has it, and the fist's gap to it (cm)."),
         command("Props in Floors", "vr_physics_sink").help("vr_physics_sink: how far each prop sinks into the floor."),

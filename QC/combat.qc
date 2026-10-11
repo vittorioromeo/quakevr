@@ -230,6 +230,8 @@ void(entity targ, entity attacker) Killed =
 // to players and monsters (vr_corpse_collide_player, _monsters).
 
 .float vr_corpse;         // 1 dying (watched: VR_Corpse_Think2), 2 a corpse that can be gibbed
+.float vr_corpse_placed;  // a mapper's corpse (misc_corpse, vr_mg_corpses.qc): 1 lying as placed (no ragdoll), 2 woken (a
+                          // player came near, vr_box3d.cpp): a ragdoll as a killed monster's body
 .float vr_corpse_hp;      // what damage it takes yet
 .float vr_corpse_frame;   // its frame at the last look: the death animation is over when it stops changing
 .float vr_corpse_since;   // when it died
@@ -792,6 +794,7 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
     vr_sgib_corpsegib = TRUE;
 
     self.vr_corpse = 0;
+    self.vr_corpse_placed = 0; // (a mapper's corpse no more: vr_mg_corpses.qc)
     self.vr_corpse_dying = 0; // (gibbed dying: its death code stops, ThrowHead's think instead)
     self.vr_corpse_hp = 0;
     self.takedamage = DAMAGE_NO;

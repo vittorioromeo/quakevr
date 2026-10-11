@@ -916,8 +916,10 @@ struct World
         double changed{-1.0};              // when its frame last changed from one seen (not as it was first seen: a load)
         bool dying{false}; // seen dead but still solid (its frame and origin kept): the frame it stops being solid in
                            // is known to be new or not (the fiend's death6: SOLID_NOT and the frame together)
+        bool settled{false}; // put at its death's last frame, once (settleCorpses: left still mid-death)
     };
     za::Vector<CorpseWatch> corpseWatch;
+    bool corpseFrameSaid{false}; // settleCorpses said its first in this world (the rest: developer)
     // By edict: a monster's (live or dying) last three places its origin changed to, and when (watchCorpses; its own
     // motion: ownMotion), and its velocity the frame before (what the frame's knock added to it); n how many are known.
     struct MonsterMotion
@@ -3138,6 +3140,10 @@ constexpr ActiveClass activeClasses[] = {{"monster_army", true}, {"monster_enfor
     {
         return false;
     }
+    if(fieldFloatOr(ent, fields().vr_corpse_placed, 0.f) == 1.f)
+    {
+        return false; // (a mapper's corpse asleep: a corpse as placed till a player comes near, settleCorpses)
+    }
     if(num < static_cast<int>(world->slots.size()) && world->slots[num].ragdoll >= 0)
     {
         return true; // (already one: its model is checked by stale)
@@ -3532,7 +3538,10 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
     const int frame = static_cast<int>(ent->v.frame);
     const int pose = ragdoll::poseOfFrame(model, frame);
     const float progress = ragdoll::deathProgress(*rig, frame);
-    const int prevPose = progress > 0.f ? ragdoll::poseOfFrame(model, frame - 1) : pose;
+    // (A mapper's corpse, or one put at its death's end, lay still: none of its animation's motion.)
+    const bool still = fieldFloatOr(ent, fields().vr_corpse_placed, 0.f) != 0.f ||
+                       (num < static_cast<int>(world->corpseWatch.size()) && world->corpseWatch[static_cast<za::SizeT>(num)].settled);
+    const int prevPose = progress > 0.f && !still ? ragdoll::poseOfFrame(model, frame - 1) : pose;
     // Where the client draws him now: as his frame has just changed (this server frame), still the frame before (its lerp
     // to this one not begun); else this frame. The parts are made there, moving as the animation went on (the switch
     // unseen: the ragdoll's first frame is the animated mesh's last; vr_debug_ragdoll compares them).
@@ -7403,6 +7412,72 @@ void writeCorpse(edict_t* ent, Slot& s)
     s.asleep = !b3Body_IsAwake(s.body);
 }
 
+// Once a frame, after watchCorpses: the dead monsters' poses and the mapper's corpses.
+// - A corpse left still mid-death (its frame unchanged for corpseStuck, no ragdoll: drawn upright or falling, "dead ogres
+//   standing" of 1.0.1) is put at that death's last frame, once (said in the console the first time in a map).
+// - A mapper's corpse (vr_corpse_placed: QC vr_mg_corpses.qc) wakes when a player comes within vr_corpse_placed_wake
+//   (its ragdoll made as room allows); a woken one that got no ragdoll sleeps again once no player is within 1.5 times
+//   that, to try again (the QC puts one no player is near back to sleep to make room: VR_Knockdown_MakeRoom).
+constexpr double corpseStuck = 2.0; // s
+void settleCorpses()
+{
+    const float wake = za::max(vr_corpse_placed_wake.value, 0.f);
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->corpseWatch.size()); num++)
+    {
+        edict_t* ent = EDICT_NUM(num);
+        if(ent->free || !deadMonster(ent) || isRagdollSlot(num))
+        {
+            continue;
+        }
+        const float placed = fieldFloatOr(ent, fields().vr_corpse_placed, 0.f);
+        if(placed != 0.f)
+        {
+            float nearest = 1e30f;
+            for(int i = 1; i <= svs.maxclients; i++)
+            {
+                edict_t* player = EDICT_NUM(i);
+                if(!player->free && svs.clients[i - 1].active && svs.clients[i - 1].spawned) // (not yet: at the origin)
+                {
+                    nearest = za::min(nearest, glm::distance(vec(player->v.origin), vec(ent->v.origin)));
+                }
+            }
+            if(placed == 1.f && wake > 0.f && nearest < wake && vr_ragdoll.value >= 1.f)
+            {
+                setFieldFloat(ent, fields().vr_corpse_placed, 2.f);
+            }
+            else if(placed == 2.f && nearest >= wake * 1.5f)
+            {
+                setFieldFloat(ent, fields().vr_corpse_placed, 1.f);
+                za::vectorEraseIf(world->roomRefused, [num](int n) { return n == num; });
+            }
+        }
+        World::CorpseWatch& w = world->corpseWatch[static_cast<za::SizeT>(num)];
+        qmodel_t* model = modelOf(ent);
+        if(w.settled || w.since < 0.0 || qcvm->time - w.since < corpseStuck || !ragdoll::eligible(model))
+        {
+            continue;
+        }
+        const ragdoll::Rig* rig = ragdoll::rigFor(model);
+        const int frame = static_cast<int>(ent->v.frame);
+        const float progress = rig ? ragdoll::deathProgress(*rig, frame) : -1.f;
+        if(progress < 0.f || progress >= 0.999f)
+        {
+            continue;
+        }
+        const int end = ragdoll::deathEnd(*rig, frame);
+        const bool say = !world->corpseFrameSaid;
+        world->corpseFrameSaid = true;
+        (say ? Con_Printf : Con_DPrintf)("corpse: %d %s (%s) lay still %.1f s at frame %d, %.0f%% of its death: put at its "
+                                         "death's last frame, %d\n",
+            num, PR_GetString(ent->v.classname), model->name, qcvm->time - w.since, frame, progress * 100.f, end);
+        ent->v.frame = static_cast<float>(end);
+        w.settled = true;
+        w.frame = ent->v.frame;
+        w.since = qcvm->time;
+        w.changed = -1.0;
+    }
+}
+
 // The entities, every server frame in edict order: each one's body made, moved, fed or destroyed.
 void syncEntities(float dt)
 {
@@ -7438,6 +7513,7 @@ void syncEntities(float dt)
         freeRetiredHulls();
     }
     watchCorpses();
+    settleCorpses();
     if(vr_ragdoll.value >= 1.f && !world->ragdollsWarmed)
     {
         // The rigs made now (tens of milliseconds each, as the map starts), not as the first grunt dies.
@@ -10322,6 +10398,66 @@ void corpseList_f()
     Con_Printf("vr_corpse_list: %d corpses in the physics (vr_corpse_collide %d)\n", count, corpseMode());
 }
 
+// vr_corpse_poses [1]: every dead monster: its model and frame, where that frame is in its death (a rigged model's), a
+// ragdoll or not and why not; a corpse drawn as its model in a frame that is no death's end ("not lying") is counted
+// (Debug > Tests; the player's evidence: "Dead ogres standing"). 1: the counts only.
+void corpsePoses_f()
+{
+    if(!sv.active || !world)
+    {
+        Con_Printf("vr_corpse_poses: no Box3D world\n");
+        return;
+    }
+    const VmScope vm;
+    const bool brief = Cmd_Argc() > 1 && Q_atoi(Cmd_Argv(1)) != 0;
+    int dead = 0, ragdolls = 0, lying = 0, notLying = 0, placed = 0;
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    {
+        edict_t* ent = EDICT_NUM(num);
+        // (A mapper's corpse too: misc_corpse, a dead monster's body when vr_corpse_placed is on, else scenery.)
+        const bool mapper = !ent->free && (fieldFloatOr(ent, fields().vr_corpse_placed, 0.f) != 0.f ||
+                                              !strcmp(PR_GetString(ent->v.classname), "misc_corpse"));
+        if(ent->free || !ent->v.modelindex || (!mapper && (!hasFlag(ent, FL_MONSTER) || ent->v.health > 0.f)))
+        {
+            continue;
+        }
+        dead++;
+        placed += mapper ? 1 : 0;
+        qmodel_t* model = modelOf(ent);
+        const ragdoll::Rig* rig = ragdoll::eligible(model) ? ragdoll::rigFor(model) : nullptr;
+        const int frame = static_cast<int>(ent->v.frame);
+        const float progress = rig ? ragdoll::deathProgress(*rig, frame) : -1.f;
+        const bool rag = isRagdollSlot(num);
+        const float placedState = fieldFloatOr(ent, fields().vr_corpse_placed, 0.f);
+        const char* why = rag                                ? "a ragdoll"
+                          : mapper && !hasFlag(ent, FL_MONSTER) ? "scenery (vr_corpse_placed 0)"
+                          : vr_ragdoll.value < 1.f           ? "vr_ragdoll 0"
+                          : placedState == 1.f               ? "placed, asleep till a player comes near"
+                          : !ragdoll::eligible(model)        ? "no rig for its model"
+                          : !rig                             ? "its rig failed"
+                          : !deadMonster(ent)                ? "still dying (solid)"
+                          : hasFlag(ent, FL_SWIM)            ? "a swimmer"
+                          : roomRefused(num)                 ? "no room (vr_ragdoll_max)"
+                          : wantsRagdoll(ent, num)           ? "wanted, not made"
+                                                             : "not limp yet";
+        // (Mid-death, not a ragdoll: drawn upright or falling. A frame of no death the rig knows counts as lying: the
+        // player's other four deaths' ends.)
+        const bool flat = rag || !rig || progress < 0.f || progress >= 0.999f;
+        ragdolls += rag ? 1 : 0;
+        lying += flat ? 1 : 0;
+        notLying += flat ? 0 : 1;
+        if(!brief)
+        {
+            Con_Printf("  %d %s: %s frame %d%s, %s%s\n", num, PR_GetString(ent->v.classname), model ? model->name : "(none)", frame,
+                rig ? (progress < 0.f ? " (no death frame)" : va(" (%.0f%% of its death)", progress * 100.f)) : "", why,
+                flat ? "" : ", NOT LYING");
+        }
+    }
+    Con_Printf("vr_corpse_poses: %d dead monsters (%d placed by the map), %d ragdolls, %d lying, %d not lying (vr_ragdoll %g, "
+               "at most %g)\n",
+        dead, placed, ragdolls, lying, notLying, vr_ragdoll.value, vr_ragdoll_max.value);
+}
+
 // vr_corpse_drop [<height>]: the loose prop nearest the first player put `height` units (32) over the top of the corpse
 // nearest him, at rest, to fall on it. For tests (Debug menu: Drop the Nearest Prop on the Nearest Corpse).
 void corpseDrop_f()
@@ -10960,6 +11096,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_portals", portalInfo_f);
         Cmd_AddCommand("vr_corpse_list", corpseList_f);
         Cmd_AddCommand("vr_corpse_drop", corpseDrop_f);
+        Cmd_AddCommand("vr_corpse_poses", corpsePoses_f);
         Cmd_AddCommand("vr_ragdoll_list", ragdollList_f);
         Cmd_AddCommand("vr_ragdoll_info", ragdoll::info_f);
         Cmd_AddCommand("vr_limb_models", limbmodel::info_f);
