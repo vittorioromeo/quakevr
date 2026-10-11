@@ -1751,3 +1751,76 @@ script's point.
 **For the author.** In VR: fire the grenade launcher, the proximity gun and the multi-grenade launcher: the flash,
 smoke and shot now leave from the barrel's end face in the firing frame too (before, the point jumped with the flash's
 folded vertices). Everything else is where it was.
+
+## Smoother animations: `r_lerpmodels 3` (feature branch, 2026-10-11, worktree `animsmooth`)
+
+Quake's frame lerp (`r_lerpmodels 1`, FitzQuake's) slides every vertex in a straight line from the last pose to the new
+one over the frame's time: a limb swinging through a big angle shortens mid-swing (its chord), and the speed jumps at
+every frame. `r_lerpmodels 3` draws the same frames, at the same times, along curves; the server, its frames, their
+times and everything the game tests against a model are untouched. Default stays 1 until Vittorio decides.
+
+**A, the timing** (every alias .mdl/MD3 but your weapons): each vertex goes along a cubic through four poses, the
+lerp's two, the pose before them (the lerp that ended where this one starts: `entity_t.animpose0/animfrom/animspan0`,
+kept by `R_AnimHistoryPush` in r_alias.c; none after a reset, a lerp cut short or a held pose: then it starts from rest)
+and the one expected after (the next frame of its animation by the frames' names; models whose names say nothing, the
+shambler's "From ASE" and Quake VR's numbered grunt and knight, by the frame seen after it most, three votes; deaths end
+where the rig's seed table says). Its tangents are the non-uniform Catmull-Rom ones by the frames' times (LERP_FINISH's
+spans; the one before clamped to 0.5-2 times this one's), scaled by `1 - vr_anim_smooth_tension` (default 0: the speed
+carried through each frame; 1 eases to rest at each). It is a weighted sum of four poses (`vr_rigpose.hpp`'s `spline`),
+so the shader just fetches two more poses: InstanceData's `Smooth` (the extra poses, the rig rows) and `SmoothW` (the
+weights), in `alias_vertex_shader` (standard, depth, layered shadow, wound paint: all alias draws).
+
+**B, the limbs** (models with a ragdoll seed table, vr_ragdoll.cpp: checked on the grunt, knight, ogre, shambler,
+enforcer, death knight, rottweiler, scrag, zombie, fiend, vore and the player model): each bone's fitted rigid motion
+(`Rig::poseRot/posePos`) is turned along the same spline in rotation (a Hermite in the rotation vectors, world frame),
+its joint carried by its parent as posed (plus the fits' joint gap along the spline, so parent and child meet exactly at
+the pivot), less the chord the same weights draw: one 3x4 "swing" per bone and instance (`SmoothSwing`, SSBO 9), added to
+each vertex from its rest place (`SmoothRest`, SSBO 8, per VBO vertex, uploaded once a frame per model). A vertex's own
+residual from the fit is blended along the spline; a vertex whose rms residual is over `vr_anim_smooth_rig_error` (1.5
+units) swings less, none at twice it; a bone fitted worse than that in any of the four poses, folded away (the grunt's
+dropped gun) or turning over 150 degrees between the two isn't swung. `vr_anim_smooth_rig 0`: A alone.
+
+**Exact frames**: at a pose itself (blend 0, 1, a held frame) nothing of this is drawn: the instance goes down Quake's
+path, so its vertices are the frame's bytes. The spline's weights there are exactly (0,1,0,0) and (0,0,1,0)
+(`vr_anim_smooth_check`). Pixel check (`vr_anim_smooth_pin` holding an ogre at swing9-swing10, eyeshots, fixed frames,
+paused): r_lerpmodels 1 against 3 at blend 0 and 1: the only differing pixels are an animated sign's that a control pair
+(two shots, nothing changed) shows too (480/601 pixels, threshold 20); at 0.5: 28.7k pixels, all on the ogre. Drawn
+0.001 off a key, the shape is within 0.03-0.08 units of it (the 12 rigged models checked): no pop entering or leaving a frame.
+
+**Limbs**: `vr_anim_smooth_check`, frame pairs that follow by name, limbs (bones) turning 30-150 degrees, the spread of
+their vertices about their middle at mid-frame against the frames': Quake's blend shrinks them 4.9-10.8% on average
+(worst 16-64%), A 3-8%, A+B 0.0-1.2% (worst 1-36%: the death knight's and the shambler's folds). Mid-frame the drawn
+shape is up to 3-20 units off Quake's blend (the ogre's chainsaw swing 13.8, the fiend's 16.8).
+
+**Speed**: `vr_anim_smooth_trace 400 <model>` (a live monster fighting you, vr_fixed_frames 1, the same seeds each run):
+the vertices' mean change of speed a frame, Quake's blend against A+B: ogre p95 2.79 -> 1.34, most 8.0 -> 4.5; shambler
+p95 3.18 -> 1.66 (its most, 39.7, is a frame cut short, the same in all); knight p95 1.02 -> 0.66, most 3.0 -> 1.8.
+Quake's median is 0 (all the change at the frames' ends).
+
+**Cost** (`bench.sh combat_48`, 48 mixed monsters, 3 runs each, exclusive): CPU 2.60-3.00 ms (1), 2.60-2.67 (A),
+2.65-2.66 (A+B): within the spread. GPU alias pass p50 0.34-0.37 ms (1), 0.35 (A), 0.38 (A+B). An entity's spline and
+swings are worked out once a frame (`Memo`, by entity: the other eye and every shadow light copy them; 2.2-3.4 us each
+on the CPU, `vr_anim_smooth_check`).
+
+**Not changed**: your weapons (their flashes, mounts and shells follow the gun's vertices by Quake's blend), IQM and the
+ragdolls' skinned models, MOD_NOLERP models (flames), reverse demo playback. The CPU's copies of a model's shape
+(vr_hitmodel.cpp, vr_modelcollide.cpp, anchors, the ragdoll's first frame) keep Quake's blend: a few units off the
+drawn shape mid-swing. Frame groups are handled (the next pose of the cycle) but none are smoothed in the id maps
+(NOLERP).
+
+**Debug** (Debug > Reports): Smooth Animation Check (`vr_anim_smooth_check [model ...]`), Smooth Animation Models
+(`vr_anim_smooth_info [model [frames]]`: the predictions, the rig, per bone the poses too poorly fitted, the splines
+drawn), Pin Nearest Monster Mid-Swing (`vr_anim_smooth_pin <f1> <f2> <blend> [<f0> <f3> [<entity> | <model>]]`, `off`),
+Limb Fit Limit. `vr_anim_smooth_trace <frames> [<entity> | <model>]`. Settings: Graphics > Models and Effects > Model
+Animation (Stepped / Quake's Blend / Smooth), Animation Ease, Swing Limbs.
+
+**Shared with `ragcore`**: `vr_rigpose.hpp` (a bone's key transform, the spline's weights, rotation vectors, the
+rotation spline, the rig posed along a spline with joints carried by parents). The rig code itself is unchanged.
+
+**Comparison strips** (key f1 | Quake's blend 0.5 | A 0.5 | A+B 0.5 | key f2; the agent's scratch folder): ogre
+swing9-10 (the chainsaw keeps its reach), shambler swingl (the arm stays out at full length; Quake's folds it into the
+chest), knight 47-48 (the sword), grunt death 9-10.
+
+**In the headset**: Graphics > Models and Effects > Model Animation: Smooth. Watch ogres swing, shamblers claw, knights
+slash and dogs run, near: limbs should arc, not fold, and no frame should pop. Try Animation Ease 0.3 if a swing seems
+to overshoot, and Swing Limbs off to see A alone.

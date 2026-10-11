@@ -81,6 +81,9 @@ typedef struct entity_s
 	short					previouspose;	//johnfitz -- animation lerping
 	short					currentpose;	//johnfitz -- animation lerping
 //	short					futurepose;		//johnfitz -- animation lerping
+	short					animfrom;		// QVR: r_lerpmodels 3 (vr/vr_animsmooth.cpp): the pose this lerp set out from (previouspose, kept when a finished lerp collapses it)
+	short					animpose0;		// QVR: ... the pose the lerp before it set out from (its spline's first key)
+	float					animspan0;		// QVR: ... the time between that lerp's start and this one's (0: none, or held: this one starts from rest)
 	float					movelerpstart;	//johnfitz -- transform lerping
 	float					movelerpfinish;	// QVR: the end of the move lerp, as the message that moved it said (0: the 0.1 s Quake assumes)
 	vec3_t					previousorigin;	//johnfitz -- transform lerping

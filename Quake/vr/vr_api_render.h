@@ -104,7 +104,16 @@ typedef struct vraliasinstance_s
 	float		retro[4]; // retro textures (vr_retro.cpp): its set (0 none), its skin's Quake size (0: the texture's own)
 	float		portalclip[4]; // plane keeping this room
 	float		retropart[4]; // your body's parts by bone (vr_retro.cpp bodyParts): xy the low bits, zw the high bits of each bone's part
+	int			smooth[4]; // r_lerpmodels 3 (vr_animsmooth.cpp): the first and fourth poses (times the vertex count), 1 + its bones' first row in the swing buffer (0 none), 1 on
+	float		smoothw[4]; // ... the four poses' weights
 } vraliasinstance_t;
+// r_lerpmodels 3 (vr_animsmooth.cpp): whether `e`, drawn between poses pose1 and pose2 at `blend` (R_SetupAliasFrame's),
+// goes along a spline through four poses: smooth[0], [1] the first and fourth (pose numbers), [2] 1 + where its bones'
+// swings are in the batch's buffer (0: none), weights the four poses'. `zeroblend`: its instance's padding (a steadied
+// gun: not smoothed; nor your weapons). `batchindex` 0 starts a batch (`channel`: 0 the instanced batches, 1 the wound paint).
+int VR_AnimSmooth (const struct entity_s *e, const void *aliashdr, int pose1, int pose2, float blend, int zeroblend, int batchindex, int channel, int smooth[4], float weights[4]);
+int VR_AnimSmoothPinned (const struct entity_s *e, const void *aliashdr, short *pose1, short *pose2, float *blend); // R_SetupAliasFrame: the entity vr_anim_smooth_pin holds between two frames: its lerp
+void VR_AnimSmoothBind (const struct entity_s *e, int channel); // the batch's swings and its model's rest pose bound for the alias shader (SSBOs 8, 9), after its pose buffers
 void VR_AliasInstance (const struct entity_s *e, const float matrix[16], const void *aliashdr, int kind, vraliasinstance_t *out); // R_DrawAliasModel_Real: kind 1 standard, 0 showtris/showskel, 2 depth only (all zero)
 void VR_AliasFlameRefs (const void *aliashdr, unsigned short *refs); // GLMesh_LoadVertexBuffer: per VBO vertex, 0 or 1 + the gun vertex a muzzle flash's vertex rides on
 void VR_AliasMorph (const struct entity_s *e, const void *aliashdr, float ambient[24]); // instance: a weapon's morph into its other model (Ambient[2..5].w)

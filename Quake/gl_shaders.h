@@ -1302,6 +1302,8 @@ NOISE_FUNCTIONS
 "	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own); w retro lighting's (vr_retrolight.h): a Quake texel's share of the texture's (0: 1)\n"\
 "	vec4	PortalClip; // QVR: this instance's teleporter half\n"\
 "	vec4	RetroPart; // QVR: your body's parts by bone (vr/vr_retro.cpp bodyParts): xy the low bits of bones 0..23, 24..47, zw the high bits\n"\
+"	ivec4	Smooth; // QVR: r_lerpmodels 3 (vr/vr_animsmooth.cpp): x, y the first and fourth poses, z 1 + its bones' first row in SmoothSwing (0 none), w 1 on\n"\
+"	vec4	SmoothW; // QVR: ... the four poses' weights\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1429,6 +1431,7 @@ QVR_ALIAS_VS_OUTPUTS // QVR: the alias vertex shader's Quake VR outputs
 "	PoseVertex pose2 = GetPoseVertex(inst.Pose2);\n"
 "	mat4x3 worldmatrix = transpose(mat3x4(inst.WorldMatrix[0], inst.WorldMatrix[1], inst.WorldMatrix[2]));\n"
 "	vec3 lerpedPos = mix(pose1.pos, pose2.pos, inst.Blend);\n"
+QVR_ALIAS_VS_SMOOTH // QVR: r_lerpmodels 3: along a spline through four poses, the limbs swung round their joints
 "	lerpedPos = ZeroBlend(lerpedPos, inst); // QVR: blend towards frame 0 (vr/vr_render.cpp)\n"
 "	vec3 lerpedVert = (worldmatrix * vec4(lerpedPos, 1.0)).xyz;\n"
 "	gl_ClipDistance[0] = dot(vec4(lerpedVert, 1.0), ShadowClip); // QVR: virtual light exit plane\n"
