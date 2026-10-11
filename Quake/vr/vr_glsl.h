@@ -1711,6 +1711,20 @@ QVR_DECAL_FUNCTIONS \
 "#endif\n" \
 "\n" \
 "#if POSEVERTTYPE == 0 // PV_QUAKE1\n" \
+"// QVR: r_lerpmodels 3's limbs (vr/vr_animsmooth.cpp): each vertex's place in its rig's rest pose (model units), its bone\n" \
+"// plus half how much it swings with it (0..0.5: its fit's residual), and each instance's bones' swings (3 rows each: the\n" \
+"// bone's rigid motion between the poses less its chord, in the poses' units), added to the spline's place.\n" \
+"layout(std430, binding=8) restrict readonly buffer SmoothRestBuffer { vec4 SmoothRest[]; };\n" \
+"layout(std430, binding=9) restrict readonly buffer SmoothSwingBuffer { vec4 SmoothSwing[]; };\n" \
+"vec3 RigSwing(uint base)\n" \
+"{\n" \
+"	vec4 r = SmoothRest[gl_VertexID];\n" \
+"	float bone = floor(r.w);\n" \
+"	uint i = base + uint(bone) * 3u;\n" \
+"	vec4 p = vec4(r.xyz, 1.0);\n" \
+"	return (r.w - bone) * 2.0 * vec3(dot(SmoothSwing[i], p), dot(SmoothSwing[i + 1u], p), dot(SmoothSwing[i + 2u], p));\n" \
+"}\n" \
+"\n" \
 "// QVR: the model's own occlusion at this vertex in a pose (vr/vr_ao.cpp: 1 open), in its position's 4th byte\n" \
 "// (gl_mesh.c); a muzzle flash's vertex keeps its gun vertex there (the flag in its normal's 4th byte): none.\n" \
 "float PoseAO(uint pose)\n" \
@@ -1726,6 +1740,27 @@ QVR_DECAL_FUNCTIONS \
 "float PoseAO(uint pose) { return 1.0; }\n" \
 "#endif\n" \
 "\n"
+
+// r_lerpmodels 3 (vr/vr_animsmooth.cpp): the vertex along a spline through four poses (the lerp's two, the one before and
+// the one expected after: weights SmoothW, all on one pose at a pose itself), plus its bone's swing (a rigged monster's:
+// limbs keep their length mid-frame); the normal along the same spline, given to both poses for the shading after.
+#define QVR_ALIAS_VS_SMOOTH \
+"#if POSEVERTTYPE != 1\n" \
+"	if (inst.Smooth.w != 0)\n" \
+"	{\n" \
+"		PoseVertex pose0 = GetPoseVertex(uint(inst.Smooth.x));\n" \
+"		PoseVertex pose3 = GetPoseVertex(uint(inst.Smooth.y));\n" \
+"		vec4 w = inst.SmoothW;\n" \
+"		lerpedPos = w.x * pose0.pos + w.y * pose1.pos + w.z * pose2.pos + w.w * pose3.pos;\n" \
+"		vec3 smoothnor = w.x * pose0.nor + w.y * pose1.nor + w.z * pose2.nor + w.w * pose3.nor;\n" \
+"#if POSEVERTTYPE == 0\n" \
+"		if (inst.Smooth.z > 0)\n" \
+"			lerpedPos += RigSwing(uint(inst.Smooth.z - 1));\n" \
+"#endif\n" \
+"		pose1.nor = smoothnor;\n" \
+"		pose2.nor = smoothnor;\n" \
+"	}\n" \
+"#endif\n"
 
 // the alias vertex shader's Quake VR outputs
 #define QVR_ALIAS_VS_OUTPUTS \
