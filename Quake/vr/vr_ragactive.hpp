@@ -251,6 +251,46 @@ struct Env
     int probes{0};
     // The tests: catches, holds made and let go.
     int catches{0}, holds{0};
+    // A living one's (a knockdown's fall past a lip: Climb): its hands' holds and the climb alone (no catch, lean, curl).
+    bool living{false};
+};
+
+// A living knockdown's ledge (vr_ragdoll_active_pullup; vr_ragactive.cpp, "Climbs"): falling past a lip near a hand (a
+// fall's, or a body dropped or toppled off a lip), it grabs it (the env's Ledge holds), hangs a moment, then (by the
+// chance) pulls itself up: its pelvis pinned and carried up under the lip, over it and in onto the top (its muscles
+// holding its weight, its arms giving), its hands holding until it goes in, its legs reaching up; else it drops after its
+// hang as a death's. Lying on the top it is a knockdown again (its get-up later, as any).
+enum class ClimbPhase : uint8_t
+{
+    Hang, // holding on (pulled up from pullFrom, if it pulls)
+    Pull, // its pelvis carried up under the lip (its chest over the top)
+    Over, // up over the lip, then in onto the top
+    Done  // pulled up (or dropped): its strength easing off
+};
+struct Climb
+{
+    bool on{false};
+    ClimbPhase phase{ClimbPhase::Hang};
+    bool pulls{false};      // the chance said it pulls itself up (else it drops after its hang)
+    double since0{0.0};     // when it grabbed
+    double since{0.0};      // this phase's start
+    double pullFrom{0.0};   // when it begins to pull (hanging until then)
+    glm::vec3 lip{0.f};     // world, metres: the lip between its hands
+    glm::vec3 out{0.f};     // level: off the ledge, over the drop
+    glm::vec3 from{0.f};    // its pelvis (its body's origin) when this phase began
+    // Its pelvis's pin (pulling: drive() puts the pin's anchor here, turned from rot0, its turn as it pulled, towards
+    // tilt x its stand frame's facing the wall by turnBlend).
+    bool pinned{false};
+    glm::vec3 pinAt{0.f};
+    glm::quat rot0{1.f, 0.f, 0.f, 0.f}, tilt{1.f, 0.f, 0.f, 0.f};
+    float turnBlend{0.f};
+    float top{0.f};         // m: the top's height (the lip's)
+    bool released{false};   // Over: its hands let go (its pelvis over the top), going in since since2
+    double since2{0.0};
+    float prog{0.f}, prog2{0.f}; // the way of this phase (Over: up over the lip, then in) done, 0..1
+    // The tests: its chest over the top at most (m), why it ended.
+    float rose{-1e30f};
+    const char* ended{nullptr};
 };
 
 // What a death does (beginDeath; vr_ragactive.cpp, "Deaths").
@@ -424,6 +464,8 @@ struct State
     za::Array<float, ragdoll::maxBones> strength{};
     // What is round him (vr_ragdoll_active_env).
     Env env;
+    // A living knockdown hanging from a ledge, pulling itself up (vr_ragdoll_active_pullup).
+    Climb climb;
 };
 
 // What the drive needs of the world each frame.
@@ -448,6 +490,7 @@ struct Context
     // props; 0 none) and the world's ledge map (null: no ledges).
     uint64_t envMask{0};
     const ledges::Map* ledges{nullptr};
+    bool carried{false}; // its body still carried by a shove's drive (vr_box3d.cpp ShoveDrive): no ledge grabbed yet
 };
 
 // The drive started on a ragdoll just made (vr_box3d.cpp createRagdoll, its joints made): `joints` each part's
@@ -529,6 +572,12 @@ void swimGoal(State& s, bool hasGoal, const glm::vec3& goal);
 void swimDies(State& s, double now);
 // Whether it swims now (a living knockdown's or a death's).
 [[nodiscard]] bool swimming(const State& s);
+// Whether a living knockdown hangs from a ledge or pulls itself up now (its get-up waits).
+[[nodiscard]] bool climbing(const State& s);
+// A living knockdown (the drive begun: its fall's, or one begun for this, holding its frame) falling past a ledge's lip
+// near a hand (c.ledges): it grabs it, a climb (vr_ragdoll_active_pullup). Whether it did. drive() asks it itself for a
+// fall's.
+bool beginClimb(State& s, const Parts& p, const Context& c);
 
 // A mark of blood due on the hand holding a stump (Dismember::bloodDue, one taken): the hand's end (world, metres) and
 // the way to the stump. False: none due.

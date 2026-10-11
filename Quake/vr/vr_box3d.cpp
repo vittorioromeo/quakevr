@@ -4335,6 +4335,46 @@ void livingSwim(RagdollBodies& r)
     }
 }
 
+// A living knockdown (of the active classes) not driven, falling past a ledge's lip near a hand (dropped from a hand,
+// toppled off a lip; vr_ragdoll_active_pullup; ROUND22.md, "Ledge pull-ups"): its drive begun holding the frame it went
+// down in, a climb (ragactive::beginClimb: it grabs the lip, hangs, pulls itself up). A driven one's fall asks drive()'s
+// own. Looked at every third frame while it falls.
+void livingClimb(RagdollBodies& r, float dt)
+{
+    edict_t* ent = EDICT_NUM(r.num);
+    ragactive::State& a = r.active;
+    if(a.on || r.shove.on || vr_ragdoll_active_pullup.value <= 0.f || vr_ragdoll_active_env.value == 0.f ||
+        vr_ragdoll_active_env_ledge.value == 0.f || !knockedDown(ent) || ent->v.health <= 0.f || !activeClassOf(ent) ||
+        !sv.worldmodel || b3Body_GetLinearVelocity(r.body[0]).z > -0.8f || static_cast<int>(qcvm->time * 72.0 + 0.5) % 3 != 0)
+    {
+        return;
+    }
+    const glm::vec3 pelvis = glmv(b3Body_GetPosition(r.body[0]));
+    if(activeLiquidAt(pelvis) != ragactive::Liquid::None)
+    {
+        return;
+    }
+    ragactive::begin(a, activeParts(r), modelOf(ent), glmv(world->toM(vec(ent->v.origin))), r.joints.data(), r.jointFriction,
+        r.jointStiffness, qcvm->time);
+    const int frame = static_cast<int>(ent->v.frame); // (the pose it went down in: its tone holds it)
+    a.clip = ragactive::Clip{frame, frame, static_cast<float>(frame), qcvm->time, 10.f, false};
+    ragactive::Context c;
+    c.world = world->id;
+    c.now = qcvm->time;
+    c.dt = dt;
+    c.gravity = za::max(-b3World_GetGravity(world->id).z, 0.f);
+    c.floorBelow = activeFloorBelow;
+    c.rayHit = activeRayHit;
+    c.num = r.num;
+    c.born = r.born;
+    c.envMask = catWorld | catMover | catProp | catSolid | catFixture;
+    c.ledges = ledges::of(sv.worldmodel);
+    if(!ragactive::beginClimb(a, activeParts(r), c))
+    {
+        ragactive::end(a);
+    }
+}
+
 void driveActive(Slot& s, float dt)
 {
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
@@ -4343,6 +4383,7 @@ void driveActive(Slot& s, float dt)
     if(vr_ragdoll_active.value != 0.f)
     {
         livingSwim(r);
+        livingClimb(r, dt);
     }
     if(!r.active.on && !trace && !ragactive::liquidPending(r.active, qcvm->time))
     {
@@ -4360,7 +4401,7 @@ void driveActive(Slot& s, float dt)
         // stopped asking for (hit or held down meanwhile: it slumps, and gets up again later).
         const edict_t* ent = EDICT_NUM(r.num);
         const ragactive::State& a = r.active;
-        if((a.stagger.on || a.rise.on || a.fall.on) && !a.death.on && ent->v.health <= 0.f)
+        if((a.stagger.on || a.rise.on || a.fall.on || a.climb.on) && !a.death.on && ent->v.health <= 0.f)
         {
             ragactive::release(r.active, parts);
         }
@@ -4395,10 +4436,13 @@ void driveActive(Slot& s, float dt)
     c.envMask = catWorld | catMover | catProp | catSolid | catFixture;
     // (Looked up only for a drive whose env is on, or not started yet: not every frame for every collapse or swim.)
     const ragactive::Env& env = r.active.env;
+    // (And a living one's fall or climb: vr_ragdoll_active_pullup.)
+    const bool climbs = vr_ragdoll_active_pullup.value > 0.f && !r.active.death.on && (r.active.fall.on || r.active.climb.on);
     c.ledges = vr_ragdoll_active_env.value != 0.f && vr_ragdoll_active_env_ledge.value != 0.f && r.active.on &&
-                       r.active.death.on && (!env.started || env.on) && sv.worldmodel
+                       ((r.active.death.on && (!env.started || env.on)) || climbs) && sv.worldmodel
                    ? ledges::of(sv.worldmodel)
                    : nullptr;
+    c.carried = r.shove.on;
     // Its forces this frame, kept for the step's later pieces (liftAgain).
     r.driveForce = {};
     r.driveForceAt = qcvm->time;
@@ -15228,6 +15272,12 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
         return 0;
     }
     const ragdoll::Rig& rig = *r->rig;
+    // Hanging from a ledge or pulling itself up (vr_ragdoll_active_pullup): it stays down until it is over (asked again
+    // after vr_knockdown_retry).
+    if(ragactive::climbing(r->active))
+    {
+        return 0;
+    }
     // Its body rising (vr_ragdoll_active_getup): on until it stands (-1), then handed back there (3 or 4: risen), if
     // its spot is still free (it was chosen 1-2.5 s ago: the player or a monster may stand there now).
     if(r->active.on && r->active.rise.on)
