@@ -1746,8 +1746,8 @@ barrel to the old one, 0.42 units behind it: about 1.3 mm drawn), unique (no oth
 (its WpnButtonMode is 0) was on the flash too: the same point as its muzzle now. The placeholders' anchors are `0 0 0`.
 
 **The monsters' guns** (vr_weaponfx.cpp: the soldier's and the enforcer's muzzle and rear, the middle of 14 + 6 and 7 + 5
-vertices) are anchors now, the points of those vertices (a UV seam's twins each, as the vertices were); the model's
-vertex count still says it is the model they were picked on.
+vertices) are anchors now, the points of those vertices (each once, with how many of the vertices it stands for: a UV
+seam's twins share a point; review fix, below); the model's vertex count still says it is the model they were picked on.
 
 **Code.** vr_anchor.cpp 1175 -> 702 lines: QuakeSpasm's BuildTris strip search, the legacy and hint paths, the
 every-pose model read, `legacyToText`, `vr_anchor_from_index` and `vr_anchor_compare` gone; the tie count is worked
@@ -3049,3 +3049,44 @@ magazine 1`, `lupper: v_nail clip 24; magazine 1`, hips `v_axe clip 0`, `v_shot 
 
 **In the headset:** break the super shotgun open and holster it on a hip: it stays open there (and shut ones shut);
 drop a nailgun's magazine and holster it: no magazine drawn in it.
+
+
+## Review fixes: anchors, animsmooth, vore-shove (2026-10-11, worktree `fixanim`)
+
+From the review of the three merges (group g1).
+
+**Anchors.**
+- Motion takes played back with the weapon anchors broken: the `' '` to `'_'` swap was on the melee settings line
+  (no anchors there), not the weapon settings line, so playback kept the first number ("30.3762": not an anchor, bound
+  to vertex 0: muzzle, ammo button and screen there for the replay). Now `weaponSettings` writes `_`, and playback
+  turns it back into spaces; a value that is not three numbers (a take from before the anchors: an old strip-order
+  index) gets the setting's default, as migration 41 does for configs, with one console warning per playback.
+  `vr_motion_header_check` (in `selfchecks_test.sh`) round-trips the line and checks an index and a broken value.
+  Checked by hand: a recorded take plays with its anchors' exact text and restores the player's after; the same take
+  with indices (`614`, `5`) warns "2 weapon anchors ... their defaults instead" and plays at the defaults.
+- Text that is not an anchor (an old config `exec`ed, a hand-typed index) still binds to the first vertex, now with a
+  console warning once per model and text.
+- `weapons::anchor(slot, key)` reads a slot's anchor text ("" for a bad slot or key: no crash); the 24 call sites that
+  read `weapons::cvar(slot, *Anchor)->string` use it.
+- The soldier's gun table listed seam twins' points twice to keep the vertex means; each point is listed once with
+  its vertex count now (14 + 6 posedAnchor calls a frame -> 6 + 4; the same means). anchors.py selftest: 155 anchors
+  (was 165: the 10 repeats), 0 moved. The enforcer's had no repeats.
+- Not committed: the "0.00000 in every pose" probe. It compared against the build before the anchors (strip-order
+  indices), which this tree no longer has; `anchors.py selftest` and `vr_anchor_where` A/B runs remain the checks.
+
+**Smoother animations.**
+- `vr_anim_smooth_pin` and `_trace` are off after a map change (they named an entity by number: the next map's entity
+  with it froze). `vr_anim_smooth_info` prints both.
+- Each model's rest data is uploaded once to a GL buffer of its own (again when `vr_anim_smooth_rig_error` remakes it),
+  not every frame. A/B screenshot of a grunt pinned mid-swing (seeds, fixed frames): identical pixels.
+- The per-entity memos are also freed on a model reload (they held swing rows of the old rig).
+- Debug > Reports > Trace Nearest Monster's Motion (`vr_anim_smooth_trace 180`); vr_animsmooth.hpp says Debug > Reports.
+- `Misc/quakevr/animsmooth_test.sh <agent>` (in the release suite): the check's keys exact, 0.001 off a key within 0.1
+  units (0.045 worst), a grunt drawn smoothed with limbs swung, the trace, the pin off after a map change.
+
+**Vore shove.** The reach note above corrected (a touching vore was already in reach at 52); `shoveSlide` lost a
+check `fieldFloatOr` already makes.
+
+**Left for the author:** Ironwail's own Options toggle (menu.c) writes 0 or 1 over `r_lerpmodels 3`; `r_lerpmodels 2`
+shows as "Quake's Blend" in the cycle (nearest); `modelData` derives the rig even with `vr_anim_smooth_rig 0`; no
+committed vore-shove test.
