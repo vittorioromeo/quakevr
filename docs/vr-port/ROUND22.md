@@ -2707,3 +2707,24 @@ destroyed, no lean or curl, the limbs left to the swim's reaches); envFrame take
 Checked: the fall-in grunt's catch (both hands, made in the air) lets go as he enters the water ("swimming"), then 95
 `ragenv` frames of the swim with no hand mode; the liquid cases (water, knight, drown, fallin, slime) as before (paddle
 5.0 / 4.4 / 5.3 / 4.1 s, slime flails 1.9 s; no NaN or crash); env_test.sh wall ledge unchanged on land; smoke.
+
+**Then `origin/vr-ironwail`** (7aea8dfa8, the stealth guard for knockdowns) **and `feature/ragstagger`** (33c13567a,
+active ragdolls stage 2: staggers, braced falls, judo slack and curl, get-ups), each merged on top (`--no-ff`).
+Conflicts: `QC/vr_stealth.qc`: one guard (`m.vr_knockdown`: both sides had it), the branch's comment (knocked down,
+staggering or getting up). `vr_ragactive.hpp`: Swim and Stagger/Fall/Rise all kept, `Context` has `liquidAt` and
+`rayHit`. `vr_ragactive.cpp`: the Liquids section and the Staggers/Falls/Get-ups sections both kept (spliced from each
+side's file: git had interleaved them line by line); the debug list keeps the stagger line and the env line; two helpers
+both named `level()` (ragenv's a level unit direction, ragstagger's the level part alone): ragenv's renamed `levelDir`.
+`vr_box3d.cpp`: `activeLiquidAt` and `activeRayHit` both set on the Context. Menu: the liquids rows, then the stagger
+and get-up rows. **drive()'s precedence: swim > stagger / fall / get-up > env.** swimFrame runs first (it begins
+swims); staggerFrame, fallFrame and riseFrame are skipped while a body swims; envFrame stands down (`envStandDown`,
+was `envSwimming`: holds let go, joints destroyed, no lean or curl) while it swims, staggers, falls or gets up.
+Checks: build 0 warnings, smoke; `stagger_test.sh integ rates getup judo` (N=4): no QC error, NaN or crash, rates
+within the branch's spread (grunt one hand 1 of 4 fell, two hands 4 of 4; the others 0-1 of 4); get-up hand-back gaps
+as on the branch (grunt 16.1 / 4.4 units, knight 15.3 / 6.0, ogre 21.7 / 5.8, zombie 5.7 / 2.2; from the floor
+35-47); judo: grunt, enforcer, death knight thrown, curled, landed 0.25-0.43 s. The knight (monster 5) thrown at 60
+units lands at ~910 u/s ("a 518 unit drop": 147 damage), the same with `vr_ragdoll_active_stagger 0` and with
+`vr_ragdoll_active 0`: older than stages 2-4 (the throw on vrfiringrange), not this merge. env_test.sh wall ledge, run
+raw: the grunt leans (left hand, 1.15 s) and hangs from the ledge (2.13 s), no stand-down; liquid_active_test.sh water
+slime fallin as before; active_test.sh deaths head 10/10 settle (late 0-5 J); prop_climb_test.sh 8/8; brush_test.py
+PASS (16/16).
