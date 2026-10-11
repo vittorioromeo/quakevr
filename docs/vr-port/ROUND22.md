@@ -3424,3 +3424,26 @@ player's position and yaw unchanged; each stick's press swallowed (still Physgun
 **In the headset:** take a crate with the physgun: both sticks move and turn it smoothly and you stay put; push a stick
 hard (click): nothing happens; hold X/A while turning: 15 degree steps, let go of X/A: it stays at the step; let go of
 the crate: you walk and turn again.
+
+### Climbing: a light prop's hold no longer halves a moving hold's carry (review g2 finding 2)
+
+`vr_climb.cpp` (VR_ClientClimb): the carry (how far the holds moved this frame) was summed over the non-light holds but
+divided by every hold, so one hand on a light prop halved what the other hand's moving hold carried. It is now divided
+by the holds that carry (none: no carry).
+
+What it changes, measured: **not the lift.** A plat, train or door carries a body hanging from it through
+SV_PushMove (VR_ClimbHangsFrom / VR_ClimbCarried; its hold adds nothing to the carry), so one hand on vrclimb's lift and
+one on a light crate already rode at the lift's speed (identical before and after: the main hand's sync 0.6, z 25 -> 45
+over 4 s). It changes holds moved otherwise: a heavy prop moving (pushed, flung, knocked, riding something) with the
+other hand on a light prop. There the body lagged by half the prop's motion until the arm was straight.
+
+**Tests** (`Misc/quakevr/climb/prop_climb_test.sh physsticks`: all 11 PASS): two new cases.
+- `movelight`: off hand on a light large crate (`vr_climb_prop_mass 70`), main on a heavy explosive box beside it
+  (80.5 kg), the box flung away at 150 u/s, the arms with room to bend (`vr_body_shoulder_reach 0.5`, reset after):
+  the main hand's tracked hand drifts at most 0.00 units from its hold while both hold (before the fix: 11.0), the
+  body carried 26 units (before: 18, dragged by the arm's reach).
+- `liftlight`: the lift's lip in the main hand, a light crate beside the lift in the off hand: sync 0.00, carried up
+  (a guard for the above).
+
+**In the headset:** with `vr_climb_prop_mass` 70 (a large crate light), one hand on a large crate, the other on an
+explosive box someone shoves (or a blast moves): you go with the box, your arm doesn't straighten first.

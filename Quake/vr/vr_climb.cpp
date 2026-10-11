@@ -2343,6 +2343,8 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     float weights = 0.f;
     float top = -1e9f;
     int count = 0;
+    int carriers = 0; // the holds averaged into the carry: a light prop's doesn't count (one hand on a moving heavy prop,
+                      // one on a light crate: the heavy prop's whole carry, not half; a pusher's is SV_PushMove's)
     for(int h = 0; h < 2; h++)
     {
         const Grip& g = c.grips[h];
@@ -2361,11 +2363,15 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         if(!g.light)
         {
             carry += holdNow(g) - g.lastHold; // (a light prop's hold doesn't carry the body: it is pulled towards it)
+            carriers++;
         }
         top = za::max(top, topNow(g));
         count++;
     }
-    carry /= static_cast<float>(count);
+    if(carriers > 0)
+    {
+        carry /= static_cast<float>(carriers);
+    }
     const glm::vec3 pulled = weights > 1e-6f ? -pull / weights : glm::vec3{0.f};
     const glm::vec3 wanted = carry + pulled;
 
