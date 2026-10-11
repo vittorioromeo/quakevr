@@ -109,6 +109,16 @@ constexpr float handThick = 2.f;     // units: a hand on a wound, off its surfac
     return (p.cut & (1u << b)) != 0u;
 }
 
+// A drive's force `f` (N, world) on part `b` this frame: applied, and kept in `p.force` for the step's later pieces.
+void pushPart(const Parts& p, int b, const glm::vec3& f)
+{
+    b3Body_ApplyForceToCenter(p.body[b], b3v(f), true);
+    if(p.force)
+    {
+        p.force[b] += f;
+    }
+}
+
 // Its chest's part (its pelvis's if none, or cut off): every stage's one helper.
 [[nodiscard]] int chestOf(const Parts& p)
 {
@@ -578,8 +588,8 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
         const float f = along >= crawlSpeed ? 0.f
                                             : za::clamp(0.9f * s.totalMass * c.gravity + s.totalMass * (crawlSpeed - along) / 0.2f, 0.f, most);
         const glm::vec3 force = d.crawlDir * (f * 0.5f);
-        b3Body_ApplyForceToCenter(p.body[0], b3v(force), true);
-        b3Body_ApplyForceToCenter(p.body[chest], b3v(force), true);
+        pushPart(p, 0, force);
+        pushPart(p, chest, force);
         if(vr_debug_ragdoll.value >= 3.f)
         {
             Con_Printf("ragdoll: %d pulls %.0f N (most %.0f) at %.2f m/s along, the hand %.2f m off its hold\n", c.num, f, most,
@@ -878,9 +888,9 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         w.headLift = headLiftShare * s.totalMass * c.gravity * keep * s.base;
         if(w.headLift > 0.f)
         {
-            const b3Vec3 f{0.f, 0.f, 0.5f * w.headLift};
-            b3Body_ApplyForceToCenter(p.body[sp.head], f, true);
-            b3Body_ApplyForceToCenter(p.body[sp.chest >= 0 ? sp.chest : 0], f, true);
+            const glm::vec3 f{0.f, 0.f, 0.5f * w.headLift};
+            pushPart(p, sp.head, f);
+            pushPart(p, sp.chest >= 0 ? sp.chest : 0, f);
         }
     }
     if(c.trace)
@@ -1979,7 +1989,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
         if(gap > 0.2f * L && glm::length(to) > 0.f)
         {
             const float f = 0.25f * s.totalMass * c.gravity * (1.f - smooth(static_cast<float>(c.now - e.leanFrom) / leanPull));
-            b3Body_ApplyForceToCenter(p.body[0], b3v(to * f), true);
+            pushPart(p, 0, to * f);
         }
     }
     // Sense: every few frames.
@@ -2926,7 +2936,7 @@ void drive(State& s, const Parts& p, const Context& c)
         {
             if(!cut(p, b))
             {
-                b3Body_ApplyForceToCenter(p.body[b], b3Vec3{0.f, 0.f, b3Body_GetMass(p.body[b]) * c.gravity * up}, true);
+                pushPart(p, b, glm::vec3{0.f, 0.f, b3Body_GetMass(p.body[b]) * c.gravity * up});
             }
         }
     }

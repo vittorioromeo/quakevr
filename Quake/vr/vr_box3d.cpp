@@ -560,6 +560,10 @@ struct RagdollBodies
     bool warnedUnstable{false}; // a part of it went faster than unstableSpeed (noteFallSpeeds said so)
     // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
     za::Array<float, ragdoll::maxBones> lift{};
+    // Its active drive's forces this frame (N, world; ragactive::Parts::force), given again for the step's later pieces
+    // (liftAgain), only in the frame they were set (`driveForceAt`, the server's time).
+    za::Array<glm::vec3, ragdoll::maxBones> driveForce{};
+    double driveForceAt{-1.0};
     // A shove's knockdown (ragdollShove; ROUND21.md, "A shove's knockdown: travel and a quarter turn"): driven each frame
     // (driveShove) while `on`, its travel apart from its turn.
     struct ShoveDrive
@@ -4290,7 +4294,12 @@ void driveActive(Slot& s, float dt)
                        r.active.death.on && (!env.started || env.on) && sv.worldmodel
                    ? ledges::of(sv.worldmodel)
                    : nullptr;
-    ragactive::drive(r.active, parts, c);
+    // Its forces this frame, kept for the step's later pieces (liftAgain).
+    r.driveForce = {};
+    r.driveForceAt = qcvm->time;
+    ragactive::Parts driven = parts;
+    driven.force = r.driveForce.data();
+    ragactive::drive(r.active, driven, c);
 }
 
 // ---- Shocked ragdolls (vr_shock_seizure; QC vr_shock.qc) ----
@@ -7701,12 +7710,22 @@ void liftAgain()
     }
     for(const RagdollBodies& r : world->ragdolls) // (ragdollsInLiquids')
     {
+        const bool driven = r.driveForceAt == qcvm->time; // (driveActive's, this frame)
         for(int b = 0; r.num > 0 && b < r.count; b++)
         {
-            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
-            if(r.lift[static_cast<za::SizeT>(b)] != 0.f && !partCut(r, b) && b3Body_IsValid(body))
+            const auto i = static_cast<za::SizeT>(b);
+            const b3BodyId body = r.body[i];
+            if(partCut(r, b) || !b3Body_IsValid(body))
             {
-                b3Body_ApplyForceToCenter(body, b3Vec3{0.f, 0.f, r.lift[static_cast<za::SizeT>(b)]}, false);
+                continue;
+            }
+            if(r.lift[i] != 0.f)
+            {
+                b3Body_ApplyForceToCenter(body, b3Vec3{0.f, 0.f, r.lift[i]}, false);
+            }
+            if(driven && r.driveForce[i] != glm::vec3{0.f})
+            {
+                b3Body_ApplyForceToCenter(body, b3v(r.driveForce[i]), false); // (awake: drive() woke it)
             }
         }
     }
