@@ -14,6 +14,9 @@
 #   dying    shot in the body (vr_test_kill 1), 0.4 s on his left arm (11), then his left leg (13) cut off as he falls
 #   early    shot so, his left arm cut off 0.1 s on (his ragdoll not made yet: the cut makes it, an active death)
 #   off      vr_ragdoll_active_dismember 0, his leg cut: no drive (limp at once, as before this stage)
+#   run      e1m1, 450 units off and aware of you (active_test's stumble), his left leg cut as he runs at you (RUNWAIT
+#            frames on; MONS=5: a knight, 117 u/s): the balance beat holds at least 0.5 s (PASS/FAIL; his run's
+#            stumble no longer drags the pin off the planted foot). Not in the default cases (a grunt stops to shoot).
 #   cost     8 grunts each killed by a leg cut: the drive's ms a frame (vr_ragdoll_active_list) and the physics step's,
 #            with vr_ragdoll_active_dismember 1 and 0 (--exclusive)
 # EYES=1: a contact sheet (the kit's scratch: dismember_<monster>_<case>.png, EYESCASE: leg) of 0.1 .. 4 s.
@@ -44,6 +47,11 @@ for c in $CASES; do
         dying) one $m "vr_test_kill 1;wait30;vr_test_cut 11;wait20;vr_test_cut 13" "" | $PY "$SUM" "$(name $m) dying" ;;
         early) one $m "vr_test_kill 1;wait8;vr_test_cut 11" "" | $PY "$SUM" "$(name $m) early" ;;
         off) one $m "vr_test_cut 3" "vr_ragdoll_active_dismember 0" | $PY "$SUM" "$(name $m) off" ;;
+        run) # active_test's stumble scene: e1m1, 450 units off, he sees you and runs at you; his leg cut on the way
+            run "sv_random_seed ${SEED:-7};map e1m1;$PRE;vr_test_spawn $m;vr_test_spawn_dist 450;impulse 241;wait${RUNWAIT:-150};vr_test_cut 3;wait650;toggleconsole;quit" \
+                | $PY "$SUM" "$(name $m) run" | tee "$TREE/scratch/dismember_run.txt"
+            b=$(grep -oE "beat until [0-9.]+" "$TREE/scratch/dismember_run.txt" | grep -oE "[0-9.]+$")
+            awk -v b="${b:-0}" 'BEGIN { exit !(b >= 0.5) }' && echo "run: PASS (beat ${b} s)" || echo "run: FAIL (beat ${b:-none} s: under 0.5)" ;;
         esac
     done
     if [ "$c" = cost ]; then

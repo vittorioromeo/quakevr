@@ -3200,7 +3200,13 @@ void startBalance(State& s, const Parts& p, const Context& c, float t, int lostL
     m.standLeg = stand;
     // (The side lost: his own, level: the rig's y is his left. A hunched ogre's hips are one ahead of the other.)
     m.lostSide = p.turn * glm::vec3{0.f, lostLeg == 2 ? 1.f : -1.f, 0.f};
-    m.origin0 = s.origin;
+    // A stumble's carried way (a monster cut as he ran) ends here, kept as far as it got (the pin's anchor doesn't
+    // jump): carried on, it dragged his pelvis up to a metre off the planted foot and broke the beat at once.
+    Death& d = s.death;
+    const glm::vec3 carried = d.stumble ? d.walk * (stumbleTau * (1.f - za::exp(-t / stumbleTau))) : glm::vec3{0.f};
+    d.stumble = false;
+    d.walk = glm::vec3{0.f};
+    m.origin0 = s.origin + carried;
     m.balanceUntil = t + za::clamp(vr_ragdoll_active_balance_time.value, 0.1f, 5.f);
     // The foot left: kept where it stands, braced (a hop under him lifts what holds him up: he falls at once).
     m.plant = limbEnd(s, p, stand);
