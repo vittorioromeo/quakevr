@@ -102,6 +102,37 @@ struct Reach
     float strength{0.f};
 };
 
+// A monster losing limbs as he dies (cutReaction; vr_ragactive.cpp, "Dismemberment"; vr_ragdoll_active_dismember): his
+// free hand to the stump, a writhe; on one leg a balance beat before he falls; with no legs a crawl on his arms.
+struct Dismember
+{
+    bool on{false};
+    uint32_t lost{0};   // the limbs lost (bits of Limb)
+    int liveFrame{-1};  // the frame he stood in, killed by the cut (his ragdoll made then): the balance beat's pose
+    uint32_t seed{0};
+    // The stump a hand holds: the part it is on, its end there (rest units) and outward; the hand (Limb) and when.
+    int stumpPart{-1};
+    glm::vec3 stumpAt{0.f}, stumpOut{0.f};
+    int holdArm{-1};
+    float holdFrom{0.f}, holdUntil{0.f}; // s since the drive began (then let go over 0.8 s)
+    // The writhe (s since the drive began): the torso and legs stirring a little, eased in and out; each joint's turn
+    // this frame (rad/s, its parent's rest space: fed forward to its motor, which would hold it still).
+    float writheFrom{-1.f}, writheUntil{-1.f};
+    za::Array<glm::vec3, ragdoll::maxBones> spin{};
+    bool pitch{false}; // no legs, killed standing: pitched forward at the next drive
+    // The balance beat on one leg: the leg left, the way to the side lost (level, world), his line from that foot to his
+    // pelvis at the start (unit), the pin's anchor's origin then, where that foot is held (world, metres); until when at
+    // most, and when it broke (his lean from that line past Balance Lean, or the time up) or -1.
+    int standLeg{-1};
+    glm::vec3 lostSide{0.f}, line0{0.f}, origin0{0.f};
+    glm::vec3 plant{0.f};
+    float balanceUntil{-1.f}, brokeAt{-1.f};
+    Clip deathClip;                       // his death animation, played once the beat breaks
+    za::Array<Fade, channelCount> deathFade{}; // and its strengths (shifted to the break)
+    // The traces: the hand from the stump (units), his lean (deg).
+    float handGap{-1.f}, lean{0.f};
+};
+
 // The pelvis pin: `force` body weights at most (0: none), `offset` (world, metres) added to the clip's pelvis.
 struct Pin
 {
@@ -164,6 +195,7 @@ struct State
     za::Array<Fade, channelCount> fade{};
     za::Array<float, ragdoll::maxBones> partScale{};
     za::Array<Reach, limbCount> reach{};
+    Dismember dismember;
     Pin pin;
     Death death;
     // The last frame's (the debug overlay, the traces): each joint's target (its child's turn in its parent's rest
@@ -212,6 +244,15 @@ void drive(State& s, const Parts& p, const Context& c);
 
 // A blast or a hard knock: every strength times `keep` from now on (a hit lowers the muscles).
 void weaken(State& s, float keep);
+
+// Dismemberment (vr_ragactive.cpp, "Dismemberment"): `joint` cut off just now (vr_box3d.cpp ragdollCutLimb; `p.cut` has
+// it). A driven death reacts: the head, a collapse; a limb, a hand to the stump and a writhe, a balance beat on one leg
+// (killed standing by this cut: `dismember.liveFrame` set as his death began), a crawl with no legs (`crawler`: his kind
+// crawls). Off (vr_ragdoll_active_dismember 0): only the collapse.
+void cutReaction(State& s, const Parts& p, int joint, bool crawler, const Context& c);
+// The joint of limb `limb` (Limb), its upper bone (`lower` false: the shoulder, the hip) or its lower (the elbow, the
+// knee), by its bones' names; -1 none (the tests' cuts: QC ragdolllimbs 6).
+[[nodiscard]] int limbJointOf(const ragdoll::Rig& rig, int limb, bool lower);
 
 // Its pin's anchor (and joint) gone, the drive off (the ragdoll's end).
 void end(State& s);

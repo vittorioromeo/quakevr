@@ -1620,7 +1620,9 @@ void PF_ragdolllimb()
 }
 
 // float ragdolllimbs(entity e, float what, [float bone]): box3d::limbInfo (0 the limb joints not cut, bits; 1 the
-// head's bones; 2 the bones cut off; 3 the head bone, -1 none; 4 what a cut at `bone` takes now; 5 `bone`'s parent).
+// head's bones; 2 the bones cut off; 3 the head bone, -1 none; 4 what a cut at `bone` takes now; 5 `bone`'s parent; 6 the
+// joint of limb `bone` by name: 0 the left shoulder, 1 the right, 2 the left hip, 3 the right, 4-7 their elbow or knee, 0
+// none).
 void PF_ragdolllimbs()
 {
     const int what = static_cast<int>(G_FLOAT(OFS_PARM1));
