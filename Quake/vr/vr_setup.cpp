@@ -383,6 +383,7 @@ void begin(bool welcome)
 
 void finish()
 {
+    Cvar_SetValueQuick(&vr_setup_pending, 0.f);
     enter(Step::Done);
     S_LocalSound("misc/talk.wav");
     Con_Printf(!inRoom()          ? "VR Calibration: done.\n"
@@ -831,7 +832,6 @@ void frame()
     if(vr_setup_pending.value != 0.f && vrActive() && tracking().head.valid && (!sv.active || !strcmp(sv.name, VR_HubMap())) &&
         !running() && !flow.pending)
     {
-        Cvar_SetValueQuick(&vr_setup_pending, 0.f);
         Con_Printf("VR: a first start: VR Calibration (the main menu's first row runs it again)\n");
         Cbuf_AddText("vr_setup\n");
     }

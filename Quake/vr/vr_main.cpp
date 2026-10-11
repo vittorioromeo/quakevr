@@ -226,7 +226,7 @@ void startGameCommands()
         if(vr_setup_pending.value != 0.f)
         {
             // A first start (no saved config: vr_setup_pending, vr_cvars.cpp): the calibration room, not the hub.
-            Cvar_SetValueQuick(&vr_setup_pending, 0.f);
+            // Keep an unfinished first calibration pending across shutdown.
             Con_Printf("VR: a first start: VR Calibration (the main menu's first row runs it again)\n");
             Cbuf_InsertText("vr_setup\n");
             return;
