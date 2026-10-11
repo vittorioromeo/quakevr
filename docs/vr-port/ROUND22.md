@@ -3048,3 +3048,34 @@ magazine 1`, `lupper: v_nail clip 24; magazine 1`, hips `v_axe clip 0`, `v_shot 
 
 **In the headset:** break the super shotgun open and holster it on a hip: it stays open there (and shut ones shut);
 drop a nailgun's magazine and holster it: no magazine drawn in it.
+
+## Review fixes: active ragdolls (2026-10-11, worktree `fixrag`; review g4/g5)
+
+- **Get-up onto a taken spot** (ragstagger): a finished rise was handed back at the spot chosen 1-2.5 s before, solid
+  inside a player or monster now standing there. `ragdollGetUp` checks the spot again (`standSpot`, 24 units): it
+  stands beside it, or holds 0.5 s and slumps. `getup: N rises through ... (at x y z)` now prints the spot.
+- **Get-up slump loop** (ragstagger): a rise that lost its pose (`riseLost`) was pulled in again 0.05 s later, mid-slump,
+  for ever. A lapse while still asked for now returns 0 once (the QC waits `vr_knockdown_retry`); after 2 lapses the
+  body gets up the old way (blended from the floor), as the notes above claimed ("tries again later").
+- **Balance beat on the run** (ragdismember): `startBalance` kept the death's stumble, whose carry pulled the pin up to a
+  metre off the planted foot. It is kept as far as it got (no jump) and ends. A knight cut at 117 u/s balances 1.15 s
+  (0.15 before); at 184 u/s his own momentum still tips him in 0.08 s.
+- **Stale hitch** (raghit): a leg hit's sidestep not taken in its 0.5 s (pain frames) waited for a later hit; dropped
+  now on any new hit and when its window ends.
+- **Grabbed crawler** (ragcore): a hand on the pelvis or chest stops the crawl's pull and the roll-over.
+- **Split steps** (ragcore): a drive's forces (crawl pull, swim head lift, lean pull, living support) went into a slow
+  frame's first step piece only; kept per ragdoll (`driveForce`) and given again with the lift. A grunt's 3 s crawl:
+  31.4 units at 72 Hz, 28.6 at 30 Hz.
+- **Liquids** (ragliquid): `vr_ragdoll_active 0` mid-death no longer lets the body's later fall into water wake a
+  swim; the lava/slime flail's hops now follow the stroke rate (every 0.13-0.18 s at full vigour, slower to 2.2/3.8 of
+  it as it weakens; the torso and head keep their fixed rates).
+- **Environment** (ragenv): a hand whose hold target was destroyed before it grabbed lets go ("its hold gone"; it
+  reached for ever); a hold's anchor is on the goal's plane (1.5 units off the wall or lip, not 3); an env-driven arm
+  is solved once a frame (drive() no longer re-applies last frame's env reach first); the ledge map is looked up only
+  for a death whose env is on.
+- Cleanups: one `chestOf` (three copies), `blastRagdoll` uses its own ragdoll, describe() drops a stray "(none)".
+- Tests: `stagger_test.sh` prints PASS/FAIL per case and a FAIL count, with new `taken` and `lost` cases;
+  `dismember_test.sh run` (e1m1, a running knight's leg cut: beat at least 0.5 s); `liquid_active_test.sh actoff`.
+
+Not changed (his call): vr_hitreact.cpp's own `chestOf`/`regionOf` (they read the rig, not the parts), fallFrame's
+arm brace beside stage 4's Catch, the env "hit" test through a real shot.
