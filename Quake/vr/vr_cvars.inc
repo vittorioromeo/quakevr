@@ -2371,6 +2371,12 @@ QVR_CVAR(vr_ragdoll_active_debug, "0", CVAR_NONE)      // 1: each driven ragdoll
 QVR_CVAR(vr_ragdoll_active_trace, "0", CVAR_NONE)       // n: every n-th frame a `ragtrace` line per driven ragdoll (its pelvis, the joints' error from the animation per channel, their strength, its energy; the tests)
 QVR_CVAR(vr_ragdoll_active_seed, "0", CVAR_NONE)        // mixed into each death's rolls (wound, crawl): another roll for the same scene (tests)
 QVR_CVAR(vr_test_kill, "0", CVAR_NONE)                  // n: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3), a leg (4), nowhere known (6) (QC combat.qc VR_TestKill_Frame; the active ragdolls' tests)
+QVR_CVAR(vr_ragdoll_active_env, "1", CVAR_ARCHIVE)       // an active death senses what is round him (walls, floors, ledges, crates) and uses his hands on it (the three below); 0: his death ignores it (ROUND22.md, "Active ragdolls: environment")
+QVR_CVAR(vr_ragdoll_active_env_brace, "1", CVAR_ARCHIVE) // falling onto a floor, a wall or a crate within reach: his arms go out to it and take the landing, giving
+QVR_CVAR(vr_ragdoll_active_env_lean, "1", CVAR_ARCHIVE)  // dying with a wall behind or beside him: a hand braced on it, he slumps down it (a crate: braced, not held)
+QVR_CVAR(vr_ragdoll_active_env_ledge, "1", CVAR_ARCHIVE) // falling past a ledge's lip near a hand: he grabs it and hangs a moment before dropping
+QVR_CVAR(vr_ragdoll_active_env_grip, "1.2", CVAR_ARCHIVE) // body weights a hand holding a ledge takes at most (a lean's: a third of it; a heavy monster less); past it he slips off
+QVR_CVAR(vr_ragdoll_active_env_hang, "1.8", CVAR_ARCHIVE) // s: about how long he hangs from a ledge (each 0.45 to 1.65 times it)
 // Per monster class (Gibs and Corpses > Ragdolls > Grunt, > Knight): -1 (Global) is the setting above, any other value replaces it
 // for that class. Each class's mass is its own by default (the author, 2026-10-03: ROUND21.md, "Ragdoll masses per monster").
 QVR_CVAR(vr_ragdoll_army_start, "-1", CVAR_ARCHIVE)

@@ -36,6 +36,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+namespace qvr::ledges
+{
+class Map;
+}
+
 namespace qvr::ragactive
 {
 
@@ -111,6 +116,81 @@ struct Pin
     Fade fade{0.f, 0.f, 0.f, 0.f};
     glm::vec3 offset{0.f};
     float hertz{4.f};
+};
+
+// ---- What is round him (vr_ragdoll_active_env; vr_ragactive.cpp, "Environment"; ROUND22.md, "Active ragdolls:
+// environment") ----
+// A dying body senses what is round it (a few rays from the chest every few frames: along its fall, behind it, to its
+// sides; the ledges near its hands), each hand picks a goal, and acts on it (Overgrowth's and Euphoria's sense, goal,
+// act):
+// - Catch: a surface he falls onto soon within reach (the floor ahead, a wall, a crate): the arms out to it, landing
+//   with a strength that gives (a capped push: never held).
+// - Lean: a wall within reach behind or beside his chest as he dies: a hand on it at shoulder height, held by a capped
+//   hand-to-world joint that slides down as he weakens, the knees buckling, the pelvis drawn weakly to the wall: he
+//   slumps down it. The hand lets go on its load, its timer, a hit, at the floor.
+// - Ledge: falling past a lip (vr_ledges) near a hand: it grabs the lip (the same joint, at the hold), hangs a moment,
+//   drops on its timer, its load or a hit.
+// - Curl: tumbling with nothing to catch: the arms in to the chest, the knees up.
+// A loose prop (a crate) is braced against, never held.
+enum class Grip : uint8_t
+{
+    None,
+    Catch, // reaching for a surface he falls onto, then pushing off it (giving)
+    Brace, // a hand on a loose prop (no joint)
+    Lean,  // a hand on a wall, held, sliding down
+    Ledge, // a hand on a lip, hanging
+    Curl   // the arms in (tumbling)
+};
+
+struct EnvHand
+{
+    Grip mode{Grip::None};
+    glm::vec3 goal{0.f};   // world, metres: where the hand goes (on the surface)
+    glm::vec3 normal{0.f}; // out of that surface
+    float weight{0.f};     // the reach now (eased towards `want`)
+    float want{0.f};
+    float strength{0.f};
+    double since{0.0};     // when this mode began
+    double touched{-1.0};  // when the hand reached the surface (-1: not yet)
+    // Its hold (Lean, Ledge): a capped motor joint from the world's (or a mover's) body to the hand.
+    b3JointId joint{b3_nullJointId};
+    b3BodyId on{b3_nullBodyId};
+    double holdUntil{0.0};
+    float load{0.f};       // N: the hold's force, the last frame
+    float cap{0.f};        // N: its most
+    double overSince{-1.0}; // its load at the cap since (slipping)
+    float slid{0.f};       // metres the hold slid down
+    bool struck{false};    // hit since the last frame (struck())
+};
+
+// One probe ray (the debug overlay): from, to (where it stopped), whether it met something.
+struct EnvProbe
+{
+    glm::vec3 from{0.f}, to{0.f};
+    bool hit{false};
+};
+
+struct Env
+{
+    bool started{false}; // looked at once (its first drive)
+    bool on{false};     // this death senses (vr_ragdoll_active_env, not a collapse)
+    uint32_t seed{0};
+    uint8_t reached{0}; // the limbs whose reach it set the last frame (bits: Limb)
+    int frame{0};       // frames since it began (the probes run every few)
+    za::Array<EnvHand, 2> hand{};
+    float baseAt{1.f};  // the State's base when it began: a blast since (weaken) lets go
+    // Lean: the wall, when, and whether he leaned this death.
+    bool lean{false};
+    double leanFrom{-1.0};
+    glm::vec3 wallAt{0.f}, wallN{0.f};
+    bool leaned{false};
+    float curl{0.f};    // the curl's weight now
+    double nextCatch{0.0}; // no new catch before this (one landing at a time)
+    bool hung{false};   // a hand grabbed a ledge this death (once)
+    za::Array<EnvProbe, 4> probe{};
+    int probes{0};
+    // The tests: catches, holds made and let go.
+    int catches{0}, holds{0};
 };
 
 // What a death does (beginDeath; vr_ragactive.cpp, "Deaths").
@@ -192,6 +272,8 @@ struct State
     // space) and the clip's alone, and its strength.
     za::Array<glm::quat, ragdoll::maxBones> target{}, animTarget{};
     za::Array<float, ragdoll::maxBones> strength{};
+    // What is round him (vr_ragdoll_active_env).
+    Env env;
 };
 
 // What the drive needs of the world each frame.
@@ -209,6 +291,10 @@ struct Context
     int num{0};      // its entity (the traces)
     double born{0.0}; // when its ragdoll was made (the traces' time)
     bool trace{false}; // a `ragtrace` line (driven or not: vr_ragdoll_active_trace)
+    // What is round him (vr_ragdoll_active_env): the shapes his probes see (their category bits: the world, movers,
+    // props; 0 none) and the world's ledge map (null: no ledges).
+    uint64_t envMask{0};
+    const ledges::Map* ledges{nullptr};
 };
 
 // The drive started on a ragdoll just made (vr_box3d.cpp createRagdoll, its joints made): `joints` each part's
@@ -255,5 +341,8 @@ void describe(const State& s, const Parts& p, int num, double now);
 
 // The drive's cost: milliseconds over the frames since the last call, and how many ragdolls driven.
 void costSince(double& ms, int& frames, int& driven);
+
+// Its part `part` struck (a shot, a blow: box3d::push): a hand holding on there (or its forearm) lets go.
+void struck(State& s, const Parts& p, b3BodyId part);
 
 } // namespace qvr::ragactive

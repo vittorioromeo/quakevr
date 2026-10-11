@@ -65,6 +65,7 @@
 #include "vr_cvars.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
+#include "vr_ledges.hpp"
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
 #include "vr_physics.hpp"
@@ -4163,6 +4164,11 @@ void driveActive(Slot& s, float dt)
     c.num = r.num;
     c.born = r.born;
     c.trace = trace;
+    // What is round him (vr_ragdoll_active_env): the world, the movers and the props his probes see; the world's ledges.
+    c.envMask = catWorld | catMover | catProp | catSolid | catFixture;
+    c.ledges = vr_ragdoll_active_env.value != 0.f && vr_ragdoll_active_env_ledge.value != 0.f && r.active.on && sv.worldmodel
+                   ? ledges::of(sv.worldmodel)
+                   : nullptr;
     ragactive::drive(r.active, parts, c);
 }
 
@@ -9834,6 +9840,49 @@ void ragdollActiveList_f()
         calls ? ms / calls : 0.0);
 }
 
+// vr_ragdoll_env_hit [speed]: each dying hand holding on (a wall, a ledge: vr_ragdoll_active_env) struck as a shot strikes
+// it (box3d::push at the hand, `speed` u/s outward from the body, 200 by default): it lets go (Debug > World and Physics;
+// the tests).
+void ragdollEnvHit_f()
+{
+    if(!sv.active || !world)
+    {
+        Con_Printf("vr_ragdoll_env_hit: no Box3D world\n");
+        return;
+    }
+    const VmScope vm;
+    const float speed = Cmd_Argc() > 1 ? static_cast<float>(Q_atof(Cmd_Argv(1))) : 200.f;
+    int struck = 0;
+    for(za::SizeT i = 0; i < world->ragdolls.size(); i++)
+    {
+        RagdollBodies& r = world->ragdolls[i];
+        if(r.num <= 0 || !r.active.on)
+        {
+            continue;
+        }
+        for(int arm = 0; arm < 2; arm++)
+        {
+            const ragactive::EnvHand& h = r.active.env.hand[static_cast<za::SizeT>(arm)];
+            const int lo = r.active.chain[static_cast<za::SizeT>(arm)][1];
+            if(B3_IS_NULL(h.joint) || lo < 0)
+            {
+                continue;
+            }
+            const glm::vec3 hand = glmv(b3Body_GetWorldPoint(r.body[static_cast<za::SizeT>(lo)], b3v(r.rig->bones[lo].end * (r.scale / world->m2u)))) * world->m2u;
+            const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(r.body[0])) * world->m2u;
+            const glm::vec3 away = glm::length(hand - pelvis) > 1e-3f ? glm::normalize(hand - pelvis) : glm::vec3{0.f, 0.f, 1.f};
+            qvr::box3d::push(EDICT_NUM(r.num), hand, away * speed, 0.f);
+            Con_Printf("vr_ragdoll_env_hit: %d's %s hand struck at %.0f %.0f %.0f\n", r.num, arm == 0 ? "left" : "right",
+                hand.x, hand.y, hand.z);
+            struck++;
+        }
+    }
+    if(!struck)
+    {
+        Con_Printf("vr_ragdoll_env_hit: no hand holding on\n");
+    }
+}
+
 // vr_ragdoll_blast_test [damage]: a blast's push alone (no damage: nothing gibbed) 24 units beside the ragdoll nearest
 // the player, on his side: it is thrown away from him (Debug > Tests).
 void ragdollBlastTest_f()
@@ -10558,6 +10607,8 @@ void registerCommands()
         Cmd_AddCommand("vr_drawn_motion_test", ragdoll::motionTest_f);
         Cmd_AddCommand("vr_ragdoll_blast_test", ragdollBlastTest_f);
         Cmd_AddCommand("vr_ragdoll_active_list", ragdollActiveList_f);
+
+        Cmd_AddCommand("vr_ragdoll_env_hit", ragdollEnvHit_f);
     }
 }
 
@@ -11231,6 +11282,11 @@ bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pu
     const float j = (speed - along) / (k + (pusherMass > 0.f ? 1.f / pusherMass : 0.f));
     b3Body_ApplyLinearImpulse(body, b3Vec3{d.x * j, d.y * j, d.z * j}, point, true);
     world->slots[num].asleep = false;
+    if(world->slots[num].ragdoll >= 0) // (a dying hand holding on, struck there, lets go: vr_ragdoll_active_env)
+    {
+        RagdollBodies& rag = world->ragdolls[static_cast<za::SizeT>(world->slots[num].ragdoll)];
+        ragactive::struck(rag.active, activeParts(rag), body);
+    }
     if(vr_debug_box3d.value || (vr_debug_ragdoll.value && world->slots[num].ragdoll >= 0))
     {
         Con_Printf("box3d: %d pushed at %.1f %.1f %.1f to %.2f m/s along the push (%.2f before), %.1f N s\n", num, at.x, at.y, at.z,
