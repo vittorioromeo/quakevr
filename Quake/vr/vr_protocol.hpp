@@ -126,7 +126,14 @@ enum Stat : int
     STAT_QVR_FOEGRAB,     // the hands holding an enemy (vr_foegrab.cpp): bit 0 the off hand, 1 the main
     STAT_QVR_FOEGRABOFFX, // each holding hand's palm's place on the enemy, in eighths of a unit: the drawn hand is put there
     STAT_QVR_FOEGRABMAINX = STAT_QVR_FOEGRABOFFX + 3,
-    STAT_QVR_END = STAT_QVR_FOEGRABMAINX + 3
+    // AD support: Arcane Dimensions' row on the wrist gadget (QC vr_ad_items.qc AD_HudUpdate): what is held (bits 0-5
+    // the artifacts Lava Shield, Air Tank, Blast Belt, Jump Boots, Sharp Shooter, Nail Piercer; 6-8 the debuffs
+    // burning, poisoned, bleeding; 9-12 the custom keys), the custom keys' HUD skins (4 bits each), the soonest
+    // artifact's seconds left (0: none ends).
+    STAT_QVR_ADHUD = STAT_QVR_FOEGRABMAINX + 3,
+    STAT_QVR_ADKEYS,
+    STAT_QVR_ADTIME,
+    STAT_QVR_END
 };
 
 inline constexpr int numHolsters = 6;
