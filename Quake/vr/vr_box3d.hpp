@@ -117,6 +117,8 @@ void blast(const glm::vec3& at, float damage);
 // monsters (orange), players (cyan), pickups hanging (grey); a prop's centre of mass, and an awake one's contact
 // points (red: pressed in; pink: apart). The local server's (a listen server: nothing on a client of another).
 void debugDraw();
+// vr_ragdoll_active_debug: the active ragdolls' targets (vr_ragactive.hpp debugDraw): drawn with or without the shapes.
+void activeRagdollDraw();
 
 // The profiler's counts: Box3D's bodies, those awake, the contacts the solver works on (0 without a world).
 void profileCounts(int& bodies, int& awake, int& contacts);
