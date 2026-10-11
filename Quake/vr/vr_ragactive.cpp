@@ -1688,6 +1688,20 @@ void envEnd(State& s)
     s.env.lean = false;
 }
 
+// Integration (ragenv + ragliquid): what is round him is ignored while he swims (swimFrame leads every limb). Each
+// frame of a swim: the hands' holds let go (their joints destroyed), no lean or curl, and the limbs left to the swim's
+// reaches (envFrame doesn't clear them); envFrame takes up again once the swim stops.
+void envSwimming(State& s, const Context& c)
+{
+    for(int arm = 0; arm < 2; arm++)
+    {
+        letGo(s, arm, &c, "swimming");
+    }
+    s.env.lean = false;
+    s.env.curl = 0.f;
+    s.env.reached = 0;
+}
+
 // vr_ragdoll_active_trace's `ragenv` line: the pelvis, each hand's mode, hold, distance to its goal, load, slide; the
 // curl.
 void envTrace(const State& s, const Parts& p, const Context& c, float t)
@@ -2094,7 +2108,14 @@ void drive(State& s, const Parts& p, const Context& c)
             }
         }
     }
-    envFrame(s, p, c, t, spin); // (what is round him: the hands' goals over the clip's and the death's)
+    if(s.swim.liquid != Liquid::None)
+    {
+        envSwimming(s, c); // (swimming: what is round him waits, its holds let go)
+    }
+    else
+    {
+        envFrame(s, p, c, t, spin); // (what is round him: the hands' goals over the clip's and the death's)
+    }
     // The strengths, and the joints set.
     const float global = za::clamp(vr_ragdoll_active_strength.value, 0.f, 3.f);
     const float hertzAt1 = za::clamp(vr_ragdoll_active_hertz.value, 0.f, maxHertz);

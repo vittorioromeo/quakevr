@@ -2570,3 +2570,10 @@ Checks: smoke; `env_test.sh integ wall ledge crate off cost`: lean on the wall a
 braced on the crate (no hold), off: no env lines; cost, 8 grunts: the drive 0.0425 ms a frame with env, 0.0236 without;
 no NaN or crash. liquid_active_test.sh (water, knight, hknight, drown, fallin, slime): as above; active_test.sh deaths
 head: 10/10 settle (late energy 0-1 J); brush_test.py PASS (16/16); prop_climb_test.sh 8/8 PASS.
+
+**Integration fix (the coordinator's call): no environment while swimming.** `drive()` (vr_ragactive.cpp) skips
+`envFrame` while `s.swim.liquid` is set and calls `envSwimming` instead (the hands' holds let go and their joints
+destroyed, no lean or curl, the limbs left to the swim's reaches); envFrame takes up again once the swim stops.
+Checked: the fall-in grunt's catch (both hands, made in the air) lets go as he enters the water ("swimming"), then 95
+`ragenv` frames of the swim with no hand mode; the liquid cases (water, knight, drown, fallin, slime) as before (paddle
+5.0 / 4.4 / 5.3 / 4.1 s, slime flails 1.9 s; no NaN or crash); env_test.sh wall ledge unchanged on land; smoke.
