@@ -961,7 +961,7 @@ void() ad_func_skill_touch =
 		stuffcmd (other, "bf\n");
 		
 		// Change skill level
-		cvar_set ("skill", ftos(self.style));
+		VR_AD_SetSkill(self.style);
 		ad_skill = self.style;
 		// Make sure skill sets extra variable
 		if (ad_skill == ad_SKILL_EVIL) cvar_set("scratch4", "1");

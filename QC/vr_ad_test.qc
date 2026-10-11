@@ -241,5 +241,26 @@ void(float request, entity p) AD_RulesTest =
         VR_Scene_Remove(g);
         return;
     }
+    if(request == 22)
+    {
+        // Evil: what plays now.
+        self = p;
+        float axe = AD_AxeScale();
+        self = os;
+        bprint(sprintf("adrules: evil %g on %g cvar %g skill %g adskill %g", AD_Evil(), vr_ad_evil_on, cvar("vr_ad_evil"),
+            skill, ad_skill));
+        bprint(sprintf(" health %g/%g mega %g axe %g\n", p.health, p.max_health, VR_MegaHealthCap(p), axe));
+        return;
+    }
+    if(request == 23)
+    {
+        // AD's skill choices: Evil (4) then Normal (1), as AD's hub sets them.
+        VR_AD_SetSkill(4);
+        float s4 = cvar("skill"), e4 = cvar("vr_ad_evil");
+        VR_AD_SetSkill(1);
+        bprint(sprintf("adrules: setskill 4 -> skill %g evil %g; 1 -> skill %g evil %g\n", s4, e4, cvar("skill"),
+            cvar("vr_ad_evil")));
+        return;
+    }
     bprint(sprintf("adrules: unknown test %g\n", request));
 };

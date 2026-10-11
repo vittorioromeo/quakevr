@@ -3160,6 +3160,7 @@ QVR_CVAR(vr_mg1_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg3_status, "0", CVAR_ROM)
 QVR_CVAR(vr_ad_status, "0", CVAR_ROM) // Arcane Dimensions' data (campaign 6; vr_gamedir.cpp, vr_ad.cpp): 0 missing, 1 1.80 patch 1 (the latest), 2 incomplete/corrupt, 3 another version (refused)
 QVR_CVAR(vr_ad_rules, "0", CVAR_ROM)  // the map now running plays by AD's rules (vr_ad.cpp: the AD campaign, or AD's signals in its entities while AD's data is mounted); QC AD_Rules()
+QVR_CVAR(vr_ad_evil, "0", CVAR_NONE)          // AD's Evil skill (decision 30; QC vr_ad_player.qc AD_Evil): with Nightmare (skill 3) and AD's data installed, any campaign plays Evil: 50 health at most (megahealth 100), the Shadow Axe's blows, AD's monsters at its skill 4. A game's choice like skill (kept in its saves); AD's own skill 4 sets it
 QVR_CVAR(vr_ad_everywhere, "1", CVAR_ARCHIVE) // AD's new artifacts, custom pickups (keys, vials, custom items) and ladders spawn in any map while AD's data is installed (vr_ad.cpp everywhereClasses; decision 16): 0 only in AD maps
 QVR_CVAR(vr_ad_mounted, "0", CVAR_ROM) // AD's data is on the search path for the map now running (the AD campaign; vr_ad.cpp): AD's models and sounds can be used (vr_ad_projectiles 2)
 

@@ -91,6 +91,14 @@ float vr_ad_ammo;
 float vr_ad_ourdamage; // AD's code deals this damage to one of ours (VR_AD_DamageOurs): AD resisted it already
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) AD_Resist; // T_DamageImpl
 
+// AD's Evil skill (decision 30; vr_ad_player.qc): Nightmare plus vr_ad_evil, while AD's data is there, in any map.
+float vr_ad_evil_on;   // this game is Evil (saved: a loaded game's choice sets vr_ad_evil again)
+float() AD_Evil;       // VR_BaseHealth, VR_MegaHealthCap, AD_AxeScale: Evil plays now
+void(float s) VR_AD_SetSkill; // AD's skill choices (reviewed patches): skill 4 is Nightmare plus vr_ad_evil
+void() AD_EvilStart;           // AD_WorldSpawn
+void() AD_EvilFrame;           // AD_Frame
+void() AD_LoadedGame;          // OnLoadGame: the loaded game's choice
+
 // AD's side: the reviewed patches of Misc/quakevr/ad_import.py call these (never renamed).
 float() VR_AD_Extensions;
 void(float a) VR_AD_WaterAlpha;

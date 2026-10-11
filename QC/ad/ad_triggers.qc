@@ -1088,7 +1088,7 @@ void() ad_trigger_setskill_fire =
 
 	// There is no client check for the skill level change so that
 	// the use functionality can work from trigger chains
-	cvar_set ("skill", self.message);
+	VR_AD_SetSkill(stof(self.message));
 
 	// Is the trigger repeatable?
 	if (self.wait > 0) {

@@ -3643,6 +3643,14 @@ void hologramTestMessage()
                   "second): faster is nearer hitscan."),
         slider("Pellet Damage", vr_ad_pellet_damage, 0.f, 3.f, 0.05f, "x%.2f").extend(0.f, 10.f)
             .help("Your pellets' damage, times Weapon Damage's shotgun and super shotgun pellet (4: Arcane Dimensions')."),
+        toggle("Evil Skill (with Nightmare)", vr_ad_evil)
+            .help("Arcane Dimensions' fifth skill, in any campaign while its data is installed: chosen with Nightmare (the "
+                  "start map's skill hall, or Arcane Dimensions' own Evil choice, which sets this). 50 health at most "
+                  "(megahealth 100), the Shadow Axe's blows, Arcane Dimensions' monsters at their hardest. Kept in saves."),
+        toggle("Its Content in Every Map", vr_ad_everywhere)
+            .help("Arcane Dimensions' new artifacts, custom keys, health vials and gems, custom items and ladders in any "
+                  "map that places them (custom maps, the toolgun), while its data is installed. Off: only in its own "
+                  "maps. Its pickups that would replace Quake VR's (backpacks) are only ever in its maps."),
     };
 }
 

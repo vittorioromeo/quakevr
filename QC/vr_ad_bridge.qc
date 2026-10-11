@@ -154,6 +154,7 @@ void() AD_WorldSpawn =
     if(vr_ad_data)
     {
         precache_sound("vr/torch_light.wav"); // (AD's burning lights our fire: vr_ad_player.qc)
+        AD_EvilStart(); // (AD's Evil skill: the choice for this level; AD's flag agreeing; vr_ad_player.qc)
     }
     if(!AD_Rules())
     {
@@ -261,6 +262,7 @@ void() AD_Frame =
         ad_skill = skill; // (AD's entities outside AD maps: vr_ad_items.qc)
         ad_framecount = ad_framecount + 1;
     }
+    AD_EvilFrame(); // (AD's Evil skill: AD's skill 4 for its code; a loaded game's choice; vr_ad_player.qc)
     float request = cvar("vr_ad_test");
     if(request)
     {
@@ -823,7 +825,7 @@ float(float bit) AD_HasUpgrade =
 // W_FireAxe's blow: the Shadow Axe's (AD's 35 for the axe's 20).
 float() AD_AxeScale =
 {
-    return AD_HasUpgrade(ad_IT_UPGRADE_AXE) ? ad_DAMAGE_PLAYAXE2 / ad_DAMAGE_PLAYAXE1 : 1;
+    return (AD_HasUpgrade(ad_IT_UPGRADE_AXE) || AD_Evil()) ? ad_DAMAGE_PLAYAXE2 / ad_DAMAGE_PLAYAXE1 : 1; // (Evil: AD's Shadow Axe in any map)
 };
 
 // W_FireSuperShotgun's pellets: the Widowmaker's 21 when a third shell is in the reserve (taken), else `pellets`.

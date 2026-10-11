@@ -188,3 +188,72 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     }
     return left;
 };
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Evil (decision 30: in the skill choice, in any campaign while AD's data is installed)
+//
+// AD's fifth skill, Evil (its skill 4), is Quake VR's Nightmare (skill 3: the engine and Quake VR's monsters know 0-3)
+// with vr_ad_evil: chosen in the menu (VR Settings > Combat > Arcane Dimensions: Evil Skill) with the start map's
+// Nightmare, or by AD's own skill choices (its hub's Evil: the reviewed patches call VR_AD_SetSkill). It plays AD's
+// Evil rules for Quake VR's player in any map: 50 health at most (VR_BaseHealth, VR_MaxHealth), megahealth to 100
+// (VR_MegaHealthCap), the Shadow Axe's blows (AD_AxeScale); AD's code reads its skill 4 (its monsters' hardest). A
+// game's choice like the skill: saved with the game (vr_ad_evil_on), a loaded game's restored.
+
+float() AD_Evil =
+{
+    return vr_ad_evil_on && vr_ad_data && skill >= 3 && !deathmatch;
+};
+
+// AD_WorldSpawn: this level plays the choice (vr_ad_evil), AD's own flag (scratch4) agreeing, as AD's code reads it.
+void() AD_EvilStart =
+{
+    vr_ad_evil_on = cvar("vr_ad_evil") != 0;
+    cvar_set("scratch4", vr_ad_evil_on ? "1" : "0");
+};
+
+// The players' health capacity after Evil came or went (AD's SetupEvilmode / ResetEvilmode): at most it.
+void() AD_EvilHealth =
+{
+    for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    {
+        p.max_health = VR_MaxHealth(p);
+        if(p.health > p.max_health)
+        {
+            p.health = p.max_health;
+        }
+    }
+};
+
+// OnLoadGame (its globals read): the loaded game's choice is the cvar's again, for its next levels.
+void() AD_LoadedGame =
+{
+    cvar_set("vr_ad_evil", vr_ad_evil_on ? "1" : "0");
+    cvar_set("scratch4", vr_ad_evil_on ? "1" : "0");
+};
+
+// AD_Frame: a change of the choice mid-game played now; AD's code at its skill 4 while Evil plays.
+void() AD_EvilFrame =
+{
+    float chosen = cvar("vr_ad_evil") != 0;
+    if(chosen != vr_ad_evil_on)
+    {
+        vr_ad_evil_on = chosen;
+        cvar_set("scratch4", chosen ? "1" : "0");
+        AD_EvilHealth();
+        dprint(sprintf("VR: Arcane Dimensions' Evil skill %s (skill %g)\n", chosen ? "on" : "off", skill));
+    }
+    if(AD_Evil())
+    {
+        ad_skill = ad_SKILL_EVIL;
+    }
+};
+
+// AD's skill choices (its hub's, trigger_setskill, its Evil flag; reviewed patches): skill 4 (Evil) is Nightmare with
+// vr_ad_evil; 0-3 those skills, Evil off.
+void(float s) VR_AD_SetSkill =
+{
+    s = rint(s);
+    cvar_set("skill", ftos(max(0, min(s, 3))));
+    cvar_set("vr_ad_evil", s >= ad_SKILL_EVIL ? "1" : "0");
+    cvar_set("scratch4", s >= ad_SKILL_EVIL ? "1" : "0");
+};

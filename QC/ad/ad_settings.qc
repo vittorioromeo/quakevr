@@ -426,7 +426,7 @@ void() ad_sycn_worldspawn =
 	if (cvar("saved2") > 0) ad_update_worldspawn(ad_SVR_FOOTSTEP, ad_TRUE);
 	if (cvar("saved3") > 0) ad_update_worldspawn(ad_SVR_SHOTGCASE, ad_TRUE);
 	if (cvar("saved4") > 0) ad_update_worldspawn(ad_SVR_SHOTGPROJ, ad_TRUE);
-	if (cvar("scratch4") > 0) cvar_set("skill", ftos(ad_SKILL_EVIL));
+	if (cvar("scratch4") > 0) VR_AD_SetSkill(ad_SKILL_EVIL);
 	
 	// Check for worldspawn settings
 	ad_update_worldspawn(ad_SVR_ITEMOFFSET, self.ad_no_item_offset);

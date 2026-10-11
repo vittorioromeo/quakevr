@@ -126,6 +126,18 @@ PATCHES = [
     ("client_debuff.qc", "void(entity targ) BurnDeBuff =\n{\n\tlocal float debuffqty;\n",
      "void(entity targ) BurnDeBuff =\n{\n\tlocal float debuffqty;\n\tif (VR_AD_BurnDebuff(targ)) return;\n",
      1, B + ": AD's burning is Quake VR's (decision 24): its fire on the player, AD's time and damage"),
+    # AD's skill 4 (Evil) is Quake VR's Nightmare plus vr_ad_evil (decision 30): the engine and Quake VR's monsters know
+    # skills 0-3 only. Every place AD sets the skill cvar.
+    ("func.qc", "\t\tcvar_set (\"skill\", ftos(self.style));\n", "\t\tVR_AD_SetSkill(self.style);\n",
+     1, B + ": the hub's skill choice; Evil as Nightmare plus vr_ad_evil"),
+    ("triggers.qc", "\tcvar_set (\"skill\", self.message);\n", "\tVR_AD_SetSkill(stof(self.message));\n",
+     1, B + ": trigger_setskill; Evil as Nightmare plus vr_ad_evil"),
+    ("settings.qc", "if (cvar(\"scratch4\") > 0) cvar_set(\"skill\", ftos(SKILL_EVIL));",
+     "if (cvar(\"scratch4\") > 0) VR_AD_SetSkill(SKILL_EVIL);",
+     1, B + ": AD's Evil flag restored; Evil as Nightmare plus vr_ad_evil"),
+    ("client_evilmode.qc", "void() Client_SetEvilSkill = { cvar_set(\"skill\", ftos(SKILL_EVIL)); skill = SKILL_EVIL; };",
+     "void() Client_SetEvilSkill = { VR_AD_SetSkill(SKILL_EVIL); skill = SKILL_EVIL; };",
+     1, B + ": Evil as Nightmare plus vr_ad_evil"),
 ]
 # (Mechanical, not patches: a global array's length named by a constant, `float a[MAX];`, is written as the number,
 # as our fteqcc flags (autoproto) take no named constant there.)

@@ -185,6 +185,7 @@ void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
+    AD_LoadedGame(); // AD support: the loaded game's Evil skill choice (vr_ad_player.qc)
 }
 
 void() SetNewParms =
