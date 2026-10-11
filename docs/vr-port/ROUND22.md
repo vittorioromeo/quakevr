@@ -2039,3 +2039,31 @@ hand (a thin laser, a small spot) and pull its trigger on Physgun, on a tab and 
 the gun's stick to step through the tools (the gun's screen names them; X/A + stick goes back). With the physgun hold a
 crate and twist the wrist, turn yourself: it turns with you; hold X/A: it clicks to 15 degree steps. Tell us whether
 the panel's size (Panel Size on More) and place suit, and whether the laser is now thin enough.
+
+## INTEGRATION: the feature branches merged for testing (worktree `integ`, 2026-10-11; pushed as `origin/next`)
+
+**Merged** onto vr-ironwail `bc3163ed4`, in this order, each a real merge (`--no-ff`, its commits kept: revert one
+feature by reverting its merge commit, `git revert -m 1 <merge>`): `feature/anchors` (10516525e), `feature/animsmooth`
+(e0cb20afc), `feature/vore-shove` (178b6c556), `feature/propclimb` (4c3b93046), `feature/toolgun2` (3513e018a),
+`feature/armbands` (45b6a27b6). Not merged: `feature/surface-anchors` (superseded by anchors), `feature/arcane`.
+
+**Conflicts.** This file: every branch appended its section at the end; all kept, in merge order (armbands' section
+merged by itself at "Bare forearms", after "Scoping"). `Quake/gl_shaders.h` and `Quake/vr/vr_api_render.h` (animsmooth
+and armbands): both added fields at the end of the alias instance block; both kept, in the same order in the C struct
+and the GLSL `InstanceData` (std430, all 16-byte: `Smooth`, `SmoothW`, `SkinTint`, `SkinTintRange`). Everything else
+merged by itself: vr_cvars.inc, vr_menu.cpp, vr_menu_pages.inc, vr_view.cpp, vr_box3d.cpp (no two branches touched the
+same lines). No branch bumped `configVersion` (125): no migrations to renumber.
+
+**Checks** (each merge: build, `map e1m1` smoke; at the end, once each):
+- anchors: `py -3.13 Misc/quakevr/anchors.py selftest` (needs numpy: the plain `python` lacks it): 165 anchors bound,
+  0 moved.
+- animsmooth: `vr_anim_smooth_check`: as on its branch (soldier: linear 6.5%, A+B 0.1% shrink; dog: 0.001 off a key
+  at most 0.036 units). Eye shot, bare forearms with `r_lerpmodels 3`: wrists whole, ends tinted to the skin.
+- vore shove (no script; vrtesthall, god, `vr_test_spawn 10` 64 ahead, `impulse 241`): starts at 2.45 s 54 units away,
+  10 damage, pushed 256, slid 200 (the wall); `vr_enemy_shove_vore 0`: no shove.
+- propclimb: `Misc/quakevr/climb/prop_climb_test.sh`: 8/8 PASS (heavy, stack, side, light, close, knock, hang, off).
+- toolgun2: `toolgun_panel_test.sh` PASS; `toolgun_joint_menu_test.sh` PASS (each hand: 70 picks, 0 wrong, 6/6 joined).
+- armbands: `vr_body_bracers 0` and 1, `map e1m1`, `vr_body_wrist_info`: progs/vrbody_bare.mdl (bare) / vrbody.mdl,
+  no errors.
+- `Misc/quakevr/climb/slopes_test.sh`: 8/8 PASS. Save/load (`save` on e1m1, `map start`, `load`): fine.
+  `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
