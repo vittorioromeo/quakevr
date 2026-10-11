@@ -1357,9 +1357,11 @@ void ent_f()
     }
     edict_t* e = EDICT_NUM(num);
     const int ground = (static_cast<int>(e->v.flags) & FL_ONGROUND) ? NUM_FOR_EDICT(PROG_TO_EDICT(e->v.groundentity)) : -1;
-    Con_Printf("brush ent: %d %s at %.1f %.1f %.1f, %s, ground %d%s, health %.0f\n", num, e->free ? "(free)" : PR_GetString(e->v.classname),
-        e->v.origin[0], e->v.origin[1], e->v.origin[2], (static_cast<int>(e->v.flags) & FL_ONGROUND) ? "on ground" : "in the air",
-        ground, ground > 0 && ofEntity(ground) ? va(" (brush %d)", ofEntity(ground)) : "", e->v.health);
+    Con_Printf("brush ent: %d %s at %.1f %.1f %.1f, %s, ground %d%s, health %.0f, enemy %d\n", num,
+        e->free ? "(free)" : PR_GetString(e->v.classname), e->v.origin[0], e->v.origin[1], e->v.origin[2],
+        (static_cast<int>(e->v.flags) & FL_ONGROUND) ? "on ground" : "in the air", ground,
+        ground > 0 && ofEntity(ground) ? va(" (brush %d)", ofEntity(ground)) : "", e->v.health,
+        e->v.enemy ? NUM_FOR_EDICT(PROG_TO_EDICT(e->v.enemy)) : 0);
 }
 
 // vr_brush_trace <x y z> <X Y Z> [size] (tests): Quake's trace from one point to the other (a point, or a box `size`

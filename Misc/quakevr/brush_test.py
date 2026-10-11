@@ -43,8 +43,8 @@ def run(cmds, out=None, extra=()):
 def ents(t, num="last"):
     # (origin z, ground brush id or 0) of each vr_brush_ent line
     out = []
-    for m in re.finditer(r"brush ent: (\d+) (\S+) at (-?[\d.]+) (-?[\d.]+) (-?[\d.]+), (on ground|in the air), ground (-?\d+)( \(brush (\d+)\))?", t):
-        out.append((float(m.group(3)), float(m.group(4)), float(m.group(5)), int(m.group(9) or 0), m.group(2)))
+    for m in re.finditer(r"brush ent: (\d+) (\S+) at (-?[\d.]+) (-?[\d.]+) (-?[\d.]+), (on ground|in the air), ground (-?\d+)( \(brush (\d+)\))?, health -?\d+, enemy (\d+)", t):
+        out.append((float(m.group(3)), float(m.group(4)), float(m.group(5)), int(m.group(9) or 0), m.group(2), int(m.group(10))))
     return out
 
 def check(ok, what):
@@ -106,7 +106,7 @@ check(len(e) == 2 and e[0][3] == 1 and e[1][3] == 1 and abs(e[1][2] - 240) < 1 a
 t = run(["map vrfiringrange", "wait60", "god", "vr_brush_box 200 -700 16 216 -412 200", "wait5",
          "vr_brush_spawn monster_army 100 -556 50 0", "wait300", "vr_brush_ent last", "vr_brush_delete 1", "wait300", "vr_brush_ent last"])
 e = ents(t)
-check(len(e) == 2 and abs(e[0][0] - 100) < 8 and e[1][0] > 160, f"sight: not seen through the wall, seen without it ({e})")
+check(len(e) == 2 and e[0][5] == 0 and e[1][5] == 1 and e[1][0] > 230, f"sight: no enemy through the wall; the wall gone, the player and comes ({e})")
 
 # rocket
 t = run(R + ["vr_weapon_grip_mode 1", "vr_brush_box 156 -620 32 188 -492 160", "impulse 9", "wait2", "impulse 160", "wait30",
