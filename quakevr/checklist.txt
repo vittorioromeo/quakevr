@@ -6,6 +6,7 @@
 Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
 
 [New this week]
+Startup configs: an autoexec.cfg with `bind LTRIGGER +jump` in the Quake folder's id1 is skipped (console names it), left trigger still fires; moved into quakevr/ it runs, the guard warns and restores
 Flashlight 'Always on Head' (VR Settings > Flashlight): lit at the temple, empty belt, trigger with open hand at it toggles, grip/Y there do nothing to it; Flashlight Side Right moves it; back to Immersive restores the belt torch
 Doom shortcut: press the gadget's light button 6 times quickly with your fingertip: Doom opens (buzz), light state unchanged; one press closes it
 Bindings guard: with VDXR and SteamVR, qvr_openxr.txt shows 'bindings suggested' with nothing turned down + both hands' profile + controller keys; console `bind LSHOULDER "impulse 12"; bind LTRIGGER +jump`, quit, restart: the console says bindings were set again and grips grab
