@@ -19,7 +19,9 @@
 
 #include "vr_toolgun.hpp"
 
+#include "vr_backend.hpp"
 #include "vr_box3d.hpp"
+#include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
@@ -35,6 +37,7 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
 
 #include <glm/gtc/quaternion.hpp>
@@ -85,7 +88,7 @@ constexpr Spawnable spawnables[] = {
     {"Props", "Explosive Box", "misc_explobox", "maps/b_explob.bsp", 0.f, nullptr, 0.f, 0, false},
     {"Props", "Small Explosive Box", "misc_explobox2", "maps/b_exbox2.bsp", 0.f, nullptr, 0.f, 0, false},
     {"Props", "Rock", "vr_debris_piece", "progs/vr_rock1.mdl", 0.f, nullptr, 0.f, 0, true},
-    {"Props", "Brick", "vr_debris_piece", "progs/vr_brick0.mdl", 0.f, nullptr, 0.f, 0, true},
+    {"Props", "Brick", "vr_debris_piece", "progs/vr_brick1.mdl", 0.f, nullptr, 0.f, 0, true},
     {"Weapons", "Axe", "func_weapon_grabbable", "progs/v_axe.mdl", 8.f, "weapon", 2.f, 0, false},
     {"Weapons", "Crowbar", "func_weapon_grabbable", "progs/v_crowbar.mdl", 8.f, "weapon", 17.f, 0, false},
     {"Weapons", "Knight's Sword", "func_weapon_grabbable", "progs/v_ksword.mdl", 8.f, "weapon", 13.f, 0, false},
@@ -163,6 +166,13 @@ struct Drag
     glm::vec3 turn{0.f};
     glm::vec3 last{0.f};     // its origin last frame
     glm::vec3 velocity{0.f}; // eased: its throw on letting go
+    // Turned by the wrist (vr_toolgun_physgun_wrist): the gun hand's axes and its own as taken (held::axesFromAngles:
+    // forward, left, up), the sticks' turn since (about the world's axes), and whether its model is a brush model (its
+    // pitch not inverted).
+    glm::mat3 hand0{1.f};
+    glm::mat3 axes0{1.f};
+    glm::mat3 stickTurn{1.f};
+    bool brush{false};
 };
 
 // The scale tool's gizmo on a prop: its oriented box (as drawn: model_scale about model_scale_origin) and handles.
@@ -195,6 +205,7 @@ struct ToolgunState
     bool trigger{false};     // the toolgun's trigger held
     bool firePressed{false}; // pressed since the last frame
     bool freezePressed{false}; // the other hand's trigger, while the physgun holds something
+    glm::vec3 handRot{0.f};    // the toolgun's hand's angles this frame (the physgun's wrist)
     bool taken[HAND_COUNT][6]{}; // presses taken (their releases are too)
     glm::vec2 stick[HAND_COUNT]{glm::vec2{0.f}, glm::vec2{0.f}};
 
@@ -363,9 +374,9 @@ void select(int i)
     return best;
 }
 
-// The tracked controller of `hand` in the world (as the menu's laser: vr_menuui.cpp pointerRay): its place and its aim's
-// axes (forward, right, up), not the drawn hand's (which follows the held weapon's weight).
-[[nodiscard]] bool controllerFrame(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& fwd, glm::vec3& right,
+} // namespace
+
+bool qvr::toolgun::controllerFrame(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& fwd, glm::vec3& right,
     glm::vec3& up)
 {
     const TrackingState& t = tracking();
@@ -382,6 +393,9 @@ void select(int i)
     up = glm::normalize(hands::rotateYaw(quakeFromTracking(aim * glm::vec3{0.f, 1.f, 0.f}), turn));
     return true;
 }
+
+namespace
+{
 
 // The gun's level forward and right (the ghost's offsets are along them).
 void levelAxes(const glm::vec3& dir, glm::vec3& fwd, glm::vec3& right)
@@ -551,6 +565,10 @@ void dragStart(int num)
     d.offset = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]} - grab;
     d.angles = glm::vec3{e->v.angles[0], e->v.angles[1], e->v.angles[2]};
     d.last = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+    const int mi = static_cast<int>(e->v.modelindex);
+    d.brush = mi > 0 && mi < MAX_MODELS && sv.models[mi] && sv.models[mi]->type == mod_brush;
+    d.hand0 = held::axesFromAngles(&tg.handRot[0], true);
+    d.axes0 = held::axesFromAngles(e->v.angles, d.brush);
     if(d.prop)
     {
         box3d::setPinned(num, true);
@@ -611,14 +629,50 @@ void dragFrame(float dt)
     glm::vec3 fwd, right;
     levelAxes(tg.aim.dir, fwd, right);
     const glm::vec3 grab = tg.aim.from + tg.aim.dir * za::max(d.distance, 16.f);
-    const glm::quat spin = glm::angleAxis(glm::radians(d.turn.y), glm::vec3{0.f, 0.f, 1.f});
-    const glm::vec3 to = grab + spin * d.offset + right * d.slide.x + glm::vec3{0.f, 0.f, d.slide.y};
+    // X/A held: its angles snap to whole steps of vr_toolgun_snap degrees.
+    const float step = tg.adjust ? vr_toolgun_snap.value : 0.f;
+    const auto snap = [step](float& a) {
+        if(step > 0.f)
+        {
+            a = za::round(a / step) * step;
+        }
+    };
+    glm::vec3 to;
+    float angles[3];
+    if(vr_toolgun_physgun_wrist.value != 0.f)
+    {
+        // Turned as the hand turns since it was taken (its offset from the beam's point too: as if on a skewer), the
+        // sticks' turn on top; the body's turn turns the hand, so it turns with you.
+        const glm::mat3 hand = held::axesFromAngles(&tg.handRot[0], true);
+        glm::mat3 turn = d.stickTurn * hand * glm::transpose(d.hand0);
+        held::anglesFromAxes(turn * d.axes0, angles, d.brush);
+        if(step > 0.f)
+        {
+            for(float& a : angles)
+            {
+                snap(a);
+            }
+            turn = held::axesFromAngles(angles, d.brush) * glm::transpose(d.axes0);
+        }
+        to = grab + turn * d.offset;
+    }
+    else
+    {
+        const glm::quat spin = glm::angleAxis(glm::radians(d.turn.y), glm::vec3{0.f, 0.f, 1.f});
+        to = grab + spin * d.offset;
+        for(int k = 0; k < 3; k++)
+        {
+            angles[k] = d.angles[k] + d.turn[k];
+            snap(angles[k]);
+        }
+    }
+    to += right * d.slide.x + glm::vec3{0.f, 0.f, d.slide.y};
     e->v.origin[0] = to.x;
     e->v.origin[1] = to.y;
     e->v.origin[2] = to.z;
-    e->v.angles[0] = d.angles.x + d.turn.x;
-    e->v.angles[1] = d.angles.y + d.turn.y;
-    e->v.angles[2] = d.angles.z + d.turn.z;
+    e->v.angles[0] = angles[0];
+    e->v.angles[1] = angles[1];
+    e->v.angles[2] = angles[2];
     VectorCopy(vec3_origin, e->v.velocity);
     if(!d.prop)
     {
@@ -884,6 +938,14 @@ void sticksFrame(float dt)
             tg.drag.distance = za::max(tg.drag.distance + push, 16.f);
             tg.drag.slide += glm::vec3{side, lift, 0.f};
             tg.drag.turn[axis] += turn;
+            if(turn != 0.f)
+            {
+                // (the wrist's way: about the world's up, or the gun's level right or forward)
+                glm::vec3 fwd, right;
+                levelAxes(tg.aim.dir, fwd, right);
+                const glm::vec3 about = axis == 1 ? glm::vec3{0.f, 0.f, 1.f} : axis == 0 ? right : fwd;
+                tg.drag.stickTurn = glm::mat3_cast(glm::angleAxis(glm::radians(turn), about)) * tg.drag.stickTurn;
+            }
         }
         break;
     case Tool::Scale:
@@ -1021,32 +1083,6 @@ int heldHand()
     return -1;
 }
 
-bool menuOnGun()
-{
-    return menu::toolgunPageShown() && heldHand() >= 0;
-}
-
-bool menuFrame(const hands::State& s, glm::vec3& centre, glm::vec3& right, glm::vec3& up)
-{
-    const int hand = heldHand();
-    if(hand < 0 || !menu::toolgunPageShown())
-    {
-        return false;
-    }
-    glm::vec3 origin, fwd, r, u;
-    if(!controllerFrame(s, hand, origin, fwd, r, u))
-    {
-        return false;
-    }
-    // Over the gun, leaning back from upright by the tilt, facing you (its normal: right x up, back along the gun).
-    const float tilt = glm::radians(vr_toolgun_menu_tilt.value);
-    up = glm::normalize(u * za::cos(tilt) + fwd * za::sin(tilt));
-    right = r;
-    centre = origin + u * vr_toolgun_menu_up.value + up * (za::max(vr_toolgun_menu_height.value, 2.f) * 0.5f) +
-             fwd * vr_toolgun_menu_forward.value;
-    return true;
-}
-
 bool button(int hand, posing::Button b, bool down)
 {
     const int bi = static_cast<int>(b);
@@ -1070,6 +1106,10 @@ bool button(int hand, posing::Button b, bool down)
         {
             tg.trigger = false;
         }
+        else if(b == posing::Button::Trigger)
+        {
+            (void)panel::trigger(hand, false); // (the panel's click let go, if it was one)
+        }
         return true;
     }
     const int gun = heldHand();
@@ -1083,13 +1123,9 @@ bool button(int hand, posing::Button b, bool down)
         switch(b)
         {
         case posing::Button::Secondary:
-            if(menuOnGun())
+            if(panel::shown() || key_dest == key_game)
             {
-                menu::closeToolgun();
-            }
-            else if(key_dest == key_game)
-            {
-                menu::openToolgun();
+                panel::toggle();
             }
             taken = true;
             return true;
@@ -1105,19 +1141,25 @@ bool button(int hand, posing::Button b, bool down)
             }
             taken = true;
             return true;
+        case posing::Button::StickClick:
+            // The next tool (X/A held: the one before), unless bullet time has this stick's press.
+            if(key_dest != key_game || bullettime::ownsStick(hand))
+            {
+                return false;
+            }
+            setTool((static_cast<int>(currentTool()) + (tg.adjust ? -1 : 1) + static_cast<int>(Tool::Count)) %
+                    static_cast<int>(Tool::Count));
+            taken = true;
+            return true;
         default: return false;
         }
     }
-    // The other hand's Y, the gun in the right hand, its menu on the gun: Back (as the right hand's B is, the gun's own
-    // B closing the menu).
-    if(b == posing::Button::Secondary && gun == HAND_MAIN && hand == HAND_OFF && menuOnGun())
+    // The other hand's trigger: a click on the panel, where its laser meets it; else what the physgun holds frozen there.
+    if(b == posing::Button::Trigger && panel::trigger(hand, true))
     {
-        Key_Event(K_BBUTTON, true);
-        Key_Event(K_BBUTTON, false);
         taken = true;
         return true;
     }
-    // The other hand's trigger: what the physgun holds frozen there.
     if(b == posing::Button::Trigger && key_dest == key_game && tg.drag.num)
     {
         tg.freezePressed = true;
@@ -1141,6 +1183,11 @@ void sticks(const glm::vec2& off, const glm::vec2& main)
 void frame(const hands::State& s)
 {
     tg.hand = heldHand();
+    panel::frame(s);
+    if(tg.hand >= 0)
+    {
+        tg.handRot = s.rot[tg.hand];
+    }
     // The joints: a rope and a spring drawn always (a rope's brown, a spring's steel), the others' points while the joint
     // tool is in hand.
     const bool jointTool = tg.hand >= 0 && currentTool() == Tool::Joint && key_dest == key_game;
@@ -1364,15 +1411,68 @@ const char* spawnableLabel(int i)
     return text;
 }
 
+const char* spawnableName(int i)
+{
+    return i >= 0 && i < spawnableTotal ? spawnables[i].label : "";
+}
+
 const char* spawnableSection(int i)
 {
     return i >= 0 && i < spawnableTotal ? spawnables[i].section : "";
+}
+
+const char* spawnableModel(int i)
+{
+    return i >= 0 && i < spawnableTotal ? spawnables[i].model : "";
+}
+
+int spawnableSkin(int i)
+{
+    return i >= 0 && i < spawnableTotal ? spawnables[i].skin : 0;
+}
+
+int selectedSpawnable()
+{
+    return tg.sel.valid ? tg.sel.entry : -1;
 }
 
 void selectSpawnable(int i)
 {
     select(i);
     Con_Printf("toolgun: spawn %s\n", tg.sel.valid ? tg.sel.label : "nothing");
+}
+
+const char* toolName(int tool)
+{
+    return tool >= 0 && tool < static_cast<int>(Tool::Count) ? toolNames[tool] : "";
+}
+
+int jointCount()
+{
+    return unjoin + 1;
+}
+
+const char* jointName(int joint)
+{
+    return joint >= 0 && joint <= unjoin ? jointNames[joint] : "";
+}
+
+void setTool(int tool)
+{
+    tool = za::clamp(tool, 0, static_cast<int>(Tool::Count) - 1);
+    Cvar_SetValueQuick(&vr_toolgun_tool, static_cast<float>(tool));
+    Con_Printf("toolgun: tool %s\n", toolNames[tool]);
+    Backend* be = backend();
+    const int hand = heldHand();
+    if(be && hand >= 0 && !vr_disablehaptics.value)
+    {
+        be->haptic(hand, 0.02f, 200.f, 0.25f);
+    }
+}
+
+const char* screenText()
+{
+    return screenLine();
 }
 
 const char* stateLine()
@@ -1435,16 +1535,18 @@ void reset_f()
     Con_Printf("toolgun: offsets and turn reset\n");
 }
 
+// vr_toolgun_menu: the panel opened or closed (as B/Y).
 void menu_f()
 {
-    if(toolgun::menuOnGun())
-    {
-        menu::closeToolgun();
-    }
-    else
-    {
-        menu::openToolgun();
-    }
+    toolgun::panel::toggle();
+}
+
+// vr_toolgun_next [-1]: the next tool (as the gun's stick press), or the one before.
+void next_f()
+{
+    const int step = Cmd_Argc() > 1 && Q_atoi(Cmd_Argv(1)) < 0 ? -1 : 1;
+    const int count = static_cast<int>(Tool::Count);
+    toolgun::setTool((static_cast<int>(currentTool()) + step + count) % count);
 }
 
 void unfreezeAll_f()
@@ -1481,8 +1583,9 @@ void status_f()
 {
     const ServerVm vm;
     const Aim& a = tg.aim;
-    Con_Printf("toolgun: hand %d, tool %s, menu %s, adjust %d\n", toolgun::heldHand(), toolNames[static_cast<int>(currentTool())],
-        toolgun::menuOnGun() ? "on the gun" : "closed", tg.adjust ? 1 : 0);
+    Con_Printf("toolgun: hand %d, tool %s, panel %s, adjust %d, screen \"%s\"\n", toolgun::heldHand(),
+        toolNames[static_cast<int>(currentTool())], toolgun::panel::shown() ? "open" : "closed", tg.adjust ? 1 : 0,
+        toolgun::screenText());
     if(a.valid)
     {
         Con_Printf("toolgun: aim from %.1f %.1f %.1f dir %.2f %.2f %.2f, world at %.0f, target %d %s at %.0f\n", a.from.x, a.from.y,
@@ -1500,8 +1603,8 @@ void status_f()
     if(tg.drag.num)
     {
         edict_t* e = EDICT_NUM(tg.drag.num);
-        Con_Printf("toolgun: physgun holds %d at %.0f %.0f %.0f (distance %.0f)\n", tg.drag.num, e->v.origin[0], e->v.origin[1],
-            e->v.origin[2], tg.drag.distance);
+        Con_Printf("toolgun: physgun holds %d at %.0f %.0f %.0f (distance %.0f), angles %.1f %.1f %.1f\n", tg.drag.num,
+            e->v.origin[0], e->v.origin[1], e->v.origin[2], tg.drag.distance, e->v.angles[0], e->v.angles[1], e->v.angles[2]);
     }
     if(tg.gizmo.num)
     {
@@ -1521,8 +1624,10 @@ void qvr::toolgun::registerCommands()
     Cmd_AddCommand("vr_toolgun_pick", pick_f);
     Cmd_AddCommand("vr_toolgun_reset", reset_f);
     Cmd_AddCommand("vr_toolgun_menu", menu_f);
+    Cmd_AddCommand("vr_toolgun_next", next_f);
     Cmd_AddCommand("vr_toolgun_unfreeze_all", unfreezeAll_f);
     Cmd_AddCommand("vr_toolgun_unjoin_all", unjoinAll_f);
     Cmd_AddCommand("vr_toolgun_scale_reset", scaleReset_f);
     Cmd_AddCommand("vr_toolgun_status", status_f);
+    toolgun::panel::registerCommands();
 }

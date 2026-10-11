@@ -65,6 +65,17 @@ void update(const hands::State& s);
 // preview (vr_spectator_preview) under it (not in the camera's own view).
 void drawInEye(const hands::State& s);
 
+// The laser from `start` to `end` (with its spot there when `onPanel`; brighter while `held`), in the eye being rendered:
+// the menus' (`size` 1), and the toolgun's panel's (thinner: vr_toolgun_laser_size).
+void drawLaser(const glm::vec3& start, const glm::vec3& end, bool onPanel, bool held, float size);
+
+// The VR menu style's widgets drawn wherever the 2D pass draws (the toolgun's panel: vr_toolgun_panel.cpp), in its
+// coordinates: a switch (19 wide, round the row y's middle, y + 4), a slider (Quake's: 10 cells from x, the value's text
+// `desc` at x + 96), a button (x0..x1, `half` high each way of yc; lit: the selected one's colours).
+void paintSwitch(float x, float y, bool on);
+void paintSlider(int x, int y, float range, const char* desc);
+void paintButton(float x0, float x1, float yc, float half, bool lit);
+
 // Whether a menu in the headset shows the spectator camera's preview (vr_spectator_preview, while the camera is on;
 // placed by the last 2D pass): vr_stereo.cpp then makes it from the camera's image.
 [[nodiscard]] bool spectatorPreviewWanted();

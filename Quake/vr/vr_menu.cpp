@@ -5796,7 +5796,7 @@ za::Vector<Item> pageSpawnWeapons()
         command("Laser Gun", "vr_physics_spawn weapon_laser_gun 64"),
         command("Proximity Gun", "vr_physics_spawn weapon_proximity_gun 64"),
         command("Toolgun", "vr_physics_spawn weapon_toolgun 64")
-            .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its menu."),
+            .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its panel, its stick press switches the tool."),
     };
 }
 
@@ -7501,10 +7501,6 @@ const Page pages[] = {
     {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)
     {"Stealth AI Tests", pageStealthTests, pageDebugTests, LevelDeveloper},
     {"Holding Enemies", pageHoldingEnemies, pageCombat},
-    // The toolgun's menu (vr_menu_toolgun.inc): shown on the gun (B/Y), linked from nowhere else; Back from it closes it.
-    {"Toolgun", pageToolgun, pageDebugTools, LevelStandard},
-    {"Toolgun - Spawn", pageToolgunSpawn, pageToolgun, LevelStandard},
-    {"Toolgun - Cheats and Utilities", pageToolgunCheats, pageToolgun, LevelStandard},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
     {"Doom", pageDoom, pageGadget, LevelStandard},
 };
@@ -10516,11 +10512,6 @@ void goBack()
         S_LocalSound("misc/menu2.wav");
         return;
     }
-    if(pages[page].build == pageToolgun)
-    {
-        qvr::menu::closeToolgun(); // (the toolgun's menu: back to the game)
-        return;
-    }
     const int dest = homeOf(page);
     navPush(dest);
     showPage(dest);
@@ -12320,31 +12311,42 @@ int qvr::menu::currentPage()
     return page;
 }
 
-bool qvr::menu::toolgunPageShown()
+int qvr::menu::toolgunCheatCount()
 {
-    if(key_dest != key_menu || m_state != m_vr || page < 0 || page >= pageCount)
-    {
-        return false;
-    }
-    const PageBuilder b = pages[page].build;
-    return b == pageToolgun || b == pageToolgunSpawn || b == pageToolgunCheats;
+    findToolgunCheats();
+    return static_cast<int>(toolgunCheats.list.size());
 }
 
-void qvr::menu::openToolgun()
+const char* qvr::menu::toolgunCheatName(int i)
 {
-    openFromAnywhere(pageIndex(pageToolgun));
+    return i >= 0 && i < toolgunCheatCount() ? toolgunCheats.list[i].name : "";
 }
 
-void qvr::menu::closeToolgun()
+bool qvr::menu::toolgunCheatOn(int i)
 {
-    if(key_dest != key_menu)
+    return i >= 0 && i < toolgunCheatCount() && toolgunCheatIsOn(toolgunCheats.list[i]);
+}
+
+void qvr::menu::toolgunCheatUse(int i)
+{
+    if(i < 0 || i >= toolgunCheatCount())
     {
         return;
     }
-    // As Back to Game (vr_menuui.cpp backToGame), not remembered: the menu button opens the VR Settings as ever.
-    IN_Activate();
-    key_dest = key_game;
-    m_state = m_none;
+    const ToolgunCheat& c = toolgunCheats.list[i];
+    if(c.cvar)
+    {
+        Cvar_SetValueQuick(c.cvar, c.cvar->value != 0.f ? 0.f : 1.f);
+    }
+    if(c.command)
+    {
+        runCommand(c.command);
+    }
+    if(c.action)
+    {
+        c.action();
+    }
+    Con_Printf("toolgun: %s\n", c.name);
 }
 
 const cvar_t* qvr::menu::selectedSetting()

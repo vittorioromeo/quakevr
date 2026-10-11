@@ -1,0 +1,127 @@
+#!/bin/bash
+# toolgun_panel_test.sh <agent> [--shots] -- the toolgun's own panel and its controls, headless (docs/vr-port/ROUND22.md,
+# "The toolgun's own panel"; docs/vr-port/TOOLGUN.md). vrfiringrange, the gun in the main hand, the off hand's mock laser
+# (vr_toolgun_mock_laser) on the panel and its trigger clicking:
+#   1. the panel opened by B; the laser at the Props tab's middle and the Barrel tile's by their panel pixels (the
+#      layout's 256 x 192: the tiles at their new size), each clicked: the spawn choice is the barrel;
+#   2. the tools cycled by the gun's stick press (the gun's screen says each tool), and once back with X/A held;
+#   3. the Joint tool's tile, its Hinge tile: vr_toolgun_joint 2; More: God Mode switched on and off; the Panel Size
+#      slider dragged;
+#   4. the physgun holding a crate while the mock hand rolls 45 degrees, then turns 30 to its left: the crate's angles
+#      follow the hand (roll, then yaw); X/A held, its angles snap to 15 degree steps.
+# --shots: one picture of the panel's pages (Spawn's props, Joint, Physgun, More), scratch/toolgun_panel.png.
+# PASS: every step as said, no crash.
+AGENT=${1:-toolgun2}
+KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+SHOTS=; [ "$2" = "--shots" ] && SHOTS=1
+S=$(SHOTS=$SHOTS python - <<'EOF'
+import os
+shots = bool(os.environ.get('SHOTS'))
+s = []
+a = s.append
+def click():
+    a('wait2;vr_mock_button off trigger 1;wait2;vr_mock_button off trigger 0;wait3')
+def at(x, y):
+    a(f'vr_toolgun_mock_laser {x} {y}'); click()
+def name(n):
+    a(f'vr_toolgun_mock_laser {n}'); click()
+def shot():
+    if shots:
+        a('wait5;screenshot')
+def hand(pitch, yaw, roll, y=1.5, z=-0.3):
+    a(f'vr_mock_hand main 0.0 {y} {z} {pitch} {yaw} {roll};wait20')
+a('map vrfiringrange;wait60;god;notarget;vr_crate_health 0;vr_toolgun_tool 0;vr_toolgun_joint 0;vr_toolgun_panel_size 6')
+a('impulse 169;vr_weapon_grip_mode 1;wait10')
+hand(70, 0, 0)
+# 1. The panel; the Props tab (x 67..126, y 47..60) and the third tile of its first row (x 130..189, y 63..115).
+a('vr_mock_button main secondary 1;wait2;vr_mock_button main secondary 0;wait10')
+at(96, 53)
+at(160, 89)
+a('echo STEP1;vr_toolgun_status')
+shot()
+# 2. The tools cycled by the gun's stick press, and one back with X/A held.
+for i in range(5):
+    a('vr_mock_button main stickclick 1;wait2;vr_mock_button main stickclick 0;wait3;echo CYCLE;vr_toolgun_status')
+a('vr_mock_button main primary 1;wait2;vr_mock_button main stickclick 1;wait2;vr_mock_button main stickclick 0;wait2')
+a('vr_mock_button main primary 0;wait3;echo BACK;vr_toolgun_status')
+# 3. Joint, Hinge; More, God Mode twice; the Panel Size slider (its cells from x 96: 3 at x 100, 12 at x 172).
+name('Joint'); name('Hinge')
+a('echo JOINT;vr_toolgun_joint')
+shot()
+name('Physgun')
+shot()
+name('More')
+name('God Mode')
+a('echo GOD1;vr_toolgun_panel_dump')
+shot()
+name('God Mode')
+a('vr_toolgun_mock_laser 100 180;wait2;vr_mock_button off trigger 1;wait3;vr_toolgun_mock_laser 136 180;wait3')
+a('vr_toolgun_mock_laser 172 180;wait3;vr_mock_button off trigger 0;wait3;echo SIZE;vr_toolgun_panel_size;vr_toolgun_panel_size 6')
+name('More')
+a('vr_mock_button main secondary 1;wait2;vr_mock_button main secondary 0;wait5;echo CLOSED;vr_toolgun_status')
+# 4. The physgun and a crate ahead on the floor.
+a('vr_toolgun_mock_laser off;vr_toolgun_tool 2;vr_physics_spawn vr_crate 96 0;wait60')
+hand(50, 0, 0, 1.35)
+a('vr_mock_button main trigger 1;wait20;echo HOLD0;vr_toolgun_status')
+hand(50, 0, 45, 1.35)
+a('echo ROLL45;vr_toolgun_status')
+hand(50, 30, 45, 1.35)
+a('echo YAW30;vr_toolgun_status')
+hand(50, 30, 37, 1.35)
+a('vr_mock_button main primary 1;wait5;echo SNAP;vr_toolgun_status;vr_mock_button main primary 0;wait3')
+a('vr_mock_button main trigger 0;wait10;vr_toolgun_icons')
+a('wait5;toggleconsole;quit')
+print(';'.join(s))
+EOF
+)
+OUT=; [ -n "$SHOTS" ] && OUT="-Clean -Out toolgun_panel.png"
+out=$(bash $KIT/run.sh $AGENT $OUT -Script "$S" -Timeout 600 -Filter 'STEP|CYCLE|BACK|JOINT|GOD|SIZE|CLOSED|HOLD|ROLL|YAW|SNAP|toolgun|vr_toolgun|ENGINE|CRASH|exit=|TIMEOUT|composed' 2>&1)
+[ -n "$VERBOSE" ] && echo "$out" | tail -80
+echo "$out" | python -c "
+import sys, re
+t = sys.stdin.read()
+def after(tag, pat):
+    m = re.search(tag + r'.*?' + pat, t, re.S)
+    return m
+fails = []
+if 'toolgun: panel open' not in t: fails.append('panel not opened')
+if not after('toolgun: spawn Barrel', 'STEP1'): fails.append('Barrel not chosen by its tile')
+screens = re.findall(r'CYCLE\s*\ntoolgun: hand 1, tool (\w+), panel \w+, adjust \d, screen \"([^\"]*)\"', t)
+want = ['Remove', 'Physgun', 'Scale', 'Joint', 'Spawn']
+if [x[0] for x in screens] != want: fails.append(f'cycle {screens}')
+if any(x[0] != 'Spawn' and x[1].upper() != x[0].upper() and not x[1].startswith('Weld') for x in screens): fails.append(f'screens {screens}')
+if not re.search(r'BACK\s*\ntoolgun: hand 1, tool Joint', t): fails.append('X/A + stick press: not back to Joint')
+if not re.search(r'JOINT\s*\n\"vr_toolgun_joint\" is \"2\"', t): fails.append('Hinge tile')
+if 'toolgun: God Mode' not in t: fails.append('God Mode button')
+m = re.search(r'SIZE\s*\n\"vr_toolgun_panel_size\" is \"([\d.]+)\"', t)
+if not m or abs(float(m.group(1)) - 12) > 0.01: fails.append(f'slider dragged to {m.group(1) if m else None}')
+if not re.search(r'CLOSED\s*\ntoolgun: hand 1, tool \w+, panel closed', t): fails.append('panel not closed by B')
+def angles(tag):
+    m = re.search(tag + r'.*?physgun holds \d+ at [-\d ]+\(distance \d+\), angles ([-\d.]+) ([-\d.]+) ([-\d.]+)', t, re.S)
+    return [float(v) for v in m.groups()] if m else None
+h0, r45, y30, sn = angles('HOLD0'), angles('ROLL45'), angles('YAW30'), angles('SNAP')
+print('angles held', h0, 'rolled', r45, 'turned', y30, 'snapped', sn)
+import math
+def d(a, b): return (a - b + 180) % 360 - 180
+def axes(ang):
+    # An alias model's axes from its angles (its pitch inverted, as R_EntityMatrix turns it): forward, left, up.
+    p, y, r = math.radians(-ang[0]), math.radians(ang[1]), math.radians(ang[2])
+    sp, cp, sy, cy, sr, cr = math.sin(p), math.cos(p), math.sin(y), math.cos(y), math.sin(r), math.cos(r)
+    f = (cp * cy, cp * sy, -sp)
+    rt = (-sr * sp * cy + cr * sy, -sr * sp * sy - cr * cy, -sr * cp)
+    u = (cr * sp * cy + sr * sy, cr * sp * sy - sr * cy, cr * cp)
+    return [f, tuple(-v for v in rt), u]
+def turned(a0, a1):
+    # The angle of the rotation from one orientation to the other (degrees).
+    m0, m1 = axes(a0), axes(a1)
+    tr = sum(m1[i][k] * m0[i][k] for i in range(3) for k in range(3))
+    return math.degrees(math.acos(max(-1.0, min(1.0, (tr - 1) / 2))))
+if not (h0 and r45 and y30 and sn): fails.append('physgun angles missing')
+else:
+    print(f'turned by the roll {turned(h0, r45):.1f}, by the yaw {turned(r45, y30):.1f}')
+    if abs(turned(h0, r45) - 45) > 5: fails.append('roll did not follow the hand')
+    if abs(turned(r45, y30) - 30) > 5: fails.append('yaw did not follow the hand')
+    if any(abs(d(v, round(v / 15) * 15)) > 0.05 for v in sn): fails.append('not snapped')
+if re.search(r'ENGINE CRASH|ENGINE ERROR|TIMEOUT|exit=[1-9]', t): fails.append('crash')
+print('FAIL: ' + '; '.join(fails) if fails else 'PASS')
+"

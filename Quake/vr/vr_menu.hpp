@@ -38,11 +38,13 @@ void handCalMatch_f();
 // The page shown (while m_state is m_vr), and the VR Settings reopened at one (its selection,
 // scroll and way back as they were left).
 [[nodiscard]] int currentPage();
-// The toolgun's menu (vr_menu_toolgun.inc; vr_toolgun.cpp): one of its pages shown (drawn on the gun while it is held),
-// opened (from the game) and closed (back to the game).
-[[nodiscard]] bool toolgunPageShown();
-void openToolgun();
-void closeToolgun();
+// The toolgun panel's cheats (vr_menu_toolgun.inc; vr_toolgun_panel.cpp's More): Debug > Cheats and Recording's rows
+// worth having at hand, by their labels: how many, each one's short name, whether it is on (a switch's, god mode's...),
+// and one used (its command, its action, or its switch flipped), as the row's click would.
+[[nodiscard]] int toolgunCheatCount();
+[[nodiscard]] const char* toolgunCheatName(int i);
+[[nodiscard]] bool toolgunCheatOn(int i);
+void toolgunCheatUse(int i);
 void reopen(int page);
 
 // "Advanced VR" (the corner's button, the main menu's row): the Advanced VR Options from any menu, their selection and
