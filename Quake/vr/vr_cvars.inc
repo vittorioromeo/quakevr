@@ -2358,6 +2358,16 @@ QVR_CVAR(vr_ragdoll_active_headshot, "0.05", CVAR_ARCHIVE) // the strength a hea
 QVR_CVAR(vr_ragdoll_active_debug, "0", CVAR_NONE)       // 1: each driven ragdoll's targets drawn over it (green as strong as the joint is, grey limp), its pelvis pin (yellow) and its hands' and feet's goals (red) (Debug > Logs)
 QVR_CVAR(vr_ragdoll_active_trace, "0", CVAR_NONE)       // n: every n-th frame a `ragtrace` line per driven ragdoll (its pelvis, the joints' error from the animation per channel, their strength, its energy; the tests)
 QVR_CVAR(vr_ragdoll_active_seed, "0", CVAR_NONE)        // mixed into each death's rolls (wound, crawl): another roll for the same scene (tests)
+QVR_CVAR(vr_ragdoll_active_stagger, "1", CVAR_ARCHIVE)  // with Knockdowns, a shove makes a grunt, enforcer, knight, death knight, ogre or zombie stagger as a pinned ragdoll (its feet stepping after it): leaning too far it falls (a knockdown), else it recovers and fights on; its fall braced by its arms, a two-hand throw's body slack where held, curling; 0: the knockdown's chance alone, as before
+QVR_CVAR(vr_ragdoll_active_stagger_lean, "30", CVAR_ARCHIVE) // degrees: its middle leaning over its feet past this, the stagger falls
+QVR_CVAR(vr_ragdoll_active_stagger_push, "2", CVAR_ARCHIVE)  // m/s: a fresh two-hand shove's push on its top (its pelvis carried by its pin, its feet none)
+QVR_CVAR(vr_ragdoll_active_stagger_travel, "0.2", CVAR_ARCHIVE) // how far its pelvis is carried, times how far the shove slides a standing one (at most 1.25 m)
+QVR_CVAR(vr_ragdoll_active_stagger_pin, "2", CVAR_ARCHIVE)  // body weights: its pelvis's pin at most, steady (times 0.2 .. 1 by its balance: the knockdown's chance against the roll; its muscles' hold on its weight and its upright too)
+QVR_CVAR(vr_ragdoll_active_stagger_blend, "0.2", CVAR_ARCHIVE) // s: recovered, its ragdoll blended into the animated monster over this
+QVR_CVAR(vr_ragdoll_active_getup, "1", CVAR_ARCHIVE)    // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: pulled into its get-up's first frame, then risen through its get-up, handed back to the animated monster standing; 0: the ragdoll blended into the get-up from the floor, as before
+QVR_CVAR(vr_ragdoll_active_getup_pin, "2.5", CVAR_ARCHIVE) // body weights: its pelvis's pin to the get-up's at most
+QVR_CVAR(vr_ragdoll_active_getup_blend, "0.2", CVAR_ARCHIVE) // s: risen, its ragdoll blended into the animated monster over this
+QVR_CVAR(vr_ragdoll_active_getup_pace, "0.8", CVAR_ARCHIVE) // its get-up's frames' speed, times the get-up's own (vr_knockdown_getup_speed)
 QVR_CVAR(vr_test_kill, "0", CVAR_NONE)                  // n: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3), a leg (4), nowhere known (6) (QC combat.qc VR_TestKill_Frame; the active ragdolls' tests)
 // Per monster class (Gibs and Corpses > Ragdolls > Grunt, > Knight): -1 (Global) is the setting above, any other value replaces it
 // for that class. Each class's mass is its own by default (the author, 2026-10-03: ROUND21.md, "Ragdoll masses per monster").

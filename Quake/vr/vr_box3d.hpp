@@ -179,10 +179,24 @@ bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm:
 // first frame fitted to how it lies (frameA, or frameB if that fits better; -1 none), room for its box mins..maxs found
 // within `range`, its ragdoll gone and blended into its animation: 0 no room (it stays down), else 1 or 2 (the frame
 // chosen), its origin and yaw set there.
+// With vr_ragdoll_active_getup (its kind's: vr_ragdoll_active's classes; not in a liquid nor `anywhere`) its body
+// rises through its get-up first: -1 while it does (the QC asks again; not asked for 0.35 s, it slumps), then 3 or 4
+// (risen: 1 or 2 plus 2), standing in its get-up's last frame, handed back to the animated monster.
 [[nodiscard]] bool canRagdoll(edict_t* ent);
 bool ragdollKnockdown(edict_t* ent);
 int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range,
     bool anywhere = false);
+// Active staggers (vr_ragdoll_active_stagger; ROUND22.md, "Active ragdolls: stagger, judo, get-up"). Whether a shove
+// makes `ent` stagger (its kind's, ragdolls on); its stagger begun (its ragdoll just made by ragdollKnockdown: shoved
+// along level `dir` with `push`, its `balance` 0..1, carried `reach` units by the shove standing); how it goes: 1
+// staggering, 0 fallen (a knockdown now; or no ragdoll), 2 recovered (handed back to the animated monster standing, box
+// mins..maxs, .vr_knockdown 2).
+[[nodiscard]] bool ragdollCanStagger(edict_t* ent);
+bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach);
+int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
+// A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
+// `count` of them) slack a moment. False: no ragdoll.
+bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, int count);
 // The two-hand throw's topple (vr_foegrab_throw_topple; ROUND21.md, "Holding enemies"): `ent`'s ragdoll (just made by
 // ragdollKnockdown) turned over about its feet towards level `dir`, a sweep: its parts' shared launch (the throw's push and
 // lift) shared out by height (the feet none, the top all), `topple` rad/s about the level axis through its feet across
