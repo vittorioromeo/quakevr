@@ -80,6 +80,9 @@ void selectSpawnable(int i); // (-1: nothing)
 [[nodiscard]] const char* jointName(int joint);
 void setTool(int tool);
 
+// A buzz on a hand (200 Hz; none with no headset, no hand or vr_disablehaptics).
+void haptic(int hand, float seconds, float amplitude);
+
 // The panel's info line: the tool, the selection and the offsets; and the gun's screen's (the tool's name, and its
 // choice).
 [[nodiscard]] const char* stateLine();

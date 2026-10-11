@@ -1534,11 +1534,15 @@ void setTool(int tool)
     tool = za::clamp(tool, 0, static_cast<int>(Tool::Count) - 1);
     Cvar_SetValueQuick(&vr_toolgun_tool, static_cast<float>(tool));
     Con_Printf("toolgun: tool %s\n", toolNames[tool]);
+    haptic(heldHand(), 0.02f, 0.25f);
+}
+
+void haptic(int hand, float seconds, float amplitude)
+{
     Backend* be = backend();
-    const int hand = heldHand();
     if(be && hand >= 0 && !vr_disablehaptics.value)
     {
-        be->haptic(hand, 0.02f, 200.f, 0.25f);
+        be->haptic(hand, seconds, 200.f, amplitude);
     }
 }
 

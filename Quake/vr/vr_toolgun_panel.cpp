@@ -19,6 +19,7 @@
 #include "vr_toolgun.hpp"
 
 #include "vr_backend.hpp"
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
@@ -66,6 +67,8 @@ constexpr const char* jointHints[] = {"Shoot a prop, then another: they stay stu
     "Shoot a prop, then another: it slides along the second face's normal.",
     "Shoot a prop, then another: never further apart than now (brown).",
     "Shoot a prop, then another: pulled back to now's distance (steel).", "Shoot a prop: it loses all its joints."};
+constexpr int jointHintCount = static_cast<int>(sizeof(jointHints) / sizeof(jointHints[0]));
+static_assert(jointHintCount == static_cast<int>(qvr::box3d::ToolJoint::Count) + 1, "a hint for each joint kind and Unjoin");
 
 struct Rect
 {
@@ -133,14 +136,6 @@ struct Ui
     return gun < 0 ? -1 : 1 - gun;
 }
 
-void haptic(int hand, float seconds, float amplitude)
-{
-    Backend* be = backend();
-    if(be && hand >= 0 && !vr_disablehaptics.value)
-    {
-        be->haptic(hand, seconds, 200.f, amplitude);
-    }
-}
 
 // The panel's quad over the gun: its corner (0, 0) (bottom left) and the axes spanning it (unit right and up times its
 // size), from the tracked controller holding the gun.
@@ -422,11 +417,16 @@ void tile(const Rect& r, bool chosen, bool hover)
 // ---------------------------------------------------------------------------------------------------------------------
 // Widgets (both passes): each a number in the layout's order and a name.
 
+[[nodiscard]] bool hovering(const Rect& r)
+{
+    return ps.hit && r.contains(ps.cursor);
+}
+
 // The widget's interaction: lit under the laser; in the input pass, true when a press landed on it (taken).
 bool interact(Ui& ui, const Rect& r, const char* name, int& id)
 {
     id = ui.counter++;
-    const bool over = ps.hit && r.contains(ps.cursor);
+    const bool over = hovering(r);
     if(ui.mode != Mode::Input)
     {
         return false;
@@ -446,15 +446,10 @@ bool interact(Ui& ui, const Rect& r, const char* name, int& id)
         ps.pressed = false;
         ps.dragging = id;
         S_LocalSound("misc/menu3.wav");
-        haptic(laserHand(), 0.015f, 0.3f);
+        toolgun::haptic(laserHand(), 0.015f, 0.3f);
         return true;
     }
     return false;
-}
-
-[[nodiscard]] bool hovering(const Rect& r)
-{
-    return ps.hit && r.contains(ps.cursor);
 }
 
 // A button: its label centred (gold; white while chosen or lit).
@@ -796,7 +791,7 @@ void jointPage(Ui& ui)
     }
     if(ui.mode == Mode::Draw)
     {
-        paragraph(pad + 2.f, 134.f, panelWidth - pad * 2.f - 4.f, 6.f, jointHints[za::min(current, 6)], false);
+        paragraph(pad + 2.f, 134.f, panelWidth - pad * 2.f - 4.f, 6.f, jointHints[za::clamp(current, 0, jointHintCount - 1)], false);
     }
     if(button(ui, Rect{pad + 40.f, 156.f, panelWidth - pad - 40.f, 172.f}, "Remove Every Joint", false, 7.f))
     {
@@ -1072,7 +1067,7 @@ void frame(const hands::State& s)
     ps.pressed = false; // (a press off every widget: nothing)
     if(ui.hovered != ps.hovered && ui.hovered >= 0)
     {
-        haptic(laserHand(), 0.01f, 0.12f); // a tick on each widget the laser comes onto
+        toolgun::haptic(laserHand(), 0.01f, 0.12f); // a tick on each widget the laser comes onto
     }
     ps.hovered = ui.hovered;
 }

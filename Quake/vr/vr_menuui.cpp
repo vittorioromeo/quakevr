@@ -200,13 +200,7 @@ struct MockLaser
     bool on{false};
     glm::vec2 spot{0.f};
 };
-MockLaser mockLaser;
-
-// The hand the mock laser is (the toolgun's panel has its own: vr_toolgun_mock_laser).
-[[nodiscard]] int mockLaserHand()
-{
-    return HAND_MAIN;
-}
+MockLaser mockLaser; // (the main hand's; the toolgun's panel has its own: vr_toolgun_mock_laser)
 
 // The mock laser's spot on the canvas (v up).
 [[nodiscard]] glm::vec2 mockLaserUv()
@@ -231,7 +225,7 @@ glm::vec2 runtimePanelUv[HAND_COUNT]{};
     {
         return hit;
     }
-    if(mockLaser.on && hand == mockLaserHand())
+    if(mockLaser.on && hand == HAND_MAIN)
     {
         return {true, glm::vec3{0.f}, mockLaserUv(), true};
     }
@@ -271,7 +265,7 @@ glm::vec2 runtimePanelUv[HAND_COUNT]{};
     {
         return intersectRuntimePanel(hand); // (the menu is not in the eyes)
     }
-    if(mockLaser.on && hand == mockLaserHand())
+    if(mockLaser.on && hand == HAND_MAIN)
     {
         const glm::vec2 uv = mockLaserUv();
         return {true, corner + xAxis * uv.x + yAxis * uv.y, uv};
@@ -1067,7 +1061,7 @@ void mockLaser_f()
             return;
         }
         mockLaser = {true, {x, y}};
-        pointingHand = mockLaserHand();
+        pointingHand = HAND_MAIN;
         return;
     }
     if(float x, y; Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "kofi"))
@@ -1077,7 +1071,7 @@ void mockLaser_f()
             Con_Printf("vr_mock_laser kofi: the version box is not shown\n");
         }
         mockLaser = {true, {x, y}};
-        pointingHand = mockLaserHand();
+        pointingHand = HAND_MAIN;
         return;
     }
     if(float x, y; Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "update"))
@@ -1087,7 +1081,7 @@ void mockLaser_f()
             Con_Printf("vr_mock_laser update: the update notice is not shown\n");
         }
         mockLaser = {true, {x, y}};
-        pointingHand = mockLaserHand();
+        pointingHand = HAND_MAIN;
         return;
     }
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "obs"))
@@ -1099,7 +1093,7 @@ void mockLaser_f()
         }
         const BannerLayout b = obsBannerLayout(toolbarLayout(), o);
         mockLaser = {true, {(b.x0 + b.x1) * 0.5f, b.yc}};
-        pointingHand = mockLaserHand();
+        pointingHand = HAND_MAIN;
         return;
     }
     if(glm::vec2 spot; Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "recording"))
@@ -1109,14 +1103,14 @@ void mockLaser_f()
             Con_Printf("vr_mock_laser recording: the Recording button is not shown\n");
         }
         mockLaser = {true, spot};
-        pointingHand = mockLaserHand();
+        pointingHand = HAND_MAIN;
         return;
     }
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "spectator"))
     {
         const BannerLayout b = bannerLayout(toolbarLayout());
         mockLaser = {true, {(b.x0 + b.x1) * 0.5f, b.yc}};
-        pointingHand = mockLaserHand();
+        pointingHand = HAND_MAIN;
         return;
     }
     if(Cmd_Argc() == 2)
@@ -1127,7 +1121,7 @@ void mockLaser_f()
             {
                 const ToolbarLayout l = toolbarLayout();
                 mockLaser = {true, {(l.bx0(t) + l.bx1(t)) * 0.5f, l.yc(t)}};
-                pointingHand = mockLaserHand();
+                pointingHand = HAND_MAIN;
                 return;
             }
         }
@@ -1135,7 +1129,7 @@ void mockLaser_f()
     if(Cmd_Argc() == 3)
     {
         mockLaser = {true, {Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2))}};
-        pointingHand = mockLaserHand();
+        pointingHand = HAND_MAIN;
         return;
     }
     Con_Printf("vr_mock_laser <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
