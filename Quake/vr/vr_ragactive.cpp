@@ -800,8 +800,11 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             r.weight = 0.f;
             continue;
         }
-        r.weight = 1.f;
+        // (A foot not stepping is left to its joints and the floor's friction: a reach to where it stood straightens a
+        // short-legged one's knees, lifting it off its pin.)
+        r.weight = leg == g.stepLeg ? 1.f : 0.f;
         r.strength = 1.f;
+        g.planted[i] = leg == g.stepLeg ? g.planted[i] : limbEnd(s, p, leg);
         r.goal = g.planted[i];
         if(leg == g.stepLeg)
         {
@@ -1318,6 +1321,14 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
     const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
     const glm::vec3 middle = massCentre(p);
     g.pelvis0 = pelvis;
+    // (Its pin from where its pelvis is, not where its stand frame has it: a model's feet below its box's floor, a
+    // flinch's pelvis, would have it pulled down or aside at once.)
+    {
+        glm::quat q;
+        glm::vec3 pos0;
+        ragdoll::bonePose(rig, ragdoll::poseOfFrame(s.model, info.first), 0, q, pos0);
+        g.lift = glmv(b3Body_GetPosition(p.body[0])) - (s.origin + s.turn * (pos0 * p.k));
+    }
     float footZ = 1e30f;
     for(int leg = 2; leg < 4; leg++)
     {
@@ -1344,7 +1355,6 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
         b3Body_SetAwake(p.body[b], true);
     }
     s.on = true;
-    (void)rig;
     (void)t;
 }
 
@@ -1630,7 +1640,7 @@ void drive(State& s, const Parts& p, const Context& c)
         }
         if(s.stagger.on)
         {
-            offset = s.stagger.dir * (s.stagger.travel * staggerShare(s.stagger, t));
+            offset = s.stagger.lift + s.stagger.dir * (s.stagger.travel * staggerShare(s.stagger, t));
         }
         const glm::vec3 at = s.origin + s.turn * (pose.pos[0] * p.k) + offset;
         const glm::quat turn = glm::normalize(s.turn * pose.rot[0]);

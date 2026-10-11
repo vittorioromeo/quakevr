@@ -178,6 +178,7 @@ struct Stagger
     float balance{0.5f};    // 0 about to fall .. 1 steady
     float height{1.f};      // m: its pelvis over its feet as it stood
     glm::vec3 pelvis0{0.f}; // its pelvis then (world, metres)
+    glm::vec3 lift{0.f};    // its pin's anchor from the stand frame's pelvis to where its pelvis was (metres)
     float lean{0.f}, leanMost{0.f}; // deg: its middle over its feet now, at most
     float over{-1.f};       // s after the drive began: leaning past its limit since (-1: not)
     float sag{1.f};         // its pelvis's height now over `height` (its lowest)
