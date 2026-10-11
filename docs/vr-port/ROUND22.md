@@ -1734,3 +1734,86 @@ the crawl rolls him over and drags him on his arms.
 first, often a hand going to the wound), in the head (they drop), kill a charging knight (he stumbles on a step), and
 watch for one rolling over and crawling. Grab an arm of one still dying: it should go slack in the hand. Turn
 Gibs and Corpses > Ragdoll Settings > Active Deaths off to compare with the old limp ragdolls.
+
+## Active ragdolls: liquids (feature branch, 2026-10-11, worktree `ragliquid2`)
+
+Stage 3, his goal: "Swimming/flailing when in water/drowning or dying in lava." Built on stage 1's drive (Clip, Reach,
+Fades; the API unchanged: additions only). Behind `vr_ragdoll_active_liquids` (default 1 on this branch; Gibs and
+Corpses > Ragdoll Settings > Swim and Flail in Liquids, Paddle Time, Flail Time). Same monster set (grunt, enforcer,
+knight, death knight, ogres; the zombie only ever dies beheaded: a collapse, no swim).
+
+### What it does (`vr_ragactive.cpp`, "Liquids": `swimFrame`, `startSwim`, `stopSwim`; `Swim` in `State`)
+
+- **Detection, per body part**: each frame the pelvis, chest and head centres are looked up (`Context::liquidAt`, new:
+  vr_box3d.cpp `activeLiquidAt`, the same `liquidAt` as the ragdolls' buoyancy, so currents are water). A swim begins
+  when the pelvis or chest is in lava or slime, or in water with water still 10 units over it (not lying in a puddle),
+  within 6 s of the death (`liquidWindow`): dying in it, drowned in it, or falling in during or just after the death
+  animation. A body thrown in later is a corpse and stays limp. Never twice per death. A headshot or beheading (a
+  collapse) never swims. A limp death's drive is woken for it (`liquidPending`: vr_box3d.cpp `driveActive` still calls
+  `drive` for one within the window).
+- **On entry** the death's own pieces stop: the pin dropped, the step, the hand on the wound and the crawl given up,
+  the death clip off (the strokes lead); the channels' Fades replaced by the swim's.
+- **Water: paddling** (`vr_ragdoll_active_paddle` 4.5 s, each death 0.8-1.2 times it, seeded): a dog paddle (each hand
+  a reach circling ahead of the chest, pulling down and back, the arms in turn), a bicycle kick (each foot a reach
+  drawn up and pushed down and back), the torso held straight, the head tipped back; stroke rate 1.3 Hz slowing to
+  0.6 Hz and the circles shrinking as it weakens. Strengths: arms 0.9 (fading from 0.35 T to T), legs 0.7 (0.3-0.9 T),
+  torso 0.45 (0.25-0.8 T), head 0.8 (0.35-0.75 T). **Head kept up**: while the head is under, 0.3 body weights lift,
+  half on the head and half on the chest, until 0.4 T, gone by 0.7 T: the head breaks the surface and bobs there, then
+  goes under and the body settles face down (it floats, as before) or, armoured, sinks to the bottom.
+- **Lava and slime: flailing** (`vr_ragdoll_active_flail` 1.5 s; slime 1.4 times; each 0.8-1.2 times it): each hand
+  and foot thrown to a new random place (about its own side: arms up and out, legs down) every 0.13-0.18 s, blended
+  smoothly; the torso arching, bending and twisting (2, 1.6, 1.3 Hz), the head thrashing (2.7 Hz); arms and legs at
+  1, torso and head 0.8, all fading from 0.3-0.4 T to T; stroke rate 3.8 Hz slowing to 2.2. The burning is the QC's,
+  unchanged (vr_burning.qc: lit in lava, burnt through after `vr_burn_lava_gib`).
+- **Out of the liquid** (pelvis, chest and head all out for 0.5 s) or the cvar turned off: its strengths fade from
+  where they are over 0.4 s, then limp.
+- No new joint code: the strokes are Reaches (weight 1, no strength floor: the channels' Fades lead) and torso/head
+  targets written over the drive's after `deathFrame`; the drive ends by itself when all fade to 0.
+
+### Debug and tests
+
+- `vr_debug_ragdoll 1`: `ragdoll: N in water 0.01 s after its death: paddles for 5.0 s`, `... out of the water ...:
+  stops`. `vr_ragdoll_active_trace n` adds a `ragswim` line while it swims: the liquid, its vigour, head under (and its
+  z), the head lift (N), its hands' and feet's speed against the part their limb hangs from (m/s).
+- `Misc/quakevr/ragdoll/liquid_active_test.sh <agent> [water knight ogre enforcer hknight drown fallin head lava slime
+  off land cost]` (live monsters dropped from noclip into vrtesthall's pool, e1m7's lava, e3m1's slime, then killed or
+  left to die there), summed up by `liquid_trace.py` (fails on NaN, a crash, an explosion, energy over 50 J or spin over
+  25 rad/s after the drive).
+
+### Checked (headless, `sv_random_seed 7`)
+
+| case | what | swum | limbs early / late (m/s) | head under 1st / 2nd half | pelvis z start, low, last | after: ke, spin |
+|---|---|---|---|---|---|---|
+| grunt, body shot on the pool's bottom | paddles | 4.9 s | 1.10 / 0.20 | 54 % / 69 % | -98, -98, -17 (floats) | 0 J, 0.1 |
+| knight | paddles | 4.2 s | 1.26 / 0.09 | 88 % / 94 % | -102, -121, -121 (sinks) | 22 J, 4.7 |
+| ogre | paddles | 4.2 s | 1.54 / 0.24 | 62 % / 70 % | -101, -101, -29 | 2 J, 1.1 |
+| enforcer | paddles | 4.2 s | 1.10 / 0.33 | 78 % / 90 % | -96, -98, -42 | 1 J, 1.6 |
+| death knight | paddles | 4.2 s | 0.92 / 0.27 | 86 % / 100 % | -89, -116, -116 (sinks) | 35 J, 4.9 |
+| grunt drowned (vr_liquids.qc, ~17 s on the bottom) | paddles | 5.1 s | 1.48 / 0.20 | 49 % / 67 % | -98, -98, -16 | 0 J, 0.1 |
+| grunt killed in the air over the pool | in 0.76 s after death, paddles | 4.0 s | 2.18 / 0.40 | 64 % / 70 % | -16, -59, -17 | 1 J, 0.3 |
+| grunt, headshot in the pool | no swim (collapse) | - | - | - | - | 18 J, 1.8 |
+| grunt falls into lava, dies of it | flails | 1.2 s | 2.02 / 1.70 | - | -42, -44, -36 | 0 J, 0.5; gibbed |
+| grunt falls into slime, dies of it | flails | 2.1 s | 1.53 / 0.88 | - | -330, -330, -195 | 33 J, 2.0 |
+| `vr_ragdoll_active_liquids 0` | no swim (death animation, 1.0 s) | - | - | - | - | 21 J, 2.9 |
+| on land (vrfiringrange) | no swim; stage 1 unchanged | - | - | - | - | 0 J, 0 |
+
+The grunt on the bottom (head 70 units under) rises to the surface in about 1.2 s paddling, his head out and bobbing
+for about 1.5 s, then under for good at about 2.7 s, face down; the strokes slow from about 1.1 m/s to 0.1. No NaN,
+crash or explosion; most energy while swimming 3.6 kJ (the death knight), 12.9 kJ for the body falling in (its fall).
+`active_test.sh deaths` (grunt, knight) unchanged. **Cost** (4 grunts killed together in the pool, `--exclusive`): the
+drive 0.013 ms a ragdoll-frame against 0.008 with liquids off (3 point lookups a frame each); the physics step 0.14 ms
+against 0.19 (the noise of which bodies are awake). Contact sheet (the worktree's `scratch/liquid_sheet.png`): a grunt
+in vrtesthall's pool (the water's surface hides most of him headless: the numbers above are the check) and one in e1m7's lava: arms and legs thrown
+about, burning, then limp spread-eagled on the surface.
+
+### Not done
+
+- A living knockdown in water does not paddle (knockdowns are stage 2's; `liquidPending` needs an active death).
+- The strokes give no thrust (the liquid's drag is the same in every direction): the paddle is seen, it does not swim
+  anywhere. The head lift is what brings him up.
+- A standing monster drowning is not changed (it is an animated monster until it dies; its death then paddles).
+
+**In the headset**: shoot a grunt or knight standing in water (vrtesthall's pool, e1m1's) or knock one in and kill it:
+he should paddle up, head out for a moment, then go under and float face down (a knight sinks). Kill one on a ledge
+over water: he paddles once he lands in it. Push one into lava (e1m7) or slime: a short violent flail as he burns, then
+limp. Compare with Swim and Flail in Liquids off.
