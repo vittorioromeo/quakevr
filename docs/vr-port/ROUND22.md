@@ -2040,6 +2040,84 @@ the gun's stick to step through the tools (the gun's screen names them; X/A + st
 crate and twist the wrist, turn yourself: it turns with you; hold X/A: it clicks to 15 degree steps. Tell us whether
 the panel's size (Panel Size on More) and place suit, and whether the laser is now thin enough.
 
+## Active ragdolls: living hit reactions (feature branch, 2026-10-11, worktree `raghit`)
+
+Stage 6 of the active-ragdoll programme. His goal: "Realistic hit feedback while still maintaining active AI (e.g. shoot
+grunt in the leg, it stumbles a bit realistically but continues to move/fire and execute its AI)." The agreed scope (low
+risk): no physical ragdoll on a living monster, but an additive kick layered on its animation, plus a short slow-down of
+its steps. Its AI, damage, hitboxes (hit tests stay on Quake's blend) and frames are untouched. `vr_hit_react 1`
+(default), `vr_hit_react_strength 1`, `vr_hit_react_time 1`, `vr_hit_react_slow 1`; Gibs and Corpses > Ragdoll Settings
+> Hit Reactions (Living Monsters).
+
+### The blow (server: QC `vr_hitreact.qc`, `VR_HitReact_Hit`; builtin `hitreact`, `QVR_SVC_HITREACT` 34)
+
+T_DamageDeal, after the blow and before the pain (a living monster: `FL_MONSTER`, not knocked down, staggering or
+getting up (`vr_knockdown`: a ragdoll then), not a bleed, a burn's tick or a liquid): the point struck (PositionalDamage's
+point; a shotgun blast's pellets' centroid, gathered in TraceAttack by `VR_HitReact_Pellet`; a blast's: the nearest point
+of the box, pushed away from it; else `vr_hitpos`, a missile where it touched, the middle), the push (the shot's
+direction, the pellets' summed, a missile's flight), the part (0 body, 1 head, 2 arm, 3 leg; the pellets' majority), the
+damage and its share of the monster's `max_health`. One unreliable message to every client (18 bytes): multiplayer
+clients draw it as the host does. The server's `vr_hit_react 0` sends nothing and slows nothing; each client draws by
+its own setting.
+
+### The kick (client: `vr_hitreact.cpp`)
+
+Size = clamp(1.4 sqrt(share), 0.15, 1.2) x strength: a grunt's shotgun blast near 1, a nail a third, a shambler's rocket
+about a half. Resolved at its first draw, in the pose then:
+- **Rigged models** (a ragdoll rig: grunts, knights, ogres, ...): the bone nearest the point among the part's bones
+  (by the seed tables' names: head, upperarm/forearm/arm, thigh/shin/leg), else any. That bone and its parents up to
+  (not) the root turn about their joints, half as much each further up: bent the push's way as much as the push is
+  across the bone (0.45 rad at size 1), twisted by a push off its middle (a third as much, 8 units off). A pelvis hit
+  folds the torso over it. A leg: the knee buckles (the shin bent back about its hinge, 0.5 rad; the sign picked so the
+  foot goes back) and the torso leans over that leg (0.2 rad). The head turns against the torso's turn (0.3: it lags).
+  Each turn is kept in its bone's own frame, so it follows the animation.
+- **Drawn:** each frame each bone's turn about its joint as posed, carried by its parent's (a loose piece, the grunt's
+  shotgun, goes with the bone nearest it), turned into a 3x4 delta a bone (the kicked place less the place, affine in
+  the rest position) appended to r_lerpmodels 3's swing rows; the alias shader adds it whole (`RigKick`, `Smooth.w` 2 +
+  its first row; the swings keep `Smooth.z` and their fit share). Not smoothed (r_lerpmodels 0 or 1, a frame held), the
+  instance is drawn on Quake's blend's own weights (0, 1 - blend, blend, 0) with the kick: the kick works whatever Model
+  Animation is (a decision: the brief said r_lerpmodels 1 falls back to the tilt; the bones look better and cost the same).
+- **Other models, or `vr_hit_react 2`:** the whole model tilted about its feet by the push's torque (0.12 rad at size 1;
+  its entity matrix, `VR_AliasPreTransform`).
+- **Over time:** a damped spring's answer to a blow (damping 0.6, 15.7 rad/s): peak at 74 ms, a tenth back the other way
+  at ~0.3 s, nothing after 0.6 s (times vr_hit_react_time); kicks add (4 an entity at most, the oldest replaced). A
+  monster that becomes a ragdoll (a stagger, a knockdown) drops its kicks.
+
+### The slow-down (server: `VR_HitReact_Dist`, ai_run and ai_walk)
+
+The steps' distance scaled, easing back to 1: a leg hit 1 - 0.6 s' for 0.5 s plus a hitch (a walkmove of up to 4 units
+towards the struck leg's side of the shot's line, 2 along it, at its next step), the body or head 1 - 0.35 s' for 0.3 s,
+an arm 1 - 0.15 s' for 0.25 s (s' = min(1, 1.4 sqrt(share)) x vr_hit_react_slow). No state, no decision: only how far
+ai_run/ai_walk move. A monster in its pain frames doesn't step, so after a blow that pains it the slow-down has usually
+run out (Quake's pain is its stumble then); it shows on hits without pain (nightmare's pain rest, ogres', shamblers').
+
+### Measured (`Misc/quakevr/ragdoll/hitreact_test.sh raghit`)
+
+- trace: a grunt's calm leg hit (12 damage, share 0.4): shin 25.3, thigh 19.3, chest 12.1, head 3.6 deg at 70 ms; 1.96
+  at 0.19 s, the swing back 2.4 at 0.29 s, 0.2 at 0.55 s, 0 after.
+- eyes (the kit's scratch `hitreact_sheet.png`; body, head, arm, leg, on and off, the same frames): pixels differing
+  between on and off at ~0.04/0.07/0.1/0.16/0.3/0.6 s: body 2751/6368/2010/2486/383/115, head 3246/4921/945/1456/217/157,
+  arm 1427/4629/1061/1307/232/154, leg 3059/5970/2755/3886/(2110/2332: the blood pool's random shape). The torso leans
+  back, the head snaps back, the knee gives; no tearing. r_lerpmodels 1: the same (leg 1634/6135/2179/2364). The whole-
+  model tilt (vr_hit_react 2): 4.6 deg at peak.
+- ai: the runs aren't bit-exact (fast mode): five runs of one setting (reactions off) came out three ways (the third
+  hit landing 222, 247 or 223 units away). Against the off runs, reactions on without the slow-down kept all 84 of the
+  84 frame changes of its twin; on with the slow-down 62 and 79 of 84 against the off run of its class (a 0.015 s
+  timing spread). In those runs the pains covered every slow-down window: 0 steps slowed. Nothing seen differs beyond
+  the runs' own spread.
+- slow: a running knight's calm leg hit (share 0.27): steps x 0.62, 0.71, 0.80, 0.88, 0.97 (16+20+14+6+16 = 72 units
+  became 56: 22% less ground in 0.5 s) and a 3.2-unit hitch.
+- cost (12 grunts struck at once, --exclusive): the module 0.006 ms a frame with none reacting (the lookup on every
+  alias model drawn), 0.012 ms with 12 (Limbs), 0.009 (Whole Body); the posing for the rows is skipped for monsters not
+  reacting.
+- After the merge of next (ragstagger): a leg kick under way when a shove staggers him is dropped once he is a ragdoll;
+  hits during the stagger send nothing; after his recovery an arm hit reacts again.
+
+**In the headset:** shoot grunts and knights in the legs, arms, head and body at a few metres (Debug: Hit the Nearest
+Monster, or real shots). Tell us whether the flinch reads (Reaction Strength: 0.45 rad a bone at size 1 may want more),
+whether the knee buckle and the torso lean look right, whether a monster with no rig (a scrag, a fish) tilts sensibly,
+and whether Hits Slow Them is felt on knights and ogres.
+
 ## Active ragdolls: environment (feature branch, 2026-10-11, worktree `ragenv`)
 
 Stage 4 of the active-ragdoll programme, on top of the core below (`ragcore`). His goal: "basic interaction with

@@ -544,11 +544,11 @@ bool boneKicksNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rig
             }
         }
     }
-    traceLine(e, *r, &rig, total, 0.f);
     if(!any)
     {
         return false;
     }
+    traceLine(e, *r, &rig, total, 0.f);
     // Each bone's turn about its joint as posed, carried by its parent's; a loose piece (the grunt's shotgun) goes with
     // the bone nearest it
     for(int b = 0; b < rig.numBones; b++)
@@ -610,11 +610,11 @@ void tiltModelNow(const entity_t* e, float matrix[16])
         total += envelope(static_cast<float>(cl.time - k.start)) * k.tilt;
     }
     const float angle = za::sqrt(glm::dot(total, total));
-    traceLine(e, *r, nullptr, nullptr, angle * (180.f / 3.14159265f));
     if(angle < 1e-6f)
     {
         return;
     }
+    traceLine(e, *r, nullptr, nullptr, angle * (180.f / 3.14159265f));
     const glm::vec3 feet{0.f, 0.f, e->model->mins[2]};
     const glm::mat4 turn = glm::mat4_cast(rigpose::fromVector(total));
     glm::mat4 m = glm::make_mat4(matrix);
