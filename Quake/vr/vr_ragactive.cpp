@@ -2103,13 +2103,24 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
             }
         }
     }
-    // A limb reached last frame and not now: its reach gone (unless the death's own: the wound's hand, a step).
+    // A limb reached last frame and not now: its reach gone (unless the death's own: the wound's hand, a step, which
+    // drive() left to this frame: applied here).
     for(int limb = 0; limb < limbCount; limb++)
     {
         const uint8_t bit = static_cast<uint8_t>(1u << limb);
-        if((e.reached & bit) && !(reached & bit) && limb != d.woundArm && limb != d.stepLeg)
+        if(!(e.reached & bit) || (reached & bit))
         {
-            s.reach[static_cast<za::SizeT>(limb)].weight = 0.f;
+            continue;
+        }
+        Reach& r = s.reach[static_cast<za::SizeT>(limb)];
+        if(limb != d.woundArm && limb != d.stepLeg)
+        {
+            r.weight = 0.f;
+        }
+        else if(r.weight > 0.f)
+        {
+            apply(limb, r.goal, r.weight, r.strength);
+            reached &= static_cast<uint8_t>(~bit); // (the death's own again: not this one's)
         }
     }
     e.reached = reached;
@@ -2747,11 +2758,15 @@ void drive(State& s, const Parts& p, const Context& c)
     {
         fallFrame(s, p, c, t);
     }
-    // The reaches over the clip's pose (and no speed fed forward where they lead).
+    // The reaches over the clip's pose (and no speed fed forward where they lead). The limbs envFrame reached last frame
+    // are left to it when it leads (below): it applies their reaches itself, each arm solved once a frame (applied here
+    // too, last frame's goal first, its blend compounded).
+    const bool envLeads = !(swimming || s.dismember.on || s.stagger.on || s.fall.on || s.rise.on);
+    const uint8_t envOwns = envLeads ? s.env.reached : 0;
     for(int limb = 0; limb < limbCount; limb++)
     {
         const Reach& r = s.reach[static_cast<za::SizeT>(limb)];
-        if(r.weight <= 0.f)
+        if(r.weight <= 0.f || (envOwns & (1u << limb)))
         {
             continue;
         }
@@ -2765,7 +2780,7 @@ void drive(State& s, const Parts& p, const Context& c)
             }
         }
     }
-    if(swimming || s.dismember.on || s.stagger.on || s.fall.on || s.rise.on)
+    if(!envLeads)
     {
         // (what is round him waits, its holds let go)
         envStandDown(s, c,
