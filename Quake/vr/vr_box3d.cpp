@@ -3405,6 +3405,37 @@ void startActiveDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* 
     }
 }
 
+// Active ragdolls' dismemberment (ROUND22.md, "Active ragdolls: dismemberment"; vr_ragactive.cpp cutReaction): the joint
+// ragdollCutLimb is cutting, while its ragdoll is made (-1 none).
+int cutDeathJoint = -1;
+
+// Killed standing by a limb cut (Limb gore's killing blow: his ragdoll made at once from the frame he stood in, before
+// his death code ran): a death animation of his (rolled) played by his body from its start, as an active death's, and
+// that frame kept for his balance beat (ragactive::cutReaction, once the cut is made). Not the head's (a pure collapse,
+// limp as before), not with vr_ragdoll_active_dismember 0.
+void startCutDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* joints, const glm::vec3& drawnOrigin,
+    int frame, float friction, float stiffness)
+{
+    const ragdoll::Rig& rig = *r.rig;
+    const ragactive::Parts parts = activeParts(r);
+    ragactive::begin(r.active, parts, modelOf(ent), glmv(world->toM(drawnOrigin)), joints, friction, stiffness, qcvm->time);
+    ragactive::DeathInfo di;
+    di.seed = static_cast<uint32_t>(num) * 2654435761u ^ static_cast<uint32_t>(qcvm->time * 72.0) ^
+              static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u;
+    di.death = static_cast<int>((di.seed >> 8) % static_cast<uint32_t>(rig.deaths));
+    di.frame = static_cast<float>(rig.deathFirst[di.death]);
+    di.walk = glmv(world->toM(deathMotion(num)));
+    const ActiveClass* ac = activeClassOf(ent);
+    di.crawler = ac && ac->crawls;
+    ragactive::beginDeath(r.active, parts, di, qcvm->time);
+    r.active.dismember.liveFrame = frame;
+    if(vr_debug_ragdoll.value)
+    {
+        Con_Printf("ragdoll: %d killed by a limb cut standing in frame %d: active death %d from its start (%.2f s), its own "
+                   "motion %.0f u/s\n", num, frame, di.death, r.active.death.length, glm::length(glm::vec2{deathMotion(num)}));
+    }
+}
+
 // The ragdoll's parts made for `ent` where its frame has them; false (nothing made) without a rig. `now`: made at once
 // from whatever frame it is in (beheaded: ragdollDecap), its loose piece hidden (what it held: its death code drops it).
 bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
@@ -3761,6 +3792,20 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
     if(activeDeath(ent, num, progress))
     {
         startActiveDeath(ent, num, r, joints.data(), drawnOrigin, drawnPose != pose ? frame - 1 : frame, jointFriction, stiffness);
+    }
+    // A limb cut off as he dies (ragdollCutLimb, made now): killed standing by it, driven from his death animation's start
+    // (startCutDeath); dying already, from the frame he is in, as an active death.
+    if(!r.active.on && now && cutDeathJoint >= 0 && cutDeathJoint != rig->head && progress < 1.f && rig->deaths > 0 &&
+        vr_ragdoll_active.value != 0.f && vr_ragdoll_active_dismember.value != 0.f && ent->v.health <= 0.f && activeClassOf(ent))
+    {
+        if(progress < 0.f)
+        {
+            startCutDeath(ent, num, r, joints.data(), drawnOrigin, frame, jointFriction, stiffness);
+        }
+        else
+        {
+            startActiveDeath(ent, num, r, joints.data(), drawnOrigin, drawnPose != pose ? frame - 1 : frame, jointFriction, stiffness);
+        }
     }
     // Its limbs taken by hand (vr_ragdoll_grab; QC's VR_Ragdoll_Handtouch), unless the QC gave it a hand touch of its own.
     if(const func_t touch = bindings().Ragdoll_Handtouch; touch && fields().handtouch >= 0 && !fieldFunc(ent, fields().handtouch))
@@ -14984,7 +15029,10 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
         }
         Slot& s = slotOf(num);
         destroyBody(s);
-        if(!createRagdoll(ent, num, s, true))
+        cutDeathJoint = b; // (killed standing by the cut: an active death, startCutDeath)
+        const bool made = createRagdoll(ent, num, s, true);
+        cutDeathJoint = -1;
+        if(!made)
         {
             return false;
         }
@@ -15007,6 +15055,19 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
         return false;
     }
     r->settle = za::min(r->settle, settle);
+    // A driven death's reaction to it (vr_ragactive.cpp, "Dismemberment"): the hand to the stump, the balance beat, ...
+    if(r->active.on)
+    {
+        ragactive::Context c;
+        c.world = world->id;
+        c.now = qcvm->time;
+        c.gravity = za::max(-b3World_GetGravity(world->id).z, 0.f);
+        c.floorBelow = activeFloorBelow;
+        c.num = num;
+        c.born = r->born;
+        const ActiveClass* ac = activeClassOf(ent);
+        ragactive::cutReaction(r->active, activeParts(*r), b, ac && ac->crawls, c);
+    }
     if(vr_debug_ragdoll.value)
     {
         const glm::vec3 pelvis = world->toU(b3Body_GetLinearVelocity(r->body[0]));
@@ -15232,6 +15293,9 @@ uint32_t limbInfo(edict_t* ent, int what, int bone)
     case 3: return static_cast<uint32_t>(rig->head);
     case 4: return bone >= 0 && bone < rig->numBones ? (bone == rig->head ? head : ragdoll::limbBones(*rig, bone)) & ~cut : 0u;
     case 5: return bone >= 0 && bone < rig->numBones ? static_cast<uint32_t>(rig->bones[bone].parent) : ~0u;
+    case 6: // limb `bone` % 4's joint by its bones' names (0 the left shoulder, 1 the right, 2 the left hip, 3 the right;
+            // 4-7 their elbow or knee), 0 none (the tests' cuts: vr_test_cut)
+        return bone < 0 || bone > 7 ? 0u : static_cast<uint32_t>(za::max(ragactive::limbJointOf(*rig, bone & 3, bone >= 4), 0));
     default: return 0u;
     }
 }

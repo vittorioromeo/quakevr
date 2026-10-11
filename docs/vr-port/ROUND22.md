@@ -2147,6 +2147,90 @@ its west lip with a weak weapon): he should grab the lip and hang a moment; shoo
 in front of a crate: he braces on it. Turn Ragdoll Settings > Use What Is Round Him off to compare; Debug > Logs: Active
 Ragdoll Targets shows the probes and holds.
 
+## Active ragdolls: dismemberment (feature branch, 2026-10-11, worktree `ragdismember`)
+
+Stage 5 of the active-ragdoll programme, on stage 1 ("Active ragdolls: core and deaths", below). His goals: "reacting to
+dismemberment (e.g. holding wound with hand, trying to keep balance when one leg is dismembered)" and "minimum effect on
+headshots and decapitation (almost pure collapse)" (stage 1's, kept). Behind `vr_ragdoll_active_dismember` (default 1 on
+this branch; Gibs and Corpses > Ragdoll Settings > React to Lost Limbs). Same monsters as stage 1.
+
+### What he does (`vr_ragactive.cpp` "Dismemberment": `cutReaction`, `dismemberFrame`)
+
+- **Where it starts**: Limb gore cuts only the dead (a killing blow, a dying body, a corpse). `ragdollCutLimb` calls
+  `ragactive::cutReaction` after each cut on a driven death. Killed standing by the cut (QC's `VR_Limb_Killed` runs
+  before his death code: his ragdoll is made at once from the live frame, which stage 1 left limp), `createRagdoll`
+  now starts an active death (`startCutDeath`): one of his death animations (rolled) from its start, the live frame kept
+  for the balance beat. A cut that makes the ragdoll of one already dying (before his first frame not solid) starts the
+  stage-1 death from the frame he is in. A cut on a ragdoll no longer driven (a corpse) does nothing new.
+- **The head** (a beheading mid-death): a collapse as a headshot (strength x `vr_ragdoll_active_headshot`, no pin, hand,
+  step or crawl). A beheading killing blow stays limp at once, as before (no drive started).
+- **A hand to the stump**: an arm lost, the other hand to its stump; else a leg's, the hand on its side (else the
+  other). The point: the vertex of the part it was cut from nearest the joint, leaning towards the holding shoulder and
+  his front, within 0.75 of that arm's length of its shoulder (the joint itself is inside the part; an ogre's arms don't
+  reach across his chest), 2 units out. Strength 1 (a wound's 0.8), in over 0.25 s from 0.05 s, held until the writhe
+  ends, let go over 0.8 s. The stump goes before a wound: a wound hand that is now the stump's leaves the wound; a lost
+  hand never holds anything (stage 1's reach stops on a cut limb).
+- **The writhe**: once down (0.8 D, D his death animation's length; after the beat, from its break) for
+  `vr_ragdoll_active_dismember_time` (3 s): the torso's and legs' strength at least 0.35 (over his death's), each joint's
+  target swung about a fixed axis (a hinge's own) by 0.12 rad (torso) or 0.3 rad (legs) at 0.7-1.5 Hz, phases rolled;
+  its turn fed forward to the joint's motor (`Dismember::spin`, added to the clip's in `drive`: the motor at speed 0
+  held the joint still, the first try stirred at most 0.8 rad/s). Eased in over 0.5 s, out over 1 s.
+- **One leg lost, killed standing**: the balance beat. The pose he stood in held, every strength full; a pelvis pin of 2
+  body weights at 12 Hz (at 6 Hz his pelvis rolled over the standing hip under his torso's weight, the pin's turn spring
+  being set by the pelvis's own inertia: the beat broke at 0.36-0.49 s; at 12 Hz 1-1.2 s); the leg left braced (its reach, strength 2.5) where
+  its foot stands (a hop under him lifted what held him up: he fell at once); the pin's anchor drifting to the side lost
+  (0.3 m/s/s) and sagging 0.06 m, his torso bending to it (0.35 rad over its joints); his arms flung out and flailing
+  (1.6 Hz, nearly mirrored: out of phase they rocked his chest, 130 J), strength 0.5. It breaks when his foot-to-pelvis
+  line leans `vr_ragdoll_active_balance_lean` (15 deg) from its start or after `vr_ragdoll_active_balance_time` (1.2 s):
+  the pin lets go over 0.12 s, his death animation plays from then (its strengths shifted to the break), he falls; then
+  the hand to the hip or knee stump, the writhe.
+- **Both legs lost**: the stage-1 crawl (forced for the crawling kinds, both arms whole), no hold, no writhe. Killed
+  standing, he pitches forward (2.5 rad/s, at his first drive frame, after Limb gore's `vr_limbs_body_speed` scaling)
+  with no clip, landing on his front: no roll (stage 1's roll threw a legless ogre 85 units at 3 kJ: it is turned off for
+  the legless, `rollFrom` set long past).
+
+### Debug and tests
+
+- `vr_test_cut <n>` (QC `VR_TestCut_Frame`, vr_limbs_test.qc; Debug, World and Physics: Cut the Nearest Monster's Leg /
+  Arm / Both Legs Off): a sword's cut at the nearest live monster's left arm (1), right arm (2), left leg (3), right leg
+  (4), both legs (5), left forearm (6), left shin (7), head (8), killing it (armed as Limb gore's slash); n + 10 the
+  nearest dead one's. Joints by bone name: QC `ragdolllimbs(e, 6, limb)` (`ragactive::limbJointOf`).
+- `ragdis` trace line (with `vr_ragdoll_active_trace`): the hand from the stump, the lean, the beat, the hold's and
+  writhe's weights, the torso's and legs' stir. `vr_debug_ragdoll 1`: what each cut does, the beat's break; 2 each
+  balancing frame (pelvis, pin, foot) and each holding frame (the stump in arm's lengths).
+- `Misc/quakevr/ragdoll/dismember_test.sh <agent> [arm forearm leg shin legs head dying early off cost]`
+  (`dismember_trace.py`; `EYES=1` a contact sheet, `CAM`, `BOX`, `DEBUGDRAW`).
+
+### Checked (headless, vrfiringrange, `sv_random_seed 7`; grunt, knight, ogre)
+
+- **Arm** (shoulder): the other hand on the stump from 0.5-1 s, 4-6 units off held (least 3.8-4.1); **forearm** (elbow)
+  2-5 (grunt, knight), the ogre's 10-16 (his elbow stump lies under him).
+- **Leg** (hip): the beat lasted 1.06 / 1.13 / 1.08 s (broken at 15 deg), the pelvis 2 units lower by then; on the
+  floor the hand at the hip 4 / 4 / 8 units off. **Shin** (knee): 0.97 / 1.08 / 1.2 s, the hand 4-9 off.
+- **Both legs**: pitched forward and crawled 32 / 30 / 29 units.
+- **Dying** (a body shot, 0.4 s on the left arm then the leg cut): the hand to the arm's stump, 4.5 / 4.5 / 18 units
+  (the ogre lying on it); **early** (the arm cut 0.1 s after the shot, the cut making the ragdoll): 3-8.
+- **Writhe**: the torso and legs stir 0.4-1.3 rad/s on average while it lasts.
+- **Head**, **off** (`vr_ragdoll_active_dismember 0`): limp at once, as before (no drive).
+- Every case at rest after (0 J, 0 rad/s, 1 s after the drive let go; driven 4.5-5.8 s), no NaN, no crash.
+  `active_test.sh deaths head wound` (grunt, knight): stage 1's numbers unchanged.
+- **Cost** (8 grunts killed by a leg cut, `--exclusive`): the drive 0.023-0.029 ms a frame for 8 (0.003 ms each); the
+  physics step over the next 200 frames 0.30 ms against 0.15 with `vr_ragdoll_active_dismember 0` (writhing bodies stay
+  awake 4-5 s; limp, they sleep).
+- Contact sheet (the kit's `scratch/dismember_grunt_leg.png`): he stands on one leg about a second, tips to the side
+  lost, falls, lies with a hand at the hip.
+
+### Not done
+
+- The hand holds the stump's surface near the joint, not the cut face; no blood on the hand.
+- No hop or step to keep the balance (the leg left only braces); no reaction on corpses no longer driven.
+- The ogre's elbow stump and a stump lying under him are often out of his reach (8-18 units).
+
+**In the headset**: cut a grunt's or knight's leg off with the sword (he should stand on the other about a second, arms
+out, tip over to the side lost and fall, then clutch the hip and writhe), an arm (the other hand to the shoulder), both
+legs (he falls on his face and drags himself on his arms), and behead one already falling (a collapse). Debug, World and
+Physics: the Cut ... Off rows do it to the nearest monster.
+
 ## Active ragdolls: core and deaths (feature branch, 2026-10-11, worktree `ragcore`)
 
 Stage 1 of the active-ragdoll programme (research: the kit's `scratch/ACTIVE_RAGDOLLS.md`, options 1-3 and section 8).
