@@ -26,6 +26,7 @@
 #include "vr_avatar.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_sightalign.hpp"
+#include "vr_toolgun_icons.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
@@ -1122,6 +1123,7 @@ extern "C" void VR_OnGameDirChanged()
     qvr::flashlight::onGameDirChanged();
     qvr::bigfont::onGameDirChanged();
     qvr::gadget::onGameDirChanged();
+    qvr::toolgun::icons::onGameDirChanged(); // (the toolgun panel's thumbnails, made again from the new files)
     qvr::mem::on(qvr::mem::GameDirChange); // the registered caches that name it (vr_mem.hpp)
     Con_DPrintf("VR: game directory changed: model and game file caches emptied\n");
 }

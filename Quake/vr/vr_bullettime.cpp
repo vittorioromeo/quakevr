@@ -501,6 +501,11 @@ void init()
     Cmd_AddCommand("vr_bullettime_tap_feedback_test", tapFeedbackTest_f);
 }
 
+bool ownsStick(int hand)
+{
+    return hand == stickHand() && vr_bullettime_enabled.value != 0.f;
+}
+
 bool stickPress(int hand, bool now)
 {
     if(!now)

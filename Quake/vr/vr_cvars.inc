@@ -3262,9 +3262,12 @@ QVR_CVAR(vr_toolgun_turn_axis, "1", CVAR_ARCHIVE)     // X/A held, the gun's sti
 QVR_CVAR(vr_toolgun_move_speed, "64", CVAR_ARCHIVE)   // ... and moves it at most this many units a second (the sticks pushed all the way)
 QVR_CVAR(vr_toolgun_turn_speed, "90", CVAR_ARCHIVE)   // ... and turns it at most this many degrees a second
 QVR_CVAR(vr_toolgun_range, "2048", CVAR_ARCHIVE)      // how far the toolgun reaches (units)
-QVR_CVAR(vr_toolgun_menu_height, "8", CVAR_ARCHIVE)   // the menu on the gun: its height (units; its width the menus' shape)
+QVR_CVAR(vr_toolgun_panel_size, "6", CVAR_ARCHIVE)    // the toolgun's panel over the gun (B/Y): its width (units; its height three quarters of it)
 QVR_CVAR(vr_toolgun_menu_up, "4", CVAR_ARCHIVE)       // ... its bottom edge this many units over the controller
 QVR_CVAR(vr_toolgun_menu_forward, "2", CVAR_ARCHIVE)  // ... and this many ahead of it along the gun
 QVR_CVAR(vr_toolgun_menu_tilt, "20", CVAR_ARCHIVE)    // ... leaning back from upright by this many degrees
+QVR_CVAR(vr_toolgun_laser_size, "0.3", CVAR_ARCHIVE)  // ... the other hand's laser at it: its width and its spot, times the menus' laser's
+QVR_CVAR(vr_toolgun_physgun_wrist, "1", CVAR_ARCHIVE) // the physgun turns what it holds as the gun's hand turns (and the body: it keeps its way to you); 0: only the sticks turn it
+QVR_CVAR(vr_toolgun_snap, "15", CVAR_ARCHIVE)         // X/A held, what the physgun holds turns in steps of this many degrees (its angles snapped); 0: never
 QVR_CVAR(vr_toolgun_screen_scale, "0.02", CVAR_ARCHIVE) // the gun's screen (the tool's name): its letters' size (a character 8 times this, units); 0: none
 QVR_CVAR(vr_toolgun_screen_up, "3.2", CVAR_ARCHIVE)     // ... how far over the hand (units)

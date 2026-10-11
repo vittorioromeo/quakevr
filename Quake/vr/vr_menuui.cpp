@@ -49,7 +49,6 @@
 #include "vr_stereo.hpp"
 #include "vr_units.hpp"
 #include "vr_window.hpp"
-#include "vr_toolgun.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -203,11 +202,10 @@ struct MockLaser
 };
 MockLaser mockLaser;
 
-// The hand the mock laser is: the main one, or the off hand while the toolgun's menu is on the gun in the main hand (its
-// laser is the other hand's: vr_toolgun.cpp).
+// The hand the mock laser is (the toolgun's panel has its own: vr_toolgun_mock_laser).
 [[nodiscard]] int mockLaserHand()
 {
-    return toolgun::menuOnGun() && toolgun::heldHand() == HAND_MAIN ? HAND_OFF : HAND_MAIN;
+    return HAND_MAIN;
 }
 
 // The mock laser's spot on the canvas (v up).
@@ -1543,18 +1541,21 @@ void drawInEye(const hands::State& s)
         return;
     }
     const Hit hit = intersect(s, h);
-    const glm::vec3 end = hit.valid ? hit.point : start + dir * 30.f;
+    drawLaser(start, hit.valid ? hit.point : start + dir * 30.f, hit.valid, mouseHeld[h], 1.f);
+}
 
+void drawLaser(const glm::vec3& start, const glm::vec3& end, bool onPanel, bool held, float size)
+{
     za::Vector<gfx::Vertex>& vertices = scratch.laser;
     vertices.clear();
-    const float bright = mouseHeld[h] ? 1.f : 0.8f;
+    const float bright = held ? 1.f : 0.8f;
     // In the player's hue (vr_menu_laser_hue; 35 its old amber, the menus' own).
-    appendStrip(vertices, start, end, 0.3f, hue::color(vr_menu_laser_hue, 0.6f, 1.f, 0.9f * bright),
-        hue::color(vr_menu_laser_hue, 0.5f, 1.f, hit.valid ? 0.5f * bright : 0.f));
-    if(hit.valid)
+    appendStrip(vertices, start, end, 0.3f * size, hue::color(vr_menu_laser_hue, 0.6f, 1.f, 0.9f * bright),
+        hue::color(vr_menu_laser_hue, 0.5f, 1.f, onPanel ? 0.5f * bright : 0.f));
+    if(onPanel)
     {
-        appendStrip(vertices, hit.point, hit.point, 1.6f, hue::color(vr_menu_laser_hue, 0.3f, 1.f, 1.f), {});
-        appendStrip(vertices, hit.point, hit.point, 0.7f, {1.f, 1.f, 1.f, 1.f}, {});
+        appendStrip(vertices, end, end, 1.6f * size, hue::color(vr_menu_laser_hue, 0.3f, 1.f, 1.f), {});
+        appendStrip(vertices, end, end, 0.7f * size, {1.f, 1.f, 1.f, 1.f}, {});
     }
 
     gfx::draw(vertices, gfx::sceneViewProjection(),
@@ -1662,12 +1663,21 @@ extern "C" int VR_MenuDrawCheckbox(int x, int y, int on)
     {
         return 0;
     }
+    menuui::paintSwitch(static_cast<float>(x), static_cast<float>(y), on != 0);
+    return 1;
+}
 
+void qvr::menuui::paintSwitch(float x, float y, bool on)
+{
     const Painter p;
     const float yc = y + 4.f;
     p.rounded(x, x + 19.f, yc, 4.25f, 4.25f, on ? colors::fill : colors::switchOff);
     p.disc(on ? x + 14.75f : x + 4.25f, yc, 3.f, on ? colors::thumb : colors::knobOff);
-    return 1;
+}
+
+void qvr::menuui::paintSlider(int x, int y, float range, const char* desc)
+{
+    drawStyledSlider(x, y, range, -1.f, 0, desc);
 }
 
 // Quake's box: a border 8 pixels wide round `width` (rounded up to even) characters across and
@@ -1734,11 +1744,15 @@ extern "C" int VR_MenuDrawButton(int x0, int x1, int y, int selected)
     {
         return 0;
     }
-    const Painter p;
-    const float yc = y + 4.f;
-    p.rounded(static_cast<float>(x0), static_cast<float>(x1), yc, 8.f, 3.f, selected ? colors::highlightEdge : colors::boxBorder);
-    p.rounded(x0 + 1.f, x1 - 1.f, yc, 7.f, 2.f, selected ? colors::buttonHover : colors::track);
+    menuui::paintButton(static_cast<float>(x0), static_cast<float>(x1), y + 4.f, 8.f, selected != 0);
     return 1;
+}
+
+void qvr::menuui::paintButton(float x0, float x1, float yc, float half, bool lit)
+{
+    const Painter p;
+    p.rounded(x0, x1, yc, half, 3.f, lit ? colors::highlightEdge : colors::boxBorder);
+    p.rounded(x0 + 1.f, x1 - 1.f, yc, half - 1.f, 2.f, lit ? colors::buttonHover : colors::track);
 }
 
 void qvr::menuui::drawListHighlight(float x0, float x1, int y)
@@ -2383,11 +2397,6 @@ namespace
 
 extern "C" int VR_MenuRunsGame()
 {
-    // The toolgun's menu on the gun: the game goes on (a monster after you too), as the gun's tools do.
-    if(key_dest == key_menu && sv.active && svs.maxclients == 1 && !cl.intermission && qvr::toolgun::menuOnGun())
-    {
-        return 1;
-    }
     if(!ui_live_preview.value || !vrActive() || key_dest != key_menu || !sv.active || svs.maxclients != 1 ||
         cl.intermission)
     {

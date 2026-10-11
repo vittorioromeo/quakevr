@@ -1,12 +1,12 @@
 #!/bin/bash
-# toolgun_joint_menu_test.sh <agent> [--debug] -- the toolgun's Joint choice walked on its menu, headless (the author's
+# toolgun_joint_menu_test.sh <agent> [--debug] -- the toolgun's Joint choice walked on its panel, headless (the author's
 # crash report of 2026-10-09 18:53, "selecting a joint type": docs/vr-port/ROUND21.md, "Toolgun: the joint choice
-# crash"). vrfiringrange, three crates ahead; the menu on the gun, the other hand's mock laser opens the Joint row's list
-# (7 choices: a drop-down list, vr_menu_dropdown 4) and picks. Each hand holding the gun in turn (main: the off hand's
-# laser; off: the main hand's):
-#   1. the physgun holding a crate while every ordered pair of joint choices is picked (an Euler circuit of the 7
-#      choices, each from each, and each again over itself: 50 picks), the gun swung meanwhile; then the Tool list:
-#      Joint and back to Physgun mid-drag;
+# crash"; since ROUND22.md, "The toolgun's own panel", the joints are tiles on the toolgun's panel). vrfiringrange, three
+# crates ahead; the panel on the gun, the other hand's mock laser (vr_toolgun_mock_laser <name>) clicks the joint tiles.
+# Each hand holding the gun in turn (main: the off hand's laser; off: the main hand's):
+#   1. the physgun holding a crate, then the Joint tool's tile (the hold let go) and every ordered pair of joint choices
+#      picked (an Euler circuit of the 7 choices, each from each, and each again over itself: 50 picks), the gun swung
+#      meanwhile; then the tools' tiles: Joint, and Physgun again;
 #   2. the map again, two crates, a joint half made (the first crate shot) while the choice is walked again, then for each joint kind: its choice
 #      picked between the two shots ("joined"), and Unjoin last ("removed");
 # HANDS="main" or "off": one hand only; VERBOSE=1: the run's lines.
@@ -30,10 +30,11 @@ def menu():
     a(f'vr_mock_button {gun} secondary 1;wait2;vr_mock_button {gun} secondary 0;wait6')
 def click(x, y):
     a(f'vr_mock_laser {x} {y};wait2;vr_mock_button {laser} trigger 1;wait2;vr_mock_button {laser} trigger 0;wait3')
+names = ['Weld', 'Ball', 'Hinge', 'Slider', 'Rope', 'Spring', 'Unjoin']
+def clickName(name):
+    a(f'vr_toolgun_mock_laser {name};wait2;vr_mock_button {laser} trigger 1;wait2;vr_mock_button {laser} trigger 0;wait3')
 def pick(k):
-    # The Joint row (its top at 98: menu_vr rows) opens the list with the current choice level with the row.
-    click(220, 102)
-    click(230, 98 - 8 * cur[0] + 8 * k + 4)
+    clickName(names[k])
     cur[0] = k
     count[0] += 1
     a(f'echo PICK {k};vr_toolgun_joint')
@@ -64,13 +65,14 @@ aim(50, 0)
 a('vr_toolgun_tool 2;wait3')
 a(f'vr_mock_button {gun} trigger 1;wait10;echo HOLD;vr_toolgun_status')
 menu()
+clickName('Joint')
 for n, k in enumerate(walk):
     pick(k)
     if n % 5 == 0:
         aim(45 + n % 10, -20 + (n * 7) % 40)
-click(220, -12); click(230, -16 - 8 * 2 + 8 * 4 + 4) # the Tool list: Joint
+clickName('Joint') # the tools' tiles: Joint
 a('echo TOOL;vr_toolgun_tool')
-click(220, -12); click(230, -16 - 8 * 4 + 8 * 2 + 4) # and Physgun again
+clickName('Physgun') # and Physgun again
 a('echo TOOL;vr_toolgun_tool')
 menu()
 a(f'vr_mock_button {gun} trigger 0;wait30')
@@ -81,12 +83,12 @@ aim(50, 0); a(f'vr_mock_hand {laser} {"-0.2" if laser == "off" else "0.2"} 1.0 -
 a('vr_weapon_grip_mode 1;vr_physics_spawn vr_crate 96 0;vr_physics_spawn vr_crate 96 48;wait60')
 a('vr_toolgun_tool 4;wait3')
 aim(50, 0); shoot()
-menu()
+menu(); a('wait5')
 for k in walk[:14]:
     pick(k)
 for k in range(7):
     pick(k)
-    menu(); aim(50, 0); shoot(); aim(50, 25); shoot(); a('wait5'); menu()
+    menu(); aim(50, 0); shoot(); aim(50, 25); shoot(); a('wait5'); menu(); a('wait5')
 a('wait20;echo END %d;vr_toolgun_status' % count[0])
 menu()
 a('wait5;toggleconsole;quit')

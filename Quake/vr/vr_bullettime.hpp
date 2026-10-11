@@ -103,6 +103,9 @@ void strikingVolume(const hands::State& s, int hand, za::Vector<glm::vec4>& out,
 // left stick, HAND_OFF; 2: the right, HAND_MAIN; in the game only), so its key (LTHUMB, RTHUMB) never reaches the game.
 // A release is taken when its press was.
 [[nodiscard]] bool stickPress(int hand, bool now);
+// Whether bullet time takes `hand`'s stick press (vr_bullettime_trigger names it, bullet time on): the toolgun leaves
+// that press to it.
+[[nodiscard]] bool ownsStick(int hand);
 
 // Starts it (if the meter allows) or stops it: the screen tap's and vr_bullettime's action.
 void toggle();

@@ -174,23 +174,6 @@ void facingQuad(const hands::State& s, const glm::vec3& angles, float height, gl
     yAxis = up * height;
 }
 
-// The toolgun's menu on the gun (vr_toolgun.cpp menuFrame): its centre and axes there, vr_toolgun_menu_height high, as
-// wide as the canvas's shape.
-[[nodiscard]] bool toolgunQuad(const hands::State& s, glm::vec3& corner, glm::vec3& xAxis, glm::vec3& yAxis)
-{
-    glm::vec3 centre, right, up;
-    if(!canvas.texture || !toolgun::menuFrame(s, centre, right, up))
-    {
-        return false;
-    }
-    const float height = za::fmax(vr_toolgun_menu_height.value, 2.f);
-    const float width = height * static_cast<float>(canvas.width) / za::fmax(static_cast<float>(canvas.height), 1.f);
-    corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
-    xAxis = right * width;
-    yAxis = up * height;
-    return true;
-}
-
 // The canvas on that panel (`mask` as drawCanvas's): the menus' and the in-game HUD's.
 void drawFacing(const hands::State& s, const glm::vec3& angles, float height, const glm::vec4& mask = noMask)
 {
@@ -389,19 +372,12 @@ void drawInEye(const hands::State& s, bool headText)
         {
             drawHud(s, sbar.rows > 0.f ? sbar.uv : noMask);
         }
+        toolgun::panel::drawInEye(s); // (the toolgun's panel over the gun, and the laser at it: open in the game)
         return;
     }
     hudAnglesValid = false;
 
-    glm::vec3 gunCorner, gunX, gunY;
-    if(toolgunQuad(s, gunCorner, gunX, gunY))
-    {
-        drawCanvas(gfx::sceneViewProjection() * quad(gunCorner, gunX, gunY)); // (the toolgun's menu, on the gun)
-    }
-    else
-    {
-        drawFacing(s, menuAngles(), panelHeight());
-    }
+    drawFacing(s, menuAngles(), panelHeight());
     panelInEyesTime = realtime;
     menuui::drawInEye(s); // the laser pointer, over the panel
 }
@@ -413,10 +389,7 @@ bool menuQuad(const hands::State& s, glm::vec3& corner, glm::vec3& xAxis, glm::v
     {
         return false;
     }
-    if(!toolgunQuad(s, corner, xAxis, yAxis))
-    {
-        facingQuad(s, menuAngles(), panelHeight(), corner, xAxis, yAxis);
-    }
+    facingQuad(s, menuAngles(), panelHeight(), corner, xAxis, yAxis);
     return true;
 }
 
@@ -488,6 +461,7 @@ extern "C" void VR_End2D(void (*windowHud)())
     // Back to the window, with the HUD and the 2D layer over the mirrored eye.
     gfx::endCanvas();
     gadget::renderScreen(); // shown in the eyes next frame, as the canvas
+    toolgun::panel::render(); // (the toolgun's panel, likewise)
     // The flat HUD over the window's view of the eyes (NOTES.md vrfiringrange_2026-09-30_11-20-33): the mirror's
     // (vr_window_hud_mirror, on) and the spectator camera's (vr_window_hud_spectator, off: a recording shows the
     // game as the headset does, with the wrist gadget).
