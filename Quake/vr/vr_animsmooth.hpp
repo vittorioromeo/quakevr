@@ -8,7 +8,7 @@ struct entity_s;
 namespace qvr::animsmooth
 {
 
-// vr_anim_smooth_pin, vr_anim_smooth_info, vr_anim_smooth_check (Debug > Tests).
+// vr_anim_smooth_pin, vr_anim_smooth_info, vr_anim_smooth_check, vr_anim_smooth_trace (Debug > Reports).
 void registerCommands();
 
 // Whether `e`'s model is drawn through its rig's bones (an alias model with a ragdoll rig that fits it): its hit
