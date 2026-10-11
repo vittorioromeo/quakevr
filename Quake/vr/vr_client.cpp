@@ -49,6 +49,7 @@
 #include "vr_weight.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_wounds.hpp"
+#include "vr_hitreact.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_toolgun.hpp"
 
@@ -864,6 +865,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_EJECT: shells::parseEject(); break;
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
+        case QVR_SVC_HITREACT: hitreact::parseEvent(); break;
         case QVR_SVC_WEAPONGONE: wounds::parseWeaponGone(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;
         case QVR_SVC_ROPE: rope::parseCorners(); break;

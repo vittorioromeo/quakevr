@@ -1941,6 +1941,7 @@ void(float damage, vector dir) TraceAttack =
             {
                 SpawnBlood (org, vel*0.2, damage);
                 VR_Wound_Pellet(trace_ent, trace_endpos, dir, damage); // VR: painted on its model (vr_wounds.qc)
+                VR_HitReact_Pellet(trace_ent, trace_endpos, dir); // VR: where its flinch is (vr_hitreact.qc)
             }
             bleed = TRUE;
         }

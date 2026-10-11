@@ -23,6 +23,7 @@
 #include "vr_lighting.hpp"
 #include "vr_angvel.hpp"
 #include "vr_animsmooth.hpp"
+#include "vr_hitreact.hpp"
 #include "vr_backend.hpp"
 #include "vr_throw.hpp"
 #include "vr_client.hpp"
@@ -1879,6 +1880,7 @@ extern "C" void VR_Init()
     VR_RegisterContinue();
     jobs::registerCommands();
     animsmooth::registerCommands();
+    hitreact::registerCommands();
     edictindex::registerCommands();
     weapons::registerCvars();
     props::registerCvars();

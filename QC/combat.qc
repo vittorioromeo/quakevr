@@ -1297,6 +1297,12 @@ void(entity targ) VR_Ragdoll_NoteDeathHit =
     }
 };
 
+// VR: living hit reactions (vr_hitreact.qc; ROUND22.md, "Active ragdolls: living hit reactions"): a living monster's
+// blow sent to the clients (they draw its flinch) and its steps slowed a moment; a shotgun blast's pellets' points
+// gathered for it (TraceAttack).
+void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit;
+void(entity e, vector at, vector dir) VR_HitReact_Pellet;
+
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageDeal =
 {
     vector    dir;
@@ -1617,6 +1623,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             }
         }
     }
+
+    VR_HitReact_Hit(targ, inflictor, attacker, take); // VR: a living monster flinches (vr_hitreact.qc)
 
     // react to the damage
     oldself = self;

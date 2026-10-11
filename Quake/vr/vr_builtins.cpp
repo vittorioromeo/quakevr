@@ -786,6 +786,41 @@ void PF_woundevent()
     woundsSent[static_cast<za::SizeT>(num)] = 1;
 }
 
+// A living monster struck (vr_hitreact.cpp: its hit reaction drawn): void(entity e, vector at, vector dir, float part,
+// float damage, float share) hitreact. `at` the point struck, `dir` the push (unit), `part` PositionalDamage's (0 body,
+// 1 head, 2 arm, 3 leg; -1 unknown), `damage` (0..255), `share` the share of its health the blow took (0..1).
+// Unreliable, to every client.
+void PF_hitreact()
+{
+    const int num = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    const float* at = G_VECTOR(OFS_PARM1);
+    const float* dir = G_VECTOR(OFS_PARM2);
+    const int part = static_cast<int>(G_FLOAT(OFS_PARM3));
+    const int damage = static_cast<int>(G_FLOAT(OFS_PARM4) + 0.5f);
+    const float share = G_FLOAT(OFS_PARM5);
+
+    if(sv.state != ss_active || sv.datagram.cursize > MAX_DATAGRAM - 32)
+    {
+        return;
+    }
+
+    MSG_WriteByte(&sv.datagram, protocol::svc_quakevr);
+    MSG_WriteByte(&sv.datagram, protocol::QVR_SVC_HITREACT);
+    MSG_WriteShort(&sv.datagram, num);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(&sv.datagram, at[i], sv.protocolflags);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteChar(&sv.datagram, CLAMP(-127, static_cast<int>(dir[i] * 127.f), 127));
+    }
+    MSG_WriteByte(&sv.datagram, CLAMP(0, part + 1, 255));
+    MSG_WriteByte(&sv.datagram, CLAMP(0, damage, 255));
+    MSG_WriteByte(&sv.datagram, CLAMP(0, static_cast<int>(share * 255.f + 0.5f), 255));
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
+}
+
 // torchflametouch(t): what of you the flame of torch `t`, held by you, touches (single player: the client's last
 // frame; vr_walltorch.cpp walltorch::flameOnYou): bits 1 the hand holding it, 2 the other hand, 4 the holding arm, 8 the
 // other arm, 16 the torso or legs, 32 the head, and 256 times the deepest one's bit (but the holding hand's); 0 nothing
@@ -2328,6 +2363,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"WriteVec3", PF_WriteVec3},
     {"particle2", PF_particle2},
     {"woundevent", PF_woundevent},
+    {"hitreact", PF_hitreact},
     {"haptic", PF_haptic},
     {"handimpact", PF_handimpact},
     {"carryangles", PF_carryangles},

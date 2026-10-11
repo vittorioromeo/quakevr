@@ -864,7 +864,7 @@ static void R_AliasSmoothInstance (const entity_t *e, const aliashdr_t *hdr, con
 	inst->vr.smooth[0] = smooth[0] * totalverts;
 	inst->vr.smooth[1] = smooth[1] * totalverts;
 	inst->vr.smooth[2] = smooth[2];
-	inst->vr.smooth[3] = 1;
+	inst->vr.smooth[3] = smooth[3]; // (1 on; 2 + the first row of its hit reaction's kicked bones: vr/vr_hitreact.cpp)
 	memcpy (inst->vr.smoothw, weights, sizeof (weights));
 }
 

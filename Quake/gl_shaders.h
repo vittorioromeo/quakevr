@@ -1302,7 +1302,7 @@ NOISE_FUNCTIONS
 "	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own); w retro lighting's (vr_retrolight.h): a Quake texel's share of the texture's (0: 1)\n"\
 "	vec4	PortalClip; // QVR: this instance's teleporter half\n"\
 "	vec4	RetroPart; // QVR: your body's parts by bone (vr/vr_retro.cpp bodyParts): xy the low bits of bones 0..23, 24..47, zw the high bits\n"\
-"	ivec4	Smooth; // QVR: r_lerpmodels 3 (vr/vr_animsmooth.cpp): x, y the first and fourth poses, z 1 + its bones' first row in SmoothSwing (0 none), w 1 on\n"\
+"	ivec4	Smooth; // QVR: r_lerpmodels 3 (vr/vr_animsmooth.cpp): x, y the first and fourth poses, z 1 + its bones' first row in SmoothSwing (0 none), w 1 on (2 + its hit reaction's kicked bones' first row: vr/vr_hitreact.cpp)\n"\
 "	vec4	SmoothW; // QVR: ... the four poses' weights\n"\
 "	vec4	SkinTint; // QVR: bare forearms' ends tinted to the hand's skin (vr/vr_view.cpp skinTint): rgb times the skin, w how much (0 none)\n"\
 "	vec4	SkinTintRange; // QVR: ... where in the skin: x below this u, y from this v (none) to z (all), w below this v\n"\
