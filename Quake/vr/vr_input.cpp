@@ -431,7 +431,7 @@ void resetBindings_f()
 }
 
 // guardBindings' last repair, for qvr_openxr.txt (describeBindings): its log is not open yet at vr_startgame.
-char bindingsRepair[160];
+char bindingsRepair[256];
 
 [[nodiscard]] bool bindsGrab(int key)
 {
@@ -453,39 +453,45 @@ void init()
 
 // 1.0.1 (ROUND22.md "Controls as if another controller": a player's left trigger jumped, his grips grabbed nothing, A
 // did nothing: Ironwail's own gamepad bindings, LTRIGGER +jump, LSHOULDER/RSHOULDER "impulse 12"/"impulse 10", from a
-// config run after Quake VR's). A grab on no controller key is never a VR player's choice (no weapon, ladder or ledge
-// can be taken): the VR bindings again. Rebinding the grips to another grab command (an alias with "grab" in its name)
-// is left alone.
+// config run after Quake VR's). A controller with a grab on none of its keys is never a VR player's choice (no weapon,
+// ladder or ledge can be taken in that hand; a config that rebinds only the left grip leaves the right one grabbing):
+// the VR bindings again. Rebinding a grip to another grab command (an alias with "grab" in its name) is left alone.
 void guardBindings()
 {
     if(vr_bindings_guard.value == 0.f)
     {
         return;
     }
+    bool grabs[HAND_COUNT] = {};
     for(const ButtonKeys& b : buttonKeys)
     {
-        for(const int key : b.key)
+        for(int h = 0; h < HAND_COUNT; ++h)
         {
-            if(bindsGrab(key))
-            {
-                return;
-            }
+            grabs[h] = grabs[h] || bindsGrab(b.key[h]);
         }
+    }
+    if(grabs[0] && grabs[1])
+    {
+        return;
     }
 
     const auto bound = [](int key) { return keybindings[key] ? keybindings[key] : ""; };
     q_snprintf(bindingsRepair, sizeof(bindingsRepair),
-        "no grab on any controller key (LTRIGGER \"%s\", LSHOULDER \"%s\", RSHOULDER \"%s\", ABUTTON \"%s\")",
-        bound(K_LTRIGGER), bound(K_LSHOULDER), bound(K_RSHOULDER), bound(K_ABUTTON));
+        "no grab on %s controller's keys (LTRIGGER \"%s\", LSHOULDER \"%s\", RSHOULDER \"%s\", ABUTTON \"%s\")",
+        !grabs[0] && !grabs[1] ? "either" : !grabs[0] ? "the left" : "the right", bound(K_LTRIGGER), bound(K_LSHOULDER),
+        bound(K_RSHOULDER), bound(K_ABUTTON));
     Con_Warning("Quake VR: %s: another config's gamepad bindings. Setting the controller bindings again (vr_bindings.cfg; "
                 "vr_bindings_guard 0: never)\n",
         bindingsRepair);
-    // Where they may have come from: the loose configs on the search path (a pak's are Quake's own).
+    // Where they may have come from: the loose configs on the search path that ran at the start (a pak's are Quake's own;
+    // only the game folder's own autoexec.cfg and config.cfg, vr_foreign_configs 0, and its own saved config).
     for(const searchpath_t* s = com_searchpaths; s; s = s->next)
     {
         for(const char* name : {"config.cfg", "autoexec.cfg", CONFIG_NAME})
         {
-            if(!s->pack && Sys_FileType(va("%s/%s", s->filename, name)) == FS_ENT_FILE)
+            const bool ran = (Cmd_ForeignConfigsAllowed() && strcmp(name, CONFIG_NAME) != 0) ||
+                             COM_SamePath(s->filename, com_gamedir);
+            if(!s->pack && ran && Sys_FileType(va("%s/%s", s->filename, name)) == FS_ENT_FILE)
             {
                 Con_Printf("  %s/%s\n", s->filename, name);
             }

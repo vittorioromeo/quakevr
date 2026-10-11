@@ -329,8 +329,9 @@ Handed* on, nothing needs rebinding.
   Odyssey** controllers get their own bindings when the runtime offers their profile (`vr_xr_vendor_profiles 1`,
   the default), each with its left menu button as the menu.
 - **Controls that act as a gamepad's** (the left trigger jumps, the grips change weapons, A does nothing): another
-  config's gamepad bindings over the VR ones. At each start, with no grab on any controller key, the game sets the VR
-  bindings again and says so in the console (`vr_bindings_guard 1`, the default; 0 never). Debug > Logging > *Restore
+  config's gamepad bindings over the VR ones. At each start, after every config (`autoexec.cfg` too), a controller
+  with no grab on any of its keys gets the VR bindings again, said in the console (`vr_bindings_guard 1`, the
+  default; 0 never). Another source port's `autoexec.cfg` or `config.cfg` in `id1` is not run (see below). Debug > Logging > *Restore
   Controller Bindings* (`vr_bindings_reset`) sets them by hand. `qvr_openxr.txt` (in `quakevr`) names the controller
   profile the runtime plays each hand as, and the buttons' bindings.
 - **Menu Button** (VR Settings > Controls, and HUD and Menus > Menu; `vr_menu_button`): for a controller whose menu
@@ -474,7 +475,14 @@ Running with `-game quakevr` executes these, in order, from `quakevr\quake.rc`:
 2. **`ironwail.cfg`**: your saved settings. It's written when you quit, and it wins over the defaults.
 3. **`quakevr.cfg`**: settings the Quake VR QuakeC needs (gameplay fixes, item scale, opaque lava) and
    `vr_enabled 1`. It runs after your config, so these win.
-4. **`autoexec.cfg`**: yours, if you create one. Put your personal overrides here: it runs last.
+4. **`autoexec.cfg`**: yours, if you create one, in `quakevr`. Put your personal overrides here: it runs last.
+
+**Other games' configs:** at the start, `autoexec.cfg` (and, with no saved `ironwail.cfg`, the legacy `config.cfg`)
+run only from Quake VR's own folder (`quakevr`). One found only elsewhere (`id1` next to a GOG or Steam Quake, a
+re-release folder, another base folder) belongs to another source port, and its gamepad bindings would turn the
+controllers into a gamepad's: it is skipped, and the console names it once. `vr_foreign_configs 1` (Debug > Logging
+> *Other Ports' Startup Configs*; `-foreignconfigs` on the command line) runs them from any folder, as before 1.0.1.
+`exec <file>` typed or bound runs a file from any folder; `exec autoexec.cfg` follows the start's rule.
 
 **Shipped defaults:** each line of `vr_defaults.cfg` is `vr_default <variable> <value>`. This sets the variable and
 makes the value its default, so resets and presets go back to it. `vr_savedefaults` rewrites the file from the

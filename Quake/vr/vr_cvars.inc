@@ -205,10 +205,14 @@ QVR_CVAR(vr_throw_spin_align, "8", CVAR_ARCHIVE)
 
 // Version of quakevr/vr_bindings.cfg last applied (vr_checkbindings).
 QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
-// 1.0.1: after the start-up configs (vr_startgame), the controller keys checked: not one of them bound to a grab (another
-// config's gamepad bindings: Ironwail's own have the left trigger jump, the grips cycle weapons, A nothing) gets
-// vr_bindings.cfg again, said in the console and qvr_openxr.txt. 0: never.
+// 1.0.1: after the start-up configs (vr_startgame, after autoexec.cfg), the controller keys checked: a controller with no
+// key bound to a grab (another config's gamepad bindings: Ironwail's own have the left trigger jump, the grips cycle
+// weapons, A nothing) gets vr_bindings.cfg again, said in the console and qvr_openxr.txt. 0: never.
 QVR_CVAR(vr_bindings_guard, "1", CVAR_ARCHIVE)
+// 1.0.1: the start-up's autoexec.cfg and legacy config.cfg run only from Quake VR's own game folder (com_gamedir, the
+// install's quakevr); one found only elsewhere on the search path (id1, a re-release folder, another base dir: another
+// source port's) is skipped, said once in the console (Cmd_Exec_f). 1: from any search path, as before.
+QVR_CVAR(vr_foreign_configs, "0", CVAR_ARCHIVE)
 
 // Mock backend: swing the main hand in an overhand arc with this period, in seconds (0: still).
 QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)

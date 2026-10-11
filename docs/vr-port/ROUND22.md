@@ -1415,3 +1415,41 @@ toggled on, loaded: off; changelevel e1m2: kept; `map e1m2` (fresh): on. Back to
 off and on; grip and Y there do nothing to it; nothing on the belt; Flashlight Side Right moves it to the right
 temple. Back to Immersive: the belt torch is back.
 Targeted 1.0.1 check of saves and controller bindings (worktree `svctest`, headless): autosave names, Continue across campaigns and packages, missing package, 1.0.0 saves, migration, no autosave on vr*/multiplayer/-prepare, Doom's saves unseen, xr_runtime_test 103/0, guard, menu modes, Doom's off-hand routing all pass; fixed Continue naming a package "map package <sha>" when first worked out before the map index arrived; the guard leaves `bind LSHOULDER "impulse 12"; bind LTRIGGER +jump` alone (RSHOULDER still grabs: by design).
+
+## Only Quake VR's own autoexec.cfg and config.cfg at the start (1.0.1, 2026-10-11, worktree `owncfg`)
+
+Player bug (confirmed): a fresh install next to a GOG Quake had `bind LTRIGGER` = `+jump`: Ironwail's gamepad
+bindings won over vr_bindings.cfg. Suspected: another source port's `autoexec.cfg` / `config.cfg` in the Quake
+folder's `id1` (or a re-release folder), which every start read from anywhere on the search path.
+
+- **Cmd_Exec_f** (Quake/cmd.c `Cmd_ForeignStartupConfig`): `exec autoexec.cfg` and the bare `exec config.cfg` (the
+  legacy config, only reached with no saved `ironwail.cfg`) run only when the file is in `com_gamedir` (the install's
+  quakevr; a pak in that folder counts too). Found only elsewhere (id1, rerelease, another base dir, a user dir): not
+  run, one console line per file and start: `Quake VR: skipped <path>: not in Quake VR's own folder (<quakevr>),
+  another game's or source port's (vr_foreign_configs 1 runs it)`. A skipped config.cfg still gets
+  `vr_migrate_config new` (the first start's settings), so the first start is unchanged: VR Calibration, Standard
+  menus.
+- **`vr_foreign_configs`** (archived, default 0; Debug > Logging > *Other Ports' Startup Configs*): 1 = as before.
+  **`-foreignconfigs`** on the command line does the same for one run: a saved setting can't reach a fresh install's
+  config.cfg, and the test kits write their script to `id1/autoexec.cfg` (qvrprof.sh passes it now; the kit's
+  run.ps1/runq2.ps1 need it too, or every run's script is skipped and times out).
+- **The bindings guard** already ran at `vr_startgame`, after autoexec.cfg and the command line; it missed a partial
+  clobber: it only fired with no grab on *any* controller key, and the reported file's `bind LSHOULDER "impulse 12"`
+  left RSHOULDER `+grabmain`. Now each controller needs a grab on one of its keys; its warning names the controller
+  (`no grab on the left controller's keys (...)`). Its "where from" list names only the configs that ran.
+- **Decisions:** explicit `exec <file>` typed or bound runs from any folder (unchanged); only the two names
+  quake.rc and the dedicated server exec at the start are restricted, by name, so a typed `exec autoexec.cfg`
+  follows the same rule (simpler than telling quake.rc's exec from a typed one; any mod's own quake.rc is covered).
+  Quake's own id1/config.cfg binds are no longer imported at a first start (the task's rule; 1 restores it).
+
+**Tests** (headless mock, kit base `bases/owncfg/qbase`): hostile `id1/autoexec.cfg` (`bind LTRIGGER +jump; bind
+LSHOULDER impulse 12`) → skipped line, LTRIGGER `+offhandattack`, LSHOULDER `+graboff`, no guard warning. Same file in
+`quakevr/autoexec.cfg` → runs, then the guard at vr_startgame: `no grab on the left controller's keys`, lists
+quakevr/autoexec.cfg, `execing vr_bindings.cfg`. `vr_foreign_configs 1` in the saved config → the id1 one runs, the
+guard restores (lists id1/autoexec.cfg). A harness script with `-foreignconfigs` runs and quits (exit 0). Fresh
+install (no ironwail.cfg) with a hostile `id1/config.cfg` (`vr_menu_level 2` in it) → skipped, LTRIGGER
+`+offhandattack`, `vr_menu_level` 0, "a first start: VR Calibration".
+
+**In the headset:** with an `autoexec.cfg` holding `bind LTRIGGER +jump` in the Quake folder's id1: the console's
+skipped line at the start, the left trigger fires. Put it in quakevr instead: the left trigger fires again after the
+start (the guard), with its warning in the console.

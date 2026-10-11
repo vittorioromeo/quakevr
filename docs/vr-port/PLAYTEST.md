@@ -139,6 +139,10 @@ is the most useful thing to send me along with a description. In particular:
   `vr_grasp_dump main hand.obj` writes the drawn hand and the held model as an .obj to send me. Hand/Gun
   Calibration > Fit Fingers to What You Hold off shows the controller's curls alone, Jointed Hand off the old
   hands.
+- **Controls act like a gamepad's** (the left trigger jumps, a grip changes weapons): another config's bindings. The
+  console names a skipped `autoexec.cfg` or `config.cfg` from outside `quakevr` (another source port's in `id1`;
+  `vr_foreign_configs 1` runs them) and the start's repair (`no grab on the left controller's keys`); Debug >
+  Logging > *Restore Controller Bindings* sets them by hand. Your own overrides go in `quakevr\autoexec.cfg`.
 - **A crash:** the log up to the crash, and what you were doing.
 - **Slower than it should be:** VR Settings > Advanced VR Options > Debug > Profiling and Memory: the Profiler
   Panel, a CSV Capture and the Memory Log (what each shows: [BENCHMARKS.md](BENCHMARKS.md), "Profiling in the

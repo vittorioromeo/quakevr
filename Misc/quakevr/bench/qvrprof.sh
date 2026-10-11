@@ -40,7 +40,7 @@ printf 'vr_backend mock\nsv_autosave 0\nvr_mock_fast 1\nexec qvrbench.cfg\n' > "
 EXE=$WT/Windows/VisualStudio/Build-ironwail/bin/x64/Release/ironwail.exe
 EXEW=$(cygpath -w "$EXE"); GAMEW=$(cygpath -w "$GAME"); DW=$(cygpath -w "$D")
 export QVR_NO_ERROR_DIALOG=1 QVR_TEST_BACKGROUND=1 QVR_TEST_HIDDEN=1
-ARGS=(-basedir "$GAMEW" -game hipnotic -game rogue -game quakevr -condebug -window -width 960 -height 540 -nosound)
+ARGS=(-basedir "$GAMEW" -game hipnotic -game rogue -game quakevr -foreignconfigs -condebug -window -width 960 -height 540 -nosound)
 VTUNE="C:/Program Files (x86)/Intel/oneAPI/vtune/latest/bin64/vtune.exe"
 NSYS="C:/Program Files/NVIDIA Corporation/Nsight Systems 2024.5.1/target-windows-x64/nsys.exe"
 cd "$GAME"

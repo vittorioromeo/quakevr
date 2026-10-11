@@ -2967,7 +2967,7 @@ ran, Quake VR's gameplay off, guns only props). The exe's folder, when its quake
 last base dir: its quakevr is the one searched, and its config the one saved.
 =================
 */
-static qboolean COM_SamePath (const char *a, const char *b)
+qboolean COM_SamePath (const char *a, const char *b) // QVR: also Cmd_Exec_f, vr_input.cpp
 {
 	for (;; ++a, ++b)
 	{

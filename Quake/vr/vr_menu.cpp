@@ -4909,6 +4909,10 @@ za::Vector<Item> pageDebugLogging()
             .help("vr_bindings_reset: the controller buttons' keys bound as Quake VR ships them again (quakevr/"
                   "vr_bindings.cfg: triggers fire, grips grab, A jumps...). For controls that act as a gamepad's (the left "
                   "trigger jumping, the grips changing weapons)."),
+        toggle("Other Ports' Startup Configs", vr_foreign_configs)
+            .help("vr_foreign_configs: at the start, an autoexec.cfg or config.cfg found only outside Quake VR's own "
+                  "folder (in id1 next to a GOG or Steam Quake, a re-release folder: another source port's) runs too. Off "
+                  "(the default): only quakevr's own; a skipped one is named in the console. Exec by hand runs any."),
         toggle("Wounds", vr_wounds_debug).help("Each wound painted on a model."),
         cycle("Grasp", vr_debug_grasp, {{0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"}})
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),

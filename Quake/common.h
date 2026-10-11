@@ -401,6 +401,7 @@ typedef struct searchpath_s
 } searchpath_t;
 
 extern searchpath_t *com_searchpaths;
+qboolean COM_SamePath (const char *a, const char *b); // QVR: the same folder (case, separators)
 extern searchpath_t *com_base_searchpaths;
 
 extern THREAD_LOCAL qfileofs_t com_filesize;

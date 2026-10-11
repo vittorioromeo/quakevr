@@ -360,6 +360,68 @@ void Cmd_StuffCmds_f (void)
 	Cbuf_InsertText (cmds);
 }
 
+/*
+===============
+Cmd_ForeignStartupConfig
+
+QVR (1.0.1): the start-up's autoexec.cfg and legacy config.cfg are Quake VR's own: run only from its game folder
+(com_gamedir, the install's quakevr). One found only elsewhere on the search path (id1 next to a GOG or Steam Quake,
+a re-release folder, another base dir) is another source port's, and its gamepad bindings (LTRIGGER +jump, the grips
+cycling weapons) turned a player's controllers into a gamepad's. Skipped, said once per start;
+vr_foreign_configs 1 runs it as before. True: skip it.
+===============
+*/
+static qboolean foreign_config_said[2];
+
+// vr_foreign_configs 1, or -foreignconfigs on the command line (a saved setting can't reach a fresh install's
+// config.cfg; the test kits' scripts are an id1/autoexec.cfg)
+qboolean Cmd_ForeignConfigsAllowed (void)
+{
+	return Cvar_VariableValue ("vr_foreign_configs") != 0.f || COM_CheckParm ("-foreignconfigs");
+}
+
+static qboolean Cmd_ForeignStartupConfig (const char *name, int which)
+{
+	const searchpath_t *s;
+	char found[MAX_OSPATH];
+	int i;
+
+	if (Cmd_ForeignConfigsAllowed ())
+		return false;
+	if (Sys_FileType (va ("%s/%s", com_gamedir, name)) == FS_ENT_FILE)
+		return false;
+
+	found[0] = 0;
+	for (s = com_searchpaths; s && !found[0]; s = s->next)
+	{
+		if (s->pack)
+		{
+			for (i = 0; i < s->pack->numfiles; i++)
+				if (!q_strcasecmp (s->pack->files[i].name, name))
+				{
+					q_strlcpy (found, s->pack->filename, sizeof (found));
+					found[COM_SkipPath (found) - found] = 0; // (its folder)
+					if (COM_SamePath (found, com_gamedir))
+						return false; // a pak in the game folder itself
+					q_snprintf (found, sizeof (found), "%s (in %s)", name, s->pack->filename);
+					break;
+				}
+		}
+		else if (Sys_FileType (va ("%s/%s", s->filename, name)) == FS_ENT_FILE)
+			q_snprintf (found, sizeof (found), "%s/%s", s->filename, name);
+	}
+	if (!found[0])
+		return false; // nowhere: "couldn't exec", as before
+
+	if (!foreign_config_said[which])
+	{
+		foreign_config_said[which] = true;
+		Con_Printf ("Quake VR: skipped %s: not in Quake VR's own folder (%s), another game's or source port's "
+			"(vr_foreign_configs 1 runs it)\n", found, com_gamedir);
+	}
+	return true;
+}
+
 /* id1/pak0.pak from 2021 re-release doesn't have a default.cfg
  * embedding Quakespasm's customized default.cfg for that...  */
 #include "default_cfg.h"
@@ -389,6 +451,8 @@ void Cmd_Exec_f (void)
 	// player's (which could start anything, a re-evaluation among them)
 	if (!q_strcasecmp (path, "autoexec.cfg") && COM_CheckParm ("-noautoexec"))
 		return;
+	if (!q_strcasecmp (path, "autoexec.cfg") && Cmd_ForeignStartupConfig ("autoexec.cfg", 0))
+		return;
 
 	// HACK:
 	// "exec config.cfg" will execute ironwail.cfg
@@ -406,6 +470,12 @@ void Cmd_Exec_f (void)
 		{
 			path = CONFIG_NAME;
 			goto exec;
+		}
+		// QVR: no saved config: Quake's own config.cfg (its binds) only from Quake VR's folder (vr_foreign_configs)
+		if (Cmd_ForeignStartupConfig ("config.cfg", 1))
+		{
+			Cbuf_InsertText ("\nvr_migrate_config new\n");
+			return;
 		}
 	}
 
