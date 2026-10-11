@@ -52,11 +52,12 @@ float() VR_Limb_TestFountains =
 entity(float xLive) VR_Limb_TestTarget =
 {
     entity best = world;
-    float bestDist = vr_gore_test_only != world ? 999999 : 400; // (a crowd's test: its monster in turn)
+    // (A crowd's test: its monster in turn; vr_ragdoll_act's: its target, however far.)
+    float bestDist = (vr_gore_test_only != world || vr_test_only != world) ? 999999 : 400;
     for(entity e = nextent(world); e; e = nextent(e))
     {
         if(!(e.flags & FL_MONSTER) || e.vr_gib || (xLive == 1 && e.health <= 0) || (xLive == 0 && e.health > 0) ||
-           (vr_gore_test_only != world && e != vr_gore_test_only) || ragdolllimbs(e, 0) == 0)
+           (vr_gore_test_only != world && e != vr_gore_test_only) || VR_TestSkips(e) || ragdolllimbs(e, 0) == 0)
         {
             continue;
         }

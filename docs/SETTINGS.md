@@ -177,7 +177,7 @@ about a screenful each. Pages marked (D) show only at Menu Detail: Developer.
 | **Wall Torches** | Taking torches off walls, force-grabbing them, blows before one dies, burning, lighting again, shooting them off |
 | **Rocks and Bricks** | Throwable rocks and bricks placed in maps: where, how many (in a map, in multiplayer, in an area), sizes |
 | **Crates** | Breakable wooden crates placed in maps: density, stacking, health, pieces, what's inside, the crowbar, hiding behind them |
-| **Gibs and Corpses** | Grabbing gibs and heads, their damage, destroying gibs, hard throws bursting them; gibbing corpses; pushable corpses; ragdolls (and, at Developer, *Ragdolls* and per-monster pages) |
+| **Gibs and Corpses** | Grabbing gibs and heads, their damage, destroying gibs, hard throws bursting them; gibbing corpses; pushable corpses; ragdolls (and, at Developer, *Ragdolls* and per-monster pages; *Ragdolls* has whether a ragdoll's limbs meet each other and each active-ragdoll behaviour's strength, chance and time, and links to Debug > Tests > *Ragdoll Behaviours*) |
 | **Held Object Offsets**, **Held Object Weights** (D) | Where each prop sits in the hand, and its weight |
 
 **Gore**
@@ -231,7 +231,8 @@ reverb, sounds from your hands, Doppler, near field), the underwater muffle and 
 Again*.
 
 **Debug** (D): the checklist, voice notes, and the Views, Logging, Profiling and Memory, Reports, Tools and Tests
-pages.
+pages. Tests > *Ragdoll Behaviours* sets each active-ragdoll behaviour going on the nearest grunt, enforcer, knight,
+death knight, ogre or zombie (`vr_ragdoll_act <name>`; the console says whether it began).
 
 **Graphics**
 
@@ -422,6 +423,7 @@ built-in ones.
 | `vr_positional_damage` | 1 | headshots, arm and leg shots |
 | `vr_push` | 0.6 (shipped) | all knockback |
 | `vr_gore` | 2 | 0 Quake VR's blood only, 1 more, 2 over the top |
+| `vr_ragdoll_self_collide` | 1 | a ragdoll's own limbs meet each other (not jointed neighbours, nor parts touching as it went limp until apart); 0 they pass through each other |
 | `vr_decals`, `vr_decal_max`, `vr_decal_life` | 1, 768, 240 (shipped) | blood and scorch marks |
 
 ### HUD and menus
@@ -518,6 +520,8 @@ changed yourself is left alone.
 | `vr_show_hip_holsters 1` (and `_upper_`, `_shoulder_`, `vr_show_virtual_stock`) | Show the holsters and the virtual stock |
 | `vr_note_devices` | List microphones for voice notes |
 | `vr_debug_throw 1` | Print each throw's measurement |
+| `vr_ragdoll_act <name>` | An active-ragdoll behaviour (a death by zone, a stumble, a crawl, a lost limb, a swim, a ledge hang, a stagger, a get-up, ...) on the nearest supported monster, and whether it began; no name: the list (Debug > Tests > Ragdoll Behaviours) |
+| `vr_menu_press <page> > <button>` | A menu button pressed from the console (tests) |
 | `developer 1` | More messages: force grab pulls and catches, throws, compatibility mode |
 
 For the rest, the developer notes in [vr-port/](vr-port/) describe each system and its variables:

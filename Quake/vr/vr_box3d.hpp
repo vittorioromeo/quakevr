@@ -10,6 +10,11 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Vocabulary/FunctionRef.hpp"
 
+namespace qvr::ragactive
+{
+struct State; // (vr_ragactive.hpp)
+}
+
 namespace qvr::box3d
 {
 
@@ -220,6 +225,10 @@ void climbPull(int num, const glm::vec3& at, const glm::vec3& dir, float kg);
 
 // Ragdolls (vr_ragdoll; vr_box3d.cpp, "Ragdolls"). Whether edict `num` is one.
 [[nodiscard]] bool isRagdoll(int num);
+// The ragdoll tests (vr_ragtest.cpp, vr_ragdoll_act): whether `ent` is of a kind whose ragdoll is driven (vr_ragdoll_active's
+// classes: grunts, enforcers, knights, death knights, ogres, zombies); edict `num`'s ragdoll's drive (null: no ragdoll).
+[[nodiscard]] bool activeKind(const edict_t* ent);
+[[nodiscard]] const ragactive::State* activeState(int num);
 // Knockdowns (vr_knockdown; vr_box3d.cpp "Knockdowns"; QC vr_knockdown.qc). Whether `ent` can be one (a monster with a rig,
 // ragdolls on); its ragdoll made now, alive (.vr_knockdown 1, touchable and not solid); its getting up: the get-up's
 // first frame fitted to how it lies (frameA, or frameB if that fits better; -1 none), room for its box mins..maxs found

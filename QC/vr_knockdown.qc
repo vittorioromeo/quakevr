@@ -669,13 +669,14 @@ void(float xMode) VR_Knockdown_Test =
             }
             else if(xMode == 1)
             {
-                if(x.vr_knockdown == 1)
+                if(x.vr_knockdown == 1 && !VR_TestSkips(x))
                 {
                     x.vr_kd_until = time;
                 }
             }
-            else if(d < bestDist && ((xMode == 0 || xMode == 21 || xMode == 22) ? (!x.vr_knockdown && x.vr_kd_chance_h) :
-                                               x.vr_knockdown == 1))
+            else if(d < bestDist && !VR_TestSkips(x) &&
+                    ((xMode == 0 || xMode == 21 || xMode == 22) ? (!x.vr_knockdown && x.vr_kd_chance_h) :
+                                                                  x.vr_knockdown == 1))
             {
                 best = x;
                 bestDist = d;

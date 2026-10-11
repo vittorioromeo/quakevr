@@ -27,7 +27,7 @@ MONS=${MONS:-0 8 5 6 1}
 PY=${PY:-py -3.13}
 SUM="$TREE/Misc/quakevr/ragdoll/active_trace.py"
 name() { case $1 in 0) echo grunt;; 1) echo ogre;; 2) echo zombie;; 5) echo knight;; 6) echo hknight;; 8) echo enforcer;; *) echo m$1;; esac; }
-PRE="wait30;god;vr_debug_ragdoll 1;vr_ragdoll_active_seed ${SEED:-0};vr_ragdoll_active_trace 3"
+PRE="wait30;god;vr_debug_ragdoll 1;vr_ragdoll_active_seed ${SEED:-0};vr_ragdoll_active_trace 3${EXTRA:+;$EXTRA}"
 FILTER="^ragtrace|limp at frame|active death|test kill|rror|CRASH|exit=|TIMEOUT|vr_ragdoll_active_list|steptime"
 run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "$FILTER" -Timeout 300 ${2:+-Clean} 2>&1 | tr -d '\r'; }
 one() { # one <monster> <kill> <extra settings> [notarget]

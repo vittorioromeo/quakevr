@@ -830,6 +830,7 @@ void init()
     Cmd_AddCommand("vr_setup_stop", stop_f);
     Cmd_AddCommand("vr_menu_path_check", menu::pathCheck_f);
     Cmd_AddCommand("vr_menu_dump", menu::dump_f);
+    Cmd_AddCommand("vr_menu_press", menu::press_f);
 }
 
 void frame()

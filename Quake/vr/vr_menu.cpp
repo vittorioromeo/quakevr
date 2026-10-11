@@ -45,6 +45,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
 #include "vr_props.hpp"
+#include "vr_ragtest.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_retro.hpp"
@@ -484,6 +485,8 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDebugCheats();
 [[nodiscard]] za::Vector<Item> pageStealth();
 [[nodiscard]] za::Vector<Item> pageStealthTests();
+[[nodiscard]] za::Vector<Item> pageRagdollTests();
+[[nodiscard]] za::Vector<Item> pageRagdolls();
 [[nodiscard]] za::Vector<Item> pageSpawnWeapons();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
@@ -592,6 +595,7 @@ const char* const menuButtonHelp =
 #include "vr_menu_cheats.inc"
 #include "vr_menu_toolgun.inc"
 #include "vr_menu_stealth.inc"
+#include "vr_menu_ragtests.inc"
 
 // ----------------------------------------------------------------------------
 // Pages of the port's own tweaks
@@ -4038,7 +4042,15 @@ void hologramTestMessage()
             .help("At most this many at once. New deaths replace the oldest dead ragdoll first, then the oldest living knockdown if necessary. 0: ragdolls off."),
         toggle("Ragdolls Meet Each Other", vr_ragdoll_collide_each)
             .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
+        toggle("Limbs Meet Each Other", vr_ragdoll_self_collide)
+            .help("A ragdoll's own limbs meet: an arm stays out of his chest, a leg out of the other, a body folded over "
+                  "lies on itself. Jointed neighbours (a forearm and its upper arm) and parts touching as he went limp "
+                  "pass through until they come apart; his gun never meets him. Off: his limbs pass through each other, "
+                  "as before. Ragdolls made from now on (vr_ragdoll_self_collide)."),
         header("Active Deaths (Experimental)"),
+        open("Test Them", pageIndex(pageRagdollTests))
+            .help("Debug > Tests > Ragdoll Behaviours: each behaviour below set going on the nearest grunt, enforcer, "
+                  "knight, death knight, ogre or zombie."),
         toggle("Active Deaths", vr_ragdoll_active)
             .help("A dying grunt, enforcer, knight, death knight, ogre or zombie goes limp as soon as he stops being solid, "
                   "his body playing his death animation as his strength fades (legs first): he stumbles if he dies on the "
@@ -4048,12 +4060,32 @@ void hologramTestMessage()
             .help("How strongly the joints follow the death animation (vr_ragdoll_active_strength)."),
         slider("Strength Lasts", vr_ragdoll_active_fade, 0.25f, 3.f, 0.25f, "%.2fx").extend(0.1f, 5.f)
             .help("How long the strength lasts, times his death animation's length (vr_ragdoll_active_fade)."),
+        slider("Muscle Stiffness", vr_ragdoll_active_hertz, 2.f, 20.f, 1.f, "%.0f Hz")
+            .help("How quickly a joint at full strength springs towards its pose: more follows the animation tighter, "
+                  "less is looser and lags (vr_ragdoll_active_hertz; at most 20)."),
+        slider("Muscle Damping", vr_ragdoll_active_damping, 0.2f, 2.f, 0.1f, "%.1f")
+            .help("How the joints' springs settle: 1 without overshoot, less bouncy, more sluggish (vr_ragdoll_active_damping)."),
+        slider("Muscle Torque", vr_ragdoll_active_torque, 0.5f, 5.f, 0.25f, "%.2f").extend(0.f, 10.f)
+            .help("A joint's most force at full strength, times the weight of what hangs on it times its lever: a blow "
+                  "or a hand overpowers less of it (vr_ragdoll_active_torque)."),
+        slider("Thrown by His Death", vr_ragdoll_active_pin, 0.f, 2.f, 0.1f, "%.1f").extend(0.f, 5.f)
+            .help("Body weights pulling his pelvis along his death animation's at first (its throw back or forward "
+                  "kept); 0 none (vr_ragdoll_active_pin)."),
+        slider("Thrown For", vr_ragdoll_active_pin_time, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("And that pull fading out over this (vr_ragdoll_active_pin_time)."),
+        slider("Headshot Strength", vr_ragdoll_active_headshot, 0.f, 0.5f, 0.01f, "%.2f")
+            .help("The strength a headshot or a beheading leaves: near 0 a pure collapse (vr_ragdoll_active_headshot)."),
+        slider("Stumble From", vr_ragdoll_active_stumble, 0.f, 300.f, 10.f, "%.0f u/s").extend(0.f, 1000.f)
+            .help("Dying on the move at least this fast, he stumbles on: carried a moment, a leg stepping ahead. 0: "
+                  "never (vr_ragdoll_active_stumble; a run is about 200-300, a walk 50-100)."),
         toggle("React to Lost Limbs", vr_ragdoll_active_dismember)
             .help("A dying monster losing a limb holds the stump with his free hand and writhes a few seconds once down; "
                   "killed standing by a leg cut off, he tries to keep his balance on the other before he falls; with no "
                   "legs he crawls on his arms. Off: he dies as from any blow (vr_ragdoll_active_dismember)."),
         slider("Writhing", vr_ragdoll_active_dismember_time, 0.f, 8.f, 0.5f, "%.1f s").extend(0.f, 20.f)
             .help("How long he writhes holding the stump once down (vr_ragdoll_active_dismember_time)."),
+        slider("Writhe Size", vr_ragdoll_active_writhe, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("How far his torso and legs stir as he writhes, times the default; 0 still (vr_ragdoll_active_writhe)."),
         slider("Balance on One Leg", vr_ragdoll_active_balance_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 5.f)
             .help("How long at most he tries to keep his balance on one leg (0: he falls at once) "
                   "(vr_ragdoll_active_balance_time)."),
@@ -4070,6 +4102,9 @@ void hologramTestMessage()
         toggle("Lean on Walls", vr_ragdoll_active_env_lean)
             .help("Dying with a wall behind or beside him, he braces a hand on it and slumps down it, his knees giving; "
                   "a crate he braces on, never holds (vr_ragdoll_active_env_lean)."),
+        slider("Arms' Strength", vr_ragdoll_active_env_arms, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("How strongly his arms reach for what is round him (a catch, a lean, a ledge's hold, a brace), times the "
+                  "default; 0 they don't (vr_ragdoll_active_env_arms)."),
         toggle("Grab Ledges", vr_ragdoll_active_env_ledge)
             .help("Falling past a ledge's lip near a hand, he grabs it and hangs a moment before dropping; shooting the "
                   "hand makes him let go (vr_ragdoll_active_env_ledge)."),
@@ -4081,6 +4116,10 @@ void hologramTestMessage()
         slider("Crawl Away", vr_ragdoll_active_crawl, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance a humanoid lying after his death rolls onto his front and crawls a few seconds before going "
                   "limp (vr_ragdoll_active_crawl)."),
+        slider("Crawl Time", vr_ragdoll_active_crawl_time, 0.5f, 8.f, 0.5f, "%.1f s").extend(0.1f, 30.f)
+            .help("How long he crawls (vr_ragdoll_active_crawl_time)."),
+        slider("Crawl Pull", vr_ragdoll_active_crawl_force, 0.2f, 3.f, 0.1f, "%.1f").extend(0.f, 6.f)
+            .help("Body weights his arms pull along the floor at most: more drags him further (vr_ragdoll_active_crawl_force)."),
         toggle("Swim and Flail in Liquids", vr_ragdoll_active_liquids)
             .help("Dying in water (drowned, or falling in just after his death) he paddles and kicks, his head held up, "
                   "weakening as he drowns; in lava or slime he flails, short and violent; then limp. Off: his death in a "
@@ -4112,10 +4151,28 @@ void hologramTestMessage()
                   "Off: the knockdown's chance alone (vr_ragdoll_active_stagger)."),
         slider("Stagger Falls Past", vr_ragdoll_active_stagger_lean, 10.f, 60.f, 5.f, "%.0f deg")
             .help("A staggering monster whose middle leans this far past its feet falls (vr_ragdoll_active_stagger_lean)."),
+        slider("Shove's Push", vr_ragdoll_active_stagger_push, 0.f, 5.f, 0.25f, "%.2f m/s").extend(0.f, 10.f)
+            .help("A fresh two-hand shove's push on a staggering monster's top (its pelvis carried by its balance, its "
+                  "feet not): more tips it further (vr_ragdoll_active_stagger_push)."),
+        slider("Stagger Travel", vr_ragdoll_active_stagger_travel, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How far its pelvis is carried, times how far the shove slides a monster standing (at most 1.25 m; "
+                  "vr_ragdoll_active_stagger_travel)."),
+        slider("Stagger Balance", vr_ragdoll_active_stagger_pin, 0.5f, 5.f, 0.25f, "%.2f").extend(0.f, 10.f)
+            .help("Body weights holding its pelvis up while it staggers, at most (by its balance: the knockdown's chance "
+                  "against its roll): less, it falls more often (vr_ragdoll_active_stagger_pin)."),
+        slider("Stagger Recovery Blend", vr_ragdoll_active_stagger_blend, 0.05f, 1.f, 0.05f, "%.2f s")
+            .help("Recovered, its ragdoll blends into the animated monster over this (vr_ragdoll_active_stagger_blend)."),
         toggle("Active Get-Ups", vr_ragdoll_active_getup)
             .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
                   "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "
                   "blends into the get-up from the floor (vr_ragdoll_active_getup)."),
+        slider("Get-Up Lift", vr_ragdoll_active_getup_pin, 0.5f, 5.f, 0.25f, "%.2f").extend(0.f, 10.f)
+            .help("Body weights pulling its pelvis through its get-up, at most: less, it struggles and may slump "
+                  "(vr_ragdoll_active_getup_pin)."),
+        slider("Get-Up Pace", vr_ragdoll_active_getup_pace, 0.3f, 2.f, 0.1f, "%.1fx")
+            .help("Its get-up's speed, times the get-up's own (vr_ragdoll_active_getup_pace)."),
+        slider("Get-Up Blend", vr_ragdoll_active_getup_blend, 0.05f, 1.f, 0.05f, "%.2f s")
+            .help("Risen, its ragdoll blends into the animated monster over this (vr_ragdoll_active_getup_blend)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
@@ -6266,6 +6323,10 @@ za::Vector<Item> pageDebugTests()
                   "as Most Ragdolls allows (vr_ragdoll_max). The benchmarks' mg3_*_kill. Reload afterward."),
         open("Stealth AI", pageIndex(pageStealthTests))
             .help("The stealth AI's scenes on e1m1 (Combat > Stealth AI): seeing, hearing, touch, investigating."),
+        open("Ragdoll Behaviours", pageIndex(pageRagdollTests))
+            .help("Each active-ragdoll behaviour set going on the nearest grunt, enforcer, knight, death knight, ogre or "
+                  "zombie: deaths by where struck, stumble, wound, crawl, lost limbs, swim, flail, walls, ledges, flinches, "
+                  "staggers, throws, get-ups; the console says whether each began."),
         open("Machine Horde Tests", pageIndex(pageMachineHordeTests))
             .help("Authored waves, currency, physical rewards, revival and saved equipment. Developer arena only."),
         open("Dawn of the Machine Bestiary", pageIndex(pageMg3BestiaryTests))
@@ -7681,6 +7742,7 @@ const Page pages[] = {
     {"Reloading - Cell Cords", pageReloadCellCords, pageReloading},
     {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)
     {"Stealth AI Tests", pageStealthTests, pageDebugTests, LevelDeveloper},
+    {"Ragdoll Behaviour Tests", pageRagdollTests, pageDebugTests, LevelDeveloper}, // (vr_menu_ragtests.inc)
     {"Holding Enemies", pageHoldingEnemies, pageCombat},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
     {"Doom", pageDoom, pageGadget, LevelStandard},
@@ -12143,6 +12205,59 @@ void qvr::menu::dump_f()
         }
     }
     levelOverride = was;
+}
+
+void qvr::menu::press_f()
+{
+    // (Unquoted, the page and the row split at " > ": a test script's quotes need not survive its shell.)
+    char args[512];
+    q_strlcpy(args, Cmd_Args() ? Cmd_Args() : "", sizeof(args));
+    char* split = strstr(args, " > ");
+    if(!split)
+    {
+        Con_Printf("usage: vr_menu_press <page title> > <row label>\n");
+        return;
+    }
+    *split = '\0';
+    const char* title = args;
+    const char* label = split + 3;
+    const int was = levelOverride;
+    levelOverride = LevelDeveloper;
+    const char* command = nullptr;
+    void (*action)() = nullptr;
+    bool found = false;
+    for(int p = 0; p < pageCount && !found; p++)
+    {
+        if(q_strcasecmp(pages[p].title, title))
+        {
+            continue;
+        }
+        for(const Item& item : items(p))
+        {
+            if(item.kind == Item::Action && item.label && !q_strcasecmp(item.label, label))
+            {
+                command = item.command;
+                action = item.page < 0 && !item.actionArg ? item.action : nullptr;
+                found = true;
+                break;
+            }
+        }
+    }
+    levelOverride = was;
+    if(!found || (!command && !action))
+    {
+        Con_Printf("vr_menu_press: no button \"%s\" on page \"%s\"\n", label, title);
+        return;
+    }
+    Con_Printf("vr_menu_press: %s > %s%s%s\n", title, label, command ? ": " : "", command ? command : "");
+    if(command)
+    {
+        runCommand(command);
+    }
+    else
+    {
+        action();
+    }
 }
 
 int qvr::menu::bodyCalibrationPage()

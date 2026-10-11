@@ -77,6 +77,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_ragactive.hpp"
 #include "vr_ragpose.hpp"
+#include "vr_ragtest.hpp"
 #include "vr_server.hpp"
 #include "vr_weapons.hpp"
 #include "vr_units.hpp"
@@ -2718,6 +2719,10 @@ void watchCorpses()
     {
         return glm::vec3{0.f};
     }
+    if(const ragtest::Force* f = ragtest::forced(num); f && (f->walk != glm::vec3{0.f} || f->still))
+    {
+        return f->walk; // (a test's stumble, or a monster it moved: vr_ragdoll_act)
+    }
     const World::MonsterMotion& m = world->motion[static_cast<size_t>(num)];
     return m.aliveAt >= 0.0 && qcvm->time - m.aliveAt < 0.6 ? m.alive : glm::vec3{0.f};
 }
@@ -3413,7 +3418,19 @@ void startActiveDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* 
               static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u;
     const ActiveClass* ac = activeClassOf(ent);
     di.crawler = ac && ac->crawls;
-    ragactive::beginDeath(r.active, parts, di, qcvm->time);
+    {
+        // A test's (vr_ragdoll_act): the wound's and the crawl's chances sure, or no pin, for this death alone.
+        const ragtest::Force* f = ragtest::forced(num);
+        const float woundWas = vr_ragdoll_active_wound.value, crawlWas = vr_ragdoll_active_crawl.value;
+        const float pinWas = vr_ragdoll_active_pin.value;
+        vr_ragdoll_active_wound.value = f && f->wound ? 1.f : woundWas;
+        vr_ragdoll_active_crawl.value = f && f->crawl ? 1.f : crawlWas;
+        vr_ragdoll_active_pin.value = f && f->noPin ? 0.f : pinWas;
+        ragactive::beginDeath(r.active, parts, di, qcvm->time);
+        vr_ragdoll_active_wound.value = woundWas;
+        vr_ragdoll_active_crawl.value = crawlWas;
+        vr_ragdoll_active_pin.value = pinWas;
+    }
     if(vr_debug_ragdoll.value)
     {
         const ragactive::Death& d = r.active.death;
@@ -3616,10 +3633,14 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
         const b3BodyId body = b3CreateBody(world->id, &def);
         r.body[static_cast<za::SizeT>(b)] = body;
 
-        // (Other ragdolls too, vr_ragdoll_collide_each: theirs have catCorpse in their masks, a corpse's not.)
-        b3ShapeDef sd = shapeDef(num, catCorpse, s.corpseMask | (vr_ragdoll_collide_each.value ? catCorpse : 0));
+        // (Other ragdolls too, vr_ragdoll_collide_each: theirs have catCorpse in their masks, a corpse's not. Its own parts
+        // with vr_ragdoll_self_collide: catCorpse in its mask too, no group, shouldCollide's selfMeets deciding which, and
+        // whether other ragdolls' parts meet them.)
+        const bool selfCollide = vr_ragdoll_self_collide.value != 0.f;
+        b3ShapeDef sd = shapeDef(num, catCorpse,
+            s.corpseMask | (vr_ragdoll_collide_each.value || selfCollide ? catCorpse : 0));
         sd.enableCustomFiltering = true; // (shouldCollide: thrown things, vr_corpse_collide_thrown; what it is made in)
-        sd.filter.groupIndex = -num;     // (its own parts never meet)
+        sd.filter.groupIndex = selfCollide ? 0 : -num; // (off: its own parts never meet)
         sd.enableHitEvents = true;       // (a knocked-down monster's fall damage: touches, callFalls)
         sd.baseMaterial.friction = friction;
         sd.density = bone.joint == ragdoll::Joint::Loose ? looseMass / za::max(volumes[static_cast<za::SizeT>(b)], 1e-6f) : density;
@@ -4296,6 +4317,14 @@ void driveActive(Slot& s, float dt)
     }
     c.floorBelow = activeFloorBelow;
     c.liquidAt = activeLiquidAt;
+    if(const ragtest::Force* f = ragtest::forced(r.num); f && f->liquid != ragactive::Liquid::None)
+    {
+        // (A test's swim on dry land, vr_ragdoll_act: that liquid everywhere for its drive, none for its buoyancy.)
+        constexpr ragactive::Liquid (*forcedLiquid[])(const glm::vec3&) = {
+            nullptr, [](const glm::vec3&) { return ragactive::Liquid::Water; },
+            [](const glm::vec3&) { return ragactive::Liquid::Slime; }, [](const glm::vec3&) { return ragactive::Liquid::Lava; }};
+        c.liquidAt = forcedLiquid[static_cast<int>(f->liquid)];
+    }
     c.rayHit = activeRayHit;
     c.num = r.num;
     c.born = r.born;
@@ -8502,6 +8531,72 @@ void callShocks()
     return fieldInt(EDICT_NUM(round), f.vr_ammo_passgun) == EDICT_TO_PROG(EDICT_NUM(gun));
 }
 
+// A shape of a ragdoll's part as GJK's point cloud (its body's frame): a hull's corners, a capsule's two ends and radius.
+// False: another kind of shape.
+[[nodiscard]] bool partProxy(b3ShapeId shape, b3ShapeProxy& out, za::Array<b3Vec3, 2>& ends)
+{
+    switch(b3Shape_GetType(shape))
+    {
+        case b3_hullShape:
+        {
+            const b3HullData* hull = b3Shape_GetHull(shape);
+            out.points = b3GetHullPoints(hull);
+            out.count = za::min(hull->vertexCount, static_cast<int32_t>(B3_MAX_SHAPE_CAST_POINTS));
+            out.radius = 0.f;
+            return out.count > 0;
+        }
+        case b3_capsuleShape:
+        {
+            const b3Capsule c = b3Shape_GetCapsule(shape);
+            ends[0] = c.center1;
+            ends[1] = c.center2;
+            out.points = ends.data();
+            out.count = 2;
+            out.radius = c.radius;
+            return true;
+        }
+        default: return false;
+    }
+}
+
+// Self-collision (vr_ragdoll_self_collide; ROUND22.md, "Ragdoll tests, tuning, self-collision"): two shapes of edict
+// `num`'s ragdoll (asked as their boxes begin to overlap; jointed neighbours never are: their joints' collideConnected).
+// They meet unless self-collision is off (the ragdoll made since: its group keeps them apart then), one is a loose piece
+// (his gun: it lies in his hand, a knockdown's welded there) or they overlap now (a death frame's forearm in his side:
+// pushed apart at once they would kick; asked again as their boxes move, they meet once apart).
+[[nodiscard]] bool selfMeets(b3ShapeId a, b3ShapeId b, int num)
+{
+    constexpr float apart = 0.002f; // m: nearer than this is overlapping (Box3D's speculative margin is larger)
+    if(vr_ragdoll_self_collide.value == 0.f || num >= static_cast<int>(world->slots.size()) || world->slots[num].ragdoll < 0)
+    {
+        return false;
+    }
+    const RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(world->slots[num].ragdoll)];
+    const b3BodyId ba = b3Shape_GetBody(a), bb = b3Shape_GetBody(b);
+    int pa = -1, pb = -1;
+    for(int p = 0; p < r.count && (pa < 0 || pb < 0); p++) // (a cut part's entry names its parent's body: found first)
+    {
+        const b3BodyId body = r.body[static_cast<za::SizeT>(p)];
+        pa = pa < 0 && B3_ID_EQUALS(body, ba) ? p : pa;
+        pb = pb < 0 && B3_ID_EQUALS(body, bb) ? p : pb;
+    }
+    if(pa < 0 || pb < 0 || pa == pb || r.rig->bones[pa].joint == ragdoll::Joint::Loose ||
+        r.rig->bones[pb].joint == ragdoll::Joint::Loose)
+    {
+        return false;
+    }
+    b3DistanceInput in{};
+    za::Array<b3Vec3, 2> endsA{}, endsB{};
+    if(!partProxy(a, in.proxyA, endsA) || !partProxy(b, in.proxyB, endsB))
+    {
+        return false;
+    }
+    in.transform = b3InvMulWorldTransforms(b3Body_GetTransform(ba), b3Body_GetTransform(bb));
+    in.useRadii = true;
+    b3SimplexCache cache{};
+    return b3ShapeDistance(&in, &cache, nullptr, 0).distance > apart;
+}
+
 bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
 {
     if(((b3Shape_GetFilter(a).categoryBits & catHeld) && smallGibSpared(numOf(b))) ||
@@ -8515,10 +8610,16 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
         return reachMeets(aReach ? a : b, aReach ? b : a);
     }
     const int na = numOf(a), nb = numOf(b);
-    if(na > 0 && na == nb) { return false; }
+    if(na > 0 && na == nb) { return selfMeets(a, b, na); }
     if(na <= 0 || nb <= 0 || na >= qcvm->num_edicts || nb >= qcvm->num_edicts)
     {
         return true;
+    }
+    // Two ragdolls (a self-colliding one has catCorpse in its mask whatever vr_ragdoll_collide_each: it decides here).
+    if(vr_ragdoll_collide_each.value == 0.f && na < static_cast<int>(world->slots.size()) &&
+        nb < static_cast<int>(world->slots.size()) && world->slots[na].ragdoll >= 0 && world->slots[nb].ragdoll >= 0)
+    {
+        return false;
     }
     if(!world->inside.empty() && bornInside(na, nb))
     {
@@ -14052,6 +14153,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
         return;
     }
+    ragtest::frame(); // (the ragdoll tests under way, vr_ragdoll_act: their next steps, whether each began)
     QVR_PROFILE("box3d");
     if(!world || world->map != sv.worldmodel || world->generation != worldGeneration() || world->m2u != units::metresToUnits() ||
        !meshCurrent(sv.worldmodel, world->m2u, world->mesh))
@@ -14330,6 +14432,17 @@ int nearestProp()
 bool isRagdoll(int num)
 {
     return ragdollOf(num) != nullptr;
+}
+
+bool activeKind(const edict_t* ent)
+{
+    return ent && !ent->free && activeClassOf(ent) != nullptr;
+}
+
+const ragactive::State* activeState(int num)
+{
+    const RagdollBodies* r = ragdollOf(num);
+    return r ? &r->active : nullptr;
 }
 
 bool canRagdoll(edict_t* ent)

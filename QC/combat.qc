@@ -2554,6 +2554,21 @@ void(entity attacker, float damage) T_BeamDamage =
     }
 };
 
+// The tests' target (the engine's vr_ragdoll_act, vr_ragtest.cpp: the nearest monster of a kind it supports, set by
+// VR_TestOnly for the length of one test call): world, the nearest as each test finds it. VR_TestKill_Frame,
+// VR_TestHit_Frame, VR_Limb_TestTarget (vr_test_cut) and VR_Knockdown_Test take it instead of their nearest.
+entity vr_test_only;
+void(entity xTarget) VR_TestOnly =
+{
+    vr_test_only = xTarget;
+};
+
+// Whether a test looking for its nearest monster skips `e` (vr_test_only set, and not it).
+float(entity e) VR_TestSkips =
+{
+    return (vr_test_only != world && e != vr_test_only);
+};
+
 // Test aid `vr_test_kill <n>` (console; the active ragdolls' tests, Misc/quakevr/ragdoll/active_test.sh): the live
 // monster nearest the player killed by a shot of his (20 damage on its last point of health), struck (n - 1) on: 0 the body, 1 the head, 2 an arm (its right
 // side as he sees it), 3 a leg, on its side facing him; 5: nowhere known. Prints `test kill:`.
@@ -2571,7 +2586,8 @@ void() VR_TestKill_Frame =
     entity e = nextent(world);
     while(e)
     {
-        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e) && vlen(e.origin - pl.origin) < bestD)
+        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e) && !VR_TestSkips(e) &&
+           vlen(e.origin - pl.origin) < bestD)
         {
             bestD = vlen(e.origin - pl.origin);
             best = e;
