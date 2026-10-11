@@ -6,6 +6,7 @@
 #include "vr_brushes.hpp"
 
 #include "vr_box3d.hpp"
+#include "vr_brushlight.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_files.hpp"
@@ -196,6 +197,7 @@ struct Built
     za::Vector<texture_t*> textures;
     za::Vector<int> used;
     za::Vector<glm::vec4> clipPlanes; // the faces (hull 0's planes, outward) and the bevels a box swept at it needs
+    za::Vector<glm::dvec4> hullPlanes[3]; // each hull's planes (outward, model space: its chain's; the bake's submodels)
     glm::vec3 origin{0.f};      // the entity's (model space = world - origin)
     glm::vec3 mins{0.f}, maxs{0.f};
     int texofs[TEXTYPE_COUNT + 1]{};
@@ -450,6 +452,7 @@ void build(const Brush* b, Built& out)
     for(int h = 0; h < 3; h++)
     {
         chain(pushed[h], out.planes, out.clipnodes[h]);
+        out.hullPlanes[h] = pushed[h];
     }
 
     // Vertices (shared), edges (shared, Quake's signed surfedges), one texinfo and surface a face.
@@ -764,6 +767,15 @@ struct Entry
     za::UniquePtr<Built> retired; // the one before (a pointer into it kept a frame somewhere is still good)
     za::U32 revision{0};
     bool dirty{false}; // its slot to write (upload)
+    // Its light (vr_brushlight.cpp): its faces' lightmaps in its slot's rectangle and their texels (the flat light, then
+    // the bake's), laid out at its upload after each change of its faces (lightReady false); the serial its bake carries
+    // (a result for an older layout dropped); rebake: a brush near it changed (its shadows).
+    za::Vector<brushlight::Map> maps;
+    brushlight::Texels texels;
+    bool lightReady{false};
+    bool baked{false};
+    bool rebake{false};
+    za::U32 lightSerial{0};
 };
 
 // An edit undone by vr_brush_undo: a brush made (undone: removed), changed or removed (undone: back as it was before).
@@ -914,7 +926,57 @@ void rebuild(Entry& e, bool empty, bool texturesOnly = false)
             forgetModel(e.model, e.brush.id, oldLo, oldHi);
         }
     }
+    if(!texturesOnly)
+    {
+        // Its light laid out again at its upload; the brushes near where it was and is baked again (its shadows on them).
+        e.lightReady = false;
+        e.baked = false;
+        e.lightSerial++;
+        brushlight::cancel(e.brush.id);
+        glm::vec3 lo = oldLo, hi = oldHi;
+        if(!e.built->surfaces.empty())
+        {
+            const glm::vec3 nlo = e.built->origin + e.built->mins, nhi = e.built->origin + e.built->maxs;
+            lo = lo.x <= hi.x ? glm::min(lo, nlo) : nlo;
+            hi = oldLo.x <= oldHi.x ? glm::max(hi, nhi) : nhi;
+        }
+        if(lo.x <= hi.x)
+        {
+            const glm::vec3 reach{vr_brush_bake_reach.value};
+            for(auto& other : registry.entries)
+            {
+                if(other && other.get() != &e && other->built && !other->built->surfaces.empty())
+                {
+                    const glm::vec3 olo = other->built->origin + other->built->mins, ohi = other->built->origin + other->built->maxs;
+                    if(glm::all(glm::lessThan(olo, hi + reach)) && glm::all(glm::greaterThan(ohi, lo - reach)))
+                    {
+                        other->rebake = true;
+                    }
+                }
+            }
+        }
+    }
     e.dirty = true;
+}
+
+// Whether two brushes' faces have the same texture alignment (their lightmaps' luxels in the same places).
+[[nodiscard]] bool sameAlignment(const Brush& a, const Brush& b)
+{
+    if(a.faces.size() != b.faces.size())
+    {
+        return false;
+    }
+    for(za::SizeT i = 0; i < a.faces.size(); i++)
+    {
+        const Face& f = a.faces[i];
+        const Face& g = b.faces[i];
+        if(f.uAxis != g.uAxis || f.vAxis != g.vAxis || f.uOffset != g.uOffset || f.vOffset != g.vOffset || f.scaleU != g.scaleU ||
+            f.scaleV != g.scaleV)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 // Whether two brushes have the same planes, in the same order (only their textures may differ).
@@ -993,30 +1055,59 @@ bool placeEntity(Entry& e)
 // ---------------------------------------------------------------------------------------------------------------------
 // The slots: each brush's vertices, indices, draw commands and lightmap texels in the brush buffers' reserve.
 
-// A face's light: the light the map has where it is (the lightmap under the point a little out from its middle, as a
-// model there is lit), shaded by its way (vr_brush_shade: the top full, the sides 0.8, the bottom 0.55).
-[[nodiscard]] unsigned faceLight(const glm::vec3& centre, const glm::vec3& normal)
+// A brush's faces as its light sees them (world space): each surface's plane, polygon and texture axes, in the surfaces'
+// order (the model's: the faces with area).
+void litFaces(const Entry& e, za::Vector<brushlight::Face>& out)
 {
-    vec3_t p{centre.x + normal.x * 4.f, centre.y + normal.y * 4.f, centre.z + normal.z * 4.f};
-    lightcache_t cache{};
-    int level = R_LightPoint(p, 0.f, &cache);
-    glm::vec3 c{lightcolor[0], lightcolor[1], lightcolor[2]};
-    if(level <= 0)
+    out.clear();
+    const Built& b = *e.built;
+    for(za::SizeT k = 0; k < b.surfaces.size(); k++)
     {
-        c = glm::vec3{24.f}; // (over nothing lit: the void, the sky)
+        const msurface_t& s = b.surfaces[k];
+        const Face& f = e.brush.faces[static_cast<za::SizeT>(b.surfaceFace[k])];
+        brushlight::Face lf;
+        lf.normal = f.normal;
+        lf.dist = f.dist;
+        for(int i = 0; i < s.numedges; i++)
+        {
+            const int se = b.surfedges[static_cast<za::SizeT>(s.firstedge + i)];
+            const float* v = b.vertexes[se >= 0 ? b.edges[static_cast<za::SizeT>(se)].v[0] : b.edges[static_cast<za::SizeT>(-se)].v[1]].position;
+            lf.poly.pushBack(glm::dvec3{v[0], v[1], v[2]} + glm::dvec3{b.origin});
+        }
+        lf.s = glm::dvec4{f.uAxis / (f.scaleU != 0.0 ? f.scaleU : 1.0), f.uOffset};
+        lf.t = glm::dvec4{f.vAxis / (f.scaleV != 0.0 ? f.scaleV : 1.0), f.vOffset};
+        out.pushBack(ZA_MOVE(lf));
     }
-    const float n = normal.z;
-    const float shade = n >= 0.f ? 0.8f + 0.2f * n : 0.8f + 0.25f * n;
-    c *= 1.f + (shade - 1.f) * za::clamp(vr_brush_shade.value, 0.f, 1.f);
-    const auto channel = [](float v) { return static_cast<unsigned>(za::clamp(v, 0.f, 255.f) + 0.5f); };
-    return channel(c.r) | (channel(c.g) << 8) | (channel(c.b) << 16) | 0xff000000u;
+}
+
+// Its light laid out (its faces' lightmaps in its rectangle) and lit flat (the light where each face is), its bake
+// queued (vr_brush_bake).
+void layLight(Entry& e)
+{
+    za::Vector<brushlight::Face> faces;
+    litFaces(e, faces);
+    brushlight::layout(faces, e.maps);
+    za::Vector<glm::vec3> colours;
+    for(const brushlight::Face& f : faces)
+    {
+        colours.pushBack(brushlight::flatLight(f));
+    }
+    brushlight::fill(e.maps, colours, e.texels);
+    e.lightReady = true;
+    e.baked = false;
+    e.rebake = false;
+    e.lightSerial++;
+    if(vr_brush_bake.value != 0.f)
+    {
+        brushlight::queue(e.brush.id, e.lightSerial, faces, e.maps);
+    }
 }
 
 // Slot `slot` written for entry `e` (null: emptied).
 void upload(int slot, Entry* e)
 {
     const qvr_brush_reserve_t* r = R_RuntimeBrushReserve();
-    if(slot < 0 || slot >= r->slots)
+    if(slot < 0 || slot >= r->slots || !r->lmxy)
     {
         return;
     }
@@ -1032,16 +1123,19 @@ void upload(int slot, Entry* e)
         }
         return;
     }
+    if(!e->lightReady || e->maps.size() != e->built->surfaces.size())
+    {
+        layLight(*e);
+    }
     Built& b = *e->built;
     const int firstVert = r->firstvert + slot * QVR_BRUSH_SLOT_VERTS;
     const int firstIndex = r->firstindex + slot * QVR_BRUSH_SLOT_INDEXES;
     za::InPlaceVector<glvert_t, QVR_BRUSH_SLOT_VERTS> verts;
     za::InPlaceVector<unsigned, QVR_BRUSH_SLOT_INDEXES> indexes;
     za::InPlaceVector<bmodel_draw_indirect_t, QVR_BRUSH_SLOT_CMDS> cmds;
-    za::InPlaceVector<unsigned, QVR_BRUSH_SLOT_LUXELS> texels, lux;
-    const float lmS = (static_cast<float>(r->lmx + (slot % QVR_BRUSH_LUXEL_ROW) * QVR_BRUSH_SLOT_LUXELS) + 0.5f) / static_cast<float>(r->lmwidth);
-    const float lmT = (static_cast<float>(r->lmy + slot / QVR_BRUSH_LUXEL_ROW) + 0.5f) / static_cast<float>(r->lmheight);
-    const int numSurfaces = za::min(static_cast<int>(b.surfaces.size()), QVR_BRUSH_SLOT_LUXELS);
+    const float rx = static_cast<float>(r->lmxy[slot * 2]), ry = static_cast<float>(r->lmxy[slot * 2 + 1]);
+    const float lw = static_cast<float>(r->lmwidth), lh = static_cast<float>(r->lmheight);
+    const int numSurfaces = static_cast<int>(b.surfaces.size());
     // The vertices a face at a time; the indices a texture at a time (its command's range).
     for(int k = 0; k < numSurfaces; k++)
     {
@@ -1052,6 +1146,7 @@ void upload(int slot, Entry* e)
             continue;
         }
         s.vbo_firstvert = firstVert + static_cast<int>(verts.size());
+        const brushlight::Map& m = e->maps[static_cast<za::SizeT>(k)];
         const texture_t* t = b.textures[static_cast<za::SizeT>(s.texinfo->texnum)];
         const float tw = t && t->width ? static_cast<float>(t->width) : 64.f, th = t && t->height ? static_cast<float>(t->height) : 64.f;
         glm::vec3 centre{0.f};
@@ -1061,14 +1156,17 @@ void upload(int slot, Entry* e)
             const float* v = b.vertexes[se >= 0 ? b.edges[static_cast<za::SizeT>(se)].v[0] : b.edges[static_cast<za::SizeT>(-se)].v[1]].position;
             centre += glm::vec3{v[0], v[1], v[2]} / static_cast<float>(s.numedges);
         }
+        const unsigned styles = static_cast<unsigned>(m.styles[0]) | (static_cast<unsigned>(m.styles[1]) << 8) |
+                                (static_cast<unsigned>(m.styles[2]) << 16) | (static_cast<unsigned>(m.styles[3]) << 24);
         for(int i = 0; i < s.numedges; i++)
         {
             const int se = b.surfedges[static_cast<za::SizeT>(s.firstedge + i)];
             const float* v = b.vertexes[se >= 0 ? b.edges[static_cast<za::SizeT>(se)].v[0] : b.edges[static_cast<za::SizeT>(-se)].v[1]].position;
             glvert_t gv{};
             VectorCopy(v, gv.pos);
-            float sc = (DotProduct(v, s.texinfo->vecs[0]) + s.texinfo->vecs[0][3]) / tw;
-            float tc = (DotProduct(v, s.texinfo->vecs[1]) + s.texinfo->vecs[1][3]) / th;
+            const float su = DotProduct(v, s.texinfo->vecs[0]) + s.texinfo->vecs[0][3];
+            const float tv = DotProduct(v, s.texinfo->vecs[1]) + s.texinfo->vecs[1][3];
+            float sc = su / tw, tc = tv / th;
             if(t && t->shift > 0) // (Q64's texture shift, as GL_BuildBModelVertexBuffer)
             {
                 sc /= static_cast<float>(2 * t->shift);
@@ -1076,23 +1174,18 @@ void upload(int slot, Entry* e)
             }
             gv.st[0] = sc;
             gv.st[1] = tc;
-            gv.st[2] = lmS + static_cast<float>(k) / static_cast<float>(r->lmwidth);
-            gv.st[3] = lmT;
-            gv.lmofs = 0.f;
-            gv.styles = 0u | (255u << 8) | (255u << 16) | (255u << 24);
+            // The lightmap: luxel (0, 0)'s middle at s0, t0 (model space's s and t are the world's: the offsets carry the
+            // origin), `step` texture units a luxel.
+            gv.st[2] = (rx + static_cast<float>(m.x) + (su - static_cast<float>(m.s0)) / static_cast<float>(m.step) + 0.5f) / lw;
+            gv.st[3] = (ry + static_cast<float>(m.y) + (tv - static_cast<float>(m.t0)) / static_cast<float>(m.step) + 0.5f) / lh;
+            gv.lmofs = static_cast<float>(m.w) / lw;
+            gv.styles = styles;
             gv.swellpin = 0.f;
             gv.centre[0] = centre.x;
             gv.centre[1] = centre.y;
             gv.centre[2] = centre.z;
             verts.pushBack(gv);
         }
-        glm::vec3 normal{s.plane->normal[0], s.plane->normal[1], s.plane->normal[2]};
-        if(s.flags & SURF_PLANEBACK)
-        {
-            normal = -normal;
-        }
-        texels.pushBack(faceLight(centre + b.origin, normal));
-        lux.pushBack(128u | (128u << 8) | (255u << 16) | 0xff000000u); // (straight on)
     }
     for(int j = 0; j < static_cast<int>(b.used.size()) && j < QVR_BRUSH_SLOT_CMDS; j++)
     {
@@ -1106,7 +1199,7 @@ void upload(int slot, Entry* e)
             {
                 continue;
             }
-            for(int i = 2; i < s.numedges && indexes.size() + 3 <= indexes.capacity(); i++)
+            for(int i = 2; i < s.numedges && static_cast<int>(indexes.size()) + 3 <= QVR_BRUSH_SLOT_INDEXES; i++)
             {
                 indexes.pushBack(static_cast<unsigned>(s.vbo_firstvert));
                 indexes.pushBack(static_cast<unsigned>(s.vbo_firstvert + i - 1));
@@ -1118,14 +1211,12 @@ void upload(int slot, Entry* e)
     }
     R_RuntimeBrushUpload(slot, verts.data(), static_cast<int>(verts.size()), indexes.data(), static_cast<int>(indexes.size()),
         cmds.data(), static_cast<int>(cmds.size()));
-    R_RuntimeBrushLightmap(slot, texels.data(), lux.data(), static_cast<int>(texels.size()));
+    R_RuntimeBrushLightmap(slot, e->texels.light.data(), e->texels.lux.data());
     if(developer.value)
     {
-        Con_Printf("brush %d: slot %d, %d corners, %d indices, %d textures, light %06x %06x %06x %06x %06x %06x\n", e->brush.id,
-            slot, static_cast<int>(verts.size()), static_cast<int>(indexes.size()), static_cast<int>(cmds.size()),
-            texels.size() > 0 ? texels[0] & 0xffffff : 0, texels.size() > 1 ? texels[1] & 0xffffff : 0,
-            texels.size() > 2 ? texels[2] & 0xffffff : 0, texels.size() > 3 ? texels[3] & 0xffffff : 0,
-            texels.size() > 4 ? texels[4] & 0xffffff : 0, texels.size() > 5 ? texels[5] & 0xffffff : 0);
+        Con_Printf("brush %d: slot %d, %d corners, %d indices, %d textures, luxels %.0f apart, %s\n", e->brush.id, slot,
+            static_cast<int>(verts.size()), static_cast<int>(indexes.size()), static_cast<int>(cmds.size()),
+            e->maps.empty() ? 0.0 : e->maps[0].step, e->baked ? "baked" : "flat");
     }
     qmodel_t* mod = e->model;
     mod->firstcmd = r->firstcmd + slot * QVR_BRUSH_SLOT_CMDS;
@@ -1462,6 +1553,90 @@ void list_f()
             b.rev, static_cast<int>(b.faces.size()), b.faces.empty() ? "-" : b.faces[0].texture, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z,
             marks, ok ? "" : " (no volume)");
     });
+}
+
+// vr_brush_light <id>: its faces' lightmaps (luxels, their spacing, styles) and their first style's light (the least,
+// the mean and the most of a luxel's brightness, lightmap units: 128 full), flat or baked.
+void light_f()
+{
+    const int id = idArg(1);
+    if(!id)
+    {
+        return;
+    }
+    const Entry* e = entryOf(id);
+    Con_Printf("brush light %d: %s, %d faces\n", id, !e->lightReady ? "not laid out yet" : e->baked ? "baked" : "flat",
+        static_cast<int>(e->maps.size()));
+    for(za::SizeT k = 0; k < e->maps.size() && e->texels.light.size() == static_cast<za::SizeT>(brushlight::rectWidth * brushlight::rectHeight); k++)
+    {
+        const brushlight::Map& m = e->maps[k];
+        double lo = 1e9, hi = 0.0, sum = 0.0;
+        for(int y = m.y; y < m.y + m.h; y++)
+        {
+            for(int x = m.x; x < m.x + m.w; x++)
+            {
+                const unsigned c = e->texels.light[static_cast<za::SizeT>(y * brushlight::rectWidth + x)];
+                const double v = ((c & 0xff) + ((c >> 8) & 0xff) + ((c >> 16) & 0xff)) / 3.0;
+                lo = za::min(lo, v);
+                hi = za::max(hi, v);
+                sum += v;
+            }
+        }
+        // (the other styles' means)
+        double means[4]{0.0, 0.0, 0.0, 0.0};
+        for(int s = 1; s < m.numStyles; s++)
+        {
+            for(int y = m.y; y < m.y + m.h; y++)
+            {
+                for(int x = m.x + s * m.w; x < m.x + (s + 1) * m.w; x++)
+                {
+                    const unsigned c = e->texels.light[static_cast<za::SizeT>(y * brushlight::rectWidth + x)];
+                    means[s] += ((c & 0xff) + ((c >> 8) & 0xff) + ((c >> 16) & 0xff)) / 3.0 / (m.w * m.h);
+                }
+            }
+        }
+        const Face& f = e->brush.faces[static_cast<za::SizeT>(e->built->surfaceFace[k])];
+        Con_Printf("  face %d (%.2f %.2f %.2f): %dx%d luxels %.0f apart, styles %d %d %d %d, light %.0f %.0f %.0f, styles' means %.0f %.0f %.0f\n",
+            static_cast<int>(k), f.normal.x, f.normal.y, f.normal.z, m.w, m.h, m.step, m.styles[0], m.styles[1] == 255 ? -1 : m.styles[1],
+            m.styles[2] == 255 ? -1 : m.styles[2], m.styles[3] == 255 ? -1 : m.styles[3], lo, sum / (m.w * m.h), hi, means[1], means[2],
+            means[3]);
+    }
+}
+
+// vr_brush_lights [x y z]: the map's lights as the bake has them; with a point, the nearest five.
+void lights_f()
+{
+    glm::dvec3 p;
+    if(parseVec(1, p))
+    {
+        const glm::vec3 q{p};
+        brushlight::listLights(&q, false);
+        return;
+    }
+    brushlight::listLights(nullptr, Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "styled"));
+}
+
+// vr_brush_rebake [id | all]: baked again (all: every brush).
+void rebake_f()
+{
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "all"))
+    {
+        for(auto& e : registry.entries)
+        {
+            if(e)
+            {
+                e->lightReady = false;
+                e->dirty = true;
+            }
+        }
+        return;
+    }
+    const int id = idArg(1);
+    if(id)
+    {
+        entryOf(id)->lightReady = false;
+        entryOf(id)->dirty = true;
+    }
 }
 
 // vr_brush_text <id>: its .map text.
@@ -2423,7 +2598,7 @@ bool fromText(za::StringView text, Brush& out, za::String& error)
         {
             if(za::fabs(f.normal[k] - za::round(f.normal[k])) < 1e-12)
             {
-                f.normal[k] = za::round(f.normal[k]);
+                f.normal[k] = za::round(f.normal[k]) + 0.0; // (no -0)
             }
         }
         if(za::fabs(f.dist - za::round(f.dist)) < 1e-9)
@@ -2618,11 +2793,20 @@ bool change(int id, const Brush& b)
     }
     const za::U32 rev = e->brush.rev;
     const bool painted = e->built && !e->built->surfaces.empty() && sameShape(e->brush, b);
+    const bool aligned = sameAlignment(e->brush, b);
     recordUndo(UndoStep::Kind::Changed, id, &e->brush);
     e->brush = b;
     e->brush.id = id;
     e->brush.rev = rev + 1;
     rebuild(*e, false, painted);
+    if(painted && !aligned)
+    {
+        // (its textures moved on its faces: its luxels with them; its shadows on others the same)
+        e->lightReady = false;
+        e->baked = false;
+        e->lightSerial++;
+        brushlight::cancel(id);
+    }
     return placeEntity(*e);
 }
 
@@ -2698,6 +2882,71 @@ void forEach(za::FunctionRef<void(const Brush&)> f)
             f(e->brush);
         }
     }
+}
+
+bool bakeShape(const Brush& b, BakeShape& out)
+{
+    out = BakeShape{};
+    Built built;
+    build(&b, built);
+    if(built.surfaces.empty())
+    {
+        return false;
+    }
+    const glm::dvec3 origin{built.origin};
+    out.lo = origin + glm::dvec3{built.mins};
+    out.hi = origin + glm::dvec3{built.maxs};
+    for(za::SizeT k = 0; k < built.surfaces.size(); k++)
+    {
+        const msurface_t& s = built.surfaces[k];
+        const Face& f = b.faces[static_cast<za::SizeT>(built.surfaceFace[k])];
+        BakeShape::Surface o;
+        o.normal = f.normal;
+        o.dist = f.dist;
+        for(int i = 0; i < s.numedges; i++)
+        {
+            const int se = built.surfedges[static_cast<za::SizeT>(s.firstedge + i)];
+            const float* v = built.vertexes[se >= 0 ? built.edges[static_cast<za::SizeT>(se)].v[0] : built.edges[static_cast<za::SizeT>(-se)].v[1]].position;
+            o.poly.pushBack(glm::dvec3{v[0], v[1], v[2]} + origin);
+        }
+        o.vecs[0] = glm::dvec4{f.uAxis / (f.scaleU != 0.0 ? f.scaleU : 1.0), f.uOffset};
+        o.vecs[1] = glm::dvec4{f.vAxis / (f.scaleV != 0.0 ? f.scaleV : 1.0), f.vOffset};
+        const texture_t* t = built.textures[static_cast<za::SizeT>(s.texinfo->texnum)];
+        q_strlcpy(o.texture, t ? t->name : f.texture, sizeof(o.texture));
+        out.surfaces.pushBack(ZA_MOVE(o));
+    }
+    for(int h = 1; h <= 2; h++)
+    {
+        for(const glm::dvec4& p : built.hullPlanes[h])
+        {
+            out.hulls[h - 1].pushBack(glm::dvec4{glm::dvec3{p}, p.w + glm::dot(glm::dvec3{p}, origin)});
+        }
+    }
+    return true;
+}
+
+unsigned long long bakeHash(const Brush& b)
+{
+    // Its faces' numbers rounded (a sloped face read back from a save's text moves in its last digits), and textures.
+    unsigned long long h = 1469598103934665603ull;
+    const auto add = [&h](const void* p, za::SizeT n) {
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            h = (h ^ static_cast<const unsigned char*>(p)[i]) * 1099511628211ull;
+        }
+    };
+    for(const Face& f : b.faces)
+    {
+        const double v[14] = {f.normal.x, f.normal.y, f.normal.z, f.dist / 64.0, f.uAxis.x, f.uAxis.y, f.uAxis.z, f.uOffset / 64.0,
+            f.vAxis.x, f.vAxis.y, f.vAxis.z, f.vOffset / 64.0, f.scaleU, f.scaleV};
+        for(const double x : v)
+        {
+            const long long q = static_cast<long long>(za::round(x * 1e4));
+            add(&q, sizeof(q));
+        }
+        add(f.texture, strlen(f.texture));
+    }
+    return h;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -3174,6 +3423,59 @@ void facesIn(const glm::vec3& lo, const glm::vec3& hi,
     }
 }
 
+bool blocks(const glm::vec3& a, const glm::vec3& b, int except)
+{
+    for(const auto& ep : registry.entries)
+    {
+        if(!ep || !ep->built || ep->built->surfaces.empty() || ep->brush.id == except)
+        {
+            continue;
+        }
+        const Built& bt = *ep->built;
+        const glm::vec3 pa = a - bt.origin, pb = b - bt.origin;
+        if(glm::any(glm::lessThan(glm::max(pa, pb), bt.mins)) || glm::any(glm::greaterThan(glm::min(pa, pb), bt.maxs)))
+        {
+            continue;
+        }
+        // (the segment against its planes: in front of one all along, out; else the part behind them all)
+        float enter = 0.f, leave = 1.f;
+        bool out = false;
+        for(const glm::vec4& p : bt.clipPlanes)
+        {
+            const glm::vec3 n{p};
+            const float d1 = glm::dot(n, pa) - p.w, d2 = glm::dot(n, pb) - p.w;
+            if(d1 > 0.f && d2 > 0.f)
+            {
+                out = true;
+                break;
+            }
+            if(d1 <= 0.f && d2 <= 0.f)
+            {
+                continue;
+            }
+            const float f = d1 / (d1 - d2);
+            if(d1 > d2)
+            {
+                enter = za::max(enter, f);
+            }
+            else
+            {
+                leave = za::min(leave, f);
+            }
+            if(enter > leave)
+            {
+                out = true;
+                break;
+            }
+        }
+        if(!out)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool traceLine(const glm::vec3& start, const glm::vec3& end, glm::vec3& where, glm::vec3& normal, float& fraction)
 {
     bool hit = false;
@@ -3218,6 +3520,7 @@ void reset()
     }
     registry.entries.clear();
     registry.undo.clear();
+    brushlight::clear();
     registry.sweep = true;
     registry.loadedSave = false;
 }
@@ -3268,7 +3571,8 @@ void frame()
             }
         }
     }
-    if(cls.state == ca_dedicated || !cl.worldmodel)
+    // (the client in the game, its light styles come: the flat light and the bake read the world's light with them)
+    if(cls.state == ca_dedicated || !cl.worldmodel || cls.signon != SIGNONS)
     {
         return;
     }
@@ -3283,6 +3587,31 @@ void frame()
             upload(static_cast<int>(i), e);
         }
     }
+    // The bakes: the brushes a change near them darkened or lit queued again, then a few milliseconds of the work.
+    if(vr_brush_bake.value == 0.f || sv.worldmodel != cl.worldmodel)
+    {
+        return;
+    }
+    for(auto& e : registry.entries)
+    {
+        if(e && e->rebake && e->lightReady && e->built && !e->built->surfaces.empty())
+        {
+            e->rebake = false;
+            e->lightSerial++;
+            za::Vector<brushlight::Face> faces;
+            litFaces(*e, faces);
+            brushlight::queue(e->brush.id, e->lightSerial, faces, e->maps);
+        }
+    }
+    brushlight::run(za::max(static_cast<double>(vr_brush_bake_ms.value), 0.1), [](int id, za::U32 serial, const brushlight::Texels& texels) {
+        Entry* e = entryOf(id);
+        if(e && e->lightSerial == serial && e->lightReady)
+        {
+            e->texels = texels;
+            e->baked = true;
+            e->dirty = true;
+        }
+    });
 }
 
 void registerCommands()
@@ -3308,6 +3637,9 @@ void registerCommands()
     Cmd_AddCommand("vr_brush_align", align_f);
     Cmd_AddCommand("vr_brush_save", save_f);
     Cmd_AddCommand("vr_brush_load", load_f);
+    Cmd_AddCommand("vr_brush_light", light_f);
+    Cmd_AddCommand("vr_brush_lights", lights_f);
+    Cmd_AddCommand("vr_brush_rebake", rebake_f);
 }
 
 } // namespace qvr::brushes

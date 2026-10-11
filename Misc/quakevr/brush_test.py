@@ -32,7 +32,7 @@ if not os.path.exists(BASH):
     BASH = "bash"
 SCRATCH = f"C:/OHWorkspace/qvr-agents/{AGENT}/scratch"
 os.makedirs(SCRATCH, exist_ok=True)
-FILT = "brush|box3d: .*(convex pieces|retired)|decals laid|lets go|^  [0-9]+: entity|toolgun|climb: mantle|saved game|walltime|^ *(frame|render|world) |ENGINE|CRASH|exit=|TIMEOUT|composed"
+FILT = "brush|^  face |box3d: .*(convex pieces|retired)|decals laid|lets go|^  [0-9]+: entity|toolgun|climb: mantle|saved game|walltime|^ *(frame|render|world) |ENGINE|CRASH|exit=|TIMEOUT|composed"
 fails = []
 
 def run(cmds, out=None, extra=()):
@@ -127,6 +127,34 @@ t = run(R + ["vr_brush_box 128 -592 17 192 -528 81", "vr_brush_shape cylinder 20
 counts = re.findall(r"brushes: (\d+) of", t)
 check("2 brushes made from" in t and counts == ["2", "2"] and re.search(r"^  2: entity \d+, rev 1, 8 faces", t, re.M) is not None,
       f"files: saved and loaded, a new map with vr_brush_autoload gets them ({counts})")
+
+# baked light: in the firing range's sun a box's sunlit side brighter than its shaded one, its bottom (on the floor)
+# dark; a pillar beside it half in its shadow; the box removed, the pillar baked again without it (even); a save keeps
+# the same light (baked again after the load); in e1m1's flickering corridor a box's face towards the light has that
+# light's style (10) in a map of its own
+FACE_RE = re.compile(r"  face \d+ \([-\d. ]+\): \d+x\d+ luxels \d+ apart, styles ([-\d ]+), light ([\d.]+) ([\d.]+) ([\d.]+), "
+                     r"styles' means ([\d.]+)")
+
+def faces(t, brush):
+    # each vr_brush_light <brush>: its faces' (least, mean, most of the first style, the styles, the second style's mean)
+    out = []
+    for block in re.findall(r"brush light %d: \w+, \d+ faces\n((?:  face .*\n?)*)" % brush, t):
+        out.append([(float(f[1]), float(f[2]), float(f[3]), f[0], float(f[4])) for f in FACE_RE.findall(block)])
+    return out
+
+t = run(R + ["vr_brush_bake_report 1", "vr_brush_box 128 -592 17 192 -528 81", "vr_brush_box 100 -560 17 120 -540 300", "wait100",
+             "vr_brush_light 1", "vr_brush_light 2", "save brush_light", "wait5", "vr_brush_delete 1", "wait100", "vr_brush_light 2",
+             "load brush_light", "wait100", "vr_brush_light 1"])
+b1, b2 = faces(t, 1), faces(t, 2)
+check("brush light: 1 baked" in t and len(b1) == 2 and b1[0][0][1] > b1[0][1][1] + 20 and b1[0][5][1] < 5,
+      f"light: the box's sunlit side brighter than its shaded one, its bottom dark ({b1[0] if b1 else None})")
+check(len(b2) == 2 and b2[0][0][2] - b2[0][0][0] > 30 and b2[1][0][2] - b2[1][0][0] < 8,
+      f"light: the pillar half in the box's shadow; the box removed, even ({[f[0] for f in b2]})")
+check(len(b1) == 2 and [f[:3] for f in b1[0]] == [f[:3] for f in b1[1]], "light: a saved game's box baked the same after its load")
+t = run(["map e1m1", "wait60", "god", "notarget", "vr_brush_box 640 176 48 672 208 64", "wait100", "vr_brush_light 1"])
+b = faces(t, 1)
+check(len(b) == 1 and "10" in b[0][0][3].split() and b[0][0][4] > 20,
+      f"light: a box by e1m1's flickering light has its style (10) on the face towards it ({b[0][0] if b else None})")
 
 # climb
 p = SCRATCH + "/brush_mantle.txt"

@@ -156,6 +156,27 @@ int fromAllText(za::StringView text, bool replace, za::String& warning);
 void readSaveLines(const char* saveText);
 void restoreAfterLoad();
 
+// A brush as a .bsp keeps it (the full bake's submodels, vr_brushbake.cpp), world space: its faces with area in its
+// model's order (plane, polygon clockwise seen from outside, texture axes as a texinfo's, the world texture's name),
+// hulls 1 and 2's planes (its faces and bevels pushed out by Quake's boxes), its bounds. False: it has no volume.
+struct BakeShape
+{
+    struct Surface
+    {
+        glm::dvec3 normal{0.0, 0.0, 1.0};
+        double dist{0.0};
+        za::Vector<glm::dvec3> poly;
+        glm::dvec4 vecs[2]{};
+        char texture[16]{};
+    };
+    za::Vector<Surface> surfaces;
+    za::Vector<glm::dvec4> hulls[2];
+    glm::dvec3 lo{0.0}, hi{0.0};
+};
+bool bakeShape(const Brush& b, BakeShape& out);
+// The hash a brush's baked light is kept under (its faces' planes, textures and alignment: its .map text's).
+[[nodiscard]] unsigned long long bakeHash(const Brush& b);
+
 // ---------------------------------------------------------------------------------------------------------------------
 // The models (any thread that reads models: the main one).
 
@@ -172,6 +193,9 @@ bool clipBox(const qmodel_t* model, const glm::vec3& start, const glm::vec3& min
 // clockwise seen from outside) with their outward normals and their brush's id: the decals laid on them.
 void facesIn(const glm::vec3& lo, const glm::vec3& hi,
     za::FunctionRef<void(const za::Vector<glm::vec3>& poly, const glm::vec3& normal, int id)> f);
+// Whether a brush other than `except` is in the way from `a` to `b` (the listen server's brushes where they are made:
+// the bake's shadows).
+[[nodiscard]] bool blocks(const glm::vec3& a, const glm::vec3& b, int except);
 // The nearest brush face along the line (the client's entities): where, its normal, how far along (0..1); false: none.
 bool traceLine(const glm::vec3& start, const glm::vec3& end, glm::vec3& where, glm::vec3& normal, float& fraction);
 
