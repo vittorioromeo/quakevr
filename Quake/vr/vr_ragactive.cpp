@@ -637,7 +637,8 @@ struct SwimParts
 
 [[nodiscard]] bool liquidsOn()
 {
-    return vr_ragdoll_active_liquids.value != 0.f;
+    // (vr_ragdoll_active 0 too: a released body lying in water must not be woken again by a pending swim)
+    return vr_ragdoll_active.value != 0.f && vr_ragdoll_active_liquids.value != 0.f;
 }
 
 // The liquid it is to swim in now (None: not deep enough in any).
