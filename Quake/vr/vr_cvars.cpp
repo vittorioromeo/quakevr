@@ -685,8 +685,11 @@ const DefaultChange defaultChanges[] = {
     {124, &vr_foegrab_throw_lift, "170"}, // 120
     {124, &vr_foegrab_throw_push, "190"}, // 240
     {124, &vr_foegrab_throw_topple, "300"}, // 200
+    // 125: the knocked body's launch 1 -> 1.3 (the author, 2026-10-11, with 124's judo throw values: every shove and
+    // throw launches further). A config at the old 1 takes it.
+    {125, &vr_knockdown_push, "1"},
 };
-constexpr int configVersion = 124;
+constexpr int configVersion = 125;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
