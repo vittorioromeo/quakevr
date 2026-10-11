@@ -5149,9 +5149,10 @@ za::Vector<Item> pageDebugProfiling()
                   "leaves cores to the render thread and the headset's runtime); 8 gains another 20% only from ~1000. "
                   "All is slower than 8."),
         toggle("Physics AVX2", vr_box3d_avx2)
-            .help("vr_box3d_avx2: Box3D's contact solver and box-box contacts 8 at a time with AVX2, where the CPU has it "
-                  "(the console says which at the first map). Off: 4 at a time with SSE2, as on a CPU without AVX2. For "
-                  "comparing the two; it takes effect at the next physics step."),
+            .help("vr_box3d_avx2: Box3D's contact solver and hull contacts 8 at a time with AVX2, where the CPU has it "
+                  "(the console says which at the first map). Off (the default): 4 at a time with SSE2. The same results "
+                  "either way; measured in the game (an i9-13900K), AVX2 was no faster with 500 props and a little slower "
+                  "with 40 (Box3D alone, a box pile on a box floor, it is 20% faster). Takes effect at the next physics step."),
         cycle("Physics Threads From", vr_box3d_threads_bodies, {{0.f, "Always"}, {100.f, "100 Bodies"}, {150.f, "150 Bodies"}, {200.f, "200 Bodies"}, {300.f, "300 Bodies"}, {500.f, "500 Bodies"}, {1000.f, "1000 Bodies"}})
             .help("With Physics on Threads: shared out only while at least this many bodies are awake (a smaller step is "
                   "faster on the main thread alone: handing it out costs more than it saves). Measured: even at ~100 awake, "

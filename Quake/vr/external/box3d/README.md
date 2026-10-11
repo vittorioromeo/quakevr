@@ -27,9 +27,11 @@ physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cm
   AVX2 without FMA, so still no contraction), by `/arch:AVX2` on that file alone under MSVC's cl (as upstream's
   CMake). Under clang-cl `wide8.c` gets `/FIintrin.h`: `verstable.h` includes `intrin.h` inside the pragma, where
   clang 19 refuses its declarations ("attribute 'target' multiversioning"; a build fix, the sources unchanged).
-  `BOX3D_DISABLE_AVX2` would leave the AVX2 copy out. Quake VR's `vr_box3d_avx2` (0: the SSE2 copy, for comparing;
-  Debug > Profiling) is applied to its world before each step (`b3World_EnableSSE2Fallback`), and the console says
-  at the first map which one runs (`box3d: Box3D 0.2.0, AVX2 kernels (8 lanes)`). Both give the same results to the bit (`vr_physics_mtbench`'s world hash);
+  `BOX3D_DISABLE_AVX2` would leave the AVX2 copy out. Quake VR picks with `vr_box3d_avx2` (default 0: the SSE2 copy;
+  1: AVX2 where the CPU has it; Debug > Profiling), applied to its world before each step
+  (`b3World_EnableSSE2Fallback`); the console says at the first map which one runs (`box3d: Box3D 0.2.0, SSE2
+  kernels (4 lanes; vr_box3d_avx2 0)`). Both give the same results to the bit (`vr_physics_mtbench`'s world hash).
+  SSE2 by default because, measured in the game, AVX2 was no faster (`docs/vr-port/ROUND22.md`, "Box3D updated");
 - threads: the step runs on the engine's job pool (`vr_box3d.cpp`, "Box3D on the pool"): the world is created with
   task callbacks (`enqueueStepTask`, `finishStepTask`) that hand each of Box3D's tasks to a pool worker as a
   `jobs::Task`, or run it on the stepping thread as it waits; Box3D's own scheduler (`src/scheduler.c`) and threads
