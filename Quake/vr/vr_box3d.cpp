@@ -3064,7 +3064,7 @@ const RagdollClass ragdollClasses[] = {
     return ragdollGlobals[i]->value;
 }
 
-void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage); // (below)
+void blastRagdoll(RagdollBodies& r, const glm::vec3& at, float damage); // (below)
 
 // Active deaths (vr_ragdoll_active; vr_ragactive.hpp; ROUND22.md, "Active ragdolls: core and deaths"): the classes whose
 // death animation their ragdoll plays (the most common, most humanoid ones: their rigs' arms and legs are two-bone
@@ -4854,11 +4854,11 @@ void updateRecoveries()
 
 // A blast of `damage` at `at` (box3d::blast) on a ragdoll's parts: each thrown as a prop of the whole ragdoll's mass
 // would be (thrown together, the nearer parts harder: it tumbles), if the blast sees its middle.
-void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage)
+void blastRagdoll(RagdollBodies& r, const glm::vec3& at, float damage)
 {
-    if(RagdollBodies* driven = ragdollOf(r.num); driven && driven->active.on)
+    if(r.active.on)
     {
-        ragactive::weaken(driven->active, 0.35f); // (an active death blasted: its muscles mostly gone)
+        ragactive::weaken(r.active, 0.35f); // (an active death blasted: its muscles mostly gone)
     }
     const float reach = damage + 40.f;
     constexpr float referenceMass = 6.f; // kg (blast's)
@@ -10090,9 +10090,9 @@ void ragdollBlastTest_f()
     }
     const VmScope vm;
     const glm::vec3 player = vec(svs.clients[0].edict->v.origin);
-    const RagdollBodies* best = nullptr;
+    RagdollBodies* best = nullptr;
     float bestD = 1e30f;
-    for(const RagdollBodies& r : world->ragdolls)
+    for(RagdollBodies& r : world->ragdolls)
     {
         if(r.num > 0 && glm::distance(world->toU(b3Body_GetWorldCenter(r.body[0])), player) < bestD)
         {
@@ -11184,7 +11184,7 @@ void blast(const glm::vec3& at, float damage)
     constexpr float referenceMass = 6.f; // kg: a health box (its hull at 400 kg/m^3)
     // The ragdolls' parts (blastRagdoll), and the blast kept a moment for those its damage is about to make (a grunt it
     // killed goes limp a few frames later).
-    for(const RagdollBodies& r : world->ragdolls)
+    for(RagdollBodies& r : world->ragdolls)
     {
         if(r.num > 0)
         {

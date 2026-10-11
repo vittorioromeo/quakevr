@@ -109,6 +109,19 @@ constexpr float handThick = 2.f;     // units: a hand on a wound, off its surfac
     return (p.cut & (1u << b)) != 0u;
 }
 
+// Its chest's part (its pelvis's if none, or cut off): every stage's one helper.
+[[nodiscard]] int chestOf(const Parts& p)
+{
+    for(int b = 0; b < p.count; b++)
+    {
+        if(p.rig->bones[b].role == modelmeta::BoneRole::Chest && !cut(p, b))
+        {
+            return b;
+        }
+    }
+    return 0;
+}
+
 // Whether bone `b` is `top` or on it.
 [[nodiscard]] bool onBone(const ragdoll::Rig& rig, int b, int top)
 {
@@ -446,16 +459,7 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
     {
         return;
     }
-    const int chest = [&] {
-        for(int b = 0; b < p.count; b++)
-        {
-            if(p.rig->bones[b].role == modelmeta::BoneRole::Chest && !cut(p, b))
-            {
-                return b;
-            }
-        }
-        return 0;
-    }();
+    const int chest = chestOf(p);
     const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
     if(d.crawlFrom < 0.0)
     {
@@ -897,19 +901,6 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         Con_Printf("ragswim %d %.3f l %d v %.2f head %d %.1f lift %.0f limbs %.2f\n", c.num, static_cast<float>(c.now - c.born),
             static_cast<int>(w.liquid), v, headIn ? 1 : 0, hz2, w.headLift, limbs / static_cast<float>(za::max(n, 1)));
     }
-}
-
-// Its chest's part (its pelvis's if none).
-[[nodiscard]] int chestOf(const Parts& p)
-{
-    for(int b = 0; b < p.count; b++)
-    {
-        if(p.rig->bones[b].role == modelmeta::BoneRole::Chest && !cut(p, b))
-        {
-            return b;
-        }
-    }
-    return 0;
 }
 
 // Its middle (centre of mass of its parts but loose ones: his gun), world metres; and its motion (m/s) into `vel`.
@@ -1397,18 +1388,6 @@ constexpr float smallHeight = 0.4f; // m: or lower (a backpack, a dropped gun)
 // The ledges near a falling body (findLedge's list).
 za::Vector<int> envNearby;
 
-[[nodiscard]] int chestBone(const Parts& p)
-{
-    for(int b = 0; b < p.count; b++)
-    {
-        if(p.rig->bones[b].role == modelmeta::BoneRole::Chest && !cut(p, b))
-        {
-            return b;
-        }
-    }
-    return 0;
-}
-
 [[nodiscard]] const char* gripName(Grip g)
 {
     switch(g)
@@ -1677,7 +1656,7 @@ void startLean(State& s, const Parts& p, const Context& c, const EnvRay& r, int 
     {
         EnvHand& h = e.hand[static_cast<za::SizeT>(arm)];
         const glm::vec3 shoulder = shoulderOf(s, p, arm);
-        glm::vec3 sideDir = shoulder - glmv(b3Body_GetWorldCenter(p.body[chestBone(p)]));
+        glm::vec3 sideDir = shoulder - glmv(b3Body_GetWorldCenter(p.body[chestOf(p)]));
         sideDir -= r.n * glm::dot(sideDir, r.n);
         sideDir = glm::length(sideDir) > 1e-4f ? glm::normalize(sideDir) : glm::vec3{0.f};
         h.mode = r.loose ? Grip::Brace : Grip::Lean;
@@ -1899,7 +1878,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
     const glm::vec3 up{0.f, 0.f, 1.f};
     const float L = armLength(s, p);
     e.frame++;
-    const int chest = chestBone(p);
+    const int chest = chestOf(p);
     const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
     const glm::vec3 chestAt = glmv(b3Body_GetWorldCenter(p.body[chest]));
     const float m0 = b3Body_GetMass(p.body[0]), mc = b3Body_GetMass(p.body[chest]);
@@ -3131,7 +3110,7 @@ constexpr float tipBend = 0.35f;        // rad: his torso bent to the side lost 
 constexpr float flailHz = 1.6f;         // his arms' flail for balance
 constexpr float pitchRate = 2.5f;       // rad/s: with no legs, killed standing, he pitches forward so
 
-// (chestOf: ragstagger's, the same, above: "Staggers")
+// (chestOf: the shared helper, above)
 
 // The joint limb `limb` was cut at (a cut bone on it whose parent isn't cut); -1 none: it is whole.
 [[nodiscard]] int cutJointOn(const State& s, const Parts& p, int limb)
