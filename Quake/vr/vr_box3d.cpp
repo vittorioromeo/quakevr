@@ -599,6 +599,11 @@ struct RagdollBodies
     int riseWhich{0};
     glm::vec3 riseSpot{0.f};
     float riseYaw{0.f};
+    // A rise begun and still asked for (ragdollGetUp): if it lapses (lost its pose, or no room left at its spot), the
+    // next ask waits vr_knockdown_retry (returns 0) before trying again; after riseLapsesMost the old blended get-up.
+    bool riseAsked{false};
+    int riseLapses{0};
+    double riseStuck{-1.0}; // risen, its spot taken since (it slumps after a while)
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -4268,6 +4273,7 @@ void driveActive(Slot& s, float dt)
                     qcvm->time - a.rise.polled);
             }
             ragactive::lapse(r.active, parts, qcvm->time);
+            r.riseAsked = false; // (the QC already waits: not one of its lapses)
         }
     }
     ragactive::Context c;
@@ -14896,6 +14902,9 @@ bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet)
     return true;
 }
 
+// A body's active get-ups lapsed (RagdollBodies::riseLapses) before it gets up the old way (blended from the floor).
+constexpr int riseLapsesMost = 2;
+
 int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range, bool anywhere)
 {
     if(!world || !ent || ent->free)
@@ -14909,7 +14918,8 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
         return 0;
     }
     const ragdoll::Rig& rig = *r->rig;
-    // Its body rising (vr_ragdoll_active_getup): on until it stands (-1), then handed back there (3 or 4: risen).
+    // Its body rising (vr_ragdoll_active_getup): on until it stands (-1), then handed back there (3 or 4: risen), if
+    // its spot is still free (it was chosen 1-2.5 s ago: the player or a monster may stand there now).
     if(r->active.on && r->active.rise.on)
     {
         r->active.rise.polled = qcvm->time;
@@ -14919,8 +14929,44 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
         }
         const int frame = static_cast<int>(ragactive::clipFrame(r->active, qcvm->time) + 0.5f);
         const int which = r->riseWhich;
-        handBack(ent, *r, frame, r->riseYaw, r->riseSpot, za::max(vr_ragdoll_active_getup_blend.value, 0.f), "risen");
-        return which + 2;
+        const b3WorldTransform pelvis = b3Body_GetTransform(r->body[0]);
+        const glm::vec3 from = fromB3(pelvis.q) * (rig.bones[0].pivot * r->scale) + world->toU(pelvis.p);
+        glm::vec3 spot{0.f};
+        if(standSpot(ent, from, r->riseSpot, mins, maxs, 24.f, spot))
+        {
+            if(vr_knockdown_debug.value && glm::distance(spot, r->riseSpot) > 0.5f)
+            {
+                Con_Printf("getup: %d risen, its spot taken: stands %.0f units off it\n", num, glm::distance(spot, r->riseSpot));
+            }
+            r->riseAsked = false;
+            handBack(ent, *r, frame, r->riseYaw, spot, za::max(vr_ragdoll_active_getup_blend.value, 0.f), "risen");
+            return which + 2;
+        }
+        // (No room left: it holds on a moment, standing, then slumps and tries again later.)
+        r->riseStuck = r->riseStuck < 0.0 ? qcvm->time : r->riseStuck;
+        if(qcvm->time - r->riseStuck <= 0.5)
+        {
+            return -1;
+        }
+        if(vr_knockdown_debug.value)
+        {
+            Con_Printf("getup: %d risen but its spot is taken: it slumps\n", num);
+        }
+        ragactive::lapse(r->active, activeParts(*r), qcvm->time);
+    }
+    // Its last rise lapsed (lost its pose, or its spot taken) while still asked for: it waits vr_knockdown_retry before
+    // trying again (asked again at once, it was pulled in again mid-slump, for ever).
+    if(r->riseAsked)
+    {
+        r->riseAsked = false;
+        r->riseStuck = -1.0;
+        r->riseLapses++;
+        if(vr_knockdown_debug.value)
+        {
+            Con_Printf("getup: %d its get-up lapsed (%d so far): tries again later%s\n", num, r->riseLapses,
+                r->riseLapses >= riseLapsesMost ? " (blended from the floor)" : "");
+        }
+        return 0;
     }
     float yawA = 0.f, yawB = 0.f;
     glm::vec3 atA{0.f}, atB{0.f};
@@ -14950,7 +14996,7 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
     // get-up's frames from the chosen one (its own fall-and-rise on to its end, or a death backwards to its first),
     // after a moment pulled into it (longer the more its pelvis must turn and the farther the place).
     const int chosen = which == 2 ? frameB : frameA;
-    if(vr_ragdoll_active_getup.value != 0.f && activeLiving(ent) && !anywhere && !liquidAt(from))
+    if(vr_ragdoll_active_getup.value != 0.f && activeLiving(ent) && !anywhere && !liquidAt(from) && r->riseLapses < riseLapsesMost)
     {
         const int last = getupEnd(rig, chosen, 12, ragdoll::deathProgress(rig, chosen) >= 0.f);
         if(last != chosen)
@@ -14973,12 +15019,14 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
             r->riseWhich = which;
             r->riseSpot = spot;
             r->riseYaw = yaw;
+            r->riseAsked = true;
+            r->riseStuck = -1.0;
             if(vr_knockdown_debug.value)
             {
-                Con_Printf("getup: %d rises through frames %d to %d (fit %.0f), %.0f units from where it lay, its pelvis to turn "
-                           "%.0f deg: pulled in over %.2f s, then %.2f s\n",
-                    num, chosen, last, which == 2 ? errB : errA, glm::length(glm::vec2{spot - at}), glm::degrees(turn), ri.prep,
-                    static_cast<float>(za::abs(last - chosen)) / ri.fps);
+                Con_Printf("getup: %d rises through frames %d to %d (fit %.0f), %.0f units from where it lay (at %.0f %.0f %.0f), "
+                           "its pelvis to turn %.0f deg: pulled in over %.2f s, then %.2f s\n",
+                    num, chosen, last, which == 2 ? errB : errA, glm::length(glm::vec2{spot - at}), spot.x, spot.y, spot.z,
+                    glm::degrees(turn), ri.prep, static_cast<float>(za::abs(last - chosen)) / ri.fps);
             }
             return -1;
         }
