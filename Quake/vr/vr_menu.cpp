@@ -4044,9 +4044,10 @@ void hologramTestMessage()
             .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
         toggle("Limbs Meet Each Other", vr_ragdoll_self_collide)
             .help("A ragdoll's own limbs meet: an arm stays out of his chest, a leg out of the other, a body folded over "
-                  "lies on itself. Jointed neighbours (a forearm and its upper arm) and parts touching as he went limp "
-                  "pass through until they come apart; his gun never meets him. Off: his limbs pass through each other, "
-                  "as before. Ragdolls made from now on (vr_ragdoll_self_collide)."),
+                  "lies on itself. Jointed neighbours (a forearm and its upper arm), parts deep in each other as he went "
+                  "limp (until they come apart) and an arm reaching for his wound, a stump or a wall pass through; his gun "
+                  "never meets him. Off: his limbs pass through each other, as before. Ragdolls made from now on "
+                  "(vr_ragdoll_self_collide)."),
         header("Active Deaths (Experimental)"),
         open("Test Them", pageIndex(pageRagdollTests))
             .help("Debug > Tests > Ragdoll Behaviours: each behaviour below set going on the nearest grunt, enforcer, "

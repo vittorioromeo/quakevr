@@ -423,7 +423,7 @@ built-in ones.
 | `vr_positional_damage` | 1 | headshots, arm and leg shots |
 | `vr_push` | 0.6 (shipped) | all knockback |
 | `vr_gore` | 2 | 0 Quake VR's blood only, 1 more, 2 over the top |
-| `vr_ragdoll_self_collide` | 1 | a ragdoll's own limbs meet each other (not jointed neighbours, nor parts touching as it went limp until apart); 0 they pass through each other |
+| `vr_ragdoll_self_collide` | 1 | a ragdoll's own limbs meet each other (not jointed neighbours, parts deep in each other until apart, or an arm reaching for a wound or a wall); 0 they pass through each other |
 | `vr_decals`, `vr_decal_max`, `vr_decal_life` | 1, 768, 240 (shipped) | blood and scorch marks |
 
 ### HUD and menus
