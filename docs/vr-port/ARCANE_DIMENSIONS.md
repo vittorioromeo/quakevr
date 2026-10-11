@@ -1,7 +1,8 @@
 # Arcane Dimensions (AD): analysis and plan for native Quake VR support
 
-Status: **Phase 0 (analysis + plan)**, 2026-10-11, branch `agent/arcane`. Nothing of AD is committed. No code is
-imported yet. Target, from Vittorio's request:
+Status: Phase 0 (analysis + plan) done 2026-10-11; **Phase 1a built** (section 14): AD's QuakeC is imported,
+namespaced and compiled into the progs, inert (nothing of it runs yet), on branch `agent/arcane`. AD's assets are never
+committed. Target, from Vittorio's request:
 
 - When AD is installed, all of its enemies, entities and weapons are available in every campaign and custom map,
   inside the merged QuakeC (the "giant QuakeC aggregation", MG3.md decision 5, EXPANSIONS.md).
@@ -225,6 +226,9 @@ ported (11k lines) would take many rounds and drift from upstream. Proposal: a *
 `Misc/quakevr/ad_import.py`, that:
 
 1. Reads AD's `my_progs/` (the 1.80p1 snapshot; SHA-256 of each file recorded, as for MG3's `quakec_mg3`).
+(The plan as written in P0. **As built in P1a, see section 14**: everything is prefixed `ad_`, spawn functions too, and
+map keys AD needs that Quake VR lacks are renamed fields that the engine will fill in P1b.)
+
 2. Leaves out the files we replace: `csqc_*`, `dpextensions.qc`, `fteextensions.qc`, and AD's `defs.qc` system header
    (ours is used). In P1 it also leaves out AD's player/client entry points (`ClientConnect`, `PlayerPreThink`,
    `W_Attack`, ...); the bridge takes those.
@@ -415,8 +419,8 @@ skullwiz 225, lostsoul 177, hogremac 150, boil 117.
 
 | Risk | Measure / estimate | Mitigation |
 |---|---|---|
-| **Globals limit** (v6: 16-bit operands, 65,535) | Ours 26,746 + AD 22,799 (AD's own compile). After dropping CSQC, extension headers and player code, and with our `-O3` local overlap: estimated **+12-18k → about 40-45k**. | P1's first task builds the import with no behaviour and **measures**. If it ever nears 60k, the fallback is engine support for fteqcc's 32-bit-operand progs (a large engine task: loader, VM, saves). |
-| **Edict size** | +813 AD field slots (+42%): edict about 7.7 → 11 KB. At `max_edicts` 16,384 the server allocates about 180 MB (+53 MB). Saves grow only by non-zero fields. | Share fields with ours where the meaning matches (allowlist). Keep mapper keys as the only bare-named fields. Consider allocating edicts on demand. |
+| **Globals limit** (v6: 16-bit operands, 65,535) | Ours 26,746 + AD 22,799 (AD's own compile). After dropping CSQC, extension headers and player code, and with our `-O3` local overlap: estimated **+12-18k → about 40-45k**. **Measured in P1a: 42,279 (64.5%; 23,256 left).** | P1's first task builds the import with no behaviour and **measures**. If it ever nears 60k, the fallback is engine support for fteqcc's 32-bit-operand progs (a large engine task: loader, VM, saves). |
+| **Edict size** | +813 AD field slots (+42%): edict about 7.7 → 11 KB. At `max_edicts` 16,384 the server allocates about 180 MB (+53 MB). Saves grow only by non-zero fields. **Measured in P1a: 1,934 → 2,815 slots (+881); saves +4.6% (AD's saved globals).** | Share fields with ours where the meaning matches (allowlist). Keep mapper keys as the only bare-named fields. Consider allocating edicts on demand. |
 | Progs size / load | Statements +177k (to about 400k), file about 5 MB, a few hundred ms more at progs load, QC compile time up | Measure in P1 |
 | Duplicate monster implementations | Our VR monsters vs AD's versions | Section 5.4: ours + an AD-key adapter (open question 1) |
 | Spawnflag collisions | AD 8/16/32/64/128 vs MG 4/8/16, Rogue 2/4/8, VR flags | Every AD flag read behind `AD_Rules()` or on AD classnames only. The `MG_deferred` precedent: separate saved fields, never reuse VR's bits. |
@@ -509,3 +513,116 @@ committed to.
 - `start` resolved to id1's start (AD's is shadowed), as the campaign isolation would also do. Playing AD's hub needs
   the campaign entry.
 - Timings are mock-headless and not exclusive: for orientation only (section 4).
+
+---
+
+## 14. Phase 1a (built 2026-10-11): AD's QuakeC in the progs, inert
+
+**What exists.**
+
+- `Misc/quakevr/ad_import.py` regenerates `QC/ad/` (139 files plus `ad_builtins.qc`, about 106k lines) and the AD
+  block at the end of `QC/progs.src` from the official release.
+  - The release's `pak0.pak`, `pak2.pak` and `ad_1_8.fgd` are SHA-256 pinned. `--release <dir>` points at the unpacked
+    zip; the default is the worktree's `scratch/ad/ad`.
+  - `QC/ad/AD_IMPORT.txt` lists what was kept, renamed and dropped.
+  - `--verify-frames` (after a build) checks every AD frame function against AD's own `progs.dat`. Current result:
+    7,311 of 7,311 equal.
+- `QC/vr_ad_bridge.qc` holds the two switches, `VR_Pack_AD()` and `AD_Rules()`. Both return FALSE until P1b.
+- CREDITS.md credits AD's QC (GPL-2.0-or-later).
+
+**The renaming, as built.** Every identifier AD defines becomes `ad_<name>`, including:
+
+- spawn functions (`ad_monster_gaunt`, `ad_func_door`);
+- engine entry points (`ad_StartFrame`, `ad_PlayerPreThink`, ...);
+- constants.
+
+Kept as written:
+
+- QC keywords, compiler intrinsics, and `x`/`y`/`z`;
+- the engine's system globals and fields;
+- the 76 builtins Quake VR declares with the same signature (frikbot's `sound`/`stuffcmd`/`WriteByte` wrappers
+  included);
+- 43 map-key fields Quake VR already has with the same type (`target`, `wait`, `delay`, `alpha`, `angles`...).
+
+Builtins:
+
+- **By name (`#0`), in `ad_builtins.qc`:** the 11 extension builtins we lack (`pointparticles`, `particleeffectnum`,
+  `addstat`, `te_particlerain`...). The engine binds them only if it has them; otherwise they error only if called.
+- **By number:** AD's own names for standard builtins (`walkmove_builtin` #32, `centerprint_msg*` #73) and different
+  signatures (`ad_strcat` #115, which takes up to 8 strings; ours declares 2).
+
+**Change from the plan (5.2): map keys.**
+
+- The plan was to keep AD's map-key fields that Quake VR lacks as bare names. As built, all 242 of them are renamed:
+  `ad_exactskin`, `ad_spawndelay`, `ad_estate`, ...
+- Three of them clash in type: `color` (AD vector, ours float) and `target2`/`target3` (AD string, ours entity).
+- Why: P1a adds no field a map can fill, so no map changes.
+- **P1b work:** the engine fills `ad_<key>` from a map's `<key>` when a key has no field, or always when AD rules are
+  on (this settles `color`, `target2` and `target3`).
+
+**Mechanical fixes.**
+
+- Global arrays sized by a named constant get the number, because our fteqcc flags (autoproto) reject a constant
+  there.
+- `autocvar(name, ...)` keeps its cvar name.
+- An array initializer's semicolon is kept.
+- AD's CRLF becomes LF.
+- One `progs.src` entry per file. fteqcc numbers `$frame` macros per entry; folded into one `#include` list, 7,130 of
+  7,311 frame numbers shifted.
+- Warnings F302 (possibly uninitialised local) and F322 (`if (string)` tests null, as in AD's own compile) are off
+  from `ad_builtins.qc` on. That is why AD stays last in progs.src.
+
+**Precedence patches.** There are 12 reviewed patches, in `PATCHES` in the script. They are the expressions
+`check_qc_precedence.py` flags, parenthesised the way fteqcc's QC priorities read them, so the behaviour stays AD's as
+shipped:
+
+- `x & FLAG == 0` is `(x & FLAG) == 0`;
+- `!a && b` is `!(a && b)`;
+- `a && b || c && d` is `((a && b) || c) && d`.
+
+Several are latent AD bugs, marked "AD as shipped": the spider/swampling/voreling ceiling test, the gargoyle/gaunt
+perch test, the mammoth's walk-frame light, the books' screen tint, `ClientDeBuff`'s bleed/poison test, and the
+lightning-effect target check. **P1b decision:** keep AD's behaviour, or fix the intent?
+
+The flagged functions' instructions were compared before and after the patches. They are identical, except the `!`
+cases, which compile to `NE_F`+`IF` instead of `NOT_F`+`IFNOT`, which is equivalent.
+
+**Budget (measured).**
+
+| | Before | With AD | Limit / note |
+|---|---:|---:|---|
+| globals | 26,746 | 42,279 | 65,535: 64.5% used, 23,256 left |
+| entity fields (slots) | 1,934 | 2,815 | +881 slots: +3.4 KB for each edict in use; `max_edicts` 16,384 reserves 176 MB, was 121 MB |
+| statements | 224,782 | 400,597 | |
+| functions | 7,526 | 17,271 | |
+| strings | 345 KB | 596 KB | |
+| progs.dat | 2.63 MB | 4.79 MB | |
+| progs load (each map) | 6.8-7.0 ms | 12.3-12.7 ms | `VR_TimeMark` "server: progs" |
+| a save (e1m1) | 229,968 B | 240,541 B | +4.6%: AD's saved globals. A save made before loads with the new progs. |
+
+**No behaviour change: how it was checked.**
+
+1. **Instructions.** All 7,284 Quake VR functions compile to the same instructions as before. This is a name-based
+   comparison of the two builds' `qc.asm` (globals, fields and immediates by name or value; line and temp numbers
+   ignored). The only functions added outside AD are `VR_Pack_AD` and `AD_Rules`. The progs' tables are not a byte
+   prefix of the old ones: fteqcc lays globals out differently. Nothing depends on offsets: the system section and the
+   CRC (5927) are unchanged, and the engine finds Quake VR's fields by name.
+2. **Campaign A/B.** Each campaign ran the same script with the old and the new progs (`-nomapindex -noaddons`): e1m1,
+   start, hip1m1, r1m1, Dopa e5m1, MG1 mge1m1 and MG3 map1. The script loads the map, takes an `edicts` dump, wakes
+   every monster (`vr_test_monsters 2`), lets them fight the god-mode player for 600 frames, kills them all (3), then
+   dumps again.
+   - No errors in either build.
+   - The same monster totals in every map (live/awake/waiting): 23, 0, 58, 46, 37 + 7 waiting, 90 + 20 waiting, and
+     75 + 13 waiting.
+   - The same spawned entities (classname, model, targets, flags). The only differences are the transient weapon
+     instances also seen between two runs of the same build: these runs are not frame-deterministic.
+3. **Benchmarks.** `bench.sh --fast --reps 3`, exclusive: `ai_crowd_64`, `combat_48` and `idle_e1m1` show no change
+   past 5%. The largest were combat_48's p99 at +1.2% and ai_crowd_64's CPU at -2.2%: noise.
+
+**Not done in P1a (P1b's list, section 11).**
+
+- The engine side: campaign entry 6, AD data discovery, the `ad_` spawn hook, the `ad_<key>` key fallback,
+  `vr_ad_rules` with detection before spawn.
+- The bridge proper: damage, player, fog, items.
+- Running any AD code. AD's `ad_worldspawn` setup (precaches, light-style and pendulum arrays) must run first in AD
+  maps; outside them, AD entities need a reduced setup.

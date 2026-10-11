@@ -2,7 +2,7 @@ Arcane Dimensions import (Misc/quakevr/ad_import.py); regenerate, never edit.
 Source: ad_v1_80p1final.zip, ad_1_8.fgd 2fdaef42f02c37370b36bd973e9ebfe08827f5847e26b4c250dd9b521a6b8431, pak0.pak 117caa759bf9f161599ff693f561c68954519eda9cefb719a97cd5c1cd863ef3, pak2.pak 4c82e0347952b38b0265fd34e0c3c3a6b6b4bea17642d18bf4189a97d93dd0f1
 Files (AD's progs.src order): 139 imported, skipped csqc_hudvanilla.qc; headers filtered: csqc_defs.qc, csqc_hudad.qc, defs.qc, dpextensions.qc
 Header statements kept: csqc_defs.qc 11/136, csqc_hudad.qc 2/139, defs.qc 293/499, dpextensions.qc 20/409
-AD system names Quake VR's defs.qc lacks: ClientConnect, ClientDisconnect, ClientKill, PlayerPostThink, PlayerPreThink, PutClientInServer, SetChangeParms, SetNewParms, StartFrame, main
+AD system names not kept (the engine's entry points: AD's are renamed, the engine never calls them): ClientConnect, ClientDisconnect, ClientKill, PlayerPostThink, PlayerPreThink, PutClientInServer, SetChangeParms, SetNewParms, StartFrame, main
 Builtins kept (Quake VR declares them): 76
 Builtins by name (#0, ad_builtins.qc): 11: addstat, bitshift, getsurfacenearpoint, getsurfacetexture, particleeffectnum, pointparticles, strncasecmp, strstrofs, te_explosion2, te_particlerain, te_particlesnow
 Builtins renamed (the name is Quake VR's for something else): none

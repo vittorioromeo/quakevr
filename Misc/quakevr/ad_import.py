@@ -8,12 +8,16 @@ scratch/ad/ad. The QC is read from the paks (my_progs/, patch 1's pak2 first), w
 SHA-256 below, so the output is reproducible. AD's QC is GPL-2.0-or-later (its readme): the generated files keep
 AD's headers and credits; AD's assets are never copied.
 
+    python Misc/quakevr/ad_import.py --verify-frames   (after a build: AD's frame numbers vs AD's own progs.dat)
+
 What it writes (QC/ad/, regenerated whole; never edit by hand, change this script):
-  ad_all.qc        #includes the rest in AD's progs.src order (progs.src lists only this file)
   ad_builtins.qc   the extension builtins AD declares that Quake VR's QC does not: "#0", bound by name by the
-                   engine when it has them (pr_edict.c PR_InitBuiltins), else an error only if called
+                   engine when it has them (pr_edict.c PR_InitBuiltins), else an error only if called; standard
+                   builtins AD declares under its own names or signatures keep their numbers (ad_strcat = #115)
   ad_<file>.qc     each AD source file, every identifier AD defines renamed with the prefix "ad_"
   AD_IMPORT.txt    the source hashes, what was kept, renamed, dropped (read it when re-importing)
+and the block between the "ad_import.py" markers at the end of QC/progs.src: one entry per file, in AD's order
+(fteqcc numbers $frame macros per progs.src entry; an #include would shift AD's frames).
 
 Renaming: every identifier token outside strings, comments and $frame directives becomes ad_<name>, except
   - QC keywords and types, compiler intrinsics (__*), vector components (x, y, z);
@@ -339,15 +343,63 @@ def builtin_number(tokens, stmt):
     return 0
 
 
+def verify_frames(rel):
+    """Every AD frame function's frame number (its OP_STATE operand) in our compile equals AD's own progs.dat's
+    (patch 1's, in pak2.pak). Reads the asm listing the precedence check writes (build/qcprec/qc/qc.asm): run the
+    build first. fteqcc numbers $frame macros per progs.src entry, so a file folded into another would shift them."""
+    d = pak_files(os.path.join(rel, "pak2.pak"), lambda n: n == "progs.dat")["progs.dat"]
+    h = struct.unpack("<15i", d[:60])
+    ofs_st, nst, ofs_fn, nfn, ofs_str, ofs_gl, ngl = h[2], h[3], h[8], h[9], h[10], h[12], h[13]
+    gl = struct.unpack("<%df" % ngl, d[ofs_gl:ofs_gl + ngl * 4])
+    starts = []
+    for i in range(nfn):
+        first, _, _, _, s_name = struct.unpack("<5i", d[ofs_fn + i * 36:ofs_fn + i * 36 + 20])
+        if first > 0:
+            e = d.index(b"\0", ofs_str + s_name)
+            starts.append((first, d[ofs_str + s_name:e].decode("latin1")))
+    starts.sort()
+    theirs = {}
+    for k, (first, name) in enumerate(starts):
+        end = starts[k + 1][0] if k + 1 < len(starts) else nst
+        for j in range(first, end):
+            op, a = struct.unpack("<HH", d[ofs_st + j * 8:ofs_st + j * 8 + 4])
+            if op == 60:  # OP_STATE
+                theirs[name] = gl[a]
+                break
+    ours, cur = {}, None
+    with open(os.path.join(ROOT, "build", "qcprec", "qc", "qc.asm"), errors="replace") as f:
+        for line in f:
+            if line.endswith(" = asm\n"):
+                nm = line[:-7].split(")")[-1].strip().split()[-1]
+                cur = nm[len(PREFIX):] if nm.startswith(PREFIX) else None
+            elif cur and line.startswith("\tSTATE"):
+                m = re.match(r"\tSTATE\s+(-?[\d.]+)f", line)
+                if m:
+                    ours[cur] = float(m.group(1))
+                cur = None
+            elif line.startswith("}"):
+                cur = None
+    bad = sorted(n for n in theirs if n in ours and abs(theirs[n] - ours[n]) > 1e-6)
+    missing = sorted(n for n in theirs if n not in ours)
+    print("ad_import --verify-frames: %d frame functions, %d compared, %d different, %d missing%s" % (
+        len(theirs), len(theirs) - len(missing), len(bad), len(missing),
+        (": " + ", ".join(bad[:10] + missing[:10])) if bad or missing else ""))
+    return 1 if bad or missing else 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--release", default=os.path.join(ROOT, "scratch", "ad", "ad"))
+    ap.add_argument("--verify-frames", action="store_true",
+                    help="after a build: compare AD's frame numbers with AD's own progs.dat; writes nothing")
     args = ap.parse_args()
     rel = args.release
     for fn, want in PINNED.items():
         got = sha256(os.path.join(rel, fn))
         if got != want:
             sys.exit("ad_import: %s is not AD 1.80 patch 1's (sha256 %s)" % (fn, got))
+    if args.verify_frames:
+        sys.exit(verify_frames(rel))
 
     src = pak_files(os.path.join(rel, "pak0.pak"), lambda n: n.startswith("my_progs/"))
     src.update(pak_files(os.path.join(rel, "pak2.pak"), lambda n: n.startswith("my_progs/")))  # patch 1 wins
@@ -524,7 +576,8 @@ def main():
         "Files (AD's progs.src order): %d imported, skipped %s; headers filtered: %s" % (
             len(written), ", ".join(sorted(SKIP)), ", ".join(sorted(HEADERS))),
         "Header statements kept: " + ", ".join("%s %d/%d" % (fn, len(kept[fn]), len(stmts[fn])) for fn in sorted(kept)),
-        "AD system names Quake VR's defs.qc lacks: " + (", ".join(sys_missing) or "none"),
+        "AD system names not kept (the engine's entry points: AD's are renamed, the engine never calls them): " +
+        (", ".join(sys_missing) or "none"),
         "Builtins kept (Quake VR declares them): %d" % len(keep_builtins),
         "Builtins by name (#0, ad_builtins.qc): %d: %s" % (len(bi_byname), ", ".join(bi_byname)),
         "Builtins renamed (the name is Quake VR's for something else): " + (", ".join(bi_renamed) or "none"),
