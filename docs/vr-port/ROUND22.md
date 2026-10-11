@@ -1732,3 +1732,47 @@ magazine 1`, `lupper: v_nail clip 24; magazine 1`, hips `v_axe clip 0`, `v_shot 
 
 **In the headset:** break the super shotgun open and holster it on a hip: it stays open there (and shut ones shut);
 drop a nailgun's magazine and holster it: no magazine drawn in it.
+
+## Dead ogres standing in Dawn of the Machine (1.0.1 report, 2026-10-11, worktree `deadpose`)
+
+A player ("real", Discord, 1.0.1): in MG3 "dead ogres is posing like this" (upright, arms out, legs apart, on a blood
+pool), "most of them", and he "can't do nothing with them": no grabbing, carrying or cutting dead bodies.
+
+**Cause.** Those are not killed ogres: they are the map's own corpses, `misc_corpse` (QC vr_mg_corpses.qc, the
+rerelease's code: 310 in MG3's maps, 7 ogres in `start` and 7 in `map2b`; MG1 has them too). Its pose table gave the
+ogre frames 116 and 126 (`$death5`, `$bdeath1`: upright) and the shambler 87 (`$death5`); every other monster's entry is
+a death's last frame. Quake VR's ogre keeps id's frame order (checked against the rerelease's ogre.mdl: the same
+names), so they stood. And a `misc_corpse` was scenery (SOLID_NOT, no FL_MONSTER): no physics body, no ragdoll, no
+damage, so no hand, blade or blast did anything. Killed monsters were fine in every check: MG3 `vr_test_spawn` ogres
+(id's, rocket, marksman) and `impulse 205` on map1/map2/map5 (no cap: 52 and 104 ragdolls, 0 not lying), after an
+id1 map then the campaign switch, knocked down then killed, saved and loaded.
+
+**Fix.**
+- The pose table: the ogre's 125 and 135, the shambler's 93 (the deaths' ends).
+- A placed corpse of a monster or player model is a dead monster's body (`vr_corpse_placed` 1, Ragdoll Settings >
+  Placed Corpses Are Bodies; 0: scenery, the next map load): the monster's classname and death function (its head,
+  gibs, corpse health, ragdoll settings, gore tables), FL_MONSTER, health -1, armed as a corpse (VR_Corpse_Arm); it
+  is a corpse in the physics (pushable pose), shot, gibbed and burnt. It sleeps (`.vr_corpse_placed` 1: no ragdoll)
+  until a spawned player comes within `vr_corpse_placed_wake` (160 units), then it is a ragdoll as room allows (no
+  animation motion inherited). Room (VR_Knockdown_MakeRoom): a placed one no player is near (1.5 times the wake
+  distance) lies as placed again instead of being removed; one a player is near is kept, as a dead player's body is. A
+  woken one refused room sleeps again past 1.5 times the distance, to try again. Heads, gibs and the fish stay scenery.
+- Safety net (vr_box3d.cpp settleCorpses): a dead monster with a rig, no ragdoll, still for 2 s in a death frame
+  that is not its last (drawn upright or mid-fall) is put at that death's last frame, once; the first in a map is said
+  in the console (`corpse: ... lay still ... put at its death's last frame`), the rest under `developer`.
+- A rig that cannot be made (another .mdl or an .md5 in Quake VR's model's place) is now said in the console once,
+  not only under `developer`: that monster's dead have no ragdolls.
+- `vr_corpse_poses [1]` (Debug > Tests): every dead monster and placed corpse, its frame and where that is in its
+  death, a ragdoll or why not, "NOT LYING" for mid-death ones; a count line.
+
+**Tests** (`Misc/quakevr/ragdoll/placed_corpse_test.sh deadpose`): poses, before 7 ogres not lying in start (of 58
+placed) and 7 in map2b (of 29), after 0 and 0; scenery
+(placed 0): 29 lying, no ragdolls; grab: a placed ogre near you is a ragdoll, the off hand takes it by the head; walk
+past all 58 of start's: at most 8 ragdolls, 58 still there (the rest "lies as placed again"); gib: a 300 blast gibs 3.
+The safety net with the old table: map2b 6 not lying -> 0 after 2 s. Placed corpses rest where placed (0.0 units
+moved, all asleep), start's physics step 0.015 ms against 0.012 as scenery. MG1 start and hub: 20 and 1 placed, all
+lying. Save and load keep them (and their sleep). ragdoll_test flat, cap, save unchanged; e1m1 smoke clean.
+
+**In the headset:** MG3's start map and map2b: the placed ogres (and shamblers) lie on their blood pools; walk up to
+one, take a limb, lift and drag it, cut it, shoot it to gibs. Walking on, the bodies left behind lie still as placed.
+Open question: a placed ogre is heavy (200 kg) lifted by the head in the mock (24 units behind the hand after 30 up).

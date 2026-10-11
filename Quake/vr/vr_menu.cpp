@@ -4028,6 +4028,11 @@ void hologramTestMessage()
             .help("At most this many at once. New deaths replace the oldest dead ragdoll first, then the oldest living knockdown if necessary. 0: ragdolls off."),
         toggle("Ragdolls Meet Each Other", vr_ragdoll_collide_each)
             .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
+        toggle("Placed Corpses Are Bodies", vr_corpse_placed)
+            .help("The corpses a map places (Dimension and Dawn of the Machine) are dead monsters' bodies: shot, gibbed and "
+                  "burnt, and ragdolls you take and cut once you come near. Off: scenery. The next map load (vr_corpse_placed)."),
+        slider("Placed Corpses Wake At", vr_corpse_placed_wake, 64.f, 512.f, 16.f, "%.0f units")
+            .help("How near you come before a placed corpse becomes a ragdoll (vr_corpse_placed_wake)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
@@ -5338,6 +5343,9 @@ za::Vector<Item> pageDebugReports()
         command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
         command("Ragdolls", "vr_ragdoll_list 2").help("vr_ragdoll_list [1|2]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed and the hands holding it; with 2 also how far its flames are from its limbs), and Box3D's bodies (Gibs and Corpses > Ragdoll Settings)."),
         command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
+        command("Corpse Poses", "vr_corpse_poses").help("vr_corpse_poses [1]: every dead monster and placed corpse: its model, "
+                                                         "frame and where that is in its death, a ragdoll or why not; those "
+                                                         "drawn mid-death (upright) are counted as not lying. 1: the counts only."),
         command("Corpses in the Physics", "vr_corpse_list").help("vr_corpse_list: each corpse's body (fixed or pushable, box or pose, mass), where it lies, and what touches it (Gibs and Corpses > Corpse Collision)."),
         command("Held Props", "vr_carry_check").help("vr_carry_check: each held prop's place and axes in the hand, drawn vs where the game has it, and the fist's gap to it (cm)."),
         command("Props in Floors", "vr_physics_sink").help("vr_physics_sink: how far each prop sinks into the floor."),

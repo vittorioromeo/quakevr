@@ -119,6 +119,9 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 // Where `frame` is in the death animation it belongs to: 0 its first frame .. 1 its last; -1 not a death frame.
 [[nodiscard]] float deathProgress(const Rig& rig, int frame);
 
+// The last frame of the death animation `frame` belongs to; -1 not a death frame.
+[[nodiscard]] int deathEnd(const Rig& rig, int frame);
+
 // The server's ragdolls as the client draws them (a listen server's: vr_box3d.cpp publishes after each step). Each bone's
 // body in the world: p_world = rot * (scale * p_rest) + pos (units); the bones from `bodies` on have none (hidden).
 // `time`: the server time of the message that follows the step (the client draws it between the last two steps at its

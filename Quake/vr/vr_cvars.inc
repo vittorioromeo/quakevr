@@ -2200,7 +2200,8 @@ QVR_CVAR(vr_corpse_collide_monsters, "0", CVAR_ARCHIVE) // monsters step over co
 QVR_CVAR(vr_ragdoll, "1", CVAR_ARCHIVE)               // ragdolls (experimental; vr_ragdoll.cpp, vr_box3d.cpp): 0 off, 1 the grunt, knight, ogre, enforcer, death knight, rottweiler and scrag: dying, his body goes limp as jointed bodies his mesh is skinned to
 QVR_CVAR(vr_ragdoll_start, "0.3", CVAR_ARCHIVE)       // when a dying grunt goes limp: a share of his death animation (0 its first frame he isn't solid in, 1 its last: lying still)
 QVR_CVAR(vr_ragdoll_max, "8", CVAR_ARCHIVE)           // the most ragdolls at once; one more death retires the oldest body to make room (QC VR_Knockdown_MakeRoom), else it lies as a corpse (Corpse Collision)
-// Knockdowns (QC vr_knockdown.qc; vr_box3d.cpp "Knockdowns"; Combat > Knockdowns): a shove can knock a monster with a
+QVR_CVAR(vr_corpse_placed, "1", CVAR_ARCHIVE)         // a mapper's corpses (misc_corpse: Dimension and Dawn of the Machine; QC vr_mg_corpses.qc) are dead monsters' bodies: shot, gibbed, burnt, and near a player ragdolls a hand takes and cuts (their room under vr_ragdoll_max: one no player is near lies as placed again); 0 scenery (the next map load)
+QVR_CVAR(vr_corpse_placed_wake, "160", CVAR_ARCHIVE)  // units: a placed corpse a player comes this near becomes a ragdoll (vr_corpse_placed); one that got none (no room) sleeps again past 1.5 times this, to try once more// Knockdowns (QC vr_knockdown.qc; vr_box3d.cpp "Knockdowns"; Combat > Knockdowns): a shove can knock a monster with a
 // ragdoll rig down as a ragdoll, alive; after a while it gets up (its own fall-and-rise frames, or its death backwards).
 QVR_CVAR(vr_knockdown, "1", CVAR_ARCHIVE)                 // the feature: 0 off (shoves stagger as before)
 QVR_CVAR(vr_knockdown_chance, "1", CVAR_ARCHIVE)          // every monster's chance times this (testing: 100, every shove)
