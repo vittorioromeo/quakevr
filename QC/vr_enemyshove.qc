@@ -1,11 +1,14 @@
-// vr_enemyshove.qc -- grunts and enforcers shove you away when you stand too close (ROUND21.md, "Grunts and enforcers
-// shove you"; Combat > Enemy Shoves):
-// - within reach (vr_enemy_shove_range, between the middles, flat) for vr_enemy_shove_delay seconds, a grunt or an
-//   enforcer able to (VR_EnemyShove_Ready: alive, on its feet, not staggered, not sliding from a push) starts its shove
-//   (its model's shove1..shove6 frames: Misc/quakevr/make_enemyshove.py) instead of what it was about to do;
-// - its blow (the 4th frame) deals vr_enemy_shove_damage and pushes you vr_enemy_shove_distance units away, if you are
-//   still in reach and ahead of it (an enforcer's: vr_enemy_shove_enforcer_damage and _distance times as much); hanging
-//   from a ledge or a rung, you let go (VR_Climb_KnockOff) and are pushed;
+// vr_enemyshove.qc -- grunts, enforcers and vores shove you away when you stand too close (ROUND21.md, "Grunts and
+// enforcers shove you"; ROUND22.md, "The vore shoves you"; Combat > Enemy Shoves):
+// - within reach (VR_EnemyShove_Reach: vr_enemy_shove_range between the middles, flat, plus how much wider than a grunt
+//   it is) for vr_enemy_shove_delay seconds, a grunt, an enforcer or a vore (vr_enemy_shove_vore) able to
+//   (VR_EnemyShove_Ready: alive, on its feet, not staggered, not sliding from a push) starts its shove (a grunt's and an
+//   enforcer's model's shove1..shove6 frames: Misc/quakevr/make_enemyshove.py; a vore's swing of its arms, the end of
+//   its throw: orig_mon_shalrath.qc shal_shove1) instead of what it was about to do;
+// - its blow (a grunt's and an enforcer's 4th frame, a vore's 5th) deals vr_enemy_shove_damage and pushes you
+//   vr_enemy_shove_distance units away, if you are still in reach and ahead of it (an enforcer's:
+//   vr_enemy_shove_enforcer_damage and _distance times as much; a vore's: vr_enemy_shove_vore_damage and _distance);
+//   hanging from a ledge or a rung, you let go (VR_Climb_KnockOff) and are pushed;
 // - the blow goes through the parry (combat.qc VR_Parry, as a melee monster's blow: .vr_eshove_striking): parried, its
 //   damage is cut as any parry's, and vr_enemy_shove_parry_reduction of the push is taken off (as vr_parry_reduction
 //   takes off the damage; the parry's own push of you is left out for it);
@@ -17,7 +20,7 @@
 // parried shove's 0.35x would go a fifth as far), decelerating at VR_ESHOVE_DECEL (VR_EnemyShove_PlayerFrame, every
 // player frame before the player moves: client.qc PlayerPreThink).
 
-.void() th_vrshove;          // its shove animation (monster_army, monster_enforcer); none for the others
+.void() th_vrshove;          // its shove animation (monster_army, monster_enforcer, monster_shalrath); none for the others
 .float vr_eshove_near;       // since when the player has been in reach (0: not)
 .float vr_eshove_next;       // its next shove not before (the cooldown)
 .entity vr_eshove_target;    // the player its shove is for
@@ -36,10 +39,17 @@ float(entity m) VR_EnemyShove_Ready =
            time >= m.pain_finished && !m.charmed;
 };
 
+// How far (flat, between the middles) `m` reaches to shove: vr_enemy_shove_range, measured for a grunt's or an
+// enforcer's width (16 units from its middle to its side), plus how much wider `m` is (a vore: 16 more).
+float(entity m) VR_EnemyShove_Reach =
+{
+    return cvar_hget(cvarh_vr_enemy_shove_range) + max(0, m.maxs_x - 16);
+};
+
 // The player in `m`'s reach (the nearest), or world.
 entity(entity m) VR_EnemyShove_Target =
 {
-    float reach = cvar_hget(cvarh_vr_enemy_shove_range);
+    float reach = VR_EnemyShove_Reach(m);
     entity best = world;
     entity p = find(world, classname, "player");
     while(p)
@@ -70,7 +80,8 @@ float() VR_EnemyShove_Check =
     {
         return FALSE; // (the stealth AI: an idle monster hasn't noticed you, however near; touching it gives you away)
     }
-    if(!cvar_hget(cvarh_vr_enemy_shove))
+    if(!cvar_hget(cvarh_vr_enemy_shove) ||
+       (self.classname == "monster_shalrath" && !cvar_hget(cvarh_vr_enemy_shove_vore)))
     {
         self.vr_eshove_near = 0;
         return FALSE;
@@ -189,7 +200,7 @@ void() VR_EnemyShove_Hit =
     float up = to_z;
     to_z = 0;
     makevectors('0 1 0' * self.angles_y);
-    if(vlen(to) > cvar_hget(cvarh_vr_enemy_shove_range) + 16 || fabs(up) > VR_ESHOVE_HEIGHT ||
+    if(vlen(to) > VR_EnemyShove_Reach(self) + 16 || fabs(up) > VR_ESHOVE_HEIGHT ||
        v_forward * normalize(to) < 0.5)
     {
         dprint(sprintf("enemy shove: %s missed (the player %.0f units away, facing %.2f)\n", self.classname, vlen(to),
@@ -199,8 +210,10 @@ void() VR_EnemyShove_Hit =
 
     // Through the parry, as a melee monster's blow (combat.qc VR_Parry_MeleeMonster).
     float enforcer = self.classname == "monster_enforcer";
+    float vore = self.classname == "monster_shalrath";
     float dmg = cvar_hget(cvarh_vr_enemy_shove_damage) *
-                (enforcer ? max(0, cvar_hget(cvarh_vr_enemy_shove_enforcer_damage)) : 1);
+                (enforcer ? max(0, cvar_hget(cvarh_vr_enemy_shove_enforcer_damage)) :
+                (vore ? max(0, cvar_hget(cvarh_vr_enemy_shove_vore_damage)) : 1));
     float healthBefore = p.health;
     vr_parried = 0;
     self.vr_eshove_striking = TRUE;
@@ -212,7 +225,8 @@ void() VR_EnemyShove_Hit =
     float parried = vr_parried;
 
     float dist = cvar_hget(cvarh_vr_enemy_shove_distance) *
-                 (enforcer ? max(0, cvar_hget(cvarh_vr_enemy_shove_enforcer_distance)) : 1);
+                 (enforcer ? max(0, cvar_hget(cvarh_vr_enemy_shove_enforcer_distance)) :
+                 (vore ? max(0, cvar_hget(cvarh_vr_enemy_shove_vore_distance)) : 1));
     if(parried)
     {
         dist = dist * (1 - min(1, max(0, cvar_hget(cvarh_vr_enemy_shove_parry_reduction))));

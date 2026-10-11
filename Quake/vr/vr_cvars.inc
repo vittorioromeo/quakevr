@@ -2623,7 +2623,7 @@ QVR_CVAR(vr_melee_push, "0.5", CVAR_ARCHIVE)               // how far your melee
 QVR_CVAR(vr_melee_push_player, "0.6", CVAR_ARCHIVE)        // how far monsters' melee blows push you
 QVR_CVAR(vr_parry_push_enemy, "1", CVAR_ARCHIVE)         // how far a parry pushes the attacker back (vr_defaults.cfg: 0.55)
 QVR_CVAR(vr_parry_push_player, "1", CVAR_ARCHIVE)        // and you
-QVR_CVAR(vr_enemy_shove, "1", CVAR_ARCHIVE)              // grunts and enforcers shove you away when you stand too close (QC vr_enemyshove.qc)
+QVR_CVAR(vr_enemy_shove, "1", CVAR_ARCHIVE)              // grunts, enforcers and vores shove you away when you stand too close (QC vr_enemyshove.qc)
 QVR_CVAR(vr_enemy_shove_range, "50", CVAR_ARCHIVE)       // how close (units between your middles, flat; touching is 32)
 QVR_CVAR(vr_enemy_shove_delay, "0.5", CVAR_ARCHIVE)      // seconds that close before it shoves (not while it fires, is staggered or knocked away)
 QVR_CVAR(vr_enemy_shove_cooldown, "1.5", CVAR_ARCHIVE)     // seconds from one shove to its next (parried or not)
@@ -2632,6 +2632,9 @@ QVR_CVAR(vr_enemy_shove_distance, "128", CVAR_ARCHIVE)    // how far it pushes y
 QVR_CVAR(vr_enemy_shove_parry_reduction, "0.75", CVAR_ARCHIVE) // share of a shove's push a parry takes off (0: none, 1: all; was vr_enemy_shove_parried, the share left)
 QVR_CVAR(vr_enemy_shove_enforcer_damage, "1.5", CVAR_ARCHIVE) // an enforcer's shove's damage, times vr_enemy_shove_damage
 QVR_CVAR(vr_enemy_shove_enforcer_distance, "1.5", CVAR_ARCHIVE) // an enforcer's shove's push, times vr_enemy_shove_distance
+QVR_CVAR(vr_enemy_shove_vore, "1", CVAR_ARCHIVE)         // vores shove you too (a swing of their arms; their reach is 16 units longer: they are wider)
+QVR_CVAR(vr_enemy_shove_vore_damage, "2", CVAR_ARCHIVE)  // a vore's shove's damage, times vr_enemy_shove_damage
+QVR_CVAR(vr_enemy_shove_vore_distance, "2", CVAR_ARCHIVE) // a vore's shove's push, times vr_enemy_shove_distance (harder than anyone's)
 // Holding enemies (vr_foegrab.cpp, QC vr_foegrab.qc; Combat > Holding Enemies): an empty hand that grips on a living
 // monster's model holds on to that spot, slows it and drags it, until let go or pulled too far.
 QVR_CVAR(vr_foegrab, "1", CVAR_ARCHIVE)                  // experimental: an empty hand can hold on to a living enemy

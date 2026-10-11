@@ -23,6 +23,7 @@
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
 #include "vr_posing.hpp"
+#include "vr_progs.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_timescale.hpp"
 #include "vr_flashlight.hpp"
@@ -368,14 +369,27 @@ void turn(float x)
     }
 }
 
-// Once a frame, after the sticks: the comfort vignette's target (moving: the stick's push; turning: smooth turning's, or
-// a snap's pulse, at once), eased in quickly and out more slowly.
+// How fast an enemy's shove slides you now (QC vr_enemyshove.qc .vr_eshove_speed; 0 .. 1: a run's 320 units/s and
+// more), the local player's on this machine's server (a coop guest's own slide is the host's to read: none here).
+[[nodiscard]] float shoveSlide()
+{
+    if(!sv.active || svs.maxclients < 1 || svs.clients[0].edict == nullptr || qvr::progs::fields().vr_eshove_speed < 0)
+    {
+        return 0.f;
+    }
+    const float speed = qvr::progs::fieldFloatOr(svs.clients[0].edict, qvr::progs::fields().vr_eshove_speed, 0.f);
+    return za::min(1.f, za::max(0.f, speed / 320.f));
+}
+
+// Once a frame, after the sticks: the comfort vignette's target (moving: the stick's push, or an enemy's shove sliding
+// you: ROUND22.md, "The vore shoves you"; turning: smooth turning's, or a snap's pulse, at once), eased in quickly and
+// out more slowly.
 void updateComfort()
 {
     ComfortMotion& c = comfortMotion;
     const int mode = static_cast<int>(vr_comfort_vignette.value);
     const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
-    const float moving = mode == 1 || mode == 2 ? za::min(1.f, glm::length(moveAxes)) : 0.f;
+    const float moving = mode == 1 || mode == 2 ? za::min(1.f, za::max(glm::length(moveAxes), shoveSlide())) : 0.f;
     const float turning = mode == 1 || mode == 3 ? za::max(c.turn, c.snapPulse > 0.f ? 1.f : 0.f) : 0.f;
     const float target = key_dest == key_game ? za::max(moving, turning) : 0.f;
     const float tau = target > c.amount ? 0.08f : 0.25f;
