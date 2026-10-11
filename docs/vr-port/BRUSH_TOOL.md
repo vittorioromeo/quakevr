@@ -1,8 +1,8 @@
 # Toolgun "Brush" tool: design
 
-Quake VR: UNLEASHED (Ironwail). Research and design only. Code read at `C:\OHWorkspace\quakevr-iw-cleanup` (bc3163ed4, branch
-vr-ironwail); toolgun UX assumes the panel of `feature/toolgun2` (7baa39660..3513e018a) without depending on its internals.
-Date 2026-10-11.
+Quake VR: UNLEASHED (Ironwail). Research and design, then stage 1 built (section 7). Code read at
+`C:\OHWorkspace\quakevr-iw-cleanup` (bc3163ed4, branch vr-ironwail); toolgun UX assumes the panel of `feature/toolgun2`
+(7baa39660..3513e018a) without depending on its internals. Date 2026-10-11.
 
 What the tool is: in game, the player makes textured convex brushes (boxes first) that behave like the map's own:
 solid to players, monsters and props, climbable, lit, shadowed, decal-able, walkable by monsters, saved with the game,
@@ -328,12 +328,61 @@ player today.
   (`vr_brushes.cpp`) has no toolgun dependency (console commands `vr_brush_box x y z X Y Z tex`, `vr_brush_list`,
   `vr_brush_delete id`, `vr_brush_save/load` for tests and scripts).
 
-## 6. Things to verify before stage 1 (cheap checks)
+## 6. Things to verify before stage 1 (checked 2026-10-11, worktree `brushtool`)
 
-1. Box3D: does an edict whose `modelindex` changes rebuild its Mover body? (`vr_box3d.cpp` slot kind/model tracking.)
-2. `vr_hull` method 0/1 and `hull::clipBSP` with a model not from the map: does its cache accept it (`fromThisMap`-like gate)?
-3. `R_AddBModelCall`'s instance/model assumptions for a model not in the bmodel VBO (liquid mesh uses the world's
-   instance: a moved brush needs its own instance with an entity matrix).
-4. `sightblocked` / `visible()` against SOLID_BSP ents.
-5. Save: max string length of an edict field value in `ED_ParseEdict` (if the field route is chosen over the sidecar).
-6. `MAX_MODELS` in the protocol used for VR saves (precache slots per brush).
+1. **Box3D, model changes:** a Mover's body is made again only when the edict's `qmodel_t*` changes (`stale`:
+   `s.model != modelOf(ent)`), and `moverHulls` caches per pointer. A model rebuilt in place needed more: the slot keeps
+   the model's revision (`brushes::revision`), `stale` compares it, and `moverHulls` drops a cache entry of an older
+   revision (its hulls retired to a list freed with the world: a body made from them may live a frame). Removing a
+   Mover wakes what rests on it (a crate on a removed box falls).
+2. **vr_hull:** its brushes are cached by model index (`modelSub`) and keyed by the hull 0 clipnodes pointer: a model
+   rebuilt in place would leave a stale (dangling) entry. Runtime brushes bypass it: `clipBSP` meets their convex planes
+   directly (`brushes::clipBox`, Quake 2's box against planes + axial bevels, Quake's 1/32 back-off), `subOf` refuses
+   them.
+3. **R_AddBModelCall:** its `index` is a command in `gl_bmodel_indirect_buffer`, its instance the entity's (matrix
+   from origin/angles: moved brushes are fine). Rather than a draw of our own (`R_DrawRuntimeBrushes` in 3.3), stage 1
+   reserves slots at the end of Ironwail's own brush buffers at `R_NewMap` and points the model's
+   `firstcmd`/`texofs`/`vbo_firstvert` into its slot: the ordinary bmodel path draws it (depth pre-pass, OIT, glow,
+   decals' flag), and every system reading `vbo_firstvert` (the dlights' and map lights' casters) works unchanged.
+4. **Sight:** QC's `visible()` (`point_visible` → `VR_Stealth_Line` → traceline nomonsters) hits SOLID_BSP entities:
+   a box wall hides the player (tested: no enemy behind it, one without it). Note the classic quirk: a trace whose
+   `passedict` is the world skips every entity the world owns (owner 0), brush entities included: `crates::traceLine`
+   (crate placement) and any QC `traceline(..., world)` go through runtime brushes as through a `func_wall`.
+5. **Edict field length:** `ED_ParseEdict` reads values with `COM_Parse` (`com_token[1024]`): a brush's text (six
+   faces ≈ 600 bytes, a 16-face brush over 1 KB) would not fit safely. The sidecar (3.6) it is.
+6. **MAX_MODELS:** 4096 (`MAX_MOD_KNOWN` 4096 too; the network's `U_MODEL2` carries 16 bits). With one precache name
+   per brush *id* (ids reused) the slots used are bounded by the most brushes alive at once (`vr_brush_max` 256).
+
+## 7. Stage 1 as built (2026-10-11, `agent/brushtool` on `feature/toolgun2`)
+
+Files: `Quake/vr/vr_brushes.cpp/.hpp` (the brush, its text, the registry, the model, the slots, commands),
+`vr_toolgun_brush.cpp/.hpp` (the tool), `r_brush.c` (the reserve: `R_RuntimeBrushReserve/Upload/Lightmap`),
+`gl_model.c` (`VR_RuntimeBrushModel` in `Mod_LoadModel`), hooks in `vr_box3d.cpp`, `vr_hull.cpp`, `vr_ledges.cpp`,
+`vr_decals.cpp`, `vr_lighting.cpp`, `vr_audiosim.cpp`, `vr_modelcollide.cpp`, `vr_builtins.cpp` (edict freed),
+`vr_progs.cpp` (world reset), `r_world.c` (decals' flag). Test: `Misc/quakevr/brush_test.py`. ROUND22.md has the
+section ("Runtime brushes: the toolgun's Brush tool, stage 1").
+
+Differences from the plan above:
+- **Model name** `*qvrbrush/<id>` (the `*` makes it a submodel to every system that asks: `modelmeta`; worldtrace's
+  brush entities, so hands and held weapons stop at a box), built in place on each edit (no revision in the name).
+  Code that reads a submodel's number from its name (`atoi(name + 1)`) must skip runtime brushes (`vr_audiosim`
+  did; `vr_ao` checks `n > 0`).
+- **Model space** = world minus the entity's origin (the brush's bounds' middle, whole units); a move rebuilds (the
+  texture stays world-aligned). The physgun refuses boxes (the tool moves them on the grid).
+- **Rendering**: no `R_DrawRuntimeBrushes`: the reserve in Ironwail's buffers (6.3). Each slot: 64 corners, 192
+  indices, 8 texture commands, 16 lightmap texels (one a face: flat light, `R_LightPoint` 4 units out from the face's
+  middle, shaded by the face's way: `vr_brush_shade`); a new map's reserve is `vr_brush_max` at its load. Stage 2's
+  luxel bake needs real lightmap blocks per face (a bigger reserve with a small allocator).
+- **Lux** (deluxemaps): the reserve's directions "straight on" (the bump term flat).
+- **Decals**: laid on brush faces like the world's, drawn by the world shader's decal grid (the brush instances flagged
+  as the world's); on any change or removal the marks in its old box are dropped (stage 1: no owner-relative marks).
+- **No QC spawn function** for `func_qvr_brush` yet (the engine makes the entity); a map or bake placing one needs it
+  (and the FGD entry).
+- **Saves**: brushes are not saved; a save's brush entities are removed after its load (said once) and their model
+  names load as empty models. Stage 3's sidecar: write `toText` of each brush with its id in the save hook, read it in
+  `VR_OnBeginLoadGame` and `create` them with their ids before the edicts are parsed (or re-link the parsed entities to
+  the brushes by model name: `*qvrbrush/<id>`).
+
+Left for later stages (from stage 1's list): the per-face texture choice and alignment ops (the data has them; the tool
+paints one face or all), duplicate across maps/clipboard text, undo, rotation, non-box shapes in the tool (the model
+maker takes any convex set already: the self-test's wedge and prism), the luxel bake, saving, coop.
