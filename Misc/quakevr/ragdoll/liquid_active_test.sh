@@ -42,7 +42,7 @@ for c in $CASES; do
     fallin)   drop vrtesthall "180 -256 200" 0 "wait2;vr_test_kill 1;wait800" | $PY "$SUM" "grunt fallin" ;;
     head)     drop vrtesthall "180 -256 200" 0 "wait150;vr_test_kill 2;wait600" | $PY "$SUM" "grunt head" ;;
     actoff)   # vr_ragdoll_active 0 mid-death over the pool: the released body falls in limp, no swim wakes it
-        n=$(drop vrtesthall "180 -256 200" 0 "wait2;vr_test_kill 1;wait4;vr_ragdoll_active 0;wait600;vr_ragdoll_active 1" | grep -cE "ragdoll: [0-9]+ in (water|slime|lava)")
+        n=$(drop vrtesthall "180 -256 200" 0 "wait2;vr_test_kill 1;wait30;vr_ragdoll_active 0;wait600;vr_ragdoll_active 1" | grep -cE "ragdoll: [0-9]+ in (water|slime|lava)")
         [ "$n" = 0 ] && echo "actoff: PASS (no swim after Active Deaths off)" || echo "actoff: FAIL ($n swims after Active Deaths off)" ;;
     off)      LIQ=0 drop vrtesthall "180 -256 200" 0 "wait150;vr_test_kill 1;wait600" | $PY "$SUM" "grunt off" ;;
     lava)     drop e1m7 "300 160 150" 0 "vr_enemy_liquid_damage 1;wait700" 100 | $PY "$SUM" "grunt lava" ;;
