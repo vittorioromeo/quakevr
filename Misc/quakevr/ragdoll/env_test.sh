@@ -57,6 +57,7 @@ one() { # one <case> <monster>
 for c in $CASES; do
     echo "== $c"
     case $c in
+    none) ;; # (EYES=1 alone)
     cost)
         for a in 1 0; do
             S="sv_random_seed ${SEED:-7};map vrtesthall;wait30;god;notarget;vr_ragdoll_max 8;vr_ragdoll_active_env $a;vr_test_spawn 0;vr_test_spawn_dist 110"
@@ -85,8 +86,11 @@ if [ -n "$EYES" ]; then
     for c in ${EYECASES:-wall along ledge crate}; do
         for m in $MONS; do
             case $c in
-            ledge|hit|thrown) CAM="vr_mock_camera 4.6 -1.2 -3.4 20 90" ;; # (to his side, the lip and the drop)
-            *) CAM="vr_mock_camera 3.2 0.4 -2.9 4 90" ;;                 # (to his side: the wall or crate edge on)
+            # (Tracking space, metres: 26.25 units a metre. To his side, the wall or crate seen edge on; for the ledge,
+            # level with the lip, the drop below.)
+            ledge|hit|thrown) CAM="vr_mock_camera 6 -2.6 -6.6 -6 90" ;;
+            along) CAM="vr_mock_camera 5 1.3 -5.4 8 90" ;;
+            *) CAM="vr_mock_camera 4.6 1.3 -4.1 8 90" ;;
             esac
             S="sv_random_seed ${SEED:-7};map vrtesthall;wait30;god;notarget;vr_ragdoll_active_seed ${SEED:-0};vr_ragdoll_active_debug ${OVERLAY:-0};${EXTRA:-};$(place $c);vr_test_spawn $m"
             S="$S;impulse 241;wait40;$CAM;wait3;vr_test_kill 1;wait7;screenshot"

@@ -1590,6 +1590,113 @@ the press held 10 frames behind a waiting buffer: one load.
 **In the headset:** die in the start map's lava, hold A: "Loading...", one load of the level-start autosave, then
 play. Same with a quick tap, and on a map with no autosave yet (a plain restart).
 
+## Active ragdolls: environment (feature branch, 2026-10-11, worktree `ragenv`)
+
+Stage 4 of the active-ragdoll programme, on top of the core below (`ragcore`). His goal: "basic interaction with
+surrounding environment or props, trying to hold onto a wall while falling/dying". The design is the research report's
+section 8 (the kit's `scratch/ACTIVE_RAGDOLLS.md`): sense, a goal per hand, act (Overgrowth's and Euphoria's recipe).
+Behind `vr_ragdoll_active_env` (default 1 on this branch) and its sub-toggles `_brace`, `_lean`, `_ledge` (all 1); only
+for active deaths (the core's monster set: grunt, enforcer, knight, death knight, ogre, zombie), never a headshot or a
+beheading (a collapse). (This section sits above the core's so the stages' notes merge without touching each other.)
+
+### What it does (`vr_ragactive.cpp`, "Environment"; `vr_ragactive.hpp`, "What is round him")
+
+- **Sense** (every 3 frames, from his first driven frame): a ray from his chest along his fall (the pelvis's and chest's
+  mass-weighted velocity, length speed x 0.4 s + half an arm, at most 8 arms), and one of six level rays all round him
+  in turn (1.5 arms; from behind him: a dying torso is often twisted 40-90 degrees from where he faced, so no ray
+  trusts his chest's facing alone). Both start 0.3 arms inside his body: thrown into a wall, the ragdoll is often made
+  with the chest's middle past the wall's face. They see the world, movers and props (`Context::envMask`), not his own
+  entity, not a loose thing under 8 kg or 0.4 m tall (his dropped gun, a backpack). While he falls, the world's ledge
+  map (`vr_ledges`, `Context::ledges`) near his hands.
+- **Catch** (`_brace`): a surface along his fall, facing it, ahead of or beside him (a floor only when falling face
+  first: `dot(chest front, fall) > 0.3`; a wall from -0.15): the hands on its side (a floor: both) reach (two-bone
+  `Reach`, strength 0.9) to the surface below their shoulders led by 0.12 s of his motion. Landed (within 0.12 arms of
+  it, or 0.8 s on) the push gives: the arms' strength 0.9 -> 0.1 over 0.35 s (the motors' cap is the "capped push"),
+  then the hand goes back to the death's own pose. Never held. One catch at a time, 0.6 s apart.
+- **Lean** (`_lean`): a wall (normal within 30 degrees of level) found by the ring or his fall within his first second,
+  while he is on his feet (chest over 0.9 arms above the floor, pelvis under 1.6): the hand whose shoulder is nearer the
+  wall (not the one on his wound; 20 % of deaths none: "sometimes no hand") reaches for the wall at shoulder height, 0.3
+  arms to its side; after 0.3 s, still off, it goes straight to the wall from where it is (an arm can't reach far behind
+  him). Within 0.2 arms of the wall: a **hold**, a Box3D motor joint from the wall's body (the world's, or a mover's:
+  it rides it) to the hand's end, at most Grip / 3 body weights (`vr_ragdoll_active_env_grip` 1.2; heavier monsters
+  less: x sqrt(90 kg / mass), 0.6..1.2), 15 Hz (a light hand on a soft spring barely pulls), colliding with the wall;
+  its anchor slides down the wall, faster as he weakens (to 0.45 m/s over 1.2 s). The knees give slowly (the legs'
+  strength 0.5 -> 0 over 1.6 s), the pelvis drawn to the wall (0.25 body weights fading over 1.5 s). The hand lets go
+  on its timer (1.1-2 s), at the floor (0.3 arms above it), its load at the cap for 0.25 s, pulled 0.6 arms off it, hit,
+  taken by a player's hand, cut, a blast (`weaken`), or once he crawls.
+- **Brace** on a prop (a crate: the same lean, ring or fall ray meeting a loose body): the hand pressed on it (0.8 ->
+  0.2 over 1.2 s), no joint, no pelvis pull (no grabbing props).
+- **Ledge** (`_ledge`): falling (down faster than 0.8 m/s) past a lip near a hand: the hand at most half an arm over
+  the lip, his shoulder at most 0.8 arms over it and 0.6 under, the lip within 1.15 arms of the shoulder (stretched: the
+  hold pulls the rest), him out over its drop. The nearest hand reaches for the hold (`holdInset`/`holdLift`, checked by
+  a short ray down onto the top: the world's or a mover's body under it), the other for the same lip a shoulder's width
+  along when it reaches. Grabbed: a **ball joint** (a motor joint stretched 13 units and let go: a hanging body needs no
+  give), the hand passing into the lip rather than fighting it. He hangs `vr_ragdoll_active_env_hang` (1.8 s) x
+  0.45..1.65, then drops; earlier on overload (Grip body weights a hand, past it 0.25 s: a one-handed knight swinging
+  slips off), a hit or the rest above. Once a death.
+- **Curl** (`_brace`): tumbling (chest spin over 5 rad/s, over 2 m/s, off the floor by 0.8 arms, after 0.3 s), nothing
+  caught or held: the hands to before his face, the knees up (weight eased to 0.8).
+- **Hit**: a shot's push on a holding hand or its forearm (`box3d::push` -> `ragactive::struck`) lets it go. Saved
+  games: nothing to save (a loaded ragdoll is made limp as before; the joints are the world's, made again).
+- The reaches go over the clip's pose and the death's own (a wound's hand: a catch takes it over, a lean picks the
+  other hand); a limb the environment let go of is given back (its reach dropped unless it is the wound's or a step's).
+
+### Debug and tests
+
+- `vr_ragdoll_active_debug 1` (Debug > Logs: Active Ragdoll Targets) now also draws the probes (cyan, orange where they
+  met something), each hand's goal and hold (magenta, thick when held), the wall leaned on (its normal, blue).
+- `vr_debug_ragdoll 1`: each catch, lean, ledge reach, hold made (where, its cap, its time) and let go (why, held how
+  long, load, slid); 2: each probe; 3: each ledge candidate. `vr_ragdoll_active_list`: each one's hands' modes, holds,
+  catches. `vr_ragdoll_active_trace n`: a `ragenv` line beside each `ragtrace` (each hand's mode, held, distance to its
+  goal, load, slide; the curl).
+- `vr_ragdoll_env_hit [speed]` (Debug > World and Physics: Strike Holding Hands): each holding hand struck as a shot.
+- Ragdoll Settings rows: Use What Is Round Him, Catch the Fall, Lean on Walls, Grab Ledges, Grip, Hang Time.
+- `Misc/quakevr/ragdoll/env_test.sh <agent> [wall along ledge thrown hit crate front open off cost]` on vrtesthall
+  (`env_trace.py` sums each death's `ragenv` lines; `active_trace.py` the stability bounds; `EYES=1`: one contact sheet,
+  the kit's `scratch/env_sheet.png`, via `env_sheet.py`).
+
+### Checked (headless, `env_test.sh`, vrtesthall, `sv_random_seed 7`, grunt and knight)
+
+- **Wall** (shot towards the north wall, 24 units off: thrown into it, the ragdoll made against it): the grunt's left
+  hand held the wall 1.1 s, slid 8 units, let go at the floor; the knight's held 1.5 s, slid 13 units (0.42 m), let go
+  on its timer; both upright against the wall about a second, then slumped to sitting (pelvis 25-29 -> 6-8 units).
+  At 60 units off: the grunt leaned (held 1.5 s, slid 0.43 m); the knight rolled "no hand" (leaned, slumped).
+- **Along** (shot along the north wall): the grunt's and the knight's wall-side hands held 0.7 and 1.3 s, slid down,
+  let go at the floor.
+- **Ledge** (killed at the platform's lip, no kill push: he topples over it): the grunt grabbed with both hands and hung
+  2.1 s (load up to 2.6 kN against 2.6 kN caps), then dropped; the knight one-handed, slipped off on its load after
+  0.6 s in one run, hung 2.1 s in another. **Hit**: struck 0.5-0.6 s into the hang, both let go ("hit").
+- **Thrown** (the kill push on: thrown 50-130 units out, past the lip's reach): both hands caught the floor; the knight
+  caught the 72-unit block's lip on the way down (slipped off at once on the landing's 16 kN).
+- **Crate** (the big crate behind him): braced on it 1.4 s, no joint; the crate pushed a little.
+- **Front** (shot from behind in the open): the knight caught the floor with both hands; the grunt's death animation
+  falls him back first (his chest's front points up): no catch, as wanted. **Open**: no events. **Off**: no `ragenv`.
+- **Stability**: every run (the suite's 18 and the reruns) under `active_trace.py`'s bounds: no NaN, no crash, energy 0 J and spin under 2 rad/s
+  once the drive let go; the most energy 12 kJ (the 192-unit fall), under the 20 kJ explosion bound.
+- **Cost** (8 grunts along the north wall killed at once, `--exclusive`): the drive 0.041 ms a frame for 8 (0.0054 ms
+  each) against 0.021 with `vr_ragdoll_active_env 0`: the probes and holds 0.0026 ms a ragdoll. The physics step over
+  the 60 frames after: 0.33 ms against 0.34; 300 frames: 0.22 against 0.22. (The world's ledge map is made the first
+  time a driven ragdoll asks for it if Climbing hadn't: once a map.)
+- Contact sheet (`EYES=1`, the grunt; the kit's `scratch/env_sheet.png`): against the wall he stays up on a hand, then
+  slides to sitting; he hangs from the platform's lip by both hands, arms up, then drops; he falls onto the crate and
+  slumps against it.
+- `active_test.sh deaths head` (vrfiringrange, nothing near): unchanged.
+
+### Not done / notes
+
+- Ledges on movers (their own ledge maps in model space) are not looked up; a lean or a catch on a mover works (the
+  hold rides its body).
+- The "catch" reads his chest's front for falling face first; a grunt's twisted torso may make a forward fall read as
+  sideways (no catch) and vice versa. Rays don't depend on it.
+- Living knockdowns (`ragstagger`) could use the same: `envFrame` only runs for deaths now (`Env::on` needs `death.on`).
+- No pull-up from a hang; no grabbing an ally ragdoll or a prop (by design: props are braced, never held).
+
+**In the headset**: kill grunts and knights standing near a wall (shot towards it and along it): a hand should go to the
+wall and he should slump down it. Kill one at the edge of a drop (vrtesthall's platform: stand on it and shoot one at
+its west lip with a weak weapon): he should grab the lip and hang a moment; shoot the hand to make him let go. Kill one
+in front of a crate: he braces on it. Turn Ragdoll Settings > Use What Is Round Him off to compare; Debug > Logs: Active
+Ragdoll Targets shows the probes and holds.
+
 ## Active ragdolls: core and deaths (feature branch, 2026-10-11, worktree `ragcore`)
 
 Stage 1 of the active-ragdoll programme (research: the kit's `scratch/ACTIVE_RAGDOLLS.md`, options 1-3 and section 8).
