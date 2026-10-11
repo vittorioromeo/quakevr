@@ -226,7 +226,7 @@ void(vector st) ZombieFireGrenade =
 
     if(!VR_AI_ShotReady(org)) { remove(missile); return; }
     missile.velocity = normalize(VR_AI_Origin(self.enemy) - org);
-    missile.velocity = missile.velocity * 600;
+    missile.velocity = missile.velocity * AD_MonsterSpeed(600, AD_PROJ_ZOMBIE); // AD support: AD's speed for the skill by the Projectile Rules (vr_ad_bridge.qc)
     missile.velocity_z = 200;
     VR_Lob_Aim(missile, org); // QVR: at the enemy's height (vr_ogre_aim_height)
 

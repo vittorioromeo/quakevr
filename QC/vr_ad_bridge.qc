@@ -178,6 +178,26 @@ void(float request) AD_Test =
         bprint(sprintf("adtest: camera %s started at %v\n", cam.targetname, cam.origin));
         return;
     }
+    if(request == 5)
+    {
+        // 5: a Widowmaker pickup (weapon_upgrade_ssg) 48 units ahead (vr_pickup_test 2 takes it); 6: the upgrades held.
+        entity oself5 = self;
+        makevectors(p.angles);
+        self = spawn();
+        self.classname = "weapon_upgrade_ssg";
+        setorigin(self, p.origin + v_forward * 48);
+        weapon_upgrade_ssg();
+        bprint(sprintf("adtest: %s (%s) put at %v\n", self.classname, self.netname, self.origin));
+        self = oself5;
+        return;
+    }
+    if(request == 6)
+    {
+        bprint(sprintf("adtest: upgrades axe %g ssg %g lg %g; hands %g %g\n", (p.ad_moditems & ad_IT_UPGRADE_AXE) != 0,
+            (p.ad_moditems & ad_IT_UPGRADE_SSG) != 0, (p.ad_moditems & ad_IT_UPGRADE_LG) != 0,
+            VRGetEntWeapon(p, cVR_MainHand), VRGetEntWeapon(p, cVR_OffHand)));
+        return;
+    }
     if(request == 3 || request == 4)
     {
         // 3: the Widowmaker's shot (the super shotgun with AD's SSG upgrade, AD's pellets by the Projectile Rules);
@@ -676,18 +696,40 @@ void(entity targ, entity attacker) AD_MonsterKilled =
 // AD's projectile pellets (decisions 2 and 22): vr_ad_projectiles 0 Auto (AD's in AD maps), 1 Vanilla, 2 AD's wherever
 // AD's data is mounted; a map's no_sgprojectile key keeps AD's own hitscan.
 
-float(entity p) AD_Pellets =
+// Whether AD's projectile rules play here (vr_ad_projectiles: Auto in AD maps, AD's wherever its data is mounted).
+float() AD_ProjectileRules =
 {
     float mode = cvar("vr_ad_projectiles");
     if(mode == 1 || !cvar("vr_ad_mounted"))
     {
         return FALSE;
     }
+    return mode == 2 || AD_Rules();
+};
+
+float(entity p) AD_Pellets =
+{
     if(AD_Rules() && world.ad_no_sgprojectile > 0)
     {
         return FALSE;
     }
-    return mode == 2 || AD_Rules();
+    return AD_ProjectileRules();
+};
+
+// A vanilla monster's projectile (`kind`: AD_PROJ_*): AD's speed for the skill where AD's projectile rules apply
+// (as AD_Pellets: Auto in AD maps, AD's wherever its data is mounted), Quake's `idSpeed` otherwise (decision 22).
+float(float idSpeed, float kind) AD_MonsterSpeed =
+{
+    if(!AD_ProjectileRules())
+    {
+        return idSpeed;
+    }
+    float s = skill;
+    if(kind == AD_PROJ_HKNIGHT) return ad_SPEED_HKSPIKE + s * ad_SPEED_HKSKILL;
+    if(kind == AD_PROJ_WIZARD) return ad_SPEED_WIZSPIKE + s * ad_SPEED_WIZSKILL;
+    if(kind == AD_PROJ_OGRE) return ad_SPEED_MONGRENADE + s * ad_SPEED_MONGLSKILL;
+    if(kind == AD_PROJ_ZOMBIE) return ad_SPEED_ZOMBFLESH + s * ad_SPEED_ZOMBIESKILL;
+    return idSpeed;
 };
 
 // FireBullets, the player's: AD's pellets (a tracer and `shotcount` pellets) from the muzzle along the gun, at AD's

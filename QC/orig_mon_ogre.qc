@@ -155,7 +155,7 @@ void() OgreFireGrenade =
     else
     {
         sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
-        missile.velocity = missile.velocity * 600;
+        missile.velocity = missile.velocity * AD_MonsterSpeed(600, AD_PROJ_OGRE); // AD support: AD's speed for the skill by the Projectile Rules (vr_ad_bridge.qc)
         missile.velocity_z = 200;
         VR_Lob_Aim(missile, self.origin); // QVR: at the enemy's height (vr_ogre_aim_height)
         missile.velocity = MG3_OgreBurstVelocity(missile.velocity); // QVR: Dawn of the Machine's Bloody Nightmare burst

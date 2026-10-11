@@ -3631,9 +3631,10 @@ void hologramTestMessage()
 {
     return {
         cycle("Projectile Rules", vr_ad_projectiles, {{0.f, "Auto"}, {1.f, "Vanilla"}, {2.f, "Arcane Dimensions"}})
-            .help("Whose rules your shotguns and the vanilla monsters' shotguns play by. Auto: Arcane Dimensions' in its "
-                  "maps (projectile pellets you see fly), Quake's hitscan elsewhere. Vanilla: hitscan everywhere. Arcane "
-                  "Dimensions: its pellets wherever its data is loaded. Its own monsters always fire its pellets."),
+            .help("Whose rules shotguns and monster projectiles play by. Auto: Arcane Dimensions' in its maps (projectile "
+                  "pellets you see fly, from your shotguns and the grunts'; the hell knights', scrags', ogres' and "
+                  "zombies' missiles at its speeds for the skill), Quake's elsewhere. Vanilla: Quake's everywhere. "
+                  "Arcane Dimensions: its rules wherever its data is loaded. Its own monsters always play by its rules."),
         slider("Pellet Spread", vr_ad_pellet_spread, 0.f, 2.f, 0.05f, "x%.2f").extend(0.f, 4.f)
             .help("Arcane Dimensions' pellets: how wide they spread, times its own (the shotgun 0.04, the super shotgun "
                   "0.14 by 0.08: wider than Quake VR's hitscan, aimed with the hand). 0: every pellet straight."),
@@ -6132,6 +6133,12 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Cinematic Report", "vr_ad_test 2")
             .help("One adtest: line in the console: the cinematic camera's state, how you are held (move type, solid, "
                   "damage), where you are."),
+        command("Arcane Dimensions: Widowmaker Pickup Ahead", "vr_ad_test 5")
+            .help("In an Arcane Dimensions map: a Widowmaker pickup (AD's upgrade) appears ahead of you, to take with a "
+                  "hand. Arcane Dimensions: Upgrades Report then says whether you have the upgrade."),
+        command("Arcane Dimensions: Upgrades Report", "vr_ad_test 6")
+            .help("One adtest: line: the AD upgrades you have (Shadow Axe, Widowmaker, Plasma Gun) and your hands' "
+                  "weapons."),
         command("Arcane Dimensions: Status", "vr_ad_info")
             .help("vr_ad_info: AD's data (the latest release, another version refused), whether this map plays by AD's "
                   "rules and why (the campaign, or the signals found), how many of its entities spawned with AD's code."),

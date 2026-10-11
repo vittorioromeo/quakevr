@@ -75,7 +75,7 @@ void(float offset) hknight_shot =
     newmis.classname = "knightspike";
     setmodel(newmis, "progs/k_spike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
-    newmis.velocity = vec * MG3_HknightSpikeSpeed(); // QVR: 300; Dawn of the Machine's Bloody Nightmare 500
+    newmis.velocity = vec * AD_MonsterSpeed(MG3_HknightSpikeSpeed(), AD_PROJ_HKNIGHT); // QVR: 300; Dawn of the Machine's Bloody Nightmare 500; AD support: AD's for the skill (vr_ad_bridge.qc)
     sound(self, CHAN_WEAPON, "hknight/attack1.wav", 1, ATTN_NORM);
 };
 

@@ -24,7 +24,14 @@ float() VR_OtherFlags =
     return MG_WorldCampaign() || AD_Rules();
 };
 
+// The vanilla monsters' projectiles AD gives a speed by skill (AD_MonsterSpeed).
+float AD_PROJ_HKNIGHT = 1; // the hell knight's spikes (AD: 200 + 50 a skill level; Quake: 300)
+float AD_PROJ_WIZARD = 2;  // the scrag's (AD: 500 + 50; Quake: 600)
+float AD_PROJ_OGRE = 3;    // the ogre's grenades (AD: 500 + 50; Quake: 600)
+float AD_PROJ_ZOMBIE = 4;  // the zombie's flesh (AD: 550 + 25; Quake: 600)
+
 // Quake VR's side (vr_ad_bridge.qc): each one does nothing outside AD's rules unless it says otherwise.
+float(float idSpeed, float kind) AD_MonsterSpeed; // a vanilla monster's projectile: AD's speed for the skill by the Projectile Rules, or idSpeed
 void() AD_WorldSpawn;                // worldspawn's end: AD's world setup
 void() AD_SyncActivator;             // monster_use: AD's triggers' activator as ours, in an AD map
 void() AD_ShareActivator;            // SUB_UseTargets: our activator as AD's, in an AD map

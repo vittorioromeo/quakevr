@@ -1732,3 +1732,14 @@ magazine 1`, `lupper: v_nail clip 24; magazine 1`, hips `v_axe clip 0`, `v_shot 
 
 **In the headset:** break the super shotgun open and holster it on a hip: it stays open there (and shut ones shut);
 drop a nailgun's magazine and holster it: no magazine drawn in it.
+
+## Arcane Dimensions P1b: AD's maps play (2026-10-11, worktree `arcane`, branch `feature/arcane`)
+
+All of it is in ARCANE_DIMENSIONS.md: Vittorio's decisions in section 12, what was built and measured in section 15
+(campaign 6 by the developer launch, AD's 38 maps with 0 missing spawn functions and no errors headless, AD's projectile
+pellets with VR settings, a first version of AD's three weapons, saves switching AD's rules), the follow-up tasks in
+section 11. In passing: the server's broadcast boundaries counted Quake VR's beam temp entities one byte short
+(`vr_server.cpp tempEntityLength`: their beam id byte), fixed.
+
+**In the headset:** Debug > Tests > Arcane Dimensions: Play (Developer); the hub, a map through to its exit and back;
+VR Settings > Combat > Arcane Dimensions.

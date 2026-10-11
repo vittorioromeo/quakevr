@@ -1,8 +1,9 @@
 # Arcane Dimensions (AD): analysis and plan for native Quake VR support
 
-Status: Phase 0 (analysis + plan) done 2026-10-11; **Phase 1a built** (section 14): AD's QuakeC is imported,
-namespaced and compiled into the progs, inert (nothing of it runs yet), on branch `agent/arcane`. AD's assets are never
-committed. Target, from Vittorio's request:
+Status: Phase 0 (analysis + plan) done 2026-10-11; Phase 1a built (section 14): AD's QuakeC imported, namespaced and
+compiled in. **Phase 1b built** (section 15): AD's campaign (developer launch) plays its 38 maps under AD's rules, 0
+missing spawn functions, no errors headless; Vittorio's decisions in section 12. Branch `agent/arcane`. AD's assets
+are never committed. Target, from Vittorio's request:
 
 - When AD is installed, all of its enemies, entities and weapons are available in every campaign and custom map,
   inside the merged QuakeC (the "giant QuakeC aggregation", MG3.md decision 5, EXPANSIONS.md).
@@ -217,7 +218,9 @@ Detection was checked with `detect.py` and `detect_fp.py`:
 - Quoth and Copper share a few names (`trigger_ladder`, `func_detail*`, `info_target`, `misc_particle`?). The
   signature table excludes names shared with them. A P1 acceptance test runs the detector over every installed Map
   Library package.
-- Saves record `vr_save_ad_rules`, so a loaded save restores the rules before spawn.
+- Saves record `vr_save_ad_rules`, so a loaded save restores the rules before spawn. (As built in P1b: no key is
+  needed: a load spawns the map from its BSP first, so the detection runs as for a new map, and the save's campaign
+  (`vr_save_campaign`) selects the AD campaign.)
 
 ### 5.2 Namespacing AD's QC (a scripted import, not a hand port)
 
@@ -289,7 +292,9 @@ tuning, no AD player rules. AD's spawnflag meanings apply only to AD classnames 
 ### 5.5 Assets
 
 Mount `ad` **below id1**, so it supplies only AD-unique files (the 72 overrides never shadow id1, Hipnotic, Rogue or
-quakevr). AD assets whose names collide are read in place through `owned/ad/<path>` (`VR_OwnedFile`), e.g.
+quakevr). (As built in P1b, section 15: mounted as the other campaigns' folders, above Quake's, it skips the files an
+official pak also has, which is the same.) AD assets whose names collide are read in place through
+`owned/ad/<path>` (`VR_OwnedFile`; not needed yet), e.g.
 `owned/ad/progs/v_plasma.mdl` and AD's `player.mdl` and heads where AD code needs them. The import tool rewrites those
 literal paths.
 
@@ -467,8 +472,8 @@ skullwiz 225, lostsoul 177, hogremac 150, boil 117.
 | Phase | Goal | Tasks | Effort |
 |---|---|---|---|
 | **P0** (this) | Analysis, plan, probe | This document | done |
-| **P1a** foundation | AD code compiled into our progs with **no behaviour change** anywhere | Engine: campaign entry 6 `ad` (discovery, hash validation, mount below id1, `VR_SkipSearchPath` rules, `owned/ad/`), `vr_ad_rules` + pre-spawn entity-lump detection + save field, `ad__` spawn-prefix hook in `ED_LoadFromFile`, parm capacity for 57..72. QC: `ad_import.py` + patches, progs.src/FGD/precedence checks green, globals/fields/edict budget measured and recorded, `AD_Rules()`/`VR_Pack_AD()`. Checker `Misc/quakevr/check_ad_entities.py` (per-map missing classnames and keys, as `check_mg3_entities.py`). | 5-7 |
-| **P1b** AD maps play | Every AD map loads with 0 missing spawn functions and is playable start to end under AD rules | Bridge (5.3): damage, player hooks, parms/map variables, fog/sky/cshift, items to our pickups, vanilla-weapon placement logic, AD-key adapter for vanilla monsters, spawnflag gating, ladders (AD push first), books (centerprint first). AD monsters run on AD's AI with minimal VR registration (hulls, gibs, damage). Headless acceptance per map (load, entity census, scripted kill/secret/exit chain through the `start` hub and the rune gate), save/load. Installer component (default off). | 12-18 |
+| **P1a** foundation | AD code compiled into our progs with **no behaviour change** anywhere | Engine: campaign entry 6 `ad` (discovery, hash validation, mount below id1, `VR_SkipSearchPath` rules, `owned/ad/`), `vr_ad_rules` + pre-spawn entity-lump detection + save field, `ad__` spawn-prefix hook in `ED_LoadFromFile`, parm capacity for 57..72. QC: `ad_import.py` + patches, progs.src/FGD/precedence checks green, globals/fields/edict budget measured and recorded, `AD_Rules()`/`VR_Pack_AD()`. Checker `Misc/quakevr/check_ad_entities.py` (per-map missing classnames and keys, as `check_mg3_entities.py`). | done (the QC side; the engine side was built in P1b) |
+| **P1b** AD maps play | Every AD map loads with 0 missing spawn functions and is playable start to end under AD rules | Bridge (5.3): damage, player hooks, parms/map variables, fog/sky/cshift, items to our pickups, vanilla-weapon placement logic, AD-key adapter for vanilla monsters, spawnflag gating, ladders (AD push first), books (centerprint first). AD monsters run on AD's AI with minimal VR registration (hulls, gibs, damage). Headless acceptance per map (load, entity census, scripted kill/secret/exit chain through the `start` hub and the rune gate), save/load. Installer component (default off). | built (section 15, with decisions 15, 19, 22, 23, 25 and 31; the remainder in 15.6) |
 | **P2** AD content everywhere | AD monsters, items and entities spawn in any campaign and custom map when AD data is present | Default ruleset, gating audit (nothing changes in id1/Hipnotic/Rogue/MG maps; the regression suites prove it), toolgun/spawn menus, Debug menu pages (AD rules toggle, spawn any AD monster), FGD group, VR registration of the monsters by archetype in usage order (hit zones, decap, ragdoll seeds, parry, knockdown, foe-grab/grapple, dummy) | 12-20 |
 | **P3** weapons usable in VR | Shadow Axe, Widowmaker, Plasma Gun, AD grapple mapping, projectile shotguns, artifacts, custom keys | Weapon variants/new WID, damage tables, metadata (grip, sights) from AD's models read in place, holsters, reload rules for the Widowmaker, artifact indicators, jump boots, ladders on VR climbing, book panel | 8-12 |
 | **P4** polish | Feels native | Our VR models and textures for the AD weapons (shipped as our own assets), AD effects on our particle system (or effectinfo support), weather, comfort designs for cameras and shakes, per-monster VR polish, big-map performance (lightmap build time, think cost), installer default on, chaos mode (optional) | 10-20 (+ Vittorio's modelling time) |
@@ -729,10 +734,209 @@ cases, which compile to `NE_F`+`IF` instead of `NOT_F`+`IFNOT`, which is equival
 3. **Benchmarks.** `bench.sh --fast --reps 3`, exclusive: `ai_crowd_64`, `combat_48` and `idle_e1m1` show no change
    past 5%. The largest were combat_48's p99 at +1.2% and ai_crowd_64's CPU at -2.2%: noise.
 
-**Not done in P1a (P1b's list, section 11).**
+**Not done in P1a (P1b's list, section 11; done in P1b, section 15, but the reduced setup outside AD maps: P2).**
 
 - The engine side: campaign entry 6, AD data discovery, the `ad_` spawn hook, the `ad_<key>` key fallback,
   `vr_ad_rules` with detection before spawn.
 - The bridge proper: damage, player, fog, items.
 - Running any AD code. AD's `ad_worldspawn` setup (precaches, light-style and pendulum arrays) must run first in AD
   maps; outside them, AD entities need a reduced setup.
+
+---
+
+## 15. Phase 1b (built 2026-10-11): AD maps play
+
+### 15.1 What exists
+
+**Engine** (`Quake/vr/vr_ad.cpp`; the shared files' calls are marked "AD support"):
+
+- **Campaign 6, `ad` "Arcane Dimensions"** (`vr_gamedir.cpp`), found like the other native campaigns (an `ad` folder in
+  a base dir or an owned root). Developer launch only for now: `vr_campaign_native ad`, or Debug > Tests > Arcane
+  Dimensions: Play (Developer); Official Campaigns lists it dimmed ("native in progress"). Single player only.
+  The installer's expansion table has the row (`ExpansionDetector.cs`, not ready), as its self-test requires.
+- **Latest release only** (decision 10): `pak2.pak` (patch 1) must be there with its pinned size and the SHA-256 of
+  its header and directory (cheap at start-up). Another version is refused with a console line naming
+  `ad_v1_80p1final.zip` (status 3: `vr_ad_status 3`, "another version" in `vr_campaign_status`).
+- **AD supplies only its own files.** Mounted while AD is the campaign (above Quake's and the packs', under quakevr), its
+  folder skips the 82 files an official pak also has (`vr_ad_data.inc`, written by `ad_import.py --engine-lists`
+  from the paks' names: AD's menu art, weapon models, heads, `player.mdl`, 23 sounds, `progs.dat`), its own
+  `quake.rc` (impulse binds, `max_edicts`) and `csprogs.dat`. AD's `start.bsp` is its hub.
+- **`vr_ad_rules`** (ROM; QC `AD_Rules()`), set before each spawn, a saved game's too: the AD campaign, or a map whose
+  entity text carries 2+ AD signals (AD-only classnames, AD's worldspawn keys) while AD's data is mounted.
+  `vr_ad_mounted` says whether AD's files are on the search path.
+- **Spawn ownership** (`ED_LoadFromFile`): in an AD map, `ad_<classname>` spawns AD's entities and AD's version of
+  the shared world logic; Quake VR's stays for the classes in 15.2.
+- **Map keys**: a key Quake VR has no field (of that type) for fills AD's `ad_<key>` (`ED_ParseEdict`; this settles
+  `color`, `target2`, `target3`). AD's `water_alpha` worldspawn key is read as `wateralpha` (`gl_rmisc.c`).
+- **Spawn parms 57..72** carry AD's level state (the engine's extended parms now go to 72).
+- `vr_ad_info` prints the data, the rules (and why) and the spawn counts.
+
+**QC**: `QC/vr_ad_defs.qc` (the switches and the bridge's declarations, early) and `QC/vr_ad_bridge.qc` (after AD's
+files). `ad_import.py` applies 8 reviewed bridge patches to AD's code (listed in `QC/ad/AD_IMPORT.txt`); every
+`VR_AD_` name is kept by the renaming.
+
+| Area | In an AD map |
+|---|---|
+| World | AD's world setup after ours (`ad_worldspawn`: precaches, body queue, light-style/pendulum/map-variable arrays, gravity and fall rules, the particle chain), AD's frame (`ad_StartFrame`). AD's engine detection answers Fitz (sprite particles, no CSQC). |
+| Fog | AD's fog controller by `svc_fog` (MG's `MG_SetFog`); AD's stuffed fog and sky-fog commands are not sent. |
+| Damage | Quake VR's `T_Damage` for the player and our monsters, also when AD's code deals it (`VR_AD_DamageOurs`; AD's NOARMOR kept); AD's `T_Damage` for AD's entities, also when ours deals it (`AD_Damage`: our damage multipliers, sneak attacks, the motion log, melee bloodlust), with our hit hooks on AD's monsters (`VR_AD_Hit`: damage numbers, gore, small gibs, wounds) (decision 14). |
+| Player | What AD's code reads of a player (class, entity state, AD's powerups and debuffs reset); AD's spawn points (`info_player_start2` by an exit's `startspawn2`, the hub's returns) and the spawn point's targets; ladders (`trigger_ladder`: jump climbs, AD's way); AD's fall rules (decision 15: the map's fall speeds and damage); AD's debuffs (poison, burning, bleeding) ticked; AD's megahealth rot (decision 15: one rot whatever the megahealths). |
+| Levels | AD's state in parm57..72 (map variables, upgrades); the worldspawn inventory keys (`reset_health`, `max_health`, `ammo_*`, `currentammo`, `armortype`/`armorvalue`) at a level's start; the hub keeps the inventory (AD resets it only when all runes are found); exits: no map key = this map, `ad_tears`' exits go to the hub (AD's own hack), STARTOFF until triggered, AD's on-exit rules (debuffs and AD powerups end, `mapvar_update`, `startspawn2`, RESETINV). |
+| Our monsters | AD's delayed spawn (64) and angry spawn (128), no spawn effect (32), `nomonstercount`, `deathtarget`; AD's path_corners move them as ours. The id/Hipnotic/Rogue/Honey spawnflag meanings are off (`VR_OtherFlags`, as in MG's maps; decision 19). |
+| Items | Ours, with AD's STARTOFF (64: appears when triggered) and respawn (decision 25: RESPAWN 16, `respawn_time` default 30 s, `respawn_trig`, `respawn_count`). |
+| Shotguns | AD's projectile pellets (decisions 2, 22): `vr_ad_projectiles` 0 Auto (AD's in AD maps, hitscan elsewhere), 1 Vanilla, 2 AD's wherever its data is mounted; a map's `no_sgprojectile` keeps AD's hitscan. Yours from the muzzle along the gun at AD's spread times `vr_ad_pellet_spread`, AD's speed times `vr_ad_pellet_speed`, the Weapon Damage pellet times `vr_ad_pellet_damage`; our grunts' at AD's monster speed; our hell knights', scrags', ogres' and zombies' projectiles at AD's speeds by skill. AD's monsters always fire AD's. VR Settings > Combat > Arcane Dimensions. |
+| AD's weapons | A first version (decision 23): the upgrades are the player's, as in AD (carried in parm63). Shadow Axe: the axe hits 35 for 20. Widowmaker: the super shotgun fires 21 pellets for 3 shells (a third from the reserve) and reloads at the hip (the simple reload). Plasma Gun: the lightning gun fires AD's plasma bolts (0.2 s, a cell; misfires under water). Their pickups (`weapon_upgrade_axe/ssg/lg`, `weapon_hammer`, `weapon_plasmagun`) are Quake VR's weapon pickups with AD's models; Quake VR's models in the hands. AD's grapple pickup gives nothing (Quake VR's hook is equipment). AD's own weapon pickup code never runs on a player (it would overwrite the hands' weapon id). |
+| Cinematic cameras | AD's own system, unchanged: the player is moved to the camera's view, held (no damage, not solid) and put back when it ends; "not breaking play" (15.3). The VR presentation (decision 7) is its own task (15.6). |
+
+**Settings and test aids**: VR Settings > Combat > Arcane Dimensions (Projectile Rules, Pellet Spread, Speed, Damage);
+Debug > Tests: Arcane Dimensions: Play (Developer), Play a Cinematic Camera (`vr_ad_test 1`), Cinematic Report
+(`vr_ad_test 2`), Widowmaker Pickup Ahead (`vr_ad_test 5`), Upgrades Report (`vr_ad_test 6`), Status (`vr_ad_info`);
+`vr_ad_test 3`/`4` fire the Widowmaker and the Plasma Gun (console). Whole-Map Monsters (`vr_test_monsters`) wakes AD's monsters by AD's AI and
+brings in AD's delayed ones.
+
+### 15.2 Acceptance (headless mock, fast mode, skill 1)
+
+**Every AD map** (38: `start`, `start_test`, the 23 `ad_*` maps, 2 DM maps, 12 test maps) through
+`scratch/ad_maps.sh` (the AD campaign, the map, `vr_ad_info`, every monster woken against the god-mode player for 600
+frames, the waiting ones brought in, woken again, all killed, 300 frames more):
+
+| Map | Entities by AD's code | Shared classnames by Quake VR's | Edicts after spawn | Monsters (live + waiting) | Missing spawn functions | Object errors | Errors |
+|---|---:|---:|---:|---:|---:|---:|---|
+| ad_ac | 1766 | 278 | 1349 | 115 + 45 | 0 | 0 | 0 |
+| ad_akalakha | 851 | 105 | 1012 | 73 + 24 | 0 | 0 | 0 |
+| ad_azad | 1403 | 205 | 1442 | 108 + 49 | 0 | 0 | 0 |
+| ad_chapters | 759 | 35 | 631 | 6 + 0 | 0 | 0 | 0 |
+| ad_crucial | 1461 | 238 | 1571 | 185 + 21 | 0 | 0 | 0 |
+| ad_dm1 | 641 | 130 | 776 | 91 + 18 | 0 | 0 | 0 |
+| ad_dm5 | 1063 | 149 | 860 | 65 + 37 | 0 | 0 | 0 |
+| ad_e1m1 | 934 | 60 | 568 | 40 + 8 | 0 | 0 | 0 |
+| ad_e2m2 | 1326 | 139 | 1085 | 69 + 0 | 0 | 0 | 0 |
+| ad_e2m7 | 530 | 76 | 713 | 80 + 4 | 0 | 0 | 0 |
+| ad_end | 336 | 42 | 454 | 40 + 4 | 0 | 0 | 0 |
+| ad_grendel | 1860 | 275 | 1790 | 115 + 81 | 0 | 0 | 0 |
+| ad_lavatomb | 797 | 271 | 1092 | 154 + 47 | 0 | 0 | 0 |
+| ad_magna | 3695 | 421 | 3301 | 236 + 75 | 0 | 0 | 0 |
+| ad_metmon | 1519 | 141 | 1074 | 62 + 22 | 0 | 0 | 0 |
+| ad_mountain | 1738 | 189 | 1744 | 72 + 41 | 0 | 0 | 0 |
+| ad_necrokeep | 2569 | 245 | 2435 | 170 + 21 | 0 | 0 | 0 |
+| ad_obd | 1755 | 295 | 1333 | 159 + 74 | 0 | 0 | 0 |
+| ad_s1m1 | 469 | 65 | 404 | 23 + 0 | 0 | 0 | 0 |
+| ad_scastle | 1145 | 174 | 891 | 84 + 26 | 0 | 0 | 0 |
+| ad_sepulcher | 8063 | 461 | 3897 | 231 + 82 | 0 | 0 | 0 |
+| ad_swampy | 2954 | 525 | 2793 | 334 + 84 | 0 | 0 | 0 |
+| ad_tears | 2981 | 788 | 3550 | 323 + 431 | 0 | 0 | 0 |
+| ad_test1 | 695 | 93 | 825 | 46 + 4 | 0 | 0 | 0 |
+| ad_test10 | 255 | 37 | 225 | 17 + 18 | 0 | 0 | 0 |
+| ad_test11 | 110 | 45 | 314 | 0 + 0 | 0 | 0 | 0 |
+| ad_test2 | 216 | 13 | 205 | 29 + 0 | 0 | 0 | 0 |
+| ad_test3 | 550 | 85 | 696 | 70 + 2 | 0 | 0 | 0 |
+| ad_test4 | 69 | 27 | 100 | 12 + 0 | 0 | 0 | 0 |
+| ad_test5 | 241 | 24 | 220 | 8 + 2 | 0 | 0 | 0 |
+| ad_test6 | 866 | 138 | 895 | 110 + 10 | 0 | 0 | 0 |
+| ad_test7 | 571 | 28 | 451 | 29 + 0 | 0 | 0 | 0 |
+| ad_test8 | 84 | 14 | 113 | 14 + 0 | 0 | 0 | 0 |
+| ad_test9 | 126 | 19 | 149 | 10 + 4 | 0 | 0 | 0 |
+| ad_tfuma | 1770 | 209 | 1724 | 172 + 49 | 0 | 0 | 0 |
+| ad_zendar | 1716 | 249 | 1317 | 116 + 38 | 0 | 0 | 0 |
+| start | 861 | 67 | 782 | 6 + 0 | 0 | 0 | 0 |
+| start_test | 227 | 19 | 271 | 0 + 0 | 0 | 0 | 0 |
+
+(The table is the last full run; after it, the vanilla monsters' projectile speeds and two test aids were added, and
+`ad_e1m1`, `ad_s1m1`, `start`, Quake's `e1m1` and `hip1m1` ran again: no errors.)
+
+- **0 missing spawn functions** on every map (P0's probe: 13-3,178 a map), no object errors, no QC or engine error.
+- The first full run found one engine-side error in AD's big fights (`ad_tears`, `ad_magna`, `ad_metmon`: a client
+  `Host_Error`, the message stream one byte off): Quake VR's beam temp entities carry a beam id byte after the entity
+  (`VR_ParseBeamEntity`), AD's 17 beam writes did not. `ad_import.py` now adds it (a mechanical rule, counted in
+  `AD_IMPORT.txt`), and the server's broadcast boundaries (`vr_server.cpp tempEntityLength`) count that byte for
+  every beam: they put a boundary one byte early for Quake VR's own beams too, which a full datagram could cut there.
+- **Weapons** (`vr_ad_test 3/4` on `ad_e1m1`): the Widowmaker fires 22 projectiles (21 pellets and AD's tracer), its
+  two barrels and a reserve shell; with Projectile Rules Vanilla it fires hitscan (no projectile) for the same 3
+  shells. The Plasma Gun fires one bolt for a cell of its magazine. The Shadow Axe's blow is x1.75. AD's pellets are
+  off in `e1m1` (Auto).
+- **Saves** (`scratch/ad_saves.sh`, decision 31): an AD save (`ad_e1m1`) loaded from a Quake session (`e1m1`) switches
+  to the AD campaign, AD's rules on, 40 + 8 waiting monsters as saved; a Quake save loaded from an AD session (its hub)
+  switches back to Quake, AD's rules off, 23 monsters, no error either way.
+- **Version check**: an AD folder without patch 1's `pak2.pak` (a higher-priority base dir) is refused:
+  "VR: Arcane Dimensions in ... is not the latest release (it has no pak2.pak (patch 1): AD 1.80 or older)...";
+  `vr_campaign_native ad` refuses to start it; `vr_ad_status 3`.
+- **Cinematic camera** (`vr_ad_test 1/2` on `ad_tears`, camera `camera_start`): the player is moved to the camera
+  (not solid, no damage, no movement) and, the sequence over (within 900 frames, on its own timers), put back where he stood,
+  walking, solid and damageable again. Not breaking play; drawn as a teleport and a fixed view in VR for now.
+- **Regression**: P1a's A/B script (`scratch/ab_campaigns.sh`: e1m1, start, hip1m1, r1m1, Dopa e5m1, MG1 mge1m1, MG3 map1;
+  wake, fight 600 frames, kill all) with P1a's build and P1b's: no errors in either; the same monster totals
+  (23, 0, 58, 46, 37 + 7 waiting, 90 + 20 waiting, 75 + 13 waiting); the spawned entities differ only by the transient
+  thrown weapons, fireballs and path-following targets that two runs of the same build also differ by (a second P1b
+  run of rogue and Dopa showed the same kind of differences).
+- **Budget**: globals 42,390 (64.7% of 65,535; P1a 42,279), entity field slots 2,825 (P1a 2,815), statements 402,379,
+  progs.dat 4.81 MB.
+
+### 15.3 Choices made in P1b (conservative; Vittorio confirms or changes)
+
+- **The AD campaign is not "ready"** (`nativeReady` false): playable by the developer launch and the Debug page, listed
+  dimmed in Official Campaigns, single player only, until Vittorio's VR playtest accepts it (then one flag here and
+  in the installer's table, with decision 3's installer default).
+- **AD's upgrades are the player's** (AD's own model), not per weapon: Quake VR's weapon flags have no free bit that
+  survives a level change (bits 8 and up are the grapple's tag, stripped at every level), and a new weapon id would
+  touch some 25 files for each weapon. Per-weapon AD guns (their own models, sights, the Widowmaker's three barrels)
+  are P3.
+- **The Widowmaker reloads at the hip** (decision 23's simple reload) even with Immersive reloading's break-open super
+  shotgun; its third shell comes from the reserve.
+- **Vanilla items keep Quake VR's pickups** in AD maps (VR hands, holsters, magazines), with AD's STARTOFF and respawn
+  keys; AD's other item keys (`no_item_offset`, FLOAT 32, NOEFFECTS 128, `item_tossvel`, coop rules) are not read.
+- **The exits are Quake VR's** (our intermission, autosaves, campaign rules) with AD's keys; AD's intermission
+  cameras are not used.
+- **AD's stuffed commands stay filtered** (screen tints of debuffs, books and powerups; `r_skyfog`; the skybox change;
+  `bf` flashes): only fog is routed (`svc_fog`).
+- **The vanilla monsters' projectiles follow the Projectile Rules** (decision 22): AD's speeds by skill for the hell
+  knight's spikes, the scrag's, the ogre's grenades and the zombie's flesh, AD's pellets for the grunt's shotgun (in AD
+  maps by Auto). The others (enforcer lasers, vore balls, shambler lightning) have no AD skill scaling.
+
+### 15.4 Files
+
+Engine: `Quake/vr/vr_ad.cpp/.hpp`, `vr_ad_data.inc` (generated), `vr_pack_ad.inc`; AD support lines in `pr_edict.c`,
+`gl_rmisc.c`, `vr_gamedir.cpp`, `vr_progs.cpp/.hpp`, `vr_main.cpp`, `vr_api.h`, `vr_engine.hpp`, `vr_cvars.inc`,
+`vr_menu.cpp`, `vr_server.cpp`. QC: `vr_ad_defs.qc`, `vr_ad_bridge.qc`, AD support lines in `world.qc`, `client.qc`,
+`combat.qc`, `weapons.qc`, `items.qc`, `subs.qc`, `monsters.qc`, `vr_reload.qc`, `vr_monsters_test.qc`, `defs.qc`
+(parm57..72), and the 76 `VR_OtherFlags` gates. Importer: `Misc/quakevr/ad_import.py` (8 bridge patches, the beam
+rule, `--engine-lists`). Installer: `ExpansionDetector.cs` (the row).
+
+### 15.5 AD's shipped bugs met (decision 12: one by one, Vittorio decides)
+
+None is fixed silently: AD's code runs as shipped. Where the bridge reimplements AD's logic it follows AD, except
+where noted (bug 7).
+
+| # | Where | What AD does | Effect in Quake VR | Proposal |
+|---|---|---|---|---|
+| 1 | `monsters.qc` (spider, swampling, voreling ceiling start) | `a && b \|\| c && d \|\| e && f` read by QC's priorities as `((((a && b) \|\| c) && d) \|\| e) && f` | None: the three flags are the same bit (4), so it means what AD meant | **Keep** (P1a's parenthesised patch is behaviour-neutral) |
+| 2 | `monsters.qc` (gargoyle, gaunt perch) | the same pattern | None: both flags are 4 | **Keep** |
+| 3 | `mon_bossmammoth.qc` (walk-frame light) | `(4..8 \|\| >= 11) && <= 15` | None: the same frames as `4..8 \|\| 11..15` | **Keep** |
+| 4 | `misc_textbook.qc` (the book's screen tint reset) | `!(cshift_upd && no artifacts)` for `!cshift_upd && no artifacts` | None in Quake VR: AD's tints are stuffed `v_cshift` commands, which our engine filters | **Keep** (moot until tints are ported, then fix) |
+| 5 | `client_debuff.qc` (burning's screen colour priority) | `!(bleeding && !poisoned)` for `!bleeding && !poisoned` | None in Quake VR: the colour is a stuffed command (filtered) | **Keep** (moot; fix when the debuff tints are ported, decision 28) |
+| 6 | `misc.qc` (misc lightning effect) | `(L1 \|\| L2 \|\| L3) && !movetarget` for `L1 \|\| L2 \|\| (L3 && !movetarget)` | A lightning effect of type 1 or 2 with a moving target does not fire | **Keep** (AD's maps were made and tested with it) |
+| 7 | `triggers.qc` `trigger_changelevel_fire` | `if (startspawn2 < 1 && startspawn2 > 7) startspawn2 = 0;` never true | A key outside 1..7 would set the spawn bits from its low 3 bits (8 spawns at the default start, 9 at spawn 1) | **Fix** (the bridge's exit (`AD_ChangelevelTouch`) already takes only 1..7, as AD meant; no AD map uses another value) |
+| 8 | `items.qc` `T_Heal` | compares with `other.max_health`, not the target's | Inherited from id's `T_Heal` (ours has it too); only AD's own health pickups call AD's | **Keep** (id's behaviour everywhere) |
+
+### 15.6 What is left
+
+**P1b's own remainder** (small; before the AD campaign is called ready):
+
+- Vittorio's VR playtest of the hub and a few maps through: the exits and the hub's returns (`startspawn2`), ladders,
+  books, the cinematic cameras, AD's pellets and the three upgrades (their pickups need a hand: untested headless).
+- The worldspawn keys `give_weapons`, `take_weapons` and `no_axestart` on Quake VR's hands and holsters (AD's parm1
+  weapon bits do not map one to one on our inventory).
+- AD's item keys not read on our items (15.3); AD's custom keys (`item_keyx`) and artifacts are P2 (decision 16).
+- AD's screen effects sent as stuffed commands (debuff/book/powerup tints, `bf`, `r_skyfog`, `trigger_skybox`'s sky
+  change): through our own messages (the skybox needs an engine message).
+- The installer component (decisions 3 and 4) and a vrstart hub lectern for AD.
+- Map Library packages made for AD: AD's data mounted for them (the rules' detection already works once it is).
+
+**Its own task: the cinematic cameras' VR presentation** (decision 7): today AD's own system teleports the player to
+the camera and back. Default: fade out, play the camera's view (its moves and its angle smoothing) with the head free,
+fade back; option: a "window in the world" panel showing the camera, customisable (size, distance). Files:
+`QC/vr_ad_bridge.qc` (hooking AD's camera controller's start, next-camera and end), the engine's view (a camera
+viewpoint the head is relative to, `vr_view.cpp`), a menu page. About 2-3 agent-days.
+
+**The follow-up tasks** of decisions 13-31: section 11. AD content outside AD maps (P2) starts by mounting AD's data
+in every campaign when it is installed (its 82 shadowed files already skipped), then `AD_Rules()`-free paths for AD's
+own entities (a reduced world setup on first use).
