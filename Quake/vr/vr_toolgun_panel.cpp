@@ -89,7 +89,8 @@ struct PanelState
 {
     bool open{false};
     bool more{false};            // More's page instead of the tool's
-    int section{0};              // the spawn grid's tab
+    int shownTool{-1};           // the tool the last frame saw (another, from the stick press: More's page closes)
+    int section{0};             // the spawn grid's tab
     int gridPage[sectionCount]{}; // and each tab's page
     int texturePage{0};          // the Brush tool's textures' page
 
@@ -1048,6 +1049,15 @@ void frame(const hands::State& s)
     {
         close();
         return;
+    }
+    const int tool = static_cast<int>(currentTool());
+    if(tool != ps.shownTool)
+    {
+        if(ps.shownTool >= 0)
+        {
+            ps.more = false;
+        }
+        ps.shownTool = tool;
     }
     if(!shown())
     {
