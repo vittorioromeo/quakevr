@@ -1316,20 +1316,18 @@ static_assert(sizeof(WorldDecal) == 80);
 static_assert(cellsPerRow == 8 && cellRows == 4 && atlasWidth == 2048 && atlasHeight == 1024,
     "QVR_DECAL_FUNCTIONS (vr_glsl.h) has the atlas's layout");
 
-// The grid they are found in (DecalGrid): cells of 32 units, hashed into buckets as the shader hashes them; a bucket
-// lists at most 64 marks (the newest), each once.
+// The grid they are found in (DecalGrid): cells of 32 units, hashed into buckets as the shader hashes them. A mark is
+// listed in the buckets of the cells that reach its rectangle (at its full size, through the surface along its normal:
+// where the shader can find a pixel in it), each once (its memberships: Decal::buckets).
 constexpr float worldCell = 32.f;
-constexpr za::U32 worldBucketMarks = 64;
-// A mark counts in every cell its box reaches, and as far again as the parallax mapping can move a pixel along a
-// surface (3 times its depth, vr_parallax_depth up to 4) ...
+// A bucket lists at most 255 marks (its header's length: 8 bits). Past that a mark is left out of every bucket it is
+// in, not only the full one: newest first, a mark is listed only if each of its buckets has room. A pile of more marks
+// than that on one cell loses its oldest whole, as the ring loses its oldest; never a cell-shaped hole in an older mark
+// under newer ones (2026-10-11: the newest 64 of each bucket left square holes in the pools under a pile of gibs').
+constexpr za::U32 worldBucketMarks = 255;
+// The cells looked at: those of a mark's box, and as far again as the parallax mapping can move a pixel along a
+// surface (3 times its depth, vr_parallax_depth up to 4); listed, those that reach its rectangle.
 constexpr float worldReach = 12.f;
-// ... but is listed only in the buckets of those cells that reach its rectangle (at its full size, through the
-// surface along its normal: where the shader can find a pixel in it), flagged in its memberships (Decal::buckets).
-// A bucket still keeps the newest 64 of all the marks counted in it, as when every cell of a box was listed: the
-// same marks drawn, a third fewer walked a pixel in a fight (PERF_DECISIONS.md 15).
-constexpr za::U32 worldListed = 0x80000000u;
-constexpr za::U32 worldKept = 0x40000000u;   // (buildWorld: counted in the newest 64 of its bucket, this grid)
-constexpr za::U32 worldFlags = worldListed | worldKept;
 
 [[nodiscard]] za::U32 worldCellHash(int x, int y, int z)
 {
@@ -1339,18 +1337,19 @@ constexpr za::U32 worldFlags = worldListed | worldKept;
 
 za::Vector<WorldDecal> worldDecals;
 za::Vector<za::U32> worldGrid;
-// Reused scratch: stamp each bucket once per mark (its memberships kept in the mark: Decal::buckets), and where in
-// them it is (flagged worldListed by a later cell of the same bucket).
+// Reused scratch: stamp each bucket once per mark (its memberships kept in the mark: Decal::buckets).
 za::Vector<za::U32> worldBucketStamp;
-za::Vector<za::U32> worldBucketSlot;
 za::U32 worldStamp = 0;
+// Reused scratch: whether each mark was listed in the last grid made (each of its buckets had room), by ring order.
+za::Vector<za::U8> worldMarkListed;
+za::U32 worldLeftOut = 0; // marks left out of the last grid made (a bucket of theirs full)
 gfx::StorageBuffer worldDecalBuffer, worldGridBuffer;
 double worldClock = 0.0; // cl.time the marks' times count from (the floats near 0)
 long long worldBuilds = 0;
 int worldFrame = -1; // the host frame of the last view that drew the marks on the world (VR_DecalsFrame: its first view makes the grid)
 
-// Mark `d`'s buckets in first-cell order, each once, into `out`, flagged worldListed where one of its cells there
-// reaches its rectangle. The stamp and slot tables match mask + 1.
+// Mark `d`'s buckets in first-cell order, each once, into `out`: those of the cells reaching its rectangle. The stamp
+// table matches mask + 1.
 void worldBuckets(const WorldDecal& d, za::U32 mask, za::Vector<za::U32>& out)
 {
     if(++worldStamp == 0)
@@ -1381,17 +1380,15 @@ void worldBuckets(const WorldDecal& d, za::U32 mask, za::Vector<za::U32>& out)
                     glm::vec3{static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f} *
                         worldCell -
                     c;
-                const bool listed = (za::fabs(glm::dot(r, u)) <= reachU && za::fabs(glm::dot(r, v)) <= reachV);
+                if(za::fabs(glm::dot(r, u)) > reachU || za::fabs(glm::dot(r, v)) > reachV)
+                {
+                    continue;
+                }
                 const za::U32 b = worldCellHash(x, y, z) & mask;
                 if(worldBucketStamp[b] != worldStamp)
                 {
                     worldBucketStamp[b] = worldStamp;
-                    worldBucketSlot[b] = static_cast<za::U32>(out.size());
-                    out.pushBack(b | (listed ? worldListed : 0u));
-                }
-                else if(listed)
-                {
-                    out[worldBucketSlot[b]] |= worldListed;
+                    out.pushBack(b);
                 }
             }
         }
@@ -1441,16 +1438,16 @@ void buildWorld()
     const za::U32 mask = buckets - 1;
     {
         QVR_PROFILE("decal grid count");
-        // Newest first, each bucket's header counts the marks counted in it (up to 64: from bit 16) and those of them
-        // listed (its low bits; then its list's start and length: the prefix pass); a membership counted is flagged
-        // worldKept for the fill.
+        // Newest first, a mark is listed if each of its buckets has room (its header counts the marks listed in it,
+        // then holds its list's start and length: the prefix pass): in all of them, or none.
         worldGrid.assign(1 + buckets, 0u);
         if(worldBucketStamp.size() != buckets)
         {
             worldBucketStamp.assign(buckets, 0u);
-            worldBucketSlot.assign(buckets, 0u);
             worldStamp = 0;
         }
+        worldMarkListed.assign(decals.size(), za::U8{0});
+        worldLeftOut = 0;
         for(za::SizeT k = decals.size(); k-- > 0;)
         {
             Decal& d = decals[k];
@@ -1460,26 +1457,31 @@ void buildWorld()
                 worldBuckets(worldDecals[k], mask, d.buckets);
                 d.bucketsMask = mask;
             }
-            for(za::U32& m : d.buckets)
+            bool room = true;
+            for(const za::U32 b : d.buckets)
             {
-                za::U32& header = worldGrid[1 + (m & ~worldFlags)];
-                m &= ~worldKept;
-                if((header >> 16) < worldBucketMarks)
-                {
-                    header += (1u << 16) + ((m & worldListed) != 0u);
-                    m |= worldKept;
-                }
+                room = room && worldGrid[1 + b] < worldBucketMarks;
+            }
+            if(!room)
+            {
+                worldLeftOut++;
+                continue;
+            }
+            worldMarkListed[k] = 1;
+            for(const za::U32 b : d.buckets)
+            {
+                worldGrid[1 + b]++;
             }
         }
     }
-    // Each bucket's list: its listed marks of the newest 64 counted in it (the oldest are under them).
+    // Each bucket's list: the marks listed in it, newest first.
     za::U32 total = 0;
     {
         QVR_PROFILE("decal grid prefix");
         worldGrid[0] = mask;
         for(za::U32 b = 0; b < buckets; b++)
         {
-            const za::U32 n = worldGrid[1 + b] & 0xffffu;
+            const za::U32 n = worldGrid[1 + b];
             worldGrid[1 + b] = total << 8; // (its length counted up as the fill lists its marks)
             total += n;
         }
@@ -1487,18 +1489,19 @@ void buildWorld()
     }
     {
         QVR_PROFILE("decal grid fill");
-        // Newest first again: a bucket's header's length grows with each mark listed (and counted), to the length the
-        // prefix pass gave its list.
+        // Newest first again: a bucket's header's length grows with each mark listed, to the length the prefix pass
+        // gave its list (255 at most: its 8 bits).
         for(za::SizeT k = worldDecals.size(); k-- > 0;)
         {
-            for(const za::U32 m : decals[k].buckets)
+            if(!worldMarkListed[k])
             {
-                if((m & worldFlags) == worldFlags)
-                {
-                    za::U32& header = worldGrid[1 + (m & ~worldFlags)];
-                    worldGrid[1 + buckets + (header >> 8) + (header & 255u)] = static_cast<za::U32>(k);
-                    header++;
-                }
+                continue;
+            }
+            for(const za::U32 b : decals[k].buckets)
+            {
+                za::U32& header = worldGrid[1 + b];
+                worldGrid[1 + buckets + (header >> 8) + (header & 255u)] = static_cast<za::U32>(k);
+                header++;
             }
         }
     }
@@ -1760,30 +1763,30 @@ void count_f()
                    "texture heights %s): %d marks, %d grid entries, made %lld times so far\n",
             vr_parallax.value, vr_parallax_depth.value, TexMgr_IndexedSmooth() ? "on" : "only replacement textures' (vr_texture_smooth 2 for Quake's)",
             static_cast<int>(worldDecals.size()), static_cast<int>(worldGrid.size()), worldBuilds);
-        za::U32 occupied = 0, capped = 0, largest = 0, counted = 0;
-        za::Vector<za::U32> counts; // each bucket's marks (uncapped: the grid lists those of the newest 64 reaching it)
+        za::U32 occupied = 0, full = 0, largest = 0, longest = 0;
+        za::Vector<za::U32> counts; // each bucket's marks (all of them: the grid lists them while each of a mark's has room)
         counts.assign(worldGrid.empty() ? 0u : worldGrid[0] + 1u, 0u);
         for(za::SizeT k = 0; k < decals.size(); k++)
         {
-            if(!worldGrid.empty() && decals[k].bucketsMask == worldGrid[0]) // (listed in the last grid made)
+            if(!worldGrid.empty() && decals[k].bucketsMask == worldGrid[0]) // (hashed for the last grid made)
             {
-                for(const za::U32 m : decals[k].buckets)
+                for(const za::U32 b : decals[k].buckets)
                 {
-                    counts[m & ~worldFlags]++;
-                    counted++;
+                    counts[b]++;
                 }
             }
         }
-        for(const za::U32 n : counts)
+        for(za::SizeT b = 0; b < counts.size(); b++)
         {
-            occupied += n > 0;
-            capped += n > worldBucketMarks;
-            largest = za::max(largest, n);
+            occupied += counts[b] > 0;
+            full += counts[b] > worldBucketMarks;
+            largest = za::max(largest, counts[b]);
+            longest = za::max(longest, worldGrid[1 + b] & 255u);
         }
         const za::U32 listed = worldGrid.empty() ? 0u : static_cast<za::U32>(worldGrid.size()) - worldGrid[0] - 2u;
-        Con_Printf("world decal grid: %d buckets, %u occupied, %u capped at %u, %u largest uncapped; %u listed of %u "
-                   "counted (the cells reaching each mark); %.1f KB marks, %.1f KB grid\n",
-            static_cast<int>(counts.size()), occupied, capped, worldBucketMarks, largest, listed, counted,
+        Con_Printf("world decal grid: %d buckets, %u occupied, %u over %u marks (%u marks left out whole), %u the most "
+                   "in one, %u the longest list; %u listed (the cells reaching each mark); %.1f KB marks, %.1f KB grid\n",
+            static_cast<int>(counts.size()), occupied, full, worldBucketMarks, worldLeftOut, largest, longest, listed,
             static_cast<double>(worldDecals.size() * sizeof(WorldDecal)) / 1024.0,
             static_cast<double>(worldGrid.size() * sizeof(za::U32)) / 1024.0);
     }

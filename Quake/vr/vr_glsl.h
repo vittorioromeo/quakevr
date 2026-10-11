@@ -1314,8 +1314,8 @@ LIQUID_SWELL \
 // and its clustered forward decals do: each pixel finds the decals over it and puts them on its texture, before its
 // light, where the parallax mapping moved it (so they follow the relief as the texture does, and take the light, the
 // sheen and the fog as it does). The decals are found in a grid over the world, 32 units a cell, hashed into buckets
-// (DecalGrid: [0] the buckets' mask, then each bucket's list's start << 8 | its length (64 at most, the newest, of
-// those whose cells there reach the decal's rectangle: vr_decals.cpp worldBuckets), then the lists). A decal is on a face turned towards its normal (60 degrees at most) whose plane passes within n.w of its
+// (DecalGrid: [0] the buckets' mask, then each bucket's list's start << 8 | its length (255 at most: the marks whose
+// cells there reach their rectangle, each listed in all its buckets or none: vr_decals.cpp worldBuckets), then the lists). A decal is on a face turned towards its normal (60 degrees at most) whose plane passes within n.w of its
 // middle, over its rectangle (projected along its normal), as clipToWorld laid the meshes. Spreading (a pool, a run), darkening (drying), showing
 // and fading are worked out from its age, as appendDecal's; with retro textures on decals, read through their set: m = its texel (premultiplied, times its colour) + 1 - its
 // alpha, on the texture as the meshes' modulating blend put it on the lit scene (multiplications: in any order).
@@ -1358,7 +1358,7 @@ LIQUID_SWELL \
 "	uint h = (uint(c.x) * 73856093u) ^ (uint(c.y) * 19349663u) ^ (uint(c.z) * 83492791u);\n" \
 "	uint mask = DecalGrid[0];\n" \
 "	uint bucket = DecalGrid[1u + (h & mask)];\n" \
-"	uint first = 2u + mask + (bucket >> 8), count = min(bucket & 255u, 64u);\n" \
+"	uint first = 2u + mask + (bucket >> 8), count = bucket & 255u;\n" \
 "	const vec2 inset = vec2(0.5 / 2048.0, 0.5 / 1024.0);\n" \
 "	const vec2 cellsize = vec2(1.0 / 8.0, 1.0 / 4.0);\n" \
 "	const vec2 span = cellsize - 2.0 * inset;\n" \

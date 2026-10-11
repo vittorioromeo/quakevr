@@ -116,7 +116,7 @@ occupied (`vr_decal_count`), 580-600 KB uploaded at every build, and the prefix 
 
 - **Option**: size it from the distinct cells (counted with the stamps), not every mark's cells.
 - **Win**: most of the prefix pass and the upload (about 0.05 ms a build; less GPU upload).
-- **Drawback**: fewer buckets, more cells sharing one: a bucket keeps its newest 64 marks, so a crowded one could drop
+- **Drawback**: fewer buckets, more cells sharing one: a bucket keeps its newest 64 marks (255 since 2026-10-11), so a crowded one could drop
   marks the larger grid shows (a visual change where marks pile up; `decals_1024_stream` already has 52 capped).
 - **Recommendation**: worth measuring the capped buckets with it before deciding; not urgent.
 
@@ -277,6 +277,12 @@ its cell's bucket (up to 64, each a whole 80-byte record read before its early-o
   they pile up) with 16-unit cells: about 0.1 ms more, a 1.2 MB grid uploaded at each build (0.3 now); one atlas read a
   mark instead of up to 4 along a grazing view: up to 0.24 ms (blurrier or shimmering marks at grazing angles); a lower
   `vr_decal_max`.
+- **Fixed (2026-10-11, worktree `decalstack`, 1.0.1)**: the newest-64 cap a bucket (since the marks went into the
+  world's shader, 2026-10-04: in 1.0.0 too, not decal101's) left square, cell-edged holes in older pools under a pile of
+  gibs' marks. A bucket now lists up to 255 marks of those reaching its cells, and a mark is listed in all its buckets
+  or none (newest first, each of them with room): no holes; past 255 on one cell the oldest go whole. World+brush at
+  2782 in the rocket fight: before decal101 3.07, 1.0.1 2.77, now 2.87 ms (two thirds of decal101's saving kept; the
+  rest is the marks the cap had dropped, drawn again). ROUND22.md, "Pools piled up: no square holes".
 
 ## Leads (2026-10-08 follow-up)
 

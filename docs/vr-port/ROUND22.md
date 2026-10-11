@@ -1526,3 +1526,36 @@ the image with its head, hands and gadget, the head zone's rings round its head;
 image beside the menu, left of it if right-handed; raise your right hand: the image's hand on your right rises. Move
 Head Zone Up: the balls round the image's head move. Check the image is not inside a wall in tight rooms (it is
 depth-tested: a wall nearer hides it; Body Clone Side or Distance then).
+## Pools piled up: no square holes (1.0.1, 2026-10-11, worktree `decalstack`)
+
+His playtest: gibs piled on the floor and shot apart, each new pool made those under it vanish in square holes. The
+cause is the world decal grid's cap, not decal101: each 32-unit cell's bucket listed only its newest 64 marks, counting
+every mark whose box (plus the parallax's 12-unit reach) touched the cell, so where a pile passed 64 an older pool
+was dropped in that cell and kept in the next: a hole with the cell's edges. The build before decal101 (its three
+commits reverted) shows the same holes pixel for pixel (`decal_stack_test.sh`: 10223 pixels lighter there, 10222 in
+1.0.1); the cap is as old as the marks in the world's shader (2026-10-04), so 1.0.0 had it too.
+
+**Fix** (`vr_decals.cpp` worldBuckets/buildWorld, `vr_glsl.h` DecalsAt):
+- a mark's memberships are only the buckets of the cells reaching its rectangle (decal101's listing), and only those
+  count towards a bucket's cap;
+- the cap is 255 (the header's 8-bit length; the shader no longer stops at 64);
+- newest first, a mark is listed only if each of its buckets has room, and then in all of them: never a hole. Past 255
+  marks on one cell the oldest go whole, as the ring's oldest do. `vr_decal_count` prints the buckets over 255, the
+  marks left out, the most marks in one bucket and the longest list.
+
+**Checked**: `Misc/quakevr/decal_stack_test.sh <agent>` (new; vrfiringrange, 3 pools stacked, then 128 pools and
+splatters clustered round them: `vr_decal_stress ... stack|cluster`, Debug > Test Effects > Decal Stress: Stacked
+Pools). `decal_stack_check.py` counts pixels lighter after the new marks than before (the marks multiply the texture:
+more only darken; pixels the control shot saw move are left out): before decal101 10223, 1.0.1 10222, now 7 to 19 in three runs (the
+threshold is 50). In the rocket fight (`play_e1m1_lights`) 1.0.1 had 40 buckets capped; now the longest list is 73,
+none left out, 9.15k grid entries (9.2k before).
+
+**Cost** (`play_e1m1_lights`, 2782 eyes, `--exclusive`, world+brush GPU ms, 4 runs each, interleaved): before
+decal101 3.07, 1.0.1 2.77, now 2.87: two thirds of decal101's 0.30 ms kept. The rest is the marks the cap dropped,
+drawn again (the shader's old 64 bound with the new grid: 2.83, within the spread). The grid build walks a mark's (now fewer)
+memberships twice, to check for room and to count.
+
+`Misc/quakevr/decal_grid_test.py` (the grid word for word against the 2026-10-08 reference) no longer applies: the
+grid now lists marks the reference did not.
+
+**In the headset**: pile gibs, shoot them apart one by one: every pool stays under the newer ones, no square gaps.
