@@ -9769,6 +9769,49 @@ void ragdollActiveList_f()
         calls ? ms / calls : 0.0);
 }
 
+// vr_ragdoll_env_hit [speed]: each dying hand holding on (a wall, a ledge: vr_ragdoll_active_env) struck as a shot strikes
+// it (box3d::push at the hand, `speed` u/s outward from the body, 200 by default): it lets go (Debug > World and Physics;
+// the tests).
+void ragdollEnvHit_f()
+{
+    if(!sv.active || !world)
+    {
+        Con_Printf("vr_ragdoll_env_hit: no Box3D world\n");
+        return;
+    }
+    const VmScope vm;
+    const float speed = Cmd_Argc() > 1 ? static_cast<float>(Q_atof(Cmd_Argv(1))) : 200.f;
+    int struck = 0;
+    for(za::SizeT i = 0; i < world->ragdolls.size(); i++)
+    {
+        RagdollBodies& r = world->ragdolls[i];
+        if(r.num <= 0 || !r.active.on)
+        {
+            continue;
+        }
+        for(int arm = 0; arm < 2; arm++)
+        {
+            const ragactive::EnvHand& h = r.active.env.hand[static_cast<za::SizeT>(arm)];
+            const int lo = r.active.chain[static_cast<za::SizeT>(arm)][1];
+            if(B3_IS_NULL(h.joint) || lo < 0)
+            {
+                continue;
+            }
+            const glm::vec3 hand = glmv(b3Body_GetWorldPoint(r.body[static_cast<za::SizeT>(lo)], b3v(r.rig->bones[lo].end * (r.scale / world->m2u)))) * world->m2u;
+            const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(r.body[0])) * world->m2u;
+            const glm::vec3 away = glm::length(hand - pelvis) > 1e-3f ? glm::normalize(hand - pelvis) : glm::vec3{0.f, 0.f, 1.f};
+            qvr::box3d::push(EDICT_NUM(r.num), hand, away * speed, 0.f);
+            Con_Printf("vr_ragdoll_env_hit: %d's %s hand struck at %.0f %.0f %.0f\n", r.num, arm == 0 ? "left" : "right",
+                hand.x, hand.y, hand.z);
+            struck++;
+        }
+    }
+    if(!struck)
+    {
+        Con_Printf("vr_ragdoll_env_hit: no hand holding on\n");
+    }
+}
+
 // vr_ragdoll_blast_test [damage]: a blast's push alone (no damage: nothing gibbed) 24 units beside the ragdoll nearest
 // the player, on his side: it is thrown away from him (Debug > Tests).
 void ragdollBlastTest_f()
@@ -10488,6 +10531,8 @@ void registerCommands()
         Cmd_AddCommand("vr_drawn_motion_test", ragdoll::motionTest_f);
         Cmd_AddCommand("vr_ragdoll_blast_test", ragdollBlastTest_f);
         Cmd_AddCommand("vr_ragdoll_active_list", ragdollActiveList_f);
+
+        Cmd_AddCommand("vr_ragdoll_env_hit", ragdollEnvHit_f);
     }
 }
 

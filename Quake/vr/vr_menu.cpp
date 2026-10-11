@@ -4040,6 +4040,23 @@ void hologramTestMessage()
             .help("How long the strength lasts, times his death animation's length (vr_ragdoll_active_fade)."),
         slider("Hold the Wound", vr_ragdoll_active_wound, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance he puts a free hand on the wound that killed him (vr_ragdoll_active_wound)."),
+        toggle("Use What Is Round Him", vr_ragdoll_active_env)
+            .help("A dying monster senses the walls, floors, ledges and crates round him and uses his hands on them (the "
+                  "three below). Off: his death ignores them (vr_ragdoll_active_env)."),
+        toggle("Catch the Fall", vr_ragdoll_active_env_brace)
+            .help("Falling onto a floor, a wall or a crate within reach, his arms go out to it and take the landing, "
+                  "giving; tumbling with nothing near, he curls up (vr_ragdoll_active_env_brace)."),
+        toggle("Lean on Walls", vr_ragdoll_active_env_lean)
+            .help("Dying with a wall behind or beside him, he braces a hand on it and slumps down it, his knees giving; "
+                  "a crate he braces on, never holds (vr_ragdoll_active_env_lean)."),
+        toggle("Grab Ledges", vr_ragdoll_active_env_ledge)
+            .help("Falling past a ledge's lip near a hand, he grabs it and hangs a moment before dropping; shooting the "
+                  "hand makes him let go (vr_ragdoll_active_env_ledge)."),
+        slider("Grip", vr_ragdoll_active_env_grip, 0.2f, 3.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("Body weights a hand on a ledge holds at most (a hand leaning on a wall a third of it; a heavy monster "
+                  "less): past it he slips off (vr_ragdoll_active_env_grip)."),
+        slider("Hang Time", vr_ragdoll_active_env_hang, 0.5f, 5.f, 0.1f, "%.1f s").extend(0.1f, 30.f)
+            .help("About how long he hangs from a ledge (each 0.45 to 1.65 times it) (vr_ragdoll_active_env_hang)."),
         slider("Crawl Away", vr_ragdoll_active_crawl, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance a humanoid lying after his death rolls onto his front and crawls a few seconds before going "
                   "limp (vr_ragdoll_active_crawl)."),
@@ -4963,7 +4980,9 @@ za::Vector<Item> pageDebugLogging()
         toggle("Active Ragdoll Targets", vr_ragdoll_active_debug)
             .help("vr_ragdoll_active_debug: each active ragdoll's joint targets drawn over it (green as strong as the joint "
                   "is, grey limp), its pelvis pin (yellow) and its hands' and feet's goals (red: a wound held, a step, a "
-                  "crawl). vr_ragdoll_active_list in the console: each one's strengths and what its death does."),
+                  "crawl), what is round him: his probes (cyan, orange where they met something), his hands' goals and "
+                  "holds (magenta), the wall he leans on (blue). vr_ragdoll_active_list in the console: each one's "
+                  "strengths and what its death does."),
         cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
             .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot). Also each throw: how "
                   "fast, whether it passes through your hands, and how much its velocity and spin changed by the grace's end "
@@ -5356,6 +5375,7 @@ za::Vector<Item> pageDebugReports()
         header("World and Physics"),
         command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
         command("Active Ragdolls", "vr_ragdoll_active_list").help("vr_ragdoll_active_list: each active ragdoll (vr_ragdoll_active): how long driven, its legs', torso's, arms' and head's strength, its pelvis pin, what its death does (stumbled, a hand on the wound, crawling); and the drive's cost a frame."),
+        command("Strike Holding Hands", "vr_ragdoll_env_hit").help("vr_ragdoll_env_hit [speed]: each dying monster's hand holding on to a wall or a ledge struck as a shot strikes it: it lets go (Gibs and Corpses > Ragdoll Settings > Grab Ledges)."),
         command("Kill the Nearest Monster", "vr_test_kill 1").help("vr_test_kill <n>: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3) or a leg (4): an active death to watch (Gibs and Corpses > Ragdoll Settings, Active Deaths)."),
         command("Ragdolls", "vr_ragdoll_list 2").help("vr_ragdoll_list [1|2]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed and the hands holding it; with 2 also how far its flames are from its limbs), and Box3D's bodies (Gibs and Corpses > Ragdoll Settings)."),
         command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
