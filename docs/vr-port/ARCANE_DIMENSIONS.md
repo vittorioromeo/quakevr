@@ -2,8 +2,10 @@
 
 Status: Phase 0 (analysis + plan) done 2026-10-11; Phase 1a built (section 14): AD's QuakeC imported, namespaced and
 compiled in. **Phase 1b built** (section 15): AD's campaign (developer launch) plays its 38 maps under AD's rules, 0
-missing spawn functions, no errors headless; Vittorio's decisions in section 12. Branch `agent/arcane`. AD's assets
-are never committed. Target, from Vittorio's request:
+missing spawn functions, no errors headless; Vittorio's decisions in section 12. Branch `agent/arcane`. **Phase 2,
+AD's monsters** (section 16, branch `feature/ad-monsters`): AD's damage and death code call Quake VR's hooks, and AD's
+monster models have ragdoll rigs, head zones and get-ups. AD's assets are never committed. Target, from Vittorio's
+request:
 
 - When AD is installed, all of its enemies, entities and weapons are available in every campaign and custom map,
   inside the merged QuakeC (the "giant QuakeC aggregation", MG3.md decision 5, EXPANSIONS.md).
@@ -499,7 +501,7 @@ committed to.
 
 | Task | Files | Approach | Effort |
 |---|---|---|---|
-| **Rigs, dismemberment and animations per AD model** (13) | `Quake/vr/vr_ragdoll.cpp` (a seed table per AD model: pelvis, chest, head, limbs), `vr_hitmodel.cpp` (head and limb zones), `QC/vr_ad_monsters.qc` (new: per-archetype registration, the MG3 Phase D pattern: hulls, decap head model, gib table, get-up frames picked from AD's pain/death frames), `QC/vr_limbs.qc` (the rigged-head rule already covers any rigged monster) | The rig is derived from the model at first use, so each AD model needs only its seed points and joint limits. A test map per archetype (the bestiary-test pattern: `vr_mg3_bestiary_test.qc`) kills each monster with a blade, a bullet and a blast and checks ragdoll, limb and head counts. Usage order (decision 11). | about 0.5 agent-day per model family; 30 families: 12-18 |
+| **Rigs, dismemberment and animations per AD model** (13; built: section 16) | `Quake/vr/vr_ragdoll.cpp` (a seed table per AD model: pelvis, chest, head, limbs), `vr_hitmodel.cpp` (head and limb zones), `QC/vr_ad_monsters.qc` (new: per-archetype registration, the MG3 Phase D pattern: hulls, decap head model, gib table, get-up frames picked from AD's pain/death frames), `QC/vr_limbs.qc` (the rigged-head rule already covers any rigged monster) | The rig is derived from the model at first use, so each AD model needs only its seed points and joint limits. A test map per archetype (the bestiary-test pattern: `vr_mg3_bestiary_test.qc`) kills each monster with a blade, a bullet and a blast and checks ragdoll, limb and head counts. Usage order (decision 11). | about 0.5 agent-day per model family; 30 families: 12-18 |
 | **Artifacts and custom pickups everywhere** (16) | `QC/vr_ad_items.qc` (new), our HUD/wrist indicators (`QC/vr_hud*.qc`, the engine's powerup icons), `QC/items.qc` (one `// AD support` call where a pickup is shared) | AD's `item_artifact_*` spawn as AD's entities (AD's own touch), with our player's timers in AD's `.ad_*` fields ticked by the bridge (`VR_AD_PlayerPostThink`) in every map when the data is present; their effects hooked where ours fire (Sharp Shooter: our spread; Nail Piercer: our nails' touch; Blast Belt: our `T_RadiusDamage`; Lava Shield/Air Tank: our water damage). Backpacks and custom keys only in AD levels if they override ours. | 4-6 |
 | **Ammo resistance in our weapons** (18) | `QC/combat.qc` (`T_Damage`: one `// AD support` call), `QC/vr_ad_bridge.qc` | Our weapons tag the damage's ammo type (`vr_damage_ammo`: shells, nails, rockets, cells, melee) where they fire; the bridge scales it by the target's `ad_resist_*` (AD's own `ad_Resist_Damage`), in AD levels or against AD monsters, and plays AD's resist tell. Melee: shells' resistance off (AD's axe ignores it), grenades and rockets the rockets' one. | 2-3 |
 | **Crouch in AD** (20) | `QC/vr_crouch*.qc`, AD's `ad_ai_*` height checks through the bridge | AD aims at `enemy.origin + view_ofs` and checks melee height (+-64): our crouch moves `view_ofs`; check AD's aim and melee read it (tests: a crouched player under AD's soldier and knight), and take AD's height-aware melee for our monsters everywhere if it plays better (an option). | 2-3 |
@@ -940,3 +942,136 @@ viewpoint the head is relative to, `vr_view.cpp`), a menu page. About 2-3 agent-
 **The follow-up tasks** of decisions 13-31: section 11. AD content outside AD maps (P2) starts by mounting AD's data
 in every campaign when it is installed (its 82 shadowed files already skipped), then `AD_Rules()`-free paths for AD's
 own entities (a reduced world setup on first use).
+
+---
+
+## 16. Phase 2 (in progress): AD's monsters with Quake VR's treatment
+
+Decisions 1, 11, 13 and 14: each of AD's monster models gets Quake VR's monster features (ragdoll, beheading and head
+zone, limbs, knockdowns with a get-up, melee hit zones, shoves, parries, corpse and gore), and AD's damage and death
+code calls Quake VR's hooks. Built on `feature/ad-monsters` (worker `admon`), in usage order (decision 11). AD's own AI,
+pain and death still run every AD monster; Quake VR's treatment is added around them.
+
+### 16.1 The generic layer
+
+**Registration** (`QC/vr_ad_monsters.qc` `VR_AD_MonsterSetup`, called from AD's `monster_start` by an importer patch):
+by AD's class (`ad_classtype`), each monster gets `.vr_ad_mon` (bits: registered, melee, armour, zombie, no beheading),
+its head zone (`.vr_ad_headf/u/r`: forward, up, radius on its first frame, as `PositionalHead`'s), its corpse health's
+cvar (its nearest Quake VR class's) and its knockdown (`VR_Knockdown_SetupReverse`: a death played backwards to get up,
+the chance its nearest class's; AD's zombies get up as AD's own, `VR_Knockdown_SetupOwn` from paine13). The fields and
+declarations are early (`QC/vr_ad_mondefs.qc`).
+
+**Engine**: `Quake/vr/vr_ad_rigs.inc` (each model's seed table and row, included twice by `vr_ragdoll.cpp`'s seed
+tables), `vr_ad_modelids.inc` (their model ids, included by `vr_modelmetadata.inc`; `nameSlots` 512), and
+`vr_ad_monsters.cpp` (`ad::vrClass`: an AD class's Ragdoll Settings and armour's sinking are its nearest Quake VR
+class's: `tune`, `ownFloat` in `vr_box3d.cpp`). `mon_` models are monsters for the retro textures
+(`vr_modelmetadata.cpp`).
+
+**AD's damage path and Quake VR's hooks** (decision 14), as built and checked:
+
+| Hook | Where AD's path reaches it | Check |
+|---|---|---|
+| Damage numbers, wall gore, small gibs, wounds | `VR_AD_Hit` (P1b patch in AD's `T_Damage`) | P1b |
+| Damage settings, sneak attacks, motion log, melee bloodlust | `AD_Damage` (our `T_DamageImpl`) | P1b |
+| Head shots, melee head hits, pellet head counts | `PositionalHead` reads the AD head zone | `vr_ad_mtest 2` (head 1) |
+| Beheading (blade, pops, Quad) | armed by our blows; `VR_Decap_Killed` in `VR_AD_Dying` (patch in AD's `Killed`); AD zombies: `VR_Decap_After` kills them for good (`VR_AD_ZombieKilled`) | `vr_decap_test 1`: beheaded, headless ragdoll, AD's head model thrown |
+| Limbs cut and popped | `VR_Limb_Killed` / `VR_Limb_BlastKilled` through `VR_Decap_Killed` | `vr_limb_test 4-10` |
+| Knockdowns | `VR_Knockdown_Try` (bashes, shoves: any monster with a rig and a chance); AD's pain kept off while down (`VR_AD_KdSave`/`VR_AD_PainDown` patches: frame and think kept, longer down, pain sound); killed down: its death at once (`VR_AD_Died`); up: AD's `th_run` (`VR_AD_RunNow`, `VR_AD_IsRunning`) | `vr_knockdown_test 0/2/1/3` |
+| Bash and parry staggers | `VR_AD_Pain` (AD's pain function) from `VR_Bash_Hit` and `VR_Parry_Interrupt` | (code path; headset) |
+| Parries of AD's melee | `VR_Parry_MeleeMonster`: `VR_ADM_MELEE` (AD's melee is our `T_Damage(enemy, self, self)` through `VR_AD_DamageOurs`) | (headset) |
+| Armour's blunt sound | `VR_Hit_Armoured`: `VR_ADM_ARMOUR` | (headset) |
+| Corpse (dying body and lying corpse gibbed as Quake VR's) | `VR_Corpse_Watch` in `VR_AD_Died`; AD's last death frame makes the body touchable, not a trigger (`VR_AD_BodySolid` patch); `AD_Run` hands a corpse's damage to our `T_DamageDeal` | `vr_ad_mtest 3/4`: corpse 2, gibbed (AD's head and its unique gib) |
+| Ragdoll on death | the engine (any dead monster with a rig, not solid) | `vr_ad_mtest 2` (ragdoll 1) |
+| Blood pool, stealth (a body noticed), shock, parry unsway, AI gate | `VR_AD_Dying` / `VR_AD_Died` | (code path) |
+| Highlight log (kills, headshots, melee) | `VR_Highlight_Kill` in `VR_AD_Dying` (the blow's inflictor from `VR_AD_KdSave`), `VR_Highlight_Killed` in `VR_AD_Died` | (code path) |
+| Shoves, grabs, throws, precise melee hits | generic (any monster: box, mass from its size, its model as drawn) | (headset) |
+
+Not wired (left as AD's): AD's own floor-body gibbing by touch (`monster_flrbody_gib`) is replaced by ours for the
+registered monsters; the training dummy's AD types; hull widths (AD's bounding boxes are kept: `vr_mhull_*` not
+applied); "big ones" highlight bonus by AD class; enemy shoves by AD's soldiers.
+
+**Importer patches** (`Misc/quakevr/ad_import.py` `MON_PATCHES`, after the bridge's): `monster_start`
+(`VR_AD_MonsterSetup`), `T_Damage` (`VR_AD_KdSave` before the damage, `VR_AD_PainDown` before the pain), `Killed`
+(`VR_AD_Dying` / `VR_AD_Died` around the death function), `monster_death_postcheck` (`VR_AD_BodySolid`).
+
+**Shared lines** (each marked AD support): `weapons.qc` (PositionalHead), `vr_decap.qc` (head model; `VR_Decap_IsZombie`
+for the zombie thresholds; an AD zombie's death by beheading), `vr_limbs.qc` (zombies), `combat.qc` (corpse parts,
+parries, parry stagger), `vr_melee.qc` (bash stagger), `vr_knockdown.qc` (AD's run), `vr_crates.qc` (armour),
+`vr_ad_bridge.qc` (`AD_Run`: corpses), `buttons.qc` and `weapons.qc` (the debug spawner's 200..), `world.qc` (the test
+frame); engine: `vr_box3d.cpp`, `vr_ragdoll.cpp`, `vr_modelmetadata.cpp/.inc`, `vr_menu.cpp`, `vr_cvars.inc`.
+
+### 16.2 Per model (usage order)
+
+Rigs made with `Misc/quakevr/ragdoll/rig.py` on AD's models (`RIG_PAK` = a pak of AD's `progs/mon_*.mdl`;
+`mon_<name>_bones.json` committed), joints the fit misplaced set by hand (noted in `vr_ad_rigs.inc`); head zones from
+`headfit.py` or the rig's head cluster; death frames from AD's `$frame` lists. Placements: AD's maps (all paks).
+
+| Spawner | Monster (classes) | Placed | Model (vertices) | Rig: bones, rms | Deaths | Head zone (fwd, up, r) | Knockdown get-up (chance as) | Corpse as | Flags | Headless test |
+|---:|---|---:|---|---|---|---|---|---|---|---|
+| 200 | death knight (`monster_dknight`; the prince's mesh too) | 469 | mon_dknight (911) | 12, 1.09 | 212-223, 224-243 | 7, 32, 7 | death backwards (death knight) | death knight | melee, armour | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 201 | zombie knight (`monster_zombiek`) | 435 | mon_zombiek (161) | 11, 0.87 | falls 121-132, 98-109 | 4, 22, 6.5 | AD's own (zombie) | zombie | melee, armour, zombie | ragdoll, down and up (AD's get-up), beheaded (dead for good), limbs; killed otherwise: gibbed (AD's zombies) |
+| 202 | crossbow knight (`monster_dcrossbow`) | 376 | mon_dcrossbow (1120) | 12, 0.88 | 225-235, 236-255 | 4.5, 21.5, 6 | backwards (knight) | knight | melee, armour | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 203 | hunter ogre, cleaver (`monster_hogre`) | 322 | mon_hogre (1017) | 12, 1.04 | 164-173, 174-187 | 10.5, 27, 7.5 | backwards (ogre) | ogre | melee | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 204 | spiders (`monster_spider`, `_wraithminion`; steel claw 241) | 263+8+1 | mon_spiderg/b, steelclaw (346) | 10 whole pieces, 3.2 | 114-133 | 6, -15, 6 | backwards (rottweiler) | rottweiler | melee | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 205 | death guard (`monster_dguard`) | 252 | mon_dguard (585) | 12, 0.72 | 195-206, 207-226 | 6, 22.5, 5.5 | backwards (death knight) | death knight | melee, armour | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 206 | skull wizard (`monster_skullwiz`) | 214 | mon_skullwiz (632) | 8, 1.74 | 0-14 | 5, 25, 7 | backwards (grunt) | grunt | no beheading | ragdoll, down and up, killed down, limbs, corpse gibbed |
+| 207 | lost soul (`monster_lostsoul`, `_skullwizminion`) | 168+11 | mon_lostsoul | none (bursts) | | none | | | | registered; bursts (gone) |
+| 208 | hunter ogre, mace (`monster_hogremac`) | 148 | mon_hogremac (1224) | 12, 1.09 | 132-141, 142-155 | 10, 26.5, 7.5 | backwards (ogre) | ogre | melee | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 209 | boil (`monster_boil`) | 112 | mon_boil | none (bursts) | | none | | | | registered; bursts |
+| 210 | gaunt (`monster_gaunt`, `_judgeminion`) | 85+1 | mon_gaunt (161) | 11, 4.92 | 93-100, 101-108 | 8, 3, 6 | none (flyer) | scrag | | ragdoll, beheaded, limbs, corpse gibbed |
+| 211, 223, 227 | AD's soldiers (`monster_army_rocket/_plasma/_grenade`) | 51+39+25 | mon_soldier (555: Quake VR's grunt's mesh) | the grunt's 11 | 8-17, 18-28 | 3, 23, 7.2 | backwards (grunt) | grunt | | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 212, 217 | defender, eliminator (`monster_defender`, `_eliminator`) | 83+57 | mon_enforcer (222, id's) | 11, 1.07 | 41-54, 55-65 | -4, 29, 6 | backwards (enforcer) | enforcer | armour | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 213 | hunter ogre, hammer (`monster_hogreham`) | 80 | mon_hogreham (1306) | 12, 1.30 | 137-146, 147-160 | 7, 28.5, 7.5 | backwards (ogre) | ogre | melee | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 214 | gargoyle (`monster_gargoyle`, `_minotaurminion`) | 80+12 | mon_gargoyle (338) | 12, 2.15 | 0-13 | 10, 21, 8 | none (flyer) | scrag | melee | ragdoll, beheaded, limbs, corpse gibbed |
+| 215 | minotaur (`monster_minotaur`) | 72 | mon_minotaur (514) | 13, 1.79 | 36-60 | 14, 58, 11 | backwards (shambler) | shambler | melee | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 216 | death fury (`monster_dfury`) | 67 | mon_dfury (1376) | 11, 1.20 | 224-240, 241-254 | 4, 36.5, 7 | backwards (death knight) | death knight | melee, armour | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 218 | Jim (`monster_jim`) | 52 | mon_jim | none (bursts) | | none | | | | registered; bursts |
+| 219, 221 | swampling, voreling (`_shalrathminion`) | 48+46+5 | mon_swampling/voreling (80) | 8, 0.89 | 58-63, 64-70 | 0, -4.5, 4 | backwards (rottweiler) | rottweiler | melee; no head gib (never beheaded) | ragdoll, down and up, killed down, limbs, corpse gibbed |
+| 220 | centurion (`monster_centurion`) | 46 | mon_centurion (284) | 11, 1.10 | 18-31, 32-42 | 0, 36.5, 5.5 | none (a flyer) | enforcer | armour | ragdoll, beheaded, corpse gibbed |
+| 222, 239 | stone golem; ice golem (a boss) | 41; 6 | mon_golem, bossicegolem (427) | 11, 1.90 | 157-178 | 8, 74, 10 | backwards (shambler); boss: none | shambler; boss: none | melee, armour; no head gib (never beheaded) | ragdoll, down and up, killed down, limbs, corpse gibbed (the ice golem waits for its trigger: not run) |
+| 224 | wraith (`monster_wraith`) | 34 | mon_wraith | none (shrinks, bursts) | | -1, 36, 6 | | | | registered, its head zone; shrinks and bursts |
+| 225 | death sergeant (`monster_dsergeant`) | 29 | mon_dsergeant (1265) | 13, 1.10 | 223-234, 235-254 | 7, 32, 7 | backwards (death knight) | death knight | melee, armour | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 226 | drole (`monster_drole`) | 28 | mon_drole (204) | 13, 1.90 | 169-194 | 17, 51, 7 | backwards (shambler) | shambler | melee | ragdoll, down and up, killed down, beheaded, limbs, corpse gibbed |
+| 228 | bog lord (`monster_boglord`) | 24 | mon_bossboglord (648: the shambler's x1.3) | the shambler's 13, scaled | 83-93 | 18, 81, 15.5 | backwards (shambler) | shambler | melee | ragdoll, down and up, beheaded, corpse gibbed |
+| 229 | scorpion (`monster_scorpion`, `_wraithminion2`) | 23+3 | mon_scorpion (267) | 11 (no head bone), 2.21 | 74-94 | 14, -9.5, 6 | backwards (rottweiler) | centroid | melee, no beheading | ragdoll, down and up, corpse gibbed |
+| 230 | seeker (`monster_seeker`) | 21 | mon_seeker (317) | 10 (its right leg one bone), 4.3 | 59-70, 185-196 | 24, 48.5, 5 | backwards (enforcer) | enforcer | armour | ragdoll, down and up, beheaded, corpse gibbed |
+| 231, 242 | justice knight; the judicator (a boss) | 17; 1 | mon_justice (1008); mon_judge (1016) | 12, 1.68; 12, 2.24 | 112-121, 103-111 | 3, 45.5, 7.5; 4, 63.5, 9 | backwards (death knight); boss: none | death knight; boss: none | melee, armour | ragdoll, down and up, beheaded, corpse gibbed (the judicator waits for its trigger: not run) |
+| 232, 235 | pyro, fumigator | 13+11 | mon_pyro/fumigator (277) | 12, 1.35 | 41-54, 55-65 | -4.5, 29, 5.5 | backwards (enforcer) | enforcer | armour | ragdoll, down and up, beheaded, corpse gibbed |
+| 233 | AD's eel (`monster_eel` in AD maps) | 12 | mon_eel (148) | 6, 0.58 | 6-20 | 18, 0, 4.5 | none (swimmer) | eel | melee | ragdoll (dead: a swimmer alive), beheaded, corpse gibbed |
+| 234 | Freddie (`monster_freddie`) | 11 | mon_freddie (660) | 11, 5.4 | 112-146 | 7.5, 49.5, 6 | backwards (ogre) | ogre | melee, armour | ragdoll, down and up, beheaded, corpse gibbed |
+| 236 | fishing ogres (`monster_ogre_fishing`, `_ghost`) | 6+3 | mon_ogrefish | none (sitting scenery) | | -8.5, 29, 7 | | | | registered, its head zone |
+| 237 | Nour (a boss; `monster_nour`) | 5 | mon_bossnour (224) | 13, 1.22 | 39-47 | 8, 30, 8 | none (boss, flyer) | none | | ragdoll, beheaded |
+| 238 | AD's mummy (and zombie) | 5 | mon_zombie (177: Rogue's mummy's x0.83) | the mummy's 11, scaled | falls 103-116, 162-178 | 0, 21.5, 5.5 | AD's own (zombie) | zombie | melee, zombie | ragdoll, down and up (AD's get-up), beheaded (dead for good); killed otherwise: gibbed (AD's zombies) |
+| 245 | AD's scrag (Nour's minions) | 1 | mon_wizard (80, id's) | 8, 0.86 | 46-53 | 7, 25, 6 | none (flyer) | scrag | | ragdoll, beheaded, corpse gibbed |
+| 250 | AD's hell knight (the point knight, `monster_hell_pointknight`) | 4 | mon_hknight (250, id's) | 11, 1.18 | 42-53, 54-62 | 8, 33, 7 | backwards (death knight) | death knight | melee, armour | ragdoll, down and up, beheaded, corpse gibbed |
+
+### 16.3 Tests
+
+- `Misc/quakevr/ad_monsters_test.sh <agent> [choices]` (headless, the AD campaign's `start`): per monster spawn (its
+  data), down (knocked down, hit there, up), downkill, decap, limbs (slash, fist, shotgun, bolt, explosion, gibbed),
+  corpse (killed whole, lying, gibbed). `vr_ad_mtest 1-4`; the debug spawner's AD monsters from 200
+  (`Misc/quakevr/ad_monsters_gen.py` writes the spawner's list and the Debug menu's: Debug > Tests > Arcane Dimensions
+  Monsters).
+- Regression: e1m1, hip1m1, r1m1, MG1's mge1m1 and MG3's map1 (`vr_test_monsters` wake, fight, kill: 23, 58, 46,
+  90 + 20 and 75 + 13 monsters, as before; no errors) and the grunt's beheading (`decap_test.sh live`) unchanged. Quake
+  VR's own monsters read none of the new fields (`vr_ad_mon` 0).
+- AD's maps fought through (`ad_e1m1`, `ad_swampy`: 40 + 8 and 334 + 84 monsters woken, the waiting ones brought in,
+  all killed): no errors; every AD monster on them registered (`vr_ad_mtest 1`).
+
+### 16.4 Choices (conservative; Vittorio confirms or changes)
+
+- A knockdown's chance and a corpse's health are the nearest Quake VR class's (no new cvars); the get-up is a death
+  played backwards except for AD's zombies (AD's own getting up).
+- Flyers and swimmers are never knocked down (as Quake VR's); bosses get ragdolls, heads and limbs but no knockdown and
+  no corpse gibbing (as Quake VR's bosses).
+- The skull wizard is never beheaded (its own death throws its skull); its head zone stays.
+- No rig for the monsters that burst or shrink away at death (the lost soul and the skull wizard's skulls, the boil,
+  Jim, the wraith) or have no death frames (the eidolon); the fishing ogres (sitting scenery) have a head zone only.
+- AD's ghosts (`monster_dknightghost`: scenery, no damage) get nothing.
+
+### 16.5 Left
+
+- Vittorio's headset check of each rig (the dead poses, the limbs, the get-ups), especially the poorer fits (gaunt,
+  seeker, Freddie: bones rms 4-5) and the hand-set joints.
+- The eidolon, Chthon/fire-top boss and mammoth (not rigged); the training dummy's AD types; AD's soldiers' enemy shoves
+  and droppable guns (section 8, "Ranged soldiers"); ghost melee-through rules.

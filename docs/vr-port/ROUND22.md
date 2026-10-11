@@ -1743,3 +1743,22 @@ section 11. In passing: the server's broadcast boundaries counted Quake VR's bea
 
 **In the headset:** Debug > Tests > Arcane Dimensions: Play (Developer); the hub, a map through to its exit and back;
 VR Settings > Combat > Arcane Dimensions.
+
+## Arcane Dimensions P2: AD's monsters get Quake VR's treatment (2026-10-11, worktree `admon`, branch `feature/ad-monsters`)
+
+All of it is in ARCANE_DIMENSIONS.md section 16: AD's damage and death code now calls Quake VR's hooks (beheading,
+limbs, knockdowns, corpses, gore, highlights; five importer patches), and AD's monster models have ragdoll rigs, head
+zones and get-ups in usage order (31 seed tables over 41 models: every AD monster placed in AD's maps but the ones that
+burst or shrink away at death, the eidolon and the fishing ogres). Headless, per monster: knocked down and up, killed
+down, beheaded, limbs cut and popped, a corpse gibbed (`Misc/quakevr/ad_monsters_test.sh`); AD's maps fought through without
+errors; e1m1, hip1m1, r1m1, MG1 and MG3 unchanged.
+
+**In the headset** (an AD map; Debug > Tests > Arcane Dimensions Monsters spawns each one ahead):
+- [ ] A death knight: behead it with a sword, cut an arm off, knock it down with a shove (it gets up, its death
+  backwards), parry its sword.
+- [ ] A zombie knight: shoved down, it gets up as AD's zombies do; beheaded, it dies for good (lying).
+- [ ] The ragdolls of the crossbow knight, the hunter ogres (cleaver, mace, hammer: the weapon stays in the hand), the
+  spider (its legs), the death guard, the minotaur, the death fury (two swords), the golem and the death sergeant (the
+  flail dangles).
+- [ ] The poorer fits (the gaunt, the seeker, Freddie): their dead poses look whole.
+- [ ] A corpse of each, gibbed by shots: AD's own head and weapon fly.
