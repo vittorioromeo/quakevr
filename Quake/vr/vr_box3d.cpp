@@ -843,7 +843,7 @@ struct World
         int num{0};
         b3BodyId body{b3_nullBodyId};
         b3Vec3 local{}; // where, in its body
-        b3Vec3 force{}; // N
+        b3Vec3 force{}; // N (Box3D's: its gravity's)
     };
     za::Vector<ClimbPull> climbPulls;
     // A player's move blocked by a solid prop's side this frame (VR_PlayerBumps): he shoves it (shoveBumped).
@@ -12629,6 +12629,12 @@ void pressClimbing()
         if(p.num < static_cast<int>(world->slots.size()) && B3_ID_EQUALS(world->slots[p.num].body, p.body) && b3Body_IsValid(p.body))
         {
             b3Body_ApplyForce(p.body, p.force, b3Body_GetWorldPoint(p.body, p.local), true);
+            if(vr_debug_box3d.value >= 2.f)
+            {
+                const glm::vec3 v = world->toU(b3Body_GetLinearVelocity(p.body));
+                Con_Printf("box3d: climbing pull on %d: %.0f N (%.0f kg, %s), its velocity %.1f %.1f %.1f\n", p.num,
+                    glm::length(glmv(p.force)), b3Body_GetMass(p.body), b3Body_IsAwake(p.body) ? "awake" : "asleep", v.x, v.y, v.z);
+            }
         }
     }
 }
@@ -12689,14 +12695,15 @@ const ClimbShape* climbShape(int num, ClimbBody& body)
     return e.shape.faces.empty() ? nullptr : &e.shape;
 }
 
-void climbPull(int num, const glm::vec3& at, const glm::vec3& force)
+void climbPull(int num, const glm::vec3& at, const glm::vec3& dir, float kg)
 {
     if(!world || !solidProp(num))
     {
         return;
     }
     const b3BodyId id = world->slots[num].body;
-    world->climbPulls.pushBack(World::ClimbPull{num, id, b3Body_GetLocalPoint(id, world->toM(at)), b3v(force)});
+    const float g = -b3World_GetGravity(world->id).z; // m/s^2 (Quake's gravity, as the props fall)
+    world->climbPulls.pushBack(World::ClimbPull{num, id, b3Body_GetLocalPoint(id, world->toM(at)), b3v(dir * (kg * g))});
 }
 
 bool climbRay(const glm::vec3& from, const glm::vec3& to, int skip)

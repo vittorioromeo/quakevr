@@ -1868,8 +1868,9 @@ void followProps(edict_t* ent, Climber& c)
 }
 
 // The holding hands' pull on light props (see "Holds on props"), each frame they hang: the body's weight
-// (vr_box3d_player_mass) shared by the holding hands, along the arm (from the hold towards the body; a body over the hold
-// presses it down), at most vr_climb_prop_pull a hand, through this frame's step.
+// (vr_box3d_player_mass, kg) shared by the holding hands, along the arm (from the hold towards the body; a body over the
+// hold presses it down), at most vr_climb_prop_pull kg a hand, through this frame's step (Box3D's gravity: what the
+// prop's own weight is too).
 void pullProps(edict_t* ent, const Climber& c)
 {
     const int hands = (c.grips[0].active ? 1 : 0) + (c.grips[1].active ? 1 : 0);
@@ -1877,8 +1878,7 @@ void pullProps(edict_t* ent, const Climber& c)
     {
         return;
     }
-    const float gravity = 9.81f * sv_gravity.value / 800.f; // m/s^2 (Quake's 800 units/s^2: the Earth's)
-    const float weight = za::max(0.f, vr_box3d_player_mass.value) * gravity / static_cast<float>(hands);
+    const float weight = za::max(0.f, vr_box3d_player_mass.value) / static_cast<float>(hands); // kg
     const float force = za::min(weight, za::max(0.f, vr_climb_prop_pull.value));
     if(!(force > 0.f))
     {
@@ -1894,7 +1894,12 @@ void pullProps(edict_t* ent, const Climber& c)
         const glm::vec3 hold = holdNow(g);
         const glm::vec3 d = body - hold;
         const glm::vec3 dir = d.z >= 0.f || glm::length(d) < 1e-3f ? glm::vec3{0.f, 0.f, -1.f} : glm::normalize(d);
-        box3d::climbPull(g.entNum, hold, dir * force);
+        box3d::climbPull(g.entNum, hold, dir, force);
+        if(vr_climb_debug.value >= 2.f)
+        {
+            Con_Printf("climbpull %.4f prop %d at %.1f %.1f %.1f: %.0f kg (%.2f %.2f %.2f)\n", qcvm->time, g.entNum, hold.x, hold.y,
+                hold.z, force, dir.x, dir.y, dir.z);
+        }
     }
 }
 
@@ -2775,6 +2780,17 @@ void probe(edict_t* ent, float yaw)
             {
                 list(*m, vec(e->v.origin), i);
             }
+        }
+        // A prop's, as it lies now (see "Holds on props").
+        box3d::ClimbBody body;
+        const box3d::ClimbShape* shape = vr_climb_props.value != 0.f && !e->free ? box3d::climbShape(i, body) : nullptr;
+        if(shape)
+        {
+            ledges::Map props;
+            za::Vector<int> nums;
+            ledges::propLedges(i, *shape, body, mins, maxs, props, nums);
+            props.finish();
+            list(props, glm::vec3{0.f}, i);
         }
     }
     if(!found)

@@ -1096,7 +1096,7 @@ entity(vector at, float yaw, float what) VR_Crate_ClimbTestSpawn =
     if(what == 3)
     {
         e.angles_z = 90;
-        setorigin(e, e.origin + '0 0 20.5'); // (lying: 20 under its origin; it drops the half unit)
+        setorigin(e, e.origin - '0 0 3.5'); // (lying: 20 under its middle, not 24; it drops the half unit)
     }
     VR_Crate_Setup(e, what == 5 ? 1 : 2);
     dprint(sprintf("test spawn: climb crate at %v, angles %v, box %v .. %v\n", e.origin, e.angles, e.mins, e.maxs));
