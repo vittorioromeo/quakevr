@@ -2325,7 +2325,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Where the torch held at your head lets B or Y clip it on, and where a hand takes it off (B or Y, or the grip): "
                   "balls at your temples and forehead, moved forward, up and out. Apart from where it then sits (On Head)."),
         slider("Head Zone Up", vr_flashlight_head_zone_up, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
-            .help("The default, 0.040, is 4 cm higher than the first zone."),
+            .help("The default is 0.150 (15 cm over your eyes' height)."),
         slider("Head Zone Out", vr_flashlight_head_zone_out, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
             .help("Away from your head: to the side at the temples, ahead at the forehead."),
         slider("Head Zone Radius", vr_flashlight_head_zone_radius, 0.02f, 0.3f, 0.005f, "%.3f m").extend()

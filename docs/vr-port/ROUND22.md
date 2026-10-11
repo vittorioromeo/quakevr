@@ -1589,3 +1589,41 @@ the press held 10 frames behind a waiting buffer: one load.
 
 **In the headset:** die in the start map's lava, hold A: "Loading...", one load of the level-start autosave, then
 play. Same with a quick tap, and on a map with no autosave yet (a plain restart).
+
+
+## 1.0.1: the author's values after his 1.0.1 test are the defaults (worktree `defaults101`)
+
+"I tweaked some values, please make them the new defaults." His config of 2026-10-11 15:29 (after his VR test of 1.0.1,
+build f701f0a26) against the shipped defaults (`resetcfg; writeconfig` on that build: compiled defaults, vr_defaults.cfg
+and the migrations' end state): 72 archived settings differ. Config 126 moves a config still at an old value; a value
+set by hand is kept.
+
+| cvar (menu) | was | now | where |
+|---|---|---|---|
+| `vr_flashlight_head_zone_forward` (Head Zone Forward) | 0.05 | 0.07 m | vr_defaults.cfg |
+| `vr_flashlight_head_zone_up` (Head Zone Up) | 0.19 | 0.15 m | vr_defaults.cfg (menu help said 0.040: now 0.150) |
+| `vr_flashlight_head_zone_radius` (Head Zone Radius) | 0.105 | 0.125 m | vr_defaults.cfg |
+| `vr_flashlight_forward` (belt clip Forward) | 0.02 | 0.025 m | vr_defaults.cfg |
+| `vr_flashlight_flick_speed` (Flick Strength) | 800 | 750 deg/s | vr_cvars.inc |
+| `vr_doom_crt` (Doom > CRT Look) | 1 | 2x | vr_cvars.inc |
+| `vr_comfort_vignette_strength` (Vignette Strength) | 0.6 | 0.5 | vr_cvars.inc (the vignette itself stays off) |
+
+**Not promoted** (differ, on purpose left alone):
+- Arms: `vr_body_elbow_back` 0.35 (0.25), `_hand` 0.5 (0.4), `_lift` 8 (4): per-player settings (`personal()` in
+  vr_cvars.cpp, "the player's to tweak", his decision of 2026-09-28; armsweep.py records them as his).
+- Body and calibration: `vr_bodycal_*`, `vr_height_calibration`, `vr_bodycal_undo`.
+- `vr_wofs_hs3_{x,y,z,pitch,yaw,roll}_04`: the nailgun's third hotspot, but its `hs3_type_04` is 0 (none): no effect.
+- `vr_melee_phase_speed` 3.996 (4), `vr_melee_phase_time` 0.34965 (0.35), `vr_relight_strength` 1.1988 (1.2): each the
+  default times 0.999 (an artefact, not a choice; melee is not tuned on his archived takes either).
+- Window and recording: `vr_spectator_fov` 120, `vr_spectator_scale` 1.5, `vr_window_view` 0, `vr_mirror_hide_hud_text` 1,
+  `vr_motion_*`.
+- Hardware, video and flat screen: `vr_foveated` 2, `vid_*`, `fov`, `gamma`, `contrast`, `scr_*`, `sensitivity`,
+  `cl_alwaysrun`, `volume`, `ui_live_preview`.
+- Dev tools and bookkeeping: `vr_toolgun_*`, `vr_relight_reload` 0, `vr_menu_level` 2, `vr_notes` 1, `vr_menu_positions`,
+  `vr_prop_id_*`, `vr_*_version`, `vr_tutorial_started`.
+
+**Test:** a v125 config with the seven at the old values (Doom's CRT at a hand-set 1.5) → the six new values at default,
+`vr_doom_crt` kept at 1.5, `vr_cfg_version` 126; a start with no config → all seven at the new values.
+
+**In the headset:** the torch clipped on and off at the head (zones further forward, lower, larger), its belt clip,
+the wrist flick; Doom's picture on the gadget (stronger CRT).
