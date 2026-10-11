@@ -271,7 +271,7 @@ void(entity ad_targ, entity ad_inflictor, entity ad_attacker, float ad_damage, f
 	//----------------------------------------------------------------------
 	// do the damage
 	//----------------------------------------------------------------------
-	VR_AD_KdSave(ad_targ);
+	VR_AD_KdSave(ad_targ, ad_inflictor);
 	ad_targ.health = ad_targ.health - ad_take;
 	VR_AD_Hit(ad_targ, ad_inflictor, ad_attacker, ad_take);
 	

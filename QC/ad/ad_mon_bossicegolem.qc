@@ -977,6 +977,7 @@ void() ad_iceg_tranB13 = [ $tranB13, ad_iceg_run1 ] {
 //======================================================================
 void() ad_iceg_setup =
 {
+	VR_AD_MonsterSetup();
 	self.use = ad_SUB_Null;		// No more triggers
 	self.style = ad_ICEG_PHASE1;	// Bursting intro sequence
 	self.flags = ad_FL_MONSTER;	// Reset flag (no user settings)

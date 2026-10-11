@@ -75,6 +75,13 @@ string(float xHow) VR_Decap_HowName =
     return "a slash";
 };
 
+// A zombie (Quake's; AD support: AD's zombies, vr_ad_monsters.qc): beheaded or cut at a limb by a blow that would knock it
+// down, it dies for good; a lighter one leaves its head on.
+float(entity e) VR_Decap_IsZombie =
+{
+    return e.classname == "monster_zombie" || (e.vr_ad_mon & VR_ADM_ZOMBIE);
+};
+
 // The head gib `e` throws ("": none, it is never beheaded). A new monster with a ragdoll rig: its head here.
 string(entity e) VR_Decap_HeadModel =
 {
@@ -113,7 +120,7 @@ float(entity e) VR_Decap_Allowed =
     {
         return FALSE;
     }
-    if(e.classname == "monster_zombie" && !cvar_hget(cvarh_vr_decap_zombies))
+    if(VR_Decap_IsZombie(e) && !cvar_hget(cvarh_vr_decap_zombies))
     {
         return FALSE;
     }
@@ -428,7 +435,7 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
         }
         // A zombie's head pops only to a blow that would knock it down, as a shot's (VR_DECAP_ZOMBIE_DOWN, 25: a light
         // tap it survives keeps its head; VR_Decap_After kills an armed zombie).
-        if(targ.classname == "monster_zombie" && xDamage < 25) { return FALSE; }
+        if(VR_Decap_IsZombie(targ) && xDamage < 25) { return FALSE; }
         if(!VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_BLUNT))
         {
             return FALSE;
@@ -454,7 +461,7 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
     }
     // With Quad Damage, a blade's blow at the head that doesn't cut it off (a stab, a slow one) pops it.
     if(VR_Decap_QuadPops(attacker) && VR_Decap_OnHead(targ, b.mh_c_pos, '0 0 0') &&
-       (targ.classname != "monster_zombie" || xDamage >= 25))
+       (!VR_Decap_IsZombie(targ) || xDamage >= 25))
     {
         return VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_QUAD);
     }
@@ -560,7 +567,7 @@ void(entity targ) VR_Decap_After =
     {
         return;
     }
-    float zombie = targ.classname == "monster_zombie" || (vr_decap_limb >= 0 && VR_Limb_IsZombie(targ)); // (a limb: a mummy too)
+    float zombie = VR_Decap_IsZombie(targ) || (vr_decap_limb >= 0 && VR_Limb_IsZombie(targ)); // (a limb: a mummy too)
     if(vr_decap_time == time && zombie && targ.health > 0 && !targ.vr_gib &&
        (targ.flags & FL_MONSTER) && (!VR_IsDummy(targ) || cvar_hget(cvarh_vr_dummy_gib))) // (the dummy: only if it dies)
     {
@@ -580,8 +587,15 @@ void(entity targ) VR_Decap_After =
             targ.health = oldHealth;
             return;
         }
-        targ.th_die = VR_Decap_ZombieDie;
-        Killed(targ, by);
+        if(targ.vr_ad_mon)
+        {
+            VR_AD_ZombieKilled(targ, by); // AD support: AD's Killed, its death the lying one (vr_ad_monsters.qc)
+        }
+        else
+        {
+            targ.th_die = VR_Decap_ZombieDie;
+            Killed(targ, by);
+        }
     }
     vr_decap_ent = world;
 };
@@ -989,7 +1003,7 @@ float(entity targ) VR_Decap_HeadBlastArm =
             least));
         return FALSE;
     }
-    if(targ.classname == "monster_zombie" && targ.vr_decap_bdmg < VR_DECAP_ZOMBIE_DOWN)
+    if(VR_Decap_IsZombie(targ) && targ.vr_decap_bdmg < VR_DECAP_ZOMBIE_DOWN)
     {
         return FALSE;
     }
@@ -1013,7 +1027,7 @@ float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_HeadBoltArm 
     {
         return FALSE;
     }
-    if(targ.classname == "monster_zombie" && xDamage < VR_DECAP_ZOMBIE_DOWN)
+    if(VR_Decap_IsZombie(targ) && xDamage < VR_DECAP_ZOMBIE_DOWN)
     {
         return FALSE;
     }
@@ -1123,7 +1137,7 @@ float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_HeadThrownA
         return FALSE;
     }
     vector vel = xThing.velocity;
-    if(!VR_Decap_OnHead(targ, xThing.origin, vel) || (targ.classname == "monster_zombie" && xDamage < VR_DECAP_ZOMBIE_DOWN))
+    if(!VR_Decap_OnHead(targ, xThing.origin, vel) || (VR_Decap_IsZombie(targ) && xDamage < VR_DECAP_ZOMBIE_DOWN))
     {
         return FALSE;
     }
@@ -1183,7 +1197,7 @@ float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_He
     {
         return FALSE;
     }
-    if(!VR_Decap_OnHead(targ, at, dir) || (targ.classname == "monster_zombie" && xDamage * 4 < VR_DECAP_ZOMBIE_DOWN))
+    if(!VR_Decap_OnHead(targ, at, dir) || (VR_Decap_IsZombie(targ) && xDamage * 4 < VR_DECAP_ZOMBIE_DOWN))
     {
         return FALSE;
     }
