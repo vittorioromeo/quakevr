@@ -8,7 +8,8 @@
 #   3. the Joint tool's tile, its Hinge tile: vr_toolgun_joint 2; More: God Mode switched on and off; the Panel Size
 #      slider dragged;
 #   4. the physgun holding a crate while the mock hand rolls 45 degrees, then turns 30 to its left: the crate's angles
-#      follow the hand (roll, then yaw); X/A held, its angles snap to 15 degree steps.
+#      follow the hand (roll, then yaw); X/A held, its angles snap to 15 degree steps;
+#   5. a grunt made by the spawn tool, held by the physgun while the hand rolls and turns: only its yaw follows.
 # --shots: one picture of the panel's pages (Spawn's props, Joint, Physgun, More), scratch/toolgun_panel.png.
 # PASS: every step as said, no crash.
 AGENT=${1:-toolgun2}
@@ -70,12 +71,20 @@ a('echo YAW30;vr_toolgun_status')
 hand(50, 30, 37, 1.35)
 a('vr_mock_button main primary 1;wait5;echo SNAP;vr_toolgun_status;vr_mock_button main primary 0;wait3')
 a('vr_mock_button main trigger 0;wait10;vr_toolgun_icons')
+# 5. A grunt made by the spawn tool where the gun points, held by the physgun while the hand rolls: it turns only about
+#    the up axis (its pitch and roll stay).
+a('vr_scene_clean props;wait10;vr_toolgun_select 0;vr_toolgun_tool 0;wait5')
+hand(40, 0, 0, 1.35)
+a('vr_mock_button main trigger 1;wait3;vr_mock_button main trigger 0;wait30;vr_toolgun_tool 2;wait5')
+a('vr_mock_button main trigger 1;wait20;echo MONSTER0;vr_toolgun_status')
+hand(40, 25, 45, 1.35)
+a('echo MONSTER1;vr_toolgun_status;vr_mock_button main trigger 0;wait10')
 a('wait5;toggleconsole;quit')
 print(';'.join(s))
 EOF
 )
 OUT=; [ -n "$SHOTS" ] && OUT="-Clean -Out toolgun_panel.png"
-out=$(bash $KIT/run.sh $AGENT $OUT -Script "$S" -Timeout 600 -Filter 'STEP|CYCLE|BACK|JOINT|GOD|SIZE|CLOSED|HOLD|ROLL|YAW|SNAP|toolgun|vr_toolgun|ENGINE|CRASH|exit=|TIMEOUT|composed' 2>&1)
+out=$(bash $KIT/run.sh $AGENT $OUT -Script "$S" -Timeout 600 -Filter 'STEP|CYCLE|BACK|JOINT|GOD|SIZE|CLOSED|HOLD|ROLL|YAW|SNAP|MONSTER|toolgun|vr_toolgun|ENGINE|CRASH|exit=|TIMEOUT|composed' 2>&1)
 [ -n "$VERBOSE" ] && echo "$out" | tail -80
 echo "$out" | python -c "
 import sys, re
@@ -122,6 +131,10 @@ else:
     if abs(turned(h0, r45) - 45) > 5: fails.append('roll did not follow the hand')
     if abs(turned(r45, y30) - 30) > 5: fails.append('yaw did not follow the hand')
     if any(abs(d(v, round(v / 15) * 15)) > 0.05 for v in sn): fails.append('not snapped')
+m0, m1 = angles('MONSTER0'), angles('MONSTER1')
+print('monster held', m0, 'turned', m1)
+if not (m0 and m1) or abs(m1[0] - m0[0]) > 0.01 or abs(m1[2] - m0[2]) > 0.01 or abs(d(m1[1], m0[1])) < 5:
+    fails.append('the monster did not turn about its up axis alone')
 if re.search(r'ENGINE CRASH|ENGINE ERROR|TIMEOUT|exit=[1-9]', t): fails.append('crash')
 print('FAIL: ' + '; '.join(fails) if fails else 'PASS')
 "

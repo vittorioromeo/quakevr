@@ -5766,6 +5766,15 @@ za::Vector<Item> pageDebugTools()
                   "the spawn choice and ghost, what the physgun holds, the scale gizmo, the joints (console)."),
         command("Unfreeze Everything", "vr_toolgun_unfreeze_all").help("vr_toolgun_unfreeze_all: every prop the physgun froze falls again."),
         command("Remove Every Joint", "vr_toolgun_unjoin_all").help("vr_toolgun_unjoin_all: the toolgun's joints, all of them."),
+        command("Open or Close Its Panel", "vr_toolgun_menu")
+            .help("vr_toolgun_menu: the toolgun's panel over the gun, as its B or Y (with the toolgun in a hand; shown when this "
+                  "menu closes)."),
+        command("Next Tool", "vr_toolgun_next").help("vr_toolgun_next: the next tool, as the gun's stick press (-1: the one before)."),
+        command("Panel Widgets", "vr_toolgun_panel_dump")
+            .help("vr_toolgun_panel_dump: the panel's state, where the laser meets it, and its widgets' names and places "
+                  "(its 256 x 192 pixels), for vr_toolgun_mock_laser (console)."),
+        command("Thumbnails", "vr_toolgun_icons")
+            .help("vr_toolgun_icons: the spawn grid's thumbnails made, failed and waiting, and the time they took (console)."),
     };
 }
 

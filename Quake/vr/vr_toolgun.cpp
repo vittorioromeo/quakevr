@@ -1,7 +1,7 @@
 // vr_toolgun.cpp -- the toolgun (vr_toolgun.hpp; docs/vr-port/TOOLGUN.md; QC vr_toolgun.qc): a debug and sandbox tool
-// held as a pistol, as Garry's Mod's. Its hand's trigger uses the tool chosen on its menu (vr_toolgun_tool) on what it
+// held as a pistol, as Garry's Mod's. Its hand's trigger uses the tool chosen on its panel (vr_toolgun_tool) on what it
 // points at:
-//   Spawn    a ghost of the thing chosen (the menu's list, or what the picker shot) where the gun points; the trigger
+//   Spawn    a ghost of the thing chosen (the panel's grid, or what the picker shot) where the gun points; the trigger
 //            makes it there (its spawn function, as a map would: box3d::spawnClass);
 //   Remove   what it points at glows red; the trigger removes it (QC VR_Toolgun_Remove: as the scene's cleanup does);
 //   Physgun  the trigger held drags what it points at at its distance (a prop pinned: a kinematic body following the
@@ -13,9 +13,10 @@
 //            rope, a spring); Unjoin removes a prop's joints.
 // X/A held on the toolgun's hand: the sticks move the ghost or what the physgun holds (the gun's stick forward and back
 // and turns it, the other up, down and sideways), or scale the aimed prop (the gun's stick, up and down); no walking or
-// turning meanwhile (vr_input.cpp). B/Y opens and closes the menu on the gun (vr_panel.cpp draws the VR Settings' page
-// there; vr_menu_toolgun.inc's pages). Single player: the listen server's edicts, changed between its frames (as a console
-// command does).
+// turning meanwhile (vr_input.cpp). What the physgun holds also turns with the gun's hand (vr_toolgun_physgun_wrist), its
+// angles snapped to vr_toolgun_snap while X/A is held. The gun's stick press switches to the next tool (X/A held: the one
+// before). B/Y opens and closes its panel over the gun (vr_toolgun_panel.cpp). Single player: the listen server's
+// edicts, changed between its frames (as a console command does).
 
 #include "vr_toolgun.hpp"
 
@@ -26,7 +27,6 @@
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
-#include "vr_menu.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
@@ -37,6 +37,7 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
 
@@ -53,7 +54,7 @@ namespace
 {
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The spawn list (the menu's Toolgun - Spawn page): what is made, how it looks as a ghost, how high above the floor
+// The spawn list (the panel's Spawn grid): what is made, how it looks as a ghost, how high above the floor
 // its origin stands (the box's bottom below it), and a float field set before its spawn function.
 
 struct Spawnable
@@ -173,6 +174,7 @@ struct Drag
     glm::mat3 axes0{1.f};
     glm::mat3 stickTurn{1.f};
     bool brush{false};
+    float handYaw0{0.f}; // the hand's yaw as taken (a monster's or a pickup's turn)
 };
 
 // The scale tool's gizmo on a prop: its oriented box (as drawn: model_scale about model_scale_origin) and handles.
@@ -516,7 +518,7 @@ void spawnHere()
 {
     if(!tg.ghost)
     {
-        Con_Printf("toolgun: nothing to spawn (choose it on the menu, or pick it)\n");
+        Con_Printf("toolgun: nothing to spawn (choose it on the panel, or pick it)\n");
         return;
     }
     const Selection& sel = tg.sel;
@@ -568,6 +570,7 @@ void dragStart(int num)
     const int mi = static_cast<int>(e->v.modelindex);
     d.brush = mi > 0 && mi < MAX_MODELS && sv.models[mi] && sv.models[mi]->type == mod_brush;
     d.hand0 = held::axesFromAngles(&tg.handRot[0], true);
+    d.handYaw0 = tg.handRot.y;
     d.axes0 = held::axesFromAngles(e->v.angles, d.brush);
     if(d.prop)
     {
@@ -646,7 +649,17 @@ void dragFrame(float dt)
         const glm::mat3 hand = held::axesFromAngles(&tg.handRot[0], true);
         glm::mat3 turn = d.stickTurn * hand * glm::transpose(d.hand0);
         held::anglesFromAxes(turn * d.axes0, angles, d.brush);
-        if(step > 0.f)
+        if(!d.prop)
+        {
+            // A monster or a pickup only turns about the up axis (tilted, a monster would walk on so): as the hand's
+            // way turns (not its twist), and the sticks' yaw.
+            angles[0] = d.angles.x;
+            angles[1] = d.angles.y + za::remainder(tg.handRot.y - d.handYaw0, 360.f) + d.turn.y;
+            angles[2] = d.angles.z;
+            snap(angles[1]);
+            turn = glm::mat3_cast(glm::angleAxis(glm::radians(angles[1] - d.angles.y), glm::vec3{0.f, 0.f, 1.f}));
+        }
+        else if(step > 0.f)
         {
             for(float& a : angles)
             {
@@ -1511,7 +1524,7 @@ const char* stateLine()
 namespace
 {
 
-// vr_toolgun_select <n | clear>: the spawn list's entry n (the menu's rows), or nothing.
+// vr_toolgun_select <n | clear>: the spawn list's entry n (the spawnables' order: 0 the Grunt), or nothing.
 void select_f()
 {
     if(Cmd_Argc() < 2)
