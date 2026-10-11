@@ -550,6 +550,7 @@ struct RagdollBodies
     // Its middle's speed down (m/s, its parts' by their mass, a loose weapon not counted) before the step's piece
     // (noteFallSpeeds): a landing is no harder than its whole body comes down (touches: a fall's damage).
     float fallDown{0.f};
+    bool warnedUnstable{false}; // a part of it went faster than unstableSpeed (noteFallSpeeds said so)
     // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
     za::Array<float, ragdoll::maxBones> lift{};
     // A shove's knockdown (ragdollShove; ROUND21.md, "A shove's knockdown: travel and a quarter turn"): driven each frame
@@ -3522,6 +3523,12 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
             jd.base.localFrameB = b3Transform{b3Vec3_zero, b3Quat_identity};
             jd.base.collideConnected = false;
             (void)b3CreateWeldJoint(world->id, &jd);
+            if(vr_knockdown_debug.value >= 2.f)
+            {
+                Con_Printf("ragdoll: %d its loose piece (%.2f kg, %.2f times its body's density) welded to its %s (%.2f kg)\n",
+                    num, b3Body_GetMass(c), b3Body_GetMass(c) / za::max(volumes[static_cast<za::SizeT>(b)], 1e-6f) / density,
+                    rig->bones[best].name, b3Body_GetMass(a));
+            }
         }
     }
     // Made in another ragdoll: they pass through each other until clear (ragdollsInside).
@@ -7756,6 +7763,10 @@ void soundHits(const b3ContactEvents& events)
     }
 }
 
+// u/s: a ragdoll part this fast is shaking itself apart, not thrown (a judo throw's fastest part about 900, a rocket's
+// blast's a couple of thousand; the mummy's tucked flesh shook its parts to 4000-12000).
+constexpr float unstableSpeed = 5000.f;
+
 // Before a piece of the step: each ragdoll's middle's speed down (RagdollBodies::fallDown; its parts' velocities by their
 // masses, a loose weapon not counted) and what the piece's `dt` of gravity adds, what its landings in that piece are
 // measured against (touches).
@@ -7780,6 +7791,34 @@ void noteFallSpeeds(float dt)
             const float m = b3Body_GetMass(body);
             mass += m;
             down -= b3Body_GetLinearVelocity(body).z * m;
+        }
+        // A part far faster than anything throws one (unstableSpeed): the ragdoll shaking itself apart (a judo-thrown
+        // mummy's tucked flesh, welded in its chest, whirling: ragdoll::derive's looseSpeck). Said once a ragdoll, nothing
+        // changed (its landings still count; the cause is to be found).
+        for(int b = 0; b < r.count && !r.warnedUnstable; b++)
+        {
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            if(partCut(r, b) || B3_IS_NULL(body) || !b3Body_IsValid(body))
+            {
+                continue;
+            }
+            const float speed = b3Length(b3Body_GetLinearVelocity(body)) * world->m2u;
+            if(speed < unstableSpeed)
+            {
+                continue;
+            }
+            r.warnedUnstable = true;
+            const char* say = "ragdoll: %d %s's %s at %.0f u/s (spin %.0f rad/s, %.2f kg): unstable?\n";
+            const float spin = b3Length(b3Body_GetAngularVelocity(body));
+            const char* cls = PR_GetString(EDICT_NUM(r.num)->v.classname);
+            if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
+            {
+                Con_Printf(say, r.num, cls, r.rig->bones[b].name, speed, spin, b3Body_GetMass(body));
+            }
+            else
+            {
+                Con_DPrintf(say, r.num, cls, r.rig->bones[b].name, speed, spin, b3Body_GetMass(body));
+            }
         }
         r.fallDown = mass > 0.f ? za::max(down / mass + gravity, 0.f) : 0.f;
     }

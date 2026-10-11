@@ -55,6 +55,9 @@ using ragdoll::Rig;
 using ragdoll::maxBones;
 
 constexpr float deg = 0.017453292f;
+// A loose piece no bigger than this (units, its largest side) in the rest pose is a speck tucked away, hidden in the
+// ragdoll (derive; the zombie's and the mummy's flesh 1.2-1.4, a weapon 25 or more).
+constexpr float looseSpeck = 4.f;
 
 // ----------------------------------------------------------------------------
 // The seed tables: per model, its bones (where they are in the rest pose, pose 0) and joints. Numbers of ours (measured
@@ -1305,6 +1308,26 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     }
     const SeedTable& tb = table;
     rig.hideLoose = tb.looseWeapons;
+    // A loose piece tucked away in the rest pose (the zombie's and the mummy's flesh, shrunk inside the chest until he
+    // throws it): its ragdoll part would be that speck (a part is its rest pose's hull), its 3 kg in a fraction of a
+    // unit, welded in a knocked-down one's chest (vr_knockdown_weld) 166 times denser than the body and whirling
+    // so fast it shook the whole ragdoll apart (a judo-thrown mummy's parts hitting the floor at 4000-12000 u/s, fall
+    // damage on flat ground; ROUND22.md). Hidden in every ragdoll, as the player's weapons are.
+    for(int b = table.count; b < numBones; b++)
+    {
+        const Bone& bone = rig.bones[b];
+        glm::vec3 lo{1e30f}, hi{-1e30f};
+        for(const glm::vec3& p : bone.points)
+        {
+            lo = glm::min(lo, p);
+            hi = glm::max(hi, p);
+        }
+        if(bone.joint == Joint::Loose && !bone.points.empty() &&
+            za::max(hi.x - lo.x, za::max(hi.y - lo.y, hi.z - lo.z)) < looseSpeck)
+        {
+            rig.hideLoose = true;
+        }
+    }
     rig.deaths = tb.deaths;
     for(int i = 0; i < tb.deaths; i++)
     {
