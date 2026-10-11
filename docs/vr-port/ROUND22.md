@@ -1715,3 +1715,20 @@ the hand; let go there: back in hotspot 4. Migration: a 126 config with the shou
 **In the headset:** look over your shoulders and down at your chest with guns in every holster: the back pair's guns
 gone, the hips' and chest's there. Reach over a shoulder and take the hidden gun, put it back (buzz and sound as ever).
 Toggle Shoulder Holster Weapons in VR Settings and the three on Body and Display.
+
+### Holstered guns read another holster's flags and clip (fixed)
+
+The drawn holsters go hips, upper, shoulders; their stats (`STAT_QVR_HOLSTERWEAPON*0`) go in vr_body's order,
+shoulders, hips, upper. The open super shotgun's parts (its flags, its shells) and the magazines (the no-magazine flag)
+of a holstered gun indexed the stats by the drawn order: a hip's read a shoulder's, an upper's a hip's, a shoulder's an
+upper's (a nailgun with its magazine out in a shoulder holster showed one, if the left upper's had one). Now
+`holsterStat` (vr_view.cpp) reads them in the body's order, as the model always was. `vr_gear_status` lists each
+holster as the view reads it: `gear: holster <name>: <model> clip N flags N; drawn, magazine, open parts`.
+
+Test (`scratch/holsterstat_test.sh`): a nailgun with its magazine out in the left shoulder holster, full ones in the
+right shoulder and the left upper: `lshoulder: v_nail clip 0 flags 16; magazine 0`, `rshoulder: v_nail clip 24;
+magazine 1`, `lupper: v_nail clip 24; magazine 1`, hips `v_axe clip 0`, `v_shot clip 8`: every holster as
+`vr_test_weaponinst 0` lists its hotspot.
+
+**In the headset:** break the super shotgun open and holster it on a hip: it stays open there (and shut ones shut);
+drop a nailgun's magazine and holster it: no magazine drawn in it.
