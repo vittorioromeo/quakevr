@@ -78,20 +78,25 @@ for c in $CASES; do
     esac
 done
 if [ -n "$EYES" ]; then
+    # One sheet (the kit's scratch: env_sheet.png): a row per case and monster (EYECASES), its frames 0.1, 0.4, 0.8,
+    # 1.4, 2.2 and 4 s after the kill, seen from his side (OVERLAY=1: vr_ragdoll_active_debug's lines over him).
     SHOTS="$KIT/bases/$AGENT/qbase/quakevr/screenshots"
+    ROWS=""
     for c in ${EYECASES:-wall along ledge crate}; do
         for m in $MONS; do
             case $c in
-            ledge|hit|thrown) CAM="vr_mock_camera 4.2 0.3 -3.9 30 90" ;; # (to his side, looking down the drop)
-            *) CAM="vr_mock_camera 3.6 0.6 -2.9 6 90" ;;     # (to his side: the wall or crate behind him seen edge on)
+            ledge|hit|thrown) CAM="vr_mock_camera 4.6 -1.2 -3.4 20 90" ;; # (to his side, the lip and the drop)
+            *) CAM="vr_mock_camera 3.2 0.4 -2.9 4 90" ;;                 # (to his side: the wall or crate edge on)
             esac
-            S="sv_random_seed ${SEED:-7};map vrtesthall;wait30;god;notarget;vr_ragdoll_active_seed ${SEED:-0};${EXTRA:-};$(place $c);vr_test_spawn $m"
-            S="$S;impulse 241;wait40;$CAM;wait3;vr_test_kill 1;wait11;screenshot"
-            for w in 11 11 11 11 11 21 21 31; do S="$S;wait$w;screenshot"; done
-            S="$S;wait200;screenshot;toggleconsole;quit"
-            bash $KIT/run.sh $AGENT -Clean -Script "$S" -Filter "exit=" -Timeout 300 >/dev/null 2>&1
-            OUT="$KIT/scratch/env_${c}_$(name $m).png"
-            $PY "$TREE/Misc/quakevr/ragdoll/active_sheet.py" "$SHOTS" "$OUT" 10 && echo "sheet: $OUT"
+            S="sv_random_seed ${SEED:-7};map vrtesthall;wait30;god;notarget;vr_ragdoll_active_seed ${SEED:-0};vr_ragdoll_active_debug ${OVERLAY:-0};${EXTRA:-};$(place $c);vr_test_spawn $m"
+            S="$S;impulse 241;wait40;$CAM;wait3;vr_test_kill 1;wait7;screenshot"
+            for w in 22 29 43 58 130; do S="$S;wait$w;screenshot"; done
+            bash $KIT/run.sh $AGENT -Clean -Script "$S;toggleconsole;quit" -Filter "exit=" -Timeout 300 >/dev/null 2>&1
+            D="$TREE/scratch/eyes_${c}_$(name $m)"
+            mkdir -p "$D"
+            cp "$SHOTS"/*.png "$D"/
+            ROWS="$ROWS $D"
         done
     done
+    $PY "$TREE/Misc/quakevr/ragdoll/env_sheet.py" "$KIT/scratch/env_sheet.png" 6 $ROWS && echo "sheet: $KIT/scratch/env_sheet.png"
 fi

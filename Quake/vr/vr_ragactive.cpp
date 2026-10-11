@@ -930,7 +930,7 @@ void startLean(State& s, const Parts& p, const Context& c, const EnvRay& r, int 
             r.loose ? va("prop %d (%.0f kg, at %.0f %.0f %.0f)", r.num, b3Body_GetMass(r.body), r.at.x * p.m2u, r.at.y * p.m2u,
                           r.at.z * p.m2u)
                     : "the wall",
-            which == 0 ? "behind him" : which == 1 ? "on his left" : which == 2 ? "on his right" : which == 3 ? "he falls into" : "in front of him",
+            which == 0 ? "behind him" : which <= 2 ? "beside him" : which == 3 ? "he falls into" : "in front of him",
             r.dist * p.m2u, hand ? va("the %s hand on it", armName(arm)) : "no hand");
     }
 }
@@ -1273,7 +1273,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
             const glm::vec3 dir = glm::angleAxis(static_cast<float>(k) * 1.0471976f, up) * back;
             // (From a little inside his body: his back against the wall, the chest's middle may be past its face.)
             const float in = 0.3f * L;
-            const float len = (k == 0 ? 1.1f : 0.9f) * L + in;
+            const float len = 1.5f * L + in; // (the shoulder is beside the chest: an arm reaches that far from its middle)
             const EnvRay r = envCast(e, p, c, chestAt - dir * in, dir * len);
             if(r.hit && za::abs(r.n.z) < 0.5f && glm::dot(r.n, -dir) > 0.5f)
             {
