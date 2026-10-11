@@ -2,8 +2,10 @@
 
 Status: Phase 0 (analysis + plan) done 2026-10-11; Phase 1a built (section 14): AD's QuakeC imported, namespaced and
 compiled in. **Phase 1b built** (section 15): AD's campaign (developer launch) plays its 38 maps under AD's rules, 0
-missing spawn functions, no errors headless; Vittorio's decisions in section 12. Branch `agent/arcane`. AD's assets
-are never committed. Target, from Vittorio's request:
+missing spawn functions, no errors headless; Vittorio's decisions in section 12. Branch `agent/arcane`. **The rules'
+follow-ups built** (section 16, branch `agent/adrules`): AD's data in every campaign, its new artifacts, custom
+pickups, ladders (climbed by hand) and debuffs (burning merged into ours) in any map, ammo resistance on our weapons,
+Evil as a skill choice, the HUD's AD row, spawnflags by ruleset, crouching in AD. AD's assets are never committed. Target, from Vittorio's request:
 
 - When AD is installed, all of its enemies, entities and weapons are available in every campaign and custom map,
   inside the merged QuakeC (the "giant QuakeC aggregation", MG3.md decision 5, EXPANSIONS.md).
@@ -500,22 +502,22 @@ committed to.
 | Task | Files | Approach | Effort |
 |---|---|---|---|
 | **Rigs, dismemberment and animations per AD model** (13) | `Quake/vr/vr_ragdoll.cpp` (a seed table per AD model: pelvis, chest, head, limbs), `vr_hitmodel.cpp` (head and limb zones), `QC/vr_ad_monsters.qc` (new: per-archetype registration, the MG3 Phase D pattern: hulls, decap head model, gib table, get-up frames picked from AD's pain/death frames), `QC/vr_limbs.qc` (the rigged-head rule already covers any rigged monster) | The rig is derived from the model at first use, so each AD model needs only its seed points and joint limits. A test map per archetype (the bestiary-test pattern: `vr_mg3_bestiary_test.qc`) kills each monster with a blade, a bullet and a blast and checks ragdoll, limb and head counts. Usage order (decision 11). | about 0.5 agent-day per model family; 30 families: 12-18 |
-| **Artifacts and custom pickups everywhere** (16) | `QC/vr_ad_items.qc` (new), our HUD/wrist indicators (`QC/vr_hud*.qc`, the engine's powerup icons), `QC/items.qc` (one `// AD support` call where a pickup is shared) | AD's `item_artifact_*` spawn as AD's entities (AD's own touch), with our player's timers in AD's `.ad_*` fields ticked by the bridge (`VR_AD_PlayerPostThink`) in every map when the data is present; their effects hooked where ours fire (Sharp Shooter: our spread; Nail Piercer: our nails' touch; Blast Belt: our `T_RadiusDamage`; Lava Shield/Air Tank: our water damage). Backpacks and custom keys only in AD levels if they override ours. | 4-6 |
-| **Ammo resistance in our weapons** (18) | `QC/combat.qc` (`T_Damage`: one `// AD support` call), `QC/vr_ad_bridge.qc` | Our weapons tag the damage's ammo type (`vr_damage_ammo`: shells, nails, rockets, cells, melee) where they fire; the bridge scales it by the target's `ad_resist_*` (AD's own `ad_Resist_Damage`), in AD levels or against AD monsters, and plays AD's resist tell. Melee: shells' resistance off (AD's axe ignores it), grenades and rockets the rockets' one. | 2-3 |
-| **Crouch in AD** (20) | `QC/vr_crouch*.qc`, AD's `ad_ai_*` height checks through the bridge | AD aims at `enemy.origin + view_ofs` and checks melee height (+-64): our crouch moves `view_ofs`; check AD's aim and melee read it (tests: a crouched player under AD's soldier and knight), and take AD's height-aware melee for our monsters everywhere if it plays better (an option). | 2-3 |
-| **Spawnflags rewrite** (19) | `QC/vr_spawnflags.qc` (new), every `spawnflags &` test of the shared monsters (`QC/monsters.qc`, `orig_mon_*.qc`) and of the MG/Rogue/Hipnotic gates | One table per ruleset (id, Hipnotic, Rogue, MG, AD, VR) mapping authored bits to named meanings, read once at spawn into separate saved fields (`MG_deferred`'s pattern), so no code tests raw bits of another ruleset. Backwards compatible: the same meaning for every existing map (the campaign A/B spawn-dump regression proves it). | 4-6 |
-| **Chaos mode** (17) | AD's `ad_chaosmode.qc` through the bridge | After P2: AD's randomiser over our and AD's monsters, its restart dance replaced by our save hooks. | 3-5 |
+| **Artifacts and custom pickups everywhere** (16; built: 16.1, 16.2) | `QC/vr_ad_items.qc` (new), our HUD/wrist indicators (`QC/vr_hud*.qc`, the engine's powerup icons), `QC/items.qc` (one `// AD support` call where a pickup is shared) | AD's `item_artifact_*` spawn as AD's entities (AD's own touch), with our player's timers in AD's `.ad_*` fields ticked by the bridge (`VR_AD_PlayerPostThink`) in every map when the data is present; their effects hooked where ours fire (Sharp Shooter: our spread; Nail Piercer: our nails' touch; Blast Belt: our `T_RadiusDamage`; Lava Shield/Air Tank: our water damage). Backpacks and custom keys only in AD levels if they override ours. | 4-6 |
+| **Ammo resistance in our weapons** (18; built: 16.4) | `QC/combat.qc` (`T_Damage`: one `// AD support` call), `QC/vr_ad_bridge.qc` | Our weapons tag the damage's ammo type (`vr_damage_ammo`: shells, nails, rockets, cells, melee) where they fire; the bridge scales it by the target's `ad_resist_*` (AD's own `ad_Resist_Damage`), in AD levels or against AD monsters, and plays AD's resist tell. Melee: shells' resistance off (AD's axe ignores it), grenades and rockets the rockets' one. | 2-3 |
+| **Crouch in AD** (20; built: 16.9) | `QC/vr_crouch*.qc`, AD's `ad_ai_*` height checks through the bridge | AD aims at `enemy.origin + view_ofs` and checks melee height (+-64): our crouch moves `view_ofs`; check AD's aim and melee read it (tests: a crouched player under AD's soldier and knight), and take AD's height-aware melee for our monsters everywhere if it plays better (an option). | 2-3 |
+| **Spawnflags rewrite** (19; built, first step: 16.8) | `QC/vr_spawnflags.qc` (new), every `spawnflags &` test of the shared monsters (`QC/monsters.qc`, `orig_mon_*.qc`) and of the MG/Rogue/Hipnotic gates | One table per ruleset (id, Hipnotic, Rogue, MG, AD, VR) mapping authored bits to named meanings, read once at spawn into separate saved fields (`MG_deferred`'s pattern), so no code tests raw bits of another ruleset. Backwards compatible: the same meaning for every existing map (the campaign A/B spawn-dump regression proves it). | 4-6 |
+| **Chaos mode** (17; TODO: 16.13) | AD's `ad_chaosmode.qc` through the bridge | After P2: AD's randomiser over our and AD's monsters, its restart dance replaced by our save hooks. | 3-5 |
 | **Global AD projectile/pellet option** (21) | `QC/vr_ad_bridge.qc`, our monsters' missile launches | A cvar applying AD's skill-scaled projectile speeds and pellet shotguns to every monster (pending his answer). | 1-2 |
 
 **Follow-up tasks from the decisions of 2026-10-11 (22-31), not in P1b:**
 
 | Task | Files | Approach | Effort |
 |---|---|---|---|
-| **Debuffs everywhere, burning merged** (24) | `QC/vr_ad_bridge.qc` (the player's debuff tick in every map when AD's data is present), our burning (`QC/vr_fire*.qc`), the HUD | AD's `ad_ClientDeBuff`/`ad_ResetDebuffSystem` run from our player think for any player AD's monsters or traps poison or bleed; AD's burning becomes ours (one flame state, our flame visuals and damage, AD's duration and damage table). | 2-3 |
-| **Ladders on our climbing** (26) | `QC/vr_ad_bridge.qc`, `Quake/vr/vr_climb.cpp` (a climbable volume type) | `trigger_ladder`'s brush becomes a hand-climbable volume (grab anywhere inside it, as a ledge's rungs); AD's push-up (jump held) stays for the thumbstick. | 2-3 |
-| **HUD space for artifacts and debuffs** (28) | the wrist/HUD (`Quake/vr/vr_hud*.cpp`) | A row of AD artifact and debuff icons with timers, only drawn when one is active. | 1-2 |
-| **Evil mode in the skill selection** (30) | the skill menu and hub buttons, `QC/vr_ad_bridge.qc` | Skill 4 when AD's data is installed: lower maximum health, each level started with the Shadow Axe (AD's `ad_Client_SetupEvilmode`); needs the Shadow Axe as a VR weapon (P3). | 1-2 after P3 |
-| **AD performance in VR** (29) | `vr_profile`, `bench.sh` | With chaos mode: AD's biggest maps profiled exclusive (lightmap build, think cost of emitters/estate/breakables, sprite particles), fixes per finding. | 3-5 |
+| **Debuffs everywhere, burning merged** (24; built: 16.3) | `QC/vr_ad_bridge.qc` (the player's debuff tick in every map when AD's data is present), our burning (`QC/vr_fire*.qc`), the HUD | AD's `ad_ClientDeBuff`/`ad_ResetDebuffSystem` run from our player think for any player AD's monsters or traps poison or bleed; AD's burning becomes ours (one flame state, our flame visuals and damage, AD's duration and damage table). | 2-3 |
+| **Ladders on our climbing** (26; built: 16.5) | `QC/vr_ad_bridge.qc`, `Quake/vr/vr_climb.cpp` (a climbable volume type) | `trigger_ladder`'s brush becomes a hand-climbable volume (grab anywhere inside it, as a ledge's rungs); AD's push-up (jump held) stays for the thumbstick. | 2-3 |
+| **HUD space for artifacts and debuffs** (28; built: 16.6) | the wrist/HUD (`Quake/vr/vr_hud*.cpp`) | A row of AD artifact and debuff icons with timers, only drawn when one is active. | 1-2 |
+| **Evil mode in the skill selection** (30; built: 16.7) | the skill menu and hub buttons, `QC/vr_ad_bridge.qc` | Skill 4 when AD's data is installed: lower maximum health, each level started with the Shadow Axe (AD's `ad_Client_SetupEvilmode`); needs the Shadow Axe as a VR weapon (P3). | 1-2 after P3 |
+| **AD performance in VR** (29; TODO: 16.13) | `vr_profile`, `bench.sh` | With chaos mode: AD's biggest maps profiled exclusive (lightmap build, think cost of emitters/estate/breakables, sprite particles), fixes per finding. | 3-5 |
 | **Coop saves** (31) | `QC/vr_ad_bridge.qc`, the save keys | AD's per-client state (debuffs, artifacts, map variables) per player in coop saves. | 1-2 |
 
 ---
@@ -939,4 +941,197 @@ viewpoint the head is relative to, `vr_view.cpp`), a menu page. About 2-3 agent-
 
 **The follow-up tasks** of decisions 13-31: section 11. AD content outside AD maps (P2) starts by mounting AD's data
 in every campaign when it is installed (its 82 shadowed files already skipped), then `AD_Rules()`-free paths for AD's
-own entities (a reduced world setup on first use).
+own entities (a reduced world setup on first use). (Both built for the rules' follow-ups: section 16.)
+
+---
+
+## 16. The rules' follow-ups (built 2026-10-11): decisions 16, 18, 19, 20, 24, 26, 28, 30
+
+Branch `agent/adrules` (from `feature/arcane`); AD's monsters' VR rigs and hooks (decision 13) are another worker's
+(`admon`) and are not touched here. Every AD-specific line is in AD's own files (`QC/vr_ad_items.qc`,
+`QC/vr_ad_player.qc`, `QC/vr_ad_test.qc`, `QC/vr_spawnflags.qc`, `Quake/vr/vr_ad.cpp`); a call from shared code
+carries "AD support". `ad_import.py` has 9 more reviewed bridge patches (17 in all, listed in `QC/ad/AD_IMPORT.txt`).
+
+### 16.1 AD's data and content in every map
+
+- **Mounted in every campaign** while the latest release is installed (`vr_gamedir.cpp`): AD's folder goes under the
+  active campaign's (whose files win) and over the packs'. Outside AD's campaign it supplies only its models,
+  sprites and sounds (`progs/`, `sound/`), its HUD icons (`gfx/ad*`) and its brush models (`maps/<folder>/`): never its
+  maps, skies, textures, effect files or menu art (`qvr::ad::skipOutside`), and never the 82 files an official pak has.
+  So `vr_ad_mounted` is on in every campaign: the AD-rules detection (2 signals) works in any campaign and for Map
+  Library packages; Quake's and the packs' official maps carry none (0 of 107, section 5.1).
+- **AD's own entities outside AD's rules** (decision 16; `vr_ad.cpp everywhereClasses`, `vr_ad_everywhere` 1, VR
+  Settings > Combat > Arcane Dimensions: Its Content in Every Map): the seven new artifacts (`item_artifact_airtank`,
+  `_blastbelt`, `_jumpboots`, `_lavashield`, `_nail_piercer`, `_sharp_shooter`, `_tomeofpower`, and Quoth's names
+  `_cross`, `_trinity`), the custom pickups that override none of ours (`item_keyx`, `item_custom`, `item_healthvial`,
+  `item_healthgem`) and the ladders (`trigger_ladder`) spawn as AD's entities (AD's spawn and touch) in any map: from
+  the map, the toolgun's or `vr_physics_spawn`'s spawn (`box3d::spawnClass` resolves AD's names as `ED_LoadFromFile`).
+  The first one of a map runs AD's reduced world setup (QC `VR_AD_WorldOnDemand`: AD's defaults for the globals its
+  items, ladders and debuffs read, a few sounds; nothing of AD's world itself: its gravity, fog, particles and light
+  styles stay the map's). A map key no field of ours has fills AD's `ad_<key>` in any map (their own keys:
+  `respawn_time`, `exactskin`...).
+- **AD levels only** (they override one of our pickups or rules): AD's backpacks (`item_backpack`,
+  `item_backpack_armour`: Quake's backpack), `item_progspawn` (AD's randomiser), and everything else of AD's.
+
+### 16.2 The artifacts (decision 16)
+
+AD's touch sets AD's fields on our player; their effects are ours, hooked where ours act (`vr_ad_items.qc`):
+
+| Artifact | Effect in Quake VR | Hook |
+|---|---|---|
+| Sharp Shooter | The shotguns' spread as AD's sharp one: 0.04 to 0.01 (shotgun), 0.14 x 0.08 to 0.04 x 0.04 (super shotgun); AD's pellets too | `FireBullets` (`AD_SharpSpread`) |
+| Nail Piercer | Nails go on through bodies (monsters, players) and out the other side at their speed, a little gore; a body that resists nails stops them (AD's) | `spike_touch`, `superspike_touch` (`AD_NailPierce`) |
+| Blast Belt | No damage from blasts (any `T_RadiusDamage`), armour kept, the push given (rocket jumps), its reminder; with Quad, other damage halved (AD's combination) | `T_DamageDeal` (`AD_ArtifactDamage`) |
+| Lava Shield | No lava damage, and lava sets you on no fire | `WaterMove`, `VR_Burn_LavaPlayers` |
+| Air Tank | No drowning, AD's breathing sounds; AD's poison halved (AD's own) | the artifacts' tick |
+| Jump Boots | AD's air jumps (its count, 1-4 or endless; 360 up each), falling off a ledge gives them back, the forward push; no comfort limits (decision 27) | `PlayerJump` (`AD_JumpBoots`) |
+| Tome of Power | AD's own: an event item that fires its targets | none |
+
+Their time is ticked for our player in every map (`AD_ArtifactsTick`, AD's ClientPowerups for them: the fading
+message, sound and flashes 3 s before, the end; AD's endless ones last the level). AD's touch gives the Sharp
+Shooter and the Nail Piercer AD's shared Quad HUD bit, which is our Quad (tint, icon, glow): a reviewed patch
+(`VR_AD_ArtifactItems`) leaves it out. Custom keys (`item_keyx`) are AD's: held as AD's bits, shown on the gadget;
+outside AD maps only AD's own doors would open with them.
+
+### 16.3 Debuffs, burning merged (decision 24)
+
+AD's poison and bleeding are ticked for our player in every map while AD's data is there (`AD_DebuffsTick`: AD's
+`ClientDeBuff`); they come from AD's monsters and traps wherever those are. AD's burning (`BurnDeBuff`: pyros, wraiths,
+fire traps) lights **our** fire on the player (a reviewed patch, `VR_AD_BurnDebuff`): our flames, burns, smoke and
+crackle, out in water as ours, for AD's time (3-5 s plus 5 a skill level, added to what is left, at most 10) at
+AD's damage (a point a second, no armour: `AD_BurnHurt` from `VR_Burn_Think`). AD's own rules for who burns (not in
+deep water, not with the pentagram or the biosuit). With Burn Damage 0 (our burning off) AD's own debuff runs. AD's
+screen tints for the debuffs are stuffed commands (filtered): the wrist gadget shows the debuffs instead.
+
+### 16.4 Ammo resistance (decision 18)
+
+Our weapons (and our monsters' missiles) apply AD's `resist_shells/nails/rockets/cells` (0 none, 1 immune, under 0
+extra damage) in `T_DamageImpl` (`AD_Resist`): in AD maps on any target with the keys (AD's monsters, ours given them
+by a mapper), elsewhere on AD's own monsters only. The kind is the inflictor's: hitscan shotguns shells; nails nails;
+rockets, grenades (launched, thrown, multi, proximity) and any blast rockets; lightning (`VR_LightningHit` tags it),
+plasma, lasers, Mjolnir's lightning and a discharge cells; melee (fists, the axe, guns as clubs, thrown weapons, a
+stuck axe's bleeding) none, as AD's axe. AD's tells (sparks, smoke, a pain sound) play in AD maps (its world's
+precaches). What AD's own code deals to ours is resisted once (`vr_ad_ourdamage`). Measured (`vr_ad_test 21`, a grunt
+with shells 0.5, nails 1, rockets -0.5, hit 10 by each): e1m1 13 (a positional shot), 10, 10, 10, 10; ad_e1m1 7, 0, 10
+(the blow), 15, 10; a stand-in for one of AD's monsters (nails 0.5) 5 in both, one of ours 10 in e1m1, 5 in ad_e1m1.
+
+### 16.5 Ladders on our climbing (decision 26)
+
+`trigger_ladder` (in any map) keeps AD's own climb (holding jump climbs at the ladder's speed: `AD_PlayerPreThink`,
+now in every map) and is a climbable volume for our hands (`vr_climb.cpp ladderHold`, `vr_climb_ladders` 1; VR
+Settings > Combat > Arcane Dimensions: Hand-Climbed Ladders): an empty hand gripping in it, or within the touch
+distance, holds where it is (a rung under every hand), after the exact ledges and before a lenient one; the hanging,
+the pulls, stamina and the mantle at the top are the ledges'. AD's state turning the ladder off (not solid) lets no
+hand hold. Measured on ad_e1m1's ladder (x 2495-2561, y -305..-295, z -1..161): `vr_climb_try` in it: an exact hold at
+the hand, facing the body; over it: none; Hand-Climbed Ladders off: none; a mock climb (main hand gripped at 70,
+pulled to 30, the off hand at 75, pulled to 30): the body 24, 62, 80 over its start.
+
+### 16.6 The HUD (decision 28)
+
+The wrist gadget's info row (the keys, powerups and sigils at the right of the level's lines) also shows AD's
+artifacts held (AD's own icons, `gfx/adib_*`, greyed like the status bar's), the soonest one's seconds left, the
+custom keys held (AD's icon for each key's HUD skin) and the debuffs (BURN, POISON, BLEED, blinking), drawn only when
+there is one; with many the row shrinks to half size as before. The engine's stats `STAT_QVR_ADHUD`, `_ADKEYS`,
+`_ADTIME` from QC `.vr_ad_hud*` (`AD_HudUpdate`). Debug: Gadget Screen Readings "Arcane Dimensions Row".
+
+### 16.7 Evil (decisions 17 and 30)
+
+AD's skill 4 is Quake VR's Nightmare (skill 3: the engine and our monsters know 0-3) with `vr_ad_evil` (VR Settings >
+Combat > Arcane Dimensions: Evil Skill; AD's own skill choices, its hub's Evil included, set it through four reviewed
+patches: `VR_AD_SetSkill`). In any campaign while AD's data is installed it plays AD's Evil for our player: 50 health
+at most (`VR_BaseHealth`, `VR_MaxHealth`), megahealth to 100 (`VR_MegaHealthCap`), the Shadow Axe's blows
+(`AD_AxeScale`); AD's code reads its skill 4 (its monsters' hardest), AD's own flag (`scratch4`) agrees. Chosen like
+the skill, it is the game's: saved (`vr_ad_evil_on`), a loaded game's restored (`OnLoadGame`), a change mid-game played
+at once (the health capacity). Measured (`vr_ad_test 22`, e1m1): off 100/100, megahealth 250, axe x1; on at a new map
+50/50, 100, x1.75, AD's skill 4; saved, the choice cleared, loaded: on again; turned off: capacity 100.
+
+### 16.8 Spawnflags (decision 19): one meaning per ruleset
+
+`QC/vr_spawnflags.qc`. A spawnflag bit means what the ruleset its map (or its entity) was made for says:
+
+- **Rulesets:** Quake's (id1, with Hipnotic's, Rogue's and Honey's own meanings on their own classnames: the bits as
+  ever), Machine Games' (its campaigns) and Arcane Dimensions' (AD's rules). `VR_SF_MapRuleset()` is the map's;
+  `VR_SF_Ruleset(e)` an entity's: AD's own entities (AD's code runs them) are AD's in any map, the rest the map's.
+- **Shared meanings** (AMBUSH 1 on monsters, the skill and deathmatch bits the engine reads) are read as they are.
+- **Quake-family meanings** (Rogue's statues, Hipnotic's trigger spawns, id's variants...) are read only in Quake's
+  ruleset: the existing raw tests are gated by `VR_OtherFlags()` (76 gates, unchanged; now `VR_SF_MapRuleset() !=
+  VR_SF_ID`).
+- **Every other ruleset's meanings are named** (`VR_SF_MON_DELAYED`, `_MON_ANGRY`, `_MON_NOSPAWNFX`, `_STARTOFF`,
+  `_ITEM_RESPAWN`, `_EXIT_RESETINV`) and read by `VR_SF_Has(e, name)` from that ruleset's table (`VR_SF_Bit`): a name a
+  ruleset has no flag for is never set there. AD's flags on our monsters, items and exits are read so (the bridge's
+  raw tests migrated), only in AD maps.
+- **Backwards compatible:** Quake's, the packs' and MG's maps read exactly the bits they did (their tables add
+  nothing; the A/B census, 16.10). **Conflicts minimised:** no shared code tests another ruleset's raw bit. A new
+  ruleset (Quoth, Copper) is a table and a map rule in this file.
+- **Later (not done, mechanical):** MG's own flag reads into the table; the 76 gates as named Quake-family meanings.
+
+Measured (`vr_ad_test 26`): e1m1 ruleset 0, our monster's 64|128|32 and item's 16|64 read as nothing; mge1m1 1,
+nothing; ad_e1m1 2, all read; AD's artifact's RESPAWN read as AD's in every map.
+
+### 16.9 Crouching (decision 20)
+
+AD's monsters are height-aware: they look for their enemy at its eyes (`origin + view_ofs`: `visible`,
+`visblocked_wide`), lob at its height (Z-aware arcs) and melee only within 64 units of its height. Our crouch lowers the
+player's real head and his box (the engine's crouched hull) but keeps his origin and `view_ofs` (22) as a standing
+player's. So monsters' sight now looks for a crouched VR player at his real eyes: AD's (two reviewed patches,
+`VR_AD_ViewOfs`) and, in every mode, ours (`ai.qc VR_SightOfs`, `vr_crouch_sight` 1, Movement > Player Hitbox >
+Crouching: Monsters See Your Eyes): behind cover lower than he stands he is out of sight. Never higher than a
+standing player's, and standing nothing changes. AD's aim at his origin (24 over the feet) and its melee height check
+already fit the crouched box (36 high); our monsters' bullets aim at what shows of him (`VR_Crate_ShotAim`). Measured
+(mock head at 0.95 m): `view_ofs` 22, the eyes 7.95 over the origin, crouched: both sights 7.95; off: 22.
+
+### 16.10 Acceptance (headless mock, fast mode, skill 1)
+
+- Artifacts and debuffs in e1m1 (`scratch/t_art.sh`): `vr_physics_spawn` of the Jump Boots and a health vial spawn
+  (AD's entities outside AD's rules: 3 counted by `vr_ad_info`, the custom key without its model removed as AD's),
+  the backpack does not (AD levels only); every artifact's effect as 16.2 (Sharp 0.01 x 0.01 and 0.04 x 0.04; Blast
+  Belt 0 health and 0 armour lost, pushed 194 u/s, without it 25 lost; Lava Shield; air 30 s; boots 360 then none);
+  the HUD bits 31, timer 30, our Quad bit not given; the Nail Piercer's nail through one grunt into the next (30 -> 23
+  and 24); AD's burning: our fire lit for AD's 8-9 s, 8 health lost at AD's rate, AD's counters untouched; poison 2
+  (the Air Tank halving 4-5), 3 lost; bleeding 64 -> 16 with 48 to come back; a custom key: its HUD bit and skin.
+- Ammo resistance (`t_res.sh`), ladders (`t_ladder.sh`, `t_ladder2.sh`), Evil (`t_evil.sh`), spawnflags (`t_sf.sh`),
+  crouched sight: the numbers above.
+- Regression (P1b's A/B script, `scratch/ab_mine.sh`, against P1b's own run): e1m1, start, hip1m1, r1m1, Dopa e5m1,
+  MG1 mge1m1, MG3 map1 with AD's data mounted in each: no errors; the same monster totals (23, 0, 58, 46, 37 + 7
+  waiting, 90 + 20 waiting, 75 + 13 waiting); the spawned entities differ only by the transient thrown weapons and
+  weapon records, a fireball and r1m1's two ogres' random boss flag (25% on Normal: `orig_mon_ogre.qc`), as two runs
+  of one build do.
+
+### 16.11 Choices made (conservative; Vittorio confirms or changes)
+
+- AD's folder in every campaign supplies only models, sounds, HUD icons and brush models (16.1); its textures and
+  skies never reach another campaign's maps.
+- Outside AD maps AD's world is a reduced setup (16.1): AD's particles (its emitters, item sparkles) are off there.
+- Backpacks and `item_progspawn` are AD levels only (they are Quake's backpack and AD's randomiser).
+- The Blast Belt protects from any blast our `T_RadiusDamage` deals; the Nail Piercer works on our nails, not Rogue's
+  lava nails; the Air Tank's bubbles (AD's particles) are not drawn.
+- AD's resist tells only in AD maps (precaches); outside them AD's monsters resist without them.
+- Evil is a toggle beside the skill (Nightmare plus Evil), not a fifth skill value: the engine and our monsters stay on
+  0-3. Quake's start map has no Evil hall: the menu row chooses it.
+- `vr_crouch_sight` is on by default: it changes only a crouched player's sight.
+- Ladders: a hand anywhere in the ladder's volume holds (no rung positions); AD's velocity ladders keep their own push.
+
+### 16.12 Files
+
+Engine: `Quake/vr/vr_ad.cpp/.hpp` (`everywhereClasses`, `VR_AD_SpawnsOutside`, `skipOutside`), AD support lines in
+`vr_gamedir.cpp` (the mount, `VR_SkipSearchPath`, `VR_ShouldMountCampaignDirectory`), `pr_edict.c` (spawn and keys
+outside AD's rules), `vr_box3d.cpp` (`spawnClass`), `vr_climb.cpp` (`ladderHold`), `vr_gadget.cpp` (the AD row),
+`vr_server.cpp`, `vr_protocol.hpp`, `vr_fields.inc`, `vr_api.h`, `vr_cvars.inc` (`vr_ad_everywhere`, `vr_ad_evil`,
+`vr_climb_ladders`, `vr_crouch_sight`), `vr_menu.cpp` (the rows, Debug > Tests > Arcane Dimensions' new tests). QC:
+`vr_ad_items.qc`, `vr_ad_player.qc`, `vr_ad_test.qc`, `vr_spawnflags.qc` (new); AD support lines in `vr_ad_defs.qc`,
+`vr_ad_bridge.qc`, `client.qc`, `combat.qc`, `weapons.qc`, `vr_burning.qc`, `vr_ammoutil.qc`, `ai.qc`. Importer:
+`ad_import.py` (9 more bridge patches).
+
+### 16.13 TODO
+
+- **Chaos mode** (decision 17): AD's randomiser (`chaosmode.qc`, `item_progspawn`) over our and AD's monsters and
+  items, its restart dance replaced by our save hooks; after every AD monster has VR support (P2). About 3-5 agent-days.
+- **Deep performance profiling of AD's maps in VR** (decision 29), with chaos mode: the biggest maps (`ad_tears`,
+  `ad_sepulcher`, `ad_magna`) exclusive (`--exclusive`, `vr_profile`, `bench.sh`): lightmap build time, the think cost
+  of AD's emitters, estate and breakables, sprite particles; fixes per finding. About 3-5 agent-days.
+- AD's debuff and artifact screen tints (stuffed `v_cshift`/`bf`) through our own messages; the Air Tank's bubbles.
+- AD's resist tells outside AD maps (its sprite precaches in the reduced world setup), once AD's monsters spawn there
+  (P2).
+- AD's items' activator for our entities they target outside AD maps (`AD_SyncActivator` runs in AD maps only).
+- The spawnflag table's later entries (16.8): MG's flags, the 76 Quake-family gates as named meanings.
+- Coop: AD's per-player state (debuffs, artifacts, Evil) in coop saves (decision 31).
