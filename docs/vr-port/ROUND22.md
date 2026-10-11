@@ -2556,3 +2556,17 @@ branch (water: grunt, ogre, enforcer paddle 4.4 s and float, 0-2 J; knight and d
 20 J / 29 J; drown, fall-in paddle; headshot: no swim; lava flails 1.6 s, gibbed; slime flails 2.4 s, 33 J; off and
 on land: no swim); active_test.sh deaths head: 10/10 settle, late energy 0-1 J, spin under 2.5; prop_climb_test.sh
 8/8 PASS. (Stage 2, `ragstagger`, not merged yet: expect mild conflicts with this in the State and the menu.)
+
+**Then `feature/ragenv`** (d402b1720, active ragdolls stage 4: what is round him), merged on top (`--no-ff`).
+Conflict: this file only (its section kept where its branch has it, right above "Active ragdolls: core and deaths").
+vr_ragactive.* (with ragliquid's swim), vr_box3d.cpp, the menu and cvars merged by themselves; 0 warnings. ragenv
+was made without ragliquid: `drive()` now runs `swimFrame` then `envFrame`, and envFrame doesn't know about swims (a
+later pass for their owners: whether env should stand down while a body swims). Measured, not changed: the liquid cases
+after this merge match ragliquid's own table (knight, death knight: paddle 4.4 s, limbs 1.27 / 0.09, head under
+88 % / 94 %; the branch: 4.2 s, 1.26 / 0.09, 88 % / 94 %); slime's late flailing varies as much with
+`vr_ragdoll_active_env 0` as with 1 (limbs late 0.28-0.78 against 0.48-0.75 m/s, two runs each): run-to-run, not env.
+Checks: smoke; `env_test.sh integ wall ledge crate off cost`: lean on the wall and slide down (grunt: left hand, held
+1.14 s, slid 8 units; knight: right hand), the ledge grabbed and hung from (grunt both hands, 2.1-2.2 s, then curls),
+braced on the crate (no hold), off: no env lines; cost, 8 grunts: the drive 0.0425 ms a frame with env, 0.0236 without;
+no NaN or crash. liquid_active_test.sh (water, knight, hknight, drown, fallin, slime): as above; active_test.sh deaths
+head: 10/10 settle (late energy 0-1 J); brush_test.py PASS (16/16); prop_climb_test.sh 8/8 PASS.
