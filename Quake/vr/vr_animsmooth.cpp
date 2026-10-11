@@ -161,7 +161,8 @@ struct Stats
 Stats stats;
 
 // What an entity's spline was last worked out for, and what came of it: drawn again so (the other eye, each shadow
-// map's light, the next frame paused) it is copied. By the entity (the renderer's thread; a map change frees it).
+// map's light, the next frame paused) it is copied. By the entity (the renderer's thread; a map change frees it, and a
+// model reload: the rig it was swung by is made again).
 struct Key
 {
     int poses[4]{-1, -1, -1, -1};
@@ -192,7 +193,7 @@ struct SmoothMemos
     ankerl::unordered_dense::map<const entity_t*, Memo> entities;
     auto members() { return mem::list(entities); }
 };
-mem::Cache<SmoothMemos> memos{"anim smooth entities", mem::MapChange};
+mem::Cache<SmoothMemos> memos{"anim smooth entities", mem::MapChange | mem::ModelReload};
 
 constexpr float pinSpan = 0.1f; // s: a pinned spline's frames' time each
 constexpr float maxTurn = 0.2588190f; // cos(150 / 2 degrees): a bone turning further between the lerp's poses isn't swung
