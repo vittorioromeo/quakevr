@@ -65,6 +65,26 @@ static uint32_t b3ComputeLayoutHash( void )
 	MIX( sizeof( b3DynamicTree ) )
 	MIX( sizeof( b3TreeNode ) )
 	MIX( sizeof( b3TreeProxy ) )
+	MIX( sizeof( b3HullData ) )
+	MIX( sizeof( b3HullVertex ) )
+	MIX( sizeof( b3HullHalfEdge ) )
+	MIX( sizeof( b3HullFace ) )
+	MIX( sizeof( b3Plane ) )
+	MIX( sizeof( b3MeshData ) )
+	MIX( sizeof( b3MeshNode ) )
+	MIX( sizeof( b3MeshTriangle ) )
+	MIX( sizeof( b3HeightFieldData ) )
+	MIX( sizeof( b3CompoundData ) )
+	MIX( sizeof( b3CompoundCapsule ) )
+	MIX( sizeof( b3CompoundSphere ) )
+	MIX( B3_HULL_VERSION & 0xFFFFFFFFu )
+	MIX( B3_HULL_VERSION >> 32 )
+	MIX( B3_MESH_VERSION & 0xFFFFFFFFu )
+	MIX( B3_MESH_VERSION >> 32 )
+	MIX( B3_HEIGHT_FIELD_VERSION & 0xFFFFFFFFu )
+	MIX( B3_HEIGHT_FIELD_VERSION >> 32 )
+	MIX( B3_COMPOUND_VERSION & 0xFFFFFFFFu )
+	MIX( B3_COMPOUND_VERSION >> 32 )
 	MIX( sizeof( b3SetItem ) )
 	MIX( sizeof( b3IdPool ) )
 	MIX( sizeof( b3SurfaceMaterial ) )
@@ -725,13 +745,13 @@ static void b3DesShapes( b3SnapReader* r, b3World* world, b3RecReader* rdr )
 				{
 					break;
 				}
-				if ( rdr == NULL || gid >= (uint32_t)rdr->slotCount )
+				b3RegistrySlot* slot = b3RecGetSlot( rdr, gid, b3_geometryHull );
+				if ( slot == NULL )
 				{
 					r->ok = false;
 					break;
 				}
 				// Hull is cloned into the world DB; pass raw bytes directly
-				b3RegistrySlot* slot = rdr->slots + gid;
 				dst->hull = b3AddHullToDatabase( world, (const b3HullData*)slot->bytes );
 				break;
 			}
@@ -744,12 +764,12 @@ static void b3DesShapes( b3SnapReader* r, b3World* world, b3RecReader* rdr )
 				{
 					break;
 				}
-				if ( rdr == NULL || gid >= (uint32_t)rdr->slotCount )
+				b3RegistrySlot* slot = b3RecGetSlot( rdr, gid, b3_geometryMesh );
+				if ( slot == NULL )
 				{
 					r->ok = false;
 					break;
 				}
-				b3RegistrySlot* slot = rdr->slots + gid;
 				// Mesh is a self-contained blob used by reference; point straight at the pristine bytes.
 				dst->mesh.data = (const b3MeshData*)slot->bytes;
 				dst->mesh.scale = scale;
@@ -762,12 +782,12 @@ static void b3DesShapes( b3SnapReader* r, b3World* world, b3RecReader* rdr )
 				{
 					break;
 				}
-				if ( rdr == NULL || gid >= (uint32_t)rdr->slotCount )
+				b3RegistrySlot* slot = b3RecGetSlot( rdr, gid, b3_geometryHeightField );
+				if ( slot == NULL )
 				{
 					r->ok = false;
 					break;
 				}
-				b3RegistrySlot* slot = rdr->slots + gid;
 				// Self-contained blob used by reference; point straight at the pristine bytes.
 				dst->heightField = (const b3HeightFieldData*)slot->bytes;
 				break;
@@ -779,19 +799,13 @@ static void b3DesShapes( b3SnapReader* r, b3World* world, b3RecReader* rdr )
 				{
 					break;
 				}
-				if ( rdr == NULL || gid >= (uint32_t)rdr->slotCount )
+				b3RegistrySlot* slot = b3RecGetSlot( rdr, gid, b3_geometryCompound );
+				if ( slot == NULL )
 				{
 					r->ok = false;
 					break;
 				}
-				b3RegistrySlot* slot = rdr->slots + gid;
-				if ( slot->live == NULL )
-				{
-					slot->live = b3Alloc( (size_t)slot->byteCount );
-					memcpy( slot->live, slot->bytes, (size_t)slot->byteCount );
-					b3ConvertBytesToCompound( (uint8_t*)slot->live, slot->byteCount );
-				}
-				dst->compound = (const b3CompoundData*)slot->live;
+				dst->compound = (const b3CompoundData*)slot->bytes;
 				break;
 			}
 			default:

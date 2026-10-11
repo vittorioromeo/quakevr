@@ -2185,6 +2185,64 @@ first, often a hand going to the wound), in the head (they drop), kill a chargin
 watch for one rolling over and crawling. Grab an arm of one still dying: it should go slack in the hand. Turn
 Gibs and Corpses > Ragdoll Settings > Active Deaths off to compare with the old limp ragdolls.
 
+## Box3D updated to upstream 5d83df83 (feature branch, 2026-10-11, worktree `box3dup`)
+
+Vendored Box3D (`Quake/vr/external/box3d`) from `5643cd81` (2026-09-25) to upstream main `5d83df83` (2026-10-07), the 8
+commits since: AVX2 with run-time CPU detection (the contact solver's and the hull-hull manifolds' wide kernels compiled
+twice from `*_wide.inl`, 4-wide SSE2 in `wide4.c` and 8-wide AVX2 in `wide8.c`; the SIMD layer split into
+`simd_sse2/avx2/neon/scalar.h`), dynamic tree perf, shape casts for box movers (we use none), compound
+recording/serialization fixes (`recording_replay.c` renamed `replay.c`). No API change touched our code (it built
+unchanged; `B3_ALIGNMENT` went to 32, which our allocator passes through). The `QVR` change in `src/mesh_contact.c`
+(pre-solve for mesh contact points: props through teleporters) re-applied at the same place, after the accepted
+manifolds are chosen. README rewritten: commit, SIMD paths, and the threads (the engine's job pool through Box3D's task
+callbacks, `vr_box3d_workers` while `vr_box3d_threads_bodies` are awake; the old "single-threaded" paragraph was stale).
+
+**Build.** The exe must keep running without AVX2: only `wide8.c` is compiled for AVX2, and Box3D calls it only when
+CPUID says AVX2 and the OS saves the YMM registers (`src/simd.c`). Under clang/gcc upstream does it with a target
+pragma round the kernels (`B3_AVX2_BEGIN`: `target("avx2")`, no FMA), under MSVC's cl with `/arch:AVX2` on that file
+(as upstream's CMake; `vr.cmake` does the same). Our clang-cl 19 refused `wide8.c`: `verstable.h` includes `intrin.h`
+inside the pragma, and clang's `intrin.h` redeclares `_xend` (already defined `target("rtm")` by `immintrin.h`)
+-> "attribute 'target' multiversioning cannot be combined with attribute 'always_inline'". Fixed in the build, not the
+sources: `wide8.c` gets `/FIintrin.h` (`quakevr.props`, `vr.cmake`; worth reporting upstream). Checked: `wide8.obj` has
+6951 ymm instructions and no `vfmadd`; the rest stays at the x64 baseline; FMA contraction still off.
+
+**`vr_box3d_avx2`** (Debug > Profiling, "Physics AVX2", default **0**): 1 uses the AVX2 kernels where the CPU has
+them (`b3World_EnableSSE2Fallback` before each step). The console says at the first map which path runs:
+`box3d: Box3D 0.2.0, SSE2 kernels (4 lanes; vr_box3d_avx2 0)` (`b3GetVersion` says 0.2.0, the release after the
+0.1.0 tag). AVX2 and SSE2 give the same world to the bit (`vr_physics_mtbench 200 300`: hash `d33bc06e429210a0`
+both, every worker count). Default 0 because in the game AVX2 measured no faster (below).
+
+**Performance** (i9-13900K, `--exclusive`, ms a frame, mean of 3 runs; `SV_Physics` holds the Box3D step):
+
+| scenario | before | SSE2 | AVX2 |
+|---|---|---|---|
+| `play_props_fire` SV_Physics | 0.320 | 0.316 | 0.336-0.340 (2 sets) |
+| `play_e1m1_lights` SV_Physics | 0.511 | 0.504 | 0.513-0.526 |
+| `props_500_active` SV_Physics | 1.129 | 1.095 (1 noisy set 1.186) | 1.090-1.097 (3 sets) |
+| `ragdolls_32_active` SV_Physics | 0.895 (254 awake) | 0.842 (230 awake; 1 set with an outlier run) | 0.824-0.853 |
+| `vr_physics_mtbench 500 600`, 1 worker, ms a step | 0.326 | 0.320 | 0.262 |
+| same, 4 workers / 8 workers | 0.210 / 0.200 | 0.213 / 0.203 | 0.188 / 0.182 |
+
+Box3D's own solver phase in play_props_fire's scene (`vr_physics_frametime`, 900 paced frames, 3 runs each way,
+alternating): SSE2 0.075-0.090, AVX2 0.088-0.104 mean. 300 props tossed (`box3dmt/physbench.sh`): median step
+SSE2 0.394-0.423, AVX2 0.410-0.427. So AVX2 wins only in mtbench's world (boxes on a box floor, no world mesh); in
+the game (props on the map's mesh, small hulls, ragdolls) it is even or a little slower. The update itself: about
+even in light scenes, 3% less in props_500, 6% less in ragdolls_32 (fewer bodies awake on average: 230 vs 254).
+
+**Behaviour** (old and new build, the same tests): ragdolls (ragdoll_test.sh, all 17 cases) end the same way: every
+ragdoll at rest, pelvis heights within a couple of units, the stairs, pile, walk, blows and burn cases alike; teleporters
+(teleporters_test.sh throw, teleporter_edges_test.sh, teleporter_cross_test.sh): props, ragdolls and corpses through
+the gates, the controls stopped at the wall; throws (throw_spin, throw_grace, throw_trigger, gib_2h, throw/flick
+slowmo) within a few percent; weapon_catch, held_over_props, slopes (8/8), the reload suite (8 scripts, 0 FAIL;
+self-test 67/0), decap, selfchecks: PASS. No difference seen beyond run-to-run noise but ragdolls_32's lower awake
+count (bodies fall asleep a little sooner).
+
+Pre-existing (the old build too): `teleporter_edges_test.sh` push/held print an empty or 0 place for some cases (the
+harness looks for an entity number the run did not get), and `walltorch_grab_test.sh` takes 0 of 120.
+
+**In the headset:** a few props piled and knocked over, a ragdoll or two, a crate through a teleporter: nothing should
+look different. Debug > Profiling > Physics AVX2 on, same again; the frame timing should not get worse.
+
 ## INTEGRATION: the feature branches merged for testing (worktree `integ`, 2026-10-11; pushed as `origin/next`)
 
 **Merged** onto vr-ironwail `bc3163ed4`, in this order, each a real merge (`--no-ff`, its commits kept: revert one

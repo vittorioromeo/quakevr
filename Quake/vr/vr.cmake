@@ -49,14 +49,24 @@ else()
 	target_compile_options(ironwail PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>")
 endif()
 
-# Box3D (external/box3d/README.md): the rigid-body physics library (vr_box3d.cpp), C17, single-threaded.
+# Box3D (external/box3d/README.md): the rigid-body physics library (vr_box3d.cpp), C17, run on the engine's job pool.
 # No FMA contraction on gcc and clang: Box3D's cross-platform determinism relies on it.
+# wide8.c holds its AVX2 kernels, used only on a CPU that has AVX2 (src/simd.c, run-time detection; wide4.c is the
+# SSE2 copy): gcc and clang compile them for AVX2 by a pragma (src/core.h B3_AVX2_BEGIN), MSVC's cl needs /arch:AVX2 on
+# that file alone (as upstream's CMake). clang-cl gets intrin.h first: verstable.h includes it inside that pragma, where
+# clang refuses its declarations ("attribute 'target' multiversioning").
 file(GLOB QVR_BOX3D_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/external/box3d/src/*.c")
 add_library(qvr_box3d STATIC ${QVR_BOX3D_SRC})
 target_include_directories(qvr_box3d PUBLIC "${CMAKE_CURRENT_LIST_DIR}/external/box3d/include")
 set_target_properties(qvr_box3d PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED ON C_EXTENSIONS ON)
-if (CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+set(QVR_BOX3D_WIDE8 "${CMAKE_CURRENT_LIST_DIR}/external/box3d/src/wide8.c")
+if (CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC" AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
 	target_compile_options(qvr_box3d PRIVATE /clang:-ffp-contract=off)
+	set_source_files_properties(${QVR_BOX3D_WIDE8} PROPERTIES COMPILE_OPTIONS "/FIintrin.h")
+elseif (MSVC)
+	if (CMAKE_C_COMPILER_ARCHITECTURE_ID MATCHES "^(x64|X86)$")
+		set_source_files_properties(${QVR_BOX3D_WIDE8} PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+	endif()
 elseif (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
 	target_compile_options(qvr_box3d PRIVATE -ffp-contract=off)
 endif()

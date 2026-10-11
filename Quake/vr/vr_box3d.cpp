@@ -1008,6 +1008,20 @@ void finishStepTask(void* task, void*)
     static_cast<StepTask*>(task)->task.wait();
 }
 
+// Box3D's wide kernels (the contact solver, hull-hull manifolds; external/box3d/README.md): AVX2's 8 lanes where the
+// CPU has AVX2 and vr_box3d_avx2 is on, SSE2's 4 otherwise. Set on a world before each step (it may change between two).
+const bool cpuHasAvx2 = b3IsAVX2Available(); // (a CPUID: once, before main)
+
+[[nodiscard]] bool useAvx2()
+{
+    return vr_box3d_avx2.value != 0.f && cpuHasAvx2;
+}
+
+void applySimdWidth(b3WorldId id)
+{
+    b3World_EnableSSE2Fallback(id, !useAvx2());
+}
+
 // Box3D's workers: the game's pool's and this thread, at most vr_box3d_workers (0: no cap but Box3D's 32); 1 (the step on
 // this thread alone) with vr_box3d_threads 0, without a pool, with vr_jobs_parallel 0 (the single-threaded reference),
 // while vr_debug_box3d 2 prints from the callbacks (only the main thread prints), or while fewer than
@@ -9618,6 +9632,7 @@ void mtbench_f()
         for(int i = 0; i < steps; i++)
         {
             tasks->next.storeRelaxed(0);
+            applySimdWidth(id);
             const double t0 = Sys_DoubleTime();
             b3World_Step(id, 1.f / 72.f, substeps);
             time += Sys_DoubleTime() - t0;
@@ -10463,6 +10478,11 @@ void registerCommands()
     {
         registered = true;
         b3SetAllocator(heapAllocate, heapFree);
+        const b3Version v = b3GetVersion();
+        Con_Printf("box3d: Box3D %d.%d.%d, %s\n", v.major, v.minor, v.revision,
+            !cpuHasAvx2              ? "SSE2 kernels (4 lanes; no AVX2 on this CPU)"
+            : vr_box3d_avx2.value    ? "AVX2 kernels (8 lanes)"
+                                     : "SSE2 kernels (4 lanes; vr_box3d_avx2 0)");
         Cmd_AddCommand("vr_physics_player", player_f);
         Cmd_AddCommand("vr_gun_pieces_cache_stats", gunPiecesCacheStats_f);
         Cmd_AddCommand("vr_physics_stack", stack_f);
@@ -13729,6 +13749,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             pressStanding(dt / static_cast<float>(pieces));
             pressClimbing();
             world->tasks.next.storeRelaxed(0);
+            applySimdWidth(world->id);
             const double s0 = Sys_DoubleTime();
             b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);
             sample.ms[PhaseSolver] += static_cast<float>((Sys_DoubleTime() - s0) * 1000.0);
