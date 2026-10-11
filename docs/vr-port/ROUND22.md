@@ -1896,8 +1896,9 @@ enemy: coop as before), same blow (through the parry, the slide, letting go of a
   10 damage, 256 units at the defaults; the enforcer's is 1.5x, 192). `vr_enemy_shove_vore` 1 turns it off alone.
   Combat > Enemy Shoves: "Vores Shove", "Vore Damage", "Vore Push".
 - **Reach:** the range is now measured for a grunt's width: a wider monster reaches `maxs_x - 16` further
-  (`VR_EnemyShove_Reach`; a vore +16, 68 units at the default 52; grunts and enforcers unchanged), so a vore
-  touching you (48 between the middles) can shove at all.
+  (`VR_EnemyShove_Reach`; a vore +16, 68 units at the default 52; grunts and enforcers unchanged). A vore
+  touching you (48 between the middles) was already in reach at 52: the +16 is margin, and keeps it in reach when Too
+  Close is set below 48 (the menu goes down to 36).
 - **Comfort:** the shove is a slide (not scaled by `vr_push`, as before). The comfort vignette now counts an enemy's
   shove sliding you as moving (`vr_input.cpp shoveSlide`: its speed against a run's 320 units/s; modes 1 and 2), for
   every shoving enemy; the listen server's own player only (a coop guest's slide is on the host).
