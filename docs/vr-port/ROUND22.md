@@ -2212,3 +2212,12 @@ same lines). No branch bumped `configVersion` (125): no migrations to renumber.
   no errors.
 - `Misc/quakevr/climb/slopes_test.sh`: 8/8 PASS. Save/load (`save` on e1m1, `map start`, `load`): fine.
   `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
+
+**Then `feature/ragcore`** (ef165c6aa, active ragdolls stage 1), merged on top (`--no-ff`). Conflict: this file only
+(its section kept, before this one). vr_box3d.cpp (with propclimb), vr_menu.cpp, vr_cvars.inc, vr_view.cpp merged by
+themselves. animsmooth's `vr_rigpose.hpp/.cpp` (`qvr::rigpose`) and ragcore's `vr_ragpose.hpp` (`qvr::ragpose`) are
+both rig-pose helpers over `ragdoll::Rig`; separate namespaces, no clash, both kept as they are (a later merge of the two
+is for their owners). Checks: build, `map e1m1` smoke; `Misc/quakevr/ragdoll/active_test.sh integ deaths head` (the
+quick subset): 10/10 settle, no NaN or crash, late energy 0-4 J, spin under 5 rad/s (hknight's headshot the most:
+4.0 J, 4.7); `ragdoll_test.sh integ flat grab`: limp at frame 10, at rest after 4.3 s; a shin taken, held, thrown at
+1086 u/s, at rest; `vr_anim_smooth_check` again: unchanged (soldier A+B 0.1%, dog 0.001 off a key at most 0.036).
