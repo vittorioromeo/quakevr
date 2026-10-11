@@ -35,6 +35,17 @@ struct ViewEntity
 // Null if `e` is not a VR view entity.
 [[nodiscard]] const ViewEntity* find(const entity_t* e);
 
+// The alias shader's skin tint of `e` (vraliasinstance_t's skintint, skintintrange) with bare forearms (vr_body_bracers
+// 0): your body (and its copy in a mirror), its forearms' skin turning to the hand's colour towards the wrist; a jointed
+// hand (w -1), its end inside the arm folded onto the wrist's line. False for any other entity (none).
+[[nodiscard]] bool skinTint(const entity_t* e, float tint[4], float range[4]);
+
+// With bare forearms (vr_body_bracers 0) the jointed hands are drawn in your body's light, so that the skin is lit alike
+// on both sides of the wrist: bareLight (r_alias.c's light colour, R_SetupAliasLighting) and bareShade (the instance's
+// light direction and the light round it, vraliasinstance_t) keep the body's and give it to the hands.
+void bareLight(const entity_t* e, float lightcolor[3]);
+void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
+
 // The view entity a copy in the body's mirror image (vr_bodyclone.cpp) is of; null if `e` is not one. (find() gives the
 // copy's own ViewEntity: its place, turn and mirroring the image's.)
 [[nodiscard]] const entity_t* cloneSource(const entity_t* e);

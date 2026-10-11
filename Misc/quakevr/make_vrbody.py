@@ -190,8 +190,10 @@ def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES, per=1, power=2
     curve through them (refine()); the texture runs along the rings given as it would without them. `power`: the
     rings' shape, 2 an ellipse, more a fuller, squarer one (a superellipse through the same extremes). `vrange`: the
     part of the block's height the texture runs along (a band painted from one row of the torso's). `vpos`: the
-    rings' places along the texture (0 .. 1, one per ring given; evenly spaced if not given)."""
-    rings, vs = refine(rings, per, vpos)
+    rings' places along the texture (0 .. 1, one per ring given; evenly spaced if not given). A ring may have a seventh
+    element, its shape: a function of the angle round it giving the point (along u, along v), in place of the
+    ellipse (the bare forearm's end, fitted to the hand: hand_slice())."""
+    rings, vs = refine(rings, per, vpos, power)
     u0, v0, u1, v1 = BLOCKS[block]
     # Keep away from the block edges so filtering does not bleed into the next block.
     u0, v0, u1, v1 = u0 + PAD, v0 + PAD, u1 - PAD, v1 - PAD
@@ -200,19 +202,25 @@ def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES, per=1, power=2
     # otherwise go around the other way.
     along = sub(rings[-1][0], rings[0][0])
     if dot(cross(rings[0][1], rings[0][2]), along) < 0:
-        rings = [(c, ua, mul(va, -1.0), ru, rv, ws) for c, ua, va, ru, rv, ws in rings]
+        rings = [(c, ua, mul(va, -1.0), ru, rv, ws) + ((flipped(r[6]),) if len(r) > 6 else ())
+                 for r in rings for c, ua, va, ru, rv, ws in [r[:6]]]
     # Each ring has one vertex more than it has sides: the last is the first again, at u = 1, so that
     # the texture wraps round once (the engine's normals weld vertices by position).
     first = len(verts)
     n = sides + 1
-    for r, (centre, ua, va, ru, rv, weights) in enumerate(rings):
+    for r, ring in enumerate(rings):
+        centre, ua, va, ru, rv, weights = ring[:6]
         for k in range(n):
             a = 2 * math.pi * (k % sides) / sides
-            ca, sa = math.cos(a), math.sin(a)
-            if power != 2.0:
-                ca = math.copysign(abs(ca) ** (2.0 / power), ca)
-                sa = math.copysign(abs(sa) ** (2.0 / power), sa)
-            p = add(centre, add(mul(ua, ca * ru), mul(va, sa * rv)))
+            if len(ring) > 6:
+                x, y = ring[6](a)
+                p = add(centre, add(mul(ua, x), mul(va, y)))
+            else:
+                ca, sa = math.cos(a), math.sin(a)
+                if power != 2.0:
+                    ca = math.copysign(abs(ca) ** (2.0 / power), ca)
+                    sa = math.copysign(abs(sa) ** (2.0 / power), sa)
+                p = add(centre, add(mul(ua, ca * ru), mul(va, sa * rv)))
             st = (u0 + (u1 - u0) * k / sides, v0 + (v1 - v0) * (vrange[0] + (vrange[1] - vrange[0]) * vs[r]))
             add_vert(p, weights, st)
     for r in range(len(rings) - 1):
@@ -225,19 +233,35 @@ def loft(rings, block, cap_start=True, cap_end=True, sides=SIDES, per=1, power=2
             tris.append((b, c, d))
     mid = ((u0 + u1) / 2, (v0 + v1) / 2)
     if cap_start:
-        centre, _, _, _, _, weights = rings[0]
+        centre, _, _, _, _, weights = rings[0][:6]
         c = add_vert(centre, weights, mid)
         for k in range(sides):
             tris.append((c, first + k, first + (k + 1) % sides))
     if cap_end:
-        centre, _, _, _, _, weights = rings[-1]
+        centre, _, _, _, _, weights = rings[-1][:6]
         c = add_vert(centre, weights, mid)
         base = first + (len(rings) - 1) * n
         for k in range(sides):
             tris.append((c, base + (k + 1) % sides, base + k))
 
 
-def refine(rings, per, vpos=None):
+def flipped(shape):
+    """A ring's shape for a loft that turns its v axis round (loft()): the point at -a, its v the other way."""
+    return lambda a: (shape(-a)[0], -shape(-a)[1])
+
+
+def ring_point(ring, a, power=2.0):
+    """A ring's point at angle `a` (along its u axis, along its v): its shape's, or its ellipse's."""
+    if len(ring) > 6:
+        return ring[6](a)
+    ca, sa = math.cos(a), math.sin(a)
+    if power != 2.0:
+        ca = math.copysign(abs(ca) ** (2.0 / power), ca)
+        sa = math.copysign(abs(sa) ** (2.0 / power), sa)
+    return (ca * ring[3], sa * ring[4])
+
+
+def refine(rings, per, vpos=None, power=2.0):
     """The rings with more between each two (`per` spans a gap: a number or one per gap): centres and radii on
     Catmull-Rom curves through the rings given (so they keep their places and sizes: the holster plates and the
     flashlight clip are worked out from them), axes and weights blended. Also each ring's place along the texture
@@ -270,7 +294,11 @@ def refine(rings, per, vpos=None):
                     ws[jn] = ws.get(jn, 0.0) + b * (1 - t)
                 for (jn, b) in r2[5]:
                     ws[jn] = ws.get(jn, 0.0) + b * t
-                out.append((c, ua, va, ru, rv, sorted(ws.items())))
+                ring = (c, ua, va, ru, rv, sorted(ws.items()))
+                if any(len(r) > 6 for r in (r0, r1, r2, r3)):
+                    # A shaped ring between: each point on the curve through the four rings' points at its angle.
+                    ring += ((lambda a, q=(r0, r1, r2, r3), t=t: cr(*[ring_point(r, a, power) for r in q], t)),)
+                out.append(ring)
             vs.append(vpos[i] + (vpos[i + 1] - vpos[i]) * t if vpos else (i + t) / gaps if gaps else 0.0)
     out.append(rings[-1])
     vs.append(vpos[-1] if vpos else 1.0)
@@ -296,12 +324,188 @@ def fore_w(side, f):
     return w(("wrist_" + side, 1.0))
 
 
+# The bare forearms (vrbody*_bare: vr_body_bracers 0) end on the jointed hand (progs/hand_rig.md5mesh, make_hand_rig.py),
+# fitted to it: its wrist's cross-section and a little way up the heel of the hand, a hair outside it. Hand units
+# (rig space: +x the fingers, +y the palm's side, +z the thumb's) to metres of this body: HAND_UNIT, the drawn hand's
+# size against the body at the default sizes (vr_body_wrist_info; vr_avatar.cpp's handUnit: the engine scales the
+# wrist and the lip by the drawn hand's size against it). HAND_WRIST: the wrist's middle (vr_handrig_data.inc's wrist,
+# the hand bone's place). The lip runs HAND_LIP hand units past it, HAND_MARGIN metres off the hand's skin.
+HAND_UNIT = 0.01286
+HAND_WRIST = (-4.487973, -1.05, 1.447346)
+HAND_LIP = 1.1
+HAND_MARGIN = 0.0006
+hand_mesh = None  # (positions, triangles) of the hand in its bind pose, read once
+
+
+def read_hand():
+    import re
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "quakevr", "progs", "hand_rig.md5mesh")
+    txt = open(path).read()
+    jpos = [tuple(map(float, m.groups())) for m in
+            re.finditer(r'^\s*"\w+"\s+-?\d+\s+\(\s*(\S+)\s+(\S+)\s+(\S+)\s*\)', txt, re.M)]
+    vinfo = {int(m.group(1)): (int(m.group(2)), int(m.group(3)))
+             for m in re.finditer(r'vert (\d+) \( \S+ \S+ \) (\d+) (\d+)', txt)}
+    wts = {int(m.group(1)): (int(m.group(2)), float(m.group(3)), tuple(map(float, m.group(4, 5, 6))))
+           for m in re.finditer(r'weight (\d+) (\d+) (\S+) \( (\S+) (\S+) (\S+) \)', txt)}
+    tris_h = [tuple(map(int, m.groups())) for m in re.finditer(r'tri \d+ (\d+) (\d+) (\d+)', txt)]
+    pos = {}
+    for v, (first, count) in vinfo.items():
+        p = (0.0, 0.0, 0.0)
+        for i in range(first, first + count):
+            j, b, o = wts[i]  # (the hand's joints are unturned in its bind pose: the offset is in rig space)
+            p = add(p, mul(add(jpos[j], o), b))
+        pos[v] = p
+    return pos, tris_h
+
+
+def hand_slice(x, dz, dy):
+    """How far from the wrist's middle line (rig units) the hand's skin is at rig x = `x`, in the direction (dz, dy)
+    across it (rig z, rig y): the furthest the cross-section reaches along that ray."""
+    global hand_mesh
+    if hand_mesh is None:
+        hand_mesh = read_hand()
+    pos, tris_h = hand_mesh
+    best = 0.0
+    for t in tris_h:
+        pts = []
+        for a, b in ((t[0], t[1]), (t[1], t[2]), (t[2], t[0])):
+            pa, pb = pos[a], pos[b]
+            if (pa[0] - x) * (pb[0] - x) < 0:
+                s = (x - pa[0]) / (pb[0] - pa[0])
+                pts.append((pa[2] + (pb[2] - pa[2]) * s - HAND_WRIST[2], pa[1] + (pb[1] - pa[1]) * s - HAND_WRIST[1]))
+        if len(pts) == 2:
+            (z0, y0), (z1, y1) = pts
+            ex, ey = z1 - z0, y1 - y0
+            den = dz * ey - dy * ex
+            if abs(den) > 1e-12:
+                along = (z0 * ey - y0 * ex) / den
+                on = (z0 * dy - y0 * dz) / den
+                if 0.0 <= on <= 1.0:
+                    best = max(best, along)
+    return best
+
+
+def hand_ring(side, past, ref_u, ref_v, sides=12):
+    """A ring's shape (loft()) fitted round the hand `past` hand units beyond the wrist, HAND_MARGIN out: its `sides`
+    points at the angles a = 2 pi k / sides, each in the direction of an ellipse of semi-axes (ref_u, ref_v)'s, so that
+    it lines up with the forearm's rings, pushed out where the hand's skin would come within HAND_MARGIN of a side of
+    the polygon between two of them (the skin bulging between two rays). The forearm's ring axes: u its hint (the
+    little finger's side: rig -z), v the bone's y (the back of the hand on the right arm: rig -y; its palm on the
+    left: rig +y)."""
+    sy = -1.0 if side == "r" else 1.0
+    x = HAND_WRIST[0] + past
+
+    def direction(a):
+        cu, cv = ref_u * math.cos(a), ref_v * math.sin(a)
+        n = math.hypot(cu, cv)
+        return cu / n, cv / n
+
+    def skin(d):  # metres from the middle line to the hand's skin along direction d (u, v)
+        return hand_slice(x, -d[0], sy * d[1]) * HAND_UNIT
+
+    dirs = [direction(2 * math.pi * k / sides) for k in range(sides)]
+    radii = [skin(d) + HAND_MARGIN for d in dirs]
+    for _ in range(3):
+        grow = [1.0] * sides
+        for k in range(sides):
+            k1 = (k + 1) % sides
+            p0 = (dirs[k][0] * radii[k], dirs[k][1] * radii[k])
+            p1 = (dirs[k1][0] * radii[k1], dirs[k1][1] * radii[k1])
+            a0 = 2 * math.pi * k / sides
+            for j in range(1, 8):  # rays between the two: where they cross the side, against the skin there
+                d = direction(a0 + 2 * math.pi / sides * j / 8)
+                ex, ey = p1[0] - p0[0], p1[1] - p0[1]
+                den = d[0] * ey - d[1] * ex
+                if abs(den) < 1e-12:
+                    continue
+                at = (p0[0] * ey - p0[1] * ex) / den
+                need = (skin(d) + HAND_MARGIN) / max(at, 1e-9)
+                grow[k] = max(grow[k], need)
+                grow[k1] = max(grow[k1], need)
+        radii = [r * g for r, g in zip(radii, grow)]
+    table = [(dx * r, dy * r) for (dx, dy), r in zip(dirs, radii)]
+
+    def shape(a):
+        return table[int(round(a / (2 * math.pi / sides))) % sides]
+    return shape
+
+
+def wrist_tint(progs):
+    """The bare forearms' tint at the wrist (vr_view.cpp's bareTint): the jointed hand's clean skin (hand_rig_00_00.lmp,
+    over its triangles within 1.2 hand units past the wrist) over the arms' skin (vrbody_00_00.tga, the skin block's
+    last tenth: the wrist), channel by channel. Read only: neither skin is written here."""
+    import re
+    txt = open(os.path.join(progs, "hand_rig.md5mesh")).read()
+    sts = {int(m.group(1)): (float(m.group(2)), float(m.group(3)))
+           for m in re.finditer(r'vert (\d+) \( (\S+) (\S+) \)', txt)}
+    pos, tris_h = read_hand()
+    with open(os.path.join(progs, "hand_rig_00_00.lmp"), "rb") as f:
+        data = f.read()
+    hw, hh = struct.unpack("<ii", data[:8])
+    hand, n = [0.0, 0.0, 0.0], 0
+    for t in tris_h:
+        if not HAND_WRIST[0] <= sum(pos[v][0] for v in t) / 3 <= HAND_WRIST[0] + 1.2:
+            continue
+        for i in range(1, 10):
+            for j in range(1, 10 - i):
+                bary = (i / 10, j / 10, 1 - i / 10 - j / 10)
+                s = sum(b * sts[v][0] for b, v in zip(bary, t))
+                tt = sum(b * sts[v][1] for b, v in zip(bary, t))
+                c = PALETTE[data[8 + min(hh - 1, int(tt * hh)) * hw + min(hw - 1, int(s * hw))]]
+                hand = [a + b for a, b in zip(hand, c)]
+                n += 1
+    hand = [a / n for a in hand]
+    with open(os.path.join(progs, "vrbody_00_00.tga"), "rb") as f:
+        data = f.read()
+    idl, w_, h_, bpp, desc = data[0], *struct.unpack("<HHBB", data[12:18])
+    bp, off = bpp // 8, 18 + idl
+    arm, n = [0.0, 0.0, 0.0], 0
+    u0, v0, u1, v1 = BLOCKS["skin"]
+    for row in range(h_):
+        t = (row + 0.5) / h_  # from the top
+        bv = (t - v0 - PAD) / (v1 - v0 - 2 * PAD)
+        if not 0.9 <= bv <= 1.0:
+            continue
+        r = row if desc & 0x20 else h_ - 1 - row
+        for col in range(int((u0 + PAD) * w_), int((u1 - PAD) * w_)):
+            b_, g_, r_ = data[off + (r * w_ + col) * bp: off + (r * w_ + col) * bp + 3]
+            arm = [a + c for a, c in zip(arm, (r_, g_, b_))]
+            n += 1
+    arm = [a / n for a in arm]
+    return tuple(h / a for h, a in zip(hand, arm))
+
+
 # Builds (make_vrbody.py writes one model each): muscularity scales the arms' girth (the forearms
 # a little more, the wrists much less: bones do not grow), and some of it the chest and thighs.
 BUILDS = (("_lean", 0.9), ("", 1.2), ("_brawny", 1.5))
 
 
-def build_mesh(m):
+def bare_wrist(side="r"):
+    """The hand's wrist's semi-axes (u across, v through: the back's and the palm's sides averaged), metres, as the
+    fitted ring has them (the same on either side)."""
+    probe = hand_ring(side, 0.0, 1.0, 1.0)
+    return ((abs(probe(0.0)[0]) + abs(probe(math.pi)[0])) / 2,
+            (abs(probe(math.pi / 2)[1]) + abs(probe(-math.pi / 2)[1])) / 2)
+
+
+def bare_rings(m, side):
+    """The bare forearm's rings between its thick half and the wrist (vrbody*_bare): [(metres from the elbow, (u, v)
+    semi-axes)] at 0.19 and 0.225 m (the twist joints'), easing from the 0.15 m ring (the arm's, as the bracer
+    covered it) down to the hand's wrist (its fitted ring's extents); and the semi-axes (u, v) the fitted rings'
+    angles follow. The same table as vr_avatar.cpp's forearmGirth (bare), where the wrist gadget rests on it."""
+    fm = m * 1.08
+    wm = 1.0 + (m - 1.0) * 0.3
+    u15, v15 = lerp(0.046 * fm, 0.037 * wm, 3 / 7), lerp(0.040 * fm, 0.029 * wm, 3 / 7)
+    hu, hv = bare_wrist(side)
+    out = []
+    for d in (0.19, 0.225):
+        t = (d - 0.15) / (0.26 - 0.15)
+        k = 1.0 - t * t * (3.0 - 2.0 * t)
+        out.append((d, (hu + (u15 - hu) * k, hv + (v15 - hv) * k)))
+    return out, out[-1][1]
+
+
+def build_mesh(m, bare=False):
     verts.clear()
     tris.clear()
     torso = 1.0 + (m - 1.0) * 0.35
@@ -363,7 +567,7 @@ def build_mesh(m):
         ua_, cl_ = "upperarm_" + side, "clavicle_" + side
         fo_, ha_, wr_ = "forearm_" + side, "hand_" + side, "wrist_" + side
         fl = math.dist(elbow, wrist)
-        loft([
+        arm = [
             (sub(shoulder, mul(ud, 0.05)), ua, va, 0.055 * m, 0.055 * m, w((cl_, 0.6), (ua_, 0.4))),
             (add(shoulder, mul(ud, 0.00)), ua, va, 0.070 * m, 0.066 * m, w((cl_, 0.25), (ua_, 0.75))),
             (add(shoulder, mul(ud, 0.06)), ua, va, 0.068 * m, 0.062 * m, w((ua_, 1.0))),
@@ -377,7 +581,25 @@ def build_mesh(m):
             # rings given 1/9 apart, the wrist at 1).
             (add(elbow, mul(fd, 0.15)), fa, fv, lerp(0.046 * fm, 0.037 * wm, 3 / 7),
              lerp(0.040 * fm, 0.029 * wm, 3 / 7), fore_w(side, 0.15 / fl)),
-        ], "skin", sides=12, per=[2, 1, 1, 1, 2, 2, 1, 1], vpos=[i / 9 for i in range(8)] + [(7 + 3 / 7) / 9])
+        ]
+        per = [2, 1, 1, 1, 2, 2, 1, 1]
+        vpos = [i / 9 for i in range(8)] + [(7 + 3 / 7) / 9]
+        if bare:
+            # Bare (vrbody*_bare): the skin goes on to the wrist, narrowing from the forearm's thick half to the
+            # hand's wrist (bare_rings), and on over the base of the hand: the wrist's ring (all of the roll, half
+            # the bend) fitted round the hand's wrist, the lip (the hand bone: the whole bend) round the heel of
+            # the hand HAND_LIP past it, a hair off the hand's skin, so that the hand comes out of the arm with no
+            # step and no gap however the wrist turns. Open at the end (the hand fills it): its last ring's normals
+            # those of the skin, not of a cap. The texture as the arm's (the rings 1/9 apart, the wrist at 1).
+            rings_b, ref = bare_rings(m, side)
+            lip_m = HAND_LIP * HAND_UNIT
+            for d, (ru, rv) in rings_b:
+                arm.append((add(elbow, mul(fd, d)), fa, fv, ru, rv, fore_w(side, d / fl)))
+            arm.append((wrist, fa, fv, ref[0], ref[1], w((wr_, 1.0)), hand_ring(side, 0.0, *ref)))
+            arm.append((add(wrist, mul(fd, lip_m)), fa, fv, ref[0], ref[1], w((ha_, 1.0)), hand_ring(side, HAND_LIP, *ref)))
+            per += [1, 1, 2, 1]
+            vpos += [(7 + 2 * (d - 0.12) / 0.14) / 9 for d, _ in rings_b] + [1.0 - 2 * lip_m / 0.14 / 9, 1.0]
+        loft(arm, "skin", sides=12, per=per, vpos=vpos, cap_end=not bare)
         # A leather bracer over the forearm's lower half (its straps show how the forearm turns),
         # ending at the wrist in a flared lip over the base of the hand. The arm meets make_hand_rig.py's
         # hand at its wrist: the wrist's ring holds the hand's wrist with a few millimetres to spare,
@@ -390,15 +612,16 @@ def build_mesh(m):
         lip = 0.007
         ring_u, ring_v = max(0.036 * wm, 0.037), max(0.027 * wm, 0.0295)
         brac = [0.13, 0.19, 0.225, fl, fl + lip]
-        loft([
-            (add(elbow, mul(fd, 0.13)), fa, fv, 0.049 * fm, 0.043 * fm, fore_w(side, 0.13 / fl)),
-            (add(elbow, mul(fd, 0.19)), fa, fv, max(0.041 * wm, 0.040), max(0.033 * wm, 0.0335),
-             fore_w(side, 0.19 / fl)),
-            (add(elbow, mul(fd, 0.225)), fa, fv, max(0.0385 * wm, 0.039), max(0.030 * wm, 0.0325),
-             fore_w(side, 0.225 / fl)),
-            (wrist, fa, fv, ring_u, ring_v, w((wr_, 1.0))),
-            (add(wrist, mul(fd, lip)), fa, fv, ring_u + 0.0025, ring_v + 0.0025, w((ha_, 1.0))),
-        ], "bracer", sides=12, vpos=[(b - brac[0]) / (brac[-1] - brac[0]) for b in brac])
+        if not bare:
+            loft([
+                (add(elbow, mul(fd, 0.13)), fa, fv, 0.049 * fm, 0.043 * fm, fore_w(side, 0.13 / fl)),
+                (add(elbow, mul(fd, 0.19)), fa, fv, max(0.041 * wm, 0.040), max(0.033 * wm, 0.0335),
+                 fore_w(side, 0.19 / fl)),
+                (add(elbow, mul(fd, 0.225)), fa, fv, max(0.0385 * wm, 0.039), max(0.030 * wm, 0.0325),
+                 fore_w(side, 0.225 / fl)),
+                (wrist, fa, fv, ring_u, ring_v, w((wr_, 1.0))),
+                (add(wrist, mul(fd, lip)), fa, fv, ring_u + 0.0025, ring_v + 0.0025, w((ha_, 1.0))),
+            ], "bracer", sides=12, vpos=[(b - brac[0]) / (brac[-1] - brac[0]) for b in brac])
 
         hip = joints[index["thigh_" + side]][2]
         knee = joints[index["calf_" + side]][2]
@@ -913,20 +1136,24 @@ def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
     # The files edited in Blender since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
     guard = genguard.Guard("make_vrbody.py", [os.path.join(out, "vrbody_%02d_00.tga" % n) for n in range(16)] +
-                           [os.path.join(out, "vrbody" + suffix + ext) for suffix, _ in BUILDS
-                            for ext in (".md5mesh", ".md5anim", ".mdl")])
+                           [os.path.join(out, "vrbody" + suffix + bare + ext) for suffix, _ in BUILDS
+                            for bare in ("", "_bare") for ext in (".md5mesh", ".md5anim", ".mdl")])
     for armor in range(4):
         base = skin_indices(armor)
         for damage in range(4):
             write_skin(os.path.join(out, "vrbody_%02d_00.tga" % (armor * 4 + damage)), base, damage)
     for suffix, muscle in BUILDS:
-        build_mesh(muscle)
-        name = "vrbody" + suffix
-        write_md5mesh(os.path.join(out, name + ".md5mesh"))
-        write_md5anim(os.path.join(out, name + ".md5anim"))
-        write_placeholder_mdl(os.path.join(out, name + ".mdl"))
-        print("%s: %d joints, %d vertices, %d triangles" % (name, len(joints), len(verts), len(tris)))
+        for bare in (False, True):  # with the bracers; bare forearms (vr_body_bracers 0)
+            build_mesh(muscle, bare)
+            name = "vrbody" + suffix + ("_bare" if bare else "")
+            write_md5mesh(os.path.join(out, name + ".md5mesh"))
+            write_md5anim(os.path.join(out, name + ".md5anim"))
+            write_placeholder_mdl(os.path.join(out, name + ".mdl"))
+            print("%s: %d joints, %d vertices, %d triangles" % (name, len(joints), len(verts), len(tris)))
     guard.finish()
+    print("bare wrist (vr_avatar.cpp's forearmGirth handU, handV): %.4f %.4f" % bare_wrist())
+    print("wrist tint (vr_view.cpp's bareTint): %.3f %.3f %.3f" % wrist_tint(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "quakevr", "progs")))
     print("-> " + os.path.normpath(out))
 
 

@@ -106,6 +106,8 @@ typedef struct vraliasinstance_s
 	float		retropart[4]; // your body's parts by bone (vr_retro.cpp bodyParts): xy the low bits, zw the high bits of each bone's part
 	int			smooth[4]; // r_lerpmodels 3 (vr_animsmooth.cpp): the first and fourth poses (times the vertex count), 1 + its bones' first row in the swing buffer (0 none), 1 on
 	float		smoothw[4]; // ... the four poses' weights
+	float		skintint[4]; // bare forearms' ends tinted to the hand's skin (vr_view.cpp skinTint): rgb times the skin, w how much
+	float		skintintrange[4]; // ... where in the skin: below u x, from v y (none) to z (all), below v w
 } vraliasinstance_t;
 // r_lerpmodels 3 (vr_animsmooth.cpp): whether `e`, drawn between poses pose1 and pose2 at `blend` (R_SetupAliasFrame's),
 // goes along a spline through four poses: smooth[0], [1] the first and fourth (pose numbers), [2] 1 + where its bones'

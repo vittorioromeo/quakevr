@@ -1675,6 +1675,9 @@ int campaignsBloodyShown = -1;
         open("Body Calibration", pageIndex(pageBodyCalibration)),
         header("Body"),
         open("Body and Build: Body and Display", pageIndex(pageBodyDisplay)).help("The body on or off and its build are on Body and Display."),
+        toggle("Bracers", vr_body_bracers)
+            .help("The leather bracers on your forearms and the wrist gadget's straps. Off: bare forearms, the skin running "
+                  "on into the hands (with the jointed hand, vr_hand_rig 1: the default)."),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s").extend()
             .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
@@ -5379,6 +5382,10 @@ za::Vector<Item> pageDebugReports()
         toggle("Keep AO Bakes on Disk", vr_ao_cache).help("vr_ao_cache: the models' occlusion bakes kept on disk, so a later session's loads bake nothing (off: baked at every first load; 2 in the console: baked anyway and compared with the file)."),
         header("Hands and Weapons"),
         command("Hand Rig", "vr_hand_rig_info").help("vr_hand_rig_info: the hand's rig against the compiled one."),
+        command("Wrists (Bare Forearms)", "vr_body_wrist_info")
+            .help("vr_body_wrist_info: per hand, the body drawn (bare or with bracers), the hand's size against the body, how "
+                  "far the arm's wrist is from the hand's, where the wrist is, the forearm's direction and the wrist's bend; "
+                  "the body's and the hands' light (with bare forearms the hands are lit as the body)."),
         command("Grasp Spheres", "vr_grasp_spheres").help("vr_grasp_spheres: the fingers' and the palm's contact spheres."),
         command("Grip Frames", "vr_grip_frame")
             .help("vr_grip_frame: each hand's grip frame (the palm and the grip channel) that held props are placed by."),

@@ -1088,6 +1088,18 @@
   "sha256": "da37c3ced4c70e72260526d0229f6b692fc3b48a5eddb6275aad4701f0186838",
   "by": "make_vrbody.py"
  },
+ "quakevr/progs/vrbody_bare.md5anim": {
+  "sha256": "e4f1ea64b23251cd26e486c238d7fe1db9bb2cdd7f2c9b09dcce96b5a63c0146",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_bare.md5mesh": {
+  "sha256": "b8cd2a34652b7c00db640bb5bb00805fb838c4e72ac9c83ed395ee4bf6107347",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_bare.mdl": {
+  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
+  "by": "make_vrbody.py"
+ },
  "quakevr/progs/vrbody_brawny.md5anim": {
   "sha256": "febebb4eb52067b3f857d4a038738f76491223d23ace1f5ebf87264e912afbc1",
   "by": "make_vrbody.py"
@@ -1100,6 +1112,18 @@
   "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
   "by": "make_vrbody.py"
  },
+ "quakevr/progs/vrbody_brawny_bare.md5anim": {
+  "sha256": "eb740e94b3a85b5dbb9eaef0371786016b4b8fec918de87231d114d29614749a",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_brawny_bare.md5mesh": {
+  "sha256": "840f260328f4bc106c56824c971c89bdf8b4880c2e7fc8744f2be18cf4b3c73c",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_brawny_bare.mdl": {
+  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
+  "by": "make_vrbody.py"
+ },
  "quakevr/progs/vrbody_lean.md5anim": {
   "sha256": "eec0d5dcef04e9e1f62dfb03e61a0455f4deee3d568f9cb837e29aa8c31097df",
   "by": "make_vrbody.py"
@@ -1109,6 +1133,18 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_lean.mdl": {
+  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_lean_bare.md5anim": {
+  "sha256": "226515be280073f535f56ce4df54e4d4b9da73d8bf34c6bdeac94e896d499097",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_lean_bare.md5mesh": {
+  "sha256": "0b8bd6cac062434f0acbb8dc9ef01eabb2d913cc054183a12b73ef6c198ca5dc",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_lean_bare.mdl": {
   "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
   "by": "make_vrbody.py"
  },
