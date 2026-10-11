@@ -35,9 +35,9 @@ struct ViewEntity
 // Null if `e` is not a VR view entity.
 [[nodiscard]] const ViewEntity* find(const entity_t* e);
 
-// The alias shader's skin tint of `e` (vraliasinstance_t's skintint, skintintrange): your body with bare forearms
-// (vr_body_bracers 0) and its copy in a mirror, its forearms' skin turning to the hand's colour towards the wrist. False
-// for any other entity (no tint).
+// The alias shader's skin tint of `e` (vraliasinstance_t's skintint, skintintrange) with bare forearms (vr_body_bracers
+// 0): your body (and its copy in a mirror), its forearms' skin turning to the hand's colour towards the wrist; a jointed
+// hand (w -1), its end inside the arm folded onto the wrist's line. False for any other entity (none).
 [[nodiscard]] bool skinTint(const entity_t* e, float tint[4], float range[4]);
 
 // With bare forearms (vr_body_bracers 0) the jointed hands are drawn in your body's light, so that the skin is lit alike

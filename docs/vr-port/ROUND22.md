@@ -625,6 +625,61 @@ straps too ("armbands" in the broad sense) is a one-line `visible = false` in th
 unchanged (bracers on). About 2 days; the one human decision is the wrist's colour match between the body's bare arm
 skin and the hand's skin. For VR testing: roll and bend the wrist fully with the setting off, look for a gap at the
 wrist and the colour step, and check it for all three builds.
+
+## Bare forearms: the bracers off, seamless wrists (feature, worktree `armbands`, 2026-10-11; not for 1.0.1)
+
+The scoping note's option (b), approved. `vr_body_bracers` (default 1, as before; Body page: Bracers) 0 draws bare
+forearms and hides the wrist gadget's straps.
+
+**Models.** `make_vrbody.py` writes three more bodies, `vrbody_bare`, `vrbody_lean_bare`, `vrbody_brawny_bare` (.md5mesh,
+.md5anim, placeholder .mdl), the same skeleton and skins. The bracer bodies come out byte-identical; the 16 hand-painted
+TGAs are not written (`--keep-edited`). In the bare ones the arm's skin loft goes on from 0.15 m: rings at 0.19 and
+0.225 m (the twist joints') easing (smoothstep) from the 0.15 m ring to the hand's wrist, then a wrist ring (the wrist
+joint: all the roll, half the bend, the mitre) and a lip 1.1 hand units (1.4 cm) up the heel of the hand (the hand bone,
+rigid with it), both **fitted round the jointed hand**: `hand_rig.md5mesh` (read only) sliced at those places along the
+ring's 12 rays, 0.6 mm off its skin, pushed out wherever the skin would bulge past a side of the 12-gon between two rays.
+The lip's length clears a 67 degree bend (shorter, the mitred wrist ring overtook it on the outer side and the tube folded
+into a flap). The end is open (the hand fills it), so its last ring's normals are the skin's, not a cap's. The texture
+is the arm's own block down to the wrist (the author painted it there under the bracer). The 1.0.1 `hand_rig` was edited
+in Blender: after editing the hand's wrist, run `make_vrbody.py --keep-edited` again (MODELS_IN_BLENDER.md).
+
+**Engine.** `vr_view.cpp` picks `progs/vrbody*_bare.mdl` when the setting is off and both hands are the jointed hand
+(`vr_hand_rig 0`'s old hand keeps the bracers: the ends are fitted to the jointed one), else the bracer body as before.
+- The fit follows the hand as drawn: the hand's size against the body changes with the height calibration (0.0102 m a
+  hand unit at 1.95 m, 0.01286 at the default, 0.0137 at 1.45 m), so `avatar::solveArm` scales the hand bone and the
+  wrist ring across by the drawn hand's size over `handUnit` (0.01286, make_vrbody.py's HAND_UNIT).
+- **Colour.** The arm's skin at the wrist (vrbody_00_00.tga) is 1.4x lighter than the hand's (hand_rig_00_00.lmp) round
+  its wrist. The alias shader tints the arms' skin block's rows from 0.19 m to the wrist ring towards the hand's
+  (`SkinTint`, `SkinTintRange` in the instance data; times 0.753 0.692 0.653, make_vrbody.py prints it as "wrist tint";
+  multiplied, so blood and wounds keep their colour). Painted blood and the dynamic wounds paint the bare forearm (one
+  mask a side, as before).
+- **Light.** Each model's light, its direction and the light round it (vr_ambient's cube) are sampled at its own place,
+  the body's round the torso and a hand's round the hand: after the tint the seam still stepped 21% in some poses (the
+  ambient cube; with `vr_model_ambient_dir 0` it matched). With bare forearms the jointed hands are drawn in the body's
+  light (`view::bareLight`, `view::bareShade`; the body's kept each frame): lip 80 vs hand 82 at the seam where it was
+  80 vs 97. With the bracers the hands are lit as before.
+- **The hand's end inside the arm** (behind the wrist: the palm's first ring and the thumb's base) came out through the
+  closely fitted forearm in a side bend (a slit of the hand's skin). For the jointed hand on a bare forearm the alias
+  vertex shader folds its bind positions behind the wrist (0.2 hand units back) onto the wrist's middle line
+  (`QVR_ALIAS_VS_HANDFOLD`): a cone inside the arm.
+- The gadget rests on the skin: lowered by how much thinner than the bracer the arm is there (`avatar::forearmGirth`'s
+  `bare` rings, make_vrbody.py's bare_rings and "bare wrist" numbers); the straps are hidden.
+- `vr_body_wrist_info` (Debug > Hands and Weapons > Wrists): per hand the body drawn, the hand's size against it, the
+  arm's wrist off the hand's, the wrist's place from the controller, the forearm's direction, the wrist's bend; the lights.
+
+**Checks** (headless mock, `vr_gunangle 0`, `vr_body_wrist_limits 0` so the wrist really bends, `r_drawworld 0`): each
+wrist from its outer side, from above and from below, both hands, three builds, in 10 poses (neutral, roll +-90, bends
+measured against the forearm 37, 61, 75, 89, 91 degrees, sideways 34 and 36): 180 shots, 0 holes (background pixels
+enclosed by skin; the check finds a 12-pixel slit painted in as a test). Taller and shorter calibrations (1.95, 1.45 m):
+48 shots, 0 holes. Z-fighting: the camera moved 0.3 mm, the frames' worst 16-pixel blocks differ by 8.6 (bracers: 16.3),
+all at silhouette edges, none on the seam. Straps: 2 with the bracers, 0 bare, 2 in Only Hands (no body, unchanged);
+`vr_hand_rig 0` draws the bracer body. Blood (`vr_gore_spatter_test arm`) paints the bare forearms to the wrist.
+
+**To test in VR:** Body > Bracers off; look at both wrists close up, roll them fully, bend them up, down and sideways,
+grip and let go (the thumb's base is near the lip); the wrist gadget on its arm; the three builds; a lamp near one hand
+(the hands are now lit as the body when bare). Decide whether the hand's colour should win (now) or the arm's.
+Known: past about 70 degrees of bend the wrist pinches (as with the bracers); the self-collision capsules still use the
+bracer's girth (a few mm fuller); the hands' copies in a mirror keep their own light.
 ## Patch 1.0.1: the lava super nailgun and multi rocket launcher re-mapped (2026-10-10, worktree `remap2`)
 
 The `blend101` section's "not done", approved: `v_lava2.mdl` and `v_multi2.mdl` (the super nailgun's and rocket

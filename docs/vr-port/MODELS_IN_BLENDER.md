@@ -293,6 +293,14 @@ more or less muscular. To edit all three:
   re-UVing geometry, the other builds are left alone, and the export says so.
 - **Or edit each build on its own:** import it, edit it and export it.
 
+**Bare forearms** (Body > Bracers off, `vr_body_bracers 0`) are three more files, `vrbody_bare`, `vrbody_lean_bare` and
+`vrbody_brawny_bare` (`make_vrbody.py` writes them; it leaves the edited skins alone with `--keep-edited`). They differ
+from the builds only in the forearms: no bracer, the skin running on to the wrist and over the base of the hand,
+fitted round the jointed hand (`hand_rig.md5mesh`, sliced at its wrist). They use the same skins (the arm's block, its
+rows down to the wrist). Edits to the hand's wrist need `make_vrbody.py --keep-edited` run again, so that the arm's
+end fits it; it prints the wrist's colour and size the engine uses (`vr_view.cpp`'s `bareTint`, `vr_avatar.cpp`'s
+`forearmGirth`): repainting the arm's skin round the wrist or the hand changes the colour, so copy the new numbers.
+
 ### The skins
 
 The 16 skins are one per armour and damage state: skin `armour × 4 + damage`. Armour 0 is none, then green, yellow and
