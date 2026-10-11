@@ -3192,3 +3192,113 @@ e1m1 smoke clean.
 (X/A): it stays held; with More open, the stick press shows the new tool's page; lift a grunt with the physgun and
 point the gun steeply up and down: it doesn't spin. Make a box against a scorched wall, paint and move it: the wall's
 mark stays.
+
+## Shoves: the backpedal, and the active ragdolls' known gaps (2026-10-11, worktree `ragmove`)
+
+His words: "When humanoid enemies are shoved, they seem to cover much less distance than before, and they do not
+backpedal trying to keep balance. I would like them to backpedal a few steps before falling down (or managing to
+recover)." and "Please address the known gaps".
+
+### `stagger_test.sh` on `next` (3-4 FAIL there, 0 on `agent/fixrag`): neither a merge regression nor flakiness
+
+`agent/fixrag`'s 0 FAIL was `stagger_test (grunt, knight)` (`MONS="0 5"`); `next` runs the default six. The ogre and the
+death knight failed on their own, the same on both branches (QC and the engine's stagger code are identical):
+- **judo**: `vr_foegrab_throw_test` on a fresh ogre or death knight prints "not hurt enough" (they are the
+  `vr_foegrab_throw_when_hurt` kinds, thrown only below `vr_foegrab_throw_hurt` 0.4 of their health): no throw, no
+  "landed". The test now hurts each to 0.3 first (`vr_foegrab_hurt 0.3`).
+- **steady** (the ogre): ragstagger's own notes already said "the ogre shrugs off even a sure one-hand shove": its falls
+  and recoveries didn't follow its balance (4 of 8 steady ones fell, 3 of 8 sure ones stood). Fixed with the backpedal
+  below (the outcome follows the balance); the ogre still goes over on its own about 1 steady shove in 10 (top-heavy:
+  its middle 20 units past its feet), which the test spares.
+
+### The backpedal (`vr_ragactive.cpp` "Staggers"; `vr_box3d.cpp` `ragdollStagger`)
+
+Measured first (`scratch/dist.sh`, one-hand shoves on vrfiringrange, `vr_knockdown_test 21`): the old standing slide
+(`vr_ragdoll_active_stagger 0`, "shove slide: went", 1.0.1's) against the stagger's travel:
+
+| | grunt | enforcer | knight | death knight | ogre | zombie |
+|---|---|---|---|---|---|---|
+| old slide (units) | 84-116 | 73-124 | 86-135 | 66-112 | 44-100 | 90-127 |
+| stagger before (travel 0.2, at most 1.25 m) | 18 | | 19 | | 7-11 | |
+| backpedal now: steady (recovers) | 107, 6 steps | 94, 6-9 | 110, 6 | 75, 6 | 54-58, 6-9 | 117, 6 |
+| beaten (gives way, then falls on) | 52-55 at 0.47 s, 3 steps | 51 | 59 | 57 | 40-45 | 64 |
+
+- **Distance**: `vr_ragdoll_active_stagger_travel` 0.2 -> **1.2** (`vr_cfg_version` 128 moves a config still at 0.2:
+  his has it), the cap 1.25 -> 4 m; its time 0.4 + 0.3 x travel (at most 1.6 s; a grunt's 3.4 m over 1.42 s).
+- **Steps**: quicker the faster it goes and the farther it leans (0.22 s down to 0.13 s), each landing within 0.75 of a
+  leg of where its pelvis will be (the leg's reach), lower to trigger while leaning; at most
+  `vr_ragdoll_active_stagger_steps` (new, 6; Ragdoll Settings > Backpedal Steps), a steady one 3 more while it still
+  leans (catch steps).
+- **The outcome follows the balance** (the knockdown's roll against its chance: under 0.5 is the old rule's knockdown):
+  a **beaten** one backpedals 3 or 4 steps (4 nearer the edge) and **gives way** (a Fall, its arms bracing); a **steady**
+  one takes its steps and **recovers**. Held up enough to backpedal either way (its muscles' hold and pin 0.7 + 0.3 x
+  balance: at 0.5 + 0.5 x a beaten grunt's knees gave on his 2nd step). Physics can still fell either: twice
+  `vr_ragdoll_active_stagger_lean` for 0.1 s, or (steady) past it for 0.36 s, or the pelvis sagging. So shoves knock
+  down at the knockdown's chance again (steady 6 of 6 recover, sure 6 of 6 fall, every class; the ogre 18 of 20
+  steady).
+- **Its arms** thrown out ahead (against the shove) and wheeling at 2 Hz, the more the shakier it is; the upright's
+  strength 0.5 + 0.5 x balance.
+- Debug: the fell / recovered lines say how far it moved and where its middle was (`vr_knockdown_debug 1`).
+- Ragdoll Settings: Backpedal Steps and Backpedal Distance rows; Stagger Falls Past's help says the new rule.
+
+### The known gaps
+
+- **Living knockdowns swim** (`vr_box3d.cpp` `livingSwim`; `ragactive::beginLivingSwim`, `swimGoal`, `swimDies`): a
+  knocked-down monster of the active classes lying in water deep enough paddles at full strength while it lives (its
+  head tipped back and held up for good), its strokes pushing it (0.2 body weights at the pull) towards where it can
+  stand (`standSpot`'s liquid search, looked for again every second), turned to face it; in lava or slime it flails.
+  Killed meanwhile, its strokes weaken as a death's from then. The knockdown's struggle waits while it swims.
+  vrtesthall's pool: a grunt knocked down there paddles 2.5 s, head out after 0.5 s, and gets up 80 units from where it
+  lay (128 before: the get-up searched from farther out); killed after 1.4 s, its vigour falls to 0.01 by 3.5 s more.
+- **Strokes give thrust**: a dying paddle's strokes push it ahead (its chest's way, 0.05 body weights at the pull,
+  weakening with it).
+- **Lava/slime flail**: the torso's and head's thrash rates follow the strokes' (slowing from 3.8 to 2.2 Hz with them),
+  not fixed (the fix worker's open question).
+- **Saved games: staggers** (`ragdollstaggered` 3, QC `.vr_kd_balance`, `.vr_kd_dir`): a loaded game's stagger is begun
+  again where it stands (its ragdoll made again in the frame it was drawn in), no push, from its saved balance: steady
+  it recovers, beaten it gives way. A stagger still "on" 8 s after it began goes down (`VR_KD_STAGGER_MOST`: its
+  ragdoll never made again). Rises were already begun again from how it lies (a fresh ragdoll asks for a new one).
+- **One-legged balance hops** (`dismemberFrame`): leaning 7 degrees from his line, his foot hops under his pelvis (0.2
+  s, lifted 0.1 of the leg, at most 0.4 of a leg, a little to the side lost), his line taken again; at most 3; the pin
+  holds him up meanwhile (his lean isn't judged mid-hop). The grunt's leg cut: one hop at 0.52 s, the beat lasting its
+  full 1.2 s (1.06-1.13 s before, broken at 15 degrees).
+- **The hand on the cut face, bloodied**: the stump's hold goes to the joint's cut face (facing along the lost bone)
+  when it is within 0.75 of the holding arm's length of its shoulder, else the surface beside it as before. Each time
+  the hand is within 4 units of it (every 0.7 s, at most 4) a light melee wound is sent where the hand is
+  (`progs::sendWound`, QC's `woundevent` from the engine): the palm bloodied.
+- **A stump out of reach** (the ogre's): his torso curls towards it (the holding shoulder turned towards the stump about
+  his pelvis, at most 0.6 rad shared by the torso's joints, strength 0.6) while it is past 0.85 of his arm.
+
+### Decisions (the fix worker's open questions)
+
+- A knight cut at full sprint tipping over in 0.08 s: **no brake**. At 184 u/s his own momentum carries him over the
+  one foot left; an invisible brake would look like the hand of God. Slower (117 u/s) he balances 1.15 s, now with hops.
+- Lava flail torso/head rates: they now slow with the limbs (above).
+
+### Not done (his call, or a feature of its own)
+
+- **A standing monster drowning** is still an animated monster until it dies (then its death paddles): turning a live
+  one into a ragdoll fighting for air is a new behaviour (when, and does it get out?).
+- **Pull-up from a ledge hang**: hangs are dying men's (env runs for deaths only); a living monster's hang and pull-up
+  needs the knockdowns to use the env first.
+- **Ledges on movers**: the movers' ledge maps (model space) are still not looked up.
+- **Head protection, catching on others**: what should they be: hands to the head when struck while down? grabbing an
+  ally as it falls?
+- **Recovery skips the pain frames**: the backpedal is the pain's flinch now; handed back to `th_run` as before.
+- A death's drive is not saved (a loaded dying body lies limp).
+
+### Checked
+
+Headless, `sv_random_seed 7`: `stagger_test.sh ragmove steady backpedal saved judo getup` (N=6, all six classes) 0
+FAIL (steady 6 of 6 recover and sure 6 of 6 fall for every class; the ogre 18 of 20 steady in a longer run);
+`liquid_active_test.sh kdswim kddie water lava land` PASS / as before (a dying grunt paddles 4.2 s, head under 62 % /
+80 %, at rest after); `dismember_test.sh leg arm forearm`: the beat its full 1.2 s for grunt, knight and ogre (the
+pelvis 3-7 units lower by then: 2 before), the hand on the stump 2.7-5.1 units (grunt, knight; 2-6 before), the ogre's
+forearm 8.0 (10-16 before), its leg 3.5-15 (8 before: it varies); e1m1 smoke. Build 0 warnings.
+
+**In the headset**: shove grunts and knights one-handed: they should reel back several quick steps, arms thrown out,
+about as far as a shove slid them in 1.0.1, then stand and fight, or (as often as Knockdowns' chance says) give way
+after 3 or 4 steps and go down bracing. Ragdoll Settings > Backpedal Steps / Distance to taste. Knock one into
+vrtesthall's pool: it should paddle with its head up towards the edge and climb out; kill it there: it weakens and
+sinks. Cut a grunt's leg standing: he should hop once or twice before falling, and hold the stump's end with a
+bloodied hand. Save mid-stagger and load: it staggers on (recovers or goes down).

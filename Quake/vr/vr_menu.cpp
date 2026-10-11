@@ -4105,13 +4105,20 @@ void hologramTestMessage()
             .help("A monster hit a moment ago takes shorter steps: a leg hit about half for half a second, with a hitch "
                   "towards that leg; the body a third, 0.3 s. 0: none (vr_hit_react_slow)."),
         toggle("Active Shoves and Throws", vr_ragdoll_active_stagger)
-            .help("With Knockdowns, a shove makes a grunt, enforcer, knight, death knight, ogre or zombie stagger as a "
-                  "ragdoll held up by its muscles, its feet stepping after it: leaning too far it falls (knocked down), "
-                  "else it recovers and fights on; the knockdown's chance sets how steady it is. Going down, its arms "
-                  "brace for the floor; a two-hand throw's body goes slack where you held it and curls as it goes over. "
-                  "Off: the knockdown's chance alone (vr_ragdoll_active_stagger)."),
+            .help("With Knockdowns, a shove makes a grunt, enforcer, knight, death knight, ogre or zombie backpedal as a "
+                  "ragdoll held up by its muscles, about as far as a shove used to slide it, its arms wheeling: beaten by "
+                  "the knockdown's chance it gives way after 3 or 4 steps (knocked down), else it catches itself and "
+                  "fights on. Going down, its arms brace for the floor; a two-hand throw's body goes slack where you held "
+                  "it and curls as it goes over. Off: the knockdown's chance alone (vr_ragdoll_active_stagger)."),
         slider("Stagger Falls Past", vr_ragdoll_active_stagger_lean, 10.f, 60.f, 5.f, "%.0f deg")
-            .help("A staggering monster whose middle leans this far past its feet falls (vr_ragdoll_active_stagger_lean)."),
+            .help("A staggering monster whose middle leans this far past its feet for a third of a second, or twice "
+                  "this far at once, falls whatever its balance (vr_ragdoll_active_stagger_lean)."),
+        slider("Backpedal Steps", vr_ragdoll_active_stagger_steps, 1.f, 10.f, 1.f, "%.0f")
+            .help("How many steps back a shoved monster takes at most (a steady one up to 3 more to catch itself); one "
+                  "the shove beat gives way after 3 or 4 of them (vr_ragdoll_active_stagger_steps)."),
+        slider("Backpedal Distance", vr_ragdoll_active_stagger_travel, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("How far a shoved monster backpedals, times how far the same shove slid a standing one before "
+                  "active shoves (at most 4 m) (vr_ragdoll_active_stagger_travel)."),
         toggle("Active Get-Ups", vr_ragdoll_active_getup)
             .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
                   "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "

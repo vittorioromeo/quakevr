@@ -136,6 +136,12 @@ struct Dismember
     glm::vec3 stumpAt{0.f}, stumpOut{0.f};
     int holdArm{-1};
     float holdFrom{0.f}, holdUntil{0.f}; // s since the drive began (then let go over 0.8 s)
+    bool face{false};       // the hand on the cut face (stumpAt the joint, stumpOut along the lost limb), else its side
+    float curl{0.f};        // rad: his torso curled towards a stump past his reach this frame
+    bool curling{false};
+    // Blood on the holding hand (vr_box3d.cpp sends it as a wound there): marks due, the last one's time (s, -1 none).
+    int bloodDue{0}, bloodMarks{0};
+    float bloodAt{-1.f};
     // The writhe (s since the drive began): the torso and legs stirring a little, eased in and out; each joint's turn
     // this frame (rad/s, its parent's rest space: fed forward to its motor, which would hold it still).
     float writheFrom{-1.f}, writheUntil{-1.f};
@@ -148,6 +154,11 @@ struct Dismember
     glm::vec3 lostSide{0.f}, line0{0.f}, origin0{0.f};
     glm::vec3 plant{0.f};
     float balanceUntil{-1.f}, brokeAt{-1.f};
+    // A hop on the leg left (leaning past hopLean: the foot lifted and put down under his pelvis): when it began (s, -1
+    // none), from and to (world, metres), how many.
+    float hopFrom{-1.f};
+    glm::vec3 hopA{0.f}, hopB{0.f};
+    int hops{0};
     Clip deathClip;                       // his death animation, played once the beat breaks
     za::Array<Fade, channelCount> deathFade{}; // and its strengths (shifted to the break)
     // The traces: the hand from the stump (units), his lean (deg).
@@ -293,6 +304,12 @@ struct Swim
     uint32_t seed{0};
     float phase{0.f};            // rad: the strokes' (advanced slower as it weakens)
     float headLift{0.f};         // N: the last frame's lift on the head (the traces)
+    // A living knockdown's (beginLivingSwim): it keeps its strength and its head up, and paddles towards `goal` (world,
+    // metres: where it can stand, vr_box3d.cpp's standSpot) when it has one; a dying one's strokes push it ahead.
+    bool living{false};
+    bool hasGoal{false};
+    glm::vec3 goal{0.f};
+    float thrust{0.f};           // N: the last frame's push along its way (the traces)
 };
 
 // A living monster's stagger from a shove (beginStagger; vr_ragactive.cpp, "Staggers"), how it ends.
@@ -317,14 +334,18 @@ struct Stagger
     glm::vec3 lift{0.f};    // its pin's anchor from the stand frame's pelvis to where its pelvis was (metres)
     float lean{0.f}, leanMost{0.f}; // deg: its middle over its feet now, at most
     float over{-1.f};       // s after the drive began: leaning past its limit since (-1: not)
+    float farSince{-1.f};   // ... past twice it since
     float sag{1.f};         // its pelvis's height over the floor now over `overFloor`, as it stood (its lowest)
     float overFloor{0.f};   // m (0: not yet measured)
     // Its feet: each leg's place on the floor (planted), its stance (the foot from the pelvis, level), a step's way.
     za::Array<glm::vec3, 2> planted{}, stance{};
     int stepLeg{-1}; // Limb
     double stepFrom{0.0};
+    float stepTime{0.22f};  // s: this step's
     glm::vec3 stepA{0.f}, stepB{0.f};
     int steps{0};
+    int stepsMost{4};       // its backpedal's steps at most (vr_ragdoll_active_stagger_steps)
+    int giveAfter{-1};      // its balance lost (below 0.5): it gives way after this many steps (-1: it means to recover)
 };
 
 // A fall (beginFall: a stagger gone over, a shove's knockdown, a throw; vr_ragactive.cpp, "Falls"): the arms braced
@@ -493,6 +514,21 @@ void drive(State& s, const Parts& p, const Context& c);
 
 // A blast or a hard knock: every strength times `keep` from now on (a hit lowers the muscles).
 void weaken(State& s, float keep);
+
+// A living knockdown in a liquid (the drive begun, vr_ragdoll_active_liquids): it paddles (water) or flails (lava,
+// slime) at full strength while it lives, its head held up, towards `goal` if `hasGoal` (swimGoal later). Whether it
+// began (the liquid deep enough: Liquid::None no).
+bool beginLivingSwim(State& s, const Parts& p, const Context& c);
+// Its goal (a place to stand found again, or none).
+void swimGoal(State& s, bool hasGoal, const glm::vec3& goal);
+// A living swimmer killed: its swim a dying one's from now (weakening as it drowns or burns).
+void swimDies(State& s, double now);
+// Whether it swims now (a living knockdown's or a death's).
+[[nodiscard]] bool swimming(const State& s);
+
+// A mark of blood due on the hand holding a stump (Dismember::bloodDue, one taken): the hand's end (world, metres) and
+// the way to the stump. False: none due.
+bool takeHandBlood(State& s, const Parts& p, glm::vec3& at, glm::vec3& dir);
 
 // Dismemberment (vr_ragactive.cpp, "Dismemberment"): `joint` cut off just now (vr_box3d.cpp ragdollCutLimb; `p.cut` has
 // it). A driven death reacts: the head, a collapse; a limb, a hand to the stump and a writhe, a balance beat on one leg

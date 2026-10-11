@@ -29,7 +29,10 @@
 
 // Shoved (vr_ragdoll_active_stagger): staggering as a ragdoll (the engine's; VR_Knockdown_Try), not yet down nor up.
 .float vr_kd_stagger;
+.float vr_kd_balance; // its balance (VR_Knockdown_Try), and the shove's way: a loaded game's stagger begun again
+.vector vr_kd_dir;
 float VR_KD_STAGGER_SLOPE = 2.5; // a stagger's balance: 0.5 + this x (the roll - the knockdown's chance), 0 .. 1
+float VR_KD_STAGGER_MOST = 8;    // s: a stagger still on this long after it began goes down (its ragdoll lost)
 
 // Its class's chance and get-up: its own (from frame xFrame, the lowest of its fall-and-rise, its frame function xGetup on).
 void(float xChanceH, float xFrame, void() xGetup) VR_Knockdown_SetupOwn =
@@ -269,7 +272,8 @@ void() VR_Knockdown_Think =
     {
         // Staggering (the engine's ragdoll, pinned up): on, back on its feet (its AI on), or gone over (down from now).
         float st = ragdollstaggered(self, self.vr_kd_mins, self.vr_kd_maxs);
-        if(st == 1)
+        // (Never on for long: a loaded game's whose ragdoll is never made again goes down.)
+        if(st == 1 && time - self.vr_kd_since < VR_KD_STAGGER_MOST)
         {
             self.nextthink = time + 0.05;
             return;
@@ -277,6 +281,19 @@ void() VR_Knockdown_Think =
         if(st == 2)
         {
             VR_Knockdown_Afoot("recovers from its stagger");
+            return;
+        }
+        // A loaded game's (its ragdoll made again as it was drawn, its stagger not): begun again where it stands, no
+        // push, its balance as it was (it recovers, or gives way after its steps' time).
+        if(st == 3 && ragdollstagger(self, self.vr_kd_dir, 0, self.vr_kd_balance, 0))
+        {
+            self.vr_kd_since = time;
+            if(cvar_hget(cvarh_vr_knockdown_debug))
+            {
+                dprint(sprintf("knockdown: %s's stagger begun again (a loaded game), balance %.2f\n", self.classname,
+                    self.vr_kd_balance));
+            }
+            self.nextthink = time + 0.05;
             return;
         }
         self.vr_kd_stagger = 0;
@@ -548,6 +565,8 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
         if(ragdollstagger(e, xForward, xPush, balance, slide))
         {
             e.vr_kd_stagger = 1;
+            e.vr_kd_balance = balance;
+            e.vr_kd_dir = xForward;
             e.nextthink = time + 0.05;
             return TRUE;
         }

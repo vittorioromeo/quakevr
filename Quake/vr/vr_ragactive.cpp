@@ -616,6 +616,12 @@ constexpr float liquidWindow = 6.f;   // s since the death: a body falling in la
 constexpr float deepEnough = 10.f;    // units of water over the pelvis or chest for a swim to begin
 constexpr float headLiftShare = 0.3f; // body weights: the head (and chest) held up at most, while the head is under
 constexpr float twoPi = 6.2831853f;
+constexpr float swimThrustDying = 0.05f;  // body weights: a dying paddle's strokes' push at most (at full vigour)
+constexpr float swimThrustLiving = 0.2f;  // ... a living knockdown's, towards where it can stand
+constexpr float swimArrived = 0.25f;      // m: that near its goal, it only treads water
+
+void turnWhole(const Parts& p, const Context& c, const glm::quat& want, float rate, float most, float k); // ("Staggers")
+[[nodiscard]] glm::vec3 level(const glm::vec3& v); // (below)
 
 [[nodiscard]] glm::vec3 centre(const Parts& p, int b)
 {
@@ -706,8 +712,9 @@ void startSwim(State& s, const Parts& p, const Context& c, Liquid l, float t)
     }
     dropPin(s.pin);
     s.clip.first = -1;
+    // (A living one keeps its strength: it fades once it dies, swimDies.)
     const auto set = [&](Channel ch, float from, float a, float b) {
-        s.fade[static_cast<za::SizeT>(ch)] = Fade{from, 0.f, t + a * T, t + b * T};
+        s.fade[static_cast<za::SizeT>(ch)] = w.living ? Fade{from, from, t, t} : Fade{from, 0.f, t + a * T, t + b * T};
     };
     if(water)
     {
@@ -724,10 +731,17 @@ void startSwim(State& s, const Parts& p, const Context& c, Liquid l, float t)
         set(Channel::Head, 0.8f, 0.3f, 0.9f);
     }
     s.on = true;
-    if(vr_debug_ragdoll.value)
+    if(vr_debug_ragdoll.value || (w.living && vr_knockdown_debug.value))
     {
-        Con_Printf("ragdoll: %d in %s %.2f s after its death: %s for %.1f s\n", c.num, liquidName(l), t,
-            water ? "paddles" : "flails", T);
+        if(w.living)
+        {
+            Con_Printf("ragdoll: %d down alive in %s: %s while it lives\n", c.num, liquidName(l), water ? "paddles" : "flails");
+        }
+        else
+        {
+            Con_Printf("ragdoll: %d in %s %.2f s after its death: %s for %.1f s\n", c.num, liquidName(l), t,
+                water ? "paddles" : "flails", T);
+        }
     }
 }
 
@@ -820,8 +834,12 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
     }
     const glm::quat qc = bodyRot(p, sp.chest >= 0 ? sp.chest : 0), qp = bodyRot(p, 0);
     const glm::vec3 x{1.f, 0.f, 0.f}, y{0.f, 1.f, 0.f}, z{0.f, 0.f, 1.f};
-    // The torso and head (the limbs' bones beyond their reaches: as he stood).
-    const float head = water ? -0.6f * (1.f - smooth((ts - 0.3f * T) / (0.4f * T))) : 0.f;
+    // The torso and head (the limbs' bones beyond their reaches: as he stood). A flail's thrash (its rates, Hz at full
+    // vigour) slows with its strokes: its phase over the full rate's (3.8 Hz), radians per Hz.
+    const float fp = w.phase / 3.8f;
+    // (A living one's as at its start: its head tipped back and held up while it lives.)
+    const float tl = w.living ? 0.f : ts;
+    const float head = water ? -0.6f * (1.f - smooth((tl - 0.3f * T) / (0.4f * T))) : 0.f;
     for(int b = 1; b < p.count; b++)
     {
         if(!drivable(s, p, b))
@@ -833,13 +851,13 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         if(ch == Channel::Head)
         {
             q = water ? glm::angleAxis(head, y)
-                      : glm::angleAxis(0.5f * v * za::sin(twoPi * 2.7f * ts), z) *
-                            glm::angleAxis(-0.25f * v * (1.f + za::sin(twoPi * 1.9f * ts)), y);
+                      : glm::angleAxis(0.5f * v * za::sin(fp * 2.7f), z) *
+                            glm::angleAxis(-0.25f * v * (1.f + za::sin(fp * 1.9f)), y);
         }
         else if(ch == Channel::Torso && !water)
         {
-            q = glm::angleAxis(0.35f * v * za::sin(twoPi * 2.f * ts), y) * glm::angleAxis(0.3f * v * za::sin(twoPi * 1.6f * ts + 1.3f), x) *
-                glm::angleAxis(0.25f * v * za::sin(twoPi * 1.3f * ts + 2.1f), z);
+            q = glm::angleAxis(0.35f * v * za::sin(fp * 2.f), y) * glm::angleAxis(0.3f * v * za::sin(fp * 1.6f + 1.3f), x) *
+                glm::angleAxis(0.25f * v * za::sin(fp * 1.3f + 2.1f), z);
         }
         s.target[static_cast<za::SizeT>(b)] = glm::normalize(q);
     }
@@ -891,13 +909,37 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
     w.headLift = 0.f;
     if(water && headIn && sp.head >= 0)
     {
-        const float keep = 1.f - smooth((ts - 0.4f * T) / (0.3f * T));
+        const float keep = 1.f - smooth((tl - 0.4f * T) / (0.3f * T));
         w.headLift = headLiftShare * s.totalMass * c.gravity * keep * s.base;
         if(w.headLift > 0.f)
         {
             const glm::vec3 f{0.f, 0.f, 0.5f * w.headLift};
             pushPart(p, sp.head, f);
             pushPart(p, sp.chest >= 0 ? sp.chest : 0, f);
+        }
+    }
+    // The strokes' push (water): ahead (its chest's way), or a living one's towards where it can stand, turning to face
+    // it; strongest as the hands pull back, weakening with its vigour. Half on the pelvis, half on the chest.
+    w.thrust = 0.f;
+    if(water && in)
+    {
+        const glm::vec3 at = centre(p, sp.chest >= 0 ? sp.chest : 0);
+        glm::vec3 way = w.living ? (w.hasGoal ? level(w.goal - at) : glm::vec3{0.f}) : level(qc * x);
+        const float wl = glm::length(way);
+        if(wl > (w.living ? swimArrived : 0.3f))
+        {
+            way /= wl;
+            const float stroke = 0.5f + 0.5f * za::sin(w.phase);
+            w.thrust = (w.living ? swimThrustLiving : swimThrustDying) * s.totalMass * c.gravity * v * stroke * s.base;
+            pushPart(p, 0, way * (0.5f * w.thrust));
+            pushPart(p, sp.chest >= 0 ? sp.chest : 0, way * (0.5f * w.thrust));
+            const glm::vec3 ahead = level(qc * x);
+            if(w.living && glm::length(ahead) > 0.3f)
+            {
+                const glm::vec3 a = glm::normalize(ahead);
+                const float off = za::atan2(glm::cross(a, way).z, glm::dot(a, way));
+                turnWhole(p, c, glm::normalize(glm::angleAxis(off, z) * bodyRot(p, 0)), 1.5f, 1.f, 0.5f);
+            }
         }
     }
     if(c.trace)
@@ -916,8 +958,10 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
             }
         }
         const float hz2 = sp.head >= 0 ? centre(p, sp.head).z * p.m2u : 0.f;
-        Con_Printf("ragswim %d %.3f l %d v %.2f head %d %.1f lift %.0f limbs %.2f\n", c.num, static_cast<float>(c.now - c.born),
-            static_cast<int>(w.liquid), v, headIn ? 1 : 0, hz2, w.headLift, limbs / static_cast<float>(za::max(n, 1)));
+        Con_Printf("ragswim %d %.3f l %d v %.2f head %d %.1f lift %.0f limbs %.2f thrust %.0f at %.0f %.0f\n", c.num,
+            static_cast<float>(c.now - c.born),
+            static_cast<int>(w.liquid), v, headIn ? 1 : 0, hz2, w.headLift, limbs / static_cast<float>(za::max(n, 1)), w.thrust,
+            centre(p, 0).x * p.m2u, centre(p, 0).y * p.m2u);
     }
 }
 
@@ -986,12 +1030,16 @@ void turnWhole(const Parts& p, const Context& c, const glm::quat& want, float ra
 // feet, or its pelvis sagging below staggerSag of its height: it falls. Done travelling and stepping, leaning little and
 // nearly still (or after staggerMost s still up): it has recovered.
 constexpr float staggerStepTime = 0.22f; // s: a step
-constexpr float staggerCatch = 0.12f;    // s: leaning past its limit this long, it falls
-constexpr int staggerStepsMost = 4;
+constexpr float staggerStepQuickest = 0.13f; // s: a fast backpedal's step
+constexpr int staggerCatchSteps = 3;     // steps past its backpedal's to catch itself, still leaning
+constexpr float staggerStride = 0.75f;   // of a leg's length: a step lands at most this far (level) from its pelvis then
+constexpr float staggerCatch = 0.12f;    // s: leaning past its limit three times this long, it falls
+constexpr float staggerFar = 0.1f;       // s: past twice its limit this long, it falls
 constexpr float staggerStepAt = 0.2f;    // of a leg's length: a foot this far from its stance under the capture point steps
 constexpr float staggerSag = 0.55f;      // of its pelvis's height: it gave way
 constexpr float staggerSteady = 12.f;    // deg: leaning less, it is steady
-constexpr float staggerMost = 2.f;       // s: up this long, it has recovered
+constexpr float staggerMost = 1.2f;      // s: up this long after its travel, it has recovered
+constexpr float staggerWheel = 2.f;      // Hz: its arms wheeling for its balance
 constexpr float staggerUpright = 8.f;    // rad/s per radian its pelvis is pitched off its stance's, steady (turnWhole)
 constexpr float staggerUprightMost = 4.f; // rad/s
 
@@ -1026,8 +1074,7 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
     }
     support = feet > 0 ? support / static_cast<float>(feet) : pelvis;
     footZ = feet > 0 ? footZ : pelvis.z - g.height;
-    g.lean = glm::degrees(za::atan2(glm::length(level(com - support)), za::max(com.z - footZ, 0.05f)));
-    g.leanMost = za::max(g.leanMost, g.lean);
+    g.lean = glm::degrees(za::atan2(glm::length(level(com - support)), za::max(com.z - footZ, 0.05f)));    g.leanMost = za::max(g.leanMost, g.lean);
     // (Its pelvis over the floor under it, against how high it stood: its feet's ends may lie below their soles.)
     const float below = c.floorBelow ? c.floorBelow(pelvis, 2.f) : -1e30f;
     const float floor = below > -1e29f ? below : footZ;
@@ -1055,10 +1102,17 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
     {
         // A step: the foot farthest from its stance under its middle's capture point (where its middle comes to rest over
         // a base: its level motion times the square root of its height over g, ahead of it).
-        if(g.stepLeg < 0 && g.steps < staggerStepsMost)
+        // (Beaten, its steps taken: no more, it gives way below. Steady, its backpedal's steps taken and still leaning: a
+        // few more to catch itself.)
+        const int stepsCap = g.giveAfter >= 0 ? g.giveAfter : g.stepsMost + (g.lean > staggerSteady ? staggerCatchSteps : 0);
+        if(g.stepLeg < 0 && g.steps < stepsCap)
         {
             const float h = za::max(com.z - footZ, 0.1f);
             const glm::vec3 then = level(com) + level(comVel) * za::sqrt(h / za::max(c.gravity, 1.f));
+            // (Quicker steps the faster it goes, and the farther it leans: a backpedal's, a catch.)
+            const float stepTime = za::clamp(staggerStepTime - 0.02f * glm::length(level(comVel)) -
+                                                 0.004f * za::max(g.lean - staggerSteady, 0.f),
+                staggerStepQuickest, staggerStepTime);
             int best = -1;
             float bestD = 0.f;
             for(int leg = 2; leg < 4; leg++)
@@ -1075,56 +1129,96 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
                     best = leg;
                 }
             }
-            if(best >= 0 && bestD > staggerStepAt * limbLength(s, p, best))
+            if(best >= 0 && bestD > staggerStepAt * (g.lean > staggerSteady ? 0.6f : 1.f) * limbLength(s, p, best))
             {
                 const auto i = static_cast<za::SizeT>(best - 2);
                 const float len = limbLength(s, p, best);
                 const glm::vec3 way = level(then - level(g.planted[i] - g.stance[i]));
                 const float wl = glm::length(way);
                 glm::vec3 to = level(then + g.stance[i]) + (wl > 1e-3f ? way / wl : g.dir) * (0.06f * len);
+                // (Within its leg's stride of where its pelvis will be as the foot lands: past it the leg can't reach and
+                // the foot would hang in the air.)
+                const glm::vec3 hipThen = level(pelvis) + level(comVel) * stepTime;
+                const glm::vec3 off = to - hipThen;
+                const float offL = glm::length(off);
+                if(offL > staggerStride * len)
+                {
+                    to = hipThen + off * (staggerStride * len / offL);
+                }
                 // (As high over the floor there as it is here: a foot's end may lie below its sole, the ogre's 8 units.)
                 const glm::vec3 from = g.planted[i];
                 to.z = from.z + floorAt(c, glm::vec3{to.x, to.y, from.z}, len, from.z) - floorAt(c, from, len, from.z);
                 g.stepLeg = best;
                 g.stepFrom = c.now;
+                g.stepTime = stepTime;
                 g.stepA = g.planted[i];
                 g.stepB = to;
             }
         }
         const float limit = za::clamp(vr_ragdoll_active_stagger_lean.value, 5.f, 80.f);
         const float speed = glm::length(level(glmv(b3Body_GetLinearVelocity(p.body[0]))));
-        // (Past its lean a moment, not stepping: a step may still catch it; far past, or sagging, at once.)
+        // (Past its lean a while, not stepping, or past twice it a moment: a step may still catch it; sagging, at once.)
         g.over = g.lean > limit && g.stepLeg < 0 ? (g.over < 0.f ? t : g.over) : -1.f;
-        if((g.over >= 0.f && t - g.over >= staggerCatch) || g.lean > 1.5f * limit || g.sag < staggerSag)
+        g.farSince = g.lean > 2.f * limit ? (g.farSince < 0.f ? t : g.farSince) : -1.f;
+        const bool tooFar = g.farSince >= 0.f && t - g.farSince >= staggerFar;
+        // Beaten: it gives way once its steps are taken (or its travel is over first), as a step lands.
+        const bool gives = g.giveAfter >= 0 && g.stepLeg < 0 && (g.steps >= g.giveAfter || t > g.time);
+        // (Over on its lean only far past its limit, or a while past it: a beaten one goes on its steps' count, a steady one
+        // takes catch steps; or sagging.)
+        const bool tips = g.giveAfter >= 0 ? tooFar
+                                           : (g.over >= 0.f && t - g.over >= staggerCatch * 3.f) || tooFar;
+        if(gives || tips || g.sag < staggerSag)
         {
             g.outcome = Outcome::Fell;
             g.decided = c.now;
             if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
             {
-                Con_Printf("stagger: %d fell at %.2f s: leaning %.0f deg (at most %.0f), its pelvis at %.0f%% of its height, %d "
-                           "steps\n",
-                    c.num, t, g.lean, limit, g.sag * 100.f, g.steps);
+                Con_Printf("stagger: %d fell at %.2f s%s: leaning %.0f deg (at most %.0f), its pelvis at %.0f%% of its height, "
+                           "%d steps, moved %.0f units (its middle %.0f along the shove from its feet, %.0f aside)\n",
+                    c.num, t, gives ? " (gave way)" : "", g.lean, limit, g.sag * 100.f, g.steps,
+                    glm::length(level(pelvis - g.pelvis0)) * p.m2u, glm::dot(level(com - support), g.dir) * p.m2u,
+                    glm::dot(level(com - support), glm::cross(up, g.dir)) * p.m2u);
             }
             beginFall(s, p, g.dir, 0u, 0.f, false, c.now);
             return;
         }
-        if((t > g.time + 0.2f && g.stepLeg < 0 && g.lean < staggerSteady && speed < 0.4f) || t > staggerMost)
+        if((t > g.time + 0.2f && g.stepLeg < 0 && g.lean < staggerSteady && speed < 0.4f) || t > g.time + staggerMost)
         {
             g.outcome = Outcome::Recovered;
             g.decided = c.now;
             if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
             {
                 Con_Printf("stagger: %d recovered at %.2f s: leaning %.0f deg (at most %.0f), its pelvis at least %.0f%% of its "
-                           "height, %d steps\n",
-                    c.num, t, g.lean, g.leanMost, g.sag * 100.f, g.steps);
+                           "height, %d steps, moved %.0f units\n",
+                    c.num, t, g.lean, g.leanMost, g.sag * 100.f, g.steps, glm::length(level(pelvis - g.pelvis0)) * p.m2u);
             }
         }
     }
     // Kept upright (as steady as its balance: the shove's pitch of its pelvis worked off), towards its stance.
     if(pose.valid)
     {
-        turnWhole(p, c, glm::normalize(s.turn * pose.rot[0]), staggerUpright * g.balance * s.base,
+        turnWhole(p, c, glm::normalize(s.turn * pose.rot[0]), staggerUpright * (0.5f + 0.5f * g.balance) * s.base,
             staggerUprightMost, 1.f);
+    }
+    // The arms thrown out against the shove and wheeling (its balance's), the less the steadier it is.
+    const glm::vec3 ahead = -g.dir;
+    const glm::vec3 left = s.turn * glm::vec3{0.f, 1.f, 0.f};
+    for(int arm = 0; arm < 2; arm++)
+    {
+        Reach& r = s.reach[static_cast<za::SizeT>(arm)];
+        if(!limbWhole(s, p, arm))
+        {
+            r.weight = 0.f;
+            continue;
+        }
+        const int u = s.chain[static_cast<za::SizeT>(arm)][0];
+        const float len = limbLength(s, p, arm);
+        const glm::vec3 shoulder = worldPoint(p, u, p.rig->bones[u].pivot);
+        const float a = 2.f * 3.14159265f * staggerWheel * t + (arm == 0 ? 0.f : 3.14159265f);
+        r.goal = shoulder + ahead * (0.5f * len) + left * ((arm == 0 ? 0.35f : -0.35f) * len) +
+                 (ahead * za::cos(a) + up * za::sin(a)) * (0.2f * len);
+        r.weight = smooth(t / 0.12f) * (0.4f + 0.4f * (1.f - g.balance));
+        r.strength = 0.7f;
     }
     // The feet: planted, or the one stepping lifted along its way.
     for(int leg = 2; leg < 4; leg++)
@@ -1145,7 +1239,7 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         if(leg == g.stepLeg)
         {
             const float len = limbLength(s, p, leg);
-            const float u = za::clamp(static_cast<float>(c.now - g.stepFrom) / staggerStepTime, 0.f, 1.f);
+            const float u = za::clamp(static_cast<float>(c.now - g.stepFrom) / za::max(g.stepTime, 0.05f), 0.f, 1.f);
             r.goal = glm::mix(g.stepA, g.stepB, smooth(u)) + up * (0.12f * len * za::sin(3.14159265f * u));
             if(u >= 1.f)
             {
@@ -2501,17 +2595,23 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
     g.dir = glm::length(level(info.dir)) > 1e-3f ? glm::normalize(level(info.dir)) : glm::vec3{1.f, 0.f, 0.f};
     g.balance = za::clamp(info.balance, 0.f, 1.f);
     g.travel = za::max(info.travel, 0.f);
-    // (Its travel slowing to none over a few steps' time: 1.25 m over 0.9 s, its first speed 2.8 m/s.)
-    g.time = za::clamp(0.35f + 0.45f * g.travel, 0.3f, 1.f);
+    // (Its travel slowing to none over its backpedal: 1 m over 0.7 s, 3.5 m (a grunt's slide) over 1.45 s, its first
+    // speed 4.8 m/s.)
+    g.time = za::clamp(0.4f + 0.3f * g.travel, 0.3f, 1.6f);
+    g.stepsMost = za::clamp(static_cast<int>(vr_ragdoll_active_stagger_steps.value + 0.5f), 1, 10);
+    // Beaten (its roll under its chance): it backpedals 3 or 4 steps (4 nearer the edge), then gives way.
+    g.giveAfter = g.balance < 0.5f ? za::min(3 + static_cast<int>(g.balance * 4.f), g.stepsMost) : -1;
     s.clip = Clip{info.first, info.last >= info.first ? info.last : info.first, static_cast<float>(info.first), now, 10.f, false};
     s.base = 1.f;
     // Its legs strong (planted, stepping), its torso by its balance, its arms and head with some give.
     s.fade[static_cast<za::SizeT>(Channel::Legs)] = Fade{1.f, 1.f, 0.f, 0.f};
+    // (Held up well enough to backpedal whatever its balance: a beaten one gives way after its steps, staggerFrame.)
+    const float hold = 0.7f + 0.3f * g.balance;
     s.fade[static_cast<za::SizeT>(Channel::Torso)] = Fade{0.5f + 0.5f * g.balance, 0.5f + 0.5f * g.balance, 0.f, 0.f};
     s.fade[static_cast<za::SizeT>(Channel::Arms)] = Fade{0.6f, 0.6f, 0.f, 0.f};
     s.fade[static_cast<za::SizeT>(Channel::Head)] = Fade{0.8f, 0.8f, 0.f, 0.f};
-    s.support = Fade{0.3f + 0.65f * g.balance, 0.3f + 0.65f * g.balance, 0.f, 0.f};
-    s.pin.force = za::max(vr_ragdoll_active_stagger_pin.value, 0.f) * (0.1f + 0.9f * g.balance);
+    s.support = Fade{0.3f + 0.65f * hold, 0.3f + 0.65f * hold, 0.f, 0.f};
+    s.pin.force = za::max(vr_ragdoll_active_stagger_pin.value, 0.f) * (0.1f + 0.9f * hold);
     s.pin.fade = Fade{1.f, 1.f, 0.f, 0.f};
     s.pin.hertz = 5.f;
     s.pin.offset = glm::vec3{0.f};
@@ -2679,6 +2779,61 @@ void lapse(State& s, const Parts& p, double now)
 void weaken(State& s, float keep)
 {
     s.base *= za::clamp(keep, 0.f, 1.f); // (a stagger's pin too: its balance goes with it)
+}
+
+bool beginLivingSwim(State& s, const Parts& p, const Context& c)
+{
+    if(!p.rig || !c.liquidAt || !liquidsOn() || s.swim.liquid != Liquid::None || s.rise.on || s.stagger.on)
+    {
+        return false;
+    }
+    const Liquid l = enteredLiquid(p, c, swimParts(p));
+    if(l == Liquid::None)
+    {
+        return false;
+    }
+    // (A fall into it ends: the strokes lead from here.)
+    s.fall.on = false;
+    s.swim = Swim{};
+    s.swim.living = true;
+    s.support = Fade{};
+    startSwim(s, p, c, l, static_cast<float>(c.now - s.begun));
+    return true;
+}
+
+void swimGoal(State& s, bool hasGoal, const glm::vec3& goal)
+{
+    s.swim.hasGoal = hasGoal;
+    s.swim.goal = goal;
+}
+
+void swimDies(State& s, double now)
+{
+    Swim& w = s.swim;
+    if(!w.living || w.liquid == Liquid::None)
+    {
+        return;
+    }
+    // Its strokes weaken from now as a death's (startSwim's shares of its length).
+    w.living = false;
+    w.hasGoal = false;
+    const float t = static_cast<float>(now - s.begun);
+    const bool water = w.liquid == Liquid::Water;
+    const float T = w.length;
+    const auto set = [&](Channel ch, float a, float b) {
+        Fade& f = s.fade[static_cast<za::SizeT>(ch)];
+        f = Fade{f.from, 0.f, t + a * T, t + b * T};
+    };
+    set(Channel::Arms, water ? 0.35f : 0.4f, 1.f);
+    set(Channel::Legs, 0.3f, water ? 0.9f : 1.f);
+    set(Channel::Torso, water ? 0.25f : 0.3f, water ? 0.8f : 0.9f);
+    set(Channel::Head, water ? 0.35f : 0.3f, water ? 0.75f : 0.9f);
+    w.from = now; // (its head's lift and tip from here)
+}
+
+bool swimming(const State& s)
+{
+    return s.on && s.swim.liquid != Liquid::None;
 }
 
 namespace
@@ -3134,6 +3289,12 @@ namespace
 {
 
 constexpr float holdStrength = 1.f;     // a stump's hold (a wound's: 0.8)
+constexpr float stumpReach = 0.85f;     // of the holding arm's length: a stump farther from its shoulder, his torso curls
+constexpr float stumpCurlMost = 0.6f;   // rad: at most
+constexpr float stumpCurlStrength = 0.6f; // his torso's strength while it curls
+constexpr float bloodNear = 4.f;        // units: the hand this near the stump is on it (its palm bloodied)
+constexpr float bloodEvery = 0.7f;      // s: another mark while it holds
+constexpr int bloodMarksMost = 4;
 constexpr float holdRamp = 0.25f;       // s: the hand going to it
 constexpr float holdLetGo = 0.8f;       // s: and letting go
 constexpr float writheRamp = 0.5f;      // s: the writhe eased in
@@ -3147,6 +3308,11 @@ constexpr float tipAccel = 0.3f;        // m/s/s: its anchor drifting to the sid
 constexpr float sagDepth = 0.06f;       // m: and sagging
 constexpr float tipBend = 0.35f;        // rad: his torso bent to the side lost by the beat's end (over its joints)
 constexpr float flailHz = 1.6f;         // his arms' flail for balance
+constexpr float hopLean = 7.f;          // deg: leaning this far from his line on one leg, he hops (at most hopsMost)
+constexpr float hopTime = 0.2f;         // s: a hop
+constexpr float hopLift = 0.1f;         // of his leg's length: his foot lifted that high
+constexpr float hopReach = 0.4f;        // of his leg's length: a hop's way at most
+constexpr int hopsMost = 3;
 constexpr float pitchRate = 2.5f;       // rad/s: with no legs, killed standing, he pitches forward so
 
 // (chestOf: the shared helper, above)
@@ -3208,7 +3374,8 @@ void startBalance(State& s, const Parts& p, const Context& c, float t, int lostL
     d.walk = glm::vec3{0.f};
     m.origin0 = s.origin + carried;
     m.balanceUntil = t + za::clamp(vr_ragdoll_active_balance_time.value, 0.1f, 5.f);
-    // The foot left: kept where it stands, braced (a hop under him lifts what holds him up: he falls at once).
+    // The foot left: kept where it stands, braced; leaning, it hops under him (dismemberFrame: hopLean), the pin holding
+    // him up meanwhile.
     m.plant = limbEnd(s, p, stand);
     m.line0 = bodyLine(p, m.plant);
     // The pose he stood in, held; every strength full; the pin.
@@ -3290,7 +3457,38 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
     {
         const int chest = chestOf(p);
         m.lean = glm::degrees(glm::acos(za::clamp(glm::dot(bodyLine(p, limbEnd(s, p, m.standLeg)), m.line0), -1.f, 1.f)));
-        if(t >= m.balanceUntil || m.lean > za::max(vr_ragdoll_active_balance_lean.value, 1.f) || !limbWhole(s, p, m.standLeg))
+        // A hop: leaning past hopLean, the foot lifted and put down under his pelvis (a little towards the side lost), his
+        // line taken again from there; at most hopsMost. (His lean isn't judged while the foot is up.)
+        bool hopping = m.hopFrom >= 0.f && t - m.hopFrom < hopTime;
+        if(m.hopFrom >= 0.f && !hopping)
+        {
+            m.plant = m.hopB;
+            m.line0 = bodyLine(p, limbEnd(s, p, m.standLeg));
+            m.hopFrom = -1.f;
+            m.hops++;
+            m.lean = 0.f;
+        }
+        if(!hopping && m.hops < hopsMost && m.lean > hopLean && limbWhole(s, p, m.standLeg) && t < m.balanceUntil - hopTime)
+        {
+            const float len = limbLength(s, p, m.standLeg);
+            const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
+            glm::vec3 way = level(pelvis - m.plant) + m.lostSide * (0.05f * len);
+            const float wl = glm::length(way);
+            way = wl > hopReach * len ? way * (hopReach * len / wl) : way;
+            m.hopA = m.plant;
+            m.hopB = m.plant + way;
+            m.hopB.z = m.plant.z + floorAt(c, glm::vec3{m.hopB.x, m.hopB.y, m.plant.z}, len, m.plant.z) -
+                       floorAt(c, m.plant, len, m.plant.z);
+            m.hopFrom = t;
+            hopping = true;
+            if(vr_debug_ragdoll.value)
+            {
+                Con_Printf("ragdoll: %d hops on his leg at %.2f s, leaning %.0f deg: %.1f units\n", c.num, t, m.lean,
+                    glm::length(level(way)) * p.m2u);
+            }
+        }
+        if(t >= m.balanceUntil || (!hopping && m.lean > za::max(vr_ragdoll_active_balance_lean.value, 1.f)) ||
+            !limbWhole(s, p, m.standLeg))
         {
             breakBalance(s, c, t);
             if(vr_debug_ragdoll.value)
@@ -3332,6 +3530,12 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
             // The leg left planted, bracing him.
             Reach& leg = s.reach[static_cast<za::SizeT>(m.standLeg)];
             leg.goal = m.plant;
+            if(hopping)
+            {
+                const float u = za::clamp((t - m.hopFrom) / hopTime, 0.f, 1.f);
+                leg.goal = glm::mix(m.hopA, m.hopB, smooth(u)) +
+                           up * (hopLift * limbLength(s, p, m.standLeg) * za::sin(3.14159265f * u));
+            }
             leg.weight = smooth(t / 0.05f);
             leg.strength = braceStrength;
             // His arms flung out, flailing.
@@ -3375,6 +3579,14 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
             r.weight = hold;
             r.strength = holdStrength;
             m.handGap = glm::distance(limbEnd(s, p, m.holdArm), stumpPoint(m, p, 0.f)) * p.m2u;
+            // Its palm bloodied while on the wound: a mark as it gets there, another every bloodEvery while held.
+            if(hold > 0.5f && m.handGap < bloodNear && m.bloodMarks < bloodMarksMost &&
+                (m.bloodAt < 0.f || t - m.bloodAt >= bloodEvery))
+            {
+                m.bloodAt = t;
+                m.bloodMarks++;
+                m.bloodDue++;
+            }
             if(vr_debug_ragdoll.value >= 2.f)
             {
                 const int ua = s.chain[static_cast<za::SizeT>(m.holdArm)][0];
@@ -3427,6 +3639,49 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
             m.spin[i] = axis * (amp * twoPi * hz * glm::cos(phase));
         }
     }
+    // The stump past his reach (the ogre's arms, a stump lying under him): his torso curls towards it, bringing the
+    // holding shoulder nearer (its turn about his pelvis shared by his torso's joints), held up enough to do it.
+    m.curl = 0.f;
+    if(hold > 0.f && m.holdArm >= 0)
+    {
+        const int u = s.chain[static_cast<za::SizeT>(m.holdArm)][0];
+        const glm::vec3 shoulder = worldPoint(p, u, rig.bones[u].pivot);
+        const glm::vec3 stump = stumpPoint(m, p, 0.f);
+        const float len = limbLength(s, p, m.holdArm);
+        const float over = glm::distance(shoulder, stump) - stumpReach * len;
+        const glm::vec3 mid = glmv(b3Body_GetWorldCenter(p.body[0]));
+        const glm::vec3 axis = glm::cross(shoulder - mid, stump - mid);
+        int n = 0;
+        for(int b = 1; b < p.count; b++)
+        {
+            n += drivable(s, p, b) && channelOf(rig.bones[b]) == Channel::Torso ? 1 : 0;
+        }
+        if(over > 0.f && glm::length(axis) > 1e-5f && n > 0)
+        {
+            m.curl = za::min(over / za::max(glm::distance(shoulder, mid), 0.1f), stumpCurlMost) * hold;
+            for(int b = 1; b < p.count; b++)
+            {
+                if(!drivable(s, p, b) || channelOf(rig.bones[b]) != Channel::Torso)
+                {
+                    continue;
+                }
+                const glm::quat qp = bodyRot(p, rig.bones[b].parent);
+                const glm::quat turn = glm::angleAxis(m.curl / static_cast<float>(n), glm::normalize(axis));
+                const auto i = static_cast<za::SizeT>(b);
+                s.target[i] = glm::normalize(glm::inverse(qp) * turn * qp * s.target[i]);
+            }
+            const auto ti = static_cast<za::SizeT>(Channel::Torso);
+            const float v = za::max(za::max(fadeAt(m.deathFade[ti], t), writheStrength * env), stumpCurlStrength * hold);
+            s.fade[ti] = Fade{v, v, 0.f, 0.f};
+            m.curling = true;
+        }
+    }
+    if(m.curl <= 0.f && m.curling)
+    {
+        m.curling = false; // (its torso's strength its death's again, or the writhe's: above, next frame)
+        const auto ti = static_cast<za::SizeT>(Channel::Torso);
+        s.fade[ti] = m.deathFade[ti];
+    }
     if(c.trace)
     {
         // (The tests: the hand from the stump, his lean, the beat (1 on it, 2 broken), when it broke, the hold's weight,
@@ -3443,9 +3698,10 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
                 n++;
             }
         }
-        Con_Printf("ragdis %d %.3f gap %.1f lean %.1f beat %d %.2f hold %.2f writhe %.2f stir %.2f lost %u\n", c.num,
+        Con_Printf("ragdis %d %.3f gap %.1f lean %.1f beat %d %.2f hold %.2f writhe %.2f stir %.2f lost %u curl %.2f face %d\n",
+            c.num,
             static_cast<float>(c.now - c.born), m.handGap, m.lean, balancing ? 1 : (m.brokeAt >= 0.f ? 2 : 0), m.brokeAt, hold,
-            env, stir / static_cast<float>(za::max(n, 1)), m.lost);
+            env, stir / static_cast<float>(za::max(n, 1)), m.lost, m.curl, m.face ? 1 : 0);
     }
 }
 
@@ -3595,6 +3851,16 @@ void cutReaction(State& s, const Parts& p, int joint, bool crawler, const Contex
             best = za::min(best, score);
         }
         m.stumpOut = glm::length(m.stumpAt - mid) > 1e-3f ? glm::normalize(m.stumpAt - mid) : glm::vec3{0.f, 0.f, 1.f};
+        // The cut face itself (the joint, facing along the lost limb's bone) when it is within that reach: the hand cups
+        // the wound, not the skin beside it.
+        const glm::vec3 along = rig.bones[j].end - rig.bones[j].pivot;
+        m.face = false;
+        if(glm::length(along) > 1e-3f && glm::distance(rig.bones[j].pivot, shoulder) <= reach)
+        {
+            m.face = true;
+            m.stumpAt = rig.bones[j].pivot;
+            m.stumpOut = glm::normalize(along);
+        }
         if(d.woundArm == arm)
         {
             s.reach[static_cast<za::SizeT>(arm)].weight = 0.f;
@@ -3648,6 +3914,21 @@ int limbJointOf(const ragdoll::Rig& rig, int limb, bool lower)
         }
     }
     return -1;
+}
+
+bool takeHandBlood(State& s, const Parts& p, glm::vec3& at, glm::vec3& dir)
+{
+    Dismember& m = s.dismember;
+    if(m.bloodDue <= 0 || m.holdArm < 0 || !limbWhole(s, p, m.holdArm) || m.stumpPart < 0 || cut(p, m.stumpPart))
+    {
+        m.bloodDue = 0;
+        return false;
+    }
+    m.bloodDue--;
+    at = limbEnd(s, p, m.holdArm);
+    const glm::vec3 to = stumpPoint(m, p, 0.f) - at;
+    dir = glm::length(to) > 1e-4f ? glm::normalize(to) : glm::vec3{0.f, 0.f, -1.f};
+    return true;
 }
 
 } // namespace qvr::ragactive

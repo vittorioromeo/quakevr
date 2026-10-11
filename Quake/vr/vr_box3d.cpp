@@ -604,6 +604,7 @@ struct RagdollBodies
     bool riseAsked{false};
     int riseLapses{0};
     double riseStuck{-1.0}; // risen, its spot taken since (it slumps after a while)
+    double swimGoalAt{-1.0}; // a living knockdown swimming (livingSwim): when its goal (where it can stand) was looked for
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -4248,11 +4249,86 @@ float activeRayHit(const glm::vec3& from, const glm::vec3& to, glm::vec3& at, gl
     return hit.fraction;
 }
 
+[[nodiscard]] bool standSpot(edict_t* ent, const glm::vec3& from, const glm::vec3& at, const glm::vec3& mins,
+    const glm::vec3& maxs, float range, glm::vec3& out, bool anywhere); // (below)
+constexpr double swimGoalEvery = 1.0; // s: a living swimmer's goal looked for again
+
+// A living knockdown (of the active classes) lying in a liquid deep enough (vr_ragdoll_active_liquids; ROUND22.md,
+// "Living knockdowns swim"): its drive begun as a living swim (ragactive::beginLivingSwim: it paddles, or flails, at
+// full strength, its head up), its goal where it can stand (standSpot's liquid search: the shallows, the bank), looked
+// for again every swimGoalEvery; killed, its swim a dying one's.
+void livingSwim(RagdollBodies& r)
+{
+    edict_t* ent = EDICT_NUM(r.num);
+    ragactive::State& a = r.active;
+    if(ragactive::swimming(a))
+    {
+        if(!a.swim.living)
+        {
+            return;
+        }
+        if(ent->v.health <= 0.f)
+        {
+            ragactive::swimDies(a, qcvm->time);
+            return;
+        }
+        if(qcvm->time - r.swimGoalAt >= swimGoalEvery || r.swimGoalAt < 0.0)
+        {
+            r.swimGoalAt = qcvm->time;
+            const glm::vec3 pelvis = world->toU(b3Body_GetPosition(r.body[0]));
+            glm::vec3 spot{0.f};
+            const bool found = standSpot(ent, pelvis, pelvis, vec(ent->v.mins), vec(ent->v.maxs), 0.f, spot, false);
+            ragactive::swimGoal(a, found, glmv(world->toM(spot)));
+        }
+        return;
+    }
+    // (Not while its drive leads it otherwise, but a fall: a stagger, a get-up; nor while the shove's topple carries it.)
+    // (Its kind driven alive: box3d's activeLiving.)
+    if(!knockedDown(ent) || ent->v.health <= 0.f || !activeClassOf(ent) || r.shove.on || (a.on && !a.fall.on) ||
+        vr_ragdoll_active_liquids.value == 0.f)
+    {
+        return;
+    }
+    const glm::vec3 pelvis = glmv(b3Body_GetPosition(r.body[0]));
+    if(activeLiquidAt(pelvis) == ragactive::Liquid::None &&
+        activeLiquidAt(pelvis + glm::vec3{0.f, 0.f, 8.f / world->m2u}) == ragactive::Liquid::None)
+    {
+        return;
+    }
+    const bool fresh = !a.on;
+    if(fresh)
+    {
+        // (box3d's beginLiving)
+        ragactive::begin(a, activeParts(r), modelOf(ent), glmv(world->toM(vec(ent->v.origin))), r.joints.data(),
+            r.jointFriction, r.jointStiffness, qcvm->time);
+    }
+    ragactive::Context c; // (what beginLivingSwim reads)
+    c.world = world->id;
+    c.now = qcvm->time;
+    c.gravity = za::max(-b3World_GetGravity(world->id).z, 0.f);
+    c.liquidAt = activeLiquidAt;
+    c.num = r.num;
+    c.born = r.born;
+    if(ragactive::beginLivingSwim(a, activeParts(r), c))
+    {
+        r.swimGoalAt = -1.0;
+        return;
+    }
+    if(fresh)
+    {
+        ragactive::end(a);
+    }
+}
+
 void driveActive(Slot& s, float dt)
 {
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
     const int every = static_cast<int>(vr_ragdoll_active_trace.value);
     const bool trace = every > 0 && static_cast<int>(qcvm->time * 72.0 + 0.5) % every == 0;
+    if(vr_ragdoll_active.value != 0.f)
+    {
+        livingSwim(r);
+    }
     if(!r.active.on && !trace && !ragactive::liquidPending(r.active, qcvm->time))
     {
         return;
@@ -4314,6 +4390,19 @@ void driveActive(Slot& s, float dt)
     ragactive::Parts driven = parts;
     driven.force = r.driveForce.data();
     ragactive::drive(r.active, driven, c);
+    // A hand holding a stump: its palm bloodied (a light melee wound on the model where the hand is: vr_wounds.cpp).
+    glm::vec3 at{0.f}, dir{0.f};
+    while(ragactive::takeHandBlood(r.active, parts, at, dir))
+    {
+        constexpr int woundMelee = 3; // (QC QVR_WOUND_MELEE)
+        const glm::vec3 u = at * world->m2u;
+        const float org[3]{u.x, u.y, u.z}, way[3]{dir.x, dir.y, dir.z};
+        progs::sendWound(r.num, org, way, woundMelee, 20, 0);
+        if(vr_debug_ragdoll.value)
+        {
+            Con_Printf("ragdoll: %d its hand on the stump bloodied at %.0f %.0f %.0f\n", r.num, u.x, u.y, u.z);
+        }
+    }
 }
 
 // ---- Shocked ragdolls (vr_shock_seizure; QC vr_shock.qc) ----
@@ -14569,7 +14658,7 @@ bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balanc
     ragactive::StaggerInfo si;
     si.dir = dir;
     // (A standing one's slide is long, the shove's game: its stagger a share of it, at most a few steps.)
-    constexpr float mostTravel = 1.25f; // m
+    constexpr float mostTravel = 4.f; // m
     si.travel = za::min(za::max(reach, 0.f) / world->m2u * za::clamp(vr_ragdoll_active_stagger_travel.value, 0.f, 3.f), mostTravel);
     si.push = push;
     si.balance = balance;
@@ -14594,10 +14683,17 @@ int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs)
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
     if(!rp)
     {
-        return 0;
+        // (A loaded game's, its ragdoll not made yet: asked again.)
+        return ent && world && knockedDown(ent) && ragdollCanStagger(ent) ? 1 : 0;
     }
     RagdollBodies& r = *rp;
     ragactive::State& a = r.active;
+    // A loaded game's: its ragdoll made again, its stagger never begun on it (the QC begins it again).
+    if(!a.on && !a.stagger.on && a.stagger.outcome == ragactive::Outcome::Going && a.stagger.decided < 0.0 &&
+        ragdollCanStagger(ent))
+    {
+        return 3;
+    }
     if(!a.on || !a.stagger.on || a.stagger.outcome == ragactive::Outcome::Fell)
     {
         return 0;

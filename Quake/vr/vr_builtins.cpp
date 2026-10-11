@@ -750,15 +750,16 @@ void PF_WriteVec3()
 // The entities sent a wound this map: their removal is sent (onEdictFree).
 za::Vector<za::U8> woundsSent;
 
+void sendWoundEvent(int num, const float* org, const float* dir, int kind, int amount, int extra); // (below)
+
 void PF_woundevent()
 {
-    const int num = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
-    const float* org = G_VECTOR(OFS_PARM1);
-    const float* dir = G_VECTOR(OFS_PARM2);
-    const int kind = static_cast<int>(G_FLOAT(OFS_PARM3));
-    const int amount = static_cast<int>(G_FLOAT(OFS_PARM4) + 0.5f);
-    const int extra = static_cast<int>(G_FLOAT(OFS_PARM5));
+    sendWoundEvent(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), G_VECTOR(OFS_PARM1), G_VECTOR(OFS_PARM2),
+        static_cast<int>(G_FLOAT(OFS_PARM3)), static_cast<int>(G_FLOAT(OFS_PARM4) + 0.5f), static_cast<int>(G_FLOAT(OFS_PARM5)));
+}
 
+void sendWoundEvent(int num, const float* org, const float* dir, int kind, int amount, int extra)
+{
     if(sv.state != ss_active || sv.datagram.cursize > MAX_DATAGRAM - 32)
     {
         return;
@@ -2437,6 +2438,11 @@ static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200
     "VR builtins must not overlap Ironwail's downward-allocated builtins");
 
 } // namespace
+
+void sendWound(int num, const float* org, const float* dir, int kind, int amount, int extra)
+{
+    sendWoundEvent(num, org, dir, kind, amount, extra);
+}
 
 // vr_forcegrab_grid_stats: the force grab's searches since the last (and resets them).
 void forcegrabGridStats_f()
