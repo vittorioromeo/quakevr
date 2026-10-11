@@ -807,9 +807,10 @@ void brushPage(Ui& ui)
     const int current = za::clamp(static_cast<int>(vr_toolgun_brush_mode.value), 0, modes - 1);
     const float gap = 3.f;
     const float mw = (panelWidth - pad * 2.f - gap * (modes - 1)) / modes;
-    for(int i = 0; i < modes; i++)
+    for(int slot = 0; slot < modes; slot++)
     {
-        const Rect r{pad + i * (mw + gap), 47.f, pad + i * (mw + gap) + mw, 60.f};
+        const int i = toolgun::brushtool::modeAt(slot);
+        const Rect r{pad + slot * (mw + gap), 47.f, pad + slot * (mw + gap) + mw, 60.f};
         if(button(ui, r, toolgun::brushtool::modeName(i), current == i, 6.f))
         {
             Cvar_SetValueQuick(&vr_toolgun_brush_mode, static_cast<float>(i));
@@ -819,7 +820,43 @@ void brushPage(Ui& ui)
     }
     constexpr const char* gridNames[] = {"1", "4", "8", "16", "32", "64"};
     constexpr float gridValues[] = {1.f, 4.f, 8.f, 16.f, 32.f, 64.f};
-    choiceRow(ui, Rect{pad, 63.f, panelWidth - pad, 75.f}, "Grid", vr_toolgun_brush_grid, gridNames, gridValues, 6);
+    choiceRow(ui, Rect{pad, 63.f, panelWidth - pad - 42.f, 75.f}, "Grid", vr_toolgun_brush_grid, gridNames, gridValues, 6);
+    // The full bake: the map relit by light.exe with the brushes in it (vr_brush_bake_map), then reloaded where you are.
+    if(button(ui, Rect{panelWidth - pad - 40.f, 63.f, panelWidth - pad, 75.f}, "Bake Map", false, 6.f))
+    {
+        Cbuf_AddText("vr_brush_bake_map\n");
+    }
+
+    // The shape Create makes, and a cylinder's or pyramid's sides.
+    {
+        constexpr const char* shapeLabels[] = {"Box", "Wedge", "Cylinder", "Pyramid"};
+        constexpr const char* sideNames[] = {"3", "4", "6", "8", "12"};
+        constexpr float sideValues[] = {3.f, 4.f, 6.f, 8.f, 12.f};
+        const Rect row{pad, 78.f, panelWidth - pad, 89.f};
+        if(ui.mode == Mode::Draw)
+        {
+            text(row.x0 + 2.f, row.cy() - 3.f, 6.f, "Shape", true);
+        }
+        const float sx = row.x0 + 30.f, sw = 31.f;
+        for(int k = 0; k < 4; k++)
+        {
+            const Rect b{sx + k * (sw + 2.f), row.y0, sx + k * (sw + 2.f) + sw, row.y1};
+            if(button(ui, b, shapeLabels[k], static_cast<int>(vr_toolgun_brush_shape.value) == k, 6.f))
+            {
+                Cvar_SetValueQuick(&vr_toolgun_brush_shape, static_cast<float>(k));
+                Con_Printf("toolgun: brush shape %s\n", brushes::shapeName(static_cast<brushes::Shape>(k)));
+            }
+        }
+        const float dx = sx + 4.f * (sw + 2.f) + 6.f, dw = (row.x1 - dx - 4.f * 2.f) / 5.f;
+        for(int k = 0; k < 5; k++)
+        {
+            const Rect b{dx + k * (dw + 2.f), row.y0, dx + k * (dw + 2.f) + dw, row.y1};
+            if(button(ui, b, sideNames[k], za::fabs(vr_toolgun_brush_sides.value - sideValues[k]) < 0.5f, 6.f))
+            {
+                Cvar_SetValueQuick(&vr_toolgun_brush_sides, sideValues[k]);
+            }
+        }
+    }
 
     // The textures: six a row, two rows a page.
     constexpr int columns = 6, rows = 2, perPage = columns * rows;
@@ -827,7 +864,7 @@ void brushPage(Ui& ui)
     const int pages = za::max(1, (count + perPage - 1) / perPage);
     int& page = ps.texturePage;
     page = za::clamp(page, 0, pages - 1);
-    const float tw = (panelWidth - pad * 2.f - gap * (columns - 1)) / columns, th = 46.f;
+    const float tw = (panelWidth - pad * 2.f - gap * (columns - 1)) / columns, th = 39.f;
     const char* chosen = brushes::currentTexture();
     for(int k = 0; k < perPage; k++)
     {
@@ -838,7 +875,7 @@ void brushPage(Ui& ui)
             break;
         }
         const int col = k % columns, row = k / columns;
-        const Rect r{pad + col * (tw + gap), 78.f + row * (th + 3.f), pad + col * (tw + gap) + tw, 78.f + row * (th + 3.f) + th};
+        const Rect r{pad + col * (tw + gap), 92.f + row * (th + 3.f), pad + col * (tw + gap) + tw, 92.f + row * (th + 3.f) + th};
         int id = 0;
         if(interact(ui, r, t->name, id))
         {
@@ -849,7 +886,7 @@ void brushPage(Ui& ui)
         {
             const bool on = !q_strcasecmp(chosen, t->name), hover = hovering(r);
             tile(r, on, hover);
-            const float side = 32.f;
+            const float side = 26.f;
             Draw_TextureRect(r.cx() - side * 0.5f, r.y0 + 2.f, side, side, t->gltexture, 1.f);
             textFit(r.cx(), r.y1 - 9.f, r.w() - 2.f, 5.f, t->name, !on && !hover);
         }
@@ -872,11 +909,20 @@ void brushPage(Ui& ui)
             textFit(bar.x0 + 30.f, bar.cy() - 3.f, 24.f, 6.f, text, false);
         }
     }
-    if(button(ui, Rect{bar.x1 - 160.f, bar.y0, bar.x1 - 108.f, bar.y1}, "Pick", toolgun::brushtool::picking(), 6.f))
+    if(button(ui, Rect{bar.x0 + 64.f, bar.y0, bar.x0 + 90.f, bar.y1}, "Undo", false, 6.f))
+    {
+        Cbuf_AddText("vr_brush_undo\n");
+    }
+    if(button(ui, Rect{bar.x0 + 93.f, bar.y0, bar.x0 + 133.f, bar.y1}, vr_toolgun_brush_texlock.value != 0.f ? "Tex Lock" : "Tex Free",
+           vr_toolgun_brush_texlock.value != 0.f, 6.f))
+    {
+        Cvar_SetValueQuick(&vr_toolgun_brush_texlock, vr_toolgun_brush_texlock.value != 0.f ? 0.f : 1.f);
+    }
+    if(button(ui, Rect{bar.x1 - 112.f, bar.y0, bar.x1 - 88.f, bar.y1}, "Pick", toolgun::brushtool::picking(), 6.f))
     {
         toolgun::brushtool::pickTexture();
     }
-    if(button(ui, Rect{bar.x1 - 104.f, bar.y0, bar.x1, bar.y1}, vr_toolgun_brush_paint_all.value != 0.f ? "Paint: Whole Box" : "Paint: One Face",
+    if(button(ui, Rect{bar.x1 - 85.f, bar.y0, bar.x1, bar.y1}, vr_toolgun_brush_paint_all.value != 0.f ? "Paint: Whole" : "Paint: One Face",
            false, 6.f))
     {
         Cvar_SetValueQuick(&vr_toolgun_brush_paint_all, vr_toolgun_brush_paint_all.value != 0.f ? 0.f : 1.f);

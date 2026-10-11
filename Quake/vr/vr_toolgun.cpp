@@ -1393,6 +1393,7 @@ void frame(const hands::State& s)
         in.trigger = tg.trigger;
         in.fire = fire;
         in.head = s.head;
+        in.handRot = tg.handRot;
         toolgun::brushtool::frame(in);
         tg.glowNum = toolgun::brushtool::glowEntity(tg.glow);
         break;

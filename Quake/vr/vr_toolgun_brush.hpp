@@ -11,8 +11,13 @@
 //           Brush); Pick: the next shot takes the texture of the surface it hits (the world's or a box's);
 //   Copy    the trigger on a box takes a copy of it; then a ghost of it sits where the gun points and each trigger
 //           puts one there;
-//   Delete  the trigger on a box removes it.
-// A box is never made, moved or grown over the player or a monster (it would hold them inside).
+//   Delete  the trigger on a box removes it;
+//   Rotate  the trigger held on a brush turns it as the gun's hand turns (about its middle, in steps of vr_toolgun_snap
+//           degrees: 15 if 0); let go, it is so (its textures turned with it: vr_toolgun_brush_texlock).
+// Create makes the shape chosen on the panel (vr_toolgun_brush_shape: a box, a wedge rising away from the gun, a cylinder
+// or a pyramid of vr_toolgun_brush_sides faces) filling the box dragged; Resize stretches any shape by its bounds' faces.
+// A brush is never made, moved or grown over the player or a monster (it would hold them inside). Undo (the panel,
+// vr_brush_undo) takes the last edit back.
 
 #pragma once
 
@@ -29,6 +34,7 @@ enum class Mode : int
     Paint,
     Copy,
     Delete,
+    Rotate, // (last: vr_toolgun_brush_mode's numbers kept; the panel shows it after Resize)
     Count
 };
 
@@ -45,6 +51,7 @@ struct Input
     bool trigger{false};           // held
     bool fire{false};              // pressed since the last frame
     glm::vec3 head{0.f};           // where the texts face
+    glm::vec3 handRot{0.f};        // the gun's hand's angles (Rotate: its turn since the trigger)
 };
 
 // Once a host frame while the Brush tool is in hand (the server's VM pushed): its work and its ghosts.
@@ -58,6 +65,8 @@ void reset();
 
 [[nodiscard]] int modeCount();
 [[nodiscard]] const char* modeName(int mode);
+// The mode the panel shows at place `slot` (Rotate after Resize).
+[[nodiscard]] int modeAt(int slot);
 // The next shot (any mode) takes the texture it hits as the one boxes are made and painted with.
 void pickTexture();
 [[nodiscard]] bool picking();

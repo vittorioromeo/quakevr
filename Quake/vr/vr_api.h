@@ -241,6 +241,7 @@ void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are r
 // in an older one; a save of a newer format is refused (VR_ReadSaveInfo).
 #define VR_SAVE_FORMAT 1
 int VR_ReadSaveInfo (const char *text, const char *relname);	// Host_Loadgame_f, before the old game ends: the save's build and models read (0: refused)
+const char *VR_SaveBrushLines (void);	// SaveData_Fill: the runtime brushes as the save's "// qvrb" lines (vr_brushes.cpp; "" none)
 void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
 void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t

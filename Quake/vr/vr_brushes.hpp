@@ -6,13 +6,14 @@
 // models meets it as it meets a door: Quake's collision (players stand and climb on it, monsters walk on it and can't
 // see through it), Box3D's movers (props and ragdolls), the ledges (climbing, mantling), the toolgun's aim, traces. It is
 // drawn by Ironwail's brush path from a slot of its own at the end of the brush buffers (r_brush.c's reserve): the world
-// shader's light, dynamic lights and their shadows, decals, detail; its lightmap one texel a face (the light where the
-// face is: R_LightPoint, flat).
+// shader's light, dynamic lights and their shadows, decals, detail; its faces' lightmaps in a rectangle of its own, lit
+// flat at once then baked in the game (vr_brushlight.cpp), or light.exe's after a full bake (vr_brushbake.cpp).
+// Saved games keep the brushes (their `// qvrb` lines); brush files keep a map's (vr_brush_save / vr_brush_load).
 //
 // The brush is the truth, everything else is made from it: planes (outward normals and distances, world space) with
 // each face's texture and its Valve 220 alignment, the same text as a .map's brush (toText / fromText), so a save's
-// sidecar, a duplicate, the network and a bake can all carry it as text. Stage 1: axis-aligned boxes from the tool;
-// the model maker takes any convex set (its polygons cut from the planes).
+// lines, a brush file, a duplicate, the network and a bake can all carry it as text. Any convex set of up to 16 planes
+// (the tool's boxes, wedges, cylinders and pyramids, turned or not; hulls 1 and 2 with Quake 2's bevels).
 //
 // The model's name is per brush id (not per change): an id is reused after its brush goes, its model made again in
 // place (the same qmodel_t: the precache list never fills), and the systems that keep things per model learn of the
@@ -68,6 +69,35 @@ struct Brush
 
 // An axis-aligned box lo..hi, every face `texture`, aligned to the world (Quake's default axes).
 [[nodiscard]] Brush box(const glm::dvec3& lo, const glm::dvec3& hi, const char* texture);
+
+// The shapes the tool makes (vr_toolgun_brush_shape), each filling a box.
+enum class Shape : int
+{
+    Box,
+    Wedge,    // a ramp: its slope rising from the low end's bottom edge to the high end's top edge
+    Cylinder, // a prism of `sides` faces round the up axis (its polygon stretched to the box)
+    Pyramid,  // `sides` faces from the base's polygon to the top's middle
+    Count
+};
+[[nodiscard]] const char* shapeName(Shape s);
+[[nodiscard]] Shape shapeFromName(const char* name); // a name or a number; Box if neither
+// A `s` filling lo..hi: its up (the cylinder's and pyramid's axis, the wedge's height) along axis `upAxis` the way
+// `upSign` (the base on the other side), the wedge rising along `riseAxis` the way `riseSign` (another axis); a cylinder
+// or pyramid of `sides` (3..12) faces round it. Every face `texture`, aligned to the world.
+[[nodiscard]] Brush shape(Shape s, const glm::dvec3& lo, const glm::dvec3& hi, int upAxis, double upSign, int riseAxis,
+    double riseSign, int sides, const char* texture);
+// The turn of Quake's angles (pitch yaw roll, degrees) as a brush model's turn it (held::axesFromAngles(.., true)'s:
+// columns forward, left, up), in doubles (a quarter turn exact).
+[[nodiscard]] glm::dmat3 turnFromAngles(const glm::dvec3& angles);
+// Turned by `r` (a rotation) about `pivot`. `lockTexture`: the textures turn with the faces (as they lay on them);
+// else each face gets the world's alignment (Quake's default axes for its new way).
+void rotate(Brush& b, const glm::dmat3& r, const glm::dvec3& pivot, bool lockTexture);
+// Stretched from its bounds lo..hi to lo2..hi2 (each axis on its own; the textures stay where the world puts them).
+void scaleTo(Brush& b, const glm::dvec3& lo, const glm::dvec3& hi, const glm::dvec3& lo2, const glm::dvec3& hi2);
+// Each face's polygon (world space, clockwise seen from outside; faces without area left out), with its face's index.
+void forEachPolygon(const Brush& b, za::FunctionRef<void(int face, const glm::dvec3* points, int count)> f);
+// Whether every face's normal is one of the world's axes (a box, or a box's kin: the Resize handles move its faces).
+[[nodiscard]] bool axial(const Brush& b);
 // A face's Valve axes as Quake's default for its plane (the world's axis nearest its normal), offsets 0, scale 1.
 void defaultAlignment(Face& f);
 // Its polyhedron's bounds; false if it has no volume (fewer than four faces with area, or a side under a unit).
@@ -86,8 +116,11 @@ bool fromText(za::StringView text, Brush& out, za::String& error);
 // ---------------------------------------------------------------------------------------------------------------------
 // The brushes of this map (the listen server's).
 
-// Made (a new id, its entity spawned), returning the id; 0 if refused (said on the console: why).
-int create(const Brush& b);
+// Made (a new id, its entity spawned), returning the id; 0 if refused (said on the console: why). `wantId`: that id
+// if it is free (undo, a saved game's brushes), else a new one.
+int create(const Brush& b, int wantId = 0);
+// The last create, change or removal undone (this map's, up to 64 back); false: nothing to undo. Said on the console.
+bool undo();
 // Changed (its model made again in place, its entity moved to it); false if there is no such brush or it can't be made.
 bool change(int id, const Brush& b);
 // Removed with its entity.
@@ -108,6 +141,44 @@ void forEach(za::FunctionRef<void(const Brush&)> f);
 void setCurrentTexture(const char* name);
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Keeping them: a saved game's lines and the brush files (quakevr/brushes/<map>.brushes).
+//
+// The text of all of them (a brush file's): `// qvrbrushes 1 map <name> bsp <the map's planes' hash>`, then each brush's
+// .map text (its header with its id). Plain text, hand-editable; a brush with no header gets a new id.
+void allToText(za::String& out);
+// Brushes from such a text (or any run of .map brushes): made (`replace`: the map's own removed first; their ids kept
+// where free). The number made; `warning` set if the text is another map's (made all the same).
+int fromAllText(za::StringView text, bool replace, za::String& warning);
+// The lines a saved game keeps (`// qvrb ` and a line of allToText, after its model list: comments COM_Parse skips);
+// empty without brushes. Valid until the next call (SaveData_Fill, the main thread).
+[[nodiscard]] const char* saveLines();
+// A saved game being loaded: its brush lines read (VR_ReadSaveInfo, before the old game ends), and its brushes made again
+// once its entities are back (VR_OnLoadGame): each on its own entity (its model's name has its id), their ids kept.
+void readSaveLines(const char* saveText);
+void restoreAfterLoad();
+
+// A brush as a .bsp keeps it (the full bake's submodels, vr_brushbake.cpp), world space: its faces with area in its
+// model's order (plane, polygon clockwise seen from outside, texture axes as a texinfo's, the world texture's name),
+// hulls 1 and 2's planes (its faces and bevels pushed out by Quake's boxes), its bounds. False: it has no volume.
+struct BakeShape
+{
+    struct Surface
+    {
+        glm::dvec3 normal{0.0, 0.0, 1.0};
+        double dist{0.0};
+        za::Vector<glm::dvec3> poly;
+        glm::dvec4 vecs[2]{};
+        char texture[16]{};
+    };
+    za::Vector<Surface> surfaces;
+    za::Vector<glm::dvec4> hulls[2];
+    glm::dvec3 lo{0.0}, hi{0.0};
+};
+bool bakeShape(const Brush& b, BakeShape& out);
+// The hash a brush's baked light is kept under (its faces' planes, textures and alignment: its .map text's).
+[[nodiscard]] unsigned long long bakeHash(const Brush& b);
+
+// ---------------------------------------------------------------------------------------------------------------------
 // The models (any thread that reads models: the main one).
 
 [[nodiscard]] bool isRuntime(const qmodel_t* model);
@@ -123,6 +194,9 @@ bool clipBox(const qmodel_t* model, const glm::vec3& start, const glm::vec3& min
 // clockwise seen from outside) with their outward normals and their brush's id: the decals laid on them.
 void facesIn(const glm::vec3& lo, const glm::vec3& hi,
     za::FunctionRef<void(const za::Vector<glm::vec3>& poly, const glm::vec3& normal, int id)> f);
+// Whether a brush other than `except` is in the way from `a` to `b` (the listen server's brushes where they are made:
+// the bake's shadows).
+[[nodiscard]] bool blocks(const glm::vec3& a, const glm::vec3& b, int except);
 // The nearest brush face along the line (the client's entities): where, its normal, how far along (0..1); false: none.
 bool traceLine(const glm::vec3& start, const glm::vec3& end, glm::vec3& where, glm::vec3& normal, float& fraction);
 

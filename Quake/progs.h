@@ -308,6 +308,7 @@ typedef struct savedata_s
 	const char		*models[MAX_MODELS];	// .modelindex values (VR_ReadSaveInfo)
 	unsigned int	progscrc;		// QVR: the progs' CRC (qcvm->crc)
 	char			vrcontext[512];	// QVR: what the game is played as (VR_SaveContext: the campaign, the map package, titles)
+	const char		*vrbrushes;		// QVR: the runtime brushes' lines (VR_SaveBrushLines; valid until the next fill)
 	byte			*buffer;
 	int				buffersize;
 } savedata_t;

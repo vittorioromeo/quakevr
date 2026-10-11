@@ -3334,10 +3334,20 @@ QVR_CVAR(vr_toolgun_physgun_wrist, "1", CVAR_ARCHIVE) // the physgun turns what 
 QVR_CVAR(vr_toolgun_snap, "15", CVAR_ARCHIVE)         // X/A held, what the physgun holds turns in steps of this many degrees (its angles snapped); 0: never
 QVR_CVAR(vr_toolgun_screen_scale, "0.02", CVAR_ARCHIVE) // the gun's screen (the tool's name): its letters' size (a character 8 times this, units); 0: none
 QVR_CVAR(vr_toolgun_screen_up, "3.2", CVAR_ARCHIVE)     // ... how far over the hand (units)
-QVR_CVAR(vr_toolgun_brush_mode, "0", CVAR_ARCHIVE)      // the Brush tool's trigger: 0 create (drag a box), 1 move, 2 resize (a face's handle), 3 paint (the texture chosen), 4 copy, 5 delete
+QVR_CVAR(vr_toolgun_brush_mode, "0", CVAR_ARCHIVE)      // the Brush tool's trigger: 0 create (drag a box), 1 move, 2 resize (a face's handle), 3 paint (the texture chosen), 4 copy, 5 delete, 6 rotate (turn the hand)
 QVR_CVAR(vr_toolgun_brush_grid, "8", CVAR_ARCHIVE)      // ... its grid (units: corners, moves and sizes snap to it)
 QVR_CVAR(vr_toolgun_brush_paint_all, "1", CVAR_ARCHIVE) // ... painting textures the whole brush (0: the face shot)
+QVR_CVAR(vr_toolgun_brush_shape, "0", CVAR_ARCHIVE)     // ... what Create makes in the box dragged: 0 a box, 1 a wedge (rising away from the gun), 2 a cylinder, 3 a pyramid
+QVR_CVAR(vr_toolgun_brush_sides, "8", CVAR_ARCHIVE)     // ... a cylinder's or pyramid's sides (3..12)
+QVR_CVAR(vr_toolgun_brush_texlock, "1", CVAR_ARCHIVE)   // ... Rotate turns the textures with the faces (0: each face gets the world's alignment)
 
 // Runtime brushes (vr_brushes.cpp; docs/vr-port/BRUSH_TOOL.md): boxes made in the game, the map's kind of geometry.
 QVR_CVAR(vr_brush_max, "256", CVAR_ARCHIVE)             // how many a map may have at once (its slots in the brush buffers, made at its load: 52 bytes x 64 corners each)
 QVR_CVAR(vr_brush_shade, "1", CVAR_ARCHIVE)             // their faces' flat light shaded by their way (the top full, the sides 0.8, the bottom 0.55); 0: all as the light there
+QVR_CVAR(vr_brush_bake, "1", CVAR_ARCHIVE)              // their faces' light baked in the game from the map's lights (shadows, lightstyles, sun; vr_brushlight.cpp), a few ms a frame; 0: the flat light where each face is
+QVR_CVAR(vr_brush_bake_ms, "3", CVAR_ARCHIVE)           // ... how many milliseconds a frame the bake takes at most
+QVR_CVAR(vr_brush_luxel, "16", CVAR_ARCHIVE)            // ... luxels this many texture units apart (Quake's 16; doubled for a brush whose faces don't fit its lightmap rectangle)
+QVR_CVAR(vr_brush_bake_fill, "1", CVAR_ARCHIVE)         // ... the map's light the lights don't explain (bounce, sky, glowing textures: the world's under the face less theirs) added, times this
+QVR_CVAR(vr_brush_bake_report, "0", CVAR_NONE)                // ... each bake said on the console (tests)
+QVR_CVAR(vr_brush_bake_reach, "512", CVAR_ARCHIVE)      // ... a brush made, changed or removed: the brushes within this many units of it baked again (its shadows on them)
+QVR_CVAR(vr_brush_autoload, "0", CVAR_ARCHIVE)         // a map started (not a saved game) gets the brushes of its brush file (vr_brush_save: <game folder>/brushes/<map>.brushes)

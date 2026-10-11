@@ -625,6 +625,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     unsigned int crc = 0;
     char build[128] = "?";
     sscanf(line, "// qvr_save %d progs %x build %127[^\r\n]", &format, &crc, build);
+    qvr::brushes::readSaveLines(text); // (made again after the load: restoreAfterLoad)
     if(format > VR_SAVE_FORMAT)
     {
         Con_Printf("ERROR: %s was saved by a newer build (%s, save format %d; this one, %s, reads up to %d): not loaded\n",
@@ -869,6 +870,7 @@ extern "C" void VR_OnLoadGame()
     qvr::physics::resetRigidBodies();
 
     rebindLoadedModels();
+    qvr::brushes::restoreAfterLoad(); // (the saved game's brushes on their entities, their models by the names just bound)
 
     qvr::walltorch::restoreAfterLoad(); // the map's wall torches the save lacks (made with vr_walltorch 0, now on)
     qvr::climb::reset();                // (holds on the loaded game's entities: none)

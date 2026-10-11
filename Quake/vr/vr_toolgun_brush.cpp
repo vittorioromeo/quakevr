@@ -9,6 +9,7 @@
 #include "vr_brushes.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
+#include "vr_held.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
 #include "vr_physsound.hpp"
@@ -30,7 +31,8 @@ using qvr::toolgun::brushtool::Mode;
 namespace
 {
 
-constexpr const char* modeNames[] = {"Create", "Move", "Resize", "Paint", "Copy", "Delete"};
+constexpr const char* modeNames[] = {"Create", "Move", "Resize", "Paint", "Copy", "Delete", "Rotate"};
+constexpr int modeOrder[] = {0, 1, 2, 6, 3, 4, 5}; // (the panel's: Rotate after Resize)
 constexpr glm::vec4 ghostColour{1.f, 0.6f, 0.2f, 1.f};    // the tool's (orange)
 constexpr glm::vec4 refusedColour{1.f, 0.15f, 0.1f, 1.f}; // a place a box can't be
 
@@ -53,6 +55,8 @@ struct BrushToolState
     int face{-1};         // Resize: the handle held (0..5: axis * 2 + (1: its + face)), or aimed at
     float faceTo{0.f};    // ... where the face goes
     int hoverId{0};       // the brush under the aim (Resize's handles)
+    glm::vec3 hand0{0.f}; // Rotate: the hand's angles when it took the brush,
+    glm::vec3 turn{0.f};  // ... the turn so far (snapped angles)
     // Copy: the brush copied (its text's plan), and its box.
     bool haveCopy{false};
     brushes::Brush copy;
@@ -208,6 +212,64 @@ void showGhost(const glm::vec3& lo, const glm::vec3& hi, const glm::vec3& head)
     drawBox(lo, hi, bt.ghostOk ? ghostColour : refusedColour, head, true);
 }
 
+// A brush's ghost (any shape): its faces' edges and see-through faces, its bounds' size over it.
+void showGhost(const brushes::Brush& b, const glm::vec3& head)
+{
+    glm::dvec3 l, h;
+    if(!brushes::bounds(b, l, h))
+    {
+        return;
+    }
+    const glm::vec3 lo{l}, hi{h};
+    if(brushes::axial(b) && b.faces.size() == 6)
+    {
+        showGhost(lo, hi, head);
+        return;
+    }
+    bt.ghost = true;
+    bt.ghostLo = lo;
+    bt.ghostHi = hi;
+    bt.ghostOk = holds(lo, hi) == 0;
+    const glm::vec4 c = bt.ghostOk ? ghostColour : refusedColour;
+    const glm::vec4 fill{c.r, c.g, c.b, 0.22f};
+    brushes::forEachPolygon(b, [&](int, const glm::dvec3* p, int n) {
+        for(int i = 0; i < n; i++)
+        {
+            lines::line(glm::vec3{p[i]}, glm::vec3{p[(i + 1) % n]}, 0.4f, c, c);
+        }
+        for(int i = 2; i < n; i++)
+        {
+            lines::triangle(glm::vec3{p[0]}, glm::vec3{p[i - 1]}, glm::vec3{p[i]}, fill);
+        }
+    });
+    const glm::vec3 size = hi - lo;
+    const glm::vec3 top{(lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f, hi.z + 6.f};
+    const glm::vec3 toHead = head - top;
+    text3d::queue(va("%.0f x %.0f x %.0f", size.x, size.y, size.z), top,
+        glm::vec3{0.f, glm::degrees(za::atan2(toHead.y, toHead.x)), 0.f}, text3d::Align::Centre, 0.06f);
+}
+
+[[nodiscard]] brushes::Shape currentShape()
+{
+    return static_cast<brushes::Shape>(za::clamp(static_cast<int>(vr_toolgun_brush_shape.value), 0, static_cast<int>(brushes::Shape::Count) - 1));
+}
+
+// The shape chosen, filling lo..hi, made on the surface whose normal is `axis` the way `sign`: a wedge rising away from
+// the gun (its aim's way across the normal).
+[[nodiscard]] brushes::Brush createShape(const glm::vec3& lo, const glm::vec3& hi, int axis, float sign, const glm::vec3& dir)
+{
+    int rise = (axis + 1) % 3;
+    for(int k = 0; k < 3; k++)
+    {
+        if(k != axis && za::fabs(dir[k]) > za::fabs(dir[rise]))
+        {
+            rise = k;
+        }
+    }
+    return brushes::shape(currentShape(), glm::dvec3{lo}, glm::dvec3{hi}, axis, sign, rise, dir[rise] >= 0.f ? 1.0 : -1.0,
+        static_cast<int>(vr_toolgun_brush_sides.value), brushes::currentTexture());
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Create.
 
@@ -319,15 +381,17 @@ void createFrame(const Input& in, int hand)
     }
     glm::vec3 lo, hi;
     createBox(lo, hi);
-    showGhost(lo, hi, in.head);
+    const brushes::Brush made = createShape(lo, hi, bt.axis, bt.sign, in.dir);
+    showGhost(made, in.head);
     if(in.fire)
     {
         if(!refuse(lo, hi))
         {
-            const int id = brushes::create(brushes::box(glm::dvec3{lo}, glm::dvec3{hi}, brushes::currentTexture()));
+            const int id = brushes::create(made);
             if(id)
             {
-                Con_Printf("toolgun: box %d made, %.0f %.0f %.0f .. %.0f %.0f %.0f\n", id, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z);
+                Con_Printf("toolgun: %s %d made, %.0f %.0f %.0f .. %.0f %.0f %.0f\n",
+                    currentShape() == brushes::Shape::Box ? "box" : brushes::shapeName(currentShape()), id, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z);
                 tick(hand, 0.6f);
             }
         }
@@ -373,7 +437,9 @@ void moveFrame(const Input& in, int hand)
         tick(hand, 0.1f);
         bt.delta = delta;
     }
-    showGhost(bt.lo0 + delta, bt.hi0 + delta, in.head);
+    brushes::Brush moved = *brushes::find(bt.held);
+    brushes::translate(moved, glm::dvec3{delta});
+    showGhost(moved, in.head);
     if(!in.trigger)
     {
         if(delta != glm::vec3{0.f} && !refuse(bt.lo0 + delta, bt.hi0 + delta))
@@ -482,22 +548,16 @@ void resizeFrame(const Input& in, int hand)
     lo = bt.lo0;
     hi = bt.hi0;
     (positive ? hi : lo)[axis] = to;
-    showGhost(lo, hi, in.head);
+    // Stretched by its bounds (a box: the face whose normal is that axis's way moves, the others stay).
+    brushes::Brush b = *brushes::find(bt.held);
+    brushes::scaleTo(b, glm::dvec3{bt.lo0}, glm::dvec3{bt.hi0}, glm::dvec3{lo}, glm::dvec3{hi});
+    showGhost(b, in.head);
     lines::point(handlePoint(lo, hi, bt.face), 3.f, glm::vec4{1.f, 0.4f, 0.1f, 1.f});
     if(!in.trigger)
     {
         const float was = positive ? bt.hi0[axis] : bt.lo0[axis];
         if(to != was && !refuse(lo, hi))
         {
-            // The face whose normal is that axis's way moves (its plane), the others stay.
-            brushes::Brush b = *brushes::find(bt.held);
-            for(brushes::Face& f : b.faces)
-            {
-                if(f.normal[axis] * (positive ? 1.0 : -1.0) > 1.0 - 1e-9)
-                {
-                    f.dist = positive ? to : -to;
-                }
-            }
             if(brushes::change(bt.held, b))
             {
                 Con_Printf("toolgun: box %d resized to %.0f %.0f %.0f .. %.0f %.0f %.0f\n", bt.held, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z);
@@ -609,17 +669,76 @@ void copyFrame(const Input& in, int hand)
     {
         lo[k] = k == axis ? (in.normal[axis] >= 0.f ? plane : plane - size[k]) : snap(hit[k] - size[k] * 0.5f);
     }
-    showGhost(lo, lo + size, in.head);
+    brushes::Brush b = bt.copy;
+    brushes::translate(b, glm::dvec3{lo - bt.copyLo});
+    showGhost(b, in.head);
     if(in.fire && !refuse(lo, lo + size))
     {
-        brushes::Brush b = bt.copy;
-        brushes::translate(b, glm::dvec3{lo - bt.copyLo});
         const int id = brushes::create(b);
         if(id)
         {
             Con_Printf("toolgun: box %d made as a copy\n", id);
             tick(hand, 0.6f);
         }
+    }
+}
+
+// Rotate: the brush held turned as the hand has turned since it took it (each angle in snap steps), about its bounds'
+// middle (on whole units).
+[[nodiscard]] float rotateStep()
+{
+    return vr_toolgun_snap.value > 0.f ? vr_toolgun_snap.value : 15.f;
+}
+
+void rotateFrame(const Input& in, int hand)
+{
+    if(!bt.held)
+    {
+        const int id = brushOf(in.target);
+        bt.glowNum = id ? in.target : 0;
+        bt.glow = 0.15f;
+        if(in.fire && id && boundsOf(id, bt.lo0, bt.hi0))
+        {
+            bt.held = id;
+            bt.hand0 = in.handRot;
+            bt.turn = glm::vec3{0.f};
+            tick(hand, 0.3f);
+        }
+        return;
+    }
+    if(!brushes::find(bt.held))
+    {
+        bt.held = 0;
+        return;
+    }
+    bt.glowNum = brushes::entityOf(bt.held);
+    bt.glow = 0.15f;
+    const glm::mat3 turn = held::axesFromAngles(&in.handRot[0], true) * glm::transpose(held::axesFromAngles(&bt.hand0[0], true));
+    float angles[3];
+    held::anglesFromAxes(turn, angles, true);
+    const float step = rotateStep();
+    glm::vec3 snapped;
+    for(int k = 0; k < 3; k++)
+    {
+        snapped[k] = za::round(angles[k] / step) * step + 0.f;
+    }
+    if(snapped != bt.turn)
+    {
+        tick(hand, 0.1f);
+        bt.turn = snapped;
+    }
+    brushes::Brush b = *brushes::find(bt.held);
+    const glm::dvec3 pivot = glm::floor(glm::dvec3{bt.lo0 + bt.hi0} * 0.5 + 0.5);
+    brushes::rotate(b, brushes::turnFromAngles(glm::dvec3{snapped}), pivot, vr_toolgun_brush_texlock.value != 0.f);
+    showGhost(b, in.head);
+    if(!in.trigger)
+    {
+        if(snapped != glm::vec3{0.f} && !refuse(bt.ghostLo, bt.ghostHi) && brushes::change(bt.held, b))
+        {
+            Con_Printf("toolgun: brush %d turned %.0f %.0f %.0f\n", bt.held, snapped.x, snapped.y, snapped.z);
+            tick(hand, 0.5f);
+        }
+        bt.held = 0;
     }
 }
 
@@ -713,8 +832,14 @@ void frame(const Input& in)
     case Mode::Paint: paintFrame(in, hand); break;
     case Mode::Copy: copyFrame(in, hand); break;
     case Mode::Delete: deleteFrame(in, hand); break;
+    case Mode::Rotate: rotateFrame(in, hand); break;
     default: break;
     }
+}
+
+int modeAt(int slot)
+{
+    return slot >= 0 && slot < static_cast<int>(Mode::Count) ? modeOrder[slot] : 0;
 }
 
 void push(float units)
@@ -788,6 +913,10 @@ const char* stateLine()
     case Mode::Paint: what = "trigger on a box"; break;
     case Mode::Copy: what = bt.haveCopy ? "trigger to put a copy" : "trigger on a box to copy it"; break;
     case Mode::Delete: what = "trigger on a box removes it"; break;
+    case Mode::Rotate:
+        what = bt.held ? va("turn your hand: %.0f %.0f %.0f, let go to set it", bt.turn.x, bt.turn.y, bt.turn.z)
+                       : "hold the trigger on a brush and turn your hand";
+        break;
     default: break;
     }
     q_snprintf(readouts.state, sizeof(readouts.state), "Brush %s: %s (grid %.0f, %s)", modeNames[static_cast<int>(m)],

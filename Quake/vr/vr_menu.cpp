@@ -5904,6 +5904,30 @@ za::Vector<Item> pageDebugTools()
                   "climb it, shoot it; the toolgun's Brush tool moves, sizes, paints and removes it)."),
         command("A Ledge to Climb Ahead", "vr_brush_here 96 48 \"\" 72")
             .help("vr_brush_here 96 48: a box 48 high just ahead, its top a ledge to take with both hands and mantle onto."),
+        command("Undo the Last Brush Edit", "vr_brush_undo")
+            .help("vr_brush_undo: the last brush made, changed or removed in this map taken back (64 deep; the Brush tool's "
+                  "panel has it too)."),
+        command("Save This Map's Brushes", "vr_brush_save")
+            .help("vr_brush_save [name]: every brush of this map to <game folder>/brushes/<map>.brushes (plain .map text with "
+                  "a header; saved games keep their brushes themselves)."),
+        command("Load This Map's Brushes", "vr_brush_load")
+            .help("vr_brush_load [name] [add]: the brushes of <game folder>/brushes/<map>.brushes made, this map's own "
+                  "removed first (\"add\": kept)."),
+        toggle("Load Brushes with the Map", vr_brush_autoload)
+            .help("vr_brush_autoload: a map started (not a saved game) gets the brushes of its brush file (Save This Map's "
+                  "Brushes)."),
+        toggle("Bake the Brushes' Light", vr_brush_bake)
+            .help("vr_brush_bake: each brush's faces lit from the map's lights in the game (shadows, the sun, flickering lights "
+                  "in their own lightstyle), a few ms a frame; off: the flat light where each face is."),
+        command("Bake Every Brush Again", "vr_brush_rebake all")
+            .help("vr_brush_rebake [id | all]: the brushes' light laid out and baked again (after changing the bake's settings)."),
+        command("Bake the Map with Its Brushes", "vr_brush_bake_map")
+            .help("vr_brush_bake_map: the map relit by ericw-tools' light with this map's brushes in it (their light and their "
+                  "shadows on the world, as Relighting makes them; minutes), then reloaded where you are. A brush changed "
+                  "after it is baked in the game again; vr_relight_revert (or a plain relight) takes the bake back out."),
+        command("The Lights the Bake Sees", "vr_brush_lights")
+            .help("vr_brush_lights [x y z | styled]: the map's lights, sun and minimum as the brush bake reads them; near a "
+                  "point, the five nearest and whether the sun is seen there (console)."),
         command("List the Boxes", "vr_brush_list")
             .help("vr_brush_list: the boxes made in this map: their entity, revision, texture, bounds and the marks on them "
                   "(console). vr_brush_text <id>: one's .map text."),
