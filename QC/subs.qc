@@ -221,6 +221,8 @@ void() SUB_UseTargets =
 {
     entity t, stemp, otemp, act;
 
+    AD_ShareActivator(); // AD support: AD's entities it fires read AD's activator (vr_ad_bridge.qc)
+
 //
 // check for a delay
 //

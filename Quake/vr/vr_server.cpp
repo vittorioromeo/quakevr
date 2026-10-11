@@ -284,7 +284,8 @@ BroadcastRoom broadcastRoom{};
         case TE_LIGHTNING1:
         case TE_LIGHTNING2:
         case TE_LIGHTNING3:
-        case TE_BEAM: return 2 + 2 + 6 * coord;              // the entity, from, to
+        case TE_BEAM:                                         // the entity (and Quake VR's beam id: VR_ParseBeamEntity), from, to
+            return 2 + 2 + ((sv.protocolflags & PRFL_QUAKEVR_PROGS) ? 1 : 0) + 6 * coord;
         default: return 0;
     }
 }
@@ -784,6 +785,11 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_POUCHKIND, f.vr_pouch_kind);
     stat(STAT_QVR_POUCHCOUNT, f.vr_pouch_count);
     statsf[STAT_QVR_STEALTH] = fieldFloatOr(ent, f.stl_hud, -1.f);
+    stat(STAT_QVR_ADHUD, f.vr_ad_hud); // AD support: AD's row on the wrist gadget (vr_gadget.cpp)
+    stat(STAT_QVR_ADKEYS, f.vr_ad_hudkeys);
+    stat(STAT_QVR_ADTIME, f.vr_ad_hudtime);
+    stat(STAT_QVR_ADTINT, f.vr_ad_tint); // AD support: AD's screen tint (vr_ad.cpp VR_AD_TintBlend)
+    stat(STAT_QVR_ADTINTDEN, f.vr_ad_tintden);
 
     const int holsterWeapon[numHolsters] = {f.holsterweapon0, f.holsterweapon1,
         f.holsterweapon2, f.holsterweapon3, f.holsterweapon4, f.holsterweapon5};

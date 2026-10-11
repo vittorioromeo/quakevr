@@ -709,7 +709,8 @@ void update(const InputState& tracked)
     }
     else if(toolgun::sticksTaken())
     {
-        // The toolgun's X/A held: the sticks move and turn what it places or holds (no walking, no turning).
+        // The toolgun's physgun holding something, or its X/A held: the sticks move and turn what it holds or places (no
+        // walking, no turning).
         for(StickKey& k : stickKeys)
         {
             stickKey(k, 0.f, false);

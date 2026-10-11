@@ -236,7 +236,7 @@ void() VR_TestHit_Frame =
     entity e = nextent(world);
     while(e)
     {
-        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e))
+        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e) && !VR_TestSkips(e))
         {
             if(all)
             {

@@ -11,10 +11,11 @@
 //            (proportionally, or along that face's axis with Proportional off);
 //   Joint    two props shot one after the other are joined (box3d::addToolJoint: a weld, a ball, a hinge, a slider, a
 //            rope, a spring); Unjoin removes a prop's joints.
-// X/A held on the toolgun's hand: the sticks move the ghost or what the physgun holds (the gun's stick forward and back
-// and turns it, the other up, down and sideways), or scale the aimed prop (the gun's stick, up and down); no walking or
-// turning meanwhile (vr_input.cpp). What the physgun holds also turns with the gun's hand (vr_toolgun_physgun_wrist), its
-// angles snapped to vr_toolgun_snap while X/A is held. The gun's stick press switches to the next tool (X/A held: the one
+// While the physgun holds something both sticks are its, no button needed (the gun's stick: forward and back, and turns
+// it about vr_toolgun_turn_axis; the other: up, down and sideways); no walking or turning meanwhile (vr_input.cpp), and
+// neither stick's press does anything. It also turns with the gun's hand (vr_toolgun_physgun_wrist); X/A held snaps its
+// angles to vr_toolgun_snap (kept when let go). Else X/A held on the toolgun's hand: the sticks move the ghost, or scale
+// the aimed prop (the gun's stick, up and down). The gun's stick press switches to the next tool (X/A held: the one
 // before). B/Y opens and closes its panel over the gun (vr_toolgun_panel.cpp). Single player: the listen server's
 // edicts, changed between its frames (as a console command does).
 
@@ -179,6 +180,11 @@ struct Drag
     bool brush{false};
     float handYaw{0.f};  // the hand's yaw last frame (a monster's or a pickup's turn)
     float handTurn{0.f}; // and how far it has turned since taken, counted as it points level (handTurnWeight)
+    // Snapped (X/A held): last frame's snap as a correction (onto the sticks' turn, wrist; and onto `turn`, Euler), kept
+    // when X/A is let go, so the snapped angles stay rather than springing back.
+    bool snapped{false};
+    glm::mat3 snapFix{1.f};
+    glm::vec3 snapDelta{0.f};
 };
 
 // The scale tool's gizmo on a prop: its oriented box (as drawn: model_scale about model_scale_origin) and handles.
@@ -654,8 +660,16 @@ void dragFrame(float dt)
     glm::vec3 fwd, right;
     levelAxes(tg.aim.dir, fwd, right);
     const glm::vec3 grab = tg.aim.from + tg.aim.dir * za::max(d.distance, 16.f);
-    // X/A held: its angles snap to whole steps of vr_toolgun_snap degrees.
+    // X/A held: its angles snap to whole steps of vr_toolgun_snap degrees; let go, the snap is kept (baked into the turn).
     const float step = tg.adjust ? vr_toolgun_snap.value : 0.f;
+    if(step <= 0.f && d.snapped)
+    {
+        d.stickTurn = d.snapFix * d.stickTurn;
+        d.turn += d.snapDelta;
+    }
+    d.snapped = step > 0.f;
+    d.snapFix = glm::mat3{1.f};
+    d.snapDelta = glm::vec3{0.f};
     const auto snap = [step](float& a) {
         if(step > 0.f)
         {
@@ -680,8 +694,10 @@ void dragFrame(float dt)
             angles[0] = d.angles.x;
             angles[1] = d.angles.y + d.handTurn + d.turn.y;
             angles[2] = d.angles.z;
+            const float unsnapped = angles[1];
             snap(angles[1]);
-            turn = glm::mat3_cast(glm::angleAxis(glm::radians(angles[1] - d.angles.y), glm::vec3{0.f, 0.f, 1.f}));
+            d.snapDelta.y = angles[1] - unsnapped;
+            turn =glm::mat3_cast(glm::angleAxis(glm::radians(angles[1] - d.angles.y), glm::vec3{0.f, 0.f, 1.f}));
         }
         else if(step > 0.f)
         {
@@ -689,7 +705,9 @@ void dragFrame(float dt)
             {
                 snap(a);
             }
+            const glm::mat3 unsnapped = turn;
             turn = held::axesFromAngles(angles, d.brush) * glm::transpose(d.axes0);
+            d.snapFix = turn * glm::transpose(unsnapped);
         }
         to = grab + turn * d.offset;
     }
@@ -701,6 +719,7 @@ void dragFrame(float dt)
         {
             angles[k] = d.angles[k] + d.turn[k];
             snap(angles[k]);
+            d.snapDelta[k] = angles[k] - (d.angles[k] + d.turn[k]);
         }
     }
     to += right * d.slide.x + glm::vec3{0.f, 0.f, d.slide.y};
@@ -949,16 +968,22 @@ void jointShot(int num, const glm::vec3& at, const glm::vec3& normal)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The sticks (X/A held).
+// The sticks: always while the physgun holds something, else with X/A held.
 
 [[nodiscard]] float deadzone(float v)
 {
     return za::fabs(v) < 0.15f ? 0.f : v;
 }
 
+// The physgun holds something: both sticks are its (no X/A needed), and stick presses do nothing.
+[[nodiscard]] bool physgunHolds()
+{
+    return tg.drag.num != 0 && currentTool() == Tool::Physgun;
+}
+
 void sticksFrame(float dt)
 {
-    if(!tg.adjust || tg.hand < 0 || key_dest != key_game)
+    if(!(tg.adjust || physgunHolds()) || tg.hand < 0 || key_dest != key_game)
     {
         return;
     }
@@ -1183,7 +1208,13 @@ bool button(int hand, posing::Button b, bool down)
             taken = true;
             return true;
         case posing::Button::StickClick:
-            // The next tool (X/A held: the one before), unless bullet time has this stick's press.
+            // The next tool (X/A held: the one before), unless bullet time has this stick's press. While the physgun
+            // holds something the stick is the prop's: a press is it pushed hard, swallowed (bullet time's too).
+            if(key_dest == key_game && physgunHolds())
+            {
+                taken = true;
+                return true;
+            }
             if(key_dest != key_game || bullettime::ownsStick(hand))
             {
                 return false;
@@ -1214,12 +1245,19 @@ bool button(int hand, posing::Button b, bool down)
         taken = true;
         return true;
     }
+    // The other stick's press while the physgun holds something: that stick moves the prop, a press is it pushed hard
+    // (not a run, a reload or bullet time).
+    if(b == posing::Button::StickClick && key_dest == key_game && physgunHolds())
+    {
+        taken = true;
+        return true;
+    }
     return false;
 }
 
 bool sticksTaken()
 {
-    return tg.adjust && heldHand() >= 0 && key_dest == key_game;
+    return (tg.adjust || physgunHolds()) && heldHand() >= 0 && key_dest == key_game;
 }
 
 void sticks(const glm::vec2& off, const glm::vec2& main)

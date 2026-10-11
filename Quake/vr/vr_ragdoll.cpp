@@ -523,7 +523,12 @@ constexpr Seed playerSeeds[] = {
     {"shin_r", 9, Joint::Hinge, {-22.4f, -4.5f, -16.3f}, {-19.4f, -4.7f, -11.9f}, {-24.6f, -4.4f, -19.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+#define QVR_AD_RIG_SEEDS
+#include "vr_ad_rigs.inc" // AD support: Arcane Dimensions' monsters' seeds
+#undef QVR_AD_RIG_SEEDS
+
 constexpr SeedTable seedTables[] = {
+#include "vr_ad_rigs.inc" // AD support: their tables
     {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
     {modelmeta::Id::Ogre, 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},

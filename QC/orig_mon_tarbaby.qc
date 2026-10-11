@@ -152,7 +152,7 @@ void()    tbaby_jump5        =[    $jump5,    tbaby_jump6        ]
 {
     // HONEY
     vector power;
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID))){
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID))){
         self.th_missile = tbaby_jump1; //Reset
         self.spawnflags = self.spawnflags - SPAWNFLAG_TBABY_LIVID;
     }
@@ -163,7 +163,7 @@ void()    tbaby_jump5        =[    $jump5,    tbaby_jump6        ]
     self.origin_z = self.origin_z + 1;
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TBABY_HIPHOP))){// Makes it start off by jumping really high the first time
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TBABY_HIPHOP))){// Makes it start off by jumping really high the first time
         self.velocity = v_forward * 150 + '0 0 700';
         self.spawnflags = self.spawnflags - SPAWNFLAG_TBABY_HIPHOP;
     }else{
@@ -306,7 +306,7 @@ void() monster_tarbaby =
     precache_sound2(VR_SoundOr("blob/mytosis.wav", "blob/sight1.wav", "sound/blob/mytosis.wav")); // (Rogue's, else the spawn's own)
 
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
         self.cnt = -1;
     }
 
@@ -317,7 +317,7 @@ void() monster_tarbaby =
     self.th_run = tbaby_run1;
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID))) { self.th_missile = tbaby_jump5; } // Really go flying
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID))) { self.th_missile = tbaby_jump5; } // Really go flying
     else                                        { self.th_missile = tbaby_jump1; }
 
     self.th_melee = tbaby_jump1;
@@ -328,19 +328,19 @@ void() monster_tarbaby =
     {
         self.skin = 0;
     }
-    else if(!MG_WorldCampaign() && (self.spawnflags & 8))
+    else if(!VR_OtherFlags() && (self.spawnflags & 8))
     {
         self.th_pain = tbaby_mitosis;
         self.skin = 2;
         self.health = 100;
     }
-    else if(!MG_WorldCampaign() && (self.spawnflags & 4))
+    else if(!VR_OtherFlags() && (self.spawnflags & 4))
     {
         self.th_pain = tbaby_mitosis;
         self.skin = 1;
         self.health = 60;
     }
-    else if(!MG_WorldCampaign() && (self.spawnflags & 2))
+    else if(!VR_OtherFlags() && (self.spawnflags & 2))
     {
         self.skin = 0;
     }
@@ -371,7 +371,7 @@ void() monster_tarbaby =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = tarbaby_start;
         return;

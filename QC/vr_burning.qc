@@ -779,7 +779,8 @@ void() VR_Burn_Think =
         fl = fl.burn_next;
     }
     particle2(self.burn_flames.origin, '0 0 20', QVR_PARTICLE_PRESET_SMOKE, 2);
-    if(dmg > 0 && v.takedamage)
+    if(AD_BurnHurt(self, v)) {} // AD support: AD's burning on you (its debuff, merged): AD's damage (vr_ad_player.qc)
+    else if(dmg > 0 && v.takedamage)
     {
         dprint(sprintf("burning: %s burns for %g (%g flames, health %g)\n", v.classname, dmg, self.burn_count, v.health));
         VR_SetHitKind(QVR_HITKIND_NONE, -1, self.burn_flames.origin, '0 0 -1');
@@ -1422,7 +1423,8 @@ void() VR_Burn_LavaPlayers =
     for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
     {
         if(p.health <= 0 || !p.takedamage || p.waterlevel <= 0 || p.watertype != CONTENT_LAVA ||
-           p.invincible_finished > time || p.radsuit_finished > time)
+           p.invincible_finished > time || p.radsuit_finished > time ||
+           AD_LavaShieldOn(p)) // AD support: AD's Lava Shield keeps lava's fire off too (vr_ad_items.qc)
         {
             continue;
         }

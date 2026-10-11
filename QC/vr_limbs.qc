@@ -38,7 +38,7 @@ float(float xBone) VR_Limb_Bit =
 // A zombie or a mummy: a lost limb kills it for good (vr_limbs_zombies).
 float(entity e) VR_Limb_IsZombie =
 {
-    return e.classname == "monster_zombie" || e.classname == "monster_mummy";
+    return e.classname == "monster_zombie" || e.classname == "monster_mummy" || (e.vr_ad_mon & VR_ADM_ZOMBIE); // (AD support)
 };
 
 // Whether `e` may lose limbs: the option, a monster with a rig and limbs left (not a statue, not a gib).
@@ -920,7 +920,7 @@ float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage) VR_D
     xDir = normalize(xDir);
     if(VR_Decap_Allowed(targ) && VR_Decap_OnHead(targ, xAt, xDir))
     {
-        if((targ.classname == "monster_zombie" && xDamage < VR_DECAP_ZOMBIE_DOWN) ||
+        if((VR_Decap_IsZombie(targ) && xDamage < VR_DECAP_ZOMBIE_DOWN) ||
            !VR_Decap_Arm(targ, attacker, xAt, xDir * VR_DECAP_SHOT_SPEED, QVR_DECAP_LASER))
         {
             return FALSE;

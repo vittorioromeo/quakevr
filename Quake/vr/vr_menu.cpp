@@ -45,6 +45,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
 #include "vr_props.hpp"
+#include "vr_ragtest.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_retro.hpp"
@@ -484,6 +485,8 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDebugCheats();
 [[nodiscard]] za::Vector<Item> pageStealth();
 [[nodiscard]] za::Vector<Item> pageStealthTests();
+[[nodiscard]] za::Vector<Item> pageRagdollTests();
+[[nodiscard]] za::Vector<Item> pageRagdolls();
 [[nodiscard]] za::Vector<Item> pageSpawnWeapons();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
@@ -592,6 +595,8 @@ const char* const menuButtonHelp =
 #include "vr_menu_cheats.inc"
 #include "vr_menu_toolgun.inc"
 #include "vr_menu_stealth.inc"
+#include "vr_menu_ragtests.inc"
+#include "vr_menu_ad_monsters.inc" // AD support: Debug > Tests > Arcane Dimensions Monsters
 
 // ----------------------------------------------------------------------------
 // Pages of the port's own tweaks
@@ -789,7 +794,7 @@ int campaignsBloodyShown = -1;
 [[nodiscard]] za::Vector<Item> pageCampaigns()
 {
     za::Vector<Item> items{header("Official Campaigns")};
-    for(int i = 0; i < 6; ++i)
+    for(int i = 0; i < VR_CampaignCount(); ++i) // (Arcane Dimensions too: its row dim until it is ready)
     {
         Item choice = row(VR_CampaignLabel, VR_CampaignHelp, VR_SelectCampaign, i, -1);
         choice.dimArg = [](int index) -> bool { return VR_CampaignUnavailable(index) != 0; };
@@ -3635,6 +3640,43 @@ void hologramTestMessage()
 
 // Combat > Burning (QC vr_burning.qc): what a lit torch, a thrown one or a lava nail sets on fire; crates; nails through
 // a torch's flame.
+// Combat > Arcane Dimensions (AD support, ARCANE_DIMENSIONS.md decisions 2 and 22): AD's projectile pellets and whose
+// projectile rules play (QC vr_ad_bridge.qc AD_Pellets).
+[[nodiscard]] za::Vector<Item> pageArcaneDimensions()
+{
+    return {
+        cycle("Projectile Rules", vr_ad_projectiles, {{0.f, "Auto"}, {1.f, "Vanilla"}, {2.f, "Arcane Dimensions"}})
+            .help("Whose rules shotguns and monster projectiles play by. Auto: Arcane Dimensions' in its maps (projectile "
+                  "pellets you see fly, from your shotguns and the grunts'; the hell knights', scrags', ogres' and "
+                  "zombies' missiles at its speeds for the skill), Quake's elsewhere. Vanilla: Quake's everywhere. "
+                  "Arcane Dimensions: its rules wherever its data is loaded. Its own monsters always play by its rules."),
+        slider("Pellet Spread", vr_ad_pellet_spread, 0.f, 2.f, 0.05f, "x%.2f").extend(0.f, 4.f)
+            .help("Arcane Dimensions' pellets: how wide they spread, times its own (the shotgun 0.04, the super shotgun "
+                  "0.14 by 0.08: wider than Quake VR's hitscan, aimed with the hand). 0: every pellet straight."),
+        slider("Pellet Speed", vr_ad_pellet_speed, 0.25f, 3.f, 0.05f, "x%.2f").extend(0.1f, 10.f)
+            .help("How fast your pellets fly, times Arcane Dimensions' (the shotgun 2000, the super shotgun 1500 units a "
+                  "second): faster is nearer hitscan."),
+        slider("Pellet Damage", vr_ad_pellet_damage, 0.f, 3.f, 0.05f, "x%.2f").extend(0.f, 10.f)
+            .help("Your pellets' damage, times Weapon Damage's shotgun and super shotgun pellet (4: Arcane Dimensions')."),
+        toggle("Evil Skill (with Nightmare)", vr_ad_evil)
+            .help("Arcane Dimensions' fifth skill, in any campaign while its data is installed: chosen with Nightmare (the "
+                  "start map's skill hall, or Arcane Dimensions' own Evil choice, which sets this). 50 health at most "
+                  "(megahealth 100), the Shadow Axe's blows, Arcane Dimensions' monsters at their hardest. Kept in saves."),
+        slider("Screen Tints", vr_ad_tints, 0.f, 1.f, 0.05f, "x%.2f")
+            .help("Arcane Dimensions' screen colours, times this: green while poisoned, dark amber while bleeding, "
+                  "orange while burning (with Burn Damage off), a book's dark background while you read it. Eased in and out. 0: none. Its "
+                  "cinematic cameras' fades to black always play (Graphics' colour shift settings apply to all)."),
+        toggle("Hand-Climbed Ladders", vr_climb_ladders)
+            .help("Arcane Dimensions' ladders climbed with your hands, as ledges (Hand Climbing on): grip anywhere on a "
+                  "ladder, a rung under every hand, pull yourself up hand over hand, mantle at its top. Holding jump "
+                  "climbs them too, as in Arcane Dimensions."),
+        toggle("Its Content in Every Map", vr_ad_everywhere)
+            .help("Arcane Dimensions' new artifacts, custom keys, health vials and gems, custom items and ladders in any "
+                  "map that places them (custom maps, the toolgun), while its data is installed. Off: only in its own "
+                  "maps. Its pickups that would replace Quake VR's (backpacks) are only ever in its maps."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageBurning()
 {
     return {
@@ -4038,7 +4080,16 @@ void hologramTestMessage()
             .help("At most this many at once. New deaths replace the oldest dead ragdoll first, then the oldest living knockdown if necessary. 0: ragdolls off."),
         toggle("Ragdolls Meet Each Other", vr_ragdoll_collide_each)
             .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
+        toggle("Limbs Meet Each Other", vr_ragdoll_self_collide)
+            .help("A ragdoll's own limbs meet: an arm stays out of his chest, a leg out of the other, a body folded over "
+                  "lies on itself. Jointed neighbours (a forearm and its upper arm), parts deep in each other as he went "
+                  "limp (until they come apart) and an arm reaching for his wound, a stump or a wall pass through; his gun "
+                  "never meets him. Off: his limbs pass through each other, as before. Ragdolls made from now on "
+                  "(vr_ragdoll_self_collide)."),
         header("Active Deaths (Experimental)"),
+        open("Test Them", pageIndex(pageRagdollTests))
+            .help("Debug > Tests > Ragdoll Behaviours: each behaviour below set going on the nearest grunt, enforcer, "
+                  "knight, death knight, ogre or zombie."),
         toggle("Active Deaths", vr_ragdoll_active)
             .help("A dying grunt, enforcer, knight, death knight, ogre or zombie goes limp as soon as he stops being solid, "
                   "his body playing his death animation as his strength fades (legs first): he stumbles if he dies on the "
@@ -4048,12 +4099,32 @@ void hologramTestMessage()
             .help("How strongly the joints follow the death animation (vr_ragdoll_active_strength)."),
         slider("Strength Lasts", vr_ragdoll_active_fade, 0.25f, 3.f, 0.25f, "%.2fx").extend(0.1f, 5.f)
             .help("How long the strength lasts, times his death animation's length (vr_ragdoll_active_fade)."),
+        slider("Muscle Stiffness", vr_ragdoll_active_hertz, 2.f, 20.f, 1.f, "%.0f Hz")
+            .help("How quickly a joint at full strength springs towards its pose: more follows the animation tighter, "
+                  "less is looser and lags (vr_ragdoll_active_hertz; at most 20)."),
+        slider("Muscle Damping", vr_ragdoll_active_damping, 0.2f, 2.f, 0.1f, "%.1f")
+            .help("How the joints' springs settle: 1 without overshoot, less bouncy, more sluggish (vr_ragdoll_active_damping)."),
+        slider("Muscle Torque", vr_ragdoll_active_torque, 0.5f, 5.f, 0.25f, "%.2f").extend(0.f, 10.f)
+            .help("A joint's most force at full strength, times the weight of what hangs on it times its lever: a blow "
+                  "or a hand overpowers less of it (vr_ragdoll_active_torque)."),
+        slider("Thrown by His Death", vr_ragdoll_active_pin, 0.f, 2.f, 0.1f, "%.1f").extend(0.f, 5.f)
+            .help("Body weights pulling his pelvis along his death animation's at first (its throw back or forward "
+                  "kept); 0 none (vr_ragdoll_active_pin)."),
+        slider("Thrown For", vr_ragdoll_active_pin_time, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("And that pull fading out over this (vr_ragdoll_active_pin_time)."),
+        slider("Headshot Strength", vr_ragdoll_active_headshot, 0.f, 0.5f, 0.01f, "%.2f")
+            .help("The strength a headshot or a beheading leaves: near 0 a pure collapse (vr_ragdoll_active_headshot)."),
+        slider("Stumble From", vr_ragdoll_active_stumble, 0.f, 300.f, 10.f, "%.0f u/s").extend(0.f, 1000.f)
+            .help("Dying on the move at least this fast, he stumbles on: carried a moment, a leg stepping ahead. 0: "
+                  "never (vr_ragdoll_active_stumble; a run is about 200-300, a walk 50-100)."),
         toggle("React to Lost Limbs", vr_ragdoll_active_dismember)
             .help("A dying monster losing a limb holds the stump with his free hand and writhes a few seconds once down; "
                   "killed standing by a leg cut off, he tries to keep his balance on the other before he falls; with no "
                   "legs he crawls on his arms. Off: he dies as from any blow (vr_ragdoll_active_dismember)."),
         slider("Writhing", vr_ragdoll_active_dismember_time, 0.f, 8.f, 0.5f, "%.1f s").extend(0.f, 20.f)
             .help("How long he writhes holding the stump once down (vr_ragdoll_active_dismember_time)."),
+        slider("Writhe Size", vr_ragdoll_active_writhe, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("How far his torso and legs stir as he writhes, times the default; 0 still (vr_ragdoll_active_writhe)."),
         slider("Balance on One Leg", vr_ragdoll_active_balance_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 5.f)
             .help("How long at most he tries to keep his balance on one leg (0: he falls at once) "
                   "(vr_ragdoll_active_balance_time)."),
@@ -4070,6 +4141,9 @@ void hologramTestMessage()
         toggle("Lean on Walls", vr_ragdoll_active_env_lean)
             .help("Dying with a wall behind or beside him, he braces a hand on it and slumps down it, his knees giving; "
                   "a crate he braces on, never holds (vr_ragdoll_active_env_lean)."),
+        slider("Arms' Strength", vr_ragdoll_active_env_arms, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("How strongly his arms reach for what is round him (a catch, a lean, a ledge's hold, a brace), times the "
+                  "default; 0 they don't (vr_ragdoll_active_env_arms)."),
         toggle("Grab Ledges", vr_ragdoll_active_env_ledge)
             .help("Falling past a ledge's lip near a hand, he grabs it and hangs a moment before dropping; shooting the "
                   "hand makes him let go (vr_ragdoll_active_env_ledge)."),
@@ -4081,6 +4155,10 @@ void hologramTestMessage()
         slider("Crawl Away", vr_ragdoll_active_crawl, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance a humanoid lying after his death rolls onto his front and crawls a few seconds before going "
                   "limp (vr_ragdoll_active_crawl)."),
+        slider("Crawl Time", vr_ragdoll_active_crawl_time, 0.5f, 8.f, 0.5f, "%.1f s").extend(0.1f, 30.f)
+            .help("How long he crawls (vr_ragdoll_active_crawl_time)."),
+        slider("Crawl Pull", vr_ragdoll_active_crawl_force, 0.2f, 3.f, 0.1f, "%.1f").extend(0.f, 6.f)
+            .help("Body weights his arms pull along the floor at most: more drags him further (vr_ragdoll_active_crawl_force)."),
         toggle("Swim and Flail in Liquids", vr_ragdoll_active_liquids)
             .help("Dying in water (drowned, or falling in just after his death) he paddles and kicks, his head held up, "
                   "weakening as he drowns; in lava or slime he flails, short and violent; then limp. Off: his death in a "
@@ -4119,6 +4197,14 @@ void hologramTestMessage()
         slider("Backpedal Distance", vr_ragdoll_active_stagger_travel, 0.f, 2.f, 0.1f, "%.1fx")
             .help("How far a shoved monster backpedals, times how far the same shove slid a standing one before "
                   "active shoves (at most 4 m) (vr_ragdoll_active_stagger_travel)."),
+        slider("Shove's Push", vr_ragdoll_active_stagger_push, 0.f, 5.f, 0.25f, "%.2f m/s").extend(0.f, 10.f)
+            .help("A fresh two-hand shove's push on a staggering monster's top (its pelvis carried by its balance, its "
+                  "feet not): more tips it further (vr_ragdoll_active_stagger_push)."),
+        slider("Stagger Balance", vr_ragdoll_active_stagger_pin, 0.5f, 5.f, 0.25f, "%.2f").extend(0.f, 10.f)
+            .help("Body weights holding its pelvis up while it staggers, at most (by its balance: the knockdown's chance "
+                  "against its roll): less, it falls more often (vr_ragdoll_active_stagger_pin)."),
+        slider("Stagger Recovery Blend", vr_ragdoll_active_stagger_blend, 0.05f, 1.f, 0.05f, "%.2f s")
+            .help("Recovered, its ragdoll blends into the animated monster over this (vr_ragdoll_active_stagger_blend)."),
         toggle("Active Get-Ups", vr_ragdoll_active_getup)
             .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
                   "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "
@@ -4147,6 +4233,13 @@ void hologramTestMessage()
                   "burnt, and ragdolls you take and cut once you come near. Off: scenery. The next map load (vr_corpse_placed)."),
         slider("Placed Corpses Wake At", vr_corpse_placed_wake, 64.f, 512.f, 16.f, "%.0f units")
             .help("How near you come before a placed corpse becomes a ragdoll (vr_corpse_placed_wake)."),
+        slider("Get-Up Lift", vr_ragdoll_active_getup_pin, 0.5f, 5.f, 0.25f, "%.2f").extend(0.f, 10.f)
+            .help("Body weights pulling its pelvis through its get-up, at most: less, it struggles and may slump "
+                  "(vr_ragdoll_active_getup_pin)."),
+        slider("Get-Up Pace", vr_ragdoll_active_getup_pace, 0.3f, 2.f, 0.1f, "%.1fx")
+            .help("Its get-up's speed, times the get-up's own (vr_ragdoll_active_getup_pace)."),
+        slider("Get-Up Blend", vr_ragdoll_active_getup_blend, 0.05f, 1.f, 0.05f, "%.2f s")
+            .help("Risen, its ragdoll blends into the animated monster over this (vr_ragdoll_active_getup_blend)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
@@ -5667,9 +5760,11 @@ za::Vector<Item> pageDebugTools()
         command("Test Console Line", "vr_message_test console Test console log line").help("vr_message_test console <text>: an engine log line, as a warning: in the notify lines only with HUD and Menus > Screens > Console Log on the HUD (vr_hud_console_log 1)."),
         command("Notify Lines Info", "vr_notify_info").help("vr_notify_info: prints the notify lines shown now, in view and in the gadget's log (which of the game's messages and the console's log pass vr_hud_console_log)."),
         cycle("Gadget Screen Readings", "vr_gadget_test_state",
-            {{0.f, "Real"}, {1.f, "Low"}, {2.f, "Exhausted, Counter"}, {3.f, "Hanging, Bullet Time"}, {4.f, "Relighting"}, {5.f, "Every Item"}})
+            {{0.f, "Real"}, {1.f, "Low"}, {2.f, "Exhausted, Counter"}, {3.f, "Hanging, Bullet Time"}, {4.f, "Relighting"}, {5.f, "Every Item"},
+             {6.f, "Arcane Dimensions Row"}})
             .help("vr_gadget_test_state: the wrist gadget's screen shows made-up readings, to see each state of its layout: low health, ammo and "
-                  "stamina; no stamina with a counter's window open; hanging with bullet time running; maps being relit; every key, powerup and sigil."),
+                  "stamina; no stamina with a counter's window open; hanging with bullet time running; maps being relit; every key, powerup and sigil; "
+                  "Arcane Dimensions' artifacts, a timer, custom keys and debuffs (its icons need its data installed)."),
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
         command("Lightning Shock", "vr_shock_test 0").help("vr_shock_test 0: the lightning gun's shock in water (the flash, the arcs over your arms and body), without the damage."),
         command("Lightning Strikes You", "vr_shock_self_test 10; vr_shock_self_info")
@@ -6311,6 +6406,55 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive authored mge2m2 puzzle test. Reload afterward."),
         command("Machine: Equipment Carry Setup", "vr_mg_hub_test 20")
             .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
+        command("Arcane Dimensions: Play (Developer)", "vr_campaign_native ad")
+            .help("AD support in progress (ARCANE_DIMENSIONS.md): a new Arcane Dimensions game at its hub, its own start "
+                  "map, with the latest release (1.80 patch 1) in an ad folder. Its maps play by its rules; the console "
+                  "says what is missing."),
+        command("Arcane Dimensions: Play a Cinematic Camera", "vr_ad_test 1")
+            .help("In an Arcane Dimensions map: its first cinematic camera (misc_camera) plays on you, as its trigger "
+                  "would start it. You are moved to its view and back when it ends (its VR presentation is to come)."),
+        command("Arcane Dimensions: Cinematic Report", "vr_ad_test 2")
+            .help("One adtest: line in the console: the cinematic camera's state, how you are held (move type, solid, "
+                  "damage), where you are."),
+        command("Arcane Dimensions: Widowmaker Pickup Ahead", "vr_ad_test 5")
+            .help("In an Arcane Dimensions map: a Widowmaker pickup (AD's upgrade) appears ahead of you, to take with a "
+                  "hand. Arcane Dimensions: Upgrades Report then says whether you have the upgrade."),
+        command("Arcane Dimensions: Upgrades Report", "vr_ad_test 6")
+            .help("One adtest: line: the AD upgrades you have (Shadow Axe, Widowmaker, Plasma Gun) and your hands' "
+                  "weapons."),
+        command("Arcane Dimensions: Artifacts Ahead", "vr_physics_spawn item_artifact_jumpboots 64 -48; vr_physics_spawn item_artifact_blastbelt 64 0; vr_physics_spawn item_artifact_sharp_shooter 64 48; vr_physics_spawn item_artifact_lavashield 112 -24; vr_physics_spawn item_artifact_airtank 112 24")
+            .help("Any map, with Arcane Dimensions' data installed: its Jump Boots, Blast Belt, Sharp Shooter, Lava Shield "
+                  "and Air Tank ahead of you, to walk into (the wrist gadget shows each one held and the soonest one's "
+                  "seconds left)."),
+        command("Arcane Dimensions: Artifacts Test", "vr_ad_test 10; wait; wait; vr_ad_test 11")
+            .help("Destructive: the new artifacts but the Nail Piercer given (AD's own touch), then their effects "
+                  "measured: the Sharp Shooter's spreads, a blast with and without the Blast Belt (it hurts), the Lava "
+                  "Shield, the Air Tank's air, the Jump Boots' jumps (two adrules: lines)."),
+        command("Arcane Dimensions: Nail Piercer Test", "vr_ad_test 12")
+            .help("Destructive: the Nail Piercer given, two grunts in a line ahead and a nail through the first into the "
+                  "second (Arcane Dimensions: Nail Piercer Result reports them)."),
+        command("Arcane Dimensions: Nail Piercer Result", "vr_ad_test 13"),
+        command("Arcane Dimensions: Burning, Poison, Bleeding", "vr_ad_test 14; wait; wait; vr_ad_test 16; wait; wait; vr_ad_test 18")
+            .help("Destructive: AD's three debuffs on you at once (its burning is your fire's: our flames, its time and "
+                  "damage); the wrist gadget shows them. Debuffs Report says what they took."),
+        command("Arcane Dimensions: Debuffs Report", "vr_ad_test 15; wait; wait; vr_ad_test 17; wait; wait; vr_ad_test 19"),
+        command("Arcane Dimensions: Screen Tint Report", "vr_ad_tint_info")
+            .help("vr_ad_tint_info: the screen tint Arcane Dimensions asks for now (its colour, density, a tint or a "
+                  "camera's fade), the one drawn (eased), Screen Tints, the whole colour shift's alpha."),
+        command("Arcane Dimensions: Ammo Resistance Test", "vr_ad_test 21")
+            .help("Destructive: a grunt given AD's resistance keys (shells half, nails all, rockets -50%) hit by a shot, a "
+                  "nail, a blow, a rocket, a bolt: in AD maps it resists, elsewhere only AD's own monsters do."),
+        command("Arcane Dimensions: Evil Skill Report", "vr_ad_test 22")
+            .help("Whether AD's Evil skill plays (Nightmare with Evil Skill on), your health and its cap, megahealth's, "
+                  "the axe's blow."),
+        command("Arcane Dimensions: Ladders Report", "vr_ad_test 24")
+            .help("This map's trigger_ladders and the first one's volume (climbable by hand: Hand-Climbed Ladders)."),
+        command("Arcane Dimensions: Spawnflags and Sight Report", "vr_ad_test 26; wait; wait; vr_ad_test 27")
+            .help("Whose meaning this map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'), and where "
+                  "monsters look for you (crouched: your real eyes)."),
+        command("Arcane Dimensions: Status", "vr_ad_info")
+            .help("vr_ad_info: AD's data (the latest release, another version refused), whether this map plays by AD's "
+                  "rules and why (the campaign, or the signals found), how many of its entities spawned with AD's code."),
         command("Whole-Map Monsters: Report", "vr_test_monsters 1")
             .help("Count this map's monsters: live, awake (hunting someone), dead, waiting for their trigger (one "
                   "monsterstest: line)."),
@@ -6325,6 +6469,10 @@ za::Vector<Item> pageDebugTests()
                   "as Most Ragdolls allows (vr_ragdoll_max). The benchmarks' mg3_*_kill. Reload afterward."),
         open("Stealth AI", pageIndex(pageStealthTests))
             .help("The stealth AI's scenes on e1m1 (Combat > Stealth AI): seeing, hearing, touch, investigating."),
+        open("Ragdoll Behaviours", pageIndex(pageRagdollTests))
+            .help("Each active-ragdoll behaviour set going on the nearest grunt, enforcer, knight, death knight, ogre or "
+                  "zombie: deaths by where struck, stumble, wound, crawl, lost limbs, swim, flail, walls, ledges, flinches, "
+                  "staggers, throws, get-ups; the console says whether each began."),
         open("Machine Horde Tests", pageIndex(pageMachineHordeTests))
             .help("Authored waves, currency, physical rewards, revival and saved equipment. Developer arena only."),
         open("Dawn of the Machine Bestiary", pageIndex(pageMg3BestiaryTests))
@@ -6337,6 +6485,9 @@ za::Vector<Item> pageDebugTests()
             .help("The Super Axe (any campaign with the Dawn of the Machine data), the axe buttons, the laser cannon, the bloody shotguns."),
         open("Dawn of the Machine Monsters", pageIndex(pageMg3MonsterTests))
             .help("The infected (any campaign) and Dawn of the Machine's own monsters (with its data): spawns and checks."),
+        open("Arcane Dimensions Monsters", pageIndex(pageAdMonsterTests)) // AD support
+            .help("Arcane Dimensions' monsters with Quake VR's treatment (ragdolls, beheading, limbs, knockdowns): "
+                  "spawns ahead and reports, in an AD map."),
         open("Dawn of the Machine Tests", pageIndex(pageMg3Tests))
             .help("MG3 native port: state, saved upgrades and capacities. Dawn of the Machine campaign only."),
         command("Machine: Progression Report", "vr_mg_hub_test 3")
@@ -7382,6 +7533,10 @@ za::Vector<Item> pageHitbox()
         slider("Lowest Crouched Height", vr_crouch_height, 24.f, 52.f, 4.f, "%.0f units")
             .help("Your box's height with your eyes under it (Quake's standing box: 56; the crouching room's tunnel in "
                   "the teleporter test map: 40) (vr_crouch_height)."),
+        toggle("Monsters See Your Eyes", vr_crouch_sight)
+            .help("Crouched (with the crouched hitbox), monsters look for you at your real eyes, not at a standing "
+                  "player's: crouched behind cover lower than you stand, you are out of their sight, as Arcane "
+                  "Dimensions' height-aware monsters check (vr_crouch_sight). Standing: Quake's as ever."),
         cycle("Heights Above It", vr_crouch_step, {{0.f, "None"}, {4.f, "Every 4 units"}, {8.f, "Every 8 units"},
                   {12.f, "Every 12 units"}})
             .help("Taller crouched boxes up to 52, so half a crouch gets you under a ceiling that is a little low: your "
@@ -7740,9 +7895,11 @@ const Page pages[] = {
     {"Reloading - Cell Cords", pageReloadCellCords, pageReloading},
     {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)
     {"Stealth AI Tests", pageStealthTests, pageDebugTests, LevelDeveloper},
+    {"Ragdoll Behaviour Tests", pageRagdollTests, pageDebugTests, LevelDeveloper}, // (vr_menu_ragtests.inc)
     {"Holding Enemies", pageHoldingEnemies, pageCombat},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
     {"Doom", pageDoom, pageGadget, LevelStandard},
+    {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -8607,6 +8764,9 @@ za::Vector<Item> pageCombat()
         open("Stealth AI", pageIndex(pageStealth))
             .help("Enhanced AI (on/off: Quake's monsters at once). Monsters idle, alert or hostile: seeing you by the light "
                   "on you, hearing noises, investigating, spreading the alarm; sneak attacks."),
+        open("Arcane Dimensions", pageIndex(pageArcaneDimensions))
+            .help("The Arcane Dimensions mod's projectile pellets: whose rules play where (Auto, Vanilla, Arcane "
+                  "Dimensions), their spread, speed and damage."),
     };
 }
 
@@ -12202,6 +12362,59 @@ void qvr::menu::dump_f()
         }
     }
     levelOverride = was;
+}
+
+void qvr::menu::press_f()
+{
+    // (Unquoted, the page and the row split at " > ": a test script's quotes need not survive its shell.)
+    char args[512];
+    q_strlcpy(args, Cmd_Args() ? Cmd_Args() : "", sizeof(args));
+    char* split = strstr(args, " > ");
+    if(!split)
+    {
+        Con_Printf("usage: vr_menu_press <page title> > <row label>\n");
+        return;
+    }
+    *split = '\0';
+    const char* title = args;
+    const char* label = split + 3;
+    const int was = levelOverride;
+    levelOverride = LevelDeveloper;
+    const char* command = nullptr;
+    void (*action)() = nullptr;
+    bool found = false;
+    for(int p = 0; p < pageCount && !found; p++)
+    {
+        if(q_strcasecmp(pages[p].title, title))
+        {
+            continue;
+        }
+        for(const Item& item : items(p))
+        {
+            if(item.kind == Item::Action && item.label && !q_strcasecmp(item.label, label))
+            {
+                command = item.command;
+                action = item.page < 0 && !item.actionArg ? item.action : nullptr;
+                found = true;
+                break;
+            }
+        }
+    }
+    levelOverride = was;
+    if(!found || (!command && !action))
+    {
+        Con_Printf("vr_menu_press: no button \"%s\" on page \"%s\"\n", label, title);
+        return;
+    }
+    Con_Printf("vr_menu_press: %s > %s%s%s\n", title, label, command ? ": " : "", command ? command : "");
+    if(command)
+    {
+        runCommand(command);
+    }
+    else
+    {
+        action();
+    }
 }
 
 int qvr::menu::bodyCalibrationPage()

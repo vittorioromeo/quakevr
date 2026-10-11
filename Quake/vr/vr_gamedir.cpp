@@ -30,6 +30,7 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
+#include "vr_ad.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -360,6 +361,9 @@ constexpr const char* mg1Resources[] = {
 constexpr const char* mg3Resources[] = {
 #include "vr_pack_mg3.inc"
 };
+constexpr const char* adResources[] = {
+#include "vr_pack_ad.inc"
+};
 struct Campaign
 {
     const char* folder;
@@ -381,7 +385,11 @@ Campaign campaigns[] = {
     {"dopa", "Dimension of the Past", "e5start", 3, true, dopaResources, countof(dopaResources), 0, {}},
     {"mg1", "Dimension of the Machine", "start", 4, true, mg1Resources, countof(mg1Resources), 0, {}},
     {"mg3", "Dawn of the Machine", "start", 5, true, mg3Resources, countof(mg3Resources), 0, {}},
+    // AD support: Arcane Dimensions, the latest release only (vr_ad.cpp; status 3: another version, refused); its
+    // native support in progress (ARCANE_DIMENSIONS.md P1b): developer launch, vr_campaign_native ad
+    {"ad", "Arcane Dimensions", "start", 6, false, adResources, countof(adResources), 0, {}},
 };
+static_assert(qvr::ad::campaignIndex == 6, "vr_ad.hpp's campaign index is campaigns[]'s AD row");
 int activeCampaign = 0;
 bool discoveredCampaigns = false;
 bool developerNative = false;
@@ -502,6 +510,7 @@ void discoverCampaigns()
             if(Sys_FileType(folder) != FS_ENT_DIRECTORY) { continue; }
             c.status = inspectPack(c.folder, c.resources, c.resourceCount, roots[r].cStr());
             if(c.status == 0) { continue; } // none of its data (a texture pack's folder): the next root's copy counts
+            if(c.status == 1 && i == qvr::ad::campaignIndex) { c.status = qvr::ad::versionStatus(folder); } // AD support: the latest only
             q_strlcpy(c.root, roots[r].cStr(), sizeof(c.root));
             // A damaged higher-priority owned copy is explicit, never masked by another release.
             break;
@@ -548,11 +557,12 @@ bool campaignMultiplayerRequested()
 // (vr_campaign_native).
 [[nodiscard]] bool soloOnly(int index)
 {
-    return index == 3 || index == 4 || index == 5;
+    return index == 3 || index == 4 || index == 5 || index == 6;
 }
 
 int missingLanguage(int index, const char** first = nullptr)
 {
+    if(index < 3 || index > 5) { return 0; } // (AD support: Arcane Dimensions has no rerelease language table)
     const char* const* keys = index == 3 ? dopaLanguageKeys : index == 4 ? mg1LanguageKeys : mg3LanguageKeys;
     const size_t count = index == 3 ? countof(dopaLanguageKeys) : index == 4 ? countof(mg1LanguageKeys) : countof(mg3LanguageKeys);
     int missing = 0;
@@ -568,6 +578,7 @@ int missingLanguage(int index, const char** first = nullptr)
 const char* campaignStatus(int i)
 {
     return campaigns[i].status == 0 ? "missing" : campaigns[i].status == 2 ? "incomplete/corrupt" :
+        campaigns[i].status == 3 ? "another version: only the latest (1.80 patch 1) is played" : // (AD support)
         campaigns[i].nativeReady ? (i >= 3 && Cvar_FindVar("language") && missingLanguage(i) ? "installed; language data incomplete" : "ready") : "installed; native support in progress";
 }
 
@@ -890,7 +901,7 @@ void campaignSelectCommand()
 {
     if(Cmd_Argc() != 2) { reportCampaigns(); return; }
     const int i = campaignIndex(Cmd_Argv(1));
-    if(i < 0) { Con_Printf("VR: campaign must be id1, hipnotic, rogue, dopa, mg1 or mg3.\n"); return; }
+    if(i < 0) { Con_Printf("VR: campaign must be id1, hipnotic, rogue, dopa, mg1, mg3 or ad.\n"); return; }
     selectCampaign(i, !q_strcasecmp(Cmd_Argv(0), "vr_campaign_native"), true);
 }
 
@@ -961,6 +972,12 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
             COM_AddGameDirectory(pack);
         }
     }
+    // AD support: Arcane Dimensions' own models, sounds and HUD icons in every campaign while its latest release is
+    // installed (decision 16: its artifacts, pickups and ladders anywhere; vr_ad.cpp), under the active campaign's
+    // folder, whose files win (VR_SkipSearchPath: qvr::ad::skipOutside).
+    if(activeCampaign != qvr::ad::campaignIndex && campaigns[qvr::ad::campaignIndex].status == 1 &&
+        !gameDirAlreadyAdded(campaigns[qvr::ad::campaignIndex].folder))
+    { COM_AddGameDirectory(campaigns[qvr::ad::campaignIndex].folder); }
     if(activeCampaign >= 3 && campaigns[activeCampaign].status == 1 &&
         !gameDirAlreadyAdded(campaigns[activeCampaign].folder))
     { COM_AddGameDirectory(campaigns[activeCampaign].folder); }
@@ -1028,6 +1045,8 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
     const int i = campaignIndex(name);
     if(i < 0) { return 0; }
     if(!strcmp(filename, "progs.dat") && i >= 3) { return 1; }
+    if(i == qvr::ad::campaignIndex && qvr::ad::skipInFolder(filename)) { return 1; } // AD support: only AD's own files
+    if(i == qvr::ad::campaignIndex && i != activeCampaign) { return qvr::ad::skipOutside(filename) ? 1 : 0; } // (AD support: and in another campaign, only its models, sounds, icons)
     if(i >= 3) { return i != activeCampaign; }
     if(start) { return i != activeCampaign; }
     // Isolate campaign maps and sidecars, while retaining optional pack brush models
@@ -1377,7 +1396,8 @@ extern "C" int VR_ShouldMountCampaignDirectory(const char* dir)
     // Native explicit -game/game pack tokens are represented by context only. The
     // VR hook mounts the selected pack after optional packs, before VR overrides.
     return !nativeCampaignPaths || i < 3 ||
-        (addingMissionPacks && i == activeCampaign && campaigns[i].status == 1);
+        (addingMissionPacks && i == activeCampaign && campaigns[i].status == 1) ||
+        (addingMissionPacks && i == qvr::ad::campaignIndex && campaigns[i].status == 1); // (AD support: in every campaign)
 }
 
 // Hub portals use changelevel, which preserves spawn parms. Stock selections need

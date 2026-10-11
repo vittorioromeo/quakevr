@@ -230,6 +230,7 @@ float(entity xTarget) PositionalHead =
 {
     string c = xTarget.classname;
     if(xTarget.vr_mg3_mon && MG3_PositionalHead(xTarget)) { return TRUE; } // (QVR: Dawn of the Machine's own models: vr_mg3_ogre.qc)
+    if(xTarget.vr_ad_mon) { return VR_AD_PositionalHead(xTarget); } // AD support: AD's monsters' heads (vr_ad_monsters.qc)
     if(c == "monster_army")             { xHeadForward = 3;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
     if(c == "monster_ogre" || c == "monster_ogre_marksman") { xHeadForward = 9; xHeadUp = 33; xHeadRadius = 10; return TRUE; }
     if(c == "monster_enforcer")         { xHeadForward = 2;  xHeadUp = 27; xHeadRadius = 7.4; return TRUE; }
@@ -1255,7 +1256,7 @@ void(float xHand) W_FireAxe =
     float  bleed;
     bleed = FALSE;
 
-    xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe));
+    xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe) * AD_AxeScale(xHand)); // AD support: the Shadow Axe (vr_ad_bridge.qc)
 
     // HONEY
     // Check if we maybe should gib some zombies for fun!
@@ -2062,11 +2063,17 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
     {
         spread *= cvar_hget(cvarh_vr_2h_spread_reduction);
     }
+    spread = AD_SharpSpread(spread); // AD support: AD's Sharp Shooter (vr_ad_items.qc)
 
     // From behind the muzzle, along the shot's line (VR_ShotBackPoint): what the muzzle is inside is hit too.
     vector muzzle = VRGetMuzzlePos(xHand);
     vector src = VR_ShotBackPoint(xHand, muzzle, dir);
 
+    if(AD_Pellets(self)) // AD support: AD's projectile pellets (vr_ad_projectiles; vr_ad_bridge.qc)
+    {
+        AD_FirePellets(xHand, shotcount, dir, spread, muzzle);
+        return;
+    }
     VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
     vr_tracer_hand = xHand;
     vr_tracer_from = muzzle;
@@ -2090,6 +2097,7 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
         dir = VR_Crate_ShotAim(src, dir, self.enemy);
 
     weaponfired(self, -1); // VR: its gun's muzzle flash (a grunt's: vr_weaponfx.cpp)
+    if(AD_EnemyPellets(shotcount, dir, spread, src)) return; // AD support: AD's pellets (vr_ad_bridge.qc)
     vr_tracer_hand = -1;
     vr_tracer_from = src; // (the clients start a grunt's tracers at its gun's muzzle)
     FireBulletsImpl(shotcount, dir, spread, src, 2048, FALSE);
@@ -2172,7 +2180,7 @@ void(float xHand) W_FireSuperShotgun =
     }
     else
     {
-        FireBullets(xHand, 14, dir, '0.035 0.025 0');
+        FireBullets(xHand, AD_WidowmakerPellets(xHand, 14), dir, '0.035 0.025 0'); // AD support: the Widowmaker's 21 (vr_ad_bridge.qc)
     }
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
@@ -2358,7 +2366,9 @@ float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
         playershock(t, damage, at); // VR: arcs over the struck player's arms and body (vr_shock_self_time)
     }
     float pop = VR_Decap_BoltArm(t, at, xDir, damage);
+    vr_ad_ammo = AD_AMMO_CELLS; // AD support: lightning is cells to AD's ammo resistance (vr_ad_player.qc)
     float r = T_Damage(t, from, from, damage);
+    vr_ad_ammo = 0;
     VR_Shock_Hit(t, shockAlive, at, xDir); // VR: lightning's lasting shock (vr_shock.qc)
     if(pop)
     {
@@ -3177,6 +3187,7 @@ void() spike_touch =
             spawn_touchblood (adjDmg);
             bleed = TRUE;
         }
+        AD_NailPierce(other); // AD support: AD's Nail Piercer: the nail on through the body (vr_ad_items.qc)
     }
 
     if(!bleed)
@@ -3235,6 +3246,7 @@ void() superspike_touch =
         {
             spawn_touchblood (adjDmg);
         }
+        AD_NailPierce(other); // AD support: AD's Nail Piercer (vr_ad_items.qc)
     }
 
     if(!bleed)
@@ -3474,6 +3486,11 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         }
 
         *xOutAttackFinished = time + RuneApplyHell(0.8, self);
+    }
+    else if(xWeapon == WID_LIGHTNING && AD_PlasmaGun(xHand, xWeaponFlags)) // AD support: the Plasma Gun (vr_ad_bridge.qc)
+    {
+        AD_FirePlasma(xHand);
+        *xOutAttackFinished = time + 0.2;
     }
     else if(xWeapon == WID_LIGHTNING)
     {
@@ -4980,7 +4997,7 @@ void() ImpulseCommands =
             }
             self = spawnPlayer;
         }
-        else if(spawnKind >= 100)
+        else if(spawnKind >= 100 && spawnKind < 200) // (AD support: 200.. AD's monsters, by the dispenser below)
         {
             self = spawn();
             setorigin(self, spawnAt - '16 16 0'); // a box's origin is its corner: its middle there

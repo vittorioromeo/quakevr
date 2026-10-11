@@ -26,7 +26,7 @@ TREE=C:/OHWorkspace/qvr-agents/$AGENT
 CASES=${*:-rates steady backpedal getup taken lost judo cost}
 MONS=${MONS:-0 8 5 6 1 2}
 N=${N:-8}
-PRE="sv_random_seed ${SEED:-7};map vrfiringrange;wait30;god;notarget;developer 1;vr_knockdown_debug 1"
+PRE="sv_random_seed ${SEED:-7};map vrfiringrange;wait30;god;notarget;developer 1;vr_knockdown_debug 1${EXTRA:+;$EXTRA}"
 OUT="$TREE/scratch/stagger_test_out.txt"
 mkdir -p "$TREE/scratch"
 FAILS=0

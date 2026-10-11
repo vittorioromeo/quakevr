@@ -19,6 +19,17 @@ models with an arm, made for the flat view. To do: bloody skins for `progs/v_sho
 picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and laid as the Super Axe's are
 (`vr_monstermods.cpp superAxePoses`), with their own weapon settings slots.
 
+### Arcane Dimensions' upgrades per weapon (the author, 2026-10-11, AD decision 38: "more immersive")
+
+AD's Shadow Axe, Widowmaker and Plasma Gun are the player's today (AD's `.moditems`, as in AD: every axe, super
+shotgun or lightning gun he holds is upgraded; ARCANE_DIMENSIONS.md 15.3). To do: the upgrade belongs to the weapon
+picked up (its record, `QC/vr_weaponinst.qc`: a bit on the record, carried with it through hands, holsters, drops and
+saves), so a plain axe found later stays plain. The code is ready for it: every question goes through
+`AD_WeaponUpgraded(player, record, bit)` (`QC/vr_ad_bridge.qc`), which answers from the player's bit now; the change is
+that function, the pickup (`AD_UpgradePickedUp`: set the bit on the record given), `AD_Widowmaker`'s caller
+(`vr_reload.qc VR_Reload_ManualFor`, which knows only the weapon id: pass the record) and the level-change carry
+(`parm63`). Then AD's own models per upgraded weapon (P3) follow the record too.
+
 ### Repository chores
 
 ## Proposed, waiting on the author

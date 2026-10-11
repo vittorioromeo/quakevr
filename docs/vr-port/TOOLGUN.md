@@ -16,9 +16,10 @@ no ammunition and fires nothing; its hand's buttons are the tool's. Single playe
 | Button | What it does |
 |---|---|
 | Trigger | uses the tool (below) on what the gun points at (a beam in the tool's colour shows where) |
-| Stick press | the next tool (A / X held: the one before); the gun's screen names it. Not when bullet time has that stick (`vr_bullettime_trigger`) |
+| Stick press | the next tool (A / X held: the one before); the gun's screen names it. Not when bullet time has that stick (`vr_bullettime_trigger`); neither stick's press does anything while the physgun holds something |
 | B / Y | opens or closes the toolgun's panel over the gun |
-| A / X held | the sticks move and turn what the tool places or holds (no walking or turning meanwhile); what the physgun holds snaps to 15 degree steps |
+| Sticks, while the physgun holds something | move and turn it, no button needed (no walking or turning until you let go) |
+| A / X held | the physgun's hold: its angles snap to 15 degree steps (`vr_toolgun_snap`; the snap stays when let go). Spawn and Scale: the sticks move and turn the ghost, or scale (no walking or turning meanwhile) |
 
 The other hand: a thin laser points at the panel and its trigger clicks there (off the panel the trigger is its own
 again: its weapon fires). While the physgun holds a prop, the other hand's trigger (off the panel) freezes it.
@@ -44,7 +45,7 @@ trigger still uses the tool. A menu opened meanwhile hides it until it closes.
   - More: twenty cheats as buttons (Debug > Cheats and Recording's own rows: God Mode, Noclip, ..., Pause; a switch
     lit while on) and Panel Size.
 
-A / X held, the sticks:
+The sticks: the physgun's hold always (A / X held: snapped), Spawn's ghost and Scale with A / X held:
 
 | Stick | Spawn and Physgun | Scale |
 |---|---|---|
@@ -63,8 +64,9 @@ A / X held, the sticks:
 - **Physgun.** Hold the trigger on something to drag it at its distance (a prop's physics body follows the beam and
   shoves the others; a monster or a pickup is carried); let go, it falls with the beam's swing. It turns as your hand
   turns (Turn With the Wrist, `vr_toolgun_physgun_wrist`): it keeps its way to the gun as it was when taken, as if on a
-  skewer, so a twist of the wrist turns it and turning yourself turns it with you; the sticks (A / X held) turn it more,
-  and meanwhile its angles snap to `vr_toolgun_snap` degree steps (15). A monster or a pickup only turns about the up
+  skewer, so a twist of the wrist turns it and turning yourself turns it with you; while it is held both sticks move it and turn
+  it more (no button; you neither walk nor turn until you let go), and A / X held snaps its angles to
+  `vr_toolgun_snap` degree steps (15; the snapped angles stay when A / X is let go). A monster or a pickup only turns about the up
   axis, as the hand's way turns. The other hand's trigger freezes a prop where it is (it stays, others land on it); grab
   a frozen prop again and it falls when let go. Unfreeze Everything.
 - **Scale.** A physics prop's box is drawn with handles: cyan on its faces, white on its corners. Aim at one (it turns

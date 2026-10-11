@@ -488,6 +488,8 @@ void V_CalcBlend (void)
 		g = g*(1-a2) + cl.cshifts[j].destcolor[1]*a2;
 		b = b*(1-a2) + cl.cshifts[j].destcolor[2]*a2;
 	}
+	if (gl_cshiftpercent.value && !cl.intermission)
+		VR_AD_TintBlend (&r, &g, &b, &a, gl_cshiftpercent.value); // QVR: AD support: Arcane Dimensions' screen tint (vr_ad.cpp)
 
 	v_blend[0] = r/255.0;
 	v_blend[1] = g/255.0;

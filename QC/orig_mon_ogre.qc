@@ -155,7 +155,7 @@ void() OgreFireGrenade =
     else
     {
         sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
-        missile.velocity = missile.velocity * 600;
+        missile.velocity = missile.velocity * AD_MonsterSpeed(600, AD_PROJ_OGRE); // AD support: AD's speed for the skill by the Projectile Rules (vr_ad_bridge.qc)
         missile.velocity_z = 200;
         VR_Lob_Aim(missile, self.origin); // QVR: at the enemy's height (vr_ogre_aim_height)
         missile.velocity = MG3_OgreBurstVelocity(missile.velocity); // QVR: Dawn of the Machine's Bloody Nightmare burst
@@ -165,7 +165,7 @@ void() OgreFireGrenade =
     missile.angles = vectoangles(missile.velocity);
 
     // set missile duration
-    if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
+    if(!VR_OtherFlags() && (self.spawnflags & OGRE_BOSS))
     {
         missile.touch = MultiGrenadeTouch;
         missile.nextthink = time + 2.5;
@@ -243,7 +243,7 @@ void() ogre_stand3    =[    $stand3,    ogre_stand4    ] {ai_stand();};
 void() ogre_stand4    =[    $stand4,    ogre_stand5    ] {ai_stand();};
 void() ogre_stand5    =[    $stand5,    ogre_stand6    ]
 {
-    if(random() < 0.2 && /* HONEY */ (MG_WorldCampaign() || !(self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
+    if(random() < 0.2 && /* HONEY */ (VR_OtherFlags() || !(self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
         sound(self, CHAN_VOICE, MG3_RocketOgre_Sound(MG3_RO_IDLE_STAND, "ogre/ogidle.wav"), 1, ATTN_IDLE); // (QVR: MG3's rocket ogre's own)
 
     ai_stand();
@@ -471,7 +471,7 @@ void()    ogre_die2    =[    $death2,    ogre_die3    ] {};
 void()    ogre_die3    =[    $death3,    ogre_die4    ]
     {
         self.solid = SOLID_NOT;
-        if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
+        if(!VR_OtherFlags() && (self.spawnflags & OGRE_BOSS))
         {
             self.ammo_multi_rockets = 2;
         }
@@ -498,7 +498,7 @@ void()    ogre_bdie2    =[    $bdeath2,    ogre_bdie3    ] {ai_forward(5);};
 void()    ogre_bdie3    =[    $bdeath3,    ogre_bdie4    ]
     {
         self.solid = SOLID_NOT;
-        if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
+        if(!VR_OtherFlags() && (self.spawnflags & OGRE_BOSS))
         {
             self.ammo_multi_rockets = 2;
         }
@@ -589,7 +589,7 @@ void() monster_ogre_real =
     monster_ogre_precache();
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -606,7 +606,7 @@ void() monster_ogre_real =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = ogre_start;
         return;
@@ -629,7 +629,7 @@ void() monster_ogre_real =
         }
     }
 
-    if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
+    if(!VR_OtherFlags() && (self.spawnflags & OGRE_BOSS))
     {
         // self.skin = 1;
     }

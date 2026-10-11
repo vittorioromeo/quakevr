@@ -556,6 +556,8 @@ void() worldspawn =
 
     //MED
     footsteps = 1;
+
+    AD_WorldSpawn(); // AD support: AD's world setup in an AD map (vr_ad_bridge.qc)
 };
 
 void() StartFrame =
@@ -576,11 +578,13 @@ void() StartFrame =
     MGH_PowerupFrame();
     MGH_TestFrame();
     MG3_Frame();
+    AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
+    AD_MonstersTestFrame(); // AD support: vr_ad_mtest (vr_ad_monsters_test.qc)
     MG3_BestiaryTestFrame(); // vr_mg3_btest (vr_mg3_bestiary_test.qc)
     MG3_ShubTestFrame(); // vr_mg3_shubtest (vr_mg3_shub_test.qc)
     MG3_ChthonTestFrame(); // vr_mg3_ctest (vr_mg3_chthon_test.qc)

@@ -19,6 +19,7 @@ extern cvar_t r_particles; // r_part.c: particle effects enabled
 extern cvar_t sv_gravity;							// sv_phys.c
 extern cvar_t sv_maxvelocity;						// sv_phys.c
 int ED_FindFieldOffset (const char *name);			// pr_edict.c
+dfunction_t *VR_ED_FindFunction (const char *fn_name);	// pr_edict.c (vr_ad.cpp)
 trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end); // world.c
 int S_KnownSfxCount (void);							// snd_dma.c (vr_limits)
 int S_KnownSfxMax (void);							// snd_dma.c
