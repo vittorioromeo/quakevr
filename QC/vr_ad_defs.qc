@@ -105,5 +105,6 @@ float() VR_AD_WeaponTouch;
 float(entity xItem) VR_AD_ArtifactItems;
 .float vr_climb_ladder; // a ladder's volume, climbed by hand (the engine's vr_climb.cpp ladderHold; VR_AD_LadderSpawned)
 void() VR_AD_LadderSpawned;
+vector(entity e) VR_AD_ViewOfs; // AD's sight (reviewed patches): a crouched VR player's real eyes (ai.qc VR_SightOfs)
 float(entity targ) VR_AD_BurnDebuff;
 float(entity xFire, entity xVictim) AD_BurnHurt; // VR_Burn_Think: an AD debuff's fire's damage (TRUE: dealt, ours not)

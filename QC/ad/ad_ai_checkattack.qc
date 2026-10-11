@@ -1481,7 +1481,7 @@ void() ad_MinotaurCheckAttack =
 			if ( !(self.spawnflags & ad_MON_MINOTAUR_MINIONS) && random() < 0.35) {
 				// Jumped recently, facing right direction and not blocked?
 				if ( self.jump_flag < time && ad_infront(self.enemy)) {
-					if (!ad_visblocked_wide(self.enemy, self.view_ofs, self.enemy.view_ofs) ) {
+					if (!ad_visblocked_wide(self.enemy, self.view_ofs, VR_AD_ViewOfs(self.enemy)) ) {
 						// Check for enemy above? (z axis)
 						if (self.enemy.origin_z <= self.origin_z) {
 							// Is the minotaur within the right range?
@@ -2307,7 +2307,7 @@ void() ad_ScorpionCheckAttack =
 
 	if (self.spawnflags & ad_MON_SCORPION_STINGER) {
 		// check for extra wide space to jump
-		if (!ad_visblocked_wide(self, self.ad_attack_offset, self.enemy.view_ofs)) return;
+		if (!ad_visblocked_wide(self, self.ad_attack_offset, VR_AD_ViewOfs(self.enemy))) return;
 		
 		// Time for another jump?
 		if (self.jump_flag < time) {
@@ -2470,7 +2470,7 @@ void() ad_SteelclawCheckAttack =
 	// Range attack (JUMP)
 	//----------------------------------------------------------------------
 	// check for extra wide space to jump
-	if (!ad_visblocked_wide(self, self.ad_attack_offset, self.enemy.view_ofs)) return;
+	if (!ad_visblocked_wide(self, self.ad_attack_offset, VR_AD_ViewOfs(self.enemy))) return;
 	
 	// Time for another jump?
 	if (self.jump_flag < time) {

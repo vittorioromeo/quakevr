@@ -205,6 +205,23 @@ void() VR_AD_LadderSpawned =
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Crouching (decision 20)
+//
+// AD's monsters are height-aware: they look for their enemy at its eyes (origin + view_ofs: its sight and attack
+// checks, visible/visblocked_wide), lob grenades at its height (its Z-aware arcs) and melee only within 64 units of its
+// height. Quake VR's crouch is the player's real head going down and a lower box (the engine's crouched hull), with his
+// origin and view_ofs as a standing player's; so AD's sight (reviewed patches) and ours (ai.qc visible, every mode:
+// vr_crouch_sight) look for a crouched player at his real eyes: behind cover lower than he stands he is out of sight.
+// AD's aim at his origin (his box's middle) and its melee height check already fit the crouched box (its top 36 units
+// over the feet, the origin 24); our monsters' bullets aim at what shows of him (vr_crates.qc VR_Crate_ShotAim).
+
+// AD's sight's eyes of `e` (Quake VR's: VR_SightOfs).
+vector(entity e) VR_AD_ViewOfs =
+{
+    return VR_SightOfs(e);
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Evil (decision 30: in the skill choice, in any campaign while AD's data is installed)
 //
 // AD's fifth skill, Evil (its skill 4), is Quake VR's Nightmare (skill 3: the engine and Quake VR's monsters know 0-3)

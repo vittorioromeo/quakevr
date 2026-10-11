@@ -43,7 +43,7 @@ float(entity ad_targ) ad_visible =
 	local vector ad_spot1, ad_spot2;
 	
 	ad_spot1 = self.origin + self.view_ofs;
-	ad_spot2 = ad_targ.origin + ad_targ.view_ofs;
+	ad_spot2 = ad_targ.origin + VR_AD_ViewOfs(ad_targ);
 	traceline (ad_spot1, ad_spot2, ad_TRUE, self);	// see through other monsters
 	
 	// Debug system (enabled via axe) uses funcs from subs_soc.qc
@@ -147,7 +147,7 @@ float(entity ad_targ) ad_visblocked =
 	local vector ad_spot1, ad_spot2;
 	
 	ad_spot1 = self.origin + self.view_ofs;
-	ad_spot2 = ad_targ.origin + ad_targ.view_ofs;
+	ad_spot2 = ad_targ.origin + VR_AD_ViewOfs(ad_targ);
 	traceline (ad_spot1, ad_spot2, ad_FALSE, self);	// blocked by monsters
 	
 	// Check for liquid surface block condition
@@ -272,7 +272,7 @@ float(entity ad_targ) ad_range =
 	local float		ad_r;
 		
 	ad_spot1 = self.origin + self.view_ofs;
-	ad_spot2 = ad_targ.origin + ad_targ.view_ofs;
+	ad_spot2 = ad_targ.origin + VR_AD_ViewOfs(ad_targ);
 	ad_r = vlen (ad_spot1 - ad_spot2);
 	
 	if (ad_r < ad_MON_RANGE_MELEE) return ad_RANGE_MELEE;		// <120 = MELEE
@@ -291,7 +291,7 @@ float(entity ad_targ, float ad_flat2d) ad_range_distance =
 	local float		ad_r;
 		
 	ad_spot1 = self.origin + self.view_ofs;
-	ad_spot2 = ad_targ.origin + ad_targ.view_ofs;
+	ad_spot2 = ad_targ.origin + VR_AD_ViewOfs(ad_targ);
 	if (ad_flat2d) { ad_spot1_z = ad_spot2_z = 0; }
 	ad_r = vlen (ad_spot1 - ad_spot2);
 	
@@ -310,7 +310,7 @@ float (entity ad_source, entity ad_targ) ad_rangeattack_check =
 
 	// origin+offset, otherwise cannot see player up/down slopes
 	ad_spot1 = ad_source.origin + ad_source.view_ofs;
-	ad_spot2 = ad_targ.origin + ad_targ.view_ofs;
+	ad_spot2 = ad_targ.origin + VR_AD_ViewOfs(ad_targ);
 	ad_r = vlen(ad_spot1 - ad_spot2);
 	
 	// Maximum range attack (was 600 taken from shambler, changed to 1000)

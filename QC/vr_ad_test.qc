@@ -285,6 +285,13 @@ void(float request, entity p) AD_RulesTest =
         localcmd(sprintf("vr_climb_try %g %g %g main\n", mid_x, mid_y, first.absmax_z + 64));
         return;
     }
+    if(request == 27)
+    {
+        // Crouching: where monsters (ours, AD's) look for the player now.
+        bprint(sprintf("adrules: sight crouched %g view_ofs %v ours %v AD's %v head %v\n",
+            VRHasBit(p.vrbits0, QVR_VRBITS0_CROUCHED), p.view_ofs, VR_SightOfs(p), VR_AD_ViewOfs(p), p.headpos - p.origin));
+        return;
+    }
     if(request == 26)
     {
         // Spawnflags: the map's ruleset; a stand-in for one of our monsters with AD's 64|128|32, one of our items with
@@ -309,6 +316,8 @@ void(float request, entity p) AD_RulesTest =
     {
         bprint(sprintf("adrules: player at %v onground %g velocity %v hands %v %v\n", p.origin,
             (p.flags & FL_ONGROUND) != 0, p.velocity, p.handpos, p.offhandpos));
+        bprint(sprintf("adrules: eyes view_ofs %v head %v crouched %g box %v..%v\n", p.view_ofs, p.headpos - p.origin,
+            VRHasBit(p.vrbits0, QVR_VRBITS0_CROUCHED), p.mins, p.maxs));
         return;
     }
     bprint(sprintf("adrules: unknown test %g\n", request));

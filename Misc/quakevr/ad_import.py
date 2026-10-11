@@ -138,6 +138,11 @@ PATCHES = [
     ("triggers.qc", "\tself.estate_fire = trigger_ladder_fire;\n\ttrigger_bmodel_setup();\n};",
      "\tself.estate_fire = trigger_ladder_fire;\n\ttrigger_bmodel_setup();\n\tVR_AD_LadderSpawned();\n};",
      1, B + ": the ladder's volume climbed by hand (Quake VR's climbing, decision 26)"),
+    # Crouching (decision 20): AD's sight looks for Quake VR's crouched player at his real eyes (VR_SightOfs).
+    ("ai_subs.qc", "spot2 = targ.origin + targ.view_ofs;", "spot2 = targ.origin + VR_AD_ViewOfs(targ);",
+     5, B + ": a crouched VR player seen at his real eyes (vr_crouch_sight)"),
+    ("ai_checkattack.qc", "self.enemy.view_ofs", "VR_AD_ViewOfs(self.enemy)",
+     3, B + ": a crouched VR player seen at his real eyes (vr_crouch_sight)"),
     ("client_evilmode.qc", "void() Client_SetEvilSkill = { cvar_set(\"skill\", ftos(SKILL_EVIL)); skill = SKILL_EVIL; };",
      "void() Client_SetEvilSkill = { VR_AD_SetSkill(SKILL_EVIL); skill = SKILL_EVIL; };",
      1, B + ": Evil as Nightmare plus vr_ad_evil"),

@@ -7196,6 +7196,10 @@ za::Vector<Item> pageHitbox()
         slider("Lowest Crouched Height", vr_crouch_height, 24.f, 52.f, 4.f, "%.0f units")
             .help("Your box's height with your eyes under it (Quake's standing box: 56; the crouching room's tunnel in "
                   "the teleporter test map: 40) (vr_crouch_height)."),
+        toggle("Monsters See Your Eyes", vr_crouch_sight)
+            .help("Crouched (with the crouched hitbox), monsters look for you at your real eyes, not at a standing "
+                  "player's: crouched behind cover lower than you stand, you are out of their sight, as Arcane "
+                  "Dimensions' height-aware monsters check (vr_crouch_sight). Standing: Quake's as ever."),
         cycle("Heights Above It", vr_crouch_step, {{0.f, "None"}, {4.f, "Every 4 units"}, {8.f, "Every 8 units"},
                   {12.f, "Every 12 units"}})
             .help("Taller crouched boxes up to 52, so half a crouch gets you under a ceiling that is a little low: your "

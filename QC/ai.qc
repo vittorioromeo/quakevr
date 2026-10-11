@@ -293,13 +293,29 @@ visible
 returns 1 if the entity is visible to self, even if not infront ()
 =============
 */
+// QVR: where a monster looks for `e` (visible's spot2): a VR player crouched (his crouched box: the engine's
+// QVR_VRBITS0_CROUCHED) at his real eyes (vr_crouch_sight), never above a standing player's; the rest at their view_ofs.
+// Behind cover lower than he stands, he is out of sight (Arcane Dimensions' height-aware sight; its monsters' too:
+// vr_ad_player.qc VR_AD_ViewOfs).
+vector(entity e) VR_SightOfs =
+{
+    if(e.headpos == '0 0 0' || !VRHasBit(e.vrbits0, QVR_VRBITS0_CROUCHED) || e.classname != "player" ||
+       !cvar("vr_crouch_sight"))
+    {
+        return e.view_ofs;
+    }
+    vector o = e.view_ofs;
+    o_z = min(o_z, e.headpos_z - e.origin_z);
+    return o;
+};
+
 float (entity client) visible =
 {
     vector spot1, spot2;
     float res;
 
     spot1 = self.origin + self.view_ofs;
-    spot2 = client.origin + client.view_ofs;
+    spot2 = client.origin + VR_SightOfs(client); // QVR: a crouched player's real eyes (vr_crouch_sight)
 
     // The gate route is a monster's own, for its enemy (or, with none, the player FindTarget looks for): other callers'
     // visible() (projectiles, items, a gremlin's victim scan, a second target) leave it as it is.
