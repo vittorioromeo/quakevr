@@ -6,30 +6,6 @@
 Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
 
 [New this week]
-Respawn: die in the start map's lava, hold A (and separately tap A): 'Loading...', ONE load of the level-start autosave; on a map without an autosave: one plain restart
-Blood pools: pile up gibs and shoot them apart one at a time: every older pool stays under the newer ones, no square gaps (Debug > Test Effects > Decal Stress: Stacked Pools)
-Shoves and throws feel review (new defaults: judo throw push 240 / lift 120 / topple 200 / feet speed 30 / grunt 0.75, knockdown push 1.3): shove a grunt, a dog, an ogre, a fiend; judo-throw each; topples, getting up, launch distance into walls/water/lava
-Body clone: Flashlight > On a Gun or Head (and holster/pouch tweak rows): a mirror body appears beside the menu, raise your right hand → the clone's hand on your right rises; zones move live with the sliders
-Startup configs: an autoexec.cfg with `bind LTRIGGER +jump` in the Quake folder's id1 is skipped (console names it), left trigger still fires; moved into quakevr/ it runs, the guard warns and restores
-Flashlight 'Always on Head' (VR Settings > Flashlight): lit at the temple, empty belt, trigger with open hand at it toggles, grip/Y there do nothing to it; Flashlight Side Right moves it; back to Immersive restores the belt torch
-Doom shortcut: press the gadget's light button 6 times quickly with your fingertip: Doom opens (buzz), light state unchanged; one press closes it
-Bindings guard: with VDXR and SteamVR, qvr_openxr.txt shows 'bindings suggested' with nothing turned down + both hands' profile + controller keys; console `bind LSHOULDER "impulse 12"; bind LTRIGGER +jump`, quit, restart: the console says bindings were set again and grips grab
-Saves: play a Map Library map right after a Dimension of the Machine level, quit, restart, Continue lands back in it; Load/Save menus label each slot with campaign/package - map title; loading a Dissolution of Eternity save from Quake switches campaign
-Doom on the wrist gadget (VR Settings > Doom on the Wrist Gadget): open it, raise the wrist (focus comes/goes quickly?), touch distances and button sizes on the 11x7 cm screen, hard-press fire, CRT readability, sound level vs Quake, Quake keeps running, your own DOOM.WAD in quakevr/doom/wads (no music yet)
-1.0.1 installer (from a local test package): Statement page shows the two new claims, Continue needs both YES; Update screen over your 1.0.0 install
-1.0.1 game code check: the console at map load says progs.dat is this build's (vr_gamecode lists the folders)
-Continue: finish a level, quit, restart: main menu Continue row + hub CONTINUE lectern (left of the tutorial stand) load it; play some of Dimension of the Machine, restart: its hub stone still selected
-Exit from the SteamVR / VD / Meta dashboard quits the game (setting changed just before is kept); headset off/on stays in VR; closing SteamVR mid-game: note whether it goes flat or quits
-Menu: click both sticks together opens/closes the menu (in game, in menus, during calibration it pauses); VR Settings > Controls > Menu Button modes; vr_debug_buttons 1 still reports your usual (Index/Touch) profile; new tutorial tip in lesson 1
-Tutorial arena: climb the north mezzanine ladder and step straight off the top through the new railing gap; the railing still stops walking off elsewhere
-Setup with the rerelease campaigns: new status lines for Dimension/Dawn of the Machine; first visit to mg3 map2 without a stall
-Lava SNG + multi rocket launcher up close (finer paint, no streaks); reload the lava SNG; holster both
-Diagnostics shortcut: play a minute, quit; the folder opens with openxr_validation.log (only header/known false positive expected); VR still starts on SteamVR, VDXR and Meta
-Decals (25% cheaper, same image): rocket-fight blood and scorch marks look as before (pools, runs down walls, slopes, stairs); first time Retro Textures applies to decals: a short hitch is expected
-Re-mapped guns up close: plasma gun, super nailgun, rocket launcher, grappling hook cap, Mjolnir (no stretched panels, paint matches); reload the SNG and plasma gun; holster each (holster untested headless); crowbar/shotgun/pump normal maps
-Setup on a fresh install: preparation ~3.5 s longer; then first session: first grunt/knight/ogre deaths don't hitch, first visits to e1m1/e1m2 and hub returns feel quicker, nothing looks different
-Nailgun + thunderbolt: look under them with the magazine in and out (inset pocket with a steel lip, like the SNG); thunderbolt both sides up close: symmetric, slots recessed, repainted lower faces
-Tutorial (relit): arena north railing sits on the ledge; lesson 7 pillar with the FIGHT banner faces you on entry (160 units in: close enough?); halls 12a/12b now have lamps (too bright?); the mezzanine ladder still tops out under the railing (climb over): fix?
 West stairs / lava / water: MG1 start's west-facing stairs with your head naturally low, walking slowly and jumping (a short catch at the very top crest may remain); step into lava and out: you keep burning 3 s (Burning > You Burn After Lava); shove a grunt off vrstart's island near the shore (gets up on the slope) and far out (gives up after ~3 s and sinks)
 Bodies in liquids: throw corpses/knocked-down enemies into water, slime, lava: braked on entry, float face down (knights/enforcers sink), no fall damage into deep liquid; in lava they burn and gib after 4 s (Ragdolls > In Water, Slime and Lava; Gameplay > Liquid Breaks Falls; Burning > Corpses); a knocked-down enemy getting up in deep water is untested
 MG3 armour shards: force-grab, then hip holster / pouch / chest gives armour, walking over them doesn't
@@ -42,8 +18,6 @@ MG3 Chthon (boss map, or Debug spawner Thing 50): comfort fade at both arena mov
 MG1 developer tests: rune returns, electrode buttons, Horde, revival; quake vibration is comfortable
 MG1 Horde (horde1, horde5 bosses): die holding fire, nothing; let go and press: the arena restarts; coop: a dead teammate comes back at wave end
 
-1.0.1 Loading notice back on: vrstart > Dimension of the Past teleporter shows "Loading...", then e5start, no error; in Scourge of Armagon, main menu > VR Hub: "Loading...", then vrstart
-1.0.1 crash reports: Debug > Profiling and Memory > Crashes > Crash: Access Violation: the dialog names quakevr\crash\<date>_<time>.txt and .dmp (the .txt names VR_CrashTest_f); Crash: Fatal Error: the Error dialog lists them too
 [Tune]
 Weapon damage, grapple, stamina costs, roll weight and throw damage
 

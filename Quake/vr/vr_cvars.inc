@@ -719,7 +719,7 @@ QVR_CVAR(vr_doom_focus_angle, "25", CVAR_ARCHIVE)      // degrees off the view's
 QVR_CVAR(vr_doom_focus_grace, "0.5", CVAR_ARCHIVE)     // s out of view before the controls go back to Quake
 QVR_CVAR(vr_doom_pause_unfocused, "0", CVAR_ARCHIVE)   // 1: Doom pauses whenever it hasn't the focus; 0: it keeps running (Quake's pause pauses it always)
 QVR_CVAR(vr_doom_aspect, "1", CVAR_ARCHIVE)            // 1: the picture 4:3, as Doom was shown (bars at the sides); 0: stretched over the screen
-QVR_CVAR(vr_doom_crt, "1", CVAR_ARCHIVE)               // the CRT look on Doom's picture, times vr_gadget_crt's (0: a clean picture)
+QVR_CVAR(vr_doom_crt, "2", CVAR_ARCHIVE)               // the CRT look on Doom's picture, times vr_gadget_crt's (0: a clean picture)
 QVR_CVAR(vr_doom_panel, "0", CVAR_ARCHIVE)             // 1: Doom on a big floating panel in front of you (placed when turned on, moving with you; touch it too) instead of the gadget
 QVR_CVAR(vr_doom_panel_size, "0.5", CVAR_ARCHIVE)      // m: the panel's width
 QVR_CVAR(vr_doom_panel_distance, "0.6", CVAR_ARCHIVE)  // m: how far in front it is placed
@@ -833,7 +833,7 @@ QVR_CVAR(vr_menu_holster_back_z, "0", CVAR_NONE)
 // or turn you (not your own steps in the room, nor a teleport): 0 off, 1 moving and turning, 2 moving only, 3 turning only;
 // how dark (0 .. 1: at 1 a narrow tunnel).
 QVR_CVAR(vr_comfort_vignette, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_comfort_vignette_strength, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_comfort_vignette_strength, "0.5", CVAR_ARCHIVE)
 // Comfort fade (vr_comfortfade.cpp): seconds the view takes to come back from black when the game moves you at once (a
 // scripted teleport: Dawn of the Machine's boss arenas); 0 off.
 QVR_CVAR(vr_comfort_teleport_fade, "0.6", CVAR_ARCHIVE)
@@ -1309,7 +1309,7 @@ QVR_CVAR(vr_flashlight_auto_gun, "0", CVAR_ARCHIVE)   // 1: the held torch let g
 // The wrist flick (voice note vrfiringrange 17:28): the torch held in a hand (away from a gun or the head) turns over
 // to the other grip, as B/Y does, on a sharp flick of the wrist up or down (vr_flashlight.cpp, flickFlip).
 QVR_CVAR(vr_flashlight_flick, "1", CVAR_ARCHIVE)           // 1: a sharp flick of the wrist up or down turns the held torch over (low / overhead grip); 0: B/Y only
-QVR_CVAR(vr_flashlight_flick_speed, "800", CVAR_ARCHIVE)   // degrees a second the wrist must turn up or down (about the hand's right) to count (higher: only sharper flicks)
+QVR_CVAR(vr_flashlight_flick_speed, "750", CVAR_ARCHIVE)   // degrees a second the wrist must turn up or down (about the hand's right) to count (higher: only sharper flicks)
 QVR_CVAR(vr_flashlight_flick_max_move, "1.5", CVAR_ARCHIVE) // m/s: the hand moving faster than this (a swing, a punch) never flicks
 QVR_CVAR(vr_flashlight_flick_cooldown, "0.4", CVAR_ARCHIVE) // real seconds after a flick before the next counts (the wrist coming back is not a second flick)
 QVR_CVAR(vr_flashlight_flick_debug, "0", CVAR_NONE)        // 1: prints each flick taken or refused (and why); 2: also the held hand's wrist speed every frame
