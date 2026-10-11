@@ -482,9 +482,96 @@ void(float xTest) VR_Limb_Test =
     VR_Limb_TestReport(m, what, cuts, pops, limbs, fountains);
 };
 
+// Test aid `vr_test_cut <n>` (console; Debug > World and Physics; Misc/quakevr/ragdoll/dismember_test.sh; ROUND22.md,
+// "Active ragdolls: dismemberment"): a sword's cut at the nearest monster's limb, found by its bones' names (ragdolllimbs
+// 6): n 1 its left arm (the shoulder), 2 its right arm, 3 its left leg (the hip), 4 its right leg, 5 both legs, 6 its left
+// forearm (the elbow), 7 its left shin (the knee), 8 its head. The live one nearest you killed by it (its last point of
+// health: Limb gore's killing blow, armed as a slash's), or with n + 10 the dead one nearest you cut so (a body still
+// dying: cut off as it falls). Prints `test cut:`.
+void(float want) VR_TestCut;
+void() VR_TestCut_Frame =
+{
+    float want = cvar("vr_test_cut");
+    if(want < 1)
+    {
+        return;
+    }
+    cvar_set("vr_test_cut", "0");
+    entity pl = find(world, classname, "player");
+    if(pl == world)
+    {
+        return;
+    }
+    entity oself = self;
+    self = pl;
+    VR_TestCut(want);
+    self = oself;
+};
+
+void(float want) VR_TestCut =
+{
+    float dead = (want > 10);
+    float n = dead ? (want - 10) : want;
+    entity m = VR_Limb_TestTarget(dead ? 0 : 1);
+    if(m == world)
+    {
+        bprint(sprintf("test cut: no %s monster with limbs near\n", dead ? "dead" : "live"));
+        return;
+    }
+    float b = -1;
+    float b2 = -1;
+    if(n == 8)
+    {
+        b = ragdolllimbs(m, 3);
+    }
+    else if(n == 5)
+    {
+        b = ragdolllimbs(m, 6, 2);
+        b2 = ragdolllimbs(m, 6, 3);
+    }
+    else
+    {
+        b = ragdolllimbs(m, 6, (n <= 4) ? (n - 1) : ((n == 6) ? 4 : 6));
+    }
+    if(b <= 0)
+    {
+        bprint(sprintf("test cut: %s has no such limb (%g)\n", m.classname, n));
+        return;
+    }
+    makevectors('0 1 0' * self.v_angle_y);
+    vector vel = v_forward * 300;
+    float ok;
+    if(dead)
+    {
+        ok = (n == 8) ? VR_Decap_Cut(m, self, vel, QVR_DECAP_SWING) : VR_Limb_Cut(m, self, vel, QVR_DECAP_SWING, b, FALSE);
+    }
+    else
+    {
+        vector at = limbplace(m, b, 3);
+        m.health = 1;
+        if(n == 8)
+        {
+            ok = VR_Decap_Arm(m, self, at, vel, QVR_DECAP_SWING);
+        }
+        else
+        {
+            ok = VR_Limb_Arm(m, self, at, vel, QVR_DECAP_SWING, b);
+        }
+        T_Damage(m, self, self, 20);
+        ok = (ok && (m.health <= 0) && isragdoll(m));
+    }
+    if(ok && b2 > 0)
+    {
+        ok = VR_Limb_Cut(m, self, vel, QVR_DECAP_SWING, b2, FALSE);
+    }
+    bprint(sprintf("test cut: %s (%s) at %v: %g joint %g%s: %s\n", m.classname, dead ? "dead" : "live",
+        m.origin, n, b, (b2 > 0) ? sprintf(" and %g", b2) : "", ok ? "cut" : "NOT cut"));
+};
+
 // Every server frame (StartFrame): a limb test asked for (vr_limb_test).
 void() VR_Limb_TestFrame =
 {
+    VR_TestCut_Frame(); // (the active ragdolls' dismemberment tests: vr_test_cut)
     float ask = cvar_hget(cvarh_vr_limb_test);
     if(!ask)
     {

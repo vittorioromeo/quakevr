@@ -2363,6 +2363,11 @@ QVR_CVAR(vr_ragdoll_active_wound, "0.7", CVAR_ARCHIVE)  // the chance a monster 
 QVR_CVAR(vr_ragdoll_active_crawl, "0.25", CVAR_ARCHIVE) // the chance a humanoid lying face down after his death crawls on before going limp
 QVR_CVAR(vr_ragdoll_active_crawl_time, "3", CVAR_ARCHIVE) // s: how long he crawls
 QVR_CVAR(vr_ragdoll_active_crawl_force, "1.3", CVAR_ARCHIVE) // body weights: his arms' pull along the floor at most
+QVR_CVAR(vr_ragdoll_active_dismember, "1", CVAR_ARCHIVE) // a dying monster losing a limb reacts: his free hand to the stump and a writhe, on one leg a try at keeping his balance before he falls, with no legs a crawl on his arms; 0: as any death
+QVR_CVAR(vr_ragdoll_active_dismember_time, "3", CVAR_ARCHIVE) // s: how long he writhes holding the stump once down
+QVR_CVAR(vr_ragdoll_active_balance_time, "1.2", CVAR_ARCHIVE) // s: on one leg, how long he tries to keep his balance at most
+QVR_CVAR(vr_ragdoll_active_balance_lean, "15", CVAR_ARCHIVE) // degrees: and he falls once leaning this far from how he stood
+QVR_CVAR(vr_test_cut, "0", CVAR_NONE)                   // n: a sword's cut at the nearest monster's left arm (1), right arm (2), left leg (3), right leg (4), both legs (5), left forearm (6), left shin (7), head (8): the live one nearest you killed by it, or with n + 10 the dead one nearest you (QC vr_limbs_test.qc VR_TestCut_Frame; the active ragdolls' dismemberment tests)
 QVR_CVAR(vr_ragdoll_active_headshot, "0.05", CVAR_ARCHIVE) // the strength a headshot or a beheading leaves (an almost pure collapse)
 QVR_CVAR(vr_ragdoll_active_liquids, "1", CVAR_ARCHIVE) // dying in water (drowned, or falling in soon after his death) he paddles and kicks, his head held up, weakening as he drowns; in lava or slime he flails, short and violent; then limp; 0: his death in a liquid as on land
 QVR_CVAR(vr_ragdoll_active_paddle, "4.5", CVAR_ARCHIVE) // s: in water he paddles about this long (each 0.8 to 1.2 times it), weakening from a third of it on
@@ -2370,6 +2375,16 @@ QVR_CVAR(vr_ragdoll_active_flail, "1.5", CVAR_ARCHIVE)  // s: in lava he flails 
 QVR_CVAR(vr_ragdoll_active_debug, "0", CVAR_NONE)      // 1: each driven ragdoll's targets drawn over it (green as strong as the joint is, grey limp), its pelvis pin (yellow) and its hands' and feet's goals (red) (Debug > Logs)
 QVR_CVAR(vr_ragdoll_active_trace, "0", CVAR_NONE)       // n: every n-th frame a `ragtrace` line per driven ragdoll (its pelvis, the joints' error from the animation per channel, their strength, its energy; the tests)
 QVR_CVAR(vr_ragdoll_active_seed, "0", CVAR_NONE)        // mixed into each death's rolls (wound, crawl): another roll for the same scene (tests)
+QVR_CVAR(vr_ragdoll_active_stagger, "1", CVAR_ARCHIVE)  // with Knockdowns, a shove makes a grunt, enforcer, knight, death knight, ogre or zombie stagger as a pinned ragdoll (its feet stepping after it): leaning too far it falls (a knockdown), else it recovers and fights on; its fall braced by its arms, a two-hand throw's body slack where held, curling; 0: the knockdown's chance alone, as before
+QVR_CVAR(vr_ragdoll_active_stagger_lean, "30", CVAR_ARCHIVE) // degrees: its middle leaning over its feet past this, the stagger falls
+QVR_CVAR(vr_ragdoll_active_stagger_push, "2", CVAR_ARCHIVE)  // m/s: a fresh two-hand shove's push on its top (its pelvis carried by its pin, its feet none)
+QVR_CVAR(vr_ragdoll_active_stagger_travel, "0.2", CVAR_ARCHIVE) // how far its pelvis is carried, times how far the shove slides a standing one (at most 1.25 m)
+QVR_CVAR(vr_ragdoll_active_stagger_pin, "2", CVAR_ARCHIVE)  // body weights: its pelvis's pin at most, steady (times 0.2 .. 1 by its balance: the knockdown's chance against the roll; its muscles' hold on its weight and its upright too)
+QVR_CVAR(vr_ragdoll_active_stagger_blend, "0.2", CVAR_ARCHIVE) // s: recovered, its ragdoll blended into the animated monster over this
+QVR_CVAR(vr_ragdoll_active_getup, "1", CVAR_ARCHIVE)    // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: pulled into its get-up's first frame, then risen through its get-up, handed back to the animated monster standing; 0: the ragdoll blended into the get-up from the floor, as before
+QVR_CVAR(vr_ragdoll_active_getup_pin, "2.5", CVAR_ARCHIVE) // body weights: its pelvis's pin to the get-up's at most
+QVR_CVAR(vr_ragdoll_active_getup_blend, "0.2", CVAR_ARCHIVE) // s: risen, its ragdoll blended into the animated monster over this
+QVR_CVAR(vr_ragdoll_active_getup_pace, "0.8", CVAR_ARCHIVE) // its get-up's frames' speed, times the get-up's own (vr_knockdown_getup_speed)
 QVR_CVAR(vr_test_kill, "0", CVAR_NONE)                  // n: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3), a leg (4), nowhere known (6) (QC combat.qc VR_TestKill_Frame; the active ragdolls' tests)
 QVR_CVAR(vr_ragdoll_active_env, "1", CVAR_ARCHIVE)       // an active death senses what is round him (walls, floors, ledges, crates) and uses his hands on it (the three below); 0: his death ignores it (ROUND22.md, "Active ragdolls: environment")
 QVR_CVAR(vr_ragdoll_active_env_brace, "1", CVAR_ARCHIVE) // falling onto a floor, a wall or a crate within reach: his arms go out to it and take the landing, giving

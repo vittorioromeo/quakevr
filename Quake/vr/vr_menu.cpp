@@ -4048,6 +4048,17 @@ void hologramTestMessage()
             .help("How strongly the joints follow the death animation (vr_ragdoll_active_strength)."),
         slider("Strength Lasts", vr_ragdoll_active_fade, 0.25f, 3.f, 0.25f, "%.2fx").extend(0.1f, 5.f)
             .help("How long the strength lasts, times his death animation's length (vr_ragdoll_active_fade)."),
+        toggle("React to Lost Limbs", vr_ragdoll_active_dismember)
+            .help("A dying monster losing a limb holds the stump with his free hand and writhes a few seconds once down; "
+                  "killed standing by a leg cut off, he tries to keep his balance on the other before he falls; with no "
+                  "legs he crawls on his arms. Off: he dies as from any blow (vr_ragdoll_active_dismember)."),
+        slider("Writhing", vr_ragdoll_active_dismember_time, 0.f, 8.f, 0.5f, "%.1f s").extend(0.f, 20.f)
+            .help("How long he writhes holding the stump once down (vr_ragdoll_active_dismember_time)."),
+        slider("Balance on One Leg", vr_ragdoll_active_balance_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 5.f)
+            .help("How long at most he tries to keep his balance on one leg (0: he falls at once) "
+                  "(vr_ragdoll_active_balance_time)."),
+        slider("Falls Past", vr_ragdoll_active_balance_lean, 5.f, 45.f, 1.f, "%.0f deg").extend(1.f, 90.f)
+            .help("And he falls once leaning this far from how he stood (vr_ragdoll_active_balance_lean)."),
         slider("Hold the Wound", vr_ragdoll_active_wound, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance he puts a free hand on the wound that killed him (vr_ragdoll_active_wound)."),
         toggle("Use What Is Round Him", vr_ragdoll_active_env)
@@ -4078,6 +4089,18 @@ void hologramTestMessage()
             .help("About how long he paddles in water before going limp (vr_ragdoll_active_paddle)."),
         slider("Flail Time", vr_ragdoll_active_flail, 0.5f, 4.f, 0.25f, "%.2f s").extend(0.2f, 30.f)
             .help("About how long he flails in lava (in slime 1.4 times it) before going limp (vr_ragdoll_active_flail)."),
+        toggle("Active Shoves and Throws", vr_ragdoll_active_stagger)
+            .help("With Knockdowns, a shove makes a grunt, enforcer, knight, death knight, ogre or zombie stagger as a "
+                  "ragdoll held up by its muscles, its feet stepping after it: leaning too far it falls (knocked down), "
+                  "else it recovers and fights on; the knockdown's chance sets how steady it is. Going down, its arms "
+                  "brace for the floor; a two-hand throw's body goes slack where you held it and curls as it goes over. "
+                  "Off: the knockdown's chance alone (vr_ragdoll_active_stagger)."),
+        slider("Stagger Falls Past", vr_ragdoll_active_stagger_lean, 10.f, 60.f, 5.f, "%.0f deg")
+            .help("A staggering monster whose middle leans this far past its feet falls (vr_ragdoll_active_stagger_lean)."),
+        toggle("Active Get-Ups", vr_ragdoll_active_getup)
+            .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
+                  "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "
+                  "blends into the get-up from the floor (vr_ragdoll_active_getup)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
@@ -5401,6 +5424,9 @@ za::Vector<Item> pageDebugReports()
         command("Active Ragdolls", "vr_ragdoll_active_list").help("vr_ragdoll_active_list: each active ragdoll (vr_ragdoll_active): how long driven, its legs', torso's, arms' and head's strength, its pelvis pin, what its death does (stumbled, a hand on the wound, crawling); and the drive's cost a frame."),
         command("Strike Holding Hands", "vr_ragdoll_env_hit").help("vr_ragdoll_env_hit [speed]: each dying monster's hand holding on to a wall or a ledge struck as a shot strikes it: it lets go (Gibs and Corpses > Ragdoll Settings > Grab Ledges)."),
         command("Kill the Nearest Monster", "vr_test_kill 1").help("vr_test_kill <n>: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3) or a leg (4): an active death to watch (Gibs and Corpses > Ragdoll Settings, Active Deaths)."),
+        command("Cut the Nearest Monster's Leg Off", "vr_test_cut 3").help("vr_test_cut <n>: the live monster nearest you killed by a sword's cut at its left arm (1), right arm (2), left leg (3), right leg (4), both legs (5), left forearm (6), left shin (7) or head (8); n + 10: the dead one nearest you cut so. With React to Lost Limbs: he balances on one leg, holds the stump, writhes, crawls with no legs."),
+        command("Cut the Nearest Monster's Arm Off", "vr_test_cut 1").help("vr_test_cut 1: the same at its left arm: his right hand to the stump."),
+        command("Cut Both Its Legs Off", "vr_test_cut 5").help("vr_test_cut 5: the same at both legs: he crawls on his arms."),
         command("Ragdolls", "vr_ragdoll_list 2").help("vr_ragdoll_list [1|2]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed and the hands holding it; with 2 also how far its flames are from its limbs), and Box3D's bodies (Gibs and Corpses > Ragdoll Settings)."),
         command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
         command("Smooth Animation Check", "vr_anim_smooth_check").help("vr_anim_smooth_check [model ...]: each rigged monster's frames drawn as Model Animation Smooth draws them (r_lerpmodels 3): the weights at the frames (exact), how near a frame the shape is just off it, how far mid-frame it is from Quake's blend, and how much limbs turning 30 degrees or more shrink mid-frame (Quake's blend, the spline, with the swung limbs)."),
@@ -6481,6 +6507,14 @@ za::Vector<Item> pageDebugTests()
                   "what Knockdowns' Travel is a share of."),
         command("Shove the Nearest, Standing, Two Hands", "vr_knockdown_chance 0; vr_knockdown_debug 1; developer 1; vr_knockdown_test 22")
             .help("The same with a two-handed shove (vr_knockdown_test 22)."),
+        command("Shove the Nearest, Stagger", "vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
+            .help("Print Rolls on, then vr_knockdown_test 21: the nearest monster shoved with one hand, its chance as set; "
+                  "with Active Shoves and Throws (Gibs and Corpses > Ragdoll Settings) it staggers: the console prints its "
+                  "balance and whether it recovered or fell (\"stagger:\"; vr_debug_ragdoll 2: each frame's lean and "
+                  "steps)."),
+        command("Shove the Nearest, Steady Stagger", "vr_knockdown_chance 0.01; vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
+            .help("Knockdowns' Chance 0.01 (set it back after): its balance all but full, so it staggers and recovers, "
+                  "back to its animation and its AI (the hand-back's gap printed: \"handback:\")."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),

@@ -1555,10 +1555,39 @@ void PF_ragdollshovetopple()
     G_FLOAT(OFS_RETURN) = foegrab::shoveTopple(G_EDICT(OFS_PARM0), dir, G_FLOAT(OFS_PARM2), ledge, reach) ? 1.f : 0.f;
 }
 
+// float ragdollcanstagger(entity e): whether a shove makes e stagger as a ragdoll (vr_ragdoll_active_stagger, its kind's).
+void PF_ragdollcanstagger()
+{
+    G_FLOAT(OFS_RETURN) = box3d::ragdollCanStagger(G_EDICT(OFS_PARM0)) ? 1.f : 0.f;
+}
+
+// float ragdollstagger(entity e, vector dir, float push, float balance, float reach): e, just knocked down by a shove
+// along dir (its ragdoll made), staggers instead (push: the shove's; balance 0 about to fall .. 1 steady; reach: the
+// units the shove carries a standing one). 0: it can't (a knockdown, as before).
+void PF_ragdollstagger()
+{
+    const float* d = G_VECTOR(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = box3d::ragdollStagger(G_EDICT(OFS_PARM0), glm::vec3{d[0], d[1], d[2]}, G_FLOAT(OFS_PARM2),
+                              G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4))
+                              ? 1.f
+                              : 0.f;
+}
+
+// float ragdollstaggered(entity e, vector mins, vector maxs): e's stagger: 1 going, 0 fallen (down now), 2 recovered (up
+// where it stands, its box mins..maxs, handed back to its animation: .vr_knockdown 2).
+void PF_ragdollstaggered()
+{
+    const float* lo = G_VECTOR(OFS_PARM1);
+    const float* hi = G_VECTOR(OFS_PARM2);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(
+        box3d::ragdollStaggered(G_EDICT(OFS_PARM0), glm::vec3{lo[0], lo[1], lo[2]}, glm::vec3{hi[0], hi[1], hi[2]}));
+}
+
 // float ragdollgetup(entity e, float frameA, float frameB, vector mins, vector maxs, float range, optional float anywhere):
 // e gets up from its ragdoll, starting from frameA or frameB (whichever fits how it lies; -1 none): 0 no room within
 // range (it stays down), else 1 or 2 (the frame chosen), e at the place found, turned to it (.vr_knockdown 2). In a
-// liquid: where it can stand with its head out (box3d standSpot); anywhere: its box free, floor or none.
+// liquid: where it can stand with its head out (box3d standSpot); anywhere: its box free, floor or none. Its body rising
+// first (vr_ragdoll_active_getup): -1 while it does, then 3 or 4 (risen: standing in its get-up's last frame).
 void PF_ragdollgetup()
 {
     const float* lo = G_VECTOR(OFS_PARM3);
@@ -1656,7 +1685,9 @@ void PF_ragdolllimb()
 }
 
 // float ragdolllimbs(entity e, float what, [float bone]): box3d::limbInfo (0 the limb joints not cut, bits; 1 the
-// head's bones; 2 the bones cut off; 3 the head bone, -1 none; 4 what a cut at `bone` takes now; 5 `bone`'s parent).
+// head's bones; 2 the bones cut off; 3 the head bone, -1 none; 4 what a cut at `bone` takes now; 5 `bone`'s parent; 6 the
+// joint of limb `bone` by name: 0 the left shoulder, 1 the right, 2 the left hip, 3 the right, 4-7 their elbow or knee, 0
+// none).
 void PF_ragdolllimbs()
 {
     const int what = static_cast<int>(G_FLOAT(OFS_PARM1));
@@ -2289,6 +2320,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollknockdown", PF_ragdollknockdown},
     {"ragdollshovetopple", PF_ragdollshovetopple},
     {"ragdollgetup", PF_ragdollgetup},
+    {"ragdollcanstagger", PF_ragdollcanstagger},
+    {"ragdollstagger", PF_ragdollstagger},
+    {"ragdollstaggered", PF_ragdollstaggered},
     {"ragdollrelease", PF_ragdollrelease},
     {"ragdollheld", PF_ragdollheld},
     {"ragdollreach", PF_ragdollreach},

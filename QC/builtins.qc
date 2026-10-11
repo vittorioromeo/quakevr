@@ -282,7 +282,15 @@ float(entity e) ragdollknockdown = #0;
 // pushed whole so it goes over (reach: the units to past its edge), turned as it falls (vr_knockdown_shove_ledge_topple
 // times strength: the shove's push, two hands 1): 0 no ragdoll.
 float(entity e, vector dir, float strength, float ledge, float reach) ragdollshovetopple = #0;
+// (Its body rising first, vr_ragdoll_active_getup: -1 while it does, then 3 or 4: risen, in its get-up's last frame.)
 float(entity e, float frameA, float frameB, vector mins, vector maxs, float range, optional float anywhere) ragdollgetup = #0;
+// Active staggers (vr_ragdoll_active_stagger): whether a shove makes e stagger as a ragdoll; e (just knocked down by a
+// shove along dir, its ragdoll made) staggering instead (push: the shove's; balance 0 about to fall .. 1 steady; reach:
+// the units the shove carries a standing one; 0: it can't); how its stagger goes: 1 on, 0 fallen (down now), 2
+// recovered (up where it stands with box mins..maxs, its ragdoll blended into its animation).
+float(entity e) ragdollcanstagger = #0;
+float(entity e, vector dir, float push, float balance, float reach) ragdollstagger = #0;
+float(entity e, vector mins, vector maxs) ragdollstaggered = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;
