@@ -14,7 +14,7 @@ Box3D update: props, ragdolls, teleporter pass-through feel unchanged; Physics A
 Deaths: shoot grunts and knights in the body vs the head (different falls); a charging knight stumbles; grab a dying arm
 Hit reactions: shoot a living grunt in the body, head, arm, leg: flinch, knee buckle, limp (Strength slider)
 Shoves: one-hand shove (staggers, falls about half the time), two-hand shove; ogres rarely fall: rates OK?
-Judo: throw a knight: he survives the landing (fall fix) and gets up
+Judo: throw a knight (survives the landing, gets up) and a mummy or zombie (stays in one piece)
 Dismemberment: cut a leg (balances, then falls), an arm, both legs (drags himself on his arms)
 Bodies in liquids: kill in water (paddles, floats; knights sink), in lava or slime (flails, burns); throw corpses in
 Bodies by walls: kill next to a wall (leans, slides), at a ledge (hangs), by a crate (braces)
