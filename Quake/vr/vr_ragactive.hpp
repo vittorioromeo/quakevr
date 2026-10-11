@@ -199,7 +199,8 @@ enum class Grip : uint8_t
     Brace, // a hand on a loose prop (no joint)
     Lean,  // a hand on a wall, held, sliding down
     Ledge, // a hand on a lip, hanging
-    Curl   // the arms in (tumbling)
+    Curl,  // the arms in (tumbling)
+    Grab   // a hand on another monster near it as it falls (standing, or its ragdoll), held a moment (vr_ragdoll_active_grab)
 };
 
 struct EnvHand
@@ -221,6 +222,9 @@ struct EnvHand
     double overSince{-1.0}; // its load at the cap since (slipping)
     float slid{0.f};       // metres the hold slid down
     bool struck{false};    // hit since the last frame (struck())
+    // A Grab's: its point on the other's body (that body's space, metres), its entity.
+    glm::vec3 local{0.f};
+    int other{0};
 };
 
 // One probe ray (the debug overlay): from, to (where it stopped), whether it met something.
@@ -253,6 +257,7 @@ struct Env
     int catches{0}, holds{0};
     // A living one's (a knockdown's fall past a lip: Climb): its hands' holds and the climb alone (no catch, lean, curl).
     bool living{false};
+    int grabs{0}; // others grabbed falling (vr_ragdoll_active_grab; the tests)
 };
 
 // A living knockdown's ledge (vr_ragdoll_active_pullup; vr_ragactive.cpp, "Climbs"): falling past a lip near a hand (a
@@ -491,6 +496,10 @@ struct Context
     uint64_t envMask{0};
     const ledges::Map* ledges{nullptr};
     bool carried{false}; // its body still carried by a shove's drive (vr_box3d.cpp ShoveDrive): no ledge grabbed yet
+    // Others to grab falling (vr_ragdoll_active_grab): the shapes of monsters and ragdolls (category bits; 0 none), and
+    // whether entity `num` is one to grab (a monster, standing or a ragdoll; not itself).
+    uint64_t othersMask{0};
+    bool (*graspable)(int num){nullptr};
 };
 
 // The drive started on a ragdoll just made (vr_box3d.cpp createRagdoll, its joints made): `joints` each part's

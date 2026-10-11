@@ -4259,6 +4259,19 @@ float activeRayHit(const glm::vec3& from, const glm::vec3& to, glm::vec3& at, gl
     return hit.fraction;
 }
 
+// Whether entity `num` is one a falling body grabs at (vr_ragdoll_active_grab): a monster, standing (its box) or its
+// ragdoll (knocked down or dead); not a fish, nor a flyer.
+bool activeGraspable(int num)
+{
+    if(num <= 0 || num >= qcvm->num_edicts)
+    {
+        return false;
+    }
+    const edict_t* e = EDICT_NUM(num);
+    const int flags = static_cast<int>(e->v.flags);
+    return !e->free && (flags & FL_MONSTER) != 0 && (flags & (FL_SWIM | FL_FLY)) == 0;
+}
+
 [[nodiscard]] bool standSpot(edict_t* ent, const glm::vec3& from, const glm::vec3& at, const glm::vec3& mins,
     const glm::vec3& maxs, float range, glm::vec3& out, bool anywhere); // (below)
 constexpr double swimGoalEvery = 1.0; // s: a living swimmer's goal looked for again
@@ -4443,6 +4456,9 @@ void driveActive(Slot& s, float dt)
                    ? ledges::of(sv.worldmodel)
                    : nullptr;
     c.carried = r.shove.on;
+    // Others to grab falling (vr_ragdoll_active_grab): monsters' boxes, ragdolls' and corpses' parts.
+    c.othersMask = vr_ragdoll_active_grab.value > 0.f ? catActor | catCorpse : 0u;
+    c.graspable = activeGraspable;
     // Its forces this frame, kept for the step's later pieces (liftAgain).
     r.driveForce = {};
     r.driveForceAt = qcvm->time;

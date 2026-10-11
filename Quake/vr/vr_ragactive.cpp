@@ -1307,6 +1307,15 @@ void fallFrame(State& s, const Parts& p, const Context& c, float t)
             r.weight = 0.f;
             continue;
         }
+        // (A hand grabbing another monster (fallEnv): its reach is the grab's.)
+        const EnvHand& eh = s.env.hand[i];
+        if(eh.mode == Grip::Grab)
+        {
+            r.goal = eh.goal;
+            r.weight = za::min(1.f, r.weight + c.dt * 12.f); // (out to it at once)
+            r.strength = eh.strength;
+            continue;
+        }
         const int u = s.chain[i][0];
         const float len = limbLength(s, p, arm);
         const glm::vec3 shoulder = worldPoint(p, u, p.rig->bones[u].pivot);
@@ -1506,6 +1515,9 @@ constexpr float reachTime = 1.f;    // s: a hand not on its surface by then give
 constexpr float handOff = 1.5f;     // units: a hand's goal off its surface (its thickness)
 constexpr float smallThing = 8.f;   // kg: a loose thing lighter is nothing to brace on,
 constexpr float smallHeight = 0.4f; // m: or lower (a backpack, a dropped gun)
+constexpr float ledgeReach = 1.15f; // (of its arm's length) a lip this near a shoulder is grabbed (the hold pulls the hand the
+                                    // rest of the way; a death knight toppling off falls with its shoulders 31-34 units off
+                                    // the lip, out of its reach of 27: 1.4 had it reach in vain)
 // A living one's climb ("Climbs", below).
 constexpr float climbGrip = 2.f;    // its hands' holds take this times a dying one's
 constexpr float hangBefore = 0.45f; // s: it hangs this (and up to as much again) before it pulls
@@ -1531,6 +1543,7 @@ za::Vector<int> envNearby;
         case Grip::Lean: return "lean";
         case Grip::Ledge: return "ledge";
         case Grip::Curl: return "curl";
+        case Grip::Grab: return "grab";
         default: return "none";
     }
 }
@@ -1734,7 +1747,7 @@ void startCatch(State& s, const Parts& p, const Context& c, const EnvRay& r, con
     {
         EnvHand& h = e.hand[static_cast<za::SizeT>(arm)];
         const float sign = arm == 0 ? 1.f : -1.f;
-        const bool busy = h.mode == Grip::Lean || h.mode == Grip::Ledge || h.mode == Grip::Brace;
+        const bool busy = h.mode == Grip::Lean || h.mode == Grip::Ledge || h.mode == Grip::Brace || h.mode == Grip::Grab;
         if(!limbWhole(s, p, arm) || busy || (za::abs(side) > 0.35f * L && side * sign < 0.f))
         {
             continue;
@@ -1844,12 +1857,12 @@ int findLedge(State& s, const Parts& p, const Context& c, const glm::vec3& pelvi
             {
                 Con_Printf("ragenv: %d ledge %d lip %.0f %.0f %.0f out %.2f %.2f: %s hand %.0f %.0f %.0f, shoulder %.0f %.0f %.0f "
                            "(%.0f off, reach %.0f), out over it %.2f\n", c.num, i, q.x, q.y, q.z, E.out.x, E.out.y, armName(arm),
-                    hu.x, hu.y, hu.z, su.x, su.y, su.z, glm::distance(q, su), 1.15f * L * u, glm::dot(levelDir(chestAt * u - q), E.out));
+                    hu.x, hu.y, hu.z, su.x, su.y, su.z, glm::distance(q, su), ledgeReach * L * u, glm::dot(levelDir(chestAt * u - q), E.out));
             }
             // (The hand not far over the lip, the shoulder fallen near it (not standing at the edge), the lip within the
             // arm's reach stretched (the hold pulls the hand the rest of the way), him out over its drop.)
             if(q.z < hu.z - 0.5f * L * u || q.z < su.z - 0.8f * L * u || q.z > su.z + 0.6f * L * u ||
-                glm::distance(q, su) > 1.15f * L * u || glm::dot(levelDir(chestAt * u - q), E.out) < 0.3f)
+                glm::distance(q, su) > ledgeReach * L * u || glm::dot(levelDir(chestAt * u - q), E.out) < 0.3f)
             {
                 continue;
             }
@@ -1883,7 +1896,7 @@ int findLedge(State& s, const Parts& p, const Context& c, const glm::vec3& pelvi
         {
             const glm::vec3 su = shoulderOf(s, p, arm) * u;
             tt = za::clamp(glm::dot(su - E.a, E.dir), 0.f, E.len);
-            if(glm::distance(E.point(tt), su) > 1.15f * L * u)
+            if(glm::distance(E.point(tt), su) > ledgeReach * L * u)
             {
                 continue;
             }
@@ -1938,7 +1951,9 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
         {
             h.goal = hand - h.normal * off;
         }
-        if(glm::length(hand - h.goal) < 0.25f * L || (off < 0.2f * L && glm::length(along) < 0.5f * L))
+        // (A ledge's lip falling past at speed: grabbed a little farther off, its hold pulling the hand in.)
+        const float within = ledge && glm::length(glmv(b3Body_GetLinearVelocity(p.body[0]))) > 3.f ? 0.5f : 0.25f;
+        if(glm::length(hand - h.goal) < within * L || (off < 0.2f * L && glm::length(along) < 0.5f * L))
         {
             const glm::vec3 at = hand - h.normal * off; // (on the goal's plane: already handOff off the surface)
             if(!ledge)
@@ -1997,6 +2012,153 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
         letGo(s, arm, &c, "the floor");
     }
     else if(glm::distance(hand, h.goal) > 0.6f * L)
+    {
+        letGo(s, arm, &c, va("pulled away: the hand %.0f units off its hold", glm::distance(hand, h.goal) * p.m2u));
+    }
+}
+
+// ---- Grabbing others (vr_ragdoll_active_grab) ----
+// Falling (a living one's fall, a death's), another monster near a hand (standing: its box; knocked down or dead: its
+// ragdoll's parts) above its waist: the nearer hand reaches for the nearest point of it (the way it falls first) and,
+// there, holds on a moment (a capped motor joint to that body, as a lean's: it slows the fall, a ragdoll held is dragged
+// along), then lets go (its time, its load past the cap, struck, landed, pulled away, the other gone). Once a fall.
+constexpr float grabReach = 1.1f;  // (of its arm's length) another's nearest point this near a shoulder is grabbed
+constexpr float grabCap = 1.f;      // body weights its hand's hold takes at most (a heavy one slips sooner: holdCap's)
+constexpr float grabReachTime = 0.6f; // s: a hand not on it by then gives up
+
+// The shapes round a falling body (findGrab's).
+za::Vector<b3ShapeId> envOthers;
+
+// Another monster near a hand as it falls (its chest `chestAt`, its motion `v`): that hand to it. Whether one did.
+bool findGrab(State& s, const Parts& p, const Context& c, const glm::vec3& chestAt, const glm::vec3& v, float L)
+{
+    Env& e = s.env;
+    if(!c.graspable || !c.othersMask || L <= 0.f)
+    {
+        return false;
+    }
+    b3AABB box;
+    box.lowerBound = b3v(chestAt - glm::vec3{1.5f * L});
+    box.upperBound = b3v(chestAt + glm::vec3{1.5f * L});
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.maskBits = c.othersMask;
+    envOthers.clear();
+    b3World_OverlapAABB(c.world, box, filter,
+        [](b3ShapeId shape, void* out) {
+            static_cast<za::Vector<b3ShapeId>*>(out)->pushBack(shape);
+            return true;
+        },
+        &envOthers);
+    const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
+    const glm::vec3 left = bodyRot(p, chestOf(p)) * glm::vec3{0.f, 1.f, 0.f};
+    const float speed = glm::length(v);
+    const glm::vec3 way = speed > 1e-3f ? v / speed : glm::vec3{0.f};
+    int bestArm = -1;
+    float best = 1e30f;
+    glm::vec3 bestAt{0.f};
+    b3ShapeId bestShape = b3_nullShapeId;
+    for(const b3ShapeId shape : envOthers)
+    {
+        const int num = static_cast<int>(reinterpret_cast<intptr_t>(b3Shape_GetUserData(shape)));
+        if(num == c.num || num <= 0 || !c.graspable(num))
+        {
+            continue;
+        }
+        for(int arm = 0; arm < 2; arm++)
+        {
+            const EnvHand& h = e.hand[static_cast<za::SizeT>(arm)];
+            if(!limbWhole(s, p, arm) || h.mode != Grip::None)
+            {
+                continue;
+            }
+            const glm::vec3 shoulder = shoulderOf(s, p, arm);
+            // (Its nearest point to the hand: where the arm reaches easily, not one at the shoulder.)
+            const glm::vec3 hand = limbEnd(s, p, arm);
+            const glm::vec3 q = glmv(b3Shape_GetClosestPoint(shape, b3v(hand)));
+            const float d = glm::distance(q, shoulder);
+            const float side = glm::dot(q - chestAt, left) * (arm == 0 ? 1.f : -1.f);
+            // (Within reach, above its waist (a body lying: low too, it falls onto it), not across its body; the way it
+            // falls first.)
+            const float low = b3Body_GetType(b3Shape_GetBody(shape)) == b3_dynamicBody ? 0.9f : 0.1f;
+            if(d > grabReach * L || d < 1e-3f || q.z < pelvis.z - low * L || side < -0.3f * L)
+            {
+                continue;
+            }
+            const float score = glm::distance(q, hand) - 0.4f * L * glm::dot(glm::normalize(q - shoulder), way);
+            if(score < best)
+            {
+                best = score;
+                bestArm = arm;
+                bestAt = q;
+                bestShape = shape;
+            }
+        }
+    }
+    if(bestArm < 0)
+    {
+        return false;
+    }
+    EnvHand& h = e.hand[static_cast<za::SizeT>(bestArm)];
+    h.mode = Grip::Grab;
+    h.on = b3Shape_GetBody(bestShape);
+    h.local = glmv(b3Body_GetLocalPoint(h.on, b3v(bestAt)));
+    h.other = static_cast<int>(reinterpret_cast<intptr_t>(b3Shape_GetUserData(bestShape)));
+    h.goal = bestAt;
+    h.normal = glm::vec3{0.f, 0.f, 1.f};
+    h.since = c.now;
+    h.touched = -1.0;
+    h.want = 1.f;
+    h.strength = 0.9f;
+    h.holdUntil = 0.0;
+    e.grabs++;
+    if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+    {
+        Con_Printf("ragenv: %d %s hand grabs at %s %d falling at %.1f m/s: %.0f units from its shoulder, at %.0f %.0f %.0f\n",
+            c.num, armName(bestArm), b3Body_GetType(h.on) == b3_dynamicBody ? "the ragdoll of" : "monster", h.other, speed,
+            glm::distance(bestAt, shoulderOf(s, p, bestArm)) * p.m2u, bestAt.x * p.m2u, bestAt.y * p.m2u, bestAt.z * p.m2u);
+    }
+    return true;
+}
+
+// A hand reaching for another (Grab) or holding it: held once there (holdOn's motor joint, capped), its upkeep.
+void keepGrab(State& s, const Parts& p, const Context& c, int arm, float L)
+{
+    EnvHand& h = s.env.hand[static_cast<za::SizeT>(arm)];
+    if(B3_IS_NULL(h.on) || !b3Body_IsValid(h.on) || (B3_IS_NON_NULL(h.joint) && !b3Joint_IsValid(h.joint)))
+    {
+        letGo(s, arm, &c, "its hold gone");
+        return;
+    }
+    const glm::vec3 at = glmv(b3Body_GetWorldPoint(h.on, b3v(h.local)));
+    const glm::vec3 hand = limbEnd(s, p, arm);
+    if(B3_IS_NULL(h.joint))
+    {
+        h.goal = at;
+        if(glm::distance(hand, at) < (s.env.living ? 0.55f : 0.4f) * L) // (held where the hand is: its hold pulls it the rest of the way; a fall is quick)
+        {
+            h.holdUntil = c.now + 0.5 + 0.6 * static_cast<double>(roll(s.env.seed, 63u + static_cast<uint32_t>(arm)));
+            const float heavy = za::clamp(za::sqrt(90.f / za::max(s.totalMass, 1.f)), 0.6f, 1.2f); // (holdCap's)
+            holdOn(s, p, c, arm, hand, grabCap * heavy * s.totalMass * c.gravity);
+        }
+        else if(c.now - h.since > grabReachTime)
+        {
+            letGo(s, arm, &c, va("out of reach: %.0f units off it", glm::distance(hand, at) * p.m2u));
+        }
+        return;
+    }
+    h.load = glm::length(glmv(b3Joint_GetConstraintForce(h.joint)));
+    h.overSince = h.load >= 0.95f * h.cap ? (h.overSince < 0.0 ? c.now : h.overSince) : -1.0;
+    h.goal = glmv(b3Body_GetWorldPoint(h.on, b3Joint_GetLocalFrameA(h.joint).p));
+    h.strength = 0.8f;
+    if(h.overSince >= 0.0 && c.now - h.overSince > slipTime)
+    {
+        letGo(s, arm, &c, "its load");
+    }
+    else if(c.now > h.holdUntil)
+    {
+        letGo(s, arm, &c, "its time");
+    }
+    else if(glm::distance(hand, h.goal) > 0.8f * L)
     {
         letGo(s, arm, &c, va("pulled away: the hand %.0f units off its hold", glm::distance(hand, h.goal) * p.m2u));
     }
@@ -2254,6 +2416,55 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
     }
 }
 
+// A living one's fall (drive(): a shove's knockdown, a stagger gone over, a throw; fallFrame's arms bracing): another
+// monster near a hand as it goes, the first second (by vr_ragdoll_active_grab's chance, rolled once a fall): it grabs at
+// it (fallFrame takes that arm's reach from its hand), held a moment, let go once it lands. Its hands' other holds let go
+// (envStandDown's).
+void fallEnv(State& s, const Parts& p, const Context& c)
+{
+    Env& e = s.env;
+    const Fall& f = s.fall;
+    const float L = armLength(s, p);
+    if(!e.started)
+    {
+        e.started = true;
+        e.living = true;
+        e.on = false;
+        e.seed = hash(static_cast<uint32_t>(c.num), static_cast<uint32_t>(s.begun * 72.0)) ^
+                 static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 2246822519u;
+        e.baseAt = s.base;
+    }
+    for(int arm = 0; arm < 2; arm++)
+    {
+        const EnvHand& h = e.hand[static_cast<za::SizeT>(arm)];
+        if(h.mode == Grip::Grab && limbWhole(s, p, arm) && f.landed < 0.f && !h.struck)
+        {
+            keepGrab(s, p, c, arm, L);
+        }
+        else if(h.mode != Grip::None)
+        {
+            letGo(s, arm, &c, !limbWhole(s, p, arm) ? "cut" : h.struck ? "hit" : f.landed >= 0.f ? "landed" : "falling");
+        }
+    }
+    e.lean = false;
+    e.curl = 0.f;
+    e.reached = 0;
+    const float t = static_cast<float>(c.now - s.begun);
+    const bool idle = e.hand[0].mode == Grip::None && e.hand[1].mode == Grip::None;
+    if(!idle || e.grabs > 0 || f.landed >= 0.f || t - f.since > 1.f || L <= 0.f || vr_ragdoll_active_env.value == 0.f ||
+        ++e.frame % envEvery != 1 || roll(e.seed ^ static_cast<uint32_t>(f.since * 72.f), 62u) >= vr_ragdoll_active_grab.value)
+    {
+        return;
+    }
+    const int chest = chestOf(p);
+    const glm::vec3 chestAt = glmv(b3Body_GetWorldCenter(p.body[chest]));
+    const glm::vec3 v = glmv(b3Body_GetLinearVelocity(p.body[chest]));
+    if(glm::length(v) > 0.8f && findGrab(s, p, c, chestAt, v, L))
+    {
+        e.on = true; // (its traces and debug lines)
+    }
+}
+
 // A living one's fall (drive(): a shove's knockdown, a stagger gone over, a throw) past a lip near a hand: it grabs it,
 // its fall over, a climb from here (vr_ragdoll_active_pullup above 0; Grab Ledges on). Once a fall.
 void livingLedge(State& s, const Parts& p, const Context& c)
@@ -2377,6 +2588,8 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
     const bool brace = !done && !e.living && vr_ragdoll_active_env_brace.value != 0.f;
     const bool lean = !done && !e.living && vr_ragdoll_active_env_lean.value != 0.f;
     const bool ledge = !done && !e.living && vr_ragdoll_active_env_ledge.value != 0.f && c.ledges;
+    // (Another monster near a hand as he falls: by its chance, rolled once a death.)
+    const bool grab = !done && !e.living && e.grabs == 0 && roll(e.seed, 61u) < vr_ragdoll_active_grab.value;
     // Each hand's mode kept up, or let go.
     for(int arm = 0; arm < 2; arm++)
     {
@@ -2443,6 +2656,10 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
                 letGo(s, arm, &c, "its time");
             }
         }
+        else if(h.mode == Grip::Grab)
+        {
+            keepGrab(s, p, c, arm, L);
+        }
         else if(h.mode == Grip::Lean || h.mode == Grip::Ledge)
         {
             keepHold(s, p, c, arm, L);
@@ -2465,7 +2682,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
         }
     }
     // Sense: every few frames.
-    if((brace || lean || ledge) && e.frame % envEvery == 1)
+    if((brace || lean || ledge || grab) && e.frame % envEvery == 1)
     {
         e.probes = 0;
         const bool holding = B3_IS_NON_NULL(e.hand[0].joint) || B3_IS_NON_NULL(e.hand[1].joint);
@@ -2474,6 +2691,11 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
         // feet, not falling past a wall.)
         const float under = c.floorBelow ? c.floorBelow(pelvis, 3.f * L) : -1e30f;
         const bool upright = chestAt.z - under > 0.9f * L && pelvis.z - under < 1.6f * L;
+        // Another monster near a hand as he falls (the first second of his death): he grabs at it.
+        if(grab && speed > 0.8f && !holding && !reaching && t < 1.2f && findGrab(s, p, c, chestAt, v, L))
+        {
+            e.nextCatch = c.now + 0.6; // (no catch while it reaches)
+        }
         // Along his fall: a surface he meets soon.
         if(speed > 0.8f && !holding && !reaching && c.now >= e.nextCatch)
         {
@@ -2553,7 +2775,8 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
     for(int arm = 0; arm < 2; arm++)
     {
         EnvHand& h = e.hand[static_cast<za::SizeT>(arm)];
-        if(e.curl > 0.f && (h.mode == Grip::None || h.mode == Grip::Curl) && limbWhole(s, p, arm))
+        // (Not once done (crawling, blasted): its hands let go each frame, it would curl them again: a "lets go" a frame.)
+        if(e.curl > 0.f && !done && (h.mode == Grip::None || h.mode == Grip::Curl) && limbWhole(s, p, arm))
         {
             h.mode = Grip::Curl;
             h.goal = chestAt + front * (0.3f * L) + up * (0.2f * L) + left * ((arm == 0 ? 0.12f : -0.12f) * L);
@@ -3347,7 +3570,11 @@ void drive(State& s, const Parts& p, const Context& c)
             }
         }
     }
-    if(!envLeads)
+    if(!envLeads && s.fall.on && !swimming && !s.dismember.on && !s.death.on)
+    {
+        fallEnv(s, p, c); // (a living fall: a hand may grab another; its other holds let go)
+    }
+    else if(!envLeads)
     {
         // (what is round him waits, its holds let go)
         envStandDown(s, c,

@@ -4133,6 +4133,10 @@ void hologramTestMessage()
                   "hand grabs it (Grab Ledges on) and hangs a moment; then, by this chance, it pulls itself up onto the "
                   "top and lies there until it gets up, else it drops. Shooting a hand makes it let go. 0: it never grabs "
                   "(vr_ragdoll_active_pullup)."),
+        slider("Grab Others Falling", vr_ragdoll_active_grab, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a grunt, enforcer, knight, death knight, ogre or zombie going down (knocked down or dying) "
+                  "grabs at another monster within reach, standing or lying, to catch itself: a hand on it a moment, "
+                  "slowing its fall; a body grabbed is dragged along. 0: never (vr_ragdoll_active_grab)."),
         toggle("Placed Corpses Are Bodies", vr_corpse_placed)
             .help("The corpses a map places (Dimension and Dawn of the Machine) are dead monsters' bodies: shot, gibbed and "
                   "burnt, and ragdolls you take and cut once you come near. Off: scenery. The next map load (vr_corpse_placed)."),
