@@ -121,7 +121,36 @@ struct Pin
     int frame[4]{0, 0, 0, 0};
     float blend{0.f};
 };
-Pin pin;
+
+// vr_anim_smooth_trace: one entity's drawn shape followed frame by frame (in its model's space: its animation alone), how
+// much each vertex's speed changes from frame to frame (the second difference, units), for r_lerpmodels 1 and 3 to
+// compare (vr_fixed_frames 1: even frames). The renderer's thread.
+struct Trace
+{
+    int ent{-1};
+    int framesLeft{0};
+    double lastTime{-1.0};
+    int filled{0};
+    za::Vector<glm::vec3> now, prev, prev2;
+    za::Vector<float> accel; // per frame: the vertices' mean
+    za::Vector<float> peak;  // ... their most
+};
+[[nodiscard]] za::SizeT heldBytes(const Trace& t) // (vr_mem.hpp)
+{
+    return mem::heldBytes(t.now) + mem::heldBytes(t.prev) + mem::heldBytes(t.prev2) + mem::heldBytes(t.accel) +
+           mem::heldBytes(t.peak);
+}
+
+// Both name an entity by its number: off at a map change (another map's entity has it).
+struct SmoothDebug
+{
+    Pin pin;
+    Trace trace;
+    auto members() { return mem::list(pin, trace); }
+};
+mem::Cache<SmoothDebug> smoothDebug{"anim smooth debug", mem::MapChange};
+Pin& pin = smoothDebug.pin;
+Trace& trace = smoothDebug.trace;
 
 // The splines worked out since the last vr_anim_smooth_info (an entity's each frame it is drawn mid-lerp): with a key
 // before (the lerp history), a key after (a frame expected next), limbs swung. The renderer's thread.
@@ -430,21 +459,6 @@ bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, 
 
 namespace
 {
-
-// vr_anim_smooth_trace: one entity's drawn shape followed frame by frame (in its model's space: its animation alone), how
-// much each vertex's speed changes from frame to frame (the second difference, units), for r_lerpmodels 1 and 3 to
-// compare (vr_fixed_frames 1: even frames). The renderer's thread.
-struct Trace
-{
-    int ent{-1};
-    int framesLeft{0};
-    double lastTime{-1.0};
-    int filled{0};
-    za::Vector<glm::vec3> now, prev, prev2;
-    za::Vector<float> accel; // per frame: the vertices' mean
-    za::Vector<float> peak;  // ... their most
-};
-Trace trace;
 
 void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend, int on, const int smooth[4],
     const float weights[4])
@@ -851,6 +865,7 @@ void info_f()
 {
     Con_Printf("animsmooth: %d splines drawn since the last info: %d with the lerp before, %d with a frame expected after, "
                "%d with limbs swung\n", stats.splines, stats.history, stats.ahead, stats.swung);
+    Con_Printf("animsmooth: pinned entity %d, traced entity %d (-1: none)\n", pin.ent, trace.ent);
     stats = Stats{};
     for(const auto& [model, mp] : smoothCache.models)
     {
