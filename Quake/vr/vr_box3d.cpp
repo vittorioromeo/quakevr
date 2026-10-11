@@ -63,6 +63,7 @@
 #include "vr_cvars.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
+#include "vr_ledges.hpp"
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
 #include "vr_physics.hpp"
@@ -4103,6 +4104,11 @@ void driveActive(Slot& s, float dt)
     c.num = r.num;
     c.born = r.born;
     c.trace = trace;
+    // What is round him (vr_ragdoll_active_env): the world, the movers and the props his probes see; the world's ledges.
+    c.envMask = catWorld | catMover | catProp | catSolid | catFixture;
+    c.ledges = vr_ragdoll_active_env.value != 0.f && vr_ragdoll_active_env_ledge.value != 0.f && r.active.on && sv.worldmodel
+                   ? ledges::of(sv.worldmodel)
+                   : nullptr;
     ragactive::drive(r.active, parts, c);
 }
 
@@ -11155,6 +11161,11 @@ bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pu
     const float j = (speed - along) / (k + (pusherMass > 0.f ? 1.f / pusherMass : 0.f));
     b3Body_ApplyLinearImpulse(body, b3Vec3{d.x * j, d.y * j, d.z * j}, point, true);
     world->slots[num].asleep = false;
+    if(world->slots[num].ragdoll >= 0) // (a dying hand holding on, struck there, lets go: vr_ragdoll_active_env)
+    {
+        RagdollBodies& rag = world->ragdolls[static_cast<za::SizeT>(world->slots[num].ragdoll)];
+        ragactive::struck(rag.active, activeParts(rag), body);
+    }
     if(vr_debug_box3d.value || (vr_debug_ragdoll.value && world->slots[num].ragdoll >= 0))
     {
         Con_Printf("box3d: %d pushed at %.1f %.1f %.1f to %.2f m/s along the push (%.2f before), %.1f N s\n", num, at.x, at.y, at.z,
