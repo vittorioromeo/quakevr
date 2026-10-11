@@ -178,6 +178,32 @@ void(float request) AD_Test =
         bprint(sprintf("adtest: camera %s started at %v\n", cam.targetname, cam.origin));
         return;
     }
+    if(request == 3 || request == 4)
+    {
+        // 3: the Widowmaker's shot (the super shotgun with AD's SSG upgrade, AD's pellets by the Projectile Rules);
+        // 4: the Plasma Gun's (the lightning gun with AD's LG upgrade): what they fired, the ammo they took.
+        entity oself = self;
+        self = p;
+        float wid = request == 3 ? WID_SUPER_SHOTGUN : WID_LIGHTNING;
+        p.ad_moditems = p.ad_moditems | ad_IT_UPGRADE_SSG | ad_IT_UPGRADE_LG | ad_IT_UPGRADE_AXE;
+        p.ammo_shells = 50;
+        p.ammo_cells = 50;
+        VRGiveEntWeapon(p, cVR_MainHand, wid, 0, WeaponIdToBaseClipSize(wid));
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        float shells = p.ammo_shells, cells = p.ammo_cells;
+        entity e;
+        float before = 0, after = 0;
+        for(e = nextent(world); e; e = nextent(e)) if(e.classname == "proj_bullet" || e.ad_classtype == ad_CT_PROJ_PLASMA) before++;
+        if(request == 3) W_FireSuperShotgun(cVR_MainHand);
+        else AD_FirePlasma(cVR_MainHand);
+        for(e = nextent(world); e; e = nextent(e)) if(e.classname == "proj_bullet" || e.ad_classtype == ad_CT_PROJ_PLASMA) after++;
+        bprint(sprintf("adtest: %s fired %g projectiles; reserve shells %g -> %g, cells %g -> %g, clip %g\n",
+            request == 3 ? "Widowmaker" : "Plasma Gun", after - before, shells, p.ammo_shells, cells, p.ammo_cells,
+            VRGetEntWeaponClip(p, cVR_MainHand)));
+        bprint(sprintf("adtest: AD's pellets %g, Shadow Axe x%g\n", AD_Pellets(p), AD_AxeScale()));
+        self = oself;
+        return;
+    }
     bprint(sprintf("adtest: cinematic %g active %g player movetype %g solid %g takedamage %g origin %v health %g\n",
         ad_cinematic_running, ad_cam_active, p.movetype, p.solid, p.takedamage, p.origin, p.health));
 };
