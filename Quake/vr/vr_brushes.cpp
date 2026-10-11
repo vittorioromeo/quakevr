@@ -739,19 +739,21 @@ struct ServerVm
 };
 
 // What else keeps things of a model learns that it changed: the ledges (climbing), the held weapons' triangles, the
-// decals on its old faces.
-void forgetModel(qmodel_t* mod, const glm::vec3& oldLo, const glm::vec3& oldHi)
+// decals on its old faces (only those: the world's beside it stay).
+void forgetModel(qmodel_t* mod, int id, const glm::vec3& oldLo, const glm::vec3& oldHi)
 {
     ledges::forget(mod);
     modelcollide::forget(mod);
     if(oldLo.x <= oldHi.x)
     {
-        decals::removeIn(oldLo - glm::vec3{2.f}, oldHi + glm::vec3{2.f});
+        decals::removeOn(id, oldLo - glm::vec3{2.f}, oldHi + glm::vec3{2.f});
     }
 }
 
-// The model of `e` made again from its brush (or empty), in place.
-void rebuild(Entry& e, bool empty)
+// The model of `e` made again from its brush (or empty), in place. `texturesOnly`: only its faces' textures changed (Paint,
+// vr_brush_texture): its revision kept and nothing else told (Box3D's hulls, the ledges, the held weapons' triangles,
+// the marks on it all stay as they are).
+void rebuild(Entry& e, bool empty, bool texturesOnly = false)
 {
     glm::vec3 oldLo{1.f}, oldHi{0.f};
     if(e.built && !e.built->surfaces.empty())
@@ -762,13 +764,36 @@ void rebuild(Entry& e, bool empty)
     e.retired = ZA_MOVE(e.built);
     e.built = za::makeUnique<Built>();
     build(empty ? nullptr : &e.brush, *e.built);
-    e.revision = ++registry.revisions;
+    if(!texturesOnly)
+    {
+        e.revision = ++registry.revisions;
+    }
     if(e.model)
     {
         apply(e.model, e.built.get(), e.brush.id);
-        forgetModel(e.model, oldLo, oldHi);
+        if(!texturesOnly)
+        {
+            forgetModel(e.model, e.brush.id, oldLo, oldHi);
+        }
     }
     e.dirty = true;
+}
+
+// Whether two brushes have the same planes, in the same order (only their textures may differ).
+[[nodiscard]] bool sameShape(const Brush& a, const Brush& b)
+{
+    if(a.faces.size() != b.faces.size())
+    {
+        return false;
+    }
+    for(za::SizeT i = 0; i < a.faces.size(); i++)
+    {
+        if(a.faces[i].normal != b.faces[i].normal || a.faces[i].dist != b.faces[i].dist)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 // The entity of brush `e` placed at its model (made if it has none).
@@ -1292,7 +1317,7 @@ void list_f()
         glm::dvec3 lo, hi;
         const bool ok = bounds(b, lo, hi);
         const Entry* e = entryOf(b.id);
-        const int marks = decals::countIn(glm::vec3{lo} - glm::vec3{2.f}, glm::vec3{hi} + glm::vec3{2.f});
+        const int marks = decals::countOn(b.id, glm::vec3{lo} - glm::vec3{2.f}, glm::vec3{hi} + glm::vec3{2.f});
         Con_Printf("  %d: entity %d, rev %u, %d faces, %s, %.0f %.0f %.0f .. %.0f %.0f %.0f, %d decals%s\n", b.id, e ? e->edict : 0,
             b.rev, static_cast<int>(b.faces.size()), b.faces.empty() ? "-" : b.faces[0].texture, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z,
             marks, ok ? "" : " (no volume)");
@@ -1942,10 +1967,11 @@ bool change(int id, const Brush& b)
         return false;
     }
     const za::U32 rev = e->brush.rev;
+    const bool painted = e->built && !e->built->surfaces.empty() && sameShape(e->brush, b);
     e->brush = b;
     e->brush.id = id;
     e->brush.rev = rev + 1;
-    rebuild(*e, false);
+    rebuild(*e, false, painted);
     return placeEntity(*e);
 }
 
@@ -2268,7 +2294,7 @@ bool clipBox(const qmodel_t* model, const glm::vec3& start, const glm::vec3& min
 }
 
 void facesIn(const glm::vec3& lo, const glm::vec3& hi,
-    za::FunctionRef<void(const za::Vector<glm::vec3>& poly, const glm::vec3& normal)> f)
+    za::FunctionRef<void(const za::Vector<glm::vec3>& poly, const glm::vec3& normal, int id)> f)
 {
     za::Vector<glm::vec3> poly;
     for(const auto& ep : registry.entries)
@@ -2308,7 +2334,7 @@ void facesIn(const glm::vec3& lo, const glm::vec3& hi,
             {
                 n = -n;
             }
-            f(poly, n);
+            f(poly, n, ep->brush.id);
         }
     }
 }

@@ -120,9 +120,9 @@ bool clipBox(const qmodel_t* model, const glm::vec3& start, const glm::vec3& min
     const glm::vec3& end, trace_t& trace);
 
 // The client's brush faces whose box meets lo..hi (world space: the entities as drawn), as polygons (world space,
-// clockwise seen from outside) with their outward normals: the decals laid on them.
+// clockwise seen from outside) with their outward normals and their brush's id: the decals laid on them.
 void facesIn(const glm::vec3& lo, const glm::vec3& hi,
-    za::FunctionRef<void(const za::Vector<glm::vec3>& poly, const glm::vec3& normal)> f);
+    za::FunctionRef<void(const za::Vector<glm::vec3>& poly, const glm::vec3& normal, int id)> f);
 // The nearest brush face along the line (the client's entities): where, its normal, how far along (0..1); false: none.
 bool traceLine(const glm::vec3& start, const glm::vec3& end, glm::vec3& where, glm::vec3& normal, float& fraction);
 
