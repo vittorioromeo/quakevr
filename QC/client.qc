@@ -1875,7 +1875,7 @@ void() PlayerPreThink =
     // The grappling hooks of the guns in the hands and the holsters (vr_grapple.qc)
     VR_Grapple_PlayerFrame();
 
-    // Slid by a grunt's or an enforcer's shove (vr_enemyshove.qc)
+    // Slid by a grunt's, an enforcer's or a vore's shove (vr_enemyshove.qc)
     VR_EnemyShove_PlayerFrame();
 };
 
@@ -2669,7 +2669,7 @@ void(entity targ, entity attacker) ClientObituary =
                 if(attacker.classname == "monster_oldone" || MG3_Shub_Is(attacker) || MG3_Shub_IsChild(attacker)) // (QVR: MG3's and her eyes)
                     bprint(" became one with Shub-Niggurath\n");
                 if(attacker.classname == "monster_shalrath")
-                    bprint(" was exploded by a Vore\n");
+                    bprint(attacker.vr_eshove_striking ? " was swatted by a Vore\n" : " was exploded by a Vore\n"); // (QVR: its shove)
                 if(attacker.classname == "monster_shambler")
                     bprint(" was smashed by a Shambler\n");
                 if(attacker.classname == "monster_tarbaby")

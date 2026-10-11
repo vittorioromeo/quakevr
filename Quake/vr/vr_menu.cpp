@@ -873,7 +873,7 @@ int campaignsBloodyShown = -1;
     return {
         toggle("Enemy Shoves", vr_enemy_shove)
             .help("Grunts and enforcers shove you away, pushing their gun out with both hands, when you stand too close "
-                  "for a moment. Never while they fire, are staggered or knocked away."),
+                  "for a moment; vores swing their arms at you. Never while they fire, are staggered or knocked away."),
         slider("Too Close", vr_enemy_shove_range, 36.f, 96.f, 2.f, "%.0f units").extend(32.f, 160.f)
             .help("How close you must be (between your middles, flat: touching is 32 units) for them to shove you."),
         slider("Delay", vr_enemy_shove_delay, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 10.f)
@@ -891,6 +891,13 @@ int campaignsBloodyShown = -1;
             .help("An enforcer's shove's damage, times Damage."),
         slider("Enforcer Push", vr_enemy_shove_enforcer_distance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How far an enforcer's shove pushes you, times Push Distance."),
+        toggle("Vores Shove", vr_enemy_shove_vore)
+            .help("Vores shove you too, swinging their arms down at you: the hardest shove of all. They reach a little "
+                  "farther (they are wider)."),
+        slider("Vore Damage", vr_enemy_shove_vore_damage, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("A vore's shove's damage, times Damage."),
+        slider("Vore Push", vr_enemy_shove_vore_distance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How far a vore's shove pushes you, times Push Distance."),
     };
 }
 
@@ -6367,7 +6374,8 @@ za::Vector<Item> pageDebugTests()
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
-                  "staggered). Developer 1 logs grunts' and enforcers' shoves and why one can't shove (Combat > Enemy Shoves)."),
+                  "staggered). Developer 1 logs grunts', enforcers' and vores' shoves and why one can't shove (Combat > "
+                  "Enemy Shoves)."),
         command("Knock Down the Nearest", "vr_knockdown_test 0")
             .help("vr_knockdown_test 0: the nearest monster that can be knocked down is, pushed away from you, whatever "
                   "its chance (A Grunt Ahead first: Debug > Tests)."),
