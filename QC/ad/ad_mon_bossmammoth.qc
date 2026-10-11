@@ -587,7 +587,7 @@ void(vector ad_offset) ad_mammoth_lightning =
 	// Create lightning bolt
 	WriteByte (ad_MSG_BROADCAST, ad_SVC_TEMPENTITY);
 	WriteByte (ad_MSG_BROADCAST, ad_TE_LIGHTNING2);
-	WriteEntity (ad_MSG_BROADCAST, self);
+	WriteEntity (ad_MSG_BROADCAST, self); WriteByte (ad_MSG_BROADCAST, 0);
 	WriteCoord (ad_MSG_BROADCAST, ad_startvec_x);
 	WriteCoord (ad_MSG_BROADCAST, ad_startvec_y);
 	WriteCoord (ad_MSG_BROADCAST, ad_startvec_z);

@@ -141,7 +141,7 @@ void() ad_trap_shooter_fire =
 		// Generate the lightning effect
 		WriteByte (ad_MSG_BROADCAST, ad_SVC_TEMPENTITY);
 		WriteByte (ad_MSG_BROADCAST, self.lip);
-		WriteEntity (ad_MSG_BROADCAST, self);
+		WriteEntity (ad_MSG_BROADCAST, self); WriteByte (ad_MSG_BROADCAST, 0);
 		WriteCoord (ad_MSG_BROADCAST, ad_lightn_start_x);
 		WriteCoord (ad_MSG_BROADCAST, ad_lightn_start_y);
 		WriteCoord (ad_MSG_BROADCAST, ad_lightn_start_z);

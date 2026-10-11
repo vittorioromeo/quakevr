@@ -166,7 +166,7 @@ void() ad_ftop_lightning =
 	// Generate the lightning effect
 	WriteByte (ad_MSG_BROADCAST, ad_SVC_TEMPENTITY);
 	WriteByte (ad_MSG_BROADCAST, ad_TE_LIGHTNING3);
-	WriteEntity (ad_MSG_BROADCAST, self);
+	WriteEntity (ad_MSG_BROADCAST, self); WriteByte (ad_MSG_BROADCAST, 0);
 	WriteCoord (ad_MSG_BROADCAST, self.pos1_x);
 	WriteCoord (ad_MSG_BROADCAST, self.pos1_y);
 	WriteCoord (ad_MSG_BROADCAST, self.pos1_z);

@@ -116,7 +116,7 @@ void(entity ad_beamhook, entity ad_targ) ad_GrappleHook_Beam =
 	// Draw a line (beam.mdl) from hook to player
 	WriteByte (ad_MSG_BROADCAST, ad_SVC_TEMPENTITY);
 	WriteByte (ad_MSG_BROADCAST, ad_TE_BEAM);
-	WriteEntity (ad_MSG_BROADCAST, ad_beamhook);
+	WriteEntity (ad_MSG_BROADCAST, ad_beamhook); WriteByte (ad_MSG_BROADCAST, 0);
 	WriteCoord (ad_MSG_BROADCAST, ad_beamhook.origin_x);
 	WriteCoord (ad_MSG_BROADCAST, ad_beamhook.origin_y);
 	WriteCoord (ad_MSG_BROADCAST, ad_beamhook.origin_z);

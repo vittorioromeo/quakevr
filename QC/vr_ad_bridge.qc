@@ -154,7 +154,35 @@ void() AD_WorldSpawn =
     ad_worldspawn();
 };
 
-// StartFrame, in an AD map: AD's (skill, frame count).
+// vr_ad_test (Debug > Tests > Arcane Dimensions): 1 plays the map's first cinematic camera (misc_camera with a
+// targetname) on the player; 2 reports the cinematic system's and the player's state (one "adtest:" line).
+void(float request) AD_Test =
+{
+    entity p = find(world, classname, "player");
+    if(request == 1)
+    {
+        entity cam = find(world, classname, "misc_camera");
+        while(cam && cam.targetname == "") cam = find(cam, classname, "misc_camera");
+        if(!cam || !p)
+        {
+            bprint("adtest: no misc_camera with a targetname here\n");
+            return;
+        }
+        entity oself = self, oother = other;
+        self = cam;
+        other = p;
+        ad_activator = p;
+        ad_misc_camera_use();
+        self = oself;
+        other = oother;
+        bprint(sprintf("adtest: camera %s started at %v\n", cam.targetname, cam.origin));
+        return;
+    }
+    bprint(sprintf("adtest: cinematic %g active %g player movetype %g solid %g takedamage %g origin %v health %g\n",
+        ad_cinematic_running, ad_cam_active, p.movetype, p.solid, p.takedamage, p.origin, p.health));
+};
+
+// StartFrame, in an AD map: AD's (skill, frame count); the test aid.
 void() AD_Frame =
 {
     if(!AD_Rules())
@@ -162,6 +190,12 @@ void() AD_Frame =
         return;
     }
     ad_StartFrame();
+    float request = cvar("vr_ad_test");
+    if(request)
+    {
+        cvar_set("vr_ad_test", "0");
+        AD_Test(request);
+    }
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -321,6 +355,89 @@ float() AD_PlayerLanded =
     return TRUE;
 };
 
+// Our items in AD maps: AD's respawn (decision 25: AD levels only) and STARTOFF keys.
+.string vr_ad_offmodel; // a STARTOFF item's model, until a trigger brings it in
+.vector vr_ad_offmins, vr_ad_offmaxs;
+
+// A STARTOFF item (64) triggered: it appears (placed as it would have been at the map's start).
+void() AD_ItemAppear =
+{
+    if(self.vr_ad_offmodel == "")
+    {
+        return;
+    }
+    setmodel(self, self.vr_ad_offmodel);
+    setsize(self, self.vr_ad_offmins, self.vr_ad_offmaxs);
+    self.vr_ad_offmodel = "";
+    self.use = SUB_Null;
+    self.nextthink = time + 0.1;
+    self.think = PlaceItem;
+};
+
+// StartItem, in an AD map: an item AD's STARTOFF flag holds back waits, unseen and untouchable, for its trigger.
+// TRUE: it waits.
+float() AD_ItemStartOff =
+{
+    if(!AD_Rules() || !(self.spawnflags & ad_ENT_STARTOFF) || self.targetname == "" || self.model == "")
+    {
+        return FALSE;
+    }
+    self.vr_ad_offmodel = self.model;
+    self.vr_ad_offmins = self.mins;
+    self.vr_ad_offmaxs = self.maxs;
+    setmodel(self, "");
+    self.solid = SOLID_NOT;
+    self.use = AD_ItemAppear;
+    return TRUE;
+};
+
+// A respawning item (RESPAWN 16, respawn_trig) triggered after it was taken: back now.
+void() AD_ItemRespawnUse =
+{
+    if(self.model != string_null)
+    {
+        return;
+    }
+    self.use = SUB_Null;
+    VR_PickupObj_Regen();
+};
+
+// VR_PickupObj_Taken, the item taken in an AD map: AD's respawn (RESPAWN flag 16): after respawn_time (default 30 s),
+// or when triggered (respawn_trig), at most respawn_count times (0: always).
+void(entity xItem) AD_ItemTaken =
+{
+    if(!AD_Rules() || !(xItem.spawnflags & ad_ITEM_RESPAWN) || xItem.model != string_null)
+    {
+        return;
+    }
+    if(xItem.ad_respawn_count > 0)
+    {
+        xItem.ad_respawn_count = xItem.ad_respawn_count - 1;
+        if(xItem.ad_respawn_count == 0) xItem.spawnflags = xItem.spawnflags - ad_ITEM_RESPAWN;
+    }
+    if(xItem.ad_respawn_trig || xItem.ad_respawn_time < 0)
+    {
+        xItem.use = AD_ItemRespawnUse;
+        return;
+    }
+    xItem.think2 = VR_PickupObj_Regen;
+    xItem.nextthink2 = time + (xItem.ad_respawn_time > 0 ? max(1, xItem.ad_respawn_time) : 30);
+};
+
+// health_touch, a megahealth taken in an AD map: AD's rot (decision 15): one rot for the player however many megahealths
+// he took (Quake's: one each, so two rot twice as fast), from 5 s on, a point a second down to his maximum, ticked
+// with AD's debuffs (AD_PlayerPostThink). TRUE: taken (Quake's rot not started).
+float(entity p) AD_MegaRot =
+{
+    if(!AD_Rules())
+    {
+        return FALSE;
+    }
+    ad_RotDeBuff(p, 0);
+    VR_ItemUtil_EntAddItem(p, IID_SUPERHEALTH);
+    return TRUE;
+};
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Levels: parms, exits
 
@@ -447,8 +564,28 @@ void() AD_MonsterRunStart =
     activator = oldact;
 };
 
+// One of our entities used by AD's triggers in an AD map: AD's code keeps its own activator (ad_activator), ours reads
+// activator: the player AD's trigger names, when ours names none.
+void() AD_SyncActivator =
+{
+    if(AD_Rules() && !(activator.flags & FL_CLIENT) && (ad_activator.flags & FL_CLIENT))
+    {
+        activator = ad_activator;
+    }
+};
+
+// Our SUB_UseTargets in an AD map: AD's entities it fires read AD's activator: the player ours names.
+void() AD_ShareActivator =
+{
+    if(AD_Rules() && (activator.flags & FL_CLIENT))
+    {
+        ad_activator = activator;
+    }
+};
+
 void() AD_MonsterActivate =
 {
+    AD_SyncActivator();
     if(!self.MG_deferred) return;
     self.MG_deferred = FALSE;
     self.solid = self.MG_monster_solid;
@@ -568,6 +705,161 @@ float(float shotcount, vector dir, vector spread, vector src) AD_EnemyPellets =
         shotcount = shotcount - 1;
     }
     return TRUE;
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// AD's weapons, a first version (decision 23): AD's upgrades are the player's (AD's .moditems, carried in parm63), as in
+// AD: with the Shadow Axe every axe he holds hits harder, with the Widowmaker every super shotgun fires 21 pellets for 3
+// shells, with the Plasma Gun the lightning gun fires plasma bolts. Quake VR's models, holsters and reloading (the
+// "simple reload" at the hip for the Widowmaker); AD's own models and VR polish come later (P3/P4).
+
+.float vr_ad_upgrade; // a weapon pickup that is AD's upgrade (its .moditems bit): weapon_touch gives it (AD_UpgradePickedUp)
+
+// Whether self (a player) has AD's upgrade `bit`, in an AD map.
+float(float bit) AD_HasUpgrade =
+{
+    return AD_Rules() && (self.ad_moditems & bit);
+};
+
+// W_FireAxe's blow: the Shadow Axe's (AD's 35 for the axe's 20).
+float() AD_AxeScale =
+{
+    return AD_HasUpgrade(ad_IT_UPGRADE_AXE) ? ad_DAMAGE_PLAYAXE2 / ad_DAMAGE_PLAYAXE1 : 1;
+};
+
+// W_FireSuperShotgun's pellets: the Widowmaker's 21 when a third shell is in the reserve (taken), else `pellets`.
+float(float pellets) AD_WidowmakerPellets =
+{
+    if(!AD_HasUpgrade(ad_IT_UPGRADE_SSG) || self.ammo_shells < 1)
+    {
+        return pellets;
+    }
+    self.ammo_shells = self.ammo_shells - 1;
+    return pellets * ad_QUANTITY_WM / ad_QUANTITY_SSG;
+};
+
+// Whether the super shotgun in self's hands is the Widowmaker: reloaded at the hip (the simple reload), never broken
+// open (vr_reload.qc VR_Reload_ManualFor).
+float() AD_Widowmaker =
+{
+    return AD_HasUpgrade(ad_IT_UPGRADE_SSG);
+};
+
+// Whether the lightning gun with flags `xFlags` is AD's Plasma Gun (not Rogue's plasma, its secondary ammo).
+float(float xFlags) AD_PlasmaGun =
+{
+    return AD_HasUpgrade(ad_IT_UPGRADE_LG) && !(xFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO);
+};
+
+// The Plasma Gun's shot (W_Attack, every 0.2 s): a plasma bolt from the muzzle, a cell; under water it misfires.
+void(float xHand) AD_FirePlasma =
+{
+    if(getCurrentAmmoOrClip(xHand) < 1)
+    {
+        return;
+    }
+    if(self.waterlevel > 1)
+    {
+        sound(self, VRGetGunChannel(xHand), ad_SOUND_MISFIRE, 1, ATTN_NORM);
+        return;
+    }
+    sound(self, VRGetGunChannel(xHand), ad_SOUND_PLASMA_FIRE, 1, ATTN_NORM);
+    self.punchangle_x = -2;
+    delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 1);
+    ad_launch_plasma(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand), ad_CT_PLAYER, ad_SPEED_PLAYPLASMA);
+    weaponfired(self, xHand);
+    VRGunHaptic(xHand, 0.3, 60, 0.7);
+};
+
+// AD's own weapon pickup (an AD entity that is one: its upgrades and weapons spawn as Quake VR's) touched by a player:
+// never taken (AD's would set the player's .weapon, our hands' weapon id). TRUE: AD's touch returns.
+float() VR_AD_WeaponTouch =
+{
+    if(other.flags & FL_CLIENT)
+    {
+        dprint(sprintf("VR: AD's own %s pickup is not taken by a Quake VR player\n", self.classname));
+        return TRUE;
+    }
+    return FALSE;
+};
+
+// AD's weapon upgrade pickups as Quake VR's weapon pickups (the base weapon, AD's pickup model), outside AD maps none.
+void(string xModel, string xClassname, float xWeaponId, float xUpgrade, string xName) AD_UpgradeItem =
+{
+    if(!AD_Rules())
+    {
+        remove(self);
+        return;
+    }
+    self.classname = xClassname; // (weapon_touch reads the weapon from it)
+    impl_weapon_item(xModel, xWeaponId);
+    self.vr_ad_upgrade = xUpgrade;
+    self.netname = xName;
+};
+
+// weapon_touch, the weapon given: AD's upgrade with it (the Shadow Axe takes the place of AD's grapple, as in AD).
+void(entity p) AD_UpgradePickedUp =
+{
+    if(!self.vr_ad_upgrade)
+    {
+        return;
+    }
+    if(self.vr_ad_upgrade == ad_IT_UPGRADE_AXE)
+    {
+        p.ad_moditems = p.ad_moditems - (p.ad_moditems & ad_IT_UPGRADE_GHOOK);
+    }
+    p.ad_moditems = p.ad_moditems | self.vr_ad_upgrade;
+};
+
+/*QUAKED weapon_upgrade_axe (0 .5 .8) (-16 -16 0) (16 16 56)
+Arcane Dimensions' Shadow Axe, in its maps (vr_ad_bridge.qc): the axe, and every axe you hold hits as AD's (35 for 20).
+*/
+void() weapon_upgrade_axe =
+{
+    AD_UpgradeItem(ad_MODEL_GWEAP_UPAXE, "weapon_axe", WID_AXE, ad_IT_UPGRADE_AXE, "Shadow Axe");
+    self.skin = 4; // (AD's Shadow Axe skin)
+};
+
+/*QUAKED weapon_hammer (0 .5 .8) (-16 -16 0) (16 16 56)
+Arcane Dimensions' name for its Shadow Axe (weapon_upgrade_axe), in its maps.
+*/
+void() weapon_hammer =
+{
+    weapon_upgrade_axe();
+};
+
+/*QUAKED weapon_upgrade_ssg (0 .5 .8) (-16 -16 0) (16 16 56)
+Arcane Dimensions' Widowmaker, in its maps (vr_ad_bridge.qc): the super shotgun, and every one you hold fires AD's
+21 pellets for 3 shells; reloaded at the hip.
+*/
+void() weapon_upgrade_ssg =
+{
+    AD_UpgradeItem(ad_MODEL_GWEAP_UPSSG, "weapon_supershotgun", WID_SUPER_SHOTGUN, ad_IT_UPGRADE_SSG, "Widowmaker");
+};
+
+/*QUAKED weapon_upgrade_lg (0 .5 .8) (-16 -16 0) (16 16 56)
+Arcane Dimensions' Plasma Gun, in its maps (vr_ad_bridge.qc): the lightning gun, and every one you hold fires AD's
+plasma bolts.
+*/
+void() weapon_upgrade_lg =
+{
+    AD_UpgradeItem(ad_MODEL_GWEAP_UPLG, "weapon_lightning", WID_LIGHTNING, ad_IT_UPGRADE_LG, "Plasma Gun");
+};
+
+/*QUAKED weapon_plasmagun (0 .5 .8) (-16 -16 0) (16 16 56)
+Arcane Dimensions' name for its Plasma Gun (weapon_upgrade_lg), in its maps.
+*/
+void() weapon_plasmagun =
+{
+    weapon_upgrade_lg();
+};
+
+/*QUAKED weapon_upgrade_ghook (0 .5 .8) (-16 -16 0) (16 16 56)
+Arcane Dimensions' grappling hook: Quake VR's is the player's own (Movement > Grappling Hook); nothing to pick up.
+*/
+void() weapon_upgrade_ghook =
+{
+    remove(self);
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

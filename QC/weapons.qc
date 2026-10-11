@@ -1255,7 +1255,7 @@ void(float xHand) W_FireAxe =
     float  bleed;
     bleed = FALSE;
 
-    xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe));
+    xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe) * AD_AxeScale()); // AD support: the Shadow Axe (vr_ad_bridge.qc)
 
     // HONEY
     // Check if we maybe should gib some zombies for fun!
@@ -2177,7 +2177,7 @@ void(float xHand) W_FireSuperShotgun =
     }
     else
     {
-        FireBullets(xHand, 14, dir, '0.035 0.025 0');
+        FireBullets(xHand, AD_WidowmakerPellets(14), dir, '0.035 0.025 0'); // AD support: the Widowmaker's 21 (vr_ad_bridge.qc)
     }
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
@@ -3479,6 +3479,11 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         }
 
         *xOutAttackFinished = time + RuneApplyHell(0.8, self);
+    }
+    else if(xWeapon == WID_LIGHTNING && AD_PlasmaGun(xWeaponFlags)) // AD support: the Plasma Gun (vr_ad_bridge.qc)
+    {
+        AD_FirePlasma(xHand);
+        *xOutAttackFinished = time + 0.2;
     }
     else if(xWeapon == WID_LIGHTNING)
     {

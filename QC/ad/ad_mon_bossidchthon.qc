@@ -281,7 +281,7 @@ void() ad_lightning_fire =
 
 	WriteByte (ad_MSG_ALL, ad_SVC_TEMPENTITY);
 	WriteByte (ad_MSG_ALL, ad_TE_LIGHTNING3);
-	WriteEntity (ad_MSG_ALL, world);
+	WriteEntity (ad_MSG_ALL, world); WriteByte (ad_MSG_ALL, 0);
 	WriteCoord (ad_MSG_ALL, ad_p1_x);
 	WriteCoord (ad_MSG_ALL, ad_p1_y);
 	WriteCoord (ad_MSG_ALL, ad_p1_z);

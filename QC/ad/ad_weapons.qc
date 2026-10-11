@@ -686,7 +686,7 @@ void(vector ad_lstart, entity ad_lsource, float ad_ldamage) ad_LightningReflecti
 		// Draw lighting beam (32 model unit chunks)
 		WriteByte (ad_MSG_BROADCAST, ad_SVC_TEMPENTITY);
 		WriteByte (ad_MSG_BROADCAST, ad_TE_LIGHTNING2);
-		WriteEntity (ad_MSG_BROADCAST, ad_lsource);
+		WriteEntity (ad_MSG_BROADCAST, ad_lsource); WriteByte (ad_MSG_BROADCAST, 0);
 		WriteCoord (ad_MSG_BROADCAST, ad_lstart_x);
 		WriteCoord (ad_MSG_BROADCAST, ad_lstart_y);
 		WriteCoord (ad_MSG_BROADCAST, ad_lstart_z);
@@ -837,7 +837,7 @@ void() ad_W_FireLightning =
 
 	WriteByte (ad_MSG_BROADCAST, ad_SVC_TEMPENTITY);
 	WriteByte (ad_MSG_BROADCAST, ad_TE_LIGHTNING2);
-	WriteEntity (ad_MSG_BROADCAST, self);
+	WriteEntity (ad_MSG_BROADCAST, self); WriteByte (ad_MSG_BROADCAST, 0);
 	WriteCoord (ad_MSG_BROADCAST, ad_dir_x);
 	WriteCoord (ad_MSG_BROADCAST, ad_dir_y);
 	WriteCoord (ad_MSG_BROADCAST, ad_dir_z);

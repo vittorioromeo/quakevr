@@ -1090,6 +1090,7 @@ void(entity ad_targ) ad_bound_other_ammo =
 void() ad_weapon_touch =
 {
 	local float ad_pickupweapon, ad_pickupmodweapon, ad_pickupammo, ad_moditem;
+	if (VR_AD_WeaponTouch()) return;
 
 	// Reset all weapon pickup items
 	ad_pickupweapon = ad_pickupmodweapon = ad_IT_NOWEAPON;

@@ -112,6 +112,9 @@ PATCHES = [
     ("ai_pathcorner.qc", "void() path_corner_touch =\n{\n",
      "void() path_corner_touch =\n{\n\tif (VR_AD_PathCornerTouch()) return;\n",
      1, B + ": our monsters follow AD's path_corners as ours (t_movetarget)"),
+    ("items.qc", "void() weapon_touch =\n{\n\tlocal float pickupweapon, pickupmodweapon, pickupammo, moditem;\n",
+     "void() weapon_touch =\n{\n\tlocal float pickupweapon, pickupmodweapon, pickupammo, moditem;\n\tif (VR_AD_WeaponTouch()) return;\n",
+     1, B + ": never AD's weapon pickup on a Quake VR player (it sets .weapon, our hands' weapon id); ours are Quake VR's"),
     ("ai_projectiles.qc", "\t\telse self.dmg = DAMAGE_PSHELL;",
      "\t\telse self.dmg = DAMAGE_PSHELL * VR_AD_PelletDamage(self);",
      1, B + ": the pellet damage settings (vr_ad_pellet_damage, Weapon Damage)"),
@@ -482,6 +485,15 @@ def main():
         if src[fn].count(old) != count:
             sys.exit("ad_import: patch for %s (%s) matches %d times, not %d: %r" % (fn, why, src[fn].count(old), count, old))
         src[fn] = src[fn].replace(old, new)
+    # Mechanical: Quake VR's beam temp entities (TE_LIGHTNING1/2/3, TE_BEAM) carry a beam id byte after the entity
+    # (the client's VR_ParseBeamEntity; ours write 0 for a monster's). Every WriteEntity in AD's code (not commented out)
+    # is one of those beams' entity: the byte follows it, else the client reads the next message one byte off.
+    beam_rx = re.compile(r"^([ \t]*)WriteEntity[ \t]*\([ \t]*(MSG_\w+)[ \t]*,([^;\n]*)\);", re.M)
+    beam_ids = 0
+    for fn in src:
+        src[fn], n = beam_rx.subn(lambda m: "%sWriteEntity (%s,%s); WriteByte (%s, 0);" % (
+            m.group(1), m.group(2), m.group(3), m.group(2)), src[fn])
+        beam_ids += n
     order = []
     for line in src["progs.src"].splitlines()[1:]:
         line = line.split("//")[0].strip()
@@ -660,6 +672,7 @@ def main():
         "Map-key fields renamed ad_<key> (no Quake VR field, or another type; in an AD map the engine fills them from the key, pr_edict.c): %d" % len(renamed_keys),
         "  of them a type clash: " + (", ".join(clash_type) or "none"),
         "  " + ", ".join(renamed_keys),
+        "Beam temp entities given Quake VR's beam id byte after WriteEntity (mechanical): %d" % beam_ids,
         "Reviewed patches: %d precedence, %d bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):" % (
             sum(1 for p in PATCHES if p[4].startswith(P)), sum(1 for p in PATCHES if p[4].startswith(B))),
     ] + ["  %s: %s" % (p[0], p[4]) for p in PATCHES if p[4].startswith(B)]

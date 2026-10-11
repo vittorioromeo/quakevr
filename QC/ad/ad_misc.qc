@@ -1964,7 +1964,7 @@ void() ad_misc_builtineffects_fire =
 		self.pos2 = normalize(self.pos2);
 		self.pos2 = self.origin + (self.pos2 * self.t_length);
 	
-		WriteEntity (ad_MSG_BROADCAST, self);
+		WriteEntity (ad_MSG_BROADCAST, self); WriteByte (ad_MSG_BROADCAST, 0);
 		WriteCoord (ad_MSG_BROADCAST, self.origin_x);
 		WriteCoord (ad_MSG_BROADCAST, self.origin_y);
 		WriteCoord (ad_MSG_BROADCAST, self.origin_z);

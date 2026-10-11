@@ -299,7 +299,7 @@ void() ad_sham_lightning =
 	// Display lightning model segments
 	WriteByte (ad_MSG_BROADCAST, ad_SVC_TEMPENTITY);
 	WriteByte (ad_MSG_BROADCAST, ad_TE_LIGHTNING1);
-	WriteEntity (ad_MSG_BROADCAST, self);
+	WriteEntity (ad_MSG_BROADCAST, self); WriteByte (ad_MSG_BROADCAST, 0);
 	WriteCoord (ad_MSG_BROADCAST, ad_org_x);
 	WriteCoord (ad_MSG_BROADCAST, ad_org_y);
 	WriteCoord (ad_MSG_BROADCAST, ad_org_z);

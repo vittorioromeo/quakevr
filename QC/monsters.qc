@@ -20,6 +20,7 @@ Using a monster makes it angry at the current activator
 */
 void() monster_use =
 {
+    AD_SyncActivator(); // AD support: used by AD's triggers, whose activator is AD's (vr_ad_bridge.qc)
     if(self.enemy)
         return;
 

@@ -26,6 +26,8 @@ float() VR_OtherFlags =
 
 // Quake VR's side (vr_ad_bridge.qc): each one does nothing outside AD's rules unless it says otherwise.
 void() AD_WorldSpawn;                // worldspawn's end: AD's world setup
+void() AD_SyncActivator;             // monster_use: AD's triggers' activator as ours, in an AD map
+void() AD_ShareActivator;            // SUB_UseTargets: our activator as AD's, in an AD map
 void() AD_Frame;                     // StartFrame
 void() AD_PlayerSpawned;             // PutClientInServer's end
 void() AD_PlayerPreThink;            // PlayerPreThink
@@ -45,6 +47,15 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
 float(float shotcount, vector dir, vector spread, vector src) AD_EnemyPellets; // EnemyFireBullets: TRUE when AD's pellets went
 float(entity e) AD_TestWaiting;      // vr_test_monsters: one of AD's monsters waiting for its trigger
 float(entity p) AD_TestWake;         // vr_test_monsters: AD's monster (self) hunts p; TRUE: it was one
+float() AD_AxeScale;                 // W_FireAxe: the Shadow Axe's blow (1 without it)
+float(float pellets) AD_WidowmakerPellets; // W_FireSuperShotgun: the Widowmaker's 21 (a reserve shell taken), or pellets
+float() AD_Widowmaker;               // vr_reload.qc: self's super shotgun is the Widowmaker (reloaded at the hip)
+float(float xFlags) AD_PlasmaGun;    // W_Attack: the lightning gun is AD's Plasma Gun
+void(float xHand) AD_FirePlasma;     // W_Attack: its bolt
+void(entity p) AD_UpgradePickedUp;   // weapon_touch: an AD upgrade's pickup
+float(entity p) AD_MegaRot;          // health_touch: AD's megahealth rot in an AD map; TRUE: taken
+void(entity xItem) AD_ItemTaken;     // VR_PickupObj_Taken: AD's item respawn in an AD map
+float() AD_ItemStartOff;             // StartItem: AD's STARTOFF item waits for its trigger; TRUE: it waits
 
 // AD's side: the reviewed patches of Misc/quakevr/ad_import.py call these (never renamed).
 float() VR_AD_Extensions;
@@ -54,3 +65,4 @@ float(entity targ, entity inflictor, entity attacker, float damage, float checka
 void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit;
 float() VR_AD_PathCornerTouch;
 float(entity pellet) VR_AD_PelletDamage;
+float() VR_AD_WeaponTouch;

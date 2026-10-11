@@ -612,7 +612,7 @@ void(vector ad_rockofs, float ad_rockframe) ad_Setup_attackE =
 		self.effects = self.effects | ad_EF_MUZZLEFLASH;
 		WriteByte (ad_MSG_BROADCAST, ad_SVC_TEMPENTITY);
 		WriteByte (ad_MSG_BROADCAST, ad_TE_LIGHTNING2);
-		WriteEntity (ad_MSG_BROADCAST, self);
+		WriteEntity (ad_MSG_BROADCAST, self); WriteByte (ad_MSG_BROADCAST, 0);
 		WriteCoord (ad_MSG_BROADCAST, self.ad_attachment.origin_x);
 		WriteCoord (ad_MSG_BROADCAST, self.ad_attachment.origin_y);
 		WriteCoord (ad_MSG_BROADCAST, self.ad_attachment.origin_z);
@@ -822,7 +822,7 @@ void() ad_eidolon_die2 =
 			// Create lightning bolt
 			WriteByte (ad_MSG_BROADCAST, ad_SVC_TEMPENTITY);
 			WriteByte (ad_MSG_BROADCAST, ad_TE_LIGHTNING2);
-			WriteEntity (ad_MSG_BROADCAST, self);
+			WriteEntity (ad_MSG_BROADCAST, self); WriteByte (ad_MSG_BROADCAST, 0);
 			WriteCoord (ad_MSG_BROADCAST, self.origin_x);
 			WriteCoord (ad_MSG_BROADCAST, self.origin_y);
 			WriteCoord (ad_MSG_BROADCAST, self.origin_z);

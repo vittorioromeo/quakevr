@@ -3625,6 +3625,26 @@ void hologramTestMessage()
 
 // Combat > Burning (QC vr_burning.qc): what a lit torch, a thrown one or a lava nail sets on fire; crates; nails through
 // a torch's flame.
+// Combat > Arcane Dimensions (AD support, ARCANE_DIMENSIONS.md decisions 2 and 22): AD's projectile pellets and whose
+// projectile rules play (QC vr_ad_bridge.qc AD_Pellets).
+[[nodiscard]] za::Vector<Item> pageArcaneDimensions()
+{
+    return {
+        cycle("Projectile Rules", vr_ad_projectiles, {{0.f, "Auto"}, {1.f, "Vanilla"}, {2.f, "Arcane Dimensions"}})
+            .help("Whose rules your shotguns and the vanilla monsters' shotguns play by. Auto: Arcane Dimensions' in its "
+                  "maps (projectile pellets you see fly), Quake's hitscan elsewhere. Vanilla: hitscan everywhere. Arcane "
+                  "Dimensions: its pellets wherever its data is loaded. Its own monsters always fire its pellets."),
+        slider("Pellet Spread", vr_ad_pellet_spread, 0.f, 2.f, 0.05f, "x%.2f").extend(0.f, 4.f)
+            .help("Arcane Dimensions' pellets: how wide they spread, times its own (the shotgun 0.04, the super shotgun "
+                  "0.14 by 0.08: wider than Quake VR's hitscan, aimed with the hand). 0: every pellet straight."),
+        slider("Pellet Speed", vr_ad_pellet_speed, 0.25f, 3.f, 0.05f, "x%.2f").extend(0.1f, 10.f)
+            .help("How fast your pellets fly, times Arcane Dimensions' (the shotgun 2000, the super shotgun 1500 units a "
+                  "second): faster is nearer hitscan."),
+        slider("Pellet Damage", vr_ad_pellet_damage, 0.f, 3.f, 0.05f, "x%.2f").extend(0.f, 10.f)
+            .help("Your pellets' damage, times Weapon Damage's shotgun and super shotgun pellet (4: Arcane Dimensions')."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageBurning()
 {
     return {
@@ -6102,6 +6122,19 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive authored mge2m2 puzzle test. Reload afterward."),
         command("Machine: Equipment Carry Setup", "vr_mg_hub_test 20")
             .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
+        command("Arcane Dimensions: Play (Developer)", "vr_campaign_native ad")
+            .help("AD support in progress (ARCANE_DIMENSIONS.md): a new Arcane Dimensions game at its hub, its own start "
+                  "map, with the latest release (1.80 patch 1) in an ad folder. Its maps play by its rules; the console "
+                  "says what is missing."),
+        command("Arcane Dimensions: Play a Cinematic Camera", "vr_ad_test 1")
+            .help("In an Arcane Dimensions map: its first cinematic camera (misc_camera) plays on you, as its trigger "
+                  "would start it. You are moved to its view and back when it ends (its VR presentation is to come)."),
+        command("Arcane Dimensions: Cinematic Report", "vr_ad_test 2")
+            .help("One adtest: line in the console: the cinematic camera's state, how you are held (move type, solid, "
+                  "damage), where you are."),
+        command("Arcane Dimensions: Status", "vr_ad_info")
+            .help("vr_ad_info: AD's data (the latest release, another version refused), whether this map plays by AD's "
+                  "rules and why (the campaign, or the signals found), how many of its entities spawned with AD's code."),
         command("Whole-Map Monsters: Report", "vr_test_monsters 1")
             .help("Count this map's monsters: live, awake (hunting someone), dead, waiting for their trigger (one "
                   "monsterstest: line)."),
@@ -8371,6 +8404,9 @@ za::Vector<Item> pageCombat()
         open("Stealth AI", pageIndex(pageStealth))
             .help("Enhanced AI (on/off: Quake's monsters at once). Monsters idle, alert or hostile: seeing you by the light "
                   "on you, hearing noises, investigating, spreading the alarm; sneak attacks."),
+        open("Arcane Dimensions", pageIndex(pageArcaneDimensions))
+            .help("The Arcane Dimensions mod's projectile pellets: whose rules play where (Auto, Vanilla, Arcane "
+                  "Dimensions), their spread, speed and damage."),
     };
 }
 
