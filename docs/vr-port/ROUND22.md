@@ -3395,3 +3395,55 @@ lying. Save and load keep them (and their sleep). ragdoll_test flat, cap, save u
 **In the headset:** MG3's start map and map2b: the placed ogres (and shamblers) lie on their blood pools; walk up to
 one, take a limb, lift and drag it, cut it, shoot it to gibs. Walking on, the bodies left behind lie still as placed.
 Open question: a placed ogre is heavy (200 kg) lifted by the head in the mock (24 units behind the hand after 30 up).
+
+## The physgun's sticks without X/A; a light prop's hold no longer dilutes a lift's carry (2026-10-11, worktree `physsticks`)
+
+### The physgun: both sticks drive the hold (review g2 F2)
+
+His design: while the physgun holds something, both sticks act on it with no button, and the player neither walks nor
+turns until it is let go. `vr_toolgun.cpp` (`physgunHolds`, `sticksFrame`, `sticksTaken`, `button`):
+
+- The mapping is the X/A one it had: the gun's stick forward/back pushes it away / pulls it in, left/right turns it
+  (about Sticks Turn, `vr_toolgun_turn_axis`, yaw by default); the other stick raises/lowers it and moves it aside. The
+  wrist still turns it as before.
+- Stick presses during a hold: the gun's (with or without X/A, and even when bullet time owns that stick) and the other
+  hand's (its `+speed`, `+reloadmain` or bullet time) are swallowed: a hard push on a stick never changes the tool, drops
+  the prop, reloads or starts bullet time.
+- Snapping is now only the modifier: X/A held snaps its angles to `vr_toolgun_snap` (15), so stick turns are smooth
+  without it. New: letting go of X/A keeps the snapped angles (the snap's correction is baked into the turn, both in
+  wrist mode and `vr_toolgun_physgun_wrist 0`) instead of springing back to the unsnapped ones. F2's "wrist 0 also
+  snaps" is moot: nothing snaps without X/A.
+- Spawn's ghost, Scale and Brush keep X/A held for the sticks (no hold to own them otherwise).
+- The Physgun page's text, TOOLGUN.md's buttons and sticks tables, the headers' comments updated.
+
+**Tests** (`Misc/quakevr/toolgun_panel_test.sh physsticks`: PASS): holding a crate, no button, the gun stick (0.8, 1)
+and the other (1, 1) for 30 frames: distance 68 -> 95, raised 45 -> 66, turned (yaw 2.4 -> -27.9), unsnapped; the
+player's position and yaw unchanged; each stick's press swallowed (still Physgun, still holding); X/A: angles
+(-5.7, -27.9, 22.9) -> (0, -30, 30); X/A let go: still (0, -30, 30); the crate let go: the off stick walks 134 units.
+
+**In the headset:** take a crate with the physgun: both sticks move and turn it smoothly and you stay put; push a stick
+hard (click): nothing happens; hold X/A while turning: 15 degree steps, let go of X/A: it stays at the step; let go of
+the crate: you walk and turn again.
+
+### Climbing: a light prop's hold no longer halves a moving hold's carry (review g2 finding 2)
+
+`vr_climb.cpp` (VR_ClientClimb): the carry (how far the holds moved this frame) was summed over the non-light holds but
+divided by every hold, so one hand on a light prop halved what the other hand's moving hold carried. It is now divided
+by the holds that carry (none: no carry).
+
+What it changes, measured: **not the lift.** A plat, train or door carries a body hanging from it through
+SV_PushMove (VR_ClimbHangsFrom / VR_ClimbCarried; its hold adds nothing to the carry), so one hand on vrclimb's lift and
+one on a light crate already rode at the lift's speed (identical before and after: the main hand's sync 0.6, z 25 -> 45
+over 4 s). It changes holds moved otherwise: a heavy prop moving (pushed, flung, knocked, riding something) with the
+other hand on a light prop. There the body lagged by half the prop's motion until the arm was straight.
+
+**Tests** (`Misc/quakevr/climb/prop_climb_test.sh physsticks`: all 11 PASS): two new cases.
+- `movelight`: off hand on a light large crate (`vr_climb_prop_mass 70`), main on a heavy explosive box beside it
+  (80.5 kg), the box flung away at 150 u/s, the arms with room to bend (`vr_body_shoulder_reach 0.5`, reset after):
+  the main hand's tracked hand drifts at most 0.00 units from its hold while both hold (before the fix: 11.0), the
+  body carried 26 units (before: 18, dragged by the arm's reach).
+- `liftlight`: the lift's lip in the main hand, a light crate beside the lift in the off hand: sync 0.00, carried up
+  (a guard for the above).
+
+**In the headset:** with `vr_climb_prop_mass` 70 (a large crate light), one hand on a large crate, the other on an
+explosive box someone shoves (or a blast moves): you go with the box, your arm doesn't straighten first.

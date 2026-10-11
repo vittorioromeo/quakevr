@@ -41,7 +41,8 @@ void forget(int num);
 [[nodiscard]] int heldHand();
 
 // The controllers (vr_input.cpp): a press or release of hand `hand`'s button `b`; true: taken, no key sent. The sticks
-// each frame while sticksTaken (X/A held on the toolgun's hand): no walking, no turning.
+// each frame while sticksTaken (the physgun holding something, or X/A held on the toolgun's hand): no walking, no
+// turning.
 bool button(int hand, posing::Button b, bool down);
 [[nodiscard]] bool sticksTaken();
 void sticks(const glm::vec2& off, const glm::vec2& main);

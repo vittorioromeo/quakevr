@@ -8,8 +8,10 @@
 #   3. the Joint tool's tile, its Hinge tile: vr_toolgun_joint 2; More: God Mode switched on and off; the Panel Size
 #      slider dragged;
 #   4. the physgun holding a crate while the mock hand rolls 45 degrees, then turns 30 to its left: the crate's angles
-#      follow the hand (roll, then yaw); X/A held, its angles snap to 15 degree steps;
-#      With X/A held, the stick's press while the trigger holds the crate: swallowed (still the physgun, still holding);
+#      follow the hand (roll, then yaw); no button, both sticks push it away, turn it and raise it, unsnapped, while
+#      the player neither walks nor turns; each stick's press: swallowed (still the physgun, still holding); X/A held,
+#      its angles snap to 15 degree steps (the stick's press swallowed too), and stay snapped when X/A is let go; let
+#      go of the crate, the off stick walks again;
 #   5. a grunt made by the spawn tool, held by the physgun while the hand rolls and turns: only its yaw follows; the hand
 #      pointing up, then tilted on over the top: its yaw barely turns (not the Euler yaw's half turn);
 #   6. Remove's "Clear Props Made Since the Map Loaded" found by name; More open, the stick press: More's page closes.
@@ -72,11 +74,21 @@ a('echo ROLL45;vr_toolgun_status')
 hand(50, 30, 45, 1.35)
 a('echo YAW30;vr_toolgun_status')
 hand(50, 30, 37, 1.35)
+# (no button: both sticks push, turn, raise and slide the crate; the player neither walks nor turns; nothing snaps)
+a('echo PRESTICK;viewpos;vr_toolgun_status')
+a('vr_mock_stick main 0.8 1;vr_mock_stick off 1 1;wait30;vr_mock_stick main 0 0;vr_mock_stick off 0 0;wait5')
+a('echo STICKED;viewpos;vr_toolgun_status')
+# (each stick's press, no X/A: swallowed while the crate is held, no tool change, no run or bullet time)
+a('vr_mock_button off stickclick 1;wait2;vr_mock_button off stickclick 0;wait2')
+a('vr_mock_button main stickclick 1;wait2;vr_mock_button main stickclick 0;wait3;echo PRESSHOLD;vr_toolgun_status')
 a('vr_mock_button main primary 1;wait5;echo SNAP;vr_toolgun_status')
-# (the stick pushed hard while adjusting: its press, swallowed while the trigger holds the crate)
+# (the stick pushed hard while snapping: its press, swallowed while the trigger holds the crate)
 a('vr_mock_button main stickclick 1;wait2;vr_mock_button main stickclick 0;wait3;echo STICKHOLD;vr_toolgun_status')
-a('vr_mock_button main primary 0;wait3')
+# (X/A let go: the snapped angles stay)
+a('vr_mock_button main primary 0;wait5;echo SNAPKEPT;vr_toolgun_status')
 a('vr_mock_button main trigger 0;wait10;vr_toolgun_icons')
+# (let go: the off stick walks again)
+a('echo PREWALK;viewpos;vr_mock_stick off 0 1;wait30;vr_mock_stick off 0 0;wait5;echo WALKED;viewpos')
 # 5. A grunt made by the spawn tool where the gun points, held by the physgun while the hand rolls: it turns only about
 #    the up axis (its pitch and roll stay).
 a('vr_scene_clean props;wait10;vr_toolgun_select 0;vr_toolgun_tool 0;wait5')
@@ -102,7 +114,7 @@ print(';'.join(s))
 EOF
 )
 OUT=; [ -n "$SHOTS" ] && OUT="-Clean -Out toolgun_panel.png"
-out=$(bash $KIT/run.sh $AGENT $OUT -Script "$S" -Timeout 600 -Filter 'STEP|CYCLE|BACK|JOINT|GOD|SIZE|CLOSED|HOLD|ROLL|YAW|SNAP|MONSTER|LONGNAME|MORE|God Mode|toolgun|vr_toolgun|ENGINE|CRASH|exit=|TIMEOUT|composed' 2>&1)
+out=$(bash $KIT/run.sh $AGENT $OUT -Script "$S" -Timeout 600 -Filter 'STICK|WALK|Player pos|STEP|CYCLE|BACK|JOINT|GOD|SIZE|CLOSED|HOLD|ROLL|YAW|SNAP|MONSTER|LONGNAME|MORE|God Mode|toolgun|vr_toolgun|ENGINE|CRASH|exit=|TIMEOUT|composed' 2>&1)
 [ -n "$VERBOSE" ] && echo "$out" | tail -80
 echo "$out" | python -c "
 import sys, re
@@ -157,8 +169,28 @@ m2, m3 = angles('MONSTER2'), angles('MONSTER3')
 print('monster pointing up', m2, 'tilted over the top', m3)
 if not (m2 and m3) or abs(d(m3[1], m2[1])) > 10:
     fails.append('the monster spun as the hand went over the top')
-if not re.search(r'STICKHOLD\s*\ntoolgun: hand 1, tool Physgun[^\n]*\n(toolgun: (?!physgun)[^\n]*\n)*toolgun: physgun holds', t):
-    fails.append('stick press while holding: the tool changed or the crate was dropped')
+for tag in ('STICKHOLD', 'PRESSHOLD'):
+    if not re.search(tag + r'\s*\ntoolgun: hand 1, tool Physgun[^\n]*\n(toolgun: (?!physgun)[^\n]*\n)*toolgun: physgun holds', t):
+        fails.append(f'{tag}: stick press while holding: the tool changed or the crate was dropped')
+def pos(tag):
+    m = re.search(tag + r'.*?Player pos: \(([-\d]+) ([-\d]+) ([-\d]+)\) [-\d]+ ([-\d]+)', t, re.S)
+    return [float(v) for v in m.groups()] if m else None
+def held(tag):
+    m = re.search(tag + r'.*?physgun holds \d+ at ([-\d]+) ([-\d]+) ([-\d]+) \(distance (\d+)\)', t, re.S)
+    return [float(v) for v in m.groups()] if m else None
+p0, p1, w0, w1 = pos('PRESTICK'), pos('STICKED'), pos('PREWALK'), pos('WALKED')
+c0, c1 = held('PRESTICK'), held('STICKED')
+st, kept = angles('STICKED'), angles('SNAPKEPT')
+print('player', p0, p1, 'crate', c0, c1, 'angles', angles('PRESTICK'), st, 'kept', kept, 'walk', w0, w1)
+if not (p0 and p1 and c0 and c1 and st and w0 and w1 and kept): fails.append('stick step prints missing')
+else:
+    if max(abs(a - b) for a, b in zip(p0, p1)) > 1: fails.append('the player moved or turned while the physgun held')
+    if c1[3] - c0[3] < 5: fails.append('the gun stick did not push the crate away')
+    if c1[2] - c0[2] < 5: fails.append('the other stick did not raise the crate')
+    if turned(angles('PRESTICK'), st) < 5: fails.append('the gun stick did not turn the crate')
+    if all(abs(d(v, round(v / 15) * 15)) < 0.5 for v in st): fails.append('snapped without X/A')
+    if any(abs(d(a, b)) > 0.5 for a, b in zip(kept, sn or kept)): fails.append(f'snap not kept on letting go of X/A {kept} {sn}')
+    if abs(w1[0] - w0[0]) + abs(w1[1] - w0[1]) < 10: fails.append('the off stick did not walk after the physgun let go')
 if re.search(r'no \"Clear Props Made Since the Map Loaded\"', t): fails.append('long widget name not found')
 m = re.search(r'MORE1(.*?)MORE2(.*?)MOREEND', t, re.S)
 if not m or 'God Mode' not in m.group(1) or 'God Mode' in m.group(2): fails.append('More not closed by the stick press')
