@@ -62,7 +62,7 @@ void(entity ad_targ) ad_ResetDebuffScreen =
 {
 	ad_targ.ad_cshift_upd = ad_FALSE;
 	ad_targ.ad_cshift_time = ad_LARGE_TIMER;
-	stuffcmd(ad_targ, "v_cshift 0 0 0 0\n");
+	VR_AD_Tint(ad_targ, '0 0 0', 0, 0);
 	ad_targ.ad_cshift_col = '0 0 0';
 	ad_targ.ad_cshift_den = 0;
 };
@@ -121,7 +121,7 @@ void() ad_ClientDeBuff =
 				self.ad_burning_time = time + 1;
 				
 				// Give priority to bleeding(heal) and poisoned
-				if (!(self.ad_bleeding && !self.ad_poisoned)) {
+				if ((!self.ad_bleeding) && (!self.ad_poisoned)) {
 					if (self.ad_debuff_sound < time) self.ad_debuff_sound = time + 1;
 					self.ad_cshift_upd = ad_TRUE;		// Update screen colour
 					self.ad_cshift_time = -1;		// Update striaght away
@@ -275,6 +275,7 @@ void() ad_ClientDeBuff =
 				// Don't update the screen if an artifact is active
 				// The engine will be updating at the same time
 				if ((self.items & ad_ALL_ITARTIFACTS) == 0) {
+					if (VR_AD_Tint(self, self.ad_cshift_col, self.ad_cshift_den, 0)) return;
 					stuffcmd(self, "v_cshift ");
 					stuffcmd(self, ftos(rint(self.ad_cshift_col_x)));
 					stuffcmd(self, " ");

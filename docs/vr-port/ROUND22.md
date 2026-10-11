@@ -1744,6 +1744,19 @@ section 11. In passing: the server's broadcast boundaries counted Quake VR's bea
 **In the headset:** Debug > Tests > Arcane Dimensions: Play (Developer); the hub, a map through to its exit and back;
 VR Settings > Combat > Arcane Dimensions.
 
+## Arcane Dimensions: screen tints, bugs 4 and 5, resist tells everywhere (2026-10-11, worktree `arcane`)
+
+All of it is in ARCANE_DIMENSIONS.md 16.14 (his decisions 32-38 in section 12): AD's `v_cshift` tints (debuffs, books,
+the cinematic camera's fades) drawn by the engine from two stats, eased, with a Screen Tints setting; AD's bugs 4 and 5
+fixed; AD's resist tells wherever resistance applies (precached on demand outside AD maps); the upgrades asked through
+one per-weapon accessor (per weapon itself: BACKLOG.md).
+
+**In the headset** (an AD map):
+- [ ] Debug > Tests > Arcane Dimensions: Burning, Poison, Bleeding: a soft green, then amber tint easing in and out,
+  not uncomfortable; VR Settings > Combat > Arcane Dimensions: Screen Tints at 0.5 and 0.
+- [ ] A book (a lectern's `misc_textbook`): the world darkens behind its text, and back when you leave it.
+- [ ] Arcane Dimensions: Play a Cinematic Camera (ad_tears): a fade to black hides the jump, then fades back.
+
 ## Arcane Dimensions P2: AD's monsters get Quake VR's treatment (2026-10-11, worktree `admon`, branch `feature/ad-monsters`)
 
 All of it is in ARCANE_DIMENSIONS.md section 17: AD's damage and death code now calls Quake VR's hooks (beheading,

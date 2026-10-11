@@ -8,8 +8,8 @@
 // AD's monsters and traps poison (spiders, scorpions, fumigators... AD's PoisonDeBuff), make bleed (scorpions,
 // steelclaws, wraiths: BleedDeBuff, health taken at once and given back over time) and set on fire (pyros, wraiths, fire
 // traps: BurnDeBuff) the player, in any map they are in. Poison and bleeding are AD's own, ticked here for Quake VR's
-// player in every map while AD's data is there (AD's ClientDeBuff; its screen tints are stuffed commands, filtered: the
-// wrist gadget shows them instead). Burning is Quake VR's (vr_burning.qc): AD's BurnDeBuff (a reviewed patch) lights
+// player in every map while AD's data is there (AD's ClientDeBuff; its screen tints are VR_AD_Tint's, below; the wrist
+// gadget shows them too). Burning is Quake VR's (vr_burning.qc): AD's BurnDeBuff (a reviewed patch) lights
 // the player's fire for AD's time, which burns at AD's damage (a point a second, no armour) with our flames, burns,
 // smoke, crackle, and goes out in water as ours.
 
@@ -21,6 +21,30 @@
 void() AD_DebuffsTick =
 {
     ad_ClientDeBuff();
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Screen tints (ARCANE_DIMENSIONS.md 16.14)
+//
+// AD's v_cshift, which AD stuffs into the client's console (its debuffs' colours, its books' dark background, its
+// cinematic camera's fades), Quake VR's way: the player's fields below, which the engine sends as stats and draws as one
+// more colour shift, eased, times VR Settings' Screen Tints (vr_ad_tints; the camera's fades are not scaled). Reviewed
+// patches (ad_import.py) call it where AD stuffed the command; in a map, a save and a loaded game it is the player's.
+
+.float vr_ad_tint;    // the colour: 65536 red + 256 green + blue, 0-255 each (the engine's STAT_QVR_ADTINT)
+.float vr_ad_tintden; // the density 0-255, plus 256 for a cinematic camera's fade (STAT_QVR_ADTINTDEN)
+
+// AD's "v_cshift r g b density" for `targ` (a fade: the cinematic camera's). TRUE: done (AD's stuffcmd not sent).
+float(entity targ, vector colour, float density, float fade) VR_AD_Tint =
+{
+    if(!(targ.flags & FL_CLIENT))
+    {
+        return TRUE;
+    }
+    float r = rint(min(255, max(0, colour_x))), g = rint(min(255, max(0, colour_y))), b = rint(min(255, max(0, colour_z)));
+    targ.vr_ad_tint = r * 65536 + g * 256 + b;
+    targ.vr_ad_tintden = rint(min(255, max(0, density))) + (fade ? 256 : 0);
+    return TRUE;
 };
 
 // AD's BurnDeBuff on `targ` (the reviewed patch): Quake VR's fire on the player for AD's time: AD's own rules for who
@@ -154,9 +178,21 @@ float(entity targ) AD_Resists =
     return AD_Rules() || AD_Run(targ);
 };
 
-// T_DamageImpl: `damage` after AD's ammo resistance of `targ` (as AD's Resist_Damage), with AD's tell in AD maps
-// (sparks and smoke, a pain sound; its effects are AD's world's precaches). Not twice: AD's own code resisted what it
-// deals to ours (vr_ad_ourdamage).
+// Outside AD maps, before a resist tell: what AD's tells use that AD's world precaches in its own maps (the smoke
+// burst's sprite and sound, the smoke and flesh chunks). The monster's pain sound and blood are its own. A precache
+// already made is found at once; a new one is late (the engine allows it), once a map (and after a loaded game).
+void() AD_ResistTellsPrecache =
+{
+    precache_model(ad_SBURST_SMOKE);
+    precache_model(ad_MODEL_PROJ_SMOKE);
+    precache_model(ad_MODEL_PROJ_FLESH);
+    precache_model(ad_MODEL_PROJ_FLESHP);
+    precache_sound(ad_SOUND_RESIST_ROCKET);
+};
+
+// T_DamageImpl: `damage` after AD's ammo resistance of `targ` (as AD's Resist_Damage), with AD's tell (sparks and
+// smoke, a pain sound) wherever it resists (decision 13: AD maps, and AD's monsters in any map). Not twice: AD's own
+// code resisted what it deals to ours (vr_ad_ourdamage).
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) AD_Resist =
 {
     if(vr_ad_ourdamage || !AD_Resists(targ))
@@ -171,8 +207,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return damage;
     }
     float left = damage * (1 - r);
-    if(r > 0 && AD_Rules())
+    if(r > 0)
     {
+        if(!AD_Rules())
+        {
+            AD_ResistTellsPrecache();
+        }
         vector at = vr_hitpos != '0 0 0' ? vr_hitpos : inflictor != attacker ? inflictor.origin : (targ.absmin + targ.absmax) * 0.5;
         entity oself = self;
         self = attacker;

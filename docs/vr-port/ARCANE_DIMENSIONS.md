@@ -574,6 +574,18 @@ from Ironwail. Anything in shared engine or QC code carries a clear `// AD suppo
 | 30 | **Evil mode in the skill selection**, available everywhere when AD's data is installed (it needs the Shadow Axe), not only in AD maps (the coordinator's call). | follow-up (settles 17's scope) |
 | 31 | **Saves:** AD's state in save games; loading an AD save switches AD mode on and restores AD's state; loading a non-AD save from an AD session turns it off cleanly. Coop: later. | P1b |
 
+**Follow-up decisions 3 (Vittorio, 2026-10-11, on sections 15-17).**
+
+| # | Decision | Phase |
+|---|---|---|
+| 32 | **AD's screen tints: "Port them"** (its stuffed `v_cshift`: the debuffs' colours, the books' background, the others), comfortable in VR, with a setting to scale or turn them off (built: 16.14). | follow-up |
+| 33 | **AD's shipped bugs (15.5):** keep 1-3, 6 and 8; fix 7; with the tints ported, fix 4 and 5 as proposed (built: 16.14). | follow-up |
+| 34 | **Evil stays a toggle beside Nightmare** (16.7, 16.11). | done |
+| 35 | **AD's visual effects outside AD maps stay off** (its sprite particles, emitters, bubbles: 16.11). | done |
+| 36 | **AD's monster defaults are OK** (section 17.4's choices). | done |
+| 37 | **Resistance tells wherever resistance applies** (his question: "would these cues be used at all anyway?"; then: they must work everywhere it applies, not only if cheap): AD maps and AD's monsters in any map (built: 16.14). | follow-up |
+| 38 | **AD's weapon upgrades stay the player's for now**; making them the weapon's own (more immersive) is a BACKLOG.md TODO, and the code asks one function, "is this weapon upgraded", given the weapon's record (built: 16.14). | follow-up, backlog |
+
 **Answers to his questions.**
 
 - **AD's vanilla monsters vs ours (1).** AD rewrote every id monster in its own framework: ammo resistance
@@ -891,7 +903,8 @@ frames, the waiting ones brought in, woken again, all killed, 300 frames more):
 - **The exits are Quake VR's** (our intermission, autosaves, campaign rules) with AD's keys; AD's intermission
   cameras are not used.
 - **AD's stuffed commands stay filtered** (screen tints of debuffs, books and powerups; `r_skyfog`; the skybox change;
-  `bf` flashes): only fog is routed (`svc_fog`).
+  `bf` flashes): only fog is routed (`svc_fog`). *Since decision 32 the tints are ported (16.14); `bf` is a plain
+  client command and plays; `r_skyfog` and the skybox change remain.*
 - **The vanilla monsters' projectiles follow the Projectile Rules** (decision 22): AD's speeds by skill for the hell
   knight's spikes, the scrag's, the ogre's grenades and the zombie's flesh, AD's pellets for the grunt's shotgun (in AD
   maps by Auto). The others (enforcer lasers, vore balls, shambler lightning) have no AD skill scaling.
@@ -908,15 +921,16 @@ rule, `--engine-lists`). Installer: `ExpansionDetector.cs` (the row).
 ### 15.5 AD's shipped bugs met (decision 12: one by one, Vittorio decides)
 
 None is fixed silently: AD's code runs as shipped. Where the bridge reimplements AD's logic it follows AD, except
-where noted (bug 7).
+where noted (bug 7). **Decided (33):** keep 1-3, 6 and 8; fix 7; 4 and 5 fixed with the tints ported (16.14: the
+importer's two patches now read as AD meant them).
 
 | # | Where | What AD does | Effect in Quake VR | Proposal |
 |---|---|---|---|---|
 | 1 | `monsters.qc` (spider, swampling, voreling ceiling start) | `a && b \|\| c && d \|\| e && f` read by QC's priorities as `((((a && b) \|\| c) && d) \|\| e) && f` | None: the three flags are the same bit (4), so it means what AD meant | **Keep** (P1a's parenthesised patch is behaviour-neutral) |
 | 2 | `monsters.qc` (gargoyle, gaunt perch) | the same pattern | None: both flags are 4 | **Keep** |
 | 3 | `mon_bossmammoth.qc` (walk-frame light) | `(4..8 \|\| >= 11) && <= 15` | None: the same frames as `4..8 \|\| 11..15` | **Keep** |
-| 4 | `misc_textbook.qc` (the book's screen tint reset) | `!(cshift_upd && no artifacts)` for `!cshift_upd && no artifacts` | None in Quake VR: AD's tints are stuffed `v_cshift` commands, which our engine filters | **Keep** (moot until tints are ported, then fix) |
-| 5 | `client_debuff.qc` (burning's screen colour priority) | `!(bleeding && !poisoned)` for `!bleeding && !poisoned` | None in Quake VR: the colour is a stuffed command (filtered) | **Keep** (moot; fix when the debuff tints are ported, decision 28) |
+| 4 | `misc_textbook.qc` (the book's screen tint reset) | `!(cshift_upd && no artifacts)` for `!cshift_upd && no artifacts` | None in Quake VR: AD's tints are stuffed `v_cshift` commands, which our engine filters | **Fixed** (16.14): the background only while no debuff colour and no powerup shows |
+| 5 | `client_debuff.qc` (burning's screen colour priority) | `!(bleeding && !poisoned)` for `!bleeding && !poisoned` | None in Quake VR: the colour is a stuffed command (filtered) | **Fixed** (16.14): burning's colour gives way to bleeding and poison |
 | 6 | `misc.qc` (misc lightning effect) | `(L1 \|\| L2 \|\| L3) && !movetarget` for `L1 \|\| L2 \|\| (L3 && !movetarget)` | A lightning effect of type 1 or 2 with a moving target does not fire | **Keep** (AD's maps were made and tested with it) |
 | 7 | `triggers.qc` `trigger_changelevel_fire` | `if (startspawn2 < 1 && startspawn2 > 7) startspawn2 = 0;` never true | A key outside 1..7 would set the spawn bits from its low 3 bits (8 spawns at the default start, 9 at spawn 1) | **Fix** (the bridge's exit (`AD_ChangelevelTouch`) already takes only 1..7, as AD meant; no AD map uses another value) |
 | 8 | `items.qc` `T_Heal` | compares with `other.max_health`, not the target's | Inherited from id's `T_Heal` (ours has it too); only AD's own health pickups call AD's | **Keep** (id's behaviour everywhere) |
@@ -930,8 +944,8 @@ where noted (bug 7).
 - The worldspawn keys `give_weapons`, `take_weapons` and `no_axestart` on Quake VR's hands and holsters (AD's parm1
   weapon bits do not map one to one on our inventory).
 - AD's item keys not read on our items (15.3); AD's custom keys (`item_keyx`) and artifacts are P2 (decision 16).
-- AD's screen effects sent as stuffed commands (debuff/book/powerup tints, `bf`, `r_skyfog`, `trigger_skybox`'s sky
-  change): through our own messages (the skybox needs an engine message).
+- AD's screen effects sent as stuffed commands (`r_skyfog`, `trigger_skybox`'s sky change): through our own messages
+  (the skybox needs an engine message). The tints are done (16.14).
 - The installer component (decisions 3 and 4) and a vrstart hub lectern for AD.
 - Map Library packages made for AD: AD's data mounted for them (the rules' detection already works once it is).
 
@@ -1003,7 +1017,7 @@ fire traps) lights **our** fire on the player (a reviewed patch, `VR_AD_BurnDebu
 crackle, out in water as ours, for AD's time (3-5 s plus 5 a skill level, added to what is left, at most 10) at
 AD's damage (a point a second, no armour: `AD_BurnHurt` from `VR_Burn_Think`). AD's own rules for who burns (not in
 deep water, not with the pentagram or the biosuit). With Burn Damage 0 (our burning off) AD's own debuff runs. AD's
-screen tints for the debuffs are stuffed commands (filtered): the wrist gadget shows the debuffs instead.
+screen tints for the debuffs play as Quake VR's (16.14); the wrist gadget shows the debuffs too.
 
 ### 16.4 Ammo resistance (decision 18)
 
@@ -1012,8 +1026,8 @@ extra damage) in `T_DamageImpl` (`AD_Resist`): in AD maps on any target with the
 by a mapper), elsewhere on AD's own monsters only. The kind is the inflictor's: hitscan shotguns shells; nails nails;
 rockets, grenades (launched, thrown, multi, proximity) and any blast rockets; lightning (`VR_LightningHit` tags it),
 plasma, lasers, Mjolnir's lightning and a discharge cells; melee (fists, the axe, guns as clubs, thrown weapons, a
-stuck axe's bleeding) none, as AD's axe. AD's tells (sparks, smoke, a pain sound) play in AD maps (its world's
-precaches). What AD's own code deals to ours is resisted once (`vr_ad_ourdamage`). Measured (`vr_ad_test 21`, a grunt
+stuck axe's bleeding) none, as AD's axe. AD's tells (sparks, smoke, a pain sound) play wherever it resists (decision
+37, 16.14). What AD's own code deals to ours is resisted once (`vr_ad_ourdamage`). Measured (`vr_ad_test 21`, a grunt
 with shells 0.5, nails 1, rockets -0.5, hit 10 by each): e1m1 13 (a positional shot), 10, 10, 10, 10; ad_e1m1 7, 0, 10
 (the blow), 15, 10; a stand-in for one of AD's monsters (nails 0.5) 5 in both, one of ours 10 in e1m1, 5 in ad_e1m1.
 
@@ -1109,7 +1123,8 @@ already fit the crouched box (36 high); our monsters' bullets aim at what shows 
 - Backpacks and `item_progspawn` are AD levels only (they are Quake's backpack and AD's randomiser).
 - The Blast Belt protects from any blast our `T_RadiusDamage` deals; the Nail Piercer works on our nails, not Rogue's
   lava nails; the Air Tank's bubbles (AD's particles) are not drawn.
-- AD's resist tells only in AD maps (precaches); outside them AD's monsters resist without them.
+- ~~AD's resist tells only in AD maps (precaches); outside them AD's monsters resist without them.~~ Changed by
+  decision 37: tells wherever it resists (16.14).
 - Evil is a toggle beside the skill (Nightmare plus Evil), not a fifth skill value: the engine and our monsters stay on
   0-3. Quake's start map has no Evil hall: the menu row chooses it.
 - `vr_crouch_sight` is on by default: it changes only a crouched player's sight.
@@ -1133,12 +1148,58 @@ outside AD's rules), `vr_box3d.cpp` (`spawnClass`), `vr_climb.cpp` (`ladderHold`
 - **Deep performance profiling of AD's maps in VR** (decision 29), with chaos mode: the biggest maps (`ad_tears`,
   `ad_sepulcher`, `ad_magna`) exclusive (`--exclusive`, `vr_profile`, `bench.sh`): lightmap build time, the think cost
   of AD's emitters, estate and breakables, sprite particles; fixes per finding. About 3-5 agent-days.
-- AD's debuff and artifact screen tints (stuffed `v_cshift`/`bf`) through our own messages; the Air Tank's bubbles.
-- AD's resist tells outside AD maps (its sprite precaches in the reduced world setup), once AD's monsters spawn there
-  (P2).
+- ~~AD's debuff and artifact screen tints (stuffed `v_cshift`/`bf`) through our own messages~~ (done: 16.14); the Air
+  Tank's bubbles (AD's visual effects outside AD maps stay off: decision 35).
+- ~~AD's resist tells outside AD maps~~ (done: 16.14).
 - AD's items' activator for our entities they target outside AD maps (`AD_SyncActivator` runs in AD maps only).
 - The spawnflag table's later entries (16.8): MG's flags, the 76 Quake-family gates as named meanings.
 - Coop: AD's per-player state (debuffs, artifacts, Evil) in coop saves (decision 31).
+
+### 16.14 Screen tints, bugs 4 and 5, resist tells, upgrades per weapon later (decisions 32, 33, 37, 38)
+
+Branch `agent/arcane` (`feature/arcane`).
+
+**Screen tints (32).** Every `v_cshift` AD stuffs (its debuffs' colours: poison green `0 200 0` 80, bleeding dark amber
+`50 35 0` 80, burning orange `200 100 0` 120 with Burn Damage 0, each stepped down every 0.1 s; a book's black
+background, up to 192 while reading; the cinematic camera's fades to and from black, 255) calls `VR_AD_Tint`
+(`QC/vr_ad_player.qc`; six reviewed importer patches) instead: the player's `.vr_ad_tint` (colour) and `.vr_ad_tintden`
+(density, plus 256 for a camera's fade), sent as `STAT_QVR_ADTINT`/`ADTINTDEN` and drawn by `VR_AD_TintBlend`
+(`Quake/vr/vr_ad.cpp`, one "AD support" call in `view.c V_CalcBlend`) as one more colour shift over Quake's. In VR:
+eased (a 0.1 s time constant: AD's 10 Hz steps become a smooth ramp, no pop in the headset; a camera's fade still
+darkens at once, hiding its cut), times **VR Settings > Combat > Arcane Dimensions: Screen Tints** (`vr_ad_tints`, 1;
+0 none; the camera's fades are not scaled, they are comfort fades) and Graphics' `gl_cshiftpercent`; none during the
+intermission. They follow the debuffs into every map (decision 24), and they are the player's state: saved, cleared
+by AD at death and intermission. Debug > Tests > Arcane Dimensions: Screen Tint Report (`vr_ad_tint_info`). Found on
+the way: the engine never filtered AD's stuffed text (it arrives, `cl_shownet 2`; a console `v_cshift` draws); headless
+test scripts never saw it because stuffed text queues behind the script's own `wait`s.
+
+**Bugs 4 and 5 (33).** The importer's two "AD as shipped" patches now read as AD meant: burning's colour gives way to
+bleeding and to poison (`(!bleeding) && (!poisoned)`); a book darkens the screen only while no debuff colour and no
+powerup shows (`(!cshift_upd) && (no artifacts)`, its two places).
+
+**Resist tells everywhere (37).** AD's tells (sparks, smoke puffs and chunks, the smoke burst and its sound, the
+monster's pain sound and less blood) play wherever AD's resistance applies: AD maps, and AD's own monsters in any map.
+Outside AD maps `AD_Resist` first precaches what AD's world would have (`AD_ResistTellsPrecache`: `s_burst_smoke.spr`,
+`proj_smoke.mdl`, `proj_flesh.mdl`, `proj_fleshp.mdl`, `weapons/resist_rocket.wav`): late precaches the engine allows, about
+0.4 ms once a map, found at once after that. Cost otherwise: none (one call per resisted hit).
+
+**Upgrades (38).** Still the player's (15.3). Every question now goes through `AD_WeaponUpgraded(player, weapon record,
+bit)` (`QC/vr_ad_bridge.qc`; `AD_HandUpgraded` for a hand's weapon), answering from the player's bit; `AD_AxeScale`,
+`AD_WidowmakerPellets` and `AD_PlasmaGun` take the hand. Per weapon is a BACKLOG.md TODO (what changes is listed there).
+
+**Measured (headless, fast mode, skill 1).** `scratch/t_tint.sh`: ad_e1m1, poison: the stat `0 200 0` 73, then 66,
+59...; drawn 2.9 -> 49.9 -> 60.5 (eased), the blend's alpha 0.24; Screen Tints 0.5: 0.099; 0: 0.000 (the tint still
+asked for); bleeding: AD's red hit flash (`200 0 0` 146) then `50 35 0`, eased across; after the debuffs end: 0; e1m1,
+poison: the same green (debuffs everywhere). `t_tint2.sh`: ad_tears' first camera with Screen Tints 0: a fade, 247
+drawn 251 at once, down to 0 over about 2 s. Resist tells in e1m1 (`vr_ad_test 21` twice, `developer 1`): the four
+models precached late once (0.4 ms), no error; the readings unchanged (shot 13, nail/blow/rocket/bolt 10; AD's 5,
+ours 10). Regression (`ab_campaigns.sh tint`): e1m1, start, hip1m1, r1m1, Dopa, MG1, MG3: no errors, P1a's monster
+totals (23, 0, 58, 46, 37 + 7, 90 + 20, 75 + 13 waiting).
+
+**Choices (conservative).** Screen Tints default 1 (AD's own strength: milder than Quake's damage flash, which reaches
+150); the tints in every map with the debuffs (a cue of the debuff, not one of AD's world effects that decision 35
+keeps off). Noticed, not changed: with `god` on, AD's debuff plays the pentagram's `items/protect3.wav`, which id's
+maps do not precache (a console warning only).
 
 ---
 

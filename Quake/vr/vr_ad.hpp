@@ -26,7 +26,10 @@ inline constexpr int campaignIndex = 6;
 // SV_SpawnServer, before the map's entities spawn (VR_OnSpawnServerBeforeLoad): vr_ad_rules for this map.
 void beforeLoad();
 
-// vr_ad_info: the data, the rules and the spawns of the map now running.
+// vr_ad_info: the data, the rules and the spawns of the map now running; vr_ad_tint_info (tintInfo).
 void registerCommands();
+
+// vr_ad_tint_info: AD's screen tint, asked for (STAT_QVR_ADTINT/ADTINTDEN) and drawn (VR_AD_TintBlend).
+void tintInfo();
 
 } // namespace qvr::ad

@@ -218,6 +218,7 @@ void VR_OnEntitySpawned (edict_t *ent);	// ED_LoadFromFile, after an entity's sp
 int VR_AD_RulesOn (void);				// AD support (vr_ad.cpp): the map spawning plays by Arcane Dimensions' rules
 int VR_AD_OwnsClassname (const char *classname, int ours);	// AD support: AD's ad_<classname> spawns it, not Quake VR's
 int VR_AD_SpawnsOutside (const char *classname);	// AD support: outside AD's rules, AD's ad_<classname> spawns it (an artifact, a pickup, a ladder)
+void VR_AD_TintBlend (float *r, float *g, float *b, float *a, float percent);	// AD support: V_CalcBlend, AD's screen tint over Quake's colour shifts (0-255 colour, 0-1 alpha)
 void VR_OnSpawnServerSpawned (void);		// SV_SpawnServer, after ED_LoadFromFile (before the settling frames)
 void VR_OnClearMemory (void);			// Host_ClearMemory, before the hunk (edicts, cl_entities, models) is freed: every pointer into it forgotten
 void VR_MonsterFell (edict_t *ent, float speed);	// SV_Physics_Step, a walking monster landed at `speed` (QC VR_Monster_Fall)

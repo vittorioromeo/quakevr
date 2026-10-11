@@ -16,11 +16,14 @@
 #include "vr_ad.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_protocol.hpp"
 #include "vr_sha256.hpp"
 
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/String/String.hpp"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -270,6 +273,7 @@ void beforeLoad()
 void registerCommands()
 {
     Cmd_AddCommand("vr_ad_info", statusCommand);
+    Cmd_AddCommand("vr_ad_tint_info", tintInfo);
 }
 
 } // namespace qvr::ad
@@ -320,4 +324,70 @@ extern "C" int VR_AD_SpawnsOutside(const char* classname)
     }
     ++mapState.outsideSpawns;
     return 1;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// AD's screen tints (ARCANE_DIMENSIONS.md 16.14). AD's v_cshift (stuffed console text in AD) is the player's
+// .vr_ad_tint/.vr_ad_tintden in Quake VR (QC vr_ad_player.qc VR_AD_Tint), sent as STAT_QVR_ADTINT/ADTINTDEN: its
+// debuffs' colours, a book's dark background, a cinematic camera's fades. Drawn as one more colour shift over Quake's
+// (V_CalcBlend), eased (AD steps them every 0.1 s: here a smooth ramp, no pop in the headset; a camera's fade still
+// darkens at once, hiding its cut), times Screen Tints
+// (vr_ad_tints; a camera's fade is not scaled: it is a comfort fade) and gl_cshiftpercent.
+
+namespace
+{
+
+constexpr float tintEase = 0.1f; // seconds: the shown tint's time constant towards AD's
+
+struct TintState
+{
+    float shown = 0.f;           // the density drawn (0-255)
+    float colour[3] = {};        // and its colour
+    double last = -1.0;          // cl.time it was eased to
+} tintState;
+
+} // namespace
+
+extern "C" void VR_AD_TintBlend(float* r, float* g, float* b, float* a, float percent)
+{
+    const int packed = cl.stats[qvr::protocol::STAT_QVR_ADTINT];
+    const int denStat = cl.stats[qvr::protocol::STAT_QVR_ADTINTDEN];
+    const bool fade = (denStat & 256) != 0;
+    const float target = static_cast<float>(za::clamp(denStat & 255, 0, 255));
+    const float want[3] = {static_cast<float>((packed >> 16) & 255), static_cast<float>((packed >> 8) & 255),
+        static_cast<float>(packed & 255)};
+
+    const double dt = cl.time - tintState.last;
+    const float k = (tintState.last < 0.0 || dt < 0.0 || dt > 0.5) ? 1.f
+                    : 1.f - std::exp(-static_cast<float>(dt) / tintEase);
+    tintState.last = cl.time;
+    const bool snapColour = tintState.shown < 1.f;
+    // (A camera's fade darkens at once: it hides the cut to the camera, as AD's own; it eases back like a tint.)
+    tintState.shown = fade && target > tintState.shown ? target : tintState.shown + (target - tintState.shown) * k;
+    if(tintState.shown < 0.5f && target == 0.f) { tintState.shown = 0.f; }
+    for(int i = 0; i < 3; ++i)
+    {
+        tintState.colour[i] = snapColour ? want[i] : tintState.colour[i] + (want[i] - tintState.colour[i]) * k;
+    }
+
+    const float scale = fade ? 1.f : za::clamp(qvr::vr_ad_tints.value, 0.f, 1.f);
+    float a2 = tintState.shown / 255.f * scale * percent / 100.f;
+    if(a2 <= 0.f)
+    {
+        return;
+    }
+    *a = *a + a2 * (1.f - *a);
+    a2 = a2 / *a;
+    *r = *r * (1.f - a2) + tintState.colour[0] * a2;
+    *g = *g * (1.f - a2) + tintState.colour[1] * a2;
+    *b = *b * (1.f - a2) + tintState.colour[2] * a2;
+}
+
+// Debug: the tint AD asks for and the one drawn (vr_ad_tint_info).
+void qvr::ad::tintInfo()
+{
+    Con_Printf("adtint: stat %d %d (%s), shown %.1f (%.0f %.0f %.0f), scale %.2f, blend alpha %.3f\n",
+        cl.stats[protocol::STAT_QVR_ADTINT], cl.stats[protocol::STAT_QVR_ADTINTDEN] & 255,
+        (cl.stats[protocol::STAT_QVR_ADTINTDEN] & 256) ? "fade" : "tint", tintState.shown, tintState.colour[0],
+        tintState.colour[1], tintState.colour[2], qvr::vr_ad_tints.value, v_blend[3]);
 }

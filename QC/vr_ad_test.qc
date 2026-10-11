@@ -245,7 +245,7 @@ void(float request, entity p) AD_RulesTest =
     {
         // Evil: what plays now.
         self = p;
-        float axe = AD_AxeScale();
+        float axe = AD_AxeScale(cVR_MainHand);
         self = os;
         bprint(sprintf("adrules: evil %g on %g cvar %g skill %g adskill %g", AD_Evil(), vr_ad_evil_on, cvar("vr_ad_evil"),
             skill, ad_skill));

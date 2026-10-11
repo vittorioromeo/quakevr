@@ -3648,6 +3648,10 @@ void hologramTestMessage()
             .help("Arcane Dimensions' fifth skill, in any campaign while its data is installed: chosen with Nightmare (the "
                   "start map's skill hall, or Arcane Dimensions' own Evil choice, which sets this). 50 health at most "
                   "(megahealth 100), the Shadow Axe's blows, Arcane Dimensions' monsters at their hardest. Kept in saves."),
+        slider("Screen Tints", vr_ad_tints, 0.f, 1.f, 0.05f, "x%.2f")
+            .help("Arcane Dimensions' screen colours, times this: green while poisoned, dark amber while bleeding, "
+                  "orange while burning (with Burn Damage off), a book's dark background while you read it. Eased in and out. 0: none. Its "
+                  "cinematic cameras' fades to black always play (Graphics' colour shift settings apply to all)."),
         toggle("Hand-Climbed Ladders", vr_climb_ladders)
             .help("Arcane Dimensions' ladders climbed with your hands, as ledges (Hand Climbing on): grip anywhere on a "
                   "ladder, a rung under every hand, pull yourself up hand over hand, mantle at its top. Holding jump "
@@ -6170,6 +6174,9 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive: AD's three debuffs on you at once (its burning is your fire's: our flames, its time and "
                   "damage); the wrist gadget shows them. Debuffs Report says what they took."),
         command("Arcane Dimensions: Debuffs Report", "vr_ad_test 15; wait; wait; vr_ad_test 17; wait; wait; vr_ad_test 19"),
+        command("Arcane Dimensions: Screen Tint Report", "vr_ad_tint_info")
+            .help("vr_ad_tint_info: the screen tint Arcane Dimensions asks for now (its colour, density, a tint or a "
+                  "camera's fade), the one drawn (eased), Screen Tints, the whole colour shift's alpha."),
         command("Arcane Dimensions: Ammo Resistance Test", "vr_ad_test 21")
             .help("Destructive: a grunt given AD's resistance keys (shells half, nails all, rockets -50%) hit by a shot, a "
                   "nail, a blow, a rocket, a bolt: in AD maps it resists, elsewhere only AD's own monsters do."),

@@ -788,6 +788,8 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_ADHUD, f.vr_ad_hud); // AD support: AD's row on the wrist gadget (vr_gadget.cpp)
     stat(STAT_QVR_ADKEYS, f.vr_ad_hudkeys);
     stat(STAT_QVR_ADTIME, f.vr_ad_hudtime);
+    stat(STAT_QVR_ADTINT, f.vr_ad_tint); // AD support: AD's screen tint (vr_ad.cpp VR_AD_TintBlend)
+    stat(STAT_QVR_ADTINTDEN, f.vr_ad_tintden);
 
     const int holsterWeapon[numHolsters] = {f.holsterweapon0, f.holsterweapon1,
         f.holsterweapon2, f.holsterweapon3, f.holsterweapon4, f.holsterweapon5};

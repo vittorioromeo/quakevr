@@ -48,10 +48,12 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
 float(float shotcount, vector dir, vector spread, vector src) AD_EnemyPellets; // EnemyFireBullets: TRUE when AD's pellets went
 float(entity e) AD_TestWaiting;      // vr_test_monsters: one of AD's monsters waiting for its trigger
 float(entity p) AD_TestWake;         // vr_test_monsters: AD's monster (self) hunts p; TRUE: it was one
-float() AD_AxeScale;                 // W_FireAxe: the Shadow Axe's blow (1 without it)
-float(float pellets) AD_WidowmakerPellets; // W_FireSuperShotgun: the Widowmaker's 21 (a reserve shell taken), or pellets
+// AD's weapon upgrades (decision 10): every question goes through AD_WeaponUpgraded(player, weapon record, bit).
+float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded;
+float(float xHand) AD_AxeScale;      // W_FireAxe: the Shadow Axe's blow of the axe in xHand (1 without it)
+float(float xHand, float pellets) AD_WidowmakerPellets; // W_FireSuperShotgun: the Widowmaker's 21 (a reserve shell taken), or pellets
 float() AD_Widowmaker;               // vr_reload.qc: self's super shotgun is the Widowmaker (reloaded at the hip)
-float(float xFlags) AD_PlasmaGun;    // W_Attack: the lightning gun is AD's Plasma Gun
+float(float xHand, float xFlags) AD_PlasmaGun; // W_Attack: the lightning gun in xHand is AD's Plasma Gun
 void(float xHand) AD_FirePlasma;     // W_Attack: its bolt
 void(entity p) AD_UpgradePickedUp;   // weapon_touch: an AD upgrade's pickup
 float(entity p) AD_MegaRot;          // health_touch: AD's megahealth rot in an AD map; TRUE: taken
@@ -107,4 +109,5 @@ float(entity xItem) VR_AD_ArtifactItems;
 void() VR_AD_LadderSpawned;
 vector(entity e) VR_AD_ViewOfs; // AD's sight (reviewed patches): a crouched VR player's real eyes (ai.qc VR_SightOfs)
 float(entity targ) VR_AD_BurnDebuff;
+float(entity targ, vector colour, float density, float fade) VR_AD_Tint; // AD's v_cshift (vr_ad_player.qc)
 float(entity xFire, entity xVictim) AD_BurnHurt; // VR_Burn_Think: an AD debuff's fire's damage (TRUE: dealt, ours not)

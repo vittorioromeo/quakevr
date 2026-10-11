@@ -240,7 +240,7 @@ void(float request) AD_Test =
         bprint(sprintf("adtest: %s fired %g projectiles; reserve shells %g -> %g, cells %g -> %g, clip %g\n",
             request == 3 ? "Widowmaker" : "Plasma Gun", after - before, shells, p.ammo_shells, cells, p.ammo_cells,
             VRGetEntWeaponClip(p, cVR_MainHand)));
-        bprint(sprintf("adtest: AD's pellets %g, Shadow Axe x%g\n", AD_Pellets(p), AD_AxeScale()));
+        bprint(sprintf("adtest: AD's pellets %g, Shadow Axe x%g\n", AD_Pellets(p), AD_AxeScale(cVR_MainHand)));
         self = oself;
         return;
     }
@@ -819,22 +819,32 @@ float(float shotcount, vector dir, vector spread, vector src) AD_EnemyPellets =
 
 .float vr_ad_upgrade; // a weapon pickup that is AD's upgrade (its .moditems bit): weapon_touch gives it (AD_UpgradePickedUp)
 
-// Whether self (a player) has AD's upgrade `bit`, in an AD map.
-float(float bit) AD_HasUpgrade =
+// Whether the weapon `xInst` (its record, vr_weaponinst.qc; world when the caller has none) of player `xPlayer` has AD's
+// upgrade `xBit`, in an AD map. The one place every upgrade is asked about (decision 10): today the upgrades are the
+// player's (AD's .moditems, any weapon of the kind), so `xInst` is not read; per weapon (BACKLOG.md) they become a bit
+// on the record, set by the upgrade's pickup, and this answers from it.
+float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded =
 {
-    return AD_Rules() && (self.ad_moditems & bit);
+    return AD_Rules() && (xPlayer.ad_moditems & xBit);
 };
 
-// W_FireAxe's blow: the Shadow Axe's (AD's 35 for the axe's 20).
-float() AD_AxeScale =
+// The same for the weapon in self's hand `xHand`.
+float(float xHand, float xBit) AD_HandUpgraded =
 {
-    return (AD_HasUpgrade(ad_IT_UPGRADE_AXE) || AD_Evil()) ? ad_DAMAGE_PLAYAXE2 / ad_DAMAGE_PLAYAXE1 : 1; // (Evil: AD's Shadow Axe in any map)
+    return AD_WeaponUpgraded(self, VRGetEntWeaponInst(self, xHand), xBit);
 };
 
-// W_FireSuperShotgun's pellets: the Widowmaker's 21 when a third shell is in the reserve (taken), else `pellets`.
-float(float pellets) AD_WidowmakerPellets =
+// W_FireAxe's blow of the axe in `xHand`: the Shadow Axe's (AD's 35 for the axe's 20).
+float(float xHand) AD_AxeScale =
 {
-    if(!AD_HasUpgrade(ad_IT_UPGRADE_SSG) || self.ammo_shells < 1)
+    return (AD_HandUpgraded(xHand, ad_IT_UPGRADE_AXE) || AD_Evil()) ? ad_DAMAGE_PLAYAXE2 / ad_DAMAGE_PLAYAXE1 : 1; // (Evil: AD's Shadow Axe in any map)
+};
+
+// W_FireSuperShotgun's pellets from `xHand`: the Widowmaker's 21 when a third shell is in the reserve (taken), else
+// `pellets`.
+float(float xHand, float pellets) AD_WidowmakerPellets =
+{
+    if(!AD_HandUpgraded(xHand, ad_IT_UPGRADE_SSG) || self.ammo_shells < 1)
     {
         return pellets;
     }
@@ -842,17 +852,17 @@ float(float pellets) AD_WidowmakerPellets =
     return pellets * ad_QUANTITY_WM / ad_QUANTITY_SSG;
 };
 
-// Whether the super shotgun in self's hands is the Widowmaker: reloaded at the hip (the simple reload), never broken
-// open (vr_reload.qc VR_Reload_ManualFor).
+// Whether self's super shotguns are the Widowmaker: reloaded at the hip (the simple reload), never broken open
+// (vr_reload.qc VR_Reload_ManualFor, which knows the weapon id only: per weapon, its callers pass the record).
 float() AD_Widowmaker =
 {
-    return AD_HasUpgrade(ad_IT_UPGRADE_SSG);
+    return AD_WeaponUpgraded(self, world, ad_IT_UPGRADE_SSG);
 };
 
-// Whether the lightning gun with flags `xFlags` is AD's Plasma Gun (not Rogue's plasma, its secondary ammo).
-float(float xFlags) AD_PlasmaGun =
+// Whether the lightning gun in `xHand` with flags `xFlags` is AD's Plasma Gun (not Rogue's plasma, its secondary ammo).
+float(float xHand, float xFlags) AD_PlasmaGun =
 {
-    return AD_HasUpgrade(ad_IT_UPGRADE_LG) && !(xFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO);
+    return AD_HandUpgraded(xHand, ad_IT_UPGRADE_LG) && !(xFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO);
 };
 
 // The Plasma Gun's shot (W_Attack, every 0.2 s): a plasma bolt from the muzzle, a cell; under water it misfires.

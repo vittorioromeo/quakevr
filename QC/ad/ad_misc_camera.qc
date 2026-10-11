@@ -63,6 +63,7 @@ misc_camera					- Spawning function for camera system
 ======================================================================*/
 void(entity ad_targ, vector ad_cs_col, float ad_cs_den) ad_camera_controller_cshift = 
 {
+	if (VR_AD_Tint(ad_targ, ad_cs_col, ad_cs_den, 1)) return;
 	stuffcmd(ad_targ, "v_cshift ");
 	stuffcmd(ad_targ, ftos(rint(ad_cs_col_x))); stuffcmd(ad_targ, " ");
 	stuffcmd(ad_targ, ftos(rint(ad_cs_col_y))); stuffcmd(ad_targ, " ");

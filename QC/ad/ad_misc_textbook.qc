@@ -201,8 +201,9 @@ void() ad_info_book_fade =
 	
 	// Only update the screen if the debuff system is NOT active
 	// and the client does NOT have any powerups active
-	if (!(self.enemy.ad_cshift_upd && (self.enemy.items & ad_ALL_ITARTIFACTS) == 0)) {	
+	if ((!self.enemy.ad_cshift_upd) && ((self.enemy.items & ad_ALL_ITARTIFACTS) == 0)) {	
 		// Change screen background density (makes text easier to read)
+		if (VR_AD_Tint(self.enemy, '0 0 0', self.lip, 0)) return;
 		stuffcmd(self.enemy, "v_cshift 0 0 0 ");
 		stuffcmd(self.enemy, ftos(self.lip));
 		stuffcmd(self.enemy, "\n");
@@ -395,8 +396,8 @@ void() ad_info_book_off =
 	if (self.ad_attachment) {
 		if (self.ad_attachment.lip != 0) {
 			self.ad_attachment.lip = 0;
-			if (!(self.enemy.ad_cshift_upd && (self.enemy.items & ad_ALL_ITARTIFACTS) == 0)) {	
-				stuffcmd(self.enemy, "v_cshift 0 0 0 0\n");
+			if ((!self.enemy.ad_cshift_upd) && ((self.enemy.items & ad_ALL_ITARTIFACTS) == 0)) {	
+				VR_AD_Tint(self.enemy, '0 0 0', 0, 0);
 			}
 		}
 	}

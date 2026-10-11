@@ -65,10 +65,14 @@ B = "bridge"
 PATCHES = [
     ("client_debuff.qc", "if (targ.flags & FL_CLIENT == FALSE) return;", "if ((targ.flags & FL_CLIENT) == FALSE) return;", 3, P),
     ("client_debuff.qc", "if (self.items & ALL_ITARTIFACTS == 0) {", "if ((self.items & ALL_ITARTIFACTS) == 0) {", 1, P),
-    ("client_debuff.qc", "if (!self.bleeding && !self.poisoned) {", "if (!(self.bleeding && !self.poisoned)) {", 1,
-     P + "; AD as shipped"),
+    # AD's shipped bugs 5 and 4 (ARCANE_DIMENSIONS.md 15.5), fixed as AD meant them now that its tints are drawn
+    # (Vittorio): burning's colour gives way to bleeding and to poison; a book darkens the screen only while no debuff
+    # colour and no powerup is showing.
+    ("client_debuff.qc", "if (!self.bleeding && !self.poisoned) {", "if ((!self.bleeding) && (!self.poisoned)) {", 1,
+     "AD's bug 5 fixed (QC priorities read it as !(bleeding && !poisoned))"),
     ("misc_textbook.qc", "if (!self.enemy.cshift_upd && self.enemy.items & ALL_ITARTIFACTS == 0) {",
-     "if (!(self.enemy.cshift_upd && (self.enemy.items & ALL_ITARTIFACTS) == 0)) {", 2, P + "; AD as shipped"),
+     "if ((!self.enemy.cshift_upd) && ((self.enemy.items & ALL_ITARTIFACTS) == 0)) {", 2,
+     "AD's bug 4 fixed (QC priorities read it as !(cshift_upd && no artifacts))"),
     ("mon_bossmammoth.qc", "if (self.walkframe >= 4  && self.walkframe <= 8 ||\n\t\t\tself.walkframe >= 11 && self.walkframe <= 15)",
      "if (((self.walkframe >= 4  && self.walkframe <= 8) ||\n\t\t\tself.walkframe >= 11) && self.walkframe <= 15)", 1,
      P + "; AD as shipped"),
@@ -146,6 +150,23 @@ PATCHES = [
     ("client_evilmode.qc", "void() Client_SetEvilSkill = { cvar_set(\"skill\", ftos(SKILL_EVIL)); skill = SKILL_EVIL; };",
      "void() Client_SetEvilSkill = { VR_AD_SetSkill(SKILL_EVIL); skill = SKILL_EVIL; };",
      1, B + ": Evil as Nightmare plus vr_ad_evil"),
+    # AD's screen tints (section 16.14): every v_cshift AD stuffs is VR_AD_Tint's (vr_ad_player.qc), drawn by the engine
+    # (stats, eased, vr_ad_tints), not console text.
+    ("client_debuff.qc", "\tstuffcmd(targ, \"v_cshift 0 0 0 0\\n\");\n", "\tVR_AD_Tint(targ, '0 0 0', 0, 0);\n",
+     1, B + ": the debuff tint cleared (VR_AD_Tint)"),
+    ("client_debuff.qc", "\t\t\t\t\tstuffcmd(self, \"v_cshift \");\n",
+     "\t\t\t\t\tif (VR_AD_Tint(self, self.cshift_col, self.cshift_den, 0)) return;\n\t\t\t\t\tstuffcmd(self, \"v_cshift \");\n",
+     1, B + ": the debuff's colour (VR_AD_Tint)"),
+    ("client_cshift.qc", "\tstuffcmd(targ, \"v_cshift 0 0 0 0\\n\");\n", "\tVR_AD_Tint(targ, '0 0 0', 0, 0);\n",
+     1, B + ": the tint cleared (VR_AD_Tint)"),
+    ("misc_textbook.qc", "\t\tstuffcmd(self.enemy, \"v_cshift 0 0 0 \");\n",
+     "\t\tif (VR_AD_Tint(self.enemy, '0 0 0', self.lip, 0)) return;\n\t\tstuffcmd(self.enemy, \"v_cshift 0 0 0 \");\n",
+     1, B + ": the book's dark background (VR_AD_Tint)"),
+    ("misc_textbook.qc", "\t\t\t\tstuffcmd(self.enemy, \"v_cshift 0 0 0 0\\n\");\n",
+     "\t\t\t\tVR_AD_Tint(self.enemy, '0 0 0', 0, 0);\n", 1, B + ": the book's background cleared (VR_AD_Tint)"),
+    ("misc_camera.qc", "\tstuffcmd(targ, \"v_cshift \");\n",
+     "\tif (VR_AD_Tint(targ, cs_col, cs_den, 1)) return;\n\tstuffcmd(targ, \"v_cshift \");\n",
+     1, B + ": the cinematic camera's fades (VR_AD_Tint, not scaled by Screen Tints)"),
 ]
 # The monsters' hooks (P2, ARCANE_DIMENSIONS.md section 17): AD's monsters get Quake VR's treatment (QC/vr_ad_monsters.qc;
 # their declarations in QC/vr_ad_mondefs.qc). Applied after the bridge's (the T_Damage line is the bridge's patched one).

@@ -133,6 +133,10 @@ enum Stat : int
     STAT_QVR_ADHUD = STAT_QVR_FOEGRABMAINX + 3,
     STAT_QVR_ADKEYS,
     STAT_QVR_ADTIME,
+    // AD support: Arcane Dimensions' screen tint (QC vr_ad_player.qc VR_AD_Tint, AD's v_cshift): its colour (65536 red
+    // + 256 green + blue), its density (0-255) plus 256 for a cinematic camera's fade (vr_ad.cpp VR_AD_TintBlend).
+    STAT_QVR_ADTINT,
+    STAT_QVR_ADTINTDEN,
     STAT_QVR_END
 };
 

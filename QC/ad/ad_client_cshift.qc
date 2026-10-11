@@ -16,5 +16,5 @@
 //----------------------------------------------------------------------
 void(entity ad_targ) ad_ResetCShift =
 {
-	stuffcmd(ad_targ, "v_cshift 0 0 0 0\n");
+	VR_AD_Tint(ad_targ, '0 0 0', 0, 0);
 };
