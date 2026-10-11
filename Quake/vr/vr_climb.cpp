@@ -924,6 +924,8 @@ struct Grip
     float allowed{0.f};        // how far the hold may be from the shoulder (the reach, or further if taken further)
     int entModel{0};           // its model (a hold lets go if it changes)
     int mapGeneration{-1};     // ledge.map's (ledges::generation: the map is gone if it changed)
+    int mapForgets{-1};        // ledges::forgets then (changed: a runtime brush's map dropped, maybe this one)
+    za::U32 mapSerial{0};      // and the map's Map::serial (ledges::alive)
     // The mantle's search (findMantle), kept for the hold: the last search that found no room (not searched again, the
     // body hanging still, until `mantleRetry`).
     bool missed{false};
@@ -1116,7 +1118,12 @@ Climber climbers[MAX_SCOREBOARD];
     {
         return g.propMap.edges.empty() ? nullptr : &g.propMap;
     }
-    return g.ledge.map && g.ledge.edge >= 0 && g.mapGeneration == ledges::generation() ? g.ledge.map : nullptr;
+    if(!g.ledge.map || g.ledge.edge < 0 || g.mapGeneration != ledges::generation())
+    {
+        return nullptr;
+    }
+    // (a runtime brush changed since: only a hold on its map lost it; the world's and the others' are kept)
+    return g.mapForgets == ledges::forgets() || ledges::alive(g.ledge.map, g.mapSerial) ? g.ledge.map : nullptr;
 }
 
 // The top of grip `g`'s ledge now.
@@ -2122,6 +2129,8 @@ static void climbPreThink(edict_t* ent)
         g.entModel = ledge->ent ? static_cast<int>(ledge->ent->v.modelindex) : 0;
         g.ledge.ent = nullptr; // (kept as its number: entNum)
         g.mapGeneration = ledges::generation();
+        g.mapForgets = ledges::forgets();
+        g.mapSerial = ledge->map ? ledge->map->serial : 0u;
         g.prop = ledge->prop;
         g.light = false; // (set below for a prop's; a stale one would stop a later mover carrying the body)
         g.propMap.edges.clear();

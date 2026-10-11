@@ -512,10 +512,12 @@ void lineLedges(const Hull& h, const Line& line, za::Vector<Edge>& edges, za::Ve
 }
 
 jobs::Site linesSite{"ledge lines"}; // (its parallelFor: vr_jobs_sites)
+za::U32 lastSerial = 0;              // the last map made's Map::serial (build, the main thread)
 
 [[nodiscard]] za::UniquePtr<Map> build(const qmodel_t* model)
 {
     auto map = za::makeUnique<Map>();
+    map->serial = ++lastSerial;
     const double t0 = Sys_DoubleTime();
     hull_t* hull = const_cast<hull_t*>(&model->hulls[0]);
     if(model->type == mod_brush && hull->clipnodes && hull->planes && model->surfaces)
@@ -573,7 +575,8 @@ struct Cache
     return w && !strcmp(cache.world, w->name) && cache.vertexes == w->numvertexes && cache.surfaces == w->numsurfaces;
 }
 
-int dropped = 0; // generation()
+int dropped = 0;       // generation()
+int forgotten = 0;     // forgets()
 
 void resetCache()
 {
@@ -946,8 +949,25 @@ void forget(const qmodel_t* model)
     if(it != cache.maps.end())
     {
         cache.maps.erase(it);
-        dropped++;
+        forgotten++;
     }
+}
+
+int forgets()
+{
+    return forgotten;
+}
+
+bool alive(const Map* m, za::U32 serial)
+{
+    for(const auto& kv : cache.maps)
+    {
+        if(kv.second.get() == m)
+        {
+            return m->serial == serial;
+        }
+    }
+    return false;
 }
 
 const Map* of(const qmodel_t* model)
