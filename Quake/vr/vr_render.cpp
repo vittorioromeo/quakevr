@@ -17,6 +17,7 @@
 #include "vr_cvars.hpp"
 #include "vr_props.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_hitreact.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_weapons.hpp"
 
@@ -210,6 +211,7 @@ extern "C" int VR_AliasNearEye(const entity_t* e, const float matrix[16], const 
 extern "C" void VR_AliasPreTransform(const entity_t* e, float matrix[16])
 {
     applyPre(e, VR_AliasMirrored(e), nullptr, networkData(e), matrix);
+    hitreact::tiltModel(e, matrix); // a living monster struck, with no rig to kick: tilted (vr_hitreact.cpp)
 }
 
 extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])

@@ -817,8 +817,13 @@ The monster is walking it's beat
 // run thinks; TRUE when the shove started.
 float() VR_EnemyShove_Check;
 
+// VR: living hit reactions (vr_hitreact.qc): a monster struck a moment ago steps shorter (a leg hit: with a hitch to
+// that side, taken here); its decisions untouched.
+float(float dist) VR_HitReact_Dist;
+
 void(float dist) ai_walk =
 {
+    dist = VR_HitReact_Dist(dist);
     movedist = dist;
 
     if(VR_EnemyShove_Check())
@@ -1155,6 +1160,7 @@ void(float dist) ai_run =
     float    axis;
 
     VR_Parry_Unsway(self); // (its stagger cut short: a knockdown, a grab)
+    dist = VR_HitReact_Dist(dist); // VR: struck a moment ago: shorter steps (vr_hitreact.qc)
     movedist = dist;
     self.vr_melee_begun = 0; // VR: running again, its melee attack (if any) is over (combat.qc VR_Parry)
 // see if the enemy is dead

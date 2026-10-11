@@ -104,7 +104,7 @@ typedef struct vraliasinstance_s
 	float		retro[4]; // retro textures (vr_retro.cpp): its set (0 none), its skin's Quake size (0: the texture's own)
 	float		portalclip[4]; // plane keeping this room
 	float		retropart[4]; // your body's parts by bone (vr_retro.cpp bodyParts): xy the low bits, zw the high bits of each bone's part
-	int			smooth[4]; // r_lerpmodels 3 (vr_animsmooth.cpp): the first and fourth poses (times the vertex count), 1 + its bones' first row in the swing buffer (0 none), 1 on
+	int			smooth[4]; // r_lerpmodels 3 (vr_animsmooth.cpp): the first and fourth poses (times the vertex count), 1 + its bones' first row in the swing buffer (0 none), 1 on (2 + its hit reaction's kicked bones' first row: vr_hitreact.cpp)
 	float		smoothw[4]; // ... the four poses' weights
 	float		skintint[4]; // bare forearms' ends tinted to the hand's skin (vr_view.cpp skinTint): rgb times the skin, w how much
 	float		skintintrange[4]; // ... where in the skin: below u x, from v y (none) to z (all), below v w

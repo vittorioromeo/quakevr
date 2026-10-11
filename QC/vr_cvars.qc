@@ -767,6 +767,9 @@ float cvarh_vr_foegrab_throw_mass_hurt;
 float cvarh_vr_foegrab_throw_push;
 float cvarh_vr_foegrab_throw_lift;
 float cvarh_vr_climb_blast_letgo;
+float cvarh_vr_hit_react;
+float cvarh_vr_hit_react_slow;
+float cvarh_vr_hit_react_debug;
 
 //
 //
@@ -1544,6 +1547,9 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_foegrab_throw_push);
     VR_CVAR_HMAKE(vr_foegrab_throw_lift);
     VR_CVAR_HMAKE(vr_climb_blast_letgo);
+    VR_CVAR_HMAKE(vr_hit_react);
+    VR_CVAR_HMAKE(vr_hit_react_slow);
+    VR_CVAR_HMAKE(vr_hit_react_debug);
 
 #undef VR_CVAR_HMAKE
 }

@@ -95,6 +95,8 @@ vr_axestick.qc
 vr_weaponinst_test.qc
 vr_liquids.qc
 vr_wounds.qc
+// Living hit reactions (combat.qc, ai.qc and weapons.qc call it).
+vr_hitreact.qc
 vr_burning.qc
 vr_shock.qc
 // Debug > Cheats and Recording: the powerups, infinite ammunition, the scene's cleanups (after what they remove).

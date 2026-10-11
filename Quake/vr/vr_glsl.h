@@ -1724,6 +1724,15 @@ QVR_DECAL_FUNCTIONS \
 "	vec4 p = vec4(r.xyz, 1.0);\n" \
 "	return (r.w - bone) * 2.0 * vec3(dot(SmoothSwing[i], p), dot(SmoothSwing[i + 1u], p), dot(SmoothSwing[i + 2u], p));\n" \
 "}\n" \
+"// QVR: a living monster's hit reaction (vr/vr_hitreact.cpp): its bones' kicks (3 rows each, after its swings), every\n" \
+"// vertex moved whole with its bone.\n" \
+"vec3 RigKick(uint base)\n" \
+"{\n" \
+"	vec4 r = SmoothRest[gl_VertexID];\n" \
+"	uint i = base + uint(floor(r.w)) * 3u;\n" \
+"	vec4 p = vec4(r.xyz, 1.0);\n" \
+"	return vec3(dot(SmoothSwing[i], p), dot(SmoothSwing[i + 1u], p), dot(SmoothSwing[i + 2u], p));\n" \
+"}\n" \
 "\n" \
 "// QVR: the model's own occlusion at this vertex in a pose (vr/vr_ao.cpp: 1 open), in its position's 4th byte\n" \
 "// (gl_mesh.c); a muzzle flash's vertex keeps its gun vertex there (the flag in its normal's 4th byte): none.\n" \
@@ -1756,6 +1765,8 @@ QVR_DECAL_FUNCTIONS \
 "#if POSEVERTTYPE == 0\n" \
 "		if (inst.Smooth.z > 0)\n" \
 "			lerpedPos += RigSwing(uint(inst.Smooth.z - 1));\n" \
+"		if (inst.Smooth.w > 1)\n" \
+"			lerpedPos += RigKick(uint(inst.Smooth.w - 2));\n" \
 "#endif\n" \
 "		pose1.nor = smoothnor;\n" \
 "		pose2.nor = smoothnor;\n" \

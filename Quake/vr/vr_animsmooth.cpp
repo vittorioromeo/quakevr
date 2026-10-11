@@ -22,6 +22,7 @@
 // frames is a few units off it at most mid-swing (vr_anim_smooth_check).
 
 #include "vr_animsmooth.hpp"
+#include "vr_hitreact.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_mem.hpp"
@@ -627,12 +628,85 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
     return 1;
 }
 
+// Hit reactions (vr_hitreact.cpp; vr_hit_react 1): a rigged monster's bones kicked, whatever Model Animation is: 3 rows a
+// bone after its swings, each the bone's kick less no kick (the delta its posed vertices take, from their rest places),
+// added whole by the shader (RigKick; Smooth.w 2 + their first row). Not smoothed (`on` 0), it is drawn on Quake's
+// blend's own weights, exactly as it would be.
+[[nodiscard]] int kickInstance(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
+    int channel, int on, int smooth[4], float weights[4])
+{
+    const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    if(vr_hit_react.value != 1.f || zeroblend || !e->model || hdr->poseverttype != aliashdr_t::PV_QUAKE1 ||
+        VR_IsViewEntity(e) || pose1 < 0 || pose1 >= hdr->numposes || pose2 < 0 || pose2 >= hdr->numposes)
+    {
+        return on;
+    }
+    SmoothModel& m = modelData(e->model, hdr);
+    if(!rigData(m, e->model, hdr))
+    {
+        return on;
+    }
+    const ragdoll::Rig& rig = *m.rig;
+    // The bones as drawn, near enough (the lerp's poses blended: a kick's turn is small)
+    const float b = pose1 == pose2 ? 0.f : za::clamp(blend, 0.f, 1.f);
+    rigpose::Rigid posed[ragdoll::maxBones];
+    for(int i = 0; i < rig.numBones; i++)
+    {
+        const rigpose::Rigid k1 = rigpose::key(rig, pose1, i), k2 = rigpose::key(rig, pose2, i);
+        posed[i].rot = glm::slerp(k1.rot, k2.rot, b);
+        posed[i].pos = glm::mix(k1.pos, k2.pos, b);
+    }
+    rigpose::Rigid kick[ragdoll::maxBones];
+    if(!hitreact::boneKicks(e, rig, posed, kick))
+    {
+        return on;
+    }
+    za::Vector<glm::vec4>& swing = swingsOf(channel);
+    const za::SizeT at = swing.size();
+    swing.resize(at + static_cast<za::SizeT>(3 * rig.numBones));
+    for(int i = 0; i < rig.numBones; i++)
+    {
+        // p = R rest + t posed; kicked K p + k: the delta (K - I)(R rest + t) + k
+        const glm::mat3 a = glm::mat3_cast(kick[i].rot) - glm::mat3{1.f};
+        const glm::mat3 r = a * glm::mat3_cast(posed[i].rot);
+        const glm::vec3 t = a * posed[i].pos + kick[i].pos;
+        glm::vec4* rows = swing.data() + at + static_cast<za::SizeT>(3 * i);
+        for(int row = 0; row < 3; row++)
+        {
+            rows[row] = glm::vec4{r[0][row], r[1][row], r[2][row], t[row]} * m.invScale[row];
+        }
+    }
+    if(!on)
+    {
+        smooth[0] = pose1;
+        smooth[1] = pose2;
+        smooth[2] = 0;
+        weights[0] = 0.f;
+        weights[1] = 1.f - blend;
+        weights[2] = blend;
+        weights[3] = 0.f;
+    }
+    smooth[3] = 2 + static_cast<int>(at);
+    return 1;
+}
+
 } // namespace
+
+bool animsmooth::rigged(const entity_s* e)
+{
+    if(!e || !e->model || e->model->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
+    return hdr && hdr->poseverttype == aliashdr_t::PV_QUAKE1 && rigData(modelData(e->model, hdr), e->model, hdr);
+}
 
 extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
     int batchindex, int channel, int smooth[4], float weights[4])
 {
-    const int on = smoothInstance(e, aliashdr, pose1, pose2, blend, zeroblend, batchindex, channel, smooth, weights);
+    int on = smoothInstance(e, aliashdr, pose1, pose2, blend, zeroblend, batchindex, channel, smooth, weights);
+    on = kickInstance(e, aliashdr, pose1, pose2, blend, zeroblend, channel, on, smooth, weights);
     if(trace.ent >= 0 && channel == 0)
     {
         traceDraw(e, static_cast<const aliashdr_t*>(aliashdr), pose1, pose2, blend, on, smooth, weights);
