@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_lighting.hpp"
+#include "vr_brushes.hpp"
 #include "vr_portals.hpp"
 #include "vr_ao.hpp"
 #include "vr_avatar.hpp"
@@ -426,8 +427,10 @@ void collectBrushes(const glm::vec3& light, float radius, bool itemsOnly)
     for(int i = 1; i < cl.num_entities; i++)
     {
         entity_t& e = cl_entities[i];
+        // (the boxes made in the game are not in the baked light either: vr_brushes.cpp)
         if(!e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0] ||
-            (itemsOnly && qvr::modelmeta::has(e.model, qvr::modelmeta::Trait::Submodel)) || !touches(&e, light, radius))
+            (itemsOnly && qvr::modelmeta::has(e.model, qvr::modelmeta::Trait::Submodel) && !qvr::brushes::isRuntime(e.model)) ||
+            !touches(&e, light, radius))
         {
             continue;
         }

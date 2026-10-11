@@ -25,6 +25,8 @@
 #include "vr_menupaint.hpp"
 #include "vr_menuui.hpp"
 #include "vr_toolgun_icons.hpp"
+#include "vr_toolgun_brush.hpp"
+#include "vr_brushes.hpp"
 
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -89,6 +91,7 @@ struct PanelState
     bool more{false};            // More's page instead of the tool's
     int section{0};              // the spawn grid's tab
     int gridPage[sectionCount]{}; // and each tab's page
+    int texturePage{0};          // the Brush tool's textures' page
 
     // The laser (the other hand's), from the host frame.
     bool hit{false};
@@ -294,6 +297,7 @@ void square(const Painter& p, float x0, float y0, float x1, float y1, float w, c
     case Tool::Physgun: return {0.45f, 0.6f, 1.f, 1.f};
     case Tool::Scale: return {1.f, 0.85f, 0.2f, 1.f};
     case Tool::Joint: return {0.4f, 1.f, 0.4f, 1.f};
+    case Tool::Brush: return {1.f, 0.6f, 0.2f, 1.f};
     default: return {0.9f, 0.85f, 0.75f, 1.f};
     }
 }
@@ -331,6 +335,14 @@ void toolIcon(int tool, float cx, float cy)
         line(p, cx - 5.f, cy + 4.f, cx + 5.f, cy - 4.f, 1.5f, c);
         p.disc(cx - 5.f, cy + 4.f, 2.8f, c);
         p.disc(cx + 5.f, cy - 4.f, 2.8f, c);
+        break;
+    case Tool::Brush: // a box seen from above a corner: its front square, its top and side behind
+        square(p, cx - 6.f, cy - 2.f, cx + 2.f, cy + 6.f, 1.2f, c);
+        line(p, cx - 6.f, cy - 2.f, cx - 2.f, cy - 6.f, 1.2f, c);
+        line(p, cx + 2.f, cy - 2.f, cx + 6.f, cy - 6.f, 1.2f, c);
+        line(p, cx + 2.f, cy + 6.f, cx + 6.f, cy + 2.f, 1.2f, c);
+        line(p, cx - 2.f, cy - 6.f, cx + 6.f, cy - 6.f, 1.2f, c);
+        line(p, cx + 6.f, cy - 6.f, cx + 6.f, cy + 2.f, 1.2f, c);
         break;
     default: // More: three dots
         for(const float dx : {-5.f, 0.f, 5.f})
@@ -791,6 +803,90 @@ void jointPage(Ui& ui)
     }
 }
 
+// The Brush tool: its modes, the grid, the map's textures (a page of thumbnails: the one chosen lit), Pick and Whole
+// Brush (painting all of a box or the face shot).
+void brushPage(Ui& ui)
+{
+    const int modes = toolgun::brushtool::modeCount();
+    const int current = za::clamp(static_cast<int>(vr_toolgun_brush_mode.value), 0, modes - 1);
+    const float gap = 3.f;
+    const float mw = (panelWidth - pad * 2.f - gap * (modes - 1)) / modes;
+    for(int i = 0; i < modes; i++)
+    {
+        const Rect r{pad + i * (mw + gap), 47.f, pad + i * (mw + gap) + mw, 60.f};
+        if(button(ui, r, toolgun::brushtool::modeName(i), current == i, 6.f))
+        {
+            Cvar_SetValueQuick(&vr_toolgun_brush_mode, static_cast<float>(i));
+            toolgun::brushtool::reset();
+            Con_Printf("toolgun: brush mode %s\n", toolgun::brushtool::modeName(i));
+        }
+    }
+    constexpr const char* gridNames[] = {"1", "4", "8", "16", "32", "64"};
+    constexpr float gridValues[] = {1.f, 4.f, 8.f, 16.f, 32.f, 64.f};
+    choiceRow(ui, Rect{pad, 63.f, panelWidth - pad, 75.f}, "Grid", vr_toolgun_brush_grid, gridNames, gridValues, 6);
+
+    // The textures: six a row, two rows a page.
+    constexpr int columns = 6, rows = 2, perPage = columns * rows;
+    const int count = brushes::textureCount();
+    const int pages = za::max(1, (count + perPage - 1) / perPage);
+    int& page = ps.texturePage;
+    page = za::clamp(page, 0, pages - 1);
+    const float tw = (panelWidth - pad * 2.f - gap * (columns - 1)) / columns, th = 46.f;
+    const char* chosen = brushes::currentTexture();
+    for(int k = 0; k < perPage; k++)
+    {
+        const int index = page * perPage + k;
+        texture_t* t = index < count ? brushes::textureAt(index) : nullptr;
+        if(!t)
+        {
+            break;
+        }
+        const int col = k % columns, row = k / columns;
+        const Rect r{pad + col * (tw + gap), 78.f + row * (th + 3.f), pad + col * (tw + gap) + tw, 78.f + row * (th + 3.f) + th};
+        int id = 0;
+        if(interact(ui, r, t->name, id))
+        {
+            brushes::setCurrentTexture(t->name);
+            Con_Printf("toolgun: texture %s\n", t->name);
+        }
+        if(ui.mode == Mode::Draw)
+        {
+            const bool on = !q_strcasecmp(chosen, t->name), hover = hovering(r);
+            tile(r, on, hover);
+            const float side = 32.f;
+            Draw_TextureRect(r.cx() - side * 0.5f, r.y0 + 2.f, side, side, t->gltexture, 1.f);
+            textFit(r.cx(), r.y1 - 9.f, r.w() - 2.f, 5.f, t->name, !on && !hover);
+        }
+    }
+    const Rect bar{pad, 175.f, panelWidth - pad, 189.f};
+    if(pages > 1)
+    {
+        if(button(ui, Rect{bar.x0, bar.y0, bar.x0 + 16.f, bar.y1}, "<"))
+        {
+            page = (page + pages - 1) % pages;
+        }
+        if(button(ui, Rect{bar.x0 + 44.f, bar.y0, bar.x0 + 60.f, bar.y1}, ">"))
+        {
+            page = (page + 1) % pages;
+        }
+        if(ui.mode == Mode::Draw)
+        {
+            char text[16];
+            q_snprintf(text, sizeof(text), "%d/%d", page + 1, pages);
+            textFit(bar.x0 + 30.f, bar.cy() - 3.f, 24.f, 6.f, text, false);
+        }
+    }
+    if(button(ui, Rect{bar.x1 - 160.f, bar.y0, bar.x1 - 108.f, bar.y1}, "Pick", toolgun::brushtool::picking(), 6.f))
+    {
+        toolgun::brushtool::pickTexture();
+    }
+    if(button(ui, Rect{bar.x1 - 104.f, bar.y0, bar.x1, bar.y1}, vr_toolgun_brush_paint_all.value != 0.f ? "Paint: Whole Box" : "Paint: One Face",
+           false, 6.f))
+    {
+        Cvar_SetValueQuick(&vr_toolgun_brush_paint_all, vr_toolgun_brush_paint_all.value != 0.f ? 0.f : 1.f);
+    }
+}
+
 void morePage(Ui& ui)
 {
     const int n = menu::toolgunCheatCount();
@@ -831,6 +927,7 @@ void layout(Ui& ui)
     case Tool::Physgun: physgunPage(ui); break;
     case Tool::Scale: scalePage(ui); break;
     case Tool::Joint: jointPage(ui); break;
+    case Tool::Brush: brushPage(ui); break;
     default: break;
     }
 }

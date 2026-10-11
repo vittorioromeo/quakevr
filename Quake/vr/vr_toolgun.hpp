@@ -26,6 +26,7 @@ enum class Tool : int
     Physgun,
     Scale,
     Joint,
+    Brush, // boxes of the map's kind (vr_toolgun_brush.cpp)
     Count
 };
 

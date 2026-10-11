@@ -4,6 +4,7 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_progs.hpp"
+#include "vr_brushes.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
@@ -2447,6 +2448,7 @@ void onEdictFree(edict_t* ed)
         ropesim::forget(num);
         box3d::toolForget(num); // (the toolgun's pins and joints on it)
         toolgun::forget(num);   // (and what its tools hold)
+        brushes::edictFreed(num); // (a box made in the game: its brush goes with it)
     }
     if(num <= 0 || num >= static_cast<int>(woundsSent.size()) || !woundsSent[static_cast<za::SizeT>(num)])
     {

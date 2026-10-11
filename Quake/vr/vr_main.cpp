@@ -100,6 +100,7 @@
 #include "vr_wounds.hpp"
 #include "vr_cleanskins.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_brushes.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Abort.hpp"
@@ -1897,6 +1898,7 @@ extern "C" void VR_Init()
     menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
     toolgun::registerCommands();
+    brushes::registerCommands();
     Cmd_AddCommand("vr_menu_search", menu::search_f);
     Cmd_AddCommand("vr_menu_slider_step", menu::sliderStep_f);
     Cmd_AddCommand("maps_page_stats", menu::mapsPageStats_f); // (the map browser page: vr_menu_maps.inc)
@@ -2118,6 +2120,7 @@ extern "C" void VR_BeginFrame()
     // Update the hands now, before the move is built (it carries the aim in the view angles).
     input::roomscaleJump(hands::current());
     toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
+    brushes::frame(); // the boxes made in the game: their slots written (vr_brushes.cpp)
 }
 
 extern "C" int VR_RuntimeMenuPause()

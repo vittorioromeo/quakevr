@@ -3276,7 +3276,7 @@ QVR_CVAR(vr_stealth_test_kinds, "0", CVAR_NONE)      // tests: the kinds scene's
 QVR_CVAR(vr_stealth_test_quitclient, "0", CVAR_NONE) // tests: the coop scene (vr_stealth_test 102) tells the other player's game to quit at its end (stealth_mp_test.sh)
 
 // The toolgun (vr_toolgun.cpp, QC vr_toolgun.qc; docs/vr-port/TOOLGUN.md): its menu's settings and its tools'.
-QVR_CVAR(vr_toolgun_tool, "0", CVAR_ARCHIVE)          // the tool the trigger uses: 0 spawn, 1 remove, 2 physgun, 3 scale, 4 joint
+QVR_CVAR(vr_toolgun_tool, "0", CVAR_ARCHIVE)          // the tool the trigger uses: 0 spawn, 1 remove, 2 physgun, 3 scale, 4 joint, 5 brush
 QVR_CVAR(vr_toolgun_joint, "0", CVAR_ARCHIVE)         // the joint tool's: 0 weld, 1 ball, 2 hinge, 3 slider, 4 rope, 5 spring, 6 unjoin (removes a prop's joints)
 QVR_CVAR(vr_toolgun_scale_uniform, "1", CVAR_ARCHIVE) // the scale tool's face handles scale the whole prop (1) or along their axis alone (0); corners always the whole
 QVR_CVAR(vr_toolgun_turn_axis, "1", CVAR_ARCHIVE)     // X/A held, the gun's stick left and right turns the ghost or the held thing about: 0 its pitch, 1 its yaw, 2 its roll
@@ -3292,3 +3292,10 @@ QVR_CVAR(vr_toolgun_physgun_wrist, "1", CVAR_ARCHIVE) // the physgun turns what 
 QVR_CVAR(vr_toolgun_snap, "15", CVAR_ARCHIVE)         // X/A held, what the physgun holds turns in steps of this many degrees (its angles snapped); 0: never
 QVR_CVAR(vr_toolgun_screen_scale, "0.02", CVAR_ARCHIVE) // the gun's screen (the tool's name): its letters' size (a character 8 times this, units); 0: none
 QVR_CVAR(vr_toolgun_screen_up, "3.2", CVAR_ARCHIVE)     // ... how far over the hand (units)
+QVR_CVAR(vr_toolgun_brush_mode, "0", CVAR_ARCHIVE)      // the Brush tool's trigger: 0 create (drag a box), 1 move, 2 resize (a face's handle), 3 paint (the texture chosen), 4 copy, 5 delete
+QVR_CVAR(vr_toolgun_brush_grid, "8", CVAR_ARCHIVE)      // ... its grid (units: corners, moves and sizes snap to it)
+QVR_CVAR(vr_toolgun_brush_paint_all, "1", CVAR_ARCHIVE) // ... painting textures the whole brush (0: the face shot)
+
+// Runtime brushes (vr_brushes.cpp; docs/vr-port/BRUSH_TOOL.md): boxes made in the game, the map's kind of geometry.
+QVR_CVAR(vr_brush_max, "256", CVAR_ARCHIVE)             // how many a map may have at once (its slots in the brush buffers, made at its load: 52 bytes x 64 corners each)
+QVR_CVAR(vr_brush_shade, "1", CVAR_ARCHIVE)             // their faces' flat light shaded by their way (the top full, the sides 0.8, the bottom 0.55); 0: all as the light there

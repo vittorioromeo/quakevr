@@ -2243,6 +2243,66 @@ harness looks for an entity number the run did not get), and `walltorch_grab_tes
 **In the headset:** a few props piled and knocked over, a ragdoll or two, a crate through a teleporter: nothing should
 look different. Debug > Profiling > Physics AVX2 on, same again; the frame timing should not get worse.
 
+## Runtime brushes: the toolgun's Brush tool, stage 1 (feature branch, next release, 2026-10-11, worktree `brushtool`)
+
+**The request** (the author's): "Add the brush tool to the toolgun. The created brushes should have the same
+functionality as normal brushes (within reason): climbable, react to light and collisions, etc. Don't worry too much
+about persistence now but design the system so saving/loading from files would be easy. If reasonable, design so it
+supports baking." The design is `BRUSH_TOOL.md`; this is its stage 1 (boxes), on `feature/toolgun2`.
+
+**What changed.**
+- **The brush** (`vr_brushes.cpp`): planes (outward normal, distance, world space, doubles) with each face's texture
+  and Valve 220 alignment; its text is a .map brush (`toText`/`fromText`, Valve 220 written, Quake's format read too),
+  the one form for saves, copies, the network and a bake later. Polygons are cut from the planes (convex sets in
+  general, boxes from the tool).
+- **Its entity and model:** `func_qvr_brush` (SOLID_BSP, MOVETYPE_PUSH, made in C: no QC spawn function), model
+  `*qvrbrush/<id>` made in memory at `Mod_LoadModel` (`VR_RuntimeBrushModel`): own planes, hull 0 a chain of nodes (one
+  a face, the last behind them solid) with real surfaces/edges/vertices/texinfo of the map's textures, hulls 1 and 2
+  chains of the planes pushed out by the world's boxes (axial bevels for non-boxes). The name is per id, an id reused
+  after its brush goes and its model made again in place (same `qmodel_t`, `brushes::revision`): edits never use up
+  precache slots. A model whose brush is gone (a save's) is empty, never a load error.
+- **Drawn by Ironwail's own brush path:** `R_NewMap` reserves `vr_brush_max` (256) slots at the end of the brush
+  vertex, index and indirect-command buffers (64 corners, 192 indices, 8 commands a slot) and a strip of the lightmap
+  (16 texels a slot). A brush's model points `firstcmd`/`texofs`/`vbo_firstvert` into its slot, so the world shader
+  (depth pre-pass, lightmap, dynamic lights and their shadows, detail, normal maps, fog, the toolgun's glow) draws it
+  as a door; its instances also take the world's decals (`retro[3]`). Light: one texel a face, the map's light where
+  it is (`R_LightPoint` 4 units out), shaded by its way (`vr_brush_shade`). Shadow casting: the dlights' and the
+  map lights' "moving things" casters read `vbo_firstvert` (free); the map-light casters now take runtime brushes too.
+- **Hooks:** Box3D movers made again when the model's revision changes (old hulls retired till the world goes);
+  `vr_hull` (narrow player box) meets a brush's planes directly (Quake 2's box against convex planes), never caching
+  it; ledges for runtime brushes (`fromThisMap`), dropped on change (`ledges::forget`: holds let go); decals laid on
+  brush faces (`clipToWorld`, `hitWorld`), removed with the brush (`decals::removeIn`); `vr_audiosim` skips them (its
+  `atoi(name + 1)` made sub 0); `modelcollide::forget`; the load-time brush buffers skip them.
+- **The toolgun's Brush tool** (`vr_toolgun_brush.cpp`; the panel's sixth tile, a box icon): Create (trigger on a
+  surface starts the base on the grid, held it follows the aim on that plane, let go it rises with the aim, trigger
+  makes it), Move (held, grid steps; X/A + stick nearer/further), Resize (a face's handle held), Paint (the panel's
+  texture; Paint: Whole Box / One Face), Copy (a ghost stamp), Delete; Pick takes a texture from a shot surface. Ghosts
+  are lines and see-through faces with the size over them; a tick in the hand at each grid step. No box over the
+  player or a monster (refused). The panel: mode tiles, Grid 1..64, the map's textures as thumbnails (12 a page).
+  The physgun leaves boxes to it. `vr_toolgun_tool` 5; `vr_toolgun_brush_mode` 0, `_grid` 8, `_paint_all` 1.
+- **Saves:** not saved yet (stage 3). A save with boxes loads without them (said once: their entities removed).
+- **Commands:** `vr_brush_box|here|set|move|texture|texture_set|delete|duplicate|list|text|textures|selftest`, tests'
+  `vr_brush_spawn <class> <x y z> [yaw] [drop]`, `vr_brush_ent <n|last>`, `vr_brush_trace`, `vr_toolgun_brush_status`,
+  `vr_toolgun_brush_mode_set`. Debug > Tools > Boxes (Brush Tool).
+
+**Tests** (headless, vrfiringrange): `python Misc/quakevr/brush_test.py brushtool [--shots] [--perf]`: PASS. Self-test
+(a box, a wedge and a prism through their text and back, hull 0/1/2 probes: 35 checks); the player put over a box
+stands on it (ground: the box) at z 89 and falls to 41 when it's removed; a crate let fall rests on it (97.1) and falls
+to the floor (33.2) when it goes; climb: the mantle play on a 48-high box mantles onto it (ground: the box); a grunt on
+a platform in the air walks 189 units along it to the player, on it all the way; a grunt behind a box wall has no
+enemy, the wall removed it takes the player and comes; a rocket's scorch lands on a box (1 mark), none after it goes;
+the tool makes a box by drag and raise (176 -616 17 .. 200 -552 81), moves it 40, pulls its top to 104, paints,
+copies and deletes; a save with a box loads without it (said), its trace falls through, a new box stops it.
+`toolgun_panel_test.sh` (six tools now) and `toolgun_joint_menu_test.sh`: PASS. eval.sh: skipped (no takes).
+Shots: scratch/brush_shots.png (a dynamic light on a pillar and its shadow, the Create ghost, a scorch, the panel).
+**Cost** (`--perf --exclusive`, 50 pillars in view): making them 1 ms, their slots and light the next frame 67 ms
+(once: about 1.3 ms a box, mostly its six light samples and uploads); the frame's GPU render 0.90 -> 0.96 ms, world 0.25 -> 0.37 ms; CPU render 0.90 -> 0.93.
+
+**In the headset:** take the toolgun, B/Y, the box tile (sixth). Create: trigger on the floor, drag, let go, raise
+your hand, trigger. Stand on it, climb it (both hands on its lip), shoot it, put a light (rocket) by it. Move, Resize,
+Paint (pick a texture tile), Copy, Delete. Tell us: the grid (8) and the tick at each step, whether drag-then-raise
+is natural, the ghost's look, and how the boxes' flat light sits in the room.
+
 ## INTEGRATION: the feature branches merged for testing (worktree `integ`, 2026-10-11; pushed as `origin/next`)
 
 **Merged** onto vr-ironwail `bc3163ed4`, in this order, each a real merge (`--no-ff`, its commits kept: revert one

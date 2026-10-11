@@ -598,6 +598,7 @@ void R_NewMap (void)
 	GL_DeleteBModelBuffers ();
 	GL_BuildBModelVertexBuffer ();
 	GL_BuildBModelMarkBuffers ();
+	VR_RuntimeBrushesUpload (); // QVR: the runtime brushes into their slots again (vr/vr_brushes.cpp)
 	VR_TimeMark ("R_NewMap: brush model buffers"); // QVR
 	//ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel
 

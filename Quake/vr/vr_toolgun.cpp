@@ -19,9 +19,11 @@
 // edicts, changed between its frames (as a console command does).
 
 #include "vr_toolgun.hpp"
+#include "vr_toolgun_brush.hpp"
 
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
+#include "vr_brushes.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
@@ -120,7 +122,7 @@ constexpr Spawnable spawnables[] = {
 };
 constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spawnables[0]));
 
-constexpr const char* toolNames[] = {"Spawn", "Remove", "Physgun", "Scale", "Joint"};
+constexpr const char* toolNames[] = {"Spawn", "Remove", "Physgun", "Scale", "Joint", "Brush"};
 constexpr const char* jointNames[] = {"Weld", "Ball", "Hinge", "Slider", "Rope", "Spring", "Unjoin"};
 constexpr int unjoin = static_cast<int>(box3d::ToolJoint::Count); // vr_toolgun_joint's last: removes a prop's joints
 
@@ -151,6 +153,7 @@ struct Aim
     glm::vec3 end{0.f};    // the world's hit (or the range's end)
     glm::vec3 normal{0.f}; // the world's surface there (zero: nothing hit)
     float worldDistance{0.f};
+    int hitEntity{0}; // what that is (0: the world; a door, a lift, a box made with the Brush tool)
     int target{0}; // the entity met first, before the world (0: none)
     float targetDistance{0.f};
 };
@@ -222,6 +225,7 @@ struct ToolgunState
     float glow{0.f};
     int glow2{0};
     const entity_t* ghostEnt{nullptr}; // the ghost's temp entity this frame (glowing as a hologram)
+    Tool lastTool{Tool::Spawn};        // last frame's (the Brush tool's holds let go when it changes)
 };
 ToolgunState tg;
 
@@ -439,6 +443,7 @@ void updateAim(const hands::State& s)
     if(tr.fraction < 1.f)
     {
         a.normal = glm::vec3{tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2]};
+        a.hitEntity = tr.ent ? NUM_FOR_EDICT(tr.ent) : 0;
     }
     a.target = pickTarget(a.from, a.dir, a.worldDistance, a.targetDistance);
 }
@@ -557,6 +562,11 @@ void removeTarget(int num)
 
 void dragStart(int num)
 {
+    if(brushes::ofEntity(num))
+    {
+        Con_Printf("toolgun: a box moves with the Brush tool (on its grid)\n");
+        return;
+    }
     edict_t* e = EDICT_NUM(num);
     Drag& d = tg.drag;
     d = {};
@@ -970,6 +980,7 @@ void sticksFrame(float dt)
         }
         break;
     }
+    case Tool::Brush: toolgun::brushtool::push(push); break;
     default:
         tg.offset += glm::vec3{push, side, lift};
         tg.turn[axis] += turn;
@@ -991,6 +1002,7 @@ void sticksFrame(float dt)
     case Tool::Physgun: q_snprintf(text, sizeof(text), "PHYSGUN"); break;
     case Tool::Scale: q_snprintf(text, sizeof(text), "SCALE"); break;
     case Tool::Joint: q_snprintf(text, sizeof(text), "%s%s", jointNames[jointKind()], tg.jointFirst ? " 1/2" : ""); break;
+    case Tool::Brush: q_snprintf(text, sizeof(text), "%s", toolgun::brushtool::screenText()); break;
     default: text[0] = '\0'; break;
     }
     return text;
@@ -1005,6 +1017,7 @@ void sticksFrame(float dt)
     case Tool::Physgun: return {0.35f, 0.55f, 1.f, 1.f};
     case Tool::Scale: return {1.f, 0.85f, 0.2f, 1.f};
     case Tool::Joint: return {0.4f, 1.f, 0.4f, 1.f};
+    case Tool::Brush: return {1.f, 0.6f, 0.2f, 1.f};
     default: return {1.f, 1.f, 1.f, 1.f};
     }
 }
@@ -1061,6 +1074,7 @@ void reset()
     tg.glowNum = tg.glow2 = 0;
     tg.ghost = false;
     tg.aim = {};
+    toolgun::brushtool::reset();
 }
 
 void forget(int num)
@@ -1235,6 +1249,7 @@ void frame(const hands::State& s)
         tg.gizmo = {};
         tg.adjust = tg.trigger = tg.firePressed = tg.freezePressed = false;
         tg.aim = {};
+        toolgun::brushtool::reset();
         return;
     }
     const ServerVm vm;
@@ -1258,6 +1273,11 @@ void frame(const hands::State& s)
     {
         tg.jointFirst = 0;
     }
+    if(tool != Tool::Brush && tg.lastTool == Tool::Brush)
+    {
+        toolgun::brushtool::reset();
+    }
+    tg.lastTool = tool;
     switch(tool)
     {
     case Tool::Spawn:
@@ -1338,6 +1358,24 @@ void frame(const hands::State& s)
             jointShot(a.target, a.from + a.dir * a.targetDistance, normal);
         }
         break;
+    case Tool::Brush:
+    {
+        toolgun::brushtool::Input in;
+        in.valid = a.valid;
+        in.from = a.from;
+        in.dir = a.dir;
+        in.worldDistance = a.worldDistance;
+        in.normal = a.normal;
+        in.hitEntity = a.hitEntity;
+        in.target = a.target;
+        in.targetDistance = a.targetDistance;
+        in.trigger = tg.trigger;
+        in.fire = fire;
+        in.head = s.head;
+        toolgun::brushtool::frame(in);
+        tg.glowNum = toolgun::brushtool::glowEntity(tg.glow);
+        break;
+    }
     default: break;
     }
     if(tg.hand >= 0 && key_dest == key_game)
@@ -1514,6 +1552,7 @@ const char* stateLine()
     case Tool::Joint:
         q_snprintf(text, sizeof(text), "Joint: %s%s", jointNames[jointKind()], tg.jointFirst ? " (shoot the second)" : "");
         break;
+    case Tool::Brush: q_snprintf(text, sizeof(text), "%s", toolgun::brushtool::stateLine()); break;
     default: text[0] = '\0'; break;
     }
     return text;
@@ -1643,4 +1682,5 @@ void qvr::toolgun::registerCommands()
     Cmd_AddCommand("vr_toolgun_scale_reset", scaleReset_f);
     Cmd_AddCommand("vr_toolgun_status", status_f);
     toolgun::panel::registerCommands();
+    toolgun::brushtool::registerCommands();
 }

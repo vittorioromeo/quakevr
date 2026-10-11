@@ -41,7 +41,7 @@ at(160, 89)
 a('echo STEP1;vr_toolgun_status')
 shot()
 # 2. The tools cycled by the gun's stick press, and one back with X/A held.
-for i in range(5):
+for i in range(6):
     a('vr_mock_button main stickclick 1;wait2;vr_mock_button main stickclick 0;wait3;echo CYCLE;vr_toolgun_status')
 a('vr_mock_button main primary 1;wait2;vr_mock_button main stickclick 1;wait2;vr_mock_button main stickclick 0;wait2')
 a('vr_mock_button main primary 0;wait3;echo BACK;vr_toolgun_status')
@@ -96,10 +96,10 @@ fails = []
 if 'toolgun: panel open' not in t: fails.append('panel not opened')
 if not after('toolgun: spawn Barrel', 'STEP1'): fails.append('Barrel not chosen by its tile')
 screens = re.findall(r'CYCLE\s*\ntoolgun: hand 1, tool (\w+), panel \w+, adjust \d, screen \"([^\"]*)\"', t)
-want = ['Remove', 'Physgun', 'Scale', 'Joint', 'Spawn']
+want = ['Remove', 'Physgun', 'Scale', 'Joint', 'Brush', 'Spawn']
 if [x[0] for x in screens] != want: fails.append(f'cycle {screens}')
-if any(x[0] != 'Spawn' and x[1].upper() != x[0].upper() and not x[1].startswith('Weld') for x in screens): fails.append(f'screens {screens}')
-if not re.search(r'BACK\s*\ntoolgun: hand 1, tool Joint', t): fails.append('X/A + stick press: not back to Joint')
+if any(x[0] != 'Spawn' and not x[1].upper().startswith(x[0].upper()) and not x[1].startswith('Weld') for x in screens): fails.append(f'screens {screens}')
+if not re.search(r'BACK\s*\ntoolgun: hand 1, tool Brush', t): fails.append('X/A + stick press: not back to Brush')
 if not re.search(r'JOINT\s*\n\"vr_toolgun_joint\" is \"2\"', t): fails.append('Hinge tile')
 if 'toolgun: God Mode' not in t: fails.append('God Mode button')
 m = re.search(r'SIZE\s*\n\"vr_toolgun_panel_size\" is \"([\d.]+)\"', t)

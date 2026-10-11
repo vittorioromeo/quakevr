@@ -29,7 +29,7 @@ Its own small panel (not the VR Settings): `vr_toolgun_panel_size` units wide (6
 `vr_toolgun_menu_up`, `_forward` and `_tilt` place it. The game goes on while it is open: you can walk, and the gun's
 trigger still uses the tool. A menu opened meanwhile hides it until it closes.
 
-- **The top row:** the tools' tiles (Spawn, Remove, Physgun, Scale, Joint), each with its icon: a tap switches. More: the
+- **The top row:** the tools' tiles (Spawn, Remove, Physgun, Scale, Joint, Brush), each with its icon: a tap switches. More: the
   cheats and the panel's size. Under them a line: the tool and its choice.
 - **Under it, only the chosen tool's choices:**
   - Spawn: tabs (Monsters, Props, Weapons, Items) and a grid of thumbnails (each model drawn from its file once,
@@ -39,6 +39,8 @@ trigger still uses the tool. A menu opened meanwhile hides it until it closes.
   - Physgun: Turn With the Wrist, Snap (X/A) Off/15/45/90, Sticks Turn Pitch/Yaw/Roll, Unfreeze Everything.
   - Scale: Proportional, Reset Its Size.
   - Joint: the seven joints as icon tiles (the chosen one lit, a line on what it does), Remove Every Joint.
+  - Brush: its six modes as tiles, Grid 1/4/8/16/32/64, the map's textures as thumbnails (twelve a page, `<` `>`; the
+    one chosen lit), Pick, Paint: Whole Box / One Face.
   - More: twenty cheats as buttons (Debug > Cheats and Recording's own rows: God Mode, Noclip, ..., Pause; a switch
     lit while on) and Panel Size.
 
@@ -69,6 +71,14 @@ A / X held, the sticks:
   orange), hold the trigger and pull or push: the prop grows or shrinks about its middle. Proportional on (the default)
   scales it whole; off, a face handle stretches it along that face's axis alone (corners always whole). A / X held, the
   gun's stick grows and shrinks it. Reset Its Size: the prop aimed at back to its size. 0.1x to 10x.
+- **Brush.** Boxes of the map's own kind (`BRUSH_TOOL.md`: solid, climbable, lit, shadowed, marked by shots; monsters
+  walk on them, props land on them), everything on the panel's grid (8). The panel's modes: Create (the trigger on a
+  surface starts a box's base there; held, the base follows the aim on that surface; let go, the box rises as you
+  raise the aim; the trigger makes it), Move (hold the trigger on a box and swing it; X/A + the gun's stick: nearer,
+  further), Resize (hold the trigger on a face's handle and pull), Paint (the texture tile chosen; Paint: Whole Box or
+  One Face; Pick takes a texture from the next surface shot), Copy (shoot a box, then each trigger puts a copy where the
+  gun points), Delete. A ghost shows the box and its size; a box is never made over you or a monster. The physgun
+  doesn't move boxes; the Remove tool removes them.
 - **Joint.** Choose the joint on the panel's tiles, then shoot a prop and another: Weld (stuck as they are), Ball (they
   turn about the second point), Hinge (about the second face's normal), Slider (along it), Rope (never further apart
   than now; drawn brown), Spring (pulls back to now's distance; drawn steel). Unjoin: a prop shot loses its joints.
@@ -78,7 +88,12 @@ A / X held, the sticks:
 
 | Cvar | Default | |
 |---|---|---|
-| `vr_toolgun_tool` | 0 | 0 spawn, 1 remove, 2 physgun, 3 scale, 4 joint |
+| `vr_toolgun_tool` | 0 | 0 spawn, 1 remove, 2 physgun, 3 scale, 4 joint, 5 brush |
+| `vr_toolgun_brush_mode` | 0 | the Brush tool: 0 create, 1 move, 2 resize, 3 paint, 4 copy, 5 delete |
+| `vr_toolgun_brush_grid` | 8 | its grid (units) |
+| `vr_toolgun_brush_paint_all` | 1 | Paint: the whole box (0: the face shot) |
+| `vr_brush_max` | 256 | boxes a map may have at once (slots made at its load) |
+| `vr_brush_shade` | 1 | boxes' flat light shaded by each face's way |
 | `vr_toolgun_joint` | 0 | 0 weld, 1 ball, 2 hinge, 3 slider, 4 rope, 5 spring, 6 unjoin |
 | `vr_toolgun_scale_uniform` | 1 | Proportional |
 | `vr_toolgun_turn_axis` | 1 | the gun's stick turns about 0 pitch, 1 yaw, 2 roll |
@@ -95,7 +110,9 @@ A / X held, the sticks:
 Commands: `vr_toolgun_select <n|clear>`, `vr_toolgun_pick`, `vr_toolgun_reset`, `vr_toolgun_menu` (the panel),
 `vr_toolgun_next [-1]`, `vr_toolgun_unfreeze_all`, `vr_toolgun_unjoin_all`, `vr_toolgun_scale_reset`,
 `vr_toolgun_status`, `vr_toolgun_panel_dump`, `vr_toolgun_icons` (Debug > Tools > Toolgun); `vr_toolgun_mock_laser`
-(tests).
+(tests). The Brush tool: `vr_toolgun_brush_status`, `vr_toolgun_brush_mode_set <n|name>`; the boxes themselves:
+`vr_brush_box|here|set|move|texture|texture_set|delete|duplicate|list|text|textures|selftest` (Debug > Tools > Boxes);
+tests: `vr_brush_spawn`, `vr_brush_ent`, `vr_brush_trace`, `Misc/quakevr/brush_test.py <agent> [--shots] [--perf]`.
 
 ## How it is made
 

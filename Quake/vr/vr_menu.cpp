@@ -5822,6 +5822,24 @@ za::Vector<Item> pageDebugTools()
                   "(its 256 x 192 pixels), for vr_toolgun_mock_laser (console)."),
         command("Thumbnails", "vr_toolgun_icons")
             .help("vr_toolgun_icons: the spawn grid's thumbnails made, failed and waiting, and the time they took (console)."),
+        header("Boxes (Brush Tool)"),
+        command("A Box Ahead", "vr_brush_here 64")
+            .help("vr_brush_here [size] [height] [texture] [distance]: a box of the map's kind on the floor ahead (stand on it, "
+                  "climb it, shoot it; the toolgun's Brush tool moves, sizes, paints and removes it)."),
+        command("A Ledge to Climb Ahead", "vr_brush_here 96 48 \"\" 72")
+            .help("vr_brush_here 96 48: a box 48 high just ahead, its top a ledge to take with both hands and mantle onto."),
+        command("List the Boxes", "vr_brush_list")
+            .help("vr_brush_list: the boxes made in this map: their entity, revision, texture, bounds and the marks on them "
+                  "(console). vr_brush_text <id>: one's .map text."),
+        command("Remove Every Box", "vr_brush_delete all").help("vr_brush_delete all: every box made in this map, gone."),
+        command("Brush Tool Status", "vr_toolgun_brush_status")
+            .help("vr_toolgun_brush_status: the Brush tool's mode, grid and texture, what it holds and its ghost (console)."),
+        command("Boxes' Self-Test", "vr_brush_selftest")
+            .help("vr_brush_selftest: boxes, a wedge and a prism written as .map text and read back, and their models' hulls "
+                  "tested at points in and out (PASS or FAIL in the console)."),
+        toggle("Shade the Boxes' Faces", vr_brush_shade)
+            .help("vr_brush_shade: a box's flat light shaded by each face's way (top full, sides 0.8, bottom 0.55); off, every "
+                  "face as the light where it is. For boxes made after the change."),
     };
 }
 

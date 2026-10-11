@@ -25,6 +25,7 @@
 
 
 struct entity_s;
+struct qmodel_s;
 
 namespace qvr::modelcollide
 {
@@ -57,6 +58,8 @@ bool drawnTriangles(const entity_s& e, int num, za::Vector<glm::vec3>& out);
 
 // A new map: nothing pushed, nothing recorded.
 void reset();
+// A model made again in place (a runtime brush's, vr_brushes.cpp): its triangles made again when next needed.
+void forget(const qmodel_s* model);
 
 // vr_model_collide_bench [n] [list]: the test of both hands as they are now, n times (1000): min, median and max
 // microseconds, and what it tested (models near, their triangles near the weapon, rays, rounds; "list": the models).
