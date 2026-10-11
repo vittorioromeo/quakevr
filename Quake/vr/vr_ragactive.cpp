@@ -36,7 +36,9 @@ constexpr float stumbleTau = 0.4f;   // s: a stumble's carried motion dies away 
 constexpr float stepTime = 0.32f;    // s: a stumble's step
 constexpr float strokeTime = 1.1f;   // s: a crawl's stroke (one arm reaching, then pulling)
 constexpr float reachShare = 0.45f;  // of a stroke: reaching (then pulling)
-constexpr float crawlSpeed = 0.35f;  // m/s: a crawl's pull at most
+constexpr float crawlSpeed = 0.7f;   // m/s: a crawl's pull at most
+constexpr float rollTime = 1.6f;     // s: rolling onto his front to crawl, at most
+constexpr float rollRate = 4.f;       // rad/s: its turn
 constexpr float handThick = 2.f;     // units: a hand on a wound, off its surface
 
 [[nodiscard]] b3Quat toB3(const glm::quat& q)
@@ -412,7 +414,64 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
         const float speed = glm::length(glmv(b3Body_GetLinearVelocity(p.body[0])));
         const float floor = floorAt(c, pelvis, 0.6f, pelvis.z - 0.2f);
         const bool prone = glm::dot(front, -up) > 0.35f;
-        if(prone && speed < 0.6f && pelvis.z - floor < 0.45f && limbWhole(s, p, 0) && limbWhole(s, p, 1))
+        const bool down = speed < 0.6f && pelvis.z - floor < 0.45f;
+        const glm::vec3 spine = glmv(b3Body_GetWorldCenter(p.body[chest])) - pelvis;
+        // Lying on his back or side, still: he rolls onto his front first (his torso turned about his spine, level,
+        // at rollRate: the rest follows by the joints), then crawls.
+        if(!prone && down && d.rollFrom < 0.0 && glm::length(glm::vec2{spine}) > 1e-3f)
+        {
+            d.rollFrom = c.now;
+            d.rollAxis = glm::vec3{glm::normalize(glm::vec2{spine}), 0.f};
+            // (The way that takes his front down; flat on his back either way: towards his wound's side.)
+            const float way = glm::dot(glm::cross(d.rollAxis, front), -up);
+            d.rollSign = za::abs(way) > 0.1f ? (way > 0.f ? 1.f : -1.f) : (d.woundArm == 1 ? -1.f : 1.f);
+        }
+        if(d.rollFrom >= 0.0 && !prone && c.now - d.rollFrom < rollTime)
+        {
+            // (The whole body turned as one about the line along his spine through his pelvis, eased: its parts' spin
+            // about it and their motion round it.)
+            if(vr_debug_ragdoll.value >= 2.f)
+            {
+                Con_Printf("ragdoll: %d rolling %.2f s: face down %.2f, spin %.2f rad/s about his spine (%s)\n", c.num,
+                    c.now - d.rollFrom, glm::dot(front, -up), glm::dot(glmv(b3Body_GetAngularVelocity(p.body[chest])), d.rollAxis),
+                    b3Body_IsAwake(p.body[0]) ? "awake" : "asleep");
+            }
+            b3Body_SetAwake(p.body[0], true);
+            // (About the edge he rolls over, on the floor on the side going down: about his spine the floor holds
+            // that side up and takes the turn.)
+            glm::vec3 side = glm::cross(up, d.rollAxis);
+            if(glm::dot(glm::cross(d.rollAxis, side) * d.rollSign, up) > 0.f)
+            {
+                side = -side;
+            }
+            float width = 0.1f;
+            for(int b = 0; b < p.count; b++)
+            {
+                if(!cut(p, b) && p.rig->bones[b].joint != ragdoll::Joint::Loose)
+                {
+                    width = za::max(width, glm::dot(glmv(b3Body_GetWorldCenter(p.body[b])) - pelvis, side));
+                }
+            }
+            glm::vec3 pivot = pelvis + side * width;
+            pivot.z = floor;
+            const float g = 1.f - za::exp(-c.dt / 0.05f);
+            for(int b = 0; b < p.count; b++)
+            {
+                if(cut(p, b) || p.rig->bones[b].joint == ragdoll::Joint::Loose)
+                {
+                    continue;
+                }
+                const glm::vec3 w = glmv(b3Body_GetAngularVelocity(p.body[b]));
+                const float add = (d.rollSign * rollRate - glm::dot(w, d.rollAxis)) * g;
+                glm::vec3 arm = glmv(b3Body_GetWorldCenter(p.body[b])) - pivot;
+                arm -= d.rollAxis * glm::dot(arm, d.rollAxis);
+                b3Body_SetAngularVelocity(p.body[b], b3v(w + d.rollAxis * add));
+                b3Body_SetLinearVelocity(p.body[b],
+                    b3v(glmv(b3Body_GetLinearVelocity(p.body[b])) + glm::cross(d.rollAxis * add, arm)));
+            }
+            return;
+        }
+        if(prone && down && limbWhole(s, p, 0) && limbWhole(s, p, 1))
         {
             const glm::vec3 head = glmv(b3Body_GetWorldCenter(p.body[chest])) - pelvis;
             const glm::vec2 level{head.x, head.y};
@@ -429,9 +488,14 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
             s.fade[static_cast<za::SizeT>(Channel::Head)] = Fade{0.5f, 0.f, end, end + 1.f};
             s.fade[static_cast<za::SizeT>(Channel::Legs)] = Fade{0.1f, 0.f, end, end + 1.f};
         }
-        else if(t > 1.1f * d.length + 1.5f)
+        else if(t > 1.1f * d.length + 1.5f + (d.rollFrom >= 0.0 ? rollTime + 0.5f : 0.f))
         {
             d.crawl = false; // (not face down: he dies where he lies)
+            if(vr_debug_ragdoll.value)
+            {
+                Con_Printf("ragdoll: %d won't crawl: face down %.2f (0.35), %.2f m/s (0.6), %.2f m above the floor (0.45)\n",
+                    c.num, glm::dot(front, -up), speed, pelvis.z - floor);
+            }
         }
         return;
     }
@@ -442,6 +506,11 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
     if(c.now > d.crawlUntil || !limbWhole(s, p, 0) || !limbWhole(s, p, 1))
     {
         d.crawl = false;
+        if(vr_debug_ragdoll.value)
+        {
+            Con_Printf("ragdoll: %d crawled %.1f units in %.1f s%s, goes limp\n", c.num, d.crawled * p.m2u,
+                c.now - d.crawlFrom, d.rollFrom >= 0.0 ? " (rolled onto his front first)" : "");
+        }
         return;
     }
     const float phase = static_cast<float>(c.now - d.strokeFrom) / strokeTime;
@@ -480,10 +549,17 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
         const glm::vec3 v = glmv(b3Body_GetLinearVelocity(p.body[0]));
         const float along = glm::dot(v, d.crawlDir);
         const float most = za::max(vr_ragdoll_active_crawl_force.value, 0.f) * s.totalMass * c.gravity;
-        const float f = za::clamp(s.totalMass * (crawlSpeed - along) / 0.2f, 0.f, most);
+        // (Enough to drag him over the floor, most of his weight on it: its friction, then the rest to crawlSpeed.)
+        const float f = along >= crawlSpeed ? 0.f
+                                            : za::clamp(0.9f * s.totalMass * c.gravity + s.totalMass * (crawlSpeed - along) / 0.2f, 0.f, most);
         const glm::vec3 force = d.crawlDir * (f * 0.5f);
         b3Body_ApplyForceToCenter(p.body[0], b3v(force), true);
         b3Body_ApplyForceToCenter(p.body[chest], b3v(force), true);
+        if(vr_debug_ragdoll.value >= 3.f)
+        {
+            Con_Printf("ragdoll: %d pulls %.0f N (most %.0f) at %.2f m/s along, the hand %.2f m off its hold\n", c.num, f, most,
+                along, glm::distance(limbEnd(s, p, arm), d.planted));
+        }
     }
     d.crawled = glm::length(glm::vec2{pelvis - d.crawlStart});
 }
@@ -529,7 +605,7 @@ void trace(const State& s, const Parts& p, const Context& c, float t)
     Con_Printf("ragtrace %d %.3f p %.0f %.0f %.1f e %.0f %.0f %.0f %.0f s %.2f %.2f %.2f %.2f ke %.0f w %.1f pin %.2f f %d%d%d %.0f\n",
         c.num, t, pelvis.x, pelvis.y, pelvis.z, err[0], err[1], err[2], err[3], str[0], str[1], str[2], str[3], ke, spin,
         pin, d.stepLeg >= 0 ? 1 : 0, d.woundArm >= 0 && s.reach[static_cast<za::SizeT>(d.woundArm)].weight > 0.f ? 1 : 0,
-        d.crawlFrom >= 0.0 && d.crawl ? 1 : 0, d.crawled * p.m2u);
+        d.crawl && (d.crawlFrom >= 0.0 || d.rollFrom >= 0.0) ? 1 : 0, d.crawled * p.m2u);
 }
 
 } // namespace
@@ -757,7 +833,7 @@ void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
                 }
             }
         }
-        if(d.woundPart >= 0 && best < 12.f)
+        if(d.woundPart >= 0 && best < 16.f)
         {
             const ragdoll::Bone& bone = rig.bones[d.woundPart];
             glm::vec3 mid{0.f};
@@ -1087,10 +1163,16 @@ void describe(const State& s, const Parts& p, int num, double now)
     {
         str[static_cast<za::SizeT>(ch)] /= static_cast<float>(za::max(n[static_cast<za::SizeT>(ch)], 1));
     }
+    int held = 0;
+    for(int b = 0; b < p.count; b++)
+    {
+        held += s.partScale[static_cast<za::SizeT>(b)] < 0.5f ? 1 : 0;
+    }
     const Death& d = s.death;
-    Con_Printf("  %d: %s %.2f s, strength legs %.2f torso %.2f arms %.2f head %.2f (base %.2f), pin %s%s%s%s%s\n", num,
+    Con_Printf("  %d: %s %.2f s, strength legs %.2f torso %.2f arms %.2f head %.2f (base %.2f), pin %s, %d parts held "
+               "(none)%s%s%s%s\n", num,
         s.on ? "driven" : "limp", t, str[0], str[1], str[2], str[3], s.base,
-        B3_IS_NON_NULL(s.pin.anchor) ? "on" : "off", d.collapse ? ", collapse" : "", d.stumble ? ", stumbled" : "",
+        B3_IS_NON_NULL(s.pin.anchor) ? "on" : "off", held, d.collapse ? ", collapse" : "", d.stumble ? ", stumbled" : "",
         d.woundArm >= 0 ? (d.woundArm == 0 ? ", left hand on the wound" : ", right hand on the wound") : "",
         d.crawl ? (d.crawlFrom >= 0.0 ? ", crawling" : ", to crawl") : "");
 }

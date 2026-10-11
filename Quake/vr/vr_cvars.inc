@@ -2353,9 +2353,9 @@ QVR_CVAR(vr_ragdoll_active_stumble, "90", CVAR_ARCHIVE) // units/s: dying on the
 QVR_CVAR(vr_ragdoll_active_wound, "0.7", CVAR_ARCHIVE)  // the chance a monster killed by a blow to the body or a limb holds the wound with a free hand
 QVR_CVAR(vr_ragdoll_active_crawl, "0.25", CVAR_ARCHIVE) // the chance a humanoid lying face down after his death crawls on before going limp
 QVR_CVAR(vr_ragdoll_active_crawl_time, "3", CVAR_ARCHIVE) // s: how long he crawls
-QVR_CVAR(vr_ragdoll_active_crawl_force, "1", CVAR_ARCHIVE) // body weights: his arms' pull along the floor at most
+QVR_CVAR(vr_ragdoll_active_crawl_force, "1.3", CVAR_ARCHIVE) // body weights: his arms' pull along the floor at most
 QVR_CVAR(vr_ragdoll_active_headshot, "0.05", CVAR_ARCHIVE) // the strength a headshot or a beheading leaves (an almost pure collapse)
-QVR_CVAR(vr_ragdoll_active_debug, "0", CVAR_NONE)       // 1: each driven ragdoll's targets drawn over it (green as strong as the joint is, grey limp), its pelvis pin (yellow) and its hands' and feet's goals (red) (Debug > Logging)
+QVR_CVAR(vr_ragdoll_active_debug, "0", CVAR_NONE)       // 1: each driven ragdoll's targets drawn over it (green as strong as the joint is, grey limp), its pelvis pin (yellow) and its hands' and feet's goals (red) (Debug > Logs)
 QVR_CVAR(vr_ragdoll_active_trace, "0", CVAR_NONE)       // n: every n-th frame a `ragtrace` line per driven ragdoll (its pelvis, the joints' error from the animation per channel, their strength, its energy; the tests)
 QVR_CVAR(vr_ragdoll_active_seed, "0", CVAR_NONE)        // mixed into each death's rolls (wound, crawl): another roll for the same scene (tests)
 QVR_CVAR(vr_test_kill, "0", CVAR_NONE)                  // n: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3), a leg (4), nowhere known (6) (QC combat.qc VR_TestKill_Frame; the active ragdolls' tests)

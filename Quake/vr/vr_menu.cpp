@@ -4028,6 +4028,21 @@ void hologramTestMessage()
             .help("At most this many at once. New deaths replace the oldest dead ragdoll first, then the oldest living knockdown if necessary. 0: ragdolls off."),
         toggle("Ragdolls Meet Each Other", vr_ragdoll_collide_each)
             .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
+        header("Active Deaths (Experimental)"),
+        toggle("Active Deaths", vr_ragdoll_active)
+            .help("A dying grunt, enforcer, knight, death knight, ogre or zombie goes limp as soon as he stops being solid, "
+                  "his body playing his death animation as his strength fades (legs first): he stumbles if he dies on the "
+                  "move, may hold his wound and may crawl before going limp; a headshot or beheading collapses him. Off: "
+                  "limp at Go Limp At (vr_ragdoll_active)."),
+        slider("Muscle Strength", vr_ragdoll_active_strength, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("How strongly the joints follow the death animation (vr_ragdoll_active_strength)."),
+        slider("Strength Lasts", vr_ragdoll_active_fade, 0.25f, 3.f, 0.25f, "%.2fx").extend(0.1f, 5.f)
+            .help("How long the strength lasts, times his death animation's length (vr_ragdoll_active_fade)."),
+        slider("Hold the Wound", vr_ragdoll_active_wound, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance he puts a free hand on the wound that killed him (vr_ragdoll_active_wound)."),
+        slider("Crawl Away", vr_ragdoll_active_crawl, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a humanoid lying after his death rolls onto his front and crawls a few seconds before going "
+                  "limp (vr_ragdoll_active_crawl)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
@@ -4945,6 +4960,10 @@ za::Vector<Item> pageDebugLogging()
                   "also each second the most sent: the broadcast, the reliable messages, a client's own data and entities."),
         toggle("Ragdolls", vr_debug_ragdoll)
             .help("vr_debug_ragdoll: each ragdoll made (when it went limp, its parts), each push on it and each blast's throw."),
+        toggle("Active Ragdoll Targets", vr_ragdoll_active_debug)
+            .help("vr_ragdoll_active_debug: each active ragdoll's joint targets drawn over it (green as strong as the joint "
+                  "is, grey limp), its pelvis pin (yellow) and its hands' and feet's goals (red: a wound held, a step, a "
+                  "crawl). vr_ragdoll_active_list in the console: each one's strengths and what its death does."),
         cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
             .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot). Also each throw: how "
                   "fast, whether it passes through your hands, and how much its velocity and spin changed by the grace's end "
@@ -5336,6 +5355,8 @@ za::Vector<Item> pageDebugReports()
         command("Wrists and Grips", "vr_bodycal_debug").help("vr_bodycal_debug: one line a hand, next frame: the wrist and the grip."),
         header("World and Physics"),
         command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
+        command("Active Ragdolls", "vr_ragdoll_active_list").help("vr_ragdoll_active_list: each active ragdoll (vr_ragdoll_active): how long driven, its legs', torso's, arms' and head's strength, its pelvis pin, what its death does (stumbled, a hand on the wound, crawling); and the drive's cost a frame."),
+        command("Kill the Nearest Monster", "vr_test_kill 1").help("vr_test_kill <n>: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3) or a leg (4): an active death to watch (Gibs and Corpses > Ragdoll Settings, Active Deaths)."),
         command("Ragdolls", "vr_ragdoll_list 2").help("vr_ragdoll_list [1|2]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed and the hands holding it; with 2 also how far its flames are from its limbs), and Box3D's bodies (Gibs and Corpses > Ragdoll Settings)."),
         command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
         command("Corpses in the Physics", "vr_corpse_list").help("vr_corpse_list: each corpse's body (fixed or pushable, box or pose, mass), where it lies, and what touches it (Gibs and Corpses > Corpse Collision)."),

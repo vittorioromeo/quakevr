@@ -1254,7 +1254,8 @@ void(entity p, string xWhy) VR_Climb_KnockOff =
 // VR: active ragdolls (vr_ragdoll_active; the engine's vr_ragactive.cpp, ROUND22.md "Active ragdolls: core and deaths"):
 // the blow that killed a monster, kept for its ragdoll (made a few frames later, at its first frame not solid): where on
 // it the blow struck (PositionalRegion's: 1 the head, 2 a limb, 3 a leg, 0 the body; a shotgun's pellets: the head if
-// half of them, else the legs if most, else the body; -1 unknown) and the point ('0 0 0': unknown). A headshot's ragdoll
+// half of them, else the legs if most, else the body; -1 unknown) and the point, from its origin as it died ('0 0 0':
+// unknown; its body is thrown after: vr_kill_push). A headshot's ragdoll
 // collapses; a wound in the body or a limb may be held by a hand.
 .float vr_death_hit;
 .vector vr_death_hitpos;
@@ -1289,7 +1290,11 @@ void(entity targ) VR_Ragdoll_NoteDeathHit =
         }
     }
     targ.vr_death_hit = part;
-    targ.vr_death_hitpos = at;
+    targ.vr_death_hitpos = '0 0 0';
+    if(at != '0 0 0')
+    {
+        targ.vr_death_hitpos = at - targ.origin;
+    }
 };
 
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageDeal =
@@ -2557,7 +2562,7 @@ void() VR_TestKill_Frame =
     entity e = nextent(world);
     while(e)
     {
-        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && vlen(e.origin - pl.origin) < bestD)
+        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e) && vlen(e.origin - pl.origin) < bestD)
         {
             bestD = vlen(e.origin - pl.origin);
             best = e;

@@ -1589,3 +1589,148 @@ the press held 10 frames behind a waiting buffer: one load.
 
 **In the headset:** die in the start map's lava, hold A: "Loading...", one load of the level-start autosave, then
 play. Same with a quick tap, and on a map with no autosave yet (a plain restart).
+
+## Active ragdolls: core and deaths (feature branch, 2026-10-11, worktree `ragcore`)
+
+Stage 1 of the active-ragdoll programme (research: the kit's `scratch/ACTIVE_RAGDOLLS.md`, options 1-3 and section 8).
+His goals: "death animations with some stumbling, realistic collapse holding own wounds, crawling away on the ground
+before dying"; "minimum effect on headshots and decapitation (almost pure collapse)". Behind `vr_ragdoll_active`
+(default 1 on this branch; 0: today's limp ragdolls, limp at Go Limp At).
+
+### The core (`vr_ragactive.hpp/.cpp`, `vr_ragpose.hpp`)
+
+- **Joint ids kept** (`createRagdoll` no longer throws them away) and handed to `ragactive::begin` with the limp joint's
+  friction and stiffness. `vr_ragpose.hpp` (header only) holds the shared rig-pose helpers: `jointFrame` (the frame
+  `createRagdoll` gives a joint: now used there too, so the drive's frames are the joints' own), `bonePoseLerp`, a
+  joint's turn as Box3D's target (`toJoint`/`fromJoint`), `twistZ`, `clampSwingTwist`, `rotationVector`, `between`,
+  `bendFor` (a two-bone limb's bend for a reach). The rig (`vr_ragdoll.cpp`) is unchanged.
+- **Drive per joint, each frame before the step** (`drive`): a ball's spring to its target rotation, a hinge's to its
+  target angle (clamped inside the joint's cone/twist or range: no fighting the limits), at `vr_ragdoll_active_hertz`
+  (10) times the square root of its strength (the pull goes with the strength; at most 20 Hz), damping
+  `vr_ragdoll_active_damping` (1); its motor turning at the pose's own speed (frame to frame, fed forward), at most
+  joint friction + strength x `vr_ragdoll_active_torque` (2) x the weight of what hangs on the joint x its lever. Strength
+  0: exactly today's joint (friction motor at speed 0, `vr_ragdoll_joint_stiffness` spring to the rest pose). No Box3D
+  change: the spring is not capped (the optional `maxSpringTorque` patch was not needed: the motor is the capped part
+  and the springs fade).
+- **Targets**: a `Clip` of the model's frames (the rig's per-pose bone transforms, blended between frames at the clip's
+  frame rate, held at its last frame or looped), each joint's child turn in its parent's rest space; `Reach`es (two-bone
+  IK per limb: the lower bone a hinge bent by the distance, `bendFor`; the upper turned the least way from where it is
+  to point at the goal) blended over it by weight, with a strength floor while they lead.
+- **Strength**: per channel (legs, torso, arms, head: by the bone's name) a `Fade` (from, to, t0, t1; smoothstep), times
+  `base` (a headshot: `vr_ragdoll_active_headshot`, 0.05), times `vr_ragdoll_active_strength`, times each part's own:
+  **a limb a hand holds (or a throw's pinned feet) has none, with its whole limb up to the torso** (the pelvis: all),
+  easing back over 0.5 s once let go of (PuppetMaster's rule). `weaken(keep)` lowers all (a blast: x0.35).
+- **Pelvis pin**: a kinematic anchor following the clip's pelvis (plus an offset: a stumble's carried motion), a Box3D
+  motor joint (the hand grabs' pattern) pulling the pelvis at most `force` body weights (`vr_ragdoll_active_pin` 0.6),
+  fading over `vr_ragdoll_active_pin_time` (0.3 s), then destroyed.
+- The drive stops (`on` false) once nothing is driven: the ragdoll is today's limp one. `release` makes every joint limp
+  at once (`vr_ragdoll_active 0` while one is driven). `end` (the ragdoll destroyed) drops the pin's anchor.
+
+### Deaths (`beginDeath`, `deathFrame`; vr_box3d.cpp `startActiveDeath`, `activeClasses`)
+
+Grunt, enforcer, knight, death knight, ogre (and the marksman ogre: the ogre's model), zombie. Others keep limp ragdolls.
+- **Handoff**: the ragdoll is made at the first frame his death leaves him not solid (`wantsRagdoll`: an active death
+  is limp at once), from the frame drawn, driven by his own death animation at 10 fps from there. Not a loaded game's
+  (its frames not seen changing: limp at Go Limp At, as before).
+- **Fades** (D: the rest of his death animation, times `vr_ragdoll_active_fade`): legs 1 -> 0 over 0..0.5 D (the knees
+  give first), torso 0.25..0.9 D, arms 0.3..1.1 D, head 0.3..1.2 D.
+- **The killing blow** (QC `VR_Ragdoll_NoteDeathHit`, combat.qc, before `Killed`): `.vr_death_hit` (PositionalRegion's
+  1 head, 2 limb, 3 leg, 0 body; a shotgun's pellets: head if half of them; -1 unknown) and `.vr_death_hitpos` (the
+  point, from his origin as he died: his body is thrown after, `vr_kill_push`). A headshot, or a beheading
+  (`.vr_headless`): **collapse**, base 0.05, no pin, stumble, wound or crawl. A beheaded monster's ragdoll made at once
+  (from whatever frame) stays limp as before (no death animation to drive): a pure collapse.
+- **Stumble**: his own motion as he died (vr_box3d.cpp `deathMotion`: `ownMotion` of his last frame alive, within
+  0.6 s) at least `vr_ragdoll_active_stumble` (90 u/s): the pin stronger (0.8) and longer, its anchor carried on along
+  his motion (dying away over 0.4 s); the leg behind steps ahead (a reach: its foot lifted along a 0.32 s arc to a
+  stride ahead of the pelvis, on the floor below); the legs fade 0.32 s later.
+- **Holding the wound**: a body, limb or leg blow (`vr_ragdoll_active_wound` 0.7 chance): the part hit (the nearest of
+  its rig's vertices to the point, within 16 units; not the head), the hand on the wound's side unless that arm is the
+  one hit (then the other), its reach to the wound (2 units off the surface, outward) from 0.1 s, strength 0.8,
+  until 1.6 D, gone by 2.2 D.
+- **Crawling** (`vr_ragdoll_active_crawl` 0.25 chance, the humanoids): after 1.1 D, low and nearly still, he crawls.
+  Face up or on his side, he first rolls onto his front (the whole body turned about the edge on the floor he rolls
+  over, at 4 rad/s, at most 1.6 s). Then `vr_ragdoll_active_crawl_time` (3 s) of strokes, the arms in turn (1.1 s: a
+  reach ahead to the floor, the hand lifted on the way; then the hand held where it was put down while the torso is
+  pulled along: friction plus the rest to 0.7 m/s, at most `vr_ragdoll_active_crawl_force` 1.3 body weights), his
+  head's way; arms 0.9, torso 0.45, head 0.5, legs 0.1 (dragged); then all fade over 1 s: he goes limp.
+- Rolls (wound, crawl) are hashed from his entity, the frame and `vr_ragdoll_active_seed`.
+
+### Debug and tests
+
+- `vr_ragdoll_active_debug 1` (Debug > Logs: Active Ragdoll Targets): each driven joint's actual bone (white) and its
+  target (green as strong as it is, grey limp), the pin (yellow), the reaches' goals (red). Drawn with or without
+  Show Physics Shapes.
+- `vr_ragdoll_active_list` (Debug, World and Physics: Active Ragdolls): each one's strengths per channel, pin, parts held, what its
+  death does; the drive's cost since the last look. `vr_ragdoll_list` prints the same line under each active one.
+  `vr_debug_ragdoll 1`: each active death (its clip, collapse, stumble, wound hand, crawl, where it was struck), a crawl's
+  end (how far); 2 a roll's progress; 3 each crawl pull.
+- `vr_ragdoll_active_trace n`: every n-th frame a `ragtrace` line per ragdoll (driven or not): pelvis, the joints' error
+  from the death animation per channel (deg), their strength, the energy (J), the fastest spin, the pin, the
+  step/wound/crawl flags, how far crawled.
+- `vr_test_kill n` (Debug, World and Physics: Kill the Nearest Monster; QC `VR_TestKill_Frame`): the live monster nearest you
+  (not the training dummy) killed by a 20-point shot of yours struck on its body (1), head (2), an arm (3), a leg (4).
+- `Misc/quakevr/ragdoll/active_test.sh <agent> [deaths head wound crawl stumble decap off cost]` (`active_trace.py`
+  sums each death up and fails on NaN, a crash, energy over 5 kJ, or energy over 50 J / spin over 25 rad/s once the
+  drive let go; `EYES=1`: contact sheets via `active_sheet.py`).
+
+### Checked (headless, `active_test.sh`, vrfiringrange and e1m1, `sv_random_seed 7`)
+
+Each death of the grunt, enforcer, knight, death knight and ogre summed up by `active_trace.py` (the joints' error from
+the death animation per channel while strong, deg; when the pelvis reached the floor; how long driven; energy and spin
+once the drive let go):
+- **Body shot**: limp at 10-25 % of the death (the first frame not solid; before: 31-36 %), errors legs 7-24, torso 3-19,
+  arms 26-64 (a hand on the wound leads them off the animation), head 6-17; driven 1.5-2.4 s; at rest after (0-11 J,
+  spin under 1 rad/s; the limp ones the same, 0-10 J). No NaN, no crash, no explosion in any of the 45 runs.
+- **Headshot**: strength 0.05 from the start (no channel over 0.5): a collapse; still energy 0-3 J after.
+- **Wound** (chance 1): body, arm and leg shots: a hand held the wound in all 15 (first 11: the test's made-up point,
+  off the side of the box, lay over 12 units from the nearest vertex for an arm or the enforcer; the search is 16 units
+  now. A real shot's point is on the mesh: precise hits).
+- **Crawl** (chance 1): the grunt, knight, death knight and ogre rolled over (they die on their backs: the shot throws
+  them back) and crawled 29-38 units in 3 s; the enforcer in his first death animation lies too high to crawl (he
+  dies where he lies, as asked).
+- **Stumble** (e1m1, coming at you from 450 units, killed after 1.7 s): grunt 133 u/s, enforcer 180, knight 160:
+  stumbled, a leg stepped; the death knight (78 u/s) and the ogre (19) were too slow (`vr_ragdoll_active_stumble` 90).
+- **Beheaded** (a sword's slash, `vr_decap_test 1`): limp at once, as before (no drive).
+- **Off** (`vr_ragdoll_active 0`): limp at Go Limp At's frame (31-36 %), no `ragtrace` drive: today's ragdolls.
+- **A limb held while driven** (the off hand takes a shin 0.4 s into the death, `vr_ragdoll_active_fade 4`): its thigh
+  and shin get no strength while held (`2 parts held`), the rest stays driven; back after the hand lets go.
+- `ragdoll_test.sh` flat stairs blast shot gib cap save grab pile: unchanged results (a loaded game's ragdoll made
+  limp at frame 28; the grab, the throw, the gibbing as before).
+
+**Cost** (8 grunts killed in 8 frames on vrfiringrange, `--exclusive`): the drive 0.020 ms a frame for 8 driven
+(0.0027 ms each); the physics step over the first 60 frames 0.43 ms against 0.35 with `vr_ragdoll_active 0` (the
+springs, the pins, bodies awake longer), and while some crawl (5 s on) 0.23 against 0.11 ms (a crawler stays awake 6 s).
+`ragdoll_test.sh cap` (e1m1, not exclusive): 0.88 / 0.72 ms against 0.70 / 0.51 over the first 50 / 120 frames.
+
+Contact sheets (`EYES=1`, the kit's `scratch/active_<monster>.png` and `_limp.png`; `KP=0`: no kill push) and the debug
+overlay looked at for the grunt and the knight: the body follows the death animation's fall and lands as limp ones do;
+the crawl rolls him over and drags him on his arms.
+
+### API for the later stages
+
+- Stagger and get-up (option 2): `begin` on a knockdown's ragdoll (it is made by the same `createRagdoll`), a `Clip` of
+  the pain or first get-up frame (`loop` for a writhe), Fades for the channels, a `Pin` with a breaking rule (watch the
+  torso lean; drop the pin: `dropPin` is internal, set `pin.force` 0), then the existing get-up blend. `held` already
+  covers the judo pins.
+- Liquids: lower `base` or the Fades in water (`ragdollsInLiquids` knows each part's depth); the pin off when floating.
+- Holds on the world (catch fall, ledge hang, wall slide; section 8): `Reach` per limb is the effector (`goal`, `weight`,
+  `strength`); an attach joint to the world or a brush body is the next piece (not here); probes via a `Context`
+  callback like `floorBelow`.
+- Dismemberment: cut parts are skipped (`drivable`: the part and its parent uncut, its joint valid); a reach whose limb
+  is cut stops. A limb cut could also `weaken`.
+- Living hit reactions: the drive is independent of death (`begin` + a `Clip` of the current frame + a strong `Pin`); the
+  overlay and traces work for any driven ragdoll.
+
+### Not done (deferred)
+
+- No brace / catch-fall, protect-head, writhe or get-up preparation yet (they are Clip/Reach users for stage 2).
+- No Box3D spring torque cap (not needed so far).
+- Saved games: an active death is made again limp (as before), its drive state is not saved.
+- The zombie is in the class list but only ever has a ragdoll beheaded: always the collapse.
+- Determinism: the drive's rolls are seeded, but the QC's own (which death animation, the AI) still vary between runs
+  even with `sv_random_seed`: the test prints which frame each went limp in.
+
+**In the headset**: shoot grunts and knights in the body (they fall following their death animation, legs giving
+first, often a hand going to the wound), in the head (they drop), kill a charging knight (he stumbles on a step), and
+watch for one rolling over and crawling. Grab an arm of one still dying: it should go slack in the hand. Turn
+Gibs and Corpses > Ragdoll Settings > Active Deaths off to compare with the old limp ragdolls.

@@ -138,6 +138,10 @@ struct Death
     glm::vec3 planted{0.f};
     bool pulling{false};
     float crawled{0.f}; // metres its pelvis went while crawling (tests)
+    // Rolling onto his front first (on his back or side): since when, about which level axis, which way.
+    double rollFrom{-1.0};
+    glm::vec3 rollAxis{0.f};
+    float rollSign{1.f};
     glm::vec3 crawlStart{0.f};
 };
 

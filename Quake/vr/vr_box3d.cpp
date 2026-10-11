@@ -3328,10 +3328,11 @@ void startActiveDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* 
     }
     di.frame = static_cast<float>(frame);
     const float hitPart = fieldFloatOr(ent, fields().vr_death_hit, -1.f);
+    // (The point from his origin as he died: his body thrown since, vr_kill_push, from where his parts are made now.)
     const glm::vec3 hitAt = fields().vr_death_hitpos >= 0 ? fieldVec(ent, fields().vr_death_hitpos) : glm::vec3{0.f};
     di.collapse = (fieldFloatOr(ent, fields().vr_headless, 0.f) != 0.f && rig.head >= 0) || hitPart == 1.f;
-    di.wound = !di.collapse && hitPart >= 0.f && hitAt != glm::vec3{0.f} && glm::distance(hitAt, vec(ent->v.origin)) < 96.f;
-    di.woundAt = glmv(world->toM(hitAt));
+    di.wound = !di.collapse && hitPart >= 0.f && hitAt != glm::vec3{0.f} && glm::length(hitAt) < 96.f;
+    di.woundAt = glmv(world->toM(drawnOrigin + hitAt));
     di.walk = glmv(world->toM(deathMotion(num)));
     di.seed = static_cast<uint32_t>(num) * 2654435761u ^ static_cast<uint32_t>(qcvm->time * 72.0) ^
               static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u;
@@ -3341,10 +3342,12 @@ void startActiveDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* 
     if(vr_debug_ragdoll.value)
     {
         const ragactive::Death& d = r.active.death;
-        Con_Printf("ragdoll: %d active death %d from frame %d (%.2f s): %s%s%s%s, its own motion %.0f u/s\n", num, di.death,
+        Con_Printf("ragdoll: %d active death %d from frame %d (%.2f s): %s%s%s%s, its own motion %.0f u/s; struck %g, %.0f "
+                   "units from its origin\n", num, di.death,
             frame, d.length, di.collapse ? "a collapse (headshot or beheaded)" : "driven", d.stumble ? ", stumbling" : "",
             d.woundArm >= 0 ? (d.woundArm == 0 ? ", the left hand on the wound" : ", the right hand on the wound") : "",
-            d.crawl ? ", to crawl" : "", glm::length(glm::vec2{deathMotion(num)}));
+            d.crawl ? ", to crawl" : "", glm::length(glm::vec2{deathMotion(num)}), static_cast<double>(hitPart),
+            hitAt != glm::vec3{0.f} ? glm::length(hitAt) : -1.f);
     }
 }
 

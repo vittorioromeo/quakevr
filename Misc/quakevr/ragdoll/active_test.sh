@@ -10,17 +10,19 @@
 #   head     a headshot (2): a collapse (strength ~0 from the start)
 #   wound    a body (1), arm (3) and leg (4) shot with vr_ragdoll_active_wound 1: which hand holds it and how near
 #   crawl    vr_ragdoll_active_crawl 1 (a body shot): whether he crawls and how far
-#   stumble  he walks at you (no notarget, he sees you: grunts shoot, god mode) and dies on the move: carried, a step
+#   stumble  e1m1: he comes at you from 450 units (no notarget: he sees you; god mode) and dies on the move after
+#            1.7 s: carried on, a step (a knight or death knight runs; a grunt stops to shoot, no stumble)
 #   off      vr_ragdoll_active 0: today's limp ragdoll (limp at Go Limp At's frame), the same summary
 #   cost     8 grunts killed at once (vr_ragdoll_max 8): the drive's ms a frame (vr_ragdoll_active_list) and the
 #            physics step's (vr_physics_steptime), with vr_ragdoll_active 1 and 0
-#   zombie   a zombie's headshot (vr_decap_zombies): beheaded, a collapse
+#   decap    e1m1: a sword's slash beheads him (decap_test.sh's vr_decap_test 1): a collapse, or limp at once (made
+#            headless from the frame he is in: no death animation to drive)
 # EYES=1: contact sheets (the kit's scratch: active_<monster>.png): the active death's frames 0.15 .. 1.2 s and at rest
 # (top row) over the limp one's (bottom row), cropped round the body.
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
-CASES=${*:-deaths head wound crawl stumble off cost zombie}
+CASES=${*:-deaths head wound crawl stumble decap off cost}
 MONS=${MONS:-0 8 5 6 1}
 PY=${PY:-py -3.13}
 SUM="$TREE/Misc/quakevr/ragdoll/active_trace.py"
@@ -30,7 +32,7 @@ FILTER="^ragtrace|limp at frame|active death|test kill|rror|CRASH|exit=|TIMEOUT|
 run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "$FILTER" -Timeout 300 ${2:+-Clean} 2>&1 | tr -d '\r'; }
 one() { # one <monster> <kill> <extra settings> [notarget]
     local SP="vr_test_spawn $1;vr_test_spawn_dist ${DIST:-110};impulse 241;wait40"
-    run "sv_random_seed ${SEED:-7};map vrfiringrange;$PRE;${4-notarget};$3;$SP;vr_test_kill $2;wait400;toggleconsole;quit"
+    run "sv_random_seed ${SEED:-7};map vrfiringrange;$PRE;${4-notarget};$3;$SP;vr_test_kill $2;wait650;toggleconsole;quit"
 }
 for c in $CASES; do
     echo "== $c"
@@ -46,13 +48,15 @@ for c in $CASES; do
             esac
         done ;;
     stumble)
-        # Far enough to walk a while at you; killed as he comes (2 s on).
         for m in $MONS; do
-            bash $KIT/run.sh $AGENT -Script "sv_random_seed ${SEED:-7};map vrfiringrange;$PRE;vr_test_spawn $m;vr_test_spawn_dist 400;impulse 241;wait150;vr_test_kill 1;wait400;toggleconsole;quit" \
-                -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r' | $PY "$SUM" "$(name $m) stumble"
+            run "sv_random_seed ${SEED:-7};map e1m1;$PRE;vr_test_spawn $m;vr_test_spawn_dist 450;impulse 241;wait120;vr_test_kill 1;wait650;toggleconsole;quit" \
+                | $PY "$SUM" "$(name $m) stumble"
         done ;;
-    zombie)
-        one 2 2 "vr_decap_zombies 1" | $PY "$SUM" "zombie head" ;;
+    decap)
+        for m in $MONS; do
+            run "sv_random_seed ${SEED:-7};map e1m1;$PRE;notarget;vr_test_spawn $m;vr_test_spawn_dist 80;impulse 241;wait30;vr_decap_test 1;wait300;toggleconsole;quit" \
+                | $PY "$SUM" "$(name $m) decap"
+        done ;;
     cost)
         for a in 1 0; do
             S="sv_random_seed ${SEED:-7};map vrfiringrange;wait30;god;notarget;vr_ragdoll_max 8;vr_ragdoll_active $a;vr_test_spawn 0"
