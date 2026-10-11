@@ -556,6 +556,8 @@ void() worldspawn =
 
     //MED
     footsteps = 1;
+
+    AD_WorldSpawn(); // AD support: AD's world setup in an AD map (vr_ad_bridge.qc)
 };
 
 void() StartFrame =
@@ -576,6 +578,7 @@ void() StartFrame =
     MGH_PowerupFrame();
     MGH_TestFrame();
     MG3_Frame();
+    AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)

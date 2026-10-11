@@ -558,7 +558,7 @@ void() func_button =
     else self.pos2 = self.pos1 + self.movedir*(fabs(self.movedir*self.size) - self.lip);
 
     // HONEY
-    if(!MG_WorldCampaign() && (self.spawnflags & START_DISABLED)) {
+    if(!VR_OtherFlags() && (self.spawnflags & START_DISABLED)) {
         button_disable(self);
     }
 

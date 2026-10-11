@@ -324,6 +324,19 @@ static ddef_t *ED_FindField (const char *name)
 	return NULL;
 }
 
+// AD support: the field AD's imported QuakeC has for a map key Quake VR has no field of that type for: ad_<key>
+// (QC/ad/AD_IMPORT.txt; Arcane Dimensions, vr_ad.cpp). Only in a map played by AD's rules.
+static ddef_t *ED_FindADKeyField (const char *keyname, ddef_t *ours)
+{
+	ddef_t *ad;
+	if (!VR_AD_RulesOn ())
+		return NULL;
+	ad = ED_FindField (va ("ad_%s", keyname));
+	if (!ad || (ours && (ours->type & ~DEF_SAVEGLOBAL) == (ad->type & ~DEF_SAVEGLOBAL)))
+		return NULL; // (none, or the same key both ways: Quake VR's field is the key's)
+	return ad;
+}
+
 /*
 ============
 ED_FindFieldOffset
@@ -391,6 +404,12 @@ static dfunction_t *ED_FindFunction (const char *fn_name)
 			return func;
 	}
 	return NULL;
+}
+
+// QVR: ED_FindFunction for the VR module (vr_ad.cpp: AD support, which classnames only AD's QuakeC spawns)
+dfunction_t *VR_ED_FindFunction (const char *fn_name)
+{
+	return ED_FindFunction (fn_name);
 }
 
 /*
@@ -1407,6 +1426,12 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		//johnfitz
 
 		key = ED_FindField (keyname);
+		if (qcvm == &sv.qcvm) // AD support: in an AD map, AD's field takes a key Quake VR has none (of that type) for
+		{
+			ddef_t *adkey = ED_FindADKeyField (keyname, key);
+			if (adkey)
+				key = adkey;
+		}
 		if (!key)
 		{
 			//johnfitz -- HACK -- suppress error becuase fog/sky/alpha fields might not be mentioned in defs.qc
@@ -1570,6 +1595,14 @@ void ED_LoadFromFile (const char *data)
 //
 	// look for the spawn function
 		func = ED_FindFunction (classname);
+		// AD support: in a map played by Arcane Dimensions' rules, AD's version of the classname (its QuakeC's
+		// ad_<classname>) where AD owns it (vr_ad.cpp VR_AD_OwnsClassname; ARCANE_DIMENSIONS.md 5.4)
+		if (VR_AD_RulesOn ())
+		{
+			dfunction_t *adfunc = ED_FindFunction (va ("ad_%s", classname));
+			if (adfunc && VR_AD_OwnsClassname (classname, func != NULL))
+				func = adfunc;
+		}
 
 		if (!func)
 		{

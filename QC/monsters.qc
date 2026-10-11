@@ -78,7 +78,7 @@ void() walkmonster_start_go =
 
     // HONEY
     if(self.classname == "monster_tarbaby" &&
-       (!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TBABY_HIPHOP)))
+       (!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TBABY_HIPHOP)))
     {
         // Don't do anything..
     }
@@ -124,7 +124,7 @@ void() walkmonster_start_go =
     }
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY))){
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY))){
         if(activator.items & IT_INVISIBILITY)
             return;
         if(activator.flags & FL_NOTARGET)
@@ -146,6 +146,7 @@ void() walkmonster_start_go =
 void() walkmonster_start =
 {
     if(MG_MonsterPrepare(walkmonster_start_go)) return;
+    if(AD_MonsterPrepare(walkmonster_start_go)) return; // AD support: AD's spawn flags and keys on our monsters
 // delay drop to floor to make sure all doors have been spawned
 // spread think times so they don't all happen at same time
     self.nextthink = self.nextthink + random()*0.5;
@@ -155,7 +156,7 @@ void() walkmonster_start =
     // total_monsters = total_monsters + 1;
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)) && !intermission_running)
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)) && !intermission_running)
     {
         WriteByte(MSG_ALL, SVC_UPDATESTAT);
         WriteByte(MSG_ALL, 12);
@@ -216,7 +217,7 @@ void() flymonster_start_go =
     }
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY))){
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY))){
         if(activator.items & IT_INVISIBILITY)
             return;
         if(activator.flags & FL_NOTARGET)
@@ -235,6 +236,7 @@ void() flymonster_start_go =
 void() flymonster_start =
 {
     if(MG_MonsterPrepare(flymonster_start_go)) return;
+    if(AD_MonsterPrepare(flymonster_start_go)) return; // AD support: AD's spawn flags and keys on our monsters
     self.enemy = activator;
 
 // spread think times so they don't all happen at same time
@@ -245,7 +247,7 @@ void() flymonster_start =
     // total_monsters = total_monsters + 1;
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)) && !intermission_running)
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)) && !intermission_running)
     {
         WriteByte(MSG_ALL, SVC_UPDATESTAT);
         WriteByte(MSG_ALL, 12);
@@ -298,7 +300,7 @@ void() swimmonster_start_go =
     }
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY))){
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY))){
         if(activator.items & IT_INVISIBILITY)
             return;
         if(activator.flags & FL_NOTARGET)
@@ -320,6 +322,7 @@ void() swimmonster_start_go =
 void() swimmonster_start =
 {
     if(MG_MonsterPrepare(swimmonster_start_go)) return;
+    if(AD_MonsterPrepare(swimmonster_start_go)) return; // AD support: AD's spawn flags and keys on our monsters
     self.enemy = activator;
 
     // spread think times so they don't all happen at same time
@@ -329,7 +332,7 @@ void() swimmonster_start =
 
     // total_monsters = total_monsters + 1;
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)) && !intermission_running)
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)) && !intermission_running)
     {
         WriteByte(MSG_ALL, SVC_UPDATESTAT);
         WriteByte(MSG_ALL, 12);

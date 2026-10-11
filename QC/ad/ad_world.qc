@@ -576,7 +576,7 @@ void() ad_worldspawn =
 	// Check for engine type and extensions (different features)
 	//----------------------------------------------------------------------
 	ad_engine = ad_ENG_FITZ;						// Default engine type (no extensions)
-	ad_ext_active = cvar("pr_checkextension");	// Check for extra extensions
+	ad_ext_active = VR_AD_Extensions();	// Check for extra extensions
 	if (ad_ext_active) {
 		// This could be DP, QSS, DQ, RMQ, Qbism etc
 		ad_engine = ad_ENG_DPEXT;
@@ -642,7 +642,7 @@ void() ad_worldspawn =
 	// Once the client has started, the water alpha is fine tuned
 	if (self.ad_water_alpha) {
 		ad_liquid_alpha = self.ad_water_alpha;
-		cvar_set ("r_wateralpha", ftos(ad_liquid_alpha));
+		VR_AD_WaterAlpha(ad_liquid_alpha);
 	}
 
 	// Default is auto aim OFF

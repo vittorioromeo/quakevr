@@ -178,6 +178,24 @@ float parm53; // nails
 float parm54; // rockets
 float parm55; // cells
 float parm56; // bloody weapons (MG3_BLOODY_SG, MG3_BLOODY_SSG)
+// Arcane Dimensions (vr_ad_bridge.qc AD_SetChangeParms/AD_DecodeLevelParms): AD's own parm10..16, which VR's hands and
+// holsters own here (AD support). Only AD's maps write them; SetNewParms leaves them alone (a new game's are 0).
+float parm57; // AD's map variables (its parm11..16, 22 bits each)
+float parm58;
+float parm59;
+float parm60;
+float parm61;
+float parm62;
+float parm63; // AD's weapon upgrades (its parm10, .ad_moditems)
+float parm64; // (64..72: reserved for AD's level state)
+float parm65;
+float parm66;
+float parm67;
+float parm68;
+float parm69;
+float parm70;
+float parm71;
+float parm72;
 
 void() OnSpawnServerBeforeLoad; // Called when a new server
                                 // is spawned, before

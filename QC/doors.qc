@@ -51,7 +51,7 @@ void() door_hit_top =
     self.state = STATE_TOP;
 
     // HONEY
-    if(!MG_WorldCampaign() && (self.spawnflags & DOOR_TRIGGER_ON_END))
+    if(!VR_OtherFlags() && (self.spawnflags & DOOR_TRIGGER_ON_END))
         SUB_UseTargets();
 
     if(self.spawnflags & DOOR_TOGGLE)

@@ -3152,12 +3152,21 @@ QVR_CVAR(vr_rogue_available, "0", CVAR_ROM)
 QVR_CVAR(vr_hipnotic_status, "0", CVAR_ROM)
 QVR_CVAR(vr_rogue_status, "0", CVAR_ROM)
 
-// Official native campaign ABI: id1, hipnotic, rogue, dopa, mg1, mg3 (0..5).
+// Official native campaign ABI: id1, hipnotic, rogue, dopa, mg1, mg3, ad (0..6).
 QVR_CVAR(vr_campaign, "0", CVAR_ROM)
 QVR_CVAR(vr_campaign_schema, "0", CVAR_ROM)
 QVR_CVAR(vr_dopa_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg1_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg3_status, "0", CVAR_ROM)
+QVR_CVAR(vr_ad_status, "0", CVAR_ROM) // Arcane Dimensions' data (campaign 6; vr_gamedir.cpp, vr_ad.cpp): 0 missing, 1 1.80 patch 1 (the latest), 2 incomplete/corrupt, 3 another version (refused)
+QVR_CVAR(vr_ad_rules, "0", CVAR_ROM)  // the map now running plays by AD's rules (vr_ad.cpp: the AD campaign, or AD's signals in its entities while AD's data is mounted); QC AD_Rules()
+QVR_CVAR(vr_ad_mounted, "0", CVAR_ROM) // AD's data is on the search path for the map now running (the AD campaign; vr_ad.cpp): AD's models and sounds can be used (vr_ad_projectiles 2)
+
+// Arcane Dimensions' projectile weapons (QC vr_ad_bridge.qc; VR Settings > Arcane Dimensions).
+QVR_CVAR(vr_ad_projectiles, "0", CVAR_ARCHIVE)    // whose rules for shotgun pellets and monster projectiles: 0 Auto (AD's in AD maps, Quake's elsewhere), 1 Vanilla everywhere (hitscan shotguns), 2 AD's everywhere (projectile pellets). AD's own monsters always use AD's
+QVR_CVAR(vr_ad_pellet_spread, "1", CVAR_ARCHIVE)  // AD's projectile pellets: their spread, times this (AD's: shotgun 0.04, super shotgun 0.14 x 0.08)
+QVR_CVAR(vr_ad_pellet_speed, "1", CVAR_ARCHIVE)   // their speed, times this (AD's: the player's shotgun 2000, super shotgun 1500; monsters' 800 + 150 a skill level)
+QVR_CVAR(vr_ad_pellet_damage, "1", CVAR_ARCHIVE)  // their damage, times this (AD's: 4 a pellet; the Weapon Damage settings apply too)
 QVR_CVAR(vr_honey_context, "0", CVAR_ROM) // actual start map source is Honey, never inferred from its name
 
 // Continue and the autosaves (vr_continue.cpp).

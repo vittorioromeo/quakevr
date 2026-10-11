@@ -1,5 +1,6 @@
 // vr_progs.cpp -- binds the Quake VR QuakeC entry points, globals and spawn parms.
 
+#include "vr_ad.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_progs.hpp"
@@ -41,7 +42,7 @@ namespace
 
 Bindings sv_bindings;
 
-// Level-start values of parm17..parm56, per client (parm1..parm16 live in client_t).
+// Level-start values of parm17..parm72, per client (parm1..parm16 live in client_t).
 za::Vector<float> extSpawnParms;
 
 // Set while Host_Loadgame_f respawns the server, for `spawnServerFromSaveFile`.
@@ -366,6 +367,7 @@ extern "C" void VR_OnClearMemory()
 extern "C" void VR_OnSpawnServerBeforeLoad()
 {
     resetServerWorld();
+    qvr::ad::beforeLoad(); // vr_ad_rules for this map, before anything of it spawns (and QC's hook reads it)
     VR_EdictIndex_Reset(); // (the edicts cleared)
     qvr::physics::precacheWaterSounds();
     qvr::physsound::precache(); // the props' knocks and scrapes, the climbing grab
@@ -855,7 +857,7 @@ extern "C" void VR_OnLoadGame()
     loadingSaveGame = false;
     VR_EdictIndex_Reset(); // (the edicts parsed from the save)
 
-    // parm17..parm56 were restored with the other globals and still hold the level-start
+    // parm17..parm72 were restored with the other globals and still hold the level-start
     // values (QC only rewrites them in SetNewParms/SetChangeParms), so they become the
     // single-player client's stored parms, like parm1..16 do from the savegame header.
     VR_StoreSpawnParms(0);

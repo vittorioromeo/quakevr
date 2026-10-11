@@ -54,12 +54,14 @@ SKIP = {"csqc_hudvanilla.qc"}
 # Declarations only: copied statement by statement, only what the imported code uses (transitively).
 HEADERS = {"defs.qc", "dpextensions.qc", "csqc_defs.qc", "csqc_hudad.qc"}
 PREFIX = "ad_"
+BRIDGE = "VR_AD_"  # the bridge's functions the patches below call (QC/vr_ad_bridge.qc): never renamed
 # Reviewed edits to AD's source, applied before renaming: (file, exact text, replacement, why). Each must match once.
 #
 # The precedence patches (Misc/quakevr/check_qc_precedence.py): expressions that read differently under C priorities,
 # parenthesised as fteqcc's QC priorities (AD's own compile, and ours) read them, so behaviour stays AD's as shipped
 # (some look like AD bugs: kept, flagged "AD as shipped"). Each was verified to compile to the same instructions.
 P = "parenthesised as QC priorities read it (check_qc_precedence)"
+B = "bridge"
 PATCHES = [
     ("client_debuff.qc", "if (targ.flags & FL_CLIENT == FALSE) return;", "if ((targ.flags & FL_CLIENT) == FALSE) return;", 3, P),
     ("client_debuff.qc", "if (self.items & ALL_ITARTIFACTS == 0) {", "if ((self.items & ALL_ITARTIFACTS) == 0) {", 1, P),
@@ -90,6 +92,29 @@ PATCHES = [
     ("misc.qc", "if (self.count == TE_LIGHTNING1 || self.count == TE_LIGHTNING2 || \n\t\tself.count == TE_LIGHTNING3 && !self.movetarget) {",
      "if ((self.count == TE_LIGHTNING1 || self.count == TE_LIGHTNING2 || \n\t\tself.count == TE_LIGHTNING3) && !self.movetarget) {",
      1, P + "; AD as shipped"),
+] + [
+    # The bridge's hooks (P1b): AD's code calls Quake VR's where the two meet. The VR_AD_ functions are QC/vr_ad_bridge.qc's
+    # (the renaming keeps every VR_AD_ name). Keep this list short: everything else stays AD's as shipped.
+    ("world.qc", "ext_active = cvar(\"pr_checkextension\");\t// Check for extra extensions",
+     "ext_active = VR_AD_Extensions();\t// Check for extra extensions", 1,
+     B + ": AD's Fitz path (sprite particles, no CSQC stats); our engine's extensions are not AD's"),
+    ("world.qc", "cvar_set (\"r_wateralpha\", ftos(liquid_alpha));", "VR_AD_WaterAlpha(liquid_alpha);", 1,
+     B + ": never the player's r_wateralpha; the engine reads the water_alpha key (gl_rmisc.c)"),
+    ("globalfog.qc", "\tstuffcmd(client, \"\\n\\n\\nfog \");",
+     "\tif (VR_AD_Fog(client, fog_control.fog_currden, fog_control.fog_currcol)) return;\n\tstuffcmd(client, \"\\n\\n\\nfog \");",
+     1, B + ": fog by svc_fog (stuffed commands are filtered), as MG's"),
+    ("ai_combat.qc", "\tlocal float save, take, flinch, noarmordmg;\n",
+     "\tlocal float save, take, flinch, noarmordmg;\n\tif (VR_AD_DamageOurs(targ, inflictor, attacker, damage, checkarmor)) return;\n",
+     1, B + ": Quake VR's own entities (the player, our monsters) take damage by our T_Damage"),
+    ("ai_combat.qc", "\ttarg.health = targ.health - take;\n",
+     "\ttarg.health = targ.health - take;\n\tVR_AD_Hit(targ, inflictor, attacker, take);\n",
+     1, B + ": our hit hooks on AD's monsters (damage numbers, gore, small gibs, wounds)"),
+    ("ai_pathcorner.qc", "void() path_corner_touch =\n{\n",
+     "void() path_corner_touch =\n{\n\tif (VR_AD_PathCornerTouch()) return;\n",
+     1, B + ": our monsters follow AD's path_corners as ours (t_movetarget)"),
+    ("ai_projectiles.qc", "\t\telse self.dmg = DAMAGE_PSHELL;",
+     "\t\telse self.dmg = DAMAGE_PSHELL * VR_AD_PelletDamage(self);",
+     1, B + ": the pellet damage settings (vr_ad_pellet_damage, Weapon Damage)"),
 ]
 # (Mechanical, not patches: a global array's length named by a constant, `float a[MAX];`, is written as the number,
 # as our fteqcc flags (autoproto) take no named constant there.)
@@ -238,6 +263,48 @@ def pak_files(path, want):
                 f.seek(o)
                 files[name] = f.read(s)
     return files
+
+
+ENGINE_DATA = os.path.join(ROOT, "Quake", "vr", "vr_ad_data.inc")
+
+
+def engine_lists(rel, official):
+    """Writes Quake/vr/vr_ad_data.inc (vr_ad.cpp): the release's pin the engine checks (pak2.pak's size and the SHA-256
+    of its header and directory: cheap at every start, and only patch 1 has it) and the files of AD's paks that an
+    official pak (id1, hipnotic, rogue: their names only, read from `official`) also has. The engine skips those in AD's
+    folder, so AD supplies only its own files (ARCANE_DIMENSIONS.md 5.5); maps/start.bsp excepted (AD's hub)."""
+    with open(os.path.join(rel, "pak2.pak"), "rb") as f:
+        hdr = f.read(12)
+        off, ln = struct.unpack("<ii", hdr[4:])
+        f.seek(off)
+        directory = f.read(ln)
+        f.seek(0, 2)
+        pak2_size = f.tell()
+    dirsha = hashlib.sha256(hdr + directory).hexdigest()
+    ad = set()
+    for p in ("pak0.pak", "pak1.pak", "pak2.pak"):
+        ad |= {n.lower() for n in read_pak(os.path.join(rel, p))}
+    owner = {}
+    for game, tag in (("id1", 0), ("hipnotic", 1), ("rogue", 2)):
+        folder = os.path.join(official, game)
+        paks = sorted(fn for fn in os.listdir(folder) if re.match(r"pak\d+\.pak$", fn, re.I)) if os.path.isdir(folder) else []
+        if game == "id1" and not paks:
+            sys.exit("ad_import: no id1 paks in %s (--official)" % official)
+        for fn in paks:
+            for n in read_pak(os.path.join(folder, fn)):
+                owner.setdefault(n.lower(), tag)
+    shadowed = sorted(n for n in ad if n in owner and n != "maps/start.bsp")
+    lines = ["// Generated by Misc/quakevr/ad_import.py --engine-lists from Arcane Dimensions 1.80 patch 1 and the official",
+             "// paks' file names (no content); never edit. vr_ad.cpp: the release pin and AD's files an official pak has too",
+             "// (skipped in AD's folder; the second argument is the official owner: 0 id1, 1 hipnotic, 2 rogue).",
+             "#define VR_AD_PAK2_SIZE %d" % pak2_size,
+             "#define VR_AD_PAK2_DIRSHA \"%s\"" % dirsha]
+    lines += ["VR_AD_SHADOWED(\"%s\", %d)" % (n, owner[n]) for n in shadowed]
+    with open(ENGINE_DATA, "w", encoding="latin1", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    print("ad_import: %s: %d shadowed files (id1 %d, hipnotic %d, rogue %d); pak2 %d bytes" % (
+        os.path.relpath(ENGINE_DATA, ROOT), len(shadowed), sum(owner[n] == 0 for n in shadowed),
+        sum(owner[n] == 1 for n in shadowed), sum(owner[n] == 2 for n in shadowed), pak2_size))
 
 
 def sha256(path):
@@ -392,6 +459,10 @@ def main():
     ap.add_argument("--release", default=os.path.join(ROOT, "scratch", "ad", "ad"))
     ap.add_argument("--verify-frames", action="store_true",
                     help="after a build: compare AD's frame numbers with AD's own progs.dat; writes nothing")
+    ap.add_argument("--engine-lists", action="store_true",
+                    help="write Quake/vr/vr_ad_data.inc (the engine's release pin and shadowed-file list) and stop")
+    ap.add_argument("--official", default="C:/OHWorkspace/qvr-kit/qbase",
+                    help="a Quake folder with id1 (and hipnotic, rogue) paks, for --engine-lists")
     args = ap.parse_args()
     rel = args.release
     for fn, want in PINNED.items():
@@ -400,6 +471,9 @@ def main():
             sys.exit("ad_import: %s is not AD 1.80 patch 1's (sha256 %s)" % (fn, got))
     if args.verify_frames:
         sys.exit(verify_frames(rel))
+    if args.engine_lists:
+        engine_lists(rel, args.official)
+        return
 
     src = pak_files(os.path.join(rel, "pak0.pak"), lambda n: n.startswith("my_progs/"))
     src.update(pak_files(os.path.join(rel, "pak2.pak"), lambda n: n.startswith("my_progs/")))  # patch 1 wins
@@ -480,7 +554,7 @@ def main():
     keep |= set(shared_fields)
 
     def rename(name):
-        if name in keep or name.startswith("__"):
+        if name in keep or name.startswith("__") or name.startswith(BRIDGE):
             return name
         m = re.match(r"(\w+)_[xyz]$", name)
         if m and m.group(1) in keep:
@@ -583,10 +657,12 @@ def main():
         "Builtins renamed (the name is Quake VR's for something else): " + (", ".join(bi_renamed) or "none"),
         "Standard builtins under AD's own names (number kept, ad_<name>): " + (", ".join(bi_numbered) or "none"),
         "Map-key fields shared with Quake VR (same name and type, bare): %d: %s" % (len(shared_fields), ", ".join(shared_fields)),
-        "Map-key fields renamed ad_<key> (no Quake VR field, or another type; the engine maps keys to them, P1b): %d" % len(renamed_keys),
+        "Map-key fields renamed ad_<key> (no Quake VR field, or another type; in an AD map the engine fills them from the key, pr_edict.c): %d" % len(renamed_keys),
         "  of them a type clash: " + (", ".join(clash_type) or "none"),
         "  " + ", ".join(renamed_keys),
-    ]
+        "Reviewed patches: %d precedence, %d bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):" % (
+            sum(1 for p in PATCHES if p[4].startswith(P)), sum(1 for p in PATCHES if p[4].startswith(B))),
+    ] + ["  %s: %s" % (p[0], p[4]) for p in PATCHES if p[4].startswith(B)]
     with open(os.path.join(OUT_DIR, "AD_IMPORT.txt"), "w", encoding="latin1", newline="\n") as f:
         f.write("\n".join(report) + "\n")
     print("\n".join(report[:12]))

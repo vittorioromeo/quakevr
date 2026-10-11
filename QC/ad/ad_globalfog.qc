@@ -160,6 +160,7 @@ void(entity ad_client) ad_change_fog  =
 	if (!ad_fog_control) return;
 	
 	// Update fog parameters to console buffer
+	if (VR_AD_Fog(ad_client, ad_fog_control.ad_fog_currden, ad_fog_control.ad_fog_currcol)) return;
 	stuffcmd(ad_client, "\n\n\nfog ");
 	// Fog density can be in the range of 0-99
 	ad_lftos(ad_client, ad_fog_control.ad_fog_currden, 2,3, ad_BUFFER_STUFFCMD);

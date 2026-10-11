@@ -2066,6 +2066,11 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
     vector muzzle = VRGetMuzzlePos(xHand);
     vector src = VR_ShotBackPoint(xHand, muzzle, dir);
 
+    if(AD_Pellets(self)) // AD support: AD's projectile pellets (vr_ad_projectiles; vr_ad_bridge.qc)
+    {
+        AD_FirePellets(xHand, shotcount, dir, spread, muzzle);
+        return;
+    }
     VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
     vr_tracer_hand = xHand;
     vr_tracer_from = muzzle;
@@ -2089,6 +2094,7 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
         dir = VR_Crate_ShotAim(src, dir, self.enemy);
 
     weaponfired(self, -1); // VR: its gun's muzzle flash (a grunt's: vr_weaponfx.cpp)
+    if(AD_EnemyPellets(shotcount, dir, spread, src)) return; // AD support: AD's pellets (vr_ad_bridge.qc)
     vr_tracer_hand = -1;
     vr_tracer_from = src; // (the clients start a grunt's tracers at its gun's muzzle)
     FireBulletsImpl(shotcount, dir, spread, src, 2048, FALSE);

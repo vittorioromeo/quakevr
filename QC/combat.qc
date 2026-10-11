@@ -118,6 +118,7 @@ void(entity targ, entity attacker) Killed =
     entity oself;
 
     VR_Stealth_Died(targ); // QVR: its body may be noticed (vr_stealth.qc)
+    AD_MonsterKilled(targ, attacker); // AD support: AD's keys on our monsters (deathtarget) in an AD map
     oself = self;
     self = targ;
     // VR: the firing range's training dummy killed by what passed by its own report (VR_Dummy_Hit; a zombie it stands as
@@ -1641,6 +1642,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     if(targ.classname == "func_axe_button" && !MG3_AxeButton_Struck(targ, inflictor, attacker, isVRMelee))
     {
         return FALSE; // only a melee blow opens it (vr_mg3_weapons.qc)
+    }
+    if(AD_Run(targ))
+    {
+        return AD_Damage(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's entities by AD's T_Damage (vr_ad_bridge.qc)
     }
     if(targ.vr_shootnade)
     {

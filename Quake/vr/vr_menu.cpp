@@ -789,7 +789,7 @@ int campaignsBloodyShown = -1;
 [[nodiscard]] za::Vector<Item> pageCampaigns()
 {
     za::Vector<Item> items{header("Official Campaigns")};
-    for(int i = 0; i < 6; ++i)
+    for(int i = 0; i < VR_CampaignCount(); ++i) // (Arcane Dimensions too: its row dim until it is ready)
     {
         Item choice = row(VR_CampaignLabel, VR_CampaignHelp, VR_SelectCampaign, i, -1);
         choice.dimArg = [](int index) -> bool { return VR_CampaignUnavailable(index) != 0; };

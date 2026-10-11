@@ -115,6 +115,7 @@ void(entity ad_targ, entity ad_inflictor, entity ad_attacker, float ad_damage, f
 	local vector ad_dir;
 	local entity ad_oldself;
 	local float ad_save, ad_take, ad_flinch, ad_noarmordmg;
+	if (VR_AD_DamageOurs(ad_targ, ad_inflictor, ad_attacker, ad_damage, ad_checkarmor)) return;
 
 	// Cannot hurt the world or enemy targets (fake flying markers)
 	if (ad_targ.ad_classtype == ad_CT_WORLD) return;
@@ -269,6 +270,7 @@ void(entity ad_targ, entity ad_inflictor, entity ad_attacker, float ad_damage, f
 	// do the damage
 	//----------------------------------------------------------------------
 	ad_targ.health = ad_targ.health - ad_take;
+	VR_AD_Hit(ad_targ, ad_inflictor, ad_attacker, ad_take);
 	
 	//----------------------------------------------------------------------
 	// Changed the turret code to allow for monster % HP triggers

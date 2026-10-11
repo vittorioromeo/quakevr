@@ -99,7 +99,7 @@ void() ad_Touch_Bullet =
 			//if (other.classgroup == CG_ZOMBIE) self.dmg = 0;
 			//else self.dmg = DAMAGE_PTSHELL;	
 		// Default shell pellet damage
-		else self.dmg = ad_DAMAGE_PSHELL;	
+		else self.dmg = ad_DAMAGE_PSHELL * VR_AD_PelletDamage(self);	
 		
 		// Check for breakable/pushable no monster damage
 		if (ad_ai_immunebreakable(self.owner, other)) {

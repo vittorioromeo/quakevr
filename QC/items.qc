@@ -253,7 +253,7 @@ void() PlaceItem =
     self.handtouch = itemTouch;
 
     // HONEY
-    if(!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
+    if(!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
     {
         item_unspawn();
     }

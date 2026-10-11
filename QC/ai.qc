@@ -309,7 +309,7 @@ float (entity client) visible =
         self.vr_ai_target = client;
         self.vr_ai_gate = 0;
     }
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK))) { res = bbox_visible(self, spot2); }
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK))) { res = bbox_visible(self, spot2); }
     else                                   { res = point_visible(spot1, spot2); }
     if(res && VR_Crate_HidesFrom(self, client, spot1)) { res = FALSE; }
     // Through a gate: not across a water surface either (point_visible's rule: one end in a liquid, the other not).
@@ -439,7 +439,7 @@ void() HuntTarget =
     // HONEY
     // cg: tarbabies can now spawn really angry and start jumping around
     // without even having a clear view of player
-    if(self.classname == "monster_tarbaby" && (!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID)))
+    if(self.classname == "monster_tarbaby" && (!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID)))
     {
         self.think = self.th_missile;
     }
@@ -458,7 +458,7 @@ void() SightSound =
     float rsnd;
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
     {
         return;
     }

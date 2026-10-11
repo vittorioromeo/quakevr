@@ -11,13 +11,13 @@ void(float xRequest) VR_MonstersTest_Run =
     entity oself = self, oother = other, oact = activator;
     for(entity e = nextent(world); e; e = nextent(e))
     {
-        if(e.MG_deferred)
+        if(e.MG_deferred || AD_TestWaiting(e)) // (AD support: AD's own delayed monsters too)
         {
             if(xRequest == 4)
             {
                 self = e;
                 activator = p;
-                MG_MonsterActivate();
+                self.use(); // MG_MonsterActivate (AD support: AD_MonsterActivate, AD's monster_spawn)
                 acted++;
             }
             else
@@ -35,7 +35,12 @@ void(float xRequest) VR_MonstersTest_Run =
             dead++;
             continue;
         }
-        if(p && xRequest == 2 && e.enemy != p && e.th_run)
+        if(p && xRequest == 2 && e.enemy != p && AD_Run(e))
+        {
+            self = e;
+            if(AD_TestWake(p)) acted++; // AD support: AD's monsters by AD's AI
+        }
+        else if(p && xRequest == 2 && e.enemy != p && e.th_run)
         {
             self = e;
             self.enemy = p;

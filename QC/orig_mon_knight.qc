@@ -61,7 +61,7 @@ void() kn_idle_sound =
 {
     if(random() < 0.2)
     {
-        if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+        if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
             sound(self, CHAN_VOICE, VR_StatueFile("statue/idle.wav", "knight/idle.wav"), 1, ATTN_IDLE);
         else
             sound(self, CHAN_VOICE, "knight/idle.wav", 1, ATTN_IDLE);
@@ -161,7 +161,7 @@ void(entity attacker, float damage)    knight_pain =
 
     r = random();
 
-    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+    if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
         sound(self, CHAN_VOICE, VR_StatueFile("statue/pain.wav", "knight/khurt.wav"), 1, ATTN_NORM);
     else
         sound(self, CHAN_VOICE, "knight/khurt.wav", 1, ATTN_NORM);
@@ -226,7 +226,7 @@ void()    knight_dieb11 = [    $deathb11,    knight_dieb11] {monster_check_remov
 void() knight_die =
 {
     // VR: its sword falls from its hand (its death frames are drawn without it), gibbed or not.
-    if(!(!MG_WorldCampaign() && (self.spawnflags & 2)))
+    if(!(!VR_OtherFlags() && (self.spawnflags & 2)))
     {
         VR_DropKnightSword(FALSE);
     }
@@ -237,7 +237,7 @@ void() knight_die =
         sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead ("progs/h_knight.mdl", self.health);
 
-    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+    if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
         {
             ThrowGib(VR_StatueFile("progs/statgib1.mdl", "progs/vr_rock1.mdl"), self.health);
             ThrowGib(VR_StatueFile("progs/statgib2.mdl", "progs/vr_rock2.mdl"), self.health);
@@ -253,7 +253,7 @@ void() knight_die =
     }
 
 // regular death
-    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+    if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
         sound(self, CHAN_VOICE, VR_StatueFile("statue/death.wav", "knight/kdeath.wav"), 1, ATTN_NORM);
     else
         sound(self, CHAN_VOICE, "knight/kdeath.wav", 1, ATTN_NORM);
@@ -313,7 +313,7 @@ void() monster_knight =
     precache_model("progs/knight.mdl");
     precache_model("progs/h_knight.mdl");
 
-    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+    if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
     {
         precache_model(VR_StatueFile("progs/statgib1.mdl", "progs/vr_rock1.mdl"));
         precache_model(VR_StatueFile("progs/statgib2.mdl", "progs/vr_rock2.mdl"));
@@ -334,7 +334,7 @@ void() monster_knight =
     precache_sound("knight/sword1.wav");
     precache_sound("knight/sword2.wav");
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -343,7 +343,7 @@ void() monster_knight =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = knight_start;
         return;
@@ -355,7 +355,7 @@ void() monster_knight =
     setmodel(self, "progs/knight.mdl");
     setsize(self, '-12 -12 -24', '12 12 26');
 
-    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+    if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
     {
         if(self.frame == 0)
             self.frame = 44;

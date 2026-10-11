@@ -12,6 +12,8 @@ vr_handgrabutil.qc
 vr_portal_ai.qc
 vr_portal_ai_test.qc
 vr_stealth_defs.qc
+// Arcane Dimensions: the switches and the bridge's declarations (vr_ad_bridge.qc, after AD's files, defines them).
+vr_ad_defs.qc
 ai.qc
 combat.qc
 fight.qc
@@ -262,10 +264,9 @@ waypoints/map_dm6.qc
 vr_dummy_types.qc
 vr_probe.qc
 
-// Arcane Dimensions (ARCANE_DIMENSIONS.md): the bridge, then AD's QuakeC, imported and namespaced (ad_*). Keep AD's
-// files last: their compile settings (warnings F302/F322 off) stay on to the end, and each must be its own entry
-// (fteqcc numbers $frame macros per progs.src file).
-vr_ad_bridge.qc
+// Arcane Dimensions (ARCANE_DIMENSIONS.md): AD's QuakeC, imported and namespaced (ad_*), then the bridge (it uses AD's
+// names; vr_ad_defs.qc declared its functions early). Keep them last: AD's compile settings (warnings F302/F322 off)
+// stay on to the end, and each AD file must be its own entry (fteqcc numbers $frame macros per progs.src file).
 // ad_import.py: begin (generated list; Misc/quakevr/ad_import.py rewrites it)
 ad/ad_builtins.qc
 ad/ad_defs.qc
@@ -408,3 +409,4 @@ ad/ad_mon_bossicegolem.qc
 ad/ad_mon_bossjudicator.qc
 ad/ad_mon_bossnour.qc
 // ad_import.py: end
+vr_ad_bridge.qc

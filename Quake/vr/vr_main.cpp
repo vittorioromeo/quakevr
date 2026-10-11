@@ -36,6 +36,7 @@
 #include "vr_mapindex.hpp"
 #include "vr_update.hpp"
 #include "vr_obs.hpp"
+#include "vr_ad.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
@@ -1999,6 +2000,7 @@ extern "C" void VR_Init()
     mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
     update::registerCommands(); // vr_update_status, vr_update_check_now, vr_update_compare (vr_update.cpp)
     obs::registerCommands(); // vr_obs_status, vr_obs_toggle, vr_obs_connect (vr_obs.cpp)
+    ad::registerCommands(); // vr_ad_info (vr_ad.cpp: Arcane Dimensions)
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
     relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)

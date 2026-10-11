@@ -381,6 +381,7 @@ void() ad_path_corner_stop =
 //----------------------------------------------------------------------
 void() ad_path_corner_touch =
 {
+	if (VR_AD_PathCornerTouch()) return;
 	if (!(other.flags & ad_FL_MONSTER)) return;	// ONLY Monsters can use path corners
 	if (other.health < 1) return;				// Dead things don't need path guidance
 	if (other.enemy) return;					// In combat, no time to follow paths
