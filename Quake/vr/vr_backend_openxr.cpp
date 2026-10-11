@@ -22,10 +22,17 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
+#ifdef _WIN32
 #include <windows.h>
 #include <unknwn.h> // IUnknown, which openxr_platform.h needs and lean Windows headers omit
-
 #define XR_USE_PLATFORM_WIN32
+#else
+#include <X11/Xlib.h>
+#include <GL/glx.h>
+#include <sys/time.h>
+#include <time.h>
+#define XR_USE_PLATFORM_XLIB
+#endif
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
@@ -340,11 +347,38 @@ public:
 
     [[nodiscard]] unsigned acquireEyeImage(int eye) override
     {
-        return acquireImage(swapchains[eye]);
+        const unsigned texture = acquireImage(swapchains[eye]);
+        captureTexture[eye] = texture;
+        return texture;
     }
 
     void releaseEyeImage(int eye) override
     {
+        // Opt-in native-port diagnostic: capture the actual XR color image, not
+        // the desktop mirror. Preserve the renderer's current texture binding.
+        if(COM_CheckParm("-qvr-frame-capture") && sessionState == XR_SESSION_STATE_FOCUSED &&
+            ++captureFrames[eye] == 120 && captureTexture[eye])
+        {
+            const Swapchain& sc = swapchains[eye];
+            za::Vector<unsigned char> pixels(static_cast<za::SizeT>(sc.width) * sc.height * 4);
+            GLint oldTexture = 0;
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &oldTexture);
+            glBindTexture(GL_TEXTURE_2D, captureTexture[eye]);
+            glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+            glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(oldTexture));
+            const GLenum error = glGetError();
+            const char* filename = va("%s/native-eye-%d.ppm", com_gamedir, eye);
+            FILE* file = fopen(filename, "wb");
+            if(file)
+            {
+                fprintf(file, "P6\n%d %d\n255\n", sc.width, sc.height);
+                for(int y = sc.height - 1; y >= 0; --y)
+                    for(int x = 0; x < sc.width; ++x)
+                        fwrite(pixels.data() + (static_cast<za::SizeT>(y) * sc.width + x) * 4, 1, 3, file);
+                fclose(file);
+                Con_Printf("OpenXR native capture: eye %d, %dx%d, GL error %x, %s\n", eye, sc.width, sc.height, error, filename);
+            }
+        }
         const double t0 = Sys_DoubleTime();
         releaseImage(swapchains[eye]);
         timeCall(CallRelease, t0);
@@ -535,6 +569,9 @@ private:
     XrView views[2]{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}};
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
+    bool frameControllerExtension{false};
+    unsigned captureTexture[2]{};
+    int captureFrames[2]{};
     char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
     char system[XR_MAX_SYSTEM_NAME_SIZE]{};        // the headset's name (systemName)
     bool vdxr{false};                             // Virtual Desktop's own runtime (VDXR)
@@ -648,9 +685,17 @@ private:
     // The local time, for the log (hh:mm:ss.mmm).
     [[nodiscard]] static const char* wallClock()
     {
+#ifdef _WIN32
         SYSTEMTIME t;
         GetLocalTime(&t);
         return va("%02d:%02d:%02d.%03d", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
+#else
+        timeval now{};
+        gettimeofday(&now, nullptr);
+        tm local{};
+        localtime_r(&now.tv_sec, &local);
+        return va("%02d:%02d:%02d.%03ld", local.tm_hour, local.tm_min, local.tm_sec, now.tv_usec / 1000);
+#endif
     }
 
     [[nodiscard]] static const char* stateName(XrSessionState state)
@@ -964,6 +1009,7 @@ private:
         systemId = XR_NULL_SYSTEM_ID;
         sessionState = XR_SESSION_STATE_UNKNOWN;
         visibilityMaskExtension = false;
+        frameControllerExtension = false;
         runtime[0] = '\0';
         vdxr = false;
     }
@@ -987,6 +1033,11 @@ private:
         xrruntime::logLine("\n");
         for(const XrExtensionProperties& p : extensionList)
         {
+            if(!strcmp(p.extensionName, "XR_VALVE_frame_controller_interaction"))
+            {
+                extensions.pushBack("XR_VALVE_frame_controller_interaction");
+                frameControllerExtension = true;
+            }
             if(!strcmp(p.extensionName, "XR_META_touch_controller_plus"))
             {
                 extensions.pushBack("XR_META_touch_controller_plus");
@@ -1049,7 +1100,7 @@ private:
             int tries = 1;
             while(result == XR_ERROR_FORM_FACTOR_UNAVAILABLE && Sys_DoubleTime() - begin < vr_xr_steamvr_wait.value)
             {
-                Sleep(250);
+                SDL_Delay(250);
                 result = xrGetSystem(instance, &info, &systemId);
                 tries++;
             }
@@ -1080,9 +1131,42 @@ private:
 
     bool createSession()
     {
+#ifdef _WIN32
         XrGraphicsBindingOpenGLWin32KHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR};
         binding.hDC = wglGetCurrentDC();
         binding.hGLRC = wglGetCurrentContext();
+#else
+        XrGraphicsBindingOpenGLXlibKHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR};
+        binding.xDisplay = glXGetCurrentDisplay();
+        binding.glxContext = glXGetCurrentContext();
+        binding.glxDrawable = glXGetCurrentDrawable();
+        if(!binding.xDisplay || !binding.glxContext || !binding.glxDrawable)
+        {
+            Con_Warning("OpenXR: no current Linux GLX context\n");
+            return false;
+        }
+        int configId = 0, screen = 0, count = 0;
+        glXQueryContext(binding.xDisplay, binding.glxContext, GLX_FBCONFIG_ID, &configId);
+        glXQueryContext(binding.xDisplay, binding.glxContext, GLX_SCREEN, &screen);
+        const int attributes[] = {GLX_FBCONFIG_ID, configId, None};
+        GLXFBConfig* configs = glXChooseFBConfig(binding.xDisplay, screen, attributes, &count);
+        if(!configs || count == 0)
+        {
+            if(configs) XFree(configs);
+            Con_Warning("OpenXR: GLX framebuffer configuration not found\n");
+            return false;
+        }
+        binding.glxFBConfig = configs[0];
+        XVisualInfo* visual = glXGetVisualFromFBConfig(binding.xDisplay, configs[0]);
+        XFree(configs);
+        if(!visual)
+        {
+            Con_Warning("OpenXR: GLX visual not found\n");
+            return false;
+        }
+        binding.visualid = static_cast<uint32_t>(visual->visualid);
+        XFree(visual);
+#endif
 
         XrSessionCreateInfo info{XR_TYPE_SESSION_CREATE_INFO};
         info.next = &binding;
@@ -1196,6 +1280,23 @@ private:
 #define QVR_L(p) "/user/hand/left/" p
 #define QVR_R(p) "/user/hand/right/" p
 #define QVR_BOTH(action, p) {&action, QVR_L(p)}, {&action, QVR_R(p)}
+
+        if(frameControllerExtension)
+        {
+            suggest("/interaction_profiles/valve/frame_controller_valve",
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    {&primaryAction, QVR_L("input/dpad_down/click")}, {&primaryAction, QVR_R("input/a/click")},
+                    {&secondaryAction, QVR_L("input/dpad_up/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                    {&menuAction, QVR_L("input/view/click")}, {&menuAction, QVR_R("input/menu/click")},
+                    QVR_BOTH(hapticAction, "output/haptic"),
+                    QVR_BOTH(triggerValueAction, "input/trigger/value"), QVR_BOTH(gripValueAction, "input/squeeze/value"),
+                    QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"),
+                    {&thumbTouchAction, QVR_L("input/dpad_down/touch")}, {&thumbTouchAction, QVR_L("input/dpad_up/touch")},
+                    {&thumbTouchAction, QVR_R("input/a/touch")}, {&thumbTouchAction, QVR_R("input/b/touch")},
+                    QVR_BOTH(triggerTouchAction, "input/trigger/touch")});
+        }
 
         suggest("/interaction_profiles/khr/simple_controller",
             {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/select/click"),

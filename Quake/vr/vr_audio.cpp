@@ -66,7 +66,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
-#include <emmintrin.h> // (SSE2: x64's baseline)
+#include "vr_simd.hpp"
 #include <stdio.h>
 
 namespace qvr::audio

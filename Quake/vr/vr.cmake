@@ -22,8 +22,7 @@ target_compile_definitions(ironwail PRIVATE ZA_STATIC)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../../VERSION" QVR_VERSION LIMIT_COUNT 1)
 string(STRIP "${QVR_VERSION}" QVR_VERSION)
 target_compile_definitions(ironwail PRIVATE "QVR_VERSION=\"${QVR_VERSION}\"")
-# OpenXR: the vendored Windows loader. The backend's graphics binding is OpenGL on Windows (WGL)
-# only, so elsewhere the build has the mock backend alone until it gets a GLX/EGL binding.
+# OpenXR: WGL on Windows, GLX on Linux; both retain the existing OpenGL renderer.
 if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 	set(QVR_OPENXR_DIR "${CMAKE_CURRENT_LIST_DIR}/../../Windows/OpenXR")
 	target_include_directories(ironwail PRIVATE "${QVR_OPENXR_DIR}/include")
@@ -31,6 +30,13 @@ if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 	target_compile_definitions(ironwail PRIVATE QVR_HAVE_OPENXR)
 	add_custom_command(TARGET ironwail POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${QVR_OPENXR_DIR}/lib/x64/openxr_loader.dll" $<TARGET_FILE_DIR:ironwail>)
+elseif (UNIX AND NOT APPLE)
+	find_package(X11 REQUIRED)
+	find_path(QVR_OPENXR_INCLUDE_DIR openxr/openxr.h REQUIRED)
+	find_library(QVR_OPENXR_LIBRARY NAMES openxr_loader HINTS /opt/steamvr/bin/linuxarm64 REQUIRED)
+	target_include_directories(ironwail PRIVATE "${QVR_OPENXR_INCLUDE_DIR}" ${X11_INCLUDE_DIR})
+	target_link_libraries(ironwail PRIVATE "${QVR_OPENXR_LIBRARY}" OpenGL::GLX ${X11_LIBRARIES})
+	target_compile_definitions(ironwail PRIVATE QVR_HAVE_OPENXR)
 endif()
 
 # No exceptions (docs/vr-port/CODE_STYLE.md): the module and Zancle are built without them (clang-cl /EHs-c-, after
@@ -64,6 +70,13 @@ if (UNIX AND NOT APPLE)
 	target_link_libraries(qvr_box3d PUBLIC m)
 endif()
 target_link_libraries(ironwail PRIVATE qvr_box3d)
+
+# The AO bake and audio kernels preserve the scalar/SSE operation order.
+# ARM compilers must not fuse their multiply/add pairs into FMA operations.
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
+	set_property(SOURCE "${CMAKE_CURRENT_LIST_DIR}/vr_ao.cpp" "${CMAKE_CURRENT_LIST_DIR}/vr_audio.cpp"
+		APPEND PROPERTY COMPILE_OPTIONS -ffp-contract=off)
+endif()
 
 # Zancle (external/zancle/README.md): the modules the Quake VR code uses, a static library with its own settings: C++23;
 # optimised and without Zancle's asserts (NDEBUG) in Release; in Debug by QVR_ZANCLE_DEBUG: ON, built as the engine's
@@ -123,7 +136,7 @@ if (QVR_MIMALLOC)
 	if (CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 		set_source_files_properties("${CMAKE_CURRENT_LIST_DIR}/vr_crtheap.c" PROPERTIES COMPILE_OPTIONS "/clang:-fno-builtin")
 	else()
-		set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES COMPILE_DEFINITIONS MI_MALLOC_OVERRIDE
+		set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES COMPILE_DEFINITIONS "MI_MALLOC_OVERRIDE;QVR_CUSTOM_CPP_OPERATORS"
 			COMPILE_OPTIONS "-fno-builtin-malloc;-fno-builtin-free;-fno-builtin-calloc;-fno-builtin-realloc")
 	endif()
 endif()
