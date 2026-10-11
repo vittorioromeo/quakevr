@@ -490,6 +490,18 @@ committed to.
 - **Every phase:** latest AD only (decision 10); AD's shipped bugs listed with a fix/keep proposal, decided by
   Vittorio one by one (decision 12).
 
+**Follow-up tasks from the decisions of 2026-10-11 (13-21), not in P1b:**
+
+| Task | Files | Approach | Effort |
+|---|---|---|---|
+| **Rigs, dismemberment and animations per AD model** (13) | `Quake/vr/vr_ragdoll.cpp` (a seed table per AD model: pelvis, chest, head, limbs), `vr_hitmodel.cpp` (head and limb zones), `QC/vr_ad_monsters.qc` (new: per-archetype registration, the MG3 Phase D pattern: hulls, decap head model, gib table, get-up frames picked from AD's pain/death frames), `QC/vr_limbs.qc` (the rigged-head rule already covers any rigged monster) | The rig is derived from the model at first use, so each AD model needs only its seed points and joint limits. A test map per archetype (the bestiary-test pattern: `vr_mg3_bestiary_test.qc`) kills each monster with a blade, a bullet and a blast and checks ragdoll, limb and head counts. Usage order (decision 11). | about 0.5 agent-day per model family; 30 families: 12-18 |
+| **Artifacts and custom pickups everywhere** (16) | `QC/vr_ad_items.qc` (new), our HUD/wrist indicators (`QC/vr_hud*.qc`, the engine's powerup icons), `QC/items.qc` (one `// AD support` call where a pickup is shared) | AD's `item_artifact_*` spawn as AD's entities (AD's own touch), with our player's timers in AD's `.ad_*` fields ticked by the bridge (`VR_AD_PlayerPostThink`) in every map when the data is present; their effects hooked where ours fire (Sharp Shooter: our spread; Nail Piercer: our nails' touch; Blast Belt: our `T_RadiusDamage`; Lava Shield/Air Tank: our water damage). Backpacks and custom keys only in AD levels if they override ours. | 4-6 |
+| **Ammo resistance in our weapons** (18) | `QC/combat.qc` (`T_Damage`: one `// AD support` call), `QC/vr_ad_bridge.qc` | Our weapons tag the damage's ammo type (`vr_damage_ammo`: shells, nails, rockets, cells, melee) where they fire; the bridge scales it by the target's `ad_resist_*` (AD's own `ad_Resist_Damage`), in AD levels or against AD monsters, and plays AD's resist tell. Melee: shells' resistance off (AD's axe ignores it), grenades and rockets the rockets' one. | 2-3 |
+| **Crouch in AD** (20) | `QC/vr_crouch*.qc`, AD's `ad_ai_*` height checks through the bridge | AD aims at `enemy.origin + view_ofs` and checks melee height (+-64): our crouch moves `view_ofs`; check AD's aim and melee read it (tests: a crouched player under AD's soldier and knight), and take AD's height-aware melee for our monsters everywhere if it plays better (an option). | 2-3 |
+| **Spawnflags rewrite** (19) | `QC/vr_spawnflags.qc` (new), every `spawnflags &` test of the shared monsters (`QC/monsters.qc`, `orig_mon_*.qc`) and of the MG/Rogue/Hipnotic gates | One table per ruleset (id, Hipnotic, Rogue, MG, AD, VR) mapping authored bits to named meanings, read once at spawn into separate saved fields (`MG_deferred`'s pattern), so no code tests raw bits of another ruleset. Backwards compatible: the same meaning for every existing map (the campaign A/B spawn-dump regression proves it). | 4-6 |
+| **Chaos mode** (17) | AD's `ad_chaosmode.qc` through the bridge | After P2: AD's randomiser over our and AD's monsters, its restart dance replaced by our save hooks. | 3-5 |
+| **Global AD projectile/pellet option** (21) | `QC/vr_ad_bridge.qc`, our monsters' missile launches | A cvar applying AD's skill-scaled projectile speeds and pellet shotguns to every monster (pending his answer). | 1-2 |
+
 ---
 
 ## 12. Decisions (Vittorio, 2026-10-11)
@@ -512,6 +524,20 @@ from Ironwail. Anything in shared engine or QC code carries a clear `// AD suppo
 | 10 | Versions | **Latest AD only** (1.80 patch 1, "1.81"); every older install is refused with a clear message. | P1b |
 | 11 | P2 monster order | **By usage in maps** (dknight 475, zombiek 435, dcrossbow 387, hogre 330, spider 268, ...). | P2 |
 | 12 | AD's shipped bugs | **Decided per bug**: each one found is listed with a fix/keep proposal (section 15.5); none is fixed silently. | every phase |
+
+**Follow-up decisions (Vittorio, 2026-10-11, after the answers above).**
+
+| # | Decision | Phase |
+|---|---|---|
+| 13 | **AD monsters: a ragdoll rig, dismemberment and the needed animations** (get-up frames, head zone and head gib) **for each AD model**. | P2 |
+| 14 | **AD's damage code calls our hooks** (damage, death, melee, knockdown, gore). | P1b (the bridge) |
+| 15 | **AD levels only:** fall damage rules; megahealth rot; level-change and death rules for items and powerups (`ITEMRESET`, the level-start inventory restore); AD-specific spawnflags. | P1b |
+| 16 | **Everywhere:** the new artifacts (Sharp Shooter, Nail Piercer, Jump Boots, Blast Belt, Lava Shield, Air Tank, Tome of Power) and AD's custom pickups (custom keys, backpacks), **unless** one overrides an existing pickup or rule: then AD levels only. | P2/P3 |
+| 17 | **Evil mode: implement.** Chaos mode: later, once every AD monster has VR support. | P1b (evil mode, if cheap), P4 (chaos) |
+| 18 | **Ammo resistance in our weapons too** (melee and grenades included where sensible), effective only in AD levels, or against AD-specific monsters elsewhere. | P2 |
+| 19 | **Spawnflags:** AD's gated to AD levels. A rewrite of the spawnflag handling is allowed if fully backwards compatible and it avoids or minimises conflicts (id1/Hipnotic/Rogue/MG/VR flags). | P1b (gating), follow-up (rewrite) |
+| 20 | **Crouching:** our VR crouch adapted to AD (its height-aware aim and melee); AD improvements worth having apply in every mode. | follow-up |
+| 21 | **Skill-scaled projectile speeds and pellet shotguns:** per entity by default (an AD monster uses AD's), plus a global option to apply them to every monster (pending his answer). | P2 |
 
 **Answers to his questions.**
 
