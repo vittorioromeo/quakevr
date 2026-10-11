@@ -145,6 +145,27 @@ struct Death
     glm::vec3 crawlStart{0.f};
 };
 
+// Liquids (vr_ragdoll_active_liquids; vr_ragactive.cpp, "Liquids"; ROUND22.md, "Active ragdolls: liquids"): a dying
+// body in water (dying in it, drowned, or falling in within liquidWindow of its death) paddles and kicks, its head kept
+// up, weakening as it drowns; in lava or slime it flails, short and violent; then limp. Once per death.
+enum class Liquid : uint8_t
+{
+    None,
+    Water,
+    Slime,
+    Lava
+};
+struct Swim
+{
+    Liquid liquid{Liquid::None}; // what it is in (None: not swimming)
+    double from{-1.0};           // when it began (-1: not yet; it never begins twice)
+    float length{0.f};           // s: its strokes last
+    double outSince{-1.0};       // out of every liquid since (it stops after half a second)
+    uint32_t seed{0};
+    float phase{0.f};            // rad: the strokes' (advanced slower as it weakens)
+    float headLift{0.f};         // N: the last frame's lift on the head (the traces)
+};
+
 // An active ragdoll's drive (in vr_box3d.cpp's RagdollBodies).
 struct State
 {
@@ -166,6 +187,7 @@ struct State
     za::Array<Reach, limbCount> reach{};
     Pin pin;
     Death death;
+    Swim swim;
     // The last frame's (the debug overlay, the traces): each joint's target (its child's turn in its parent's rest
     // space) and the clip's alone, and its strength.
     za::Array<glm::quat, ragdoll::maxBones> target{}, animTarget{};
@@ -182,7 +204,9 @@ struct Context
     uint32_t held{0}; // the parts a hand holds or a throw pins: no strength (with their limb)
     // The floor's height (world, metres) below `at` (within `depth` metres), or -1e30 none.
     float (*floorBelow)(const glm::vec3& at, float depth){nullptr};
-    int num{0};       // its entity (the traces)
+    // The liquid at `at` (world, metres); null: liquids not looked at.
+    Liquid (*liquidAt)(const glm::vec3& at){nullptr};
+    int num{0};      // its entity (the traces)
     double born{0.0}; // when its ragdoll was made (the traces' time)
     bool trace{false}; // a `ragtrace` line (driven or not: vr_ragdoll_active_trace)
 };
@@ -209,6 +233,10 @@ void beginDeath(State& s, const Parts& p, const DeathInfo& d, double now);
 // Each frame before the step: the targets for now, the strengths, the joints set, the pin moved. Stops (on false)
 // once nothing is driven.
 void drive(State& s, const Parts& p, const Context& c);
+
+// Whether a death's drive, limp now, may still be woken by a liquid (vr_ragdoll_active_liquids: not swum yet, within
+// liquidWindow of its death, not a collapse): drive() is to be called for it each frame.
+[[nodiscard]] bool liquidPending(const State& s, double now);
 
 // A blast or a hard knock: every strength times `keep` from now on (a hit lowers the muscles).
 void weaken(State& s, float keep);

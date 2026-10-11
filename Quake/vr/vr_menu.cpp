@@ -4043,6 +4043,14 @@ void hologramTestMessage()
         slider("Crawl Away", vr_ragdoll_active_crawl, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance a humanoid lying after his death rolls onto his front and crawls a few seconds before going "
                   "limp (vr_ragdoll_active_crawl)."),
+        toggle("Swim and Flail in Liquids", vr_ragdoll_active_liquids)
+            .help("Dying in water (drowned, or falling in just after his death) he paddles and kicks, his head held up, "
+                  "weakening as he drowns; in lava or slime he flails, short and violent; then limp. Off: his death in a "
+                  "liquid plays as on land (vr_ragdoll_active_liquids)."),
+        slider("Paddle Time", vr_ragdoll_active_paddle, 1.f, 10.f, 0.5f, "%.1f s").extend(0.2f, 30.f)
+            .help("About how long he paddles in water before going limp (vr_ragdoll_active_paddle)."),
+        slider("Flail Time", vr_ragdoll_active_flail, 0.5f, 4.f, 0.25f, "%.2f s").extend(0.2f, 30.f)
+            .help("About how long he flails in lava (in slime 1.4 times it) before going limp (vr_ragdoll_active_flail)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
