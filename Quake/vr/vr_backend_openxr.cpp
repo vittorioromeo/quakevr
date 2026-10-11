@@ -311,6 +311,40 @@ public:
         {
             timing.noRender++;
         }
+        if(COM_CheckParm("-qvr-frame-diagnostics") && Sys_DoubleTime() - diagnosticAt >= 1.0)
+        {
+            diagnosticAt = Sys_DoubleTime();
+            xrruntime::logLine(va("FRAME_DIAG state=%s present=%d shouldRender=%d hold=%d views=%u flags=0x%llx "
+                                 "head=%d head_xyz=%.3f,%.3f,%.3f head_q=%.3f,%.3f,%.3f,%.3f\n",
+                stateName(sessionState), userPresent(), frame.shouldRender, frame.hold, viewCount,
+                static_cast<unsigned long long>(viewState.viewStateFlags), tracking.head.valid,
+                tracking.head.position.x, tracking.head.position.y, tracking.head.position.z,
+                tracking.head.orientation.w, tracking.head.orientation.x,
+                tracking.head.orientation.y, tracking.head.orientation.z));
+            for(int h = 0; h < HAND_COUNT; ++h)
+            {
+                const int side = handSide(h);
+                XrActionStateGetInfo get{XR_TYPE_ACTION_STATE_GET_INFO};
+                get.action = gripPose;
+                get.subactionPath = handPaths[side];
+                XrActionStatePose poseState{XR_TYPE_ACTION_STATE_POSE};
+                const XrResult poseResult = xrGetActionStatePose(session, &get, &poseState);
+                XrInteractionProfileState profileState{XR_TYPE_INTERACTION_PROFILE_STATE};
+                xrGetCurrentInteractionProfile(session, handPaths[side], &profileState);
+                char profileName[XR_MAX_PATH_LENGTH]{};
+                uint32_t length = 0;
+                if(profileState.interactionProfile != XR_NULL_PATH)
+                    xrPathToString(instance, profileState.interactionProfile,
+                        sizeof(profileName), &length, profileName);
+                const HandInput& input = tracking.input.hands[h];
+                xrruntime::logLine(va("FRAME_HAND side=%s profile=%s pose_action_active=%d pose_result=%d valid=%d "
+                                     "xyz=%.3f,%.3f,%.3f trigger=%d/%.3f grip=%d/%.3f stick=%.3f,%.3f\n",
+                    side == 0 ? "left" : "right", profileName[0] ? profileName : "none",
+                    poseState.isActive, static_cast<int>(poseResult), tracking.hands[h].valid,
+                    tracking.hands[h].position.x, tracking.hands[h].position.y, tracking.hands[h].position.z,
+                    input.trigger, input.triggerValue, input.grip, input.gripValue, input.stick.x, input.stick.y));
+            }
+        }
         return true;
     }
 
@@ -475,6 +509,12 @@ public:
         endInfo.layers = count ? submitted : nullptr;
         const double t0 = Sys_DoubleTime();
         check(xrEndFrame(session, &endInfo), "xrEndFrame");
+        if(COM_CheckParm("-qvr-frame-diagnostics") && Sys_DoubleTime() - diagnosticLayersAt >= 1.0)
+        {
+            diagnosticLayersAt = Sys_DoubleTime();
+            xrruntime::logLine(va("FRAME_LAYERS projection=%d stereo_views=%u quad=%d total=%u held=%d\n",
+                layer.viewCount == 2, layer.viewCount, panelShown, count, held));
+        }
         timeCall(CallEnd, t0);
         timing.frames++;
     }
@@ -636,6 +676,8 @@ private:
         int periodNs{0};          // predictedDisplayPeriod
     };
     Timing timing;
+    double diagnosticAt{-1.0};
+    double diagnosticLayersAt{-1.0};
 
     void timeCall(Call call, double since)
     {
