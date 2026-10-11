@@ -1174,6 +1174,13 @@ bool button(int hand, posing::Button b, bool down)
             {
                 return false;
             }
+            // While the trigger holds something (the physgun's prop, Scale's gizmo, a box being made or moved), a press
+            // is the stick pushed hard while adjusting: swallowed, else the tool change would drop the hold.
+            if(tg.trigger)
+            {
+                taken = true;
+                return true;
+            }
             setTool((static_cast<int>(currentTool()) + (tg.adjust ? -1 : 1) + static_cast<int>(Tool::Count)) %
                     static_cast<int>(Tool::Count));
             taken = true;
