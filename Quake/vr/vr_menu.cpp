@@ -4089,6 +4089,21 @@ void hologramTestMessage()
             .help("About how long he paddles in water before going limp (vr_ragdoll_active_paddle)."),
         slider("Flail Time", vr_ragdoll_active_flail, 0.5f, 4.f, 0.25f, "%.2f s").extend(0.2f, 30.f)
             .help("About how long he flails in lava (in slime 1.4 times it) before going limp (vr_ragdoll_active_flail)."),
+        header("Hit Reactions (Living Monsters)"),
+        cycle("Hit Reactions", vr_hit_react, {{0.f, "Off"}, {1.f, "Limbs"}, {2.f, "Whole Body"}})
+            .help("A living monster you hit flinches where you hit it, then carries on fighting: its AI, its damage and "
+                  "its hitboxes are as before. Limbs: the bones struck turn round their joints (the head snaps back, an "
+                  "arm swings, a leg's knee buckles and the torso leans over it; a monster with no rig tilts whole). "
+                  "Whole Body: every monster tilts whole. Off: none, and no slow-down (vr_hit_react)."),
+        slider("Reaction Strength", vr_hit_react_strength, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("How far it flinches, times the default (by the share of its health the blow took; "
+                  "vr_hit_react_strength)."),
+        slider("Reaction Length", vr_hit_react_time, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
+            .help("How long a flinch lasts, times the default (its peak at about 0.07 s, gone by about 0.5 s; "
+                  "vr_hit_react_time)."),
+        slider("Hits Slow Them", vr_hit_react_slow, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("A monster hit a moment ago takes shorter steps: a leg hit about half for half a second, with a hitch "
+                  "towards that leg; the body a third, 0.3 s. 0: none (vr_hit_react_slow)."),
         toggle("Active Shoves and Throws", vr_ragdoll_active_stagger)
             .help("With Knockdowns, a shove makes a grunt, enforcer, knight, death knight, ogre or zombie stagger as a "
                   "ragdoll held up by its muscles, its feet stepping after it: leaning too far it falls (knocked down), "
@@ -5019,6 +5034,9 @@ za::Vector<Item> pageDebugLogging()
                   "also each second the most sent: the broadcast, the reliable messages, a client's own data and entities."),
         toggle("Ragdolls", vr_debug_ragdoll)
             .help("vr_debug_ragdoll: each ragdoll made (when it went limp, its parts), each push on it and each blast's throw."),
+        cycle("Hit Reaction Log", vr_hit_react_debug, {{0.f, "Off"}, {1.f, "Blows"}, {2.f, "Every Frame"}})
+            .help("vr_hit_react_debug: each blow a living monster flinches at printed (the bone struck, its size) and the "
+                  "server's slow-down of its steps; Every Frame: its bones' turns each frame too (hittrace lines)."),
         toggle("Active Ragdoll Targets", vr_ragdoll_active_debug)
             .help("vr_ragdoll_active_debug: each active ragdoll's joint targets drawn over it (green as strong as the joint "
                   "is, grey limp), its pelvis pin (yellow) and its hands' and feet's goals (red: a wound held, a step, a "
@@ -5423,6 +5441,9 @@ za::Vector<Item> pageDebugReports()
         command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
         command("Active Ragdolls", "vr_ragdoll_active_list").help("vr_ragdoll_active_list: each active ragdoll (vr_ragdoll_active): how long driven, its legs', torso's, arms' and head's strength, its pelvis pin, what its death does (stumbled, a hand on the wound, crawling); and the drive's cost a frame."),
         command("Strike Holding Hands", "vr_ragdoll_env_hit").help("vr_ragdoll_env_hit [speed]: each dying monster's hand holding on to a wall or a ledge struck as a shot strikes it: it lets go (Gibs and Corpses > Ragdoll Settings > Grab Ledges)."),
+        command("Hit the Nearest Monster: Leg", "vr_test_hit 4").help("vr_test_hit <n>: the live monster nearest you struck by a shot of yours (vr_test_hit_damage, never a kill) on its body (1), head (2), an arm (3) or a leg (4): a hit reaction to watch (Gibs and Corpses > Ragdoll Settings, Hit Reactions). vr_test_hit_calm 1: no pain frames, it doesn't turn on you."),
+        command("Hit the Nearest Monster: Head", "vr_test_hit 2").help("vr_test_hit 2: the live monster nearest you struck on its head (see Hit the Nearest Monster: Leg)."),
+        command("Hit Reactions Now", "vr_hit_react_info").help("vr_hit_react_info: the monsters flinching now, each blow's age, part, size and whether its bones or its whole model take it."),
         command("Kill the Nearest Monster", "vr_test_kill 1").help("vr_test_kill <n>: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3) or a leg (4): an active death to watch (Gibs and Corpses > Ragdoll Settings, Active Deaths)."),
         command("Cut the Nearest Monster's Leg Off", "vr_test_cut 3").help("vr_test_cut <n>: the live monster nearest you killed by a sword's cut at its left arm (1), right arm (2), left leg (3), right leg (4), both legs (5), left forearm (6), left shin (7) or head (8); n + 10: the dead one nearest you cut so. With React to Lost Limbs: he balances on one leg, holds the stump, writhes, crawls with no legs."),
         command("Cut the Nearest Monster's Arm Off", "vr_test_cut 1").help("vr_test_cut 1: the same at its left arm: his right hand to the stump."),

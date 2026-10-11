@@ -637,7 +637,7 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
 {
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
     if(vr_hit_react.value != 1.f || zeroblend || !e->model || hdr->poseverttype != aliashdr_t::PV_QUAKE1 ||
-        VR_IsViewEntity(e) || pose1 < 0 || pose1 >= hdr->numposes || pose2 < 0 || pose2 >= hdr->numposes)
+        VR_IsViewEntity(e) || pose1 < 0 || pose1 >= hdr->numposes || pose2 < 0 || pose2 >= hdr->numposes || !hitreact::reacting(e))
     {
         return on;
     }

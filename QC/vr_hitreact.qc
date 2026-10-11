@@ -74,6 +74,7 @@ float(float dist) VR_HitReact_Dist =
 // A living monster struck by `take` (T_DamageDeal, after the blow, before its pain): the blow sent, its steps slowed.
 void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit =
 {
+    // (none while knocked down, staggering or getting up: a ragdoll then, vr_knockdown.qc)
     if(take <= 0 || !(targ.flags & FL_MONSTER) || targ.health <= 0 || targ.vr_knockdown || !cvar_hget(cvarh_vr_hit_react))
     {
         return;
@@ -207,11 +208,14 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit
 entity vr_hr_watch;
 float vr_hr_watch_until;
 
+void(entity pl, entity best, float part) VR_TestHit_One;
+
+// (vr_test_hit_all 1: every live monster struck so at once: the cost tests.)
 void() VR_TestHit_Frame =
 {
     if(vr_hr_watch != world && time < vr_hr_watch_until)
     {
-        dprint(sprintf("hitwatch: %.3f %s frame %g at %v health %g enemy %d state %g\n", time, vr_hr_watch.classname,
+        dprint(sprintf("hitwatch: %.3f %s frame %g at %v health %g enemy %s state %g\n", time, vr_hr_watch.classname,
             vr_hr_watch.frame, vr_hr_watch.origin, vr_hr_watch.health, vr_hr_watch.enemy.classname,
             vr_hr_watch.attack_state));
     }
@@ -222,24 +226,43 @@ void() VR_TestHit_Frame =
     }
     cvar_set("vr_test_hit", "0");
     entity pl = find(world, classname, "player");
+    float all = cvar("vr_test_hit_all");
     entity best = world;
     float bestD = 100000;
+    float count = 0;
     entity e = nextent(world);
     while(e)
     {
-        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e) && vlen(e.origin - pl.origin) < bestD)
+        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e))
         {
-            bestD = vlen(e.origin - pl.origin);
-            best = e;
+            if(all)
+            {
+                VR_TestHit_One(pl, e, want - 1);
+                count = count + 1;
+            }
+            else if(vlen(e.origin - pl.origin) < bestD)
+            {
+                bestD = vlen(e.origin - pl.origin);
+                best = e;
+            }
         }
         e = nextent(e);
+    }
+    if(all)
+    {
+        dprint(sprintf("test hit: %g monsters struck\n", count));
+        return;
     }
     if(best == world)
     {
         dprint("test hit: no live monster\n");
         return;
     }
-    float part = want - 1;
+    VR_TestHit_One(pl, best, want - 1);
+};
+
+void(entity pl, entity best, float part) VR_TestHit_One =
+{
     vector dir = best.origin - pl.origin;
     dir_z = 0;
     dir = normalize(dir);
@@ -270,7 +293,7 @@ void() VR_TestHit_Frame =
     vr_hitpart_target = best;
     vr_hitpart_time = time;
     vr_hitpart_pos = at;
-    if(cvar("vr_test_hit_watch") > 0)
+    if(cvar("vr_test_hit_watch") > 0 && !cvar("vr_test_hit_all"))
     {
         vr_hr_watch = best;
         vr_hr_watch_until = time + cvar("vr_test_hit_watch");

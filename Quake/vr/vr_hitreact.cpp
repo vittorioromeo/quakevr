@@ -7,6 +7,7 @@
 #include "vr_mem.hpp"
 
 #include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -90,6 +91,27 @@ struct HitReacts
     auto members() { return mem::list(entities); }
 };
 mem::Cache<HitReacts> reacts{"hit reactions", mem::MapChange};
+
+// The drawing's cost since the last vr_hit_react_info (boneKicks and tiltModel, every alias model drawn: the lookup
+// alone for one not reacting). The main thread.
+struct Cost
+{
+    long long ns{0};
+    int calls{0}, frames{0};
+    double lastTime{-1.0};
+};
+Cost cost;
+
+void countCost(long long ns)
+{
+    cost.ns += ns;
+    cost.calls++;
+    if(cl.time != cost.lastTime)
+    {
+        cost.lastTime = cl.time;
+        cost.frames++;
+    }
+}
 
 // The number of a client entity (-1: not one of cl_entities: your gun, a temporary entity).
 [[nodiscard]] int numberOf(const entity_t* e)
@@ -339,7 +361,19 @@ void resolveTilt(Kick& k, const entity_t* e)
         return nullptr;
     }
     const auto it = reacts.entities.find(num);
-    return it != reacts.entities.end() && it->second.count > 0 ? &it->second : nullptr;
+    if(it == reacts.entities.end() || it->second.count == 0)
+    {
+        return nullptr;
+    }
+    if(ragdoll::sourceModel(e))
+    {
+        // A ragdoll now (a knockdown, a stagger, its get-up's start: vr_ragactive.cpp's): its body is the physics', and
+        // what kicks were under way are dropped, not taken up again when it stands (the server sends none meanwhile:
+        // QC's vr_knockdown)
+        it->second.count = 0;
+        return nullptr;
+    }
+    return &it->second;
 }
 
 
@@ -460,7 +494,7 @@ void parseEvent()
     }
 }
 
-bool boneKicks(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, rigpose::Rigid* out)
+bool boneKicksNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, rigpose::Rigid* out)
 {
     if(vr_hit_react.value != 1.f)
     {
@@ -551,10 +585,10 @@ bool boneKicks(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
     return true;
 }
 
-void tiltModel(const entity_t* e, float matrix[16])
+void tiltModelNow(const entity_t* e, float matrix[16])
 {
     Reaction* r = reactionOf(e);
-    if(!r || ragdoll::sourceModel(e) || (vr_hit_react.value == 1.f && animsmooth::rigged(e)))
+    if(!r || (vr_hit_react.value == 1.f && animsmooth::rigged(e)))
     {
         return;
     }
@@ -588,12 +622,36 @@ void tiltModel(const entity_t* e, float matrix[16])
     memcpy(matrix, glm::value_ptr(m), sizeof(float) * 16);
 }
 
+bool boneKicks(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, rigpose::Rigid* out)
+{
+    const long long t0 = za::Clock::nowNanoseconds();
+    const bool on = boneKicksNow(e, rig, posed, out);
+    countCost(za::Clock::nowNanoseconds() - t0);
+    return on;
+}
+
+bool reacting(const entity_t* e)
+{
+    return reactionOf(e) != nullptr;
+}
+
+void tiltModel(const entity_t* e, float matrix[16])
+{
+    const long long t0 = za::Clock::nowNanoseconds();
+    tiltModelNow(e, matrix);
+    countCost(za::Clock::nowNanoseconds() - t0);
+}
+
 namespace
 {
 
-// vr_hit_react_info: the entities reacting now and their kicks.
+// vr_hit_react_info: the entities reacting now and their kicks; the drawing's cost since the last time.
 void info_f()
 {
+    Con_Printf("hit reactions: cost %.4f ms a frame over %d frames (%d calls, %.2f us each)\n",
+        cost.frames ? static_cast<double>(cost.ns) * 1e-6 / cost.frames : 0.0, cost.frames, cost.calls,
+        cost.calls ? static_cast<double>(cost.ns) * 1e-3 / cost.calls : 0.0);
+    cost = Cost{};
     Con_Printf("hit reactions: %d entities (vr_hit_react %g, strength %g, time %g)\n", static_cast<int>(reacts.entities.size()),
         vr_hit_react.value, vr_hit_react_strength.value, vr_hit_react_time.value);
     for(const auto& [num, r] : reacts.entities)

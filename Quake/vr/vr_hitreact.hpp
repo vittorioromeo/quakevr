@@ -30,6 +30,9 @@ void parseEvent();
 // A rigged entity's bones kicked now: for each bone, the rigid motion (posed model space, units) its posed vertices
 // take on top of the animation: p' = rot[b] * p + pos[b]. `posed`: each bone's transform from the rest pose to the pose
 // drawn. False if `e` reacts to nothing now (outputs untouched).
+// Whether `e` has kicks under way (cheap: the bone path asks it first, before posing its bones).
+[[nodiscard]] bool reacting(const entity_t* e);
+
 bool boneKicks(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, rigpose::Rigid* out);
 
 // The whole-model tilt (models with no rig, or vr_hit_react 2): `matrix` (R_EntityMatrix's) turned about the model's
