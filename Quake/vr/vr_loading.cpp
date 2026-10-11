@@ -176,6 +176,11 @@ extern "C" int VR_LoadingDefer(void)
     return 1;
 }
 
+extern "C" int VR_LoadingWaiting(void)
+{
+    return loading::pending.waiting ? 1 : 0;
+}
+
 extern "C" int VR_LoadingPlaque(void)
 {
     return loading::pending.waiting && !(cls.state == ca_connected && cls.signon == SIGNONS) ? 1 : 0;

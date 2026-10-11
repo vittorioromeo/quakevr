@@ -2097,6 +2097,8 @@ Host_AutoLoad
 */
 static qboolean Host_AutoLoad (void)
 {
+	char	cmdline[MAX_QPATH * 2]; // QVR
+
 	if (!sv_autoload.value || !sv.lastsave[0] || svs.maxclients != 1 || cl.intermission)
 		return false;
 
@@ -2111,15 +2113,22 @@ static qboolean Host_AutoLoad (void)
 	else if (sv_autoload.value < 3.f && sv_player->v.health > 0.f)
 		return false;
 
+	// QVR: the caller's command line, tokenized again after the commands run below: its own "Loading..." deferral
+	// (VR_LoadingDefer) reads it, and had a load put off left the last one run there ("wait"), the restart was lost
+	q_snprintf (cmdline, sizeof (cmdline), "%s %s", Cmd_Argv (0), Cmd_Args () ? Cmd_Args () : "");
 	sv.autoloading = true;
 	Con_Printf ("Autoloading...\n");
 	Cbuf_AddText (va ("load \"%s\"\n", sv.lastsave));
 	Cbuf_Execute ();
+	Cmd_TokenizeString (cmdline);
 
 	if (sv.autoloading)
 	{
 		sv.autoloading = false;
-		Con_Printf ("Autoload failed!\n");
+		// QVR: put off for "Loading..." (vr_loading.cpp) is not a failure: the caller's own deferral takes its place and
+		// runs it again then, autoloading
+		if (!VR_LoadingWaiting ())
+			Con_Printf ("Autoload failed!\n");
 		return false;
 	}
 
@@ -2192,6 +2201,12 @@ static void Host_Restart_f (void)
 		return;
 
 	if (cmd_source != src_command)
+		return;
+
+	// QVR: a restart queued before an autoload's load (Host_AutoLoad runs the commands ahead of it first) is the same
+	// dead player's request: each would load the save again, one after another (ROUND22.md, "Respawn loaded the map
+	// several times")
+	if (sv.autoloading)
 		return;
 
 	if (!(Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "fresh")) && Host_AutoLoad ())

@@ -812,6 +812,8 @@ void() trigger_changelevel =
 void() set_suicide_frame;
 
 // called by ClientKill and DeadThink
+nosave float vr_restart_queued; // VR: respawn's "restart" asked for (a new server starts it at 0 again)
+
 void() respawn =
 {
     // VR: a map with checkpoints (vrtutorial: info_vr_checkpoint) brings him back at the latest, the level as it was
@@ -852,6 +854,12 @@ void() respawn =
     else
     {
         // restart the entire server
+        // VR: once: PlayerDeathThink asks again every frame the button is held until the restart runs, and "Loading..."
+        // puts it off for frames (each restart loaded the last save again: ROUND22.md, "Respawn loaded the map several
+        // times"); MG1 Horde's MGH_restart_queued likewise
+        if(vr_restart_queued)
+            return;
+        vr_restart_queued = TRUE;
         localcmd ("restart\n");
     }
 };

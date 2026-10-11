@@ -1559,3 +1559,33 @@ memberships twice, to check for room and to count.
 grid now lists marks the reference did not.
 
 **In the headset**: pile gibs, shoot them apart one by one: every pool stays under the newer ones, no square gaps.
+## Respawn loaded the map several times (1.0.1, 2026-10-11, worktree `respawnloop`)
+
+Playtest: dead in the start map's lava, A to respawn, the map loaded five or six times in a row. Reproduced headless
+(e1m1's slime, `vr_loading_notice 2` so the mock headset defers like a real one, A held): 4 spawns; with the button
+held 10 frames while the command buffer waited, 10 autoloads in a row.
+
+**Root cause**, three pieces together:
+- `PlayerDeathThink` calls `respawn()` (→ `localcmd("restart")`) on every server frame the button is down until the
+  restart actually runs. Harmless when it runs the next frame; but "Loading..." (vr_loading.cpp) puts the level
+  change off for frames, and each of them queued another `restart`.
+- Ironwail's `Host_AutoLoad` appends `load <last save>` and runs the command buffer: it runs every restart queued
+  ahead of its load first, each starting its own autoload (nested), so each queued restart became one more load.
+- With "Loading..." on, the first autoload's load is put off; `Host_Restart_f` then puts itself off too, but
+  `VR_LoadingDefer` read the command line after Host_AutoLoad's nested buffer run had re-tokenized it: it recorded
+  `wait`, not `restart`. The player's own respawn was lost, and it was the extra restarts queued meanwhile that
+  loaded (and then reloaded fresh) the map.
+
+**Fix:** QC `respawn()` asks for the single-player restart once (`nosave float vr_restart_queued`, a new server starts
+it at 0; MG1 Horde's `MGH_restart_queued` already did so). `Host_Restart_f` ignores a restart while an autoload is in
+progress (`sv.autoloading`: any progs). `Host_AutoLoad` re-tokenizes its caller's command line after running the
+buffer (restart and changelevel's own deferral read it again), and no longer prints "Autoload failed!" when the load
+was only put off (`VR_LoadingWaiting`).
+
+**Tests** (headless, A held from the death on; one SpawnServer in each): e1m1 slime, start lava, MG1 start lava, each
+with the level-start autosave (one `Loading game from autosave/...`) and e1m1/start without (`sv_autosave 0`: one
+`restart`), all with `vr_loading_notice` 0 and 2. Engine guard alone: `restart;restart;restart` typed while dead, and
+the press held 10 frames behind a waiting buffer: one load.
+
+**In the headset:** die in the start map's lava, hold A: "Loading...", one load of the level-start autosave, then
+play. Same with a quick tap, and on a map with no autosave yet (a plain restart).
