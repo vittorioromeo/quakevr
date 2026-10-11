@@ -1589,3 +1589,68 @@ the press held 10 frames behind a waiting buffer: one load.
 
 **In the headset:** die in the start map's lava, hold A: "Loading...", one load of the level-start autosave, then
 play. Same with a quick tap, and on a map with no autosave yet (a plain restart).
+
+## The toolgun's own panel (feature branch, next release, 2026-10-11, worktree `toolgun2`)
+
+**The request** (the author's, through the coordinator): make the toolgun intuitive, as Garry's Mod's and S&Box's.
+1. Its menu was the VR Settings' pages on the gun (54 x 30 cm at its 8 units high): too much space. 2. Its laser was
+the menus' (too thick, its spot too large). 3. Switching tools took a drop-down. 4. The spawn choice was a list: wanted
+a grid of thumbnails. 5. Joints likewise: the panel shows only the tool's own choices. 6. A row of tool tiles. 7. The
+physgun should turn what it holds by the wrist (and with the body), the sticks still there; snapping if easy.
+
+**What changed.**
+- **A panel of its own** (`vr_toolgun_panel.cpp`): 256 x 192 virtual pixels in a target of its own (three texels each,
+  mipmapped), `vr_toolgun_panel_size` 6 units wide (23 x 17 cm; was 54 x 30), placed over the gun as before
+  (`vr_toolgun_menu_up`, `_forward`, `_tilt`: the author's placement kept), opened by the gun's B/Y. It is drawn with
+  the VR menus' own widgets and colours (`menuui::paintButton`, `paintSwitch`, `paintSlider`, the menus' box colours,
+  Quake's font), its laser is the menus' laser drawn thinner (`menuui::drawLaser`, `size` `vr_toolgun_laser_size` 0.3:
+  width 0.09 units, spot 0.48; the menus' stay 0.3 and 1.6). The game goes on while it is open and you can walk (the
+  key_game input: no menu state at all); a menu opened meanwhile hides it. One layout function runs twice a frame, an
+  immediate mode: in the host frame for the laser (what it lights, a press's click, a slider's drag; a tick in the hand
+  on each widget it comes onto) and at the 2D pass's end for the image. The other hand's trigger clicks only where its
+  laser meets the panel; elsewhere it is its own (fires its weapon, freezes the physgun's prop).
+- **Top row:** Spawn, Remove, Physgun, Scale, Joint tiles with drawn icons (a plus, a cross, a ring, a box, two balls),
+  and More (the cheats and the panel's size). Under it the tool's own page only: Spawn's tabs and a 4 x 2 grid of
+  thumbnails with names under them, pages `<` `>`, Pick, Reset, Clear; the joints as seven icon tiles with a line on
+  the chosen one; the physgun's switch and choices (Turn With the Wrist, Snap Off/15/45/90, Sticks Turn); Scale's
+  Proportional and Reset; Remove a word and Clear Props. More: twenty cheats (Debug > Cheats and Recording's own rows
+  found by their labels, `vr_menu_toolgun.inc`; god mode, noclip, notarget, fly and the switches lit while on) and
+  Panel Size. *Decision:* joints have no parameters to slide (the engine has none), so their page is the tiles.
+- **Thumbnails** (`vr_toolgun_icons.cpp`): each spawn entry's .mdl (its first frame, its skin: the three armours) or
+  .bsp (version 29, its first model's textured faces: the item boxes, the explosive boxes, whatever the map has loaded)
+  read again from the game's files and drawn by a small CPU rasteriser (orthographic, z-buffered, 2x2 supersampled,
+  flat light from over the shoulder, fullbrights unlit), from ahead and to the right, guns from the side; 96 x 96
+  pictures for the 2D pass (`gfx::Picture`), two a frame while the panel is open, kept for the session (made again
+  after a game directory change). 46 entries: 1.0 ms each on average (39 in 37 ms). *Decision:* no disk cache: making
+  them is cheaper than reading a file.
+- **Tools by a button:** the gun's stick press is the next tool, with X/A held the one before (`vr_toolgun_next`), a
+  pulse in the gun's hand; the gun's own screen already says the tool (and the spawn choice, the joint). The stick
+  press was the stick's own key otherwise (RTHUMB `+reloadmain`, LTHUMB `+speed`), which the toolgun doesn't use; it
+  is left to bullet time when `vr_bullettime_trigger` names that stick (`bullettime::ownsStick`). The menu gesture
+  (both stick presses) still opens the menu (it is read first; the first press also turns the tool).
+- **The physgun's wrist** (`vr_toolgun_physgun_wrist` 1): what it holds keeps the turn it had to the gun's hand when
+  taken: its axes and its offset from the beam's point turn by the hand's turn since (held::axesFromAngles of the
+  hand's angles, which carry the body's turn), the sticks' turn on top (kept as a turn about the world's axes). X/A
+  held, its angles snap to `vr_toolgun_snap` (15) degrees. A monster or a pickup turns only about the up axis, by the
+  hand's yaw since (tilted, a monster would walk on so). 0: the old way (the sticks alone).
+- **Gone:** the Toolgun, Toolgun - Spawn and Toolgun - Cheats pages, their Back, `menu::openToolgun`/`closeToolgun`/
+  `toolgunPageShown`, the panel's gun quad in `vr_panel.cpp`, the mock laser's hand switch and the game running under
+  them (`VR_MenuRunsGame`), `vr_toolgun_menu_height`. Every console command stays (`vr_toolgun_menu` toggles the panel).
+- **Found on the way:** the spawn list's Brick named `progs/vr_brick0.mdl`, which doesn't exist (`vr_brick1.mdl`).
+- Debug > Tools > Toolgun: Open or Close Its Panel, Next Tool, Panel Widgets (`vr_toolgun_panel_dump`), Thumbnails
+  (`vr_toolgun_icons`). Tests: `vr_toolgun_mock_laser <x> <y> | <widget name> | off`.
+
+**Tests** (headless, vrfiringrange). `Misc/quakevr/toolgun_panel_test.sh toolgun2 [--shots]`: PASS. The Props tab and
+the Barrel tile hit by their pixels (96 53, 160 89: the tiles at the new size) choose the barrel; five stick presses go
+Remove, Physgun, Scale, Joint, Spawn, the gun's screen REMOVE, PHYSGUN, SCALE, Weld, Barrel; X/A + press back to
+Joint; the Hinge tile sets `vr_toolgun_joint` 2; God Mode toggles; the Panel Size slider dragged from 3 to 12; a crate
+held turns 45.0 degrees with the hand's 45 degree roll and 30.0 with its 30 degree turn, snapped to 0 0 30 with X/A; a
+grunt held keeps its pitch and roll (0, 0) while its yaw follows. `toolgun_joint_menu_test.sh` (now clicking the joint
+tiles): PASS in either hand (70 picks, 6 kinds joined, unjoined). `vr_menu_path_check maps/vrcalibration.map`: 0
+missing. e1m1: the panel hidden under the menu and back after it.
+
+**In the headset:** hold the toolgun, press B (or Y): the panel over the gun, about a hand's width; point with the other
+hand (a thin laser, a small spot) and pull its trigger on Physgun, on a tab and a thumbnail; walk with it open. Press
+the gun's stick to step through the tools (the gun's screen names them; X/A + stick goes back). With the physgun hold a
+crate and twist the wrist, turn yourself: it turns with you; hold X/A: it clicks to 15 degree steps. Tell us whether
+the panel's size (Panel Size on More) and place suit, and whether the laser is now thin enough.
