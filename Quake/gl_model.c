@@ -443,6 +443,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	VR_ModelSourcesForget (mod); // QVR: the files it was made from (a campaign switch's check: recorded below)
 	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
 		return mod;
+	if (VR_RuntimeBrushModel (mod)) // QVR: a box made in the game (vr/vr_brushes.cpp)
+		return mod;
 	buf = VR_DerivedModelFile (mod->name, &mod->path_id); // QVR: a model made from another's file (a taken torch's flame)
 	derived = buf != NULL; // QVR
 	if (!buf)

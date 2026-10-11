@@ -80,12 +80,17 @@ private:
     mutable uint32_t stamp{0};
 };
 
-// The ledge map of a brush model (the world, or one of its inline models, "*N"); nullptr for any other model. Made
-// the first time it's asked for (the world's and its inline models' when the map loads, with Climbing on), kept until
-// the map changes.
+// The ledge map of a brush model (the world, one of its inline models, "*N", or a runtime brush's: vr_brushes.cpp);
+// nullptr for any other model. Made the first time it's asked for (the world's and its inline models' when the map
+// loads, with Climbing on), kept until the map changes (a runtime brush's: until it changes, forget).
 [[nodiscard]] const Map* of(const qmodel_t* model);
 
-// Counts the times the maps were dropped (a new world model): a Map* kept from an older count is gone.
+// A runtime brush's model made again (vr_brushes.cpp): its map dropped (made again when asked for), and generation()
+// counts it (a hold on any Map* kept is let go).
+void forget(const qmodel_t* model);
+
+// Counts the times the maps were dropped (a new world model, a runtime brush changed): a Map* kept from an older count is
+// gone.
 [[nodiscard]] int generation();
 
 // Server: the map has loaded (VR_OnSpawnServerAfterLoad).

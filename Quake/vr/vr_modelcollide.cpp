@@ -1340,6 +1340,15 @@ glm::vec3 drawnOffset(int hand)
     return hand == 0 || hand == 1 ? drawn[hand] + pressed[hand] : glm::vec3{0.f};
 }
 
+void forget(const qmodel_s* model)
+{
+    const auto it = modelTris.find(model);
+    if(it != modelTris.end() && it->second)
+    {
+        it->second->name.clear(); // (made again at the next look: trianglesOf compares the name)
+    }
+}
+
 void reset()
 {
     for(int hand = 0; hand < 2; hand++)

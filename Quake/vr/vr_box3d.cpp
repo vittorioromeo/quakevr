@@ -53,6 +53,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_box3d.hpp"
+#include "vr_brushes.hpp"
 #include "vr_convex.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_main.hpp"
@@ -460,6 +461,7 @@ struct Slot // what one edict is in the world (by its number)
 
     // What the body was made from: made again when it changes.
     const qmodel_t* model{nullptr};
+    za::U32 modelRev{0}; // its model's revision (a runtime brush's, made again in place: brushes::revision; else 0)
     int frame{0};
     za::Array<float, 9> scale{};   // props: model_scale, model_scale_origin, model_offset
     glm::vec3 mins{0.f}, maxs{0.f}; // actors: Quake's box; props: the drawn box
@@ -846,6 +848,10 @@ struct World
     za::Vector<Bump> bumps;
     ankerl::unordered_dense::map<PropHullKey, b3HullData*, PropHullKeyHash> propHulls; // nullptr: no hull (a box instead)
     ankerl::unordered_dense::map<const qmodel_t*, za::Vector<b3HullData*>> moverHulls;
+    // A runtime brush's model made again in place (vr_brushes.cpp): the revision its hulls were made from, and the hulls
+    // let go of (a body made with them may still be about until its slot is made again: freed with the world).
+    ankerl::unordered_dense::map<const qmodel_t*, za::U32> moverHullRevs;
+    za::Vector<b3HullData*> retiredHulls;
     // The guns' convex pieces (gunPieces; empty: one hull), by model and frame (a held gun's: frame -2, -3 mirrored).
     ankerl::unordered_dense::map<PropHullKey, za::Vector<b3HullData*>, PropHullKeyHash> gunPieces;
     ankerl::unordered_dense::map<PropHullKey, convex::Report, PropHullKeyHash> gunReports; // (vr_physics_shapes)
@@ -1745,9 +1751,23 @@ void solidLeaves(const hull_t& hull, int num, za::Vector<HalfSpace>& path, float
 [[nodiscard]] const za::Vector<b3HullData*>& moverHulls(qmodel_t* model)
 {
     auto it = world->moverHulls.find(model);
+    const za::U32 rev = brushes::revision(model);
     if(it != world->moverHulls.end())
     {
-        return it->second;
+        const auto r = world->moverHullRevs.find(model);
+        if((r == world->moverHullRevs.end() ? 0u : r->second) == rev)
+        {
+            return it->second;
+        }
+        for(b3HullData* hull : it->second)
+        {
+            world->retiredHulls.pushBack(hull);
+        }
+        world->moverHulls.erase(it);
+    }
+    if(rev)
+    {
+        world->moverHullRevs[model] = rev;
     }
     za::Vector<b3HullData*> hulls;
     const hull_t& hull = model->hulls[0];
@@ -5197,7 +5217,7 @@ void updateShapeGeneration()
         s.checkedSolid = solid;
         return false;
     }
-    case Kind::Mover: return s.model != modelOf(ent);
+    case Kind::Mover: return s.model != modelOf(ent) || s.modelRev != brushes::revision(s.model);
     case Kind::Actor: return s.model != modelOf(ent) || s.mins != vec(ent->v.mins) || s.maxs != vec(ent->v.maxs);
     case Kind::Player: return s.radius != playerRadius() || s.mins != vec(ent->v.mins) || s.maxs != vec(ent->v.maxs);
     case Kind::Corpse:
@@ -5329,6 +5349,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.kind = kind;
     s.flight = false;
     s.model = model;
+    s.modelRev = brushes::revision(model); // (a runtime brush's model is made again in place: vr_brushes.cpp)
     s.hull = kind == Kind::Actor && model && model->type == mod_alias ? actorHull(ent, model) : nullptr;
     s.frame = static_cast<int>(ent->v.frame);
     s.scale = scaleFields(ent);
@@ -8670,6 +8691,10 @@ void destroyWorld()
         {
             b3DestroyHull(hull);
         }
+    }
+    for(b3HullData* hull : world->retiredHulls)
+    {
+        b3DestroyHull(hull);
     }
     if(vr_debug_box3d.value)
     {

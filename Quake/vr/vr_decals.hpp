@@ -83,6 +83,8 @@ void draw();
 
 // All gone (a new map).
 void clear();
+// Those whose middle is in lo..hi gone (a runtime brush changed or removed: vr_brushes.cpp, the marks on its faces).
+void removeIn(const glm::vec3& lo, const glm::vec3& hi);
 
 // vr_decal_count: how many there are, of each kind.
 void count_f();

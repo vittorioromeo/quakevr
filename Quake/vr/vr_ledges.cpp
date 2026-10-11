@@ -28,6 +28,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_ledges.hpp"
+#include "vr_brushes.hpp"
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
@@ -589,7 +590,8 @@ void resetCache()
 [[nodiscard]] bool fromThisMap(const qmodel_t* model)
 {
     return model && model->type == mod_brush && sv.worldmodel &&
-           (model == sv.worldmodel || (qvr::modelmeta::has(model, qvr::modelmeta::Trait::Submodel) && model->surfaces == sv.worldmodel->surfaces));
+           (model == sv.worldmodel || (qvr::modelmeta::has(model, qvr::modelmeta::Trait::Submodel) && model->surfaces == sv.worldmodel->surfaces) ||
+               qvr::brushes::isRuntime(model)); // (a box made in the game: vr_brushes.cpp)
 }
 
 // Totals over the maps made (vr_ledges, and the load's line with developer or vr_climb_debug).
@@ -753,6 +755,20 @@ size_t Map::bytes() const
 int generation()
 {
     return dropped;
+}
+
+void forget(const qmodel_t* model)
+{
+    if(!model)
+    {
+        return;
+    }
+    const auto it = cache.maps.find(za::String{model->name});
+    if(it != cache.maps.end())
+    {
+        cache.maps.erase(it);
+        dropped++;
+    }
 }
 
 const Map* of(const qmodel_t* model)

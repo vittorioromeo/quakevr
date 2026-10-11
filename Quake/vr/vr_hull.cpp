@@ -2,6 +2,7 @@
 
 #include "vr_hull.hpp"
 #include "vr_alloccount.hpp"
+#include "vr_brushes.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
@@ -3466,9 +3467,9 @@ int subOf(Brushes& b, int index)
     }
     known = -1;
     qmodel_t* m = sv.models[index];
-    if(!m || m->type != mod_brush || !m->hulls[0].clipnodes || m->numnodes <= 0)
+    if(!m || m->type != mod_brush || !m->hulls[0].clipnodes || m->numnodes <= 0 || brushes::isRuntime(m))
     {
-        return known;
+        return known; // (a runtime brush's: clipBSP meets its planes directly)
     }
     const hull_t& h0 = m->hulls[0];
     for(za::SizeT i = 0; i < b.subs.size(); ++i)
@@ -5918,6 +5919,23 @@ bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const
     }
     const int index = static_cast<int>(ent->v.modelindex);
     qmodel_t* model = index >= 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(model && brushes::isRuntime(model))
+    {
+        // A box made in the game (vr_brushes.cpp): its convex planes met directly (its model is made again in place
+        // when it changes: never in the brushes kept here).
+        const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+        if(!brushes::clipBox(model, glm::vec3{start[0], start[1], start[2]} - origin, glm::vec3{boxMins[0], boxMins[1], boxMins[2]},
+               glm::vec3{boxMaxs[0], boxMaxs[1], boxMaxs[2]}, glm::vec3{end[0], end[1], end[2]} - origin, trace))
+        {
+            return false;
+        }
+        ++vr_profcounts.hullchecks;
+        for(int i = 0; i < 3; ++i)
+        {
+            trace.endpos[i] += origin[i];
+        }
+        return true;
+    }
     if(!model || model->type != mod_brush || !worldBrushes(sv.worldmodel))
     {
         return false;

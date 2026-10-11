@@ -252,6 +252,34 @@ void VR_PostProcessTone (void);					// GL_PostProcess, the non-palettized progra
 // Split alias models at an active teleporter, using the same animation pose in both rooms.
 int VR_PortalAlias(const struct entity_s* e, const float boundsMatrix[16], const float matrix[16], float mapped[16], float sourceClip[4], float destinationClip[4]);
 
+// Runtime brushes (vr_brushes.cpp; docs/vr-port/BRUSH_TOOL.md): boxes made in the game, drawn by Ironwail's own brush
+// path from a reserve at the end of its brush buffers (r_brush.c: vertices, indices and draw commands, a slot a brush)
+// and a strip of the lightmap a slot (one texel a face: its flat light). Made at each map's load (R_NewMap), as many
+// slots as VR_RuntimeBrushSlots says; a model's surfaces' vbo_firstvert, firstcmd and texofs index into its slot.
+#define QVR_BRUSH_SLOT_VERTS	64	// a slot's vertices (the faces' corners)
+#define QVR_BRUSH_SLOT_INDEXES	192	// ... indices (their fans' triangles)
+#define QVR_BRUSH_SLOT_CMDS		8	// ... draw commands (one a texture)
+#define QVR_BRUSH_SLOT_LUXELS	16	// ... lightmap texels (one a face)
+#define QVR_BRUSH_LUXEL_ROW		4	// slots on one row of the lightmap's reserve
+typedef struct qvr_brush_reserve_s
+{
+	int		slots;		// 0: none (no map, or vr_brush_max 0)
+	int		firstvert;	// gl_bmodel_vbo's vertex of slot 0
+	int		firstindex;	// gl_bmodel_ibo's index of slot 0
+	int		firstcmd;	// gl_bmodel_indirect_buffer's command of slot 0
+	int		lmx, lmy;	// lightmap_texture's texel of slot 0's strip (slot s: + (s % ROW) * LUXELS, + s / ROW)
+	int		lmwidth, lmheight; // the lightmap texture's size (for texel coordinates)
+} qvr_brush_reserve_t;
+int VR_RuntimeBrushSlots (void);	// GL_BuildLightmaps: how many slots to reserve (vr_brush_max)
+void VR_RuntimeBrushesUpload (void);	// R_NewMap, after the brush buffers: the brushes there are into their slots again
+int VR_IsRuntimeBrushModel (const struct qmodel_s *mod); // the load-time brush buffers leave it out (its slot has it)
+const qvr_brush_reserve_t *R_RuntimeBrushReserve (void);
+// Slot `slot`'s vertices, indices and draw commands written (counts up to the slot's; the rest of its commands emptied),
+// and its lightmap strip's texels (`count` from its first; `lux`: the light's directions, may be NULL).
+void R_RuntimeBrushUpload (int slot, const void *verts, int numverts, const unsigned *indexes, int numindexes,
+	const void *cmds, int numcmds);
+void R_RuntimeBrushLightmap (int slot, const unsigned *texels, const unsigned *lux, int count);
+
 #ifdef __cplusplus
 }
 #endif

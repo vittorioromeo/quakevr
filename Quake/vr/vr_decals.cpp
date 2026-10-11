@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_decals.hpp"
+#include "vr_brushes.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -716,7 +717,18 @@ void makeAtlas()
 [[nodiscard]] bool hitWorld(const glm::vec3& from, const glm::vec3& to, glm::vec3& where, glm::vec3& normal, float& fraction)
 {
     const trace_t tr = worldtrace::world(from, to, false);
-    if(tr.fraction >= 1.f || tr.startsolid || tr.allsolid)
+    const bool world = tr.fraction < 1.f && !tr.startsolid && !tr.allsolid;
+    // The boxes made in the game are the world's kind too (vr_brushes.cpp): the nearer of the two.
+    glm::vec3 bw, bn;
+    float bf = 1.f;
+    if(brushes::traceLine(from, to, bw, bn, bf) && (!world || bf < tr.fraction))
+    {
+        where = bw;
+        normal = bn;
+        fraction = bf;
+        return true;
+    }
+    if(!world)
     {
         return false;
     }
@@ -793,6 +805,30 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
     za::Vector<glm::vec3>& poly = scratch.poly;
     za::Vector<glm::vec3>& clipped = scratch.clipped;
     constexpr za::SizeT maxCorners = 32 * 3; // over very broken ground, the rest is left out
+    // `poly` (a face facing `sn`) cut to the footprint, as triangles into `tris`.
+    const auto layOn = [&](const glm::vec3& sn) {
+        for(int k = 0; k < 4 && poly.size() >= 3; k++)
+        {
+            clipPolygon(poly, sideNormal[k], sideDist[k], clipped);
+            poly.swap(clipped);
+        }
+        if(poly.size() < 3)
+        {
+            return;
+        }
+        // A fan of triangles, lifted off the face (not fighting it for depth), its cell
+        // coordinates from where each corner is in the footprint.
+        const auto corner = [&](const glm::vec3& p) {
+            const glm::vec3 r = p - d.centre;
+            return Corner{p + sn * 0.2f, {glm::dot(r, U) / hu * 0.5f + 0.5f, glm::dot(r, V) / hv * 0.5f + 0.5f}};
+        };
+        for(za::SizeT k = 1; k + 1 < poly.size() && tris.size() < maxCorners; k++)
+        {
+            tris.pushBack(corner(poly[0]));
+            tris.pushBack(corner(poly[k]));
+            tris.pushBack(corner(poly[k + 1]));
+        }
+    };
     const mnode_t* stack[256];
     int top = 0;
     stack[top++] = m->nodes + m->hulls[0].firstclipnode;
@@ -851,29 +887,23 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
                 const float* p = m->vertexes[vi].position;
                 poly.pushBack({p[0], p[1], p[2]});
             }
-            for(int k = 0; k < 4 && poly.size() >= 3; k++)
-            {
-                clipPolygon(poly, sideNormal[k], sideDist[k], clipped);
-                poly.swap(clipped);
-            }
-            if(poly.size() < 3)
-            {
-                continue;
-            }
-            // A fan of triangles, lifted off the face (not fighting it for depth), its cell
-            // coordinates from where each corner is in the footprint.
-            const auto corner = [&](const glm::vec3& p) {
-                const glm::vec3 r = p - d.centre;
-                return Corner{p + sn * 0.2f, {glm::dot(r, U) / hu * 0.5f + 0.5f, glm::dot(r, V) / hv * 0.5f + 0.5f}};
-            };
-            for(za::SizeT k = 1; k + 1 < poly.size() && tris.size() < maxCorners; k++)
-            {
-                tris.pushBack(corner(poly[0]));
-                tris.pushBack(corner(poly[k]));
-                tris.pushBack(corner(poly[k + 1]));
-            }
+            layOn(sn);
         }
     }
+    // The boxes made in the game (vr_brushes.cpp): their faces in the footprint's box, as the world's.
+    brushes::facesIn(lo, hi, [&](const za::Vector<glm::vec3>& face, const glm::vec3& sn) {
+        if(tris.size() >= maxCorners || face.size() < 3 || glm::dot(sn, n) < 0.5f ||
+            za::fabs(glm::dot(d.centre - face[0], sn)) > depth)
+        {
+            return;
+        }
+        poly.clear();
+        for(const glm::vec3& p : face)
+        {
+            poly.pushBack(p);
+        }
+        layOn(sn);
+    });
 }
 
 // The direction along a surface at `where` (normal `n`) that the light lighting it comes from: the
@@ -1849,6 +1879,27 @@ void clear()
     gibs.clear();
     holes.clear();
     gore::clear();
+}
+
+void removeIn(const glm::vec3& lo, const glm::vec3& hi)
+{
+    for(za::SizeT k = 0; k < decals.size(); k++)
+    {
+        Decal& d = decals[k];
+        if(glm::any(glm::lessThan(d.centre, lo)) || glm::any(glm::greaterThan(d.centre, hi)) || d.tris.empty())
+        {
+            continue;
+        }
+        // Gone in place (its ring slot kept: the ring only loses its oldest): no area, no triangles.
+        unsettle(d);
+        d.tris.clear();
+        d.u = d.v = glm::vec3{0.f};
+        d.depth = 0.f;
+        d.buckets.clear();
+        d.bucketsMask = 0;
+        worldDirty = true;
+        builtFrame = -1;
+    }
 }
 
 // Decals on the walls (vr_memstats).

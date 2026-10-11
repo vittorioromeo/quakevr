@@ -261,7 +261,7 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	inst->padding[1] = VR_ParallaxDepth (ent, mat, NULL, 1); // QVR: its parallax depth in units (vr_parallax)
 	inst->padding[2] = ent == &cl_entities[0] ? 0.f : VR_BrushAOSelf (ent); // QVR: its own dynamic occlusion group (vr/vr_ao.cpp)
 	VR_RetroInstance (ent, inst->retro); // QVR: retro textures (vr/vr_retro.cpp)
-	inst->retro[3] = ent == &cl_entities[0] ? 1.f : 0.f; // QVR: the world: its decals (vr/vr_decals.cpp, QVR_WORLD_FS_DECALS)
+	inst->retro[3] = ent == &cl_entities[0] || VR_IsRuntimeBrushModel (ent->model) ? 1.f : 0.f; // QVR: the world and the boxes made in the game (vr/vr_brushes.cpp): their decals (vr/vr_decals.cpp, QVR_WORLD_FS_DECALS)
 	if (ent == &cl_entities[0]) // QVR: a held prop's blood (vr/vr_wounds.cpp)
 	{
 		memset (inst->wound, 0, sizeof (inst->wound));

@@ -2,6 +2,7 @@
 
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
+#include "vr_brushes.hpp"
 #include "vr_progs.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_engine.hpp"
@@ -330,6 +331,7 @@ void resetServerWorld()
     qvr::physics::resetRigidBodies(); // (with the two-handed holds)
     qvr::box3d::reset();
     qvr::toolgun::reset(); // (what its tools hold, by entity number)
+    qvr::brushes::reset(); // (the boxes made in the game: the map's)
     qvr::ropesim::reset();
     qvr::climb::reset();
     qvr::foegrab::reset();
