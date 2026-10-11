@@ -3076,6 +3076,10 @@ drop a nailgun's magazine and holster it: no magazine drawn in it.
 - Cleanups: one `chestOf` (three copies), `blastRagdoll` uses its own ragdoll, describe() drops a stray "(none)".
 - Tests: `stagger_test.sh` prints PASS/FAIL per case and a FAIL count, with new `taken` and `lost` cases;
   `dismember_test.sh run` (e1m1, a running knight's leg cut: beat at least 0.5 s); `liquid_active_test.sh actoff`.
+- Checked: smoke; stagger_test (grunt, knight) 0 FAIL; env_test wall/along over seeds 1-4, grunt and knight, against
+  origin/next: lean holds 10 of 16 both, "out of reach" 2 (0 before), slides alike; ledge, hit, crate, front as
+  before; active_test deaths/wound/crawl/stumble, liquid water/fallin/lava/slime/off/land, dismember leg/legs/dying,
+  hitreact ai/slow: no error, numbers in their usual ranges.
 
 Not changed (his call): vr_hitreact.cpp's own `chestOf`/`regionOf` (they read the rig, not the parts), fallFrame's
 arm brace beside stage 4's Catch, the env "hit" test through a real shot.
