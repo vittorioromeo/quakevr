@@ -262,5 +262,34 @@ void(float request, entity p) AD_RulesTest =
             cvar("vr_ad_evil")));
         return;
     }
+    if(request == 24)
+    {
+        // Ladders: the map's trigger_ladders, the first one's volume; the player stood at its foot facing it, and the
+        // engine's hold for a hand in its middle and one out of it (vr_climb_try).
+        float n = 0;
+        entity first = world;
+        for(entity l = find(world, classname, "trigger_ladder"); l; l = find(l, classname, "trigger_ladder"))
+        {
+            n = n + 1;
+            if(!first) first = l;
+        }
+        if(!first)
+        {
+            bprint("adrules: ladders 0\n");
+            return;
+        }
+        vector mid = (first.absmin + first.absmax) * 0.5;
+        bprint(sprintf("adrules: ladders %g first %v..%v climbable %g solid %g\n", n, first.absmin, first.absmax,
+            first.vr_climb_ladder, first.solid));
+        localcmd(sprintf("vr_climb_try %g %g %g main\n", mid_x, mid_y, mid_z));
+        localcmd(sprintf("vr_climb_try %g %g %g main\n", mid_x, mid_y, first.absmax_z + 64));
+        return;
+    }
+    if(request == 25)
+    {
+        bprint(sprintf("adrules: player at %v onground %g velocity %v hands %v %v\n", p.origin,
+            (p.flags & FL_ONGROUND) != 0, p.velocity, p.handpos, p.offhandpos));
+        return;
+    }
     bprint(sprintf("adrules: unknown test %g\n", request));
 };

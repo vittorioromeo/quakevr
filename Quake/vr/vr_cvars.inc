@@ -1935,6 +1935,7 @@ QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a 
 QVR_CVAR(vr_climb_fling, "1", CVAR_ARCHIVE)           // how much letting go flings you with the hands' motion (capped; 0 none)
 QVR_CVAR(vr_climb_blast_letgo, "30", CVAR_ARCHIVE)   // a blast this strong (damage) or more knocks you off a hold: you let go and it throws you (0: never); an enemy shove always does
 QVR_CVAR(vr_climb_leniency, "2.5", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
+QVR_CVAR(vr_climb_ladders, "1", CVAR_ARCHIVE)          // AD support: a ladder's volume (Arcane Dimensions' trigger_ladder: QC .vr_climb_ladder) is climbed hand over hand as rungs anywhere in it (vr_climb.cpp ladderHold); its jump-to-climb works either way
 QVR_CVAR(vr_climb_leniency_air, "4.5", CVAR_ARCHIVE)   // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
 QVR_CVAR(vr_climb_air_grab_time, "0.325", CVAR_ARCHIVE) // s: a grip pressed at no hold keeps looking for one this long while it stays pressed, in the air (a ledge jumped at: taken as the hand comes over or down onto it; 0: only at the press)
 QVR_CVAR(vr_climb_mantle_grunt, "0.6", CVAR_ARCHIVE) // volume (0..1) of the player's grunt as a mantle pulls him up onto a ledge (which: vr_climb_mantle_grunt_sound); 0 off

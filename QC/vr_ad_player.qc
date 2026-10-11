@@ -190,6 +190,21 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Ladders (decision 26: working nicely with Quake VR's hand climbing)
+//
+// AD's trigger_ladder (in any map while its data is there) keeps AD's own climb (holding jump climbs at the ladder's
+// speed: AD_PlayerPreThink) and is a climbable volume for Quake VR's hands (the engine's vr_climb.cpp ladderHold,
+// vr_climb_ladders): an empty hand gripping in it (or touching it) holds where it is, a rung under every hand, and the
+// body hangs and is pulled up hand over hand as on ledges, mantling at the top where there is room. While AD's own
+// state turns the ladder off (not solid), no hand holds on it.
+
+// AD's trigger_ladder's spawn's end (a reviewed patch).
+void() VR_AD_LadderSpawned =
+{
+    self.vr_climb_ladder = 1;
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Evil (decision 30: in the skill choice, in any campaign while AD's data is installed)
 //
 // AD's fifth skill, Evil (its skill 4), is Quake VR's Nightmare (skill 3: the engine and Quake VR's monsters know 0-3)

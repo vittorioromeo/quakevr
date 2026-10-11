@@ -34,6 +34,7 @@ QVR_FIELD(stl_hud) // the stealth gem's readings (QC vr_stealth.qc; STAT_QVR_STE
 QVR_FIELD(vr_ad_hud)     // AD support: AD's artifacts, debuffs and custom keys held (QC vr_ad_items.qc; STAT_QVR_ADHUD)
 QVR_FIELD(vr_ad_hudkeys) // AD support: the custom keys' HUD skins (STAT_QVR_ADKEYS)
 QVR_FIELD(vr_ad_hudtime) // AD support: the soonest artifact's seconds left (STAT_QVR_ADTIME)
+QVR_FIELD(vr_climb_ladder) // AD support: a ladder's volume, climbed by hand (QC vr_ad_player.qc; vr_climb.cpp ladderHold)
 QVR_FIELD(offloadportpos)
 QVR_FIELD(loadportaxis) // the way a round lies going in at each gun's port (vr_reload.qc VR_Reload_LooseFrame)
 QVR_FIELD(offloadportaxis)

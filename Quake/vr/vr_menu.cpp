@@ -3647,6 +3647,10 @@ void hologramTestMessage()
             .help("Arcane Dimensions' fifth skill, in any campaign while its data is installed: chosen with Nightmare (the "
                   "start map's skill hall, or Arcane Dimensions' own Evil choice, which sets this). 50 health at most "
                   "(megahealth 100), the Shadow Axe's blows, Arcane Dimensions' monsters at their hardest. Kept in saves."),
+        toggle("Hand-Climbed Ladders", vr_climb_ladders)
+            .help("Arcane Dimensions' ladders climbed with your hands, as ledges (Hand Climbing on): grip anywhere on a "
+                  "ladder, a rung under every hand, pull yourself up hand over hand, mantle at its top. Holding jump "
+                  "climbs them too, as in Arcane Dimensions."),
         toggle("Its Content in Every Map", vr_ad_everywhere)
             .help("Arcane Dimensions' new artifacts, custom keys, health vials and gems, custom items and ladders in any "
                   "map that places them (custom maps, the toolgun), while its data is installed. Off: only in its own "

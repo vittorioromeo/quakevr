@@ -315,10 +315,11 @@ void() AD_PlayerSpawned =
     self.ad_target2 = vr_ad_spot ? vr_ad_spot.target : "";
 };
 
-// PlayerPreThink, in an AD map: AD's ladders (trigger_ladder: the jump key climbs, at the ladder's speed).
+// PlayerPreThink, in any map while AD's data is there (its ladders spawn anywhere): AD's ladders (trigger_ladder: the
+// jump key climbs, at the ladder's speed; the hands climb them as Quake VR's ledges too, vr_ad_player.qc).
 void() AD_PlayerPreThink =
 {
-    if(!AD_Rules() || self.deadflag)
+    if(!vr_ad_data || self.deadflag)
     {
         return;
     }

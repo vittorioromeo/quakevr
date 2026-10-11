@@ -109,5 +109,7 @@ float() VR_AD_PathCornerTouch;
 float(entity pellet) VR_AD_PelletDamage;
 float() VR_AD_WeaponTouch;
 float(entity xItem) VR_AD_ArtifactItems;
+.float vr_climb_ladder; // a ladder's volume, climbed by hand (the engine's vr_climb.cpp ladderHold; VR_AD_LadderSpawned)
+void() VR_AD_LadderSpawned;
 float(entity targ) VR_AD_BurnDebuff;
 float(entity xFire, entity xVictim) AD_BurnHurt; // VR_Burn_Think: an AD debuff's fire's damage (TRUE: dealt, ours not)

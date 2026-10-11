@@ -1588,6 +1588,7 @@ void() ad_trigger_ladder =
 	// Setup Entity State functionality
 	self.ad_estate_fire = ad_trigger_ladder_fire;
 	ad_trigger_bmodel_setup();
+	VR_AD_LadderSpawned();
 };
 
 //======================================================================
