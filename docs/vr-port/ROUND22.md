@@ -1627,3 +1627,29 @@ set by hand is kept.
 
 **In the headset:** the torch clipped on and off at the head (zones further forward, lower, larger), its belt clip,
 the wrist flick; Doom's picture on the gadget (stronger CRT).
+
+## A judo throw killed a knight by fall damage (1.0.1, 2026-10-11, worktree `judofall`)
+
+Integration test and his playtest: a knight thrown with both hands on flat ground "landed at ~900 u/s, a 518 unit
+drop", 147 damage of its 75 health (same with `vr_ragdoll_active 0`: older than the active ragdolls).
+
+**Root cause:** a knocked-down monster's fall (vr_box3d.cpp `touches`, then QC `VR_Monster_Fall`: drop = v^2 / 2g,
+0.4 damage a unit past 150) was the hardest hit of any single part of its ragdoll on the level, along the vertical.
+A light part at the end of a turning body whips into the floor far faster than the body falls: the knight's sword
+(its "loose" bone, welded in his hand while down) at 858-896 u/s while the body's middle came down at 20-50. Not
+knight-only, the knight's long sword is the worst: on vrfiringrange's floor (`vr_foegrab_throw_test 0`, 60 units,
+full health) the zombie's loose piece hit at 614 (34 damage), the mummy's at 573 (22), the fiend's tail at 560 (18),
+grunts' guns ~315, an ogre's saw 344; the body's middle never came down faster than ~190.
+
+**Fix:** before each piece of the step, each ragdoll's middle's speed down (its parts' by mass, a loose weapon not
+counted, plus the piece's gravity: `RagdollBodies::fallDown`, `noteFallSpeeds`); a landing counts the part's hit no
+faster than that. Flat-ground throws: every kind lands at 188 u/s or less, no fall damage (8 of the 11 kinds took
+none before either). Real drops unchanged: a knight thrown 400 units up came down at 816 u/s, 107 damage, dead; lift
+900: 584 u/s, 25 damage. No cap and no new cvar; standing monsters' and the player's fall damage untouched.
+`vr_knockdown_debug 2` prints each hard hit: the part's speed, the body's, what it landed at. A slam that hurts on
+flat ground would be its own setting (none asked for).
+
+Merge note: origin/next adds a stagger/rise `continue` just above the changed lines in `touches`: keep both.
+
+**In the headset:** judo-throw a knight (and a zombie, a fiend) on flat ground: it gets up, no fall damage. Throw
+one off a high ledge: it still takes the fall (dies from high enough).
