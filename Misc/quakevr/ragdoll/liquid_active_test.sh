@@ -16,6 +16,9 @@
 #   slime    e3m1's slime: the same in slime (vr_enemy_liquid_damage): flails longer
 #   off      vrtesthall, vr_ragdoll_active_liquids 0: the death animation as on land
 #   actoff   vrtesthall: vr_ragdoll_active 0 while a grunt killed over the pool falls: no swim (PASS/FAIL)
+#   kdswim   vrtesthall: a grunt knocked down alive in the pool paddles (full strength, head up) towards where it can
+#            stand, then gets up (PASS/FAIL)
+#   kddie    the same, killed as it swims: its strokes weaken as a death's (PASS/FAIL)
 #   land     vrfiringrange: a body shot on land: no swim (unchanged)
 #   cost     4 grunts killed together in the pool (--exclusive): vr_ragdoll_active_list's drive cost, the step's
 AGENT=${1:?worktree name}; shift
@@ -25,7 +28,7 @@ CASES=${*:-water knight ogre enforcer hknight drown fallin head lava slime actof
 PY=${PY:-py -3.13}
 SUM="$TREE/Misc/quakevr/ragdoll/liquid_trace.py"
 PRE="wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_ragdoll_active_seed ${SEED:-0};vr_ragdoll_active_trace 3"
-FILTER="^ragtrace|^ragswim|limp at frame|active death|ragdoll: [0-9]+ (in |out of)|drowned|burnt|gibbed|rror|CRASH|exit=|TIMEOUT|steptime|vr_ragdoll_active_list|^  [0-9]+: "
+FILTER="^ragtrace|^ragswim|down alive|gets up|limp at frame|active death|ragdoll: [0-9]+ (in |out of)|drowned|burnt|gibbed|rror|CRASH|exit=|TIMEOUT|steptime|vr_ragdoll_active_list|^  [0-9]+: "
 run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "$FILTER" -Timeout 400 2>&1 | tr -d '\r'; }
 # drop <map> <x y z> <monster> <then> [dist]
 drop() {
@@ -47,6 +50,20 @@ for c in $CASES; do
     off)      LIQ=0 drop vrtesthall "180 -256 200" 0 "wait150;vr_test_kill 1;wait600" | $PY "$SUM" "grunt off" ;;
     lava)     drop e1m7 "300 160 150" 0 "vr_enemy_liquid_damage 1;wait700" 100 | $PY "$SUM" "grunt lava" ;;
     slime)    drop e3m1 "960 16 0" 0 "vr_enemy_liquid_damage 1;wait700" 100 | $PY "$SUM" "grunt slime" ;;
+    kdswim)   # a grunt knocked down alive in the pool: paddles at full strength towards where it can stand, then gets up
+        out=$(drop vrtesthall "180 -256 200" 0 "vr_knockdown_debug 1;wait150;vr_knockdown_test 0;wait900")
+        first=$(echo "$out" | grep "^ragswim" | head -1 | grep -o "at [-0-9]* [-0-9]*$")
+        last=$(echo "$out" | grep "^ragswim" | tail -1 | grep -o "at [-0-9]* [-0-9]*$")
+        thrust=$(echo "$out" | grep "^ragswim" | grep -c "thrust [1-9]")
+        echo "kdswim: from ($first) to ($last), $thrust traced frames pushing; $(echo "$out" | grep -o "gets up from frame.*lay" | head -1)"
+        echo "$out" | grep -q "down alive in water" && echo "$out" | grep -q "gets up after" && [ "$thrust" -gt 0 ] &&
+            ! echo "$out" | grep -q "rror\|CRASH" && echo "kdswim: PASS" || echo "kdswim: FAIL" ;;
+    kddie)    # the same, killed as it swims: its strokes weaken as a death's (its vigour under 0.2 at the end)
+        out=$(drop vrtesthall "180 -256 200" 0 "vr_knockdown_debug 1;wait150;vr_knockdown_test 0;wait100;vr_knockdown_test 3;wait700")
+        v=$(echo "$out" | grep "^ragswim" | tail -1 | grep -o " v [0-9.]*")
+        echo "kddie: the last traced vigour$v"
+        echo "$out" | grep -q "down alive in water" && echo "$v" | grep -q " v 0\.[01]" && ! echo "$out" | grep -q "rror\|CRASH" &&
+            echo "kddie: PASS" || echo "kddie: FAIL" ;;
     land)     run "sv_random_seed ${SEED:-7};map vrfiringrange;$PRE;vr_test_spawn 0;vr_test_spawn_dist 110;impulse 241;wait40;vr_test_kill 1;wait600;toggleconsole;quit" | $PY "$SUM" "grunt land" ;;
     cost)
         for a in 1 0; do

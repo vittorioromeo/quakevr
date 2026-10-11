@@ -2383,9 +2383,9 @@ QVR_CVAR(vr_ragdoll_active_debug, "0", CVAR_NONE)      // 1: each driven ragdoll
 QVR_CVAR(vr_ragdoll_active_trace, "0", CVAR_NONE)       // n: every n-th frame a `ragtrace` line per driven ragdoll (its pelvis, the joints' error from the animation per channel, their strength, its energy; the tests)
 QVR_CVAR(vr_ragdoll_active_seed, "0", CVAR_NONE)        // mixed into each death's rolls (wound, crawl): another roll for the same scene (tests)
 QVR_CVAR(vr_ragdoll_active_stagger, "1", CVAR_ARCHIVE)  // with Knockdowns, a shove makes a grunt, enforcer, knight, death knight, ogre or zombie stagger as a pinned ragdoll (its feet stepping after it): leaning too far it falls (a knockdown), else it recovers and fights on; its fall braced by its arms, a two-hand throw's body slack where held, curling; 0: the knockdown's chance alone, as before
-QVR_CVAR(vr_ragdoll_active_stagger_lean, "30", CVAR_ARCHIVE) // degrees: its middle leaning over its feet past this, the stagger falls
+QVR_CVAR(vr_ragdoll_active_stagger_lean, "30", CVAR_ARCHIVE) // degrees: its middle leaning over its feet past this for 0.36 s (or twice it at once), the stagger falls whatever its balance
 QVR_CVAR(vr_ragdoll_active_stagger_push, "2", CVAR_ARCHIVE)  // m/s: a fresh two-hand shove's push on its top (its pelvis carried by its pin, its feet none)
-QVR_CVAR(vr_ragdoll_active_stagger_travel, "0.2", CVAR_ARCHIVE) // how far its pelvis is carried, times how far the shove slides a standing one (at most 1.25 m)
+QVR_CVAR(vr_ragdoll_active_stagger_travel, "1.2", CVAR_ARCHIVE) // how far its pelvis is carried (its backpedal), times how far the shove slides a standing one (at most 4 m; 0.2 before vr_cfg_version 128)
 QVR_CVAR(vr_ragdoll_active_stagger_pin, "2", CVAR_ARCHIVE)  // body weights: its pelvis's pin at most, steady (times 0.2 .. 1 by its balance: the knockdown's chance against the roll; its muscles' hold on its weight and its upright too)
 QVR_CVAR(vr_ragdoll_active_stagger_blend, "0.2", CVAR_ARCHIVE) // s: recovered, its ragdoll blended into the animated monster over this
 QVR_CVAR(vr_ragdoll_active_getup, "1", CVAR_ARCHIVE)    // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: pulled into its get-up's first frame, then risen through its get-up, handed back to the animated monster standing; 0: the ragdoll blended into the get-up from the floor, as before
@@ -2399,6 +2399,7 @@ QVR_CVAR(vr_ragdoll_active_env_lean, "1", CVAR_ARCHIVE)  // dying with a wall be
 QVR_CVAR(vr_ragdoll_active_env_ledge, "1", CVAR_ARCHIVE) // falling past a ledge's lip near a hand: he grabs it and hangs a moment before dropping
 QVR_CVAR(vr_ragdoll_active_env_grip, "1.2", CVAR_ARCHIVE) // body weights a hand holding a ledge takes at most (a lean's: a third of it; a heavy monster less); past it he slips off
 QVR_CVAR(vr_ragdoll_active_env_hang, "1.8", CVAR_ARCHIVE) // s: about how long he hangs from a ledge (each 0.45 to 1.65 times it)
+QVR_CVAR(vr_ragdoll_active_stagger_steps, "6", CVAR_ARCHIVE) // a shoved monster's backpedal: at most this many steps back (1..10); one whose balance the shove beat (the knockdown's roll under its chance) gives way after 3 or 4 of them
 // Living hit reactions (vr_hitreact.cpp, QC/vr_hitreact.qc; ROUND22.md, "Active ragdolls: living hit reactions")
 QVR_CVAR(vr_hit_react, "1", CVAR_ARCHIVE)             // a living monster struck flinches where it was struck (its AI untouched): 1 its rig's bones kicked round their joints (the head snaps, an arm swings, a leg's knee buckles; a model with no rig tilted whole), 2 every model tilted whole, 0 off. The server's sends the blows and slows the steps (vr_hit_react_slow); each client draws by its own
 QVR_CVAR(vr_hit_react_strength, "1", CVAR_ARCHIVE)    // times the kicks' size (0..3)

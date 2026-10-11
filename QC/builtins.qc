@@ -287,7 +287,8 @@ float(entity e, float frameA, float frameB, vector mins, vector maxs, float rang
 // Active staggers (vr_ragdoll_active_stagger): whether a shove makes e stagger as a ragdoll; e (just knocked down by a
 // shove along dir, its ragdoll made) staggering instead (push: the shove's; balance 0 about to fall .. 1 steady; reach:
 // the units the shove carries a standing one; 0: it can't); how its stagger goes: 1 on, 0 fallen (down now), 2
-// recovered (up where it stands with box mins..maxs, its ragdoll blended into its animation).
+// recovered (up where it stands with box mins..maxs, its ragdoll blended into its animation), 3 lost (a loaded game: its
+// ragdoll made again without its stagger; the QC begins it again, VR_Knockdown_Think).
 float(entity e) ragdollcanstagger = #0;
 float(entity e, vector dir, float push, float balance, float reach) ragdollstagger = #0;
 float(entity e, vector mins, vector maxs) ragdollstaggered = #0;

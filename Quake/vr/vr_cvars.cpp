@@ -703,8 +703,11 @@ const DefaultChange defaultChanges[] = {
     // interferes with the view" (the author, 2026-10-11; ROUND22.md, "Hide holstered weapons per pair"). A config with
     // them drawn (1) takes it.
     {127, &vr_holster_weapons_draw_shoulder, "1"},
+    // 128: a shoved monster backpedals about as far as the old standing slide took it (the author, 2026-10-11: "they seem
+    // to cover much less distance than before"; ROUND22.md, "Shoves: the backpedal").
+    {128, &vr_ragdoll_active_stagger_travel, "0.2"},
 };
-constexpr int configVersion = 127;
+constexpr int configVersion = 128;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
