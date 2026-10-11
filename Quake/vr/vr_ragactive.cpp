@@ -813,7 +813,8 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
     const float v = za::clamp(fadeAt(fa, t) / za::max(fa.from, 1e-3f), 0.f, 1.f);
     const float hz = water ? 0.6f + 0.7f * v : 2.2f + 1.6f * v;
     w.phase += twoPi * hz * c.dt;
-    if(w.phase > 64.f * twoPi)
+    // (Wrapped in water only: a flail's hops count its phase up, and lasts at most ~50 s, a few thousand radians.)
+    if(water && w.phase > 64.f * twoPi)
     {
         w.phase -= 64.f * twoPi;
     }
@@ -874,8 +875,9 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         }
         else
         {
+            // (A new place every 0.13-0.18 s at full vigour (3.8 Hz), slower as the stroke rate falls to 2.2 Hz.)
             const float hop = 0.13f + 0.05f * roll(w.seed, 10u + static_cast<uint32_t>(limb));
-            const float f = ts / hop;
+            const float f = w.phase / (twoPi * 3.8f * hop);
             const auto k = static_cast<uint32_t>(f);
             const glm::vec3 d0 = flailDir(w.seed, limb, k), d1 = flailDir(w.seed, limb, k + 1u);
             const glm::vec3 d = glm::normalize(glm::mix(d0, d1, smooth(f - static_cast<float>(k))) + glm::vec3{1e-4f});
