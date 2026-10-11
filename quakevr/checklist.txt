@@ -27,6 +27,7 @@ Holstered super shotgun stays open on a hip; a nailgun holstered without its mag
 [Still open from 1.0.x]
 MG1 west stairs: walk up slowly and jump, head low (a short catch at the top crest may remain); lava: you keep burning 3 s after stepping out
 Shoved into water: a grunt shoved off vrstart's island near the shore gets up; far out, gives up after ~3 s and sinks
+MG3/MG1 placed corpses (MG3 start, map2b): ogres and shamblers lie down; walk up, grab a limb, cut it, gib it
 MG3 armour shards: force-grab then hip / pouch / chest gives armour; walking over them doesn't
 MG3 campaign: Dawn of the Machine start to both endings: Super Axe, axe buttons, lore, hub upgrades, new monsters' hits and ragdolls
 MG3 Shub (boss2): sinking pillars comfortable; zombies rise and ragdoll; beam readable; lights out and credits at her death
