@@ -8,6 +8,8 @@
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
+#include "vr_files.hpp"
+#include "vr_held.hpp"
 #include "vr_ledges.hpp"
 #include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
@@ -23,6 +25,7 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
@@ -192,6 +195,7 @@ struct Built
     za::Vector<int> surfaceFace; // each surface's face in the brush
     za::Vector<texture_t*> textures;
     za::Vector<int> used;
+    za::Vector<glm::vec4> clipPlanes; // the faces (hull 0's planes, outward) and the bevels a box swept at it needs
     glm::vec3 origin{0.f};      // the entity's (model space = world - origin)
     glm::vec3 mins{0.f}, maxs{0.f};
     int texofs[TEXTYPE_COUNT + 1]{};
@@ -274,6 +278,99 @@ void chain(const za::Vector<glm::dvec4>& faces, za::Vector<mplane_t>& planes, za
     return nullptr;
 }
 
+// The bevels a box swept against a convex brush needs (Quake 2's qbsp, AddBrushBevels), appended to `planes` (its faces,
+// outward, model space: world minus `origin`): the axial planes of its bounds lo..hi (world) where no face is one, then at
+// each edge that isn't along an axis the planes through it along each axis that have the whole brush behind them. Pushed
+// out by a box's support (hulls 1 and 2), the set is the brush grown by the box: without them a sloped or turned face's
+// pushed plane would reach past its corners (the player stopped in the air off a wedge's edge).
+void bevels(const za::Vector<Winding>& polys, const glm::dvec3& origin, const glm::dvec3& lo, const glm::dvec3& hi,
+    za::Vector<glm::dvec4>& planes)
+{
+    const auto have = [&](const glm::dvec3& n) {
+        for(const glm::dvec4& p : planes)
+        {
+            if(glm::length(glm::dvec3{p} - n) < 1e-6)
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+    for(int axis = 0; axis < 3; axis++)
+    {
+        for(const double sign : {1.0, -1.0})
+        {
+            glm::dvec3 n{0.0};
+            n[axis] = sign;
+            if(!have(n))
+            {
+                planes.pushBack(glm::dvec4{n, sign > 0.0 ? hi[axis] - origin[axis] : -(lo[axis] - origin[axis])});
+            }
+        }
+    }
+    const auto snapped = [](glm::dvec3 v) {
+        for(int k = 0; k < 3; k++)
+        {
+            if(za::fabs(v[k]) < 1e-9)
+            {
+                v[k] = 0.0;
+            }
+            else if(za::fabs(za::fabs(v[k]) - 1.0) < 1e-9)
+            {
+                v[k] = v[k] > 0.0 ? 1.0 : -1.0;
+            }
+        }
+        return v;
+    };
+    for(const Winding& w : polys)
+    {
+        for(za::SizeT j = 0; j < w.size(); j++)
+        {
+            const glm::dvec3 a = w[j] - origin, b = w[(j + 1) % w.size()] - origin;
+            if(glm::length(b - a) < 0.5)
+            {
+                continue;
+            }
+            const glm::dvec3 edge = snapped(glm::normalize(b - a));
+            if(za::fabs(edge.x) == 1.0 || za::fabs(edge.y) == 1.0 || za::fabs(edge.z) == 1.0)
+            {
+                continue; // (along an axis: the axial bevels have it)
+            }
+            for(int axis = 0; axis < 3; axis++)
+            {
+                for(const double sign : {-1.0, 1.0})
+                {
+                    glm::dvec3 along{0.0};
+                    along[axis] = sign;
+                    glm::dvec3 n = glm::cross(edge, along);
+                    if(glm::length(n) < 0.5)
+                    {
+                        continue;
+                    }
+                    n = snapped(glm::normalize(n));
+                    if(have(n))
+                    {
+                        continue;
+                    }
+                    const double d = glm::dot(a, n);
+                    bool outer = true;
+                    for(const Winding& v : polys)
+                    {
+                        for(const glm::dvec3& p : v)
+                        {
+                            outer = outer && glm::dot(p - origin, n) - d <= 0.1;
+                        }
+                    }
+                    if(outer)
+                    {
+                        planes.pushBack(glm::dvec4{n, d});
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Made from the brush (null: an empty model: nothing solid, nothing drawn). `quakeHulls`: the world's hull 1 and 2
 // boxes.
 void build(const Brush* b, Built& out)
@@ -320,26 +417,13 @@ void build(const Brush* b, Built& out)
         faces.pushBack(glm::dvec4{f.normal, f.dist - glm::dot(f.normal, origin)});
         faceOf.pushBack(static_cast<int>(i));
     }
-    // Hulls 1 and 2: the planes pushed out by the box (its support along each normal), with the axial bevels a brush that
-    // is not a box needs (its bounds' planes, where no face is one).
+    // Hulls 1 and 2: the planes pushed out by the box (its support along each normal), with the bevels a brush that is
+    // not a box needs (bevels()); the same set is the narrow box's (clipBox).
     za::Vector<glm::dvec4> grown = faces;
-    for(int axis = 0; axis < 3; axis++)
+    bevels(polys, origin, lo, hi, grown);
+    for(const glm::dvec4& p : grown)
     {
-        for(const double sign : {1.0, -1.0})
-        {
-            bool have = false;
-            for(const glm::dvec4& f : faces)
-            {
-                have = have || (f[axis] * sign > 1.0 - 1e-9);
-            }
-            if(!have)
-            {
-                glm::dvec4 bevel{0.0};
-                bevel[axis] = sign;
-                bevel.w = sign > 0.0 ? hi[axis] - origin[axis] : -(lo[axis] - origin[axis]);
-                grown.pushBack(bevel);
-            }
-        }
+        out.clipPlanes.pushBack(glm::vec4{p});
     }
     za::Vector<glm::dvec4> pushed[3];
     pushed[0] = faces;
@@ -682,17 +766,45 @@ struct Entry
     bool dirty{false}; // its slot to write (upload)
 };
 
+// An edit undone by vr_brush_undo: a brush made (undone: removed), changed or removed (undone: back as it was before).
+struct UndoStep
+{
+    enum class Kind : int
+    {
+        Made,
+        Changed,
+        Removed
+    } kind{Kind::Made};
+    int id{0};
+    Brush before;
+};
+constexpr za::SizeT undoDepth = 64;
+
 // The listen server's brushes by id - 1 (an id: a slot in the brush buffers), the main thread's. Emptied with the world.
 struct Registry
 {
     za::Vector<za::UniquePtr<Entry>> entries;
+    za::Vector<UndoStep> undo; // oldest first, up to undoDepth
+    bool undoing{false};       // (an undo's own edits not recorded)
     za::U32 revisions{0};   // the models made (each its own revision)
     bool sweep{false};      // a world began: its brush entities without a brush removed (a saved game's), once
     bool uploadAll{false};  // the map's buffers made again (R_NewMap): every slot written again
     int lastSpawned{0};     // vr_brush_spawn's last thing (vr_brush_ent last)
     char texture[16]{};     // the texture new brushes get
+    bool loadedSave{false}; // this world is a saved game's (its brushes from it: no brush file loaded for it)
+    const qmodel_t* reserveWorld{nullptr}; // the world whose load made the brush buffers' reserve (R_NewMap)
 };
 Registry registry;
+
+// A saved game's brush lines, read before its load (VR_ReadSaveInfo) for after it (VR_OnLoadGame); the text a save
+// writes (saveLines). The main thread's.
+struct SaveState
+{
+    za::String pending; // the loading save's brushes' text (allToText's)
+    bool have{false};
+    za::String lines;   // saveLines' last
+};
+SaveState saveState;
 
 // The world's textures a brush may have (usableTexture), in its order, and its default (the most used plain one), found
 // once a world (the panel asks each frame): the main thread's. Emptied at a map change (the world's textures go with
@@ -705,6 +817,26 @@ struct TextureCache
     auto members() { return mem::list(world, usable, defaultName); }
 };
 mem::Cache<TextureCache> textureCache{"brush textures", mem::MapChange | mem::GameDirChange};
+
+void recordUndo(UndoStep::Kind kind, int id, const Brush* before)
+{
+    if(registry.undoing)
+    {
+        return;
+    }
+    if(registry.undo.size() >= undoDepth)
+    {
+        registry.undo.erase(registry.undo.begin());
+    }
+    UndoStep s;
+    s.kind = kind;
+    s.id = id;
+    if(before)
+    {
+        s.before = *before;
+    }
+    registry.undo.pushBack(ZA_MOVE(s));
+}
 
 [[nodiscard]] Entry* entryOf(int id)
 {
@@ -725,12 +857,13 @@ mem::Cache<TextureCache> textureCache{"brush textures", mem::MapChange | mem::Ga
     return atoi(name + n);
 }
 
-// How many brushes the map may have at once: its slots (made at its load: vr_brush_max then).
+// How many brushes the map may have at once: its slots (made at its load: vr_brush_max then; before the client has made
+// them for this map, as a saved game's brushes are made again, what it will make).
 [[nodiscard]] int capacity()
 {
-    if(cls.state == ca_dedicated)
+    if(cls.state == ca_dedicated || !sv.worldmodel || registry.reserveWorld != sv.worldmodel)
     {
-        return za::clamp(static_cast<int>(vr_brush_max.value), 0, 4096);
+        return R_RuntimeBrushSlotsFor(za::clamp(static_cast<int>(vr_brush_max.value), 0, 4096));
     }
     return R_RuntimeBrushReserve()->slots;
 }
@@ -1015,7 +1148,7 @@ void appendNumber(za::String& out, double v)
     }
     else
     {
-        q_snprintf(buf, sizeof(buf), "%.9g", v);
+        q_snprintf(buf, sizeof(buf), "%.12g", v);
     }
     out += buf;
 }
@@ -1217,12 +1350,14 @@ void set_f()
         }
         return;
     }
-    Brush b = box(glm::min(a, c), glm::max(a, c), find(id)->faces.empty() ? currentTexture() : find(id)->faces[0].texture);
-    const Brush& old = *find(id);
-    for(za::SizeT i = 0; i < b.faces.size() && i < old.faces.size(); i++)
+    // (any shape: stretched from its bounds to these)
+    Brush b = *find(id);
+    glm::dvec3 lo, hi;
+    if(!bounds(b, lo, hi))
     {
-        q_strlcpy(b.faces[i].texture, old.faces[i].texture, sizeof(b.faces[i].texture));
+        return;
     }
+    scaleTo(b, lo, hi, glm::min(a, c), glm::max(a, c));
     if(change(id, b))
     {
         Con_Printf("brush: %d is %.0f %.0f %.0f .. %.0f %.0f %.0f\n", id, a.x, a.y, a.z, c.x, c.y, c.z);
@@ -1427,6 +1562,178 @@ void textures_f()
     }
 }
 
+// vr_brush_shape <box | wedge | cylinder | pyramid> <x y z> <X Y Z> [sides] [up] [rise] [texture]: a shape filling the box
+// from corner to corner; `up` and `rise` an axis with its way (z, -z, x, ...: the default z, the wedge rising along x).
+[[nodiscard]] bool parseAxis(const char* s, int& axis, double& sign)
+{
+    sign = s[0] == '-' ? -1.0 : 1.0;
+    const char c = s[s[0] == '-' || s[0] == '+' ? 1 : 0];
+    axis = c == 'x' || c == 'X' ? 0 : c == 'y' || c == 'Y' ? 1 : c == 'z' || c == 'Z' ? 2 : -1;
+    return axis >= 0;
+}
+
+void shape_f()
+{
+    glm::dvec3 a, c;
+    if(Cmd_Argc() < 8 || !parseVec(2, a) || !parseVec(5, c))
+    {
+        Con_Printf("usage: vr_brush_shape <box | wedge | cylinder | pyramid> <x y z> <X Y Z> [sides] [up] [rise] [texture]\n");
+        return;
+    }
+    if(!serverReady())
+    {
+        return;
+    }
+    int up = 2, rise = 0;
+    double upSign = 1.0, riseSign = 1.0;
+    if(Cmd_Argc() > 9 && !parseAxis(Cmd_Argv(9), up, upSign))
+    {
+        up = 2;
+    }
+    if(Cmd_Argc() > 10 && !parseAxis(Cmd_Argv(10), rise, riseSign))
+    {
+        rise = 0;
+    }
+    const Shape s = shapeFromName(Cmd_Argv(1));
+    const int sides = Cmd_Argc() > 8 ? Q_atoi(Cmd_Argv(8)) : 8;
+    const int id = create(shape(s, glm::min(a, c), glm::max(a, c), up, upSign, rise, riseSign, sides,
+        Cmd_Argc() > 11 ? Cmd_Argv(11) : currentTexture()));
+    if(id)
+    {
+        Con_Printf("brush: made %d, a %s of %d faces (entity %d)\n", id, shapeName(s), static_cast<int>(find(id)->faces.size()),
+            entityOf(id));
+    }
+}
+
+// vr_brush_rotate <id> <pitch yaw roll> [lock]: turned about its bounds' middle (lock 0: the textures stay the world's).
+void rotate_f()
+{
+    glm::dvec3 ang;
+    const int id = idArg(1);
+    if(!id || !parseVec(2, ang))
+    {
+        return;
+    }
+    Brush b = *find(id);
+    glm::dvec3 lo, hi;
+    if(!bounds(b, lo, hi))
+    {
+        return;
+    }
+    const glm::dmat3 r = turnFromAngles(ang);
+    rotate(b, r, glm::floor((lo + hi) * 0.5 + 0.5), Cmd_Argc() > 5 ? Q_atoi(Cmd_Argv(5)) != 0 : true);
+    if(change(id, b))
+    {
+        glm::dvec3 l2, h2;
+        (void)bounds(b, l2, h2);
+        Con_Printf("brush: %d turned %.0f %.0f %.0f, %.1f %.1f %.1f .. %.1f %.1f %.1f\n", id, ang.x, ang.y, ang.z, l2.x, l2.y, l2.z,
+            h2.x, h2.y, h2.z);
+    }
+}
+
+void undo_f()
+{
+    if(serverReady())
+    {
+        (void)undo();
+    }
+}
+
+// vr_brush_align <id> <face | all> <reset | shift du dv | scale su sv | turn degrees>: a face's texture alignment.
+void align_f()
+{
+    const int id = idArg(1);
+    if(!id || Cmd_Argc() < 4)
+    {
+        if(id)
+        {
+            Con_Printf("usage: vr_brush_align <id> <face | all> <reset | shift du dv | scale su sv | turn degrees>\n");
+        }
+        return;
+    }
+    Brush b = *find(id);
+    const bool all = !q_strcasecmp(Cmd_Argv(2), "all");
+    const int face = all ? -1 : Q_atoi(Cmd_Argv(2));
+    const char* op = Cmd_Argv(3);
+    const double x = Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 0.0, y = Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : x;
+    for(za::SizeT i = 0; i < b.faces.size(); i++)
+    {
+        if(!all && face != static_cast<int>(i))
+        {
+            continue;
+        }
+        Face& f = b.faces[i];
+        if(!q_strcasecmp(op, "reset"))
+        {
+            defaultAlignment(f);
+        }
+        else if(!q_strcasecmp(op, "shift"))
+        {
+            f.uOffset += x;
+            f.vOffset += y;
+        }
+        else if(!q_strcasecmp(op, "scale") && x != 0.0 && y != 0.0)
+        {
+            f.scaleU = x;
+            f.scaleV = y;
+        }
+        else if(!q_strcasecmp(op, "turn"))
+        {
+            // The axes turned about the face's normal (Valve 220's rotation: the number kept with them).
+            const glm::dmat3 r = glm::mat3_cast(glm::angleAxis(glm::radians(x), f.normal));
+            f.uAxis = r * f.uAxis;
+            f.vAxis = r * f.vAxis;
+            f.rotation = za::remainder(f.rotation + x, 360.0);
+        }
+    }
+    if(change(id, b))
+    {
+        Con_Printf("brush: %d aligned (%s %s)\n", id, Cmd_Argv(2), op);
+    }
+}
+
+[[nodiscard]] za::String brushFile(const char* name); // (below)
+
+// vr_brush_save [name]: this map's brushes to <game folder>/brushes/<map>[-name].brushes.
+void save_f()
+{
+    if(!serverReady())
+    {
+        return;
+    }
+    const za::String path = brushFile(Cmd_Argc() > 1 ? Cmd_Argv(1) : "");
+    za::String text;
+    allToText(text);
+    (void)files::createDirectories(za::String{files::parentPath(path)}.cStr());
+    if(!files::writeText(path.cStr(), text))
+    {
+        Con_Printf("brush: couldn't write %s\n", path.cStr());
+        return;
+    }
+    Con_Printf("brush: %d brushes saved to %s\n", count(), path.cStr());
+}
+
+// vr_brush_load [name] [add]: the brushes of <game folder>/brushes/<map>[-name].brushes made (the map's removed first,
+// unless "add").
+void load_f()
+{
+    if(!serverReady())
+    {
+        return;
+    }
+    const char* name = Cmd_Argc() > 1 && q_strcasecmp(Cmd_Argv(1), "add") ? Cmd_Argv(1) : "";
+    const bool add = !q_strcasecmp(Cmd_Argv(Cmd_Argc() - 1), "add");
+    const za::String path = brushFile(name);
+    za::String text, warning;
+    if(!files::readText(path.cStr(), text))
+    {
+        Con_Printf("brush: no brush file %s\n", path.cStr());
+        return;
+    }
+    const int made = fromAllText(text, !add, warning);
+    Con_Printf("brush: %d brushes made from %s%s%s\n", made, path.cStr(), warning.empty() ? "" : ": ", warning.cStr());
+}
+
 // vr_brush_texture_set <name>: the texture new brushes get.
 void textureSet_f()
 {
@@ -1526,6 +1833,31 @@ void selftest_f()
         }
         samples.pushBack(ZA_MOVE(p));
     }
+    // The tool's shapes, and a box turned 45 degrees about z (its hull 1 checked at its corner below: the bevels).
+    const glm::dvec3 slo{0.0, 0.0, 0.0}, shi{96.0, 64.0, 48.0};
+    for(const Shape s : {Shape::Wedge, Shape::Cylinder, Shape::Pyramid})
+    {
+        samples.pushBack(shape(s, slo, shi, 2, 1.0, 0, 1.0, s == Shape::Pyramid ? 4 : 8, tex));
+    }
+    const za::SizeT turnedIndex = samples.size();
+    {
+        Brush t = box(glm::dvec3{-32.0, -32.0, 0.0}, glm::dvec3{32.0, 32.0, 64.0}, tex);
+        rotate(t, turnFromAngles(glm::dvec3{0.0, 45.0, 0.0}), glm::dvec3{0.0, 0.0, 32.0}, true);
+        samples.pushBack(ZA_MOVE(t));
+        // A box turned 90 degrees is a box again (its planes axial, whole).
+        Brush q = box(glm::dvec3{0.0}, glm::dvec3{64.0, 32.0, 16.0}, tex);
+        rotate(q, turnFromAngles(glm::dvec3{0.0, 90.0, 0.0}), glm::dvec3{32.0, 16.0, 8.0}, true);
+        glm::dvec3 qlo, qhi;
+        check(axial(q) && bounds(q, qlo, qhi) && qlo == glm::dvec3{16.0, -16.0, 0.0} && qhi == glm::dvec3{48.0, 48.0, 16.0},
+            "a box turned 90 degrees: axial, 16 -16 0 .. 48 48 16");
+        // Stretched to other bounds and back: the same planes.
+        Brush w = shape(Shape::Wedge, slo, shi, 2, 1.0, 0, 1.0, 8, tex);
+        Brush w2 = w;
+        scaleTo(w2, slo, shi, glm::dvec3{8.0, 8.0, 8.0}, glm::dvec3{200.0, 40.0, 120.0});
+        scaleTo(w2, glm::dvec3{8.0, 8.0, 8.0}, glm::dvec3{200.0, 40.0, 120.0}, slo, shi);
+        za::String why;
+        check(samePlanes(w, w2, why), va("a wedge stretched and back: %s", why.cStr()));
+    }
     forEach([&](const Brush& b) { samples.pushBack(b); });
     for(za::SizeT i = 0; i < samples.size(); i++)
     {
@@ -1538,9 +1870,14 @@ void selftest_f()
         if(parsed)
         {
             check(samePlanes(b, back, why), va("sample %d: %s", static_cast<int>(i), why.cStr()));
-            za::String again;
+            // Written again: the same text (a brush of whole planes), or the same planes read back once more (a sloped
+            // face's points have digits a reading moves in their last place).
+            za::String again, why2;
             toText(back, again);
-            check(again == text, va("sample %d: its text written again differs", static_cast<int>(i)));
+            Brush back2;
+            za::String error2;
+            check(axial(b) ? again == text : fromText(again, back2, error2) && samePlanes(back, back2, why2),
+                va("sample %d: its text written again differs %s", static_cast<int>(i), why2.cStr()));
         }
         check(invalid(b) == nullptr, va("sample %d: %s", static_cast<int>(i), invalid(b) ? invalid(b) : ""));
         // Its model: inside solid, outside empty, hull 1 grown by the player's box.
@@ -1586,6 +1923,16 @@ void selftest_f()
                     va("sample %d: hull %d %s at %.0f %.0f %.0f", static_cast<int>(i), p.hull,
                         p.contents == CONTENTS_SOLID ? "empty" : "solid", p.at.x, p.at.y, p.at.z));
             }
+        }
+        if(i == turnedIndex)
+        {
+            // The turned box's corner on +x is at x 45.25 (32 * sqrt 2): the player's box (16 aside) meets it 16 further,
+            // not 32 (as its two faces' planes pushed out would meet without the bevel).
+            const float cx = 32.f * 1.41421356f - built.origin.x;
+            const float cz = 32.f - built.origin.z;
+            check(hullContents(&m, 1, glm::vec3{cx + 15.f, -built.origin.y, cz}) == CONTENTS_SOLID, "turned box: hull 1 solid 15 off its corner");
+            check(hullContents(&m, 1, glm::vec3{cx + 17.f, -built.origin.y, cz}) == CONTENTS_EMPTY, "turned box: hull 1 empty 17 off its corner (the bevel)");
+            check(built.clipPlanes.size() >= 8, "turned box: its bevels");
         }
         if(i == 0)
         {
@@ -1709,6 +2056,257 @@ void translate(Brush& b, const glm::dvec3& delta)
     }
 }
 
+namespace
+{
+
+constexpr const char* shapeNames[] = {"box", "wedge", "cylinder", "pyramid"};
+
+[[nodiscard]] Face planeFace(const glm::dvec3& normal, double dist, const char* texture)
+{
+    Face f;
+    f.normal = normal;
+    f.dist = dist;
+    q_strlcpy(f.texture, texture && texture[0] ? texture : "base", sizeof(f.texture));
+    defaultAlignment(f);
+    return f;
+}
+
+// A plane's normal and distance with the dust of turning and stretching swept off: components a hair from 0 or 1 put
+// there (a box turned 90 degrees is a box again), a distance a hair from a whole number on it.
+void tidy(glm::dvec3& n, double& d)
+{
+    for(int k = 0; k < 3; k++)
+    {
+        if(za::fabs(n[k]) < 1e-12)
+        {
+            n[k] = 0.0;
+        }
+        else if(za::fabs(za::fabs(n[k]) - 1.0) < 1e-12)
+        {
+            n[k] = n[k] > 0.0 ? 1.0 : -1.0;
+        }
+    }
+    n = glm::normalize(n);
+    if(za::fabs(d - za::round(d)) < 1e-7)
+    {
+        d = za::round(d);
+    }
+}
+
+} // namespace
+
+const char* shapeName(Shape s)
+{
+    const int i = static_cast<int>(s);
+    return i >= 0 && i < static_cast<int>(Shape::Count) ? shapeNames[i] : "box";
+}
+
+Shape shapeFromName(const char* name)
+{
+    for(int i = 0; i < static_cast<int>(Shape::Count); i++)
+    {
+        if(!q_strcasecmp(name, shapeNames[i]))
+        {
+            return static_cast<Shape>(i);
+        }
+    }
+    const int n = Q_atoi(name);
+    return n >= 0 && n < static_cast<int>(Shape::Count) ? static_cast<Shape>(n) : Shape::Box;
+}
+
+Brush shape(Shape s, const glm::dvec3& lo, const glm::dvec3& hi, int upAxis, double upSign, int riseAxis, double riseSign,
+    int sides, const char* texture)
+{
+    upAxis = za::clamp(upAxis, 0, 2);
+    if(riseAxis == upAxis || riseAxis < 0 || riseAxis > 2)
+    {
+        riseAxis = (upAxis + 1) % 3;
+    }
+    if(s == Shape::Box)
+    {
+        return box(lo, hi, texture);
+    }
+    Brush b;
+    glm::dvec3 up{0.0};
+    up[upAxis] = upSign >= 0.0 ? 1.0 : -1.0;
+    const double base = upSign >= 0.0 ? lo[upAxis] : hi[upAxis], top = upSign >= 0.0 ? hi[upAxis] : lo[upAxis];
+    const double height = hi[upAxis] - lo[upAxis];
+    if(s == Shape::Wedge)
+    {
+        const int side = 3 - upAxis - riseAxis;
+        glm::dvec3 fwd{0.0};
+        fwd[riseAxis] = riseSign >= 0.0 ? 1.0 : -1.0;
+        const double length = hi[riseAxis] - lo[riseAxis];
+        const double low = riseSign >= 0.0 ? lo[riseAxis] : hi[riseAxis], high = riseSign >= 0.0 ? hi[riseAxis] : lo[riseAxis];
+        b.faces.pushBack(planeFace(-up, -base * up[upAxis], texture));     // the bottom
+        b.faces.pushBack(planeFace(fwd, high * fwd[riseAxis], texture));    // the high end
+        for(const double sg : {1.0, -1.0})                                  // the sides
+        {
+            glm::dvec3 n{0.0};
+            n[side] = sg;
+            b.faces.pushBack(planeFace(n, sg > 0.0 ? hi[side] : -lo[side], texture));
+        }
+        // The slope: through the low end's bottom edge and the high end's top edge.
+        const glm::dvec3 n = glm::normalize(up * length - fwd * height);
+        glm::dvec3 p{0.0};
+        p[upAxis] = base;
+        p[riseAxis] = low;
+        double d = glm::dot(n, p);
+        glm::dvec3 nn = n;
+        tidy(nn, d);
+        b.faces.pushBack(planeFace(nn, d, texture));
+        (void)top;
+        return b;
+    }
+    // A cylinder's or pyramid's polygon: `sides` corners round a circle (a face flat to the first axis), stretched to fill
+    // the box across the up axis.
+    sides = za::clamp(sides, 3, 12);
+    const int a1 = (upAxis + 1) % 3, a2 = (upAxis + 2) % 3;
+    za::InPlaceVector<glm::dvec2, 12> poly;
+    glm::dvec2 pmin{1e30}, pmax{-1e30};
+    for(int k = 0; k < sides; k++)
+    {
+        const double ang = 6.283185307179586 * (static_cast<double>(k) + 0.5) / static_cast<double>(sides);
+        const glm::dvec2 p{za::cos(ang), za::sin(ang)};
+        poly.pushBack(p);
+        pmin = glm::min(pmin, p);
+        pmax = glm::max(pmax, p);
+    }
+    for(glm::dvec2& p : poly)
+    {
+        p = glm::dvec2{lo[a1], lo[a2]} + (p - pmin) / (pmax - pmin) * glm::dvec2{hi[a1] - lo[a1], hi[a2] - lo[a2]};
+    }
+    const auto at = [&](const glm::dvec2& p, double h) {
+        glm::dvec3 q{0.0};
+        q[a1] = p.x;
+        q[a2] = p.y;
+        q[upAxis] = h;
+        return q;
+    };
+    glm::dvec2 mid{(lo[a1] + hi[a1]) * 0.5, (lo[a2] + hi[a2]) * 0.5};
+    const glm::dvec3 inside = at(mid, (base + top) * 0.5);
+    b.faces.pushBack(planeFace(-up, -base * up[upAxis], texture)); // the base
+    if(s == Shape::Cylinder)
+    {
+        b.faces.pushBack(planeFace(up, top * up[upAxis], texture));
+    }
+    const glm::dvec3 apex = at(mid, top);
+    for(int k = 0; k < sides; k++)
+    {
+        const glm::dvec3 p = at(poly[static_cast<za::SizeT>(k)], base), q = at(poly[static_cast<za::SizeT>((k + 1) % sides)], base);
+        const glm::dvec3 r = s == Shape::Cylinder ? p + up : apex;
+        glm::dvec3 n = glm::normalize(glm::cross(q - p, r - p));
+        if(glm::dot(n, inside - p) > 0.0)
+        {
+            n = -n;
+        }
+        double d = glm::dot(n, p);
+        tidy(n, d);
+        b.faces.pushBack(planeFace(n, d, texture));
+    }
+    return b;
+}
+
+glm::dmat3 turnFromAngles(const glm::dvec3& angles)
+{
+    // Quake's AngleVectors in doubles (sines of whole quarter turns exact).
+    const auto sc = [](double deg, double& s, double& c) {
+        const double q = deg / 90.0;
+        if(za::fabs(q - za::round(q)) < 1e-12)
+        {
+            const int k = ((static_cast<int>(za::round(q)) % 4) + 4) % 4;
+            s = k == 1 ? 1.0 : k == 3 ? -1.0 : 0.0;
+            c = k == 0 ? 1.0 : k == 2 ? -1.0 : 0.0;
+            return;
+        }
+        s = za::sin(glm::radians(deg));
+        c = za::cos(glm::radians(deg));
+    };
+    double sp, cp, sy, cy, sr, cr;
+    sc(angles.x, sp, cp);
+    sc(angles.y, sy, cy);
+    sc(angles.z, sr, cr);
+    const glm::dvec3 forward{cp * cy, cp * sy, -sp};
+    const glm::dvec3 right{-sr * sp * cy + cr * sy, -sr * sp * sy - cr * cy, -sr * cp};
+    const glm::dvec3 up{cr * sp * cy + sr * sy, cr * sp * sy - sr * cy, cr * cp};
+    return glm::dmat3{forward, -right, up};
+}
+
+void rotate(Brush& b, const glm::dmat3& r, const glm::dvec3& pivot, bool lockTexture)
+{
+    for(Face& f : b.faces)
+    {
+        glm::dvec3 n = r * f.normal;
+        double d = glm::dot(n, pivot) + (f.dist - glm::dot(f.normal, pivot));
+        tidy(n, d);
+        if(lockTexture)
+        {
+            glm::dvec3 u = r * f.uAxis, v = r * f.vAxis;
+            for(int k = 0; k < 3; k++)
+            {
+                u[k] = za::fabs(u[k]) < 1e-12 ? 0.0 : u[k];
+                v[k] = za::fabs(v[k]) < 1e-12 ? 0.0 : v[k];
+            }
+            f.uOffset += (glm::dot(pivot, f.uAxis) - glm::dot(pivot, u)) / (f.scaleU != 0.0 ? f.scaleU : 1.0);
+            f.vOffset += (glm::dot(pivot, f.vAxis) - glm::dot(pivot, v)) / (f.scaleV != 0.0 ? f.scaleV : 1.0);
+            f.uAxis = u;
+            f.vAxis = v;
+            f.normal = n;
+            f.dist = d;
+        }
+        else
+        {
+            f.normal = n;
+            f.dist = d;
+            const double su = f.scaleU, sv = f.scaleV;
+            defaultAlignment(f);
+            f.scaleU = su;
+            f.scaleV = sv;
+        }
+    }
+}
+
+void scaleTo(Brush& b, const glm::dvec3& lo, const glm::dvec3& hi, const glm::dvec3& lo2, const glm::dvec3& hi2)
+{
+    // p' = lo2 + (p - lo) * k: a plane n.p <= d becomes (n / k).p' <= d - n.lo + (n / k).lo2.
+    const glm::dvec3 k = (hi2 - lo2) / glm::max(hi - lo, glm::dvec3{1e-9});
+    for(Face& f : b.faces)
+    {
+        const glm::dvec3 m = f.normal / glm::max(k, glm::dvec3{1e-9});
+        const double len = glm::length(m);
+        glm::dvec3 n = m / len;
+        double d = (f.dist - glm::dot(f.normal, lo) + glm::dot(m, lo2)) / len;
+        tidy(n, d);
+        f.normal = n;
+        f.dist = d;
+    }
+}
+
+void forEachPolygon(const Brush& b, za::FunctionRef<void(int face, const glm::dvec3* points, int count)> f)
+{
+    za::Vector<Winding> polys;
+    (void)polygons(b, polys);
+    for(za::SizeT i = 0; i < polys.size(); i++)
+    {
+        if(polys[i].size() >= 3)
+        {
+            f(static_cast<int>(i), polys[i].data(), static_cast<int>(polys[i].size()));
+        }
+    }
+}
+
+bool axial(const Brush& b)
+{
+    for(const Face& f : b.faces)
+    {
+        if(za::fabs(f.normal.x) != 1.0 && za::fabs(f.normal.y) != 1.0 && za::fabs(f.normal.z) != 1.0)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 void toText(const Brush& b, za::String& out)
 {
     out.clear();
@@ -1757,7 +2355,7 @@ bool fromText(za::StringView text, Brush& out, za::String& error)
 {
     out = Brush{};
     // The header comment, if any: its id, revision and group.
-    const char* header = "// qvrbrush";
+    const char* header = "// qvrbrush "; // (not a brush file's "// qvrbrushes")
     for(za::SizeT i = 0; i + strlen(header) <= text.size(); i++)
     {
         if(!strncmp(text.data() + i, header, strlen(header)))
@@ -1915,8 +2513,16 @@ bool fromText(za::StringView text, Brush& out, za::String& error)
 // ---------------------------------------------------------------------------------------------------------------------
 // The registry.
 
-int create(const Brush& b)
+namespace
 {
+// The entity create gives the next brush instead of a new one (restoreAfterLoad: the saved game's), 0: a new one.
+int adoptEdict = 0;
+} // namespace
+
+int create(const Brush& b, int wantId)
+{
+    const int adopt = adoptEdict;
+    adoptEdict = 0;
     if(!sv.active || !sv.worldmodel)
     {
         return 0;
@@ -1928,7 +2534,11 @@ int create(const Brush& b)
     }
     const int cap = capacity();
     int id = 0;
-    for(int i = 0; i < cap; i++)
+    if(wantId > 0 && wantId <= cap && !entryOf(wantId))
+    {
+        id = wantId;
+    }
+    for(int i = 0; i < cap && !id; i++)
     {
         if(i >= static_cast<int>(registry.entries.size()) || !registry.entries[static_cast<za::SizeT>(i)])
         {
@@ -1949,14 +2559,49 @@ int create(const Brush& b)
     Entry& e = *registry.entries[static_cast<za::SizeT>(id - 1)];
     e.brush = b;
     e.brush.id = id;
-    e.brush.rev = 1;
+    e.brush.rev = b.rev > 0 ? b.rev : 1;
+    e.edict = adopt;
     rebuild(e, false);
     if(!placeEntity(e))
     {
         registry.entries[static_cast<za::SizeT>(id - 1)].reset();
         return 0;
     }
+    recordUndo(UndoStep::Kind::Made, id, nullptr);
     return id;
+}
+
+bool undo()
+{
+    if(registry.undo.empty())
+    {
+        Con_Printf("brush: nothing to undo\n");
+        return false;
+    }
+    const UndoStep s = registry.undo.back();
+    registry.undo.popBack();
+    registry.undoing = true;
+    bool ok = false;
+    switch(s.kind)
+    {
+    case UndoStep::Kind::Made:
+        ok = remove(s.id);
+        Con_Printf("brush: undone: %d made%s\n", s.id, ok ? " (removed)" : " (already gone)");
+        break;
+    case UndoStep::Kind::Changed:
+        ok = change(s.id, s.before);
+        Con_Printf("brush: undone: %d changed%s\n", s.id, ok ? " (as it was)" : " (gone)");
+        break;
+    case UndoStep::Kind::Removed:
+    {
+        const int id = create(s.before, s.id);
+        ok = id != 0;
+        Con_Printf("brush: undone: %d removed (back as %d)\n", s.id, id);
+        break;
+    }
+    }
+    registry.undoing = false;
+    return ok;
 }
 
 bool change(int id, const Brush& b)
@@ -1973,6 +2618,7 @@ bool change(int id, const Brush& b)
     }
     const za::U32 rev = e->brush.rev;
     const bool painted = e->built && !e->built->surfaces.empty() && sameShape(e->brush, b);
+    recordUndo(UndoStep::Kind::Changed, id, &e->brush);
     e->brush = b;
     e->brush.id = id;
     e->brush.rev = rev + 1;
@@ -1988,6 +2634,7 @@ bool remove(int id)
         return false;
     }
     const int num = e->edict;
+    recordUndo(UndoStep::Kind::Removed, id, &e->brush);
     e->edict = 0; // (its entity's free below finds no brush: edictFreed)
     rebuild(*e, true);
     upload(id - 1, e);
@@ -2051,6 +2698,212 @@ void forEach(za::FunctionRef<void(const Brush&)> f)
             f(e->brush);
         }
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Keeping them.
+
+namespace
+{
+
+// The map's shape (its planes: a relit copy has the same), as a brush file names it.
+[[nodiscard]] unsigned mapHash()
+{
+    unsigned h = 2166136261u;
+    const qmodel_t* w = sv.worldmodel;
+    if(!w || !w->planes)
+    {
+        return 0u;
+    }
+    const unsigned char* bytes = nullptr;
+    for(za::SizeT i = 0; i < static_cast<za::SizeT>(w->numplanes); i++)
+    {
+        const mplane_t& p = w->planes[i];
+        const float v[4] = {p.normal[0], p.normal[1], p.normal[2], p.dist};
+        bytes = reinterpret_cast<const unsigned char*>(v);
+        for(za::SizeT k = 0; k < sizeof(v); k++)
+        {
+            h = (h ^ bytes[k]) * 16777619u;
+        }
+    }
+    return h;
+}
+
+// The brushes in a text: each "{ ... }" with the lines before it (its header) since the last.
+bool parseAll(za::StringView text, za::Vector<Brush>& out, za::String& error)
+{
+    out.clear();
+    za::SizeT start = 0, at = 0;
+    while(at < text.size())
+    {
+        za::SizeT end = at;
+        while(end < text.size() && text[end] != '\n')
+        {
+            end++;
+        }
+        // (a line that is "}" alone, spaces aside, ends a brush)
+        za::SizeT a = at, z = end;
+        while(a < z && (text[a] == ' ' || text[a] == '\t' || text[a] == '\r'))
+        {
+            a++;
+        }
+        while(z > a && (text[z - 1] == ' ' || text[z - 1] == '\t' || text[z - 1] == '\r'))
+        {
+            z--;
+        }
+        if(z - a == 1 && text[a] == '}')
+        {
+            Brush b;
+            za::String why;
+            if(!fromText(za::StringView{text.data() + start, end - start}, b, why))
+            {
+                error = va("brush %d: %s", static_cast<int>(out.size()) + 1, why.cStr());
+                return false;
+            }
+            out.pushBack(ZA_MOVE(b));
+            start = end + 1;
+        }
+        at = end + 1;
+    }
+    return true;
+}
+
+// The brush file's path for `name` (empty: the map's own): <game folder>/brushes/<map>[-name].brushes.
+[[nodiscard]] za::String brushFile(const char* name)
+{
+    return za::String{va("%s/brushes/%s%s%s.brushes", com_gamedir, sv.name, name && name[0] ? "-" : "", name ? name : "")};
+}
+
+} // namespace
+
+void allToText(za::String& out)
+{
+    out.clear();
+    out += va("// qvrbrushes 1 map %s bsp %08x\n", sv.name, mapHash());
+    za::String one;
+    forEach([&](const Brush& b) {
+        toText(b, one);
+        out += one;
+    });
+}
+
+int fromAllText(za::StringView text, bool replace, za::String& warning)
+{
+    warning.clear();
+    za::Vector<Brush> list;
+    za::String error;
+    if(!parseAll(text, list, error))
+    {
+        warning = error;
+        return 0;
+    }
+    char map[64] = "";
+    unsigned hash = 0;
+    const za::String copy{text.data(), text.size()};
+    const char* header = strstr(copy.cStr(), "// qvrbrushes ");
+    if(header && sscanf(header, "// qvrbrushes %*d map %63s bsp %x", map, &hash) == 2 && (q_strcasecmp(map, sv.name) || hash != mapHash()))
+    {
+        warning = va("made for %s (bsp %08x), this is %s (bsp %08x)", map, hash, sv.name, mapHash());
+    }
+    if(replace)
+    {
+        for(za::SizeT i = 0; i < registry.entries.size(); i++)
+        {
+            if(registry.entries[i])
+            {
+                remove(static_cast<int>(i) + 1);
+            }
+        }
+    }
+    int made = 0;
+    for(const Brush& b : list)
+    {
+        made += create(b, b.id) ? 1 : 0;
+    }
+    return made;
+}
+
+const char* saveLines()
+{
+    SaveState& s = saveState;
+    s.lines.clear();
+    if(!count())
+    {
+        return "";
+    }
+    za::String all;
+    allToText(all);
+    za::SizeT at = 0;
+    while(at < all.size())
+    {
+        za::SizeT end = at;
+        while(end < all.size() && all[end] != '\n')
+        {
+            end++;
+        }
+        s.lines += "// qvrb ";
+        s.lines += za::StringView{all.data() + at, end - at};
+        s.lines += '\n';
+        at = end + 1;
+    }
+    return s.lines.cStr();
+}
+
+void readSaveLines(const char* saveText)
+{
+    SaveState& s = saveState;
+    s.pending.clear();
+    s.have = false;
+    for(const char* p = saveText ? strstr(saveText, "\n// qvrb ") : nullptr; p; p = strstr(p + 1, "\n// qvrb "))
+    {
+        const char* line = p + 9;
+        const za::SizeT n = strcspn(line, "\r\n");
+        s.pending += za::StringView{line, n};
+        s.pending += '\n';
+        s.have = true;
+    }
+}
+
+void restoreAfterLoad()
+{
+    SaveState& s = saveState;
+    registry.loadedSave = true;
+    if(!s.have)
+    {
+        return;
+    }
+    s.have = false;
+    za::Vector<Brush> list;
+    za::String error;
+    if(!parseAll(s.pending, list, error))
+    {
+        Con_Printf("brush: the saved game's brushes can't be read (%s)\n", error.cStr());
+        return;
+    }
+    const ServerVm vm;
+    registry.undoing = true;
+    int made = 0;
+    for(const Brush& b : list)
+    {
+        // Its entity: the one whose model is its own.
+        char name[MAX_QPATH];
+        q_snprintf(name, sizeof(name), "%s%d", modelPrefix, b.id);
+        int num = 0;
+        for(int i = 1; i < qcvm->num_edicts && !num; i++)
+        {
+            edict_t* ed = EDICT_NUM(i);
+            if(!ed->free && !strcmp(PR_GetString(ed->v.classname), className) && !strcmp(PR_GetString(ed->v.model), name) && !ofEntity(i))
+            {
+                num = i;
+            }
+        }
+        adoptEdict = num;
+        made += create(b, b.id) ? 1 : 0;
+    }
+    adoptEdict = 0;
+    registry.undoing = false;
+    s.pending.clear();
+    Con_Printf("brush: %d brushes of the saved game made again\n", made);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -2197,36 +3050,8 @@ bool clipBox(const qmodel_t* model, const glm::vec3& start, const glm::vec3& min
     {
         return true; // (nothing solid)
     }
-    // The brush's planes (model space) and its axial bevels: hull 1's before they were pushed out (its first faces count
-    // planes are hull 0's, the rest of hull 1's grown set its bevels).
-    const Built& b = *e->built;
-    const int numFaces = static_cast<int>(b.clipnodes[0].size());
-    za::InPlaceVector<glm::vec4, maxFaces + 6> planes;
-    for(int k = 0; k < numFaces; k++)
-    {
-        const mclipnode_t& cn = b.clipnodes[0][static_cast<za::SizeT>(k)];
-        const mplane_t& p = b.planes[static_cast<za::SizeT>(cn.planenum)];
-        const float s = cn.children[1] == CONTENTS_EMPTY ? -1.f : 1.f;
-        planes.pushBack(glm::vec4{p.normal[0] * s, p.normal[1] * s, p.normal[2] * s, p.dist * s});
-    }
-    for(int axis = 0; axis < 3; axis++)
-    {
-        for(const float sign : {1.f, -1.f})
-        {
-            bool have = false;
-            for(const glm::vec4& p : planes)
-            {
-                have = have || p[axis] * sign > 1.f - 1e-6f;
-            }
-            if(!have && planes.size() < planes.capacity())
-            {
-                glm::vec4 bevel{0.f};
-                bevel[axis] = sign;
-                bevel.w = sign > 0.f ? b.maxs[axis] : -b.mins[axis];
-                planes.pushBack(bevel);
-            }
-        }
-    }
+    // The brush's planes (model space) and its bevels: hulls 1 and 2's before they were pushed out.
+    const za::Vector<glm::vec4>& planes = e->built->clipPlanes;
     float enter = -1.f, leave = 1.f;
     int lead = -1;
     bool startOut = false, getOut = false;
@@ -2392,7 +3217,9 @@ void reset()
         }
     }
     registry.entries.clear();
+    registry.undo.clear();
     registry.sweep = true;
+    registry.loadedSave = false;
 }
 
 void edictFreed(int num)
@@ -2425,7 +3252,20 @@ void frame()
         }
         if(strays)
         {
-            Con_Printf("brush: %d brushes of the saved game left out (brushes are not saved yet)\n", strays);
+            Con_Printf("brush: %d brush entities without their brush left out (a save of a build that didn't keep them)\n", strays);
+        }
+        // A new map (not a saved game's): its brush file's brushes, if it has one and vr_brush_autoload is on.
+        if(!registry.loadedSave && vr_brush_autoload.value != 0.f && files::exists(brushFile("").cStr()))
+        {
+            za::String text, warning;
+            if(files::readText(brushFile("").cStr(), text))
+            {
+                registry.undoing = true;
+                const int made = fromAllText(text, false, warning);
+                registry.undoing = false;
+                Con_Printf("brush: %d brushes made from %s%s%s\n", made, brushFile("").cStr(), warning.empty() ? "" : ": ",
+                    warning.cStr());
+            }
         }
     }
     if(cls.state == ca_dedicated || !cl.worldmodel)
@@ -2462,6 +3302,12 @@ void registerCommands()
     Cmd_AddCommand("vr_brush_spawn", spawn_f);
     Cmd_AddCommand("vr_brush_ent", ent_f);
     Cmd_AddCommand("vr_brush_trace", trace_f);
+    Cmd_AddCommand("vr_brush_shape", shape_f);
+    Cmd_AddCommand("vr_brush_rotate", rotate_f);
+    Cmd_AddCommand("vr_brush_undo", undo_f);
+    Cmd_AddCommand("vr_brush_align", align_f);
+    Cmd_AddCommand("vr_brush_save", save_f);
+    Cmd_AddCommand("vr_brush_load", load_f);
 }
 
 } // namespace qvr::brushes
@@ -2515,4 +3361,10 @@ extern "C" void VR_RuntimeBrushesUpload(void)
         }
     }
     qvr::brushes::registry.uploadAll = true;
+    qvr::brushes::registry.reserveWorld = cl.worldmodel;
+}
+
+extern "C" const char* VR_SaveBrushLines(void)
+{
+    return qvr::brushes::saveLines();
 }

@@ -2511,6 +2511,7 @@ void SaveData_Fill (savedata_t *save)
 	save->skill = current_skill;
 	save->time = qcvm->time;
 	VR_SaveContext (save->vrcontext, sizeof (save->vrcontext)); // QVR: the campaign, the map package, the titles
+	save->vrbrushes = VR_SaveBrushLines (); // QVR: the runtime brushes (vr/vr_brushes.cpp)
 
 	/* determine buffer size */
 	size = sizeof (*save->knownstrings) * qcvm->numknownstrings;
@@ -2623,6 +2624,8 @@ void SaveData_WriteHeader (savedata_t *save)
 	for (i = 1; i <= save->nummodels; i++)
 		fprintf (save->file, "// qvr_model %d %s\n", i, save->models[i]);
 	fputs (save->vrcontext, save->file); // QVR: // qvr_campaign, qvr_package, ... (vr_continue.cpp)
+	if (save->vrbrushes)
+		fputs (save->vrbrushes, save->file); // QVR: // qvrb lines: the runtime brushes
 
 	ED_WriteGlobals (save);
 }

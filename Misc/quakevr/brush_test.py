@@ -9,8 +9,14 @@
 #   rocket    a rocket fired at a box: its scorch on the box (vr_brush_list's decals); removed with it;
 #   sight     a grunt behind a wall of box doesn't come; the wall removed, it does (it sees the player);
 #   tool      the Brush tool with the mock hand: a box made by dragging its base and raising it, moved, resized (the
-#             top's handle), painted, copied (the ghost stamped), the copy deleted;
-#   save      a save with a box loads without it (brushes aren't saved yet: said once), no error; a new box after;
+#             top's handle), painted, copied (the ghost stamped), the copy deleted; a wedge made the same way, turned 45
+#             degrees by the hand (Rotate), the turn undone;
+#   save      a save with a box and a turned, painted wedge loads with them as they were (ids, revisions, bounds), traces
+#             stop on them; a new box after is 3;
+#   shapes    the player stands on a wedge's slope (z 77, vr_hull_width 16: the bevels), a box trace stops 8 off a turned
+#             box's corner;
+#             undo takes back a move, a turn and a removal;
+#   files     vr_brush_save / vr_brush_load round trip; a new map with vr_brush_autoload 1 gets its brush file's;
 #   light     (with --shots) a pillar lit by a dynamic light, its shadow behind it, then without it.
 # --shots: scratch/brush_shots.png (the tool's ghost, the scorch, the dynamic light's shadow, the panel).
 # --perf: 50 pillars: what making them takes, the frames before and after (--exclusive: timings).
@@ -78,19 +84,49 @@ t = run(R + ["vr_brush_selftest",
              "vr_brush_delete 1", "wait60", "vr_brush_ent 1",
              "vr_brush_box 128 -592 17 192 -528 81", "wait5", "vr_brush_spawn vr_crate 160 -560 200 0 drop", "wait144",
              "vr_brush_ent last", "vr_brush_delete all", "wait144", "vr_brush_ent last",
-             "vr_brush_box 128 -592 17 192 -528 81", "wait5", "save brush_test", "wait5", "load brush_test", "wait60",
-             "vr_brush_list", "vr_brush_trace 160 -560 140 160 -560 12", "vr_brush_box 128 -592 17 192 -528 81", "wait5",
-             "vr_brush_trace 160 -560 140 160 -560 12"])
+             "vr_brush_box 128 -592 17 192 -528 81", "vr_brush_shape wedge 200 -700 17 300 -640 60", "vr_brush_rotate 2 0 30 0",
+             "vr_brush_texture 2 city6_4 1", "wait5", "vr_brush_list", "save brush_test", "wait5", "vr_brush_delete all",
+             "load brush_test", "wait60", "vr_brush_list", "vr_brush_trace 160 -560 140 160 -560 12",
+             "vr_brush_trace 250 -670 140 250 -670 0", "vr_brush_box 300 -592 17 340 -528 81", "wait5", "vr_brush_list"])
 check("brush selftest: PASS" in t, "selftest")
 e = ents(t)
 check(len(e) >= 4 and e[0][3] == 1 and abs(e[0][2] - 89) < 1.5, f"stand: on the box at z 89 ({e[0] if e else None})")
 check(len(e) >= 4 and e[1][3] == 0 and e[1][2] < 50, f"stand: the box removed, on the floor ({e[1] if len(e) > 1 else None})")
 check(len(e) >= 4 and e[2][3] > 0 and abs(e[2][2] - 97) < 2, f"crate: resting on the box ({e[2] if len(e) > 2 else None})")
 check(len(e) >= 4 and e[3][3] == 0 and e[3][2] < 40, f"crate: the box removed, on the floor ({e[3] if len(e) > 3 else None})")
-check("1 brushes of the saved game left out" in t and "brushes: 0 of" in t, "save: loaded without its box (said once)")
+# the save keeps the box and the turned wedge (its id, revision, faces, bounds and painted face), and a new one gets id 3
+lists = [re.findall(r"^  (\d+): entity \d+, rev (\d+), (\d+) faces, (\S+), ([-\d. ]+), \d+ decals", b, re.M)
+         for b in re.split(r"brushes: \d+ of", t)[1:]]
+before = [x for x in lists if len(x) == 2]
+check("brush: 2 brushes of the saved game made again" in t and len(before) >= 2 and before[0] == before[1] and before[0][1][2] == "5",
+      f"save: loaded with its box and its turned wedge, as they were ({before[:2]})")
 traces = re.findall(r"brush trace: fraction [\d.]+, end [-\d.]+ [-\d.]+ ([-\d.]+),.*?entity (-?\d+)( \(brush (\d+)\))?", t)
-check(len(traces) == 2 and abs(float(traces[0][0]) - 17) < 1 and abs(float(traces[1][0]) - 81) < 1 and traces[1][3] == "1",
-      f"save: the trace falls through where it was, a new box stops it ({traces})")
+check(len(traces) == 2 and abs(float(traces[0][0]) - 81) < 1 and traces[0][3] == "1" and traces[1][3] == "2",
+      f"save: the loaded box and wedge stop traces ({traces})")
+check(len(lists) >= 3 and [x[0] for x in lists[-1]] == ["1", "2", "3"], f"save: a new box after the load is 3 ({lists[-1] if lists else None})")
+
+# shapes: the player put over a wedge stands on its slope (the bevels: not held up by its edge), a turned box's corner
+# meets a box trace where it is; undo takes edits back
+t = run(R + ["vr_brush_shape wedge 128 -592 17 256 -528 81", "wait5", "setpos 192 -560 150 0 90 0", "noclip", "wait90", "vr_brush_ent 1",
+             "vr_brush_box 96 -700 17 160 -636 81", "vr_brush_rotate 2 0 45 0", "wait5",
+             "vr_brush_trace 200 -668 60 100 -668 60 32", "vr_brush_move 2 0 0 8", "vr_brush_undo", "vr_brush_undo",
+             "vr_brush_delete 1", "vr_brush_undo", "vr_brush_list"])
+e = ents(t)
+# (he may slide a little down it: his height is the slope's at his box's higher edge, x + 8, plus 24)
+check(len(e) == 1 and e[0][3] == 1 and abs(e[0][2] - (17 + (e[0][0] + 8 - 128) * 0.5 + 24)) < 1.5, f"wedge: the player stands on its slope ({e})")
+tr = re.findall(r"brush trace: fraction [\d.]+, end ([-\d.]+) ", t)
+check(len(tr) == 1 and abs(float(tr[0]) - (128 + 45.25 + 8 + 0.03)) < 0.6, f"turned box: the player's box (vr_hull_width 16) stops 8 off its corner ({tr})")
+check(t.count("undone: 2 changed (as it was)") == 2 and "undone: 1 removed (back as 1)" in t and
+      re.search(r"^  2: entity \d+, rev \d+, 6 faces, \S+, 96 -700 17 \.\. 160 -636 81", t, re.M) is not None,
+      "undo: a move and a turn taken back (the box as made), a removal undone")
+
+# brush files: saved, removed, loaded (vr_brush_load); a new map with vr_brush_autoload 1 gets them
+t = run(R + ["vr_brush_box 128 -592 17 192 -528 81", "vr_brush_shape cylinder 200 -700 17 264 -636 81 6", "vr_brush_save brush_test",
+             "vr_brush_delete all", "vr_brush_load brush_test", "vr_brush_list", "vr_brush_save", "vr_brush_autoload 1",
+             "map vrfiringrange", "wait60", "vr_brush_list", "vr_brush_autoload 0"])
+counts = re.findall(r"brushes: (\d+) of", t)
+check("2 brushes made from" in t and counts == ["2", "2"] and re.search(r"^  2: entity \d+, rev 1, 8 faces", t, re.M) is not None,
+      f"files: saved and loaded, a new map with vr_brush_autoload gets them ({counts})")
 
 # climb
 p = SCRATCH + "/brush_mantle.txt"
@@ -150,7 +186,12 @@ t = run(R + ["impulse 169", "vr_weapon_grip_mode 1", "wait10", "vr_toolgun_tool 
              "vr_toolgun_brush_mode_set resize", hand(71, -6), trig(1), hand(82, -6), trig(0, 10),
              "vr_brush_texture_set city6_4", "vr_toolgun_brush_mode_set paint", hand(50, -10), trig(1), trig(0),
              "vr_toolgun_brush_mode_set copy", trig(1), trig(0), hand(35, 30), trig(1), trig(0), "vr_brush_list",
-             "vr_toolgun_brush_mode_set delete", hand(35, 30), trig(1), trig(0), "vr_brush_list"])
+             "vr_toolgun_brush_mode_set delete", hand(35, 30), trig(1), trig(0), "vr_brush_list",
+             # a wedge made as the box was, turned by the hand (40 degrees: 45 on the 15 degree steps), the turn undone
+             "vr_brush_delete all", "vr_toolgun_brush_shape 1", "vr_toolgun_brush_mode_set create", hand(40), trig(1),
+             hand(46, 25), trig(0), hand(72), trig(1), trig(0), "vr_toolgun_brush_shape 0", "vr_brush_list",
+             "vr_toolgun_brush_mode_set rotate", hand(50, 10), trig(1), hand(50, 50), trig(0, 10), "vr_brush_list",
+             "vr_brush_undo", "vr_brush_list"])
 # (the corners with the toolgun's muzzle on its lens's middle, weapon settings 42: -552 and -512 with the old one, ~1 cm
 # off, the far edge a grid step further)
 check(re.search(r"toolgun: box 1 made, 176 -616 17 \.\. 200 -560 81", t) is not None, "tool: created by dragging and raising")
@@ -158,6 +199,12 @@ check("toolgun: box 1 moved 0 40 0" in t, "tool: moved 40 sideways")
 check("toolgun: box 1 resized to 176 -576 17 .. 200 -520 104" in t, "tool: the top pulled up to 104")
 check("toolgun: box 1 painted city6_4" in t, "tool: painted")
 check("toolgun: box 2 made as a copy" in t and "toolgun: box 2 removed" in t, "tool: copied, the copy deleted")
+check(re.search(r"toolgun: wedge 1 made, 176 -616 17 \.\. 200 -560 81", t) is not None and
+      re.search(r"^  1: entity \d+, rev 1, 5 faces", t, re.M) is not None, "tool: a wedge made by the same drag")
+turned = re.findall(r"toolgun: brush 1 turned (-?\d+) (-?\d+) (-?\d+)", t)
+after = re.findall(r"^  1: entity \d+, rev \d+, 5 faces, \S+, ([-\d. ]+), \d+ decals", t, re.M)
+check(len(turned) == 1 and turned[0][1] in ("45", "-45") and len(after) == 3 and after[1] != after[0] and after[2] == after[0],
+      f"tool: the wedge turned 45 by the hand, undone ({turned}, {after})")
 
 if SHOTS:
     # the dynamic light's shadow (a pillar lit from its front left), the tool's ghost, a rocket's scorch, the panel

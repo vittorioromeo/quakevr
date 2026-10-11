@@ -267,7 +267,7 @@ int VR_PortalAlias(const struct entity_s* e, const float boundsMatrix[16], const
 // path from a reserve at the end of its brush buffers (r_brush.c: vertices, indices and draw commands, a slot a brush)
 // and a strip of the lightmap a slot (one texel a face: its flat light). Made at each map's load (R_NewMap), as many
 // slots as VR_RuntimeBrushSlots says; a model's surfaces' vbo_firstvert, firstcmd and texofs index into its slot.
-#define QVR_BRUSH_SLOT_VERTS	64	// a slot's vertices (the faces' corners)
+#define QVR_BRUSH_SLOT_VERTS	96	// a slot's vertices (the faces' corners: 16 faces have at most 84)
 #define QVR_BRUSH_SLOT_INDEXES	192	// ... indices (their fans' triangles)
 #define QVR_BRUSH_SLOT_CMDS		8	// ... draw commands (one a texture)
 #define QVR_BRUSH_SLOT_LUXELS	16	// ... lightmap texels (one a face)
@@ -285,6 +285,7 @@ int VR_RuntimeBrushSlots (void);	// GL_BuildLightmaps: how many slots to reserve
 void VR_RuntimeBrushesUpload (void);	// R_NewMap, after the brush buffers: the brushes there are into their slots again
 int VR_IsRuntimeBrushModel (const struct qmodel_s *mod); // the load-time brush buffers leave it out (its slot has it)
 const qvr_brush_reserve_t *R_RuntimeBrushReserve (void);
+int R_RuntimeBrushSlotsFor (int wanted);	// the slots a map's load makes when VR_RuntimeBrushSlots says so many
 // Slot `slot`'s vertices, indices and draw commands written (counts up to the slot's; the rest of its commands emptied),
 // and its lightmap strip's texels (`count` from its first; `lux`: the light's directions, may be NULL).
 void R_RuntimeBrushUpload (int slot, const void *verts, int numverts, const unsigned *indexes, int numindexes,

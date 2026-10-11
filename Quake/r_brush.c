@@ -978,6 +978,11 @@ R_RuntimeBrushReserve, R_RuntimeBrushUpload, R_RuntimeBrushLightmap -- QVR
 The runtime brushes' slots (vr/vr_brushes.cpp; vr_api_render.h): written when a brush is made, changed or removed.
 ===============
 */
+int R_RuntimeBrushSlotsFor (int wanted)
+{
+	return q_max (0, q_min (wanted, (LMBLOCK_HEIGHT / 2) * QVR_BRUSH_LUXEL_ROW));
+}
+
 const qvr_brush_reserve_t *R_RuntimeBrushReserve (void)
 {
 	return &brush_reserve;
