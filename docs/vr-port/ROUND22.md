@@ -2348,3 +2348,13 @@ vr_ragactive, vr_toolgun) recompiled against the new headers with no change need
 under the test's 50 J / 25 rad/s; that case run again: 0.0 J, spin 0.5); ragdoll_test.sh flat grab: limp at frame 10,
 at rest after 4.3 s, the shin thrown at 1095 u/s; toolgun_joint_menu_test.sh PASS (each hand: 70 picks, 0 wrong, 6/6
 joined); selfchecks_test.sh: PASS hull cache, PASS physics workers (the same world hash with every worker count).
+
+**Then `feature/brushtool`** (d5482a9a3, runtime brushes and the toolgun's Brush tool, stage 1; built on toolgun2: only
+its own 6 commits came in), merged on top (`--no-ff`). Conflicts: `vr_ledges.cpp` (both includes kept: vr_box3d.hpp
+for propclimb's prop ledges, vr_brushes.hpp for runtime brushes); `vr_ledges.hpp` (propclimb's `propLedges` and
+`heldBytes` kept; `of()`'s comment brushtool's, which covers runtime brushes and `forget()`); this file. r_brush.c,
+vr_box3d.cpp (with propclimb, ragcore and box3dup), vr_hull, decals, menus, cvars merged by themselves and build against
+the updated Box3D with 0 warnings. Checks: smoke; `python Misc/quakevr/brush_test.py integ`: PASS, all 16 checks
+(selftest, stand, crate, save/load, climb: mantled onto a box, monster on a platform, sight through a wall, rocket
+scorch, the tool's create/move/resize/paint/copy/delete); toolgun_panel_test.sh PASS (six tools); prop_climb_test.sh
+8/8 PASS again.
