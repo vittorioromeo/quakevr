@@ -136,6 +136,10 @@ wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) a
 plays (hand over hand to the top, a two-hand hang and a shimmy with a fall, a mantle, and e1m1 from `setpos 250 2350
 40`). With `vr_climb 1; vr_climb_debug 2`, `climb_trace.py qconsole.log` prints the body's move against the hands'
 pull every frame and at every hand-off. `vr_climb_probe [yaw]` lists the holds ahead.
+Climbing props (ROUND22.md, "Climbing props"): `bash Misc/quakevr/climb/prop_climb_test.sh <agent> [case ...]` (8 cases
+on vrclimb's floor with the test crates `vr_test_spawn 120..124`: heavy, stack, side, light, close, knock, hang, off;
+PASS/FAIL each). `vr_climb_debug 2` adds a `climbpull` line a frame per hand on a light prop, `vr_debug_box3d 2` the
+force as Box3D applies it, `vr_climb_debug 4` why a mantle found no room.
 Climbing, a jump to a ledge from against its wall (ROUND21.md, the section of that name): `python
 Misc/quakevr/climb/climb_jump.py script <abs dir> [cvars]` (vrclimb's jump wall, 30 press times after a jump) then
 `climb_jump.py table qconsole.log` (PASS: every press from 0 to 0.50 s takes the ledge; `vr_climb_air_grab_time 0`: about 5 of 30).

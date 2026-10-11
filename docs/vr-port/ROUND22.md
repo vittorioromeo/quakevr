@@ -1589,3 +1589,63 @@ the press held 10 frames behind a waiting buffer: one load.
 
 **In the headset:** die in the start map's lava, hold A: "Loading...", one load of the level-start autosave, then
 play. Same with a quick tap, and on a map with no autosave yet (a plain restart).
+
+## Climbing props: crates, barrels, stacks (feature branch, 2026-10-11, worktree `propclimb`)
+
+Approved design: the hands also take hold of the edges of the solid physics props and climb them, as they lie.
+`vr_climb.cpp` has the rule in full at the top ("Holds on props").
+
+**Ledges from the prop's shape.** `box3d::climbShape(num)`: a loose solid prop's convex pieces (Box3D's hulls: the
+crate as drawn, its bevels too) as faces, corners and the face across each edge, in its body's frame, made once for a
+body and kept (`mem::Cache` "box3d climb shapes", by edict, made again when the body is). `ledges::propLedges` turns
+them by the body's pose now and keeps the edges of the walkable tops (normal z at least `minTopNormal`) whose face beyond
+falls away, each with one sample: the drop's start (half a unit out, or as far as the prop's own side flares out under
+the lip over `minDrop`; past `edgeReach` no ledge) and the top's depth from the lip's middle, walked across the
+walkable faces (a bevel's strip, then the top: the first version measured the bevel alone, 0.9 units, and the mantle's
+spot search failed). Only props whose box is round the hand are looked at (the area query the brush models already
+used); `vr_climb_probe` lists them too, and Debug: Show Ledges draws them orange.
+
+**Taking a hold.** The same search and checks as the level's (placeOf, takenBefore, freePoint, the leniency); the
+checks also see the props' shapes (`box3d::climbRay`: another crate on the top covers the hold, a crate under the lip
+is no drop: a small crate on a large one is a 32-unit step, no ledge). From the ground a prop's ledge must be
+`vr_climb_prop_min_height` (36) over the feet, else the grip is the QC's (it picks the prop up: a small crate, 32, is
+carried; a large one, 48, is climbed; one lying on its side, 40, too); hanging or in the air `vr_climb_min_height`.
+
+**Holding.** The grip keeps the ledge (one edge and its sample) in world space and follows the prop's body each frame
+(`followProps`: moved and turned as the body moved; the way out kept level, square to the lip), so props on lifts,
+tipped ones, stacks all work the same. Heavy (`vr_climb_prop_mass` 60 kg or more, or pinned): like the level, nothing
+pushes it, its motion carries the body. Light: the hands' pull goes into it (`pullProps` -> `box3d::climbPull`, a
+force through each piece of the step as the standing players' weight is): the body's weight
+(`vr_box3d_player_mass` 80) shared by the holding hands, at most `vr_climb_prop_pull` (40 kg) a hand, from the hold
+towards the body (a body over the hold presses down), in Box3D's gravity (Quake's: about 2.6 g in metres; a first
+version in newtons at 9.81 m/s^2 never tipped a 65 kg crate). A light prop's motion doesn't carry the body. Let go:
+the top turned `vr_climb_prop_tilt` (10 degrees) from how it lay, a light one's hold moved `vr_climb_prop_slip` (6
+units), the hold's speed changed by `vr_climb_prop_letgo_speed` (200 units/s) in a frame, or the prop gone (broken,
+taken into a hand, no longer solid). The climbing hand's own Box3D bodies (open hand, fist) are off while it holds a
+prop (`climb::heldProp`; they would shove it).
+
+**The risks, as handled.** Feedback (pulling a crate onto yourself): the pull is capped, the light prop never carries
+the body (so the body can't chase a crate it pulls), and the release thresholds stop it within 6 units. The player's
+capsule was left solid to the held prop (not made non-solid as the design allowed): with it, a crate tipping towards
+you leans on you and the hand lets go; without it, a crate tipped 10 degrees into the capsule would be pushed out of it
+hard on release. Sliding/falling props: the slip and speed thresholds. Mass threshold feel: a setting on the Debug
+menu.
+
+**Settings** (all archived): `vr_climb_props` 1 (Climbing page: Climb Props), `vr_climb_prop_min_height` 36 (Climbing
+page: Lowest Prop Ledge), `vr_climb_prop_mass` 60, `vr_climb_prop_pull` 40, `vr_climb_prop_tilt` 10,
+`vr_climb_prop_slip` 6, `vr_climb_prop_letgo_speed` 200 (Debug > Tests > Climbing, with three test crates). Test
+crates: `vr_test_spawn 120..124` (impulse 241): a large crate square to you, two stacked, one on its side, a small one on
+a large one, a small one.
+
+**Tests** (`Misc/quakevr/climb/prop_climb_test.sh <agent>`, vrclimb's open floor, 8 PASS): heavy crate mantled onto
+(standing at z 72); two large crates stacked (96 high) mantled onto (z 120); a large crate on its side mantled onto
+(z 64); a large crate made light (`vr_climb_prop_mass 70`) tips towards the player, both hands let go ("pulled away",
+7 units), the player not moved (within 2 units), standing back and against it; a held crate flung at 300 units/s lets
+go ("knocked away"); held 6 s, no let-go and no drift; `vr_climb_props 0` no hold. World climbing:
+`slopes_test.sh` 8 PASS. The hold search with 8 two-crate stacks round the player: median 0.002 ms, worst 0.035 ms,
+3 traces (no props: 0.0002 ms).
+
+**In the headset:** climb a large crate in vrstart's range and stand on it; climb a stack; pull at a small crate on
+top of a stack (it should tip towards you and your hand let go, without dragging you). Check that picking a large
+crate up by its top edges still feels right: from the ground, a grip at its top edge now climbs it
+(`vr_climb_prop_min_height` 50 would leave large crates to carrying).

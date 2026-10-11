@@ -51,6 +51,25 @@
 // lets go when its model is freed, stops being solid or changes model. A mantle onto one follows it (its way in the
 // model's space) and ends standing on it (its groundentity).
 //
+// Holds on props (vr_climb_props). The solid physics props (Box3D's, SOLID_BBOX: crates, barrels, explosive boxes; not
+// one in a hand, a ragdoll or a corpse) have ledges too, from their own shape as they lie now: each edge of a convex
+// piece's walkable top (normal z at least ledges::minTopNormal) whose face beyond falls away (ledges::propLedges; the
+// pieces' faces made once for each body: box3d::climbShape). Only the props round the hand are looked at (gather). The
+// drop starts where the prop's own side, flaring out under the lip, leaves the column clear; the checks when a hold is
+// taken see the props' shapes too (box3d::climbRay: another crate on the top, under the lip). From the ground, a prop's
+// ledge must be vr_climb_prop_min_height over the feet (lower, the grip is the QC's: it picks the prop up); hanging or
+// in the air, vr_climb_min_height as any. The hold keeps its place on the prop: each frame (followProps) it, its ledge
+// and the way out are moved as the prop's body moved (turned too). A prop at least vr_climb_prop_mass kg (or pinned)
+// holds like the level: nothing pushes it, and its motion carries the body as a moving brush's does. A lighter one is
+// pulled (pullProps): the body's weight shared by the holding hands, at most vr_climb_prop_pull kg a hand, from the hold
+// towards the body (a body over the hold presses it down), and doesn't carry the body (a crate pulled towards you
+// doesn't drag you after it: no loop). Its hold lets go once it moved vr_climb_prop_slip from where it was taken; any
+// prop's lets go once its top turned vr_climb_prop_tilt from how it lay (tipped), its speed changed by
+// vr_climb_prop_letgo_speed in a frame (knocked away), or it is gone (broken, taken, not solid). The player's own
+// capsule still meets it (a light crate tipping towards you leans on you, it doesn't fall through you); the hand's own
+// bodies (the open hand, the fist) are off while it holds a prop (vr_box3d.cpp: they'd shove it). A mantle onto a prop
+// follows it as it lies, and ends standing on it (VR_StandsOn's ground).
+//
 // Hanging. While a hand holds, the player hangs: no gravity, no stick, no room-scale walk. Each hand holds on to its
 // hold: the body moves by the hands' pull, what the holding hands moved relative to the body since the last frame,
 // the other way (pulling a hand down lifts the body). Two holding hands pull together, each weighted by how far it
