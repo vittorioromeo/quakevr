@@ -10,7 +10,8 @@
 // give where it is: it follows the animation (kick, pump, the super shotgun opening) and does not depend on the vertex
 // numbering, so the models can be edited freely (an edit that moves the surface by a little moves the anchor with it;
 // one that takes the surface away binds it to what is nearest now). Text that is not three numbers (the vertex indices
-// of the settings before vr_wofs_version 41, which the migration replaced) binds to the model's first vertex.
+// of the settings before vr_wofs_version 41, which the migration replaced) binds to the model's first vertex, with a
+// warning printed once per model and text.
 
 #pragma once
 
