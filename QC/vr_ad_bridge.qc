@@ -458,7 +458,7 @@ void() AD_ItemAppear =
 // TRUE: it waits.
 float() AD_ItemStartOff =
 {
-    if(!AD_Rules() || !(self.spawnflags & ad_ENT_STARTOFF) || self.targetname == "" || self.model == "")
+    if(!VR_SF_Has(self, VR_SF_STARTOFF) || self.targetname == "" || self.model == "")
     {
         return FALSE;
     }
@@ -486,14 +486,14 @@ void() AD_ItemRespawnUse =
 // or when triggered (respawn_trig), at most respawn_count times (0: always).
 void(entity xItem) AD_ItemTaken =
 {
-    if(!AD_Rules() || !(xItem.spawnflags & ad_ITEM_RESPAWN) || xItem.model != string_null)
+    if(!VR_SF_Has(xItem, VR_SF_ITEM_RESPAWN) || xItem.model != string_null)
     {
         return;
     }
     if(xItem.ad_respawn_count > 0)
     {
         xItem.ad_respawn_count = xItem.ad_respawn_count - 1;
-        if(xItem.ad_respawn_count == 0) xItem.spawnflags = xItem.spawnflags - ad_ITEM_RESPAWN;
+        if(xItem.ad_respawn_count == 0) xItem.spawnflags = xItem.spawnflags - VR_SF_Bit(VR_SF_AD, VR_SF_ITEM_RESPAWN);
     }
     if(xItem.ad_respawn_trig || xItem.ad_respawn_time < 0)
     {
@@ -597,7 +597,7 @@ void() AD_ChangelevelSpawn =
     }
     if(!self.map) self.map = mapname;
     if(mapname == "ad_tears") self.map = "start";
-    self.ad_estate = (self.spawnflags & 64) ? ad_ESTATE_OFF : ad_ESTATE_ON;
+    self.ad_estate = VR_SF_Has(self, VR_SF_STARTOFF) ? ad_ESTATE_OFF : ad_ESTATE_ON;
     if(self.targetname != "") self.use = AD_ChangelevelUse;
 };
 
@@ -626,7 +626,7 @@ float() AD_ChangelevelTouch =
     ad_update_configflag(ad_SVR_SPAWN_BIT1, n & 1 ? TRUE : FALSE);
     ad_update_configflag(ad_SVR_SPAWN_BIT2, n & 2 ? TRUE : FALSE);
     ad_update_configflag(ad_SVR_SPAWN_BIT3, n & 4 ? TRUE : FALSE);
-    vr_ad_resetinv = (self.spawnflags & ad_TRIG_CMAPRESETINV) ? TRUE : FALSE;
+    vr_ad_resetinv = VR_SF_Has(self, VR_SF_EXIT_RESETINV);
     return TRUE;
 };
 
@@ -640,7 +640,7 @@ void() AD_MonsterRunStart =
     entity oldact = activator;
     activator = self.MG_monster_activator;
     self.MG_monster_start();
-    if(self.spawnflags & ad_MON_SPAWN_ANGRY) monster_use();
+    if(VR_SF_Has(self, VR_SF_MON_ANGRY)) monster_use();
     activator = oldact;
 };
 
@@ -675,7 +675,7 @@ void() AD_MonsterActivate =
     self.flags = self.flags | FL_MONSTER;
     self.MG_monster_activator = activator;
     spawn_tdeath(self.origin, self);
-    if(!(self.spawnflags & ad_MON_SPAWN_NOGFX)) spawn_tfog(self.origin);
+    if(!VR_SF_Has(self, VR_SF_MON_NOSPAWNFX)) spawn_tfog(self.origin);
     self.think = AD_MonsterRunStart;
     self.nextthink = time + 0.1;
 };
@@ -691,7 +691,7 @@ float(void() start) AD_MonsterPrepare =
     {
         total_monsters = total_monsters - 1;
     }
-    if(!(self.spawnflags & ad_MON_SPAWN_DELAY))
+    if(!VR_SF_Has(self, VR_SF_MON_DELAYED))
     {
         return FALSE;
     }

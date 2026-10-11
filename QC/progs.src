@@ -14,6 +14,8 @@ vr_portal_ai_test.qc
 vr_stealth_defs.qc
 // Arcane Dimensions: the switches and the bridge's declarations (vr_ad_bridge.qc, after AD's files, defines them).
 vr_ad_defs.qc
+// Whose meaning a map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'): VR_SF_Has, VR_OtherFlags.
+vr_spawnflags.qc
 ai.qc
 combat.qc
 fight.qc

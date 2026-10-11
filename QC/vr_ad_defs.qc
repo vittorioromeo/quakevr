@@ -16,13 +16,7 @@ float() AD_Rules =
     return cvar("vr_ad_rules") != 0;
 };
 
-// The map's spawnflags mean another ruleset's flags (MG's: Dimension of the Past, of the Machine, Dawn of the Machine;
-// or AD's): the id/Hipnotic/Rogue/Honey meanings Quake VR's monsters and entities give them are off (statues, trigger
-// spawns, silent wake-ups...). AD support: AD's flags 2/4/8/16... are AD's own in AD maps (decision 19).
-float() VR_OtherFlags =
-{
-    return MG_WorldCampaign() || AD_Rules();
-};
+// (VR_OtherFlags, whose meaning the map's spawnflags have: vr_spawnflags.qc, after this file.)
 
 // The vanilla monsters' projectiles AD gives a speed by skill (AD_MonsterSpeed).
 float AD_PROJ_HKNIGHT = 1; // the hell knight's spikes (AD: 200 + 50 a skill level; Quake: 300)

@@ -285,6 +285,26 @@ void(float request, entity p) AD_RulesTest =
         localcmd(sprintf("vr_climb_try %g %g %g main\n", mid_x, mid_y, first.absmax_z + 64));
         return;
     }
+    if(request == 26)
+    {
+        // Spawnflags: the map's ruleset; a stand-in for one of our monsters with AD's 64|128|32, one of our items with
+        // AD's 16|64, one of AD's artifacts with 16: whose meaning each reads.
+        entity mon = spawn();
+        mon.spawnflags = 64 | 128 | 32;
+        entity item = spawn();
+        item.spawnflags = 16 | 64;
+        entity art = spawn();
+        art.spawnflags = 16;
+        art.ad_classtype = ad_CT_ARTJUMPBOOTS;
+        bprint(sprintf("adrules: spawnflags map %g other %g; ours delayed %g angry %g nofx %g; item respawn %g startoff %g;",
+            VR_SF_MapRuleset(), VR_OtherFlags(), VR_SF_Has(mon, VR_SF_MON_DELAYED), VR_SF_Has(mon, VR_SF_MON_ANGRY),
+            VR_SF_Has(mon, VR_SF_MON_NOSPAWNFX), VR_SF_Has(item, VR_SF_ITEM_RESPAWN), VR_SF_Has(item, VR_SF_STARTOFF)));
+        bprint(sprintf(" AD's artifact %g respawn %g\n", VR_SF_Ruleset(art), VR_SF_Has(art, VR_SF_ITEM_RESPAWN)));
+        remove(mon);
+        remove(item);
+        remove(art);
+        return;
+    }
     if(request == 25)
     {
         bprint(sprintf("adrules: player at %v onground %g velocity %v hands %v %v\n", p.origin,
