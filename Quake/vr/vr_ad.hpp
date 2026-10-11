@@ -19,6 +19,10 @@ inline constexpr int campaignIndex = 6;
 // too (id1's always; Hipnotic's and Rogue's while that pack is installed), AD's progs and its own quake.rc.
 [[nodiscard]] bool skipInFolder(const char* filename);
 
+// The same while AD is not the active campaign (its folder mounted under the active one's, decision 16): only its
+// models, sounds, HUD icons and brush models, never its maps, skies, textures, effect files or menu art.
+[[nodiscard]] bool skipOutside(const char* filename);
+
 // SV_SpawnServer, before the map's entities spawn (VR_OnSpawnServerBeforeLoad): vr_ad_rules for this map.
 void beforeLoad();
 

@@ -1482,6 +1482,8 @@ void() PlayerJump =
         return;
     }
 
+    if(AD_JumpBoots()) return; // AD support: AD's Jump Boots' jumps, in the air too (vr_ad_items.qc)
+
     if(!(self.flags & FL_ONGROUND))
         return;
 
@@ -1571,7 +1573,8 @@ void() WaterMove =
 
     if(self.watertype == CONTENT_LAVA)
     {    // do damage
-        if(self.dmgtime < time && self.lavasuit_finished <= time) // (the lava suit: none, MG3)
+        if(self.dmgtime < time && self.lavasuit_finished <= time && // (the lava suit: none, MG3)
+           !AD_LavaShield(self)) // AD support: nor with AD's Lava Shield (vr_ad_items.qc)
         {
             if(self.radsuit_finished > time)
                 self.dmgtime = time + 1;

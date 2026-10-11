@@ -410,3 +410,6 @@ ad/ad_mon_bossjudicator.qc
 ad/ad_mon_bossnour.qc
 // ad_import.py: end
 vr_ad_bridge.qc
+vr_ad_items.qc
+vr_ad_player.qc
+vr_ad_test.qc

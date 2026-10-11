@@ -147,8 +147,17 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 // arrays, fall and gravity rules, the particle chain), with the world as self.
 void() AD_WorldSpawn =
 {
+    vr_ad_data = (VR_Pack_AD() && cvar("vr_ad_mounted") != 0);
+    if(vr_ad_data)
+    {
+        precache_sound("vr/torch_light.wav"); // (AD's burning lights our fire: vr_ad_player.qc)
+    }
     if(!AD_Rules())
     {
+        if(vr_ad_data)
+        {
+            AD_WorldDefaults(); // (outside AD maps: AD's defaults for its artifacts, pickups and debuffs; vr_ad_items.qc)
+        }
         return;
     }
     ad_worldspawn();
@@ -159,6 +168,11 @@ void() AD_WorldSpawn =
 void(float request) AD_Test =
 {
     entity p = find(world, classname, "player");
+    if(request >= 10)
+    {
+        AD_RulesTest(request, p); // (the follow-ups' tests, any map: vr_ad_player.qc)
+        return;
+    }
     if(request == 1)
     {
         entity cam = find(world, classname, "misc_camera");
@@ -231,11 +245,19 @@ void(float request) AD_Test =
 // StartFrame, in an AD map: AD's (skill, frame count); the test aid.
 void() AD_Frame =
 {
-    if(!AD_Rules())
+    if(!vr_ad_data)
     {
         return;
     }
-    ad_StartFrame();
+    if(AD_Rules())
+    {
+        ad_StartFrame();
+    }
+    else
+    {
+        ad_skill = skill; // (AD's entities outside AD maps: vr_ad_items.qc)
+        ad_framecount = ad_framecount + 1;
+    }
     float request = cvar("vr_ad_test");
     if(request)
     {
@@ -336,8 +358,14 @@ void() AD_PlayerPreThink =
 // the liquids' alpha), the spawn point's targets, the debuffs (poison, burning, bleeding).
 void() AD_PlayerPostThink =
 {
+    if(!vr_ad_data)
+    {
+        return;
+    }
+    AD_ArtifactsTick(); // (any map: AD's artifacts' time, the HUD's readings; vr_ad_items.qc)
     if(!AD_Rules())
     {
+        AD_DebuffsTick(); // (any map: AD's poison and bleeding; vr_ad_player.qc)
         return;
     }
     if(!vr_ad_firstframe)
@@ -361,7 +389,7 @@ void() AD_PlayerPostThink =
         self.ad_target2 = "";
         ad_trigger_strs(fire, self);
     }
-    ad_ClientDeBuff();
+    AD_DebuffsTick();
 };
 
 // PlayerPostThink's landing, in an AD map: AD's fall rules (decision 15): the map's fall speeds and damage

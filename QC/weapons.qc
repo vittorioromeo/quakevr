@@ -2061,6 +2061,7 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
     {
         spread *= cvar_hget(cvarh_vr_2h_spread_reduction);
     }
+    spread = AD_SharpSpread(spread); // AD support: AD's Sharp Shooter (vr_ad_items.qc)
 
     // From behind the muzzle, along the shot's line (VR_ShotBackPoint): what the muzzle is inside is hit too.
     vector muzzle = VRGetMuzzlePos(xHand);
@@ -3182,6 +3183,7 @@ void() spike_touch =
             spawn_touchblood (adjDmg);
             bleed = TRUE;
         }
+        AD_NailPierce(other); // AD support: AD's Nail Piercer: the nail on through the body (vr_ad_items.qc)
     }
 
     if(!bleed)
@@ -3240,6 +3242,7 @@ void() superspike_touch =
         {
             spawn_touchblood (adjDmg);
         }
+        AD_NailPierce(other); // AD support: AD's Nail Piercer (vr_ad_items.qc)
     }
 
     if(!bleed)

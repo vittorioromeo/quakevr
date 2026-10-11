@@ -1384,6 +1384,13 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         damage = RuneApplyBlack(damage, attacker);
     }
 
+    // AD support: AD's Blast Belt takes a blast's damage (its push given), halves the rest with Quad (vr_ad_items.qc)
+    damage = AD_ArtifactDamage(targ, inflictor, damage);
+    if(damage < 0)
+    {
+        return FALSE;
+    }
+
     //MED
     //check for empathy shields
     if(VR_ItemUtil_EntHasItem(targ, IID_EMPATHY_SHIELDS) &&

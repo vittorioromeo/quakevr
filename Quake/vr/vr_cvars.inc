@@ -3160,6 +3160,7 @@ QVR_CVAR(vr_mg1_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg3_status, "0", CVAR_ROM)
 QVR_CVAR(vr_ad_status, "0", CVAR_ROM) // Arcane Dimensions' data (campaign 6; vr_gamedir.cpp, vr_ad.cpp): 0 missing, 1 1.80 patch 1 (the latest), 2 incomplete/corrupt, 3 another version (refused)
 QVR_CVAR(vr_ad_rules, "0", CVAR_ROM)  // the map now running plays by AD's rules (vr_ad.cpp: the AD campaign, or AD's signals in its entities while AD's data is mounted); QC AD_Rules()
+QVR_CVAR(vr_ad_everywhere, "1", CVAR_ARCHIVE) // AD's new artifacts, custom pickups (keys, vials, custom items) and ladders spawn in any map while AD's data is installed (vr_ad.cpp everywhereClasses; decision 16): 0 only in AD maps
 QVR_CVAR(vr_ad_mounted, "0", CVAR_ROM) // AD's data is on the search path for the map now running (the AD campaign; vr_ad.cpp): AD's models and sounds can be used (vr_ad_projectiles 2)
 
 // Arcane Dimensions' projectile weapons (QC vr_ad_bridge.qc; VR Settings > Arcane Dimensions).

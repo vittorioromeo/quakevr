@@ -971,6 +971,12 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
             COM_AddGameDirectory(pack);
         }
     }
+    // AD support: Arcane Dimensions' own models, sounds and HUD icons in every campaign while its latest release is
+    // installed (decision 16: its artifacts, pickups and ladders anywhere; vr_ad.cpp), under the active campaign's
+    // folder, whose files win (VR_SkipSearchPath: qvr::ad::skipOutside).
+    if(activeCampaign != qvr::ad::campaignIndex && campaigns[qvr::ad::campaignIndex].status == 1 &&
+        !gameDirAlreadyAdded(campaigns[qvr::ad::campaignIndex].folder))
+    { COM_AddGameDirectory(campaigns[qvr::ad::campaignIndex].folder); }
     if(activeCampaign >= 3 && campaigns[activeCampaign].status == 1 &&
         !gameDirAlreadyAdded(campaigns[activeCampaign].folder))
     { COM_AddGameDirectory(campaigns[activeCampaign].folder); }
@@ -1039,6 +1045,7 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
     if(i < 0) { return 0; }
     if(!strcmp(filename, "progs.dat") && i >= 3) { return 1; }
     if(i == qvr::ad::campaignIndex && qvr::ad::skipInFolder(filename)) { return 1; } // AD support: only AD's own files
+    if(i == qvr::ad::campaignIndex && i != activeCampaign) { return qvr::ad::skipOutside(filename) ? 1 : 0; } // (AD support: and in another campaign, only its models, sounds, icons)
     if(i >= 3) { return i != activeCampaign; }
     if(start) { return i != activeCampaign; }
     // Isolate campaign maps and sidecars, while retaining optional pack brush models
@@ -1387,7 +1394,8 @@ extern "C" int VR_ShouldMountCampaignDirectory(const char* dir)
     // Native explicit -game/game pack tokens are represented by context only. The
     // VR hook mounts the selected pack after optional packs, before VR overrides.
     return !nativeCampaignPaths || i < 3 ||
-        (addingMissionPacks && i == activeCampaign && campaigns[i].status == 1);
+        (addingMissionPacks && i == activeCampaign && campaigns[i].status == 1) ||
+        (addingMissionPacks && i == qvr::ad::campaignIndex && campaigns[i].status == 1); // (AD support: in every campaign)
 }
 
 // Hub portals use changelevel, which preserves spawn parms. Stock selections need

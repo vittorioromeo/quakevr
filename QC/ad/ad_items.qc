@@ -2973,7 +2973,7 @@ void() ad_artifact_touch =
 	stuffcmd (other, "bf\n");
 
 	// Update player item flags (regular + mod)
-	other.items = other.items | self.items;
+	other.items = other.items | VR_AD_ArtifactItems(self);
 	other.ad_moditems = other.ad_moditems | self.ad_moditems;
 
 	ad_activator = other;

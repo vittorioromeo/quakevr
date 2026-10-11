@@ -118,6 +118,14 @@ PATCHES = [
     ("ai_projectiles.qc", "\t\telse self.dmg = DAMAGE_PSHELL;",
      "\t\telse self.dmg = DAMAGE_PSHELL * VR_AD_PelletDamage(self);",
      1, B + ": the pellet damage settings (vr_ad_pellet_damage, Weapon Damage)"),
+    # The follow-ups of decisions 16-30 (ARCANE_DIMENSIONS.md section 16; QC/vr_ad_items.qc, vr_ad_player.qc).
+    ("items.qc", "\t// Update player item flags (regular + mod)\n\tother.items = other.items | self.items;\n",
+     "\t// Update player item flags (regular + mod)\n\tother.items = other.items | VR_AD_ArtifactItems(self);\n",
+     1, B + ": the Sharp Shooter's and Nail Piercer's Quad bit (AD's shared HUD icon) is Quake VR's Quad itself (its "
+     "tint, icon, glow): not given"),
+    ("client_debuff.qc", "void(entity targ) BurnDeBuff =\n{\n\tlocal float debuffqty;\n",
+     "void(entity targ) BurnDeBuff =\n{\n\tlocal float debuffqty;\n\tif (VR_AD_BurnDebuff(targ)) return;\n",
+     1, B + ": AD's burning is Quake VR's (decision 24): its fire on the player, AD's time and damage"),
 ]
 # (Mechanical, not patches: a global array's length named by a constant, `float a[MAX];`, is written as the number,
 # as our fteqcc flags (autoproto) take no named constant there.)
