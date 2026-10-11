@@ -1746,7 +1746,7 @@ VR Settings > Combat > Arcane Dimensions.
 
 ## Arcane Dimensions P2: AD's monsters get Quake VR's treatment (2026-10-11, worktree `admon`, branch `feature/ad-monsters`)
 
-All of it is in ARCANE_DIMENSIONS.md section 16: AD's damage and death code now calls Quake VR's hooks (beheading,
+All of it is in ARCANE_DIMENSIONS.md section 17: AD's damage and death code now calls Quake VR's hooks (beheading,
 limbs, knockdowns, corpses, gore, highlights; five importer patches), and AD's monster models have ragdoll rigs, head
 zones and get-ups in usage order (31 seed tables over 41 models: every AD monster placed in AD's maps but the ones that
 burst or shrink away at death, the eidolon and the fishing ogres). Headless, per monster: knocked down and up, killed

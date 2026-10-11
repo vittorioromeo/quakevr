@@ -1,5 +1,5 @@
 // Arcane Dimensions' monsters' tests (vr_ad_mtest N, developer 1; Debug > Tests > Arcane Dimensions Monsters):
-// docs/vr-port/ARCANE_DIMENSIONS.md section 16. One "admtest:" line each. With the debug spawner (vr_test_spawn 200..,
+// docs/vr-port/ARCANE_DIMENSIONS.md section 17. One "admtest:" line each. With the debug spawner (vr_test_spawn 200..,
 // impulse 241: vr_ad_monsters.qc VR_AD_DispenserSpawn) and the other tests' commands (vr_knockdown_test, vr_decap_test,
 // vr_limbs_test, vr_ragdoll_list) the scripts check each model: Misc/quakevr/ad_monsters_test.sh.
 //   1 the map's AD monsters by class: how many, registered (vr_ad_mon), rigged (canragdoll), alive

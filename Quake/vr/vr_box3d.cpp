@@ -10524,7 +10524,18 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
         return nullptr;
     }
     const VmScope vm;
-    const func_t fn = qvr::progs::findFunction(classname);
+    func_t fn = qvr::progs::findFunction(classname);
+    // AD support: AD's version where it owns the classname in an AD map, AD's artifacts, pickups and ladders in any
+    // map (vr_ad.cpp), as ED_LoadFromFile
+    if(VR_AD_RulesOn())
+    {
+        const func_t ad = qvr::progs::findFunction(va("ad_%s", classname));
+        fn = ad && VR_AD_OwnsClassname(classname, fn != 0) ? ad : fn;
+    }
+    else if(!fn && VR_AD_SpawnsOutside(classname))
+    {
+        fn = qvr::progs::findFunction(va("ad_%s", classname));
+    }
     if(!fn)
     {
         Con_Printf("no spawn function %s\n", classname);

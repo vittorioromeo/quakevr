@@ -62,7 +62,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float checka
     {
         targ.armortype = 0;
     }
+    float oldOurs = vr_ad_ourdamage;
+    vr_ad_ourdamage = TRUE; // (AD's code applied its ammo resistance already: AD_Resist)
     T_Damage(targ, inflictor, attacker, damage);
+    vr_ad_ourdamage = oldOurs;
     if(checkarmor == ad_NOARMOR && targ.armortype == 0)
     {
         targ.armortype = type;
@@ -149,8 +152,18 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 // arrays, fall and gravity rules, the particle chain), with the world as self.
 void() AD_WorldSpawn =
 {
+    vr_ad_data = (VR_Pack_AD() && cvar("vr_ad_mounted") != 0);
+    if(vr_ad_data)
+    {
+        precache_sound("vr/torch_light.wav"); // (AD's burning lights our fire: vr_ad_player.qc)
+        AD_EvilStart(); // (AD's Evil skill: the choice for this level; AD's flag agreeing; vr_ad_player.qc)
+    }
     if(!AD_Rules())
     {
+        if(vr_ad_data)
+        {
+            AD_WorldDefaults(); // (outside AD maps: AD's defaults for its artifacts, pickups and debuffs; vr_ad_items.qc)
+        }
         return;
     }
     ad_worldspawn();
@@ -161,6 +174,11 @@ void() AD_WorldSpawn =
 void(float request) AD_Test =
 {
     entity p = find(world, classname, "player");
+    if(request >= 10)
+    {
+        AD_RulesTest(request, p); // (the follow-ups' tests, any map: vr_ad_player.qc)
+        return;
+    }
     if(request == 1)
     {
         entity cam = find(world, classname, "misc_camera");
@@ -233,11 +251,20 @@ void(float request) AD_Test =
 // StartFrame, in an AD map: AD's (skill, frame count); the test aid.
 void() AD_Frame =
 {
-    if(!AD_Rules())
+    if(!vr_ad_data)
     {
         return;
     }
-    ad_StartFrame();
+    if(AD_Rules())
+    {
+        ad_StartFrame();
+    }
+    else
+    {
+        ad_skill = skill; // (AD's entities outside AD maps: vr_ad_items.qc)
+        ad_framecount = ad_framecount + 1;
+    }
+    AD_EvilFrame(); // (AD's Evil skill: AD's skill 4 for its code; a loaded game's choice; vr_ad_player.qc)
     float request = cvar("vr_ad_test");
     if(request)
     {
@@ -290,10 +317,11 @@ void() AD_PlayerSpawned =
     self.ad_target2 = vr_ad_spot ? vr_ad_spot.target : "";
 };
 
-// PlayerPreThink, in an AD map: AD's ladders (trigger_ladder: the jump key climbs, at the ladder's speed).
+// PlayerPreThink, in any map while AD's data is there (its ladders spawn anywhere): AD's ladders (trigger_ladder: the
+// jump key climbs, at the ladder's speed; the hands climb them as Quake VR's ledges too, vr_ad_player.qc).
 void() AD_PlayerPreThink =
 {
-    if(!AD_Rules() || self.deadflag)
+    if(!vr_ad_data || self.deadflag)
     {
         return;
     }
@@ -338,8 +366,14 @@ void() AD_PlayerPreThink =
 // the liquids' alpha), the spawn point's targets, the debuffs (poison, burning, bleeding).
 void() AD_PlayerPostThink =
 {
+    if(!vr_ad_data)
+    {
+        return;
+    }
+    AD_ArtifactsTick(); // (any map: AD's artifacts' time, the HUD's readings; vr_ad_items.qc)
     if(!AD_Rules())
     {
+        AD_DebuffsTick(); // (any map: AD's poison and bleeding; vr_ad_player.qc)
         return;
     }
     if(!vr_ad_firstframe)
@@ -363,7 +397,7 @@ void() AD_PlayerPostThink =
         self.ad_target2 = "";
         ad_trigger_strs(fire, self);
     }
-    ad_ClientDeBuff();
+    AD_DebuffsTick();
 };
 
 // PlayerPostThink's landing, in an AD map: AD's fall rules (decision 15): the map's fall speeds and damage
@@ -426,7 +460,7 @@ void() AD_ItemAppear =
 // TRUE: it waits.
 float() AD_ItemStartOff =
 {
-    if(!AD_Rules() || !(self.spawnflags & ad_ENT_STARTOFF) || self.targetname == "" || self.model == "")
+    if(!VR_SF_Has(self, VR_SF_STARTOFF) || self.targetname == "" || self.model == "")
     {
         return FALSE;
     }
@@ -454,14 +488,14 @@ void() AD_ItemRespawnUse =
 // or when triggered (respawn_trig), at most respawn_count times (0: always).
 void(entity xItem) AD_ItemTaken =
 {
-    if(!AD_Rules() || !(xItem.spawnflags & ad_ITEM_RESPAWN) || xItem.model != string_null)
+    if(!VR_SF_Has(xItem, VR_SF_ITEM_RESPAWN) || xItem.model != string_null)
     {
         return;
     }
     if(xItem.ad_respawn_count > 0)
     {
         xItem.ad_respawn_count = xItem.ad_respawn_count - 1;
-        if(xItem.ad_respawn_count == 0) xItem.spawnflags = xItem.spawnflags - ad_ITEM_RESPAWN;
+        if(xItem.ad_respawn_count == 0) xItem.spawnflags = xItem.spawnflags - VR_SF_Bit(VR_SF_AD, VR_SF_ITEM_RESPAWN);
     }
     if(xItem.ad_respawn_trig || xItem.ad_respawn_time < 0)
     {
@@ -565,7 +599,7 @@ void() AD_ChangelevelSpawn =
     }
     if(!self.map) self.map = mapname;
     if(mapname == "ad_tears") self.map = "start";
-    self.ad_estate = (self.spawnflags & 64) ? ad_ESTATE_OFF : ad_ESTATE_ON;
+    self.ad_estate = VR_SF_Has(self, VR_SF_STARTOFF) ? ad_ESTATE_OFF : ad_ESTATE_ON;
     if(self.targetname != "") self.use = AD_ChangelevelUse;
 };
 
@@ -594,7 +628,7 @@ float() AD_ChangelevelTouch =
     ad_update_configflag(ad_SVR_SPAWN_BIT1, n & 1 ? TRUE : FALSE);
     ad_update_configflag(ad_SVR_SPAWN_BIT2, n & 2 ? TRUE : FALSE);
     ad_update_configflag(ad_SVR_SPAWN_BIT3, n & 4 ? TRUE : FALSE);
-    vr_ad_resetinv = (self.spawnflags & ad_TRIG_CMAPRESETINV) ? TRUE : FALSE;
+    vr_ad_resetinv = VR_SF_Has(self, VR_SF_EXIT_RESETINV);
     return TRUE;
 };
 
@@ -608,7 +642,7 @@ void() AD_MonsterRunStart =
     entity oldact = activator;
     activator = self.MG_monster_activator;
     self.MG_monster_start();
-    if(self.spawnflags & ad_MON_SPAWN_ANGRY) monster_use();
+    if(VR_SF_Has(self, VR_SF_MON_ANGRY)) monster_use();
     activator = oldact;
 };
 
@@ -643,7 +677,7 @@ void() AD_MonsterActivate =
     self.flags = self.flags | FL_MONSTER;
     self.MG_monster_activator = activator;
     spawn_tdeath(self.origin, self);
-    if(!(self.spawnflags & ad_MON_SPAWN_NOGFX)) spawn_tfog(self.origin);
+    if(!VR_SF_Has(self, VR_SF_MON_NOSPAWNFX)) spawn_tfog(self.origin);
     self.think = AD_MonsterRunStart;
     self.nextthink = time + 0.1;
 };
@@ -659,7 +693,7 @@ float(void() start) AD_MonsterPrepare =
     {
         total_monsters = total_monsters - 1;
     }
-    if(!(self.spawnflags & ad_MON_SPAWN_DELAY))
+    if(!VR_SF_Has(self, VR_SF_MON_DELAYED))
     {
         return FALSE;
     }
@@ -794,7 +828,7 @@ float(float bit) AD_HasUpgrade =
 // W_FireAxe's blow: the Shadow Axe's (AD's 35 for the axe's 20).
 float() AD_AxeScale =
 {
-    return AD_HasUpgrade(ad_IT_UPGRADE_AXE) ? ad_DAMAGE_PLAYAXE2 / ad_DAMAGE_PLAYAXE1 : 1;
+    return (AD_HasUpgrade(ad_IT_UPGRADE_AXE) || AD_Evil()) ? ad_DAMAGE_PLAYAXE2 / ad_DAMAGE_PLAYAXE1 : 1; // (Evil: AD's Shadow Axe in any map)
 };
 
 // W_FireSuperShotgun's pellets: the Widowmaker's 21 when a third shell is in the reserve (taken), else `pellets`.

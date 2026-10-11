@@ -1,4 +1,4 @@
-// Arcane Dimensions' monsters' ragdoll rigs (AD support; docs/vr-port/ARCANE_DIMENSIONS.md section 16): their seed
+// Arcane Dimensions' monsters' ragdoll rigs (AD support; docs/vr-port/ARCANE_DIMENSIONS.md section 17): their seed
 // tables, included twice by vr_ragdoll.cpp: with QVR_AD_RIG_SEEDS the seeds (inside its anonymous namespace, as its own
 // tables), without it their rows of seedTables[]. AD's models are read from AD's paks (progs/mon_*.mdl, model ids in
 // vr_ad_modelids.inc). Made as Quake VR's own (vr_ragdoll.cpp, "The seed tables"): RIG_PAK=<a pak of AD's monster
@@ -109,18 +109,18 @@ constexpr Seed adHogremacSeeds[] = {
 };
 
 // AD's spiders (progs/mon_spiderg.mdl: 346 vertices; whole pieces, 18 clusters, bones 3.2: its legs bend, each one
-// bone): its body (abdomen and all) the pelvis, the front and fangs the head; the legs' pivots at their roots, by hand.
+// bone): its body (abdomen, head and fangs: a head bone of its own flew apart, unstable) the pelvis; the legs' pivots
+// at their roots, by hand.
 constexpr Seed adSpiderSeeds[] = {
-    {"pelvis", -1, Joint::Root, {-16.1f, -0.1f, -14.1f}, {-16.1f, -0.1f, -14.1f}, {1.f, 0.f, -16.f}, 0.f, 0.f, 0.f, 0.f, {}},
-    {"head", 0, Joint::Ball, {5.3f, -0.1f, -15.4f}, {1.f, 0.f, -16.f}, {14.f, -0.8f, -10.7f}, 0.f, 30.f, 30.f, 0.f, {}},
-    {"leg_fl", 0, Joint::Ball, {8.4f, 7.1f, -14.f}, {5.f, 2.5f, -14.f}, {21.7f, 7.5f, -6.6f}, 0.f, 60.f, 25.f, 0.f, {}},
-    {"leg_ml", 0, Joint::Ball, {2.7f, 9.1f, -13.5f}, {2.f, 3.f, -14.f}, {11.6f, 16.1f, -6.7f}, 0.f, 60.f, 25.f, 0.f, {}},
-    {"leg_ml2", 0, Joint::Ball, {-1.8f, 9.9f, -13.9f}, {-1.f, 3.f, -14.f}, {3.5f, 18.8f, -8.5f}, 0.f, 60.f, 25.f, 0.f, {}},
-    {"leg_bl", 0, Joint::Ball, {-9.2f, 7.7f, -13.7f}, {-4.f, 2.5f, -14.f}, {-12.f, 16.5f, -9.3f}, 0.f, 60.f, 25.f, 0.f, {}},
-    {"leg_fr", 0, Joint::Ball, {6.1f, -6.9f, -13.4f}, {5.f, -2.5f, -14.f}, {16.4f, -12.f, -5.f}, 0.f, 60.f, 25.f, 0.f, {}},
-    {"leg_mr", 0, Joint::Ball, {1.8f, -9.2f, -13.5f}, {2.f, -3.f, -14.f}, {10.3f, -16.9f, -7.6f}, 0.f, 60.f, 25.f, 0.f, {}},
-    {"leg_mr2", 0, Joint::Ball, {-2.5f, -9.3f, -13.6f}, {-1.f, -3.f, -14.f}, {1.3f, -18.4f, -7.4f}, 0.f, 60.f, 25.f, 0.f, {}},
-    {"leg_br", 0, Joint::Ball, {-7.2f, -8.5f, -13.3f}, {-4.f, -2.5f, -14.f}, {-7.3f, -18.9f, -8.3f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"pelvis", -1, Joint::Root, {-5.1f, -0.1f, -14.8f}, {-5.1f, -0.1f, -14.8f}, {9.f, 0.f, -15.f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"leg_fl", 0, Joint::Ball, {8.4f, 7.1f, -14.f}, {5.f, 2.5f, -14.f}, {14.1f, 12.2f, -9.7f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_ml", 0, Joint::Ball, {2.7f, 9.1f, -13.5f}, {2.f, 3.f, -14.f}, {5.f, 16.f, -8.4f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_ml2", 0, Joint::Ball, {-1.8f, 9.9f, -13.9f}, {-1.f, 3.f, -14.f}, {-1.3f, 17.f, -9.3f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_bl", 0, Joint::Ball, {-9.2f, 7.7f, -13.7f}, {-4.f, 2.5f, -14.f}, {-17.6f, 10.9f, -10.7f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_fr", 0, Joint::Ball, {6.1f, -6.9f, -13.4f}, {5.f, -2.5f, -14.f}, {9.4f, -13.4f, -7.8f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_mr", 0, Joint::Ball, {1.8f, -9.2f, -13.5f}, {2.f, -3.f, -14.f}, {3.2f, -15.f, -8.5f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_mr2", 0, Joint::Ball, {-2.5f, -9.3f, -13.6f}, {-1.f, -3.f, -14.f}, {-3.1f, -16.3f, -8.8f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_br", 0, Joint::Ball, {-7.2f, -8.5f, -13.3f}, {-4.f, -2.5f, -14.f}, {-11.9f, -13.4f, -8.3f}, 0.f, 60.f, 25.f, 0.f, {}},
 };
 
 // AD's skull wizard (progs/mon_skullwiz.mdl: 632 vertices, its first frame its death's; 18 clusters, bones 1.74): a

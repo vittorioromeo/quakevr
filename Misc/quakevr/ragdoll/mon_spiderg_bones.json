@@ -1,6 +1,5 @@
 {"wholepieces": true,
- "bones": [["pelvis", -1, [0, 17, 8], "root"],
- ["head", 0, [13, "p11", "p12"], ["ball", 30, 30]],
+ "bones": [["pelvis", -1, [0, 17, 8, 13, "p11", "p12"], "root"],
  ["leg_fl", 0, [11, "p6"], ["ball", 60, 25], 0, "tip"],
  ["leg_ml", 0, [5, "p3"], ["ball", 60, 25], 0, "tip"],
  ["leg_ml2", 0, ["p4"], ["ball", 60, 25], 0, "tip"],

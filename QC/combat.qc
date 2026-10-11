@@ -1388,6 +1388,13 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         damage = RuneApplyBlack(damage, attacker);
     }
 
+    // AD support: AD's Blast Belt takes a blast's damage (its push given), halves the rest with Quad (vr_ad_items.qc)
+    damage = AD_ArtifactDamage(targ, inflictor, damage);
+    if(damage < 0)
+    {
+        return FALSE;
+    }
+
     //MED
     //check for empathy shields
     if(VR_ItemUtil_EntHasItem(targ, IID_EMPATHY_SHIELDS) &&
@@ -1647,6 +1654,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         return FALSE; // only a melee blow opens it (vr_mg3_weapons.qc)
     }
+    damage = AD_Resist(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's ammo resistance (vr_ad_player.qc)
     if(AD_Run(targ))
     {
         return AD_Damage(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's entities by AD's T_Damage (vr_ad_bridge.qc)

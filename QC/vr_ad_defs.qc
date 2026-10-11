@@ -16,13 +16,7 @@ float() AD_Rules =
     return cvar("vr_ad_rules") != 0;
 };
 
-// The map's spawnflags mean another ruleset's flags (MG's: Dimension of the Past, of the Machine, Dawn of the Machine;
-// or AD's): the id/Hipnotic/Rogue/Honey meanings Quake VR's monsters and entities give them are off (statues, trigger
-// spawns, silent wake-ups...). AD support: AD's flags 2/4/8/16... are AD's own in AD maps (decision 19).
-float() VR_OtherFlags =
-{
-    return MG_WorldCampaign() || AD_Rules();
-};
+// (VR_OtherFlags, whose meaning the map's spawnflags have: vr_spawnflags.qc, after this file.)
 
 // The vanilla monsters' projectiles AD gives a speed by skill (AD_MonsterSpeed).
 float AD_PROJ_HKNIGHT = 1; // the hell knight's spikes (AD: 200 + 50 a skill level; Quake: 300)
@@ -64,6 +58,41 @@ float(entity p) AD_MegaRot;          // health_touch: AD's megahealth rot in an 
 void(entity xItem) AD_ItemTaken;     // VR_PickupObj_Taken: AD's item respawn in an AD map
 float() AD_ItemStartOff;             // StartItem: AD's STARTOFF item waits for its trigger; TRUE: it waits
 
+// AD's data is there for this map (AD_WorldSpawn: VR_Pack_AD and its folder mounted): AD's artifacts, pickups and
+// debuffs may be met in any map (section 16).
+nosave float vr_ad_data;
+
+// The follow-ups of decisions 16-30 (section 16; vr_ad_items.qc, vr_ad_player.qc): each does nothing without AD's
+// data or the artifact, debuff or rule it is for.
+vector(vector spread) AD_SharpSpread;  // FireBullets: the Sharp Shooter's spread
+void(entity xBody) AD_NailPierce;      // spike_touch, superspike_touch: the Nail Piercer's nail on through the body
+float(entity targ, entity inflictor, float damage) AD_ArtifactDamage; // T_DamageDeal: the Blast Belt (-1: none taken)
+float(entity p) AD_LavaShield;         // WaterMove: TRUE: AD's Lava Shield keeps the lava's damage off
+float(entity p) AD_LavaShieldOn;       // VR_Burn_LavaPlayers: the same, no reminder
+float() AD_JumpBoots;                  // PlayerJump: AD's Jump Boots' jumps; TRUE: taken
+void() AD_WorldDefaults;               // AD_WorldSpawn, outside AD maps: AD's defaults for its entities and debuffs
+void() AD_ArtifactsTick;               // AD_PlayerPostThink: the artifacts' time and the HUD's readings
+void() AD_DebuffsTick;                 // AD_PlayerPostThink: AD's debuffs (poison, bleeding; burning is ours)
+void(float request, entity p) AD_RulesTest; // vr_ad_test 10 and up (AD_Test): the follow-ups' tests
+
+// AD's ammo resistance (decision 18; vr_ad_player.qc AD_Resist): the kind of ammunition the damage now dealt is, where
+// the inflictor does not tell (VR_LightningHit: cells); 0 worked out from the inflictor and the hit kind.
+float AD_AMMO_SHELLS = 1;
+float AD_AMMO_NAILS = 2;
+float AD_AMMO_ROCKETS = 3;
+float AD_AMMO_CELLS = 4;
+float vr_ad_ammo;
+float vr_ad_ourdamage; // AD's code deals this damage to one of ours (VR_AD_DamageOurs): AD resisted it already
+float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) AD_Resist; // T_DamageImpl
+
+// AD's Evil skill (decision 30; vr_ad_player.qc): Nightmare plus vr_ad_evil, while AD's data is there, in any map.
+float vr_ad_evil_on;   // this game is Evil (saved: a loaded game's choice sets vr_ad_evil again)
+float() AD_Evil;       // VR_BaseHealth, VR_MegaHealthCap, AD_AxeScale: Evil plays now
+void(float s) VR_AD_SetSkill; // AD's skill choices (reviewed patches): skill 4 is Nightmare plus vr_ad_evil
+void() AD_EvilStart;           // AD_WorldSpawn
+void() AD_EvilFrame;           // AD_Frame
+void() AD_LoadedGame;          // OnLoadGame: the loaded game's choice
+
 // AD's side: the reviewed patches of Misc/quakevr/ad_import.py call these (never renamed).
 float() VR_AD_Extensions;
 void(float a) VR_AD_WaterAlpha;
@@ -73,3 +102,9 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit;
 float() VR_AD_PathCornerTouch;
 float(entity pellet) VR_AD_PelletDamage;
 float() VR_AD_WeaponTouch;
+float(entity xItem) VR_AD_ArtifactItems;
+.float vr_climb_ladder; // a ladder's volume, climbed by hand (the engine's vr_climb.cpp ladderHold; VR_AD_LadderSpawned)
+void() VR_AD_LadderSpawned;
+vector(entity e) VR_AD_ViewOfs; // AD's sight (reviewed patches): a crouched VR player's real eyes (ai.qc VR_SightOfs)
+float(entity targ) VR_AD_BurnDebuff;
+float(entity xFire, entity xVictim) AD_BurnHurt; // VR_Burn_Think: an AD debuff's fire's damage (TRUE: dealt, ours not)

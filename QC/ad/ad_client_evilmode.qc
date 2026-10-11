@@ -8,7 +8,7 @@
 
 void() ad_Client_SetEvilFlag = { cvar_set("scratch4", "1"); };
 void() ad_Client_ClearEvilFlag = { cvar_set("scratch4", "0"); };
-void() ad_Client_SetEvilSkill = { cvar_set("skill", ftos(ad_SKILL_EVIL)); ad_skill = ad_SKILL_EVIL; };
+void() ad_Client_SetEvilSkill = { VR_AD_SetSkill(ad_SKILL_EVIL); ad_skill = ad_SKILL_EVIL; };
 
 //----------------------------------------------------------------------
 // The engine constantly changes skill to 0-3 only

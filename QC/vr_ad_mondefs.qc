@@ -1,4 +1,4 @@
-// Arcane Dimensions' monsters with Quake VR's treatment (docs/vr-port/ARCANE_DIMENSIONS.md, section 16; decisions 1, 13
+// Arcane Dimensions' monsters with Quake VR's treatment (docs/vr-port/ARCANE_DIMENSIONS.md, section 17; decisions 1, 13
 // and 14): the fields Quake VR's files read and the functions they and AD's patched code call, declared early. Defined in
 // vr_ad_monsters.qc, after AD's files (they use AD's names). Every call from a shared file carries an "AD support" note.
 //

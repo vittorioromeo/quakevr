@@ -1088,7 +1088,7 @@ void() ad_trigger_setskill_fire =
 
 	// There is no client check for the skill level change so that
 	// the use functionality can work from trigger chains
-	cvar_set ("skill", self.message);
+	VR_AD_SetSkill(stof(self.message));
 
 	// Is the trigger repeatable?
 	if (self.wait > 0) {
@@ -1588,6 +1588,7 @@ void() ad_trigger_ladder =
 	// Setup Entity State functionality
 	self.ad_estate_fire = ad_trigger_ladder_fire;
 	ad_trigger_bmodel_setup();
+	VR_AD_LadderSpawned();
 };
 
 //======================================================================

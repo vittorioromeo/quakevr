@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes the generated parts of Arcane Dimensions' monsters' Quake VR support (ARCANE_DIMENSIONS.md section 16) from
+"""Writes the generated parts of Arcane Dimensions' monsters' Quake VR support (ARCANE_DIMENSIONS.md section 17) from
 one table: the debug spawner's AD monsters (QC/vr_ad_monsters.qc, between its "ad_monsters_gen.py" markers), the Debug
 menu's spawns (Quake/vr/vr_menu_ad_monsters.inc, between its markers).
     python Misc/quakevr/ad_monsters_gen.py

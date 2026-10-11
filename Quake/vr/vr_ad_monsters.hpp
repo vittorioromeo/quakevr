@@ -1,7 +1,7 @@
 #pragma once
 
 // vr_ad_monsters.hpp -- Arcane Dimensions' monsters with Quake VR's treatment, the engine's side (docs/vr-port/
-// ARCANE_DIMENSIONS.md, section 16; QC vr_ad_monsters.qc): their ragdoll rigs (vr_ad_rigs.inc, read by vr_ragdoll.cpp's
+// ARCANE_DIMENSIONS.md, section 17; QC vr_ad_monsters.qc): their ragdoll rigs (vr_ad_rigs.inc, read by vr_ragdoll.cpp's
 // seed tables) and the Quake VR monster each one is tuned as (its ragdoll settings, its hull width, armour's sinking).
 // The engine's files call it at the few places marked "AD support".
 

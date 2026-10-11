@@ -1,6 +1,6 @@
 #!/bin/bash
 # ad_monsters_test.sh <agent> [choice ...] -- Arcane Dimensions' monsters with Quake VR's treatment (ARCANE_DIMENSIONS.md
-# section 16; QC vr_ad_monsters.qc, vr_ad_monsters_test.qc): for each AD monster (the debug spawner's choice, 200..), in
+# section 17; QC vr_ad_monsters.qc, vr_ad_monsters_test.qc): for each AD monster (the debug spawner's choice, 200..), in
 # an AD map (MAP, default start: the hub, room ahead) through the AD campaign, headless:
 #   spawn    one ahead: its data (vr_ad_mtest 2: registered, head zone, head gib, corpse, knockdown, rigged)
 #   down     knocked down (vr_knockdown_test 0: a ragdoll), hit there (2: still down), got up (1: standing, solid 3)

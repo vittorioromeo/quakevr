@@ -118,8 +118,36 @@ PATCHES = [
     ("ai_projectiles.qc", "\t\telse self.dmg = DAMAGE_PSHELL;",
      "\t\telse self.dmg = DAMAGE_PSHELL * VR_AD_PelletDamage(self);",
      1, B + ": the pellet damage settings (vr_ad_pellet_damage, Weapon Damage)"),
+    # The follow-ups of decisions 16-30 (ARCANE_DIMENSIONS.md section 16; QC/vr_ad_items.qc, vr_ad_player.qc).
+    ("items.qc", "\t// Update player item flags (regular + mod)\n\tother.items = other.items | self.items;\n",
+     "\t// Update player item flags (regular + mod)\n\tother.items = other.items | VR_AD_ArtifactItems(self);\n",
+     1, B + ": the Sharp Shooter's and Nail Piercer's Quad bit (AD's shared HUD icon) is Quake VR's Quad itself (its "
+     "tint, icon, glow): not given"),
+    ("client_debuff.qc", "void(entity targ) BurnDeBuff =\n{\n\tlocal float debuffqty;\n",
+     "void(entity targ) BurnDeBuff =\n{\n\tlocal float debuffqty;\n\tif (VR_AD_BurnDebuff(targ)) return;\n",
+     1, B + ": AD's burning is Quake VR's (decision 24): its fire on the player, AD's time and damage"),
+    # AD's skill 4 (Evil) is Quake VR's Nightmare plus vr_ad_evil (decision 30): the engine and Quake VR's monsters know
+    # skills 0-3 only. Every place AD sets the skill cvar.
+    ("func.qc", "\t\tcvar_set (\"skill\", ftos(self.style));\n", "\t\tVR_AD_SetSkill(self.style);\n",
+     1, B + ": the hub's skill choice; Evil as Nightmare plus vr_ad_evil"),
+    ("triggers.qc", "\tcvar_set (\"skill\", self.message);\n", "\tVR_AD_SetSkill(stof(self.message));\n",
+     1, B + ": trigger_setskill; Evil as Nightmare plus vr_ad_evil"),
+    ("settings.qc", "if (cvar(\"scratch4\") > 0) cvar_set(\"skill\", ftos(SKILL_EVIL));",
+     "if (cvar(\"scratch4\") > 0) VR_AD_SetSkill(SKILL_EVIL);",
+     1, B + ": AD's Evil flag restored; Evil as Nightmare plus vr_ad_evil"),
+    ("triggers.qc", "\tself.estate_fire = trigger_ladder_fire;\n\ttrigger_bmodel_setup();\n};",
+     "\tself.estate_fire = trigger_ladder_fire;\n\ttrigger_bmodel_setup();\n\tVR_AD_LadderSpawned();\n};",
+     1, B + ": the ladder's volume climbed by hand (Quake VR's climbing, decision 26)"),
+    # Crouching (decision 20): AD's sight looks for Quake VR's crouched player at his real eyes (VR_SightOfs).
+    ("ai_subs.qc", "spot2 = targ.origin + targ.view_ofs;", "spot2 = targ.origin + VR_AD_ViewOfs(targ);",
+     5, B + ": a crouched VR player seen at his real eyes (vr_crouch_sight)"),
+    ("ai_checkattack.qc", "self.enemy.view_ofs", "VR_AD_ViewOfs(self.enemy)",
+     3, B + ": a crouched VR player seen at his real eyes (vr_crouch_sight)"),
+    ("client_evilmode.qc", "void() Client_SetEvilSkill = { cvar_set(\"skill\", ftos(SKILL_EVIL)); skill = SKILL_EVIL; };",
+     "void() Client_SetEvilSkill = { VR_AD_SetSkill(SKILL_EVIL); skill = SKILL_EVIL; };",
+     1, B + ": Evil as Nightmare plus vr_ad_evil"),
 ]
-# The monsters' hooks (P2, ARCANE_DIMENSIONS.md section 16): AD's monsters get Quake VR's treatment (QC/vr_ad_monsters.qc;
+# The monsters' hooks (P2, ARCANE_DIMENSIONS.md section 17): AD's monsters get Quake VR's treatment (QC/vr_ad_monsters.qc;
 # their declarations in QC/vr_ad_mondefs.qc). Applied after the bridge's (the T_Damage line is the bridge's patched one).
 MON_PATCHES = [
     ("monsters.qc", "void() monster_start =\n{\n", "void() monster_start =\n{\n\tVR_AD_MonsterSetup();\n",

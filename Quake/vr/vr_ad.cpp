@@ -57,6 +57,16 @@ constexpr const char* notSignals[] = {
 };
 constexpr const char* notSignalPrefixes[] = {"func_detail", "misc_particle"};
 
+// The AD-only classnames that spawn in any map while AD's data is mounted, outside AD's rules too (decisions 16 and 26,
+// ARCANE_DIMENSIONS.md section 16): the new artifacts, the custom pickups that override none of Quake VR's pickups or
+// rules, the ladders. AD's others (its monsters, its world logic, its backpacks: Quake's backpack's rules) only in AD
+// maps.
+constexpr const char* everywhereClasses[] = {
+    "item_artifact_airtank", "item_artifact_blastbelt", "item_artifact_cross", "item_artifact_jumpboots",
+    "item_artifact_lavashield", "item_artifact_nail_piercer", "item_artifact_sharp_shooter", "item_artifact_tomeofpower",
+    "item_artifact_trinity", "item_custom", "item_healthgem", "item_healthvial", "item_keyx", "trigger_ladder",
+};
+
 // AD's worldspawn keys (section 6): each one present is a signal.
 constexpr const char* worldSignals[] = {
     "bodyfadeaway", "bodyflrcheck", "fog_dpextra", "give_weapons", "knight_defskin", "no_bigprojectiles",
@@ -73,6 +83,9 @@ struct MapState
     char firstSignals[256] = {};
     int adSpawns = 0;   // entities spawned with AD's function
     int oursShared = 0; // shared classnames whose Quake VR version spawned
+    bool mounted = false;
+    bool outsideReady = false; // outside AD's rules: AD's reduced world setup done (QC VR_AD_WorldOnDemand)
+    int outsideSpawns = 0;     // AD's entities spawned outside AD's rules (everywhereClasses)
 } mapState;
 
 int versionWarned = 0; // (said once per start)
@@ -152,8 +165,8 @@ void statusCommand()
     Con_Printf("AD rules on this map: %s (%s; %d signals%s%s)\n", mapState.rules ? "on" : "off",
         mapState.campaign ? "the AD campaign" : "detection", mapState.signals, mapState.signals ? ": " : "",
         mapState.firstSignals);
-    Con_Printf("AD spawns: %d entities with AD's function, %d shared classnames with Quake VR's\n", mapState.adSpawns,
-        mapState.oursShared);
+    Con_Printf("AD spawns: %d entities with AD's function, %d shared classnames with Quake VR's, %d AD entities outside "
+               "AD's rules\n", mapState.adSpawns, mapState.oursShared, mapState.outsideSpawns);
 }
 
 } // namespace
@@ -221,12 +234,29 @@ bool skipInFolder(const char* filename)
     return false;
 }
 
+bool skipOutside(const char* filename)
+{
+    if(skipInFolder(filename))
+    {
+        return true;
+    }
+    // Its models, sprites and sounds, its HUD icons, its brush models (maps/<folder>/...); never its maps, skies,
+    // textures, effect files or menu art, which could change another campaign's look.
+    if(startsWith(filename, "progs/") || startsWith(filename, "sound/") || startsWith(filename, "gfx/ad"))
+    {
+        return false;
+    }
+    return !(startsWith(filename, "maps/") && strchr(filename + 5, '/'));
+}
+
 void beforeLoad()
 {
     mapState.campaign = VR_ActiveCampaign() == campaignIndex;
-    mapState.adSpawns = mapState.oursShared = 0;
+    mapState.adSpawns = mapState.oursShared = mapState.outsideSpawns = 0;
+    mapState.outsideReady = false;
     countSignals(sv.worldmodel ? sv.worldmodel->entities : "");
     const bool mounted = adFolderMounted();
+    mapState.mounted = mounted;
     mapState.rules = mapState.campaign || (mapState.signals >= 2 && mounted);
     Cvar_SetROM("vr_ad_rules", mapState.rules ? "1" : "0");
     Cvar_SetROM("vr_ad_mounted", mounted ? "1" : "0");
@@ -265,4 +295,29 @@ extern "C" int VR_AD_OwnsClassname(const char* classname, int ours)
     }
     if(ad) { ++mapState.adSpawns; } else { ++mapState.oursShared; }
     return ad ? 1 : 0;
+}
+
+// pr_edict.c ED_LoadFromFile and box3d::spawnClass (AD support), outside AD's rules, for a classname Quake VR has no
+// spawn function for: whether AD's ad_<classname> spawns it (everywhereClasses, while AD's data is mounted). The first
+// one of a map runs AD's reduced world setup first (QC VR_AD_WorldOnDemand: what AD's entities read of AD's world).
+extern "C" int VR_AD_SpawnsOutside(const char* classname)
+{
+    if(mapState.rules || qvr::vr_ad_everywhere.value == 0.f || !listed(everywhereClasses, classname) ||
+        Cvar_VariableValue("vr_ad_mounted") == 0.f || !VR_ED_FindFunction(va("ad_%s", classname)))
+    {
+        return 0;
+    }
+    if(!mapState.outsideReady)
+    {
+        mapState.outsideReady = true;
+        if(dfunction_t* f = VR_ED_FindFunction("VR_AD_WorldOnDemand"))
+        {
+            const int oldSelf = pr_global_struct->self;
+            pr_global_struct->self = 0; // (the world)
+            PR_ExecuteProgram(static_cast<func_t>(f - qcvm->functions));
+            pr_global_struct->self = oldSelf;
+        }
+    }
+    ++mapState.outsideSpawns;
+    return 1;
 }

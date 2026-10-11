@@ -361,6 +361,7 @@ void(entity ad_targ, float ad_rotoverride) ad_RotDeBuff =
 void(entity ad_targ) ad_BurnDeBuff =
 {
 	local float ad_debuffqty;
+	if (VR_AD_BurnDebuff(ad_targ)) return;
 	
 	// Do not stack burning time beyond a certain limit
 	// Cannot be burning if knee deep in water

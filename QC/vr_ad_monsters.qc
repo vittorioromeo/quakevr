@@ -1,4 +1,4 @@
-// Arcane Dimensions' monsters with Quake VR's treatment (docs/vr-port/ARCANE_DIMENSIONS.md, section 16; the fields and
+// Arcane Dimensions' monsters with Quake VR's treatment (docs/vr-port/ARCANE_DIMENSIONS.md, section 17; the fields and
 // declarations: vr_ad_mondefs.qc). After AD's files: it uses their names.
 //
 // What each AD monster gets, and where:
@@ -74,10 +74,10 @@ void() VR_AD_MonsterSetup =
         VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_ogre, 141, 132, 155, 142);
     }
     // Spiders, green and brown (progs/mon_spiderg.mdl, mon_spiderb.mdl: one mesh; death 114-133): its head the front of
-    // its body (its rig's 5.3 -0.1 -15.4), below its origin.
+    // its body (5.3 -0.1 -15.4), below its origin; never beheaded (its head is its body's bone: one of its own was unstable).
     else if(t == ad_CT_MONSPIDER || t == ad_CT_MINIONSPIDER)
     {
-        VR_AD_Mon(VR_ADM_MELEE, 6, -15, 6, cvarh_vr_corpse_health_dog);
+        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_NOHEAD, 6, -15, 6, cvarh_vr_corpse_health_dog);
         VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_dog, 133, 114, -1, -1);
     }
     // Death guard (progs/mon_dguard.mdl: deaths A 195-206, B 207-226, C 227-240, D 241-255). Head: headfit.py mon_dguard
@@ -257,7 +257,7 @@ void() VR_AD_MonsterSetup =
     }
     else if(t == ad_CT_MONSTEELCLAW)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 6, -15, 6, cvarh_vr_corpse_health_dog);
+        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR | VR_ADM_NOHEAD, 6, -15, 6, cvarh_vr_corpse_health_dog);
         VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_dog, 133, 114, -1, -1);
     }
     // AD's zombie and mummy (progs/mon_zombie.mdl: id's zombie, Rogue's mummy's mesh 0.83 times as big; AD's zombies die

@@ -1,5 +1,5 @@
 // vr_menu_ad_monsters.inc -- Debug > Tests > Arcane Dimensions Monsters (AD support; docs/vr-port/ARCANE_DIMENSIONS.md
-// section 16; QC vr_ad_monsters.qc, vr_ad_monsters_test.qc): AD's monsters ahead of you (the debug spawner's 200..) in a
+// section 17; QC vr_ad_monsters.qc, vr_ad_monsters_test.qc): AD's monsters ahead of you (the debug spawner's 200..) in a
 // map played by AD's rules, and "admtest:" reports (developer 1). Included by vr_menu.cpp (inside its namespace).
 
 [[nodiscard]] za::Vector<Item> pageAdMonsterTests()

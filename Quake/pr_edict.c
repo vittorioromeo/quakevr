@@ -325,13 +325,14 @@ static ddef_t *ED_FindField (const char *name)
 }
 
 // AD support: the field AD's imported QuakeC has for a map key Quake VR has no field of that type for: ad_<key>
-// (QC/ad/AD_IMPORT.txt; Arcane Dimensions, vr_ad.cpp). Only in a map played by AD's rules.
+// (QC/ad/AD_IMPORT.txt; Arcane Dimensions, vr_ad.cpp). In a map played by AD's rules; elsewhere only for a key no
+// field of Quake VR's has (AD's artifacts, pickups and ladders spawn in any map).
 static ddef_t *ED_FindADKeyField (const char *keyname, ddef_t *ours)
 {
 	ddef_t *ad;
-	if (!VR_AD_RulesOn ())
-		return NULL;
 	ad = ED_FindField (va ("ad_%s", keyname));
+	if (!VR_AD_RulesOn ())
+		return ours ? NULL : ad; // (outside AD's rules: only a key no field of Quake VR's takes, for AD's entities there)
 	if (!ad || (ours && (ours->type & ~DEF_SAVEGLOBAL) == (ad->type & ~DEF_SAVEGLOBAL)))
 		return NULL; // (none, or the same key both ways: Quake VR's field is the key's)
 	return ad;
@@ -1603,6 +1604,8 @@ void ED_LoadFromFile (const char *data)
 			if (adfunc && VR_AD_OwnsClassname (classname, func != NULL))
 				func = adfunc;
 		}
+		else if (!func && VR_AD_SpawnsOutside (classname)) // AD support: AD's artifacts, pickups, ladders in any map (vr_ad.cpp)
+			func = ED_FindFunction (va ("ad_%s", classname));
 
 		if (!func)
 		{
