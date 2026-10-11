@@ -2279,3 +2279,12 @@ is for their owners). Checks: build, `map e1m1` smoke; `Misc/quakevr/ragdoll/act
 quick subset): 10/10 settle, no NaN or crash, late energy 0-4 J, spin under 5 rad/s (hknight's headshot the most:
 4.0 J, 4.7); `ragdoll_test.sh integ flat grab`: limp at frame 10, at rest after 4.3 s; a shin taken, held, thrown at
 1086 u/s, at rest; `vr_anim_smooth_check` again: unchanged (soldier A+B 0.1%, dog 0.001 off a key at most 0.036).
+
+**Then `feature/box3dup`** (bdff4df2f, Box3D upstream 5d83df83, `vr_box3d_avx2` 0), merged on top (`--no-ff`).
+Conflict: this file only. quakevr.props, vr.cmake, vr_box3d.cpp, vr_cvars.inc, vr_menu.cpp merged by themselves (no
+project file-list conflicts). Built with 0 warnings; the new library and every Box3D user (vr_box3d, vr_climb,
+vr_ragactive, vr_toolgun) recompiled against the new headers with no change needed. Checks: smoke; prop_climb_test.sh
+8/8 PASS; active_test.sh deaths head: 10/10 settle, no NaN or crash (one run left the ogre's headshot at 17 J, spin 2.4,
+under the test's 50 J / 25 rad/s; that case run again: 0.0 J, spin 0.5); ragdoll_test.sh flat grab: limp at frame 10,
+at rest after 4.3 s, the shin thrown at 1095 u/s; toolgun_joint_menu_test.sh PASS (each hand: 70 picks, 0 wrong, 6/6
+joined); selfchecks_test.sh: PASS hull cache, PASS physics workers (the same world hash with every worker count).
