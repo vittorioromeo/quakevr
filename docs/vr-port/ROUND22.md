@@ -2812,3 +2812,19 @@ units lands at ~910 u/s ("a 518 unit drop": 147 damage), the same with `vr_ragdo
 raw: the grunt leans (left hand, 1.15 s) and hangs from the ledge (2.13 s), no stand-down; liquid_active_test.sh water
 slime fallin as before; active_test.sh deaths head 10/10 settle (late 0-5 J); prop_climb_test.sh 8/8; brush_test.py
 PASS (16/16).
+
+**Then `feature/ragdismember`** (1453f82d3, active ragdolls stage 5: dismemberment; made on ragcore alone), merged on
+top (`--no-ff`). Conflict: this file only (its section sits above the core section, as on its branch). Integration:
+`chestOf` was defined by both ragstagger and ragdismember, the same body: one kept. **drive()'s precedence: swim >
+dismemberment / stagger / fall / get-up > env.** dismemberFrame (and its spin) is skipped while he swims (startSwim
+drops the balance beat's pin); envFrame stands down for the whole dismemberment (the stump hold and the crawl lead his
+arms; `envStandDown` "dismembered"); and the guard: a dismemberment is a death's (cutReaction needs one), a stagger, fall
+or get-up a living monster's, so a body cut while still in one of those ends them (only the balance beat pins the
+pelvis). Checks: build 0 warnings, smoke; `dismember_test.sh` (grunt): arm: the right hand to the stump, least 3.8
+units, at rest; legs: crawled 32 units, at rest; dying: the hand to the stump, least 2.9, at rest; leg: the balance
+beat with all three (`MONS="0 5 1"`) 1.06 / 1.11 / 1.08 s (the branch: 1.06 / 1.13 / 1.08), at rest. The grunt's beat
+alone varies from run to run, 0.25-1.09 s over six runs (always broken by its lean, 15-17 deg; always at rest after):
+for the branch's owner (its notes give one run). Then the earlier set again: stagger_test.sh rates getup (N=4): no
+errors, get-up gaps as before (grunt 16.5 / 4.6, zombie 5.8 / 2.1); env_test.sh wall ledge (leans, hangs, then the
+floor); liquid_active_test.sh water slime fallin (paddle 5.0 s, flail 2.4 s, fall-in 4.1 s); active_test.sh deaths head
+10/10 settle (late 0 J); prop_climb_test.sh 8/8; brush_test.py PASS (16/16).
