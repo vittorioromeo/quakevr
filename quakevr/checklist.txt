@@ -1,25 +1,35 @@
 # Quake VR playtest checklist (VR menu > Checklist). One line = one quick check; tick what works, tell me what doesn't.
-# Merged and streamlined 2026-10-06 from the previous list and CHECKLIST_ARCHIVE_20261005.txt
-# (both kept in git history). Reload List refreshes this page; no rebuild needed.
+# Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
-[Firing range: combat and dummies]
-Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
+[next branch: test these first]
+Launchers: grenade, proximity and multi launcher shots leave from the barrel tip
+Smooth animation: Graphics > Model Animation Smooth vs normal on ogres, shamblers, knights up close; make Smooth the default?
+Vore: stand next to one (it shoves you away); parry one
+Prop climbing: climb a large crate and a stack of crates (large crates now climb instead of lifting from the ground: OK?)
+Prop pulling: pull a light crate, then a heavy one (60 kg line feels right?)
+Toolgun: B/Y panel, tool tiles, stick-press cycles tools, spawn grid, physgun wrist rotation; panel readable and well placed?
+Brush tool (toolgun 6th tile): create, move, resize, paint, copy, delete boxes; stand on, climb and shoot them
+Bare forearms: Body > Bracers off; roll and bend wrists, gadget arm (seam colour OK?)
+Box3D update: props, ragdolls, teleporter pass-through feel unchanged; Physics AVX2 on vs off feel the same
+Deaths: shoot grunts and knights in the body vs the head (different falls); a charging knight stumbles; grab a dying arm
+Hit reactions: shoot a living grunt in the body, head, arm, leg: flinch, knee buckle, limp (Strength slider)
+Shoves: one-hand shove (staggers, falls about half the time), two-hand shove; ogres rarely fall: rates OK?
+Judo: throw a knight: he survives the landing (fall fix) and gets up
+Dismemberment: cut a leg (balances, then falls), an arm, both legs (drags himself on his arms)
+Bodies in liquids: kill in water (paddles, floats; knights sink), in lava or slime (flails, burns); throw corpses in
+Bodies by walls: kill next to a wall (leans, slides), at a ledge (hangs), by a crate (braces)
 
-[New this week]
-West stairs / lava / water: MG1 start's west-facing stairs with your head naturally low, walking slowly and jumping (a short catch at the very top crest may remain); step into lava and out: you keep burning 3 s (Burning > You Burn After Lava); shove a grunt off vrstart's island near the shore (gets up on the slope) and far out (gives up after ~3 s and sinks)
-Bodies in liquids: throw corpses/knocked-down enemies into water, slime, lava: braked on entry, float face down (knights/enforcers sink), no fall damage into deep liquid; in lava they burn and gib after 4 s (Ragdolls > In Water, Slime and Lava; Gameplay > Liquid Breaks Falls; Burning > Corpses); a knocked-down enemy getting up in deep water is untested
-MG3 armour shards: force-grab, then hip holster / pouch / chest gives armour, walking over them doesn't
-MG3 UNLOCKED (single player; revert 405e4213 to re-lock): Official Campaigns > Dawn of the Machine starts `start`, coop refused; Bloody Nightmare row after discovery; Super Axe contacts + 2nd-hit lightning burst; axe buttons by axe/fists/gun butt/thrown prop; lore readable; teleports/low ceilings comfortable; new monsters' hit zones/gore/ragdolls; upgrades/runes carry through the hub; both endings + credits; installer Your PC page says ready
-Relighting without ericw-tools: the page offers Download ericw-tools (27.5 MB) with a progress bar and Cancel, then relights (test with vr_relight_tool_dir pointed at an empty folder)
-MG3 Shub (boss2, or Debug spawner Thing 60): pillars sinking under you are comfortable; her zombies rise and ragdoll; sweeping beam and blasts readable; lights go out at her death and the credits follow
-MG3 Chthon (boss map, or Debug spawner Thing 50): comfort fade at both arena moves (Locomotion > Comfort > Fade on Scripted Teleports: 0.6 vs 1.2 s); head zone; bat his spheres back; fight length fair with arm hits at 0.35x; finale gibs then credits
+[Still open from 1.0.x]
+MG1 west stairs: walk up slowly and jump, head low (a short catch at the top crest may remain); lava: you keep burning 3 s after stepping out
+Shoved into water: a grunt shoved off vrstart's island near the shore gets up; far out, gives up after ~3 s and sinks
+MG3 armour shards: force-grab then hip / pouch / chest gives armour; walking over them doesn't
+MG3 campaign: Dawn of the Machine start to both endings: Super Axe, axe buttons, lore, hub upgrades, new monsters' hits and ragdolls
+MG3 Shub (boss2): sinking pillars comfortable; zombies rise and ragdoll; beam readable; lights out and credits at her death
+MG3 Chthon (boss map): fade at both arena moves comfortable; bat his spheres back; fight length fair
+Relighting without ericw-tools: Download ericw-tools (27.5 MB) with progress and Cancel, then relights
+MG1 Horde (horde1, horde5): dead and holding fire does nothing; release and press restarts; coop teammate returns at wave end
+MG1 developer tests: rune returns, electrode buttons, revival; quake vibration comfortable
 
-[Menus and maps]
-MG1 developer tests: rune returns, electrode buttons, Horde, revival; quake vibration is comfortable
-MG1 Horde (horde1, horde5 bosses): die holding fire, nothing; let go and press: the arena restarts; coop: a dead teammate comes back at wave end
-
-[Tune]
+[Tune / record]
 Weapon damage, grapple, stamina costs, roll weight and throw damage
-
-[Record]
 Record new melee takes: the melee test suite can't run without them
