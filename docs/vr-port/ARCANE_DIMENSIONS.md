@@ -502,6 +502,17 @@ committed to.
 | **Chaos mode** (17) | AD's `ad_chaosmode.qc` through the bridge | After P2: AD's randomiser over our and AD's monsters, its restart dance replaced by our save hooks. | 3-5 |
 | **Global AD projectile/pellet option** (21) | `QC/vr_ad_bridge.qc`, our monsters' missile launches | A cvar applying AD's skill-scaled projectile speeds and pellet shotguns to every monster (pending his answer). | 1-2 |
 
+**Follow-up tasks from the decisions of 2026-10-11 (22-31), not in P1b:**
+
+| Task | Files | Approach | Effort |
+|---|---|---|---|
+| **Debuffs everywhere, burning merged** (24) | `QC/vr_ad_bridge.qc` (the player's debuff tick in every map when AD's data is present), our burning (`QC/vr_fire*.qc`), the HUD | AD's `ad_ClientDeBuff`/`ad_ResetDebuffSystem` run from our player think for any player AD's monsters or traps poison or bleed; AD's burning becomes ours (one flame state, our flame visuals and damage, AD's duration and damage table). | 2-3 |
+| **Ladders on our climbing** (26) | `QC/vr_ad_bridge.qc`, `Quake/vr/vr_climb.cpp` (a climbable volume type) | `trigger_ladder`'s brush becomes a hand-climbable volume (grab anywhere inside it, as a ledge's rungs); AD's push-up (jump held) stays for the thumbstick. | 2-3 |
+| **HUD space for artifacts and debuffs** (28) | the wrist/HUD (`Quake/vr/vr_hud*.cpp`) | A row of AD artifact and debuff icons with timers, only drawn when one is active. | 1-2 |
+| **Evil mode in the skill selection** (30) | the skill menu and hub buttons, `QC/vr_ad_bridge.qc` | Skill 4 when AD's data is installed: lower maximum health, each level started with the Shadow Axe (AD's `ad_Client_SetupEvilmode`); needs the Shadow Axe as a VR weapon (P3). | 1-2 after P3 |
+| **AD performance in VR** (29) | `vr_profile`, `bench.sh` | With chaos mode: AD's biggest maps profiled exclusive (lightmap build, think cost of emitters/estate/breakables, sprite particles), fixes per finding. | 3-5 |
+| **Coop saves** (31) | `QC/vr_ad_bridge.qc`, the save keys | AD's per-client state (debuffs, artifacts, map variables) per player in coop saves. | 1-2 |
+
 ---
 
 ## 12. Decisions (Vittorio, 2026-10-11)
@@ -538,6 +549,21 @@ from Ironwail. Anything in shared engine or QC code carries a clear `// AD suppo
 | 19 | **Spawnflags:** AD's gated to AD levels. A rewrite of the spawnflag handling is allowed if fully backwards compatible and it avoids or minimises conflicts (id1/Hipnotic/Rogue/MG/VR flags). | P1b (gating), follow-up (rewrite) |
 | 20 | **Crouching:** our VR crouch adapted to AD (its height-aware aim and melee); AD improvements worth having apply in every mode. | follow-up |
 | 21 | **Skill-scaled projectile speeds and pellet shotguns:** per entity by default (an AD monster uses AD's), plus a global option to apply them to every monster (pending his answer). | P2 |
+
+**Follow-up decisions 2 (Vittorio, 2026-10-11).**
+
+| # | Decision | Phase |
+|---|---|---|
+| 22 | **Projectile speeds and pellet shotguns: Auto by default** (vanilla in non-AD maps, AD's behaviour in AD maps), with a global override, cvar and menu: **Auto / Vanilla / AD** (settles 21). | P1b |
+| 23 | **AD weapons: a first version on the "simple reload"** (move to the holster); grips, sights and reloads polished later. | P1b (simple reload), P3/P4 (polish) |
+| 24 | **Debuffs (poison, burning, bleeding) everywhere**; AD's burning merged with our burning. | follow-up |
+| 25 | **Item respawn timers: AD levels only.** | P1b |
+| 26 | **AD ladders (`trigger_ladder`) work nicely with our hand-climbing.** | follow-up |
+| 27 | **Jump Boots: no comfort limits** (the mod is hardcore). | P3 |
+| 28 | **HUD: space reserved for artifacts and debuffs.** | follow-up |
+| 29 | **Later, with chaos mode: deep performance profiling of AD maps in VR.** | P4 |
+| 30 | **Evil mode in the skill selection**, available everywhere when AD's data is installed (it needs the Shadow Axe), not only in AD maps (the coordinator's call). | follow-up (settles 17's scope) |
+| 31 | **Saves:** AD's state in save games; loading an AD save switches AD mode on and restores AD's state; loading a non-AD save from an AD session turns it off cleanly. Coop: later. | P1b |
 
 **Answers to his questions.**
 
