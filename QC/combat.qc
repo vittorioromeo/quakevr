@@ -1251,6 +1251,47 @@ void(entity p, string xWhy) VR_Climb_KnockOff =
 };
 
 // The damage itself (T_DamageImpl's).
+// VR: active ragdolls (vr_ragdoll_active; the engine's vr_ragactive.cpp, ROUND22.md "Active ragdolls: core and deaths"):
+// the blow that killed a monster, kept for its ragdoll (made a few frames later, at its first frame not solid): where on
+// it the blow struck (PositionalRegion's: 1 the head, 2 a limb, 3 a leg, 0 the body; a shotgun's pellets: the head if
+// half of them, else the legs if most, else the body; -1 unknown) and the point ('0 0 0': unknown). A headshot's ragdoll
+// collapses; a wound in the body or a limb may be held by a hand.
+.float vr_death_hit;
+.vector vr_death_hitpos;
+
+void(entity targ) VR_Ragdoll_NoteDeathHit =
+{
+    float part = -1;
+    vector at = '0 0 0';
+    if(vr_hitpart_target == targ && vr_hitpart_time == time)
+    {
+        part = vr_hitpart;
+        at = vr_hitpart_pos;
+    }
+    if(vr_hitpellets > 0)
+    {
+        part = 0;
+        if(vr_hitpellets_head * 2 >= vr_hitpellets)
+        {
+            part = 1;
+        }
+        else if(vr_hitpellets_leg * 2 > vr_hitpellets)
+        {
+            part = 3;
+        }
+    }
+    if(at == '0 0 0' && vr_hitpos != '0 0 0' && vlen(vr_hitpos - targ.origin) < 96)
+    {
+        at = vr_hitpos;
+        if(part < 0)
+        {
+            part = 0;
+        }
+    }
+    targ.vr_death_hit = part;
+    targ.vr_death_hitpos = at;
+};
+
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageDeal =
 {
     vector    dir;
@@ -1555,6 +1596,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
         float hlScore = VR_Highlight_Kill(targ, inflictor, attacker, isVRMelee); // VR: the highlight log (vr_highlights.qc)
         string hlWhat = vr_hl_what;
+        VR_Ragdoll_NoteDeathHit(targ); // VR: active ragdolls: where it was struck
         Killed (targ, attacker);
         VR_Highlight_Killed(targ, hlScore, hlWhat);
         return TRUE;
@@ -2496,4 +2538,75 @@ void(entity attacker, float damage) T_BeamDamage =
         }
         head = head.chain;
     }
+};
+
+// Test aid `vr_test_kill <n>` (console; the active ragdolls' tests, Misc/quakevr/ragdoll/active_test.sh): the live
+// monster nearest the player killed by a shot of his (20 damage on its last point of health), struck (n - 1) on: 0 the body, 1 the head, 2 an arm (its right
+// side as he sees it), 3 a leg, on its side facing him; 5: nowhere known. Prints `test kill:`.
+void() VR_TestKill_Frame =
+{
+    float want = cvar("vr_test_kill");
+    if(want < 1)
+    {
+        return;
+    }
+    cvar_set("vr_test_kill", "0");
+    entity pl = find(world, classname, "player");
+    entity best = world;
+    float bestD = 100000;
+    entity e = nextent(world);
+    while(e)
+    {
+        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && vlen(e.origin - pl.origin) < bestD)
+        {
+            bestD = vlen(e.origin - pl.origin);
+            best = e;
+        }
+        e = nextent(e);
+    }
+    if(best == world)
+    {
+        dprint("test kill: no live monster\n");
+        return;
+    }
+    float part = want - 1;
+    vector dir = best.origin - pl.origin;
+    dir_z = 0;
+    dir = normalize(dir);
+    vector right = '0 0 0';
+    right_x = dir_y;
+    right_y = 0 - dir_x;
+    float lo = best.absmin_z;
+    float hi = best.absmax_z;
+    vector at = (best.absmin + best.absmax) * 0.5 - dir * ((best.maxs_x - best.mins_x) * 0.35);
+    at_z = lo + (hi - lo) * 0.6;
+    if(part == 1)
+    {
+        at_z = hi - (hi - lo) * 0.08;
+    }
+    else if(part == 2)
+    {
+        at_z = lo + (hi - lo) * 0.62;
+        at = at + right * ((best.maxs_y - best.mins_y) * 0.4);
+    }
+    else if(part == 3)
+    {
+        at_z = lo + (hi - lo) * 0.22;
+    }
+    VR_ClearHitKind();
+    vr_hitpart_target = world;
+    if(part < 4)
+    {
+        VR_SetHitKind(QVR_HITKIND_SHOT, -1, at, dir);
+        vr_hitpart = part;
+        vr_hitpart_target = best;
+        vr_hitpart_time = time;
+        vr_hitpart_pos = at;
+    }
+    dprint(sprintf("test kill: %s at %v struck %g at %v\n", best.classname, best.origin, part, at));
+    // (A shotgun blast's worth on its last point of health: its kill push a real shot's, vr_kill_push.)
+    best.health = 1;
+    T_Damage(best, pl, pl, 20);
+    VR_ClearHitKind();
+    vr_hitpart_target = world;
 };

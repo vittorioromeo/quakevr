@@ -7997,6 +7997,10 @@ extern "C" void VR_SetupViewEntities()
     {
         box3d::debugDraw();
     }
+    else
+    {
+        box3d::activeRagdollDraw(); // vr_ragdoll_active_debug
+    }
     ledges::debugDraw(); // vr_debug_ledges
     hitmodel::debugDraw(); // vr_debug_hits
     hitmodel::zonesDraw(); // vr_debug_hitzones
