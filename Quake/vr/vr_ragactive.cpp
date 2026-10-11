@@ -1804,7 +1804,7 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
         }
         if(glm::length(hand - h.goal) < 0.25f * L || (off < 0.2f * L && glm::length(along) < 0.5f * L))
         {
-            const glm::vec3 at = hand - h.normal * (off - handOff / p.m2u);
+            const glm::vec3 at = hand - h.normal * off; // (on the goal's plane: already handOff off the surface)
             if(!ledge)
             {
                 h.holdUntil = c.now + 1.1 + 0.9 * static_cast<double>(roll(s.env.seed, 41u + static_cast<uint32_t>(arm)));
