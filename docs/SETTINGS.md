@@ -62,6 +62,7 @@ corner's *Search* button.
 |---|---|
 | **Height Calibration** | Height, *Set Height Now*, World Scale, Floor Offset |
 | **Hand Calibration** | Show Controller (the real controllers drawn, to line the hands up; not saved), Hand Forward, Hand Inward, Hand Up (cm), Hand Pitch, Hand Yaw, Hand Roll (degrees), *Reset Hand Offsets* |
+| **Holster Calibration** | Hip, Chest and Back Holsters Forward, Inward, Up, *Reset Holsters*, Shoulder Holster Weapons (the guns in the back pair, over the shoulders, drawn: off by default) |
 | **Locomotion** | Move Towards (Head, Left Hand, Right Hand), Default Speed (run or walk), Stick Deadzone, Swap Stick Functions |
 | **Comfort** | Vignette (off, moving and turning, moving only, turning only), Vignette Strength |
 | **Teleportation** | Teleport, Teleport Range |
@@ -87,7 +88,7 @@ on **Carrying and Throwing**; Force Grab on **Force Grab**; the Graphics Preset 
 
 **Body and Display:** Handedness (a preset: right- or left-handed, or Custom), Swap Stick Functions, Wrist Gadget Arm
 and Flashlight Side (Handedness sets all three), World Scale, Floor Offset (A), Chest Flashlight (Off, Immersive, Always on Head), Body (off, torso and
-arms, full body), Build, Holster Models, Status Bar hand, Desktop Mirror (off, left eye, both eyes), *Recording (Window
+arms, full body), Build, Holster Models, Hip, Chest and Shoulder Holster Weapons (each pair's guns drawn or not; the shoulders' off by default), Status Bar hand, Desktop Mirror (off, left eye, both eyes), *Recording (Window
 View)*. **Headset:** VR on or off, Restart VR, OpenXR Runtime, Render Scale, Upscaling (bilinear, FSR, NIS), Sharpness,
 Foveated Rendering (off, conservative, balanced, aggressive), Hide Lens Corners; Near Clip, Held Items at the Eyes and
 Float Depth (A).
@@ -403,6 +404,7 @@ built-in ones.
 | `vr_2h_mode` | 2 | two-handed: 0 off, 1 basic, 2 virtual stock |
 | `vr_2h_handoff` | 1 | two-handed hand-off |
 | `vr_holster_mode` | 0 | 0 immersive holsters, 1 quick slots |
+| `vr_holster_weapons_draw_hip`, `_upper`, `_shoulder` | 1, 1, 0 | each pair's holstered guns drawn (0: hidden, still taken and put away there) |
 | `vr_reload_mode` | 2 | reloading: 0 none, 1 all holsters, 2 hip holsters |
 | `vr_crosshair` | 0 | 0 off, 1 dot, 2 laser, 3 soft laser |
 | `vr_weapon_throw_velocity_mult` | 1 | throw speed |

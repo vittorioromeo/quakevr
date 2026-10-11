@@ -699,8 +699,12 @@ const DefaultChange defaultChanges[] = {
     {126, &vr_flashlight_flick_speed, "800"},        // 750
     {126, &vr_doom_crt, "1"},                        // 2
     {126, &vr_comfort_vignette_strength, "0.6"},     // 0.5
+    // 127: the guns in the shoulder holsters (on the back, the highest pair) not drawn: "Sometimes the holstered model
+    // interferes with the view" (the author, 2026-10-11; ROUND22.md, "Hide holstered weapons per pair"). A config with
+    // them drawn (1) takes it.
+    {127, &vr_holster_weapons_draw_shoulder, "1"},
 };
-constexpr int configVersion = 126;
+constexpr int configVersion = 127;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

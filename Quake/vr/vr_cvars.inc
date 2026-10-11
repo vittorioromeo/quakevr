@@ -1122,6 +1122,13 @@ QVR_CVAR(vr_upper_holster_offset_x, "-4.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_y, "7", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_z, "8.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_thresh, "6.5", CVAR_ARCHIVE)
+// Each pair's holstered guns drawn (1) or not (0; vr_view.cpp setupHolsters): not drawn anywhere (the eyes, the desktop
+// window, the body clone), their screens, buttons, magazines and lava glow with them; still taken and put away there as
+// ever (the reach, the haptics, the sounds). The shoulder pair (on the back, the highest) hidden by default: in the way
+// of the view (the author, 2026-10-11; vr_cfg_version 127). The Weapon Offsets preview and a posing session still show.
+QVR_CVAR(vr_holster_weapons_draw_hip, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_weapons_draw_upper, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_weapons_draw_shoulder, "0", CVAR_ARCHIVE)
 // Each pair of holsters turned (the Hotspots menu), degrees, with the gun in it, about the holster's position (where
 // the hand reaches for it), in the body's frame there (vr_view.cpp turnHolster), mirrored for the left one as the
 // offsets' Y is: pitch tips its top away from the body, yaw turns its face outwards, roll tips its top outwards (a
