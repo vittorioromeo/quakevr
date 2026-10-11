@@ -3033,7 +3033,7 @@ void describe(const State& s, const Parts& p, int num, double now)
                          : g.on ? (g.outcome == Outcome::Recovered ? ", staggered: recovered" : ", staggering")
                                 : "";
     Con_Printf("  %d: %s %.2f s, strength legs %.2f torso %.2f arms %.2f head %.2f (base %.2f), pin %s, %d parts held "
-               "(none)%s%s%s%s%s\n", num,
+               "%s%s%s%s%s\n", num,
         s.on ? "driven" : "limp", t, str[0], str[1], str[2], str[3], s.base,
         B3_IS_NON_NULL(s.pin.anchor) ? "on" : "off", held, d.collapse ? ", collapse" : "", d.stumble ? ", stumbled" : "",
         d.woundArm >= 0 ? (d.woundArm == 0 ? ", left hand on the wound" : ", right hand on the wound") : "",
