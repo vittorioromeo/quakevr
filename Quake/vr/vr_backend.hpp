@@ -252,6 +252,13 @@ public:
         return false;
     }
 
+    // Sensor-reported presence is independent of input focus. Backends/runtimes
+    // without a presence sensor retain the existing always-present behavior.
+    [[nodiscard]] virtual bool userPresent() const
+    {
+        return true;
+    }
+
     // The headset's name as the runtime gives it (OpenXR's systemName; "" if none): its panel looked up by it for the
     // menu's status box (vr_main.cpp, panelSize).
     [[nodiscard]] virtual const char* systemName() const

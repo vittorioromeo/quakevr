@@ -276,6 +276,7 @@ public:
         readInput(tracking.input);
 
         tracking.head = locate(viewSpace, time);
+        tracking.head.valid = tracking.head.valid && userPresent();
         if(tracking.head.valid)
         {
             lastHead = tracking.head;
@@ -284,6 +285,7 @@ public:
         {
             const int side = handSide(h);
             tracking.hands[h] = locate(handSpaces[side], time);
+            tracking.hands[h].valid = tracking.hands[h].valid && userPresent();
             tracking.gripInHand[h] = GripInRaw{};
             if(vr_controller_legacy_pose.value)
             {
@@ -295,9 +297,14 @@ public:
             }
         }
 
+        if(!userPresent())
+        {
+            tracking.input = InputState{};
+        }
         frame.shouldRender = viewsOk && frameState.shouldRender;
         // The runtime's menu has the focus (SteamVR's dashboard...): its last frame again, nothing rendered.
-        holding = frameState.shouldRender && haveLastViews && sessionState == XR_SESSION_STATE_VISIBLE &&
+        holding = frameState.shouldRender && haveLastViews &&
+                  (sessionState == XR_SESSION_STATE_VISIBLE || !userPresent()) &&
                   vr_xr_unfocused.value != 0.f;
         frame.hold = holding;
         if(!frameState.shouldRender)
@@ -338,6 +345,11 @@ public:
     [[nodiscard]] bool runtimeMenuOpen() const override
     {
         return sessionRunning && sessionState == XR_SESSION_STATE_VISIBLE;
+    }
+
+    [[nodiscard]] bool userPresent() const override
+    {
+        return !supportsUserPresence || (userPresenceKnown && isUserPresent);
     }
 
     [[nodiscard]] const char* systemName() const override
@@ -570,6 +582,10 @@ private:
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
     bool frameControllerExtension{false};
+    bool userPresenceExtension{false};
+    bool supportsUserPresence{false};
+    bool userPresenceKnown{false};
+    bool isUserPresent{true};
     unsigned captureTexture[2]{};
     int captureFrames[2]{};
     char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
@@ -1010,6 +1026,8 @@ private:
         sessionState = XR_SESSION_STATE_UNKNOWN;
         visibilityMaskExtension = false;
         frameControllerExtension = false;
+        userPresenceExtension = supportsUserPresence = userPresenceKnown = false;
+        isUserPresent = true;
         runtime[0] = '\0';
         vdxr = false;
     }
@@ -1037,6 +1055,11 @@ private:
             {
                 extensions.pushBack("XR_VALVE_frame_controller_interaction");
                 frameControllerExtension = true;
+            }
+            if(!strcmp(p.extensionName, XR_EXT_USER_PRESENCE_EXTENSION_NAME))
+            {
+                extensions.pushBack(XR_EXT_USER_PRESENCE_EXTENSION_NAME);
+                userPresenceExtension = true;
             }
             if(!strcmp(p.extensionName, "XR_META_touch_controller_plus"))
             {
@@ -1112,8 +1135,15 @@ private:
             return false;
         }
         XrSystemProperties system{XR_TYPE_SYSTEM_PROPERTIES};
+        XrSystemUserPresencePropertiesEXT presence{XR_TYPE_SYSTEM_USER_PRESENCE_PROPERTIES_EXT};
+        if(userPresenceExtension)
+        {
+            system.next = &presence;
+        }
         if(XR_SUCCEEDED(xrGetSystemProperties(instance, systemId, &system)))
         {
+            supportsUserPresence = userPresenceExtension && presence.supportsUserPresence;
+            xrruntime::note("OpenXR: user presence sensor %s\n", supportsUserPresence ? "supported" : "not supported");
             q_strlcpy(this->system, system.systemName, sizeof(this->system));
             xrruntime::logLine(va("OpenXR: system \"%s\" (vendor 0x%x): at most %u layers, swapchain images up to %ux%u\n",
                 system.systemName, system.vendorId, system.graphicsProperties.maxLayerCount,
@@ -1622,6 +1652,17 @@ private:
         {
             switch(event.type)
             {
+                case XR_TYPE_EVENT_DATA_USER_PRESENCE_CHANGED_EXT:
+                {
+                    const auto& changed = reinterpret_cast<const XrEventDataUserPresenceChangedEXT&>(event);
+                    if(changed.session == session && supportsUserPresence)
+                    {
+                        userPresenceKnown = true;
+                        isUserPresent = changed.isUserPresent != XR_FALSE;
+                        xrruntime::note("OpenXR: user presence %s\n", isUserPresent ? "present" : "absent");
+                    }
+                    break;
+                }
                 case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING: return false;
                 case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED: updateControllers(); break;
                 case XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR:

@@ -452,6 +452,13 @@ void heightFrame(double now, za::String& text)
     text += "\n";
     text += seated() ? "Sit up straight and look ahead.\nHold still." : "Stand up straight and look ahead.\nHold still.";
     text += "\n\n";
+    if(const Backend* b = backend(); b && !b->userPresent())
+    {
+        text += "Put on your headset to calibrate.";
+        flow.start = flow.anchorAt = now;
+        flow.counted = false;
+        return;
+    }
     if(flow.got)
     {
         text += "got it";

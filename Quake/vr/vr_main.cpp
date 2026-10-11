@@ -1184,12 +1184,12 @@ void runtimeMenuFrame()
 {
     RuntimeMenuState& m = runtimeMenu;
     const Backend* b = backend();
-    const bool open = (b && b->runtimeMenuOpen()) || vr_debug_runtime_menu.value != 0.f;
+    const bool open = (b && (b->runtimeMenuOpen() || !b->userPresent())) || vr_debug_runtime_menu.value != 0.f;
     const bool single = sv.active && svs.maxclients == 1 && !cls.demoplayback;
     const bool pause = open && single && vr_xr_unfocused_pause.value != 0.f;
     if(open != m.open)
     {
-        Con_Printf("VR: the runtime's menu %s%s\n", open ? "has the focus" : "gave the focus back",
+        Con_Printf("VR: runtime menu or absent headset %s%s\n", open ? "paused input" : "restored input",
             !open || pause ? "" : !single ? " (not a single player game: it runs on)" : " (vr_xr_unfocused_pause 0: the game runs on)");
     }
     if(pause && !m.paused)
