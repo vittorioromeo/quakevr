@@ -6368,7 +6368,8 @@ za::Vector<Item> pageDebugTests()
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
-                  "staggered). Developer 1 logs grunts' and enforcers' shoves and why one can't shove (Combat > Enemy Shoves)."),
+                  "staggered). Developer 1 logs grunts', enforcers' and vores' shoves and why one can't shove (Combat > "
+                  "Enemy Shoves)."),
         command("Knock Down the Nearest", "vr_knockdown_test 0")
             .help("vr_knockdown_test 0: the nearest monster that can be knocked down is, pushed away from you, whatever "
                   "its chance (A Grunt Ahead first: Debug > Tests)."),

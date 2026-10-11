@@ -1589,3 +1589,38 @@ the press held 10 frames behind a waiting buffer: one load.
 
 **In the headset:** die in the start map's lava, hold A: "Loading...", one load of the level-start autosave, then
 play. Same with a quick tap, and on a map with no autosave yet (a plain restart).
+
+## The vore shoves you (feature, 2026-10-11, worktree `voreshove`)
+
+Backlog (2026-10-02): "I would like the vore to also have a shove attack when the player is close", "shoves the
+player harder than other enemies". Built on the grunts' and enforcers' shove (QC `vr_enemyshove.qc`, ROUND21.md,
+"Grunts and enforcers shove you"): same checks (in reach for `vr_enemy_shove_delay`, facing you, not firing, not in
+pain, not knocked away; `vr_enemy_shove_cooldown` from one shove to its next; the nearest player, and only its own
+enemy: coop as before), same blow (through the parry, the slide, letting go of a ledge, the haptics, `vr/shove.wav`).
+
+- **The swing:** the vore's own throw without the ball (`orig_mon_shalrath.qc` `shal_shove1..7`: `attack5..attack11`,
+  arms drawn back and up, swung forward and down; the blow on `attack9`, 0.4 s in: a little more warning than a
+  grunt's 0.3 s), with its attack hiss at the start. Picked by the model's vertices: `attack9` is where its arms reach
+  furthest forward (`scratch/vore_frames.py`, not committed). Honey's trigger-spawned vores get it too.
+- **Harder:** `vr_enemy_shove_vore_damage` 2 and `vr_enemy_shove_vore_distance` 2 (times Damage and Push Distance:
+  10 damage, 256 units at the defaults; the enforcer's is 1.5x, 192). `vr_enemy_shove_vore` 1 turns it off alone.
+  Combat > Enemy Shoves: "Vores Shove", "Vore Damage", "Vore Push".
+- **Reach:** the range is now measured for a grunt's width: a wider monster reaches `maxs_x - 16` further
+  (`VR_EnemyShove_Reach`; a vore +16, 68 units at the default 52; grunts and enforcers unchanged), so a vore
+  touching you (48 between the middles) can shove at all.
+- **Comfort:** the shove is a slide (not scaled by `vr_push`, as before). The comfort vignette now counts an enemy's
+  shove sliding you as moving (`vr_input.cpp shoveSlide`: its speed against a run's 320 units/s; modes 1 and 2), for
+  every shoving enemy; the listen server's own player only (a coop guest's slide is on the host).
+- Death by it: "was swatted by a Vore".
+
+**Tests** (headless, `vrtesthall`, god, `vr_stealth_meter 0`, `impulse 241` in front, developer 1):
+grunt 40 units away: pushed 128, slid 127.9; enforcer: 192, slid 191.8; vore 64 away: 10 damage, pushed 256, slid
+200 (the hall's wall; at `vr_enemy_shove_vore_distance 1.5`: 192, slid 191.8). Vore 200 away: no shove (its balls).
+`vr_enemy_shove_vore 0`: no shove. Cooldown (push 0, no knockback or pain knock so you stay): shoves at 2.87 and
+7.57 (3 s cooldown; it was staggered by its own ball's blast between). Vignette (`vr_comfort_vignette 1`): rises to
+0.96 during the slide (temporary print).
+
+**In the headset:** walk up to a vore and stand there: after about half a second it hisses, swings its arms down and
+shoves you far back (further than an enforcer). Parry it (a blocked swing pushes you a quarter as far). With Comfort
+Vignette on, the view's edges darken during the slide. Too far or too often: Combat > Enemy Shoves > Vore Push,
+Cooldown.
