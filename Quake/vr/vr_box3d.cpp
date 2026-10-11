@@ -554,6 +554,9 @@ struct RagdollBodies
     uint32_t pinned{0}, feet{0}; // (feet: the parts it toppled over, for the tests' ragdollStance)
     double pinUntil{0.0};
     glm::vec2 pinVel{0.f};
+    // Its middle's speed down (m/s, its parts' by their mass, a loose weapon not counted) before the step's piece
+    // (noteFallSpeeds): a landing is no harder than its whole body comes down (touches: a fall's damage).
+    float fallDown{0.f};
     // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
     za::Array<float, ragdoll::maxBones> lift{};
     // A shove's knockdown (ragdollShove; ROUND21.md, "A shove's knockdown: travel and a quarter turn"): driven each frame
@@ -8128,6 +8131,35 @@ void soundHits(const b3ContactEvents& events)
     }
 }
 
+// Before a piece of the step: each ragdoll's middle's speed down (RagdollBodies::fallDown; its parts' velocities by their
+// masses, a loose weapon not counted) and what the piece's `dt` of gravity adds, what its landings in that piece are
+// measured against (touches).
+void noteFallSpeeds(float dt)
+{
+    const float gravity = za::max(-b3World_GetGravity(world->id).z, 0.f) * dt;
+    for(RagdollBodies& r : world->ragdolls)
+    {
+        r.fallDown = 0.f;
+        if(r.num == 0 || !r.rig)
+        {
+            continue;
+        }
+        float mass = 0.f, down = 0.f;
+        for(int b = 0; b < r.count; b++)
+        {
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            if(partCut(r, b) || r.rig->bones[b].joint == ragdoll::Joint::Loose || B3_IS_NULL(body) || !b3Body_IsValid(body))
+            {
+                continue;
+            }
+            const float m = b3Body_GetMass(body);
+            mass += m;
+            down -= b3Body_GetLinearVelocity(body).z * m;
+        }
+        r.fallDown = mass > 0.f ? za::max(down / mass + gravity, 0.f) : 0.f;
+    }
+}
+
 // The step's touches, as the old solver's: a prop meeting another entity's body (a monster, a door) touches it
 // (QC's damage, sounds); props hitting each other hard touch each other (a thrown box into a pile: its knock, the
 // throw over). Landing on the world touches nothing (as before).
@@ -8192,9 +8224,20 @@ void touches(za::Vector<za::Pair<int, int>>& out)
             {
                 continue;
             }
+            // The part's own hit, no harder than the whole body came down (noteFallSpeeds): a light part at the end of a
+            // turning body (a knight's sword welded in his hand, a fiend's tail, a hand) whips into the floor several times
+            // faster than the body falls (a two-hand throw on flat ground: a knight's sword at 860-900 u/s, its body
+            // under 130; "a 500 unit drop", 140 damage of its 75 health). A real drop brings all of it down that fast.
             // (Landing under water, slime or lava: cushioned by it, liquidFallShare.)
-            const float speed = e.approachSpeed * za::fabs(e.normal.z) * world->m2u *
+            const float hit = e.approachSpeed * za::fabs(e.normal.z);
+            const float body = world->ragdolls[static_cast<za::SizeT>(world->slots[a].ragdoll)].fallDown;
+            const float speed = za::min(hit, body) * world->m2u *
                                 liquidFallShare(world->toU(e.point) + glm::vec3{0.f, 0.f, 1.f});
+            if(vr_knockdown_debug.value >= 2.f && hit * world->m2u >= 150.f)
+            {
+                Con_Printf("ragdoll fall: %d %s hit the level at %.0f u/s, its body coming down at %.0f: lands at %.0f\n", a,
+                    PR_GetString(EDICT_NUM(a)->v.classname), hit * world->m2u, body * world->m2u, speed);
+            }
             auto it = za::findIf(world->falls.begin(), world->falls.end(), [a](const Shock& s) { return s.num == a; });
             if(it == world->falls.end())
             {
@@ -13958,6 +14001,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             notePushed(dt / static_cast<float>(pieces));
             pressStanding(dt / static_cast<float>(pieces));
             pressClimbing();
+            noteFallSpeeds(dt / static_cast<float>(pieces));
             world->tasks.next.storeRelaxed(0);
             applySimdWidth(world->id);
             const double s0 = Sys_DoubleTime();
