@@ -39,13 +39,17 @@ struct ViewEntity
 // copy's own ViewEntity: its place, turn and mirroring the image's.)
 [[nodiscard]] const entity_t* cloneSource(const entity_t* e);
 
-// World position of an anchor vertex of `ve`'s model, with `extra` offsets applied in the
+// World position of an anchor of `ve`'s model (its text: vr_anchor.hpp), with `extra` offsets applied in the
 // entity's (mirrored) space before the model's own scaling.
-[[nodiscard]] glm::vec3 anchorPosition(const ViewEntity& ve, int anchorIndex, const glm::vec3& extra);
+[[nodiscard]] glm::vec3 anchorPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra);
 
-// The same for any alias entity (a weapon lying in the world), drawn mirrored or not.
-[[nodiscard]] glm::vec3 entityAnchorPosition(
-    const entity_t& e, bool mirrored, float zeroBlend, int anchorIndex, const glm::vec3& extra);
+// The same for any alias entity (a weapon lying in the world), drawn mirrored or not (a view entity: as above).
+[[nodiscard]] glm::vec3 anchorPosition(
+    const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra);
+
+// World position of `ve`'s model's vertex `vertex` (its file's order) as drawn: not an attachment (the melee HUD's embers
+// off a random vertex).
+[[nodiscard]] glm::vec3 vertexPosition(const ViewEntity& ve, int vertex);
 
 // Immersive reloading: the reference point of the round `hand` holds (a magazine's top, moved by its
 // vr_reload_mag_<kind>_x/y/z, and its radius in `radius`; a shell's middle, radius -1), as drawn. False: it holds none.
@@ -253,6 +257,7 @@ struct DrawnWeapon
 
 // vr_hotspots_check: the migrated hotspots against the old two-handed grips, every slot, either hand.
 void hotspotsCheck_f();
+void anchorWhere_f(); // vr_anchor_where
 
 // vr_weapon_hotspot_here <1..4> [<type>] [main|off]: hotspot n of the weapon in the main hand (or the named one) put
 // where the other hand is now, as a grip (1) or the type given (3: a cup) -- the Weapon Offsets page's "Put It Where the
@@ -303,7 +308,7 @@ void prepareModels();
 void resetCaches();
 
 // vr_model_reload [model ...]: models edited in Blender (docs/vr-port/MODELS_IN_BLENDER.md) read again from their files,
-// and what the engine worked out from them forgotten (the anchors' strip order, the grasp's shapes, the collision
+// and what the engine worked out from them forgotten (the anchors' bindings, the grasp's shapes, the collision
 // triangles, the body's bones). Without arguments: the weapons (progs/v_*.mdl), the body (progs/vrbody*.mdl: its
 // .md5mesh and skins) and the wrist gadget (progs/vrgadget*.mdl) that are loaded.
 void modelReload_f();

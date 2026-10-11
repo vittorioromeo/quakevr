@@ -35,7 +35,6 @@ import sys
 
 import genguard
 import mdlpolish as mp
-from improve_weapons import strip_order
 from make_swords import Mdl, Out
 from mdlgen import HEADER, add, anorms, cross, dot, mul, norm, sub
 
@@ -180,18 +179,16 @@ def main():
     guard = genguard.Guard('make_chainsaw.py', [path])
     open(path, 'wb').write(data)
     tipv = max(range(first_handle), key=lambda i: out.p[i][0])
-    order = strip_order(out.tris)
     blk_verts = [index[v] for v in verts if v not in BAR and v not in REAR and v not in LOOP]
     added = polish(path, out.p, [index[v] for v in BAR], blk_verts, hole, mid)
-    after = strip_order(mp.Model(path).tris)
-    assert after[:len(order)] == order, 'the polish moved the anchors'
     handle_only(path, handle, mid)
     guard.finish()
     print('v_chainsaw.mdl: %d vertices, %d triangles (%d degenerate dropped), %d frames; scale %.3f of the ogre\'s' % (
         len(out.p), len(out.tris), degenerate, FRAMES, scale))
     print('  polish: +%d triangles, +%d vertices, %d skin rows, %d texels worn' % added)
-    print('  the bar\'s tip (the muzzle): vertex %d at %.2f %.2f %.2f, anchor %d (slot 20\'s MuzzleAnchorVertex)' % (
-        tipv, *out.p[tipv], order.index(tipv)))
+    import anchors
+    print('  the bar\'s tip (the muzzle): vertex %d, anchor "%s" (slot 20\'s MuzzleAnchor)' % (
+        tipv, anchors.vertex_text(path, tipv)))
     print('  the cord\'s handle at %.2f %.2f %.2f, its hole at %.2f %.2f %.2f' % (*mid, *hole))
     print('  the front handle\'s top: x %.2f..%.2f, z %.2f' % (min(p[0] for p in loop), max(p[0] for p in loop),
                                                            max(p[2] for p in loop)))

@@ -346,8 +346,8 @@ constexpr MagProp magProps[] = {
 // The magazines drawn in the magazine guns (immersive reloading's phase 2; QC vr_reload.qc): each gun's attached
 // magazine model (make_mags.py: vr_mag_on_<gun>.mdl, made in the gun's model space; its Scale and offsets the gun's:
 // vr_weapons.cpp makeModelTransform), drawn with the gun's place, turn and mirroring while the server's mode is
-// Immersive and the gun has its magazine in (not QVR_WPNFLAG_NOMAG). `anchor`: a vertex of the gun's body by the
-// magazine (vr_anchor.hpp's strip order) whose move from frame 0 (the firing animation's kick) moves it too. `well`: its
+// Immersive and the gun has its magazine in (not QVR_WPNFLAG_NOMAG). `anchor`: a point of the gun's body by the
+// magazine (vr_anchor.hpp) whose move from frame 0 (the firing animation's kick) moves it too. `well`: its
 // receiver (make_mags.py vr_magwell_on_<gun>.mdl: a collar round the magazine's top, flush with the gun at `seat`), drawn
 // in Immersive whether a magazine is in or not, moved and turned about its seat by vr_reload_well_<gun>_* (visual only).
 // `centre`: the magazine's middle, where the gun's two-handed grip is in Immersive (the author: gripping the magazine is
@@ -356,7 +356,7 @@ struct MagMount
 {
     modelmeta::Id gun;
     const char* model;
-    int anchor;
+    const char* anchor;
     const char* well;
     glm::vec3 seat;
     glm::vec3 centre;
@@ -367,17 +367,17 @@ struct MagMount
     {&vr_reload_well_##k##_x, &vr_reload_well_##k##_y, &vr_reload_well_##k##_z, &vr_reload_well_##k##_pitch,         \
         &vr_reload_well_##k##_yaw, &vr_reload_well_##k##_roll}
 constexpr MagMount magMounts[] = {
-    {modelmeta::Id::VNail, "progs/vr_mag_on_v_nail.mdl", 1497, "progs/vr_magwell_on_v_nail.mdl", {6.9f, 0.f, -1.45f},
+    {modelmeta::Id::VNail, "progs/vr_mag_on_v_nail.mdl", "8.8071 1.7302 -0.3806", "progs/vr_magwell_on_v_nail.mdl", {6.9f, 0.f, -1.45f},
         {7.36f, 0.f, -4.72f}, QVR_WELL_OFFSETS(nail), 0},
-    {modelmeta::Id::VLava, "progs/vr_mag_on_v_lava.mdl", 1499, "progs/vr_magwell_on_v_lava.mdl", {6.9f, 0.f, -1.45f},
+    {modelmeta::Id::VLava, "progs/vr_mag_on_v_lava.mdl", "8.8071 1.7302 -0.3806", "progs/vr_magwell_on_v_lava.mdl", {6.9f, 0.f, -1.45f},
         {7.36f, 0.f, -4.72f}, QVR_WELL_OFFSETS(nail), 0},
-    {modelmeta::Id::VNail2, "progs/vr_mag_on_v_nail2.mdl", 196, "progs/vr_magwell_on_v_nail2.mdl", {7.2f, 5.17f, 1.76f},
+    {modelmeta::Id::VNail2, "progs/vr_mag_on_v_nail2.mdl", "4.7417 4.8402 0.2747", "progs/vr_magwell_on_v_nail2.mdl", {7.2f, 5.17f, 1.76f},
         {7.2f, 9.56f, 3.45f}, QVR_WELL_OFFSETS(snail), 1},
-    {modelmeta::Id::VLava2, "progs/vr_mag_on_v_lava2.mdl", 254, "progs/vr_magwell_on_v_lava2.mdl", {7.2f, 5.17f, 1.76f},
+    {modelmeta::Id::VLava2, "progs/vr_mag_on_v_lava2.mdl", "4.7401 4.8594 0.2797", "progs/vr_magwell_on_v_lava2.mdl", {7.2f, 5.17f, 1.76f},
         {7.2f, 9.56f, 3.45f}, QVR_WELL_OFFSETS(snail), 1},
-    {modelmeta::Id::VLight, "progs/vr_mag_on_v_light.mdl", 655, "progs/vr_magwell_on_v_light.mdl", {11.6f, 0.f, 3.f},
+    {modelmeta::Id::VLight, "progs/vr_mag_on_v_light.mdl", "7.0097 0.5622 3.9392", "progs/vr_magwell_on_v_light.mdl", {11.6f, 0.f, 3.f},
         {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light), 2},
-    {modelmeta::Id::VPlasma, "progs/vr_mag_on_v_plasma.mdl", 667, "progs/vr_magwell_on_v_plasma.mdl", {11.6f, 0.f, 3.f},
+    {modelmeta::Id::VPlasma, "progs/vr_mag_on_v_plasma.mdl", "7.0097 0.5622 3.9392", "progs/vr_magwell_on_v_plasma.mdl", {11.6f, 0.f, 3.f},
         {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light), 2},
 };
 #undef QVR_WELL_OFFSETS
@@ -1165,7 +1165,7 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
     }
     queuedFrame[hand] = host_framecount;
 
-    const glm::vec3 pos = view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::WpnTextAnchorVertex)),
+    const glm::vec3 pos = view::anchorPosition(ve, weapons::cvar(slot, Key::WpnTextAnchor)->string,
         weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
 
     glm::vec3 angles = weapons::vec(slot, Key::WpnTextPitch, Key::WpnTextYaw, Key::WpnTextRoll);
@@ -1279,8 +1279,8 @@ Morph morphs[2];
 [[nodiscard]] glm::vec3 lavaGlowPosition(const entity_t& e, bool mirrored, float zeroBlend, int slot)
 {
     const glm::vec3 grip{e.origin[0], e.origin[1], e.origin[2]}; // where the hand holds it (the controller)
-    const glm::vec3 muzzle = view::entityAnchorPosition(e, mirrored, zeroBlend,
-        static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+    const glm::vec3 muzzle = view::anchorPosition(e, mirrored, zeroBlend,
+        weapons::cvar(slot, Key::MuzzleAnchor)->string,
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     const glm::mat3 axes = angleAxes({-e.angles[0], e.angles[1], e.angles[2]});
     return glm::mix(grip, muzzle, 0.55f) + axes[2] * 2.f;
@@ -1541,7 +1541,7 @@ constexpr float magHandMargin = 1.5f; // units the helping hand's grip channel s
 
 // Round 21's migration (weapons::takeHotspotMigration): a slot's two-handed grip keys (the
 // foregrip, the sword's blade grip) as hotspots, exactly where they were drawn. The old foregrip was placed as
-// its anchor vertex and offset (TwoHHandAnchorVertex, TwoHFixedOffset) in the weapon's frame mirrored as the
+// its anchor and offset (TwoHHandAnchor, TwoHFixedOffset) in the weapon's frame mirrored as the
 // helping hand is (not as the weapon is drawn); it is worked out for the weapon drawn in the main hand, at the
 // origin, unturned: the same point for either hand. With `fromDefaults` the keys' defaults are used (the
 // weapon's offset and scale too), else their values. Needs the model and a Quake VR server (its transforms).
@@ -1578,7 +1578,8 @@ bool legacyHotspots(int slot, bool fromDefaults, weapons::Hotspot out[2], int& c
         ve.ent.model = model;
         ve.ent.scale = ENTSCALE_DEFAULT;
         ve.mirrored = true; // as the helping hand of a gun in the main hand
-        const glm::vec3 w = view::anchorPosition(ve, static_cast<int>(value(Key::TwoHHandAnchorVertex)),
+        const cvar_t* twoHAnchor = weapons::cvar(slot, Key::TwoHHandAnchor);
+        const glm::vec3 w = view::anchorPosition(ve, fromDefaults ? twoHAnchor->default_string : twoHAnchor->string,
             glm::vec3{value(Key::TwoHFixedOffsetX), value(Key::TwoHFixedOffsetY), value(Key::TwoHFixedOffsetZ)});
         // anchorPosition zero-blends by the entity's: frame 0 here (the idle pose).
         const glm::vec3 h = glm::vec3{glm::inverse(hotspotFrame(ve.ent, false)) * glm::vec4{w, 1.f}};
@@ -1883,7 +1884,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     if(model && slot >= 0 && !carried) // a carried gun has no aim
     {
         s.muzzle[hand] = view::anchorPosition(ve,
-            static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+            weapons::cvar(slot, Key::MuzzleAnchor)->string,
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
         s.muzzleValid[hand] = true;
     }
@@ -1959,7 +1960,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         glm::vec3 handPos, handRot;
         if(carried && twohand::carryingHand(s, hand, handPos, handRot))
         {
-            const glm::vec3 tip = view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+            const glm::vec3 tip = view::anchorPosition(ve, weapons::cvar(slot, Key::MuzzleAnchor)->string,
                 weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
             for(int i = 0; i < weapons::maxHotspots; i++)
             {
@@ -1987,7 +1988,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         // Where the hand that takes it back closes: its handle.
         twohand::setCarriedHandle(hand, glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]});
         // Its tip, as drawn (view::carriedWeaponPose: the melee's line).
-        carriedTip[hand] = view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+        carriedTip[hand] = view::anchorPosition(ve, weapons::cvar(slot, Key::MuzzleAnchor)->string,
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
         carriedTipValid[hand] = true;
         carriedAngles[hand] = glm::vec3{-ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
@@ -3706,7 +3707,7 @@ constexpr float groundSpotFromHandleCm = 10.f;
         return false; // none, or a cup (the two-handed pistol grip's)
     }
     const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
-    const glm::vec3 tip = view::entityAnchorPosition(e, false, 0.f, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+    const glm::vec3 tip = view::anchorPosition(e, false, 0.f, weapons::cvar(slot, Key::MuzzleAnchor)->string,
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     a = origin + (tip - origin) * weapons::bladeFrom(h);
     b = origin + (tip - origin) * weapons::bladeTo(h);
@@ -3745,7 +3746,7 @@ constexpr float groundSpotFromHandleCm = 10.f;
     hands::angleVectors(handRot, f, r, u);
     drawnPos = glm::vec3{toHeld * glm::vec4{handPos, 1.f}};
     drawnRot = hands::anglesFromVectors(glm::normalize(turn * f), glm::normalize(turn * u));
-    const glm::vec3 tip = view::anchorPosition(weapon, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+    const glm::vec3 tip = view::anchorPosition(weapon, weapons::cvar(slot, Key::MuzzleAnchor)->string,
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     twohand::bladeGripOn(slot, other, tip, zero, zero, weaponAngleOffsets(weapons::fistSlot(), otherMirrored), drawnPos,
         drawnRot);
@@ -4037,7 +4038,7 @@ bool view::heldWeaponPoint(int hand, float fraction, float cm, glm::vec3& out)
         return false;
     }
     const glm::vec3 handle = drawnAs[hand].pos;
-    const glm::vec3 tip = view::anchorPosition(w, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+    const glm::vec3 tip = view::anchorPosition(w, weapons::cvar(slot, Key::MuzzleAnchor)->string,
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     const glm::vec3 at = glm::mix(handle, tip, fraction);
     const glm::vec3 axis = glm::normalize(tip - handle + glm::vec3{0.f, 0.f, 1e-6f});
@@ -4082,7 +4083,7 @@ bool view::heldWeaponButtRegion(int hand, float depth, za::Vector<glm::vec3>& ou
         return false;
     }
     const glm::vec3 handle = drawnAs[hand].pos;
-    const glm::vec3 tip = view::anchorPosition(w, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+    const glm::vec3 tip = view::anchorPosition(w, weapons::cvar(slot, Key::MuzzleAnchor)->string,
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     const glm::vec3 axis = glm::normalize(tip - handle + glm::vec3{0.f, 0.f, 1e-6f});
     const grasp::Shape* shape = grasp::shapeOf(w.ent, -1);
@@ -4395,7 +4396,7 @@ void setupHand(const hands::State& s, int hand)
     glm::vec3 handRot = basisAngles(anglesBasis(controllerRot) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
 
     // The hand is where the controller is, holding a weapon or not (round 21: the weapon is placed in the hand, and the
-    // fingers wrap it; it was drawn at an anchor vertex of the weapon, which the settings kept within 0.8 of a
+    // fingers wrap it; it was drawn at an anchor of the weapon, which the settings kept within 0.8 of a
     // centimetre of the controller).
     glm::vec3 pos = controllerPos;
     bool hide = false;
@@ -4707,7 +4708,7 @@ void placeFloating(const hands::State& s, posing::Session& ps)
     place(ve, ps.model, grip, level, 0, mirrored);
     ps.turn = anglesBasis(level);
     ps.modelOrigin = glm::vec3{hotspotFrame(ve.ent, mirrored)[3]};
-    const glm::vec3 muzzle = view::anchorPosition(ve, static_cast<int>(weapons::value(ps.slot, Key::MuzzleAnchorVertex)),
+    const glm::vec3 muzzle = view::anchorPosition(ve, weapons::cvar(ps.slot, Key::MuzzleAnchor)->string,
         weapons::vec(ps.slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     ps.pivot = glm::mix(grip, muzzle, 0.5f);
     ps.tiltAxis = ps.turn[1]; // across the view (to the left)
@@ -5362,8 +5363,8 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
     const glm::vec3 drawn{e.angles[0], e.angles[1], e.angles[2]};
     if(on && weapons::value(slot, Key::WpnButtonMode) != 0.f)
     {
-        const glm::vec3 pos = view::entityAnchorPosition(e, mirrored, 0.f,
-            static_cast<int>(weapons::value(slot, Key::WpnButtonAnchorVertex)),
+        const glm::vec3 pos = view::anchorPosition(e, mirrored, 0.f,
+            weapons::cvar(slot, Key::WpnButtonAnchor)->string,
             weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ));
         glm::vec3 angles = weapons::vec(slot, Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll);
         if(mirrored)
@@ -5381,8 +5382,8 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
     }
     if(button.visible && vr_grapple_front_button.value && modelmeta::is(e.model, modelmeta::Id::VGrpple))
     {
-        const glm::vec3 pos = view::entityAnchorPosition(e, mirrored, 0.f,
-            static_cast<int>(weapons::value(slot, Key::WpnButtonAnchorVertex)),
+        const glm::vec3 pos = view::anchorPosition(e, mirrored, 0.f,
+            weapons::cvar(slot, Key::WpnButtonAnchor)->string,
             weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ) +
                 glm::vec3{vr_grapple_front_button_x.value, vr_grapple_front_button_y.value, vr_grapple_front_button_z.value});
         place(front, viewModel("progs/wpnbutton.mdl"), pos,
@@ -5405,8 +5406,8 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
 
     if(on && queueText && vr_show_weapon_text.value && weapons::value(slot, Key::WpnTextMode) != 0.f)
     {
-        const glm::vec3 pos = view::entityAnchorPosition(e, mirrored, 0.f,
-            static_cast<int>(weapons::value(slot, Key::WpnTextAnchorVertex)),
+        const glm::vec3 pos = view::anchorPosition(e, mirrored, 0.f,
+            weapons::cvar(slot, Key::WpnTextAnchor)->string,
             weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
         glm::vec3 angles = weapons::vec(slot, Key::WpnTextPitch, Key::WpnTextYaw, Key::WpnTextRoll);
         if(mirrored)
@@ -5633,8 +5634,8 @@ void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, 
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(gun.ent.model));
     const glm::vec3 k{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
     const glm::vec3 o{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-    const glm::vec3 now = anchor::posedVertex(gun.ent, mount->anchor, gun.zeroBlend) * k + o;
-    const glm::vec3 rest = anchor::posedVertex(gun.ent, mount->anchor, 1.f) * k + o;
+    const glm::vec3 now = anchor::posedAnchor(gun.ent, mount->anchor, gun.zeroBlend) * k + o;
+    const glm::vec3 rest = anchor::posedAnchor(gun.ent, mount->anchor, 1.f) * k + o;
     const glm::vec3 kick = view::modelPoint(gun, now) - view::modelPoint(gun, rest);
     // The weapon's Scale applies about each model's own bounds' corner (its header's origin: vr_render.cpp applyPost),
     // which the magazine's model doesn't share with the gun's: the point that is the gun's model-space origin drawn where
@@ -6803,7 +6804,7 @@ void setupButton(int hand)
     const twohand::HeldAs& held = drawnAs[hand];
     const bool mirrored = held.mirrored;
     const glm::vec3 pos = view::anchorPosition(weapon,
-        static_cast<int>(weapons::value(slot, Key::WpnButtonAnchorVertex)),
+        weapons::cvar(slot, Key::WpnButtonAnchor)->string,
         weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ));
 
     glm::vec3 angles = weapons::vec(slot, Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll);
@@ -6832,7 +6833,7 @@ void setupFrontButton(int hand)
     }
     const twohand::HeldAs& held = drawnAs[hand];
     const bool mirrored = held.mirrored;
-    const glm::vec3 pos = view::anchorPosition(weapon, static_cast<int>(weapons::value(slot, Key::WpnButtonAnchorVertex)),
+    const glm::vec3 pos = view::anchorPosition(weapon, weapons::cvar(slot, Key::WpnButtonAnchor)->string,
         weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ) +
             glm::vec3{vr_grapple_front_button_x.value, vr_grapple_front_button_y.value, vr_grapple_front_button_z.value});
     const view::ViewEntity& back = entities.button[hand];
@@ -7124,41 +7125,55 @@ glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point)
         m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
 }
 
-glm::vec3 anchorPosition(const ViewEntity& ve, int anchorIndex, const glm::vec3& extra)
+namespace
+{
+
+// A point of an entity's model's byte space (anchor::posedAnchor's) through its matrix (render::anchorMatrix's).
+[[nodiscard]] glm::vec3 bytePoint(const float m[16], const glm::vec3& v)
+{
+    return {m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12], m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
+        m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
+}
+
+} // namespace
+
+glm::vec3 anchorPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra)
 {
     const entity_t& e = ve.ent;
     if(!e.model || e.model->type != mod_alias)
     {
         return {e.origin[0], e.origin[1], e.origin[2]};
     }
-
     float m[16];
     render::anchorMatrix(ve, extra, m);
-
-    const glm::vec3 v = anchor::posedVertex(e, anchorIndex, ve.zeroBlend);
-    return {m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12],
-        m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
-        m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
+    return bytePoint(m, anchor::posedAnchor(e, anchor, ve.zeroBlend));
 }
 
-glm::vec3 entityAnchorPosition(const entity_t& e, bool mirrored, float zeroBlend, int anchorIndex, const glm::vec3& extra)
+glm::vec3 anchorPosition(const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra)
 {
+    if(const ViewEntity* ve = find(&e))
+    {
+        return anchorPosition(*ve, anchor, extra);
+    }
     if(!e.model || e.model->type != mod_alias)
     {
         return {e.origin[0], e.origin[1], e.origin[2]};
     }
-    if(const ViewEntity* ve = find(&e))
-    {
-        return anchorPosition(*ve, anchorIndex, extra);
-    }
-
     float m[16];
     render::entityMatrix(e, mirrored, e.scale ? e.scale : ENTSCALE_DEFAULT, extra, m);
+    return bytePoint(m, anchor::posedAnchor(e, anchor, zeroBlend));
+}
 
-    const glm::vec3 v = anchor::posedVertex(e, anchorIndex, zeroBlend);
-    return {m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12],
-        m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
-        m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
+glm::vec3 vertexPosition(const ViewEntity& ve, int vertex)
+{
+    const entity_t& e = ve.ent;
+    if(!e.model || e.model->type != mod_alias)
+    {
+        return {e.origin[0], e.origin[1], e.origin[2]};
+    }
+    float m[16];
+    render::anchorMatrix(ve, glm::vec3{0.f}, m);
+    return bytePoint(m, anchor::posedVertex(e, vertex, ve.zeroBlend));
 }
 
 // QVR flashlight on guns (round 20).
@@ -7175,7 +7190,7 @@ bool weaponMount(int hand, WeaponMount& out)
     out.rot = drawnAs[hand].rot;
     out.mirrored = drawnAs[hand].mirrored;
     out.slot = slot;
-    out.muzzle = anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+    out.muzzle = anchorPosition(ve, weapons::cvar(slot, Key::MuzzleAnchor)->string,
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     return true;
 }
@@ -8278,7 +8293,7 @@ void modelReload_f()
         return;
     }
     // What was worked out from the old files: forgotten, worked out again from the new ones as they are drawn.
-    anchor::onGameDirChanged(); // the strip orders (vr_anchor.cpp): by model, and a reloaded model keeps its slot
+    anchor::onGameDirChanged(); // the anchors' bindings (vr_anchor.cpp): by model, and a reloaded model keeps its slot
     grasp::reset();
     modelcollide::reset();
     selfcollide::reset();
@@ -9021,11 +9036,11 @@ void hotspotsCheck_f()
             ve.ent.angles[2] = 25.f - 11.f * a;
             const glm::vec3 origin{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
             // The old drawn hand: the hand anchor and offset.
-            const glm::vec3 oldHand = anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::HandAnchorVertex)),
+            const glm::vec3 oldHand = anchorPosition(ve, weapons::cvar(slot, Key::HandAnchor)->string,
                 weapons::vec(slot, Key::HandOffsetX, Key::HandOffsetY, Key::HandOffsetZ));
             hand = za::max(hand, glm::distance(oldHand, origin));
             // The muzzle: round 20 moved the weapon by its GunOffset (world axes, y mirrored); retired, now not.
-            const int muzzleVertex = static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex));
+            const char* muzzleAnchor = weapons::cvar(slot, Key::MuzzleAnchor)->string;
             const glm::vec3 muzzleOffset = weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ);
             glm::vec3 gunOffset = weapons::vec(slot, Key::GunOffsetX, Key::GunOffsetY, Key::GunOffsetZ) * weapons::offsetScale();
             if(mirrored)
@@ -9038,14 +9053,14 @@ void hotspotsCheck_f()
                 shifted.ent.origin[i] += gunOffset[i];
             }
             muzzle = za::max(muzzle,
-                glm::distance(anchorPosition(shifted, muzzleVertex, muzzleOffset), anchorPosition(ve, muzzleVertex, muzzleOffset)));
+                glm::distance(anchorPosition(shifted, muzzleAnchor, muzzleOffset), anchorPosition(ve, muzzleAnchor, muzzleOffset)));
             if(weapons::value(slot, Key::TwoHDisplayMode) != 1.f)
             {
                 continue;
             }
             ViewEntity helped = ve;
             helped.mirrored = !mirrored;
-            const glm::vec3 old = anchorPosition(helped, static_cast<int>(weapons::value(slot, Key::TwoHHandAnchorVertex)),
+            const glm::vec3 old = anchorPosition(helped, weapons::cvar(slot, Key::TwoHHandAnchor)->string,
                 weapons::vec(slot, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY, Key::TwoHFixedOffsetZ));
             const weapons::Hotspot h = weapons::hotspot(slot, 0);
             const glm::vec3 now{hotspotFrame(ve.ent, mirrored) * glm::vec4{h.pos, 1.f}};
@@ -9062,6 +9077,46 @@ void hotspotsCheck_f()
         worstMuzzle, worstHand);
 }
 
+
+// vr_anchor_where: each hand's weapon as drawn this frame, its anchors (the muzzle, the ammo button and screen with their
+// offsets) and its magazine's and well's places (moved by their mount's anchor), in the world and in the gun's own frame
+// (its drawn matrix undone: what the anchors alone decide, the gun's motion taken out). For comparing builds and checking
+// a model edit in the game (Debug > Reports > Weapon Anchors).
+void anchorWhere_f()
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const ViewEntity& ve = entities.weapon[hand];
+        const int slot = ve.ent.model ? weapons::slotForModel(ve.ent.model) : -1;
+        if(!ve.visible || slot < 0 || ve.ent.model->type != mod_alias)
+        {
+            Con_Printf("anchors hand %d: no weapon\n", hand);
+            continue;
+        }
+        float m[16];
+        render::anchorMatrix(ve, glm::vec3{0.f}, m);
+        const glm::mat4 toLocal = glm::inverse(glm::mat4{glm::vec4{m[0], m[1], m[2], m[3]}, glm::vec4{m[4], m[5], m[6], m[7]},
+            glm::vec4{m[8], m[9], m[10], m[11]}, glm::vec4{m[12], m[13], m[14], m[15]}});
+        const auto print = [&](const char* what, const glm::vec3& w) {
+            const glm::vec3 l{toLocal * glm::vec4{w, 1.f}};
+            Con_Printf("anchors hand %d %s frame %d %s %.4f %.4f %.4f local %.4f %.4f %.4f\n", hand, ve.ent.model->name,
+                ve.ent.frame, what, w.x, w.y, w.z, l.x, l.y, l.z);
+        };
+        print("muzzle", anchorPosition(ve, weapons::cvar(slot, Key::MuzzleAnchor)->string,
+            weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ)));
+        print("button", anchorPosition(ve, weapons::cvar(slot, Key::WpnButtonAnchor)->string,
+            weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ)));
+        print("text", anchorPosition(ve, weapons::cvar(slot, Key::WpnTextAnchor)->string,
+            weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ)));
+        for(const ViewEntity* part : {&entities.mag[hand], &entities.well[hand]})
+        {
+            if(part->visible && part->ent.model)
+            {
+                print(part->ent.model->name, glm::vec3{part->ent.origin[0], part->ent.origin[1], part->ent.origin[2]});
+            }
+        }
+    }
+}
 // vr_dumpview: lists the VR view entities.
 void holsterPoseCheck(weapons::HolsterKind kind, const qmodel_t* model, const glm::vec3& inPos, const glm::vec3& inFwd,
     const glm::vec3& inUp)

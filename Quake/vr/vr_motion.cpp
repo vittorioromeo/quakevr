@@ -653,7 +653,9 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         {
             if(!strncmp(var->name, p, strlen(p)))
             {
-                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + var->string;
+                za::String value = var->string;
+                za::replace(value.begin(), value.end(), ' ', '_'); // an anchor's numbers (vr_anchor.hpp reads '_' as a space)
+                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + value;
                 break;
             }
         }

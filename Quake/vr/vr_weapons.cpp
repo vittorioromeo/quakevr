@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_weapons.hpp"
+#include "vr_anchor.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
@@ -155,8 +156,9 @@ namespace
 // placeholders before). 38: the author's Super Axe (slot 24: Offset Z and its first hotspot, 2026-10-08), each key only
 // where the config still held its old default. 39: the author's nailgun foregrip (slot 3: its first hotspot, the evening
 // of 2026-10-08), each key only where the config still held its old default. 40: slot 26 (the toolgun,
-// Misc/quakevr/make_toolgun.py; an unused placeholder before). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 40;
+// Misc/quakevr/make_toolgun.py; an unused placeholder before). 41: the anchors (round 22: points on the models' surfaces, not vertex
+// indices; vr_anchor.hpp): each of the config's indices to its slot's default, that vertex's point (convertAnchors). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 41;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -209,6 +211,27 @@ void takeWhereOld(za::Span<const OldDefault> changes)
             Cvar_SetQuick(&var, var.default_string);
         }
     }
+}
+
+// Every anchor of the config that is not a point (vr_wofs_version < 41: a vertex index in the old strip order of the
+// slot's model) to the slot's default, which is that vertex's point (the defaults were converted exactly: the same place
+// in every pose). A player's own index (no menu sets one; it named a vertex of 1.0's model files) gets the default too.
+void convertAnchors()
+{
+    int converted = 0;
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        for(const Key key : {Key::HandAnchor, Key::MuzzleAnchor, Key::TwoHHandAnchor, Key::WpnButtonAnchor, Key::WpnTextAnchor})
+        {
+            cvar_t& var = cvarAt(slot, key);
+            if(!anchor::isAnchor(var.string))
+            {
+                Cvar_SetQuick(&var, var.default_string);
+                converted++;
+            }
+        }
+    }
+    Con_DPrintf("Weapon settings: %d anchor indices replaced by their points\n", converted);
 }
 
 // The configs are read before anything asks for a slot.
@@ -278,7 +301,7 @@ void migrate()
     }
     if(vr_wofs_version.value < 15)
     {
-        constexpr Key tuned[] = {Key::TwoHDisplayMode, Key::TwoHHandAnchorVertex, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY,
+        constexpr Key tuned[] = {Key::TwoHDisplayMode, Key::TwoHHandAnchor, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY,
             Key::TwoHFixedOffsetZ, Key::TwoHBladeGrip, Key::OffsetX, Key::OffsetY, Key::OffsetZ, Key::Scale};
         for(int slot = 0; slot < numSlots; slot++)
         {
@@ -413,7 +436,7 @@ void migrate()
     }
     if(vr_wofs_version.value < 23) // the grappling hook's quick release button: these keys only
     {
-        for(const Key key : {Key::WpnButtonAnchorVertex, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
+        for(const Key key : {Key::WpnButtonAnchor, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
                  Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll, Key::WpnButtonMode})
         {
             cvar_t& var = cvarAt(17, key);
@@ -540,6 +563,10 @@ void migrate()
     if(vr_wofs_version.value < 40) // the toolgun (an unused placeholder before)
     {
         resetSlot(26);
+    }
+    if(vr_wofs_version.value < 41) // the anchors: points, not vertex indices
+    {
+        convertAnchors();
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
@@ -687,7 +714,7 @@ void markCurrent()
     }
     if(vr_wofs_version.value < 23) // the grappling hook's quick release button (as migrate)
     {
-        for(const Key key : {Key::WpnButtonAnchorVertex, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
+        for(const Key key : {Key::WpnButtonAnchor, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
                  Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll, Key::WpnButtonMode})
         {
             cvar_t& var = cvarAt(17, key);
@@ -932,7 +959,7 @@ bool retired(Key key)
 {
     switch(key)
     {
-        case Key::HandAnchorVertex:
+        case Key::HandAnchor:
         case Key::HandOffsetX:
         case Key::HandOffsetY:
         case Key::HandOffsetZ:
@@ -955,7 +982,7 @@ bool retired(Key key)
         case Key::TwoHFingerOpen:
         case Key::TwoHFingerThumbOpen:
         case Key::TwoHDisplayMode: // the two-handed grips: hotspots now
-        case Key::TwoHHandAnchorVertex:
+        case Key::TwoHHandAnchor:
         case Key::TwoHFixedOffsetX:
         case Key::TwoHFixedOffsetY:
         case Key::TwoHFixedOffsetZ:
@@ -1144,11 +1171,11 @@ bool inheritable(Key key)
     {
         case Key::ID:
         case Key::InheritFrom:
-        case Key::HandAnchorVertex:
-        case Key::MuzzleAnchorVertex:
-        case Key::TwoHHandAnchorVertex:
-        case Key::WpnTextAnchorVertex:
-        case Key::WpnButtonAnchorVertex: return false;
+        case Key::HandAnchor:
+        case Key::MuzzleAnchor:
+        case Key::TwoHHandAnchor:
+        case Key::WpnTextAnchor:
+        case Key::WpnButtonAnchor: return false;
         default: return !retired(key);
     }
 }

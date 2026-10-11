@@ -9,7 +9,7 @@ largest piece, pieces joined where vertices coincide: the seams' copies) and the
 (from its end to where the head starts, measured) is put on the axe's handle line (from its end, (0.2, 0, -3.55), along
 (4.2, 0, 11.55): vr_axestick.cpp), the blade the same way as the axe's (out of the handle, in the head's plane, the
 side the head reaches further). Then: its new scale_origin (the bounds' low corner), the muzzle (the handle's line at
-the head's middle; vr_anchor_nearest gives its anchor index, which is in the strip order), and the axe's Offset and
+the head's middle; vr_anchor_nearest gives its anchor, a point on the surface), and the axe's Offset and
 hotspots moved by 0.66 * the scale_origins' difference (a model point p is drawn at k p + (1 - k) o, k = 0.34).
 """
 import argparse

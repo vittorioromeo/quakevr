@@ -1589,3 +1589,165 @@ the press held 10 frames behind a waiting buffer: one load.
 
 **In the headset:** die in the start map's lava, hold A: "Loading...", one load of the level-start autosave, then
 play. Same with a quick tap, and on a map with no autosave yet (a plain restart).
+
+## Anchors are points on the models' surfaces (worktree `anchors`, 2026-10-10; a feature branch, not for 1.0.1)
+
+(Superseded in part by "Anchors without vertex indices" below: no legacy indices, hints or conversion tools any more.)
+
+The author approved deprecating vertex-index anchors so the weapon models can be edited freely. Before, every anchor
+(the weapon settings' `hand_av`, `2h_hand_av`, `muzzle_av`, `wpnbtn_av`, `wpntxt_av`; vr_view.cpp's magazine mounts;
+vr_shells.cpp's ejection ports) was an index into QuakeSpasm's old BuildTris strip order, rebuilt from the file by
+vr_anchor.cpp: deleting or re-ordering triangles renumbered it under the anchors (the Blender export refused such edits).
+
+**The format** (Quake/vr/vr_anchor.hpp): an anchor is text. `"x y z"`: a point on the model's surface in its own
+coordinates as frame 0 has them (scale and origin applied: what `vr_anchor_info` prints and Blender shows);
+`"x y z t"`: the same with a triangle hint, taken among triangles as near as the nearest; one number: a legacy index,
+still read as before (old takes' headers, an `exec`'d old config). At first use per model and text the point is bound to
+the nearest triangle of the rest pose (frame 0; a group's first pose): barycentric weights over its three vertices,
+snapped to a corner it is within 0.001 of. Among triangles within 0.001 of the nearest: the hint if it is one; else
+those with the point on a corner (not a triangle of another part passing that close), the first. Each frame the same
+weights over the posed vertices (as drawn: the renderer's lerp, then the zero blend towards frame 0) give its place:
+it follows the animation, and a renumbering changes nothing. The bindings are a `mem::Cache` ("anchors", per model and
+text), emptied on a game change and a model reload, so `vr_model_reload` rebinds an edited model's anchors.
+
+**Conversion.** The engine converted the shipped anchors itself (`vr_anchor_from_index <model> <index>`: the vertex's
+rest place, written with 4 decimals; a hint only where another binding the point could take goes elsewhere in some pose
+of the file): vr_weapons.inc's 144 defaults of the slots with models (the placeholders' "0" stay legacy), the six
+magazine mounts, the two shell ports (`Misc/quakevr/anchors.py convert-commands` / `apply`). Three need a hint: the
+rocket launcher's, the proximity gun's and the multi-rocket launcher's muzzles (and the proximity gun's button) sit on
+the collapsed muzzle flash, whose six vertices are in one place at rest and fly apart (up to 20 units) when it fires.
+**vr_wofs_version 41** converts a config's legacy indices once (`convertAnchors`, after the other migrations; a slot
+still at a legacy default keeps it): from the baseline config (version 21), 99 converted in 87 ms on the first slot
+lookup, and all 160 anchor cvars end exactly at the new defaults' text; a player's own index (`muzzle_av_02 "5"`)
+became its vertex's point. Motion take headers write an anchor's spaces as `_` (the anchor parser reads `_` as a space).
+
+**Verification.** For every converted anchor, the legacy index's vertex against the point's binding in every pose of
+the model (`vr_anchor_compare`; and the same independently in Python, `anchors.py table`): 144 anchors, worst
+**0.00000** model units (weights snap to exactly 1, so the engine's sums are bit-identical; blending is linear in the
+weights, so in-between frames match too).
+
+| Model | Anchors | Poses | Engine max | Script max |
+|---|---|---|---|---|
+| v_axe, v_shot, v_shot2, v_nail, v_nail2, v_light, v_lava, v_lava2, v_plasma, v_rock, v_multi | 5-6 each | 9 | 0 | 0 |
+| v_rock2, v_multi2, v_laserg, v_prox | 5 each | 7 | 0 | 0 |
+| v_hammer | 5 | 5 | 0 | 0 |
+| hand | 5 | 18 | 0 | 0 |
+| v_grpple, v_gruntgun, v_enfrifle, v_crowbar, v_ksword, v_hksword | 5 each | 9 | 0 | 0 |
+| v_chainsaw | 5 | 11 | 0 | 0 |
+| v_toolgun | 5 | 1 | 0 | 0 |
+| owned/mg3 v_hammer, v_hammer_glow | 5, 6 | 5 | 0 | - (not in the repo) |
+
+A/B of the builds (the base commit with the same probe, against this one): `vr_fixed_frames 1`, seeds, e1m1, fifteen
+weapons put in the main hand (axe to the crowbar: impulses 153-167) fired, five in the off hand (mirrored), each
+`vr_anchor_where` five times through its firing animation (muzzle, ammo button and screen, magazine and well, in the
+world and in the gun's frame), plus `vr_hotspots_check` (every slot's hand, muzzle and two-handed grip anchors, both
+hands): 548 lines, **0 differences**. (Without fixed frames two runs of one build differ by up to 4.7 units in the
+firing frames: the animation's timing, not the anchors.) `anchors.py selftest`: every anchor bound on its model with
+the vertices and triangles reversed and every triangle's corners turned stays put in every pose, but the four hinted
+ones (a hint is a triangle number).
+
+**Tools.** `vr_anchor_info <model> <anchor>` (binding, weights, distance off the surface, ties),
+`vr_anchor_nearest <model> x y z` (now prints the nearest surface point's anchor, to paste), `vr_anchor_from_index`,
+`vr_anchor_compare`, `vr_anchor_where` (Debug > Reports > Weapon Anchors). `Misc/quakevr/anchors.py`: the binding in
+Python (the engine's rules), `list`, `check <model> [old]`, `selftest`, the conversion's commands and table.
+polish_weapons.py checks "each anchor within 0.1 units of the surface and of where it was, in every pose" (bound on
+the old model and on the new) instead of "the anchor vertex's bytes unchanged"; its run reproduces all 19 shipped
+models byte for byte (reuv_weapons.py and refine_light.py take the anchors' vertices from their points:
+`anchors.strip_indices` / `anchor_vertices`). The Blender add-on (mdl.py) binds the anchors the same way and reports
+each one's move in every frame (MOVED past 0.01 units; RENAMED and the export refusal only for legacy indices); it
+also reads the magazine mounts and the current shell table now. MODELS_IN_BLENDER.md "Anchors" rewritten.
+
+**For the author.** Nothing to see: everything is where it was. In VR: fire each gun (the flash, tracer and shot at the
+muzzle), the ammo screen and button on the guns that have them, the nailguns' and thunderbolt's magazines in Immersive
+reloading (kick with the gun), the shotguns' shells. Open question: the three launchers' muzzle anchors on the
+collapsed flash jump with it in the firing frames (as before); `vr_anchor_nearest` on the barrel's tip would give a
+steady one. Merging: a branch that changes a weapon model or an `*_av` default before this lands needs its anchors
+converted again (`anchors.py convert-commands <rev>`, run them in the game, `apply <log> <rev>`, then
+`compare-commands`/`table`).
+
+
+## Anchors without vertex indices (worktree `anchors2`, 2026-10-11; the same feature branch, not for 1.0.1)
+
+The author: "Full replacement for vertex attachments, also simplify code around those areas." The section above is
+the first step; this one takes the vertex indices out (its legacy paths, conversion tools and the hint are gone).
+
+**The format** is `"x y z"` only (vr_anchor.hpp): a point on the model's surface, bound to the nearest rest-pose
+triangle (snapped to a corner it is on; among triangles as near, those with the point on a corner, the first in the
+file). No triangle hint: a fourth number is ignored. Text that is not three numbers binds to the model's first vertex
+(vr_anchor_info says it is not an anchor). The engine no longer reads a lone number as a strip-order index.
+
+**The migration** (vr_wofs_version 41) gives each of a config's anchor values that is not a point its slot's default:
+those are the old defaults' vertices' points, the same in every pose (below), so a config at the old defaults ends
+exactly where the shipped one is. It no longer translates indices through QuakeSpasm's strip order of today's files:
+once the models are edited that order says nothing about 1.0's vertices. A player's own index (no menu sets one; only
+a hand-edited config has it) gets the default too. Checked: a version-40 config, `muzzle_av_06 5`, `hand_av_02 472`:
+"160 anchor indices replaced by their points", each cvar at its default after the first slot lookup.
+
+**No anchor needs a hint.** The grenade launcher's (slot 5, v_rock.mdl), proximity gun's (10) and multi-grenade
+launcher's (13, v_multi.mdl; the notes above call them the rocket launchers) muzzles were on the collapsed muzzle flash (six vertices in one place at rest, the triangles 0..7) and followed it in
+the firing frame: 8.6 model units from the barrel there. Re-picked on the barrel's end face (the nearest point of the
+barrel to the old one, 0.42 units behind it: about 1.3 mm drawn), unique (no other triangle as near):
+`30.3762 -0.0556 5.9837`, `30.3752 -0.0558 5.9597`, `30.4389 -0.0494 6.0182`. The proximity gun's hidden ammo button
+(its WpnButtonMode is 0) was on the flash too: the same point as its muzzle now. The placeholders' anchors are `0 0 0`.
+
+**The monsters' guns** (vr_weaponfx.cpp: the soldier's and the enforcer's muzzle and rear, the middle of 14 + 6 and 7 + 5
+vertices) are anchors now, the points of those vertices (a UV seam's twins each, as the vertices were); the model's
+vertex count still says it is the model they were picked on.
+
+**Code.** vr_anchor.cpp 1175 -> 702 lines: QuakeSpasm's BuildTris strip search, the legacy and hint paths, the
+every-pose model read, `legacyToText`, `vr_anchor_from_index` and `vr_anchor_compare` gone; the tie count is worked
+out only by `vr_anchor_info` / `vr_anchor_nearest`, and only triangles that move elsewhere in some pose count (a UV
+seam's twins don't). The API: `anchor::posedAnchor(entity, text, zeroBlend)` (model byte space) and
+`view::anchorPosition` (the world: a view entity, or any alias entity drawn mirrored or not; `entityAnchorPosition` is
+an overload of it now), `anchor::isAnchor` for the migration. `weapons::Key::*AnchorVertex` are `*Anchor` (the cvars
+keep their `*_av` names: configs). Kept, not attachments: `anchor::posedVertex` / `view::vertexPosition` (the melee
+HUD's embers off a random vertex), `posedVertices` (the whole mesh: magazines' boxes, the firing motion), and
+vr_monstermods.cpp's knownSwords vertex lists (which triangles to hide, by vertex counts).
+
+**Tools.** anchors.py: `list`, `selftest`, `check`, `point <model> <vertex>` (a vertex's anchor, for the generators);
+the conversion commands gone, `vertex_text` the generators' printer. The Blender add-on (mdl.py, mdl_blender.py,
+__init__.py): no strip order, no RENAMED, no Remap Anchors option; the report covers the monster guns' anchors too
+(soldier.mdl, enforcer.mdl, after their checks.py lines); the gadget's points compare each old vertex near them with
+the new model's nearest vertex (not by index). The generators print points: improve_weapons.py (the double shotgun's
+new hand anchor), improve_weapons_alt.py (the alternates' anchors: the matched vertices' points), make_chainsaw.py,
+make_crowbar.py, make_enemyguns.py (its `pin_anchors`, which ordered the triangles to keep two strip indices, is gone),
+make_toolgun.py; their old index checks (`check_anchors`, strip-prefix asserts) are gone and the hands' old anchors
+are the frozen sources' vertices (`hand_vertex`, the strip index in a comment). improve_weapons.py and
+improve_weapons2.py ran again (they had broken on the converted defaults). polish_weapons.py finds the shotgun's
+fore-end by its two-handed anchor's point; reuv_weapons.py lost `keep_anchors` (it never dropped a chart in the shipped
+run).
+
+**Decision: reuv_weapons.py keeps its strip groups** (`strip_groups`, `merge_by_strips`: charts joined along
+QuakeSpasm's old strips). No anchor depends on them, but the shipped skins (plasma gun, super nailgun, rocket
+launchers, grappling hook, Mjolnir) were mapped so: without them a rerun of polish_weapons.py re-maps other faces and
+the skins change. Dropping them is one call (`charts = merge_by_strips(...)`) for when the skins are redone anyway.
+
+**Verification.**
+- Every anchor in every pose against vr-ironwail (bc3163ed4): a probe command dumping an anchor's place in every pose
+  of its model (model units, `%.5f`), the base build with the indices (strip order; the monster guns by file vertex),
+  this build with the points: 165 anchors (125 weapon slots' with models in the repository, 6 magazine mounts, 2 shell
+  ports, 32 monster-gun points), 4848 anchor-poses: **0.00000** for all but the four re-picked (0.42 at rest, 8.62 at
+  most in the firing pose). The probe isn't committed (scratch/probe_new.txt, probe_base.txt, gen_dump.py).
+- Scripted fire/reload/two-hand A/B, the same probe (vr_anchor_where ported to the base with its indices): `vr_fixed_frames
+  1`, seeds 7, e1m1, `vr_weapon_grip_mode 1`, grips held; 15 weapons in the main hand fired (grappling hook to toolgun:
+  impulses 151-169 but the launchers), 5 in the off hand, `vr_anchor_where` six times through each firing (muzzle,
+  button, screen, magazine and well, world and gun frame), then `vr_hotspots_check`, then the launchers last: 909
+  lines, **0 differences** before the launchers; in their blocks only their muzzles (and the proximity gun's hidden
+  button) in the gun's frame, and everything by the same 25.7 units in the world once the grenade launcher's grenade
+  (from the moved muzzle) knocked the player elsewhere.
+- anchors.py selftest: 165 anchors bound on their models renumbered, 0 moved. The add-on's report on every shipped
+  model against itself: 165 anchors ok. The engine's dump against anchors.py's and the add-on's bindings: 0.00000 on
+  every weapon model.
+- polish_weapons.py reproduces all 19 shipped models byte for byte (as before); improve_weapons.py, improve_weapons2.py
+  (now runs), improve_weapons3.py, make_chainsaw.py, make_crowbar.py: their models byte for byte as the old scripts
+  wrote them; make_enemyguns.py: the triangles in another order (no pin_anchors), its anchors where they were in every
+  pose (`anchors.check` against the old output: 0.0000) and the printed points are the shipped defaults.
+
+**Found:** the toolgun's muzzle (slot 26) is `15.0245 -0.6162 5.3987`, the conversion of index 614, which was
+make_toolgun.py's printed *file* vertex number taken as a strip index: 0.86 units from the lens's front centre the
+script meant (`15.4 0.0064 5.7941`, which it prints now). Kept as shipped (behaviour unchanged); the author may want the
+script's point.
+
+**For the author.** In VR: fire the grenade launcher, the proximity gun and the multi-grenade launcher: the flash,
+smoke and shot now leave from the barrel's end face in the firing frame too (before, the point jumped with the flash's
+folded vertices). Everything else is where it was.

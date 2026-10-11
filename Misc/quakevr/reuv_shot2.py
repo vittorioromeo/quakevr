@@ -15,7 +15,7 @@
 # along the gun, the edges lit and worn as mdlpolish.edge_wear does.
 #
 # Only UVs change: a vertex has one UV in an alias model, so each block is one piece in the skin (no vertex is
-# split, no triangle changed): vr_anchor.cpp's strip order, and so every anchor, stays (polish_weapons.py checks).
+# split, no triangle changed): every anchor stays (polish_weapons.py checks).
 # The front face under the muzzle block (hidden between the two blocks) is left out of the unwrap.
 #
 # The hole. Round 16 removed the drooping handle that closed the fore-end's back; the knuckle put under the hinge

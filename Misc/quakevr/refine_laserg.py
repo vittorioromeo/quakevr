@@ -24,9 +24,8 @@
 # the painted window: the red lamps now sit inside it); the walls take the window's darkest texel. Positions read off
 # the +y panel (luminance runs; CUTS, skin texels) and mirrored to -y across the body's middle plane.
 #
-# What stays: every old vertex's bytes and index, the triangles before the body (vr_anchor.cpp's strip order: the
-# hand 4, muzzle 22 and ammo counter 226 anchors are vertices of the first 170 triangles; polish_weapons.py checks
-# them), the header (scale, origin: the weapon offsets, hotspots and sights are model space). Re-mapped corners get
+# What stays: every old vertex's bytes and index, the triangles before the body (the hand, muzzle and ammo counter
+# anchors are on vertices of the first 170 triangles; polish_weapons.py checks them), the header (scale, origin: the weapon offsets, hotspots and sights are model space). Re-mapped corners get
 # copies of their vertex (every pose's bytes, a new skin coordinate); the cut's vertices are new (the body never
 # moves: every pose the same). New triangles go after the old ones.
 
