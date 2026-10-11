@@ -17,6 +17,10 @@
 #             box's corner;
 #             undo takes back a move, a turn and a removal;
 #   files     vr_brush_save / vr_brush_load round trip; a new map with vr_brush_autoload 1 gets its brush file's;
+#   light     the in-game bake: a box's sunlit side brighter than its shaded one, a pillar in its shadow (even once it
+#             goes), the same light after a save's load, a box by e1m1's flickering light with its style (10);
+#   bake      vr_brush_bake_write: the map with the brushes as submodels (BSP2 and BSP29) is solid where they are, and
+#             the brushes take their light from it ("relit"); light.exe itself isn't run (vr_brush_bake_map);
 #   light     (with --shots) a pillar lit by a dynamic light, its shadow behind it, then without it.
 # --shots: scratch/brush_shots.png (the tool's ghost, the scorch, the dynamic light's shadow, the panel).
 # --perf: 50 pillars: what making them takes, the frames before and after (--exclusive: timings).
@@ -155,6 +159,24 @@ t = run(["map e1m1", "wait60", "god", "notarget", "vr_brush_box 640 176 48 672 2
 b = faces(t, 1)
 check(len(b) == 1 and "10" in b[0][0][3].split() and b[0][0][4] > 20,
       f"light: a box by e1m1's flickering light has its style (10) on the face towards it ({b[0][0] if b else None})")
+
+# full bake without light.exe (vr_brush_bake_write): the map with its brushes appended as submodels (func_walls here),
+# each face lit 100 by hand, loaded as a map: the submodels' hulls 0 and 1 stop traces at the box's top; the brushes
+# loaded from their file take that light from them ("relit"), the turned wedge too (its hash through the text);
+# e1m1 (BSP29) the same
+t = run(R + ["vr_brush_box 128 -592 17 192 -528 81", "vr_brush_shape wedge 200 -700 17 300 -640 60", "vr_brush_rotate 2 0 30 0",
+             "vr_brush_save", "vr_brush_bake_write brushbake_test fake 100", "map brushbake_test", "wait60",
+             "vr_brush_trace 160 -560 140 160 -560 12", "vr_brush_trace 160 -560 140 160 -560 12 32", "vr_brush_load @vrfiringrange",
+             "wait60", "vr_brush_light 1", "vr_brush_light 2",
+             "map e1m1", "wait60", "vr_brush_box 640 176 48 672 208 64", "vr_brush_save", "vr_brush_bake_write brushbake_test fake 60",
+             "map brushbake_test", "wait60", "vr_brush_trace 656 192 100 656 192 30", "vr_brush_load @e1m1", "wait60", "vr_brush_light 1"])
+ends = [float(z) for z in re.findall(r"brush trace: fraction [\d.]+, end [-\d.]+ [-\d.]+ ([-\d.]+)", t)]
+relit = re.findall(r"brush light (\d): relit, (\d) faces", t)
+lit = [f for b in (faces(t, 1) + faces(t, 2)) for f in b]
+check(len(ends) == 3 and abs(ends[0] - 81) < 0.5 and abs(ends[1] - 105) < 0.5 and abs(ends[2] - 64) < 0.5,
+      f"bake: the written map's submodels solid (hull 0 at 81, hull 1 at 105; BSP29 at 64) ({ends})")
+check(relit == [("1", "6"), ("2", "5"), ("1", "6")] and lit and all(f[0] == f[2] and f[1] in (100.0, 60.0) for f in lit),
+      f"bake: the brushes take their faces' light from the written map ({relit})")
 
 # climb
 p = SCRATCH + "/brush_mantle.txt"

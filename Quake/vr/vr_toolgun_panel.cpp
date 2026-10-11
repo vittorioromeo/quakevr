@@ -820,7 +820,12 @@ void brushPage(Ui& ui)
     }
     constexpr const char* gridNames[] = {"1", "4", "8", "16", "32", "64"};
     constexpr float gridValues[] = {1.f, 4.f, 8.f, 16.f, 32.f, 64.f};
-    choiceRow(ui, Rect{pad, 63.f, panelWidth - pad, 75.f}, "Grid", vr_toolgun_brush_grid, gridNames, gridValues, 6);
+    choiceRow(ui, Rect{pad, 63.f, panelWidth - pad - 42.f, 75.f}, "Grid", vr_toolgun_brush_grid, gridNames, gridValues, 6);
+    // The full bake: the map relit by light.exe with the brushes in it (vr_brush_bake_map), then reloaded where you are.
+    if(button(ui, Rect{panelWidth - pad - 40.f, 63.f, panelWidth - pad, 75.f}, "Bake Map", false, 6.f))
+    {
+        Cbuf_AddText("vr_brush_bake_map\n");
+    }
 
     // The shape Create makes, and a cylinder's or pyramid's sides.
     {
@@ -913,7 +918,7 @@ void brushPage(Ui& ui)
     {
         Cvar_SetValueQuick(&vr_toolgun_brush_texlock, vr_toolgun_brush_texlock.value != 0.f ? 0.f : 1.f);
     }
-    if(button(ui, Rect{bar.x1 - 116.f, bar.y0, bar.x1 - 88.f, bar.y1}, "Pick", toolgun::brushtool::picking(), 6.f))
+    if(button(ui, Rect{bar.x1 - 112.f, bar.y0, bar.x1 - 88.f, bar.y1}, "Pick", toolgun::brushtool::picking(), 6.f))
     {
         toolgun::brushtool::pickTexture();
     }

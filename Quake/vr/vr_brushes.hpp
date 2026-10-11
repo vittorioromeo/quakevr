@@ -6,13 +6,14 @@
 // models meets it as it meets a door: Quake's collision (players stand and climb on it, monsters walk on it and can't
 // see through it), Box3D's movers (props and ragdolls), the ledges (climbing, mantling), the toolgun's aim, traces. It is
 // drawn by Ironwail's brush path from a slot of its own at the end of the brush buffers (r_brush.c's reserve): the world
-// shader's light, dynamic lights and their shadows, decals, detail; its lightmap one texel a face (the light where the
-// face is: R_LightPoint, flat).
+// shader's light, dynamic lights and their shadows, decals, detail; its faces' lightmaps in a rectangle of its own, lit
+// flat at once then baked in the game (vr_brushlight.cpp), or light.exe's after a full bake (vr_brushbake.cpp).
+// Saved games keep the brushes (their `// qvrb` lines); brush files keep a map's (vr_brush_save / vr_brush_load).
 //
 // The brush is the truth, everything else is made from it: planes (outward normals and distances, world space) with
 // each face's texture and its Valve 220 alignment, the same text as a .map's brush (toText / fromText), so a save's
-// sidecar, a duplicate, the network and a bake can all carry it as text. Stage 1: axis-aligned boxes from the tool;
-// the model maker takes any convex set (its polygons cut from the planes).
+// lines, a brush file, a duplicate, the network and a bake can all carry it as text. Any convex set of up to 16 planes
+// (the tool's boxes, wedges, cylinders and pyramids, turned or not; hulls 1 and 2 with Quake 2's bevels).
 //
 // The model's name is per brush id (not per change): an id is reused after its brush goes, its model made again in
 // place (the same qmodel_t: the precache list never fills), and the systems that keep things per model learn of the

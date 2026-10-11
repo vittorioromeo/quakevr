@@ -43,6 +43,8 @@
 #include "vr_relight_tool.hpp"
 #include "vr_relight_vis.hpp"
 
+#include "vr_brushbake.hpp"
+
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
@@ -2225,6 +2227,7 @@ struct Slot
     int item{-1}; // -1: free
     za::String stem;     // <work>/<game>/<map>: light's .bsp, .lit, .lux and -light.log; our .txt log
     za::String original; // the map's own entities, put back after
+    za::String brushNotes; // the full bake's (vr_brush_bake_map): its brushes' lines, kept with them after
     za::String hash;     // what it was lit from (the .relight's hash line)
     za::String source;   // the map's own file it was lit from (the .relight's source line: sourceId)
     za::I64 inputWritten{0}; // the input .bsp's write time: light's results are newer
@@ -2243,6 +2246,7 @@ struct Batch
     bool active{false};
     bool single{false}; // vr_relight: one map (its messages as before)
     bool force{false};  // maps relit with these settings already done again
+    bool brushes{false}; // the map in play relit with its runtime brushes in it (vr_brush_bake_map: vr_brushbake.cpp)
     za::Vector<Item> items;
     Slot slots[maxSlots];
     int parallel{1};
@@ -2731,7 +2735,31 @@ enum class Started
     files::createDirectories(za::String{files::parentPath(za::StringView{slot.stem})}.cStr());
     const za::String bsp = slot.stem + ".bsp";
     const za::String log = slot.stem + ".txt";
-    const za::Vector<unsigned char> input = withEntities(b, entities);
+    za::Vector<unsigned char> input;
+    char inPlay[MAX_QPATH];
+    if(batch.brushes && currentMap(inPlay, sizeof(inPlay)) && !q_strcasecmp(inPlay, map))
+    {
+        // The full bake: the map's brushes in it as submodels, with their entities for light (vr_brushbake.cpp).
+        za::Vector<unsigned char> augmented;
+        za::String brushEntities, error;
+        if(!brushbake::augment(data.data(), data.size(), augmented, brushEntities, slot.brushNotes, error))
+        {
+            Con_Printf("Relight: %s's brushes not baked in: %s\n", map, error.cStr());
+            slot.brushNotes.clear();
+            input = withEntities(b, entities);
+        }
+        else
+        {
+            const Bsp ab{augmented.data(), augmented.size()};
+            za::String all = entities;
+            all += brushEntities;
+            input = withEntities(ab, all);
+        }
+    }
+    else
+    {
+        input = withEntities(b, entities);
+    }
     if(!files::writeBytes(bsp.cStr(), input.data(), input.size()))
     {
         Con_Printf("Relight: can't write %s\n", bsp.cStr());
@@ -2945,7 +2973,9 @@ void reloadNow(const char* map, double seconds)
     {
         Con_Printf("Relight: light's %s.bsp has other leaves than the water-vis patch's: its liquids stay as they are\n", map);
     }
-    const za::Vector<unsigned char> out = withEntities(b, slot.original, patch ? &slot.patch : nullptr);
+    za::String kept = slot.original;
+    kept += slot.brushNotes;
+    const za::Vector<unsigned char> out = withEntities(b, kept, patch ? &slot.patch : nullptr);
     const za::String outBsp = outPath(s, "bsp");
     files::createDirectories(za::String{files::parentPath(za::StringView{outBsp})}.cStr());
     const bool hasLux = files::isFile(lux.cStr()) && files::lastWriteTime(lux.cStr()) >= since;
@@ -3215,7 +3245,7 @@ void fillSlots()
 
 // A batch of `sources` started with the page's settings (single: vr_relight's one map). `force`: maps relit with the
 // same settings already relit again (vr_relight's always are).
-void startBatch(za::Vector<maps::Source> sources, bool single, bool force, int alreadyLit = 0)
+void startBatch(za::Vector<maps::Source> sources, bool single, bool force, int alreadyLit = 0, bool brushes = false)
 {
     if(busy())
     {
@@ -3234,6 +3264,7 @@ void startBatch(za::Vector<maps::Source> sources, bool single, bool force, int a
     batch.single = single;
     batch.force = single || force;
     batch.alreadyLit = alreadyLit;
+    batch.brushes = brushes;
     batch.tool = tool;
     batch.root = customRoot();
     batch.look = Look::now();
@@ -3347,6 +3378,20 @@ void cancelBatch(const char* why)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Commands.
+
+void relightWithBrushesCommand()
+{
+    char current[MAX_QPATH];
+    maps::Source s;
+    if(!currentMap(current, sizeof(current)) || !maps::locate(current, s))
+    {
+        say("no map loaded: start a map first");
+        return;
+    }
+    za::Vector<maps::Source> one;
+    one.pushBack(ZA_MOVE(s));
+    startBatch(ZA_MOVE(one), true, true, 0, true);
+}
 
 void relightCommand()
 {
@@ -3720,6 +3765,7 @@ za::String toolCvars;      // vr_relight_tool, vr_relight_tool_dir, vr_relight_v
 void registerCommands()
 {
     Cmd_AddCommand("vr_relight", relightCommand);
+    Cmd_AddCommand("vr_brush_bake_map", relightWithBrushesCommand); // (the brushes' full bake: vr_brushbake.cpp)
     Cmd_AddCommand("vr_relight_batch", batchCommand);
     Cmd_AddCommand("vr_relight_cancel", cancelCommand);
     Cmd_AddCommand("vr_relight_revert", revertCommand);

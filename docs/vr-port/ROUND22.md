@@ -3192,3 +3192,54 @@ e1m1 smoke clean.
 (X/A): it stays held; with More open, the stick press shows the new tool's page; lift a grunt with the physgun and
 point the gun steeply up and down: it doesn't spin. Make a box against a scorched wall, paint and move it: the wall's
 mark stays.
+
+## Runtime brushes, stages 2-5: shapes, rotation, baked light, saving, the full bake (2026-10-11, worktree `brush2`)
+
+**The request** (the author's): "expand the brush tool to also support other shapes, baked lighting, saving, and full
+bake. Keep multiplayer-specific features as a TODO for now." Design and what was built: `BRUSH_TOOL.md` section 8.
+Four commits on `agent/brush2`.
+
+**What changed.**
+- **Shapes, rotation:** the panel's Shape row (Box, Wedge, Cylinder, Pyramid) and Sides (3..12); Create makes the shape
+  in the box dragged (a wedge rising away from the gun). New **Rotate** mode (after Resize on the panel; mode value 6):
+  the trigger held on a brush turns it with the hand, in `vr_toolgun_snap` steps (15), Tex Lock on the panel
+  (`vr_toolgun_brush_texlock` 1). Resize stretches any shape by its bounds. **Undo** on the panel (`vr_brush_undo`, 64
+  deep). Hulls 1/2 and the narrow player box use the faces plus axial and edge bevels (no snag off a turned corner).
+  Commands: `vr_brush_shape`, `vr_brush_rotate`, `vr_brush_align`, `vr_brush_undo`. New cvars
+  `vr_toolgun_brush_shape` 0, `_sides` 8, `_texlock` 1.
+- **Baked light** (`vr_brushlight.cpp`): each brush has a 64 x 32 lightmap rectangle (real luxels, 16 units, up to 4
+  lightstyles a face); flat light at once, then a bake from the map's lights (id/ericw formulas, spotlights, sun,
+  minlight, shadows through the world and other brushes, plus the map's unexplained light: bounce, sky, glows), 3 ms
+  a frame; neighbours rebaked after an edit. `vr_brush_bake` 1, `_ms` 3, `vr_brush_luxel` 16, `vr_brush_bake_fill` 1,
+  `_reach` 512, `_report` 0; `vr_brush_light`, `vr_brush_lights`, `vr_brush_rebake`.
+- **His open question** (a box made in a flickering room kept one frame's brightness): the bake puts each light in
+  its lightstyle's map, so the box flickers with the room (e1m1's corridor: the face towards the light has style 10);
+  the flat light before the bake reads every style at its average.
+- **Saving:** saved games keep their brushes (`// qvrb` comment lines in the `.sav`, made again on their entities at
+  the load); brush files `<game>/brushes/<map>.brushes` (`vr_brush_save`, `vr_brush_load [name|@map] [add]`,
+  `vr_brush_autoload` 0). An older build loads such a save without the brushes.
+- **Full bake** (`vr_brushbake.cpp`): `vr_brush_bake_map` (panel: Bake Map) relights the map with the brushes in it as
+  submodels (light.exe lights them, their shadows land on the world), then reloads where you are; the brushes take
+  light.exe's light from the relit world while unchanged ("relit"). `vr_relight_revert` (or a plain relight) takes it
+  out. `vr_brush_bake_write` writes the input without light (tests).
+- Debug > Boxes: Undo, Save/Load This Map's Brushes, Load Brushes with the Map, Bake the Brushes' Light, Bake Every
+  Brush Again, Bake the Map with Its Brushes, The Lights the Bake Sees.
+- **Coop:** TODO, written up in BRUSH_TOOL.md section 8.
+
+**Tests** (headless): `python Misc/quakevr/brush_test.py brush2`: PASS, 32 checks. New: the self-test's tool shapes, a
+45-degree box (hull 1 empty 17 off its corner, solid at 15: the bevel) and a box turned 90 degrees (axial again);
+the player stands on a wedge's slope (his height the slope's at his box's edge); a box trace stops 8 off a turned
+box's corner (vr_hull_width 16); undo of a move, a turn, a removal; a wedge made and turned 45 by the mock hand,
+undone; a save with a box and a turned, painted wedge loads with both as they were (traces stop on them; the next
+id 3); brush files round trip and autoload; baked light: sunlit side 154 vs shaded 86, bottom 0, a pillar beside it
+89..153 (the box's shadow), even (within 8) once the box goes, the same values after a save's load; e1m1's flicker
+style; the written bake maps (BSP2 vrfiringrange, BSP29 e1m1) solid at 81 (hull 0) and 105 (hull 1), the brushes
+"relit" from them (a turned wedge too). **Not run:** light.exe itself (none in the kit: "ericw-tools' light not
+found"), so `vr_brush_bake_map` end to end is untested; its input and read-back are.
+
+**In the headset:** toolgun, Brush tile. Pick Wedge / Cylinder (Sides 6) / Pyramid and drag one out; Rotate: hold
+the trigger on it and twist your wrist (15-degree ticks); Undo. Watch a new box: flat light at once, then (a moment
+later) shadows and the light's fall-off; build next to a flickering light (e1m1's corridor) and see it flicker; put a
+box between a light and another box. Save, quit, load: the brushes are there. With ericw-tools downloaded: Bake Map
+(a minute or more), then the box's shadow on the floor. Tell us: Rotate's feel (wrist vs. stick), shape defaults, and
+how the bake's light matches the room.

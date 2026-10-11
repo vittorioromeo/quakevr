@@ -6,6 +6,7 @@
 #include "vr_brushes.hpp"
 
 #include "vr_box3d.hpp"
+#include "vr_brushbake.hpp"
 #include "vr_brushlight.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
@@ -774,6 +775,7 @@ struct Entry
     brushlight::Texels texels;
     bool lightReady{false};
     bool baked{false};
+    bool fullBake{false}; // its light light.exe's (the relit world's: vr_brushbake.cpp), not the game's bake
     bool rebake{false};
     za::U32 lightSerial{0};
 };
@@ -1084,6 +1086,17 @@ void litFaces(const Entry& e, za::Vector<brushlight::Face>& out)
 // queued (vr_brush_bake).
 void layLight(Entry& e)
 {
+    // The map relit with it in it (vr_brush_bake_map): light.exe's light, its shape and textures the same.
+    if(vr_brush_bake.value != 0.f && brushbake::fromWorld(e.brush, static_cast<int>(e.built->surfaces.size()), e.maps, e.texels))
+    {
+        e.lightReady = true;
+        e.baked = true;
+        e.fullBake = true;
+        e.rebake = false;
+        e.lightSerial++;
+        return;
+    }
+    e.fullBake = false;
     za::Vector<brushlight::Face> faces;
     litFaces(e, faces);
     brushlight::layout(faces, e.maps);
@@ -1565,7 +1578,7 @@ void light_f()
         return;
     }
     const Entry* e = entryOf(id);
-    Con_Printf("brush light %d: %s, %d faces\n", id, !e->lightReady ? "not laid out yet" : e->baked ? "baked" : "flat",
+    Con_Printf("brush light %d: %s, %d faces\n", id, !e->lightReady ? "unlaid" : e->fullBake ? "relit" : e->baked ? "baked" : "flat",
         static_cast<int>(e->maps.size()));
     for(za::SizeT k = 0; k < e->maps.size() && e->texels.light.size() == static_cast<za::SizeT>(brushlight::rectWidth * brushlight::rectHeight); k++)
     {
@@ -1907,6 +1920,45 @@ void load_f()
     }
     const int made = fromAllText(text, !add, warning);
     Con_Printf("brush: %d brushes made from %s%s%s\n", made, path.cStr(), warning.empty() ? "" : ": ", warning.cStr());
+}
+
+// vr_brush_bake_write <name> [fake <level>] (tests): the full bake's input without light: this map with its brushes
+// as submodels, solid (func_wall entities), their notes in its entities, each face lit `level` if given (the light read
+// back without light.exe), written to <game folder>/maps/<name>.bsp. `map <name>` loads it.
+void bakeWrite_f()
+{
+    if(!serverReady() || Cmd_Argc() < 2)
+    {
+        Con_Printf("usage: vr_brush_bake_write <name> [fake <level>]\n");
+        return;
+    }
+    unsigned int pathId = 0;
+    byte* data = COM_LoadMallocFile(va("maps/%s.bsp", sv.name), &pathId);
+    if(!data)
+    {
+        Con_Printf("brush: maps/%s.bsp can't be read\n", sv.name);
+        return;
+    }
+    brushbake::Options o;
+    o.classname = "func_wall";
+    o.entitiesIn = true;
+    o.fakeLight = Cmd_Argc() > 3 && !q_strcasecmp(Cmd_Argv(2), "fake") ? za::clamp(Q_atoi(Cmd_Argv(3)), 0, 255) : -1;
+    za::Vector<unsigned char> out;
+    za::String entities, notes, error;
+    const bool ok = brushbake::augment(data, static_cast<za::SizeT>(com_filesize), out, entities, notes, error, o);
+    VR_HeapFree(data);
+    if(!ok)
+    {
+        Con_Printf("brush: not written: %s\n", error.cStr());
+        return;
+    }
+    const za::String path{va("%s/maps/%s.bsp", com_gamedir, Cmd_Argv(1))};
+    if(!files::writeBytes(path.cStr(), out.data(), out.size()))
+    {
+        Con_Printf("brush: can't write %s\n", path.cStr());
+        return;
+    }
+    Con_Printf("brush: %s written (%d brushes as submodels, %d bytes)\n", path.cStr(), count(), static_cast<int>(out.size()));
 }
 
 // vr_brush_texture_set <name>: the texture new brushes get.
@@ -3020,6 +3072,10 @@ bool parseAll(za::StringView text, za::Vector<Brush>& out, za::String& error)
 // The brush file's path for `name` (empty: the map's own): <game folder>/brushes/<map>[-name].brushes.
 [[nodiscard]] za::String brushFile(const char* name)
 {
+    if(name && name[0] == '@')
+    {
+        return za::String{va("%s/brushes/%s.brushes", com_gamedir, name + 1)}; // (another map's: @<map>[-name])
+    }
     return za::String{va("%s/brushes/%s%s%s.brushes", com_gamedir, sv.name, name && name[0] ? "-" : "", name ? name : "")};
 }
 
@@ -3594,6 +3650,10 @@ void frame()
     }
     for(auto& e : registry.entries)
     {
+        if(e && e->rebake && e->fullBake)
+        {
+            e->rebake = false; // (light.exe's light kept: the next full bake has the change)
+        }
         if(e && e->rebake && e->lightReady && e->built && !e->built->surfaces.empty())
         {
             e->rebake = false;
@@ -3640,6 +3700,7 @@ void registerCommands()
     Cmd_AddCommand("vr_brush_light", light_f);
     Cmd_AddCommand("vr_brush_lights", lights_f);
     Cmd_AddCommand("vr_brush_rebake", rebake_f);
+    Cmd_AddCommand("vr_brush_bake_write", bakeWrite_f);
 }
 
 } // namespace qvr::brushes

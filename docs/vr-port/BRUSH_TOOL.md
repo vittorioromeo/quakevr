@@ -390,3 +390,112 @@ Differences from the plan above:
 Left for later stages (from stage 1's list): the per-face texture choice and alignment ops (the data has them; the tool
 paints one face or all), duplicate across maps/clipboard text, undo, rotation, non-box shapes in the tool (the model
 maker takes any convex set already: the self-test's wedge and prism), the luxel bake, saving, coop.
+
+## 8. Stages 2-5 as built (2026-10-11, `agent/brush2` on `next`)
+
+The request: "expand the brush tool to also support other shapes, baked lighting, saving, and full bake. Keep
+multiplayer-specific features as a TODO for now." Four milestones, each a commit; `Misc/quakevr/brush_test.py` grew
+with each (ROUND22.md has the numbers).
+
+**Shapes and rotation (plan's stage 2).**
+- `brushes::shape(Shape, lo, hi, up, rise, sides)`: box, wedge (a ramp: its slope from the low end's bottom edge to the
+  high end's top edge), cylinder and pyramid (3..12 sides round the up axis, the polygon stretched to the box). The
+  tool's Create makes the panel's shape (Shape row; Sides row) in the box dragged, its up the surface's normal, a
+  wedge rising away from the gun.
+- `rotate(brush, turn, pivot, lockTexture)`: planes turned about a pivot in doubles (`turnFromAngles`: Quake's
+  AngleVectors, quarter turns exact: a box turned 90 degrees is axial again); with texture lock the Valve axes turn
+  with the faces and the offsets keep the texture where it lay; without it each face gets the world's alignment.
+  The tool's **Rotate** mode (value 6: the archived `vr_toolgun_brush_mode` numbers kept; the panel shows it after
+  Resize): the trigger held on a brush turns it as the gun's hand turns since the grab, each angle in
+  `vr_toolgun_snap` steps (15 if 0), about its bounds' middle on whole units; the ghost is the turned brush; let go,
+  it is made. Panel: Tex Lock / Tex Free (`vr_toolgun_brush_texlock` 1).
+- `scaleTo(brush, lo, hi, lo2, hi2)`: any shape stretched by its bounds (each plane through the affine map); Resize's
+  six handles now stretch any shape (a box: its face's plane moves, as before); `vr_brush_set` likewise.
+- **Bevels** (`bevels()` in `build`): the axial planes of the bounds and Quake 2's edge bevels (each non-axial edge
+  crossed with each axis, kept when the whole brush is behind it). Hulls 1 and 2 are the faces and bevels pushed out
+  by the boxes (the brush grown by the box, exactly: no snag off a turned box's corner or a wedge's edge); the narrow
+  player box (`clipBox`, vr_hull_width) uses the same set (`Built::clipPlanes`).
+- **Undo** (`vr_brush_undo`; the panel's Undo): the last 64 creates, changes and removals of this map (a change
+  undone is the brush as it was; a removal made again with its id if free).
+- `vr_brush_align <id> <face|all> <reset|shift du dv|scale su sv|turn deg>`: a face's alignment by hand. The tool's
+  per-face painting is Paint: One Face, as stage 1. A slot has 96 corners now (16 faces have at most 84).
+
+**Baked lighting in the game (plan's 3.4, strategy 2: `vr_brushlight.cpp`).**
+- Each slot owns a 64 x 32 rectangle of the lightmap atlas (`QVR_BRUSH_SLOT_LMW/LMH`, one `AllocBlock` a slot at the
+  map's load; `R_RuntimeBrushLightmap` writes the whole rectangle). A brush's faces get Quake-style lightmaps there
+  (luxels `vr_brush_luxel` 16 texture units apart on the face's texinfo grid, doubled until they all fit; shelf
+  packed), up to four styles side by side (the world shader's `lmofs`), the vertices' lightmap coordinates and styles
+  written by `upload`.
+- At once: each face one colour, the world's light under a point 4 units off its middle (`R_LightPoint`) **with every
+  lightstyle at its average** (`cl_lightstyle[].average`), shaded (`vr_brush_shade`). Then the bake, `vr_brush_bake_ms`
+  (3) a frame on the main thread: each luxel lit from the map's light entities as id's and ericw's light compute them
+  (`light`/`_light`, `wait`, `delay` 0/1/2/3/5, `_color`, spotlights by `mangle` or `target` with `angle` (40) and
+  `_softangle`, `_anglescale` 0.5; a light behind the face's plane skipped), each traced to the luxel through the
+  world's hull 0 (solid and sky block, liquids don't) and the other brushes (`brushes::blocks`: their shadows); the
+  sun (`_sunlight`, `_sun_mangle`, `_sunlight_color`) when the way to it meets the sky first; the minimum (`light`,
+  `_minlight`); light.exe's rangescale (a value of 256 is a byte of 128). **Each light goes to its own lightstyle's
+  map** (style 0 first, four at most a face, as Quake's), so a brush in a flickering room flickers with the room and a
+  switched light's share comes and goes with the switch. What the map's own light has that its lights don't explain
+  (bounce, the sky's dome, glowing textures, a relit map's extras) is added to style 0: the world's light under the
+  face's middle less the same lights' sum at that floor spot (`vr_brush_bake_fill` 1). Luxels past a polygon's edge
+  are lit at the edge; a luxel in the world's solid is moved toward the face's middle (light.exe's way). Light
+  directions (deluxemaps) are the lights' weighted sum in the world shader's frame.
+- A brush made, changed or removed rebakes the brushes within `vr_brush_bake_reach` (512) of it (its shadow on them).
+  A paint keeps the light; an alignment change lays it out again. Results for an older layout are dropped (a serial).
+- **The open question** ("should a box's light sample ignore animated lightstyles: a box made in a flickering room
+  keeps one frame's brightness"): resolved both ways. The bake puts the flickering light in its style's map, so the
+  box flickers as the walls do; the flat light before the bake (and with `vr_brush_bake 0`) reads every style at its
+  average, never one frame's.
+- `vr_brush_light <id>` (each face's luxels, spacing, styles, the first style's least/mean/most and the others' means),
+  `vr_brush_lights [x y z | styled]` (the lights the bake reads; near a point the nearest five and whether the sun is
+  seen), `vr_brush_rebake [id|all]`, `vr_brush_bake_report`.
+
+**Saving (plan's stage 3; no sidecar after all).**
+- A saved game keeps its brushes in the save itself: `// qvrb ` comment lines after its model list (COM_Parse skips
+  comments; an older build loads the save without them, as before). `VR_ReadSaveInfo` reads them; after the edicts
+  and models are restored (`VR_OnLoadGame`, after `rebindLoadedModels`) each brush is made again with its id on its
+  own entity (the one whose model is `*qvrbrush/<id>`; its model name was bound by the load already). The `.sav` and
+  its brushes can't part (a sidecar could be lost when saves are moved or copied).
+- Brush files: `vr_brush_save [name]` writes `<game folder>/brushes/<map>[-name].brushes` (`// qvrbrushes 1 map <map>
+  bsp <hash of the map's planes>` and the brushes' .map text); `vr_brush_load [name | @othermap] [add]` makes them
+  (the map's removed first unless "add"; another map's or another version's file warns and loads);
+  `vr_brush_autoload 1` gives a map started afresh (not a saved game) its file's brushes. Undo doesn't take back a
+  load. `allToText`/`fromAllText` are the format.
+- Before the client has the map (a save's brushes, made as the server loads), the brushes' capacity is what the
+  client's load will reserve (`R_RuntimeBrushSlotsFor`); uploads wait for the client to be in the game (its
+  lightstyles: the flat light and the bake read them).
+
+**Full bake (plan's 3.7 A: `vr_brushbake.cpp`, through vr_relight).**
+- `vr_brush_bake_map` (the panel's Bake Map, Debug > Boxes) relights the map in play with its brushes in it: the
+  relight's input `.bsp` gets each brush appended as an inline submodel after the map's own (faces, planes, texinfo,
+  vertices, edges; hull 0 a chain of nodes over one new empty leaf, hulls 1 and 2 chains of clipnodes: a valid model
+  nobody uses; BSP29, BSP2 and 2PSB; per-face BSPX lumps of the input dropped, light makes its own) and an entity each
+  for light (`func_qvr_brushbake`, its model, `_shadow 1`). light lights their faces with everything the relight's
+  look has (bounce, dirt, soft shadows) and their shadows fall on the world's lightmaps. The result's entity lump is
+  the map's own plus a comment line a brush (`// qvr_brushbake *<model> <hash> <faces>`); the result goes where the
+  relight puts it (relit_custom) and the map reloads where you are (the save keeps the brushes).
+- In that world a brush whose hash (its planes, alignment and textures, rounded: a save's text round trip keeps it)
+  and face count match takes its faces' lightmaps from the submodel's faces (light.exe's samples and styles, every
+  other luxel kept until they fit its rectangle; its .lux turned into the shader's frame): `vr_brush_light` says
+  "relit". A brush changed since is baked in the game as before; the world keeps the old shape's shadows until the
+  next bake or a plain relight (`vr_relight_revert` takes the bake out). The map's submodel numbers are kept, so its
+  saves still load.
+- `vr_brush_bake_write <name> [fake <level>]` (tests): the bake's input without light, written as a playable map
+  (the submodels as func_walls, the notes in, each face lit `level`): the BSP writer and the read-back checked
+  headless without light.exe.
+
+**Plan's 4b (full compile: qbsp + vis + light, brushes as real world geometry)** is not built: qbsp isn't shipped.
+The brush files are .map text a mapper can paste into TrenchBroom for that.
+
+**Coop / multiplayer (plan's stage 5): TODO.** The brushes are the listen server's and the toolgun is single-player.
+What's needed (3.8): the edits as server commands (`vr_brush_*` with the brush text) validated and applied by the
+server, a `QVR_SVC_BRUSH` sub-command (id, revision, compressed text) sent before the late precache so every client
+makes the identical model (`build` is deterministic in doubles); joining clients get every brush in the signon (the
+`// qvrb` text is the payload); the client-side light (flat, bake) runs on each client; the full bake stays the
+host's (its relit file would have to be sent). Undo per player. `brushes::blocks` and the bake read the server's registry:
+a remote client needs its own copy of the brushes (made from the svc).
+
+**Limits now.** 16 faces a brush; 4 lightstyles a face (a fifth style's light is left out); the in-game bake has no
+bounce of its own (the fill term borrows the map's) and no shadows from doors or other bmodels; brushes don't cast
+shadows on the world's baked light until the full bake (dynamic and moving-things shadows only); a huge brush's
+luxels are spaced wider (its rectangle is 64 x 32 texels).

@@ -38,8 +38,10 @@
 # ironwail.cfg.baseline, ironwail.cfg.from-tests, dated backups)
 *.sav
 *.sav.addon
-# The player's runtime brushes kept for a map (vr_brush_save: brushes/<map>.brushes)
+# The player's runtime brushes kept for a map (vr_brush_save: brushes/<map>.brushes), and brush_test.py's map with
+# them baked in (vr_brush_bake_write)
 /brushes/
+/maps/brushbake_test.*
 /ironwail.cfg.*
 # What the engine writes for debugging and tests (vr_highlights, vr_portals_shot, vr_wounds, the traces' cvars,
 # vr_decal_atlas, the grasp dump, -condebug)
