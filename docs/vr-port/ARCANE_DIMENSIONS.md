@@ -27,7 +27,7 @@ verified after download. It is 320,914,417 bytes. The QuakeC source ships inside
 | Item | Terms | Consequence for Quake VR |
 |---|---|---|
 | QuakeC (`my_progs/*.qc`) | "released under the terms of GNU General Public License v2 or later. You may use the source files as a base to build your own MODs as long as you release them under the same license and make the source available. Please also give proper credit." | **We may merge it.** Our QC is GPL-2 (id 1.06, Hipnotic and Rogue; MG under GPL-2+), and our source is public. Keep AD's file headers, credit sock and the team in CREDITS.md, and list the adaptations as OFFICIAL_QC_SOURCE.md does. AD's own code borrows from Hipnotic (`hiprot.qc`, `hipspawn.qc`), Rogue (traps) and others (Preach, necros, Lunaran, ...); all of it is GPL already. `dpextensions.qc`/`fteextensions.qc` are extension headers we would not import. |
-| Assets (models, sounds, textures, maps, gfx) | "Please do not use any of these assets in ANY COMMERCIAL PROJECT. and remember to give credit if you use any of these assets." / "All of these resources may be electronically distributed only at NO CHARGE to the recipient in its current state and MUST include this readme.txt file." | Quake VR is free, so reading AD's assets from the player's AD install is fine. **Never ship modified AD assets** (a VR re-rig of an AD weapon model would be a modified asset: ship our own model, or read theirs in place and adapt it at runtime with metadata, as for MG3). Mirroring the *unmodified* zip with its readme at no charge appears allowed. Conservative choice: download from the official mirrors and ask sock before we host a copy (open question 4). Many AD textures and models are "based on existing Quake assets" (readme), which is another reason never to redistribute them. |
+| Assets (models, sounds, textures, maps, gfx) | "Please do not use any of these assets in ANY COMMERCIAL PROJECT. and remember to give credit if you use any of these assets." / "All of these resources may be electronically distributed only at NO CHARGE to the recipient in its current state and MUST include this readme.txt file." | Quake VR is free, so reading AD's assets from the player's AD install is fine. **Never ship modified AD assets** (a VR re-rig of an AD weapon model would be a modified asset: ship our own model, or read theirs in place and adapt it at runtime with metadata, as for MG3). Mirroring the *unmodified* zip with its readme at no charge appears allowed. Conservative choice: download from the official mirrors and ask sock before we host a copy (decision 4, section 12: we host the unmodified zip; Vittorio asks sock). Many AD textures and models are "based on existing Quake assets" (readme), which is another reason never to redistribute them. |
 | Name | "Do not use the AD (Arcane Dimension) name for your own mod" | Call it "Arcane Dimensions support" or "plays Arcane Dimensions maps". Never brand our build or any QC fork as AD. |
 | Quake trademark | standard id notice | none |
 
@@ -164,7 +164,7 @@ The semantics change in an AD map for nearly all of them, through extra keys, sp
 | Higher limits | `max_edicts 8192` in quake.rc; `ad_sepulcher` has 8,775 map entities | 16,384 default, 32,000 cap | none (but see edict size, section 9) |
 | Fog, skybox, alpha | worldspawn `fog` and `sky`; `.alpha` on bmodels and models | yes | reroute AD's stuffcmd fog/sky/`bf`/`v_cshift` through `svc_fog` / MG fog (QC) and a sky change message |
 | Translucent water | `water_alpha` worldspawn key, `r_wateralpha` cvar_set | yes (worldspawn alpha keys kept) | map the key, never `cvar_set` the player's cvar |
-| Protocol 999 for cinematics | `misc_camera`/`info_camera_destination` (`SVC_SETVIEW`) | 999 is the default | VR comfort design (open question 7) |
+| Protocol 999 for cinematics | `misc_camera`/`info_camera_destination` (`SVC_SETVIEW`) | 999 is the default | VR comfort design (decision 7: fade to the camera, played out in VR; a "window" option) |
 | `checkextension` | DP/FTE point particles, `DP_GFX_FOG`, rain/snow, rotating bmodels, FTE skin contents (ladders), `FRIK_FILE`, `FTE_STRINGS`, `DP_QC_SPRINTF`, `addstat` (CSQC) | Ironwail/QSS subset; no effectinfo particles, no rain/snow TE, no CSQC | The bridge sets AD's `engine`/`ext_*` globals itself: `ENG_FITZ` in P1, so AD takes its sprite-particle fallback. P4: our particle system plays AD's effects (see section 8). |
 | `cvar_string` | none | missing | none |
 | External bmodels | `precache_model("maps/ad_brk/*.bsp")` | yes | none |
@@ -261,7 +261,7 @@ Dimensions" group; AD's own `ad_1_8.fgd` key docs are the source.
 | stuffcmd `fog`, `r_skyfog`, `sky`, `bf`, `v_cshift` | MG fog (`vr_mg_fog.qc`) for fog, a sky message for `trigger_skybox`, our bonus flash/cshift helpers |
 | AD gibs, blood, explosions, particles | Our gib/decal/debris/explosion systems (EXPLOSION_AND_FIRE_EFFECTS.md). AD's material gibs map to ours. |
 | AD's `monster_start` (classtype/classgroup/bbox) | Our `walkmonster_start`/`flymonster_start`/`swimmonster_start` plus a per-archetype VR registration (MG3 Phase D: hit zones, decap head, ragdoll seeds, hulls, parry, knockdown, grapple, gibs, dummy) |
-| Chaos mode / evil mode | Off in P1 (open question 6) |
+| Chaos mode / evil mode | Off (decision 6: an optional P4 task) |
 
 ### 5.4 Spawn-time resolution of conflicting classnames
 
@@ -280,7 +280,7 @@ Which implementation wins **in an AD map**:
 |---|---|---|
 | World logic (func/trigger/path/info/misc/light/ambient/trap, worldspawn) | AD (`ad__*`) | Estate, item checks, routes and delays are pervasive; reimplementing them on ours would be a port anyway. VR hand-pressing of buttons and VR door feel are kept through bridge hooks. |
 | Items, ammo, health, armour, keys, vanilla weapons | AD placement and respawn logic, **our pickup** | VR pickup (hands, holsters, magazines) is ours. AD keys only set where and when an item exists. |
-| Vanilla monsters (`monster_knight` ...) | **Ours (VR versions) + an AD-key adapter** (recommended) | Our knights, ogres and zombies have VR melee, limbs, decap and knockdowns. The adapter implements AD's keys on them (`spawndelay` + flags 64/128, `deathtarget`, `nomonstercount`, `noinfighting`, `gibondeath`, `bodyfadeaway`, `no_zaware`, `pain_ignore`, statue/ghost/point-knight, `exactskin` where the skin exists). This is open question 1: the other choice is AD's own versions, which are more faithful but lose VR features. |
+| Vanilla monsters (`monster_knight` ...) | **Ours (VR versions) + an AD-key adapter** (recommended) | Our knights, ogres and zombies have VR melee, limbs, decap and knockdowns. The adapter implements AD's keys on them (`spawndelay` + flags 64/128, `deathtarget`, `nomonstercount`, `noinfighting`, `gibondeath`, `bodyfadeaway`, `no_zaware`, `pain_ignore`, statue/ghost/point-knight, `exactskin` where the skin exists). Decision 1: ours; AD's own monsters get our VR features in P2. |
 | Name clashes (`monster_eel`, `monster_mummy`, `item_plasma`, `item_artifact_wetsuit`, `func_breakable`, `func_bob`, `misc_model`, `trigger_fog`, `trigger_heal`) | AD's in AD maps; elsewhere the current owner (Rogue/Hipnotic/MG) | The `weapon_mjolnir` precedent. AD's versions are spawnable anywhere by their `ad__` name (toolgun), when the data is there. |
 
 Outside AD maps, AD-only classnames spawn AD's entities under the **default ruleset**: AD's documented defaults, VR
@@ -302,7 +302,7 @@ be a later option.
 
 | Area | AD | Gate |
 |---|---|---|
-| Shotguns | **Projectile pellets** with casings by default (impulse 130 toggles; worldspawn `no_sgprojectile`) | AD rules. Default on in AD maps, matching AD's balance. Open question 2. |
+| Shotguns | **Projectile pellets** with casings by default (impulse 130 toggles; worldspawn `no_sgprojectile`) | AD rules. Default on in AD maps, matching AD's balance (decision 2: AD's pellets, with VR tunables). |
 | Ammo resistance | Monsters resist shells/nails/rockets/cells (`resist_*`), with visual tells | AD monsters everywhere (it is part of the monster) |
 | Monster projectiles | Speed scales with skill (hard = id speed); Z-aware aim (`no_zaware`) | AD monsters everywhere; vanilla monsters only in AD maps |
 | Monster melee | Checks Z (+-64) as well as XY | AD monsters |
@@ -349,7 +349,7 @@ That is 38 BSPs, 9 of them BSP2. Runes for the secret `ad_end`: D in ad_crucial,
 - **15 carry their own `progs.dat`**, mostly jams with modified AD progs plus old AD versions. 8 carry `.pak` files.
 - The Map Library already labels them "Made for Arcane Dimensions" (`madeFor`, `vr_mapinstall.cpp:1996`). It refuses
   packages carrying progs and drops the `ad` folder. With AD support, those maps get AD rules through detection. The
-  progs-carrying jams stay refused until open question 8 is answered.
+  progs-carrying jams stay refused until AD support lands (decision 8: they should then work).
 
 ---
 
@@ -422,7 +422,7 @@ skullwiz 225, lostsoul 177, hogremac 150, boil 117.
 | **Globals limit** (v6: 16-bit operands, 65,535) | Ours 26,746 + AD 22,799 (AD's own compile). After dropping CSQC, extension headers and player code, and with our `-O3` local overlap: estimated **+12-18k → about 40-45k**. **Measured in P1a: 42,279 (64.5%; 23,256 left).** | P1's first task builds the import with no behaviour and **measures**. If it ever nears 60k, the fallback is engine support for fteqcc's 32-bit-operand progs (a large engine task: loader, VM, saves). |
 | **Edict size** | +813 AD field slots (+42%): edict about 7.7 → 11 KB. At `max_edicts` 16,384 the server allocates about 180 MB (+53 MB). Saves grow only by non-zero fields. **Measured in P1a: 1,934 → 2,815 slots (+881); saves +4.6% (AD's saved globals).** | Share fields with ours where the meaning matches (allowlist). Keep mapper keys as the only bare-named fields. Consider allocating edicts on demand. |
 | Progs size / load | Statements +177k (to about 400k), file about 5 MB, a few hundred ms more at progs load, QC compile time up | Measure in P1 |
-| Duplicate monster implementations | Our VR monsters vs AD's versions | Section 5.4: ours + an AD-key adapter (open question 1) |
+| Duplicate monster implementations | Our VR monsters vs AD's versions | Section 5.4: ours + an AD-key adapter (decision 1) |
 | Spawnflag collisions | AD 8/16/32/64/128 vs MG 4/8/16, Rogue 2/4/8, VR flags | Every AD flag read behind `AD_Rules()` or on AD classnames only. The `MG_deferred` precedent: separate saved fields, never reuse VR's bits. |
 | Field and function collisions | `.color` type, `th_pain` signature, 1,690 same-named functions | Namespacing tool (5.2), allowlist reviewed by hand |
 | Asset collisions | 72 overrides, `v_plasma.mdl` semantic clash, AD `start.bsp` | Mount below id1; `owned/ad/` paths; campaign isolation |
@@ -476,27 +476,85 @@ skullwiz 225, lostsoul 177, hogremac 150, boil 117.
 Total: about 47-77 agent-days. P1a is the gate: it measures the globals and edict budget before anything else is
 committed to.
 
+**Vittorio's decisions (section 12) placed in the plan:**
+
+- **P2:** AD's own monsters get our VR features (hit zones, dismemberment, knockdowns, shoves, ragdolls, parry), by
+  archetype, in order of usage in maps (decisions 1 and 11). AD's rules travel with AD's content outside AD maps
+  (decision 9).
+- **P3/P4:** the cinematic camera's VR presentation: fade to the cutscene camera played out in VR by default, a
+  "window in the world" as an option (decision 7). Chaos and evil modes are an optional P4 task (decision 6).
+- **Installer (after P1):** AD's component is on by default once P1's acceptance passes (decision 3). The first URL is
+  the unmodified zip on our support release, the official mirrors follow (decision 4).
+- **After P1b:** AD-based packages that ship their own progs are allowed and played on our AD port; their QC changes
+  are not run (decision 8).
+- **Every phase:** latest AD only (decision 10); AD's shipped bugs listed with a fix/keep proposal, decided by
+  Vittorio one by one (decision 12).
+
 ---
 
-## 12. Open questions for Vittorio
+## 12. Decisions (Vittorio, 2026-10-11)
 
-1. **Vanilla monsters in AD maps:** our VR versions with AD's keys adapted (recommended; keeps melee, limbs, decap and
-   knockdowns), or AD's own versions (faithful, but they lose VR features until re-registered)?
-2. **Shotgun projectiles in AD maps:** AD's default (projectile pellets and casings, which AD's balance assumes) or our
-   hitscan? Outside AD maps it stays hitscan.
-3. **Installer default:** on by default only after P1's acceptance (proposed), or on from the first build that has
-   the component?
-4. **Mirror:** may we ask sock to let us host the unmodified zip on our support release (his licence seems to allow
-   no-charge unmodified redistribution with the readme), or do we keep to Quaddicted and simonoc.com?
-5. **AD's player rules** (debuffs, fall damage, per-map inventory resets, item respawn): in AD maps only (proposed)?
-6. **Chaos mode and evil mode:** port later (P4) or skip?
-7. **Cinematic cameras** (`misc_camera`): fade to a fixed panel view, a VR "window" in the world, or skip them?
-8. **AD-based packages that carry their own modified progs** (15 on Quaddicted, mostly jams): try them with our AD
-   port (some will mismatch), or keep refusing them?
-9. **AD content outside AD maps:** AD monsters keep AD's rules (ammo resistance, skill-scaled projectiles) everywhere
-   (proposed, as part of the monster), or retuned to id balance?
-10. **Versions:** support only 1.80p1/1.81 (proposed) and refuse older AD installs?
-11. **P2 monster order:** by usage (dknight, zombiek, dcrossbow, hogre, spider, ...), or your favourites first?
+The open questions of P0 are answered. **Go: P1b (AD maps playable).** Architecture rule for every phase: AD-specific
+code stays as isolated as possible and easy to update when a new AD patch comes out, the way the VR code is isolated
+from Ironwail. Anything in shared engine or QC code carries a clear `// AD support` comment.
+
+| # | Question | Decision | Phase |
+|---|---|---|---|
+| 1 | Vanilla monsters in AD maps | **Ours** (the VR versions, with AD's keys adapted). AD's own monster versions must **also** get our VR features later (melee hit zones, dismemberment, knockdowns, shoves, ragdolls...). | P1b (ours), P2 (AD's monsters' VR features) |
+| 2 | Shotguns in AD maps | **AD's projectile pellets, tunable for VR**: cvars and VR menu sliders (spread multiplier, speed multiplier...). | P1b |
+| 3 | Installer default | AD **on by default only after P1's acceptance**. | P1 end |
+| 4 | Mirror | **Host the unmodified AD zip on our support release** (Vittorio asks sock; assumed OK). Our release is the first URL, the official mirrors follow. | installer |
+| 5 | AD's player rules | **In AD maps only.** Some may later apply everywhere: the list of differences is below. | P1b |
+| 6 | Chaos mode, evil mode | He asked what they are and what they cost: see below. Off until then. | P4 (optional) |
+| 7 | Cinematic cameras | **Default: fade to the cutscene camera, played out in VR. Option: a "window in the world"** showing it (customisable). | P1b: not breaking play; the VR presentation is its own task (P3/P4) |
+| 8 | AD-based packages with their own modified progs | **Should work** in our port once AD is supported (their QC changes are not run; the maps are). | after P1b |
+| 9 | AD content outside AD maps | **AD's rules stay with AD's content** (an AD monster keeps its ammo resistance and projectile speeds in any map). He asked for the differences and concerns: below. | P2 |
+| 10 | Versions | **Latest AD only** (1.80 patch 1, "1.81"); every older install is refused with a clear message. | P1b |
+| 11 | P2 monster order | **By usage in maps** (dknight 475, zombiek 435, dcrossbow 387, hogre 330, spider 268, ...). | P2 |
+| 12 | AD's shipped bugs | **Decided per bug**: each one found is listed with a fix/keep proposal (section 15.5); none is fixed silently. | every phase |
+
+**Answers to his questions.**
+
+- **AD's vanilla monsters vs ours (1).** AD rewrote every id monster in its own framework: ammo resistance
+  (`resist_*`), Z-aware aim, projectile speeds scaled by skill, melee that checks height, AD's gib materials and
+  `bodyfadeaway`, minions, estate (on/off by triggers), the spawn keys of section 6 and variant spawnflags (statue,
+  ghost, point knight, `exactskin`). Ours add the VR layer: positional damage and hit zones, limbs and decapitation,
+  knockdowns, shoves, foe-grab, ragdolls, parry windows. **Reuse:** most of our VR layer is generic (positional damage,
+  knockdowns, shoves, foe-grab, ragdolls and gibs run on any monster with a hull and a model) and is attached by a
+  per-archetype registration (MG3 Phase D did the same for MG3's monsters). What is per monster is data: the hit
+  zones and limb splits of each AD model, which frames are melee, and the pain/death hooks into AD's AI. So AD's
+  monsters reuse the code; they need their data, archetype by archetype (P2, in usage order).
+- **AD's player rules (5)**, everything AD's `client*.qc`, `weapons.qc` and `items.qc` change for the player:
+  - debuffs: poison, burning, bleeding (set by AD monsters and traps, ticked every frame);
+  - fall damage (`fall_dmg`, `fall_dmgwater`) and map gravity (`gravity` worldspawn key);
+  - per-map inventory: `give_weapons`, `take_weapons`, `reset_health`, `max_health`, `currentammo`, `ammo_*`,
+    `armortype`, `armorvalue`, `no_axestart`;
+  - jump boots (1-4 power levels), ladders (`trigger_ladder`), AD's grapple hook (`upgrade_ghook`);
+  - the weapon upgrades: Shadow Axe, Widowmaker, Plasma Gun (P3);
+  - projectile shotguns with casings (decision 2);
+  - item respawn (`respawn_time/count/trig`), coop item rules, `notarget` blocking pickups, backpacks keeping their
+    items, custom keys (`item_keyx`, 4 more keys);
+  - 7 spawn locations chosen by map variables, map variables carried between maps (`parm11..16` in AD; ours
+    `parm57..72`);
+  - cinematic cameras and the intermission camera cycle, secret-location cameras;
+  - info prints (inventory, map variables) on impulses.
+  Candidates to apply universally later: debuffs (they come with AD's monsters anyway), fall damage as an option,
+  ladders (VR climbing), custom keys.
+- **Chaos and evil modes (6).** *Chaos mode* ("Markie Madness", `chaosmode.qc`, 2.4k lines) randomises the map: each
+  monster, ammo, health, armour and artifact is swapped for another of its class from a seeded random table, with
+  saves and quickloads re-synchronised by a restart. *Evil mode* is AD's skill 4 ("Nightmare+"): a lower maximum health
+  and every map started with the Shadow Axe. Evil mode is small (skill 4 plus three player rules). Chaos mode is
+  significant: it wraps most spawn functions, ours included, and its save/restart dance fights our saves; it would
+  be its own P4 task with its own tests.
+- **AD content outside AD maps (9).** With AD's rules kept, AD's monsters behave as in AD everywhere: they resist some
+  ammo types (shown by AD's tells), aim at height, scale projectile speed by skill. Concerns:
+  - balance: an id map's ammo layout is not planned for resistant monsters;
+  - AD's spawnflags (8/16/32/64/128...) collide with MG's, Rogue's and ours, so they are read only on AD's
+    classnames there (section 6);
+  - AD's world entities need AD's world setup (precaches, light styles, the particle system), which outside AD maps
+    must be a reduced setup run on first use;
+  - AD's player rules (debuffs from AD monsters, for one) need a decision per rule when an AD monster is placed in an
+    id map; proposal: debuffs on (they are the monster's attack), the rest off.
 
 ---
 
