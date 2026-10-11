@@ -14,6 +14,8 @@ vr_portal_ai_test.qc
 vr_stealth_defs.qc
 // Arcane Dimensions: the switches and the bridge's declarations (vr_ad_bridge.qc, after AD's files, defines them).
 vr_ad_defs.qc
+// AD's monsters with Quake VR's treatment: their fields and hooks (vr_ad_monsters.qc defines them).
+vr_ad_mondefs.qc
 ai.qc
 combat.qc
 fight.qc
@@ -410,3 +412,5 @@ ad/ad_mon_bossjudicator.qc
 ad/ad_mon_bossnour.qc
 // ad_import.py: end
 vr_ad_bridge.qc
+vr_ad_monsters.qc
+vr_ad_monsters_test.qc

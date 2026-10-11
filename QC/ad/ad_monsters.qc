@@ -408,6 +408,7 @@ void() ad_monster_death_postcheck =
 	// Allow for the dead body/head to touch triggers (void/hurt)
 	setorigin(self, self.origin);
 	self.solid = ad_SOLID_TRIGGER;
+	VR_AD_BodySolid();
 	self.touch = ad_SUB_Null;
 	
 	// Compatibility with Quoth body fade version
@@ -1125,6 +1126,7 @@ float() ad_monster_checkspawn =
 ======================================================================*/
 void() ad_monster_start =
 {
+	VR_AD_MonsterSetup();
 	self.flags = ad_FL_MONSTER;			// Always reset this flag
 	self.ad_ticktimer = 0.1;				// Model animations at 10fps
 	self.ad_skin_override = self.skin;		// Save for later

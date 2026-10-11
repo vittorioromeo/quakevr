@@ -230,6 +230,7 @@ float(entity xTarget) PositionalHead =
 {
     string c = xTarget.classname;
     if(xTarget.vr_mg3_mon && MG3_PositionalHead(xTarget)) { return TRUE; } // (QVR: Dawn of the Machine's own models: vr_mg3_ogre.qc)
+    if(xTarget.vr_ad_mon) { return VR_AD_PositionalHead(xTarget); } // AD support: AD's monsters' heads (vr_ad_monsters.qc)
     if(c == "monster_army")             { xHeadForward = 3;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
     if(c == "monster_ogre" || c == "monster_ogre_marksman") { xHeadForward = 9; xHeadUp = 33; xHeadRadius = 10; return TRUE; }
     if(c == "monster_enforcer")         { xHeadForward = 2;  xHeadUp = 27; xHeadRadius = 7.4; return TRUE; }
@@ -4983,7 +4984,7 @@ void() ImpulseCommands =
             }
             self = spawnPlayer;
         }
-        else if(spawnKind >= 100)
+        else if(spawnKind >= 100 && spawnKind < 200) // (AD support: 200.. AD's monsters, by the dispenser below)
         {
             self = spawn();
             setorigin(self, spawnAt - '16 16 0'); // a box's origin is its corner: its middle there

@@ -853,6 +853,7 @@ string(float choice) VR_EnemyDispenser_Model =
     else if(choice == 62) { return "owned/mg3/progs/teleporter_eye.mdl"; }
     else if(choice == 63) { return "owned/mg3/progs/teleporter_eye.mdl"; }
     else if(choice == 50) { return "progs/boss.mdl"; } // (id's: MG3's spheres too, its spawn checks)
+    else if(choice >= 200 && VR_AD_DispenserModel(choice) != "") { return VR_AD_DispenserModel(choice); } // AD support: AD's monsters (vr_ad_monsters.qc)
 
     return NULLSTR;
 };
@@ -862,6 +863,10 @@ string(float choice) VR_EnemyDispenser_Model =
 void(float choice) VR_EnemyDispenser_Spawn =
 {
     // The classname a map's monster has: sight sounds, obituaries and the like go by it.
+    if(VR_AD_DispenserSpawn(choice))
+    {
+        return; // AD support: AD's monsters, from 100 (vr_ad_monsters.qc)
+    }
          if(choice == 0)  { self.classname = "monster_army";        monster_army(); }
     else if(choice == 1)  { self.classname = "monster_ogre";        monster_ogre(); }
     else if(choice == 2)  { self.classname = "monster_zombie";      monster_zombie(); }

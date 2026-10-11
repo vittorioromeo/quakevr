@@ -592,6 +592,7 @@ const char* const menuButtonHelp =
 #include "vr_menu_cheats.inc"
 #include "vr_menu_toolgun.inc"
 #include "vr_menu_stealth.inc"
+#include "vr_menu_ad_monsters.inc" // AD support: Debug > Tests > Arcane Dimensions Monsters
 
 // ----------------------------------------------------------------------------
 // Pages of the port's own tweaks
@@ -6168,6 +6169,9 @@ za::Vector<Item> pageDebugTests()
             .help("The Super Axe (any campaign with the Dawn of the Machine data), the axe buttons, the laser cannon, the bloody shotguns."),
         open("Dawn of the Machine Monsters", pageIndex(pageMg3MonsterTests))
             .help("The infected (any campaign) and Dawn of the Machine's own monsters (with its data): spawns and checks."),
+        open("Arcane Dimensions Monsters", pageIndex(pageAdMonsterTests)) // AD support
+            .help("Arcane Dimensions' monsters with Quake VR's treatment (ragdolls, beheading, limbs, knockdowns): "
+                  "spawns ahead and reports, in an AD map."),
         open("Dawn of the Machine Tests", pageIndex(pageMg3Tests))
             .help("MG3 native port: state, saved upgrades and capacities. Dawn of the Machine campaign only."),
         command("Machine: Progression Report", "vr_mg_hub_test 3")
@@ -7547,6 +7551,7 @@ const Page pages[] = {
     {"Toolgun - Cheats and Utilities", pageToolgunCheats, pageToolgun, LevelStandard},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
     {"Doom", pageDoom, pageGadget, LevelStandard},
+    {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

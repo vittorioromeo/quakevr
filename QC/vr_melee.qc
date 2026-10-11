@@ -2575,6 +2575,10 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
         e.attack_finished = time + stagger;
         self = oldSelf;
     }
+    else if(e.health > 0 && e.vr_ad_mon && !e.vr_knockdown)
+    {
+        VR_AD_Pain(e, self, dmg, stagger); // AD support: AD's pain function (vr_ad_monsters.qc)
+    }
     // A knockdown (vr_knockdown.qc): by chance, the shove knocks it down as a ragdoll.
     VR_Knockdown_Try(e, xForward, xKind, xHand, push);
     VR_HitBloodSplash(e, e.origin + '0 0 16', 4);

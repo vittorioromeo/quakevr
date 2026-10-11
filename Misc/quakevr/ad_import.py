@@ -119,6 +119,28 @@ PATCHES = [
      "\t\telse self.dmg = DAMAGE_PSHELL * VR_AD_PelletDamage(self);",
      1, B + ": the pellet damage settings (vr_ad_pellet_damage, Weapon Damage)"),
 ]
+# The monsters' hooks (P2, ARCANE_DIMENSIONS.md section 16): AD's monsters get Quake VR's treatment (QC/vr_ad_monsters.qc;
+# their declarations in QC/vr_ad_mondefs.qc). Applied after the bridge's (the T_Damage line is the bridge's patched one).
+MON_PATCHES = [
+    ("monsters.qc", "void() monster_start =\n{\n", "void() monster_start =\n{\n\tVR_AD_MonsterSetup();\n",
+     1, B + ": the monster's Quake VR data by its class (head zone, knockdown, corpse, parries)"),
+    ("ai_combat.qc", "\ttarg.health = targ.health - take;\n",
+     "\tVR_AD_KdSave(targ);\n\ttarg.health = targ.health - take;\n",
+     1, B + ": a knocked-down monster's frame and think kept from AD's reaction (put back by VR_AD_PainDown)"),
+    ("ai_combat.qc", "\t//----------------------------------------------------------------------\n"
+     "\t// Check for ammo type resistance and immunity to pain\n",
+     "\tif (VR_AD_PainDown(targ)) return;\n\t//----------------------------------------------------------------------\n"
+     "\t// Check for ammo type resistance and immunity to pain\n",
+     1, B + ": knocked down: no pain animation (its ragdoll), longer down"),
+    ("ai_combat.qc", "\t\t\tif (self.flags & FL_MONSTER) monster_death_use();\n\t\t\tself.th_die ();\n",
+     "\t\t\tif (self.flags & FL_MONSTER) monster_death_use();\n\t\t\tVR_AD_Dying(attacker);\n\t\t\tself.th_die ();\n"
+     "\t\t\tVR_AD_Died();\n",
+     1, B + ": Quake VR's dying around AD's death function (beheading, limbs, knockdown's death, corpse, gore)"),
+    ("monsters.qc", "\tself.solid = SOLID_TRIGGER;\n\tself.touch = SUB_Null;\n",
+     "\tself.solid = SOLID_TRIGGER;\n\tVR_AD_BodySolid();\n\tself.touch = SUB_Null;\n",
+     1, B + ": the body touchable, not a trigger (its ragdoll and corpse are Quake VR's)"),
+]
+PATCHES = PATCHES + MON_PATCHES
 # (Mechanical, not patches: a global array's length named by a constant, `float a[MAX];`, is written as the number,
 # as our fteqcc flags (autoproto) take no named constant there.)
 

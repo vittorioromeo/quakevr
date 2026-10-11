@@ -53,6 +53,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_box3d.hpp"
+#include "vr_ad_monsters.hpp" // AD support
 #include "vr_convex.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_main.hpp"
@@ -2962,7 +2963,7 @@ const RagdollClass ragdollClasses[] = {
 [[nodiscard]] float tune(const edict_t* ent, Tune t)
 {
     const auto i = static_cast<za::SizeT>(t);
-    const char* classname = PR_GetString(ent->v.classname);
+    const char* classname = ad::vrClass(PR_GetString(ent->v.classname)); // AD support: AD's monsters as their nearest class
     for(const RagdollClass& c : ragdollClasses)
     {
         if(!strcmp(classname, c.classname) && c.own[i]->value >= 0.f)
@@ -7363,7 +7364,7 @@ void liftAgain()
 // A body's own Float, times the liquid's: armour sinks (the knights, the death knights, the enforcers).
 [[nodiscard]] float ownFloat(const edict_t* ent)
 {
-    const char* name = PR_GetString(ent->v.classname);
+    const char* name = ad::vrClass(PR_GetString(ent->v.classname)); // AD support: AD's knights in plate sink as knights
     if(!strcmp(name, "monster_knight") || !strcmp(name, "monster_hell_knight") || !strcmp(name, "monster_ranged_knight"))
     {
         return 0.85f;

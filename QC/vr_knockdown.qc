@@ -160,6 +160,10 @@ void() VR_Knockdown_Reverse =
         self.vr_knockdown = 0;
         self.think = self.th_run;
         self.nextthink = time + 0.1;
+        if(self.vr_ad_mon)
+        {
+            VR_AD_RunNow(); // AD support: AD's monsters run by AD's th_run (vr_ad_monsters.qc)
+        }
         return;
     }
     self.frame = self.frame - 1;
@@ -181,7 +185,7 @@ void() VR_Knockdown_Step =
     {
         return;
     }
-    if(self.think == self.th_run || self.think == f)
+    if(self.think == self.th_run || self.think == f || VR_AD_IsRunning(self)) // (AD support: AD's th_run)
     {
         self.vr_knockdown = 0; // (its run goes on at its own pace)
         return;

@@ -79,6 +79,10 @@ string(float xHow) VR_Decap_HowName =
 string(entity e) VR_Decap_HeadModel =
 {
     string c = e.classname;
+    if(e.vr_ad_mon)
+    {
+        return VR_AD_HeadModel(e); // AD support: AD's monsters' own heads (vr_ad_monsters.qc)
+    }
     if((c == "monster_knight" || c == "monster_hell_knight") && (e.spawnflags & 2))
     {
         return ""; // (a statue: stone, VR_Corpse_Parts)

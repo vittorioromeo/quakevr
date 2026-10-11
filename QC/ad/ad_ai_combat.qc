@@ -80,7 +80,9 @@ void(entity ad_targ, entity ad_attacker) ad_Killed =
 			self.touch = ad_SUB_Null;
 	
 			if (self.flags & ad_FL_MONSTER) ad_monster_death_use();
+			VR_AD_Dying(ad_attacker);
 			self.ad_th_die ();
+			VR_AD_Died();
 		}
 		// Completely fuckup setup for the oldone boss with a weird target
 		// field and mess of triggers around it! This elseif is just an
@@ -269,6 +271,7 @@ void(entity ad_targ, entity ad_inflictor, entity ad_attacker, float ad_damage, f
 	//----------------------------------------------------------------------
 	// do the damage
 	//----------------------------------------------------------------------
+	VR_AD_KdSave(ad_targ);
 	ad_targ.health = ad_targ.health - ad_take;
 	VR_AD_Hit(ad_targ, ad_inflictor, ad_attacker, ad_take);
 	
@@ -418,6 +421,7 @@ void(entity ad_targ, entity ad_inflictor, entity ad_attacker, float ad_damage, f
 	}
 	self = ad_oldself;
 
+	if (VR_AD_PainDown(ad_targ)) return;
 	//----------------------------------------------------------------------
 	// Check for ammo type resistance and immunity to pain
 	// Targetdummies rely on the pain function to display stats
