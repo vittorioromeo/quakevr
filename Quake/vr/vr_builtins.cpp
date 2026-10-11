@@ -1562,6 +1562,15 @@ void PF_ragdollcanstagger()
     G_FLOAT(OFS_RETURN) = box3d::ragdollCanStagger(G_EDICT(OFS_PARM0)) ? 1.f : 0.f;
 }
 
+// float ragdolldrown(entity e, float begin): a drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; QC
+// VR_Knockdown_Drown): begin 0, whether e can (its kind driven alive, Swim and Flail on); begin 1, its knockdown's
+// ragdoll just made: its living swim begun frantic.
+void PF_ragdolldrown()
+{
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    G_FLOAT(OFS_RETURN) = (G_FLOAT(OFS_PARM1) != 0.f ? box3d::ragdollDrowning(ent) : box3d::ragdollCanDrown(ent)) ? 1.f : 0.f;
+}
+
 // float ragdollstagger(entity e, vector dir, float push, float balance, float reach): e, just knocked down by a shove
 // along dir (its ragdoll made), staggers instead (push: the shove's; balance 0 about to fall .. 1 steady; reach: the
 // units the shove carries a standing one). 0: it can't (a knockdown, as before).
@@ -2322,6 +2331,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollshovetopple", PF_ragdollshovetopple},
     {"ragdollgetup", PF_ragdollgetup},
     {"ragdollcanstagger", PF_ragdollcanstagger},
+    {"ragdolldrown", PF_ragdolldrown},
     {"ragdollstagger", PF_ragdollstagger},
     {"ragdollstaggered", PF_ragdollstaggered},
     {"ragdollrelease", PF_ragdollrelease},

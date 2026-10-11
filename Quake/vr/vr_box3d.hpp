@@ -238,6 +238,11 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
 // staggering, 0 fallen (a knockdown now; or no ragdoll), 2 recovered (handed back to the animated monster standing, box
 // mins..maxs, .vr_knockdown 2).
 [[nodiscard]] bool ragdollCanStagger(edict_t* ent);
+// A drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; QC VR_Knockdown_Drown): whether `ent` can (its
+// kind driven alive, vr_ragdoll_active_liquids on); its knockdown's ragdoll just made: its living swim to begin frantic
+// (false: no ragdoll).
+[[nodiscard]] bool ragdollCanDrown(edict_t* ent);
+bool ragdollDrowning(edict_t* ent);
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach);
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,

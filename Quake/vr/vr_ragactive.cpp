@@ -619,6 +619,9 @@ constexpr float twoPi = 6.2831853f;
 constexpr float swimThrustDying = 0.05f;  // body weights: a dying paddle's strokes' push at most (at full vigour)
 constexpr float swimThrustLiving = 0.2f;  // ... a living knockdown's, towards where it can stand
 constexpr float swimArrived = 0.25f;      // m: that near its goal, it only treads water
+constexpr float panicTime = 3.f;          // s: a drowning one's frantic strokes ease to its usual over this
+constexpr float panicRate = 0.9f;         // ... its strokes' rate times 1 + this at first,
+constexpr float panicThrust = 0.5f;       // ... and their push 1 + this
 
 void turnWhole(const Parts& p, const Context& c, const glm::quat& want, float rate, float most, float k); // ("Staggers")
 [[nodiscard]] glm::vec3 level(const glm::vec3& v); // (below)
@@ -825,7 +828,13 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
     // Its vigour (1 .. 0): the arms' strength over what it began with. Slower strokes as it weakens.
     const Fade& fa = s.fade[static_cast<za::SizeT>(Channel::Arms)];
     const float v = za::clamp(fadeAt(fa, t) / za::max(fa.from, 1e-3f), 0.f, 1.f);
-    const float hz = water ? 0.6f + 0.7f * v : 2.2f + 1.6f * v;
+    // A drowning one's struggle: frantic strokes at first (quicker, harder), easing to its usual.
+    if(w.panic > 0.f && w.panicFrom < 0.0)
+    {
+        w.panicFrom = c.now;
+    }
+    const float frantic = w.panic > 0.f ? w.panic * (1.f - smooth(static_cast<float>(c.now - w.panicFrom) / panicTime)) : 0.f;
+    const float hz = (water ? 0.6f + 0.7f * v : 2.2f + 1.6f * v) * (1.f + panicRate * frantic);
     w.phase += twoPi * hz * c.dt;
     // (Wrapped in water only: a flail's hops count its phase up, and lasts at most ~50 s, a few thousand radians.)
     if(water && w.phase > 64.f * twoPi)
@@ -930,7 +939,8 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         {
             way /= wl;
             const float stroke = 0.5f + 0.5f * za::sin(w.phase);
-            w.thrust = (w.living ? swimThrustLiving : swimThrustDying) * s.totalMass * c.gravity * v * stroke * s.base;
+            w.thrust = (w.living ? swimThrustLiving : swimThrustDying) * s.totalMass * c.gravity * v * stroke * s.base *
+                       (1.f + panicThrust * frantic);
             pushPart(p, 0, way * (0.5f * w.thrust));
             pushPart(p, sp.chest >= 0 ? sp.chest : 0, way * (0.5f * w.thrust));
             const glm::vec3 ahead = level(qc * x);

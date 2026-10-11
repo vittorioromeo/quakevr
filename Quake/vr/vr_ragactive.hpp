@@ -310,6 +310,10 @@ struct Swim
     bool hasGoal{false};
     glm::vec3 goal{0.f};
     float thrust{0.f};           // N: the last frame's push along its way (the traces)
+    // A drowning one's struggle (vr_ragdoll_active_drown; vr_box3d.cpp ragdollDrowning): its strokes frantic (quicker,
+    // harder) by this share at first, easing to its usual over panicTime from panicFrom (its first frame with it).
+    float panic{0.f};
+    double panicFrom{-1.0};
 };
 
 // A living monster's stagger from a shove (beginStagger; vr_ragactive.cpp, "Staggers"), how it ends.

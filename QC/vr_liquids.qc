@@ -9,6 +9,8 @@
 //   lava   10 x waterlevel every 0.2 s (50, 100, 150 a second)
 //   slime   4 x waterlevel every second (4, 8, 12 a second)
 //   water   12 seconds of breath, then escalating damage once a second; a ragdoll breathes at its physical head
+//           (out of breath standing, a grunt, enforcer, knight, death knight, ogre or zombie first struggles as a
+//           ragdoll, vr_ragdoll_active_drown: paddling for the surface, then up where it can stand)
 //
 // It is the liquid's damage (no attacker, as the player's): no quad, no Damage to Enemies multiplier, no hit push,
 // no gore spray. The monster's own pain code runs (its pain sounds and flinches, at its own pace), and it dies by
@@ -39,6 +41,8 @@
 float VR_LIQUID_LOOK = 0.1; // seconds between looks at a monster out of slime and lava
 
 float vr_liquid_type; // set by VR_Liquid_Level: the liquid at the feet
+
+float(entity e) VR_Knockdown_Drown; // (vr_knockdown.qc: a drowning monster struggles as a ragdoll)
 
 // How deep `e` is in liquid, as the engine measures the player's waterlevel: 0 out of it, 1 the feet, 2 the waist,
 // 3 the eyes. vr_liquid_type: the liquid (CONTENT_WATER, CONTENT_SLIME, CONTENT_LAVA; else CONTENT_EMPTY).
@@ -155,6 +159,13 @@ void(entity e, float hurt) VR_Liquid_Monster =
         if(time >= e.vr_liquid_air && time >= e.vr_liquid_drown)
         {
             e.vr_liquid_drown = time + 1;
+            // Out of breath, standing: a grunt, an enforcer, a knight ... struggles as a ragdoll (vr_knockdown.qc,
+            // VR_Knockdown_Drown): paddling for the surface and where it can stand; this tick spared.
+            if(VR_Knockdown_Drown(e))
+            {
+                e.vr_liquid_in = kind;
+                return;
+            }
             e.vr_liquid_dmg = min(15, e.vr_liquid_dmg + 2);
             float drownDamage = e.classname == "monster_zombie" ? e.health + 40 : e.vr_liquid_dmg;
             T_Damage(e, world, world, drownDamage);

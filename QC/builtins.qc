@@ -290,6 +290,9 @@ float(entity e, float frameA, float frameB, vector mins, vector maxs, float rang
 // recovered (up where it stands with box mins..maxs, its ragdoll blended into its animation), 3 lost (a loaded game: its
 // ragdoll made again without its stagger; the QC begins it again, VR_Knockdown_Think).
 float(entity e) ragdollcanstagger = #0;
+// A drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; VR_Knockdown_Drown): begin 0 whether e can (its
+// kind driven alive, Swim and Flail on); begin 1 its knockdown just made: its swim begun frantic.
+float(entity e, float begin) ragdolldrown = #0;
 float(entity e, vector dir, float push, float balance, float reach) ragdollstagger = #0;
 float(entity e, vector mins, vector maxs) ragdollstaggered = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;

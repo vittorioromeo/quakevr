@@ -4123,6 +4123,11 @@ void hologramTestMessage()
             .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
                   "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "
                   "blends into the get-up from the floor (vr_ragdoll_active_getup)."),
+        slider("Drowning Struggle", vr_ragdoll_active_drown, 0.f, 1.f, 0.05f, "%.2f")
+            .help("With Knockdowns, the chance a grunt, enforcer, knight, death knight, ogre or zombie standing with its "
+                  "head under water, out of breath, struggles as a ragdoll: it paddles frantically for the surface, its "
+                  "head up, towards where it can stand, and gets up there. Needs Swim and Flail in Liquids. 0: it drowns "
+                  "standing (vr_ragdoll_active_drown)."),
         toggle("Placed Corpses Are Bodies", vr_corpse_placed)
             .help("The corpses a map places (Dimension and Dawn of the Machine) are dead monsters' bodies: shot, gibbed and "
                   "burnt, and ragdolls you take and cut once you come near. Off: scenery. The next map load (vr_corpse_placed)."),

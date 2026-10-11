@@ -605,6 +605,7 @@ struct RagdollBodies
     int riseLapses{0};
     double riseStuck{-1.0}; // risen, its spot taken since (it slumps after a while)
     double swimGoalAt{-1.0}; // a living knockdown swimming (livingSwim): when its goal (where it can stand) was looked for
+    bool drowning{false};    // knocked down drowning (ragdollDrowning): its living swim begins frantic
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -4321,6 +4322,11 @@ void livingSwim(RagdollBodies& r)
     if(ragactive::beginLivingSwim(a, activeParts(r), c))
     {
         r.swimGoalAt = -1.0;
+        if(r.drowning)
+        {
+            a.swim.panic = 1.f; // (drowning: frantic strokes at first)
+            r.drowning = false;
+        }
         return;
     }
     if(fresh)
@@ -14781,6 +14787,31 @@ bool ragdollCanStagger(edict_t* ent)
     // (Not wading: its body would float on as it staggers. A shove there is the knockdown's chance alone.)
     return world && vr_ragdoll_active_stagger.value != 0.f && activeLiving(ent) && canRagdoll(ent) &&
            !liquidAt(vec(ent->v.origin));
+}
+
+bool ragdollCanDrown(edict_t* ent)
+{
+    return world && vr_ragdoll_active_liquids.value != 0.f && activeLiving(ent) && canRagdoll(ent);
+}
+
+bool ragdollDrowning(edict_t* ent)
+{
+    RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp)
+    {
+        return false;
+    }
+    rp->drowning = true;
+    if(ragactive::swimming(rp->active) && rp->active.swim.living)
+    {
+        rp->active.swim.panic = 1.f; // (already swimming: frantic from now)
+        rp->drowning = false;
+    }
+    if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+    {
+        Con_Printf("drown: %d %s out of breath: it struggles as a ragdoll\n", rp->num, PR_GetString(ent->v.classname));
+    }
+    return true;
 }
 
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach)
