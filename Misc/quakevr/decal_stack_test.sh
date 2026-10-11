@@ -7,7 +7,7 @@
 # clustered round the spot (vr_decal_stress 64 24 cluster, twice: a gib's burst), shot again once spread. The marks
 # multiply the texture, so more marks only darken a pixel: decal_stack_check.py fails on pixels lighter after the new
 # marks (an older mark gone under them). Exit 0 pass, 1 holes, 2 the run failed. Before the fix (the newest 64 of each
-# grid bucket listed): about 1950 pixels lighter, in cell-edged patches; after: under 20.
+# grid bucket listed): about 10200 pixels lighter, in cell-edged patches; after: under 20.
 set -u
 agent="${1:?usage: decal_stack_test.sh <agent> [kit]}"
 kit="${2:-C:/OHWorkspace/qvr-kit}"
