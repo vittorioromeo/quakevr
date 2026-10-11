@@ -118,6 +118,7 @@ void(entity targ, entity attacker) Killed =
     entity oself;
 
     VR_Stealth_Died(targ); // QVR: its body may be noticed (vr_stealth.qc)
+    AD_MonsterKilled(targ, attacker); // AD support: AD's keys on our monsters (deathtarget) in an AD map
     oself = self;
     self = targ;
     // VR: the firing range's training dummy killed by what passed by its own report (VR_Dummy_Hit; a zombie it stands as
@@ -345,6 +346,10 @@ float(entity e) VR_Corpse_Parts =
     vr_corpse_gib2 = "progs/gib2.mdl";
     vr_corpse_gib3 = "progs/gib3.mdl";
 
+    if(e.vr_ad_mon)
+    {
+        return VR_AD_CorpseParts(e); // AD support: AD's monsters' heads and gibs (vr_ad_monsters.qc)
+    }
     if(e.th_die == army_die)
     {
         vr_corpse_head = "progs/h_guard.mdl";
@@ -1438,6 +1443,13 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         damage = RuneApplyBlack(damage, attacker);
     }
 
+    // AD support: AD's Blast Belt takes a blast's damage (its push given), halves the rest with Quad (vr_ad_items.qc)
+    damage = AD_ArtifactDamage(targ, inflictor, damage);
+    if(damage < 0)
+    {
+        return FALSE;
+    }
+
     //MED
     //check for empathy shields
     if(VR_ItemUtil_EntHasItem(targ, IID_EMPATHY_SHIELDS) &&
@@ -1700,6 +1712,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         return FALSE; // only a melee blow opens it (vr_mg3_weapons.qc)
     }
+    damage = AD_Resist(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's ammo resistance (vr_ad_player.qc)
+    if(AD_Run(targ))
+    {
+        return AD_Damage(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's entities by AD's T_Damage (vr_ad_bridge.qc)
+    }
     if(targ.vr_shootnade)
     {
         return VR_GrenShot_Damage(targ, inflictor, attacker, damage, isVRMelee);
@@ -1750,7 +1767,8 @@ float(entity e) VR_Parry_MeleeMonster =
            c == "monster_dog" || c == "monster_shambler" || c == "monster_super_shambler" || c == "monster_fish" || c == "monster_gremlin" ||
            c == "monster_mummy" || c == "monster_super_wrath" || c == "monster_sword" || c == "monster_morph" ||
            c == "monster_dragon" || c == "monster_scourge" || c == "monster_ogre_marksman" || c == "monster_tarbaby" ||
-           e.vr_dummy_striking || e.vr_eshove_striking;
+           e.vr_dummy_striking || e.vr_eshove_striking ||
+           (e.vr_ad_mon & VR_ADM_MELEE); // AD support: AD's monsters that strike in melee (vr_ad_monsters.qc)
 };
 
 // Whether `p`'s `hand` holds a weapon with the hand's forward across `toAttacker` (horizontal, unit):
@@ -2089,10 +2107,17 @@ void(entity m, entity p) VR_Parry_Interrupt =
     {
         VR_Dragon_ParryInterrupt();
     }
-    else if(m.th_pain && m.classname != "monster_tarbaby" && m.classname != "monster_morph")
+    else if((m.th_pain || m.vr_ad_mon) && m.classname != "monster_tarbaby" && m.classname != "monster_morph")
     {
         m.pain_finished = 0;
-        m.th_pain(p, 1000);
+        if(m.vr_ad_mon)
+        {
+            VR_AD_Pain(m, p, 1000, 0); // AD support: AD's pain function (vr_ad_monsters.qc)
+        }
+        else
+        {
+            m.th_pain(p, 1000);
+        }
         if(m.frame != frameBefore)
         {
             m.vr_parry_frame0 = m.frame;

@@ -729,6 +729,43 @@ struct Box
 // The hold a grip of the hand at `hand` takes (see the top of the file): one the hand is at, else (leniency, `radius`
 // units) the nearest it is within `radius` of being at. `vel`: the hand's velocity (m/s); `headPos`: the head.
 // `lenient`: whether the hold is a lenient one.
+// AD support: a ladder (QC .vr_climb_ladder: Arcane Dimensions' trigger_ladder, vr_ad_player.qc), a climbable volume:
+// a hand in it, or within the touch distance of it, holds where it is (a rung under every hand), facing the body; the
+// hanging, the pulls and the mantle at its top are the ledges' (vr_climb_ladders 0: none).
+[[nodiscard]] za::Optional<Ledge> ladderHold(edict_t* player, const glm::vec3& hand)
+{
+    const int ofs = progs::fields().vr_climb_ladder;
+    if(ofs < 0 || vr_climb_ladders.value == 0.f)
+    {
+        return za::nullOpt;
+    }
+    const float margin = touch().front;
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(e->free || progs::fieldFloat(e, ofs) <= 0.f || static_cast<int>(e->v.solid) != SOLID_TRIGGER)
+        {
+            continue;
+        }
+        bool inside = true;
+        for(int k = 0; k < 3; k++)
+        {
+            inside = inside && hand[k] >= e->v.absmin[k] - margin && hand[k] <= e->v.absmax[k] + margin;
+        }
+        if(!inside)
+        {
+            continue;
+        }
+        const glm::vec2 toBody = towardsBody(player, hand);
+        Ledge l;
+        l.top = hand.z;
+        l.out = glm::vec3{toBody.x, toBody.y, 0.f};
+        l.hold = hand;
+        return za::Optional<Ledge>{l};
+    }
+    return za::nullOpt;
+}
+
 [[nodiscard]] za::Optional<Ledge> findHold(edict_t* player, const glm::vec3& hand, const glm::vec3& vel,
     const glm::vec3& headPos, float radius, float propLow, bool& lenient, LenientStats* stats = nullptr)
 {
@@ -773,6 +810,14 @@ struct Box
         {
             return finish(c);
         }
+    }
+    if(za::Optional<Ledge> ladder = ladderHold(player, hand)) // AD support: a ladder's volume, before a lenient ledge
+    {
+        if(stats)
+        {
+            *stats = st;
+        }
+        return ladder;
     }
     if(radius <= 0.f)
     {

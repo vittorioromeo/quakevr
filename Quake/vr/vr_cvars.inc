@@ -20,6 +20,7 @@ QVR_CVAR(vr_hull_boxes, "1", CVAR_ARCHIVE)             // ... between the player
 QVR_CVAR(vr_hull_hit_width, "24", CVAR_ARCHIVE)        // the player's width that shots, missiles and splash traces hit (not bodies moving: vr_hull_ent_width) (8-32; 0: Quake's 32)
 QVR_CVAR(vr_hull_hit_head, "1", CVAR_ARCHIVE)          // ... and their box reaches only to the top of his head (the headset's, 5 units over it): crouched behind cover, shots over it miss; monsters' bullets aim no higher than 70% of it; 0: Quake's height, standing or not
 QVR_CVAR(vr_crouch_hull, "1", CVAR_ARCHIVE)            // Movement > Player Hitbox > Crouching: crouched (your eyes under vr_crouch_height over your feet) your box is that tall: under low ceilings and through small teleporters, behind cover from shots; kept until there's room to stand (vr_hull.cpp; HULLS.md "Crouching"); 0: always standing
+QVR_CVAR(vr_crouch_sight, "1", CVAR_ARCHIVE)          // ... crouched (a crouched box), monsters' sight looks for you at your real eyes (QC ai.qc VR_SightOfs; AD's monsters too: vr_ad_player.qc), not a standing player's: hidden behind low cover; 0: Quake's eye height always
 QVR_CVAR(vr_crouch_height, "36", CVAR_ARCHIVE)         // ... the lowest crouched box's height in units (24 to Quake's 56 less 4): your eyes under it, that box
 QVR_CVAR(vr_crouch_step, "8", CVAR_ARCHIVE)            // ... then a box every this many units taller up to 52 (36, 44, 52: your eyes under one, that one; over all, standing); 0: that one crouched height alone
 QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                // Movement > Monster Hitbox: monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
@@ -661,7 +662,7 @@ QVR_CVAR(vr_gadget_screen_hue, "-1", CVAR_ARCHIVE)    // the screen's colour (an
 QVR_CVAR(vr_gadget_screen_brightness, "1", CVAR_ARCHIVE) // its text and lines' brightness,
 QVR_CVAR(vr_gadget_screen_background, "1", CVAR_ARCHIVE) // and its background's
 QVR_CVAR(vr_gadget_screen_text_white, "0.85", CVAR_ARCHIVE) // how white the screen's text and numbers are (0: the screen's colour, as its lines; 1 white); warnings red either way
-QVR_CVAR(vr_gadget_test_state, "0", CVAR_NONE)        // the screen shows made-up readings, for tests (Debug > Tests): 1 low (health, ammo, stamina), 2 exhausted with a counter's window open, 3 hanging, 4 maps being relit, 5 every key, powerup and sigil
+QVR_CVAR(vr_gadget_test_state, "0", CVAR_NONE)        // the screen shows made-up readings, for tests (Debug > Tests): 1 low (health, ammo, stamina), 2 exhausted with a counter's window open, 3 hanging, 4 maps being relit, 5 every key, powerup and sigil, 6 Arcane Dimensions' row (its artifacts, a timer, custom keys, debuffs)
 QVR_CVAR(vr_gadget_show_level, "1", CVAR_ARCHIVE)     // the level's name, kills and secrets on the screen
 QVR_CVAR(vr_gadget_stamina, "1", CVAR_ARCHIVE)        // the screen's top row shows stamina (with parry, shove or strike stamina on: vr_parry_stamina, vr_shove_stamina, vr_strike_stamina) and flashes COUNTER while a counter's window is open (vr_meleehud.cpp)
 QVR_CVAR(vr_gadget_light, "1", CVAR_ARCHIVE)          // the screen casts a light in its colour the way it faces: strength (0 off)
@@ -1937,6 +1938,7 @@ QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a 
 QVR_CVAR(vr_climb_fling, "1", CVAR_ARCHIVE)           // how much letting go flings you with the hands' motion (capped; 0 none)
 QVR_CVAR(vr_climb_blast_letgo, "30", CVAR_ARCHIVE)   // a blast this strong (damage) or more knocks you off a hold: you let go and it throws you (0: never); an enemy shove always does
 QVR_CVAR(vr_climb_leniency, "2.5", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
+QVR_CVAR(vr_climb_ladders, "1", CVAR_ARCHIVE)          // AD support: a ladder's volume (Arcane Dimensions' trigger_ladder: QC .vr_climb_ladder) is climbed hand over hand as rungs anywhere in it (vr_climb.cpp ladderHold); its jump-to-climb works either way
 QVR_CVAR(vr_climb_leniency_air, "4.5", CVAR_ARCHIVE)   // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
 QVR_CVAR(vr_climb_air_grab_time, "0.325", CVAR_ARCHIVE) // s: a grip pressed at no hold keeps looking for one this long while it stays pressed, in the air (a ledge jumped at: taken as the hand comes over or down onto it; 0: only at the press)
 QVR_CVAR(vr_climb_mantle_grunt, "0.6", CVAR_ARCHIVE) // volume (0..1) of the player's grunt as a mantle pulls him up onto a ledge (which: vr_climb_mantle_grunt_sound); 0 off
@@ -3223,12 +3225,26 @@ QVR_CVAR(vr_rogue_available, "0", CVAR_ROM)
 QVR_CVAR(vr_hipnotic_status, "0", CVAR_ROM)
 QVR_CVAR(vr_rogue_status, "0", CVAR_ROM)
 
-// Official native campaign ABI: id1, hipnotic, rogue, dopa, mg1, mg3 (0..5).
+// Official native campaign ABI: id1, hipnotic, rogue, dopa, mg1, mg3, ad (0..6).
 QVR_CVAR(vr_campaign, "0", CVAR_ROM)
 QVR_CVAR(vr_campaign_schema, "0", CVAR_ROM)
 QVR_CVAR(vr_dopa_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg1_status, "0", CVAR_ROM)
 QVR_CVAR(vr_mg3_status, "0", CVAR_ROM)
+QVR_CVAR(vr_ad_status, "0", CVAR_ROM) // Arcane Dimensions' data (campaign 6; vr_gamedir.cpp, vr_ad.cpp): 0 missing, 1 1.80 patch 1 (the latest), 2 incomplete/corrupt, 3 another version (refused)
+QVR_CVAR(vr_ad_rules, "0", CVAR_ROM)  // the map now running plays by AD's rules (vr_ad.cpp: the AD campaign, or AD's signals in its entities while AD's data is mounted); QC AD_Rules()
+QVR_CVAR(vr_ad_evil, "0", CVAR_NONE)          // AD's Evil skill (decision 30; QC vr_ad_player.qc AD_Evil): with Nightmare (skill 3) and AD's data installed, any campaign plays Evil: 50 health at most (megahealth 100), the Shadow Axe's blows, AD's monsters at its skill 4. A game's choice like skill (kept in its saves); AD's own skill 4 sets it
+QVR_CVAR(vr_ad_tints, "1", CVAR_ARCHIVE)      // AD's screen tints (its debuffs' colours, a book's dark background; vr_ad.cpp VR_AD_TintBlend), times this, eased in and out (0: none). A cinematic camera's fades are not scaled
+QVR_CVAR(vr_ad_everywhere, "1", CVAR_ARCHIVE) // AD's new artifacts, custom pickups (keys, vials, custom items) and ladders spawn in any map while AD's data is installed (vr_ad.cpp everywhereClasses; decision 16): 0 only in AD maps
+QVR_CVAR(vr_ad_mounted, "0", CVAR_ROM) // AD's data is on the search path for the map now running (the AD campaign; vr_ad.cpp): AD's models and sounds can be used (vr_ad_projectiles 2)
+
+// Arcane Dimensions' projectile weapons (QC vr_ad_bridge.qc; VR Settings > Arcane Dimensions).
+QVR_CVAR(vr_ad_projectiles, "0", CVAR_ARCHIVE)    // whose rules for shotguns and monster projectiles: 0 Auto (AD's in AD maps, Quake's elsewhere), 1 Vanilla everywhere (hitscan shotguns, Quake's missile speeds), 2 AD's wherever its data is mounted (projectile pellets, the vanilla monsters' missiles at AD's speeds by skill). AD's own monsters always use AD's
+QVR_CVAR(vr_ad_pellet_spread, "1", CVAR_ARCHIVE)  // AD's projectile pellets: their spread, times this (AD's: shotgun 0.04, super shotgun 0.14 x 0.08)
+QVR_CVAR(vr_ad_pellet_speed, "1", CVAR_ARCHIVE)   // their speed, times this (AD's: the player's shotgun 2000, super shotgun 1500; monsters' 800 + 150 a skill level)
+QVR_CVAR(vr_ad_pellet_damage, "1", CVAR_ARCHIVE)  // their damage, times this (AD's: 4 a pellet; the Weapon Damage settings apply too)
+QVR_CVAR(vr_ad_test, "0", CVAR_NONE)            // Debug > Tests > Arcane Dimensions (AD maps): 1 play the map's first cinematic camera on you, 2 report the cinematic and player state, 3 fire the Widowmaker, 4 the Plasma Gun (they are given), 5 put a Widowmaker pickup ahead (vr_pickup_test 2 takes it), 6 report the upgrades held (QC vr_ad_bridge.qc AD_Test); in any map with AD's data, 10-27 the rules follow-ups' tests (QC vr_ad_test.qc: 10/11 artifacts, 12/13 Nail Piercer, 14-19 debuffs, 20 custom key, 21 ammo resistance, 22/23 Evil, 24 ladders, 25 player state, 26 spawnflags, 27 crouched sight)
+QVR_CVAR(vr_ad_mtest, "0", CVAR_NONE)           // Debug > Tests > Arcane Dimensions Monsters (AD maps): 1 report the map's AD monsters (registered, rigged), 2 report the nearest one's VR state (QC vr_ad_monsters_test.qc; not archived)
 QVR_CVAR(vr_honey_context, "0", CVAR_ROM) // actual start map source is Honey, never inferred from its name
 
 // Continue and the autosaves (vr_continue.cpp).

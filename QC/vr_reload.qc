@@ -151,7 +151,7 @@ float(float xWeapon) VR_Reload_IsFront =
 float(float xWeapon) VR_Reload_ManualFor =
 {
     return VR_Reload_Immersive() && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon) || VR_Reload_IsFront(xWeapon) ||
-        (xWeapon == WID_SUPER_SHOTGUN && cvar_hget(cvarh_vr_reload_ssg_break)));
+        (xWeapon == WID_SUPER_SHOTGUN && cvar_hget(cvarh_vr_reload_ssg_break) && !AD_Widowmaker())); // (AD support: the Widowmaker reloads at the hip)
 };
 
 // Whether the gun in `xHand` of `p` is a super shotgun broken open (phase 2b: it can't fire; it loads by hand).

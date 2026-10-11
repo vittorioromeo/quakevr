@@ -253,7 +253,7 @@ void() PlaceItem =
     self.handtouch = itemTouch;
 
     // HONEY
-    if(!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
+    if(!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
     {
         item_unspawn();
     }
@@ -318,6 +318,7 @@ Sets the clipping size and plants the object on the floor
 void() StartItem =
 {
     if(MG_MonsterInhibited()) return;
+    if(AD_ItemStartOff()) return; // AD support: an AD map's STARTOFF item waits for its trigger (vr_ad_bridge.qc)
     self.nextthink = time + 0.2;    // items start after other solids
     self.think = PlaceItem;
 };
@@ -447,7 +448,11 @@ void() health_touch =
     self.solid = SOLID_NOT;
 
     // Megahealth = rot down the player's super health
-    if(self.healtype == 2 && !RuneHasElder(other))
+    if(self.healtype == 2 && !RuneHasElder(other) && AD_MegaRot(other))
+    {
+        // AD support: AD's rot in an AD map (one rot however many megahealths, vr_ad_bridge.qc)
+    }
+    else if(self.healtype == 2 && !RuneHasElder(other))
     {
         VR_ItemUtil_EntAddItem(other, IID_SUPERHEALTH);
         self.nextthink = time + 5;
@@ -671,6 +676,7 @@ void() VR_PickupObj_Regen =
 // (VR_PickupObj_Regen, not SUB_regen's trigger where it was taken).
 void(entity xItem) VR_PickupObj_Taken =
 {
+    AD_ItemTaken(xItem); // AD support: AD's item respawn in an AD map (vr_ad_bridge.qc)
     if(xItem.model != string_null)
     {
         return;
@@ -1104,6 +1110,7 @@ void() weapon_touch =
     }
 
     VR_WeaponUtil_EntAddWeapon(other, weaponId);
+    AD_UpgradePickedUp(other); // AD support: an Arcane Dimensions upgrade's pickup (vr_ad_bridge.qc)
 
     stemp = self;
     self = other;

@@ -543,6 +543,11 @@ Floats at torso height in VR (vr_item_float_height); taken by a hand's grip."
 [
 ]
 
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_hammer : "Arcane Dimensions' name for its Shadow Axe (weapon_upgrade_axe), in its maps."
+[
+]
+
 @PointClass base(Weapon) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/g_laserg.mdl" }) =
 	weapon_laser_gun : "Laser cannon (Scourge of Armagon)
 
@@ -570,6 +575,11 @@ hand's grip. Its sounds come from the Scourge of Armagon's files (hipnotic)."
 	weapon_nailgun : "Nailgun
 
 Floats at torso height in VR (vr_item_float_height); taken by a hand's grip."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_plasmagun : "Arcane Dimensions' name for its Plasma Gun (weapon_upgrade_lg), in its maps."
 [
 ]
 
@@ -630,6 +640,26 @@ freezes, scales and joins things, and its menu (B or Y) has the cheats. It drops
 floor, a physics object as func_weapon_grabbable's weapons (the same as one with weapon 19). It uses no ammunition."
 [
 	angles(string) : "Pitch yaw roll" :  : "How it lies before it falls (none: any way)."
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_upgrade_axe : "Arcane Dimensions' Shadow Axe, in its maps (vr_ad_bridge.qc): the axe, and every axe you hold hits as AD's (35 for 20)."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_upgrade_ghook : "Arcane Dimensions' grappling hook: Quake VR's is the player's own (Movement > Grappling Hook); nothing to pick up."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_upgrade_lg : "Arcane Dimensions' Plasma Gun, in its maps (vr_ad_bridge.qc): the lightning gun, and every one you hold fires AD's plasma bolts."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_upgrade_ssg : "Arcane Dimensions' Widowmaker, in its maps (vr_ad_bridge.qc): the super shotgun, and every one you hold fires AD's 21 pellets for 3 shells; reloaded at the hip."
+[
 ]
 
 //

@@ -596,6 +596,7 @@ const char* const menuButtonHelp =
 #include "vr_menu_toolgun.inc"
 #include "vr_menu_stealth.inc"
 #include "vr_menu_ragtests.inc"
+#include "vr_menu_ad_monsters.inc" // AD support: Debug > Tests > Arcane Dimensions Monsters
 
 // ----------------------------------------------------------------------------
 // Pages of the port's own tweaks
@@ -793,7 +794,7 @@ int campaignsBloodyShown = -1;
 [[nodiscard]] za::Vector<Item> pageCampaigns()
 {
     za::Vector<Item> items{header("Official Campaigns")};
-    for(int i = 0; i < 6; ++i)
+    for(int i = 0; i < VR_CampaignCount(); ++i) // (Arcane Dimensions too: its row dim until it is ready)
     {
         Item choice = row(VR_CampaignLabel, VR_CampaignHelp, VR_SelectCampaign, i, -1);
         choice.dimArg = [](int index) -> bool { return VR_CampaignUnavailable(index) != 0; };
@@ -3639,6 +3640,43 @@ void hologramTestMessage()
 
 // Combat > Burning (QC vr_burning.qc): what a lit torch, a thrown one or a lava nail sets on fire; crates; nails through
 // a torch's flame.
+// Combat > Arcane Dimensions (AD support, ARCANE_DIMENSIONS.md decisions 2 and 22): AD's projectile pellets and whose
+// projectile rules play (QC vr_ad_bridge.qc AD_Pellets).
+[[nodiscard]] za::Vector<Item> pageArcaneDimensions()
+{
+    return {
+        cycle("Projectile Rules", vr_ad_projectiles, {{0.f, "Auto"}, {1.f, "Vanilla"}, {2.f, "Arcane Dimensions"}})
+            .help("Whose rules shotguns and monster projectiles play by. Auto: Arcane Dimensions' in its maps (projectile "
+                  "pellets you see fly, from your shotguns and the grunts'; the hell knights', scrags', ogres' and "
+                  "zombies' missiles at its speeds for the skill), Quake's elsewhere. Vanilla: Quake's everywhere. "
+                  "Arcane Dimensions: its rules wherever its data is loaded. Its own monsters always play by its rules."),
+        slider("Pellet Spread", vr_ad_pellet_spread, 0.f, 2.f, 0.05f, "x%.2f").extend(0.f, 4.f)
+            .help("Arcane Dimensions' pellets: how wide they spread, times its own (the shotgun 0.04, the super shotgun "
+                  "0.14 by 0.08: wider than Quake VR's hitscan, aimed with the hand). 0: every pellet straight."),
+        slider("Pellet Speed", vr_ad_pellet_speed, 0.25f, 3.f, 0.05f, "x%.2f").extend(0.1f, 10.f)
+            .help("How fast your pellets fly, times Arcane Dimensions' (the shotgun 2000, the super shotgun 1500 units a "
+                  "second): faster is nearer hitscan."),
+        slider("Pellet Damage", vr_ad_pellet_damage, 0.f, 3.f, 0.05f, "x%.2f").extend(0.f, 10.f)
+            .help("Your pellets' damage, times Weapon Damage's shotgun and super shotgun pellet (4: Arcane Dimensions')."),
+        toggle("Evil Skill (with Nightmare)", vr_ad_evil)
+            .help("Arcane Dimensions' fifth skill, in any campaign while its data is installed: chosen with Nightmare (the "
+                  "start map's skill hall, or Arcane Dimensions' own Evil choice, which sets this). 50 health at most "
+                  "(megahealth 100), the Shadow Axe's blows, Arcane Dimensions' monsters at their hardest. Kept in saves."),
+        slider("Screen Tints", vr_ad_tints, 0.f, 1.f, 0.05f, "x%.2f")
+            .help("Arcane Dimensions' screen colours, times this: green while poisoned, dark amber while bleeding, "
+                  "orange while burning (with Burn Damage off), a book's dark background while you read it. Eased in and out. 0: none. Its "
+                  "cinematic cameras' fades to black always play (Graphics' colour shift settings apply to all)."),
+        toggle("Hand-Climbed Ladders", vr_climb_ladders)
+            .help("Arcane Dimensions' ladders climbed with your hands, as ledges (Hand Climbing on): grip anywhere on a "
+                  "ladder, a rung under every hand, pull yourself up hand over hand, mantle at its top. Holding jump "
+                  "climbs them too, as in Arcane Dimensions."),
+        toggle("Its Content in Every Map", vr_ad_everywhere)
+            .help("Arcane Dimensions' new artifacts, custom keys, health vials and gems, custom items and ladders in any "
+                  "map that places them (custom maps, the toolgun), while its data is installed. Off: only in its own "
+                  "maps. Its pickups that would replace Quake VR's (backpacks) are only ever in its maps."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageBurning()
 {
     return {
@@ -5702,9 +5740,11 @@ za::Vector<Item> pageDebugTools()
         command("Test Console Line", "vr_message_test console Test console log line").help("vr_message_test console <text>: an engine log line, as a warning: in the notify lines only with HUD and Menus > Screens > Console Log on the HUD (vr_hud_console_log 1)."),
         command("Notify Lines Info", "vr_notify_info").help("vr_notify_info: prints the notify lines shown now, in view and in the gadget's log (which of the game's messages and the console's log pass vr_hud_console_log)."),
         cycle("Gadget Screen Readings", "vr_gadget_test_state",
-            {{0.f, "Real"}, {1.f, "Low"}, {2.f, "Exhausted, Counter"}, {3.f, "Hanging, Bullet Time"}, {4.f, "Relighting"}, {5.f, "Every Item"}})
+            {{0.f, "Real"}, {1.f, "Low"}, {2.f, "Exhausted, Counter"}, {3.f, "Hanging, Bullet Time"}, {4.f, "Relighting"}, {5.f, "Every Item"},
+             {6.f, "Arcane Dimensions Row"}})
             .help("vr_gadget_test_state: the wrist gadget's screen shows made-up readings, to see each state of its layout: low health, ammo and "
-                  "stamina; no stamina with a counter's window open; hanging with bullet time running; maps being relit; every key, powerup and sigil."),
+                  "stamina; no stamina with a counter's window open; hanging with bullet time running; maps being relit; every key, powerup and sigil; "
+                  "Arcane Dimensions' artifacts, a timer, custom keys and debuffs (its icons need its data installed)."),
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
         command("Lightning Shock", "vr_shock_test 0").help("vr_shock_test 0: the lightning gun's shock in water (the flash, the arcs over your arms and body), without the damage."),
         command("Lightning Strikes You", "vr_shock_self_test 10; vr_shock_self_info")
@@ -6346,6 +6386,55 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive authored mge2m2 puzzle test. Reload afterward."),
         command("Machine: Equipment Carry Setup", "vr_mg_hub_test 20")
             .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
+        command("Arcane Dimensions: Play (Developer)", "vr_campaign_native ad")
+            .help("AD support in progress (ARCANE_DIMENSIONS.md): a new Arcane Dimensions game at its hub, its own start "
+                  "map, with the latest release (1.80 patch 1) in an ad folder. Its maps play by its rules; the console "
+                  "says what is missing."),
+        command("Arcane Dimensions: Play a Cinematic Camera", "vr_ad_test 1")
+            .help("In an Arcane Dimensions map: its first cinematic camera (misc_camera) plays on you, as its trigger "
+                  "would start it. You are moved to its view and back when it ends (its VR presentation is to come)."),
+        command("Arcane Dimensions: Cinematic Report", "vr_ad_test 2")
+            .help("One adtest: line in the console: the cinematic camera's state, how you are held (move type, solid, "
+                  "damage), where you are."),
+        command("Arcane Dimensions: Widowmaker Pickup Ahead", "vr_ad_test 5")
+            .help("In an Arcane Dimensions map: a Widowmaker pickup (AD's upgrade) appears ahead of you, to take with a "
+                  "hand. Arcane Dimensions: Upgrades Report then says whether you have the upgrade."),
+        command("Arcane Dimensions: Upgrades Report", "vr_ad_test 6")
+            .help("One adtest: line: the AD upgrades you have (Shadow Axe, Widowmaker, Plasma Gun) and your hands' "
+                  "weapons."),
+        command("Arcane Dimensions: Artifacts Ahead", "vr_physics_spawn item_artifact_jumpboots 64 -48; vr_physics_spawn item_artifact_blastbelt 64 0; vr_physics_spawn item_artifact_sharp_shooter 64 48; vr_physics_spawn item_artifact_lavashield 112 -24; vr_physics_spawn item_artifact_airtank 112 24")
+            .help("Any map, with Arcane Dimensions' data installed: its Jump Boots, Blast Belt, Sharp Shooter, Lava Shield "
+                  "and Air Tank ahead of you, to walk into (the wrist gadget shows each one held and the soonest one's "
+                  "seconds left)."),
+        command("Arcane Dimensions: Artifacts Test", "vr_ad_test 10; wait; wait; vr_ad_test 11")
+            .help("Destructive: the new artifacts but the Nail Piercer given (AD's own touch), then their effects "
+                  "measured: the Sharp Shooter's spreads, a blast with and without the Blast Belt (it hurts), the Lava "
+                  "Shield, the Air Tank's air, the Jump Boots' jumps (two adrules: lines)."),
+        command("Arcane Dimensions: Nail Piercer Test", "vr_ad_test 12")
+            .help("Destructive: the Nail Piercer given, two grunts in a line ahead and a nail through the first into the "
+                  "second (Arcane Dimensions: Nail Piercer Result reports them)."),
+        command("Arcane Dimensions: Nail Piercer Result", "vr_ad_test 13"),
+        command("Arcane Dimensions: Burning, Poison, Bleeding", "vr_ad_test 14; wait; wait; vr_ad_test 16; wait; wait; vr_ad_test 18")
+            .help("Destructive: AD's three debuffs on you at once (its burning is your fire's: our flames, its time and "
+                  "damage); the wrist gadget shows them. Debuffs Report says what they took."),
+        command("Arcane Dimensions: Debuffs Report", "vr_ad_test 15; wait; wait; vr_ad_test 17; wait; wait; vr_ad_test 19"),
+        command("Arcane Dimensions: Screen Tint Report", "vr_ad_tint_info")
+            .help("vr_ad_tint_info: the screen tint Arcane Dimensions asks for now (its colour, density, a tint or a "
+                  "camera's fade), the one drawn (eased), Screen Tints, the whole colour shift's alpha."),
+        command("Arcane Dimensions: Ammo Resistance Test", "vr_ad_test 21")
+            .help("Destructive: a grunt given AD's resistance keys (shells half, nails all, rockets -50%) hit by a shot, a "
+                  "nail, a blow, a rocket, a bolt: in AD maps it resists, elsewhere only AD's own monsters do."),
+        command("Arcane Dimensions: Evil Skill Report", "vr_ad_test 22")
+            .help("Whether AD's Evil skill plays (Nightmare with Evil Skill on), your health and its cap, megahealth's, "
+                  "the axe's blow."),
+        command("Arcane Dimensions: Ladders Report", "vr_ad_test 24")
+            .help("This map's trigger_ladders and the first one's volume (climbable by hand: Hand-Climbed Ladders)."),
+        command("Arcane Dimensions: Spawnflags and Sight Report", "vr_ad_test 26; wait; wait; vr_ad_test 27")
+            .help("Whose meaning this map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'), and where "
+                  "monsters look for you (crouched: your real eyes)."),
+        command("Arcane Dimensions: Status", "vr_ad_info")
+            .help("vr_ad_info: AD's data (the latest release, another version refused), whether this map plays by AD's "
+                  "rules and why (the campaign, or the signals found), how many of its entities spawned with AD's code."),
         command("Whole-Map Monsters: Report", "vr_test_monsters 1")
             .help("Count this map's monsters: live, awake (hunting someone), dead, waiting for their trigger (one "
                   "monsterstest: line)."),
@@ -6376,6 +6465,9 @@ za::Vector<Item> pageDebugTests()
             .help("The Super Axe (any campaign with the Dawn of the Machine data), the axe buttons, the laser cannon, the bloody shotguns."),
         open("Dawn of the Machine Monsters", pageIndex(pageMg3MonsterTests))
             .help("The infected (any campaign) and Dawn of the Machine's own monsters (with its data): spawns and checks."),
+        open("Arcane Dimensions Monsters", pageIndex(pageAdMonsterTests)) // AD support
+            .help("Arcane Dimensions' monsters with Quake VR's treatment (ragdolls, beheading, limbs, knockdowns): "
+                  "spawns ahead and reports, in an AD map."),
         open("Dawn of the Machine Tests", pageIndex(pageMg3Tests))
             .help("MG3 native port: state, saved upgrades and capacities. Dawn of the Machine campaign only."),
         command("Machine: Progression Report", "vr_mg_hub_test 3")
@@ -7421,6 +7513,10 @@ za::Vector<Item> pageHitbox()
         slider("Lowest Crouched Height", vr_crouch_height, 24.f, 52.f, 4.f, "%.0f units")
             .help("Your box's height with your eyes under it (Quake's standing box: 56; the crouching room's tunnel in "
                   "the teleporter test map: 40) (vr_crouch_height)."),
+        toggle("Monsters See Your Eyes", vr_crouch_sight)
+            .help("Crouched (with the crouched hitbox), monsters look for you at your real eyes, not at a standing "
+                  "player's: crouched behind cover lower than you stand, you are out of their sight, as Arcane "
+                  "Dimensions' height-aware monsters check (vr_crouch_sight). Standing: Quake's as ever."),
         cycle("Heights Above It", vr_crouch_step, {{0.f, "None"}, {4.f, "Every 4 units"}, {8.f, "Every 8 units"},
                   {12.f, "Every 12 units"}})
             .help("Taller crouched boxes up to 52, so half a crouch gets you under a ceiling that is a little low: your "
@@ -7783,6 +7879,7 @@ const Page pages[] = {
     {"Holding Enemies", pageHoldingEnemies, pageCombat},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
     {"Doom", pageDoom, pageGadget, LevelStandard},
+    {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -8647,6 +8744,9 @@ za::Vector<Item> pageCombat()
         open("Stealth AI", pageIndex(pageStealth))
             .help("Enhanced AI (on/off: Quake's monsters at once). Monsters idle, alert or hostile: seeing you by the light "
                   "on you, hearing noises, investigating, spreading the alarm; sneak attacks."),
+        open("Arcane Dimensions", pageIndex(pageArcaneDimensions))
+            .help("The Arcane Dimensions mod's projectile pellets: whose rules play where (Auto, Vanilla, Arcane "
+                  "Dimensions), their spread, speed and damage."),
     };
 }
 

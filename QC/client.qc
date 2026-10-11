@@ -21,6 +21,7 @@ void() info_intermission =
 
 void() SetChangeParms =
 {
+    if(AD_SetChangeParms()) return; // AD support: AD's level state (parm57..72), an exit's inventory reset (vr_ad_bridge.qc)
     MG3_EncodeParms(); // (Dawn of the Machine's upgrades: kept even by the SetNewParms below, vr_mg3_defs.qc)
 
     if(self.health <= 0)
@@ -184,6 +185,7 @@ void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
+    AD_LoadedGame(); // AD support: the loaded game's Evil skill choice (vr_ad_player.qc)
 }
 
 void() SetNewParms =
@@ -304,14 +306,14 @@ void() DecodeLevelParms =
         SetNewParms();
     }
 
-    if(!deathmatch)
+    if(!deathmatch && !AD_Rules()) // AD support: AD's hub keeps the inventory (AD_DecodeLevelParms)
     {
         if(world.model == "maps/start.bsp")
             SetNewParms();        // take away all stuff on starting new episode
     }
 
     // HIPNOTIC
-    if(world.model == "maps/start.bsp")
+    if(world.model == "maps/start.bsp" && !AD_Rules()) // (AD support, as above)
         SetNewParms();      // take away all stuff on starting new episode
     if(world.model == "maps/hip1m1.bsp")
         SetNewParms();      // take away all stuff on starting new episode
@@ -362,6 +364,7 @@ void() DecodeLevelParms =
     MG3_BloodyNightmareLevel();
     MG3_BloodyNightmareStrip();
     VR_Trailer_StripParms(); // QVR: the trailer scene starts empty-handed (vr_trailer.qc)
+    AD_DecodeLevelParms(); // AD support: AD's worldspawn inventory keys and map variables in an AD map (vr_ad_bridge.qc)
 
     self.items = parm1;
     self.health = parm2;
@@ -734,6 +737,7 @@ void() changelevel_touch =
 {
     if(other.classname != "player")
         return;
+    if(!AD_ChangelevelTouch()) return; // AD support: AD's exits off until triggered, its on-exit rules (vr_ad_bridge.qc)
 
     float noexit;
     noexit = cvar_hget(cvarh_noexit);
@@ -793,6 +797,7 @@ When the player touches this, he gets sent to the map listed in the "map" variab
 */
 void() trigger_changelevel =
 {
+    AD_ChangelevelSpawn(); // AD support: AD's exit keys in an AD map (vr_ad_bridge.qc)
     if(!self.map)
         objerror ("changelevel trigger doesn't have map");
 
@@ -932,6 +937,7 @@ entity() SelectSpawnPoint =
 {
     entity spot;
     if(MGH_Active()) { spot=MGH_SelectSpawn(); if(spot) return spot; }
+    spot = AD_SelectSpawnPoint(); if(spot) return spot; // AD support: AD's spawn points in an AD map (vr_ad_bridge.qc)
     entity thing;
     float  pcount;
 
@@ -1241,6 +1247,7 @@ void() PutClientInServer =
         readytime = time + 0.5;
     }
     if(MGH_Active()) { MGH_horde_set_keys(self); MGH_ResetHunger(self); }
+    AD_PlayerSpawned(); // AD support: what AD's code reads of a player, in an AD map (vr_ad_bridge.qc)
 };
 
 void() SpawnAllAmmoBoxWeapons =
@@ -1476,6 +1483,8 @@ void() PlayerJump =
         return;
     }
 
+    if(AD_JumpBoots()) return; // AD support: AD's Jump Boots' jumps, in the air too (vr_ad_items.qc)
+
     if(!(self.flags & FL_ONGROUND))
         return;
 
@@ -1565,7 +1574,8 @@ void() WaterMove =
 
     if(self.watertype == CONTENT_LAVA)
     {    // do damage
-        if(self.dmgtime < time && self.lavasuit_finished <= time) // (the lava suit: none, MG3)
+        if(self.dmgtime < time && self.lavasuit_finished <= time && // (the lava suit: none, MG3)
+           !AD_LavaShield(self)) // AD support: nor with AD's Lava Shield (vr_ad_items.qc)
         {
             if(self.radsuit_finished > time)
                 self.dmgtime = time + 1;
@@ -1755,6 +1765,7 @@ void() PlayerPreThink =
 
     // HONEY
     fog_updateAll();
+    AD_PlayerPreThink(); // AD support: AD's ladders in an AD map (vr_ad_bridge.qc)
 
     if(intermission_running)
     {
@@ -2257,7 +2268,8 @@ void() PlayerPostThink =
     VR_ShotImpacts(); // QVR: projectiles fired from inside what they hit meet it (weapons.qc)
 
 // check to see if player landed and play landing sound
-    if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
+    if(AD_PlayerLanded()) {} // AD support: AD's fall rules in an AD map (vr_ad_bridge.qc)
+    else if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
     {
         if(self.watertype == CONTENT_WATER)
             sound(self, CHAN_BODY, "player/h2ojump.wav", 1, ATTN_NORM);
@@ -2279,6 +2291,7 @@ void() PlayerPostThink =
         self.jump_flag = self.velocity_z;
 
     CheckPowerups();
+    AD_PlayerPostThink(); // AD support: AD's first frame, spawn targets and debuffs in an AD map (vr_ad_bridge.qc)
     VR_Grapple_GunFrames(); // QVR: a grappling gun whose hook is out drawn empty (vr_grapple.qc)
     VR_Stealth_PlayerFrame(); // QVR: his running heard, his touch felt, how lit he is (vr_stealth.qc)
 };

@@ -3531,3 +3531,45 @@ its). The catch is pressed three times (a grunt's second death falls back whatev
 `ragact:` line says whether it began. Gibs and Corpses > Ragdolls: Limbs Meet Each Other on and off on a pile, a body
 folded over a crate, a wound held; the new sliders. Known (ragmove's): the death knight's arms reach a lip but miss it
 at speed; a crawling ragdoll's env log repeats "lets go (curl, crawling)" every frame.
+## Arcane Dimensions P1b: AD's maps play (2026-10-11, worktree `arcane`, branch `feature/arcane`)
+
+All of it is in ARCANE_DIMENSIONS.md: Vittorio's decisions in section 12, what was built and measured in section 15
+(campaign 6 by the developer launch, AD's 38 maps with 0 missing spawn functions and no errors headless, AD's projectile
+pellets with VR settings, a first version of AD's three weapons, saves switching AD's rules), the follow-up tasks in
+section 11. In passing: the server's broadcast boundaries counted Quake VR's beam temp entities one byte short
+(`vr_server.cpp tempEntityLength`: their beam id byte), fixed.
+
+**In the headset:** Debug > Tests > Arcane Dimensions: Play (Developer); the hub, a map through to its exit and back;
+VR Settings > Combat > Arcane Dimensions.
+
+## Arcane Dimensions: screen tints, bugs 4 and 5, resist tells everywhere (2026-10-11, worktree `arcane`)
+
+All of it is in ARCANE_DIMENSIONS.md 16.14 (his decisions 32-38 in section 12): AD's `v_cshift` tints (debuffs, books,
+the cinematic camera's fades) drawn by the engine from two stats, eased, with a Screen Tints setting; AD's bugs 4 and 5
+fixed; AD's resist tells wherever resistance applies (precached on demand outside AD maps); the upgrades asked through
+one per-weapon accessor (per weapon itself: BACKLOG.md).
+
+**In the headset** (an AD map):
+- [ ] Debug > Tests > Arcane Dimensions: Burning, Poison, Bleeding: a soft green, then amber tint easing in and out,
+  not uncomfortable; VR Settings > Combat > Arcane Dimensions: Screen Tints at 0.5 and 0.
+- [ ] A book (a lectern's `misc_textbook`): the world darkens behind its text, and back when you leave it.
+- [ ] Arcane Dimensions: Play a Cinematic Camera (ad_tears): a fade to black hides the jump, then fades back.
+
+## Arcane Dimensions P2: AD's monsters get Quake VR's treatment (2026-10-11, worktree `admon`, branch `feature/ad-monsters`)
+
+All of it is in ARCANE_DIMENSIONS.md section 17: AD's damage and death code now calls Quake VR's hooks (beheading,
+limbs, knockdowns, corpses, gore, highlights; five importer patches), and AD's monster models have ragdoll rigs, head
+zones and get-ups in usage order (31 seed tables over 41 models: every AD monster placed in AD's maps but the ones that
+burst or shrink away at death, the eidolon and the fishing ogres). Headless, per monster: knocked down and up, killed
+down, beheaded, limbs cut and popped, a corpse gibbed (`Misc/quakevr/ad_monsters_test.sh`); AD's maps fought through without
+errors; e1m1, hip1m1, r1m1, MG1 and MG3 unchanged.
+
+**In the headset** (an AD map; Debug > Tests > Arcane Dimensions Monsters spawns each one ahead):
+- [ ] A death knight: behead it with a sword, cut an arm off, knock it down with a shove (it gets up, its death
+  backwards), parry its sword.
+- [ ] A zombie knight: shoved down, it gets up as AD's zombies do; beheaded, it dies for good (lying).
+- [ ] The ragdolls of the crossbow knight, the hunter ogres (cleaver, mace, hammer: the weapon stays in the hand), the
+  spider (its legs), the death guard, the minotaur, the death fury (two swords), the golem and the death sergeant (the
+  flail dangles).
+- [ ] The poorer fits (the gaunt, the seeker, Freddie): their dead poses look whole.
+- [ ] A corpse of each, gibbed by shots: AD's own head and weapon fly.

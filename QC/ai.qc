@@ -293,13 +293,29 @@ visible
 returns 1 if the entity is visible to self, even if not infront ()
 =============
 */
+// QVR: where a monster looks for `e` (visible's spot2): a VR player crouched (his crouched box: the engine's
+// QVR_VRBITS0_CROUCHED) at his real eyes (vr_crouch_sight), never above a standing player's; the rest at their view_ofs.
+// Behind cover lower than he stands, he is out of sight (Arcane Dimensions' height-aware sight; its monsters' too:
+// vr_ad_player.qc VR_AD_ViewOfs).
+vector(entity e) VR_SightOfs =
+{
+    if(e.headpos == '0 0 0' || !VRHasBit(e.vrbits0, QVR_VRBITS0_CROUCHED) || e.classname != "player" ||
+       !cvar("vr_crouch_sight"))
+    {
+        return e.view_ofs;
+    }
+    vector o = e.view_ofs;
+    o_z = min(o_z, e.headpos_z - e.origin_z);
+    return o;
+};
+
 float (entity client) visible =
 {
     vector spot1, spot2;
     float res;
 
     spot1 = self.origin + self.view_ofs;
-    spot2 = client.origin + client.view_ofs;
+    spot2 = client.origin + VR_SightOfs(client); // QVR: a crouched player's real eyes (vr_crouch_sight)
 
     // The gate route is a monster's own, for its enemy (or, with none, the player FindTarget looks for): other callers'
     // visible() (projectiles, items, a gremlin's victim scan, a second target) leave it as it is.
@@ -309,7 +325,7 @@ float (entity client) visible =
         self.vr_ai_target = client;
         self.vr_ai_gate = 0;
     }
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK))) { res = bbox_visible(self, spot2); }
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK))) { res = bbox_visible(self, spot2); }
     else                                   { res = point_visible(spot1, spot2); }
     if(res && VR_Crate_HidesFrom(self, client, spot1)) { res = FALSE; }
     // Through a gate: not across a water surface either (point_visible's rule: one end in a liquid, the other not).
@@ -439,7 +455,7 @@ void() HuntTarget =
     // HONEY
     // cg: tarbabies can now spawn really angry and start jumping around
     // without even having a clear view of player
-    if(self.classname == "monster_tarbaby" && (!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID)))
+    if(self.classname == "monster_tarbaby" && (!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID)))
     {
         self.think = self.th_missile;
     }
@@ -458,7 +474,7 @@ void() SightSound =
     float rsnd;
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
     {
         return;
     }

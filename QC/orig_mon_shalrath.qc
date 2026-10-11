@@ -236,7 +236,7 @@ void() monster_shalrath =
     precache_sound2("shalrath/sight.wav");
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
         self.cnt = -1;
     }
 
@@ -253,7 +253,7 @@ void() monster_shalrath =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = shalrath_start;
         return;

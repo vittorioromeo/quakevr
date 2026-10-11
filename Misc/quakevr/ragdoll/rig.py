@@ -115,7 +115,9 @@ for p, n in sizes.items():
     gap = max(np.sqrt(((P[f, pv][:, None, :] - P[f, bodyR][None, :, :]) ** 2).sum(2).min()) for f in range(0, nf, 2))
     hidden = any((P[f, pv].max(0) - P[f, pv].min(0)).max() < 0.5 for f in range(nf))
     hidden = hidden or name in LOOSE_PIECES  # (the player's axe and gun: hidden in his ragdoll, SeedTable::looseWeapons)
-    print('piece %d: %d places, gap %.1f, %s' % (p, n, gap, 'loose (hidden)' if hidden else 'body'))
+    c0 = P[0, pv].mean(0)
+    print('piece %d: %d places, gap %.1f, %s, rest centre %.1f %.1f %.1f' % (p, n, gap, 'loose (hidden)' if hidden else 'body',
+                                                                            c0[0], c0[1], c0[2]))
     if hidden:
         loose.update(pv)
 reps = [v for v in allReps if v not in loose]

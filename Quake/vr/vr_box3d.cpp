@@ -54,6 +54,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_box3d.hpp"
 #include "vr_brushes.hpp"
+#include "vr_ad_monsters.hpp" // AD support
 #include "vr_convex.hpp"
 #include "vr_diskcache.hpp"
 #include "vr_main.hpp"
@@ -3078,7 +3079,7 @@ const RagdollClass ragdollClasses[] = {
 [[nodiscard]] float tune(const edict_t* ent, Tune t)
 {
     const auto i = static_cast<za::SizeT>(t);
-    const char* classname = PR_GetString(ent->v.classname);
+    const char* classname = ad::vrClass(PR_GetString(ent->v.classname)); // AD support: AD's monsters as their nearest class
     for(const RagdollClass& c : ragdollClasses)
     {
         if(!strcmp(classname, c.classname) && c.own[i]->value >= 0.f)
@@ -8007,7 +8008,7 @@ void liftAgain()
 // A body's own Float, times the liquid's: armour sinks (the knights, the death knights, the enforcers).
 [[nodiscard]] float ownFloat(const edict_t* ent)
 {
-    const char* name = PR_GetString(ent->v.classname);
+    const char* name = ad::vrClass(PR_GetString(ent->v.classname)); // AD support: AD's knights in plate sink as knights
     if(!strcmp(name, "monster_knight") || !strcmp(name, "monster_hell_knight") || !strcmp(name, "monster_ranged_knight"))
     {
         return 0.85f;
@@ -11505,7 +11506,18 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
         return nullptr;
     }
     const VmScope vm;
-    const func_t fn = qvr::progs::findFunction(classname);
+    func_t fn = qvr::progs::findFunction(classname);
+    // AD support: AD's version where it owns the classname in an AD map, AD's artifacts, pickups and ladders in any
+    // map (vr_ad.cpp), as ED_LoadFromFile
+    if(VR_AD_RulesOn())
+    {
+        const func_t ad = qvr::progs::findFunction(va("ad_%s", classname));
+        fn = ad && VR_AD_OwnsClassname(classname, fn != 0) ? ad : fn;
+    }
+    else if(!fn && VR_AD_SpawnsOutside(classname))
+    {
+        fn = qvr::progs::findFunction(va("ad_%s", classname));
+    }
     if(!fn)
     {
         Con_Printf("no spawn function %s\n", classname);
