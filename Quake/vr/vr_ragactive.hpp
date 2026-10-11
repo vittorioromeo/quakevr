@@ -181,7 +181,8 @@ struct Stagger
     glm::vec3 lift{0.f};    // its pin's anchor from the stand frame's pelvis to where its pelvis was (metres)
     float lean{0.f}, leanMost{0.f}; // deg: its middle over its feet now, at most
     float over{-1.f};       // s after the drive began: leaning past its limit since (-1: not)
-    float sag{1.f};         // its pelvis's height now over `height` (its lowest)
+    float sag{1.f};         // its pelvis's height over the floor now over `overFloor`, as it stood (its lowest)
+    float overFloor{0.f};   // m (0: not yet measured)
     // Its feet: each leg's place on the floor (planted), its stance (the foot from the pelvis, level), a step's way.
     za::Array<glm::vec3, 2> planted{}, stance{};
     int stepLeg{-1}; // Limb

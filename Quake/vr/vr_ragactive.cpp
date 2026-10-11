@@ -662,6 +662,7 @@ void turnWhole(const Parts& p, const Context& c, const glm::quat& want, float ra
 constexpr float staggerStepTime = 0.22f; // s: a step
 constexpr float staggerCatch = 0.12f;    // s: leaning past its limit this long, it falls
 constexpr int staggerStepsMost = 4;
+constexpr float staggerStepAt = 0.2f;    // of a leg's length: a foot this far from its stance under the capture point steps
 constexpr float staggerSag = 0.55f;      // of its pelvis's height: it gave way
 constexpr float staggerSteady = 12.f;    // deg: leaning less, it is steady
 constexpr float staggerMost = 2.f;       // s: up this long, it has recovered
@@ -701,7 +702,14 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
     footZ = feet > 0 ? footZ : pelvis.z - g.height;
     g.lean = glm::degrees(za::atan2(glm::length(level(com - support)), za::max(com.z - footZ, 0.05f)));
     g.leanMost = za::max(g.leanMost, g.lean);
-    g.sag = za::min(g.sag, (pelvis.z - footZ) / za::max(g.height, 0.05f));
+    // (Its pelvis over the floor under it, against how high it stood: its feet's ends may lie below their soles.)
+    const float below = c.floorBelow ? c.floorBelow(pelvis, 2.f) : -1e30f;
+    const float floor = below > -1e29f ? below : footZ;
+    if(g.overFloor <= 0.f)
+    {
+        g.overFloor = za::max(pelvis.z - floor, 0.1f);
+    }
+    g.sag = za::min(g.sag, (pelvis.z - floor) / g.overFloor);
     if(vr_debug_ragdoll.value >= 2.f)
     {
         const glm::vec3 anchor = g.pelvis0 + g.dir * (g.travel * staggerShare(g, t));
@@ -741,14 +749,16 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
                     best = leg;
                 }
             }
-            if(best >= 0 && bestD > 0.12f * limbLength(s, p, best))
+            if(best >= 0 && bestD > staggerStepAt * limbLength(s, p, best))
             {
                 const auto i = static_cast<za::SizeT>(best - 2);
                 const float len = limbLength(s, p, best);
                 const glm::vec3 way = level(then - level(g.planted[i] - g.stance[i]));
                 const float wl = glm::length(way);
                 glm::vec3 to = level(then + g.stance[i]) + (wl > 1e-3f ? way / wl : g.dir) * (0.06f * len);
-                to.z = floorAt(c, glm::vec3{to.x, to.y, g.planted[i].z}, len, g.planted[i].z);
+                // (As high over the floor there as it is here: a foot's end may lie below its sole, the ogre's 8 units.)
+                const glm::vec3 from = g.planted[i];
+                to.z = from.z + floorAt(c, glm::vec3{to.x, to.y, from.z}, len, from.z) - floorAt(c, from, len, from.z);
                 g.stepLeg = best;
                 g.stepFrom = c.now;
                 g.stepA = g.planted[i];
@@ -1327,6 +1337,13 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
         glm::quat q;
         glm::vec3 pos0;
         ragdoll::bonePose(rig, ragdoll::poseOfFrame(s.model, info.first), 0, q, pos0);
+        // (Its stance turned as its pelvis is now, about the vertical: a pain's frame may twist it, the ogre's 60
+        // degrees; turning it back would wring its planted feet.)
+        const glm::vec3 fwd = bodyRot(p, 0) * glm::inverse(q) * glm::vec3{1.f, 0.f, 0.f};
+        if(glm::length(glm::vec2{fwd.x, fwd.y}) > 1e-3f)
+        {
+            s.turn = glm::angleAxis(za::atan2(fwd.y, fwd.x), glm::vec3{0.f, 0.f, 1.f});
+        }
         g.lift = glmv(b3Body_GetPosition(p.body[0])) - (s.origin + s.turn * (pos0 * p.k));
     }
     float footZ = 1e30f;
