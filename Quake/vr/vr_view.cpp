@@ -1194,7 +1194,7 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
     }
     queuedFrame[hand] = host_framecount;
 
-    const glm::vec3 pos = view::anchorPosition(ve, weapons::cvar(slot, Key::WpnTextAnchor)->string,
+    const glm::vec3 pos = view::anchorPosition(ve, weapons::anchor(slot, Key::WpnTextAnchor),
         weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
 
     glm::vec3 angles = weapons::vec(slot, Key::WpnTextPitch, Key::WpnTextYaw, Key::WpnTextRoll);
@@ -1309,7 +1309,7 @@ Morph morphs[2];
 {
     const glm::vec3 grip{e.origin[0], e.origin[1], e.origin[2]}; // where the hand holds it (the controller)
     const glm::vec3 muzzle = view::anchorPosition(e, mirrored, zeroBlend,
-        weapons::cvar(slot, Key::MuzzleAnchor)->string,
+        weapons::anchor(slot, Key::MuzzleAnchor),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     const glm::mat3 axes = angleAxes({-e.angles[0], e.angles[1], e.angles[2]});
     return glm::mix(grip, muzzle, 0.55f) + axes[2] * 2.f;
@@ -1913,7 +1913,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     if(model && slot >= 0 && !carried) // a carried gun has no aim
     {
         s.muzzle[hand] = view::anchorPosition(ve,
-            weapons::cvar(slot, Key::MuzzleAnchor)->string,
+            weapons::anchor(slot, Key::MuzzleAnchor),
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
         s.muzzleValid[hand] = true;
     }
@@ -1989,7 +1989,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         glm::vec3 handPos, handRot;
         if(carried && twohand::carryingHand(s, hand, handPos, handRot))
         {
-            const glm::vec3 tip = view::anchorPosition(ve, weapons::cvar(slot, Key::MuzzleAnchor)->string,
+            const glm::vec3 tip = view::anchorPosition(ve, weapons::anchor(slot, Key::MuzzleAnchor),
                 weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
             for(int i = 0; i < weapons::maxHotspots; i++)
             {
@@ -2017,7 +2017,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         // Where the hand that takes it back closes: its handle.
         twohand::setCarriedHandle(hand, glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]});
         // Its tip, as drawn (view::carriedWeaponPose: the melee's line).
-        carriedTip[hand] = view::anchorPosition(ve, weapons::cvar(slot, Key::MuzzleAnchor)->string,
+        carriedTip[hand] = view::anchorPosition(ve, weapons::anchor(slot, Key::MuzzleAnchor),
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
         carriedTipValid[hand] = true;
         carriedAngles[hand] = glm::vec3{-ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
@@ -3770,7 +3770,7 @@ constexpr float groundSpotFromHandleCm = 10.f;
         return false; // none, or a cup (the two-handed pistol grip's)
     }
     const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
-    const glm::vec3 tip = view::anchorPosition(e, false, 0.f, weapons::cvar(slot, Key::MuzzleAnchor)->string,
+    const glm::vec3 tip = view::anchorPosition(e, false, 0.f, weapons::anchor(slot, Key::MuzzleAnchor),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     a = origin + (tip - origin) * weapons::bladeFrom(h);
     b = origin + (tip - origin) * weapons::bladeTo(h);
@@ -3809,7 +3809,7 @@ constexpr float groundSpotFromHandleCm = 10.f;
     hands::angleVectors(handRot, f, r, u);
     drawnPos = glm::vec3{toHeld * glm::vec4{handPos, 1.f}};
     drawnRot = hands::anglesFromVectors(glm::normalize(turn * f), glm::normalize(turn * u));
-    const glm::vec3 tip = view::anchorPosition(weapon, weapons::cvar(slot, Key::MuzzleAnchor)->string,
+    const glm::vec3 tip = view::anchorPosition(weapon, weapons::anchor(slot, Key::MuzzleAnchor),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     twohand::bladeGripOn(slot, other, tip, zero, zero, weaponAngleOffsets(weapons::fistSlot(), otherMirrored), drawnPos,
         drawnRot);
@@ -4101,7 +4101,7 @@ bool view::heldWeaponPoint(int hand, float fraction, float cm, glm::vec3& out)
         return false;
     }
     const glm::vec3 handle = drawnAs[hand].pos;
-    const glm::vec3 tip = view::anchorPosition(w, weapons::cvar(slot, Key::MuzzleAnchor)->string,
+    const glm::vec3 tip = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     const glm::vec3 at = glm::mix(handle, tip, fraction);
     const glm::vec3 axis = glm::normalize(tip - handle + glm::vec3{0.f, 0.f, 1e-6f});
@@ -4146,7 +4146,7 @@ bool view::heldWeaponButtRegion(int hand, float depth, za::Vector<glm::vec3>& ou
         return false;
     }
     const glm::vec3 handle = drawnAs[hand].pos;
-    const glm::vec3 tip = view::anchorPosition(w, weapons::cvar(slot, Key::MuzzleAnchor)->string,
+    const glm::vec3 tip = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     const glm::vec3 axis = glm::normalize(tip - handle + glm::vec3{0.f, 0.f, 1e-6f});
     const grasp::Shape* shape = grasp::shapeOf(w.ent, -1);
@@ -4771,7 +4771,7 @@ void placeFloating(const hands::State& s, posing::Session& ps)
     place(ve, ps.model, grip, level, 0, mirrored);
     ps.turn = anglesBasis(level);
     ps.modelOrigin = glm::vec3{hotspotFrame(ve.ent, mirrored)[3]};
-    const glm::vec3 muzzle = view::anchorPosition(ve, weapons::cvar(ps.slot, Key::MuzzleAnchor)->string,
+    const glm::vec3 muzzle = view::anchorPosition(ve, weapons::anchor(ps.slot, Key::MuzzleAnchor),
         weapons::vec(ps.slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     ps.pivot = glm::mix(grip, muzzle, 0.5f);
     ps.tiltAxis = ps.turn[1]; // across the view (to the left)
@@ -5435,7 +5435,7 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
     if(on && weapons::value(slot, Key::WpnButtonMode) != 0.f)
     {
         const glm::vec3 pos = view::anchorPosition(e, mirrored, 0.f,
-            weapons::cvar(slot, Key::WpnButtonAnchor)->string,
+            weapons::anchor(slot, Key::WpnButtonAnchor),
             weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ));
         glm::vec3 angles = weapons::vec(slot, Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll);
         if(mirrored)
@@ -5454,7 +5454,7 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
     if(button.visible && vr_grapple_front_button.value && modelmeta::is(e.model, modelmeta::Id::VGrpple))
     {
         const glm::vec3 pos = view::anchorPosition(e, mirrored, 0.f,
-            weapons::cvar(slot, Key::WpnButtonAnchor)->string,
+            weapons::anchor(slot, Key::WpnButtonAnchor),
             weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ) +
                 glm::vec3{vr_grapple_front_button_x.value, vr_grapple_front_button_y.value, vr_grapple_front_button_z.value});
         place(front, viewModel("progs/wpnbutton.mdl"), pos,
@@ -5478,7 +5478,7 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
     if(on && queueText && vr_show_weapon_text.value && weapons::value(slot, Key::WpnTextMode) != 0.f)
     {
         const glm::vec3 pos = view::anchorPosition(e, mirrored, 0.f,
-            weapons::cvar(slot, Key::WpnTextAnchor)->string,
+            weapons::anchor(slot, Key::WpnTextAnchor),
             weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
         glm::vec3 angles = weapons::vec(slot, Key::WpnTextPitch, Key::WpnTextYaw, Key::WpnTextRoll);
         if(mirrored)
@@ -6986,7 +6986,7 @@ void setupButton(int hand)
     const twohand::HeldAs& held = drawnAs[hand];
     const bool mirrored = held.mirrored;
     const glm::vec3 pos = view::anchorPosition(weapon,
-        weapons::cvar(slot, Key::WpnButtonAnchor)->string,
+        weapons::anchor(slot, Key::WpnButtonAnchor),
         weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ));
 
     glm::vec3 angles = weapons::vec(slot, Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll);
@@ -7015,7 +7015,7 @@ void setupFrontButton(int hand)
     }
     const twohand::HeldAs& held = drawnAs[hand];
     const bool mirrored = held.mirrored;
-    const glm::vec3 pos = view::anchorPosition(weapon, weapons::cvar(slot, Key::WpnButtonAnchor)->string,
+    const glm::vec3 pos = view::anchorPosition(weapon, weapons::anchor(slot, Key::WpnButtonAnchor),
         weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ) +
             glm::vec3{vr_grapple_front_button_x.value, vr_grapple_front_button_y.value, vr_grapple_front_button_z.value});
     const view::ViewEntity& back = entities.button[hand];
@@ -7476,7 +7476,7 @@ bool weaponMount(int hand, WeaponMount& out)
     out.rot = drawnAs[hand].rot;
     out.mirrored = drawnAs[hand].mirrored;
     out.slot = slot;
-    out.muzzle = anchorPosition(ve, weapons::cvar(slot, Key::MuzzleAnchor)->string,
+    out.muzzle = anchorPosition(ve, weapons::anchor(slot, Key::MuzzleAnchor),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     return true;
 }
@@ -9326,11 +9326,11 @@ void hotspotsCheck_f()
             ve.ent.angles[2] = 25.f - 11.f * a;
             const glm::vec3 origin{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
             // The old drawn hand: the hand anchor and offset.
-            const glm::vec3 oldHand = anchorPosition(ve, weapons::cvar(slot, Key::HandAnchor)->string,
+            const glm::vec3 oldHand = anchorPosition(ve, weapons::anchor(slot, Key::HandAnchor),
                 weapons::vec(slot, Key::HandOffsetX, Key::HandOffsetY, Key::HandOffsetZ));
             hand = za::max(hand, glm::distance(oldHand, origin));
             // The muzzle: round 20 moved the weapon by its GunOffset (world axes, y mirrored); retired, now not.
-            const char* muzzleAnchor = weapons::cvar(slot, Key::MuzzleAnchor)->string;
+            const char* muzzleAnchor = weapons::anchor(slot, Key::MuzzleAnchor);
             const glm::vec3 muzzleOffset = weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ);
             glm::vec3 gunOffset = weapons::vec(slot, Key::GunOffsetX, Key::GunOffsetY, Key::GunOffsetZ) * weapons::offsetScale();
             if(mirrored)
@@ -9350,7 +9350,7 @@ void hotspotsCheck_f()
             }
             ViewEntity helped = ve;
             helped.mirrored = !mirrored;
-            const glm::vec3 old = anchorPosition(helped, weapons::cvar(slot, Key::TwoHHandAnchor)->string,
+            const glm::vec3 old = anchorPosition(helped, weapons::anchor(slot, Key::TwoHHandAnchor),
                 weapons::vec(slot, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY, Key::TwoHFixedOffsetZ));
             const weapons::Hotspot h = weapons::hotspot(slot, 0);
             const glm::vec3 now{hotspotFrame(ve.ent, mirrored) * glm::vec4{h.pos, 1.f}};
@@ -9392,11 +9392,11 @@ void anchorWhere_f()
             Con_Printf("anchors hand %d %s frame %d %s %.4f %.4f %.4f local %.4f %.4f %.4f\n", hand, ve.ent.model->name,
                 ve.ent.frame, what, w.x, w.y, w.z, l.x, l.y, l.z);
         };
-        print("muzzle", anchorPosition(ve, weapons::cvar(slot, Key::MuzzleAnchor)->string,
+        print("muzzle", anchorPosition(ve, weapons::anchor(slot, Key::MuzzleAnchor),
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ)));
-        print("button", anchorPosition(ve, weapons::cvar(slot, Key::WpnButtonAnchor)->string,
+        print("button", anchorPosition(ve, weapons::anchor(slot, Key::WpnButtonAnchor),
             weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ)));
-        print("text", anchorPosition(ve, weapons::cvar(slot, Key::WpnTextAnchor)->string,
+        print("text", anchorPosition(ve, weapons::anchor(slot, Key::WpnTextAnchor),
             weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ)));
         for(const ViewEntity* part : {&entities.mag[hand], &entities.well[hand]})
         {
