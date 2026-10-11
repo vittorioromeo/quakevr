@@ -2441,3 +2441,11 @@ the updated Box3D with 0 warnings. Checks: smoke; `python Misc/quakevr/brush_tes
 (selftest, stand, crate, save/load, climb: mantled onto a box, monster on a platform, sight through a wall, rocket
 scorch, the tool's create/move/resize/paint/copy/delete); toolgun_panel_test.sh PASS (six tools); prop_climb_test.sh
 8/8 PASS again.
+
+**Then `feature/ragliquid`** (7e0a0811f, active ragdolls stage 3: liquids), merged on top (`--no-ff`). Conflict: this
+file only (vr_ragactive.*, vr_box3d.cpp's driveActive hooks, the menu rows merged by themselves). Built with 0 warnings.
+Checks: smoke; `liquid_active_test.sh integ` (all 12 cases): no NaN, crash, explosion or failure, numbers as on the
+branch (water: grunt, ogre, enforcer paddle 4.4 s and float, 0-2 J; knight and death knight paddle 5.0 s and sink,
+20 J / 29 J; drown, fall-in paddle; headshot: no swim; lava flails 1.6 s, gibbed; slime flails 2.4 s, 33 J; off and
+on land: no swim); active_test.sh deaths head: 10/10 settle, late energy 0-1 J, spin under 2.5; prop_climb_test.sh
+8/8 PASS. (Stage 2, `ragstagger`, not merged yet: expect mild conflicts with this in the State and the menu.)
