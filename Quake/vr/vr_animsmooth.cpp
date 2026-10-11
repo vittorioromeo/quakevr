@@ -25,6 +25,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_rigpose.hpp"
 
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -118,6 +119,14 @@ struct Pin
 };
 Pin pin;
 
+// The splines worked out since the last vr_anim_smooth_info (an entity's each frame it is drawn mid-lerp): with a key
+// before (the lerp history), a key after (a frame expected next), limbs swung. The renderer's thread.
+struct Stats
+{
+    int splines{0}, history{0}, ahead{0}, swung{0};
+};
+Stats stats;
+
 // What an entity's spline was last worked out for, and what came of it: drawn again so (the other eye, each shadow
 // map's light, the next frame paused) it is copied. By the entity (the renderer's thread; a map change frees it).
 struct Key
@@ -137,6 +146,9 @@ struct Memo
 {
     Key key;
     float learnt{-1.f}; // the lerp (its start) whose frames were learnt (SmoothModel::seen)
+    float aheadStart{-1.f}; // the lerp (its start, its pose) whose frame expected after is `ahead`
+    int aheadFrom{-1};
+    int ahead{0};
     rigpose::Spline spline;
     bool swung{false};
     int numRows{0};
@@ -412,7 +424,94 @@ bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, 
 
 } // namespace
 
-extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
+namespace
+{
+
+// vr_anim_smooth_trace: one entity's drawn shape followed frame by frame (in its model's space: its animation alone), how
+// much each vertex's speed changes from frame to frame (the second difference, units), for r_lerpmodels 1 and 3 to
+// compare (vr_fixed_frames 1: even frames). The renderer's thread.
+struct Trace
+{
+    int ent{-1};
+    int framesLeft{0};
+    double lastTime{-1.0};
+    int filled{0};
+    za::Vector<glm::vec3> now, prev, prev2;
+    za::Vector<float> accel; // per frame: the vertices' mean
+    za::Vector<float> peak;  // ... their most
+};
+Trace trace;
+
+void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend, int on, const int smooth[4],
+    const float weights[4])
+{
+    if(trace.ent < 0 || e != &cl_entities[trace.ent] || cl.time == trace.lastTime || hdr->poseverttype != aliashdr_t::PV_QUAKE1)
+    {
+        return;
+    }
+    trace.lastTime = cl.time;
+    const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    const int count = hdr->numverts_vbo;
+    const auto at = [&](int pose, int i) {
+        const trivertx_t& t = base[static_cast<za::SizeT>(pose) * static_cast<za::SizeT>(hdr->numverts) + desc[i].vertindex];
+        return glm::vec3{t.v[0], t.v[1], t.v[2]};
+    };
+    const auto mit = smoothCache.models.find(e->model);
+    const SmoothModel* m = mit != smoothCache.models.end() ? mit->second.get() : nullptr;
+    const glm::vec4* rows = on && smooth[2] > 0 ? batches.swing0.data() + (smooth[2] - 1) : nullptr;
+    trace.prev2 = trace.prev;
+    trace.prev = trace.now;
+    trace.now.resize(static_cast<za::SizeT>(count));
+    for(int i = 0; i < count; i++)
+    {
+        glm::vec3 p = glm::mix(at(pose1, i), at(pose2, i), pose1 == pose2 ? 0.f : blend);
+        if(on)
+        {
+            p = weights[0] * at(smooth[0], i) + weights[1] * at(pose1, i) + weights[2] * at(pose2, i) + weights[3] * at(smooth[1], i);
+            if(rows && m && static_cast<za::SizeT>(i) < m->rest.size())
+            {
+                const glm::vec4 r = m->rest[static_cast<za::SizeT>(i)];
+                const float bone = za::floor(r.w);
+                const glm::vec4* row = rows + 3 * static_cast<int>(bone);
+                const glm::vec4 q{r.x, r.y, r.z, 1.f};
+                p += (r.w - bone) * 2.f * glm::vec3{glm::dot(row[0], q), glm::dot(row[1], q), glm::dot(row[2], q)};
+            }
+        }
+        trace.now[static_cast<za::SizeT>(i)] = p * scale;
+    }
+    if(++trace.filled >= 3 && trace.prev2.size() == trace.now.size())
+    {
+        float sum = 0.f, most = 0.f;
+        for(za::SizeT i = 0; i < trace.now.size(); i++)
+        {
+            const glm::vec3 d = trace.now[i] - 2.f * trace.prev[i] + trace.prev2[i];
+            const float a = za::sqrt(glm::dot(d, d));
+            sum += a;
+            most = za::max(most, a);
+        }
+        trace.accel.pushBack(sum / static_cast<float>(za::max<za::SizeT>(trace.now.size(), 1)));
+        trace.peak.pushBack(most);
+    }
+    if(--trace.framesLeft > 0)
+    {
+        return;
+    }
+    // The frames' changes of speed, sorted: their median, 95th percentile and most (the jolts at the frames' ends)
+    za::Vector<float> a = trace.accel, p = trace.peak;
+    za::quickSort(a.begin(), a.end());
+    za::quickSort(p.begin(), p.end());
+    const auto pct = [](const za::Vector<float>& v, float f) {
+        return v.empty() ? 0.f : v[static_cast<za::SizeT>(f * static_cast<float>(v.size() - 1))];
+    };
+    Con_Printf("animsmooth: trace ent %d (%s, r_lerpmodels %g): %d frames; speed change a frame, the vertices' mean: median "
+               "%.3f, p95 %.3f, most %.3f; one vertex's most: p95 %.3f, most %.3f units\n", trace.ent, e->model->name,
+        r_lerpmodels.value, static_cast<int>(a.size()), pct(a, 0.5f), pct(a, 0.95f), pct(a, 1.f), pct(p, 0.95f), pct(p, 1.f));
+    trace = Trace{};
+}
+
+[[nodiscard]] int smoothInstance(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
     int batchindex, int channel, int smooth[4], float weights[4])
 {
     za::Vector<glm::vec4>& swing = swingsOf(channel);
@@ -451,7 +550,7 @@ extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1,
         if(e->animfrom == pose1 && e->animspan0 > 0.f && e->animpose0 >= 0 && e->animpose0 < hdr->numposes)
         {
             poses[0] = e->animpose0;
-            span[0] = za::clamp(e->animspan0, d1 * 0.25f, d1 * 4.f);
+            span[0] = za::clamp(e->animspan0, d1 * 0.5f, d1 * 2.f);
         }
         // (learnt once a lerp: the frame seen after its first, where the names don't say; a vote against what was
         // seen before, an interruption, a pain, doesn't replace it at once)
@@ -475,8 +574,15 @@ extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1,
                 votes = 1;
             }
         }
-        const int next = nextPose(m, hdr, pose2);
-        poses[3] = next >= 0 && next < hdr->numposes ? next : pose2;
+        // (the frame expected after, kept for the lerp: what is learnt meanwhile changes the next one's, not this one's)
+        if(memo.aheadStart != e->lerpstart || memo.aheadFrom != pose2)
+        {
+            const int next = nextPose(m, hdr, pose2);
+            memo.aheadStart = e->lerpstart;
+            memo.aheadFrom = pose2;
+            memo.ahead = next >= 0 && next < hdr->numposes ? next : pose2;
+        }
+        poses[3] = memo.ahead;
     }
     const float tension = za::clamp(vr_anim_smooth_tension.value, 0.f, 1.f);
     const bool rigged = vr_anim_smooth_rig.value != 0.f && !zeroblend && rigData(m, e->model, hdr);
@@ -488,6 +594,10 @@ extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1,
         memo.spline = rigpose::spline(blend, span, tension);
         memo.swung = rigged && swings(m, poses, memo.spline, memo.rows);
         memo.numRows = rigged ? 3 * m.rig->numBones : 0;
+        stats.splines++;
+        stats.history += poses[0] != poses[1] ? 1 : 0;
+        stats.ahead += poses[3] != poses[2] ? 1 : 0;
+        stats.swung += memo.swung ? 1 : 0;
     }
     smooth[0] = poses[0];
     smooth[1] = poses[3];
@@ -506,6 +616,19 @@ extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1,
         smooth[2] = 1 + static_cast<int>(at);
     }
     return 1;
+}
+
+} // namespace
+
+extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
+    int batchindex, int channel, int smooth[4], float weights[4])
+{
+    const int on = smoothInstance(e, aliashdr, pose1, pose2, blend, zeroblend, batchindex, channel, smooth, weights);
+    if(trace.ent >= 0 && channel == 0)
+    {
+        traceDraw(e, static_cast<const aliashdr_t*>(aliashdr), pose1, pose2, blend, on, smooth, weights);
+    }
+    return on;
 }
 
 extern "C" void VR_AnimSmoothBind(const entity_t* e, int channel)
@@ -552,25 +675,10 @@ extern "C" int VR_AnimSmoothPinned(const entity_t* e, const void* aliashdr, shor
 namespace
 {
 
-// vr_anim_smooth_pin off | <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]
-void pin_f()
+// An animated model's entity: `which` its number, else the nearest to you whose model's name has `which` ("": any); -1 none.
+[[nodiscard]] int pickEntity(const char* which)
 {
-    if(Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "off"))
-    {
-        pin = Pin{};
-        Con_Printf("animsmooth: pin off\n");
-        return;
-    }
-    if(Cmd_Argc() < 4)
-    {
-        Con_Printf("vr_anim_smooth_pin off | <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]: the nearest "
-                   "monster (or <entity>, or the nearest whose model's name has <model>) drawn between two frames at <blend>, its spline's other keys <frame0> and <frame3> (-1 or "
-                   "left out: by its frames' names)\n");
-        return;
-    }
-    const char* which = Cmd_Argc() >= 7 ? Cmd_Argv(6) : "";
-    const bool numbered = which[0] >= '0' && which[0] <= '9';
-    int ent = numbered ? atoi(which) : -1;
+    int ent = which[0] >= '0' && which[0] <= '9' ? atoi(which) : -1;
     if(ent < 0)
     {
         const glm::vec3 me = glm::make_vec3(cl_entities[cl.viewentity].origin);
@@ -578,8 +686,8 @@ void pin_f()
         for(int i = 1; i < cl.num_entities; i++)
         {
             const entity_t& e = cl_entities[i];
-            if(i == cl.viewentity || !e.model || e.model->type != mod_alias || static_cast<const aliashdr_t*>(Mod_Extradata(e.model))->numframes < 10 ||
-                !strstr(e.model->name, which))
+            if(i == cl.viewentity || !e.model || e.model->type != mod_alias ||
+                static_cast<const aliashdr_t*>(Mod_Extradata(e.model))->numframes < 10 || !strstr(e.model->name, which))
             {
                 continue;
             }
@@ -592,6 +700,49 @@ void pin_f()
         }
     }
     if(ent < 0 || ent >= cl.num_entities || !cl_entities[ent].model || cl_entities[ent].model->type != mod_alias)
+    {
+        return -1;
+    }
+    return ent;
+}
+
+// vr_anim_smooth_trace <frames> [<entity> | <model>]
+void trace_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_anim_smooth_trace <frames> [<entity> | <model>]: the nearest monster's (or <entity>'s, or the nearest "
+                   "whose model's name has <model>) drawn animation over the next <frames> frames: how much its vertices' "
+                   "speed changes frame to frame (r_lerpmodels 1 against 3; vr_fixed_frames 1)\n");
+        return;
+    }
+    trace = Trace{};
+    trace.ent = pickEntity(Cmd_Argc() >= 3 ? Cmd_Argv(2) : "");
+    trace.framesLeft = za::max(atoi(Cmd_Argv(1)), 3);
+    if(trace.ent < 0)
+    {
+        Con_Printf("animsmooth: no model to trace\n");
+    }
+}
+
+// vr_anim_smooth_pin off | <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]
+void pin_f()
+{
+    if(Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "off"))
+    {
+        pin = Pin{};
+        Con_Printf("animsmooth: pin off\n");
+        return;
+    }
+    if(Cmd_Argc() < 4)
+    {
+        Con_Printf("vr_anim_smooth_pin off | <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]: the nearest "
+                   "monster (or <entity>, or the nearest whose model's name has <model>) drawn between two frames at "
+                   "<blend>, its spline's other keys <frame0> and <frame3> (-1 or left out: by its frames' names)\n");
+        return;
+    }
+    const int ent = pickEntity(Cmd_Argc() >= 7 ? Cmd_Argv(6) : "");
+    if(ent < 0)
     {
         Con_Printf("animsmooth: no model to pin\n");
         return;
@@ -615,6 +766,9 @@ void pin_f()
 // vr_anim_smooth_info [model]: the models drawn smoothed, their predictions and rigs.
 void info_f()
 {
+    Con_Printf("animsmooth: %d splines drawn since the last info: %d with the lerp before, %d with a frame expected after, "
+               "%d with limbs swung\n", stats.splines, stats.history, stats.ahead, stats.swung);
+    stats = Stats{};
     for(const auto& [model, mp] : smoothCache.models)
     {
         if(!mp || (Cmd_Argc() >= 2 && !strstr(model->name, Cmd_Argv(1))))
@@ -851,6 +1005,7 @@ void registerCommands()
     Cmd_AddCommand("vr_anim_smooth_pin", pin_f);
     Cmd_AddCommand("vr_anim_smooth_info", info_f);
     Cmd_AddCommand("vr_anim_smooth_check", check_f);
+    Cmd_AddCommand("vr_anim_smooth_trace", trace_f);
 }
 
 } // namespace qvr::animsmooth

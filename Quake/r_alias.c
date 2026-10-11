@@ -194,16 +194,16 @@ float R_FrameLerpFinish (const entity_t *e)
 /*
 =================
 R_AnimHistoryPush -- QVR: r_lerpmodels 3 (vr/vr_animsmooth.cpp): a new lerp starts from e's current pose: the lerp
-that ends here (animfrom to currentpose) becomes the history its spline curves in from, if it ran up to now (or was cut
-short by this one); one that ended a while ago (the pose held, the model out of sight) is none: the new lerp starts from
-rest. Called before lerpstart moves on.
+that ends here (animfrom to currentpose) becomes the history its spline curves in from, if it ran about its time up to
+now; one cut short by this one (Quake jumps to its end: never drawn at that speed) or that ended a while ago (the pose
+held, the model out of sight) is none: the new lerp starts from rest. Called before lerpstart moves on.
 =================
 */
 static void R_AnimHistoryPush (entity_t *e)
 {
 	float since = (float)(cl.time - e->lerpstart);
 	float span = e->animlerpfinish > e->lerpstart ? e->animlerpfinish - e->lerpstart : e->lerptime;
-	if (e->lerpstart > 0.f && since > 0.f && since <= span * 1.6f + 0.02f && e->animfrom != e->currentpose)
+	if (e->lerpstart > 0.f && since >= span * 0.5f && since <= span * 1.6f + 0.02f && e->animfrom != e->currentpose)
 	{
 		e->animpose0 = e->animfrom;
 		e->animspan0 = since;
