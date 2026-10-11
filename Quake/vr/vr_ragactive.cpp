@@ -471,6 +471,8 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
     }
     const int chest = chestOf(p);
     const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
+    // A hand on his pelvis or chest: no roll and no pull (his joints already go limp; these would drag him out of it).
+    const bool grabbed = (heldLimbs(*p.rig, p.count, c.held) & (1u | (1u << chest))) != 0u;
     if(d.crawlFrom < 0.0)
     {
         if(t < 1.1f * d.length)
@@ -503,7 +505,10 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
                     c.now - d.rollFrom, glm::dot(front, -up), glm::dot(glmv(b3Body_GetAngularVelocity(p.body[chest])), d.rollAxis),
                     b3Body_IsAwake(p.body[0]) ? "awake" : "asleep");
             }
-            rollOver(p, c, d.rollAxis, d.rollSign, pelvis, floor);
+            if(!grabbed)
+            {
+                rollOver(p, c, d.rollAxis, d.rollSign, pelvis, floor);
+            }
             return;
         }
         if(prone && down && limbWhole(s, p, 0) && limbWhole(s, p, 1))
@@ -585,7 +590,7 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
         const float along = glm::dot(v, d.crawlDir);
         const float most = za::max(vr_ragdoll_active_crawl_force.value, 0.f) * s.totalMass * c.gravity;
         // (Enough to drag him over the floor, most of his weight on it: its friction, then the rest to crawlSpeed.)
-        const float f = along >= crawlSpeed ? 0.f
+        const float f = grabbed || along >= crawlSpeed ? 0.f
                                             : za::clamp(0.9f * s.totalMass * c.gravity + s.totalMass * (crawlSpeed - along) / 0.2f, 0.f, most);
         const glm::vec3 force = d.crawlDir * (f * 0.5f);
         pushPart(p, 0, force);
