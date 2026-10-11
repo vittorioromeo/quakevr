@@ -1,16 +1,14 @@
 # mdl.py -- reads and writes Quake alias models (.mdl) byte for byte, and what the Blender add-on needs to keep a
 # weapon's or the wrist gadget's anchors: the anchors the engine names (vr_weapons.inc, vr_view.cpp's magazine mounts,
-# vr_shells.cpp, vr_gadget.cpp), bound as the engine binds them (points on the surface since round 22; vr_anchor.cpp's
-# strip order for legacy indices) and a report of where they are. Plain Python (no bpy, no numpy).
+# vr_shells.cpp, vr_weaponfx.cpp, vr_gadget.cpp), bound as the engine binds them (points on the surface) and a report
+# of where they are. Plain Python (no bpy, no numpy).
 #
 # An MDL vertex is a place per pose (a byte per axis on the header's grid: origin + byte * scale, and a normal index)
 # and a skin coordinate (onseam, s, t in texels: a triangle facing back (facesfront 0) reads an onseam vertex's s half
 # a skin further right). Anchors are points on the surface (vr_anchor.hpp): an edit may renumber the vertices and
 # triangles freely; what matters is that the surface stays where the anchors are (the report gives how far each moved
-# in every frame). Legacy anchors (strip-order indices, vr_anchor.cpp's order of QuakeSpasm's old BuildTris) depend on
-# every triangle's vertices and their order in the file: old triangles kept in their places keep them.
+# in every frame).
 
-import bisect
 import math
 import os
 import re
@@ -223,77 +221,6 @@ def weld(model, poses=None):
 
 
 # ----------------------------------------------------------------------------
-# vr_anchor.cpp's strip order (QuakeSpasm's old BuildTris), exactly: for each triangle not yet used, the longest fan
-# or strip from each of its three corners (fans first, the first longest wins), each extended by the first later
-# triangle facing the same way that runs along the open edge (a used one ends it).
-
-
-def strip_order(tris):
-    """Strip-order index -> vertex index. tris: [(facesfront, a, b, c)]."""
-    n = len(tris)
-    used = [0] * n
-    edges = {}  # (facesfront, a, b) -> ascending triangles running a -> b
-    for j, (ff, a, b, c) in enumerate(tris):
-        for x, y in ((a, b), (b, c), (c, a)):
-            edges.setdefault((ff, x, y), []).append(j)
-
-    def first_after(ff, m1, m2, start):
-        lst = edges.get((ff, m1, m2))
-        if not lst:
-            return None
-        i = bisect.bisect_right(lst, start)
-        return lst[i] if i < len(lst) else None
-
-    def walk(start, sv, strip):
-        used[start] = 2
-        ff, *vi = tris[start]
-        verts = [vi[sv % 3], vi[(sv + 1) % 3], vi[(sv + 2) % 3]]
-        got = [start]
-        if strip:
-            m1, m2 = vi[(sv + 2) % 3], vi[(sv + 1) % 3]
-        else:
-            m1, m2 = vi[sv % 3], vi[(sv + 2) % 3]
-        while len(got) < 126:
-            j = first_after(ff, m1, m2, start)
-            # The C walks j = start + 1 .. and takes the first triangle with the edge m1 -> m2 (in any of its three
-            # rotations): that is the first in the edge's list after start.
-            if j is None or used[j]:
-                break
-            cv = tris[j][1:]
-            k = next(k for k in range(3) if cv[k] == m1 and cv[(k + 1) % 3] == m2)
-            nv = cv[(k + 2) % 3]
-            if strip:
-                if len(got) & 1:
-                    m2 = nv
-                else:
-                    m1 = nv
-            else:
-                m2 = nv
-            verts.append(nv)
-            got.append(j)
-            used[j] = 2
-        for j in got:
-            used[j] = 0 if used[j] == 2 else used[j]
-        used[start] = 0
-        return verts, got
-
-    order = []
-    for i in range(n):
-        if used[i]:
-            continue
-        best = None
-        for strip in (False, True):
-            for sv in range(3):
-                v, t = walk(i, sv, strip)
-                if best is None or len(t) > len(best[1]):
-                    best = (v, t)
-        for j in best[1]:
-            used[j] = 1
-        order += best[0]
-    return order
-
-
-# ----------------------------------------------------------------------------
 # The anchors the engine names
 
 
@@ -307,23 +234,24 @@ def repo_root(path):
     return None
 
 
-ANCHOR_KEYS = (("HandAnchorVertex", "hand_av", "the hand's"), ("MuzzleAnchorVertex", "muzzle_av", "the muzzle's"),
-               ("TwoHHandAnchorVertex", "2h_hand_av", "the off hand's (two-handed)"),
-               ("WpnButtonAnchorVertex", "wpnbtn_av", "the ammo button's"),
-               ("WpnTextAnchorVertex", "wpntxt_av", "the ammo screen's"))
+ANCHOR_KEYS = (("HandAnchor", "hand_av", "the hand's"), ("MuzzleAnchor", "muzzle_av", "the muzzle's"),
+               ("TwoHHandAnchor", "2h_hand_av", "the off hand's (two-handed)"),
+               ("WpnButtonAnchor", "wpnbtn_av", "the ammo button's"),
+               ("WpnTextAnchor", "wpntxt_av", "the ammo screen's"))
 
 
-# The tables in the engine's sources that hold anchors besides vr_weapons.inc (the anchor quoted; a bare number before
-# round 22): the magazines' mounts (vr_view.cpp magMounts, on the gun's body) and the shells' ejection ports
-# (vr_shells.cpp weaponTable).
-MAG_RE = re.compile(r'"progs/vr_mag_on_(v_\w+\.mdl)", "?([^",]*?)"?,')
-SHELL_RE = re.compile(r'\{modelmeta::Id::(\w+), .*?,\s+"?([^",{}\n]*?)"?\},[ \t]*$', re.S | re.M)
+# The tables in the engine's sources that hold anchors besides vr_weapons.inc: the magazines' mounts (vr_view.cpp
+# magMounts, on the gun's body), the shells' ejection ports (vr_shells.cpp weaponTable) and the monsters' guns
+# (vr_weaponfx.cpp: the middle of a muzzle's and of a rear's anchors).
+MAG_RE = re.compile(r'"progs/vr_mag_on_(v_\w+\.mdl)", "([^"]*)",')
+SHELL_RE = re.compile(r'\{modelmeta::Id::(\w+), .*?,\s+"([^"]*)"\},[ \t]*$', re.S | re.M)
 SHELL_MODELS = {"VShot": "v_shot.mdl", "VShot2": "v_shot2.mdl"}
+MONSTER_RE = re.compile(r'constexpr const char\* (soldier|enforcer)(Muzzle|Rear)\[\] = \{(.*?)\};', re.S)
 
 
 def weapon_anchors(root, model_name):
     """[(what, anchor text)] for progs/<model_name>: vr_weapons.inc's defaults for every slot that uses the model, the
-    magazine mounts (vr_view.cpp) and the shell ejection ports (vr_shells.cpp)."""
+    magazine mounts (vr_view.cpp), the shell ejection ports (vr_shells.cpp) and the monster guns (vr_weaponfx.cpp)."""
     out = []
     if root is None:
         return out
@@ -353,6 +281,13 @@ def weapon_anchors(root, model_name):
         for ident, a in SHELL_RE.findall(table[:table.find("};")]):
             if SHELL_MODELS.get(ident) == model_name:
                 out.append(("the shell ejection port (vr_shells.cpp)", a))
+    fx = os.path.join(root, "Quake", "vr", "vr_weaponfx.cpp")
+    if os.path.exists(fx):
+        with open(fx) as f:
+            for monster, part, body in MONSTER_RE.findall(f.read()):
+                if monster + ".mdl" == model_name.lower():
+                    for i, a in enumerate(re.findall(r'"([^"]*)"', body)):
+                        out.append(("the gun's %s %d (vr_weaponfx.cpp %s%s)" % (part.lower(), i, monster, part), a))
     return out
 
 
@@ -398,17 +333,17 @@ def is_gadget(model_name):
 # The report after an export: every anchor before and after.
 
 
-# Anchors (Quake/vr/vr_anchor.hpp): "x y z" a point on the surface in the model's own coordinates (frame 0), "x y z t"
-# with a triangle hint (taken among triangles as near as the nearest), or one number: a legacy strip-order index. The
-# engine binds a point to the nearest triangle of the rest pose (barycentric weights, snapped to a corner it is on) and
-# moves it with those weights in every pose; the same here (Misc/quakevr/anchors.py has it too, for the scripts).
+# Anchors (Quake/vr/vr_anchor.hpp): "x y z", a point on the surface in the model's own coordinates (frame 0). The
+# engine binds it to the nearest triangle of the rest pose (barycentric weights, snapped to a corner it is on; among
+# triangles as near, those with the point on a corner, the first) and moves it with those weights in every pose; the
+# same here (Misc/quakevr/anchors.py has it too, for the scripts).
 ANCHOR_SNAP = 0.001  # a point this near a triangle's corner is on it
 ANCHOR_TIE = 0.001   # triangles this much nearer than the nearest are as near
 ANCHOR_MOVED = 0.01  # an anchor that moved more than this (model units) in any pose is reported MOVED
 
 
 def parse_anchor(text):
-    """("legacy", index) or ("point", (x, y, z), hint or -1)."""
+    """The point (x, y, z), or None: not three numbers."""
     nums = []
     for tok in re.split(r"[\s,_]+", text.strip()):
         if not tok:
@@ -417,11 +352,9 @@ def parse_anchor(text):
             nums.append(float(tok))
         except ValueError:
             break
-        if len(nums) == 4:
-            break
-    if len(nums) >= 3:
-        return ("point", tuple(nums[:3]), int(nums[3]) if len(nums) >= 4 else -1)
-    return ("legacy", int(nums[0]) if nums else 0)
+        if len(nums) == 3:
+            return tuple(nums)
+    return None
 
 
 def closest_on_triangle(p, a, b, c):
@@ -469,15 +402,11 @@ def closest_on_triangle(p, a, b, c):
 
 
 def bind_anchor(model, text, rest=None):
-    """{vertex: weight}, the triangle bound to (-1: a legacy index) and the point's distance from the surface."""
-    a = parse_anchor(text)
-    if a[0] == "legacy":
-        order = strip_order(model.tris)
-        if not order:
-            return {}, -1, 0.0
-        return {order[max(0, min(a[1], len(order) - 1))]: 1.0}, -1, 0.0
+    """{vertex: weight}, the triangle bound to and the point's distance from the surface ({}: not an anchor)."""
+    p = parse_anchor(text)
+    if p is None:
+        return {}, -1, 0.0
     rest = rest or [model.place(b) for b in model.pose_bytes()[0]]
-    p, hint = a[1], a[2]
     found = []
     for t, tri in enumerate(model.tris):
         vs = tri[1:4]
@@ -495,9 +424,9 @@ def bind_anchor(model, text, rest=None):
         return {}, -1, 0.0
     nearest = min(f[0] for f in found)
     tied = [f for f in found if f[0] <= nearest + ANCHOR_TIE]
-    if any(f[4] for f in tied):  # (as vr_anchor.cpp: the hint; else those on a corner, the first)
-        tied = [f for f in tied if f[4] or f[1] == hint]
-    d, t, vs, w, _ = next((f for f in tied if f[1] == hint), tied[0])
+    if any(f[4] for f in tied):  # (as vr_anchor.cpp: those on a corner, the first)
+        tied = [f for f in tied if f[4]]
+    d, t, vs, w, _ = tied[0]
     weights = {}
     for v, x in zip(vs, w):
         if x > 1e-6:
@@ -516,48 +445,36 @@ def anchor_place(model, weights, pose):
 
 
 def anchor_report(old, new, anchors, old_poses=None, new_poses=None):
-    """(lines, moved, renamed): per anchor, where it binds and where it is in every pose, before and after (each bound on
-    its own model, as the engine will). moved: [(what, text, distance)] for anchors that moved more than ANCHOR_MOVED in
-    any pose; renamed: [(what, index, old vertex, new vertex, the index naming the old vertex now or None)] for legacy
-    anchor indices now naming another vertex (the strip order changed; the shipped anchors are points since round 22)."""
+    """(lines, moved): per anchor, where it binds and where it is in every pose, before and after (each bound on its own
+    model, as the engine will). moved: [(what, text, distance)] for anchors that moved more than ANCHOR_MOVED in any
+    pose."""
     old_poses = old_poses or old.pose_bytes()
     new_poses = new_poses or new.pose_bytes()
     old_rest = [old.place(b) for b in old_poses[0]]
     new_rest = [new.place(b) for b in new_poses[0]]
-    lines, moved, renamed = [], [], []
+    lines, moved = [], []
     for what, text in anchors:
-        legacy = parse_anchor(text)[0] == "legacy"
         ow, ot, od = bind_anchor(old, text, old_rest)
         nw, nt, nd = bind_anchor(new, text, new_rest)
         if not ow or not nw:
-            lines.append("?      %s: \"%s\" binds to nothing (no triangles)" % (what, text))
+            lines.append("?      %s: \"%s\" binds to nothing (not x y z, or no triangles)" % (what, text))
             continue
         op = [anchor_place(old, ow, p) for p in old_poses]
         np_ = [anchor_place(new, nw, p) for p in new_poses]
         dist = max(math.dist(a, b) for a, b in zip(op, np_))
         tag, extra = "ok    ", ""
-        if legacy:
-            ov, nv = next(iter(ow)), next(iter(nw))
-            if ov != nv:
-                order = strip_order(new.tris)
-                now = next((i for i, v in enumerate(order) if v == ov), None)
-                renamed.append((what, parse_anchor(text)[1], ov, nv, now))
-                tag = "RENAMED"
-                extra = " -- the index names vertex %d now; vertex %d is %s" % (
-                    nv, ov, "index %d now" % now if now is not None else "in no triangle now")
         if dist > ANCHOR_MOVED:
             moved.append((what, text, dist))
-            tag = "MOVED " if tag.startswith("ok") else tag
+            tag = "MOVED "
             extra += " -> (%.2f, %.2f, %.2f): moved %.3f units (%.2f cm at the default size) at most over the frames" % (
                 np_[0][0], np_[0][1], np_[0][2], dist, dist * 2.54)
         elif dist > 1e-6:
             extra += " (moved %.4f at most: within %.2f)" % (dist, ANCHOR_MOVED)
-        where = "legacy index" if legacy else "triangle %d, %.4f off the surface" % (nt, nd)
-        if not legacy and nd > ANCHOR_MOVED:
+        if nd > ANCHOR_MOVED:
             extra += " -- %.3f off the new surface: pick it again (vr_anchor_nearest)" % nd
-        lines.append("%s %s: \"%s\" at (%.2f, %.2f, %.2f), %s%s" % (tag, what, text, op[0][0], op[0][1], op[0][2],
-                                                                    where, extra))
-    return lines, moved, renamed
+        lines.append("%s %s: \"%s\" at (%.2f, %.2f, %.2f), triangle %d, %.4f off the surface%s" % (
+            tag, what, text, op[0][0], op[0][1], op[0][2], nt, nd, extra))
+    return lines, moved
 
 
 def gadget_report(old, new, old_poses=None, new_poses=None):
@@ -585,7 +502,7 @@ def gadget_report(old, new, old_poses=None, new_poses=None):
     new_p = [new.place(b) for b in new_poses[0]]
     for what, pt, r in GADGET_POINTS:
         near = [v for v, p in enumerate(old_p) if math.dist(p, pt) < r]
-        worst = max([math.dist(old_p[v], new_p[v]) for v in near if v < len(new_p)] + [0.0])
+        worst = max([min(math.dist(old_p[v], q) for q in new_p) for v in near] + [0.0])
         if worst > 1e-6:
             moved.append((what, worst))
         lines.append("%s %s (%.2f, %.2f, %.2f): %d vertices within %.2f%s" % (

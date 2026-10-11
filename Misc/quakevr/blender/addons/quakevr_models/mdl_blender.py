@@ -4,13 +4,11 @@
 #
 # - The header's scale and origin (the weapon Scale pivots about the origin; the anchors and ports are in model space),
 #   the frames (count, names, groups), the skins (count, size, groups).
-# - The anchors (vr_anchor.hpp): points on the surface since round 22, bound to the nearest triangle as the engine
-#   does; the export reports where each is in every frame, before and after (mdl.anchor_report: MOVED past 0.01
-#   units), whatever the numbering. Every old vertex's index, and the old triangles in their places, are still kept
-#   (byte for byte; and vr_anchor.cpp's strip order, which legacy anchor indices -- one number, settings from before
-#   round 22 -- index, depends on them): an old vertex keeps its index whatever is done to it (deleted, it stays in
-#   the file unused); new vertices and triangles go after the old ones, and a new triangle never uses an old vertex (it
-#   gets a twin at the same place), so no old strip changes.
+# - The anchors (vr_anchor.hpp): points on the surface, bound to the nearest triangle as the engine does; the export
+#   reports where each is in every frame, before and after (mdl.anchor_report: MOVED past 0.01 units), whatever the
+#   numbering. Every old vertex's index, and the old triangles in their places, are still kept (so an unedited model
+#   comes back byte for byte and a diff of the file shows the edit): an old vertex keeps its index whatever is done to
+#   it (deleted, it stays in the file unused); new vertices and triangles go after the old ones.
 # - Bytes: a vertex, a texel, a normal, a frame's bounds that didn't change are written as they were read, so an
 #   unedited model comes back byte for byte.
 #
@@ -482,8 +480,8 @@ def triangulate(ob):
     return n
 
 
-def export_mdl(context, ob, path, report, grow=False, allow_remap=False):
-    """Writes the object as a Quake model at `path`. Returns (the report's lines, anchors moved, anchors renamed)."""
+def export_mdl(context, ob, path, report, grow=False):
+    """Writes the object as a Quake model at `path`. Returns (the report's lines, anchors moved)."""
     if ob.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')
     if len([m for m in ob.modifiers if m.show_viewport]):
@@ -813,18 +811,8 @@ def export_mdl(context, ob, path, report, grow=False, allow_remap=False):
     data = new.to_bytes()
     new = mdl.Model(data, old.name)  # read back: what the engine will read
 
-    # The anchors, before and after: an anchor naming another vertex refuses the export unless remapping is asked.
-    lines, moved, renamed = anchor_check(path, old, new, ob.get("qvr_source"))
-    if renamed:
-        remap = remap_lines(renamed)
-        if not allow_remap:
-            for line in lines + remap:
-                print(line)
-            raise ExportError("%d anchors would name other vertices (%s): old triangles were deleted or changed so "
-                              "the strip order moved (see the report). Nothing was written. Undo that, or tick Remap "
-                              "Anchors and set the new indices it prints" % (
-                                  len(renamed), ", ".join("%s index %d" % (w, i) for w, i, *_ in renamed)))
-        lines += remap
+    # The anchors, before and after.
+    lines, moved = anchor_check(path, old, new, ob.get("qvr_source"))
     with open(path, "wb") as f:
         f.write(data)
     report({'INFO'}, "wrote %s: %d vertices (%d new), %d triangles (%d kept in place, %d new), %d frames, %d texels "
@@ -839,7 +827,7 @@ def export_mdl(context, ob, path, report, grow=False, allow_remap=False):
         print(line)
     # The object now stands for the file written: its attributes and references follow it.
     rebase(ob, new, kept, new_key, tri_old_index, vert_of_vid, grid_pos, degenerate)
-    return lines, moved, renamed
+    return lines, moved
 
 
 def grow_report(old, ob, path, org, sc, new_org, new_sc):
@@ -862,20 +850,6 @@ def grow_report(old, ob, path, org, sc, new_org, new_sc):
                         lines.append("  inc vr_wofs_%s_%02d %.4f        (slot %d at Scale %g; with another Scale: %.4f x "
                                      "(1 - Scale))" % (axis, slot + 1, -d[k] * (1 - ts), slot, ts, -d[k]))
     return lines
-
-
-def remap_lines(renamed):
-    out = ["anchor remap: the anchors below name other vertices now. Set them (the console, then they're saved) and, to "
-           "ship them, in Quake/vr/vr_weapons.inc (vr_shells.cpp for the shell port):"]
-    for what, idx, ov, nv, now in renamed:
-        m = re.search(r"\((vr_wofs_\w+)\)", what)
-        if now is None:
-            out.append("  %s: vertex %d is in no triangle now: pick another with vr_anchor_nearest" % (what, ov))
-        elif m:
-            out.append("  %s %d        (was %d)" % (m.group(1), now, idx))
-        else:
-            out.append("  %s: %d (was %d)" % (what, now, idx))
-    return out
 
 
 def corner_area(skin, w, h):
@@ -905,27 +879,28 @@ def select_file_vertices(me, bad, vert_of_vid, new_verts, old_nv):
 
 
 def anchor_check(path, old, new, source=None):
-    """(lines, moved, renamed) for the model about to be written (the repository's anchors: the one it is written
-    in, or else the one it was read from)."""
+    """(lines, moved) for the model about to be written (the repository's anchors: the one it is written in, or else
+    the one it was read from)."""
     base = old.name
     root = mdl.repo_root(path) or (mdl.repo_root(source) if source else None)
     if mdl.is_gadget(base):
         l, m = mdl.gadget_report(old, new)
-        return ["anchors (the wrist gadget's screen, vr_gadget.cpp):"] + ["  " + x for x in l], m, []
-    special = checks.report(old, new)  # the flashlight, the holster, the pauldrons, the shell... (checks.py)
-    if special is not None:
-        title, l, m = special
-        return ["%s:" % title] + ["  " + x for x in l], m, []
-    lines = []
+        return ["anchors (the wrist gadget's screen, vr_gadget.cpp):"] + ["  " + x for x in l], m
     anchors = mdl.weapon_anchors(root, base)
-    l, m, renamed = mdl.anchor_report(old, new, anchors)
+    special = checks.report(old, new)  # the flashlight, the holster, the pauldrons, the shell... (checks.py)
+    lines, moved = [], []
+    if special is not None:
+        title, l, moved = special
+        lines = ["%s:" % title] + ["  " + x for x in l]
+        if not anchors:
+            return lines, moved
+    l, m = mdl.anchor_report(old, new, anchors)
     if root is None:
-        lines.append("anchors: vr_weapons.inc not found (the model isn't in the repository's quakevr/progs): only the "
-                     "strip order is checked")
+        lines.append("anchors: vr_weapons.inc not found (the model isn't in the repository's quakevr/progs)")
     elif not anchors:
         lines.append("anchors: no slot in vr_weapons.inc uses progs/%s" % base)
-    lines += ["anchors (vr_weapons.inc's defaults, vr_shells.cpp):"] + ["  " + x for x in l]
-    return lines, m, renamed
+    lines += ["anchors (vr_weapons.inc's defaults, vr_view.cpp, vr_shells.cpp, vr_weaponfx.cpp):"] + ["  " + x for x in l]
+    return lines, moved + m
 
 
 def holes_check(root, path, old):
