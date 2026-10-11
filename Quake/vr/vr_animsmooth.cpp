@@ -16,7 +16,10 @@
 //   fit blended along the spline. A bone fitted badly in any of the four poses (vr_anim_smooth_rig_error, or folded away:
 //   the grunt's dropped gun) or turning more than 150 degrees isn't swung; a vertex far off its bone swings less.
 // At a pose itself (the lerp's start, its end, a frame held) nothing of this is drawn: the instance is drawn as
-// r_lerpmodels 1 draws it, its vertices exactly the frame's.
+// r_lerpmodels 1 draws it, its vertices exactly the frame's. Your weapons are never smoothed (their flashes, mounts and
+// shells follow Quake's blend: vr_anchor.cpp), nor skeletal models (IQM, a ragdoll's skinned model). What the game
+// tests against a model's shape (vr_hitmodel.cpp, vr_modelcollide.cpp) keeps Quake's blend: the drawn shape between
+// frames is a few units off it at most mid-swing (vr_anim_smooth_check).
 
 #include "vr_animsmooth.hpp"
 #include "vr_engine.hpp"
@@ -525,6 +528,12 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
     {
         return 0;
     }
+    // (not your weapons: their muzzle flashes, mounts and shells follow the gun's vertices by Quake's blend: vr_anchor.cpp,
+    // the steadied recoil's reference vertex)
+    if(zeroblend || VR_IsViewEntity(e))
+    {
+        return 0;
+    }
     if(pose1 < 0 || pose1 >= hdr->numposes || pose2 < 0 || pose2 >= hdr->numposes)
     {
         return 0;
@@ -585,7 +594,7 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
         poses[3] = memo.ahead;
     }
     const float tension = za::clamp(vr_anim_smooth_tension.value, 0.f, 1.f);
-    const bool rigged = vr_anim_smooth_rig.value != 0.f && !zeroblend && rigData(m, e->model, hdr);
+    const bool rigged = vr_anim_smooth_rig.value != 0.f && rigData(m, e->model, hdr);
     const Key key{{poses[0], poses[1], poses[2], poses[3]}, {span[0], span[1], span[2]}, blend, tension, rigged ? m.rigError : -1.f};
     if(!(memo.key == key))
     {

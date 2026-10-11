@@ -110,7 +110,7 @@ typedef struct vraliasinstance_s
 // r_lerpmodels 3 (vr_animsmooth.cpp): whether `e`, drawn between poses pose1 and pose2 at `blend` (R_SetupAliasFrame's),
 // goes along a spline through four poses: smooth[0], [1] the first and fourth (pose numbers), [2] 1 + where its bones'
 // swings are in the batch's buffer (0: none), weights the four poses'. `zeroblend`: its instance's padding (a steadied
-// gun: no swings). `batchindex` 0 starts a batch (`channel`: 0 the instanced batches, 1 the wound paint).
+// gun: not smoothed; nor your weapons). `batchindex` 0 starts a batch (`channel`: 0 the instanced batches, 1 the wound paint).
 int VR_AnimSmooth (const struct entity_s *e, const void *aliashdr, int pose1, int pose2, float blend, int zeroblend, int batchindex, int channel, int smooth[4], float weights[4]);
 int VR_AnimSmoothPinned (const struct entity_s *e, const void *aliashdr, short *pose1, short *pose2, float *blend); // R_SetupAliasFrame: the entity vr_anim_smooth_pin holds between two frames: its lerp
 void VR_AnimSmoothBind (const struct entity_s *e, int channel); // the batch's swings and its model's rest pose bound for the alias shader (SSBOs 8, 9), after its pose buffers
