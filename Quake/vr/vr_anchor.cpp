@@ -34,7 +34,6 @@ struct Bound
     float weight[3]{1.f, 0.f, 0.f};
     int tri{-1};         // the triangle bound to (-1: not an anchor's text: the model's first vertex)
     float distance{0.f}; // from the anchor's point to the surface (model units)
-    int ties{0};         // other triangles as near that bind elsewhere (the file's order picks among them)
     bool corner{false};  // snapped to a corner of the triangle
 };
 
@@ -348,66 +347,40 @@ struct Closest
     return b;
 }
 
-// Whether two bindings move the same: the same vertices with the same weights (in any order).
-[[nodiscard]] bool sameBinding(const Bound& a, const Bound& b)
-{
-    for(int i = 0; i < 3; i++)
-    {
-        if(a.weight[i] < 1e-6f)
-        {
-            continue;
-        }
-        float w = 0.f;
-        for(int j = 0; j < 3; j++)
-        {
-            if(b.vert[j] == a.vert[i])
-            {
-                w += b.weight[j];
-            }
-        }
-        if(glm::abs(w - a.weight[i]) > 1e-4f)
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-// The point's binding: among the triangles as near as the nearest (within the text's rounding), and of them those with
-// the point on a corner if any (a vertex anchor: not a triangle of another part passing that close), the first in the
-// file's order. `ties`: the others that bind elsewhere (two parts touching there, which the order then picks between).
-[[nodiscard]] Bound bind(const Mesh& m, const glm::vec3& p)
+// The bindings the point could take: the triangles as near as the nearest (within the text's rounding), and of them
+// those with the point on a corner if any (a vertex anchor: not a triangle of another part passing that close), in the
+// file's order.
+void candidates(const Mesh& m, const glm::vec3& p, za::Vector<Bound>& out)
 {
     za::Vector<Bound> all;
     all.reserve(m.tris.size());
     float nearest = 1e30f;
+    bool anyCorner = false;
     for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
     {
         all.pushBack(bindTriangle(m, t, p));
         nearest = glm::min(nearest, all.back().distance);
     }
-    bool anyCorner = false;
     for(const Bound& b : all)
     {
         anyCorner = anyCorner || (b.distance <= nearest + tieDistance && b.corner);
     }
-    const auto candidate = [&](const Bound& b) { return b.distance <= nearest + tieDistance && (!anyCorner || b.corner); };
-    Bound out;
+    out.clear();
     for(const Bound& b : all)
     {
-        if(candidate(b))
+        if(b.distance <= nearest + tieDistance && (!anyCorner || b.corner))
         {
-            if(out.tri < 0)
-            {
-                out = b;
-            }
-            else
-            {
-                out.ties += !sameBinding(out, b);
-            }
+            out.pushBack(b);
         }
     }
-    return out;
+}
+
+// The point's binding: the first of its candidates.
+[[nodiscard]] Bound bind(const Mesh& m, const glm::vec3& p)
+{
+    za::Vector<Bound> tied;
+    candidates(m, p, tied);
+    return tied.empty() ? Bound{} : tied[0];
 }
 
 // Model -> its mesh (by the name it was read for: a model's slot is reused for another after a game change).
@@ -604,14 +577,15 @@ bool isAnchor(const char* text)
 namespace
 {
 
-// The command's model (its first argument) and its mesh; nullptr (said why) without one.
-[[nodiscard]] Mesh* commandMesh(qmodel_t*& model)
+// The command's model (its first argument), its header and its mesh; nullptr (said why) without one.
+[[nodiscard]] Mesh* commandMesh(qmodel_t*& model, const aliashdr_t*& hdr)
 {
     model = Mod_ForName(Cmd_Argv(1), false);
+    hdr = nullptr;
     Mesh* m = nullptr;
     if(model && model->type == mod_alias)
     {
-        const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
+        hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
         m = hdr->poseverttype == aliashdr_t::PV_QUAKE1 && hdr->vertexes ? meshFor(model, hdr) : nullptr;
     }
     if(!m)
@@ -621,17 +595,38 @@ namespace
     return m;
 }
 
-[[nodiscard]] glm::vec3 restPoint(const Mesh& m, const Bound& b)
+[[nodiscard]] glm::vec3 inPose(const aliashdr_t* hdr, const Bound& b, int pose)
 {
-    return m.rest[b.vert[0]] * b.weight[0] + m.rest[b.vert[1]] * b.weight[1] + m.rest[b.vert[2]] * b.weight[2];
+    glm::vec3 p{0.f};
+    for(int k = 0; k < 3; k++)
+    {
+        p += poseVertex(hdr, pose, b.vert[k]) * b.weight[k];
+    }
+    return p;
 }
 
-[[nodiscard]] const char* tiesNote(const Bound& b)
+// Where `b` (the binding of `p`) is at rest, and a note naming the other triangles as near that would put the point
+// elsewhere in some pose (two parts touching there: the file's triangle order picks; a UV seam's twins move together).
+void describe(const aliashdr_t* hdr, const Mesh& m, const glm::vec3& p, const Bound& b, glm::vec3& at, za::String& note)
 {
-    return b.ties ? va(" (%d other triangles as near bind elsewhere: two parts touching, the file's triangle order picks; "
-                       "a point off the seam is steadier)",
-                        b.ties)
-                  : "";
+    at = m.rest[b.vert[0]] * b.weight[0] + m.rest[b.vert[1]] * b.weight[1] + m.rest[b.vert[2]] * b.weight[2];
+    za::Vector<Bound> tied;
+    candidates(m, p, tied);
+    int ties = 0;
+    for(const Bound& t : tied)
+    {
+        for(int pose = 0; pose < hdr->numposes; pose++)
+        {
+            if(glm::distance(inPose(hdr, t, pose), inPose(hdr, b, pose)) > 1e-3f)
+            {
+                ties++;
+                break;
+            }
+        }
+    }
+    note = ties ? va(" (%d other triangles as near move elsewhere: the file's order picks; a point off the seam is steadier)",
+                      ties)
+                : "";
 }
 
 void anchorInfo_f()
@@ -642,7 +637,8 @@ void anchorInfo_f()
         return;
     }
     qmodel_t* model = nullptr;
-    Mesh* m = commandMesh(model);
+    const aliashdr_t* hdr = nullptr;
+    Mesh* m = commandMesh(model, hdr);
     if(!m)
     {
         return;
@@ -652,17 +648,20 @@ void anchorInfo_f()
     {
         text += (i > 2 ? " " : "") + za::String{Cmd_Argv(i)};
     }
-    const Bound& b = boundFor(*m, text.cStr());
-    if(b.tri < 0)
+    glm::vec3 p;
+    if(!parse(text.cStr(), p))
     {
         Con_Printf("%s: \"%s\" is not an anchor (x y z)\n", model->name, text.cStr());
         return;
     }
-    const glm::vec3 p = restPoint(*m, b);
+    const Bound& b = boundFor(*m, text.cStr());
+    glm::vec3 at;
+    za::String note;
+    describe(hdr, *m, p, b, at, note);
     Con_Printf("%s anchor \"%s\": triangle %d, vertices %d %d %d weights %.4f %.4f %.4f, %.4f from the surface at %.4f %.4f "
                "%.4f%s\n",
         model->name, text.cStr(), b.tri, b.vert[0], b.vert[1], b.vert[2], b.weight[0], b.weight[1], b.weight[2], b.distance,
-        p.x, p.y, p.z, tiesNote(b));
+        at.x, at.y, at.z, note.cStr());
 }
 
 void anchorNearest_f()
@@ -673,16 +672,18 @@ void anchorNearest_f()
         return;
     }
     qmodel_t* model = nullptr;
-    Mesh* m = commandMesh(model);
+    const aliashdr_t* hdr = nullptr;
+    Mesh* m = commandMesh(model, hdr);
     if(!m)
     {
         return;
     }
     const glm::vec3 target{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
-    const Bound b = bind(*m, target);
-    const glm::vec3 p = restPoint(*m, b);
-    Con_Printf("%s nearest surface point: \"%s\" (%.4f away; triangle %d)%s\n", model->name, pointText(p).cStr(),
-        glm::distance(p, target), b.tri, tiesNote(b));
+    glm::vec3 at;
+    za::String note;
+    describe(hdr, *m, target, bind(*m, target), at, note);
+    Con_Printf("%s nearest surface point: \"%s\" (%.4f away)%s\n", model->name, pointText(at).cStr(),
+        glm::distance(at, target), note.cStr());
 }
 
 } // namespace
