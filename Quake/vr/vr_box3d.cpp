@@ -4284,7 +4284,10 @@ void driveActive(Slot& s, float dt)
     c.trace = trace;
     // What is round him (vr_ragdoll_active_env): the world, the movers and the props his probes see; the world's ledges.
     c.envMask = catWorld | catMover | catProp | catSolid | catFixture;
-    c.ledges = vr_ragdoll_active_env.value != 0.f && vr_ragdoll_active_env_ledge.value != 0.f && r.active.on && sv.worldmodel
+    // (Looked up only for a drive whose env is on, or not started yet: not every frame for every collapse or swim.)
+    const ragactive::Env& env = r.active.env;
+    c.ledges = vr_ragdoll_active_env.value != 0.f && vr_ragdoll_active_env_ledge.value != 0.f && r.active.on &&
+                       r.active.death.on && (!env.started || env.on) && sv.worldmodel
                    ? ledges::of(sv.worldmodel)
                    : nullptr;
     ragactive::drive(r.active, parts, c);
