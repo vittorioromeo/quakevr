@@ -1787,6 +1787,12 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
     const bool ledge = h.mode == Grip::Ledge;
     if(B3_IS_NULL(h.joint))
     {
+        // Its target gone on the way (a mover or fixture destroyed since): it lets go, or it would reach for ever.
+        if(B3_IS_NULL(h.on) || !b3Body_IsValid(h.on))
+        {
+            letGo(s, arm, &c, "its hold gone");
+            return;
+        }
         // On its way: grabs once near the goal, or near the surface near it (the hold pulls it the rest of the way). A
         // lean's hand that hasn't got there (an arm can't reach far behind him) goes straight to the wall from where
         // it is.
