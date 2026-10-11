@@ -24,6 +24,14 @@ Bodies by walls: kill next to a wall (leans, slides), at a ledge (hangs), by a c
 Holstered guns: shoulder (back) guns hidden by default; VR Settings > Shoulder Holster Weapons shows them; Advanced > Body and Display has all three pairs; grab and holster still work
 Holstered super shotgun stays open on a hip; a nailgun holstered without its magazine shows none
 
+Physgun: while holding a prop both sticks move and turn it (no button), you stay put; X/A snaps and the angle stays
+Ragdoll test page (Debug > Tests > Ragdoll Behaviours): each button on a grunt ahead does its behaviour
+Ragdoll sliders (Gibs and Corpses > Ragdolls) and Limbs Meet Each Other on/off: piles, a held wound
+Shoves backpedal 3-4 steps, then fall or recover; knocked into water: paddles to where it can stand; stagger survives save/load
+AD: Debug > start Arcane Dimensions (or vr_campaign_native ad): hub, an exit and back, ladders by hand, shotgun pellets (Projectile Rules Auto/Vanilla/AD)
+AD: Shadow Axe, Widowmaker, Plasma Gun pickups; artifacts and Jump Boots; poison/bleeding tints (Screen Tints slider); a book; Debug: Play a Cinematic Camera
+AD monsters: ragdolls, knockdowns and get-ups, beheading, limbs (gaunt, seeker, Freddie fit worst); Evil (Nightmare + AD); hide while crouched
+
 [Still open from 1.0.x]
 MG1 west stairs: walk up slowly and jump, head low (a short catch at the top crest may remain); lava: you keep burning 3 s after stepping out
 Shoved into water: a grunt shoved off vrstart's island near the shore gets up; far out, gives up after ~3 s and sinks
