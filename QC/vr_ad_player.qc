@@ -92,3 +92,99 @@ float(entity xFire, entity xVictim) AD_BurnHurt =
     }
     return TRUE;
 };
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Ammo resistance (decision 18)
+//
+// AD's monsters resist kinds of ammunition (their resist_shells/nails/rockets/cells: 0 none, 1 immune, below 0 extra
+// damage), with a visual tell. AD's weapons and monsters apply it in their own code; here Quake VR's weapons (and its
+// monsters' missiles) do too, in AD maps (on any target with the keys: AD's monsters, ours given them by a mapper) and,
+// elsewhere, on AD's own monsters only. The kind is the inflictor's: shotgun pellets (hitscan) shells; nails nails;
+// rockets, grenades (thrown or launched) and any blast rockets; lightning, plasma and lasers cells. Melee (fists, the
+// axe, guns used as clubs, thrown weapons, a stuck axe's bleeding) none: AD's axe ignores it too.
+
+// The kind of ammunition (AD_AMMO_*; 0 none) of the damage now dealt by `inflictor` for `attacker`.
+float(entity inflictor, entity attacker, float isVRMelee) AD_AmmoOf =
+{
+    if(vr_ad_ammo)
+    {
+        return vr_ad_ammo;
+    }
+    if(isVRMelee || vr_hitkind == QVR_HITKIND_MELEE || vr_hitkind == QVR_HITKIND_HEADBUTT || vr_hitkind == QVR_HITKIND_BASH ||
+       vr_hitkind == QVR_HITKIND_SHOVE || vr_hitkind == QVR_HITKIND_BLEED)
+    {
+        return 0;
+    }
+    if(discharged || vr_hitweapon == "Mjolnir's lightning")
+    {
+        return AD_AMMO_CELLS;
+    }
+    if(vr_hitkind == QVR_HITKIND_SHOT)
+    {
+        return AD_AMMO_SHELLS; // (lightning tags itself: VR_LightningHit)
+    }
+    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    {
+        return AD_AMMO_ROCKETS;
+    }
+    string c = inflictor.classname;
+    if(c == "spike" || c == "lava_spike" || c == "knightspike" || c == "wizspike")
+    {
+        return AD_AMMO_NAILS;
+    }
+    if(c == "missile" || c == "grenade" || c == "MultiGrenade" || c == "MiniGrenade" || c == "MultiRocket" ||
+       c == "proximity_grenade" || c == "ogre_grenade" || c == "ogre_missile")
+    {
+        return AD_AMMO_ROCKETS;
+    }
+    if(c == "plasma" || c == "laser" || c == "hiplaser" || c == "rifle_laser" || c == "enforcer_laser")
+    {
+        return AD_AMMO_CELLS;
+    }
+    return 0;
+};
+
+// Whether `targ` resists by AD's rules here: in an AD map, anything with the keys; elsewhere AD's own entities.
+float(entity targ) AD_Resists =
+{
+    if(!targ.ad_resist_shells && !targ.ad_resist_nails && !targ.ad_resist_rockets && !targ.ad_resist_cells)
+    {
+        return FALSE;
+    }
+    return AD_Rules() || AD_Run(targ);
+};
+
+// T_DamageImpl: `damage` after AD's ammo resistance of `targ` (as AD's Resist_Damage), with AD's tell in AD maps
+// (sparks and smoke, a pain sound; its effects are AD's world's precaches). Not twice: AD's own code resisted what it
+// deals to ours (vr_ad_ourdamage).
+float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) AD_Resist =
+{
+    if(vr_ad_ourdamage || !AD_Resists(targ))
+    {
+        return damage;
+    }
+    float ammo = AD_AmmoOf(inflictor, attacker, isVRMelee);
+    float r = ammo == AD_AMMO_SHELLS ? targ.ad_resist_shells : ammo == AD_AMMO_NAILS ? targ.ad_resist_nails :
+              ammo == AD_AMMO_ROCKETS ? targ.ad_resist_rockets : ammo == AD_AMMO_CELLS ? targ.ad_resist_cells : 0;
+    if(r == 0)
+    {
+        return damage;
+    }
+    float left = damage * (1 - r);
+    if(r > 0 && AD_Rules())
+    {
+        vector at = vr_hitpos != '0 0 0' ? vr_hitpos : inflictor != attacker ? inflictor.origin : (targ.absmin + targ.absmax) * 0.5;
+        entity oself = self;
+        self = attacker;
+        if(ammo == AD_AMMO_SHELLS) ad_Resist_Shells(targ, at, vr_hitdir * 300, left);
+        else if(ammo == AD_AMMO_NAILS) ad_Resist_Nails(targ, at);
+        else if(ammo == AD_AMMO_ROCKETS) ad_Resist_Rockets(targ, at);
+        else ad_Resist_Lightning(targ, at);
+        self = oself;
+    }
+    if(cvar("developer"))
+    {
+        dprint(sprintf("AD resistance: %s takes %g of %g (ammo %g, resists %g)\n", targ.classname, left, damage, ammo, r));
+    }
+    return left;
+};

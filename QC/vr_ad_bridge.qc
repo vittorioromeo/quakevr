@@ -60,7 +60,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float checka
     {
         targ.armortype = 0;
     }
+    float oldOurs = vr_ad_ourdamage;
+    vr_ad_ourdamage = TRUE; // (AD's code applied its ammo resistance already: AD_Resist)
     T_Damage(targ, inflictor, attacker, damage);
+    vr_ad_ourdamage = oldOurs;
     if(checkarmor == ad_NOARMOR && targ.armortype == 0)
     {
         targ.armortype = type;

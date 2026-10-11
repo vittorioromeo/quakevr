@@ -96,6 +96,10 @@ void(entity xBody) AD_NailPierce =
     {
         return;
     }
+    if(xBody.ad_resist_nails > 0 && (AD_Rules() || AD_Run(xBody)))
+    {
+        return; // (a body that resists nails stops them, as AD's)
+    }
     vector dir = normalize(self.velocity);
     if(dir == '0 0 0')
     {

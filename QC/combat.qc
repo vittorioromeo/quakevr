@@ -1650,6 +1650,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         return FALSE; // only a melee blow opens it (vr_mg3_weapons.qc)
     }
+    damage = AD_Resist(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's ammo resistance (vr_ad_player.qc)
     if(AD_Run(targ))
     {
         return AD_Damage(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's entities by AD's T_Damage (vr_ad_bridge.qc)

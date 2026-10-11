@@ -2364,7 +2364,9 @@ float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
         playershock(t, damage, at); // VR: arcs over the struck player's arms and body (vr_shock_self_time)
     }
     float pop = VR_Decap_BoltArm(t, at, xDir, damage);
+    vr_ad_ammo = AD_AMMO_CELLS; // AD support: lightning is cells to AD's ammo resistance (vr_ad_player.qc)
     float r = T_Damage(t, from, from, damage);
+    vr_ad_ammo = 0;
     VR_Shock_Hit(t, shockAlive, at, xDir); // VR: lightning's lasting shock (vr_shock.qc)
     if(pop)
     {

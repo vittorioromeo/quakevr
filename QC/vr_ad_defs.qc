@@ -81,6 +81,16 @@ void() AD_ArtifactsTick;               // AD_PlayerPostThink: the artifacts' tim
 void() AD_DebuffsTick;                 // AD_PlayerPostThink: AD's debuffs (poison, bleeding; burning is ours)
 void(float request, entity p) AD_RulesTest; // vr_ad_test 10 and up (AD_Test): the follow-ups' tests
 
+// AD's ammo resistance (decision 18; vr_ad_player.qc AD_Resist): the kind of ammunition the damage now dealt is, where
+// the inflictor does not tell (VR_LightningHit: cells); 0 worked out from the inflictor and the hit kind.
+float AD_AMMO_SHELLS = 1;
+float AD_AMMO_NAILS = 2;
+float AD_AMMO_ROCKETS = 3;
+float AD_AMMO_CELLS = 4;
+float vr_ad_ammo;
+float vr_ad_ourdamage; // AD's code deals this damage to one of ours (VR_AD_DamageOurs): AD resisted it already
+float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) AD_Resist; // T_DamageImpl
+
 // AD's side: the reviewed patches of Misc/quakevr/ad_import.py call these (never renamed).
 float() VR_AD_Extensions;
 void(float a) VR_AD_WaterAlpha;

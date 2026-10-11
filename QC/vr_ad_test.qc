@@ -189,5 +189,57 @@ void(float request, entity p) AD_RulesTest =
             p.ad_bleeding, p.vr_ad_hud));
         return;
     }
+    if(request == 21)
+    {
+        // Ammo resistance: one of our grunts given AD's keys (shells 0.5, nails 1, rockets -0.5), hit 10 by a shotgun's
+        // pellets, a nail, a blow, a rocket, a bolt; then AD_Resist on a stand-in for one of AD's monsters (nails 0.5)
+        // and on ours with the same key: AD maps resist on both, elsewhere only AD's.
+        entity g = AD_TestSpawn("monster_army", monster_army, ahead);
+        g.health = 200;
+        g.takedamage = DAMAGE_AIM;
+        g.ad_resist_shells = 0.5;
+        g.ad_resist_nails = 1;
+        g.ad_resist_rockets = -0.5;
+        entity nail = spawn();
+        nail.classname = "spike";
+        entity rocket = spawn();
+        rocket.classname = "missile";
+        float h = g.health;
+        VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', v_forward);
+        T_Damage(g, p, p, 10);
+        VR_ClearHitKind();
+        float dShot = h - g.health;
+        h = g.health;
+        T_Damage(g, nail, p, 10);
+        float dNail = h - g.health;
+        h = g.health;
+        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, '0 0 0', v_forward);
+        T_Damage(g, p, p, 10);
+        VR_ClearHitKind();
+        float dBlow = h - g.health;
+        h = g.health;
+        T_Damage(g, rocket, p, 10);
+        float dRocket = h - g.health;
+        h = g.health;
+        vr_ad_ammo = AD_AMMO_CELLS;
+        T_Damage(g, p, p, 10);
+        vr_ad_ammo = 0;
+        float dBolt = h - g.health;
+        entity standIn = spawn();
+        standIn.ad_classtype = ad_CT_MONDKNIGHT;
+        standIn.ad_resist_nails = 0.5;
+        float adOne = AD_Resist(standIn, nail, p, 10, FALSE);
+        standIn.ad_classtype = 0;
+        float ourOne = AD_Resist(standIn, nail, p, 10, FALSE);
+        bprint(sprintf("adrules: resist rules %g shot %g nail %g blow %g rocket %g bolt %g;", AD_Rules(),
+            dShot, dNail, dBlow, dRocket, dBolt));
+        bprint(sprintf(" AD's %g ours %g\n", adOne, ourOne));
+        remove(nail);
+        remove(rocket);
+        remove(standIn);
+        g.health = -1;
+        VR_Scene_Remove(g);
+        return;
+    }
     bprint(sprintf("adrules: unknown test %g\n", request));
 };
