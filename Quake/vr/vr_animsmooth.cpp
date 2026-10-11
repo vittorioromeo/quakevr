@@ -552,7 +552,7 @@ extern "C" int VR_AnimSmoothPinned(const entity_t* e, const void* aliashdr, shor
 namespace
 {
 
-// vr_anim_smooth_pin off | <frame1> <frame2> <blend> [<frame0> <frame3> [<entity>]]
+// vr_anim_smooth_pin off | <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]
 void pin_f()
 {
     if(Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "off"))
@@ -563,12 +563,14 @@ void pin_f()
     }
     if(Cmd_Argc() < 4)
     {
-        Con_Printf("vr_anim_smooth_pin off | <frame1> <frame2> <blend> [<frame0> <frame3> [<entity>]]: the nearest monster "
-                   "(or <entity>) drawn between two frames at <blend>, its spline's other keys <frame0> and <frame3> (-1 or "
+        Con_Printf("vr_anim_smooth_pin off | <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]: the nearest "
+                   "monster (or <entity>, or the nearest whose model's name has <model>) drawn between two frames at <blend>, its spline's other keys <frame0> and <frame3> (-1 or "
                    "left out: by its frames' names)\n");
         return;
     }
-    int ent = Cmd_Argc() >= 7 ? atoi(Cmd_Argv(6)) : -1;
+    const char* which = Cmd_Argc() >= 7 ? Cmd_Argv(6) : "";
+    const bool numbered = which[0] >= '0' && which[0] <= '9';
+    int ent = numbered ? atoi(which) : -1;
     if(ent < 0)
     {
         const glm::vec3 me = glm::make_vec3(cl_entities[cl.viewentity].origin);
@@ -576,7 +578,8 @@ void pin_f()
         for(int i = 1; i < cl.num_entities; i++)
         {
             const entity_t& e = cl_entities[i];
-            if(i == cl.viewentity || !e.model || e.model->type != mod_alias)
+            if(i == cl.viewentity || !e.model || e.model->type != mod_alias || static_cast<const aliashdr_t*>(Mod_Extradata(e.model))->numframes < 10 ||
+                !strstr(e.model->name, which))
             {
                 continue;
             }
@@ -605,7 +608,7 @@ void pin_f()
     const int before = m.prev[static_cast<za::SizeT>(pin.frame[1])], after = m.next[static_cast<za::SizeT>(pin.frame[2])];
     pin.frame[0] = f0 >= 0 ? clampFrame(f0) : before >= 0 ? before : pin.frame[1];
     pin.frame[3] = f3 >= 0 ? clampFrame(f3) : after >= 0 ? after : pin.frame[2];
-    Con_Printf("animsmooth: pinned ent %d (%s) frames %d %d %d %d (%s to %s) at %.3f\n", ent, e.model->name, pin.frame[0],
+    Con_Printf("animsmooth: pinned ent %d (%s at %.0f %.0f %.0f) frames %d %d %d %d (%s to %s) at %.3f\n", ent, e.model->name, e.origin[0], e.origin[1], e.origin[2], pin.frame[0],
         pin.frame[1], pin.frame[2], pin.frame[3], hdr->frames[pin.frame[1]].name, hdr->frames[pin.frame[2]].name, pin.blend);
 }
 
@@ -737,6 +740,7 @@ void check_f()
         za::Vector<glm::vec3> key1(static_cast<za::SizeT>(count)), key2(static_cast<za::SizeT>(count));
         int pairs = 0, swungPairs = 0, limbs = 0;
         float keyGap = 0.f, offLinear = 0.f;
+        int mostAt[2] = {0, 0};
         float worst[3] = {0.f, 0.f, 0.f}, sum[3] = {0.f, 0.f, 0.f};
         double swingSeconds = 0.0;
         for(int f = 0; f < hdr->numframes; f++)
@@ -780,8 +784,14 @@ void check_f()
                     }
                     swung[k] = a * scale;
                     const glm::vec3 d = swung[k] - (t == 0.5f ? lin[k] : t < 0.5f ? key1[k] : key2[k]);
+                    const float gap = za::sqrt(glm::dot(d, d));
+                    if(t == 0.5f && gap > offLinear)
+                    {
+                        mostAt[0] = f;
+                        mostAt[1] = g;
+                    }
                     float& most = t == 0.5f ? offLinear : keyGap;
-                    most = za::max(most, za::sqrt(glm::dot(d, d)));
+                    most = za::max(most, gap);
                 }
                 if(t != 0.5f || !rigged)
                 {
@@ -819,7 +829,8 @@ void check_f()
         }
         const float n = static_cast<float>(za::max(limbs, 1));
         Con_Printf("animsmooth: check %s: %d frame pairs (%d swung); 0.001 off a key: at most %.3f units from it; mid-frame at "
-                   "most %.2f units off Quake's lerp\n", model->name, pairs, swungPairs, keyGap, offLinear);
+                   "most %.2f units off Quake's lerp (frames %d to %d)\n", model->name, pairs, swungPairs, keyGap, offLinear,
+            mostAt[0], mostAt[1]);
         if(rigged)
         {
             Con_Printf("animsmooth: check %s: limbs turning 30-150 degrees (%d), their shrink mid-frame: linear %.1f%% (worst %.1f%%), A %.1f%% (%.1f%%), "
