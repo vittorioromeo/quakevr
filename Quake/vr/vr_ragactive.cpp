@@ -923,6 +923,7 @@ void fallFrame(State& s, const Parts& p, const Context& c, float t)
 // ---- Get-ups ----
 constexpr float riseTurnRate = 9.f; // rad/s per radian its pelvis is turned off the get-up's
 constexpr float riseTurnMost = 4.f; // rad/s
+constexpr float riseLost = 1.f;     // m: its pelvis this far off the get-up's once pulled in: it lets go
 // Pulled into the get-up's first frame where it will stand (its pin's pull and its muscles rising over the
 // preparation), then the get-up played by its body, its pelvis pinned to the clip's (risen by the pin, its weight held
 // up), held at its last frame: done.
@@ -957,6 +958,16 @@ void riseFrame(State& s, const Parts& p, const Context& c, const ClipPose& pose)
     };
     r.error = glm::length(off(0));
     r.errorMost = c.now > r.end - 0.3 ? za::max(r.errorMost, r.error) : r.errorMost; // (as it stands up)
+    // (Pulled in and still far off its get-up (caught on something, knocked away): it lets go, and tries again later.)
+    if(c.now > s.clip.t0 && r.error > riseLost)
+    {
+        if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+        {
+            Con_Printf("getup: %d lost its get-up (its pelvis %.0f units off): it slumps\n", c.num, r.error * p.m2u);
+        }
+        lapse(s, p, c.now);
+        return;
+    }
     if(vr_debug_ragdoll.value >= 2.f && static_cast<int>(c.now * 72.0 + 0.5) % 7 == 0)
     {
         const glm::vec3 e = off(0) * p.m2u;

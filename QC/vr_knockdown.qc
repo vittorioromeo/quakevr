@@ -213,7 +213,16 @@ void(string xWhat) VR_Knockdown_Afoot =
     VR_Knockdown_Upright();
     self.vr_knockdown = 0;
     self.vr_kd_stagger = 0;
+    // (Its run; the training dummy (a grunt with neither run nor AI) back to standing.)
     self.think = self.th_run;
+    if(!self.think || VR_IsDummy(self))
+    {
+        self.think = self.th_stand;
+    }
+    if(!self.think)
+    {
+        self.think = SUB_Null;
+    }
     self.nextthink = time + 0.1;
     if(cvar_hget(cvarh_vr_knockdown_debug))
     {
