@@ -2325,7 +2325,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Where the torch held at your head lets B or Y clip it on, and where a hand takes it off (B or Y, or the grip): "
                   "balls at your temples and forehead, moved forward, up and out. Apart from where it then sits (On Head)."),
         slider("Head Zone Up", vr_flashlight_head_zone_up, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
-            .help("The default, 0.040, is 4 cm higher than the first zone."),
+            .help("The default is 0.150 (15 cm over your eyes' height)."),
         slider("Head Zone Out", vr_flashlight_head_zone_out, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
             .help("Away from your head: to the side at the temples, ahead at the forehead."),
         slider("Head Zone Radius", vr_flashlight_head_zone_radius, 0.02f, 0.3f, 0.005f, "%.3f m").extend()
@@ -8002,6 +8002,10 @@ za::Vector<Item> pageMain()
         action("Reset Holsters", resetHolsters)
             .help("Every pair of holsters back to its shipped place. Each pair's own values (its turn and reach too): "
                   "Advanced VR Options > Weapons > Hip Holsters, and > Hotspots."),
+        toggle("Shoulder Holster Weapons", vr_holster_weapons_draw_shoulder)
+            .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
+                  "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "
+                  "> Body and Display."),
 
         // (The author's note e1m1_2026-10-07_22-40-30: its basics here, after the holsters; the rest of it, its turn, its
         // reach and the counter's place, on Advanced VR Options > Weapons > Reloading.)
@@ -8221,6 +8225,16 @@ za::Vector<Item> pageMain()
             .help("The shape of the body you see."),
         toggle("Holster Models", vr_leg_holster_model_enabled)
             .help("Draws the holsters on your body, with a gun in each one that holds one."),
+        toggle("Hip Holster Weapons", vr_holster_weapons_draw_hip)
+            .help("Draws the guns in the two holsters on your hips. Off: not drawn; you still take them and put them "
+                  "away there."),
+        toggle("Chest Holster Weapons", vr_holster_weapons_draw_upper)
+            .help("Draws the guns in the two holsters on your chest. Off: not drawn; you still take them and put them "
+                  "away there."),
+        toggle("Shoulder Holster Weapons", vr_holster_weapons_draw_shoulder)
+            .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair; off "
+                  "by default: they can get in the way of your view). Off: not drawn; you still take them and put them "
+                  "away there."),
 
         header("Display"),
         cycle("Status Bar", vr_sbar_mode, {{1.f, "Off Hand"}, {0.f, "Main Hand"}}).help("The hand Quake's status bar is on (HUD: Status bar)."),
@@ -8296,7 +8310,7 @@ za::Vector<Item> pageAdvanced()
 {
     return {
         header("Setup"),
-        open("Body and Display", pageIndex(pageBodyDisplay)).help("Each hand's side, world scale, the body, the status bar, the desktop mirror."),
+        open("Body and Display", pageIndex(pageBodyDisplay)).help("Each hand's side, world scale, the body, the holsters and their guns shown, the status bar, the desktop mirror."),
         open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
         open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
         open("Tips", pageIndex(pageTips)).help("Tips for new players, shown once near what they are about: floating by it or on the wrist gadget."),

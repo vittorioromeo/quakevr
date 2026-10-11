@@ -954,7 +954,8 @@ float VR_SHOVE_SAFEFALL = 150; // units of drop without damage; 0.4 a unit beyon
 // throw): from the speed it came down at, the drop that speed takes (v^2 / 2g) beyond VR_SHOVE_SAFEFALL, 0.4 a unit (as
 // a shove's fall was measured), so the harder it lands the more it takes. Called by the engine: standing, as it lands
 // (SV_Physics_Step: its speed down); knocked down (vr_knockdown.qc), its ragdoll's hardest hit on the level in a frame
-// (vr_box3d.cpp: that hit's speed along the vertical). A burst of hits (the ragdoll's limbs, a bounce) counts once.
+// (vr_box3d.cpp: that hit's speed along the vertical, no faster than its whole body came down: a sword or a tail whipping
+// into the floor is no fall). A burst of hits (the ragdoll's limbs, a bounce) counts once.
 .float vr_fall_time; // until when a landing does not hurt it again
 void(entity m, float xSpeed) VR_Monster_Fall =
 {

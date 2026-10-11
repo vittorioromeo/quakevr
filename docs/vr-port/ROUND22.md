@@ -1589,3 +1589,146 @@ the press held 10 frames behind a waiting buffer: one load.
 
 **In the headset:** die in the start map's lava, hold A: "Loading...", one load of the level-start autosave, then
 play. Same with a quick tap, and on a map with no autosave yet (a plain restart).
+
+
+## 1.0.1: the author's values after his 1.0.1 test are the defaults (worktree `defaults101`)
+
+"I tweaked some values, please make them the new defaults." His config of 2026-10-11 15:29 (after his VR test of 1.0.1,
+build f701f0a26) against the shipped defaults (`resetcfg; writeconfig` on that build: compiled defaults, vr_defaults.cfg
+and the migrations' end state): 72 archived settings differ. Config 126 moves a config still at an old value; a value
+set by hand is kept.
+
+| cvar (menu) | was | now | where |
+|---|---|---|---|
+| `vr_flashlight_head_zone_forward` (Head Zone Forward) | 0.05 | 0.07 m | vr_defaults.cfg |
+| `vr_flashlight_head_zone_up` (Head Zone Up) | 0.19 | 0.15 m | vr_defaults.cfg (menu help said 0.040: now 0.150) |
+| `vr_flashlight_head_zone_radius` (Head Zone Radius) | 0.105 | 0.125 m | vr_defaults.cfg |
+| `vr_flashlight_forward` (belt clip Forward) | 0.02 | 0.025 m | vr_defaults.cfg |
+| `vr_flashlight_flick_speed` (Flick Strength) | 800 | 750 deg/s | vr_cvars.inc |
+| `vr_doom_crt` (Doom > CRT Look) | 1 | 2x | vr_cvars.inc |
+| `vr_comfort_vignette_strength` (Vignette Strength) | 0.6 | 0.5 | vr_cvars.inc (the vignette itself stays off) |
+
+**Not promoted** (differ, on purpose left alone):
+- Arms: `vr_body_elbow_back` 0.35 (0.25), `_hand` 0.5 (0.4), `_lift` 8 (4): per-player settings (`personal()` in
+  vr_cvars.cpp, "the player's to tweak", his decision of 2026-09-28; armsweep.py records them as his).
+- Body and calibration: `vr_bodycal_*`, `vr_height_calibration`, `vr_bodycal_undo`.
+- `vr_wofs_hs3_{x,y,z,pitch,yaw,roll}_04`: the nailgun's third hotspot, but its `hs3_type_04` is 0 (none): no effect.
+- `vr_melee_phase_speed` 3.996 (4), `vr_melee_phase_time` 0.34965 (0.35), `vr_relight_strength` 1.1988 (1.2): each the
+  default times 0.999 (an artefact, not a choice; melee is not tuned on his archived takes either).
+- Window and recording: `vr_spectator_fov` 120, `vr_spectator_scale` 1.5, `vr_window_view` 0, `vr_mirror_hide_hud_text` 1,
+  `vr_motion_*`.
+- Hardware, video and flat screen: `vr_foveated` 2, `vid_*`, `fov`, `gamma`, `contrast`, `scr_*`, `sensitivity`,
+  `cl_alwaysrun`, `volume`, `ui_live_preview`.
+- Dev tools and bookkeeping: `vr_toolgun_*`, `vr_relight_reload` 0, `vr_menu_level` 2, `vr_notes` 1, `vr_menu_positions`,
+  `vr_prop_id_*`, `vr_*_version`, `vr_tutorial_started`.
+
+**Test:** a v125 config with the seven at the old values (Doom's CRT at a hand-set 1.5) → the six new values at default,
+`vr_doom_crt` kept at 1.5, `vr_cfg_version` 126; a start with no config → all seven at the new values.
+
+**In the headset:** the torch clipped on and off at the head (zones further forward, lower, larger), its belt clip,
+the wrist flick; Doom's picture on the gadget (stronger CRT).
+
+## A judo throw killed a knight by fall damage (1.0.1, 2026-10-11, worktree `judofall`)
+
+Integration test and his playtest: a knight thrown with both hands on flat ground "landed at ~900 u/s, a 518 unit
+drop", 147 damage of its 75 health (same with `vr_ragdoll_active 0`: older than the active ragdolls).
+
+**Root cause:** a knocked-down monster's fall (vr_box3d.cpp `touches`, then QC `VR_Monster_Fall`: drop = v^2 / 2g,
+0.4 damage a unit past 150) was the hardest hit of any single part of its ragdoll on the level, along the vertical.
+A light part at the end of a turning body whips into the floor far faster than the body falls: the knight's sword
+(its "loose" bone, welded in his hand while down) at 858-896 u/s while the body's middle came down at 20-50. Not
+knight-only, the knight's long sword is the worst: on vrfiringrange's floor (`vr_foegrab_throw_test 0`, 60 units,
+full health) the zombie's loose piece hit at 614 (34 damage), the mummy's at 573 (22), the fiend's tail at 560 (18),
+grunts' guns ~315, an ogre's saw 344; the body's middle never came down faster than ~190.
+
+**Fix:** before each piece of the step, each ragdoll's middle's speed down (its parts' by mass, a loose weapon not
+counted, plus the piece's gravity: `RagdollBodies::fallDown`, `noteFallSpeeds`); a landing counts the part's hit no
+faster than that. Flat-ground throws: every kind lands at 188 u/s or less, no fall damage (8 of the 11 kinds took
+none before either). Real drops unchanged: a knight thrown 400 units up came down at 816 u/s, 107 damage, dead; lift
+900: 584 u/s, 25 damage. No cap and no new cvar; standing monsters' and the player's fall damage untouched.
+`vr_knockdown_debug 2` prints each hard hit: the part's speed, the body's, what it landed at. A slam that hurts on
+flat ground would be its own setting (none asked for).
+
+Merge note: origin/next adds a stagger/rise `continue` just above the changed lines in `touches`: keep both.
+
+**In the headset:** judo-throw a knight (and a zombie, a fiend) on flat ground: it gets up, no fall damage. Throw
+one off a high ledge: it still takes the fall (dies from high enough).
+
+## A judo-thrown mummy (and zombie) shook itself apart (2026-10-11, worktree `judofall`, branch `agent/mummyrag`)
+
+On next a mummy judo-thrown on flat ground (`vr_test_spawn 14`, 60 units) went unstable once down: parts into the
+floor at 4000-12000 u/s, the body's middle up to 3000, fall damage 57-1049 though the fix above counts the body's speed.
+
+**Root cause:** not the active ragdolls nor the Box3D update. The zombie's and the mummy's flesh (their "loose" bone)
+is a 1.2-1.4 unit speck inside the chest in the rest pose ($stand1), and a ragdoll part is its rest pose's hull. Dead,
+they are ragdolls only beheaded, and then it's hidden; knocked down alive it got a body: `looseMass` 3 kg in that speck
+(166 times the body's density, inertia 1/600 of the chest's), welded in the chest (`vr_knockdown_weld`). The weld can't
+hold it: it whirls (300 rad/s) and drags the body about. Random by the frame timing: 6 of 29 mummy runs on next blew up (2 more
+had one part over 2000), 5 of 10 zombie runs (49-233 damage); `vr_ragdoll_active 0` 2 of 3; vr-ironwail too (parts 2335 and 11985 in 2 of 8, its
+body under 180 there by luck). `vr_knockdown_weld 0`: 12 of 12 clean. The weapons welded the same way (grunt, enforcer,
+knight, death knight, ogre) are 26-34 units and 0.1-0.45 times the body's density: fine.
+
+**Fix** (vr_ragdoll.cpp `derive`, `looseSpeck` 4 units): a loose piece smaller than that in the rest pose is hidden in
+every ragdoll (`Rig::hideLoose`, as the player's weapons). Only the zombie's and the mummy's are. A density cap alone
+(tried: 20 times the body's) did not do: the light speck still whirled (parts 11000-15000). **Guard** (vr_box3d.cpp
+`noteFallSpeeds`, `unstableSpeed` 5000 u/s): a ragdoll part that fast prints once a ragdoll "ragdoll: N class's part at
+X u/s (spin, kg): unstable?" (with `vr_knockdown_debug` or `vr_debug_ragdoll`, else `developer`); nothing is changed.
+`vr_knockdown_debug 2` also says what a loose piece was welded to and its density against the body's.
+
+**Measured** (judo throw at 60 units, vrfiringrange): mummy 14 of 14 clean (8 active, 6 `vr_ragdoll_active 0`): parts
+at most 401 u/s, the body 122, no damage; zombie 6 of 6 (403, 105, none). The 11 kinds once: every part under 910
+(the knight's sword), bodies under 190, no damage. With the fix off the guard fired on both blow-ups seen (the speck at
+5016 and 5074 u/s, 291-306 rad/s).
+
+**In the headset:** judo-throw a mummy (Dissolution of Eternity) and a zombie a few times on flat ground: they land and
+lie or get up, no fall damage, no thrashing. Nothing in their hands changes (the flesh was never seen down).
+## Hide holstered weapons per pair (2026-10-11, worktree `holsterhide`)
+
+The author: "Is there an option to hide weapons stored in the shoulder (highest) holders? Sometimes the holstered model
+interferes with the view." He chose a simple toggle per pair; all but the shoulder pair drawn by default; one row in
+VR Settings, all three under Advanced.
+
+His "shoulder (highest)" pair is the code's **shoulder** pair (body::LeftShoulder/RightShoulder, QC hotspots 3 and 4:
+on the back, reached over the shoulders; `vr_shoulder_offset_z` 16 + `vr_shoulder_holster_offset_z` -0.25, above the
+chest's "upper" pair at 8.5). VR Settings > Holster Calibration calls them "Back Holsters".
+
+- `vr_holster_weapons_draw_hip` 1, `vr_holster_weapons_draw_upper` 1, `vr_holster_weapons_draw_shoulder` 0 (archived):
+  0 hides that pair's guns in `setupHolsters` (vr_view.cpp) as death does (`vr_dead_hide_gear`): the gun's view entity
+  has no model, so nothing of it is drawn anywhere (the eyes, the desktop window and spectator camera, the body clone,
+  shadows), nor its button, ammo screen, magazine, well, open super shotgun parts, lava glow or blood. The holster
+  sleeve (`legholster.mdl`, hips and chest only) stays: the holster is there, only the gun is hidden. The Weapon Offsets
+  Holstered preview and a holster posing session still show the gun (editing tools).
+- Taking and holstering are untouched (server hotspots, reach, haptics, sounds). The draw blend: a gun drawn from a
+  hidden holster appears in the hand at once, and one put in vanishes at once (no ease from or to an unseen pose).
+  `vr_collect_fx` (a box or key shrinking into a holster) is unchanged: it is what is put away, not the holstered gun.
+- Config migration: `vr_cfg_version` 127 sets `vr_holster_weapons_draw_shoulder` 0 in a config that has it 1.
+- Menus: VR Settings > Holster Calibration: **Shoulder Holster Weapons**; Advanced VR Options > Body and Display
+  (its Setup group; after Holster Models): **Hip / Chest / Shoulder Holster Weapons**.
+- `vr_gear_status` adds a line: `gear: holstered guns drawn: hips N of M, chest N of M, shoulders N of M` (drawn of
+  held).
+
+Test (`scratch/holsterhide_test.sh`): both shoulder and both chest holsters filled (`impulse 154`, `vr_test_weaponinst
+4`, then `1` into hotspots 3, 4, 8, 9, sticky grip): defaults `hips 2 of 2, chest 2 of 2, shoulders 0 of 2`; shoulders
+on `2 of 2` each; all off `0 of 2` each; the mock main hand at the hidden right shoulder holster, grip: the gun (#8) in
+the hand; let go there: back in hotspot 4. Migration: a 126 config with the shoulders 1 loads as 0, version 127.
+
+**In the headset:** look over your shoulders and down at your chest with guns in every holster: the back pair's guns
+gone, the hips' and chest's there. Reach over a shoulder and take the hidden gun, put it back (buzz and sound as ever).
+Toggle Shoulder Holster Weapons in VR Settings and the three on Body and Display.
+
+### Holstered guns read another holster's flags and clip (fixed)
+
+The drawn holsters go hips, upper, shoulders; their stats (`STAT_QVR_HOLSTERWEAPON*0`) go in vr_body's order,
+shoulders, hips, upper. The open super shotgun's parts (its flags, its shells) and the magazines (the no-magazine flag)
+of a holstered gun indexed the stats by the drawn order: a hip's read a shoulder's, an upper's a hip's, a shoulder's an
+upper's (a nailgun with its magazine out in a shoulder holster showed one, if the left upper's had one). Now
+`holsterStat` (vr_view.cpp) reads them in the body's order, as the model always was. `vr_gear_status` lists each
+holster as the view reads it: `gear: holster <name>: <model> clip N flags N; drawn, magazine, open parts`.
+
+Test (`scratch/holsterstat_test.sh`): a nailgun with its magazine out in the left shoulder holster, full ones in the
+right shoulder and the left upper: `lshoulder: v_nail clip 0 flags 16; magazine 0`, `rshoulder: v_nail clip 24;
+magazine 1`, `lupper: v_nail clip 24; magazine 1`, hips `v_axe clip 0`, `v_shot clip 8`: every holster as
+`vr_test_weaponinst 0` lists its hotspot.
+
+**In the headset:** break the super shotgun open and holster it on a hip: it stays open there (and shut ones shut);
+drop a nailgun's magazine and holster it: no magazine drawn in it.

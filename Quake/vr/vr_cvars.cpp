@@ -688,8 +688,23 @@ const DefaultChange defaultChanges[] = {
     // 125: the knocked body's launch 1 -> 1.3 (the author, 2026-10-11, with 124's judo throw values: every shove and
     // throw launches further). A config at the old 1 takes it.
     {125, &vr_knockdown_push, "1"},
+    // 126: the author's values after his 1.0.1 test (his config of 2026-10-11 15:29: "I tweaked some values, please make
+    // them the new defaults"; ROUND22.md, "The author's 1.0.1 values are the defaults"): the flashlight's head zones
+    // further forward, lower and wider, its belt clip a little forward, a slightly softer flick; Doom's CRT look
+    // stronger; the comfort vignette a little lighter. A config at the old defaults takes them.
+    {126, &vr_flashlight_head_zone_forward, "0.05"}, // 0.07 (vr_defaults.cfg)
+    {126, &vr_flashlight_head_zone_up, "0.19"},      // 0.15 (vr_defaults.cfg)
+    {126, &vr_flashlight_head_zone_radius, "0.105"}, // 0.125 (vr_defaults.cfg)
+    {126, &vr_flashlight_forward, "0.02"},           // 0.025 (vr_defaults.cfg)
+    {126, &vr_flashlight_flick_speed, "800"},        // 750
+    {126, &vr_doom_crt, "1"},                        // 2
+    {126, &vr_comfort_vignette_strength, "0.6"},     // 0.5
+    // 127: the guns in the shoulder holsters (on the back, the highest pair) not drawn: "Sometimes the holstered model
+    // interferes with the view" (the author, 2026-10-11; ROUND22.md, "Hide holstered weapons per pair"). A config with
+    // them drawn (1) takes it.
+    {127, &vr_holster_weapons_draw_shoulder, "1"},
 };
-constexpr int configVersion = 125;
+constexpr int configVersion = 127;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

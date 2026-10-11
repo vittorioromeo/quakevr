@@ -547,6 +547,10 @@ struct RagdollBodies
     uint32_t pinned{0}, feet{0}; // (feet: the parts it toppled over, for the tests' ragdollStance)
     double pinUntil{0.0};
     glm::vec2 pinVel{0.f};
+    // Its middle's speed down (m/s, its parts' by their mass, a loose weapon not counted) before the step's piece
+    // (noteFallSpeeds): a landing is no harder than its whole body comes down (touches: a fall's damage).
+    float fallDown{0.f};
+    bool warnedUnstable{false}; // a part of it went faster than unstableSpeed (noteFallSpeeds said so)
     // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
     za::Array<float, ragdoll::maxBones> lift{};
     // A shove's knockdown (ragdollShove; ROUND21.md, "A shove's knockdown: travel and a quarter turn"): driven each frame
@@ -3519,6 +3523,12 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
             jd.base.localFrameB = b3Transform{b3Vec3_zero, b3Quat_identity};
             jd.base.collideConnected = false;
             (void)b3CreateWeldJoint(world->id, &jd);
+            if(vr_knockdown_debug.value >= 2.f)
+            {
+                Con_Printf("ragdoll: %d its loose piece (%.2f kg, %.2f times its body's density) welded to its %s (%.2f kg)\n",
+                    num, b3Body_GetMass(c), b3Body_GetMass(c) / za::max(volumes[static_cast<za::SizeT>(b)], 1e-6f) / density,
+                    rig->bones[best].name, b3Body_GetMass(a));
+            }
         }
     }
     // Made in another ragdoll: they pass through each other until clear (ragdollsInside).
@@ -7753,6 +7763,67 @@ void soundHits(const b3ContactEvents& events)
     }
 }
 
+// u/s: a ragdoll part this fast is shaking itself apart, not thrown (a judo throw's fastest part about 900, a rocket's
+// blast's a couple of thousand; the mummy's tucked flesh shook its parts to 4000-12000).
+constexpr float unstableSpeed = 5000.f;
+
+// Before a piece of the step: each ragdoll's middle's speed down (RagdollBodies::fallDown; its parts' velocities by their
+// masses, a loose weapon not counted) and what the piece's `dt` of gravity adds, what its landings in that piece are
+// measured against (touches).
+void noteFallSpeeds(float dt)
+{
+    const float gravity = za::max(-b3World_GetGravity(world->id).z, 0.f) * dt;
+    for(RagdollBodies& r : world->ragdolls)
+    {
+        r.fallDown = 0.f;
+        if(r.num == 0 || !r.rig)
+        {
+            continue;
+        }
+        float mass = 0.f, down = 0.f;
+        for(int b = 0; b < r.count; b++)
+        {
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            if(partCut(r, b) || r.rig->bones[b].joint == ragdoll::Joint::Loose || B3_IS_NULL(body) || !b3Body_IsValid(body))
+            {
+                continue;
+            }
+            const float m = b3Body_GetMass(body);
+            mass += m;
+            down -= b3Body_GetLinearVelocity(body).z * m;
+        }
+        // A part far faster than anything throws one (unstableSpeed): the ragdoll shaking itself apart (a judo-thrown
+        // mummy's tucked flesh, welded in its chest, whirling: ragdoll::derive's looseSpeck). Said once a ragdoll, nothing
+        // changed (its landings still count; the cause is to be found).
+        for(int b = 0; b < r.count && !r.warnedUnstable; b++)
+        {
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            if(partCut(r, b) || B3_IS_NULL(body) || !b3Body_IsValid(body))
+            {
+                continue;
+            }
+            const float speed = b3Length(b3Body_GetLinearVelocity(body)) * world->m2u;
+            if(speed < unstableSpeed)
+            {
+                continue;
+            }
+            r.warnedUnstable = true;
+            const char* say = "ragdoll: %d %s's %s at %.0f u/s (spin %.0f rad/s, %.2f kg): unstable?\n";
+            const float spin = b3Length(b3Body_GetAngularVelocity(body));
+            const char* cls = PR_GetString(EDICT_NUM(r.num)->v.classname);
+            if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
+            {
+                Con_Printf(say, r.num, cls, r.rig->bones[b].name, speed, spin, b3Body_GetMass(body));
+            }
+            else
+            {
+                Con_DPrintf(say, r.num, cls, r.rig->bones[b].name, speed, spin, b3Body_GetMass(body));
+            }
+        }
+        r.fallDown = mass > 0.f ? za::max(down / mass + gravity, 0.f) : 0.f;
+    }
+}
+
 // The step's touches, as the old solver's: a prop meeting another entity's body (a monster, a door) touches it
 // (QC's damage, sounds); props hitting each other hard touch each other (a thrown box into a pile: its knock, the
 // throw over). Landing on the world touches nothing (as before).
@@ -7811,9 +7882,20 @@ void touches(za::Vector<za::Pair<int, int>>& out)
             {
                 continue;
             }
+            // The part's own hit, no harder than the whole body came down (noteFallSpeeds): a light part at the end of a
+            // turning body (a knight's sword welded in his hand, a fiend's tail, a hand) whips into the floor several times
+            // faster than the body falls (a two-hand throw on flat ground: a knight's sword at 860-900 u/s, its body
+            // under 130; "a 500 unit drop", 140 damage of its 75 health). A real drop brings all of it down that fast.
             // (Landing under water, slime or lava: cushioned by it, liquidFallShare.)
-            const float speed = e.approachSpeed * za::fabs(e.normal.z) * world->m2u *
+            const float hit = e.approachSpeed * za::fabs(e.normal.z);
+            const float body = world->ragdolls[static_cast<za::SizeT>(world->slots[a].ragdoll)].fallDown;
+            const float speed = za::min(hit, body) * world->m2u *
                                 liquidFallShare(world->toU(e.point) + glm::vec3{0.f, 0.f, 1.f});
+            if(vr_knockdown_debug.value >= 2.f && hit * world->m2u >= 150.f)
+            {
+                Con_Printf("ragdoll fall: %d %s hit the level at %.0f u/s, its body coming down at %.0f: lands at %.0f\n", a,
+                    PR_GetString(EDICT_NUM(a)->v.classname), hit * world->m2u, body * world->m2u, speed);
+            }
             auto it = za::findIf(world->falls.begin(), world->falls.end(), [a](const Shock& s) { return s.num == a; });
             if(it == world->falls.end())
             {
@@ -13280,6 +13362,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             feedPortalCopies();
             notePushed(dt / static_cast<float>(pieces));
             pressStanding(dt / static_cast<float>(pieces));
+            noteFallSpeeds(dt / static_cast<float>(pieces));
             world->tasks.next.storeRelaxed(0);
             const double s0 = Sys_DoubleTime();
             b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);

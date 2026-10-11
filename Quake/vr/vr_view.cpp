@@ -3169,6 +3169,8 @@ void updateGripFrame(const hands::State& s, int hand)
     grip::setHandFrame(hand, f);
 }
 
+[[nodiscard]] int holsterStat(int h, int first); // (below, with the drawn holsters' order)
+
 // vr_gear_status: what of the gear the view drew last (a test of vr_dead_hide_gear: dead, all hidden but the status bar;
 // Debug > Reports > Gear). The worn gear: the holstered guns (with their magazines, wells, open super shotguns' parts and
 // buttons), the holster sleeves, the ammo pouch and its grenades, the grenade pouch at the back, the flashlight and its
@@ -3203,6 +3205,36 @@ void gearStatus_f()
         pouchGrenades, entities.pouch.visible ? 1 : 0, entities.flashlight.visible ? 1 : 0, flashlight::cordDrawn() ? 1 : 0,
         gadget::active() ? 1 : 0, entities.gadget.visible ? 1 : 0, straps, entities.body.visible ? 1 : 0, pauldrons,
         panel::statusBarOnHand() ? 1 : 0);
+    // Each pair's guns drawn, of those it holds (vr_holster_weapons_draw_*).
+    const auto pair = [](int left, int bodyLeft, char* out, int size) {
+        const int drawn = (entities.holster[left].visible ? 1 : 0) + (entities.holster[left + 1].visible ? 1 : 0);
+        int held = 0;
+        for(int stat = bodyLeft; stat < bodyLeft + 2; stat++)
+        {
+            const qmodel_t* model = precachedModel(cl.stats[STAT_QVR_HOLSTERWEAPONMODEL0 + stat]);
+            held += model && !isHandModel(model) ? 1 : 0;
+        }
+        q_snprintf(out, size, "%d of %d", drawn, held);
+    };
+    char hips[16], chest[16], back[16];
+    pair(LeftHip, body::LeftHip, hips, sizeof(hips));
+    pair(LeftUpper, body::LeftUpper, chest, sizeof(chest));
+    pair(LeftShoulder, body::LeftShoulder, back, sizeof(back));
+    Con_Printf("gear: holstered guns drawn: hips %s, chest %s, shoulders %s (vr_holster_weapons_draw_hip %g, _upper %g, "
+               "_shoulder %g)\n",
+        hips, chest, back, vr_holster_weapons_draw_hip.value, vr_holster_weapons_draw_upper.value,
+        vr_holster_weapons_draw_shoulder.value);
+    // Each holster's gun as the view reads its stats (holsterStat): its model, clip and flags, and what of it is drawn
+    // (the gun, its magazine, an open super shotgun's parts).
+    constexpr const char* names[HolsterCount] = {"lhip", "rhip", "lupper", "rupper", "lshoulder", "rshoulder"};
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        const qmodel_t* model = precachedModel(holsterStat(h, STAT_QVR_HOLSTERWEAPONMODEL0));
+        Con_Printf("gear: holster %s: %s clip %d flags %d; drawn %d, magazine %d, open parts %d\n", names[h],
+            model ? model->name : "-", holsterStat(h, STAT_QVR_HOLSTERWEAPONCLIP0),
+            holsterStat(h, STAT_QVR_HOLSTERWEAPONFLAGS0), entities.holster[h].visible ? 1 : 0,
+            entities.holsterMag[h].visible ? 1 : 0, entities.holsterSsgFrame[h].visible ? 1 : 0);
+    }
 }
 
 // vr_grip_frame: the hands' grip frames (grip::HandFrame), for the default hand's (vr_grip.cpp defaultFrame).
@@ -5058,6 +5090,14 @@ void setupPosing(hands::State& s)
 constexpr body::Holster bodyHolster[HolsterCount] = {
     body::LeftHip, body::RightHip, body::LeftUpper, body::RightUpper, body::LeftShoulder, body::RightShoulder};
 
+// A drawn holster's stat (`first`: its STAT_QVR_HOLSTERWEAPON*0), at its slot in vr_body's order (bodyHolster): the
+// drawn ones' order is another (the open super shotguns' and the magazines' read the shoulders' and hips' flags and
+// clips crossed, before round 22).
+[[nodiscard]] int holsterStat(int h, int first)
+{
+    return cl.stats[first + static_cast<int>(bodyHolster[h])];
+}
+
 [[nodiscard]] bool hovered(const hands::State& s, body::Holster holster)
 {
     const int hotspot = body::holsterHotspot(holster);
@@ -5528,7 +5568,13 @@ void setupHolsters(const hands::State& s, bool queueTexts)
             model = posing::session().model; // where it was left (floatingHolster)
             clip = -1;
         }
-        if(isHandModel(model) || (deadHidden && !previewHere && !posedHere))
+        // The pair's guns not drawn by choice (vr_holster_weapons_draw_*): as dead, none of it, though they are taken
+        // and put away there as ever. A gun drawn from it appears in the hand (no draw blend from an unseen pose).
+        const cvar_t& drawPair = kind == weapons::HolsterKind::Shoulder ? vr_holster_weapons_draw_shoulder
+                                 : kind == weapons::HolsterKind::Upper  ? vr_holster_weapons_draw_upper
+                                                                        : vr_holster_weapons_draw_hip;
+        const bool pairHidden = drawPair.value == 0.f;
+        if(isHandModel(model) || ((deadHidden || pairHidden) && !previewHere && !posedHere))
         {
             model = nullptr;
         }
@@ -5753,7 +5799,8 @@ void setupSsgParts()
     {
         const view::ViewEntity& gun = entities.holster[h];
         SsgDrawn& st = ssgHolsters[h];
-        const float deg = ssgStep(st, gun.visible ? gun.ent.model : nullptr, cl.stats[protocol::STAT_QVR_HOLSTERWEAPONFLAGS0 + h]);
+        const float deg =
+            ssgStep(st, gun.visible ? gun.ent.model : nullptr, holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONFLAGS0));
         st.parts = gun.visible && deg > 0.f;
         if(!st.parts)
         {
@@ -5762,7 +5809,7 @@ void setupSsgParts()
         }
         setSsgPart(entities.holsterSsgFrame[h], gun, ssgFrameModel, 0.f, 0);
         setSsgPart(entities.holsterSsgBarrels[h], gun, ssgBarrelsModel, deg,
-            CLAMP(0, cl.stats[protocol::STAT_QVR_HOLSTERWEAPONCLIP0 + h], 2));
+            CLAMP(0, holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONCLIP0), 2));
     }
 }
 
@@ -5864,7 +5911,7 @@ void setupMagazines()
     setupHeldMagazines();
     for(int h = 0; h < HolsterCount; h++)
     {
-        const int flags = cl.stats[protocol::STAT_QVR_HOLSTERWEAPONFLAGS0 + h];
+        const int flags = holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONFLAGS0);
         setMagazine(entities.holsterMag[h], entities.holster[h], on && !(flags & weaponFlagNoMag));
         setMagazine(entities.holsterWell[h], entities.holster[h], on, true);
     }
