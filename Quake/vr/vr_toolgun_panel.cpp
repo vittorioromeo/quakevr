@@ -80,7 +80,7 @@ struct Rect
 // A widget laid out by the last input pass: its name and place (vr_toolgun_mock_laser <name>, vr_toolgun_panel_dump).
 struct Spot
 {
-    char name[32]{};
+    char name[48]{}; // (the longest label, "Clear Props Made Since the Map Loaded", is 37)
     Rect r;
 };
 
