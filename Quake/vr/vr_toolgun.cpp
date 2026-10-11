@@ -177,7 +177,8 @@ struct Drag
     glm::mat3 axes0{1.f};
     glm::mat3 stickTurn{1.f};
     bool brush{false};
-    float handYaw0{0.f}; // the hand's yaw as taken (a monster's or a pickup's turn)
+    float handYaw{0.f};  // the hand's yaw last frame (a monster's or a pickup's turn)
+    float handTurn{0.f}; // and how far it has turned since taken, counted as it points level (handTurnWeight)
 };
 
 // The scale tool's gizmo on a prop: its oriented box (as drawn: model_scale about model_scale_origin) and handles.
@@ -416,6 +417,16 @@ void levelAxes(const glm::vec3& dir, glm::vec3& fwd, glm::vec3& right)
     return glm::degrees(za::atan2(dir.y, dir.x));
 }
 
+// How much of a change in a hand's (Euler) yaw counts as its way turning: all of it while it points within 60 degrees of
+// level, none past 80 (near straight up or down its yaw and roll trade off: a small tilt or twist swings the yaw, by a
+// half turn as it goes over the top), and between the two a share.
+[[nodiscard]] float handTurnWeight(float pitch)
+{
+    constexpr float none = 0.17365f; // cos 80
+    constexpr float all = 0.5f;      // cos 60
+    return za::clamp((za::cos(glm::radians(pitch)) - none) / (all - none), 0.f, 1.f);
+}
+
 // The aim this frame: from the gun's muzzle along the drawn hand's aim (the barrel's way).
 void updateAim(const hands::State& s)
 {
@@ -580,7 +591,8 @@ void dragStart(int num)
     const int mi = static_cast<int>(e->v.modelindex);
     d.brush = mi > 0 && mi < MAX_MODELS && sv.models[mi] && sv.models[mi]->type == mod_brush;
     d.hand0 = held::axesFromAngles(&tg.handRot[0], true);
-    d.handYaw0 = tg.handRot.y;
+    d.handYaw = tg.handRot.y;
+    d.handTurn = 0.f;
     d.axes0 = held::axesFromAngles(e->v.angles, d.brush);
     if(d.prop)
     {
@@ -650,6 +662,8 @@ void dragFrame(float dt)
             a = za::round(a / step) * step;
         }
     };
+    d.handTurn += za::remainder(tg.handRot.y - d.handYaw, 360.f) * handTurnWeight(tg.handRot.x);
+    d.handYaw = tg.handRot.y;
     glm::vec3 to;
     float angles[3];
     if(vr_toolgun_physgun_wrist.value != 0.f)
@@ -664,7 +678,7 @@ void dragFrame(float dt)
             // A monster or a pickup only turns about the up axis (tilted, a monster would walk on so): as the hand's
             // way turns (not its twist), and the sticks' yaw.
             angles[0] = d.angles.x;
-            angles[1] = d.angles.y + za::remainder(tg.handRot.y - d.handYaw0, 360.f) + d.turn.y;
+            angles[1] = d.angles.y + d.handTurn + d.turn.y;
             angles[2] = d.angles.z;
             snap(angles[1]);
             turn = glm::mat3_cast(glm::angleAxis(glm::radians(angles[1] - d.angles.y), glm::vec3{0.f, 0.f, 1.f}));
