@@ -1653,3 +1653,32 @@ Merge note: origin/next adds a stagger/rise `continue` just above the changed li
 
 **In the headset:** judo-throw a knight (and a zombie, a fiend) on flat ground: it gets up, no fall damage. Throw
 one off a high ledge: it still takes the fall (dies from high enough).
+
+## A judo-thrown mummy (and zombie) shook itself apart (2026-10-11, worktree `judofall`, branch `agent/mummyrag`)
+
+On next a mummy judo-thrown on flat ground (`vr_test_spawn 14`, 60 units) went unstable once down: parts into the
+floor at 4000-12000 u/s, the body's middle up to 3000, fall damage 57-1049 though the fix above counts the body's speed.
+
+**Root cause:** not the active ragdolls nor the Box3D update. The zombie's and the mummy's flesh (their "loose" bone)
+is a 1.2-1.4 unit speck inside the chest in the rest pose ($stand1), and a ragdoll part is its rest pose's hull. Dead,
+they are ragdolls only beheaded, and then it's hidden; knocked down alive it got a body: `looseMass` 3 kg in that speck
+(166 times the body's density, inertia 1/600 of the chest's), welded in the chest (`vr_knockdown_weld`). The weld can't
+hold it: it whirls (300 rad/s) and drags the body about. Random by the frame timing: 6 of 29 mummy runs on next blew up (2 more
+had one part over 2000), 5 of 10 zombie runs (49-233 damage); `vr_ragdoll_active 0` 2 of 3; vr-ironwail too (parts 2335 and 11985 in 2 of 8, its
+body under 180 there by luck). `vr_knockdown_weld 0`: 12 of 12 clean. The weapons welded the same way (grunt, enforcer,
+knight, death knight, ogre) are 26-34 units and 0.1-0.45 times the body's density: fine.
+
+**Fix** (vr_ragdoll.cpp `derive`, `looseSpeck` 4 units): a loose piece smaller than that in the rest pose is hidden in
+every ragdoll (`Rig::hideLoose`, as the player's weapons). Only the zombie's and the mummy's are. A density cap alone
+(tried: 20 times the body's) did not do: the light speck still whirled (parts 11000-15000). **Guard** (vr_box3d.cpp
+`noteFallSpeeds`, `unstableSpeed` 5000 u/s): a ragdoll part that fast prints once a ragdoll "ragdoll: N class's part at
+X u/s (spin, kg): unstable?" (with `vr_knockdown_debug` or `vr_debug_ragdoll`, else `developer`); nothing is changed.
+`vr_knockdown_debug 2` also says what a loose piece was welded to and its density against the body's.
+
+**Measured** (judo throw at 60 units, vrfiringrange): mummy 14 of 14 clean (8 active, 6 `vr_ragdoll_active 0`): parts
+at most 401 u/s, the body 122, no damage; zombie 6 of 6 (403, 105, none). The 11 kinds once: every part under 910
+(the knight's sword), bodies under 190, no damage. With the fix off the guard fired on both blow-ups seen (the speck at
+5016 and 5074 u/s, 291-306 rad/s).
+
+**In the headset:** judo-throw a mummy (Dissolution of Eternity) and a zombie a few times on flat ground: they land and
+lie or get up, no fall damage, no thrashing. Nothing in their hands changes (the flesh was never seen down).
