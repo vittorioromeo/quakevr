@@ -70,10 +70,7 @@ struct SmoothModel
     za::Vector<glm::vec4> rest;       // per VBO vertex: its rest place (units), its bone + half its share of the swing
     glm::vec3 invScale{1.f};          // the poses' bytes per unit
     int swungVerts{0}, fadedVerts{0}; // vertices swung fully, partly (vr_anim_smooth_info)
-    // The rest data's upload this frame (VR_AnimSmoothBind).
-    unsigned restSerial{0};
-    GLuint restBuf{0};
-    GLbyte* restOfs{nullptr};
+    bool restUploaded{false};         // `rest` is in the model's restBuffers buffer (VR_AnimSmoothBind)
 };
 
 [[nodiscard]] za::SizeT heldBytes(const SmoothModel& m)
@@ -96,6 +93,21 @@ struct SmoothCache
     auto members() { return mem::list(models); }
 };
 mem::Cache<SmoothCache> smoothCache{"anim smooth", mem::GameDirChange | mem::ModelReload};
+
+// Each model's rest data on the GPU (SmoothModel::rest), uploaded when it is made (and again when
+// vr_anim_smooth_rig_error remakes it): a buffer per model slot, kept (not with smoothCache: its GL buffer would be lost),
+// made again when the slot's data is new or another size.
+struct RestBuffer
+{
+    GLuint buf{0};
+    GLsizeiptr size{0};
+};
+struct RestBuffers
+{
+    ankerl::unordered_dense::map<const qmodel_t*, RestBuffer> models;
+    auto members() { return mem::list(models); }
+};
+mem::Cache<RestBuffers> restBuffers{"anim smooth rest", mem::Never};
 
 // The swings of the instances in the batch being filled (channel 0: R_DrawAliasModel_Real's batches; 1: a wound paint's
 // one instance), 3 rows per bone, bound with it (VR_AnimSmoothBind). Filled from a batch's first instance on (the
@@ -353,6 +365,7 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
     m.rest.clear();
     m.rest.resize(static_cast<za::SizeT>(hdr->numverts_vbo));
+    m.restUploaded = false;
     m.swungVerts = m.fadedVerts = 0;
     for(int i = 0; i < hdr->numverts_vbo; i++)
     {
@@ -743,16 +756,23 @@ extern "C" void VR_AnimSmoothBind(const entity_t* e, int channel)
     }
     SmoothModel& m = *it->second;
     const GLsizeiptr restSize = static_cast<GLsizeiptr>(m.rest.size() * sizeof(glm::vec4));
-    if(m.restSerial != gl_frameres_serial || !m.restBuf)
+    RestBuffer& rest = restBuffers.models[e->model];
+    if(!m.restUploaded || !rest.buf || rest.size != restSize)
     {
-        GL_Upload(GL_SHADER_STORAGE_BUFFER, m.rest.data(), static_cast<size_t>(restSize), &m.restBuf, &m.restOfs);
-        m.restSerial = gl_frameres_serial;
+        if(rest.buf)
+        {
+            GL_DeleteBuffer(rest.buf);
+        }
+        rest.buf = GL_CreateBuffer(GL_SHADER_STORAGE_BUFFER, GL_STATIC_DRAW, "vr anim smooth rest", static_cast<size_t>(restSize),
+            m.rest.data());
+        rest.size = restSize;
+        m.restUploaded = true;
     }
     GLuint swingBuf;
     GLbyte* swingOfs;
     const GLsizeiptr swingSize = static_cast<GLsizeiptr>(swing.size() * sizeof(glm::vec4));
     GL_Upload(GL_SHADER_STORAGE_BUFFER, swing.data(), static_cast<size_t>(swingSize), &swingBuf, &swingOfs);
-    GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 8, m.restBuf, reinterpret_cast<GLintptr>(m.restOfs), restSize);
+    GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 8, rest.buf, 0, restSize);
     GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 9, swingBuf, reinterpret_cast<GLintptr>(swingOfs), swingSize);
 }
 
