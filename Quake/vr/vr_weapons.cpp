@@ -221,8 +221,13 @@ void convertAnchors()
     int converted = 0;
     for(int slot = 0; slot < numSlots; slot++)
     {
-        for(const Key key : {Key::HandAnchor, Key::MuzzleAnchor, Key::TwoHHandAnchor, Key::WpnButtonAnchor, Key::WpnTextAnchor})
+        for(int k = 0; k < static_cast<int>(Key::Count); k++)
         {
+            const Key key = static_cast<Key>(k);
+            if(!anchorKey(key))
+            {
+                continue;
+            }
             cvar_t& var = cvarAt(slot, key);
             if(!anchor::isAnchor(var.string))
             {
@@ -664,6 +669,18 @@ int slotsUsed()
 cvar_t* cvar(int slot, Key key)
 {
     return slot >= 0 && slot < numSlots ? &cvarAt(slot, key) : nullptr;
+}
+
+bool anchorKey(Key key)
+{
+    return key == Key::HandAnchor || key == Key::MuzzleAnchor || key == Key::TwoHHandAnchor || key == Key::WpnButtonAnchor ||
+           key == Key::WpnTextAnchor;
+}
+
+const char* anchor(int slot, Key key)
+{
+    const cvar_t* var = anchorKey(key) ? cvar(slot, key) : nullptr;
+    return var ? var->string : "";
 }
 
 void markCurrent()

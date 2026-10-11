@@ -11,6 +11,7 @@
 // vr_motion_eval plays many takes, each in the map loaded afresh (the same start every time: nothing
 // left from the one before), and checks each one's events against quakevr/motions/expect.cfg.
 
+#include "vr_anchor.hpp"
 #include "vr_angvel.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
@@ -60,6 +61,7 @@ namespace qvr::motion
 
 Row captureRow(bool tick, double svDt); // vr_motion.cpp: this frame's row, as the recorder makes it
 za::String resolveTake(const za::String& arg);
+za::String weaponSettingsLine(); // vr_motion.cpp: the header's "weapon settings" line as it would be written now
 
 namespace
 {
@@ -445,6 +447,27 @@ struct Take
     return false;
 }
 
+// A weapon anchor (vr_wofs_<key>_av_NN: vr_weapons.inc's *_av keys, vr_anchor.hpp's text).
+[[nodiscard]] bool anchorSetting(const za::String& name)
+{
+    return name.rfind("vr_wofs_", 0) == 0 && name.find("_av_") != za::StringView::nPos;
+}
+
+// A weapon anchor's value as a take's header has it, as the setting's text: the header writes its spaces as '_'
+// (vr_motion.cpp weaponSettings). Not three numbers (false): a take from before the anchors (a vertex index of the old
+// strip order) or a broken header: the default, as the settings' migration 41 converted the configs' indices (each
+// default is its old default index's point).
+[[nodiscard]] bool decodeAnchor(const cvar_t& var, za::String& value)
+{
+    za::replace(value.begin(), value.end(), '_', ' ');
+    if(anchor::isAnchor(value.cStr()))
+    {
+        return true;
+    }
+    value = var.default_string;
+    return false;
+}
+
 // name=value pairs of a header line (settings, weapon settings, melee settings), or "name value" pairs
 // (hand angles, grips).
 void collectSettings(const za::String& value, bool pairs, za::Vector<za::Pair<za::String, za::String>>& out)
@@ -566,15 +589,23 @@ void applySettings(const Take& take, bool melee)
     {
         collectSettings(h("melee settings"), false, list);
     }
-    int applied = 0;
-    for(const auto& [name, value] : list)
+    int applied = 0, notAnchors = 0;
+    for(auto& [name, value] : list)
     {
         if(!placingSetting(name, melee))
         {
             continue;
         }
         cvar_t* var = Cvar_FindVar(name.cStr());
-        if(!var || !strcmp(var->string, value.cStr()))
+        if(!var)
+        {
+            continue;
+        }
+        if(anchorSetting(name) && !decodeAnchor(*var, value))
+        {
+            notAnchors++;
+        }
+        if(!strcmp(var->string, value.cStr()))
         {
             continue;
         }
@@ -585,6 +616,12 @@ void applySettings(const Take& take, bool melee)
     if(applied)
     {
         Con_DPrintf("vr_motion_play: %d settings as recorded\n", applied);
+    }
+    if(notAnchors)
+    {
+        Con_Printf("Warning: vr_motion_play: %d weapon anchors of the take are not points (a take from before the anchors): "
+                   "their defaults instead\n",
+            notAnchors);
     }
 }
 
@@ -2518,6 +2555,44 @@ void eval_f()
     Con_Printf("vr_motion_eval: %d takes, each in %s\n", static_cast<int>(evalFiles.size()), evalMap.cStr());
 }
 
+// vr_motion_header_check: the weapon anchors through a take's header and back (the "weapon settings" line as written now,
+// read as a playback reads it: each the same text), and an old take's vertex index and a broken value (their defaults).
+void headerCheck_f()
+{
+    za::Vector<za::Pair<za::String, za::String>> list;
+    collectSettings(weaponSettingsLine(), false, list);
+    int anchors = 0, wrong = 0;
+    const cvar_t* some = nullptr;
+    for(auto& [name, value] : list)
+    {
+        const cvar_t* var = anchorSetting(name) ? Cvar_FindVar(name.cStr()) : nullptr;
+        if(!var)
+        {
+            continue;
+        }
+        anchors++;
+        some = var;
+        if(!decodeAnchor(*var, value) || strcmp(value.cStr(), var->string) != 0)
+        {
+            if(wrong++ == 0)
+            {
+                Con_Printf("vr_motion_header_check: %s \"%s\" read back as \"%s\"\n", name.cStr(), var->string, value.cStr());
+            }
+        }
+    }
+    int oldOk = 0;
+    if(some)
+    {
+        for(const char* old : {"614", "30.3762", ""})
+        {
+            za::String value = old;
+            oldOk += !decodeAnchor(*some, value) && value == some->default_string;
+        }
+    }
+    Con_Printf("vr_motion_header_check: %d anchors, %d read back wrong; old or broken values to the default: %d of 3 (%s)\n",
+        anchors, wrong, oldOk, anchors > 0 && wrong == 0 && oldOk == 3 ? "PASS" : "FAIL");
+}
+
 } // namespace
 
 bool evaluating()
@@ -2529,6 +2604,7 @@ void initPlayback()
 {
     Cmd_AddCommand("vr_motion_play", play_f);
     Cmd_AddCommand("vr_motion_eval", eval_f);
+    Cmd_AddCommand("vr_motion_header_check", headerCheck_f);
 }
 
 } // namespace qvr::motion

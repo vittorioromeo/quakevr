@@ -70,10 +70,7 @@ struct SmoothModel
     za::Vector<glm::vec4> rest;       // per VBO vertex: its rest place (units), its bone + half its share of the swing
     glm::vec3 invScale{1.f};          // the poses' bytes per unit
     int swungVerts{0}, fadedVerts{0}; // vertices swung fully, partly (vr_anim_smooth_info)
-    // The rest data's upload this frame (VR_AnimSmoothBind).
-    unsigned restSerial{0};
-    GLuint restBuf{0};
-    GLbyte* restOfs{nullptr};
+    bool restUploaded{false};         // `rest` is in the model's restBuffers buffer (VR_AnimSmoothBind)
 };
 
 [[nodiscard]] za::SizeT heldBytes(const SmoothModel& m)
@@ -96,6 +93,21 @@ struct SmoothCache
     auto members() { return mem::list(models); }
 };
 mem::Cache<SmoothCache> smoothCache{"anim smooth", mem::GameDirChange | mem::ModelReload};
+
+// Each model's rest data on the GPU (SmoothModel::rest), uploaded when it is made (and again when
+// vr_anim_smooth_rig_error remakes it): a buffer per model slot, kept (not with smoothCache: its GL buffer would be lost),
+// made again when the slot's data is new or another size.
+struct RestBuffer
+{
+    GLuint buf{0};
+    GLsizeiptr size{0};
+};
+struct RestBuffers
+{
+    ankerl::unordered_dense::map<const qmodel_t*, RestBuffer> models;
+    auto members() { return mem::list(models); }
+};
+mem::Cache<RestBuffers> restBuffers{"anim smooth rest", mem::Never};
 
 // The swings of the instances in the batch being filled (channel 0: R_DrawAliasModel_Real's batches; 1: a wound paint's
 // one instance), 3 rows per bone, bound with it (VR_AnimSmoothBind). Filled from a batch's first instance on (the
@@ -121,7 +133,36 @@ struct Pin
     int frame[4]{0, 0, 0, 0};
     float blend{0.f};
 };
-Pin pin;
+
+// vr_anim_smooth_trace: one entity's drawn shape followed frame by frame (in its model's space: its animation alone), how
+// much each vertex's speed changes from frame to frame (the second difference, units), for r_lerpmodels 1 and 3 to
+// compare (vr_fixed_frames 1: even frames). The renderer's thread.
+struct Trace
+{
+    int ent{-1};
+    int framesLeft{0};
+    double lastTime{-1.0};
+    int filled{0};
+    za::Vector<glm::vec3> now, prev, prev2;
+    za::Vector<float> accel; // per frame: the vertices' mean
+    za::Vector<float> peak;  // ... their most
+};
+[[nodiscard]] za::SizeT heldBytes(const Trace& t) // (vr_mem.hpp)
+{
+    return mem::heldBytes(t.now) + mem::heldBytes(t.prev) + mem::heldBytes(t.prev2) + mem::heldBytes(t.accel) +
+           mem::heldBytes(t.peak);
+}
+
+// Both name an entity by its number: off at a map change (another map's entity has it).
+struct SmoothDebug
+{
+    Pin pin;
+    Trace trace;
+    auto members() { return mem::list(pin, trace); }
+};
+mem::Cache<SmoothDebug> smoothDebug{"anim smooth debug", mem::MapChange};
+Pin& pin = smoothDebug.pin;
+Trace& trace = smoothDebug.trace;
 
 // The splines worked out since the last vr_anim_smooth_info (an entity's each frame it is drawn mid-lerp): with a key
 // before (the lerp history), a key after (a frame expected next), limbs swung. The renderer's thread.
@@ -132,7 +173,8 @@ struct Stats
 Stats stats;
 
 // What an entity's spline was last worked out for, and what came of it: drawn again so (the other eye, each shadow
-// map's light, the next frame paused) it is copied. By the entity (the renderer's thread; a map change frees it).
+// map's light, the next frame paused) it is copied. By the entity (the renderer's thread; a map change frees it, and a
+// model reload: the rig it was swung by is made again).
 struct Key
 {
     int poses[4]{-1, -1, -1, -1};
@@ -163,7 +205,7 @@ struct SmoothMemos
     ankerl::unordered_dense::map<const entity_t*, Memo> entities;
     auto members() { return mem::list(entities); }
 };
-mem::Cache<SmoothMemos> memos{"anim smooth entities", mem::MapChange};
+mem::Cache<SmoothMemos> memos{"anim smooth entities", mem::MapChange | mem::ModelReload};
 
 constexpr float pinSpan = 0.1f; // s: a pinned spline's frames' time each
 constexpr float maxTurn = 0.2588190f; // cos(150 / 2 degrees): a bone turning further between the lerp's poses isn't swung
@@ -323,6 +365,7 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
     m.rest.clear();
     m.rest.resize(static_cast<za::SizeT>(hdr->numverts_vbo));
+    m.restUploaded = false;
     m.swungVerts = m.fadedVerts = 0;
     for(int i = 0; i < hdr->numverts_vbo; i++)
     {
@@ -430,21 +473,6 @@ bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, 
 
 namespace
 {
-
-// vr_anim_smooth_trace: one entity's drawn shape followed frame by frame (in its model's space: its animation alone), how
-// much each vertex's speed changes from frame to frame (the second difference, units), for r_lerpmodels 1 and 3 to
-// compare (vr_fixed_frames 1: even frames). The renderer's thread.
-struct Trace
-{
-    int ent{-1};
-    int framesLeft{0};
-    double lastTime{-1.0};
-    int filled{0};
-    za::Vector<glm::vec3> now, prev, prev2;
-    za::Vector<float> accel; // per frame: the vertices' mean
-    za::Vector<float> peak;  // ... their most
-};
-Trace trace;
 
 void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend, int on, const int smooth[4],
     const float weights[4])
@@ -728,16 +756,23 @@ extern "C" void VR_AnimSmoothBind(const entity_t* e, int channel)
     }
     SmoothModel& m = *it->second;
     const GLsizeiptr restSize = static_cast<GLsizeiptr>(m.rest.size() * sizeof(glm::vec4));
-    if(m.restSerial != gl_frameres_serial || !m.restBuf)
+    RestBuffer& rest = restBuffers.models[e->model];
+    if(!m.restUploaded || !rest.buf || rest.size != restSize)
     {
-        GL_Upload(GL_SHADER_STORAGE_BUFFER, m.rest.data(), static_cast<size_t>(restSize), &m.restBuf, &m.restOfs);
-        m.restSerial = gl_frameres_serial;
+        if(rest.buf)
+        {
+            GL_DeleteBuffer(rest.buf);
+        }
+        rest.buf = GL_CreateBuffer(GL_SHADER_STORAGE_BUFFER, GL_STATIC_DRAW, "vr anim smooth rest", static_cast<size_t>(restSize),
+            m.rest.data());
+        rest.size = restSize;
+        m.restUploaded = true;
     }
     GLuint swingBuf;
     GLbyte* swingOfs;
     const GLsizeiptr swingSize = static_cast<GLsizeiptr>(swing.size() * sizeof(glm::vec4));
     GL_Upload(GL_SHADER_STORAGE_BUFFER, swing.data(), static_cast<size_t>(swingSize), &swingBuf, &swingOfs);
-    GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 8, m.restBuf, reinterpret_cast<GLintptr>(m.restOfs), restSize);
+    GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 8, rest.buf, 0, restSize);
     GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 9, swingBuf, reinterpret_cast<GLintptr>(swingOfs), swingSize);
 }
 
@@ -849,8 +884,9 @@ void pin_f()
 // vr_anim_smooth_info [model]: the models drawn smoothed, their predictions and rigs.
 void info_f()
 {
-    Con_Printf("animsmooth: %d splines drawn since the last info: %d with the lerp before, %d with a frame expected after, "
-               "%d with limbs swung\n", stats.splines, stats.history, stats.ahead, stats.swung);
+    Con_Printf("animsmooth: %d splines drawn since the last info, %d with limbs swung: %d with the lerp before, %d with a "
+               "frame expected after\n", stats.splines, stats.swung, stats.history, stats.ahead);
+    Con_Printf("animsmooth: pinned entity %d, traced entity %d (-1: none)\n", pin.ent, trace.ent);
     stats = Stats{};
     for(const auto& [model, mp] : smoothCache.models)
     {

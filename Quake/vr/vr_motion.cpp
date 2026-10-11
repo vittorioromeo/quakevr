@@ -653,9 +653,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         {
             if(!strncmp(var->name, p, strlen(p)))
             {
-                za::String value = var->string;
-                za::replace(value.begin(), value.end(), ' ', '_'); // an anchor's numbers (vr_anchor.hpp reads '_' as a space)
-                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + value;
+                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + var->string;
                 break;
             }
         }
@@ -699,7 +697,9 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         {
             if(const cvar_t* var = weapons::cvar(slot, static_cast<weapons::Key>(key)))
             {
-                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + var->string;
+                za::String value = var->string;
+                za::replace(value.begin(), value.end(), ' ', '_'); // an anchor's numbers (playback reads them back)
+                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + value;
             }
         }
     }
@@ -707,6 +707,12 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 }
 
 } // namespace
+
+// The header's "weapon settings" line as it would be written now (vr_motion_play.cpp's vr_motion_header_check).
+za::String weaponSettingsLine()
+{
+    return weaponSettings();
+}
 
 za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
 {

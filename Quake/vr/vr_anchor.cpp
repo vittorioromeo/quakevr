@@ -419,7 +419,14 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
         m.bindings.clear(); // (settings being tried: a few anchors are in use at once)
     }
     glm::vec3 p;
-    m.bindings.pushBack(Binding{za::String{t}, parse(t, p) ? bind(m, p) : Bound{}});
+    const bool ok = parse(t, p);
+    if(!ok && *t)
+    {
+        // (once per model and text: the binding is kept; an old config's vertex index, a hand-typed value)
+        Con_Printf("Warning: %s: anchor \"%s\" is not three numbers (x y z): it sits on the model's first vertex\n",
+            m.name.cStr(), t);
+    }
+    m.bindings.pushBack(Binding{za::String{t}, ok ? bind(m, p) : Bound{}});
     return m.bindings.back().bound;
 }
 
