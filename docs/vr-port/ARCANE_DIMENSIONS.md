@@ -1096,6 +1096,8 @@ already fit the crouched box (36 high); our monsters' bullets aim at what shows 
   waiting, 90 + 20 waiting, 75 + 13 waiting); the spawned entities differ only by the transient thrown weapons and
   weapon records, a fireball and r1m1's two ogres' random boss flag (25% on Normal: `orig_mon_ogre.qc`), as two runs
   of one build do.
+- AD maps (`scratch/ad_maps_mine.sh`, 15.2's run): start, ad_e1m1, ad_tears, ad_swampy: 0 missing spawn functions, 0
+  object errors, 0 errors; monsters as P1b's (6, 40 + 8, 323 + 431, 334 + 84 waiting).
 
 ### 16.11 Choices made (conservative; Vittorio confirms or changes)
 

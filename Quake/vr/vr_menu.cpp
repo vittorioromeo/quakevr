@@ -6153,6 +6153,33 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Upgrades Report", "vr_ad_test 6")
             .help("One adtest: line: the AD upgrades you have (Shadow Axe, Widowmaker, Plasma Gun) and your hands' "
                   "weapons."),
+        command("Arcane Dimensions: Artifacts Ahead", "vr_physics_spawn item_artifact_jumpboots 64 -48; vr_physics_spawn item_artifact_blastbelt 64 0; vr_physics_spawn item_artifact_sharp_shooter 64 48; vr_physics_spawn item_artifact_lavashield 112 -24; vr_physics_spawn item_artifact_airtank 112 24")
+            .help("Any map, with Arcane Dimensions' data installed: its Jump Boots, Blast Belt, Sharp Shooter, Lava Shield "
+                  "and Air Tank ahead of you, to walk into (the wrist gadget shows each one held and the soonest one's "
+                  "seconds left)."),
+        command("Arcane Dimensions: Artifacts Test", "vr_ad_test 10; wait; wait; vr_ad_test 11")
+            .help("Destructive: the new artifacts but the Nail Piercer given (AD's own touch), then their effects "
+                  "measured: the Sharp Shooter's spreads, a blast with and without the Blast Belt (it hurts), the Lava "
+                  "Shield, the Air Tank's air, the Jump Boots' jumps (two adrules: lines)."),
+        command("Arcane Dimensions: Nail Piercer Test", "vr_ad_test 12")
+            .help("Destructive: the Nail Piercer given, two grunts in a line ahead and a nail through the first into the "
+                  "second (Arcane Dimensions: Nail Piercer Result reports them)."),
+        command("Arcane Dimensions: Nail Piercer Result", "vr_ad_test 13"),
+        command("Arcane Dimensions: Burning, Poison, Bleeding", "vr_ad_test 14; wait; wait; vr_ad_test 16; wait; wait; vr_ad_test 18")
+            .help("Destructive: AD's three debuffs on you at once (its burning is your fire's: our flames, its time and "
+                  "damage); the wrist gadget shows them. Debuffs Report says what they took."),
+        command("Arcane Dimensions: Debuffs Report", "vr_ad_test 15; wait; wait; vr_ad_test 17; wait; wait; vr_ad_test 19"),
+        command("Arcane Dimensions: Ammo Resistance Test", "vr_ad_test 21")
+            .help("Destructive: a grunt given AD's resistance keys (shells half, nails all, rockets -50%) hit by a shot, a "
+                  "nail, a blow, a rocket, a bolt: in AD maps it resists, elsewhere only AD's own monsters do."),
+        command("Arcane Dimensions: Evil Skill Report", "vr_ad_test 22")
+            .help("Whether AD's Evil skill plays (Nightmare with Evil Skill on), your health and its cap, megahealth's, "
+                  "the axe's blow."),
+        command("Arcane Dimensions: Ladders Report", "vr_ad_test 24")
+            .help("This map's trigger_ladders and the first one's volume (climbable by hand: Hand-Climbed Ladders)."),
+        command("Arcane Dimensions: Spawnflags and Sight Report", "vr_ad_test 26; wait; wait; vr_ad_test 27")
+            .help("Whose meaning this map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'), and where "
+                  "monsters look for you (crouched: your real eyes)."),
         command("Arcane Dimensions: Status", "vr_ad_info")
             .help("vr_ad_info: AD's data (the latest release, another version refused), whether this map plays by AD's "
                   "rules and why (the campaign, or the signals found), how many of its entities spawned with AD's code."),
