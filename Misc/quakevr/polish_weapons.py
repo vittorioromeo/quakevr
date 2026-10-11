@@ -14,8 +14,7 @@
 # appended, sharing no vertex with the old ones, so every anchor (hand, muzzle, two-handed grip, ammo screen and button,
 # magazine mount, shell port: points on the surface, vr_anchor.hpp) stays on the surface where it was in every pose
 # (checked here for every anchor in use on the model: within anchors.TOLERANCE, bound on the old model and on the new
-# as the engine binds them, anchors.py; before round 22 the anchors were vertex indices and had to keep their
-# vertex), the hotspots (model space) stay where they were, and the new parts
+# as the engine binds them, anchors.py), the hotspots (model space) stay where they were, and the new parts
 # fit inside the old bounds (the write fails otherwise). The new parts keep clear of where the hands hold the gun
 # (the grips, triggers, foregrips, pumps): the fitted fingers close on the same surfaces as before.
 # The double shotgun then goes through reuv_shot2.py (POST): its fore-end's stretched UVs re-mapped and repainted,
@@ -24,7 +23,7 @@
 # reuv_weapons.py (POST): their stretched skin re-mapped and repainted from the old paint (UVs and texels change;
 # positions and anchors do not).
 # The shotgun then goes through split_auto_pump (its auto pump): the first of its fore-end's rings taken out (its own
-# vertices collapsed: no anchor, the strip order unchanged), the other three given their own texels, the moving
+# vertices collapsed: no anchor on them), the other three given their own texels, the moving
 # fore-end and the gun without it written apart (progs/vr_pump_on_v_shot.mdl, vr_pumpbody_on_v_shot.mdl).
 #
 # What is added, in the guns' own ramps (never a fullbright index: the sights and screens keep theirs):
@@ -49,7 +48,6 @@ import refine_laserg
 import refine_light
 import reuv_shot2
 import reuv_weapons
-from improve_weapons import strip_order
 import anchors
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -188,7 +186,7 @@ def tri_texels(m, tri):
 
 def split_auto_pump(p, path):
     """After the polish: the first ring taken out of v_shot.mdl (its vertices collapsed onto one: its triangles
-    vanish, the vertex and triangle orders, and so every anchor, stay); the other three given their own copy of their
+    vanish, the vertex and triangle orders stay, and no anchor is on them); the other three given their own copy of their
     texels (the id skin paints the rings on the fore-end's body under them: the body's stripes would stay behind as the
     rings slide) and the body's stripes painted over in the colour between them; the moving pump and the gun without
     it written apart, next to it."""
@@ -206,7 +204,8 @@ def split_auto_pump(p, path):
     # two-handed grip's anchor is on).
     ring_texels = set()
     other_texels = set()
-    body = mesh.piece[strip_order(p.m.tris[:p.m.old_nt])[48]]
+    grip = next(t for w, model, t in anchors.collect() if model == "progs/v_shot.mdl" and w.endswith(" TwoHHandAnchor"))
+    body = mesh.piece[min(anchors.anchor_vertices(mp.Model(path), [grip]))]
     for t in range(p.m.old_nt):
         if ring[t] >= 0:
             ring_texels |= tri_texels(m, m.tris[t])
@@ -262,7 +261,7 @@ SPLIT_OUTPUTS = {"v_shot.mdl": ["vr_pump_on_v_shot.mdl", "vr_pumpbody_on_v_shot.
 
 # The shotgun's loading port (docs/vr-port/RELOAD.md: immersive reloading, shells pushed in from below): an opening
 # under the receiver ahead of the trigger guard and behind the pump, as a pump gun's. Parts can only be added, never cut
-# (the old triangles stay, and with them the anchors' strip order): the opening is a well under the receiver's keel, a
+# (the old triangles stay): the opening is a well under the receiver's keel, a
 # steel housing round it whose inner walls, lined from a dull steel at its mouth to black up at the keel, go up to a black
 # ceiling laid just under the keel (following it, a grid of rays): from below a deep dark hole (the author: the framed
 # plate it was didn't read as one), the shells sliding up into it (vr_collectfx.cpp, its "into the gun" variant); a brass

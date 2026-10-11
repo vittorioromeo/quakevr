@@ -33,16 +33,16 @@
 #
 # The inputs are Quake VR's models as they were before (Misc/quakevr/src_models/, byte for byte):
 # running it again gives the same files. Pure Python; the machinery is improve_weapons.py's (the
-# model reader and writer, the strip-order port of vr_anchor.cpp, the rigid carrier, the lofts, the
+# model reader and writer, the rigid carrier, the lofts, the
 # grip laid out in the drawn fist's space, the palette painters).
 #
 # Rules the edits keep (as improve_weapons.py and improve_weapons2.py):
 # - Every frame is kept; the new parts follow the gun rigidly through them (a frame from three
 #   clusters of the body's vertices, per frame).
 # - Old triangles and vertex indices are kept (new ones are appended, sharing no vertex with the old
-#   ones), so every anchor index (vr_weapons.inc's *_av, vr_shells.cpp's v_shot entry) still names
-#   the same vertex: checked against the engine's strip order. Folded-away parts only move their
-#   vertices.
+#   ones), so every anchor (vr_weapons.inc's *_av, vr_shells.cpp's v_shot entry: points on the
+#   surface) stays on it. Folded-away parts only move their vertices. The hands' anchors before this
+#   are given as the sources' vertices (they were indices in QuakeSpasm's old strip order then).
 # - The skins grow downwards for the new parts' texels (every old UV and texel stays), painted in
 #   each gun's own ramps; no fullbright index (224 and up) is used: the shotgun's sight texels
 #   (vr_sights.cpp recolours the fullbright indices on its skin) stay the only ones.
@@ -55,9 +55,9 @@ import os
 import sys
 
 from improve_weapons import (CEILING, GRIP_LEAN, GRIP_PROFILE, GRIP_Y, GUARD_PATH, K, SHOTGUN_FLASH_FRAMES,
-                             TRIGGER_PATH, Carrier, HandSpace, Mdl, Noise, Parts, assemble, centroid, check_anchors,
+                             TRIGGER_PATH, Carrier, HandSpace, Mdl, Noise, Parts, assemble, centroid,
                              edge, flame, flame_paint, fmt, grip, grip_x, metal, paint_glow, pick, ribbed, section,
-                             show_flash, strip_order, sweep)
+                             show_flash, sweep)
 import genguard
 from mdlgen import add, cross, dot, mul, norm, sub
 
@@ -110,8 +110,7 @@ def rsec(x, yc, hw, zb, zt, ch):
     return section((x, yc, (zb + zt) / 2), (0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (zt - zb) / 2, hw, ch)
 
 
-def settings_for(slot_name, model, old_origin, origin, sw, offset, p0_old, p0_new, anchor_old, anchor_new=None,
-                 hand_anchor=None):
+def settings_for(slot_name, model, old_origin, origin, sw, offset, p0_old, p0_new, anchor_old, anchor_new=None):
     """The slot's new defaults: the hand at p0_new (anchor + HandOffset / (k Sw)), the weapon offsets
     keeping the gun where it was drawn relative to the hand's old place (the header's origin moved,
     and the gun moved by p0_old - p0_new under the hand)."""
@@ -120,8 +119,6 @@ def settings_for(slot_name, model, old_origin, origin, sw, offset, p0_old, p0_ne
     new_offset = [offset[k] + (old_origin[k] - origin[k]) * (1 - sw) + (p0_old[k] - p0_new[k]) * sw
                   for k in range(3)]
     out = {}
-    if hand_anchor is not None:
-        out["HandAnchorVertex"] = str(hand_anchor)
     if p0_new != p0_old or anchor_new is not None:
         out.update({"HandOffsetX": fmt(hand[0]), "HandOffsetY": fmt(hand[1]), "HandOffsetZ": fmt(hand[2])})
     out.update({"OffsetX": fmt(new_offset[0]), "OffsetY": fmt(new_offset[1]), "OffsetZ": fmt(new_offset[2])})
@@ -150,20 +147,17 @@ class Launcher:
     They were modelled apart and differ by a few tenths of a unit: rogue's multi-grenade launcher's
     belly's back face leans (x 3.49 at the tube, 3.79 at its bottom), its tube is 0.06 higher."""
 
-    def __init__(self, name, slot, grip_ramp, seed, offset, kept, belly_back, belly_top, frame_bottom,
+    def __init__(self, name, slot, grip_ramp, seed, offset, belly_back, belly_top, frame_bottom,
                  tube_back, belly_front):
         self.__dict__.update(locals())
 
 
 LAUNCHERS = [
     Launcher("v_rock.mdl", 5, GRIPBROWN, 60, (11.100024, 2.25, -1.850028),
-             {"hand, wpnbtn, wpntxt": 33, "2H hand": 15, "muzzle": 0},
              belly_back=3.67, belly_top=3.67, frame_bottom=2.0, tube_back=-1.52, belly_front=18.3),
     Launcher("v_prox.mdl", 10, PROXRED, 70, (11.099998, 2.25, -1.85),
-             {"hand, wpnbtn": 33, "2H hand": 15, "muzzle": 0, "wpntxt": 50},
              belly_back=3.67, belly_top=3.67, frame_bottom=2.0, tube_back=-1.52, belly_front=18.3),
     Launcher("v_multi.mdl", 13, GRIPBROWN, 80, (11.000022, 2.25, -1.950028),
-             {"hand, wpnbtn, wpntxt": 33, "2H hand": 15, "muzzle": 0},
              belly_back=3.75, belly_top=3.49, frame_bottom=2.06, tube_back=-1.38, belly_front=18.09),
 ]
 
@@ -176,10 +170,9 @@ def build_launcher(out_dir, gl):
 
     # vr_weapons.inc (the same hand for the three guns before this)
     sw = 0.38
-    hand_av, hand_ofs = 33, (0.4, -1.5, 2.0)
+    hand_vertex, hand_ofs = 13, (0.4, -1.5, 2.0)  # (strip-order index 33 then, on each of the three)
 
-    order = strip_order(old_tris)
-    anchor = frame0[order[hand_av]]
+    anchor = frame0[hand_vertex]
     p0_old = add(anchor, mul(hand_ofs, 1.0 / (K * sw)))
     # The fist goes under the frame, its guard's front at the belly's back face (where the guard
     # meets it).
@@ -219,9 +212,7 @@ def build_launcher(out_dir, gl):
     assert all(clusters), [len(c) for c in clusters]
     carrier = Carrier(model, clusters)
     remap = assemble(model, old_tris, parts, carrier)
-    check_anchors(old_tris, model.tris, remap, gl.kept)
     seal_launcher(model, gl)
-    check_anchors(old_tris, model.tris, remap, gl.kept)
 
     origin = model.write(os.path.join(out_dir, gl.name))
     return settings_for("%s (slot %d)" % (gl.name, gl.slot), model, old_origin, origin, sw, gl.offset, p0_old,
@@ -286,12 +277,10 @@ def build_shotgun(out_dir):
     frame0 = model.frames[0][1]
 
     sw = 0.44  # vr_weapons.inc slot 1
-    hand_av, hand_ofs = 165, (2.399994, 0.2, 0.7)
+    hand_vertex, hand_ofs = 120, (2.399994, 0.2, 0.7)  # (strip-order index 165 then)
     offset = (0.950001, 1.350002, -0.050021)
-    kept = {"hand": 165, "2H hand": 48, "muzzle": 1, "wpnbtn": 0, "wpntxt": 159, "shells (vr_shells.cpp)": 70}
 
-    order = strip_order(old_tris)
-    anchor = frame0[order[hand_av]]
+    anchor = frame0[hand_vertex]
     p0 = add(anchor, mul(hand_ofs, 1.0 / (K * sw)))
     hs = HandSpace(p0, sw, y_centre=p0[1] + GRIP_Y / sw)
     assert abs(hs.p0[1] - p0[1]) < 1e-9
@@ -324,7 +313,6 @@ def build_shotgun(out_dir):
                 [v for v in rec if 3.0 < frame0[v][0] < 10.0 and frame0[v][2] > 6.0]]
     carrier = Carrier(model, clusters)
     remap = assemble(model, old_tris, parts, carrier)
-    check_anchors(old_tris, model.tris, remap, kept)
 
     # The stub folds into the grip: its lower end goes inside the grip's back, leaving a small tang
     # from the receiver's underside down into the back strap.
@@ -551,12 +539,10 @@ def build_laser(out_dir):
     frame0 = model.frames[0][1]
 
     sw = 0.34  # vr_weapons.inc slot 9
-    hand_av, hand_ofs = 4, (-16.200041, 1.9, 10.3)
+    hand_vertex, hand_ofs = 63, (-16.200041, 1.9, 10.3)  # (strip-order index 4 then)
     offset = (-1.4, 5.9, 12.299991)
-    kept = {"hand, 2H hand": 4, "muzzle": 22, "wpnbtn": 0, "wpntxt": 226}
 
-    order = strip_order(old_tris)
-    anchor = frame0[order[hand_av]]
+    anchor = frame0[hand_vertex]
     p0 = add(anchor, mul(hand_ofs, 1.0 / (K * sw)))
     hs = HandSpace(p0, sw, y_centre=p0[1] + GRIP_Y / sw)
 
@@ -614,7 +600,6 @@ def build_laser(out_dir):
                 [v for v in body if 35.0 < frame0[v][0] < 52.0 and frame0[v][2] > 3.0]]
     carrier = Carrier(model, clusters)
     remap = assemble(model, old_tris, parts, carrier)
-    check_anchors(old_tris, model.tris, remap, kept)
 
     # The blade folds into the neck.
     inside = hs.m(-1.2, -3.9)
@@ -623,7 +608,6 @@ def build_laser(out_dir):
     # showed; they are filled and backed (seal_mdl.py: new triangles only).
     from seal_mdl import seal
     seal(model, R["headend"], None, "v_laserg.mdl", fix_flips="all")
-    check_anchors(old_tris, model.tris, remap, kept)
 
     origin = model.write(os.path.join(out_dir, "v_laserg.mdl"))
     return settings_for("v_laserg.mdl (slot 9)", model, old_origin, origin, sw, offset, p0, p0, anchor), model
@@ -642,12 +626,10 @@ def build_grapple(out_dir):
     frame0 = model.frames[0][1]
 
     sw = 0.33  # vr_weapons.inc slot 17
-    hand_av, hand_ofs = 68, (1.7, -0.2, 1.1)
+    hand_vertex, hand_ofs = 284, (1.7, -0.2, 1.1)  # (strip-order index 68 then)
     offset = (-2.15, 5.0, -0.9)
-    kept = {"hand": 68, "muzzle": 90, "2H hand, wpnbtn, wpntxt": 0}
 
-    order = strip_order(old_tris)
-    anchor = frame0[order[hand_av]]
+    anchor = frame0[hand_vertex]
     p0 = add(anchor, mul(hand_ofs, 1.0 / (K * sw)))
     hs = HandSpace(p0, sw, y_centre=p0[1] + GRIP_Y / sw)
 
@@ -680,7 +662,6 @@ def build_grapple(out_dir):
                 [v for v in body if frame0[v][2] > 7.0]]
     carrier = Carrier(model, clusters)
     remap = assemble(model, old_tris, parts, carrier)
-    check_anchors(old_tris, model.tris, remap, kept)
 
     # The stick folds into the grip.
     inside = hs.m(grip_x(-1.2) - 0.2, -1.2)
@@ -689,7 +670,6 @@ def build_grapple(out_dir):
     # new triangles only), as are the grip's top and a small hole under the claws.
     from seal_mdl import seal
     seal(model, R["bottom"], None, "v_grpple.mdl")
-    check_anchors(old_tris, model.tris, remap, kept)
 
     origin = model.write(os.path.join(out_dir, "v_grpple.mdl"))
     return settings_for("v_grpple.mdl (slot 17)", model, old_origin, origin, sw, offset, p0, p0, anchor), model
@@ -706,12 +686,9 @@ def build_axe(out_dir):
     from seal_mdl import seal
 
     model = Model(os.path.join(SRC, "v_axe.mdl"))
-    old_tris = [list(t) for t in model.tris]
     # A rounded source: the cracks' corners are off their edges already.
     model.seal = lambda m: seal(m, (0, 0, 1, 1), None, "v_axe.mdl", crack_tol=0.2)
     model.write(os.path.join(out_dir, "v_axe.mdl"))
-    order = strip_order(old_tris)
-    assert strip_order(model.tris)[:len(order)] == order
     return ("v_axe.mdl", {}), model
 
 

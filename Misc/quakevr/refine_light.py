@@ -279,12 +279,10 @@ def fix(path, report_only=False):
         s = sum(a * q for q, a in acc[tuple(np.round(p, 3))] if q @ n > math.cos(math.radians(30.0)))
         return s / np.linalg.norm(s)
 
-    # 5. The old sides' vertices collapsed (their triangles vanish; indices, and so the strip order, unchanged): onto
+    # 5. The old sides' vertices collapsed (their triangles vanish; indices unchanged): onto
     # the one that is an anchor (the two-handed grip's, 230: the -y side's bottom front corner, where the mirrored side
     # has a corner too), which stays where it is.
     import polish_weapons  # (here: it imports this module)
-    from improve_weapons import strip_order
-    order = strip_order(m.tris)
     import anchors
     in_use = [text for _, text in polish_weapons.slot_anchors().get(os.path.basename(path), ())]
     kept = sorted(anchors.anchor_vertices(m, in_use) & set(dead_v))

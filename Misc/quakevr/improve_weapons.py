@@ -32,10 +32,10 @@
 # the rocket launcher the gun sits higher over the hand (the tube went through the fist: now it is
 # over the index finger, as a pistol's slide), and each hand is centred on its grip sideways.
 #
-# Anchors: the engine's anchor indices count the old engine's triangle strips (vr_anchor.cpp),
-# not the file's vertices; the new triangles come after the old ones, so the kept vertices keep
-# their indices (checked below). The shotgun's hand anchor was on the handle that goes: it moves
-# to a vertex of the new grip. The models' bounds grow (the grips hang lower), which moves the
+# Anchors: points on the surface (vr_anchor.hpp), which the old parts keep. The shotgun's hand
+# anchor was on the handle that goes: it moves to a vertex of the new grip (printed as its point).
+# The old hand anchors are given as the source files' vertices (they were indices in QuakeSpasm's
+# old strip order then). The models' bounds grow (the grips hang lower), which moves the
 # origin their weapon Scale is applied about: the weapon offsets are compensated so that the old
 # parts stay exactly where they were. The script prints the new values for Quake/vr/vr_weapons.inc
 # (slots 2 and 6; vr_weapons.cpp's settingsVersion resets them in existing configs).
@@ -132,69 +132,6 @@ class Mdl:
         for v in range(len(self.st)):
             comps.setdefault(find(v), []).append(v)
         return sorted(comps.values(), key=min)
-
-
-def strip_order(tris):
-    """Strip-order index -> vertex (vr_anchor.cpp's StripBuilder, QuakeSpasm's old BuildTris)."""
-    n = len(tris)
-    used = [0] * n
-    order = []
-
-    def clear(start):
-        for j in range(start + 1, n):
-            if used[j] == 2:
-                used[j] = 0
-
-    def length(start, sv, strip):
-        used[start] = 2
-        last = tris[start]
-        vi = last[1:]
-        verts = [vi[sv % 3], vi[(sv + 1) % 3], vi[(sv + 2) % 3]]
-        got = [start]
-        m1, m2 = (vi[(sv + 2) % 3], vi[(sv + 1) % 3]) if strip else (vi[sv % 3], vi[(sv + 2) % 3])
-        extended = True
-        while extended and len(got) < 126:
-            extended = False
-            for j in range(start + 1, n):
-                check = tris[j]
-                if check[0] != last[0]:
-                    continue
-                cv = check[1:]
-                hit = next((k for k in range(3) if cv[k] == m1 and cv[(k + 1) % 3] == m2), None)
-                if hit is None:
-                    continue
-                if used[j]:
-                    clear(start)
-                    return verts, got
-                nv = cv[(hit + 2) % 3]
-                if strip:
-                    if len(got) & 1:
-                        m2 = nv
-                    else:
-                        m1 = nv
-                else:
-                    m2 = nv
-                verts.append(nv)
-                got.append(j)
-                used[j] = 2
-                extended = True
-                break
-        clear(start)
-        return verts, got
-
-    for i in range(n):
-        if used[i]:
-            continue
-        best = None
-        for strip in (False, True):
-            for sv in range(3):
-                v, t = length(i, sv, strip)
-                if best is None or len(t) > len(best[1]):
-                    best = (v, t)
-        for j in best[1]:
-            used[j] = 1
-        order += best[0]
-    return order
 
 
 # ----------------------------------------------------------------------------
@@ -724,18 +661,6 @@ def assemble(model, keep_tris, parts, carrier):
     return remap
 
 
-def check_anchors(before, after, remap, anchors):
-    """Each kept anchor index still names the same vertex."""
-    old_order, new_order = strip_order(before), strip_order(after)
-    for name, index in anchors.items():
-        v = old_order[index]
-        assert v in remap and new_order[index] == remap[v], "anchor %s (%d) moved" % (name, index)
-
-
-def anchor_index(tris, vertex):
-    return strip_order(tris).index(vertex)
-
-
 def fmt(x):
     return ("%.6f" % x).rstrip("0").rstrip(".")
 
@@ -768,11 +693,9 @@ def build_shotgun(out_dir):
 
     # The weapon settings the old model was tuned with (vr_weapons.inc slot 2 before round 16).
     sw = 0.48
-    hand_av, hand_ofs = 65, (-3.25, 1.1, 1.25)
+    old_hand_vertex, hand_ofs = 95, (-3.25, 1.1, 1.25)  # (its hand anchor then: strip-order index 65)
     offset = (6.099997, 1.35, -2.350011)
-    kept_anchors = {"muzzle": 13, "2H hand": 29, "ammo screen": 0, "shells (vr_shells.cpp)": 17}
 
-    old_hand_vertex = strip_order(old_tris)[hand_av]
     handle = next(c for c in comps if old_hand_vertex in c)
     assert len(handle) == 43
     keep = [t for t in old_tris if t[1] not in set(handle)]
@@ -791,8 +714,7 @@ def build_shotgun(out_dir):
     free_region_check(model, regions)
     parts = Parts()
 
-    # The grip first: the hand's anchor is on it, and its strip-order index then does not depend on
-    # the parts after it.
+    # The grip first (the hand's anchor is on it).
     faces = section_faces(0.81, 0.56, 0.26)
     grip(parts, hs, regions["grip"], regions["butt"], regions["bottom"], GRIP_PROFILE)
     guard_and_trigger(parts, hs, regions["guard"], regions["trigger"])
@@ -813,7 +735,7 @@ def build_shotgun(out_dir):
     # The top lever over the breech, and the tang behind it.
     parts.loft([rsec(9.4, 0.55, 6.8, 7.25, 0.0), rsec(6.6, 0.55, 6.8, 7.2, 0.0), rsec(5.4, 0.4, 6.6, 6.95, 0.0)],
                regions["tang"], cap_start=regions["tang"], cap_end=regions["tang"])
-    # Round 18: a flash out of each barrel (last, so that no anchor depends on it).
+    # Round 18: a flash out of each barrel (last).
     flash_row = grow_rows(model, 16)
     flashes = shotgun2_flashes(parts, flash_row)
 
@@ -841,26 +763,24 @@ def build_shotgun(out_dir):
                 [v for v in body if frame0[v][2] < 3.0]]
     carrier = Carrier(model, clusters)
     remap = assemble(model, keep, parts, carrier)
-    check_anchors(old_tris, model.tris, remap, kept_anchors)
     for verts, centre in flashes:
         show_flash(model, len(remap), verts, parts, centre, carrier, SHOTGUN_FLASH_FRAMES)
     # Round 20: the bead between the muzzles was inside out (seen from outside, one looked at its inner
     # faces); it is backed, and the cracks filled (seal_mdl.py: new triangles only).
     from seal_mdl import seal
     seal(model, regions["caps"], None, "v_shot2.mdl", fix_inverted=True)
-    check_anchors(old_tris, model.tris, remap, kept_anchors)
 
     # The hand's anchor: the new grip's vertex nearest the middle of the hand's hold.
     base = len(remap)
     target = hs.m(grip_x(-1.9), -1.9)
     new_v = min(range(base, len(model.st)), key=lambda v: math.dist(model.frames[0][1][v], target))
-    new_av = anchor_index(model.tris, new_v)
     new_hand = mul(sub(hs.p0, model.frames[0][1][new_v]), K * sw)
 
     origin = model.write(os.path.join(out_dir, "v_shot2.mdl"))
     new_offset = tuple(offset[k] + (old_origin[k] - origin[k]) * (1 - sw) for k in range(3))
+    import anchors
     return "v_shot2.mdl (slot 2)", {
-        "HandAnchorVertex": str(new_av),
+        "HandAnchor": anchors.vertex_text(os.path.join(out_dir, "v_shot2.mdl"), new_v),
         "HandOffsetX": fmt(new_hand[0]), "HandOffsetY": fmt(new_hand[1]), "HandOffsetZ": fmt(new_hand[2]),
         "OffsetX": fmt(new_offset[0]), "OffsetY": fmt(new_offset[1]), "OffsetZ": fmt(new_offset[2]),
     }, model
@@ -884,12 +804,10 @@ def build_rocket_launcher(out_dir, alt=None):
     frame0 = model.frames[0][1]
 
     sw = 0.34  # vr_weapons.inc slot 6 before round 16
-    hand_av, hand_ofs = 12, (2.100005, -0.8, 1.0)
+    hand_vertex, hand_ofs = 75, (2.100005, -0.8, 1.0)  # (strip-order index 12 then; v_multi2.mdl's too)
     offset = (6.60001, 7.1, -0.350044)
-    kept_anchors = {"hand, ammo screen, button": 12, "muzzle": 17, "2H hand": 3}
 
-    order = strip_order(old_tris)
-    anchor_pos = frame0[order[hand_av]]
+    anchor_pos = frame0[hand_vertex]
     p0 = add(anchor_pos, mul(hand_ofs, 1.0 / (K * sw)))
     p0 = (p0[0], p0[1], p0[2] - RAISE)
     yc = -0.08  # the tube's axis
@@ -935,9 +853,7 @@ def build_rocket_launcher(out_dir, alt=None):
                 [v for v in tube if frame0[v][0] < 8.0 and frame0[v][2] > 7.0]]
     carrier = Carrier(model, clusters)
     remap = assemble(model, old_tris, parts, carrier)
-    check_anchors(old_tris, model.tris, remap, kept_anchors)
     seal_rocket_launcher(model, name)
-    check_anchors(old_tris, model.tris, remap, kept_anchors)
 
     new_hand = mul(sub(hs.p0, anchor_pos), K * sw)
     origin = model.write(os.path.join(out_dir, name))

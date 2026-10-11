@@ -2,13 +2,12 @@
 # anchors.py -- the weapon models' anchors (Quake/vr/vr_anchor.hpp) for the scripts: their text, binding a point to a
 # model's surface exactly as the engine does, where an anchor is in every pose, and the check of a model edit.
 #
-# An anchor is text: "x y z" (a point on the model's surface, in its own coordinates as its file's frame 0 has them:
-# scale and origin applied), "x y z t" (t a triangle, the tie-break among triangles as near: two parts touching there),
-# or a legacy anchor index (one number: a vertex in QuakeSpasm's old strip order, improve_weapons.strip_order). The
-# engine binds the point to the nearest triangle of the rest pose (barycentric weights over its three vertices, snapped
-# to a corner it is on) and moves it with those weights in every pose: the vertex numbering doesn't matter, so the
-# models can be edited freely. The anchors in use: vr_weapons.inc's *_av defaults, vr_view.cpp's magMounts,
-# vr_shells.cpp's weaponTable (collect()).
+# An anchor is text, "x y z": a point on the model's surface, in its own coordinates as its file's frame 0 has them
+# (scale and origin applied). The engine binds it to the nearest triangle of the rest pose (barycentric weights over its
+# three vertices, snapped to a corner it is on; among triangles as near, those with the point on a corner, the first)
+# and moves it with those weights in every pose: the vertex numbering doesn't matter, so the models can be edited
+# freely. The anchors in use: vr_weapons.inc's *_av defaults, vr_view.cpp's magMounts, vr_shells.cpp's weaponTable,
+# vr_weaponfx.cpp's monster guns (collect()).
 #
 # Usage (from the repository root):
 #   python Misc/quakevr/anchors.py list                     every anchor in use and where it binds on its model
@@ -16,14 +15,7 @@
 #                                                           triangles reversed): it must stay where it is in every pose
 #   python Misc/quakevr/anchors.py check <model.mdl> [old]  the anchors on that model: within TOLERANCE of the surface
 #                                                           in every pose (against `old`: moved at most TOLERANCE)
-# The conversion from indices to points (vr_wofs_version 41, round 22), kept for the record:
-#   python Misc/quakevr/anchors.py convert-commands [rev]   the engine commands converting every legacy anchor
-#                                                           (vr_anchor_from_index: run them, keep the console log)
-#   python Misc/quakevr/anchors.py apply <log> [rev]        writes the log's points into the three sources (rev: over
-#                                                           the anchors that were indices at git <rev>)
-#   python Misc/quakevr/anchors.py compare-commands <rev>   vr_anchor_compare for each anchor: the index at git <rev>
-#                                                           against the point now
-#   python Misc/quakevr/anchors.py table <log>              the comparison's table (engine and this script's own)
+#   python Misc/quakevr/anchors.py point <model.mdl> <vertex>  the anchor at a vertex (the file's numbering), to paste
 
 import os
 import re
@@ -35,10 +27,10 @@ ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 INC = os.path.join("Quake", "vr", "vr_weapons.inc")
 VIEW = os.path.join("Quake", "vr", "vr_view.cpp")
 SHELLS = os.path.join("Quake", "vr", "vr_shells.cpp")
+WEAPONFX = os.path.join("Quake", "vr", "vr_weaponfx.cpp")
 PROGS = os.path.join(ROOT, "quakevr", "progs")
 
-KEYS = ("HandAnchorVertex", "MuzzleAnchorVertex", "TwoHHandAnchorVertex", "WpnButtonAnchorVertex",
-        "WpnTextAnchorVertex")
+KEYS = ("HandAnchor", "MuzzleAnchor", "TwoHHandAnchor", "WpnButtonAnchor", "WpnTextAnchor")
 
 # As vr_anchor.cpp: a point this near a triangle's corner is on it; triangles this much nearer than the nearest tie.
 SNAP = 0.001
@@ -54,7 +46,7 @@ SHELL_MODELS = {"VShot": "progs/v_shot.mdl", "VShot2": "progs/v_shot2.mdl"}
 # Text
 
 def parse(text):
-    """("legacy", index) or ("point", (x, y, z), hint or -1), as vr_anchor.cpp's parse."""
+    """The point (x, y, z), as vr_anchor.cpp's parse; None if the text is not three numbers."""
     nums = []
     for tok in re.split(r"[\s,_]+", text.strip()):
         if not tok:
@@ -63,11 +55,9 @@ def parse(text):
             nums.append(float(tok))
         except ValueError:
             break
-        if len(nums) == 4:
-            break
-    if len(nums) >= 3:
-        return ("point", tuple(nums[:3]), int(nums[3]) if len(nums) >= 4 else -1)
-    return ("legacy", int(nums[0]) if nums else 0)
+        if len(nums) == 3:
+            return tuple(nums)
+    return None
 
 
 # ----------------------------------------------------------------------------
@@ -127,9 +117,9 @@ def closest_on_triangle(p, a, b, c):
 
 
 class Binding:
-    def __init__(self, verts, weights, tri=-1, distance=0.0, ties=0, legacy=False):
-        self.verts, self.weights, self.tri, self.distance, self.ties, self.legacy = verts, weights, tri, distance, ties, legacy
-        self.corner = False
+    def __init__(self, verts, weights, tri=-1, distance=0.0):
+        self.verts, self.weights, self.tri, self.distance = verts, weights, tri, distance
+        self.corner, self.ties = False, 0
 
     def key(self):
         """What it moves with: {vertex: weight}."""
@@ -150,13 +140,6 @@ class Mesh:
         self.tris = [t[1:] for t in self.m.tris]
         self.poses = [[tuple(float(x) for x in v) for v in self.m.positions(p)] for p in range(self.m.num_poses())]
         self.rest = self.poses[0]
-        self._order = None
-
-    def order(self):
-        if self._order is None:
-            from improve_weapons import strip_order
-            self._order = strip_order(self.m.tris)
-        return self._order
 
     def bind_triangle(self, t, p):
         tri = self.tris[t]
@@ -173,19 +156,18 @@ class Mesh:
         return b
 
     def bind(self, text):
-        a = parse(text)
-        if a[0] == "legacy":
-            order = self.order()
-            v = order[max(0, min(a[1], len(order) - 1))]
-            return Binding((v, v, v), (1.0, 0.0, 0.0), legacy=True)
-        p, hint = a[1], a[2]
+        """As vr_anchor.cpp's bind: the nearest triangles (within TIE), of them those with the point on a corner if
+        any, the first; ties: the others that bind elsewhere. Text that is not a point: the first vertex."""
+        p = parse(text)
+        if p is None:
+            return Binding((0, 0, 0), (1.0, 0.0, 0.0))
         all_ = [self.bind_triangle(t, p) for t in range(len(self.tris))]
         nearest = min(b.distance for b in all_)
         tied = [b for b in all_ if b.distance <= nearest + TIE]
-        # (as vr_anchor.cpp: the hint; else those on a corner, the first; ties: the others there binding elsewhere)
         any_corner = any(b.corner for b in tied)
-        out = next((b for b in tied if b.tri == hint), None) or next(b for b in tied if b.corner or not any_corner)
-        out.ties = sum(1 for b in tied if (b.corner or not any_corner) and not _same(out, b))
+        tied = [b for b in tied if b.corner or not any_corner]
+        out = tied[0]
+        out.ties = sum(1 for b in tied if not _same(out, b))
         return out
 
     def position(self, b, pose):
@@ -204,55 +186,54 @@ def _same(a, b):
 
 
 def anchor_vertices(m, texts):
-    """The vertices of mdlpolish model `m` that the anchors are on (a point bound to a triangle's corner; a legacy index's
-    vertex): for the generators that keep those vertices where they are (refine_light.py, reuv_weapons.py)."""
+    """The vertices of mdlpolish model `m` that the anchors are on (a point bound to a triangle's corner): for the
+    generators that keep those vertices where they are (refine_light.py)."""
     mesh = Mesh(getattr(m, "path", ""), m)
     out = set()
     for text in texts:
         b = mesh.bind(text)
-        if b.legacy or b.corner:
+        if b.corner:
             out.add(b.verts[b.weights.index(max(b.weights))])
     return out
 
 
-def strip_indices(m, texts):
-    """Those vertices as their first indices in m's strip order (what the generators kept before round 22, when anchors
-    were strip-order indices: reuv_weapons.keep_anchors keeps every chart that leaves them naming the same places)."""
-    order = Mesh(getattr(m, "path", ""), m).order()
-    first = {}
-    for i, v in enumerate(order):
-        first.setdefault(v, i)
-    return sorted(first[v] for v in anchor_vertices(m, texts) if v in first)
+def vertex_text(mesh, v):
+    """The anchor at vertex `v` of `mesh` (a Mesh, or a model file's path): its rest place, checked to be where the
+    vertex is in every pose (else an AssertionError: another vertex there that moves elsewhere; pick a point off it).
+    What the generators print for vr_weapons.inc."""
+    mesh = mesh if isinstance(mesh, Mesh) else Mesh(mesh)
+    text = text_of(mesh.rest[v])
+    b = mesh.bind(text)
+    worst = max(_dist(mesh.position(b, p), mesh.poses[p][v]) for p in range(len(mesh.poses)))
+    assert worst < 1e-3, "vertex %d: its point binds elsewhere (%.3f off in some pose)" % (v, worst)
+    return text
 
 
-def text_of(point, hint=-1):
+def text_of(point):
     """An anchor's text as the engine writes it (4 decimals, no trailing zeros)."""
     def num(f):
         s = ("%.4f" % f).rstrip("0").rstrip(".")
         return "0" if s in ("-0", "") else s
-    return " ".join(num(f) for f in point) + ("" if hint < 0 else " %d" % hint)
+    return " ".join(num(f) for f in point)
 
 
 # ----------------------------------------------------------------------------
 # The anchors in use
 
-def _read(rel, rev=None):
-    if rev:
-        return subprocess.run(["git", "-C", ROOT, "show", "%s:%s" % (rev, rel.replace(os.sep, "/"))],
-                              capture_output=True, text=True, check=True).stdout
+def _read(rel):
     return open(os.path.join(ROOT, rel), encoding="utf-8").read()
 
 
 INC_RE = re.compile(r'QVR_WEAPON_DEFAULT\((\d+), (\w+), "([^"]*)"\)')
-# (the anchor quoted, or a bare number: an index before round 22)
-MAG_RE = re.compile(r'"progs/vr_mag_on_(v_\w+\.mdl)", "?([^",]*?)"?,')
-SHELL_RE = re.compile(r'\{modelmeta::Id::(\w+), .*?,\s+"?([^",{}\n]*?)"?\},[ \t]*$', re.S | re.M)
+MAG_RE = re.compile(r'"progs/vr_mag_on_(v_\w+\.mdl)", "([^"]*)",')
+SHELL_RE = re.compile(r'\{modelmeta::Id::(\w+), .*?,\s+"([^"]*)"\},[ 	]*$', re.S | re.M)
+MONSTER_RE = re.compile(r'constexpr const char\* (soldier|enforcer)(Muzzle|Rear)\[\] = \{(.*?)\};', re.S)
 
 
-def collect(rev=None):
+def collect():
     """[(where, model, text)] in source order: vr_weapons.inc's anchor defaults (by its slot's ID), the magazines'
-    mounts, the shells' ports."""
-    inc = _read(INC, rev)
+    mounts, the shells' ports, the monster guns' muzzles and rears."""
+    inc = _read(INC)
     ids = {}
     for s, k, v in INC_RE.findall(inc):
         if k == "ID":
@@ -261,13 +242,16 @@ def collect(rev=None):
     for s, k, v in INC_RE.findall(inc):
         if k in KEYS:
             out.append(("vr_weapons.inc slot %s %s" % (s, k), ids.get(int(s), ""), v))
-    for gun, a in MAG_RE.findall(_read(VIEW, rev)):
+    for gun, a in MAG_RE.findall(_read(VIEW)):
         out.append(("vr_view.cpp magMounts %s" % gun, "progs/" + gun, a))
-    shells = _read(SHELLS, rev)
+    shells = _read(SHELLS)
     table = shells[shells.find("constexpr Weapon weaponTable[]"):]
     table = table[:table.find("};")]
     for ident, a in SHELL_RE.findall(table):
         out.append(("vr_shells.cpp weaponTable %s" % ident, SHELL_MODELS.get(ident, ""), a))
+    for monster, part, body in MONSTER_RE.findall(_read(WEAPONFX)):
+        for i, a in enumerate(re.findall(r'"([^"]*)"', body)):
+            out.append(("vr_weaponfx.cpp %s%s %d" % (monster, part, i), "progs/%s.mdl" % monster, a))
     return out
 
 
@@ -305,100 +289,7 @@ def check(path, old_path=None, anchors=None, tolerance=TOLERANCE):
 
 
 # ----------------------------------------------------------------------------
-# The conversion (round 22)
-
-def convert_commands(rev=None):
-    seen, cmds = set(), []
-    for where, model, text in collect(rev):
-        a = parse(text)
-        if a[0] == "legacy" and model and model != "-1" and (model, a[1]) not in seen:
-            seen.add((model, a[1]))
-            cmds.append("vr_anchor_from_index %s %d" % (model, a[1]))
-    return cmds
-
-
-def apply(log, rev=None):
-    """Writes the log's conversions over the anchors: each that is a legacy index now (or was at git `rev`: converted
-    again, as after a change to the conversion)."""
-    before = [parse(t) for w, m, t in collect(rev)] if rev else None
-    seen = [0]
-    conv = {}
-    for m, i, t in re.findall(r'anchor_from_index (\S+) (-?\d+) "([^"]*)"', open(log, encoding="utf-8", errors="replace").read()):
-        conv[(m, int(i))] = t
-    counts = {}
-
-    def fix(m, group, model):
-        """The match with its group `group` (an anchor's text on `model`) converted, if the log has it."""
-        a = parse(m.group(group))
-        if before is not None:
-            a = before[seen[0]]
-            seen[0] += 1
-        if a[0] != "legacy" or (model, a[1]) not in conv:
-            return m.group(0)
-        counts[model] = counts.get(model, 0) + 1
-        s, e = m.start(group) - m.start(0), m.end(group) - m.start(0)
-        return m.group(0)[:s] + conv[(model, a[1])] + m.group(0)[e:]
-
-    inc = _read(INC)
-    ids = {int(s): v for s, k, v in INC_RE.findall(inc) if k == "ID"}
-    inc = INC_RE.sub(lambda m: fix(m, 3, ids.get(int(m.group(1)), "")) if m.group(2) in KEYS else m.group(0), inc)
-    # (collect() lists vr_weapons.inc, then the magazines, then the shells: the same order as here)
-    open(os.path.join(ROOT, INC), "w", encoding="utf-8", newline=chr(10)).write(inc)
-    view = MAG_RE.sub(lambda m: fix(m, 2, "progs/" + m.group(1)), _read(VIEW))
-    open(os.path.join(ROOT, VIEW), "w", encoding="utf-8", newline=chr(10)).write(view)
-    shells = _read(SHELLS)
-    start = shells.find("constexpr Weapon weaponTable[]")
-    end = shells.find("};", start)
-    table = SHELL_RE.sub(lambda m: fix(m, 2, SHELL_MODELS.get(m.group(1), "")), shells[start:end])
-    open(os.path.join(ROOT, SHELLS), "w", encoding="utf-8", newline=chr(10)).write(shells[:start] + table + shells[end:])
-    print("converted: %s" % ", ".join("%s %d" % kv for kv in sorted(counts.items())))
-
-
-def compare_pairs(rev):
-    old, new = collect(rev), collect()
-    if [w for w, m, t in old] != [w for w, m, t in new]:
-        sys.exit("the anchors at %s and now differ in number or order" % rev)
-    return [(w, m, ot, nt) for (w, m, ot), (_, _, nt) in zip(old, new)]
-
-
-def compare_commands(rev):
-    cmds = []
-    for where, model, old, new in compare_pairs(rev):
-        a = parse(old)
-        if a[0] == "legacy" and parse(new)[0] == "point" and model:
-            cmds.append("vr_anchor_compare %s %d %s" % (model, a[1], new))
-    return cmds
-
-
-def table(log, rev):
-    text = open(log, encoding="utf-8", errors="replace").read().replace("\n", " ")
-    engine = {}
-    for m, i, t, poses, worst, rest in re.findall(
-            r'anchor_compare (\S+) (-?\d+) "([^"]*)": (\d+) poses, max ([\d.]+) \(pose \d+\); (.*?) ties', text):
-        engine[(m, int(i), t)] = (int(poses), float(worst), rest + " ties")
-    meshes = {}
-    worst_all = 0.0
-    rows = 0
-    print("%-48s %-22s %6s %-30s %5s %9s %9s" % ("where", "model", "index", "point", "poses", "engine", "script"))
-    for where, model, old, new in compare_pairs(rev):
-        a = parse(old)
-        if a[0] != "legacy" or parse(new)[0] != "point" or not model:
-            continue
-        e = engine.get((model, a[1], new))
-        path = model_file(model)
-        script = "-"
-        if path:
-            mesh = meshes.setdefault(path, Mesh(path))
-            ob, nb = mesh.bind(old), mesh.bind(new)
-            script = "%.5f" % max(_dist(mesh.position(ob, p), mesh.position(nb, p)) for p in range(len(mesh.poses)))
-            worst_all = max(worst_all, float(script))
-        if e:
-            worst_all = max(worst_all, e[1])
-        rows += 1
-        print("%-48s %-22s %6d %-30s %5s %9s %9s" % (where, model, a[1], new, e[0] if e else "-",
-                                                    "%.5f" % e[1] if e else "MISSING", script))
-    print("%d anchors, worst %.5f model units" % (rows, worst_all))
-
+# The self-test
 
 def renumbered(mesh):
     """A copy of `mesh` with its vertices and triangles in reverse order and each triangle's corners turned: the same
@@ -409,19 +300,16 @@ def renumbered(mesh):
     out.poses = [list(reversed(P)) for P in mesh.poses]
     out.rest = out.poses[0]
     out.tris = [(n - 1 - c, n - 1 - a, n - 1 - b) for a, b, c in reversed(mesh.tris)]
-    out._order = None
     return out
 
 
 def selftest():
-    """Every anchor in use, bound on its model and on the model renumbered: where it is in every pose, both ways. An
-    anchor whose text has a hint (a triangle number) may move: the hint names another triangle after a renumbering."""
+    """Every anchor in use, bound on its model and on the model renumbered: where it is in every pose, both ways."""
     worst, moved, n = 0.0, [], 0
     meshes = {}
     for where, model, text in collect():
         path = model_file(model)
-        a = parse(text)
-        if not path or a[0] != "point":
+        if not path or parse(text) is None:
             continue
         mesh = meshes.setdefault(path, Mesh(path))
         other = meshes.setdefault(path + "#renumbered", renumbered(mesh))
@@ -430,13 +318,11 @@ def selftest():
         n += 1
         if d > 1e-4:
             moved.append((where, model, text, d))
-        elif a[2] < 0:
-            worst = max(worst, d)
+        worst = max(worst, d)
     for m in moved:
-        print("moved when renumbered: %s %s \"%s\": %.3f%s" % (m + ("" if parse(m[2])[2] >= 0 else "  (NO HINT)",)))
-    print("%d anchors bound on their models renumbered: %d moved (hinted: the hint names another triangle), the others "
-          "%.6f at most" % (n, len(moved), worst))
-    return not any(parse(m[2])[2] < 0 for m in moved)
+        print("moved when renumbered: %s %s \"%s\": %.3f" % m)
+    print("%d anchors bound on their models renumbered: %d moved, %.6f at most" % (n, len(moved), worst))
+    return not moved
 
 
 def main():
@@ -451,8 +337,7 @@ def main():
                 continue
             mesh = meshes.setdefault(path, Mesh(path))
             b = mesh.bind(text)
-            print("%-48s %-28s %-30s %s" % (where, model, text, "legacy vertex %d" % b.verts[0] if b.legacy else
-                                            "triangle %d, %.4f off, %d ties" % (b.tri, b.distance, b.ties)))
+            print("%-48s %-28s %-30s triangle %d, %.4f off, %d ties" % (where, model, text, b.tri, b.distance, b.ties))
     elif args[0] == "selftest":
         sys.exit(0 if selftest() else 1)
     elif args[0] == "check":
@@ -461,14 +346,8 @@ def main():
             bad += worst > TOLERANCE
             print("%-48s %-30s %s" % (where, text, line))
         sys.exit(1 if bad else 0)
-    elif args[0] == "convert-commands":
-        print(";".join(convert_commands(args[1] if len(args) > 1 else None)))
-    elif args[0] == "apply":
-        apply(args[1], args[2] if len(args) > 2 else None)
-    elif args[0] == "compare-commands":
-        print(";".join(compare_commands(args[1])))
-    elif args[0] == "table":
-        table(args[1], args[2])
+    elif args[0] == "point":
+        print(vertex_text(args[1], int(args[2])))
     else:
         sys.exit(__doc__ or "see the header")
 
