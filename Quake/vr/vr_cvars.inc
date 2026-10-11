@@ -2385,6 +2385,7 @@ QVR_CVAR(vr_hit_react_slow, "1", CVAR_ARCHIVE)        // the server: times a str
 QVR_CVAR(vr_hit_react_debug, "0", CVAR_NONE)          // 1: each blow received and the bone it struck printed (`hitreact:`); 2: and a `hittrace` line each frame per reacting monster (its bones' turns, deg; the tests); the server: `hitslow:` lines (its slow-down, its steps)
 QVR_CVAR(vr_test_hit, "0", CVAR_NONE)                 // n: the live monster nearest you struck by a shot of yours (vr_test_hit_damage, never a kill) on its body (1), head (2), an arm (3), a leg (4) (QC vr_hitreact.qc; the hit reactions' tests)
 QVR_CVAR(vr_test_hit_damage, "8", CVAR_NONE)          // ... the shot's damage (left 1 health at least)
+QVR_CVAR(vr_test_hit_watch, "0", CVAR_NONE)           // ... s: the monster struck watched each server frame that long after (`hitwatch:` lines: frame, place, health, enemy, attack state)
 QVR_CVAR(vr_test_hit_calm, "0", CVAR_NONE)            // ... 1: the flinch alone (no pain frames, nobody's blow: it doesn't turn on you; screenshots)
 // Per monster class (Gibs and Corpses > Ragdolls > Grunt, > Knight): -1 (Global) is the setting above, any other value replaces it
 // for that class. Each class's mass is its own by default (the author, 2026-10-03: ROUND21.md, "Ragdoll masses per monster").

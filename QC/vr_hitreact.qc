@@ -202,8 +202,19 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit
 // Test aid `vr_test_hit <n>` (console; Misc/quakevr/ragdoll/hitreact_test.sh): the live monster nearest the player
 // struck by a shot of his (vr_test_hit_damage, never a kill: left 1 health at least), struck (n - 1) on: 0 the body,
 // 1 the head, 2 an arm (its right side as he sees it), 3 a leg, on its side facing him. Prints `test hit:`.
+// ... and the monster it struck watched each frame for vr_test_hit_watch seconds after (`hitwatch:` lines: its frame,
+// place, health, enemy and attack state; the tests compare them with the reactions on and off).
+entity vr_hr_watch;
+float vr_hr_watch_until;
+
 void() VR_TestHit_Frame =
 {
+    if(vr_hr_watch != world && time < vr_hr_watch_until)
+    {
+        dprint(sprintf("hitwatch: %.3f %s frame %g at %v health %g enemy %d state %g\n", time, vr_hr_watch.classname,
+            vr_hr_watch.frame, vr_hr_watch.origin, vr_hr_watch.health, vr_hr_watch.enemy.classname,
+            vr_hr_watch.attack_state));
+    }
     float want = cvar("vr_test_hit");
     if(want < 1)
     {
@@ -259,6 +270,11 @@ void() VR_TestHit_Frame =
     vr_hitpart_target = best;
     vr_hitpart_time = time;
     vr_hitpart_pos = at;
+    if(cvar("vr_test_hit_watch") > 0)
+    {
+        vr_hr_watch = best;
+        vr_hr_watch_until = time + cvar("vr_test_hit_watch");
+    }
     float dmg = min(cvar("vr_test_hit_damage"), best.health - 1);
     dprint(sprintf("test hit: %s at %v (health %g) struck %g at %v for %g\n", best.classname, best.origin, best.health,
         part, at, dmg));
