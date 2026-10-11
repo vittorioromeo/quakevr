@@ -2656,12 +2656,12 @@ QVR_CVAR(vr_foegrab_throw_always, "monster_army monster_enforcer monster_zombie 
 QVR_CVAR(vr_foegrab_throw_when_hurt, "monster_hell_knight monster_ogre monster_ogre_marksman monster_ogre_rocket monster_demon1 monster_ranged_knight", CVAR_ARCHIVE) // only when hurt; any other never (a spawn, a slime, a centroid: no knockdown get-up)
 QVR_CVAR(vr_foegrab_throw_mass_always, "140", CVAR_ARCHIVE) // kg, by mass: this light or lighter always (a mummy 140)
 QVR_CVAR(vr_foegrab_throw_mass_hurt, "300", CVAR_ARCHIVE)   // kg: this light or lighter only when hurt; heavier never (a vore, an overlord never)
-QVR_CVAR(vr_foegrab_throw_push, "190", CVAR_ARCHIVE)      // units/s: the thrown enemy's launch along the throw (times vr_knockdown_push)
-QVR_CVAR(vr_foegrab_throw_lift, "170", CVAR_ARCHIVE)      // units/s: and up
-QVR_CVAR(vr_foegrab_throw_topple, "300", CVAR_ARCHIVE)    // degrees/s: the thrown ragdoll turned over about its feet towards the throw, a sweep (push and lift shared by height); 0: pushed whole, as a shove's
-QVR_CVAR(vr_foegrab_throw_grunt, "0.6", CVAR_ARCHIVE)       // volume (0..1) of the player's grunt as his two-hand throw throws an enemy down (which: _grunt_sound); 0 off
+QVR_CVAR(vr_foegrab_throw_push, "240", CVAR_ARCHIVE)      // units/s: the thrown enemy's launch along the throw (times vr_knockdown_push)
+QVR_CVAR(vr_foegrab_throw_lift, "120", CVAR_ARCHIVE)      // units/s: and up
+QVR_CVAR(vr_foegrab_throw_topple, "200", CVAR_ARCHIVE)    // degrees/s: the thrown ragdoll turned over about its feet towards the throw, a sweep (push and lift shared by height); 0: pushed whole, as a shove's
+QVR_CVAR(vr_foegrab_throw_grunt, "0.75", CVAR_ARCHIVE)       // volume (0..1) of the player's grunt as his two-hand throw throws an enemy down (which: _grunt_sound); 0 off
 QVR_CVAR(vr_foegrab_throw_grunt_sound, "2", CVAR_ARCHIVE)  // which grunt (the mantle's list, vr_climb.cpp mantleGrunts): 0 the jump's, 1 a hard landing's, 2 the jump's deeper, 3 a hard landing's deeper, 4 a short pain grunt
-QVR_CVAR(vr_foegrab_throw_feet_speed, "60", CVAR_ARCHIVE) // units/s: its feet swept back against the throw as it topples (the turn faster, about a pivot raised to match: it spins in place); 0: its feet held still 0.5 s
+QVR_CVAR(vr_foegrab_throw_feet_speed, "30", CVAR_ARCHIVE) // units/s: its feet swept back against the throw as it topples (the turn faster, about a pivot raised to match: it spins in place); 0: its feet held still 0.5 s
 QVR_CVAR(vr_foegrab_throw_spin, "0.55", CVAR_ARCHIVE)      // share of the hands' twist of it about the vertical it spins on with (at most 720 degrees/s)
 QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds taken and let go (and why); 2: and each held frame
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)

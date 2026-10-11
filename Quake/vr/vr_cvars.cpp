@@ -676,8 +676,16 @@ const DefaultChange defaultChanges[] = {
     // 122: the "Loading..." notice off (1.0.0 release blocker: deferring a level change crashed a campaign switch).
     // (A config older than 122 at its 1 keeps 1: the default is 1 again since 123.)
     {122, &vr_loading_notice, "1"},
+    // 124: the author's judo throw (1.0.1, his config of 2026-10-11: "I've tweaked the judo throw values a little bit
+    // to make them feel even better"): launched further along the throw and less up, toppled slower, the feet swept
+    // back slower, the grunt a little louder. A config at the old defaults takes them.
+    {124, &vr_foegrab_throw_feet_speed, "60"}, // 30
+    {124, &vr_foegrab_throw_grunt, "0.6"}, // 0.75
+    {124, &vr_foegrab_throw_lift, "170"}, // 120
+    {124, &vr_foegrab_throw_push, "190"}, // 240
+    {124, &vr_foegrab_throw_topple, "300"}, // 200
 };
-constexpr int configVersion = 123;
+constexpr int configVersion = 124;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

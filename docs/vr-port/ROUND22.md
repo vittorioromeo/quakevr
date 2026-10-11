@@ -1453,3 +1453,26 @@ install (no ironwail.cfg) with a hostile `id1/config.cfg` (`vr_menu_level 2` in 
 **In the headset:** with an `autoexec.cfg` holding `bind LTRIGGER +jump` in the Quake folder's id1: the console's
 skipped line at the start, the left trigger fires. Put it in quakevr instead: the left trigger fires again after the
 start (the guard), with its warning in the console.
+
+## 1.0.1: the author's judo throw values are the defaults
+
+His voice note: "I've tweaked the judo throw values a little bit to make them feel even better. Please make those the
+new defaults." His config of 2026-10-11 against the shipped defaults (Combat > Holding Enemies), config 124 moves a
+config still at the old value:
+
+| cvar | was | now |
+|---|---|---|
+| `vr_foegrab_throw_push` (Throw Push) | 190 | 240 units/s |
+| `vr_foegrab_throw_lift` (Throw Lift) | 170 | 120 units/s |
+| `vr_foegrab_throw_topple` (Topple) | 300 | 200 deg/s |
+| `vr_foegrab_throw_feet_speed` (Feet Speed) | 60 | 30 units/s |
+| `vr_foegrab_throw_grunt` (Throw Grunt) | 0.6 | 0.75 |
+
+The Throw Grunt slider steps 0.05 and shows two decimals (0.75 read "0.8"). Unchanged: `_twist` 140, `_speed` 2.5,
+`_spin` 0.55 (his are the defaults). **Not promoted:** his `vr_knockdown_push` 1.3 (Knockdowns > Launch): the judo
+throw's launch is times it (QC VR_Knockdown_Start), so in his game the throw leaves at 312/156 units/s, but it is every
+knockdown's launch (shoves too) and was left out on purpose last round (the shove redesign). If the throw feels weaker
+on a fresh config, that is why: either promote 1.3 or fold it into Push/Lift (312, 156).
+
+**Test:** `vr_cfg_version 123`, the five at the old values (the grunt at a hand-set 0.66), `vr_migrate_config` →
+240, 120, 200, 30 at default, the grunt kept at 0.66, `vr_cfg_version` 124.
