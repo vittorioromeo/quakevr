@@ -9,7 +9,10 @@
 #      slider dragged;
 #   4. the physgun holding a crate while the mock hand rolls 45 degrees, then turns 30 to its left: the crate's angles
 #      follow the hand (roll, then yaw); X/A held, its angles snap to 15 degree steps;
-#   5. a grunt made by the spawn tool, held by the physgun while the hand rolls and turns: only its yaw follows.
+#      With X/A held, the stick's press while the trigger holds the crate: swallowed (still the physgun, still holding);
+#   5. a grunt made by the spawn tool, held by the physgun while the hand rolls and turns: only its yaw follows; the hand
+#      pointing up, then tilted on over the top: its yaw barely turns (not the Euler yaw's half turn);
+#   6. Remove's "Clear Props Made Since the Map Loaded" found by name; More open, the stick press: More's page closes.
 # --shots: one picture of the panel's pages (Spawn's props, Joint, Physgun, More), scratch/toolgun_panel.png.
 # PASS: every step as said, no crash.
 AGENT=${1:-toolgun2}
@@ -69,7 +72,10 @@ a('echo ROLL45;vr_toolgun_status')
 hand(50, 30, 45, 1.35)
 a('echo YAW30;vr_toolgun_status')
 hand(50, 30, 37, 1.35)
-a('vr_mock_button main primary 1;wait5;echo SNAP;vr_toolgun_status;vr_mock_button main primary 0;wait3')
+a('vr_mock_button main primary 1;wait5;echo SNAP;vr_toolgun_status')
+# (the stick pushed hard while adjusting: its press, swallowed while the trigger holds the crate)
+a('vr_mock_button main stickclick 1;wait2;vr_mock_button main stickclick 0;wait3;echo STICKHOLD;vr_toolgun_status')
+a('vr_mock_button main primary 0;wait3')
 a('vr_mock_button main trigger 0;wait10;vr_toolgun_icons')
 # 5. A grunt made by the spawn tool where the gun points, held by the physgun while the hand rolls: it turns only about
 #    the up axis (its pitch and roll stay).
@@ -78,13 +84,25 @@ hand(40, 0, 0, 1.35)
 a('vr_mock_button main trigger 1;wait3;vr_mock_button main trigger 0;wait30;vr_toolgun_tool 2;wait5')
 a('vr_mock_button main trigger 1;wait20;echo MONSTER0;vr_toolgun_status')
 hand(40, 25, 45, 1.35)
-a('echo MONSTER1;vr_toolgun_status;vr_mock_button main trigger 0;wait10')
+a('echo MONSTER1;vr_toolgun_status')
+# (the controller pitched 80, then tilted 20 degrees on over its top: pitch 100 is Euler (80, 180, 180), its yaw a half
+# turn away; its way barely turns)
+hand(80, 0, 0, 1.35)
+a('echo MONSTER2;vr_toolgun_status')
+hand(100, 0, 0, 1.35)
+a('echo MONSTER3;vr_toolgun_status;vr_mock_button main trigger 0;wait10')
+# 6. Remove's long button found by its whole name; More open, the stick press changes the tool and closes More.
+a('vr_toolgun_tool 1;vr_mock_button main secondary 1;wait2;vr_mock_button main secondary 0;wait10')
+a('vr_toolgun_mock_laser Clear Props Made Since the Map Loaded;wait3;echo LONGNAME')
+name('More')
+a('echo MORE1;vr_toolgun_panel_dump')
+a('vr_mock_button main stickclick 1;wait2;vr_mock_button main stickclick 0;wait5;echo MORE2;vr_toolgun_panel_dump;echo MOREEND')
 a('wait5;toggleconsole;quit')
 print(';'.join(s))
 EOF
 )
 OUT=; [ -n "$SHOTS" ] && OUT="-Clean -Out toolgun_panel.png"
-out=$(bash $KIT/run.sh $AGENT $OUT -Script "$S" -Timeout 600 -Filter 'STEP|CYCLE|BACK|JOINT|GOD|SIZE|CLOSED|HOLD|ROLL|YAW|SNAP|MONSTER|toolgun|vr_toolgun|ENGINE|CRASH|exit=|TIMEOUT|composed' 2>&1)
+out=$(bash $KIT/run.sh $AGENT $OUT -Script "$S" -Timeout 600 -Filter 'STEP|CYCLE|BACK|JOINT|GOD|SIZE|CLOSED|HOLD|ROLL|YAW|SNAP|MONSTER|LONGNAME|MORE|God Mode|toolgun|vr_toolgun|ENGINE|CRASH|exit=|TIMEOUT|composed' 2>&1)
 [ -n "$VERBOSE" ] && echo "$out" | tail -80
 echo "$out" | python -c "
 import sys, re
@@ -135,6 +153,15 @@ m0, m1 = angles('MONSTER0'), angles('MONSTER1')
 print('monster held', m0, 'turned', m1)
 if not (m0 and m1) or abs(m1[0] - m0[0]) > 0.01 or abs(m1[2] - m0[2]) > 0.01 or abs(d(m1[1], m0[1])) < 5:
     fails.append('the monster did not turn about its up axis alone')
+m2, m3 = angles('MONSTER2'), angles('MONSTER3')
+print('monster pointing up', m2, 'tilted over the top', m3)
+if not (m2 and m3) or abs(d(m3[1], m2[1])) > 10:
+    fails.append('the monster spun as the hand went over the top')
+if not re.search(r'STICKHOLD\s*\ntoolgun: hand 1, tool Physgun[^\n]*\n(toolgun: (?!physgun)[^\n]*\n)*toolgun: physgun holds', t):
+    fails.append('stick press while holding: the tool changed or the crate was dropped')
+if re.search(r'no \"Clear Props Made Since the Map Loaded\"', t): fails.append('long widget name not found')
+m = re.search(r'MORE1(.*?)MORE2(.*?)MOREEND', t, re.S)
+if not m or 'God Mode' not in m.group(1) or 'God Mode' in m.group(2): fails.append('More not closed by the stick press')
 if re.search(r'ENGINE CRASH|ENGINE ERROR|TIMEOUT|exit=[1-9]', t): fails.append('crash')
 print('FAIL: ' + '; '.join(fails) if fails else 'PASS')
 "
