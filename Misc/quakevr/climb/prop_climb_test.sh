@@ -12,9 +12,14 @@
 #   knock  a large crate held, flung away (vr_physics_fling, 300 units/s): the hands let go ("knocked away")
 #   hang   a large crate held 6 s: no let-go, the body still (within 6 units of the pull's rise)
 #   off    vr_climb_props 0: no hold on it
+#   lift   the light case, then in the same game vrclimb's lift (climb_plays.py liftride): its lip held as it rises, the
+#          holds not marked light (a light prop's flag was left on the hands: no carry from a hold the QC moves) and the
+#          body carried up (over z 60)
+# light, close: the let-go is the slip ("pulled away"), not any let-go. Not covered: the small crates (spawns 123, 124;
+# vr_climb_try finds no hold at a small crate's lip, ROUND22.md "Review fixes").
 # The plays (climb_plays.py pullup) are written to the agent's scratch/climb. Prints each case's lines and the verdicts.
 AGENT=${1:?agent}; shift
-CASES=${*:-heavy stack side light close knock hang off}
+CASES=${*:-heavy stack side light close knock hang off lift}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
 W=C:/OHWorkspace/qvr-agents/$AGENT
@@ -25,7 +30,11 @@ import sys; sys.path.insert(0, sys.argv[1]); import climb_plays as c
 for name, args in (('pc_mantle', (1.52, 0.72, -0.69, -0.49)), ('pc_stack', (3.04, 1.0)), ('pc_side', (1.27, 0.47, -0.69, -0.49)),
                    ('pc_hang', (1.52, 1.37, -0.69, -0.69)), ('pc_hangfar', (1.52, 1.37, -1.0, -1.0))):
     L, t = c.pullup(*args); c.write(sys.argv[2] + '/' + name + '.txt', L)
+L, t = c.mover('liftride'); c.write(sys.argv[2] + '/pc_liftride.txt', L)
 " "$HERE" "$D"
+# after the light case: the hands let go, the player onto the lift's trigger (it starts rising: its lip reaches the hands
+# as they grip), holding its lip
+LIFT="wait500;viewpos;-graboff;-grabmain;wait10;setpos -318 88 24 0 0 0;noclip;wait50;vr_mock_play $D/pc_liftride.txt"
 fail=0
 run() { # name kind play extra-before after-play frames dist
   bash $KIT/run.sh $AGENT -Script "map vrclimb;wait30;god;notarget;developer 1;vr_climb 1;vr_climb_debug 1;setpos -300 -100 24 0 90 0;noclip;wait20;vr_test_spawn_dist $7;vr_test_spawn $2;impulse 241;wait90;$4;vr_mock_play $D/$3.txt;$5;wait$6;viewpos;vr_climb_debug 0;developer 0;toggleconsole;quit" \
@@ -48,6 +57,7 @@ for c in $CASES; do
     knock) log=$(run knock 120 pc_hang echo "wait150;vr_physics_fling nearest 300 90" 300 40);;
     hang)  log=$(run hang 120 pc_hang echo echo 450 40);;
     off)   log=$(run off 120 pc_hang "vr_climb_props 0" echo 200 40);;
+    lift)  log=$(run lift 120 pc_hangfar "vr_climb_prop_mass 70" "$LIFT" 500 50);;
     *) echo "unknown case $c"; continue;;
   esac
   echo "$log"
@@ -57,11 +67,13 @@ for c in $CASES; do
     heavy) echo "$log" | grep -q "mantled onto" && awk -v z="$z" 'BEGIN{exit !(z > 70 && z < 75)}' && ok=1;;
     stack) echo "$log" | grep -q "mantled onto" && awk -v z="$z" 'BEGIN{exit !(z > 118 && z < 123)}' && ok=1;;
     side)  echo "$log" | grep -q "mantled onto" && awk -v z="$z" 'BEGIN{exit !(z > 60 && z < 68)}' && ok=1;;
-    light|close) echo "$log" | grep -q "lets go of prop" && awk -v x="$x" -v y="$y" 'BEGIN{exit !((x+300)^2 + (y+100)^2 < 4)}' && ok=1;;
+    light|close) echo "$log" | grep -q "lets go of prop.*pulled away" && awk -v x="$x" -v y="$y" 'BEGIN{exit !((x+300)^2 + (y+100)^2 < 4)}' && ok=1;;
     knock) echo "$log" | grep -q "knocked away" && ok=1;;
     hang)  echo "$log" | grep -q "hand holds" && ! echo "$log" | grep -q "lets go" &&
              awk -v x="$x" -v y="$y" -v z="$z" 'BEGIN{exit !((x+300)^2 + (y+100)^2 < 4 && z < 31)}' && ok=1;;
     off)   ! echo "$log" | grep -q "hand holds" && ok=1;;
+    lift)  [ "$(echo "$log" | grep -c "hand holds")" = 4 ] && ! echo "$log" | grep -q "hand holds at [0-9.]*, light" &&
+             awk -v z="$z" 'BEGIN{exit !(z > 60)}' && ok=1;;
   esac
   verdict $c $ok
 done

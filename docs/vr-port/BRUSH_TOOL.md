@@ -375,7 +375,11 @@ Differences from the plan above:
   luxel bake needs real lightmap blocks per face (a bigger reserve with a small allocator).
 - **Lux** (deluxemaps): the reserve's directions "straight on" (the bump term flat).
 - **Decals**: laid on brush faces like the world's, drawn by the world shader's decal grid (the brush instances flagged
-  as the world's); on any change or removal the marks in its old box are dropped (stage 1: no owner-relative marks).
+  as the world's), each mark tagged with the brush it lies on; a move, resize or removal drops the marks laid on the
+  brush (stage 1: no owner-relative marks), the world's beside it stay; a paint (only the textures changed) keeps them,
+  and keeps the brush's revision: its Box3D hulls, ledge map and held weapons' triangles stay as they are.
+- **Edits elsewhere**: a box's edit drops only its own ledge map (a hold on the world's or another box's keeps its
+  depth and slide data), and Box3D frees the box's old hulls once its mover body is made again.
 - **No QC spawn function** for `func_qvr_brush` yet (the engine makes the entity); a map or bake placing one needs it
   (and the FGD entry).
 - **Saves**: brushes are not saved; a save's brush entities are removed after its load (said once) and their model

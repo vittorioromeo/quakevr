@@ -75,6 +75,7 @@ public:
     // How it was made: faces looked at, lip pieces found on them, lines they joined into, the ledges, the time.
     int faces{0}, pieces{0}, lines{0};
     double ms{0.0};
+    za::U32 serial{0}; // which map of the cache it is (each one made a new number: alive)
     [[nodiscard]] size_t bytes() const;
 
     void finish(); // the grid, once the edges are in
@@ -106,13 +107,16 @@ void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody&
 // loads, with Climbing on), kept until the map changes (a runtime brush's: until it changes, forget).
 [[nodiscard]] const Map* of(const qmodel_t* model);
 
-// A runtime brush's model made again (vr_brushes.cpp): its map dropped (made again when asked for), and generation()
-// counts it (a hold on any Map* kept is let go).
+// A runtime brush's model made again (vr_brushes.cpp): its map dropped (made again when asked for), and forgets() counts
+// it (a Map* kept may be that one: alive says).
 void forget(const qmodel_t* model);
 
-// Counts the times the maps were dropped (a new world model, a runtime brush changed): a Map* kept from an older count is
-// gone.
+// Counts the times all the maps were dropped (a new world model): a Map* kept from an older count is gone.
 [[nodiscard]] int generation();
+// Counts the times one map was dropped (forget); while it is unchanged, every Map* kept since is still good.
+[[nodiscard]] int forgets();
+// Whether `m`, made as `serial` (Map::serial), is still one of the maps (a Map* of an older forgets()).
+[[nodiscard]] bool alive(const Map* m, za::U32 serial);
 
 // Server: the map has loaded (VR_OnSpawnServerAfterLoad).
 void afterLoad();

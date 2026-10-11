@@ -26,7 +26,7 @@ if not os.path.exists(BASH):
     BASH = "bash"
 SCRATCH = f"C:/OHWorkspace/qvr-agents/{AGENT}/scratch"
 os.makedirs(SCRATCH, exist_ok=True)
-FILT = "brush|^  [0-9]+: entity|toolgun|climb: mantle|saved game|walltime|^ *(frame|render|world) |ENGINE|CRASH|exit=|TIMEOUT|composed"
+FILT = "brush|box3d: .*(convex pieces|retired)|decals laid|lets go|^  [0-9]+: entity|toolgun|climb: mantle|saved game|walltime|^ *(frame|render|world) |ENGINE|CRASH|exit=|TIMEOUT|composed"
 fails = []
 
 def run(cmds, out=None, extra=()):
@@ -58,12 +58,15 @@ def hand(pitch, yaw=0):
 def trig(v, w=3):
     return f"vr_mock_button main trigger {v};wait{w}"
 
-def mantle_play(path, hy=1.49, fwd=-0.69):
+def mantle_play(path, hy=1.49, fwd=-0.69, extra=(), pull_at=1.0):
+    # both hands onto a lip at hy (tracking metres), pulled down and in from pull_at over 1 s (a mantle), let go 0.6 s
+    # after; `extra`: more lines (commands at their times)
     L = []
     for h, x in (("off", -0.12), ("main", 0.12)):
-        L += [f"0.000 {h} {x} 1.2 -0.3 0 0 0", f"0.500 {h} {x} {hy} {fwd} 0 0 0", f"1.000 {h} {x} {hy} {fwd} 0 0 0",
-              f"2.000 {h} {x} {hy - 0.8} {fwd + 0.2} 0 0 0", f"3.000 {h} {x} {hy - 0.8} {fwd + 0.2} 0 0 0"]
-    L += ["0.700 cmd +graboff", "0.750 cmd +grabmain", "2.600 cmd -graboff", "2.600 cmd -grabmain"]
+        L += [f"0.000 {h} {x} 1.2 -0.3 0 0 0", f"0.500 {h} {x} {hy} {fwd} 0 0 0", f"{pull_at:.3f} {h} {x} {hy} {fwd} 0 0 0",
+              f"{pull_at + 1:.3f} {h} {x} {hy - 0.8} {fwd + 0.2} 0 0 0", f"{pull_at + 2:.3f} {h} {x} {hy - 0.8} {fwd + 0.2} 0 0 0"]
+    L += ["0.700 cmd +graboff", "0.750 cmd +grabmain", f"{pull_at + 1.6:.3f} cmd -graboff", f"{pull_at + 1.6:.3f} cmd -grabmain"]
+    L += list(extra)
     with open(path, "w", newline="\n") as f:
         f.write("\n".join(L) + "\n")
 
@@ -97,6 +100,16 @@ t = run(["vr_climb 1"] + R + ["vr_climb_debug 1", "vr_brush_box 202 -620 32 298 
 e = ents(t)
 check("climb: mantled onto" in t and e and e[-1][3] == 1 and abs(e[-1][2] - 104) < 2, f"climb: mantled onto the box ({e[-1] if e else None})")
 
+# a box made (its ledge map made: Show Ledges) and moved far off while the hands hold vrclimb's long ledge, then the
+# mantle over it (the holds kept through the box's edit: ledges::alive; the edit drops only its own map)
+p = SCRATCH + "/brush_mantle_edit.txt"
+mantle_play(p, hy=1.51, extra=["0.900 cmd vr_brush_box -400 -400 0 -380 -380 40", "1.000 cmd vr_debug_ledges 1",
+                               "1.200 cmd vr_debug_ledges 0", "1.300 cmd vr_brush_move 1 0 8 0"], pull_at=1.5)
+t = run(["vr_climb 1", "map vrclimb", "wait30", "god", "notarget", "vr_climb_debug 1", "setpos 78 176 24 0 0 0", "noclip",
+         "wait20", "vr_mock_play " + p, "wait400"])
+check("brush: 1 moved 0 8 0" in t and "climb: mantled onto" in t and "lets go" not in t.split("brush: 1 moved")[-1].split("mantled")[0],
+      "edit: a box moved while the hands hold the world's ledge: still held, mantled onto it")
+
 # monster on a platform; sight through a wall
 t = run(["map vrfiringrange", "wait60", "god", "vr_brush_box 0 -604 200 320 -508 216", "wait5", "setpos 296 -556 242 0 180 0",
          "noclip", "wait10", "vr_brush_spawn monster_army 32 -556 240 0", "wait5", "vr_brush_ent last", "wait288", "vr_brush_ent last"])
@@ -111,9 +124,23 @@ check(len(e) == 2 and e[0][5] == 0 and e[1][5] == 1 and e[1][0] > 230, f"sight: 
 # rocket
 t = run(R + ["vr_weapon_grip_mode 1", "vr_brush_box 156 -620 32 188 -492 160", "impulse 9", "wait2", "impulse 160", "wait30",
              "vr_mock_hand main 0.08 1.2 -0.3 70 0 0", "wait30", "+attack", "wait10", "-attack", "wait60", "vr_brush_list",
+             "vr_debug_box3d 1", "vr_brush_texture 1 city6_4", "wait5", "vr_brush_list", "vr_brush_move 1 0 8 0", "wait5",
+             "vr_brush_list", "vr_brush_move 1 0 -8 0", "wait5", "vr_debug_box3d 0",
              "vr_brush_delete 1", "wait5", "vr_brush_box 156 -620 32 188 -492 160", "vr_brush_list"])
 marks = [int(x) for x in re.findall(r"^  1: entity .*, (\d+) decals", t, re.M)]
-check(len(marks) == 2 and marks[0] >= 1 and marks[1] == 0, f"rocket: its scorch on the box, gone with it ({marks})")
+check(len(marks) == 4 and marks[0] >= 1 and marks[1] == marks[0] and marks[2] == 0 and marks[3] == 0,
+      f"rocket: its scorch on the box, kept when painted, gone when moved, none on a new box ({marks})")
+pieces = re.findall(r"box3d: \*qvrbrush/1: \d+ convex pieces", t)
+freed = re.findall(r"box3d: (\d+) retired hulls freed, (\d+) kept", t)
+check(len(pieces) == 2 and len(freed) == 2 and freed[-1][1] == "0",
+      f"rocket: Box3D's hulls made again for the two moves, not the paint; the old ones freed ({len(pieces)}, {freed})")
+
+# marks on the floor under a box (laid before it, a unit under it) stay through its edits (only its own marks go)
+t = run(R + ["vr_decal_stress 6 10 stack", "wait10", "vr_decal_count", "vr_brush_box 196 -580 18 244 -532 96", "wait5",
+             "vr_brush_texture 1 city6_4", "wait5", "vr_brush_move 1 0 4 0", "wait5", "vr_brush_set 1 196 -580 18 244 -532 120",
+             "wait5", "vr_decal_count", "vr_brush_list"])
+laid = [int(x) for x in re.findall(r"decals laid: (\d+)", t)]
+check(len(laid) == 2 and laid[0] >= 4 and laid[1] == laid[0], f"floor: the marks under a box kept through its edits ({laid})")
 
 # the tool
 ST = "vr_toolgun_brush_status"
@@ -124,9 +151,11 @@ t = run(R + ["impulse 169", "vr_weapon_grip_mode 1", "wait10", "vr_toolgun_tool 
              "vr_brush_texture_set city6_4", "vr_toolgun_brush_mode_set paint", hand(50, -10), trig(1), trig(0),
              "vr_toolgun_brush_mode_set copy", trig(1), trig(0), hand(35, 30), trig(1), trig(0), "vr_brush_list",
              "vr_toolgun_brush_mode_set delete", hand(35, 30), trig(1), trig(0), "vr_brush_list"])
-check(re.search(r"toolgun: box 1 made, 176 -616 17 \.\. 200 -552 81", t) is not None, "tool: created by dragging and raising")
+# (the corners with the toolgun's muzzle on its lens's middle, weapon settings 42: -552 and -512 with the old one, ~1 cm
+# off, the far edge a grid step further)
+check(re.search(r"toolgun: box 1 made, 176 -616 17 \.\. 200 -560 81", t) is not None, "tool: created by dragging and raising")
 check("toolgun: box 1 moved 0 40 0" in t, "tool: moved 40 sideways")
-check("toolgun: box 1 resized to 176 -576 17 .. 200 -512 104" in t, "tool: the top pulled up to 104")
+check("toolgun: box 1 resized to 176 -576 17 .. 200 -520 104" in t, "tool: the top pulled up to 104")
 check("toolgun: box 1 painted city6_4" in t, "tool: painted")
 check("toolgun: box 2 made as a copy" in t and "toolgun: box 2 removed" in t, "tool: copied, the copy deleted")
 

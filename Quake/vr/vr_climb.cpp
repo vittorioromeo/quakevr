@@ -924,6 +924,8 @@ struct Grip
     float allowed{0.f};        // how far the hold may be from the shoulder (the reach, or further if taken further)
     int entModel{0};           // its model (a hold lets go if it changes)
     int mapGeneration{-1};     // ledge.map's (ledges::generation: the map is gone if it changed)
+    int mapForgets{-1};        // ledges::forgets then (changed: a runtime brush's map dropped, maybe this one)
+    za::U32 mapSerial{0};      // and the map's Map::serial (ledges::alive)
     // The mantle's search (findMantle), kept for the hold: the last search that found no room (not searched again, the
     // body hanging still, until `mantleRetry`).
     bool missed{false};
@@ -1116,7 +1118,12 @@ Climber climbers[MAX_SCOREBOARD];
     {
         return g.propMap.edges.empty() ? nullptr : &g.propMap;
     }
-    return g.ledge.map && g.ledge.edge >= 0 && g.mapGeneration == ledges::generation() ? g.ledge.map : nullptr;
+    if(!g.ledge.map || g.ledge.edge < 0 || g.mapGeneration != ledges::generation())
+    {
+        return nullptr;
+    }
+    // (a runtime brush changed since: only a hold on its map lost it; the world's and the others' are kept)
+    return g.mapForgets == ledges::forgets() || ledges::alive(g.ledge.map, g.mapSerial) ? g.ledge.map : nullptr;
 }
 
 // The top of grip `g`'s ledge now.
@@ -2122,7 +2129,10 @@ static void climbPreThink(edict_t* ent)
         g.entModel = ledge->ent ? static_cast<int>(ledge->ent->v.modelindex) : 0;
         g.ledge.ent = nullptr; // (kept as its number: entNum)
         g.mapGeneration = ledges::generation();
+        g.mapForgets = ledges::forgets();
+        g.mapSerial = ledge->map ? ledge->map->serial : 0u;
         g.prop = ledge->prop;
+        g.light = false; // (set below for a prop's; a stale one would stop a later mover carrying the body)
         g.propMap.edges.clear();
         g.propMap.samples.clear();
         float propMass = 0.f;
@@ -2156,8 +2166,10 @@ static void climbPreThink(edict_t* ent)
         physsound::grab(ent, ledge->hold, ledge->ent); // a slap and a tap of the hold's material
         if(debug())
         {
-            Con_Printf("climb: %s hand holds at %.1f (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s%s%s\n",
-                handName(h), ledge->top, ledge->out.x, ledge->out.y, hand.x, hand.y, hand.z, ledge->hold.x, ledge->hold.y,
+            // (", light" on a hold not on a prop: a light prop's flag left on the hand, which would stop a model the
+            // QC moves carrying the body; prop_climb_test.sh's lift case. Early in the line: the log wraps it.)
+            Con_Printf("climb: %s hand holds at %.1f%s (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s%s%s\n",
+                handName(h), ledge->top, !g.prop && g.light ? ", light" : "", ledge->out.x, ledge->out.y, hand.x, hand.y, hand.z, ledge->hold.x, ledge->hold.y,
                 ledge->hold.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], hanging ? ", both hands" : "", how,
                 retry ? va(", pressed %.0f ms before, in the air", (time - c.missedAt[h]) * 1000.0) : "",
                 g.prop ? va(", prop %d (%s, %.0f kg)", g.entNum, g.light ? "light" : "heavy", propMass) : "");

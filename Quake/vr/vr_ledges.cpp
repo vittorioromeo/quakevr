@@ -33,6 +33,7 @@
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
+#include "vr_mem.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
@@ -511,10 +512,12 @@ void lineLedges(const Hull& h, const Line& line, za::Vector<Edge>& edges, za::Ve
 }
 
 jobs::Site linesSite{"ledge lines"}; // (its parallelFor: vr_jobs_sites)
+za::U32 lastSerial = 0;              // the last map made's Map::serial (build, the main thread)
 
 [[nodiscard]] za::UniquePtr<Map> build(const qmodel_t* model)
 {
     auto map = za::makeUnique<Map>();
+    map->serial = ++lastSerial;
     const double t0 = Sys_DoubleTime();
     hull_t* hull = const_cast<hull_t*>(&model->hulls[0]);
     if(model->type == mod_brush && hull->clipnodes && hull->planes && model->surfaces)
@@ -572,7 +575,8 @@ struct Cache
     return w && !strcmp(cache.world, w->name) && cache.vertexes == w->numvertexes && cache.surfaces == w->numsurfaces;
 }
 
-int dropped = 0; // generation()
+int dropped = 0;       // generation()
+int forgotten = 0;     // forgets()
 
 void resetCache()
 {
@@ -854,6 +858,15 @@ namespace
     return (part(c.x) << 42) | (part(c.y) << 21) | part(c.z);
 }
 
+// Show Ledges' buffers (debugDraw, the main thread).
+struct DrawScratch
+{
+    Map props;              // the solid props' ledges as they lie now
+    za::Vector<int> nums;   // and each one's prop
+    auto members() { return mem::list(props, nums); }
+};
+mem::Scratch<DrawScratch> drawScratch{"ledges draw"};
+
 } // namespace
 
 void Map::finish()
@@ -936,8 +949,25 @@ void forget(const qmodel_t* model)
     if(it != cache.maps.end())
     {
         cache.maps.erase(it);
-        dropped++;
+        forgotten++;
     }
+}
+
+int forgets()
+{
+    return forgotten;
+}
+
+bool alive(const Map* m, za::U32 serial)
+{
+    for(const auto& kv : cache.maps)
+    {
+        if(kv.second.get() == m)
+        {
+            return m->serial == serial;
+        }
+    }
+    return false;
 }
 
 const Map* of(const qmodel_t* model)
@@ -1046,8 +1076,11 @@ void debugDraw()
     if(vr_climb_props.value != 0.f)
     {
         const glm::vec3 propColour{1.f, 0.55f, 0.1f};
-        Map props;
-        za::Vector<int> nums;
+        Map& props = drawScratch.props;
+        za::Vector<int>& nums = drawScratch.nums;
+        props.edges.clear();
+        props.samples.clear();
+        nums.clear();
         for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
         {
             box3d::ClimbBody body;

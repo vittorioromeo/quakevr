@@ -1801,7 +1801,7 @@ the skins change. Dropping them is one call (`charts = merge_by_strips(...)`) fo
 **Found:** the toolgun's muzzle (slot 26) is `15.0245 -0.6162 5.3987`, the conversion of index 614, which was
 make_toolgun.py's printed *file* vertex number taken as a strip index: 0.86 units from the lens's front centre the
 script meant (`15.4 0.0064 5.7941`, which it prints now). Kept as shipped (behaviour unchanged); the author may want the
-script's point.
+script's point. (Taken later: "Review fixes" below, weapon settings 42.)
 
 **For the author.** In VR: fire the grenade launcher, the proximity gun and the multi-grenade launcher: the flash,
 smoke and shot now leave from the barrel's end face in the firing frame too (before, the point jumped with the flash's
@@ -2011,7 +2011,9 @@ physgun should turn what it holds by the wrist (and with the body), the sticks s
   them is cheaper than reading a file.
 - **Tools by a button:** the gun's stick press is the next tool, with X/A held the one before (`vr_toolgun_next`), a
   pulse in the gun's hand; the gun's own screen already says the tool (and the spawn choice, the joint). The stick
-  press was the stick's own key otherwise (RTHUMB `+reloadmain`, LTHUMB `+speed`), which the toolgun doesn't use; it
+  press was the stick's own key otherwise (RTHUMB `+reloadmain`, LTHUMB `+speed`). With the toolgun in the off hand
+  that is the move stick's press, so the run/walk switch is lost while the toolgun is held (walking with the panel open
+  included). It is swallowed while the trigger holds something (the stick pushed hard while adjusting a held prop). It
   is left to bullet time when `vr_bullettime_trigger` names that stick (`bullettime::ownsStick`). The menu gesture
   (both stick presses) still opens the menu (it is read first; the first press also turns the tool).
 - **The physgun's wrist** (`vr_toolgun_physgun_wrist` 1): what it holds keeps the turn it had to the gun's hand when
@@ -3124,3 +3126,69 @@ committed vore-shove test.
 
 Not changed (his call): vr_hitreact.cpp's own `chestOf`/`regionOf` (they read the rig, not the parts), fallFrame's
 arm brace beside stage 4's Catch, the env "hit" test through a real shot.
+## Review fixes: climbing props, the toolgun's panel, runtime brushes (2026-10-11, worktree `fixtools`)
+
+The review of `next` (groups g2 and g3) found these; each is its own commit on `agent/fixtools`.
+
+**Climbing props.** A hand's light-prop flag was set only on a prop's hold, so after holding a light prop the same
+hand's next hold elsewhere kept it: a hold the QC moves (or a heavy prop's) no longer carried the body. It is reset on
+every hold; the hold's debug line says `, light` after its height on a hold not on a prop (a stale flag), which
+`prop_climb_test.sh`'s new `lift` case looks for: the light case, then vrclimb's lift held as it rises (FAIL without
+the fix: `holds at 51.2, light`; PASS with it, carried to z 74). Movers Quake pushes carry the body either way
+(`VR_ClimbCarried`), so the old bug showed only with holds the QC moves. The `light` and `close` cases now need the
+slip ("pulled away"), not any let-go. Show Ledges' prop ledges use a scratch set (`ledges draw`), no allocation a
+frame. 9 PASS. Not covered: the small crates (spawns 123, 124): `vr_climb_try` finds no hold at a small crate's lip,
+alone or on a large one, where a large crate's is found ("0 holds seen", the hand on the spot the large crate's hold
+has); left for a look (the claim of a hold on a small crate on a stack is untested).
+
+**The toolgun.**
+- The gun's stick press while the trigger holds something (the physgun's prop, Scale's gizmo, a box being made or
+  moved) is swallowed: pushed hard while adjusting it changed the tool and dropped the prop.
+- More's page closes when the stick press changes the tool.
+- A held monster turns with the hand's yaw only as the hand points within 60 degrees of level, none past 80, a share
+  between: near straight up or down the Euler yaw swings with a small tilt (by a half turn over the top).
+- The thumbnails' .mdl and .bsp readers bound every count and offset from the file before adding or multiplying.
+- The panel's widget names hold 48 characters ("Clear Props Made Since the Map Loaded", 37, was cut).
+- Leftovers: one `toolgun::haptic`, `interact` uses `hovering`, the joint hints checked against the joint kinds
+  (`static_assert`), `mockLaserHand` inlined. ROUND22's stick press note: a left-hand toolgun takes the move stick's
+  `+speed`.
+- **The muzzle on the lens's middle** (the author: "Please fix the off-center toolgun muzzle"): slot 26's
+  `MuzzleAnchor` is `15.4 0.0064 5.7941`, the lens's front face's middle vertex (`anchors.py check`: 0.0000 off the
+  surface; the old point was a corner of the lens's back, 0.86 model units off: 0.33 Quake units, about 1 cm). Weapon
+  settings 42 move a config still at the old point (his has it, as `vr_wofs_muzzle_av_27`). In the game the aim's start
+  moved (-0.2, -0.3, 0.2) units at a level aim (up onto the barrel's axis). `brush_test.py`'s tool corners moved with it
+  (the far edge a grid step: -560 and -520, checked with the old point set by hand: -552 and -512).
+- `toolgun_panel_test.sh` covers the stick press while holding (still the physgun, still holding), More closed by the
+  stick press, the monster as the controller goes over its top (yaw unchanged: the old way turned it a half turn),
+  Remove's long button by name. PASS; thumbnails 15 made, 0 failed.
+
+**Runtime brushes.**
+- A paint (only textures changed) keeps the box's revision: no new Box3D hulls, ledge map or held weapons' triangles,
+  its marks kept. A move, resize or removal drops the marks laid on the box (each mark now carries its brush: 0 none,
+  -1 several, those by the old box), not the world's beside it (`vr_decal_count` prints the marks laid and those on
+  brushes; `vr_brush_list`'s count is the brush's own).
+- A box's edit drops only its own ledge map: holds on the world's or other boxes' keep their depth and slide data
+  (`ledges::forgets`, `ledges::alive` by the map's serial; the global generation is for a new world only).
+- Box3D frees a box's old hulls once no mover body of that model and revision is left (they were kept to the map's
+  end: one set per Move, Resize or Paint); `vr_debug_box3d` says so.
+- The world's usable textures and the default are found once a world, a cache emptied at a map or game change (no
+  rescans every panel frame; no stale default when a later world lands in the same model slot).
+- `brush_test.py`: the rocket's scorch kept when painted, gone when moved, the hulls made again for the two moves only
+  and freed; six marks on the floor under a box (a unit under it) kept through a paint, a move and a resize; a box made
+  and moved while the hands hold vrclimb's long ledge, then the mantle. PASS. The last doesn't tell the old code from
+  the new (no readout of a grip's map; the slide came out the same with the old check), so the ledge
+  change is checked by reading only.
+
+**Box3D update.** CREDITS.md's row: 0.2.0 (main `5d83df83`), run on the engine's job pool.
+
+**Not changed (his decision):** the toolgun's snapping on X/A (F2). Also left: the carry divided by the light-prop
+grips too (g2's second finding: a design choice), the panel redrawn every frame (F8: the cheats' lit states and the
+info line come from game state, so a dirty check isn't simple), the brushes' frozen animated light (g3's third).
+
+**Tests:** `prop_climb_test.sh` 9 PASS, `slopes_test.sh` 8 PASS, `toolgun_panel_test.sh` PASS, `brush_test.py` PASS,
+e1m1 smoke clean.
+
+**In the headset:** the toolgun's beam leaves the lens's middle; push the gun's stick hard while turning a held prop
+(X/A): it stays held; with More open, the stick press shows the new tool's page; lift a grunt with the physgun and
+point the gun steeply up and down: it doesn't spin. Make a box against a scorched wall, paint and move it: the wall's
+mark stays.

@@ -119,6 +119,7 @@ struct Decal
     // a mark keeps its place, so only the new ones are hashed when the grid is made again.
     za::Vector<za::U32> buckets;
     za::U32 bucketsMask = 0;
+    int brush = 0; // the runtime brush (vr_brushes.cpp) it lies on, by id (0: none; -1: more than one)
 };
 
 // Oldest first (drawn in that order; the oldest go first): a ring of vr_decal_max slots, whose marks' triangles keep
@@ -785,10 +786,12 @@ void clipPolygon(const za::Vector<glm::vec3>& poly, const glm::vec3& normal, flo
 // Lays decal `d` (on a surface facing `n`) on the world: its footprint (the box of its centre, u
 // and v, `depth` deep either side of the surface) cut out of each face of the world in it that faces
 // about its way, as triangles (into `tris`, emptied first), lifted off the face a little. Faces are found down the BSP
-// tree (those on the nodes whose planes cross the box); sky, liquids and fences are left out.
-void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Corner>& tris)
+// tree (those on the nodes whose planes cross the box); sky, liquids and fences are left out. `brush`: the runtime brush
+// it was laid on (0: none, -1: more than one).
+void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Corner>& tris, int& brush)
 {
     tris.clear();
+    brush = 0;
     const qmodel_t* m = cl.worldmodel;
     const float hu = glm::length(d.u), hv = glm::length(d.v);
     if(!m || !m->nodes || hu <= 0.f || hv <= 0.f)
@@ -891,7 +894,7 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
         }
     }
     // The boxes made in the game (vr_brushes.cpp): their faces in the footprint's box, as the world's.
-    brushes::facesIn(lo, hi, [&](const za::Vector<glm::vec3>& face, const glm::vec3& sn) {
+    brushes::facesIn(lo, hi, [&](const za::Vector<glm::vec3>& face, const glm::vec3& sn, int id) {
         if(tris.size() >= maxCorners || face.size() < 3 || glm::dot(sn, n) < 0.5f ||
             za::fabs(glm::dot(d.centre - face[0], sn)) > depth)
         {
@@ -902,7 +905,12 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
         {
             poly.pushBack(p);
         }
+        const za::SizeT before = tris.size();
         layOn(sn);
+        if(tris.size() > before)
+        {
+            brush = brush == 0 || brush == id ? id : -1;
+        }
     });
 }
 
@@ -1020,7 +1028,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     d.normal = n;
     d.depth = big ? za::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f;
     za::Vector<Corner>& tris = scratch.tris;
-    clipToWorld(d, n, d.depth, tris);
+    clipToWorld(d, n, d.depth, tris, d.brush);
     if(tris.empty())
     {
         return false;
@@ -1778,9 +1786,16 @@ void count_f()
         }
         kinds[kind]++;
     }
+    int showing = 0, onBrushes = 0;
+    for(za::SizeT k = 0; k < decals.size(); k++)
+    {
+        showing += decals[k].tris.empty() ? 0 : 1;
+        onBrushes += !decals[k].tris.empty() && decals[k].brush != 0 ? 1 : 0;
+    }
     Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips, %d splatters, %d streaks, %d pools, %d splotches\n",
         static_cast<int>(decals.size()), kinds[Blood], kinds[BloodDrop], kinds[Scorch], kinds[Hole], kinds[Splatter],
         kinds[Streak], kinds[Pool], kinds[Splotch]);
+    Con_Printf("decals laid: %d (%d on runtime brushes; the rest removed in place)\n", showing, onBrushes);
     Con_Printf("%d vertices settled (%d of them left by marks gone), %d changing (made again each frame)\n",
         static_cast<int>(staticVertices.size()), staticGone, static_cast<int>(vertices.size()));
     Con_Printf("settled vertices uploaded %lld times so far, %.1f KB in all (%.1f KB a frame for both eyes if copied "
@@ -1881,23 +1896,29 @@ void clear()
     gore::clear();
 }
 
-int countIn(const glm::vec3& lo, const glm::vec3& hi)
+// A mark laid on brush `id` (one on several brushes: if its middle is in lo..hi).
+[[nodiscard]] bool onBrush(const Decal& d, int id, const glm::vec3& lo, const glm::vec3& hi)
+{
+    return !d.tris.empty() && (d.brush == id || (d.brush == -1 && !glm::any(glm::lessThan(d.centre, lo)) &&
+                                                     !glm::any(glm::greaterThan(d.centre, hi))));
+}
+
+int countOn(int id, const glm::vec3& lo, const glm::vec3& hi)
 {
     int n = 0;
     for(za::SizeT k = 0; k < decals.size(); k++)
     {
-        const Decal& d = decals[k];
-        n += !d.tris.empty() && !glm::any(glm::lessThan(d.centre, lo)) && !glm::any(glm::greaterThan(d.centre, hi)) ? 1 : 0;
+        n += onBrush(decals[k], id, lo, hi) ? 1 : 0;
     }
     return n;
 }
 
-void removeIn(const glm::vec3& lo, const glm::vec3& hi)
+void removeOn(int id, const glm::vec3& lo, const glm::vec3& hi)
 {
     for(za::SizeT k = 0; k < decals.size(); k++)
     {
         Decal& d = decals[k];
-        if(glm::any(glm::lessThan(d.centre, lo)) || glm::any(glm::greaterThan(d.centre, hi)) || d.tris.empty())
+        if(!onBrush(d, id, lo, hi))
         {
             continue;
         }

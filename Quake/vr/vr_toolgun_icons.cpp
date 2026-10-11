@@ -120,6 +120,7 @@ struct Reader
 [[nodiscard]] bool readMdl(const Reader& r, int skin, za::Vector<Triangle>& tris, za::Vector<Texture>& textures)
 {
     constexpr int headerSize = 84;
+    constexpr int maxGroup = 1024; // the most skins or frames a group may have (more: a bad file)
     if(!r.has(0, headerSize) || r.i32(0) != IDPOLYHEADER)
     {
         return false;
@@ -153,13 +154,13 @@ struct Reader
                 return false;
             }
             count = r.i32(ofs);
-            ofs += 4 + count * 4; // (the group's times)
-            if(count < 1)
+            if(count < 1 || count > maxGroup) // (a bad file's count: no int overflow below)
             {
                 return false;
             }
+            ofs += 4 + count * 4; // (the group's times)
         }
-        if(!r.has(ofs, skinBytes * count))
+        if(count > r.size / skinBytes || !r.has(ofs, skinBytes * count))
         {
             return false;
         }
@@ -188,7 +189,11 @@ struct Reader
             return false;
         }
         const int count = r.i32(frameOfs);
-        frameOfs += 4 + 8 + za::max(count, 0) * 4; // (its count, its box, its times)
+        if(count < 0 || count > maxGroup)
+        {
+            return false;
+        }
+        frameOfs += 4 + 8 + count * 4; // (its count, its box, its times)
     }
     const int vertOfs = frameOfs + 8 + 16;
     if(!r.has(vertOfs, numVerts * 4))
@@ -248,7 +253,8 @@ struct Reader
     const int faceCount = lumpLen(lumpFaces) / 20, texinfoCount = lumpLen(lumpTexinfo) / 40;
     const int edgeCount = lumpLen(lumpEdges) / 4, surfedgeCount = lumpLen(lumpSurfedges) / 4;
     const int vertexCount = lumpLen(lumpVertexes) / 12;
-    if(firstFace < 0 || numFaces < 1 || firstFace + numFaces > faceCount)
+    // (Every count and offset read from the file is bounded before it is added or multiplied: no int overflow.)
+    if(firstFace < 0 || numFaces < 1 || numFaces > faceCount - firstFace)
     {
         return false;
     }
@@ -256,7 +262,7 @@ struct Reader
     // The textures, by miptex number (a missing one: none, its faces left out).
     const int texOfs = lumpOfs(lumpTextures);
     const int numMiptex = lumpLen(lumpTextures) >= 4 ? r.i32(texOfs) : 0;
-    if(numMiptex < 0 || !r.has(texOfs, 4 + numMiptex * 4))
+    if(numMiptex < 0 || numMiptex > lumpLen(lumpTextures) / 4 || !r.has(texOfs, 4 + numMiptex * 4))
     {
         return false;
     }
@@ -265,14 +271,15 @@ struct Reader
     {
         const int d = r.i32(texOfs + 4 + i * 4);
         Texture tex;
-        const int m = texOfs + d;
-        if(d > 0 && r.has(m, 40))
+        const int m = d > 0 && d < lumpLen(lumpTextures) ? texOfs + d : -1;
+        if(m > 0 && r.has(m, 40))
         {
             char name[17]{};
             memcpy(name, r.data + m, 16);
             const int w = r.i32(m + 16), h = r.i32(m + 20), pixels = r.i32(m + 24);
             const bool hidden = !q_strncasecmp(name, "sky", 3) || !q_strncasecmp(name, "trigger", 7) || !q_strncasecmp(name, "clip", 4);
-            if(!hidden && w > 0 && h > 0 && w <= 1024 && h <= 1024 && r.has(m + pixels, w * h))
+            if(!hidden && w > 0 && h > 0 && w <= 1024 && h <= 1024 && pixels > 0 && pixels <= r.size - m &&
+                r.has(m + pixels, w * h))
             {
                 tex = {r.data + m + pixels, w, h};
             }
@@ -284,7 +291,7 @@ struct Reader
     {
         const int o = lumpOfs(lumpFaces) + f * 20;
         const int firstEdge = r.i32(o + 4), numEdges = r.s16(o + 8), ti = r.s16(o + 10);
-        if(numEdges < 3 || firstEdge < 0 || firstEdge + numEdges > surfedgeCount || ti < 0 || ti >= texinfoCount)
+        if(numEdges < 3 || firstEdge < 0 || firstEdge > surfedgeCount - numEdges || ti < 0 || ti >= texinfoCount)
         {
             continue;
         }
@@ -298,7 +305,7 @@ struct Reader
         const glm::vec4 tv{r.f32(tio + 16), r.f32(tio + 20), r.f32(tio + 24), r.f32(tio + 28)};
         const auto corner = [&](int i, Corner& c) {
             const int se = r.i32(lumpOfs(lumpSurfedges) + (firstEdge + i) * 4);
-            const int e = se >= 0 ? se : -se;
+            const int e = se >= 0 ? se : se == INT_MIN ? edgeCount : -se;
             if(e >= edgeCount)
             {
                 return false;

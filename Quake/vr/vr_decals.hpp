@@ -83,10 +83,11 @@ void draw();
 
 // All gone (a new map).
 void clear();
-// Those whose middle is in lo..hi gone (a runtime brush changed or removed: vr_brushes.cpp, the marks on its faces).
-void removeIn(const glm::vec3& lo, const glm::vec3& hi);
-// How many there are with their middle in lo..hi (vr_brush_list: the marks on a brush).
-[[nodiscard]] int countIn(const glm::vec3& lo, const glm::vec3& hi);
+// Those laid on runtime brush `id` gone (it changed or was removed: vr_brushes.cpp, the marks on its faces; the world's
+// beside it stay); a mark on several brushes, if its middle is in lo..hi (the brush's box).
+void removeOn(int id, const glm::vec3& lo, const glm::vec3& hi);
+// How many there are on runtime brush `id`, as removeOn finds them (vr_brush_list: the marks on a brush).
+[[nodiscard]] int countOn(int id, const glm::vec3& lo, const glm::vec3& hi);
 
 // vr_decal_count: how many there are, of each kind.
 void count_f();

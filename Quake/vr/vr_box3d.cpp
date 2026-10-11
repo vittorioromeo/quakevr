@@ -888,9 +888,16 @@ struct World
     ankerl::unordered_dense::map<PropHullKey, b3HullData*, PropHullKeyHash> propHulls; // nullptr: no hull (a box instead)
     ankerl::unordered_dense::map<const qmodel_t*, za::Vector<b3HullData*>> moverHulls;
     // A runtime brush's model made again in place (vr_brushes.cpp): the revision its hulls were made from, and the hulls
-    // let go of (a body made with them may still be about until its slot is made again: freed with the world).
+    // let go of (a body made with them may still be about until its slot is made again: freed once no mover body of
+    // that model and revision is left, freeRetiredHulls, or with the world).
     ankerl::unordered_dense::map<const qmodel_t*, za::U32> moverHullRevs;
-    za::Vector<b3HullData*> retiredHulls;
+    struct RetiredHull
+    {
+        const qmodel_t* model;
+        za::U32 rev;
+        b3HullData* hull;
+    };
+    za::Vector<RetiredHull> retiredHulls;
     // The guns' convex pieces (gunPieces; empty: one hull), by model and frame (a held gun's: frame -2, -3 mirrored).
     ankerl::unordered_dense::map<PropHullKey, za::Vector<b3HullData*>, PropHullKeyHash> gunPieces;
     ankerl::unordered_dense::map<PropHullKey, convex::Report, PropHullKeyHash> gunReports; // (vr_physics_shapes)
@@ -1812,13 +1819,14 @@ void solidLeaves(const hull_t& hull, int num, za::Vector<HalfSpace>& path, float
     if(it != world->moverHulls.end())
     {
         const auto r = world->moverHullRevs.find(model);
-        if((r == world->moverHullRevs.end() ? 0u : r->second) == rev)
+        const za::U32 oldRev = r == world->moverHullRevs.end() ? 0u : r->second;
+        if(oldRev == rev)
         {
             return it->second;
         }
         for(b3HullData* hull : it->second)
         {
-            world->retiredHulls.pushBack(hull);
+            world->retiredHulls.pushBack({model, oldRev, hull});
         }
         world->moverHulls.erase(it);
     }
@@ -5549,6 +5557,40 @@ void updateShapeGeneration()
     }
 }
 
+// The hulls of a runtime brush's older revisions (moverHulls) freed once no mover body made with them is left (its
+// slot made again with the new ones, or gone): one per piece per Move, Resize or Paint, kept otherwise to the map's end.
+void freeRetiredHulls()
+{
+    za::Vector<World::RetiredHull>& retired = world->retiredHulls;
+    const za::SizeT before = retired.size();
+    for(za::SizeT i = 0; i < retired.size();)
+    {
+        const World::RetiredHull& r = retired[i];
+        bool used = false;
+        for(const Slot& s : world->slots)
+        {
+            if(s.kind == Kind::Mover && s.model == r.model && s.modelRev == r.rev && B3_IS_NON_NULL(s.body))
+            {
+                used = true;
+                break;
+            }
+        }
+        if(used)
+        {
+            i++;
+            continue;
+        }
+        b3DestroyHull(r.hull);
+        retired[i] = retired.back();
+        retired.popBack();
+    }
+    if(vr_debug_box3d.value && retired.size() != before)
+    {
+        Con_Printf("box3d: %d retired hulls freed, %d kept\n", static_cast<int>(before - retired.size()),
+            static_cast<int>(retired.size()));
+    }
+}
+
 // Whether the body made for `s` no longer fits the entity (its model, frame, scale or box changed).
 [[nodiscard]] bool stale(edict_t* ent, Slot& s)
 {
@@ -7302,6 +7344,10 @@ void syncEntities(float dt)
     }
 
     updateShapeGeneration();
+    if(!world->retiredHulls.empty())
+    {
+        freeRetiredHulls();
+    }
     watchCorpses();
     if(vr_ragdoll.value >= 1.f && !world->ragdollsWarmed)
     {
@@ -9162,9 +9208,9 @@ void destroyWorld()
             b3DestroyHull(hull);
         }
     }
-    for(b3HullData* hull : world->retiredHulls)
+    for(const World::RetiredHull& r : world->retiredHulls)
     {
-        b3DestroyHull(hull);
+        b3DestroyHull(r.hull);
     }
     if(vr_debug_box3d.value)
     {

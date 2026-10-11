@@ -157,8 +157,10 @@ namespace
 // where the config still held its old default. 39: the author's nailgun foregrip (slot 3: its first hotspot, the evening
 // of 2026-10-08), each key only where the config still held its old default. 40: slot 26 (the toolgun,
 // Misc/quakevr/make_toolgun.py; an unused placeholder before). 41: the anchors (round 22: points on the models' surfaces, not vertex
-// indices; vr_anchor.hpp): each of the config's indices to its slot's default, that vertex's point (convertAnchors). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 41;
+// indices; vr_anchor.hpp): each of the config's indices to its slot's default, that vertex's point (convertAnchors). 42: the
+// toolgun's muzzle (slot 26) on its lens's front middle (`15.4 0.0064 5.7941`, make_toolgun.py's point; the old one, a
+// corner of the lens's back, was about 1 cm off), where the config still held the old point. A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 42;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -572,6 +574,14 @@ void migrate()
     if(vr_wofs_version.value < 41) // the anchors: points, not vertex indices
     {
         convertAnchors();
+    }
+    if(vr_wofs_version.value < 42) // the toolgun's muzzle on its lens's middle: where still the old point
+    {
+        cvar_t& var = cvarAt(26, Key::MuzzleAnchor);
+        if(!strcmp(var.string, "15.0245 -0.6162 5.3987"))
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

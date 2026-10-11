@@ -9,6 +9,7 @@
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_ledges.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -690,16 +691,20 @@ struct Registry
     bool uploadAll{false};  // the map's buffers made again (R_NewMap): every slot written again
     int lastSpawned{0};     // vr_brush_spawn's last thing (vr_brush_ent last)
     char texture[16]{};     // the texture new brushes get
-    const qmodel_t* defaultFor{nullptr}; // the world the default texture (readouts.texture) was found for
 };
 Registry registry;
 
-// Readouts (vr_brush_list's text, the texture's name handed out).
-struct Readouts
+// The world's textures a brush may have (usableTexture), in its order, and its default (the most used plain one), found
+// once a world (the panel asks each frame): the main thread's. Emptied at a map change (the world's textures go with
+// the hunk; a later world may be in the same slot) and a game directory change.
+struct TextureCache
 {
-    char texture[16];
+    const qmodel_t* world{nullptr};
+    za::Vector<texture_t*> usable;
+    char defaultName[16]{};
+    auto members() { return mem::list(world, usable, defaultName); }
 };
-Readouts readouts;
+mem::Cache<TextureCache> textureCache{"brush textures", mem::MapChange | mem::GameDirChange};
 
 [[nodiscard]] Entry* entryOf(int id)
 {
@@ -739,19 +744,21 @@ struct ServerVm
 };
 
 // What else keeps things of a model learns that it changed: the ledges (climbing), the held weapons' triangles, the
-// decals on its old faces.
-void forgetModel(qmodel_t* mod, const glm::vec3& oldLo, const glm::vec3& oldHi)
+// decals on its old faces (only those: the world's beside it stay).
+void forgetModel(qmodel_t* mod, int id, const glm::vec3& oldLo, const glm::vec3& oldHi)
 {
     ledges::forget(mod);
     modelcollide::forget(mod);
     if(oldLo.x <= oldHi.x)
     {
-        decals::removeIn(oldLo - glm::vec3{2.f}, oldHi + glm::vec3{2.f});
+        decals::removeOn(id, oldLo - glm::vec3{2.f}, oldHi + glm::vec3{2.f});
     }
 }
 
-// The model of `e` made again from its brush (or empty), in place.
-void rebuild(Entry& e, bool empty)
+// The model of `e` made again from its brush (or empty), in place. `texturesOnly`: only its faces' textures changed (Paint,
+// vr_brush_texture): its revision kept and nothing else told (Box3D's hulls, the ledges, the held weapons' triangles,
+// the marks on it all stay as they are).
+void rebuild(Entry& e, bool empty, bool texturesOnly = false)
 {
     glm::vec3 oldLo{1.f}, oldHi{0.f};
     if(e.built && !e.built->surfaces.empty())
@@ -762,13 +769,36 @@ void rebuild(Entry& e, bool empty)
     e.retired = ZA_MOVE(e.built);
     e.built = za::makeUnique<Built>();
     build(empty ? nullptr : &e.brush, *e.built);
-    e.revision = ++registry.revisions;
+    if(!texturesOnly)
+    {
+        e.revision = ++registry.revisions;
+    }
     if(e.model)
     {
         apply(e.model, e.built.get(), e.brush.id);
-        forgetModel(e.model, oldLo, oldHi);
+        if(!texturesOnly)
+        {
+            forgetModel(e.model, e.brush.id, oldLo, oldHi);
+        }
     }
     e.dirty = true;
+}
+
+// Whether two brushes have the same planes, in the same order (only their textures may differ).
+[[nodiscard]] bool sameShape(const Brush& a, const Brush& b)
+{
+    if(a.faces.size() != b.faces.size())
+    {
+        return false;
+    }
+    for(za::SizeT i = 0; i < a.faces.size(); i++)
+    {
+        if(a.faces[i].normal != b.faces[i].normal || a.faces[i].dist != b.faces[i].dist)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 // The entity of brush `e` placed at its model (made if it has none).
@@ -1292,7 +1322,7 @@ void list_f()
         glm::dvec3 lo, hi;
         const bool ok = bounds(b, lo, hi);
         const Entry* e = entryOf(b.id);
-        const int marks = decals::countIn(glm::vec3{lo} - glm::vec3{2.f}, glm::vec3{hi} + glm::vec3{2.f});
+        const int marks = decals::countOn(b.id, glm::vec3{lo} - glm::vec3{2.f}, glm::vec3{hi} + glm::vec3{2.f});
         Con_Printf("  %d: entity %d, rev %u, %d faces, %s, %.0f %.0f %.0f .. %.0f %.0f %.0f, %d decals%s\n", b.id, e ? e->edict : 0,
             b.rev, static_cast<int>(b.faces.size()), b.faces.empty() ? "-" : b.faces[0].texture, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z,
             marks, ok ? "" : " (no volume)");
@@ -1942,10 +1972,11 @@ bool change(int id, const Brush& b)
         return false;
     }
     const za::U32 rev = e->brush.rev;
+    const bool painted = e->built && !e->built->surfaces.empty() && sameShape(e->brush, b);
     e->brush = b;
     e->brush.id = id;
     e->brush.rev = rev + 1;
-    rebuild(*e, false);
+    rebuild(*e, false, painted);
     return placeEntity(*e);
 }
 
@@ -2044,53 +2075,35 @@ bool usableTexture(const texture_t* t)
            q_strncasecmp(t->name, "notexture", 9) != 0;
 }
 
-int textureCount()
+namespace
 {
+
+// The world's usable textures and its default (textureCache), found for the world now (again after a map change).
+[[nodiscard]] const TextureCache& textures()
+{
+    TextureCache& c = textureCache;
     const qmodel_t* w = sv.worldmodel ? sv.worldmodel : cl.worldmodel;
+    if(c.world == w && !c.usable.empty())
+    {
+        return c;
+    }
+    c.world = w;
+    c.usable.clear();
+    c.defaultName[0] = 0;
     if(!w || !w->textures)
     {
-        return 0;
-    }
-    int n = 0;
-    for(int i = 0; i < w->numtextures; i++)
-    {
-        n += usableTexture(w->textures[i]) ? 1 : 0;
-    }
-    return n;
-}
-
-texture_t* textureAt(int index)
-{
-    const qmodel_t* w = sv.worldmodel ? sv.worldmodel : cl.worldmodel;
-    if(!w || !w->textures || index < 0)
-    {
-        return nullptr;
+        return c;
     }
     for(int i = 0; i < w->numtextures; i++)
     {
-        if(usableTexture(w->textures[i]) && index-- == 0)
+        if(usableTexture(w->textures[i]))
         {
-            return w->textures[i];
+            c.usable.pushBack(w->textures[i]);
         }
     }
-    return nullptr;
-}
-
-const char* currentTexture()
-{
-    if(registry.texture[0] && usableTexture(worldTexture(registry.texture)))
-    {
-        return registry.texture;
-    }
-    // The map's most used plain texture (its walls'), found once a map.
-    const qmodel_t* w = sv.worldmodel ? sv.worldmodel : cl.worldmodel;
-    if(w && registry.defaultFor == w && readouts.texture[0])
-    {
-        return readouts.texture;
-    }
-    registry.defaultFor = w;
-    const texture_t* best = textureAt(0);
-    if(w && w->textures && w->surfaces)
+    // The map's most used plain texture (its walls').
+    const texture_t* best = c.usable.empty() ? nullptr : c.usable[0];
+    if(w->surfaces)
     {
         za::Vector<int> uses(static_cast<za::SizeT>(w->numtextures), 0);
         for(int i = 0; i < w->numsurfaces; i++)
@@ -2114,8 +2127,31 @@ const char* currentTexture()
             }
         }
     }
-    q_strlcpy(readouts.texture, best ? best->name : "base", sizeof(readouts.texture));
-    return readouts.texture;
+    q_strlcpy(c.defaultName, best ? best->name : "base", sizeof(c.defaultName));
+    return c;
+}
+
+} // namespace
+
+int textureCount()
+{
+    return static_cast<int>(textures().usable.size());
+}
+
+texture_t* textureAt(int index)
+{
+    const TextureCache& c = textures();
+    return index >= 0 && index < static_cast<int>(c.usable.size()) ? c.usable[static_cast<za::SizeT>(index)] : nullptr;
+}
+
+const char* currentTexture()
+{
+    if(registry.texture[0] && usableTexture(worldTexture(registry.texture)))
+    {
+        return registry.texture;
+    }
+    const TextureCache& c = textures();
+    return c.defaultName[0] ? c.defaultName : "base";
 }
 
 void setCurrentTexture(const char* name)
@@ -2268,7 +2304,7 @@ bool clipBox(const qmodel_t* model, const glm::vec3& start, const glm::vec3& min
 }
 
 void facesIn(const glm::vec3& lo, const glm::vec3& hi,
-    za::FunctionRef<void(const za::Vector<glm::vec3>& poly, const glm::vec3& normal)> f)
+    za::FunctionRef<void(const za::Vector<glm::vec3>& poly, const glm::vec3& normal, int id)> f)
 {
     za::Vector<glm::vec3> poly;
     for(const auto& ep : registry.entries)
@@ -2308,7 +2344,7 @@ void facesIn(const glm::vec3& lo, const glm::vec3& hi,
             {
                 n = -n;
             }
-            f(poly, n);
+            f(poly, n, ep->brush.id);
         }
     }
 }
