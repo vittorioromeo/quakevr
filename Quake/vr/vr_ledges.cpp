@@ -33,6 +33,7 @@
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
+#include "vr_mem.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
@@ -854,6 +855,15 @@ namespace
     return (part(c.x) << 42) | (part(c.y) << 21) | part(c.z);
 }
 
+// Show Ledges' buffers (debugDraw, the main thread).
+struct DrawScratch
+{
+    Map props;              // the solid props' ledges as they lie now
+    za::Vector<int> nums;   // and each one's prop
+    auto members() { return mem::list(props, nums); }
+};
+mem::Scratch<DrawScratch> drawScratch{"ledges draw"};
+
 } // namespace
 
 void Map::finish()
@@ -1046,8 +1056,11 @@ void debugDraw()
     if(vr_climb_props.value != 0.f)
     {
         const glm::vec3 propColour{1.f, 0.55f, 0.1f};
-        Map props;
-        za::Vector<int> nums;
+        Map& props = drawScratch.props;
+        za::Vector<int>& nums = drawScratch.nums;
+        props.edges.clear();
+        props.samples.clear();
+        nums.clear();
         for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
         {
             box3d::ClimbBody body;
