@@ -1613,13 +1613,17 @@ void draw()
 
 // What vr_decal_stress lays: splatters on the floor (its default), spreading pools on the floor, splatters on the wall
 // ahead, runs spreading down it (every kind of the world's shader's paths, laid the same way each time: tests compare
-// the images of two builds).
+// the images of two builds); pools stacked on a spot 96 units ahead (each 0.5 to 1 times the size, as gibs' pools
+// piled up: decal_stack_test.sh), or pools and splatters in turn clustered round it (0.4 to 1 times the size, up to
+// the size away: a gib's burst).
 enum class Stress
 {
     Splatter,
     Pool,
     Wall,
-    Run
+    Run,
+    Stack,
+    Cluster
 };
 
 // `count` marks of `kind` on the floor ahead of the player (or the wall ahead), `size` units across
@@ -1632,6 +1636,7 @@ int stressMarks(int count, float size, Stress kind)
     const auto& e = cl_entities[cl.viewentity];
     const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
     const bool wall = kind == Stress::Wall || kind == Stress::Run;
+    const bool pile = kind == Stress::Stack || kind == Stress::Cluster;
     // The marks' turns and atlas cells (rand) the same each time: what else draws from it (as many times as frames
     // came, or a chip somewhere) leaves them as they were
     srand(stressSerial * 2654435761u + 1u);
@@ -1642,9 +1647,20 @@ int stressMarks(int count, float size, Stress kind)
         // it, 2 up it from 32 below the eyes).
         const unsigned k = (stressSerial++ * 109u) & 4095u;
         const glm::vec3 across = r * (6.f * (static_cast<float>(k >> 6u) - 31.5f));
-        const glm::vec3 from = wall ? origin + across + glm::vec3{0.f, 0.f, 2.f * static_cast<float>(k & 63u) - 32.f}
-                                    : origin + f * (64.f + 6.f * static_cast<float>(k & 63u)) + across +
-                                          glm::vec3{0.f, 0.f, 24.f};
+        glm::vec3 from = wall ? origin + across + glm::vec3{0.f, 0.f, 2.f * static_cast<float>(k & 63u) - 32.f}
+                              : origin + f * (64.f + 6.f * static_cast<float>(k & 63u)) + across +
+                                    glm::vec3{0.f, 0.f, 24.f};
+        float markSize = size;
+        if(pile)
+        {
+            // (stacked: a few units apart, round the spot, as add takes one mark a place in a tenth of a second)
+            const bool stack = kind == Stress::Stack;
+            const float turn = static_cast<float>(i) * 2.39996f, out = 2.5f + 0.25f * static_cast<float>(i);
+            const float a = stack ? out * za::cos(turn) : random(-1.f, 1.f) * size;
+            const float b = stack ? out * za::sin(turn) : random(-1.f, 1.f) * size;
+            from = origin + glm::normalize(f) * (96.f + a) + glm::normalize(r) * b + glm::vec3{0.f, 0.f, 24.f};
+            markSize = size * (stack ? random(0.5f, 1.f) : random(0.4f, 1.f));
+        }
         const glm::vec3 to = wall ? from + glm::normalize(f) * 2048.f : from - glm::vec3{0.f, 0.f, 2048.f};
         glm::vec3 where, normal;
         float fraction;
@@ -1654,7 +1670,7 @@ int stressMarks(int count, float size, Stress kind)
         }
         MarkOptions o;
         Mark mark = Mark::Splatter;
-        if(kind == Stress::Pool)
+        if(kind == Stress::Pool || kind == Stress::Stack || (kind == Stress::Cluster && (i & 1)))
         {
             mark = Mark::Pool;
             o.grow = 6.f;
@@ -1671,7 +1687,7 @@ int stressMarks(int count, float size, Stress kind)
             o.fromStart = true;
             o.darken = 0.3f;
         }
-        made += place(mark, where, normal, size, o);
+        made += place(mark, where, normal, markSize, o);
     }
     return made;
 }
@@ -1699,9 +1715,17 @@ void stress_f()
     {
         kind = Stress::Run;
     }
+    else if(!q_strcasecmp(name, "stack"))
+    {
+        kind = Stress::Stack;
+    }
+    else if(!q_strcasecmp(name, "cluster"))
+    {
+        kind = Stress::Cluster;
+    }
     else if(q_strcasecmp(name, "splatter"))
     {
-        Con_Printf("vr_decal_stress [count] [size] [splatter|pool|wall|run]: unknown kind %s\n", name);
+        Con_Printf("vr_decal_stress [count] [size] [splatter|pool|wall|run|stack|cluster]: unknown kind %s\n", name);
         return;
     }
     const int made = stressMarks(count, size, kind);
