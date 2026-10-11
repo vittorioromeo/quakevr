@@ -109,6 +109,29 @@ constexpr float handThick = 2.f;     // units: a hand on a wound, off its surfac
     return (p.cut & (1u << b)) != 0u;
 }
 
+// A drive's force `f` (N, world) on part `b` this frame: applied, and kept in `p.force` for the step's later pieces.
+void pushPart(const Parts& p, int b, const glm::vec3& f)
+{
+    b3Body_ApplyForceToCenter(p.body[b], b3v(f), true);
+    if(p.force)
+    {
+        p.force[b] += f;
+    }
+}
+
+// Its chest's part (its pelvis's if none, or cut off): every stage's one helper.
+[[nodiscard]] int chestOf(const Parts& p)
+{
+    for(int b = 0; b < p.count; b++)
+    {
+        if(p.rig->bones[b].role == modelmeta::BoneRole::Chest && !cut(p, b))
+        {
+            return b;
+        }
+    }
+    return 0;
+}
+
 // Whether bone `b` is `top` or on it.
 [[nodiscard]] bool onBone(const ragdoll::Rig& rig, int b, int top)
 {
@@ -446,17 +469,10 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
     {
         return;
     }
-    const int chest = [&] {
-        for(int b = 0; b < p.count; b++)
-        {
-            if(p.rig->bones[b].role == modelmeta::BoneRole::Chest && !cut(p, b))
-            {
-                return b;
-            }
-        }
-        return 0;
-    }();
+    const int chest = chestOf(p);
     const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
+    // A hand on his pelvis or chest: no roll and no pull (his joints already go limp; these would drag him out of it).
+    const bool grabbed = (heldLimbs(*p.rig, p.count, c.held) & (1u | (1u << chest))) != 0u;
     if(d.crawlFrom < 0.0)
     {
         if(t < 1.1f * d.length)
@@ -489,7 +505,10 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
                     c.now - d.rollFrom, glm::dot(front, -up), glm::dot(glmv(b3Body_GetAngularVelocity(p.body[chest])), d.rollAxis),
                     b3Body_IsAwake(p.body[0]) ? "awake" : "asleep");
             }
-            rollOver(p, c, d.rollAxis, d.rollSign, pelvis, floor);
+            if(!grabbed)
+            {
+                rollOver(p, c, d.rollAxis, d.rollSign, pelvis, floor);
+            }
             return;
         }
         if(prone && down && limbWhole(s, p, 0) && limbWhole(s, p, 1))
@@ -571,11 +590,11 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
         const float along = glm::dot(v, d.crawlDir);
         const float most = za::max(vr_ragdoll_active_crawl_force.value, 0.f) * s.totalMass * c.gravity;
         // (Enough to drag him over the floor, most of his weight on it: its friction, then the rest to crawlSpeed.)
-        const float f = along >= crawlSpeed ? 0.f
+        const float f = grabbed || along >= crawlSpeed ? 0.f
                                             : za::clamp(0.9f * s.totalMass * c.gravity + s.totalMass * (crawlSpeed - along) / 0.2f, 0.f, most);
         const glm::vec3 force = d.crawlDir * (f * 0.5f);
-        b3Body_ApplyForceToCenter(p.body[0], b3v(force), true);
-        b3Body_ApplyForceToCenter(p.body[chest], b3v(force), true);
+        pushPart(p, 0, force);
+        pushPart(p, chest, force);
         if(vr_debug_ragdoll.value >= 3.f)
         {
             Con_Printf("ragdoll: %d pulls %.0f N (most %.0f) at %.2f m/s along, the hand %.2f m off its hold\n", c.num, f, most,
@@ -633,7 +652,8 @@ struct SwimParts
 
 [[nodiscard]] bool liquidsOn()
 {
-    return vr_ragdoll_active_liquids.value != 0.f;
+    // (vr_ragdoll_active 0 too: a released body lying in water must not be woken again by a pending swim)
+    return vr_ragdoll_active.value != 0.f && vr_ragdoll_active_liquids.value != 0.f;
 }
 
 // The liquid it is to swim in now (None: not deep enough in any).
@@ -793,7 +813,8 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
     const float v = za::clamp(fadeAt(fa, t) / za::max(fa.from, 1e-3f), 0.f, 1.f);
     const float hz = water ? 0.6f + 0.7f * v : 2.2f + 1.6f * v;
     w.phase += twoPi * hz * c.dt;
-    if(w.phase > 64.f * twoPi)
+    // (Wrapped in water only: a flail's hops count its phase up, and lasts at most ~50 s, a few thousand radians.)
+    if(water && w.phase > 64.f * twoPi)
     {
         w.phase -= 64.f * twoPi;
     }
@@ -854,8 +875,9 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         }
         else
         {
+            // (A new place every 0.13-0.18 s at full vigour (3.8 Hz), slower as the stroke rate falls to 2.2 Hz.)
             const float hop = 0.13f + 0.05f * roll(w.seed, 10u + static_cast<uint32_t>(limb));
-            const float f = ts / hop;
+            const float f = w.phase / (twoPi * 3.8f * hop);
             const auto k = static_cast<uint32_t>(f);
             const glm::vec3 d0 = flailDir(w.seed, limb, k), d1 = flailDir(w.seed, limb, k + 1u);
             const glm::vec3 d = glm::normalize(glm::mix(d0, d1, smooth(f - static_cast<float>(k))) + glm::vec3{1e-4f});
@@ -873,9 +895,9 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         w.headLift = headLiftShare * s.totalMass * c.gravity * keep * s.base;
         if(w.headLift > 0.f)
         {
-            const b3Vec3 f{0.f, 0.f, 0.5f * w.headLift};
-            b3Body_ApplyForceToCenter(p.body[sp.head], f, true);
-            b3Body_ApplyForceToCenter(p.body[sp.chest >= 0 ? sp.chest : 0], f, true);
+            const glm::vec3 f{0.f, 0.f, 0.5f * w.headLift};
+            pushPart(p, sp.head, f);
+            pushPart(p, sp.chest >= 0 ? sp.chest : 0, f);
         }
     }
     if(c.trace)
@@ -897,19 +919,6 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         Con_Printf("ragswim %d %.3f l %d v %.2f head %d %.1f lift %.0f limbs %.2f\n", c.num, static_cast<float>(c.now - c.born),
             static_cast<int>(w.liquid), v, headIn ? 1 : 0, hz2, w.headLift, limbs / static_cast<float>(za::max(n, 1)));
     }
-}
-
-// Its chest's part (its pelvis's if none).
-[[nodiscard]] int chestOf(const Parts& p)
-{
-    for(int b = 0; b < p.count; b++)
-    {
-        if(p.rig->bones[b].role == modelmeta::BoneRole::Chest && !cut(p, b))
-        {
-            return b;
-        }
-    }
-    return 0;
 }
 
 // Its middle (centre of mass of its parts but loose ones: his gun), world metres; and its motion (m/s) into `vel`.
@@ -1397,18 +1406,6 @@ constexpr float smallHeight = 0.4f; // m: or lower (a backpack, a dropped gun)
 // The ledges near a falling body (findLedge's list).
 za::Vector<int> envNearby;
 
-[[nodiscard]] int chestBone(const Parts& p)
-{
-    for(int b = 0; b < p.count; b++)
-    {
-        if(p.rig->bones[b].role == modelmeta::BoneRole::Chest && !cut(p, b))
-        {
-            return b;
-        }
-    }
-    return 0;
-}
-
 [[nodiscard]] const char* gripName(Grip g)
 {
     switch(g)
@@ -1677,7 +1674,7 @@ void startLean(State& s, const Parts& p, const Context& c, const EnvRay& r, int 
     {
         EnvHand& h = e.hand[static_cast<za::SizeT>(arm)];
         const glm::vec3 shoulder = shoulderOf(s, p, arm);
-        glm::vec3 sideDir = shoulder - glmv(b3Body_GetWorldCenter(p.body[chestBone(p)]));
+        glm::vec3 sideDir = shoulder - glmv(b3Body_GetWorldCenter(p.body[chestOf(p)]));
         sideDir -= r.n * glm::dot(sideDir, r.n);
         sideDir = glm::length(sideDir) > 1e-4f ? glm::normalize(sideDir) : glm::vec3{0.f};
         h.mode = r.loose ? Grip::Brace : Grip::Lean;
@@ -1807,6 +1804,12 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
     const bool ledge = h.mode == Grip::Ledge;
     if(B3_IS_NULL(h.joint))
     {
+        // Its target gone on the way (a mover or fixture destroyed since): it lets go, or it would reach for ever.
+        if(B3_IS_NULL(h.on) || !b3Body_IsValid(h.on))
+        {
+            letGo(s, arm, &c, "its hold gone");
+            return;
+        }
         // On its way: grabs once near the goal, or near the surface near it (the hold pulls it the rest of the way). A
         // lean's hand that hasn't got there (an arm can't reach far behind him) goes straight to the wall from where
         // it is.
@@ -1818,7 +1821,7 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
         }
         if(glm::length(hand - h.goal) < 0.25f * L || (off < 0.2f * L && glm::length(along) < 0.5f * L))
         {
-            const glm::vec3 at = hand - h.normal * (off - handOff / p.m2u);
+            const glm::vec3 at = hand - h.normal * off; // (on the goal's plane: already handOff off the surface)
             if(!ledge)
             {
                 h.holdUntil = c.now + 1.1 + 0.9 * static_cast<double>(roll(s.env.seed, 41u + static_cast<uint32_t>(arm)));
@@ -1899,7 +1902,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
     const glm::vec3 up{0.f, 0.f, 1.f};
     const float L = armLength(s, p);
     e.frame++;
-    const int chest = chestBone(p);
+    const int chest = chestOf(p);
     const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
     const glm::vec3 chestAt = glmv(b3Body_GetWorldCenter(p.body[chest]));
     const float m0 = b3Body_GetMass(p.body[0]), mc = b3Body_GetMass(p.body[chest]);
@@ -1993,7 +1996,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
         if(gap > 0.2f * L && glm::length(to) > 0.f)
         {
             const float f = 0.25f * s.totalMass * c.gravity * (1.f - smooth(static_cast<float>(c.now - e.leanFrom) / leanPull));
-            b3Body_ApplyForceToCenter(p.body[0], b3v(to * f), true);
+            pushPart(p, 0, to * f);
         }
     }
     // Sense: every few frames.
@@ -2117,13 +2120,24 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
             }
         }
     }
-    // A limb reached last frame and not now: its reach gone (unless the death's own: the wound's hand, a step).
+    // A limb reached last frame and not now: its reach gone (unless the death's own: the wound's hand, a step, which
+    // drive() left to this frame: applied here).
     for(int limb = 0; limb < limbCount; limb++)
     {
         const uint8_t bit = static_cast<uint8_t>(1u << limb);
-        if((e.reached & bit) && !(reached & bit) && limb != d.woundArm && limb != d.stepLeg)
+        if(!(e.reached & bit) || (reached & bit))
         {
-            s.reach[static_cast<za::SizeT>(limb)].weight = 0.f;
+            continue;
+        }
+        Reach& r = s.reach[static_cast<za::SizeT>(limb)];
+        if(limb != d.woundArm && limb != d.stepLeg)
+        {
+            r.weight = 0.f;
+        }
+        else if(r.weight > 0.f)
+        {
+            apply(limb, r.goal, r.weight, r.strength);
+            reached &= static_cast<uint8_t>(~bit); // (the death's own again: not this one's)
         }
     }
     e.reached = reached;
@@ -2761,11 +2775,15 @@ void drive(State& s, const Parts& p, const Context& c)
     {
         fallFrame(s, p, c, t);
     }
-    // The reaches over the clip's pose (and no speed fed forward where they lead).
+    // The reaches over the clip's pose (and no speed fed forward where they lead). The limbs envFrame reached last frame
+    // are left to it when it leads (below): it applies their reaches itself, each arm solved once a frame (applied here
+    // too, last frame's goal first, its blend compounded).
+    const bool envLeads = !(swimming || s.dismember.on || s.stagger.on || s.fall.on || s.rise.on);
+    const uint8_t envOwns = envLeads ? s.env.reached : 0;
     for(int limb = 0; limb < limbCount; limb++)
     {
         const Reach& r = s.reach[static_cast<za::SizeT>(limb)];
-        if(r.weight <= 0.f)
+        if(r.weight <= 0.f || (envOwns & (1u << limb)))
         {
             continue;
         }
@@ -2779,7 +2797,7 @@ void drive(State& s, const Parts& p, const Context& c)
             }
         }
     }
-    if(swimming || s.dismember.on || s.stagger.on || s.fall.on || s.rise.on)
+    if(!envLeads)
     {
         // (what is round him waits, its holds let go)
         envStandDown(s, c,
@@ -2925,7 +2943,7 @@ void drive(State& s, const Parts& p, const Context& c)
         {
             if(!cut(p, b))
             {
-                b3Body_ApplyForceToCenter(p.body[b], b3Vec3{0.f, 0.f, b3Body_GetMass(p.body[b]) * c.gravity * up}, true);
+                pushPart(p, b, glm::vec3{0.f, 0.f, b3Body_GetMass(p.body[b]) * c.gravity * up});
             }
         }
     }
@@ -3054,7 +3072,7 @@ void describe(const State& s, const Parts& p, int num, double now)
                          : g.on ? (g.outcome == Outcome::Recovered ? ", staggered: recovered" : ", staggering")
                                 : "";
     Con_Printf("  %d: %s %.2f s, strength legs %.2f torso %.2f arms %.2f head %.2f (base %.2f), pin %s, %d parts held "
-               "(none)%s%s%s%s%s\n", num,
+               "%s%s%s%s%s\n", num,
         s.on ? "driven" : "limp", t, str[0], str[1], str[2], str[3], s.base,
         B3_IS_NON_NULL(s.pin.anchor) ? "on" : "off", held, d.collapse ? ", collapse" : "", d.stumble ? ", stumbled" : "",
         d.woundArm >= 0 ? (d.woundArm == 0 ? ", left hand on the wound" : ", right hand on the wound") : "",
@@ -3131,7 +3149,7 @@ constexpr float tipBend = 0.35f;        // rad: his torso bent to the side lost 
 constexpr float flailHz = 1.6f;         // his arms' flail for balance
 constexpr float pitchRate = 2.5f;       // rad/s: with no legs, killed standing, he pitches forward so
 
-// (chestOf: ragstagger's, the same, above: "Staggers")
+// (chestOf: the shared helper, above)
 
 // The joint limb `limb` was cut at (a cut bone on it whose parent isn't cut); -1 none: it is whole.
 [[nodiscard]] int cutJointOn(const State& s, const Parts& p, int limb)
@@ -3182,7 +3200,13 @@ void startBalance(State& s, const Parts& p, const Context& c, float t, int lostL
     m.standLeg = stand;
     // (The side lost: his own, level: the rig's y is his left. A hunched ogre's hips are one ahead of the other.)
     m.lostSide = p.turn * glm::vec3{0.f, lostLeg == 2 ? 1.f : -1.f, 0.f};
-    m.origin0 = s.origin;
+    // A stumble's carried way (a monster cut as he ran) ends here, kept as far as it got (the pin's anchor doesn't
+    // jump): carried on, it dragged his pelvis up to a metre off the planted foot and broke the beat at once.
+    Death& d = s.death;
+    const glm::vec3 carried = d.stumble ? d.walk * (stumbleTau * (1.f - za::exp(-t / stumbleTau))) : glm::vec3{0.f};
+    d.stumble = false;
+    d.walk = glm::vec3{0.f};
+    m.origin0 = s.origin + carried;
     m.balanceUntil = t + za::clamp(vr_ragdoll_active_balance_time.value, 0.1f, 5.f);
     // The foot left: kept where it stands, braced (a hop under him lifts what holds him up: he falls at once).
     m.plant = limbEnd(s, p, stand);

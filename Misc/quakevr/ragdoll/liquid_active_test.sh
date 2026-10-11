@@ -15,12 +15,13 @@
 #   lava     e1m7's lava: a grunt falls in standing and dies of it: flails, burns (the QC's), gibbed after vr_burn_lava_gib
 #   slime    e3m1's slime: the same in slime (vr_enemy_liquid_damage): flails longer
 #   off      vrtesthall, vr_ragdoll_active_liquids 0: the death animation as on land
+#   actoff   vrtesthall: vr_ragdoll_active 0 while a grunt killed over the pool falls: no swim (PASS/FAIL)
 #   land     vrfiringrange: a body shot on land: no swim (unchanged)
 #   cost     4 grunts killed together in the pool (--exclusive): vr_ragdoll_active_list's drive cost, the step's
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
-CASES=${*:-water knight ogre enforcer hknight drown fallin head lava slime off land}
+CASES=${*:-water knight ogre enforcer hknight drown fallin head lava slime actoff off land}
 PY=${PY:-py -3.13}
 SUM="$TREE/Misc/quakevr/ragdoll/liquid_trace.py"
 PRE="wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_ragdoll_active_seed ${SEED:-0};vr_ragdoll_active_trace 3"
@@ -40,6 +41,9 @@ for c in $CASES; do
     drown)    drop vrtesthall "180 -256 200" 0 "vr_enemy_liquid_damage 1;wait2200" | $PY "$SUM" "grunt drown" ;;
     fallin)   drop vrtesthall "180 -256 200" 0 "wait2;vr_test_kill 1;wait800" | $PY "$SUM" "grunt fallin" ;;
     head)     drop vrtesthall "180 -256 200" 0 "wait150;vr_test_kill 2;wait600" | $PY "$SUM" "grunt head" ;;
+    actoff)   # vr_ragdoll_active 0 mid-death over the pool: the released body falls in limp, no swim wakes it
+        n=$(drop vrtesthall "180 -256 200" 0 "wait2;vr_test_kill 1;wait30;vr_ragdoll_active 0;wait600;vr_ragdoll_active 1" | grep -cE "ragdoll: [0-9]+ in (water|slime|lava)")
+        [ "$n" = 0 ] && echo "actoff: PASS (no swim after Active Deaths off)" || echo "actoff: FAIL ($n swims after Active Deaths off)" ;;
     off)      LIQ=0 drop vrtesthall "180 -256 200" 0 "wait150;vr_test_kill 1;wait600" | $PY "$SUM" "grunt off" ;;
     lava)     drop e1m7 "300 160 150" 0 "vr_enemy_liquid_damage 1;wait700" 100 | $PY "$SUM" "grunt lava" ;;
     slime)    drop e3m1 "960 16 0" 0 "vr_enemy_liquid_damage 1;wait700" 100 | $PY "$SUM" "grunt slime" ;;

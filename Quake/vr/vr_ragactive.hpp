@@ -87,6 +87,10 @@ struct Parts
     float k{1.f};                        // rest units -> metres (its scale over the world's units a metre)
     float m2u{1.f};                      // the world's units a metre
     glm::quat turn{1.f, 0.f, 0.f, 0.f}; // its model space -> the world (its yaw when it was made)
+    // [count] or null: the drive's forces this frame (N, world: a crawl's pull, a swim's head lift, a lean's pull, a
+    // living one's support), kept for the step's later pieces (Box3D clears forces after each: a slow frame's split step
+    // gave them only its first piece). drive() adds to it; the caller clears it each frame.
+    glm::vec3* force{nullptr};
 };
 
 // A strength over time: `from` until `t0` (s since the drive began), eased (smoothstep) to `to` at `t1`.

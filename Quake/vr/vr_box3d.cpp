@@ -560,6 +560,10 @@ struct RagdollBodies
     bool warnedUnstable{false}; // a part of it went faster than unstableSpeed (noteFallSpeeds said so)
     // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
     za::Array<float, ragdoll::maxBones> lift{};
+    // Its active drive's forces this frame (N, world; ragactive::Parts::force), given again for the step's later pieces
+    // (liftAgain), only in the frame they were set (`driveForceAt`, the server's time).
+    za::Array<glm::vec3, ragdoll::maxBones> driveForce{};
+    double driveForceAt{-1.0};
     // A shove's knockdown (ragdollShove; ROUND21.md, "A shove's knockdown: travel and a quarter turn"): driven each frame
     // (driveShove) while `on`, its travel apart from its turn.
     struct ShoveDrive
@@ -595,6 +599,11 @@ struct RagdollBodies
     int riseWhich{0};
     glm::vec3 riseSpot{0.f};
     float riseYaw{0.f};
+    // A rise begun and still asked for (ragdollGetUp): if it lapses (lost its pose, or no room left at its spot), the
+    // next ask waits vr_knockdown_retry (returns 0) before trying again; after riseLapsesMost the old blended get-up.
+    bool riseAsked{false};
+    int riseLapses{0};
+    double riseStuck{-1.0}; // risen, its spot taken since (it slumps after a while)
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -3064,7 +3073,7 @@ const RagdollClass ragdollClasses[] = {
     return ragdollGlobals[i]->value;
 }
 
-void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage); // (below)
+void blastRagdoll(RagdollBodies& r, const glm::vec3& at, float damage); // (below)
 
 // Active deaths (vr_ragdoll_active; vr_ragactive.hpp; ROUND22.md, "Active ragdolls: core and deaths"): the classes whose
 // death animation their ragdoll plays (the most common, most humanoid ones: their rigs' arms and legs are two-bone
@@ -4264,6 +4273,7 @@ void driveActive(Slot& s, float dt)
                     qcvm->time - a.rise.polled);
             }
             ragactive::lapse(r.active, parts, qcvm->time);
+            r.riseAsked = false; // (the QC already waits: not one of its lapses)
         }
     }
     ragactive::Context c;
@@ -4284,10 +4294,18 @@ void driveActive(Slot& s, float dt)
     c.trace = trace;
     // What is round him (vr_ragdoll_active_env): the world, the movers and the props his probes see; the world's ledges.
     c.envMask = catWorld | catMover | catProp | catSolid | catFixture;
-    c.ledges = vr_ragdoll_active_env.value != 0.f && vr_ragdoll_active_env_ledge.value != 0.f && r.active.on && sv.worldmodel
+    // (Looked up only for a drive whose env is on, or not started yet: not every frame for every collapse or swim.)
+    const ragactive::Env& env = r.active.env;
+    c.ledges = vr_ragdoll_active_env.value != 0.f && vr_ragdoll_active_env_ledge.value != 0.f && r.active.on &&
+                       r.active.death.on && (!env.started || env.on) && sv.worldmodel
                    ? ledges::of(sv.worldmodel)
                    : nullptr;
-    ragactive::drive(r.active, parts, c);
+    // Its forces this frame, kept for the step's later pieces (liftAgain).
+    r.driveForce = {};
+    r.driveForceAt = qcvm->time;
+    ragactive::Parts driven = parts;
+    driven.force = r.driveForce.data();
+    ragactive::drive(r.active, driven, c);
 }
 
 // ---- Shocked ragdolls (vr_shock_seizure; QC vr_shock.qc) ----
@@ -4854,11 +4872,11 @@ void updateRecoveries()
 
 // A blast of `damage` at `at` (box3d::blast) on a ragdoll's parts: each thrown as a prop of the whole ragdoll's mass
 // would be (thrown together, the nearer parts harder: it tumbles), if the blast sees its middle.
-void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage)
+void blastRagdoll(RagdollBodies& r, const glm::vec3& at, float damage)
 {
-    if(RagdollBodies* driven = ragdollOf(r.num); driven && driven->active.on)
+    if(r.active.on)
     {
-        ragactive::weaken(driven->active, 0.35f); // (an active death blasted: its muscles mostly gone)
+        ragactive::weaken(r.active, 0.35f); // (an active death blasted: its muscles mostly gone)
     }
     const float reach = damage + 40.f;
     constexpr float referenceMass = 6.f; // kg (blast's)
@@ -7698,12 +7716,22 @@ void liftAgain()
     }
     for(const RagdollBodies& r : world->ragdolls) // (ragdollsInLiquids')
     {
+        const bool driven = r.driveForceAt == qcvm->time; // (driveActive's, this frame)
         for(int b = 0; r.num > 0 && b < r.count; b++)
         {
-            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
-            if(r.lift[static_cast<za::SizeT>(b)] != 0.f && !partCut(r, b) && b3Body_IsValid(body))
+            const auto i = static_cast<za::SizeT>(b);
+            const b3BodyId body = r.body[i];
+            if(partCut(r, b) || !b3Body_IsValid(body))
             {
-                b3Body_ApplyForceToCenter(body, b3Vec3{0.f, 0.f, r.lift[static_cast<za::SizeT>(b)]}, false);
+                continue;
+            }
+            if(r.lift[i] != 0.f)
+            {
+                b3Body_ApplyForceToCenter(body, b3Vec3{0.f, 0.f, r.lift[i]}, false);
+            }
+            if(driven && r.driveForce[i] != glm::vec3{0.f})
+            {
+                b3Body_ApplyForceToCenter(body, b3v(r.driveForce[i]), false); // (awake: drive() woke it)
             }
         }
     }
@@ -10090,9 +10118,9 @@ void ragdollBlastTest_f()
     }
     const VmScope vm;
     const glm::vec3 player = vec(svs.clients[0].edict->v.origin);
-    const RagdollBodies* best = nullptr;
+    RagdollBodies* best = nullptr;
     float bestD = 1e30f;
-    for(const RagdollBodies& r : world->ragdolls)
+    for(RagdollBodies& r : world->ragdolls)
     {
         if(r.num > 0 && glm::distance(world->toU(b3Body_GetWorldCenter(r.body[0])), player) < bestD)
         {
@@ -11184,7 +11212,7 @@ void blast(const glm::vec3& at, float damage)
     constexpr float referenceMass = 6.f; // kg: a health box (its hull at 400 kg/m^3)
     // The ragdolls' parts (blastRagdoll), and the blast kept a moment for those its damage is about to make (a grunt it
     // killed goes limp a few frames later).
-    for(const RagdollBodies& r : world->ragdolls)
+    for(RagdollBodies& r : world->ragdolls)
     {
         if(r.num > 0)
         {
@@ -14874,6 +14902,9 @@ bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet)
     return true;
 }
 
+// A body's active get-ups lapsed (RagdollBodies::riseLapses) before it gets up the old way (blended from the floor).
+constexpr int riseLapsesMost = 2;
+
 int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range, bool anywhere)
 {
     if(!world || !ent || ent->free)
@@ -14887,7 +14918,8 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
         return 0;
     }
     const ragdoll::Rig& rig = *r->rig;
-    // Its body rising (vr_ragdoll_active_getup): on until it stands (-1), then handed back there (3 or 4: risen).
+    // Its body rising (vr_ragdoll_active_getup): on until it stands (-1), then handed back there (3 or 4: risen), if
+    // its spot is still free (it was chosen 1-2.5 s ago: the player or a monster may stand there now).
     if(r->active.on && r->active.rise.on)
     {
         r->active.rise.polled = qcvm->time;
@@ -14897,8 +14929,44 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
         }
         const int frame = static_cast<int>(ragactive::clipFrame(r->active, qcvm->time) + 0.5f);
         const int which = r->riseWhich;
-        handBack(ent, *r, frame, r->riseYaw, r->riseSpot, za::max(vr_ragdoll_active_getup_blend.value, 0.f), "risen");
-        return which + 2;
+        const b3WorldTransform pelvis = b3Body_GetTransform(r->body[0]);
+        const glm::vec3 from = fromB3(pelvis.q) * (rig.bones[0].pivot * r->scale) + world->toU(pelvis.p);
+        glm::vec3 spot{0.f};
+        if(standSpot(ent, from, r->riseSpot, mins, maxs, 24.f, spot))
+        {
+            if(vr_knockdown_debug.value && glm::distance(spot, r->riseSpot) > 0.5f)
+            {
+                Con_Printf("getup: %d risen, its spot taken: stands %.0f units off it\n", num, glm::distance(spot, r->riseSpot));
+            }
+            r->riseAsked = false;
+            handBack(ent, *r, frame, r->riseYaw, spot, za::max(vr_ragdoll_active_getup_blend.value, 0.f), "risen");
+            return which + 2;
+        }
+        // (No room left: it holds on a moment, standing, then slumps and tries again later.)
+        r->riseStuck = r->riseStuck < 0.0 ? qcvm->time : r->riseStuck;
+        if(qcvm->time - r->riseStuck <= 0.5)
+        {
+            return -1;
+        }
+        if(vr_knockdown_debug.value)
+        {
+            Con_Printf("getup: %d risen but its spot is taken: it slumps\n", num);
+        }
+        ragactive::lapse(r->active, activeParts(*r), qcvm->time);
+    }
+    // Its last rise lapsed (lost its pose, or its spot taken) while still asked for: it waits vr_knockdown_retry before
+    // trying again (asked again at once, it was pulled in again mid-slump, for ever).
+    if(r->riseAsked)
+    {
+        r->riseAsked = false;
+        r->riseStuck = -1.0;
+        r->riseLapses++;
+        if(vr_knockdown_debug.value)
+        {
+            Con_Printf("getup: %d its get-up lapsed (%d so far): tries again later%s\n", num, r->riseLapses,
+                r->riseLapses >= riseLapsesMost ? " (blended from the floor)" : "");
+        }
+        return 0;
     }
     float yawA = 0.f, yawB = 0.f;
     glm::vec3 atA{0.f}, atB{0.f};
@@ -14928,7 +14996,7 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
     // get-up's frames from the chosen one (its own fall-and-rise on to its end, or a death backwards to its first),
     // after a moment pulled into it (longer the more its pelvis must turn and the farther the place).
     const int chosen = which == 2 ? frameB : frameA;
-    if(vr_ragdoll_active_getup.value != 0.f && activeLiving(ent) && !anywhere && !liquidAt(from))
+    if(vr_ragdoll_active_getup.value != 0.f && activeLiving(ent) && !anywhere && !liquidAt(from) && r->riseLapses < riseLapsesMost)
     {
         const int last = getupEnd(rig, chosen, 12, ragdoll::deathProgress(rig, chosen) >= 0.f);
         if(last != chosen)
@@ -14951,12 +15019,14 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
             r->riseWhich = which;
             r->riseSpot = spot;
             r->riseYaw = yaw;
+            r->riseAsked = true;
+            r->riseStuck = -1.0;
             if(vr_knockdown_debug.value)
             {
-                Con_Printf("getup: %d rises through frames %d to %d (fit %.0f), %.0f units from where it lay, its pelvis to turn "
-                           "%.0f deg: pulled in over %.2f s, then %.2f s\n",
-                    num, chosen, last, which == 2 ? errB : errA, glm::length(glm::vec2{spot - at}), glm::degrees(turn), ri.prep,
-                    static_cast<float>(za::abs(last - chosen)) / ri.fps);
+                Con_Printf("getup: %d rises through frames %d to %d (fit %.0f), %.0f units from where it lay (at %.0f %.0f %.0f), "
+                           "its pelvis to turn %.0f deg: pulled in over %.2f s, then %.2f s\n",
+                    num, chosen, last, which == 2 ? errB : errA, glm::length(glm::vec2{spot - at}), spot.x, spot.y, spot.z,
+                    glm::degrees(turn), ri.prep, static_cast<float>(za::abs(last - chosen)) / ri.fps);
             }
             return -1;
         }

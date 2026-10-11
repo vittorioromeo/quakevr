@@ -51,6 +51,7 @@ float(float dist) VR_HitReact_Dist =
 {
     if(self.vr_hr_until <= time)
     {
+        self.vr_hr_hitch = '0 0 0'; // (its window over: a hitch not taken in it is stale)
         return dist;
     }
     if(self.vr_hr_hitch != '0 0 0')
@@ -156,6 +157,8 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit
     float share = take / max(targ.max_health, 1);
     share = min(max(share, 0), 1);
     hitreact(targ, at, dir, part, min(255, take), share);
+    // (an older leg hit's hitch not taken yet (pain frames ran through its window) goes: a leg hit below sets its own)
+    targ.vr_hr_hitch = '0 0 0';
 
     // The slow-down: the stronger of what is left of the last one and this one's
     float s = min(1, 1.4 * sqrt(share)) * cvar_hget(cvarh_vr_hit_react_slow);
