@@ -14874,6 +14874,32 @@ bool ragdollDrowning(edict_t* ent)
     return true;
 }
 
+bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold)
+{
+    RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp || !rp->rig || !activeLiving(ent))
+    {
+        return false;
+    }
+    RagdollBodies& r = *rp;
+    ragactive::State& a = r.active;
+    if(a.on && (a.death.on || ragactive::climbing(a) || ragactive::swimming(a)))
+    {
+        return false; // (its hands busy)
+    }
+    if(!a.on)
+    {
+        beginLiving(r, ent); // (lying: no clip, no strength; its arms alone, by their reaches)
+    }
+    ragactive::guard(a, glmv(world->toM(at)), qcvm->time, hold);
+    if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+    {
+        Con_Printf("guard: %d %s guards its head (%s) for %.2f s\n", r.num, PR_GetString(ent->v.classname),
+            a.stagger.on ? "staggering" : a.fall.on ? "falling" : a.rise.on ? "getting up" : "down", hold);
+    }
+    return true;
+}
+
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;

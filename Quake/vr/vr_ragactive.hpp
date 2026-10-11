@@ -430,6 +430,15 @@ struct Rise
     float errorMost{0.f};
 };
 
+// A living one guarding its head from a blow (vr_ragdoll_active_guard; guard()): its arms up before its face, the
+// forearms across it towards the blow, from `from` (eased in over 0.12 s) until `until` (then down over 0.25 s).
+struct Guard
+{
+    bool on{false};
+    double from{0.0}, until{0.0};
+    glm::vec3 threat{0.f}; // world, metres: where the blow comes from
+};
+
 // An active ragdoll's drive (in vr_box3d.cpp's RagdollBodies).
 struct State
 {
@@ -471,6 +480,8 @@ struct State
     Env env;
     // A living knockdown hanging from a ledge, pulling itself up (vr_ragdoll_active_pullup).
     Climb climb;
+    // Its head guarded from a blow (vr_ragdoll_active_guard).
+    Guard guard;
 };
 
 // What the drive needs of the world each frame.
@@ -587,6 +598,9 @@ void swimDies(State& s, double now);
 // near a hand (c.ledges): it grabs it, a climb (vr_ragdoll_active_pullup). Whether it did. drive() asks it itself for a
 // fall's.
 bool beginClimb(State& s, const Parts& p, const Context& c);
+// A living one (its drive begun: a stagger, a fall, a get-up, or one begun for this) guards its head from a blow coming
+// from `threat` (world, metres) for `hold` s: its arms' reaches up before its face over whatever leads them.
+void guard(State& s, const glm::vec3& threat, double now, float hold);
 
 // A mark of blood due on the hand holding a stump (Dismember::bloodDue, one taken): the hand's end (world, metres) and
 // the way to the stump. False: none due.

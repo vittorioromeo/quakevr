@@ -243,6 +243,9 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
 // (false: no ragdoll).
 [[nodiscard]] bool ragdollCanDrown(edict_t* ent);
 bool ragdollDrowning(edict_t* ent);
+// A living monster's ragdoll (of the active classes) guarding its head from a blow coming from `at` (units) for `hold`
+// s: its arms up before its face (vr_ragdoll_active_guard; QC VR_Guard_Raise). False: it can't.
+bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach);
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,

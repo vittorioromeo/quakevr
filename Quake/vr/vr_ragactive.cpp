@@ -2416,6 +2416,55 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
     }
 }
 
+// ---- Guarding the head (vr_ragdoll_active_guard; vr_ragactive.hpp, Guard) ----
+// A living one (staggering, falling, down, getting up) a hand swings at (QC VR_Guard_Frame): each arm reaches up before
+// its face, a little towards the blow and to its own side, the forearms across it, over what leads its arms (a
+// stagger's wheeling, a fall's bracing, a get-up's frames), eased in over guardIn, held, eased out over guardOut.
+constexpr float guardIn = 0.12f;  // s
+constexpr float guardOut = 0.25f; // s
+
+void guardFrame(State& s, const Parts& p, const Context& c)
+{
+    Guard& g = s.guard;
+    const int head = p.rig->head;
+    if(!g.on)
+    {
+        return;
+    }
+    if(c.now > g.until + guardOut || head < 0 || cut(p, head) || s.death.on || s.climb.on)
+    {
+        g.on = false;
+        for(int arm = 0; arm < 2; arm++)
+        {
+            s.reach[static_cast<za::SizeT>(arm)].weight = 0.f;
+        }
+        return;
+    }
+    const float w = smooth(static_cast<float>(c.now - g.from) / guardIn) *
+                    (1.f - smooth(static_cast<float>(c.now - g.until) / guardOut));
+    const float L = armLength(s, p);
+    const glm::vec3 at = glmv(b3Body_GetWorldCenter(p.body[head]));
+    const int chest = chestOf(p);
+    const glm::vec3 left = bodyRot(p, chest) * glm::vec3{0.f, 1.f, 0.f};
+    const glm::vec3 front = bodyRot(p, chest) * glm::vec3{1.f, 0.f, 0.f};
+    glm::vec3 toward = g.threat - at;
+    toward = glm::length(toward) > 1e-3f ? glm::normalize(toward) : front;
+    // (Mostly before its face: the blow's way bends it, half.)
+    glm::vec3 shield = front + toward;
+    shield = glm::length(shield) > 1e-3f ? glm::normalize(shield) : front;
+    for(int arm = 0; arm < 2; arm++)
+    {
+        Reach& r = s.reach[static_cast<za::SizeT>(arm)];
+        if(!limbWhole(s, p, arm))
+        {
+            continue;
+        }
+        r.goal = at + shield * (0.35f * L) + left * ((arm == 0 ? 0.12f : -0.12f) * L);
+        r.weight = za::max(r.weight * (1.f - w), w);
+        r.strength = za::max(r.strength, 0.9f);
+    }
+}
+
 // A living one's fall (drive(): a shove's knockdown, a stagger gone over, a throw; fallFrame's arms bracing): another
 // monster near a hand as it goes, the first second (by vr_ragdoll_active_grab's chance, rolled once a fall): it grabs at
 // it (fallFrame takes that arm's reach from its hand), held a moment, let go once it lands. Its hands' other holds let go
@@ -3440,6 +3489,18 @@ bool climbing(const State& s)
     return s.on && s.climb.on;
 }
 
+void guard(State& s, const glm::vec3& threat, double now, float hold)
+{
+    Guard& g = s.guard;
+    if(!g.on)
+    {
+        g.from = now;
+    }
+    g.on = true;
+    g.until = now + static_cast<double>(za::max(hold, 0.f));
+    g.threat = threat;
+}
+
 bool beginClimb(State& s, const Parts& p, const Context& c)
 {
     if(!p.rig || s.death.on || s.climb.on)
@@ -3547,6 +3608,10 @@ void drive(State& s, const Parts& p, const Context& c)
     if(s.fall.on && !swimming)
     {
         fallFrame(s, p, c, t);
+    }
+    if(s.guard.on && !swimming)
+    {
+        guardFrame(s, p, c); // (its arms up before its face, over the stagger's, the fall's or the get-up's)
     }
     // The reaches over the clip's pose (and no speed fed forward where they lead). The limbs envFrame reached last frame
     // are left to it when it leads (below): it applies their reaches itself, each arm solved once a frame (applied here
