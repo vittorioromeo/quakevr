@@ -95,6 +95,27 @@ After `vr_knockdown_time_min` to `_max` seconds (at random), `VR_Knockdown_Think
 
    Then it runs. Pain during the get-up plays its sound and the get-up goes on.
 
+## Active staggers, falls and get-ups (feature branch; ROUND22.md, "Active ragdolls: stagger, judo, get-up")
+
+With Active Deaths (`vr_ragdoll_active`) and its classes (grunt, enforcer, knight, death knight, ogre, zombie):
+
+- **Stagger** (`vr_ragdoll_active_stagger`): every shove that could knock it down (its chance above 0, not over a ledge,
+  not wading) makes it a ragdoll at once (`.vr_kd_stagger` 1, still `.vr_knockdown` 1: touchable, not solid), held up by
+  its muscles, its pelvis pinned and carried a share of the shove's slide, kept upright, its feet stepping after its
+  middle. Its **balance** is the knockdown's roll against its chance (`0.5 + 2.5 x (roll - chance)`, 0..1): the
+  muscles' hold, the pin, the upright and the torso go with it. Leaning past `vr_ragdoll_active_stagger_lean` (30
+  degrees) over its feet, or its knees giving, it **falls**: a knockdown from then (`VR_Knockdown_Think`: down
+  `vr_knockdown_time_min`..`_max` from the fall). Steady again, it **recovers**: handed back standing (`ragdollstaggered`
+  2: its stand frame fitted where it stands, a 0.2 s blend), its AI on (`th_run`).
+- **Falls**: a stagger gone over, a shove's knockdown and a two-hand throw brace their arms for the floor (or a wall)
+  the way they go, keep some tone in the torso and head, flinch as they land, then go limp (then they struggle,
+  `vr_knockdown_wiggle`). A throw's body is slack where the hands held it (0.6 s) and curls.
+- **Get-up** (`vr_ragdoll_active_getup`): `ragdollgetup` (the same fit and room search) starts the body's rise and
+  returns -1 while it goes (the QC asks every 0.05 s; not asked for 0.35 s, it slumps and tries again later); lying the
+  other way up it rolls over first, then it is pulled into the get-up's first frame where it will stand, then risen
+  through the get-up (its own frames up to the first standing one, or the death backwards) and handed back standing
+  (3 or 4: `VR_Knockdown_Afoot`, `th_run`). Not in a liquid, nor `anywhere`: those get up as before.
+
 ## Saved games
 
 State 1 (down) remakes its ragdoll on load (the engine's `wantsRagdoll` takes knocked-down monsters). Without a

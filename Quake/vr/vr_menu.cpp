@@ -4078,6 +4078,18 @@ void hologramTestMessage()
             .help("About how long he paddles in water before going limp (vr_ragdoll_active_paddle)."),
         slider("Flail Time", vr_ragdoll_active_flail, 0.5f, 4.f, 0.25f, "%.2f s").extend(0.2f, 30.f)
             .help("About how long he flails in lava (in slime 1.4 times it) before going limp (vr_ragdoll_active_flail)."),
+        toggle("Active Shoves and Throws", vr_ragdoll_active_stagger)
+            .help("With Knockdowns, a shove makes a grunt, enforcer, knight, death knight, ogre or zombie stagger as a "
+                  "ragdoll held up by its muscles, its feet stepping after it: leaning too far it falls (knocked down), "
+                  "else it recovers and fights on; the knockdown's chance sets how steady it is. Going down, its arms "
+                  "brace for the floor; a two-hand throw's body goes slack where you held it and curls as it goes over. "
+                  "Off: the knockdown's chance alone (vr_ragdoll_active_stagger)."),
+        slider("Stagger Falls Past", vr_ragdoll_active_stagger_lean, 10.f, 60.f, 5.f, "%.0f deg")
+            .help("A staggering monster whose middle leans this far past its feet falls (vr_ragdoll_active_stagger_lean)."),
+        toggle("Active Get-Ups", vr_ragdoll_active_getup)
+            .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
+                  "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "
+                  "blends into the get-up from the floor (vr_ragdoll_active_getup)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
@@ -6481,6 +6493,14 @@ za::Vector<Item> pageDebugTests()
                   "what Knockdowns' Travel is a share of."),
         command("Shove the Nearest, Standing, Two Hands", "vr_knockdown_chance 0; vr_knockdown_debug 1; developer 1; vr_knockdown_test 22")
             .help("The same with a two-handed shove (vr_knockdown_test 22)."),
+        command("Shove the Nearest, Stagger", "vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
+            .help("Print Rolls on, then vr_knockdown_test 21: the nearest monster shoved with one hand, its chance as set; "
+                  "with Active Shoves and Throws (Gibs and Corpses > Ragdoll Settings) it staggers: the console prints its "
+                  "balance and whether it recovered or fell (\"stagger:\"; vr_debug_ragdoll 2: each frame's lean and "
+                  "steps)."),
+        command("Shove the Nearest, Steady Stagger", "vr_knockdown_chance 0.01; vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
+            .help("Knockdowns' Chance 0.01 (set it back after): its balance all but full, so it staggers and recovers, "
+                  "back to its animation and its AI (the hand-back's gap printed: \"handback:\")."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),

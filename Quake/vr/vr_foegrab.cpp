@@ -513,6 +513,28 @@ float throwDown(edict_t* player, edict_t* m, const glm::vec3& dir, float twist, 
     const float topple = glm::radians(za::clamp(vr_foegrab_throw_topple.value, 0.f, 2000.f));
     const bool toppled = topple > 0.f &&
                          box3d::ragdollTopple(m, dir, topple, spin, za::clamp(vr_foegrab_throw_feet_speed.value, 0.f, 1000.f));
+    // Its fall (vr_ragdoll_active_stagger): slack where the hands held it (they let go now; the test's, none: its upper
+    // arms, where two hands take an enemy), the rest curling, its arms bracing.
+    glm::vec3 palms[2];
+    int held = 0;
+    const int c = NUM_FOR_EDICT(player) - 1;
+    for(int h = 0; h < 2 && c >= 0 && c < static_cast<int>(MAX_SCOREBOARD); h++)
+    {
+        const Hold& g = holders[c].holds[h];
+        if(g.active && g.ent == NUM_FOR_EDICT(m))
+        {
+            palms[held++] = g.palmAt;
+        }
+    }
+    if(held == 0)
+    {
+        const glm::vec3 lo = vec(m->v.absmin), hi = vec(m->v.absmax);
+        const glm::vec3 side = glm::cross(glm::vec3{0.f, 0.f, 1.f}, dir) * (0.3f * (hi.x - lo.x));
+        const glm::vec3 chest{(lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f, lo.z + 0.7f * (hi.z - lo.z)};
+        palms[held++] = chest + side;
+        palms[held++] = chest - side;
+    }
+    (void)box3d::ragdollThrown(m, dir, palms, held);
     if(trace && startTrace(m, dir, "throw"))
     {
         Con_Printf("throw trace: %s (%d) %s towards yaw %.0f, spin %.0f deg/s (hands' twist %.0f deg/s)\n",

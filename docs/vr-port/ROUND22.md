@@ -2493,6 +2493,136 @@ he should paddle up, head out for a moment, then go under and float face down (a
 over water: he paddles once he lands in it. Push one into lava (e1m7) or slime: a short violent flail as he burns, then
 limp. Compare with Swim and Flail in Liquids off.
 
+## Active ragdolls: stagger, judo, get-up (feature branch, 2026-10-11, worktree `ragstagger`)
+
+Stage 2 of the programme (the kit's `scratch/ACTIVE_RAGDOLLS.md`, 4(b1), 4(c), section 8). His goals: "Shoving with
+some stumbling (might end up falling or recovering), judo throw more realistic, more realistic 'getting up' animation
+when on the ground." The same classes as stage 1 (grunt, enforcer, knight, death knight, ogre, zombie), with
+`vr_ragdoll_active` on. Two toggles (default 1 on this branch; Gibs and Corpses > Ragdoll Settings): Active Shoves and
+Throws (`vr_ragdoll_active_stagger`), Active Get-Ups (`vr_ragdoll_active_getup`). KNOCKDOWNS.md has the rules.
+
+### Staggers (`ragactive::beginStagger`, `staggerFrame`; vr_box3d.cpp `ragdollStagger`, `ragdollStaggered`; QC `VR_Knockdown_Try`, `_Think`)
+
+- **Which shoves**: every shove that could knock it down (its chance above 0; not over a ledge, the sure knockdown as
+  before; not wading). The QC makes it a knockdown at once (touchable, not solid, `.vr_kd_stagger` 1) and the engine
+  drives its ragdoll; the QC asks every 0.05 s how it goes (`ragdollstaggered`: 1 going, 0 fell, 2 recovered).
+- **Its balance** = 0.5 + 2.5 x (the roll - the knockdown's chance), 0..1 (`VR_KD_STAGGER_SLOPE`): below the chance it is
+  likely to go over, the push decides at the edge. Everything holding it up goes with it: its weight held up by its
+  muscles (a force up on each part, 0.3..0.95 g), its pelvis pin (0.1..1 x `vr_ragdoll_active_stagger_pin` 2 body
+  weights), its upright (below), its torso's strength (0.5..1); its legs at full strength, its arms 0.6, head 0.8.
+- **Its pose**: its stand frame (frame 0 of each class: stand1), turned as its pelvis is (a pain frame twists the ogre
+  60 degrees); the body is made in its pain's first frame (the flinch) and goes back to it. Not the pain clip: the
+  grunt's painb is a fall.
+- **The push**: its pelvis pinned where it is and carried a share of the standing slide (`vr_ragdoll_active_stagger_travel`
+  0.2 of `VR_Shove_Reach`, at most 1.25 m, easing out over 0.35 + 0.45 x travel s); its parts' motion along the shove
+  (the pin's first speed by height, its top `vr_ragdoll_active_stagger_push` 2 m/s x the shove's push more).
+- **Upright** (`turnWhole`): the pin's own turn is the pelvis's alone, mass-normalised: far too weak for the body on it
+  (the shove pitched the grunt's pelvis 50 degrees and it stayed there). The whole body's spin and its motion about the
+  pelvis are eased towards turning back to its stance (8 rad/s per radian x its balance, at most 4 rad/s).
+- **Steps** (capture steps): a foot farther than a fifth of its leg from its stance under its middle's capture point
+  (its middle plus its level motion x sqrt(height / g)) lifts along an arc there (0.22 s, a leg's reach), one at a
+  time, at most 4; feet not stepping are left to their joints and the floor (a reach to where they stood straightened the
+  ogre's knees and lifted it off its pin). Step targets keep the foot's end as high over the floor as it was (the ogre's
+  ends lie 8 units under its soles).
+- **Falls** when its middle leans past `vr_ragdoll_active_stagger_lean` (30 degrees) over its base (its feet, the
+  stepping one where it lands) for 0.12 s while not stepping, or 1.5 x that at once, or its pelvis sinks below 55 % of
+  its height over the floor. Then a Fall (below); the QC: down from then (`vr_knockdown_time_min`..`_max`).
+- **Recovers** after its travel and 0.2 s, not stepping, leaning under 12 degrees and its pelvis under 0.4 m/s (or still
+  up after 2 s): handed back (`handBack`: its stand frame fitted where it stands, room within 24 units, a 0.2 s blend,
+  `vr_ragdoll_active_stagger_blend`); no room for 0.5 s: it falls. QC `VR_Knockdown_Afoot`: solid, `th_run` (the training
+  dummy, which has none: `th_stand`; the first version's NULL think was a Host_Error in the cost test).
+- Hit again while staggering (a QC knock): its strengths halve. Killed: limp at once. `vr_ragdoll_active 0`: falls.
+
+### Falls and judo (`beginFall`, `fallFrame`; vr_box3d.cpp `startFall`, `ragdollThrown`; vr_foegrab.cpp `throwDown`)
+
+- A stagger gone over, a shove's knockdown (`ragdollShove`, also over a ledge) and a two-hand throw: its legs give
+  (0.05 over 0.25 s), its torso keeps 0.5 (a throw 0.7: a curl) and its head 0.6 of the pose it went down in, its arms
+  brace: each hand to the floor ahead of its shoulder the way it goes (its top's motion), or to a wall within an arm's
+  reach that way (`Context::rayHit`), held where it touches. Landed (its chest low, or after 1.4 s): a flinch (torso and
+  head 0.7 fading over 0.9-1 s), the hands let go, then limp (and the knockdown's struggle).
+- **Judo**: the parts nearest the holding palms (or, in `vr_foegrab_throw_test`, two points on its upper arms) are
+  slack for 0.6 s with their limbs (as held), then ease back; its pinned feet are slack (held) while the topple holds
+  them. The throw's own motion (the author's topple, sweep, launch) is unchanged: the throw trace's summary is the same
+  within noise (tilt at 0.5 s 102 / 103 degrees, turned 347 / 333, feet 18 / 19 units), plus the arms and the curl.
+
+### Get-ups (`beginRise`, `riseFrame`; vr_box3d.cpp `ragdollGetUp`, `getupEnd`, `handBack`)
+
+- `ragdollgetup` fits the get-up frame and finds room as before; with Active Get-Ups (not in a liquid, not `anywhere`) it
+  starts the body's rise and returns -1 (the QC asks every 0.05 s), then 3 or 4 once risen.
+- **The frames**: Quake VR's models' frames have no names, so the end is found by the pose: from the chosen frame on, the
+  first whose pelvis is 7/8 of the way up to the stand frame's (at most 12 frames, never into a death); a death frame
+  (the death knight's): backwards to that death's first. Grunt 52-59, enforcer 89-99, knight 39-40, death knight 62-54,
+  ogre 85-96, zombie 173-162 (its rig counts its paine as a death: it rises up its fall backwards).
+- **Rolled over first** when its chest faces the other way from the first frame's (`rollOver`, the crawl's roll, now
+  shared), then pulled in over 0.35 + 0.4 x (its pelvis's turn / pi) + 0.3 x (the place's distance / 48 units) s
+  (strengths 0.25 -> 1, muscles 0 -> 0.8 g, the pin 0 -> `vr_ragdoll_active_getup_pin` 2.5 body weights, 5 Hz, its turn
+  12 Hz and as strong as its pull), then the frames played at 10 fps x `vr_knockdown_getup_speed` x
+  `vr_ragdoll_active_getup_pace` (0.8), the whole body turned towards the frames' pelvis (`turnWhole`, 9 rad/s per
+  radian), held 0.12 s at the last frame, then handed back there (`vr_ragdoll_active_getup_blend` 0.2 s), `th_run`.
+- The QC not asking for 0.35 s (hit: its time down extended), or its pelvis a metre off once pulled in: it slumps (a
+  Fall) and tries again later. Its contacts while rising or staggering are not falls (no fall damage).
+- **Stealth fix** (also for 1.0.1's knockdowns): `VR_Stealth_Applies` was true for a knocked-down monster (touchable,
+  not SOLID_NOT); an alert (the rising body's noise) set its think to its stand and it lay there for good. Knocked-down,
+  staggering and getting-up monsters are now outside stealth.
+
+### Checked (headless; vrfiringrange, `sv_random_seed 7`; scripts in the worktree's `scratch/`)
+
+**Stagger outcomes** (`st_rates.sh`/`st_all.sh`: 8 fresh monsters each, shoved by `vr_knockdown_test 21` one hand or 22
+two hands; push = `vr_shove_push_onehand` (0.7 default) or two hands at 1; the old rule's fall rate is the chance):
+
+| Monster | chance 1 hand / 2 | 1 hand, push 0.4 | 0.7 | 1.2 | 2 hands |
+|---|---|---|---|---|---|
+| grunt | .49 / 1.09 | 3 of 8 fell | 4 | 5 | 8 |
+| enforcer | .23 / .47 | 1 | 2 | 1 | 3 |
+| knight | .20 / .40 | 2 | 0 | 0 | 3 |
+| death knight | .08 / .15 | 0 | 0 | 0 | 0 |
+| ogre | .10 / .19 | 1 | 1 | 3 | 3 |
+| zombie | .21 / .37 | 0 | 1 | 0 | 4 |
+
+Steady (chance 0.01: balance ~1) and sure (chance 100: balance 0), one hand: every class recovers 6 of 6 steady and falls
+6 of 6 sure, but the ogre (sure: 2 of 6 fell; it barely moves, 1 unit of travel). No QC error, NaN or crash in any run.
+
+**Get-ups** (`gu1.sh`: `vr_knockdown_test 0` then 1; the hand-back's gap: each vertex of the ragdoll against the
+animated frame it is handed to, units, most / mean):
+
+| Monster | rise (pelvis off at the end, turned off) | gap, risen | gap, before (blended from the floor) |
+|---|---|---|---|
+| grunt | 2.6 units, 8 deg | 16.0 / 4.6 | 35.0 / 16.0 |
+| enforcer | 2.5, 4 | 33.3 / 14.1 (an arm 109 deg off) | 46.4 / 21.5 |
+| knight | 3.7, 6 | 18.4 / 6.9 | 47.5 / 25.9 |
+| death knight | 7.5, 1 | 18.8 / 8.2 | 45.8 / 12.9 |
+| ogre | 1.0, 1 | 13.6 / 3.8 | 28.3 / 9.9 |
+| zombie | 1.1, 4 | 5.5 / 2.4 | 18.1 / 4.3 |
+
+The worst parts are the hands that hold a welded gun. One zombie run of about 15 ended 1644 units off (not reproduced
+in 9 more; the rise now lets go a metre off). The grunt lies on his back after `vr_knockdown_test 0`: he rolls over
+(107 deg), is pulled in 0.6 s and rises in 1.1 s.
+
+**Stability**: get-ups (zombie, 3 runs) at most 90 J and 24 rad/s while rising; staggers (6 each) grunt at most 464 J
+(the shove itself) and 24 rad/s, ogre 1239 J and 60 rad/s in the first frame (its parts' launch), after 1.5 s 12 / 161 J.
+Killed or hit while staggering: no error (killed: limp; hit: recovered after 2 s). Stage 1's `active_test.sh deaths
+stumble` (grunt, knight): as before (limp at 10-22 %, driven 1.0-2.4 s, late energy 0).
+
+**Cost** (`st_cost.sh`, 6 grunts shoved two-handed in 6 frames, `--exclusive`): the drive 0.029 ms a frame for 6 (0.005
+each); the physics step over the next 10 / 60 / 200 frames 0.170 / 0.207 / 0.173 ms against 0.125 / 0.171 / 0.143 with
+`vr_ragdoll_active_stagger 0`.
+
+Contact sheets (the worktree's `scratch/sheet_<grunt|knight>_<stagger_recover|stagger_fall|getup>.png`): the grunt
+sways back on a step and stands; tips back and falls; rises from a kneel and runs.
+
+### Not done, open
+
+- The rates are physical at the edge: a strong one-hand push (1.2) fells a steady grunt half the time, a weak one (0.4)
+  rarely; the ogre shrugs off even a sure one-hand shove. Tuning the balance slope or the push is his call.
+- Recovery hands back to `th_run` (the pain's frames skipped); `attack_finished` from the shove still holds it a moment.
+- Saved games: a stagger or rise is not saved (loaded: a plain knockdown).
+- No hit reactions on standing monsters (option 4(b2)); no head protection, ledge hangs or catching on others.
+
+**In the headset**: shove grunts and knights with one hand (they stagger, step back and recover, or go over) and two
+(grunts go over, bracing with an arm); throw one with both hands (the arm you held flops, the rest curls); wait for one
+to get up (it rolls over if on its back, pushes itself up and stands before running). Gibs and Corpses > Ragdoll
+Settings > Active Shoves and Throws / Active Get-Ups off to compare.
+
 ## INTEGRATION: the feature branches merged for testing (worktree `integ`, 2026-10-11; pushed as `origin/next`)
 
 **Merged** onto vr-ironwail `bc3163ed4`, in this order, each a real merge (`--no-ff`, its commits kept: revert one
