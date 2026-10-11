@@ -43,12 +43,13 @@ struct ViewEntity
 // entity's (mirrored) space before the model's own scaling.
 [[nodiscard]] glm::vec3 anchorPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra);
 
-// The same for the model's vertex `vertex` (its file's order).
-[[nodiscard]] glm::vec3 vertexPosition(const ViewEntity& ve, int vertex, const glm::vec3& extra);
-
-// The same for any alias entity (a weapon lying in the world), drawn mirrored or not.
-[[nodiscard]] glm::vec3 entityAnchorPosition(
+// The same for any alias entity (a weapon lying in the world), drawn mirrored or not (a view entity: as above).
+[[nodiscard]] glm::vec3 anchorPosition(
     const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra);
+
+// World position of `ve`'s model's vertex `vertex` (its file's order) as drawn: not an attachment (the melee HUD's embers
+// off a random vertex).
+[[nodiscard]] glm::vec3 vertexPosition(const ViewEntity& ve, int vertex);
 
 // Immersive reloading: the reference point of the round `hand` holds (a magazine's top, moved by its
 // vr_reload_mag_<kind>_x/y/z, and its radius in `radius`; a shell's middle, radius -1), as drawn. False: it holds none.
@@ -307,7 +308,7 @@ void prepareModels();
 void resetCaches();
 
 // vr_model_reload [model ...]: models edited in Blender (docs/vr-port/MODELS_IN_BLENDER.md) read again from their files,
-// and what the engine worked out from them forgotten (the anchors' strip order, the grasp's shapes, the collision
+// and what the engine worked out from them forgotten (the anchors' bindings, the grasp's shapes, the collision
 // triangles, the body's bones). Without arguments: the weapons (progs/v_*.mdl), the body (progs/vrbody*.mdl: its
 // .md5mesh and skins) and the wrist gadget (progs/vrgadget*.mdl) that are loaded.
 void modelReload_f();

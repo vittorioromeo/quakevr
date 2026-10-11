@@ -19,222 +19,23 @@ namespace qvr::anchor
 namespace
 {
 
-struct Triangle
-{
-    int facesfront;
-    int vertindex[3];
-};
-
-// ----------------------------------------------------------------------------
-// QuakeSpasm's BuildTris strip/fan search (gl_mesh.c before QuakeSpasm 0.93), reduced to
-// computing the vertex order. Kept structurally identical so the order matches exactly.
-
-class StripBuilder
-{
-public:
-    explicit StripBuilder(const za::Vector<Triangle>& tris) : triangles(tris), used(tris.size(), 0)
-    {
-    }
-
-    [[nodiscard]] za::Vector<int> buildVertexOrder()
-    {
-        za::Vector<int> order;
-        const int numtris = static_cast<int>(triangles.size());
-
-        for(int i = 0; i < numtris; i++)
-        {
-            if(used[i])
-            {
-                continue;
-            }
-
-            int bestlen = 0;
-            int bestverts[1024];
-            int besttris[1024];
-
-            for(int type = 0; type < 2; type++)
-            {
-                for(int startv = 0; startv < 3; startv++)
-                {
-                    const int len = type == 1 ? stripLength(i, startv) : fanLength(i, startv);
-                    if(len > bestlen)
-                    {
-                        bestlen = len;
-                        for(int j = 0; j < bestlen + 2; j++)
-                        {
-                            bestverts[j] = stripverts[j];
-                        }
-                        for(int j = 0; j < bestlen; j++)
-                        {
-                            besttris[j] = striptris[j];
-                        }
-                    }
-                }
-            }
-
-            for(int j = 0; j < bestlen; j++)
-            {
-                used[besttris[j]] = 1;
-            }
-
-            for(int j = 0; j < bestlen + 2; j++)
-            {
-                order.pushBack(bestverts[j]);
-            }
-        }
-
-        return order;
-    }
-
-private:
-    const za::Vector<Triangle>& triangles;
-    za::Vector<int> used;
-    int stripverts[128];
-    int striptris[128];
-    int stripcount{0};
-
-    void clearTempUsed(int starttri)
-    {
-        for(int j = starttri + 1; j < static_cast<int>(triangles.size()); j++)
-        {
-            if(used[j] == 2)
-            {
-                used[j] = 0;
-            }
-        }
-    }
-
-    [[nodiscard]] int stripLength(int starttri, int startv)
-    {
-        used[starttri] = 2;
-        const Triangle& last = triangles[starttri];
-
-        stripverts[0] = last.vertindex[startv % 3];
-        stripverts[1] = last.vertindex[(startv + 1) % 3];
-        stripverts[2] = last.vertindex[(startv + 2) % 3];
-        striptris[0] = starttri;
-        stripcount = 1;
-
-        int m1 = last.vertindex[(startv + 2) % 3];
-        int m2 = last.vertindex[(startv + 1) % 3];
-
-        bool extended = true;
-        while(extended && stripcount < 126)
-        {
-            extended = false;
-            for(int j = starttri + 1; j < static_cast<int>(triangles.size()) && !extended; j++)
-            {
-                const Triangle& check = triangles[j];
-                if(check.facesfront != last.facesfront)
-                {
-                    continue;
-                }
-
-                for(int k = 0; k < 3; k++)
-                {
-                    if(check.vertindex[k] != m1 || check.vertindex[(k + 1) % 3] != m2)
-                    {
-                        continue;
-                    }
-
-                    if(used[j])
-                    {
-                        clearTempUsed(starttri);
-                        return stripcount;
-                    }
-
-                    if(stripcount & 1)
-                    {
-                        m2 = check.vertindex[(k + 2) % 3];
-                    }
-                    else
-                    {
-                        m1 = check.vertindex[(k + 2) % 3];
-                    }
-
-                    stripverts[stripcount + 2] = check.vertindex[(k + 2) % 3];
-                    striptris[stripcount] = j;
-                    stripcount++;
-                    used[j] = 2;
-                    extended = true;
-                    break;
-                }
-            }
-        }
-
-        clearTempUsed(starttri);
-        return stripcount;
-    }
-
-    [[nodiscard]] int fanLength(int starttri, int startv)
-    {
-        used[starttri] = 2;
-        const Triangle& last = triangles[starttri];
-
-        stripverts[0] = last.vertindex[startv % 3];
-        stripverts[1] = last.vertindex[(startv + 1) % 3];
-        stripverts[2] = last.vertindex[(startv + 2) % 3];
-        striptris[0] = starttri;
-        stripcount = 1;
-
-        const int m1 = last.vertindex[startv % 3];
-        int m2 = last.vertindex[(startv + 2) % 3];
-
-        bool extended = true;
-        while(extended && stripcount < 126)
-        {
-            extended = false;
-            for(int j = starttri + 1; j < static_cast<int>(triangles.size()) && !extended; j++)
-            {
-                const Triangle& check = triangles[j];
-                if(check.facesfront != last.facesfront)
-                {
-                    continue;
-                }
-
-                for(int k = 0; k < 3; k++)
-                {
-                    if(check.vertindex[k] != m1 || check.vertindex[(k + 1) % 3] != m2)
-                    {
-                        continue;
-                    }
-
-                    if(used[j])
-                    {
-                        clearTempUsed(starttri);
-                        return stripcount;
-                    }
-
-                    m2 = check.vertindex[(k + 2) % 3];
-                    stripverts[stripcount + 2] = m2;
-                    striptris[stripcount] = j;
-                    stripcount++;
-                    used[j] = 2;
-                    extended = true;
-                    break;
-                }
-            }
-        }
-
-        clearTempUsed(starttri);
-        return stripcount;
-    }
-};
-
 // ----------------------------------------------------------------------------
 // The model file: what the in-memory model no longer has (its triangles), and its rest pose.
 
-// A model file's triangles and its rest pose (frame 0, a group's first pose) in its own coordinates (scale and origin
-// applied), with the anchors bound on it so far (by their text).
+struct Triangle
+{
+    int vert[3];
+};
+
+// An anchor bound to a triangle of the rest pose: barycentric weights over its three vertices.
 struct Bound
 {
     int vert[3]{0, 0, 0};
     float weight[3]{1.f, 0.f, 0.f};
-    int tri{-1};           // the triangle bound to (-1: a legacy anchor's vertex)
-    float distance{0.f};   // from the anchor's point to the surface (model units)
-    int ties{0};           // other triangles as near that bind elsewhere (a hint picks among them)
-    bool corner{false};    // snapped to a corner of the triangle
-    bool legacy{false};
+    int tri{-1};         // the triangle bound to (-1: not an anchor's text: the model's first vertex)
+    float distance{0.f}; // from the anchor's point to the surface (model units)
+    int ties{0};         // other triangles as near that bind elsewhere (the file's order picks among them)
+    bool corner{false};  // snapped to a corner of the triangle
 };
 
 struct Binding
@@ -247,6 +48,8 @@ struct Binding
     return mem::heldBytes(b.text);
 }
 
+// A model file's triangles and its rest pose (frame 0, a group's first pose) in its own coordinates (scale and origin
+// applied), with the anchors bound on it so far (by their text).
 struct Mesh
 {
     za::String name;
@@ -254,27 +57,20 @@ struct Mesh
     int numverts{0};
     za::Vector<Triangle> tris;
     za::Vector<glm::vec3> rest;
-    za::Vector<glm::vec3> poses; // every pose (legacyToText's check only)
-    za::Vector<int> order; // the strip order (legacy anchors), built when one asks
-    bool orderBuilt{false};
     za::Vector<Binding> bindings;
 };
 [[nodiscard]] za::SizeT heldBytes(const Mesh& m) // (vr_mem.hpp)
 {
-    return mem::heldBytes(m.name) + mem::heldBytes(m.tris) + mem::heldBytes(m.rest) + mem::heldBytes(m.poses) + mem::heldBytes(m.order) +
-           mem::heldBytes(m.bindings);
+    return mem::heldBytes(m.name) + mem::heldBytes(m.tris) + mem::heldBytes(m.rest) + mem::heldBytes(m.bindings);
 }
 
-// Reads `modelName`'s triangles and rest pose (and with `allPoses` every pose, one after another). False: no such Quake model file (or a broken one).
-[[nodiscard]] bool loadMesh(const char* modelName, Mesh& out, bool allPoses = false)
+// Reads `modelName`'s triangles and rest pose. False: no such Quake model file (or a broken one).
+[[nodiscard]] bool loadMesh(const char* modelName, Mesh& out)
 {
     out.ok = false;
     out.numverts = 0;
     out.tris.clear();
     out.rest.clear();
-    out.poses.clear();
-    out.order.clear();
-    out.orderBuilt = false;
     out.bindings.clear();
 
     byte* data = COM_LoadMallocFile(modelName, nullptr);
@@ -346,128 +142,65 @@ struct Mesh
     out.tris.resize(numtris);
     for(int i = 0; i < numtris; i++, ofs += 16)
     {
-        out.tris[i].facesfront = readInt(ofs);
-        for(int k = 0; k < 3; k++)
+        for(int k = 0; k < 3; k++) // (after facesfront)
         {
-            out.tris[i].vertindex[k] = CLAMP(0, readInt(ofs + 4 + k * 4), numverts - 1);
+            out.tris[i].vert[k] = CLAMP(0, readInt(ofs + 4 + k * 4), numverts - 1);
         }
     }
 
-    // The frames: a simple frame (type 0, then bboxmin, bboxmax, name[16], the vertices), or a group (its count, bboxes,
-    // intervals, then its frames). The rest pose is the first (frame 0, a group's first); every pose only if asked.
+    // The first frame: a simple frame (type 0, then bboxmin, bboxmax, name[16], the vertices), or a group (its count,
+    // bboxes, intervals, then its frames: the first is the rest pose).
     constexpr int frameHeader = 4 + 4 + 16;
-    const auto readPose = [&](int at, glm::vec3* to) {
-        for(int v = 0; v < numverts; v++)
-        {
-            const byte* t = data + at + v * 4;
-            to[v] = glm::vec3{t[0], t[1], t[2]} * scale + origin;
-        }
-    };
-    const int poseBytes = frameHeader + numverts * 4;
-    for(int frame = 0; frame < numframes; frame++)
+    if(ofs + 4 <= size)
     {
-        if(ofs + 4 > size)
-        {
-            break;
-        }
         const bool group = readInt(ofs) != 0;
         const int count = group ? (ofs + 8 <= size ? readInt(ofs + 4) : 0) : 1;
         ofs += group ? 4 + 4 + 8 + count * 4 : 4;
-        if(count <= 0 || ofs + count * poseBytes > size)
+        if(count > 0 && ofs + frameHeader + numverts * 4 <= size)
         {
-            break;
-        }
-        for(int i = 0; i < count; i++, ofs += poseBytes)
-        {
-            if(out.rest.empty())
+            out.rest.resize(numverts);
+            for(int v = 0; v < numverts; v++)
             {
-                out.rest.resize(numverts);
-                readPose(ofs + frameHeader, out.rest.data());
+                const byte* t = data + ofs + frameHeader + v * 4;
+                out.rest[v] = glm::vec3{t[0], t[1], t[2]} * scale + origin;
             }
-            if(!allPoses)
-            {
-                break;
-            }
-            const za::SizeT first = out.poses.size();
-            out.poses.resize(first + static_cast<za::SizeT>(numverts));
-            readPose(ofs + frameHeader, out.poses.data() + first);
-        }
-        if(!allPoses)
-        {
-            break;
         }
     }
+    VR_HeapFree(data);
     if(out.rest.empty())
     {
-        VR_HeapFree(data);
         return false;
     }
-
-    VR_HeapFree(data);
     out.numverts = numverts;
     out.ok = true;
     return true;
 }
 
-[[nodiscard]] const za::Vector<int>& stripOrder(Mesh& m)
-{
-    if(!m.orderBuilt)
-    {
-        m.order = StripBuilder{m.tris}.buildVertexOrder();
-        m.orderBuilt = true;
-    }
-    return m.order;
-}
-
 // ----------------------------------------------------------------------------
-// Anchor text.
+// Anchor text: "x y z" (separated by spaces, tabs, commas or '_', a motion take header's: vr_motion.cpp).
 
-struct Spec
+[[nodiscard]] bool parse(const char* text, glm::vec3& point)
 {
-    bool legacy{true};
-    int index{0};          // a legacy anchor's
-    glm::vec3 point{0.f};  // a point's
-    int hint{-1};
-};
-
-[[nodiscard]] Spec parse(const char* text)
-{
-    Spec s;
-    if(!text)
-    {
-        return s;
-    }
-    float n[4]{};
+    float n[3]{};
     int count = 0;
-    const char* p = text;
-    while(count < 4)
+    const char* p = text ? text : "";
+    while(count < 3)
     {
-        while(*p == ' ' || *p == '\t' || *p == ',' || *p == '_') // ('_': a motion take header's, vr_motion.cpp)
+        while(*p == ' ' || *p == '\t' || *p == ',' || *p == '_')
         {
             p++;
         }
-        if(!*p)
-        {
-            break;
-        }
         char* end = nullptr;
         const float f = strtof(p, &end);
-        if(end == p)
+        if(!*p || end == p)
         {
             break;
         }
         n[count++] = f;
         p = end;
     }
-    if(count >= 3)
-    {
-        s.legacy = false;
-        s.point = {n[0], n[1], n[2]};
-        s.hint = count >= 4 ? static_cast<int>(n[3]) : -1;
-        return s;
-    }
-    s.index = count >= 1 ? static_cast<int>(n[0]) : 0;
-    return s;
+    point = {n[0], n[1], n[2]};
+    return count == 3;
 }
 
 // A coordinate as anchors write it: 4 decimals (well under a byte step of any model), no trailing zeros.
@@ -495,17 +228,12 @@ void appendNumber(za::String& out, float f)
     out += buf;
 }
 
-[[nodiscard]] za::String pointText(const glm::vec3& p, int hint)
+[[nodiscard]] za::String pointText(const glm::vec3& p)
 {
     za::String out;
     appendNumber(out, p.x);
     appendNumber(out, p.y);
     appendNumber(out, p.z);
-    if(hint >= 0)
-    {
-        out += " ";
-        out += va("%d", hint);
-    }
     return out;
 }
 
@@ -514,7 +242,7 @@ void appendNumber(za::String& out, float f)
 
 // Points this near a triangle's corner are on it (the text's rounding is 0.00005 a coordinate).
 constexpr float snapDistance = 0.001f;
-// Triangles this much nearer than the nearest are as near (the first, or the hint, is taken).
+// Triangles this much nearer than the nearest are as near (the first is taken).
 constexpr float tieDistance = 0.001f;
 
 struct Closest
@@ -592,16 +320,16 @@ struct Closest
     Bound b;
     b.tri = t;
     const glm::dvec3 dp{p};
-    const Closest c = closestOnTriangle(dp, glm::dvec3{m.rest[tri.vertindex[0]]}, glm::dvec3{m.rest[tri.vertindex[1]]},
-        glm::dvec3{m.rest[tri.vertindex[2]]});
+    const Closest c = closestOnTriangle(dp, glm::dvec3{m.rest[tri.vert[0]]}, glm::dvec3{m.rest[tri.vert[1]]},
+        glm::dvec3{m.rest[tri.vert[2]]});
     b.distance = static_cast<float>(glm::distance(dp, c.point));
-    int corner = -1; // the nearest corner it is on (of corners in one place, the first: a hint picks the triangle)
+    int corner = -1; // the nearest corner it is on (of corners in one place, the first)
     float cornerDistance = snapDistance;
     for(int k = 0; k < 3; k++)
     {
-        b.vert[k] = tri.vertindex[k];
+        b.vert[k] = tri.vert[k];
         b.weight[k] = static_cast<float>(c.w[k]);
-        const float d = glm::distance(p, m.rest[tri.vertindex[k]]);
+        const float d = glm::distance(p, m.rest[tri.vert[k]]);
         if(d < cornerDistance)
         {
             corner = k;
@@ -645,64 +373,39 @@ struct Closest
     return true;
 }
 
-// The bindings `s` could take: the triangles as near as the nearest (within the text's rounding) and, if any of them puts
-// the point on a corner (a vertex anchor), only those (not a triangle of another part passing that close), in the file's
-// order; the hint among them even if it doesn't.
-void candidates(const Mesh& m, const Spec& s, za::Vector<Bound>& out)
+// The point's binding: among the triangles as near as the nearest (within the text's rounding), and of them those with
+// the point on a corner if any (a vertex anchor: not a triangle of another part passing that close), the first in the
+// file's order. `ties`: the others that bind elsewhere (two parts touching there, which the order then picks between).
+[[nodiscard]] Bound bind(const Mesh& m, const glm::vec3& p)
 {
-    out.clear();
+    za::Vector<Bound> all;
+    all.reserve(m.tris.size());
     float nearest = 1e30f;
-    bool anyCorner = false;
     for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
     {
-        nearest = glm::min(nearest, bindTriangle(m, t, s.point).distance);
+        all.pushBack(bindTriangle(m, t, p));
+        nearest = glm::min(nearest, all.back().distance);
     }
-    for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
+    bool anyCorner = false;
+    for(const Bound& b : all)
     {
-        const Bound b = bindTriangle(m, t, s.point);
         anyCorner = anyCorner || (b.distance <= nearest + tieDistance && b.corner);
     }
-    for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
-    {
-        const Bound b = bindTriangle(m, t, s.point);
-        if(b.distance <= nearest + tieDistance && (!anyCorner || b.corner || t == s.hint))
-        {
-            out.pushBack(b);
-        }
-    }
-}
-
-[[nodiscard]] Bound bind(Mesh& m, const Spec& s)
-{
+    const auto candidate = [&](const Bound& b) { return b.distance <= nearest + tieDistance && (!anyCorner || b.corner); };
     Bound out;
-    if(s.legacy)
+    for(const Bound& b : all)
     {
-        const za::Vector<int>& order = stripOrder(m);
-        out.legacy = true;
-        out.vert[0] = out.vert[1] = out.vert[2] = order.empty() ? 0 : order[CLAMP(0, s.index, static_cast<int>(order.size()) - 1)];
-        return out;
-    }
-    if(m.tris.empty())
-    {
-        return out;
-    }
-
-    za::Vector<Bound> tied;
-    candidates(m, s, tied);
-    // The hint if it is one of them, else the first. `ties`: the others that bind elsewhere (another vertex in the same
-    // place: two parts touching there, a collapsed muzzle flash): the triangle order picks, which an edit may change.
-    out = tied[0];
-    for(const Bound& b : tied)
-    {
-        if(b.tri == s.hint)
+        if(candidate(b))
         {
-            out = b;
+            if(out.tri < 0)
+            {
+                out = b;
+            }
+            else
+            {
+                out.ties += !sameBinding(out, b);
+            }
         }
-    }
-    out.ties = 0;
-    for(const Bound& b : tied)
-    {
-        out.ties += !sameBinding(out, b);
     }
     return out;
 }
@@ -727,7 +430,7 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
     return m.ok && m.numverts == hdr->numverts ? &m : nullptr;
 }
 
-// The binding of `text` on `m` (bound the first time).
+// The binding of `text` on `m` (bound the first time; not an anchor's text: the first vertex).
 [[nodiscard]] const Bound& boundFor(Mesh& m, const char* text)
 {
     const char* t = text ? text : "";
@@ -742,7 +445,8 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
     {
         m.bindings.clear(); // (settings being tried: a few anchors are in use at once)
     }
-    m.bindings.pushBack(Binding{za::String{t}, bind(m, parse(t))});
+    glm::vec3 p;
+    m.bindings.pushBack(Binding{za::String{t}, parse(t, p) ? bind(m, p) : Bound{}});
     return m.bindings.back().bound;
 }
 
@@ -823,24 +527,6 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
     return hdr;
 }
 
-// A binding's point in pose `pose` (the byte space), as the old vertex anchors read their vertex.
-[[nodiscard]] glm::vec3 boundInPose(const aliashdr_t* hdr, const Bound& b, int pose)
-{
-    if(b.legacy)
-    {
-        return poseVertex(hdr, pose, b.vert[0]);
-    }
-    glm::vec3 p{0.f};
-    for(int k = 0; k < 3; k++)
-    {
-        if(b.weight[k] != 0.f)
-        {
-            p += poseVertex(hdr, pose, b.vert[k]) * b.weight[k];
-        }
-    }
-    return p;
-}
-
 } // namespace
 
 int zeroPose(const aliashdr_t* hdr)
@@ -868,10 +554,6 @@ glm::vec3 posedAnchor(const entity_t& ent, const char* anchor, float zeroBlend)
         return blendedVertex(ent, hdr, 0, zeroBlend);
     }
     const Bound& b = boundFor(*m, anchor);
-    if(b.legacy)
-    {
-        return blendedVertex(ent, hdr, CLAMP(0, b.vert[0], hdr->numverts - 1), zeroBlend);
-    }
     glm::vec3 p{0.f};
     for(int k = 0; k < 3; k++)
     {
@@ -913,162 +595,74 @@ bool posedVertices(const entity_t& ent, float zeroBlend, za::Vector<glm::vec3>& 
     return true;
 }
 
-bool isLegacy(const char* anchor)
+bool isAnchor(const char* text)
 {
-    return parse(anchor).legacy;
-}
-
-bool legacyToText(const char* modelName, int index, za::String& out, bool* exact)
-{
-    Mesh m;
-    if(!loadMesh(modelName, m, true))
-    {
-        return false;
-    }
-    const za::Vector<int>& order = stripOrder(m);
-    if(order.empty())
-    {
-        return false;
-    }
-    const int vertex = order[CLAMP(0, index, static_cast<int>(order.size()) - 1)];
-    const za::String plain = pointText(m.rest[vertex], -1);
-    const Spec s = parse(plain.cStr());
-    // A binding that is where the vertex is in every pose (another vertex in the same place at rest, two parts touching
-    // there, may move elsewhere).
-    const int numposes = static_cast<int>(m.poses.size()) / m.numverts;
-    const auto followsVertex = [&](const Bound& b) {
-        for(int pose = 0; pose < numposes; pose++)
-        {
-            const glm::vec3* P = m.poses.data() + static_cast<za::SizeT>(pose) * static_cast<za::SizeT>(m.numverts);
-            const glm::vec3 at = P[b.vert[0]] * b.weight[0] + P[b.vert[1]] * b.weight[1] + P[b.vert[2]] * b.weight[2];
-            if(glm::distance(at, P[vertex]) > 1e-4f)
-            {
-                return false;
-            }
-        }
-        return true;
-    };
-    if(exact)
-    {
-        *exact = true;
-    }
-    // Without a hint when every binding the point could take goes where the vertex goes (the triangle order then doesn't
-    // matter: an edit may renumber them).
-    za::Vector<Bound> tied;
-    candidates(m, s, tied);
-    bool allFollow = !tied.empty();
-    for(const Bound& b : tied)
-    {
-        allFollow = allFollow && followsVertex(b);
-    }
-    if(allFollow)
-    {
-        out = plain;
-        return true;
-    }
-    // Another vertex in the same place (two parts touching there, a collapsed muzzle flash) that moves elsewhere: the first
-    // of the vertex's triangles that binds the point to where it goes, as the hint (so the triangle order doesn't pick).
-    for(int t = 0; t < static_cast<int>(m.tris.size()); t++)
-    {
-        const Triangle& tri = m.tris[t];
-        if(tri.vertindex[0] != vertex && tri.vertindex[1] != vertex && tri.vertindex[2] != vertex)
-        {
-            continue;
-        }
-        Spec hinted = s;
-        hinted.hint = t;
-        if(followsVertex(bind(m, hinted)))
-        {
-            out = pointText(m.rest[vertex], t);
-            return true;
-        }
-    }
-    if(exact)
-    {
-        *exact = followsVertex(bind(m, s)); // none does: the point as it is (vr_anchor_compare says how far off)
-    }
-    out = plain;
-    return true;
+    glm::vec3 p;
+    return parse(text, p);
 }
 
 namespace
 {
 
-[[nodiscard]] const aliashdr_t* commandModel(qmodel_t*& model)
+// The command's model (its first argument) and its mesh; nullptr (said why) without one.
+[[nodiscard]] Mesh* commandMesh(qmodel_t*& model)
 {
     model = Mod_ForName(Cmd_Argv(1), false);
-    if(!model || model->type != mod_alias)
+    Mesh* m = nullptr;
+    if(model && model->type == mod_alias)
     {
-        Con_Printf("%s: not an alias model\n", Cmd_Argv(1));
-        return nullptr;
+        const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
+        m = hdr->poseverttype == aliashdr_t::PV_QUAKE1 && hdr->vertexes ? meshFor(model, hdr) : nullptr;
     }
-    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
-    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes)
+    if(!m)
     {
-        Con_Printf("%s: no Quake vertices\n", Cmd_Argv(1));
-        return nullptr;
+        Con_Printf("%s: not a Quake alias model with a file matching it\n", Cmd_Argv(1));
     }
-    return hdr;
+    return m;
 }
 
-// The arguments from `first` on, as one text (an anchor's numbers).
-[[nodiscard]] za::String argsFrom(int first)
+[[nodiscard]] glm::vec3 restPoint(const Mesh& m, const Bound& b)
 {
-    za::String text;
-    for(int i = first; i < Cmd_Argc(); i++)
-    {
-        if(i > first)
-        {
-            text += " ";
-        }
-        text += Cmd_Argv(i);
-    }
-    return text;
+    return m.rest[b.vert[0]] * b.weight[0] + m.rest[b.vert[1]] * b.weight[1] + m.rest[b.vert[2]] * b.weight[2];
 }
 
-[[nodiscard]] glm::vec3 modelSpace(const aliashdr_t* hdr, const glm::vec3& v)
+[[nodiscard]] const char* tiesNote(const Bound& b)
 {
-    return v * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]} +
-           glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-}
-
-void printBound(const qmodel_t* model, const char* text, const Bound& b, const Mesh& m)
-{
-    if(b.legacy)
-    {
-        const glm::vec3& p = m.rest[b.vert[0]];
-        Con_Printf("%s anchor \"%s\": legacy index, vertex %d at %.4f %.4f %.4f (as a point: \"%s\")\n", model->name, text,
-            b.vert[0], p.x, p.y, p.z, pointText(p, -1).cStr());
-        return;
-    }
-    glm::vec3 p{0.f};
-    for(int k = 0; k < 3; k++)
-    {
-        p += m.rest[b.vert[k]] * b.weight[k];
-    }
-    Con_Printf("%s anchor \"%s\": triangle %d, vertices %d %d %d weights %.4f %.4f %.4f, %.4f from the surface at %.4f %.4f "
-               "%.4f%s\n",
-        model->name, text, b.tri, b.vert[0], b.vert[1], b.vert[2], b.weight[0], b.weight[1], b.weight[2], b.distance, p.x,
-        p.y, p.z, b.ties ? va(" (%d other triangles as near: a hint picks)", b.ties) : "");
+    return b.ties ? va(" (%d other triangles as near bind elsewhere: two parts touching, the file's triangle order picks; "
+                       "a point off the seam is steadier)",
+                        b.ties)
+                  : "";
 }
 
 void anchorInfo_f()
 {
     if(Cmd_Argc() < 3)
     {
-        Con_Printf("usage: vr_anchor_info <model> <anchor: x y z [triangle], or a legacy index>\n");
+        Con_Printf("usage: vr_anchor_info <model> <x> <y> <z>\n");
         return;
     }
     qmodel_t* model = nullptr;
-    const aliashdr_t* hdr = commandModel(model);
-    Mesh* m = hdr ? meshFor(model, hdr) : nullptr;
+    Mesh* m = commandMesh(model);
     if(!m)
     {
-        Con_Printf("%s: no model file matching it\n", Cmd_Argv(1));
         return;
     }
-    const za::String text = argsFrom(2);
-    printBound(model, text.cStr(), boundFor(*m, text.cStr()), *m);
+    za::String text;
+    for(int i = 2; i < Cmd_Argc(); i++)
+    {
+        text += (i > 2 ? " " : "") + za::String{Cmd_Argv(i)};
+    }
+    const Bound& b = boundFor(*m, text.cStr());
+    if(b.tri < 0)
+    {
+        Con_Printf("%s: \"%s\" is not an anchor (x y z)\n", model->name, text.cStr());
+        return;
+    }
+    const glm::vec3 p = restPoint(*m, b);
+    Con_Printf("%s anchor \"%s\": triangle %d, vertices %d %d %d weights %.4f %.4f %.4f, %.4f from the surface at %.4f %.4f "
+               "%.4f%s\n",
+        model->name, text.cStr(), b.tri, b.vert[0], b.vert[1], b.vert[2], b.weight[0], b.weight[1], b.weight[2], b.distance,
+        p.x, p.y, p.z, tiesNote(b));
 }
 
 void anchorNearest_f()
@@ -1079,82 +673,16 @@ void anchorNearest_f()
         return;
     }
     qmodel_t* model = nullptr;
-    const aliashdr_t* hdr = commandModel(model);
-    Mesh* m = hdr ? meshFor(model, hdr) : nullptr;
+    Mesh* m = commandMesh(model);
     if(!m)
     {
-        Con_Printf("%s: no model file matching it\n", Cmd_Argv(1));
         return;
     }
     const glm::vec3 target{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
-    Spec s;
-    s.legacy = false;
-    s.point = target;
-    const Bound b = bind(*m, s);
-    glm::vec3 p{0.f};
-    for(int k = 0; k < 3; k++)
-    {
-        p += m->rest[b.vert[k]] * b.weight[k];
-    }
-    const za::String text = pointText(p, b.ties ? b.tri : -1);
-    Con_Printf("%s nearest surface point: \"%s\" (%.4f away; triangle %d)\n", model->name, text.cStr(),
-        glm::distance(p, target), b.tri);
-}
-
-void anchorFromIndex_f()
-{
-    if(Cmd_Argc() != 3)
-    {
-        Con_Printf("usage: vr_anchor_from_index <model> <legacy anchor index>\n");
-        return;
-    }
-    za::String text;
-    bool exact = true;
-    if(!legacyToText(Cmd_Argv(1), Q_atoi(Cmd_Argv(2)), text, &exact))
-    {
-        Con_Printf("anchor_from_index %s %s: no model file\n", Cmd_Argv(1), Cmd_Argv(2));
-        return;
-    }
-    Con_Printf("anchor_from_index %s %s \"%s\"%s\n", Cmd_Argv(1), Cmd_Argv(2), text.cStr(),
-        exact ? "" : " (inexact: no triangle follows the vertex in every pose)");
-}
-
-// Every pose: the legacy index's vertex against the anchor's point (model units). The check of a conversion.
-void anchorCompare_f()
-{
-    if(Cmd_Argc() < 4)
-    {
-        Con_Printf("usage: vr_anchor_compare <model> <legacy anchor index> <anchor: x y z [triangle]>\n");
-        return;
-    }
-    qmodel_t* model = nullptr;
-    const aliashdr_t* hdr = commandModel(model);
-    Mesh* m = hdr ? meshFor(model, hdr) : nullptr;
-    if(!m)
-    {
-        Con_Printf("anchor_compare %s: no model file matching it\n", Cmd_Argv(1));
-        return;
-    }
-    Spec legacySpec;
-    legacySpec.index = Q_atoi(Cmd_Argv(2));
-    const Bound old = bind(*m, legacySpec);
-    const za::String text = argsFrom(3);
-    const Bound now = boundFor(*m, text.cStr());
-    float worst = 0.f;
-    int worstPose = 0;
-    for(int pose = 0; pose < hdr->numposes; pose++)
-    {
-        const float d = glm::distance(modelSpace(hdr, boundInPose(hdr, old, pose)), modelSpace(hdr, boundInPose(hdr, now, pose)));
-        if(d > worst)
-        {
-            worst = d;
-            worstPose = pose;
-        }
-    }
-    Con_Printf("anchor_compare %s %s \"%s\": %d poses, max %.5f (pose %d); vertex %d -> triangle %d vertices %d %d %d "
-               "weights %.3f %.3f %.3f, %.5f off the surface, %d ties\n",
-        model->name, Cmd_Argv(2), text.cStr(), hdr->numposes, worst, worstPose, old.vert[0], now.tri, now.vert[0],
-        now.vert[1], now.vert[2], now.weight[0], now.weight[1], now.weight[2], now.distance, now.ties);
+    const Bound b = bind(*m, target);
+    const glm::vec3 p = restPoint(*m, b);
+    Con_Printf("%s nearest surface point: \"%s\" (%.4f away; triangle %d)%s\n", model->name, pointText(p).cStr(),
+        glm::distance(p, target), b.tri, tiesNote(b));
 }
 
 } // namespace
@@ -1168,8 +696,6 @@ void registerCommands()
 {
     Cmd_AddCommand("vr_anchor_info", anchorInfo_f);
     Cmd_AddCommand("vr_anchor_nearest", anchorNearest_f);
-    Cmd_AddCommand("vr_anchor_from_index", anchorFromIndex_f);
-    Cmd_AddCommand("vr_anchor_compare", anchorCompare_f);
 }
 
 } // namespace qvr::anchor
