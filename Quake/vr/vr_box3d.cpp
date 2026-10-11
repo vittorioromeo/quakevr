@@ -3641,6 +3641,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
             s.corpseMask | (vr_ragdoll_collide_each.value || selfCollide ? catCorpse : 0));
         sd.enableCustomFiltering = true; // (shouldCollide: thrown things, vr_corpse_collide_thrown; what it is made in)
         sd.filter.groupIndex = selfCollide ? 0 : -num; // (off: its own parts never meet)
+        sd.enablePreSolveEvents = selfCollide;         // (preSolve's selfTouches: not a reaching arm)
         sd.enableHitEvents = true;       // (a knocked-down monster's fall damage: touches, callFalls)
         sd.baseMaterial.friction = friction;
         sd.density = bone.joint == ragdoll::Joint::Loose ? looseMass / za::max(volumes[static_cast<za::SizeT>(b)], 1e-6f) : density;
@@ -8531,42 +8532,68 @@ void callShocks()
     return fieldInt(EDICT_NUM(round), f.vr_ammo_passgun) == EDICT_TO_PROG(EDICT_NUM(gun));
 }
 
-// A shape of a ragdoll's part as GJK's point cloud (its body's frame): a hull's corners, a capsule's two ends and radius.
-// False: another kind of shape.
-[[nodiscard]] bool partProxy(b3ShapeId shape, b3ShapeProxy& out, za::Array<b3Vec3, 2>& ends)
+// A shape of a ragdoll's part as GJK's point cloud (its body's frame, in `points`): a hull's corners, a capsule's two
+// ends and radius; shrunk about its middle to `core` of its size (1: as it is). False: another kind of shape.
+using ProxyPoints = za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS>;
+[[nodiscard]] bool partProxy(b3ShapeId shape, float core, b3ShapeProxy& out, ProxyPoints& points)
 {
     switch(b3Shape_GetType(shape))
     {
         case b3_hullShape:
         {
             const b3HullData* hull = b3Shape_GetHull(shape);
-            out.points = b3GetHullPoints(hull);
+            const b3Vec3* corners = b3GetHullPoints(hull);
             out.count = za::min(hull->vertexCount, static_cast<int32_t>(B3_MAX_SHAPE_CAST_POINTS));
+            for(int i = 0; i < out.count; i++)
+            {
+                points[static_cast<za::SizeT>(i)] = b3Lerp(hull->center, corners[i], core);
+            }
             out.radius = 0.f;
-            return out.count > 0;
+            break;
         }
         case b3_capsuleShape:
         {
             const b3Capsule c = b3Shape_GetCapsule(shape);
-            ends[0] = c.center1;
-            ends[1] = c.center2;
-            out.points = ends.data();
+            const b3Vec3 mid = b3Lerp(c.center1, c.center2, 0.5f);
+            points[0] = b3Lerp(mid, c.center1, core);
+            points[1] = b3Lerp(mid, c.center2, core);
             out.count = 2;
-            out.radius = c.radius;
-            return true;
+            out.radius = c.radius * core;
+            break;
         }
         default: return false;
     }
+    out.points = points.data();
+    return out.count > 0;
+}
+
+constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than this overlap (self-collision)
+constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in another's: a deep overlap)
+
+// The distance between two shapes (metres; 0 overlapping; 1e30 another kind of shape), each shrunk to `core` of its size.
+[[nodiscard]] float shapeGap(b3ShapeId a, b3ShapeId b, float core = 1.f)
+{
+    b3DistanceInput in{};
+    ProxyPoints pointsA, pointsB;
+    if(!partProxy(a, core, in.proxyA, pointsA) || !partProxy(b, core, in.proxyB, pointsB))
+    {
+        return 1e30f;
+    }
+    in.transform = b3InvMulWorldTransforms(b3Body_GetTransform(b3Shape_GetBody(a)), b3Body_GetTransform(b3Shape_GetBody(b)));
+    in.useRadii = true;
+    b3SimplexCache cache{};
+    return b3ShapeDistance(&in, &cache, nullptr, 0).distance;
 }
 
 // Self-collision (vr_ragdoll_self_collide; ROUND22.md, "Ragdoll tests, tuning, self-collision"): two shapes of edict
 // `num`'s ragdoll (asked as their boxes begin to overlap; jointed neighbours never are: their joints' collideConnected).
 // They meet unless self-collision is off (the ragdoll made since: its group keeps them apart then), one is a loose piece
-// (his gun: it lies in his hand, a knockdown's welded there) or they overlap now (a death frame's forearm in his side:
-// pushed apart at once they would kick; asked again as their boxes move, they meet once apart).
+// (his gun: it lies in his hand, a knockdown's welded there) or they overlap deeply now, their cores (selfCore of each)
+// in each other (a death frame's forearm in his side: pushed apart at once they would kick; asked again as their boxes
+// move, they meet once out of each other's core). A shallow overlap is pushed out gently by the contact (Box3D's push out
+// at most 3 m/s).
 [[nodiscard]] bool selfMeets(b3ShapeId a, b3ShapeId b, int num)
 {
-    constexpr float apart = 0.002f; // m: nearer than this is overlapping (Box3D's speculative margin is larger)
     if(vr_ragdoll_self_collide.value == 0.f || num >= static_cast<int>(world->slots.size()) || world->slots[num].ragdoll < 0)
     {
         return false;
@@ -8585,16 +8612,91 @@ void callShocks()
     {
         return false;
     }
-    b3DistanceInput in{};
-    za::Array<b3Vec3, 2> endsA{}, endsB{};
-    if(!partProxy(a, in.proxyA, endsA) || !partProxy(b, in.proxyB, endsB))
+    return shapeGap(a, b, selfCore) > selfApart;
+}
+
+// Whether part `p` of ragdoll `r` is in an arm its drive reaches with now (a hand to a wound or a stump, a catch, a lean,
+// a ledge's hold: ragactive::State::reach): its upper arm, its forearm or below.
+[[nodiscard]] bool reachingArm(const RagdollBodies& r, int p)
+{
+    if(!r.active.on)
     {
         return false;
     }
-    in.transform = b3InvMulWorldTransforms(b3Body_GetTransform(ba), b3Body_GetTransform(bb));
-    in.useRadii = true;
-    b3SimplexCache cache{};
-    return b3ShapeDistance(&in, &cache, nullptr, 0).distance > apart;
+    for(int arm = 0; arm < 2; arm++)
+    {
+        const auto& chain = r.active.chain[static_cast<za::SizeT>(arm)];
+        if(r.active.reach[static_cast<za::SizeT>(arm)].weight <= 0.05f || chain[0] < 0)
+        {
+            continue;
+        }
+        for(int b = p; b >= 0; b = r.rig->bones[b].parent) // (p or a bone it hangs from)
+        {
+            if(b == chain[0] || b == chain[1])
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Self-collision's contacts (preSolve, each step): two parts of edict `num`'s ragdoll touch unless one is in an arm
+// reaching now (reachingArm: the hand goes through his side to the wound on it, his arm across his chest; it meets them
+// again once the reach is let go).
+[[nodiscard]] bool selfTouches(b3ShapeId a, b3ShapeId b, int num)
+{
+    const RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(world->slots[num].ragdoll)];
+    const b3BodyId ba = b3Shape_GetBody(a), bb = b3Shape_GetBody(b);
+    int pa = -1, pb = -1;
+    for(int p = 0; p < r.count && (pa < 0 || pb < 0); p++)
+    {
+        const b3BodyId body = r.body[static_cast<za::SizeT>(p)];
+        pa = pa < 0 && B3_ID_EQUALS(body, ba) ? p : pa;
+        pb = pb < 0 && B3_ID_EQUALS(body, bb) ? p : pb;
+    }
+    if(pa < 0 || pb < 0)
+    {
+        return true;
+    }
+    // (Deep in each other, their cores overlapping: a hand let go of the wound inside his side, a stump's: left to part by
+    // themselves, as selfMeets admits them, not pushed apart at once.)
+    return !reachingArm(r, pa) && !reachingArm(r, pb) && shapeGap(a, b, selfCore) > selfApart;
+}
+
+// Self-collision's check (vr_ragdoll_list): ragdoll `r`'s pairs of parts that would meet (not jointed, not a loose piece)
+// overlapping now, of `pairs` such pairs.
+[[nodiscard]] int partsOverlapping(const RagdollBodies& r, int& pairs)
+{
+    constexpr int most = 4;
+    pairs = 0;
+    int overlapping = 0;
+    for(int i = 0; i < r.count; i++)
+    {
+        for(int j = i + 1; j < r.count; j++)
+        {
+            const ragdoll::Bone &bi = r.rig->bones[i], &bj = r.rig->bones[j];
+            if(partCut(r, i) || partCut(r, j) || bi.joint == ragdoll::Joint::Loose || bj.joint == ragdoll::Joint::Loose ||
+                bi.parent == j || bj.parent == i)
+            {
+                continue;
+            }
+            pairs++;
+            za::Array<b3ShapeId, most> si{}, sj{};
+            const int ni = b3Body_GetShapes(r.body[static_cast<za::SizeT>(i)], si.data(), most);
+            const int nj = b3Body_GetShapes(r.body[static_cast<za::SizeT>(j)], sj.data(), most);
+            bool touching = false;
+            for(int a = 0; a < ni && !touching; a++)
+            {
+                for(int b = 0; b < nj && !touching; b++)
+                {
+                    touching = shapeGap(si[static_cast<za::SizeT>(a)], sj[static_cast<za::SizeT>(b)]) <= selfApart;
+                }
+            }
+            overlapping += touching ? 1 : 0;
+        }
+    }
+    return overlapping;
 }
 
 bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
@@ -8712,6 +8814,12 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
         }
     }
     if(level) { return true; }
+    // (A ragdoll's own parts: self-collision, vr_ragdoll_self_collide.)
+    if(const int na = numOf(a); na > svs.maxclients && na == numOf(b) && na < static_cast<int>(world->slots.size()) &&
+                                world->slots[na].ragdoll >= 0)
+    {
+        return selfTouches(a, b, na);
+    }
 
     const bool aPlayer = (b3Shape_GetFilter(a).categoryBits & catPlayer) != 0;
     if(aPlayer || (b3Shape_GetFilter(b).categoryBits & catPlayer) != 0)
@@ -10127,6 +10235,10 @@ void ragdollList_f()
         Con_Printf("ragdoll %d %s: %.1f s limp, %d parts (%d awake), %.1f kg, pelvis %.1f %.1f %.1f, parts z %.1f .. %.1f, frame %d%s\n", r.num,
             PR_GetString(ent->v.classname), qcvm->time - r.born, parts, awake, mass, p.x, p.y, p.z, lo.z, hi.z,
             static_cast<int>(ent->v.frame), r.cut ? ", headless" : "");
+        int pairs = 0;
+        const int overlapping = partsOverlapping(r, pairs);
+        Con_Printf("  self: %d of its %d unjointed part pairs overlapping (Limbs Meet Each Other %s)\n", overlapping, pairs,
+            vr_ragdoll_self_collide.value != 0.f ? "on" : "off");
         if(r.active.death.on)
         {
             ragactive::describe(r.active, activeParts(r), r.num, qcvm->time);
