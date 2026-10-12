@@ -323,7 +323,7 @@ class Take:
             f.write("# format: 1\n# label: %s\n# category: %s\n# detail: %s\n# note: %s\n" %
                     (self.label, category, self.label[len(category) + 1:], self.note))
             f.write("# date: %s\n# source: synthetic (Misc/quakevr/motion_synth.py)\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
-            f.write("# map: vrfiringrange\n# vr_world_scale: %g\n# units per metre: %.4f\n" % (self.world_scale, m2u))
+            f.write("# map: vrmelee-recording\n# vr_world_scale: %g\n# units per metre: %.4f\n" % (self.world_scale, m2u))
             f.write("# vr_height_calibration: %g\n" % self.eye_height)
             (mp, my), (op, oy) = HAND_OFFSETS["main"], HAND_OFFSETS["off"]
             f.write("# hand angles: vr_gunangle %g vr_gunyaw %g vr_offhandpitch %g vr_offhandyaw %g\n" % (mp, my, op, oy))
@@ -476,7 +476,7 @@ def settings_from_cfg(path):
 
 
 # The melee fixes' tests (ROUND21.md, "Melee fixes: flashlight, axe on walls, gibs"): a weapon chopped into a wall
-# (--weapon; vr_motion_play <take> noplace yaw <heading>, standing in front of one), a fist and a weapon struck down at a
+# (--weapon; vr_motion_play <take> map <fixture> noplace yaw <heading>, standing in front of one), a fist and a weapon struck down at a
 # gib on the floor (0.45 m ahead, 3-5 cm left), and the flashlight's punch and shoves (--mock: vr_mock_play, the torch
 # taken in the mock first: a take can't carry it).
 CHOPS = {
