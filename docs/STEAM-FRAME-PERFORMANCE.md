@@ -214,3 +214,44 @@ A later eye-image equivalence attempt did not finish its capture; pixel
 identity was not verified. The optional profiles, defaults and release
 launcher remain unchanged. This mock testing does not validate physical
 OpenXR tracking, compositor timing or wearer experience.
+
+## Fresh OpenXR render-scale A-B-B-A on Frame
+
+To measure real OpenXR submissions without a wearer, I used a separate scratch
+install of the released engine (SHA-256 `386e4ba6...`) and set
+`vr_xr_unfocused 0` plus `vr_xr_unfocused_pause 0` only in its temporary test
+profile. SteamVR still reported no user presence, so the head and hand actions
+were invalid; the overrides only allowed the renderer to submit fresh frames.
+The OpenXR diagnostics confirmed `projection=1 stereo_views=2 quad=0 held=0`
+during each 720-frame run. The normal installation and its settings were not
+changed.
+
+The stable `idle_e1m1` fixture ran on the Frame's Adreno 750 with
+Zink/Turnip through the SteamVR/OpenXR 2.18.2 runtime at 72 Hz with 1728x1728
+eye images, 180 warm-up frames and 720 measured frames. The A-B-B-A order
+compared render scale 0.45, 0.25, 0.25 and 0.45. Every run had 207 edicts, 23
+living monsters, 130 Box3D bodies and the same VR-particle start/max/end counts
+(335/367/314; average 321.1). The average awake-body count varied slightly
+between 12.2 and 12.3.
+
+| Render scale | GPU-eye mean | GPU-eye p99 | Frame p99 |
+|---:|---:|---:|---:|
+| 0.45 | 9.085 ms | 10.798 ms | 13.909 ms |
+| 0.25 | 4.143 ms | 5.180 ms | 13.898 ms |
+
+This stable idle-scene comparison cut GPU-eye mean by 54% and p99 by 52%, while
+both frame distributions remained paced at about 13.89 ms. It confirms that the
+existing reduced-scale profile lowers rendering work through the actual
+OpenXR/GLX/Turnip path. It does not establish a combat or campaign gain: the
+idle scene is underloaded, and 0.25 renders 432x432 pixels per eye before
+upscaling rather than the 778x778 pixels at 0.45.
+
+A separate `combat_48` OpenXR attempt was not accepted as an A-B comparison even
+after setting `sv_random_seed 7`: starting monster, physics-body and live-
+particle counts diverged substantially between repetitions. The raw idle runs
+are retained privately in
+`performance-results/openxr-idle-abba-frame-20261012/openxr-idle-abba`, and the
+combat attempts in
+`performance-results/openxr-idle-abba-frame-20261012/openxr-combat-abba-seeded`;
+the non-deterministic combat timings are excluded from the reported gain. No
+engine code, defaults or launcher changed in this probe.

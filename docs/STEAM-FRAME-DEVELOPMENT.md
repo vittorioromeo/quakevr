@@ -113,11 +113,14 @@ ffmpeg -hide_banner -loglevel error -f v4l2 -i /dev/video99 \
 On this Frame, video99 produced usable images of the VR training area and a
 handheld weapon filling the headset view. Passthrough appeared during some
 calibration samples; later gameplay samples showed the game without it.
-`IVRScreenshots_001` has also produced dark captures. On 2026-10-12 the native
-probe was an active OpenXR scene, but the runtime reported no user presence and
-the game paused input; its 1920x1080 screenshot was mostly black with only small
-scene fragments. Do not accept that capture as evidence of correct scene
-rendering. Standby captures are inconclusive too.
+`IVRScreenshots_001` has also produced dark captures. On 2026-10-12 the default
+native probe was an active OpenXR scene, but the runtime reported no user
+presence and the game held its last projection; its 1920x1080 screenshot was
+mostly black with only small scene fragments. A separate scratch-only test
+forced fresh stereo rendering and captured the E1M1 scene in both eyes, but the
+head action was invalid and there was no motion test. Treat captures without
+wearer tracking as rendering diagnostics, not proof of a usable in-headset
+view. Standby captures are inconclusive too.
 
 ### OpenXR scene-app probe without a wearer (2026-10-12)
 
@@ -142,13 +145,20 @@ reported the startup quad before the map's projection layer was submitted.
 The same diagnostics reported `present=0`, `head=0`, and hand pose actions
 inactive. The game logged `OpenXR: user presence absent`; SteamVR showed both
 Frame controllers disconnected, and HMD pose validity varied during the probe.
-With no wearer, the renderer held its last projection (`held=1`) rather than
-submitting fresh tracked views. The `IVRScreenshots_001` capture was mostly
-black, so this verifies scene registration and stereo layer submission, not
-useful live imagery, head-motion response, controller actions, or gameplay.
-After the probe exited, SteamVR returned to `EVRSceneApplicationState_None`.
-The live state JSON, OpenXR diagnostics, engine log and screenshot are
-retained privately in `performance-results/decal-grid-frame-20261012`.
+With default settings and no wearer, the renderer held its last projection
+(`held=1`) rather than submitting fresh tracked views.
+
+In a separate scratch run I set `vr_xr_unfocused 0` and
+`vr_xr_unfocused_pause 0` before loading E1M1. The runtime still reported no
+presence and the game still had no valid head or hand actions, but
+`FRAME_LAYERS` repeatedly reported `projection=1 stereo_views=2 quad=0 held=0`.
+Its compositor capture showed the game world in both eyes. This verifies fresh
+stereo projection rendering in the OpenXR path; it does not verify head-motion
+response, controllers, or playability. These overrides were confined to the
+temporary test copy. After the probe exited, SteamVR returned to
+`EVRSceneApplicationState_None`. The live state JSON, OpenXR diagnostics, engine
+logs and captures are retained privately in
+`performance-results/decal-grid-frame-20261012`.
 
 For a repeatable no-wearer check, keep the probe config in a scratch install.
 It should set `vr_backend openxr`, enable VR, load a map, wait for several
@@ -171,8 +181,11 @@ python3 ~/Games/QuakeVR-Unleashed-native/frame-vr-state.py
 A running scene PID and `EVRSceneApplicationState_Running` confirm scene-app
 registration. The game log's `user presence absent` explains why input is paused
 when nobody wears the headset; disconnected controller entries mean no action
-or grip test can be inferred from this probe. The scratch probe config exits by
-itself; if it does not, stop only the PID launched for this test.
+or grip test can be inferred from this probe. To check fresh image submission in
+a scratch install, add `vr_xr_unfocused 0` and `vr_xr_unfocused_pause 0` before
+`map`, then require `FRAME_LAYERS ... held=0`. These test-only cvars bypass the
+normal held-frame/pause behavior and must stay in the scratch config. The probe
+config exits by itself; if it does not, stop only the PID launched for this test.
 
 OpenVR device poses alone do not prove delivery to a particular game: compare
 them with that game's OpenXR action states. The one-second input log can miss
