@@ -215,6 +215,9 @@ vector(entity e, vector handangles, float lefthand) propgrip = #0;
 // and its place in the hand returned (`offset` is .carry_offset; placed again at once when its settings change).
 vector(entity e, entity player, float hand, float lefthand, vector handangles, vector offset) carrygrip = #0;
 vector(entity e, vector handangles, vector offset) carryplace = #0;
+// Keep a solid carried prop outside its carrier's torso, sweeping from its current pose.
+// trace_allsolid: trapped between torso and level, release it.
+vector(entity e, entity player, vector target) carrybody = #0;
 // A hand grenade just taken from the grenade pouch (after carrygrip; `offset` its .carry_offset): turned in the hand by
 // vr_grenade_pouch_hold_* (its angles now), its origin's place in the hand returned (.carry_offset).
 vector(entity e, vector handangles, vector offset) carrypouch = #0;

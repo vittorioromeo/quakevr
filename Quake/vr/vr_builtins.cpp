@@ -1321,6 +1321,18 @@ void PF_carryfit()
 
 // vector(entity e, entity player, float grab) carry2h: a prop held in both hands (vr_carry2h.cpp): at the second
 // hand's grip (grab 1) the grips are kept and its origin returned; after, where it goes (its angles set at once).
+void PF_carrybody()
+{
+    const glm::vec3 target{G_VECTOR(OFS_PARM2)[0], G_VECTOR(OFS_PARM2)[1], G_VECTOR(OFS_PARM2)[2]};
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    const glm::vec3 result = carry2h::bodyPlace(ent, G_EDICT(OFS_PARM1), target);
+    const int index = static_cast<int>(ent->v.modelindex);
+    const bool brush = index > 0 && index < MAX_MODELS && sv.models[index] && sv.models[index]->type == mod_brush;
+    const carry2h::Frame at{result, carry2h::fromAngles(ent->v.angles, brush)};
+    pr_global_struct->trace_allsolid = carry2h::bodyFits(ent, G_EDICT(OFS_PARM1), at) ? 0.f : 1.f;
+    for(int i = 0; i < 3; i++) { G_VECTOR(OFS_RETURN)[i] = result[i]; }
+}
+
 void PF_carry2h()
 {
     const glm::vec3 v = carry2h::serverPlace(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), G_FLOAT(OFS_PARM2) != 0.f);
@@ -2374,6 +2386,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"carryfrontpouch", PF_carryfrontpouch},
     {"carryfit", PF_carryfit},
     {"carry2h", PF_carry2h},
+    {"carrybody", PF_carrybody},
     {"carryreach", PF_carryreach},
     {"carry2hoff", PF_carry2hoff},
     {"carry2hkeep", PF_carry2hkeep},

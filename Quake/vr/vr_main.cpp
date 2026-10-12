@@ -30,6 +30,7 @@
 #include "vr_body.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
+#include "vr_carry2h.hpp"
 #include "vr_highlights.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
@@ -1945,6 +1946,7 @@ extern "C" void VR_Init()
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
     Cmd_AddCommand("vr_carry_check", held::carryCheck_f);
+    Cmd_AddCommand("vr_carry_load_test", carry2h::loadTest_f);
     Cmd_AddCommand("vr_grasp_dump", view::graspDump_f);
     Cmd_AddCommand("vr_grasp_bench", view::graspBench_f);
     Cmd_AddCommand("vr_ragdoll_hand_probe", view::ragdollHandProbe_f);

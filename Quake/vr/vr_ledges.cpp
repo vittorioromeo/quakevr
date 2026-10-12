@@ -771,6 +771,29 @@ void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody&
             continue;
         }
         centre /= static_cast<float>(face.count);
+        // A bevel is walkable too, but its plane stops where the main top begins. Extending that plane inward
+        // made a crate's apparent top rise with arm extension (and depended on which bevel the hand reached).
+        // Use the most upright connected walkable face for the lip's top plane; retain its outer boundary.
+        const box3d::ClimbShape::Face* top = &face;
+        glm::vec3 topNormal = n;
+        for(int pass = 0; pass < maxCorners; pass++)
+        {
+            const box3d::ClimbShape::Face* next = top;
+            for(int j = 0; j < top->count; j++)
+            {
+                const auto& adjacent = shape.faces[static_cast<za::SizeT>(shape.across[static_cast<za::SizeT>(top->first + j)])];
+                const glm::vec3 normal = body.turn * adjacent.normal;
+                if(normal.z > topNormal.z + 1e-4f)
+                {
+                    next = &adjacent;
+                    topNormal = normal;
+                }
+            }
+            if(next == top) { break; }
+            top = next;
+        }
+        const glm::vec3 topPoint = body.origin + body.turn *
+            shape.points[static_cast<za::SizeT>(shape.corner[static_cast<za::SizeT>(top->first)])];
         for(int k = 0; k < face.count; k++)
         {
             glm::vec3 a = p[k], b = p[(k + 1) % face.count];
@@ -796,6 +819,10 @@ void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody&
                 za::genericSwap(a, b); // (`dir` along `out` turned a quarter anticlockwise, as the map's)
                 dir = -dir;
             }
+            a.z = topPoint.z - (topNormal.x * (a.x - topPoint.x) + topNormal.y * (a.y - topPoint.y)) / topNormal.z;
+            b.z = topPoint.z - (topNormal.x * (b.x - topPoint.x) + topNormal.y * (b.y - topPoint.y)) / topNormal.z;
+            len = glm::distance(a, b);
+            dir = (b - a) / len;
             const glm::vec3 eMins = glm::min(a, b), eMaxs = glm::max(a, b);
             if(eMins.x > maxs.x || eMins.y > maxs.y || eMins.z > maxs.z || eMaxs.x < mins.x || eMaxs.y < mins.y || eMaxs.z < mins.z)
             {
@@ -824,7 +851,7 @@ void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody&
             e.dir = dir;
             e.len = len;
             e.out = o;
-            e.normal = n;
+            e.normal = topNormal;
             e.firstSample = static_cast<int>(out.samples.size());
             e.samples = 1;
             e.sampleStart = 0.f;

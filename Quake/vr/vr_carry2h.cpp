@@ -15,6 +15,8 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Clamp.hpp"
 
 
 namespace qvr::carry2h
@@ -251,6 +253,247 @@ bool clear(int num, const Frame& from, Frame& to)
     return false;
 }
 
+
+namespace
+{
+// Separation of the turned prop's drawn box from the torso box (the physics body's width, in world units).
+// All 15 separating axes are tested: a sideways or tilted crate cannot hide a corner in the body.
+[[nodiscard]] glm::vec3 separation(const glm::vec3& lo, const glm::vec3& hi, const Frame& object,
+    const glm::vec3& bodyLo, const glm::vec3& bodyHi)
+{
+    const glm::mat3 axes = glm::mat3_cast(object.rot);
+    const glm::vec3 half = (hi - lo) * 0.5f, bodyHalf = (bodyHi - bodyLo) * 0.5f;
+    const glm::vec3 d = object.pos + axes * ((lo + hi) * 0.5f) - (bodyLo + bodyHi) * 0.5f;
+    float least = 1e30f;
+    glm::vec3 push{0.f};
+    const auto test = [&](glm::vec3 axis) {
+        const float length = glm::length(axis);
+        if(length < 1e-4f) { return true; }
+        axis /= length;
+        const float reach = glm::dot(glm::abs(axis), bodyHalf) +
+            za::abs(glm::dot(axis, axes[0])) * half.x + za::abs(glm::dot(axis, axes[1])) * half.y +
+            za::abs(glm::dot(axis, axes[2])) * half.z;
+        const float along = glm::dot(d, axis), depth = reach - za::abs(along);
+        if(depth <= 0.f) { return false; }
+        if(depth < least) { least = depth; push = axis * (along < 0.f ? -depth : depth); }
+        return true;
+    };
+    for(int i = 0; i < 3; i++)
+    {
+        const glm::vec3 axis = glm::vec3{glm::mat3{1.f}[i]};
+        if(!test(axis) || !test(axes[i])) { return glm::vec3{0.f}; }
+        for(int j = 0; j < 3; j++)
+        {
+            if(!test(glm::cross(axis, axes[j]))) { return glm::vec3{0.f}; }
+        }
+    }
+    return push;
+}
+
+bool constrain(const glm::vec3& lo, const glm::vec3& hi, const Frame& from, Frame& to,
+    const glm::vec3& bodyLo, const glm::vec3& bodyHi)
+{
+    Frame safe{from.pos, to.rot};
+    glm::vec3 push = separation(lo, hi, safe, bodyLo, bodyHi);
+    bool blocked = glm::length(push) > 1e-4f;
+    if(blocked)
+    {
+        // The player may have walked into the previous pose, or the hand rotated a corner into him.
+        // Free it on its present side first; the subsequent sweep cannot pull it across his torso.
+        safe.pos += push + glm::normalize(push) * 0.05f;
+    }
+    const glm::mat3 axes = glm::mat3_cast(to.rot);
+    const glm::vec3 half = (hi - lo) * 0.5f, bodyHalf = (bodyHi - bodyLo) * 0.5f;
+    const glm::vec3 delta = to.pos - safe.pos;
+    const glm::vec3 d = safe.pos + axes * ((lo + hi) * 0.5f) - (bodyLo + bodyHi) * 0.5f;
+    float enter = 0.f, leave = 1.f;
+    // Continuous SAT translation sweep: intersect the time intervals of all separating axes. This catches an
+    // arbitrarily fast hand move right across the torso even when both endpoints are clear.
+    const auto interval = [&](glm::vec3 axis) {
+        if(glm::length(axis) < 1e-4f) { return true; }
+        axis = glm::normalize(axis);
+        const float reach = glm::dot(glm::abs(axis), bodyHalf) +
+            za::abs(glm::dot(axis, axes[0])) * half.x + za::abs(glm::dot(axis, axes[1])) * half.y +
+            za::abs(glm::dot(axis, axes[2])) * half.z;
+        const float along = glm::dot(d, axis), motion = glm::dot(delta, axis);
+        if(za::abs(motion) < 1e-6f) { return za::abs(along) < reach; }
+        const float a = (-reach - along) / motion, b = (reach - along) / motion;
+        enter = za::max(enter, za::min(a, b));
+        leave = za::min(leave, za::max(a, b));
+        return enter < leave;
+    };
+    bool hit = true;
+    for(int i = 0; i < 3 && hit; i++)
+    {
+        const glm::vec3 axis = glm::mat3{1.f}[i];
+        hit = interval(axis) && interval(axes[i]);
+        for(int j = 0; j < 3 && hit; j++) { hit = interval(glm::cross(axis, axes[j])); }
+    }
+    if(hit)
+    {
+        safe.pos += delta * za::max(0.f, enter - 1e-4f);
+        blocked = true;
+    }
+    else { safe.pos = to.pos; }
+    to.pos = safe.pos;
+    return blocked;
+}
+
+[[nodiscard]] float loadScale(float mass, float size)
+{
+    const float byMass = vr_carry_move_mass.value > 0.f ? mass / vr_carry_move_mass.value : 0.f;
+    const float bySize = vr_carry_move_size.value > 0.f ? za::max(0.f, size / vr_carry_move_size.value - 1.f) : 0.f;
+    return za::max(za::clamp(vr_carry_move_min.value, 0.05f, 1.f), 1.f / (1.f + za::max(byMass, bySize)));
+}
+
+[[nodiscard]] bool solidCarry(edict_t* ent)
+{
+    return ent && !ent->free && progs::fieldFloatOr(ent, progs::fields().carry_rigid, 0.f) == 2.f;
+}
+}
+
+bool bodyClear(edict_t* ent, edict_t* player, const Frame& from, Frame& to)
+{
+    if(!vr_carry_body_collision.value || !solidCarry(ent) || !player ||
+        progs::fieldFloatOr(ent, progs::fields().carry_portal, 0.f) > 0.f ||
+        qcvm->time < progs::fieldFloatOr(player, progs::fields().carry_teleported, 0.f)) { return false; }
+    glm::vec3 lo, hi;
+    const int modelIndex = static_cast<int>(ent->v.modelindex);
+    if(modelIndex <= 0 || modelIndex >= MAX_MODELS || !sv.models[modelIndex]) { return false; }
+    const auto& f = progs::fields();
+    held::modelBox(sv.models[modelIndex], progs::fieldVec(ent, f.model_scale), progs::fieldVec(ent, f.model_scale_origin),
+        progs::fieldVec(ent, f.model_offset), lo, hi);
+    const float radius = za::max(vr_box3d_player_radius.value, 1.f) * 0.01f * units::metresToUnits();
+    const glm::vec3 origin{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    const bool blocked = constrain(lo, hi, from, to, origin + glm::vec3{-radius, -radius, player->v.mins[2]},
+        origin + glm::vec3{radius, radius, player->v.maxs[2]});
+    if(blocked)
+    {
+        // Separating from a torso after the player walked into the old pose must not push the crate into a wall.
+        box3d::holdClear(NUM_FOR_EDICT(ent), from.pos, from.rot, to.pos, to.rot);
+    }
+    return blocked;
+}
+
+bool bodyFits(edict_t* ent, edict_t* player, const Frame& at)
+{
+    if(!vr_carry_body_collision.value || !solidCarry(ent) || !player ||
+        progs::fieldFloatOr(ent, progs::fields().carry_portal, 0.f) > 0.f ||
+        qcvm->time < progs::fieldFloatOr(player, progs::fields().carry_teleported, 0.f)) { return true; }
+    const int index = static_cast<int>(ent->v.modelindex);
+    if(index <= 0 || index >= MAX_MODELS || !sv.models[index]) { return true; }
+    const auto& f = progs::fields();
+    glm::vec3 lo, hi;
+    held::modelBox(sv.models[index], progs::fieldVec(ent, f.model_scale), progs::fieldVec(ent, f.model_scale_origin),
+        progs::fieldVec(ent, f.model_offset), lo, hi);
+    const float radius = za::max(vr_box3d_player_radius.value, 1.f) * 0.01f * units::metresToUnits();
+    const glm::vec3 origin{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    return glm::length(separation(lo, hi, at, origin + glm::vec3{-radius, -radius, player->v.mins[2]},
+        origin + glm::vec3{radius, radius, player->v.maxs[2]})) < 1e-3f;
+}
+
+glm::vec3 bodyPlace(edict_t* ent, edict_t* player, const glm::vec3& target)
+{
+    const glm::quat rot = fromAngles(ent->v.angles, brushModel(ent));
+    Frame to{target, rot};
+    const Frame from{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, rot};
+    bodyClear(ent, player, from, to);
+    return to.pos;
+}
+
+float moveScale(edict_t* player)
+{
+    if(!player || static_cast<int>(player->v.movetype) != MOVETYPE_WALK || player->v.health <= 0.f) { return 1.f; }
+    const auto& f = progs::fields();
+    const int nums[2]{f.offhand_held >= 0 ? progs::fieldInt(player, f.offhand_held) : 0, f.mainhand_held >= 0 ? progs::fieldInt(player, f.mainhand_held) : 0};
+    float mass = 0.f, size = 0.f;
+    for(int h = 0; h < 2; h++)
+    {
+        if(nums[h] <= 0 || (h && nums[h] == nums[0])) { continue; }
+        edict_t* ent = PROG_TO_EDICT(nums[h]);
+        if(!solidCarry(ent)) { continue; }
+        mass += box3d::propMass(ent);
+        glm::vec3 lo, hi;
+        const int index = static_cast<int>(ent->v.modelindex);
+        if(index > 0 && index < MAX_MODELS && sv.models[index])
+        {
+            held::modelBox(sv.models[index], progs::fieldVec(ent, f.model_scale), progs::fieldVec(ent, f.model_scale_origin),
+                progs::fieldVec(ent, f.model_offset), lo, hi);
+            const glm::vec3 extent = hi - lo;
+            size += za::max(extent.x, za::max(extent.y, extent.z)) / units::metresToUnits();
+        }
+    }
+    return loadScale(mass, size);
+}
+
+void loadTest_f()
+{
+    const glm::vec3 lo{-20.f}, hi{20.f}, bodyLo{-5.f, -5.f, -24.f}, bodyHi{5.f, 5.f, 32.f};
+    Frame front{glm::vec3{0.f, 50.f, 24.f}}, across{glm::vec3{0.f, -50.f, 24.f}};
+    const bool stopped = constrain(lo, hi, front, across, bodyLo, bodyHi);
+    Frame overlapped{glm::vec3{0.f, 15.f, 24.f}}, freed = overlapped;
+    constrain(lo, hi, overlapped, freed, bodyLo, bodyHi);
+    Frame overhead{glm::vec3{0.f, -50.f, 70.f}}, above{glm::vec3{0.f, 50.f, 70.f}};
+    const bool blockedAbove = constrain(lo, hi, overhead, above, bodyLo, bodyHi);
+    Frame rotated{glm::vec3{50.f, 50.f, 24.f}, glm::angleAxis(glm::radians(45.f), glm::vec3{0.f, 0.f, 1.f})};
+    Frame diagonal{glm::vec3{-5000.f, -5000.f, 24.f}, rotated.rot};
+    const bool stoppedDiagonal = constrain(lo, hi, rotated, diagonal, bodyLo, bodyHi);
+    const bool ok = stopped && across.pos.y >= 24.99f && freed.pos.y >= 24.99f && !blockedAbove &&
+        stoppedDiagonal && diagonal.pos.x > 0.f && diagonal.pos.y > 0.f &&
+        glm::length(separation(lo, hi, diagonal, bodyLo, bodyHi)) < 1e-4f;
+    Con_Printf("carryloadtest: torso %s cross %.3f overlap %.3f overhead %s; scales empty %.3f 5kg %.3f 65kg/1.5m %.3f 160kg %.3f bulk2m %.3f\n",
+        ok ? "PASS" : "FAIL", across.pos.y, freed.pos.y, blockedAbove ? "blocked" : "clear",
+        loadScale(0.f, 0.f), loadScale(5.f, 0.5f), loadScale(65.f, 1.5f), loadScale(160.f, 1.f), loadScale(5.f, 2.f));
+    if(sv.active && svs.clients[0].active)
+    {
+        qcvm_t* oldvm = nullptr;
+        PR_PushQCVM(&sv.qcvm, &oldvm);
+        edict_t* player = svs.clients[0].edict;
+        Con_Printf("carryloadtest: current speed scale %.3f, horizontal speed %.3f\n", moveScale(player),
+            glm::length(glm::vec2{player->v.velocity[0], player->v.velocity[1]}));
+        const auto& f = progs::fields();
+        int count = 0;
+        float physical = 0.f, drawn = 0.f;
+        const int refs[2]{f.offhand_held >= 0 ? progs::fieldInt(player, f.offhand_held) : 0,
+            f.mainhand_held >= 0 ? progs::fieldInt(player, f.mainhand_held) : 0};
+        const float radius = za::max(vr_box3d_player_radius.value, 1.f) * 0.01f * units::metresToUnits();
+        const glm::vec3 origin{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+        const glm::vec3 bodyLo = origin + glm::vec3{-radius, -radius, player->v.mins[2]};
+        const glm::vec3 bodyHi = origin + glm::vec3{radius, radius, player->v.maxs[2]};
+        for(int h = 0; h < 2; h++)
+        {
+            if(refs[h] <= 0 || (h && refs[h] == refs[0])) { continue; }
+            edict_t* ent = PROG_TO_EDICT(refs[h]);
+            if(!solidCarry(ent)) { continue; }
+            count++;
+            glm::vec3 boxLo, boxHi;
+            const int index = static_cast<int>(ent->v.modelindex), num = NUM_FOR_EDICT(ent);
+            if(index <= 0 || index >= MAX_MODELS || !sv.models[index]) { continue; }
+            held::modelBox(sv.models[index], progs::fieldVec(ent, f.model_scale), progs::fieldVec(ent, f.model_scale_origin),
+                progs::fieldVec(ent, f.model_offset), boxLo, boxHi);
+            const Frame object{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]},
+                fromAngles(ent->v.angles, brushModel(ent))};
+            physical = za::max(physical, glm::length(separation(boxLo, boxHi, object, bodyLo, bodyHi)));
+            if(num < cl.num_entities && cl_entities[num].model == sv.models[index])
+            {
+                const entity_t& e = cl_entities[num];
+                const Frame local{glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, fromAngles(e.angles, brushModel(ent))};
+                drawn = za::max(drawn, glm::length(separation(boxLo, boxHi, local, bodyLo, bodyHi)));
+            }
+        }
+        float bothScale = moveScale(player);
+        if(f.offhand_held >= 0 && refs[1])
+        {
+            progs::fieldInt(player, f.offhand_held) = refs[1];
+            bothScale = moveScale(player);
+            progs::fieldInt(player, f.offhand_held) = refs[0];
+        }
+        Con_Printf("carryloadtest: %d solid props, torso overlap physical %.4f drawn %.4f units, same prop in both hands scale %.3f\n",
+            count, physical, drawn, bothScale);
+        PR_PopQCVM(oldvm);
+    }
+}
+
 bool reaches(edict_t* ent, edict_t* player, int hand)
 {
     // What the other hand holds: a little farther than a thing lying about (vr_carry_two_hands_reach), so that the hand that
@@ -406,3 +649,8 @@ void forgetEntity(int num)
 }
 
 } // namespace qvr::carry2h
+
+extern "C" float VR_CarryMoveScale(edict_t* player)
+{
+    return qvr::carry2h::moveScale(player);
+}
