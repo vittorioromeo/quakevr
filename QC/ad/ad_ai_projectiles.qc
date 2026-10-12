@@ -79,6 +79,7 @@ void() ad_Touch_Bullet =
 	if (other == self.owner) return;			// Touching self, do nothing
 	if (other.solid == ad_SOLID_TRIGGER) return;	// trigger field, do nothing
 	if (self.waitmin > time) return;			// bullet touch has been disabled
+	VR_AD_PelletPrepare(self);
 	ad_entity_remove(self, 1);						// Setup bullet for removal	
 	
 	//----------------------------------------------------------------------
@@ -122,7 +123,7 @@ void() ad_Touch_Bullet =
 		}
 		
 		// Finally do the damage, if any available (after resistance)
-		if (self.dmg > 0) ad_T_Damage (other, self, self.owner, self.dmg, ad_DAMARMOR);
+		if (self.dmg > 0) VR_AD_PelletHit(other, self, self.dmg);
 	}
 	//----------------------------------------------------------------------
 	// Hit world/static object, impact particles
@@ -150,6 +151,7 @@ void() ad_Touch_Bullet =
 //----------------------------------------------------------------------
 void(vector ad_org, vector ad_dir, float ad_proj_type, float ad_proj_speed) ad_Launch_Bullet =
 {
+	ad_proj_speed = VR_AD_PelletSpeed(self, ad_proj_speed);
 	ad_newmis = spawn();
 	ad_newmis.owner = self;
 	ad_newmis.classname = "proj_bullet";	// obj name, not really used anymore
@@ -202,6 +204,7 @@ void(vector ad_org, vector ad_dir, float ad_proj_type, float ad_proj_speed) ad_L
 	setorigin (ad_newmis, ad_org);					// Move to starting position
 	ad_newmis.avelocity = ad_vecrand(100,200,ad_FALSE);
 	
+	VR_AD_PelletLaunch(ad_newmis);
 };
 
 //----------------------------------------------------------------------
@@ -1719,6 +1722,7 @@ void(vector ad_org, vector ad_dir, vector ad_avel, float ad_proj_type, float ad_
 		ad_newmis.think = ad_Custom_ParticleTrail;	
 		ad_newmis.nextthink = time + 0.02;
 	}
+	VR_AD_Ordnance(ad_newmis);
 };
 
 /*======================================================================
@@ -1985,6 +1989,7 @@ void(vector ad_org, vector ad_dir, vector ad_avel, float ad_proj_type) ad_Launch
 	ad_newmis.angles = vectoangles(ad_newmis.velocity);
 	setsize (ad_newmis, ad_newmis.ad_bbmins, ad_newmis.ad_bbmaxs);
 	setorigin (ad_newmis, ad_org);
+	VR_AD_Ordnance(ad_newmis);
 };
 
 //======================================================================

@@ -45,6 +45,11 @@ void(float request, entity p) AD_RulesTest =
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;
     entity os = self;
+    if(request >= 50 && request <= 60)
+    {
+        AD_ShotsTest(request, p);
+        return;
+    }
     if(request >= 40 && request <= 42)
     {
         self = p;

@@ -747,6 +747,12 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
             return TRUE;
         }
     }
+    if(vr_hitkind == QVR_HITKIND_SHOT && (inflictor.classname == "proj_bullet" || inflictor.classname == "rifle_laser") &&
+       ((cvar_hget(cvarh_vr_decap_corpses) && VR_Decap_Allowed(targ) && VR_Decap_OnHead(targ, vr_hitpos, vr_hitdir)) ||
+        (cvar_hget(cvarh_vr_limbs_corpses) && VR_Limb_Allowed(targ) && VR_Limb_At(targ, vr_hitpos) >= 0)))
+    {
+        return TRUE; // AD support: projectile shots preserve the corpse, like selective hitscan pops.
+    }
     // An explosion pops a corpse's limbs near it by chance (vr_limbs_blast; vr_limbs.qc).
     if(vr_hitkind == QVR_HITKIND_SPLASH)
     {

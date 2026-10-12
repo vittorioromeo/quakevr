@@ -3886,6 +3886,57 @@ poses within 0.01 units (measured 0.001). Existing melee phasing: 7/7; empty mel
 synthetic crowbar swing: 27.3 damage. e1m1 smoke and final hidden screenshot passed; no full melee tuning/eval run.
 Explicit `map e1m1 noplace` stays in e1m1; an absent map is rejected cleanly before loading.
 
+## AD projectile impacts and flying ordnance (2026-10-12, worktree `adshots`)
+
+AD shotgun/SSG projectiles now enter shared VR damage, positional multipliers and selective head/limb hooks at their
+actual flight impact. AD shell resistance stays applied exactly once. Each player pellet retains its shot serial,
+weapon, total pellet count, firing hand and launch position across frames and later weapon switches. Head/limb share
+accumulates for that shot; existing head/limb eligibility, chance, distance, live/corpse and weapon controls still apply.
+The bridge captures travel direction before AD's deferred removal zeros velocity. Close-shot retraces cannot extend
+behind their launch point and incorrectly select another corpse limb. Small AD player projectiles retain MOVETYPE_FLY
+and their normal movement hull, with model/corpse collision enabled specifically for `proj_bullet` in the AD engine helper.
+
+The held Enforcer rifle now sets the shot damage context and uses the actual victim/impact for positional damage.
+Its laser pop hook admits corpses under the existing corpse toggles. A failed selective projectile pop leaves the
+corpse whole instead of draining its whole-body gib pool; torso shots retain existing corpse damage behavior.
+
+AD GL/GLMON ordnance uses the same `progs/grenade.mdl` as vanilla and shared grenade setup: force grab, physical
+catch/carry/throw, batting, rigid collision and shooting. AD's fuse, explosion, resistance and radius callbacks remain
+its own. Other grenade-like AD projectiles (eggs/flesh) retain their models/behavior. AD grunt/launcher rockets join
+shared shot interception and trigger AD's own missile explosion. AD entities registered as shootable ordnance route
+damage to the shared ordnance handler rather than the AD monster damage route.
+
+`vr_ad_pellet_speed` remains the player's archived multiplier (default 1); new `vr_ad_enemy_pellet_speed` is independent,
+also archived/default 1. Both clamp to a minimum of 0.1, preserving authored speed/skill rules at defaults. The enemy
+multiplier runs once at raw AD Launch_Bullet, covering both native AD monster launches and VR's vanilla-monster bridge.
+AD importer hooks use uniquely checked function boundaries and are recorded in the generated import audit.
+
+Regression probes: `vr_ad_test 50..57` fire actual SG projectiles/Enforcer bolts against AD/vanilla grunts, alive or
+settled corpse; scratch1 selects head (0), upper arm (1), torso (2), shin (3), scratch2 selects killing/damage-only.
+scratch4 selects AD's small MOVETYPE_FLY mode; scratch3 chooses real SG/SSG volley size (0 is one probe pellet).
+58 checks independent speeds, 59 real raw AD grenade creation/bat/grab, 60 raw AD grunt rocket creation/hitscan intercept.
+`Misc/quakevr/ad_shots_test.ps1 <name>` checks small pellets and complete 6/14-pellet volleys; `-Full` also checks normal
+pellets/lasers, damage-only cases and ordnance. `-VolleysOnly` repeats only complete volleys; `-CheckLog` validates the
+saved records without another game run. Results stay in scratch.
+
+Validation so far: QC/engine/FGD build passed with zero QC warnings. Normal-flight matrix covers all three regions,
+both games, alive/corpse and pellet/laser; head 1, upper-arm mask 96, torso no selective cuts, no whole gibs. A corpse
+arm missed during early test flight; shortening the probe flight to 20 units passed its repeat. The new small-pellet
+matrix passes the same regions, including the close corpse head that previously retraced into a foot. Healthy AD grunt
+pellets do 6 head/4 body; laser 27/18. Positional damage disabled gives 4 at the head/shin; head multiplier 3 gives 12,
+and leg multiplier 0.6 gives 2.4 (entity health rounds). Player/enemy speed measurements: 1996/957 default, 4001/948
+player x2, 2004/1896 enemy x2. Grenade flags catch/force/rigid/shoot all 1, shared drawn size 6.279 x 2.325 x 2.209,
+fuse 2.50 s, bat speed 300/spent 0, grabbed 1. Rocket real hitscan interception spent 1/AD explosion callback 1.
+e1m1 and AD campaign `ad_crucial` smoke exit 0; AD reports rules on, 1461 AD spawns, 238 shared spawns, zero outside rules.
+Complete AD_FirePellets launches (12 SG, 12 SSG) pass all 24 live/corpse AD/vanilla head/arm/torso cases: each selected
+head/arm pops and remains a whole corpse; torso damage retains authored gibbing (one live AD torso SSG did gib whole).
+The final checker explicitly permits that torso behavior and verifies actual launch metadata counts 6 and 14.
+
+Headset checks: SG/SSG and Enforcer aim at each live/corpse body region in vanilla and AD maps; compare positional
+damage toggles and weapon-specific pop controls. Catch/force-grab/bat/rethrow grenade grunt/ogre ordnance and shoot a
+grunt rocket in flight. Independently adjust player/enemy pellet speed. No melee settings were tuned. Preserve all
+source assets; scratch test helpers/logs and worker-local crash reports from early scaffolding runs are disposable later.
+
 In VR: enter from Motion Recorder, pick up each melee weapon, circle the dummy and record your new takes. Confirm
 the simple room's space, lighting and pickup spacing feel suitable. Files worth deleting later: worker `scratch/`,
 `quakevr/meleeroom_check.cfg`, and its generated `quakevr/motions/no_hit_room_check_*`, `room_*` test outputs.
