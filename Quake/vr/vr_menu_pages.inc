@@ -712,6 +712,9 @@ void resetHandMoves()
             .help("How far off straight up (the gun's own up) it may come from."),
         toggle("Close When Loaded", "vr_reload_ssg_close_auto")
             .help("Open, it snaps shut by itself once both chambers are loaded."),
+        toggle("Close by B/Y", "vr_reload_ssg_close_button")
+            .help("Open, the B/Y button of the controller holding it snaps it shut (with Open by B/Y: opened and closed with "
+                  "the button alone, no gesture)."),
         header("Hits (Above and Below)"),
         slider("Hit Reach", "vr_reload_ssg_hit_reach", 1.f, 15.f, 0.5f, "%.1f units")
             .help("How near the front half of its barrels a hit (from above or below) must land."),

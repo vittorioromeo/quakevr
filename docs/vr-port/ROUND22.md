@@ -4767,3 +4767,10 @@ Validation: required QC/engine/FGD build passes; 14 targeted pipeline tests and 
 all 2987 checksummed companions validate. Native desktop vr_enabled 0 captures parallax off/on and exits 0;
 stock e1m1 smoke at sharp defaults exits 0. No melee or physics code changed. All native reads use Steam data plus
 the worker base directory for private output; no author checkout or process changes.
+
+## The super shotgun closed by B/Y (accessibility, 2026-10-12)
+
+A user's accessibility request: `vr_reload_ssg_close_button` (off by default; Advanced > Weapons > Reloading > Super
+Shotgun > Close by B/Y): open, the B/Y of the controller holding it snaps it shut, as Open by B/Y breaks it open, so it
+opens and closes with the button alone (QC `VR_Reload_SsgFrame`, the same press edge and 0.35 s between toggles).
+`reload_test.sh`: a new check (off: B/Y again leaves it open; on: it shuts it), 104 PASS, self-test 67/67.
