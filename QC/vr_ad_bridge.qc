@@ -1211,3 +1211,24 @@ string(float ammo, float big, string fallback) AD_AmmoModel =
     else if(ammo == AID_CELLS) chosen = big ? "progs/ammo_cells1.mdl" : "progs/ammo_cells0.mdl";
     return fileexists(chosen) ? chosen : fallback;
 };
+
+// An ammo box (self) given AD's model (AD_AmmoModel; `xSize` the vanilla box's size, its box already set): AD's MDL boxes
+// are centred where Quake's BSP boxes have a corner origin, so the model's own bounds, and in an ordinary map the old
+// box's placement kept; the map's box frame by AD's rules (-1 random 1-7, past 7 the first, 0 none).
+void(vector xSize) AD_AmmoBoxFit =
+{
+    if(self.model == "" || substring(self.model, 0, 11) != "progs/ammo_")
+    {
+        return;
+    }
+    vector lo = modelbounds(self, FALSE); // (vector builtin results kept apart)
+    vector hi = modelbounds(self, TRUE);
+    setsize(self, lo, hi);
+    if(!AD_Rules())
+    {
+        setorigin(self, self.origin + xSize * 0.5);
+    }
+    if(self.ad_frame_box == -1) self.frame = rint(1 + random() * 6);
+    else if(self.ad_frame_box > 7) self.frame = 1;
+    else self.frame = max(0, self.ad_frame_box);
+};

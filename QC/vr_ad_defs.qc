@@ -22,6 +22,7 @@ float(float scope) VR_AD_FeatureScope =
     return cvar("vr_ad_mounted") && (scope == 2 || (scope == 1 && AD_Rules()));
 };
 string(float ammo, float big, string fallback) AD_AmmoModel;
+void(vector xSize) AD_AmmoBoxFit;
 float(entity targ, entity inflictor) VR_AD_CorpsePartShot;
 
 // (VR_OtherFlags, whose meaning the map's spawnflags have: vr_spawnflags.qc, after this file.)
