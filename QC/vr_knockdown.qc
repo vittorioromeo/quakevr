@@ -193,6 +193,12 @@ void() VR_Knockdown_Reverse =
     {
         self.vr_knockdown = 0;
         self.think = self.th_run;
+        if(VR_IsDummy(self))
+        {
+            self.think = vr_dummy_think;
+            self.movetype = MOVETYPE_NONE;
+            self.vr_dummy_painframe = 0;
+        }
         self.nextthink = time + 0.1;
         if(self.vr_ad_mon)
         {
@@ -222,6 +228,13 @@ void() VR_Knockdown_Step =
     if(self.think == self.th_run || self.think == f || VR_AD_IsRunning(self)) // (AD support: AD's th_run)
     {
         self.vr_knockdown = 0; // (its run goes on at its own pace)
+        if(VR_IsDummy(self))
+        {
+            self.think = vr_dummy_think;
+            self.movetype = MOVETYPE_NONE;
+            self.vr_dummy_painframe = 0;
+            self.nextthink = time + 0.05;
+        }
         return;
     }
     self.vr_kd_next = self.think;
@@ -249,7 +262,13 @@ void(string xWhat) VR_Knockdown_Afoot =
     self.vr_kd_stagger = 0;
     // (Its run; the training dummy (a grunt with neither run nor AI) back to standing.)
     self.think = self.th_run;
-    if(!self.think || VR_IsDummy(self))
+    if(VR_IsDummy(self))
+    {
+        self.think = vr_dummy_think;
+        self.movetype = MOVETYPE_NONE;
+        self.vr_dummy_painframe = 0;
+    }
+    else if(!self.think)
     {
         self.think = self.th_stand;
     }
@@ -270,6 +289,13 @@ void(float xWhich) VR_Knockdown_Stand =
 {
     self.vr_knockdown = 2;
     VR_Knockdown_Upright();
+    // A dummy has no monster AI: the last pain/get-up frame can enter ai_run before Step sees it.
+    // Resume its own idle callback immediately, which returns it to the configured practice pose/home.
+    if(VR_IsDummy(self))
+    {
+        VR_Knockdown_Afoot("returns to its training pose");
+        return;
+    }
     if(cvar_hget(cvarh_vr_knockdown_debug))
     {
         dprint(sprintf("knockdown: %s gets up after %.1f s\n", self.classname, time - self.vr_kd_since));
@@ -570,7 +596,8 @@ float(entity e) VR_Knockdown_Ledge =
 float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try =
 {
     if(!cvar_hget(cvarh_vr_knockdown) || !(self.flags & FL_CLIENT) || e.health <= 0 || e.vr_knockdown || !e.vr_kd_chance_h ||
-       (e.flags & (FL_FLY | FL_SWIM)) || !(e.flags & FL_MONSTER) || !canragdoll(e))
+       (e.flags & (FL_FLY | FL_SWIM)) || !(e.flags & FL_MONSTER) || !canragdoll(e) ||
+       (VR_IsDummy(e) && cvar_hget(cvarh_vr_dummy_anchored)))
     {
         return FALSE;
     }
