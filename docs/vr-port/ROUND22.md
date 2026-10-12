@@ -3826,14 +3826,14 @@ blunt gun/hammer/brick blows on corpses should pop the piece struck, while axes 
   as ordinary surface contacts: these distinguish penetration from small contact slop in the fitted hulls.
 - `QC/combat.qc`, `QC/vr_limbs.qc`: after the existing immediate chance-based pops, blunt/fist/prop/bash corpse hits
   accumulate damage separately at the struck limb joint (and separately at the head). Reaching that monster's original
-  corpse-health threshold pops that piece; hits on the torso bleed/push but preserve the body. Blades, chainsaws,
+  corpse-health threshold pops that piece; hits on the torso take the whole-body corpse health (enough gibs it). Blades, chainsaws,
   shots and blasts retain their existing paths. With Limb Gore/Corpses disabled, the previous whole-body path remains.
   Per-piece damage uses the existing corpse damage multipliers and persists with ordinary QC entity fields. Untagged
   flung props use their own position/velocity, matching the existing living thrown-limb hook; held blows use their tagged
   contact point.
 - `vr_limb_test` 24: two blunt 48-damage blows at one forearm (grunt threshold 80), 25: an 800-damage pelvis-surface
   blow, 26: two physical-prop blows at that forearm, 27: an 8 m/s axe corpse slash through the real cut classifier.
-  All leave corpse health 80 and `gib 0`; 24/26 pop one piece, 25 pops none, 27 cuts one and pops none. Debug > Gore
+  24/26/27 leave corpse health 80 and `gib 0` (24/26 pop one piece, 27 cuts one); 25 gibs the corpse (review fix). Debug > Gore
   Tests > Limb Gore Tests has the buttons (toolbake). `Misc/quakevr/ragdoll/notes_regression.sh <agent>` reproduces
   the reach, corpse, overlap and living-transition checks.
 

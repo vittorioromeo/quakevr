@@ -796,7 +796,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     damage = damage * kindMult;
     string kindName = VR_Corpse_DamageKindName(kind);
 
-    // Blunt corpse hits wear down the struck piece, not a shared body health pool. Torso hits still bleed and push.
+    // Blunt corpse hits on a limb or the head wear down that piece only; torso hits go on to the whole-body pool below.
     if(VR_Limb_CorpseImpact(targ, inflictor, attacker, damage, kind))
     {
         return TRUE;

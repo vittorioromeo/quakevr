@@ -493,13 +493,13 @@ float(entity c, float xHand, vector xAt) VR_Limb_CorpseBlow =
     return VR_Decap_Roll(c) && VR_Limb_Cut(c, self, vr_decap_slashvel, how, bone, FALSE);
 };
 
-// Blunt blows on a corpse with a rig accumulate on the piece struck. Exhausting its original corpse health pops
-// that piece; the torso remains physical. Disabling Limb Gore/Corpses keeps the existing whole-body damage path.
+// Blunt blows on a ragdolled corpse's limb (or head) accumulate on that piece only: exhausting its original corpse
+// health pops that piece. Torso hits return FALSE and take the whole-body path (vr_corpse_hp: enough gibs the
+// corpse), as does a rig without limbs. Disabling Limb Gore/Corpses keeps the whole-body path for every hit.
 float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseImpact =
 {
-    if(!cvar_hget(cvarh_vr_limbs) || !cvar_hget(cvarh_vr_limbs_corpses) || targ.vr_gib ||
-       !(targ.flags & FL_MONSTER) || !isragdoll(targ) || !VR_Decap_HowOn(QVR_DECAP_BLUNT) ||
-       (VR_Limb_IsZombie(targ) && !cvar_hget(cvarh_vr_limbs_zombies)) ||
+    if(!VR_Limb_Allowed(targ) || !cvar_hget(cvarh_vr_limbs_corpses) || !isragdoll(targ) ||
+       !VR_Decap_HowOn(QVR_DECAP_BLUNT) ||
        (kind != QVR_CDMG_BLUNT && kind != QVR_CDMG_FISTS && kind != QVR_CDMG_PROPS && kind != QVR_CDMG_BASH))
     {
         return FALSE;
@@ -512,8 +512,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float kind) 
     float bone = head ? 0 : VR_Limb_At(targ, at);
     if(bone < 0 || bone >= 16)
     {
-        dprint(sprintf("corpse limb: %s blunt torso hit, body kept\n", targ.classname));
-        return TRUE;
+        dprint(sprintf("corpse limb: %s blunt torso hit, whole-body damage\n", targ.classname));
+        return FALSE;
     }
     VR_Corpse_Parts(targ);
     float hp = max(1, VR_Corpse_Health());

@@ -5961,7 +5961,12 @@ za::Vector<Item> pageDebugTools()
         command("Repeated Blunt Hits on a Corpse Limb", "vr_limb_test 24")
             .help("vr_limb_test 24: repeated blunt hits detach the nearest corpse's limb without losing the detached piece."),
         command("Repeated Blunt Hits on a Corpse Torso", "vr_limb_test 25")
-            .help("vr_limb_test 25: blunt hits to the corpse's torso leave its limbs attached."),
+            .help("vr_limb_test 25: a heavy blunt hit to the corpse's torso gibs the whole corpse."),
+        command("One Blunt Hit on a Corpse Limb", "vr_limb_test 28")
+            .help("vr_limb_test 28: one blunt hit wears the struck limb down without popping it (save, load, then "
+                  "Stored Limb Damage)."),
+        command("Stored Limb Damage", "vr_limb_test 29")
+            .help("vr_limb_test 29: prints the blunt damage the nearest corpse's test limb has taken (kept across save/load)."),
         command("Held Prop at a Corpse Limb", "vr_limb_test 26")
             .help("vr_limb_test 26: a blunt hit with a held prop detaches and keeps the corpse's struck limb."),
         command("Axe at a Corpse Limb", "vr_limb_test 27")
