@@ -516,7 +516,7 @@ committed to.
 | Task | Files | Approach | Effort |
 |---|---|---|---|
 | **Debuffs everywhere, burning merged** (24; built: 16.3) | `QC/vr_ad_bridge.qc` (the player's debuff tick in every map when AD's data is present), our burning (`QC/vr_fire*.qc`), the HUD | AD's `ad_ClientDeBuff`/`ad_ResetDebuffSystem` run from our player think for any player AD's monsters or traps poison or bleed; AD's burning becomes ours (one flame state, our flame visuals and damage, AD's duration and damage table). | 2-3 |
-| **Ladders on our climbing** (26; built: 16.5) | `QC/vr_ad_bridge.qc`, `Quake/vr/vr_climb.cpp` (a climbable volume type) | `trigger_ladder`'s brush becomes a hand-climbable volume (grab anywhere inside it, as a ledge's rungs); AD's push-up (jump held) stays for the thumbstick. | 2-3 |
+| **Ladders on our climbing** (26; built:16.5) | QC/vr_ad_bridge.qc, Quake/vr/vr_climb.cpp | Grip actual solid rungs; gaps supply no holds. VR hands bypass AD's keyboard jump/velocity movement. | 2-3 |
 | **HUD space for artifacts and debuffs** (28; built: 16.6) | the wrist/HUD (`Quake/vr/vr_hud*.cpp`) | A row of AD artifact and debuff icons with timers, only drawn when one is active. | 1-2 |
 | **Evil mode in the skill selection** (30; built: 16.7) | the skill menu and hub buttons, `QC/vr_ad_bridge.qc` | Skill 4 when AD's data is installed: lower maximum health, each level started with the Shadow Axe (AD's `ad_Client_SetupEvilmode`); needs the Shadow Axe as a VR weapon (P3). | 1-2 after P3 |
 | **AD performance in VR** (29; TODO: 16.13) | `vr_profile`, `bench.sh` | With chaos mode: AD's biggest maps profiled exclusive (lightmap build, think cost of emitters/estate/breakables, sprite particles), fixes per finding. | 3-5 |
@@ -796,7 +796,7 @@ files). `ad_import.py` applies 8 reviewed bridge patches to AD's code (listed in
 | World | AD's world setup after ours (`ad_worldspawn`: precaches, body queue, light-style/pendulum/map-variable arrays, gravity and fall rules, the particle chain), AD's frame (`ad_StartFrame`). AD's engine detection answers Fitz (sprite particles, no CSQC). |
 | Fog | AD's fog controller by `svc_fog` (MG's `MG_SetFog`); AD's stuffed fog and sky-fog commands are not sent. |
 | Damage | Quake VR's `T_Damage` for the player and our monsters, also when AD's code deals it (`VR_AD_DamageOurs`; AD's NOARMOR kept); AD's `T_Damage` for AD's entities, also when ours deals it (`AD_Damage`: our damage multipliers, sneak attacks, the motion log, melee bloodlust), with our hit hooks on AD's monsters (`VR_AD_Hit`: damage numbers, gore, small gibs, wounds) (decision 14). |
-| Player | What AD's code reads of a player (class, entity state, AD's powerups and debuffs reset); AD's spawn points (`info_player_start2` by an exit's `startspawn2`, the hub's returns) and the spawn point's targets; ladders (`trigger_ladder`: jump climbs, AD's way); AD's fall rules (decision 15: the map's fall speeds and damage); AD's debuffs (poison, burning, bleeding) ticked; AD's megahealth rot (decision 15: one rot whatever the megahealths). |
+| Player | What AD's code reads of a player (class, entity state, AD's powerups and debuffs reset); AD's spawn points (`info_player_start2` by an exit's `startspawn2`, the hub's returns) and the spawn point's targets; ladders (`trigger_ladder`: VR grips actual rungs; keyboard climbing only without tracked hands); AD's fall rules (decision 15: the map's fall speeds and damage); AD's debuffs (poison, burning, bleeding) ticked; AD's megahealth rot (decision 15: one rot whatever the megahealths). |
 | Levels | AD's state in parm57..72 (map variables, upgrades); the worldspawn inventory keys (`reset_health`, `max_health`, `ammo_*`, `currentammo`, `armortype`/`armorvalue`) at a level's start; the hub keeps the inventory (AD resets it only when all runes are found); exits: no map key = this map, `ad_tears`' exits go to the hub (AD's own hack), STARTOFF until triggered, AD's on-exit rules (debuffs and AD powerups end, `mapvar_update`, `startspawn2`, RESETINV). |
 | Our monsters | AD's delayed spawn (64) and angry spawn (128), no spawn effect (32), `nomonstercount`, `deathtarget`; AD's path_corners move them as ours. The id/Hipnotic/Rogue/Honey spawnflag meanings are off (`VR_OtherFlags`, as in MG's maps; decision 19). |
 | Items | Ours, with AD's STARTOFF (64: appears when triggered) and respawn (decision 25: RESPAWN 16, `respawn_time` default 30 s, `respawn_trig`, `respawn_count`). |
@@ -1033,14 +1033,17 @@ with shells 0.5, nails 1, rockets -0.5, hit 10 by each): e1m1 13 (a positional s
 
 ### 16.5 Ladders on our climbing (decision 26)
 
-`trigger_ladder` (in any map) keeps AD's own climb (holding jump climbs at the ladder's speed: `AD_PlayerPreThink`,
-now in every map) and is a climbable volume for our hands (`vr_climb.cpp ladderHold`, `vr_climb_ladders` 1; VR
-Settings > Combat > Arcane Dimensions: Hand-Climbed Ladders): an empty hand gripping in it, or within the touch
-distance, holds where it is (a rung under every hand), after the exact ledges and before a lenient one; the hanging,
-the pulls, stamina and the mantle at the top are the ledges'. AD's state turning the ladder off (not solid) lets no
-hand hold. Measured on ad_e1m1's ladder (x 2495-2561, y -305..-295, z -1..161): `vr_climb_try` in it: an exact hold at
-the hand, facing the body; over it: none; Hand-Climbed Ladders off: none; a mock climb (main hand gripped at 70,
-pulled to 30, the off hand at 75, pulled to 30): the body 24, 62, 80 over its start.
+The trigger_ladder volume identifies the ladder; actual solid rung tops supply holds. Hand-Climbed Ladders
+(vr_climb_ladders default1) enables this inside active AD ladder triggers. Closely spaced rungs can fail the generic
+32-unit ledge drop rule; ladderHold relaxes that drop requirement only, tracing a real walkable surface within normal
+hand-touch tolerances. Gaps supply no holds. Hanging, pulling, stamina and mantling remain the normal ledge system.
+AD's entity state still controls whether its ladder is enabled; the setting off rejects holds in the trigger.
+
+Tracked VR hands bypass both AD keyboard ladder systems before they change velocity: jump never climbs, and the
+broad approach trigger no longer stops or redirects the body. Non-VR play retains AD's keyboard movement.
+The October12 ad_crucial regression accepts seven real rungs, rejects seven gaps and rejects the same rung with the
+setting off. Both keyboard modes leave VR velocity unchanged. Companion button/backpack checks and VR retests:
+Misc/quakevr/ad_world_test.sh and ROUND22.
 
 ### 16.6 The HUD (decision 28)
 
@@ -1128,7 +1131,7 @@ already fit the crouched box (36 high); our monsters' bullets aim at what shows 
 - Evil is a toggle beside the skill (Nightmare plus Evil), not a fifth skill value: the engine and our monsters stay on
   0-3. Quake's start map has no Evil hall: the menu row chooses it.
 - `vr_crouch_sight` is on by default: it changes only a crouched player's sight.
-- Ladders: a hand anywhere in the ladder's volume holds (no rung positions); AD's velocity ladders keep their own push.
+- Ladders use actual solid rung tops; VR bypasses keyboard jump/velocity movement (October12 notes, ROUND22).
 
 ### 16.12 Files
 
