@@ -69,6 +69,22 @@ a lower-game PNG wins over a higher-game TGA. Each root retains numeric PAK/loos
 hashed with their decoded RGBA, including transparency; their origin and maps are recorded. This includes packed
 AD replacements such as `textures/{speedbz_grid1.tga`, rather than assuming all map pixels come from BSP miptex.
 
+For a native Steam installation with HD textures in `id1/textures`, include the lower mission-pack and id1 game
+roots as well as AD. Listing only AD and quakevr misses the HD image actually selected by the renderer. A reusable
+example from the repository root is:
+
+```powershell
+$taskSteamQuake = 'C:/Program Files (x86)/Steam/steamapps/common/Quake'
+scratch/env/Scripts/python.exe Misc/quakevr/pbr_generate.py generate --game "$taskSteamQuake/ad" --texture-game quakevr --texture-game "$taskSteamQuake/ad" --texture-game "$taskSteamQuake/rogue" --texture-game "$taskSteamQuake/hipnotic" --texture-game "$taskSteamQuake/id1" --palette-game "$taskSteamQuake/id1" --authored quakevr/textures_quetoo --normal-model scratch/pbrify172/PBRify_Remix-1.7.2/Models/1x-PBRify_NormalV3.pth --height-model scratch/pbrify172/PBRify_Remix-1.7.2/Models/1x-PBRify_Height.pth --output quakevr
+```
+
+Match the exact running engine's `path` output when additional game roots are mounted. In the agent kit, insert
+`qvr-kit/qbase/rogue`, `qvr-kit/qbase/hipnotic` and `qvr-kit/qbase/id1` immediately after the corresponding Steam
+game root. Do not list nonexistent worktree roots printed by an engine configuration. The manifest records the
+effective root order so refresh uses the same selected images. `metal1_3` and `wizwood1_5`, for example, are 512x512
+loose PNGs in Steam `id1/textures`, whose canonical hashes differ from AD's indexed miptex and Quetoo comparison
+images. Run the full corpus with these roots rather than generating exceptions for individual texture names.
+
 ## Other PAKs and loose image packs
 
 For another mod change `--game`, the palette and output directory. For loose textures replace `--game` and

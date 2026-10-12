@@ -1,7 +1,7 @@
 {
   "bsp_files": 283,
   "eligible_names": 2455,
-  "eligible_sources": 2637,
+  "eligible_sources": 2987,
   "excluded_names": {
     "*04awater1": 1,
     "*04water1": 2,
@@ -84,8 +84,15 @@
   "image_files": 0,
   "palette_sha256": "6b20b5bc4ea965ef1852b05670d043ca16148a0ecad4e63028121c8aebc268fe",
   "scan_errors": [],
-  "selected_override_occurrences": 117,
+  "selected_override_occurrences": 1305,
   "texture_game_priority": [
-    "C:\\OHWorkspace\\quakevr-iw\\quakevr"
+    "C:\\OHWorkspace\\quakevr-iw\\quakevr",
+    "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\ad",
+    "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\rogue",
+    "C:\\OHWorkspace\\qvr-kit\\qbase\\rogue",
+    "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\hipnotic",
+    "C:\\OHWorkspace\\qvr-kit\\qbase\\hipnotic",
+    "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\id1",
+    "C:\\OHWorkspace\\qvr-kit\\qbase\\id1"
   ]
 }
