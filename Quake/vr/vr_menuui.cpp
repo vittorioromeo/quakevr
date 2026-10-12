@@ -25,9 +25,9 @@
 //   togglemenu) returns to that page, its selection and scroll as they were (vr_menu_remember).
 //   Only that way of closing it is remembered: Escape from the main menu, or a menu closing
 //   because a game started or loaded, opens the main menu next time, as Quake does.
-// - Under it, "Advanced VR" and "Levels" jump to the Advanced VR Options and to the level list from
-//   any menu. The laser clicks the three; the sticks reach them too: a stick's click on any menu, or
-//   up from a VR page's first setting (down from its last), then up and down, A to press, B back.
+// - Under it, "Quicksave" and "Quickload" use the keyboard bindings' quick slot; "Advanced VR" and
+//   "Levels" jump to their pages from any menu. The laser clicks the shortcuts; the sticks reach them too: a stick's
+//   click on any menu, or up from a VR page's first setting (down from its last), then up and down, A to press, B back.
 // - The main hand's stick scrolls a page with a scrollbar (the VR pages, and Ironwail's lists: the
 //   options, maps, mods, key bindings), a row at a time at a rate growing with the push, the
 //   selection kept where it is while it stays in view. It never changes a setting: its left and
@@ -348,7 +348,7 @@ void appendStrip(za::Vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3
 // ----------------------------------------------------------------------------
 
 // A column at the panel's top left, over every menu: "Back to game" (closes the menu, which reopens where it was),
-// "Main Menu" (Quake's main menu, from anywhere),
+// "Quicksave" and "Quickload" (the same quick slot as the keyboard bindings), "Main Menu" (Quake's main menu),
 // "Search" and "Console" (Quake's console with a keyboard: commands typed in the headset), "VR Settings" (the VR
 // Settings page), "Advanced VR" (the Advanced VR Options page), "Levels" (Ironwail's level list), "Map Library",
 // "Relighting" (Graphics > Relighting) and "Checklist" (the playtest checklist, its open items counted on it;
@@ -357,6 +357,8 @@ void appendStrip(za::Vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3
 enum Tool
 {
     ToolBack,
+    ToolQuicksave,
+    ToolQuickload,
     ToolMainMenu, // the main menu, from any menu (the VR pages' Back stack started again)
     ToolSearch, // the VR menus' Search page (vr_menu_search.inc)
     ToolConsole, // Quake's console with a keyboard (vr_menu_console.inc)
@@ -370,17 +372,66 @@ enum Tool
 };
 
 // (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game".)
-constexpr const char* toolLabels[ToolCount]{"Back to game", "Main Menu", "Search", "Console", "VR Settings", "Advanced VR", "Levels",
-    "Map Library", "Relighting", "Checklist 99"};
+constexpr const char* toolLabels[ToolCount]{"Back to game", "Quicksave", "Quickload", "Main Menu", "Search", "Console",
+    "VR Settings", "Advanced VR", "Levels", "Map Library", "Relighting", "Checklist 99"};
 
 // Their names for the tests' commands (vr_mock_laser, vr_mock_mouse).
-constexpr const char* toolNames[ToolCount]{"back", "main", "search", "console", "settings", "advanced", "levels", "maps", "relighting",
-    "checklist"};
+constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "main", "search", "console", "settings",
+    "advanced", "levels", "maps", "relighting", "checklist"};
 
 // The buttons shown: the Checklist (the last) only at Menu Detail: Developer (the playtest checklist is the author's).
 [[nodiscard]] int toolsShown()
 {
     return menu::developerLevel() ? ToolCount : ToolChecklist;
+}
+
+// Match save quick's restrictions and load quick's file lookup. Leave unavailable buttons in the same place, so
+// opening a menu before a game or after dying never moves the other shortcuts under the laser.
+[[nodiscard]] const char* toolUnavailable(int tool)
+{
+    if(tool == ToolQuicksave)
+    {
+        if(!sv.active)
+        {
+            return "Not playing a local game";
+        }
+        if(sv.nomonsters)
+        {
+            return "Cannot save with nomonsters";
+        }
+        if(cl.intermission)
+        {
+            return "Cannot save in intermission";
+        }
+        if(svs.maxclients != 1)
+        {
+            return "Cannot save multiplayer games";
+        }
+        if(svs.clients[0].active && svs.clients[0].edict->v.health <= 0)
+        {
+            return "Cannot save a dead player";
+        }
+    }
+    else if(tool == ToolQuickload)
+    {
+        if(Host_IsSaving())
+        {
+            return "Saving game; try again shortly";
+        }
+        if(Sys_FileExists(va("%s/quick.sav", com_gamedir)))
+        {
+            return nullptr;
+        }
+        for(int i = com_numbasedirs - 1; i >= 0; i--)
+        {
+            if(Sys_FileExists(va("%s/quick.sav", com_basedirs[i])))
+            {
+                return nullptr;
+            }
+        }
+        return "No quicksave in this game";
+    }
+    return nullptr;
 }
 
 // Where the column goes: across, menu pixels; up and down, from the canvas's top in true pixels
@@ -411,6 +462,7 @@ struct ToolbarLayout
     float left{0.f}, top{0.f}; // the canvas's corner
     float bottom{0.f};         // the canvas's bottom edge (menu y)
     float k{1.f};
+    float columnHalf{half}, buttonGap{gap}; // smaller only when the column would reach the bottom corner's rows
     float x0{0.f}, x1{0.f};    // the column's edges (the row: its first button's)
     float edge{0.f};           // where the column's right edge goes: columnRight, or left of a wider menu
     float limit{0.f};          // the nearest the column may come to the menu (menu::contentLeft, less columnGap)
@@ -418,10 +470,11 @@ struct ToolbarLayout
     bool row{false};           // the flat screen's row of icons
 
     // Half a button's height (true pixels), and a button's middle (menu y).
-    [[nodiscard]] float bh() const { return row ? rowHalf : half; }
+    [[nodiscard]] float bh() const { return row ? rowHalf : columnHalf; }
     [[nodiscard]] float yc(int tool) const
     {
-        return row ? top + (rowCorner + rowHalf) / k : top + (corner + half + tool * (2.f * half + gap)) / k;
+        return row ? top + (rowCorner + rowHalf) / k :
+                     top + (corner + columnHalf + tool * (2.f * columnHalf + buttonGap)) / k;
     }
 
     // A button's left and right edges.
@@ -442,8 +495,8 @@ struct ToolbarLayout
             const float rx1 = bx1(tool) + (last ? 2.f : rowGap * 0.5f);
             return x >= rx0 && x <= rx1 && y >= top && y <= yc(tool) + (rowHalf + 2.f) / k;
         }
-        const float y0 = tool == 0 ? top : yc(tool) - (half + gap * 0.5f) / k;
-        const float y1 = yc(tool) + (half + (last ? 2.f : gap * 0.5f)) / k;
+        const float y0 = tool == 0 ? top : yc(tool) - (columnHalf + buttonGap * 0.5f) / k;
+        const float y1 = yc(tool) + (columnHalf + (last ? 2.f : buttonGap * 0.5f)) / k;
         return x >= left && x <= x1 + 2.f && y >= y0 && y <= y1;
     }
 };
@@ -480,6 +533,19 @@ struct ToolbarLayout
     }
     l.labels = l.x1 <= l.limit;
     l.row = !qvr::menuui::active(); // (a flat screen)
+    if(!l.row)
+    {
+        // Keep every shortcut above Recording/OBS even with Menu Height and Row Spacing at their smallest.
+        // Normal panels keep the author's large targets; constrained panels fit the column as a whole.
+        const int bottomRow = qvr::obs::banner().shown ? 2 : 1;
+        const float reserve = ToolbarLayout::corner + 2.f * ToolbarLayout::half +
+                              bottomRow * (2.f * ToolbarLayout::half + ToolbarLayout::gap) + ToolbarLayout::gap;
+        const float room = (l.bottom - l.top) * l.k - ToolbarLayout::corner - reserve;
+        const float height = toolsShown() * (2.f * ToolbarLayout::half + ToolbarLayout::gap) - ToolbarLayout::gap;
+        const float fit = za::fmin(1.f, za::fmax(0.1f, room / height));
+        l.columnHalf *= fit;
+        l.buttonGap *= fit;
+    }
     if(!l.labels || l.row)
     {
         l.labels = false;
@@ -1132,7 +1198,7 @@ void mockLaser_f()
         pointingHand = HAND_MAIN;
         return;
     }
-    Con_Printf("vr_mock_laser <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
+    Con_Printf("vr_mock_laser <x> <y> | back | quicksave | quickload | main | search | console | settings | advanced | levels | maps | relighting | "
                "checklist | spectator | recording | obs | kofi | update | yes | no | off: the main hand's laser on that spot of the menu "
                "(yes, no: a confirmation dialog's buttons)\n");
 }
@@ -1192,7 +1258,7 @@ void mockMouse_f()
     }
     if(next == 0)
     {
-        Con_Printf("vr_mock_mouse <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
+        Con_Printf("vr_mock_mouse <x> <y> | back | quicksave | quickload | main | search | console | settings | advanced | levels | maps | relighting | "
                    "checklist | recording | kofi | update | yes | no [click]: the desktop mouse on that spot of the menu (yes, no: a "
                    "confirmation dialog's buttons), clicked with click\n");
         return;
@@ -1407,10 +1473,28 @@ void backToGame(int hand)
 // shown again.
 void useTool(int tool, int hand)
 {
+    if(const char* reason = toolUnavailable(tool))
+    {
+        Con_Printf("%s: %s.\n", toolLabels[tool], reason);
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
     toolbar.focused = -1;
     switch(tool)
     {
         case ToolBack: backToGame(hand); break;
+        case ToolQuicksave:
+            backToGame(hand);
+            Cbuf_InsertText("echo Quicksaving...; wait; save quick\n");
+            break;
+        case ToolQuickload:
+            remembered = {}; // A loaded game reopens the main menu, as the Load menu does.
+            IN_Activate();
+            key_dest = key_game;
+            m_state = m_none;
+            haptic(hand, 0.04f, 0.4f);
+            Cbuf_InsertText("echo Quickloading...; wait; load quick\n");
+            break;
         case ToolMainMenu: menu::jumpToMainMenu(); break;
         case ToolSearch: menu::openSearch(); break;
         case ToolConsole: menu::openConsole(); break;
@@ -1813,6 +1897,20 @@ void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4
             p.arrowHead(x, 5.f, yc, 4.5f, ink);
             p.rect(x + 4.f, x + w, yc, 1.25f, ink);
             break;
+        case ToolQuicksave:
+        case ToolQuickload:
+            // A tray with a down arrow to save, an up arrow to load.
+            p.band(x, x + 1.3f, yc, 1.5f, 4.5f, ink);
+            p.band(x + w - 1.3f, x + w, yc, 1.5f, 4.5f, ink);
+            p.rect(x, x + w, yc + 4.f / p.k, 0.6f, ink);
+            p.band(x + 3.9f, x + 5.1f, yc, -4.5f, 0.f, ink);
+            for(int i = 0; i < 3; i++)
+            {
+                const float t = static_cast<float>(i);
+                const float y = tool == ToolQuicksave ? -1.f + t : -2.5f - t;
+                p.rect(x + 2.f + t, x + 7.f - t, yc + y / p.k, 0.6f, ink);
+            }
+            break;
         case ToolMainMenu:
             // A house: a stepped roof over its walls, a door in them.
             for(int i = 0; i < 4; i++)
@@ -2015,23 +2113,27 @@ extern "C" void VR_MenuDrawOverlay()
     }
     for(int t = 0; t < toolsShown(); t++)
     {
-        const bool hot = toolbar.hovered == t || (menuui::toolbarFocused() && toolbar.focused == t);
+        const bool enabled = !toolUnavailable(t);
+        const bool selected = toolbar.hovered == t || (menuui::toolbarFocused() && toolbar.focused == t);
+        const bool hot = enabled && selected;
         const float yc = l.yc(t);
         const float x0 = l.bx0(t), x1 = l.bx1(t);
-        p.rounded(x0, x1, yc, l.bh(), 3.f, hot ? colors::highlightEdge : colors::boxBorder);
+        p.rounded(x0, x1, yc, l.bh(), 3.f, selected ? colors::highlightEdge : colors::boxBorder);
         p.rounded(x0 + 1.f, x1 - 1.f, yc, l.bh() - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
 
-        const glm::vec4& ink = hot ? colors::thumb : colors::fill;
+        const glm::vec4 ink = (hot ? colors::thumb : colors::fill) * (enabled ? 1.f : 0.4f);
         const float ix = x0 + (l.row ? 4.f : ToolbarLayout::pad);
         drawToolIcon(p, t, ix, yc, ink);
 
         if(l.labels)
         {
             float x = ix + ToolbarLayout::icon + ToolbarLayout::labelGap;
+            GL_PushCanvasColor(1.f, 1.f, 1.f, enabled ? 1.f : 0.4f);
             for(const char* c = t == ToolChecklist ? checklistLabel : toolLabels[t]; *c; c++, x += 8.f)
             {
                 Draw_CharacterEx(x, yc - 4.f, 8.f, 8.f, hot ? *c : (*c | 128));
             }
+            GL_PopCanvasColor();
         }
     }
 

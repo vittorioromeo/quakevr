@@ -113,6 +113,13 @@ on a flat screen"): `vr_mock_mouse <x> <y> | back | search | console | settings 
 moves the desktop mouse there (M_Mousemove) and clicks; `vr_mock_key <key>` presses a key (`uparrow`, `enter`,
 `rthumb`...) and prints the menu and the corner button selected; `vid_unlock` before `vid_width`/`vid_restart` changes
 the kit's window size.
+Quicksave and Quickload (ROUND22.md, "Menu quicksave and quickload shortcuts") are below Back to Game in the top-left
+shortcuts. `vr_mock_laser quicksave|quickload` points at them; trigger clicks use the same `quick.sav` slot as the key
+bindings. `vr_mock_mouse quicksave|quickload click` tests the desktop row. With `vr_mock_key rthumb` selecting Back to
+Game, one `downarrow` selects Quicksave, two select Quickload; `enter` presses. Unavailable actions are dimmed and a
+press prints why without closing the menu. Set Menu Height and Row Spacing to 1 to check the column stays above
+Recording and the spectator switch; normal panels keep their large targets.
+
 Playtest checklist (ROUND21.md, "In-game checklist"): **to update what the author is asked to test, edit
 `quakevr/checklist.txt`** (`[Section]` lines, one item a line, `#` comments; the format is at its top) and commit it: no
 rebuild, and a running game reads it again within a second. Ticks live in `quakevr/checklist_ticks.txt` (ignored), keyed
