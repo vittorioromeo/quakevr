@@ -74,6 +74,8 @@ void info_f();
 
 // vr_gore_hands_test [off|main] [amount]: a gib's blood on a hand, as taking one (the main hand; vr_gore_hands).
 void handsTest_f();
+// vr_wrist_blood_test hand|arm [main|off]: one wound at the shared hand/arm seam.
+void wristTest_f();
 
 // vr_gore_wash_test [amount]: `amount` (0.25) of the blood washed off your hands and body at once, as water over them
 // would (vr_gore_wash_once: each texel once).

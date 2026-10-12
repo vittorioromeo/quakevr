@@ -318,6 +318,11 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         ZA_MEMSET(out->skintint, 0, sizeof(out->skintint));
         ZA_MEMSET(out->skintintrange, 0, sizeof(out->skintintrange));
     }
+    ZA_MEMSET(out->skintone, 0, sizeof(out->skintone));
+    if(standard)
+    {
+        (void)view::skinTone(e, out->skintone);
+    }
     out->retro[3] = standard ? VR_RetroLightSkinScale(e->model, hdr, e->skinnum) : 0.f; // retro lighting (vr_retrolight.cpp): its Quake texels' share
 }
 
@@ -455,4 +460,57 @@ extern "C" void VR_AliasLightModifier(const entity_t* e, float lightcolor[3])
         }
     }
     view::bareLight(e, lightcolor); // bare forearms: the hands in your body's light
+}
+
+// The masks are loaded before any alias batches hold pointers into the movable model cache. Drawing only
+// looks up a mask: Image_LoadImage/TexMgr_LoadImage may move that cache and must not run inside a draw loop.
+void VR_PrecacheSkinMasks()
+{
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    for(entity_t* e : own)
+    {
+        if(!e || !e->model)
+        {
+            continue;
+        }
+        float tone[4]{};
+        const int kind = view::skinTone(e, tone);
+        if(!kind || tone[3] == 0.f)
+        {
+            continue;
+        }
+        char path[MAX_QPATH];
+        const int skin = CLAMP(0, e->skinnum, kind == 1 ? 3 : 15);
+        q_snprintf(path, sizeof(path), "progs/%s_%02d_00_skinmask", kind == 1 ? "hand_rig" : "vrbody", skin);
+        if(TexMgr_FindTexture(e->model, path))
+        {
+            continue;
+        }
+        const int mark = Hunk_LowMark();
+        int width, height;
+        enum srcformat format;
+        byte* pixels = Image_LoadImage(path, &width, &height, &format);
+        if(pixels)
+        {
+            (void)TexMgr_LoadImage(e->model, path, width, height, format, pixels, path, 0,
+                TEXPREF_MIPMAP | TEXPREF_NOPICMIP);
+        }
+        Hunk_FreeToLowMark(mark);
+    }
+}
+
+gltexture_t* VR_AliasSkinMask(const entity_t* e)
+{
+    float tone[4]{};
+    const int kind = view::skinTone(e, tone);
+    if(!kind || tone[3] == 0.f || !e->model)
+    {
+        return blacktexture;
+    }
+    char path[MAX_QPATH];
+    const int skin = CLAMP(0, e->skinnum, kind == 1 ? 3 : 15);
+    q_snprintf(path, sizeof(path), "progs/%s_%02d_00_skinmask", kind == 1 ? "hand_rig" : "vrbody", skin);
+    gltexture_t* texture = TexMgr_FindTexture(e->model, path);
+    return texture ? texture : blacktexture;
 }

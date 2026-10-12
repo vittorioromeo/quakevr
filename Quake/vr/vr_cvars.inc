@@ -1163,6 +1163,7 @@ QVR_CVAR(vr_grenade_pouch_hold_roll, "0", CVAR_ARCHIVE)
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
 QVR_CVAR(vr_body_mode, "3", CVAR_ARCHIVE)           // 3 shipped (vr_defaults.cfg too): the full body, legs and all
 QVR_CVAR(vr_body_build, "1", CVAR_ARCHIVE)            // 0 lean, 1 athletic, 2 brawny (progs/vrbody_lean, vrbody, vrbody_brawny)
+QVR_CVAR(vr_skin_tone, "0", CVAR_ARCHIVE) // skin-only shader: -1 dark, 0 authored skin, +1 light
 QVR_CVAR(vr_body_bracers, "1", CVAR_ARCHIVE)          // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, needs the jointed hand: vr_hand_rig 1)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
 QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
@@ -2613,6 +2614,7 @@ QVR_CVAR(vr_dummy_gib, "1", CVAR_ARCHIVE)                // the training dummy d
 QVR_CVAR(vr_dummy_gib_respawn, "2", CVAR_ARCHIVE)        // s a gibbed training dummy takes to stand again
 QVR_CVAR(vr_dummy_type, "0", CVAR_ARCHIVE)              // the enemy the training dummy stands as (vr_dummy_types.qc: 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 fiend, 6 shambler, 7 zombie, 8 vore, 9 scrag, 10 rottweiler, 11 spawn, 12 rotfish, 13 gremlin, 14 centroid, 15 mummy, 16 wrath, 17 overlord, 18 electric eel; Dawn of the Machine's: 19 rocket ogre, 20 demo dog, 21 ranged knight): its model, box, hit zones, head, gore and death
 QVR_CVAR(vr_dummy_health, "-1", CVAR_ARCHIVE)            // the training dummy's full health (below 1: its enemy's own, a grunt's 30); what its hits take away, shown over it, and what kills it (vr_dummy_gib)
+QVR_CVAR(vr_dummy_anchored, "0", CVAR_ARCHIVE)          // 1: the training dummy is never shoved away, staggered or knocked down (its flinch stays): to record shoves and bashes on it
 QVR_CVAR(vr_dummy_regen, "3", CVAR_ARCHIVE)              // s without a hit after which the training dummy's health fills up again (0: never)
 QVR_CVAR(vr_dummy_healthbar, "1", CVAR_ARCHIVE)          // the training dummy's health shown over it, as a bar and a number, turned to face you (0: its sign only)
 QVR_CVAR(vr_leg_holster_model_enabled, "1", CVAR_ARCHIVE)

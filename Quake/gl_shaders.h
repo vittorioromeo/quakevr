@@ -1306,6 +1306,7 @@ NOISE_FUNCTIONS
 "	vec4	SmoothW; // QVR: ... the four poses' weights\n"\
 "	vec4	SkinTint; // QVR: bare forearms' ends tinted to the hand's skin (vr/vr_view.cpp skinTint): rgb times the skin, w how much (0 none)\n"\
 "	vec4	SkinTintRange; // QVR: ... where in the skin: x below this u, y from this v (none) to z (all), w below this v\n"\
+"	vec4	SkinTone; // QVR: skin-only tone, excludes painted wounds\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1487,6 +1488,7 @@ NOISE_FUNCTIONS
 "layout(binding=0) uniform sampler2D Tex;\n"
 "layout(binding=1) uniform sampler2D FullbrightTex;\n"
 "layout(binding=2) uniform sampler2D NormalTex; // QVR\n"
+"layout(binding=6) uniform sampler2D SkinMaskTex; // QVR: authored skin only\n"
 "\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	layout(location=0) noperspective in vec2 in_texcoord;\n"

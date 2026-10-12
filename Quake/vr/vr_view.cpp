@@ -6434,7 +6434,7 @@ bool emptyHandImpl(const hands::State& s, int hand, view::EmptyHand& out)
 int drawnBuild = 1;
 bool drawnBare = false;
 
-// The light your body was last drawn in (view::bareLight, view::bareShade): with bare forearms the hands are drawn in
+// The light your body was last drawn in (view::bareLight, view::bareShade): with either forearm model the hands are drawn in
 // it too, so that the skin is lit alike on both sides of the wrist (each model's light, its direction and the light
 // round it are otherwise sampled at its own place: the body's round the torso, a hand's round the hand).
 struct BareLight
@@ -6447,10 +6447,10 @@ struct BareLight
 };
 BareLight bareLit;
 
-// A hand drawn in the body's light (bare forearms, the body's light kept this frame or the last): its hand, else -1.
+// A hand drawn in the body's light (the body's light kept this frame or the last): its hand, else -1.
 [[nodiscard]] int bareLitHand(const entity_t* e)
 {
-    if(!drawnBare || bareLit.frame < host_framecount - 1)
+    if(!entities.body.visible || bareLit.frame < host_framecount - 1)
     {
         return -1;
     }
@@ -6540,16 +6540,8 @@ void setupGadget(const hands::State& s)
     const glm::mat3 turn = glm::mat3_cast(glm::quat{glm::radians(
         glm::vec3{vr_gadget_pitch.value, vr_gadget_yaw.value, vr_gadget_roll.value})});
 
-    // On a bare forearm (vr_body_bracers 0) it rests on the skin: lower by how much thinner than the bracer it is there.
-    float rest = 0.045f;
-    if(drawnBare && onForearm && fa.length > 1e-3f)
-    {
-        const float along = 1.f - behind / fa.length;
-        float bu, bv, su, sv;
-        avatar::forearmGirth(build, along, bu, bv, false);
-        avatar::forearmGirth(build, along, su, sv, true);
-        rest += sv - bv;
-    }
+    // The casing stays at the same mount when bracers are toggled. The bands below it fit the forearm separately.
+    constexpr float rest = 0.045f;
 
     gadget::Pose pose;
     pose.valid = true;
@@ -6586,7 +6578,7 @@ void setupGadget(const hands::State& s)
     for(int i = 0; i < 2; i++)
     {
         const glm::vec3 lug = pose.origin + pose.axes * (glm::vec3{i == 0 ? -1.25f : 1.25f, 0.f, -0.47f} * scale);
-        const float along = glm::dot(lug - elbow, dir) / fa.length;
+        const float along = CLAMP(0.f, glm::dot(lug - elbow, dir) / fa.length, 1.f);
         avatar::ForearmFrame sf;
         if(!avatar::forearmFrame(hand, along, sf))
         {
@@ -6594,8 +6586,8 @@ void setupGadget(const hands::State& s)
         }
         const float edge = halfWidth / fa.length;
         float wu, wv, eu, ev; // the bracer's semi-axes at the band's wrist edge and elbow edge
-        avatar::forearmGirth(build, along + edge, wu, wv, drawnBare);
-        avatar::forearmGirth(build, along - edge, eu, ev, drawnBare);
+        avatar::forearmGirth(build, CLAMP(0.f, along + edge, 1.f), wu, wv, drawnBare);
+        avatar::forearmGirth(build, CLAMP(0.f, along - edge, 1.f), eu, ev, drawnBare);
         wu += margin, wv += margin, eu += margin, ev += margin;
         const float taper = CLAMP(0.f, za::max(eu / wu, ev / wv) - 1.f, strapTaper);
         view::ViewEntity& strap = entities.gadgetStrap[i];
@@ -6761,6 +6753,10 @@ void wristInfo_f()
 {
     const hands::State& s = hands::current();
     const float m2w = units::metresToUnits() * units::bodyScale();
+    const gadget::Pose& mount = gadget::pose();
+    Con_Printf("wrist mount: bracers %d, valid %d, origin %.5f %.5f %.5f, straps %d\n", drawnBare ? 0 : 1,
+        mount.valid ? 1 : 0, mount.origin.x, mount.origin.y, mount.origin.z,
+        static_cast<int>(entities.gadgetStrap[0].visible) + static_cast<int>(entities.gadgetStrap[1].visible));
     for(int hand = 0; hand < 2; hand++)
     {
         const view::ViewEntity& base = entities.hand[hand][FingerBase];
@@ -7353,6 +7349,31 @@ bool skinTint(const entity_t* e, float tint[4], float range[4])
     range[2] = pad + blockV * lipVpos;
     range[3] = bodybare::skinBlockV;
     return true;
+}
+
+int skinTone(const entity_t* e, float tone[4])
+{
+    int kind = 0;
+    if(e == &entities.body.ent || cloneSource(e) == &entities.body.ent)
+    {
+        kind = 2;
+    }
+    for(int hand = 0; hand < 2 && !kind; hand++)
+    {
+        const entity_t* he = &entities.hand[hand][FingerBase].ent;
+        if((e == he || cloneSource(e) == he) && rigHands[hand].drawn)
+        {
+            kind = 1;
+        }
+    }
+    const float amount = CLAMP(-1.f, vr_skin_tone.value, 1.f);
+    const glm::vec3 colour = amount < 0.f ? glm::mix(glm::vec3{1.f}, glm::vec3{0.22f, 0.15f, 0.12f}, -amount) :
+        glm::mix(glm::vec3{1.f}, glm::vec3{1.4f, 1.35f, 1.3f}, amount);
+    tone[0] = colour.x;
+    tone[1] = colour.y;
+    tone[2] = colour.z;
+    tone[3] = kind && amount != 0.f ? 1.f : 0.f;
+    return kind;
 }
 
 bool heldRoundRef(int hand, glm::vec3& out, float* radius)
@@ -8323,6 +8344,7 @@ extern "C" void VR_SetupViewEntities()
     setupBody(s);
     setupPauldrons();
     setupGadget(s);
+    VR_PrecacheSkinMasks();
     gadgetTouches(s, posingNow); // the screen tap and the side button, against the gadget and hands just drawn
     flashlight::setupView(s, entities.flashlight);
     chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)

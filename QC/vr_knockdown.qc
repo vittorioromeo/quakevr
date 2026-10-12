@@ -596,7 +596,8 @@ float(entity e) VR_Knockdown_Ledge =
 float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try =
 {
     if(!cvar_hget(cvarh_vr_knockdown) || !(self.flags & FL_CLIENT) || e.health <= 0 || e.vr_knockdown || !e.vr_kd_chance_h ||
-       (e.flags & (FL_FLY | FL_SWIM)) || !(e.flags & FL_MONSTER) || !canragdoll(e))
+       (e.flags & (FL_FLY | FL_SWIM)) || !(e.flags & FL_MONSTER) || !canragdoll(e) ||
+       (VR_IsDummy(e) && cvar_hget(cvarh_vr_dummy_anchored)))
     {
         return FALSE;
     }

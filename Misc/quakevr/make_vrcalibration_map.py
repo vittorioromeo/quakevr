@@ -363,7 +363,7 @@ board(N.join(["Stand in the middle of your play space", "and follow the words in
               "your height, then your body."]), 0, TEXT_Y, 122, 270, "0.33")
 board(N.join(["Again later, from the menus:", "Height: {menu:VR Settings>Set Height Now}",
               "Body: {menu:Body Calibration}"]), 0, TEXT_Y, 100, 270, "0.28")
-board(N.join(["Hands: {menu:Hand/Gun Calibration}", "Seated? {menu:Body Calibration>Position}"]),
+board(N.join(["Hands: {menu:Hand/Gun Calibration}", "Seated? {menu:Body Calibration>Position}", "Skin: {menu:Body>Skin Tone}"]),
       0, TEXT_Y, 78, 270, "0.28")
 # over the doorway, where it leads: "{calibration exit}" is VR TUTORIAL at a first start (QC changelevel_touch sends it
 # there until the tutorial has been started once), else VR HUB (the engine, as the room loads: vr_worldtext.cpp)

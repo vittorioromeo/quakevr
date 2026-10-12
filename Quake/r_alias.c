@@ -517,7 +517,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	GLuint		buffers[2];
 	GLintptr	offsets[2];
 	GLsizeiptr	sizes[2];
-	gltexture_t* textures[3];	// QVR: and the normal map
+	gltexture_t* textures[4];	// QVR: and the normal map
 	const float	*vrbones;	// QVR: bone matrices of an IK-posed body
 	int			numvrbones;	// QVR
 	GLuint		vrbonebuf;	// QVR
@@ -695,7 +695,9 @@ void R_FlushAliasInstances (qboolean showtris)
 		if (showtris) { textures[0] = blacktexture; textures[1] = whitetexture; }
 		textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
-		GL_BindTextures (0, 3, textures); // QVR: and the normal map
+		textures[3] = showtris || r_lightmap_cheatsafe ? blacktexture : VR_AliasSkinMask (ibuf.ent);
+		GL_BindTextures (0, 3, textures); // QVR: normal map
+		GL_BindTextures (6, 1, &textures[3]); // QVR: skin mask, separate from retro LUT on unit 3
 		GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount); // QVR: drawcount
 		rs_aliaspasses += hdr->numtris * drawcount;
 	}
@@ -731,7 +733,9 @@ void R_FlushAliasInstances (qboolean showtris)
 			if (showtris) { textures[0] = blacktexture; textures[1] = whitetexture; }
 			textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
-			GL_BindTextures (0, 3, textures); // QVR: and the normal map
+			textures[3] = showtris || r_lightmap_cheatsafe ? blacktexture : VR_AliasSkinMask (ibuf.ent);
+			GL_BindTextures (0, 3, textures); // QVR: normal map
+			GL_BindTextures (6, 1, &textures[3]); // QVR: skin mask, separate from retro LUT on unit 3
 			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount); // QVR: drawcount
 			rs_aliaspasses += hdr->numtris * drawcount;
 		}

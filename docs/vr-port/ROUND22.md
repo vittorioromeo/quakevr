@@ -3928,3 +3928,36 @@ from baseline (archived canary absent). e1m1 smoke passed; calibration 4 paths f
 pyro and the folded grunt passed: `scratch/corpse_cleanup_visual.png` (disc/guns absent, pyro tank retained, arm freed).
 Existing screenshots preserved. In VR, retest corpse shoulder/upper-arm manipulation, centurion/pyro kills and repeated
 dummy shove/get-up cycles. No deletes performed.
+## Wrist seam, gadget bands, blood and skin tone (wrist2)
+
+The bare arm now uses the fitted hand contour at the loft's actual resolution (144 samples, previously a 24-sided
+loft snapped onto a 12-point contour). Wrist/lip clearance is 0.128–0.823 mm across all three builds and both sides.
+Bare models have 5,732 vertices / 10,874 triangles; braced models remain 1,250 / 2,186. This spends geometry on the
+concave hand outline. All 16 authored body diffuse repaints and hand LMPs are byte-for-byte unchanged (--keep-edited).
+
+The casing keeps one mount in both bracer modes. Two bands fit skin or leather separately; the bare girth table now
+includes the thick skin before the 0.15 m taper, so the elbow band is no longer buried. Straight/bent wrists and
+0/60-degree forearm roll were inspected in eye captures. Four runtime cases draw two bands, maintain gadget origin
+within 0.0004 engine units, and report eight wrist endpoints at 0.00 mm separation.
+
+A wound on your hand or body reuses world-space splats on adjoining models. Gib-hand smears reuse the same patch
+noise on the arm, bounded to 12 cm from that wrist. Bidirectional Debug > Gore tests (vr_wrist_blood_test hand|arm
+[main|off]) verify both masks gain blood: body +6,792–12,656 texels, hand +18,450–21,191. A separate gib-smear check
+gains 13,915 body blood texels. Healing ownership is retained.
+
+Body > Skin Tone (vr_skin_tone, archived, default 0; range -1..1) multiplies authored skin in the shader only.
+Twenty small masks exclude nails, clothing and static wounds; dynamic blood and char bypass tone. Masks load before
+alias batching (cache-safe) and use sampler 6, leaving retro LUT sampler 3 intact. Both bracer modes share body
+lighting for hands. The calibration board links the slider. No diffuse tone variants are generated.
+
+Validation: QC/engine/FGD build passed (0 QC warnings, 367 entities). wrist_test.py verifies contour clearance,
+unchanged paints and zero clothing/static blood coverage. wrist_runtime_test.py passes blood, mount, wrist and menu
+checks plus 14 real eye captures. Dark/light changes 230,263 bare / 219,341 braced pixels; opaque blood regions retain
+colour on 99.97% / 100% of 37,181 / 35,237 interior pixels (95th-percentile delta 0; bloom/reflections off for isolation).
+Calibration qbsp/vis/light exit 0; 5 menu paths found, 0 missing. e1m1 -> calibration smoke with nonzero tone passes.
+Additional close strap and bidirectional seam-blood eye captures inspected. No gameplay/physics or melee changes.
+
+VR follow-up: test bent wrists with actual hand calibration, roll the gadget arm with bracers on/off, smear gib
+blood across the seam, and tune Skin Tone under several room lights. Review the geometry cost on the headset.
+Disposable worker outputs (not deleted): scratch/, eyeshots/, build logs/crash dumps, test cfg; generated id.wad stays
+local and ignored, never committed. Visual sheets: scratch/wrist_visual.png, wrist_straps.png, wrist_bridge.png.

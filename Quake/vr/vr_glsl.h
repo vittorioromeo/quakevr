@@ -1955,6 +1955,7 @@ QVR_DECAL_FUNCTIONS \
 "	if (under < 0.0)\n" \
 "		return 0.0;\n" \
 "	float val = clamp(0.5 + 0.5 * under / s0.w, 0.0, 1.0);\n" \
+"	if (s4.x > 0.0) val *= 1.0 - smoothstep(s4.x * 0.8, s4.x, distance(p, s3.xyz)); // bounded wrist smear\n" \
 "	if (s4.z > 0.0)\n" \
 "	{\n" \
 "		float n = PaintNoise(p * 0.3 + s3.w) * 0.6 + PaintNoise(p * 0.9 + 3.7) * 0.4;\n" \
@@ -2435,6 +2436,9 @@ SPECULAR_AA_FUNCTIONS
 #define QVR_ALIAS_FS_LIGHT \
 "	Wounds wounds = WoundsAt(uv, result.rgb); // QVR: wounds painted on the model (vr/vr_wounds.cpp)\n" \
 "	result.rgb = wounds.look;\n" \
+"	vec4 tone = instances[in_instance].SkinTone;\n" \
+"	if (tone.w > 0.0 && wounds.blood == 0.0 && wounds.burn == 0.0) // skin only: painted blood/char keep their colour\n" \
+"		result.rgb *= mix(vec3(1.0), tone.rgb, textureGrad(SkinMaskTex, uv, duvdx, duvdy).r);\n" \
 "#if ALPHATEST\n" \
 "	vec3 emissive = vec3(0.); // QVR\n" \
 "#else\n" \
