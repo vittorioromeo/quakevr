@@ -733,6 +733,7 @@ void TexMgr_FreeTexture (gltexture_t *kill)
 	}
 
 	texmgr_frees++; // QVR
+	VR_PBRForget (kill); // QVR: discard companion coverage records before this texture slot is reused
 	// QVR: its normal map is freed with it (they have the same owner)
 	normalmap_of[kill - gltextures_base] = NULL;
 	normalmap_kind[kill - gltextures_base] = NORMALMAP_NONE;

@@ -151,6 +151,8 @@ static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum
 	static const char *const stbi_formats[] = {"png", "tga", "jpg", NULL};
 	FILE	*f;
 	int		i;
+	if (!strncmp (name, "pbrmix/", 7)) // QVR: content companion composition, also on texture reload
+		return VR_PBRImage (name, width, height, fmt);
 
 	for (i = 0; stbi_formats[i]; i++)
 	{

@@ -199,6 +199,11 @@ void VR_SetHeightMaskLazy (const float *corners, int numtris, int width, int hei
 void VR_LoadNormalMap (struct gltexture_s *glt, const char *image, const char *shared, unsigned char *data, enum srcformat format,
 	int worldwidth, int flags);								// Mod_LoadTextures, skins: a texture's normal map (authored beside `image` or `shared`, or made from `data`)
 unsigned char *VR_NormalMapSource (unsigned char *data, enum srcformat fmt, int width, int height); // Mod_LoadTextures: an RGBA image kept whole for it
+int VR_PBRNormal (struct gltexture_s *base, const char *image, const char *shared, const unsigned char *data,
+    enum srcformat fmt, int worldwidth, int flags); // content-addressed world companions; authored components first
+unsigned char *VR_PBRImage (const char *name, int *width, int *height, enum srcformat *fmt); // reloadable component composition
+void VR_PBRForget (struct gltexture_s *base);
+void VR_PBRExternal (struct gltexture_s *base, const char *normal, char *path, size_t size);
 
 // External material maps for the world's textures (vr_extmaps.cpp, vr_extmaps: a pack's <name>_norm, _spec, _luma/_glow
 // and .mat, read from vr_extmaps_dir through "vrext/<file>" paths).

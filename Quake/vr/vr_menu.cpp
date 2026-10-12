@@ -5680,6 +5680,10 @@ za::Vector<Item> pageDebugReports()
         command("External Maps", "vr_extmaps_stats all")
             .help("vr_extmaps_stats all: each texture of the map and what it got from the external pack (Graphics: External "
                   "Maps): its picture's match, normal, specular and glow maps (long; without 'all' only the totals)."),
+        command("Companion Maps", "vr_pbr_stats all")
+            .help("Each world texture's source hash, generated companion coverage, and authored normal and height components."),
+        command("Companion Map Tests", "vr_pbr_test")
+            .help("Checks source hashing, dimensions, content collisions and indexed palette expansion."),
         command("Animated Surfaces", "vr_extmaps_frames")
             .help("vr_extmaps_frames: each animated texture of the map (the wall buttons' +0basebtn...) frame by frame: the "
                   "frame whose surface it is drawn with, its normal, specular and glow maps and detail, and whether its "
@@ -8676,6 +8680,8 @@ za::Vector<Item> pageMain()
                   "white."),
         toggle("Bump Mapping", "vr_normalmaps")
             .help("Walls and floors get bumps and grooves that catch the light. From the next map."),
+        toggle("Generated Companion Maps", "vr_pbr")
+            .help("Adds normal and height maps generated for the exact wall or floor image. Keeps authored maps. From the next map."),
         toggle("Parallax Mapping", "vr_parallax")
             .help("Walls and floors look carved: their dark parts sink in as you move your head (needs Bump Mapping)."),
 

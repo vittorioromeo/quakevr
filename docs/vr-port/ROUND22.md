@@ -4437,3 +4437,31 @@ new cvars or defaults.
 
 For VR: nothing should look or feel different. Throws, the caustics under water, and the grenade and rocket sizes should
 all be as before.
+
+## Content-addressed normal and height companions (adpbrload)
+
+The generic `vr_pbr` loader (default 1, archived; next map) reads
+`textures/pbr/<first32hex>_norm.png` for the diffuse actually selected by the renderer. The full source digest is
+SHA256 of `qvr-pbr-v1` including its terminating NUL, width and height as unsigned 32-bit little-endian integers,
+then row-major RGBA. Indexed images expand through the current source palette with alpha 255, including index 255;
+RGBA replacements hash their pristine decoded bytes before texture upload. Texture names and map names are excluded,
+so differently painted same-name textures cannot share companions, while identical art can share one.
+
+Authored `_norm` RGB and nonflat alpha take precedence component by component; an authored `_bump` supplies missing
+height. Companions can therefore be used without any diffuse replacement. The existing external pack keeps its
+accepted normal RGB, and receives companion height only when its alpha is entirely 255. Its original green conversion
+runs once before adding that height. Complete authored maps retain their original upload source and avoid a duplicate
+generated GPU upload. Diffuse, cutout and fullbright handling stay in their existing paths. Animation surface selection
+and normal mip generation use the existing engine machinery. No AD names or rules appear in shared engine code.
+
+Merged sources have reloadable `pbrmix/` recipes containing filenames only; decoded images are temporary hunk data.
+Unmerged companions load directly from their hash path. Graphics has Generated Companion Maps; Debug has Companion
+Maps and Companion Map Tests. `vr_pbr_stats all` prints each queried hash and the selected GPU normal source with its
+actual alpha range. `vr_pbr_test` checks the hash contract; `fixtures` also checks component composition.
+
+Verified: kit build/QC/FGD/statics/precedence checks passed; engine tests 8/8; six GPU RGB/alpha hashes passed authored
+normal-only, complete authored normal/height, height-only, generated-only, external normal-only and complete external
+map cases. A video restart retained all 838 texture hashes (sum `ccd37408ad22e72f`) exactly. e1m1 exited 0; calibration
+menu paths reported 0 missing. `Misc/quakevr/pbr_loader_test.py` stages and verifies the private fixtures with only
+Python's standard library; `retire` moves its outputs under scratch without deleting them. Production AD measurements
+and actual-eye comparison are recorded below when the companion bundle is integrated.

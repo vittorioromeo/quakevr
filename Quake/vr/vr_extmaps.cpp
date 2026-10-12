@@ -565,6 +565,26 @@ void init()
     Cmd_AddCommand("vr_extmaps_frames", frames_f);
 }
 
+bool completePending()
+{
+    if((!pending.ok && !pending.normalOnly) || !pending.normal[0])
+        return false;
+    const int mark = Hunk_LowMark();
+    int w{}, h{};
+    enum srcformat fmt{};
+    const byte* image = Image_LoadImage(pending.normal, &w, &h, &fmt);
+    bool complete = false;
+    if(image && fmt == SRC_RGBA)
+        for(size_t i = 0, n = static_cast<size_t>(w) * h; i < n; ++i)
+            if(image[i * 4 + 3] != 255)
+            {
+                complete = true;
+                break;
+            }
+    Hunk_FreeToLowMark(mark);
+    return complete;
+}
+
 } // namespace qvr::extmaps
 
 using namespace qvr;
@@ -788,7 +808,7 @@ extern "C" void VR_ExtMapsAttach(texture_t* tx, qmodel_t* mod, int glows)
 
     if(VR_NormalMaps() && p.normal[0])
     {
-        q_strlcpy(file, p.normal, sizeof(file)); // (prepare's: its own, or another frame's)
+        VR_PBRExternal(tx->gltexture, p.normal, file, sizeof(file)); // content companions fill missing pack heights
         tx->extnormal = TexMgr_LoadExtNormalMap(tx->gltexture, file, 0, 0, nullptr, tx->width); // another texture's
         byte* img = tx->extnormal ? nullptr : Image_LoadImage(file, &w, &h, &fmt);
         if(img && fmt == SRC_RGBA)
@@ -981,6 +1001,8 @@ extern "C" unsigned VR_ExtMapsCall(const texture_t* t, gltexture_t** normalmap, 
 // against their slope down the rows; 1 as it is; 2 turned). Quetoo's runs down the rows (correlation -0.9 over its maps).
 extern "C" void VR_ExtMapsGreen(byte* data, int width, int height, const char* name)
 {
+    if(!strncmp(name, "pbrmix/", 7))
+        return; // A companion composition already oriented its authored RGB before adding the missing height.
     const int mode = static_cast<int>(vr_extmaps_green.value);
     bool flip = mode == 2;
     if(mode == 0 && width > 2 && height > 2)
