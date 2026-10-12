@@ -467,7 +467,8 @@ namespace
 
 // The skin masks looked up so far (vr_skin_tone), per (model, kind, skin): the texture, or none (its file missing: not
 // searched for again). Cleared when any texture is freed (TexMgr_FreeCount: a map change, a model flush), since a kept
-// pointer may then name a freed or reused texture.
+// pointer may then name a freed or reused texture. The masks themselves are unowned: one copy for every body model
+// (the builds, bare or with bracers) using that skin, freed at a game change.
 struct SkinMaskEntry
 {
     const qmodel_t* model{nullptr};
@@ -544,7 +545,7 @@ void VR_PrecacheSkinMasks()
         }
         char path[MAX_QPATH];
         q_snprintf(path, sizeof(path), "progs/%s_%02d_00_skinmask", kind == 1 ? "hand_rig" : "vrbody", skin);
-        gltexture_t* texture = TexMgr_FindTexture(e->model, path);
+        gltexture_t* texture = TexMgr_FindTexture(nullptr, path);
         if(!texture)
         {
             const int mark = Hunk_LowMark();
@@ -553,7 +554,7 @@ void VR_PrecacheSkinMasks()
             byte* pixels = Image_LoadImage(path, &width, &height, &format);
             if(pixels)
             {
-                texture = TexMgr_LoadImage(e->model, path, width, height, format, pixels, path, 0,
+                texture = TexMgr_LoadImage(nullptr, path, width, height, format, pixels, path, 0,
                     TEXPREF_MIPMAP | TEXPREF_NOPICMIP);
             }
             Hunk_FreeToLowMark(mark);

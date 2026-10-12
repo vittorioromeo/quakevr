@@ -594,6 +594,17 @@ extern "C" void VR_MD5SkinNormalMap (void *surf, gltexture_t *glt, const char *s
 
 /*
 ===============
+VR_MD5SharedSkins -- whether an MD5 shader's skins (progs/<shader>_NN_FF) are loaded once for every model using them:
+Quake VR's body (vrbody, vrbody_lean, vrbody_brawny and their _bare forearms all use "vrbody"'s 16 skins)
+===============
+*/
+extern "C" int VR_MD5SharedSkins (const char *shader)
+{
+	return shader && !q_strcasecmp (shader, "vrbody");
+}
+
+/*
+===============
 VR_MD5SkinsReset -- the islands of the last surface's skins freed (Mod_LoadMD5Skins, before and after a surface's)
 ===============
 */
