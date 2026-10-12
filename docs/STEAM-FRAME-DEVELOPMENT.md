@@ -217,6 +217,31 @@ softness enabled, but it has not been launched into OpenXR. The regular game
 and .25 preview remain untouched. This result is a low-resolution option, not a
 claim of stable 72 Hz or a release-ready improvement.
 
+### Wearer regression checklist for the particle preview
+
+The performance-preview shortcut is a separate installation and starts at
+render scale 0.25 with `vr_particle_mult 0.5`. Before comparing density, verify
+those values in the in-game console, then keep the same map, route, preset and
+headset refresh rate while comparing `vr_particle_mult 1` and `0.5`. Restore
+0.5 before leaving the preview. The regular native release and QuakeQuest are
+not part of this comparison.
+
+On each value, check that SteamVR's active scene and compositor focus identify
+the native engine; `qvr_openxr.txt` reports stereo projection and valid head and
+both-hand pose actions; and the captured headset view is stereoscopic rather
+than a desktop panel. Turn and translate the head, move both controllers, and
+confirm the hands follow them rather than acting as a mouse pointer. In the
+training range, fire the shotgun and nailgun, reload manually, hit the dummy
+with the physical axe, then throw and catch a weapon and climb a rung. The
+particle setting should change effect density only; report any tracking,
+interaction, rendering or gameplay regression separately.
+
+Capture the runtime's performance-criteria counters for both runs and note
+missed periods alongside the engine's timing log. The earlier 720-frame mock
+benchmark is useful for CPU/GPU attribution but does not replace this in-headset
+comparison. Do not describe the preview as meeting 72 Hz unless the runtime
+data from representative play supports that claim.
+
 ## Credits and source
 
 - Original mod and engine source: [Vittorio Romeo's Quake VR](https://github.com/vittorioromeo/quakevr).
