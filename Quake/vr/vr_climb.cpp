@@ -729,38 +729,57 @@ struct Box
 // The hold a grip of the hand at `hand` takes (see the top of the file): one the hand is at, else (leniency, `radius`
 // units) the nearest it is within `radius` of being at. `vel`: the hand's velocity (m/s); `headPos`: the head.
 // `lenient`: whether the hold is a lenient one.
-// AD support: a ladder (QC .vr_climb_ladder: Arcane Dimensions' trigger_ladder, vr_ad_player.qc), a climbable volume:
-// a hand in it, or within the touch distance of it, holds where it is (a rung under every hand), facing the body; the
-// hanging, the pulls and the mantle at its top are the ledges' (vr_climb_ladders 0: none).
-[[nodiscard]] za::Optional<Ledge> ladderHold(edict_t* player, const glm::vec3& hand)
+// AD support: trigger volumes gate the setting; only real rung geometry supplies handholds.
+[[nodiscard]] bool ladderDisabled(const glm::vec3& hand)
 {
     const int ofs = progs::fields().vr_climb_ladder;
-    if(ofs < 0 || vr_climb_ladders.value == 0.f)
-    {
-        return za::nullOpt;
-    }
+    if(ofs < 0 || vr_climb_ladders.value != 0.f) { return false; }
     const float margin = touch().front;
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    for(int i = 1; i < qcvm->num_edicts; ++i)
     {
         edict_t* e = EDICT_NUM(i);
-        if(e->free || progs::fieldFloat(e, ofs) <= 0.f || static_cast<int>(e->v.solid) != SOLID_TRIGGER)
-        {
-            continue;
-        }
+        if(e->free || progs::fieldFloat(e, ofs) <= 0.f || static_cast<int>(e->v.solid) != SOLID_TRIGGER) { continue; }
         bool inside = true;
-        for(int k = 0; k < 3; k++)
+        for(int k = 0; k < 3; ++k)
         {
             inside = inside && hand[k] >= e->v.absmin[k] - margin && hand[k] <= e->v.absmax[k] + margin;
         }
-        if(!inside)
+        if(inside) { return true; }
+    }
+    return false;
+}
+
+// AD support: closely spaced rungs can fail the general ledge's 32-unit drop rule. A ladder may
+// relax that drop only: its hold must still be on an actual walkable solid top within hand-touch distance.
+[[nodiscard]] za::Optional<Ledge> ladderHold(edict_t* player, const glm::vec3& hand)
+{
+    const int ofs = progs::fields().vr_climb_ladder;
+    if(ofs < 0 || vr_climb_ladders.value == 0.f) { return za::nullOpt; }
+    const Touch k = touch();
+    const glm::vec2 toBody = towardsBody(player, hand);
+    const glm::vec3 out{toBody.x, toBody.y, 0.f}, up{0.f, 0.f, 1.f};
+    for(int i = 1; i < qcvm->num_edicts; ++i)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(e->free || progs::fieldFloat(e, ofs) <= 0.f || static_cast<int>(e->v.solid) != SOLID_TRIGGER) { continue; }
+        bool inside = true;
+        for(int axis = 0; axis < 3; ++axis)
         {
-            continue;
+            inside = inside && hand[axis] >= e->v.absmin[axis] - k.front && hand[axis] <= e->v.absmax[axis] + k.front;
         }
-        const glm::vec2 toBody = towardsBody(player, hand);
+        if(!inside) { continue; }
+        // Probe just inside the rung, not the trigger's broad box or a guessed rung spacing.
+        const glm::vec3 at = hand - out * (holdInset + k.front);
+        const trace_t tr = traceLine(at + up * (k.over + 0.125f), at - up * k.sink, player);
+        if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f || tr.plane.normal[2] < ledges::minTopNormal) { continue; }
+        const glm::vec3 top = vec(tr.endpos);
+        const trace_t reach = traceLine(hand + up * (k.over + 0.125f), top + up * 0.125f, player);
+        if(reach.startsolid || reach.fraction < 1.f) { continue; }
         Ledge l;
-        l.top = hand.z;
-        l.out = glm::vec3{toBody.x, toBody.y, 0.f};
-        l.hold = hand;
+        l.top = top.z;
+        l.out = out;
+        l.hold = top + up * ledges::holdLift;
+        l.ent = tr.ent && tr.ent != EDICT_NUM(0) ? tr.ent : nullptr;
         return za::Optional<Ledge>{l};
     }
     return za::nullOpt;
@@ -769,6 +788,7 @@ struct Box
 [[nodiscard]] za::Optional<Ledge> findHold(edict_t* player, const glm::vec3& hand, const glm::vec3& vel,
     const glm::vec3& headPos, float radius, float propLow, bool& lenient, LenientStats* stats = nullptr)
 {
+    if(ladderDisabled(hand)) { return za::nullOpt; } // AD support
     LenientStats st;
     lenient = false;
     za::Vector<Candidate>& found = scratch.found;
@@ -811,14 +831,7 @@ struct Box
             return finish(c);
         }
     }
-    if(za::Optional<Ledge> ladder = ladderHold(player, hand)) // AD support: a ladder's volume, before a lenient ledge
-    {
-        if(stats)
-        {
-            *stats = st;
-        }
-        return ladder;
-    }
+    if(const za::Optional<Ledge> rung = ladderHold(player, hand)) { return rung; } // AD support: actual solid only
     if(radius <= 0.f)
     {
         return finish(nullptr);

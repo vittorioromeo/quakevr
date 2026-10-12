@@ -331,11 +331,19 @@ void() AD_PlayerSpawned =
 };
 
 // PlayerPreThink, in any map while AD's data is there (its ladders spawn anywhere): AD's ladders (trigger_ladder: the
-// jump key climbs, at the ladder's speed; the hands climb them as Quake VR's ledges too, vr_ad_player.qc).
+// keyboard climb for non-VR play only; tracked VR hands climb the real rungs, vr_ad_player.qc).
 void() AD_PlayerPreThink =
 {
     if(!vr_ad_data || self.deadflag)
     {
+        return;
+    }
+    // AD support: no keyboard ladder gravity lock or upward boost in VR.
+    if(VRHandsTracked(self))
+    {
+        self.ad_onladder = ad_LADDER_NONE;
+        if(self.vr_ad_laddergravity) self.gravity = self.vr_ad_laddergravity;
+        self.vr_ad_laddergravity = 0;
         return;
     }
     if(self.ad_onladder == ad_LADDER_JUMP)
@@ -501,6 +509,8 @@ void() AD_ItemRespawnUse =
 // or when triggered (respawn_trig), at most respawn_count times (0: always).
 void(entity xItem) AD_ItemTaken =
 {
+    if(xItem.ad_touch2 == ad_BackpackTouch) return; // AD support: AD-owned bags keep their own respawn state
+
     if(!VR_SF_Has(xItem, VR_SF_ITEM_RESPAWN) || xItem.model != string_null)
     {
         return;

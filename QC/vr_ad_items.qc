@@ -382,3 +382,78 @@ void() AD_ArtifactsTick =
     AD_HudSoonest(self.ad_nailpiercer_finished);
     AD_HudUpdate(self);
 };
+
+// AD support: touch buttons share Quake VR's hand, whole-gun, carried/thrown prop paths.
+float(entity b) VR_AD_ButtonEnabled =
+{
+    return b.ad_classtype != ad_CT_FUNCBUTTON || !(b.ad_estate & ad_ESTATE_BLOCK);
+};
+float() VR_AD_ButtonFire =
+{
+    if(self.ad_classtype != ad_CT_FUNCBUTTON) return FALSE;
+    ad_func_button_fire();
+    vr_button_how = NULLSTR;
+    return TRUE;
+};
+float() VR_AD_ButtonTouch =
+{
+    if(self.ad_classtype != ad_CT_FUNCBUTTON) return FALSE;
+    if(other.classname != "player" || !VR_AD_ButtonEnabled(self) || self.state == STATE_UP || self.state == STATE_TOP) return TRUE;
+    VRButtonPressHaptic(other);
+    self.enemy = other;
+    VR_AD_ButtonFire();
+    return TRUE;
+};
+void() VR_AD_ButtonSpawned =
+{
+    self.handtouch = button_handtouch;
+    self.vr_wpntouch = button_wpntouch;
+    self.touch = button_touch_any;
+};
+
+// AD skins/inventory stay AD's; match vanilla bag dimensions/density, carrying and holster consumption.
+void(entity bag) VR_AD_BackpackSetup =
+{
+    entity os = self;
+    self = bag;
+    vector lo = modelbounds(bag, 0), hi = modelbounds(bag, 1);
+    entity ref = spawn();
+    setmodel(ref, "progs/backpack.mdl");
+    vector target = (modelbounds(ref, 1) - modelbounds(ref, 0)) * 0.75;
+    remove(ref);
+    vector size = hi - lo;
+    vector scale;
+    scale_x = target_x / max(1, size_x);
+    scale_y = target_y / max(1, size_y);
+    scale_z = target_z / max(1, size_z);
+    VR_ScaleUtil_SetScale(bag, scale);
+    bag.model_scale_origin = '0 0 0';
+    bag.model_offset = -(hi + lo) * 0.5;
+    setsize(bag, -target * 0.5, target * 0.5);
+    bag.handtouch = ad_item_touch;
+    MakeGrabbable(bag);
+    bag.flags |= FL_FORCEGRABBABLE;
+    bag.solid = SOLID_NOT_BUT_TOUCHABLE;
+    bag.touch = forcegrabbable_touch;
+    bag.owner = world;
+    bag.vr_pickup_obj = QVR_PICKUPOBJ_HOLSTER;
+    SetThrownWeaponDealDamage(bag, FALSE);
+    SetThrownWeaponDisappearOnHit(bag, FALSE);
+    VR_Carry_Setup(bag);
+    bag.throwhit = QVR_THROWHIT_HIT;
+    bag.ad_item_flrcheck = 0; // physics owns movement; AD's broad floor checks must not teleport a held bag
+    bag.think = backpack_think;
+    bag.nextthink = time + 0.02;
+    if(bag.ad_item_expired > 0)
+    {
+        bag.think2 = SUB_Remove;
+        bag.nextthink2 = bag.ad_item_expired;
+    }
+    self = os;
+};
+float() VR_AD_BackpackRestore =
+{
+    if(self.ad_touch2 != ad_BackpackTouch) return FALSE;
+    VR_AD_BackpackSetup(self);
+    return TRUE;
+};

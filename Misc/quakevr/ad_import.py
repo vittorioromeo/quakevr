@@ -63,6 +63,10 @@ BRIDGE = "VR_AD_"  # the bridge's functions the patches below call (QC/vr_ad_bri
 P = "parenthesised as QC priorities read it (check_qc_precedence)"
 B = "bridge"
 PATCHES = [
+    ('func_buttons.qc', 'else self.touch = func_button_touch;', 'else { self.touch = func_button_touch; VR_AD_ButtonSpawned(); }', 1, 'bridge: AD VR touch, carry and rung-only climbing'),
+    ('triggers.qc', 'void() trigger_ladder_fire =\n{', 'void() trigger_ladder_fire =\n{\n\tif (VR_AD_LadderManual(self.bmodel_act)) return;', 1, 'bridge: AD VR touch, carry and rung-only climbing'),
+    ('items.qc', 'void() item_restore =\n{', 'void() item_restore =\n{\n\tif (VR_AD_BackpackRestore()) return;', 1, 'bridge: AD VR touch, carry and rung-only climbing'),
+    ('items.qc', '\titem.nextthink = time + 0.3;\t\t// Let backpack drop first', '\titem.nextthink = time + 0.3;\t\t// Let backpack drop first\n\tVR_AD_BackpackSetup(item);', 1, 'bridge: AD VR touch, carry and rung-only climbing'),
     ("client_debuff.qc", "if (targ.flags & FL_CLIENT == FALSE) return;", "if ((targ.flags & FL_CLIENT) == FALSE) return;", 3, P),
     ("client_debuff.qc", "if (self.items & ALL_ITARTIFACTS == 0) {", "if ((self.items & ALL_ITARTIFACTS) == 0) {", 1, P),
     # AD's shipped bugs 5 and 4 (ARCANE_DIMENSIONS.md 15.5), fixed as AD meant them now that its tints are drawn

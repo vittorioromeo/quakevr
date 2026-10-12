@@ -353,6 +353,7 @@ void() ad_item_touch =
 //----------------------------------------------------------------------
 void() ad_item_restore =
 {
+	if (VR_AD_BackpackRestore()) return;
 	// Ammo boxes can have special animation frames or lids!
 	if (self.ad_classgroup == ad_CG_AMMOITEM) {
 		// Any LID (shells/spikes) defined?
@@ -3999,6 +4000,7 @@ void() ad_DropBackpack =
 	ad_item.ad_item_flrcheck = fabs(ad_item.mins_z) + 16;
 	ad_item.think = ad_item_thinkloop;		// Check floor
 	ad_item.nextthink = time + 0.3;		// Let backpack drop first
+	VR_AD_BackpackSetup(ad_item);
 };
 
 //======================================================================
