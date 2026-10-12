@@ -160,6 +160,18 @@ temporary test copy. After the probe exited, SteamVR returned to
 logs and captures are retained privately in
 `performance-results/decal-grid-frame-20261012`.
 
+After the Ultra profile update, I also launched its separate `.18` installation
+on Frame with `-noconfigwrite` and the same no-wearer render overrides. The
+console confirmed `vr_render_scale 0.18` and `vr_particle_mult 0.5`; SteamVR
+reported `system.generated.openxr.quake vr.ironwail` as the running scene with
+matching compositor focus. OpenXR initialized its two-view projection path and
+enabled `XR_VALVE_frame_controller_interaction`. User presence remained absent,
+the HMD pose invalid, and both controllers disconnected. This validates that
+the installed profile launches through OpenXR; its unpaced ~160 fps log sample
+is not headset pacing evidence. `-noconfigwrite` prevented game config writes,
+and the process was closed after the check. Logs are in the private
+`performance-results/ultra-profile-launch-smoke-frame-20261012` directory.
+
 For a repeatable no-wearer check, keep the probe config in a scratch install.
 It should set `vr_backend openxr`, enable VR, load a map, wait for several
 seconds, and then quit. Do not add `-vrmock`. Start it in one Frame shell:

@@ -344,3 +344,25 @@ sets `vr_particle_mult 0.5`; the regular install and the .25 preview are
 unchanged. Wearer acceptance and representative combat performance still need
 validation. Raw runs and left/right eye captures are retained privately in
 `performance-results/openxr-ultra-particlemult-abba-frame-20261012`.
+
+## Installed Ultra-profile launch smoke test on Steam Frame
+
+After copying the profile, I launched the isolated `.18` installation on the
+Frame through its native OpenGL/GLX binary and SteamVR/OpenXR 2.18.2, with
+`-noconfigwrite` and the no-wearer render overrides. The in-game console read
+`vr_render_scale 0.18` and `vr_particle_mult 0.5`; the OpenXR log reported
+1728x1728 eye swapchains, a stage-space projection layer with two views, and
+the enabled `XR_VALVE_frame_controller_interaction` extension. While the
+process was alive, SteamVR reported the scene key
+`system.generated.openxr.quake vr.ironwail`, state `Running`, and matching
+scene/compositor-focus PIDs. This confirms the installed Ultra launch path
+starts as an OpenXR scene app and loads the intended profile values.
+
+There was no wearer: the user-presence sensor reported absent, the HMD pose was
+invalid, and both controllers were disconnected. The session log showed
+unpaced periods around 6.2 ms (about 160 frames/s) under the unfocused-render
+override. This is not representative compositor pacing or a 72 Hz result and
+is excluded from the performance comparisons. The launch used
+`-noconfigwrite`; no game config was created or changed. Console/OpenXR logs are
+retained privately in
+`performance-results/ultra-profile-launch-smoke-frame-20261012`.
