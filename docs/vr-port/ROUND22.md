@@ -4048,6 +4048,8 @@ Misc/quakevr/reload/voice_20261012_test.sh runs that test, real save/load with b
 ordinary fresh-map drops, and nine real collection animations (box/shell/magazine × standing/crouched/offset-and-turn).
 Collection endpoints have 0.0000-unit error against the rendered bag centre. The default load grace retains both guns
 through 0.728 s, then releases them by 0.826 s; zero grace and fresh-map drops follow the original release path.
+Release prediction used by firing shares the same guard: the restored gun remains usable during the window
+(one shotgun shot consumes 8 -> 7 shells without holding the grip).
 QC/engine/FGD build passes (0 QC warnings); calibration menu paths: 5 found, 0 missing.
 
 VR follow-up: return every ammo kind to the pouch while crouching; reload an autosave without gripping, then regrip or

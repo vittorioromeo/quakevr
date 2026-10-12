@@ -32,6 +32,8 @@ for grace in 0 0.75; do
 done
 run normal "vr_weapon_grip_mode 0;vr_weapon_load_grace 0.75;$BASE;$GET;$RELEASE;wait4;$REP" "weaponinst:"
 check $(grep -q 'weaponinst: main - | off -' "$LOG" && echo 1 || echo 0) "ordinary drops after a fresh map are immediate"
+run firing "vr_weapon_grip_mode 0;vr_weapon_load_grace 0.75;$BASE;$GET;save voice_reload2_firing;wait3;$RELEASE;load voice_reload2_firing;wait10;+attack;vr_mock_button main trigger 1;wait10;-attack;vr_mock_button main trigger 0;$REP;wait50;$REP" "weapon load grace|weaponinst:"
+check $(grep -q 'main weapon 4 .*clip 7 | off weapon 6' "$LOG" && echo 1 || echo 0) "restored gun can fire during grip grace (8 to 7 shells)"
 
 HOLD="$BASE;vr_weapon_grip_mode 1;vr_debug_collect_fx 2;vr_collect_fx_time 0.4;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait5;+grabmain;vr_mock_button main grip 1;wait2"
 for pose in standing crouched offsets; do

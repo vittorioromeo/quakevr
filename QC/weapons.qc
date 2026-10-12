@@ -6934,13 +6934,19 @@ VRTryUnloadWeapon =
     }
 }
 
+// The save's original weapon instance stays in this hand briefly after loading (both release checks agree).
+float(entity ent, float xHand) VRWeaponLoadProtected =
+{
+    entity restored = xHand == cVR_MainHand ? ent.vr_weapon_load_main : ent.vr_weapon_load_off;
+    return time < ent.vr_weapon_load_until && restored != world && restored == VRGetEntWeaponInst(ent, xHand);
+}
+
 // Whether the weapon in `xHand` is let go of (to be thrown, holstered or switched to the other
 // hand): with vr_weapon_grip_mode 0 whenever its grip is not held; with 1 ("sticky") only once
 // the grip is let go a second time since the weapon came to the hand.
 float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
 {
-    entity restored = xHand == cVR_MainHand ? ent.vr_weapon_load_main : ent.vr_weapon_load_off;
-    if(time < ent.vr_weapon_load_until && restored != world && restored == VRGetEntWeaponInst(ent, xHand))
+    if(VRWeaponLoadProtected(ent, xHand))
     {
         return FALSE;
     }
@@ -7005,7 +7011,7 @@ float(float xHotspot) VRLetGoDropsAt =
 // a throw fires no last shot as the weapon leaves.
 float(entity ent, float xHand) VRWeaponLeavingHand =
 {
-    if(VRIsHandWeaponless(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand))
+    if(VRIsHandWeaponless(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand) || VRWeaponLoadProtected(ent, xHand))
     {
         return FALSE;
     }
