@@ -4005,8 +4005,8 @@ gains 13,915 body blood texels. Healing ownership is retained.
 
 Body > Skin Tone (vr_skin_tone, archived, default 0; range -1..1) multiplies authored skin in the shader only.
 Twenty small masks exclude nails, clothing and static wounds; dynamic blood and char bypass tone. Masks load before
-alias batching (cache-safe) and use sampler 6, leaving retro LUT sampler 3 intact. Both bracer modes share body
-lighting for hands. The calibration board links the slider. No diffuse tone variants are generated.
+alias batching (cache-safe) and use sampler 6, leaving retro LUT sampler 3 intact. Only bare forearms draw the
+hands in the body's light; with bracers each hand samples its own (review fix, his decision). The calibration board links the slider. No diffuse tone variants are generated.
 
 Validation: QC/engine/FGD build passed (0 QC warnings, 367 entities). wrist_test.py verifies contour clearance,
 unchanged paints and zero clothing/static blood coverage. wrist_runtime_test.py passes blood, mount, wrist and menu
