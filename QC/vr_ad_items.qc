@@ -279,6 +279,22 @@ float(entity p, .float xFinished, .float xTime, string xFade, string xMessage) A
 // Air Tank, Blast Belt, Jump Boots, Sharp Shooter, Nail Piercer), the debuffs (6 burning, 7 poisoned, 8 bleeding), the
 // custom keys (9-12); each custom key's HUD skin (4 bits each); the soonest artifact's seconds left (0: none ends).
 .float vr_ad_hud, vr_ad_hudkeys, vr_ad_hudtime;
+// The gadget's Arcane Dimensions page (its outer button pages to it; the engine's STAT_QVR_ADART1, ADART2, ADDEBUFF,
+// ADUPGRADES): each artifact's seconds left, 8 bits each (255: no end; the Lava Shield, Air Tank, Blast Belt in ART1,
+// the Jump Boots, Sharp Shooter, Nail Piercer in ART2); the debuffs' poison and bleeding still to come (damage, up to
+// 255) and the burning's seconds left; the carried weapons' upgrades (AD_PackWeaponUpgrades: 3 bits a weapon, the hands'
+// then the holsters'; 0 where the upgrades don't play).
+.float vr_ad_hudart1, vr_ad_hudart2, vr_ad_huddebuff, vr_ad_hudup;
+
+// An artifact's seconds left for the page: 0 none (not held), 255 held without an end (-1: AD's "for good").
+float(float xFinished) AD_HudSeconds =
+{
+    if(xFinished == -1)
+    {
+        return 255;
+    }
+    return xFinished > time ? min(254, ceil(xFinished - time)) : 0;
+};
 
 // Whether player `p` burns: AD's burning is Quake VR's (decision 24: vr_ad_player.qc), his fire lit.
 float(entity p) AD_Burning =
@@ -319,6 +335,17 @@ void(entity p) AD_HudUpdate =
     p.vr_ad_hud = bits;
     p.vr_ad_hudkeys = keys;
     p.vr_ad_hudtime = vr_ad_soonest > time ? ceil(vr_ad_soonest - time) : 0;
+    // The page's: each artifact's own time (only the held ones'), the debuffs' amounts, the weapons' upgrades.
+    p.vr_ad_hudart1 = ((bits & 1) ? AD_HudSeconds(p.ad_lavashield_finished) : 0) +
+                      ((bits & 2) ? AD_HudSeconds(p.ad_airtank_finished) : 0) * 256 +
+                      ((bits & 4) ? AD_HudSeconds(p.ad_blastbelt_finished) : 0) * 65536;
+    p.vr_ad_hudart2 = ((bits & 8) ? AD_HudSeconds(p.ad_jumpboots_finished) : 0) +
+                      ((bits & 16) ? AD_HudSeconds(p.ad_sharpshoot_finished) : 0) * 256 +
+                      ((bits & 32) ? AD_HudSeconds(p.ad_nailpiercer_finished) : 0) * 65536;
+    float burn = AD_Burning(p) ? min(255, ceil(p.burn_fire.burn_end - time)) : 0;
+    p.vr_ad_huddebuff = (p.ad_poisoned ? min(255, max(1, ceil(p.ad_poisoned_qty))) : 0) +
+                        (p.ad_bleeding ? min(255, max(1, ceil(p.ad_bleeding_qty))) : 0) * 256 + burn * 65536;
+    p.vr_ad_hudup = VR_AD_FeatureScope(cvar("vr_ad_upgrades")) ? AD_PackWeaponUpgrades(p) : 0;
 };
 
 // PlayerPostThink, in any map while AD's data is there (AD_PlayerPostThink): AD's new artifacts' time on player self,

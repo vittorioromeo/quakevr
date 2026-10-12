@@ -29,6 +29,9 @@ namespace
 // The button: the inner of the two on the gadget's lower edge (Misc/quakevr/make_gadget.py: at x 0.25, y -1.33,
 // z -0.05 of the model, 0.2 wide), its face down the screen's up.
 constexpr glm::vec3 buttonLocal{0.25f, -1.38f, -0.05f};
+// AD support: the outer button (x -0.55), the screen's pages' (gadget::togglePage: Arcane Dimensions' page and back,
+// while its data is loaded; else it does nothing). The same hit volume, cut and cooldown as the inner one's.
+constexpr glm::vec3 pageButtonLocal{-0.55f, -1.38f, -0.05f};
 // The hit volume's cut: a fingertip counts only from the button's side of a plane this share of its radius behind its
 // middle (never from over the screen: a tap on the screen's lower edge isn't a press).
 constexpr float cutBehind = 0.5f;
@@ -45,6 +48,17 @@ struct State
     float lightBefore = 1.f;   // vr_gear_lights before the first of them
 };
 State state;
+
+// The outer button's (AD support): the fingertip in its hit volume, and its last press that counted.
+struct PageButton
+{
+    bool pressing = false;
+    double pressedAt = -1.0;
+};
+PageButton pageButton;
+
+// Its hit volume, as button()'s (the same tuning: vr_gadget_button_x/y/z, _pitch, _yaw, _size).
+[[nodiscard]] bool buttonAt(const glm::vec3& local, glm::vec3& at, glm::vec3& out, float& radius);
 
 // The debug drawing's buffers (the main thread: the view).
 struct DrawScratch
@@ -184,6 +198,65 @@ void press(int hand)
     toggle(hand);
 }
 
+// A press of the outer button (the fingertip's arrival, or vr_gadget_page_press): the screen's other page (AD support),
+// with a click and a tick; nothing without AD's data, while Doom is on the gadget or a screen tap is under way, or
+// within vr_gadget_button_cooldown of its last press.
+void pressPage(int hand)
+{
+    if(bullettime::tapping() || doom::onGadget())
+    {
+        return;
+    }
+    if(pageButton.pressedAt >= 0.0 && realtime - pageButton.pressedAt < za::max(0.f, vr_gadget_button_cooldown.value))
+    {
+        return;
+    }
+    pageButton.pressedAt = realtime;
+    if(!gadget::togglePage())
+    {
+        if(vr_debug_gadget_button.value)
+        {
+            Con_Printf("gadget page button: pressed (no other page: Arcane Dimensions' data isn't loaded)\n");
+        }
+        return;
+    }
+    if(vr_gear_lights_sound_on.string && vr_gear_lights_sound_on.string[0] && cls.state == ca_connected)
+    {
+        S_LocalSound(vr_gear_lights_sound_on.string);
+    }
+    buzz(hand, 0.35f);
+    buzz(hands::gadgetHand(), 0.2f);
+    if(vr_debug_gadget_button.value)
+    {
+        Con_Printf("gadget page button: page %d\n", gadget::page());
+    }
+}
+
+void pressPageButton(const hands::State& s, int hand)
+{
+    glm::vec3 at, out;
+    float radius = 0.f;
+    if(!buttonAt(pageButtonLocal, at, out, radius))
+    {
+        pageButton.pressing = false;
+        return;
+    }
+    const glm::vec3 tip = fingertip(s, hand);
+    const float d = glm::length(tip - at);
+    const float side = glm::dot(tip - at, out);
+    const bool in = d <= radius && side >= -cutBehind * radius;
+    if(pageButton.pressing && (d > radius * 1.5f || side < -cutBehind * radius * 2.f))
+    {
+        pageButton.pressing = false;
+    }
+    if(pageButton.pressing || !in)
+    {
+        return;
+    }
+    pageButton.pressing = true;
+    pressPage(hand);
+}
+
 // The fingertip's arrival in the hit volume presses the button, unless one counted less than vr_gadget_button_cooldown
 // ago or a screen tap is under way; it re-arms 1.5 radii out (or back behind the cut).
 void pressButton(const hands::State& s, int hand)
@@ -234,6 +307,17 @@ void toggle_f()
 void press_f()
 {
     press(-1);
+}
+
+// AD support: the outer button's press without a fingertip; the page toggled without the button.
+void pressPage_f()
+{
+    pressPage(-1);
+}
+
+void page_f()
+{
+    (void)gadget::togglePage();
 }
 
 void info_f()
@@ -306,6 +390,8 @@ void init()
 {
     Cmd_AddCommand("vr_gear_lights_toggle", toggle_f);
     Cmd_AddCommand("vr_gadget_button_press", press_f);
+    Cmd_AddCommand("vr_gadget_page_press", pressPage_f); // AD support: the outer button (the screen's pages)
+    Cmd_AddCommand("vr_gadget_page", page_f);
     Cmd_AddCommand("vr_gear_lights_info", info_f);
 }
 
@@ -331,9 +417,11 @@ void viewFrame(const hands::State& s)
         cls.signon != SIGNONS)
     {
         state.pressing = false;
+        pageButton.pressing = false;
         return;
     }
     pressButton(s, 1 - hands::gadgetHand());
+    pressPageButton(s, 1 - hands::gadgetHand()); // AD support: the outer button (the screen's pages)
 }
 
 float light()
@@ -365,13 +453,21 @@ void toggle(int hand)
 
 bool button(glm::vec3& at, glm::vec3& out, float& radius)
 {
+    return buttonAt(buttonLocal, at, out, radius);
+}
+
+namespace
+{
+
+bool buttonAt(const glm::vec3& local, glm::vec3& at, glm::vec3& out, float& radius)
+{
     const gadget::Pose& gp = gadget::pose();
     if(!gadget::active() || !gp.valid)
     {
         return false;
     }
     const float cm = 0.01f * units::metresToUnits();
-    at = gp.origin + gp.axes * (buttonLocal * gp.scale) +
+    at = gp.origin + gp.axes * (local * gp.scale) +
          gp.axes * glm::vec3{vr_gadget_button_x.value, vr_gadget_button_y.value, vr_gadget_button_z.value} * cm;
     // Its face: down the screen's up, tilted out of the screen (vr_gadget_button_pitch) and along its width (_yaw).
     const float p = glm::radians(vr_gadget_button_pitch.value), y = glm::radians(vr_gadget_button_yaw.value);
@@ -380,6 +476,8 @@ bool button(glm::vec3& at, glm::vec3& out, float& radius)
     radius = za::max(0.3f, vr_gadget_button_size.value) * cm;
     return true;
 }
+
+} // namespace
 
 bool buttonHandTarget(int hand, float units, glm::vec3& out)
 {
