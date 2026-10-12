@@ -435,13 +435,17 @@ per eye, and the installed profile settings (preset 0, render scale 0.45,
 FSAA 0, mirror off, dynamic/map shadows off). The JSON recorded these settings,
 which is a required validity check after every profile run.
 
-The average frame was 5.79 ms (p99 13.99 ms), with 2.70 ms average GPU eye
-time. The CPU call tree reported 0.72 ms in `SV_Physics` (0.28 ms QuakeC and
-0.36 ms Box3D, including 0.18 ms in the Box3D step); `view entities` averaged
-0.43 ms, of which body collision was 0.02 ms. Box3D sync had one 18.98 ms
-maximum in the short profiled run, not a repeatable mean hotspot. No source or
-thread-count change was justified by this evidence. Earlier high-default
-profile runs (scale 1, FSAA 4) are excluded from launcher-performance results.
+Two same-baseline runs started profiling immediately before the measured
+window, after map setup and warm-up. Both began with nine monsters and 142
+Box3D bodies. Frame means were 6.40/6.25 ms (p99 15.43/15.93 ms) and GPU-eye
+means were 2.73/2.73 ms; neither run had a frame over 33 ms. The call trees
+agreed: `SV_Physics` averaged 0.66/0.62 ms, Box3D 0.25/0.24 ms, the Box3D step
+0.096/0.093 ms and Box3D sync 0.124/0.118 ms. Sync maxima were 0.697/0.718 ms.
+`view entities` averaged 0.41/0.38 ms, of which body collision was 0.021/0.020
+ms. The earlier 18.98 ms Box3D-sync maximum came from profiling that started
+during setup, outside the measured window; it did not recur. No source or
+thread-count change was justified by these repeats. Earlier high-default
+profiles (scale 1, FSAA 4) are excluded from launcher-performance results.
 
 The 384-pixel mock result is only a CPU-scope diagnostic. It cannot predict
 the 1728-pixel-per-eye headset workload or confirm 72 Hz in worn combat. Wait
