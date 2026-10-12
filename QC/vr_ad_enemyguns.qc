@@ -75,6 +75,38 @@ void(float xClass) VR_ADGun_Prepare =
     }
 };
 
+// AD's weapons in a map without AD's world setup (outside AD's rules: an id1 or a custom map; the toolgun's, a map's
+// func_weapon_grabbable of one of these guns, an upgrade's pickup): the sounds their shots play, which AD's soldiers and
+// world precache where they are (precache_sound may come late in Quake VR's progs; models setmodel precaches itself).
+void() AD_WeaponsOnDemand =
+{
+    if(!cvar("vr_ad_mounted"))
+    {
+        return; // (Quake VR's stand-ins without AD's data: their own sounds)
+    }
+    precache_sound("soldier/rocket_fire.wav");
+    precache_sound("soldier/rocket_hit.wav");
+    precache_sound(ad_SOUND_PLASMA_FIRE);
+    precache_sound(ad_SOUND_PLASMA_HIT);
+    precache_sound(ad_SOUND_MISFIRE);
+    precache_sound("enforcer/def_ssg_fire.wav");
+    precache_sound("enforcer/pyro_flameon.wav");
+    precache_sound("enforcer/pyro_flameoff.wav");
+    precache_sound("enforcer/fum_poisonon.wav");
+    precache_sound("enforcer/fum_poisonoff.wav");
+};
+
+// func_weapon_grabbable (a map's or the toolgun's) laying one of AD's soldiers' guns (`wid`): its model made and its
+// sounds precached first (in any map: they need none of AD's rules).
+void(float wid) VR_ADGun_Placed =
+{
+    if(VR_IsADGun(wid))
+    {
+        VR_ADGun_Ensure(wid);
+        AD_WeaponsOnDemand();
+    }
+};
+
 // Self, an armed AD soldier dying: its own gun, where it held it, full (VR_DropEnemyGun).
 void() VR_ADGun_Drop =
 {
@@ -596,8 +628,176 @@ void() VR_ADGun_TestThink =
     self.nextthink = time + 0.3;
 };
 
+// ---------------------------------------------------------------------------------------------------------------------
+// AD's weapons in any map (vr_ad_test 81..84; ROUND22.md "AD weapons everywhere"): the debug spawner's 309..319 (the
+// three upgrades' pickups, the eight soldiers' guns as func_weapon_grabbable), as the toolgun and the Debug menu make
+// them.
+
+// The spawner's AD weapon `choice` (309..319) made `xDist` ahead of `p` (a pickup, or a gun lying about): it, or world
+// (not made: outside its scope).
+entity(entity p, float choice, float xDist) VR_ADWeapons_Make =
+{
+    makevectors(p.angles_y * '0 1 0');
+    entity e = spawn();
+    setorigin(e, p.origin + v_forward * xDist + '0 0 8');
+    entity was = self;
+    self = e;
+    VR_EnemyDispenser_Spawn(choice);
+    self = was;
+    if(choice < 312)
+    {
+        return e.model != "" ? e : world; // (an upgrade's pickup: removed outside Weapon Upgrades' scope)
+    }
+    float wid = WID_ADROCKET + choice - 312;
+    for(entity t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
+    {
+        if(t.weapon == wid && t.vr_drop_born == time)
+        {
+            return t;
+        }
+    }
+    return world;
+};
+
+// `w` (a pickup or a weapon lying about) taken into `p`'s empty main hand, as a grip closing on it does.
+void(entity p, entity w) VR_ADWeapons_Take =
+{
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    entity was = self;
+    entity wasOther = other;
+    p.touchinghand = cVR_MainHand;
+    w.handtouch_hand = cVR_MainHand;
+    w.handtouch_ent = p;
+    other = p;
+    self = w;
+    float catching = forcegrabCatching;
+    forcegrabCatching = TRUE;
+    w.handtouch();
+    forcegrabCatching = catching;
+    self = was;
+    other = wasOther;
+};
+
+// `p`'s main hand's rounds: its magazine and the reserve of its ammo.
+float(entity p) VR_ADWeapons_Rounds =
+{
+    float wid = VRGetEntWeapon(p, cVR_MainHand);
+    float reserve = VR_IsADGun(wid) ? 0 : VR_AmmoUtil_GetAmmoCountByAmmoId(p, WeaponIdToAmmoId(wid, 0));
+    return VRGetEntWeaponClip(p, cVR_MainHand) + reserve;
+};
+
+// `p`'s main hand fires once (W_AttackImpl, as its trigger): a report line; TRUE when a round went (the Shadow Axe: its
+// blow's scale).
+float(entity p, string xWhat) VR_ADWeapons_Fire =
+{
+    float wid = VRGetEntWeapon(p, cVR_MainHand);
+    entity inst = VRGetEntWeaponInst(p, cVR_MainHand);
+    float before = VR_ADWeapons_Rounds(p);
+    float code = AD_UpgradeCode(inst);
+    entity was = self;
+    self = p;
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    float ok;
+    float spent = 0;
+    if(wid == WID_AXE)
+    {
+        float scale = AD_AxeScale(cVR_MainHand);
+        ok = scale > 1;
+        self = was;
+        bprint(sprintf("adweapons: %s: hand weapon %g (%s), upgrade %g, blow x%g: %s\n", xWhat, wid,
+            WeaponIdToWeaponName(wid), code, scale, ok ? "PASS" : "FAIL"));
+        return ok;
+    }
+    self.attack_finished = 0;
+    W_AttackImpl(cVR_MainHand, wid, self.weaponflags, 0, &self.weapon, &self.attack_finished);
+    self = was;
+    spent = before - VR_ADWeapons_Rounds(p);
+    float want = 1;
+    if(wid == WID_SUPER_SHOTGUN) { want = (code & 2) ? 3 : 2; } // (the Widowmaker: a third shell from the reserve)
+    ok = ((spent == want) && (VRGetEntWeapon(p, cVR_MainHand) == wid));
+    bprint(sprintf("adweapons: %s: hand weapon %g (%s), upgrade %g, model %s, ", xWhat, wid, WeaponIdToWeaponName(wid), code,
+        WeaponIdToModel(wid, 0)));
+    bprint(sprintf("fired: rounds %g -> %g (%g, want %g): %s\n", before, before - spent, spent, want, ok ? "PASS" : "FAIL"));
+    return ok;
+};
+
+// vr_ad_test 83: what lies about and is held, for a save/load check.
+void(entity p) VR_ADWeapons_Report =
+{
+    float guns = 0, gunsOk = 0, pickups = 0;
+    for(entity t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
+    {
+        if(VR_IsADGun(t.weapon))
+        {
+            guns++;
+            gunsOk += (t.modelindex > 0 && t.model == WeaponIdToModel(t.weapon, 0) && t.weaponinst.wi_clip > 0);
+        }
+    }
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        pickups += (e.vr_ad_upgrade != 0 && e.model != "" && e.modelindex > 0);
+    }
+    float wid = VRGetEntWeapon(p, cVR_MainHand);
+    bprint(sprintf("adweapons report: AD guns lying %g (%g with their model and rounds), upgrade pickups %g, main hand %g (%s) upgrade %g rounds %g\n",
+        guns, gunsOk, pickups, wid, WeaponIdToWeaponName(wid), AD_UpgradeCode(VRGetEntWeaponInst(p, cVR_MainHand)),
+        VR_ADWeapons_Rounds(p)));
+};
+
 void(float request, entity p) AD_GunTest =
 {
+    if(request == 81 || request == 82)
+    {
+        // 81: each AD weapon made ahead (the spawner's 309..319), taken into the main hand and fired once.
+        // 82: each laid ahead (left there), then a Widowmaker taken into the main hand (save, load, then 83 and 84).
+        float grip = cvar("vr_weapon_grip_mode");
+        cvar_set("vr_weapon_grip_mode", "1"); // (a weapon stays in a hand not gripping)
+        p.ammo_shells = max(p.ammo_shells, 50);
+        p.ammo_cells = max(p.ammo_cells, 50);
+        float pass = 0, fail = 0;
+        for(float c = 309; c <= 319; c++)
+        {
+            entity w = VR_ADWeapons_Make(p, c, request == 81 ? 64 : 48 + (c - 309) * 24);
+            if(w == world)
+            {
+                bprint(sprintf("adweapons: %g not made (its scope: vr_ad_upgrades %g, vr_ad_everywhere %g, vr_ad_rules %g): FAIL\n",
+                    c, cvar("vr_ad_upgrades"), cvar("vr_ad_everywhere"), cvar("vr_ad_rules")));
+                fail++;
+                continue;
+            }
+            if(request == 82)
+            {
+                continue;
+            }
+            string what = sprintf("%g %s", c, w.netname);
+            VR_ADWeapons_Take(p, w);
+            if(VR_ADWeapons_Fire(p, what)) { pass++; } else { fail++; }
+            VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+        }
+        if(request == 82)
+        {
+            VR_ADWeapons_Take(p, VR_ADWeapons_Make(p, 310, 32));
+            VR_ADWeapons_Report(p);
+        }
+        else
+        {
+            bprint(sprintf("adweapons: %g passed, %g failed\n", pass, fail));
+        }
+        cvar_set("vr_weapon_grip_mode", ftos(grip));
+        return;
+    }
+    if(request == 83)
+    {
+        VR_ADWeapons_Report(p);
+        return;
+    }
+    if(request == 84)
+    {
+        float grip2 = cvar("vr_weapon_grip_mode");
+        cvar_set("vr_weapon_grip_mode", "1");
+        bprint(sprintf("adweapons: the main hand fires: %s\n", VR_ADWeapons_Fire(p, "held") ? "PASS" : "FAIL"));
+        cvar_set("vr_weapon_grip_mode", ftos(grip2));
+        return;
+    }
     if(request == 70)
     {
         if(!cvar("vr_ad_mounted"))
@@ -605,16 +805,7 @@ void(float request, entity p) AD_GunTest =
             bprint("adgun test: Arcane Dimensions' data is not loaded (its guns' models are its monsters')\n");
             return;
         }
-        // (the sounds AD's soldiers precache where they are: none here)
-        precache_sound("soldier/rocket_fire.wav");
-        precache_sound("soldier/rocket_hit.wav");
-        precache_sound(ad_SOUND_PLASMA_FIRE);
-        precache_sound(ad_SOUND_PLASMA_HIT);
-        precache_sound("enforcer/def_ssg_fire.wav");
-        precache_sound("enforcer/pyro_flameon.wav");
-        precache_sound("enforcer/pyro_flameoff.wav");
-        precache_sound("enforcer/fum_poisonon.wav");
-        precache_sound("enforcer/fum_poisonoff.wav");
+        AD_WeaponsOnDemand(); // (the sounds AD's soldiers precache where they are: none here)
         entity e = spawn();
         e.classname = "vr_adgun_test";
         e.owner = p;

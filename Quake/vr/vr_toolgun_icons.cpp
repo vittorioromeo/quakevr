@@ -471,7 +471,12 @@ void make(Icon& icon)
 {
     const auto t0 = za::Clock::nowNanoseconds();
     icon.state = IconState::Failed;
-    byte* data = COM_LoadMallocFile(icon.model, nullptr);
+    // AD support: a model made from another's file ("<model>#...": an AD soldier's gun, vr_adguns.cpp), as it loads.
+    byte* data = strchr(icon.model, '#') ? VR_DerivedModelFile(icon.model, nullptr) : nullptr;
+    if(!data)
+    {
+        data = COM_LoadMallocFile(icon.model, nullptr);
+    }
     if(data)
     {
         const Reader r{data, static_cast<int>(com_filesize)};

@@ -17,7 +17,7 @@
     const int i = adSpawnIndex(choice);
     if(i < 0) { return item; }
     return toolgun::spawnableAvailable(i) ? item : item.unavailableBecause(
-        "Needs Arcane Dimensions data installed and enabled. Weapon upgrades follow Advanced VR Options > Arcane Dimensions > Weapon Upgrades; choose Everywhere to spawn them in other maps.");
+        "Needs Arcane Dimensions data installed and enabled, and outside its maps Additional Content Everywhere. Weapon upgrades also follow Advanced VR Options > Arcane Dimensions > Weapon Upgrades.");
 }
 
 [[nodiscard]] Item adSpawnChoices(Item item)
@@ -40,6 +40,10 @@
     { items.pushBack(adSpawnRow(choice, command(label, "vr_test_spawn " #choice "; impulse 241"))); }
 #include "vr_ad_spawnitems.inc"
 #undef QVR_AD_SPAWN
+#define QVR_AD_GUN(label, model, wid, choice) \
+    items.pushBack(adSpawnRow(choice, command(label, "vr_test_spawn " #choice "; vr_test_spawn_dist 64; impulse 241")));
+#include "vr_ad_spawnguns.inc"
+#undef QVR_AD_GUN
     return items;
 }
 
