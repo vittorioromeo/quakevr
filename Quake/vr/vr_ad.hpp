@@ -8,6 +8,9 @@
 namespace qvr::ad
 {
 
+// Spawn menus: AD data mounted, the requested model present, and any required AD rules active.
+[[nodiscard]] bool spawnAvailable(const char* model, bool rulesOnly = false);
+
 // The campaign table's index of Arcane Dimensions (vr_gamedir.cpp campaigns[]).
 inline constexpr int campaignIndex = 6;
 

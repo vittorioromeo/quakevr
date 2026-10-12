@@ -3573,3 +3573,33 @@ errors; e1m1, hip1m1, r1m1, MG1 and MG3 unchanged.
   flail dangles).
 - [ ] The poorer fits (the gaunt, the seeker, Freddie): their dead poses look whole.
 - [ ] A corpse of each, gibbed by shots: AD's own head and weapon fly.
+
+
+### Bake copies, firing range recovery, and AD spawn menus (toolbake)
+
+Bake Copy now exports a new playable map (default map_baked1, map_baked2, etc.; optional explicit new name) and refuses
+existing map names. It preserves the map's effective loaded entities, including external CRC-qualified overrides,
+and appends the current brushes as permanent solid func_wall models. No source scene reload or map override is
+written. Augmentation failure aborts the bake. The no-light bake writer has the same source entity/name protections.
+
+The reported firing range loss came from its external vrfiringrange@3647.ent: 188 entities versus 106 embedded in
+the original BSP. The old bake changed the entity CRC and lost that override. The original BSP remains intact;
+the damaged relit override contains intact geometry and three additional brush models. A recovery copy in the
+worker's scratch embeds all 188 entities plus three solid brush entities, preserving every other lump and its BSPX
+lighting byte for byte. RECOVERY.txt beside it gives exact backup/placement steps; no author files were changed.
+Recovery restores those three brushes as permanent geometry; an editable runtime descriptor was not present.
+
+The toolgun grid, Debug monster page, Debug weapon pickups, and Debug Thing selector now share 56 AD choices:
+44 monsters, nine pickups, and three upgrades. Monsters and standalone items spawn outside AD maps with data
+mounted and AD Everywhere enabled; upgrades keep their existing AD-map requirement. Unavailable entries remain
+visible and cannot be selected or activated. The generator owns the catalogs and dispenser dispatch. Explicit AD
+class variants retain canonical entity names, including names that overlap official expansion monsters.
+
+Validation: source SHA256 f43f59da673a44dc34502c9d2c7daf9d30d088a593ed53afb8264f27d2e065b3 unchanged; no-light
+and real ericw-tools copies each retained 188 original entities plus one brush, all original geometry/model data,
+and collision at exactly z=81 (trace fraction .607). The recovery copy has 191 entities and 12 models; its top brush
+collides at z=149.2. All 44 AD monster classes spawned outside AD rules; a death knight completed initialization,
+registered/rigged/alive, through both physics and debug dispensers. Outside AD: 53 ready/3 disabled; in an AD-marked
+fixture: 56 ready/0 disabled; AD Everywhere off: 0 ready/56 disabled and selection rejected. e1m1 smoke and calibration
+menu path check passed (4 paths, 0 missing). Archived melee evaluation skipped as expected. Menu rows also expose
+vrgrabs' carry/body load settings and ragnotes' four corpse-limb regression actions; those workers own their logic.

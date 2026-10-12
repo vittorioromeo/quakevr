@@ -33,6 +33,7 @@ struct Options
 {
     const char* classname{"func_qvr_brushbake"};
     bool entitiesIn{false};
+    const char* sourceEntities{nullptr}; // the loaded map's effective entities (including external .ent overrides)
     int fakeLight{-1};
 };
 bool augment(const unsigned char* data, za::SizeT size, za::Vector<unsigned char>& out, za::String& entities, za::String& notes,
