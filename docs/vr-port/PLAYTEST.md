@@ -116,7 +116,7 @@ prints it.
 
 ## If something goes wrong
 
-**The quickest report:** the Start menu's **Quake VR Unleashed (Diagnostics)** shortcut (or `-diagnostics`) puts
+**The quickest report:** the Start menu's **Quake VR Unleashed (diagnostics)** shortcut (or `-diagnostics`) puts
 everything in `quakevr\diagnostics\<date>_<time>`, which opens when you quit:
 - the console;
 - the GL driver's messages;

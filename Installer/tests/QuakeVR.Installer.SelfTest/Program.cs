@@ -420,7 +420,7 @@ var tests = new List<(string Name, Action Body)>
         True(LaunchCommand.Arguments("a", "b", LaunchVariant.Diagnostics).EndsWith(" -diagnostics"), "diagnostics");
         var all = ShortcutPlanner.Plan(new ShortcutOptions { DesktopDir = @"T:\Desk", StartMenuDir = @"T:\Prog" }, @"Q:\Quake", @"T:\QVR");
         Eq(6, all.Count, "desktop + 5 in the Start menu");
-        Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (Diagnostics).lnk", all[4].LinkPath, "diagnostics in the Start menu");
+        Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (diagnostics).lnk", all[4].LinkPath, "diagnostics in the Start menu");
         True(all[4].Arguments.EndsWith(" -diagnostics", StringComparison.Ordinal), "the diagnostics shortcut's -diagnostics");
         Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (flat screen).lnk", all[2].LinkPath, "flat in the Start menu");
         Eq(@"T:\QVR", all[0].WorkingDirectory, "start in the Quake VR folder");
@@ -485,7 +485,7 @@ var tests = new List<(string Name, Action Body)>
         }, progress, CancellationToken.None);
         Eq(11, record.Files.Count, "files installed");
         Eq(6, record.Shortcuts.Count, "shortcuts");
-        True(File.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed", "Quake VR Unleashed (Diagnostics).lnk")), "the diagnostics shortcut");
+        True(File.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed", "Quake VR Unleashed (diagnostics).lnk")), "the diagnostics shortcut");
         True(record.RelightPending, "relight pending");
         True(File.Exists(Path.Combine(target, "quakevr", "progs.dat")), "progs.dat");
         True(!Directory.EnumerateFiles(target, "*.qvrnew", SearchOption.AllDirectories).Any(), "no staging leftovers");

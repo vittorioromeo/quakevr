@@ -506,7 +506,7 @@ now a check of its own.
 
 The author asked for a single switch that collects everything a crash report needs. It is `-diagnostics`, also
 `vr_diagnostics 1` (from the next start; Debug > Crashes > Diagnostics Mode), and the installer's new Start menu
-shortcut **Quake VR Unleashed (Diagnostics)**. Everything goes into `quakevr/diagnostics/<date>_<time>/`, which is
+shortcut **Quake VR Unleashed (diagnostics)**. Everything goes into `quakevr/diagnostics/<date>_<time>/`, which is
 printed at the start and opened in Explorer at a quit (`Quake/vr/vr_diagnostics.cpp`):
 - `console.log`: the console. With `-diagnostics` it starts at the first line after the filesystem
   (`LOG_Reopen`); with the cvar it starts at the window's creation.
