@@ -172,6 +172,13 @@ quality profile, not an engine speedup claim; physical headset validation is
 still required before distribution. See [Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md)
 for the comparison controls and limitations.
 
+A precomputed direct-color palette lookup was also tested at the release's 0.45
+render scale. The corrected shader preserved both eye images pixel-for-pixel,
+but the Frame measured 30.437 ms GPU-eye time versus 29.972 ms for release and
+showed a slower frame median. That candidate was reverted. An initial binding
+collision removed scene geometry and produced invalid low timings; it was
+identified by the image and render-phase checks and was not accepted.
+
 ## Credits and source
 
 - Original mod and engine source: [Vittorio Romeo's Quake VR](https://github.com/vittorioromeo/quakevr).

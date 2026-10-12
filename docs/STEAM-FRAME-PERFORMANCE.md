@@ -33,6 +33,11 @@ Half-resolution retro particles showed no repeatable combat gain. Render scale
 had the largest measured effect.
 
 The tested shader fast path for retro-light curves had no gain and was reverted.
+An exact-color palette lookup candidate also failed to improve performance: the
+corrected version rendered pixel-identical eyes but averaged 30.437 ms GPU-eye
+time versus 29.972 ms for release, with a slower frame median. It was reverted.
+An earlier version bound new samplers over scene textures and omitted geometry;
+its deceptively low timings were invalid and excluded.
 An optional switch to disable GPU timestamp queries also failed to improve the
 frame time. Dynamic-light and blob-shadow controls showed no useful gain.
 
