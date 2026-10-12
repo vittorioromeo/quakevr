@@ -1684,7 +1684,7 @@ int campaignsBloodyShown = -1;
         header("Body"),
         open("Body and Build: Body and Display", pageIndex(pageBodyDisplay)).help("The body on or off and its build are on Body and Display."),
         toggle("Bracers", vr_body_bracers)
-            .help("The leather bracers on your forearms and the wrist gadget's straps. Off: bare forearms, the skin running "
+            .help("The leather bracers on your forearms. Off: bare forearms with the wrist gadget strapped round the skin, running "
                   "on into the hands (with the jointed hand, vr_hand_rig 1: the default)."),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s").extend()
@@ -2727,6 +2727,11 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             {{0.f, "Chunky (as monsters)"}, {512.f, "Fine (5 MB)"}, {1024.f, "Finer (20 MB)"}, {2048.f, "Finest (80 MB)"}})
             .help("Your own body's and hands' wounds, burns and wetness: finer than their skin and smooth-edged, with a relief "
                   "(Chunky: in the skin's own pixels, as the monsters')."),
+        cycle("Body Wounds' Detail", vr_wounds_body_res,
+            {{0.f, "As Hands"}, {512.f, "Fine"}, {1024.f, "Match Hands"}, {2048.f, "Finest"}})
+            .help("A minimum for your body's blood, burns and wetness. The long arm texture needs more rows than the hands: "
+                  "1024 gives arms about the same blood detail per metre as Chunky hands. Shares the finer mask array "
+                  "(1024: 20 MB, 2048: 80 MB); the hands keep Your Wounds' Detail. As Hands uses that setting alone."),
         slider("Your Burns' Relief", vr_wounds_bump_burns, 0.f, 3.f, 0.25f, "%.2fx")
             .help("How crusted and cracked the char on your arms looks in the light (Finer detail only; 0 flat)."),
         slider("Your Wounds' Depth", vr_wounds_bump_blood, 0.f, 3.f, 0.25f, "%.2fx")

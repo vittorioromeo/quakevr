@@ -4382,7 +4382,8 @@ void M_AdjustSliders (int dir)
 		Cbuf_AddText ("toggle r_enhancedmodels\n");
 		break;
 	case OPT_ANIMLERP:
-		Cvar_SetValueQuick (&r_lerpmodels, !r_lerpmove.value);
+		if (r_lerpmodels.value != 3.f) // QVR: preserve the selected Smooth model interpolation
+			Cvar_SetValueQuick (&r_lerpmodels, !r_lerpmove.value);
 		Cvar_SetValueQuick (&r_lerpmove, !r_lerpmove.value);
 		break;
 	case OPT_PARTICLES:

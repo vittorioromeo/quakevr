@@ -4,16 +4,18 @@
 #   1. vr_anim_smooth_check: the spline's weights exact at the keys; every rigged model's shape 0.001 off a key within
 #      0.1 units of it (no pop entering or leaving a frame; 0.03-0.08 when written)
 #   2. the grunt drawn smoothed: splines with limbs swung (vr_anim_smooth_info), and vr_anim_smooth_trace reports
-#   3. vr_anim_smooth_pin on it, then a map change: the pin is off (another map's entity has its number)
+#   3. Ease 0 idle loop: anonymous successor learned, no eager rig with Smooth Limbs off, and
+#      single-vertex acceleration <0.1 units (the former gun pulse was 1.27 units)
+#   4. vr_anim_smooth_pin on it, then a map change: the pin is off (another map's entity has its number)
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=${1:?worktree name}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
-S="vr_fixed_frames 1;r_lerpmodels 3;map e1m1;wait30;god;notarget;vr_test_spawn 0;vr_test_spawn_dist 96;impulse 241;wait30"
-S="$S;vr_anim_smooth_check;vr_anim_smooth_info;vr_anim_smooth_trace 60;wait90;vr_anim_smooth_info"
+S="vr_fixed_frames 1;vr_anim_smooth_tension 0;vr_anim_smooth_rig 0;r_lerpmodels 3;map e1m1;wait30;god;notarget;vr_test_spawn 0;vr_test_spawn_dist 96;impulse 241;wait240;vr_anim_smooth_info soldier;vr_anim_smooth_rig 1"
+S="$S;vr_anim_smooth_check;vr_anim_smooth_info;vr_anim_smooth_trace 600;wait610;vr_anim_smooth_info"
 S="$S;vr_anim_smooth_pin 83 84 0.5 -1 -1 soldier;wait5;vr_anim_smooth_info;map e1m2;wait30;vr_anim_smooth_info;toggleconsole;quit"
-OUT=$(bash $KIT/run.sh $AGENT -Script "$S" -Filter "^animsmooth: (check|trace|pinned|[0-9]+ splines)|ERROR|Host_Error|Sys_Error|CRASH" -Timeout 600 2>&1 |
+OUT=$(bash $KIT/run.sh $AGENT -Script "$S" -Filter "^animsmooth: (check|trace|pinned|progs/soldier|[0-9]+ splines)|median [0-9.]|ERROR|Host_Error|Sys_Error|CRASH" -Timeout 600 2>&1 |
     grep -v "^$" | grep -v "^exit=0")
-echo "$OUT"
+echo "$OUT" | grep -E "^animsmooth: trace|median [0-9.]"
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 check $(echo "$OUT" | grep -q "weights at the keys exact" && echo 1 || echo 0) "the spline's weights exact at the keys"
@@ -24,6 +26,9 @@ swung=$(echo "$OUT" | grep -o "info, [0-9]* with limbs swung" | grep -o "[0-9]* 
 check $([ "${swung:-0}" -gt 0 ] && echo 1 || echo 0) "the grunt drawn smoothed, limbs swung (${swung:-0} splines)"
 check $(echo "$OUT" | grep -q "^animsmooth: trace ent [0-9]* (progs/soldier.mdl" && echo 1 || echo 0) "the trace reports"
 pins=$(echo "$OUT" | grep -o "pinned entity -\?[0-9]*" | grep -o "\-\?[0-9]*$" | tr '\n' ' ')
-check $(echo "$pins" | grep -q "^-1 -1 [0-9][0-9]* -1 $" && echo 1 || echo 0) "the pin set, then off after the map change ($pins)"
+check $(echo "$pins" | grep -q "^-1 -1 -1 [0-9][0-9]* -1 $" && echo 1 || echo 0) "the pin set, then off after the map change ($pins)"
+check $(echo "$OUT" | grep -q "1 learnt.*no rig" && echo 1 || echo 0) "anonymous idle loop learned without deriving a rig"
+peak=$(echo "$OUT" | grep -o "one vertex's most: p95 [0-9.]*, most [0-9.]*" | grep -o "[0-9.]*$")
+check $([ -n "$peak" ] && awk "BEGIN{exit !($peak < 0.1)}" && echo 1 || echo 0) "Ease 0 idle loop has no gun pulse (peak ${peak:-none} units)"
 check $(echo "$OUT" | grep -q "ERROR\|Host_Error\|Sys_Error\|CRASH" && echo 0 || echo 1) "no error"
 exit $fail

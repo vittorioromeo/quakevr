@@ -6430,7 +6430,7 @@ bool emptyHandImpl(const hands::State& s, int hand, view::EmptyHand& out)
 }
 
 // The build of the body drawn this frame (0 lean, 1 athletic, 2 brawny; the wrist gadget's straps fit its bracer), and
-// whether its forearms are bare (vr_body_bracers 0: no straps, the gadget rests on the skin).
+// whether its forearms are bare (vr_body_bracers 0: straps and gadget fitted to the skin).
 int drawnBuild = 1;
 bool drawnBare = false;
 
@@ -6574,9 +6574,8 @@ void setupGadget(const hands::State& s)
     ve.lightMultiply = tint > 0.f;
     ve.lightMod = glm::mix(glm::vec3{1.f}, hsv(vr_gadget_tint_hue.value, 1.f, 1.f) * 1.4f, tint);
 
-    // The straps, under the lugs (make_gadget.py: x -+1.25, the band 0.3 either side of it); none on bare forearms
-    // (vr_body_bracers 0 hides them with the bracers).
-    if(!onForearm || fa.length <= 1e-3f || drawnBare)
+    // The straps, under the lugs (make_gadget.py: x -+1.25, the band 0.3 either side of it), round the skin or bracer.
+    if(!onForearm || fa.length <= 1e-3f)
     {
         return;
     }
@@ -6595,8 +6594,8 @@ void setupGadget(const hands::State& s)
         }
         const float edge = halfWidth / fa.length;
         float wu, wv, eu, ev; // the bracer's semi-axes at the band's wrist edge and elbow edge
-        avatar::forearmGirth(build, along + edge, wu, wv, false);
-        avatar::forearmGirth(build, along - edge, eu, ev, false);
+        avatar::forearmGirth(build, along + edge, wu, wv, drawnBare);
+        avatar::forearmGirth(build, along - edge, eu, ev, drawnBare);
         wu += margin, wv += margin, eu += margin, ev += margin;
         const float taper = CLAMP(0.f, za::max(eu / wu, ev / wv) - 1.f, strapTaper);
         view::ViewEntity& strap = entities.gadgetStrap[i];

@@ -60,7 +60,7 @@ struct SmoothModel
     za::Vector<int16_t> prev;        // ... and comes from (vr_anim_smooth_pin's default first key)
     za::Vector<int16_t> seen;        // ... the frame seen after it most (-1 none): where the names don't say (a loop's end)
     za::Vector<uint8_t> votes;       // ... how sure that is (each time it is seen again: up, another: down, replaced at 0)
-    bool namesTell{false};           // the frames' names tell its animations apart (not the shambler's: "From ASE" all)
+    za::Vector<uint8_t> namedNext; // each numbered successor is reliable; anonymous frames learn their loops
     za::Vector<int16_t> frameOfPose; // per pose: its frame (-1: a framegroup's)
     // B: the rig, if it has one (and it fits the model).
     bool rigTried{false};
@@ -76,7 +76,7 @@ struct SmoothModel
 [[nodiscard]] za::SizeT heldBytes(const SmoothModel& m)
 {
     return mem::heldBytes(m.next) + mem::heldBytes(m.prev) + mem::heldBytes(m.seen) + mem::heldBytes(m.votes) + mem::heldBytes(m.frameOfPose) +
-           mem::heldBytes(m.unfit) + mem::heldBytes(m.rest);
+           mem::heldBytes(m.namedNext) + mem::heldBytes(m.unfit) + mem::heldBytes(m.rest);
 }
 
 } // namespace qvr::animsmooth
@@ -239,6 +239,7 @@ void splitName(const char* name, char* prefix, int& number)
     m.prev.resize(static_cast<za::SizeT>(m.numFrames), -1);
     m.seen.resize(static_cast<za::SizeT>(m.numFrames), -1);
     m.votes.resize(static_cast<za::SizeT>(m.numFrames), 0);
+    m.namedNext.resize(static_cast<za::SizeT>(m.numFrames), 0);
     m.frameOfPose.resize(static_cast<za::SizeT>(m.numPoses), -1);
     for(int f = 0; f < m.numFrames; f++)
     {
@@ -260,7 +261,7 @@ void splitName(const char* name, char* prefix, int& number)
         int na = -1, nb = -1;
         splitName(d.name, a, na);
         splitName(hdr->frames[f + 1].name, b, nb);
-        m.namesTell = m.namesTell || strcmp(a, b);
+        m.namedNext[static_cast<za::SizeT>(f)] = na >= 0 && nb >= 0;
         // The same animation, numbered on (or unnamed, or unnumbered: the shambler's: the file's order)
         const bool on = !strcmp(a, b) && (na < 0 || nb < 0 || nb == na + 1);
         if(on)
@@ -269,18 +270,20 @@ void splitName(const char* name, char* prefix, int& number)
             m.prev[static_cast<za::SizeT>(f + 1)] = static_cast<int16_t>(f);
         }
     }
-    // A rigged monster's deaths end where its seed table says (its last frame held: nothing after it)
-    if(const ragdoll::Rig* rig = ragdoll::eligible(model) ? ragdoll::rigFor(const_cast<qmodel_t*>(model)) : nullptr)
+    // Seed-table boundaries need no derived rig (Smooth Limbs off stays cheap). Never predict the death's first
+    // frame from the preceding idle frame: a loop we haven't seen yet holds its end until the successor is learnt.
+    for(int f = 0; f < m.numFrames; f++)
     {
-        for(int i = 0; i < rig->deaths; i++)
+        if(ragdoll::deathBoundary(model, f, false))
         {
-            if(rig->deathLast[i] >= 0 && rig->deathLast[i] < m.numFrames)
+            m.next[static_cast<za::SizeT>(f)] = -1;
+        }
+        if(ragdoll::deathBoundary(model, f, true))
+        {
+            m.prev[static_cast<za::SizeT>(f)] = -1;
+            if(f > 0 && m.next[static_cast<za::SizeT>(f - 1)] == f)
             {
-                m.next[static_cast<za::SizeT>(rig->deathLast[i])] = -1;
-            }
-            if(rig->deathFirst[i] >= 0 && rig->deathFirst[i] < m.numFrames)
-            {
-                m.prev[static_cast<za::SizeT>(rig->deathFirst[i])] = -1;
+                m.next[static_cast<za::SizeT>(f - 1)] = -1;
             }
         }
     }
@@ -398,7 +401,7 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
     }
     int next = m.next[static_cast<za::SizeT>(frame)];
     const int seen = m.seen[static_cast<za::SizeT>(frame)];
-    if(next == -1 || (!m.namesTell && seen >= 0))
+    if(next == -1 || (!m.namedNext[static_cast<za::SizeT>(frame)] && seen >= 0))
     {
         next = seen;
     }
@@ -900,7 +903,7 @@ void info_f()
         {
             named += m.next[static_cast<za::SizeT>(f)] >= 0 ? 1 : 0;
             groups += m.next[static_cast<za::SizeT>(f)] == -2 ? 1 : 0;
-            seen += m.next[static_cast<za::SizeT>(f)] == -1 && m.seen[static_cast<za::SizeT>(f)] >= 0 ? 1 : 0;
+            seen += m.seen[static_cast<za::SizeT>(f)] >= 0 && m.seen[static_cast<za::SizeT>(f)] != m.next[static_cast<za::SizeT>(f)] ? 1 : 0;
         }
         Con_Printf("animsmooth: %s: %d frames (%d go on by name, %d learnt, %d framegroups), %d poses", model->name,
             m.numFrames, named, seen, groups, m.numPoses);
