@@ -274,11 +274,11 @@ void splitName(const char* name, char* prefix, int& number)
     // frame from the preceding idle frame: a loop we haven't seen yet holds its end until the successor is learnt.
     for(int f = 0; f < m.numFrames; f++)
     {
-        if(ragdoll::deathBoundary(model, f, false))
+        if(ragdoll::deathBoundary(model, hdr, f, false))
         {
             m.next[static_cast<za::SizeT>(f)] = -1;
         }
-        if(ragdoll::deathBoundary(model, f, true))
+        if(ragdoll::deathBoundary(model, hdr, f, true))
         {
             m.prev[static_cast<za::SizeT>(f)] = -1;
             if(f > 0 && m.next[static_cast<za::SizeT>(f - 1)] == f)
