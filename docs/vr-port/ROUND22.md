@@ -3961,3 +3961,37 @@ VR follow-up: test bent wrists with actual hand calibration, roll the gadget arm
 blood across the seam, and tune Skin Tone under several room lights. Review the geometry cost on the headset.
 Disposable worker outputs (not deleted): scratch/, eyeshots/, build logs/crash dumps, test cfg; generated id.wad stays
 local and ignored, never committed. Visual sheets: scratch/wrist_visual.png, wrist_straps.png, wrist_bridge.png.
+
+### Ammo-pouch destination, loaded grip grace and magazine reinsertion (reload2, 2026-10-12)
+
+Voice notes AD 11:20:14, 11:32:35 and 11:34:30. Boxes, shells and magazines now shrink toward the rendered leather
+bag's centre rather than the hand's reach hotspot. The point follows the same model transform as the pouch, including
+body clearance, crouch, configured offsets/turn and size. Its local centre follows make_ammo_pouch.py's leather outline
+(BACK_X + depth * 0.45, z -0.4); stocked/empty depths 2.5/1.3. Round-specific bounds are deliberately excluded.
+Hidden pouches retain the old reach-point fallback. vr_dumpview reports the centre, and vr_debug_collect_fx 2 reports
+the animation endpoint's error against it.
+
+After loading a save, OnLoadGame grants the weapon instances actually restored in each hand a 0.75-second grip grace.
+Game time starts the window after the load pause, so the loading screen does not consume it. VRWeaponLetGo suppresses
+unpressed-grip releases only for those instances during the window; new weapons, fresh-map starts and drops after it
+follow the existing rules. New archived vr_weapon_load_grace defaults to 0.75, with a 0..2 s "Grip Grace After Loading"
+slider beside Weapon Grip in VR Settings. 0 disables the grace. The weapon-instance debug report includes time left
+and whether each hand still holds the restored instance.
+
+The former fixed extra 4-unit withdrawal before reinsertion is archived vr_reload_reinsert_clearance (default 4,
+negative values clamped to 0). "Magazine Reinsertion Clearance" in Advanced VR Options > Weapons > Reloading exposes
+0..16 units (extended to 64). Held magazines must leave the insertion reach plus this margin; loose magazines still
+clear both hand guns' collision leniency and the existing eject cooldown. This also governs a replacement magazine
+that bumped the previous one out. No existing reload thresholds or authored settings were retuned.
+
+Debug > Tests > Reloading > Magazine Reinsertion Boundaries (vr_reload_test 28; impulse 125) exercises actual held
+and loose paths at both sides of the threshold for -2/0/4/10 units, latch retention, both guns and cooldown: 22/22 PASS.
+Misc/quakevr/reload/voice_20261012_test.sh runs that test, real save/load with both held guns ungripped, disabled grace,
+ordinary fresh-map drops, and nine real collection animations (box/shell/magazine × standing/crouched/offset-and-turn).
+Collection endpoints have 0.0000-unit error against the rendered bag centre. The default load grace retains both guns
+through 0.728 s, then releases them by 0.826 s; zero grace and fresh-map drops follow the original release path.
+QC/engine/FGD build passes (0 QC warnings); calibration menu paths: 5 found, 0 missing.
+
+VR follow-up: return every ammo kind to the pouch while crouching; reload an autosave without gripping, then regrip or
+let the grace expire; tune Magazine Reinsertion Clearance for the out-and-back motion. Saves and probe logs remain
+local to this worktree (voice_reload2_grace/reload2_grace/reload2_grace_exact and scratch/); none were deleted.

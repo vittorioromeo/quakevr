@@ -6939,6 +6939,11 @@ VRTryUnloadWeapon =
 // the grip is let go a second time since the weapon came to the hand.
 float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
 {
+    entity restored = xHand == cVR_MainHand ? ent.vr_weapon_load_main : ent.vr_weapon_load_off;
+    if(time < ent.vr_weapon_load_until && restored != world && restored == VRGetEntWeaponInst(ent, xHand))
+    {
+        return FALSE;
+    }
     float grabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
     if(cvar_hget(cvarh_vr_weapon_grip_mode) != 1)
     {

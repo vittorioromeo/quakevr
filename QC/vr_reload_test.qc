@@ -796,6 +796,70 @@ void(float xRight) VR_Reload_TestHeldAt =
         gone ? "loaded" : "not loaded"));
 };
 
+// Reinsertion hysteresis (step 28): actual held/loose paths, both boundaries and another gun's exclusion zone.
+void() VR_Reload_TestReinsert =
+{
+    float old = cvar_hget(cvarh_vr_reload_reinsert_clearance);
+    vr_reload_test_pass = 0;
+    vr_reload_test_fail = 0;
+    VR_Reload_TestSetup();
+    VR_WeaponUtil_EntAddWeapon(self, WID_NAILGUN);
+    VRGiveEntWeapon(self, cVR_OffHand, WID_NAILGUN, QVR_WPNFLAG_NOMAG, 0);
+    self.ammo_nails = 100;
+    VR_Reload_PlayerFrame();
+    VR_Reload_Take(cVR_MainHand);
+    entity r = VR_Carry_Held(self, cVR_MainHand);
+    if(r == world)
+    {
+        bprint("reload: FAIL reinsertion test needs immersive reloading\n");
+        return;
+    }
+    self.offloadportpos = self.origin + '0 0 80';
+    for(float k = 0; k < 4; k++)
+    {
+        float extra = k == 0 ? -2 : k == 1 ? 0 : k == 2 ? 4 : 10;
+        cvar_set("vr_reload_reinsert_clearance", ftos(extra));
+        float reach = VR_Reload_PortRadius(WID_NAILGUN) + VR_Reload_MagRadius(r.vr_ammo_wid);
+        float boundary = reach + max(0, extra);
+        vector desired = self.offloadportpos + '1 0 0' * (boundary - 0.01);
+        setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
+        r.vr_ammo_fresh = TRUE;
+        VR_Reload_HeldFrame(cVR_MainHand, r);
+        VR_Reload_Check(r.vr_ammo_fresh, sprintf("clearance %g: held just inside stays fresh", extra));
+        desired = self.offloadportpos + '1 0 0' * (boundary + 0.01);
+        setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
+        VR_Reload_HeldFrame(cVR_MainHand, r);
+        VR_Reload_Check(!r.vr_ammo_fresh, sprintf("clearance %g: held just outside rearms", extra));
+        desired = self.offloadportpos + '1 0 0' * (reach - 0.01);
+        setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
+        VR_Reload_Check(!r.vr_ammo_fresh, "return inside does not rearm the fresh latch");
+
+        float lenient = max(0, cvar_hget(cvarh_vr_reload_contact_leniency)) * VRMetersToUnits() / 100;
+        boundary = reach + 2 * lenient + max(0, extra);
+        r.vr_ammo_fresh_from = self;
+        r.vr_ammo_fresh_at = time - max(0, cvar_hget(cvarh_vr_reload_eject_cooldown)) - 1;
+        desired = self.offloadportpos + '1 0 0' * (boundary - 0.01);
+        setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
+        VR_Reload_Check(!VR_Reload_FreshLeft(r), sprintf("clearance %g: loose inside stays fresh", extra));
+        desired = self.offloadportpos + '1 0 0' * (boundary + 0.01);
+        setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
+        VR_Reload_Check(VR_Reload_FreshLeft(r), sprintf("clearance %g: loose outside rearms", extra));
+    }
+    VR_WeaponUtil_EntAddWeapon(self, WID_SUPER_NAILGUN);
+    VRGiveEntWeapon(self, cVR_MainHand, WID_SUPER_NAILGUN, QVR_WPNFLAG_NOMAG, 0);
+    self.loadportpos = self.offloadportpos + '120 0 0';
+    setorigin(r, r.origin + self.loadportpos - VR_Reload_RoundRef(r));
+    VR_Reload_Check(!VR_Reload_FreshLeft(r), "loose: clearing one gun cannot rearm inside the other gun");
+    setorigin(r, r.origin + '0 0 120');
+    r.vr_ammo_fresh_at = time + 1;
+    VR_Reload_Check(!VR_Reload_FreshLeft(r), "loose: spatial clearance does not bypass eject cooldown");
+    cvar_set("vr_reload_reinsert_clearance", ftos(old));
+    VR_Carry_SetHeld(self, cVR_MainHand, world);
+    r.carry_player = world;
+    remove(r);
+    bprint(sprintf("reload reinsertion: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
+};
+
 void() VR_Reload_Test =
 {
     float step = cvar_hget(cvarh_vr_reload_test);
@@ -866,6 +930,10 @@ void() VR_Reload_Test =
     else if(step == 9)
     {
         VR_Reload_SelfTest();
+    }
+    else if(step == 28)
+    {
+        VR_Reload_TestReinsert();
     }
     else if(step >= 10 && step <= 13)
     {
