@@ -25,7 +25,7 @@
 # --shots: scratch/brush_shots.png (the tool's ghost, the scorch, the dynamic light's shadow, the panel).
 # --perf: 50 pillars: what making them takes, the frames before and after (--exclusive: timings).
 # PASS: every check as said, no crash.
-import os, re, subprocess, sys
+import os, re, subprocess, sys, time
 
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "brushtool"
 SHOTS = "--shots" in sys.argv
@@ -163,13 +163,14 @@ check(len(b) == 1 and "10" in b[0][0][3].split() and b[0][0][4] > 20,
 # full bake without light.exe (vr_brush_bake_write): the map with its brushes appended as submodels (func_walls here),
 # each face lit 100 by hand, loaded as a map: the submodels' hulls 0 and 1 stop traces at the box's top; the brushes
 # loaded from their file take that light from them ("relit"), the turned wedge too (its hash through the text);
-# e1m1 (BSP29) the same
+# e1m1 (BSP29) the same. Each run writes new names (existing maps are never overwritten): brushbake_<time>a/b.
+BAKE = f"brushbake_{int(time.time())}"
 t = run(R + ["vr_brush_box 128 -592 17 192 -528 81", "vr_brush_shape wedge 200 -700 17 300 -640 60", "vr_brush_rotate 2 0 30 0",
-             "vr_brush_save", "vr_brush_bake_write brushbake_test fake 100", "map brushbake_test", "wait60",
+             "vr_brush_save", f"vr_brush_bake_write {BAKE}a fake 100", f"map {BAKE}a", "wait60",
              "vr_brush_trace 160 -560 140 160 -560 12", "vr_brush_trace 160 -560 140 160 -560 12 32", "vr_brush_load @vrfiringrange",
              "wait60", "vr_brush_light 1", "vr_brush_light 2",
-             "map e1m1", "wait60", "vr_brush_box 640 176 48 672 208 64", "vr_brush_save", "vr_brush_bake_write brushbake_test fake 60",
-             "map brushbake_test", "wait60", "vr_brush_trace 656 192 100 656 192 30", "vr_brush_load @e1m1", "wait60", "vr_brush_light 1"])
+             "map e1m1", "wait60", "vr_brush_box 640 176 48 672 208 64", "vr_brush_save", f"vr_brush_bake_write {BAKE}b fake 60",
+             f"map {BAKE}b", "wait60", "vr_brush_trace 656 192 100 656 192 30", "vr_brush_load @e1m1", "wait60", "vr_brush_light 1"])
 ends = [float(z) for z in re.findall(r"brush trace: fraction [\d.]+, end [-\d.]+ [-\d.]+ ([-\d.]+)", t)]
 relit = re.findall(r"brush light (\d): relit, (\d) faces", t)
 lit = [f for b in (faces(t, 1) + faces(t, 2)) for f in b]
