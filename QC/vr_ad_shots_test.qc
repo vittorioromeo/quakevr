@@ -174,9 +174,10 @@ void(float request, entity p) AD_ShotsTest =
         {
             ad_Launch_Grenade(p.origin + '100 0 80', '0 0 100', '100 100 100', ad_CT_PROJ_GLMON);
             entity g = ad_newmis;
-            bprint(sprintf("adshots-test: grenade model %s catch %g force %g rigid %g shoot %g size %v hull %v fuse %.2f\n",
+            bprint(sprintf("adshots-test: grenade model %s catch %g force %g rigid %g shoot %g size %v",
                 g.model, g.vr_grenade, (g.flags & FL_FORCEGRABBABLE) != 0, g.vr_rigid, g.vr_shootnade,
-                drawnbounds(g, 1) - drawnbounds(g, 0), g.size, g.vr_gren_fuse - time));
+                drawnbounds(g, 1) - drawnbounds(g, 0)));
+            bprint(sprintf(" hull %v fuse %.2f\n", g.size, g.vr_gren_fuse - time));
             self = p;
             float bat = VR_GrenShot_Damage(g, p, p, 10, TRUE);
             bprint(sprintf("adshots-test: grenade bat %g speed %.1f spent %g\n", bat, vlen(g.velocity), g.vr_shot_off));
