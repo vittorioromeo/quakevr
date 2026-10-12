@@ -1,3 +1,10 @@
+> **Community Steam Frame native port:** this branch adds experimental Linux ARM64
+> GLX/OpenXR support for standalone Steam Frame. VR entry, head/hand tracking and
+> training-area weapons have been verified on hardware; performance problems
+> remain in some locations. See the [development and installation guide](docs/STEAM-FRAME-DEVELOPMENT.md)
+> and the [Frame release notes](Misc/frame/RELEASE-NOTES.md).
+> The original Quake VR: Unleashed mod is by Vittorio Romeo.
+
 <p style="text-align: center" align="center">
 <a href="https://ko-fi.com/vittorioromeovee"><img src="https://img.shields.io/badge/Ko--fi-Support%20me-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white" alt="Support me on Ko-fi"></a>
 <a href="https://paypal.me/vittorioromeocpp"><img src="https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal&logoColor=white" alt="Donate with PayPal"></a>
