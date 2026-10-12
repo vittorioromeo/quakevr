@@ -281,3 +281,34 @@ combat attempts in
 `performance-results/openxr-idle-abba-frame-20261012/openxr-combat-abba-seeded`;
 the non-deterministic combat timings are excluded from the reported gain. No
 engine code, defaults or launcher changed in this probe.
+
+## OpenXR check of the 0.18 render-scale candidate
+
+I also ran an A-B-B-A `particles_dense` fixture at 0.25 on the released engine
+(SHA-256 `386e4ba6...`) and 0.18 on the experimental render-scale-floor build
+(SHA-256 `48ce8499...`). The candidate changes the minimum accepted render
+scale from 0.25 to 0.18; its preview profile keeps retro edge softness enabled.
+Both profiles used `vr_particle_mult 0.5`, the same 1728x1728 OpenXR eye images,
+72 Hz pacing, fixed seeds, 180 warm-up frames and 720 measured frames on the
+Frame's Adreno 750 with Zink/Turnip and SteamVR/OpenXR 2.18.2.
+
+| Build / render scale | GPU-eye mean | GPU-eye p99 | Frame p99 | VR-particle GPU pass |
+|---|---:|---:|---:|---:|
+| Released engine / 0.25 | 11.591 ms | 13.068 ms | 15.857 ms | 2.830 ms |
+| Floor candidate / 0.18 | 8.104 ms | 9.677 ms | 15.443 ms | 1.801 ms |
+
+The candidate reduced GPU-eye mean by 30.1% and p99 by 25.9% in this fixture.
+All four 720-frame runs submitted fresh two-eye projection layers (`held=0`)
+and produced 713 GPU-eye samples each. Edicts, living monsters, Box3D body and
+contact counts, decals, dynamic lights and live-particle counts matched exactly
+between the two repeats of each setting. Runtime timing-log samples reported
+72 rendered frames and zero display-period misses during their sampled seconds,
+but the engine's frame p99 remained above 13.89 ms; these samples do not
+establish sustained wearer performance. The user-presence sensor reported
+absent, and head and hand action states remained invalid; the unfocused-render
+overrides were confined to the scratch config. Scale 0.18 renders about
+311x311 pixels per eye before upscaling, versus 432x432 at 0.25, so the gain
+has a severe image quality cost. This verifies the experimental build's OpenXR
+startup and GPU behavior; it does not validate visual acceptance or tracking. Raw
+JSON, runtime diagnostics and logs are retained privately in
+`performance-results/openxr-ultra-particles-abba-frame-20261012`.

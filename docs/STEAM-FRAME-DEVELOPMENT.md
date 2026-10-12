@@ -296,10 +296,17 @@ An isolated engine candidate lowers the minimum supported render scale from
 18.49–19.03 ms. This is approximately 311x311 rendered pixels per eye before
 upscaling to 1728x1728, with a substantial visible loss of detail. A separate
 "Frame Ultra Performance" shortcut and install are prepared for wearer
-validation; the shortcut passed a native mock launch with scale 0.18 and shipped
-softness enabled, but it has not been launched into OpenXR. The regular game
-and .25 preview remain untouched. This result is a low-resolution option, not a
-claim of stable 72 Hz or a release-ready improvement.
+validation. It has since launched in the actual SteamVR/OpenXR runtime from a
+scratch copy. In an A-B-B-A `particles_dense` test at 0.25 on the release binary
+and 0.18 on the candidate, with the particle multiplier held at 0.5, mean
+GPU-eye time fell from 11.591 to 8.104 ms and GPU-eye p99 from 13.068 to 9.677
+ms. The frame p99 stayed over the 13.89 ms 72 Hz budget in both settings.
+OpenXR submitted fresh stereo images, but the runtime had no wearer presence and
+head/hand actions were invalid. The regular game and .25 preview remain
+untouched. At 0.18 each eye renders about 311x311 pixels before upscaling to
+1728x1728; this is a severe quality tradeoff, not a claim of stable 72 Hz or a
+release-ready improvement. See the detailed OpenXR measurements in
+[Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
 
 ### Wearer regression checklist for the particle preview
 
