@@ -4084,6 +4084,82 @@ melee replay 49/177 pass equals baseline (0 differences), no melee tuning.
 Human VR: press laser buttons with each contact mode; grab/holster colored ammo/armor bags; approach ladders closely,
 grab alternating real rungs including underside touches; confirm jump/gaps never climb.
 
+## 2026-10-12 voice-note rendering audit (lightaudit)
+
+**Stationary AD lights.** The author clarified that brightness pulses while stationary, rather than lights switching
+with head movement. Reproduced small stationary brightness variation at the 11:23:22 note's `ad_crucial` position
+`-215 -2287 136`, pitch -24 / yaw -35, using the author's current render settings read-only. The BSP deliberately has
+four nearby style-1 flicker lights (about 413–503 units away), plus a switchable style-34 `sparkli2` light. Style 1 is
+Quake's `mmnmmommommnonmmonqnmmo` flicker pattern. Its contribution is local to faces lit by those lamps, explaining
+why some positions show it. A six-direction +/-8-unit camera sweep, repeatedly returning to the same view, kept
+exactly the same map-shadow lights 295/76; no slot oscillation or camera-dependent light failure was demonstrated.
+
+Diagnostic `r_flatlightstyles 1` makes every lightstyle constant at its average, including switchable styles; it is
+an investigation control, not a shipped fix. In the original sweep's valid center-return eye images, normal styles
+changed the upper architecture ROI by at most 0.360/255 mean channel value, 23/255 maximum, with 320 pixels changing
+more than 12/255. Flattened styles changed no pixel by more than 1/255. Four stationary flattened-style eye captures
+were byte-identical. Disabling torch lights, map shadows and dynamic shadows after flattening added no change.
+Keep intended map flicker and shipped settings unchanged. If the author wants less intentional flicker, a separate
+opt-in AD style-amplitude control should treat built-in animated styles independently of >=32 switched styles.
+No map/lightstyle patch was made. The exact 1205.9-second progression/switch state from the note was unavailable.
+Some hidden mock readbacks in both eyes were wholly blank (including with flattened styles); those frames were
+excluded from brightness comparison. This separate capture limitation was not attributed to the reported lamp
+pulsation or silently "fixed". `Misc/quakevr/ad_light_flicker_probe.ps1 <agent> [render.cfg]` preserves the 26-view
+probe; its logs label every view and show the selected shadow lights. Numerical scripts/JSON and the single contact
+sheet remain under worker scratch; they are not assets to distribute.
+
+**Developer-output crash.** The early adshots dump `2026-10-12_12-42-56.txt` conclusively names the Map parser thread:
+`COM_FindFile -> Con_DPrintf -> Con_SafePrintf -> Con_Printf -> SCR_UpdateScreen -> GL_AcquireFrameResources`, sync
+failure 0x0000. `Con_SafePrintf` toggled the main thread's loading flag concurrently; another writer could clear it,
+allowing the parser to enter rendering without an OpenGL context. This is a general console threading defect,
+independent of AD lightstyles. `Con_Printf` now still writes background messages through `Sys_Printf` but returns
+before console buffer/screen access. `Con_SafePrintf` routes worker messages directly there without touching the
+loading flag. Main-thread output is unchanged, and existing `VR_OnMainThread` is initialized before Map parser starts.
+One baseline attempt did not reproduce the intermittent failure; no claim of deterministic before/after frequency.
+Build/QC/FGD pass (0 QC warnings); five developer-1 launches with three map loads each pass, with 1,804–1,819 file-log
+lines per launch preserved, including e1m1/e1m2 smoke. Reusable `Misc/quakevr/map_parser_console_test.ps1 <agent> [runs]`.
+
+**AD relief generation feasibility (audit only).** `VR_LoadNormalMap` already tries authored `_norm` then `_bump`,
+and otherwise derives a normal map from the diffuse texture's shading. `TexMgr_ShadingToNormals` uses luminance and
+a wrapping Sobel gradient; this makes cheap bumps, not recovered physical geometry. The installed AD paks contain
+no `_norm`/`_bump` sidecars. `ad_crucial` contains 227 embedded textures (2,480,640 texels); AD's 38 playable BSPs use
+2,538 unique texture name/dimension tuples (duplicates with different pixels are not counted separately). At their
+native dimensions, RGBA normals including height alpha and mipmaps would occupy about 12.62 MiB for Crucial and
+238.77 MiB across all those textures; these are estimates of normal textures, not added memory when replacing an
+already-generated normal. Upscaling all 227 to 512 square would instead require about 303 MiB, without restoring
+missing material detail automatically. Actual per-map use only loads that map's textures.
+
+The author's `vr_texture_smooth 1` plus nearest magnification disables generated parallax heights for embedded
+indexed world textures (`TexMgr_IndexedSmooth` gate); generated normals still work. Replacement images can carry
+heights. Mode 2 already enables smooth indexed textures/height relief and is the inexpensive comparison to try;
+it cannot distinguish a painted shadow from a groove. A convincing pass can be mostly automated in production,
+but should start with 10–20 representative metal/stone/wood/painted textures: separate base color from baked shading,
+define material height masks/scale, make seamless height/normal candidates, preview at VR distance under several
+light directions, then review/correct results and expand by material family. A raw luminance conversion makes
+paint, highlights and old baked shadows into false cavities/ridges. The engine already accepts `_bump` height
+sidecars or `_norm` RGBA, with height in alpha (255 top surface); an RGB normal alone does not supply parallax depth.
+No additional neural tooling, downloads, whole-mod generation or rendering defaults were introduced.
+
+**Quake vertex pulsation feasibility (audit only).** The author means surface "breathing" even when an animation
+plays smoothly. Original MDL coordinates are quantized bytes multiplied by per-model axis scales (`gl_mesh.c`,
+alias shader decode), and each key pose may genuinely deform the surface. Vanilla soldier's increments are
+0.290806/0.261986/0.264820 units (roughly 7 mm at this port's scale), so small per-vertex changes can be visible in VR.
+Across QC's eight idle keys, global rigid fitting still leaves up to 0.205-unit RMS / 0.350-unit p95 residual;
+that includes deliberate limb motion and is evidence of pose variation, not a direct measurement of encoding error.
+Smooth mode 3 reduces velocity discontinuities but preserves exact authored key poses; it cannot remove their
+breathing. Increasing precision after loading cannot recover the positions already lost in the source MDL.
+
+A reasonable cheap prototype is an optional, render-only, per-bone rigid-fit/residual filter on one grunt idle
+clip using the existing ragdoll rig. Keep joint motion, foot contacts, weapon/hand alignment and large residuals;
+suppress only tiny non-rigid residual changes in regions expected to be rigid. Cache filtered poses at model load
+and A/B their silhouette, gun, feet and timing. This deliberately changes key poses, so keep current exact mode as
+the default and separate the filter from temporal smoothing. Clip boundaries and useful thresholds need per-model
+review, especially anonymous native frame names, jaw/finger movement and reloads. An offline bake retaining float
+poses or a supported skeletal/IQM asset is another route. Full clean rigs/reanimation offer the best result but are
+substantial asset work. No automatic all-monster retargeting or animation change was implemented in this audit.
+
+Disposable outputs (preserved): lightaudit scratch, screenshots/eyeshots, build log, test cfg; no id/AD data extracted
+or committed. No new cvars, defaults, migrations or checklist changes in this batch.
 ### AD tweaks, ammo models and safe feature scopes (2026-10-12, admenu2)
 
 Voice notes 10:55:27, 11:01:16, 11:02:54 and 11:27:41. Advanced VR Options now links directly to a registered
