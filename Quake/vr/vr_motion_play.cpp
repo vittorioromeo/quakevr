@@ -13,6 +13,7 @@
 
 #include "vr_anchor.hpp"
 #include "vr_angvel.hpp"
+#include "vr_avatar.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
 #include "vr_motion_review.hpp"
@@ -781,6 +782,7 @@ struct Report
     int recFrames{0};
     int wid[HAND_COUNT]{};
     za::String targetClass;
+    za::String targetName; // its classname (the training dummy's: its enemy's, as the melee's events name it)
     za::String warnings;
     bool ok{false};
 };
@@ -860,6 +862,7 @@ void workOutPlacement(edict_t* player)
     edict_t* target = findTarget(opts.target, f0.hasMon ? f0.monClass : za::String{}, here);
     targetEnt = target ? NUM_FOR_EDICT(target) : 0;
     report.targetClass = target ? progs::targetClass(target) : "";
+    report.targetName = target ? PR_GetString(target->v.classname) : "";
     placed = true;
     if(!target || !opts.place)
     {
@@ -1319,6 +1322,10 @@ void stopPlayback(const char* why)
         Cvar_SetQuick(&vr_dummy_gib, "0");
     }
     retypeDummies();
+    // Nothing left from what played before (the last take's head is not a step into this one): a take plays the same
+    // after any other, or alone (vr_motion_eval's shards).
+    hands::resetForPlayback();
+    avatar::resetMotion(); // (the holsters and pouches go with the body: a grip in them takes what is there)
     strikeNext = 0;
     strikesDone = 0;
     state = State::Setup;
@@ -2029,7 +2036,9 @@ void judge(const Report& r, const Expectation* e, Result& out)
         {
             for(const za::String& item : e->required)
             {
-                if(matchesItem(ev, item) && (!isHit(ev) || ev.target == r.targetClass))
+                // (A hit names the classname of what it struck: the training dummy as its enemy, vr_dummy_type.)
+                if(matchesItem(ev, item) && (!isHit(ev) || ev.target == r.targetClass ||
+                                                    (!r.targetName.empty() && ev.target == r.targetName)))
                 {
                     any = true;
                 }

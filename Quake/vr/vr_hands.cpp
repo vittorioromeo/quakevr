@@ -946,6 +946,15 @@ void resetClientState()
     stateFrame = -1;
 }
 
+void resetForPlayback()
+{
+    resetClientState();
+    lastHeadValid = false; // (the last take's head: not a step into this one)
+    torso::reset();
+    roomscaleMove = glm::vec3{0.f};
+    resetLean();
+}
+
 void setPlaySpaceYaw(float yaw)
 {
     turnYaw = za::remainder(yaw, 360.f);
