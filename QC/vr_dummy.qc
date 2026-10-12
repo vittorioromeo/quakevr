@@ -45,6 +45,7 @@
 .float vr_dummy_enemy;       // its enemy (VR_Dummy_Type's number), its stand-in's too while it is dead
 .void() vr_dummy_th_die;     // its enemy's death and pain (its own while it stands: VR_Dummy_Die gives them back)
 .void(entity attacker, float damage) vr_dummy_th_pain;
+.void() vr_dummy_th_run;     // its enemy's run (never called: where its get-up ends, VR_Knockdown_Step hands it back)
 .float vr_dummy_movetype;    // its enemy's movetype (it stands still: MOVETYPE_NONE)
 .float vr_dummy_floor;       // the floor it stands on (its box's bottom: its enemies' boxes differ)
 float VR_DUMMY_TYPES = 52;   // the enemies (VR_Dummy_Type: 0 grunt .. 18 electric eel; Dawn of the Machine's 19 rocket ogre, 20 demo dog,
