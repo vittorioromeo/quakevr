@@ -3745,3 +3745,29 @@ it should grab the lip, hang, and pull itself up onto the top. Shoot two grunts 
 clutch the other a moment. Swing your sword or fist at a grunt's head: it should throw its arms up before its face.
 Ragdoll Settings: Drowning Struggle, Pull Up From Ledges, Grab Others Falling, Guard the Head; Debug > Tests > Ragdoll
 Behaviours: the four new rows.
+
+## Dedicated melee recording room (2026-10-12, worktree `meleeroom`)
+
+`map vrmelee-recording` is an authored, empty 1280 x 1280 x 384 unit room: one central training dummy and seven
+floor pickups along the south wall (axe, Mjolnir, knight/hell knight swords, chainsaw, crowbar, Super Axe). Fists need
+no pickup. The practice area has no furniture, props, extra enemies or map buttons. Neutral studio lighting keeps
+the dummy and pickups visible. `make_vrmelee_recording_map.py --compile` builds the source/BSP/LIT/LUX with the
+installed ericw tools, using the project's own WAD; compile intermediates stay in the worker's scratch folder.
+
+Motion Recorder and Play both offer Melee Recording Room; Firing Range stays available as the sandbox. Direct mock
+replay automatically loads the recording room; `vr_motion_play ... map <name>` retains explicit alternate fixtures.
+Evaluation and Review Takes' background evaluation default to the room. Synthetic take headers and the crowbar,
+empty-melee and melee-phasing test scripts use it too. Existing recordings are never rewritten: target-relative
+placement, hand settings, legacy fallback rules and melee behavior remain unchanged. No new cvars or melee tuning.
+
+Validation: QC/engine/FGD build passed; qbsp/vis/light all exit 0 without warnings; authored BSP contains exactly one
+dummy and seven pickups. Two 1200-unit player-width sweeps are completely clear; floor trace fraction 0.500. The
+targeted `melee_room_test.py meleeroom` records 158 frames, replays directly from e1m1 in the room, evaluates both the
+new take and an otherwise identical old-map-header take (2 PASS), preserves their bytes/events and reproduces hand
+poses within 0.01 units (measured 0.001). Existing melee phasing: 7/7; empty melee: 2/2 (axe 0 clicks, shotgun 2);
+synthetic crowbar swing: 27.3 damage. e1m1 smoke and final hidden screenshot passed; no full melee tuning/eval run.
+Explicit `map e1m1 noplace` stays in e1m1; an absent map is rejected cleanly before loading.
+
+In VR: enter from Motion Recorder, pick up each melee weapon, circle the dummy and record your new takes. Confirm
+the simple room's space, lighting and pickup spacing feel suitable. Files worth deleting later: worker `scratch/`,
+`quakevr/meleeroom_check.cfg`, and its generated `quakevr/motions/no_hit_room_check_*`, `room_*` test outputs.

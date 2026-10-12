@@ -638,6 +638,8 @@ int motionPageCategory = -1;
     motionPageCategory = static_cast<int>(vr_motion_category.value);
     return {
         header("Record Motions for the Melee"),
+        command("Melee Recording Room", "map vrmelee-recording")
+            .help("All melee weapons and one central training dummy, with clear room to record your motions."),
         toggle("Arm Recorder", vr_motion_armed)
             .help("Armed: click the Record Button to start a take of the Category, click it again to end it and save "
                   "it (quakevr/motions). A beep and a buzz each time; REC in view."),
@@ -826,6 +828,7 @@ int campaignsBloodyShown = -1;
         action("VR Hub", playHub),
         action("Tutorial", playTutorial),
         action("Firing Range", playFiringRange),
+        command("Melee Recording Room", "map vrmelee-recording"),
         header("Bots (Multiplayer)"),
         action("Add Bot (Team 0)", addBotTeam0),
         action("Add Bot (Team 1)", addBotTeam1),

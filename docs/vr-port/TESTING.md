@@ -1213,3 +1213,10 @@ crate ledges in four directions/at four reaches, full-stick carry speeds and tor
 prints the rotated/fast sweep regression, sample load curves, current speed, physical/drawn torso overlap and the
 same prop's speed fraction in both hands. vr_carry_body_collision toggles solid carried props' torso constraint;
 vr_carry_move_mass, vr_carry_move_size and vr_carry_move_min tune the mass/bulk slowdown (minimum 1 disables it).
+
+Melee recording room (ROUND22.md, `meleeroom`): `map vrmelee-recording` has one central dummy, all seven distinct
+melee pickups (both swords), and an otherwise clear floor. `python Misc/quakevr/melee_room_test.py <agent>` checks
+compiled/runtime contents, clear player-width sweeps, recording, automatic replay routing from e1m1, default
+evaluation with new/old-map-header takes, unchanged take bytes/events and hand pose error below 0.01 units. It saves
+logs in `scratch/meleeroom_check/`; generated cfg/takes stay in that worker. Direct replay's `map <name>` option
+supports other fixtures explicitly. The crowbar, empty-melee and melee-phasing checks also use the recording room.

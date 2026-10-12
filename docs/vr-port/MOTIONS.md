@@ -2,7 +2,7 @@
 
 The melee (swords, weapons used as clubs, fists, parries, bashes, shoves) keeps reading some real motions as
 the wrong thing. The motion recorder lets you record takes of your own motions in the headset, each labelled with
-what it should do ("expected slash", "no hit", ...), in front of the firing range's training dummy. Played back in
+what it should do ("expected slash", "no hit", ...), in front of the melee recording room's central training dummy. Played back in
 the mock headset against the same dummy, the takes test the melee code: each should register what its label
 says, and the "no hit" ones nothing.
 
@@ -16,7 +16,7 @@ says, and the "no hit" ones nothing.
 
 ## Recording in the headset
 
-1. **Go to the firing range**: Advanced VR > Play > Firing Range (`map vrfiringrange`).
+1. **Go to the melee recording room**: Motion Recorder > Melee Recording Room, or Advanced VR > Play > Melee Recording Room (`map vrmelee-recording`). The firing range remains the sandbox.
 2. **Stand in front of the training dummy** as you would fight it. Where you stand and which way you face,
    relative to the dummy, is recorded every frame (and playback puts you there again), so a swing that reaches
    it in the take reaches it in the replay. Move as you like during a take: steps and the stick are recorded too.
@@ -48,7 +48,7 @@ that must do nothing: wiggles, weak or slow swings, reloading, aiming, walking w
 dummy. **Other** is for anything else: say what it is with `vr_motion_note "..."` in the console (it goes into
 every take's header until you clear it: `vr_motion_note ""`).
 
-**The dummy's attacks** (the Dummy Attacks button beside it) are off unless you turn them on, and off again at every
+**The dummy's attacks** (`vr_dummy_attacks 1`, or the existing Dummy Attacks setting) are off unless you turn them on, and off again at every
 map load. With them on, your takes can hold real parries and counters (a counter bash is a `parrybash`); the take
 says so (`dummy attacks: on`) and records each of its blows, and its replays have the dummy strike at the same
 moments. Takes that should not depend on the dummy (all the categories but Parry Bash and Other) are best recorded
@@ -312,8 +312,9 @@ expectations are written in these kinds), or change both.
 
 ## Playback (the mock headset)
 
-`vr_motion_play <take> [options]` plays a take in the mock headset (`vr_backend mock`), in a map already loaded
-(`map vrfiringrange`). `<take>` is a file name in `quakevr/motions`, a path relative to the game folder, or an
+`vr_motion_play <take> [options]` plays a take in the mock headset (`vr_backend mock`), loading
+`vrmelee-recording` automatically if needed. `map <name>` overrides the room for another fixture.
+`<take>` is a file name in `quakevr/motions`, a path relative to the game folder, or an
 absolute path (`.csv` optional).
 
 1. **Setup** (1.3 s of game time, holding the take's first pose): the settings that place the hands and the body are
@@ -348,7 +349,7 @@ at the same server time in the same state; two evaluations of the same takes wri
 run at `developer 0` (their thousands of "can't find" texture lines cost seconds), the takes at yours, and
 `host_maxfps` is raised to 1000 meanwhile (the game time is the takes' own either way): about 1.6 s a take.
 
-Options: `target <classname|#entity>` (another target), `yaw <degrees>` (the player's heading: another placement),
+Options: `map <name>` (another map), `target <classname|#entity>` (another target), `yaw <degrees>` (the player's heading: another placement),
 `rate <hz>` (the take resampled at another headset's frame rate: poses slerped, velocities interpolated, the server
 frames left to the engine; to check the melee at 72, 90, 120 or 144 Hz),
 `noplace` (where the player is), `watch` (the recorded pace), `save` (the replay as a take:
@@ -377,7 +378,7 @@ author's `ironwail.cfg`, or `exec` a file of its `vr_wofs_*`, `vr_2h_*`, `vr_lea
 
 `vr_motion_eval [<folder, pattern or take>] [options]` plays every take (by default all of `quakevr/motions`; a
 folder: its `.csv` takes; a pattern: `punch_*`, `no_hit_*`, in `motions/` or a folder), each in the map loaded
-afresh (`vrfiringrange`, or `map <name>`: the same start every time), judges each against
+afresh (`vrmelee-recording`, or `map <name>`: the same start every time), judges each against
 `quakevr/motions/expect.cfg`, and writes the table `motions/eval_<date>_<time>.csv` (or `out <file>`):
 
 | Column | |
@@ -405,13 +406,13 @@ evaluation that judges the takes as they are: not with `rate`, `recorded` or ano
 takes themselves are never written. The review (below) reads it.
 
 ```
-map vrfiringrange
+map vrmelee-recording
 vr_motion_eval                          // every take in quakevr/motions
 vr_motion_eval punch_*                  // one category
 vr_motion_eval C:/some/folder recorded  // a folder, with the melee settings as recorded
 ```
 
-From the agent kit: `bash <kit>/run.sh <agent> -Script "map vrfiringrange;wait60;vr_motion_eval <folder> quit" -Timeout 900 -Filter "eval:|PASS|FAIL"`.
+From the agent kit: `bash <kit>/run.sh <agent> -Script "map vrmelee-recording;wait60;vr_motion_eval <folder> quit" -Timeout 900 -Filter "eval:|PASS|FAIL"`.
 
 ### expect.cfg
 

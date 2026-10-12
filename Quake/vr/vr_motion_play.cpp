@@ -1258,7 +1258,7 @@ void stopPlayback(const char* why)
     }
     if(!sv.active || !svs.clients[0].active || !progs::bindings().isVrProgs || !hands::current().valid)
     {
-        Con_Printf("vr_motion_play: load a map first (map vrfiringrange)\n");
+        Con_Printf("vr_motion_play: load a map first (map vrmelee-recording)\n");
         return false;
     }
     // A take whose player is moving as it starts (walking into place with the stick, pushed back by the last
@@ -1338,13 +1338,13 @@ void stopPlayback(const char* why)
     return true;
 }
 
-// vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] [save] [recorded] [quiet]
+// vr_motion_play <take> [map <name>] [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] [save] [recorded] [quiet]
 // vr_motion_play stop
 void play_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("usage: vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] "
+        Con_Printf("usage: vr_motion_play <take> [map <name>] [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] "
                    "[save] [recorded] [quiet]; vr_motion_play stop\n");
         return;
     }
@@ -1354,10 +1354,15 @@ void play_f()
         return;
     }
     Options o;
+    za::String playMap = "vrmelee-recording";
     for(int i = 2; i < Cmd_Argc(); i++)
     {
         const char* a = Cmd_Argv(i);
-        if(!q_strcasecmp(a, "target") && i + 1 < Cmd_Argc())
+        if(!q_strcasecmp(a, "map") && i + 1 < Cmd_Argc())
+        {
+            playMap = Cmd_Argv(++i);
+        }
+        else if(!q_strcasecmp(a, "target") && i + 1 < Cmd_Argc())
         {
             o.target = Cmd_Argv(++i);
         }
@@ -1410,6 +1415,25 @@ void play_f()
     if(path.empty())
     {
         Con_Printf("vr_motion_play: no take \"%s\" (in motions/, the game folder, or a path)\n", Cmd_Argv(1));
+        return;
+    }
+    const Backend* be = backend();
+    if(be && strcmp(be->name(), "mock") == 0 && (!sv.active || q_strcasecmp(cl.mapname, playMap.cStr()) != 0))
+    {
+        if(!COM_FileExists(va("maps/%s.bsp", playMap.cStr()), nullptr))
+        {
+            Con_Printf("vr_motion_play: cannot find map %s\n", playMap.cStr());
+            return;
+        }
+        // Direct replay and Review Takes use the same room as evaluation. The take's placement
+        // remains relative to its target; its header and hand settings are left intact.
+        za::String script = "map " + playMap + '\n';
+        for(int i = 0; i < 60; i++)
+        {
+            script += "wait\n";
+        }
+        script += za::String{Cmd_Argv(0)} + " " + Cmd_Args() + '\n';
+        Cbuf_InsertText(script.cStr());
         return;
     }
     (void)startPlayback(path, o);
@@ -2088,7 +2112,7 @@ enum class Eval
 Eval evalState = Eval::Idle;
 za::Vector<za::String> evalFiles;
 size_t evalIndex = 0;
-za::String evalMap = "vrfiringrange";
+za::String evalMap = "vrmelee-recording";
 za::String evalOut;
 Options evalOpts;
 int evalWait = 0;
@@ -2267,8 +2291,8 @@ void writeResults()
     Con_Printf("vr_motion_eval: the table is %s\n", f ? path.cStr() : "(could not be written)");
 
     // Each take's verdict next to it (eval_status.csv: what Review Takes lists), from an evaluation as the takes are
-    // judged: the current melee settings, the takes' own rate, the firing range.
-    if(evalOpts.rate > 0.f || evalOpts.recorded || q_strcasecmp(evalMap.cStr(), "vrfiringrange") != 0)
+    // judged: the current melee settings, the takes' own rate, the melee recording room.
+    if(evalOpts.rate > 0.f || evalOpts.recorded || q_strcasecmp(evalMap.cStr(), "vrmelee-recording") != 0)
     {
         Con_Printf("vr_motion_eval: (not the takes' verdicts: rate, recorded or another map; eval_status.csv unchanged)\n");
     }
@@ -2442,7 +2466,7 @@ void eval_f()
     evalOpts = Options{};
     evalProgress.clear();
     evalOpts.quiet = true;
-    evalMap = "vrfiringrange";
+    evalMap = "vrmelee-recording";
     evalOut.clear();
     evalQuit = false;
     for(int i = 1; i < Cmd_Argc(); i++)
