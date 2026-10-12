@@ -341,8 +341,8 @@ void() AD_PlayerPreThink =
     {
         return;
     }
-    // AD support: no keyboard ladder gravity lock or upward boost in VR.
-    if(VRHandsTracked(self))
+    // AD support: no keyboard ladder gravity lock or upward boost while VR hands climb the ladder (VR_AD_LadderManual).
+    if(VR_AD_LadderManual(self))
     {
         self.ad_onladder = ad_LADDER_NONE;
         if(self.vr_ad_laddergravity) self.gravity = self.vr_ad_laddergravity;

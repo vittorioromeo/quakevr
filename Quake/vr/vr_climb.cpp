@@ -749,9 +749,44 @@ struct Box
     return false;
 }
 
+// AD support: how far above and under the hand, and how deep into the ladder from it, a ladder's rungs count as within
+// reach (rungNear), in units.
+constexpr float ladderRungReach = 24.f;
+constexpr float ladderRungDepth = 32.f;
+
+// AD support: whether a ladder has a real rung within reach of the hand: a walkable solid top, at least `lowest` high,
+// in the columns from `at` (the hand's probe) up to ladderRungDepth further into the ladder (along -`out`), from
+// ladderRungReach above the hand to as far under it. Short segments, so a column that starts in the wall still finds the
+// tops under it.
+[[nodiscard]] bool rungNear(edict_t* player, const glm::vec3& at, const glm::vec3& out, float lowest)
+{
+    constexpr float step = 8.f;
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    for(float depth = 0.f; depth <= ladderRungDepth; depth += step)
+    {
+        const glm::vec3 column = at - out * depth;
+        for(float dz = ladderRungReach; dz > -ladderRungReach; dz -= step)
+        {
+            const trace_t tr = traceLine(column + up * (dz + 0.5f), column + up * (dz - step), player);
+            if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f || tr.plane.normal[2] < ledges::minTopNormal)
+            {
+                continue;
+            }
+            if(tr.endpos[2] >= lowest)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 // AD support: closely spaced rungs can fail the general ledge's 32-unit drop rule. A ladder may
-// relax that drop only: its hold must still be on an actual walkable solid top within hand-touch distance.
-[[nodiscard]] za::Optional<Ledge> ladderHold(edict_t* player, const glm::vec3& hand)
+// relax that drop only: its hold must still be on an actual walkable solid top within hand-touch distance. A ladder with
+// no real rung within reach of the hand (rungNear: a flat ladder-textured wall, or rungs farther apart than a reach) is
+// held anywhere in its volume (or within the touch distance of it), facing the body, so no ladder is left unclimbable.
+// `lowest`: the lowest a rung may be (the feet plus Lowest Ledge).
+[[nodiscard]] za::Optional<Ledge> ladderHold(edict_t* player, const glm::vec3& hand, float lowest)
 {
     const int ofs = progs::fields().vr_climb_ladder;
     if(ofs < 0 || vr_climb_ladders.value == 0.f) { return za::nullOpt; }
@@ -771,10 +806,24 @@ struct Box
         // Probe just inside the rung, not the trigger's broad box or a guessed rung spacing.
         const glm::vec3 at = hand - out * (holdInset + k.front);
         const trace_t tr = traceLine(at + up * (k.over + 0.125f), at - up * k.sink, player);
-        if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f || tr.plane.normal[2] < ledges::minTopNormal) { continue; }
+        const bool onTop = !tr.startsolid && !tr.allsolid && tr.fraction < 1.f && tr.plane.normal[2] >= ledges::minTopNormal;
         const glm::vec3 top = vec(tr.endpos);
-        const trace_t reach = traceLine(hand + up * (k.over + 0.125f), top + up * 0.125f, player);
-        if(reach.startsolid || reach.fraction < 1.f) { continue; }
+        const bool reached = onTop && [&] {
+            const trace_t reach = traceLine(hand + up * (k.over + 0.125f), top + up * 0.125f, player);
+            return !reach.startsolid && reach.fraction >= 1.f;
+        }();
+        if(!reached)
+        {
+            if(rungNear(player, at, out, lowest))
+            {
+                continue; // a real rung within reach: the hand must take that
+            }
+            Ledge l;
+            l.top = hand.z;
+            l.out = out;
+            l.hold = hand;
+            return za::Optional<Ledge>{l};
+        }
         Ledge l;
         l.top = top.z;
         l.out = out;
@@ -831,7 +880,7 @@ struct Box
             return finish(c);
         }
     }
-    if(const za::Optional<Ledge> rung = ladderHold(player, hand)) { return rung; } // AD support: actual solid only
+    if(const za::Optional<Ledge> rung = ladderHold(player, hand, lowest)) { return rung; } // AD support: actual solid only
     if(radius <= 0.f)
     {
         return finish(nullptr);

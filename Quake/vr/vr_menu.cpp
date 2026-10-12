@@ -3697,8 +3697,9 @@ void hologramTestMessage()
                   "cinematic cameras' fades to black always play (Graphics' colour shift settings apply to all)."),
         toggle("Hand-Climbed Ladders", vr_climb_ladders)
             .help("Arcane Dimensions' ladders climbed with your hands, as ledges (Hand Climbing on): grip an actual "
-                  "rung, pull yourself up hand over hand, mantle at its top. VR hands disable keyboard ladder "
-                  "movement and jump climbing."),
+                  "rung, pull yourself up hand over hand, mantle at its top; a ladder with no rung within reach (a flat "
+                  "ladder wall) is held anywhere on it. While hands climb ladders, keyboard ladder movement and jump "
+                  "climbing are off; with this or Hand Climbing off, ladders climb Arcane Dimensions' way (hold jump)."),
         cycle("Additional Content", vr_ad_everywhere, {{0.f, "AD Maps Only"}, {1.f, "Everywhere"}})
             .help("Arcane Dimensions' monsters, new artifacts, custom keys, health vials and gems, custom items and ladders in any "
                   "map that places them (custom maps, the toolgun), while its data is installed. AD Maps Only: only in its own "

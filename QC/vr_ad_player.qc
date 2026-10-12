@@ -328,5 +328,9 @@ void(float s) VR_AD_SetSkill =
     cvar_set("scratch4", s >= ad_SKILL_EVIL ? "1" : "0");
 };
 
-// AD support: tracked hands bypass both keyboard ladder systems.
-float(entity p) VR_AD_LadderManual = { return VRHandsTracked(p); };
+// AD support: tracked hands bypass both keyboard ladder systems only while they can climb the ladder themselves (Hand
+// Climbing and Hand-Climbed Ladders both on); otherwise AD's own jump/velocity climb keeps every ladder climbable.
+float(entity p) VR_AD_LadderManual =
+{
+    return VRHandsTracked(p) && cvar("vr_climb") && cvar("vr_climb_ladders");
+};
