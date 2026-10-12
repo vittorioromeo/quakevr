@@ -172,6 +172,15 @@ is not headset pacing evidence. `-noconfigwrite` prevented game config writes,
 and the process was closed after the check. Logs are in the private
 `performance-results/ultra-profile-launch-smoke-frame-20261012` directory.
 
+A second diagnostic launch loaded E1M1 and repeatedly recorded
+`FRAME_LAYERS projection=1 stereo_views=2 quad=0 total=1 held=0` after its
+startup quad, verifying fresh stereo projection frames from the installed
+Ultra binary. `FRAME_HAND` selected
+`/interaction_profiles/valve/frame_controller_valve` for both sides, while
+`pose_action_active=0` and `valid=0` because the controllers were disconnected.
+This demonstrates that SteamVR exposes the Frame profile to the app; it cannot
+verify actual controller poses or button delivery without a wearer.
+
 For a repeatable no-wearer check, keep the probe config in a scratch install.
 It should set `vr_backend openxr`, enable VR, load a map, wait for several
 seconds, and then quit. Do not add `-vrmock`. Start it in one Frame shell:

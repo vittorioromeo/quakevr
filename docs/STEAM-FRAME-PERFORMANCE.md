@@ -358,6 +358,15 @@ process was alive, SteamVR reported the scene key
 scene/compositor-focus PIDs. This confirms the installed Ultra launch path
 starts as an OpenXR scene app and loads the intended profile values.
 
+A second diagnostic launch added `-qvr-frame-diagnostics` and loaded E1M1.
+After the startup panel's initial quad, the installed build repeatedly logged
+`FRAME_LAYERS projection=1 stereo_views=2 quad=0 total=1 held=0`, confirming
+fresh stereo projection submission. It selected the Frame controller profile
+`/interaction_profiles/valve/frame_controller_valve`, but both hand pose
+actions were inactive and invalid. Together with disconnected controllers,
+this confirms the runtime/profile path is recognized without proving usable
+controller tracking or input.
+
 There was no wearer: the user-presence sensor reported absent, the HMD pose was
 invalid, and both controllers were disconnected. The session log showed
 unpaced periods around 6.2 ms (about 160 frames/s) under the unfocused-render
