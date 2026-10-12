@@ -1881,6 +1881,7 @@ extern "C" void VR_Init()
     registerCvars();
     VR_RegisterPackStatus();
     VR_RegisterContinue();
+    VR_FileCacheRegisterCommands();
     jobs::registerCommands();
     animsmooth::registerCommands();
     hitreact::registerCommands();

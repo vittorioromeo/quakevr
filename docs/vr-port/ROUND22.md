@@ -4385,3 +4385,55 @@ For VR: from a settings page, laser Quicksave, reopen the menu, then select Quic
 is remembered after saving and Main opens after loading. Check the dim saving action after dying. On the smallest
 panel, check targeting and separation from Recording. Files to delete when finished: ignored shortcut test script,
 `scratch/menu_shortcuts.png`, test screenshots and `quakevr/quick.sav` (plus its addon sidecar, if present).
+
+## CPU profile follow-ups: throw estimate, liquid volume, file listings, prop sizes (worktree `perfopt`, 2026-10-12)
+
+From his VTune hotspots run of 2026-10-12 (`qvr_flat/r000hs`, flat screen, a save loaded). Same results, less work. No
+new cvars or defaults.
+
+- **Throw estimate** (`vr_throw.cpp`; 2.3% of the run's CPU, the main thread): `buildMove` asks for an estimate each frame
+  and hand while it isn't gripping and hasn't let go yet, which is always on a flat screen. `localFit` (about 250 fits an
+  estimate) found each Gauss point's sample by a binary search (`Track::after`). It now steps from the piece's own sample
+  (`Track::afterNear`): the same index, since a history's sample times only increase (`push`). The spin track keeps the
+  search, as each sample's spin lag is its own. `withOwnAim` ran `releasePeak` again on the controller's own history,
+  which outside slow motion holds the very same samples: `sameSamples` (a `memcmp`) then reuses the hand's estimate.
+  Checked with a temporary build that ran both paths: over a million fits over `throw_slowmo_test.sh`'s four throws at full
+  speed, in bullet time, and made slowly with `vr_throw_spin_from_pose 1`, bit-identical. The reuse was identical too.
+  The fits took 25 ms where they took 33, and half of them are gone outside slow motion. The `throw main:` lines match
+  the build before, at full speed and in bullet time.
+- **Liquid volume** (`vr_water.cpp` `buildVolume`; 2.5%, every map load): up to 4M cells each ran `Mod_PointInLeaf`.
+  `VolumeFill::fill` now sends boxes of cells down the BSP tree: a box all of whose centres lie on one side of a node's
+  plane goes to that side, and a leaf fills its whole box. A box the plane may cut is halved; a single cell takes
+  `Mod_PointInLeaf` itself. The plane test is done in double over the box's corner centres, with a margin of 1e-5 of the
+  terms (the float test's rounding is a few 2^-24), so the cells are the same. Texel hashes (developer 1) were identical
+  over 19 maps (e1m1-e4m5, start, dm3: 17 volumes). On one thread (`vr_jobs_parallel 0`) the first took 14.5 ms
+  instead of 82.9, the largest 32 ms instead of 176, and the 17 together 198 ms instead of 946.
+- **File listings while loading** (`vr_fscache.cpp`): every file written through the engine forgot every listing. The
+  texture caches written in the background while a map loads had the main thread list the same directories again and
+  again (`FindNextFileW`, `GetFileAttributesW` in the profile). Now `Sys_fopen` for writing, `Sys_remove`,
+  `Sys_ReplaceFile` and `Sys_rename` forget only the file's directory (`VR_FileCacheForgetFile`, `VR_FileCacheForgetMoved`
+  for both ends of a move), and only after the change, so a lookup between can't list the directory without it. That
+  directory is known by its identity (volume serial and file index on Windows, device and inode elsewhere), not its
+  name, so another spelling of it (relative, `.`, backslashes, case, the game folder's `quakevr` junction) is the same.
+  A listing of a directory that wasn't there goes with any forget. Every listing still goes when that can't be told: the
+  directory can't be opened, a directory is moved (`to` not a file), made (`Sys_mkdir`) or removed
+  (`qvr::files::remove`/`removeAll` now forget too: one made again by the same name is another directory), and the map
+  installer's and relighting's bulk calls. Other threads queue their directories for the main thread's next lookup.
+  `vr_fscache_test [the game directory by another name]` (19 checks; the kit's run passes the worktree's `quakevr`, the
+  game folder's junction target): a file written by another spelling, through the junction, removed, moved, in a
+  directory made for it, on another thread, a directory moved, and another directory's listing kept. All pass. With the
+  forget left out, 5 fail.
+- **Prop sizes** (`vr_props.cpp` `ownScale`; 0.5%): Quake's grenades and the rocket in flight were told by four `strcmp`s
+  on each `size()` / `drawnSize()`, many times a frame for every entity drawn or touched. A slot's kind is now kept per
+  slot (`slotOwn`: found once the settings are registered and again with `slotCache` whenever a `vr_prop_id_NN` changes,
+  as `Cvar_SetQuick` calls `onChanged` on every change; only read in between). A model without a slot is told by `modelmeta`'s identity (new `Id::Missile`; the grenades' ids were there),
+  kept per model and emptied at a map change, a game directory change (after `Mod_ResetAll`, the only place a model slot
+  takes another name) and a model reload. `Mod_FindName` never makes two models of one name. Every model drawn has its
+  slot in `mod_known` (the ragdolls' `#rag` copies too), and `drawnSize` was already main-thread only (`slotForModel`'s
+  caches), as `modelmeta` is. Checked with temporary builds comparing every call with the by-name answer: over 140,000 slot
+  and 1.4M model calls across slot ID changes, `resetall`, e1m1, r1m1 and hip1m1 (game directory switches), identical;
+  each of the four models loaded in each game gave the same kind both ways.
+  `vr_modelmetadata_test` stops at "legacy path predicate" with or without this change (it fails on the build before too).
+
+For VR: nothing should look or feel different. Throws, the caustics under water, and the grenade and rocket sizes should
+all be as before.

@@ -137,7 +137,10 @@ void VR_TimeFrameEnd (int signedon, int idle);	// end of _Host_Frame: the first 
 // The loose files' presence while the game starts and a map loads (vr_fscache.cpp; COM_FindFile, Sys_fopen).
 int VR_FileCacheHas (const char *path);	// 1 a file, 0 none, -1 not known (ask the file system)
 void VR_FileCacheEnable (int on);	// VR_TimeStart, VR_TimeLoadBegin on; the first frame drawn off
-void VR_FileCacheForget (void);	// a file written, a directory made
+void VR_FileCacheForget (void);	// every listing (a directory made, moved or removed; bulk work)
+void VR_FileCacheForgetFile (const char *path);	// a file made, written or removed (after it): its directory's listing
+void VR_FileCacheRegisterCommands (void);	// vr_fscache_test
+void VR_FileCacheForgetMoved (const char *from, const char *to);	// a file moved (after it): both directories' listings (a directory moved: every one)
 
 // The in-game relighting's line outside the menu on a flat screen (vr_relight.cpp; gl_screen.c SCR_DrawRelight): its text
 // ("RELIGHT 3/12 45% 2:10") and how far it is (0..1), or null when none runs, the wrist gadget shows it, or a menu does.
