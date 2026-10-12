@@ -322,6 +322,16 @@ untouched. At 0.18 each eye renders about 311x311 pixels before upscaling to
 release-ready improvement. See the detailed OpenXR measurements in
 [Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
 
+The Ultra preview config also sets `vr_particle_mult 0.5`. A separate same-
+build OpenXR A-B-B-A at scale 0.18 found 12.9% lower GPU-eye mean, 9.6% lower
+GPU-eye p99, and 55.8% lower VR-particle CPU phase than multiplier 1, with
+58.2% fewer average live particles and visibly sparser effects. Frame p99 still
+exceeded the 13.89 ms 72 Hz budget, and there was no wearer present, so this
+remains an optional experimental profile pending headset usability and combat
+validation. The standard and .25 preview profiles are unchanged. See the
+separate particle-multiplier A-B-B-A results in
+[Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
+
 ### Wearer regression checklist for the particle preview
 
 The performance-preview shortcut is a separate installation and starts at

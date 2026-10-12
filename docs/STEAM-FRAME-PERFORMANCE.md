@@ -318,3 +318,29 @@ not how sharp or comfortable it looks in the headset. The images are retained
 privately in `performance-results/openxr-ultra-eye-captures-frame-20261012`;
 raw JSON, runtime diagnostics and logs are in
 `performance-results/openxr-ultra-particles-abba-frame-20261012`.
+
+## OpenXR particle multiplier A-B-B-A for the Ultra profile
+
+To tune the optional 0.18 Ultra profile, I compared `vr_particle_mult 1` and
+`0.5` on the same candidate binary, map, render scale, retro-softness settings,
+and `particles_dense` fixture. Runs used 1728x1728 eye images, 72 Hz pacing,
+fixed seeds, 180 warm-up frames and 720 measured frames, in order 1, 0.5, 0.5,
+1. Every run submitted fresh two-eye projection layers (`held=0`) and yielded
+713 or 714 GPU samples. The Frame reported no wearer presence; head and hand
+actions were invalid, so this isolates rendering and simulation costs rather
+than validating headset interaction.
+
+| Particle multiplier | GPU-eye mean | GPU-eye p99 | Frame p99 | VR-particle GPU phase | VR-particle CPU phase | Average live VR particles |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1.0 | 9.403 ms | 10.848 ms | 17.718 ms | 3.046 ms | 0.893 ms | 15,546 |
+| 0.5 | 8.190 ms | 9.809 ms | 16.694 ms | 1.822 ms | 0.395 ms | 6,496 |
+
+At half density, GPU-eye mean was 12.9% lower and p99 9.6% lower; the VR-
+particle CPU phase was 55.8% lower. Average live particles fell by 58.2%, and
+the paired eye captures visibly show fewer effects. The frame p99 remained
+above the 13.89 ms 72 Hz budget for both settings, so this does not demonstrate
+sustained 72 fps. Based on this measured tradeoff, the separate Ultra preview
+sets `vr_particle_mult 0.5`; the regular install and the .25 preview are
+unchanged. Wearer acceptance and representative combat performance still need
+validation. Raw runs and left/right eye captures are retained privately in
+`performance-results/openxr-ultra-particlemult-abba-frame-20261012`.
