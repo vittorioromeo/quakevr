@@ -171,6 +171,7 @@ float(entity inflictor, entity attacker, float isVRMelee) AD_AmmoOf =
 // Whether `targ` resists by AD's rules here: in an AD map, anything with the keys; elsewhere AD's own entities.
 float(entity targ) AD_Resists =
 {
+    if(!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return FALSE;
     if(!targ.ad_resist_shells && !targ.ad_resist_nails && !targ.ad_resist_rockets && !targ.ad_resist_cells)
     {
         return FALSE;

@@ -17,7 +17,7 @@
     const int i = adSpawnIndex(choice);
     if(i < 0) { return item; }
     return toolgun::spawnableAvailable(i) ? item : item.unavailableBecause(
-        "Needs Arcane Dimensions data installed and enabled. Weapon upgrades require an AD map.");
+        "Needs Arcane Dimensions data installed and enabled. Weapon upgrades follow Advanced VR Options > Arcane Dimensions > Weapon Upgrades; choose Everywhere to spawn them in other maps.");
 }
 
 [[nodiscard]] Item adSpawnChoices(Item item)

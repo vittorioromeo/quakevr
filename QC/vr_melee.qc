@@ -8,7 +8,9 @@
 //
 // A HIT is a point sweeping into something while the ARM drives it: the grip's speed, relative to the head (walking and
 // turning are not the hand's motion), at least vr_melee_speed (a weapon's swing VR_MELEE_ARM times that), having come
-// VR_MELEE_RUN towards where it goes (a blow, not a wiggle). The direction doesn't matter. What kind of blow it is follows
+// VR_MELEE_RUN towards where it goes (a blow, not a wiggle; a slow swing from further, VR_MELEE_SLOW_*) and carrying the
+// hand (the wrist's speed). Any direction but back towards the hand (VR_MELEE_PULLBACK: drawn back); what a hand struck
+// it strikes again only entering it (a retraction still in it strikes nothing). What kind of blow it is follows
 // from which part hit and how it moved (VR_Melee_Decide): a stab or jab (the far end moving along the line, outwards), a
 // slash or chop or gun swing (the far end any other way), a pommel or butt strike (the near end), a punch (a closed
 // fist). Of a blade's points in the thing, the outermost strikes. The pommel's touch waits a moment for the blade
@@ -48,6 +50,25 @@ float VR_MELEE_GUN_BUTT = 1.3;     // a gun's butt strike: its grip at least thi
                                    // author's butt strikes drive the grip 5.7-9 m/s, a gun wiggled at the dummy 4.8)
 float VR_MELEE_RUN = 0.2;          // m the grip came towards where it goes now, within VR_MELEE_RUN_TIME: a blow, not a wave or a
                                    // wiggle (the author's punches come 0.22-0.8 m, his fists waved fast at the dummy 0.05-0.2)
+float VR_MELEE_SLOW_FROM = 2;      // a weapon's swing under this many times the speed it lands at
+float VR_MELEE_SLOW_RUN = 0.4;     // must have come up to this much further (m; all of it at the least speed, none from
+                                   // VR_MELEE_SLOW_FROM): a slow swing is a blow when it comes from far, not a wave or a
+                                   // wiggle reaching the dummy (2026-10-12 takes: his "no hit" axe and sword swings went 1-1.6
+                                   // times their least speed and came 0.22-0.51 m; his slowest cuts, 1.27-1.43 times it,
+                                   // came 0.66-0.86 m, his cuts of 0.42-0.55 m went 2-2.6 times it)
+float VR_MELEE_PULLBACK = -0.35;   // cosine: a blade, head or fist whose far end goes back along the line towards the hand
+                                   // (within 70 degrees: a weapon drawn back after a blow, a fist pulled in) strikes nothing
+                                   // (2026-10-12 "no hit" takes: their swords, axes and fists pulled back hit at -0.4 to
+                                   // -1; his cuts, chops, punches and slaps go -0.26 to 1)
+float VR_MELEE_WRIST_SWING = 2.3;  // a sword's, axe's or club's swing: its wrist speed, times vr_melee_wrist_speed (the arm
+                                   // swings it: his cuts and chops carry the wrist 3-7.6 m/s, his "no hit" waves and wiggles
+                                   // 1.3-2.8, mostly under 2.2; not a stab: his two-handed thrusts 1.7-2.3)
+float VR_MELEE_WRIST_POMMEL = 2.5; // a pommel (butt, handle's end) strike's wrist speed, times vr_melee_wrist_speed: as a
+                                   // punch, the hand carries it at the thing (his pommel strikes 4.6-5.6 m/s, his axe and
+                                   // sword waved at the dummy flicked their near ends round with the wrist at 1.3-2)
+float VR_MELEE_POMMEL_RUN = 0.35;  // m a sword's or axe's pommel (handle's end) came, as VR_MELEE_RUN (his pommel strikes
+                                   // 0.52-0.76, the earlier ones 0.36 and more; a "no hit" axe waved 0.29); a gun's butt:
+                                   // vr_melee_butt_run
 float VR_MELEE_RELOAD_DOWN = 0.8;  // a gun whose grip went down this steeply (sine) or more over VR_MELEE_RELOAD_TIME,
 float VR_MELEE_RELOAD_FROM = 0.1;  // from no higher than this over the eyes (m; aim or torso level, not an overhead chop),
 float VR_MELEE_RELOAD_TIME = 0.15; // is taken down to a holster to reload: no blow (the author's fast reloads went 0.5-0.7 m
@@ -201,6 +222,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .float mh_curve;       // its strength's rise over the speed needed, times this (VR_Weight_MeleeCurve)
 .float mh_whooshed;    // a whoosh played for this motion (until it slows)
 .float mh_overland;    // frames in a row the grip was as fast as a blow lands (VR_Melee_Whoosh: a slap's whoosh)
+.entity mh_struck;     // the last thing a blow of the hand landed on, kept past the re-arm: struck again only entering it
 .entity mh_hit_ent;    // the last thing struck (world: none, or a bash or a held gib spent the motion),
 .vector mh_hit_dir;    // the struck part's way then (play space),
 .float mh_hit_time;    // when
@@ -1208,16 +1230,53 @@ float(entity b) VR_Melee_Reloading =
     return -moved_z >= VR_MELEE_RELOAD_DOWN * vlen(moved);
 };
 
-// Whether the hand itself moved as a blow's does (vr_melee_wrist_speed; a punch VR_MELEE_WRIST_PUNCH times that), not
-// only turned.
-float(entity b) VR_Melee_WristMoved =
+// How a weapon's blow is struck, for VR_Melee_WristMoved and VR_Melee_CameFar: a swing of a sword, an axe or a club (not a
+// gun's: its own numbers, VR_MELEE_GUN_*), a pommel strike (the near end), anything else.
+float VR_MHOW_OTHER = 0;
+float VR_MHOW_SWING = 1;
+float VR_MHOW_POMMEL = 2;
+
+// Whether the hand itself moved as a blow's does (vr_melee_wrist_speed; a punch VR_MELEE_WRIST_PUNCH times that, a swing
+// VR_MELEE_WRIST_SWING, a pommel strike VR_MELEE_WRIST_POMMEL: `xHow`, VR_MHOW_*), not only turned.
+float(entity b, float xHow) VR_Melee_WristMoved =
 {
     float need = cvar_hget(cvarh_vr_melee_wrist_speed) * (b.mh_lenient > 0 ? b.mh_lenient : 1);
     if(b.mh_thing == VR_MTHING_FIST)
     {
         need = need * VR_MELEE_WRIST_PUNCH;
     }
+    else if(xHow == VR_MHOW_SWING)
+    {
+        need = need * VR_MELEE_WRIST_SWING;
+    }
+    else if(xHow == VR_MHOW_POMMEL)
+    {
+        need = need * VR_MELEE_WRIST_POMMEL;
+    }
     return meleewristspeed(b) >= need;
+};
+
+// Whether `b`'s motion came from far enough to be a blow (VR_MELEE_RUN): a swing (`xHow`, VR_MHOW_*) at `xOver` times the
+// speed it lands at, the further the slower (VR_MELEE_SLOW_*); a pommel strike VR_MELEE_POMMEL_RUN.
+float(entity b, float xHow, float xOver) VR_Melee_CameFar =
+{
+    float need = VR_MELEE_RUN;
+    if(xHow == VR_MHOW_SWING)
+    {
+        need = need + VR_MELEE_SLOW_RUN * min(1, max(0, (VR_MELEE_SLOW_FROM - xOver) / (VR_MELEE_SLOW_FROM - 1)));
+    }
+    else if(xHow == VR_MHOW_POMMEL)
+    {
+        need = max(need, VR_MELEE_POMMEL_RUN);
+    }
+    return meleerun(b, TRUE) >= need;
+};
+
+// Whether `b`'s far end goes back along the line towards the hand (VR_MELEE_PULLBACK): drawn back, not struck with.
+float(entity b) VR_Melee_PulledBack =
+{
+    float vfar = vlen(b.mh_vfar);
+    return vfar > 0 && (b.mh_vfar * normalize(b.mh_rfar - b.mh_rgrip)) / vfar <= VR_MELEE_PULLBACK;
 };
 
 // The weight of a pommel (butt) strike with `xThing`.
@@ -1355,13 +1414,34 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     {
         return FALSE;
     }
-    // A blow, not a wiggle: the arm came from some way off.
-    if(meleerun(b, TRUE) < VR_MELEE_RUN)
+    float how = VR_MHOW_OTHER;
+    if(b.mh_thing != VR_MTHING_GUN && b.mh_thing != VR_MTHING_FIST)
+    {
+        if(xKind == VR_MPT_EDGE && kind != VR_MKIND_STAB)
+        {
+            how = VR_MHOW_SWING;
+        }
+        else if(xKind == VR_MPT_NEAR)
+        {
+            how = VR_MHOW_POMMEL;
+        }
+    }
+    // Not drawn back: a blade, a head or a fist going back towards the hand (after a blow, still touching).
+    if((xKind == VR_MPT_EDGE || xKind == VR_MPT_FIST) && VR_Melee_PulledBack(b))
+    {
+        if(cvar("developer") >= 2)
+        {
+            dprint("melee debug: pulled back, no blow\n");
+        }
+        return FALSE;
+    }
+    // A blow, not a wiggle: the arm came from some way off (a slow swing from further).
+    if(!VR_Melee_CameFar(b, how, speed / (need * land)))
     {
         return FALSE;
     }
     // And the hand itself moved, not only turned in place (a wiggle flicks the grip and the tip fast).
-    if(!VR_Melee_WristMoved(b))
+    if(!VR_Melee_WristMoved(b, how))
     {
         return FALSE;
     }
@@ -1487,6 +1567,22 @@ float(entity e) VR_Melee_BoxTarget =
             (!VR_SmallGib_BlowSpared(e) || VR_SmallGib_BlowBursts(e)));
 };
 
+// Whether a point swept from `xP0` to `xP1` (`xR` thick) starts in `e` (a box target: its model, vr_hit_precise, else its
+// box, as VR_Melee_Sweep's boxes measure it): it doesn't enter it.
+float(entity e, vector xP0, vector xP1, float xR) VR_Melee_StartsIn =
+{
+    if(!VR_Melee_BoxTarget(e))
+    {
+        return FALSE;
+    }
+    if(hitmodel_target(e))
+    {
+        return hitmodel_segment(e, xP0, xP1, xR, HITCLASS_MELEE) == 0;
+    }
+    vector pad = '1 1 1' * xR;
+    return VR_SegmentBox(xP0, xP1, e.origin + e.mins - pad, e.origin + e.maxs + pad) == 0;
+};
+
 float(float xHand, entity b) VR_Melee_Sweep =
 {
     float n = b.mh_n;
@@ -1555,9 +1651,9 @@ float(float xHand, entity b) VR_Melee_Sweep =
             {
                 b.mh_hit_touch = VR_PlayerTime();
             }
-            if(vr_mpt_kind[i] == VR_MPT_GRIP)
+            if(vr_mpt_kind[i] == VR_MPT_GRIP || (trace_ent == b.mh_struck && VR_Melee_StartsIn(trace_ent, p0, p1, r)))
             {
-                continue;
+                continue; // (a blow enters what it strikes: below)
             }
             if(striker && trace_fraction < edgeT && VR_Melee_Armed(xHand, b, trace_ent))
             {
@@ -1634,6 +1730,18 @@ float(float xHand, entity b) VR_Melee_Sweep =
                     if(!armed)
                     {
                         break;
+                    }
+                    continue;
+                }
+                // A blow strikes again what it struck only entering it: a point whose sweep starts in it (a fist or a
+                // blade still in the thing after a blow, drawn back or turned about in it: his note 2026-10-12, a
+                // retraction striking again) strikes nothing; its sweep from outside, even through it in one frame,
+                // does. (Not a first blow's: his punches and thrusts start their last frame within a point's reach.)
+                if(t <= 0 && e == b.mh_struck)
+                {
+                    if(e == b.mh_hit_ent)
+                    {
+                        b.mh_hit_touch = VR_PlayerTime();
                     }
                     continue;
                 }
@@ -1942,7 +2050,16 @@ void(float xHand, entity b) VR_Melee_Whoosh =
         }
         slap = TRUE;
     }
-    if(meleerun(b, TRUE) < VR_MELEE_RUN || !VR_Melee_WristMoved(b) || VR_Melee_Wiggled(b) || VR_Melee_Reloading(b))
+    // (As a blow's: VR_Melee_Decide. A weapon's far end going out along the line is a stab's: no slow swing's run-up.)
+    float how = VR_MHOW_OTHER;
+    if(b.mh_thing != VR_MTHING_FIST && b.mh_thing != VR_MTHING_GUN && vlen(b.mh_vfar) > 0 &&
+       (b.mh_vfar * normalize(b.mh_rfar - b.mh_rgrip)) / vlen(b.mh_vfar) < VR_MELEE_STAB_ALONG)
+    {
+        how = VR_MHOW_SWING;
+    }
+    if(!VR_Melee_CameFar(b, how, vlen(b.mh_vgrip) / VR_Melee_LandNeed(xHand, b, b.mh_vgrip)) ||
+       VR_Melee_PulledBack(b) ||
+       !VR_Melee_WristMoved(b, how) || VR_Melee_Wiggled(b) || VR_Melee_Reloading(b))
     {
         return;
     }
@@ -3128,6 +3245,7 @@ void(float xHand) VR_Melee_Landed =
     VR_Stealth_Noise(self.origin, 200 * b.mh_strength * (1 + max(0, VR_Weight_HeldMass(self, xHand)) / 3) *
         cvar_hget(cvarh_vr_stealth_noise_melee), self, STL_N_MELEE);
     b.mh_hit_ent = b.mh_c_ent;
+    b.mh_struck = b.mh_c_ent;
     b.mh_hit_time = VR_PlayerTime();
     b.mh_hit_touch = VR_PlayerTime();
     vector v = b.mh_vfar;

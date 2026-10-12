@@ -1532,6 +1532,8 @@ void(string xModelNameSmall, string xModelNameBig,
      float xAmmoId, vector xSize)
 impl_item_ammo_pickup =
 {
+    xModelNameSmall = AD_AmmoModel(xAmmoId, FALSE, xModelNameSmall); // AD support: appearance only, VR pickup remains owner
+    xModelNameBig = AD_AmmoModel(xAmmoId, TRUE, xModelNameBig); // AD support
     if(!VR_Pack_AmmoAvailable(xAmmoId) || !fileexists(xModelNameSmall) || !fileexists(xModelNameBig))
     {
         remove(self);
@@ -1558,6 +1560,14 @@ impl_item_ammo_pickup =
     self.classname = VR_AmmoUtil_AmmoIdToItemName(xAmmoId);
 
     setsize(self, '0 0 0', xSize);
+    if(self.model != "" && substring(self.model, 0, 11) == "progs/ammo_") // AD support: MDL boxes are centred; BSP boxes use a corner origin
+    {
+        vector lo = modelbounds(self, FALSE); // AD support: cache vector builtin results separately
+        vector hi = modelbounds(self, TRUE); // AD support
+        setsize(self, lo, hi); // AD support
+        if(!AD_Rules()) setorigin(self, self.origin + xSize * 0.5); // AD support: retain the original box's placement in ordinary maps
+        self.frame = max(0, self.ad_frame_box); // AD support: map's ammo box frame
+    }
     if(deathmatch) { self.wait = 30; }
     StartItem();
 

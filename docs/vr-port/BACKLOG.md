@@ -206,3 +206,9 @@ TODO: linux support
   keep >=32 switched/scripted styles separate from the built-in animated styles in any such option.
 - **Hidden mock blank readback:** some isolated eye/window captures are entirely black even with flat lightstyles;
   investigate capture/target validity separately if needed. This is not evidence of the reported lamp flicker.
+### Native AD inventory and interface (author, 2026-10-12 11:27:41)
+
+Audit every AD-specific inventory item and mechanic for a usable native VR interface: artifacts and timers,
+custom keys, weapon upgrades, book/interaction panels and campaign inventory changes. Verify the wrist gadget
+shows current ownership, effects and expiry, including mixed AD content in ordinary maps. The Advanced VR
+Options > Arcane Dimensions page provides tweak/scoping controls; it does not complete this inventory/UI audit.

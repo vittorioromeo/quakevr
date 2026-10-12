@@ -13,7 +13,7 @@ namespace qvr::ad
 // AD's small player pellets use MOVETYPE_FLY and still need model/corpse impacts.
 [[nodiscard]] bool precisePellet(const edict_s* ent);
 
-// Spawn menus: AD data mounted, the requested model present, and any required AD rules active.
+// Spawn menus: AD data mounted, model present, content scope; rulesOnly marks weapon upgrade scope.
 [[nodiscard]] bool spawnAvailable(const char* model, bool rulesOnly = false);
 
 // The campaign table's index of Arcane Dimensions (vr_gamedir.cpp campaigns[]).

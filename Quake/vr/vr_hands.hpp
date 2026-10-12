@@ -168,6 +168,9 @@ void setPlaySpaceYaw(float yaw);
 
 // A new map (VR_OnClientClearState): what follows the client's time (cl.time starts over) begins afresh.
 void resetClientState();
+// Motion playback (vr_motion_play.cpp): a take starts afresh, as in a new game, whatever played before: the head's last
+// position (not a step into this take), the lean, the torso and the hands' velocities.
+void resetForPlayback();
 // vr_recenter (VR Settings' Reset Position): the body back under the head now (after a lean, or steps the body couldn't
 // follow), where its box fits; the torso turned to face where the head does.
 void recenter_f();

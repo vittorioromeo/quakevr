@@ -40,6 +40,17 @@ void() AD_TestPelletReport =
     remove(self);
 };
 
+// Scope/model test: newly spawned real ammo boxes go through the production physics path.
+void() AD_MenuAmmoReport =
+{
+    entity box = self.enemy;
+    bprint(sprintf("admenu-ammo: kind %g big %g model %s count %g rigid %g\n",
+        self.weapon, self.count, box.model, box.aflag, box.vr_rigid));
+    bprint(sprintf("admenu-box: bounds %v..%v origin %v\n", box.mins, box.maxs, box.origin));
+    remove(box);
+    remove(self);
+};
+
 void(float request, entity p) AD_RulesTest =
 {
     if(request >= 61 && request <= 63) { AD_WorldTest(request, p); return; } // AD support
@@ -47,6 +58,50 @@ void(float request, entity p) AD_RulesTest =
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;
     entity os = self;
+    if(request == 65)
+    {
+        string mainBefore = p.weaponmodel, offBefore = p.weaponmodel2;
+        entity standIn = spawn();
+        standIn.ad_moditems = ad_IT_UPGRADE_AXE | ad_IT_UPGRADE_SSG | ad_IT_UPGRADE_LG;
+        standIn.ad_resist_nails = 0.5;
+        standIn.ad_classtype = ad_CT_MONARMY;
+        standIn.flags = FL_MONSTER;
+        bprint(sprintf("admenu: map %g mounted %g ammo %g resistance %g upgrades %g projectiles %g\n",
+            AD_Rules(), cvar("vr_ad_mounted"), VR_AD_FeatureScope(cvar("vr_ad_ammo_models")),
+            VR_AD_FeatureScope(cvar("vr_ad_resistance")), VR_AD_FeatureScope(cvar("vr_ad_upgrades")), AD_ProjectileRules()));
+        bprint(sprintf("admenu-speed: player %g enemy %g\n", cvar("vr_ad_pellet_speed"), VR_AD_PelletSpeed(standIn, 1000)));
+        bprint(sprintf("admenu-rules: resist %g importedDamage %g upgrade %g\n", AD_Resists(standIn),
+            ad_Resist_Damage(standIn, ad_IT_NAILS, 10), AD_WeaponUpgraded(standIn, world, ad_IT_UPGRADE_AXE)));
+        remove(standIn);
+        float kind = 0;
+        while(kind < 4)
+        {
+            float big = 0;
+            while(big < 2)
+            {
+                entity box = spawn();
+                self = box;
+                box.spawnflags = big;
+                setorigin(box, p.origin + '0 0 64'); // The player's verified floor; narrow AD corridors cannot fit a sideways row.
+                if(kind == 0) item_shells();
+                else if(kind == 1) item_spikes();
+                else if(kind == 2) item_rockets();
+                else item_cells();
+                entity report = spawn();
+                report.enemy = box;
+                report.weapon = kind;
+                report.count = big;
+                report.think = AD_MenuAmmoReport;
+                report.nextthink = time + 0.9;
+                big = big + 1;
+            }
+            kind = kind + 1;
+        }
+        self = os;
+        bprint(sprintf("admenu-hands: main %g off %g %s %s\n", p.weaponmodel == mainBefore,
+            p.weaponmodel2 == offBefore, p.weaponmodel, p.weaponmodel2));
+        return;
+    }
     if(request >= 50 && request <= 60)
     {
         AD_ShotsTest(request, p);
