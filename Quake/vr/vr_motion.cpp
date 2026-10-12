@@ -796,9 +796,9 @@ za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
     // them: a grunt of a grunt's health).
     if(first && first->sv && first->sv->monster && first->sv->monClass == "vr_dummy")
     {
-        line("dummy", va("vr_dummy_type %s vr_dummy_health %s vr_dummy_gore %s vr_dummy_gib %s vr_dummy_regen %s",
+        line("dummy", va("vr_dummy_type %s vr_dummy_health %s vr_dummy_gore %s vr_dummy_gib %s vr_dummy_regen %s vr_dummy_anchored %s",
                           vr_dummy_type.string, vr_dummy_health.string, vr_dummy_gore.string, vr_dummy_gib.string,
-                          vr_dummy_regen.string));
+                          vr_dummy_regen.string, vr_dummy_anchored.string));
     }
     line("melee settings", meleeSettings());
     line("settings", allSettings());

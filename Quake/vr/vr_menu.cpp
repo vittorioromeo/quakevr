@@ -2838,6 +2838,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Dummy Stands Again", vr_dummy_gib_respawn, 0.5f, 10.f, 0.5f, "%.1f s").extend(0.1f, 60.f)
             .help("How long a killed training dummy takes to stand again (its body stays, as its enemy's)."),
         dummyHealthSlider(),
+        toggle("Dummy Stays Put", vr_dummy_anchored)
+            .help("The training dummy is never shoved away, staggered or knocked down; it still flinches and takes the hit. For recording shoves and bashes (vr_dummy_anchored)."),
         slider("Dummy Health Refills", vr_dummy_regen, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 120.f)
             .help("How long after its last hit the training dummy's health fills up again (0: never; it stays as hit until it dies and stands again)."),
         toggle("Dummy Health Bar", vr_dummy_healthbar)

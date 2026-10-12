@@ -32,6 +32,11 @@ KNOWN = {
     'soldier': (list(range(463, 549)), (8, 28)),
     'enforcer': ([22, 23, 100] + list(range(400, 431)) + list(range(455, 479)), None),
     'grem': (list(range(85, 123)), (104, 123)),  # (Hipnotic's gremlin: the stolen gun, tucked in his body but in the g* frames)
+    'mon_soldier': (list(range(463, 549)), (8, 28)),
+    'mon_enforcer': (list(range(17)) + list(range(45, 61)), (41, 65)),
+    'mon_centurion': (list(range(17)) + list(range(45, 61)) + list(range(222, 284)), (18, 42)),
+    'mon_pyro': (list(range(33)) + list(range(194, 226)), (41, 65)),
+    'mon_fumigator': (list(range(33)) + list(range(194, 226)), (41, 65)),
 }
 
 # The models whose every piece but the body is loose (vr_ragdoll.cpp SeedTable::looseWeapons: hidden in the ragdoll):
