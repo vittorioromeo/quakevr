@@ -133,13 +133,22 @@ While it ran, `frame-vr-state.py` reported
 `EVRSceneApplicationState_Running`; its scene PID matched
 `compositor_scene_focus_pid`, and the application key was
 `system.generated.openxr.quake vr.ironwail`. The game log confirmed SteamVR / OpenXR
-2.18.2, `VR: started openxr backend`, a `GL_SRGB8_ALPHA8` stereo swapchain at
-1728x1728 per eye, and `OpenXR: user presence absent`. SteamVR reported both
-Frame controllers disconnected. HMD pose validity varied during the probe.
-The runtime capture was mostly black, so the test proves session startup and
-scene registration only, not useful headset imagery, live controller actions,
-head-motion response, or gameplay. After the probe exited, SteamVR returned to
-`EVRSceneApplicationState_None`.
+2.18.2 and `VR: started openxr backend`. The runtime offered 1728x1728 eye
+images in `GL_SRGB8_ALPHA8`; `FRAME_LAYERS` then repeatedly reported
+`projection=1 stereo_views=2 quad=0 total=1 held=1`. This verifies a stereo
+OpenXR projection layer rather than a desktop quad. An initial `READY` sample
+reported the startup quad before the map's projection layer was submitted.
+
+The same diagnostics reported `present=0`, `head=0`, and hand pose actions
+inactive. The game logged `OpenXR: user presence absent`; SteamVR showed both
+Frame controllers disconnected, and HMD pose validity varied during the probe.
+With no wearer, the renderer held its last projection (`held=1`) rather than
+submitting fresh tracked views. The `IVRScreenshots_001` capture was mostly
+black, so this verifies scene registration and stereo layer submission, not
+useful live imagery, head-motion response, controller actions, or gameplay.
+After the probe exited, SteamVR returned to `EVRSceneApplicationState_None`.
+The live state JSON, OpenXR diagnostics, engine log and screenshot are
+retained privately in `performance-results/decal-grid-frame-20261012`.
 
 For a repeatable no-wearer check, keep the probe config in a scratch install.
 It should set `vr_backend openxr`, enable VR, load a map, wait for several
