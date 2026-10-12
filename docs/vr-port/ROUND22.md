@@ -3766,13 +3766,13 @@ Behaviours: the four new rows.
   Live blood: chunky hand ~700/m; body at 1024 ~667/629/m (effective mask 256x1024; opt-out 64x256).
   Six before/after eye captures cover clean/authored blood/live blood, bracers both ways; seams 0 mm in the fixed
   bent-wrist pose, two gadget straps visible with bare arms. Composite: `scratch/animbody_compare_visual.png`.
-- Cost: sixteen RGBA diffuse skins grow from ~4 to ~64 MiB if all resident (+60 MiB); body detail adds the shared
-  20 MiB fine+foreign array at 1024. Painting stays on GPU, with no CPU texture upload. Exclusive mock comparison,
+- Cost: `imagelist vrbody` reports 16 -> 96 MiB (+80 MiB, diffuse skins plus mipmaps; normal-map cost unchanged).
+  Body detail adds the shared 20 MiB fine+foreign array at 1024. Painting stays on GPU, with no CPU texture upload. Exclusive mock comparison,
   100 wound events/899 measured frames: total GPU 0.84 ms opt-out / 0.83 ms at 1024; eyes 0.75/0.74 ms. The wounds
   stage was below the profiler's 0.02 ms display threshold for both CPU and GPU. Thirteen CPU paint samples each:
   median 0.022 ms both; maximum 0.103/0.090 ms. These are mock measurements, not headset frame-time guarantees.
 - Idle trace (600 requested/598 measured): single-vertex acceleration p95/max 0.279/1.272 -> 0.036/0.058 units;
-  mean p95/max 0.116/0.541 -> 0.011/0.021. Exact keys pass; 0.001 off key <=0.045 units; 562 splines swung.
+  mean p95/max 0.116/0.541 -> 0.011/0.021. Exact keys pass; 0.001 off key <=0.045 units; 570 splines swung.
   Disabled-rig info reports no rig and one learned wrap. Three pinned idle segments inspected visually.
   Calibration menu paths: 4 found, 0 missing. Targeted mask tests cover 0/1024/512 transitions and independent
   foreign-blood slots. Build and e1m1/e1m2 smoke pass. Reproducers: `animsmooth_test.sh`, `body_detail_test.py`.
