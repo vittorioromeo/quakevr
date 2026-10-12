@@ -4720,3 +4720,50 @@ Both hashes match the native engine inventory exactly. Max generated normal-unit
 0.00653. Twelve targeted pipeline tests, all 2987 checksum/normal/depth checks, required build and e1m1 smoke pass
 (exit 0). The loader worker verifies actual native GPU selection after these assets ship; its sharp-height filtering
 fix is already included in the merged engine. No source diffuse, maps or model weights were distributed.
+
+
+## Generated world relief calibration (adpbrload)
+
+Loading the correct height map was insufficient for the reported flat appearance. The previous generated packing
+multiplied the model's absolute brightness by a 0.25 bound, retaining a large uniform recess and very little
+relative relief. Native HD metal1_2 had only 0.078 Quake units of height variation at the author's depth 2.5;
+metal1_3 had 0.098, and the embedded city5_7b trim 0.157. Increasing a global depth mostly slid the whole image.
+The desktop and mock-VR world shaders both walk the height field; no separate VR permutation bypass was found.
+
+Generated height now anchors its learned 95th percentile at the surface, maps its 5th..95th percentile span to a
+bounded relative range, limits contrast gain to 8, and leaves spans below 0.02 flat. Cutouts do not set the range.
+The generator's --depth default is 0.5, at most 1.25 units of recession at vr_parallax_depth 2.5. Cache version 2
+invalidates the old packing; normal green orientation still uses its previous height convention, independently of
+this calibration. No engine cvar or user rendering setting changes. Complete authored alpha bypasses calibration.
+
+All 2987 native-root sources regenerate offline, zero failures, 363963231 bytes. Pixel comparison verifies all
+2987 normal RGB maps unchanged, all 335 authored alpha maps unchanged, and exactly 2652 generated alpha maps
+changed; 55 generated predictions are now intentionally flat. Differential depths: native HD metal1_2 0.775,
+metal1_3 1.127, embedded city5_7b 1.118, stone_grey_1_3 1.245, and embedded city5_3 0.706 units. Original diffuse,
+material source files and maps remain untouched; only existing content-addressed companions and manifest change.
+
+The native selected city5_3 source is e2d910f45c5220ce03c85512a79cab61d372b10db4061fb472815c05dc14b822,
+Steam id1/textures/city5_3.png. Its authored normal and genuine height alpha come from
+quakevr/textures_quetoo/city5_3_norm.png (SHA256 f656efed2fec4f6a3b23c1cb0ec4db45fec5bd537c391212414927853c0b05a4):
+256x256 RGBA, raw alpha 61..211. Its output alpha is preserved, unlike embedded d088fa06acb2d8c6fc4366f3d046a904,
+whose authored match is rejected at 0.01064. The preserved native authored source still spans 1.471 units; this
+change must not be presented as a fix to authored stone relief or as proof that every wall looks sculpted.
+Native GPU selection confirms vrext/city5_3_norm, 256x256, alpha 61..211. Its wall-only ROI under author
+settings changes by 7.1525/255 with parallax off/on (79.18% pixels over 3), independently of generated calibration;
+the calibration-off authored ROI is pixel-identical. Thus authored UV displacement is active, rather than suppressed
+by a VR/retro draw flag. The cropped proof is scratch/relief_authored_city5_3_uv.png.
+
+Lighting-independent native wall comparisons retain the author's exact cfg (sharp filtering, retro block 0.5,
+normal maps/parallax/depth writing) with r_fullbright 1. Original and calibrated parallax-off brick wall ROIs are
+pixel-identical; all 1093 diffuse GPU hashes match across original, relative-span 4x/8x and calibrated runs.
+At setpos 384 440 344, eye pitch -10/yaw 140, the cop1_1r/brick view's calibrated off/on ROI differs by 3.845/255,
+49.50% of pixels over 3. At the closer grazing setpos 384 484 344, pitch 15/yaw 155, the head ray confirms
+city5_7b: local trim/mortar bends more, but the appearance remains restrained. The copper colour pattern still
+reads fairly flat; learned heights can follow colour stains rather than structural tile boundaries. Real-headset
+judgment and any authored-height override are outstanding, separate choices. Evidence is in scratch/relief_wall_all.png,
+scratch/relief_close_wall.png, and scratch/relief_stone_wall.png. No global authored-depth inflation is included.
+
+Validation: required QC/engine/FGD build passes; 14 targeted pipeline tests and the offline self-test pass;
+all 2987 checksummed companions validate. Native desktop vr_enabled 0 captures parallax off/on and exits 0;
+stock e1m1 smoke at sharp defaults exits 0. No melee or physics code changed. All native reads use Steam data plus
+the worker base directory for private output; no author checkout or process changes.
