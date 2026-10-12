@@ -4480,3 +4480,26 @@ VR review: inspect AD brick/stone/wood, shallow angles and seams, fences, glowin
 materials. Painted shadows can still become learned relief; the upstream height model explicitly has this limitation.
 Cleanup candidates: ignored `scratch/pbr-cache`, `scratch/pbr-sample`, `scratch/pbr-resume`, `scratch/pbr-tests-*`,
 `scratch/pbrify172` and `scratch/env` when no longer needed. Keep committed companions and their manifest/attribution.
+
+## AD PBR effective replacement coverage (adpbrgen follow-up)
+
+Actual AD loader testing found that `textures/{speedbz_grid1.tga` is an RGBA diffuse replacement inside AD's pak0,
+so its rendered hash differs from its BSP's indexed miptex hash. Source discovery now checks effective packed/loose
+replacements automatically in each source game. Repeatable `--texture-game` adds game roots in highest-first engine
+priority; the source game is appended when not listed explicitly. Lookup matches the engine: map-specific filename
+before global filename, PNG then TGA then JPG across all roots, and numeric PAK/loose precedence within each root.
+The selected replacement's RGBA, including transparency, determines its companion hash. Originals remain unchanged.
+
+The resumed AD batch discovers 117 override occurrences and 71 new unique selected RGBA hashes: 2637/2637 outputs,
+zero failures, 150637638 PNG bytes (143.659 MiB), 55.18 s. All previous 2566 outputs reused cache/migrated verified
+bundle pixels and remained byte-identical. Discovery-only updates now retain inference through an explicit
+`CACHE_VERSION`; model/runtime/parameters and material/animation identity still guard reuse. The migration checks
+the old manifest's output checksum and inference configuration before copying previous output into the cache.
+
+The reported fence replacement resolves to full source hash
+`7006210e9aff42608264e18879428c87e6f76cb6dcc7c5604ccbf57e367a79e9`; its new companion is 64x64, 7142 bytes,
+alpha 207..255, max normal length error 0.00492. Its cutout holes retain flat generated relief. Twelve focused tests
+pass, including packed/loose precedence, map-specific versus generic lookup, PNG versus TGA across game roots and
+discovery-only cache migration. All 2637 companion checksums/normal/depth checks pass; e1m1 smoke exits 0. The guide
+now includes complete game-root ordering and automatic packed override discovery. The loader worker checks the
+previously missing fence in actual AD after this follow-up ships.

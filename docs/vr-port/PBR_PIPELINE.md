@@ -50,7 +50,7 @@ This one command writes a companion bundle into `scratch/ad-pbr`, using installe
 folder for `gfx/palette.lmp`. Replace the example installation paths. The optional `--authored` folder is read-only.
 
 ```powershell
-scratch/env/Scripts/python.exe Misc/quakevr/pbr_generate.py generate --game C:/Games/Quake/ad --palette-game C:/Games/Quake/id1 --authored quakevr/textures_quetoo --normal-model scratch/pbrify172/PBRify_Remix-1.7.2/Models/1x-PBRify_NormalV3.pth --height-model scratch/pbrify172/PBRify_Remix-1.7.2/Models/1x-PBRify_Height.pth --output scratch/ad-pbr
+scratch/env/Scripts/python.exe Misc/quakevr/pbr_generate.py generate --game C:/Games/Quake/ad --texture-game quakevr --palette-game C:/Games/Quake/id1 --authored quakevr/textures_quetoo --normal-model scratch/pbrify172/PBRify_Remix-1.7.2/Models/1x-PBRify_NormalV3.pth --height-model scratch/pbrify172/PBRify_Remix-1.7.2/Models/1x-PBRify_Height.pth --output scratch/ad-pbr
 ```
 
 Use `scan` instead of `generate` to census without loading models. Use `--limit 12 --output scratch/pbr-preview`
@@ -58,6 +58,16 @@ for a short sample. `--palette path/to/palette.lmp` provides an explicit 768-byt
 numeric pakN precedence applies followed by loose files. Packed and loose BSP29/BSP2 texture lumps are bounds-checked.
 Repeat `--game` for independent mods: each is scanned with its own PAK/loose precedence. The first game/palette-game
 with a palette supplies it; prefer an explicit palette if a mod changes it.
+
+The source game's effective packed and loose diffuse replacements are discovered automatically. Repeat
+`--texture-game` to list additional game roots in the engine's highest-first order; the source game is appended if
+absent. For a complete explicit order, list every root including AD, for example `--texture-game quakevr
+--texture-game C:/Games/Quake/ad --texture-game C:/Games/Quake/id1`. Filename lookup first tries
+`textures/<map>/<name>`, then `textures/<name>`. Within either filename it tries PNG, TGA and JPG across all game
+roots in that order: a map-specific replacement in a lower game wins over a generic higher-game replacement, and
+a lower-game PNG wins over a higher-game TGA. Each root retains numeric PAK/loose precedence. Selected images are
+hashed with their decoded RGBA, including transparency; their origin and maps are recorded. This includes packed
+AD replacements such as `textures/{speedbz_grid1.tga`, rather than assuming all map pixels come from BSP miptex.
 
 ## Other PAKs and loose image packs
 
@@ -101,9 +111,15 @@ written every 50 sources; writes are not atomic, so rerun after an interrupted w
 ## Refresh, resume and install
 
 Rerun the same command after adding a PAK or loose BSP. Source content, model hashes, authored component contents,
-parameters, runtime and generator identity select the cache. Unchanged inference is reused and validated; changed
+parameters, runtime and inference-cache version select the cache. Generator identity is recorded for provenance;
+discovery-only code changes retain inference pixels. Unchanged inference is reused and validated; changed
 sources get new outputs. Removed-source outputs are left harmlessly unused and omitted from the new manifest.
 No files are deleted automatically.
+
+When adopting a discovery-only update, the previous bundle's checksum-verified output can migrate into the cache if
+its inference configuration, authored channels, animation anchor and material masks still agree. This avoids
+rerunning thousands of unchanged textures simply to discover new overrides. Inference or packing changes must bump
+the generator's `CACHE_VERSION`; those changes invalidate reuse.
 
 ```powershell
 scratch/env/Scripts/python.exe Misc/quakevr/pbr_generate.py self-test

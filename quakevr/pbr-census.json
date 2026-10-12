@@ -1,7 +1,7 @@
 {
   "bsp_files": 283,
   "eligible_names": 2455,
-  "eligible_sources": 2566,
+  "eligible_sources": 2637,
   "excluded_names": {
     "*04awater1": 1,
     "*04water1": 2,
@@ -83,5 +83,9 @@
   },
   "image_files": 0,
   "palette_sha256": "6b20b5bc4ea965ef1852b05670d043ca16148a0ecad4e63028121c8aebc268fe",
-  "scan_errors": []
+  "scan_errors": [],
+  "selected_override_occurrences": 117,
+  "texture_game_priority": [
+    "C:\\OHWorkspace\\quakevr-iw\\quakevr"
+  ]
 }
