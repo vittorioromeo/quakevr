@@ -4694,3 +4694,29 @@ precedence 6/6 passes at sharp/default filtering, including authored RGB plus ge
 RGBA, authored bump height and external normal-map precedence. Production companion backups were restored
 byte-for-byte (no bundle Git changes). Stock e1m1 smoke with default sharp filtering exits 0. Latest published
 next 4e9ec1b8b is merged. No melee/physics code changed and no author checkout files were modified.
+
+## Native Steam AD HD source coverage (adpbrgen)
+
+After merging next 65561c5f6, generation was resumed against the actual Steam AD installation and the native
+highest-first texture roots: read-only author quakevr, Steam AD, Steam rogue/kit rogue, Steam hipnotic/kit hipnotic,
+Steam id1/kit id1. The previous AD-only roots missed lower-root HD PNGs selected by the engine. Existing automatic
+replacement discovery handles the full effective path order; no per-texture exception or generator inference change
+was needed. `PBR_PIPELINE.md` now gives a reusable native Steam command including the fallback mission-pack/id1 roots.
+
+283 BSPs and 1305 selected replacement occurrences yield 2987 unique companion sources. All 2987 outputs pass,
+zero failures, 153.84 s; 350 new source hashes and all 2637 previous PNGs cache-reused byte-identically. Total PNG
+size is 340304475 bytes (324.54 MiB). 335 outputs retain complete authored normal/height components; the original
+diffuse and author material files remain unchanged. Existing attribution applies to authored-derived channels.
+
+Saved native-start inventory coverage is 272/276, which is every eligible selected source. Only the documented
+clip, skip, trigger and constant-black exclusions remain. Black is intentionally excluded as a flat/tool material
+(`a4370418ab1010b8059358593341173c`); it has no inferred relief to gain. The 15 animation and other actual HD material
+misses are now covered through source hashes, rather than name-based substitutes.
+
+Two independently checked examples are native Steam id1 loose 512x512 PNGs: `metal1_3` full canonical hash
+`d2d7d2ac1eff6da463b3df175bf1bba294e38ac6783c4e575333e3691bafee71`, generated alpha 208..218 (674627 bytes), and
+`wizwood1_5` hash `f6fde43fb7f4f2a7c5f6ed8e0351f37ae344f73e174dc8c50fd0abffa714ed52`, alpha 202..224 (510243 bytes).
+Both hashes match the native engine inventory exactly. Max generated normal-unit error over the whole bundle is
+0.00653. Twelve targeted pipeline tests, all 2987 checksum/normal/depth checks, required build and e1m1 smoke pass
+(exit 0). The loader worker verifies actual native GPU selection after these assets ship; its sharp-height filtering
+fix is already included in the merged engine. No source diffuse, maps or model weights were distributed.
