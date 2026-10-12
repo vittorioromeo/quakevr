@@ -129,6 +129,15 @@ The manifest records checksums, sizes, authored/generated channels, animation an
 green correlations and seam deltas. Errors remain explicit and produce a nonzero exit. A checkpoint manifest is
 written every 50 sources; writes are not atomic, so rerun after an interrupted write to complete it.
 
+Each generation checkpoint and completed refresh/resume also writes `textures/pbr/provenance.txt`. Its exact ASCII
+contract is a `qvr-pbr-provenance-v1` header followed by sorted lines `<source-prefix32> <output-digest64> <flags>`.
+The source prefix is the first 32 lowercase hex digits of the source hash. The output digest is SHA256 of
+`qvr-pbr-v1` plus NUL, output width and height as little-endian uint32, then decoded row-major output RGBA bytes.
+Retain output alpha: it contains height, so replacing it with diffuse alpha 255 would break the binding. Decimal
+flags are independently derived from the manifest: bit 1 means generated normal RGB, bit 2 means generated height
+alpha, giving values 0 through 3. Authored channels remain unflagged. Missing or stale metadata is treated as
+authored by the runtime, protecting authored overrides from generated-only relief scaling.
+
 ## Refresh, resume and install
 
 Rerun the same command after adding a PAK or loose BSP. Source content, model hashes, authored component contents,
@@ -147,6 +156,12 @@ scratch/env/Scripts/python.exe Misc/quakevr/pbr_generate.py self-test
 scratch/env/Scripts/python.exe Misc/quakevr/pbr_generate_test.py
 scratch/env/Scripts/python.exe Misc/quakevr/pbr_generate.py validate --output scratch/ad-pbr
 ```
+
+To add or rebuild provenance for an existing manifest and PNG bundle without model loading or inference, run
+`scratch/env/Scripts/python.exe Misc/quakevr/pbr_generate.py provenance --output scratch/ad-pbr`. This verifies each
+PNG's manifest file checksum before decoding it and writes only the index. `validate` also checks the entire index
+against the current outputs, dimensions and channel flags. Refresh omits failed or removed sources from the index
+while retaining their unused PNGs. Install the index alongside the companion PNGs.
 
 Copy the bundle's `textures/pbr` directory into the chosen game's `textures/pbr`. Keep the census, manifest and
 attribution with the bundle for review. `--output quakevr` prepares repository assets directly. Install the matching
