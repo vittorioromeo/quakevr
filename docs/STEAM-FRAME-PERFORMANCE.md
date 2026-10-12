@@ -8,8 +8,9 @@ device, not OpenXR compositor latency or a physical headset FPS test.
 
 Each row summarizes two 720-frame runs of the same `combat_48` fixture, paced at
 72 Hz after 180 warm-up frames. Settings were run in opposite order to limit
-warm-up and order bias. All rows use the same released engine binary, classic
-preset 0 and no MSAA or mirror.
+warm-up and order bias. Rows through scale 0.25 use the released engine binary;
+the .18 row uses an experimental candidate that lowers the engine's minimum
+render scale. All use classic preset 0 and no MSAA or mirror.
 
 | Profile | Render scale | Retro edge softness | GPU eye mean | Frame median | Frame p99 |
 |---|---:|---|---:|---:|---:|
@@ -18,6 +19,16 @@ preset 0 and no MSAA or mirror.
 | Crisp performance preview | 0.30 | Off in all 18 categories | 15.537 ms | 16.349 ms | 23.487 ms |
 | Crisp performance preview | 0.26 | Off in all 18 categories | 13.507 ms | 14.179 ms | 20.650 ms |
 | Crisp performance preview | 0.25 | Off in all 18 categories | 12.559 ms | 13.888 ms | 20.765 ms |
+| Ultra performance preview | 0.18 | Shipped | 9.915 ms | 13.888 ms | 18.758 ms |
+
+The .18 candidate measured 9.982 and 9.847 ms GPU-eye means; both GPU p99
+values were below the 13.89 ms GPU budget (13.691 and 13.668 ms). With crisp
+edges, means were 9.202 and 9.301 ms and GPU p99 was 12.914 and 13.085 ms.
+Frame p99 remained 18.486–19.030 ms, so this still does not establish stable
+72 Hz. The .18 render is approximately 311x311 pixels per eye, upscaled to
+1728x1728, and is visibly blurrier than .25. The candidate lowers the minimum
+allowed `vr_render_scale` from .25 to .18; lower requests are not enabled.
+This is an optional, severe quality tradeoff, not a default change.
 
 At scale 0.25 the fixture's frame median reaches the 13.89 ms 72 Hz budget,
 but its p99 remains above budget. This result does not prove sustained 72 fps

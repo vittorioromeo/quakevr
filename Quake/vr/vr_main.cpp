@@ -1551,7 +1551,7 @@ void statusLines(za::Vector<za::String>& out)
 
 int scaledEyeSize(int image, int max)
 {
-    const float scale = CLAMP(0.25f, vr_render_scale.value, 2.f);
+    const float scale = CLAMP(0.18f, vr_render_scale.value, 2.f);
     int size = static_cast<int>(za::lround(static_cast<double>(image) * scale));
     if(max > 0)
     {

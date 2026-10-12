@@ -192,6 +192,17 @@ setting changes world-texture edge appearance but preserves softness on models
 and weapons; it remains a small optional tradeoff and does not meet the combat
 72 Hz budget. The default and performance-preview launcher are unchanged.
 
+An isolated engine candidate lowers the minimum supported render scale from
+0.25 to 0.18. At 0.18 with shipped retro edge softness, the Frame measured
+9.915 ms mean GPU-eye time; GPU p99 was 13.67 ms, while frame p99 remained
+18.49–19.03 ms. This is approximately 311x311 rendered pixels per eye before
+upscaling to 1728x1728, with a substantial visible loss of detail. A separate
+"Frame Ultra Performance" shortcut and install are prepared for wearer
+validation; the shortcut passed a native mock launch with scale 0.18 and shipped
+softness enabled, but it has not been launched into OpenXR. The regular game
+and .25 preview remain untouched. This result is a low-resolution option, not a
+claim of stable 72 Hz or a release-ready improvement.
+
 ## Credits and source
 
 - Original mod and engine source: [Vittorio Romeo's Quake VR](https://github.com/vittorioromeo/quakevr).
