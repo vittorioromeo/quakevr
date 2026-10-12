@@ -102,6 +102,19 @@ float() VR_AD_PathCornerTouch =
 
 .float vr_ad_pelletscale; // a player's AD pellet: its damage, times AD's (AD_FirePellets)
 
+// AD ammo and backpacks refresh the classic viewmodel. Our weapon ids are not AD's item bits
+// (WID_SHOTGUN 4 is AD's nailgun); refresh the two VR hands through our own model/ammo table.
+float(entity targ) VR_AD_SetCurrentAmmo =
+{
+    if(!(targ.flags & FL_CLIENT)) return FALSE;
+    entity oldSelf = self;
+    self = targ;
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    W_SetCurrentAmmoFor(cVR_OffHand);
+    self = oldSelf;
+    return TRUE;
+};
+
 // AD's projectile pellet's damage, times AD's (4): a player's by the settings (vr_ad_pellet_damage, Weapon Damage).
 float(entity pellet) VR_AD_PelletDamage =
 {
@@ -774,10 +787,15 @@ float(float idSpeed, float kind) AD_MonsterSpeed =
 void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_FirePellets =
 {
     float ssg = shotcount > 6; // (a super shotgun's pair of barrels; one barrel fires as the shotgun, as ours)
-    vector pattern = (ssg ? ad_SPREAD_SSG : ad_SPREAD_SG) * cvar("vr_ad_pellet_spread");
+    float wid = VRGetWeapon(xHand);
+    float shotgun = wid == WID_SHOTGUN || wid == WID_SUPER_SHOTGUN || wid == WID_GRUNTGUN;
+    // The burst rifle is a bullet, not a shotgun blast: retain its tighter spread.
+    if(wid == WID_GRUNTGUN && cvar_hget(cvarh_vr_grunt_burst)) shotgun = FALSE;
+    vector pattern = (shotgun ? AD_SharpSpread(ssg ? ad_SPREAD_SSG : ad_SPREAD_SG) : spread);
+    pattern = pattern * cvar("vr_ad_pellet_spread");
     float speed = (ssg ? ad_SPEED_PLAYERSSG : ad_SPEED_PLAYERSG) * cvar("vr_ad_pellet_speed");
     float scale = cvar("vr_ad_pellet_damage") * (vr_pellet_damage ? vr_pellet_damage : ad_DAMAGE_PSHELL) / ad_DAMAGE_PSHELL;
-    if(VRGet2HAiming(self))
+    if(shotgun && VRGet2HAiming(self))
     {
         pattern = pattern * cvar_hget(cvarh_vr_2h_spread_reduction);
     }

@@ -492,6 +492,7 @@ void verifyPropTouch(edict_t* ent, edict_t* target)
 // vr_gameplayfix_touchsolids. Bodies also "hand"-touch things when hands aren't tracked.
 void touch(edict_t* ent, edict_t* target)
 {
+    if(VR_AD_PelletsPass(ent, target)) return; // AD support: overlapping pellets never consume one another
     if(!absBoxesOverlap(ent, target))
     {
         return;

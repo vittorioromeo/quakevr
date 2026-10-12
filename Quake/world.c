@@ -1101,6 +1101,8 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		touch = EDICT_FROM_AREA(l);
 		if (touch->v.solid == SOLID_NOT)
 			continue;
+		if (VR_AD_PelletsPass (clip->passedict, touch)) // AD support: a blast's pellets never stop one another
+			continue;
 		// QVR: a grenade shots set off (.vr_shot_radius: VR_ShotTargetClip): a shot or a missile meets a cube round it,
 		// its owner's own shots too; any other move meets it by Quake's rules.
 		if (touch != clip->passedict && touch->v.takedamage && touch->v.solid != SOLID_BSP
