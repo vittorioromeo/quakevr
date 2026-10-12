@@ -41,7 +41,7 @@ float(entity client, float density, vector colour) VR_AD_Fog =
 float(entity e) AD_Run =
 {
     return !(e.flags & FL_CLIENT) && (e.ad_classtype || e.ad_th_die || e.ad_th_pain) && e.vr_corpse != 2 &&
-           !e.vr_corpse_dying;
+           !e.vr_corpse_dying && !e.vr_shootnade;
 };
 
 // AD's T_Damage on one of Quake VR's own (the player, our monsters, our gibs and props): our T_Damage takes it, with
@@ -100,6 +100,9 @@ float() VR_AD_PathCornerTouch =
     return TRUE;
 };
 
+.float vr_ad_shotserial, vr_ad_shotweapon, vr_ad_shotpellets, vr_ad_shothand;
+.vector vr_ad_shotfrom, vr_ad_impactdir;
+.vector vr_ad_launchfrom;
 .float vr_ad_pelletscale; // a player's AD pellet: its damage, times AD's (AD_FirePellets)
 
 // AD ammo and backpacks refresh the classic viewmodel. Our weapon ids are not AD's item bits
@@ -803,12 +806,15 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
     if(wid == WID_GRUNTGUN && cvar_hget(cvarh_vr_grunt_burst)) shotgun = FALSE;
     vector pattern = (shotgun ? AD_SharpSpread(ssg ? ad_SPREAD_SSG : ad_SPREAD_SG) : spread);
     pattern = pattern * cvar("vr_ad_pellet_spread");
-    float speed = (ssg ? ad_SPEED_PLAYERSSG : ad_SPEED_PLAYERSG) * cvar("vr_ad_pellet_speed");
+    float speed = (ssg ? ad_SPEED_PLAYERSSG : ad_SPEED_PLAYERSG) * max(0.1, cvar("vr_ad_pellet_speed"));
     float scale = cvar("vr_ad_pellet_damage") * (vr_pellet_damage ? vr_pellet_damage : ad_DAMAGE_PSHELL) / ad_DAMAGE_PSHELL;
     if(shotgun && VRGet2HAiming(self))
     {
         pattern = pattern * cvar_hget(cvarh_vr_2h_spread_reduction);
     }
+    float pellets = shotcount;
+    vr_sgib_blastserial++;
+    float serial = vr_sgib_blastserial;
     makevectors(vectoangles(dir));
     ad_Launch_Bullet(muzzle, dir, ad_CT_PROJ_TRACE, speed);
     while(shotcount > 0)
@@ -816,6 +822,11 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
         vector d = dir + crandom() * pattern_x * v_right + crandom() * pattern_y * v_up;
         ad_Launch_Bullet(muzzle, d, ssg ? ad_CT_PROJ_SSG : ad_CT_PROJ_SG, speed + crandom() * 10);
         ad_newmis.vr_ad_pelletscale = scale;
+        ad_newmis.vr_ad_shotserial = serial;
+        ad_newmis.vr_ad_shotweapon = shotgun ? (ssg ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN) : 0;
+        ad_newmis.vr_ad_shotpellets = pellets;
+        ad_newmis.vr_ad_shotfrom = muzzle;
+        ad_newmis.vr_ad_shothand = xHand;
         shotcount = shotcount - 1;
     }
 };
@@ -1023,4 +1034,87 @@ float(entity p) AD_TestWake =
     self.enemy = p;
     ad_FoundTarget();
     return TRUE;
+};
+
+void(entity pellet) VR_AD_PelletPrepare =
+{
+    pellet.vr_ad_impactdir = normalize(pellet.velocity);
+};
+
+void(entity pellet) VR_AD_PelletLaunch =
+{
+    pellet.vr_ad_launchfrom = pellet.origin;
+};
+
+// AD projectile impacts keep the launching shot's identity across flight frames and weapon switches.
+void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
+{
+    entity os = self;
+    vector dir = pellet.vr_ad_impactdir;
+    // A close shot must never retrace behind its launch point into another limb of the corpse.
+    float back = min(32, vlen(pellet.origin - pellet.vr_ad_launchfrom));
+    VR_TouchTrace(pellet.origin - dir * back, pellet.origin + dir * 32);
+    vector at = trace_ent == victim ? trace_endpos : pellet.origin;
+    float part = PositionalDamage(victim, at, dir);
+    damage = damage * PositionalDamageFactor(part);
+    VR_SetHitKind(QVR_HITKIND_SHOT, pellet.vr_ad_shothand, at, dir);
+    float serial = vr_sgib_blastserial;
+    float weapon = vr_decap_weapon;
+    float pellets = vr_decap_pellets;
+    vector src = vr_decap_src;
+    if(pellet.vr_ad_shotserial)
+    {
+        vr_sgib_blast = TRUE;
+        vr_sgib_blastserial = pellet.vr_ad_shotserial;
+        vr_decap_weapon = pellet.vr_ad_shotweapon;
+        vr_decap_pellets = pellet.vr_ad_shotpellets;
+        vr_decap_src = pellet.vr_ad_shotfrom;
+        VR_Decap_Pellet(victim, damage, at, dir);
+    }
+    self = pellet.owner;
+    float pop = pellet.vr_ad_shotserial && VR_Decap_BlastArm(victim);
+    // Per-pellet small gibs remain immediate; only head/limb share accumulates across flight frames.
+    vr_sgib_blast = FALSE;
+    self = os;
+    float ours = vr_ad_ourdamage;
+    vr_ad_ourdamage = TRUE; // AD's touch already applied shell resistance; shared settings/hooks run once.
+    T_Damage(victim, pellet, pellet.owner, damage);
+    vr_ad_ourdamage = ours;
+    if(pop) VR_Decap_After(victim);
+    if(cvar_hget(cvarh_vr_debug_shots)) bprint(sprintf("adshots: pellet %s part %g damage %g pop %g at %v\n", victim.classname, part, damage, pop, at));
+    vr_sgib_blastserial = serial;
+    vr_decap_weapon = weapon;
+    vr_decap_pellets = pellets;
+    vr_decap_src = src;
+    VR_ClearHitKind();
+};
+
+// Preserve AD's explosion/radius/resistance rules while using Quake VR's catching, batting and shot interception.
+void() VR_AD_RocketBoom =
+{
+    VR_GrenShot_Spent(self);
+    entity oo = other;
+    other = world;
+    ad_Touch_Missile();
+    other = oo;
+};
+void(entity missile) VR_AD_Ordnance =
+{
+    if(missile.ad_classtype == ad_CT_PROJ_GLMON || missile.ad_classtype == ad_CT_PROJ_GL)
+    {
+        setmodel(missile, "progs/grenade.mdl");
+        VR_Grenade_Make(missile, ad_Explode_Grenade, max(0, missile.nextthink - time),
+            (missile.owner.flags & FL_CLIENT) != 0);
+    }
+    else if(missile.ad_classtype == ad_CT_PROJ_ARMY || missile.ad_classtype == ad_CT_PROJ_ROCKET)
+    {
+        missile.vr_ammo_boom = VR_AD_RocketBoom;
+        VR_GrenShot_Make(missile);
+    }
+};
+
+// AD native monsters and Quake VR's bridge both pass through this launch hook, exactly once.
+float(entity shooter, float speed) VR_AD_PelletSpeed =
+{
+    return speed * ((shooter.flags & FL_MONSTER) ? max(0.1, cvar("vr_ad_enemy_pellet_speed")) : 1);
 };

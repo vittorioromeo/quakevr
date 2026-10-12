@@ -422,3 +422,4 @@ vr_ad_world_test.qc
 vr_ad_test.qc
 vr_ad_monsters.qc
 vr_ad_monsters_test.qc
+vr_ad_shots_test.qc

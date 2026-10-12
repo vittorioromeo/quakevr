@@ -5,8 +5,13 @@
 // each map spawns, and which version of a shared classname spawns in a map played by AD's rules. Everything AD-specific
 // in the engine is here; the engine's own files call it at a few places marked "AD support".
 
+struct edict_s;
+
 namespace qvr::ad
 {
+
+// AD's small player pellets use MOVETYPE_FLY and still need model/corpse impacts.
+[[nodiscard]] bool precisePellet(const edict_s* ent);
 
 // Spawn menus: AD data mounted, the requested model present, and any required AD rules active.
 [[nodiscard]] bool spawnAvailable(const char* model, bool rulesOnly = false);

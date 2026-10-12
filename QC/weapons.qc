@@ -661,10 +661,10 @@ void() VR_ShotImpacts =
 // box it started in, not what was struck: traced again from the projectile itself.
 void(vector xFrom, vector xTo) VR_TouchTrace =
 {
-    traceline(xFrom, xTo, VR_HitModelFlags(self), self);
+    traceline(xFrom, xTo, VR_HitModelFlags(self) | MOVE_HITGIBS, self);
     if(trace_startsolid && trace_ent != other && trace_ent != world)
     {
-        traceline(self.origin, xTo, VR_HitModelFlags(self), self);
+        traceline(self.origin, xTo, VR_HitModelFlags(self) | MOVE_HITGIBS, self);
     }
 };
 

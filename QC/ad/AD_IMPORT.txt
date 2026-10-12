@@ -47,3 +47,4 @@ Reviewed patches: 10 precedence, 34 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   ai_combat.qc: bridge: Quake VR's dying around AD's death function (beheading, limbs, knockdown's death, corpse, gore)
   mon_bossicegolem.qc: bridge: the ice golem (a boss: no monster_start) registered as it wakes
   monsters.qc: bridge: the body touchable, not a trigger (its ragdoll and corpse are Quake VR's)
+  ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, Launch_Missile/Launch_Grenade VR ordnance hooks (function-boundary checked)
