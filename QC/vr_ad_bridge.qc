@@ -1102,7 +1102,11 @@ void(entity missile) VR_AD_Ordnance =
 {
     if(missile.ad_classtype == ad_CT_PROJ_GLMON || missile.ad_classtype == ad_CT_PROJ_GL)
     {
+        // (setmodel gives an alias model its bounds as its size: AD's own box back, as vanilla's setsize after its
+        // setmodel, so a grenade left uncatchable does not bounce off walls and ride over floors on a player-sized hull)
+        vector boxlo = missile.mins, boxhi = missile.maxs;
         setmodel(missile, "progs/grenade.mdl");
+        setsize(missile, boxlo, boxhi);
         VR_Grenade_Make(missile, ad_Explode_Grenade, max(0, missile.nextthink - time),
             (missile.owner.flags & FL_CLIENT) != 0);
     }
