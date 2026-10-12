@@ -54,6 +54,9 @@ script+='vr_wounds_blood_alpha 1;vr_skin_tone 0;vr_wounds 1;vr_body_bracers 0;wa
 for bracers in (0,1):
  for tone in (0,1):
   script+=f'vr_body_bracers {bracers};vr_skin_tone {tone};wait10;vr_eyeshot 1;wait2;'
+# The body's own wounds (the fine, smooth mask) at the bare forearms, authored and darkest tone: their soft edges.
+script+=('vr_body_bracers 0;vr_skin_tone 0;vr_wrist_blood_test arm off;vr_wrist_blood_test arm main;wait10;vr_eyeshot 1;wait2;'
+         'vr_skin_tone -1;wait10;vr_eyeshot 1;wait2;')
 script+='toggleconsole;quit'
 (ROOT/'scratch/wrist_visual.cfg').write_text(script)
 started=time.time()
@@ -66,7 +69,7 @@ print('PASS visual capture: four bent/straight bracer poses, six skin tones, fou
 
 shots=KIT/'bases'/AGENT/'qbase/quakevr/eyeshots'
 files=sorted((p for p in shots.glob('*_L.png') if p.stat().st_mtime>=started-1),key=lambda p:p.stat().st_mtime)
-assert len(files)==14,[(p.name,p.stat().st_mtime-started) for p in files]
+assert len(files)==16,[(p.name,p.stat().st_mtime-started) for p in files]
 images=[]
 for i,p in enumerate(files):
  out=ROOT/f'scratch/wrist_visual_{i:02d}.png';shutil.copy2(p,out);images.append(Image.open(out).convert('RGB'))
@@ -85,6 +88,24 @@ for i in (10,12):
  delta=np.max(np.abs(a-b),axis=2)[mask]
  print(f'blood exclusion bracers {(i-10)//2}: {len(delta)} interior pixels, p95 delta {np.percentile(delta,95):.1f}, unchanged<=2 {(delta<=2).mean()*100:.2f}%')
  assert len(delta)>100 and (delta<=2).mean()>.95
+# A wound's soft edge on the body (the fine mask: blood ramps in over a band of mostly-skin texels) is toned with the
+# skin round it: at tone -1 no skin-coloured pixel next to the blood keeps its authored brightness (an untoned halo).
+def dilate(m,n):
+ for _ in range(n):
+  pad=np.pad(m,1);m=np.logical_or.reduce([pad[y:y+m.shape[0],x:x+m.shape[1]] for y in range(3) for x in range(3)])
+ return m
+a=np.array(images[14]).astype(np.float32);b=np.array(images[15]).astype(np.float32)
+red=(a[:,:,0]>a[:,:,1]*2.5)&(a[:,:,0]>a[:,:,2]*2.5)&(a[:,:,0]>40)
+ring=dilate(red,3)&~red
+lum=lambda im:im@np.array([0.3,0.59,0.11],np.float32)
+toned=lum(b)<lum(a)*0.6 # the darkened skin; closed, the body's silhouette with the wounds' edges (not the red floor)
+body=~dilate(~dilate(toned,8),8)
+body[:body.shape[0]*2//5]=False # (the arms are in the lower part; the grunt up there moves between the shots)
+skin=ring&body&(a[:,:,0]>60)&(a[:,:,0]>=a[:,:,1])&(a[:,:,1]>=a[:,:,2])&(a[:,:,0]<a[:,:,1]*2.5)
+ratio=lum(b)[skin]/np.maximum(lum(a)[skin],1)
+halo=int((ratio>0.85).sum())
+print(f'wound edge at tone -1: {int(red.sum())} blood pixels, {int(skin.sum())} skin-coloured edge pixels, {halo} untoned (ratio>0.85), median ratio {np.median(ratio) if len(ratio) else 0:.2f}')
+assert red.sum()>100 and skin.sum()>50 and halo<=skin.sum()*0.01,(int(red.sum()),int(skin.sum()),halo)
 # Full-eye pairs keep the hands and both wrists in view.
 rows=[(0,1,'Straight: bare / bracers'),(2,3,'Bent: bare / bracers'),(4,6,'Bare: dark / light'),(7,9,'Bracers: dark / light'),(10,11,'Blood: authored / light'),(12,13,'Bracer blood: authored / light')]
 sheet=Image.new('RGB',(1200,6*330),(12,12,12));draw=ImageDraw.Draw(sheet)
@@ -93,4 +114,4 @@ for row,(left,right,label) in enumerate(rows):
  for col,i in enumerate((left,right)):
   im=images[i];w,h=im.size;crop=im.copy();crop.thumbnail((600,305));sheet.paste(crop,(col*600,row*330+24))
 sheet.save(ROOT/'scratch/wrist_visual.png')
-print('PASS fourteen eye captures; saved wrist_visual.png')
+print('PASS sixteen eye captures; saved wrist_visual.png')
