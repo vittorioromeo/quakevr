@@ -864,7 +864,7 @@ float(float shotcount, vector dir, vector spread, vector src) AD_EnemyPellets =
 // on the record, set by the upgrade's pickup, and this answers from it.
 float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded =
 {
-    return AD_Rules() && (xPlayer.ad_moditems & xBit);
+    return VR_AD_FeatureScope(cvar("vr_ad_upgrades")) && (xPlayer.ad_moditems & xBit);
 };
 
 // The same for the weapon in self's hand `xHand`.
@@ -939,7 +939,7 @@ float() VR_AD_WeaponTouch =
 // AD's weapon upgrade pickups as Quake VR's weapon pickups (the base weapon, AD's pickup model), outside AD maps none.
 void(string xModel, string xClassname, float xWeaponId, float xUpgrade, string xName) AD_UpgradeItem =
 {
-    if(!AD_Rules())
+    if(!VR_AD_FeatureScope(cvar("vr_ad_upgrades")))
     {
         remove(self);
         return;
@@ -1117,4 +1117,16 @@ void(entity missile) VR_AD_Ordnance =
 float(entity shooter, float speed) VR_AD_PelletSpeed =
 {
     return speed * ((shooter.flags & FL_MONSTER) ? max(0.1, cvar("vr_ad_enemy_pellet_speed")) : 1);
+};
+
+// AD ammo appearance only: preserve Quake VR's ammo counts, hands and force-grabbable physics.
+string(float ammo, float big, string fallback) AD_AmmoModel =
+{
+    if(!VR_AD_FeatureScope(cvar("vr_ad_ammo_models"))) return fallback;
+    string chosen = fallback;
+    if(ammo == AID_SHELLS) chosen = big ? "progs/ammo_shells1.mdl" : "progs/ammo_shells0.mdl";
+    else if(ammo == AID_NAILS) chosen = big ? "progs/ammo_nails1.mdl" : "progs/ammo_nails0.mdl";
+    else if(ammo == AID_ROCKETS) chosen = big ? "progs/ammo_rockets1.mdl" : "progs/ammo_rockets0.mdl";
+    else if(ammo == AID_CELLS) chosen = big ? "progs/ammo_cells1.mdl" : "progs/ammo_cells0.mdl";
+    return fileexists(chosen) ? chosen : fallback;
 };

@@ -189,3 +189,10 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
   budget for the mobile GPU, packaging/sideloading) (the author, 2026-10-11).
 
 TODO: linux support
+
+### Native AD inventory and interface (author, 2026-10-12 11:27:41)
+
+Audit every AD-specific inventory item and mechanic for a usable native VR interface: artifacts and timers,
+custom keys, weapon upgrades, book/interaction panels and campaign inventory changes. Verify the wrist gadget
+shows current ownership, effects and expiry, including mixed AD content in ordinary maps. The Advanced VR
+Options > Arcane Dimensions page provides tweak/scoping controls; it does not complete this inventory/UI audit.

@@ -16,6 +16,13 @@ float() AD_Rules =
     return cvar("vr_ad_rules") != 0;
 };
 
+// AD support: independent safe feature scope; does not change map detection or required world logic.
+float(float scope) VR_AD_FeatureScope =
+{
+    return cvar("vr_ad_mounted") && (scope == 2 || (scope == 1 && AD_Rules()));
+};
+string(float ammo, float big, string fallback) AD_AmmoModel;
+
 // (VR_OtherFlags, whose meaning the map's spawnflags have: vr_spawnflags.qc, after this file.)
 
 // The vanilla monsters' projectiles AD gives a speed by skill (AD_MonsterSpeed).

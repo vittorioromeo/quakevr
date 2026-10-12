@@ -3665,7 +3665,7 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageArcaneDimensions()
 {
     return {
-        cycle("Projectile Rules", vr_ad_projectiles, {{0.f, "Auto"}, {1.f, "Vanilla"}, {2.f, "Arcane Dimensions"}})
+        cycle("Projectile Rules", vr_ad_projectiles, {{1.f, "Off"}, {0.f, "AD Maps Only"}, {2.f, "Everywhere"}})
             .help("Whose rules shotguns and monster projectiles play by. Auto: Arcane Dimensions' in its maps (projectile "
                   "pellets you see fly, from your shotguns and the grunts'; the hell knights', scrags', ogres' and "
                   "zombies' missiles at its speeds for the skill), Quake's elsewhere. Vanilla: Quake's everywhere. "
@@ -3673,11 +3673,20 @@ void hologramTestMessage()
         slider("Pellet Spread", vr_ad_pellet_spread, 0.f, 2.f, 0.05f, "x%.2f").extend(0.f, 4.f)
             .help("Arcane Dimensions' pellets: how wide they spread, times its own (the shotgun 0.04, the super shotgun "
                   "0.14 by 0.08: wider than Quake VR's hitscan, aimed with the hand). 0: every pellet straight."),
-        slider("Pellet Speed", vr_ad_pellet_speed, 0.25f, 3.f, 0.05f, "x%.2f").extend(0.1f, 10.f)
+        slider("Player Pellet Speed", vr_ad_pellet_speed, 0.25f, 3.f, 0.05f, "x%.2f").extend(0.1f, 10.f)
             .help("How fast your pellets fly, times Arcane Dimensions' (the shotgun 2000, the super shotgun 1500 units a "
                   "second): faster is nearer hitscan."),
+        slider("Enemy Pellet Speed", vr_ad_enemy_pellet_speed, 0.25f, 3.f, 0.05f, "x%.2f").extend(0.1f, 10.f)
+            .help("Enemy shotgun pellets' speed multiplier, independent of yours. Applies to Quake grunts using AD projectile rules and AD enemies in any map."),
         slider("Pellet Damage", vr_ad_pellet_damage, 0.f, 3.f, 0.05f, "x%.2f").extend(0.f, 10.f)
             .help("Your pellets' damage, times Weapon Damage's shotgun and super shotgun pellet (4: Arcane Dimensions')."),
+        header("Feature Scope"),
+        cycle("Ammo Models", vr_ad_ammo_models, {{0.f, "Off"}, {1.f, "AD Maps Only"}, {2.f, "Everywhere"}})
+            .help("AD's custom ammo boxes while its data is loaded. Off: original Quake boxes. Newly spawned ammo only; reload the map to change existing boxes. Ammo counts, held weapons and VR pickup physics stay the same."),
+        cycle("Ammo Resistance", vr_ad_resistance, {{0.f, "Off"}, {1.f, "AD Maps Only"}, {2.f, "Everywhere"}})
+            .help("AD ammo resistance and vulnerability on entities with resistance keys. Everywhere preserves AD monsters' resistance outside AD maps; ordinary enemies without keys stay unchanged. Takes effect immediately."),
+        cycle("Weapon Upgrades", vr_ad_upgrades, {{0.f, "Off"}, {1.f, "AD Maps Only"}, {2.f, "Everywhere"}})
+            .help("Shadow Axe, Widowmaker and Plasma Gun upgrade effects and new pickups. Owned upgrades are preserved while Off. Everywhere allows these pickups outside AD maps; no automatic replacement of ordinary guns."),
         toggle("Evil Skill (with Nightmare)", vr_ad_evil)
             .help("Arcane Dimensions' fifth skill, in any campaign while its data is installed: chosen with Nightmare (the "
                   "start map's skill hall, or Arcane Dimensions' own Evil choice, which sets this). 50 health at most "
@@ -3690,10 +3699,15 @@ void hologramTestMessage()
             .help("Arcane Dimensions' ladders climbed with your hands, as ledges (Hand Climbing on): grip an actual "
                   "rung, pull yourself up hand over hand, mantle at its top. VR hands disable keyboard ladder "
                   "movement and jump climbing."),
-        toggle("Its Content in Every Map", vr_ad_everywhere)
+        cycle("Additional Content", vr_ad_everywhere, {{0.f, "AD Maps Only"}, {1.f, "Everywhere"}})
             .help("Arcane Dimensions' monsters, new artifacts, custom keys, health vials and gems, custom items and ladders in any "
-                  "map that places them (custom maps, the toolgun), while its data is installed. Off: only in its own "
-                  "maps. Its pickups that would replace Quake VR's (backpacks) are only ever in its maps."),
+                  "map that places them (custom maps, the toolgun), while its data is installed. AD Maps Only: only in its own "
+                  "maps. Its pickups that would replace Quake VR's (backpacks) are only ever in its maps. Disabling required monsters or keys in AD maps would prevent progress, so they remain available there."),
+        command("Map Logic / Inventory Override", "")
+            .unavailableBecause("AD map logic, key progression and scripted inventory remain AD-map-only. A global override is not supported: it would break triggers, exits and item placement. VR interactions, hit fixes and physics always remain active."),
+        command("AD Status", "vr_ad_info"),
+        command("Scope and Ammo Model Test", "vr_ad_test 65")
+            .help("Reports the feature scopes, all eight ammo box models and pickup physics; checks both held weapon models stay unchanged."),
     };
 }
 
@@ -6487,7 +6501,7 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Evil Skill Report", "vr_ad_test 22")
             .help("Whether AD's Evil skill plays (Nightmare with Evil Skill on), your health and its cap, megahealth's, "
                   "the axe's blow."),
-        command("Arcane Dimensions: Buttons Test", "vr_ad_test 61")
+        command("Arcane Dimensions: Buttons Test", "vr_ad_test 65")
             .help("Press this map's laser button with a hand, a weapon and a thrown prop; check disabled state."),
         command("Arcane Dimensions: Backpacks Test", "vr_ad_test 62")
             .help("Report map backpacks; create an AD dropped bag, test walkover immunity and grab/holster collection."),
@@ -7950,6 +7964,7 @@ const Page pages[] = {
     {"Holding Enemies", pageHoldingEnemies, pageCombat},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
     {"Doom", pageDoom, pageGadget, LevelStandard},
+    {"Arcane Dimensions", pageArcaneDimensions, pageAdvanced}, // AD support: dedicated tweaks page
     {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
@@ -8769,6 +8784,8 @@ za::Vector<Item> pageAdvanced()
         header("Game"),
         open("Play", pageIndex(pagePlay)),
         open("Combat", pageIndex(pageCombat)).help("Melee, parry and bash, stamina, batting and catching, damage and knockback."),
+        open("Arcane Dimensions", pageIndex(pageArcaneDimensions)) // AD support
+            .help("Arcane Dimensions tweaks: independent player and enemy pellet speeds, ammo appearance and feature scope."),
         open("Movement", pageIndex(pageMovement)).help("Locomotion, climbing, swimming and the grappling hook."),
         open("Carrying and Throwing", pageIndex(pageCarryingHub))
             .help("Carrying, throwing, force grab, wall torches, rocks and bricks, gibs; what you hold's offsets and weights."),

@@ -340,9 +340,11 @@ namespace qvr::ad
 
 bool spawnAvailable(const char* model, bool rulesOnly)
 {
-    return Cvar_VariableValue("vr_ad_mounted") != 0.f &&
-           (!rulesOnly || Cvar_VariableValue("vr_ad_rules") != 0.f) &&
-           (Cvar_VariableValue("vr_ad_rules") != 0.f || vr_ad_everywhere.value != 0.f) &&
+    const bool rules = Cvar_VariableValue("vr_ad_rules") != 0.f;
+    const float upgrades = vr_ad_upgrades.value;
+    const bool scope = rulesOnly ? (upgrades == 2.f || (upgrades == 1.f && rules)) :
+                                  (rules || vr_ad_everywhere.value != 0.f);
+    return Cvar_VariableValue("vr_ad_mounted") != 0.f && scope &&
            (!model || !model[0] || COM_FileExists(model, nullptr));
 }
 
