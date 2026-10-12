@@ -179,6 +179,12 @@ showed a slower frame median. That candidate was reverted. An initial binding
 collision removed scene geometry and produced invalid low timings; it was
 identified by the image and render-phase checks and was not accepted.
 
+At render scale 0.25, the Frame measured 13.411 ms GPU-eye time with the shipped
+retro edge softness and 12.531 ms with softness off. The former keeps softer
+retro boundaries at about a 7% GPU cost; both retain the blur from reduced
+render resolution, and both exceeded the 13.89 ms frame p99 budget in combat.
+The current optional preview still uses the sharper-edge profile.
+
 ## Credits and source
 
 - Original mod and engine source: [Vittorio Romeo's Quake VR](https://github.com/vittorioromeo/quakevr).

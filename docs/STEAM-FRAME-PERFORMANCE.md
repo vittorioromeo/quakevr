@@ -32,6 +32,14 @@ only a diagnostic control. Retro lighting disabled by itself saved about 3.4%.
 Half-resolution retro particles showed no repeatable combat gain. Render scale
 had the largest measured effect.
 
+At scale 0.25, keeping the shipped retro edge softness measured 13.411 ms GPU
+eyes, versus 12.531 ms with softness disabled (about 7% lower). Frame medians
+were 13.939 and 13.889 ms; p99 was 21.257 and 20.296 ms, respectively. Paired
+1728x1728 captures show the softened-edge profile preserves softer retro
+boundaries while both settings retain the lower-resolution detail loss. Neither
+profile demonstrates stable 72 Hz in this combat fixture because p99 exceeds
+13.89 ms.
+
 The tested shader fast path for retro-light curves had no gain and was reverted.
 An exact-color palette lookup candidate also failed to improve performance: the
 corrected version rendered pixel-identical eyes but averaged 30.437 ms GPU-eye
