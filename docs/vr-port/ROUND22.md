@@ -3773,3 +3773,58 @@ registered/rigged/alive, through both physics and debug dispensers. Outside AD: 
 fixture: 56 ready/0 disabled; AD Everywhere off: 0 ready/56 disabled and selection rejected. e1m1 smoke and calibration
 menu path check passed (4 paths, 0 missing). Archived melee evaluation skipped as expected. Menu rows also expose
 vrgrabs' carry/body load settings and ragnotes' four corpse-limb regression actions; those workers own their logic.
+
+
+## Voice-note fixes: vore reach, corpse self-collision and blunt limb damage (2026-10-12, worktree `ragnotes`)
+
+The vore stood beside the player without attempting its shove; the photographed grunt's arm went through its torso;
+blunt gun/hammer/brick blows on corpses should pop the piece struck, while axes still cut. No new cvars/defaults.
+
+- `QC/vr_enemyshove.qc`: a vore's reach includes its drawn horizontal bounds (`drawnbounds`, including model scale/
+  offsets), rather than only its Quake walking hull. The existing Too Close setting remains the gap beyond a grunt's
+  side. Default vore reach is now 90 units (formerly 68). Targeted spawn distances 64/100: shoves at 54/76 units;
+  distances 160/240: none during the observation. The same reach is used when the blow lands, with its existing margin.
+- `Quake/vr/vr_box3d.cpp`: a corpse's deep contacts and arms reaching to wounds now stay physical. Their former
+  collision bypass let arms pass through and settle inside the torso. Preserve ragmove2's animation/pin exceptions
+  for stagger, rise and climbing, and its reaching-arm/deep-contact safeguard on living knockdowns. Parent-child
+  joint neighbours and loose equipment remain excluded. `vr_ragdoll_list` reports 70%-core overlaps as `deep` as well
+  as ordinary surface contacts: these distinguish penetration from small contact slop in the fitted hulls.
+- `QC/combat.qc`, `QC/vr_limbs.qc`: after the existing immediate chance-based pops, blunt/fist/prop/bash corpse hits
+  accumulate damage separately at the struck limb joint (and separately at the head). Reaching that monster's original
+  corpse-health threshold pops that piece; hits on the torso bleed/push but preserve the body. Blades, chainsaws,
+  shots and blasts retain their existing paths. With Limb Gore/Corpses disabled, the previous whole-body path remains.
+  Per-piece damage uses the existing corpse damage multipliers and persists with ordinary QC entity fields. Untagged
+  flung props use their own position/velocity, matching the existing living thrown-limb hook; held blows use their tagged
+  contact point.
+- `vr_limb_test` 24: two blunt 48-damage blows at one forearm (grunt threshold 80), 25: an 800-damage pelvis-surface
+  blow, 26: two physical-prop blows at that forearm, 27: an 8 m/s axe corpse slash through the real cut classifier.
+  All leave corpse health 80 and `gib 0`; 24/26 pop one piece, 25 pops none, 27 cuts one and pops none. Debug > Gore
+  Tests > Limb Gore Tests has the buttons (toolbake). `Misc/quakevr/ragdoll/notes_regression.sh <agent>` reproduces
+  the reach, corpse, overlap and living-transition checks.
+
+**Validation:** built QC/engine with zero QC warnings and passing FGD/statics/precedence checks on `next` including
+ragmove2 (`83f9f04ed`) and toolbake (`d308fad65`). Eight mixed dead monsters: ordinary overlapping pairs 27 off / 11
+on; deep pairs 8 off / 0 on. This checks penetration, rather than requiring fitted hull contacts to be exactly zero.
+Grunt arm/forearm stump reaches settled at 0 J and 0 rad/s. Living behaviour buttons: stagger, get-up, pull-up and
+head guard on grunt plus knight get-up all began (5/5). Numeric grunt/knight get-ups handed back in all 4 active/on-off
+controls; active pelvis gaps 1.9/4.3 units in the final living-preservation revision. Repeated steady/overwhelmed staggers:
+initial 3-trial runs recovered 6/6 and fell 6/6; final 2-trial runs recovered 4/4 and fell 4/4, zero errors. Corpse Limb Gore disabled: original whole-body gib at 80 damage retained.
+e1m1 smoke exited 0; `eval.sh` correctly skipped the author's archived takes. Headset checks: shove at the vore's
+visible side, force a corpse's forearm against/along its chest with a hand, repeatedly hit an individual limb with a
+gun butt/hammer/brick, and compare axe cuts; also watch living get-up and ledge pull-up for contact-induced stalls.
+
+**Ordinary living AI/combat: feasibility audit only.** The necessary rig skinning, frame clips, capped joint drives,
+pelvis pin, feet/step logic and physical hand reaches already exist. Living staggers, falls, get-ups, swims and ledge
+pull-ups use them; ordinary living hits still use the inexpensive animated skeletal reaction overlay. Keeping a
+living ragdoll permanently driven is feasible, but enabling today's knocked-down state everywhere is not sufficient:
+that state suspends normal QC movement/attacks, and `writeRagdoll` writes physical pose/origin back to the entity.
+Normal AI navigation (`walkmove`/`movetogoal`), animation-root motion, physical pelvis/feet movement and hand-based
+weapon/attack origins need one consistent owner. Otherwise the AI and physics fight over position and attack timing.
+
+A conservative future stage can retain QC navigation/attack timing and its collision hull, pin the physics pelvis to
+that navigation target, follow each live animation clip with strong muscles, and allow bounded physical limb/contact
+reactions. Then deliberately reconcile feet, ledges and attacks before introducing fully physical locomotion. Preserve
+existing knockdown/get-up transitions and verify grunt/enforcer firing, knight melee, stairs/ledges, held limbs, crowds,
+save/load and actual headset animation quality. Current full-body drivers cover a limited class list and permanent
+awake bodies add physics cost: crowd cost must be measured for this stage; no benchmark estimate is claimed here.
+No broad locomotion redesign or always-on living mode was introduced by this fix.
