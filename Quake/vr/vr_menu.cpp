@@ -6421,6 +6421,14 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Screen Tint Report", "vr_ad_tint_info")
             .help("vr_ad_tint_info: the screen tint Arcane Dimensions asks for now (its colour, density, a tint or a "
                   "camera's fade), the one drawn (eased), Screen Tints, the whole colour shift's alpha."),
+        command("Arcane Dimensions: Shotgun Hit Test", "vr_ad_test 40") // AD support
+            .help("Destructive: freezes an AD grunt 128 units ahead, fires six projectile pellets and reports damage after flight."),
+        command("Arcane Dimensions: Super Shotgun Hit Test", "vr_ad_test 41") // AD support
+            .help("Destructive: the same frozen grunt test, with fourteen projectile pellets."),
+        command("Arcane Dimensions: Burst Rifle Hit Test", "vr_ad_test 42") // AD support
+            .help("Destructive: the same frozen grunt test, with one burst rifle projectile round."),
+        command("Arcane Dimensions: Ammo Model Test", "vr_ad_test 44") // AD support
+            .help("Gives a shotgun and refreshes ammo as AD pickups do; reports the weapon id and model before/after."),
         command("Arcane Dimensions: Ammo Resistance Test", "vr_ad_test 21")
             .help("Destructive: a grunt given AD's resistance keys (shells half, nails all, rockets -50%) hit by a shot, a "
                   "nail, a blow, a rocket, a bolt: in AD maps it resists, elsewhere only AD's own monsters do."),

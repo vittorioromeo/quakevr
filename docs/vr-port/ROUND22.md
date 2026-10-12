@@ -3573,3 +3573,38 @@ errors; e1m1, hip1m1, r1m1, MG1 and MG3 unchanged.
   flail dangles).
 - [ ] The poorer fits (the gaunt, the seeker, Freddie): their dead poses look whole.
 - [ ] A corpse of each, gibbed by shots: AD's own head and weapon fly.
+
+
+## AD pellet hits and ammo pickup models (2026-10-12)
+
+Voice notes: projectile shotgun, super shotgun and dropped burst rifle often needed about eight shots on a grunt;
+a held shotgun briefly looked like a nailgun until firing.
+
+The pellets and their tracer were consuming one another at the muzzle. Both the movement trace and the generic
+solid-overlap touch path could invoke AD's bullet touch on a sibling pellet. AD's own touch then hides/removes it.
+The isolated engine helper VR_AD_PelletsPass now excludes only pairs of AD proj_bullet entities, including AD's
+small-projectile FLY mode, in both paths. Monsters, world, props and other projectiles still block these pellets.
+AD's original damage, pellet counts, shotgun spread and speeds remain; the dropped burst rifle retains its own
+0.006 spread instead of receiving the shotgun's 0.04. AD's Sharp Shooter spread now also applies to projectiles.
+No cvars/defaults changed.
+
+AD ammo/backpack refresh called AD's W_SetCurrentAmmo, where our shotgun id 4 means the vanilla nailgun item bit.
+A reviewed importer hook delegates player ammo/model refresh to both VR hands through W_SetCurrentAmmoFor.
+The imported source and AD_IMPORT.txt were regenerated from the locally installed pinned AD paks.
+
+Debug > Tests > Arcane Dimensions exposes Shotgun Hit Test (40), Super Shotgun Hit Test (41), Burst Rifle Hit Test
+(42), and Ammo Model Test (44), through vr_ad_test. The flight tests place a frozen, high-health AD grunt straight
+ahead and report damage after 0.8 seconds, then remove the test target. Run on open ground; scratch1 is distance
+(default 128). Their source/target trace reports make an obstructed test visible.
+
+Verification: Release build and QC/FGD/statics/precedence checks passed; QC had 0 warnings. Targeted headless checks
+on vrfiringrange, precise hits on: aligned pellets (Pellet Spread 0) dealt exactly 24 SG, 56 SSG and 6 per burst-rifle
+round. Before the overlap fix, the same aligned blasts delivered only 4 damage; touch logs proved sibling impacts.
+At original AD spread, this run delivered SG/SSG 24/32 at 128 units and 20/8 at 256; rifle round 6 at both ranges.
+These are samples of AD's deliberately wide scatter, not a damage buff. Ammo refresh preserved main shotgun id/model
+4/progs/v_shot.mdl and off-hand SSG 5/progs/v_shot2.mdl. e1m1 and active AD ad_e1m1 both ran regular player firing
+without errors; AD smoke reported 934 AD spawns and 60 shared VR spawns. eval.sh skipped the archived melee takes.
+
+VR follow-up: compare SG/SSG and burst-rifle kills at short and medium range in AD; walk through ammo/backpack
+pickups while holding different guns in each hand and verify their models stay correct. AD's wide SSG scatter is
+retained for the author's assessment with the existing Pellet Spread slider.

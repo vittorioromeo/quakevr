@@ -29,11 +29,80 @@ void(entity e, entity p) AD_TestTouch =
     other = oo;
 };
 
+void(entity inflictor, entity attacker, float damage) AD_TestPelletPain = {};
+
+// Frozen AD grunt for actual projectile-flight checks; 40-42 report after flight.
+void() AD_TestPelletReport =
+{
+    bprint(sprintf("adhits: wid %g distance %g damage %g model %s\n", self.weapon, self.speed,
+        10000 - self.enemy.health, self.enemy.model));
+    remove(self.enemy);
+    remove(self);
+};
+
 void(float request, entity p) AD_RulesTest =
 {
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;
     entity os = self;
+    if(request >= 40 && request <= 42)
+    {
+        self = p;
+        float wid = request == 40 ? WID_SHOTGUN : (request == 41 ? WID_SUPER_SHOTGUN : WID_GRUNTGUN);
+        VRGiveEntWeapon(p, cVR_MainHand, wid, 0, WeaponIdToBaseClipSize(wid));
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        vector dir = v_forward;
+        dir_z = 0;
+        dir = normalize(dir);
+        vector muzzle = p.origin + dir * 32 + '0 0 24';
+        float distance = cvar("scratch1");
+        if(distance <= 0) distance = 128;
+        entity g = AD_TestSpawn("monster_army", ad_monster_army, muzzle + dir * distance);
+        setmodel(g, g.mdl);
+        setsize(g, '-16 -16 -24', '16 16 32');
+        g.solid = SOLID_SLIDEBOX;
+        g.movetype = MOVETYPE_NONE;
+        g.health = 10000;
+        g.think = SUB_Null;
+        g.nextthink = -1;
+        entity report = spawn();
+        report.enemy = g;
+        report.weapon = wid;
+        report.speed = distance;
+        report.think = AD_TestPelletReport;
+        report.nextthink = time + 0.8;
+        g.ad_th_pain = AD_TestPelletPain;
+        g.ad_th_run = g.ad_th_stand = g.ad_th_walk = g.ad_th_missile = SUB_Null;
+        g.takedamage = DAMAGE_AIM;
+        g.weapon = wid;
+        g.speed = distance;
+        setorigin(g, g.origin);
+        traceline(muzzle, muzzle + dir * distance, MOVE_HITMODEL, p);
+        bprint(sprintf("adhits: source %v target %v dir %v trace %g %s solid %g flags %g\n", muzzle, g.origin,
+            dir, trace_fraction, trace_ent.classname, g.solid, g.flags));
+        vr_pellet_damage = wid == WID_GRUNTGUN ? cvar_hget(cvarh_vr_gruntgun_damage) : 4;
+        AD_FirePellets(cVR_MainHand, wid == WID_GRUNTGUN ? 1 : (wid == WID_SHOTGUN ? 6 : 14), dir,
+            wid == WID_GRUNTGUN ? VR_BURST_SPREAD : '0.01 0.01 0', muzzle);
+        vr_pellet_damage = 0;
+        self = os;
+        return;
+    }
+    if(request == 44)
+    {
+        self = p;
+        VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, 6);
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        VRGiveEntWeapon(p, cVR_OffHand, WID_SUPER_SHOTGUN, 0, 2);
+        W_SetCurrentAmmoFor(cVR_OffHand);
+        string offModel = p.weaponmodel2;
+        string model = p.weaponmodel;
+        float wid = p.weapon;
+        ad_W_SetCurrentAmmo(p);
+        bprint(sprintf("adhits: ammo update wid %g -> %g model %s -> %s\n", wid, p.weapon, model, p.weaponmodel));
+        bprint(sprintf("adhits: off hand wid %g model %s -> %s\n", p.weapon2, offModel, p.weaponmodel2));
+        self = os;
+        return;
+    }
     if(request == 10)
     {
         // The new artifacts but the Nail Piercer (it excludes the Sharp Shooter, as in AD) touched: what they give.

@@ -866,6 +866,7 @@ void() ad_W_FireLightning =
 ======================================================================*/
 void(entity ad_targ) ad_W_SetCurrentAmmo =
 {
+	if (VR_AD_SetCurrentAmmo(ad_targ)) return;
 	if (ad_intermission_running > 0) return;	// intermission or finale
 	if (ad_cinematic_running > 0) return;		// Remote camera active
 	ad_remoteplayer_run (ad_targ);				// get out of any weapon firing states

@@ -17,6 +17,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_protocol.hpp"
+#include "vr_progs.hpp"
 #include "vr_sha256.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -390,4 +391,24 @@ void qvr::ad::tintInfo()
         cl.stats[protocol::STAT_QVR_ADTINT], cl.stats[protocol::STAT_QVR_ADTINTDEN] & 255,
         (cl.stats[protocol::STAT_QVR_ADTINTDEN] & 256) ? "fade" : "tint", tintState.shown, tintState.colour[0],
         tintState.colour[1], tintState.colour[2], qvr::vr_ad_tints.value, v_blend[3]);
+}
+
+// A shotgun's pellets/tracer leave one muzzle together. Point hull traces can meet the
+// sibling points and AD's touch consumes them before they reach a monster. Pellets
+// pass other pellets (of either owner), while still meeting bodies and solid props.
+extern "C" int VR_AD_PelletsPass(const edict_t* mover, const edict_t* target)
+{
+    if(!mover || !qvr::progs::bindings().isVrProgs)
+    {
+        return 0;
+    }
+    const int movingType = static_cast<int>(mover->v.movetype);
+    const int targetType = static_cast<int>(target->v.movetype);
+    if((movingType != MOVETYPE_FLYMISSILE && movingType != MOVETYPE_FLY) ||
+        (targetType != MOVETYPE_FLYMISSILE && targetType != MOVETYPE_FLY))
+    {
+        return 0;
+    }
+    return std::strcmp(PR_GetString(mover->v.classname), "proj_bullet") == 0 &&
+           std::strcmp(PR_GetString(target->v.classname), "proj_bullet") == 0;
 }
