@@ -607,6 +607,7 @@ struct RagdollBodies
     int riseLapses{0};
     double riseStuck{-1.0}; // risen, its spot taken since (it slumps after a while)
     double swimGoalAt{-1.0}; // a living knockdown swimming (livingSwim): when its goal (where it can stand) was looked for
+    bool drowning{false};    // knocked down drowning (ragdollDrowning): its living swim begins frantic
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -4281,6 +4282,33 @@ float activeRayHit(const glm::vec3& from, const glm::vec3& to, glm::vec3& at, gl
     return hit.fraction;
 }
 
+// The liquid a drive of entity `num` feels (activeLiquidAt; a test's swim on dry land, vr_ragdoll_act: that liquid
+// everywhere for its drive, none for its buoyancy).
+using LiquidFn = ragactive::Liquid (*)(const glm::vec3&);
+[[nodiscard]] LiquidFn liquidFor(int num)
+{
+    if(const ragtest::Force* f = ragtest::forced(num); f && f->liquid != ragactive::Liquid::None)
+    {
+        constexpr LiquidFn forcedLiquid[] = {nullptr, [](const glm::vec3&) { return ragactive::Liquid::Water; },
+            [](const glm::vec3&) { return ragactive::Liquid::Slime; }, [](const glm::vec3&) { return ragactive::Liquid::Lava; }};
+        return forcedLiquid[static_cast<int>(f->liquid)];
+    }
+    return activeLiquidAt;
+}
+
+// Whether entity `num` is one a falling body grabs at (vr_ragdoll_active_grab): a monster, standing (its box) or its
+// ragdoll (knocked down or dead); not a fish, nor a flyer.
+bool activeGraspable(int num)
+{
+    if(num <= 0 || num >= qcvm->num_edicts)
+    {
+        return false;
+    }
+    const edict_t* e = EDICT_NUM(num);
+    const int flags = static_cast<int>(e->v.flags);
+    return !e->free && (flags & FL_MONSTER) != 0 && (flags & (FL_SWIM | FL_FLY)) == 0;
+}
+
 [[nodiscard]] bool standSpot(edict_t* ent, const glm::vec3& from, const glm::vec3& at, const glm::vec3& mins,
     const glm::vec3& maxs, float range, glm::vec3& out, bool anywhere); // (below)
 constexpr double swimGoalEvery = 1.0; // s: a living swimmer's goal looked for again
@@ -4322,8 +4350,9 @@ void livingSwim(RagdollBodies& r)
         return;
     }
     const glm::vec3 pelvis = glmv(b3Body_GetPosition(r.body[0]));
-    if(activeLiquidAt(pelvis) == ragactive::Liquid::None &&
-        activeLiquidAt(pelvis + glm::vec3{0.f, 0.f, 8.f / world->m2u}) == ragactive::Liquid::None)
+    const LiquidFn liquid = liquidFor(r.num);
+    if(liquid(pelvis) == ragactive::Liquid::None &&
+        liquid(pelvis + glm::vec3{0.f, 0.f, 8.f / world->m2u}) == ragactive::Liquid::None)
     {
         return;
     }
@@ -4338,15 +4367,61 @@ void livingSwim(RagdollBodies& r)
     c.world = world->id;
     c.now = qcvm->time;
     c.gravity = za::max(-b3World_GetGravity(world->id).z, 0.f);
-    c.liquidAt = activeLiquidAt;
+    c.liquidAt = liquid;
     c.num = r.num;
     c.born = r.born;
     if(ragactive::beginLivingSwim(a, activeParts(r), c))
     {
         r.swimGoalAt = -1.0;
+        if(r.drowning)
+        {
+            a.swim.panic = 1.f; // (drowning: frantic strokes at first)
+            r.drowning = false;
+        }
         return;
     }
     if(fresh)
+    {
+        ragactive::end(a);
+    }
+}
+
+// A living knockdown (of the active classes) not driven, falling past a ledge's lip near a hand (dropped from a hand,
+// toppled off a lip; vr_ragdoll_active_pullup; ROUND22.md, "Ledge pull-ups"): its drive begun holding the frame it went
+// down in, a climb (ragactive::beginClimb: it grabs the lip, hangs, pulls itself up). A driven one's fall asks drive()'s
+// own. Looked at every third frame while it falls (every frame past 2.5 m/s: past the lip in a moment).
+void livingClimb(RagdollBodies& r, float dt)
+{
+    edict_t* ent = EDICT_NUM(r.num);
+    ragactive::State& a = r.active;
+    if(a.on || r.shove.on || vr_ragdoll_active_pullup.value <= 0.f || vr_ragdoll_active_env.value == 0.f ||
+        vr_ragdoll_active_env_ledge.value == 0.f || !knockedDown(ent) || ent->v.health <= 0.f || !activeClassOf(ent) ||
+        !sv.worldmodel || b3Body_GetLinearVelocity(r.body[0]).z > -0.8f ||
+        (b3Body_GetLinearVelocity(r.body[0]).z > -2.5f && static_cast<int>(qcvm->time * 72.0 + 0.5) % 3 != 0)) // (falling fast: every frame)
+    {
+        return;
+    }
+    const glm::vec3 pelvis = glmv(b3Body_GetPosition(r.body[0]));
+    if(activeLiquidAt(pelvis) != ragactive::Liquid::None)
+    {
+        return;
+    }
+    ragactive::begin(a, activeParts(r), modelOf(ent), glmv(world->toM(vec(ent->v.origin))), r.joints.data(), r.jointFriction,
+        r.jointStiffness, qcvm->time);
+    const int frame = static_cast<int>(ent->v.frame); // (the pose it went down in: its tone holds it)
+    a.clip = ragactive::Clip{frame, frame, static_cast<float>(frame), qcvm->time, 10.f, false};
+    ragactive::Context c;
+    c.world = world->id;
+    c.now = qcvm->time;
+    c.dt = dt;
+    c.gravity = za::max(-b3World_GetGravity(world->id).z, 0.f);
+    c.floorBelow = activeFloorBelow;
+    c.rayHit = activeRayHit;
+    c.num = r.num;
+    c.born = r.born;
+    c.envMask = catWorld | catMover | catProp | catSolid | catFixture;
+    c.ledges = ledges::of(sv.worldmodel);
+    if(!ragactive::beginClimb(a, activeParts(r), c))
     {
         ragactive::end(a);
     }
@@ -4360,6 +4435,7 @@ void driveActive(Slot& s, float dt)
     if(vr_ragdoll_active.value != 0.f)
     {
         livingSwim(r);
+        livingClimb(r, dt);
     }
     if(!r.active.on && !trace && !ragactive::liquidPending(r.active, qcvm->time))
     {
@@ -4377,7 +4453,7 @@ void driveActive(Slot& s, float dt)
         // stopped asking for (hit or held down meanwhile: it slumps, and gets up again later).
         const edict_t* ent = EDICT_NUM(r.num);
         const ragactive::State& a = r.active;
-        if((a.stagger.on || a.rise.on || a.fall.on) && !a.death.on && ent->v.health <= 0.f)
+        if((a.stagger.on || a.rise.on || a.fall.on || a.climb.on) && !a.death.on && ent->v.health <= 0.f)
         {
             ragactive::release(r.active, parts);
         }
@@ -4403,15 +4479,7 @@ void driveActive(Slot& s, float dt)
         c.held |= g.num == r.num && g.part >= 0 && g.part < r.count ? (1u << g.part) : 0u;
     }
     c.floorBelow = activeFloorBelow;
-    c.liquidAt = activeLiquidAt;
-    if(const ragtest::Force* f = ragtest::forced(r.num); f && f->liquid != ragactive::Liquid::None)
-    {
-        // (A test's swim on dry land, vr_ragdoll_act: that liquid everywhere for its drive, none for its buoyancy.)
-        constexpr ragactive::Liquid (*forcedLiquid[])(const glm::vec3&) = {
-            nullptr, [](const glm::vec3&) { return ragactive::Liquid::Water; },
-            [](const glm::vec3&) { return ragactive::Liquid::Slime; }, [](const glm::vec3&) { return ragactive::Liquid::Lava; }};
-        c.liquidAt = forcedLiquid[static_cast<int>(f->liquid)];
-    }
+    c.liquidAt = liquidFor(r.num); // (a test's swim on dry land: that liquid everywhere for its drive)
     c.rayHit = activeRayHit;
     c.num = r.num;
     c.born = r.born;
@@ -4420,10 +4488,20 @@ void driveActive(Slot& s, float dt)
     c.envMask = catWorld | catMover | catProp | catSolid | catFixture;
     // (Looked up only for a drive whose env is on, or not started yet: not every frame for every collapse or swim.)
     const ragactive::Env& env = r.active.env;
+    // (And a living one's fall or climb: vr_ragdoll_active_pullup.)
+    const bool climbs = vr_ragdoll_active_pullup.value > 0.f && !r.active.death.on && (r.active.fall.on || r.active.climb.on);
     c.ledges = vr_ragdoll_active_env.value != 0.f && vr_ragdoll_active_env_ledge.value != 0.f && r.active.on &&
-                       r.active.death.on && (!env.started || env.on) && sv.worldmodel
+                       ((r.active.death.on && (!env.started || env.on)) || climbs) && sv.worldmodel
                    ? ledges::of(sv.worldmodel)
                    : nullptr;
+    c.carried = r.shove.on;
+    // Others to grab falling (vr_ragdoll_active_grab): monsters' boxes, ragdolls' and corpses' parts.
+    c.othersMask = vr_ragdoll_active_grab.value > 0.f ? catActor | catCorpse : 0u;
+    c.graspable = activeGraspable;
+    if(const ragtest::Force* f = ragtest::forced(r.num); f && f->grab)
+    {
+        c.grabSure = true; // (a test's: its chance made sure)
+    }
     // Its forces this frame, kept for the step's later pieces (liftAgain).
     r.driveForce = {};
     r.driveForceAt = qcvm->time;
@@ -8792,7 +8870,10 @@ constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in an
     for(int arm = 0; arm < 2; arm++)
     {
         const auto& chain = r.active.chain[static_cast<za::SizeT>(arm)];
-        if(r.active.reach[static_cast<za::SizeT>(arm)].weight <= 0.05f || chain[0] < 0)
+        // (Or about to: a hand of what is round him wanting a hold, its reach still easing in (a lip falling past is
+        // reached for at once: met, the arm stuck on the head and missed it).)
+        const bool wants = r.active.env.hand[static_cast<za::SizeT>(arm)].want > 0.f;
+        if((r.active.reach[static_cast<za::SizeT>(arm)].weight <= 0.05f && !wants) || chain[0] < 0)
         {
             continue;
         }
@@ -8824,6 +8905,13 @@ constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in an
     if(pa < 0 || pb < 0)
     {
         return true;
+    }
+    // (Staggering, rising or climbing, its body follows its animation's frames (a climb: its pin's way), whose limbs pass through each other (a knight's
+    // get-up: a hand on a knee, a forearm in the thigh): met, they held the pose off by 15 units (3 without) and a steady
+    // stagger's feet tripped on each other now and then.)
+    if(r.active.on && (r.active.stagger.on || r.active.rise.on || r.active.climb.on))
+    {
+        return false;
     }
     // (Deep in each other, their cores overlapping: a hand let go of the wound inside his side, a stump's: left to part by
     // themselves, as selfMeets admits them, not pushed apart at once.)
@@ -15020,6 +15108,57 @@ bool ragdollCanStagger(edict_t* ent)
            !liquidAt(vec(ent->v.origin));
 }
 
+bool ragdollCanDrown(edict_t* ent)
+{
+    return world && vr_ragdoll_active_liquids.value != 0.f && activeLiving(ent) && canRagdoll(ent);
+}
+
+bool ragdollDrowning(edict_t* ent)
+{
+    RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp)
+    {
+        return false;
+    }
+    rp->drowning = true;
+    if(ragactive::swimming(rp->active) && rp->active.swim.living)
+    {
+        rp->active.swim.panic = 1.f; // (already swimming: frantic from now)
+        rp->drowning = false;
+    }
+    if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+    {
+        Con_Printf("drown: %d %s out of breath: it struggles as a ragdoll\n", rp->num, PR_GetString(ent->v.classname));
+    }
+    return true;
+}
+
+bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold)
+{
+    RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp || !rp->rig || !activeLiving(ent))
+    {
+        return false;
+    }
+    RagdollBodies& r = *rp;
+    ragactive::State& a = r.active;
+    if(a.on && (a.death.on || ragactive::climbing(a) || ragactive::swimming(a)))
+    {
+        return false; // (its hands busy)
+    }
+    if(!a.on)
+    {
+        beginLiving(r, ent); // (lying: no clip, no strength; its arms alone, by their reaches)
+    }
+    ragactive::guard(a, glmv(world->toM(at)), qcvm->time, hold);
+    if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+    {
+        Con_Printf("guard: %d %s guards its head (%s) for %.2f s\n", r.num, PR_GetString(ent->v.classname),
+            a.stagger.on ? "staggering" : a.fall.on ? "falling" : a.rise.on ? "getting up" : "down", hold);
+    }
+    return true;
+}
+
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
@@ -15434,6 +15573,12 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
         return 0;
     }
     const ragdoll::Rig& rig = *r->rig;
+    // Hanging from a ledge or pulling itself up (vr_ragdoll_active_pullup): it stays down until it is over (asked again
+    // after vr_knockdown_retry).
+    if(ragactive::climbing(r->active))
+    {
+        return 0;
+    }
     // Its body rising (vr_ragdoll_active_getup): on until it stands (-1), then handed back there (3 or 4: risen), if
     // its spot is still free (it was chosen 1-2.5 s ago: the player or a monster may stand there now).
     if(r->active.on && r->active.rise.on)

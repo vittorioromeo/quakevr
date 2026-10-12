@@ -320,3 +320,130 @@ void(entity pl, entity best, float part) VR_TestHit_One =
     VR_ClearHitKind();
     vr_hitpart_target = world;
 };
+
+// ----------------------------------------------------------------------------
+// Guarding the head in melee (vr_ragdoll_active_guard; ROUND22.md, "Guarding the head"): a player's hand swung at a
+// living monster's head (fast enough to strike: vr_melee_speed, whatever it holds: a sword, an axe, a fist, a gun's
+// bash), coming at it within the next fifth of a second, makes it (by the chance, once a swing) throw its arms up before
+// its face a moment: standing, drawn by every client as a hit reaction's guard (hitreact's part 9, its hold in
+// hundredths of a second: vr_hitreact.cpp); a ragdoll (a stagger, knocked down, getting up), its body's arms
+// (ragdollguard: vr_ragactive.cpp). Shots never: only hands. Its looks alone: the blow lands where it lands.
+// ----------------------------------------------------------------------------
+
+.float vr_guard_next;           // when it may guard again (a swing's guard decided: once a swing)
+float VR_GUARD_NEAR = 22;       // units: the hand's way passing this near its head
+float VR_GUARD_AHEAD = 0.2;     // s: the hand's way looked at this far ahead
+float VR_GUARD_HOLD = 0.6;      // s: its arms up this long (then down over a quarter of a second)
+float VR_GUARD_PART = 9;        // hitreact's part for a guard
+float VR_GUARD_UPM = 32;        // units a metre (the hand's speed is m/s)
+
+// Its head (standing: its eyes' height; a ragdoll: its head's middle).
+vector(entity m) VR_Guard_Head =
+{
+    if(isragdoll(m))
+    {
+        return ragdollcut(m, 6);
+    }
+    return m.origin + '0 0 1' * (m.view_ofs_z > 0 ? m.view_ofs_z : m.maxs_z * 0.8);
+};
+
+// `m` guards against a blow coming from `at` along `dir`.
+void(entity m, vector at, vector dir) VR_Guard_Raise =
+{
+    if(isragdoll(m))
+    {
+        if(!ragdollguard(m, at, VR_GUARD_HOLD))
+        {
+            return;
+        }
+    }
+    else
+    {
+        hitreact(m, at, dir, VR_GUARD_PART, VR_GUARD_HOLD * 100, 1);
+    }
+    if(cvar_hget(cvarh_vr_hit_react_debug))
+    {
+        dprint(sprintf("guard: %s %s guards its head (a hand at %v)\n", m.classname, isragdoll(m) ? "(a ragdoll)" : "standing",
+            at));
+    }
+};
+
+// Player `pl`'s hand `xHand` (self: pl): swung at a head?
+void(entity pl, float xHand) VR_Guard_Hand =
+{
+    vector hv = VRGetHandVel(xHand);
+    float speed = vlen(hv);
+    if(speed < VR_Melee_MinSpeed() || VR_Melee_Thing(pl, xHand) == VR_MTHING_NONE)
+    {
+        return;
+    }
+    vector hp = VRGetHandPos(xHand);
+    vector ahead = hp + hv * (VR_GUARD_UPM * VR_GUARD_AHEAD);
+    float chance = cvar_hget(cvarh_vr_ragdoll_active_guard);
+    entity m = findradius(hp, VR_GUARD_NEAR + speed * VR_GUARD_UPM * VR_GUARD_AHEAD + 48);
+    while(m)
+    {
+        if((m.flags & FL_MONSTER) && m.health > 0 && time >= m.vr_guard_next && !VR_IsDummy(m) && canragdoll(m))
+        {
+            vector head = VR_Guard_Head(m);
+            // (Its way's nearest point to the head, and the hand coming towards it.)
+            vector seg = ahead - hp;
+            float len2 = seg * seg;
+            float f = len2 > 0.01 ? min(1, max(0, ((head - hp) * seg) / len2)) : 0;
+            if(vlen(head - (hp + seg * f)) < VR_GUARD_NEAR && (head - hp) * hv > 0)
+            {
+                m.vr_guard_next = time + VR_GUARD_HOLD;
+                if(random() < chance)
+                {
+                    VR_Guard_Raise(m, hp, normalize(hv));
+                }
+            }
+        }
+        m = m.chain;
+    }
+};
+
+// StartFrame: each player's hands (vr_test_guard <n>: the live monster nearest the first player guards as from a swing,
+// n 1 standing or as it is; Debug > Tests).
+void() VR_Guard_Frame =
+{
+    float want = cvar("vr_test_guard");
+    if(want >= 1)
+    {
+        cvar_set("vr_test_guard", "0");
+        entity pl1 = find(world, classname, "player");
+        entity best = world;
+        float bestD = 100000;
+        entity e = nextent(world);
+        while(e)
+        {
+            if((e.flags & FL_MONSTER) && e.health > 0 && !VR_IsDummy(e) && !VR_TestSkips(e) && vlen(e.origin - pl1.origin) < bestD)
+            {
+                bestD = vlen(e.origin - pl1.origin);
+                best = e;
+            }
+            e = nextent(e);
+        }
+        if(best != world)
+        {
+            VR_Guard_Raise(best, pl1.origin + pl1.view_ofs, normalize(VR_Guard_Head(best) - pl1.origin - pl1.view_ofs));
+        }
+    }
+    if(cvar_hget(cvarh_vr_ragdoll_active_guard) <= 0)
+    {
+        return;
+    }
+    entity oldSelf = self;
+    entity pl = find(world, classname, "player");
+    while(pl)
+    {
+        if(pl.health > 0 && VRHandsTracked(pl))
+        {
+            self = pl;
+            VR_Guard_Hand(pl, cVR_MainHand);
+            VR_Guard_Hand(pl, cVR_OffHand);
+        }
+        pl = find(pl, classname, "player");
+    }
+    self = oldSelf;
+};

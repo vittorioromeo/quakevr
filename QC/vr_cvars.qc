@@ -590,6 +590,8 @@ float cvarh_vr_knockdown_hit_time;
 float cvarh_vr_knockdown_retry;
 float cvarh_vr_knockdown_search;
 float cvarh_vr_knockdown_water_giveup;
+float cvarh_vr_ragdoll_active_drown; // (vr_knockdown.qc VR_Knockdown_Drown)
+float cvarh_vr_ragdoll_active_guard; // (vr_hitreact.qc VR_Guard_Frame)
 float cvarh_vr_knockdown_getup_speed;
 float cvarh_vr_knockdown_push;
 float cvarh_vr_knockdown_ledge;
@@ -1370,6 +1372,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_knockdown_retry);
     VR_CVAR_HMAKE(vr_knockdown_search);
     VR_CVAR_HMAKE(vr_knockdown_water_giveup);
+    VR_CVAR_HMAKE(vr_ragdoll_active_drown);
+    VR_CVAR_HMAKE(vr_ragdoll_active_guard);
     VR_CVAR_HMAKE(vr_knockdown_getup_speed);
     VR_CVAR_HMAKE(vr_knockdown_push);
     VR_CVAR_HMAKE(vr_knockdown_ledge);

@@ -3645,3 +3645,103 @@ and locally drawn torso overlap both 0.0000 units. A long pull released at the t
 fast-pull, initial-overlap and overhead-clearance tests passed. Existing mantle tests passed at z 72 (large), 120
 (stack), 64 (sideways). Build and e1m1 smoke passed; eval.sh skipped because the author's takes are archived.
 The regression script optionally takes individual case names after the agent name for targeted reruns.
+## Active ragdolls: drowning, ledge pull-ups, grabbing others, guarding the head (2026-10-12, worktree `ragmove2`)
+
+His answers to ragmove's "not done": drowning "Yes"; head protection "Maybe it would make more sense during melee fights
+rather than gunfights"; catching on others "Yes"; ledge pull-up "If possible, yes"; recovery pain frames no. Each a
+chance cvar at the end of the active ragdoll block, a Ragdoll Settings row (after Active Get-Ups) and a Debug > Tests >
+Ragdoll Behaviours row (`vr_ragtest.cpp`'s table: `drown`, `pullup`, `grab`, `guard`).
+
+### Drowning struggle (`vr_ragdoll_active_drown` 1; Drowning Struggle)
+
+- QC `VR_Knockdown_Drown` (vr_knockdown.qc), from vr_liquids.qc's first drowning tick (12 s of breath gone, head under):
+  a grunt, enforcer, knight, death knight, ogre or zombie standing (Knockdowns on, its kind driven alive:
+  `ragdolldrown(e, 0)`, Swim and Flail on) is knocked down instead of that tick's damage. The engine's living swim
+  takes it (ragmove's `livingSwim`), frantic at first (`ragdolldrown(e, 1)`: `Swim::panic`, the strokes 1.9 times as
+  quick and 1.5 times as hard, easing to its usual over 3 s), its head up, towards where it can stand; it gets up there
+  as any knockdown in water.
+- vrtesthall's pool, a grunt on the bottom: knocked down at 12 s, paddles from (337 -256) to (298 -193), head under 34
+  of 58 traced frames, one drowning tick taken while still under, up after 2.4 s at z -24 (its head out: no drowning
+  for 37 s more).
+- Drawbacks: it stops fighting while it struggles; it can still take a tick or two while its head is under; with no
+  place to stand within reach it gets up floating (vr_knockdown_water_giveup), sinks and, 12 s later, struggles again
+  (a cycle, each a knockdown); each struggle takes a ragdoll slot (vr_ragdoll_max may remove the oldest dead body);
+  every such monster on a map flooded on purpose would struggle.
+
+### Ledge pull-ups (`vr_ragdoll_active_pullup` 1; Pull Up From Ledges)
+
+- A living knockdown falling past a lip near a hand (a fall's: drive()'s `livingLedge`; a body not driven, dropped or
+  toppled off it: vr_box3d.cpp `livingClimb` begins a drive for it, every third frame while it falls) grabs it with
+  ragmove's `findLedge` (the env's Ledge holds, a living grip twice a dying one's). `Climb` (vr_ragactive.cpp,
+  "Climbs"): it hangs 0.45-0.9 s turning to face the wall, its standing frame held (straightened out), then by the chance
+  pulls itself up: its pelvis pinned (3 body weights, 8 Hz, a weak turn: held by a hand off its middle a strong one
+  wrenched it) along a way that waits for it (a quarter as fast while its pelvis lags 0.3 of an arm), up under the lip
+  (0.9 s), over it (0.5 s, pitched forwards 0.6 rad, its hands holding), in onto the top (0.6 s, let go, pitched 1.5
+  rad), its muscles holding 0.9 of its weight, its arms giving (strength 0.3: stiff, they held it down), its legs reaching
+  up. Lying on the top it is a knockdown again; its get-up waits while it climbs (`ragdollGetUp` returns 0).
+- Not pulling, or not hanging (its legs still on the top: it lets go; on the top already: up), struck off, too weak
+  (its way 1.5 s late), stuck at the lip: it drops (a fall, its arms bracing). Killed: released as a stagger's.
+- A shove over a ledge (ragdollshovetopple's ledge launch, 300 u/s) flies past the lip: no grab. A body toppled off
+  gently or dropped from a hand at the lip does (vrtesthall's west lip: `climb_test.sh`, vr_knockdown_push 0.15).
+- `climb_test.sh pull` (N=2, six classes) before the merge: grunt 2/2, knight 2/2, ogre 1-2/2, zombie 2/2 (it caught
+  itself still on the top), enforcer 1/2 (the other not hanging), death knight 0-1/2; with self-collision see "Also".
+  drop, hit, off 2/2 each. Ragmove's death knight missing the lip at speed (ragtools' note): its shoulders fall
+  31-34 units off the lip, out of its 27-unit reach; a wider reach (1.4) only had it reach in vain, left at 1.15. A lip
+  passed at more than 3 m/s is now grabbed from half an arm off (its hold pulls the hand in).
+
+### Grabbing others falling (`vr_ragdoll_active_grab` 0.7; Grab Others Falling)
+
+- Falling (a living fall: drive()'s `fallEnv`, the first second; a death: envFrame's sensing, the first 1.2 s), another
+  monster near a hand (its box, catActor; or its ragdoll's or corpse's parts, catCorpse, lower too: it falls onto them),
+  above its waist, within 1.1 arms: the hand reaches for its nearest point to the hand (not the shoulder's: unreachable)
+  and holds once within 0.4 of an arm (0.55 falling alive) by a capped motor joint (1 body weight; a heavy one less)
+  where the hand is, 0.5-1.1 s; let go on its time, its load, landing, a hit, pulled 0.8 of an arm off, the other gone.
+  A ragdoll held is dragged along. Once a drive, by the chance (rolled once).
+- `grab_test.sh` (vrtesthall, A 110 units ahead, B behind): death 5/5 reached, about 2 in 3 held 0.6-1 s; B's ragdoll
+  lying (rag) 5/5 reached, 3 held; a beaten shove into B (shove) reaches, held 0.2-0.4 s in 3 of 5 (a fast fall lands
+  first); off 5/5 none.
+
+### Guarding the head in melee (`vr_ragdoll_active_guard` 0.7; Guard the Head)
+
+- QC `VR_Guard_Frame` (vr_hitreact.qc, StartFrame): each player's hand moving faster than vr_melee_speed with
+  something to strike with (a weapon, a fist, a gun's bash: VR_Melee_Thing), its way over the next 0.2 s passing within
+  22 units of a living rigged monster's head and coming at it: once a swing (0.6 s), by the chance, it guards for 0.6 s.
+  Shots never. Looks only: the blow lands where it lands.
+- Standing: a hit reaction (hitreact's part 9, its hold in hundredths) the client poses afresh each frame
+  (vr_hitreact.cpp `guardTurns`: each arm by two-bone IK, its hand before the face, towards the blow and to its side,
+  the elbow down and out; in over 0.12 s, out over 0.25 s); with Hit Reactions on Limbs.
+- A ragdoll (staggering, falling, down, rising; `ragdollguard`): `Guard` (vr_ragactive.cpp): its arms' reaches up before
+  its face over what leads them; lying undriven, a drive begun for its arms alone.
+- `guard_test.sh`: a mock swing at a grunt and a knight 45 units off: 2 guards each, arms turned 92 and 155 deg at most;
+  head shots: none; a stagger: guarded, recovers; knocked down: guarded, gets up; off: none. `vr_test_guard 1` (Debug >
+  Tests: Nearest Monster Guards Its Head).
+
+### Also
+
+- Self-collision (ragtools' `vr_ragdoll_self_collide` 1) no longer touches while a living body staggers or rises
+  (`selfTouches`): it follows its animation's frames, whose limbs pass through each other (ragtools' knight get-up 15
+  units off its pose, 3 without: now 1.4; the next's `stagger_test` grunt steady FAIL: 1 of 40 steady grunt shoves
+  tripped over, 77 deg at 0.6 s, with it touching; 0 of 40 now, the full steady case 0 FAIL). Nor an arm whose hand only
+  wants a hold yet (stuck on the head, it missed a lip falling past).
+- Climbs with self-collision: it topples off faster (3.5-4 m/s, 1.8 without), so a lip passed is grabbed from a quarter
+  of an arm per m/s off (at most one: its hold pulls the hand in), a hand that missed reaches again (twice), its chest is
+  led off the wall and in over the top ahead of its pelvis (`climbChest`: it had folded at the lip's corner and tipped
+  back), and it lets go only with its chest over the lip. `climb_test.sh pull` N=2 now: grunt, knight, zombie 2/2,
+  death knight and enforcer 1/2, ogre 0/2 (it falls past too fast: "lost its hold"); about 8 of 12.
+- A crawler no longer logs "lets go (curl, crawling)" every frame (its curl not set again once done).
+- The ragtools merge (origin/next ae437c66c) taken; vr_ragtest.cpp's living swims feel a test's forced liquid
+  (`liquidFor`); `ragtest_test.sh` places `pullup` at the ledge and `grab` with a second monster.
+
+### Checked
+
+Headless: `liquid_active_test.sh drownkd drown` PASS / as before; `climb_test.sh` (above); `grab_test.sh` (above);
+`guard_test.sh` 8/8 PASS; `ragtest_test.sh` 31/31 (one long run: crawl missed once, 3/3 alone); `env_test.sh ledge wall`
+grunt and knight as before; `stagger_test.sh steady` (all six, N 8) 0 FAIL, `steady getup` (MONS 0 5, N 8) 0 FAIL;
+`liquid_active_test.sh kdswim drownkd` PASS. Build 0 warnings.
+
+**In the headset**: hold a grunt's head under water (or let one walk into a deep pool) 12 s: it should thrash to the
+surface and paddle to the edge. Knock a grunt down at a ledge's edge (or drop a knocked-down one off it from your hand):
+it should grab the lip, hang, and pull itself up onto the top. Shoot two grunts standing close: the falling one should
+clutch the other a moment. Swing your sword or fist at a grunt's head: it should throw its arms up before its face.
+Ragdoll Settings: Drowning Struggle, Pull Up From Ledges, Grab Others Falling, Guard the Head; Debug > Tests > Ragdoll
+Behaviours: the four new rows.

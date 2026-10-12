@@ -580,6 +580,95 @@ bool fireGetUp(edict_t* t, Run& run)
     return knockdownTest(t, 0.f);
 }
 
+// Drowning (vr_ragdoll_active_drown): out of breath now (QC's VR_Knockdown_Drown, its chance made sure): knocked down,
+// its living swim frantic. Its head not under water: felt on dry land.
+bool fireDrown(edict_t* t, Run& run)
+{
+    vec3_t head{t->v.origin[0], t->v.origin[1], t->v.origin[2] + t->v.maxs[2] - 4.f};
+    if(liquidOf(SV_PointContents(head)) != ragactive::Liquid::Water)
+    {
+        force(run.num).liquid = ragactive::Liquid::Water;
+        Con_Printf("ragact: his head not under water: felt on dry land (his strokes alone, no buoyancy)\n");
+    }
+    const CvarOverride chance{vr_ragdoll_active_drown, 1.f};
+    return callQc("VR_Knockdown_Drown", Parm::Entity, t);
+}
+
+// (At the lip, his back to the drop: knocked down with a little push back over it.)
+bool toppleOver(edict_t* t, Run&)
+{
+    const float yaw = glm::radians(t->v.angles[1]);
+    t->v.velocity[0] = -za::cos(yaw) * 70.f;
+    t->v.velocity[1] = -za::sin(yaw) * 70.f;
+    t->v.velocity[2] = 30.f;
+    const CvarOverride push{vr_knockdown_push, 1.f};
+    return callQc("VR_Knockdown_Start", Parm::Entity, t);
+}
+
+// A ledge pull-up (vr_ragdoll_active_pullup, by its chance): moved to the nearest lip, his back to
+// the drop, knocked down over it.
+bool firePullUp(edict_t* t, Run& run)
+{
+    if(!toLedge(t))
+    {
+        Con_Printf("ragact: no ledge (a drop of %.0f units or more) within %.0f units of him, his way to it clear\n", ledgeDrop,
+            ledgeSearch);
+        return false;
+    }
+    run.then = toppleOver;
+    run.thenAt = sv.qcvm.time + placeSettle;
+    return true;
+}
+
+// Grabbing another (vr_ragdoll_active_grab): the monster nearest him put just behind him (away from you), then he is
+// shot: falling back, he grabs at it (its chance made sure for this death).
+bool fireGrab(edict_t* t, Run& run)
+{
+    const glm::vec3 o = vec(t->v.origin);
+    edict_t* other = nullptr;
+    float best = 1024.f;
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(e == t || e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f || e->v.takedamage == 0.f)
+        {
+            continue;
+        }
+        const float d = glm::distance(vec(e->v.origin), o);
+        if(d < best)
+        {
+            best = d;
+            other = e;
+        }
+    }
+    if(!other)
+    {
+        Con_Printf("ragact: no other monster within 1024 units of him to grab (spawn one)\n");
+        return false;
+    }
+    glm::vec3 away = o - vec(EDICT_NUM(1)->v.origin);
+    away.z = 0.f;
+    away = glm::length(away) > 1e-3f ? glm::normalize(away) : glm::vec3{1.f, 0.f, 0.f};
+    glm::vec3 at{0.f};
+    const float gap = za::max(t->v.maxs[0], 16.f) + za::max(other->v.maxs[0], 16.f) + 6.f;
+    if(!standAt(other, o + away * gap, o.z + t->v.mins[2], at))
+    {
+        Con_Printf("ragact: no room behind him for %s\n", PR_GetString(other->v.classname));
+        return false;
+    }
+    moveTo(other, at, yawOf(-away));
+    force(run.num).grab = true; // (its chance made sure for this death)
+    run.then = killBody;
+    run.thenAt = sv.qcvm.time + placeSettle;
+    return true;
+}
+
+// Guarding the head (vr_ragdoll_active_guard): as from a swing of yours (QC's vr_test_guard on him alone).
+bool fireGuard(edict_t* t, Run&)
+{
+    return qcTest(vr_test_guard, "VR_Guard_Frame", t, 1.f);
+}
+
 // ---- Began ----
 
 [[nodiscard]] int handMode(const ragactive::State* s, ragactive::Grip g)
@@ -714,6 +803,41 @@ bool riseBegan(const Run&, const ragactive::State* s, const char*& detail)
     return s && s->rise.on;
 }
 
+bool drownBegan(const Run&, const ragactive::State* s, const char*& detail)
+{
+    detail = "struggling: frantic strokes, its head up";
+    return s && s->swim.living && s->swim.panic > 0.f;
+}
+
+bool pullUpBegan(const Run&, const ragactive::State* s, const char*& detail)
+{
+    if(!s || (!s->climb.on && s->climb.ended == nullptr))
+    {
+        return false;
+    }
+    detail = !s->climb.on ? s->climb.ended : s->climb.phase == ragactive::ClimbPhase::Hang ? "hanging from the lip" :
+             s->climb.phase == ragactive::ClimbPhase::Pull                             ? "pulling itself up" :
+                                                                                         "going over the lip";
+    return true;
+}
+
+bool grabBegan(const Run&, const ragactive::State* s, const char*& detail)
+{
+    detail = "a hand grabbing at the other";
+    return s && (s->env.grabs > 0 || handMode(s, ragactive::Grip::Grab) >= 0);
+}
+
+bool guardBegan(const Run& run, const ragactive::State* s, const char*& detail)
+{
+    if(s && s->guard.on)
+    {
+        detail = "its body's arms up before its face";
+        return true;
+    }
+    detail = "its arms up before its face (standing: a hit reaction's guard)";
+    return run.num < cl.num_entities && hitreact::reacting(&cl_entities[run.num]);
+}
+
 // ---- The actions (the menu's rows, in order) ----
 
 constexpr const char* deaths = "vr_ragdoll vr_ragdoll_max vr_ragdoll_active";
@@ -812,6 +936,25 @@ const Action actions[] = {
         "Knocked down, then asked to get up 2.5 s later: he rolls over if he must, pulls himself into his get-up and rises "
         "through it (Active Get-Ups).",
         "vr_ragdoll vr_ragdoll_max vr_ragdoll_active vr_knockdown vr_ragdoll_active_getup", fireGetUp, riseBegan, 7.f, true},
+    {"vr_ragdoll_act drown", "Living Monsters", "Drowning Struggle",
+        "Out of breath under water now (Drowning Struggle's chance made sure): knocked down, he paddles frantically for "
+        "the surface, his head up, towards where he can stand. His head not under water, it is felt on dry land.",
+        "vr_ragdoll vr_ragdoll_max vr_ragdoll_active vr_knockdown vr_ragdoll_active_liquids vr_ragdoll_active_drown",
+        fireDrown, drownBegan, 2.f, true},
+    {"vr_ragdoll_act pullup", "Living Monsters", "Fall Off a Ledge, Pull Up",
+        "He is moved to the nearest ledge's lip (a drop of 96 units or more within 512), his back to the drop, and knocked "
+        "down over it: he grabs the lip, hangs, and (Pull Up From Ledges' chance) pulls himself up onto the top.",
+        "vr_ragdoll vr_ragdoll_max vr_ragdoll_active vr_knockdown vr_ragdoll_active_env vr_ragdoll_active_env_ledge "
+        "vr_ragdoll_active_pullup",
+        firePullUp, pullUpBegan, 4.f, true},
+    {"vr_ragdoll_act grab", "Living Monsters", "Grab Another Falling",
+        "The monster nearest him is put just behind him (away from you) and he is shot: falling back, he grabs at it (its "
+        "chance made sure: Grab Others Falling), a hand on it a moment. Needs a second monster.",
+        "vr_ragdoll vr_ragdoll_max vr_ragdoll_active vr_ragdoll_active_env vr_ragdoll_active_grab", fireGrab, grabBegan, 3.f},
+    {"vr_ragdoll_act guard", "Living Monsters", "Guard the Head",
+        "As when your hand swings at his head: his arms up before his face for 0.6 s (standing: Hit Reactions on Limbs; "
+        "staggering, down or rising: his body's arms).",
+        "vr_ragdoll_active_guard", fireGuard, guardBegan, 1.f, true},
 };
 constexpr int actionCount = static_cast<int>(za::getArraySize(actions));
 

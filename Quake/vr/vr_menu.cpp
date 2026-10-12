@@ -4209,6 +4209,25 @@ void hologramTestMessage()
             .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
                   "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "
                   "blends into the get-up from the floor (vr_ragdoll_active_getup)."),
+        slider("Drowning Struggle", vr_ragdoll_active_drown, 0.f, 1.f, 0.05f, "%.2f")
+            .help("With Knockdowns, the chance a grunt, enforcer, knight, death knight, ogre or zombie standing with its "
+                  "head under water, out of breath, struggles as a ragdoll: it paddles frantically for the surface, its "
+                  "head up, towards where it can stand, and gets up there. Needs Swim and Flail in Liquids. 0: it drowns "
+                  "standing (vr_ragdoll_active_drown)."),
+        slider("Pull Up From Ledges", vr_ragdoll_active_pullup, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie falling past a ledge's lip near a "
+                  "hand grabs it (Grab Ledges on) and hangs a moment; then, by this chance, it pulls itself up onto the "
+                  "top and lies there until it gets up, else it drops. Shooting a hand makes it let go. 0: it never grabs "
+                  "(vr_ragdoll_active_pullup)."),
+        slider("Grab Others Falling", vr_ragdoll_active_grab, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a grunt, enforcer, knight, death knight, ogre or zombie going down (knocked down or dying) "
+                  "grabs at another monster within reach, standing or lying, to catch itself: a hand on it a moment, "
+                  "slowing its fall; a body grabbed is dragged along. 0: never (vr_ragdoll_active_grab)."),
+        slider("Guard the Head", vr_ragdoll_active_guard, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a living monster guards its head when your hand swings at it in melee (a sword, an axe, a "
+                  "fist, a bash; never a shot): its arms up before its face a moment. Standing it is drawn as a hit "
+                  "reaction (Hit Reactions on Limbs); staggering, down or getting up, its body's arms. Looks alone: "
+                  "the blow lands where it lands. 0: never (vr_ragdoll_active_guard)."),
         toggle("Placed Corpses Are Bodies", vr_corpse_placed)
             .help("The corpses a map places (Dimension and Dawn of the Machine) are dead monsters' bodies: shot, gibbed and "
                   "burnt, and ragdolls you take and cut once you come near. Off: scenery. The next map load (vr_corpse_placed)."),
@@ -5548,6 +5567,7 @@ za::Vector<Item> pageDebugReports()
         command("Strike Holding Hands", "vr_ragdoll_env_hit").help("vr_ragdoll_env_hit [speed]: each dying monster's hand holding on to a wall or a ledge struck as a shot strikes it: it lets go (Gibs and Corpses > Ragdoll Settings > Grab Ledges)."),
         command("Hit the Nearest Monster: Leg", "vr_test_hit 4").help("vr_test_hit <n>: the live monster nearest you struck by a shot of yours (vr_test_hit_damage, never a kill) on its body (1), head (2), an arm (3) or a leg (4): a hit reaction to watch (Gibs and Corpses > Ragdoll Settings, Hit Reactions). vr_test_hit_calm 1: no pain frames, it doesn't turn on you."),
         command("Hit the Nearest Monster: Head", "vr_test_hit 2").help("vr_test_hit 2: the live monster nearest you struck on its head (see Hit the Nearest Monster: Leg)."),
+        command("Nearest Monster Guards Its Head", "vr_test_guard 1").help("vr_test_guard 1: the live monster nearest you throws its arms up before its face for 0.6 s, as when your hand swings at its head (Gibs and Corpses > Ragdoll Settings > Guard the Head; standing: Hit Reactions on Limbs; a ragdoll: its body's arms)."),
         command("Hit Reactions Now", "vr_hit_react_info").help("vr_hit_react_info: the monsters flinching now, each blow's age, part, size and whether its bones or its whole model take it."),
         command("Kill the Nearest Monster", "vr_test_kill 1").help("vr_test_kill <n>: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3) or a leg (4): an active death to watch (Gibs and Corpses > Ragdoll Settings, Active Deaths)."),
         command("Cut the Nearest Monster's Leg Off", "vr_test_cut 3").help("vr_test_cut <n>: the live monster nearest you killed by a sword's cut at its left arm (1), right arm (2), left leg (3), right leg (4), both legs (5), left forearm (6), left shin (7) or head (8); n + 10: the dead one nearest you cut so. With React to Lost Limbs: he balances on one leg, holds the stump, writhes, crawls with no legs."),
