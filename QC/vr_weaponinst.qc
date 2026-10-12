@@ -16,6 +16,11 @@
 // engine frees at the end of the frame, and tells the clients its id is gone (vr_weaponinst.cpp). Saves keep the records
 // as entities; a level change carries the player's (their ids and magazines: parm31..38, parm41..49).
 
+// AD support: Arcane Dimensions' upgrades this weapon has (AD's ad_IT_UPGRADE_AXE, _SSG, _LG bits: the Shadow Axe, the
+// Widowmaker, the Plasma Gun), set by the upgrade's pickup on the weapon it gives (vr_ad_bridge.qc AD_UpgradeGiven): it
+// goes with the weapon (hands, holsters, drops, saves; a level change: parm64), so a plain axe found later stays plain.
+.float wi_adup;
+
 float qvr_weaponinst_next; // The next id to try (saved with the game; carried to the next level: parm49).
 
 // Every record's id is below this; 0: not known yet (a load or a new map: the progs' globals start again), and the first
@@ -96,7 +101,9 @@ entity(float xClip) WeaponInst_New =
 // copy of the hand's weapon, and gives one back.
 entity(entity xFrom) WeaponInst_Clone =
 {
-    return WeaponInst_New(xFrom.wi_clip);
+    entity r = WeaponInst_New(xFrom.wi_clip);
+    r.wi_adup = xFrom.wi_adup; // (AD support: its upgrades too)
+    return r;
 };
 
 // The magazine of record `xInst` set (none: nothing; world is never written).

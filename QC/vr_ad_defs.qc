@@ -60,10 +60,13 @@ float(entity p) AD_TestWake;         // vr_test_monsters: AD's monster (self) hu
 float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded;
 float(float xHand) AD_AxeScale;      // W_FireAxe: the Shadow Axe's blow of the axe in xHand (1 without it)
 float(float xHand, float pellets) AD_WidowmakerPellets; // W_FireSuperShotgun: the Widowmaker's 21 (a reserve shell taken), or pellets
-float() AD_Widowmaker;               // vr_reload.qc: self's super shotgun is the Widowmaker (reloaded at the hip)
+float(entity xInst) AD_Widowmaker;   // vr_reload.qc: the super shotgun of record xInst is the Widowmaker (reloaded at the hip)
 float(float xHand, float xFlags) AD_PlasmaGun; // W_Attack: the lightning gun in xHand is AD's Plasma Gun
 void(float xHand) AD_FirePlasma;     // W_Attack: its bolt
-void(entity p) AD_UpgradePickedUp;   // weapon_touch: an AD upgrade's pickup
+void(entity xPickup, entity p, float xHand) AD_UpgradeGiven; // weapon_touch: its weapon given to p's hand xHand: the upgrade on it
+float(entity p) AD_PackWeaponUpgrades;   // SetChangeParms: the upgrades of p's weapons (hands, holsters) as one parm
+void(entity p, float xPacked) AD_UnpackWeaponUpgrades; // DecodeLevelParms: ... back on the weapons carried
+void(entity p) AD_UpgradesToWeapons;     // PutClientInServer, OnLoadGame: a player's own upgrades (before 2026-10-12) onto his weapons
 float(entity p) AD_MegaRot;          // health_touch: AD's megahealth rot in an AD map; TRUE: taken
 void(entity xItem) AD_ItemTaken;     // VR_PickupObj_Taken: AD's item respawn in an AD map
 float() AD_ItemStartOff;             // StartItem: AD's STARTOFF item waits for its trigger; TRUE: it waits
@@ -116,6 +119,8 @@ void(entity pellet) VR_AD_PelletPrepare;
 void(entity pellet) VR_AD_PelletLaunch;
 float(entity shooter, float speed) VR_AD_PelletSpeed;
 void(entity missile) VR_AD_Ordnance;
+float(entity targ) VR_AD_Skybox;                  // AD's trigger_skybox: its sky by svc_skybox to every client; TRUE: done
+float(entity client, float density) VR_AD_SkyFog; // AD's sky fog: the player's STAT_QVR_ADSKYFOG; TRUE: done
 float() VR_AD_WeaponTouch;
 float(entity targ) VR_AD_SetCurrentAmmo;
 float(entity xItem) VR_AD_ArtifactItems;

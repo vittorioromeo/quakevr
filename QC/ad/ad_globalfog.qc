@@ -370,6 +370,7 @@ void(entity ad_client) ad_change_skyfog  =
 	if (!ad_skyfog_control) return;
 	
 	// Update fog parameters to console buffer
+	if (VR_AD_SkyFog(ad_client, ad_skyfog_control.ad_skyfog_currden)) return;
 	stuffcmd(ad_client, "\n\n\nr_skyfog ");
 	// Fog density should be in the range of 0-1
 	ad_lftos(ad_client, ad_skyfog_control.ad_skyfog_currden, 1,3, ad_BUFFER_STUFFCMD);

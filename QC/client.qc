@@ -152,6 +152,7 @@ void() SetChangeParms =
     parm47 = self.holsterweaponinst4.wi_uid;
     parm48 = self.holsterweaponinst5.wi_uid;
     parm49 = qvr_weaponinst_next;
+    parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
     parm39 = self.weaponclipsize;
     parm50 = self.vr_flashlight_state;
     parm40 = self.weaponclipsize2;
@@ -186,6 +187,10 @@ void() OnLoadGame =
     VR_CVars_InitAllHandles();
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
     AD_LoadedGame(); // AD support: the loaded game's Evil skill choice (vr_ad_player.qc)
+    for(entity lp = find(world, classname, "player"); lp; lp = find(lp, classname, "player"))
+    {
+        AD_UpgradesToWeapons(lp); // AD support: an older save's upgrades (the player's) onto his weapons
+    }
     // The load's pause/loading screens often arrive with neither controller gripping. Protect only the weapons
     // restored in the hands, starting in game time (the server stays paused until the client is ready).
     entity p = find(world, classname, "player");
@@ -304,6 +309,7 @@ void() SetNewParms =
     parm47 = 0;
     parm48 = 0;
     parm49 = qvr_weaponinst_next;
+    parm64 = 0; // (AD support: no upgrades)
     parm50 = 0;
 };
 
@@ -418,6 +424,7 @@ void() DecodeLevelParms =
     self.holsterweaponinst3 = WeaponInst_Carried(self.holsterweapon3, parm36, parm46);
     self.holsterweaponinst4 = WeaponInst_Carried(self.holsterweapon4, parm37, parm47);
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
+    AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
 
     // ------------------------------------------------------------------------
     // Mission packs:
@@ -1258,6 +1265,7 @@ void() PutClientInServer =
     }
     if(MGH_Active()) { MGH_horde_set_keys(self); MGH_ResetHunger(self); }
     AD_PlayerSpawned(); // AD support: what AD's code reads of a player, in an AD map (vr_ad_bridge.qc)
+    AD_UpgradesToWeapons(self); // AD support: an older game's upgrades (the player's) onto his weapons (vr_ad_bridge.qc)
 };
 
 void() SpawnAllAmmoBoxWeapons =

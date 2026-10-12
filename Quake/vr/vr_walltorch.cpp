@@ -5,6 +5,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_limbmodel.hpp"
+#include "vr_adguns.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
@@ -404,6 +405,10 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     if(byte* limb = limbmodel::derivedFile(name, path_id)) // (a monster's limb cut off: vr_limbmodel.cpp)
     {
         return limb;
+    }
+    if(byte* gun = adguns::derivedFile(name, path_id)) // AD support: an AD soldier's gun (vr_adguns.cpp)
+    {
+        return gun;
     }
     const auto id = modelmeta::identifyPath(name);
     if(id == modelmeta::Id::Vrtorch)

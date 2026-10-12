@@ -30,27 +30,42 @@ void() AD_ShotsFire =
     if(isragdoll(g) && report.count == 2) at = limbplace(g, 1, 3);
     float distance = isragdoll(g) ? 20 : 64;
     vector from = at - dir * distance;
+    // A big pellet (not scratch4's small one: MOVETYPE_FLYMISSILE, its box grown against bodies) meets the body where its
+    // grown box does: along an arm's way past the head it met the head first, and the arm's test popped the head (the
+    // flaky -Full run's mode 53). The ways to the arm are looked for first keeping the head this far off the line, then
+    // (none found) without.
+    vector headAt = isragdoll(g) ? ragdollcut(g, 6) : '0 0 0';
     if(isragdoll(g))
     {
         float found = FALSE;
-        for(float elevation = 0; elevation < 3 && !found; elevation++)
+        for(float pass = 0; pass < 2 && !found; pass++)
         {
-            for(float angle = 0; angle < 16 && !found; angle++)
+            float headClear = (pass == 0 && report.count == 1 && !cvar("scratch4")) ? 12 : 0;
+            for(float elevation = 0; elevation < 3 && !found; elevation++)
             {
-                makevectors('0 1 0' * angle * 22.5);
-                vector away = normalize(v_forward + '0 0 1' * elevation);
-                vector trial = at + away * distance;
-                vector flight = normalize(at - trial);
-                traceline(trial, at + flight * 8, MOVE_HITMODEL | MOVE_HITGIBS, p);
-                if(trace_ent != g || trace_startsolid) continue;
-                float head = VR_Decap_OnHead(g, trace_endpos, flight);
-                float limb = VR_Limb_At(g, trace_endpos);
-                if((report.count == 0 && head) || (report.count == 1 && limb == 5) ||
-                   (report.count == 2 && !head && limb < 0))
+                for(float angle = 0; angle < 16 && !found; angle++)
                 {
-                    from = trial;
-                    dir = flight;
-                    found = TRUE;
+                    makevectors('0 1 0' * angle * 22.5);
+                    vector away = normalize(v_forward + '0 0 1' * elevation);
+                    vector trial = at + away * distance;
+                    vector flight = normalize(at - trial);
+                    traceline(trial, at + flight * 8, MOVE_HITMODEL | MOVE_HITGIBS, p);
+                    if(trace_ent != g || trace_startsolid) continue;
+                    if(headClear > 0)
+                    {
+                        vector toHead = headAt - trial;
+                        float along = max(0, min(vlen(at - trial), toHead * flight));
+                        if(vlen(toHead - flight * along) < headClear) continue; // (the head too near its way)
+                    }
+                    float head = VR_Decap_OnHead(g, trace_endpos, flight);
+                    float limb = VR_Limb_At(g, trace_endpos);
+                    if((report.count == 0 && head) || (report.count == 1 && limb == 5) ||
+                       (report.count == 2 && !head && limb < 0))
+                    {
+                        from = trial;
+                        dir = flight;
+                        found = TRUE;
+                    }
                 }
             }
         }

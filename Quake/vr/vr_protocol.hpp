@@ -138,6 +138,18 @@ enum Stat : int
     // + 256 green + blue), its density (0-255) plus 256 for a cinematic camera's fade (vr_ad.cpp VR_AD_TintBlend).
     STAT_QVR_ADTINT,
     STAT_QVR_ADTINTDEN,
+    // AD support: the wrist gadget's Arcane Dimensions page (QC vr_ad_items.qc AD_HudUpdate; vr_gadget.cpp adPage): each
+    // artifact's seconds left (8 bits each, 255 no end: the Lava Shield, Air Tank, Blast Belt; the Jump Boots, Sharp
+    // Shooter, Nail Piercer), the debuffs (the poison and the bleeding still to come, the burning's seconds left: 8
+    // bits each), the carried weapons' upgrades (3 bits a weapon, 1 the Shadow Axe, 2 the Widowmaker, 4 the Plasma Gun:
+    // the main hand, the off hand, then the holsters).
+    STAT_QVR_ADART1,
+    STAT_QVR_ADART2,
+    STAT_QVR_ADDEBUFF,
+    STAT_QVR_ADUPGRADES,
+    // AD support: the sky fog AD set (QC vr_ad_bridge.qc VR_AD_SkyFog, AD's r_skyfog): its density (0-1) + 1; 0 the map's
+    // own (gl_fog.c: VR_AD_SkyFog).
+    STAT_QVR_ADSKYFOG,
     STAT_QVR_END
 };
 

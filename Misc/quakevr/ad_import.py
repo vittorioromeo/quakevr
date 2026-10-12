@@ -111,6 +111,14 @@ PATCHES = [
     ("globalfog.qc", "\tstuffcmd(client, \"\\n\\n\\nfog \");",
      "\tif (VR_AD_Fog(client, fog_control.fog_currden, fog_control.fog_currcol)) return;\n\tstuffcmd(client, \"\\n\\n\\nfog \");",
      1, B + ": fog by svc_fog (stuffed commands are filtered), as MG's"),
+    # The sky's changes as the engine's own messages (P1b's loose ends): a trigger_skybox's sky to every client by
+    # svc_skybox (and again after a load: AD_Frame), the sky fog by the player's STAT_QVR_ADSKYFOG (kept in saves).
+    ("targets.qc", "\tstuffcmd(targ, \"sky \");",
+     "\tif (VR_AD_Skybox(targ)) return;\n\tstuffcmd(targ, \"sky \");",
+     1, B + ": a trigger_skybox's sky by svc_skybox to every client (not console text to one)"),
+    ("globalfog.qc", "\tstuffcmd(client, \"\\n\\n\\nr_skyfog \");",
+     "\tif (VR_AD_SkyFog(client, skyfog_control.skyfog_currden)) return;\n\tstuffcmd(client, \"\\n\\n\\nr_skyfog \");",
+     1, B + ": the sky fog by the player's STAT_QVR_ADSKYFOG (not the player's r_skyfog)"),
     ("ai_combat.qc", "\tlocal float save, take, flinch, noarmordmg;\n",
      "\tlocal float save, take, flinch, noarmordmg;\n\tif (VR_AD_DamageOurs(targ, inflictor, attacker, damage, checkarmor)) return;\n",
      1, B + ": Quake VR's own entities (the player, our monsters) take damage by our T_Damage"),

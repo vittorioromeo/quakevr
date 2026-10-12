@@ -52,11 +52,15 @@ void() VR_EnemyGuns_Precache =
 
 float(float xWid) VR_IsEnemyGun =
 {
-    return xWid == WID_GRUNTGUN || xWid == WID_ENFRIFLE;
+    return xWid == WID_GRUNTGUN || xWid == WID_ENFRIFLE || VR_IsADGun(xWid); // (AD support: AD's soldiers' guns)
 };
 
 string(float xWid) VR_EnemyGun_Name =
 {
+    if(VR_IsADGun(xWid))
+    {
+        return VR_ADGun_Name(xWid); // AD support
+    }
     if(xWid == WID_GRUNTGUN)
     {
         return cvar_hget(cvarh_vr_grunt_burst) ? "grunt's burst rifle" : "grunt's shotgun";
@@ -482,6 +486,7 @@ void(float xHand) VR_BurstRound =
 // let go; the burst ends with the clip, or with the gun leaving the hand.
 void(float xHand) VR_EnemyGuns_Frame =
 {
+    VR_ADGun_Frame(xHand); // AD support: a flamethrower's stream ending (vr_ad_enemyguns.qc)
     float left = VR_GetBurstLeft(xHand);
     if(left < 1)
     {
@@ -503,6 +508,11 @@ void(float xHand) VR_EnemyGuns_Frame =
 // W_AttackImpl for an enemy gun: a shot from its clip, or the empty click.
 void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_EnemyGun_Attack =
 {
+    if(VR_IsADGun(xWeapon) && VRGetWeaponClip(xHand) >= 1)
+    {
+        VR_ADGun_Attack(xHand, xWeapon, xAttackFinished, xOutAttackFinished); // AD support (vr_ad_enemyguns.qc)
+        return;
+    }
     if(VRGetWeaponClip(xHand) < 1)
     {
         if(time > xAttackFinished)

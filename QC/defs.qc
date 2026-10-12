@@ -187,7 +187,7 @@ float parm60;
 float parm61;
 float parm62;
 float parm63; // AD's weapon upgrades (its parm10, .ad_moditems)
-float parm64; // (64..72: reserved for AD's level state)
+float parm64; // AD support: the carried weapons' upgrades (vr_ad_bridge.qc AD_PackWeaponUpgrades; 65..72: reserved for AD's level state)
 float parm65;
 float parm66;
 float parm67;
@@ -506,6 +506,14 @@ float HIP_IT_ENFRIFLE          = VRUTIL_POWER_OF_TWO(8); // VR: an enforcer's la
 float HIP_IT_CROWBAR           = VRUTIL_POWER_OF_TWO(9); // VR: the crowbar.
 float HIP_IT_SUPERAXE          = VRUTIL_POWER_OF_TWO(10); // MG3: Dawn of the Machine's Super Axe.
 float HIP_IT_TOOLGUN           = VRUTIL_POWER_OF_TWO(11); // VR: the toolgun.
+float HIP_IT_ADROCKET          = VRUTIL_POWER_OF_TWO(12); // AD support: the AD soldiers' guns (vr_ad_enemyguns.qc).
+float HIP_IT_ADGRENADE         = VRUTIL_POWER_OF_TWO(13);
+float HIP_IT_ADPLASMA          = VRUTIL_POWER_OF_TWO(14);
+float HIP_IT_ADDEFENDER        = VRUTIL_POWER_OF_TWO(15);
+float HIP_IT_ADELIMINATOR      = VRUTIL_POWER_OF_TWO(16);
+float HIP_IT_ADCENTURION       = VRUTIL_POWER_OF_TWO(17);
+float HIP_IT_ADPYRO            = VRUTIL_POWER_OF_TWO(18);
+float HIP_IT_ADFUMIGATOR       = VRUTIL_POWER_OF_TWO(19);
 
 //
 //

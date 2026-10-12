@@ -147,17 +147,30 @@ float(float xWeapon) VR_Reload_IsFront =
            cvar_hget(cvarh_vr_reload_front);
 };
 
-// Whether `xWeapon` loads by hand (immersive reloading): no holster, button or flick reload for it.
-float(float xWeapon) VR_Reload_ManualFor =
+// Whether `xWeapon` (its record `xInst`: world, not known) loads by hand (immersive reloading): no holster, button or
+// flick reload for it.
+float(float xWeapon, entity xInst) VR_Reload_ManualForInst =
 {
     return VR_Reload_Immersive() && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon) || VR_Reload_IsFront(xWeapon) ||
-        (xWeapon == WID_SUPER_SHOTGUN && cvar_hget(cvarh_vr_reload_ssg_break) && !AD_Widowmaker())); // (AD support: the Widowmaker reloads at the hip)
+        (xWeapon == WID_SUPER_SHOTGUN && cvar_hget(cvarh_vr_reload_ssg_break) && !AD_Widowmaker(xInst))); // (AD support: the Widowmaker reloads at the hip)
+};
+
+// The same of a weapon whose record isn't known (a plain one: not the Widowmaker).
+float(float xWeapon) VR_Reload_ManualFor =
+{
+    return VR_Reload_ManualForInst(xWeapon, world);
+};
+
+// The same of the weapon `p` holds in `xHand`.
+float(entity p, float xHand) VR_Reload_ManualInHand =
+{
+    return VR_Reload_ManualForInst(VRGetEntWeapon(p, xHand), VRGetEntWeaponInst(p, xHand));
 };
 
 // Whether the gun in `xHand` of `p` is a super shotgun broken open (phase 2b: it can't fire; it loads by hand).
 float(entity p, float xHand) VR_Reload_SsgIsOpen =
 {
-    return VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && VR_Reload_ManualFor(WID_SUPER_SHOTGUN) &&
+    return VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && VR_Reload_ManualInHand(p, xHand) &&
            (VRGetEntWeaponFlags(p, xHand) & QVR_WPNFLAG_SSG_OPEN);
 };
 
@@ -171,7 +184,7 @@ float(float xFlags) VR_Reload_SsgSpentOf =
 // reloading their shells stay in, spent (thrown out as it is broken open).
 void(float xHand, float xCount) VR_Reload_SsgFired =
 {
-    if(!VR_Reload_ManualFor(WID_SUPER_SHOTGUN) || VRGetEntWeapon(self, xHand) != WID_SUPER_SHOTGUN)
+    if(VRGetEntWeapon(self, xHand) != WID_SUPER_SHOTGUN || !VR_Reload_ManualInHand(self, xHand))
     {
         return;
     }
@@ -209,7 +222,7 @@ float(entity p, float xHand) VR_Reload_MagIn =
 float(entity p, float xHand) VR_Reload_AmmoFor =
 {
     float w = VRGetEntWeapon(p, xHand);
-    if(!p.ishuman || !VR_Reload_ManualFor(w))
+    if(!p.ishuman || !VR_Reload_ManualInHand(p, xHand))
     {
         return -1;
     }
@@ -1097,7 +1110,7 @@ void(float xHand) VR_Reload_Take =
         return;
     }
     // (The super shotgun in the other hand: always a taped pair, its two chambers loaded at once.)
-    float ssg = VRGetEntWeapon(self, VRGetOtherHand(xHand)) == WID_SUPER_SHOTGUN && VR_Reload_ManualFor(WID_SUPER_SHOTGUN);
+    float ssg = VRGetEntWeapon(self, VRGetOtherHand(xHand)) == WID_SUPER_SHOTGUN && VR_Reload_ManualInHand(self, VRGetOtherHand(xHand));
     float n = ((cvar_hget(cvarh_vr_reload_shell_pairs) || ssg) && have >= 2) ? 2 : 1;
     if(ssg)
     {
@@ -1637,7 +1650,7 @@ void(float xHand) VR_Reload_SsgFrame =
     self.vr_ssg_pry = (self.vr_ssg_pry - (self.vr_ssg_pry & bit)) | (pry ? bit : 0);
     self.vr_ssg_sec = (self.vr_ssg_sec - (self.vr_ssg_sec & bit)) | (sec ? bit : 0);
     float f = VRGetEntWeaponFlags(self, xHand);
-    if(VRGetEntWeapon(self, xHand) != WID_SUPER_SHOTGUN || !VR_Reload_ManualFor(WID_SUPER_SHOTGUN) || self.health <= 0 ||
+    if(VRGetEntWeapon(self, xHand) != WID_SUPER_SHOTGUN || !VR_Reload_ManualInHand(self, xHand) || self.health <= 0 ||
        !self.ishuman || (f & QVR_WPNFLAG_FOREGRIP_CARRIED))
     {
         self.vr_ssg_held = self.vr_ssg_held - (self.vr_ssg_held & bit);
@@ -2169,7 +2182,7 @@ float vr_reload_props_time; // (VR_Reload_PropsFrame: once a frame)
 // The ammo whose rounds the gun lying as `g` takes, if it loads by hand (immersive); else -1.
 float(entity g) VR_Reload_PropAmmoFor =
 {
-    if(g.classname != "thrown_weapon" || !VR_Reload_ManualFor(g.weapon) || !g.weaponinst)
+    if(g.classname != "thrown_weapon" || !g.weaponinst || !VR_Reload_ManualForInst(g.weapon, g.weaponinst))
     {
         return -1;
     }

@@ -1,0 +1,690 @@
+// vr_ad_enemyguns.qc -- AD support: Arcane Dimensions' armed soldiers drop their own guns, and the player fires them
+// (WID_ADROCKET..WID_ADFUMIGATOR; their tables: vr_ad_guns_defs.qc; after AD's files: AD's names, models and sounds).
+//
+// Who drops what (VR_ADGun_Drop, from VR_AD_Dying): the rocket soldier his launcher (a rocket a shot: a direct hit and a
+// blast), the grenade soldier his (bouncing grenades on a fuse, set off by a monster they strike; catchable as yours),
+// the plasma soldier, the eliminator and the centurion their plasma guns (AD's plasma bolts: a hit and a small blast),
+// the defender his shotgun (a wide spread of pellets: AD's projectile pellets where its rules apply), the pyro his
+// flamethrower (a stream of flames: each flame's damage, and what it touches set on fire: Quake VR's burning) and the
+// fumigator his poison sprayer (a stream of poison: each puff's damage, and what it touches poisoned for a while). AD's
+// plain soldier and enforcer drop Quake VR's grunt's burst rifle and enforcer's laser rifle (their own kinds of gun).
+//
+// The player's use only: every number is a setting (vr_adgun_<gun>_<what>: VR Settings > Combat > Enemy Weapons >
+// Arcane Dimensions' Guns), each gun's damage, blast, speed, rounds and time between shots, the grenades' fuse, the
+// shotgun's pellets and spread, the flamethrowers' fuel, reach and what they leave burning or poisoned. The monsters'
+// own attacks are AD's. vr_adgun_drops 0: the armed soldiers drop nothing.
+//
+// Single use, as the grunts' burst rifle (vr_enemyguns.qc): the clip is the gun's only ammo (the flamethrowers': their
+// fuel, a unit a flame), never refilled; empty, it clicks, smokes and crackles (VR_EnemyGun_Spent) and is still a club.
+// Damage is Quake VR's (T_Damage: AD's monsters take it through AD's damage, with their ammunition resistance: the
+// rockets', the grenades' and the flames' as rockets, the plasma's as cells, the pellets' as shells).
+//
+// `vr_ad_test 70` fires each gun from your main hand at a target ahead and reports what each did; `71` drops each from
+// a soldier's place ahead and checks it; `72` prints the settings. developer 1: `adgun:` lines.
+
+.float vr_adgun_dmg;     // a projectile's or flame's damage (direct)
+.float vr_adgun_splash;  // ... its blast's (0: none)
+.float vr_adgun_wid;     // ... the gun it came from
+.float vr_adgun_burn;    // a flame's: seconds what it touches burns (0: none)
+.float vr_adgun_poison;  // a poison puff's: damage a second of the poison it leaves
+.float vr_adgun_ptime;   // ... and how long it lasts
+.float vr_adgun_stream;  // a player's main hand's flamethrower stream: its last flame's time (0: not streaming)
+.float vr_adgun_stream2; // ... the off hand's
+.entity vr_adpoison;     // a poisoned thing's poison (a vr_adpoison: enemy the poisoned, owner who poisoned it)
+float vr_adgun_hits;     // what the guns' shots dealt (the tests)
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Drops
+
+// The gun an AD soldier of class `t` drops (-1: none).
+float(float t) VR_ADGun_ForClass =
+{
+    float wid = -1;
+    if(t == ad_CT_MONARMYROCKET)       { wid = WID_ADROCKET; }
+    else if(t == ad_CT_MONARMYGRENADE) { wid = WID_ADGRENADE; }
+    else if(t == ad_CT_MONARMYPLASMA)  { wid = WID_ADPLASMA; }
+    else if(t == ad_CT_MONDEFENDER)    { wid = WID_ADDEFENDER; }
+    else if(t == ad_CT_MONELIMATOR)    { wid = WID_ADELIMINATOR; }
+    else if(t == ad_CT_MONCENTURION)   { wid = WID_ADCENTURION; }
+    else if(t == ad_CT_MONPYRO)        { wid = WID_ADPYRO; }
+    else if(t == ad_CT_MONFUMIGATOR)   { wid = WID_ADFUMIGATOR; }
+    else if(t == ad_CT_MONARMY)        { wid = WID_GRUNTGUN; }  // (AD's plain soldier: the grunt's own kind of gun)
+    else if(t == ad_CT_MONENFORCER)    { wid = WID_ENFRIFLE; }  // (AD's plain enforcer: the enforcer's laser rifle)
+    return wid;
+};
+
+// A gun's model made and precached now (setmodel precaches one late: the gun model's making, from AD's monster model's
+// file, a few milliseconds): as the soldier spawns, and before a gun is put in a hand (the hands' models are sent by
+// their precache index).
+void(float wid) VR_ADGun_Ensure =
+{
+    if(!VR_IsADGun(wid))
+    {
+        return;
+    }
+    entity e = spawn();
+    setmodel(e, WeaponIdToModel(wid, 0));
+    remove(e);
+};
+
+void(float xClass) VR_ADGun_Prepare =
+{
+    if(cvar("vr_adgun_drops"))
+    {
+        VR_ADGun_Ensure(VR_ADGun_ForClass(xClass));
+    }
+};
+
+// Self, an armed AD soldier dying: its own gun, where it held it, full (VR_DropEnemyGun).
+void() VR_ADGun_Drop =
+{
+    if(!cvar("vr_adgun_drops"))
+    {
+        return;
+    }
+    float wid = VR_ADGun_ForClass(self.ad_classtype);
+    if(wid < 0)
+    {
+        return;
+    }
+    VR_DropEnemyGun(wid);
+    if(cvar("developer"))
+    {
+        dprint(sprintf("adgun: %s drops its %s (%g in it)\n", self.classname, VR_EnemyGun_Name(wid),
+            WeaponIdToBaseClipSize(wid)));
+    }
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Rockets and grenades
+
+// A rocket strikes (self): its hit and its blast (not on what it hit: the hit dealt it), as yours (T_MissileTouch).
+void() VR_ADGun_RocketTouch =
+{
+    if(VR_OwnerSpared(other))
+    {
+        return;
+    }
+    if(pointcontents(self.origin) == CONTENT_SKY)
+    {
+        remove(self);
+        return;
+    }
+    vr_ad_ammo = AD_AMMO_ROCKETS;
+    if(other.takedamage)
+    {
+        float before = other.health;
+        T_Damage(other, self, self.owner, self.vr_adgun_dmg);
+        vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
+    }
+    if(self.vr_adgun_splash > 0)
+    {
+        T_RadiusDamage(self, self.owner, self.vr_adgun_splash, other);
+    }
+    vr_ad_ammo = 0;
+    sound(self, CHAN_WEAPON, "soldier/rocket_hit.wav", 1, ATTN_NORM);
+    self.origin = self.origin - 8 * normalize(self.velocity);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteVec3(MSG_BROADCAST, self.origin);
+    BecomeExplosion();
+};
+
+void(float xHand) VR_ADGun_FireRocket =
+{
+    sound(self, VRGetGunChannel(xHand), "soldier/rocket_fire.wav", 1, ATTN_NORM);
+    self.punchangle_x = -2;
+    entity m = spawn();
+    m.owner = self;
+    m.movetype = MOVETYPE_FLYMISSILE;
+    m.solid = SOLID_BBOX;
+    m.classname = "missile";
+    m.velocity = VRGetWeaponFireRotFwd(xHand) * max(100, VR_ADGun_Value(WID_ADROCKET, "speed")) +
+                 vrProjectileVelocity(xHand, 0.4);
+    m.angles = vectoangles(m.velocity);
+    m.touch = VR_ADGun_RocketTouch;
+    m.nextthink = time + 6;
+    m.think = SUB_Remove;
+    m.vr_adgun_wid = WID_ADROCKET;
+    m.vr_adgun_dmg = VR_ADGun_Value(WID_ADROCKET, "damage");
+    m.vr_adgun_splash = VR_ADGun_Value(WID_ADROCKET, "splash");
+    setmodel(m, ad_MODEL_PROJ_ROCKET);
+    setsize(m, '0 0 0', '0 0 0');
+    setorigin(m, VRGetMuzzlePos(xHand));
+    VR_ShotPlace(m, xHand);
+    VR_Stealth_GrazeMissile(m);
+    VRGunHaptic(xHand, 0.45, 75, 0.9);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 3);
+};
+
+// A grenade goes off (self): its blast.
+void() VR_ADGun_GrenadeExplode =
+{
+    vr_ad_ammo = AD_AMMO_ROCKETS;
+    T_RadiusDamage(self, self.owner, self.vr_adgun_splash, world);
+    vr_ad_ammo = 0;
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteVec3(MSG_BROADCAST, self.origin);
+    BecomeExplosion();
+};
+
+// It bounces, or a monster it strikes sets it off (its blast round it: the hit's part of it on the monster).
+void() VR_ADGun_GrenadeTouch =
+{
+    if(VR_OwnerSpared(other))
+    {
+        return;
+    }
+    if(other.takedamage == DAMAGE_AIM)
+    {
+        float before = other.health;
+        VR_ADGun_GrenadeExplode();
+        vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
+        return;
+    }
+    if(vlen(self.velocity) > 10)
+    {
+        sound(self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);
+    }
+    if(self.velocity == '0 0 0')
+    {
+        self.avelocity = '0 0 0';
+    }
+};
+
+void(float xHand) VR_ADGun_FireGrenade =
+{
+    sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
+    self.punchangle_x = -2;
+    entity m = spawn();
+    m.owner = self;
+    m.movetype = MOVETYPE_BOUNCE;
+    m.solid = SOLID_BBOX;
+    m.classname = "grenade";
+    makevectors(VRGetWeaponFireRot(xHand));
+    m.velocity = v_forward * max(100, VR_ADGun_Value(WID_ADGRENADE, "speed")) + crandom() * v_right * 10 + crandom() * v_up * 10 +
+                 vrProjectileVelocity(xHand, 0.6);
+    m.avelocity = '300 300 300';
+    m.angles = vectoangles(m.velocity);
+    m.touch = VR_ADGun_GrenadeTouch;
+    float fuse = max(0.2, VR_ADGun_Value(WID_ADGRENADE, "fuse"));
+    m.nextthink = time + fuse;
+    m.think = VR_ADGun_GrenadeExplode;
+    m.vr_adgun_wid = WID_ADGRENADE;
+    m.vr_adgun_splash = VR_ADGun_Value(WID_ADGRENADE, "damage");
+    setmodel(m, ad_MODEL_PROJ_GRENADE);
+    setsize(m, '0 0 0', '0 0 0');
+    setorigin(m, VRGetMuzzlePos(xHand));
+    VR_ShotPlace(m, xHand);
+    VR_Stealth_GrazeMissile(m);
+    VR_Grenade_Make(m, VR_ADGun_GrenadeExplode, fuse, TRUE); // (catchable as your launcher's, by vr_grenade_catch)
+    VRGunHaptic(xHand, 0.4, 75, 0.9);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Plasma
+
+// A plasma bolt (AD's, launched as its soldier's: its model, light and sparks) strikes: its hit and its blast, Quake VR's
+// damage (not AD's own for that monster's bolt).
+void() VR_ADGun_PlasmaTouch =
+{
+    if(self.ad_touchedvoid || other == self.owner || other.solid == SOLID_TRIGGER || VR_OwnerSpared(other))
+    {
+        return;
+    }
+    if(pointcontents(self.origin) == CONTENT_SKY)
+    {
+        remove(self);
+        return;
+    }
+    vr_ad_ammo = AD_AMMO_CELLS;
+    if(self.vr_adgun_splash > 0)
+    {
+        T_RadiusDamage(self, self.owner, self.vr_adgun_splash, other);
+    }
+    if(other.takedamage)
+    {
+        float before = other.health;
+        spawn_touchblood(self.vr_adgun_dmg);
+        T_Damage(other, self, self.owner, self.vr_adgun_dmg);
+        vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
+    }
+    vr_ad_ammo = 0;
+    ad_SpawnExplosion(random() < 0.3 ? ad_EXPLODE_PLASMA_SMALL : ad_EXPLODE_ELECT_SMALL, self.origin, ad_SOUND_PLASMA_HIT);
+    ad_entity_remove(self, 1);
+};
+
+void(float xHand, float xWid) VR_ADGun_FirePlasma =
+{
+    sound(self, VRGetGunChannel(xHand), ad_SOUND_PLASMA_FIRE, 1, ATTN_NORM);
+    self.punchangle_x = -1;
+    float kind = ad_CT_MONARMYPLASMA;
+    if(xWid == WID_ADELIMINATOR) { kind = ad_CT_MONELIMATOR; }
+    else if(xWid == WID_ADCENTURION) { kind = ad_CT_MONCENTURION; }
+    vector dir = VRGetWeaponFireRotFwd(xHand);
+    float speed = max(100, VR_ADGun_Value(xWid, "speed"));
+    ad_launch_plasma(VRGetMuzzlePos(xHand), dir, kind, speed);
+    entity m = ad_newmis;
+    m.touch = VR_ADGun_PlasmaTouch;
+    m.velocity = dir * speed + vrProjectileVelocity(xHand, 0.4);
+    m.angles = vectoangles(m.velocity);
+    m.vr_adgun_wid = xWid;
+    m.vr_adgun_dmg = VR_ADGun_Value(xWid, "damage");
+    m.vr_adgun_splash = VR_ADGun_Value(xWid, "splash");
+    VR_ShotPlace(m, xHand);
+    VRGunHaptic(xHand, 0.3, 60, 0.7);
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The defender's shotgun
+
+void(float xHand) VR_ADGun_FireDefender =
+{
+    sound(self, VRGetGunChannel(xHand), "enforcer/def_ssg_fire.wav", 1, ATTN_NORM);
+    self.punchangle_x = -3;
+    float pellets = max(1, rint(VR_ADGun_Value(WID_ADDEFENDER, "pellets")));
+    float spread = max(0, VR_ADGun_Value(WID_ADDEFENDER, "spread"));
+    vr_pellet_damage = VR_ADGun_Value(WID_ADDEFENDER, "damage");
+    FireBullets(xHand, pellets, VRGetWeaponFireRotFwd(xHand), [spread, spread * 0.55, 0]); // (AD's: 0.18 by 0.1)
+    vr_pellet_damage = 0;
+    VRGunHaptic(xHand, 0.4, 70, 0.9);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
+    self.damage_weapon = IT_SUPER_SHOTGUN; // HONEY
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The flamethrowers: a stream of flames or poison puffs (AD's sprites), each striking what it meets once
+
+// The poison on `xVictim` (self, a vr_adpoison): its damage every half second while it lasts, a few green motes.
+void() VR_ADGun_PoisonThink =
+{
+    entity v = self.enemy;
+    if(v == world || v.vr_adpoison != self || v.health <= 0 || !v.takedamage || time >= self.attack_finished)
+    {
+        if(v != world && v.vr_adpoison == self)
+        {
+            v.vr_adpoison = world;
+        }
+        remove(self);
+        return;
+    }
+    vr_ad_ammo = AD_AMMO_CELLS;
+    float before = v.health;
+    T_Damage(v, self, self.owner, self.dmg * 0.5);
+    vr_adgun_hits = vr_adgun_hits + max(0, before - v.health);
+    vr_ad_ammo = 0;
+    particle(v.origin + (v.mins + v.maxs) * 0.5 + randomVec(8), '0 0 10', 56 + rint(random() * 7), 6);
+    self.nextthink = time + 0.5;
+};
+
+// `xVictim` poisoned by `xBy` for `xTime` s, `xDps` a second (again: from now on, the stronger of the two).
+void(entity xVictim, entity xBy, float xDps, float xTime) VR_ADGun_Poison =
+{
+    if(xDps <= 0 || xTime <= 0 || !xVictim.takedamage || xVictim.health <= 0)
+    {
+        return;
+    }
+    entity p = xVictim.vr_adpoison;
+    if(p == world || p.classname != "vr_adpoison" || p.enemy != xVictim)
+    {
+        p = spawn();
+        p.classname = "vr_adpoison";
+        p.enemy = xVictim;
+        p.movetype = MOVETYPE_NONE;
+        p.solid = SOLID_NOT;
+        p.think = VR_ADGun_PoisonThink;
+        p.nextthink = time + 0.5;
+        setorigin(p, xVictim.origin);
+        xVictim.vr_adpoison = p;
+        p.dmg = 0;
+    }
+    p.owner = xBy;
+    p.dmg = max(p.dmg, xDps);
+    p.attack_finished = max(p.attack_finished, time + xTime);
+};
+
+void() VR_ADGun_FlameThink =
+{
+    self.cnt = self.cnt + 1;
+    if(self.cnt > 6 || time >= self.attack_finished)
+    {
+        remove(self);
+        return;
+    }
+    self.frame = self.cnt;
+    self.velocity_z = self.velocity_z + 10 + random() * 20; // (drifting up, slowing down: AD's flames)
+    self.velocity = self.velocity - self.movedir * 0.125;
+    self.nextthink = time + 0.05;
+};
+
+// A flame or puff meets something: what takes damage takes its damage once, then catches fire or is poisoned.
+void() VR_ADGun_FlameTouch =
+{
+    if(other == self.owner || VR_OwnerSpared(other) || other.solid == SOLID_TRIGGER)
+    {
+        return;
+    }
+    if(!other.takedamage)
+    {
+        if(other.solid == SOLID_BSP || other == world)
+        {
+            remove(self); // (spent on the wall)
+        }
+        return;
+    }
+    vector dir = normalize(self.velocity);
+    vr_ad_ammo = self.vr_adgun_poison > 0 ? AD_AMMO_CELLS : AD_AMMO_ROCKETS;
+    float before = other.health;
+    VR_SetHitKind(QVR_HITKIND_NONE, -1, self.origin, dir);
+    T_Damage(other, self, self.owner, self.vr_adgun_dmg);
+    VR_ClearHitKind();
+    vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
+    vr_ad_ammo = 0;
+    if(self.vr_adgun_burn > 0 && pointcontents(self.origin) > CONTENT_WATER)
+    {
+        vr_burn_len = self.vr_adgun_burn;
+        VR_Burn_Ignite(other, self.owner, self.origin, dir, VR_BURN_NAIL);
+        vr_burn_len = 0;
+    }
+    if(self.vr_adgun_poison > 0)
+    {
+        VR_ADGun_Poison(other, self.owner, self.vr_adgun_poison, self.vr_adgun_ptime);
+    }
+    remove(self);
+};
+
+float(float xHand) VR_ADGun_GetStream = { return xHand == cVR_OffHand ? self.vr_adgun_stream2 : self.vr_adgun_stream; };
+void(float xHand, float xTime) VR_ADGun_SetStream =
+{
+    if(xHand == cVR_OffHand) { self.vr_adgun_stream2 = xTime; }
+    else { self.vr_adgun_stream = xTime; }
+};
+
+void(float xHand, float xWid) VR_ADGun_FireFlame =
+{
+    float poison = (xWid == WID_ADFUMIGATOR);
+    if(!VR_ADGun_GetStream(xHand))
+    {
+        sound(self, VRGetGunChannel(xHand), poison ? "enforcer/fum_poisonon.wav" : "enforcer/pyro_flameon.wav", 1, ATTN_NORM);
+    }
+    VR_ADGun_SetStream(xHand, time);
+    vector dir = VRGetWeaponFireRotFwd(xHand);
+    vector org = VRGetMuzzlePos(xHand);
+    entity f = spawn();
+    f.classname = "vr_adflame";
+    f.owner = self;
+    f.movetype = MOVETYPE_FLYMISSILE;
+    f.solid = SOLID_TRIGGER;
+    float water = (pointcontents(org) <= CONTENT_WATER);
+    setmodel(f, poison ? ad_SBURST_POISON : (water ? ad_SBURST_SMOKE : ad_SBURST_FLAME));
+    setorigin(f, org);
+    setsize(f, '0 0 0', '0 0 0');
+    float speed = max(100, VR_ADGun_Value(xWid, "speed"));
+    f.movedir = dir * speed + randomVec(10);
+    f.velocity = f.movedir + vrProjectileVelocity(xHand, 0.5);
+    f.angles_z = anglemod(350 + random() * 20);
+    f.cnt = 0;
+    f.attack_finished = time + max(0.1, VR_ADGun_Value(xWid, "range") / speed); // (its reach: units)
+    f.vr_adgun_wid = xWid;
+    f.vr_adgun_dmg = (water && !poison) ? 0 : VR_ADGun_Value(xWid, "damage");
+    f.vr_adgun_burn = (poison || water) ? 0 : VR_ADGun_Value(xWid, "burn");
+    f.vr_adgun_poison = poison ? VR_ADGun_Value(xWid, "poison") : 0;
+    f.vr_adgun_ptime = poison ? VR_ADGun_Value(xWid, "poisontime") : 0;
+    f.think = VR_ADGun_FlameThink;
+    f.nextthink = time + 0.05;
+    f.touch = VR_ADGun_FlameTouch;
+    VRGunHaptic(xHand, 0.1, 40, 0.4);
+};
+
+// Every player frame, each hand (VR_EnemyGuns_Frame): a stream let go of (or the gun gone, empty) ends with its sound.
+void(float xHand) VR_ADGun_Frame =
+{
+    float last = VR_ADGun_GetStream(xHand);
+    if(!last)
+    {
+        return;
+    }
+    float wid = VRGetWeapon(xHand);
+    float gap = max(0.05, VR_ADGun_Value(WID_ADPYRO, "rate")) * 2 + 0.05;
+    if(wid == WID_ADPYRO || wid == WID_ADFUMIGATOR)
+    {
+        gap = max(0.05, VR_ADGun_Value(wid, "rate")) * 2 + 0.05;
+    }
+    if(time - last < gap && (wid == WID_ADPYRO || wid == WID_ADFUMIGATOR))
+    {
+        return;
+    }
+    VR_ADGun_SetStream(xHand, 0);
+    sound(self, VRGetGunChannel(xHand), wid == WID_ADFUMIGATOR ? "enforcer/fum_poisonoff.wav" : "enforcer/pyro_flameoff.wav", 1,
+        ATTN_NORM);
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The trigger
+
+// VR_EnemyGun_Attack for an AD soldier's gun with a round (or fuel) in it: one shot (a flame), the next after its time.
+void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack =
+{
+    RuneApplyBlackNoise(self);
+    SuperDamageSound();
+    makevectors(VRGetWeaponFireRot(xHand));
+    self.show_hostile = time + 1; // wake monsters up
+    VR_Stealth_Shot(self, xWeapon == WID_ADDEFENDER ? WID_SUPER_SHOTGUN : (xWeapon == WID_ADGRENADE ? WID_GRENADE_LAUNCHER :
+        WID_ROCKET_LAUNCHER)); // QVR: heard (vr_stealth.qc)
+    VRSetWeaponClip(xHand, VRGetWeaponClip(xHand) - 1);
+    float stream = (xWeapon == WID_ADPYRO || xWeapon == WID_ADFUMIGATOR);
+    if(!stream)
+    {
+        player_shot1(xHand);
+    }
+    if(xWeapon == WID_ADROCKET)          { VR_ADGun_FireRocket(xHand); }
+    else if(xWeapon == WID_ADGRENADE)    { VR_ADGun_FireGrenade(xHand); }
+    else if(xWeapon == WID_ADDEFENDER)   { VR_ADGun_FireDefender(xHand); }
+    else if(stream)                      { VR_ADGun_FireFlame(xHand, xWeapon); }
+    else                                 { VR_ADGun_FirePlasma(xHand, xWeapon); }
+    if(!stream)
+    {
+        weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
+    }
+    float next = VR_ADGun_Value(xWeapon, stream ? "rate" : "refire");
+    *xOutAttackFinished = time + RuneApplyHell(max(0.05, next), self);
+    updateAmmoCounters();
+    if(VRGetWeaponClip(xHand) < 1)
+    {
+        VR_EnemyGun_Spent(xHand);
+    }
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("adgun: %s fired (hand %g), %g left\n", VR_ADGun_Name(xWeapon), xHand, VRGetWeaponClip(xHand)));
+    }
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Tests (vr_ad_test 70..72)
+
+entity vr_adgun_test_target; // the target ahead
+float vr_adgun_test_index;   // the gun being tested (0..7)
+float vr_adgun_test_step;    // its step: 0 equip and fire, 1..5 fire on (the streams), 6 read
+float vr_adgun_test_pass;
+float vr_adgun_test_fail;
+float vr_adgun_test_clip;    // the clip as the gun was given
+float vr_adgun_test_grip;    // vr_weapon_grip_mode as it was (1 for the test: the gun stays in a hand not gripping)
+
+void(entity attacker, float damage) VR_ADGun_TestTargetPain = {};
+void() VR_ADGun_TestTargetDie = { self.health = 100000; };
+
+// The target, `xDist` units out along the main hand's aim.
+void(entity p, float xDist) VR_ADGun_TestPlace =
+{
+    entity t = vr_adgun_test_target;
+    if(t == world)
+    {
+        t = spawn();
+        t.classname = "vr_adgun_target";
+        t.solid = SOLID_SLIDEBOX;
+        t.movetype = MOVETYPE_NONE;
+        t.takedamage = DAMAGE_AIM;
+        t.th_pain = VR_ADGun_TestTargetPain;
+        t.th_die = VR_ADGun_TestTargetDie;
+        t.flags = 0; // (not a monster: the monsters' hooks would want its AI)
+        setmodel(t, "progs/player.mdl");
+        setsize(t, '-16 -16 -24', '16 16 32');
+        vr_adgun_test_target = t;
+    }
+    t.health = 100000;
+    entity oldSelf = self;
+    self = p;
+    vector at = VRGetMuzzlePos(cVR_MainHand) + VRGetWeaponFireRotFwd(cVR_MainHand) * xDist;
+    self = oldSelf;
+    setorigin(t, at - '0 0 4');
+};
+
+void() VR_ADGun_TestThink =
+{
+    entity p = self.owner;
+    float wid = WID_ADROCKET + vr_adgun_test_index;
+    entity oldSelf = self;
+    if(vr_adgun_test_step == 0)
+    {
+        self = p;
+        VR_ADGun_Ensure(wid);
+        VR_WeaponUtil_EntAddWeapon(self, wid);
+        VRGiveEntWeapon(self, cVR_MainHand, wid, 0, WeaponIdToBaseClipSize(wid));
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        self = oldSelf;
+        vr_adgun_test_clip = VRGetEntWeaponClip(p, cVR_MainHand);
+        VR_ADGun_TestPlace(p, (wid == WID_ADPYRO || wid == WID_ADFUMIGATOR) ? 90 : 160);
+        vr_adgun_hits = 0;
+    }
+    if(vr_adgun_test_step <= 5 && (vr_adgun_test_step == 0 || wid == WID_ADPYRO || wid == WID_ADFUMIGATOR))
+    {
+        self = p;
+        VR_EnemyGun_Attack(cVR_MainHand, wid, 0, &self.attack_finished);
+        self = oldSelf;
+    }
+    vr_adgun_test_step = vr_adgun_test_step + 1;
+    if(vr_adgun_test_step < 6)
+    {
+        self.nextthink = time + 0.1;
+        return;
+    }
+    if(vr_adgun_test_step < 20)
+    {
+        self.nextthink = time + 0.1; // (time for it to strike: 1.4 s)
+        return;
+    }
+    float clip = VRGetEntWeaponClip(p, cVR_MainHand);
+    float dealt = 100000 - vr_adgun_test_target.health;
+    float ok = (clip < vr_adgun_test_clip && dealt > 0 && VRGetEntWeapon(p, cVR_MainHand) == wid);
+    string model = WeaponIdToModel(wid, 0);
+    bprint(sprintf("adgun test: %s (%s): rounds %g -> %g, dealt %g (hits %g): %s\n", VR_ADGun_Name(wid), model,
+        vr_adgun_test_clip, clip, dealt, vr_adgun_hits, ok ? "PASS" : "FAIL"));
+    if(ok) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+    vr_adgun_test_index = vr_adgun_test_index + 1;
+    vr_adgun_test_step = 0;
+    if(vr_adgun_test_index > WID_ADFUMIGATOR - WID_ADROCKET)
+    {
+        bprint(sprintf("adgun test: %g passed, %g failed\n", vr_adgun_test_pass, vr_adgun_test_fail));
+        cvar_set("vr_weapon_grip_mode", ftos(vr_adgun_test_grip));
+        remove(vr_adgun_test_target);
+        vr_adgun_test_target = world;
+        remove(self);
+        return;
+    }
+    self.nextthink = time + 0.3;
+};
+
+void(float request, entity p) AD_GunTest =
+{
+    if(request == 70)
+    {
+        if(!cvar("vr_ad_mounted"))
+        {
+            bprint("adgun test: Arcane Dimensions' data is not loaded (its guns' models are its monsters')\n");
+            return;
+        }
+        // (the sounds AD's soldiers precache where they are: none here)
+        precache_sound("soldier/rocket_fire.wav");
+        precache_sound("soldier/rocket_hit.wav");
+        precache_sound(ad_SOUND_PLASMA_FIRE);
+        precache_sound(ad_SOUND_PLASMA_HIT);
+        precache_sound("enforcer/def_ssg_fire.wav");
+        precache_sound("enforcer/pyro_flameon.wav");
+        precache_sound("enforcer/pyro_flameoff.wav");
+        precache_sound("enforcer/fum_poisonon.wav");
+        precache_sound("enforcer/fum_poisonoff.wav");
+        entity e = spawn();
+        e.classname = "vr_adgun_test";
+        e.owner = p;
+        vr_adgun_test_index = 0;
+        vr_adgun_test_step = 0;
+        vr_adgun_test_pass = vr_adgun_test_fail = 0;
+        vr_adgun_test_grip = cvar("vr_weapon_grip_mode");
+        cvar_set("vr_weapon_grip_mode", "1"); // (as it was again at the end)
+        e.think = VR_ADGun_TestThink;
+        e.nextthink = time + 0.1;
+        bprint("adgun test: each gun fired from your main hand at a target ahead\n");
+        return;
+    }
+    if(request == 71)
+    {
+        // Each gun dropped from a soldier's place ahead (VR_DropEnemyGun as VR_ADGun_Drop calls it): its model and clip.
+        float pass = 0, fail = 0;
+        makevectors(p.angles);
+        entity s = spawn();
+        setorigin(s, p.origin + v_forward * 96);
+        s.angles = p.angles;
+        entity oldSelf = self;
+        for(float wid = WID_ADROCKET; wid <= WID_ADFUMIGATOR; wid++)
+        {
+            self = s;
+            VR_DropEnemyGun(wid);
+            self = oldSelf;
+            entity w = world;
+            for(entity e2 = find(world, classname, "thrown_weapon"); e2; e2 = find(e2, classname, "thrown_weapon"))
+            {
+                if(e2.weapon == wid && e2.vr_drop_born == time)
+                {
+                    w = e2;
+                }
+            }
+            float ok = (w != world && w.model == WeaponIdToModel(wid, 0) && w.weaponinst.wi_clip == WeaponIdToBaseClipSize(wid) &&
+                        w.modelindex > 0);
+            bprint(sprintf("adgun drop: %s: %s, %g rounds: %s\n", VR_ADGun_Name(wid), w != world ? w.model : "none",
+                w != world ? w.weaponinst.wi_clip : 0, ok ? "PASS" : "FAIL"));
+            if(ok) { pass++; } else { fail++; }
+        }
+        remove(s);
+        bprint(sprintf("adgun drop: %g passed, %g failed\n", pass, fail));
+        return;
+    }
+    if(request >= 73 && request <= 80)
+    {
+        // The gun `request - 73` (in WID_ADROCKET's order) in your main hand, full (with vr_weapon_grip_mode 1, or the
+        // grip held, else it drops at once): a look at it held.
+        float gw = WID_ADROCKET + request - 73;
+        entity was = self;
+        self = p;
+        VR_ADGun_Ensure(gw);
+        VR_WeaponUtil_EntAddWeapon(self, gw);
+        VRGiveEntWeapon(self, cVR_MainHand, gw, 0, WeaponIdToBaseClipSize(gw));
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        self = was;
+        bprint(sprintf("adgun: %s in your main hand\n", VR_ADGun_Name(gw)));
+        return;
+    }
+    if(request == 72)
+    {
+        for(float w2 = WID_ADROCKET; w2 <= WID_ADFUMIGATOR; w2++)
+        {
+            float st = (w2 == WID_ADPYRO || w2 == WID_ADFUMIGATOR);
+            bprint(sprintf("%s (%s): damage %g, splash %g, speed %g, ", VR_ADGun_Name(w2), WeaponIdToModel(w2, 0),
+                VR_ADGun_Value(w2, "damage"), VR_ADGun_Value(w2, "splash"), VR_ADGun_Value(w2, "speed")));
+            bprint(sprintf("%s %g, %s %g\n", st ? "fuel" : "ammo", VR_ADGun_ClipSize(w2), st ? "rate" : "refire",
+                VR_ADGun_Value(w2, st ? "rate" : "refire")));
+        }
+        return;
+    }
+};

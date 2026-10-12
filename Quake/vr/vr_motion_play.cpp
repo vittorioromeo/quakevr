@@ -1938,7 +1938,7 @@ void loadExpectations()
         case 16: return "gun";
         case 17: return "crowbar"; // a melee weapon (QC VR_MTHING_CROWBAR)
         case 18: return "superaxe"; // Dawn of the Machine's Super Axe (QC vr_mg3_weapons.qc; VR_MTHING_AXE)
-        default: return wid >= 4 && wid <= 12 ? "gun" : "other";
+        default: return (wid >= 4 && wid <= 12) || (wid >= 20 && wid <= 27) ? "gun" : "other"; // (20-27: AD's soldiers' guns)
     }
 }
 

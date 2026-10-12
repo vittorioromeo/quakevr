@@ -141,7 +141,7 @@ after; `models` 0.028 / 0.026 ms.
 | `Quake/console.h` | +2 -0 | +1 -0 | 1 | Con_ServerPrint |
 | `Quake/build_cross_win64.sh` | +3 -2 | +1 -0 | 1 | export CXX |
 | `Quake/build_cross_haiku32-sdl2.sh` | +2 -1 | +1 -0 | 1 | export CXX |
-| `Quake/gl_fog.c` | +2 -0 | +1 -0 | 1 | an eye in a liquid |
+| `Quake/gl_fog.c` | +2 -0 | +1 -0 | 1 | an eye in a liquid; AD's sky fog (VR_AD_SkyFog, also in gl_sky.c) |
 | `Quake/sv_move.c` | +2 -0 | +1 -0 | 1 | monsters' narrower hull at ledges |
 | `Quake/draw.h` | +3 -0 | +1 -0 | 1 | draw_textoutline |
 | `Quake/build_cross_win32-sdl2.sh` | +3 -2 | +1 -0 | 1 | export CXX |
