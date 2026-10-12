@@ -114,16 +114,20 @@ runtime frame-pacing evidence; this benchmark alone cannot validate it.
 
 ## CPU sampling profile
 
-A separate on-device `perf` capture attached after the fixture setup and ended
-when its 720-frame JSON was written. It collected 1,572 user-cycle samples with
-no lost samples across the Frame's A720, A520 and X4 clusters. On A720, the
-largest sampled symbols included `__kernel_clock_gettime` (5.23%),
-`PR_ExecuteProgramRun` (2.54%) and `qvr::decals::buildWorld` (2.03%). The rest
-was spread across renderer, QuakeC, audio, collision and runtime/driver code;
-several Zink/Freedreno symbols remained unresolved. `writeLZ77data` also appears
-in the capture, and the log confirms eye-image PNGs were written near the end,
-so treat these percentages as leads rather than steady-state attribution. No
-single isolated engine hotspot justifies a speculative change yet. Raw perf
-data, report and matching frame JSON are retained in the private
-`performance-results/frame-diagnostics-20261012/cpu-hotspots-clean-window`
-directory. The capture uses mock tracking and does not prove compositor timing.
+A corrected on-device `perf` capture attached after fixture setup and ended
+when its 720-frame JSON was written. The exact `screenshot` and `vr_eyeshot 1`
+commands were removed from its isolated config; its run log contains no eye
+image writes. It collected 1,496 user-cycle samples with no lost samples across
+the Frame's A720, A520 and X4 clusters. On A720, notable symbols included
+`PR_ExecuteProgramRun` (3.12%), `SV_WriteEntitiesToClient` (2.97%),
+`qvr::decals::buildWorld` (2.04%) and `qvr::particles::buildInstances` (1.09%).
+On the lower-power A520 cluster, `qvr::particles::buildInstances` accounted for
+12.37% of samples and Quake's `S_LowpassFilter` 9.51%; this is a lead for targeted
+measurement, not proof that either dominates frame time. The sample counts are
+small and spread across cores, and several Zink/Freedreno and kernel symbols
+remain unresolved. Raw perf data, report and matching frame JSON are retained
+privately in
+`performance-results/frame-diagnostics-20261012/cpu-hotspots-no-eyeshot`.
+The earlier profile in `cpu-hotspots-clean-window` is superseded because its
+fixture still enabled `vr_eyeshot 1`; PNG compression contaminated the capture.
+Both profiles use mock tracking and do not prove compositor timing.
