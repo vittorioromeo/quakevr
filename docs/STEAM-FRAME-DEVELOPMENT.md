@@ -276,8 +276,12 @@ The sharper-edge preview now also sets `vr_particle_mult 0.5`: its two-run
 combat mock sweep reduced GPU-eye p99 from 18.72 to 16.48 ms and the VR-particle
 CPU phase p99 from 2.25 to 0.73 ms, while average live particles fell from about
 5,185 to 1,954. A fixed eye-image pair showed fewer particle effects; entity
-and physics counts stayed the same. The change is isolated to the preview
-profile and remains unvalidated in a wearer OpenXR session.
+and physics counts stayed the same. A follow-up on the actual OpenXR path
+submitted fresh stereo images and showed a similar GPU/CPU reduction in a
+deterministic particle stress fixture. The setting remains isolated to the
+preview profile; wearer tracking, visual acceptance and representative campaign
+performance still need validation. See the A-B-B-A results in
+[Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
 
 At the release's 0.45 scale, disabling retro edge softness only for world
 materials reduced combat GPU-eye mean by about 2.5% (30.188 to 29.440 ms).

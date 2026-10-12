@@ -167,6 +167,32 @@ measurements use mock tracking and a hidden X11 window; they do not prove
 headset image quality, OpenXR frame pacing, or 72 Hz campaign performance. The
 default installation and its cvars remain unchanged.
 
+I repeated the particle-density A-B-B-A on SteamVR/OpenXR 2.18.2 with fresh
+stereo projection layers on the Frame, using the same released engine, 0.25
+render scale, 1728x1728 eye images, 72 Hz pacing and a deterministic
+`particles_dense` fixture (720 measured frames after 180 warm-up). The runtime
+reported no wearer presence, so I enabled `vr_xr_unfocused 0` and
+`vr_xr_unfocused_pause 0` in the scratch profile; head and hand actions remained
+invalid. Every run submitted both eyes with `held=0`. Scene counts other than
+the intended particle-density change matched across all four runs: 247 edicts,
+one living monster, 134 Box3D bodies, nine contacts, 181 ending decals and 17
+dynamic lights.
+
+| `vr_particle_mult` | GPU-eye mean | GPU-eye p99 | VR-particle GPU pass | VR-particle CPU phase | Average live VR particles |
+|---:|---:|---:|---:|---:|---:|
+| 1.0 | 13.687 ms | 15.815 ms | 4.852 ms | 0.858 ms | 15,546 |
+| 0.5 | 11.706 ms | 13.948 ms | 2.809 ms | 0.348 ms | 6,496 |
+
+At 0.5, GPU-eye mean fell 14.5%, GPU-eye p99 11.8%, and the VR-particle CPU
+phase 59.4%. Frame p99 fell from 17.492 to 15.938 ms. This confirms that the
+preview's particle setting reduces rendering work through the actual OpenXR
+path, with a matching 58% reduction in average live particles. The reduced
+effect density is visible and remains an optional quality tradeoff. Because the
+runtime had no wearer tracking and this is a synthetic effects fixture, it
+does not establish controller/head tracking, campaign performance, or a 72 Hz
+wearer experience. Raw JSON, OpenXR diagnostics and logs are retained privately
+in `performance-results/openxr-particles-abba-frame-20261012`.
+
 ## Decal grid sizing on Frame
 
 A 720-frame `decals_1024_stream` baseline ran on the physical Frame with the
