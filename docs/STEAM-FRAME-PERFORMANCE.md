@@ -111,3 +111,19 @@ These tests found a repeatable CPU-physics benefit from the already-enabled
 four-worker default but no new safe performance setting or engine optimization.
 The next improvement needs a representative OpenXR campaign/combat capture and
 runtime frame-pacing evidence; this benchmark alone cannot validate it.
+
+## CPU sampling profile
+
+A separate on-device `perf` capture attached after the fixture setup and ended
+when its 720-frame JSON was written. It collected 1,572 user-cycle samples with
+no lost samples across the Frame's A720, A520 and X4 clusters. On A720, the
+largest sampled symbols included `__kernel_clock_gettime` (5.23%),
+`PR_ExecuteProgramRun` (2.54%) and `qvr::decals::buildWorld` (2.03%). The rest
+was spread across renderer, QuakeC, audio, collision and runtime/driver code;
+several Zink/Freedreno symbols remained unresolved. `writeLZ77data` also appears
+in the capture, and the log confirms eye-image PNGs were written near the end,
+so treat these percentages as leads rather than steady-state attribution. No
+single isolated engine hotspot justifies a speculative change yet. Raw perf
+data, report and matching frame JSON are retained in the private
+`performance-results/frame-diagnostics-20261012/cpu-hotspots-clean-window`
+directory. The capture uses mock tracking and does not prove compositor timing.
