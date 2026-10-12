@@ -28,3 +28,7 @@ Windows/VisualStudio/zancle.vcxproj.user
 quakevr/wads/id_textures.wad
 scratch_review/
 scratch-review/
+grep.exe.stackdump
+quakevr/maps/vrfiringrange_recovered_20261012.bsp
+quakevr/maps/vrfiringrange_recovered_20261012.lit
+quakevr/maps/vrfiringrange_recovered_20261012.lux
