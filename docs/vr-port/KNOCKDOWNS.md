@@ -123,6 +123,16 @@ With Active Deaths (`vr_ragdoll_active`) and its classes (grunt, enforcer, knigh
 - **In a liquid** (`vr_ragdoll_active_liquids`): a living knockdown lying in water deep enough paddles at full
   strength, its head held up, pushed by its strokes towards where it can stand (`standSpot`'s liquid search, looked for
   again every second), turning to face it; in lava or slime it flails. Killed meanwhile, its strokes weaken as a death's.
+- **Drowning** (`vr_ragdoll_active_drown`, a chance): one standing out of breath under water (vr_liquids.qc's first
+  drowning tick) is knocked down instead of that tick's damage (QC `VR_Knockdown_Drown`): its living swim, frantic at
+  first, takes it to where it can stand, and it gets up there.
+- **Ledges** (`vr_ragdoll_active_pullup`, a chance; Grab Ledges on): falling past a lip near a hand (a fall, or a body
+  dropped or toppled off it) it grabs it, hangs, then pulls itself up onto the top (its pelvis pinned along the way, its
+  muscles holding its weight) and lies there a knockdown; else it drops. Its get-up waits meanwhile.
+- **Grabbing others** (`vr_ragdoll_active_grab`, a chance): going down (alive or dying), a hand grabs at another monster
+  within reach (standing, or its ragdoll) a moment, slowing the fall; a ragdoll held is dragged along.
+- **Guarding the head** (`vr_ragdoll_active_guard`, a chance): a hand of yours swung at its head (melee, never a shot):
+  its arms up before its face 0.6 s, standing (a hit reaction's guard) or as a ragdoll (staggering, down, rising).
 
 ## Saved games
 

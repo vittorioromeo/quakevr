@@ -1158,6 +1158,14 @@ void(entity p, vector xFrom) VR_Carry_Teleported =
 
 float(entity box, vector target) VR_Carry_Follow =
 {
+    vector wanted = target;
+    target = carrybody(box, self, target);
+    // As at a wall: a hand pulled much farther than the stopped prop lets go. A torso/wall trap releases it too.
+    if(trace_allsolid || vlen(target - wanted) > 32)
+    {
+        dprint("carry: stopped at the body, let go\n");
+        return FALSE;
+    }
     // A solid prop (an explosive box: a big brush model whose origin is a bottom corner, in the floor it stands on) by its
     // middle, kept its smallest half-size off a wall (the others as before: by their origin).
     vector from = box.origin;
@@ -1422,6 +1430,14 @@ void() VR_Carry_TwoHandFrame =
     // box out of the level already (carry2h: stopped at a wall, slid along it), so it goes there as it is (VR_Carry_Follow's
     // trace of its centre, kept its smallest half-size off what it met, put a turned box's corners into walls).
     vector to = carry2h(box, self, FALSE);
+    vector wanted = to;
+    to = carrybody(box, self, to);
+    if(trace_allsolid || vlen(to - wanted) > 32)
+    {
+        VR_Carry_EndTwoHands(box);
+        VR_Carry_Release(cVR_MainHand, box);
+        return;
+    }
     if(cvar("vr_carry_two_hands_solid") && time >= self.carry_teleported)
     {
         if(frametime > 0)

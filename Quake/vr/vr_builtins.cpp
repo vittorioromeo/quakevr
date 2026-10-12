@@ -1321,6 +1321,18 @@ void PF_carryfit()
 
 // vector(entity e, entity player, float grab) carry2h: a prop held in both hands (vr_carry2h.cpp): at the second
 // hand's grip (grab 1) the grips are kept and its origin returned; after, where it goes (its angles set at once).
+void PF_carrybody()
+{
+    const glm::vec3 target{G_VECTOR(OFS_PARM2)[0], G_VECTOR(OFS_PARM2)[1], G_VECTOR(OFS_PARM2)[2]};
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    const glm::vec3 result = carry2h::bodyPlace(ent, G_EDICT(OFS_PARM1), target);
+    const int index = static_cast<int>(ent->v.modelindex);
+    const bool brush = index > 0 && index < MAX_MODELS && sv.models[index] && sv.models[index]->type == mod_brush;
+    const carry2h::Frame at{result, carry2h::fromAngles(ent->v.angles, brush)};
+    pr_global_struct->trace_allsolid = carry2h::bodyFits(ent, G_EDICT(OFS_PARM1), at) ? 0.f : 1.f;
+    for(int i = 0; i < 3; i++) { G_VECTOR(OFS_RETURN)[i] = result[i]; }
+}
+
 void PF_carry2h()
 {
     const glm::vec3 v = carry2h::serverPlace(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), G_FLOAT(OFS_PARM2) != 0.f);
@@ -1560,6 +1572,23 @@ void PF_ragdollshovetopple()
 void PF_ragdollcanstagger()
 {
     G_FLOAT(OFS_RETURN) = box3d::ragdollCanStagger(G_EDICT(OFS_PARM0)) ? 1.f : 0.f;
+}
+
+// float ragdolldrown(entity e, float begin): a drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; QC
+// VR_Knockdown_Drown): begin 0, whether e can (its kind driven alive, Swim and Flail on); begin 1, its knockdown's
+// ragdoll just made: its living swim begun frantic.
+void PF_ragdolldrown()
+{
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    G_FLOAT(OFS_RETURN) = (G_FLOAT(OFS_PARM1) != 0.f ? box3d::ragdollDrowning(ent) : box3d::ragdollCanDrown(ent)) ? 1.f : 0.f;
+}
+
+// float ragdollguard(entity e, vector at, float hold): a living monster's ragdoll guarding its head from a blow coming
+// from `at` (units) for `hold` s (vr_ragdoll_active_guard; QC VR_Guard_Raise). 0: it can't.
+void PF_ragdollguard()
+{
+    const float* at = G_VECTOR(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = box3d::ragdollGuard(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]}, G_FLOAT(OFS_PARM2)) ? 1.f : 0.f;
 }
 
 // float ragdollstagger(entity e, vector dir, float push, float balance, float reach): e, just knocked down by a shove
@@ -2322,6 +2351,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollshovetopple", PF_ragdollshovetopple},
     {"ragdollgetup", PF_ragdollgetup},
     {"ragdollcanstagger", PF_ragdollcanstagger},
+    {"ragdolldrown", PF_ragdolldrown},
+    {"ragdollguard", PF_ragdollguard},
     {"ragdollstagger", PF_ragdollstagger},
     {"ragdollstaggered", PF_ragdollstaggered},
     {"ragdollrelease", PF_ragdollrelease},
@@ -2374,6 +2405,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"carryfrontpouch", PF_carryfrontpouch},
     {"carryfit", PF_carryfit},
     {"carry2h", PF_carry2h},
+    {"carrybody", PF_carrybody},
     {"carryreach", PF_carryreach},
     {"carry2hoff", PF_carry2hoff},
     {"carry2hkeep", PF_carry2hkeep},

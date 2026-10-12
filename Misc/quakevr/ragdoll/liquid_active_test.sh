@@ -10,6 +10,8 @@
 #   enforcer the same, an enforcer
 #   hknight  the same, a death knight
 #   drown    vrtesthall: a grunt left on the pool's bottom drowns (vr_liquids.qc: 12 s of breath, then 2, 4, 6 ...)
+#            (vr_ragdoll_active_drown 0: drowning standing)
+#   drownkd  the same with vr_ragdoll_active_drown 1: out of breath it struggles as a ragdoll and gets up (PASS/FAIL)
 #   fallin   vrtesthall: a grunt killed in the air over the pool (just spawned): his body falls in during his death
 #   head     vrtesthall: a headshot in the pool: a collapse, no swim
 #   lava     e1m7's lava: a grunt falls in standing and dies of it: flails, burns (the QC's), gibbed after vr_burn_lava_gib
@@ -28,7 +30,7 @@ CASES=${*:-water knight ogre enforcer hknight drown fallin head lava slime actof
 PY=${PY:-py -3.13}
 SUM="$TREE/Misc/quakevr/ragdoll/liquid_trace.py"
 PRE="wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_ragdoll_active_seed ${SEED:-0};vr_ragdoll_active_trace 3"
-FILTER="^ragtrace|^ragswim|down alive|gets up|limp at frame|active death|ragdoll: [0-9]+ (in |out of)|drowned|burnt|gibbed|rror|CRASH|exit=|TIMEOUT|steptime|vr_ragdoll_active_list|^  [0-9]+: "
+FILTER="^drown:|struggles|^ragtrace|^ragswim|down alive|gets up|limp at frame|active death|ragdoll: [0-9]+ (in |out of)|drowned|burnt|gibbed|rror|CRASH|exit=|TIMEOUT|steptime|vr_ragdoll_active_list|^  [0-9]+: "
 run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "$FILTER" -Timeout 400 2>&1 | tr -d '\r'; }
 # drop <map> <x y z> <monster> <then> [dist]
 drop() {
@@ -41,7 +43,7 @@ for c in $CASES; do
     ogre)     drop vrtesthall "180 -256 200" 1 "wait150;vr_test_kill 1;wait800" | $PY "$SUM" "ogre water" ;;
     enforcer) drop vrtesthall "180 -256 200" 8 "wait150;vr_test_kill 1;wait800" | $PY "$SUM" "enforcer water" ;;
     hknight)  drop vrtesthall "180 -256 200" 6 "wait150;vr_test_kill 1;wait800" | $PY "$SUM" "hknight water" ;;
-    drown)    drop vrtesthall "180 -256 200" 0 "vr_enemy_liquid_damage 1;wait2200" | $PY "$SUM" "grunt drown" ;;
+    drown)    drop vrtesthall "180 -256 200" 0 "vr_ragdoll_active_drown 0;vr_enemy_liquid_damage 1;wait2200" | $PY "$SUM" "grunt drown" ;;
     fallin)   drop vrtesthall "180 -256 200" 0 "wait2;vr_test_kill 1;wait800" | $PY "$SUM" "grunt fallin" ;;
     head)     drop vrtesthall "180 -256 200" 0 "wait150;vr_test_kill 2;wait600" | $PY "$SUM" "grunt head" ;;
     actoff)   # vr_ragdoll_active 0 mid-death over the pool: the released body falls in limp, no swim wakes it
@@ -64,6 +66,17 @@ for c in $CASES; do
         echo "kddie: the last traced vigour$v"
         echo "$out" | grep -q "down alive in water" && echo "$v" | grep -q " v 0\.[01]" && ! echo "$out" | grep -q "rror\|CRASH" &&
             echo "kddie: PASS" || echo "kddie: FAIL" ;;
+    drownkd)  # a grunt on the pool's bottom out of breath struggles as a ragdoll (vr_ragdoll_active_drown): frantic strokes,
+              # its head up, towards where it can stand; it gets up there, alive (a tick or two while its head is still under)
+        out=$(drop vrtesthall "180 -256 200" 0 "vr_enemy_liquid_damage 1;vr_knockdown_debug 1;wait2400")
+        first=$(echo "$out" | grep "^ragswim" | head -1 | grep -o "at [-0-9]* [-0-9]*$")
+        last=$(echo "$out" | grep "^ragswim" | tail -1 | grep -o "at [-0-9]* [-0-9]*$")
+        under=$(echo "$out" | grep "^ragswim" | grep -c " head 1 ")
+        all=$(echo "$out" | grep -c "^ragswim")
+        hurt=$(echo "$out" | grep -c "drowned for")
+        echo "drownkd: $(echo "$out" | grep -o "drowning: it struggles.*" | head -1); swam from ($first) to ($last), head under $under of $all traced frames, $hurt drowning ticks; $(echo "$out" | grep -o "gets up after.*" | head -1)"
+        echo "$out" | grep -q "struggles as a ragdoll" && echo "$out" | grep -q "gets up after" && [ "$hurt" -le 2 ] &&
+            ! echo "$out" | grep -q "rror\|CRASH" && echo "drownkd: PASS" || echo "drownkd: FAIL" ;;
     land)     run "sv_random_seed ${SEED:-7};map vrfiringrange;$PRE;vr_test_spawn 0;vr_test_spawn_dist 110;impulse 241;wait40;vr_test_kill 1;wait600;toggleconsole;quit" | $PY "$SUM" "grunt land" ;;
     cost)
         for a in 1 0; do

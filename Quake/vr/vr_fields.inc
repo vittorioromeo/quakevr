@@ -150,6 +150,8 @@ QVR_FIELD(fg_state)
 QVR_FIELD(fg_player)
 QVR_FIELD(fg_hand)
 QVR_FIELD(mainhand_held) // carrying (vr_carry.qc), drawn in the hand (vr_held.cpp)
+QVR_FIELD(carry_portal) // held through a portal: its remote pose is not constrained against the local torso
+QVR_FIELD(carry_rigid) // solid carried prop (2): torso collision and locomotion load
 QVR_FIELD(carry_offset) // a held prop's origin in the hand (vr_carry.qc), kept at a regrip (vr_grip.cpp)
 QVR_FIELD(offhand_held)
 QVR_FIELD(carry_teleported) // until then what the hands carry follows them from the player (vr_carry.qc VR_Carry_FollowTeleported): set by the VR teleport

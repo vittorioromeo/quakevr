@@ -215,6 +215,7 @@ void VR_AliasPosesLoaded (const char *name, void *aliashdr, const stvert_t *stve
 void VR_OnProgsLoaded (void);			// end of PR_LoadProgs, with the loaded qcvm current
 void VR_OnSpawnServerBeforeLoad (void);	// SV_SpawnServer, before ED_LoadFromFile
 void VR_OnEntitySpawned (edict_t *ent);	// ED_LoadFromFile, after an entity's spawn function ran
+int VR_AD_PelletsPass (const struct edict_s *mover, const struct edict_s *target); // AD support: projectile pellets pass one another
 int VR_AD_RulesOn (void);				// AD support (vr_ad.cpp): the map spawning plays by Arcane Dimensions' rules
 int VR_AD_OwnsClassname (const char *classname, int ours);	// AD support: AD's ad_<classname> spawns it, not Quake VR's
 int VR_AD_SpawnsOutside (const char *classname);	// AD support: outside AD's rules, AD's ad_<classname> spawns it (an artifact, a pickup, a ladder)
@@ -368,6 +369,7 @@ void VR_AfterPlayerPostThink (struct edict_s *ent);	// and after it
 float *VR_MoveAngles (struct edict_s *ent, float *fallback); // angles steering walk/swim moves
 int VR_NoclipAngles (struct edict_s *ent, float *out); // SV_NoclipMove: a headset's: the head's yaw, level (vr_cheats.cpp); 0: Quake's .v_angle
 float VR_WaterStickScale (struct edict_s *ent, int swimming); // SV_ClientThink, before SV_WaterMove / SV_AirMove: the stick's speed in water
+float VR_CarryMoveScale (struct edict_s *ent); // solid held props: mass/bulk stick locomotion fraction
 float VR_StaminaSpeedScale (struct edict_s *ent);	// SV_AirMove: tired, times the most walking speed (sv_maxspeed; vr_stamina_speed)
 void VR_AfterWaterMove (struct edict_s *ent, float forwardmove, float sidemove, float upmove); // after SV_WaterMove: swimming strokes (the stick steering them)
 void VR_GroundPlaneMet (struct edict_s *ent, const float *normal); // SV_FlyMove, SV_WalkMove: a player met walkable floor (vr_slope_walk)

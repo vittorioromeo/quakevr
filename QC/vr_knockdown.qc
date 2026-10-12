@@ -440,7 +440,32 @@ float(entity e) VR_Knockdown_Start =
     return TRUE;
 };
 
-float VR_KD_LEDGE_STEP = 8;    // units between the points along its way where the ground under it is looked for
+// `e`, standing with its head under water, out of breath (vr_liquids.qc's first drowning tick): by
+// vr_ragdoll_active_drown's chance it struggles as a ragdoll (knocked down: the engine's living swim paddles, its strokes
+// frantic at first, its head up, towards where it can stand; it gets up there as any knockdown in water). TRUE if it
+// does (that tick's damage spared). Only the kinds driven alive (ragdolldrown: the active classes, Swim and Flail on).
+float(entity e) VR_Knockdown_Drown =
+{
+    if(!cvar_hget(cvarh_vr_knockdown) || e.health <= 0 || e.vr_knockdown || !e.vr_kd_chance_h ||
+       (e.flags & (FL_FLY | FL_SWIM)) || !(e.flags & FL_MONSTER) || random() >= cvar_hget(cvarh_vr_ragdoll_active_drown) ||
+       !ragdolldrown(e, 0))
+    {
+        return FALSE;
+    }
+    if(!VR_Knockdown_MakeRoom(e) || !VR_Knockdown_Start(e))
+    {
+        return FALSE;
+    }
+    ragdolldrown(e, 1);
+    if(cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("knockdown: %s drowning: it struggles as a ragdoll, down %.1f s\n", e.classname,
+            e.vr_kd_until - time));
+    }
+    return TRUE;
+};
+
+float VR_KD_LEDGE_STEP = 8;   // units between the points along its way where the ground under it is looked for
 float vr_kd_ledge_past;        // VR_Knockdown_Ledge's last edge found: units along the shove to past it (its half width on)
 
 // How far the shove that just landed on `e` (its velocity VR_Push's: along the shove, and the hop) carries it standing:

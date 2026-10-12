@@ -199,7 +199,8 @@ enum class Grip : uint8_t
     Brace, // a hand on a loose prop (no joint)
     Lean,  // a hand on a wall, held, sliding down
     Ledge, // a hand on a lip, hanging
-    Curl   // the arms in (tumbling)
+    Curl,  // the arms in (tumbling)
+    Grab   // a hand on another monster near it as it falls (standing, or its ragdoll), held a moment (vr_ragdoll_active_grab)
 };
 
 struct EnvHand
@@ -221,6 +222,9 @@ struct EnvHand
     double overSince{-1.0}; // its load at the cap since (slipping)
     float slid{0.f};       // metres the hold slid down
     bool struck{false};    // hit since the last frame (struck())
+    // A Grab's: its point on the other's body (that body's space, metres), its entity.
+    glm::vec3 local{0.f};
+    int other{0};
 };
 
 // One probe ray (the debug overlay): from, to (where it stopped), whether it met something.
@@ -251,6 +255,49 @@ struct Env
     int probes{0};
     // The tests: catches, holds made and let go.
     int catches{0}, holds{0};
+    // A living one's (a knockdown's fall past a lip: Climb): its hands' holds and the climb alone (no catch, lean, curl).
+    bool living{false};
+    int grabs{0}; // others grabbed falling (vr_ragdoll_active_grab; the tests)
+};
+
+// A living knockdown's ledge (vr_ragdoll_active_pullup; vr_ragactive.cpp, "Climbs"): falling past a lip near a hand (a
+// fall's, or a body dropped or toppled off a lip), it grabs it (the env's Ledge holds), hangs a moment, then (by the
+// chance) pulls itself up: its pelvis pinned and carried up under the lip, over it and in onto the top (its muscles
+// holding its weight, its arms giving), its hands holding until it goes in, its legs reaching up; else it drops after its
+// hang as a death's. Lying on the top it is a knockdown again (its get-up later, as any).
+enum class ClimbPhase : uint8_t
+{
+    Hang, // holding on (pulled up from pullFrom, if it pulls)
+    Pull, // its pelvis carried up under the lip (its chest over the top)
+    Over, // up over the lip, then in onto the top
+    Done  // pulled up (or dropped): its strength easing off
+};
+struct Climb
+{
+    bool on{false};
+    ClimbPhase phase{ClimbPhase::Hang};
+    bool pulls{false};      // the chance said it pulls itself up (else it drops after its hang)
+    double since0{0.0};     // when it grabbed
+    double since{0.0};      // this phase's start
+    double pullFrom{0.0};   // when it begins to pull (hanging until then)
+    glm::vec3 lip{0.f};     // world, metres: the lip between its hands
+    glm::vec3 out{0.f};     // level: off the ledge, over the drop
+    glm::vec3 from{0.f};    // its pelvis (its body's origin) when this phase began
+    // Its pelvis's pin (pulling: drive() puts the pin's anchor here, turned from rot0, its turn as it pulled, towards
+    // tilt x its stand frame's facing the wall by turnBlend).
+    bool pinned{false};
+    glm::vec3 pinAt{0.f};
+    glm::quat rot0{1.f, 0.f, 0.f, 0.f}, tilt{1.f, 0.f, 0.f, 0.f};
+    float turnBlend{0.f};
+    float top{0.f};         // m: the top's height (the lip's)
+    bool released{false};   // Over: its hands let go (its pelvis over the top), going in since since2
+    double since2{0.0};
+    float prog{0.f}, prog2{0.f}; // the way of this phase (Over: up over the lip, then in) done, 0..1
+    double reachAgain{0.0}; // hanging by one hand: the other reaches for the lip again then (at most twice: retries)
+    int retries{0};
+    // The tests: its chest over the top at most (m), why it ended.
+    float rose{-1e30f};
+    const char* ended{nullptr};
 };
 
 // What a death does (beginDeath; vr_ragactive.cpp, "Deaths").
@@ -310,6 +357,10 @@ struct Swim
     bool hasGoal{false};
     glm::vec3 goal{0.f};
     float thrust{0.f};           // N: the last frame's push along its way (the traces)
+    // A drowning one's struggle (vr_ragdoll_active_drown; vr_box3d.cpp ragdollDrowning): its strokes frantic (quicker,
+    // harder) by this share at first, easing to its usual over panicTime from panicFrom (its first frame with it).
+    float panic{0.f};
+    double panicFrom{-1.0};
 };
 
 // A living monster's stagger from a shove (beginStagger; vr_ragactive.cpp, "Staggers"), how it ends.
@@ -381,6 +432,15 @@ struct Rise
     float errorMost{0.f};
 };
 
+// A living one guarding its head from a blow (vr_ragdoll_active_guard; guard()): its arms up before its face, the
+// forearms across it towards the blow, from `from` (eased in over 0.12 s) until `until` (then down over 0.25 s).
+struct Guard
+{
+    bool on{false};
+    double from{0.0}, until{0.0};
+    glm::vec3 threat{0.f}; // world, metres: where the blow comes from
+};
+
 // An active ragdoll's drive (in vr_box3d.cpp's RagdollBodies).
 struct State
 {
@@ -420,6 +480,10 @@ struct State
     za::Array<float, ragdoll::maxBones> strength{};
     // What is round him (vr_ragdoll_active_env).
     Env env;
+    // A living knockdown hanging from a ledge, pulling itself up (vr_ragdoll_active_pullup).
+    Climb climb;
+    // Its head guarded from a blow (vr_ragdoll_active_guard).
+    Guard guard;
 };
 
 // What the drive needs of the world each frame.
@@ -444,6 +508,12 @@ struct Context
     // props; 0 none) and the world's ledge map (null: no ledges).
     uint64_t envMask{0};
     const ledges::Map* ledges{nullptr};
+    bool carried{false}; // its body still carried by a shove's drive (vr_box3d.cpp ShoveDrive): no ledge grabbed yet
+    // Others to grab falling (vr_ragdoll_active_grab): the shapes of monsters and ragdolls (category bits; 0 none), and
+    // whether entity `num` is one to grab (a monster, standing or a ragdoll; not itself).
+    uint64_t othersMask{0};
+    bool (*graspable)(int num){nullptr};
+    bool grabSure{false}; // its chance made sure (a test's: vr_ragdoll_act grab)
 };
 
 // The drive started on a ragdoll just made (vr_box3d.cpp createRagdoll, its joints made): `joints` each part's
@@ -525,6 +595,15 @@ void swimGoal(State& s, bool hasGoal, const glm::vec3& goal);
 void swimDies(State& s, double now);
 // Whether it swims now (a living knockdown's or a death's).
 [[nodiscard]] bool swimming(const State& s);
+// Whether a living knockdown hangs from a ledge or pulls itself up now (its get-up waits).
+[[nodiscard]] bool climbing(const State& s);
+// A living knockdown (the drive begun: its fall's, or one begun for this, holding its frame) falling past a ledge's lip
+// near a hand (c.ledges): it grabs it, a climb (vr_ragdoll_active_pullup). Whether it did. drive() asks it itself for a
+// fall's.
+bool beginClimb(State& s, const Parts& p, const Context& c);
+// A living one (its drive begun: a stagger, a fall, a get-up, or one begun for this) guards its head from a blow coming
+// from `threat` (world, metres) for `hold` s: its arms' reaches up before its face over whatever leads them.
+void guard(State& s, const glm::vec3& threat, double now, float hold);
 
 // A mark of blood due on the hand holding a stump (Dismember::bloodDue, one taken): the hand's end (world, metres) and
 // the way to the stump. False: none due.

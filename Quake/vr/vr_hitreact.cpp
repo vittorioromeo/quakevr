@@ -9,7 +9,9 @@
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -74,7 +76,14 @@ struct Kick
     uint32_t bones{0};                       // the bones turned (bits)
     glm::vec3 turn[ragdoll::maxBones];       // each one's turn (axis times angle, rad) in its own frame (rest space)
     glm::vec3 tilt{0.f};                     // the whole-model tilt (entity space)
+    float hold{0.f};                         // a guard's (part guardPart): s its arms stay up (then down over guardOut)
 };
+
+// A guard (QC VR_Guard_Raise; vr_ragdoll_active_guard): its arms up before its face from a blow coming from `at`, posed
+// afresh each frame (guardTurns), eased in over guardIn, held, eased out over guardOut.
+constexpr int guardPart = 9;
+constexpr float guardIn = 0.12f;
+constexpr float guardOut = 0.25f;
 
 struct Reaction
 {
@@ -338,6 +347,101 @@ void resolveRig(Kick& k, const entity_t* e, const ragdoll::Rig& rig, const rigpo
     }
 }
 
+// The turn (axis times angle) taking direction `a` to `b` the shortest way.
+[[nodiscard]] glm::vec3 arcTurn(const glm::vec3& a, const glm::vec3& b)
+{
+    const glm::vec3 x = glm::cross(a, b);
+    const float s = za::sqrt(glm::dot(x, x));
+    const float angle = za::atan2(s, glm::dot(a, b));
+    return s > 1e-6f ? x * (angle / s) : glm::vec3{0.f};
+}
+
+// A guard's turns on a rigged model in the pose `posed` (added to `total` times `w`): each arm (an arm bone whose parent
+// isn't one, and its arm child) bent by two-bone IK so its hand is before the face, towards the blow (`k.at`) and to its
+// own side, its elbow down and out.
+void guardTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const Kick& k, float w,
+    glm::vec3* total)
+{
+    const int head = rig.head >= 0 ? rig.head : findBone(rig, Region::Head, -2);
+    if(head < 0)
+    {
+        return;
+    }
+    const glm::vec3 face = 0.5f * (rigpose::apply(posed[head], rig.bones[head].pivot) + rigpose::apply(posed[head], rig.bones[head].end));
+    glm::vec3 toward = toLocal(e, k.at, true) - face;
+    const float tl = za::sqrt(glm::dot(toward, toward));
+    toward = tl > 1e-3f ? toward / tl : forward;
+    glm::vec3 shield = forward + toward;
+    const float sl = za::sqrt(glm::dot(shield, shield));
+    shield = sl > 1e-3f ? shield / sl : forward;
+    const int chest = chestOf(rig);
+    const float mid = chest >= 0 ? rigpose::apply(posed[chest], rig.bones[chest].pivot).y : 0.f;
+    for(int u = 0; u < rig.numBones; u++)
+    {
+        const ragdoll::Bone& bu = rig.bones[u];
+        if(regionOf(bu) != Region::Arm || bu.joint == ragdoll::Joint::Loose || bu.parent < 0 ||
+            regionOf(rig.bones[bu.parent]) == Region::Arm)
+        {
+            continue;
+        }
+        int lo = -1;
+        for(int c = 0; c < rig.numBones && lo < 0; c++)
+        {
+            if(rig.bones[c].parent == u && regionOf(rig.bones[c]) == Region::Arm && rig.bones[c].joint != ragdoll::Joint::Loose)
+            {
+                lo = c;
+            }
+        }
+        if(lo < 0)
+        {
+            continue;
+        }
+        const glm::vec3 S = rigpose::apply(posed[u], bu.pivot);
+        const glm::vec3 E = rigpose::apply(posed[lo], rig.bones[lo].pivot);
+        const glm::vec3 H = rigpose::apply(posed[lo], rig.bones[lo].end);
+        const float a = glm::length(E - S), b = glm::length(H - E);
+        if(a < 0.5f || b < 0.5f)
+        {
+            continue;
+        }
+        const float side = S.y >= mid ? 1.f : -1.f; // (a model's left: +y)
+        const float L = a + b;
+        const glm::vec3 G = face + shield * (0.35f * L) + glm::vec3{0.f, side * 0.1f * L, 0.08f * L};
+        const glm::vec3 d = G - S;
+        const float dl = za::max(glm::length(d), 1e-3f);
+        const glm::vec3 dir = d / dl;
+        const float dist = za::clamp(dl, za::abs(a - b) + 0.01f, 0.97f * (a + b));
+        const float cosA = za::clamp((a * a + dist * dist - b * b) / (2.f * a * dist), -1.f, 1.f);
+        const float sinA = za::sqrt(za::max(0.f, 1.f - cosA * cosA));
+        glm::vec3 pole = glm::vec3{0.f, side * 0.6f, -1.f} - dir * glm::dot(glm::vec3{0.f, side * 0.6f, -1.f}, dir);
+        const float pl = glm::length(pole);
+        pole = pl > 1e-3f ? pole / pl : glm::vec3{0.f, 0.f, -1.f};
+        const glm::vec3 E2 = S + a * (cosA * dir + sinA * pole);
+        const glm::vec3 H2 = S + dir * dist;
+        const glm::vec3 tu = arcTurn(glm::normalize(E - S), glm::normalize(E2 - S));
+        const glm::vec3 back = glm::inverse(rigpose::fromVector(tu)) * (H2 - E2);
+        const glm::vec3 tf = arcTurn(glm::normalize(H - E), glm::normalize(back));
+        total[u] += w * tu;
+        total[lo] += w * tf;
+        if(vr_hit_react_debug.value >= 3.f)
+        {
+            Con_Printf("guardik %s S %.0f %.0f %.0f E %.0f %.0f %.0f H %.0f %.0f %.0f G %.0f %.0f %.0f face %.0f %.0f %.0f tu %.2f tf %.2f\n",
+                bu.name, S.x, S.y, S.z, E.x, E.y, E.z, H.x, H.y, H.z, G.x, G.y, G.z, face.x, face.y, face.z, glm::length(tu),
+                glm::length(tf));
+        }
+    }
+}
+
+// A guard's weight at age `t` (s), held `hold` s.
+[[nodiscard]] float guardEnvelope(float t, float hold)
+{
+    const auto smooth = [](float x) {
+        x = za::clamp(x, 0.f, 1.f);
+        return x * x * (3.f - 2.f * x);
+    };
+    return smooth(t / guardIn) * (1.f - smooth((t - hold) / guardOut));
+}
+
 void resolveTilt(Kick& k, const entity_t* e)
 {
     const glm::vec3 h = toLocal(e, k.at, true);
@@ -463,7 +567,8 @@ void parseEvent()
         int kept = 0;
         for(int i = 0; i < r.count; i++)
         {
-            if(cl.time - r.kicks[i].start < over)
+            const Kick& old = r.kicks[i];
+            if(cl.time - old.start < (old.part == guardPart ? old.hold + guardOut : over))
             {
                 r.kicks[kept++] = r.kicks[i];
             }
@@ -472,6 +577,20 @@ void parseEvent()
     }
     erase_if(reacts.entities, [](const auto& kv) { return kv.second.count == 0; });
     Reaction& r = reacts.entities[num];
+    // A guard (its hold in hundredths of a second): one guarding already holds on longer, towards the new blow.
+    if(part == guardPart)
+    {
+        for(int i = 0; i < r.count; i++)
+        {
+            if(r.kicks[i].part == guardPart)
+            {
+                Kick& g = r.kicks[i];
+                g.hold = za::max(g.hold, static_cast<float>(cl.time - g.start) + static_cast<float>(amount) / 100.f);
+                g.at = at;
+                return;
+            }
+        }
+    }
     int slot = r.count < maxKicks ? r.count++ : 0;
     if(slot == 0 && r.count == maxKicks)
     {
@@ -487,6 +606,7 @@ void parseEvent()
     k.dir = dir;
     k.part = part;
     k.size = size;
+    k.hold = part == guardPart ? static_cast<float>(amount) / 100.f : 0.f;
     if(vr_hit_react_debug.value >= 1.f)
     {
         Con_Printf("hitreact: ent %d part %d damage %d share %.2f size %.2f at (%.0f %.0f %.0f) dir (%.2f %.2f %.2f)\n", num,
@@ -514,6 +634,17 @@ bool boneKicksNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rig
     for(int i = 0; i < r->count; i++)
     {
         Kick& k = r->kicks[i];
+        if(k.part == guardPart)
+        {
+            // (A guard: posed afresh each frame, its arms to its face as it is drawn now.)
+            const float w = guardEnvelope(static_cast<float>(cl.time - k.start), k.hold);
+            if(w > 0.f)
+            {
+                guardTurns(e, rig, posed, k, w, total);
+                any = true;
+            }
+            continue;
+        }
         if(!k.resolved)
         {
             k.resolved = true;
@@ -596,6 +727,10 @@ void tiltModelNow(const entity_t* e, float matrix[16])
     for(int i = 0; i < r->count; i++)
     {
         Kick& k = r->kicks[i];
+        if(k.part == guardPart)
+        {
+            continue; // (a guard needs arms: rigged models only)
+        }
         if(!k.resolved)
         {
             k.resolved = true;

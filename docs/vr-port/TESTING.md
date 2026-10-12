@@ -1207,3 +1207,9 @@ Menu gestures (`vr_menu_button`, round 22 "Menu on any controller"), with `vr_de
 buttons: <hand>'s <gesture>: opens the menu` / `closes the menu`): `vr_mock_button off stickclick 1;wait2;vr_mock_button
 main stickclick 1` (both sticks, the second click taken), `vr_mock_button off secondary 1;wait150` with
 `vr_menu_button 2` (Y held), `main secondary` with 3 (B held), a Y press with 4, and `vr_mock_button off menu 1`.
+
+Prop grip/carry regression (ROUND22.md, vrgrabs): python Misc/quakevr/climb/prop_grab_test.py <agent> tests
+crate ledges in four directions/at four reaches, full-stick carry speeds and torso stops. vr_carry_load_test
+prints the rotated/fast sweep regression, sample load curves, current speed, physical/drawn torso overlap and the
+same prop's speed fraction in both hands. vr_carry_body_collision toggles solid carried props' torso constraint;
+vr_carry_move_mass, vr_carry_move_size and vr_carry_move_min tune the mass/bulk slowdown (minimum 1 disables it).

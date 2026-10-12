@@ -104,6 +104,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit;
 float() VR_AD_PathCornerTouch;
 float(entity pellet) VR_AD_PelletDamage;
 float() VR_AD_WeaponTouch;
+float(entity targ) VR_AD_SetCurrentAmmo;
 float(entity xItem) VR_AD_ArtifactItems;
 .float vr_climb_ladder; // a ladder's volume, climbed by hand (the engine's vr_climb.cpp ladderHold; VR_AD_LadderSpawned)
 void() VR_AD_LadderSpawned;

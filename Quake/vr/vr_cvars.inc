@@ -2135,6 +2135,10 @@ QVR_CVAR(vr_armor_wear, "1", CVAR_ARCHIVE)            // armour: 1 a physics obj
 QVR_CVAR(vr_armor_scale, "0.5", CVAR_ARCHIVE)         // with it: the armour's size (1: Quake's, a metre tall; next map)
 QVR_CVAR(vr_item_objects, "1", CVAR_ARCHIVE)          // the map's weapons, keys, runes, the biosuit, the wetsuit, the horn: 1 physics objects once a hand or a force grab takes them (a weapon gripped is your weapon; the rest taken at a holster), 0 touching takes them (the kind: next map)
 QVR_CVAR(vr_carry_nudge, "1", CVAR_ARCHIVE)           // how hard hands and guns push them
+QVR_CVAR(vr_carry_body_collision, "1", CVAR_ARCHIVE) // solid carried crates, barrels and explosive boxes stop at the carrier's torso (one or both hands)
+QVR_CVAR(vr_carry_move_mass, "100", CVAR_ARCHIVE) // kg of solid carried props which halve stick locomotion speed; 0 disables mass load
+QVR_CVAR(vr_carry_move_size, "1", CVAR_ARCHIVE) // metres of carried props' longest dimensions without bulk load; twice this halves speed; 0 disables bulk load
+QVR_CVAR(vr_carry_move_min, "0.35", CVAR_ARCHIVE) // minimum stick locomotion fraction under carry load; 1 disables carry slowdown
 QVR_CVAR(vr_carry_throw_mult, "1", CVAR_ARCHIVE)      // how fast they leave the hand
 QVR_CVAR(vr_carry_throw_inherit, "1", CVAR_ARCHIVE)   // share of your own velocity a thing you throw or let go of takes with it (as a thrown weapon; 0: none, as before)
 QVR_CVAR(vr_carry_melee_mult, "1.5", CVAR_ARCHIVE)    // punches with a box in hand hurt this much more
@@ -2405,6 +2409,11 @@ QVR_CVAR(vr_ragdoll_active_env_ledge, "1", CVAR_ARCHIVE) // falling past a ledge
 QVR_CVAR(vr_ragdoll_active_env_grip, "1.2", CVAR_ARCHIVE) // body weights a hand holding a ledge takes at most (a lean's: a third of it; a heavy monster less); past it he slips off
 QVR_CVAR(vr_ragdoll_active_env_hang, "1.8", CVAR_ARCHIVE) // s: about how long he hangs from a ledge (each 0.45 to 1.65 times it)
 QVR_CVAR(vr_ragdoll_active_stagger_steps, "6", CVAR_ARCHIVE) // a shoved monster's backpedal: at most this many steps back (1..10); one whose balance the shove beat (the knockdown's roll under its chance) gives way after 3 or 4 of them
+QVR_CVAR(vr_ragdoll_active_drown, "1", CVAR_ARCHIVE) // with Knockdowns, the chance a grunt, enforcer, knight, death knight, ogre or zombie standing with its head under water, out of breath, struggles as a ragdoll: knocked down, it paddles frantically for the surface, its head up, towards where it can stand, and gets up there (0..1; needs Swim and Flail in Liquids); 0: it drowns standing, as before
+QVR_CVAR(vr_ragdoll_active_pullup, "1", CVAR_ARCHIVE) // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie falling past a ledge's lip near a hand grabs it (Grab Ledges on), hangs a moment, then by this chance pulls itself up onto the top (else it drops after its hang, as a dying one); 0: it never grabs
+QVR_CVAR(vr_ragdoll_active_grab, "0.7", CVAR_ARCHIVE) // the chance a falling grunt, enforcer, knight, death knight, ogre or zombie (knocked down or dying) grabs at another monster within reach (standing, or its ragdoll) to catch itself: a hand on it a moment, slowing its fall (a ragdoll held dragged along); 0: never
+QVR_CVAR(vr_ragdoll_active_guard, "0.7", CVAR_ARCHIVE) // the chance a living monster with a rig guards its head when a hand of yours swings at it (fast enough to strike: a sword, an axe, a fist, a bash; never a shot): its arms up before its face for 0.6 s (standing: drawn as a hit reaction, Hit Reactions on Limbs; a ragdoll staggering, down or getting up: its body's arms); its looks alone; 0: never
+QVR_CVAR(vr_test_guard, "0", CVAR_NONE)               // 1: the live monster nearest you guards its head as from a swing of yours (QC vr_hitreact.qc; Debug > Tests)
 QVR_CVAR(vr_ragdoll_active_env_arms, "1", CVAR_ARCHIVE)  // times the strength of his arms reaching for what is round him (a catch, a lean, a ledge's hold, a brace; 0..2)
 // Living hit reactions (vr_hitreact.cpp, QC/vr_hitreact.qc; ROUND22.md, "Active ragdolls: living hit reactions")
 QVR_CVAR(vr_hit_react, "1", CVAR_ARCHIVE)             // a living monster struck flinches where it was struck (its AI untouched): 1 its rig's bones kicked round their joints (the head snaps, an arm swings, a leg's knee buckles; a model with no rig tilted whole), 2 every model tilted whole, 0 off. The server's sends the blows and slows the steps (vr_hit_react_slow); each client draws by its own
