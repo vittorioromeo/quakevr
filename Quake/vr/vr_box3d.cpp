@@ -4389,14 +4389,15 @@ void livingSwim(RagdollBodies& r)
 // A living knockdown (of the active classes) not driven, falling past a ledge's lip near a hand (dropped from a hand,
 // toppled off a lip; vr_ragdoll_active_pullup; ROUND22.md, "Ledge pull-ups"): its drive begun holding the frame it went
 // down in, a climb (ragactive::beginClimb: it grabs the lip, hangs, pulls itself up). A driven one's fall asks drive()'s
-// own. Looked at every third frame while it falls.
+// own. Looked at every third frame while it falls (every frame past 2.5 m/s: past the lip in a moment).
 void livingClimb(RagdollBodies& r, float dt)
 {
     edict_t* ent = EDICT_NUM(r.num);
     ragactive::State& a = r.active;
     if(a.on || r.shove.on || vr_ragdoll_active_pullup.value <= 0.f || vr_ragdoll_active_env.value == 0.f ||
         vr_ragdoll_active_env_ledge.value == 0.f || !knockedDown(ent) || ent->v.health <= 0.f || !activeClassOf(ent) ||
-        !sv.worldmodel || b3Body_GetLinearVelocity(r.body[0]).z > -0.8f || static_cast<int>(qcvm->time * 72.0 + 0.5) % 3 != 0)
+        !sv.worldmodel || b3Body_GetLinearVelocity(r.body[0]).z > -0.8f ||
+        (b3Body_GetLinearVelocity(r.body[0]).z > -2.5f && static_cast<int>(qcvm->time * 72.0 + 0.5) % 3 != 0)) // (falling fast: every frame)
     {
         return;
     }
@@ -8869,7 +8870,10 @@ constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in an
     for(int arm = 0; arm < 2; arm++)
     {
         const auto& chain = r.active.chain[static_cast<za::SizeT>(arm)];
-        if(r.active.reach[static_cast<za::SizeT>(arm)].weight <= 0.05f || chain[0] < 0)
+        // (Or about to: a hand of what is round him wanting a hold, its reach still easing in (a lip falling past is
+        // reached for at once: met, the arm stuck on the head and missed it).)
+        const bool wants = r.active.env.hand[static_cast<za::SizeT>(arm)].want > 0.f;
+        if((r.active.reach[static_cast<za::SizeT>(arm)].weight <= 0.05f && !wants) || chain[0] < 0)
         {
             continue;
         }
@@ -8901,6 +8905,13 @@ constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in an
     if(pa < 0 || pb < 0)
     {
         return true;
+    }
+    // (Staggering, rising or climbing, its body follows its animation's frames (a climb: its pin's way), whose limbs pass through each other (a knight's
+    // get-up: a hand on a knee, a forearm in the thigh): met, they held the pose off by 15 units (3 without) and a steady
+    // stagger's feet tripped on each other now and then.)
+    if(r.active.on && (r.active.stagger.on || r.active.rise.on || r.active.climb.on))
+    {
+        return false;
     }
     // (Deep in each other, their cores overlapping: a hand let go of the wound inside his side, a stump's: left to part by
     // themselves, as selfMeets admits them, not pushed apart at once.)

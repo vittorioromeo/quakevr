@@ -1528,6 +1528,7 @@ constexpr float climbPin = 3.f;     // body weights: its pelvis's pin at most
 constexpr float climbHertz = 8.f;   // its spring (on its pelvis alone: its muscles hold its weight, climbLift)
 constexpr float climbLift = 0.9f;   // its weight held up by its muscles as it pulls and goes over (a share, on every part)
 constexpr float climbArms = 0.3f;   // its arms' strength as it pulls and goes over (holding: 0.9)
+constexpr float climbChestPull = 0.8f; // body weights: its chest led along at most (climbChest)
 constexpr float climbLag = 0.3f;    // (of its arm's length) its pelvis this far behind its way: the way slows to a quarter
 constexpr float climbSlack = 1.5f;  // s: a step of it (up under the lip, over it, in) this much later than its time: it gives up
 
@@ -1951,8 +1952,8 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
         {
             h.goal = hand - h.normal * off;
         }
-        // (A ledge's lip falling past at speed: grabbed a little farther off, its hold pulling the hand in.)
-        const float within = ledge && glm::length(glmv(b3Body_GetLinearVelocity(p.body[0]))) > 3.f ? 0.5f : 0.25f;
+        // (A ledge's lip falling past: grabbed farther off the faster it goes, a quarter of an arm per m/s, its hold pulling the hand in.)
+        const float within = ledge ? za::clamp(0.25f * glm::length(glmv(b3Body_GetLinearVelocity(p.body[0]))), 0.25f, 1.f) : 0.25f;
         if(glm::length(hand - h.goal) < within * L || (off < 0.2f * L && glm::length(along) < 0.5f * L))
         {
             const glm::vec3 at = hand - h.normal * off; // (on the goal's plane: already handOff off the surface)
@@ -2174,6 +2175,23 @@ void keepGrab(State& s, const Parts& p, const Context& c, int arm, float L)
 // after its hang as a death's. Its hands both let go (struck, its load) or the pin can't carry it: it falls on (a Fall,
 // its arms bracing). Up: its pin dropped, its strength easing off, it lies on the top, a knockdown again.
 
+// Its chest (part `b`) drawn towards `goal` (world, metres) as it climbs: a capped spring (3 Hz, as if 0.4 of its
+// weight hung on it; at most climbChestPull body weights), its pin's way being its pelvis's alone.
+void climbChest(const State& s, const Parts& p, const Context& c, int b, const glm::vec3& goal)
+{
+    const float w = twoPi * 3.f;
+    const glm::vec3 x = glmv(b3Body_GetWorldCenter(p.body[b]));
+    const glm::vec3 v = glmv(b3Body_GetLinearVelocity(p.body[b]));
+    glm::vec3 f = (0.4f * s.totalMass) * (w * w * (goal - x) - 2.f * w * v);
+    const float most = climbChestPull * s.totalMass * c.gravity * s.base;
+    const float n = glm::length(f);
+    if(n > most && n > 1e-4f)
+    {
+        f *= most / n;
+    }
+    pushPart(p, b, f);
+}
+
 // Its climb over (`up`: pulled up, else dropped): its holds let go, its pin dropped, its strength easing off (up: it lies
 // on the top, a knockdown), or a fall from here (its arms bracing).
 void endClimb(State& s, const Parts& p, const Context& c, bool up, const char* why)
@@ -2297,6 +2315,31 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
                 const float off = za::atan2(glm::cross(a, wall).z, glm::dot(a, wall));
                 turnWhole(p, c, glm::normalize(glm::angleAxis(off, up) * bodyRot(p, 0)), 2.f, 1.5f, 0.6f);
             }
+            // Hanging by one hand: the other reaches up for the lip beside it (again each half second), its pull waiting
+            // for it a little (a one-handed hang swings off its middle, the pull failing).
+            if(k.pulls && holding == 1 && reaching == 0 && c.now >= k.reachAgain && k.retries < 2)
+            {
+                const int held = B3_IS_NON_NULL(e.hand[0].joint) ? 0 : 1, free = 1 - held;
+                EnvHand& h = e.hand[static_cast<za::SizeT>(free)];
+                if(limbWhole(s, p, free) && h.mode == Grip::None)
+                {
+                    const glm::vec3 along = glm::normalize(glm::cross(up, k.out));
+                    const glm::vec3 shoulder = shoulderOf(s, p, free);
+                    const glm::vec3 at = k.lip + along * za::clamp(glm::dot(shoulder - k.lip, along), -0.5f * L, 0.5f * L);
+                    h.mode = Grip::Ledge;
+                    h.goal = at;
+                    h.normal = up;
+                    h.on = e.hand[static_cast<za::SizeT>(held)].on;
+                    h.since = c.now;
+                    h.touched = -1.0;
+                    h.want = 1.f;
+                    h.strength = 1.f;
+                    h.holdUntil = c.now + 30.0;
+                    k.pullFrom = za::max(k.pullFrom, c.now + 0.4);
+                }
+                k.reachAgain = c.now + 0.5;
+                k.retries++;
+            }
             // (Not hanging (its legs still on the top, its back over the lip): it doesn't pull, it drops after its hang.)
             if(k.pulls && holding > 0 && k.pullFrom > 0.0 && c.now >= k.pullFrom && pelvis.z > k.top - 0.25f * L &&
                 pelvisIn > 0.f)
@@ -2349,6 +2392,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             k.prog = za::min(1.f, k.prog + c.dt / pullTime * (lag < climbLag * L ? 1.f : 0.25f));
             const float u = smooth(k.prog);
             k.pinAt = glm::mix(k.from, under, u);
+            climbChest(s, p, c, chest, glm::mix(chestAt, k.lip + up * (0.3f * L) + k.out * (0.25f * L), u)); // (off the wall)
             k.turnBlend = u;
             if(k.prog >= 1.f && (glm::distance(pelvis, under) < climbLag * L || pelvis.z > under.z - 0.2f * L))
             {
@@ -2375,13 +2419,18 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             }
             const float u1 = smooth(k.prog), u2 = smooth(k.prog2);
             k.pinAt = !k.released ? glm::mix(k.from, over, u1) : glm::mix(over, in, u2);
+            // (Its chest led in over the top ahead of its pelvis, not left at the lip's corner as its pelvis rises past it:
+            // folded there, it tipped back off.)
+            climbChest(s, p, c, chest, k.lip + up * (0.45f * L) + wall * ((!k.released ? 0.3f * u1 : 0.3f + 0.7f * u2) * L));
             k.tilt = glm::angleAxis(0.6f * u1 + 0.9f * u2, axis);
-            if(!k.released && k.prog >= 1.f && pelvis.z > k.top + 0.1f * L)
+            // (Let go once its pelvis is over the top and its chest over the lip, not tipped back off it.)
+            if(!k.released && k.prog >= 1.f && pelvis.z > k.top + 0.1f * L && -glm::dot(chestAt - k.lip, k.out) > -0.1f * L &&
+                chestAt.z > k.top - 0.1f * L)
             {
                 k.released = true;
                 k.since2 = c.now;
                 const float t = static_cast<float>(c.now - s.begun);
-                s.support = Fade{climbLift, 0.3f, t, t + overIn}; // (lying down onto the top)
+                s.support = Fade{climbLift, climbLift, t, t}; // (held up until it is in: endClimb lets it down)
                 for(int arm = 0; arm < 2; arm++)
                 {
                     letGo(s, arm, &c, "going in onto the top");

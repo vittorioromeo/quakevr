@@ -19,7 +19,7 @@ SEED0=${SEED0:-7}
 name() { case $1 in 0) echo grunt;; 1) echo ogre;; 2) echo zombie;; 5) echo knight;; 6) echo hknight;; 8) echo enforcer;; *) echo m$1;; esac; }
 FILTER="climb:|ragenv: [0-9]+ (left|right) hand (holds|lets)|monster_[a-z_]*: state|rror|CRASH|exit="
 one() { # one <monster> <pullup> <then> <seed>
-    bash $KIT/run.sh $AGENT -Script "sv_random_seed $4;map vrtesthall;wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_knockdown_debug 1;vr_knockdown_push ${PUSH:-0.15};vr_ragdoll_active_pullup $2;setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist ${DIST:-132};vr_test_spawn $1;impulse 241;wait40;vr_knockdown_test 0;$3;wait900;vr_knockdown_test 5;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
+    bash $KIT/run.sh $AGENT -Script "sv_random_seed $4;map vrtesthall;wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_knockdown_debug 1;vr_knockdown_push ${PUSH:-0.15};vr_ragdoll_active_pullup $2;${EXTRA:-};setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist ${DIST:-132};vr_test_spawn $1;impulse 241;wait40;vr_knockdown_test 0;$3;wait900;vr_knockdown_test 5;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
 }
 for c in $CASES; do
     pass=0
