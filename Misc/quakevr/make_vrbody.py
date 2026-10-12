@@ -333,7 +333,7 @@ def fore_w(side, f):
 HAND_UNIT = 0.01286
 HAND_WRIST = (-4.487973, -1.05, 1.447346)
 HAND_LIP = 1.1
-HAND_MARGIN = 0.0003
+HAND_MARGIN = 0.00015
 hand_mesh = None  # (positions, triangles) of the hand in its bind pose, read once
 
 
@@ -595,11 +595,11 @@ def build_mesh(m, bare=False):
             lip_m = HAND_LIP * HAND_UNIT
             for d, (ru, rv) in rings_b:
                 arm.append((add(elbow, mul(fd, d)), fa, fv, ru, rv, fore_w(side, d / fl)))
-            arm.append((wrist, fa, fv, ref[0], ref[1], w((wr_, 1.0)), hand_ring(side, 0.0, *ref)))
-            arm.append((add(wrist, mul(fd, lip_m)), fa, fv, ref[0], ref[1], w((ha_, 1.0)), hand_ring(side, HAND_LIP, *ref)))
+            arm.append((wrist, fa, fv, ref[0], ref[1], w((wr_, 1.0)), hand_ring(side, 0.0, *ref, sides=144)))
+            arm.append((add(wrist, mul(fd, lip_m)), fa, fv, ref[0], ref[1], w((ha_, 1.0)), hand_ring(side, HAND_LIP, *ref, sides=144)))
             per += [1, 1, 2, 1]
             vpos += [(7 + 2 * (d - 0.12) / 0.14) / 9 for d, _ in rings_b] + [1.0 - 2 * lip_m / 0.14 / 9, 1.0]
-        loft(arm, "skin", sides=24 if bare else 12, per=per, vpos=vpos, cap_end=not bare)
+        loft(arm, "skin", sides=144 if bare else 12, per=per, vpos=vpos, cap_end=not bare)
         # A leather bracer over the forearm's lower half (its straps show how the forearm turns),
         # ending at the wrist in a flared lip over the base of the hand. The arm meets make_hand_rig.py's
         # hand at its wrist: the wrist's ring holds the hand's wrist with a few millimetres to spare,

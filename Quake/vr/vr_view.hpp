@@ -39,6 +39,8 @@ struct ViewEntity
 // 0): your body (and its copy in a mirror), its forearms' skin turning to the hand's colour towards the wrist; a jointed
 // hand (w -1), its end inside the arm folded onto the wrist's line. False for any other entity (none).
 [[nodiscard]] bool skinTint(const entity_t* e, float tint[4], float range[4]);
+// Skin-only tone: kind 1 the jointed hand, 2 the body, zero other entities.
+[[nodiscard]] int skinTone(const entity_t* e, float tone[4]);
 
 // With bare forearms (vr_body_bracers 0) the jointed hands are drawn in your body's light, so that the skin is lit alike
 // on both sides of the wrist: bareLight (r_alias.c's light colour, R_SetupAliasLighting) and bareShade (the instance's
