@@ -209,6 +209,20 @@ matched nine AO models against the scalar reference with zero differences,
 spawned a shotgun eligible for force-grab and exercised Box3D worlds in e1m1/e1m2.
 Those mock tests do not prove physical reload, throwing or climbing.
 
+On 2026-10-12, a second native ARM64 mock-input regression pass on Frame ran the
+release binary at 0.25 and the render-scale-floor candidate at 0.18, both in a
+scratch copy. The reload self-test passed all 67 checks on each. `vr_hull_cachetest`
+passed on both, and `vr_physics_mtbench 200 300` produced the same Box3D hash
+(`92faaba3aff7d472`) for 1, 2, 3, 4, 6 and 8 workers in both builds. This checks
+reload logic and the physics worker implementation; it does not test real hand
+poses or in-headset weapon handling.
+
+A randomized synthetic axe-stick-rate sweep did not repeat consistently even
+with fixed seeds and the same candidate binary, so I excluded its throw-rate
+figures from regression claims. The earlier wearer-confirmed axe hit applies to
+the release setup, not the 0.18 preview. Physical axe throws and weapon handling
+on the preview remain to be checked.
+
 Calibration samples ran near 72 fps at 778x778 rendered pixels per eye,
 upscaled into 1728x1728 XR images. **These are not representative combat
 benchmarks.** The wearer reports slow locations; performance is a known issue.
