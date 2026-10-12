@@ -6852,6 +6852,9 @@ za::Vector<Item> pageDebugTests()
         command("Take It Back", "vr_test_weaponinst 6; impulse 120").help("The main hand takes the carried weapon's handle."),
         command("Switch Hands", "vr_test_weaponinst 7; impulse 120").help("The main hand's weapon into the off hand (8: back)."),
         header("Reloading"),
+        command("Magazine Reinsertion Boundaries", "vr_reload_test 28; impulse 125")
+            .help("Tests held and loose magazine withdrawal thresholds, zero and negative clearance, both guns and eject cooldown. "
+                  "Changes the weapons and ammo in your hands; use a test map."),
         command("Shotgun in the Off Hand", "impulse 154; wait; vr_test_weaponinst 7; impulse 120; give s 40")
             .help("A loaded shotgun into the off hand and 40 shells: the main hand is free for the ammo pouch."),
         command("Nailgun in the Off Hand", "impulse 156; wait; vr_test_weaponinst 7; impulse 120; give n 100")
@@ -8556,6 +8559,9 @@ za::Vector<Item> pageMain()
         header("Weapons"),
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}})
             .help("Hold: keep the grip pressed to hold a weapon. Sticky: a press takes it, another lets it go."),
+        slider("Grip Grace After Loading", vr_weapon_load_grace, 0.f, 2.f, 0.05f, "%.2f s")
+            .help("After loading a save, keep the restored weapons in your hands this long even without holding the grip. "
+                  "Starts when play resumes; 0 disables it."),
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual Stock"}})
             .help("Hold a gun with both hands to steady it. Virtual Stock: a gun brought near your shoulder also aims "
                   "from it, as against a real stock."),

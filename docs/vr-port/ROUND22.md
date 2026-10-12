@@ -4020,6 +4020,41 @@ blood across the seam, and tune Skin Tone under several room lights. Review the 
 Disposable worker outputs (not deleted): scratch/, eyeshots/, build logs/crash dumps, test cfg; generated id.wad stays
 local and ignored, never committed. Visual sheets: scratch/wrist_visual.png, wrist_straps.png, wrist_bridge.png.
 
+### Ammo-pouch destination, loaded grip grace and magazine reinsertion (reload2, 2026-10-12)
+
+Voice notes AD 11:20:14, 11:32:35 and 11:34:30. Boxes, shells and magazines now shrink toward the rendered leather
+bag's centre rather than the hand's reach hotspot. The point follows the same model transform as the pouch, including
+body clearance, crouch, configured offsets/turn and size. Its local centre follows make_ammo_pouch.py's leather outline
+(BACK_X + depth * 0.45, z -0.4); stocked/empty depths 2.5/1.3. Round-specific bounds are deliberately excluded.
+Hidden pouches retain the old reach-point fallback. vr_dumpview reports the centre, and vr_debug_collect_fx 2 reports
+the animation endpoint's error against it.
+
+After loading a save, OnLoadGame grants the weapon instances actually restored in each hand a 0.75-second grip grace.
+Game time starts the window after the load pause, so the loading screen does not consume it. VRWeaponLetGo suppresses
+unpressed-grip releases only for those instances during the window; new weapons, fresh-map starts and drops after it
+follow the existing rules. New archived vr_weapon_load_grace defaults to 0.75, with a 0..2 s "Grip Grace After Loading"
+slider beside Weapon Grip in VR Settings. 0 disables the grace. The weapon-instance debug report includes time left
+and whether each hand still holds the restored instance.
+
+The former fixed extra 4-unit withdrawal before reinsertion is archived vr_reload_reinsert_clearance (default 4,
+negative values clamped to 0). "Magazine Reinsertion Clearance" in Advanced VR Options > Weapons > Reloading exposes
+0..16 units (extended to 64). Held magazines must leave the insertion reach plus this margin; loose magazines still
+clear both hand guns' collision leniency and the existing eject cooldown. This also governs a replacement magazine
+that bumped the previous one out. No existing reload thresholds or authored settings were retuned.
+
+Debug > Tests > Reloading > Magazine Reinsertion Boundaries (vr_reload_test 28; impulse 125) exercises actual held
+and loose paths at both sides of the threshold for -2/0/4/10 units, latch retention, both guns and cooldown: 22/22 PASS.
+Misc/quakevr/reload/voice_20261012_test.sh runs that test, real save/load with both held guns ungripped, disabled grace,
+ordinary fresh-map drops, and nine real collection animations (box/shell/magazine × standing/crouched/offset-and-turn).
+Collection endpoints have 0.0000-unit error against the rendered bag centre. The default load grace retains both guns
+through 0.728 s, then releases them by 0.826 s; zero grace and fresh-map drops follow the original release path.
+Release prediction used by firing shares the same guard: the restored gun remains usable during the window
+(one shotgun shot consumes 8 -> 7 shells without holding the grip).
+QC/engine/FGD build passes (0 QC warnings); calibration menu paths: 5 found, 0 missing.
+
+VR follow-up: return every ammo kind to the pouch while crouching; reload an autosave without gripping, then regrip or
+let the grace expire; tune Magazine Reinsertion Clearance for the out-and-back motion. Saves and probe logs remain
+local to this worktree (voice_reload2_grace/reload2_grace/reload2_grace_exact and scratch/); none were deleted.
 
 ### AD world contacts, physical backpacks and real ladder rungs (October 12, adworld)
 
@@ -4085,3 +4120,47 @@ room for 10, all above help and under the keyboard; stale entries still resolve 
 clipping remains. Visual composite `scratch/admenu_ui.png`: AD page has20 visible rows, direct Advanced parent;
 Search has all ten readable rows. No calibration paths moved. User VR checks: ammo appearance with scope/reload,
 upgrade switches outside AD, pellet speed feel and the expanded Recent list.
+## Melee takes of 2026-10-12: a reproducible suite, waves and wiggles, the retraction double hit (worktree `melee2`)
+
+**The suite.** `eval.sh` already ran the takes unpaced, undrawn and silent in parallel copies, a map load per take. On
+his 177 new takes it takes 10-15 s with 8 copies (45 s with one; the first run of a new agent's copies 67 s: their
+game folders are made then). Three fixes made its verdicts mean something:
+
+- The dummy retyped as an invincible grunt names its hits `monster_army`: every hit take failed "no melee/..." (49/177).
+  A hit on the target's classname now counts (`vr_motion_play.cpp`, Report::targetName): 152/177.
+- A take's replay depended on the one before it in the same copy (two rows differed between 8 copies and one): the
+  head's last position was a step into the next take (the lean) and the body's gait and stance went on. Each playback
+  now starts afresh (`hands::resetForPlayback`, `avatar::resetMotion`): 8 copies, one copy and 22 takes alone give
+  the same rows, every column.
+- The setup's grips closed beside the dummy took it with Holding Enemies (`vr_foegrab`) instead of the weapon, which
+  fell (three axe and sword takes slapped with an open hand): foe grab is held off during the setup only. Replays that
+  hit as live: 152 -> 157 of 177.
+- The take's `vr_dummy_anchored` (next, 2d457670e) is applied; takes from before it: 0.
+
+**The no-hit takes** (23: fists, axe, sword waved, wiggled, pulled back near the dummy; 16 hit, most also live). The
+blows' numbers (developer 2, `melee debug`) split them from his 105 hits:
+- pulled back: the far end going back along the line, cos -0.4 to -1 (his hits -0.26 to 1): `VR_MELEE_PULLBACK -0.35`;
+- slow and short: swings at 1-1.6 times their least speed coming 0.22-0.51 m (his slowest cuts, 1.27-1.43 times,
+  came 0.66-0.86 m): the run-up a swing needs grows from `VR_MELEE_RUN` 0.2 at 2x to 0.6 at 1x (`VR_MELEE_SLOW_*`);
+- the wrist barely carried: swings 1.3-2.8 m/s (cuts 3-7.6): `VR_MELEE_WRIST_SWING 2.3` (x vr_melee_wrist_speed);
+  pommel strikes 1.3-2 (his 4.6-5.6): `VR_MELEE_WRIST_POMMEL 2.5`, and they come `VR_MELEE_POMMEL_RUN 0.35` m.
+Guns keep their own numbers (no gun takes in the set) but are pulled back too. The whoosh (stroke) follows the same rules.
+no_hit 7/23 -> 20/23, every hit label unchanged (168/177).
+
+**Retraction double hit.** What a hand struck it strikes again only entering it (`mh_struck`; the sweep starting in its
+model or box strikes nothing); a first blow isn't held to it (his punches and two-handed thrusts start their landing
+frame within a point's reach of the model: two takes lost their hit when it applied to every blow). Synthetic takes
+(`scratch/retract.py`): a punch held in the dummy then drawn back hit twice, now once; a punch drawn out and thrown
+again still hits twice.
+
+**Still failing (9), for his review:** no_hit 12-25-50 (a punch by every number: 7.2 m/s, 2.25x, came 0.48 m, forward;
+live it didn't land), no_hit 12-37-24 and 12-37-28 (sword: slow cuts, 1.3-1.6x, came 0.54-0.6 m, wrist 3.7, the
+blade going 104-108 degrees back from its line; live they hit), not_parry_pose 12-38-35 and 12-38-38 (sword held in
+the parry pose 174/174 and 46/180 frames), parry_pose 12-31-42 (axe: 0/134 frames), slash_horizontal_ltr 12-29-35
+(axe: a one-handed bash, live too), punch_overhead 12-23-27 (the fist closed 0.27 s before the punch: Holding Enemies
+takes the dummy in the replay, not live: lateGrab's 0.2 s, frame timing), slash_backswing_up_left 12-35-23 (the
+helping main hand sits in the ammo pouch's reach at the take's start: the setup's grip takes a shell).
+
+**Damage per weapon and type** (`eval_damage.py`, printed by the full set): punches 19.2 mean (7.3-39), axe chops 38.5
+(21-63), sword slashes 30.2 (9-60), stabs 29.9 (15-73), slaps 17.6, axe pommel 11.7, axe bash 7.3. Spread comes from
+the zone (head x1.5, limbs less) for chops, slashes and punches, from the strength (speed) for stabs and slaps.

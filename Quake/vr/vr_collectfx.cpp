@@ -134,7 +134,10 @@ struct GunNow
     }
     if(hotspot == body::HS_AMMO_POUCH)
     {
-        out = body::ammoPouchPosition(s);
+        if(!view::ammoPouchCentre(out))
+        {
+            out = body::ammoPouchPosition(s);
+        }
         return true;
     }
     if(hotspot == body::HS_GRENADE_POUCH)
@@ -385,6 +388,15 @@ void frame(const hands::State& s)
         if(vr_debug_collect_fx.value >= 2)
         {
             Con_Printf("collect fx: t %.2f size %.2f to the target %.1f\n", t, it.shrink, glm::distance(centre, target));
+            if(it.hotspot == body::HS_AMMO_POUCH)
+            {
+                glm::vec3 pouch;
+                if(view::ammoPouchCentre(pouch))
+                {
+                    Con_Printf("collect fx: ammo pouch endpoint error %.4f, %.3f units from reach point\n",
+                        glm::distance(target, pouch), glm::distance(target, body::ammoPouchPosition(s)));
+                }
+            }
         }
         if(cl_numvisedicts < MAX_VISEDICTS)
         {

@@ -1930,7 +1930,7 @@ float(float xHand, entity r) VR_Reload_HeldFrame =
         dprint(sprintf("reload: a held round %.1f units from the port (leniency %g): at %v, the port %v\n", d,
             leniency, VR_Reload_RoundRef(r), port));
     }
-    if(d > leniency + 4)
+    if(d > leniency + max(0, cvar_hget(cvarh_vr_reload_reinsert_clearance)))
     {
         r.vr_ammo_fresh = FALSE; // (well away: a magazine just out, or that knocked one out, may seat when brought back)
     }
@@ -2056,7 +2056,8 @@ float(entity r) VR_Reload_FreshLeft =
         if(VR_Reload_AmmoFor(self, h) >= 0)
         {
             vector port = h == cVR_MainHand ? self.loadportpos : self.offloadportpos;
-            float margin = VR_Reload_PortRadius(VRGetEntWeapon(self, h)) + VR_Reload_MagRadius(r.vr_ammo_wid) + 2 * lenient + 4;
+            float margin = VR_Reload_PortRadius(VRGetEntWeapon(self, h)) + VR_Reload_MagRadius(r.vr_ammo_wid) + 2 * lenient +
+                           max(0, cvar_hget(cvarh_vr_reload_reinsert_clearance));
             if(vlen(VR_Reload_RoundRef(r) - port) <= margin)
             {
                 return FALSE;

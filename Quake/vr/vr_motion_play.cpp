@@ -13,6 +13,7 @@
 
 #include "vr_anchor.hpp"
 #include "vr_angvel.hpp"
+#include "vr_avatar.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
 #include "vr_motion_review.hpp"
@@ -422,7 +423,8 @@ struct Take
     static constexpr const char* placing[] = {"vr_world_scale", "vr_height_calibration", "vr_floor_offset", "vr_stick_swap",
         "vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_handcal_", "vr_gunmodel", "vr_weapon_grip_mode", "vr_2h_",
         "vr_lean_", "vr_roomscale_", "vr_body_", "vr_throw_release", "vr_throw_grab_press", "vr_wofs_",
-        "vr_controller_legacy_pose", "vr_weapon_cycle_mode", "vr_hull_", "vr_dummy_gore", "vr_dummy_type", "vr_dummy_health"};
+        "vr_controller_legacy_pose", "vr_weapon_cycle_mode", "vr_hull_", "vr_dummy_gore", "vr_dummy_type", "vr_dummy_health",
+        "vr_dummy_anchored"};
     // (Every setting the QC's melee, damage and hit reactions read.)
     static constexpr const char* meleeOnes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
@@ -494,6 +496,7 @@ void collectSettings(const za::String& value, bool pairs, za::Vector<za::Pair<za
 }
 
 za::Vector<za::Pair<cvar_t*, za::String>> savedSettings; // the values before a playback
+za::String setupFoegrab; // vr_foegrab's value, held off during the setup (startPlayback); "" when not
 
 // The training dummies as the take's enemy now (QC VR_Dummy_RetypeAll: vr_dummy_type, just applied), before the take
 // is placed against one: each stands as a new entity (its box and origin its enemy's).
@@ -576,6 +579,11 @@ void applySettings(const Take& take, bool melee)
     {
         list.emplaceBack("vr_dummy_gore", "0");
     }
+    // A take from before the dummy that stays put (vr_dummy_anchored): shoved, staggered and knocked down, as then.
+    if(!za::anyOf(list.begin(), list.end(), [](const auto& kv) { return kv.first == "vr_dummy_anchored"; }))
+    {
+        list.emplaceBack("vr_dummy_anchored", "0");
+    }
     // A take from before the training dummy's enemies and health (vr_dummy_type, vr_dummy_health): a grunt, of a grunt's
     // health, as then.
     for(const char* name : {"vr_dummy_type", "vr_dummy_health"})
@@ -632,6 +640,7 @@ void restoreSettings()
         Cvar_SetQuick(cvar, value.cStr());
     }
     savedSettings.clear();
+    setupFoegrab.clear();
 }
 
 // ----------------------------------------------------------------------------
@@ -781,6 +790,7 @@ struct Report
     int recFrames{0};
     int wid[HAND_COUNT]{};
     za::String targetClass;
+    za::String targetName; // its classname (the training dummy's: its enemy's, as the melee's events name it)
     za::String warnings;
     bool ok{false};
 };
@@ -860,6 +870,7 @@ void workOutPlacement(edict_t* player)
     edict_t* target = findTarget(opts.target, f0.hasMon ? f0.monClass : za::String{}, here);
     targetEnt = target ? NUM_FOR_EDICT(target) : 0;
     report.targetClass = target ? progs::targetClass(target) : "";
+    report.targetName = target ? PR_GetString(target->v.classname) : "";
     placed = true;
     if(!target || !opts.place)
     {
@@ -1318,7 +1329,20 @@ void stopPlayback(const char* why)
         savedSettings.emplaceBack(&vr_dummy_gib, vr_dummy_gib.string);
         Cvar_SetQuick(&vr_dummy_gib, "0");
     }
+    // Nor held (vr_foegrab) by a grip the setup closes beside it: in the take that hand had held its weapon since long
+    // before (an axe gripped by a hand next to the dummy took the dummy instead, and the axe fell). Back on as the take
+    // plays: a grip already closed doesn't take hold later.
+    if(vr_foegrab.value != 0.f)
+    {
+        savedSettings.emplaceBack(&vr_foegrab, vr_foegrab.string);
+        setupFoegrab = vr_foegrab.string;
+        Cvar_SetQuick(&vr_foegrab, "0");
+    }
     retypeDummies();
+    // Nothing left from what played before (the last take's head is not a step into this one): a take plays the same
+    // after any other, or alone (vr_motion_eval's shards).
+    hands::resetForPlayback();
+    avatar::resetMotion(); // (the holsters and pouches go with the body: a grip in them takes what is there)
     strikeNext = 0;
     strikesDone = 0;
     state = State::Setup;
@@ -1702,6 +1726,11 @@ void playFrameEnd(za::Vector<Event>& events, bool tick, double svDt)
                     }
                 }
                 state = State::Play;
+                if(!setupFoegrab.empty())
+                {
+                    Cvar_SetQuick(&vr_foegrab, setupFoegrab.cStr()); // (held off for the setup: startPlayback)
+                    setupFoegrab.clear();
+                }
                 nextFrame = 0;
                 wallStart = Sys_DoubleTime();
                 playClock = 0.0;
@@ -2029,7 +2058,9 @@ void judge(const Report& r, const Expectation* e, Result& out)
         {
             for(const za::String& item : e->required)
             {
-                if(matchesItem(ev, item) && (!isHit(ev) || ev.target == r.targetClass))
+                // (A hit names the classname of what it struck: the training dummy as its enemy, vr_dummy_type.)
+                if(matchesItem(ev, item) && (!isHit(ev) || ev.target == r.targetClass ||
+                                                    (!r.targetName.empty() && ev.target == r.targetName)))
                 {
                     any = true;
                 }
