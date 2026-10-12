@@ -3703,7 +3703,10 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
             base.bodyIdB = r.body[static_cast<za::SizeT>(b)];
             base.localFrameA = b3Transform{b3v(inParent), toB3(frame)};
             base.localFrameB = b3Transform{b3v(inChild), toB3(frame)};
-            base.collideConnected = false;
+            // Corpses need shoulder contact too: the upper arm is directly jointed to the chest.
+            // preSolve exempts the socket itself, so its necessary joint overlap cannot fight the constraint.
+            base.collideConnected = !r.knocked &&
+                strncmp(bone.name, "upperarm", 8) == 0;
         };
         if(bone.joint == ragdoll::Joint::Ball)
         {
@@ -4695,6 +4698,23 @@ void writeRagdoll(edict_t* ent, Slot& s)
     if(r.knocked && ent->v.health <= 0.f)
     {
         r.knocked = false;
+        // A body killed while down keeps its original living joints; enable its shoulder contact now too.
+        for(int b = 0; b < r.count; b++)
+        {
+            const ragdoll::Bone& bone = rig.bones[b];
+            if(partCut(r, b) || bone.parent < 0 || strncmp(bone.name, "upperarm", 8) != 0) { continue; }
+            const b3BodyId parent = r.body[static_cast<za::SizeT>(bone.parent)];
+            za::Array<b3JointId, ragdoll::maxBones> attached{};
+            const int count = b3Body_GetJoints(r.body[static_cast<za::SizeT>(b)], attached.data(), ragdoll::maxBones);
+            for(int j = 0; j < count; j++)
+            {
+                const b3JointId joint = attached[static_cast<za::SizeT>(j)];
+                if(B3_ID_EQUALS(b3Joint_GetBodyA(joint), parent) || B3_ID_EQUALS(b3Joint_GetBodyB(joint), parent))
+                {
+                    b3Joint_SetCollideConnected(joint, true);
+                }
+            }
+        }
         while(r.count > 1 && rig.bones[r.count - 1].joint == ragdoll::Joint::Loose)
         {
             const b3BodyId body = r.body[static_cast<za::SizeT>(r.count - 1)];
@@ -8880,7 +8900,7 @@ constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than t
 
 // Self-collision contacts: corpses retain contacts during reaches and deep overlaps. Keep the existing living
 // ragdoll exceptions for animation/pin transitions and living reaches (ragmove2).
-[[nodiscard]] bool selfTouches(b3ShapeId a, b3ShapeId b, int num)
+[[nodiscard]] bool selfTouches(b3ShapeId a, b3ShapeId b, int num, b3Pos point)
 {
     const RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(world->slots[num].ragdoll)];
     const b3BodyId ba = b3Shape_GetBody(a), bb = b3Shape_GetBody(b);
@@ -8894,6 +8914,20 @@ constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than t
     if(pa < 0 || pb < 0)
     {
         return true;
+    }
+    // A shoulder's socket is intentionally shared by the arm and chest. Contacts farther along the arm
+    // prevent its elbow and upper arm entering the chest without pulling the shoulder joint apart.
+    const int child = r.rig->bones[pa].parent == pb ? pa : r.rig->bones[pb].parent == pa ? pb : -1;
+    if(child >= 0)
+    {
+        const ragdoll::Bone& bone = r.rig->bones[child];
+        const float k = r.scale / world->m2u;
+        const b3Pos socket = b3Body_GetWorldPoint(r.body[static_cast<za::SizeT>(child)], b3v(bone.pivot * k));
+        const float radius = glm::length(bone.end - bone.pivot) * k * 0.4f;
+        if(glm::length(glmv(b3SubPos(point, socket))) < radius)
+        {
+            return false;
+        }
     }
     // (Staggering, rising or climbing, its body follows its animation's frames (a climb: its pin's way), whose limbs pass through each other (a knight's
     // get-up: a hand on a knee, a forearm in the thigh): met, they held the pose off by 15 units (3 without) and a steady
@@ -8943,6 +8977,49 @@ constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than t
         }
     }
     return overlapping;
+}
+
+// Include directly jointed upper arms in diagnostics: generic overlap counts intentionally omit joint pairs.
+// Distal points in a chest shrunk to 80% distinguish a buried arm/elbow from the shared shoulder socket.
+[[nodiscard]] int armsInsideChest(const RagdollBodies& r, int& samples)
+{
+    samples = 0;
+    int inside = 0, chest = -1;
+    for(int b = 0; b < r.count; b++)
+    {
+        if(r.rig->bones[b].role == modelmeta::BoneRole::Chest && !partCut(r, b)) { chest = b; break; }
+    }
+    if(chest < 0) { return 0; }
+    za::Array<b3ShapeId, 4> shapes{};
+    const int n = b3Body_GetShapes(r.body[static_cast<za::SizeT>(chest)], shapes.data(), 4);
+    const float k = r.scale / world->m2u;
+    for(int b = 0; b < r.count; b++)
+    {
+        const ragdoll::Bone& bone = r.rig->bones[b];
+        if(partCut(r, b) || (strncmp(bone.name, "upperarm", 8) != 0 && strncmp(bone.name, "forearm", 7) != 0)) { continue; }
+        for(float t : {0.6f, 0.9f})
+        {
+            const b3Vec3 point = b3v(glm::mix(bone.pivot, bone.end, t) * k);
+            bool buried = false;
+            samples++;
+            for(int i = 0; i < n; i++)
+            {
+                b3DistanceInput in{};
+                ProxyPoints points;
+                if(!partProxy(shapes[static_cast<za::SizeT>(i)], 0.8f, in.proxyA, points)) { continue; }
+                in.proxyB.points = &point;
+                in.proxyB.count = 1;
+                in.proxyB.radius = 0.f;
+                in.transform = b3InvMulWorldTransforms(b3Body_GetTransform(r.body[static_cast<za::SizeT>(chest)]),
+                    b3Body_GetTransform(r.body[static_cast<za::SizeT>(b)]));
+                in.useRadii = true;
+                b3SimplexCache cache{};
+                buried = buried || b3ShapeDistance(&in, &cache, nullptr, 0).distance <= selfApart;
+            }
+            inside += buried ? 1 : 0;
+        }
+    }
+    return inside;
 }
 
 bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
@@ -9064,7 +9141,7 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
     if(const int na = numOf(a); na > svs.maxclients && na == numOf(b) && na < static_cast<int>(world->slots.size()) &&
                                 world->slots[na].ragdoll >= 0)
     {
-        return selfTouches(a, b, na);
+        return selfTouches(a, b, na, point);
     }
 
     const bool aPlayer = (b3Shape_GetFilter(a).categoryBits & catPlayer) != 0;
@@ -10442,6 +10519,53 @@ void mtbench_f()
 // vr_ragdoll_list [1|2]: the ragdolls (vr_ragdoll): each one's entity, how long since it went limp, its parts (awake), where
 // its pelvis is and how high its parts' lowest and highest points are; 1: each part, and the hands holding it
 // (how far its point is from the hand); 2: also its flames (how far from its limbs' surface).
+// A reproducible shoulder-contact stress pose: rotate one corpse arm and its children into its chest.
+// Living ragdolls are deliberately excluded. The solver must free the arm without separating its shoulder.
+void ragdollArmTest_f()
+{
+    if(!sv.active || !world) { Con_Printf("armtest: no Box3D world\n"); return; }
+    const VmScope vm;
+    for(RagdollBodies& r : world->ragdolls)
+    {
+        if(r.num <= 0 || r.knocked || EDICT_NUM(r.num)->v.health > 0.f) { continue; }
+        for(int b = 0; b < r.count; b++)
+        {
+            const ragdoll::Bone& bone = r.rig->bones[b];
+            if(partCut(r, b) || strncmp(bone.name, "upperarm", 8) != 0 || bone.parent < 0) { continue; }
+            const float k = r.scale / world->m2u;
+            const b3WorldTransform arm = b3Body_GetTransform(r.body[static_cast<za::SizeT>(b)]);
+            const glm::vec3 socket = glmv(b3Body_GetWorldPoint(r.body[static_cast<za::SizeT>(b)], b3v(bone.pivot * k)));
+            const glm::vec3 target = glmv(b3Body_GetWorldCenter(r.body[static_cast<za::SizeT>(bone.parent)])) - socket;
+            const glm::vec3 direction = fromB3(arm.q) * (bone.end - bone.pivot);
+            if(glm::length(target) < 1e-4f || glm::length(direction) < 1e-4f) { continue; }
+            const glm::vec3 from = glm::normalize(direction), to = glm::normalize(target);
+            const glm::vec3 axis = glm::cross(from, to);
+            const float cosine = glm::dot(from, to);
+            const glm::quat turn = cosine > -0.999f ? glm::normalize(glm::quat{1.f + cosine, axis.x, axis.y, axis.z}) :
+                glm::angleAxis(glm::pi<float>(), glm::normalize(glm::cross(from,
+                    za::abs(from.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{0.f, 1.f, 0.f})));
+            for(int child = b; child < r.count; child++)
+            {
+                int ancestor = child;
+                while(ancestor >= 0 && ancestor != b) { ancestor = r.rig->bones[ancestor].parent; }
+                if(ancestor != b || partCut(r, child)) { continue; }
+                const b3BodyId body = r.body[static_cast<za::SizeT>(child)];
+                const b3WorldTransform pose = b3Body_GetTransform(body);
+                b3Body_SetTransform(body, b3v(socket + turn * (glmv(pose.p) - socket)),
+                    toB3(glm::normalize(turn * fromB3(pose.q))));
+                b3Body_SetLinearVelocity(body, b3Vec3_zero);
+                b3Body_SetAngularVelocity(body, b3Vec3_zero);
+                b3Body_SetAwake(body, true);
+            }
+            int samples = 0;
+            const int inside = armsInsideChest(r, samples);
+            Con_Printf("armtest: %d %s folded, %d of %d distal arm points inside chest\n", r.num, bone.name, inside, samples);
+            return;
+        }
+    }
+    Con_Printf("armtest: no intact corpse arm\n");
+}
+
 void ragdollList_f()
 {
     if(!sv.active || !world)
@@ -10485,6 +10609,9 @@ void ragdollList_f()
         const int overlapping = partsOverlapping(r, pairs, deep);
         Con_Printf("  self: %d of its %d unjointed part pairs overlapping, %d deep (Limbs Meet Each Other %s)\n", overlapping, pairs, deep,
             vr_ragdoll_self_collide.value != 0.f ? "on" : "off");
+        int armSamples = 0;
+        const int buriedArms = armsInsideChest(r, armSamples);
+        Con_Printf("  arm interiors: %d of %d distal arm points inside chest\n", buriedArms, armSamples);
         if(r.active.death.on)
         {
             ragactive::describe(r.active, activeParts(r), r.num, qcvm->time);
@@ -11392,6 +11519,7 @@ void registerCommands()
         Cmd_AddCommand("vr_corpse_drop", corpseDrop_f);
         Cmd_AddCommand("vr_corpse_poses", corpsePoses_f);
         Cmd_AddCommand("vr_ragdoll_list", ragdollList_f);
+        Cmd_AddCommand("vr_ragdoll_arm_test", ragdollArmTest_f);
         Cmd_AddCommand("vr_ragdoll_info", ragdoll::info_f);
         Cmd_AddCommand("vr_limb_models", limbmodel::info_f);
         Cmd_AddCommand("vr_drawn_motion_test", ragdoll::motionTest_f);
