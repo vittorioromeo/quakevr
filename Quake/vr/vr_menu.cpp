@@ -3701,12 +3701,12 @@ void hologramTestMessage()
                   "movement and jump climbing."),
         cycle("Additional Content", vr_ad_everywhere, {{0.f, "AD Maps Only"}, {1.f, "Everywhere"}})
             .help("Arcane Dimensions' monsters, new artifacts, custom keys, health vials and gems, custom items and ladders in any "
-                  "map that places them (custom maps, the toolgun), while its data is installed. Off: only in its own "
+                  "map that places them (custom maps, the toolgun), while its data is installed. AD Maps Only: only in its own "
                   "maps. Its pickups that would replace Quake VR's (backpacks) are only ever in its maps. Disabling required monsters or keys in AD maps would prevent progress, so they remain available there."),
         command("Map Logic / Inventory Override", "")
             .unavailableBecause("AD map logic, key progression and scripted inventory remain AD-map-only. A global override is not supported: it would break triggers, exits and item placement. VR interactions, hit fixes and physics always remain active."),
         command("AD Status", "vr_ad_info"),
-        command("Scope and Ammo Model Test", "vr_ad_test 61")
+        command("Scope and Ammo Model Test", "vr_ad_test 65")
             .help("Reports the feature scopes, all eight ammo box models and pickup physics; checks both held weapon models stay unchanged."),
     };
 }
@@ -6501,7 +6501,7 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Evil Skill Report", "vr_ad_test 22")
             .help("Whether AD's Evil skill plays (Nightmare with Evil Skill on), your health and its cap, megahealth's, "
                   "the axe's blow."),
-        command("Arcane Dimensions: Buttons Test", "vr_ad_test 61")
+        command("Arcane Dimensions: Buttons Test", "vr_ad_test 65")
             .help("Press this map's laser button with a hand, a weapon and a thrown prop; check disabled state."),
         command("Arcane Dimensions: Backpacks Test", "vr_ad_test 62")
             .help("Report map backpacks; create an AD dropped bag, test walkover immunity and grab/holster collection."),

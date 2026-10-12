@@ -58,7 +58,7 @@ void(float request, entity p) AD_RulesTest =
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;
     entity os = self;
-    if(request == 61)
+    if(request == 65)
     {
         string mainBefore = p.weaponmodel, offBefore = p.weaponmodel2;
         entity standIn = spawn();
@@ -82,7 +82,7 @@ void(float request, entity p) AD_RulesTest =
                 entity box = spawn();
                 self = box;
                 box.spawnflags = big;
-                setorigin(box, ahead + '0 0 40' + '0 32 0' * (kind * 2 + big));
+                setorigin(box, p.origin + '0 0 64'); // The player's verified floor; narrow AD corridors cannot fit a sideways row.
                 if(kind == 0) item_shells();
                 else if(kind == 1) item_spikes();
                 else if(kind == 2) item_rockets();
@@ -92,7 +92,7 @@ void(float request, entity p) AD_RulesTest =
                 report.weapon = kind;
                 report.count = big;
                 report.think = AD_MenuAmmoReport;
-                report.nextthink = time + 1.2;
+                report.nextthink = time + 0.9;
                 big = big + 1;
             }
             kind = kind + 1;

@@ -4048,3 +4048,40 @@ Automated: Misc/quakevr/ad_world_test.sh <agent>. Build/QC/FGD and e1m1 smoke pa
 melee replay 49/177 pass equals baseline (0 differences), no melee tuning.
 Human VR: press laser buttons with each contact mode; grab/holster colored ammo/armor bags; approach ladders closely,
 grab alternating real rungs including underside touches; confirm jump/gaps never climb.
+
+### AD tweaks, ammo models and safe feature scopes (2026-10-12, admenu2)
+
+Voice notes 10:55:27, 11:01:16, 11:02:54 and 11:27:41. Advanced VR Options now links directly to a registered
+Arcane Dimensions page (the previous Combat link referred to a function missing from the page table). The Combat
+shortcut remains. Player Pellet Speed and Enemy Pellet Speed expose independent existing multipliers,
+both default 1. A fixed-seed flight check at player 1.75 / enemy 2.5 measured 3492 / 2369 units/s, matching
+3500 / approximately 2375 including AD's small speed variation.
+
+New archived controls: `vr_ad_ammo_models=1`, `vr_ad_resistance=2`, `vr_ad_upgrades=1`, each 0 Off / 1 AD Maps Only /
+2 Everywhere. Ammo Models chooses all eight AD shell/nail/rocket/cell MDLs at spawn, preserving normal ammo
+quantities and the VR hand-touch/force-grabbable path. MDL-centred bounds and ordinary-map corner placement are
+adapted before existing item physics takes over. Reload the map to change existing ammo appearance. Missing AD
+data/model falls back to the original box. No assets are shipped. Resistance scope is shared by our damage bridge
+and the imported AD resistance function, via a checked importer patch. Upgrades retain their owned bits while
+Off; Everywhere permits their existing pickups and effects in ordinary maps. Spawn menus respect the same scope.
+
+The existing projectile rule cvar remains numerically compatible (1 Off, 0 AD Maps Only, 2 Everywhere);
+AD-specific enemy AI still owns its projectiles. Additional Content keeps its existing 0 AD-only / 1 Everywhere
+semantics. AD map monsters, keys, world triggers, exits and scripted inventory are required for map progress:
+the unsupported Map Logic / Inventory Override row is disabled and explains this. VR hit/physics fixes remain
+active independent of optional AD features. Native AD inventory/UI coverage is recorded in BACKLOG.md as requested;
+it is not claimed complete.
+
+Checks: Release build, QC 0 warnings; e1m1 and ad_crucial smoke exit 0. Three scopes in each campaign: all 48 ammo
+boxes selected the correct model, retained counts (20/40 shells,25/50 nails,5/10 rockets,6/12 cells), became
+rigid force-grabbable props and had finite centred bounds. Resistance probe 10 damage ->10 while disabled,
+->5 with 50% resistance active. Upgrade effects match map/scope and three upgraded spawn catalog rows are ready
+outside AD when Everywhere. Both held SG/SSG models survive AD ammo refresh in each campaign. Calibration boards:
+5 found,0 missing. Repeat with `bash Misc/quakevr/ad_scope_test.sh <agent>` then
+`python Misc/quakevr/ad_scope_check.py C:/OHWorkspace/qvr-agents/<agent>`.
+
+Recent Searches stores ten entries (six previously). Seeded ten real settings and checked 10 kept / 10 shown /
+room for 10, all above help and under the keyboard; stale entries still resolve safely and existing adaptive
+clipping remains. Visual composite `scratch/admenu_ui.png`: AD page has20 visible rows, direct Advanced parent;
+Search has all ten readable rows. No calibration paths moved. User VR checks: ammo appearance with scope/reload,
+upgrade switches outside AD, pellet speed feel and the expanded Recent list.
