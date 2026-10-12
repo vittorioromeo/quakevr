@@ -36,7 +36,7 @@ struct SearchResult
 };
 
 constexpr int searchMaxResults = 60;
-constexpr int searchRecentMax = 6;           // results opened kept under the keyboard
+constexpr int searchRecentMax = 10;           // results opened kept under the keyboard
 constexpr float searchRecentHeight = 12.f;   // a line of them (menu y)
 constexpr int searchMaxQuery = 48; // (the longest cvars' names)
 

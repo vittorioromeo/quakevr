@@ -562,6 +562,11 @@ def main():
         if src[fn].count(old) != count:
             sys.exit("ad_import: patch for %s (%s) matches %d times, not %d: %r" % (fn, why, src[fn].count(old), count, old))
         src[fn] = src[fn].replace(old, new)
+    resist = src["ai_ammoresist.qc"]
+    marker = "float(entity targ, float resist_type, float damage) Resist_Damage =\n{"
+    if resist.count(marker) != 1:
+        sys.exit("ad_import: resistance scope hook missing")
+    src["ai_ammoresist.qc"] = resist.replace(marker, marker + '\n\tif (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return damage;')
     # AD support: flight impacts use VR positional/selective damage; completed ordnance setup joins VR interaction.
     projectile = src["ai_projectiles.qc"]
     pattern = r"(?ms)(^void\(\) Touch_Bullet =\s*\{)(.*?)(^\};)"

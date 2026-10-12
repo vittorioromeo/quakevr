@@ -3256,6 +3256,9 @@ QVR_CVAR(vr_ad_pellet_spread, "1", CVAR_ARCHIVE)  // AD's projectile pellets: th
 QVR_CVAR(vr_ad_enemy_pellet_speed, "1", CVAR_ARCHIVE) // AD monster shotgun speed multiplier; independent of the player
 QVR_CVAR(vr_ad_pellet_speed, "1", CVAR_ARCHIVE)   // their speed, times this (AD's: the player's shotgun 2000, super shotgun 1500; monsters' 800 + 150 a skill level)
 QVR_CVAR(vr_ad_pellet_damage, "1", CVAR_ARCHIVE)  // their damage, times this (AD's: 4 a pellet; the Weapon Damage settings apply too)
+QVR_CVAR(vr_ad_ammo_models, "1", CVAR_ARCHIVE) // AD support: 0 original ammo boxes, 1 AD models in AD maps, 2 everywhere; applies to newly spawned boxes
+QVR_CVAR(vr_ad_resistance, "2", CVAR_ARCHIVE) // AD support: 0 off, 1 AD maps, 2 any map; only entities with resistance keys are affected
+QVR_CVAR(vr_ad_upgrades, "1", CVAR_ARCHIVE) // AD support: 0 off, 1 AD maps, 2 any map; existing upgrade ownership retained
 QVR_CVAR(vr_ad_test, "0", CVAR_NONE)            // Debug > Tests > Arcane Dimensions (AD maps): 1 play the map's first cinematic camera on you, 2 report the cinematic and player state, 3 fire the Widowmaker, 4 the Plasma Gun (they are given), 5 put a Widowmaker pickup ahead (vr_pickup_test 2 takes it), 6 report the upgrades held (QC vr_ad_bridge.qc AD_Test); in any map with AD's data, 10-27 the rules follow-ups' tests (QC vr_ad_test.qc: 10/11 artifacts, 12/13 Nail Piercer, 14-19 debuffs, 20 custom key, 21 ammo resistance, 22/23 Evil, 24 ladders, 25 player state, 26 spawnflags, 27 crouched sight)
 QVR_CVAR(vr_ad_mtest, "0", CVAR_NONE)           // Debug > Tests > Arcane Dimensions Monsters (AD maps): 1 report the map's AD monsters (registered, rigged), 2 report the nearest one's VR state (QC vr_ad_monsters_test.qc; not archived)
 QVR_CVAR(vr_honey_context, "0", CVAR_ROM) // actual start map source is Honey, never inferred from its name

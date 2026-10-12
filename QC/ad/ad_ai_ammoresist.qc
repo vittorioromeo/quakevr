@@ -9,6 +9,7 @@
 
 float(entity ad_targ, float ad_resist_type, float ad_damage) ad_Resist_Damage =
 {
+	if (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return ad_damage;
 	local float ad_ret_damage;
 	
 	if (ad_resist_type == ad_IT_SHELLS) ad_ret_damage = ad_damage * (1 - ad_targ.ad_resist_shells);
