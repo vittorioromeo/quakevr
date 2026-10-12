@@ -3435,6 +3435,14 @@ void hologramTestMessage()
         toggle("Two-Handed Stops at Walls", vr_carry_two_hands_solid)
             .help("What you hold in both hands stops at walls, floors and doors however hard you push, and slides along "
                   "them; it keeps its turn where a new one would put it in. Off: it goes where your hands put it."),
+        toggle("Carried Things Stop at Your Body", "vr_carry_body_collision")
+            .help("Things you carry stop at your torso. Your hands follow their grips as you press them against it."),
+        slider("Carry Load: Mass", "vr_carry_move_mass", 0.f, 300.f, 10.f, "%.0f kg")
+            .help("Carried mass that halves stick walking speed. Both hands are counted; 0 disables the mass penalty."),
+        slider("Carry Load: Size", "vr_carry_move_size", 0.f, 3.f, 0.05f, "%.2f m")
+            .help("Total carried length allowed without a bulk penalty; twice this halves stick walking speed. 0 disables the size penalty."),
+        slider("Carry Load: Minimum Speed", "vr_carry_move_min", 0.1f, 1.f, 0.05f, "%.2fx")
+            .help("Minimum fraction of stick walking speed under load; 1 disables the slowdown."),
         toggle("Fit to the Hand", vr_held_surface_fit)
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
         slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()
@@ -3671,7 +3679,7 @@ void hologramTestMessage()
                   "ladder, a rung under every hand, pull yourself up hand over hand, mantle at its top. Holding jump "
                   "climbs them too, as in Arcane Dimensions."),
         toggle("Its Content in Every Map", vr_ad_everywhere)
-            .help("Arcane Dimensions' new artifacts, custom keys, health vials and gems, custom items and ladders in any "
+            .help("Arcane Dimensions' monsters, new artifacts, custom keys, health vials and gems, custom items and ladders in any "
                   "map that places them (custom maps, the toolgun), while its data is installed. Off: only in its own "
                   "maps. Its pickups that would replace Quake VR's (backpacks) are only ever in its maps."),
     };
@@ -5922,6 +5930,14 @@ za::Vector<Item> pageDebugTools()
             .help("vr_limb_test 20: an enforcer's laser bolt (an enemy's) into the nearest living monster's head that kills "
                   "it (health 1): popped at Enforcer Laser's chance (vr_decap_pop_roll 0: always)."),
         command("Enemy Laser at a Limb", "vr_limb_test 21").help("vr_limb_test 21: the same at its forearm."),
+        command("Repeated Blunt Hits on a Corpse Limb", "vr_limb_test 24")
+            .help("vr_limb_test 24: repeated blunt hits detach the nearest corpse's limb without losing the detached piece."),
+        command("Repeated Blunt Hits on a Corpse Torso", "vr_limb_test 25")
+            .help("vr_limb_test 25: blunt hits to the corpse's torso leave its limbs attached."),
+        command("Held Prop at a Corpse Limb", "vr_limb_test 26")
+            .help("vr_limb_test 26: a blunt hit with a held prop detaches and keeps the corpse's struck limb."),
+        command("Axe at a Corpse Limb", "vr_limb_test 27")
+            .help("vr_limb_test 27: the axe control for the corpse limb tests cuts and keeps the struck limb."),
         command("Hand to the Last Limb", "vr_limb_test 14").help("vr_limb_test 14: the mock main hand put on the last limb thrown (then grip: vr_mock_button main grip 1; vr_limb_test 15 says if it is held)."),
         header("Crowd Gore Tests (goretest: crowd ... in the console; the benchmarks' gore scenarios)"),
         slider("Crowd Radius", vr_gore_test_crowd, 0.f, 1024.f, 64.f, "%.0f units")
@@ -6014,6 +6030,7 @@ za::Vector<Item> pageDebugTools()
             .help("vr_menu_path_check: every menu page this map's boards name, with its path; a missing one prints MENU PATH MISSING."),
         header("Toolgun"),
         command("A Toolgun in Your Hand", "impulse 169").help("impulse 169: the toolgun in the main hand (189: the off hand)."),
+        command("Toolgun Spawn Catalog", "vr_toolgun_spawnlist").help("Lists every AD spawn entry and whether it is available in this map."), // AD support
         command("Toolgun Status", "vr_toolgun_status")
             .help("vr_toolgun_status: its hand and tool, where it aims and what it meets (its place, pinned or loose, its joints), "
                   "the spawn choice and ghost, what the physgun holds, the scale gizmo, the joints (console)."),
@@ -6028,6 +6045,7 @@ za::Vector<Item> pageDebugTools()
                   "(its 256 x 192 pixels), for vr_toolgun_mock_laser (console)."),
         command("Thumbnails", "vr_toolgun_icons")
             .help("vr_toolgun_icons: the spawn grid's thumbnails made, failed and waiting, and the time they took (console)."),
+        command("Carry Load Test", "vr_carry_load_test").help("Checks torso collision and carry load curves; reports stick speed, physical and drawn overlap, and two-hand deduplication."),
         header("Boxes (Brush Tool)"),
         command("A Box Ahead", "vr_brush_here 64")
             .help("vr_brush_here [size] [height] [texture] [distance]: a box of the map's kind on the floor ahead (stand on it, "
@@ -6051,10 +6069,10 @@ za::Vector<Item> pageDebugTools()
                   "in their own lightstyle), a few ms a frame; off: the flat light where each face is."),
         command("Bake Every Brush Again", "vr_brush_rebake all")
             .help("vr_brush_rebake [id | all]: the brushes' light laid out and baked again (after changing the bake's settings)."),
-        command("Bake the Map with Its Brushes", "vr_brush_bake_map")
-            .help("vr_brush_bake_map: the map relit by ericw-tools' light with this map's brushes in it (their light and their "
-                  "shadows on the world, as Relighting makes them; minutes), then reloaded where you are. A brush changed "
-                  "after it is baked in the game again; vr_relight_revert (or a plain relight) takes the bake back out."),
+        command("Bake a Map Copy with Its Brushes", "vr_brush_bake_map")
+            .help("vr_brush_bake_map [new_name]: saves a new playable map with these brushes, lit by ericw-tools (their light and their "
+                  "shadows on the world, as Relighting makes them; minutes). The console gives the new map name. Existing maps "
+                  "and the scene you are editing stay unchanged; load the copy when ready."),
         command("The Lights the Bake Sees", "vr_brush_lights")
             .help("vr_brush_lights [x y z | styled]: the map's lights, sun and minimum as the brush bake reads them; near a "
                   "point, the five nearest and whether the sun is seen there (console)."),
@@ -6086,7 +6104,7 @@ za::Vector<Item> pageDebugTools()
 // What tests are done with in the headset (single player).
 za::Vector<Item> pageSpawnWeapons()
 {
-    return {
+    return adSpawnItems({
         header("Grabbable Pickups Ahead of You"),
         command("Shotgun", "vr_physics_spawn weapon_shotgun 64"),
         command("Super Shotgun", "vr_physics_spawn weapon_supershotgun 64"),
@@ -6101,7 +6119,7 @@ za::Vector<Item> pageSpawnWeapons()
         command("Proximity Gun", "vr_physics_spawn weapon_proximity_gun 64"),
         command("Toolgun", "vr_physics_spawn weapon_toolgun 64")
             .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its panel, its stick press switches the tool."),
-    };
+    }, true);
 }
 
 za::Vector<Item> pageMachineHordeTests()
@@ -6416,13 +6434,13 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Cinematic Report", "vr_ad_test 2")
             .help("One adtest: line in the console: the cinematic camera's state, how you are held (move type, solid, "
                   "damage), where you are."),
-        command("Arcane Dimensions: Widowmaker Pickup Ahead", "vr_ad_test 5")
+        adSpawnRow(310, command("Arcane Dimensions: Widowmaker Pickup Ahead", "vr_ad_test 5")) // AD support
             .help("In an Arcane Dimensions map: a Widowmaker pickup (AD's upgrade) appears ahead of you, to take with a "
                   "hand. Arcane Dimensions: Upgrades Report then says whether you have the upgrade."),
         command("Arcane Dimensions: Upgrades Report", "vr_ad_test 6")
             .help("One adtest: line: the AD upgrades you have (Shadow Axe, Widowmaker, Plasma Gun) and your hands' "
                   "weapons."),
-        command("Arcane Dimensions: Artifacts Ahead", "vr_physics_spawn item_artifact_jumpboots 64 -48; vr_physics_spawn item_artifact_blastbelt 64 0; vr_physics_spawn item_artifact_sharp_shooter 64 48; vr_physics_spawn item_artifact_lavashield 112 -24; vr_physics_spawn item_artifact_airtank 112 24")
+        adSpawnRow(300, command("Arcane Dimensions: Artifacts Ahead", "vr_physics_spawn item_artifact_jumpboots 64 -48; vr_physics_spawn item_artifact_blastbelt 64 0; vr_physics_spawn item_artifact_sharp_shooter 64 48; vr_physics_spawn item_artifact_lavashield 112 -24; vr_physics_spawn item_artifact_airtank 112 24")) // AD support
             .help("Any map, with Arcane Dimensions' data installed: its Jump Boots, Blast Belt, Sharp Shooter, Lava Shield "
                   "and Air Tank ahead of you, to walk into (the wrist gadget shows each one held and the soonest one's "
                   "seconds left)."),
@@ -6599,7 +6617,7 @@ za::Vector<Item> pageDebugTests()
         command("Save the Sound Scene", "vr_snd_scene_obj")
             .help("vr_snd_scene_obj: the map as Steam Audio sees it, to the game folder's sound_tests (scene.obj)."),
         header("Ahead of You"),
-        cycle("Thing", vr_test_spawn,
+        adSpawnChoices(cycle("Thing", vr_test_spawn, // AD support
             {{0.f, "Grunt"}, {1.f, "Ogre"}, {2.f, "Zombie"}, {3.f, "Shambler"}, {4.f, "Scrag"}, {5.f, "Knight"},
              {6.f, "Hell Knight"}, {7.f, "Dog"}, {8.f, "Enforcer"}, {9.f, "Fiend"}, {10.f, "Vore"}, {11.f, "Spawn"},
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
@@ -6611,7 +6629,7 @@ za::Vector<Item> pageDebugTests()
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},
-             {110.f, "Rocks and Bricks"}, {111.f, "Barrel"}, {112.f, "Barrel Lying"}, {113.f, "Silver Key"}})
+             {110.f, "Rocks and Bricks"}, {111.f, "Barrel"}, {112.f, "Barrel Lying"}, {113.f, "Silver Key"}})) // AD support
             .help("What Put It There puts ahead of you, facing you (or as Facing says). The mission packs' monsters need their game installed; Dawn "
                   "of the Machine's (its infected, which burst into zombies and fiends; its own monsters, the orb, the sacrifice: MG3's data, read in place)."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
@@ -6633,7 +6651,7 @@ za::Vector<Item> pageDebugTests()
         slider("Box Tilted", vr_test_spawn_tilt, 0.f, 90.f, 1.f, "%.0f degrees")
             .extend()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
-        command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Enemy Weapon Drop Cap", "developer 1; vr_dropcap_test 1")
             .help("vr_dropcap_test 1: 60 grunts spawned ahead and killed one by one (vr_dropcap_test_n), the first one's "
                   "rifle taken into an empty hand, a chainsaw thrown up and three other weapons dropped: the burst rifles "
@@ -10966,7 +10984,7 @@ void goBack()
 // A server rule while connected to a remote server: shown, dimmed, not changed from here.
 [[nodiscard]] bool lockedItem(const Item& item)
 {
-    return (item.kind == Item::Slider || item.kind == Item::Cycle) && (item.unavailable || serverrules::locked(item.cvar));
+    return item.unavailable || ((item.kind == Item::Slider || item.kind == Item::Cycle) && serverrules::locked(item.cvar)); // AD support: unavailable spawn actions are locked too
 }
 
 [[nodiscard]] int currentChoice(const Item& item)

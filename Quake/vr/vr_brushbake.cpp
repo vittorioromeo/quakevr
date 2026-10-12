@@ -530,6 +530,10 @@ bool augment(const unsigned char* data, za::SizeT size, za::Vector<unsigned char
             n++;
         }
         za::String text{reinterpret_cast<const char*>(lumps[Entities].data()), n};
+        if(options.sourceEntities)
+        {
+            text = options.sourceEntities;
+        }
         text += entities;
         text += notes;
         lumps[Entities].resize(text.size() + 1);

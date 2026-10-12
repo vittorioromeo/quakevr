@@ -71,6 +71,10 @@ void tempEntities();
 [[nodiscard]] const char* spawnableSection(int i);
 [[nodiscard]] const char* spawnableModel(int i);
 [[nodiscard]] int spawnableSkin(int i);
+[[nodiscard]] bool spawnableAvailable(int i); // AD support
+[[nodiscard]] bool spawnableAD(int i); // AD support
+[[nodiscard]] int spawnableDebugChoice(int i); // AD support
+[[nodiscard]] const char* spawnableClass(int i); // AD support
 [[nodiscard]] int selectedSpawnable();
 void selectSpawnable(int i); // (-1: nothing)
 

@@ -1932,6 +1932,20 @@ void bakeWrite_f()
         Con_Printf("usage: vr_brush_bake_write <name> [fake <level>]\n");
         return;
     }
+    const char* name = Cmd_Argv(1);
+    for(const char* p = name; *p; ++p)
+    {
+        if(!((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || *p == '_' || *p == '-'))
+        {
+            Con_Printf("brush: invalid output map name\n");
+            return;
+        }
+    }
+    if(!name[0] || !q_strcasecmp(name, sv.name) || COM_FileExists(va("maps/%s.bsp", name), nullptr))
+    {
+        Con_Printf("brush: output must be a new map; existing maps are never overwritten\n");
+        return;
+    }
     unsigned int pathId = 0;
     byte* data = COM_LoadMallocFile(va("maps/%s.bsp", sv.name), &pathId);
     if(!data)
@@ -1942,6 +1956,7 @@ void bakeWrite_f()
     brushbake::Options o;
     o.classname = "func_wall";
     o.entitiesIn = true;
+    o.sourceEntities = sv.worldmodel ? sv.worldmodel->entities : nullptr;
     o.fakeLight = Cmd_Argc() > 3 && !q_strcasecmp(Cmd_Argv(2), "fake") ? za::clamp(Q_atoi(Cmd_Argv(3)), 0, 255) : -1;
     za::Vector<unsigned char> out;
     za::String entities, notes, error;
@@ -1958,6 +1973,7 @@ void bakeWrite_f()
         Con_Printf("brush: can't write %s\n", path.cStr());
         return;
     }
+    VR_FileCacheForget();
     Con_Printf("brush: %s written (%d brushes as submodels, %d bytes)\n", path.cStr(), count(), static_cast<int>(out.size()));
 }
 
