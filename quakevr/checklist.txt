@@ -12,7 +12,7 @@ Brush tool (toolgun 6th tile): create, move, resize, paint, copy, delete boxes; 
 Brush shapes: make a wedge, cylinder, pyramid; turn one with Rotate; Undo
 Brush light: a new box goes from flat light to shadows; next to a flickering light it flickers too
 Brush saving: save/load restores brushes; Bake Map keeps original intact and creates a complete separate map with entities, old and new brushes
-Arms: Bracers on/off detail and blood match hands; wrist seam smooth; gadget straps remain with Bracers off
+Arms: bracers on/off same skin tone; skin slider affects only skin; two gadget straps and stable position; bent wrists fit hands; blood crosses hand/arm seam
 Box3D update: props, ragdolls, teleporter pass-through feel unchanged; Physics AVX2 on vs off feel the same
 Deaths: shoot grunts and knights in the body vs the head (different falls); a charging knight stumbles; grab a dying arm
 Hit reactions: shoot a living grunt in the body, head, arm, leg: flinch, knee buckle, limp (Strength slider)
@@ -26,7 +26,7 @@ Holstered super shotgun stays open on a hip; a nailgun holstered without its mag
 
 Physgun: while holding a prop both sticks move and turn it (no button), you stay put; X/A snaps and the angle stays
 Ragdoll test page (Debug > Tests > Ragdoll Behaviours): each button on a grunt ahead does its behaviour
-Ragdoll sliders and Limbs Meet Each Other on/off: arms must not pass through torso; piles and a held wound
+Ragdoll self-contact: shoulders, upper arms and elbows stay outside torso; piles and a held wound; dummy resumes idle after repeated knockdowns
 Shoves backpedal 3-4 steps, then fall or recover; knocked into water: paddles to where it can stand; stagger survives save/load
 AD: hub, exits, ladders; shotgun/SSG/burst hits and damage; ammo pickups keep held weapon model; Projectile Rules Auto/Vanilla/AD
 AD: Shadow Axe, Widowmaker, Plasma Gun pickups; artifacts and Jump Boots; poison/bleeding tints (Screen Tints slider); a book; Debug: Play a Cinematic Camera
@@ -34,6 +34,13 @@ AD spawns: toolgun and Debug menus list AD monsters/items/weapons on all maps; u
 AD monsters: ragdolls, knockdowns and get-ups, beheading, limbs (gaunt, seeker, Freddie fit worst); Evil (Nightmare + AD); hide while crouched
 
 New ragdoll behaviours: hold a grunt under water 12 s (struggles to its feet); topple/drop a knocked-down grunt off a ledge (grabs the lip, pulls up); shoot one of two grunts standing close (grabs the other); swing a sword at a grunt's head (guards)
+
+AD projectiles: SG/SSG/Enforcer head, limb and torso damage; pop one live/corpse limb without whole-body gib; shoot incoming rockets; grab and bat enemy grenades
+AD interactions: laser buttons respond to hand/gun/prop; backpacks require grabbing and holstering; ladders grip only rungs, no jump climbing, comfortable approach
+AD corpses: disc/flamethrower grunts stable; carried gun disappears on death and drops one-use burst rifle
+AD settings: dedicated page, player/enemy pellet speeds, ammo models and Off/AD-only/Everywhere feature choices; recent searches show more rows
+Reloads: autosave reload briefly retains held guns; magazine reinsertion distance slider; ammo/shell/magazine collection ends at pouch centre
+AD lighting: check flicker near ad_crucial -215 -2287 136
 
 [Still open from 1.0.x]
 MG1 west stairs: walk up slowly and jump, head low (a short catch at the top crest may remain); lava: you keep burning 3 s after stepping out
