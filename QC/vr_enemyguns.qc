@@ -268,7 +268,8 @@ void() VR_RifleLaser_Touch =
         float before = other.health;
         vector hitAt = trace_ent == other ? trace_endpos : self.origin;
         vector hitDir = v_forward;
-        float dmg = self.vr_laser_damage * PositionalDamageFactor(PositionalDamage(trace_ent, trace_endpos, v_forward));
+        float dmg = self.vr_laser_damage * PositionalDamageFactor(PositionalDamage(other, hitAt, hitDir));
+        VR_SetHitKind(QVR_HITKIND_SHOT, -1, hitAt, hitDir);
         // (A kill at the head or a limb pops it by chance, as an enemy's bolt: vr_decap_pop_laser, vr_limbs.qc.)
         float pop = VR_Decap_LaserArm(other, self.owner, hitAt, hitDir, dmg);
         if(T_Damage(other, self, self.owner, dmg))
@@ -280,6 +281,7 @@ void() VR_RifleLaser_Touch =
         {
             VR_Decap_After(other);
         }
+        VR_ClearHitKind();
         if(cvar_hget(cvarh_vr_debug_shots))
         {
             dprint(sprintf("rifle laser: hit %s (%s) at %g at %v, %g damage, health %g -> %g\n", other.classname,

@@ -1364,6 +1364,7 @@ This entity cannot be damaged and is always touchable once activated
 ======================================================================*/
 void() ad_trigger_ladder_fire =
 {
+	if (VR_AD_LadderManual(self.ad_bmodel_act)) return;
 	local vector ad_vel;
 	float ad_fvel, ad_srv_upspeed, ad_ladpos, ad_ladspd;
 

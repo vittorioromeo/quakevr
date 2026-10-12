@@ -342,7 +342,7 @@ void() ad_func_button =
 		self.takedamage = ad_DAMAGE_YES;
 	}
 	// Important OR condition (touching only)
-	else self.touch = ad_func_button_touch;
+	else { self.touch = ad_func_button_touch; VR_AD_ButtonSpawned(); }
 	self.blocked = ad_func_button_blocked;
 
 	// Setup Entity State functionality

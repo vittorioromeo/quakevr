@@ -42,9 +42,16 @@ void() AD_TestPelletReport =
 
 void(float request, entity p) AD_RulesTest =
 {
+    if(request >= 61 && request <= 63) { AD_WorldTest(request, p); return; } // AD support
+
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;
     entity os = self;
+    if(request >= 50 && request <= 60)
+    {
+        AD_ShotsTest(request, p);
+        return;
+    }
     if(request >= 40 && request <= 42)
     {
         self = p;

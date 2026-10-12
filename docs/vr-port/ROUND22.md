@@ -3886,6 +3886,64 @@ poses within 0.01 units (measured 0.001). Existing melee phasing: 7/7; empty mel
 synthetic crowbar swing: 27.3 damage. e1m1 smoke and final hidden screenshot passed; no full melee tuning/eval run.
 Explicit `map e1m1 noplace` stays in e1m1; an absent map is rejected cleanly before loading.
 
+## AD projectile impacts and flying ordnance (2026-10-12, worktree `adshots`)
+
+AD shotgun/SSG projectiles now enter shared VR damage, positional multipliers and selective head/limb hooks at their
+actual flight impact. AD shell resistance stays applied exactly once. Each player pellet retains its shot serial,
+weapon, total pellet count, firing hand and launch position across frames and later weapon switches. Head/limb share
+accumulates for that shot; existing head/limb eligibility, chance, distance, live/corpse and weapon controls still apply.
+The bridge captures travel direction before AD's deferred removal zeros velocity. Close-shot retraces cannot extend
+behind their launch point and incorrectly select another corpse limb. Small AD player projectiles retain MOVETYPE_FLY
+and their normal movement hull, with model/corpse collision enabled specifically for `proj_bullet` in the AD engine helper.
+
+The held Enforcer rifle now sets the shot damage context and uses the actual victim/impact for positional damage.
+Its laser pop hook admits corpses under the existing corpse toggles. A failed selective projectile pop leaves the
+corpse whole instead of draining its whole-body gib pool; torso shots retain existing corpse damage behavior.
+
+AD GL/GLMON ordnance uses the same `progs/grenade.mdl` as vanilla and shared grenade setup: force grab, physical
+catch/carry/throw, batting, rigid collision and shooting. AD's fuse, explosion, resistance and radius callbacks remain
+its own. Other grenade-like AD projectiles (eggs/flesh) retain their models/behavior. AD grunt/launcher rockets join
+shared shot interception and trigger AD's own missile explosion. AD entities registered as shootable ordnance route
+damage to the shared ordnance handler rather than the AD monster damage route.
+
+`vr_ad_pellet_speed` remains the player's archived multiplier (default 1); new `vr_ad_enemy_pellet_speed` is independent,
+also archived/default 1. Both clamp to a minimum of 0.1, preserving authored speed/skill rules at defaults. The enemy
+multiplier runs once at raw AD Launch_Bullet, covering both native AD monster launches and VR's vanilla-monster bridge.
+AD importer hooks use uniquely checked function boundaries and are recorded in the generated import audit.
+
+Regression probes: `vr_ad_test 50..57` fire actual SG projectiles/Enforcer bolts against AD/vanilla grunts, alive or
+settled corpse; scratch1 selects head (0), upper arm (1), torso (2), shin (3), scratch2 selects killing/damage-only.
+scratch4 selects AD's small MOVETYPE_FLY mode; scratch3 chooses real SG/SSG volley size (0 is one probe pellet).
+58 checks independent speeds, 59 real raw AD grenade creation/bat/grab, 60 raw AD grunt rocket creation/hitscan intercept.
+`Misc/quakevr/ad_shots_test.ps1 <name>` checks small pellets and complete 6/14-pellet volleys; `-Full` also checks normal
+pellets/lasers, damage-only cases and ordnance. `-VolleysOnly` repeats only complete volleys; `-CheckLog` validates the
+saved records without another game run. Results stay in scratch.
+
+Validation so far: QC/engine/FGD build passed with zero QC warnings. Normal-flight matrix covers all three regions,
+both games, alive/corpse and pellet/laser; head 1, upper-arm mask 96, torso no selective cuts, no whole gibs. A corpse
+arm missed during early test flight; shortening the probe flight to 20 units passed its repeat. The new small-pellet
+matrix passes the same regions, including the close corpse head that previously retraced into a foot. Healthy AD grunt
+pellets do 6 head/4 body; laser 27/18. Positional damage disabled gives 4 at the head/shin; head multiplier 3 gives 12,
+and leg multiplier 0.6 gives 2.4 (entity health rounds). Player/enemy speed measurements: 1996/957 default, 4001/948
+player x2, 2004/1896 enemy x2. Grenade flags catch/force/rigid/shoot all 1, shared drawn size 6.279 x 2.325 x 2.209,
+fuse 2.50 s, bat speed 300/spent 0, grabbed 1. Rocket real hitscan interception spent 1/AD explosion callback 1.
+e1m1 and AD campaign `ad_crucial` smoke exit 0; AD reports rules on, 1461 AD spawns, 238 shared spawns, zero outside rules.
+Complete AD_FirePellets launches (12 SG, 12 SSG) pass all 24 live/corpse AD/vanilla head/arm/torso cases: each selected
+head/arm pops and remains a whole corpse; torso damage retains authored gibbing (one live AD torso SSG did gib whole).
+The final checker explicitly permits that torso behavior and verifies actual launch metadata counts 6 and 14.
+Final integration includes shipped next `aae2d0708` (corpse2/wrist2); clean merge, QC/engine/FGD build passed again.
+Six selective corpse impacts and grenade/rocket interactions passed, followed by both map smokes. Forced failed rolls
+(head/limb chance scales 0.5, roll 1, Quad override off) also preserve both corpses: damage 0, head 0, limbs 0, gib 0.
+`Misc/quakevr/ad_shots_failed_roll_test.ps1 <name>` preserves this two-case actual-flight regression. Chance scale below
+1 is necessary: a guaranteed near-range pop skips rolling even with forced roll 1. The standard eval harness found
+its canary empty and automatically expanded to 177 synthetic takes (49 pass, 128 existing fails); zero baseline
+differences. No separate full-suite invocation or melee tuning was requested/performed.
+
+Headset checks: SG/SSG and Enforcer aim at each live/corpse body region in vanilla and AD maps; compare positional
+damage toggles and weapon-specific pop controls. Catch/force-grab/bat/rethrow grenade grunt/ogre ordnance and shoot a
+grunt rocket in flight. Independently adjust player/enemy pellet speed. No melee settings were tuned. Preserve all
+source assets; scratch test helpers/logs and worker-local crash reports from early scaffolding runs are disposable later.
+
 In VR: enter from Motion Recorder, pick up each melee weapon, circle the dummy and record your new takes. Confirm
 the simple room's space, lighting and pickup spacing feel suitable. Files worth deleting later: worker `scratch/`,
 `quakevr/meleeroom_check.cfg`, and its generated `quakevr/motions/no_hit_room_check_*`, `room_*` test outputs.
@@ -3995,3 +4053,31 @@ QC/engine/FGD build passes (0 QC warnings); calibration menu paths: 5 found, 0 m
 VR follow-up: return every ammo kind to the pouch while crouching; reload an autosave without gripping, then regrip or
 let the grace expire; tune Magazine Reinsertion Clearance for the out-and-back motion. Saves and probe logs remain
 local to this worktree (voice_reload2_grace/reload2_grace/reload2_grace_exact and scratch/); none were deleted.
+
+### AD world contacts, physical backpacks and real ladder rungs (October 12, adworld)
+
+Notes ad_crucial 11:06:00/11:10:40/11:21:55/11:22:29: laser buttons accept hands, guns and props;
+AD backpacks match vanilla size/weight and require grip plus holster; ladder grips meet real steps,
+with no jump climb or oversized keyboard approach obstruction.
+
+- AD touch buttons install common hand/whole-weapon/held-prop/thrown-prop handlers. AD dispatch preserves original
+  movement, targets, activator, estate gates, shoot-only distinction and timing. Native paths are AD-tagged.
+- AD map/dropped backpacks preserve skins, inventory and AD respawn callbacks. Bounds normalize to vanilla bag
+  dimensions at its 0.75 scale; existing backpack density supplies comparable mass (sample AD bag 16.8 kg).
+  Rigid physics, forcegrab/grip carrying, strict holster consumption; AD floor-check teleporting disabled.
+  Restore/toggle repeats setup without compounding scale; native respawn does not overwrite AD-owned bag respawn.
+- Ladder volumes never manufacture holds. Normal ledges run first; closely spaced rungs get a ladder-only real
+  solid-top trace within hand-touch tolerances. Standard hanging/pulling/mantling remains. Tracked hands bypass
+  AD's jump and velocity ladder callbacks before they freeze, propel or redirect the body; flat play retains AD.
+- Reviewed importer hooks regenerate cleanly. Debug > Tests exposes buttons 61, backpacks 62, ladder movement 63 and
+  actual rung/gap probes. Existing Hand-Climbed Ladders default 1; no new cvars.
+
+Real ad_crucial: laser1 button *389 opens with hand, whole-shotgun contact, thrown prop and held prop;
+all four retain player activator; disabled control stays shut. AD dropped bag 13.1174 x 13.8088 x 18.9188 units,
+120 s expiry; walkover 0 shells, real grip holds, shoulder release gives 5 shells and clears held slot.
+Map bag restore/toggle stays physical, same dimensions, holster-only. Both ladder modes preserve 21, 0, -17 velocity
+and gravity 1. Seven real rungs hold; seven gaps do not; setting off rejects the same rung. Calibration 0 missing.
+Automated: Misc/quakevr/ad_world_test.sh <agent>. Build/QC/FGD and e1m1 smoke pass;
+melee replay 49/177 pass equals baseline (0 differences), no melee tuning.
+Human VR: press laser buttons with each contact mode; grab/holster colored ammo/armor bags; approach ladders closely,
+grab alternating real rungs including underside touches; confirm jump/gaps never climb.

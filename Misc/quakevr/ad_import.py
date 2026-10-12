@@ -63,6 +63,10 @@ BRIDGE = "VR_AD_"  # the bridge's functions the patches below call (QC/vr_ad_bri
 P = "parenthesised as QC priorities read it (check_qc_precedence)"
 B = "bridge"
 PATCHES = [
+    ('func_buttons.qc', 'else self.touch = func_button_touch;', 'else { self.touch = func_button_touch; VR_AD_ButtonSpawned(); }', 1, 'bridge: AD VR touch, carry and rung-only climbing'),
+    ('triggers.qc', 'void() trigger_ladder_fire =\n{', 'void() trigger_ladder_fire =\n{\n\tif (VR_AD_LadderManual(self.bmodel_act)) return;', 1, 'bridge: AD VR touch, carry and rung-only climbing'),
+    ('items.qc', 'void() item_restore =\n{', 'void() item_restore =\n{\n\tif (VR_AD_BackpackRestore()) return;', 1, 'bridge: AD VR touch, carry and rung-only climbing'),
+    ('items.qc', '\titem.nextthink = time + 0.3;\t\t// Let backpack drop first', '\titem.nextthink = time + 0.3;\t\t// Let backpack drop first\n\tVR_AD_BackpackSetup(item);', 1, 'bridge: AD VR touch, carry and rung-only climbing'),
     ("client_debuff.qc", "if (targ.flags & FL_CLIENT == FALSE) return;", "if ((targ.flags & FL_CLIENT) == FALSE) return;", 3, P),
     ("client_debuff.qc", "if (self.items & ALL_ITARTIFACTS == 0) {", "if ((self.items & ALL_ITARTIFACTS) == 0) {", 1, P),
     # AD's shipped bugs 5 and 4 (ARCANE_DIMENSIONS.md 15.5), fixed as AD meant them now that its tints are drawn
@@ -562,6 +566,31 @@ def main():
         if src[fn].count(old) != count:
             sys.exit("ad_import: patch for %s (%s) matches %d times, not %d: %r" % (fn, why, src[fn].count(old), count, old))
         src[fn] = src[fn].replace(old, new)
+    # AD support: flight impacts use VR positional/selective damage; completed ordnance setup joins VR interaction.
+    projectile = src["ai_projectiles.qc"]
+    pattern = r"(?ms)(^void\(\) Touch_Bullet =\s*\{)(.*?)(^\};)"
+    def bullet_hook(m):
+        body = m[2]
+        old = "if (self.dmg > 0) T_Damage (other, self, self.owner, self.dmg, DAMARMOR);"
+        if body.count(old) != 1:
+            sys.exit("ad_import: bullet VR damage hook missing")
+        body = body.replace(old, "if (self.dmg > 0) VR_AD_PelletHit(other, self, self.dmg);")
+        body = body.replace("entity_remove(self, 1);", "VR_AD_PelletPrepare(self);\n\tentity_remove(self, 1);", 1)
+        return m[1] + body + m[3]
+    projectile, count = re.subn(pattern, bullet_hook, projectile)
+    if count != 1:
+        sys.exit("ad_import: bullet VR impact hook does not match exactly once")
+    for name in ("Launch_Missile", "Launch_Grenade"):
+        pattern = r"(?ms)(^void\([^\n]*\) " + name + r" =\s*\{)(.*?)(^\};)"
+        projectile, count = re.subn(pattern, lambda m: m[1] + m[2] + "\tVR_AD_Ordnance(newmis);\n" + m[3], projectile)
+        if count != 1:
+            sys.exit("ad_import: VR ordnance hook missing: " + name)
+    pattern = r"(?ms)(^void\([^\n]*\) Launch_Bullet =\s*\{)(.*?)(^\};)"
+    projectile, count = re.subn(pattern, lambda m: m[1] + "\n\tproj_speed = VR_AD_PelletSpeed(self, proj_speed);" + m[2] +
+                               "\tVR_AD_PelletLaunch(newmis);\n" + m[3], projectile)
+    if count != 1:
+        sys.exit("ad_import: monster pellet speed hook missing")
+    src["ai_projectiles.qc"] = projectile
     # Mechanical: Quake VR's beam temp entities (TE_LIGHTNING1/2/3, TE_BEAM) carry a beam id byte after the entity
     # (the client's VR_ParseBeamEntity; ours write 0 for a monster's). Every WriteEntity in AD's code (not commented out)
     # is one of those beams' entity: the byte follows it, else the client reads the next message one byte off.
@@ -753,6 +782,8 @@ def main():
         "Reviewed patches: %d precedence, %d bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):" % (
             sum(1 for p in PATCHES if p[4].startswith(P)), sum(1 for p in PATCHES if p[4].startswith(B))),
     ] + ["  %s: %s" % (p[0], p[4]) for p in PATCHES if p[4].startswith(B)]
+    report.append("  ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, "
+                  "Launch_Missile/Launch_Grenade VR ordnance hooks (function-boundary checked)")
     with open(os.path.join(OUT_DIR, "AD_IMPORT.txt"), "w", encoding="latin1", newline="\n") as f:
         f.write("\n".join(report) + "\n")
     print("\n".join(report[:12]))
