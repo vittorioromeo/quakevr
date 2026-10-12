@@ -18,7 +18,7 @@ Deaths: shoot grunts and knights in the body vs the head (different falls); a ch
 Hit reactions: shoot a living grunt in the body, head, arm, leg: flinch, knee buckle, limp (Strength slider)
 Shoves: one-hand shove (staggers, falls about half the time), two-hand shove; ogres rarely fall: rates OK?
 Judo: throw a knight (survives the landing, gets up) and a mummy or zombie (stays in one piece)
-Dismemberment: axe cuts limbs; blunt weapon/brick pops only the struck corpse limb; living leg loss balances/falls, both legs crawl
+Dismemberment: axe cuts limbs; any weapon wears only its struck corpse piece until it pops, even at chance 0; torso gibs whole body; living leg loss balances/falls, both legs crawl
 Bodies in liquids: kill in water (paddles, floats; knights sink), in lava or slime (flails, burns); throw corpses in
 Bodies by walls: kill next to a wall (leans, slides), at a ledge (hangs), by a crate (braces)
 Holstered guns: shoulder (back) guns hidden by default; VR Settings > Shoulder Holster Weapons shows them; Advanced > Body and Display has all three pairs; grab and holster still work
@@ -36,11 +36,11 @@ AD monsters: ragdolls, knockdowns and get-ups, beheading, limbs (gaunt, seeker, 
 New ragdoll behaviours: hold a grunt under water 12 s (struggles to its feet); topple/drop a knocked-down grunt off a ledge (grabs the lip, pulls up); shoot one of two grunts standing close (grabs the other); swing a sword at a grunt's head (guards)
 
 AD projectiles: SG/SSG/Enforcer head, limb and torso damage; pop one live/corpse limb without whole-body gib; shoot incoming rockets; grab and bat enemy grenades
-AD interactions: laser buttons respond to hand/gun/prop; backpacks require grabbing and holstering; ladders grip only rungs, no jump climbing, comfortable approach
+AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on
 AD corpses: disc/flamethrower grunts stable; carried gun disappears on death and drops one-use burst rifle
 AD settings: dedicated page, player/enemy pellet speeds, ammo models and Off/AD-only/Everywhere feature choices; recent searches show more rows
 Reloads: autosave reload briefly retains held guns; magazine reinsertion distance slider; ammo/shell/magazine collection ends at pouch centre
-AD lighting: check flicker near ad_crucial -215 -2287 136
+AD lighting: stationary pulse near ad_crucial -215 -2287 136 matches authored lamps; compare briefly with r_flatlightstyles 1
 
 [Still open from 1.0.x]
 MG1 west stairs: walk up slowly and jump, head low (a short catch at the top crest may remain); lava: you keep burning 3 s after stepping out
