@@ -233,10 +233,14 @@ Those mock tests do not prove physical reload, throwing or climbing.
 On 2026-10-12, with no wearer available, the unchanged baseline binary
 (`48ce8499…`) ran the `vrslopes` mantle fixture in an isolated Frame scratch
 copy using `vr_backend mock`, `vr_mock_fast 2`, and scripted `mantle(1.49)`
-hands. It accepted the flat lip and rejected the 45-degree lip (`no room to
-mantle`), matching the test's expected 40-degree slope limit. This is an
+hands at the default mantle settings (`vr_climb_mantle_lenient 1`,
+`vr_climb_mantle_slope 40`). All eight outcomes matched the fixture (8/8): it
+accepted level, up10, up20, up30, down20 and across15, and rejected up45 and
+up20slab; both rejections logged `no room to mantle`, matching the slope limit
+and ceiling check. This is an
 engine/mock integration check; it does not test physical controller poses,
-hand feel, or worn OpenXR/compositor pacing.
+hand feel, or worn OpenXR/compositor pacing. The Frame log is retained at
+`performance-results/mock-vr-calltree-20261012/capture/climb-slope-matrix-20261012.log`.
 
 On 2026-10-12, a second native ARM64 mock-input regression pass on Frame ran the
 release binary at 0.25 and the render-scale-floor candidate at 0.18, both in a
