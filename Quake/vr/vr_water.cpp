@@ -88,6 +88,105 @@ bool wetLeaf(const qmodel_t* m, const mleaf_t* leaf)
     return liquid || !tele;
 }
 
+// A box of the volume's cells (each axis lo to hi, hi excluded).
+struct CellBox
+{
+    int lo[3];
+    int hi[3];
+};
+
+// What buildVolume fills its texels by: the cells' centres (as the point test takes them) and what they go to.
+struct VolumeFill
+{
+    qmodel_t* m;
+    const za::Vector<char>& wet;
+    za::Vector<unsigned char>& texels;
+    int nx, ny;
+    float cell;
+
+    // The centre of cell `i` along `axis`: the very float the point test was given (the same expression).
+    [[nodiscard]] float centre(int axis, int i) const
+    {
+        return volumeOrigin[axis] + (i + 0.5f) * cell;
+    }
+
+    void set(int x, int y, int z, const mleaf_t* leaf) const
+    {
+        const za::PtrDiffT li = leaf - m->leafs;
+        texels[(static_cast<za::SizeT>(z) * ny + y) * nx + x] = li >= 0 && li <= m->numleafs && wet[li] ? 255 : 0;
+    }
+
+    // The cells of `box`, from `node` down: a whole box goes to the side of a node's plane all its centres are on,
+    // the whole box takes a leaf's; one the plane may cut is halved, down to a cell, which takes the point test's own
+    // leaf (Mod_PointInLeaf from the root). The texels a point test of every cell gave (FNV hash: developer 1), in
+    // a few thousand box tests and the cells along the planes' cuts instead of a descent for each of up to 4M cells.
+    void fill(const mnode_t* node, const CellBox& box) const
+    {
+        while(node->contents >= 0)
+        {
+            // The plane's distance over the box's centres (a linear function: the extremes at its corners, the centres
+            // growing with the index along each axis), in double; a float's test (DotProduct less dist) is within
+            // `slack` of it.
+            const mplane_t* plane = node->plane;
+            double lo = -static_cast<double>(plane->dist), hi = lo, size = za::abs(static_cast<double>(plane->dist));
+            for(int a = 0; a < 3; a++)
+            {
+                const double n = plane->normal[a];
+                const double c0 = centre(a, box.lo[a]), c1 = centre(a, box.hi[a] - 1);
+                lo += za::min(n * c0, n * c1);
+                hi += za::max(n * c0, n * c1);
+                size += za::max(za::abs(n * c0), za::abs(n * c1));
+            }
+            const double slack = size * 1e-5 + 1e-6; // (the float test's rounding: a few times 2^-24 of `size`)
+            if(lo > slack)
+            {
+                node = node->children[0]; // all in front (d > 0)
+            }
+            else if(hi < -slack)
+            {
+                node = node->children[1]; // all behind
+            }
+            else
+            {
+                int widest = 0;
+                for(int a = 1; a < 3; a++)
+                {
+                    if(box.hi[a] - box.lo[a] > box.hi[widest] - box.lo[widest])
+                    {
+                        widest = a;
+                    }
+                }
+                if(box.hi[widest] - box.lo[widest] == 1)
+                {
+                    // One cell on (or about) the plane: the point test itself.
+                    vec3_t p = {centre(0, box.lo[0]), centre(1, box.lo[1]), centre(2, box.lo[2])};
+                    set(box.lo[0], box.lo[1], box.lo[2], Mod_PointInLeaf(p, m));
+                    return;
+                }
+                const int mid = (box.lo[widest] + box.hi[widest]) / 2;
+                CellBox half = box;
+                half.hi[widest] = mid;
+                fill(node, half);
+                half = box;
+                half.lo[widest] = mid;
+                fill(node, half);
+                return;
+            }
+        }
+        const mleaf_t* leaf = reinterpret_cast<const mleaf_t*>(node);
+        for(int z = box.lo[2]; z < box.hi[2]; z++)
+        {
+            for(int y = box.lo[1]; y < box.hi[1]; y++)
+            {
+                for(int x = box.lo[0]; x < box.hi[0]; x++)
+                {
+                    set(x, y, z, leaf);
+                }
+            }
+        }
+    }
+};
+
 jobs::Site layersSite{"water volume"}; // (its parallelFor: vr_jobs_sites)
 jobs::Site meshSite{"water mesh"};      // (buildMesh's rims and faces, a face at a time: vr_jobs_sites)
 
@@ -148,28 +247,14 @@ void buildVolume(qmodel_t* m)
 
     const int nx = dims[0], ny = dims[1], nz = dims[2];
     za::Vector<unsigned char> texels(static_cast<za::SizeT>(nx) * ny * nz);
-    // Up to 4M points in the BSP tree (80-90 ms for e1m1 on one thread): the layers shared out among the game's threads
-    // (vr_jobs.hpp), each writing its own (Mod_PointInLeaf only reads the model), all done before the upload. The same
+    // Up to 4M cells, each the leaf its centre is in (a descent of the BSP tree each: 80-90 ms for e1m1 on one thread,
+    // before 2026-10-12): boxes of cells down the tree instead (VolumeFill::fill), the layers shared out among the
+    // game's threads (vr_jobs.hpp), each writing its own (the model only read), all done before the upload. The same
     // texels.
-    const auto layers = [&](int z0, int z1) {
-        for(int z = z0; z < z1; z++)
-        {
-            for(int y = 0; y < ny; y++)
-            {
-                for(int x = 0; x < nx; x++)
-                {
-                    vec3_t p = {volumeOrigin[0] + (x + 0.5f) * cell, volumeOrigin[1] + (y + 0.5f) * cell,
-                        volumeOrigin[2] + (z + 0.5f) * cell};
-                    const za::PtrDiffT li = Mod_PointInLeaf(p, m) - m->leafs;
-                    texels[(static_cast<za::SizeT>(z) * ny + y) * nx + x] =
-                        li >= 0 && li <= m->numleafs && wet[li] ? 255 : 0;
-                }
-            }
-        }
-    };
+    const VolumeFill volume{m, wet, texels, nx, ny, cell};
     const za::Clock clock;
     jobs::parallelFor(layersSite, static_cast<za::SizeT>(nz), 1, [&](za::SizeT z0, za::SizeT z1) {
-        layers(static_cast<int>(z0), static_cast<int>(z1));
+        volume.fill(m->nodes, CellBox{{0, 0, static_cast<int>(z0)}, {nx, ny, static_cast<int>(z1)}});
     });
     const double ms = static_cast<double>(clock.getElapsedTime().asMicroseconds()) / 1e3;
     za::U32 hash = 2166136261u; // (FNV-1a: the same texels whatever the threads, developer 1)

@@ -47,10 +47,13 @@ bool removeDirectory(const char* path)
 {
 #ifdef _WIN32
     wchar_t w[MAX_PATH];
-    return wide(path, w) && RemoveDirectoryW(w) != 0;
+    const bool removed = wide(path, w) && RemoveDirectoryW(w) != 0;
 #else
-    return rmdir(path) == 0;
+    const bool removed = rmdir(path) == 0;
 #endif
+    // (the listings know a directory by its identity: one made again by this name is another, and every listing goes)
+    VR_FileCacheForget();
+    return removed;
 }
 
 template <typename Vector>

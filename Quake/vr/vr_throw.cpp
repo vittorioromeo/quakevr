@@ -22,6 +22,8 @@
 #include "vr_timescale.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/Memcmp.hpp"
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -131,10 +133,35 @@ struct Track
         return lo;
     }
 
+    // after(t), looked for from `k` (where it most likely is: localFit's piece) instead of searched: the same index, as
+    // the samples' times only increase (push); the spin's may not (each sample's lag its own), so searched.
+    [[nodiscard]] int afterNear(double t, int k) const
+    {
+        if(spin)
+        {
+            return after(t);
+        }
+        k = za::clamp(k, 0, size());
+        while(k < size() && time(k) <= t)
+        {
+            k++;
+        }
+        while(k > 0 && time(k - 1) > t)
+        {
+            k--;
+        }
+        return k;
+    }
+
     // Linear between the samples, the nearest one's past either end.
     [[nodiscard]] glm::dvec3 valueAt(double t) const
     {
-        const int k = after(t);
+        return valueAfter(t, after(t));
+    }
+
+    // valueAt(t), `k` being after(t).
+    [[nodiscard]] glm::dvec3 valueAfter(double t, int k) const
+    {
         if(k == 0)
         {
             return value(0);
@@ -172,12 +199,15 @@ struct Track
 // linear between the samples: three-point Gauss-Legendre on each piece between them is exact for the parabola's sums).
 // `speed`: fitted to the signal's length (the speed) instead, in x. A line is the mean in the middle of a window, but
 // unbiased at its end, where the window is cut at the release while the hand speeds up.
+// (releasePeak calls it a few hundred times an estimate, and buildMove asks for one a frame and hand: each piece's
+// points are found from the piece's sample, afterNear, not searched for.)
 [[nodiscard]] glm::dvec3 localFit(const Track& tr, double centre, double a, double b, int degree, bool speed = false)
 {
-    const auto valueAt = [&](double t) {
-        const glm::dvec3 v = tr.valueAt(t);
+    const auto valueNear = [&](double t, int k) {
+        const glm::dvec3 v = tr.valueAfter(t, tr.afterNear(t, k));
         return speed ? glm::dvec3{glm::length(v), 0.0, 0.0} : v;
     };
+    const auto valueAt = [&](double t) { return valueNear(t, tr.after(t)); };
     if(tr.size() == 0)
     {
         return glm::dvec3{0.0};
@@ -191,7 +221,8 @@ struct Track
     constexpr double gaussW[3] = {5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0};
     double m[5]{};
     glm::dvec3 y[3]{glm::dvec3{0.0}, glm::dvec3{0.0}, glm::dvec3{0.0}};
-    const auto piece = [&](double p, double q) {
+    // [p, q] up to the sample `end` (its end's; past the last sample: size()).
+    const auto piece = [&](double p, double q, int end) {
         if(q <= p)
         {
             return;
@@ -201,7 +232,7 @@ struct Track
         {
             const double t = mid + half * gaussX[g];
             const double w = half * gaussW[g];
-            const glm::dvec3 v = valueAt(t);
+            const glm::dvec3 v = valueNear(t, end);
             const double x = t - centre;
             double px = 1.0;
             for(int k = 0; k < 5; k++)
@@ -216,12 +247,13 @@ struct Track
         }
     };
     double p = a;
-    for(int k = tr.after(a); k < tr.size() && tr.time(k) < b; k++)
+    int k = tr.after(a);
+    for(; k < tr.size() && tr.time(k) < b; k++)
     {
-        piece(p, tr.time(k));
+        piece(p, tr.time(k), k);
         p = tr.time(k);
     }
-    piece(p, b);
+    piece(p, b, k);
 
     if(degree >= 2)
     {
@@ -588,6 +620,15 @@ constexpr double strokeLookback = 2.0;   // real seconds
     return {pitched(velocity), angVel, flick, pos + lever * units::metresToUnits(), peak};
 }
 
+// Whether two histories hold the very same samples (bit for bit: what releasePeak reads of them).
+[[nodiscard]] bool sameSamples(const History& a, const History& b)
+{
+    static_assert(sizeof(Sample) == sizeof(double) * 2 + sizeof(glm::vec3) * 4, "Sample has padding: compare by member");
+    // (Filled from slot 0 on from their last clear on, the same slots in use when both counts and nexts agree.)
+    return &a == &b || (a.count == b.count && a.next == b.next &&
+                           ZA_MEMCMP(a.samples.data(), b.samples.data(), sizeof(Sample) * static_cast<za::SizeT>(a.count)) == 0);
+}
+
 void push(History& h, const Sample& s)
 {
     const double time = s.time;
@@ -624,7 +665,9 @@ void push(History& h, const Sample& s)
     }
     const double rate = tempo.rate;
     const float share = wrist ? za::clamp(vr_throw_slowmo_flick.value, 0.f, 1.f) : 0.f;
-    const Estimate o = releasePeak(own, releaseTime, leverArm, wrist, rate);
+    // The controller's own samples the hand's (not slowed, flat screen): its estimate is `e`'s (whose vel, angVel and
+    // flick are releasePeak's own of `hand`, at the same arguments), not worked out again.
+    const Estimate o = sameSamples(hand, own) ? e : releasePeak(own, releaseTime, leverArm, wrist, rate);
     if(o.vel == e.vel && o.angVel == e.angVel && o.flick == e.flick && (share == 0.f || rate >= 1.0) && tempo.nudge == 0.f)
     {
         return e; // the controller's own motion: the hand didn't lag (a gentle flick in slow motion is still kept so)

@@ -98,6 +98,7 @@ QVR_MODEL_ID(HDemon, "progs/h_demon.mdl")
 QVR_MODEL_ID(Spike, "progs/spike.mdl")     // the nailgun's nail, a trap's (vr_bttrails.cpp)
 QVR_MODEL_ID(SSpike, "progs/s_spike.mdl")  // the super nailgun's
 #include "vr_ad_modelids.inc" // AD support: Arcane Dimensions' monster models (their rigs: vr_ad_rigs.inc)
+QVR_MODEL_ID(Missile, "progs/missile.mdl") // the rocket in flight, drawn at vr_rocket_scale (vr_props.cpp ownScale)
 
 QVR_MODEL_TRAIT(Progs, Prefix, "progs/")
 QVR_MODEL_TRAIT(AmmoBox, Prefix, "maps/b_")
