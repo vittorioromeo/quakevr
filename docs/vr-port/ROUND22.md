@@ -4352,3 +4352,36 @@ prop and bash hits used, now takes every weapon's hits. No new cvars or defaults
 
 For VR: with Gore > Head Chance and Limb Chance at 0, shoot a corpse's arm with the shotgun, nailgun and lightning gun:
 it should pop after a few hits while the body stays. Shoot the chest: it gibs as before. A rocket next to it: unchanged.
+
+## Menu quicksave and quickload shortcuts (`menusaves`)
+
+The author's top-left menu shortcuts now include Quicksave and Quickload immediately below Back to Game. No new
+cvars or defaults. `Quake/vr/vr_menuui.cpp` adds them to the existing toolbar's labels, icons, layout, laser/mouse hit
+tests and stick navigation, including the flat desktop icon row. Both dispatch the keyboard bindings' existing
+`save quick` / `load quick` commands (and messages), so the usual save format, campaign/addon handling and load UI
+still apply. Quicksave returns to the game and remembers the current menu page; Quickload reopens Main next time,
+as the Load menu does.
+
+Unavailable buttons stay in place, with dim icons and text; pressing prints the reason and keeps the menu open.
+Saving uses the host command's restrictions: local server, one player, no intermission, no `nomonsters`, living
+player. Loading checks the same current-game/base-directory `quick.sav` lookup as the host and waits until an
+asynchronous save finishes. These checks run again on activation.
+
+At the smallest Menu Height / Row Spacing the additional buttons would overlap Recording. The headset column now
+fits proportionally above Recording (or OBS, when shown), with drawing and hitboxes sharing its reduced dimensions.
+Normal panels retain the author's 20-pixel buttons and 4-pixel gaps; the desktop row is unchanged. At both settings
+1 with Developer detail, the column ends at y 148.1, Recording starts at y 152.1: 4 pixels clear (previously the
+column ended at y 288.1). No VR Settings page or row moved or changed name; calibration board paths are unaffected.
+
+Validation: kit build passes, QC 0 warnings, FGD 367 entities covered; `git diff --check` clean. The targeted mock
+script (`scratch/menu_shortcuts_test.ps1`, ignored) verifies save/load via laser, stick (buttons 1/2 after Back) and
+desktop mouse; laser save/load also passes at minimum height/spacing. Each action closes the menu and logs saving
+or loading `quick.sav`; a loaded game reopens Main. No-local-game, missing quicksave, zero health, `nomonsters` and
+multiplayer refusals verified. The final run has 4 saves and 5 loads (the extra load from the no-game menu confirms
+loading remains available with an existing quicksave). Default VR, minimum VR and flat-menu screenshots inspected
+as one contact sheet. Final e1m1 60-frame smoke: exit 0, no engine error/crash. No melee/physics change.
+
+For VR: from a settings page, laser Quicksave, reopen the menu, then select Quickload with the stick; check the page
+is remembered after saving and Main opens after loading. Check the dim saving action after dying. On the smallest
+panel, check targeting and separation from Recording. Files to delete when finished: ignored shortcut test script,
+`scratch/menu_shortcuts.png`, test screenshots and `quakevr/quick.sav` (plus its addon sidecar, if present).
