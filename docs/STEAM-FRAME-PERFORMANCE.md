@@ -108,9 +108,9 @@ OpenXR headset session. The release executable and regular installation were
 not modified.
 
 These tests found a repeatable CPU-physics benefit from the already-enabled
-four-worker default but no new safe performance setting or engine optimization.
-The next improvement needs a representative OpenXR campaign/combat capture and
-runtime frame-pacing evidence; this benchmark alone cannot validate it.
+four-worker default. A later particle-density A/B/B/A probe also found a useful
+GPU-tail reduction for the optional profile below. Neither hidden-window test
+establishes physical OpenXR frame pacing; wearer validation remains required.
 
 ## CPU sampling profile
 
@@ -144,3 +144,25 @@ filter changes sound quality, so the shipped value stays unchanged. The
 separate `vr_snd_bench` attempt used SDL's dummy audio driver and recorded 0.0 s
 of mixed sound; its stage timings are invalid and excluded. Raw JSON and logs
 remain private in `performance-results/frame-diagnostics-20261012/`.
+
+## Reduced particle-density preview
+
+The separate 0.25 crisp performance profile now also sets
+`vr_particle_mult 0.5`. In an A-B-B-A `combat_48` mock-tracking sweep on the
+Frame (two 720-frame runs per value, same 0.25 render scale, fixed seeds and
+graphics settings), the 1.0 baseline averaged 12.314 ms GPU-eye time and
+18.723 ms GPU-eye p99; 0.5 averaged 11.457 ms and 16.477 ms p99. The per-frame
+`vr particles` CPU phase fell from 0.302 to 0.118 ms mean and 2.247 to 0.733 ms
+p99. Average live VR particles fell from about 5,185 to 1,954. The
+`vr_particle_mult 0.75` control had only a small GPU p99 change (18.059 ms
+average), so 0.5 is the only tested value with a clear GPU-tail reduction in
+this fixture.
+
+Both settings ended with 38 living monsters and 372 physics bodies, and the
+eye-image captures retained the same camera pose and weapon placement. A fixed
+1728x1728 left-eye capture differed by 5.94 mean absolute RGB levels (0–255),
+concentrated in particle effects. This is a visible reduction in particle
+density, so it is confined to the optional performance-preview profile. These
+measurements use mock tracking and a hidden X11 window; they do not prove
+headset image quality, OpenXR frame pacing, or 72 Hz campaign performance. The
+default installation and its cvars remain unchanged.

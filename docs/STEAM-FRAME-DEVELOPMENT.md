@@ -192,7 +192,12 @@ At render scale 0.25, the Frame measured 13.411 ms GPU-eye time with the shipped
 retro edge softness and 12.531 ms with softness off. The former keeps softer
 retro boundaries at about a 7% GPU cost; both retain the blur from reduced
 render resolution, and both exceeded the 13.89 ms frame p99 budget in combat.
-The current optional preview still uses the sharper-edge profile.
+The sharper-edge preview now also sets `vr_particle_mult 0.5`: its two-run
+combat mock sweep reduced GPU-eye p99 from 18.72 to 16.48 ms and the VR-particle
+CPU phase p99 from 2.25 to 0.73 ms, while average live particles fell from about
+5,185 to 1,954. A fixed eye-image pair showed fewer particle effects; entity
+and physics counts stayed the same. The change is isolated to the preview
+profile and remains unvalidated in a wearer OpenXR session.
 
 At the release's 0.45 scale, disabling retro edge softness only for world
 materials reduced combat GPU-eye mean by about 2.5% (30.188 to 29.440 ms).
