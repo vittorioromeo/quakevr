@@ -682,7 +682,8 @@ void(entity p, entity w) VR_ADWeapons_Take =
 float(entity p) VR_ADWeapons_Rounds =
 {
     float wid = VRGetEntWeapon(p, cVR_MainHand);
-    float reserve = VR_IsADGun(wid) ? 0 : VR_AmmoUtil_GetAmmoCountByAmmoId(p, WeaponIdToAmmoId(wid, 0));
+    float ammo = WeaponIdToAmmoId(wid, 0);
+    float reserve = (VR_IsADGun(wid) || ammo == AID_NONE) ? 0 : VR_AmmoUtil_GetAmmoCountByAmmoId(p, ammo);
     return VRGetEntWeaponClip(p, cVR_MainHand) + reserve;
 };
 
@@ -738,9 +739,10 @@ void(entity p) VR_ADWeapons_Report =
         pickups += (e.vr_ad_upgrade != 0 && e.model != "" && e.modelindex > 0);
     }
     float wid = VRGetEntWeapon(p, cVR_MainHand);
-    bprint(sprintf("adweapons report: AD guns lying %g (%g with their model and rounds), upgrade pickups %g, main hand %g (%s) upgrade %g rounds %g\n",
-        guns, gunsOk, pickups, wid, WeaponIdToWeaponName(wid), AD_UpgradeCode(VRGetEntWeaponInst(p, cVR_MainHand)),
-        VR_ADWeapons_Rounds(p)));
+    bprint(sprintf("adweapons report: AD guns lying %g (%g with their model and rounds), upgrade pickups %g, ", guns, gunsOk,
+        pickups));
+    bprint(sprintf("main hand %g (%s) upgrade %g, magazine %g, rounds with the reserve %g\n", wid, WeaponIdToWeaponName(wid),
+        AD_UpgradeCode(VRGetEntWeaponInst(p, cVR_MainHand)), VRGetEntWeaponClip(p, cVR_MainHand), VR_ADWeapons_Rounds(p)));
 };
 
 void(float request, entity p) AD_GunTest =
@@ -756,7 +758,7 @@ void(float request, entity p) AD_GunTest =
         float pass = 0, fail = 0;
         for(float c = 309; c <= 319; c++)
         {
-            entity w = VR_ADWeapons_Make(p, c, request == 81 ? 64 : 48 + (c - 309) * 24);
+            entity w = VR_ADWeapons_Make(p, c, request == 81 ? 64 : 112 + (c - 309) * 24);
             if(w == world)
             {
                 bprint(sprintf("adweapons: %g not made (its scope: vr_ad_upgrades %g, vr_ad_everywhere %g, vr_ad_rules %g): FAIL\n",
@@ -775,7 +777,11 @@ void(float request, entity p) AD_GunTest =
         }
         if(request == 82)
         {
-            VR_ADWeapons_Take(p, VR_ADWeapons_Make(p, 310, 32));
+            entity wm = VR_ADWeapons_Make(p, 310, 400);
+            if(wm != world)
+            {
+                VR_ADWeapons_Take(p, wm);
+            }
             VR_ADWeapons_Report(p);
         }
         else
@@ -787,6 +793,14 @@ void(float request, entity p) AD_GunTest =
     }
     if(request == 83)
     {
+        VR_ADWeapons_Report(p);
+        return;
+    }
+    if(request == 85)
+    {
+        // A plain super shotgun in the main hand, loaded, 53 shells in reserve (83's comparison, no AD weapon).
+        VRGiveEntWeapon(p, cVR_MainHand, WID_SUPER_SHOTGUN, 0, 2);
+        p.ammo_shells = 53;
         VR_ADWeapons_Report(p);
         return;
     }
