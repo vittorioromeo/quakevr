@@ -369,6 +369,7 @@ void VR_AfterPlayerPostThink (struct edict_s *ent);	// and after it
 float *VR_MoveAngles (struct edict_s *ent, float *fallback); // angles steering walk/swim moves
 int VR_NoclipAngles (struct edict_s *ent, float *out); // SV_NoclipMove: a headset's: the head's yaw, level (vr_cheats.cpp); 0: Quake's .v_angle
 float VR_WaterStickScale (struct edict_s *ent, int swimming); // SV_ClientThink, before SV_WaterMove / SV_AirMove: the stick's speed in water
+float VR_CarryMoveScale (struct edict_s *ent); // solid held props: mass/bulk stick locomotion fraction
 float VR_StaminaSpeedScale (struct edict_s *ent);	// SV_AirMove: tired, times the most walking speed (sv_maxspeed; vr_stamina_speed)
 void VR_AfterWaterMove (struct edict_s *ent, float forwardmove, float sidemove, float upmove); // after SV_WaterMove: swimming strokes (the stick steering them)
 void VR_GroundPlaneMet (struct edict_s *ent, const float *normal); // SV_FlyMove, SV_WalkMove: a player met walkable floor (vr_slope_walk)

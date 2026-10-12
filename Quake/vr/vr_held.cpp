@@ -1487,8 +1487,24 @@ void reset()
     return {s.pos[h], carry2h::fromAngles(&s.rot[h][0], true)};
 }
 
-void place(entity_t& e, const glm::vec3& pos, const glm::mat3& rot)
+// Drawn props use the same torso sweep as QC; local hand following must not draw a crate through the body.
+void localBodyFrame(int num, carry2h::Frame& to)
 {
+    edict_t* ent = serverEdict(num);
+    edict_t* player = serverEdict(cl.viewentity);
+    if(!ent || !player) { return; }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    const carry2h::Frame from{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, to.rot};
+    carry2h::bodyClear(ent, player, from, to);
+    PR_PopQCVM(oldvm);
+}
+
+void place(entity_t& e, const glm::vec3& desired, const glm::mat3& rot)
+{
+    carry2h::Frame to{desired, glm::quat_cast(rot)};
+    localBodyFrame(static_cast<int>(&e - cl_entities), to);
+    const glm::vec3 pos = to.pos;
     e.origin[0] = pos.x;
     e.origin[1] = pos.y;
     e.origin[2] = pos.z;
@@ -1596,6 +1612,9 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
             hd.lastRot = glm::mat3_cast(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, hd.fromTurn, w)) * hd.lastRot;
         }
     }
+    carry2h::Frame bodyPose{hd.lastPos, glm::quat_cast(hd.lastRot)};
+    localBodyFrame(hd.ent, bodyPose);
+    hd.lastPos = bodyPose.pos;
     place(e, hd.lastPos, hd.lastRot);
     hd.drawn = true;
 }
@@ -1967,6 +1986,7 @@ void bothFrame(const hands::State& s, int ent)
     {
         carry2h::clear(ent, last, both.object); // (a listen server: its level; as the server holds it)
     }
+    localBodyFrame(ent, both.object);
     const glm::mat3 rot = glm::mat3_cast(both.object.rot);
     place(e, both.object.pos, rot);
     for(Held& hd : holding)

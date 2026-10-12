@@ -63,6 +63,12 @@ void toAngles(const glm::quat& q, float* out, bool brush);
 // far the hands push (vr_carry_two_hands_solid). Server side (serverPlace) and a listen server's client (vr_held.cpp).
 // True if the level stopped it.
 bool clear(int num, const Frame& from, Frame& to);
+// Solid carried props cannot sweep through the carrier's torso. Uses the drawn box and the physics body's width.
+bool bodyClear(edict_t* ent, edict_t* player, const Frame& from, Frame& to);
+[[nodiscard]] bool bodyFits(edict_t* ent, edict_t* player, const Frame& at);
+[[nodiscard]] glm::vec3 bodyPlace(edict_t* ent, edict_t* player, const glm::vec3& target);
+[[nodiscard]] float moveScale(edict_t* player);
+void loadTest_f();
 
 // Server side (QC's carryreach): whether `player`'s `hand` (0 off, 1 main) can take hold of `ent`: its fist touches the
 // thing's drawn surface, as a hand touching it can (held::grabTouch); vr_debug_carry draws the test. Or, the hand that

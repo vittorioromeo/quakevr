@@ -3608,3 +3608,40 @@ without errors; AD smoke reported 934 AD spawns and 60 shared VR spawns. eval.sh
 VR follow-up: compare SG/SSG and burst-rifle kills at short and medium range in AD; walk through ammo/backpack
 pickups while holding different guns in each hand and verify their models stay correct. AD's wide SSG scatter is
 retained for the author's assessment with the existing Pellet Spread slider.
+## Crate ledges, torso-safe carry and load-dependent walking (2026-10-12, worktree vrgrabs)
+
+The large crate's walkable bevel supplied a plane which was extended inward across the flat top. Its apparent top
+rose with arm extension: a hand 5 units over the lip was rejected through the crate, and farther reaches found no
+hold. Prop ledges now use the most upright connected walkable face for their top plane, retaining the outer lip.
+World/brush ledges keep their existing rules. The change also applies to tilted props in their current body frame.
+
+Solid carried props (crates, barrels, explosive boxes, carry_rigid == 2) now sweep their drawn oriented box against
+the carrier's torso, using the physical body's width. A continuous 15-axis sweep stops even a fast hand moving all
+the way through the body. Initial overlap from body movement or rotation separates on its current side; the level
+collision solver checks that separation. A prop trapped against the level, or pulled more than 32 units beyond its
+torso stop, releases through the existing stuck-prop path. Both server placement and local drawing use the constraint;
+one- and two-handed holds are covered. Portal-held props and the existing teleport grace retain their mapped poses.
+This constrains solid props only; ordinary pickups, weapons and wearable armour keep their interactions.
+
+Walking/swimming commands and the maximum wish speed now include the solid carried load. Masses and the longest
+model dimensions add across distinct props; the same prop in both hands counts once. The speed fraction is
+max(minimum, 1 / (1 + max(mass / mass_scale, max(0, size / size_scale - 1)))). Room-scale movement, throws, melee,
+knockback and jumping impulses keep their existing rules. Archived settings: vr_carry_body_collision 1,
+vr_carry_move_mass 100 kg, vr_carry_move_size 1 metre, vr_carry_move_min 0.35. Zero mass/size scales disable that
+load term; minimum 1 disables slowdown. A 65 kg large crate gives 0.606 speed (193.939 units/s with full stick,
+versus 320 empty-handed), including both-hand deduplication.
+
+Regression: python Misc/quakevr/climb/prop_grab_test.py <agent> covers four directions and four top extensions,
+reach limits, real full-stick movement, disabling slowdown, physical/drawn torso overlap and releasing a long pull.
+vr_carry_load_test additionally checks continuous rotated/diagonal pulls, initial overlap and overhead clearance,
+then reports current carried load, actual speed and torso overlap. The existing prop mantle tests cover the large
+crate, large stack and sideways crate. Human VR follow-up: grip each face with different reaches, bring a crate or
+explosive box towards the torso with one/both hands, and tune the carry slowdown/body stop feel if needed.
+
+Verification results: 16/16 exact top grips across four faces at 0, 4, 10 and 14 units over the lip; two unreachable
+positions rejected. Full-stick speed: empty 320.000, 65 kg crate 193.939, slowdown disabled 320.000 units/s.
+An actual native explosive box held in both hands gave 157.480 units/s (0.492 fraction), counted once, with physical
+and locally drawn torso overlap both 0.0000 units. A long pull released at the torso stop; the continuous rotated
+fast-pull, initial-overlap and overhead-clearance tests passed. Existing mantle tests passed at z 72 (large), 120
+(stack), 64 (sideways). Build and e1m1 smoke passed; eval.sh skipped because the author's takes are archived.
+The regression script optionally takes individual case names after the agent name for targeted reruns.
