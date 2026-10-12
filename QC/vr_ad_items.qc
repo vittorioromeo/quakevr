@@ -345,7 +345,7 @@ void(entity p) AD_HudUpdate =
     float burn = AD_Burning(p) ? min(255, ceil(p.burn_fire.burn_end - time)) : 0;
     p.vr_ad_huddebuff = (p.ad_poisoned ? min(255, max(1, ceil(p.ad_poisoned_qty))) : 0) +
                         (p.ad_bleeding ? min(255, max(1, ceil(p.ad_bleeding_qty))) : 0) * 256 + burn * 65536;
-    p.vr_ad_hudup = VR_AD_FeatureScope(cvar("vr_ad_upgrades")) ? AD_PackWeaponUpgrades(p) : 0;
+    p.vr_ad_hudup = VR_AD_FeatureScope(AD_UpgradeScope()) ? AD_PackWeaponUpgrades(p) : 0;
 };
 
 // PlayerPostThink, in any map while AD's data is there (AD_PlayerPostThink): AD's new artifacts' time on player self,

@@ -21,6 +21,16 @@ float(float scope) VR_AD_FeatureScope =
 {
     return cvar("vr_ad_mounted") && (scope == 2 || (scope == 1 && AD_Rules()));
 };
+
+// AD's weapon upgrades' scope (Weapon Upgrades, vr_ad_upgrades): 1 ("With AD Content") is AD maps, and any map while
+// Additional Content is Everywhere (vr_ad_everywhere): an upgraded weapon is AD's content, keeping its rules wherever it
+// is (decision 9), its pickups placed or spawned (the toolgun) in any map. 2 any map; 0 none.
+float() AD_UpgradeScope =
+{
+    float s = cvar("vr_ad_upgrades");
+    return (s == 1 && cvar("vr_ad_everywhere")) ? 2 : s;
+};
+void() AD_WeaponsOnDemand; // AD's weapons in a map outside AD's rules: their sounds (vr_ad_enemyguns.qc)
 string(float ammo, float big, string fallback) AD_AmmoModel;
 void(vector xSize) AD_AmmoBoxFit;
 

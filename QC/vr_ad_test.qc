@@ -80,7 +80,7 @@ void(float request, entity p) AD_RulesTest =
         upInst.wi_adup = ad_IT_UPGRADE_AXE;
         bprint(sprintf("admenu: map %g mounted %g ammo %g resistance %g upgrades %g projectiles %g\n",
             AD_Rules(), cvar("vr_ad_mounted"), VR_AD_FeatureScope(cvar("vr_ad_ammo_models")),
-            VR_AD_FeatureScope(cvar("vr_ad_resistance")), VR_AD_FeatureScope(cvar("vr_ad_upgrades")), AD_ProjectileRules()));
+            VR_AD_FeatureScope(cvar("vr_ad_resistance")), VR_AD_FeatureScope(AD_UpgradeScope()), AD_ProjectileRules()));
         bprint(sprintf("admenu-speed: player %g enemy %g\n", cvar("vr_ad_pellet_speed"), VR_AD_PelletSpeed(standIn, 1000)));
         bprint(sprintf("admenu-rules: resist %g importedDamage %g upgrade %g\n", AD_Resists(standIn),
             ad_Resist_Damage(standIn, ad_IT_NAILS, 10), AD_WeaponUpgraded(standIn, upInst, ad_IT_UPGRADE_AXE)));

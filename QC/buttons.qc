@@ -765,7 +765,8 @@ void() func_weapon_dispenser =
 // A weapon lying ready to be picked up: "weapon" its id (WID_*), "weaponflags" its flags (a knight's
 // sword, WID_SWORD 13, with 1 is the hell knight's; an ogre's chainsaw, WID_CHAINSAW 14, full of fuel; a grunt's
 // shotgun, WID_GRUNTGUN 15, and an enforcer's laser rifle, WID_ENFRIFLE 16, full: Enemy Weapons' Shells, Shots; the
-// crowbar, WID_CROWBAR 17: vr_crowbar.qc, whose weapon_crowbar is the same). Spawnflag 1 (AS_PLACED): it lies as its
+// crowbar, WID_CROWBAR 17: vr_crowbar.qc, whose weapon_crowbar is the same; AD support: Arcane Dimensions' soldiers'
+// guns, 20..27, full: vr_ad_enemyguns.qc, Quake VR's stand-ins without AD's data). Spawnflag 1 (AS_PLACED): it lies as its
 // "angles" (pitch yaw roll) turn it, not any way (vrtrailer's Super Axe on its pedestal). Spawnflag 2 (BY_HANDLE): a hand
 // closing anywhere on it takes it by its handle, ready to use, never carried by a hotspot (vr_grab_by_handle).
 float WEAPON_GRABBABLE_AS_PLACED = 1;
@@ -777,6 +778,7 @@ entity(entity xSpawner) VR_WeaponGrabbable_Make =
 {
     // Turned any way, still: it falls and settles on its drawn shape (a rigid body, MakeThrown).
     vector rot = (xSpawner.spawnflags & WEAPON_GRABBABLE_AS_PLACED) ? xSpawner.angles : randomVec(180);
+    VR_ADGun_Placed(xSpawner.weapon); // AD support: an AD soldier's gun (20..27): its model and sounds (vr_ad_enemyguns.qc)
     entity w = CreateThrownWeapon(xSpawner, xSpawner.weapon, xSpawner.weaponflags,
         WeaponInst_New(WeaponIdToBaseClipSize(xSpawner.weapon)) /* a new one, loaded */,
         xSpawner.origin, rot,

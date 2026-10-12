@@ -3767,8 +3767,10 @@ void hologramTestMessage()
             .help("AD's custom ammo boxes while its data is loaded. Off: original Quake boxes. Newly spawned ammo only; reload the map to change existing boxes. Ammo counts, held weapons and VR pickup physics stay the same."),
         cycle("Ammo Resistance", vr_ad_resistance, {{0.f, "Off"}, {1.f, "AD Maps Only"}, {2.f, "Everywhere"}})
             .help("AD ammo resistance and vulnerability on entities with resistance keys. Everywhere preserves AD monsters' resistance outside AD maps; ordinary enemies without keys stay unchanged. Takes effect immediately."),
-        cycle("Weapon Upgrades", vr_ad_upgrades, {{0.f, "Off"}, {1.f, "AD Maps Only"}, {2.f, "Everywhere"}})
-            .help("Shadow Axe, Widowmaker and Plasma Gun upgrade effects and new pickups. Owned upgrades are preserved while Off. Everywhere allows these pickups outside AD maps; no automatic replacement of ordinary guns."),
+        cycle("Weapon Upgrades", vr_ad_upgrades, {{0.f, "Off"}, {1.f, "With AD Content"}, {2.f, "Everywhere"}})
+            .help("Shadow Axe, Widowmaker and Plasma Gun upgrade effects and new pickups. Owned upgrades are preserved while Off. "
+                  "With AD Content: in AD maps, and in any map while Additional Content is Everywhere (their pickups placed "
+                  "there or spawned with the toolgun). Everywhere: in any map regardless. No automatic replacement of ordinary guns."),
         toggle("Evil Skill (with Nightmare)", vr_ad_evil)
             .help("Arcane Dimensions' fifth skill, in any campaign while its data is installed: chosen with Nightmare (the "
                   "start map's skill hall, or Arcane Dimensions' own Evil choice, which sets this). 50 health at most "
@@ -3783,7 +3785,8 @@ void hologramTestMessage()
                   "ladder wall) is held anywhere on it. While hands climb ladders, keyboard ladder movement and jump "
                   "climbing are off; with this or Hand Climbing off, ladders climb Arcane Dimensions' way (hold jump)."),
         cycle("Additional Content", vr_ad_everywhere, {{0.f, "AD Maps Only"}, {1.f, "Everywhere"}})
-            .help("Arcane Dimensions' monsters, new artifacts, custom keys, health vials and gems, custom items and ladders in any "
+            .help("Arcane Dimensions' monsters, new artifacts, custom keys, health vials and gems, custom items, ladders and "
+                  "weapons (the Shadow Axe, Widowmaker and Plasma Gun with Weapon Upgrades on; its soldiers' guns) in any "
                   "map that places them (custom maps, the toolgun), while its data is installed. AD Maps Only: only in its own "
                   "maps. Its pickups that would replace Quake VR's (backpacks) are only ever in its maps. Disabling required monsters or keys in AD maps would prevent progress, so they remain available there."),
         command("Map Logic / Inventory Override", "")

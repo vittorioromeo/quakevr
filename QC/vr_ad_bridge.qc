@@ -1069,7 +1069,7 @@ float(float shotcount, vector dir, vector spread, vector src) AD_EnemyPellets =
 // upgrade `xBit`, where the upgrades play (Weapon Upgrades' scope). The one place every upgrade is asked about.
 float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded =
 {
-    return xInst != world && (xInst.wi_adup & xBit) && VR_AD_FeatureScope(cvar("vr_ad_upgrades"));
+    return xInst != world && (xInst.wi_adup & xBit) && VR_AD_FeatureScope(AD_UpgradeScope());
 };
 
 // The upgrade a weapon of kind `xWid` can have (0: none).
@@ -1244,13 +1244,18 @@ float() VR_AD_WeaponTouch =
     return FALSE;
 };
 
-// AD's weapon upgrade pickups as Quake VR's weapon pickups (the base weapon, AD's pickup model), outside AD maps none.
+// AD's weapon upgrade pickups as Quake VR's weapon pickups (the base weapon, AD's pickup model), where the upgrades play
+// (AD_UpgradeScope: by default AD maps, and any map while Additional Content is Everywhere).
 void(string xModel, string xClassname, float xWeaponId, float xUpgrade, string xName) AD_UpgradeItem =
 {
-    if(!VR_AD_FeatureScope(cvar("vr_ad_upgrades")))
+    if(!VR_AD_FeatureScope(AD_UpgradeScope()))
     {
         remove(self);
         return;
+    }
+    if(!AD_Rules())
+    {
+        AD_WeaponsOnDemand(); // (outside AD's world setup: the Plasma Gun's sounds)
     }
     self.classname = xClassname; // (weapon_touch reads the weapon from it)
     impl_weapon_item(xModel, xWeaponId);

@@ -80,6 +80,8 @@ struct Spawnable
 constexpr Spawnable spawnables[] = {
 #define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) \
     {section, label, classname, model, lift, nullptr, 0.f, 0, false, true, rulesOnly, choice}, // AD support
+#define QVR_AD_GUN(label, model, wid, choice) \
+    {"Weapons", label, "func_weapon_grabbable", model, 8.f, "weapon", wid, 0, false, true, false, choice}, // AD support
 
     {"Monsters", "Grunt", "monster_army", "progs/soldier.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Monsters", "Enforcer", "monster_enforcer", "progs/enforcer.mdl", 24.f, nullptr, 0.f, 0, false},
@@ -129,7 +131,9 @@ constexpr Spawnable spawnables[] = {
     {"Items", "Biosuit", "item_artifact_envirosuit", "progs/suit.mdl", 24.f, nullptr, 0.f, 0, false},
 #include "vr_ad_spawns.inc" // AD support
 #include "vr_ad_spawnitems.inc" // AD support
+#include "vr_ad_spawnguns.inc" // AD support: AD's soldiers' guns, after its upgrades (the Weapons tab's AD group)
 #undef QVR_AD_SPAWN // AD support
+#undef QVR_AD_GUN // AD support
 };
 constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spawnables[0]));
 
@@ -1475,7 +1479,8 @@ void tempEntities()
         }
     }
     const size_t n = strlen(tg.sel.model);
-    if(!model && n > 4 && !q_strcasecmp(tg.sel.model + n - 4, ".mdl"))
+    const bool derivedGun = strstr(tg.sel.model, ".mdl#") != nullptr; // AD support: an AD soldier's gun (vr_adguns.cpp)
+    if(!model && ((n > 4 && !q_strcasecmp(tg.sel.model + n - 4, ".mdl")) || derivedGun))
     {
         model = Mod_ForName(tg.sel.model, false);
     }

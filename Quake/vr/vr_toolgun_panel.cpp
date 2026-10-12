@@ -657,15 +657,26 @@ void spawnPage(Ui& ui)
         }
     }
     // The section's entries, a page of them.
+    constexpr int perPage = gridColumns * gridRows;
     za::InPlaceVector<int, maxEntries> entries;
+    bool lastAD = false; // AD support
     for(int i = 0; i < toolgun::spawnableCount() && entries.size() < entries.capacity(); i++)
     {
         if(!strcmp(toolgun::spawnableSection(i), sections[ps.section]))
         {
-            entries.pushBack(i);
+            // AD support: Arcane Dimensions' entries, a group of their own from a fresh page (-1: an empty cell).
+            const bool ad = toolgun::spawnableAD(i);
+            while(ad && !lastAD && entries.size() % perPage != 0 && entries.size() < entries.capacity())
+            {
+                entries.pushBack(-1);
+            }
+            lastAD = ad;
+            if(entries.size() < entries.capacity())
+            {
+                entries.pushBack(i);
+            }
         }
     }
-    constexpr int perPage = gridColumns * gridRows;
     const int pages = za::max(1, (static_cast<int>(entries.size()) + perPage - 1) / perPage);
     int& page = ps.gridPage[ps.section];
     page = za::clamp(page, 0, pages - 1);
@@ -677,6 +688,10 @@ void spawnPage(Ui& ui)
         if(n >= static_cast<int>(entries.size()))
         {
             break;
+        }
+        if(entries[n] < 0)
+        {
+            continue; // AD support: the cell before Arcane Dimensions' group
         }
         const int col = k % gridColumns, row = k / gridColumns;
         const Rect r{pad + col * (cw + gap), 63.f + row * (ch + gap), pad + col * (cw + gap) + cw, 63.f + row * (ch + gap) + ch};

@@ -538,6 +538,14 @@ string(float choice) VR_AD_DispenserModel =
     if(choice == 309) { return "progs/g_shadaxe.mdl"; }
     if(choice == 310) { return "progs/g_shot3.mdl"; }
     if(choice == 311) { return "progs/g_plasma.mdl"; }
+    if(choice == 312) { return "progs/mon_soldier.mdl"; }
+    if(choice == 313) { return "progs/mon_soldier.mdl"; }
+    if(choice == 314) { return "progs/mon_soldier.mdl"; }
+    if(choice == 315) { return "progs/mon_enforcer.mdl"; }
+    if(choice == 316) { return "progs/mon_enforcer.mdl"; }
+    if(choice == 317) { return "progs/mon_centurion.mdl"; }
+    if(choice == 318) { return "progs/mon_pyro.mdl"; }
+    if(choice == 319) { return "progs/mon_fumigator.mdl"; }
     return "";
 };
 
@@ -606,9 +614,17 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 306) { self.classname = "item_artifact_jumpboots"; ad_item_artifact_jumpboots(); }
     else if(choice == 307) { self.classname = "item_healthvial"; ad_item_healthvial(); }
     else if(choice == 308) { self.classname = "item_healthgem"; ad_item_healthgem(); }
-    else if(choice == 309) { self.classname = "weapon_upgrade_axe"; if(AD_Rules()) { weapon_upgrade_axe(); } else { remove(self); } }
-    else if(choice == 310) { self.classname = "weapon_upgrade_ssg"; if(AD_Rules()) { weapon_upgrade_ssg(); } else { remove(self); } }
-    else if(choice == 311) { self.classname = "weapon_upgrade_lg"; if(AD_Rules()) { weapon_upgrade_lg(); } else { remove(self); } }
+    else if(choice == 309) { self.classname = "weapon_upgrade_axe"; weapon_upgrade_axe(); }
+    else if(choice == 310) { self.classname = "weapon_upgrade_ssg"; weapon_upgrade_ssg(); }
+    else if(choice == 311) { self.classname = "weapon_upgrade_lg"; weapon_upgrade_lg(); }
+    else if(choice == 312) { self.classname = "func_weapon_grabbable"; self.weapon = 20; func_weapon_grabbable(); }
+    else if(choice == 313) { self.classname = "func_weapon_grabbable"; self.weapon = 21; func_weapon_grabbable(); }
+    else if(choice == 314) { self.classname = "func_weapon_grabbable"; self.weapon = 22; func_weapon_grabbable(); }
+    else if(choice == 315) { self.classname = "func_weapon_grabbable"; self.weapon = 23; func_weapon_grabbable(); }
+    else if(choice == 316) { self.classname = "func_weapon_grabbable"; self.weapon = 24; func_weapon_grabbable(); }
+    else if(choice == 317) { self.classname = "func_weapon_grabbable"; self.weapon = 25; func_weapon_grabbable(); }
+    else if(choice == 318) { self.classname = "func_weapon_grabbable"; self.weapon = 26; func_weapon_grabbable(); }
+    else if(choice == 319) { self.classname = "func_weapon_grabbable"; self.weapon = 27; func_weapon_grabbable(); }
     else
     {
         dprint(sprintf("admon: no AD monster %g\n", choice));

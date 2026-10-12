@@ -1083,10 +1083,13 @@ void() weapon_touch =
     float ammoId;
     ammoId = WeaponIdToAmmoId(weaponId, 0 /* weaponflags */);
 
-    hadammo = VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId);
+    if(ammoId != AID_NONE) // AD support: the Shadow Axe's pickup (weapon_upgrade_axe) is an axe: no ammo
+    {
+        hadammo = VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId);
 
-    VR_AmmoUtil_SetAmmoCountByAmmoId(other, ammoId,
-        hadammo + WeaponIdToInitialAmmoCount(weaponId));
+        VR_AmmoUtil_SetAmmoCountByAmmoId(other, ammoId,
+            hadammo + WeaponIdToInitialAmmoCount(weaponId));
+    }
 
     VRItemPickupHaptic(other);
 
