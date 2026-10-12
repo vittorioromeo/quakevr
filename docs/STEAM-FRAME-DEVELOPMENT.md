@@ -480,6 +480,32 @@ the 1728-pixel-per-eye headset workload or confirm 72 Hz in worn combat. Wait
 for a wearer and representative gameplay before pursuing renderer or physics
 changes unless repeated profiling establishes a specific, material CPU scope.
 
+### OpenXR body-collision A-B-B-A and wearer-profile readiness (2026-10-12)
+
+The physical-Frame OpenXR `combat_48` A-B-B-A at scale 0.18 collected 720
+frames per run with stereo projection layers and eye-GPU timing. Runs 1–3 had
+matching average counts (48.6 monsters, 194.2 Box3D bodies and 16.7 contacts)
+and frame means of 13.955 ms with collision on, 13.912/13.915 ms with it off;
+GPU-eye means were 6.693, 6.734 and 6.782 ms. This gives no material evidence
+that the cvar is the frame-time bottleneck. Run 4, with collision on, evolved
+to a substantially heavier scene (259.7 bodies, 98.4 contacts, 8,124 VR
+particles on average) and is not a valid matched A repeat. Do not use it to
+claim either a regression or speedup. Full limitations and per-run values are
+in [Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md); raw
+artifacts remain on the Frame in
+`performance-results/frame-tail-hitches-20261012/body-collision-abba-20261012`.
+
+A later interactive profiling launch used the installed native binary with
+`vr_profile 1`, GPU timing disabled and a five-second report interval. The
+runtime identified the process as the active SteamVR OpenXR scene app and the
+game created two-eye swapchains, but the HMD reported `present=0`, the
+dashboard was visible, and neither controller was connected. The engine held
+the submitted stereo layer (`held=1`); only startup/menu CPU profiles were
+collected. This is not wearer gameplay or performance evidence. See
+`/tmp/qvr-wearer-profile-20261012.log` and the installed game's
+`quakevr/profile/profile_vrstart_2026-10-12_17-54-37.csv` on the Frame. Repeat
+only when the HMD presence sensor and both controller pose actions are live.
+
 ## Credits and source
 
 - Original mod and engine source: [Vittorio Romeo's Quake VR](https://github.com/vittorioromeo/quakevr).

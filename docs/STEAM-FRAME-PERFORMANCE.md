@@ -611,3 +611,30 @@ wearer performance. The profile CSV, test configs, console log, and runtime
 capture remain on the Frame in
 `performance-results/decal-grid-frame-20261012/base/quakevr` and
 `performance-results/decal-grid-frame-20261012`.
+
+## Frame body-collision A-B-B-A (2026-10-12)
+
+On the physical Frame, I compared `vr_body_collide` in the fixed `combat_48`
+OpenXR fixture at render scale 0.18, in on/off/off/on order. Each run collected
+720 frames, at least 713 eye-GPU samples, and 13–15 fresh stereo projection
+layers. The headset was unworn; these data are actual runtime submissions but
+do not measure wearer pacing or controller input.
+
+| Run | Setting | Frame mean / p95 / p99 (ms) | CPU busy mean / p99 (ms) | GPU-eye mean / p99 (ms) | Monsters / Box3D bodies / contacts / VR particles (mean) |
+|---|---:|---:|---:|---:|---|
+| 1 | on | 13.955 / 13.889 / 14.838 | 3.312 / 9.084 | 6.693 / 9.516 | 48.6 / 194.2 / 16.7 / 1,691 |
+| 2 | off | 13.912 / 13.889 / 13.962 | 2.966 / 8.342 | 6.734 / 9.507 | 48.6 / 194.2 / 16.7 / 1,691 |
+| 3 | off | 13.915 / 13.893 / 13.972 | 3.007 / 8.407 | 6.782 / 9.598 | 48.6 / 194.2 / 16.7 / 1,690 |
+| 4 | on | 16.697 / 22.685 / 25.324 | 5.675 / 18.501 | 12.633 / 21.907 | 44.6 / 259.7 / 98.4 / 8,124 |
+
+Runs 1–3 had nearly matching simulation counts and frame/GPU results; turning
+the cvar off changed neither frame time nor GPU-eye time materially. Run 4's
+simulation diverged sharply (including roughly 4.8 times as many VR particles
+and 5.9 times as many contacts as run 1), so it is not a comparable final A
+repeat and cannot establish a cvar effect. The four-run sequence therefore
+does not support disabling body collision or changing its implementation.
+Use a deterministic, matched workload with confirmed blocking contacts before
+revisiting that path.
+
+Raw run JSON, XR traces and logs are retained on the Frame under
+`performance-results/frame-tail-hitches-20261012/body-collision-abba-20261012`.
