@@ -2,7 +2,9 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
-AD texture relief: compare generated brick mortar/trim with parallax off/on close to a wall (Smooth 1); seams and animation stable; authored relief preserved
+SSG Close by B/Y (Advanced > Weapons > Reloading > Super Shotgun, off by default): on, B/Y opens and B/Y closes it
+Generated relief strength: compare 0x/1x/4x on new brick bumps/parallax; authored components stay unchanged; seams and animation stable
+Explosive box relief: small and large vanilla boxes retain their prior bumps/parallax with generated companions enabled
 Performance pass (should feel unchanged): throws and bullet-time throws; underwater caustics in pools; grenade and rocket sizes in flight; map loads
 Menu shortcuts: top-left Quicksave/Quickload via laser or stick; disabled save after death; smallest panel targets fit above Recording
 Launchers: grenade, proximity and multi launcher shots leave from the barrel tip

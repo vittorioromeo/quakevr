@@ -122,7 +122,7 @@ class PipelineTests(unittest.TestCase):
             item["generated_normal"], item["generated_height"] = bool(flags & 1), bool(flags & 2)
             self.assertEqual(int(pbr.provenance_line(self.args.output, item).split()[2]), flags)
         path = self.args.output / item["file"]
-        rgba[:, :, 3] = 255
+        rgba[0, 0, 3] ^= 1
         Image.fromarray(rgba).save(path)
         with self.assertRaisesRegex(ValueError, "modified output"):
             pbr.provenance_line(self.args.output, item)

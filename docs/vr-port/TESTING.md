@@ -1143,7 +1143,7 @@ barrels against the model's turned breech: `turned 0.00 off`). The self-test's s
 The cell cords (ROUND21.md, "Cell cords"): `bash Misc/quakevr/cellcord_test.sh <agent>` (the laser cannon held: the pouch shows cells, its cord plugged into cell 0 with its ends on the weapon's end and the contact; no cells: loose, hanging; cells again: plugging, then plugged; two cannons: cells 0 and 2; the option off: none; Mjolnir and the Super Axe on). `vr_cellcord_info` (Debug, or Weapons > Reloading > Cell Cords > Cord Points) prints each hand's cord: `cellcord main: lasercannon plugged cell=0 gunend=0.00 plug=0.00 below=-13.8`.
 The super shotgun's ways to open and close (reload_test.sh section 7, the author's notes): each switch in a matrix (one
 off: that way does nothing, the other three still work; `vr_reload_ssg_pry_angle 40`, `_lift_angle 40` there: the mock
-hands' reach), the hits (`vr_mock_hand_to main held 0.85 30`, then `held 0.85 0`: a hit from above; `held 0.85 -40`
+hands' reach), Close by B/Y (`vr_reload_ssg_close_button`, off by default: B/Y again leaves it open; on, it shuts it), the hits (`vr_mock_hand_to main held 0.85 30`, then `held 0.85 0`: a hit from above; `held 0.85 -40`
 then `-15`: from below), B/Y (`vr_mock_button off secondary 1`), the flick's speeds by a real gesture
 (`vr_mock_turn_velocity 1`: the mock hands report the angular velocity of `vr_mock_hand_turn`), the ring
 (`Misc/quakevr/reload/ssg_checks.py ring`) and the sights' colour in screenshots (`ssg_checks.py sights`: pixels of the
