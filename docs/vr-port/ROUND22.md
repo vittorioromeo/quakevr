@@ -3931,6 +3931,13 @@ e1m1 and AD campaign `ad_crucial` smoke exit 0; AD reports rules on, 1461 AD spa
 Complete AD_FirePellets launches (12 SG, 12 SSG) pass all 24 live/corpse AD/vanilla head/arm/torso cases: each selected
 head/arm pops and remains a whole corpse; torso damage retains authored gibbing (one live AD torso SSG did gib whole).
 The final checker explicitly permits that torso behavior and verifies actual launch metadata counts 6 and 14.
+Final integration includes shipped next `aae2d0708` (corpse2/wrist2); clean merge, QC/engine/FGD build passed again.
+Six selective corpse impacts and grenade/rocket interactions passed, followed by both map smokes. Forced failed rolls
+(head/limb chance scales 0.5, roll 1, Quad override off) also preserve both corpses: damage 0, head 0, limbs 0, gib 0.
+`Misc/quakevr/ad_shots_failed_roll_test.ps1 <name>` preserves this two-case actual-flight regression. Chance scale below
+1 is necessary: a guaranteed near-range pop skips rolling even with forced roll 1. The standard eval harness found
+its canary empty and automatically expanded to 177 synthetic takes (49 pass, 128 existing fails); zero baseline
+differences. No separate full-suite invocation or melee tuning was requested/performed.
 
 Headset checks: SG/SSG and Enforcer aim at each live/corpse body region in vanilla and AD maps; compare positional
 damage toggles and weapon-specific pop controls. Catch/force-grab/bat/rethrow grenade grunt/ogre ordnance and shoot a
