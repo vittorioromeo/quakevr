@@ -4021,7 +4021,7 @@ Disposable worker outputs (not deleted): scratch/, eyeshots/, build logs/crash d
 local and ignored, never committed. Visual sheets: scratch/wrist_visual.png, wrist_straps.png, wrist_bridge.png.
 
 
-### AD world contacts, physical backpacks and real ladder rungs (October12, adworld)
+### AD world contacts, physical backpacks and real ladder rungs (October 12, adworld)
 
 Notes ad_crucial 11:06:00/11:10:40/11:21:55/11:22:29: laser buttons accept hands, guns and props;
 AD backpacks match vanilla size/weight and require grip plus holster; ladder grips meet real steps,
@@ -4030,21 +4030,21 @@ with no jump climb or oversized keyboard approach obstruction.
 - AD touch buttons install common hand/whole-weapon/held-prop/thrown-prop handlers. AD dispatch preserves original
   movement, targets, activator, estate gates, shoot-only distinction and timing. Native paths are AD-tagged.
 - AD map/dropped backpacks preserve skins, inventory and AD respawn callbacks. Bounds normalize to vanilla bag
-  dimensions at its 0.75 scale; existing backpack density supplies comparable mass (sample AD bag16.8kg).
+  dimensions at its 0.75 scale; existing backpack density supplies comparable mass (sample AD bag 16.8 kg).
   Rigid physics, forcegrab/grip carrying, strict holster consumption; AD floor-check teleporting disabled.
   Restore/toggle repeats setup without compounding scale; native respawn does not overwrite AD-owned bag respawn.
 - Ladder volumes never manufacture holds. Normal ledges run first; closely spaced rungs get a ladder-only real
   solid-top trace within hand-touch tolerances. Standard hanging/pulling/mantling remains. Tracked hands bypass
   AD's jump and velocity ladder callbacks before they freeze, propel or redirect the body; flat play retains AD.
-- Reviewed importer hooks regenerate cleanly. Debug > Tests exposes buttons61, backpacks62, ladder movement63 and
-  actual rung/gap probes. Existing Hand-Climbed Ladders default1; no new cvars.
+- Reviewed importer hooks regenerate cleanly. Debug > Tests exposes buttons 61, backpacks 62, ladder movement 63 and
+  actual rung/gap probes. Existing Hand-Climbed Ladders default 1; no new cvars.
 
 Real ad_crucial: laser1 button *389 opens with hand, whole-shotgun contact, thrown prop and held prop;
-all four retain player activator; disabled control stays shut. AD dropped bag13.1174 x13.8088 x18.9188 units,
-120s expiry; walkover0shells, real grip holds, shoulder release gives5shells and clears held slot.
-Map bag restore/toggle stays physical, same dimensions, holster-only. Both ladder modes preserve21,0,-17 velocity
-and gravity1. Seven real rungs hold; seven gaps do not; setting off rejects the same rung. Calibration0missing.
+all four retain player activator; disabled control stays shut. AD dropped bag 13.1174 x 13.8088 x 18.9188 units,
+120 s expiry; walkover 0 shells, real grip holds, shoulder release gives 5 shells and clears held slot.
+Map bag restore/toggle stays physical, same dimensions, holster-only. Both ladder modes preserve 21, 0, -17 velocity
+and gravity 1. Seven real rungs hold; seven gaps do not; setting off rejects the same rung. Calibration 0 missing.
 Automated: Misc/quakevr/ad_world_test.sh <agent>. Build/QC/FGD and e1m1 smoke pass;
-melee replay49/177pass equals baseline (0 differences), no melee tuning.
+melee replay 49/177 pass equals baseline (0 differences), no melee tuning.
 Human VR: press laser buttons with each contact mode; grab/holster colored ammo/armor bags; approach ladders closely,
 grab alternating real rungs including underside touches; confirm jump/gaps never climb.
