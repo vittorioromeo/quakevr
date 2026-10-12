@@ -32,7 +32,7 @@ Ragdoll test page (Debug > Tests > Ragdoll Behaviours): each button on a grunt a
 Ragdoll self-contact: shoulders, upper arms and elbows stay outside torso; piles and a held wound; dummy resumes idle after repeated knockdowns
 Shoves backpedal 3-4 steps, then fall or recover; knocked into water: paddles to where it can stand; stagger survives save/load
 AD: hub, exits, ladders; shotgun/SSG/burst hits and damage; ammo pickups keep held weapon model; Projectile Rules Auto/Vanilla/AD
-AD: Shadow Axe, Widowmaker, Plasma Gun pickups; artifacts and Jump Boots; poison/bleeding tints (Screen Tints slider); a book; Debug: Play a Cinematic Camera
+AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain one found later stays plain; kept through holster, drop, save, next level); artifacts and Jump Boots; poison/bleeding tints (Screen Tints slider); a book; Debug: Play a Cinematic Camera
 AD spawns: toolgun and Debug menus list AD monsters/items/weapons on all maps; unavailable entries disabled
 AD monsters: ragdolls, knockdowns and get-ups, beheading, limbs (gaunt, seeker, Freddie fit worst); Evil (Nightmare + AD); hide while crouched
 
@@ -40,7 +40,9 @@ New ragdoll behaviours: hold a grunt under water 12 s (struggles to its feet); t
 
 AD projectiles: SG/SSG/Enforcer head, limb and torso damage; pop one live/corpse limb without whole-body gib; shoot incoming rockets; grab and bat enemy grenades
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on
-AD corpses: disc/flamethrower grunts stable; carried gun disappears on death and drops one-use burst rifle
+AD corpses: disc/flamethrower grunts stable; carried gun disappears on death; each armed soldier drops its own gun
+AD soldiers' guns: rocket/grenade launchers, plasma guns, defender shotgun, flamethrower, poison sprayer: hold, aim, fire; balance in Enemy Weapons > Arcane Dimensions' Guns
+AD gadget page: the outer button (next to the lights one) pages to artifacts with timers, keys, debuffs, upgraded weapons
 AD settings: dedicated page, player/enemy pellet speeds, ammo models and Off/AD-only/Everywhere feature choices; recent searches show more rows
 Reloads: autosave reload briefly retains held guns; magazine reinsertion distance slider; ammo/shell/magazine collection ends at pouch centre
 AD lighting: stationary pulse near ad_crucial -215 -2287 136 matches authored lamps; compare briefly with r_flatlightstyles 1
