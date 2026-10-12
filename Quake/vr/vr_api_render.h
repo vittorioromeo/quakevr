@@ -108,7 +108,10 @@ typedef struct vraliasinstance_s
 	float		smoothw[4]; // ... the four poses' weights
 	float		skintint[4]; // bare forearms' ends tinted to the hand's skin (vr_view.cpp skinTint): rgb times the skin, w how much
 	float		skintintrange[4]; // ... where in the skin: below u x, from v y (none) to z (all), below v w
+	float		skintone[4]; // skin-only tone: rgb multiplier, w enabled
 } vraliasinstance_t;
+struct gltexture_s *VR_AliasSkinMask (const struct entity_s *e);
+void VR_PrecacheSkinMasks (void);
 // r_lerpmodels 3 (vr_animsmooth.cpp): whether `e`, drawn between poses pose1 and pose2 at `blend` (R_SetupAliasFrame's),
 // goes along a spline through four poses: smooth[0], [1] the first and fourth (pose numbers), [2] 1 + where its bones'
 // swings are in the batch's buffer (0: none), weights the four poses'. `zeroblend`: its instance's padding (a steadied

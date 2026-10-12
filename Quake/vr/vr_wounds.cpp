@@ -1121,6 +1121,26 @@ void onLiquid(Mask& m, const Event& ev)
     m.liquid = ev.extra == 1 ? 1 : 0;
 }
 
+// The body and its hands are distinct models but one skin surface. Paint the very same world-space splats on
+// the neighbour models, so a wound at their shared wrist has the same noise and edges on each side of the seam.
+void bridgeOwnWound(entity_t* source, const za::Vector<Splat>& splats)
+{
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    for(entity_t* e : own)
+    {
+        if(!e || e == source)
+        {
+            continue;
+        }
+        const int layer = acquire(e, true, true);
+        if(layer >= 0)
+        {
+            paint(layer, e, splats);
+        }
+    }
+}
+
 void wound(const Target& t, const Event& ev)
 {
     const int layer = acquire(t.ent, t.view, true);
@@ -1293,6 +1313,10 @@ void wound(const Target& t, const Event& ev)
     }
     splats.erase(za::removeIf(splats.begin(), splats.end(), [](const Splat& s) { return !paintsAnything(s); }), splats.end());
     paint(layer, t.ent, splats);
+    if(t.view)
+    {
+        bridgeOwnWound(t.ent, splats);
+    }
 }
 
 void logPlayerWound(const Event& ev); // (below: the player's wounds, to re-open after a wash)
@@ -1650,6 +1674,22 @@ void smearHand(int hand, int blots, float amount, bool theirs = true)
     }
     foreign = theirs; // (a gib's, a blow's: not yours, healing leaves it; your wounds re-opening: yours)
     paint(layer, e, splats);
+    if(own[0])
+    {
+        avatar::Skeleton sk;
+        const int bodyLayer = acquire(own[0], true, true);
+        if(bodyLayer >= 0 && avatar::skeleton(sk))
+        {
+            // Reuse the hand's patch noise on the wrist, fading a few centimetres up the arm. A whole-body liquid
+            // smear would paint every surface below the hand; this spherical bound keeps it local to this wrist.
+            for(Splat& s : splats)
+            {
+                s.v[3] = glm::vec4{sk.wrist[hand], s.v[3].w};
+                s.v[4].x = 0.12f * sk.m2w;
+            }
+            paint(bodyLayer, own[0], splats);
+        }
+    }
     foreign = false;
 }
 
@@ -2730,9 +2770,9 @@ void washGear(float amount)
 }
 
 // Mask `layer`'s blood: texels with any, and their blood summed.
-void maskBlood(int layer, int& count, double& sum)
+void maskBlood(int layer, int& count, double& sum, int region = -1)
 {
-    const Mask& m = masks[static_cast<za::SizeT>(layer)];
+    const Mask& m = masks[static_cast<za::SizeT>(region >= 0 ? region : layer)];
     za::Vector<byte> rgba(static_cast<za::SizeT>(m.w) * static_cast<za::SizeT>(m.h) * 4);
     GLint previous = 0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
@@ -3218,6 +3258,70 @@ void handsTest_f()
     smearHand(hand, za::max(1, static_cast<int>(amount * 4.f + 0.5f)), amount);
     end();
     Con_Printf("vr_gore_hands_test: a gib's blood on the %s hand\n", hand ? "main" : "off");
+}
+
+// A local seam wound starting on either model, for both-direction regression and the in-game Debug page.
+void wristTest_f()
+{
+    const int hand = Cmd_Argc() > 2 && ZA_STRCMP(Cmd_Argv(2), "off") == 0 ? 0 : 1;
+    const bool arm = Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "arm") == 0;
+    entity_t* own[3]{};
+    avatar::Skeleton sk;
+    view::woundTargets(own);
+    if(!vr_wounds.value || !own[0] || !own[hand + 1] || !avatar::skeleton(sk) || !ensureTexture())
+    {
+        Con_Printf("wrist blood: enable Dynamic Wounds and the body with jointed hands\n");
+        return;
+    }
+    entity_t* source = own[arm ? 0 : hand + 1];
+    const int layer = acquire(source, true, true);
+    if(layer < 0)
+    {
+        return;
+    }
+    const glm::vec3 axis = glm::normalize(sk.wrist[hand] - sk.elbow[hand]);
+    za::Vector<Splat> splats;
+    splats.pushBack(woundSplat(sk.wrist[hand], 0.12f * sk.m2w, glm::vec3{0.f, 0.f, 1.f}, axis,
+        1.f, 0.12f * sk.m2w, -1.f, 0.f, paintBlood));
+    int before[2]{};
+    for(int i = 0; i < 2; i++)
+    {
+        const int l = acquire(own[i == 0 ? 0 : hand + 1], true, true);
+        double sum;
+        if(l >= 0)
+        {
+            int in[2], side[2];
+            const int n = layersOf(l, in, side);
+            for(int j = 0; j < n; j++)
+            {
+                int count;
+                maskBlood(in[j], count, sum, l);
+                before[i] += count;
+            }
+        }
+    }
+    paint(layer, source, splats);
+    bridgeOwnWound(source, splats);
+    end();
+    int after[2]{};
+    for(int i = 0; i < 2; i++)
+    {
+        const int l = acquire(own[i == 0 ? 0 : hand + 1], true, false);
+        double sum;
+        if(l >= 0)
+        {
+            int in[2], side[2];
+            const int n = layersOf(l, in, side);
+            for(int j = 0; j < n; j++)
+            {
+                int count;
+                maskBlood(in[j], count, sum, l);
+                after[i] += count;
+            }
+        }
+    }
+    Con_Printf("wrist blood: from %s %s, body %d -> %d, hand %d -> %d texels\n", arm ? "arm" : "hand",
+        hand ? "main" : "off", before[0], after[0], before[1], after[1]);
 }
 
 void washTest_f()

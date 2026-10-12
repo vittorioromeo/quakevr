@@ -1970,10 +1970,11 @@ void forearmGirth(int build, float along, float& hint, float& other, bool bare)
     {
         float at, u, v;
     };
-    Ring rings[] = {{0.13f, 0.049f * fm, 0.043f * fm},
+    Ring rings[6] = {{0.13f, 0.049f * fm, 0.043f * fm},
         {0.19f, za::max(0.041f * wm, 0.040f), za::max(0.033f * wm, 0.0335f)},
         {0.225f, za::max(0.0385f * wm, 0.039f), za::max(0.030f * wm, 0.0325f)},
         {0.26f, za::max(0.036f * wm, 0.037f), za::max(0.027f * wm, 0.0295f)}};
+    int count = 4;
     if(bare)
     {
         // make_vrbody.py's bare_rings: the skin's ring at 0.15 m, then smoothly down to the hand's wrist (its fitted
@@ -1982,16 +1983,21 @@ void forearmGirth(int build, float along, float& hint, float& other, bool bare)
         const float u15 = glm::mix(0.046f * fm, 0.037f * wm, 3.f / 7.f);
         const float v15 = glm::mix(0.040f * fm, 0.029f * wm, 3.f / 7.f);
         const float places[] = {0.15f, 0.19f, 0.225f, 0.26f};
+        // The elbow lug can lie before the bare taper begins. Fit that thicker skin too, rather than
+        // clamping both bands to the smaller 0.15 m ring and burying the elbow band inside the arm.
+        rings[0] = {0.05f, 0.052f * fm, 0.050f * fm};
+        rings[1] = {0.12f, 0.046f * fm, 0.040f * fm};
+        count = 6;
         for(int k = 0; k < 4; k++)
         {
             const float t = (places[k] - 0.15f) / 0.11f;
             const float ease = 1.f - t * t * (3.f - 2.f * t);
-            rings[k] = {places[k], handU + (u15 - handU) * ease, handV + (v15 - handV) * ease};
+            rings[k + 2] = {places[k], handU + (u15 - handU) * ease, handV + (v15 - handV) * ease};
         }
     }
-    const float at = CLAMP(rings[0].at, along * 0.26f, rings[3].at);
+    const float at = CLAMP(rings[0].at, along * 0.26f, rings[count - 1].at);
     int k = 1;
-    while(k < 3 && rings[k].at < at)
+    while(k < count - 1 && rings[k].at < at)
     {
         k++;
     }
