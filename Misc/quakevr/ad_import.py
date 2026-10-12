@@ -570,7 +570,12 @@ def main():
     marker = "float(entity targ, float resist_type, float damage) Resist_Damage =\n{"
     if resist.count(marker) != 1:
         sys.exit("ad_import: resistance scope hook missing")
-    src["ai_ammoresist.qc"] = resist.replace(marker, marker + '\n\tif (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return damage;')
+    resist = resist.replace(marker, marker + '\n\tif (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return damage;')
+    tell = r"(void\([^\n]*\) Resist_(?:Axe|Shells|Nails|Rockets|Lightning|Plasma)\s*=\s*\{)"
+    resist, count = re.subn(tell, lambda m: m[1] + '\n\tif (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return;', resist)
+    if count != 6:
+        sys.exit("ad_import: resistance scope tell hooks do not match six functions")
+    src["ai_ammoresist.qc"] = resist
     # AD support: flight impacts use VR positional/selective damage; completed ordnance setup joins VR interaction.
     projectile = src["ai_projectiles.qc"]
     pattern = r"(?ms)(^void\(\) Touch_Bullet =\s*\{)(.*?)(^\};)"

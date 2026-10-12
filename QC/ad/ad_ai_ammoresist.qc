@@ -81,6 +81,7 @@ void(entity ad_targ, float ad_artype) ad_Resist_ChangeType =
 //----------------------------------------------------------------------
 void(entity ad_targ, vector ad_org) ad_Resist_Axe =
 {
+	if (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return;
 	// Default impact sound - stone
 	sound (ad_targ, ad_CHAN_WEAPON, ad_SOUND_AXE_STONE, 1, ad_ATTN_NORM);
 	// Particle impact
@@ -97,6 +98,7 @@ void(entity ad_targ, vector ad_org) ad_Resist_Axe =
 //----------------------------------------------------------------------
 void(entity ad_targ, vector ad_org, vector ad_vel, float ad_damage) ad_Resist_Shells =
 {
+	if (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return;
 	if (ad_targ.health > 0 && ad_targ.ad_pain_finished < time) {
 		ad_targ.ad_pain_finished = time + 0.3 + random();
 		// All monsters should have a pain sound define, hence no check
@@ -121,6 +123,7 @@ void(entity ad_targ, vector ad_org, vector ad_vel, float ad_damage) ad_Resist_Sh
 //----------------------------------------------------------------------
 void(entity ad_targ, vector ad_org) ad_Resist_Nails =
 {
+	if (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return;
 	if (ad_targ.health > 0 && ad_targ.ad_pain_finished < time && ad_targ.ad_resist_nails < 1) {
 		ad_targ.ad_pain_finished = time + 0.3 + random();
 		// All monsters should have a pain sound define, hence no check
@@ -138,6 +141,7 @@ void(entity ad_targ, vector ad_org) ad_Resist_Nails =
 //----------------------------------------------------------------------
 void(entity ad_targ, vector ad_org) ad_Resist_Rockets =
 {
+	if (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return;
 	if (ad_targ.health > 0 && ad_targ.ad_pain_finished < time && ad_targ.ad_resist_rockets < 1) {
 		ad_targ.ad_pain_finished = time + 0.3 + random();
 		// All monsters should have a pain sound define, hence no check
@@ -157,6 +161,7 @@ void(entity ad_targ, vector ad_org) ad_Resist_Rockets =
 //----------------------------------------------------------------------
 void(entity ad_targ, vector ad_org) ad_Resist_Lightning =
 {
+	if (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return;
 	if (ad_targ.health > 0 && ad_targ.ad_pain_finished < time && ad_targ.ad_resist_cells < 1) {
 		ad_targ.ad_pain_finished = time + 0.3 + random();
 		// All monsters should have a pain sound define, hence no check
@@ -176,6 +181,7 @@ void(entity ad_targ, vector ad_org) ad_Resist_Lightning =
 //----------------------------------------------------------------------
 void(entity ad_targ, vector ad_org) ad_Resist_Plasma =
 {
+	if (!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return;
 	if (ad_targ.health > 0 && ad_targ.ad_pain_finished < time && ad_targ.ad_resist_cells < 1) {
 		ad_targ.ad_pain_finished = time + 0.3 + random();
 		// All monsters should have a pain sound define, hence no check
