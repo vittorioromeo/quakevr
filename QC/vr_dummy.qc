@@ -1470,6 +1470,8 @@ void(float xTest) VR_Dummy_Test =
     }
     bprint(sprintf("dummytest: health %g/%g (%.1f s since its last hit)\n", d.vr_dummy_hp, d.vr_dummy_hpmax,
         time - d.vr_dummy_hit_time));
+    bprint(sprintf("dummytest: recovery down %g, dummy think %g, frame %g, home gap %.2f, movement %g\n",
+        d.vr_knockdown, d.think == vr_dummy_think, d.frame, vlen(d.origin - d.vr_dummy_home), d.movetype));
 };
 
 // Every server frame (StartFrame): a test asked for (vr_dummy_test).

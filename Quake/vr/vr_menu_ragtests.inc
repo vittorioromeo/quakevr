@@ -21,6 +21,9 @@
         command("Clean Slate", "vr_knockdown_test 20; vr_scene_clean all")
             .help("Every monster removed, standing, knocked down or dead, and the gibs, dropped weapons, blood and fires "
                   "cleaned up: nothing left lying where the next one falls."),
+        command("Fold Corpse Arm Into Chest", "vr_ragdoll_arm_test")
+            .help("Rotate one corpse arm and its elbow into the chest. Limbs Meet Each Other should free it again; "
+                  "Ragdolls Now in the console reports buried arm points. Living monsters are skipped."),
         toggle("Draw Their Targets", vr_ragdoll_active_debug)
             .help("vr_ragdoll_active_debug: each driven ragdoll's joint targets over it (green as strong as the joint, grey "
                   "limp), its pelvis pin (yellow), its hands' and feet's goals (red), its probes and holds."),

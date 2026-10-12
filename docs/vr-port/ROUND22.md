@@ -3889,3 +3889,42 @@ Explicit `map e1m1 noplace` stays in e1m1; an absent map is rejected cleanly bef
 In VR: enter from Motion Recorder, pick up each melee weapon, circle the dummy and record your new takes. Confirm
 the simple room's space, lighting and pickup spacing feel suitable. Files worth deleting later: worker `scratch/`,
 `quakevr/meleeroom_check.cfg`, and its generated `quakevr/motions/no_hit_room_check_*`, `room_*` test outputs.
+
+
+## Corpse shoulder contact, AD weapon cleanup and dummy recovery (2026-10-12)
+
+Voice notes: vrfiringrange 10:57:12, 10:57:53, 10:58:49; ad_crucial 11:11:20, 11:27:57,
+11:31:35, 11:33:27. The upper arm was directly jointed to the chest with connected collisions disabled;
+previous overlap diagnostics excluded jointed pairs, so a buried shoulder/elbow escaped both contact and reporting.
+Corpse shoulder joints now permit contact. Pre-solve spares only the shared socket (40% of upper-arm length),
+allowing the distal upper arm/elbow to meet the chest. Living joints and stagger/get-up/ledge/reach protections stay
+as before; a monster killed while down enables the same shoulder contact on its retained joints.
+`vr_ragdoll_list` additionally samples distal arm points against an 80% chest core, including directly jointed arms.
+`vr_ragdoll_arm_test` (Debug > Tests > Ragdoll Behaviours > Fold Corpse Arm Into Chest) makes a reproducible intersecting
+corpse-arm pose; it excludes living ragdolls. No new cvars or changed defaults.
+
+Armed AD soldiers, defender/eliminator, centurion, pyro and fumigator shed their built-in guns on death and drop one
+single-use native burst rifle as requested. The centurion also sheds its hover board; enforcer-family muzzle effects
+and pyro/fumigator gun hose are excluded from corpse geometry. All modifications guard model identity and exact mesh
+vertex/triangle counts. Tiny muzzle geometry and a spanning disc/hose must not become dense or articulated body parts.
+Weapon-free left-arm seed centres/joints and rig authoring descriptors were corrected; the original gun-centred left
+forearm seeds otherwise produced an empty forearm in the enforcer/centurion after removal. Pyro tanks remain visible.
+Matching native AD variant weapons and complete active grunt/enforcer variant coverage are explicit BACKLOG items,
+as the author permits deferring the latter.
+
+Dummy recovery now schedules `vr_dummy_think` and returns to its configured idle pose/home. A plain get-up previously
+entered `army_run1`/`ai_run` before the wrapper detected completion, calling absent dummy AI and crashing; active
+recovery could instead leave the enemy stand callback frozen. Dummies now bypass ordinary enemy AI on handback;
+normal monsters retain their existing animation/AI paths. Existing `vr_dummy_test 4` reports callback, frame, movement,
+knockdown state and distance from home for repeatability.
+
+Validation: build passed, QC 0 warnings. `corpse_notes_test.sh corpse2` tested eight AD variants: 8/8 corpse rigs,
+one placeholder drop per kill, all settled part speeds 0.0 u/s after about 9.5 s. Four forced shoulder poses with
+self-collision disabled retained 2/5/2/2 buried distal samples (11 total); enabled, all four resolved to zero.
+Six repeated dummy recoveries (three each with active get-up off/on) kept knockdown 0, dummy callback scheduled,
+MOVETYPE_NONE and home gap 0; changing idle frames confirmed animation continues. Living stagger/get-up/pull-up/guard
+regression: 4 passed, 0 failed. The full available motion set: 177 takes, 49 pass/128 baseline fails, 0 differences
+from baseline (archived canary absent). e1m1 smoke passed; calibration 4 paths found, 0 missing. Visual QA of centurion,
+pyro and the folded grunt passed: `scratch/corpse_cleanup_visual.png` (disc/guns absent, pyro tank retained, arm freed).
+Existing screenshots preserved. In VR, retest corpse shoulder/upper-arm manipulation, centurion/pyro kills and repeated
+dummy shove/get-up cycles. No deletes performed.

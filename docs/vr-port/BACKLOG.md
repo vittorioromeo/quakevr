@@ -4,6 +4,15 @@ Items the author approved or asked about, not yet started. Each has a note on wh
 
 ## Next round (approved)
 
+### Native AD enemy weapons and active humanoid coverage (author, 2026-10-12)
+
+Notes `ad_crucial_2026-10-12_11-11-20` and `11-31-35`: armed AD grunt/enforcer variants currently drop a
+single-use burst rifle as the requested placeholder. Implement distinct native pickups matching each variant's
+actual attack (rocket, grenade, plasma, defender/eliminator, pyro/fumigator and centurion), including ammo,
+reload/fire behaviour and the appropriate held model. Their corpse meshes already shed the built-in weapons.
+Extend living and dying active behaviours to AD grunt/enforcer variants after validating their rig semantics,
+get-up clips, attack origins and locomotion; the author explicitly permits deferring this rig/behaviour work.
+
 ### Flies on corpses and gibs (the author, 2026-10-02: "add it to the to-do list")
 
 Scourge of Armagon's head flies (one severed head in ten loops `misc/flys.wav`, player.qc HeadThink) were pointless
