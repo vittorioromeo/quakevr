@@ -3,22 +3,22 @@
 
 [next branch: test these first]
 Launchers: grenade, proximity and multi launcher shots leave from the barrel tip
-Smooth animation: Graphics > Model Animation Smooth vs normal on ogres, shamblers, knights up close; make Smooth the default?
+Smooth animation: grunt idle gun must not pulse at loop boundaries with Ease 0; compare Smooth on ogres, shamblers and knights
 Vore: stand next to one (it shoves you away); parry one
-Prop climbing: climb a large crate and a stack of crates (large crates now climb instead of lifting from the ground: OK?)
-Prop pulling: pull a light crate, then a heavy one (60 kg line feels right?)
+Prop climbing: large crate and stack, every side with bent and extended arms; failed grabs must not pull crates through your body
+Prop carrying: light vs heavy crate and explosive box; heavy/bulky loads slow thumbstick movement; pulling 60 kg line feels right?
 Toolgun: beam leaves the lens centre; a hard stick click while holding a prop keeps it; B/Y panel, tool tiles, stick-press cycles tools, spawn grid, physgun wrist rotation; panel readable and well placed?
 Brush tool (toolgun 6th tile): create, move, resize, paint, copy, delete boxes; stand on, climb and shoot them
 Brush shapes: make a wedge, cylinder, pyramid; turn one with Rotate; Undo
 Brush light: a new box goes from flat light to shadows; next to a flickering light it flickers too
-Brush saving: build, save, quit, load: the brushes are back; Bake Map (ericw-tools): the box casts a shadow on the floor
-Bare forearms: Body > Bracers off; roll and bend wrists, gadget arm (seam colour OK?)
+Brush saving: save/load restores brushes; Bake Map keeps original intact and creates a complete separate map with entities, old and new brushes
+Arms: Bracers on/off detail and blood match hands; wrist seam smooth; gadget straps remain with Bracers off
 Box3D update: props, ragdolls, teleporter pass-through feel unchanged; Physics AVX2 on vs off feel the same
 Deaths: shoot grunts and knights in the body vs the head (different falls); a charging knight stumbles; grab a dying arm
 Hit reactions: shoot a living grunt in the body, head, arm, leg: flinch, knee buckle, limp (Strength slider)
 Shoves: one-hand shove (staggers, falls about half the time), two-hand shove; ogres rarely fall: rates OK?
 Judo: throw a knight (survives the landing, gets up) and a mummy or zombie (stays in one piece)
-Dismemberment: cut a leg (balances, then falls), an arm, both legs (drags himself on his arms)
+Dismemberment: axe cuts limbs; blunt weapon/brick pops only the struck corpse limb; living leg loss balances/falls, both legs crawl
 Bodies in liquids: kill in water (paddles, floats; knights sink), in lava or slime (flails, burns); throw corpses in
 Bodies by walls: kill next to a wall (leans, slides), at a ledge (hangs), by a crate (braces)
 Holstered guns: shoulder (back) guns hidden by default; VR Settings > Shoulder Holster Weapons shows them; Advanced > Body and Display has all three pairs; grab and holster still work
@@ -26,10 +26,11 @@ Holstered super shotgun stays open on a hip; a nailgun holstered without its mag
 
 Physgun: while holding a prop both sticks move and turn it (no button), you stay put; X/A snaps and the angle stays
 Ragdoll test page (Debug > Tests > Ragdoll Behaviours): each button on a grunt ahead does its behaviour
-Ragdoll sliders (Gibs and Corpses > Ragdolls) and Limbs Meet Each Other on/off: piles, a held wound
+Ragdoll sliders and Limbs Meet Each Other on/off: arms must not pass through torso; piles and a held wound
 Shoves backpedal 3-4 steps, then fall or recover; knocked into water: paddles to where it can stand; stagger survives save/load
-AD: Debug > start Arcane Dimensions (or vr_campaign_native ad): hub, an exit and back, ladders by hand, shotgun pellets (Projectile Rules Auto/Vanilla/AD)
+AD: hub, exits, ladders; shotgun/SSG/burst hits and damage; ammo pickups keep held weapon model; Projectile Rules Auto/Vanilla/AD
 AD: Shadow Axe, Widowmaker, Plasma Gun pickups; artifacts and Jump Boots; poison/bleeding tints (Screen Tints slider); a book; Debug: Play a Cinematic Camera
+AD spawns: toolgun and Debug menus list AD monsters/items/weapons on all maps; unavailable entries disabled
 AD monsters: ragdolls, knockdowns and get-ups, beheading, limbs (gaunt, seeker, Freddie fit worst); Evil (Nightmare + AD); hide while crouched
 
 [Still open from 1.0.x]
