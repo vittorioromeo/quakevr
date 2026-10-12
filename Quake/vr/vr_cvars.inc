@@ -3034,6 +3034,7 @@ QVR_CVAR(vr_reload_ssg_close_flick, "1", CVAR_ARCHIVE) // close by the flick
 QVR_CVAR(vr_reload_ssg_close_pry, "1", CVAR_ARCHIVE)   // close by lifting the barrels back with both hands on it (the reverse pry)
 QVR_CVAR(vr_reload_ssg_close_hit, "1", CVAR_ARCHIVE)   // close by a hit from below on the front of its open barrels
 QVR_CVAR(vr_reload_ssg_close_auto, "0", CVAR_ARCHIVE)  // close by itself once both chambers are loaded
+QVR_CVAR(vr_reload_ssg_close_button, "0", CVAR_ARCHIVE) // close by its controller's B/Y too (accessibility: opened and closed with a button, no gesture; a press within 0.35 s of the last toggle does nothing)
 // Their thresholds.
 QVR_CVAR(vr_reload_ssg_flick_open_speed, "650", CVAR_ARCHIVE)  // degrees a second the wrist must turn to flick it open (the classic flick reload: vr_spinreload_x_angular_threshold)
 QVR_CVAR(vr_reload_ssg_flick_close_speed, "400", CVAR_ARCHIVE) // and to flick it shut

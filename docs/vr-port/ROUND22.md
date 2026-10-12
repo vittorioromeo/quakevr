@@ -4723,7 +4723,8 @@ fix is already included in the merged engine. No source diffuse, maps or model w
 
 ## Generated-channel provenance emission (adpbrgen)
 
-Merged next 2a60c240d and added generator emission of `textures/pbr/provenance.txt` on each 50-source checkpoint,
+Merged origin/next 2ce263a14 (including calibrated generator 94e3b6bdb and PNGs) and added emission of
+`textures/pbr/provenance.txt` on each 50-source checkpoint,
 completed generation, refresh and cache resume. The ASCII header is `qvr-pbr-provenance-v1`; sorted entries hold
 source prefix32, output canonical SHA256 hex64, and independent decimal generated-channel bits (1 normal RGB,
 2 height alpha). Output canonical hashing uses `qvr-pbr-v1` plus NUL, LE uint32 width/height and decoded RGBA,
@@ -4733,13 +4734,70 @@ only after verifying every manifest PNG checksum; no model load or inference is 
 
 Rebuilt the shipped index from all 2987 current companions without changing any PNG, census or manifest: 2652
 entries flags 3 and 335 entries flags 0, 298722 bytes. Index SHA256:
-`533f12b5fca6069aa1ea14d557fedd2ac6c2ea115a4e72d23bff8733b5c16358`.
-Sixteen pipeline tests pass, covering independent alpha/dimension hashing, all four flag values, stale file refusal,
+`2636e45d509ddfb3b9055ae9d2177f81872febfd2ec1235760ad88b661c11531`.
+Eighteen pipeline tests and the calibrated generator self-test pass, covering independent alpha/dimension hashing,
+all four flag values, stale file refusal,
 exact full shipped-index reconstruction, cache resume, offline refresh, checkpoint counts 50/51 and cache-only
 source removal (50 retained, zero inference). All 2987 full checksum/normal/depth/index validations pass. Required
 QC/FGD/engine build succeeds and hidden mock e1m1 smoke exits 0; no melee or physics code changed.
 
 The engine worker owns generated relief settings and VR verification. Four requested box sources all have flags 3:
-`ef2fac7a255961d0b9f06d41d1d16036` and `79469e258e12ccef0fd24caac20db7c5` are 32x64, alpha 203..222;
-`9cf100e79ecce5eadd1a8572f78ec291` and `7f42379bf902b036f40ac764027ee7da` are 32x32, alpha 204..225.
+`ef2fac7a255961d0b9f06d41d1d16036` and `79469e258e12ccef0fd24caac20db7c5` are 32x64, alpha 128..255;
+`9cf100e79ecce5eadd1a8572f78ec291` and `7f42379bf902b036f40ac764027ee7da` are 32x32, alpha 128..255.
+This corrects the initial index emitted before the calibration merge; that uncalibrated index is superseded.
+Relative to origin/next, the PNG bundle, census and manifest are byte-identical: only provenance, its tests and
+emission notes differ. The alpha mutation fixture flips one byte so it also exercises calibrated flat output.
 Disposable worker artifacts are `scratch/provenance_audit.py` and new `scratch/pbr-tests-*` fixture folders.
+
+## Generated world relief calibration (adpbrload)
+
+Loading the correct height map was insufficient for the reported flat appearance. The previous generated packing
+multiplied the model's absolute brightness by a 0.25 bound, retaining a large uniform recess and very little
+relative relief. Native HD metal1_2 had only 0.078 Quake units of height variation at the author's depth 2.5;
+metal1_3 had 0.098, and the embedded city5_7b trim 0.157. Increasing a global depth mostly slid the whole image.
+The desktop and mock-VR world shaders both walk the height field; no separate VR permutation bypass was found.
+
+Generated height now anchors its learned 95th percentile at the surface, maps its 5th..95th percentile span to a
+bounded relative range, limits contrast gain to 8, and leaves spans below 0.02 flat. Cutouts do not set the range.
+The generator's --depth default is 0.5, at most 1.25 units of recession at vr_parallax_depth 2.5. Cache version 2
+invalidates the old packing; normal green orientation still uses its previous height convention, independently of
+this calibration. No engine cvar or user rendering setting changes. Complete authored alpha bypasses calibration.
+
+All 2987 native-root sources regenerate offline, zero failures, 363963231 bytes. Pixel comparison verifies all
+2987 normal RGB maps unchanged, all 335 authored alpha maps unchanged, and exactly 2652 generated alpha maps
+changed; 55 generated predictions are now intentionally flat. Differential depths: native HD metal1_2 0.775,
+metal1_3 1.127, embedded city5_7b 1.118, stone_grey_1_3 1.245, and embedded city5_3 0.706 units. Original diffuse,
+material source files and maps remain untouched; only existing content-addressed companions and manifest change.
+
+The native selected city5_3 source is e2d910f45c5220ce03c85512a79cab61d372b10db4061fb472815c05dc14b822,
+Steam id1/textures/city5_3.png. Its authored normal and genuine height alpha come from
+quakevr/textures_quetoo/city5_3_norm.png (SHA256 f656efed2fec4f6a3b23c1cb0ec4db45fec5bd537c391212414927853c0b05a4):
+256x256 RGBA, raw alpha 61..211. Its output alpha is preserved, unlike embedded d088fa06acb2d8c6fc4366f3d046a904,
+whose authored match is rejected at 0.01064. The preserved native authored source still spans 1.471 units; this
+change must not be presented as a fix to authored stone relief or as proof that every wall looks sculpted.
+Native GPU selection confirms vrext/city5_3_norm, 256x256, alpha 61..211. Its wall-only ROI under author
+settings changes by 7.1525/255 with parallax off/on (79.18% pixels over 3), independently of generated calibration;
+the calibration-off authored ROI is pixel-identical. Thus authored UV displacement is active, rather than suppressed
+by a VR/retro draw flag. The cropped proof is scratch/relief_authored_city5_3_uv.png.
+
+Lighting-independent native wall comparisons retain the author's exact cfg (sharp filtering, retro block 0.5,
+normal maps/parallax/depth writing) with r_fullbright 1. Original and calibrated parallax-off brick wall ROIs are
+pixel-identical; all 1093 diffuse GPU hashes match across original, relative-span 4x/8x and calibrated runs.
+At setpos 384 440 344, eye pitch -10/yaw 140, the cop1_1r/brick view's calibrated off/on ROI differs by 3.845/255,
+49.50% of pixels over 3. At the closer grazing setpos 384 484 344, pitch 15/yaw 155, the head ray confirms
+city5_7b: local trim/mortar bends more, but the appearance remains restrained. The copper colour pattern still
+reads fairly flat; learned heights can follow colour stains rather than structural tile boundaries. Real-headset
+judgment and any authored-height override are outstanding, separate choices. Evidence is in scratch/relief_wall_all.png,
+scratch/relief_close_wall.png, and scratch/relief_stone_wall.png. No global authored-depth inflation is included.
+
+Validation: required QC/engine/FGD build passes; 14 targeted pipeline tests and the offline self-test pass;
+all 2987 checksummed companions validate. Native desktop vr_enabled 0 captures parallax off/on and exits 0;
+stock e1m1 smoke at sharp defaults exits 0. No melee or physics code changed. All native reads use Steam data plus
+the worker base directory for private output; no author checkout or process changes.
+
+## The super shotgun closed by B/Y (accessibility, 2026-10-12)
+
+A user's accessibility request: `vr_reload_ssg_close_button` (off by default; Advanced > Weapons > Reloading > Super
+Shotgun > Close by B/Y): open, the B/Y of the controller holding it snaps it shut, as Open by B/Y breaks it open, so it
+opens and closes with the button alone (QC `VR_Reload_SsgFrame`, the same press edge and 0.35 s between toggles).
+`reload_test.sh`: a new check (off: B/Y again leaves it open; on: it shuts it), 104 PASS, self-test 67/67.

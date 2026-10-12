@@ -228,6 +228,9 @@ log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_mock_turn_velocity 1;$FIRE;vr_rel
 check $(echo "$log" | grep -q "broken open by a flick" && echo "$log" | grep -q "closed by a flick" && [ "$(opens "$log")" = 0110 ] && echo 1 || echo 0) "the flick's speeds: a flick under Flick Open Speed doesn't open it, over it does; the same for Flick Close Speed ($(opens "$log"))"
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_reload_ssg_close_auto 1;$FIRE;$FLICK;$AUTO;$REP;$BY;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "closed by itself (both loaded): 2 loaded" && echo "$log" | grep -q "broken open by the button: 0 spent and 2 live thrown out" && [ "$(opens "$log")" = 01 ] && echo 1 || echo 0) "Close When Loaded; opened again, both live shells are thrown out ($(opens "$log"))"
+# Close by B/Y (an accessibility option, off by default): off, B/Y leaves it open; on, B/Y opens and B/Y closes it.
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$BY;$BY;$REP;vr_reload_ssg_close_button 1;$BY;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+check $(echo "$log" | grep -q "broken open by the button" && echo "$log" | grep -q "closed by the button" && [ "$(opens "$log")" = 10 ] && echo 1 || echo 0) "Close by B/Y: off by default (B/Y again leaves it open), on it shuts it ($(opens "$log"), want 10)"
 # Each way's switch disables only its own: with one off, it does nothing, the others still work.
 declare -A OPEN_STEP=([vr_reload_ssg_open_flick]="$FLICK" [vr_reload_ssg_pry]="$PRY" [vr_reload_ssg_open_hit]="$HITDOWN" [vr_reload_ssg_open_button]="$BY")
 declare -A CLOSE_STEP=([vr_reload_ssg_close_flick]="$FLICK" [vr_reload_ssg_close_pry]="$LIFT" [vr_reload_ssg_close_hit]="$HITUP" [vr_reload_ssg_close_auto]="$AUTO")
