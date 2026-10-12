@@ -275,7 +275,8 @@ float(vector xA, vector xB, float xR, vector xLo, vector xHi) VR_SegmentMeetsBox
 // A wall button a held thing may press now: not freed, still pressed by touch, not in or coming out.
 float(entity xButton) VR_Button_Pressable =
 {
-    return VR_AD_ButtonEnabled(xButton) && xButton.solid == SOLID_BSP && xButton.vr_wpntouch == button_wpntouch && xButton.state != STATE_UP &&
+    if(!VR_AD_ButtonEnabled(xButton)) return FALSE; // AD support: an AD button its map has disabled (vr_ad_bridge.qc)
+    return xButton.solid == SOLID_BSP && xButton.vr_wpntouch == button_wpntouch && xButton.state != STATE_UP &&
            xButton.state != STATE_TOP && xButton.state != STATE_DISABLED;
 };
 
