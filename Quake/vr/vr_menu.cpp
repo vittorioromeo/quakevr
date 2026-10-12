@@ -5967,7 +5967,19 @@ za::Vector<Item> pageDebugTools()
             .help("vr_limb_test 28: one blunt hit wears the struck limb down without popping it (save, load, then "
                   "Stored Limb Damage)."),
         command("Stored Limb Damage", "vr_limb_test 29")
-            .help("vr_limb_test 29: prints the blunt damage the nearest corpse's test limb has taken (kept across save/load)."),
+            .help("vr_limb_test 29: prints the damage worn into the nearest corpse's test limb (kept across save/load)."),
+        command("Wear a Corpse Limb Off: Shotgun", "vr_limb_test 30")
+            .help("vr_limb_test 30: shotgun blasts at the nearest corpse's limb until it pops: any weapon's hits wear down "
+                  "the piece they strike (its own corpse health), whatever the pop chance (clearest with Limb Chance and "
+                  "Head Chance at 0)."),
+        command("Wear a Corpse Limb Off: Super Shotgun", "vr_limb_test 31").help("vr_limb_test 31: the same with super shotgun blasts."),
+        command("Wear a Corpse Limb Off: Lightning", "vr_limb_test 32").help("vr_limb_test 32: the same with lightning bolts."),
+        command("Wear a Corpse Limb Off: Nails", "vr_limb_test 33").help("vr_limb_test 33: the same with nails."),
+        command("Wear a Corpse Limb Off: Rifle Laser", "vr_limb_test 34").help("vr_limb_test 34: the same with the enforcer rifle's lasers."),
+        command("Wear a Corpse Limb Off: AD Pellets", "vr_limb_test 35").help("vr_limb_test 35: the same with Arcane Dimensions' projectile pellets."),
+        command("Wear a Corpse Limb Off: Axe", "vr_limb_test 36").help("vr_limb_test 36: the same with axe blows that do not cut (it is cut off when worn through)."),
+        command("Shotgun a Corpse Torso", "vr_limb_test 37").help("vr_limb_test 37: shotgun blasts at the torso take the whole body's health: it gibs, no piece worn."),
+        command("Wear a Corpse Head Off: Shotgun", "vr_limb_test 38").help("vr_limb_test 38: shotgun blasts at the corpse's head until it pops."),
         command("Held Prop at a Corpse Limb", "vr_limb_test 26")
             .help("vr_limb_test 26: a blunt hit with a held prop detaches and keeps the corpse's struck limb."),
         command("Axe at a Corpse Limb", "vr_limb_test 27")
