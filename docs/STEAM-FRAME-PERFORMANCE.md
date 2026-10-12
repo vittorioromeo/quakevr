@@ -309,6 +309,12 @@ absent, and head and hand action states remained invalid; the unfocused-render
 overrides were confined to the scratch config. Scale 0.18 renders about
 311x311 pixels per eye before upscaling, versus 432x432 at 0.25, so the gain
 has a severe image quality cost. This verifies the experimental build's OpenXR
-startup and GPU behavior; it does not validate visual acceptance or tracking. Raw
-JSON, runtime diagnostics and logs are retained privately in
+startup and GPU behavior; it does not validate wearer acceptance or tracking.
+After the timing windows, `vr_eyeshot 3` saved separate 1728x1728 left- and
+right-eye images at both scales. All four contain the scene, and each left/right
+pair is pixel-distinct; inspection shows the 0.18 image's scene and weapon
+details are visibly softer. These renderer captures verify stereo eye content,
+not how sharp or comfortable it looks in the headset. The images are retained
+privately in `performance-results/openxr-ultra-eye-captures-frame-20261012`;
+raw JSON, runtime diagnostics and logs are in
 `performance-results/openxr-ultra-particles-abba-frame-20261012`.
