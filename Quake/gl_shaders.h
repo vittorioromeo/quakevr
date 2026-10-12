@@ -463,7 +463,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "#endif // BINDLESS\n"\
 "	vec4	uvclamp; // QVR: parallax mapping's rays stay in s .x to .z, t .y to .w, repeating (none where .z <= .x)\n"\
 "	vec4	detail; // QVR: the texture's detail (vr/vr_detail.cpp): s and t scales (s < 0: axes swapped), strength (0 none), layer\n"\
-"	vec4	extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp): y the specular map's brightness, z its hardness\n"\
+"	vec4	extmat; // QVR: x/w generated normal/height multipliers; y/z external sheen/hardness\n"\
 "	vec4	retro; // QVR: retro textures (vr_retro.h): xy the texture's Quake size, z its set (0: the instance's)\n"\
 "};\n"\
 "const uint\n"\
@@ -644,7 +644,7 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	out_alpha = instance.alpha < 0.0 ? 1.0 : instance.alpha;\n"
 "#endif\n"
 "	out_glow = instance.glow; // QVR\n"
-"	out_pdepth = instance.parallax; // QVR\n"
+"	out_pdepth = instance.parallax * call.extmat.w; // QVR\n"
 "	out_uvclamp = call.uvclamp; // QVR\n"
 "	out_detail = call.detail; // QVR\n"
 "	out_extmat = call.extmat; // QVR\n"

@@ -181,7 +181,7 @@ typedef struct bmodel_bindless_gpu_call_s {
 	GLuint64	padding;	// QVR: (uvclamp on 16 bytes, as std430 places it)
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
-	GLfloat		extmat[4];	// QVR: the external maps' numbers (VR_ExtMapsCall)
+	GLfloat		extmat[4];	// QVR: x/w generated normal/height multipliers; y/z external sheen/hardness
 	GLfloat		retro[4];	// QVR: retro textures (VR_RetroCall): the texture's Quake size, its set
 } bmodel_bindless_gpu_call_t;
 
@@ -192,7 +192,7 @@ typedef struct bmodel_bound_gpu_call_s {
 	GLint		padding;
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
-	GLfloat		extmat[4];	// QVR: the external maps' numbers (VR_ExtMapsCall)
+	GLfloat		extmat[4];	// QVR: x/w generated normal/height multipliers; y/z external sheen/hardness
 	GLfloat		retro[4];	// QVR: retro textures (VR_RetroCall)
 } bmodel_bound_gpu_call_t;
 
@@ -446,6 +446,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 
 	nm = TexMgr_NormalMap (tx); // QVR: or an external pack's, its specular map, its glow hidden (vr/vr_extmaps.cpp)
 	extflags = VR_ExtMapsCall (tx && t ? t : NULL, &nm, &spec, &fb, extmat);
+	VR_PBRStrength (nm, &extmat[0], &extmat[3]); // QVR: independent component provenance after authored pack selection
 	flags = zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != false) << 2) | extflags;
 	if (t && TEXTYPE_ISLIQUID (t->type)) // QVR: the liquid's kind for its look (gl_shaders.h LiquidKind)
 		flags |= (t->type - TEXTYPE_FIRSTLIQUID + 1) << 3;

@@ -4794,6 +4794,28 @@ Validation: required QC/engine/FGD build passes; 14 targeted pipeline tests and 
 all 2987 checksummed companions validate. Native desktop vr_enabled 0 captures parallax off/on and exits 0;
 stock e1m1 smoke at sharp defaults exits 0. No melee or physics code changed. All native reads use Steam data plus
 the worker base directory for private output; no author checkout or process changes.
+## Generated-channel provenance emission (adpbrgen)
+
+Merged next 2a60c240d and added generator emission of `textures/pbr/provenance.txt` on each 50-source checkpoint,
+completed generation, refresh and cache resume. The ASCII header is `qvr-pbr-provenance-v1`; sorted entries hold
+source prefix32, output canonical SHA256 hex64, and independent decimal generated-channel bits (1 normal RGB,
+2 height alpha). Output canonical hashing uses `qvr-pbr-v1` plus NUL, LE uint32 width/height and decoded RGBA,
+retaining alpha height. The index therefore binds flags to exact output pixels and dimensions, allowing the engine
+to conservatively treat missing/stale bindings as authored. `provenance --output quakevr` rebuilds metadata offline
+only after verifying every manifest PNG checksum; no model load or inference is needed. `validate` now checks it.
+
+Rebuilt the shipped index from all 2987 current companions without changing any PNG, census or manifest: 2652
+entries flags 3 and 335 entries flags 0, 298722 bytes. Index SHA256:
+`533f12b5fca6069aa1ea14d557fedd2ac6c2ea115a4e72d23bff8733b5c16358`.
+Sixteen pipeline tests pass, covering independent alpha/dimension hashing, all four flag values, stale file refusal,
+exact full shipped-index reconstruction, cache resume, offline refresh, checkpoint counts 50/51 and cache-only
+source removal (50 retained, zero inference). All 2987 full checksum/normal/depth/index validations pass. Required
+QC/FGD/engine build succeeds and hidden mock e1m1 smoke exits 0; no melee or physics code changed.
+
+The engine worker owns generated relief settings and VR verification. Four requested box sources all have flags 3:
+`ef2fac7a255961d0b9f06d41d1d16036` and `79469e258e12ccef0fd24caac20db7c5` are 32x64, alpha 203..222;
+`9cf100e79ecce5eadd1a8572f78ec291` and `7f42379bf902b036f40ac764027ee7da` are 32x32, alpha 204..225.
+Disposable worker artifacts are `scratch/provenance_audit.py` and new `scratch/pbr-tests-*` fixture folders.
 
 ## The super shotgun closed by B/Y (accessibility, 2026-10-12)
 
@@ -4801,3 +4823,51 @@ A user's accessibility request: `vr_reload_ssg_close_button` (off by default; Ad
 Shotgun > Close by B/Y): open, the B/Y of the controller holding it snaps it shut, as Open by B/Y breaks it open, so it
 opens and closes with the button alone (QC `VR_Reload_SsgFrame`, the same press edge and 0.35 s between toggles).
 `reload_test.sh`: a new check (off: B/Y again leaves it open; on: it shuts it), 104 PASS, self-test 67/67.
+
+
+## Generated-only relief strength and stock explosive-box materials (adpbrload)
+
+vr_pbr_strength is archived, defaults to 1 and clamps to 0..8. Generated Relief Strength is live under
+Advanced VR > Graphics > Surfaces and Options > VR Settings, normally 0..4 with extended range to 8.
+It multiplies generated normal tilt and generated parallax depth independently, after the actual map
+(including animation/external-pack overrides) is selected. Authored components keep multiplier 1, including
+mixed maps. Alias-model maps retain their existing controls. No global normal/parallax depth setting is inflated.
+
+The loader verifies textures/pbr/provenance.txt against the selected decoded companion's canonical RGBA SHA256,
+including dimensions and alpha. Missing/stale/unknown provenance stays at 1. The calibrated index SHA256 is
+2636e45d509ddfb3b9055ae9d2177f81872febfd2ec1235760ad88b661c11531, with 2987 records: 2652 generated
+normal/height companions and 335 complete authored companions. Runtime composition clears flags independently
+when an authored component replaces them. Existing per-draw extmat x/w carry normal/height multipliers; y/z
+retain external sheen/hardness. Solid shading and its depth prepass use the same multiplied parallax depth.
+
+Both stock explosive-box brush families shared exact diffuse hashes with AD world textures, so the world
+corpus displaced their established procedural relief. Side hash ef2fac7a255961d0b9f06d41d1d16036 and top
+9cf100e79ecce5eadd1a8572f78ec291 match, as do their alternate frames. Both models now retain their original
+material loader and authored file/pack overrides; PBR also leaves their external maps' missing height alone.
+Sharp-filter GPU side alpha returns to 0..255 and top to 43..255, versus generated companions' 128..255.
+Other world uses of those hashes still get PBR.
+
+A private e1m1 entity fixture places both box sizes together. Fixed random seed, identical eye/angles, head
+flashlight, normal strength 1, depth 2.5, items 1.5, smooth 1 and nearest mip filtering isolate the regression.
+Interior face differences from the pre-PBR procedural baseline fall from 10.23476 to 0.08201/255 (large) and
+5.24991 to 0.16307/255 (small). scratch/boxes_restored_proof.png shows baseline/regression/restoration; nearby
+world PBR and lighting explain remaining image differences. No id map/assets from this fixture are committed.
+
+Native Steam AD start confirms city5_7b at eye 384,485.01,375.54, pitch 15/yaw 155, active alpha 141..255.
+With author sharp/retro settings and fullbright isolating displacement, strength 1 versus 3 changes the trim/wall
+ROI (320,360)-(970,625) by mean 8.83214/255; 78.812% of pixels change by more than 3.
+scratch/pbr_strength_native_pair.png was inspected and shows visibly deeper local relief. At strength 3,
+authored city5_3 remains normal/height 1/1, vrext/city5_3_norm alpha 61..211. This proves an adjustable effect,
+not physical accuracy of inferred shapes; default 1 retains the calibrated appearance.
+
+Validation: required QC/engine/FGD build passes; engine hash/provenance/component tests 13/13, composition
+fixtures 17/17, active generated/mixed/authored GPU strength 6/6 and uploaded component precedence 6/6,
+including vid_restart under sharp filtering. Stock-box material checks pass 20/20. Native captures and e1m1
+smoke exit 0. Calibration queries {menu:Graphics - Surfaces>Generated Relief Strength} and
+{menu:VR Settings>Generated Relief Strength} each find 1 and miss 0. Current next c48c71fd9 is merged,
+preserving calibrated generator/index and shotgun changes. No melee/physics or author files changed.
+
+VR follow-up: try strength 1..3 on generated AD masonry and check both stock explosive-box sizes close up.
+Authored walls, hands and weapons should retain their relief. Cleanup candidates: ignored scratch/pbr_strength*,
+scratch/boxes*, private pbr_boxproof.bsp, fixture backup/retired evidence, private eyeshots/imagehash and the
+retained renderer integration stash. No files were deleted.
