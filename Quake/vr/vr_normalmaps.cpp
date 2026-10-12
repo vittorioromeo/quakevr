@@ -894,15 +894,18 @@ extern "C" float VR_AlphaCoverage (const byte *data, int count)
 VR_LoadNormalMap -- the normal map dynamic lights light a world texture or a skin with (vr_normalmaps): an
 authored <image>_norm, or a <image>_bump height map, beside a replacement image; else one made from the texture's
 own shading (`data`, as loaded). `shared`: another image whose authored maps serve if `image` has none (a model's
-skin 0: all its skins lie on the same texture coordinates). `worldwidth` is the texture's width in the world. `flags`: NORMALMAP_HEIGHTS keeps
-the heights parallax mapping walks in its alpha (an authored _norm's own alpha, 255 if it has none); NORMALMAP_SKIN
+skin 0: all its skins lie on the same texture coordinates). `worldwidth` is the texture's width in the world. File-authored
+world maps always keep height alpha. `flags`: NORMALMAP_HEIGHTS keeps the heights of procedural maps and skins;
+NORMALMAP_SKIN
 makes it from a model skin's colours (TexMgr_SkinToNormals). Authored ones are marked NORMALMAP_FILE.
 =================
 */
 extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const char *shared, byte *data, enum srcformat format,
 	int worldwidth, int flags)
 {
-	int heights = flags & NORMALMAP_HEIGHTS, n;
+	// File-authored world relief is independent of the diffuse's nearest/linear filtering.
+	// The caller's height flag still controls procedural shading and model skins below.
+	int heights = (flags & NORMALMAP_SKIN) ? flags & NORMALMAP_HEIGHTS : NORMALMAP_HEIGHTS, n;
 	static constexpr struct { const char *suffix; int kind; } authored[] = {
 		{"_norm", NORMALMAP_AUTHORED},
 		{"_bump", NORMALMAP_SHADING},

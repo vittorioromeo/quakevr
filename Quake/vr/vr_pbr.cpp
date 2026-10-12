@@ -324,7 +324,7 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
             if(!r.normal[0] && !r.bump[0])
             {
                 TexMgr_LoadNormalMap(base, r.generated, w, h, f, generated, r.generated, 0,
-                    NORMALMAP_AUTHORED | NORMALMAP_FILE | (flags & NORMALMAP_HEIGHTS), worldwidth);
+                    NORMALMAP_AUTHORED | NORMALMAP_FILE | NORMALMAP_HEIGHTS, worldwidth);
                 use.attached = true;
             }
             else
@@ -349,7 +349,7 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
                 if(mixed)
                 {
                     TexMgr_LoadNormalMap(base, r.path, w, h, f, mixed, r.path, 0,
-                        NORMALMAP_AUTHORED | NORMALMAP_FILE | (flags & NORMALMAP_HEIGHTS), worldwidth);
+                        NORMALMAP_AUTHORED | NORMALMAP_FILE | NORMALMAP_HEIGHTS, worldwidth);
                     use.attached = true;
                 }
                 else use.found = false;
