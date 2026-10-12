@@ -1487,7 +1487,8 @@ void reset()
     return {s.pos[h], carry2h::fromAngles(&s.rot[h][0], true)};
 }
 
-// Drawn props use the same torso sweep as QC; local hand following must not draw a crate through the body.
+// Drawn props use the same torso sweep as QC; local hand following must not draw a crate through the body. Only
+// while your hand holds it (mainhand_held/offhand_held): a dropped crate easing back to its body is drawn where it is.
 void localBodyFrame(int num, carry2h::Frame& to)
 {
     edict_t* ent = serverEdict(num);
@@ -1495,15 +1496,26 @@ void localBodyFrame(int num, carry2h::Frame& to)
     if(!ent || !player) { return; }
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
-    const carry2h::Frame from{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, to.rot};
-    carry2h::bodyClear(ent, player, from, to);
+    const auto& f = progs::fields();
+    const int prog = EDICT_TO_PROG(ent);
+    const bool held = (f.mainhand_held >= 0 && progs::fieldInt(player, f.mainhand_held) == prog) ||
+                      (f.offhand_held >= 0 && progs::fieldInt(player, f.offhand_held) == prog);
+    if(held)
+    {
+        const carry2h::Frame from{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, to.rot};
+        carry2h::bodyClear(ent, player, from, to);
+    }
     PR_PopQCVM(oldvm);
 }
 
-void place(entity_t& e, const glm::vec3& desired, const glm::mat3& rot)
+// `bodyChecked`: the pose was put through localBodyFrame already this frame (holdFrame, bothFrame): not swept again.
+void place(entity_t& e, const glm::vec3& desired, const glm::mat3& rot, bool bodyChecked = false)
 {
     carry2h::Frame to{desired, glm::quat_cast(rot)};
-    localBodyFrame(static_cast<int>(&e - cl_entities), to);
+    if(!bodyChecked)
+    {
+        localBodyFrame(static_cast<int>(&e - cl_entities), to);
+    }
     const glm::vec3 pos = to.pos;
     e.origin[0] = pos.x;
     e.origin[1] = pos.y;
@@ -1615,7 +1627,7 @@ void holdFrame(int h, const hands::State& s, int bothEnt)
     carry2h::Frame bodyPose{hd.lastPos, glm::quat_cast(hd.lastRot)};
     localBodyFrame(hd.ent, bodyPose);
     hd.lastPos = bodyPose.pos;
-    place(e, hd.lastPos, hd.lastRot);
+    place(e, hd.lastPos, hd.lastRot, true);
     hd.drawn = true;
 }
 
@@ -1988,7 +2000,7 @@ void bothFrame(const hands::State& s, int ent)
     }
     localBodyFrame(ent, both.object);
     const glm::mat3 rot = glm::mat3_cast(both.object.rot);
-    place(e, both.object.pos, rot);
+    place(e, both.object.pos, rot, true);
     for(Held& hd : holding)
     {
         hd.drawn = true;
