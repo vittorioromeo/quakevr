@@ -230,6 +230,14 @@ matched nine AO models against the scalar reference with zero differences,
 spawned a shotgun eligible for force-grab and exercised Box3D worlds in e1m1/e1m2.
 Those mock tests do not prove physical reload, throwing or climbing.
 
+On 2026-10-12, with no wearer available, the unchanged baseline binary
+(`48ce8499…`) ran the `vrslopes` mantle fixture in an isolated Frame scratch
+copy using `vr_backend mock`, `vr_mock_fast 2`, and scripted `mantle(1.49)`
+hands. It accepted the flat lip and rejected the 45-degree lip (`no room to
+mantle`), matching the test's expected 40-degree slope limit. This is an
+engine/mock integration check; it does not test physical controller poses,
+hand feel, or worn OpenXR/compositor pacing.
+
 On 2026-10-12, a second native ARM64 mock-input regression pass on Frame ran the
 release binary at 0.25 and the render-scale-floor candidate at 0.18, both in a
 scratch copy. The reload self-test passed all 67 checks on each. `vr_hull_cachetest`
