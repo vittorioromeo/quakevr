@@ -1708,6 +1708,21 @@ bool eligible(const qmodel_t* model)
     return tableOf(model) != nullptr;
 }
 
+bool deathBoundary(const qmodel_t* model, int frame, bool first)
+{
+    if(const SeedTable* t = tableOf(model))
+    {
+        for(int i = 0; i < t->deaths; i++)
+        {
+            if(frame == (first ? t->deathFirst[i] : t->deathLast[i]))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 const Rig* rigFor(qmodel_t* model)
 {
     const SeedTable* table = tableOf(model);

@@ -116,6 +116,7 @@ GLuint bloodArray = 0; // ... and the blood on them that isn't theirs (spatter, 
                        // your masks in the pool, a layer each, the last your body's right side's)
 bool foreign = false;  // painting blood that isn't yours (paintOnYou's): into bloodArray
 int fineSize = 0;     // their side in texels (0: none; yours in the pool)
+int allocatedOwnRes = -1, allocatedBodyRes = -1; // routing changes also clear masks, even with the same array size
 GLuint washStencil = 0; // a depth-stencil texture as big as the largest mask: a wash takes its blood off each texel once
 int washStencilSize = 0;
 double lastTick = -1.0;
@@ -216,9 +217,9 @@ void resetGear()
 }
 
 // vr_wounds_own_res: 0, or a power of two from 512 to 2048.
-[[nodiscard]] int ownRes()
+[[nodiscard]] int detailRes(float value)
 {
-    const int want = static_cast<int>(vr_wounds_own_res.value);
+    const int want = static_cast<int>(value);
     if(want <= 0)
     {
         return 0;
@@ -230,6 +231,9 @@ void resetGear()
     }
     return res;
 }
+
+[[nodiscard]] int ownRes() { return detailRes(vr_wounds_own_res.value); }
+[[nodiscard]] int bodyRes() { return za::max(ownRes(), detailRes(vr_wounds_body_res.value)); }
 
 [[nodiscard]] int maskCount()
 {
@@ -297,7 +301,7 @@ void resetGear()
 {
     for(int slot = 0; slot < ownSlots - 1; slot++)
     {
-        bool taken = false;
+        bool taken = fineSize > 0 && masks[static_cast<za::SizeT>(layers + slot)].ent;
         for(const Mask& m : masks)
         {
             taken = taken || (m.ent && m.otherSlot == slot);
@@ -383,9 +387,10 @@ void releaseTexture()
 // The texture array and its framebuffer, `poolSize()` layers, and the fine masks (made again, empty, when either changes).
 bool ensureTexture()
 {
-    const int wantFine = ownRes();
+    const int wantOwn = ownRes(), wantBody = bodyRes();
+    const int wantFine = za::max(wantOwn, wantBody);
     const int want = poolSize() + (wantFine > 0 ? 0 : 1); // (chunky: your body's right side, an extra layer)
-    if(array && layers == want && fineSize == wantFine)
+    if(array && layers == want && fineSize == wantFine && allocatedOwnRes == wantOwn && allocatedBodyRes == wantBody)
     {
         return true;
     }
@@ -425,6 +430,8 @@ bool ensureTexture()
     GL_GenFramebuffersFunc(1, &fbo);
     layers = want;
     fineSize = wantFine;
+    allocatedOwnRes = wantOwn;
+    allocatedBodyRes = wantBody;
     masks.clear();
     masks.resize(static_cast<za::SizeT>(want + (wantFine > 0 ? ownSlots : 0)), Mask{});
     maskOf.clear();
@@ -742,10 +749,12 @@ int acquire(const entity_t* e, bool view, bool create, bool box = false)
     {
         return -1;
     }
-    // Yours in the fine masks (vr_wounds_own_res), the rest in the pool.
-    const bool fine = view && fineSize > 0;
+    // The tall body atlas needs finer blood than the hands to give their arms comparable texels per metre.
+    // Preserve vr_wounds_own_res (including chunky hands); a body-only minimum selects its fine mask.
+    const int resolution = modelmeta::has(e->model, modelmeta::Trait::Body) ? bodyRes() : ownRes();
+    const bool fine = view && fineSize > 0 && resolution > 0;
     int w = 0, h = 0;
-    if(!regionOf(e->model, w, h, fine ? fineSize : 0, box))
+    if(!regionOf(e->model, w, h, fine ? resolution : 0, box))
     {
         return -1;
     }
@@ -759,6 +768,19 @@ int acquire(const entity_t* e, bool view, bool create, bool box = false)
     for(int i = fine ? layers : 0; i < end; i++)
     {
         const Mask& m = masks[static_cast<za::SizeT>(i)];
+        if(fine)
+        {
+            bool shared = false;
+            for(int p = 0; p < layers; p++)
+            {
+                const Mask& pooled = masks[static_cast<za::SizeT>(p)];
+                shared = shared || (pooled.ent && pooled.otherSlot == i - layers);
+            }
+            if(shared)
+            {
+                continue;
+            }
+        }
         if(!m.ent)
         {
             best = i;
@@ -3558,13 +3580,14 @@ void info_f()
         used, maskCount(), layerSize, layerSize, static_cast<double>(layers) * layerSize * layerSize * 4.0 / (1024.0 * 1024.0), fineSize,
         fineSize, static_cast<double>(maskCount() - layers) * fineSize * fineSize * 5.0 / (1024.0 * 1024.0), paintsTotal,
         static_cast<double>(lastPaintMs));
+    Con_Printf("wounds: own resolution hands %d body %d (shared array %d)\n", ownRes(), bodyRes(), fineSize);
     for(int i = 0; i < maskCount(); i++)
     {
         const Mask& m = masks[static_cast<za::SizeT>(i)];
         if(m.ent)
         {
-            Con_Printf("  %2d %s%s %dx%d, drawn %.1f s ago%s%s\n", i, m.model ? m.model->name : "?",
-                m.view ? (isFine(i) ? " (you, fine)" : " (you)") : "", m.w, m.h,
+            Con_Printf("  %2d %s%s %dx%d, foreign blood slot %d, drawn %.1f s ago%s%s\n", i, m.model ? m.model->name : "?",
+                m.view ? (isFine(i) ? " (you, fine)" : " (you)") : "", m.w, m.h, bloodLayerOf(i),
                 vr_gametime - m.lastDrawn, m.wetLeft > 0.f ? ", wet" : "", m.hotLeft > 0.f ? ", hot" : "");
         }
     }

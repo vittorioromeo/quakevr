@@ -160,7 +160,7 @@ bases = {name: bone_basis(name) for name, _, _ in joints}
 # Mesh: lofted rings of 8 vertices, with caps
 
 SIDES = 8
-PAD = 2.0 / 128  # texture coordinates kept off each block's edges (4 texels of the 256 skins)
+PAD = 2.0 / 128  # normalized margin inherited from the authored 256-square atlas
 
 # Skin blocks (u0, v0, u1, v1): skin (the arms), the head, the torso ("leather": the ranger's vest, belt and the top of
 # his trousers), the legs ("cloth": trousers and thigh plates), the feet and the boots' shafts, the
@@ -170,9 +170,9 @@ BLOCKS = {
     "head": (0.0, 0.4, 0.5, 0.5),
     "leather": (0.5, 0.0, 1.0, 0.5),
     "cloth": (0.0, 0.5, 0.5, 1.0),
-    "boots": (0.5, 0.5, 0.625, 1.0),
-    "shaft": (0.625, 0.5, 0.75, 1.0),
-    "bracer": (0.75, 0.5, 1.0, 1.0),
+    "boots": (0.5, 0.65, 0.75, 1.0),
+    "shaft": (0.75, 0.65, 1.0, 1.0),
+    "bracer": (0.5, 0.5, 1.0, 0.65),
 }
 
 verts = []  # (position, [(joint index, bias)], (s, t))
@@ -333,7 +333,7 @@ def fore_w(side, f):
 HAND_UNIT = 0.01286
 HAND_WRIST = (-4.487973, -1.05, 1.447346)
 HAND_LIP = 1.1
-HAND_MARGIN = 0.0006
+HAND_MARGIN = 0.0003
 hand_mesh = None  # (positions, triangles) of the hand in its bind pose, read once
 
 
@@ -599,7 +599,7 @@ def build_mesh(m, bare=False):
             arm.append((add(wrist, mul(fd, lip_m)), fa, fv, ref[0], ref[1], w((ha_, 1.0)), hand_ring(side, HAND_LIP, *ref)))
             per += [1, 1, 2, 1]
             vpos += [(7 + 2 * (d - 0.12) / 0.14) / 9 for d, _ in rings_b] + [1.0 - 2 * lip_m / 0.14 / 9, 1.0]
-        loft(arm, "skin", sides=12, per=per, vpos=vpos, cap_end=not bare)
+        loft(arm, "skin", sides=24 if bare else 12, per=per, vpos=vpos, cap_end=not bare)
         # A leather bracer over the forearm's lower half (its straps show how the forearm turns),
         # ending at the wrist in a flared lip over the base of the hand. The arm meets make_hand_rig.py's
         # hand at its wrist: the wrist's ring holds the hand's wrist with a few millimetres to spare,
@@ -731,7 +731,8 @@ def write_md5anim(path):
 # (loft(): u round the ring from its first axis, v along the loft), with the light from above painted in as Quake's
 # skins have it: folds and quilting lit on their upper side, seams, stitches and the shadows where parts meet.
 
-SKIN_SIZE = 256
+SKIN_SIZE = 512
+SKIN_HEIGHT = 2048  # long arm unwrap: near the hand's texel density in both directions
 PALETTE = [tuple(int(c) for c in p) for p in palette()]
 
 SKIN = [116, 117, 118, 119, 120, 121, 122, 123]             # the arms (and the face), dark to light
@@ -1073,12 +1074,12 @@ PAINTERS = {
 }
 
 
-def skin_indices(armor, size=SKIN_SIZE):
+def skin_indices(armor, size=SKIN_SIZE, height=SKIN_HEIGHT):
     """The skin without damage, as palette indices (rows top to bottom)."""
-    out = bytearray(size * size)
-    for row in range(size):
+    out = bytearray(size * height)
+    for row in range(height):
         for col in range(size):
-            s, t = (col + 0.5) / size, (row + 0.5) / size
+            s, t = (col + 0.5) / size, (row + 0.5) / height
             block = next(b for b, (u0, v0, u1, v1) in BLOCKS.items() if u0 <= s < u1 and v0 <= t < v1)
             bu, bv = block_uv(block, s, t)
             d = h01(col, row, 1)
@@ -1092,21 +1093,21 @@ def skin_indices(armor, size=SKIN_SIZE):
     return out
 
 
-def write_skin(path, base, damage, size=SKIN_SIZE):
+def write_skin(path, base, damage, size=SKIN_SIZE, height=SKIN_HEIGHT):
     marks = damage_marks(damage)
     pixels = bytearray()
     # TGA rows go bottom-up; t = 0 is the top of the image.
-    for row in range(size - 1, -1, -1):
+    for row in range(height - 1, -1, -1):
         for col in range(size):
             i = base[row * size + col]
             if marks:
-                m = mark_texel((col + 0.5) / size, (row + 0.5) / size, marks)
+                m = mark_texel((col + 0.5) / size, (row + 0.5) / height, marks)
                 if m is not None:
                     i = m
             assert i < 224, "a fullbright colour"
             r, g, b = PALETTE[i]
-            pixels += bytes((b, g, r, 255))
-    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, size, size, 32, 8)
+            pixels += bytes((b, g, r))
+    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, size, height, 24, 0)
     with open(path, "wb") as f:
         f.write(header + pixels)
 
@@ -1164,9 +1165,13 @@ def main():
                            [os.path.join(out, "vrbody" + suffix + bare + ext) for suffix, _ in BUILDS
                             for bare in ("", "_bare") for ext in (".md5mesh", ".md5anim", ".mdl")])
     for armor in range(4):
+        paths = [os.path.join(out, "vrbody_%02d_00.tga" % (armor * 4 + damage)) for damage in range(4)]
+        if all(os.path.abspath(path) in guard.kept for path in paths):
+            continue  # preserve authored paint without spending minutes painting stock skins discarded by the guard
         base = skin_indices(armor)
-        for damage in range(4):
-            write_skin(os.path.join(out, "vrbody_%02d_00.tga" % (armor * 4 + damage)), base, damage)
+        for damage, path in enumerate(paths):
+            if os.path.abspath(path) not in guard.kept:
+                write_skin(path, base, damage)
     for suffix, muscle in BUILDS:
         for bare in (False, True):  # with the bracers; bare forearms (vr_body_bracers 0)
             build_mesh(muscle, bare)

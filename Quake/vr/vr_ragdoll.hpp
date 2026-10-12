@@ -82,6 +82,9 @@ struct Rig
 // Whether `model` has a seed table (the grunt's; vr_ragdoll 1): cheap, by its name.
 [[nodiscard]] bool eligible(const qmodel_t* model);
 
+// A seed table's death endpoints, without deriving the rig (animation smoothing).
+[[nodiscard]] bool deathBoundary(const qmodel_t* model, int frame, bool first);
+
 // The rig of `model`, derived on first use (tens of milliseconds) and kept: nullptr if it has none or the derivation
 // failed (the model isn't the one the seed table was made for).
 [[nodiscard]] const Rig* rigFor(qmodel_t* model);

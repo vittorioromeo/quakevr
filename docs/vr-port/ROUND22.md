@@ -3745,3 +3745,37 @@ it should grab the lip, hang, and pull itself up onto the top. Shoot two grunts 
 clutch the other a moment. Swing your sword or fist at a grunt's head: it should throw its arms up before its face.
 Ragdoll Settings: Drowning Struggle, Pull Up From Ledges, Grab Others Falling, Guard the Head; Debug > Tests > Ragdoll
 Behaviours: the four new rows.
+
+## Idle wrap, authored arms and body blood (animbody)
+
+- The grunt's native frames have empty names; named appended shove frames incorrectly made all its frames trust
+  file order. Ease 0 predicted death frame 8 at idle frame 7 instead of the learned wrap to 0. Successor reliability
+  is now per frame; seed-table death endpoints prevent predicting a death from the preceding idle frame. Looking
+  up those endpoints no longer builds a rig with Smooth Limbs off. Ironwail's animation toggle preserves mode 3.
+  Normal `r_lerpmodels 1` stays the default pending headset testing.
+- All sixteen skins retain the author's repaint (24fa2de6d). `refine_body_skins.py` derives a 512x2048 atlas from
+  those originals: skin/bracer colour interpolated with small fine grain, including existing blood; other islands
+  retain their exact RGB texels. Bracer/boot/shaft islands repacked; normals rebaked. Bare arms have 24 sides and
+  a 0.3 mm wrist overlap. Gadget ring straps also fit bare arms. Regeneration uses `--keep-edited`, followed by
+  refinement from the original 256-square sources and `bake_normals.py body`; refined sources reject refinement.
+- New `vr_wounds_body_res 1024` / Wounds > Body Wounds' Detail is a body-only minimum. It preserves the author's
+  `vr_wounds_own_res 0` and the hands' resolution; 0 opts out. No saved-setting migration. Shared fine-array
+  allocation follows the larger setting; fine and pooled own models now reserve separate foreign-blood slots.
+  Changing routing rebuilds masks even when the shared array size stays the same.
+- Measured texel density: hand diffuse ~1400/m; bare wrist ~1333/m around, 1259/m along; bracer ~1043/1775/m.
+  Live blood: chunky hand ~700/m; body at 1024 ~667/629/m (effective mask 256x1024; opt-out 64x256).
+  Six before/after eye captures cover clean/authored blood/live blood, bracers both ways; seams 0 mm in the fixed
+  bent-wrist pose, two gadget straps visible with bare arms. Composite: `scratch/animbody_compare_visual.png`.
+- Cost: sixteen RGBA diffuse skins grow from ~4 to ~64 MiB if all resident (+60 MiB); body detail adds the shared
+  20 MiB fine+foreign array at 1024. Painting stays on GPU, with no CPU texture upload. Exclusive mock comparison,
+  100 wound events/899 measured frames: total GPU 0.84 ms opt-out / 0.83 ms at 1024; eyes 0.75/0.74 ms. The wounds
+  stage was below the profiler's 0.02 ms display threshold for both CPU and GPU. Thirteen CPU paint samples each:
+  median 0.022 ms both; maximum 0.103/0.090 ms. These are mock measurements, not headset frame-time guarantees.
+- Idle trace (600 requested/598 measured): single-vertex acceleration p95/max 0.279/1.272 -> 0.036/0.058 units;
+  mean p95/max 0.116/0.541 -> 0.011/0.021. Exact keys pass; 0.001 off key <=0.045 units; 562 splines swung.
+  Disabled-rig info reports no rig and one learned wrap. Three pinned idle segments inspected visually.
+  Calibration menu paths: 4 found, 0 missing. Targeted mask tests cover 0/1024/512 transitions and independent
+  foreign-blood slots. Build and e1m1/e1m2 smoke pass. Reproducers: `animsmooth_test.sh`, `body_detail_test.py`.
+
+In VR: check Ease 0 grunt idle gun over several loops; bare/bracer wrist bends, gadget straps, authored scars and
+live blood beside the hands. Confirm the memory/detail tradeoff before changing any wider defaults.

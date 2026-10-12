@@ -3,8 +3,8 @@
 
 inline constexpr float handUnit = 0.01286f; // HAND_UNIT: metres a hand unit at the default sizes
 inline constexpr float handLip = 1.10f; // HAND_LIP: hand units the forearm runs past the wrist
-inline constexpr float wristU = 0.0285f; // the wrist ring's semi-axes (bare_wrist): across
-inline constexpr float wristV = 0.0187f; // through
+inline constexpr float wristU = 0.0282f; // the wrist ring's semi-axes (bare_wrist): across
+inline constexpr float wristV = 0.0184f; // through
 inline constexpr float tint[3] = {0.753f, 0.692f, 0.653f}; // the hand's clean skin over the arms' skin there
 inline constexpr float skinPad = 0.01562500f; // PAD: the skin block's edge pad
 inline constexpr float skinBlockU = 0.500f; // the skin block's right edge (u)
