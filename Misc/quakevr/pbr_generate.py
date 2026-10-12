@@ -16,7 +16,7 @@ import numpy as np
 from PIL import Image
 
 VERSION = 1
-CACHE_VERSION = 1  # Bump when inference/packing semantics change; discovery-only changes retain cached pixels.
+CACHE_VERSION = 2  # Bump when inference/packing semantics change; discovery-only changes retain cached pixels.
 NORMAL_SHA256 = "b0a18270da765f02eaae3c228203bee0677fc28b2854a562515e4aae9c61223b"
 HEIGHT_SHA256 = "5b973ecb8bae9d96d14d77b8a8f1d88fb6a8580bcc1bb55d2872811acdc4277d"
 TAG = b"qvr-pbr-v1\0"
@@ -389,6 +389,21 @@ def resize_channel(array, size):
     return np.asarray(Image.fromarray(array).resize(size, Image.Resampling.BILINEAR))
 
 
+def calibrated_height(prediction, holes, depth):
+    """Use bounded relative relief, rather than the model's arbitrary DC offset."""
+    valid = prediction[~holes]
+    if valid.size < 16:
+        return np.full(prediction.shape, 255, np.uint8)
+    low, high = np.percentile(valid, (5, 95))
+    span = float(high - low)
+    # Nearly constant predictions do not establish relief. Limit amplification of weak signals.
+    if span < .02:
+        return np.full(prediction.shape, 255, np.uint8)
+    gain = min(1 / span, 8)
+    recession = np.clip((high - prediction) * gain, 0, 1)
+    return np.rint(255 * (1 - depth * recession)).astype(np.uint8)
+
+
 def validate_image(path, generated_normal, generated_height, depth):
     rgba = read_image(path)
     normal = rgba[:, :, :3].astype(np.float32) / 127.5 - 1
@@ -470,7 +485,7 @@ def generate(args, sources, census, palette_sha):
               "height": Predictor(args.height_model, args.device, args.threads)}
     config = {"version": VERSION, "cache_version": CACHE_VERSION, "runtime": runtime, "generator_sha256": sha(Path(__file__).read_bytes()), "models": {k: {"sha256": p.checksum, "file": p.path.name, "backend": p.backend,
               "device": p.device} for k, p in models.items()}, "padding": args.padding, "tile": args.tile,
-              "depth": args.depth, "green": args.green, "authored_match":args.authored_match, "palette_sha256": palette_sha}
+              "depth": args.depth, "height_calibration": {"percentiles": [5, 95], "gain_limit": 8, "flat_span": .02}, "green": args.green, "authored_match":args.authored_match, "palette_sha256": palette_sha}
     anchors, conflicts = animations(sources)
     # Source discovery and documentation changes must not rerun unchanged model inference.
     cache_config = dict(config)
@@ -520,10 +535,13 @@ def generate(args, sources, census, palette_sha):
                 reused += 1
             else:
                 normal = authored_normal if authored_normal is not None else normal_bytes(models["normal"](rgb, args.padding, args.tile), args.green == "flip")
-                height = authored_height if authored_height is not None else np.rint(255 * (1 - args.depth + args.depth * models["height"](rgb, args.padding, args.tile).mean(axis=2))).astype(np.uint8)
+                prediction = models["height"](rgb, args.padding, args.tile).mean(axis=2) if generated_height else None
+                height = authored_height if authored_height is not None else calibrated_height(prediction, anchor_source["holes"], args.depth)
                 normal = resize_channel(normal, size).copy()
                 height = resize_channel(height, size).copy()
-                correlation = normal_green_correlation(normal, height)
+                # Keep normal orientation independent of relief calibration (including authored RGB).
+                orientation_height = authored_height if authored_height is not None else np.rint(255 * (.75 + .25 * prediction)).astype(np.uint8)
+                correlation = normal_green_correlation(normal, resize_channel(orientation_height, size))
                 if args.green == "auto" and correlation < -.2:
                     normal[:, :, 1] = 255 - normal[:, :, 1]
                 holes = resize_channel(source["holes"].astype(np.uint8), size) > 0
@@ -631,7 +649,7 @@ def main():
     p.add_argument("--threads", type=int, default=4)
     p.add_argument("--padding", type=int, default=48)
     p.add_argument("--tile", type=int, default=256)
-    p.add_argument("--depth", type=float, default=.25)
+    p.add_argument("--depth", type=float, default=.5)
     p.add_argument("--authored-match", type=float, default=.5)
     p.add_argument("--green", choices=("auto", "keep", "flip"), default="auto")
     p.add_argument("--limit", type=int, default=0)

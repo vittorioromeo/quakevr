@@ -57,6 +57,24 @@ def make_pak(path, content):
 
 
 class PipelineTests(unittest.TestCase):
+    def test_generated_height_relative_calibration(self):
+        prediction = np.linspace(.45, .55, 100).reshape(10, 10)
+        holes = np.zeros((10, 10), bool)
+        height = pbr.calibrated_height(prediction, holes, .5)
+        self.assertEqual(int(height.max()), 255)
+        self.assertGreater(int(height.max() - height.min()), 80)
+        self.assertGreaterEqual(int(height.min()), 127)
+        # A constant learned offset carries no geometric information.
+        flat = pbr.calibrated_height(np.full((10, 10), .5), holes, .5)
+        self.assertTrue(np.all(flat == 255))
+        weak = pbr.calibrated_height(prediction * .1, holes, .5)
+        self.assertTrue(np.all(weak == 255))
+        # Excluded cutouts must not set the calibration range.
+        prediction[0] = 0
+        holes[0] = True
+        calibrated = pbr.calibrated_height(prediction, holes, .5)
+        self.assertEqual(int(calibrated[~holes].max()), 255)
+
     def setUp(self):
         scratch = Path(__file__).resolve().parents[2] / "scratch"
         scratch.mkdir(exist_ok=True)
@@ -137,12 +155,23 @@ class PipelineTests(unittest.TestCase):
         manifest_path = self.args.output / "pbr-manifest.json"
         manifest = json.loads(manifest_path.read_text())
         manifest["configuration"]["generator_sha256"] = "previous-discovery-implementation"
-        manifest["configuration"].pop("cache_version", None)
         pbr.json_write(manifest_path, manifest)
         with patch.object(FixturePredictor, "__call__", side_effect=AssertionError("unexpected inference")):
             result, manifest = self.run_generation()
         self.assertTrue(np.array_equal(result, original))
         self.assertEqual(manifest["summary"]["cached"], 1)
+
+    def test_previous_height_packing_invalidates_resume(self):
+        self.source()
+        self.run_generation()
+        for cache in self.args.cache.glob("*.png"):
+            cache.rename(self.root / ("old-packing-" + cache.name))
+        manifest_path = self.args.output / "pbr-manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["configuration"]["cache_version"] = 1
+        pbr.json_write(manifest_path, manifest)
+        _, manifest = self.run_generation()
+        self.assertEqual(manifest["summary"]["cached"], 0)
 
     def test_authored_rgb_generated_alpha_resume(self):
         self.source()

@@ -86,13 +86,13 @@
   "scan_errors": [],
   "selected_override_occurrences": 1305,
   "texture_game_priority": [
-    "C:\\OHWorkspace\\quakevr-iw\\quakevr",
+    "quakevr",
     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\ad",
     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\rogue",
-    "C:\\OHWorkspace\\qvr-kit\\qbase\\rogue",
+    "C:\\OHWorkspace\\qvr-kit\\bases\\adpbrload\\qbase\\rogue",
     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\hipnotic",
-    "C:\\OHWorkspace\\qvr-kit\\qbase\\hipnotic",
+    "C:\\OHWorkspace\\qvr-kit\\bases\\adpbrload\\qbase\\hipnotic",
     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\id1",
-    "C:\\OHWorkspace\\qvr-kit\\qbase\\id1"
+    "C:\\OHWorkspace\\qvr-kit\\bases\\adpbrload\\qbase\\id1"
   ]
 }

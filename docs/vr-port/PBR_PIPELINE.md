@@ -107,8 +107,13 @@ so those hashes may never be used in AD.
 - A named authored map with a comparison diffuse must meet the runtime's detail correlation of 0.5: 64x64 detail,
   4x4 samples per cell and a periodic 5x5 high-pass. Aspect ratios must agree. `--authored-match` changes the threshold;
   rejected scores are recorded. With no diffuse comparison, explicit standalone authored components are accepted.
-- Generated height has the global `--depth 0.25` bound: alpha at least 191. Authored height retains its own depth.
-  There is no per-image contrast stretching. Generated normals are unit vectors in the positive hemisphere.
+- Generated height is relative to its learned 95th-percentile surface. Its 5th..95th-percentile span fills the
+  global `--depth 0.5` bound (alpha at least 127), with contrast gain capped at 8 and learned spans below 0.02
+  left flat. Cutouts do not set these percentiles. This yields at most 1.25 Quake units of generated relief at
+  `vr_parallax_depth 2.5`, rather than a nearly uniform recess from the model's arbitrary brightness offset.
+  Authored height retains its own depth and bypasses calibration. Normal RGB and green orientation remain independent
+  of this calibration; generated normals are unit vectors in the positive hemisphere. Set `--depth` to change the
+  generated relief bound. Cache version 2 invalidates the previous compressed height packing.
 - Tiles have 48 pixels of periodic source context and only center predictions survive. Default tile size is 256.
   Border differences are measured rather than forcing unlike border texels to match.
 - Indexed `{` fences preserve index-255 cutouts. Transparent/emissive colours are filled from periodic nearby valid
