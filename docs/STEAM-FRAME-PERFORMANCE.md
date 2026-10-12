@@ -449,15 +449,42 @@ GPU-eye mean 8.13 ms (p99 9.54 ms), frame p99 16.11 ms and CPU-busy p99
 12.13 ms. The detailed profiler adds collection overhead, so I used it to
 locate phases, not as a replacement for the unprofiled A-B-B-A timings.
 
-The hitch CSV recorded 33 frames whose CPU host time exceeded the 13.89 ms
-display budget. In those rows, hidden desktop-window swap averaged 4.59 ms and
-peaked at 12.33 ms; `xrWaitFrame` stayed below 0.31 ms and swapchain waits below
-0.08 ms. `xrEndFrame` averaged 0.65 ms and peaked at 5.84 ms. Box3D and per-eye
-view setup also appeared among the larger CPU scopes. These phase values are
-from individual slow frames. The breakdown's CPU scopes add up to the reported
-period, but time charged to a wait may reflect upstream GPU or queue work. It
-does not prove that window swap alone caused each late frame. Raw profile and hitch CSVs are
-retained privately in `performance-results/frame-tail-hitches-20261012`.
+The hitch CSV recorded 34 frames whose CPU host time exceeded the 13.89 ms
+display budget. Thirty-three regular hitches had hidden desktop-window swap of
+4.59 ms mean and 12.33 ms maximum; `xrWaitFrame` stayed below 0.31 ms and
+swapchain waits below 0.08 ms. `xrEndFrame` averaged 0.65 ms and peaked at
+5.84 ms. Box3D and per-eye view setup also appeared among the larger CPU
+scopes. One separate 254.39 ms outlier was dominated by `render_other_ms`
+(241.176 ms; eye scopes 136.7/104.3 ms), while swap was 0.765 ms and XR
+wait/acquire/end were 0.188/0.080/0.327 ms. Its cause is unknown; this was a
+no-wearer capture with profiling enabled, so retain it as an observed maximum
+but do not treat it as representative or evidence of a swap/pacing fault.
+These phase values come from individual slow frames. The breakdown's CPU
+scopes add up to the reported period, but time charged to a wait may reflect
+upstream GPU or queue work. It does not prove that window swap alone caused
+each late frame. Raw profile and hitch CSVs are retained privately in
+`performance-results/frame-tail-hitches-20261012`.
+
+A fresh on-device engine regression pass ran against the release executable at
+scale 0.25 and the experimental 0.18 executable using mock tracking. The hull
+cache check passed on both. A 200-body, 300-step physics test produced the same
+deterministic hash (`92faaba3aff7d472`) at 1, 2, 3, 4, 6, and 8 workers for
+both binaries. This validates deterministic engine behavior, not controller
+delivery, compositor pacing, or wearer performance. The logs are retained on
+the Frame in `performance-results/decal-grid-frame-20261012/core-regression-20261012`.
+
+I also repeated the no-wearer OpenXR probe in the scratch install and held it
+open for 2,400 scripted frames. `frame-vr-state.py` observed the native engine
+as `EVRSceneApplicationState_Running`, with its PID matching compositor scene
+focus and key `system.generated.openxr.quake vr.ironwail`. The engine logged 33
+fresh `projection=1 stereo_views=2 quad=0 held=0` layer records, plus one
+startup quad. SteamVR selected the Frame controller interaction profile for
+both hands, while both pose actions were inactive and invalid because the
+controllers were disconnected and the HMD pose was invalid. This confirms
+OpenXR scene registration and stereo-layer submission on the Frame; it cannot
+confirm head tracking, controller input, or wearer comfort. The probe config,
+live runtime-state snapshot, engine log and OpenXR diagnostics are retained on
+the Frame in `performance-results/openxr-unworn-live-20261012`.
 
 To test whether hidden-window swapping itself could be removed, I made a
 temporary build that skipped `SDL_GL_SwapWindow` only while OpenXR was active
