@@ -4465,3 +4465,45 @@ map cases. A video restart retained all 838 texture hashes (sum `ccd37408ad22e72
 menu paths reported 0 missing. `Misc/quakevr/pbr_loader_test.py` stages and verifies the private fixtures with only
 Python's standard library; `retire` moves its outputs under scratch without deleting them. Production AD measurements
 and actual-eye comparison are recorded below when the companion bundle is integrated.
+## AD PBR generation pipeline (adpbrgen)
+
+`Misc/quakevr/pbr_generate.py` now scans installed PAK/loose BSP miptex data and loose image directories, deduplicates
+canonical diffuse RGBA content, and produces `textures/pbr/<128-bit-source-prefix>_norm.png` companions. The loader
+contract is SHA256 of `qvr-pbr-v1` NUL, little-endian uint32 width/height, then RGBA; indexed pixels use the raw palette
+and alpha 255. No original diffuse textures, BSPs, palettes or model weights are exported or committed.
+
+Full AD 1.8 corpus: 283 BSPs, 2455 eligible names, 2348 unique embedded diffuse hashes; another 218 hashes cover the
+read-only Quetoo comparison images if used as external diffuse replacements. All 2566 outputs succeeded in 85.10 s
+on RTX 4090, 145650884 PNG bytes (138.90 MiB). Embedded-source outputs account for 111.32 MiB; extra comparison-image
+coverage is not necessarily drawn by AD. Canonical RGBA hashes distinguish 85 colliding embedded names; differences
+in palette indices that expand to identical RGB appropriately deduplicate. 77 excluded names (326 occurrences)
+include 16 sky and 56 liquid names, plus tool textures. 65 source hashes have cutouts; 315 have emissive pixels.
+
+Pinned PBRify_Remix 1.7.2 NormalV3 and Height weights run directly through the same SPAN model loading stack used by
+chaiNNer, via PyTorch 2.8.0+cu128/spandrel 0.4.1 (numpy 2.5.2/Pillow 12.3.0). The chain's Electron UI was not launched;
+native 1x inference preserves diffuse art. Model/archive checksums and the complete repeatable workflow are in
+`docs/vr-port/PBR_PIPELINE.md`. This also covers fresh PAKs, loose PNG folders, palette precedence, CPU/ONNX, refresh,
+cache resume, validation, installation and Quetoo attribution. Roughness/spec conversion is omitted because the
+engine's specular controls do not have an established physical conversion from learned roughness.
+
+Generated maps have periodic 48-pixel context, cropped 256-pixel tiles, unit hemisphere normals, and global height
+depth 0.25 (alpha 191..255). Cutout/emissive input colours are periodically filled before inference; generated holes
+have flat relief. 224 animation hashes share a matching stationary family lead; moving patterns and different shapes
+keep their own relief. Five ambiguous animation-family hashes conservatively use their own source. Authored
+components are retained independently, with green handedness converted only when necessary. The engine's 0.5
+detail-signature match rejects 116 unrelated same-name material associations; 188 outputs retain both authored
+normal and height components, 169 requiring green conversion. A missing single counterpart is supported and tested,
+although no such partial material occurred in the scanned corpus. Originals remain unchanged.
+
+Validation: all 2566 file checksums, dimensions, generated normal units/hemisphere and depth bounds pass; maximum
+generated normal length error 0.00653. Real-model periodic translation max float delta 0.000000268; changing inference
+tile size on a random periodic fixture gave max 0.002092 (about half an 8-bit normal-channel unit). Ten focused tests
+pass: PAK/loose precedence, name collisions, authored RGB/alpha/bump preservation, cache resume, model checksum
+rejection, loose-image exclusion/dedup, indexed fences, stationary and scrolling animations. A complete rerun reused
+all 2566 cache entries with zero failures. Required build and e1m1 mock smoke pass (exit 0). The companion engine-loader
+worker validates actual GPU lookup and AD use after integration; these tools alone do not enable the runtime loader.
+
+VR review: inspect AD brick/stone/wood, shallow angles and seams, fences, glowing buttons and animated/scrolling
+materials. Painted shadows can still become learned relief; the upstream height model explicitly has this limitation.
+Cleanup candidates: ignored `scratch/pbr-cache`, `scratch/pbr-sample`, `scratch/pbr-resume`, `scratch/pbr-tests-*`,
+`scratch/pbrify172` and `scratch/env` when no longer needed. Keep committed companions and their manifest/attribution.
