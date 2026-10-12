@@ -33,6 +33,8 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups; artifacts and Jump Boots; poison
 AD spawns: toolgun and Debug menus list AD monsters/items/weapons on all maps; unavailable entries disabled
 AD monsters: ragdolls, knockdowns and get-ups, beheading, limbs (gaunt, seeker, Freddie fit worst); Evil (Nightmare + AD); hide while crouched
 
+New ragdoll behaviours: hold a grunt under water 12 s (struggles to its feet); topple/drop a knocked-down grunt off a ledge (grabs the lip, pulls up); shoot one of two grunts standing close (grabs the other); swing a sword at a grunt's head (guards)
+
 [Still open from 1.0.x]
 MG1 west stairs: walk up slowly and jump, head low (a short catch at the top crest may remain); lava: you keep burning 3 s after stepping out
 Shoved into water: a grunt shoved off vrstart's island near the shore gets up; far out, gives up after ~3 s and sinks
