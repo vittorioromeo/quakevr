@@ -144,6 +144,15 @@ benchmarks.** The wearer reports slow locations; performance is a known issue.
 Manual reload, throwing, climbing, representative campaign combat, higher
 quality settings and post-calibration restart need further validation.
 
+A historical SteamVR compositor summary at the native process exit on Oct 12
+reported 1,829,770 presents, 8 dropped, 2,801 reprojected, and aggregate
+application CPU/GPU times of 1.874/3.561 ms. That process ran from 01:11 to
+08:14; the same summary includes 6,353 timed-out presents. It spans a long
+session and does not isolate active gameplay, so it is not a representative
+performance result or a before/after comparison. No `perfcriteria.txt` file was
+present in SteamVR's logs during this read-only inspection. A focused wearer
+capture remains necessary.
+
 Steam Audio ARM64 is not bundled; the normal Quake audio fallback works.
 GL_NV_shading_rate_image hardware foveation is unavailable in this GL path.
 Optional campaigns/music depend on the player's owned data.
