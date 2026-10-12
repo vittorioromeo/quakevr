@@ -195,6 +195,59 @@ void(float xTest) VR_Limb_Test =
         }
         return;
     }
+    if(xTest >= 24 && xTest <= 27)
+    {
+        m = VR_Limb_TestTarget(0);
+        if(m == world)
+        {
+            bprint("limbtest: corpse impact: no corpse with limbs near\n");
+            return;
+        }
+        b = VR_Limb_TestBone(m);
+        vector at = limbplace(m, b, 3);
+        float hpBefore = m.vr_corpse_hp;
+        if(xTest == 27)
+        {
+            float oldWeapon = VRGetEntWeapon(self, cVR_MainHand);
+            VRSetEntWeapon(self, cVR_MainHand, WID_AXE);
+            VR_Decap_TestBlow(at, VR_MTHING_AXE, VR_MKIND_SLASH, 0.85, 0, 8);
+            float cutOk = VR_Limb_CorpseBlow(m, cVR_MainHand, at);
+            VRSetEntWeapon(self, cVR_MainHand, oldWeapon);
+            VR_Gore_Print(sprintf("limbtest: 27 axe corpse slash %g\n", cutOk));
+        }
+        else
+        {
+            entity impact = self;
+            if(xTest == 26)
+            {
+                impact = spawn();
+                impact.classname = "vr_limbtest_prop";
+                impact.vr_gib = TRUE; // a physical thing: QVR_CDMG_PROPS, as a thrown brick
+            }
+            float kind = xTest == 26 ? QVR_CDMG_PROPS : QVR_CDMG_BLUNT;
+            float mult = VR_Corpse_DamageKindMult(kind);
+            VR_Corpse_Parts(m);
+            float hp = VR_Corpse_Health();
+            if(xTest == 25)
+            {
+                at = limbplace(m, 0, 3); // pelvis surface: a torso hit, even with ten times the body's health
+            }
+            for(float hit = 0; hit < (xTest == 25 ? 1 : 2); hit++)
+            {
+                VR_SetHitKind(xTest == 26 ? QVR_HITKIND_NONE : QVR_HITKIND_MELEE, -1, at, v_forward);
+                float damage = hp * (xTest == 25 ? 10 : 0.6) * VR_Corpse_PositionalFactor(m) / max(0.001, mult);
+                T_Damage(m, impact, self, damage);
+                VR_ClearHitKind();
+            }
+            if(impact != self)
+            {
+                remove(impact);
+            }
+        }
+        VR_Gore_Print(sprintf("limbtest: %g corpse hp %.1f -> %.1f, joint %g\n", xTest, hpBefore, m.vr_corpse_hp, b));
+        VR_Limb_TestReport(m, "corpse impact", cuts, pops, limbs, fountains);
+        return;
+    }
     if(xTest == 22 || xTest == 23)
     {
         m = VR_Limb_TestTarget(1);

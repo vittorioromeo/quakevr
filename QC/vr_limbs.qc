@@ -24,6 +24,7 @@ float vr_limb_endspurts; // the pieces' fountains' drops thrown (the tests)
 .float vr_limb_gibbed;   // when it was gibbed throwing its own limbs (VR_Limb_GibAll; ThrowGib's meat gibs not then: vr_gib_limbs 2)
 .float vr_limb_bserial;  // the blast its pellets below are of (vr_sgib_blastserial)
 .float vr_limb_bdmg[16]; // the blast's damage at each limb (by its joint)
+.float vr_limb_corpse_dmg[16]; // blunt corpse damage per joint (0 reserved for the head)
 .float vr_limb_btotal;   // the blast's damage on it in all
 .vector vr_limb_bat;     // the limb pellets' points summed
 .float vr_limb_bn;       // and how many
@@ -490,6 +491,45 @@ float(entity c, float xHand, vector xAt) VR_Limb_CorpseBlow =
     vr_decap_how = how;
     vr_decap_why = "a slash at a corpse's limb";
     return VR_Decap_Roll(c) && VR_Limb_Cut(c, self, vr_decap_slashvel, how, bone, FALSE);
+};
+
+// Blunt blows on a corpse with a rig accumulate on the piece struck. Exhausting its original corpse health pops
+// that piece; the torso remains physical. Disabling Limb Gore/Corpses keeps the existing whole-body damage path.
+float(entity targ, entity attacker, float damage, float kind) VR_Limb_CorpseImpact =
+{
+    if(!cvar_hget(cvarh_vr_limbs) || !cvar_hget(cvarh_vr_limbs_corpses) || targ.vr_gib ||
+       !(targ.flags & FL_MONSTER) || !isragdoll(targ) || !VR_Decap_HowOn(QVR_DECAP_BLUNT) ||
+       (VR_Limb_IsZombie(targ) && !cvar_hget(cvarh_vr_limbs_zombies)) ||
+       (kind != QVR_CDMG_BLUNT && kind != QVR_CDMG_FISTS && kind != QVR_CDMG_PROPS && kind != QVR_CDMG_BASH))
+    {
+        return FALSE;
+    }
+    float head = !targ.vr_headless && cvar_hget(cvarh_vr_decap) && cvar_hget(cvarh_vr_decap_corpses) &&
+                 ragdollhead(targ, vr_hitpos, 0) > 0;
+    float bone = head ? 0 : VR_Limb_At(targ, vr_hitpos);
+    if(bone < 0 || bone >= 16)
+    {
+        dprint(sprintf("corpse limb: %s blunt torso hit, body kept\n", targ.classname));
+        return TRUE;
+    }
+    VR_Corpse_Parts(targ);
+    float hp = max(1, VR_Corpse_Health());
+    targ.vr_limb_corpse_dmg[bone] = targ.vr_limb_corpse_dmg[bone] + damage;
+    dprint(sprintf("corpse limb: %s joint %g blunt damage %.1f / %.1f\n", targ.classname, bone,
+        targ.vr_limb_corpse_dmg[bone], hp));
+    if(targ.vr_limb_corpse_dmg[bone] >= hp)
+    {
+        vector vel = vr_hitdir * 300;
+        if(head)
+        {
+            VR_Decap_Cut(targ, attacker, vel, QVR_DECAP_BLUNT);
+        }
+        else
+        {
+            VR_Limb_Cut(targ, attacker, vel, QVR_DECAP_BLUNT, bone, FALSE);
+        }
+    }
+    return TRUE;
 };
 
 // The running chainsaw's bar in `e` at `xAt` on a limb (VR_Decap_Saw's second half): 2 a corpse's cut off, 1 a live one

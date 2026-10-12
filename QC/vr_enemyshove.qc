@@ -40,10 +40,19 @@ float(entity m) VR_EnemyShove_Ready =
 };
 
 // How far (flat, between the middles) `m` reaches to shove: vr_enemy_shove_range, measured for a grunt's or an
-// enforcer's width (16 units from its middle to its side), plus how much wider `m` is (a vore: 16 more).
+// enforcer's width (16 units from its middle to its side), plus its hull width; a vore uses its visible size too.
 float(entity m) VR_EnemyShove_Reach =
 {
-    return cvar_hget(cvarh_vr_enemy_shove_range) + max(0, m.maxs_x - 16);
+    float radius = max(fabs(m.mins_x), fabs(m.maxs_x));
+    radius = max(radius, max(fabs(m.mins_y), fabs(m.maxs_y)));
+    if(m.classname == "monster_shalrath")
+    {
+        // The walking hull is narrower than its arms and carapace. Follow the drawn size, including Size tweaks.
+        vector lo = drawnbounds(m, 0);
+        vector hi = drawnbounds(m, 1);
+        radius = max(radius, max(max(fabs(lo_x), fabs(hi_x)), max(fabs(lo_y), fabs(hi_y))));
+    }
+    return cvar_hget(cvarh_vr_enemy_shove_range) + max(0, radius - 16);
 };
 
 // The player in `m`'s reach (the nearest), or world.
@@ -139,8 +148,8 @@ float() VR_EnemyShove_Check =
             return FALSE; // (charmed)
         }
     }
-    dprint(sprintf("enemy shove: %s starts its shove at %.2f (from frame %g), the player %.0f units away\n",
-        self.classname, time, self.frame, vlen(toP)));
+    dprint(sprintf("enemy shove: %s starts its shove at %.2f (from frame %g), the player %.0f units away (reach %.0f)\n",
+        self.classname, time, self.frame, vlen(toP), VR_EnemyShove_Reach(self)));
     self.th_vrshove();
     return TRUE;
 };
