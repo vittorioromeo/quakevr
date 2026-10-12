@@ -704,7 +704,7 @@ float(entity inflictor, entity attacker) VR_Corpse_DamageKind;
 string(float xKind) VR_Corpse_DamageKindName;
 float(float xKind) VR_Corpse_DamageKindMult;
 
-float(entity targ, entity attacker, float damage, float kind) VR_Limb_CorpseImpact;
+float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseImpact;
 
 // Its damage, from T_Damage (instead of Quake's): gibbed at no health.
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Damage =
@@ -763,7 +763,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     string kindName = VR_Corpse_DamageKindName(kind);
 
     // Blunt corpse hits wear down the struck piece, not a shared body health pool. Torso hits still bleed and push.
-    if(VR_Limb_CorpseImpact(targ, attacker, damage, kind))
+    if(VR_Limb_CorpseImpact(targ, inflictor, attacker, damage, kind))
     {
         return TRUE;
     }

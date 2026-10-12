@@ -495,7 +495,7 @@ float(entity c, float xHand, vector xAt) VR_Limb_CorpseBlow =
 
 // Blunt blows on a corpse with a rig accumulate on the piece struck. Exhausting its original corpse health pops
 // that piece; the torso remains physical. Disabling Limb Gore/Corpses keeps the existing whole-body damage path.
-float(entity targ, entity attacker, float damage, float kind) VR_Limb_CorpseImpact =
+float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseImpact =
 {
     if(!cvar_hget(cvarh_vr_limbs) || !cvar_hget(cvarh_vr_limbs_corpses) || targ.vr_gib ||
        !(targ.flags & FL_MONSTER) || !isragdoll(targ) || !VR_Decap_HowOn(QVR_DECAP_BLUNT) ||
@@ -504,9 +504,12 @@ float(entity targ, entity attacker, float damage, float kind) VR_Limb_CorpseImpa
     {
         return FALSE;
     }
+    // Physical flung props use their position/velocity, as VR_Limb_ThrownArm does; held blows tag the exact hit.
+    vector at = vr_hitkind == QVR_HITKIND_NONE ? inflictor.origin : vr_hitpos;
+    vector impactVel = vr_hitkind == QVR_HITKIND_NONE ? inflictor.velocity : vr_hitdir * 300;
     float head = !targ.vr_headless && cvar_hget(cvarh_vr_decap) && cvar_hget(cvarh_vr_decap_corpses) &&
-                 ragdollhead(targ, vr_hitpos, 0) > 0;
-    float bone = head ? 0 : VR_Limb_At(targ, vr_hitpos);
+                 ragdollhead(targ, at, 0) > 0;
+    float bone = head ? 0 : VR_Limb_At(targ, at);
     if(bone < 0 || bone >= 16)
     {
         dprint(sprintf("corpse limb: %s blunt torso hit, body kept\n", targ.classname));
@@ -519,7 +522,7 @@ float(entity targ, entity attacker, float damage, float kind) VR_Limb_CorpseImpa
         targ.vr_limb_corpse_dmg[bone], hp));
     if(targ.vr_limb_corpse_dmg[bone] >= hp)
     {
-        vector vel = vr_hitdir * 300;
+        vector vel = impactVel;
         if(head)
         {
             VR_Decap_Cut(targ, attacker, vel, QVR_DECAP_BLUNT);

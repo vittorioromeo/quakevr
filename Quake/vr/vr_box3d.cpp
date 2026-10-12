@@ -8846,7 +8846,7 @@ constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than t
         pb = pb < 0 && B3_ID_EQUALS(body, bb) ? p : pb;
     }
     return pa >= 0 && pb >= 0 && pa != pb && r.rig->bones[pa].joint != ragdoll::Joint::Loose &&
-           r.rig->bones[pb].joint != ragdoll::Joint::Loose;
+           r.rig->bones[pb].joint != ragdoll::Joint::Loose && (!r.knocked || shapeGap(a, b, 0.7f) > selfApart);
 }
 
 // Whether part `p` of ragdoll `r` is in an arm its drive reaches with now (a hand to a wound or a stump, a catch, a lean,

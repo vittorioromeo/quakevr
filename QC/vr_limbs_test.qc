@@ -223,6 +223,8 @@ void(float xTest) VR_Limb_Test =
                 impact = spawn();
                 impact.classname = "vr_limbtest_prop";
                 impact.vr_gib = TRUE; // a physical thing: QVR_CDMG_PROPS, as a thrown brick
+                setorigin(impact, at);
+                impact.velocity = v_forward * 300;
             }
             float kind = xTest == 26 ? QVR_CDMG_PROPS : QVR_CDMG_BLUNT;
             float mult = VR_Corpse_DamageKindMult(kind);
