@@ -390,6 +390,13 @@ OpenXR layers. Keep the original SDL swap path. The failure and recovery
 evidence are recorded in
 [Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
 
+An isolated Clang ThinLTO build was also tested in the Frame's headless mock
+mode against the unchanged baseline, with 500 mixed physics props and an
+A-B-B-A sequence. Its mean CPU time was about 8% higher across the 899-frame
+runs, so this build-only change is rejected. The test does not cover GPU
+rendering or worn OpenXR pacing; details are in
+[Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
+
 ### Wearer regression checklist for the particle preview
 
 The performance-preview shortcut is a separate installation and starts at

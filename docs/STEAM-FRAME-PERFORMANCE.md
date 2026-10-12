@@ -530,3 +530,30 @@ wearer: the HMD pose was invalid, both controllers were disconnected, and
 SteamVR had no active scene application. The runtime had timed out or dropped
 the benchmark's earlier submissions. The runs therefore say nothing about
 compositor pacing or worn 72 Hz behavior.
+
+## ThinLTO CPU-only diagnostic
+
+I built a separate ARM64 candidate from the unchanged source with Clang 19,
+Release `-O3 -flto=thin`, and `ld.lld` (candidate SHA-256
+`3825020074a6492d78c25b469d0b1359f58d2a7e415b71c50b3a90a068f35762`). I
+compared it with the installed-source baseline build (`48ce8499...`) in an
+A-B-B-A sequence on the Frame, using the mock headset's `vr_mock_fast 2`
+headless path. Each run loaded `vrfiringrange`, spawned 500 mixed physics
+props, settled them, then measured 899 fixed simulation frames. All four runs
+started with the same 634 Box3D bodies and matching entity, awake-body,
+contact, and particle counts. GPU and OpenXR phases were zero by design, so
+this isolates engine CPU work and does not measure rendering or headset
+pacing.
+
+| Build | Frame CPU mean | CPU-busy mean | Frame p99 | Server phase mean |
+|---|---:|---:|---:|---:|
+| Baseline (runs 1 and 4) | 1.202 ms | 1.173 ms | 4.465 ms | 0.638 ms |
+| ThinLTO (runs 2 and 3) | 1.301 ms | 1.269 ms | 5.612 ms | 0.668 ms |
+
+The ThinLTO candidate was about 8% slower in mean frame CPU and CPU-busy time
+in this short mock stress test. Its p99 was also higher, though individual
+tail frames varied. There is no measured gain to justify carrying this build
+change, so the candidate is rejected and remains separate from the installed
+game and published source. This is a CPU-only diagnostic, not a conclusive
+claim that ThinLTO regresses normal VR play. Raw logs and JSON are retained
+privately in `performance-results/thinlto-headless-abba-20261012`.
