@@ -4438,6 +4438,33 @@ new cvars or defaults.
 For VR: nothing should look or feel different. Throws, the caustics under water, and the grenade and rocket sizes should
 all be as before.
 
+## Content-addressed normal and height companions (adpbrload)
+
+The generic `vr_pbr` loader (default 1, archived; next map) reads
+`textures/pbr/<first32hex>_norm.png` for the diffuse actually selected by the renderer. The full source digest is
+SHA256 of `qvr-pbr-v1` including its terminating NUL, width and height as unsigned 32-bit little-endian integers,
+then row-major RGBA. Indexed images expand through the current source palette with alpha 255, including index 255;
+RGBA replacements hash their pristine decoded bytes before texture upload. Texture names and map names are excluded,
+so differently painted same-name textures cannot share companions, while identical art can share one.
+
+Authored `_norm` RGB and nonflat alpha take precedence component by component; an authored `_bump` supplies missing
+height. Companions can therefore be used without any diffuse replacement. The existing external pack keeps its
+accepted normal RGB, and receives companion height only when its alpha is entirely 255. Its original green conversion
+runs once before adding that height. Complete authored maps retain their original upload source and avoid a duplicate
+generated GPU upload. Diffuse, cutout and fullbright handling stay in their existing paths. Animation surface selection
+and normal mip generation use the existing engine machinery. No AD names or rules appear in shared engine code.
+
+Merged sources have reloadable `pbrmix/` recipes containing filenames only; decoded images are temporary hunk data.
+Unmerged companions load directly from their hash path. Graphics has Generated Companion Maps; Debug has Companion
+Maps and Companion Map Tests. `vr_pbr_stats all` prints each queried hash and the selected GPU normal source with its
+actual alpha range. `vr_pbr_test` checks the hash contract; `fixtures` also checks component composition.
+
+Verified: kit build/QC/FGD/statics/precedence checks passed; engine tests 8/8; six GPU RGB/alpha hashes passed authored
+normal-only, complete authored normal/height, height-only, generated-only, external normal-only and complete external
+map cases. A video restart retained all 838 texture hashes (sum `ccd37408ad22e72f`) exactly. e1m1 exited 0; calibration
+menu paths reported 0 missing. `Misc/quakevr/pbr_loader_test.py` stages and verifies the private fixtures with only
+Python's standard library; `retire` moves its outputs under scratch without deleting them. Production AD measurements
+and actual-eye comparison are recorded below when the companion bundle is integrated.
 ## AD PBR generation pipeline (adpbrgen)
 
 `Misc/quakevr/pbr_generate.py` now scans installed PAK/loose BSP miptex data and loose image directories, deduplicates
@@ -4503,3 +4530,35 @@ pass, including packed/loose precedence, map-specific versus generic lookup, PNG
 discovery-only cache migration. All 2637 companion checksums/normal/depth checks pass; e1m1 smoke exits 0. The guide
 now includes complete game-root ordering and automatic packed override discovery. The loader worker checks the
 previously missing fence in actual AD after this follow-up ships.
+
+## AD companion runtime verification (adpbrload)
+
+The final bundle resolves every eligible selected diffuse on both tested real AD maps: ad_crucial 219/219 (219/222
+including intentionally excluded clip/skip/trigger), ad_test3 95/95 (95/98 including those three tool textures).
+The packed replacement `{speedbz_grid1` selects `7006210e9aff42608264e18879428c87`, GPU 64x64 with alpha 207..255;
+ad_test3's `window03_d` selects the independently extracted expected hash `0039dc89b8b3640f8f06ea10bc8d6bdb`,
+GPU 256x256 with alpha 194..220. Existing Quetoo relief remains selected where appropriate: e.g. twall1_1 still
+uses `vrext/twall1_1_norm`, 192x384, alpha 23..185. Core engine hash checks pass 4/4 and calibration menu paths 0 missing.
+
+Actual mock-headset before/after images use the same eye coordinates and angles, and both captures were checked
+against blank frames. `scratch/adpbr_actual_eye_pair.png` shows the established lamp view at
+setpos -215 -2287 136, mock pitch -24, yaw -35. All 227 diffuse GPU hashes are identical with companions off/on.
+The close stone comparison `scratch/adpbr_stone_actual_eye_pair.png` uses setpos 577.362 1578.749 -558.066,
+mock pitch 0, yaw -28.301, head flashlight; the head ray picks AD-specific rock_1732 in both views. Its active
+normal source is `textures/pbr/d17ac75c6ca78698f69972a1f8b3a3bc_norm`, 512x512, alpha 205..228. In the left eye,
+mean absolute RGB difference is 1.834/255 and 15.1% of pixels change by more than 3/255. The stone's learned relief
+changes the lamp response while the source art and surface boundaries remain intact. Human headset review still
+needs shallow-angle depth, seams, fences and animated materials (the existing AD texture relief checklist row).
+
+One exclusive warm off/on sample at the lamp camera collected 2093/2092 frames over 8.5 seconds each. CPU busy
+is 1.33/1.33 ms, host frame 1.40/1.40 ms, GPU 1.23/1.15 ms: no observed rendering cost, with the small GPU difference
+treated as measurement noise. Managed texture memory is 508.7/510.4 MB (+1.7 MB); working set 1237.2/1230.5 MB,
+private RAM 3388.1/3361.5 MB (process totals vary). Warm ad_crucial load is 521.4/583.9 ms (+62.5 ms); its first
+load is 950.8/1274.0 ms (+323.2 ms). Companion lookup/decoding/upload work totals 123.1 ms across 277 calls in the
+warm load; avoided procedural normal generation offsets part of that work. This is a single load sample, not a
+claim of reproducible speedup or exact overhead. Logs and the repeatable script are `scratch/adpbr_metrics_*`
+and `scratch/adpbr_metrics.ps1`. The final packed cutout follow-up preserves all previous output bytes.
+
+Cleanup candidates: ignored `scratch/pbrtest_retired`, `scratch/pbrtest_ext`, `scratch/pbrtest-files.json`,
+`scratch/adpbr_*`, private actual-eye screenshots and `quakevr/imagehash.txt`. No assets/maps or test-generated
+config were committed; no melee or physics code changed.

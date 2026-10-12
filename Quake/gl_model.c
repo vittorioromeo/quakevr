@@ -794,6 +794,7 @@ static void Mod_LoadTextures (lump_t *l)
 				else //use the texture from the bsp file
 				{
 					qboolean fullbrights = Mod_CheckFullbrights ((byte *)(tx+1), pixels); // QVR: kept for the external maps
+					int extmaps = VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height);
 					q_snprintf (texturename, sizeof(texturename), "%s:%s", loadmodel->name, tx->name);
 					offset = (src_offset_t)(mt+1) - (src_offset_t)mod_base;
 					if (fullbrights)
@@ -819,9 +820,11 @@ static void Mod_LoadTextures (lump_t *l)
 					}
 					// QVR: heights only if drawn smooth (the shifts would bend its texels), but for the ammo and
 					// health boxes (the expansions' have no replacement textures), whose depth is a texel or two
-					VR_LoadNormalMap (tx->gltexture, NULL, NULL, (byte *)(tx+1), SRC_INDEXED, tx->width,
+					q_snprintf (filename, sizeof(filename), "textures/%s/%s", mapname, tx->name);
+					q_snprintf (texturename, sizeof(texturename), "textures/%s", tx->name);
+					VR_LoadNormalMap (tx->gltexture, filename, texturename, (byte *)(tx+1), SRC_INDEXED, tx->width,
 						TexMgr_IndexedSmooth () || VR_ModelHasTrait (loadmodel, VR_MODEL_TRAIT_AmmoBoxInsensitive) ? NORMALMAP_HEIGHTS : 0);
-					if (VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height)) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
+					if (extmaps) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
 						VR_ExtMapsAttach (tx, loadmodel, fullbrights);
 				}
 				Hunk_FreeToLowMark (mark);

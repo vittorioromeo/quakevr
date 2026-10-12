@@ -914,6 +914,8 @@ extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const cha
 
 	if (!glt || !data || !VR_NormalMaps () || TexMgr_NormalMap (glt) != TexMgr_NormalMap (NULL))
 		return;
+	if (VR_PBRNormal (glt, image, shared, data, format, worldwidth, flags))
+		return;
 	for (n = 0; n < 2; n++)
 	for (i = 0; (n ? shared : image) && i < (int) countof (authored); i++)
 	{

@@ -78,6 +78,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_detail.hpp"
 #include "vr_extmaps.hpp"
+#include "vr_pbr.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_grasp.hpp"
@@ -1937,6 +1938,7 @@ extern "C" void VR_Init()
     cellcord::init();
     detail::init();
     extmaps::init();
+    pbr::init();
     imgcache::init();
     modelkeep::init();
     hull::init();
