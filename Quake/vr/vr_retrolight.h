@@ -110,6 +110,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "// The levels' spacing (RetroLight[2].y): 1 even in light (Quake's colormap), 0.5 even in brightness (more in the shade).\n" \
 "float RetroLightSpacing() { return RetroLight[2].y > 0. ? RetroLight[2].y : 1.0; }\n" \
 "\n" \
+"// Endpoint spacings avoid general log/exp pow; intermediate modes retain it.\n" \
+"float RetroLightCurve(float x, float g)\n" \
+"{\n" \
+"	if (g == 1.0) return x;\n" \
+"	if (g == 0.5) return sqrt(x);\n" \
+"	return pow(x, g);\n" \
+"}\n" \
+"float RetroLightInverseCurve(float x, float g)\n" \
+"{\n" \
+"	if (g == 1.0) return x;\n" \
+"	if (g == 0.5) return x * x;\n" \
+"	return pow(x, 1.0 / g);\n" \
+"}\n" \
+"\n" \
 "// Light c in `steps` levels a unit of its brightness (its largest channel; the hue kept), with the pixel's dither;\n" \
 "// soft: the levels' edges blurred over that share of a level; aa: a level's change across a pixel (fwidth; 0 none),\n" \
 "// the least blur (no crawling edges).\n" \
@@ -119,14 +133,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "	if (steps <= 0. || m <= 1e-5)\n" \
 "		return c;\n" \
 "	float g = RetroLightSpacing();\n" \
-"	float x = pow(m, g) * steps, y = x + RLDither, i = floor(y), f = y - i;\n" \
+"	float x = RetroLightCurve(m, g) * steps, y = x + RLDither, i = floor(y), f = y - i;\n" \
 "	float w = min(max(soft, aa), 1.0);\n" \
 "	float q = i + (w > 1e-4 ? smoothstep(0.5 - 0.5 * w, 0.5 + 0.5 * w, f) : step(0.5, f));\n" \
-"	return c * (pow(max(q, 0.0) / steps, 1.0 / g) / m);\n" \
+"	return c * (RetroLightInverseCurve(max(q, 0.0) / steps, g) / m);\n" \
 "}\n" \
 "float RetroLightAA(vec3 c, float steps) // RetroLightQuant's aa (uniform control flow only)\n" \
 "{\n" \
-"	return steps > 0. ? fwidth(pow(max(max(c.r, max(c.g, c.b)), 1e-5), RetroLightSpacing()) * steps) : 0.0;\n" \
+"	return steps > 0. ? fwidth(RetroLightCurve(max(max(c.r, max(c.g, c.b)), 1e-5), RetroLightSpacing()) * steps) : 0.0;\n" \
 "}\n" \
 "\n" \
 "// A shadow's share of light (0 .. 1) in RetroLight[3].y levels (1: lit or not), with the pixel's dither.\n" \
