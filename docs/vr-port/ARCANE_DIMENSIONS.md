@@ -987,6 +987,9 @@ carries "AD support". `ad_import.py` has 9 more reviewed bridge patches (17 in a
   items, ladders and debuffs read, a few sounds; nothing of AD's world itself: its gravity, fog, particles and light
   styles stay the map's). A map key no field of ours has fills AD's `ad_<key>` in any map (their own keys:
   `respawn_time`, `exactskin`...).
+- **AD's weapons too** (2026-10-13, ROUND22.md "Arcane Dimensions' weapons in any map"): the three upgrades' pickups
+  (Weapon Upgrades "With AD Content", QC `AD_UpgradeScope`) and its soldiers' guns (`func_weapon_grabbable` 20..27),
+  from a map, the toolgun's Weapons tab or the Debug spawner (309..319).
 - **AD levels only** (they override one of our pickups or rules): AD's backpacks (`item_backpack`,
   `item_backpack_armour`: Quake's backpack), `item_progspawn` (AD's randomiser), and everything else of AD's.
 
