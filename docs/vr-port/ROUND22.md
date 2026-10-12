@@ -4530,3 +4530,35 @@ pass, including packed/loose precedence, map-specific versus generic lookup, PNG
 discovery-only cache migration. All 2637 companion checksums/normal/depth checks pass; e1m1 smoke exits 0. The guide
 now includes complete game-root ordering and automatic packed override discovery. The loader worker checks the
 previously missing fence in actual AD after this follow-up ships.
+
+## AD companion runtime verification (adpbrload)
+
+The final bundle resolves every eligible selected diffuse on both tested real AD maps: ad_crucial 219/219 (219/222
+including intentionally excluded clip/skip/trigger), ad_test3 95/95 (95/98 including those three tool textures).
+The packed replacement `{speedbz_grid1` selects `7006210e9aff42608264e18879428c87`, GPU 64x64 with alpha 207..255;
+ad_test3's `window03_d` selects the independently extracted expected hash `0039dc89b8b3640f8f06ea10bc8d6bdb`,
+GPU 256x256 with alpha 194..220. Existing Quetoo relief remains selected where appropriate: e.g. twall1_1 still
+uses `vrext/twall1_1_norm`, 192x384, alpha 23..185. Core engine hash checks pass 4/4 and calibration menu paths 0 missing.
+
+Actual mock-headset before/after images use the same eye coordinates and angles, and both captures were checked
+against blank frames. `scratch/adpbr_actual_eye_pair.png` shows the established lamp view at
+setpos -215 -2287 136, mock pitch -24, yaw -35. All 227 diffuse GPU hashes are identical with companions off/on.
+The close stone comparison `scratch/adpbr_stone_actual_eye_pair.png` uses setpos 577.362 1578.749 -558.066,
+mock pitch 0, yaw -28.301, head flashlight; the head ray picks AD-specific rock_1732 in both views. Its active
+normal source is `textures/pbr/d17ac75c6ca78698f69972a1f8b3a3bc_norm`, 512x512, alpha 205..228. In the left eye,
+mean absolute RGB difference is 1.834/255 and 15.1% of pixels change by more than 3/255. The stone's learned relief
+changes the lamp response while the source art and surface boundaries remain intact. Human headset review still
+needs shallow-angle depth, seams, fences and animated materials (the existing AD texture relief checklist row).
+
+One exclusive warm off/on sample at the lamp camera collected 2093/2092 frames over 8.5 seconds each. CPU busy
+is 1.33/1.33 ms, host frame 1.40/1.40 ms, GPU 1.23/1.15 ms: no observed rendering cost, with the small GPU difference
+treated as measurement noise. Managed texture memory is 508.7/510.4 MB (+1.7 MB); working set 1237.2/1230.5 MB,
+private RAM 3388.1/3361.5 MB (process totals vary). Warm ad_crucial load is 521.4/583.9 ms (+62.5 ms); its first
+load is 950.8/1274.0 ms (+323.2 ms). Companion lookup/decoding/upload work totals 123.1 ms across 277 calls in the
+warm load; avoided procedural normal generation offsets part of that work. This is a single load sample, not a
+claim of reproducible speedup or exact overhead. Logs and the repeatable script are `scratch/adpbr_metrics_*`
+and `scratch/adpbr_metrics.ps1`. The final packed cutout follow-up preserves all previous output bytes.
+
+Cleanup candidates: ignored `scratch/pbrtest_retired`, `scratch/pbrtest_ext`, `scratch/pbrtest-files.json`,
+`scratch/adpbr_*`, private actual-eye screenshots and `quakevr/imagehash.txt`. No assets/maps or test-generated
+config were committed; no melee or physics code changed.
