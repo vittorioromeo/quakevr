@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Performance pass (should feel unchanged): throws and bullet-time throws; underwater caustics in pools; grenade and rocket sizes in flight; map loads
 Menu shortcuts: top-left Quicksave/Quickload via laser or stick; disabled save after death; smallest panel targets fit above Recording
 Launchers: grenade, proximity and multi launcher shots leave from the barrel tip
 Smooth animation: grunt idle gun must not pulse at loop boundaries with Ease 0; compare Smooth on ogres, shamblers and knights
