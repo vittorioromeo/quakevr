@@ -16,6 +16,7 @@ import numpy as np
 from PIL import Image
 
 VERSION = 1
+CACHE_VERSION = 1  # Bump when inference/packing semantics change; discovery-only changes retain cached pixels.
 NORMAL_SHA256 = "b0a18270da765f02eaae3c228203bee0677fc28b2854a562515e4aae9c61223b"
 HEIGHT_SHA256 = "5b973ecb8bae9d96d14d77b8a8f1d88fb6a8580bcc1bb55d2872811acdc4277d"
 TAG = b"qvr-pbr-v1\0"
@@ -140,11 +141,39 @@ def read_image(path, size=None):
         return np.asarray(image).copy()
 
 
+def selected_override(mapname, name, indexes):
+    """Map filename before global; PNG/TGA/JPG before game-root priority, exactly Image_LoadImage."""
+    mapbase = mapname[5:] if mapname.startswith("maps/") else mapname
+    mapbase = str(Path(mapbase).with_suffix("")).replace("\\", "/")
+    for base in (f"textures/{mapbase}/{name}", f"textures/{name}"):
+        for ext in (".png", ".tga", ".jpg"):
+            filename = base + ext
+            for index in indexes:
+                if filename in index:
+                    location = index[filename]
+                    with Image.open(io.BytesIO(read_entry(location))) as image:
+                        rgba = np.asarray(image.convert("RGBA")).copy()
+                    path, offset, _ = location
+                    origin = str(path) if offset == 0 else f"{path}:{filename}"
+                    return rgba, origin
+    return None
+
+
 def scan(args, palette):
     sources, skipped, errors = {}, collections.Counter(), []
-    bsps = 0
+    bsps, overrides = 0, 0
+    indexed_games = {}
+    def index_game(folder):
+        resolved = folder.resolve()
+        if resolved not in indexed_games:
+            indexed_games[resolved] = entries(folder)
+        return indexed_games[resolved]
     for folder in args.game:
-        e = entries(folder)
+        e = index_game(folder)
+        roots = list(getattr(args, "texture_game", []))
+        if folder.resolve() not in {p.resolve() for p in roots}:
+            roots.append(folder)
+        override_indexes = [index_game(p) for p in roots]
         for mapname, location in sorted(e.items()):
             if not mapname.endswith(".bsp"):
                 continue
@@ -158,6 +187,11 @@ def scan(args, palette):
                     add_source(sources, rgba, name, mapname, "embedded", None,
                                (indexed == 255) if name.startswith(("{", "#")) else None,
                                (indexed >= 224) & (indexed != 255))
+                    selected = selected_override(mapname, name, override_indexes)
+                    if selected:
+                        replacement, origin = selected
+                        add_source(sources, replacement, name, mapname, "selected-override", origin)
+                        overrides += 1
                     # Replacement images may be selected independently of embedded diffuse at runtime.
                     if args.authored:
                         base = pack_name(name)
@@ -182,7 +216,9 @@ def scan(args, palette):
                 image_files += 1
             except Exception as ex:
                 errors.append({"image": str(path), "error": str(ex)})
-    return sources, {"bsp_files": bsps, "image_files": image_files, "excluded_names": dict(skipped), "scan_errors": errors}
+    return sources, {"bsp_files": bsps, "image_files": image_files, "selected_override_occurrences": overrides,
+                     "texture_game_priority": [str(p) for p in getattr(args, "texture_game", [])],
+                     "excluded_names": dict(skipped), "scan_errors": errors}
 
 
 def add_source(sources, rgba, name, mapname, kind, path, holes=None, emission=None):
@@ -372,7 +408,9 @@ def validate_image(path, generated_normal, generated_height, depth):
 def animations(sources):
     families = collections.defaultdict(list)
     for digest, source in sources.items():
-        if "external" in source["kinds"]:
+        if "selected-override" in source["kinds"]:
+            kind = "selected-override"
+        elif "external" in source["kinds"]:
             kind = "external"
         else:
             kind = "embedded"
@@ -430,11 +468,24 @@ def generate(args, sources, census, palette_sha):
             pass
     models = {"normal": Predictor(args.normal_model, args.device, args.threads),
               "height": Predictor(args.height_model, args.device, args.threads)}
-    config = {"version": VERSION, "runtime": runtime, "generator_sha256": sha(Path(__file__).read_bytes()), "models": {k: {"sha256": p.checksum, "file": p.path.name, "backend": p.backend,
+    config = {"version": VERSION, "cache_version": CACHE_VERSION, "runtime": runtime, "generator_sha256": sha(Path(__file__).read_bytes()), "models": {k: {"sha256": p.checksum, "file": p.path.name, "backend": p.backend,
               "device": p.device} for k, p in models.items()}, "padding": args.padding, "tile": args.tile,
               "depth": args.depth, "green": args.green, "authored_match":args.authored_match, "palette_sha256": palette_sha}
     anchors, conflicts = animations(sources)
-    config_sha = sha(json.dumps(config, sort_keys=True).encode())
+    # Source discovery and documentation changes must not rerun unchanged model inference.
+    cache_config = dict(config)
+    cache_config.pop("generator_sha256")
+    cache_config["cache_version"] = CACHE_VERSION
+    config_sha = sha(json.dumps(cache_config, sort_keys=True).encode())
+    previous = {}
+    old_manifest_path = args.output / "pbr-manifest.json"
+    if old_manifest_path.is_file():
+        old_manifest = json.loads(old_manifest_path.read_text())
+        old_config = dict(old_manifest["configuration"])
+        old_config.pop("generator_sha256", None)
+        old_config.setdefault("cache_version", 1)
+        if old_config == cache_config:
+            previous = {t["sha256"]: t for t in old_manifest["textures"]}
     manifest = {"schema": VERSION, "hash_contract": "SHA256(qvr-pbr-v1 NUL + uint32LE width,height + RGBA)",
                 "configuration": config, "census": census, "animation_conflicts": conflicts, "textures": [], "failures": []}
     completed, reused = 0, 0
@@ -453,6 +504,17 @@ def generate(args, sources, census, palette_sha):
             destination = args.output / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             generated_normal, generated_height = authored_normal is None, authored_height is None
+            # Migrate validated prior output into the stable cache without another inference pass.
+            old = previous.get(digest)
+            if not cache.is_file() and old and destination.is_file() and old["authored"] == authored and \
+                    old["animation_anchor"] == anchor and old["generated_normal"] == generated_normal and \
+                    old["generated_height"] == generated_height and \
+                    old.get("cutout_fraction", 0) == round(float(np.mean(source["holes"])), 5) and \
+                    old.get("emissive_fraction", 0) == round(float(np.mean(source["emission"])), 5) and \
+                    sha(destination.read_bytes()) == old["output_sha256"]:
+                validate_image(destination, generated_normal, generated_height, args.depth)
+                cache.parent.mkdir(parents=True, exist_ok=True)
+                cache.write_bytes(destination.read_bytes())
             if cache.is_file():
                 validate_image(cache, generated_normal, generated_height, args.depth)
                 reused += 1
@@ -476,6 +538,7 @@ def generate(args, sources, census, palette_sha):
             destination.write_bytes(cache.read_bytes())
             item = {"sha256": digest, "file": relative, "output_sha256": sha(destination.read_bytes()),
                     "names": sorted(source["names"]), "maps": sorted(source["maps"]), "source_kinds": sorted(source["kinds"]),
+                    "source_images": sorted(source["diffuse"]),
                     "authored": authored, "animation_anchor": anchor,
                     "cutout_fraction": round(float(np.mean(source["holes"])), 5),
                     "emissive_fraction": round(float(np.mean(source["emission"])), 5),
@@ -552,6 +615,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("mode", choices=("scan", "generate", "validate", "self-test"))
     p.add_argument("--game", type=Path, action="append", default=[])
+    p.add_argument("--texture-game", type=Path, action="append", default=[],
+                   help="Additional effective texture game roots in highest-first priority; source game is appended if absent")
     p.add_argument("--images", type=Path, action="append", default=[])
     p.add_argument("--palette-game", type=Path, action="append", default=[])
     p.add_argument("--palette", type=Path)

@@ -98,6 +98,52 @@ class PipelineTests(unittest.TestCase):
         self.source(rgb=99)
         self.assertEqual(len(self.sources), 2)
 
+    def test_effective_texture_override_precedence(self):
+        high, low = self.root / "high", self.root / "low"
+        high.mkdir()
+        low.mkdir()
+        def picture(colour, ext):
+            import io
+            out = io.BytesIO()
+            Image.new("RGBA", (8, 8), colour).save(out, format=ext)
+            return out.getvalue()
+        red = picture((255, 0, 0, 255), "TGA")
+        blue = picture((0, 0, 255, 0), "TGA")
+        green = picture((0, 255, 0, 255), "PNG")
+        make_pak(high / "pak0.pak", {"textures/wall.tga": red,
+                                     "textures/ext/wall.tga": red})
+        make_pak(low / "pak0.pak", {"textures/test/wall.tga": blue,
+                                    "textures/ext/wall.png": green})
+        indexes = [pbr.entries(high), pbr.entries(low)]
+        # Map-specific lower game overrides generic highest game.
+        chosen, origin = pbr.selected_override("maps/test.bsp", "wall", indexes)
+        self.assertTrue(np.all(chosen == (0, 0, 255, 0)))
+        self.assertIn("pak0.pak:textures/test/wall.tga", origin)
+        # PNG in lower game wins over TGA in higher game for the same filename.
+        chosen, _ = pbr.selected_override("maps/ext.bsp", "wall", indexes)
+        self.assertTrue(np.all(chosen == (0, 255, 0, 255)))
+        # Highest game wins when the extensions agree; loose files override its PAKs.
+        (high / "textures").mkdir()
+        (high / "textures/wall.tga").write_bytes(blue)
+        chosen, origin = pbr.selected_override("maps/other.bsp", "wall", [pbr.entries(high),pbr.entries(low)])
+        self.assertTrue(np.all(chosen == (0, 0, 255, 0)))
+        self.assertTrue(origin.endswith("wall.tga"))
+
+    def test_discovery_change_reuses_verified_previous_output(self):
+        self.source()
+        original, _ = self.run_generation()
+        for cache in self.args.cache.glob("*.png"):
+            cache.rename(self.root / ("retained-" + cache.name))
+        manifest_path = self.args.output / "pbr-manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["configuration"]["generator_sha256"] = "previous-discovery-implementation"
+        manifest["configuration"].pop("cache_version", None)
+        pbr.json_write(manifest_path, manifest)
+        with patch.object(FixturePredictor, "__call__", side_effect=AssertionError("unexpected inference")):
+            result, manifest = self.run_generation()
+        self.assertTrue(np.array_equal(result, original))
+        self.assertEqual(manifest["summary"]["cached"], 1)
+
     def test_authored_rgb_generated_alpha_resume(self):
         self.source()
         authored = np.full((16, 16, 3), (137, 114, 250), np.uint8)
