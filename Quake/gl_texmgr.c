@@ -2472,7 +2472,6 @@ void GL_ClearBindings(void)
 */
 
 GLuint gl_palette_lut;
-GLuint gl_palette_color_lut; // QVR: direct RGB result of gl_palette_lut for retro-texture shaders
 GLuint gl_palette_buffer[2]; // original + postprocessed
 
 static unsigned int cached_palette[256];
@@ -2503,11 +2502,9 @@ GLPalette_DeleteResources
 void GLPalette_DeleteResources (void)
 {
 	GL_DeleteNativeTexture (gl_palette_lut);
-	GL_DeleteNativeTexture (gl_palette_color_lut);
 	GL_DeleteBuffer (gl_palette_buffer[1]);
 	GL_DeleteBuffer (gl_palette_buffer[0]);
 	gl_palette_lut = 0;
-	gl_palette_color_lut = 0;
 	gl_palette_buffer[0] = 0;
 	gl_palette_buffer[1] = 0;
 }
@@ -2525,16 +2522,6 @@ void GLPalette_CreateResources (void)
 	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_3D, gl_palette_lut);
 	GL_ObjectLabelFunc (GL_TEXTURE, gl_palette_lut, -1, "palette lut");
 	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, GL_R8UI, 128, 128, 128, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
-	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);
-	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	// QVR: a direct palette colour lookup avoids a dependent palette-buffer read in retro shaders.
-	glGenTextures (1, &gl_palette_color_lut);
-	GL_BindNative (GL_TEXTURE0, GL_TEXTURE_3D, gl_palette_color_lut);
-	GL_ObjectLabelFunc (GL_TEXTURE, gl_palette_color_lut, -1, "palette direct color lut");
-	GL_TexImage3DFunc (GL_TEXTURE_3D, 0, GL_RGBA8UI, 128, 128, 128, 0, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAX_LEVEL, 0);
 	glTexParameteri (GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -2590,7 +2577,6 @@ void GLPalette_UpdateLookupTable (void)
 
 	GL_UseProgramFunc (glprogs.palette_init[metric]);
 	GL_BindImageTextureFunc (0, gl_palette_lut, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R8UI);
-	GL_BindImageTextureFunc (1, gl_palette_color_lut, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA8UI);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[0], 0, 256 * sizeof (GLuint));
 	GL_BufferSubDataFunc (GL_SHADER_STORAGE_BUFFER, 0, 256 * sizeof (GLuint), d_8to24table);
 
@@ -2600,7 +2586,7 @@ void GLPalette_UpdateLookupTable (void)
 		GL_DispatchComputeFunc (1, 128, 1);
 	}
 
-	GL_MemoryBarrierFunc (GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	GL_MemoryBarrierFunc (GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 
 /*

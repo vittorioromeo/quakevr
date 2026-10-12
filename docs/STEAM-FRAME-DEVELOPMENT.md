@@ -172,18 +172,6 @@ quality profile, not an engine speedup claim; physical headset validation is
 still required before distribution. See [Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md)
 for the comparison controls and limitations.
 
-A separate native shader candidate keeps the release's 0.45 render scale and
-retro appearance while replacing the retro shader's dependent palette-buffer
-read with a precomputed direct-color 3D lookup table. On the same Frame and
-`combat_48` fixture, two 720-frame candidate runs averaged 7.923 ms GPU eye time,
-compared with 30.067 ms for two runs of the published binary. The candidate's
-frame median was 13.888 ms and p99 averaged 17.368 ms. Captured left and right
-1728x1728 eye images were pixel-identical to release. This costs 8 MiB for the
-additional table. It is an experimental mock-renderer result; physical OpenXR,
-controller, weapon and physics regressions remain required before adding this
-change to a release. Details and raw limitations are in
-[Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
-
 ## Credits and source
 
 - Original mod and engine source: [Vittorio Romeo's Quake VR](https://github.com/vittorioromeo/quakevr).

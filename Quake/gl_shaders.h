@@ -2177,7 +2177,6 @@ static const char palette_init_compute_shader[] =
 PALETTE_BUFFER
 "\n"
 "layout(r8ui, binding=0) uniform writeonly uimage3D PaletteLUT;\n"
-"layout(rgba8ui, binding=1) uniform writeonly uimage3D PaletteColorLUT; // QVR\n"
 "\n"
 "vec3 sRGBToLinearRGB(vec3 v)\n"
 "{\n"
@@ -2261,7 +2260,6 @@ PALETTE_BUFFER
 "		}\n"
 "	}\n"
 "	imageStore(PaletteLUT, ivec3(gid), uvec4(bestidx, 0, 0, 0));\n"
-"	imageStore(PaletteColorLUT, ivec3(gid), uvec4(UnpackRGB8(Palette[bestidx]), 255u)); // QVR\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
