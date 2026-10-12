@@ -113,8 +113,57 @@ ffmpeg -hide_banner -loglevel error -f v4l2 -i /dev/video99 \
 On this Frame, video99 produced usable images of the VR training area and a
 handheld weapon filling the headset view. Passthrough appeared during some
 calibration samples; later gameplay samples showed the game without it.
-`IVRScreenshots_001` wrote files but produced a dark image in an awake sample,
-so it was not accepted as visual proof. Standby captures are inconclusive too.
+`IVRScreenshots_001` has also produced dark captures. On 2026-10-12 the native
+probe was an active OpenXR scene, but the runtime reported no user presence and
+the game paused input; its 1920x1080 screenshot was mostly black with only small
+scene fragments. Do not accept that capture as evidence of correct scene
+rendering. Standby captures are inconclusive too.
+
+### OpenXR scene-app probe without a wearer (2026-10-12)
+
+This confirms that SteamVR recognizes the native engine as an OpenXR scene app;
+it does not replace the wearer checks above. I ran a separate copy of the
+release install with a temporary config (`vr_backend openxr`, `vr_enabled 1`,
+`map vrfiringrange`, then scripted waits and `quit`), using the normal
+`run-native.sh` runtime selection with `QVR_TEST_HIDDEN=1`,
+`QVR_TEST_BACKGROUND=1`, and `QVR_NO_ERROR_DIALOG=1`. The normal install and its
+configuration were not used or changed.
+
+While it ran, `frame-vr-state.py` reported
+`EVRSceneApplicationState_Running`; its scene PID matched
+`compositor_scene_focus_pid`, and the application key was
+`system.generated.openxr.quake vr.ironwail`. The game log confirmed SteamVR / OpenXR
+2.18.2, `VR: started openxr backend`, a `GL_SRGB8_ALPHA8` stereo swapchain at
+1728x1728 per eye, and `OpenXR: user presence absent`. SteamVR reported both
+Frame controllers disconnected. HMD pose validity varied during the probe.
+The runtime capture was mostly black, so the test proves session startup and
+scene registration only, not useful headset imagery, live controller actions,
+head-motion response, or gameplay. After the probe exited, SteamVR returned to
+`EVRSceneApplicationState_None`.
+
+For a repeatable no-wearer check, keep the probe config in a scratch install.
+It should set `vr_backend openxr`, enable VR, load a map, wait for several
+seconds, and then quit. Do not add `-vrmock`. Start it in one Frame shell:
+
+```sh
+cd /path/to/scratch-install
+env DISPLAY=:1 SDL_VIDEODRIVER=x11 \
+  QVR_TEST_HIDDEN=1 QVR_TEST_BACKGROUND=1 QVR_NO_ERROR_DIALOG=1 \
+  ./run-native.sh -noconfigwrite -nomapindex -nosound \
+  +exec openxr-probe.cfg > /tmp/openxr-probe.log 2>&1 &
+```
+
+While it is running, query state from a second shell:
+
+```sh
+python3 ~/Games/QuakeVR-Unleashed-native/frame-vr-state.py
+```
+
+A running scene PID and `EVRSceneApplicationState_Running` confirm scene-app
+registration. The game log's `user presence absent` explains why input is paused
+when nobody wears the headset; disconnected controller entries mean no action
+or grip test can be inferred from this probe. The scratch probe config exits by
+itself; if it does not, stop only the PID launched for this test.
 
 OpenVR device poses alone do not prove delivery to a particular game: compare
 them with that game's OpenXR action states. The one-second input log can miss
