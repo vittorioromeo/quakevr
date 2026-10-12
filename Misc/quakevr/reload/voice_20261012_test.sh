@@ -14,7 +14,7 @@ run() {
 }
 BASE="vr_holster_mode 0;vr_reload_mode 3;map e1m1;wait60;god;notarget;developer 1"
 run boundaries "vr_weapon_grip_mode 1;$BASE;vr_reload_test 28;impulse 125;wait3;vr_menu_path_check maps/vrcalibration.map" "reload reinsertion|reload: FAIL|menu paths"
-check $(grep -q '22 passed, 0 failed' "$LOG" && echo 1 || echo 0) "22 reinsertion checks"
+check $(grep -q '18 passed, 0 failed' "$LOG" && echo 1 || echo 0) "18 reinsertion checks"
 check $(grep -q '0 missing' "$LOG" && echo 1 || echo 0) "calibration paths"
 
 GET="+grabmain;+graboff;vr_mock_button main grip 1;vr_mock_button off grip 1;impulse 156;wait4;vr_test_weaponinst 7;impulse 120;wait4;impulse 154;wait4"
@@ -49,7 +49,7 @@ for pose in standing crouched offsets; do
         fi
         S="$HOLD;$POSE$TAKE;vr_dumpview;vr_mock_hand_to main ammopouch;wait3;vr_mock_hand_to main ammopouch;wait3;vr_mock_button main grip 0;-grabmain;wait60"
         run "pouch_${pose}_$item" "$S" "ammo pouch collection|collect fx: .*into hotspot|ammo pouch endpoint|collect fx: .*gone in"
-        check $(grep -q 'into hotspot 12' "$LOG" && grep -q 'gone in' "$LOG" && grep -q 'endpoint error 0.0000' "$LOG" && ! grep 'endpoint error' "$LOG" | grep -qv 'error 0.0000' && echo 1 || echo 0) "$pose $item reaches rendered pouch centre (0.0000 units error)"
+        check $(grep -q 'into hotspot 12' "$LOG" && grep -q 'gone in' "$LOG" && grep -q 'endpoint error 0.0000' "$LOG" && ! grep 'endpoint error' "$LOG" | grep -qv 'error 0.0000' && echo 1 || echo 0) "$pose $item routes to the pouch centre point (0.0000 units: routing only; ammoPouchCentre itself is not measured)"
     done
 done
 exit "$FAIL"

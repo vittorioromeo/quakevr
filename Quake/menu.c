@@ -66,6 +66,7 @@ extern cvar_t r_alphasort;
 extern cvar_t r_enhancedmodels;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
+static float menu_animlerp_smooth; // QVR: the Smooth r_lerpmodels mode the Animations row set Classic from (0: none yet)
 extern cvar_t snd_waterfx;
 extern cvar_t joy_deadzone_look;
 extern cvar_t joy_deadzone_move;
@@ -4382,9 +4383,18 @@ void M_AdjustSliders (int dir)
 		Cbuf_AddText ("toggle r_enhancedmodels\n");
 		break;
 	case OPT_ANIMLERP:
-		if (r_lerpmodels.value != 3.f) // QVR: preserve the selected Smooth model interpolation
-			Cvar_SetValueQuick (&r_lerpmodels, !r_lerpmove.value);
-		Cvar_SetValueQuick (&r_lerpmove, !r_lerpmove.value);
+		// QVR: Classic sets 0 and remembers the Smooth mode (r_lerpmodels 3 among them); Smooth restores it
+		if (r_lerpmodels.value)
+		{
+			menu_animlerp_smooth = r_lerpmodels.value;
+			Cvar_SetValueQuick (&r_lerpmodels, 0.f);
+			Cvar_SetValueQuick (&r_lerpmove, 0.f);
+		}
+		else
+		{
+			Cvar_SetValueQuick (&r_lerpmodels, menu_animlerp_smooth ? menu_animlerp_smooth : 1.f);
+			Cvar_SetValueQuick (&r_lerpmove, 1.f);
+		}
 		break;
 	case OPT_PARTICLES:
 		Cvar_SetValueQuick (&r_particles, (int)(q_max (r_particles.value, 0.f) + 3 + dir) % 3);

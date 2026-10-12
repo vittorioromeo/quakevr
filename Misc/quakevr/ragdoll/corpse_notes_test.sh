@@ -19,7 +19,7 @@ for c in 0 1; do
 done
 S="$S;toggleconsole;quit"
 bash "$KIT/run.sh" "$AGENT" -ExtraArgs '-nomapindex' -Script "$S" -Filter 'SHOULDER_|armtest:|ragdoll [0-9]|self:|arm interiors:|kg at|unstable|Error|CRASH|exit=' -Timeout 420 >> "$OUT"
-S='developer 1;sv_random_seed 7;map vrmelee-recording;wait30;god;notarget;vr_dummy_type 0;vr_ragdoll_self_collide 1;vr_dummy_test 4;wait5'
+S='developer 1;sv_random_seed 7;map vrmelee-recording;wait30;god;notarget;vr_dummy_type 0;vr_ragdoll_self_collide 1;vr_knockdown_debug 1;vr_dummy_test 4;wait5'
 for active in 0 1; do
  S="$S;vr_ragdoll_active_getup $active"
  for attempt in 1 2 3; do
@@ -28,4 +28,4 @@ for active in 0 1; do
 done
 S="$S;toggleconsole;quit"
 bash "$KIT/run.sh" "$AGENT" -ExtraArgs '-nomapindex' -Script "$S" -Filter 'DUMMY_|dummytest:|knockdown:|Error|CRASH|exit=' -Timeout 420 >> "$OUT"
-grep -E 'AD_CORPSE_|adcorpse:|^ragdoll [0-9]|SHOULDER_|arm interiors:|DUMMY_|dummytest: recovery|Error|CRASH|exit=' "$OUT"
+grep -E 'AD_CORPSE_|adcorpse:|^ragdoll [0-9]|SHOULDER_|arm interiors:|DUMMY_|dummytest: recovery|eased up|Error|CRASH|exit=' "$OUT"

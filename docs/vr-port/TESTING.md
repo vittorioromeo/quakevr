@@ -1220,3 +1220,6 @@ compiled/runtime contents, clear player-width sweeps, recording, automatic repla
 evaluation with new/old-map-header takes, unchanged take bytes/events and hand pose error below 0.01 units. It saves
 logs in `scratch/meleeroom_check/`; generated cfg/takes stay in that worker. Direct replay's `map <name>` option
 supports other fixtures explicitly. The crowbar, empty-melee and melee-phasing checks also use the recording room.
+Under the mock headset a plain `vr_motion_play <take>` on another map loads the room first (dropping what a script set
+up there); `noplace` or `target <classname|#entity>` keeps the running map (and its spawned targets), and
+`map <name>` always loads that map.
