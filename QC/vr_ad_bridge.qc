@@ -341,8 +341,8 @@ void() AD_PlayerPreThink =
     {
         return;
     }
-    // AD support: no keyboard ladder gravity lock or upward boost in VR.
-    if(VRHandsTracked(self))
+    // AD support: no keyboard ladder gravity lock or upward boost while VR hands climb the ladder (VR_AD_LadderManual).
+    if(VR_AD_LadderManual(self))
     {
         self.ad_onladder = ad_LADDER_NONE;
         if(self.vr_ad_laddergravity) self.gravity = self.vr_ad_laddergravity;
@@ -1046,6 +1046,54 @@ void(entity pellet) VR_AD_PelletLaunch =
     pellet.vr_ad_launchfrom = pellet.origin;
 };
 
+// A blast's head/limb pop odds as hitscan's (one roll at the whole blast's share, ApplyMultiDamage): AD's pellets land
+// one by one, each re-arming with the share so far, and a kill or a corpse hit rolls each time. So every roll after
+// the blast's first on a victim only tops it up: the chance it pops by now is the chance at the share so far, whatever
+// the earlier rolls (q = (P - Pbefore) / (1 - Pbefore)); the whole blast's odds are one roll's at its final share.
+// A pellet of the blast that has just killed the victim (its body not a corpse yet, VR_DECAP_DIED_LATE) rolls its top-up
+// as a late cut (a thrown axe's); a body the blast popped is not gibbed by its later pellets (hitscan's popped blast
+// never gibs).
+.float vr_ad_popserial; // the blast (vr_ad_shotserial) whose pellets last rolled on it
+.float vr_ad_popchance; // and the chance it had popped by then (the global scale in)
+.float vr_ad_popped;    // and whether it popped its head or a limb
+
+// What of `e` is cut off: its head (4096) and its limbs (bits).
+float(entity e) VR_AD_Cuts =
+{
+    float limbs = ragdolllimbs(e, 2);
+    return (e.vr_headless ? 4096 : 0) + (limbs > 0 ? (limbs & 2047) : 0);
+};
+
+// The armed pellet's chance (vr_decap_chance, its share so far) made that top-up; its own chance (the scale in) returned.
+float(entity victim, float serial) VR_AD_PopTopUp =
+{
+    float scale = max(0, cvar_hget(vr_decap_limb >= 0 ? cvarh_vr_limbs_chance_scale : cvarh_vr_decap_chance_scale));
+    float now = min(1, vr_decap_chance * scale);
+    float before = victim.vr_ad_popserial == serial ? victim.vr_ad_popchance : 0;
+    float q = before >= 1 ? 0 : max(0, (now - before) / (1 - before));
+    vr_decap_chance = scale > 0 ? q / scale : 0;
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        bprint(sprintf("adshots: pop blast %g chance %.3f before %.3f roll %.3f\n", serial, now, before, q));
+    }
+    return now;
+};
+
+// A corpse's damage (VR_Corpse_Damage, after its armed head/limb pop): a projectile pellet's or a rifle laser's hit at
+// its head or a limb (corpse pops on) deals nothing to it, so it is kept as a selective hitscan pop keeps it. TRUE: so.
+float(entity targ, entity inflictor) VR_AD_CorpsePartShot =
+{
+    if(vr_hitkind != QVR_HITKIND_SHOT || (inflictor.classname != "proj_bullet" && inflictor.classname != "rifle_laser"))
+    {
+        return FALSE;
+    }
+    if(cvar_hget(cvarh_vr_decap_corpses) && VR_Decap_Allowed(targ) && VR_Decap_OnHead(targ, vr_hitpos, vr_hitdir))
+    {
+        return TRUE;
+    }
+    return cvar_hget(cvarh_vr_limbs_corpses) && VR_Limb_Allowed(targ) && (VR_Limb_At(targ, vr_hitpos) >= 0);
+};
+
 // AD projectile impacts keep the launching shot's identity across flight frames and weapon switches.
 void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
 {
@@ -1072,7 +1120,12 @@ void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
         VR_Decap_Pellet(victim, damage, at, dir);
     }
     self = pellet.owner;
-    float pop = pellet.vr_ad_shotserial && VR_Decap_BlastArm(victim);
+    float blast = pellet.vr_ad_shotserial;
+    float pop = (blast && VR_Decap_BlastArm(victim));
+    float popnow = pop ? VR_AD_PopTopUp(victim, blast) : 0;
+    float cuts = pop ? VR_AD_Cuts(victim) : 0;
+    float justdied = ((victim.health <= 0) && (victim.vr_corpse != 2) && !victim.vr_corpse_dying &&
+                     (time - victim.vr_decap_died < VR_DECAP_DIED_LATE));
     // Per-pellet small gibs remain immediate; only head/limb share accumulates across flight frames.
     vr_sgib_blast = FALSE;
     self = os;
@@ -1080,7 +1133,31 @@ void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
     vr_ad_ourdamage = TRUE; // AD's touch already applied shell resistance; shared settings/hooks run once.
     T_Damage(victim, pellet, pellet.owner, damage);
     vr_ad_ourdamage = ours;
+    // (Killed or the corpse's damage took the armed pop: it rolled. A zombie's knock-down roll in VR_Decap_After is
+    // not counted.)
+    float rolled = (pop && (vr_decap_ent != victim));
+    if(pop && !rolled && justdied && (victim.vr_ad_popserial == blast))
+    {
+        rolled = TRUE;
+        vr_decap_ent = world;
+        if(VR_Decap_Roll(victim))
+        {
+            if(vr_decap_limb >= 0) VR_Limb_Cut(victim, vr_decap_by, vr_decap_vel, vr_decap_how, vr_decap_limb, TRUE);
+            else VR_Decap_Cut(victim, vr_decap_by, vr_decap_vel, vr_decap_how);
+        }
+    }
+    if(rolled)
+    {
+        float same = victim.vr_ad_popserial == blast;
+        victim.vr_ad_popchance = max(popnow, same ? victim.vr_ad_popchance : 0);
+        victim.vr_ad_popped = ((same && victim.vr_ad_popped) || (VR_AD_Cuts(victim) != cuts));
+        victim.vr_ad_popserial = blast;
+    }
     if(pop) VR_Decap_After(victim);
+    if(blast && (victim.vr_ad_popserial == blast) && victim.vr_ad_popped && (victim.health < -1))
+    {
+        victim.health = -1;
+    }
     if(cvar_hget(cvarh_vr_debug_shots)) bprint(sprintf("adshots: pellet %s part %g damage %g pop %g at %v\n", victim.classname, part, damage, pop, at));
     vr_sgib_blastserial = serial;
     vr_decap_weapon = weapon;
@@ -1102,7 +1179,11 @@ void(entity missile) VR_AD_Ordnance =
 {
     if(missile.ad_classtype == ad_CT_PROJ_GLMON || missile.ad_classtype == ad_CT_PROJ_GL)
     {
+        // (setmodel gives an alias model its bounds as its size: AD's own box back, as vanilla's setsize after its
+        // setmodel, so a grenade left uncatchable does not bounce off walls and ride over floors on a player-sized hull)
+        vector boxlo = missile.mins, boxhi = missile.maxs;
         setmodel(missile, "progs/grenade.mdl");
+        setsize(missile, boxlo, boxhi);
         VR_Grenade_Make(missile, ad_Explode_Grenade, max(0, missile.nextthink - time),
             (missile.owner.flags & FL_CLIENT) != 0);
     }
@@ -1129,4 +1210,25 @@ string(float ammo, float big, string fallback) AD_AmmoModel =
     else if(ammo == AID_ROCKETS) chosen = big ? "progs/ammo_rockets1.mdl" : "progs/ammo_rockets0.mdl";
     else if(ammo == AID_CELLS) chosen = big ? "progs/ammo_cells1.mdl" : "progs/ammo_cells0.mdl";
     return fileexists(chosen) ? chosen : fallback;
+};
+
+// An ammo box (self) given AD's model (AD_AmmoModel; `xSize` the vanilla box's size, its box already set): AD's MDL boxes
+// are centred where Quake's BSP boxes have a corner origin, so the model's own bounds, and in an ordinary map the old
+// box's placement kept; the map's box frame by AD's rules (-1 random 1-7, past 7 the first, 0 none).
+void(vector xSize) AD_AmmoBoxFit =
+{
+    if(self.model == "" || substring(self.model, 0, 11) != "progs/ammo_")
+    {
+        return;
+    }
+    vector lo = modelbounds(self, FALSE); // (vector builtin results kept apart)
+    vector hi = modelbounds(self, TRUE);
+    setsize(self, lo, hi);
+    if(!AD_Rules())
+    {
+        setorigin(self, self.origin + xSize * 0.5);
+    }
+    if(self.ad_frame_box == -1) self.frame = rint(1 + random() * 6);
+    else if(self.ad_frame_box > 7) self.frame = 1;
+    else self.frame = max(0, self.ad_frame_box);
 };

@@ -1,4 +1,4 @@
-// AD support: Debug > Tests world interactions on actual AD map entities (vr_ad_test 61..63).
+// AD support: Debug > Tests world interactions on actual AD map entities (vr_ad_test 61..64).
 void(float request, entity p) AD_WorldTest =
 {
     entity os = self, oo = other;
@@ -120,18 +120,50 @@ void(float request, entity p) AD_WorldTest =
     {
         entity ladder = find(world, classname, "trigger_ladder");
         if(!ladder) { bprint("adworld: no ladder\n"); return; }
-        float bits = p.vrbits0, oldflags = ladder.spawnflags;
+        float bits = p.vrbits0, oldflags = ladder.spawnflags, oldgrav = p.gravity;
+        float climb = cvar("vr_climb"), ladders = cvar("vr_climb_ladders");
         p.vrbits0 |= QVR_VRBITS0_HANDSTRACKED;
         ladder.ad_bmodel_act = p;
-        for(float mode = 0; mode < 2; ++mode)
+        // cfg 0: hands climb the ladder (AD's keyboard climb off); 1: Hand Climbing off, 2: Hand-Climbed Ladders off
+        // (both: AD's own climb, so the ladder stays climbable).
+        for(float cfg = 0; cfg < 3; ++cfg)
         {
-            p.velocity = '21 0 -17'; p.button2 = 1; p.ad_onladder = ad_LADDER_NONE;
-            ladder.spawnflags = mode ? ad_TRIG_LADDERVELOCITY : 0;
-            self = ladder; ad_trigger_ladder_fire();
-            self = p; AD_PlayerPreThink();
-            bprint(sprintf("adworld: ladder mode %g velocity %v state %g gravity %g\n", mode, p.velocity, p.ad_onladder, p.gravity));
+            cvar_set("vr_climb", cfg == 1 ? "0" : "1");
+            cvar_set("vr_climb_ladders", cfg == 2 ? "0" : "1");
+            for(float mode = 0; mode < 2; ++mode)
+            {
+                p.velocity = '21 0 -17'; p.button2 = 1; p.ad_onladder = ad_LADDER_NONE; p.gravity = oldgrav;
+                p.vr_ad_laddergravity = 0;
+                ladder.spawnflags = mode ? ad_TRIG_LADDERVELOCITY : 0;
+                self = ladder; ad_trigger_ladder_fire();
+                self = p; AD_PlayerPreThink();
+                bprint(sprintf("adworld: ladder cfg %g mode %g velocity %v state %g gravity %g\n", cfg, mode, p.velocity,
+                    p.ad_onladder, p.gravity));
+                if(p.vr_ad_laddergravity) p.gravity = p.vr_ad_laddergravity;
+                p.vr_ad_laddergravity = 0; p.ad_onladder = ad_LADDER_NONE;
+            }
         }
-        p.vrbits0 = bits; p.button2 = 0; ladder.spawnflags = oldflags;
+        cvar_set("vr_climb", ftos(climb)); cvar_set("vr_climb_ladders", ftos(ladders));
+        p.vrbits0 = bits; p.button2 = 0; ladder.spawnflags = oldflags; p.gravity = oldgrav; p.velocity = '0 0 0';
+    }
+    else if(request == 64)
+    {
+        // A flat ladder: a ladder volume on a plain wall (no rungs), the nearest wall west of the player. Its hand
+        // probes (ad_world_test.sh) must hold anywhere on it.
+        makevectors('0 180 0');
+        traceline(p.origin, p.origin + v_forward * 512, TRUE, p);
+        vector wall = trace_endpos, n = trace_plane_normal;
+        entity flat = spawn();
+        flat.classname = "vr_test_flatladder";
+        flat.solid = SOLID_TRIGGER;
+        flat.vr_climb_ladder = 1;
+        setorigin(flat, '0 0 0');
+        vector lo = wall - '16 16 0', hi = wall + '16 16 128';
+        if(n_x > 0) { lo_x = wall_x; hi_x = wall_x + 24; } else { lo_x = wall_x - 24; hi_x = wall_x; }
+        lo_z = p.origin_z + p.mins_z;
+        setsize(flat, lo, hi);
+        bprint(sprintf("adworld: flat ladder wall %g %g %g normal %g %g %g fraction %g\n", wall_x, wall_y, wall_z, n_x, n_y,
+            n_z, trace_fraction));
     }
     self = os; other = oo;
 };

@@ -4195,3 +4195,29 @@ First hits on his 111 hitting takes, before -> after (mean, min-max, sd); verdic
 The caps cut the fast head hits (chop 62.8 -> 49.5 = 2.25 x 22; slash and stab 54.5 = 2.25 x 24.2) and lift the slowest
 slash (9.2 -> 12.1 = 0.5 x 24.2). Slaps drop with the curve (their head hits ran x2). The axe's bash (7.3) isn't a speed
 blow: unchanged.
+
+## Review fixes: AD ladders, grenades, pellet pops, menu (worktree `fixad2`, 2026-10-12)
+
+From review r1 (and r3's AD isolation note):
+
+- Ladders are never unclimbable. AD's keyboard/jump climb is off only while Hand Climbing and Hand-Climbed Ladders are
+  both on (QC VR_AD_LadderManual, used by trigger_ladder and AD_PlayerPreThink); with either off, AD's own climb (hold
+  jump) lifts you. A ladder volume with no real rung within reach of the hand (vr_climb.cpp rungNear: a walkable top
+  within 24 units above or under the hand, up to 32 deep into the ladder, above Lowest Ledge) is held anywhere in its
+  volume, as before the rung-only change, so flat ladder walls and far-apart rungs climb again. ad_world_test.sh: 3
+  settings x 2 ladder modes; a flat ladder (vr_ad_test 64, Debug > Arcane Dimensions: Flat Ladder Test) held twice and
+  refused with Hand-Climbed Ladders off; ad_crucial's 7 gaps between rungs still hold nothing.
+- AD grenades keep AD's point hull after the grenade.mdl swap (setmodel had given them the model's bounds, so an
+  uncatchable one bounced off walls on hull 1). Test 59 prints the hull; ad_shots_test -Full asserts 0 0 0 with
+  vr_grenade_catch 0 (-Full's script now fits under the console's 8191 characters, using an alias).
+- AD projectile pellet pops: a blast's odds are one roll's at its whole share, as hitscan's. Each roll after the blast's
+  first on a victim only tops it up (VR_AD_PopTopUp: q = (P - Pbefore) / (1 - Pbefore)); a pellet landing on the body
+  its blast has just killed rolls the top-up as a late cut; a body its blast popped isn't gibbed by the rest of it.
+  ad_pop_odds_test.sh: 3 volleys whose rolls compound to exactly their final chance (0.736, 0.694, 0.749); a late
+  top-up popping the head, no gib.
+- Debug's Buttons Test runs test 61 again; the Projectile Rules help names its labels; vr_ad_test 40-65 documented.
+- Isolation: the ammo box fit (AD_AmmoBoxFit, now with AD's frame_box rules) and the corpse part-shot rule
+  (VR_AD_CorpsePartShot) moved to the bridge; `// AD support` markers in vr_monstermods.cpp and buttons.qc.
+- ad_hits_test.sh asserts tests 40-42: no spread, SG 24 and SSG 56 at 128 and 384 units, a burst round 9.
+- Still open: ad_shots_test -Full's vanilla corpse volleys (mode 53) sometimes miss the corpse (no pellet hit: the
+  ragdoll settles elsewhere), so -Full is flaky; the default run passes.
