@@ -3666,10 +3666,10 @@ void hologramTestMessage()
 {
     return {
         cycle("Projectile Rules", vr_ad_projectiles, {{1.f, "Off"}, {0.f, "AD Maps Only"}, {2.f, "Everywhere"}})
-            .help("Whose rules shotguns and monster projectiles play by. Auto: Arcane Dimensions' in its maps (projectile "
-                  "pellets you see fly, from your shotguns and the grunts'; the hell knights', scrags', ogres' and "
-                  "zombies' missiles at its speeds for the skill), Quake's elsewhere. Vanilla: Quake's everywhere. "
-                  "Arcane Dimensions: its rules wherever its data is loaded. Its own monsters always play by its rules."),
+            .help("Whose rules shotguns and monster projectiles play by. AD Maps Only: Arcane Dimensions' in its maps "
+                  "(projectile pellets you see fly, from your shotguns and the grunts'; the hell knights', scrags', ogres' "
+                  "and zombies' missiles at its speeds for the skill), Quake's elsewhere. Off: Quake's everywhere. "
+                  "Everywhere: its rules wherever its data is loaded. Its own monsters always play by its rules."),
         slider("Pellet Spread", vr_ad_pellet_spread, 0.f, 2.f, 0.05f, "x%.2f").extend(0.f, 4.f)
             .help("Arcane Dimensions' pellets: how wide they spread, times its own (the shotgun 0.04, the super shotgun "
                   "0.14 by 0.08: wider than Quake VR's hitscan, aimed with the hand). 0: every pellet straight."),
@@ -6502,12 +6502,16 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Evil Skill Report", "vr_ad_test 22")
             .help("Whether AD's Evil skill plays (Nightmare with Evil Skill on), your health and its cap, megahealth's, "
                   "the axe's blow."),
-        command("Arcane Dimensions: Buttons Test", "vr_ad_test 65")
+        command("Arcane Dimensions: Buttons Test", "vr_ad_test 61")
             .help("Press this map's laser button with a hand, a weapon and a thrown prop; check disabled state."),
         command("Arcane Dimensions: Backpacks Test", "vr_ad_test 62")
             .help("Report map backpacks; create an AD dropped bag, test walkover immunity and grab/holster collection."),
         command("Arcane Dimensions: Ladder Movement Test", "vr_ad_test 63")
-            .help("Verify tracked hands bypass AD jump/velocity ladder movement."),
+            .help("Verify tracked hands bypass AD jump/velocity ladder movement only while Hand Climbing and Hand-Climbed "
+                  "Ladders are both on (either off: AD's own climb lifts you)."),
+        command("Arcane Dimensions: Flat Ladder Test", "vr_ad_test 64")
+            .help("Make the nearest wall west of you a ladder with no rungs: grip it anywhere to climb (the fallback for "
+                  "flat ladder walls)."),
         command("Arcane Dimensions: Ladder Rung Probes", "vr_climb_try -417 -2387 -70 main; vr_climb_try -417 -2387 -60 main")
             .help("Stand beside ad_crucial's first ladder: report a real rung and the gap above it, using your current grip tolerances."),
         command("Arcane Dimensions: Ladders Report", "vr_ad_test 24")
