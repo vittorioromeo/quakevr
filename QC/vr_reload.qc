@@ -1634,8 +1634,9 @@ float(float xGunHand, float xSide) VR_Reload_SsgHit =
 // flick bit rising: vr_reload_ssg_open_flick), the pry (the other hand's flick bit rising: the engine's vr_flick.cpp
 // sends it so, with both hands on it: vr_reload_ssg_pry), a hit from above (vr_reload_ssg_open_hit) or its B/Y
 // (vr_reload_ssg_open_button); open, it closes by the flick (vr_reload_ssg_close_flick), the barrels lifted (the other
-// hand's bit again: vr_reload_ssg_close_pry), a hit from below (vr_reload_ssg_close_hit) or by itself once both chambers
-// are loaded (vr_reload_ssg_close_auto). Each its own switch.
+// hand's bit again: vr_reload_ssg_close_pry), a hit from below (vr_reload_ssg_close_hit), its B/Y (vr_reload_ssg_close_button,
+// off by default: an accessibility option, the gun opened and closed with the button alone) or by itself once both
+// chambers are loaded (vr_reload_ssg_close_auto). Each its own switch.
 void(float xHand) VR_Reload_SsgFrame =
 {
     float bit = xHand == cVR_MainHand ? 2 : 1;
@@ -1709,6 +1710,10 @@ void(float xHand) VR_Reload_SsgFrame =
     else if(pryEdge && cvar_hget(cvarh_vr_reload_ssg_close_pry))
     {
         VR_Reload_SsgClose(self, xHand, "the barrels lifted");
+    }
+    else if(secEdge && cvar_hget(cvarh_vr_reload_ssg_close_button))
+    {
+        VR_Reload_SsgClose(self, xHand, "the button");
     }
     else if(cvar_hget(cvarh_vr_reload_ssg_close_hit) && VR_Reload_SsgHit(xHand, 1))
     {
