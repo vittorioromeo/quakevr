@@ -30,7 +30,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-extern "C" GLuint gl_palette_lut; // gl_texmgr.c: the palette's nearest-colour table (128^3 indices)
+extern "C" GLuint gl_palette_color_lut; // gl_texmgr.c: QVR direct RGB for the same nearest-colour table
 
 namespace qvr::retro
 {
@@ -1561,7 +1561,7 @@ using namespace qvr::retro;
 extern "C" void VR_RetroUpload(void)
 {
     block.info[0] = on() ? 1.f : 0.f;
-    block.info[1] = gl_palette_lut != 0 ? 1.f : 0.f;
+    block.info[1] = gl_palette_color_lut != 0 ? 1.f : 0.f;
     block.info[2] = block.info[3] = 0.f;
     ZA_MEMCPY(block.palette, d_8to24table, sizeof(block.palette));
     for(int c = 0; c < categoryCount; c++)
@@ -1584,7 +1584,8 @@ extern "C" void VR_RetroBind(int unit)
 {
     if(on())
     {
-        GL_BindNative(static_cast<GLenum>(GL_TEXTURE0 + unit), GL_TEXTURE_3D, gl_palette_lut);
+        // Reuse the existing retro-index texture unit; the shader now fetches final RGB there.
+        GL_BindNative(static_cast<GLenum>(GL_TEXTURE0 + unit), GL_TEXTURE_3D, gl_palette_color_lut);
     }
 }
 

@@ -8,7 +8,8 @@ device, not OpenXR compositor latency or a physical headset FPS test.
 
 Each row summarizes two 720-frame runs of the same `combat_48` fixture, paced at
 72 Hz after 180 warm-up frames. Settings were run in opposite order to limit
-warm-up and order bias. All rows use the same released engine binary, classic
+warm-up and order bias. The profiles through scale 0.25 use the released engine
+binary; the final row is a separate experimental candidate. All use classic
 preset 0 and no MSAA or mirror.
 
 | Profile | Render scale | Retro edge softness | GPU eye mean | Frame median | Frame p99 |
@@ -18,6 +19,24 @@ preset 0 and no MSAA or mirror.
 | Crisp performance preview | 0.30 | Off in all 18 categories | 15.537 ms | 16.349 ms | 23.487 ms |
 | Crisp performance preview | 0.26 | Off in all 18 categories | 13.507 ms | 14.179 ms | 20.650 ms |
 | Crisp performance preview | 0.25 | Off in all 18 categories | 12.559 ms | 13.888 ms | 20.765 ms |
+| Direct palette-color LUT candidate | 0.45 | Shipped | 7.923 ms | 13.888 ms | 17.368 ms |
+
+The direct palette-color LUT candidate is an uncommitted experimental engine
+build (`d2428f0e15d307170eb4c5148f66bb7ac2abbd54f17b489c89d212a00fc7bdfc`).
+It keeps the released 0.45 settings and precomputes the palette's RGB output
+beside its existing 128³ index table, removing the dependent palette-buffer
+read from retro fragment shaders. Two 720-frame combat runs measured 7.965 and
+7.881 ms GPU-eye means, versus 30.216 and 29.918 ms for the release binary in
+opposite-order runs. That is a 73.7% reduction in mean GPU-eye time for this
+fixture. Frame medians were 13.888 ms in both candidate runs; p99 was 17.715
+and 17.020 ms, compared with 46.340 and 45.250 ms on release. This remains a
+mock-tracking renderer benchmark, not physical OpenXR frame pacing.
+
+Both eyes in a `combat_48` scene capture were pixel-identical between release
+and candidate at 1728x1728. The candidate adds an 8 MiB RGBA8UI 3D lookup table.
+The shader compiled and ran on the Frame's Zink/Turnip driver. Real-headset
+OpenXR, controller, weapon and physics regression checks are still required;
+the candidate has not been installed into the preview shortcut or released.
 
 At scale 0.25 the fixture's frame median reaches the 13.89 ms 72 Hz budget,
 but its p99 remains above budget. This result does not prove sustained 72 fps

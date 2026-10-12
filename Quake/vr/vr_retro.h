@@ -58,7 +58,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "	uvec4	RetroPal[64]; // Quake's palette, RGB8 packed, four to a uvec4\n" \
 "	vec4	RetroSets[192]; // QVR_RETRO_MAX_SETS sets of 3 (vr_retro.h)\n" \
 "};\n" \
-"layout(binding=" lut ") uniform usampler3D RetroLUT;\n" \
+"layout(binding=" lut ") uniform usampler3D RetroColorLUT; // direct palette RGB at each voxel\n" \
 "int Retro = 0; // the pixel's set (0: none)\n" \
 "vec4 RetroP0 = vec4(0.0), RetroP1 = vec4(0.0), RetroP2 = vec4(0.0);\n" \
 "vec2 RetroGrid = vec2(1.0); // blocks across the texture (s, t)\n" \
@@ -109,9 +109,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "	float d = RetroP1.y * (1.0 - RetroFar); // none where the blocks are under a pixel (it would shimmer)\n" \
 "	if (d > 0.0)\n" \
 "		q += (RetroBayer4(floor(cell / max(RetroP1.z, 1.0))) - 0.46875) * (d * 0.0625);\n" \
-"	uint i = texelFetch(RetroLUT, ivec3(clamp(q, 0.0, 1.0) * 127.0 + 0.5), 0).x;\n" \
-"	uint p = RetroPal[i >> 2u][i & 3u];\n" \
-"	return mix(c, vec3(uvec3(p, p >> 8u, p >> 16u) & 255u) * (1.0 / 255.0), RetroP1.x);\n" \
+"	uvec3 p = texelFetch(RetroColorLUT, ivec3(clamp(q, 0.0, 1.0) * 127.0 + 0.5), 0).rgb;\n" \
+"	return mix(c, vec3(p) * (1.0 / 255.0), RetroP1.x);\n" \
 "}\n" \
 "// A premultiplied colour (decals, particles, glows) pulled to the palette: its colour over its strength (its alpha,\n" \
 "// or its brightest channel where it adds more than it covers), the strength kept\n" \
