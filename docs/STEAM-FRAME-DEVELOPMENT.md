@@ -81,6 +81,22 @@ mark the shortcut for the VR library in its properties.
 The new shortcut is named **Quake VR: Unleashed (Steam Frame)**, so registering
 it does not replace the development installation's existing shortcut.
 
+## Preview package audit
+
+The public `v1.0.0-frame.1` assets were downloaded and checked against the
+release's `SHA256SUMS.txt`. The 8,296,352-byte Frame kit matched SHA-256
+`b8b5d13a2181211187b70c3ba4adcf2ae26d68c0cc1d1c156f0be322e1b163de`; its 19
+entries are the native engine, launch/installation/runtime helpers, licenses,
+release notes and this guide. It contains no Quake game PAKs, map files or
+player saves.
+
+The 181,583,708-byte source archive matched SHA-256
+`e5736a76df9c5206cf6b72702b160b325cd2eac70b3a15597a729a2f5679e2f1`. It
+contains the port and mod source assets, including project-authored test maps
+and `Quake/ironwail.pak` with five small engine menu/config entries. It does
+not contain the owner's `id1/PAK0.PAK` or `id1/PAK1.PAK`. Those are supplied
+from a separately owned upstream installation by the install command above.
+
 Complete calibration intentionally standing or seated. Putting on the headset
 while still settling can initially produce a low automatic height measurement;
 the tested body calibration subsequently measured 1.516 m and completed all
