@@ -233,11 +233,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 // ---------------------------------------------------------------------------------------------------------------------
 // Ladders (decision 26: working nicely with Quake VR's hand climbing)
 //
-// AD's trigger_ladder (in any map while its data is there) keeps AD's own climb (holding jump climbs at the ladder's
-// speed: AD_PlayerPreThink) and is a climbable volume for Quake VR's hands (the engine's vr_climb.cpp ladderHold,
-// vr_climb_ladders): an empty hand gripping in it (or touching it) holds where it is, a rung under every hand, and the
-// body hangs and is pulled up hand over hand as on ledges, mantling at the top where there is room. While AD's own
-// state turns the ladder off (not solid), no hand holds on it.
+// AD ladder volumes identify the setting; the engine uses real map ledges/rungs only.
+// Tracked hands bypass keyboard jump/velocity climbing, including its artificial body obstruction.
 
 // AD's trigger_ladder's spawn's end (a reviewed patch).
 void() VR_AD_LadderSpawned =
@@ -330,3 +327,6 @@ void(float s) VR_AD_SetSkill =
     cvar_set("vr_ad_evil", s >= ad_SKILL_EVIL ? "1" : "0");
     cvar_set("scratch4", s >= ad_SKILL_EVIL ? "1" : "0");
 };
+
+// AD support: tracked hands bypass both keyboard ladder systems.
+float(entity p) VR_AD_LadderManual = { return VRHandsTracked(p); };

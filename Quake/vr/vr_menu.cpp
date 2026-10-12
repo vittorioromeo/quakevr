@@ -3696,9 +3696,9 @@ void hologramTestMessage()
                   "orange while burning (with Burn Damage off), a book's dark background while you read it. Eased in and out. 0: none. Its "
                   "cinematic cameras' fades to black always play (Graphics' colour shift settings apply to all)."),
         toggle("Hand-Climbed Ladders", vr_climb_ladders)
-            .help("Arcane Dimensions' ladders climbed with your hands, as ledges (Hand Climbing on): grip anywhere on a "
-                  "ladder, a rung under every hand, pull yourself up hand over hand, mantle at its top. Holding jump "
-                  "climbs them too, as in Arcane Dimensions."),
+            .help("Arcane Dimensions' ladders climbed with your hands, as ledges (Hand Climbing on): grip an actual "
+                  "rung, pull yourself up hand over hand, mantle at its top. VR hands disable keyboard ladder "
+                  "movement and jump climbing."),
         cycle("Additional Content", vr_ad_everywhere, {{0.f, "AD Maps Only"}, {1.f, "Everywhere"}})
             .help("Arcane Dimensions' monsters, new artifacts, custom keys, health vials and gems, custom items and ladders in any "
                   "map that places them (custom maps, the toolgun), while its data is installed. Off: only in its own "
@@ -6501,6 +6501,14 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Evil Skill Report", "vr_ad_test 22")
             .help("Whether AD's Evil skill plays (Nightmare with Evil Skill on), your health and its cap, megahealth's, "
                   "the axe's blow."),
+        command("Arcane Dimensions: Buttons Test", "vr_ad_test 61")
+            .help("Press this map's laser button with a hand, a weapon and a thrown prop; check disabled state."),
+        command("Arcane Dimensions: Backpacks Test", "vr_ad_test 62")
+            .help("Report map backpacks; create an AD dropped bag, test walkover immunity and grab/holster collection."),
+        command("Arcane Dimensions: Ladder Movement Test", "vr_ad_test 63")
+            .help("Verify tracked hands bypass AD jump/velocity ladder movement."),
+        command("Arcane Dimensions: Ladder Rung Probes", "vr_climb_try -417 -2387 -70 main; vr_climb_try -417 -2387 -60 main")
+            .help("Stand beside ad_crucial's first ladder: report a real rung and the gap above it, using your current grip tolerances."),
         command("Arcane Dimensions: Ladders Report", "vr_ad_test 24")
             .help("This map's trigger_ladders and the first one's volume (climbable by hand: Hand-Climbed Ladders)."),
         command("Arcane Dimensions: Spawnflags and Sight Report", "vr_ad_test 26; wait; wait; vr_ad_test 27")

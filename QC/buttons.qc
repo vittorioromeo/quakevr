@@ -96,6 +96,8 @@ float() button_campaign_unavailable =
 
 void() button_fire =
 {
+    if(VR_AD_ButtonFire()) return; // AD support: preserve AD targets and states
+
     if(button_campaign_unavailable())
     {
         if(self.enemy.classname == "player")
@@ -165,6 +167,8 @@ void() button_use =
 
 void() button_touch =
 {
+    if(VR_AD_ButtonTouch()) return; // AD support
+
     if(other.classname != "player")
     {
         return;
@@ -271,7 +275,7 @@ float(vector xA, vector xB, float xR, vector xLo, vector xHi) VR_SegmentMeetsBox
 // A wall button a held thing may press now: not freed, still pressed by touch, not in or coming out.
 float(entity xButton) VR_Button_Pressable =
 {
-    return xButton.solid == SOLID_BSP && xButton.vr_wpntouch == button_wpntouch && xButton.state != STATE_UP &&
+    return VR_AD_ButtonEnabled(xButton) && xButton.solid == SOLID_BSP && xButton.vr_wpntouch == button_wpntouch && xButton.state != STATE_UP &&
            xButton.state != STATE_TOP && xButton.state != STATE_DISABLED;
 };
 

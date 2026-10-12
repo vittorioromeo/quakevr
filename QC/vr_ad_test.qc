@@ -53,6 +53,8 @@ void() AD_MenuAmmoReport =
 
 void(float request, entity p) AD_RulesTest =
 {
+    if(request >= 61 && request <= 63) { AD_WorldTest(request, p); return; } // AD support
+
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;
     entity os = self;
