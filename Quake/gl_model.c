@@ -4371,6 +4371,11 @@ error:
 static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shader)
 {
 	char texname[MAX_QPATH];
+	// QVR: Quake VR's body skins (shader "vrbody": VR_MD5SharedSkins) are one copy for all its builds and bare/bracer
+	// models, which use the same 16 skins: unowned and kept for the session (TEXPREF_PERSIST), as are their normal maps
+	// (a normal map takes its skin's owner and persistence); a model's own skins are its own as before
+	qmodel_t *skinowner = VR_MD5SharedSkins (shader) ? NULL : mod;
+	int skinpersist = skinowner ? 0 : TEXPREF_PERSIST;
 
 	VR_MD5SkinsReset (); // QVR: (VR_MD5SkinNormalMap) the islands made anew for this surface
 
@@ -4386,28 +4391,36 @@ static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shade
 		{
 			q_snprintf(texname, sizeof(texname), "progs/%s_%02u_%02u", shader, surf->numskins, f);
 
+			// QVR: a shared skin another model loaded already (its normal map is linked to it already)
+			if (!skinowner && (surf->gltextures[surf->numskins][f] = TexMgr_FindTexture (NULL, texname)) != NULL)
+			{
+				gltexture_t *fb = TexMgr_FindTexture (NULL, va ("%s_glow", texname));
+				surf->fbtextures[surf->numskins][f] = fb ? fb : TexMgr_FindTexture (NULL, va ("%s_luma", texname));
+				continue;
+			}
+
 			data = Image_LoadImage (texname, (int*)&fwidth, (int*)&fheight, &fmt);
 			//now load whatever we found
 			if (data) //load external image
 			{
-				surf->gltextures[surf->numskins][f] = TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_NOBRIGHT|TEXPREF_MIPMAP );
+				surf->gltextures[surf->numskins][f] = TexMgr_LoadImage (skinowner, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_NOBRIGHT|TEXPREF_MIPMAP|skinpersist ); // QVR: skinowner, skinpersist
 				surf->fbtextures[surf->numskins][f] = NULL;
 				if (fmt == SRC_INDEXED)
 				{	//8bit base texture. use it for fullbrights.
 					if (Mod_CheckFullbrights (data, fwidth*fheight))
-						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (mod, va("%s_luma", texname), fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_FULLBRIGHT|TEXPREF_MIPMAP );
+						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (skinowner, va("%s_luma", texname), fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_FULLBRIGHT|TEXPREF_MIPMAP|skinpersist );
 				}
 				else
 				{	//we found a 32bit base texture.
 					if (!surf->fbtextures[surf->numskins][f])
 					{
 						q_snprintf(texname, sizeof(texname), "progs/%s_%02u_%02u_glow", shader, surf->numskins, f);
-						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP);
+						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(skinowner, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP|skinpersist);
 					}
 					if (!surf->fbtextures[surf->numskins][f])
 					{
 						q_snprintf(texname, sizeof(texname), "progs/%s_%02u_%02u_luma", shader, surf->numskins, f);
-						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP);
+						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(skinowner, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP|skinpersist);
 					}
 				}
 

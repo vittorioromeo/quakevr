@@ -6434,8 +6434,8 @@ bool emptyHandImpl(const hands::State& s, int hand, view::EmptyHand& out)
 int drawnBuild = 1;
 bool drawnBare = false;
 
-// The light your body was last drawn in (view::bareLight, view::bareShade): with either forearm model the hands are drawn in
-// it too, so that the skin is lit alike on both sides of the wrist (each model's light, its direction and the light
+// The light your body was last drawn in (view::bareLight, view::bareShade): with bare forearms the hands are drawn in
+// it too (with bracers each hand samples its own light: the bracer's lip covers the wrist), so that the skin is lit alike on both sides of the wrist (each model's light, its direction and the light
 // round it are otherwise sampled at its own place: the body's round the torso, a hand's round the hand).
 struct BareLight
 {
@@ -6447,10 +6447,10 @@ struct BareLight
 };
 BareLight bareLit;
 
-// A hand drawn in the body's light (the body's light kept this frame or the last): its hand, else -1.
+// A hand drawn in the body's light (bare forearms, the body's light kept this frame or the last): its hand, else -1.
 [[nodiscard]] int bareLitHand(const entity_t* e)
 {
-    if(!entities.body.visible || bareLit.frame < host_framecount - 1)
+    if(!drawnBare || bareLit.frame < host_framecount - 1)
     {
         return -1;
     }

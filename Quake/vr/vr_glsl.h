@@ -2435,10 +2435,14 @@ SPECULAR_AA_FUNCTIONS
 // wounds, normal maps, occlusion, the model's light
 #define QVR_ALIAS_FS_LIGHT \
 "	Wounds wounds = WoundsAt(uv, result.rgb); // QVR: wounds painted on the model (vr/vr_wounds.cpp)\n" \
-"	result.rgb = wounds.look;\n" \
 "	vec4 tone = instances[in_instance].SkinTone;\n" \
-"	if (tone.w > 0.0 && wounds.blood == 0.0 && wounds.burn == 0.0) // skin only: painted blood/char keep their colour\n" \
-"		result.rgb *= mix(vec3(1.0), tone.rgb, textureGrad(SkinMaskTex, uv, duvdx, duvdy).r);\n" \
+"	if (tone.w > 0.0) // QVR: skin only (vr_skin_tone): the skin's share of the look toned, painted blood/char keep their colour,\n" \
+"	{ // their soft edges blending in (no untoned ring)\n" \
+"		float skinShare = (1.0 - wounds.burn) * (1.0 - wounds.blood * instances[in_instance].WoundSide.w) * (1.0 - 0.5 * wounds.wet);\n" \
+"		vec3 toneMul = mix(vec3(1.0), tone.rgb, textureGrad(SkinMaskTex, uv, duvdx, duvdy).r);\n" \
+"		wounds.look += skinShare * result.rgb * (toneMul - 1.0);\n" \
+"	}\n" \
+"	result.rgb = wounds.look;\n" \
 "#if ALPHATEST\n" \
 "	vec3 emissive = vec3(0.); // QVR\n" \
 "#else\n" \

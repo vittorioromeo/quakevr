@@ -193,13 +193,19 @@ void() VR_Knockdown_Reverse =
     {
         self.vr_knockdown = 0;
         self.think = self.th_run;
-        if(VR_IsDummy(self))
+        self.nextthink = time + 0.1;
+        if(VR_IsDummy(self)) // (the training dummy: no AI, back to its training pose; VR_Knockdown_Stand)
         {
             self.think = vr_dummy_think;
             self.movetype = MOVETYPE_NONE;
             self.vr_dummy_painframe = 0;
+            if(cvar_hget(cvarh_vr_knockdown_debug))
+            {
+                dprint(sprintf("knockdown: %s eased up, back in its training pose after %.1f s\n", self.classname,
+                    time - self.vr_kd_since));
+            }
+            return;
         }
-        self.nextthink = time + 0.1;
         if(self.vr_ad_mon)
         {
             VR_AD_RunNow(); // AD support: AD's monsters run by AD's th_run (vr_ad_monsters.qc)
@@ -225,15 +231,22 @@ void() VR_Knockdown_Step =
     {
         return;
     }
-    if(self.think == self.th_run || self.think == f || VR_AD_IsRunning(self)) // (AD support: AD's th_run)
+    // (The training dummy has no th_run: its enemy's, kept, ends its get-up instead.)
+    if(self.think == self.th_run || self.think == f || VR_AD_IsRunning(self) || // (AD support: AD's th_run)
+       (VR_IsDummy(self) && self.think == self.vr_dummy_th_run))
     {
         self.vr_knockdown = 0; // (its run goes on at its own pace)
-        if(VR_IsDummy(self))
+        if(VR_IsDummy(self)) // (the training dummy: no AI, back to its training pose)
         {
             self.think = vr_dummy_think;
             self.movetype = MOVETYPE_NONE;
             self.vr_dummy_painframe = 0;
             self.nextthink = time + 0.05;
+            if(cvar_hget(cvarh_vr_knockdown_debug))
+            {
+                dprint(sprintf("knockdown: %s eased up, back in its training pose after %.1f s\n", self.classname,
+                    time - self.vr_kd_since));
+            }
         }
         return;
     }
@@ -289,9 +302,10 @@ void(float xWhich) VR_Knockdown_Stand =
 {
     self.vr_knockdown = 2;
     VR_Knockdown_Upright();
-    // A dummy has no monster AI: the last pain/get-up frame can enter ai_run before Step sees it.
-    // Resume its own idle callback immediately, which returns it to the configured practice pose/home.
-    if(VR_IsDummy(self))
+    // (The training dummy too: it eases up through its get-up or its death backwards; VR_Knockdown_Step and _Reverse
+    // hand it back to its idle callback, its practice pose/home, where a monster's would run.) One made before its
+    // enemy's run was kept (an older save) can't tell its get-up's end: straight back to its training pose.
+    if(VR_IsDummy(self) && self.vr_kd_getup && !self.vr_dummy_th_run)
     {
         VR_Knockdown_Afoot("returns to its training pose");
         return;

@@ -3826,14 +3826,14 @@ blunt gun/hammer/brick blows on corpses should pop the piece struck, while axes 
   as ordinary surface contacts: these distinguish penetration from small contact slop in the fitted hulls.
 - `QC/combat.qc`, `QC/vr_limbs.qc`: after the existing immediate chance-based pops, blunt/fist/prop/bash corpse hits
   accumulate damage separately at the struck limb joint (and separately at the head). Reaching that monster's original
-  corpse-health threshold pops that piece; hits on the torso bleed/push but preserve the body. Blades, chainsaws,
+  corpse-health threshold pops that piece; hits on the torso take the whole-body corpse health (enough gibs it). Blades, chainsaws,
   shots and blasts retain their existing paths. With Limb Gore/Corpses disabled, the previous whole-body path remains.
   Per-piece damage uses the existing corpse damage multipliers and persists with ordinary QC entity fields. Untagged
   flung props use their own position/velocity, matching the existing living thrown-limb hook; held blows use their tagged
   contact point.
 - `vr_limb_test` 24: two blunt 48-damage blows at one forearm (grunt threshold 80), 25: an 800-damage pelvis-surface
   blow, 26: two physical-prop blows at that forearm, 27: an 8 m/s axe corpse slash through the real cut classifier.
-  All leave corpse health 80 and `gib 0`; 24/26 pop one piece, 25 pops none, 27 cuts one and pops none. Debug > Gore
+  24/26/27 leave corpse health 80 and `gib 0` (24/26 pop one piece, 27 cuts one); 25 gibs the corpse (review fix). Debug > Gore
   Tests > Limb Gore Tests has the buttons (toolbake). `Misc/quakevr/ragdoll/notes_regression.sh <agent>` reproduces
   the reach, corpse, overlap and living-transition checks.
 
@@ -4005,8 +4005,8 @@ gains 13,915 body blood texels. Healing ownership is retained.
 
 Body > Skin Tone (vr_skin_tone, archived, default 0; range -1..1) multiplies authored skin in the shader only.
 Twenty small masks exclude nails, clothing and static wounds; dynamic blood and char bypass tone. Masks load before
-alias batching (cache-safe) and use sampler 6, leaving retro LUT sampler 3 intact. Both bracer modes share body
-lighting for hands. The calibration board links the slider. No diffuse tone variants are generated.
+alias batching (cache-safe) and use sampler 6, leaving retro LUT sampler 3 intact. Only bare forearms draw the
+hands in the body's light; with bracers each hand samples its own (review fix, his decision). The calibration board links the slider. No diffuse tone variants are generated.
 
 Validation: QC/engine/FGD build passed (0 QC warnings, 367 entities). wrist_test.py verifies contour clearance,
 unchanged paints and zero clothing/static blood coverage. wrist_runtime_test.py passes blood, mount, wrist and menu
@@ -4221,3 +4221,25 @@ From review r1 (and r3's AD isolation note):
 - ad_hits_test.sh asserts tests 40-42: no spread, SG 24 and SSG 56 at 128 and 384 units, a burst round 9.
 - Still open: ad_shots_test -Full's vanilla corpse volleys (mode 53) sometimes miss the corpse (no pellet hit: the
   ragdoll settles elsewhere), so -Full is flaky; the default run passes.
+## Review fixes: ragnotes, toolbake, animbody, wrist2, dummyhold, vrgrabs, meleeroom, reload2 (2026-10-12, worktree `fixmisc2`; review r2/r3)
+
+- ragnotes (his decision): blunt/fist/prop/bash hits on a ragdolled corpse's limb or head wear down that piece only;
+  torso hits take the whole-body corpse health again (enough gibs it), as does a rig without limbs (VR_Limb_Allowed).
+  `vr_limb_test` 24-28 print PASS/FAIL (25 now gibs); 28, a save/load, then 29 shows the per-joint damage persists (the
+  field array saves every element: joint 4 kept 48.0). `notes_regression.sh` asserts 7/7.
+- toolbake: Debug > Tests is rebuilt when `vr_test_spawn` changes, so Put It There's lock follows the chosen Thing;
+  `vr_menu_press` refuses locked rows. `brush_test.py` bakes to new names each run (32/32 ok); `vr_ad_everywhere`'s
+  description names AD monsters (it also spawns them in non-AD custom maps that place them).
+- animbody: shader "vrbody"'s skins load once, unowned and persistent, for every body model (`imagelist vrbody` with
+  athletic, lean+bare and brawny+bare loaded: 384 -> 96 MB); `vr_model_reload` no longer re-reads them. The Animations
+  row goes back to Classic (remembering mode 3); the seed table's death boundaries apply only to the model it fits.
+- wrist2: Skin Tone tones the skin's share of a wound's soft edge (no untoned ring: 176 -> 0 edge pixels at tone -1 in
+  `wrist_runtime_test.py`); skin-mask lookups are cached (a missing file searched once; cleared when textures are
+  freed). His decision: hands borrow the body's light only with bare forearms again (`drawnBare`), asserted per mode.
+- dummyhold: a dummy getting up through QC (active get-up off, or a type without one) eases up through its get-up or its
+  death backwards; its enemy's run is kept (`vr_dummy_th_run`) as the get-up's end, so Step no longer calls ai_run.
+- vrgrabs: a drawn prop is kept out of the torso only while held, once a frame; a prop's lip takes the connected top's
+  plane only across a bevel of at most 6 units (a wedge's slope keeps its own lip; not tested on a wedge prop).
+- meleeroom: under the mock headset `vr_motion_play ... noplace` or `target ...` keeps the running map (TESTING.md).
+- reload2: the vacuous "return inside" reinsertion check is gone (18 checks); the pouch endpoint check says it proves
+  routing only.

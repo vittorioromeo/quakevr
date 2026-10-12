@@ -61,6 +61,8 @@ softemu_t		softemu;
 static int numgltextures;
 int TexMgr_Count (void) { return numgltextures; } // QVR (vr_limits)
 int TexMgr_Max (void) { return MAX_GLTEXTURES; }
+static unsigned int texmgr_frees; // QVR: textures freed so far (vr_render.cpp's skin mask cache)
+unsigned int TexMgr_FreeCount (void) { return texmgr_frees; }
 static gltexture_t	*active_gltextures, *free_gltextures;
 gltexture_t		*notexture, *nulltexture, *whitetexture, *greytexture, *blacktexture;
 
@@ -730,6 +732,7 @@ void TexMgr_FreeTexture (gltexture_t *kill)
 		return;
 	}
 
+	texmgr_frees++; // QVR
 	// QVR: its normal map is freed with it (they have the same owner)
 	normalmap_of[kill - gltextures_base] = NULL;
 	normalmap_kind[kill - gltextures_base] = NORMALMAP_NONE;

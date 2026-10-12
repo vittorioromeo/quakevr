@@ -5962,7 +5962,12 @@ za::Vector<Item> pageDebugTools()
         command("Repeated Blunt Hits on a Corpse Limb", "vr_limb_test 24")
             .help("vr_limb_test 24: repeated blunt hits detach the nearest corpse's limb without losing the detached piece."),
         command("Repeated Blunt Hits on a Corpse Torso", "vr_limb_test 25")
-            .help("vr_limb_test 25: blunt hits to the corpse's torso leave its limbs attached."),
+            .help("vr_limb_test 25: a heavy blunt hit to the corpse's torso gibs the whole corpse."),
+        command("One Blunt Hit on a Corpse Limb", "vr_limb_test 28")
+            .help("vr_limb_test 28: one blunt hit wears the struck limb down without popping it (save, load, then "
+                  "Stored Limb Damage)."),
+        command("Stored Limb Damage", "vr_limb_test 29")
+            .help("vr_limb_test 29: prints the blunt damage the nearest corpse's test limb has taken (kept across save/load)."),
         command("Held Prop at a Corpse Limb", "vr_limb_test 26")
             .help("vr_limb_test 26: a blunt hit with a held prop detaches and keeps the corpse's struck limb."),
         command("Axe at a Corpse Limb", "vr_limb_test 27")
@@ -6432,8 +6437,13 @@ za::Vector<Item> pageMg3ChthonTests()
     };
 }
 
+// The Thing (vr_test_spawn) the Tests page was built for: Put It There's lock follows it (AD support: an AD entry
+// without its data locks it).
+int testsPageSpawn = -1;
+
 za::Vector<Item> pageDebugTests()
 {
+    testsPageSpawn = static_cast<int>(vr_test_spawn.value);
     return {
         command("Doom: Info", "vr_doom_info")
             .help("vr_doom_info: Doom's state (level, health, ammo, place), its focus, the screen's distance and angle "
@@ -10343,6 +10353,10 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         done[page] = false; // the off hand's own sliders shown or not
     }
+    if(pages[page].build == pageDebugTests && testsPageSpawn != static_cast<int>(vr_test_spawn.value))
+    {
+        done[page] = false; // another Thing chosen (or set by a spawn row): Put It There locked or not
+    }
     if(pages[page].build == pageMotionRecorder && motionPageCategory != static_cast<int>(vr_motion_category.value))
     {
         done[page] = false; // the Detail choice is the category's
@@ -12459,6 +12473,7 @@ void qvr::menu::press_f()
     const char* command = nullptr;
     void (*action)() = nullptr;
     bool found = false;
+    bool locked = false;
     for(int p = 0; p < pageCount && !found; p++)
     {
         if(q_strcasecmp(pages[p].title, title))
@@ -12471,6 +12486,7 @@ void qvr::menu::press_f()
             {
                 command = item.command;
                 action = item.page < 0 && !item.actionArg ? item.action : nullptr;
+                locked = item.unavailable;
                 found = true;
                 break;
             }
@@ -12480,6 +12496,11 @@ void qvr::menu::press_f()
     if(!found || (!command && !action))
     {
         Con_Printf("vr_menu_press: no button \"%s\" on page \"%s\"\n", label, title);
+        return;
+    }
+    if(locked)
+    {
+        Con_Printf("vr_menu_press: %s > %s is locked (unavailable), not pressed\n", title, label);
         return;
     }
     Con_Printf("vr_menu_press: %s > %s%s%s\n", title, label, command ? ": " : "", command ? command : "");

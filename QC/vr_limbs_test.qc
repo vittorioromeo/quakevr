@@ -14,7 +14,7 @@
 // monster's head that kills (health 1; 21 at a limb); 22 the nearest living monster held still in frame 17 (a grunt's
 // last death frame: lying, its head far from where it stands); 23 where its head is for the head and limb tests: a
 // point on its head as animated against its standing head zone's middle (VR_Decap_OnMeleeHead, VR_Decap_OnHead,
-// ragdolllimb). `limbtest:` lines.
+// ragdolllimb); 24-28 blunt corpse impacts (PASS/FAIL), 29 a corpse limb's stored blunt damage. `limbtest:` lines.
 
 float() VR_Limb_TestCount =
 {
@@ -195,7 +195,21 @@ void(float xTest) VR_Limb_Test =
         }
         return;
     }
-    if(xTest >= 24 && xTest <= 27)
+    if(xTest == 29)
+    {
+        // The per-joint blunt damage stored on the nearest corpse (after test 28 and a save/load: it persists).
+        m = VR_Limb_TestTarget(0);
+        if(m == world)
+        {
+            bprint("limbtest: 29: no corpse with limbs near\n");
+            return;
+        }
+        b = VR_Limb_TestBone(m);
+        bprint(sprintf("limbtest: 29 %s joint %g stored blunt damage %.1f (joint 0 %.1f) %s\n", m.classname, b,
+            m.vr_limb_corpse_dmg[b], m.vr_limb_corpse_dmg[0], m.vr_limb_corpse_dmg[b] > 0 ? "PASS" : "FAIL"));
+        return;
+    }
+    if(xTest >= 24 && xTest <= 28)
     {
         m = VR_Limb_TestTarget(0);
         if(m == world)
@@ -206,6 +220,7 @@ void(float xTest) VR_Limb_Test =
         b = VR_Limb_TestBone(m);
         vector at = limbplace(m, b, 3);
         float hpBefore = m.vr_corpse_hp;
+        float gibBefore = m.vr_gib;
         if(xTest == 27)
         {
             float oldWeapon = VRGetEntWeapon(self, cVR_MainHand);
@@ -234,7 +249,7 @@ void(float xTest) VR_Limb_Test =
             {
                 at = limbplace(m, 0, 3); // pelvis surface: a torso hit, even with ten times the body's health
             }
-            for(float hit = 0; hit < (xTest == 25 ? 1 : 2); hit++)
+            for(float hit = 0; hit < ((xTest == 25 || xTest == 28) ? 1 : 2); hit++)
             {
                 VR_SetHitKind(xTest == 26 ? QVR_HITKIND_NONE : QVR_HITKIND_MELEE, -1, at, v_forward);
                 float damage = hp * (xTest == 25 ? 10 : 0.6) * VR_Corpse_PositionalFactor(m) / max(0.001, mult);
@@ -248,6 +263,30 @@ void(float xTest) VR_Limb_Test =
         }
         VR_Gore_Print(sprintf("limbtest: %g corpse hp %.1f -> %.1f, joint %g\n", xTest, hpBefore, m.vr_corpse_hp, b));
         VR_Limb_TestReport(m, "corpse impact", cuts, pops, limbs, fountains);
+        // 24/26: the struck limb pops, the body's health untouched; 25: a torso blow of ten times the corpse's health
+        // gibs it whole; 27: the axe cuts the limb; 28: one blow, nothing pops (its damage is kept: 29).
+        float cutN = vr_limb_cuts - cuts;
+        float popN = vr_limb_pops - pops;
+        float bodyKept = (m.vr_corpse_hp == hpBefore && m.vr_gib == gibBefore);
+        float ok;
+        if(xTest == 25)
+        {
+            ok = m.vr_corpse_hp <= 0;
+        }
+        else if(xTest == 27)
+        {
+            ok = (cutN == 1 && popN == 0 && bodyKept);
+        }
+        else if(xTest == 28)
+        {
+            ok = (cutN == 0 && popN == 0 && bodyKept && m.vr_limb_corpse_dmg[b] > 0);
+        }
+        else
+        {
+            ok = (popN == 1 && cutN == 0 && bodyKept);
+        }
+        bprint(sprintf("limbtest: %g corpse impact %s (cut %g popped %g, hp %.1f -> %.1f)\n", xTest, ok ? "PASS" : "FAIL",
+            cutN, popN, hpBefore, m.vr_corpse_hp));
         return;
     }
     if(xTest == 22 || xTest == 23)
