@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import struct
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -82,8 +83,89 @@ class PipelineTests(unittest.TestCase):
             status = pbr.generate(self.args, self.sources, {"scan_errors": []}, "palette fixture")
         manifest = json.loads((self.args.output / "pbr-manifest.json").read_text())
         self.assertEqual(status, 0)
+        expected = []
+        for entry in manifest["textures"]:
+            with Image.open(self.args.output / entry["file"]) as image:
+                digest = hashlib.sha256(b"qvr-pbr-v1\0" + struct.pack("<II", *image.size) +
+                                        image.convert("RGBA").tobytes()).hexdigest()
+            flags = int(entry["generated_normal"]) + 2 * int(entry["generated_height"])
+            expected.append(f"{entry['sha256'][:32]} {digest} {flags}")
+        index = (self.args.output / "textures/pbr/provenance.txt").read_bytes()
+        self.assertEqual(index, ("qvr-pbr-provenance-v1\n" + "\n".join(sorted(expected)) + "\n").encode("ascii"))
         item = manifest["textures"][0]
         return pbr.read_image(self.args.output / item["file"]), manifest
+
+    def test_provenance_independent_flags_alpha_dimensions_and_checksum(self):
+        self.source()
+        rgba, manifest = self.run_generation()
+        item = manifest["textures"][0]
+        original_digest = pbr.provenance_line(self.args.output, item).split()[1]
+        for flags in range(4):
+            item["generated_normal"], item["generated_height"] = bool(flags & 1), bool(flags & 2)
+            self.assertEqual(int(pbr.provenance_line(self.args.output, item).split()[2]), flags)
+        path = self.args.output / item["file"]
+        rgba[:, :, 3] = 255
+        Image.fromarray(rgba).save(path)
+        with self.assertRaisesRegex(ValueError, "modified output"):
+            pbr.provenance_line(self.args.output, item)
+        item["output_sha256"] = pbr.sha(path.read_bytes())
+        self.assertNotEqual(pbr.provenance_line(self.args.output, item).split()[1], original_digest)
+        # Same row-major pixels under different dimensions must produce a different digest.
+        original_digest = pbr.provenance_line(self.args.output, item).split()[1]
+        Image.fromarray(rgba.reshape(4, 16, 4)).save(path)
+        item["output_sha256"] = pbr.sha(path.read_bytes())
+        self.assertNotEqual(pbr.provenance_line(self.args.output, item).split()[1], original_digest)
+
+    def test_provenance_offline_refresh_drops_removed_sources_without_inference(self):
+        self.source("wall", 77)
+        self.source("stone", 123)
+        _, manifest = self.run_generation()
+        self.assertEqual(len(manifest["textures"]), 2)
+        # A failed or removed output cannot keep a flag through a refreshed index.
+        removed = self.args.output / manifest["textures"].pop()["file"]
+        pbr.json_write(self.args.output / "pbr-manifest.json", manifest)
+        with patch.object(pbr, "Predictor", side_effect=AssertionError("unexpected model load")), \
+                patch.object(sys, "argv", ["pbr_generate.py", "provenance", "--output", str(self.args.output)]):
+            self.assertEqual(pbr.main(), 0)
+        lines = (self.args.output / "textures/pbr/provenance.txt").read_text().splitlines()
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[1], pbr.provenance_line(self.args.output, manifest["textures"][0]))
+        self.assertTrue(removed.is_file())
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            pbr.provenance_text([lines[1], lines[1]])
+
+    def test_provenance_checkpoint_and_generation_refresh(self):
+        for index in range(51):
+            self.source(f"wall{index}", 10 + index)
+        counts = []
+        original_writer = pbr.write_provenance
+        def checkpoint(output, lines):
+            counts.append(len(lines))
+            manifest = json.loads((output / "pbr-manifest.json").read_text())
+            self.assertEqual(len(lines), len(manifest["textures"]))
+            original_writer(output, lines)
+        with patch.object(pbr, "write_provenance", side_effect=checkpoint):
+            self.run_generation()
+            self.assertEqual(counts, [50, 51])
+        # Remove a discovered source: a regular cache-only refresh must omit its entry.
+        self.sources.pop(next(iter(self.sources)))
+        with patch.object(FixturePredictor, "__call__", side_effect=AssertionError("unexpected inference")):
+            _, manifest = self.run_generation()
+        self.assertEqual(len(manifest["textures"]), 50)
+
+    def test_shipped_provenance_matches_every_manifest_output(self):
+        output = Path(__file__).resolve().parents[2] / "quakevr"
+        manifest = json.loads((output / "pbr-manifest.json").read_text())
+        expected = []
+        for item in manifest["textures"]:
+            path = output / item["file"]
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), item["output_sha256"])
+            with Image.open(path) as image:
+                digest = hashlib.sha256(b"qvr-pbr-v1\0" + struct.pack("<II", *image.size) +
+                                        image.convert("RGBA").tobytes()).hexdigest()
+            expected.append(f"{item['sha256'][:32]} {digest} {int(item['generated_normal']) + 2 * int(item['generated_height'])}")
+        index = (output / "textures/pbr/provenance.txt").read_bytes()
+        self.assertEqual(index, ("qvr-pbr-provenance-v1\n" + "\n".join(sorted(expected)) + "\n").encode("ascii"))
 
     def test_pak_and_loose_precedence_collision(self):
         make_pak(self.root / "pak2.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 2, np.uint8))})

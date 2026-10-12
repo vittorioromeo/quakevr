@@ -4720,3 +4720,26 @@ Both hashes match the native engine inventory exactly. Max generated normal-unit
 0.00653. Twelve targeted pipeline tests, all 2987 checksum/normal/depth checks, required build and e1m1 smoke pass
 (exit 0). The loader worker verifies actual native GPU selection after these assets ship; its sharp-height filtering
 fix is already included in the merged engine. No source diffuse, maps or model weights were distributed.
+
+## Generated-channel provenance emission (adpbrgen)
+
+Merged next 2a60c240d and added generator emission of `textures/pbr/provenance.txt` on each 50-source checkpoint,
+completed generation, refresh and cache resume. The ASCII header is `qvr-pbr-provenance-v1`; sorted entries hold
+source prefix32, output canonical SHA256 hex64, and independent decimal generated-channel bits (1 normal RGB,
+2 height alpha). Output canonical hashing uses `qvr-pbr-v1` plus NUL, LE uint32 width/height and decoded RGBA,
+retaining alpha height. The index therefore binds flags to exact output pixels and dimensions, allowing the engine
+to conservatively treat missing/stale bindings as authored. `provenance --output quakevr` rebuilds metadata offline
+only after verifying every manifest PNG checksum; no model load or inference is needed. `validate` now checks it.
+
+Rebuilt the shipped index from all 2987 current companions without changing any PNG, census or manifest: 2652
+entries flags 3 and 335 entries flags 0, 298722 bytes. Index SHA256:
+`533f12b5fca6069aa1ea14d557fedd2ac6c2ea115a4e72d23bff8733b5c16358`.
+Sixteen pipeline tests pass, covering independent alpha/dimension hashing, all four flag values, stale file refusal,
+exact full shipped-index reconstruction, cache resume, offline refresh, checkpoint counts 50/51 and cache-only
+source removal (50 retained, zero inference). All 2987 full checksum/normal/depth/index validations pass. Required
+QC/FGD/engine build succeeds and hidden mock e1m1 smoke exits 0; no melee or physics code changed.
+
+The engine worker owns generated relief settings and VR verification. Four requested box sources all have flags 3:
+`ef2fac7a255961d0b9f06d41d1d16036` and `79469e258e12ccef0fd24caac20db7c5` are 32x64, alpha 203..222;
+`9cf100e79ecce5eadd1a8572f78ec291` and `7f42379bf902b036f40ac764027ee7da` are 32x32, alpha 204..225.
+Disposable worker artifacts are `scratch/provenance_audit.py` and new `scratch/pbr-tests-*` fixture folders.
