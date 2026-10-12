@@ -129,7 +129,7 @@ int VR_LoadingPlaque (void);	// SCR_UpdateScreen: nonzero to draw Quake's loadin
 // (not free for the next screenshot); shutdown waits for them.
 int VR_ScreenshotWrite (const char *name, unsigned char *rgb, int width, int height);
 int VR_ScreenshotPending (const char *name);
-int VR_OnMainThread (void);	// whether this is the main thread (the console is only for it: a job on the game's thread pool prints nothing)
+int VR_OnMainThread (void);	// console buffer and screen updates are main-thread only; background messages still reach the log
 void VR_TimeAdd (const char *what, double seconds);	// time spent in a kind of work (model loads, normal maps...), summed per stage group
 #define VR_TIMED(what, statement) do { double vr_timed_t0 = Sys_DoubleTime (); statement; VR_TimeAdd (what, Sys_DoubleTime () - vr_timed_t0); } while (0) // the statement's time, as VR_TimeAdd
 void VR_TimeFrameEnd (int signedon, int idle);	// end of _Host_Frame: the first frame ends the start-up, the first signed on a load; idle (no server, not connected) ends a load that failed

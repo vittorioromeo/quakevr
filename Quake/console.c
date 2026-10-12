@@ -1342,6 +1342,10 @@ void Con_Printf (const char *fmt, ...)
 // also echo to debugging console
 	Sys_Printf ("%s", Con_StripControlPrefixes (msg));
 
+	// QVR: background file/map parsing may log, but must not touch the console buffer or GL.
+	if (!VR_OnMainThread ())
+		return;
+
 	if (!con_initialized)
 		return;
 
@@ -1529,6 +1533,13 @@ void Con_SafePrintf (const char *fmt, ...)
 	va_start (argptr, fmt);
 	q_vsnprintf (msg, sizeof(msg), fmt, argptr);
 	va_end (argptr);
+
+	// QVR: never race the main thread's loading flag; Con_Printf keeps worker output in the log.
+	if (!VR_OnMainThread ())
+	{
+		Con_Printf ("%s", msg);
+		return;
+	}
 
 	temp = scr_disabled_for_loading;
 	scr_disabled_for_loading = true;

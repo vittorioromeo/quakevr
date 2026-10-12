@@ -189,3 +189,20 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
   budget for the mobile GPU, packaging/sideloading) (the author, 2026-10-11).
 
 TODO: linux support
+
+## Rendering feasibility from 2026-10-12 voice notes
+
+- **AD relief authoring pilot (audit only):** runtime already generates diffuse-derived normals; embedded indexed
+  heights need smooth texture mode 2. Trial 10–20 representative material textures with reviewed seamless height
+  masks and `_bump`/RGBA `_norm` sidecars, then expand by material family. Convincing depth needs correction of
+  painted shadows/highlights; blindly converting the whole mod is not an authored-quality result. Scope/memory and
+  current assets are measured in ROUND22 "voice-note rendering audit (lightaudit)".
+- **Optional vertex breathing reduction (audit only):** prototype a cached render-only per-bone rigid fit with
+  conservative small-residual filtering on grunt idle. Preserve actual joints, contact/weapon alignment and major
+  deformation; compare against current exact-key Smooth 3. MDL quantization and genuinely changing key poses both
+  contribute. Full clean skeletal reanimation is a separate substantial project; no new default/filter exists yet.
+- **Intentional AD flicker preference:** stationary Crucial brightness variation matches nearby authored style-1
+  flicker and vanishes when styles are flattened. Keep styles unchanged unless a reduced-flicker option is requested;
+  keep >=32 switched/scripted styles separate from the built-in animated styles in any such option.
+- **Hidden mock blank readback:** some isolated eye/window captures are entirely black even with flat lightstyles;
+  investigate capture/target validity separately if needed. This is not evidence of the reported lamp flicker.
