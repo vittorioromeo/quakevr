@@ -158,6 +158,20 @@ fixed for comparisons. Check input, physics and weapons after changing SIMD,
 threading, render targets or update cadence. Publish measured gains and losses;
 do not present a lower render scale alone as an engine optimization.
 
+On the tested Frame, the released engine was also measured with mock tracking
+and real stereo rendering (Turnip/Zink OpenGL, 1728x1728 eye images, 72 Hz
+fixed-step `combat_48`, 180 warm-up and 720 measured frames, two opposite-order
+runs). At the release baseline scale 0.45, GPU eye time averaged 30.138 ms and
+frame median was 31.942 ms. A separate quality/performance preview uses scale
+0.25 and zero retro edge softness; on the same binary it measured 12.559 ms GPU
+eyes and a 13.888 ms median. The p99 remained 20.765 ms, so it does not establish
+sustained 72 fps in campaign play. Scale 0.25 renders 432x432 pixels per eye
+before upscaling, and the sharper retro edges change the intended look. The
+normal launcher and its 0.45 default are unchanged. This is a measured optional
+quality profile, not an engine speedup claim; physical headset validation is
+still required before distribution. See [Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md)
+for the comparison controls and limitations.
+
 ## Credits and source
 
 - Original mod and engine source: [Vittorio Romeo's Quake VR](https://github.com/vittorioromeo/quakevr).
