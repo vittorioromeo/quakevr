@@ -359,6 +359,21 @@ A follow-up OpenXR A-B-B-A compared particle multipliers 0.5 and 0.75 at scale
 remained above the 72 Hz frame-p99 budget. The Ultra shortcut stays at 0.5 for
 its lower render cost, pending a wearer judgement of the visible density tradeoff.
 
+A no-wearer Frame A-B-B-A diagnostic disabled the opaque world/brush depth
+prepass in a separate build. At scale 0.18 on the `particles_dense` fixture,
+GPU-eye mean rose from 8.19 ms with the existing pass to 17.10 ms without it;
+the world/brush phase rose from 2.74 to 8.77 ms despite fewer draw calls.
+Fresh two-eye OpenXR layers
+were observed in all four runs. This pass is therefore retained. The comparison
+does not establish visual equivalence because animated scene captures were not
+pixel-identical; see the detailed controls and limitations in
+[Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
+
+The existing pass stays enabled. The baseline GPU p99 was below the 13.89 ms
+72 Hz budget while frame p99 exceeded it, so the next no-wearer investigation
+will correlate frame-time tails with CPU phases, XR wait/submit timing and
+runtime missed-period counters before trying another GPU code change.
+
 ### Wearer regression checklist for the particle preview
 
 The performance-preview shortcut is a separate installation and starts at

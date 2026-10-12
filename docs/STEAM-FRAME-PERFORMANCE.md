@@ -397,3 +397,44 @@ is excluded from the performance comparisons. The launch used
 `-noconfigwrite`; no game config was created or changed. Console/OpenXR logs are
 retained privately in
 `performance-results/ultra-profile-launch-smoke-frame-20261012`.
+
+## Depth-prepass removal diagnostic
+
+To check whether the opaque world/brush depth prepass was wasting work at the
+Ultra profile's 0.18 scale, I built a separate ARM64 candidate that disabled
+only the `BP_SOLID` depth-only pass. I ran an A-B-B-A comparison on the Frame:
+the existing build, the diagnostic candidate twice, then the existing build
+again. All runs used the same `particles_dense`/`vrfiringrange` fixture,
+1728x1728 OpenXR eye targets, fixed 72 Hz pacing, render scale 0.18,
+`vr_particle_mult 0.5`, 180 warm-up frames and 720 measured frames. Counts for
+edicts, monsters, physics bodies, live particles, decals and dynamic lights
+matched across all four runs.
+
+| Build | GPU-eye mean | GPU-eye p99 | Frame p99 | World + brush GPU phase |
+|---|---:|---:|---:|---:|
+| Existing depth prepass (runs 1 and 4) | 8.186 ms | 9.782 ms | 16.375 ms | 2.744 ms |
+| Depth prepass disabled (runs 2 and 3) | 17.097 ms | 19.256 ms | 21.645 ms | 8.773 ms |
+
+The no-prepass candidate was about 109% slower in GPU-eye mean and 220% slower
+in the world/brush phase, despite reducing draw calls from about 452 to 356.
+The order-reversed A-B-B-A controls reproduced the same result, so disabling
+this pass is not a performance improvement on this Frame workload. Every run
+produced fresh OpenXR projection layers with two stereo views and `held=0`
+(15–18 diagnostic samples per run); the device had no wearer, so this tests
+rendering only. Renderer eye captures show the same scene geometry, but are not
+pixel-identical across runs because of animated effects, capture timing and
+slightly different eye poses. Visual inspection found no obvious geometry or
+depth-order fault, but these captures do not establish exact visual
+equivalence.
+
+The candidate existed only in a separate build directory. The Frame source was
+restored and its `r_world.c` hash matched the original; the baseline binary and
+normal installation were not changed. The baseline and candidate binary SHA-256
+hashes were respectively `48ce8499ba5d14ef6e36b48e0412ae512b1fa8b6db5e631750f56985c49d25db`
+and `6df4e864f452ea1c9bca1fa8c8077590dfe95548c77cb01ad03746a258f22af5`;
+the restored source hash is `f76147469656f30416f23d509a8b5055f4d8c07a0111282162cb84b5724f1c13`.
+Raw JSON, OpenXR diagnostics, logs and eye captures are retained privately in
+`performance-results/depth-prepass-abba-20261012`. Since baseline GPU p99 was
+below the 13.89 ms 72 Hz budget while frame p99 remained above it, the next
+no-wearer diagnosis should correlate frame-time tails with CPU phases, XR
+wait/submit and runtime missed-period counters before another GPU code change.
