@@ -584,3 +584,30 @@ change, so the candidate is rejected and remains separate from the installed
 game and published source. This is a CPU-only diagnostic, not a conclusive
 claim that ThinLTO regresses normal VR play. Raw logs and JSON are retained
 privately in `performance-results/thinlto-headless-abba-20261012`.
+
+## Body-collision cost with a validated mock contact
+
+While headset use was unavailable, I used the Frame's mock VR backend to
+validate the self-collision path in isolation. A scripted main-hand sweep
+through the torso emitted `main hand/torso: - -> block`; at the measured pose,
+`vr_body_collide_bench 20000` reported one blocking contact and a 4.8 cm push.
+The three tested torso depths had warm median solve times of 22.86, 24.06, and
+19.43 microseconds, with one blocking contact and 204 total scene capsules.
+This measures the contact solver itself, not the full per-frame scene build.
+
+I then profiled the same scratch binary and map for 299 frames with the hand
+held in that blocking torso contact and 325 frames with both hands separated.
+At mock eye resolution 384x384, render scale 0.45, and profile GPU queries
+disabled, `body collide` averaged 0.040 ms per frame in both intervals; the
+interval maxima were 0.226 ms with contact and 0.210 ms with hands apart.
+The mock run did not reproduce the roughly 1.4 ms scope seen among selected
+unworn hitch frames, so that earlier scope remains unexplained and is not
+evidence that the contact solver needs simplifying. This small controlled
+sample provides no case for a collision-code change; the next useful evidence
+must come from a repeatable high-cost full scene-build profile or wearer input.
+
+The mock backend cannot validate real controller poses, compositor pacing, or
+wearer performance. The profile CSV, test configs, console log, and runtime
+capture remain on the Frame in
+`performance-results/decal-grid-frame-20261012/base/quakevr` and
+`performance-results/decal-grid-frame-20261012`.
