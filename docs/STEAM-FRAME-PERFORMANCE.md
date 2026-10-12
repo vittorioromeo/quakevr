@@ -40,6 +40,15 @@ boundaries while both settings retain the lower-resolution detail loss. Neither
 profile demonstrates stable 72 Hz in this combat fixture because p99 exceeds
 13.89 ms.
 
+At the normal 0.45 scale, disabling edge softness only for world materials
+reduced combat GPU-eye mean from 30.188 to 29.440 ms (2.5%) across two
+opposite-order runs; frame median averaged 31.304 versus 31.094 ms and p99
+44.789 versus 46.267 ms. Disabling softness for brush materials alone showed
+no gain: 30.328 ms versus 30.188 ms. The world-only setting changes the edge
+appearance on world textures while leaving model/weapon softness unchanged.
+It is a modest optional tradeoff and still does not meet the 72 Hz combat
+budget. It does not change the default or the existing preview launcher.
+
 The tested shader fast path for retro-light curves had no gain and was reverted.
 An exact-color palette lookup candidate also failed to improve performance: the
 corrected version rendered pixel-identical eyes but averaged 30.437 ms GPU-eye

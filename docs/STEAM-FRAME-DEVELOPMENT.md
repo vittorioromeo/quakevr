@@ -185,6 +185,13 @@ retro boundaries at about a 7% GPU cost; both retain the blur from reduced
 render resolution, and both exceeded the 13.89 ms frame p99 budget in combat.
 The current optional preview still uses the sharper-edge profile.
 
+At the release's 0.45 scale, disabling retro edge softness only for world
+materials reduced combat GPU-eye mean by about 2.5% (30.188 to 29.440 ms).
+Disabling it for brush materials alone showed no improvement. The world-only
+setting changes world-texture edge appearance but preserves softness on models
+and weapons; it remains a small optional tradeoff and does not meet the combat
+72 Hz budget. The default and performance-preview launcher are unchanged.
+
 ## Credits and source
 
 - Original mod and engine source: [Vittorio Romeo's Quake VR](https://github.com/vittorioromeo/quakevr).
