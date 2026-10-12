@@ -374,6 +374,22 @@ The existing pass stays enabled. The baseline GPU p99 was below the 13.89 ms
 will correlate frame-time tails with CPU phases, XR wait/submit timing and
 runtime missed-period counters before trying another GPU code change.
 
+The actual Frame hitch profile found high per-frame costs in desktop-window
+swap and occasional XR submit, with smaller recurring Box3D/view-setup work.
+Skipping the hidden desktop swap removed its CPU cost but moved wait into
+`xrEndFrame`, increased GPU-eye mean by 40.6% and worsened frame p99 by 10.8%;
+that isolated candidate was rejected. SteamVR treated this no-wearer session as
+timed out, so these measurements locate renderer-side costs but do not verify
+compositor pacing while worn. The raw comparison and its limitations are in
+[Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
+
+A later, isolated `glFlush`-instead-of-hidden-swap build crashed with SIGSEGV
+alongside an Adreno GPU lockup; the kernel reported recovery. The failed candidate was quarantined; a
+subsequent unchanged-baseline run again produced 720 frames and fresh stereo
+OpenXR layers. Keep the original SDL swap path. The failure and recovery
+evidence are recorded in
+[Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
+
 ### Wearer regression checklist for the particle preview
 
 The performance-preview shortcut is a separate installation and starts at

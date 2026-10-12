@@ -438,3 +438,95 @@ Raw JSON, OpenXR diagnostics, logs and eye captures are retained privately in
 below the 13.89 ms 72 Hz budget while frame p99 remained above it, the next
 no-wearer diagnosis should correlate frame-time tails with CPU phases, XR
 wait/submit and runtime missed-period counters before another GPU code change.
+
+## Frame-tail CPU profile and hidden-window swap diagnostic
+
+I captured per-frame hitch breakdowns on the Frame with `vr_profile_csv 1` and
+`vr_profile_hitch 1.0`, restricted to the same 720-frame `particles_dense`
+window. The build, render scale 0.18, particle multiplier 0.5, map, eye size,
+seeds and fixture matched the preceding baseline. The benchmark recorded
+GPU-eye mean 8.13 ms (p99 9.54 ms), frame p99 16.11 ms and CPU-busy p99
+12.13 ms. The detailed profiler adds collection overhead, so I used it to
+locate phases, not as a replacement for the unprofiled A-B-B-A timings.
+
+The hitch CSV recorded 33 frames whose CPU host time exceeded the 13.89 ms
+display budget. In those rows, hidden desktop-window swap averaged 4.59 ms and
+peaked at 12.33 ms; `xrWaitFrame` stayed below 0.31 ms and swapchain waits below
+0.08 ms. `xrEndFrame` averaged 0.65 ms and peaked at 5.84 ms. Box3D and per-eye
+view setup also appeared among the larger CPU scopes. These phase values are
+from individual slow frames. The breakdown's CPU scopes add up to the reported
+period, but time charged to a wait may reflect upstream GPU or queue work. It
+does not prove that window swap alone caused each late frame. Raw profile and hitch CSVs are
+retained privately in `performance-results/frame-tail-hitches-20261012`.
+
+To test whether hidden-window swapping itself could be removed, I made a
+temporary build that skipped `SDL_GL_SwapWindow` only while OpenXR was active
+and `vr_mirror 0`. An unprofiled A-B-B-A compared the baseline binary
+(`48ce8499...`) with that diagnostic (`b6a04f40...`) on the same fixture. All
+four runs had 720 measured frames, 713–714 GPU samples, matching scene counts,
+and fresh two-eye OpenXR layers. The results below average the two runs of each
+variant.
+
+| Variant | GPU-eye mean | GPU-eye p99 | Frame mean | Frame p99 | CPU `swap` | CPU `xr submit` |
+|---|---:|---:|---:|---:|---:|---:|
+| Baseline | 8.138 ms | 9.575 ms | 13.927 ms | 15.461 ms | 3.597 ms | 0.695 ms |
+| Skip hidden desktop swap | 11.439 ms | 13.019 ms | 14.428 ms | 17.135 ms | 0.346 ms | 6.961 ms |
+
+Skipping the desktop swap reduced that scope by 3.25 ms on average, but the
+wait moved into `xrEndFrame`/`xr submit`; GPU-eye mean rose 40.6% and frame p99
+rose 10.8%. The repeated B runs agreed, so this candidate is rejected and the
+swap remains in the code. Both builds still produced stereo renderer captures
+of the same scene. No one was wearing the Frame: SteamVR classified the
+session as timed out and its submitted presents as dropped, so compositor
+presentation and wearer pacing remain unverified. The candidate was isolated;
+`gl_vidsdl.c` was restored to the worktree hash and the baseline binary and
+normal installation were unchanged. Captures and logs are retained privately
+in `performance-results/window-swap-abba-20261012`.
+
+The measurements narrow the frame-tail work to pacing/back-pressure around
+window swap, XR submit, and CPU view setup/Box3D. Another GPU-only edit is not
+the next step. A useful follow-up should change one of those CPU/pacing paths
+while preserving GL command submission, then repeat the no-wearer A-B-B-A and
+reserve wearer validation for headset/compositor behavior.
+
+## GL flush versus window swap diagnostic
+
+I tested an isolated diagnostic to replace the hidden desktop-window swap with
+`glFlush` while OpenXR was active and mirroring was disabled. I built it from a
+separate source copy (`gl_vidsdl.c` SHA-256
+`b2e8c3fbcb80aadf4948f27c3f98d14eb00b45826525a054cb43b14590cdfe5a`; candidate
+binary SHA-256
+`ecc78b39535911d32bd07955712133d8b34f14be2523adc98410468e2359eeef`) and ran it
+only in the scratch benchmark clone. The unchanged baseline control completed
+720 frames with 713 GPU samples and 15
+fresh stereo OpenXR layer submissions (GPU-eye mean 8.126 ms, p99 9.577 ms;
+frame p99 16.437 ms).
+
+The first candidate run did not complete: the engine exited with SIGSEGV
+(`-11`), and Mesa Zink reported `DEVICE LOST` / `VK_ERROR_DEVICE_LOST`. The
+Frame kernel log at 16:01:54 UTC independently records an Adreno GPU lockup,
+names the scratch `ironwail` process as the offending task, and reports a
+successful GPU recovery. Because the candidate run failed, it has no valid
+performance result and the planned A-B-B-A was aborted. The failure does not
+identify whether the application or driver fault came first, but is sufficient
+to reject this presentation-path change. Do not retry it or sweep periodic
+swaps without root-cause evidence.
+
+After kernel recovery, I reran the unchanged baseline in the same scratch
+clone. It completed all 720 frames with 713 GPU samples and 14 fresh stereo
+OpenXR layers (GPU-eye mean 7.984 ms, p99 9.406 ms; frame p99 16.516 ms), with
+no second GPU reset. The Frame source still has its original swap path
+(`gl_vidsdl.c` SHA-256
+`1ff14a19573c19f0662b26ae8b1738f198c7bb90f8338250374bb314293cbdac`), and the
+baseline executable hash remains
+`48ce8499ba5d14ef6e36b48e0412ae512b1fa8b6db5e631750f56985c49d25db`; the
+installed game was not involved. Failure and recovery logs, JSON timings and
+OpenXR traces are retained privately in
+`performance-results/glflush-abba-20261012`.
+
+These runs confirm engine-side rendering resumed after GPU recovery. A
+subsequent read-only status check, when no benchmark was running, showed no
+wearer: the HMD pose was invalid, both controllers were disconnected, and
+SteamVR had no active scene application. The runtime had timed out or dropped
+the benchmark's earlier submissions. The runs therefore say nothing about
+compositor pacing or worn 72 Hz behavior.
