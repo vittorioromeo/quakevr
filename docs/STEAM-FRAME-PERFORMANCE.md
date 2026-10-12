@@ -131,3 +131,16 @@ privately in
 The earlier profile in `cpu-hotspots-clean-window` is superseded because its
 fixture still enabled `vr_eyeshot 1`; PNG compression contaminated the capture.
 Both profiles use mock tracking and do not prove compositor timing.
+
+## Audio filter quality probe
+
+Because the A520 sample profile also named Quake's `S_LowpassFilter`, I ran the
+same 720-frame fixture at `snd_filterquality` 5 and 1 in A-B-B-A order (two runs
+per value). The main-thread `sound` phase averaged 0.091 and 0.084 ms
+respectively, but frame p99 ranged 20.06–22.82 ms at quality 5 and 20.26–20.87
+ms at quality 1. GPU p99 remained 18.55–18.73 ms and 18.49–18.64 ms. This small
+two-run probe does not establish a repeatable end-to-end gain, and changing the
+filter changes sound quality, so the shipped value stays unchanged. The
+separate `vr_snd_bench` attempt used SDL's dummy audio driver and recorded 0.0 s
+of mixed sound; its stage timings are invalid and excluded. Raw JSON and logs
+remain private in `performance-results/frame-diagnostics-20261012/`.
