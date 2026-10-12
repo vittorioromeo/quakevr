@@ -1441,8 +1441,16 @@ void play_f()
         Con_Printf("vr_motion_play: no take \"%s\" (in motions/, the game folder, or a path)\n", Cmd_Argv(1));
         return;
     }
+    // The room is loaded only for a plain replay: `noplace` (where you stand) and `target` (a thing a script spawned,
+    // an entity number) refer to the map already running, so a script's map and setup are kept (a map given still wins).
+    bool mapGiven = false;
+    for(int i = 2; i < Cmd_Argc(); i++)
+    {
+        mapGiven = mapGiven || !q_strcasecmp(Cmd_Argv(i), "map");
+    }
+    const bool keepMap = sv.active && !mapGiven && (!o.place || !o.target.empty());
     const Backend* be = backend();
-    if(be && strcmp(be->name(), "mock") == 0 && (!sv.active || q_strcasecmp(cl.mapname, playMap.cStr()) != 0))
+    if(be && strcmp(be->name(), "mock") == 0 && !keepMap && (!sv.active || q_strcasecmp(cl.mapname, playMap.cStr()) != 0))
     {
         if(!COM_FileExists(va("maps/%s.bsp", playMap.cStr()), nullptr))
         {
