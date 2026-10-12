@@ -244,11 +244,12 @@ void(float request) AD_Test =
         self = p;
         SetChangeParms();
         self = os8;
-        bprint(sprintf("adtest: slots before %g %g | %g %g %g %g %g %g\n", parm8, parm10, parm11, parm12, parm13, parm14, parm15, parm16));
+        bprint(sprintf("adtest: slots before %g %g | %g %g %g ", parm8, parm10, parm11, parm12, parm13));
+        bprint(sprintf("%g %g %g\n", parm14, parm15, parm16));
         if(request == 8) AD_WorldWeaponKeysWith(ad_IT_NAILGUN | ad_IT_ROCKET_LAUNCHER, ad_IT_SHOTGUN, FALSE);
         else AD_WorldWeaponKeysWith(0, 0, TRUE);
-        bprint(sprintf("adtest: slots after %g %g | %g %g %g %g %g %g; items %g\n", parm8, parm10, parm11, parm12, parm13, parm14,
-            parm15, parm16));
+        bprint(sprintf("adtest: slots after %g %g | %g %g %g ", parm8, parm10, parm11, parm12, parm13));
+        bprint(sprintf("%g %g %g\n", parm14, parm15, parm16));
         bprint(sprintf("adtest: owned shotgun %g nailgun %g rocket launcher %g axe %g\n", (parm1 & IT_SHOTGUN) != 0,
             (parm1 & IT_NAILGUN) != 0, (parm1 & IT_ROCKET_LAUNCHER) != 0, (parm1 & IT_AXE) != 0));
         return;
