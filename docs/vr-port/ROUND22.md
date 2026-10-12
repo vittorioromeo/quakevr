@@ -4195,3 +4195,26 @@ First hits on his 111 hitting takes, before -> after (mean, min-max, sd); verdic
 The caps cut the fast head hits (chop 62.8 -> 49.5 = 2.25 x 22; slash and stab 54.5 = 2.25 x 24.2) and lift the slowest
 slash (9.2 -> 12.1 = 0.5 x 24.2). Slaps drop with the curve (their head hits ran x2). The axe's bash (7.3) isn't a speed
 blow: unchanged.
+
+## Review fixes: ragnotes, toolbake, animbody, wrist2, dummyhold, vrgrabs, meleeroom, reload2 (2026-10-12, worktree `fixmisc2`; review r2/r3)
+
+- ragnotes (his decision): blunt/fist/prop/bash hits on a ragdolled corpse's limb or head wear down that piece only;
+  torso hits take the whole-body corpse health again (enough gibs it), as does a rig without limbs (VR_Limb_Allowed).
+  `vr_limb_test` 24-28 print PASS/FAIL (25 now gibs); 28, a save/load, then 29 shows the per-joint damage persists (the
+  field array saves every element: joint 4 kept 48.0). `notes_regression.sh` asserts 7/7.
+- toolbake: Debug > Tests is rebuilt when `vr_test_spawn` changes, so Put It There's lock follows the chosen Thing;
+  `vr_menu_press` refuses locked rows. `brush_test.py` bakes to new names each run (32/32 ok); `vr_ad_everywhere`'s
+  description names AD monsters (it also spawns them in non-AD custom maps that place them).
+- animbody: shader "vrbody"'s skins load once, unowned and persistent, for every body model (`imagelist vrbody` with
+  athletic, lean+bare and brawny+bare loaded: 384 -> 96 MB); `vr_model_reload` no longer re-reads them. The Animations
+  row goes back to Classic (remembering mode 3); the seed table's death boundaries apply only to the model it fits.
+- wrist2: Skin Tone tones the skin's share of a wound's soft edge (no untoned ring: 176 -> 0 edge pixels at tone -1 in
+  `wrist_runtime_test.py`); skin-mask lookups are cached (a missing file searched once; cleared when textures are
+  freed). His decision: hands borrow the body's light only with bare forearms again (`drawnBare`), asserted per mode.
+- dummyhold: a dummy getting up through QC (active get-up off, or a type without one) eases up through its get-up or its
+  death backwards; its enemy's run is kept (`vr_dummy_th_run`) as the get-up's end, so Step no longer calls ai_run.
+- vrgrabs: a drawn prop is kept out of the torso only while held, once a frame; a prop's lip takes the connected top's
+  plane only across a bevel of at most 6 units (a wedge's slope keeps its own lip; not tested on a wedge prop).
+- meleeroom: under the mock headset `vr_motion_play ... noplace` or `target ...` keeps the running map (TESTING.md).
+- reload2: the vacuous "return inside" reinsertion check is gone (18 checks); the pouch endpoint check says it proves
+  routing only.
