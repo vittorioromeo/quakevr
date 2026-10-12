@@ -496,6 +496,7 @@ void collectSettings(const za::String& value, bool pairs, za::Vector<za::Pair<za
 }
 
 za::Vector<za::Pair<cvar_t*, za::String>> savedSettings; // the values before a playback
+za::String setupFoegrab; // vr_foegrab's value, held off during the setup (startPlayback); "" when not
 
 // The training dummies as the take's enemy now (QC VR_Dummy_RetypeAll: vr_dummy_type, just applied), before the take
 // is placed against one: each stands as a new entity (its box and origin its enemy's).
@@ -639,6 +640,7 @@ void restoreSettings()
         Cvar_SetQuick(cvar, value.cStr());
     }
     savedSettings.clear();
+    setupFoegrab.clear();
 }
 
 // ----------------------------------------------------------------------------
@@ -1327,6 +1329,15 @@ void stopPlayback(const char* why)
         savedSettings.emplaceBack(&vr_dummy_gib, vr_dummy_gib.string);
         Cvar_SetQuick(&vr_dummy_gib, "0");
     }
+    // Nor held (vr_foegrab) by a grip the setup closes beside it: in the take that hand had held its weapon since long
+    // before (an axe gripped by a hand next to the dummy took the dummy instead, and the axe fell). Back on as the take
+    // plays: a grip already closed doesn't take hold later.
+    if(vr_foegrab.value != 0.f)
+    {
+        savedSettings.emplaceBack(&vr_foegrab, vr_foegrab.string);
+        setupFoegrab = vr_foegrab.string;
+        Cvar_SetQuick(&vr_foegrab, "0");
+    }
     retypeDummies();
     // Nothing left from what played before (the last take's head is not a step into this one): a take plays the same
     // after any other, or alone (vr_motion_eval's shards).
@@ -1715,6 +1726,11 @@ void playFrameEnd(za::Vector<Event>& events, bool tick, double svDt)
                     }
                 }
                 state = State::Play;
+                if(!setupFoegrab.empty())
+                {
+                    Cvar_SetQuick(&vr_foegrab, setupFoegrab.cStr()); // (held off for the setup: startPlayback)
+                    setupFoegrab.clear();
+                }
                 nextFrame = 0;
                 wallStart = Sys_DoubleTime();
                 playClock = 0.0;
