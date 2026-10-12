@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_sha256.hpp"
+#include "vr_modelmetadata.h"
 #include "Zancle/Container/Vector.hpp"
 #include <cstring>
 #include <initializer_list>
@@ -19,6 +20,7 @@ struct Recipe
     char normal[MAX_OSPATH]{};
     char bump[MAX_OSPATH]{};
     bool external{};
+    unsigned generatedFlags{};
 };
 za::Vector<Recipe> recipes; // Small reload recipes only; decoded pixels stay on the hunk.
 struct Use
@@ -27,8 +29,67 @@ struct Use
     char hash[65]{};
     bool found{}, normal{}, height{};
     bool attached{};
+    bool preserveMaterial{};
+    unsigned generatedFlags{};
 };
 za::Vector<Use> uses;
+struct Provenance
+{
+    char source[33]{}, output[65]{};
+    unsigned flags{};
+};
+struct Strength
+{
+    char path[MAX_QPATH]{};
+    unsigned flags{};
+};
+za::Vector<Provenance> provenance;
+za::Vector<Strength> strengths;
+bool provenanceLoaded{};
+
+void loadProvenance()
+{
+    if(provenanceLoaded) return;
+    provenanceLoaded = true;
+    const int mark = Hunk_LowMark();
+    const char* data = reinterpret_cast<const char*>(COM_LoadHunkFile("textures/pbr/provenance.txt", nullptr));
+    constexpr char header[] = "qvr-pbr-provenance-v1\n";
+    if(data && !strncmp(data, header, sizeof(header) - 1))
+    {
+        const char* line = data + sizeof(header) - 1;
+        while(*line)
+        {
+            Provenance p{};
+            int consumed{};
+            if(sscanf(line, "%32s %64s %u%n", p.source, p.output, &p.flags, &consumed) != 3 ||
+                strlen(p.source) != 32 || strlen(p.output) != 64 || p.flags > 3 || consumed == 0)
+                break; // Malformed or unknown records never acquire generated strength.
+            provenance.emplaceBack(p);
+            line = strchr(line, '\n');
+            if(!line) break;
+            ++line;
+        }
+    }
+    Hunk_FreeToLowMark(mark);
+}
+
+void rememberStrength(const char* path, unsigned flags)
+{
+    for(Strength& s : strengths)
+        if(!strcmp(s.path, path)) { s.flags = flags; return; }
+    Strength s{};
+    q_strlcpy(s.path, path, sizeof(s.path));
+    s.flags = flags;
+    strengths.emplaceBack(s);
+}
+
+void componentStrength(unsigned flags, float multiplier, float* normal, float* height)
+{
+    multiplier = CLAMP(0.f, multiplier, 8.f);
+    *normal = flags & 1u ? multiplier : 1.f;
+    *height = flags & 2u ? multiplier : 1.f;
+}
+
 
 void hashSource(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[65])
 {
@@ -63,6 +124,16 @@ void hashSource(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[
         }
     }
     sha256::toHex(hash.finish(), hex);
+}
+
+unsigned verifiedFlags(const char* source, const byte* rgba, int w, int h)
+{
+    loadProvenance();
+    char digest[65];
+    hashSource(rgba, SRC_RGBA, w, h, digest);
+    for(const Provenance& p : provenance)
+        if(!strncmp(p.source, source, 32) && !strcmp(p.output, digest)) return p.flags;
+    return 0; // Missing/stale metadata is conservatively treated as authored.
 }
 
 bool hasHeights(const byte* rgba, int w, int h)
@@ -117,7 +188,7 @@ void stats_f()
     int queried{}, found{}, normal{}, height{};
     for(const Use& u : uses)
     {
-        if(!u.base || u.base->owner != cl.worldmodel)
+        if(!u.base || (u.base->owner != cl.worldmodel && (Cmd_Argc() < 2 || strcmp(Cmd_Argv(1), "models"))))
             continue;
         ++queried;
         found += u.found;
@@ -127,16 +198,22 @@ void stats_f()
         {
             Con_Printf("pbr: %s %.32s %s authored normal %d height %d\n", u.base->name, u.hash,
                 u.found ? "found" : "missing", u.normal, u.height);
-            if(u.found && cl.worldmodel)
-                for(int i = 0; i < cl.worldmodel->numtextures; ++i)
+            gltexture_t* selected = TexMgr_NormalMap(u.base);
+            float ns{}, hs{};
+            VR_PBRStrength(selected, &ns, &hs);
+            Con_Printf("pbr strength: %s source %s generated %u normal %.2f height %.2f\n", u.base->name, selected->source_file, u.generatedFlags, ns, hs);
+            if(u.base->owner)
+                for(int i = 0; i < u.base->owner->numtextures; ++i)
                 {
-                    const texture_t* tx = cl.worldmodel->textures[i];
+                    const texture_t* tx = u.base->owner->textures[i];
                     if(!tx || tx->gltexture != u.base) continue;
                     gltexture_t* nm = TexMgr_NormalMap(tx->gltexture);
                     gltexture_t* spec{};
                     gltexture_t* fullbright = tx->fullbright;
                     float material[4];
                     VR_ExtMapsCall(tx, &nm, &spec, &fullbright, material);
+                    VR_PBRStrength(nm, &ns, &hs);
+                    Con_Printf("pbr strength active: %s normal %.2f height %.2f\n", tx->name, ns, hs);
                     const size_t n = static_cast<size_t>(nm->width) * nm->height;
                     byte* rgba = static_cast<byte*>(VR_HeapMalloc(n * 4));
                     GL_Bind(GL_TEXTURE0, nm);
@@ -167,6 +244,17 @@ void test_f()
         passed += ok;
         Con_Printf("pbr test: %s %s\n", label, ok ? "PASS" : "FAIL");
     };
+    float normal{}, height{};
+    for(unsigned flags = 0; flags < 4; ++flags)
+    {
+        componentStrength(flags, 3.f, &normal, &height);
+        check(normal == (flags & 1u ? 3.f : 1.f) && height == (flags & 2u ? 3.f : 1.f),
+            "generated/mixed/authored independent strength");
+    }
+    componentStrength(3, -1.f, &normal, &height);
+    check(normal == 0.f && height == 0.f, "generated zero lower bound");
+    componentStrength(3, 99.f, &normal, &height);
+    check(normal == 8.f && height == 8.f, "generated upper bound");
     const byte pixels[] = {1, 2, 3, 255, 4, 5, 6, 255};
     char a[65], b[65];
     hashSource(pixels, SRC_RGBA, 2, 1, a);
@@ -178,6 +266,16 @@ void test_f()
     changed[0] ^= 1;
     hashSource(changed, SRC_RGBA, 2, 1, b);
     check(strcmp(a, b) != 0, "same-name different pixels distinguish sources");
+    loadProvenance();
+    Provenance proof{};
+    q_strlcpy(proof.source, "00000000000000000000000000000000", sizeof(proof.source));
+    hashSource(pixels, SRC_RGBA, 2, 1, proof.output);
+    proof.flags = 3;
+    provenance.emplaceBack(proof);
+    check(verifiedFlags(proof.source, pixels, 2, 1) == 3, "matching decoded companion provenance");
+    check(verifiedFlags(proof.source, changed, 2, 1) == 0, "stale companion provenance stays authored");
+    check(verifiedFlags(proof.source, pixels, 1, 2) == 0, "provenance binds output dimensions");
+    provenance.popBack();
     const byte indexed[] = {0, 1, 254, 255};
     byte expanded[16];
     for(int i = 0; i < 4; ++i)
@@ -188,7 +286,7 @@ void test_f()
     hashSource(indexed, SRC_INDEXED, 2, 2, a);
     hashSource(expanded, SRC_RGBA, 2, 2, b);
     check(!strcmp(a, b), "palette-expanded RGBA including index255");
-    if(Cmd_Argc() > 1)
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "fixtures"))
     {
         const int mark = Hunk_LowMark();
         constexpr const char* normals[] = {"", "textures/pbrtest/normal", "textures/pbrtest/complete", ""};
@@ -210,6 +308,24 @@ void test_f()
         }
         Hunk_FreeToLowMark(mark);
     }
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "boxes"))
+    {
+        int checked{};
+        for(const Use& u : uses)
+        {
+            if(!u.base || !u.base->owner ||
+                (!VR_ModelHasTrait(u.base->owner, VR_MODEL_TRAIT_ExplosiveBoxFile) &&
+                 !VR_ModelHasTrait(u.base->owner, VR_MODEL_TRAIT_ExplosiveCrateFile))) continue;
+            ++checked;
+            gltexture_t* nm = TexMgr_NormalMap(u.base);
+            float ns{}, hs{};
+            VR_PBRStrength(nm, &ns, &hs);
+            check(!u.attached && strncmp(nm->source_file, "textures/pbr/", 13) &&
+                  strncmp(nm->source_file, "pbrmix/", 7) && ns == 1.f && hs == 1.f &&
+                  TexMgr_NormalMapParallax(u.base) != 0, "box retains original material relief");
+        }
+        check(checked == 6, "both stock box models inspected");
+    }
     Con_Printf("pbr test: %d/%d PASS\n", passed, total);
 }
 } // namespace
@@ -227,7 +343,7 @@ extern "C" void VR_PBRExternal(gltexture_t* base, const char* normal, char* path
     q_strlcpy(path, normal, size);
     for(const pbr::Use& use : pbr::uses)
     {
-        if(use.base != base || !use.found)
+        if(use.base != base || !use.found || use.preserveMaterial)
             continue;
         const int mark = Hunk_LowMark();
         int w{}, h{};
@@ -241,6 +357,7 @@ extern "C" void VR_PBRExternal(gltexture_t* base, const char* normal, char* path
         q_snprintf(r.generated, sizeof(r.generated), "textures/pbr/%.32s_norm", use.hash);
         q_strlcpy(r.normal, normal, sizeof(r.normal));
         r.external = true;
+        r.generatedFlags = use.generatedFlags & 2u;
         sha256::Hasher identity;
         identity.update(r.generated, strlen(r.generated));
         identity.update(r.normal, strlen(r.normal) + 1);
@@ -249,6 +366,7 @@ extern "C" void VR_PBRExternal(gltexture_t* base, const char* normal, char* path
         char hex[65];
         sha256::toHex(identity.finish(), hex);
         q_snprintf(r.path, sizeof(r.path), "pbrmix/%.32s", hex);
+        pbr::rememberStrength(r.path, r.generatedFlags);
         for(const pbr::Recipe& existing : pbr::recipes)
             if(!strcmp(existing.path, r.path))
             {
@@ -269,11 +387,25 @@ extern "C" byte* VR_PBRImage(const char* name, int* w, int* h, enum srcformat* f
     return nullptr;
 }
 
+extern "C" void VR_PBRStrength(const gltexture_t* normalmap, float* normal, float* height)
+{
+    unsigned flags{};
+    if(normalmap)
+        for(const qvr::pbr::Strength& s : qvr::pbr::strengths)
+            if(!strcmp(s.path, normalmap->source_file)) { flags = s.flags; break; }
+    qvr::pbr::componentStrength(flags, qvr::vr_pbr_strength.value, normal, height);
+}
+
 extern "C" void VR_PBRForget(gltexture_t* base)
 {
     for(qvr::pbr::Use& u : qvr::pbr::uses)
         if(u.base == base)
             u.base = nullptr;
+    for(const qvr::pbr::Use& u : qvr::pbr::uses)
+        if(u.base) return;
+    qvr::pbr::provenance.clear();
+    qvr::pbr::strengths.clear();
+    qvr::pbr::provenanceLoaded = false;
 }
 
 extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* shared,
@@ -294,8 +426,16 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
     byte* generated = Image_LoadImage(r.generated, &w, &h, &f);
     use.found = generated && f == SRC_RGBA;
     const bool completeExternal = use.found && extmaps::completePending();
-    if(use.found)
+    // The world corpus also contains the stock explosive-box pixels reused by AD maps. Their learned
+    // companion displaced the boxes' established procedural relief. Keep the brush models' original
+    // material loader, including its authored file/pack overrides, independently of world PBR.
+    const bool box = VR_ModelHasTrait(base->owner, VR_MODEL_TRAIT_ExplosiveBoxFile) ||
+                     VR_ModelHasTrait(base->owner, VR_MODEL_TRAIT_ExplosiveCrateFile);
+    use.preserveMaterial = box;
+    if(use.found && !box)
     {
+        use.generatedFlags = pbr::verifiedFlags(use.hash, generated, w, h);
+        r.generatedFlags = use.generatedFlags;
         // Exact frame and map first. A _norm's RGB and nonflat alpha outrank generated components independently.
         for(const char* source : {image, shared})
         {
@@ -323,12 +463,15 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
         {
             if(!r.normal[0] && !r.bump[0])
             {
+                pbr::rememberStrength(r.generated, r.generatedFlags);
                 TexMgr_LoadNormalMap(base, r.generated, w, h, f, generated, r.generated, 0,
                     NORMALMAP_AUTHORED | NORMALMAP_FILE | NORMALMAP_HEIGHTS, worldwidth);
                 use.attached = true;
             }
             else
             {
+                r.generatedFlags &= ~(use.normal ? 1u : 0u);
+                r.generatedFlags &= ~(use.height ? 2u : 0u);
                 sha256::Hasher identity;
                 identity.update(r.generated, strlen(r.generated));
                 identity.update(r.normal, strlen(r.normal) + 1);
@@ -336,6 +479,7 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
                 char hex[65];
                 sha256::toHex(identity.finish(), hex);
                 q_snprintf(r.path, sizeof(r.path), "pbrmix/%.32s", hex);
+                pbr::rememberStrength(r.path, r.generatedFlags);
                 bool registered = false;
                 for(pbr::Recipe& existing : pbr::recipes)
                     if(!strcmp(existing.path, r.path))

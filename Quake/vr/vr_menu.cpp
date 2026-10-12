@@ -8767,6 +8767,8 @@ za::Vector<Item> pageMain()
             .help("Walls and floors get bumps and grooves that catch the light. From the next map."),
         toggle("Generated Companion Maps", "vr_pbr")
             .help("Adds normal and height maps generated for the exact wall or floor image. Keeps authored maps. From the next map."),
+        slider("Generated Relief Strength", "vr_pbr_strength", 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 8.f)
+            .help("Makes generated bumps and grooves stronger. 1: the generated shape; 0: flat. Authored normal and height components keep their own strength."),
         toggle("Parallax Mapping", "vr_parallax")
             .help("Walls and floors look carved: their dark parts sink in as you move your head (needs Bump Mapping)."),
 

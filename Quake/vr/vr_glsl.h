@@ -389,9 +389,9 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "{\n"\
 "	return BumpedNormalFrame(tex, uv, duvdx, duvdy, dpdx, dpdy, n, strength, true);\n"\
 "}\n"\
-"vec3 BumpedNormal(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n)\n"\
+"vec3 BumpedNormal(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float multiplier)\n"\
 "{\n"\
-"	return BumpedNormalFrame(tex, uv, duvdx, duvdy, dpdx, dpdy, n, LightTweak.w, false);\n"\
+"	return BumpedNormalFrame(tex, uv, duvdx, duvdy, dpdx, dpdy, n, LightTweak.w * multiplier, false);\n"\
 "}\n"\
 "\n"\
 "// The baked light on the bumps (vr_normalmap_baked: LightTweak.y): a light from a guessed direction, towards where\n"\
@@ -1572,7 +1572,7 @@ QVR_DECAL_FUNCTIONS \
 "#if MODE != " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
 "	if (LightTweak.w > 0.)\n" \
 "	{\n" \
-"		bumped = BumpedNormal(NormalTex, puv, duvdx, duvdy, dpdx, dpdy, facing);\n" \
+"		bumped = BumpedNormal(NormalTex, puv, duvdx, duvdy, dpdx, dpdy, facing, in_extmat.x);\n" \
 "		if (LightTweak.y > 0.)\n" \
 "		{\n" \
 "			vec4 lux = (ShadowFlags & 128u) != 0u ? LuxDirection(lmuv, facing, duvdx, duvdy, dpdx, dpdy) : vec4(0.);\n" \

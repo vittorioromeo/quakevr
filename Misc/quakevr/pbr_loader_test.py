@@ -3,7 +3,8 @@
 Run in an agent worktree: python Misc/quakevr/pbr_loader_test.py stage <id1-folder>
 Then run the engine with vr_extmaps_dir pointing to scratch/pbrtest_ext, vr_texture_smooth 1,
 gl_texturemode GL_NEAREST_MIPMAP_LINEAR,
-map e1m1; vr_pbr_test fixtures; vr_pbr_stats all; imagehash; vid_restart; imagehash.
+map e1m1; vr_pbr_test fixtures; vr_pbr_strength 3; vr_pbr_stats all; imagehash; vid_restart; imagehash.
+Copy qconsole.log under scratch and pass its path to verify to check live component strength.
 Use 'retire' to restore any production companions after the run. No fixture contains shipped map assets.
 """
 import hashlib
@@ -63,6 +64,15 @@ def stage(id1):
     for name, color in [("generated", (128, 160, 250, 191)), ("normal", (140, 150, 245, 255)),
                         ("complete", (145, 155, 240, 213)), ("bump", (221, 221, 221, 255))]:
         save(f"quakevr/textures/pbrtest/{name}.png", color)
+    index = "quakevr/textures/pbr/provenance.txt"
+    file = ROOT / index
+    if file.exists():
+        backup = ROOT / "scratch/pbrtest_backup" / index
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        file.replace(backup)
+        backups.append(index)
+    files.append(index)
+    rows = []
     selected = []
     seen = set()
     for i in range(count):
@@ -80,6 +90,8 @@ def stage(id1):
             continue
         seen.add(digest)
         save(f"quakevr/textures/pbr/{digest[:32]}_norm.png", (128, 160, 250, 191))
+        output = hashlib.sha256(b"qvr-pbr-v1\0" + struct.pack("<II", 4, 4) + bytes((128, 160, 250, 191)) * 16).hexdigest()
+        rows.append(f"{digest[:32]} {output} 3\n")
         n = len(selected)
         if n == 0:
             save(f"quakevr/textures/e1m1/{name}_norm.png", (140, 150, 245, 255))
@@ -97,6 +109,7 @@ def stage(id1):
         selected.append({"texture": name, "hash": digest, "case": n})
         if len(selected) == 6:
             break
+    (ROOT / index).write_text("qvr-pbr-provenance-v1\n" + "".join(sorted(rows)), newline="\n")
     TRACK.parent.mkdir(parents=True, exist_ok=True)
     TRACK.write_text(json.dumps({"files": files, "backups": backups, "textures": selected}, indent=2))
     print("loader fixture textures:", [(t["texture"], t["hash"][:32], t["case"]) for t in selected])
@@ -117,6 +130,15 @@ def retire():
 def verify():
     report = json.loads(TRACK.read_text())
     hashes = {line.split()[4]: line.split()[0] for line in (ROOT / "quakevr/imagehash.txt").read_text().splitlines()}
+    import re
+    log = Path(sys.argv[2]).read_text() if len(sys.argv) > 2 else ""
+    active = {name: (float(n), float(h)) for name, n, h in re.findall(
+        r"pbr strength active: (\S+) normal ([\d.]+) height ([\d.]+)", log)}
+    expected = [(1, 3), (1, 1), (3, 1), (3, 3), (1, 3), (1, 1)]
+    if log:
+        for t in report["textures"]:
+            assert active[t["texture"]] == expected[t["case"]], (t, active[t["texture"]])
+        print("active generated/mixed/authored strength: 6/6 PASS")
     colors = [(140, 150, 245, 191), (145, 155, 240, 213), (128, 160, 250, 221),
               (128, 160, 250, 191), (144, 152, 240, 191), (144, 152, 240, 207)]
     for t in report["textures"]:
