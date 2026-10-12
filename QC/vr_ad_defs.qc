@@ -103,6 +103,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float checka
 void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit;
 float() VR_AD_PathCornerTouch;
 float(entity pellet) VR_AD_PelletDamage;
+void(entity victim, entity pellet, float damage) VR_AD_PelletHit;
+void(entity pellet) VR_AD_PelletPrepare;
+void(entity pellet) VR_AD_PelletLaunch;
+float(entity shooter, float speed) VR_AD_PelletSpeed;
+void(entity missile) VR_AD_Ordnance;
 float() VR_AD_WeaponTouch;
 float(entity targ) VR_AD_SetCurrentAmmo;
 float(entity xItem) VR_AD_ArtifactItems;

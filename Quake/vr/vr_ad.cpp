@@ -33,6 +33,11 @@ int VR_ActiveCampaign(void);
 void VR_GameFolderName(const char* path, char* out, size_t size);
 }
 
+bool qvr::ad::precisePellet(const edict_s* ent)
+{
+    return ent && !std::strcmp(PR_GetString(ent->v.classname), "proj_bullet");
+}
+
 namespace
 {
 

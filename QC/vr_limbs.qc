@@ -951,12 +951,12 @@ float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm =
 
 // An enforcer's laser bolt (an enemy's: Laser_Touch, any monster's at another; or your enforcer's rifle:
 // VR_RifleLaser_Touch) about to deal `xDamage` to `targ` for `attacker`, striking it at `xAt` going `xDir`: armed if
-// it strikes a living monster's head or a limb (VR_Decap_OnHead, VR_Limb_At: on its model as it is animated), the kill
-// popping it at vr_decap_pop_laser (times Head Chance or Limb Chance; a zombie: only a blow that knocks it down).
+// it strikes a monster's head or a limb (VR_Decap_OnHead, VR_Limb_At: on its model as animated or ragdolled), the kill
+// or corpse hit popping it at vr_decap_pop_laser (times Head Chance or Limb Chance; corpses obey their own toggles).
 float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage) VR_Decap_LaserArm =
 {
     float chance = min(1, max(0, cvar_hget(cvarh_vr_decap_pop_laser)));
-    if(chance <= 0 || targ.health <= 0 || !targ.takedamage || !(targ.flags & FL_MONSTER) || targ == attacker)
+    if(chance <= 0 || !targ.takedamage || !(targ.flags & FL_MONSTER) || targ == attacker)
     {
         return FALSE;
     }
