@@ -59,7 +59,8 @@ constexpr const char* sections[] = {"Monsters", "Props", "Weapons", "Items"};
 constexpr int sectionCount = 4;
 constexpr int gridColumns = 4;
 constexpr int gridRows = 2;
-constexpr int maxEntries = 64; // a section's (the spawn list has fewer)
+constexpr int maxEntries = 128; // AD support: retain every installed spawn entry
+// // a section's (the spawn list has fewer)
 
 constexpr const char* jointHints[] = {"Shoot a prop, then another: they stay stuck as they are.",
     "Shoot a prop, then another: the first turns about the second point.",
@@ -423,10 +424,10 @@ void tile(const Rect& r, bool chosen, bool hover)
 }
 
 // The widget's interaction: lit under the laser; in the input pass, true when a press landed on it (taken).
-bool interact(Ui& ui, const Rect& r, const char* name, int& id)
+bool interact(Ui& ui, const Rect& r, const char* name, int& id, bool enabled = true) // AD support
 {
     id = ui.counter++;
-    const bool over = hovering(r);
+    const bool over = enabled && hovering(r); // AD support
     if(ui.mode != Mode::Input)
     {
         return false;
@@ -590,13 +591,17 @@ void infoLine(Ui& ui)
 // A thumbnail tile: the entry's picture, its name under it (two lines if it is long).
 bool thumbTile(Ui& ui, const Rect& r, int entry)
 {
-    const char* name = toolgun::spawnableName(entry);
+    char label[80]; // AD support
+    q_snprintf(label, sizeof(label), "%s%s", toolgun::spawnableName(entry), toolgun::spawnableAvailable(entry) ? "" : " (unavailable)"); // AD support
+    const char* name = label; // AD support
     int id = 0;
-    const bool clicked = interact(ui, r, name, id);
+    const bool available = toolgun::spawnableAvailable(entry); // AD support
+    const bool clicked = interact(ui, r, name, id, available); // AD support
     if(ui.mode == Mode::Draw)
     {
-        const bool chosen = toolgun::selectedSpawnable() == entry;
-        const bool hover = hovering(r);
+        if(!available) { GL_PushCanvasColor(1.f, 1.f, 1.f, 0.4f); } // AD support
+        const bool chosen = available && toolgun::selectedSpawnable() == entry; // AD support
+        const bool hover = available && hovering(r); // AD support
         tile(r, chosen, hover);
         const bool side = !strcmp(toolgun::spawnableSection(entry), "Weapons");
         const gfx::Picture* pic = toolgun::icons::get(toolgun::spawnableModel(entry), toolgun::spawnableSkin(entry), side);
@@ -611,7 +616,7 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
             p.disc(r.cx(), r.y0 + 2.f + size * 0.5f, 3.f, colors::boxBorder); // (still being made, or none)
         }
         // Its name: one line, or split at the space nearest its middle.
-        const bool gold = !chosen && !hover;
+        const bool gold = !available || (!chosen && !hover); // AD support: unavailable entries stay visible
         const int len = static_cast<int>(strlen(name));
         const float dim = 6.f;
         if(len * dim <= r.w() - 3.f || !strchr(name, ' '))
@@ -634,6 +639,7 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
             textFit(r.cx(), r.y1 - 7.5f, r.w() - 3.f, dim, name + split + 1, gold);
         }
     }
+    if(ui.mode == Mode::Draw && !available) { GL_PopCanvasColor(); } // AD support
     return clicked;
 }
 
@@ -822,7 +828,7 @@ void brushPage(Ui& ui)
     constexpr float gridValues[] = {1.f, 4.f, 8.f, 16.f, 32.f, 64.f};
     choiceRow(ui, Rect{pad, 63.f, panelWidth - pad - 42.f, 75.f}, "Grid", vr_toolgun_brush_grid, gridNames, gridValues, 6);
     // The full bake: the map relit by light.exe with the brushes in it (vr_brush_bake_map), then reloaded where you are.
-    if(button(ui, Rect{panelWidth - pad - 40.f, 63.f, panelWidth - pad, 75.f}, "Bake Map", false, 6.f))
+    if(button(ui, Rect{panelWidth - pad - 40.f, 63.f, panelWidth - pad, 75.f}, "Bake Copy", false, 6.f))
     {
         Cbuf_AddText("vr_brush_bake_map\n");
     }

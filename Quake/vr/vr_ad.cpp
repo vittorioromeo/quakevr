@@ -66,6 +66,9 @@ constexpr const char* notSignalPrefixes[] = {"func_detail", "misc_particle"};
 // rules, the ladders. AD's others (its monsters, its world logic, its backpacks: Quake's backpack's rules) only in AD
 // maps.
 constexpr const char* everywhereClasses[] = {
+#define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) &classname[3],
+#include "vr_ad_spawns.inc"
+#undef QVR_AD_SPAWN
     "item_artifact_airtank", "item_artifact_blastbelt", "item_artifact_cross", "item_artifact_jumpboots",
     "item_artifact_lavashield", "item_artifact_nail_piercer", "item_artifact_sharp_shooter", "item_artifact_tomeofpower",
     "item_artifact_trinity", "item_custom", "item_healthgem", "item_healthvial", "item_keyx", "trigger_ladder",
@@ -326,6 +329,19 @@ extern "C" int VR_AD_SpawnsOutside(const char* classname)
     ++mapState.outsideSpawns;
     return 1;
 }
+
+namespace qvr::ad
+{
+
+bool spawnAvailable(const char* model, bool rulesOnly)
+{
+    return Cvar_VariableValue("vr_ad_mounted") != 0.f &&
+           (!rulesOnly || Cvar_VariableValue("vr_ad_rules") != 0.f) &&
+           (Cvar_VariableValue("vr_ad_rules") != 0.f || vr_ad_everywhere.value != 0.f) &&
+           (!model || !model[0] || COM_FileExists(model, nullptr));
+}
+
+} // namespace qvr::ad
 
 // ---------------------------------------------------------------------------------------------------------------------
 // AD's screen tints (ARCANE_DIMENSIONS.md 16.14). AD's v_cshift (stuffed console text in AD) is the player's

@@ -11597,7 +11597,12 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     func_t fn = qvr::progs::findFunction(classname);
     // AD support: AD's version where it owns the classname in an AD map, AD's artifacts, pickups and ladders in any
     // map (vr_ad.cpp), as ED_LoadFromFile
-    if(VR_AD_RulesOn())
+    if(!strncmp(classname, "ad_", 3)) // AD support: explicit AD variants in every spawn menu
+    {
+        if(!VR_AD_RulesOn() && !VR_AD_SpawnsOutside(classname + 3)) { return nullptr; } // AD support
+        classname += 3; // AD support: retain the canonical entity classname for VR and AD tests
+    }
+    else if(VR_AD_RulesOn())
     {
         const func_t ad = qvr::progs::findFunction(va("ad_%s", classname));
         fn = ad && VR_AD_OwnsClassname(classname, fn != 0) ? ad : fn;
