@@ -49,4 +49,5 @@ MG1 developer tests: rune returns, electrode buttons, revival; quake vibration c
 
 [Tune / record]
 Weapon damage, grapple, stamina costs, roll weight and throw damage
-Record new melee takes: the melee test suite can't run without them
+Record new melee takes in vrmelee-recording (Motion Recorder); replay stays in that room
+
