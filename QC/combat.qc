@@ -732,7 +732,11 @@ float(entity inflictor, entity attacker) VR_Corpse_DamageKind;
 string(float xKind) VR_Corpse_DamageKindName;
 float(float xKind) VR_Corpse_DamageKindMult;
 
-float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseImpact;
+float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseWear;
+// Where a hit that no other global places struck (the lightning gun's bolt, VR_LightningHit): its corpse's piece worn.
+vector vr_limb_wear_at;
+entity vr_limb_wear_ent;
+float vr_limb_wear_time;
 
 // Its damage, from T_Damage (instead of Quake's): gibbed at no health.
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Damage =
@@ -775,7 +779,6 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
             return TRUE;
         }
     }
-    if(VR_AD_CorpsePartShot(targ, inflictor)) return TRUE; // AD support: a projectile shot at its head or a limb (vr_ad_bridge.qc)
     // An explosion pops a corpse's limbs near it by chance (vr_limbs_blast; vr_limbs.qc).
     if(vr_hitkind == QVR_HITKIND_SPLASH)
     {
@@ -791,8 +794,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     damage = damage * kindMult;
     string kindName = VR_Corpse_DamageKindName(kind);
 
-    // Blunt corpse hits on a limb or the head wear down that piece only; torso hits go on to the whole-body pool below.
-    if(VR_Limb_CorpseImpact(targ, inflictor, attacker, damage, kind))
+    // Any weapon's hit on its head or a limb wears down that piece only (vr_limbs.qc, "Corpse pieces' own health");
+    // the torso's share (a blast's, or a torso hit) goes on to the whole-body pool below. Explosions keep it whole.
+    damage = VR_Limb_CorpseWear(targ, inflictor, attacker, damage, kind);
+    if(damage <= 0)
     {
         return TRUE;
     }

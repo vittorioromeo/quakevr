@@ -4243,3 +4243,36 @@ From review r1 (and r3's AD isolation note):
 - meleeroom: under the mock headset `vr_motion_play ... noplace` or `target ...` keeps the running map (TESTING.md).
 - reload2: the vacuous "return inside" reinsertion check is gone (18 checks); the pouch endpoint check says it proves
   routing only.
+
+## Corpse limbs: any weapon wears them off (worktree `limbhp`, 2026-10-12)
+
+His decision ("any weapon can pop the limbs of a ragdoll"): ragnotes' per-piece corpse health, which only blunt, fist,
+prop and bash hits used, now takes every weapon's hits. No new cvars or defaults.
+
+- `QC/vr_limbs.qc` `VR_Limb_CorpseWear` (replaces `VR_Limb_CorpseImpact`; called from `VR_Corpse_Damage` after the pop
+  roll, the small gibs and the kind multiplier `vr_corpse_dmg_<kind>`): a hit on a ragdolled corpse's head or a limb
+  adds its damage to that piece (`vr_limb_corpse_dmg[]`, 0 the head, saved with the entity). When the piece's total
+  reaches the monster's corpse health, it pops (blades and the chainsaw cut it off), whatever the weapon's pop chance or
+  pop toggle. The pop roll still runs first; if it pops the piece, the hit wears nothing. Torso hits go to the
+  whole-body health (`vr_corpse_hp`) as before.
+- Hit point, in this order: a hitscan blast (shotgun, super shotgun) splits its damage by where its pellets landed
+  (`VR_Limb_WearPellet` counts them per piece in `VR_Decap_Pellet`); each piece's share wears that piece and the
+  torso's share goes to the whole body. Otherwise the lightning gun's bolt point (new globals `vr_limb_wear_*`, set in
+  `VR_LightningHit`), a tagged hit (`vr_hitpos`: melee, rifle lasers, AD pellets, Mjolnir), the shot's
+  `PositionalDamage` point (nails), or the flying thing itself (thrown props, enemy lasers). With none of these, the
+  hit goes to the whole body.
+- Unchanged: explosions (`QVR_CDMG_EXPLOSIONS`, splash), burning and a stuck axe's bleeding keep the whole-body path and
+  their blast pops (`VR_Limb_BlastPops`). Folding blasts in was not trivially consistent: radius damage has no hit point.
+  The whole-body path also stays with Limb Gore or Corpses off, on a rig without limbs, and on a body that is not
+  ragdolled.
+- AD: `VR_AD_CorpsePartShot` is gone (an AD pellet or rifle laser at a corpse's head or limb used to deal nothing).
+  These hits now wear the piece through the shared path, so `combat.qc` has no AD line here any more.
+- Tests: `vr_limb_test 30-38` (`QC/vr_limbs_wear_test.qc`; Debug > Gore Tests > Limb Gore, "Wear a Corpse Limb Off: ...")
+  fire each weapon's real hit code at the nearest corpse's forearm until it comes off.
+  `Misc/quakevr/ragdoll/limb_wear_test.sh <agent>` runs them with pop chances 0 (11/11 PASS). Hits to pop a grunt's
+  forearm (corpse health 80): shotgun 4, super shotgun 2, lightning 3, nails 9, rifle lasers 5, AD pellets 20, axe 4
+  (cut). Whole-body health stayed 80. Shotgun at the torso: gibbed after 4 blasts, nothing worn into a piece. Shotgun
+  at the head: popped after 4. 28, then save/load, then 29: the worn damage persists.
+
+For VR: with Gore > Head Chance and Limb Chance at 0, shoot a corpse's arm with the shotgun, nailgun and lightning gun:
+it should pop after a few hits while the body stays. Shoot the chest: it gibs as before. A rocket next to it: unchanged.

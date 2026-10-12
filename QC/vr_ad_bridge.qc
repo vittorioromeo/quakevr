@@ -1079,20 +1079,8 @@ float(entity victim, float serial) VR_AD_PopTopUp =
     return now;
 };
 
-// A corpse's damage (VR_Corpse_Damage, after its armed head/limb pop): a projectile pellet's or a rifle laser's hit at
-// its head or a limb (corpse pops on) deals nothing to it, so it is kept as a selective hitscan pop keeps it. TRUE: so.
-float(entity targ, entity inflictor) VR_AD_CorpsePartShot =
-{
-    if(vr_hitkind != QVR_HITKIND_SHOT || (inflictor.classname != "proj_bullet" && inflictor.classname != "rifle_laser"))
-    {
-        return FALSE;
-    }
-    if(cvar_hget(cvarh_vr_decap_corpses) && VR_Decap_Allowed(targ) && VR_Decap_OnHead(targ, vr_hitpos, vr_hitdir))
-    {
-        return TRUE;
-    }
-    return cvar_hget(cvarh_vr_limbs_corpses) && VR_Limb_Allowed(targ) && (VR_Limb_At(targ, vr_hitpos) >= 0);
-};
+// (A corpse's damage from a projectile pellet or a rifle laser at its head or a limb: worn into that piece, as every
+// weapon's is: VR_Limb_CorpseWear, vr_limbs.qc. They tag the hit with VR_SetHitKind below.)
 
 // AD projectile impacts keep the launching shot's identity across flight frames and weapon switches.
 void(entity victim, entity pellet, float damage) VR_AD_PelletHit =

@@ -14,7 +14,10 @@
 // monster's head that kills (health 1; 21 at a limb); 22 the nearest living monster held still in frame 17 (a grunt's
 // last death frame: lying, its head far from where it stands); 23 where its head is for the head and limb tests: a
 // point on its head as animated against its standing head zone's middle (VR_Decap_OnMeleeHead, VR_Decap_OnHead,
-// ragdolllimb); 24-28 blunt corpse impacts (PASS/FAIL), 29 a corpse limb's stored blunt damage. `limbtest:` lines.
+// ragdolllimb); 24-28 blunt corpse impacts (PASS/FAIL), 29 a corpse limb's stored worn damage; 30-38 each weapon's hits
+// wearing a corpse's limb off (vr_limbs_wear_test.qc). `limbtest:` lines.
+
+void(float xTest) VR_Limb_WearTest; // (vr_limbs_wear_test.qc)
 
 float() VR_Limb_TestCount =
 {
@@ -195,6 +198,11 @@ void(float xTest) VR_Limb_Test =
         }
         return;
     }
+    if(xTest >= 30 && xTest <= 38)
+    {
+        VR_Limb_WearTest(xTest);
+        return;
+    }
     if(xTest == 29)
     {
         // The per-joint blunt damage stored on the nearest corpse (after test 28 and a save/load: it persists).
@@ -205,7 +213,7 @@ void(float xTest) VR_Limb_Test =
             return;
         }
         b = VR_Limb_TestBone(m);
-        bprint(sprintf("limbtest: 29 %s joint %g stored blunt damage %.1f (joint 0 %.1f) %s\n", m.classname, b,
+        bprint(sprintf("limbtest: 29 %s joint %g stored worn damage %.1f (joint 0 %.1f) %s\n", m.classname, b,
             m.vr_limb_corpse_dmg[b], m.vr_limb_corpse_dmg[0], m.vr_limb_corpse_dmg[b] > 0 ? "PASS" : "FAIL"));
         return;
     }
