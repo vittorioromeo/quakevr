@@ -2501,7 +2501,7 @@ void fallEnv(State& s, const Parts& p, const Context& c)
     const float t = static_cast<float>(c.now - s.begun);
     const bool idle = e.hand[0].mode == Grip::None && e.hand[1].mode == Grip::None;
     if(!idle || e.grabs > 0 || f.landed >= 0.f || t - f.since > 1.f || L <= 0.f || vr_ragdoll_active_env.value == 0.f ||
-        ++e.frame % envEvery != 1 || roll(e.seed ^ static_cast<uint32_t>(f.since * 72.f), 62u) >= vr_ragdoll_active_grab.value)
+        ++e.frame % envEvery != 1 || (!c.grabSure && roll(e.seed ^ static_cast<uint32_t>(f.since * 72.f), 62u) >= vr_ragdoll_active_grab.value))
     {
         return;
     }
@@ -2638,7 +2638,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
     const bool lean = !done && !e.living && vr_ragdoll_active_env_lean.value != 0.f;
     const bool ledge = !done && !e.living && vr_ragdoll_active_env_ledge.value != 0.f && c.ledges;
     // (Another monster near a hand as he falls: by its chance, rolled once a death.)
-    const bool grab = !done && !e.living && e.grabs == 0 && roll(e.seed, 61u) < vr_ragdoll_active_grab.value;
+    const bool grab = !done && !e.living && e.grabs == 0 && (c.grabSure || roll(e.seed, 61u) < vr_ragdoll_active_grab.value);
     // Each hand's mode kept up, or let go.
     for(int arm = 0; arm < 2; arm++)
     {

@@ -29,7 +29,9 @@ while IFS='|' read -r name label; do
     # facing the platform's west lip from 100 units back (found and moved to it).
     case $name in
     lean) at="setpos -150 300 24 0 90 0;vr_test_spawn_dist 110" ;;
-    ledge) LEDGES="$LEDGES $name|$label"; continue ;;
+    ledge|pullup) LEDGES="$LEDGES $name"; continue ;;
+    # (A grab needs a second monster: one first 160 units off, then the one tested at 110, nearer.)
+    grab) at="setpos -150 0 24 0 90 0;vr_test_spawn_dist 160;vr_test_spawn $MON;impulse 241;wait5;vr_test_spawn_dist 110" ;;
     *) at="setpos -150 0 24 0 90 0;vr_test_spawn_dist 110" ;;
     esac
     wait=360
@@ -41,11 +43,11 @@ while IFS='|' read -r name label; do
         S="$S;vr_knockdown_test 20;vr_scene_clean all;wait5;$at;wait5;vr_test_spawn $MON;impulse 241;wait40;vr_menu_press $PAGE > $label;wait$wait"
     done
 done <<< "$ROWS"
-if [ -n "$LEDGES" ]; then
-    label=$(echo "$ROWS" | grep '^ledge|' | cut -d'|' -f2)
+for name in $LEDGES; do
+    label=$(echo "$ROWS" | grep "^$name|" | cut -d'|' -f2)
     S="$S;vr_knockdown_test 20;vr_scene_clean all;wait5;setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist 100"
     S="$S;vr_test_spawn $MON;impulse 241;wait40;vr_menu_press $PAGE > $label;wait400"
-fi
+done
 S="$S;vr_ragdoll_act status;toggleconsole;quit"
 bash $KIT/run.sh $AGENT -Script "$S" -Filter "^ragact|vr_menu_press:|rror|CRASH|exit=|TIMEOUT" -Timeout 900 2>&1 | tr -d '\r' > "$OUT"
 grep -E "rror|CRASH|TIMEOUT" "$OUT" | head -5

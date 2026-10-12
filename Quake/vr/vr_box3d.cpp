@@ -4282,6 +4282,20 @@ float activeRayHit(const glm::vec3& from, const glm::vec3& to, glm::vec3& at, gl
     return hit.fraction;
 }
 
+// The liquid a drive of entity `num` feels (activeLiquidAt; a test's swim on dry land, vr_ragdoll_act: that liquid
+// everywhere for its drive, none for its buoyancy).
+using LiquidFn = ragactive::Liquid (*)(const glm::vec3&);
+[[nodiscard]] LiquidFn liquidFor(int num)
+{
+    if(const ragtest::Force* f = ragtest::forced(num); f && f->liquid != ragactive::Liquid::None)
+    {
+        constexpr LiquidFn forcedLiquid[] = {nullptr, [](const glm::vec3&) { return ragactive::Liquid::Water; },
+            [](const glm::vec3&) { return ragactive::Liquid::Slime; }, [](const glm::vec3&) { return ragactive::Liquid::Lava; }};
+        return forcedLiquid[static_cast<int>(f->liquid)];
+    }
+    return activeLiquidAt;
+}
+
 // Whether entity `num` is one a falling body grabs at (vr_ragdoll_active_grab): a monster, standing (its box) or its
 // ragdoll (knocked down or dead); not a fish, nor a flyer.
 bool activeGraspable(int num)
@@ -4336,8 +4350,9 @@ void livingSwim(RagdollBodies& r)
         return;
     }
     const glm::vec3 pelvis = glmv(b3Body_GetPosition(r.body[0]));
-    if(activeLiquidAt(pelvis) == ragactive::Liquid::None &&
-        activeLiquidAt(pelvis + glm::vec3{0.f, 0.f, 8.f / world->m2u}) == ragactive::Liquid::None)
+    const LiquidFn liquid = liquidFor(r.num);
+    if(liquid(pelvis) == ragactive::Liquid::None &&
+        liquid(pelvis + glm::vec3{0.f, 0.f, 8.f / world->m2u}) == ragactive::Liquid::None)
     {
         return;
     }
@@ -4352,7 +4367,7 @@ void livingSwim(RagdollBodies& r)
     c.world = world->id;
     c.now = qcvm->time;
     c.gravity = za::max(-b3World_GetGravity(world->id).z, 0.f);
-    c.liquidAt = activeLiquidAt;
+    c.liquidAt = liquid;
     c.num = r.num;
     c.born = r.born;
     if(ragactive::beginLivingSwim(a, activeParts(r), c))
@@ -4463,15 +4478,7 @@ void driveActive(Slot& s, float dt)
         c.held |= g.num == r.num && g.part >= 0 && g.part < r.count ? (1u << g.part) : 0u;
     }
     c.floorBelow = activeFloorBelow;
-    c.liquidAt = activeLiquidAt;
-    if(const ragtest::Force* f = ragtest::forced(r.num); f && f->liquid != ragactive::Liquid::None)
-    {
-        // (A test's swim on dry land, vr_ragdoll_act: that liquid everywhere for its drive, none for its buoyancy.)
-        constexpr ragactive::Liquid (*forcedLiquid[])(const glm::vec3&) = {
-            nullptr, [](const glm::vec3&) { return ragactive::Liquid::Water; },
-            [](const glm::vec3&) { return ragactive::Liquid::Slime; }, [](const glm::vec3&) { return ragactive::Liquid::Lava; }};
-        c.liquidAt = forcedLiquid[static_cast<int>(f->liquid)];
-    }
+    c.liquidAt = liquidFor(r.num); // (a test's swim on dry land: that liquid everywhere for its drive)
     c.rayHit = activeRayHit;
     c.num = r.num;
     c.born = r.born;
@@ -4490,6 +4497,10 @@ void driveActive(Slot& s, float dt)
     // Others to grab falling (vr_ragdoll_active_grab): monsters' boxes, ragdolls' and corpses' parts.
     c.othersMask = vr_ragdoll_active_grab.value > 0.f ? catActor | catCorpse : 0u;
     c.graspable = activeGraspable;
+    if(const ragtest::Force* f = ragtest::forced(r.num); f && f->grab)
+    {
+        c.grabSure = true; // (a test's: its chance made sure)
+    }
     // Its forces this frame, kept for the step's later pieces (liftAgain).
     r.driveForce = {};
     r.driveForceAt = qcvm->time;

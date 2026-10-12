@@ -511,6 +511,7 @@ struct Context
     // whether entity `num` is one to grab (a monster, standing or a ragdoll; not itself).
     uint64_t othersMask{0};
     bool (*graspable)(int num){nullptr};
+    bool grabSure{false}; // its chance made sure (a test's: vr_ragdoll_act grab)
 };
 
 // The drive started on a ragdoll just made (vr_box3d.cpp createRagdoll, its joints made): `joints` each part's

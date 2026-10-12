@@ -28,6 +28,7 @@ struct Force
     bool still{false};
     glm::vec3 walk{0.f};
     ragactive::Liquid liquid{ragactive::Liquid::None};
+    bool grab{false}; // a fall's grab at another made sure (vr_ragdoll_active_grab's chance)
     double until{0.0};
 };
 [[nodiscard]] const Force* forced(int num);

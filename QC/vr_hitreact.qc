@@ -417,7 +417,7 @@ void() VR_Guard_Frame =
         entity e = nextent(world);
         while(e)
         {
-            if((e.flags & FL_MONSTER) && e.health > 0 && !VR_IsDummy(e) && vlen(e.origin - pl1.origin) < bestD)
+            if((e.flags & FL_MONSTER) && e.health > 0 && !VR_IsDummy(e) && !VR_TestSkips(e) && vlen(e.origin - pl1.origin) < bestD)
             {
                 bestD = vlen(e.origin - pl1.origin);
                 best = e;
