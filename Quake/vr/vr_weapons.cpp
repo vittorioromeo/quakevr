@@ -79,6 +79,23 @@ void onIdChanged(cvar_t* /* var */)
 // Any setting's change: what was made from the settings is looked at again (an ID's: the slots found again too).
 void onChanged(cvar_t* var);
 
+// Whether a slot's ID names the model `name`: the same name, or (AD support) an AD soldier's gun's base name, whatever
+// its skin ("progs/mon_soldier.mdl#gun" names "progs/mon_soldier.mdl#gun4": vr_adguns.hpp): one gun, one slot.
+[[nodiscard]] bool namesModel(const char* id, const char* name)
+{
+    if(!strcmp(id, name))
+    {
+        return true;
+    }
+    const char* gun = strstr(name, "#gun");
+    if(!gun)
+    {
+        return false;
+    }
+    const size_t n = static_cast<size_t>(gun - name) + 4;
+    return strlen(id) == n && !strncmp(id, name, n);
+}
+
 } // namespace
 
 void resetCaches()
@@ -159,8 +176,9 @@ namespace
 // Misc/quakevr/make_toolgun.py; an unused placeholder before). 41: the anchors (round 22: points on the models' surfaces, not vertex
 // indices; vr_anchor.hpp): each of the config's indices to its slot's default, that vertex's point (convertAnchors). 42: the
 // toolgun's muzzle (slot 26) on its lens's front middle (`15.4 0.0064 5.7941`, make_toolgun.py's point; the old one, a
-// corner of the lens's back, was about 1 cm off), where the config still held the old point. A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 42;
+// corner of the lens's back, was about 1 cm off), where the config still held the old point. 43: slots 27-31 (AD support: Arcane
+// Dimensions' soldiers' guns, vr_adguns.cpp; unused placeholders before). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 43;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -583,6 +601,13 @@ void migrate()
             Cvar_SetQuick(&var, var.default_string);
         }
     }
+    if(vr_wofs_version.value < 43) // AD support: the AD soldiers' guns (unused placeholders before)
+    {
+        for(int slot = 27; slot <= 31; slot++)
+        {
+            resetSlot(slot);
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -784,6 +809,13 @@ void markCurrent()
     if(vr_wofs_version.value < 40) // the toolgun (as migrate)
     {
         resetSlot(26);
+    }
+    if(vr_wofs_version.value < 43) // AD support: the AD soldiers' guns (as migrate)
+    {
+        for(int slot = 27; slot <= 31; slot++)
+        {
+            resetSlot(slot);
+        }
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
@@ -1112,7 +1144,7 @@ int slotForModel(const qmodel_t* model)
     int found = -1;
     for(int slot = 0; slot < numSlots; slot++)
     {
-        if(!strcmp(cvarAt(slot, Key::ID).string, model->name))
+        if(namesModel(cvarAt(slot, Key::ID).string, model->name))
         {
             found = slot;
             break;
@@ -1132,7 +1164,7 @@ int slotForName(const char* name)
     migrate();
     for(int slot = 0; slot < numSlots; slot++)
     {
-        if(!strcmp(cvarAt(slot, Key::ID).string, name))
+        if(namesModel(cvarAt(slot, Key::ID).string, name))
         {
             return slot;
         }

@@ -32,6 +32,7 @@ void() VR_AD_MonsterSetup =
 {
     float t = self.ad_classtype;
     self.vr_ad_mon = 0;
+    VR_ADGun_Prepare(t); // (an armed soldier's gun: made and precached as it spawns, not at its death: vr_ad_enemyguns.qc)
     // Death knight (progs/mon_dknight.mdl: deaths 212-223, 224-243). Head zone: headfit.py mon_dknight 27 1 7 (middle
     // 6.5 0.3 31.3, radius 7.3; its rig's head 8.2 -0.3 32.3).
     if(t == ad_CT_MONDKNIGHT)
@@ -420,15 +421,7 @@ void(entity attacker) VR_AD_Dying =
     vr_ad_hl_score = VR_Highlight_Kill(self, vr_ad_inflictor, attacker, vr_ad_melee);
     vr_ad_hl_what = vr_hl_what;
     VR_Stealth_Died(self);
-    // Temporary native pickup for armed AD variants; their distinct weapons are tracked in BACKLOG.md.
-    float t = self.ad_classtype;
-    if(t == ad_CT_MONARMYROCKET || t == ad_CT_MONARMYGRENADE || t == ad_CT_MONARMYPLASMA || t == ad_CT_MONARMY ||
-       t == ad_CT_MONENFORCER || t == ad_CT_MONDEFENDER || t == ad_CT_MONELIMATOR || t == ad_CT_MONCENTURION ||
-       t == ad_CT_MONPYRO || t == ad_CT_MONFUMIGATOR)
-    {
-        VR_DropEnemyGun(WID_GRUNTGUN);
-        dprint(sprintf("adcorpse: %s drops one burst rifle placeholder\n", self.classname));
-    }
+    VR_ADGun_Drop(); // its own gun, an armed soldier's (vr_ad_enemyguns.qc)
     self.vr_ai_gate = 0;
     VR_Parry_Unsway(self);
     VR_Corpse_DieWhole(self);

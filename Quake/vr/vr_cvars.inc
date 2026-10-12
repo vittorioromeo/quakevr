@@ -2087,6 +2087,50 @@ QVR_CVAR(vr_enemygun_spent_crackle, "1", CVAR_ARCHIVE) // seconds it crackles al
 QVR_CVAR(vr_enemygun_spent_shake, "0.3", CVAR_ARCHIVE)   // model units the spent gun shakes in the hand while it crackles (and 4 degrees a unit; fading with its arcs; 0: still; vr_shock.cpp gunShake)
 QVR_CVAR(vr_enemygun_spent_haptics, "0.35", CVAR_ARCHIVE) // and how hard it buzzes in the hand then (0: not at all)
 QVR_CVAR(vr_enemygun_spent_volume, "0.5", CVAR_ARCHIVE) // the volume of the corpses' crackle (misc/power.wav) as it starts (0: silent)
+QVR_CVAR(vr_adgun_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' armed soldiers drop their own guns as they die (QC vr_ad_enemyguns.qc; the plain soldier and enforcer Quake VR's burst rifle and laser rifle); 0: none
+QVR_CVAR(vr_adgun_rocket_damage, "25", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (your shots only): a rocket's direct hit (AD's soldier's: 25 and up to 5)
+QVR_CVAR(vr_adgun_rocket_splash, "30", CVAR_ARCHIVE) // ... its blast round where it strikes (not on what it hit; 0: none; AD's: 25)
+QVR_CVAR(vr_adgun_rocket_speed, "800", CVAR_ARCHIVE) // ... its rockets' speed, units a second (AD's soldier's: 575 and faster by skill)
+QVR_CVAR(vr_adgun_rocket_ammo, "5", CVAR_ARCHIVE) // ... the rockets it holds (its own: never refilled)
+QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next
+QVR_CVAR(vr_adgun_grenade_damage, "60", CVAR_ARCHIVE) // the grenade soldier's dropped launcher: a grenade's blast (AD's monster grenades: 40)
+QVR_CVAR(vr_adgun_grenade_speed, "600", CVAR_ARCHIVE) // ... its grenades' speed as they leave it (AD's soldier's: 500 and up)
+QVR_CVAR(vr_adgun_grenade_fuse, "2.5", CVAR_ARCHIVE) // ... seconds a grenade bounces about before it goes off (a monster it strikes sets it off at once)
+QVR_CVAR(vr_adgun_grenade_ammo, "6", CVAR_ARCHIVE) // ... the grenades it holds
+QVR_CVAR(vr_adgun_grenade_refire, "0.8", CVAR_ARCHIVE) // ... seconds from a shot to the next
+QVR_CVAR(vr_adgun_plasma_damage, "18", CVAR_ARCHIVE) // the plasma soldier's dropped rifle: a plasma bolt's hit (AD's monsters' bolts: 15 and up to 5)
+QVR_CVAR(vr_adgun_plasma_splash, "15", CVAR_ARCHIVE) // ... its small blast (0: none; AD's: 20)
+QVR_CVAR(vr_adgun_plasma_speed, "900", CVAR_ARCHIVE) // ... its bolts' speed (AD's soldier's: 600; your Plasma Gun's: 900)
+QVR_CVAR(vr_adgun_plasma_ammo, "20", CVAR_ARCHIVE) // ... the bolts it holds
+QVR_CVAR(vr_adgun_plasma_refire, "0.35", CVAR_ARCHIVE) // ... seconds from a bolt to the next
+QVR_CVAR(vr_adgun_defender_damage, "4", CVAR_ARCHIVE) // the defender's dropped shotgun: a pellet's damage (AD's: 4)
+QVR_CVAR(vr_adgun_defender_pellets, "10", CVAR_ARCHIVE) // ... the pellets of a shot (AD's defender's: 10)
+QVR_CVAR(vr_adgun_defender_spread, "0.18", CVAR_ARCHIVE) // ... how wide they spread (across; half as much up and down: AD's 0.18 by 0.1)
+QVR_CVAR(vr_adgun_defender_ammo, "8", CVAR_ARCHIVE) // ... the shots it holds
+QVR_CVAR(vr_adgun_defender_refire, "0.9", CVAR_ARCHIVE) // ... seconds from a shot to the next
+QVR_CVAR(vr_adgun_eliminator_damage, "18", CVAR_ARCHIVE) // the eliminator's dropped plasma gun: a bolt's hit
+QVR_CVAR(vr_adgun_eliminator_splash, "15", CVAR_ARCHIVE) // ... its small blast (0: none)
+QVR_CVAR(vr_adgun_eliminator_speed, "900", CVAR_ARCHIVE) // ... its bolts' speed (AD's eliminator's: 600)
+QVR_CVAR(vr_adgun_eliminator_ammo, "30", CVAR_ARCHIVE) // ... the bolts it holds
+QVR_CVAR(vr_adgun_eliminator_refire, "0.25", CVAR_ARCHIVE) // ... seconds from a bolt to the next
+QVR_CVAR(vr_adgun_centurion_damage, "18", CVAR_ARCHIVE) // the centurion's dropped plasma gun: a bolt's hit
+QVR_CVAR(vr_adgun_centurion_splash, "15", CVAR_ARCHIVE) // ... its small blast (0: none)
+QVR_CVAR(vr_adgun_centurion_speed, "900", CVAR_ARCHIVE) // ... its bolts' speed (AD's centurion's: 600)
+QVR_CVAR(vr_adgun_centurion_ammo, "30", CVAR_ARCHIVE) // ... the bolts it holds
+QVR_CVAR(vr_adgun_centurion_refire, "0.25", CVAR_ARCHIVE) // ... seconds from a bolt to the next
+QVR_CVAR(vr_adgun_pyro_damage, "3", CVAR_ARCHIVE) // the pyro's dropped flamethrower: a flame's damage to what it touches (each flame once; AD's: 4)
+QVR_CVAR(vr_adgun_pyro_burn, "3", CVAR_ARCHIVE) // ... seconds what a flame touches burns on (Quake VR's burning: Combat > Burning's Burn Damage a second; 0: none; not under water)
+QVR_CVAR(vr_adgun_pyro_speed, "600", CVAR_ARCHIVE) // ... its flames' speed
+QVR_CVAR(vr_adgun_pyro_range, "300", CVAR_ARCHIVE) // ... how far its flames reach, units
+QVR_CVAR(vr_adgun_pyro_fuel, "100", CVAR_ARCHIVE) // ... its fuel: the flames it holds
+QVR_CVAR(vr_adgun_pyro_rate, "0.1", CVAR_ARCHIVE) // ... seconds between its flames, the trigger held
+QVR_CVAR(vr_adgun_fumigator_damage, "2", CVAR_ARCHIVE) // the fumigator's dropped poison sprayer: a puff's damage to what it touches (each puff once; AD's: 2)
+QVR_CVAR(vr_adgun_fumigator_poison, "6", CVAR_ARCHIVE) // ... the poison it leaves: damage a second (0: none)
+QVR_CVAR(vr_adgun_fumigator_poisontime, "4", CVAR_ARCHIVE) // ... and for how many seconds (a puff more: from then on, the stronger poison kept)
+QVR_CVAR(vr_adgun_fumigator_speed, "500", CVAR_ARCHIVE) // ... its puffs' speed
+QVR_CVAR(vr_adgun_fumigator_range, "260", CVAR_ARCHIVE) // ... how far its puffs reach, units
+QVR_CVAR(vr_adgun_fumigator_fuel, "100", CVAR_ARCHIVE) // ... its fuel: the puffs it holds
+QVR_CVAR(vr_adgun_fumigator_rate, "0.1", CVAR_ARCHIVE) // ... seconds between its puffs, the trigger held
 QVR_CVAR(vr_debug_chainsaw, "0", CVAR_NONE)           // 1: print the chainsaws' pulls, starts, stalls and cuts; 2: also draw the cord's reach
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
 QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0 let go of it at a holster, 1 the trigger, 2 either
