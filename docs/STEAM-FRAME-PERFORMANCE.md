@@ -166,3 +166,30 @@ density, so it is confined to the optional performance-preview profile. These
 measurements use mock tracking and a hidden X11 window; they do not prove
 headset image quality, OpenXR frame pacing, or 72 Hz campaign performance. The
 default installation and its cvars remain unchanged.
+
+## Particle instance CPU work
+
+The A520 cycle profile identified `qvr::particles::buildInstances` as a CPU
+hotspot. I tested a native ARM64 candidate that read and clamped
+`vr_soft_particles_scale` once per instance-build instead of repeating that
+invariant lookup for every particle. The per-particle fade and pull arithmetic
+was unchanged. The candidate was built and run on Steam Frame separately; the
+released binary and normal installation were not changed.
+
+An A-B-B-A comparison used the same `particles_dense` fixture, render scale
+0.25, particle multiplier 1, 1728-pixel mock eye images, 72 Hz pacing, fixed
+seeds and about 15,546 live VR particles. A scoped profile reported
+`particle verts` CPU averages of 0.448 and 0.431 ms for the release build, and
+0.413 and 0.434 ms for the candidate: 0.440 ms versus 0.424 ms averaged, but
+the individual pairs crossed and the difference is within run-to-run variation.
+A separate unprofiled pass measured 0.985 ms versus 0.938 ms in the enclosing
+`vr particles` phase.
+
+The dense fixture's unprofiled frame averages were 28.324 ms baseline and
+28.332 ms candidate; GPU-eye averages were 27.662 and 27.634 ms, and frame p99
+was 34.196 and 34.323 ms. These results do not establish a repeatable benefit
+at either the scoped or whole-frame level, so the source change was reverted.
+A later eye-image equivalence attempt did not finish its capture; pixel
+identity was not verified. The optional profiles, defaults and release
+launcher remain unchanged. This mock testing does not validate physical
+OpenXR tracking, compositor timing or wearer experience.
