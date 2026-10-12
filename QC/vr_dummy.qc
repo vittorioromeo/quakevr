@@ -186,7 +186,7 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         {
             what = sprintf("%s with %s", what, b.mh_part);
         }
-        what = sprintf("melee: %s, %s, %.1f m/s (x%.2f)", what, VR_Dummy_HandName(vr_hithand), b.mh_speed, b.mh_strength);
+        what = sprintf("melee: %s, %s, %.1f m/s (x%.2f)", what, VR_Dummy_HandName(vr_hithand), b.mh_dmgspeed, b.mh_strength);
         if(b.mh_counter > 0)
         {
             what = sprintf("%s, counter x%.2f", what, b.mh_counter); // after a parry (vr_counter)

@@ -4164,3 +4164,34 @@ helping main hand sits in the ammo pouch's reach at the take's start: the setup'
 **Damage per weapon and type** (`eval_damage.py`, printed by the full set): punches 19.2 mean (7.3-39), axe chops 38.5
 (21-63), sword slashes 30.2 (9-60), stabs 29.9 (15-73), slaps 17.6, axe pommel 11.7, axe bash 7.3. Spread comes from
 the zone (head x1.5, limbs less) for chops, slashes and punches, from the strength (speed) for stabs and slaps.
+
+## Melee damage: flatter curve, sword tip speed, hard caps per blow (worktree `meleedmg`, 2026-10-12)
+
+His three decisions on the damage table:
+- **Flatter curve:** `VR_MELEE_STRONGEST` 2 -> 1.75 (vr_melee.qc; the rest of the curve as it was).
+- **A sword measured at its tip:** a sword's slash or stab takes its strength from its tip's speed (`mh_dmgspeed`, the
+  dummy's report shows it) over the least speed times `VR_MELEE_TIP_SLASH` 3 / `VR_MELEE_TIP_STAB` 1.5: fitted on his
+  takes (developer 2) so the mean stays (his slashes swing the tip 2.96x the grip, median, 1.6-4.0; stabs 1.54x,
+  1.0-2.7). A wrist-whipped cut counts more, an arm-pushed one less. Whether it lands (and `mh_speed`: grenades, gibs,
+  blunt pops) still goes by the grip. A sword carried by its blade, near end out, keeps the grip's speed.
+- **Hard caps:** `vr_melee_dmg_min` 0.5 / `vr_melee_dmg_max` 2.25 (Combat > Melee: Least / Most Blow Damage). The blow's
+  speed strength (`mh_core`) times the zone's multiplier is clamped to them (combat.qc `VR_Melee_CapDamage`, in
+  T_Damage_VRMelee, for a blow VRMeleeDmg priced); everything else multiplies after: a pommel's or the hook's share, the
+  punch and slap mults, a counter, stamina, Melee Damage x and weight, `vr_melee_dmg_multiplier`, Quad. Test and
+  headbutt damage isn't capped. Check: min = max = 1 makes every chop 22.0, slash and stab 24.2, punch 13.8 (sd 0).
+
+First hits on his 111 hitting takes, before -> after (mean, min-max, sd); verdicts unchanged (168/177, 0 flips):
+
+| weapon, type | before | after |
+|---|---|---|
+| axe chop (17) | 38.5, 21.1-62.8, 12.3 | 37.3, 21.1-49.5, 11.1 |
+| axe pommel (6) | 11.7, 8.3-17.3, 3.2 | 11.7, 8.3-17.3, 3.2 |
+| sword slash (32) | 30.2, 9.2-60.5, 13.2 | 30.1, 12.1-54.5, 13.5 |
+| sword stab (15) | 29.9, 15.1-72.6, 14.5 | 27.5, 16.5-54.5, 10.8 |
+| sword pommel (2) | 24.7, 15.1-34.2, 9.6 | 23.9, 15.1-32.7, 8.8 |
+| punch (28) | 19.2, 7.3-39.0, 6.2 | 19.0, 7.3-30.9, 5.4 |
+| slap (8) | 17.6, 9.4-20.6, 4.3 | 14.2, 9.4-15.5, 2.3 |
+
+The caps cut the fast head hits (chop 62.8 -> 49.5 = 2.25 x 22; slash and stab 54.5 = 2.25 x 24.2) and lift the slowest
+slash (9.2 -> 12.1 = 0.5 x 24.2). Slaps drop with the curve (their head hits ran x2). The axe's bash (7.3) isn't a speed
+blow: unchanged.

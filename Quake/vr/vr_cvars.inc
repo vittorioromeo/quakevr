@@ -842,6 +842,11 @@ QVR_CVAR(vr_menu_level, "0", CVAR_ARCHIVE)             // Menu Detail (vr_menu.c
 QVR_CVAR(vr_menu_positions, "", CVAR_ARCHIVE)          // where each VR Settings page was left, for the next start (vr_menu.cpp, written with the config): "title|section|row|index|line;..."
 QVR_CVAR(vr_checklist_hide_ticked, "1", CVAR_ARCHIVE)   // Checklist page (the menu's corner button): ticked items left out
 QVR_CVAR(vr_melee_dmg_multiplier, "1.1", CVAR_ARCHIVE)
+// Hard damage caps per melee blow (QC combat.qc VR_Melee_CapDamage; ROUND22.md): the blow's strength from speed times its
+// zone's multiplier is kept within these multiples of the weapon's own base damage, before vr_melee_dmg_multiplier and
+// the punch multiplier.
+QVR_CVAR(vr_melee_dmg_min, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_melee_dmg_max, "2.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_melee_range_multiplier, "1.0", CVAR_ARCHIVE)
 // Quad Damage on melee, on top of the x4 every damage gets while Quad lasts (T_Damage): extra damage and extra reach.
 // Quake VR v0.0.3 had x2.75 damage (11x in all) and 1.35/1.10 reach; 1 = melee is like any other weapon under Quad.

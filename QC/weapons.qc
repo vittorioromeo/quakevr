@@ -153,6 +153,9 @@ float(float xHand, float xBase) VRMeleeDmg =
         return 20;
     }
 
+    // The damage caps bound this blow's strength (times its zone's multiplier) when it lands (T_Damage_VRMelee).
+    vr_mdmg_core = VR_Blow(xHand).mh_core;
+    vr_mdmg_hand = xHand;
     return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
            VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
 }

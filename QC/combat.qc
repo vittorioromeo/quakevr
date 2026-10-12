@@ -46,8 +46,36 @@ void(float xKind, float xHand, vector xPos, vector xDir) VR_SetHitKind =
     vr_hitdir = xDir;
 };
 
+// The blow VRMeleeDmg last priced, inside a hand's VR_SetHitKind .. VR_ClearHitKind: its strength from speed alone
+// (mh_core; 0: none, as a test's or a headbutt's damage) and its hand.
+float vr_mdmg_core;
+float vr_mdmg_hand;
+
+// Hard damage caps per blow (the author, round 22): a weapon's blow deals between vr_melee_dmg_min and
+// vr_melee_dmg_max times its own base damage, whatever its speed and zone: its strength from speed (mh_core) times the
+// zone's multiplier `xZone` is bounded, then the rest stays multiplied in (a pommel's or the hook's share, the punch and
+// slap multipliers, a counter, stamina, the weapon's Melee Damage x and weight, vr_melee_dmg_multiplier, Quad).
+// `xDamage`: the blow's damage with its zone's multiplier. Only a hand's blow VRMeleeDmg priced; else as it is.
+float(float xDamage, float xZone) VR_Melee_CapDamage =
+{
+    float c = vr_mdmg_core * xZone;
+    if(vr_hitkind != QVR_HITKIND_MELEE || vr_hithand != vr_mdmg_hand || c <= 0)
+    {
+        return xDamage;
+    }
+    float lo = max(0, cvar_hget(cvarh_vr_melee_dmg_min));
+    float hi = max(lo, cvar_hget(cvarh_vr_melee_dmg_max));
+    float capped = min(hi, max(lo, c));
+    if(capped != c && cvar("developer") >= 2)
+    {
+        dprint(sprintf("melee debug: strength x zone %.2f capped to %.2f (vr_melee_dmg_min/max)\n", c, capped));
+    }
+    return xDamage * capped / c;
+};
+
 void() VR_ClearHitKind =
 {
+    vr_mdmg_core = 0;
     vr_hitkind = QVR_HITKIND_NONE;
     vr_hithand = -1;
     vr_hitweapon = "";
@@ -2450,7 +2478,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     // Positional damage for a blow (vr_melee_positional): the zone of the point on the model it met, the same the guns
     // use. Off: 1, and nothing is recorded - exactly the flat melee damage of before.
     float mult = VR_Melee_Positional(targ, vr_hitpos, vr_hitdir);
-    damage = damage * mult;
+    damage = VR_Melee_CapDamage(damage * mult, mult);
     float decap = VR_Decap_Blow(targ, attacker, damage); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
     float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);
     if(decap)
