@@ -167,6 +167,27 @@ measurements use mock tracking and a hidden X11 window; they do not prove
 headset image quality, OpenXR frame pacing, or 72 Hz campaign performance. The
 default installation and its cvars remain unchanged.
 
+## Decal grid sizing on Frame
+
+A 720-frame `decals_1024_stream` baseline ran on the physical Frame with the
+released engine (SHA-256 `386e4ba6...`), mock tracking, hidden X11, 1728-pixel
+eye targets, render scale 0.25 and 72 Hz pacing. The fixture kept 1,024 decals
+throughout. It completed all frames with 11.619 ms average GPU-eye time and
+12.247 ms p99; the mock tracking and hidden desktop mean this is not compositor
+or wearer evidence.
+
+The call-tree profile counted `decals on the world` 0.24 times per measured
+frame and averaged 0.043 ms of CPU per frame across that scope. Its main
+subscopes averaged 0.002 ms for grid sizing, 0.008 ms for counting, 0.007 ms
+for the prefix pass, 0.006 ms for filling, and 0.014 ms for buffer upload.
+These measurements put a ceiling on the likely value of sizing a smaller table
+from occupied buckets: even eliminating sizing and the prefix pass entirely
+would save under 0.01 ms per frame in this fixture, before accounting for any
+extra counting or rehashing. A smaller table also increases the risk that its
+64-marks-per-bucket cap drops visible decals. I did not make that trade-off.
+The raw Frame JSON, profile and log are retained privately in
+`performance-results/decal-grid-frame-20261012`.
+
 ## Particle instance CPU work
 
 The A520 cycle profile identified `qvr::particles::buildInstances` as a CPU
