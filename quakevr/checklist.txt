@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+SSG Close by B/Y (Advanced > Weapons > Reloading > Super Shotgun, off by default): on, B/Y opens and B/Y closes it
 AD texture relief: compare generated brick mortar/trim with parallax off/on close to a wall (Smooth 1); seams and animation stable; authored relief preserved
 Performance pass (should feel unchanged): throws and bullet-time throws; underwater caustics in pools; grenade and rocket sizes in flight; map loads
 Menu shortcuts: top-left Quicksave/Quickload via laser or stick; disabled save after death; smallest panel targets fit above Recording
