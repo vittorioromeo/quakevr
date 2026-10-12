@@ -4,14 +4,11 @@ Items the author approved or asked about, not yet started. Each has a note on wh
 
 ## Next round (approved)
 
-### Native AD enemy weapons and active humanoid coverage (author, 2026-10-12)
+### Active humanoid coverage for AD's soldiers (author, 2026-10-12)
 
-Notes `ad_crucial_2026-10-12_11-11-20` and `11-31-35`: armed AD grunt/enforcer variants currently drop a
-single-use burst rifle as the requested placeholder. Implement distinct native pickups matching each variant's
-actual attack (rocket, grenade, plasma, defender/eliminator, pyro/fumigator and centurion), including ammo,
-reload/fire behaviour and the appropriate held model. Their corpse meshes already shed the built-in weapons.
-Extend living and dying active behaviours to AD grunt/enforcer variants after validating their rig semantics,
-get-up clips, attack origins and locomotion; the author explicitly permits deferring this rig/behaviour work.
+Their own guns are done (ROUND22.md, "Arcane Dimensions: soldiers' own guns, upgrades per weapon, ..."). Left: extend
+living and dying active behaviours to AD grunt/enforcer variants after validating their rig semantics, get-up clips,
+attack origins and locomotion; the author explicitly permits deferring this rig/behaviour work.
 
 ### Flies on corpses and gibs (the author, 2026-10-02: "add it to the to-do list")
 
@@ -27,17 +24,6 @@ refire; 28 pellets) but are drawn as Quake VR's own shotguns: MG3's `v_bloodshot
 models with an arm, made for the flat view. To do: bloody skins for `progs/v_shot.mdl`/`v_shot2.mdl` (a second skin
 picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and laid as the Super Axe's are
 (`vr_monstermods.cpp superAxePoses`), with their own weapon settings slots.
-
-### Arcane Dimensions' upgrades per weapon (the author, 2026-10-11, AD decision 38: "more immersive")
-
-AD's Shadow Axe, Widowmaker and Plasma Gun are the player's today (AD's `.moditems`, as in AD: every axe, super
-shotgun or lightning gun he holds is upgraded; ARCANE_DIMENSIONS.md 15.3). To do: the upgrade belongs to the weapon
-picked up (its record, `QC/vr_weaponinst.qc`: a bit on the record, carried with it through hands, holsters, drops and
-saves), so a plain axe found later stays plain. The code is ready for it: every question goes through
-`AD_WeaponUpgraded(player, record, bit)` (`QC/vr_ad_bridge.qc`), which answers from the player's bit now; the change is
-that function, the pickup (`AD_UpgradePickedUp`: set the bit on the record given), `AD_Widowmaker`'s caller
-(`vr_reload.qc VR_Reload_ManualFor`, which knows only the weapon id: pass the record) and the level-change carry
-(`parm63`). Then AD's own models per upgraded weapon (P3) follow the record too.
 
 ### Repository chores
 
@@ -208,7 +194,5 @@ TODO: linux support
   investigate capture/target validity separately if needed. This is not evidence of the reported lamp flicker.
 ### Native AD inventory and interface (author, 2026-10-12 11:27:41)
 
-Audit every AD-specific inventory item and mechanic for a usable native VR interface: artifacts and timers,
-custom keys, weapon upgrades, book/interaction panels and campaign inventory changes. Verify the wrist gadget
-shows current ownership, effects and expiry, including mixed AD content in ordinary maps. The Advanced VR
-Options > Arcane Dimensions page provides tweak/scoping controls; it does not complete this inventory/UI audit.
+Audited and the gadget's AD page added (ROUND22.md, same section). Left: the custom keys' names on it (strings, not
+stats), the jump boots' power level, coop.

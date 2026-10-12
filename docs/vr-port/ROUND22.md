@@ -4437,3 +4437,100 @@ new cvars or defaults.
 
 For VR: nothing should look or feel different. Throws, the caustics under water, and the grenade and rocket sizes should
 all be as before.
+
+## Arcane Dimensions: soldiers' own guns, upgrades per weapon, the gadget's AD page, P1b's loose ends (worktree `adweapons`, 2026-10-12)
+
+His four asks (he can't test in VR now): the AD soldiers' own weapons, all of them, with many player-only tweaks to
+balance them; upgrades belonging to weapons; the inventory/UI audit, the gadget's unused outer button paging to AD's
+information; P1b's loose ends.
+
+### The soldiers' own guns (QC `vr_ad_enemyguns.qc`, `vr_ad_guns_defs.qc`; engine `vr_adguns.cpp`)
+
+- Eight new weapons, single use as the grunts' burst rifle (their clip their only ammo, AID_NONE, never refilled; empty:
+  the click, the spent smoke and crackle, still a club; under the dropped-weapon cap): WID 20-27, IID 50-57, Hipnotic item
+  bits 12-19. AD's rocket soldier drops his launcher (a rocket: a direct hit and a blast, AD's rocket model), the grenade
+  soldier his (bouncing grenades on a fuse, set off by a monster they strike, catchable as yours), the plasma soldier, the
+  eliminator and the centurion their plasma guns (AD's plasma bolts, launched as theirs: a hit and a small blast), the
+  defender his shotgun (a spread of pellets, AD's projectile pellets where its rules apply), the pyro his flamethrower (a
+  stream of AD's flame sprites: each flame's damage once, what it touches set on fire with Quake VR's burning) and the
+  fumigator his poison sprayer (a stream of poison puffs: their damage, and a poison of its own on what they touch,
+  damage a second for a while). AD's plain soldier and enforcer now drop Quake VR's burst rifle and laser rifle (their
+  own kinds of gun) instead of the placeholder burst rifle for everyone.
+- Damage is Quake VR's (T_Damage; AD's monsters take it through AD's damage with their ammunition resistance: rockets for
+  the rockets, grenades and flames, cells for the plasma and poison, shells for the pellets).
+- Every number of your use of them is a setting (`vr_adgun_<gun>_<what>`, 44 cvars): damage, blast, speed, rounds and time
+  between shots; the grenades' fuse; the shotgun's pellets and spread; the flamethrowers' fuel, reach, rate, burn time,
+  poison damage and time; `vr_adgun_drops` 0: the soldiers drop nothing. VR Settings > Combat > Enemy Weapons > Arcane
+  Dimensions' Guns (also from Advanced > Arcane Dimensions > Soldiers' Guns). Defaults: the AD monsters' own numbers where
+  they read well for a player (rocket 25 + 30 blast at 800 u/s, 5 rockets; grenade 60 blast, 6; plasma bolts 18 + 15, 20
+  to 30 bolts; defender 10 pellets of 4, 8 shots; flamethrower 3 a flame and 3 s of burning, poison 2 a puff and 6 a second
+  for 4 s, 100 fuel at 10 a second). The monsters' own attacks are unchanged.
+- Their models are AD's monsters' own guns, cut out of the player's AD monster models as they load (nothing of AD's is in
+  our files): `vr_adguns.cpp` makes "<monster model>#gun<skin>" (`VR_DerivedModelFile`, as the limb models) from the gun's
+  vertices (the ones `vr_monstermods.cpp` hides in the soldiers' deaths: the soldier's 463-548, the enforcer's,
+  centurion's, pyro's and fumigator's 16-vertex gun, the pyro's hose left out) in the firing frame (`shoot5`,
+  `attack5`: the barrel along the model's x), laid as our enemy guns are (the barrel along +x, the hand's place at the
+  origin, 46 model units long) in the soldier's skin of that kind (one skin each: rocket 4, grenade 6, plasma 8; defender
+  3, eliminator 6). Packed from the corner of the Quake VR gun whose settings they inherit: weapon slots 27-31
+  (`vr_wofs_version` 43), the soldier's gun inheriting slot 21 (`v_gruntgun.mdl`, the same scale_origin: the same Offsets
+  and hotspots hold it), the enforcer-mesh guns slot 22 (`v_enfrifle.mdl`, a corner 1.41 units further out on y: their
+  Offset Y and hotspots moved for it); a slot's ID without the skin names every skin's gun
+  (`weapons::slotForModel`'s `namesModel`). Their muzzles are their own (`vr_adgun_models` prints them). The models are
+  made and precached as the soldiers spawn (`VR_ADGun_Prepare`: no hitch at the death); without AD's data the stand-ins
+  are our burst rifle and laser rifle.
+- Checked headless: `vr_ad_test 70` fires each gun from the main hand at a target: 8/8 PASS (rocket 25, grenade 44,
+  plasma 18, defender 20 hitscan, eliminator and centurion 18, flamethrower 18 from 6 flames, poison sprayer 21 with its
+  poison). Spawned dead AD soldiers (`vr_test_spawn 211/227/223/212/217/220/232/235`, `vr_test_spawn_dead 1`, `impulse 241`)
+  each dropped its gun (`adgun: ... drops its ...`; each gun model made in ~4 ms). `vr_ad_test 71`: each dropped from a
+  soldier's place with its model and full clip, 8/8. Screenshots of each held (side view by the grunt's and enforcer's
+  guns): the same hold and orientation, the AD skins; a flamethrower's stream from its muzzle.
+- For VR: hold each, check the hand on it (Weapon Offsets: slots 28-32) and its muzzle; fire each; balance on the page.
+
+### Upgrades belong to weapons (QC `vr_ad_bridge.qc`, `vr_weaponinst.qc`, `vr_reload.qc`)
+
+- An upgrade is the weapon's record's (`.wi_adup`: AD's Shadow Axe, Widowmaker, Plasma Gun bits), set by the upgrade's
+  pickup on the weapon it gives (`AD_UpgradeGiven` in `weapon_touch`): it goes with that weapon through hands, holsters,
+  drops, saves (the record is an entity) and level changes (`parm64`: 3 bits a weapon, the hands' then the holsters').
+  A plain axe found later stays plain; a Shadow Axe and a plain axe can be held together. `AD_WeaponUpgraded` answers from
+  the record (and the Weapon Upgrades scope); the Widowmaker's hip reload asks its record (`VR_Reload_ManualForInst`,
+  `VR_Reload_ManualInHand`); AD's own "TSG pellets kill zombies" flag now from the firing weapon's upgrade.
+- Older games (a player's own `.ad_moditems` upgrades, saves or level changes made before): put on every weapon of their
+  kinds he carries as he spawns or loads (`AD_UpgradesToWeapons`), then his no more.
+- Checked: the Widowmaker pickup upgraded the SSG in hand (`vr_ad_test 6`: code 2), a plain SSG cheated into the other
+  hand stayed 0; after `changelevel e1m2` and after a save/load the same; `vr_ad_test 7` (an older game's three
+  upgrades) put the Widowmaker on both SSGs and the Shadow Axe on the holstered axe. `ad_scope_test.sh`: upgrade 0/1 by
+  scope as before.
+
+### The gadget's Arcane Dimensions page (engine `vr_gadget.cpp`, `vr_gearlights.cpp`; QC `vr_ad_items.qc`)
+
+- The audit: the main page already showed the artifacts' icons, only the soonest one's time, the custom keys' icons and
+  the debuffs as blinking words, crammed into the level line; nothing showed the weapons' upgrades or each artifact's own
+  time. The outer of the gadget's two lower buttons (unused; the inner one is the gear lights') now pages to an Arcane
+  Dimensions page and back while AD's data is loaded (otherwise it does nothing): every artifact held with its own seconds
+  left ("--": no end), the custom keys, the debuffs with the poison and bleeding still to come and the burning's
+  seconds, and each upgrade's weapons carried and where (MAIN, OFF, BACK L/R, HIP L/R, CHEST L/R). The same press
+  detection, cooldown and tuning as the inner button; a click and a tick. `vr_gadget_page` / `vr_gadget_page_press` for
+  tests and flat play; `vr_gadget_test_state 6` fills it with made-up readings.
+- New stats STAT_QVR_ADART1/2, ADDEBUFF, ADUPGRADES (QC `AD_HudUpdate`, 8 bits a reading).
+- Left as they are (audited): the custom keys' names (only their icons: names are strings; the pickup's message names
+  it), books (the hologram's centre print and AD's dark background), the jump boots' power level, coop.
+
+### P1b's loose ends
+
+- The worldspawn keys `give_weapons`, `take_weapons`, `no_axestart` on our hands and holsters as an AD level starts
+  (`AD_WorldWeaponKeys`, on the parms the records are made from): no_axestart (not in Evil) starts with nothing, no
+  upgrade; take_weapons takes those weapons from the hands and holsters (never the axe); give_weapons puts each one not
+  carried into the first free holster (the hips', the chest's, the back's, then a hand), owned. `vr_ad_test 8` (take the
+  shotgun, give the nailgun and rocket launcher) and `9` (no_axestart) on the current loadout's parms: as described.
+- AD's sky changes as the engine's own messages (`ad_import.py`'s two new reviewed patches): a trigger_skybox's sky by
+  svc_skybox to every client (AD stuffed "sky" to one), sent again after a load (`vr_ad_skysent`); AD's sky fog by the
+  player's STAT_QVR_ADSKYFOG (saved with him; `gl_fog.c`/`gl_sky.c` take it over the map's: `VR_AD_SkyFog`), never the
+  player's r_skyfog. `vr_ad_test 66`: in ad_crucial the green sky loaded, and again after a load (outside AD's campaign
+  AD's sky files aren't on the search path, as before).
+- AD's triggers and items as our entities' activator wherever AD's data is (`AD_SyncActivator`, `AD_ShareActivator`: AD
+  maps only before), so AD content in other maps fires ours for the player.
+- `ad_shots_test.ps1 -Full` is no longer flaky: mode 53's arm (a big pellet's box meets the body early) popped the head
+  when the approach passed near it; the arm's approach is now looked for keeping the head 12 units off its line first.
+  -Full 4/4 PASS (72 flight reports), the default run PASS.
+
+Regressions: `ad_hits_test.sh` PASS, `ad_world_test.sh` PASS, `ad_scope_test.sh` as before, e1m1 smoke; QC 0 warnings.

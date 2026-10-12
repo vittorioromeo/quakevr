@@ -1230,3 +1230,18 @@ supports other fixtures explicitly. The crowbar, empty-melee and melee-phasing c
 Under the mock headset a plain `vr_motion_play <take>` on another map loads the room first (dropping what a script set
 up there); `noplace` or `target <classname|#entity>` keeps the running map (and its spawned targets), and
 `map <name>` always loads that map.
+
+## Arcane Dimensions: soldiers' guns, upgrades per weapon, the gadget's AD page (2026-10-12)
+
+With AD's data linked into the agent's base (`qbase/ad`): `vr_ad_test 70` fires each AD soldier's gun from the main hand
+at a target ahead and prints `adgun test: ... PASS` (it sets `vr_weapon_grip_mode 1` for itself; aim the mock hand
+level: `vr_mock_hand main 0.25 1.20 -0.40 70 0 0`; about 2.4 s a gun); `71` drops each from a soldier's place and checks
+its model and clip; `72` prints their settings; `73`..`80` put one in the main hand (WID_ADROCKET's order: with
+`vr_weapon_grip_mode 1`); `vr_adgun_models` prints the gun models made from AD's monsters (box, muzzle). Real drops:
+`vr_test_spawn_dead 1; vr_test_spawn 211; impulse 241` (227, 223, 212, 217, 220, 232, 235: the grenade and plasma
+soldiers, defender, eliminator, centurion, pyro, fumigator), `developer 1` prints `adgun: ... drops its ...`.
+Upgrades: `vr_ad_upgrades 2; vr_ad_test 5` (a Widowmaker pickup ahead), take it, `vr_ad_test 6` (each hand's upgrade
+code: 1 Shadow Axe, 2 Widowmaker, 4 Plasma Gun; parm64's packing); `7` an older game's player-wide upgrades moved onto
+the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the current loadout's parms; `66` AD's sky
+(svc_skybox) and sky fog (STAT_QVR_ADSKYFOG). The gadget's AD page: `vr_gadget_page` (or `vr_gadget_page_press`, the
+outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget_screen_dump <name>` to look at it.

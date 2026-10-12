@@ -941,11 +941,12 @@ importer's two patches now read as AD meant them).
 
 - Vittorio's VR playtest of the hub and a few maps through: the exits and the hub's returns (`startspawn2`), ladders,
   books, the cinematic cameras, AD's pellets and the three upgrades (their pickups need a hand: untested headless).
-- The worldspawn keys `give_weapons`, `take_weapons` and `no_axestart` on Quake VR's hands and holsters (AD's parm1
-  weapon bits do not map one to one on our inventory).
+- ~~The worldspawn keys `give_weapons`, `take_weapons` and `no_axestart` on Quake VR's hands and holsters~~ (done
+  2026-10-12: ROUND22.md, "Arcane Dimensions: soldiers' own guns, upgrades per weapon, the gadget's AD page, P1b's loose
+  ends").
 - AD's item keys not read on our items (15.3); AD's custom keys (`item_keyx`) and artifacts are P2 (decision 16).
-- AD's screen effects sent as stuffed commands (`r_skyfog`, `trigger_skybox`'s sky change): through our own messages
-  (the skybox needs an engine message). The tints are done (16.14).
+- ~~AD's screen effects sent as stuffed commands (`r_skyfog`, `trigger_skybox`'s sky change)~~: svc_skybox and
+  STAT_QVR_ADSKYFOG (done 2026-10-12, as above). The tints are done (16.14).
 - The installer component (decisions 3 and 4) and a vrstart hub lectern for AD.
 - Map Library packages made for AD: AD's data mounted for them (the rules' detection already works once it is).
 
@@ -1154,7 +1155,7 @@ outside AD's rules), `vr_box3d.cpp` (`spawnClass`), `vr_climb.cpp` (`ladderHold`
 - ~~AD's debuff and artifact screen tints (stuffed `v_cshift`/`bf`) through our own messages~~ (done: 16.14); the Air
   Tank's bubbles (AD's visual effects outside AD maps stay off: decision 35).
 - ~~AD's resist tells outside AD maps~~ (done: 16.14).
-- AD's items' activator for our entities they target outside AD maps (`AD_SyncActivator` runs in AD maps only).
+- ~~AD's items' activator for our entities they target outside AD maps~~ (done 2026-10-12: wherever AD's data is).
 - The spawnflag table's later entries (16.8): MG's flags, the 76 Quake-family gates as named meanings.
 - Coop: AD's per-player state (debuffs, artifacts, Evil) in coop saves (decision 31).
 
@@ -1336,4 +1337,4 @@ Rigs made with `Misc/quakevr/ragdoll/rig.py` on AD's models (`RIG_PAK` = a pak o
 - Vittorio's headset check of each rig (the dead poses, the limbs, the get-ups), especially the poorer fits (gaunt,
   seeker, Freddie: bones rms 4-5) and the hand-set joints.
 - The eidolon, Chthon/fire-top boss and mammoth (not rigged); the training dummy's AD types; AD's soldiers' enemy shoves
-  and droppable guns (section 8, "Ranged soldiers"); ghost melee-through rules.
+  (their droppable guns are done, 2026-10-12: ROUND22.md); ghost melee-through rules.
