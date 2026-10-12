@@ -185,7 +185,6 @@ za::U64 historySerial[frameHistorySize]{};
 za::U64 frameSerial = 0; // the frames recorded so far
 int phaseSlot = 0;
 bool phaseGpuMade = false;
-bool phaseGpuWanted = true; // Experimental control: isolate always-on timestamp query cost on tile GPUs.
 
 // In front of the map: the last name seen in each of a few slots (by its address), since every
 // scope's begin asks, vr_profile off too.
@@ -230,7 +229,7 @@ void beginPhase(const char* name, bool gpu)
     {
         o.start = za::Clock::nowNanoseconds();
         PhaseGpuSlot& s = phaseSlots[phaseSlot];
-        if(gpu && phaseInfo[o.phase].gpu && phaseGpuWanted && phaseGpuMade && s.used + 2 + phaseGpuOpen <= phaseGpuQueries)
+        if(gpu && phaseInfo[o.phase].gpu && phaseGpuMade && s.used + 2 + phaseGpuOpen <= phaseGpuQueries)
         {
             GL_QueryCounterFunc(s.queries[s.used], GL_TIMESTAMP);
             ++phaseGpuOpen;
@@ -358,7 +357,7 @@ void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
     za::fill(phaseFrameNs, za::I64{0});
     s.pending = keep && s.recCount > 0;
 
-    if(phaseGpuWanted && !phaseGpuMade && GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc &&
+    if(!phaseGpuMade && GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc &&
         GL_GenQueriesFunc)
     {
         for(PhaseGpuSlot& slot : phaseSlots)
@@ -1010,7 +1009,6 @@ void end()
 
 void init()
 {
-    phaseGpuWanted = !COM_CheckParm("-qvr-no-phase-gpu");
     nodes.clear();
     Node root;
     root.name = "frame";
