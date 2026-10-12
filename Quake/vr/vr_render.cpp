@@ -462,10 +462,68 @@ extern "C" void VR_AliasLightModifier(const entity_t* e, float lightcolor[3])
     view::bareLight(e, lightcolor); // bare forearms: the hands in your body's light
 }
 
+namespace
+{
+
+// The skin masks looked up so far (vr_skin_tone), per (model, kind, skin): the texture, or none (its file missing: not
+// searched for again). Cleared when any texture is freed (TexMgr_FreeCount: a map change, a model flush), since a kept
+// pointer may then name a freed or reused texture. The masks themselves are unowned: one copy for every body model
+// (the builds, bare or with bracers) using that skin, freed at a game change.
+struct SkinMaskEntry
+{
+    const qmodel_t* model{nullptr};
+    int kind{0};
+    int skin{0};
+    gltexture_t* texture{nullptr}; // (null: the file is missing)
+};
+struct SkinMaskCache
+{
+    unsigned int frees{0};
+    int count{0};
+    SkinMaskEntry entries[16]{};
+};
+SkinMaskCache skinMasks;
+
+void skinMasksValidate()
+{
+    if(skinMasks.frees != TexMgr_FreeCount())
+    {
+        skinMasks.frees = TexMgr_FreeCount();
+        skinMasks.count = 0;
+    }
+    if(skinMasks.count > static_cast<int>(sizeof(skinMasks.entries) / sizeof(skinMasks.entries[0])) - 3)
+    {
+        skinMasks.count = 0; // (full: those in use, three at most, are looked up again)
+    }
+}
+
+// The entry for a model's skin mask (kind 1 a hand's, 2 the body's), or null when it is not looked up yet.
+[[nodiscard]] const SkinMaskEntry* skinMaskFind(const qmodel_t* model, int kind, int skin)
+{
+    for(int i = 0; i < skinMasks.count; i++)
+    {
+        const SkinMaskEntry& c = skinMasks.entries[i];
+        if(c.model == model && c.kind == kind && c.skin == skin)
+        {
+            return &c;
+        }
+    }
+    return nullptr;
+}
+
+[[nodiscard]] int skinMaskSkin(const entity_t* e, int kind)
+{
+    return CLAMP(0, e->skinnum, kind == 1 ? 3 : 15);
+}
+
+} // namespace
+
 // The masks are loaded before any alias batches hold pointers into the movable model cache. Drawing only
 // looks up a mask: Image_LoadImage/TexMgr_LoadImage may move that cache and must not run inside a draw loop.
+// Each (model, skin) is searched for once (a missing file too) until textures are freed.
 void VR_PrecacheSkinMasks()
 {
+    skinMasksValidate();
     entity_t* own[3]{};
     view::woundTargets(own);
     for(entity_t* e : own)
@@ -480,23 +538,28 @@ void VR_PrecacheSkinMasks()
         {
             continue;
         }
-        char path[MAX_QPATH];
-        const int skin = CLAMP(0, e->skinnum, kind == 1 ? 3 : 15);
-        q_snprintf(path, sizeof(path), "progs/%s_%02d_00_skinmask", kind == 1 ? "hand_rig" : "vrbody", skin);
-        if(TexMgr_FindTexture(e->model, path))
+        const int skin = skinMaskSkin(e, kind);
+        if(skinMaskFind(e->model, kind, skin))
         {
             continue;
         }
-        const int mark = Hunk_LowMark();
-        int width, height;
-        enum srcformat format;
-        byte* pixels = Image_LoadImage(path, &width, &height, &format);
-        if(pixels)
+        char path[MAX_QPATH];
+        q_snprintf(path, sizeof(path), "progs/%s_%02d_00_skinmask", kind == 1 ? "hand_rig" : "vrbody", skin);
+        gltexture_t* texture = TexMgr_FindTexture(nullptr, path);
+        if(!texture)
         {
-            (void)TexMgr_LoadImage(e->model, path, width, height, format, pixels, path, 0,
-                TEXPREF_MIPMAP | TEXPREF_NOPICMIP);
+            const int mark = Hunk_LowMark();
+            int width, height;
+            enum srcformat format;
+            byte* pixels = Image_LoadImage(path, &width, &height, &format);
+            if(pixels)
+            {
+                texture = TexMgr_LoadImage(nullptr, path, width, height, format, pixels, path, 0,
+                    TEXPREF_MIPMAP | TEXPREF_NOPICMIP);
+            }
+            Hunk_FreeToLowMark(mark);
         }
-        Hunk_FreeToLowMark(mark);
+        skinMasks.entries[skinMasks.count++] = SkinMaskEntry{e->model, kind, skin, texture};
     }
 }
 
@@ -504,13 +567,10 @@ gltexture_t* VR_AliasSkinMask(const entity_t* e)
 {
     float tone[4]{};
     const int kind = view::skinTone(e, tone);
-    if(!kind || tone[3] == 0.f || !e->model)
+    if(!kind || tone[3] == 0.f || !e->model || skinMasks.frees != TexMgr_FreeCount())
     {
         return blacktexture;
     }
-    char path[MAX_QPATH];
-    const int skin = CLAMP(0, e->skinnum, kind == 1 ? 3 : 15);
-    q_snprintf(path, sizeof(path), "progs/%s_%02d_00_skinmask", kind == 1 ? "hand_rig" : "vrbody", skin);
-    gltexture_t* texture = TexMgr_FindTexture(e->model, path);
-    return texture ? texture : blacktexture;
+    const SkinMaskEntry* c = skinMaskFind(e->model, kind, skinMaskSkin(e, kind));
+    return c && c->texture ? c->texture : blacktexture;
 }

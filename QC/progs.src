@@ -423,3 +423,5 @@ vr_ad_test.qc
 vr_ad_monsters.qc
 vr_ad_monsters_test.qc
 vr_ad_shots_test.qc
+// A corpse's pieces worn off by each weapon (vr_limb_test 30-37; after the bridge: AD's pellet hit).
+vr_limbs_wear_test.qc

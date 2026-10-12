@@ -1708,9 +1708,11 @@ bool eligible(const qmodel_t* model)
     return tableOf(model) != nullptr;
 }
 
-bool deathBoundary(const qmodel_t* model, int frame, bool first)
+bool deathBoundary(const qmodel_t* model, const aliashdr_t* hdr, int frame, bool first)
 {
-    if(const SeedTable* t = tableOf(model))
+    // (only for the model the table was made for, as derive() checks: a mod's other soldier.mdl has its own frames)
+    if(const SeedTable* t = tableOf(model); t && hdr && hdr->poseverttype == aliashdr_t::PV_QUAKE1 &&
+        hdr->numverts == t->numVerts && !Mod_NextSurface(const_cast<aliashdr_t*>(hdr)))
     {
         for(int i = 0; i < t->deaths; i++)
         {

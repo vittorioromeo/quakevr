@@ -3666,10 +3666,10 @@ void hologramTestMessage()
 {
     return {
         cycle("Projectile Rules", vr_ad_projectiles, {{1.f, "Off"}, {0.f, "AD Maps Only"}, {2.f, "Everywhere"}})
-            .help("Whose rules shotguns and monster projectiles play by. Auto: Arcane Dimensions' in its maps (projectile "
-                  "pellets you see fly, from your shotguns and the grunts'; the hell knights', scrags', ogres' and "
-                  "zombies' missiles at its speeds for the skill), Quake's elsewhere. Vanilla: Quake's everywhere. "
-                  "Arcane Dimensions: its rules wherever its data is loaded. Its own monsters always play by its rules."),
+            .help("Whose rules shotguns and monster projectiles play by. AD Maps Only: Arcane Dimensions' in its maps "
+                  "(projectile pellets you see fly, from your shotguns and the grunts'; the hell knights', scrags', ogres' "
+                  "and zombies' missiles at its speeds for the skill), Quake's elsewhere. Off: Quake's everywhere. "
+                  "Everywhere: its rules wherever its data is loaded. Its own monsters always play by its rules."),
         slider("Pellet Spread", vr_ad_pellet_spread, 0.f, 2.f, 0.05f, "x%.2f").extend(0.f, 4.f)
             .help("Arcane Dimensions' pellets: how wide they spread, times its own (the shotgun 0.04, the super shotgun "
                   "0.14 by 0.08: wider than Quake VR's hitscan, aimed with the hand). 0: every pellet straight."),
@@ -3697,8 +3697,9 @@ void hologramTestMessage()
                   "cinematic cameras' fades to black always play (Graphics' colour shift settings apply to all)."),
         toggle("Hand-Climbed Ladders", vr_climb_ladders)
             .help("Arcane Dimensions' ladders climbed with your hands, as ledges (Hand Climbing on): grip an actual "
-                  "rung, pull yourself up hand over hand, mantle at its top. VR hands disable keyboard ladder "
-                  "movement and jump climbing."),
+                  "rung, pull yourself up hand over hand, mantle at its top; a ladder with no rung within reach (a flat "
+                  "ladder wall) is held anywhere on it. While hands climb ladders, keyboard ladder movement and jump "
+                  "climbing are off; with this or Hand Climbing off, ladders climb Arcane Dimensions' way (hold jump)."),
         cycle("Additional Content", vr_ad_everywhere, {{0.f, "AD Maps Only"}, {1.f, "Everywhere"}})
             .help("Arcane Dimensions' monsters, new artifacts, custom keys, health vials and gems, custom items and ladders in any "
                   "map that places them (custom maps, the toolgun), while its data is installed. AD Maps Only: only in its own "
@@ -5961,7 +5962,24 @@ za::Vector<Item> pageDebugTools()
         command("Repeated Blunt Hits on a Corpse Limb", "vr_limb_test 24")
             .help("vr_limb_test 24: repeated blunt hits detach the nearest corpse's limb without losing the detached piece."),
         command("Repeated Blunt Hits on a Corpse Torso", "vr_limb_test 25")
-            .help("vr_limb_test 25: blunt hits to the corpse's torso leave its limbs attached."),
+            .help("vr_limb_test 25: a heavy blunt hit to the corpse's torso gibs the whole corpse."),
+        command("One Blunt Hit on a Corpse Limb", "vr_limb_test 28")
+            .help("vr_limb_test 28: one blunt hit wears the struck limb down without popping it (save, load, then "
+                  "Stored Limb Damage)."),
+        command("Stored Limb Damage", "vr_limb_test 29")
+            .help("vr_limb_test 29: prints the damage worn into the nearest corpse's test limb (kept across save/load)."),
+        command("Wear a Corpse Limb Off: Shotgun", "vr_limb_test 30")
+            .help("vr_limb_test 30: shotgun blasts at the nearest corpse's limb until it pops: any weapon's hits wear down "
+                  "the piece they strike (its own corpse health), whatever the pop chance (clearest with Limb Chance and "
+                  "Head Chance at 0)."),
+        command("Wear a Corpse Limb Off: Super Shotgun", "vr_limb_test 31").help("vr_limb_test 31: the same with super shotgun blasts."),
+        command("Wear a Corpse Limb Off: Lightning", "vr_limb_test 32").help("vr_limb_test 32: the same with lightning bolts."),
+        command("Wear a Corpse Limb Off: Nails", "vr_limb_test 33").help("vr_limb_test 33: the same with nails."),
+        command("Wear a Corpse Limb Off: Rifle Laser", "vr_limb_test 34").help("vr_limb_test 34: the same with the enforcer rifle's lasers."),
+        command("Wear a Corpse Limb Off: AD Pellets", "vr_limb_test 35").help("vr_limb_test 35: the same with Arcane Dimensions' projectile pellets."),
+        command("Wear a Corpse Limb Off: Axe", "vr_limb_test 36").help("vr_limb_test 36: the same with axe blows that do not cut (it is cut off when worn through)."),
+        command("Shotgun a Corpse Torso", "vr_limb_test 37").help("vr_limb_test 37: shotgun blasts at the torso take the whole body's health: it gibs, no piece worn."),
+        command("Wear a Corpse Head Off: Shotgun", "vr_limb_test 38").help("vr_limb_test 38: shotgun blasts at the corpse's head until it pops."),
         command("Held Prop at a Corpse Limb", "vr_limb_test 26")
             .help("vr_limb_test 26: a blunt hit with a held prop detaches and keeps the corpse's struck limb."),
         command("Axe at a Corpse Limb", "vr_limb_test 27")
@@ -6431,8 +6449,13 @@ za::Vector<Item> pageMg3ChthonTests()
     };
 }
 
+// The Thing (vr_test_spawn) the Tests page was built for: Put It There's lock follows it (AD support: an AD entry
+// without its data locks it).
+int testsPageSpawn = -1;
+
 za::Vector<Item> pageDebugTests()
 {
+    testsPageSpawn = static_cast<int>(vr_test_spawn.value);
     return {
         command("Doom: Info", "vr_doom_info")
             .help("vr_doom_info: Doom's state (level, health, ammo, place), its focus, the screen's distance and angle "
@@ -6501,12 +6524,16 @@ za::Vector<Item> pageDebugTests()
         command("Arcane Dimensions: Evil Skill Report", "vr_ad_test 22")
             .help("Whether AD's Evil skill plays (Nightmare with Evil Skill on), your health and its cap, megahealth's, "
                   "the axe's blow."),
-        command("Arcane Dimensions: Buttons Test", "vr_ad_test 65")
+        command("Arcane Dimensions: Buttons Test", "vr_ad_test 61")
             .help("Press this map's laser button with a hand, a weapon and a thrown prop; check disabled state."),
         command("Arcane Dimensions: Backpacks Test", "vr_ad_test 62")
             .help("Report map backpacks; create an AD dropped bag, test walkover immunity and grab/holster collection."),
         command("Arcane Dimensions: Ladder Movement Test", "vr_ad_test 63")
-            .help("Verify tracked hands bypass AD jump/velocity ladder movement."),
+            .help("Verify tracked hands bypass AD jump/velocity ladder movement only while Hand Climbing and Hand-Climbed "
+                  "Ladders are both on (either off: AD's own climb lifts you)."),
+        command("Arcane Dimensions: Flat Ladder Test", "vr_ad_test 64")
+            .help("Make the nearest wall west of you a ladder with no rungs: grip it anywhere to climb (the fallback for "
+                  "flat ladder walls)."),
         command("Arcane Dimensions: Ladder Rung Probes", "vr_climb_try -417 -2387 -70 main; vr_climb_try -417 -2387 -60 main")
             .help("Stand beside ad_crucial's first ladder: report a real rung and the gap above it, using your current grip tolerances."),
         command("Arcane Dimensions: Ladders Report", "vr_ad_test 24")
@@ -10338,6 +10365,10 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         done[page] = false; // the off hand's own sliders shown or not
     }
+    if(pages[page].build == pageDebugTests && testsPageSpawn != static_cast<int>(vr_test_spawn.value))
+    {
+        done[page] = false; // another Thing chosen (or set by a spawn row): Put It There locked or not
+    }
     if(pages[page].build == pageMotionRecorder && motionPageCategory != static_cast<int>(vr_motion_category.value))
     {
         done[page] = false; // the Detail choice is the category's
@@ -12454,6 +12485,7 @@ void qvr::menu::press_f()
     const char* command = nullptr;
     void (*action)() = nullptr;
     bool found = false;
+    bool locked = false;
     for(int p = 0; p < pageCount && !found; p++)
     {
         if(q_strcasecmp(pages[p].title, title))
@@ -12466,6 +12498,7 @@ void qvr::menu::press_f()
             {
                 command = item.command;
                 action = item.page < 0 && !item.actionArg ? item.action : nullptr;
+                locked = item.unavailable;
                 found = true;
                 break;
             }
@@ -12475,6 +12508,11 @@ void qvr::menu::press_f()
     if(!found || (!command && !action))
     {
         Con_Printf("vr_menu_press: no button \"%s\" on page \"%s\"\n", label, title);
+        return;
+    }
+    if(locked)
+    {
+        Con_Printf("vr_menu_press: %s > %s is locked (unavailable), not pressed\n", title, label);
         return;
     }
     Con_Printf("vr_menu_press: %s > %s%s%s\n", title, label, command ? ": " : "", command ? command : "");

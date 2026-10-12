@@ -819,8 +819,16 @@ void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody&
                 za::genericSwap(a, b); // (`dir` along `out` turned a quarter anticlockwise, as the map's)
                 dir = -dir;
             }
-            a.z = topPoint.z - (topNormal.x * (a.x - topPoint.x) + topNormal.y * (a.y - topPoint.y)) / topNormal.z;
-            b.z = topPoint.z - (topNormal.x * (b.x - topPoint.x) + topNormal.y * (b.y - topPoint.y)) / topNormal.z;
+            // Only a bevel's (a narrow chamfer: a lift of a few units) takes the top's plane: a long walkable slope
+            // (a wedge's, a ramp's) keeps its own lip, or the hold would float above it by the slope's height.
+            static constexpr float maxBevelLift = 6.f;
+            const float az = topPoint.z - (topNormal.x * (a.x - topPoint.x) + topNormal.y * (a.y - topPoint.y)) / topNormal.z;
+            const float bz = topPoint.z - (topNormal.x * (b.x - topPoint.x) + topNormal.y * (b.y - topPoint.y)) / topNormal.z;
+            if(za::max(fabsf(az - a.z), fabsf(bz - b.z)) <= maxBevelLift)
+            {
+                a.z = az;
+                b.z = bz;
+            }
             len = glm::distance(a, b);
             dir = (b - a) / len;
             const glm::vec3 eMins = glm::min(a, b), eMaxs = glm::max(a, b);

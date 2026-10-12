@@ -506,7 +506,7 @@ now a check of its own.
 
 The author asked for a single switch that collects everything a crash report needs. It is `-diagnostics`, also
 `vr_diagnostics 1` (from the next start; Debug > Crashes > Diagnostics Mode), and the installer's new Start menu
-shortcut **Quake VR Unleashed (Diagnostics)**. Everything goes into `quakevr/diagnostics/<date>_<time>/`, which is
+shortcut **Quake VR Unleashed (diagnostics)**. Everything goes into `quakevr/diagnostics/<date>_<time>/`, which is
 printed at the start and opened in Explorer at a quit (`Quake/vr/vr_diagnostics.cpp`):
 - `console.log`: the console. With `-diagnostics` it starts at the first line after the filesystem
   (`LOG_Reopen`); with the cvar it starts at the window's creation.
@@ -3826,14 +3826,14 @@ blunt gun/hammer/brick blows on corpses should pop the piece struck, while axes 
   as ordinary surface contacts: these distinguish penetration from small contact slop in the fitted hulls.
 - `QC/combat.qc`, `QC/vr_limbs.qc`: after the existing immediate chance-based pops, blunt/fist/prop/bash corpse hits
   accumulate damage separately at the struck limb joint (and separately at the head). Reaching that monster's original
-  corpse-health threshold pops that piece; hits on the torso bleed/push but preserve the body. Blades, chainsaws,
+  corpse-health threshold pops that piece; hits on the torso take the whole-body corpse health (enough gibs it). Blades, chainsaws,
   shots and blasts retain their existing paths. With Limb Gore/Corpses disabled, the previous whole-body path remains.
   Per-piece damage uses the existing corpse damage multipliers and persists with ordinary QC entity fields. Untagged
   flung props use their own position/velocity, matching the existing living thrown-limb hook; held blows use their tagged
   contact point.
 - `vr_limb_test` 24: two blunt 48-damage blows at one forearm (grunt threshold 80), 25: an 800-damage pelvis-surface
   blow, 26: two physical-prop blows at that forearm, 27: an 8 m/s axe corpse slash through the real cut classifier.
-  All leave corpse health 80 and `gib 0`; 24/26 pop one piece, 25 pops none, 27 cuts one and pops none. Debug > Gore
+  24/26/27 leave corpse health 80 and `gib 0` (24/26 pop one piece, 27 cuts one); 25 gibs the corpse (review fix). Debug > Gore
   Tests > Limb Gore Tests has the buttons (toolbake). `Misc/quakevr/ragdoll/notes_regression.sh <agent>` reproduces
   the reach, corpse, overlap and living-transition checks.
 
@@ -4005,8 +4005,8 @@ gains 13,915 body blood texels. Healing ownership is retained.
 
 Body > Skin Tone (vr_skin_tone, archived, default 0; range -1..1) multiplies authored skin in the shader only.
 Twenty small masks exclude nails, clothing and static wounds; dynamic blood and char bypass tone. Masks load before
-alias batching (cache-safe) and use sampler 6, leaving retro LUT sampler 3 intact. Both bracer modes share body
-lighting for hands. The calibration board links the slider. No diffuse tone variants are generated.
+alias batching (cache-safe) and use sampler 6, leaving retro LUT sampler 3 intact. Only bare forearms draw the
+hands in the body's light; with bracers each hand samples its own (review fix, his decision). The calibration board links the slider. No diffuse tone variants are generated.
 
 Validation: QC/engine/FGD build passed (0 QC warnings, 367 entities). wrist_test.py verifies contour clearance,
 unchanged paints and zero clothing/static blood coverage. wrist_runtime_test.py passes blood, mount, wrist and menu
@@ -4240,3 +4240,115 @@ helping main hand sits in the ammo pouch's reach at the take's start: the setup'
 **Damage per weapon and type** (`eval_damage.py`, printed by the full set): punches 19.2 mean (7.3-39), axe chops 38.5
 (21-63), sword slashes 30.2 (9-60), stabs 29.9 (15-73), slaps 17.6, axe pommel 11.7, axe bash 7.3. Spread comes from
 the zone (head x1.5, limbs less) for chops, slashes and punches, from the strength (speed) for stabs and slaps.
+
+## Melee damage: flatter curve, sword tip speed, hard caps per blow (worktree `meleedmg`, 2026-10-12)
+
+His three decisions on the damage table:
+- **Flatter curve:** `VR_MELEE_STRONGEST` 2 -> 1.75 (vr_melee.qc; the rest of the curve as it was).
+- **A sword measured at its tip:** a sword's slash or stab takes its strength from its tip's speed (`mh_dmgspeed`, the
+  dummy's report shows it) over the least speed times `VR_MELEE_TIP_SLASH` 3 / `VR_MELEE_TIP_STAB` 1.5: fitted on his
+  takes (developer 2) so the mean stays (his slashes swing the tip 2.96x the grip, median, 1.6-4.0; stabs 1.54x,
+  1.0-2.7). A wrist-whipped cut counts more, an arm-pushed one less. Whether it lands (and `mh_speed`: grenades, gibs,
+  blunt pops) still goes by the grip. A sword carried by its blade, near end out, keeps the grip's speed.
+- **Hard caps:** `vr_melee_dmg_min` 0.5 / `vr_melee_dmg_max` 2.25 (Combat > Melee: Least / Most Blow Damage). The blow's
+  speed strength (`mh_core`) times the zone's multiplier is clamped to them (combat.qc `VR_Melee_CapDamage`, in
+  T_Damage_VRMelee, for a blow VRMeleeDmg priced); everything else multiplies after: a pommel's or the hook's share, the
+  punch and slap mults, a counter, stamina, Melee Damage x and weight, `vr_melee_dmg_multiplier`, Quad. Test and
+  headbutt damage isn't capped. Check: min = max = 1 makes every chop 22.0, slash and stab 24.2, punch 13.8 (sd 0).
+
+First hits on his 111 hitting takes, before -> after (mean, min-max, sd); verdicts unchanged (168/177, 0 flips):
+
+| weapon, type | before | after |
+|---|---|---|
+| axe chop (17) | 38.5, 21.1-62.8, 12.3 | 37.3, 21.1-49.5, 11.1 |
+| axe pommel (6) | 11.7, 8.3-17.3, 3.2 | 11.7, 8.3-17.3, 3.2 |
+| sword slash (32) | 30.2, 9.2-60.5, 13.2 | 30.1, 12.1-54.5, 13.5 |
+| sword stab (15) | 29.9, 15.1-72.6, 14.5 | 27.5, 16.5-54.5, 10.8 |
+| sword pommel (2) | 24.7, 15.1-34.2, 9.6 | 23.9, 15.1-32.7, 8.8 |
+| punch (28) | 19.2, 7.3-39.0, 6.2 | 19.0, 7.3-30.9, 5.4 |
+| slap (8) | 17.6, 9.4-20.6, 4.3 | 14.2, 9.4-15.5, 2.3 |
+
+The caps cut the fast head hits (chop 62.8 -> 49.5 = 2.25 x 22; slash and stab 54.5 = 2.25 x 24.2) and lift the slowest
+slash (9.2 -> 12.1 = 0.5 x 24.2). Slaps drop with the curve (their head hits ran x2). The axe's bash (7.3) isn't a speed
+blow: unchanged.
+
+## Review fixes: AD ladders, grenades, pellet pops, menu (worktree `fixad2`, 2026-10-12)
+
+From review r1 (and r3's AD isolation note):
+
+- Ladders are never unclimbable. AD's keyboard/jump climb is off only while Hand Climbing and Hand-Climbed Ladders are
+  both on (QC VR_AD_LadderManual, used by trigger_ladder and AD_PlayerPreThink); with either off, AD's own climb (hold
+  jump) lifts you. A ladder volume with no real rung within reach of the hand (vr_climb.cpp rungNear: a walkable top
+  within 24 units above or under the hand, up to 32 deep into the ladder, above Lowest Ledge) is held anywhere in its
+  volume, as before the rung-only change, so flat ladder walls and far-apart rungs climb again. ad_world_test.sh: 3
+  settings x 2 ladder modes; a flat ladder (vr_ad_test 64, Debug > Arcane Dimensions: Flat Ladder Test) held twice and
+  refused with Hand-Climbed Ladders off; ad_crucial's 7 gaps between rungs still hold nothing.
+- AD grenades keep AD's point hull after the grenade.mdl swap (setmodel had given them the model's bounds, so an
+  uncatchable one bounced off walls on hull 1). Test 59 prints the hull; ad_shots_test -Full asserts 0 0 0 with
+  vr_grenade_catch 0 (-Full's script now fits under the console's 8191 characters, using an alias).
+- AD projectile pellet pops: a blast's odds are one roll's at its whole share, as hitscan's. Each roll after the blast's
+  first on a victim only tops it up (VR_AD_PopTopUp: q = (P - Pbefore) / (1 - Pbefore)); a pellet landing on the body
+  its blast has just killed rolls the top-up as a late cut; a body its blast popped isn't gibbed by the rest of it.
+  ad_pop_odds_test.sh: 3 volleys whose rolls compound to exactly their final chance (0.736, 0.694, 0.749); a late
+  top-up popping the head, no gib.
+- Debug's Buttons Test runs test 61 again; the Projectile Rules help names its labels; vr_ad_test 40-65 documented.
+- Isolation: the ammo box fit (AD_AmmoBoxFit, now with AD's frame_box rules) and the corpse part-shot rule
+  (VR_AD_CorpsePartShot) moved to the bridge; `// AD support` markers in vr_monstermods.cpp and buttons.qc.
+- ad_hits_test.sh asserts tests 40-42: no spread, SG 24 and SSG 56 at 128 and 384 units, a burst round 9.
+- Still open: ad_shots_test -Full's vanilla corpse volleys (mode 53) sometimes miss the corpse (no pellet hit: the
+  ragdoll settles elsewhere), so -Full is flaky; the default run passes.
+## Review fixes: ragnotes, toolbake, animbody, wrist2, dummyhold, vrgrabs, meleeroom, reload2 (2026-10-12, worktree `fixmisc2`; review r2/r3)
+
+- ragnotes (his decision): blunt/fist/prop/bash hits on a ragdolled corpse's limb or head wear down that piece only;
+  torso hits take the whole-body corpse health again (enough gibs it), as does a rig without limbs (VR_Limb_Allowed).
+  `vr_limb_test` 24-28 print PASS/FAIL (25 now gibs); 28, a save/load, then 29 shows the per-joint damage persists (the
+  field array saves every element: joint 4 kept 48.0). `notes_regression.sh` asserts 7/7.
+- toolbake: Debug > Tests is rebuilt when `vr_test_spawn` changes, so Put It There's lock follows the chosen Thing;
+  `vr_menu_press` refuses locked rows. `brush_test.py` bakes to new names each run (32/32 ok); `vr_ad_everywhere`'s
+  description names AD monsters (it also spawns them in non-AD custom maps that place them).
+- animbody: shader "vrbody"'s skins load once, unowned and persistent, for every body model (`imagelist vrbody` with
+  athletic, lean+bare and brawny+bare loaded: 384 -> 96 MB); `vr_model_reload` no longer re-reads them. The Animations
+  row goes back to Classic (remembering mode 3); the seed table's death boundaries apply only to the model it fits.
+- wrist2: Skin Tone tones the skin's share of a wound's soft edge (no untoned ring: 176 -> 0 edge pixels at tone -1 in
+  `wrist_runtime_test.py`); skin-mask lookups are cached (a missing file searched once; cleared when textures are
+  freed). His decision: hands borrow the body's light only with bare forearms again (`drawnBare`), asserted per mode.
+- dummyhold: a dummy getting up through QC (active get-up off, or a type without one) eases up through its get-up or its
+  death backwards; its enemy's run is kept (`vr_dummy_th_run`) as the get-up's end, so Step no longer calls ai_run.
+- vrgrabs: a drawn prop is kept out of the torso only while held, once a frame; a prop's lip takes the connected top's
+  plane only across a bevel of at most 6 units (a wedge's slope keeps its own lip; not tested on a wedge prop).
+- meleeroom: under the mock headset `vr_motion_play ... noplace` or `target ...` keeps the running map (TESTING.md).
+- reload2: the vacuous "return inside" reinsertion check is gone (18 checks); the pouch endpoint check says it proves
+  routing only.
+
+## Corpse limbs: any weapon wears them off (worktree `limbhp`, 2026-10-12)
+
+His decision ("any weapon can pop the limbs of a ragdoll"): ragnotes' per-piece corpse health, which only blunt, fist,
+prop and bash hits used, now takes every weapon's hits. No new cvars or defaults.
+
+- `QC/vr_limbs.qc` `VR_Limb_CorpseWear` (replaces `VR_Limb_CorpseImpact`; called from `VR_Corpse_Damage` after the pop
+  roll, the small gibs and the kind multiplier `vr_corpse_dmg_<kind>`): a hit on a ragdolled corpse's head or a limb
+  adds its damage to that piece (`vr_limb_corpse_dmg[]`, 0 the head, saved with the entity). When the piece's total
+  reaches the monster's corpse health, it pops (blades and the chainsaw cut it off), whatever the weapon's pop chance or
+  pop toggle. The pop roll still runs first; if it pops the piece, the hit wears nothing. Torso hits go to the
+  whole-body health (`vr_corpse_hp`) as before.
+- Hit point, in this order: a hitscan blast (shotgun, super shotgun) splits its damage by where its pellets landed
+  (`VR_Limb_WearPellet` counts them per piece in `VR_Decap_Pellet`); each piece's share wears that piece and the
+  torso's share goes to the whole body. Otherwise the lightning gun's bolt point (new globals `vr_limb_wear_*`, set in
+  `VR_LightningHit`), a tagged hit (`vr_hitpos`: melee, rifle lasers, AD pellets, Mjolnir), the shot's
+  `PositionalDamage` point (nails), or the flying thing itself (thrown props, enemy lasers). With none of these, the
+  hit goes to the whole body.
+- Unchanged: explosions (`QVR_CDMG_EXPLOSIONS`, splash), burning and a stuck axe's bleeding keep the whole-body path and
+  their blast pops (`VR_Limb_BlastPops`). Folding blasts in was not trivially consistent: radius damage has no hit point.
+  The whole-body path also stays with Limb Gore or Corpses off, on a rig without limbs, and on a body that is not
+  ragdolled.
+- AD: `VR_AD_CorpsePartShot` is gone (an AD pellet or rifle laser at a corpse's head or limb used to deal nothing).
+  These hits now wear the piece through the shared path, so `combat.qc` has no AD line here any more.
+- Tests: `vr_limb_test 30-38` (`QC/vr_limbs_wear_test.qc`; Debug > Gore Tests > Limb Gore, "Wear a Corpse Limb Off: ...")
+  fire each weapon's real hit code at the nearest corpse's forearm until it comes off.
+  `Misc/quakevr/ragdoll/limb_wear_test.sh <agent>` runs them with pop chances 0 (11/11 PASS). Hits to pop a grunt's
+  forearm (corpse health 80): shotgun 4, super shotgun 2, lightning 3, nails 9, rifle lasers 5, AD pellets 20, axe 4
+  (cut). Whole-body health stayed 80. Shotgun at the torso: gibbed after 4 blasts, nothing worn into a piece. Shotgun
+  at the head: popped after 4. 28, then save/load, then 29: the worn damage persists.
+
+For VR: with Gore > Head Chance and Limb Chance at 0, shoot a corpse's arm with the shotgun, nailgun and lightning gun:
+it should pop after a few hits while the body stays. Shoot the chest: it gibs as before. A rocket next to it: unchanged.

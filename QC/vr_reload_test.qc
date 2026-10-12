@@ -830,9 +830,8 @@ void() VR_Reload_TestReinsert =
         setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
         VR_Reload_HeldFrame(cVR_MainHand, r);
         VR_Reload_Check(!r.vr_ammo_fresh, sprintf("clearance %g: held just outside rearms", extra));
-        desired = self.offloadportpos + '1 0 0' * (reach - 0.01);
-        setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
-        VR_Reload_Check(!r.vr_ammo_fresh, "return inside does not rearm the fresh latch");
+        // (No "returned inside" check here: a held frame inside the port with the latch off loads the round, which
+        // this loop reuses; without one the latch is only read back.)
 
         float lenient = max(0, cvar_hget(cvarh_vr_reload_contact_leniency)) * VRMetersToUnits() / 100;
         boundary = reach + 2 * lenient + max(0, extra);

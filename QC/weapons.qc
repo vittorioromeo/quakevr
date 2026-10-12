@@ -153,6 +153,9 @@ float(float xHand, float xBase) VRMeleeDmg =
         return 20;
     }
 
+    // The damage caps bound this blow's strength (times its zone's multiplier) when it lands (T_Damage_VRMelee).
+    vr_mdmg_core = VR_Blow(xHand).mh_core;
+    vr_mdmg_hand = xHand;
     return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
            VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
 }
@@ -2366,9 +2369,13 @@ float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
         playershock(t, damage, at); // VR: arcs over the struck player's arms and body (vr_shock_self_time)
     }
     float pop = VR_Decap_BoltArm(t, at, xDir, damage);
+    vr_limb_wear_at = at; // (a corpse's head or limb struck wears down: VR_Limb_CorpseWear)
+    vr_limb_wear_ent = t;
+    vr_limb_wear_time = time;
     vr_ad_ammo = AD_AMMO_CELLS; // AD support: lightning is cells to AD's ammo resistance (vr_ad_player.qc)
     float r = T_Damage(t, from, from, damage);
     vr_ad_ammo = 0;
+    vr_limb_wear_ent = world;
     VR_Shock_Hit(t, shockAlive, at, xDir); // VR: lightning's lasting shock (vr_shock.qc)
     if(pop)
     {

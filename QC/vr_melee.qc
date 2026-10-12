@@ -81,7 +81,14 @@ float VR_MELEE_WRIST_PUNCH = 2;    // a punch's wrist speed, times vr_melee_wris
 float VR_MELEE_BLADE_FROM = 0.4;   // the blade proper: from this share of the way from the hand to the tip
 float VR_MELEE_GOOD = 2;           // times the least speed: a blow of strength 1
 float VR_MELEE_WEAKEST = 0.5;      // the strength at the least speed
-float VR_MELEE_STRONGEST = 2;      // and the most
+float VR_MELEE_STRONGEST = 1.75;   // and the most (the author's flatter curve, round 22: was 2; the damage caps then bound
+                                   // the blow's strength times its zone: vr_melee_dmg_min, vr_melee_dmg_max)
+// A sword's strength is measured at its tip (the author, round 22): its far end's speed over the least speed times
+// these (the detection keeps the grip's). Fitted so the author's takes keep their mean strength: his slashes swing the
+// tip 2.96 times the grip (median; 1.6-4.0), his stabs 1.54 (1.0-2.7). A wrist-whipped cut now counts more than an
+// arm-pushed one.
+float VR_MELEE_TIP_SLASH = 3;
+float VR_MELEE_TIP_STAB = 1.5;
 float VR_MELEE_REARM_SLOW = 0.5;   // a hand strikes the same thing again once its part slowed below this share of the least speed,
 float VR_MELEE_REARM_TURN = -0.17; // or, out of it, turned back more than 100 degrees from the blow (cosine: a backswing),
 float VR_MELEE_REARM_TIME = 0.6;   // or, out of it, after this long (s)
@@ -231,6 +238,9 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .float mh_kind;        // VR_MKIND_*
 .float mh_strength;    // its damage multiplier
 .float mh_speed;       // the striking part's speed (m/s)
+.float mh_dmgspeed;    // the speed its strength was measured at (a sword's tip's; else mh_speed): the report's
+.float mh_core;        // its strength from speed alone (VR_MELEE_WEAKEST .. STRONGEST): what the damage caps bound
+                       // with the zone's multiplier (VR_Melee_CapDamage)
 .string mh_part;       // its name ("the tip")
 .string mh_way;        // how it moved, for the report ("overhead", "hook")
 .float mh_counter;     // a counter (VR_Counter_Use): its damage multiplier (0: not a counter)
@@ -259,6 +269,8 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .float mh_pend_kind;
 .float mh_pend_strength;
 .float mh_pend_speed;
+.float mh_pend_dmgspeed;
+.float mh_pend_core;
 .string mh_pend_part;
 .string mh_pend_way;
 // The last poses' velocities (a ring of VR_MELEE_HISTORY, the newest at mh_hi; the engine's melee builtins read it:
@@ -1468,11 +1480,22 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         dprint("melee debug: a blow\n");
     }
 
-    float s = VR_MELEE_WEAKEST + (1 - VR_MELEE_WEAKEST) * (speed - need) / (need * (VR_MELEE_GOOD - 1)) *
+    // The strength: the speed over the least. A sword's cut or stab measured at its tip (VR_MELEE_TIP_*), not the
+    // grip that decided it landed (a sword carried off its handle, its near end out: the grip's, as before).
+    float sspeed = speed;
+    float sneed = need;
+    if(b.mh_thing == VR_MTHING_SWORD && (kind == VR_MKIND_SLASH || kind == VR_MKIND_STAB) && (!b.mh_free || b.mh_free_tip))
+    {
+        sspeed = vfar;
+        sneed = need * (kind == VR_MKIND_STAB ? VR_MELEE_TIP_STAB : VR_MELEE_TIP_SLASH);
+    }
+    float s = VR_MELEE_WEAKEST + (1 - VR_MELEE_WEAKEST) * (sspeed - sneed) / (sneed * (VR_MELEE_GOOD - 1)) *
               (b.mh_curve > 0 ? b.mh_curve : 1);
     b.mh_kind = kind;
     b.mh_speed = speed;
-    b.mh_strength = min(VR_MELEE_STRONGEST, max(VR_MELEE_WEAKEST, s)) * weight;
+    b.mh_dmgspeed = sspeed;
+    b.mh_core = min(VR_MELEE_STRONGEST, max(VR_MELEE_WEAKEST, s));
+    b.mh_strength = b.mh_core * weight;
     b.mh_way = VR_Melee_Way(b, way, b.mh_thing);
     return TRUE;
 };
@@ -1813,6 +1836,8 @@ float(float xHand, entity b) VR_Melee_Sweep =
         b.mh_pend_kind = b.mh_kind;
         b.mh_pend_strength = b.mh_strength;
         b.mh_pend_speed = b.mh_speed;
+        b.mh_pend_dmgspeed = b.mh_dmgspeed;
+        b.mh_pend_core = b.mh_core;
         b.mh_pend_part = b.mh_part;
         b.mh_pend_way = b.mh_way;
     }
@@ -1826,6 +1851,8 @@ float(float xHand, entity b) VR_Melee_Sweep =
         b.mh_kind = b.mh_pend_kind;
         b.mh_strength = b.mh_pend_strength;
         b.mh_speed = b.mh_pend_speed;
+        b.mh_dmgspeed = b.mh_pend_dmgspeed;
+        b.mh_core = b.mh_pend_core;
         b.mh_part = b.mh_pend_part;
         b.mh_way = b.mh_pend_way;
         b.mh_pend_ent = world;
