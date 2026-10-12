@@ -111,6 +111,8 @@ private:
 
 // Forgets the models checked (a game directory change reuses their slots).
 void reset();
+// The body's motion begins afresh (motion playback, each take): the gait, the feet's stance, wading, the arms' easing.
+void resetMotion();
 
 // A drawn hand, in world space: its wrist, the top of the (gripping) hand, where the thumb and
 // index finger are, the back of the hand (away from the palm), and the direction from the wrist

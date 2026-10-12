@@ -1602,6 +1602,18 @@ void queueDebug(const Body& b)
 
 } // namespace
 
+void resetMotion()
+{
+    gait = Gait{};
+    stance = Stance{};
+    water = Water{};
+    armEase = ArmEase{};
+    for(ForearmTwist& f : forearms)
+    {
+        f = ForearmTwist{};
+    }
+}
+
 Torso torso(const hands::State& s, bool crouchPose)
 {
     Body b;
