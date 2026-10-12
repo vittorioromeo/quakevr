@@ -353,6 +353,12 @@ validation. The standard and .25 preview profiles are unchanged. See the
 separate particle-multiplier A-B-B-A results in
 [Steam Frame performance measurements](STEAM-FRAME-PERFORMANCE.md).
 
+A follow-up OpenXR A-B-B-A compared particle multipliers 0.5 and 0.75 at scale
+0.18. The 0.75 profile kept 48% more live particles but raised GPU-eye mean
+5.9%, VR-particle CPU phase 48.5%, and frame p99 about 2.10 ms; both settings
+remained above the 72 Hz frame-p99 budget. The Ultra shortcut stays at 0.5 for
+its lower render cost, pending a wearer judgement of the visible density tradeoff.
+
 ### Wearer regression checklist for the particle preview
 
 The performance-preview shortcut is a separate installation and starts at

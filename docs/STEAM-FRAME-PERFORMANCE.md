@@ -345,6 +345,28 @@ unchanged. Wearer acceptance and representative combat performance still need
 validation. Raw runs and left/right eye captures are retained privately in
 `performance-results/openxr-ultra-particlemult-abba-frame-20261012`.
 
+I also checked whether `vr_particle_mult 0.75` is a better quality/performance
+compromise for the .18 Ultra profile, using the same candidate binary, fixture,
+eye resolution, render scale and A-B-B-A controls (`0.5, 0.75, 0.75, 0.5`).
+All four 720-frame runs submitted fresh stereo projection layers and yielded
+713 GPU samples. Average edicts, living monsters, Box3D bodies and contacts,
+decals and dynamic lights matched across the settings.
+
+| Particle multiplier | GPU-eye mean | GPU-eye p99 | Frame p99 | VR-particle CPU phase | VR-particle GPU phase | Average live particles |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0.5 | 8.252 ms | 9.818 ms | 15.520 ms | 0.357 ms | 1.866 ms | 6,496 |
+| 0.75 | 8.740 ms | 10.292 ms | 17.615 ms | 0.530 ms | 2.371 ms | 9,621 |
+
+The 0.75 setting retained 48% more live particles, at the cost of 5.9% higher
+GPU-eye mean, 4.8% higher GPU-eye p99, 48.5% higher VR-particle CPU time and
+about 2.10 ms higher frame p99. Both frame-p99 means exceeded the 13.89 ms
+72 Hz budget. The optional Ultra profile therefore stays at 0.5, where it
+offers the lower GPU/CPU cost; this still needs a wearer to judge whether the
+particle loss is acceptable. This no-wearer run used invalid head and hand
+actions and establishes no tracking or campaign performance. Raw runs and
+paired renderer captures are retained privately in
+`performance-results/openxr-ultra-particlemult-05-vs-075-abba-frame-20261012`.
+
 ## Installed Ultra-profile launch smoke test on Steam Frame
 
 After copying the profile, I launched the isolated `.18` installation on the
