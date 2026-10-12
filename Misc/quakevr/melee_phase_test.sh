@@ -1,6 +1,6 @@
 #!/bin/bash
 # melee_phase_test.sh <agent> [out dir] -- Swing Through Enemies (vr_melee_phase; ROUND21.md, "Melee phasing"). Mock
-# punches (vr_mock_play, a closed fist) in vrfiringrange, vr_debug_model_collide 1 and developer 1 logging:
+# punches (vr_mock_play, a closed fist) in vrmelee-recording, vr_debug_model_collide 1 and developer 1 logging:
 # (vr_fixed_frames 1 at 90 Hz; vr_melee_push 0: the grunt stays where the punches go; vr_melee_dmg_multiplier 0.25: nothing dies;
 # vr_melee_phase 0 until a case sets it: on by default since config 102, the setup's moves would phase.)
 #   dummy_fast_off  a fast punch (5.3 m/s) through the training dummy, phasing off: drawn stopped at it, one hit
@@ -19,12 +19,12 @@ printf '0.000 main -0.10 1.15 -0.20 0 0 0\n0.300 main -0.10 1.15 -0.20 0 0 0\n1.
 printf '0.000 main 0.00 1.15 -0.20 0 0 0\n0.300 main 0.00 1.15 -0.20 0 0 0\n0.450 main 0.00 1.15 -1.05 0 0 0\n1.500 main 0.00 1.15 -1.05 0 0 0\n2.300 main 0.00 1.15 -0.20 0 0 0\n' > "$OUT/grunt_fast.txt"
 P="vr_mock_play $OUT"
 CASE() { echo "echo PHASE_CASE $1;$2;$P/$3.txt;wait${4:-260};echo PHASE_END $1"; }
-S="vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrfiringrange;wait60;god;notarget;developer 1;vr_debug_model_collide 1;vr_melee_dmg_multiplier 0.25;vr_melee_push 0;vr_dummy_attacks 0;vr_melee_phase 0"
-S="$S;impulse 150;wait5;setpos 221.2 -656.7 41 0 180 0;wait30;vr_mock_hand main -0.10 1.15 -0.20 0 0 0;+grabmain;vr_mock_button main grip 1;wait20"
+S="vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrmelee-recording;wait60;god;notarget;developer 1;vr_debug_model_collide 1;vr_melee_dmg_multiplier 0.25;vr_melee_push 0;vr_dummy_attacks 0;vr_melee_phase 0"
+S="$S;impulse 150;wait5;setpos 3.3 -31.2 24 0 90 0;wait30;vr_mock_hand main -0.10 1.15 -0.20 0 0 0;+grabmain;vr_mock_button main grip 1;wait20"
 S="$S;$(CASE dummy_fast_off 'vr_melee_phase 0' dummy_fast)"
 S="$S;$(CASE dummy_fast_on 'vr_melee_phase 1' dummy_fast)"
 S="$S;$(CASE dummy_slow_on 'vr_melee_phase 1' dummy_slow 330)"
-S="$S;setpos 316 -556 56 0 180 0;wait20;vr_test_spawn 0;vr_test_spawn_dist 36;impulse 241;wait60;vr_mock_hand main 0.00 1.15 -0.20 0 0 0;wait20"
+S="$S;setpos 256 -256 24 0 180 0;wait20;vr_test_spawn 0;vr_test_spawn_dist 36;impulse 241;wait60;vr_mock_hand main 0.00 1.15 -0.20 0 0 0;wait20"
 S="$S;$(CASE grunt_fast_off 'vr_melee_phase 0' grunt_fast)"
 S="$S;$(CASE grunt_fast_on 'vr_melee_phase 1' grunt_fast)"
 S="$S;-grabmain;vr_mock_button main grip 0;vr_weapon_grip_mode 1;impulse 154;wait20"

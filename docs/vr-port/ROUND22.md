@@ -3779,3 +3779,113 @@ Behaviours: the four new rows.
 
 In VR: check Ease 0 grunt idle gun over several loops; bare/bracer wrist bends, gadget straps, authored scars and
 live blood beside the hands. Confirm the memory/detail tradeoff before changing any wider defaults.
+
+### Bake copies, firing range recovery, and AD spawn menus (toolbake)
+
+Bake Copy now exports a new playable map (default map_baked1, map_baked2, etc.; optional explicit new name) and refuses
+existing map names. It preserves the map's effective loaded entities, including external CRC-qualified overrides,
+and appends the current brushes as permanent solid func_wall models. No source scene reload or map override is
+written. Augmentation failure aborts the bake. The no-light bake writer has the same source entity/name protections.
+
+The reported firing range loss came from its external vrfiringrange@3647.ent: 188 entities versus 106 embedded in
+the original BSP. The old bake changed the entity CRC and lost that override. The original BSP remains intact;
+the damaged relit override contains intact geometry and three additional brush models. A recovery copy in the
+worker's scratch embeds all 188 entities plus three solid brush entities, preserving every other lump and its BSPX
+lighting byte for byte. RECOVERY.txt beside it gives exact backup/placement steps; no author files were changed.
+Recovery restores those three brushes as permanent geometry; an editable runtime descriptor was not present.
+
+The toolgun grid, Debug monster page, Debug weapon pickups, and Debug Thing selector now share 56 AD choices:
+44 monsters, nine pickups, and three upgrades. Monsters and standalone items spawn outside AD maps with data
+mounted and AD Everywhere enabled; upgrades keep their existing AD-map requirement. Unavailable entries remain
+visible and cannot be selected or activated. The generator owns the catalogs and dispenser dispatch. Explicit AD
+class variants retain canonical entity names, including names that overlap official expansion monsters.
+
+Validation: source SHA256 f43f59da673a44dc34502c9d2c7daf9d30d088a593ed53afb8264f27d2e065b3 unchanged; no-light
+and real ericw-tools copies each retained 188 original entities plus one brush, all original geometry/model data,
+and collision at exactly z=81 (trace fraction .607). The recovery copy has 191 entities and 12 models; its top brush
+collides at z=149.2. All 44 AD monster classes spawned outside AD rules; a death knight completed initialization,
+registered/rigged/alive, through both physics and debug dispensers. Outside AD: 53 ready/3 disabled; in an AD-marked
+fixture: 56 ready/0 disabled; AD Everywhere off: 0 ready/56 disabled and selection rejected. e1m1 smoke and calibration
+menu path check passed (4 paths, 0 missing). Archived melee evaluation skipped as expected. Menu rows also expose
+vrgrabs' carry/body load settings and ragnotes' four corpse-limb regression actions; those workers own their logic.
+
+
+## Voice-note fixes: vore reach, corpse self-collision and blunt limb damage (2026-10-12, worktree `ragnotes`)
+
+The vore stood beside the player without attempting its shove; the photographed grunt's arm went through its torso;
+blunt gun/hammer/brick blows on corpses should pop the piece struck, while axes still cut. No new cvars/defaults.
+
+- `QC/vr_enemyshove.qc`: a vore's reach includes its drawn horizontal bounds (`drawnbounds`, including model scale/
+  offsets), rather than only its Quake walking hull. The existing Too Close setting remains the gap beyond a grunt's
+  side. Default vore reach is now 90 units (formerly 68). Targeted spawn distances 64/100: shoves at 54/76 units;
+  distances 160/240: none during the observation. The same reach is used when the blow lands, with its existing margin.
+- `Quake/vr/vr_box3d.cpp`: a corpse's deep contacts and arms reaching to wounds now stay physical. Their former
+  collision bypass let arms pass through and settle inside the torso. Preserve ragmove2's animation/pin exceptions
+  for stagger, rise and climbing, and its reaching-arm/deep-contact safeguard on living knockdowns. Parent-child
+  joint neighbours and loose equipment remain excluded. `vr_ragdoll_list` reports 70%-core overlaps as `deep` as well
+  as ordinary surface contacts: these distinguish penetration from small contact slop in the fitted hulls.
+- `QC/combat.qc`, `QC/vr_limbs.qc`: after the existing immediate chance-based pops, blunt/fist/prop/bash corpse hits
+  accumulate damage separately at the struck limb joint (and separately at the head). Reaching that monster's original
+  corpse-health threshold pops that piece; hits on the torso bleed/push but preserve the body. Blades, chainsaws,
+  shots and blasts retain their existing paths. With Limb Gore/Corpses disabled, the previous whole-body path remains.
+  Per-piece damage uses the existing corpse damage multipliers and persists with ordinary QC entity fields. Untagged
+  flung props use their own position/velocity, matching the existing living thrown-limb hook; held blows use their tagged
+  contact point.
+- `vr_limb_test` 24: two blunt 48-damage blows at one forearm (grunt threshold 80), 25: an 800-damage pelvis-surface
+  blow, 26: two physical-prop blows at that forearm, 27: an 8 m/s axe corpse slash through the real cut classifier.
+  All leave corpse health 80 and `gib 0`; 24/26 pop one piece, 25 pops none, 27 cuts one and pops none. Debug > Gore
+  Tests > Limb Gore Tests has the buttons (toolbake). `Misc/quakevr/ragdoll/notes_regression.sh <agent>` reproduces
+  the reach, corpse, overlap and living-transition checks.
+
+**Validation:** built QC/engine with zero QC warnings and passing FGD/statics/precedence checks on `next` including
+ragmove2 (`83f9f04ed`) and toolbake (`d308fad65`). Eight mixed dead monsters: ordinary overlapping pairs 27 off / 11
+on; deep pairs 8 off / 0 on. This checks penetration, rather than requiring fitted hull contacts to be exactly zero.
+Grunt arm/forearm stump reaches settled at 0 J and 0 rad/s. Living behaviour buttons: stagger, get-up, pull-up and
+head guard on grunt plus knight get-up all began (5/5). Numeric grunt/knight get-ups handed back in all 4 active/on-off
+controls; active pelvis gaps 1.9/4.3 units in the final living-preservation revision. Repeated steady/overwhelmed staggers:
+initial 3-trial runs recovered 6/6 and fell 6/6; final 2-trial runs recovered 4/4 and fell 4/4, zero errors. Corpse Limb Gore disabled: original whole-body gib at 80 damage retained.
+e1m1 smoke exited 0; `eval.sh` correctly skipped the author's archived takes. Headset checks: shove at the vore's
+visible side, force a corpse's forearm against/along its chest with a hand, repeatedly hit an individual limb with a
+gun butt/hammer/brick, and compare axe cuts; also watch living get-up and ledge pull-up for contact-induced stalls.
+
+**Ordinary living AI/combat: feasibility audit only.** The necessary rig skinning, frame clips, capped joint drives,
+pelvis pin, feet/step logic and physical hand reaches already exist. Living staggers, falls, get-ups, swims and ledge
+pull-ups use them; ordinary living hits still use the inexpensive animated skeletal reaction overlay. Keeping a
+living ragdoll permanently driven is feasible, but enabling today's knocked-down state everywhere is not sufficient:
+that state suspends normal QC movement/attacks, and `writeRagdoll` writes physical pose/origin back to the entity.
+Normal AI navigation (`walkmove`/`movetogoal`), animation-root motion, physical pelvis/feet movement and hand-based
+weapon/attack origins need one consistent owner. Otherwise the AI and physics fight over position and attack timing.
+
+A conservative future stage can retain QC navigation/attack timing and its collision hull, pin the physics pelvis to
+that navigation target, follow each live animation clip with strong muscles, and allow bounded physical limb/contact
+reactions. Then deliberately reconcile feet, ledges and attacks before introducing fully physical locomotion. Preserve
+existing knockdown/get-up transitions and verify grunt/enforcer firing, knight melee, stairs/ledges, held limbs, crowds,
+save/load and actual headset animation quality. Current full-body drivers cover a limited class list and permanent
+awake bodies add physics cost: crowd cost must be measured for this stage; no benchmark estimate is claimed here.
+No broad locomotion redesign or always-on living mode was introduced by this fix.
+
+## Dedicated melee recording room (2026-10-12, worktree `meleeroom`)
+
+`map vrmelee-recording` is an authored, empty 1280 x 1280 x 384 unit room: one central training dummy and seven
+floor pickups along the south wall (axe, Mjolnir, knight/hell knight swords, chainsaw, crowbar, Super Axe). Fists need
+no pickup. The practice area has no furniture, props, extra enemies or map buttons. Neutral studio lighting keeps
+the dummy and pickups visible. `make_vrmelee_recording_map.py --compile` builds the source/BSP/LIT/LUX with the
+installed ericw tools, using the project's own WAD; compile intermediates stay in the worker's scratch folder.
+
+Motion Recorder and Play both offer Melee Recording Room; Firing Range stays available as the sandbox. Direct mock
+replay automatically loads the recording room; `vr_motion_play ... map <name>` retains explicit alternate fixtures.
+Evaluation and Review Takes' background evaluation default to the room. Synthetic take headers and the crowbar,
+empty-melee and melee-phasing test scripts use it too. Existing recordings are never rewritten: target-relative
+placement, hand settings, legacy fallback rules and melee behavior remain unchanged. No new cvars or melee tuning.
+
+Validation: QC/engine/FGD build passed; qbsp/vis/light all exit 0 without warnings; authored BSP contains exactly one
+dummy and seven pickups. Two 1200-unit player-width sweeps are completely clear; floor trace fraction 0.500. The
+targeted `melee_room_test.py meleeroom` records 158 frames, replays directly from e1m1 in the room, evaluates both the
+new take and an otherwise identical old-map-header take (2 PASS), preserves their bytes/events and reproduces hand
+poses within 0.01 units (measured 0.001). Existing melee phasing: 7/7; empty melee: 2/2 (axe 0 clicks, shotgun 2);
+synthetic crowbar swing: 27.3 damage. e1m1 smoke and final hidden screenshot passed; no full melee tuning/eval run.
+Explicit `map e1m1 noplace` stays in e1m1; an absent map is rejected cleanly before loading.
+
+In VR: enter from Motion Recorder, pick up each melee weapon, circle the dummy and record your new takes. Confirm
+the simple room's space, lighting and pickup spacing feel suitable. Files worth deleting later: worker `scratch/`,
+`quakevr/meleeroom_check.cfg`, and its generated `quakevr/motions/no_hit_room_check_*`, `room_*` test outputs.

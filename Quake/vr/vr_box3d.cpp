@@ -3653,7 +3653,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
             s.corpseMask | (vr_ragdoll_collide_each.value || selfCollide ? catCorpse : 0));
         sd.enableCustomFiltering = true; // (shouldCollide: thrown things, vr_corpse_collide_thrown; what it is made in)
         sd.filter.groupIndex = selfCollide ? 0 : -num; // (off: its own parts never meet)
-        sd.enablePreSolveEvents = selfCollide;         // (preSolve's selfTouches: not a reaching arm)
+        sd.enablePreSolveEvents = selfCollide;         // (preSolve also honours the live toggle)
         sd.enableHitEvents = true;       // (a knocked-down monster's fall damage: touches, callFalls)
         sd.baseMaterial.friction = friction;
         sd.density = bone.joint == ragdoll::Joint::Loose ? looseMass / za::max(volumes[static_cast<za::SizeT>(b)], 1e-6f) : density;
@@ -8812,7 +8812,6 @@ using ProxyPoints = za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS>;
 }
 
 constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than this overlap (self-collision)
-constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in another's: a deep overlap)
 
 // The distance between two shapes (metres; 0 overlapping; 1e30 another kind of shape), each shrunk to `core` of its size.
 [[nodiscard]] float shapeGap(b3ShapeId a, b3ShapeId b, float core = 1.f)
@@ -8829,13 +8828,8 @@ constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in an
     return b3ShapeDistance(&in, &cache, nullptr, 0).distance;
 }
 
-// Self-collision (vr_ragdoll_self_collide; ROUND22.md, "Ragdoll tests, tuning, self-collision"): two shapes of edict
-// `num`'s ragdoll (asked as their boxes begin to overlap; jointed neighbours never are: their joints' collideConnected).
-// They meet unless self-collision is off (the ragdoll made since: its group keeps them apart then), one is a loose piece
-// (his gun: it lies in his hand, a knockdown's welded there) or they overlap deeply now, their cores (selfCore of each)
-// in each other (a death frame's forearm in his side: pushed apart at once they would kick; asked again as their boxes
-// move, they meet once out of each other's core). A shallow overlap is pushed out gently by the contact (Box3D's push out
-// at most 3 m/s).
+// A corpse's arm meets its torso, including deep contacts and reaches towards a wound. Box3D's bounded contact
+// push-out resolves initial overlaps. Living animation/pin safeguards remain in selfTouches below.
 [[nodiscard]] bool selfMeets(b3ShapeId a, b3ShapeId b, int num)
 {
     if(vr_ragdoll_self_collide.value == 0.f || num >= static_cast<int>(world->slots.size()) || world->slots[num].ragdoll < 0)
@@ -8845,18 +8839,14 @@ constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in an
     const RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(world->slots[num].ragdoll)];
     const b3BodyId ba = b3Shape_GetBody(a), bb = b3Shape_GetBody(b);
     int pa = -1, pb = -1;
-    for(int p = 0; p < r.count && (pa < 0 || pb < 0); p++) // (a cut part's entry names its parent's body: found first)
+    for(int p = 0; p < r.count && (pa < 0 || pb < 0); p++)
     {
         const b3BodyId body = r.body[static_cast<za::SizeT>(p)];
         pa = pa < 0 && B3_ID_EQUALS(body, ba) ? p : pa;
         pb = pb < 0 && B3_ID_EQUALS(body, bb) ? p : pb;
     }
-    if(pa < 0 || pb < 0 || pa == pb || r.rig->bones[pa].joint == ragdoll::Joint::Loose ||
-        r.rig->bones[pb].joint == ragdoll::Joint::Loose)
-    {
-        return false;
-    }
-    return shapeGap(a, b, selfCore) > selfApart;
+    return pa >= 0 && pb >= 0 && pa != pb && r.rig->bones[pa].joint != ragdoll::Joint::Loose &&
+           r.rig->bones[pb].joint != ragdoll::Joint::Loose && (!r.knocked || shapeGap(a, b, 0.7f) > selfApart);
 }
 
 // Whether part `p` of ragdoll `r` is in an arm its drive reaches with now (a hand to a wound or a stump, a catch, a lean,
@@ -8888,9 +8878,8 @@ constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in an
     return false;
 }
 
-// Self-collision's contacts (preSolve, each step): two parts of edict `num`'s ragdoll touch unless one is in an arm
-// reaching now (reachingArm: the hand goes through his side to the wound on it, his arm across his chest; it meets them
-// again once the reach is let go).
+// Self-collision contacts: corpses retain contacts during reaches and deep overlaps. Keep the existing living
+// ragdoll exceptions for animation/pin transitions and living reaches (ragmove2).
 [[nodiscard]] bool selfTouches(b3ShapeId a, b3ShapeId b, int num)
 {
     const RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(world->slots[num].ragdoll)];
@@ -8913,17 +8902,17 @@ constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in an
     {
         return false;
     }
-    // (Deep in each other, their cores overlapping: a hand let go of the wound inside his side, a stump's: left to part by
-    // themselves, as selfMeets admits them, not pushed apart at once.)
-    return !reachingArm(r, pa) && !reachingArm(r, pb) && shapeGap(a, b, selfCore) > selfApart;
+    // Living reaches keep their prior safeguard. A corpse hand pushed into the torso must be pushed out again.
+    return !r.knocked || (!reachingArm(r, pa) && !reachingArm(r, pb) && shapeGap(a, b, 0.7f) > selfApart);
 }
 
 // Self-collision's check (vr_ragdoll_list): ragdoll `r`'s pairs of parts that would meet (not jointed, not a loose piece)
 // overlapping now, of `pairs` such pairs.
-[[nodiscard]] int partsOverlapping(const RagdollBodies& r, int& pairs)
+[[nodiscard]] int partsOverlapping(const RagdollBodies& r, int& pairs, int& deep)
 {
     constexpr int most = 4;
     pairs = 0;
+    deep = 0;
     int overlapping = 0;
     for(int i = 0; i < r.count; i++)
     {
@@ -8939,15 +8928,18 @@ constexpr float selfCore = 0.7f;    // of a part's shape's size: its core (in an
             za::Array<b3ShapeId, most> si{}, sj{};
             const int ni = b3Body_GetShapes(r.body[static_cast<za::SizeT>(i)], si.data(), most);
             const int nj = b3Body_GetShapes(r.body[static_cast<za::SizeT>(j)], sj.data(), most);
-            bool touching = false;
-            for(int a = 0; a < ni && !touching; a++)
+            bool touching = false, cores = false;
+            for(int a = 0; a < ni; a++)
             {
-                for(int b = 0; b < nj && !touching; b++)
+                for(int b = 0; b < nj; b++)
                 {
-                    touching = shapeGap(si[static_cast<za::SizeT>(a)], sj[static_cast<za::SizeT>(b)]) <= selfApart;
+                    const b3ShapeId sa = si[static_cast<za::SizeT>(a)], sb = sj[static_cast<za::SizeT>(b)];
+                    touching = touching || shapeGap(sa, sb) <= selfApart;
+                    cores = cores || shapeGap(sa, sb, 0.7f) <= selfApart;
                 }
             }
             overlapping += touching ? 1 : 0;
+            deep += cores ? 1 : 0;
         }
     }
     return overlapping;
@@ -10489,9 +10481,9 @@ void ragdollList_f()
         Con_Printf("ragdoll %d %s: %.1f s limp, %d parts (%d awake), %.1f kg, pelvis %.1f %.1f %.1f, parts z %.1f .. %.1f, frame %d%s\n", r.num,
             PR_GetString(ent->v.classname), qcvm->time - r.born, parts, awake, mass, p.x, p.y, p.z, lo.z, hi.z,
             static_cast<int>(ent->v.frame), r.cut ? ", headless" : "");
-        int pairs = 0;
-        const int overlapping = partsOverlapping(r, pairs);
-        Con_Printf("  self: %d of its %d unjointed part pairs overlapping (Limbs Meet Each Other %s)\n", overlapping, pairs,
+        int pairs = 0, deep = 0;
+        const int overlapping = partsOverlapping(r, pairs, deep);
+        Con_Printf("  self: %d of its %d unjointed part pairs overlapping, %d deep (Limbs Meet Each Other %s)\n", overlapping, pairs, deep,
             vr_ragdoll_self_collide.value != 0.f ? "on" : "off");
         if(r.active.death.on)
         {
@@ -11597,7 +11589,12 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     func_t fn = qvr::progs::findFunction(classname);
     // AD support: AD's version where it owns the classname in an AD map, AD's artifacts, pickups and ladders in any
     // map (vr_ad.cpp), as ED_LoadFromFile
-    if(VR_AD_RulesOn())
+    if(!strncmp(classname, "ad_", 3)) // AD support: explicit AD variants in every spawn menu
+    {
+        if(!VR_AD_RulesOn() && !VR_AD_SpawnsOutside(classname + 3)) { return nullptr; } // AD support
+        classname += 3; // AD support: retain the canonical entity classname for VR and AD tests
+    }
+    else if(VR_AD_RulesOn())
     {
         const func_t ad = qvr::progs::findFunction(va("ad_%s", classname));
         fn = ad && VR_AD_OwnsClassname(classname, fn != 0) ? ad : fn;

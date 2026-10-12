@@ -524,21 +524,33 @@ string(float choice) VR_AD_DispenserModel =
     if(choice == 242) { return "progs/mon_judge.mdl"; }
     if(choice == 245) { return "progs/mon_wizard.mdl"; }
     if(choice == 250) { return "progs/mon_hknight.mdl"; }
+    if(choice == 300) { return "progs/artifact_tome.mdl"; }
+    if(choice == 301) { return "progs/artifact_sharp.mdl"; }
+    if(choice == 302) { return "progs/artifact_piercer.mdl"; }
+    if(choice == 303) { return "progs/artifact_airtank.mdl"; }
+    if(choice == 304) { return "progs/artifact_lavashield.mdl"; }
+    if(choice == 305) { return "progs/artifact_blastbelt.mdl"; }
+    if(choice == 306) { return "progs/artifact_jumpboots.mdl"; }
+    if(choice == 307) { return "progs/health_5.mdl"; }
+    if(choice == 308) { return "progs/health_5.mdl"; }
+    if(choice == 309) { return "progs/g_shadaxe.mdl"; }
+    if(choice == 310) { return "progs/g_shot3.mdl"; }
+    if(choice == 311) { return "progs/g_plasma.mdl"; }
     return "";
 };
 
 float(float choice) VR_AD_DispenserSpawn =
 {
-    if(choice < 200 || choice >= 300)
+    if(choice < 200 || choice >= 400)
     {
         return FALSE;
     }
-    if(!AD_Rules())
+    if(!cvar("vr_ad_mounted") || (!AD_Rules() && !cvar("vr_ad_everywhere")))
     {
-        dprint("admon: AD's monsters spawn in a map played by AD's rules only\n");
         remove(self);
         return TRUE;
     }
+    if(!AD_Rules()) { VR_AD_WorldOnDemand(); }
     if(choice == 200) { self.classname = "monster_dknight"; ad_monster_dknight(); }
     else if(choice == 201) { self.classname = "monster_zombiek"; ad_monster_zombiek(); }
     else if(choice == 202) { self.classname = "monster_dcrossbow"; ad_monster_dcrossbow(); }
@@ -583,6 +595,18 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 242) { self.classname = "monster_judicator"; ad_monster_judicator(); }
     else if(choice == 245) { self.classname = "monster_wizard"; ad_monster_wizard(); }
     else if(choice == 250) { self.classname = "monster_hell_knight"; ad_monster_hell_knight(); }
+    else if(choice == 300) { self.classname = "item_artifact_tomeofpower"; ad_item_artifact_tomeofpower(); }
+    else if(choice == 301) { self.classname = "item_artifact_sharp_shooter"; ad_item_artifact_sharp_shooter(); }
+    else if(choice == 302) { self.classname = "item_artifact_nail_piercer"; ad_item_artifact_nail_piercer(); }
+    else if(choice == 303) { self.classname = "item_artifact_airtank"; ad_item_artifact_airtank(); }
+    else if(choice == 304) { self.classname = "item_artifact_lavashield"; ad_item_artifact_lavashield(); }
+    else if(choice == 305) { self.classname = "item_artifact_blastbelt"; ad_item_artifact_blastbelt(); }
+    else if(choice == 306) { self.classname = "item_artifact_jumpboots"; ad_item_artifact_jumpboots(); }
+    else if(choice == 307) { self.classname = "item_healthvial"; ad_item_healthvial(); }
+    else if(choice == 308) { self.classname = "item_healthgem"; ad_item_healthgem(); }
+    else if(choice == 309) { self.classname = "weapon_upgrade_axe"; if(AD_Rules()) { weapon_upgrade_axe(); } else { remove(self); } }
+    else if(choice == 310) { self.classname = "weapon_upgrade_ssg"; if(AD_Rules()) { weapon_upgrade_ssg(); } else { remove(self); } }
+    else if(choice == 311) { self.classname = "weapon_upgrade_lg"; if(AD_Rules()) { weapon_upgrade_lg(); } else { remove(self); } }
     else
     {
         dprint(sprintf("admon: no AD monster %g\n", choice));

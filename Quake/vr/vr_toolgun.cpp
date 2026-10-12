@@ -22,6 +22,7 @@
 #include "vr_toolgun.hpp"
 #include "vr_toolgun_brush.hpp"
 
+#include "vr_ad.hpp" // AD support
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_brushes.hpp"
@@ -71,9 +72,15 @@ struct Spawnable
     float value;
     int skin;
     bool setModel; // the model is given to its spawn function (a rock's, a brick's)
+    bool adOnly{false}; // AD support
+    bool rulesOnly{false}; // AD support
+    int debugChoice{-1}; // AD support
 };
 
 constexpr Spawnable spawnables[] = {
+#define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) \
+    {section, label, classname, model, lift, nullptr, 0.f, 0, false, true, rulesOnly, choice}, // AD support
+
     {"Monsters", "Grunt", "monster_army", "progs/soldier.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Monsters", "Enforcer", "monster_enforcer", "progs/enforcer.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Monsters", "Rottweiler", "monster_dog", "progs/dog.mdl", 24.f, nullptr, 0.f, 0, false},
@@ -120,6 +127,9 @@ constexpr Spawnable spawnables[] = {
     {"Items", "Pentagram", "item_artifact_invulnerability", "progs/invulner.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Items", "Ring of Shadows", "item_artifact_invisibility", "progs/invisibl.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Items", "Biosuit", "item_artifact_envirosuit", "progs/suit.mdl", 24.f, nullptr, 0.f, 0, false},
+#include "vr_ad_spawns.inc" // AD support
+#include "vr_ad_spawnitems.inc" // AD support
+#undef QVR_AD_SPAWN // AD support
 };
 constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spawnables[0]));
 
@@ -281,6 +291,7 @@ void select(int i)
         return;
     }
     const Spawnable& s = spawnables[i];
+    if(s.adOnly && !ad::spawnAvailable(s.model, s.rulesOnly)) { tg.sel = {}; return; } // AD support
     Selection& sel = tg.sel;
     sel = {};
     sel.valid = true;
@@ -544,6 +555,7 @@ void spawnHere()
         return;
     }
     const Selection& sel = tg.sel;
+    if(sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)) { return; } // AD support
     edict_t* e = box3d::spawnClass(sel.classname, tg.ghostOrigin, tg.ghostAngles, sel.setModel ? sel.model : nullptr,
         sel.key[0] ? sel.key : nullptr, sel.value);
     if(e)
@@ -1542,6 +1554,16 @@ int spawnableSkin(int i)
     return i >= 0 && i < spawnableTotal ? spawnables[i].skin : 0;
 }
 
+// AD support: the panel and Debug menus use the same catalog and availability checks.
+bool spawnableAvailable(int i)
+{
+    return i >= 0 && i < spawnableTotal &&
+           (!spawnables[i].adOnly || ad::spawnAvailable(spawnables[i].model, spawnables[i].rulesOnly));
+}
+bool spawnableAD(int i) { return i >= 0 && i < spawnableTotal && spawnables[i].adOnly; }
+int spawnableDebugChoice(int i) { return i >= 0 && i < spawnableTotal ? spawnables[i].debugChoice : -1; }
+const char* spawnableClass(int i) { return i >= 0 && i < spawnableTotal ? spawnables[i].classname : ""; }
+
 int selectedSpawnable()
 {
     return tg.sel.valid ? tg.sel.entry : -1;
@@ -1628,6 +1650,21 @@ namespace
 {
 
 // vr_toolgun_select <n | clear>: the spawn list's entry n (the spawnables' order: 0 the Grunt), or nothing.
+// AD support: catalog evidence for the shared Debug and toolgun spawn menus.
+void spawnlist_f()
+{
+    int adCount = 0, available = 0;
+    for(int i = 0; i < spawnableTotal; ++i)
+    {
+        if(!spawnables[i].adOnly) { continue; }
+        ++adCount;
+        const bool ready = toolgun::spawnableAvailable(i);
+        available += ready;
+        Con_Printf("toolgun spawn: %d %s %s %s\n", i, spawnables[i].section, spawnables[i].label, ready ? "ready" : "disabled");
+    }
+    Con_Printf("toolgun spawns: %d entries, %d AD, %d AD ready, %d AD disabled\n", spawnableTotal, adCount, available, adCount - available);
+}
+
 void select_f()
 {
     if(Cmd_Argc() < 2)
@@ -1736,6 +1773,7 @@ void status_f()
 
 void qvr::toolgun::registerCommands()
 {
+    Cmd_AddCommand("vr_toolgun_spawnlist", spawnlist_f); // AD support
     Cmd_AddCommand("vr_toolgun_select", select_f);
     Cmd_AddCommand("vr_toolgun_pick", pick_f);
     Cmd_AddCommand("vr_toolgun_reset", reset_f);
