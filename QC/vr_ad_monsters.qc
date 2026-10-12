@@ -420,6 +420,15 @@ void(entity attacker) VR_AD_Dying =
     vr_ad_hl_score = VR_Highlight_Kill(self, vr_ad_inflictor, attacker, vr_ad_melee);
     vr_ad_hl_what = vr_hl_what;
     VR_Stealth_Died(self);
+    // Temporary native pickup for armed AD variants; their distinct weapons are tracked in BACKLOG.md.
+    float t = self.ad_classtype;
+    if(t == ad_CT_MONARMYROCKET || t == ad_CT_MONARMYGRENADE || t == ad_CT_MONARMYPLASMA || t == ad_CT_MONARMY ||
+       t == ad_CT_MONENFORCER || t == ad_CT_MONDEFENDER || t == ad_CT_MONELIMATOR || t == ad_CT_MONCENTURION ||
+       t == ad_CT_MONPYRO || t == ad_CT_MONFUMIGATOR)
+    {
+        VR_DropEnemyGun(WID_GRUNTGUN);
+        dprint(sprintf("adcorpse: %s drops one burst rifle placeholder\n", self.classname));
+    }
     self.vr_ai_gate = 0;
     VR_Parry_Unsway(self);
     VR_Corpse_DieWhole(self);

@@ -998,6 +998,10 @@ void() VR_Shove_Think;
 // A push of `e` along `xDir` at `xSpeed` (units/s, horizontal) starts a slide (VR_Push).
 void(entity e, vector xDir, float xSpeed) VR_Shove_Start =
 {
+    if(VR_IsDummy(e) && cvar_hget(cvarh_vr_dummy_anchored))
+    {
+        return; // (vr_dummy_anchored: it stays where it stands)
+    }
     entity s = e.vr_shove;
     if(s == world || s.classname != "vr_shove" || s.owner != e)
     {
