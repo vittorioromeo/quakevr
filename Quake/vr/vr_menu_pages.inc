@@ -1117,6 +1117,10 @@ void resetHandMoves()
         open("Cord Points", pageIndex(pageReloadCellCords))
             .help("Where each cord leaves its weapon (off its lowest point), to tune."),
         header("All Guns"),
+        slider("Magazine Reinsertion Clearance", "vr_reload_reinsert_clearance", 0.f, 16.f, 0.25f, "%.2f units").extend(0.f, 64.f)
+            .help("After pulling or knocking a magazine out, withdraw this far beyond its insertion reach before it can "
+                  "go back in. Also applies to the new magazine that knocked it out. Smaller: a shorter out-and-back "
+                  "motion; 0: just outside the reach. Loose magazines also clear the collision leniency and eject cooldown."),
         slider("Shell Slide In", "vr_reload_insert_time", 0.f, 0.5f, 0.01f, "%.2f s")
             .help("A shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it for this "
                   "long, following the gun (0: gone at once). It is loaded at once all the same."),

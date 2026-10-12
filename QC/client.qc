@@ -186,6 +186,16 @@ void() OnLoadGame =
     VR_CVars_InitAllHandles();
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
     AD_LoadedGame(); // AD support: the loaded game's Evil skill choice (vr_ad_player.qc)
+    // The load's pause/loading screens often arrive with neither controller gripping. Protect only the weapons
+    // restored in the hands, starting in game time (the server stays paused until the client is ready).
+    entity p = find(world, classname, "player");
+    while(p)
+    {
+        p.vr_weapon_load_until = time + max(0, cvar("vr_weapon_load_grace"));
+        p.vr_weapon_load_main = VRGetEntWeaponInst(p, cVR_MainHand);
+        p.vr_weapon_load_off = VRGetEntWeaponInst(p, cVR_OffHand);
+        p = find(p, classname, "player");
+    }
 }
 
 void() SetNewParms =

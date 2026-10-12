@@ -2959,6 +2959,8 @@ QVR_CVAR(vr_reload_grab_slack, "3", CVAR_ARCHIVE)     // cm from a round lying a
 QVR_CVAR(vr_reload_loose_time, "90", CVAR_ARCHIVE)     // seconds a round lies about before it fades away (0: never)
 // Magazines (phase 2: the nailgun, the super nailgun, the thunderbolt; vr_reload.qc).
 QVR_CVAR(vr_reload_bump_speed, "3", CVAR_ARCHIVE)      // m/s a hit on a seated magazine must come at to knock it out (a fist, a held prop or magazine, the other gun: the bump reload's first step)
+QVR_CVAR(vr_reload_reinsert_clearance, "4", CVAR_ARCHIVE) // units past the insertion reach a just-ejected or bumping magazine must withdraw before reseating; hysteresis (0: just outside)
+QVR_CVAR(vr_weapon_load_grace, "0.75", CVAR_ARCHIVE)   // seconds after loading a save the restored held weapons ignore an unpressed grip (0: no grace)
 QVR_CVAR(vr_reload_pull_speed, "2", CVAR_ARCHIVE)    // m/s a hand holding a gun's magazine (a two-handed grip) must pull it out of its well at (along it) to take it out; or,
 QVR_CVAR(vr_reload_pull_snap, "225", CVAR_ARCHIVE)     // its wrist turning against the gun's hand at this many degrees/s or more; or the hands this much further apart:
 QVR_CVAR(vr_reload_pull_apart, "10", CVAR_ARCHIVE)     // units further apart than as it took hold (any one of the three; a gentle pull only holds it)

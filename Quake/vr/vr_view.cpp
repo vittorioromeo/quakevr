@@ -7516,6 +7516,20 @@ int ammoPouchCells()
     return za::min(3, (left + 35) / 36);
 }
 
+bool ammoPouchCentre(glm::vec3& at)
+{
+    const ViewEntity& pouch = entities.ammoPouch;
+    if(!pouch.visible || !pouch.ent.model)
+    {
+        return false;
+    }
+    // make_ammo_pouch.py/make_pouch.py: the leather's outline middle is BACK_X + depth * 0.45, z -2.3..1.5.
+    // Empty frame 0 has depth 1.3; all stocked frames have depth 2.5. Bounds including the rounds vary by ammo kind.
+    const float depth = pouch.ent.frame == 0 ? 1.3f : 2.5f;
+    at = modelPoint(pouch, {0.1f + depth * 0.45f, 0.f, -0.4f});
+    return true;
+}
+
 bool ammoPouchCell(int index, glm::vec3& at, glm::vec3& up)
 {
     const ViewEntity& pouch = entities.ammoPouch;
@@ -9613,6 +9627,12 @@ void dumpView_f()
         Con_Printf("ammo pouch at (%.2f %.2f %.2f), reach %.1f: main hand %.1f units off (hotspot %d), off hand %.1f (%d)\n",
             pouch.x, pouch.y, pouch.z, body::ammoPouchReach(), glm::distance(s.pos[HAND_MAIN], pouch),
             s.hotspot[HAND_MAIN], glm::distance(s.pos[HAND_OFF], pouch), s.hotspot[HAND_OFF]);
+        glm::vec3 centre;
+        if(ammoPouchCentre(centre))
+        {
+            Con_Printf("ammo pouch collection centre (%.3f %.3f %.3f), %.3f units from reach point\n",
+                centre.x, centre.y, centre.z, glm::distance(centre, pouch));
+        }
     }
 
     int i = 0;

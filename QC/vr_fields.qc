@@ -30,6 +30,9 @@
 .float mainhand_lastgrabtime;
 .float offhand_lastreleasetime;
 .float mainhand_lastreleasetime;
+.float vr_weapon_load_until; // after loading a save: the original held weapons stay for this long
+.entity vr_weapon_load_main;
+.entity vr_weapon_load_off;
 
 
 //
