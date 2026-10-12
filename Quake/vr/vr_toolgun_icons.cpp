@@ -30,7 +30,7 @@ namespace
 constexpr int iconSize = 96;  // the picture's pixels across and down
 constexpr int superSample = 2; // drawn this many times larger each way, then averaged
 constexpr int rasterSize = iconSize * superSample;
-constexpr int maxIcons = 64;
+constexpr int maxIcons = 512;
 
 enum class IconState : int
 {
