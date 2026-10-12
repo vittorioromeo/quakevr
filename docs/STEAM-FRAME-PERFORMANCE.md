@@ -75,3 +75,39 @@ install does not overwrite the normal game or QuakeQuest. Physical validation of
 OpenXR focus, head/controller tracking, and core weapon/physics interactions is
 still required before distributing the preview as a new release. The original
 v1.0.0-frame.1 release remains the known-good build.
+
+## Frame CPU phase and Box3D worker tests
+
+To locate the frame-time tails, the benchmark JSON now records per-frame CPU
+phase distributions under `cpu_phase_stats_ms` (average, median, p95, p99 and
+maximum). On Frame at render scale 0.25, the same hidden `combat_48` mock run
+produced frame p99s of 19.37 and 21.11 ms. `screen` p99 was 16.20 and 16.05 ms;
+its nested `swap` phase was 14.88 and 14.68 ms. These phases overlap (`swap` is
+inside the screen refresh), so they must not be summed. GPU-eye p99 was about
+18.7 ms. The mock window/present and renderer therefore contribute to these
+tails; they are not OpenXR compositor or physical-headset frame-pacing results.
+
+Box3D worker settings were compared in the same fixture, each variant for two
+720-frame runs in opposite order. Turning physics threads off raised
+`SV_Physics` p99 from 4.79–5.17 ms to 5.91–6.35 ms; frame p99 averaged 20.61 ms
+off and 20.30 ms on. With threads enabled, worker caps 2, 4 and 8 gave average
+frame p99s of 21.52, 20.24 and 20.60 ms. Their `SV_Physics` p99 averages were
+5.51, 4.60 and 4.48 ms. Four workers remain the best measured total-frame
+balance; eight marginally reduces the physics phase but did not improve frame
+p99. This confirms the existing default of four for this fixture, rather than
+justifying a code or default change.
+
+The activation thresholds 100, 150, 200 and 300 awake bodies were also tested
+twice each. Frame p99 averages were 21.25, 20.11, 19.73 and 21.35 ms, while
+`SV_Physics` p99 averages were 5.21, 5.15, 5.59 and 6.88 ms. Run-to-run tail
+variation and the tradeoff between physics and whole-frame p99 do not support a
+reliable new threshold; the existing 150-body default is unchanged. Raw JSON
+and logs are retained in the private `performance-results/frame-diagnostics-20261012`
+directory. All runs used mock tracking and actual Frame GPU/CPU hardware, not an
+OpenXR headset session. The release executable and regular installation were
+not modified.
+
+These tests found a repeatable CPU-physics benefit from the already-enabled
+four-worker default but no new safe performance setting or engine optimization.
+The next improvement needs a representative OpenXR campaign/combat capture and
+runtime frame-pacing evidence; this benchmark alone cannot validate it.

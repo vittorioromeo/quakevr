@@ -158,6 +158,15 @@ fixed for comparisons. Check input, physics and weapons after changing SIMD,
 threading, render targets or update cadence. Publish measured gains and losses;
 do not present a lower render scale alone as an engine optimization.
 
+The reproducible `vr_bench` capture writes JSON to
+`<gamedir>/profile/bench/frame_<name>.json`. Its `cpu_phase_stats_ms` entries
+give per-phase average, p50, p95, p99 and maximum from the same captured frames;
+`cpu_phase_ms` remains the phase-average map. Nested timings such as `screen`
+and `swap` overlap and must not be added. Compare renderer GPU times with the
+runtime's submitted-frame/missed-period counters before attributing a hitch to
+the engine. The mock benchmark can find engine CPU/GPU costs on Frame hardware,
+but it is not evidence of OpenXR compositor pacing or physical controller use.
+
 On the tested Frame, the released engine was also measured with mock tracking
 and real stereo rendering (Turnip/Zink OpenGL, 1728x1728 eye images, 72 Hz
 fixed-step `combat_48`, 180 warm-up and 720 measured frames, two opposite-order

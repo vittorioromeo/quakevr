@@ -183,6 +183,8 @@ struct Capture
     int skip{0}; // the frame vr_bench_begin ran in (its rest only): not recorded
     int gpuSkipLeft{0};
     za::Vector<float> series[SeriesCount];
+    // Per-frame always-on phase timings locate CPU hitch sources without enabling the heavier call-tree profiler.
+    za::Vector<float> cpuPhase[PhaseCount];
     za::Vector<float> gpuEyes;
     za::Vector<float> gpu3d; // the whole 3D refresh (flat mode's view too)
     // The latency's proxy: a frame's pose (the tracking sampled, xrWaitFrame and xrLocateViews returned) to its submit
@@ -471,7 +473,16 @@ void finish()
         fprintf(f, "%s\"%s\": %.4f", i ? ", " : "", profile::phaseName(static_cast<profile::Phase>(i)),
             c.cpuPhaseSum[i] / frames);
     }
-    fprintf(f, "},\n  \"gpu_frames\": %d,\n  \"gpu_phase_ms\": {", c.gpuFrames);
+    fprintf(f, "},\n  \"cpu_phase_stats_ms\": {\n");
+    for(int i = 0; i < PhaseCount; i++)
+    {
+        const Stats phase = stats(c.cpuPhase[i]);
+        fprintf(f,
+            "    \"%s\": {\"n\": %d, \"avg\": %.4f, \"p50\": %.4f, \"p95\": %.4f, \"p99\": %.4f, \"max\": %.4f}%s\n",
+            profile::phaseName(static_cast<profile::Phase>(i)), phase.n, phase.avg, phase.p50, phase.p95, phase.p99,
+            phase.max, i + 1 == PhaseCount ? "" : ",");
+    }
+    fprintf(f, "  },\n  \"gpu_frames\": %d,\n  \"gpu_phase_ms\": {", c.gpuFrames);
     first = true;
     for(int i = 0; i < PhaseCount; i++)
     {
@@ -563,6 +574,8 @@ void begin_f()
     {
         c.cpuPhaseSum[i] = 0.0;
         c.gpuPhaseSum[i] = 0.0;
+        c.cpuPhase[i].clear();
+        c.cpuPhase[i].reserve(reserve);
     }
     for(int k = 0; k < CountCount; k++)
     {
@@ -745,7 +758,9 @@ void frame(double periodMs, double hostMs, double busyMs, const za::I64 (&phaseN
     }
     for(int i = 0; i < PhaseCount; i++)
     {
-        c.cpuPhaseSum[i] += static_cast<double>(phaseNs[i]) / 1e6;
+        const double ms = static_cast<double>(phaseNs[i]) / 1e6;
+        c.cpuPhaseSum[i] += ms;
+        c.cpuPhase[i].pushBack(static_cast<float>(ms));
     }
     if(c.frames % countEvery == 0)
     {
