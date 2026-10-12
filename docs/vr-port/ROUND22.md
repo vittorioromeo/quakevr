@@ -3928,3 +3928,48 @@ from baseline (archived canary absent). e1m1 smoke passed; calibration 4 paths f
 pyro and the folded grunt passed: `scratch/corpse_cleanup_visual.png` (disc/guns absent, pyro tank retained, arm freed).
 Existing screenshots preserved. In VR, retest corpse shoulder/upper-arm manipulation, centurion/pyro kills and repeated
 dummy shove/get-up cycles. No deletes performed.
+
+## Melee takes of 2026-10-12: a reproducible suite, waves and wiggles, the retraction double hit (worktree `melee2`)
+
+**The suite.** `eval.sh` already ran the takes unpaced, undrawn and silent in parallel copies, a map load per take. On
+his 177 new takes it takes 10-15 s with 8 copies (45 s with one; the first run of a new agent's copies 67 s: their
+game folders are made then). Three fixes made its verdicts mean something:
+
+- The dummy retyped as an invincible grunt names its hits `monster_army`: every hit take failed "no melee/..." (49/177).
+  A hit on the target's classname now counts (`vr_motion_play.cpp`, Report::targetName): 152/177.
+- A take's replay depended on the one before it in the same copy (two rows differed between 8 copies and one): the
+  head's last position was a step into the next take (the lean) and the body's gait and stance went on. Each playback
+  now starts afresh (`hands::resetForPlayback`, `avatar::resetMotion`): 8 copies, one copy and 22 takes alone give
+  the same rows, every column.
+- The setup's grips closed beside the dummy took it with Holding Enemies (`vr_foegrab`) instead of the weapon, which
+  fell (three axe and sword takes slapped with an open hand): foe grab is held off during the setup only. Replays that
+  hit as live: 152 -> 157 of 177.
+- The take's `vr_dummy_anchored` (next, 2d457670e) is applied; takes from before it: 0.
+
+**The no-hit takes** (23: fists, axe, sword waved, wiggled, pulled back near the dummy; 16 hit, most also live). The
+blows' numbers (developer 2, `melee debug`) split them from his 105 hits:
+- pulled back: the far end going back along the line, cos -0.4 to -1 (his hits -0.26 to 1): `VR_MELEE_PULLBACK -0.35`;
+- slow and short: swings at 1-1.6 times their least speed coming 0.22-0.51 m (his slowest cuts, 1.27-1.43 times,
+  came 0.66-0.86 m): the run-up a swing needs grows from `VR_MELEE_RUN` 0.2 at 2x to 0.6 at 1x (`VR_MELEE_SLOW_*`);
+- the wrist barely carried: swings 1.3-2.8 m/s (cuts 3-7.6): `VR_MELEE_WRIST_SWING 2.3` (x vr_melee_wrist_speed);
+  pommel strikes 1.3-2 (his 4.6-5.6): `VR_MELEE_WRIST_POMMEL 2.5`, and they come `VR_MELEE_POMMEL_RUN 0.35` m.
+Guns keep their own numbers (no gun takes in the set) but are pulled back too. The whoosh (stroke) follows the same rules.
+no_hit 7/23 -> 20/23, every hit label unchanged (168/177).
+
+**Retraction double hit.** What a hand struck it strikes again only entering it (`mh_struck`; the sweep starting in its
+model or box strikes nothing); a first blow isn't held to it (his punches and two-handed thrusts start their landing
+frame within a point's reach of the model: two takes lost their hit when it applied to every blow). Synthetic takes
+(`scratch/retract.py`): a punch held in the dummy then drawn back hit twice, now once; a punch drawn out and thrown
+again still hits twice.
+
+**Still failing (9), for his review:** no_hit 12-25-50 (a punch by every number: 7.2 m/s, 2.25x, came 0.48 m, forward;
+live it didn't land), no_hit 12-37-24 and 12-37-28 (sword: slow cuts, 1.3-1.6x, came 0.54-0.6 m, wrist 3.7, the
+blade going 104-108 degrees back from its line; live they hit), not_parry_pose 12-38-35 and 12-38-38 (sword held in
+the parry pose 174/174 and 46/180 frames), parry_pose 12-31-42 (axe: 0/134 frames), slash_horizontal_ltr 12-29-35
+(axe: a one-handed bash, live too), punch_overhead 12-23-27 (the fist closed 0.27 s before the punch: Holding Enemies
+takes the dummy in the replay, not live: lateGrab's 0.2 s, frame timing), slash_backswing_up_left 12-35-23 (the
+helping main hand sits in the ammo pouch's reach at the take's start: the setup's grip takes a shell).
+
+**Damage per weapon and type** (`eval_damage.py`, printed by the full set): punches 19.2 mean (7.3-39), axe chops 38.5
+(21-63), sword slashes 30.2 (9-60), stabs 29.9 (15-73), slaps 17.6, axe pommel 11.7, axe bash 7.3. Spread comes from
+the zone (head x1.5, limbs less) for chops, slashes and punches, from the strength (speed) for stabs and slaps.

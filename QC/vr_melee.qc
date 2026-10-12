@@ -8,7 +8,9 @@
 //
 // A HIT is a point sweeping into something while the ARM drives it: the grip's speed, relative to the head (walking and
 // turning are not the hand's motion), at least vr_melee_speed (a weapon's swing VR_MELEE_ARM times that), having come
-// VR_MELEE_RUN towards where it goes (a blow, not a wiggle). The direction doesn't matter. What kind of blow it is follows
+// VR_MELEE_RUN towards where it goes (a blow, not a wiggle; a slow swing from further, VR_MELEE_SLOW_*) and carrying the
+// hand (the wrist's speed). Any direction but back towards the hand (VR_MELEE_PULLBACK: drawn back); what a hand struck
+// it strikes again only entering it (a retraction still in it strikes nothing). What kind of blow it is follows
 // from which part hit and how it moved (VR_Melee_Decide): a stab or jab (the far end moving along the line, outwards), a
 // slash or chop or gun swing (the far end any other way), a pommel or butt strike (the near end), a punch (a closed
 // fist). Of a blade's points in the thing, the outermost strikes. The pommel's touch waits a moment for the blade
