@@ -20,6 +20,7 @@ CACHE_VERSION = 2  # Bump when inference/packing semantics change; discovery-onl
 NORMAL_SHA256 = "b0a18270da765f02eaae3c228203bee0677fc28b2854a562515e4aae9c61223b"
 HEIGHT_SHA256 = "5b973ecb8bae9d96d14d77b8a8f1d88fb6a8580bcc1bb55d2872811acdc4277d"
 TAG = b"qvr-pbr-v1\0"
+PROVENANCE_HEADER = "qvr-pbr-provenance-v1"
 EXCLUDE = {"clip", "skip", "hint", "trigger", "origin", "null", "nodraw", "black"}
 
 
@@ -35,6 +36,33 @@ def content_hash(rgba):
 def json_write(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def provenance_line(output, item):
+    """Bind independent generated-channel flags to the exact decoded companion."""
+    prefix = item["sha256"][:32]
+    if not re.fullmatch(r"[0-9a-f]{64}", item["sha256"]) or item["file"] != f"textures/pbr/{prefix}_norm.png":
+        raise ValueError("invalid provenance source/path")
+    path = output / item["file"]
+    if sha(path.read_bytes()) != item["output_sha256"]:
+        raise ValueError(f"modified output: {path}")
+    # Companion alpha is height: retain it, unlike indexed diffuse alpha canonicalization.
+    digest = content_hash(read_image(path))
+    flags = int(bool(item["generated_normal"])) | (int(bool(item["generated_height"])) << 1)
+    return f"{prefix} {digest} {flags}"
+
+
+def provenance_text(lines):
+    lines = sorted(lines)
+    if len({line.split()[0] for line in lines}) != len(lines):
+        raise ValueError("duplicate provenance source prefix")
+    return "\n".join([PROVENANCE_HEADER, *lines]) + "\n"
+
+
+def write_provenance(output, lines):
+    path = output / "textures/pbr/provenance.txt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(provenance_text(lines).encode("ascii"))
 
 
 def entries(folder):
@@ -504,6 +532,7 @@ def generate(args, sources, census, palette_sha):
     manifest = {"schema": VERSION, "hash_contract": "SHA256(qvr-pbr-v1 NUL + uint32LE width,height + RGBA)",
                 "configuration": config, "census": census, "animation_conflicts": conflicts, "textures": [], "failures": []}
     completed, reused = 0, 0
+    provenance = []
     for index, (digest, source) in enumerate(sorted(sources.items())):
         if args.limit and index >= args.limit:
             break
@@ -566,6 +595,7 @@ def generate(args, sources, census, palette_sha):
                         read_image(destination)[:, :, 1], resize_channel(authored_normal, size)[:, :, 1])),
                     "green_correlation":round(normal_green_correlation(read_image(destination)[:,:,:3],read_image(destination)[:,:,3]),5),
                     "validation": validate_image(destination, generated_normal, generated_height, args.depth)}
+            provenance.append(provenance_line(args.output, item))
             manifest["textures"].append(item)
             completed += 1
         except Exception as ex:
@@ -573,12 +603,14 @@ def generate(args, sources, census, palette_sha):
         if (index + 1) % 50 == 0:
             manifest["runtime_seconds"] = round(time.monotonic() - started, 2)
             json_write(args.output / "pbr-manifest.json", manifest)
+            write_provenance(args.output, provenance)
             if (index + 1) % 250 == 0:
                 print(f"{index + 1}/{len(sources)} complete={completed} cached={reused} failed={len(manifest['failures'])}", flush=True)
     manifest["runtime_seconds"] = round(time.monotonic() - started, 2)
     manifest["summary"] = {"eligible_sources": len(sources), "completed": completed, "cached": reused,
                            "failed": len(manifest["failures"]), "bytes": sum(t["validation"]["bytes"] for t in manifest["textures"])}
     json_write(args.output / "pbr-manifest.json", manifest)
+    write_provenance(args.output, provenance)
     print(json.dumps(manifest["summary"], sort_keys=True))
     return 1 if manifest["failures"] or census["scan_errors"] else 0
 
@@ -631,7 +663,7 @@ def self_test():
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("mode", choices=("scan", "generate", "validate", "self-test"))
+    p.add_argument("mode", choices=("scan", "generate", "validate", "provenance", "self-test"))
     p.add_argument("--game", type=Path, action="append", default=[])
     p.add_argument("--texture-game", type=Path, action="append", default=[],
                    help="Additional effective texture game roots in highest-first priority; source game is appended if absent")
@@ -659,12 +691,20 @@ def main():
         return 0
     if not 0 < a.depth <= 1 or a.padding < 0 or a.tile < 16 or a.threads < 1:
         p.error("invalid depth, padding, tile or threads")
+    if a.mode == "provenance":
+        manifest = json.loads((a.output / "pbr-manifest.json").read_text())
+        lines = [provenance_line(a.output, item) for item in manifest["textures"]]
+        write_provenance(a.output, lines)
+        print(f"PBR provenance emitted: {len(lines)} checksummed companions")
+        return 1 if manifest["failures"] or manifest["census"]["scan_errors"] else 0
     if a.mode == "validate":
         manifest = json.loads((a.output / "pbr-manifest.json").read_text())
         for item in manifest["textures"]:
             path = a.output / item["file"]
             assert sha(path.read_bytes()) == item["output_sha256"], f"modified output: {path}"
             validate_image(path, item["generated_normal"], item["generated_height"], manifest["configuration"]["depth"])
+        expected = provenance_text([provenance_line(a.output, item) for item in manifest["textures"]])
+        assert (a.output / "textures/pbr/provenance.txt").read_bytes() == expected.encode("ascii"), "stale provenance index"
         print(f"PBR bundle validation PASS: {len(manifest['textures'])} checksummed companions")
         return 1 if manifest["failures"] or manifest["census"]["scan_errors"] else 0
     if not a.game and not a.images:
