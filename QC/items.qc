@@ -1110,7 +1110,6 @@ void() weapon_touch =
     }
 
     VR_WeaponUtil_EntAddWeapon(other, weaponId);
-    AD_UpgradePickedUp(other); // AD support: an Arcane Dimensions upgrade's pickup (vr_ad_bridge.qc)
 
     stemp = self;
     self = other;
@@ -1122,11 +1121,13 @@ void() weapon_touch =
             if(VRIsHandEmpty(other, cVR_MainHand))
             {
                 VRGiveEntWeapon(other, cVR_MainHand, weaponId, 0, clip);
+                AD_UpgradeGiven(stemp, other, cVR_MainHand); // AD support: an upgrade's on the weapon it gives
                 W_SetCurrentAmmoFor(cVR_MainHand);
             }
             else if(VRIsHandEmpty(other, cVR_OffHand))
             {
                 VRGiveEntWeapon(other, cVR_OffHand, weaponId, 0, clip);
+                AD_UpgradeGiven(stemp, other, cVR_OffHand); // AD support
                 W_SetCurrentAmmoFor(cVR_OffHand);
             }
             else
@@ -1152,6 +1153,7 @@ void() weapon_touch =
         }
 
         VRGiveEntWeapon(other, touchinghand, weaponId, 0, clip);
+        AD_UpgradeGiven(stemp, other, touchinghand); // AD support: an upgrade's on the weapon it gives
         W_SetCurrentAmmoFor(touchinghand);
     }
 

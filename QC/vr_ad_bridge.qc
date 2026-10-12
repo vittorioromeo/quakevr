@@ -229,9 +229,19 @@ void(float request) AD_Test =
     }
     if(request == 6)
     {
-        bprint(sprintf("adtest: upgrades axe %g ssg %g lg %g; hands %g %g\n", (p.ad_moditems & ad_IT_UPGRADE_AXE) != 0,
-            (p.ad_moditems & ad_IT_UPGRADE_SSG) != 0, (p.ad_moditems & ad_IT_UPGRADE_LG) != 0,
-            VRGetEntWeapon(p, cVR_MainHand), VRGetEntWeapon(p, cVR_OffHand)));
+        // (each record's upgrades: 1 the Shadow Axe, 2 the Widowmaker, 4 the Plasma Gun; parm64 packs them so)
+        bprint(sprintf("adtest: upgrades: main hand %s (%g), off hand %s (%g), ", WeaponIdToWeaponName(VRGetEntWeapon(p, cVR_MainHand)),
+            AD_UpgradeCode(p.weaponinst), WeaponIdToWeaponName(VRGetEntWeapon(p, cVR_OffHand)), AD_UpgradeCode(p.weaponinst2)));
+        bprint(sprintf("packed with the holsters' %g; player's own %g\n", AD_PackWeaponUpgrades(p),
+            p.ad_moditems & (ad_IT_UPGRADE_AXE | ad_IT_UPGRADE_SSG | ad_IT_UPGRADE_LG)));
+        return;
+    }
+    if(request == 7)
+    {
+        // 7: an older game's upgrades (the player's own, AD's .moditems: all three) put on the weapons he carries.
+        p.ad_moditems = p.ad_moditems | ad_IT_UPGRADE_AXE | ad_IT_UPGRADE_SSG | ad_IT_UPGRADE_LG;
+        AD_UpgradesToWeapons(p);
+        AD_Test(6);
         return;
     }
     if(request == 3 || request == 4)
@@ -241,10 +251,10 @@ void(float request) AD_Test =
         entity oself = self;
         self = p;
         float wid = request == 3 ? WID_SUPER_SHOTGUN : WID_LIGHTNING;
-        p.ad_moditems = p.ad_moditems | ad_IT_UPGRADE_SSG | ad_IT_UPGRADE_LG | ad_IT_UPGRADE_AXE;
         p.ammo_shells = 50;
         p.ammo_cells = 50;
         VRGiveEntWeapon(p, cVR_MainHand, wid, 0, WeaponIdToBaseClipSize(wid));
+        p.weaponinst.wi_adup = AD_UpgradeFor(wid); // (that weapon upgraded)
         W_SetCurrentAmmoFor(cVR_MainHand);
         float shells = p.ammo_shells, cells = p.ammo_cells;
         entity e;
@@ -821,6 +831,10 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
     {
         vector d = dir + crandom() * pattern_x * v_right + crandom() * pattern_y * v_up;
         ad_Launch_Bullet(muzzle, d, ssg ? ad_CT_PROJ_SSG : ad_CT_PROJ_SG, speed + crandom() * 10);
+        if(wid == WID_SUPER_SHOTGUN && AD_HandUpgraded(xHand, ad_IT_UPGRADE_SSG))
+        {
+            ad_newmis.weapon = TRUE; // (AD's: the Widowmaker's pellets kill zombies; it asked the player's upgrade)
+        }
         ad_newmis.vr_ad_pelletscale = scale;
         ad_newmis.vr_ad_shotserial = serial;
         ad_newmis.vr_ad_shotweapon = shotgun ? (ssg ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN) : 0;
@@ -851,20 +865,124 @@ float(float shotcount, vector dir, vector spread, vector src) AD_EnemyPellets =
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
-// AD's weapons, a first version (decision 23): AD's upgrades are the player's (AD's .moditems, carried in parm63), as in
-// AD: with the Shadow Axe every axe he holds hits harder, with the Widowmaker every super shotgun fires 21 pellets for 3
-// shells, with the Plasma Gun the lightning gun fires plasma bolts. Quake VR's models, holsters and reloading (the
-// "simple reload" at the hip for the Widowmaker); AD's own models and VR polish come later (P3/P4).
+// AD's weapons (decision 23; decision 38, "more immersive": 2026-10-12): an upgrade belongs to the weapon picked up with
+// it (its record's .wi_adup, vr_weaponinst.qc), not to the player as in AD: the Shadow Axe is that axe (it hits harder),
+// the Widowmaker that super shotgun (21 pellets for 3 shells, reloaded at the hip), the Plasma Gun that lightning gun
+// (plasma bolts). It goes with the weapon from hand to holster, to the ground, into saves and to the next level
+// (parm64); a plain axe found later stays plain, and two axes held are a Shadow Axe and an axe. A player's own upgrades
+// (AD's .moditems: saves and level changes made before) are put on his weapons of their kinds as he spawns or loads
+// (AD_UpgradesToWeapons). Quake VR's models, holsters and reloading; AD's own models and VR polish come later (P3/P4).
 
 .float vr_ad_upgrade; // a weapon pickup that is AD's upgrade (its .moditems bit): weapon_touch gives it (AD_UpgradePickedUp)
 
-// Whether the weapon `xInst` (its record, vr_weaponinst.qc; world when the caller has none) of player `xPlayer` has AD's
-// upgrade `xBit`, in an AD map. The one place every upgrade is asked about (decision 10): today the upgrades are the
-// player's (AD's .moditems, any weapon of the kind), so `xInst` is not read; per weapon (BACKLOG.md) they become a bit
-// on the record, set by the upgrade's pickup, and this answers from it.
+// Whether the weapon `xInst` (its record, vr_weaponinst.qc; world: none, a plain weapon) of player `xPlayer` has AD's
+// upgrade `xBit`, where the upgrades play (Weapon Upgrades' scope). The one place every upgrade is asked about.
 float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded =
 {
-    return VR_AD_FeatureScope(cvar("vr_ad_upgrades")) && (xPlayer.ad_moditems & xBit);
+    return xInst != world && (xInst.wi_adup & xBit) && VR_AD_FeatureScope(cvar("vr_ad_upgrades"));
+};
+
+// The upgrade a weapon of kind `xWid` can have (0: none).
+float(float xWid) AD_UpgradeFor =
+{
+    if(xWid == WID_AXE) return ad_IT_UPGRADE_AXE;
+    if(xWid == WID_SUPER_SHOTGUN) return ad_IT_UPGRADE_SSG;
+    if(xWid == WID_LIGHTNING) return ad_IT_UPGRADE_LG;
+    return 0;
+};
+
+// weapon_touch, the weapon of `xPickup` (an upgrade's pickup) just given to `p`'s hand `xHand`: its upgrade on it.
+void(entity xPickup, entity p, float xHand) AD_UpgradeGiven =
+{
+    entity inst = VRGetEntWeaponInst(p, xHand);
+    if(!xPickup.vr_ad_upgrade || inst == world)
+    {
+        return;
+    }
+    inst.wi_adup = inst.wi_adup | xPickup.vr_ad_upgrade;
+    dprint(sprintf("VR: %s: the %s in hand %g (weapon %g) is upgraded\n", xPickup.netname, WeaponIdToWeaponName(VRGetEntWeapon(p, xHand)),
+        xHand, inst.wi_uid));
+};
+
+// The upgrades of a record as 3 bits (1 the Shadow Axe, 2 the Widowmaker, 4 the Plasma Gun), and back.
+float(entity xInst) AD_UpgradeCode =
+{
+    if(xInst == world) return 0;
+    return ((xInst.wi_adup & ad_IT_UPGRADE_AXE) ? 1 : 0) + ((xInst.wi_adup & ad_IT_UPGRADE_SSG) ? 2 : 0) +
+           ((xInst.wi_adup & ad_IT_UPGRADE_LG) ? 4 : 0);
+};
+void(entity xInst, float xCode) AD_UpgradeDecode =
+{
+    if(xInst == world) return;
+    xInst.wi_adup = ((xCode & 1) ? ad_IT_UPGRADE_AXE : 0) | ((xCode & 2) ? ad_IT_UPGRADE_SSG : 0) | ((xCode & 4) ? ad_IT_UPGRADE_LG : 0);
+};
+
+// `p`'s eight weapon records (the hands', the holsters'): the `i`th.
+entity(entity p, float i) AD_CarriedInst =
+{
+    if(i == 0) return p.weaponinst;
+    if(i == 1) return p.weaponinst2;
+    if(i == 2) return p.holsterweaponinst0;
+    if(i == 3) return p.holsterweaponinst1;
+    if(i == 4) return p.holsterweaponinst2;
+    if(i == 5) return p.holsterweaponinst3;
+    if(i == 6) return p.holsterweaponinst4;
+    return p.holsterweaponinst5;
+};
+
+// SetChangeParms: the carried weapons' upgrades, 3 bits each, the hands' then the holsters' (24 bits: exact in a float).
+float(entity p) AD_PackWeaponUpgrades =
+{
+    float packed = 0, k = 1;
+    for(float i = 0; i < 8; i++)
+    {
+        packed = packed + AD_UpgradeCode(AD_CarriedInst(p, i)) * k;
+        k = k * 8;
+    }
+    return packed;
+};
+
+// DecodeLevelParms, the records carried: their upgrades back (a weapon of a kind that can't have one: none).
+void(entity p, float xPacked) AD_UnpackWeaponUpgrades =
+{
+    float wids[8];
+    wids[0] = p.weapon; wids[1] = p.weapon2; wids[2] = p.holsterweapon0; wids[3] = p.holsterweapon1;
+    wids[4] = p.holsterweapon2; wids[5] = p.holsterweapon3; wids[6] = p.holsterweapon4; wids[7] = p.holsterweapon5;
+    for(float i = 0; i < 8; i++)
+    {
+        float code = xPacked - floor(xPacked / 8) * 8;
+        xPacked = floor(xPacked / 8);
+        entity inst = AD_CarriedInst(p, i);
+        AD_UpgradeDecode(inst, code);
+        if(inst != world)
+        {
+            inst.wi_adup = inst.wi_adup & AD_UpgradeFor(wids[i]);
+        }
+    }
+};
+
+// A player's own upgrades (AD's .moditems, as before 2026-10-12: a save or a level change made then) onto every weapon of
+// their kinds he carries, then his no more. PutClientInServer and OnLoadGame.
+void(entity p) AD_UpgradesToWeapons =
+{
+    float mine = p.ad_moditems & (ad_IT_UPGRADE_AXE | ad_IT_UPGRADE_SSG | ad_IT_UPGRADE_LG);
+    if(!mine)
+    {
+        return;
+    }
+    float wids[8];
+    wids[0] = p.weapon; wids[1] = p.weapon2; wids[2] = p.holsterweapon0; wids[3] = p.holsterweapon1;
+    wids[4] = p.holsterweapon2; wids[5] = p.holsterweapon3; wids[6] = p.holsterweapon4; wids[7] = p.holsterweapon5;
+    for(float i = 0; i < 8; i++)
+    {
+        entity inst = AD_CarriedInst(p, i);
+        if(inst != world)
+        {
+            inst.wi_adup = inst.wi_adup | (mine & AD_UpgradeFor(wids[i]));
+        }
+    }
+    p.ad_moditems = p.ad_moditems - mine;
+    dprint(sprintf("VR: AD's upgrades %g (the player's, an older game's) put on his weapons of their kinds\n", mine));
 };
 
 // The same for the weapon in self's hand `xHand`.
@@ -891,11 +1009,11 @@ float(float xHand, float pellets) AD_WidowmakerPellets =
     return pellets * ad_QUANTITY_WM / ad_QUANTITY_SSG;
 };
 
-// Whether self's super shotguns are the Widowmaker: reloaded at the hip (the simple reload), never broken open
-// (vr_reload.qc VR_Reload_ManualFor, which knows the weapon id only: per weapon, its callers pass the record).
-float() AD_Widowmaker =
+// Whether the super shotgun of record `xInst` (world: not known, a plain one) is the Widowmaker: reloaded at the hip (the
+// simple reload), never broken open (vr_reload.qc VR_Reload_ManualForInst).
+float(entity xInst) AD_Widowmaker =
 {
-    return AD_WeaponUpgraded(self, world, ad_IT_UPGRADE_SSG);
+    return AD_WeaponUpgraded(self, xInst, ad_IT_UPGRADE_SSG);
 };
 
 // Whether the lightning gun in `xHand` with flags `xFlags` is AD's Plasma Gun (not Rogue's plasma, its secondary ammo).
@@ -950,19 +1068,6 @@ void(string xModel, string xClassname, float xWeaponId, float xUpgrade, string x
     self.netname = xName;
 };
 
-// weapon_touch, the weapon given: AD's upgrade with it (the Shadow Axe takes the place of AD's grapple, as in AD).
-void(entity p) AD_UpgradePickedUp =
-{
-    if(!self.vr_ad_upgrade)
-    {
-        return;
-    }
-    if(self.vr_ad_upgrade == ad_IT_UPGRADE_AXE)
-    {
-        p.ad_moditems = p.ad_moditems - (p.ad_moditems & ad_IT_UPGRADE_GHOOK);
-    }
-    p.ad_moditems = p.ad_moditems | self.vr_ad_upgrade;
-};
 
 /*QUAKED weapon_upgrade_axe (0 .5 .8) (-16 -16 0) (16 16 56)
 Arcane Dimensions' Shadow Axe, in its maps (vr_ad_bridge.qc): the axe, and every axe you hold hits as AD's (35 for 20).

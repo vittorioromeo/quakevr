@@ -187,7 +187,7 @@ float parm60;
 float parm61;
 float parm62;
 float parm63; // AD's weapon upgrades (its parm10, .ad_moditems)
-float parm64; // (64..72: reserved for AD's level state)
+float parm64; // AD support: the carried weapons' upgrades (vr_ad_bridge.qc AD_PackWeaponUpgrades; 65..72: reserved for AD's level state)
 float parm65;
 float parm66;
 float parm67;
