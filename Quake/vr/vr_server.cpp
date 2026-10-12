@@ -794,6 +794,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_ADART2, f.vr_ad_hudart2);
     stat(STAT_QVR_ADDEBUFF, f.vr_ad_huddebuff);
     stat(STAT_QVR_ADUPGRADES, f.vr_ad_hudup);
+    stat(STAT_QVR_ADSKYFOG, f.vr_ad_skyfog); // AD support: AD's sky fog (vr_ad.cpp VR_AD_SkyFog)
 
     const int holsterWeapon[numHolsters] = {f.holsterweapon0, f.holsterweapon1,
         f.holsterweapon2, f.holsterweapon3, f.holsterweapon4, f.holsterweapon5};

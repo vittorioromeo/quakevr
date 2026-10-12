@@ -721,7 +721,7 @@ void Sky_DrawSkyBox (void)
 	fog[0] = r_framedata.fogdata[0];
 	fog[1] = r_framedata.fogdata[1];
 	fog[2] = r_framedata.fogdata[2];
-	fog[3] = r_framedata.fogdata[3] > 0.f ? skyfog : 0.f;
+	fog[3] = r_framedata.fogdata[3] > 0.f ? VR_AD_SkyFog (skyfog) : 0.f; // QVR: AD support: the sky fog AD set (vr/vr_ad.cpp)
 
 	GL_UseProgram (glprogs.skyboxside[softemu == SOFTEMU_COARSE]);
 	GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(2));

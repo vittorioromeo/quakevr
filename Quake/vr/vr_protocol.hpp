@@ -147,6 +147,9 @@ enum Stat : int
     STAT_QVR_ADART2,
     STAT_QVR_ADDEBUFF,
     STAT_QVR_ADUPGRADES,
+    // AD support: the sky fog AD set (QC vr_ad_bridge.qc VR_AD_SkyFog, AD's r_skyfog): its density (0-1) + 1; 0 the map's
+    // own (gl_fog.c: VR_AD_SkyFog).
+    STAT_QVR_ADSKYFOG,
     STAT_QVR_END
 };
 

@@ -372,6 +372,14 @@ struct TintState
 
 } // namespace
 
+// AD's sky fog (its r_skyfog, stuffed console text in AD): the player's STAT_QVR_ADSKYFOG while set, else `mapOwn` (the
+// map's worldspawn key or r_skyfog): Fog_SetupFrame's.
+extern "C" float VR_AD_SkyFog(float mapOwn)
+{
+    const float stat = static_cast<float>(cl.stats[qvr::protocol::STAT_QVR_ADSKYFOG]);
+    return stat >= 1.f ? za::clamp(stat - 1.f, 0.f, 1.f) : mapOwn;
+}
+
 extern "C" void VR_AD_TintBlend(float* r, float* g, float* b, float* a, float percent)
 {
     const int packed = cl.stats[qvr::protocol::STAT_QVR_ADTINT];

@@ -236,6 +236,23 @@ void(float request) AD_Test =
             p.ad_moditems & (ad_IT_UPGRADE_AXE | ad_IT_UPGRADE_SSG | ad_IT_UPGRADE_LG)));
         return;
     }
+    if(request == 8 || request == 9)
+    {
+        // 8: the worldspawn keys take_weapons (the shotgun) and give_weapons (the nailgun, the rocket launcher), 9:
+        // no_axestart, on the parms of the player's loadout now (SetChangeParms): the slots they leave (not applied).
+        entity os8 = self;
+        self = p;
+        SetChangeParms();
+        self = os8;
+        bprint(sprintf("adtest: slots before %g %g | %g %g %g %g %g %g\n", parm8, parm10, parm11, parm12, parm13, parm14, parm15, parm16));
+        if(request == 8) AD_WorldWeaponKeysWith(ad_IT_NAILGUN | ad_IT_ROCKET_LAUNCHER, ad_IT_SHOTGUN, FALSE);
+        else AD_WorldWeaponKeysWith(0, 0, TRUE);
+        bprint(sprintf("adtest: slots after %g %g | %g %g %g %g %g %g; items %g\n", parm8, parm10, parm11, parm12, parm13, parm14,
+            parm15, parm16));
+        bprint(sprintf("adtest: owned shotgun %g nailgun %g rocket launcher %g axe %g\n", (parm1 & IT_SHOTGUN) != 0,
+            (parm1 & IT_NAILGUN) != 0, (parm1 & IT_ROCKET_LAUNCHER) != 0, (parm1 & IT_AXE) != 0));
+        return;
+    }
     if(request == 7)
     {
         // 7: an older game's upgrades (the player's own, AD's .moditems: all three) put on the weapons he carries.
@@ -275,11 +292,50 @@ void(float request) AD_Test =
 };
 
 // StartFrame, in an AD map: AD's (skill, frame count); the test aid.
+// The sky's changes (P1b's loose ends; AD stuffed console commands to one player): a trigger_skybox's sky by the
+// engine's svc_skybox to every client, and again after a load (vr_ad_skysent: AD's trig_skybox, a saved global, sent
+// once each map and load); the sky fog by the player's .vr_ad_skyfog (STAT_QVR_ADSKYFOG: the client's sky fog while it
+// is set; saved with him), never the player's own r_skyfog.
+float SVC_SKYBOX = 37; // (FitzQuake's: [string] the sky's name)
+.float vr_ad_skyfog;        // the sky fog AD set: its density (0-1) + 1; 0: the map's own (its worldspawn, r_skyfog)
+nosave float vr_ad_skysent; // the trigger_skybox's sky sent since this map or load
+
+void() AD_SendSkybox =
+{
+    if(ad_trig_skybox == "")
+    {
+        return;
+    }
+    WriteByte(MSG_ALL, SVC_SKYBOX);
+    WriteString(MSG_ALL, ad_trig_skybox);
+    vr_ad_skysent = TRUE;
+    dprint(sprintf("VR: AD's sky %s sent\n", ad_trig_skybox));
+};
+
+float(entity targ) VR_AD_Skybox =
+{
+    AD_SendSkybox();
+    return TRUE;
+};
+
+float(entity client, float density) VR_AD_SkyFog =
+{
+    if(client.flags & FL_CLIENT)
+    {
+        client.vr_ad_skyfog = 1 + max(0, min(1, density));
+    }
+    return TRUE;
+};
+
 void() AD_Frame =
 {
     if(!vr_ad_data)
     {
         return;
+    }
+    if(!vr_ad_skysent && ad_trig_skybox != "" && time > 0.3 && find(world, classname, "player"))
+    {
+        AD_SendSkybox(); // (a loaded game's: the clients have the map's own sky again)
     }
     if(AD_Rules())
     {
@@ -587,6 +643,137 @@ float() AD_SetChangeParms =
     return FALSE;
 };
 
+// ---------------------------------------------------------------------------------------------------------------------
+// AD's worldspawn weapon keys (P1b's loose ends), on Quake VR's hands and holsters, as the level starts (AD's own
+// DecodeLevelParms reads them on its .items bits): `no_axestart` 1, a map made for starting with nothing: no weapon in
+// a hand or a holster, none owned, no upgrade (Evil keeps its Shadow Axe's blows: AD_AxeScale); `take_weapons` (AD's
+// item bits) each of those weapons gone from the hands and the holsters (never the axe, as AD's); `give_weapons` each
+// one not already carried put in the first free holster (the hips', the chest's, the back's, then a hand), owned; with
+// none free, owned only (its pickup elsewhere: the weapons are physical). Here on the parms the records are made from:
+// the weapon slots are parm8/parm10 (the hands) and parm11..16 (the holsters), each with its flags (parm23..30), magazine
+// (parm31..38), id (parm41..48) and upgrades (parm64's 3 bits).
+
+// Slot `i` (0 the main hand, 1 the off hand, 2..7 the holsters: AD_CarriedInst's order): its weapon id.
+float(float i) AD_ParmWid =
+{
+    if(i == 0) return parm8;
+    if(i == 1) return parm10;
+    if(i == 2) return parm11;
+    if(i == 3) return parm12;
+    if(i == 4) return parm13;
+    if(i == 5) return parm14;
+    if(i == 6) return parm15;
+    return parm16;
+};
+
+// Slot `i` set to weapon `xWid`, a new one (no flags, an empty magazine, a new id, no upgrade).
+void(float i, float xWid) AD_ParmSet =
+{
+    if(i == 0) { parm8 = xWid; parm23 = 0; parm31 = 0; parm41 = 0; }
+    else if(i == 1) { parm10 = xWid; parm24 = 0; parm32 = 0; parm42 = 0; }
+    else if(i == 2) { parm11 = xWid; parm25 = 0; parm33 = 0; parm43 = 0; }
+    else if(i == 3) { parm12 = xWid; parm26 = 0; parm34 = 0; parm44 = 0; }
+    else if(i == 4) { parm13 = xWid; parm27 = 0; parm35 = 0; parm45 = 0; }
+    else if(i == 5) { parm14 = xWid; parm28 = 0; parm36 = 0; parm46 = 0; }
+    else if(i == 6) { parm15 = xWid; parm29 = 0; parm37 = 0; parm47 = 0; }
+    else { parm16 = xWid; parm30 = 0; parm38 = 0; parm48 = 0; }
+    float k = pow(8, i);
+    float code = floor(parm64 / k) - floor(parm64 / (k * 8)) * 8;
+    parm64 = parm64 - code * k;
+};
+
+// AD's weapon item bits (the same as Quake's IT_ bits) and Quake VR's weapon ids, in order.
+float(float n) AD_KeyBit =
+{
+    if(n == 0) return ad_IT_SHOTGUN;
+    if(n == 1) return ad_IT_SUPER_SHOTGUN;
+    if(n == 2) return ad_IT_NAILGUN;
+    if(n == 3) return ad_IT_SUPER_NAILGUN;
+    if(n == 4) return ad_IT_GRENADE_LAUNCHER;
+    if(n == 5) return ad_IT_ROCKET_LAUNCHER;
+    return ad_IT_LIGHTNING;
+};
+float(float n) AD_KeyWid =
+{
+    if(n == 0) return WID_SHOTGUN;
+    if(n == 1) return WID_SUPER_SHOTGUN;
+    if(n == 2) return WID_NAILGUN;
+    if(n == 3) return WID_SUPER_NAILGUN;
+    if(n == 4) return WID_GRENADE_LAUNCHER;
+    if(n == 5) return WID_ROCKET_LAUNCHER;
+    return WID_LIGHTNING;
+};
+
+// AD_DecodeLevelParms: the map's worldspawn weapon keys on the parms (`xGive`, `xTake`: AD's item bits; `xNone`:
+// no_axestart).
+void(float xGive, float xTake, float xNone) AD_WorldWeaponKeysWith =
+{
+    float i, n;
+    if(xNone && !AD_Evil())
+    {
+        for(i = 0; i < 8; i++)
+        {
+            AD_ParmSet(i, WID_FIST);
+        }
+        parm1 = parm1 - (parm1 & (IT_AXE | IT_SHOTGUN | IT_SUPER_SHOTGUN | IT_NAILGUN | IT_SUPER_NAILGUN | IT_GRENADE_LAUNCHER |
+                                  IT_ROCKET_LAUNCHER | IT_LIGHTNING));
+        parm64 = 0;
+        dprint("VR: AD's no_axestart: the level starts with no weapon\n");
+        return;
+    }
+    for(n = 0; n < 7; n++)
+    {
+        float wid = AD_KeyWid(n);
+        if(xTake & AD_KeyBit(n))
+        {
+            for(i = 0; i < 8; i++)
+            {
+                if(AD_ParmWid(i) == wid)
+                {
+                    AD_ParmSet(i, WID_FIST);
+                }
+            }
+            parm1 = parm1 - (parm1 & AD_KeyBit(n));
+            dprint(sprintf("VR: AD's take_weapons: the %s taken\n", WeaponIdToWeaponName(wid)));
+        }
+        if(xGive & AD_KeyBit(n))
+        {
+            float carried = FALSE;
+            for(i = 0; i < 8; i++)
+            {
+                carried = (carried || AD_ParmWid(i) == wid);
+            }
+            parm1 = parm1 | AD_KeyBit(n);
+            if(carried)
+            {
+                continue;
+            }
+            // The first free holster: the hips', the chest's, the back's; then a hand.
+            float slot = -1;
+            float order[8];
+            order[0] = 4; order[1] = 5; order[2] = 6; order[3] = 7; order[4] = 2; order[5] = 3; order[6] = 0; order[7] = 1;
+            for(i = 0; i < 8 && slot < 0; i++)
+            {
+                if(AD_ParmWid(order[i]) == WID_FIST)
+                {
+                    slot = order[i];
+                }
+            }
+            if(slot >= 0)
+            {
+                AD_ParmSet(slot, wid);
+            }
+            dprint(sprintf("VR: AD's give_weapons: the %s %s\n", WeaponIdToWeaponName(wid),
+                slot >= 0 ? "put in a free holster or hand" : "owned (no holster or hand free)"));
+        }
+    }
+};
+
+void() AD_WorldWeaponKeys =
+{
+    AD_WorldWeaponKeysWith(world.ad_give_weapons, world.ad_take_weapons, world.ad_no_axestart);
+};
+
 // DecodeLevelParms (before the parms are read), in an AD map: AD's worldspawn inventory keys on the level's start
 // (reset_health, max_health as a minimum, ammo_* with currentammo, armortype/armorvalue), its map variables and
 // upgrades from parm57..63, AD's serverflags synced. (give_weapons/take_weapons/no_axestart: section 15's list.)
@@ -621,6 +808,7 @@ void() AD_DecodeLevelParms =
     ad_mapvar[0] = parm57; ad_mapvar[1] = parm58; ad_mapvar[2] = parm59;
     ad_mapvar[3] = parm60; ad_mapvar[4] = parm61; ad_mapvar[5] = parm62;
     self.ad_moditems = parm63;
+    AD_WorldWeaponKeys(); // (give_weapons, take_weapons, no_axestart: on our hands and holsters)
 };
 
 void() AD_ChangelevelUse;
@@ -682,20 +870,21 @@ void() AD_MonsterRunStart =
     activator = oldact;
 };
 
-// One of our entities used by AD's triggers in an AD map: AD's code keeps its own activator (ad_activator), ours reads
-// activator: the player AD's trigger names, when ours names none.
+// One of our entities used by AD's triggers and items: AD's code keeps its own activator (ad_activator), ours reads
+// activator: the player AD's trigger names, when ours names none. Wherever AD's data is (its entities in any map:
+// section 16; P1b's loose ends: in AD maps only before 2026-10-12).
 void() AD_SyncActivator =
 {
-    if(AD_Rules() && !(activator.flags & FL_CLIENT) && (ad_activator.flags & FL_CLIENT))
+    if(vr_ad_data && !(activator.flags & FL_CLIENT) && (ad_activator.flags & FL_CLIENT))
     {
         activator = ad_activator;
     }
 };
 
-// Our SUB_UseTargets in an AD map: AD's entities it fires read AD's activator: the player ours names.
+// Our SUB_UseTargets wherever AD's data is: AD's entities it fires read AD's activator: the player ours names.
 void() AD_ShareActivator =
 {
-    if(AD_Rules() && (activator.flags & FL_CLIENT))
+    if(vr_ad_data && (activator.flags & FL_CLIENT))
     {
         ad_activator = activator;
     }

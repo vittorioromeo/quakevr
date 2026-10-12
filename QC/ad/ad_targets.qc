@@ -1139,6 +1139,7 @@ void(entity ad_targ) ad_trigger_skybox_change =
 {
 	// Write skybox change to all clients
 	// console command has to be lowercase
+	if (VR_AD_Skybox(ad_targ)) return;
 	stuffcmd(ad_targ, "sky ");
 	stuffcmd(ad_targ, ad_trig_skybox);
 	stuffcmd(ad_targ, "\n");

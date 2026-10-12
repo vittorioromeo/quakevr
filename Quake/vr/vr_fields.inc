@@ -40,6 +40,7 @@ QVR_FIELD(vr_ad_hudart1)   // AD support: the gadget's AD page: the artifacts' s
 QVR_FIELD(vr_ad_hudart2)
 QVR_FIELD(vr_ad_huddebuff) // AD support: ... the debuffs (STAT_QVR_ADDEBUFF)
 QVR_FIELD(vr_ad_hudup)     // AD support: ... the carried weapons' upgrades (STAT_QVR_ADUPGRADES)
+QVR_FIELD(vr_ad_skyfog)    // AD support: the sky fog AD set, + 1 (QC vr_ad_bridge.qc VR_AD_SkyFog; STAT_QVR_ADSKYFOG)
 QVR_FIELD(vr_climb_ladder) // AD support: a ladder's volume, climbed by hand (QC vr_ad_player.qc; vr_climb.cpp ladderHold)
 QVR_FIELD(offloadportpos)
 QVR_FIELD(loadportaxis) // the way a round lies going in at each gun's port (vr_reload.qc VR_Reload_LooseFrame)

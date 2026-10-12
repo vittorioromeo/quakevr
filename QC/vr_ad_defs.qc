@@ -119,6 +119,8 @@ void(entity pellet) VR_AD_PelletPrepare;
 void(entity pellet) VR_AD_PelletLaunch;
 float(entity shooter, float speed) VR_AD_PelletSpeed;
 void(entity missile) VR_AD_Ordnance;
+float(entity targ) VR_AD_Skybox;                  // AD's trigger_skybox: its sky by svc_skybox to every client; TRUE: done
+float(entity client, float density) VR_AD_SkyFog; // AD's sky fog: the player's STAT_QVR_ADSKYFOG; TRUE: done
 float() VR_AD_WeaponTouch;
 float(entity targ) VR_AD_SetCurrentAmmo;
 float(entity xItem) VR_AD_ArtifactItems;

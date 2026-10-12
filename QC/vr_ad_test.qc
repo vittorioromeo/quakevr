@@ -59,6 +59,15 @@ void(float request, entity p) AD_RulesTest =
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;
     entity os = self;
+    if(request == 66)
+    {
+        // AD's sky changes as messages: a trigger_skybox's sky (AD's green sky) to every client, AD's sky fog 0.3 on you.
+        ad_trig_skybox = "adgreensky";
+        VR_AD_Skybox(p);
+        VR_AD_SkyFog(p, 0.3);
+        bprint(sprintf("adrules: sky %s sent %g, sky fog field %g\n", ad_trig_skybox, vr_ad_skysent, p.vr_ad_skyfog));
+        return;
+    }
     if(request == 65)
     {
         string mainBefore = p.weaponmodel, offBefore = p.weaponmodel2;
@@ -67,13 +76,16 @@ void(float request, entity p) AD_RulesTest =
         standIn.ad_resist_nails = 0.5;
         standIn.ad_classtype = ad_CT_MONARMY;
         standIn.flags = FL_MONSTER;
+        entity upInst = spawn(); // (an axe's record with the Shadow Axe: the upgrades are the weapons')
+        upInst.wi_adup = ad_IT_UPGRADE_AXE;
         bprint(sprintf("admenu: map %g mounted %g ammo %g resistance %g upgrades %g projectiles %g\n",
             AD_Rules(), cvar("vr_ad_mounted"), VR_AD_FeatureScope(cvar("vr_ad_ammo_models")),
             VR_AD_FeatureScope(cvar("vr_ad_resistance")), VR_AD_FeatureScope(cvar("vr_ad_upgrades")), AD_ProjectileRules()));
         bprint(sprintf("admenu-speed: player %g enemy %g\n", cvar("vr_ad_pellet_speed"), VR_AD_PelletSpeed(standIn, 1000)));
         bprint(sprintf("admenu-rules: resist %g importedDamage %g upgrade %g\n", AD_Resists(standIn),
-            ad_Resist_Damage(standIn, ad_IT_NAILS, 10), AD_WeaponUpgraded(standIn, world, ad_IT_UPGRADE_AXE)));
+            ad_Resist_Damage(standIn, ad_IT_NAILS, 10), AD_WeaponUpgraded(standIn, upInst, ad_IT_UPGRADE_AXE)));
         remove(standIn);
+        remove(upInst);
         float kind = 0;
         while(kind < 4)
         {
