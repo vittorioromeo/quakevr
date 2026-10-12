@@ -4659,3 +4659,38 @@ information; P1b's loose ends.
   -Full 4/4 PASS (72 flight reports), the default run PASS.
 
 Regressions: `ad_hits_test.sh` PASS, `ad_world_test.sh` PASS, `ad_scope_test.sh` as before, e1m1 smoke; QC 0 warnings.
+## Native AD start sharp-filter height regression (adpbrload)
+
+The reported lack of visible relief on AD's start map was reproducible with the author's default
+`vr_texture_smooth 1` and `gl_texturemode GL_NEAREST_MIPMAP_LINEAR`. Indexed world loading omits
+`NORMALMAP_HEIGHTS` when the diffuse uses nearest filtering. Content companions and file-authored world maps
+inherited that flag, uploaded as RG8, and lost their height alpha even with normal mapping and parallax enabled.
+Earlier loader validation explicitly used smooth=2 and therefore missed the default-setting regression.
+
+Generated/composed companions and file-authored world maps now retain height alpha independently of the diffuse
+filter. Procedural maps and model skins keep their existing caller flags; diffuse pixels/filtering, cvar defaults,
+authored component precedence and external-map orientation remain unchanged. The fixture helper now documents
+sharp/default filtering and temporarily backs up/restores production companions, allowing its GPU precedence test
+to run alongside the shipped bundle.
+
+Native reproduction uses the actual Steam Quake base directory and AD pak0/pak1/pak2, with the assigned worktree
+as the final base directory for private QuakeVR resources and writes. `vr_campaign_native ad` mounts
+`id1;hipnotic;rogue;ad;quakevr`; the author's Steam QuakeVR junction is never selected for writes. On start,
+161/276 selected-source hashes find companions (the remaining selected replacements/tool textures are outside
+this bundle's matching hashes). `rock2` selects `b7622e9fd27a2d1be6050d402d3dc493`: its active GPU alpha changes
+from 255..255 before the fix to 205..220. `stone_grey_1_3` selects `7287bdce5a5494f227132536daf96dab`, GPU
+512x512, and now retains alpha 206..236 instead of 255..255.
+
+Off/on captures use identical normal/parallax settings, smooth=1, nearest mip filtering, fixed random seed and
+the same eye coordinates/angles. All 324 diffuse GPU hashes are identical. The native spawn-view contact sheet
+`scratch/adpbr_native_start_actual_eye_pair.png` has mean absolute RGB difference 1.203/255, with 14.44% of pixels
+changing by more than 3/255. A nearby stone close-up at setpos -243.273 1034 443.642, mock pitch 0, yaw 90,
+head flashlight, confirms `stone_grey_1_3` through the head ray in both views. Its contact sheet
+`scratch/adpbr_native_stone_actual_eye_pair.png` has mean difference 3.457/255 and 32.34% of pixels changing by
+more than 3/255. Both pairs were inspected and are nonblank; no diffuse smoothing is needed to see the relief.
+
+Validation: full kit build passes; engine hash/composition checks 8/8 pass; actual GPU authored/generated
+precedence 6/6 passes at sharp/default filtering, including authored RGB plus generated height, complete authored
+RGBA, authored bump height and external normal-map precedence. Production companion backups were restored
+byte-for-byte (no bundle Git changes). Stock e1m1 smoke with default sharp filtering exits 0. Latest published
+next 4e9ec1b8b is merged. No melee/physics code changed and no author checkout files were modified.

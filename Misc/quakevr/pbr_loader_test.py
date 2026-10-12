@@ -1,9 +1,10 @@
 """Stage private loader fixtures; retire moves them under scratch (never deletes files).
 
 Run in an agent worktree: python Misc/quakevr/pbr_loader_test.py stage <id1-folder>
-Then run the engine with vr_extmaps_dir pointing to scratch/pbrtest_ext, vr_texture_smooth 2,
+Then run the engine with vr_extmaps_dir pointing to scratch/pbrtest_ext, vr_texture_smooth 1,
+gl_texturemode GL_NEAREST_MIPMAP_LINEAR,
 map e1m1; vr_pbr_test fixtures; vr_pbr_stats all; imagehash; vid_restart; imagehash.
-Use 'retire' before staging a production bundle. No fixture contains shipped map assets.
+Use 'retire' to restore any production companions after the run. No fixture contains shipped map assets.
 """
 import hashlib
 import json
@@ -45,10 +46,16 @@ def stage(id1):
     textures = bsp[offset:offset + length]
     count = struct.unpack_from("<I", textures)[0]
     files = []
+    backups = []
 
     def save(path, color):
         file = ROOT / path
-        assert not file.exists(), f"Refusing to overwrite {file}"
+        if file.exists():
+            assert path.startswith("quakevr/textures/pbr/") and path.endswith("_norm.png"), f"Refusing to overwrite {file}"
+            backup = ROOT / "scratch/pbrtest_backup" / path
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            file.replace(backup)
+            backups.append(path)
         file.parent.mkdir(parents=True, exist_ok=True)
         png(file, 4, 4, bytes(color) * 16)
         files.append(path)
@@ -91,7 +98,7 @@ def stage(id1):
         if len(selected) == 6:
             break
     TRACK.parent.mkdir(parents=True, exist_ok=True)
-    TRACK.write_text(json.dumps({"files": files, "textures": selected}, indent=2))
+    TRACK.write_text(json.dumps({"files": files, "backups": backups, "textures": selected}, indent=2))
     print("loader fixture textures:", [(t["texture"], t["hash"][:32], t["case"]) for t in selected])
 
 
@@ -102,6 +109,8 @@ def retire():
         dest = ROOT / "scratch/pbrtest_retired" / path
         dest.parent.mkdir(parents=True, exist_ok=True)
         src.replace(dest) # Overwrite our own prior fixture evidence on repeat verification.
+    for path in report.get("backups", []):
+        (ROOT / "scratch/pbrtest_backup" / path).replace(ROOT / path)
     print("retired", len(report["files"]), "private fixtures")
 
 
