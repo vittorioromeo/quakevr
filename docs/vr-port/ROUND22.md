@@ -5275,4 +5275,6 @@ let go. Holding Enemies > Neck Snap:
   (24) and `stagger_test.sh judo` (6) still pass.
 - In VR: a real twist's speed and angle (the defaults are guesses: a quick wrench reads 300-450 deg/s), whether the
   hold at its head is easy to take (the head zone is large: hands on a grunt's shoulders tops may count), the wrists'
-  roll (untested with the mock), the crack's loudness, and how the limp body hangs from its head.
+  roll (once, by hand, not in the suite: both mock hands at a grunt's head pitched 75 degrees in 0.2 s, their palms
+  still: the wrists read 320-430 deg/s, smoothed 360-384, snapped at 48 degrees), the crack's loudness, and how the limp
+  body hangs from its head.
