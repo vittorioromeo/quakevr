@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Judo: pull left (hands at belt, or one hand higher) and it falls left; after a throw it stays softly held, drag it (lower hands)
+Lift: both hands on a grunt/enforcer, pull up fast: it flails, carry or throw it down; breaks free and shoves you after 2 s; ogres not
 Magazines: pull out, push back, pull out again without letting go; bumped-out one: new one at the well seats after ~0.25 s (Reloading > Magazine Reinsertion Delay)
 Vore: walk into one, it turns and shoves you instead of firing; shoves, bashes, slaps draw no blood (punches/blades still do)
 Your bash/shove/parry tweaks are now defaults (bash 3 m/s, shove 3.5 m/s): feel the same as your config
