@@ -1324,7 +1324,8 @@ pulled. `dir`: left, right, towards you, away, with the hands at its shoulders, 
 where it stood` (from the first player's side: printed by every throw trace now): its head on the pulled side by 8+
 of where it stood or of its feet, the larger (a throw goes over its head: its legs flop on over or back as they land,
 or its feet slide back, each alone varying). `JUDO_ONLY=<regex>` runs only the matching cases (`judo_<height>_<way>`), `JUDO_EXTRA=<cmds>`
-adds commands; the logs go to `scratch/judo_test_<case>.txt`.
+adds commands; the logs go to `scratch/judo_test_<case>.txt`. `JUDO_NECK_METHOD=1` runs the `neck` cases with the
+hand-line twist detector (vr_foegrab_necksnap_method 1; grunt_roll, a tilt, must not snap there); run both 0 and 1.
 `hold`: thrown left and held on (`vr_foegrab_throw_hold`), the hands then lowered and drawn 0.5 m back: PASS when both
 hands hold it (`foegrab: ... held on as a ragdoll by 2 hands`), it lies to the left, and `vr_foegrab_status` (which now
 prints the ragdoll held on: its pelvis ahead / to his left / up, each hand's distance to its limb) has its pelvis 4+

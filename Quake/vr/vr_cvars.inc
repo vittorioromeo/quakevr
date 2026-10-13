@@ -2854,6 +2854,8 @@ QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie 
 QVR_CVAR(vr_foegrab_necksnap, "1", CVAR_ARCHIVE)           // 1: the neck snap on
 QVR_CVAR(vr_foegrab_necksnap_speed, "100", CVAR_ARCHIVE)   // degrees/s: the hands' twist of the head (the line between the palms swept about its neck: one hand forward, the other back; or both wrists turning the same way) at least this fast at its fastest,
 QVR_CVAR(vr_foegrab_necksnap_angle, "30", CVAR_ARCHIVE)    // degrees: and turning it this far one way in one stroke: its neck snaps
+QVR_CVAR(vr_foegrab_necksnap_method, "0", CVAR_ARCHIVE)   // how the twist is measured: 0 the hands' velocity about the neck (and the wrists' roll), stroke by stroke (Twist Speed, Twist Angle); 1 the line between the hands, its direction across the neck now against its direction up to vr_foegrab_necksnap_window ago (relative to the head; and the wrists' roll the same way): turned Twist Angle within the window, it snaps
+QVR_CVAR(vr_foegrab_necksnap_window, "0.3", CVAR_ARCHIVE) // seconds (0.1-1): method 1's window
 QVR_CVAR(vr_foegrab_necksnap_margin, "2", CVAR_ARCHIVE)    // units: the head zone (the headshots') grown by this for the hands' holds
 QVR_CVAR(vr_foegrab_necksnap_neck, "3", CVAR_ARCHIVE)      // units: its neck's length: holds this far below its head (the head sphere's bottom; a ragdoll's: from its head's joint down) are at its head too; lower (its shoulders) they are the judo throw's and the lift's
 QVR_CVAR(vr_foegrab_necksnap_volume, "1", CVAR_ARCHIVE)    // the crack's volume (0 silent)
