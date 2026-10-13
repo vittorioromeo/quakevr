@@ -5601,3 +5601,36 @@ twist necessary to snap the neck. At the moment I have to snap my wrists and twi
 - In VR: push-pulls at his pace both ways at a standing grunt's head and neck, and a lying one's; whether a shoulder
   grab still throws (judo) and a neck grab never does; whether Twist Speed 100 / Angle 30 snaps too easily when he only
   repositions his hands on a head (a slow repositioning stays below 100 deg/s; a quick one could snap).
+
+## Review fixes: foegrab3, hotblade, shovefix, magfix2, flatplay, -preparerelight (worktree `fixgame3`, 2026-10-14)
+
+From the r5/r6 reviews of `next` (one commit each):
+- **Neck snap and the stick's turn.** Each wrist's turn is measured in play space (the hand's angles less the play
+  space's yaw, `move.vrYaw`), so smooth or snap turning with both hands on a head no longer reads as a twist (it
+  snapped: 32 deg at 187 deg/s). `judo_test.py neck`: `smooth_turn`, `snap_turn` (none), `twist_turn` (snapped).
+  The ragdoll cases (`knocked_*`, `pp_knocked_*`) are flaky run to run (a ragdoll grab missing its sphere), and
+  `pp_knocked_slow` snaps at 117-145 deg/s on the base build too: pre-existing.
+- **Foegrab lows.** A failed lift (or judo throw) restores the monster's velocity (no hop); a lifted enemy killed in the
+  hands has its flail ended when let go of (`Holder::flailing`); this round's neck snap note says config 132.
+- **Hot blades.** A hand's swing trail takes its tip's speed from the hand's own play-space velocity and turn, and its
+  last frame is carried with the player's move and stick turn: walking, flying or turning with a still hot blade leaves
+  none (was 109-207 particles a second; the drawn weapon lags the hand a frame, so the tip's world step alone can't tell).
+  The report poses the glowing vertices only when `vr_hotblade_report` runs. Turning the option off clears the lying
+  weapons' glow once. `hotblade_test.sh`: `trail_walk`, `off_lying` (29/29).
+- **Config 129** migrates only the two speeds; the other eight shipped at their new values (vr_defaults.cfg), so an old
+  value there is a player's and stays. `config129_test.sh` updated (PASS).
+- **Release Seated Magazine** (`vr_reload_mag_release`, default 1, Weapons > Reloading; his decision on the magfix2
+  finding): a held magazine leaves the hand as it seats, so moving the hand on to the foregrip before letting go never
+  pulls it back out; a fresh grip pulls it out. 0: magfix2's re-pull without letting go. `reload_test.sh`: 111/111 (the
+  old re-pull case runs with it off; a new case seats, moves apart to the front grip, lets go, re-grips, pulls).
+- **Flatscreen play.** The arms' walking lag is back along his horizontal motion whatever way he faces (at yaw 90 it
+  slid the guns ~11 units sideways), the whole capped by maxTrail. In co-op the mode is each player's: his client sets
+  bit 15 of the move's `vrBits0`, the server takes it out and sets `.vr_flatscreen`; `VR_FlatPlay(player)` gates
+  reloading, `E`, `1`/`2`, the grip-less catch and the body's hand touch. `flatplay_test.sh` (new, 4/4).
+- **-preparerelight** implies -prepare everywhere: `COM_PrepareRun()` (common.c) for the level-start autosave check
+  (host.c), the hidden window (gl_vidsdl.c) and `prepare::active()`.
+
+Smoke (e1m1, e1m2) clean; melee eval 168/177 (the one known FAIL -> FAIL timing difference, as before).
+Open: flying forward in flatscreen play the hands still sit ~33 units behind (the hands' world-space easing,
+`handEase`, adds ~20 to the capped 12-unit lag): easing them in the player's frame would bound the trail by maxTrail,
+but changes the feel (his call).
