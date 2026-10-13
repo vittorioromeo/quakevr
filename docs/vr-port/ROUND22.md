@@ -4887,3 +4887,16 @@ His report: with `vr_enemy_shove_vore 1` the vore never shoved him, only threw b
   still fire.
 
 Test: `Misc/quakevr/voreshove_test.sh` (vore spawned touching you, walking into it ~20 s): 2 shoves before, 8 after.
+
+### Shoves, slaps and bashes draw no blood
+
+His report: shoving enemies made them bleed, and slaps and parry bashes too; they are meant as bloodless hits.
+`VR_HitBloodless()` (combat.qc: hit kind SHOVE or BASH, or a MELEE slap) now skips `VR_Gore_Hit` (the sprays on the
+walls), `VR_Wound_Hit` (wounds painted on the model), `VR_SmallGib_Hit` (it already skipped slaps) and, in
+`VR_Bash_Hit`, the blood splash (wood still splinters, metal still sparks). Damage, knockback, stagger and knockdown are
+unchanged; a kill still leaves its pool of blood (death, not the blow). Headbutts still bleed (not asked).
+
+Test: `Misc/quakevr/bloodless_test.sh` (`vr_smallgibs_test 23`, also Debug > Gore Tests: 10 shoves, bashes, slaps and
+punches on a grunt). Before: shove and bash 10 gore hits, 10 wound events, 10 blood particles; slap 10/10/0. After: all
+0, damage still dealt (103, 100, 250); the punch control 10/10/10. Melee eval: canary 36/45, 0 differences before;
+full 168/177, 0 differences after.

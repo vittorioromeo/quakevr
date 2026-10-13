@@ -2725,7 +2725,11 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
     }
     // A knockdown (vr_knockdown.qc): by chance, the shove knocks it down as a ragdoll.
     VR_Knockdown_Try(e, xForward, xKind, xHand, push);
-    VR_HitBloodSplash(e, e.origin + '0 0 16', 4);
+    if(!(e.flags & (FL_MONSTER | FL_CLIENT)) || VR_Hit_Metal(e))
+    {
+        // Wood's splinters, metal's sparks; never blood: a shove or a bash draws none (combat.qc VR_HitBloodless).
+        VR_HitBloodSplash(e, e.origin + '0 0 16', 4);
+    }
 };
 
 // A push's stamina (vr_shove_stamina), once a push (`xBoth`: two hands; `xArmed`: a bash), whether it lands or bats a

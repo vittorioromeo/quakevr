@@ -18,6 +18,15 @@ float QVR_HITKIND_SPLASH   = 6; // an explosion's (or a discharge's) radius dama
 float QVR_HITKIND_BLEED    = 7; // a thrown axe stuck in it bleeding it (vr_axestick.qc): no new wound
 
 float vr_hitkind;     // QVR_HITKIND_*
+
+// The blow being dealt draws no blood (ROUND22.md, "Shoves, slaps and bashes draw no blood"): a shove, a weapon's bash
+// (a parry bash) or a slap keep their damage, knockback and stagger, but spray no blood, paint no wound, send no gore
+// and tear no small gibs (VR_Gore_Hit, VR_Wound_Hit, VR_SmallGib_Hit, VR_Bash_Hit).
+float() VR_HitBloodless =
+{
+    return vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE ||
+           (vr_hitkind == QVR_HITKIND_MELEE && vr_melee_slap);
+};
 float vr_hithand;     // the hand that struck or fired (-1: unknown)
 string vr_hitweapon;  // what fired, when not the weapon in vr_hithand ("": that one)
 vector vr_hitpos;     // where it struck ('0 0 0': unknown)

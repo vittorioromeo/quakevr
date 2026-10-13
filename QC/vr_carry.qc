@@ -2174,7 +2174,7 @@ float(entity e) VR_Gore_Bleeds =
 // explosion's, 3 a hand's blow). Not for damage from the world (lava, slime, drowning, falls).
 void(entity targ, entity inflictor, float take) VR_Gore_Hit =
 {
-    if(take <= 0 || inflictor == world || !VR_Gore_Bleeds(targ))
+    if(take <= 0 || inflictor == world || !VR_Gore_Bleeds(targ) || VR_HitBloodless())
     {
         return;
     }

@@ -5927,6 +5927,8 @@ za::Vector<Item> pageDebugTools()
         command("Super Shotgun Blasts", "vr_smallgibs_test 2"),
         command("Nails", "vr_smallgibs_test 3"),
         command("Axe, Pommel, Sword, Punch", "vr_smallgibs_test 4").help("vr_smallgibs_test 4: blows of 35 (vr_smallgibs_test_dmg) by the axe's blade and pommel, a sword, and punches of 25."),
+        command("Shove, Bash, Slap: No Blood", "vr_smallgibs_test 23")
+            .help("vr_smallgibs_test 23: 10 shoves, weapon bashes, slaps and punches on it: the gore each sent (gore hits, wound events, blood particles) and small gibs. Shoves, bashes and slaps draw none; the punches, to compare, do."),
         command("Quad Damage", "vr_smallgibs_test 5"),
         command("Chainsaw a Second", "vr_smallgibs_test 6"),
         command("Burst a Gib and a Head", "vr_smallgibs_test 7"),

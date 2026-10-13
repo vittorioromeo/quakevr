@@ -969,9 +969,9 @@ void(entity targ, entity inflictor, entity attacker, float xDamage) VR_SmallGib_
         vr_sgib_blastby = attacker;
         return;
     }
-    if(vr_hitkind == QVR_HITKIND_MELEE && vr_melee_slap)
+    if(VR_HitBloodless())
     {
-        return; // a slap tears nothing out (vr_melee_slap)
+        return; // a slap, a shove or a bash tears nothing out (vr_melee_slap, combat.qc VR_HitBloodless)
     }
     vector at = vr_hitpos;
     if(vr_hitkind == QVR_HITKIND_MELEE && vr_sgib_at != '0 0 0')

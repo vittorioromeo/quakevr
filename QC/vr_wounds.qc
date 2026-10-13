@@ -71,7 +71,8 @@ void(entity e, vector at, vector dir, float damage) VR_Wound_Pellet =
 void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 {
     // (A fire paints its own burns, under its flames: vr_burning.qc.)
-    if(take <= 0 || !VR_Wound_Takes(targ) || vr_hitkind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn")
+    if(take <= 0 || !VR_Wound_Takes(targ) || vr_hitkind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" ||
+       VR_HitBloodless())
     {
         return;
     }
