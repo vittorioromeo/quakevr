@@ -488,6 +488,8 @@ void resetHandMoves()
         slider("Melee Bloodlust Mult.", "vr_melee_bloodlust_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for melee bloodlust health restoration."),
         open("Weapon Damage", pageIndex(pageWeaponDamage))
             .help("Each weapon's base damage: the fist, the axe, the crowbar, Mjolnir, the swords..."),
+        open("Incandescent Blades", pageIndex(pageHotBlades))
+            .help("A melee weapon held in a flame or lava glows red-hot: harder blows that set what they strike on fire."),
         header("Swing Through Enemies"),
         toggle("Swing Through Enemies", "vr_melee_phase").help("While your hand swings fast, your fist and the weapon in it pass through enemies instead of being drawn stopped at their bodies (Hands Stop at Models). Walls and things lying about still stop them. The blow is tested where your real hand goes either way: this shows the swing where it is tested. After the swing the hand is eased back out of the enemy. Off: stopped at enemies however fast (as before)."),
         slider("Swing Through Speed", "vr_melee_phase_speed", 1.f, 6.f, 0.25f, "%.2f m/s").extend(0.25f, 10.f).help("How fast the hand must move to pass through. 4 (the default): a hard blow's speed; 2.25: a stab's least speed at Swing Speed 3 (a punch 3, a weapon's swing 3.75). Lower: slower pushes pass through too; higher: only hard blows."),

@@ -835,6 +835,18 @@ fire as a blow, a lava nail or a touch would; `4` prints how it burns; `5` loads
 vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait5; vr_test_spawn_dead 0` (the wait: the impulse runs next
 frame). Touch: e1m2's torch 52 in the main hand (as above), `setpos 1740 -175 290 0 30 0; vr_burn_touch 1;
 vr_mock_hand_to main 1775 -150 320` puts it in the ogre. The kit's `scratch/burn_torch2.sh`, `burn_lava.sh`.
+Incandescent blades (ROUND22.md, "Incandescent blades"): `bash Misc/quakevr/hotblade_test.sh <agent> [case regex]`
+(19 cases, ~5 min, each PASS/FAIL; logs in `scratch/hotblade/`). `vr_hotblade_test <n>` (Debug > Tests > Incandescent
+Blades; `developer 1` prints `hotblade: ...`): 1 heats the held blades, 2 quenches, 3 reports each hand's weapon (heat,
+glow, time left) and the holsters' glow, 4 puts them in their fade, 5 holds them half built up (screenshots), 6 lands a
+main-hand blow of base 20 (+ the heat's extra) on the nearest monster or corpse, 7 moves you (use `noclip`) so the main
+hand's blade is in the nearest map flame or wall torch, 8 in lava near you, 11 in slime or water, 9 takes the nearest
+wall torch into the off hand (`+grableft; vr_mock_button off grip 1` first), 10 brings the off hand's torch's flame round
+the blade (in-game only: it queues `vr_mock_hand_to off by ...`, which in a test script runs after the script's end;
+the suite passes the printed move itself). Places: e1m2 (a map flame: test 7 from the start, `setpos 1714 -170 312 0 243
+0` a wall torch), e1m7 `setpos -50 48 40` (lava), e1m1 `setpos 200 2820 0` (slime). Real swings: `motion_synth.py
+chop_overhead --weapon axe` at the firing range's dummy, heated by `vr_hotblade_test 1` repeated through the take (the
+take equips its own axe: a new record): 29.6 cold, 44.4 hot, `burning: monster_army lit (a blow)`.
 Crates and nails (part 2): `vr_test_spawn 109` puts a crate with one on it ahead (`107` a small one), `vr_burn_test 1`
 lights the nearest (`vr_burn_crate_time`, `vr_burn_crate_spread` short to see it spread and break; `developer 1`:
 `lit (a burning crate)`, `burnt through: it breaks`). `vr_burn_test 6` shoots a nail through the nearest lit torch's

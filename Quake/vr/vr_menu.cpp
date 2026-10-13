@@ -470,6 +470,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageWeightDamage();
 [[nodiscard]] za::Vector<Item> pageAimingSettings();
 [[nodiscard]] za::Vector<Item> pageWeaponDamage();
+[[nodiscard]] za::Vector<Item> pageHotBlades();
 [[nodiscard]] za::Vector<Item> pageDamage();
 [[nodiscard]] za::Vector<Item> pageFingersCollisions();
 [[nodiscard]] za::Vector<Item> pageFlashlightLowGrip();
@@ -6205,6 +6206,21 @@ za::Vector<Item> pageDebugTools()
             .help("vr_burn_test 11: a lava nail of yours fired down at the nearest crate's piece: it catches fire (Pieces Burn), not bursts; a charred one bursts."),
         command("Count the Pieces", "vr_burn_test 10").help("vr_burn_test 10: the console: the crates' pieces lying about, how many charred, how many burning."),
         command("How It Burns", "vr_burn_test 4").help("vr_burn_test 4: the nearest monster or corpse: where, its health, its flames and the time it burns yet."),
+        header("Incandescent Blades (developer 1: hotblade: ...)"),
+        command("Heat the Held Blades", "developer 1; vr_hotblade_test 1")
+            .help("vr_hotblade_test 1: the melee weapons in your hands red-hot at once, for all of Stays Hot (Weapons > Incandescent Blades)."),
+        command("Into Their Fade", "developer 1; vr_hotblade_test 4").help("vr_hotblade_test 4: half of Fades Over left: watch them fade out."),
+        command("Half Heated (Held There)", "developer 1; vr_hotblade_test 5").help("vr_hotblade_test 5: their build-up at half, held there (the look of a blade heating)."),
+        command("Quench Them", "developer 1; vr_hotblade_test 2").help("vr_hotblade_test 2: cold at once (no hiss)."),
+        command("Strike the Nearest Monster or Corpse", "developer 1; vr_hotblade_test 6")
+            .help("vr_hotblade_test 6: a blow of the main hand's weapon (base 20, the heat's extra too) lands on the nearest monster or corpse: a red-hot blade sets it on fire (A Grunt Ahead, A Grunt's Corpse Ahead above)."),
+        command("Report", "developer 1; vr_hotblade_test 3").help("vr_hotblade_test 3: the console: each hand's and holster's weapon's heat, glow and time left."),
+        command("Blade into the Nearest Flame", "developer 1; noclip; vr_hotblade_test 7")
+            .help("vr_hotblade_test 7 (with noclip): you are moved so that the main hand's blade is in the nearest of the map's flames or wall torches. Keep the hand still."),
+        command("Blade into the Nearest Lava", "developer 1; noclip; god; vr_hotblade_test 8").help("vr_hotblade_test 8: the same into lava near you."),
+        command("Blade into the Nearest Water", "developer 1; noclip; vr_hotblade_test 11").help("vr_hotblade_test 11: the same into slime or water near you (it quenches)."),
+        command("Take the Nearest Wall Torch (Off Hand)", "developer 1; vr_hotblade_test 9").help("vr_hotblade_test 9: the nearest torch on its wall into the off hand (keep its grip held)."),
+        command("Off Hand's Torch to the Blade", "developer 1; vr_hotblade_test 10").help("vr_hotblade_test 10: the off hand's lit torch's flame brought round the main hand's blade (the mock headset's hand)."),
         header("Wall Torches Shot Off Their Walls (developer 1: walltorch: ...)"),
         command("Shoot the Nearest Wall Torch (a Pellet)", "developer 1; vr_test_walltorch_shot 10")
             .help("vr_test_walltorch_shot 10: the wall torch nearest you shot from your eyes with a shotgun's pellets: it comes off its wall and falls lit (VR Settings > Combat > Wall Torches > Shot Off Its Wall)."),
@@ -8167,6 +8183,7 @@ const Page pages[] = {
     {"Arcane Dimensions", pageArcaneDimensions, pageAdvanced}, // AD support: dedicated tweaks page
     {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
     {"Arcane Dimensions' Guns", pageAdGuns, pageEnemyWeapons}, // AD support: the AD soldiers' guns (vr_ad_enemyguns.qc)
+    {"Incandescent Blades", pageHotBlades, pageWeaponsHub}, // (QC vr_hotblade.qc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -9169,6 +9186,8 @@ za::Vector<Item> pageWeaponsHub()
         open("Aiming", pageIndex(pageAimingSettings)).help("Two-handed aiming; how weight feels: the spring, tired arms."),
         open("Weight and Damage", pageIndex(pageWeightDamage)),
         open("Weapon Damage", pageIndex(pageWeaponDamage)).help("Every weapon's base damage, to balance them."),
+        open("Incandescent Blades", pageIndex(pageHotBlades))
+            .help("Melee weapons held in a flame or lava glow red-hot for a while: harder blows that set enemies on fire."),
         open("Immersion", pageIndex(pageImmersionSettings)).help("Holsters, reloading, throwing weapons, shell casings, haptics."),
         open("Reloading", pageIndex(pageReloading)).help("Reloading's mode; the ammo pouch; a page per gun (its load point, its magazine, holding and pulling it)."),
         open("Lightning Gun in Water", pageIndex(pageLightningWater)).help("The shock fired under water, and electrified water."),
@@ -9176,6 +9195,41 @@ za::Vector<Item> pageWeaponsHub()
         header("Holsters"),
         open("Hotspots", pageIndex(pageHotspotSettings)).help("The virtual stock, the shoulder and upper holsters."),
         open("Hip Holsters", pageIndex(pageHipHolsters)).help("The hip holsters and their slots' models; the grenade pouch at your back."),
+    };
+}
+
+// Weapons > Incandescent Blades (QC vr_hotblade.qc; the glow: vr_meleehud.cpp hotGlow).
+za::Vector<Item> pageHotBlades()
+{
+    return {
+        toggle("Incandescent Blades", vr_hotblade)
+            .help("Hold a melee weapon's blade in a flame (a torch on its wall or in your other hand, a brazier, the map's "
+                  "flames) or dip it in lava: it glows red-hot for a while, hits harder and sets what it strikes on fire. "
+                  "The axe (the Shadow Axe too), the knights' swords, the crowbar, the Super Axe and the chainsaw; not "
+                  "Mjolnir. The heat is the weapon's: it cools held, holstered or dropped alike."),
+        slider("Heating Time", vr_hotblade_heat_time, 0.25f, 10.f, 0.25f, "%.2f s").extend(0.1f, 30.f)
+            .help("How long the blade must stay in the flame. Its glow rises meanwhile and it sizzles; taken out early, "
+                  "it cools back as fast."),
+        slider("Stays Hot", vr_hotblade_time, 5.f, 120.f, 5.f, "%.0f s").extend(1.f, 600.f)
+            .help("How long it stays incandescent. A flame again while it glows makes it full again."),
+        slider("Fades Over", vr_hotblade_fade, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("Its glow is full until these last seconds, then fades out (0: full to the end)."),
+        slider("Extra Damage", vr_hotblade_damage, 0.f, 50.f, 1.f, "+%.0f").extend(0.f, 200.f)
+            .help("Added to the weapon's base damage on every blow while it glows (then times the blow's strength, as "
+                  "its own base: Weapon Damage)."),
+        toggle("Sets Enemies on Fire", vr_hotblade_ignite)
+            .help("Its blows set living enemies on fire (Combat > Burning: the damage and how long)."),
+        toggle("Sets Corpses on Fire", vr_hotblade_ignite_corpses)
+            .help("And corpses (with Combat > Burning > Corpses Burn on)."),
+        toggle("Water Quenches", vr_hotblade_quench)
+            .help("Dipped in water or slime, it cools at once, with a hiss and a puff of steam."),
+        header("Look and Sound"),
+        slider("Glow Brightness", vr_hotblade_glow, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How brightly the weapon glows, held or holstered, and its embers (0: no glow)."),
+        slider("Glow Hue", vr_hotblade_hue, 0.f, 60.f, 1.f, "%.0f").extend(0.f, 355.f)
+            .help("The glow's colour: 0 red, 18 orange-red, 30 orange, 55 yellow."),
+        slider("Sounds", vr_hotblade_sound, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Volume of the sizzle in the flame, the ring as it turns red-hot and the quench's hiss (0 off)."),
     };
 }
 

@@ -148,9 +148,11 @@ float() VRMeleeDmgQuadMult =
 
 float(float xHand, float xBase) VRMeleeDmg =
 {
+    // An incandescent blade's blow hits harder (vr_hotblade_damage more base damage: vr_hotblade.qc).
+    xBase = xBase + VR_HotBlade_Extra(self, xHand);
     if(!VRHandsTracked(self) || !self.ishuman)
     {
-        return 20;
+        return 20 + VR_HotBlade_Extra(self, xHand);
     }
 
     // The damage caps bound this blow's strength (times its zone's multiplier) when it lands (T_Damage_VRMelee).
@@ -1241,6 +1243,9 @@ void() W_Precache =
     precache_sound("knight/sword2.wav");
     precache_sound("weapons/holster0.wav");
     precache_sound("weapons/holster1.wav");
+    precache_sound("vr/blade_sizzle.wav"); // incandescent blades (vr_hotblade.qc)
+    precache_sound("vr/blade_hot.wav");
+    precache_sound("vr/blade_quench.wav");
 };
 
 /*

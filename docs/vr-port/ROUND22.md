@@ -5356,3 +5356,59 @@ hand, then the game's own list `vr_test_weaponinst 0; impulse 120`, ~60 frames l
 
 Test-harness note: `+attack` / `-attack` in a kit run script stops the rest of the script from running, so firing in
 flatscreen mode is not measured here; it is the mode's existing mouse path and reads none of the grip state.
+## Incandescent blades (worktree `hotblade`, 2026-10-13)
+
+The author: melee weapons become incandescent when their blade stays in a flame a few seconds, glow orange-red for ~30 s,
+set enemies (and corpses) on fire and hit +10 harder; any flame (a torch held or on its wall, braziers, the map's flames,
+lava); water quenches them with a hiss and steam. His answers: the axe (AD's Shadow Axe too), the knights' swords, the
+crowbar, the MG3 Super Axe and the ogres' chainsaw; never Mjolnir. Full glow most of the time, fading over the last
+seconds; a flame again while it glows sets it back to full; the timer runs held, holstered or dropped (the heat is the
+weapon record's, as AD's `wi_adup`), kept in saves.
+
+- QC `vr_hotblade.qc` (after `vr_burning.qc`). The record (`vr_weaponinst.qc`) has `wi_heat` (the build-up), `wi_heat_at`
+  and `wi_hot_end` (time), copied by `WeaponInst_Clone`. Ten times a second (`VR_HotBlade_Frame`, from `PlayerVRMelee`
+  after `VR_Melee_Frame`) each hand's blade is looked at: its striking points as the melee tracks them (`mh_cp`, the
+  layout's `VR_MPT_EDGE` points: an axe's head, a sword's blade, the crowbar's bar, the chainsaw's bar; not the hilt,
+  the handle or the engine). A point in water or slime quenches it (`blade_quench.wav`, steam); a point in a fire
+  (`VR_WallTorch_FireAt`, the dying torch's relight: lava, the map's fire spots, a torch on its wall, a lit torch held
+  or lying, a lava ball) raises the build-up by dt / `vr_hotblade_heat_time`; out of the flame it falls off as fast after
+  0.3 s (worked out when read: a holstered weapon's falls off too). At 1: incandescent for `vr_hotblade_time`
+  (`blade_hot.wav`, sparks, a buzz); in a flame while hot: full again. Sizzle (`blade_sizzle.wav`) twice a second and a
+  rising buzz while it heats.
+- Blows: `VRMeleeDmg` adds `vr_hotblade_damage` to the base of a hot weapon's blow (so it scales with the blow's
+  strength, the zone and the caps as the base does: the firing range's synthetic overhead axe chop 29.6 -> 44.4, the
+  sword's slash 26.2 -> 39.3, x1.5 for base 20 -> 30). `T_Damage_VRMelee` then sets the struck thing on fire
+  (`VR_Burn_Ignite`, a blow's) when it was alive and `vr_hotblade_ignite`, or a corpse (`vr_corpse`, `vr_corpse_dying`:
+  a corpse keeps health to gib) and `vr_hotblade_ignite_corpses`; so does the corpse strike (`VR_Corpse_StrikeFrame`)
+  and the running chainsaw's cut (`VR_Chainsaw_Cut`; the cut gets no extra damage: it ticks ten times a second).
+- Lying weapons (`thrown_weapon` props): while any weapon may be hot, one in water or slime is quenched and a hot one
+  sheds a spark now and then (QC: the engine draws only the hands' and holsters' glow).
+- AD's flames now leave fire spots too (`VR_FireSpot_AD` in `ad_lights.qc`: its small wall torch, large and small
+  flames, pyre, short and tall braziers; only lit for good: not LIGHTOFF, no targetname), so blades heat and torches light
+  again at them, and they burn hands like id's (`VR_Burn_MapFrame` reads the same spots). Quoth's long wall torch: not
+  (its flame's height on the model is unknown).
+- The glow: QC packs each hand's glow (0-255) into `.vr_hot_hud` and the holsters' (0-15) into `.vr_hot_hud2`, sent as
+  `STAT_QVR_HOTBLADE`, `STAT_QVR_HOTBLADEHOLSTER`. `vr_meleehud.cpp` eases the hands' glow and sheds embers off a hot
+  hand weapon (the counter glow's, ~9 a second at full), and `hotGlow` codes the entity glow for the alias shader:
+  4 + 2 x colour (16 levels a channel from `vr_hotblade_hue`) + strength (glow^0.7 x `vr_hotblade_glow`, 0..2). The
+  shader (`QVR_ALIAS_FS_GLOW`) dims the lit skin by up to 30% and adds the colour times (0.1 + 0.9 x the texel's
+  luminance + 0.45 rim^2), yellower on the brightest texels: the blade's metal glows most, the wood less. The force
+  grab's, toolgun's and an open counter window's glow win over it. The world shader ignores codes of 4 and over.
+- Settings (Advanced VR > Weapons > Incandescent Blades, linked from Combat > Melee too): `vr_hotblade` 1,
+  `vr_hotblade_heat_time` 2, `vr_hotblade_time` 30, `vr_hotblade_fade` 5, `vr_hotblade_damage` 10, `vr_hotblade_ignite` 1,
+  `vr_hotblade_ignite_corpses` 1, `vr_hotblade_quench` 1, `vr_hotblade_glow` 1, `vr_hotblade_hue` 18,
+  `vr_hotblade_sound` 1. Debug > Tests > Incandescent Blades: `vr_hotblade_test` (TESTING.md).
+- Sounds: `Misc/quakevr/make_hotblade_sounds.py` (synthesised: a frying crackle over a thin hiss; a flame's whoosh and an
+  iron bar's inharmonic ring; a bubbling burst into a falling steam hiss).
+- Tests: `Misc/quakevr/hotblade_test.sh` (19 cases, all PASS): a map flame (build-up 0.44 at 1 s, hot at 2 s, out of
+  it 1.00 then 0.82 with 2.5 s left of a 3 s fade, full again in the flame, cold at the end), a torch on its wall
+  (entity and static), the off hand's lit torch, lava, slime (held, and dropped into it), holstered (cools on, glows
+  there), Mjolnir (no heat), the chainsaw, off; blows on a grunt (+10, lit), a corpse (lit), corpses off and enemies
+  off (not lit); saved hot and loaded hot (29.0 -> 28.6 s left); real swings at the dummy (29.6 cold, 44.4 hot, lit).
+  `eval.sh`: 168/177 (as before). e1m1 smoke clean. Screenshots (axe: cold, half built up, hot, fading) checked by eye.
+- Not done: a lying weapon's model doesn't glow (the client knows only the hands' and holsters'; it sparks instead);
+  a level change starts weapons cold (their records are made anew). A blade held in a brazier may set you alight too
+  if your body's box reaches the flame (Combat > Burning's map flames: unchanged).
+- In VR: how long 2 s in a flame feels; whether the glow reads as red-hot metal in the headset (brightness, hue 18) and
+  the build-up as heating; the sizzle, ring and hiss levels; reaching into a brazier with the axe without catching fire
+  yourself; dipping in water.

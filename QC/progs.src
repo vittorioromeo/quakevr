@@ -106,6 +106,8 @@ vr_wounds.qc
 // Living hit reactions (combat.qc, ai.qc and weapons.qc call it).
 vr_hitreact.qc
 vr_burning.qc
+// Incandescent blades (after vr_burning.qc and vr_walltorch.qc: it sets on fire, it finds their flames).
+vr_hotblade.qc
 vr_shock.qc
 // Debug > Cheats and Recording: the powerups, infinite ammunition, the scene's cleanups (after what they remove).
 vr_cheats.qc

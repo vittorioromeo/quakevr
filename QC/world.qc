@@ -606,6 +606,7 @@ void() StartFrame =
     VR_PickupTest_Frame(); // VR: the weapon pickups' tests (vr_pickup_test, vr_pickup_test.qc)
     VR_Dummy_TestFrame(); // VR: the training dummy's tests (vr_dummy_test, vr_dummy.qc)
     VR_Burn_TestFrame(); // VR: the burning tests (vr_burn_test, vr_burning.qc)
+    VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)
     VR_Burn_MapFrame(); // VR: visible mapper flames burn tracked hands/body (vr_burning.qc)
     VR_Burn_NailFrame(); // VR: nails through a torch's flame become lava nails (vr_burning.qc)

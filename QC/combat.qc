@@ -980,6 +980,8 @@ void(float xHand) VR_Corpse_StrikeFrame =
     {
         VR_Burn_Ignite(c, self, at, dir, VR_BURN_BLOW);
     }
+    // So does an incandescent blade (vr_hotblade.qc).
+    VR_HotBlade_Struck(self, xHand, c, FALSE, at, dir);
 };
 
 float() getVRMeleeBloodlust =
@@ -2489,10 +2491,19 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     float mult = VR_Melee_Positional(targ, vr_hitpos, vr_hitdir);
     damage = VR_Melee_CapDamage(damage * mult, mult);
     float decap = VR_Decap_Blow(targ, attacker, damage); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
+    float alive = targ.health > 0 && !targ.vr_corpse && !targ.vr_corpse_dying; // (a corpse keeps its own health to gib)
+    float hotHand = vr_hitkind == QVR_HITKIND_MELEE ? vr_hithand : -1;
+    vector hotAt = vr_hitpos;
+    vector hotDir = vr_hitdir;
     float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);
     if(decap)
     {
         VR_Decap_After(targ);
+    }
+    // VR: an incandescent blade sets what it struck on fire (vr_hotblade.qc).
+    if(hotHand >= 0 && damage > 0)
+    {
+        VR_HotBlade_Struck(attacker, hotHand, targ, alive, hotAt, hotDir);
     }
     if(r && damage > 0 && targ != attacker && (attacker.flags & FL_CLIENT))
     {
