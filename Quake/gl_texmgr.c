@@ -72,6 +72,7 @@ static gltexture_t	*gltextures_base;
 static gltexture_t	*normalmap_of[MAX_GLTEXTURES];
 static byte			normalmap_kind[MAX_GLTEXTURES];
 static unsigned short	normalmap_worldwidth[MAX_GLTEXTURES];
+static byte			normalmap_generated[MAX_GLTEXTURES]; // QVR: its verified generated components (VR_PBRGeneratedFlags), for the draw's strengths
 static gltexture_t	*flatnormaltexture;
 
 unsigned int d_8to24table_opaque[256];			//standard palette with alpha 255 for all colors
@@ -705,6 +706,7 @@ gltexture_t *TexMgr_NewTexture (void)
 	active_gltextures = glt;
 	normalmap_of[glt - gltextures_base] = NULL; // QVR
 	normalmap_kind[glt - gltextures_base] = NORMALMAP_NONE;
+	normalmap_generated[glt - gltextures_base] = 0; // QVR
 
 	glGenTextures(1, &glt->texnum);
 	numgltextures++;
@@ -737,6 +739,7 @@ void TexMgr_FreeTexture (gltexture_t *kill)
 	// QVR: its normal map is freed with it (they have the same owner)
 	normalmap_of[kill - gltextures_base] = NULL;
 	normalmap_kind[kill - gltextures_base] = NORMALMAP_NONE;
+	normalmap_generated[kill - gltextures_base] = 0;
 
 	if (active_gltextures == kill)
 	{
@@ -1856,6 +1859,7 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 	glt->bindless_handle = 0;
 	normalmap_kind[glt - gltextures_base] = (byte) kind;
 	normalmap_worldwidth[glt - gltextures_base] = (unsigned short) CLAMP (1, worldwidth, 65535);
+	normalmap_generated[glt - gltextures_base] = (byte) VR_PBRGeneratedFlags (source_file); // resolved once, not per draw
 
 	mark = Hunk_LowMark ();
 	if (format == SRC_INDEXED)
@@ -1949,6 +1953,17 @@ qboolean TexMgr_NormalMapAuthored (gltexture_t *glt)
 {
 	gltexture_t *nm = glt && gltextures_base ? normalmap_of[glt - gltextures_base] : NULL;
 	return nm && (normalmap_kind[nm - gltextures_base] & NORMALMAP_FILE) != 0;
+}
+
+/*
+================
+TexMgr_NormalMapGenerated -- QVR: a normal map's verified generated components (1 normal, 2 height: vr/vr_pbr.cpp),
+resolved from its source when it was made; 0 for any other texture
+================
+*/
+int TexMgr_NormalMapGenerated (const gltexture_t *nm)
+{
+	return nm && gltextures_base ? normalmap_generated[nm - gltextures_base] : 0;
 }
 
 /*

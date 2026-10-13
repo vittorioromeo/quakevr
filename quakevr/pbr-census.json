@@ -85,14 +85,18 @@
   "palette_sha256": "6b20b5bc4ea965ef1852b05670d043ca16148a0ecad4e63028121c8aebc268fe",
   "scan_errors": [],
   "selected_override_occurrences": 1305,
+  "shipped_sources": 1988,
   "texture_game_priority": [
-    "quakevr",
+    "C:\\OHWorkspace\\qvr-agents\\fixpbr\\quakevr",
     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\ad",
     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\rogue",
-    "C:\\OHWorkspace\\qvr-kit\\bases\\adpbrload\\qbase\\rogue",
+    "C:\\OHWorkspace\\qvr-kit\\qbase\\rogue",
     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\hipnotic",
-    "C:\\OHWorkspace\\qvr-kit\\bases\\adpbrload\\qbase\\hipnotic",
+    "C:\\OHWorkspace\\qvr-kit\\qbase\\hipnotic",
     "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Quake\\id1",
-    "C:\\OHWorkspace\\qvr-kit\\bases\\adpbrload\\qbase\\id1"
-  ]
+    "C:\\OHWorkspace\\qvr-kit\\bases\\fixpbr\\qbase\\id1"
+  ],
+  "unshipped_external_only": 218,
+  "unshipped_not_drawn": 287,
+  "unshipped_stock": 712
 }

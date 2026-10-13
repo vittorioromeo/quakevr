@@ -66,9 +66,16 @@ def write_provenance(output, lines):
 
 
 def entries(folder):
-    """PAK precedence numerically, then loose files; retain locations, not whole PAKs."""
+    """The engine's files of a game folder (COM_AddGameDirectory): loose files below pak0, pak1, ... (each PAK above the
+    ones before it), mounting only the contiguous pak0..N; retain locations, not whole PAKs."""
     result = {}
-    paks = sorted(folder.glob("pak*.pak"), key=lambda p: int(p.stem[3:]))
+    for p in sorted(folder.rglob("*")):
+        if p.is_file() and p.suffix.lower() != ".pak":
+            result[p.relative_to(folder).as_posix().lower()] = (p, 0, p.stat().st_size)
+    names = {p.name.lower(): p for p in folder.glob("*") if p.is_file()}  # PAK0.PAK too (Steam's id1)
+    paks = []
+    while f"pak{len(paks)}.pak" in names:
+        paks.append(names[f"pak{len(paks)}.pak"])
     for pak in paks:
         with pak.open("rb") as f:
             magic, offset, size = struct.unpack("<4sii", f.read(12))
@@ -82,9 +89,6 @@ def entries(folder):
                 if start < 0 or length < 0 or start + length > pak.stat().st_size:
                     raise ValueError(f"invalid PAK entry: {pak}:{name}")
                 result[name] = (pak, start, length)
-    for p in sorted(folder.rglob("*")):
-        if p.is_file() and p.suffix.lower() != ".pak":
-            result[p.relative_to(folder).as_posix().lower()] = (p, 0, p.stat().st_size)
     return result
 
 
@@ -202,6 +206,10 @@ def scan(args, palette):
         if folder.resolve() not in {p.resolve() for p in roots}:
             roots.append(folder)
         override_indexes = [index_game(p) for p in roots]
+        # The roots mounted wherever this game is: itself and those above it (Quake VR's own folder). The base
+        # games below it (id1, the mission packs) differ by install (no HD textures before the rerelease).
+        position = next(i for i, p in enumerate(roots) if p.resolve() == folder.resolve())
+        always_indexes = override_indexes[:position + 1]
         for mapname, location in sorted(e.items()):
             if not mapname.endswith(".bsp"):
                 continue
@@ -212,20 +220,24 @@ def scan(args, palette):
                         skipped[name] += 1
                         continue
                     rgba = np.concatenate((palette[indexed], np.full((*indexed.shape, 1), 255, np.uint8)), axis=2)
+                    selected = selected_override(mapname, name, override_indexes)
+                    # The engine draws (and hashes) the replacement where there is one: the miptex there is never
+                    # drawn when a root mounted with the game on every install has one.
+                    replaced = selected is not None and (len(always_indexes) == len(override_indexes) or
+                                                         selected_override(mapname, name, always_indexes) is not None)
                     add_source(sources, rgba, name, mapname, "embedded", None,
                                (indexed == 255) if name.startswith(("{", "#")) else None,
-                               (indexed >= 224) & (indexed != 255))
-                    selected = selected_override(mapname, name, override_indexes)
+                               (indexed >= 224) & (indexed != 255), drawn=not replaced)
                     if selected:
                         replacement, origin = selected
                         add_source(sources, replacement, name, mapname, "selected-override", origin)
                         overrides += 1
-                    # Replacement images may be selected independently of embedded diffuse at runtime.
+                    # The comparison pack's own pictures (vr_extmaps' vrext/ files) are never drawn as a diffuse.
                     if args.authored:
                         base = pack_name(name)
                         p = find_image(args.authored, (base,))
                         if p:
-                            add_source(sources, read_image(p), name, mapname, "external", p)
+                            add_source(sources, read_image(p), name, mapname, "external", p, drawn=False)
             except Exception as ex:
                 errors.append({"map": mapname, "error": str(ex)})
     image_files = 0
@@ -249,9 +261,11 @@ def scan(args, palette):
                      "excluded_names": dict(skipped), "scan_errors": errors}
 
 
-def add_source(sources, rgba, name, mapname, kind, path, holes=None, emission=None):
+def add_source(sources, rgba, name, mapname, kind, path, holes=None, emission=None, drawn=True):
     digest = content_hash(rgba)
-    s = sources.setdefault(digest, {"rgba": rgba, "names": set(), "maps": set(), "kinds": set(), "diffuse": set()})
+    s = sources.setdefault(digest, {"rgba": rgba, "names": set(), "maps": set(), "kinds": set(), "diffuse": set(),
+                                    "drawn": False})
+    s["drawn"] = s["drawn"] or drawn  # some occurrence is what the engine draws (and so looks its companion up for)
     holes = (rgba[:, :, 3] < 128) if holes is None else holes
     emission = np.zeros(rgba.shape[:2], bool) if emission is None else emission
     s["holes"] = s.get("holes", False) | holes
@@ -261,6 +275,32 @@ def add_source(sources, rgba, name, mapname, kind, path, holes=None, emission=No
     s["kinds"].add(kind)
     if path:
         s["diffuse"].add(str(path))
+
+
+def load_stock(path):
+    """stock.txt's source prefixes (pbr_stock_audit.py): the stock textures, which had relief before and keep it (the
+    loader never reads their companions). Missing file: none."""
+    if not path or not Path(path).is_file():
+        return set()
+    lines = Path(path).read_text(encoding="ascii").splitlines()  # CRLF too
+    if not lines or lines[0].strip() != "qvr-pbr-stock-v1":
+        raise ValueError(f"not a PBR stock list: {path}")
+    return {line.strip() for line in lines[1:] if line.strip()}
+
+
+def shipped(digest, source, stock):
+    """Only companions the loader can use go in the bundle: a source the engine draws somewhere (not a miptex every
+    occurrence of which has a replacement image, nor a comparison pack's own picture) and not a stock texture."""
+    return bool(source.get("drawn", True)) and digest[:32] not in stock
+
+
+def ship_census(sources, stock):
+    ship = {d for d, s in sources.items() if shipped(d, s, stock)}
+    rest = [s for d, s in sources.items() if d not in ship]
+    return ship, {"shipped_sources": len(ship),
+                  "unshipped_stock": sum(1 for d in sources if d[:32] in stock),
+                  "unshipped_not_drawn": sum(1 for d, s in sources.items() if d[:32] not in stock and not s.get("drawn", True)),
+                  "unshipped_external_only": sum(1 for s in rest if s["kinds"] == {"external"})}
 
 
 class Predictor:
@@ -497,7 +537,7 @@ def animations(sources):
     return anchors, sorted(set(conflicts))
 
 
-def generate(args, sources, census, palette_sha):
+def generate(args, sources, census, palette_sha, only=None):
     started = time.monotonic()
     for path, expected in ((args.normal_model, args.normal_sha256), (args.height_model, args.height_sha256)):
         if sha(path.read_bytes()) != expected.lower():
@@ -534,6 +574,8 @@ def generate(args, sources, census, palette_sha):
     completed, reused = 0, 0
     provenance = []
     for index, (digest, source) in enumerate(sorted(sources.items())):
+        if only is not None and digest not in only:
+            continue  # discovered (its animation family counts) but not written: shipped() decides
         if args.limit and index >= args.limit:
             break
         try:
@@ -615,6 +657,35 @@ def generate(args, sources, census, palette_sha):
     return 1 if manifest["failures"] or census["scan_errors"] else 0
 
 
+def prune(args, sources, census, ship):
+    """An existing bundle brought to what generate writes now: the companions shipped() rejects are moved to
+    --aside (not deleted), and the manifest, census and provenance index rewritten without them. Every manifest
+    entry must be one the scan found (the same roots as the generation), else nothing is changed."""
+    if not args.aside:
+        raise ValueError("prune needs --aside")
+    path = args.output / "pbr-manifest.json"
+    manifest = json.loads(path.read_text())
+    unknown = [t["sha256"] for t in manifest["textures"] if t["sha256"] not in sources]
+    if unknown:
+        raise ValueError(f"{len(unknown)} manifest entries not found by this scan (other roots?), e.g. {unknown[0]}")
+    keep = [t for t in manifest["textures"] if t["sha256"] in ship]
+    moved = [t for t in manifest["textures"] if t["sha256"] not in ship]
+    for t in moved:
+        destination = args.aside / t["file"]
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        (args.output / t["file"]).replace(destination)
+    manifest["textures"] = keep
+    manifest["census"] = census
+    manifest["summary"].update({"completed": len(keep), "bytes": sum(t["validation"]["bytes"] for t in keep),
+                                "eligible_sources": len(sources), "shipped": len(keep)})
+    json_write(path, manifest)
+    json_write(args.output / "pbr-census.json", census)
+    write_provenance(args.output, [provenance_line(args.output, t) for t in keep])
+    print(f"PBR prune: kept {len(keep)} ({manifest['summary']['bytes']} bytes), moved {len(moved)} "
+          f"({sum(t['validation']['bytes'] for t in moved)} bytes) to {args.aside}")
+    return 1 if census["scan_errors"] else 0
+
+
 def self_test():
     rgba = np.zeros((2, 3, 4), np.uint8)
     rgba[:, :, 3] = 255
@@ -663,7 +734,11 @@ def self_test():
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("mode", choices=("scan", "generate", "validate", "provenance", "self-test"))
+    p.add_argument("mode", choices=("scan", "generate", "validate", "provenance", "prune", "self-test"))
+    p.add_argument("--stock", type=Path, help="stock.txt (default: the output's textures/pbr/stock.txt): never shipped")
+    p.add_argument("--comparison-output", type=Path,
+                   help="generate: also write the unshipped companions (stock, comparison pack pictures) here")
+    p.add_argument("--aside", type=Path, help="prune: where the bundle's unshipped companions are moved")
     p.add_argument("--game", type=Path, action="append", default=[])
     p.add_argument("--texture-game", type=Path, action="append", default=[],
                    help="Additional effective texture game roots in highest-first priority; source game is appended if absent")
@@ -714,12 +789,22 @@ def main():
     census["eligible_sources"] = len(sources)
     census["eligible_names"] = len({n for s in sources.values() for n in s["names"]})
     census["palette_sha256"] = palette_sha
+    stock = load_stock(a.stock if a.stock else a.output / "textures/pbr/stock.txt")
+    ship, counts = ship_census(sources, stock)
+    census.update(counts)
+    if a.mode == "prune":
+        return prune(a, sources, census, ship)
     json_write(a.output / "pbr-census.json", census)
     print(json.dumps({k: v for k, v in census.items() if k not in ("excluded_names",)}, sort_keys=True), flush=True)
     if a.mode == "generate":
         if not a.normal_model or not a.height_model:
             p.error("--normal-model and --height-model are required")
-        return generate(a, sources, census, palette_sha)
+        status = generate(a, sources, census, palette_sha, only=ship)
+        if a.comparison_output:  # the rest (stock, comparison pack pictures, replaced miptex): never shipped
+            comparison = argparse.Namespace(**vars(a))
+            comparison.output = a.comparison_output
+            status |= generate(comparison, sources, census, palette_sha, only=set(sources) - ship)
+        return status
     return 1 if census["scan_errors"] else 0
 
 

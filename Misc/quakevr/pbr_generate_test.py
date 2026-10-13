@@ -185,16 +185,79 @@ class PipelineTests(unittest.TestCase):
         index = (output / "textures/pbr/provenance.txt").read_bytes()
         self.assertEqual(index, ("qvr-pbr-provenance-v1\n" + "\n".join(sorted(expected)) + "\n").encode("ascii"))
 
+    def test_only_usable_companions_ship_and_prune_moves_the_rest(self):
+        def picture(value):
+            image = np.full((8, 8, 4), value, np.uint8)
+            image[:, :, 3] = 255
+            return image
+        drawn = self.source("wall", 77)
+        stock = self.source("stockwall", 90)
+        pbr.add_source(self.sources, picture(50), "replaced", "maps/test.bsp", "embedded", None, drawn=False)
+        pbr.add_source(self.sources, picture(60), "wall", "maps/test.bsp", "external", self.root / "wall.jpg", drawn=False)
+        # A miptex replaced on one map but drawn on another still ships.
+        both = pbr.content_hash(picture(30))
+        pbr.add_source(self.sources, picture(30), "twice", "maps/a.bsp", "embedded", None, drawn=False)
+        pbr.add_source(self.sources, picture(30), "twice", "maps/b.bsp", "embedded", None)
+        listed = self.root / "stock.txt"
+        listed.write_bytes(f"qvr-pbr-stock-v1\r\n{stock[:32]}\r\n".encode("ascii"))  # CRLF parses too
+        ship, counts = pbr.ship_census(self.sources, pbr.load_stock(listed))
+        self.assertEqual(ship, {drawn, both})
+        self.assertEqual((counts["shipped_sources"], counts["unshipped_stock"], counts["unshipped_not_drawn"],
+                          counts["unshipped_external_only"]), (2, 1, 2, 1))
+        with patch.object(pbr, "Predictor", FixturePredictor):
+            pbr.generate(self.args, self.sources, {"scan_errors": []}, "palette fixture", only=ship)
+        manifest = json.loads((self.args.output / "pbr-manifest.json").read_text())
+        self.assertEqual({t["sha256"] for t in manifest["textures"]}, ship)
+        # An older bundle with every companion: prune moves the unusable ones aside and reindexes.
+        _, manifest = self.run_generation()
+        self.assertEqual(len(manifest["textures"]), 5)
+        self.args.aside = self.root / "aside"
+        census = {"scan_errors": [], **counts}
+        self.assertEqual(pbr.prune(self.args, self.sources, census, ship), 0)
+        manifest = json.loads((self.args.output / "pbr-manifest.json").read_text())
+        self.assertEqual({t["sha256"] for t in manifest["textures"]}, ship)
+        self.assertEqual(len(list((self.args.output / "textures/pbr").glob("*.png"))), 2)
+        self.assertEqual(len(list((self.args.aside / "textures/pbr").glob("*.png"))), 3)
+        lines = (self.args.output / "textures/pbr/provenance.txt").read_text().splitlines()
+        self.assertEqual(sorted(line.split()[0] for line in lines[1:]), sorted(d[:32] for d in ship))
+
+    def test_miptex_replaced_on_every_install_is_not_drawn(self):
+        import io
+        game, ours, base = self.root / "ad", self.root / "quakevr", self.root / "id1"
+        for folder in (game, ours, base):
+            (folder / "textures").mkdir(parents=True)
+        def picture(colour):
+            out = io.BytesIO()
+            Image.new("RGBA", (4, 4), colour).save(out, format="PNG")
+            return out.getvalue()
+        bsp = bytearray(make_bsp("own", np.full((4, 4), 5, np.uint8)))
+        make_pak(game / "pak0.pak", {"maps/m1.bsp": bytes(bsp), "textures/own.png": picture((1, 2, 3, 255)),
+                                     "maps/m2.bsp": make_bsp("base", np.full((4, 4), 6, np.uint8)),
+                                     "maps/m3.bsp": make_bsp("mine", np.full((4, 4), 7, np.uint8))})
+        (base / "textures/base.png").write_bytes(picture((4, 5, 6, 255)))  # an HD texture only some installs have
+        (ours / "textures/mine.png").write_bytes(picture((7, 8, 9, 255)))  # Quake VR's own: always above the game
+        args = argparse.Namespace(game=[game], texture_game=[ours, game, base], authored=None, images=[])
+        palette = np.repeat(np.arange(256, dtype=np.uint8)[:, None], 3, axis=1)
+        sources, census = pbr.scan(args, palette)
+        miptex = {next(iter(s["names"])): s["drawn"] for s in sources.values() if s["kinds"] == {"embedded"}}
+        self.assertEqual(miptex, {"own": False, "base": True, "mine": False})
+        self.assertTrue(all(s["drawn"] for s in sources.values() if "selected-override" in s["kinds"]))
+
     def test_pak_and_loose_precedence_collision(self):
-        make_pak(self.root / "pak2.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 2, np.uint8))})
-        make_pak(self.root / "pak10.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 10, np.uint8))})
-        entry = pbr.entries(self.root)["maps/test.bsp"]
-        self.assertEqual(int(list(pbr.bsp_textures(pbr.read_entry(entry)))[0][1][0,0]), 10)
+        # The engine's order (COM_AddGameDirectory): loose files, then pak0, pak1, ... on top; a gap ends the PAKs.
+        def value(entries):
+            return int(list(pbr.bsp_textures(pbr.read_entry(entries["maps/test.bsp"])))[0][1][0, 0])
         (self.root / "maps").mkdir()
         (self.root / "maps/test.bsp").write_bytes(make_bsp("same", np.full((4,4), 99, np.uint8)))
-        entry = pbr.entries(self.root)["maps/test.bsp"]
-        self.assertEqual(int(list(pbr.bsp_textures(pbr.read_entry(entry)))[0][1][0,0]), 99)
-        self.source(rgb=2)
+        self.assertEqual(value(pbr.entries(self.root)), 99)
+        make_pak(self.root / "pak3.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 3, np.uint8))})
+        make_pak(self.root / "pak_old.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 7, np.uint8))})
+        self.assertEqual(value(pbr.entries(self.root)), 99)  # no pak0: pak3 and pak_old are never mounted
+        make_pak(self.root / "pak0.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 0, np.uint8))})
+        self.assertEqual(value(pbr.entries(self.root)), 0)  # a PAK above the loose file
+        make_pak(self.root / "pak1.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 1, np.uint8))})
+        self.assertEqual(value(pbr.entries(self.root)), 1)  # pak1 above pak0; pak3 after the missing pak2 still not
+        self.source(rgb=1)
         self.source(rgb=99)
         self.assertEqual(len(self.sources), 2)
 
@@ -222,12 +285,17 @@ class PipelineTests(unittest.TestCase):
         # PNG in lower game wins over TGA in higher game for the same filename.
         chosen, _ = pbr.selected_override("maps/ext.bsp", "wall", indexes)
         self.assertTrue(np.all(chosen == (0, 255, 0, 255)))
-        # Highest game wins when the extensions agree; loose files override its PAKs.
+        # Highest game wins when the extensions agree; its PAKs override its loose files (as the engine mounts them).
         (high / "textures").mkdir()
         (high / "textures/wall.tga").write_bytes(blue)
         chosen, origin = pbr.selected_override("maps/other.bsp", "wall", [pbr.entries(high),pbr.entries(low)])
+        self.assertTrue(np.all(chosen == (255, 0, 0, 255)))
+        self.assertIn("pak0.pak:textures/wall.tga", origin)
+        # A loose file the PAKs don't have is still found.
+        (high / "textures/loose.tga").write_bytes(blue)
+        chosen, origin = pbr.selected_override("maps/other.bsp", "loose", [pbr.entries(high),pbr.entries(low)])
         self.assertTrue(np.all(chosen == (0, 0, 255, 0)))
-        self.assertTrue(origin.endswith("wall.tga"))
+        self.assertTrue(origin.endswith("loose.tga"))
 
     def test_discovery_change_reuses_verified_previous_output(self):
         self.source()
