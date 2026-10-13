@@ -494,7 +494,7 @@ void mockLook_f()
 // (view::weaponHotspot; the flick reload test).
 // (view::heldWeaponPoint; vr_weapon_grab_anywhere tests).
 // "vr_mock_hand_to <main|off> ragdoll <part> [<units>]": at the middle of that part of the ragdoll nearest you (its
-// rig's bone number: vr_ragdoll_info; "near": the part nearest the hand), `units` over it (the grab tests). "vr_mock_hand_to <main|off> by <dx> <dy> <dz>":
+// rig's bone number: vr_ragdoll_info; "near": the part nearest the hand; "head", "neck": its head's joint), `units` over it (the grab tests). "vr_mock_hand_to <main|off> by <dx> <dy> <dz>":
 // moved by that much (world units: lifting, swinging what it holds). "vr_mock_hand_to <main|off> nearest <classname>
 // [<units>]": at the origin of the entity of that classname nearest you (vr_limb: a limb cut off), `units` over it.
 // "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "pouchport [<units>]": the hand's own
@@ -886,12 +886,16 @@ void mockHandTo_f()
         {
             qcvm_t* oldVm = nullptr;
             PR_PushQCVM(&sv.qcvm, &oldVm);
-            // (Part "near": the one nearest the hand; "head": its rig's head.)
+            // (Part "near": the one nearest the hand; "head": its rig's head; "neck": its head's joint.)
             const edict_t* player = EDICT_NUM(1);
             const bool nearest = !q_strcasecmp(Cmd_Argv(3), "near");
             const int num = box3d::ragdollPartCentre(nearest ? hands::current().pos[hand]
                                                              : glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]},
-                nearest ? -1 : !q_strcasecmp(Cmd_Argv(3), "head") ? -2 : Q_atoi(Cmd_Argv(3)), target);
+                nearest                                ? -1
+                : !q_strcasecmp(Cmd_Argv(3), "head") ? -2
+                : !q_strcasecmp(Cmd_Argv(3), "neck") ? -3
+                                                       : Q_atoi(Cmd_Argv(3)),
+                target);
             PR_PopQCVM(oldVm);
             if(!num)
             {

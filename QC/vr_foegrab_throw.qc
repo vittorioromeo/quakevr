@@ -166,8 +166,10 @@ float(entity m, float xDist, float xUnused) VR_FoeGrab_BreakFree =
 };
 
 // The neck snap (Combat > Holding Enemies > Neck Snap; vr_foegrab.cpp neckCheck, ragdollNeckCheck; ROUND22.md, "The neck
-// snap"). The engine: whether xAt (a hand's hold, on m's model) is at its head: positional damage's head zone, the
-// headshots' (VR_Decap_HeadZone; the point as on its model standing: hitmodel_rest), grown by xMargin units.
+// snap"). The engine: whether xAt (a hand's hold, on m's model) is at its head or neck: positional damage's head zone, the
+// headshots' (VR_Decap_HeadZone; the point as on its model standing: hitmodel_rest), grown by xMargin units, down to
+// vr_foegrab_necksnap_neck units below the head sphere's bottom and no lower (the sphere grown reaches its shoulders:
+// a hold there is the judo throw's, the lift's).
 float(entity m, vector xAt, float xMargin) VR_FoeGrab_OnHead =
 {
     if(!VR_Decap_HeadZone(m))
@@ -181,6 +183,10 @@ float(entity m, vector xAt, float xMargin) VR_FoeGrab_OnHead =
     facing_z = 0;
     vector head = m.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
     vector p = hitmodel_target(m) ? hitmodel_rest(m, xAt) : xAt;
+    if(p_z < head_z - xHeadRadius - max(0, cvar_hget(cvarh_vr_foegrab_necksnap_neck)))
+    {
+        return FALSE;
+    }
     return vlen(p - head) < xHeadRadius + VR_HEAD_MARGIN + xMargin;
 };
 

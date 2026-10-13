@@ -726,8 +726,12 @@ const DefaultChange defaultChanges[] = {
     // 131: incandescent blades glow brighter (the author, 2026-10-13: "I have increased the default glow strength";
     // ROUND22.md, "Incandescent blades: his tweaks").
     {131, &vr_hotblade_glow, "1"},
+    // 132: the neck snap's twist measured about the neck from the hands' places (a push-pull snaps it; ROUND22.md, "Neck
+    // snap: only move at the head, a push-pull twists").
+    {132, &vr_foegrab_necksnap_speed, "200"},
+    {132, &vr_foegrab_necksnap_angle, "45"},
 };
-constexpr int configVersion = 131;
+constexpr int configVersion = 132;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

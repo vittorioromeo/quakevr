@@ -2850,9 +2850,10 @@ QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie 
 // The neck snap (vr_foegrab.cpp neckCheck, ragdollNeckCheck; QC VR_FoeGrab_NeckSnap): both hands holding a humanoid's head
 // (standing, staggering, knocked down, lifted: alive) twist it round: its neck snaps, it dies, its body limp in your hands.
 QVR_CVAR(vr_foegrab_necksnap, "1", CVAR_ARCHIVE)           // 1: the neck snap on
-QVR_CVAR(vr_foegrab_necksnap_speed, "200", CVAR_ARCHIVE)   // degrees/s: the hands' twist of the head (the palms turning about each other, the wrists rolling the same way) at least this fast,
-QVR_CVAR(vr_foegrab_necksnap_angle, "45", CVAR_ARCHIVE)    // degrees: kept up while the head turns this far one way: its neck snaps
+QVR_CVAR(vr_foegrab_necksnap_speed, "100", CVAR_ARCHIVE)   // degrees/s: the hands' twist of the head (the line between the palms swept about its neck: one hand forward, the other back; or both wrists turning the same way) at least this fast at its fastest,
+QVR_CVAR(vr_foegrab_necksnap_angle, "30", CVAR_ARCHIVE)    // degrees: and turning it this far one way in one stroke: its neck snaps
 QVR_CVAR(vr_foegrab_necksnap_margin, "2", CVAR_ARCHIVE)    // units: the head zone (the headshots') grown by this for the hands' holds
+QVR_CVAR(vr_foegrab_necksnap_neck, "3", CVAR_ARCHIVE)      // units: its neck's length: holds this far below its head (the head sphere's bottom; a ragdoll's: from its head's joint down) are at its head too; lower (its shoulders) they are the judo throw's and the lift's
 QVR_CVAR(vr_foegrab_necksnap_volume, "1", CVAR_ARCHIVE)    // the crack's volume (0 silent)
 QVR_CVAR(vr_foegrab_necksnap_strength, "1.2", CVAR_ARCHIVE) // the most each hand holds the limp body with afterwards, a share of its weight (above 0.5 two hands carry it)
 QVR_CVAR(vr_foegrab_necksnap_hertz, "24", CVAR_ARCHIVE)   // Hz: how stiffly its head follows the hands afterwards (the hold's spring: the light head bears the body's weight, it sags less the stiffer)

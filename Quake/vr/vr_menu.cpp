@@ -1039,18 +1039,22 @@ int campaignsBloodyShown = -1;
             .help("How far it shoves you back as it breaks free (0: not at all)."),
         header("Neck Snap"),
         toggle("Neck Snap", vr_foegrab_necksnap)
-            .help("Hold a humanoid's head with both hands (where a headshot counts) and twist it round, the hands turning "
-                  "about each other or both wrists rolling the same way: its neck snaps with a crack and it dies on the "
-                  "spot, limp in your hands until you let go of the grips. Standing, staggering, knocked down or lifted, "
-                  "as long as it lives. Pulling the head to a side is still the judo throw, pulling up the lift. The same "
-                  "humanoids as the lift: never ogres, fiends, shamblers or vores."),
-        slider("Twist Speed", vr_foegrab_necksnap_speed, 60.f, 600.f, 10.f, "%.0f deg/s").extend(10.f, 2000.f)
-            .help("How fast your hands must twist the head round to snap its neck."),
+            .help("Hold a humanoid's head or neck with both hands and twist it round: push one hand forward and pull "
+                  "the other back, or turn both wrists the same way, or both. Its neck snaps with a crack and it dies on "
+                  "the spot, limp in your hands until you let go of the grips. Standing, staggering, knocked down or "
+                  "lifted, as long as it lives. With both hands on its head the neck snap is the only move: no judo "
+                  "throw, no lift. The same humanoids as the lift: never ogres, fiends, shamblers or vores."),
+        slider("Twist Speed", vr_foegrab_necksnap_speed, 30.f, 600.f, 10.f, "%.0f deg/s").extend(10.f, 2000.f)
+            .help("How fast the twist must turn the head at its fastest (a quick push-pull reaches 150-250 deg/s)."),
         slider("Twist Angle", vr_foegrab_necksnap_angle, 10.f, 120.f, 5.f, "%.0f deg").extend(1.f, 360.f)
-            .help("And how far round the twist must go at that speed, one way."),
+            .help("And how far round it must turn the head in one stroke, one way (hands 30 cm apart, one 15 cm forward "
+                  "and the other 15 cm back: 45 deg)."),
         slider("Head Grip Margin", vr_foegrab_necksnap_margin, 0.f, 12.f, 1.f, "%.0f units").extend(-8.f, 32.f)
             .help("Your hands count as on its head this far outside its head zone (the headshots'; 32 units are about a "
                   "metre)."),
+        slider("Neck Length", vr_foegrab_necksnap_neck, 0.f, 12.f, 0.5f, "%.1f units").extend(0.f, 32.f)
+            .help("How far below its head your hands still hold its neck (as good as its head: only the neck snap). "
+                  "Lower, at its shoulders, both hands throw it (judo) or lift it."),
         slider("Crack Volume", vr_foegrab_necksnap_volume, 0.f, 1.f, 0.05f, "%.2f")
             .help("The bone-cracking sound's volume (0 silent)."),
         slider("Snapped Body Hold", vr_foegrab_necksnap_strength, 0.f, 2.f, 0.05f, "%.2f").extend(0.f, 10.f)

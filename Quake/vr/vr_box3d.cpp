@@ -16081,6 +16081,11 @@ int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out)
             }
         }
     }
+    if(best && part == -3) // (its neck: its head's joint)
+    {
+        glm::vec3 axis{0.f}, head{0.f};
+        return ragdollNeck(best->num, out, axis, head) ? best->num : 0;
+    }
     if(best && part == -2) // (its head)
     {
         part = best->rig->head >= 0 && !partCut(*best, best->rig->head) ? best->rig->head : best->count;
@@ -16672,6 +16677,34 @@ int ragdollHeadAt(int num, const glm::vec3& at, float neck)
     const b3WorldTransform px = b3Body_GetTransform(r->body[static_cast<za::SizeT>(parent)]);
     const glm::vec3 neckAt = fromB3(px.q) * (rig.bones[rig.head].pivot * r->scale) + world->toU(px.p);
     return glm::distance(neckAt, at) <= za::max(neckReach * r->scale, neck) ? 1 : 0;
+}
+
+bool ragdollNeck(int num, glm::vec3& joint, glm::vec3& axis, glm::vec3& head)
+{
+    const RagdollBodies* r = ragdollOf(num);
+    if(!r)
+    {
+        return false;
+    }
+    const ragdoll::Rig& rig = *r->rig;
+    const int bone = rig.head;
+    if(bone < 0 || bone >= r->count || partCut(*r, bone))
+    {
+        return false;
+    }
+    const b3WorldTransform hx = b3Body_GetTransform(r->body[static_cast<za::SizeT>(bone)]);
+    const glm::quat hq = fromB3(hx.q);
+    head = hq * (ragdoll::limbMiddle(rig, 1u << bone) * r->scale) + world->toU(hx.p);
+    const int parent = rig.bones[bone].parent;
+    joint = head;
+    if(parent >= 0)
+    {
+        const b3WorldTransform px = b3Body_GetTransform(r->body[static_cast<za::SizeT>(parent)]);
+        joint = fromB3(px.q) * (rig.bones[bone].pivot * r->scale) + world->toU(px.p);
+    }
+    const glm::vec3 d = head - joint;
+    axis = glm::length(d) > 0.5f ? glm::normalize(d) : hq * glm::vec3{0.f, 0.f, 1.f};
+    return true;
 }
 
 } // namespace qvr::box3d
