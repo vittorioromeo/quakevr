@@ -137,6 +137,8 @@ settings) compare with new runs under the new names (`qvrbench.py`'s `renamed`).
 | `bullettime_trails_64` | vfx/features | vrfiringrange | vr_bullettime_trails_test 8 shots across the view every 10 frames in bullet time: the distortion trails' pool (64) full, the scene's copy and the bend (vr_bttrails.cpp). |
 | `decals_1024_stream` | vfx/core | vrfiringrange | 1400 pellets fill the 1024-mark pool, then a shot every 4 frames: decal insertion, the world decal grid. |
 | `decals_blood_4096` | vfx | vrfiringrange | vr_decal_stress fills a 4096-mark pool with large blood marks, then adds one every 4 frames. |
+| `decals_pile` | vfx | vrfiringrange | 768 blood marks piled on one spot of the floor (`vr_decal_stress 64 32 cluster` x 12), looked at; `vr_decal_bucket_max 32` (shipped). Compare `world+brush` in `gpu_phase_ms`. |
+| `decals_pile_255` | vfx | vrfiringrange | The same pile with `vr_decal_bucket_max 255` (the limit before 2026-10-12). |
 | `torches_32` | vfx/lights | vrfiringrange | 32 more wall torches (35 emitters): fire particles, their lights. |
 | `lights_32` | lights/core | vrfiringrange | vr_light_test x32 ahead: dynamic lights, their shadow maps (vr_shadow_dlights' slots), lit models. |
 | `lights_32_noshadows` | lights/control | vrfiringrange | lights_32 with vr_shadow_dlights 0 and vr_shadow_maplights 0: the shadows' share. |

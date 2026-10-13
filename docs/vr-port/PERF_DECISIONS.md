@@ -283,6 +283,13 @@ its cell's bucket (up to 64, each a whole 80-byte record read before its early-o
   or none (newest first, each of them with room): no holes; past 255 on one cell the oldest go whole. World+brush at
   2782 in the rocket fight: before decal101 3.07, 1.0.1 2.77, now 2.87 ms (two thirds of decal101's saving kept; the
   rest is the marks the cap had dropped, drawn again). ROUND22.md, "Pools piled up: no square holes".
+- **Capped lower (2026-10-12, worktree `decalcap`)**: a pile of 255 marks on one cell (a corpse cut apart in one place)
+  cost the frame rate where it was looked at: each of its pixels walks the bucket's whole list. `vr_decal_bucket_max`
+  (32 shipped, 1-255; Advanced VR Settings > Gore, Marks) lists that many a bucket, with the same all-buckets-or-none
+  rule (the oldest of a pile go whole, no holes). World+brush with 768 marks piled on one spot, eyes 2048, unpaced and
+  interleaved in one process (4 windows each, 300 frames): 32 1.46-3.35 ms, 255 3.36-6.36 ms, +1.8 to +4.8 ms in every
+  pair. The pile is thinner at 32 (its oldest marks gone). Later: bake old marks into per-surface blood layers (option
+  A). ROUND22.md, "Piled-up blood: a mark limit a spot".
 
 ## Leads (2026-10-08 follow-up)
 
