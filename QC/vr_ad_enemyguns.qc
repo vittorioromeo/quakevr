@@ -970,7 +970,7 @@ void(float request, entity p) AD_GunTest =
         // A gun model the engine cannot make (as another release of AD's model, or a replacement pack): id's soldier's
         // model named as an AD gun. Quake VR's stand-in's file loads under the name (before: a Host_Error).
         entity g = spawn();
-        setmodel(g, "progs/soldier.mdl#gun0");
+        setmodel(g, sprintf("%s#gun0", "progs/soldier.mdl")); // (made: setmodel precaches it late)
         bprint(sprintf("adgun standin: %s index %g size %v: %s\n", g.model, g.modelindex, g.size,
             (g.modelindex > 0 && vlen(g.size) > 0) ? "PASS" : "FAIL"));
         remove(g);
