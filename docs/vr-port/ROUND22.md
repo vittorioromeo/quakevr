@@ -5600,3 +5600,33 @@ twist necessary to snap the neck. At the moment I have to snap my wrists and twi
 - In VR: push-pulls at his pace both ways at a standing grunt's head and neck, and a lying one's; whether a shoulder
   grab still throws (judo) and a neck grab never does; whether Twist Speed 100 / Angle 30 snaps too easily when he only
   repositions his hands on a head (a slow repositioning stays below 100 deg/s; a quick one could snap).
+
+## Review fixes (adpbrload, adpbrgen; worktree `fixpbr`, 2026-10-13)
+
+From review r4 (adpbrload 1.1-1.6, 2.1, 4.1-4.3; adpbrgen 1, 2), one commit each:
+
+- `vr_pbr 0` is exactly as before the loader: Mod_LoadTextures passes an embedded texture's `_norm`/`_bump` names
+  only with `vr_pbr` on (`VR_PBREnabled`). Proof against a build of 63e8ab544 (the merge's first parent): e1m1,
+  e2m3, e4m1 with the head flashlight on, `vr_pbr 0`, fixed frames: 0 differing pixels each, and the same 16121
+  failed file lookups (`developer 2`), none a `_norm`/`_bump`; `next` had 2140 more on e1m1 alone. Comments fixed and
+  the shared lines tagged.
+- Generated-component strength is resolved once per normal map (`normalmap_generated[]` in gl_texmgr.c, set in
+  TexMgr_LoadNormalMap), not by a string search per draw batch: ad_crucial, exclusive, 10 s: `world` CPU 0.260 ->
+  0.068 ms, CPU busy 1.551 -> 1.469 ms; `vr_pbr_strength 3` still gives the same 158 textures 3/3.
+- stock.txt and provenance.txt parse with CRLF too (a present file with no records warns); `.gitattributes` keeps
+  them LF; `vr_pbr_test` parses the shipped stock.txt both ways. The indexes and each companion's verified flags are a
+  GameDirChange cache, not re-read and re-hashed per map: ad_crucial's companion work 129 ms first, 100 ms when
+  revisited (277 calls). Stock textures no longer probe 3 file names for a diagnostic; recipes are freed with the
+  last texture that uses them.
+- An external pack normal given a generated height has its green judged against that height (Quetoo's heighted
+  maps judge -0.86..-0.99, turned); no AD map composes one today, so AD is unchanged.
+- Generator: `entries()` uses the engine's PAK order (PAKs above loose, contiguous pak0..N); its tests assert it.
+- The bundle ships only companions the loader can use (his decision): 999 of 2987 moved to scratch (712 stock.txt
+  sources, 218 Quetoo comparison pictures, 69 miptex AD's own replacements always cover; 19 covered only by id1 or
+  mission-pack HD replacements are kept for installs without them). 364.3 MB -> 114.7 MB, provenance 1988 records.
+  The generator writes only those (`shipped()`, `--comparison-output` for the rest; `prune` for an existing bundle).
+  All 283 AD maps (`vr_pbr 1`, `vr_extmaps 1`): the 13946-line `vr_pbr_audit world` census is identical before and
+  after the prune, and with the final build. `pbr_loader_test.py` 6/6 + 6/6, `vr_pbr_test` 21/21 (fixtures),
+  125/125 (stock, e1m1); generator tests 24 OK.
+- Not changed: the stale duplicate "Generated-channel provenance emission" section above, the census JSON's absolute
+  paths, the wasted decode before the complete-authored/external checks (r4 1.2), the 55 flat companions (3.1).
