@@ -464,6 +464,7 @@ void VR_MenuDrawOverlay (void);							// M_Draw, after the menu: the buttons
 int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' vertical Quake plaque left out (the VR menu style)
 // The menus' branding (vr_menubrand.cpp): the Quake VR banner in place of Quake's plaque, and their browns turned red.
 int VR_MenuDrawBanner (int x, int y);					// M_DrawPlaque: the banner where the plaque's top left would be; nonzero if drawn (0: no image, draw the plaque)
+int VR_MenuBannerExtent (int x, float *left, float *right); // M_Main_Draw: where M_DrawPlaque (x, y) puts the banner (or the plaque) across (menu x); 0 if nothing
 void VR_MenuDrawBannerColumn (void);					// M_Draw, before the page: the VR menu style's banner, in the left column under the corner's buttons
 void VR_MenuDrawVersion (void);						// M_Draw, before the page: "Quake VR: Unleashed - v1.0" / "by Vittorio Romeo" / a "Support on Ko-fi" link, in a box in the bottom right corner (vr_menu_version)
 void VR_MenuRecolor (float *params);					// Draw_SetMenuRecolor: the gui shader's MenuRecolor (vr_menu_recolor; x 0: off)
@@ -483,6 +484,7 @@ int VR_RuntimeMenuPause (void);							// Host_ServerFrame, SV_RunClients: nonzer
 int VR_BigFont_CanDraw (const char *text);				// M_Main_Draw: nonzero if every letter of `text` is there
 int VR_BigFont_Draw (int x, int y, const char *text);	// M_Main_Draw: draws it (its cell's top at y); returns its width
 float VR_BigFont_DrawScaled (int x, int y, float scale, const char *text); // as VR_BigFont_Draw, `scale` times the size (the main menu's rows closer than 15); its width
+float VR_BigFont_WidthScaled (float scale, const char *text); // M_Main_Draw: the width VR_BigFont_DrawScaled would draw it (nothing drawn)
 
 // Hardcoded limits (vr_limits.cpp, the vr_limits command): a limit whose overflow used to be silent is counted, and warned
 // about once a session.

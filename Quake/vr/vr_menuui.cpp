@@ -1391,6 +1391,16 @@ float toolbarLeft()
     return toolbarShown() ? toolbarLayout().bx0(0) : -1e9f;
 }
 
+float toolbarTop()
+{
+    if(!toolbarShown())
+    {
+        return -1e9f;
+    }
+    const ToolbarLayout l = toolbarLayout();
+    return l.yc(0) - l.bh() / l.k;
+}
+
 bool toolbarBeside()
 {
     if(!toolbarShown())

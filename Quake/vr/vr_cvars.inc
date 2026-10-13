@@ -761,6 +761,7 @@ QVR_CVAR(vr_sbar_offset_roll, "-0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_height_calibration, "1.646099", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_distance, "80", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_status, "1", CVAR_ARCHIVE)            // a status box in the menus' top right corner (vr_menuui.cpp): VR / mock / flat, the runtime, the resolution rendered, the target rate, fps, CPU/GPU ms, RAM/VRAM
+QVR_CVAR(vr_menu_banner_beside, "1", CVAR_ARCHIVE)     // the VR menu style's Quake VR banner left of the corner's shortcut buttons, top level with theirs (vr_menubrand.cpp, VR_MenuDrawBannerColumn); 0: under them, in their column, as before (also where the panel's margin is too narrow)
 QVR_CVAR(vr_menu_version, "1", CVAR_ARCHIVE)           // the version box (with the Support on Ko-fi link) in the menus' bottom right corner (vr_menubrand.cpp): "Quake VR: Unleashed - v0.9", "by Vittorio Romeo"
 QVR_CVAR(vr_menu_link_dryrun, "0", CVAR_NONE)       // the menus' links (the version box's "Support on Ko-fi", the update notice: vr_menubrand.cpp) print the address instead of opening the browser (tests; the kit's hidden runs, QVR_TEST_HIDDEN, never open it either)
 // The update notice (vr_update.cpp): the release feed's latest.json read at start-up (at most once an hour: a cached
