@@ -18,6 +18,7 @@
 #include "vr_props.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_hitreact.hpp"
+#include "vr_hotblade.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_weapons.hpp"
 
@@ -323,6 +324,7 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
     {
         (void)view::skinTone(e, out->skintone);
     }
+    hotblade::bladePlane(e, matrix, out->hotblade); // an incandescent blade glows on its blade only (vr_hotblade.cpp)
     out->retro[3] = standard ? VR_RetroLightSkinScale(e->model, hdr, e->skinnum) : 0.f; // retro lighting (vr_retrolight.cpp): its Quake texels' share
 }
 

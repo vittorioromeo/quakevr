@@ -127,6 +127,12 @@ void smoulderSmoke(const glm::vec3& org, const glm::vec3& out, int count, float 
 // 0..1 (its first alpha). Nothing with vr_particles 0.
 void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright);
 
+// Incandescent blades (vr_hotblade.cpp): an ember leaving the heated part of a blade at `org`, going `vel`, in `color`
+// (the glow's hue) `bright` 0..1; and one of the particles a swung blade leaves behind (`spark`: a spark, else a small
+// tongue of flame) at `org`, drifting `vel`, lingering `life` seconds. Nothing with vr_particles 0.
+void hotEmber(const glm::vec3& org, const glm::vec3& vel, const glm::vec3& color, float bright);
+void hotTrail(const glm::vec3& org, const glm::vec3& vel, const glm::vec3& color, float bright, float life, bool spark);
+
 // The gore's blood mist (vr_gore_mist*): the large, faint clouds every blood effect makes, at `org` drifting along `dir`,
 // as for a blood effect `count` strong. Nothing with vr_particles 0 or vr_gore_mist 0.
 void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count);

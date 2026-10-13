@@ -109,6 +109,36 @@ void(entity p, float xHand, entity xTarg, float xAlive, vector xAt, vector xDir)
     VR_Burn_Ignite(xTarg, p, xAt, xDir, VR_BURN_BLOW);
 };
 
+// Whether `xThing` is a weapon prop (thrown, dropped) whose blade is incandescent.
+float(entity xThing) VR_HotBlade_ThingHot =
+{
+    return xThing.classname == "thrown_weapon" && VR_HotBlade_Heatable(xThing.weapon) && VR_HotBlade_IsHot(xThing.weaponinst);
+};
+
+// The base damage an incandescent blade thrown adds to its hit (VR_Thrown_Damage: as its blows', times the throw's speed
+// and the rest); 0 for anything else.
+float(entity xThing) VR_HotBlade_ThrownExtra =
+{
+    return VR_HotBlade_ThingHot(xThing) ? max(0, cvar_hget(cvarh_vr_hotblade_damage)) : 0;
+};
+
+// A thrown weapon `xThing` (thrown by `xBy`) hit `xTarg` at `xAt` going `xDir` (forcegrabbable_touch); `xAlive`: it was
+// alive before. An incandescent blade sets it on fire, as its blows do.
+void(entity xThing, entity xTarg, entity xBy, float xAlive, vector xAt, vector xDir) VR_HotBlade_ThrownStruck =
+{
+    if(xTarg == world || xTarg == xBy || !xTarg.takedamage || !VR_HotBlade_ThingHot(xThing))
+    {
+        return;
+    }
+    if(!cvar_hget(xAlive ? cvarh_vr_hotblade_ignite : cvarh_vr_hotblade_ignite_corpses))
+    {
+        return;
+    }
+    dprint(sprintf("hotblade: a thrown weapon %g struck %s (%s): set on fire\n", xThing.weapon, xTarg.classname,
+        xAlive ? "alive" : "a corpse"));
+    VR_Burn_Ignite(xTarg, xBy != world ? xBy : xThing, xAt, xDir, VR_BURN_BLOW);
+};
+
 // The fire point `p` is in (VR_WallTorch_FireAt's: lava, a flame, a lit torch), "" none.
 string(vector p) VR_HotBlade_FireAt =
 {
@@ -127,12 +157,13 @@ void(entity r) VR_HotBlade_Heat =
     vr_hot_any_until = max(vr_hot_any_until, r.wi_hot_end);
 };
 
-// Every VR_HOT_TICK while a weapon may be hot: the weapons lying about (thrown, dropped, placed: thrown_weapon props)
-// that are shed a few sparks, and one that lies in water or slime is quenched. (The engine draws only the hands' and
-// the holsters' weapons glowing.)
+// Every VR_HOT_TICK while a weapon may be hot (and a tick after, to set the last glows to 0): the weapons lying about or
+// flying (thrown, dropped, placed: thrown_weapon props) tell the engine their glow (.vr_hot_glow, sent with the prop:
+// U_QVR_WEAPONUID; it draws them glowing, lit and shedding embers as in a hand), and one that lies in water or slime is
+// quenched. Their heat is their record's: it ticks down there as anywhere.
 void() VR_HotBlade_Lying =
 {
-    if(time < vr_hot_lying_next || (time > vr_hot_any_until && vr_hot_any_until > 0))
+    if(time < vr_hot_lying_next || (time > vr_hot_any_until + 2 * VR_HOT_TICK && vr_hot_any_until > 0))
     {
         return;
     }
@@ -146,7 +177,9 @@ void() VR_HotBlade_Lying =
     for(t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
     {
         entity r = t.weaponinst;
-        if(!VR_HotBlade_IsHot(r) || !VR_HotBlade_Heatable(t.weapon))
+        float g = VR_HotBlade_Heatable(t.weapon) ? VR_HotBlade_Glow(r) : 0;
+        t.vr_hot_glow = g;
+        if(g <= 0)
         {
             continue;
         }
@@ -154,6 +187,7 @@ void() VR_HotBlade_Lying =
         float c = pointcontents(mid);
         if((c == CONTENT_WATER || c == CONTENT_SLIME) && cvar_hget(cvarh_vr_hotblade_quench))
         {
+            t.vr_hot_glow = 0;
             dprint(sprintf("hotblade: a lying weapon %g quenched\n", t.weapon));
             VR_HotBlade_Cool(r);
             if(vol > 0)
@@ -161,10 +195,6 @@ void() VR_HotBlade_Lying =
                 sound(t, CHAN_AUTO, "vr/blade_quench.wav", vol, ATTN_NORM);
             }
             particle2(mid + '0 0 4', '0 0 40', QVR_PARTICLE_PRESET_BIGSMOKE, 6);
-        }
-        else if(random() < 0.5 * VR_HotBlade_Glow(r) && cvar_hget(cvarh_vr_hotblade_glow) > 0)
-        {
-            particle2(mid, '0 0 25', QVR_PARTICLE_PRESET_SPARKS, 1);
         }
     }
 };
@@ -242,12 +272,14 @@ void(float xHand, float dt) VR_HotBlade_HandTick =
     }
     if(time < r.wi_hot_end)
     {
-        // Glowing: a flame again sets it back to full.
+        // Glowing: a flame again sets it back to full, and the hand feels it heat (the author: reheating a blade not yet
+        // cold must be felt too), a steady buzz as the build-up's at its top.
         if(r.wi_hot_end - time < max(0.1, cvar_hget(cvarh_vr_hotblade_time)) - 1)
         {
-            dprint(sprintf("hotblade: hand %g weapon %g full again (%s)\n", xHand, wid, fire));
+            dprint(sprintf("hotblade: hand %g weapon %g full again (%s): reheating, a buzz\n", xHand, wid, fire));
         }
         VR_HotBlade_Heat(r);
+        haptic(xHand, 0, VR_HOT_TICK + 0.02, 120, 0.4);
     }
     else
     {
@@ -271,7 +303,9 @@ void(float xHand, float dt) VR_HotBlade_HandTick =
             }
             r.wi_heat = h;
             r.wi_heat_at = time;
-            haptic(xHand, 0, VR_HOT_TICK, 120, 0.1 + 0.25 * h);
+            vr_hot_any_until = max(vr_hot_any_until, time + max(0.1, cvar_hget(cvarh_vr_hotblade_heat_time)) + VR_HOT_GRACE);
+            // A buzz rising with the build-up (felt from the first tick: it was 0.1 at first, hard to tell).
+            haptic(xHand, 0, VR_HOT_TICK + 0.02, 120, 0.2 + 0.3 * h);
         }
     }
     // Sizzling in the flame (twice a second).
@@ -591,6 +625,68 @@ void() VR_HotBlade_TestFrame =
         else
         {
             dprint("hotblade: test: no lit torch in the off hand\n");
+        }
+    }
+    else if(ask == 12)
+    {
+        // The weapons lying about (or flying): their heat, glow and what the engine is told.
+        float n = 0;
+        entity w;
+        for(w = find(world, classname, "thrown_weapon"); w; w = find(w, classname, "thrown_weapon"))
+        {
+            if(VR_HotBlade_Heatable(w.weapon))
+            {
+                n = n + 1;
+                dprint(sprintf("hotblade: lying: %s; sent %.2f speed %.0f\n", VR_HotBlade_Desc(w.weaponinst, w.weapon),
+                    w.vr_hot_glow, vlen(w.velocity)));
+            }
+        }
+        dprint(sprintf("hotblade: lying: %g blades\n", n));
+    }
+    else if(ask == 13 || ask == 14)
+    {
+        // 13: the main hand's weapon thrown straight at the nearest monster's middle, at 3 times the throw's full-damage
+        // speed, hardly falling; 14: let go of where the hand is (dropped, no throw).
+        float wid = self.weapon;
+        if(wid == WID_FIST)
+        {
+            dprint("hotblade: test: nothing in the main hand\n");
+        }
+        else
+        {
+            vector from = VRGetHandPos(cVR_MainHand);
+            vector vel = '0 0 0';
+            float m2u = VRMetersToUnits();
+            if(ask == 13)
+            {
+                entity mon = findradius(self.origin, 600);
+                entity aim = world;
+                float aimD = 100000;
+                for(; mon; mon = mon.chain)
+                {
+                    if((mon.flags & FL_MONSTER) && mon.takedamage && vlen(mon.origin - self.origin) < aimD)
+                    {
+                        aimD = vlen(mon.origin - self.origin);
+                        aim = mon;
+                    }
+                }
+                if(aim != world)
+                {
+                    vel = normalize((aim.absmin + aim.absmax) * 0.5 - from) * (3 * 700 * m2u / 120);
+                }
+            }
+            entity thrown = CreateThrownWeapon(self, wid, self.weaponflags, self.weaponinst, from, VRGetHandRot(cVR_MainHand),
+                vel, '0 0 0', FALSE, ask == 13, WeaponIdToThrowDamage(wid));
+            if(thrown != world)
+            {
+                thrown.vr_wpn_from = self;
+                thrown.throwdmgspeed = 700 * m2u / 120;
+                thrown.gravity = ask == 13 ? 0.01 : 1;
+                dprint(sprintf("hotblade: test: weapon %g %s at %.0f u/s (%s)\n", wid, ask == 13 ? "thrown" : "dropped",
+                    vlen(vel), VR_HotBlade_Desc(thrown.weaponinst, wid)));
+            }
+            VRSetHandEmpty(self, cVR_MainHand);
+            W_SetCurrentAmmoFor(cVR_MainHand);
         }
     }
     self = oldSelf;

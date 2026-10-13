@@ -723,8 +723,11 @@ const DefaultChange defaultChanges[] = {
     // 130: touching a monster no longer gives you away, only grabbing it does (the author, 2026-10-13: "just touching
     // an enemy doesn't alert them -- but grabbing them does"; ROUND22.md, "Stealth: a touch no longer gives you away").
     {130, &vr_stealth_contact, "1"},
+    // 131: incandescent blades glow brighter (the author, 2026-10-13: "I have increased the default glow strength";
+    // ROUND22.md, "Incandescent blades: his tweaks").
+    {131, &vr_hotblade_glow, "1"},
 };
-constexpr int configVersion = 130;
+constexpr int configVersion = 131;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

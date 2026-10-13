@@ -2666,10 +2666,17 @@ QVR_CVAR(vr_hotblade_damage, "10", CVAR_ARCHIVE)        // base damage added to 
 QVR_CVAR(vr_hotblade_ignite, "1", CVAR_ARCHIVE)         // 1: its blows set living enemies on fire (Combat > Burning)
 QVR_CVAR(vr_hotblade_ignite_corpses, "1", CVAR_ARCHIVE) // 1: and corpses (with Corpses Burn on)
 QVR_CVAR(vr_hotblade_quench, "1", CVAR_ARCHIVE)         // 1: dipped in water or slime, it cools at once (a hiss, a puff of steam)
-QVR_CVAR(vr_hotblade_glow, "1", CVAR_ARCHIVE)           // the glow's brightness (0: none; the embers too)
+QVR_CVAR(vr_hotblade_glow, "1.5", CVAR_ARCHIVE)         // the glow's brightness (0: none; the embers, the light and the trail too; 1 before config 131), on the blade only (vr_hotblade.cpp)
+QVR_CVAR(vr_hotblade_light, "1", CVAR_ARCHIVE)          // brightness of the light an incandescent blade casts (following its glow: the build-up, the fade; 0: none)
+QVR_CVAR(vr_hotblade_light_radius, "72", CVAR_ARCHIVE)  // its reach in units at full glow
+QVR_CVAR(vr_hotblade_embers, "3", CVAR_ARCHIVE)         // embers each puff off the heated part of the blade (0: none)
+QVR_CVAR(vr_hotblade_ember_rate, "10", CVAR_ARCHIVE)    // puffs of embers a second at full glow (fewer as it fades: times the glow squared)
+QVR_CVAR(vr_hotblade_trail, "1", CVAR_ARCHIVE)          // how many fire and spark particles a swung incandescent blade leaves in the air behind its heated part (0: none; faster swings leave more)
+QVR_CVAR(vr_hotblade_trail_linger, "0.5", CVAR_ARCHIVE) // s they linger in the air
+QVR_CVAR(vr_hotblade_trail_speed, "1.5", CVAR_ARCHIVE)  // m/s the blade's tip must move for a trail (slower: none)
 QVR_CVAR(vr_hotblade_hue, "18", CVAR_ARCHIVE)           // the glow's hue in degrees (0 red, 18 orange-red, 30 orange, 55 yellow)
 QVR_CVAR(vr_hotblade_sound, "1", CVAR_ARCHIVE)          // volume of the sizzle in a flame, the ring as it turns incandescent and the quench's hiss (0: off)
-QVR_CVAR(vr_hotblade_test, "0", CVAR_NONE)              // the QC's tests (Debug > Tests > Incandescent Blades): 1 heat the held blades, 2 quench, 3 report, 4 into the fade, 5 half built up, 6 strike the nearest monster or corpse with the main hand (a blow of base 20), 7 the main blade into the nearest map flame, 8 into the nearest lava, 9 the nearest wall torch into the off hand, 10 into the off hand's torch's flame, 11 into the nearest water or slime
+QVR_CVAR(vr_hotblade_test, "0", CVAR_NONE)              // the QC's tests (Debug > Tests > Incandescent Blades): 1 heat the held blades, 2 quench, 3 report, 4 into the fade, 5 half built up, 6 strike the nearest monster or corpse with the main hand (a blow of base 20), 7 the main blade into the nearest map flame, 8 into the nearest lava, 9 the nearest wall torch into the off hand, 10 into the off hand's torch's flame, 11 into the nearest water or slime, 12 report the blades lying about, 13 throw the main hand's weapon at the nearest monster, 14 drop it
 QVR_CVAR(vr_dummy_attacks, "0", CVAR_NONE)               // the training dummy strikes at you in melee now and then (parry practice; the firing range's button). Not saved: off at every map load, and while a motion take plays
 QVR_CVAR(vr_dummy_attack_period, "2.5", CVAR_ARCHIVE)    // s from one of the dummy's blows to the next (its wind-up included)
 QVR_CVAR(vr_dummy_attack_jitter, "0.4", CVAR_ARCHIVE)    // s the period varies by at random, either way

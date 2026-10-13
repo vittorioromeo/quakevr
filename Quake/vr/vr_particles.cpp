@@ -2148,6 +2148,74 @@ void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright)
     });
 }
 
+void hotEmber(const glm::vec3& org, const glm::vec3& vel, const glm::vec3& color, float bright)
+{
+    if(bright <= 0.f || !enabled())
+    {
+        return;
+    }
+
+    // Small and hot: the glow's colour, yellower in the middle of some, rising off the metal and dimming as they go.
+    make(1.f, [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.additive = true;
+        const float yellow = rnd(0.f, 0.45f);
+        p.color = glm::vec4{glm::mix(color, glm::vec3{1.f, 0.85f, 0.45f}, yellow), za::min(1.f, bright)};
+        p.die = cl.time + rnd(0.35f, 0.8f);
+        p.scale = rnd(0.3f, 0.55f);
+        p.type = Custom;
+        p.fade = -1.4f;
+        p.grow = -0.3f;
+        p.drag = 1.6f;
+        p.spin = rnd(-6.f, 6.f);
+        p.acc = gravity(-0.025f);
+        p.org = org;
+        p.vel = vel;
+    }, false);
+}
+
+void hotTrail(const glm::vec3& org, const glm::vec3& vel, const glm::vec3& color, float bright, float life, bool spark)
+{
+    if(bright <= 0.f || life <= 0.f || !enabled())
+    {
+        return;
+    }
+
+    make(1.f, [&](Particle& p, int) {
+        p.additive = true;
+        p.type = Custom;
+        p.org = org;
+        p.vel = vel;
+        const float l = life * rnd(0.6f, 1.f);
+        p.die = cl.time + l;
+        if(spark)
+        {
+            // A spark thrown off the hot metal: bright, tiny, falling a little.
+            p.cell = CellSpark;
+            p.color = glm::vec4{glm::mix(color, glm::vec3{1.f, 0.9f, 0.6f}, rnd(0.3f, 0.7f)), za::min(1.f, bright)};
+            p.scale = rnd(0.25f, 0.45f);
+            p.fade = -za::min(1.f, bright) / l;
+            p.grow = -0.15f;
+            p.drag = 2.5f;
+            p.acc = gravity(0.06f);
+            p.spin = rnd(-8.f, 8.f);
+        }
+        else
+        {
+            // A small tongue of flame hanging in the air where the blade passed, rising as it fades.
+            p.cell = CellFire;
+            p.angle = -1.5707963f + rnd(-0.4f, 0.4f); // upright (the shader turns +angle counterclockwise)
+            p.color = glm::vec4{glm::mix(color, glm::vec3{1.f, 0.6f, 0.15f}, 0.35f), 0.75f * za::min(1.f, bright)};
+            p.scale = rnd(1.f, 1.8f);
+            p.fade = -p.color.a / l;
+            p.grow = 0.6f;
+            p.drag = 3.f;
+            p.acc = gravity(-0.03f);
+            p.spin = rnd(-0.4f, 0.4f);
+        }
+    }, false);
+}
+
 void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
 {
     if(strength <= 0.f || !vr_particles.value || !ensureAtlas())

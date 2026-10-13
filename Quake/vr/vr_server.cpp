@@ -960,7 +960,10 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
     if(bits & U_QVR_WEAPONUID)
     {
         edict_t* const inst = weaponInst(ent, f.weaponinst);
-        MSG_WriteLong(msg, weaponUid(inst));
+        // Its id (records' ids stay far below 2^24), an incandescent blade's glow in bits 24-30 (0-127: QC .vr_hot_glow,
+        // vr_hotblade.cpp draws it; 0 in older demos).
+        const int hot = CLAMP(0, static_cast<int>(fieldFloatOr(ent, f.vr_hot_glow, 0.f) * 127.f + 0.5f), 127);
+        MSG_WriteLong(msg, (weaponUid(inst) & 0xFFFFFF) | (hot << 24));
         // Its clip: the rounds in it, shown on its ammo screen as a held gun's (vr_view.cpp setupWorldWeapons).
         MSG_WriteByte(msg, CLAMP(0, static_cast<int>(inst ? fieldFloatOr(inst, f.wi_clip, 0.f) : 0.f), 255));
     }

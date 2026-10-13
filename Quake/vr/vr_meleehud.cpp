@@ -23,11 +23,7 @@ namespace
 constexpr float emberRate = 42.f;   // embers a second off each hand's weapon as the window opens (fewer as it closes)
 constexpr float glowFadeOut = 0.2f; // s the glow takes to go when the window closes (a counter landed: at once)
 
-constexpr float hotEmberRate = 9.f; // embers a second off an incandescent blade at its full glow
-
 float glow = 0.f;          // the glow now, 0..1 (following the window, fading out after it)
-float hot[2] = {0.f};      // each hand's weapon's incandescent glow, 0..1 (STAT_QVR_HOTBLADE, eased)
-float hotEmberDue[2] = {0.f};
 double openedAt = -1.0;    // realtime the window last opened (its flare)
 float lastCounter = 0.f;   // the window's share left last frame
 float emberDue[2] = {0.f}; // each hand's embers owed (a fraction of one carried over)
@@ -135,25 +131,6 @@ void queue(const hands::State& s)
     }
     glow = target >= glow ? target : za::max(target, glow - dt / glowFadeOut);
 
-    // Incandescent blades (QC vr_hotblade.qc): each hand's glow eased towards the server's (it sends 72 a second, steps
-    // of 1/255), and a few embers off it.
-    const int hotBits = (cl.protocolflags & PRFL_QUAKEVR) && cls.state == ca_connected ? cl.stats[protocol::STAT_QVR_HOTBLADE] : 0;
-    for(int hand = 0; hand < 2; hand++)
-    {
-        const float want = static_cast<float>((hotBits >> (8 * hand)) & 255) / 255.f;
-        hot[hand] = want == 0.f ? 0.f : hot[hand] + (want - hot[hand]) * za::min(1.f, dt * 12.f);
-        if(hot[hand] <= 0.f || !view::heldWeapon(hand) || vr_hotblade_glow.value <= 0.f)
-        {
-            hotEmberDue[hand] = 0.f;
-            continue;
-        }
-        hotEmberDue[hand] += dt * hotEmberRate * hot[hand] * hot[hand];
-        for(; hotEmberDue[hand] >= 1.f; hotEmberDue[hand] -= 1.f)
-        {
-            ember(s, hand, 0.5f + 0.5f * hot[hand]);
-        }
-    }
-
     if(!vr_counter_glow.value || counter <= 0.f)
     {
         emberDue[0] = emberDue[1] = 0.f;
@@ -189,44 +166,6 @@ float entityGlow(const entity_t* e)
     // A weapon's whole length; a bare fist less (the whole hand would glow).
     const float breathe = 0.85f + 0.15f * static_cast<float>(za::sin(realtime * 11.0));
     return za::clamp(glow * breathe * (weapon ? 1.f : 0.6f), 0.f, 1.f);
-}
-
-float hotGlow(const entity_t* e)
-{
-    if(vr_hotblade_glow.value <= 0.f || !(cl.protocolflags & PRFL_QUAKEVR) || cls.state != ca_connected)
-    {
-        return 0.f;
-    }
-    float g = 0.f;
-    bool weapon = false;
-    const int hand = view::handOf(e, weapon);
-    if(hand >= 0)
-    {
-        g = weapon ? hot[hand] : 0.f;
-    }
-    else if(const int bits = cl.stats[protocol::STAT_QVR_HOTBLADEHOLSTER]; bits != 0)
-    {
-        for(int i = 0; i < protocol::numHolsters; i++)
-        {
-            if(((bits >> (4 * i)) & 15) != 0 && view::holsteredWeapon(i) == e)
-            {
-                g = static_cast<float>((bits >> (4 * i)) & 15) / 15.f;
-                break;
-            }
-        }
-    }
-    if(g <= 0.f)
-    {
-        return 0.f;
-    }
-    // Its colour in 16 levels a channel, its strength 0..2 (the alias shader's QVR_ALIAS_FS_GLOW reads them back); a
-    // low glow raised (the build-up shows).
-    const float flicker = 0.93f + 0.07f * static_cast<float>(za::sin(realtime * 7.3));
-    const float strength = za::clamp(za::pow(g, 0.7f) * flicker * vr_hotblade_glow.value, 0.05f, 1.95f);
-    const glm::vec3 c = hsv(vr_hotblade_hue.value, 1.f, 1.f);
-    const auto level = [](float v) { return static_cast<int>(za::clamp(v, 0.f, 1.f) * 15.f + 0.5f); };
-    const int code = level(c.r) + 16 * level(c.g) + 256 * level(c.b);
-    return 4.f + 2.f * static_cast<float>(code) + strength;
 }
 
 } // namespace qvr::meleehud

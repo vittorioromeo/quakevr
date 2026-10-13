@@ -6220,6 +6220,16 @@ za::Vector<Item> pageDebugTools()
         command("Blade into the Nearest Lava", "developer 1; noclip; god; vr_hotblade_test 8").help("vr_hotblade_test 8: the same into lava near you."),
         command("Blade into the Nearest Water", "developer 1; noclip; vr_hotblade_test 11").help("vr_hotblade_test 11: the same into slime or water near you (it quenches)."),
         command("Take the Nearest Wall Torch (Off Hand)", "developer 1; vr_hotblade_test 9").help("vr_hotblade_test 9: the nearest torch on its wall into the off hand (keep its grip held)."),
+        command("Report What the Client Draws", "vr_hotblade_report")
+            .help("vr_hotblade_report: the glowing blades drawn (hands, holsters, lying), the heated part's length and "
+                  "its share of the model's vertices that glow, their light, and the embers and trail particles made in the last second."),
+        command("Report the Lying Blades", "developer 1; vr_hotblade_test 12")
+            .help("vr_hotblade_test 12: each blade lying about or flying: its heat, glow and time left, and the glow sent to the client."),
+        command("Throw It at the Nearest Monster", "developer 1; vr_hotblade_test 13")
+            .help("vr_hotblade_test 13: the main hand's weapon thrown straight at the nearest monster (hard, hardly falling): "
+                  "a red-hot one hits harder and sets it on fire."),
+        command("Drop It Here", "developer 1; vr_hotblade_test 14")
+            .help("vr_hotblade_test 14: the main hand's weapon let go of where the hand is: watch it glow and cool on the ground."),
         command("Off Hand's Torch to the Blade", "developer 1; vr_hotblade_test 10").help("vr_hotblade_test 10: the off hand's lit torch's flame brought round the main hand's blade (the mock headset's hand)."),
         header("Wall Torches Shot Off Their Walls (developer 1: walltorch: ...)"),
         command("Shoot the Nearest Wall Torch (a Pellet)", "developer 1; vr_test_walltorch_shot 10")
@@ -9225,9 +9235,26 @@ za::Vector<Item> pageHotBlades()
             .help("Dipped in water or slime, it cools at once, with a hiss and a puff of steam."),
         header("Look and Sound"),
         slider("Glow Brightness", vr_hotblade_glow, 0.f, 2.f, 0.05f, "%.2f")
-            .help("How brightly the weapon glows, held or holstered, and its embers (0: no glow)."),
+            .help("How brightly the heated part of the blade glows (not the handle), held, holstered or lying on the "
+                  "ground, and its embers (0: no glow, no light, no embers, no trail)."),
         slider("Glow Hue", vr_hotblade_hue, 0.f, 60.f, 1.f, "%.0f").extend(0.f, 355.f)
             .help("The glow's colour: 0 red, 18 orange-red, 30 orange, 55 yellow."),
+        slider("Light", vr_hotblade_light, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How bright the light the glowing blade casts round it is; it follows the glow, rising as it heats and "
+                  "dying as it fades (0: none)."),
+        slider("Light Reach", vr_hotblade_light_radius, 16.f, 200.f, 4.f, "%.0f").extend(8.f, 400.f)
+            .help("How far that light reaches, in units, at full glow."),
+        slider("Embers per Puff", vr_hotblade_embers, 0.f, 10.f, 1.f, "%.0f").extend(0.f, 32.f)
+            .help("How many embers leave the heated part of the blade at a time, from all over it (0: none)."),
+        slider("Ember Puffs a Second", vr_hotblade_ember_rate, 1.f, 30.f, 1.f, "%.0f").extend(0.f, 60.f)
+            .help("How often they leave it at full glow; fewer as it fades."),
+        slider("Swing Trail", vr_hotblade_trail, 0.f, 3.f, 0.1f, "%.1f")
+            .help("How much fire and how many sparks a swung (or thrown) glowing blade leaves hanging in the air behind its "
+                  "heated part; a faster swing leaves more (0: none)."),
+        slider("Trail Lingers", vr_hotblade_trail_linger, 0.1f, 2.f, 0.05f, "%.2f s").extend(0.05f, 5.f)
+            .help("How long the trail's fire and sparks hang in the air."),
+        slider("Trail From", vr_hotblade_trail_speed, 0.f, 5.f, 0.1f, "%.1f m/s")
+            .help("How fast the blade's tip must move to leave a trail (slower: none)."),
         slider("Sounds", vr_hotblade_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sizzle in the flame, the ring as it turns red-hot and the quench's hiss (0 off)."),
     };

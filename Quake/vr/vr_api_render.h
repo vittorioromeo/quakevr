@@ -109,6 +109,7 @@ typedef struct vraliasinstance_s
 	float		skintint[4]; // bare forearms' ends tinted to the hand's skin (vr_view.cpp skinTint): rgb times the skin, w how much
 	float		skintintrange[4]; // ... where in the skin: below u x, from v y (none) to z (all), below v w
 	float		skintone[4]; // skin-only tone: rgb multiplier, w enabled
+	float		hotblade[4]; // an incandescent blade's glow on its blade only: a plane in the pose's space, xyz . pose + w from 0 at its root to 1 (vr_hotblade.cpp; zero: all of it)
 } vraliasinstance_t;
 struct gltexture_s *VR_AliasSkinMask (const struct entity_s *e);
 void VR_PrecacheSkinMasks (void);

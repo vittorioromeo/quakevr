@@ -1307,6 +1307,7 @@ NOISE_FUNCTIONS
 "	vec4	SkinTint; // QVR: bare forearms' ends tinted to the hand's skin (vr/vr_view.cpp skinTint): rgb times the skin, w how much (0 none)\n"\
 "	vec4	SkinTintRange; // QVR: ... where in the skin: x below this u, y from this v (none) to z (all), w below this v\n"\
 "	vec4	SkinTone; // QVR: skin-only tone, excludes painted wounds\n"\
+"	vec4	HotBlade; // QVR: an incandescent blade's glow only on its blade: xyz . pose + w, 0 at the blade's root to 1 (vr/vr_hotblade.cpp; zero: all of it)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\

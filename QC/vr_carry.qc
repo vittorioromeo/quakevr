@@ -457,7 +457,8 @@ float(entity e, float xSpeed) VR_Thrown_Damage =
     float mass = VR_Thrown_Mass(e);
     float curve = weightdamage(mass);
     float bySpeed = throwweight(2, mass, VR_Thrown_Own(e, "w_throwmin"), VR_Thrown_Own(e, "w_throwcurve"), xSpeed, dmgSpeed);
-    return bySpeed * GetThrownWeaponBaseDamage(e) * own * curve * VR_Thrown_HeavyMult(e, mass) *
+    // (An incandescent blade's base is raised as its blows' are: vr_hotblade.qc VR_HotBlade_ThrownExtra.)
+    return bySpeed * (GetThrownWeaponBaseDamage(e) + VR_HotBlade_ThrownExtra(e)) * own * curve * VR_Thrown_HeavyMult(e, mass) *
            cvar_hget(cvarh_vr_weapon_throw_damage_mult) * VR_Thrown_2hMult(e);
 };
 

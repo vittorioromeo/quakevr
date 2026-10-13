@@ -803,6 +803,35 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
     lighting::dlightNoShadow(dl);
 }
 
+void emissive::hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& color, float strength, float radius)
+{
+    constexpr int hotBladeLightKey = -0x5A00; // - the blade's index
+    if(index < 0 || index >= hotBladeLights)
+    {
+        return;
+    }
+    if(strength <= 0.f || radius <= 0.f)
+    {
+        killDlight(hotBladeLightKey - index);
+        return;
+    }
+    dlight_t* dl = CL_AllocDlight(hotBladeLightKey - index);
+    dl->origin[0] = pos.x;
+    dl->origin[1] = pos.y;
+    dl->origin[2] = pos.z;
+    dl->die = static_cast<float>(cl.time + 0.05);
+    const float k = za::clamp(strength, 0.f, 2.f);
+    const float reach = za::clamp(radius, 8.f, 400.f);
+    if(vr_dlight_falloff.value != 0.f)
+    {
+        setGlow(dl, color * (0.8f * k), reach, 0.f);
+    }
+    else
+    {
+        setGlow(dl, color, reach * za::sqrt(za::clamp(0.8f * k, 0.f, 2.f)), 0.f); // (Quake's falloff: the reach dims it)
+    }
+}
+
 bool emissive::isLavaGun(const qmodel_t* model)
 {
     return model && (modelmeta::is(model, modelmeta::Id::VLava) || modelmeta::is(model, modelmeta::Id::VLava2));
