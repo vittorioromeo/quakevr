@@ -700,7 +700,10 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         clientBits.resize(clientNum + 1);
     }
     ClientBits& bits = clientBits[clientNum];
-    bits.received = move.vrBits0;
+    bits.received = move.vrBits0 & ~protocol::moveFlatplayBit;
+    // This player plays flatscreen (-flatscreenmode, his own client's: vr_flatplay.cpp): the QC's per-player gate
+    // (VR_FlatPlay: no reloading, E's grab, 1 and 2 cycling; the hands' touch below).
+    setFieldFloat(ent, f.vr_flatscreen, (move.vrBits0 & protocol::moveFlatplayBit) ? 1.f : 0.f);
     // Bit 14 (QC QVR_VRBITS0_HANDSTRACKED): this client's hands come from real tracking, so the QC
     // can tell a VR player from a flat-screen one (and from a bot).
     const int tracked = (move.buttons & QVR_BUTTON_HANDSTRACKED) ? (1 << 14) : 0;

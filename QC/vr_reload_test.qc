@@ -57,6 +57,8 @@ void() VR_Reload_TestReport =
     }
     bprint(sprintf("reload: mode %g (immersive %g), shells %g nails %g cells %g, %g lying about\n",
         cvar_hget(cvarh_vr_reload_mode), VR_Reload_Immersive(), self.ammo_shells, self.ammo_nails, self.ammo_cells, loose));
+    // (Flatscreen play is each player's own: VR_FlatPlay; no reloading for him there.)
+    bprint(sprintf("reload: the player reloads %g (flatscreen %g)\n", VRIsWeaponReloadingEnabled(self), VR_FlatPlay(self)));
     float mines = 0; // (Hipnotic's proximity mines out: a pouch's proximity grenade let go of armed is one)
     e = find(world, classname, "proximity_grenade");
     while(e)

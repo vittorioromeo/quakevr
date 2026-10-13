@@ -67,6 +67,7 @@ QVR_FIELD(offshotrot)
 QVR_FIELD(vrbits0)
 QVR_FIELD(offhand_hotspot)
 QVR_FIELD(sawcord)
+QVR_FIELD(vr_flatscreen) // this player plays flatscreen (-flatscreenmode: his client's move; vr_server.cpp): QC VR_FlatPlay
 QVR_FIELD(handdrop)
 QVR_FIELD(mainhand_hotspot)
 QVR_FIELD(button3)

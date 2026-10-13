@@ -507,33 +507,33 @@ void(entity ent, float value) VRSetMainHandPrevReloadFlickingBit =
 }
 
 // Flatscreen play (-flatscreenmode; vr_flatplay.cpp, docs/vr-port/FLATPLAY.md): the VR gameplay played on the desktop
-// screen, with the hands the game poses itself. The gate every flatscreen control hangs on; 0 in a headset and 0 without
-// the flag.
-float() VR_FlatPlay =
+// screen, with the hands the game poses itself. The gate every flatscreen control hangs on, per player (co-op: his own
+// client's mode, .vr_flatscreen from his move); 0 in a headset and 0 without the flag.
+float(entity xPlayer) VR_FlatPlay =
 {
-    return cvar_hget(cvarh_vr_flatplay) != 0;
+    return xPlayer.vr_flatscreen != 0;
 };
 
-float() VRIsWeaponReloadingEnabled =
+float(entity ent) VRIsWeaponReloadingEnabled =
 {
-    // Flatscreen play (-flatscreenmode): no reloading. A magazine is refilled from the reserve as it empties, with no
-    // handling step (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md).
+    // Flatscreen play (-flatscreenmode): no reloading for that player. A magazine is refilled from the reserve as it
+    // empties, with no handling step (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md).
     return (cvar_hget(cvarh_vr_reload_mode) != QVR_RELOADMODE_NONE) &&
            (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE) &&
-           !VR_FlatPlay();
+           !VR_FlatPlay(ent);
 }
 
 float(entity ent, float xHand) VRIsWeaponReloadingEnabledFor =
 {
     return ent.ishuman &&
-           VRIsWeaponReloadingEnabled() &&
+           VRIsWeaponReloadingEnabled(ent) &&
            WeaponIdToSupportsReload(VRGetWeapon(xHand));
 }
 
 float(entity ent, float xHand) VRIsWeaponReloadFlickingEnabledFor =
 {
     return ent.ishuman &&
-           VRIsWeaponReloadingEnabled() &&
+           VRIsWeaponReloadingEnabled(ent) &&
            WeaponIdToSupportsReloadFlicking(VRGetWeapon(xHand));
 }
 

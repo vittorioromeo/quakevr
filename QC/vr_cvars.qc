@@ -692,7 +692,7 @@ float cvarh_vr_forcegrabbable_health_boxes;
 float cvarh_vr_forcegrabbable_box_scale;
 float cvarh_vr_forcegrabbable_return_time_deathmatch;
 float cvarh_vr_forcegrabbable_return_time_singleplayer;
-float cvarh_vr_flatplay; // -flatscreenmode (vr_flatplay.cpp): the game played on the desktop screen (docs/vr-port/FLATPLAY.md)
+float cvarh_vr_flatplay; // -flatscreenmode (vr_flatplay.cpp): this machine's client only; the game asks per player (VR_FlatPlay: .vr_flatscreen)
 float cvarh_vr_reload_mode;
 float cvarh_vr_reload_shell_pairs;
 float cvarh_vr_cellcord_laser;

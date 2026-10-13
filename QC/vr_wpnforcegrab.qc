@@ -305,7 +305,7 @@ float(entity xPlayer, float xHand, float xArrive) VR_Forcegrab_CanCatch =
 {
     // Flatscreen play (-flatscreenmode): the key is the press, there is nothing to grip. The hand asked to collect was
     // chosen empty (VR_Forcegrab_FlatGrab), and stays empty on the way in.
-    if(VR_FlatPlay())
+    if(VR_FlatPlay(xPlayer))
     {
         return VRIsHandEmpty(xPlayer, xHand);
     }
