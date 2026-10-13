@@ -2828,6 +2828,15 @@ QVR_CVAR(vr_foegrab_lift_strength, "1.2", CVAR_ARCHIVE)    // the most each hand
 QVR_CVAR(vr_foegrab_lift_up, "160", CVAR_ARCHIVE)          // units/s: it leaves the floor this fast up as it is lifted
 QVR_CVAR(vr_foegrab_lift_shove, "48", CVAR_ARCHIVE)        // units: breaking free it shoves you back this far (0: not at all)
 QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz monster_ranged_knight infected", CVAR_ARCHIVE) // the humanoids that can be lifted (classnames; "infected": Dawn of the Machine's infected); never ogres, fiends, shamblers, vores
+// The neck snap (vr_foegrab.cpp neckCheck, ragdollNeckCheck; QC VR_FoeGrab_NeckSnap): both hands holding a humanoid's head
+// (standing, staggering, knocked down, lifted: alive) twist it round: its neck snaps, it dies, its body limp in your hands.
+QVR_CVAR(vr_foegrab_necksnap, "1", CVAR_ARCHIVE)           // 1: the neck snap on
+QVR_CVAR(vr_foegrab_necksnap_speed, "200", CVAR_ARCHIVE)   // degrees/s: the hands' twist of the head (the palms turning about each other, the wrists rolling the same way) at least this fast,
+QVR_CVAR(vr_foegrab_necksnap_angle, "45", CVAR_ARCHIVE)    // degrees: kept up while the head turns this far one way: its neck snaps
+QVR_CVAR(vr_foegrab_necksnap_margin, "2", CVAR_ARCHIVE)    // units: the head zone (the headshots') grown by this for the hands' holds
+QVR_CVAR(vr_foegrab_necksnap_volume, "1", CVAR_ARCHIVE)    // the crack's volume (0 silent)
+QVR_CVAR(vr_foegrab_necksnap_strength, "1.2", CVAR_ARCHIVE) // the most each hand holds the limp body with afterwards, a share of its weight (above 0.5 two hands carry it)
+QVR_CVAR(vr_foegrab_necksnap_hertz, "24", CVAR_ARCHIVE)   // Hz: how stiffly its head follows the hands afterwards (the hold's spring: the light head bears the body's weight, it sags less the stiffer)
 QVR_CVAR(vr_foegrab_throw_grace, "0.75", CVAR_ARCHIVE)    // s: the thrown enemy's ragdoll passes through your hands (and your body: vr_box3d_throw_grace_body) this long; 0: they knock it as it goes
 QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds taken and let go (and why); 2: and each held frame
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)

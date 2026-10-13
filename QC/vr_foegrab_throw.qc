@@ -164,3 +164,84 @@ float(entity m, float xDist, float xUnused) VR_FoeGrab_BreakFree =
     haptic(cVR_MainHand, 0, 0.2, 60, 0.9);
     return 1;
 };
+
+// The neck snap (Combat > Holding Enemies > Neck Snap; vr_foegrab.cpp neckCheck, ragdollNeckCheck; ROUND22.md, "The neck
+// snap"). The engine: whether xAt (a hand's hold, on m's model) is at its head: positional damage's head zone, the
+// headshots' (VR_Decap_HeadZone; the point as on its model standing: hitmodel_rest), grown by xMargin units.
+float(entity m, vector xAt, float xMargin) VR_FoeGrab_OnHead =
+{
+    if(!VR_Decap_HeadZone(m))
+    {
+        return FALSE;
+    }
+    float yaw = m.angles_y * (3.14159265 / 180);
+    vector facing;
+    facing_x = cos(yaw);
+    facing_y = sin(yaw);
+    facing_z = 0;
+    vector head = m.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    vector p = hitmodel_target(m) ? hitmodel_rest(m, xAt) : xAt;
+    return vlen(p - head) < xHeadRadius + VR_HEAD_MARGIN + xMargin;
+};
+
+void(entity ad_targ, entity ad_attacker) ad_Killed;
+
+// The engine: both hands of the player self twisted the head of m (a humanoid: its class list) round: its neck snaps. It
+// dies on the spot, killed by him, whole (no gib, no head wound; a zombie or a mummy for good, lying as its ragdoll does,
+// as a beheaded one's), its ragdoll limp (.vr_death_hit the head's: a collapse); the crack at xVolume on its voice
+// channel, over its death cry. Standing (xRagdoll 0), it is knocked down first (VR_Knockdown_Start, no push): its ragdoll
+// made now, for the hands to hold (the engine's handOver). Returns 1 killed, a ragdoll; 3 killed standing (no ragdoll:
+// its death animation, the hands let go); 2 the training dummy (shown: it stands); 0 it can't die now (dead already).
+float(entity m, float xVolume, float xRagdoll) VR_FoeGrab_NeckSnap =
+{
+    if(VR_IsDummy(m))
+    {
+        sound(m, CHAN_AUTO, "vr/necksnap.wav", xVolume, ATTN_NORM);
+        floattext(m.origin + '0 0 1' * (m.maxs_z + 8), "neck snapped", '0.4 1 0.4', 0.6);
+        haptic(cVR_OffHand, 0, 0.15, 50, 0.8);
+        haptic(cVR_MainHand, 0, 0.15, 50, 0.8);
+        return 2;
+    }
+    if(m.health <= 0 || !(m.flags & FL_MONSTER) || m.takedamage == DAMAGE_NO)
+    {
+        return 0;
+    }
+    string was = m.vr_knockdown == 1 ? (m.vr_kd_stagger ? "staggering" : "knocked down") : "standing";
+    float down = m.vr_knockdown == 1 && isragdoll(m);
+    if(!down && !m.vr_knockdown && m.vr_kd_chance_h && !(m.flags & (FL_FLY | FL_SWIM)) && canragdoll(m) &&
+       VR_Knockdown_MakeRoom(m))
+    {
+        m.velocity = '0 0 0';
+        down = VR_Knockdown_Start(m);
+    }
+    m.vr_death_hit = 1;
+    m.vr_death_hitpos = '0 0 0';
+    m.health = -1;
+    if(VR_Decap_IsZombie(m) || m.classname == "monster_mummy")
+    {
+        if(m.vr_ad_mon)
+        {
+            VR_AD_ZombieKilled(m, self);
+        }
+        else
+        {
+            m.th_die = VR_Decap_ZombieDie; // (its death code gibs it)
+            Killed(m, self);
+        }
+    }
+    else if(m.vr_ad_mon)
+    {
+        ad_Killed(m, self);
+    }
+    else
+    {
+        Killed(m, self);
+    }
+    m.vr_death_hit = 1; // (its ragdoll, made later standing, collapses)
+    sound(m, CHAN_VOICE, "vr/necksnap.wav", xVolume, ATTN_NORM);
+    haptic(cVR_OffHand, 0, 0.25, 45, 1);
+    haptic(cVR_MainHand, 0, 0.25, 45, 1);
+    dprint(sprintf("necksnap: %s's neck snapped (%s, %s), %s; killed: %g monsters\n", m.classname, was,
+        xRagdoll ? "a ragdoll" : "held standing", down ? "its ragdoll held" : "no ragdoll", killed_monsters));
+    return down ? 1 : 3;
+};

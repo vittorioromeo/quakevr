@@ -212,6 +212,11 @@ void mockHandTurn_f()
 //   <t> grip <main|off> <0..1>                               the analog grip, linear between its keys (a hand
 //                                                            opening over tens of milliseconds, as a real one does;
 //                                                            its button pressed from 0.5): the throws' release
+//   <t> rel <main|off> <dx> <dy> <dz>                        a hand's keyframes from where it is when the play
+//                                                            reaches its first (metres, tracking space: after a
+//                                                            vr_mock_hand_to, a motion about a ragdoll's head);
+//                                                            before it the hand is left alone (a hand's keys are
+//                                                            all rel or none)
 // Poses in between are interpolated (positions linearly, orientations by slerp), and the hands
 // report the motion's velocities between their keyframes, as a runtime would. At the end the last
 // poses stay, as vr_mock_hand leaves them. The head's keyframes with angles turn it too (a lean's tilt: pitch up,
@@ -222,7 +227,10 @@ struct PlayKey
     glm::vec3 pos;
     bool hasRot;
     glm::quat rot;
+    bool rel{false}; // ("rel": pos from playAnchor)
 };
+glm::vec3 playAnchor[HAND_COUNT + 1];
+bool playAnchored[HAND_COUNT + 1]{};
 struct PlayButton
 {
     double t;
@@ -256,6 +264,10 @@ void mockPlay_f()
     playNextButton = 0;
     playStart = -1.0;
     playEnd = 0.0;
+    for(bool& anchored : playAnchored)
+    {
+        anchored = false;
+    }
     if(Cmd_Argc() != 2)
     {
         return;
@@ -288,6 +300,15 @@ void mockPlay_f()
             if(const int hand = mockHand(what); hand >= 0)
             {
                 playGrips[hand].pushBack({t, CLAMP(0.f, value, 1.f)});
+                playEnd = za::max(playEnd, t);
+            }
+            continue;
+        }
+        if(sscanf(line, "%lf rel %15s %f %f %f", &t, what, &x, &y, &z) == 5)
+        {
+            if(const int hand = mockHand(what); hand >= 0)
+            {
+                playKeys[hand].pushBack({t, {x, y, z}, false, glm::quat{1.f, 0.f, 0.f, 0.f}, true});
                 playEnd = za::max(playEnd, t);
             }
             continue;
@@ -356,7 +377,21 @@ void playFrame(double now, glm::vec3* vel, glm::vec3* angVel, bool* played)
         const PlayKey& k1 = i + 1 < keys.size() ? keys[i + 1] : keys[i];
         const double span = k1.t - k0.t;
         const float s = span > 0.0 ? static_cast<float>(za::clamp((t - k0.t) / span, 0.0, 1.0)) : 1.f;
-        mockHandPos[target] = glm::mix(k0.pos, k1.pos, s);
+        glm::vec3 from{0.f};
+        if(k0.rel)
+        {
+            if(t < keys[0].t)
+            {
+                continue; // (not reached yet: the hand left where it is)
+            }
+            if(!playAnchored[target])
+            {
+                playAnchor[target] = mockHandPos[target] - keys[0].pos;
+                playAnchored[target] = true;
+            }
+            from = playAnchor[target];
+        }
+        mockHandPos[target] = from + glm::mix(k0.pos, k1.pos, s);
         mockHandSet[target] = true;
         if(target == mockHead)
         {

@@ -5595,8 +5595,9 @@ bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
 
 // ragdollHoldSoft: hand `hand` of `player` holds on to the limb of `ent`'s ragdoll nearest it (within `reach` units of
 // its surface), by a spring of at most `force` N at `hertz`, let go of past `stuck` units (vr_foegrab.cpp: an enemy
-// thrown or lifted, held on).
-bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck)
+// thrown or lifted, held on). `head`: its head's part instead, if not cut off and its middle within `reach` and 12 units
+// more (a neck snapped: the hands held its head).
+bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head)
 {
     const int pnum = NUM_FOR_EDICT(player);
     if(!world || pnum < 1 || pnum > svs.maxclients || grabIndex(pnum, hand) >= 0)
@@ -5613,7 +5614,17 @@ bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force,
     glm::quat turn;
     handPose(player, hand, at, turn);
     float distance = 0.f;
-    const int part = nearestPart(*r, at, distance);
+    int part = nearestPart(*r, at, distance);
+    const int headPart = r->rig->head;
+    if(head && headPart >= 0 && headPart < r->count && !partCut(*r, headPart))
+    {
+        const float d = glm::distance(world->toU(b3Body_GetWorldCenter(r->body[static_cast<za::SizeT>(headPart)])), at);
+        if(d <= reach + 12.f)
+        {
+            part = headPart;
+            distance = za::min(distance, d);
+        }
+    }
     if(part < 0 || distance > reach)
     {
         return false;
@@ -15981,9 +15992,9 @@ bool ragdollGrab(edict_t* corpse, edict_t* player, int hand)
     return grabRagdoll(corpse, player, hand);
 }
 
-bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck)
+bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head)
 {
-    return ent && player && holdSoft(ent, player, hand, reach, force, hertz, stuck);
+    return ent && player && holdSoft(ent, player, hand, reach, force, hertz, stuck, head);
 }
 
 float ragdollWeight(edict_t* ent)
