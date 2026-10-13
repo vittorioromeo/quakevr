@@ -5412,3 +5412,26 @@ weapon record's, as AD's `wi_adup`), kept in saves.
 - In VR: how long 2 s in a flame feels; whether the glow reads as red-hot metal in the headset (brightness, hue 18) and
   the build-up as heating; the sizzle, ring and hiss levels; reaching into a brazier with the axe without catching fire
   yourself; dipping in water.
+
+## AD pickup menu: the soldiers' guns made at the world's origin (adspawn, 2026-10-13)
+
+His note: from the AD pickup rows (Debug > Tests > Arcane Dimensions Monsters / Weapon Pickups) only the Shadow Axe,
+Widowmaker and Plasma Gun appeared; every other gun did not, and props fell somewhere far away.
+
+- **Why**: those rows are `vr_test_spawn 312..319; impulse 241`, the firing range's dispenser path
+  (`func_enemy_dispenser_use`). It ran the spawn function on a fresh entity still at the world's origin and moved it
+  to the spawn point only afterwards. A monster or a pickup is placed by that later `setorigin`, but
+  `func_weapon_grabbable` (the guns, WID 20..27) makes its `thrown_weapon` at its own origin inside the spawn function:
+  every gun was made at (0 0 0) and fell there (the far-away clatter). The previous round's tests used
+  `VR_ADWeapons_Make` (origin set first) and the toolgun (`box3d::spawnClass`, origin set first), so they missed it.
+- **Fix** (buttons.qc): the dispenser sets the origin before the spawn function too, as a map's entity has it (the
+  setorigin after stays). The AD pickup rows now also set `vr_test_spawn_dist 64` (the upgrades and items used
+  whatever the last row left: 56 or a monster row's 128).
+- **Test aid**: `vr_ad_test 86` (TESTING.md): the pickup, gun or monster nearest the spawn point, PASS when within reach
+  ahead, then removed.
+- **Numbers** (headless, fast): vrfiringrange 300..319: before 312..319 FAIL (each `thrown_weapon` 346 units away, the
+  map's origin), after 20/20 PASS (guns 46..80 units ahead, on the floor; items and upgrades 64). ad_dm1 (`-game ad`):
+  20/20 PASS. Dispenser monsters 0..11, 200..206, 210, 220, 230 in vrfiringrange: 22/22 in place at 128 ahead.
+  e1m1: `vr_ad_test 81` 11 passed, 0 failed; e1m1 smoke clean.
+- **In VR**: Debug > Tests > Arcane Dimensions Monsters, its Pickups: each of the eight AD guns lands about an arm's
+  length ahead (vrfiringrange and an AD map); no far-off clatter.

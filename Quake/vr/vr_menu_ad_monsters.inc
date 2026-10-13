@@ -37,7 +37,7 @@
     items.pushBack(header("Arcane Dimensions Pickups"));
 #define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) \
     if(!weaponsOnly || !strcmp(section, "Weapons")) \
-    { items.pushBack(adSpawnRow(choice, command(label, "vr_test_spawn " #choice "; impulse 241"))); }
+    { items.pushBack(adSpawnRow(choice, command(label, "vr_test_spawn " #choice "; vr_test_spawn_dist 64; impulse 241"))); }
 #include "vr_ad_spawnitems.inc"
 #undef QVR_AD_SPAWN
 #define QVR_AD_GUN(label, model, wid, choice) \
