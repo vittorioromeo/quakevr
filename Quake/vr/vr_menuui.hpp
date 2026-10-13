@@ -11,6 +11,10 @@ namespace qvr::menuui
 
 // Where a flat screen's banner (vr_menubrand.cpp, M_DrawPlaque) was last drawn, menu x and y (x1 < x0: not drawn).
 void bannerRect(float& x0, float& x1, float& y0, float& y1);
+// And the VR menu style's banner (VR_MenuDrawBannerColumn): its rect, true if left of the corner's buttons (false:
+// under them); whether it was drawn in the last frames.
+bool bannerColumnRect(float& x0, float& x1, float& y0, float& y1);
+[[nodiscard]] bool bannerColumnShown();
 // menu_vr pos: the version label (vr_menubrand.cpp, VR_MenuDrawVersion) as last drawn: its text, its box (menu x and y)
 // and what the menu draws right to under it, or why it was left out.
 void printVersionLabel();
@@ -97,6 +101,7 @@ void backToGame(int hand);
 [[nodiscard]] float toolbarBottom();
 [[nodiscard]] float toolbarRight(); // the buttons' right edge (menu x; far left when they are not shown)
 [[nodiscard]] float toolbarLeft();  // and their left edge (menu x; far left when they are not shown)
+[[nodiscard]] float toolbarTop();   // and the first one's top edge (menu y; far up when they are not shown)
 [[nodiscard]] bool toolbarFocused();
 [[nodiscard]] bool toolbarRow(); // on a flat screen: a row of icons along the canvas's top
 // In the headset: whether the column (its buttons, the banner under them, the spectator switch) stands clear left of

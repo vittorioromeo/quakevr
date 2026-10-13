@@ -1574,15 +1574,42 @@ static void M_Main_DrawContinue (int row)
 	m_main_row_right[MAIN_CONTINUE] = (float) (x + 8 * q_max ((int) strlen (title), (int) strlen (detail)));
 }
 
+// QVR: how far right of Quake's columns (left: negative) the rows, their cursor and a flat screen's banner are drawn,
+// as M_Main_Draw last drew them (M_Main_Shift).
+static int m_main_shift;
+
+// QVR: the main menu centred (the author's note: its rows sat right of the title, the menu looked misaligned): the rows
+// from their cursor's column (Quake's 54) to the widest one's right end centred under the title (x 160), never right of
+// Quake's place; no further left than x 0 (the VR menu style's corner buttons stand left of it: M_ContentLeft) nor than
+// a flat screen's canvas leaves room for the banner moved with them.
+static int M_Main_Shift (qboolean text, float scale)
+{
+	drawtransform_t transform;
+	float left, top, right, bottom, bannerLeft, bannerRight, widest = 0.f, width;
+	qpic_t *p = text ? NULL : Draw_CachePic ("gfx/mainmenu.lmp");
+	int i, least = -54;
+
+	for (i = 0; i < MAIN_ITEMS; i++)
+	{
+		if (!M_Main_Shown (i))
+			continue;
+		width = text ? 1.f + VR_BigFont_WidthScaled (scale, m_main_labels[i])
+					 : (float) q_max (p->width, 16 * (int) strlen (m_main_labels[i]) + 2);
+		widest = q_max (widest, width);
+	}
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
+	if (VR_MenuBannerExtent (16, &bannerLeft, &bannerRight))
+		least = q_max (least, (int) ceil (left + 2.f - bannerLeft));
+	return CLAMP (least, Q_rint (160.f - (54.f + 72.f + widest) * 0.5f), 0);
+}
+
 void M_Main_Draw (void)
 {
-	int		i, step, gap; // QVR: i, step, gap
+	int		i, step, gap, x; // QVR: i, step, gap, x
 	qpic_t	*p;
 	qboolean text; // QVR: the rows as text (VR_BigFont_Draw)
-
-	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
-	p = Draw_CachePic ("gfx/ttl_main.lmp");
-	M_DrawPic ( (320-p->width)/2, 4, p);
+	float scale; // QVR: their letters' size
 
 	// QVR: the rows as text in the picture's letters when the pictures give every one (a mod's own pictures may not):
 	// else the picture's rows, the others in the mods' fallback row's letters.
@@ -1592,6 +1619,14 @@ void M_Main_Draw (void)
 			text = false;
 
 	M_Main_Layout (&step, &gap);
+	scale = step < 15 ? step / 15.f : 1.f; // (rows closer than 15: smaller letters)
+	m_main_shift = M_Main_Shift (text, scale);
+	x = 72 + m_main_shift; // QVR: the rows' left (Quake's 72), centred
+
+	M_DrawPlaque (16 + m_main_shift, 4); // QVR: the Quake VR banner, moved with the rows
+	p = Draw_CachePic ("gfx/ttl_main.lmp");
+	M_DrawPic ( (320-p->width)/2, 4, p);
+
 	for (i = 0; i < MAIN_ITEMS; i++)
 	{
 		m_main_row_right[i] = -1e9f;
@@ -1599,10 +1634,9 @@ void M_Main_Draw (void)
 	}
 	if (text)
 	{
-		const float scale = step < 15 ? step / 15.f : 1.f; // (rows closer than 15: smaller letters)
 		for (i = 0; i < MAIN_ITEMS; i++) // QVR: the rows as text
 			if (M_Main_Shown (i))
-				m_main_row_right[i] = 73.f + VR_BigFont_DrawScaled (73, M_Main_RowY (i, step, gap), scale, m_main_labels[i]);
+				m_main_row_right[i] = x + 1.f + VR_BigFont_DrawScaled (x + 1, M_Main_RowY (i, step, gap), scale, m_main_labels[i]);
 	}
 	else
 	{ // QVR: the picture's rows (its Help row left out), the others in the mods' row's letters
@@ -1612,28 +1646,28 @@ void M_Main_Draw (void)
 			int row = M_Main_RowY (i, step, gap);
 			if (!M_Main_Shown (i))
 				continue;
-			m_main_row_right[i] = (float)(72 + q_max (p->width, 16 * (int) strlen (m_main_labels[i]) + 2));
+			m_main_row_right[i] = (float)(x + q_max (p->width, 16 * (int) strlen (m_main_labels[i]) + 2));
 			switch (i)
 			{
-			case MAIN_SINGLEPLAYER: M_DrawSubpic (72, row, p, 0, 0, p->width, 20); break;
-			case MAIN_MULTIPLAYER: M_DrawSubpic (72, row, p, 0, 20, p->width, 20); break;
-			case MAIN_OPTIONS: M_DrawSubpic (72, row, p, 0, 40, p->width, 20); break;
-			case MAIN_QUIT: M_DrawSubpic (72, row, p, 0, 80, p->width, p->height - 80); break;
+			case MAIN_SINGLEPLAYER: M_DrawSubpic (x, row, p, 0, 0, p->width, 20); break;
+			case MAIN_MULTIPLAYER: M_DrawSubpic (x, row, p, 0, 20, p->width, 20); break;
+			case MAIN_OPTIONS: M_DrawSubpic (x, row, p, 0, 40, p->width, 20); break;
+			case MAIN_QUIT: M_DrawSubpic (x, row, p, 0, 80, p->width, p->height - 80); break;
 			case MAIN_MODS:
 				if (m_main_mods > 0)
-					M_DrawTransPic (72, row, Draw_CachePic ("gfx/menumods.lmp"));
+					M_DrawTransPic (x, row, Draw_CachePic ("gfx/menumods.lmp"));
 				else
-					M_PrintEx (74, row + 1, 16, "MODS");
+					M_PrintEx (x + 2, row + 1, 16, "MODS");
 				break;
-			case MAIN_CONTINUE: M_PrintEx (74, row + 1, 16, "CONTINUE"); break;
-			case MAIN_VRCALIBRATION: M_PrintEx (74, row + 1, 16, "VR CALIBRATION"); break;
-			case MAIN_VRTUTORIAL: M_PrintEx (74, row + 1, 16, "VR TUTORIAL"); break;
-			case MAIN_VRHUB: M_PrintEx (74, row + 1, 16, "VR HUB"); break;
-			case MAIN_CAMPAIGNS: M_PrintEx (74, row + 1, 16, "SELECT CAMPAIGN"); break;
-			case MAIN_MAPLIBRARY: M_PrintEx (74, row + 1, 16, "DOWNLOAD MAPS"); break;
-			case MAIN_PLAYCUSTOM: M_PrintEx (74, row + 1, 16, "PLAY CUSTOM MAP"); break;
-			case MAIN_VRSETTINGS: M_PrintEx (74, row + 1, 16, "VR SETTINGS"); break;
-			case MAIN_VRADVANCED: M_PrintEx (74, row + 1, 16, "ADVANCED VR"); break;
+			case MAIN_CONTINUE: M_PrintEx (x + 2, row + 1, 16, "CONTINUE"); break;
+			case MAIN_VRCALIBRATION: M_PrintEx (x + 2, row + 1, 16, "VR CALIBRATION"); break;
+			case MAIN_VRTUTORIAL: M_PrintEx (x + 2, row + 1, 16, "VR TUTORIAL"); break;
+			case MAIN_VRHUB: M_PrintEx (x + 2, row + 1, 16, "VR HUB"); break;
+			case MAIN_CAMPAIGNS: M_PrintEx (x + 2, row + 1, 16, "SELECT CAMPAIGN"); break;
+			case MAIN_MAPLIBRARY: M_PrintEx (x + 2, row + 1, 16, "DOWNLOAD MAPS"); break;
+			case MAIN_PLAYCUSTOM: M_PrintEx (x + 2, row + 1, 16, "PLAY CUSTOM MAP"); break;
+			case MAIN_VRSETTINGS: M_PrintEx (x + 2, row + 1, 16, "VR SETTINGS"); break;
+			case MAIN_VRADVANCED: M_PrintEx (x + 2, row + 1, 16, "ADVANCED VR"); break;
 			}
 		}
 	}
@@ -1642,7 +1676,19 @@ void M_Main_Draw (void)
 	if (M_Main_Shown (MAIN_CONTINUE))
 		M_Main_DrawContinue (M_Main_RowY (MAIN_CONTINUE, step, gap));
 
-	M_DrawQuakeCursor (54, M_Main_RowY (m_main_cursor, step, gap));
+	M_DrawQuakeCursor (x - 18, M_Main_RowY (m_main_cursor, step, gap));
+}
+
+// QVR: the main menu's rows' left and right ends as last drawn (menu x: from their cursor's column), for menu_vr pos.
+void M_Main_RowsExtent (float *left, float *right)
+{
+	int i;
+
+	*left = 54.f + m_main_shift;
+	*right = -1e9f;
+	for (i = 0; i < MAIN_ITEMS; i++)
+		if (M_Main_Shown (i) && i != MAIN_CONTINUE)
+			*right = q_max (*right, m_main_row_right[i]);
 }
 
 // QVR: the cursor to the next row shown up (-1) or down (1), round the ends.
@@ -7954,7 +8000,7 @@ float M_ContentLeftBelow (float y)
 	{
 		for (i = 0; i < MAIN_ITEMS; i++)
 			if (m_main_row_bottom[i] > y)
-				return 54.f; // (M_DrawQuakeCursor's column)
+				return 54.f + m_main_shift; // (M_DrawQuakeCursor's column, centred: M_Main_Shift)
 		return 1e9f;
 	}
 	M_ContentExtent (&right, &bottom);

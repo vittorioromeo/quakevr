@@ -77,12 +77,16 @@ struct Banner
 Banner banner{bannerImage};
 Banner kofiLogo{"gfx/vr/kofi_symbol"}; // Ko-fi's cup, unaltered (Ko-fi's brand assets; the installer's Assets/kofi_symbol.png)
 
-// Where the banner was last drawn (menu x and y; nothing: x1 < x0), for menu_vr pos.
+// Where the banner was last drawn (menu x and y; nothing: x1 < x0), for menu_vr pos: on a flat screen's menus
+// (bannerPlace), and in the VR menu style's column (columnPlace, when: host_framecount; `beside` the buttons or under them).
 struct BannerPlace
 {
     float x0{0.f}, x1{-1.f}, y0{0.f}, y1{-1.f};
+    int frame{-10};
+    bool beside{false};
 };
 BannerPlace bannerPlace;
+BannerPlace columnPlace;
 
 [[nodiscard]] qpic_t* imagePic(Banner& b)
 {
@@ -171,6 +175,26 @@ void drawBanner(qpic_t* pic, float x, float top, float width, float height)
 
 } // namespace
 
+// Where VR_MenuDrawBanner (x, y) draws across, before it keeps clear of the menu's text (M_Main_Draw: the main menu's
+// rows moved left, the banner with them, as far as the canvas leaves it room).
+extern "C" int VR_MenuBannerExtent(int x, float* left, float* right)
+{
+    if(VR_MenuHidesPlaque())
+    {
+        return 0;
+    }
+    if(!bannerPic())
+    {
+        *left = static_cast<float>(x);
+        *right = *left + 32.f; // (gfx/qplaque.lmp's width)
+        return 1;
+    }
+    const float width = plaqueHeight * glyphStretch() * bannerAspect();
+    *left = static_cast<float>(x) + plaqueCentre - width * 0.5f;
+    *right = *left + width;
+    return 1;
+}
+
 // Quake's plaque's place, its top left at (x, y): the banner as tall, centred on plaqueCentre.
 extern "C" int VR_MenuDrawBanner(int x, int y)
 {
@@ -212,9 +236,25 @@ void qvr::menuui::bannerRect(float& x0, float& x1, float& y0, float& y1)
     y1 = bannerPlace.y1;
 }
 
-// The VR menu style: the banner in the corner buttons' column (or, where they are only icons, the panel's margin left
-// of the menus), just under the buttons, columnHeight tall (less where the panel ends sooner or the column is
-// narrower).
+bool qvr::menuui::bannerColumnRect(float& x0, float& x1, float& y0, float& y1)
+{
+    x0 = columnPlace.x0;
+    x1 = columnPlace.x1;
+    y0 = columnPlace.y0;
+    y1 = columnPlace.y1;
+    return columnPlace.beside;
+}
+
+bool qvr::menuui::bannerColumnShown()
+{
+    return columnPlace.x1 >= columnPlace.x0 && host_framecount - columnPlace.frame <= 2;
+}
+
+// The VR menu style: the banner left of the corner's buttons (the author's note: under them, the menu looked cluttered),
+// in the panel's margin from its left edge, its top level with the first button's, columnHeight tall (less where the
+// margin is narrower or the bottom left corner's rows come sooner), as near the buttons as columnGap. Where the margin
+// leaves less than columnMinHeight: under the buttons in their column (or, where they are only icons, in the panel's
+// margin left of the menus), as before.
 extern "C" void VR_MenuDrawBannerColumn()
 {
     if(!qvr::menuui::active() || glcanvas.type != CANVAS_MENU)
@@ -227,7 +267,29 @@ extern "C" void VR_MenuDrawBannerColumn()
         return;
     }
     const float k = glyphStretch();
-    float x0 = qvr::menuui::toolbarLeft();
+    // (Above the bottom left corner's rows: the Recording button, the spectator camera's switch, OBS's row.)
+    const float bottom = za::fmin(glcanvas.bottom, qvr::menuui::cornerRowsTop());
+    const float buttonsLeft = qvr::menuui::toolbarLeft();
+    if(qvr::vr_menu_banner_beside.value && buttonsLeft > glcanvas.left)
+    {
+        const float bx0 = glcanvas.left + columnGap;
+        const float bx1 = buttonsLeft - columnGap;
+        const float top = qvr::menuui::toolbarTop();
+        float height = za::fmin(columnHeight, (bottom - top) * k - columnGap); // true pixels
+        float width = height * bannerAspect();
+        if(width > bx1 - bx0)
+        {
+            width = bx1 - bx0;
+            height = width / bannerAspect();
+        }
+        if(height >= columnMinHeight)
+        {
+            drawBanner(pic, bx1 - width, top, width, height);
+            columnPlace = {bx1 - width, bx1, top, top + height / k, host_framecount, true};
+            return;
+        }
+    }
+    float x0 = buttonsLeft;
     float x1 = qvr::menuui::toolbarRight();
     if(x1 - x0 < columnMinHeight)
     {
@@ -235,8 +297,6 @@ extern "C" void VR_MenuDrawBannerColumn()
         x1 = qvr::menuui::toolbarLimit(); // (as near the menu as the column may come)
     }
     const float top = qvr::menuui::toolbarBottom() + columnGap / k;
-    // (Above the bottom left corner's rows: the Recording button, the spectator camera's switch, OBS's row.)
-    const float bottom = za::fmin(glcanvas.bottom, qvr::menuui::cornerRowsTop());
     float height = za::fmin(columnHeight, (bottom - top) * k - columnGap); // true pixels
     float width = height * bannerAspect();
     if(width > x1 - x0)
@@ -249,6 +309,7 @@ extern "C" void VR_MenuDrawBannerColumn()
         return;
     }
     drawBanner(pic, (x0 + x1 - width) * 0.5f, top, width, height);
+    columnPlace = {(x0 + x1 - width) * 0.5f, (x0 + x1 + width) * 0.5f, top, top + height / k, host_framecount, false};
 }
 
 namespace

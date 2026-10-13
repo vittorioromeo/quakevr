@@ -84,6 +84,7 @@ extern qboolean keydown[MAX_KEYS]; // keys.c
 extern cvar_t ui_mouse_sound; // menu.c
 extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
+void M_Main_RowsExtent(float* left, float* right); // menu.c: its rows' ends as last drawn (menu_vr pos)
 extern int m_singleplayer_cursor; // menu.c: Single Player's (menu_vr pos)
 int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
 float M_ContentRightBelow(float y); // menu.c: how far right its menu shown draws below y (the main menu's rows as drawn)
@@ -12816,6 +12817,19 @@ void qvr::menu::command_f()
                 Con_Printf("menu_vr pos: banner x %.0f..%.0f, y %.0f..%.0f (text from x %d)\n", bx0, bx1, by0, by1,
                     m_state == m_vr ? static_cast<int>(menu::contentLeft()) : M_TextLeft());
             }
+            if(menuui::active())
+            {
+                const bool beside = menuui::bannerColumnRect(bx0, bx1, by0, by1);
+                if(menuui::bannerColumnShown())
+                {
+                    Con_Printf("menu_vr pos: banner x %.0f..%.0f, y %.0f..%.0f (%s the buttons, from x %.0f)\n", bx0, bx1, by0,
+                        by1, beside ? "left of" : "under", menuui::toolbarLeft());
+                }
+                else
+                {
+                    Con_Printf("menu_vr pos: banner not drawn\n");
+                }
+            }
             menuui::printVersionLabel();
             menuui::printRecordingButton();
         }
@@ -12833,6 +12847,9 @@ void qvr::menu::command_f()
                 M_Main_Layout(&step, &gap);
                 Con_Printf("menu_vr pos: menu %d (%s), row \"%s\"%s (rows %d apart, groups %d more)\n", static_cast<int>(m_state),
                     name, M_Main_RowLabel(), corner, step, gap);
+                float rx0, rx1;
+                M_Main_RowsExtent(&rx0, &rx1);
+                Con_Printf("menu_vr pos: main rows x %.0f..%.0f (middle %.1f; the title's 160)\n", rx0, rx1, (rx0 + rx1) * 0.5f);
                 menuui::printLaser();
                 return;
             }

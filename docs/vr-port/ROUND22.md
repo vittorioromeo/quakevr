@@ -4871,3 +4871,28 @@ VR follow-up: try strength 1..3 on generated AD masonry and check both stock exp
 Authored walls, hands and weapons should retain their relief. Cleanup candidates: ignored scratch/pbr_strength*,
 scratch/boxes*, private pbr_boxproof.bsp, fixture backup/retired evidence, private eyeshots/imagehash and the
 retained renderer integration stash. No files were deleted.
+
+## The main menu centred, the VR banner beside the buttons (menucenter, 2026-10-13)
+
+The author's note: the VR main menu looked misaligned and cluttered (the list right of centre, the vertical Quake VR
+banner under the shortcut column), and the flat main menu was misaligned too.
+
+- menu.c `M_Main_Shift`: the main menu's rows, their spinning cursor and (flat) the banner move left so the span from
+  the cursor's column to the widest row's right end is centred under the title (x 160); never right of Quake's place,
+  never left of x 0, nor so far that a flat screen's banner leaves the canvas (it moves with the rows). Measured with
+  `VR_BigFont_WidthScaled` (new, vr_bigfont.cpp: the lettering's width without drawing) or the picture's width.
+  `M_ContentLeftBelow` follows the shift (the laser/corner-button split). The mouse picks rows by y only, unchanged.
+- vr_menubrand.cpp `VR_MenuDrawBannerColumn`: with `vr_menu_banner_beside 1` (new, default 1; VR Settings > Menu >
+  Banner Beside the Buttons) the VR style's banner stands in the panel's margin left of the corner buttons, its top
+  level with the first button's (`menuui::toolbarTop`, new). 0, or a margin too narrow for `columnMinHeight`: under
+  the buttons as before. `VR_MenuBannerExtent` gives M_Main_Shift the flat banner's span.
+- `menu_vr pos` prints the VR banner's place ("left of" / "under the buttons") and `main rows x a..b (middle m)`.
+
+Numbers (lettering rows): rows x 19..300 (middle 159.5; before 54..335, middle 194.5) in VR and flat; VR banner
+x -336..-266, y -216..0, buttons from x -258 (before: x -232..-162 under them, y 52..268). Flat banner x -28..18 (was
+7..53). Picture rows (`vr_menu_bigfont 0`): rows 30..290, middle 160, flat banner -17..29. Mock laser at (25,45)
+picks VR Calibration, (290,150) Single Player; flat mouse the same rows. `vr_menu_path_check` 0 missing; e1m1 smoke
+exit 0.
+
+VR check: the main menu's list centred under MAIN; the banner left of the shortcut buttons, not cut off, clear of
+them; the laser still picks the row it points at, including the left end of the long rows.
