@@ -126,7 +126,7 @@ float(entity xThing) VR_HotBlade_ThrownExtra =
 // alive before. An incandescent blade sets it on fire, as its blows do.
 void(entity xThing, entity xTarg, entity xBy, float xAlive, vector xAt, vector xDir) VR_HotBlade_ThrownStruck =
 {
-    if(xTarg == world || xTarg == xBy || !xTarg.takedamage || !VR_HotBlade_ThingHot(xThing))
+    if(xTarg == world || xTarg == xBy || !VR_HotBlade_ThingHot(xThing))
     {
         return;
     }
@@ -645,7 +645,7 @@ void() VR_HotBlade_TestFrame =
     }
     else if(ask == 13 || ask == 14)
     {
-        // 13: the main hand's weapon thrown straight at the nearest monster's middle, at 3 times the throw's full-damage
+        // 13: the main hand's weapon thrown straight at the nearest monster's middle, at 1.5 times the throw's full-damage
         // speed, hardly falling; 14: let go of where the hand is (dropped, no throw).
         float wid = self.weapon;
         if(wid == WID_FIST)
@@ -672,7 +672,13 @@ void() VR_HotBlade_TestFrame =
                 }
                 if(aim != world)
                 {
-                    vel = normalize((aim.absmin + aim.absmax) * 0.5 - from) * (3 * 700 * m2u / 120);
+                    // (From 24 units short of it: nothing else on the way, the same hit every run.)
+                    vector mid = (aim.absmin + aim.absmax) * 0.5;
+                    vel = normalize(mid - from) * (1.5 * 700 * m2u / 120);
+                    from = mid - normalize(vel) * (24 + vlen(aim.size) * 0.25);
+                    traceline(from, mid, FALSE, self);
+                    dprint(sprintf("hotblade: test: aimed at %s from %v (%.0f away), on the way: %s at %.2f\n", aim.classname,
+                        from, vlen(mid - from), trace_ent.classname, trace_fraction));
                 }
             }
             entity thrown = CreateThrownWeapon(self, wid, self.weaponflags, self.weaponinst, from, VRGetHandRot(cVR_MainHand),
@@ -682,6 +688,7 @@ void() VR_HotBlade_TestFrame =
                 thrown.vr_wpn_from = self;
                 thrown.throwdmgspeed = 700 * m2u / 120;
                 thrown.gravity = ask == 13 ? 0.01 : 1;
+                thrown.vr_rigid = 1; // (as a real throw: DropWeaponInHandScaled)
                 dprint(sprintf("hotblade: test: weapon %g %s at %.0f u/s (%s)\n", wid, ask == 13 ? "thrown" : "dropped",
                     vlen(vel), VR_HotBlade_Desc(thrown.weaponinst, wid)));
             }

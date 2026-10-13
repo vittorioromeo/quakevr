@@ -587,20 +587,22 @@ void bladePlane(const entity_t* e, const float matrix[16], float out[4])
 
 void report_f()
 {
-    Con_Printf("hotblade: client: %d glowing; embers %d, trail %d in the last second\n", seenCount, embersLast, trailLast);
+    Con_Printf("hotblade: client: %d glowing; embers %d, trail %d in the last second; %d, %d since\n", seenCount, embersLast,
+        trailLast, embersMade, trailMade);
     for(int i = 0; i < seenCount; i++)
     {
         const Seen& w = seen[i];
         const Blade& b = w.blade;
-        const char* where = w.kind == 0 ? "off hand" : w.kind == 1 ? "main hand" : w.kind < 2 + protocol::numHolsters ? "holster" : "lying";
-        Con_Printf("hotblade: client: %s %s glow %.2f: heated part %.1f of %.1f units (%d of %d vertices), light %.2f reach %.0f\n",
-            where, w.model ? w.model->name : "?", w.glow, glm::distance(b.root, b.tip), glm::distance(b.grip, b.tip),
+        const char* where = w.kind == 0 ? "off" : w.kind == 1 ? "main" : w.kind < 2 + protocol::numHolsters ? "holster" : "lying";
+        // (Short: one console line.) The heated part's length of the grip-to-tip line, its vertices of the model's.
+        Con_Printf("hotblade: client: %s %s glow %.2f part %.1f/%.1f verts %d/%d light %.2f reach %.0f\n", where,
+            w.model ? COM_SkipPath(w.model->name) : "?", w.glow, glm::distance(b.root, b.tip), glm::distance(b.grip, b.tip),
             w.bladeVerts, w.verts, w.light, w.radius);
         view::WeaponMount mount;
         if(w.kind < 2 && view::weaponMount(w.kind, mount))
         {
             // The blade's ends against the hand's own (the melee's line: the grip, the muzzle).
-            Con_Printf("hotblade: client: %s grip off the hand's by %.2f, tip off its muzzle by %.2f\n", where,
+            Con_Printf("hotblade: client: %s grip off the hand's %.2f, tip off its muzzle %.2f\n", where,
                 glm::distance(b.grip, mount.pos), glm::distance(b.tip, mount.muzzle));
         }
     }
