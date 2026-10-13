@@ -400,6 +400,12 @@ int VR_HullNarrowsAgainst (struct edict_s *mover, struct edict_s *other);	// ...
 int VR_HullFootprint (struct edict_s *ent, float *absmins, float *absmaxs); // SV_CheckBottom: a monster's corners narrowed to its width (vr_mhull_ledges): nonzero if narrowed
 int VR_HullTouchBox (struct edict_s *touch, struct edict_s *mover, float *boxmins, float *boxmaxs); // a player's box, narrowed, as a body moving into it meets it: nonzero if narrowed
 int VR_HullHitBox (struct edict_s *touch, float *boxmins, float *boxmaxs, int projectile); // ... and as a shot or missile meets it (vr_hull_hit_width; a bullet or missile, `projectile`: to his head, vr_hull_hit_head): nonzero if changed
+// A player's body against monsters' (vr_bodycontact.cpp; ROUND22.md, "Closer to enemies").
+int VR_BodyContactHull (struct edict_s *mover, struct edict_s *touch, const float *mins, const float *maxs,
+	float *hullmins, float *hullmaxs); // SV_ClipMoveToBoxEntityQVR, a body's move (its own box): nonzero if a player's and a monster's, the hull they meet with filled in (each box's level sides in by vr_body_monster_inset)
+int VR_BodyContactLetsOut (struct edict_s *mover, struct edict_s *touch, const float *hullmins, const float *hullmaxs,
+	const float *start, const float *end); // ... a move starting in that hull (start, end: from touch's origin): nonzero if it passes (the mover is in it already and the move never goes deeper)
+int VR_BodyContactPasses (struct edict_s *mover, struct edict_s *touch, const float *mins, const float *maxs); // SV_ClipToLinks, a body's move (its own box): nonzero if a player and an enemy his hand holds (vr_foegrab_step_in): they don't meet
 // Precise hit detection (vr_hitmodel.cpp): monsters' models, not their boxes, for moves with MOVE_HITMODEL (world.h).
 float VR_HitModelTolerance (int type);				// SV_Move: the tolerance of the move's class; -1: not precise (the option off)
 int VR_HitModelTarget (struct edict_s *ent);			// SV_ClipToLinks: nonzero if its model is what is hit

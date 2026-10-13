@@ -17,6 +17,7 @@ QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)              // maps whose brushes and
 QVR_CVAR(vr_hull_monsters, "1", CVAR_ARCHIVE)          // the narrow entity width between the player and monsters (both ways)
 QVR_CVAR(vr_hull_players, "1", CVAR_ARCHIVE)           // ... between players
 QVR_CVAR(vr_hull_boxes, "1", CVAR_ARCHIVE)             // ... between the player and other solid boxes (explosive boxes, solid items)
+QVR_CVAR(vr_body_monster_inset, "4", CVAR_ARCHIVE)     // Combat > Holding Enemies > Body Inset: units (0-12) each level side of the player's box and a monster's comes in where the two bodies meet (both ways; twice as close face to face): the map, monsters against monsters, shots and melee keep their boxes (vr_bodycontact.cpp)
 QVR_CVAR(vr_hull_hit_width, "24", CVAR_ARCHIVE)        // the player's width that shots, missiles and splash traces hit (not bodies moving: vr_hull_ent_width) (8-32; 0: Quake's 32)
 QVR_CVAR(vr_hull_hit_head, "1", CVAR_ARCHIVE)          // ... and their box reaches only to the top of his head (the headset's, 5 units over it): crouched behind cover, shots over it miss; monsters' bullets aim no higher than 70% of it; 0: Quake's height, standing or not
 QVR_CVAR(vr_crouch_hull, "1", CVAR_ARCHIVE)            // Movement > Player Hitbox > Crouching: crouched (your eyes under vr_crouch_height over your feet) your box is that tall: under low ceilings and through small teleporters, behind cover from shots; kept until there's room to stand (vr_hull.cpp; HULLS.md "Crouching"); 0: always standing
@@ -2815,6 +2816,7 @@ QVR_CVAR(vr_foegrab_mass_light, "100", CVAR_ARCHIVE)     // kg (a grunt 80, an e
 QVR_CVAR(vr_foegrab_mass_heavy, "650", CVAR_ARCHIVE)     // kg
 QVR_CVAR(vr_foegrab_shove, "0", CVAR_ARCHIVE)            // a held grunt's or enforcer's shove: 0 resisted (vr_foegrab_shove_resist), 1 pushes you fully and breaks your hold
 QVR_CVAR(vr_foegrab_shove_resist, "0.9", CVAR_ARCHIVE)   // share of the shove's push the hold takes off (times the hold)
+QVR_CVAR(vr_foegrab_step_in, "1", CVAR_ARCHIVE)          // 1: while a hand holds an enemy your body and its body don't meet (step in, bring the other hand to its head); let go, overlapping, they are pushed gently apart (vr_bodycontact.cpp)
 // The two-hand throw (vr_foegrab.cpp throwCheck, QC vr_foegrab_throw.qc): both hands holding one enemy, turned over hard
 // (the hands' turn about it, level axis, and their speed) knock it down that way, for sure, by its kind and health.
 QVR_CVAR(vr_foegrab_throw, "1", CVAR_ARCHIVE)             // 1: the two-hand throw on

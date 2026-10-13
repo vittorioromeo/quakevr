@@ -5665,3 +5665,43 @@ From review r4 (adpbrload 1.1-1.6, 2.1, 4.1-4.3; adpbrgen 1, 2), one commit each
   `AD_LoadedGame`. `VR_ADGun_Attack`, `VR_ADGun_Available` and `adguns::slotNames` are now one-line calls. The guns'
   test rows moved to Debug > Tests > Arcane Dimensions Monsters. Also fixed: the vr_api.h comments and the
   `vr_ad_test` help.
+## Closer to enemies: body inset and step in (closein, 2026-10-13)
+
+His problem: he couldn't get close enough to put his hands on an enemy's neck or head; the two boxes met first. Both
+fixes, collision side only (`vr/vr_bodycontact.cpp`; world.c calls `VR_BodyContactHull`, `_LetsOut`, `_Passes`):
+
+- `vr_body_monster_inset` (default 4, 0..12; Combat > Holding Enemies > Getting Close > Body Inset): where a player's
+  move meets a monster's box, or a monster's move the player's, each box (as the hull code already narrows it:
+  vr_hull_ent_width, vr_mhull_ents) comes in that much on each level side: 8 units closer face to face at 4. Only body
+  moves with the mover's own box (SV_FlyMove, SV_movestep, QC traceboxes with self's box); the map, brush models, props,
+  corpses, monsters against monsters, shots, missiles, precise hits and melee (distances, point traces) keep theirs.
+  A box never narrower than 4 units.
+- `vr_foegrab_step_in` (default 1; ... > Step In): while a hand holds an enemy (`foegrab::holds`, the engine's holds),
+  his body and that enemy's don't meet at all, both ways (SV_ClipToLinks skips the pair).
+- Never stuck (either option on): a player and a monster already overlapping (a hold let go of, the inset lowered while
+  touching) get Quake's start-solid only for a move that goes deeper than the mover is now; one that goes no deeper
+  (checked at its start, a quarter unit along and its end: a box's depth along a line is concave) passes, so
+  SV_CheckStuck never lifts him and a monster's SV_movestep (traced down from its new spot) can't step in deeper.
+  `bodycontact::serverFrame` (VR_ServerFrameEnd, after foegrab's) pushes each overlapping pair apart along the least
+  way out, 80 units/s: the monster by a walk step (SV_movestep: no ledges, no walls), the player for what it can't.
+  Not when he is over or under it (the least way out is up or down: standing on it is Quake's).
+- `vr_body_contact_status` (Debug > Tests > Holding Enemies > Nearest Body Contact): the nearest live monster, its
+  level distance, the pair's depth (> 0 overlapping), held. `vr_foegrab_debug 2` prints each push apart.
+
+Numbers (`Misc/quakevr/foegrab/closein_test.sh`): walked into on vrfiringrange, origins' level distance at inset 4 / 0:
+grunt 12.03 / 20.01, ogre 20.03 / 28.01, enforcer 14.03 / 22.01 (8 closer each). Inset set to 0 while touching:
+5.73 deep 2 frames later, apart (depth -0.01) within 60 frames; backing off then moves ~90 units in 20 frames (not
+stuck). The firing range's back wall: the same stop at inset 0 and 12 (372.0 -556.0). A held grunt (step in on)
+walked into: 5.59 apart (6.4 deep), let go: 8.9 three frames later, 12.01 after 60, backs off freely; step in off: stops
+at 12.03 held. Regressions: judo_test.py dir hold 0 FAIL, stagger_test.sh judo 0 FAIL, eval 168/177 (one FAIL->FAIL
+timing 0.375->0.391), e1m1 smoke fine. voreshove_test.sh: 3, 4, 4 shoves in three runs (needs 4) against 4, 5, 5 with
+both options off: the vore, 8 units closer, takes more of its own balls' splash and dies sooner (it dies in both); the
+shoves themselves are as before.
+
+Notes: with step in, nothing stops him walking right through the held enemy and out its far side (he stays held only
+within Let Go Beyond). Moving in a little more than his box would before ends nothing else: monsters' melee ranges
+are QC distances from origins, unchanged, so a grunt you stand closer to still hits you by its own range.
+
+VR check: walk up to a grunt, an enforcer, an ogre: hands reach its head and neck without stepping through; Body Inset
+0 vs 4 vs 8 (live, no restart); hold one by the shoulder and step in to bring the other hand to its head; let go while
+inside: eased apart, never stuck; is Step In a net plus or minus (judo, neck snap, shoves)?
