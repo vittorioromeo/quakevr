@@ -6062,11 +6062,14 @@ void() forcegrabbable_touch =
                     self.classname, vlen(self.velocity), time - self.carry_letgo_time, adjDmg));
             }
             float pop = VR_Decap_ThrownArm(other, self, thrower, adjDmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
+            float wasAlive = other.health > 0 && !other.vr_corpse && !other.vr_corpse_dying;
             T_Damage(other, self, thrower, adjDmg);
             if(pop)
             {
                 VR_Decap_After(other);
             }
+            // VR: an incandescent blade thrown sets what it struck on fire (vr_hotblade.qc).
+            VR_HotBlade_ThrownStruck(self, other, thrower, wasAlive, self.origin, normalize(self.velocity));
             self.vr_fling_hit = time; // (not hit again as a flung prop as it bounces off: VR_FLING_REHIT)
         }
         // hit wall

@@ -31,6 +31,9 @@
 float(entity p, float xHand) VR_HotBlade_Extra;
 void(entity p, float xHand, entity xTarg, float xAlive, vector xAt, vector xDir) VR_HotBlade_Struck;
 void() VR_HotBlade_Frame;
+float(entity xThing) VR_HotBlade_ThrownExtra;
+void(entity xThing, entity xTarg, entity xBy, float xAlive, vector xAt, vector xDir) VR_HotBlade_ThrownStruck;
+.float vr_hot_glow; // on a weapon prop (thrown_weapon): its glow 0..1 for the engine (VR_HotBlade_Lying; U_QVR_WEAPONUID)
 
 float qvr_weaponinst_next; // The next id to try (saved with the game; carried to the next level: parm49).
 

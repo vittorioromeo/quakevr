@@ -834,7 +834,9 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     data.offset = (bits & U_QVR_OFFSET) ? readCoords3() : glm::vec3{0.f};
     data.noRotate = (bits & U_QVR_NOROTATE) != 0;
     data.spin = (bits & U_QVR_SPIN) != 0;
-    data.weaponUid = (bits & U_QVR_WEAPONUID) ? MSG_ReadLong() : 0;
+    const int uidBits = (bits & U_QVR_WEAPONUID) ? MSG_ReadLong() : 0;
+    data.weaponUid = uidBits & 0xFFFFFF;
+    data.hotGlow = static_cast<float>((uidBits >> 24) & 127) / 127.f; // an incandescent blade's (vr_hotblade.cpp)
     data.clip = (bits & U_QVR_WEAPONUID) ? MSG_ReadByte() : -1;
     data.noMag = (bits & U_QVR_NOMAG) != 0;
     data.ssgOpen = (bits & U_QVR_SSGOPEN) != 0;

@@ -1783,7 +1783,7 @@ QVR_DECAL_FUNCTIONS \
 "layout(location=8) flat out float out_pdepth; // QVR: parallax mapping\n" \
 "layout(location=9) flat out vec4 out_bumplight; // QVR: xyz towards the model's light (world), w how much the bumps shade it\n" \
 "layout(location=10) flat out int out_instance; // QVR: its directional ambient (Ambient) for the fragment shader\n" \
-"layout(location=11) out vec3 out_morphpos; // QVR: a gun morphing into its other ammo's model (vr/vr_render.cpp): where in its own units\n" \
+"layout(location=11) out vec3 out_morphpos; // QVR: where in the model's pose (byte) space: a gun's morph (times the model's scale, Ambient[3..5].w: vr/vr_render.cpp), an incandescent blade's mask (HotBlade: vr/vr_hotblade.cpp)\n" \
 "layout(location=12) flat out float out_morph; // QVR: and how far (Ambient[2].w; 0 not morphing)\n" \
 "layout(location=13) out float out_vao; // QVR: the model's own occlusion here (vr/vr_ao.cpp), times its strength: 1 none\n" \
 "layout(location=14) flat out float out_woundside; // QVR: 1 on its right side (its wound mask's other layer: vr/vr_wounds.cpp)\n" \
@@ -1823,7 +1823,7 @@ QVR_DECAL_FUNCTIONS \
 "	out_instance = ALIAS_INSTANCE_ID; // QVR: its instance (a layered shadow draw's: FaceDraws)\n" \
 "	out_morph = inst.Ambient[2].w; // QVR\n" \
 "	out_vao = inst.AO.y > 0. ? max(1.0 - inst.AO.y * (1.0 - mix(PoseAO(inst.Pose1), PoseAO(inst.Pose2), inst.Blend)), 0.0) : 1.0; // QVR\n" \
-"	out_morphpos = lerpedPos * vec3(inst.Ambient[3].w, inst.Ambient[4].w, inst.Ambient[5].w); // QVR: the model's scale\n" \
+"	out_morphpos = lerpedPos; // QVR: the pose's space (Morph scales it to the model's units)\n" \
 "	float dirkeep = inst.Ambient[1].w; // QVR: the share of the directional shading the ambient cube leaves (1 without it)\n" \
 "	out_bumplight = vec4(lightdir, (abs(inst.Glow.y) - 1.0) * dirkeep); // QVR: Glow.y: +-(1 + the bumps' strength), + on a par with the world\n" \
 "	float dot1, dot2;\n" \
@@ -2051,7 +2051,7 @@ SPECULAR_AA_FUNCTIONS
 "layout(location=8) flat in float in_pdepth; // QVR: parallax mapping's depth in units (vr_parallax_models; 0 off; negative: an authored map's, vr_parallax_authored)\n" \
 "layout(location=9) flat in vec4 in_bumplight; // QVR: xyz towards the model's light, w how much the bumps shade it\n" \
 "layout(location=10) flat in int in_instance; // QVR: for its Ambient\n" \
-"layout(location=11) in vec3 in_morphpos; // QVR: a gun's morph (vr/vr_render.cpp)\n" \
+"layout(location=11) in vec3 in_morphpos; // QVR: the pose's space: a gun's morph (vr/vr_render.cpp), an incandescent blade's mask\n" \
 "layout(location=12) flat in float in_morph; // QVR\n" \
 "layout(location=13) in float in_vao; // QVR: the model's own occlusion (vr/vr_ao.cpp)\n" \
 "layout(location=14) flat in float in_woundside; // QVR: 1 on its right side (vr/vr_wounds.cpp: your body's mask, one a side)\n" \
@@ -2389,7 +2389,8 @@ SPECULAR_AA_FUNCTIONS
 "	float a = abs(in_morph);\n" \
 "	float kind = floor(a * 0.5);\n" \
 "	float cut = (a - 2.0 * kind) * 1.1 - 0.05;\n" \
-"	float n = 0.6 * MorphNoise(in_morphpos * 0.45) + 0.4 * MorphNoise(in_morphpos * 1.3 + 7.3);\n" \
+"	vec3 mpos = in_morphpos * vec3(instances[in_instance].Ambient[3].w, instances[in_instance].Ambient[4].w, instances[in_instance].Ambient[5].w); // the model's units\n" \
+"	float n = 0.6 * MorphNoise(mpos * 0.45) + 0.4 * MorphNoise(mpos * 1.3 + 7.3);\n" \
 "	float d = n - cut;\n" \
 "	vec3 hot = kind > 1.5 ? vec3(0.5, 0.8, 2.4) : kind > 0.5 ? vec3(2.2, 1.4, 0.35) : vec3(2.4, 0.8, 0.15);\n" \
 "	seam = hot * 0.8 * (1.0 - smoothstep(0.0, 0.03, abs(d)));\n" \
@@ -2490,9 +2491,11 @@ SPECULAR_AA_FUNCTIONS
 "	result.rgb += wounds.glow; // QVR: a fresh burn's embers\n" \
 "	if (in_glow > 3.5) // QVR: an incandescent blade (vr/vr_meleehud.cpp hotGlow): 4 + 2 x its colour (16 levels a channel: r + 16g + 256b) + its strength (0..2); the metal glows from within, its bright parts most and yellower\n" \
 "	{\n" \
+"		vec4 hb = instances[in_instance].HotBlade; // QVR: only the blade glows: a plane across it in the pose's space (vr/vr_hotblade.cpp bladePlane; zero: all of it)\n" \
+"		float hmask = hb == vec4(0.0) ? 1.0 : clamp(dot(in_morphpos, hb.xyz) + hb.w, 0.0, 1.0);\n" \
 "		float hv = in_glow - 4.0;\n" \
 "		float hcode = floor(hv * 0.5);\n" \
-"		float hs = hv - 2.0 * hcode;\n" \
+"		float hs = (hv - 2.0 * hcode) * hmask * hmask * (3.0 - 2.0 * hmask);\n" \
 "		vec3 hcolor = vec3(mod(hcode, 16.0), mod(floor(hcode / 16.0), 16.0), floor(hcode / 256.0)) / 15.0;\n" \
 "		float hlum = dot(skin, vec3(0.3, 0.59, 0.11));\n" \
 "		float hrim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n" \

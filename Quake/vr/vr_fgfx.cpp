@@ -7,6 +7,7 @@
 #include "vr_held.hpp"
 #include "vr_hue.hpp"
 #include "vr_lines.hpp"
+#include "vr_hotblade.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_menu.hpp"
 #include "vr_particles.hpp"
@@ -277,7 +278,7 @@ extern "C" float VR_EntityGlow(const entity_t* e)
 {
     // The toolgun's target (vr_toolgun.cpp: its hue's, or 2..3 red: the remover's), else the force grab's (in the
     // player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp), else an incandescent blade's (4 and over: its
-    // colour and strength coded, vr_meleehud.cpp hotGlow).
+    // colour and strength coded, vr_hotblade.cpp entityGlow).
     const float t = qvr::toolgun::entityGlow(e);
     if(t != 0.f)
     {
@@ -289,7 +290,7 @@ extern "C" float VR_EntityGlow(const entity_t* e)
         return g;
     }
     const float counter = qvr::meleehud::entityGlow(e);
-    return counter > 0.f ? -counter : qvr::meleehud::hotGlow(e);
+    return counter > 0.f ? -counter : qvr::hotblade::entityGlow(e);
 }
 
 extern "C" void VR_EntityGlowColor(float rgb[3])

@@ -28,6 +28,11 @@ void weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3& angles);
 inline constexpr int lavaGunLights = 16;
 void lavaGunLight(int index, const glm::vec3& pos, float strength);
 
+// Incandescent blades (vr_hotblade.cpp): the light blade `index` (0 .. hotBladeLights - 1) casts this frame from `pos`, in
+// `color`, `strength` 0..2 (its glow times vr_hotblade_light; 0: none, its light put out), reaching `radius` units.
+inline constexpr int hotBladeLights = 16;
+void hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& color, float strength, float radius);
+
 // Is `model` a lava nailgun's (its lava ammo's model)?
 [[nodiscard]] bool isLavaGun(const qmodel_t* model);
 

@@ -5496,3 +5496,57 @@ Widowmaker and Plasma Gun appeared; every other gun did not, and props fell some
   e1m1: `vr_ad_test 81` 11 passed, 0 failed; e1m1 smoke clean.
 - **In VR**: Debug > Tests > Arcane Dimensions Monsters, its Pickups: each of the eight AD guns lands about an arm's
   length ahead (vrfiringrange and an AD map); no far-off clatter.
+## Incandescent blades: his tweaks (worktree `hotblade`, 2026-10-13)
+
+The author after playing it ("very good, but they need a few more tweaks"): a dynamic light following the glow; a dropped
+blade must look the same on the ground (it reverted to the plain model) and keep cooling there; the glow on the blade only,
+not the handle, the light from there too; glow strength up (his 1.5); more embers, from the whole heated part (they came
+off the handle), with settings; a swung blade leaves fire and sparks in the air behind its heated part; a buzz while
+reheating a blade not yet cold; a thrown red-hot blade burns and hits harder too.
+
+- Client side moved to `vr_hotblade.cpp` (out of `vr_meleehud.cpp`): the glowing blades drawn each frame are the hands'
+  (`STAT_QVR_HOTBLADE`, eased), the holsters' (`STAT_QVR_HOTBLADEHOLSTER`) and up to 8 lying or flying (nearest first).
+  A lying one's glow comes with the prop: QC writes `.vr_hot_glow` on every `thrown_weapon` ten times a second while any
+  weapon may be hot (`VR_HotBlade_Lying`, which also quenches it in water; its old QC sparks are gone) and the server packs
+  it (0-127) into bits 24-30 of `U_QVR_WEAPONUID`'s weapon id (ids stay far below 2^24; old demos read 0). Its heat is its
+  record's, so it ticks down on the ground exactly as held (`drop_cools`: 1.00 with 4.4 s left, 0.82 with 2.5, cold).
+- The blade: the weapon's line from the grip (the entity's origin as a hand holds it) to its muzzle anchor (the melee's tip,
+  `weaponMount`'s: the report finds both within 0.00-0.02 units held still), from where the QC's striking points start
+  (`VR_Melee_PartAt`): the axe and Super Axe 0.6 (the head; the Shadow Axe is the axe's model), the swords 0.2 (past the
+  guard), the crowbar 0.05 (the bar past the fist), the chainsaw 0.45 (the bar). Worked out in the model's pose space (the
+  model drawn unturned at the origin, the muzzle brought back through the inverse matrix), so a holstered or lying
+  weapon's is the same part.
+- Glow on the blade only: the alias instance has a new `HotBlade` vec4 (`vraliasinstance_t::hotblade`): a plane in the
+  pose's space, 0 at the blade's root rising to 1 over 8% of the line (zero: all of it). The vertex shader's
+  `out_morphpos` now carries the raw pose position always (the morph scales it in the fragment shader: no new varying,
+  all 16 locations are taken); `QVR_ALIAS_FS_GLOW` multiplies the strength by smoothstep(mask). Vertices that glow
+  (report): axe 10/223, sword 8/230, crowbar 280/464, chainsaw 18/285, Super Axe 295/795.
+- Light: `emissive::hotBladeLight` (keys -0x5A00 - index, unshadowed) from the middle of the heated part, `vr_hotblade_light`
+  (1) x the glow (build-up and fade included) with a slight flicker, reach `vr_hotblade_light_radius` (72) x (0.6 + 0.4 glow).
+- Embers (`particles::hotEmber`): puffs of `vr_hotblade_embers` (4), `vr_hotblade_ember_rate` (12) a second x glow^2, each
+  off a random vertex of the heated part (tried 16 times; else its line), leaving the surface and rising; hands, holsters
+  and lying blades alike (48 a second held still at full glow).
+- Trail (`particles::hotTrail`): a hand's blade, or a lying one moving (thrown), whose tip moves faster than
+  `vr_hotblade_trail_speed` (1.5 m/s) leaves `vr_hotblade_trail` (1) x glow x the area its heated part swept / 0.8 sq units
+  (eased in over the next 1.5 m/s; at most 48 a frame; none for a move over 64 units in a frame), each at a random vertex
+  of the heated part between last frame's and this frame's place (its shape: an axe's head, not the handle line): 65%
+  small upright tongues of flame keeping 4% of the blade's speed, 35% sparks flung on with 15-35%, lingering
+  `vr_hotblade_trail_linger` (0.5 s). The mock sweep (12 frames at ~7 m/s) leaves ~85-170.
+- `vr_hotblade_glow` default 1.5 (config 131 migrates a config at 1).
+- Haptics: in a flame while still glowing (reheating) a steady 0.4 buzz each tick ("full again ...: reheating, a buzz");
+  the first build-up's buzz starts at 0.2 (was 0.1) rising to 0.5; pulses overlap so it is continuous.
+- Thrown: `VR_Thrown_Damage` adds `vr_hotblade_damage` to a red-hot `thrown_weapon`'s base (`VR_HotBlade_ThrownExtra`), and
+  `forcegrabbable_touch` sets what it hurt on fire (`VR_HotBlade_ThrownStruck`, the blows' ignite settings). The axe at a
+  grunt at 276 u/s: 19.8 cold, 25.4 hot (base 35 + 10), lit.
+- Settings (Weapons > Incandescent Blades, Look and Sound): Light, Light Reach, Embers per Puff, Ember Puffs a Second,
+  Swing Trail, Trail Lingers, Trail From. Debug > Tests > Incandescent Blades: Report What the Client Draws
+  (`vr_hotblade_report`), Report the Lying Blades (`vr_hotblade_test 12`), Throw It at the Nearest Monster (13), Drop It
+  Here (14).
+- Tests: `hotblade_test.sh` 27 cases (new: blade_parts, superaxe, embers, embers_off, trail, trail_off, drop_cools,
+  throw_cold, throw_hot; flame checks the reheat buzz, holster the client's holster glow), all PASS; `shots` writes
+  `scratch/hotblade/shots_blades.png` (each blade from the side), `shots_dropped.png`, `shots_trail.png`, checked by eye.
+- In VR: the light's strength and reach (72 units) on the hands and walls; the embers' amount; the trail (amount, linger,
+  1.5 m/s threshold) on real swings; the reheat buzz; a red-hot axe thrown at a monster; a dropped blade cooling.
+- Not done: the light is one frame behind a fast-moving hand (the view entities are placed after the queue: ~2 cm at
+  7 m/s); a blade held by its hotspot/foregrip uses the same model-space blade (fine), but the force grab's and counter's
+  glows still win over the heat glow (unchanged priority).
