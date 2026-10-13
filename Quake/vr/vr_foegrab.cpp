@@ -126,7 +126,7 @@ struct Holder
     double breakAt{-1.0};
     // The neck snap (neckStep, neckCheck): the enemy both hands hold by the head (0: none), the hands' twist of it (rad/s,
     // smoothed: neckSmooth), how far it has turned one way so far (rad) and about which axis, its fastest twist (deg/s:
-    // the debug's), the hands' turns at the last frame (their wrists' roll), no snap before neckAgain.
+    // the debug's), the hands' turns at the last frame (play space: their wrists' roll), no snap before neckAgain.
     int neckEnt{0};
     glm::vec3 neckSpin{0.f};
     float neckTurned{0.f};
@@ -882,15 +882,20 @@ NeckTwist neckStep(int c, edict_t* m, const VrMove& move, const glm::vec3& neck)
     // (The axes: the neck, the line between the hands across it, the third.)
     const glm::vec3 side = glm::length(across) > 1e-4f ? glm::normalize(across) : glm::vec3{0.f};
     const glm::vec3 axes[3]{n, side, glm::cross(n, side)};
+    // (Each hand's turn relative to the player: its angles are the world's, the stick's turn (smooth or snap: the play
+    // space's yaw, move.vrYaw) in them; taken out here, it would read as both wrists turning the same way about the
+    // vertical. The turn since the last frame is measured in play space and put back in the world's axes.)
+    const float playYaw[3]{0.f, move.vrYaw, 0.f};
+    const glm::mat3 playTurn = held::axesFromAngles(playYaw, true);
     glm::vec3 turn[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     for(int h = 0; h < 2; h++)
     {
-        const glm::mat3 rot = held::axesFromAngles(&move.hands[h].rot[0], true);
+        const glm::mat3 rot = glm::transpose(playTurn) * held::axesFromAngles(&move.hands[h].rot[0], true);
         if(!fresh && dt > 0.f)
         {
             // (A small turn's axis times its angle: the skew part of the turn since the last frame.)
             const glm::mat3 dr = rot * glm::transpose(hd.neckRot[h]);
-            turn[h] = glm::vec3{dr[1][2] - dr[2][1], dr[2][0] - dr[0][2], dr[0][1] - dr[1][0]} * (0.5f / dt);
+            turn[h] = playTurn * glm::vec3{dr[1][2] - dr[2][1], dr[2][0] - dr[0][2], dr[0][1] - dr[1][0]} * (0.5f / dt);
         }
         hd.neckRot[h] = rot;
     }
