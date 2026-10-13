@@ -616,6 +616,17 @@ void setMagBox(edict_t* ent, int h, const glm::vec3& origin, const glm::vec3& ha
     setFieldVec(ent, h ? f.magboxz : f.offmagboxz, none ? glm::vec3{0.f} : gate.turn * box[3]);
 }
 
+// The ammo pouch's rounds (VrMove::ammoPouch) into .ammopouchpos, .ammopouchx/y/z (on the body: never through a portal;
+// all zero: none).
+void setAmmoPouch(edict_t* ent, const glm::vec3 (&box)[4])
+{
+    const FieldOffsets& f = fields();
+    setFieldVec(ent, f.ammopouchpos, box[0]);
+    setFieldVec(ent, f.ammopouchx, box[1]);
+    setFieldVec(ent, f.ammopouchy, box[2]);
+    setFieldVec(ent, f.ammopouchz, box[3]);
+}
+
 } // namespace
 
 extern "C" void VR_ReadMoveExtras(client_t* client)
@@ -683,6 +694,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         setFieldVec(ent, h ? f.loadportface : f.offloadportface, port.turn * move.loadPortFace[h]);
         setMagBox(ent, h, move.origin, move.hands[h].pos, move.magBox[h]);
     }
+    setAmmoPouch(ent, move.ammoPouch);
     if(clientNum >= static_cast<int>(clientBits.size()))
     {
         clientBits.resize(clientNum + 1);
@@ -1089,6 +1101,11 @@ void rebaseHands(edict_t* player)
         }
     }
     move.headPos += delta;
+    if(move.ammoPouch[3] != glm::vec3{0.f})
+    {
+        move.ammoPouch[0] += delta; // (the ammo pouch goes with the body)
+        setAmmoPouch(player, move.ammoPouch);
+    }
     // Re-evaluate crossing after walking, including a crossing on a release frame.
     for(int h = 0; h < 2; h++)
     {

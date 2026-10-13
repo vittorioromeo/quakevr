@@ -239,6 +239,13 @@
 .vector offmagboxx;
 .vector offmagboxy;
 .vector offmagboxz;
+// Where the rounds stand in the ammo pouch on the front of the belt, as the client places it (the engine; vr_reload.qc
+// VR_Reload_PouchFrame: pouch reloading): a box, its middle and its three half-axes (out of the body, to the left, up along
+// the rounds standing in it); the axes all zero: no pouch.
+.vector ammopouchpos;
+.vector ammopouchx;
+.vector ammopouchy;
+.vector ammopouchz;
 .vector shotrot;    // where the hand's shots go (angles): its aim turned by the weapon's Shot Pitch/Yaw (the engine)
 .vector offshotrot;
 

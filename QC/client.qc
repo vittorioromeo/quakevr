@@ -1228,6 +1228,7 @@ void() PutClientInServer =
     self.offloadportpos = self.origin;
     self.magboxx = self.magboxy = self.magboxz = '0 0 0'; // (no magazine, until a move says)
     self.offmagboxx = self.offmagboxy = self.offmagboxz = '0 0 0';
+    self.ammopouchx = self.ammopouchy = self.ammopouchz = '0 0 0'; // (no ammo pouch, until a move says)
 
     self.handvel = '0 0 0';
     self.offhandvel = '0 0 0';
