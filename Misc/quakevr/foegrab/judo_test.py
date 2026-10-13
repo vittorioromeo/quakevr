@@ -342,8 +342,9 @@ def neck_standing_motion(name, centre, deg, dur, sign, axis="y", pull=None):
         keys += hands_at(0.8 + PULL_T, (main0[0] + dx * PULL, cy, cz + dz * PULL), (off0[0] + dx * PULL, cy, cz + dz * PULL))
     else:
         keys += turn_keys(0.8, dur, deg, sign, centre, NECK_R, axis)
-    keys += [(1.55, "cmd echo MARK1"), (1.6, "cmd vr_foegrab_status"), (2.2, "cmd -grabmain"), (2.2, "cmd -graboff"),
-             (2.55, "cmd echo MARK2"), (2.6, "cmd vr_foegrab_status")]
+    late = max(0.0, 0.8 + dur - 1.4) if dur > 2 else 0.0  # (a long shuffle: the statuses after it)
+    keys += [(1.55 + late, "cmd echo MARK1"), (1.6 + late, "cmd vr_foegrab_status"), (2.2 + late, "cmd -grabmain"),
+             (2.2 + late, "cmd -graboff"), (2.55 + late, "cmd echo MARK2"), (2.6 + late, "cmd vr_foegrab_status")]
     return motion(name, keys)
 
 
@@ -411,8 +412,17 @@ def case_neck():
         ("smooth_turn", 0, GRUNT_HEAD, 0, 0, 1, "y", "smoothturn", "vr_snap_turn 0", "none"),
         ("snap_turn", 0, GRUNT_HEAD, 0, 0, 1, "y", "snapturn", "vr_snap_turn 45", "none"),
         ("twist_turn", 0, GRUNT_HEAD, 75, 0.2, 1, "y", "twistturn", "vr_snap_turn 0", "snap"),
+        # (A slow shuffle: 60 degrees in 3 s, 20 deg/s: never a snap, either method.)
+        ("shuffle", 0, GRUNT_HEAD, 60, 3.0, 1, "y", None, "", "none"),
     ]
+    # JUDO_NECK_METHOD 1: the hand-line detector (vr_foegrab_necksnap_method 1); a tilt (grunt_roll: one hand up, the
+    # other down) is no turn about the neck there.
+    method = os.environ.get("JUDO_NECK_METHOD", "0")
+    print(f"  (vr_foegrab_necksnap_method {method})")
     for what, mon, centre, deg, dur, sign, axis, pull, extra, want in runs:
+        extra = f"vr_foegrab_necksnap_method {method};{extra}"
+        if method == "1" and what == "grunt_roll":
+            want = "none"
         name = f"judo_neck_{what}"
         if ONLY and not re.search(ONLY, name):
             continue

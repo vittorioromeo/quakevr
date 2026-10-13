@@ -884,8 +884,8 @@ struct NeckTwist
 };
 
 // The hand-line method (vr_foegrab_necksnap_method 1; the author's idea): each frame the line between the palms `d`
-// (world, metres) is put in the head's frame `frame` (world from its body: a standing one's yaw, a ragdoll's chest: its
-// own turn, or a ragdoll rolled in the hands, doesn't count) and laid across its neck `n` (world, unit); the turn of that
+// (world, metres) is put in the head's frame `frame` (world from its body: a standing one's yaw, its own turn not counted;
+// a ragdoll's none: it turns whole with the hands) and laid across its neck `n` (world, unit); the turn of that
 // line about the neck since each sample of the last vr_foegrab_necksnap_window seconds (the old samples turned with the
 // stick's turn since: the play space's yaw isn't the hands'), the largest, is the twist; so is the wrists' common roll
 // about the neck (`roll`, rad/s: both the same way) added up over the same window. Turned vr_foegrab_necksnap_angle
@@ -1244,8 +1244,7 @@ void ragdollNeckCheck(int c)
     const float margin = za::clamp(vr_foegrab_necksnap_margin.value, 0.f, 32.f);
     const float neckLength = za::clamp(vr_foegrab_necksnap_neck.value, 0.f, 32.f);
     glm::vec3 joint{0.f}, neck{0.f, 0.f, 1.f}, head{0.f};
-    glm::mat3 chest{1.f};
-    if(!box3d::ragdollNeck(num, joint, neck, head, &chest))
+    if(!box3d::ragdollNeck(num, joint, neck, head))
     {
         return;
     }
@@ -1270,7 +1269,9 @@ void ragdollNeckCheck(int c)
             return;
         }
     }
-    const NeckTwist t = neckStep(c, m, *move, neck, chest);
+    // (Not its chest's frame: a ragdoll held by the head turns whole with the hands' twist, its chest with it, the twist
+    // read a third of what the hands did; the hands' own line, in play space, is the measure.)
+    const NeckTwist t = neckStep(c, m, *move, neck, glm::mat3{1.f});
     if(neckSnapDue(hd, t))
     {
         neckSnap(c, m, t, true);

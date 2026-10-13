@@ -393,10 +393,8 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 // units if more, the melee's vr_decap_neck), 0 not (or no head), -1 not a ragdoll.
 [[nodiscard]] int ragdollHeadAt(int num, const glm::vec3& at, float neck = 0.f);
 // The neck of edict `num`'s ragdoll now (the neck snap's): `joint` its head's joint (units), `axis` the way from it to its
-// head's middle (unit: the neck's line as it lies), `head` that middle; `body` (if given) the turn of the part its head
-// sits on (its chest: the neck snap's hand-line method measures the hands relative to it; the head's own without one).
-// False: no ragdoll, or no head (or cut off).
-bool ragdollNeck(int num, glm::vec3& joint, glm::vec3& axis, glm::vec3& head, glm::mat3* body = nullptr);
+// head's middle (unit: the neck's line as it lies), `head` that middle. False: no ragdoll, or no head (or cut off).
+bool ragdollNeck(int num, glm::vec3& joint, glm::vec3& axis, glm::vec3& head);
 // The guns' convex pieces this session (vr_gun_pieces_cache): read from the disk, cut, files written (Setup's
 // preparation reports them: vr_prepare.cpp).
 struct GunPiecesCount
