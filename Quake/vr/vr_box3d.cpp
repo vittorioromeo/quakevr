@@ -954,6 +954,12 @@ struct World
         b3BodyId anchor{b3_nullBodyId};
         b3JointId joint{b3_nullJointId};
         double farSince{-1.0}; // since when the limb is far from the hand (stuck behind something: let go of)
+        // A soft hold's (ragdollHoldSoft: a judo throw's or a lift's enemy held on): its spring's most force (N; < 0:
+        // vr_ragdoll_grab_force's), its rate (Hz; 0: grabHertz) and how far the limb may lag before it is let go of
+        // (units; 0: grabStuck).
+        float force{-1.f};
+        float hertz{0.f};
+        float stuck{0.f};
     };
     za::Vector<RagdollGrab> ragdollGrabs;
     // Ragdolls made in each other (two grunts dying on one spot, vr_ragdoll_collide_each): they pass through each other
@@ -5518,7 +5524,8 @@ void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b
     g.anchor = b3CreateBody(world->id, &def);
     const b3BodyId part = r.body[static_cast<za::SizeT>(g.part)];
     const glm::quat partTurn = fromB3(b3Body_GetRotation(part));
-    const float force = za::max(vr_ragdoll_grab_force.value, 0.f);
+    const float force = g.force >= 0.f ? g.force : za::max(vr_ragdoll_grab_force.value, 0.f);
+    const float hertz = g.hertz > 0.f ? g.hertz : grabHertz;
     b3MotorJointDef jd = b3DefaultMotorJointDef();
     jd.base.bodyIdA = g.anchor;
     jd.base.bodyIdB = part;
@@ -5529,10 +5536,10 @@ void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b
     jd.angularVelocity = b3Vec3_zero;
     jd.maxVelocityForce = 0.f;
     jd.maxVelocityTorque = 0.f;
-    jd.linearHertz = grabHertz;
+    jd.linearHertz = hertz;
     jd.linearDampingRatio = 1.f;
     jd.maxSpringForce = force;
-    jd.angularHertz = grabHertz * 0.5f;
+    jd.angularHertz = hertz * 0.5f;
     jd.angularDampingRatio = 1.f;
     jd.maxSpringTorque = force * grabLever;
     g.joint = b3CreateMotorJoint(world->id, &jd);
@@ -5578,6 +5585,49 @@ bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
     {
         Con_Printf("ragdoll: %d part %d (%s) taken by hand %d, %.1f units from its surface\n", num, part, r->rig->bones[part].name,
             hand, distance);
+    }
+    return true;
+}
+
+// ragdollHoldSoft: hand `hand` of `player` holds on to the limb of `ent`'s ragdoll nearest it (within `reach` units of
+// its surface), by a spring of at most `force` N at `hertz`, let go of past `stuck` units (vr_foegrab.cpp: an enemy
+// thrown or lifted, held on).
+bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck)
+{
+    const int pnum = NUM_FOR_EDICT(player);
+    if(!world || pnum < 1 || pnum > svs.maxclients || grabIndex(pnum, hand) >= 0)
+    {
+        return false;
+    }
+    const int num = NUM_FOR_EDICT(ent);
+    const RagdollBodies* r = ragdollOf(num);
+    if(!r)
+    {
+        return false;
+    }
+    glm::vec3 at;
+    glm::quat turn;
+    handPose(player, hand, at, turn);
+    float distance = 0.f;
+    const int part = nearestPart(*r, at, distance);
+    if(part < 0 || distance > reach)
+    {
+        return false;
+    }
+    World::RagdollGrab g;
+    g.player = pnum;
+    g.hand = hand;
+    g.num = num;
+    g.part = part;
+    g.force = za::max(force, 0.f);
+    g.hertz = za::max(hertz, 0.1f);
+    g.stuck = za::max(stuck, 1.f);
+    startHold(g, player, *r, b3Body_GetLocalPoint(r->body[static_cast<za::SizeT>(part)], world->toM(at)));
+    world->ragdollGrabs.pushBack(g);
+    if(vr_debug_ragdoll.value)
+    {
+        Con_Printf("ragdoll: %d part %d (%s) held on by hand %d, %.1f units from its surface (soft: %.0f N, %.1f Hz)\n", num,
+            part, r->rig->bones[part].name, hand, distance, g.force, g.hertz);
     }
     return true;
 }
@@ -5651,7 +5701,7 @@ void syncRagdollGrabs(float dt)
             endGrab(i);
             continue;
         }
-        const float force = za::max(vr_ragdoll_grab_force.value, 0.f);
+        const float force = g.force >= 0.f ? g.force : za::max(vr_ragdoll_grab_force.value, 0.f);
         b3MotorJoint_SetMaxSpringForce(g.joint, force);
         b3MotorJoint_SetMaxSpringTorque(g.joint, force * grabLever);
         const glm::vec3 from = world->toU(b3Body_GetPosition(g.anchor));
@@ -5666,7 +5716,7 @@ void syncRagdollGrabs(float dt)
         }
         const b3Transform frameB = b3Joint_GetLocalFrameB(g.joint);
         const glm::vec3 held = world->toU(b3Body_GetWorldPoint(part, frameB.p));
-        if(glm::distance(held, at) > grabStuck)
+        if(glm::distance(held, at) > (g.stuck > 0.f ? g.stuck : grabStuck))
         {
             if(g.farSince < 0.0)
             {
@@ -15403,8 +15453,8 @@ bool ragdollGrace(edict_t* ent, int player, float seconds)
     {
         if(g.num == num && g.player == player && g.ragdoll)
         {
+            g.until = g.born == rp->born ? za::max(g.until, qcvm->time + seconds) : qcvm->time + seconds;
             g.born = rp->born;
-            g.until = qcvm->time + seconds;
             return true;
         }
     }
@@ -15879,6 +15929,11 @@ bool ragdollReach(int num, const glm::vec3& at)
 bool ragdollGrab(edict_t* corpse, edict_t* player, int hand)
 {
     return grabRagdoll(corpse, player, hand);
+}
+
+bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck)
+{
+    return ent && player && holdSoft(ent, player, hand, reach, force, hertz, stuck);
 }
 
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity)

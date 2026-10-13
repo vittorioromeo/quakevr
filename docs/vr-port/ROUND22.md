@@ -4903,3 +4903,29 @@ Two causes, both reproduced headless with the mock hands (`Misc/quakevr/foegrab/
 Test (16 cases: hands at its shoulders, its box's middle, low, and uneven (main hand 0.25 m higher, 1.6 times as fast
 aside), each pulled left, right, towards you, away at 3 m/s): all PASS: thrown the pulled way, its head 36-39 units
 along the throw at 0.2 s, and lying 12-32 units to that side of its feet (towards: 14-29 units nearer you).
+
+### 2. Held on after the throw (`vr_foegrab_throw_hold`, on)
+
+His ask: after the judo throw the enemy's ragdoll stays held in your hands, the topple and the forces still applied, not
+detached but softly (not glued), so you can steer where it goes and pull it. Holding Enemies > Hold On After Throw
+(`vr_foegrab_throw_hold` 1), Held On Force (`_hold_force` 350 N a hand), Held On Spring (`_hold_hertz` 4 Hz).
+
+- After `throwDown` (the knockdown, the topple, the slack), `handOver` gives each holding hand the ragdoll's limb nearest
+  it (within 16 units) through the ragdoll limb hold that already exists (corpses, knockdowns: a kinematic body at the
+  hand, a motor joint to the limb), made soft: `box3d::ragdollHoldSoft`, the `RagdollGrab` with its own spring's most
+  force and rate, let go of when the limb lags 72 units for half a second (40 for the usual hold). The QC is told
+  (`VR_FoeGrab_HandOver`: the hand's held field, as `VR_Ragdoll_Handtouch` sets it), and the foegrab holds hand the
+  grip over (not hidden from the QC any more): from there the QC's `VR_Ragdoll_HandFrame` holds and lets go as with any
+  ragdoll limb (the grips let go: dropped, or thrown with the hands' throw; its two-handed throw too).
+- 350 N a hand: two hands give 700 N, under a grunt's 785 N weight, so it still falls (the dir test, held on, still
+  passes all 16) and is never held up, but lowered to it you drag it (the hold test: its pelvis 59 -> 44 units ahead over
+  a 0.5 m pull; at 250 N only 59 -> 54: friction). From your chest the pull on a body lying on the floor is mostly up.
+- While held it passes through the holding hands (`carryStep`: `ragdollGrace` kept up; a grace is lengthened, never
+  shortened). `vr_foegrab_status` prints the ragdoll held on: its pelvis from the player, each hand's distance to its
+  limb. The code is organised for more two-hand moves (the lift below, the neck snap to come): `twoHandCheck` measures
+  both hands on one enemy once a frame (`TwoHands`) and tries each move; `handOver`/`carryStep` are the moves' shared
+  ragdoll hold.
+
+Test: `judo_test.py <agent> hold`: thrown left and held on by 2 hands, lies 25 units to the left, then the lowered
+hands drag it 0.5 m nearer: its pelvis 58.8 -> 44.2 units ahead, still 2 hands; Hold On off: let go as thrown, lies 35
+units left. PASS.

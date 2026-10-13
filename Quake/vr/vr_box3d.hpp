@@ -261,8 +261,8 @@ int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs)
 // `count` of them) slack a moment. False: no ragdoll.
 bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, int count);
 // `ent`'s ragdoll passes through player `player`'s (entity number) hands' bodies (and his body: vr_box3d_throw_grace_body)
-// for `seconds` from now (a throw's grace, as a thrown prop's: vr_box3d_throw_grace). Each call sets it anew. False: no
-// ragdoll.
+// for `seconds` from now at least (a throw's grace, as a thrown prop's: vr_box3d_throw_grace; a later call may lengthen
+// it, never shorten it). False: no ragdoll.
 bool ragdollGrace(edict_t* ent, int player, float seconds);
 // The two-hand throw's topple (vr_foegrab_throw_topple; ROUND21.md, "Holding enemies"): `ent`'s ragdoll (just made by
 // ragdollKnockdown) turned over about its feet towards level `dir`, a sweep: its parts' shared launch (the throw's push and
@@ -311,6 +311,11 @@ bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet)
 // off hand, 1 the main). grab: take the limb of `corpse` the hand is on; release: let go (the limb keeps `velocity`,
 // units/s).
 bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
+// A soft hold (vr_foegrab.cpp: an enemy thrown or lifted, held on): hand `hand` (QC's) of `player` holds the limb of
+// `ent`'s ragdoll nearest it, within `reach` units of its surface, by a spring of at most `force` N at `hertz`, let go of
+// when the limb lags `stuck` units off for half a second. The QC's held field must name `ent` (else it ends next step);
+// let go of as any (ragdollRelease).
+bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
 // 0 nothing, 1 holding a limb; the distance (units) from the hand to the limb's held point (-1: none).
 [[nodiscard]] int ragdollHeld(edict_t* player, int hand);

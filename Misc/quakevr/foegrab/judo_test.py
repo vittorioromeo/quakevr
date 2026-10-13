@@ -113,6 +113,55 @@ def case_dir():
                     (f", tips {early:.0f} along at 0.2 s, lies {ahead:.0f} ahead, {left:.0f} left" if lie else ", no trace"))
 
 
+def status(flat, after):
+    """The 'holds ... on as a ragdoll' status line printed after `after` in the log: (hands, ahead, left, up) or None."""
+    i = flat.find(after)
+    m = re.search(r"on as a ragdoll \((?:thrown|lifted)\) with (\d) hand\(s\), [\d.]+ s: its pelvis ([-\d.]+) ahead, "
+                  r"([-\d.]+) to his left, ([-\d.]+) up", flat[i:] if i >= 0 else "")
+    return (int(m.group(1)), float(m.group(2)), float(m.group(3)), float(m.group(4))) if m else None
+
+
+def case_hold():
+    """hold: thrown left (hands at its shoulders) and held on (vr_foegrab_throw_hold 1): handed over to both hands, it
+    still falls to the left, then the hands, lowered to it, drag it 0.5 m towards you over a second: its pelvis comes 8+
+    units nearer.
+    Held on off: let go as thrown, no ragdoll hold."""
+    y = HEIGHTS["high"]
+    for on in [1, 0]:
+        name = f"judo_hold{on}"
+        main1 = (GAP - PULL, y, NEAR - 0.08)
+        off1 = (-GAP - PULL, y, NEAR)
+        drag = [(1.55, "cmd echo MARK1"), (1.6, "cmd vr_foegrab_status")]
+        # (Down to it first, crouched: from your chest the pull on it is mostly up.)
+        low = HEIGHTS["low"]
+        drag += hands_at(1.7, main1, off1)
+        drag += hands_at(2.2, (main1[0], low, main1[2]), (off1[0], low, off1[2]))
+        drag += hands_at(3.2, (main1[0], low, main1[2] + 0.5), (off1[0], low, off1[2] + 0.5))
+        drag += [(3.45, "cmd echo MARK2"), (3.5, "cmd vr_foegrab_status")]
+        path = pull_motion(name, "left", "high", extra_keys=drag)
+        out = run(f"{PRE};vr_debug_ragdoll 1;vr_foegrab_throw_hold {on};vr_mock_play {path};wait500;-grabmain;-graboff;"
+                  "wait5;toggleconsole;quit",
+                  "foegrab|throw trace|held on by|limb let go|limb lost|MARK|rror|CRASH")
+        with open(os.path.join(SCRATCH, f"judo_test_{name}.txt"), "w") as f:
+            f.write(out)
+        flat = " ".join(out.split())
+        thrown = "both hands turn monster_army" in flat and "to your left" in flat
+        handed = re.search(r"thrown, held on as a ragdoll by (\d) hands?", flat)
+        lie = re.search(r"lies ([-\d.]+) ahead, ([-\d.]+) to your left", flat)
+        left = float(lie.group(2)) if lie else 0.0
+        s1, s2 = status(flat, "MARK1"), status(flat, "MARK2")
+        bad = "rror" in flat or "CRASH" in flat
+        if on:
+            pulled = s1 and s2 and s1[1] - s2[1] > 8
+            ok = thrown and handed and handed.group(1) == "2" and left > 8 and pulled and not bad
+            verdict(ok, f"held on: thrown left {thrown}, held by {handed.group(1) if handed else 0} hands, lies {left:.0f} "
+                        f"left; pelvis ahead {s1[1] if s1 else '?'} -> {s2[1] if s2 else '?'} "
+                        f"(hands {s1[0] if s1 else 0}, {s2[0] if s2 else 0})")
+        else:
+            ok = thrown and not handed and s1 is None and left > 8 and not bad
+            verdict(ok, f"held on off: thrown left {thrown}, not held ({'held' if handed else 'let go'}), lies {left:.0f} left")
+
+
 def main():
     os.makedirs(SCRATCH, exist_ok=True)
     for c in CASES:

@@ -94,3 +94,17 @@ float(entity m, float xYaw, float xTier) VR_FoeGrab_Throw =
     }
     return result;
 };
+
+// The engine (vr_foegrab.cpp handOver): m, thrown or lifted, its ragdoll held on by hand xHand of the player self (the
+// engine's soft hold on the limb nearest the hand: box3d ragdollHoldSoft). The hand holds it as a ragdoll's limb (as
+// VR_Ragdoll_Handtouch takes one): VR_Ragdoll_HandFrame lets go of it as any (the grip let go: it keeps the hand's throw).
+// Returns 1 held, 0 the hand is busy (a weapon, something held).
+float(entity m, float xHand, float xUnused) VR_FoeGrab_HandOver =
+{
+    if(!VRIsHandEmpty(self, xHand) || VR_Forcegrab_IsHandBusy(self, xHand) || !isragdoll(m))
+    {
+        return 0;
+    }
+    VR_Carry_SetHeld(self, xHand, m);
+    return 1;
+};

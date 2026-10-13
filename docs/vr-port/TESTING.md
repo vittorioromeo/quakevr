@@ -1257,3 +1257,7 @@ pulled. `dir`: left, right, towards you, away, with the hands at its shoulders, 
 `throw trace done: lies <a> ahead, <l> to your left` (its head from its feet, from the first player's side: printed by
 every throw trace now). `JUDO_ONLY=<regex>` runs only the matching cases (`judo_<height>_<way>`), `JUDO_EXTRA=<cmds>`
 adds commands; the logs go to `scratch/judo_test_<case>.txt`.
+`hold`: thrown left and held on (`vr_foegrab_throw_hold`), the hands then lowered and drawn 0.5 m back: PASS when both
+hands hold it (`foegrab: ... held on as a ragdoll by 2 hands`), it lies to the left, and `vr_foegrab_status` (which now
+prints the ragdoll held on: its pelvis ahead / to his left / up, each hand's distance to its limb) has its pelvis 8+
+units nearer; and with it off, let go as thrown.

@@ -23,10 +23,12 @@
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
 
 using namespace qvr;
@@ -56,6 +58,9 @@ constexpr double throwRetry = 0.5;    // s: after a turn that didn't throw (too 
 constexpr float throwMinArm = 0.1f;   // m: a hand nearer the enemy's middle counts as this far (the turn's measure)
 constexpr float throwAwayCos = 0.7071f; // a throw within 45 degrees of straight away from you is a shove's (vr_foegrab_throw_away 0)
 constexpr float throwWayTime = 0.04f; // s: the turn's way smoothed over about this long (a frame's jitter doesn't pick the side)
+constexpr float softReach = 16.f;     // units: a hand holds on to the ragdoll's limb nearest it within this (handOver)
+constexpr float softStuck = 72.f;     // units: and lets go of it when the limb lags this far off for half a second
+constexpr float carryGrace = 0.3f;    // s: a ragdoll held on passes through the hands (box3d::ragdollGrace, kept up)
 
 // Why a hand let go (QC VR_FoeGrab_Released's xWhy).
 enum class Why : int
@@ -65,6 +70,7 @@ enum class Why : int
     BrokeFree = 2, // its shove broke the hold (vr_foegrab_shove 1)
     Lost = 3,     // the enemy died, was knocked down, moved away; the option off; the hand took something else
     Thrown = 4,   // both hands threw it down (throwCheck)
+    Lifted = 5,   // both hands lifted it off its feet (liftCheck)
 };
 
 struct Hold
@@ -102,6 +108,12 @@ struct Holder
     float peakTwist{0.f};
     float peakSpeed{0.f};
     glm::vec3 way{0.f}; // the turn's way (level: where it tips its top, rad/s), smoothed (throwWayTime)
+    // The enemy held on as a ragdoll after a throw or a lift (handOver, carryStep): its entity (0: none), since when; a
+    // lift's (`lifted`), when it breaks free (breakAt).
+    int carried{0};
+    double carriedSince{0.0};
+    bool lifted{false};
+    double breakAt{-1.0};
 };
 
 Holder holders[MAX_SCOREBOARD];
@@ -181,6 +193,13 @@ Pin pins[2];
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
     return glm::vec3{v[0], v[1], v[2]};
+}
+
+// Where `player` faces, level (his yaw).
+[[nodiscard]] glm::vec3 forwardFlat(edict_t* player)
+{
+    const float yaw = glm::radians(player->v.v_angle[1]);
+    return glm::vec3{za::cos(yaw), za::sin(yaw), 0.f};
 }
 
 void setVec(float* out, const glm::vec3& v)
@@ -631,7 +650,111 @@ void throwTraceStep()
 // it goes down that way, smoothed over throwWayTime (a reversal: the new way at once): to a side, towards you; straight
 // away from you (within 45 degrees) is a shove's, unless vr_foegrab_throw_away. A twist about the vertical is no throw
 // (its spin: the old turn's vertical part). The QC decides by its kind and health; thrown, both hands let go.
-void throwCheck(int c)
+// `m`, thrown (or lifted: `lift`), its ragdoll just made: each hand of `player` holding it holds on to its ragdoll's limb
+// nearest the hand, softly (box3d::ragdollHoldSoft: at most `force` N per hand at `hertz`, not glued: it falls, and the
+// hands steer and drag it), as the QC's ragdoll holds are (VR_FoeGrab_HandOver: the hand's held field; the QC's
+// VR_Ragdoll_HandFrame lets go of it as any, with the hand's throw), the grip passed on to the QC; the holds let go
+// (Why::Thrown, Why::Lifted). How many hands hold on (0: none could, the holds kept).
+int handOver(edict_t* player, edict_t* m, Holder& hd, float force, float hertz, bool lift)
+{
+    int bits = 0;
+    for(int h = 0; h < 2; h++)
+    {
+        const Hold& g = hd.holds[h];
+        if(!g.active || g.ent != NUM_FOR_EDICT(m) ||
+            !box3d::ragdollHoldSoft(m, player, h, softReach, za::clamp(force, 0.f, 20000.f), za::clamp(hertz, 0.5f, 30.f),
+                softStuck))
+        {
+            continue;
+        }
+        if(callQc("VR_FoeGrab_HandOver", player, m, static_cast<float>(h), 0.f, 0.f) >= 1.f)
+        {
+            bits |= 1 << h;
+        }
+        else
+        {
+            box3d::ragdollRelease(player, h, glm::vec3{0.f});
+        }
+    }
+    if(bits == 0)
+    {
+        return 0;
+    }
+    for(int h = 0; h < 2; h++)
+    {
+        release(player, h, lift ? Why::Lifted : Why::Thrown, (bits & (1 << h)) ? "held on as a ragdoll" : "thrown");
+        if(bits & (1 << h))
+        {
+            hd.owned[h] = hd.ownedLast[h] = false; // (the grip is the QC's ragdoll hold's now)
+        }
+    }
+    hd.carried = NUM_FOR_EDICT(m);
+    hd.carriedSince = qcvm->time;
+    hd.lifted = lift;
+    hd.breakAt = -1.0;
+    const int hands = (bits & 1) + ((bits >> 1) & 1);
+    if(debug())
+    {
+        Con_Printf("foegrab: %s (%d) %s, held on as a ragdoll by %d hand%s (%.0f N each, %.1f Hz)\n",
+            PR_GetString(m->v.classname), hd.carried, lift ? "lifted" : "thrown", hands, hands == 1 ? "" : "s", force, hertz);
+    }
+    return hands;
+}
+
+// The hands of player `c` holding the ragdoll handOver gave them (the QC's held field and the engine's hold), 0: none.
+[[nodiscard]] int carryingHands(int c, edict_t* m)
+{
+    edict_t* player = EDICT_NUM(c + 1);
+    int hands = 0;
+    for(int h = 0; h < 2 && m && !m->free; h++)
+    {
+        const int heldOfs = h ? fields().mainhand_held : fields().offhand_held;
+        hands += heldOfs >= 0 && fieldInt(player, heldOfs) == EDICT_TO_PROG(m) && box3d::ragdollHeld(player, h) == 1;
+    }
+    return hands;
+}
+
+// Each frame, the enemy player `c` holds on as a ragdoll (handOver), while a hand holds it: it passes through his hands
+// (carryGrace: they hold it, they don't knock it). Let go of (the grips, its get-up, a hold left behind): over.
+void carryStep(int c)
+{
+    Holder& hd = holders[c];
+    if(hd.carried <= 0)
+    {
+        return;
+    }
+    edict_t* m = hd.carried < qcvm->num_edicts ? EDICT_NUM(hd.carried) : nullptr;
+    if(carryingHands(c, m) == 0)
+    {
+        if(debug())
+        {
+            Con_Printf("foegrab: %s (%d) let go of after %.2f s held on\n", m && !m->free ? PR_GetString(m->v.classname) : "?",
+                hd.carried, qcvm->time - hd.carriedSince);
+        }
+        hd.carried = 0;
+        return;
+    }
+    (void)box3d::ragdollGrace(m, c + 1, carryGrace);
+}
+
+// Both hands of one player on one enemy, as twoHandCheck measures them each frame (the throw's, the lift's): metres, m/s.
+struct TwoHands
+{
+    edict_t* player{nullptr};
+    edict_t* m{nullptr};
+    glm::vec3 middle{0.f}; // its box's middle (units)
+    glm::vec3 vm{0.f};     // the hands' mean velocity
+    float speed{0.f};      // their mean speed
+    glm::vec3 way{0.f};    // the turn's way now (level, rad/s: where it tips its top)
+    float twist{0.f};      // its size, degrees/s
+    float spin{0.f};       // the hands' turn of it about the vertical, rad/s
+};
+
+void throwCheck(int c, const TwoHands& t);
+
+// Each frame, for player `c`: both his hands on one enemy measured (TwoHands), then its two-hand moves tried: the throw
+// (throwCheck).
+void twoHandCheck(int c)
 {
     Holder& hd = holders[c];
     const Hold& a = hd.holds[0];
@@ -656,7 +779,7 @@ void throwCheck(int c)
         hd.way = glm::vec3{0.f};
     }
     const double time = qcvm->time;
-    if(vr_foegrab_throw.value == 0.f || time - za::max(a.since, b.since) < throwSettle)
+    if(time - za::max(a.since, b.since) < throwSettle)
     {
         return;
     }
@@ -697,12 +820,35 @@ void throwCheck(int c)
             PR_GetString(m->v.classname), a.ent, twist, speed, r[0].x, r[0].y, r[0].z, v0.x, v0.y, v0.z, r[1].x, r[1].y,
             r[1].z, v1.x, v1.y, v1.z);
     }
-    if(time < hd.throwAgain || twist < vr_foegrab_throw_twist.value || speed < vr_foegrab_throw_speed.value)
+    TwoHands t;
+    t.player = player;
+    t.m = m;
+    t.middle = middle;
+    t.vm = vm;
+    t.speed = speed;
+    t.way = way;
+    t.twist = twist;
+    t.spin = wheel.z + topple.z;
+    throwCheck(c, t);
+}
+
+// The two-hand throw (see above twoHandCheck): `t` measured.
+void throwCheck(int c, const TwoHands& t)
+{
+    Holder& hd = holders[c];
+    const double time = qcvm->time;
+    edict_t* player = t.player;
+    edict_t* m = t.m;
+    const float twist = t.twist, speed = t.speed;
+    const glm::vec3& way = t.way;
+    if(vr_foegrab_throw.value == 0.f || time < hd.throwAgain || twist < vr_foegrab_throw_twist.value ||
+        speed < vr_foegrab_throw_speed.value)
     {
         return;
     }
     hd.throwAgain = time + throwRetry;
     const glm::vec3 dir = glm::normalize(glm::dot(hd.way, way) > 0.f ? hd.way : way);
+    const glm::vec3& middle = t.middle;
     glm::vec3 away = middle - vec(player->v.origin);
     away.z = 0.f;
     away = glm::length(away) > 1e-3f ? glm::normalize(away) : dir;
@@ -722,17 +868,23 @@ void throwCheck(int c)
         return;
     }
     const float yaw = glm::degrees(za::atan2(dir.y, dir.x));
-    const float result = throwDown(player, m, dir, wheel.z + topple.z, debug());
+    const float result = throwDown(player, m, dir, t.spin, debug());
     if(debug() || dummy)
     {
-        Con_Printf("foegrab: both hands turn %s (%d) %.0f deg/s at %.2f m/s, %s (yaw %.0f): %s\n", name, a.ent, twist, speed,
-            wayName, yaw, throwResult(result));
+        Con_Printf("foegrab: both hands turn %s (%d) %.0f deg/s at %.2f m/s, %s (yaw %.0f): %s\n", name, NUM_FOR_EDICT(m),
+            twist, speed, wayName, yaw, throwResult(result));
     }
     if(result >= 1.f)
     {
-        for(int h = 0; h < 2; h++)
+        // Held on (vr_foegrab_throw_hold): its ragdoll stays in the hands, softly (it falls, toppled, and the hands steer
+        // and drag it); else let go.
+        if(vr_foegrab_throw_hold.value == 0.f ||
+            handOver(player, m, hd, vr_foegrab_throw_hold_force.value, vr_foegrab_throw_hold_hertz.value, false) == 0)
         {
-            release(player, h, Why::Thrown, "thrown");
+            for(int h = 0; h < 2; h++)
+            {
+                release(player, h, Why::Thrown, "thrown");
+            }
         }
     }
 }
@@ -982,6 +1134,25 @@ void status_f()
                 vr_foegrab_throw_speed.value);
         }
     }
+    // An enemy held on as a ragdoll (handOver): its pelvis from the player (ahead, to his left, up).
+    for(int c = 0; c < za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)); c++)
+    {
+        const Holder& hd = holders[c];
+        edict_t* m = hd.carried > 0 && hd.carried < qcvm->num_edicts ? EDICT_NUM(hd.carried) : nullptr;
+        glm::vec3 pelvis, head, feet;
+        if(!m || m->free || !box3d::ragdollStance(hd.carried, pelvis, head, feet))
+        {
+            continue;
+        }
+        edict_t* player = EDICT_NUM(c + 1);
+        const glm::vec3 ahead = forwardFlat(player);
+        const glm::vec3 d = pelvis - vec(player->v.origin);
+        Con_Printf("foegrab status: player %d holds %s (%d) on as a ragdoll (%s) with %d hand(s), %.2f s: its pelvis %.1f "
+                   "ahead, %.1f to his left, %.1f up; the held limbs %.1f and %.1f units from the off and main hands\n",
+            c + 1, PR_GetString(m->v.classname), hd.carried, hd.lifted ? "lifted" : "thrown", carryingHands(c, m),
+            qcvm->time - hd.carriedSince, glm::dot(d, ahead), glm::dot(d, glm::cross(glm::vec3{0.f, 0.f, 1.f}, ahead)), d.z,
+            box3d::ragdollHandReach(player, 0), box3d::ragdollHandReach(player, 1));
+    }
     // The client's drawn hands (the stats as the view last put them on their spots).
     for(int h = 0; h < 2; h++)
     {
@@ -1206,7 +1377,8 @@ void qvr::foegrab::serverFrame()
 
     for(int c = 0; c < players; c++)
     {
-        throwCheck(c);
+        twoHandCheck(c);
+        carryStep(c);
     }
 
     for(int i = 0; i < numFoes;)

@@ -994,6 +994,15 @@ int campaignsBloodyShown = -1;
                   "the air rather than falling over its feet: this fast. 0: its feet stay where they stood a moment."),
         slider("Twist Spin", vr_foegrab_throw_spin, 0.f, 2.f, 0.05f, "%.2f")
             .help("Share of your hands' twist of it about the vertical it spins on with as it falls (at most 720 deg/s)."),
+        toggle("Hold On After Throw", vr_foegrab_throw_hold)
+            .help("On: the thrown enemy stays in your hands as a ragdoll, held softly: it still topples and falls the way "
+                  "you threw it, and you can steer it, drag it along, pull it about; let go of the grips to drop it or "
+                  "throw it. Off: both hands let go as it is thrown."),
+        slider("Held On Force", vr_foegrab_throw_hold_force, 0.f, 1000.f, 25.f, "%.0f N").extend(0.f, 5000.f)
+            .help("Hold On After Throw: the most each hand pulls the thrown body with. A grunt weighs about 785 N: "
+                  "below half that, two hands drag it but never hold it up; much more and it hangs from your hands."),
+        slider("Held On Spring", vr_foegrab_throw_hold_hertz, 1.f, 12.f, 0.5f, "%.1f Hz").extend(0.5f, 30.f)
+            .help("Hold On After Throw: how quickly the held limb follows your hand (higher: stiffer)."),
         slider("Passes Through You", vr_foegrab_throw_grace, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 5.f)
             .help("The thrown enemy passes through your hands, and you, this long as it falls: your hands, still in it and "
                   "moving on, or you standing where you pull it, no longer knock it back over the other way. 0: they do."),
