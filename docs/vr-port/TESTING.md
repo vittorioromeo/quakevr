@@ -1245,3 +1245,13 @@ code: 1 Shadow Axe, 2 Widowmaker, 4 Plasma Gun; parm64's packing); `7` an older 
 the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the current loadout's parms; `66` AD's sky
 (svc_skybox) and sky fog (STAT_QVR_ADSKYFOG). The gadget's AD page: `vr_gadget_page` (or `vr_gadget_page_press`, the
 outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget_screen_dump <name>` to look at it.
+
+## Piled-up decals: the mark limit a spot (2026-10-12)
+
+`vr_decal_bucket_max` (32 shipped) caps the marks one 32-unit world cell lists. A pile to test on: in `vrfiringrange`,
+`vr_mock_look 35 0; vr_decal_max 768; vr_decal_life 1200; vr_particles 0`, then `vr_decal_stress 64 32 cluster` twelve
+times (a few frames apart) and `vr_decal_count`: its line gives "N over L marks (M marks left out whole)" (L the limit
+in use). Change the limit and `vr_decal_count` again: the grid is listed again under it (32: 669 left out, 255: 347).
+Timing: the bench scenarios `decals_pile` / `decals_pile_255` (`world+brush` in `gpu_phase_ms`); separate runs are
+noisy with the GPU's clocks, so compare in one process with windows alternating the limit (ROUND22.md, "Piled-up
+blood: a mark limit a spot"). Look for whole marks only, never a cell-shaped hole, at any limit.

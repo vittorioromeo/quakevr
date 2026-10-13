@@ -1358,11 +1358,19 @@ static_assert(cellsPerRow == 8 && cellRows == 4 && atlasWidth == 2048 && atlasHe
 // listed in the buckets of the cells that reach its rectangle (at its full size, through the surface along its normal:
 // where the shader can find a pixel in it), each once (its memberships: Decal::buckets).
 constexpr float worldCell = 32.f;
-// A bucket lists at most 255 marks (its header's length: 8 bits). Past that a mark is left out of every bucket it is
-// in, not only the full one: newest first, a mark is listed only if each of its buckets has room. A pile of more marks
-// than that on one cell loses its oldest whole, as the ring loses its oldest; never a cell-shaped hole in an older mark
-// under newer ones (2026-10-11: the newest 64 of each bucket left square holes in the pools under a pile of gibs').
-constexpr za::U32 worldBucketMarks = 255;
+// A bucket lists at most vr_decal_bucket_max marks (32 shipped; 255 at most: its header's length, 8 bits). Past that a
+// mark is left out of every bucket it is in, not only the full one: newest first, a mark is listed only if each of its
+// buckets has room. A pile of more marks than that on one cell loses its oldest whole, as the ring loses its oldest;
+// never a cell-shaped hole in an older mark under newer ones (2026-10-11: the newest 64 of each bucket left square
+// holes in the pools under a pile of gibs'). Each pixel of the world walks its bucket's whole list: a pile of 255 cost
+// the frame rate where it was looked at (2026-10-12: vr_decal_bucket_max).
+constexpr za::U32 worldBucketMarksMax = 255;
+za::U32 worldBucketMarks = worldBucketMarksMax; // the limit the last grid made was listed under
+
+[[nodiscard]] za::U32 worldBucketLimit()
+{
+    return static_cast<za::U32>(za::clamp(static_cast<int>(vr_decal_bucket_max.value), 1, static_cast<int>(worldBucketMarksMax)));
+}
 // The cells looked at: those of a mark's box, and as far again as the parallax mapping can move a pixel along a
 // surface (3 times its depth, vr_parallax_depth up to 4); listed, those that reach its rectangle.
 constexpr float worldReach = 12.f;
@@ -1486,6 +1494,7 @@ void buildWorld()
         }
         worldMarkListed.assign(decals.size(), za::U8{0});
         worldLeftOut = 0;
+        worldBucketMarks = worldBucketLimit();
         for(za::SizeT k = decals.size(); k-- > 0;)
         {
             Decal& d = decals[k];
@@ -1528,7 +1537,7 @@ void buildWorld()
     {
         QVR_PROFILE("decal grid fill");
         // Newest first again: a bucket's header's length grows with each mark listed, to the length the prefix pass
-        // gave its list (255 at most: its 8 bits).
+        // gave its list (vr_decal_bucket_max at most, 255: its 8 bits).
         for(za::SizeT k = worldDecals.size(); k-- > 0;)
         {
             if(!worldMarkListed[k])
@@ -2174,6 +2183,10 @@ extern "C" void VR_DecalsFrame(float clock[4])
     if(!atlas)
     {
         makeAtlas();
+    }
+    if(worldBucketLimit() != worldBucketMarks)
+    {
+        worldDirty = true; // (vr_decal_bucket_max changed: the grid listed again under it)
     }
     if(worldDirty && firstView)
     {

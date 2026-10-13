@@ -274,6 +274,14 @@ def scenarios():
         "vr_decal_stress fills a 4096-mark pool with large blood marks, then adds one every 4 frames.",
         setup=["vr_decal_max 4096", "vr_particles 0", "vr_decal_life 1200"] + [x for _ in range(96) for x in ("vr_decal_stress 64 128", "wait")]
         + ["vr_decal_count"], warm=30, body=blasts_every(4, lambda i, r: ["vr_decal_stress 1 128"]))
+    # A corpse cut apart in one place: 768 blood marks piled on one spot of the floor (64 units across, 96 ahead), looked
+    # at. Each pixel there walks its grid bucket's list: vr_decal_bucket_max long at most (32 shipped, 255 before).
+    pile = ["vr_decal_max 768", "vr_particles 0", "vr_decal_life 1200"] + [
+        x for _ in range(12) for x in ["vr_decal_stress 64 32 cluster"] + waits(12)] + ["vr_decal_count"]
+    for cap in (32, 255):
+        add("decals_pile" + ("" if cap == 32 else f"_{cap}"), ["vfx"], f"768 blood marks on one spot, {cap} a bucket",
+            RANGE, f"768 blood marks piled on one spot of the floor, looked at; vr_decal_bucket_max {cap}.",
+            look=(35, 0), setup=[f"vr_decal_bucket_max {cap}"] + pile)
     add("torches_32", ["vfx", "lights"], "32 wall torches: fire particles and flickering lights", RANGE,
         "32 more wall torches (35 emitters): fire particles, their lights.",
         setup=["vr_walltorch 1", "vr_fire_particles 1"] + [f"vr_physics_spawn light_torch_small_walltorch {96 + (i // 8) * 48} {(i % 8 - 3.5) * 40:g}" for i in range(32)])

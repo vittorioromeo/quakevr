@@ -4871,3 +4871,46 @@ VR follow-up: try strength 1..3 on generated AD masonry and check both stock exp
 Authored walls, hands and weapons should retain their relief. Cleanup candidates: ignored scratch/pbr_strength*,
 scratch/boxes*, private pbr_boxproof.bsp, fixture backup/retired evidence, private eyeshots/imagehash and the
 retained renderer integration stash. No files were deleted.
+
+## Piled-up blood: a mark limit a spot (worktree `decalcap`, 2026-10-12)
+
+The author's note: blood marks piled up where a corpse is cut apart in one place drop the frame rate a lot when looked
+at. Each pixel of the world walks every mark listed in its 32-unit grid bucket (vr_decals.cpp, the world shader;
+PERF_DECISIONS.md 15), and a bucket listed up to 255 (its header's 8 bits) since "Pools piled up: no square holes".
+His decision: option C now, a configurable limit a bucket.
+
+- `vr_decal_bucket_max` (default **32**, 1-255, archived): how many marks a bucket lists. The rule of "no square holes"
+  stays: newest first, a mark is listed only if every bucket it is in has room, so past the limit the oldest of a pile
+  go whole. Changing it lists the grid again (VR_DecalsFrame compares it with the limit the last grid was made under).
+  Menu: Advanced VR Settings > Gore, Marks (with Max Decals; Graphics links there), "Decals Piled in One Spot"
+  (8-255, steps of 8), with help text.
+- `vr_decal_count` prints the limit in use: "N over L marks (M marks left out whole)".
+- Bench scenarios `decals_pile` (32) and `decals_pile_255`: 768 marks (`vr_decal_stress 64 32 cluster` x 12) on one
+  spot 96 units ahead, looked at (`vr_mock_look 35 0`).
+
+Measured (eyes 2048, `run.sh --exclusive`). bench.sh's separate runs were too noisy to read (GPU clocks: paced 90 Hz
+world+brush 3.3 vs 3.8 ms, unpaced 1.6-3.6 vs 3.6-6.3 ms). Interleaved in one process instead (the `decals_pile`
+set-up, then 300-frame windows alternating 32 / 255, 4 each, two runs):
+
+| run | 32: world+brush ms | 255: world+brush ms |
+|---|---|---|
+| 1 | 2.72 1.55 1.46 1.52 | 6.19 6.36 3.59 3.36 |
+| 2 | 3.24 3.35 2.76 3.24 | 6.10 6.12 5.62 6.12 |
+
+255 costs +1.8 to +4.8 ms of world pass in every pair (whole 3D refresh: 2.7-6.1 vs 4.6-9.0 ms). Grid (`vr_decal_count`,
+768 marks on the spot, 62 buckets occupied, up to 560 marks reaching one): 255 leaves 347 marks out whole, 32 leaves
+669, 8 leaves 727; 300 clamps to 255. Screenshots (eye 1024): at 255 the pile is a dense dark pool; at 32 it is thinner
+(single splatters with floor between), with whole marks and no cell-edged holes.
+
+For option A later (baking old marks into per-surface blood layers): the marks a limit leaves out are exactly
+`worldMarkListed[k] == 0` after the grid's listing pass (newest first), so a bake would take those, the oldest of each
+pile, and nothing listed changes. A pile of 768 marks on a 64-unit spot reaches about 62 buckets (the parallax reach
+adds cells round it), so one pile touches only a few surfaces: a per-surface layer needs only those, at a much finer
+resolution than the lightmap's 16 units a texel (the splatters are a few units across). The shader already projects
+each mark onto the surface along its normal and follows the parallax relief; a baked layer has to be sampled in the
+same space (the surface's texture coordinates after the parallax offset) or the baked and live marks will slide apart
+at grazing views. The fading over the last five seconds of `vr_decal_life` would need the layer to fade too (or the
+bake to happen only for marks with a long life left).
+
+VR check: cut a corpse apart in one spot (or `vr_decal_stress 64 32 cluster` a few times, looking at the floor ahead),
+look at the pile with the profiler panel; try the slider at 32 and 255 and see the cost and how thin the pile looks.
