@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Two super shotguns: a left flick opens/closes only the left one, right only the right; both together toggle both; two-handed pry/lift still work
+AD pickups menu: the 8 soldier guns drop an arm's length ahead (vrfiringrange and AD map); range monster buttons spawn as before
 Incandescent blades: hold axe/sword/crowbar/chainsaw blade in a torch, brazier or lava ~2 s: glows orange-red 30 s, +10 dmg, sets enemies/corpses alight; water quenches (Weapons > Incandescent Blades)
 Stealth: brushing against an unaware enemy no longer alerts it; grabbing it does (Stealth AI > Touching Gives You Away, now off)
 Flatscreen play (desktop, launched with -flatscreenmode): hands look like natural viewmodels (turn, walk, idle); E grabs what you look at; 1 / 2 cycle the left / right hand's weapons; LMB and RMB fire and hit the crosshair; V melee; body hits press buttons; no reloading; flashlight always on the head (Debug > Reports > Flatscreen Play: reach, sway, bob)
