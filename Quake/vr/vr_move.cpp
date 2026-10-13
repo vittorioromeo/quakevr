@@ -94,6 +94,10 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
             writeVec3(buf, v);
         }
     }
+    for(const glm::vec3& v : move.ammoPouch)
+    {
+        writeVec3(buf, v);
+    }
     MSG_WriteByte(buf, move.lampLit ? 1 : 0);
     if(move.lampLit)
     {
@@ -154,6 +158,10 @@ za::Optional<VrMove> readVrMove()
         {
             v = in.vec3();
         }
+    }
+    for(glm::vec3& v : move.ammoPouch)
+    {
+        v = in.vec3();
     }
     move.lampLit = MSG_ReadByte() == 1;
     if(move.lampLit)

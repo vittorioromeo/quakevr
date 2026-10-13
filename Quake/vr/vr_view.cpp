@@ -598,6 +598,7 @@ view::ViewEntity clones[viewEntityCount];
 int lastAddedFrame = -1;
 const entity_t* worldWeaponsNear[maxWorldWeapons]{}; // setupWorldWeapons' nearest, for their magazines (setupMagazines)
 int pouchCounterFrame = -1; // the ammo pouch's counter queued in this frame (setupAmmoPouch: the view may be set up twice)
+bool ammoPouchPlaced = false; // the ammo pouch placed last frame, drawn or not (setupAmmoPouch; ammoPouchRounds)
 
 // Hidden for a clean shot (vr_shot_hide; Debug > Cheats and Recording): 1 the wrist gadget (setupGadget hides it whole,
 // its screen and messages with it), 2 the hands and what they hold, 4 the body and the holsters. Drawn only: they
@@ -6193,9 +6194,10 @@ void setupAmmoPouchGrenades(const view::ViewEntity& pouch)
 void setupAmmoPouch(const hands::State& s)
 {
     view::ViewEntity& ve = entities.ammoPouch;
-    qmodel_t* const model = body::ammoPouchEnabled() && vr_ammo_pouch_show.value != 0.f && !body::gearHiddenForDeath()
-                                ? viewModel("progs/vrpouch_ammo.mdl")
-                                : nullptr;
+    // (Placed even when not drawn, vr_ammo_pouch_show 0: it still works where it is, pouch reloading too.)
+    qmodel_t* const model = body::ammoPouchEnabled() && !body::gearHiddenForDeath() ? viewModel("progs/vrpouch_ammo.mdl")
+                                                                                   : nullptr;
+    ammoPouchPlaced = false;
     if(!model)
     {
         ve.visible = false;
@@ -6228,6 +6230,13 @@ void setupAmmoPouch(const hands::State& s)
     place(ve, model, pose.slotPos, pose.slotAngles, ammoPouchFrame(), false);
     ve.ent.skinnum = (cl.stats[protocol::STAT_QVR_POUCHKIND] & 8) ? 1 : 0;
     ve.scale = glm::vec3{CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f)};
+    ammoPouchPlaced = true;
+    if(vr_ammo_pouch_show.value == 0.f)
+    {
+        ve.visible = false;
+        setupAmmoPouchGrenades(ve);
+        return;
+    }
 
     // Its counter (vr_ammo_pouch_counter): how many of what it gives are left, on a small screen as the guns' ammo
     // counters, at vr_ammo_pouch_counter_x/y/z off the pouch (out of the body, to the right, up) facing the eyes as they
@@ -7541,6 +7550,25 @@ bool ammoPouchCell(int index, glm::vec3& at, glm::vec3& up)
     at = modelPoint(pouch, top);
     const glm::vec3 d = modelPoint(pouch, top + glm::vec3{0.f, 0.f, 1.f}) - at;
     up = glm::length(d) > 1e-6f ? glm::normalize(d) : glm::vec3{0.f, 0.f, 1.f};
+    return true;
+}
+
+bool ammoPouchRounds(glm::vec3 (&box)[4])
+{
+    const ViewEntity& pouch = entities.ammoPouch;
+    if(!ammoPouchPlaced || !pouch.ent.model)
+    {
+        return false;
+    }
+    // In its model units (make_ammo_pouch.py: +x out of the body, +y left, +z up): the full pouch's depth (BACK_X 0.1 to
+    // 2.6), the rounds' row (the shells' and magazines' middles within 2.6 of its middle, their radii on top), from its rim
+    // (Z_TOP 1.5) up to the magazines' tops (MAG_TOP 2.9; the shells' 2.5 to 2.7).
+    constexpr glm::vec3 mid{1.35f, 0.f, 2.2f};
+    constexpr glm::vec3 half{1.25f, 3.2f, 0.7f};
+    box[0] = modelPoint(pouch, mid);
+    box[1] = modelPoint(pouch, mid + glm::vec3{half.x, 0.f, 0.f}) - box[0];
+    box[2] = modelPoint(pouch, mid + glm::vec3{0.f, half.y, 0.f}) - box[0];
+    box[3] = modelPoint(pouch, mid + glm::vec3{0.f, 0.f, half.z}) - box[0];
     return true;
 }
 

@@ -7017,6 +7017,10 @@ za::Vector<Item> pageDebugTests()
             .help("The same nose first: a dull tap, it stays in the hand (a proximity grenade goes in)."),
         command("Break the Off Hand's Super Shotgun Open", "vr_reload_test 15; impulse 125")
             .help("As the flick does (Immersive, Break Open on): its barrels take loose pairs."),
+        command("Empty and Break Open the Main Hand's Gun", "vr_reload_test 30; impulse 125")
+            .help("Pouch reloading with two guns: the main hand's magazine emptied into the reserve and, a super shotgun, "
+                  "broken open (the off hand's: Empty the Off Hand's Gun, Break the Off Hand's Super Shotgun Open). "
+                  "Then bring each to the ammo pouch."),
         command("Spent Lava Nails or Plasma in the Off Hand's Gun", "vr_reload_test 16; impulse 125")
             .help("The off hand's nailgun, super nailgun or thunderbolt on its other ammo (lava nails, plasma: 100 given), "
                   "its magazine emptied as if fired dry: eject it to see a spent one smoke."),

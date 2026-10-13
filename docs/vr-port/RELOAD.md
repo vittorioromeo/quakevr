@@ -131,6 +131,14 @@ Headless (mock hands, `vr_fixed_frames 1`), per phase:
    a round, not a hand grenade (lying about, a shot sets it off). Since (ROUND21.md, "One grenade from either pouch"):
    the two pouches' grenades are one thing, armed by the pin or loaded while unarmed, either pouch's (a proximity
    grenade armed and let go of is a mine).
+5. **Pouch reloading** (done 2026-10-13: ROUND22.md, "Pouch reloading"; the author: dual-wielded super shotguns with
+   manual reloading, no free hand to fetch shells): a gun brought to the pouch by its load point takes its rounds from
+   the ones drawn standing in it (`view::ammoPouchRounds`, sent as `VrMove::ammoPouch`; QC `VR_Reload_PouchFrame`). The
+   super shotgun broken open: its breech among the shells at any angle fills its empty chambers. The shotgun: its port
+   facing down onto the shells' heads, a shell per touch. The nailgun, super nailgun, thunderbolt: only with the well
+   empty, the well along the magazines standing in the pouch, a fresh magazine. Not the launchers (their rounds stand
+   nose up; they load butt first). Per-gun toggles and leniencies on the Reloading pages; at a holster the holster wins.
+   Tests: pouch_test.sh.
 4. **Rockets** (done 2026-10-08, at the muzzle instead of the back end, as the author asked): a rocket prop (the
    multi-rocket in the other ammo mode) loaded butt first at the muzzle, one at a time up to the magazine (4); thrown
    rockets don't light, but a shot (hitscan, a nail, a blast) sets them off, lying about (the launcher grenade's blast).

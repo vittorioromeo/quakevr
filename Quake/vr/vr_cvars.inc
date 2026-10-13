@@ -3116,6 +3116,25 @@ QVR_CVAR(vr_reload_eject_cooldown, "0.35", CVAR_ARCHIVE)
 // grenade goes in lying within vr_reload_front_angle degrees of the barrel, its nose out of the muzzle.
 QVR_CVAR(vr_reload_front, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_front_angle, "40.5", CVAR_ARCHIVE)
+// Pouch reloading (QC vr_reload.qc VR_Reload_PouchFrame; the author's request 2026-10-13: dual-wielded super shotguns with
+// no free hand to fetch shells): a gun brought to the ammo pouch by its load point takes its rounds from it, out of the
+// reserve as a hand would: the super shotgun broken open fills its empty chambers (its open breech within
+// vr_reload_pouch_sshot_contact cm of the rounds standing in the pouch, at any angle under vr_reload_pouch_sshot_angle
+// 180), the shotgun a shell per touch (its port's opening facing down into the pouch, within vr_reload_pouch_angle
+// degrees), the nailgun, super nailgun and thunderbolt a fresh magazine with their well empty (the well along the
+// magazines standing in it, within that angle); within vr_reload_pouch_contact cm of the rounds. The next touch counts once
+// the load point has left them by vr_reload_pouch_clearance cm more. Never at a holster (the gun's hand at one: the
+// holster wins). Per gun: vr_reload_pouch_<shot|sshot|nail|snail|light>.
+QVR_CVAR(vr_reload_pouch_shot, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_sshot, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_nail, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_snail, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_light, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_contact, "4", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_angle, "35", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_sshot_contact, "10", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_sshot_angle, "180", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_clearance, "4", CVAR_ARCHIVE)
 // A launcher's round's turn in the hand as it is taken from the ammo pouch (the author's note vrfiringrange_2026-10-08_
 // 22-18-19: the same for every round, easy to load): every round, whatever its Held Object Offsets, its middle in the
 // fist's grip channel, its long axis along the hand's forward, its nose ahead (the multi-grenade's too), then turned about

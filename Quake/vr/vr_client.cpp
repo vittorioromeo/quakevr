@@ -333,6 +333,15 @@ VrMove unposed;
     }
 
     move.headVel = hs.headVel;
+    // The ammo pouch's rounds as placed last frame (pouch reloading; all zero: no pouch). It goes with the body, not the
+    // hands: no move since it was placed.
+    if(!view::ammoPouchRounds(move.ammoPouch))
+    {
+        for(glm::vec3& v : move.ammoPouch)
+        {
+            v = glm::vec3{0.f};
+        }
+    }
 
     // VR bits: current state only. The server fills in the "PREV" bits once per server
     // frame, so that press edges survive several moves arriving in one frame.

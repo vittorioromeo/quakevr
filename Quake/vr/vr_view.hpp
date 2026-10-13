@@ -157,6 +157,11 @@ struct WeaponFrame
 // The leather bag's centre, using the pouch's rendered pose (turn, crouch and size included).
 [[nodiscard]] bool ammoPouchCentre(glm::vec3& at);
 [[nodiscard]] bool ammoPouchCell(int index, glm::vec3& at, glm::vec3& up);
+// Where the rounds stand in the ammo pouch as placed last frame (drawn or not: vr_ammo_pouch_show 0 still places it), a
+// box (its middle, then its half-axes: out of the body, to the left, up along the rounds; hands::State::magBox's form):
+// from the pouch's rim up to the rounds' tops, across its width (pouch reloading: QC vr_reload.qc VR_Reload_PouchFrame).
+// False: no pouch (not immersive reloading, dead).
+[[nodiscard]] bool ammoPouchRounds(glm::vec3 (&box)[4]);
 [[nodiscard]] int handOf(const entity_t* e, bool& weapon);
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).

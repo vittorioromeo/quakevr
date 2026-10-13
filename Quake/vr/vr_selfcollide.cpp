@@ -623,6 +623,10 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
     if(ammoPouch && body::ammoPouchReach() > 0.f) // the ammo pouch on the belly (vr_reload_mode 3), likewise
     {
         ratio = za::min(ratio, glm::distance(s.pos[hand], *ammoPouch) / body::ammoPouchReach());
+        if(weapon && s.loadPortValid[hand]) // (and a gun brought to it by its load point: pouch reloading, vr_reload.qc)
+        {
+            ratio = za::min(ratio, glm::distance(s.loadPort[hand], *ammoPouch) / body::ammoPouchReach());
+        }
     }
     return weapon ? smooth(1.f, 1.6f, ratio) : smooth(0.5f, 1.f, ratio);
 }
