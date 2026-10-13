@@ -253,8 +253,6 @@ byte* compose(const Recipe& recipe, int* w, int* h, enum srcformat* fmt)
     byte* bump = recipe.bump[0] ? Image_LoadImage(recipe.bump, &bw, &bh, &bf) : nullptr;
     if(nf != SRC_RGBA) normal = nullptr;
     if(bf != SRC_RGBA) bump = nullptr;
-    if(normal && recipe.external)
-        VR_ExtMapsGreen(normal, nw, nh, recipe.normal); // Preserve the existing pack's rendered orientation.
     const bool height = normal && hasHeights(normal, nw, nh);
     *w = normal ? nw : bump ? bw : gw;
     *h = normal ? nh : bump ? bh : gh;
@@ -270,6 +268,10 @@ byte* compose(const Recipe& recipe, int* w, int* h, enum srcformat* fmt)
         const byte* b = bump ? sample(bump, bw, bh, x, y, *w, *h) : nullptr;
         p[3] = height ? n[3] : b ? static_cast<byte>((b[0] + b[1] + b[2]) / 3) : g[3];
     }
+    // An external pack's heightless normal (vr_extmaps_green 0 judges its green from heights): judged against the
+    // generated height it now carries, so lighting and parallax agree (its own flat alpha always said "kept").
+    if(normal && recipe.external)
+        VR_ExtMapsGreen(out, *w, *h, recipe.normal);
     return out;
 }
 
@@ -510,6 +512,28 @@ void test_f()
                   parseStock("qvr-pbr-stock-v2\n0123456789abcdef0123456789abcdef\n", bad) == 0,
             "malformed stock lines and other headers give no records");
         Hunk_FreeToLowMark(mark);
+    }
+    if(static_cast<int>(vr_extmaps_green.value) == 0)
+    {
+        // compose() judges an external pack normal's green against the generated height it carries: a pack whose
+        // green runs against that height's rise down the rows (Quetoo's) is turned; one that runs with it is kept.
+        constexpr byte rows[8] = {128, 160, 192, 224, 240, 208, 176, 144}; // the height, periodic down the rows
+        byte against[8 * 8 * 4], with[8 * 8 * 4], expected[8 * 8 * 4];
+        for(int y = 0; y < 8; ++y)
+            for(int x = 0; x < 8; ++x)
+            {
+                const int i = (y * 8 + x) * 4, rise = (rows[(y + 1) % 8] - rows[(y + 7) % 8]) / 4;
+                against[i] = with[i] = 128;
+                with[i + 1] = static_cast<byte>(128 + rise);
+                against[i + 1] = static_cast<byte>(127 - rise);
+                against[i + 2] = with[i + 2] = 255;
+                against[i + 3] = with[i + 3] = rows[y];
+            }
+        memcpy(expected, with, sizeof(with));
+        VR_ExtMapsGreen(against, 8, 8, "vrext/pbrtest_against");
+        VR_ExtMapsGreen(with, 8, 8, "vrext/pbrtest_with");
+        check(!memcmp(against, expected, sizeof(expected)) && !memcmp(with, expected, sizeof(expected)),
+            "external green judged against the carried generated height");
     }
     const byte indexed[] = {0, 1, 254, 255};
     byte expanded[16];
