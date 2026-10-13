@@ -3791,6 +3791,13 @@ float() getWeaponCycleMode =
         return QVR_WEAPONCYCLEMODE_ALLOWED;
     }
 
+    // Flatscreen play (-flatscreenmode): 1 and 2 cycle the weapons collected into the left and the right hand, so
+    // cycling is on whatever vr_weapon_cycle_mode says.
+    if(VR_FlatPlay())
+    {
+        return QVR_WEAPONCYCLEMODE_ALLOWED;
+    }
+
     return cvar_hget(cvarh_vr_weapon_cycle_mode);
 }
 
@@ -4594,8 +4601,46 @@ void() ImpulseCommands =
         return;
     }
 
+    // Flatscreen play (-flatscreenmode): E force-grabs what the view is pointed at (vr_flatplay.cpp reads the key and
+    // sends the impulse; the force grab itself is the game's own, vr_wpnforcegrab.qc).
+    if(self.impulse == 46)
+    {
+        self.impulse = 0;
+        if(VR_FlatPlay())
+        {
+            VR_Forcegrab_FlatGrab();
+        }
+        return;
+    }
+
     if(self.impulse >= 1 && self.impulse <= 8)
     {
+        // Flatscreen play (-flatscreenmode): 1 cycles the left hand's weapon and 2 the right hand's, through the weapons
+        // collected (the same cycling the controller's Y and B do); Quake's own weapon select stands for the other keys.
+        if(VR_FlatPlay() && (self.impulse == 1 || self.impulse == 2))
+        {
+            float xOffHand = self.impulse == 1;
+            self.impulse = 0;
+            if(getWeaponCycleMode() != QVR_WEAPONCYCLEMODE_ALLOWED)
+            {
+                return;
+            }
+            if(xOffHand)
+            {
+                if(time >= self.offhand_attack_finished && !VR_Grapple_ButtonsBusy(cVR_OffHand))
+                {
+                    CycleWeaponCommand(cVR_OffHand, self.weapon2, &self.weapon2,
+                        self.weaponflags2, &self.weaponflags2);
+                }
+            }
+            else if(time >= self.attack_finished && !VR_Grapple_ButtonsBusy(cVR_MainHand))
+            {
+                CycleWeaponCommand(cVR_MainHand, self.weapon, &self.weapon,
+                    self.weaponflags, &self.weaponflags);
+            }
+            return;
+        }
+
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
             W_ChangeWeapon();

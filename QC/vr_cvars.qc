@@ -682,6 +682,7 @@ float cvarh_vr_forcegrabbable_health_boxes;
 float cvarh_vr_forcegrabbable_box_scale;
 float cvarh_vr_forcegrabbable_return_time_deathmatch;
 float cvarh_vr_forcegrabbable_return_time_singleplayer;
+float cvarh_vr_flatplay; // -flatscreenmode (vr_flatplay.cpp): the game played on the desktop screen (docs/vr-port/FLATPLAY.md)
 float cvarh_vr_reload_mode;
 float cvarh_vr_reload_shell_pairs;
 float cvarh_vr_cellcord_laser;
@@ -1469,6 +1470,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_forcegrabbable_box_scale);
     VR_CVAR_HMAKE(vr_forcegrabbable_return_time_deathmatch);
     VR_CVAR_HMAKE(vr_forcegrabbable_return_time_singleplayer);
+    VR_CVAR_HMAKE(vr_flatplay);
     VR_CVAR_HMAKE(vr_reload_mode);
     VR_CVAR_HMAKE(vr_reload_shell_pairs);
     VR_CVAR_HMAKE(vr_cellcord_laser);

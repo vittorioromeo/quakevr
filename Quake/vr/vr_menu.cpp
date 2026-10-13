@@ -5654,6 +5654,19 @@ za::Vector<Item> pageDebugProfiling()
 za::Vector<Item> pageDebugReports()
 {
     return {
+        header("Flatscreen Play"),
+        command("Flatscreen Play Status", "vr_flatplay_status")
+            .help("-flatscreenmode: the VR gameplay on the desktop screen. Whether the mode is on, its keys, and what it "
+                  "stands in for (reloading off, the flashlight worn, 1 and 2 cycling the weapons collected)."),
+        toggle("Flatscreen Play Print", vr_flatplay_debug)
+            .help("Prints each E and V press, and where the flatscreen hands are, to the console."),
+        slider("Flatscreen Hand Reach", vr_flat_reach, 0.25f, 3.f, 0.05f, "%.2f")
+            .help("How far the flatscreen hands sit from the shoulders: a held gun out in front of the chest, an empty "
+                  "hand at its side."),
+        slider("Flatscreen Turn Lag", vr_flat_sway, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How much the flatscreen arms are left behind by a turn and by a step."),
+        slider("Flatscreen Walk Bob", vr_flat_bob, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How much the flatscreen hands bob on a walk and breathe at rest."),
         header("The Game"),
         command("Official Campaign Status", "vr_campaign_status").help("Owned data and language readiness; active native campaign context."),
         command("Dopa Finale Text", "loc_probe $map_dopa_endtext_final").help("Preview the resolved completion text. loc_probe <key> [arguments] also checks formatted expansion strings."),
