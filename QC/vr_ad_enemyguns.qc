@@ -512,8 +512,13 @@ void(float xHand) VR_ADGun_Frame =
 // The trigger
 
 // VR_EnemyGun_Attack for an AD soldier's gun with a round (or fuel) in it: one shot (a flame), the next after its time.
-void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack =
+// FALSE (nothing done): not one of AD's guns, or empty (the enemy guns' empty click).
+float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack =
 {
+    if(!VR_IsADGun(xWeapon) || VRGetWeaponClip(xHand) < 1)
+    {
+        return FALSE;
+    }
     RuneApplyBlackNoise(self);
     SuperDamageSound();
     makevectors(VRGetWeaponFireRot(xHand));
@@ -546,6 +551,7 @@ void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinishe
     {
         dprint(sprintf("adgun: %s fired (hand %g), %g left\n", VR_ADGun_Name(xWeapon), xHand, VRGetWeaponClip(xHand)));
     }
+    return TRUE;
 };
 
 // ---------------------------------------------------------------------------------------------------------------------

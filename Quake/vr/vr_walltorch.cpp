@@ -406,10 +406,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     {
         return limb;
     }
-    if(byte* gun = adguns::derivedFile(name, path_id)) // AD support: an AD soldier's gun (vr_adguns.cpp)
-    {
-        return gun;
-    }
+    if(byte* gun = adguns::derivedFile(name, path_id)) { return gun; } // AD support: an AD soldier's gun (vr_adguns.cpp)
     const auto id = modelmeta::identifyPath(name);
     if(id == modelmeta::Id::Vrtorch)
     {

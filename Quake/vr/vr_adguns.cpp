@@ -506,6 +506,17 @@ byte* derivedFile(const char* name, unsigned int* path_id)
     return out;
 }
 
+bool slotNames(const char* id, const char* name)
+{
+    const char* gun = strstr(name, suffix);
+    if(!gun)
+    {
+        return false;
+    }
+    const size_t n = static_cast<size_t>(gun - name) + strlen(suffix);
+    return strlen(id) == n && !strncmp(id, name, n);
+}
+
 void info_f()
 {
     static constexpr const char* names[] = {"progs/mon_soldier.mdl#gun4", "progs/mon_enforcer.mdl#gun3", "progs/mon_centurion.mdl#gun0",
