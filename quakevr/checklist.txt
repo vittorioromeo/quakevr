@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Vore: walk into one, it turns and shoves you instead of firing; shoves, bashes, slaps draw no blood (punches/blades still do)
+Your bash/shove/parry tweaks are now defaults (bash 3 m/s, shove 3.5 m/s): feel the same as your config
 Main menu: list centred under MAIN (VR and flat); VR banner left of the shortcut buttons, not cut off (Menu > Banner Beside the Buttons)
 Blood piles: dismember a corpse in one spot, FPS holds; pile looks OK at 32 (Gore > Marks > Decals Piled in One Spot; 255 = old)
 SSG Close by B/Y (Advanced > Weapons > Reloading > Super Shotgun, off by default): on, B/Y opens and B/Y closes it
