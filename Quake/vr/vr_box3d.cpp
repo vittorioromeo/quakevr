@@ -828,6 +828,7 @@ struct World
         double born{0.0};       // its body's (Slot::born): the same body still
         double until{0.0};      // the server's time it meets the hands again
         bool skips{true};       // false: only watched (vr_debug_box3d with the grace off: its numbers, for comparing)
+        bool ragdoll{false};    // a ragdoll's (ragdollGrace: a judo throw's enemy): `born` its RagdollBodies'
         glm::vec3 velocity{0.f}; // m/s, rad/s: as it left the hand
         glm::vec3 spin{0.f};
         // The hands' contacts it passed through (steps): counted by preSolve, on Box3D's workers (relaxed; copied with
@@ -6463,6 +6464,11 @@ void noteThrows()
     const bool debug = vr_debug_box3d.value != 0.f;
     pruneInside();
     za::vectorEraseIf(world->graces, [debug](const World::Grace& g) {
+        if(g.ragdoll)
+        {
+            const RagdollBodies* rp = ragdollOf(g.num);
+            return !rp || rp->born != g.born || qcvm->time >= g.until;
+        }
         const bool same = g.num < static_cast<int>(world->slots.size()) && world->slots[g.num].kind == Kind::Prop &&
                           world->slots[g.num].born == g.born;
         if(same && qcvm->time < g.until)
@@ -15382,6 +15388,33 @@ bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, i
         slack |= part >= 0 && distance < 24.f ? (1u << part) : 0u;
     }
     startFall(ent, *rp, dir, slack, 0.6f, true);
+    return true;
+}
+
+bool ragdollGrace(edict_t* ent, int player, float seconds)
+{
+    const int num = ent && world ? NUM_FOR_EDICT(ent) : 0;
+    const RagdollBodies* rp = num > 0 ? ragdollOf(num) : nullptr;
+    if(!rp)
+    {
+        return false;
+    }
+    for(World::Grace& g : world->graces)
+    {
+        if(g.num == num && g.player == player && g.ragdoll)
+        {
+            g.born = rp->born;
+            g.until = qcvm->time + seconds;
+            return true;
+        }
+    }
+    World::Grace g;
+    g.num = num;
+    g.player = player;
+    g.born = rp->born;
+    g.until = qcvm->time + seconds;
+    g.ragdoll = true;
+    world->graces.pushBack(g);
     return true;
 }
 

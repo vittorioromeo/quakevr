@@ -260,6 +260,10 @@ int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs)
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
 // `count` of them) slack a moment. False: no ragdoll.
 bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, int count);
+// `ent`'s ragdoll passes through player `player`'s (entity number) hands' bodies (and his body: vr_box3d_throw_grace_body)
+// for `seconds` from now (a throw's grace, as a thrown prop's: vr_box3d_throw_grace). Each call sets it anew. False: no
+// ragdoll.
+bool ragdollGrace(edict_t* ent, int player, float seconds);
 // The two-hand throw's topple (vr_foegrab_throw_topple; ROUND21.md, "Holding enemies"): `ent`'s ragdoll (just made by
 // ragdollKnockdown) turned over about its feet towards level `dir`, a sweep: its parts' shared launch (the throw's push and
 // lift) shared out by height (the feet none, the top all), `topple` rad/s about the level axis through its feet across

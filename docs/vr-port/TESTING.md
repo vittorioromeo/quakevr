@@ -1245,3 +1245,15 @@ code: 1 Shadow Axe, 2 Widowmaker, 4 Plasma Gun; parm64's packing); `7` an older 
 the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the current loadout's parms; `66` AD's sky
 (svc_skybox) and sky fog (STAT_QVR_ADSKYFOG). The gadget's AD page: `vr_gadget_page` (or `vr_gadget_page_press`, the
 outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget_screen_dump <name>` to look at it.
+
+## Judo throws, held throws and lifts with the mock hands (2026-10-13)
+
+`python Misc/quakevr/foegrab/judo_test.py <agent> [dir]` (ROUND22.md, "Judo: the throw's direction, held throws and
+lifts"): each case one game on vrfiringrange, a grunt 36 units ahead (`vr_test_spawn 0`), both mock hands put in it by a
+`vr_mock_play` file it writes to `quakevr/motions/judo_*.mock` (git-ignored; tracking space: x right, y up, -z
+forward; the hands' reach is capped about 1.2 m, so the enemy stands close), gripped with `+grabmain`/`+graboff`, then
+pulled. `dir`: left, right, towards you, away, with the hands at its shoulders, its box's middle, low, and uneven; PASS:
+`foegrab: both hands turn ... to your left` (the way), `throw trace` its head along the throw at 0.2 s, and
+`throw trace done: lies <a> ahead, <l> to your left` (its head from its feet, from the first player's side: printed by
+every throw trace now). `JUDO_ONLY=<regex>` runs only the matching cases (`judo_<height>_<way>`), `JUDO_EXTRA=<cmds>`
+adds commands; the logs go to `scratch/judo_test_<case>.txt`.

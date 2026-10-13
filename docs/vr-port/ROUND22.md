@@ -4871,3 +4871,35 @@ VR follow-up: try strength 1..3 on generated AD masonry and check both stock exp
 Authored walls, hands and weapons should retain their relief. Cleanup candidates: ignored scratch/pbr_strength*,
 scratch/boxes*, private pbr_boxproof.bsp, fixture backup/retired evidence, private eyeshots/imagehash and the
 retained renderer integration stash. No files were deleted.
+
+## Judo: the throw's direction, held throws and lifts (2026-10-13, worktree `foegrab3`)
+
+His note: "The judo throw detection is still a bit inconsistent. I was pulling the enemy towards my left, and it fell
+towards the other side." Then two new options (held throws, lifts) and, later, a neck snap (to follow here).
+
+### 1. The throw's direction
+
+Two causes, both reproduced headless with the mock hands (`Misc/quakevr/foegrab/judo_test.py <agent> dir`):
+
+- **The turn's pivot.** `throwCheck` measured the hands' topple of the enemy about its **box's middle** (r x v / |r|^2,
+  r from the middle to the palms). A grunt's box middle is 8 units over its origin, about its belt: hands holding it at
+  the middle or lower (its arms hang there, a zombie's or a short enemy's chest is there) gave r.z <= 0, so a pull to the
+  left turned it about a level axis the other way round, or not at all (only the vertical twist, which is no throw). On
+  the old code, `low left` was thrown **to your right** (311 deg/s), `mid` never thrown. Now the topple is about its
+  **feet** (a standing body's pivot), way = (r.z v' - v.z r') / (|r| |m|) with r from its feet to the palms: its top goes
+  where the hands drag it whatever the grip's height; pulled down at its front, towards you. (|m|, the old arm to the
+  middle, still scales it so Turn to Throw keeps its order of magnitude: a 3 m/s pull reads 360-930 deg/s, was 305-390.)
+- **The wheel's level term.** The two hands' wheel, d x dv / |d|^2, also turned the enemy over by their **level**
+  speed difference when the hands are at different heights (one on its shoulder, one on its arm): which side depended on
+  which hand was higher, amplified by 1/|d|^2 for hands close together. Only their vertical difference counts now
+  (`-dv.z d' / |d|^2`: one shoulder pushed down, the other up; it tips towards the lower).
+- And the way is smoothed over 40 ms (`throwWayTime`; a reversal, the yank after a backswing, takes the new way at
+  once), and **the thrown ragdoll passes through your hands and you** for `vr_foegrab_throw_grace` (0.75 s; Holding
+  Enemies > Passes Through You; `box3d::ragdollGrace`, the props' throw grace extended to ragdolls). The hands that
+  held it are in it as it goes and still moving (the pull's follow-through): in the test they propped it at 30 degrees
+  and it slid down **the other side** (uneven right: lay 34 units to the left); pulled towards you, it fell into your
+  capsule, was pushed back up and landed away from you. The spin (the hands' twist about the vertical) is unchanged.
+
+Test (16 cases: hands at its shoulders, its box's middle, low, and uneven (main hand 0.25 m higher, 1.6 times as fast
+aside), each pulled left, right, towards you, away at 3 m/s): all PASS: thrown the pulled way, its head 36-39 units
+along the throw at 0.2 s, and lying 12-32 units to that side of its feet (towards: 14-29 units nearer you).

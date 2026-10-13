@@ -994,6 +994,9 @@ int campaignsBloodyShown = -1;
                   "the air rather than falling over its feet: this fast. 0: its feet stay where they stood a moment."),
         slider("Twist Spin", vr_foegrab_throw_spin, 0.f, 2.f, 0.05f, "%.2f")
             .help("Share of your hands' twist of it about the vertical it spins on with as it falls (at most 720 deg/s)."),
+        slider("Passes Through You", vr_foegrab_throw_grace, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("The thrown enemy passes through your hands, and you, this long as it falls: your hands, still in it and "
+                  "moving on, or you standing where you pull it, no longer knock it back over the other way. 0: they do."),
         slider("Throw Grunt", vr_foegrab_throw_grunt, 0.f, 1.f, 0.05f, "%.2f")
             .help("Your grunt as you throw an enemy down, this loud (0 off)."),
         cycle("Throw Grunt Sound", vr_foegrab_throw_grunt_sound, gruntChoices())

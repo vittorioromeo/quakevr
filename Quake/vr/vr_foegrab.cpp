@@ -55,6 +55,7 @@ constexpr double throwSettle = 0.15;  // s: both hands on it this long before a 
 constexpr double throwRetry = 0.5;    // s: after a turn that didn't throw (too strong, away from you), the next try
 constexpr float throwMinArm = 0.1f;   // m: a hand nearer the enemy's middle counts as this far (the turn's measure)
 constexpr float throwAwayCos = 0.7071f; // a throw within 45 degrees of straight away from you is a shove's (vr_foegrab_throw_away 0)
+constexpr float throwWayTime = 0.04f; // s: the turn's way smoothed over about this long (a frame's jitter doesn't pick the side)
 
 // Why a hand let go (QC VR_FoeGrab_Released's xWhy).
 enum class Why : int
@@ -100,6 +101,7 @@ struct Holder
     bool twoHanded{false};
     float peakTwist{0.f};
     float peakSpeed{0.f};
+    glm::vec3 way{0.f}; // the turn's way (level: where it tips its top, rad/s), smoothed (throwWayTime)
 };
 
 Holder holders[MAX_SCOREBOARD];
@@ -148,6 +150,7 @@ struct ThrowTrace
     float turned{0.f};
     float headDown{-1.f};
     float feetGo{-1.f};
+    glm::vec3 viewer{0.f}; // the first player's origin at the start: where it lies is told from his side (the tests)
 };
 ThrowTrace throwTrace;
 
@@ -486,6 +489,7 @@ bool startTrace(edict_t* m, const glm::vec3& dir, const char* kind)
     throwTrace.pelvis0 = pelvis;
     throwTrace.lastTorso = head - pelvis;
     throwTrace.kind = kind;
+    throwTrace.viewer = svs.maxclients >= 1 ? vec(EDICT_NUM(1)->v.origin) : feet;
     return true;
 }
 
@@ -535,6 +539,9 @@ float throwDown(edict_t* player, edict_t* m, const glm::vec3& dir, float twist, 
         palms[held++] = chest - side;
     }
     (void)box3d::ragdollThrown(m, dir, palms, held);
+    // The hands that held it are in it as it goes, still moving (the pull's follow-through), and he stands where a throw
+    // towards him lands it: they knocked it back up and over the other way. It passes through them a moment.
+    (void)box3d::ragdollGrace(m, NUM_FOR_EDICT(player), za::clamp(vr_foegrab_throw_grace.value, 0.f, 5.f));
     if(trace && startTrace(m, dir, "throw"))
     {
         Con_Printf("throw trace: %s (%d) %s towards yaw %.0f, spin %.0f deg/s (hands' twist %.0f deg/s)\n",
@@ -597,20 +604,33 @@ void throwTraceStep()
             t.kind, t.tiltHalf, t.maxTilt, t.turned, t.maxFeet, feetMoved, glm::dot(feet - t.feet0, t.dir), t.kind,
             glm::dot(pelvis - t.pelvis0, t.dir), t.headDown, t.feetGo,
             glm::dot(head - feet, t.dir) > 0.f ? "towards it" : "against it", glm::dot(head - feet, t.dir), t.kind);
+        // Where it lies from the first player's side: its head from its feet.
+        glm::vec3 ahead = t.feet0 - t.viewer;
+        ahead.z = 0.f;
+        ahead = glm::length(ahead) > 1e-3f ? glm::normalize(ahead) : glm::vec3{1.f, 0.f, 0.f};
+        const glm::vec3 lies = head - feet;
+        Con_Printf("%s trace done: lies %.1f ahead, %.1f to your left (its head from its feet)\n", t.kind,
+            glm::dot(lies, ahead), glm::dot(lies, glm::cross(glm::vec3{0.f, 0.f, 1.f}, ahead)));
         t.ent = 0;
     }
 }
 
 // The two-hand throw (vr_foegrab_throw; QC vr_foegrab_throw.qc): both hands of player `c` holding one enemy, turning it
-// over. The turn (the hands' own velocities, not the player's; metres, m/s), two parts added:
-// - the hands turning it between them as a wheel: (d x dv) / |d|^2, d from the off palm to the main one (at least
-//   throwMinArm), dv the main hand's velocity less the off hand's (one shoulder pushed down, the other pulled up);
-// - both together toppling it about its middle: (r x v) / |r|^2, r from its box's middle to the palms' middle (at least
-//   throwMinArm), v their mean velocity (its top pulled towards you, or pushed to a side);
-// its level part (tipping it over; a twist about the vertical is no throw), in degrees per second. At
-// vr_foegrab_throw_twist or more, with the hands' mean speed at vr_foegrab_throw_speed or more, it goes down the way the
-// turn tips its top (turn x up): to a side, towards you; straight away from you (within 45 degrees) is a shove's, unless
-// vr_foegrab_throw_away. The QC decides by its kind and health; thrown, both hands let go.
+// over. The turn's way: the level way it tips its top (turn x up; the hands' own velocities, not the player's; metres,
+// m/s), two parts added:
+// - the hands turning it between them as a wheel, by their vertical difference alone: -dv.z d' / |d|^2, d from the off
+//   palm to the main one (at least throwMinArm), d' its level part, dv the main hand's velocity less the off hand's
+//   (one shoulder pushed down, the other pulled up: it tips towards the lower). (Their level difference with the
+//   hands at different heights, a twist's or a pull's unevenness, is no wheel: it picked the side by which hand was
+//   higher.)
+// - both together toppling it over its feet (a standing body's pivot; about its box's middle, hands held below the
+//   middle flipped the side): (r.z v' - v.z r') / (|r| |m|), r from under its middle at its feet to the palms' middle,
+//   v their mean velocity, ' the level parts (its top pulled where they pull it; pulled down at its front, towards
+//   you), m from its box's middle to the palms' (at least throwMinArm: the lever the turn was measured with before).
+// In degrees per second, at vr_foegrab_throw_twist or more with the hands' mean speed at vr_foegrab_throw_speed or more,
+// it goes down that way, smoothed over throwWayTime (a reversal: the new way at once): to a side, towards you; straight
+// away from you (within 45 degrees) is a shove's, unless vr_foegrab_throw_away. A twist about the vertical is no throw
+// (its spin: the old turn's vertical part). The QC decides by its kind and health; thrown, both hands let go.
 void throwCheck(int c)
 {
     Holder& hd = holders[c];
@@ -633,6 +653,7 @@ void throwCheck(int c)
     {
         hd.twoHanded = true;
         hd.peakTwist = hd.peakSpeed = 0.f;
+        hd.way = glm::vec3{0.f};
     }
     const double time = qcvm->time;
     if(vr_foegrab_throw.value == 0.f || time - za::max(a.since, b.since) < throwSettle)
@@ -652,9 +673,18 @@ void throwCheck(int c)
     const glm::vec3 d = r[1] - r[0];
     const glm::vec3 wheel = glm::cross(d, v1 - v0) / za::max(glm::dot(d, d), throwMinArm * throwMinArm);
     const glm::vec3 mid = 0.5f * (r[0] + r[1]);
-    const glm::vec3 topple = glm::cross(mid, 0.5f * (v0 + v1)) / za::max(glm::dot(mid, mid), throwMinArm * throwMinArm);
-    const glm::vec3 tip{wheel.x + topple.x, wheel.y + topple.y, 0.f};
-    const float twist = glm::degrees(glm::length(tip));
+    const glm::vec3 vm = 0.5f * (v0 + v1);
+    const glm::vec3 topple = glm::cross(mid, vm) / za::max(glm::dot(mid, mid), throwMinArm * throwMinArm);
+    const glm::vec3 overFeet = mid + glm::vec3{0.f, 0.f, (middle.z - m->v.absmin[2]) * toMetres};
+    const float rise = za::max(overFeet.z, throwMinArm);
+    const glm::vec3 vmLevel{vm.x, vm.y, 0.f}, feetLevel{overFeet.x, overFeet.y, 0.f}, dLevel{d.x, d.y, 0.f};
+    const glm::vec3 wayTopple = (rise * vmLevel - vm.z * feetLevel) /
+                                (za::max(glm::length(overFeet), throwMinArm) * za::max(glm::length(mid), throwMinArm));
+    const glm::vec3 wayWheel = -(v1.z - v0.z) * dLevel / za::max(glm::dot(d, d), throwMinArm * throwMinArm);
+    const glm::vec3 way = wayTopple + wayWheel;
+    const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
+    hd.way = glm::mix(hd.way, way, 1.f - za::exp(-dt / throwWayTime));
+    const float twist = glm::degrees(glm::length(way));
     if(twist > hd.peakTwist)
     {
         hd.peakTwist = twist;
@@ -672,12 +702,12 @@ void throwCheck(int c)
         return;
     }
     hd.throwAgain = time + throwRetry;
-    const glm::vec3 dir = glm::normalize(glm::cross(tip, glm::vec3{0.f, 0.f, 1.f}));
+    const glm::vec3 dir = glm::normalize(glm::dot(hd.way, way) > 0.f ? hd.way : way);
     glm::vec3 away = middle - vec(player->v.origin);
     away.z = 0.f;
     away = glm::length(away) > 1e-3f ? glm::normalize(away) : dir;
     const float along = glm::dot(dir, away);
-    const char* way = along > throwAwayCos ? "away from you" : along < -throwAwayCos ? "towards you" :
+    const char* wayName = along > throwAwayCos ? "away from you" : along < -throwAwayCos ? "towards you" :
                       glm::cross(away, dir).z > 0.f ? "to your left" : "to your right";
     const bool dummy = isTrainingDummy(m);
     const char* name = dummy ? "the training dummy" : PR_GetString(m->v.classname);
@@ -696,7 +726,7 @@ void throwCheck(int c)
     if(debug() || dummy)
     {
         Con_Printf("foegrab: both hands turn %s (%d) %.0f deg/s at %.2f m/s, %s (yaw %.0f): %s\n", name, a.ent, twist, speed,
-            way, yaw, throwResult(result));
+            wayName, yaw, throwResult(result));
     }
     if(result >= 1.f)
     {
