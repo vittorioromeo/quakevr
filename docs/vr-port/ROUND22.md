@@ -5412,3 +5412,21 @@ weapon record's, as AD's `wi_adup`), kept in saves.
 - In VR: how long 2 s in a flame feels; whether the glow reads as red-hot metal in the headset (brightness, hue 18) and
   the build-up as heating; the sizzle, ring and hiss levels; reaching into a brazier with the axe without catching fire
   yourself; dipping in water.
+
+## Two super shotguns: each hand's flick toggles only its own (worktree `ssgflick`, 2026-10-14)
+
+- The author's note: dual wielding super shotguns, a flick of the left hand closed the right hand's gun; the flick was
+  always closing the right one. Cause: the pry and the lift (vr_flick.cpp) reach the server as the OTHER hand's flick bit
+  (vr_client.cpp ORs `flick::pried(main)` into the off hand's bit), so `VR_Reload_SsgFrame` read every flick bit of the
+  other hand as a pry/lift of this gun. With a super shotgun in each hand a left flick was the left gun's flick and the
+  right gun's pry at once; the main hand's gun is handled first, toggled, and the shared `vr_ssg_toggled` pause (0.35 s)
+  then blocked the left one. Opening had the same bug.
+- Fix (QC/vr_reload.qc): the other hand's bit counts as the pry/lift only with that hand on this gun (empty and
+  gripping: the two-handed hold); and the pause after a toggle is per hand (`vr_ssg_toggled` the off hand's,
+  `vr_ssg_toggled_main` the main's, `VR_Reload_SsgSetToggled`), so both guns flicked at once both toggle.
+- Tests (reload_test.sh, section 7): two super shotguns, left/right flicks alternated, opening and closing
+  (`0o 1o 0c 1c 1o 0o 1c 0c`; before the fix `1o 1c 1o 1c ...`), both flicked at once (both open, both shut); the
+  two-handed pry/lift check and the ways matrix unchanged and passing. Whole reload_test.sh: 110 PASS, 0 FAIL. e1m1
+  smoke clean.
+- In VR: two super shotguns, flick each hand alone (opens/closes only that one), both together; then one super shotgun
+  held two-handed: the pry still opens it and lifting the barrels still shuts it.
