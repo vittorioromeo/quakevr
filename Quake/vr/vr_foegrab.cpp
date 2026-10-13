@@ -122,6 +122,7 @@ struct Holder
     int carried{0};
     double carriedSince{0.0};
     bool lifted{false};
+    bool flailing{false}; // its lift's flail begun (box3d::ragdollFlail): ended when let go of, even killed in the hands
     bool snapped{false};
     double breakAt{-1.0};
     // The neck snap (neckStep, neckCheck): the enemy both hands hold by the head (0: none), the hands' twist of it (rad/s,
@@ -758,6 +759,7 @@ void breakFree(int c, edict_t* m)
         }
     }
     (void)box3d::ragdollFlail(m, false);
+    hd.flailing = false;
     const float shove = za::clamp(vr_foegrab_lift_shove.value, 0.f, 500.f);
     (void)callQc("VR_FoeGrab_BreakFree", player, m, shove, 0.f, 0.f);
     if(debug())
@@ -786,17 +788,18 @@ void carryStep(int c)
             Con_Printf("foegrab: %s (%d) let go of after %.2f s held on\n", m && !m->free ? PR_GetString(m->v.classname) : "?",
                 hd.carried, qcvm->time - hd.carriedSince);
         }
-        if(m && !m->free && hd.lifted)
+        if(m && !m->free && (hd.lifted || hd.flailing))
         {
             (void)box3d::ragdollFlail(m, false);
         }
         hd.carried = 0;
+        hd.flailing = false;
         return;
     }
     (void)box3d::ragdollGrace(m, c + 1, carryGrace);
     if(hd.lifted && m->v.health <= 0.f)
     {
-        hd.lifted = false; // (killed in the hands: a body held, its flail a dying one's: box3d's livingSwim)
+        hd.lifted = false; // (killed in the hands: a body held, no break free; its flail ended when let go of)
     }
     if(hd.lifted && hd.breakAt >= 0.0 && qcvm->time >= hd.breakAt)
     {
@@ -1007,6 +1010,7 @@ void neckSnap(int c, edict_t* m, const NeckTwist& t, bool ragdoll)
     if(ragdoll)
     {
         (void)box3d::ragdollFlail(m, false); // (lifted: limp now)
+        hd.flailing = false;
         hd.carried = num;
         hd.carriedSince = time;
         hd.lifted = false;
@@ -1302,6 +1306,7 @@ bool liftCheck(int c, const TwoHands& t)
     }
     hd.breakAt = time + hold;
     const bool flails = box3d::ragdollFlail(m, true);
+    hd.flailing = flails;
     if(debug())
     {
         Con_Printf("foegrab: %s (%d) lifted, %s, breaks free in %.1f s\n", name, NUM_FOR_EDICT(m),

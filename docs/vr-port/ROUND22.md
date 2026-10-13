@@ -5581,7 +5581,7 @@ twist necessary to snap the neck. At the moment I have to snap my wrists and twi
   at Twist Speed (`neckSnapDue`; before, the turn only added up above Twist Speed, so a push-pull's ease in and out
   was lost).
 - Defaults: Twist Speed 200 -> 100 deg/s, Twist Angle 45 -> 30 deg (configs still at the old defaults take the new:
-  `vr_cfg_version` 131). A push-pull of 20 cm each way, the hands 0.24 m apart (the tests'), turns the line 59 degrees;
+  `vr_cfg_version` 132; 131 is the hot blades' glow). A push-pull of 20 cm each way, the hands 0.24 m apart (the tests'), turns the line 59 degrees;
   0.3 m apart, 15 cm each, 45; 0.36 apart, 15 cm, 40. Its fastest (standing, `vr_foegrab_necksnap_angle 100000` to
   measure): in 0.3 s 325, 0.5 s 210, 0.7 s 154, 0.9 s 119, 1.2 s 91 deg/s and no stroke: up to about 0.9 s snaps, 1.2 s
   does nothing.
