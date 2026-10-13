@@ -269,6 +269,7 @@ void() worldspawn =
     precache_sound("vr/bash.wav");
     precache_sound("vr/bash_parry.wav");
     precache_sound("vr/parry.wav");
+    precache_sound("vr/necksnap.wav"); // the neck snap's crack (vr_foegrab_throw.qc; Misc/quakevr/make_necksnap_sound.py)
     precache_sound("vr/counter_open.wav"); // counter-attacks (vr_counter_sound; vr_melee.qc): the window opening,
     precache_sound("vr/counter.wav");      // and a counter landing
     precache_sound("vr/grenade_fuse.wav"); // a caught grenade lit (vr_grenade.qc),
