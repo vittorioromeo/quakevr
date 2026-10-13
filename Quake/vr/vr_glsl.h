@@ -2488,13 +2488,16 @@ SPECULAR_AA_FUNCTIONS
 "	vec3 glowing = fullbright + emissive;\n" \
 "	result.rgb += fullbright + glowing * (in_fbboost * (1.0 - max(glowing.r, max(glowing.g, glowing.b))));\n" \
 "	result.rgb += wounds.glow; // QVR: a fresh burn's embers\n" \
-"	if (in_glow > 3.5) // QVR: an incandescent blade (vr/vr_meleehud.cpp hotGlow): 4 + 2 x its colour (8 levels a channel: r + 8g + 64b) + its strength (0..2); the metal glows from within, its bright parts most\n" \
+"	if (in_glow > 3.5) // QVR: an incandescent blade (vr/vr_meleehud.cpp hotGlow): 4 + 2 x its colour (16 levels a channel: r + 16g + 256b) + its strength (0..2); the metal glows from within, its bright parts most and yellower\n" \
 "	{\n" \
 "		float hv = in_glow - 4.0;\n" \
 "		float hcode = floor(hv * 0.5);\n" \
-"		vec3 hcolor = vec3(mod(hcode, 8.0), mod(floor(hcode / 8.0), 8.0), floor(hcode / 64.0)) / 7.0;\n" \
+"		float hs = hv - 2.0 * hcode;\n" \
+"		vec3 hcolor = vec3(mod(hcode, 16.0), mod(floor(hcode / 16.0), 16.0), floor(hcode / 256.0)) / 15.0;\n" \
+"		float hlum = dot(skin, vec3(0.3, 0.59, 0.11));\n" \
 "		float hrim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n" \
-"		result.rgb += hcolor * (hv - 2.0 * hcode) * (0.22 + 1.1 * dot(skin, vec3(0.3, 0.59, 0.11)) + 0.6 * hrim * hrim);\n" \
+"		hcolor = mix(hcolor, vec3(1.0, 0.85, 0.55), clamp(hlum * hs - 0.2, 0.0, 0.45));\n" \
+"		result.rgb = result.rgb * (1.0 - 0.3 * min(hs, 1.0)) + hcolor * hs * (0.1 + 0.9 * hlum + 0.45 * hrim * hrim);\n" \
 "	}\n" \
 "	else if (in_glow != 0.) // QVR: force grab's glow round the edges (vr/vr_fgfx.cpp); negative, the counter's (vr/vr_meleehud.cpp)\n" \
 "	{\n" \

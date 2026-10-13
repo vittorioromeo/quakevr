@@ -10,6 +10,7 @@
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 
@@ -218,12 +219,13 @@ float hotGlow(const entity_t* e)
     {
         return 0.f;
     }
-    // Its colour in 8 levels a channel, its strength 0..2 (the alias shader's QVR_ALIAS_FS_GLOW reads them back).
+    // Its colour in 16 levels a channel, its strength 0..2 (the alias shader's QVR_ALIAS_FS_GLOW reads them back); a
+    // low glow raised (the build-up shows).
     const float flicker = 0.93f + 0.07f * static_cast<float>(za::sin(realtime * 7.3));
-    const float strength = za::clamp(g * flicker * vr_hotblade_glow.value, 0.05f, 1.95f);
+    const float strength = za::clamp(za::pow(g, 0.7f) * flicker * vr_hotblade_glow.value, 0.05f, 1.95f);
     const glm::vec3 c = hsv(vr_hotblade_hue.value, 1.f, 1.f);
-    const auto level = [](float v) { return static_cast<int>(za::clamp(v, 0.f, 1.f) * 7.f + 0.5f); };
-    const int code = level(c.r) + 8 * level(c.g) + 64 * level(c.b);
+    const auto level = [](float v) { return static_cast<int>(za::clamp(v, 0.f, 1.f) * 15.f + 0.5f); };
+    const int code = level(c.r) + 16 * level(c.g) + 256 * level(c.b);
     return 4.f + 2.f * static_cast<float>(code) + strength;
 }
 

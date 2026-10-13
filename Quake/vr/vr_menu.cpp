@@ -9227,7 +9227,7 @@ za::Vector<Item> pageHotBlades()
         slider("Glow Brightness", vr_hotblade_glow, 0.f, 2.f, 0.05f, "%.2f")
             .help("How brightly the weapon glows, held or holstered, and its embers (0: no glow)."),
         slider("Glow Hue", vr_hotblade_hue, 0.f, 60.f, 1.f, "%.0f").extend(0.f, 355.f)
-            .help("The glow's colour: 0 red, 12 orange-red, 30 orange, 55 yellow."),
+            .help("The glow's colour: 0 red, 18 orange-red, 30 orange, 55 yellow."),
         slider("Sounds", vr_hotblade_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sizzle in the flame, the ring as it turns red-hot and the quench's hiss (0 off)."),
     };

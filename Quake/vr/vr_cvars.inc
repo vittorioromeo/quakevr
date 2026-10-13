@@ -2667,7 +2667,7 @@ QVR_CVAR(vr_hotblade_ignite, "1", CVAR_ARCHIVE)         // 1: its blows set livi
 QVR_CVAR(vr_hotblade_ignite_corpses, "1", CVAR_ARCHIVE) // 1: and corpses (with Corpses Burn on)
 QVR_CVAR(vr_hotblade_quench, "1", CVAR_ARCHIVE)         // 1: dipped in water or slime, it cools at once (a hiss, a puff of steam)
 QVR_CVAR(vr_hotblade_glow, "1", CVAR_ARCHIVE)           // the glow's brightness (0: none; the embers too)
-QVR_CVAR(vr_hotblade_hue, "12", CVAR_ARCHIVE)           // the glow's hue in degrees (0 red, 12 orange-red, 30 orange, 55 yellow)
+QVR_CVAR(vr_hotblade_hue, "18", CVAR_ARCHIVE)           // the glow's hue in degrees (0 red, 18 orange-red, 30 orange, 55 yellow)
 QVR_CVAR(vr_hotblade_sound, "1", CVAR_ARCHIVE)          // volume of the sizzle in a flame, the ring as it turns incandescent and the quench's hiss (0: off)
 QVR_CVAR(vr_hotblade_test, "0", CVAR_NONE)              // the QC's tests (Debug > Tests > Incandescent Blades): 1 heat the held blades, 2 quench, 3 report, 4 into the fade, 5 half built up, 6 strike the nearest monster or corpse with the main hand (a blow of base 20), 7 the main blade into the nearest map flame, 8 into the nearest lava, 9 the nearest wall torch into the off hand, 10 into the off hand's torch's flame, 11 into the nearest water or slime
 QVR_CVAR(vr_dummy_attacks, "0", CVAR_NONE)               // the training dummy strikes at you in melee now and then (parry practice; the firing range's button). Not saved: off at every map load, and while a motion take plays
