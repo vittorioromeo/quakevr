@@ -706,8 +706,22 @@ const DefaultChange defaultChanges[] = {
     // 128: a shoved monster backpedals about as far as the old standing slide took it (the author, 2026-10-11: "they seem
     // to cover much less distance than before"; ROUND22.md, "Shoves: the backpedal").
     {128, &vr_ragdoll_active_stagger_travel, "0.2"},
+    // 129: the author's bash, shove and parry values compiled in (ROUND22.md, "His parry and bash tweaks are the
+    // defaults"): firmer pushes to bash (3 m/s) and shove (3.5), quieter bash sounds, a weapon's bash knocks down,
+    // shorter parry pushes, a softer arm knock, parry stamina on (no random drop), a cheaper two-handed parry. Most were
+    // in vr_defaults.cfg already (a config at the old compiled-in values had them from before it).
+    {129, &vr_bash_speed, "2"},
+    {129, &vr_shove_speed, "2.4"},
+    {129, &vr_bash_sound, "1"},             // 0.7 (vr_defaults.cfg)
+    {129, &vr_knockdown_bash, "0"},         // 1 (vr_defaults.cfg)
+    {129, &vr_parry_push_enemy, "1"},       // 0.55 (vr_defaults.cfg)
+    {129, &vr_parry_push_player, "1"},      // 0.8 (vr_defaults.cfg)
+    {129, &vr_parry_wobble, "1"},           // 0.7 (vr_defaults.cfg)
+    {129, &vr_parry_drop_chance, "0.5"},    // 0 (vr_defaults.cfg)
+    {129, &vr_parry_stamina, "0"},          // 1 (vr_defaults.cfg)
+    {129, &vr_parry_stamina_cost_2h, "12"}, // 10 (vr_defaults.cfg)
 };
-constexpr int configVersion = 128;
+constexpr int configVersion = 129;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

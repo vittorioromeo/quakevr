@@ -4975,3 +4975,43 @@ bake to happen only for marks with a long life left).
 
 VR check: cut a corpse apart in one spot (or `vr_decal_stress 64 32 cluster` a few times, looking at the floor ahead),
 look at the pile with the profiler panel; try the slider at 32 and 255 and see the cost and how thin the pile looks.
+
+## The vore never shoves; shoves, slaps and bashes draw no blood; his parry/bash tweaks as defaults (shovefix)
+
+### The vore never shoves
+
+His report: with `vr_enemy_shove_vore 1` the vore never shoved him, only threw balls, even touching it. Two causes
+(vr_enemyshove.qc, ai.qc ai_run):
+- `VR_EnemyShove_Ready` read `pain_finished` as "staggered". For a vore it is its 3 s pain-sound cooldown (its pain
+  frames last 0.5 s and the check never runs in them): any hit of yours, or its own ball's blast up close, kept it
+  from shoving for 3 s while it went on firing. A vore now ignores `pain_finished` there.
+- During `vr_enemy_shove_delay` (and while turning to face you) the check returned FALSE and `ai_run` went on to
+  `CheckAnyAttack`, whose ball (about 90 percent a frame up close) always came first. A vore in reach, its cooldown
+  over, now holds its fire (`vr_eshove_holdfire`): it turns to you until the shove starts. During the cooldown it may
+  still fire.
+
+Test: `Misc/quakevr/voreshove_test.sh` (vore spawned touching you, walking into it ~20 s): 2 shoves before, 8 after.
+
+### Shoves, slaps and bashes draw no blood
+
+His report: shoving enemies made them bleed, and slaps and parry bashes too; they are meant as bloodless hits.
+`VR_HitBloodless()` (combat.qc: hit kind SHOVE or BASH, or a MELEE slap) now skips `VR_Gore_Hit` (the sprays on the
+walls), `VR_Wound_Hit` (wounds painted on the model), `VR_SmallGib_Hit` (it already skipped slaps) and, in
+`VR_Bash_Hit`, the blood splash (wood still splinters, metal still sparks). Damage, knockback, stagger and knockdown are
+unchanged; a kill still leaves its pool of blood (death, not the blow). Headbutts still bleed (not asked).
+
+Test: `Misc/quakevr/bloodless_test.sh` (`vr_smallgibs_test 23`, also Debug > Gore Tests: 10 shoves, bashes, slaps and
+punches on a grunt). Before: shove and bash 10 gore hits, 10 wound events, 10 blood particles; slap 10/10/0. After: all
+0, damage still dealt (103, 100, 250); the punch control 10/10/10. Melee eval: canary 36/45, 0 differences before;
+full 168/177, 0 differences after.
+
+### His parry and bash tweaks are the defaults
+
+Compiled in (vr_cvars.inc) from his config: `vr_bash_speed` 2 -> 3, `vr_shove_speed` 2.4 -> 3.5, `vr_bash_sound` 1 -> 0.7,
+`vr_knockdown_bash` 0 -> 1, `vr_parry_push_enemy` 1 -> 0.55, `vr_parry_push_player` 1 -> 0.8, `vr_parry_wobble` 1 -> 0.7,
+`vr_parry_drop_chance` 0.5 -> 0, `vr_parry_stamina` 0 -> 1, `vr_parry_stamina_cost_2h` 12 -> 10. All but the two speeds
+were already in `quakevr/vr_defaults.cfg`; those eight lines are gone from it (now equal to the compiled-in values, as
+`vr_savedefaults` would write it). Config version 129 (vr_cvars.cpp) moves a config still at an old compiled-in value
+to the new one; a hand-set value stays. Test: `Misc/quakevr/config129_test.sh` (PASS). Melee eval, full set: 168/177,
+one FAIL -> FAIL take whose one-hand bash push is now seen at 0.391 s, not 0.375 (the firmer 3 m/s bash speed).
+e1m1 smoke clean; the vore (6 shoves) and bloodless tests pass with the new defaults.

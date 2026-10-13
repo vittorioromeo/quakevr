@@ -33,10 +33,13 @@ float VR_ESHOVE_DECEL = 1200; // units/s/s: 64 units take 0.33 s
 float VR_ESHOVE_HEIGHT = 48;  // the player's middle at most this far above or below the monster's
 
 // Whether `m` can shove: alive, standing on the floor, not staggered (its pain), not sliding from a push (VR_Push).
+// A vore's pain_finished is its 3 s pain-sound cooldown, not its stagger (its pain frames last 0.5 s, and the check
+// never runs in them): its own ball's blast up close, or any hit of yours, kept it from shoving for 3 s while it went
+// on throwing balls (ROUND22.md, "The vore never shoves").
 float(entity m) VR_EnemyShove_Ready =
 {
     return m.health > 0 && m.movetype == MOVETYPE_STEP && (m.flags & FL_ONGROUND) && m.vr_shove == world &&
-           time >= m.pain_finished && !m.charmed;
+           (time >= m.pain_finished || m.classname == "monster_shalrath") && !m.charmed;
 };
 
 // How far (flat, between the middles) `m` reaches to shove: vr_enemy_shove_range, measured for a grunt's or an
@@ -81,6 +84,7 @@ entity(entity m) VR_EnemyShove_Target =
 // In the AI's stand, walk and run thinks (self: the monster): TRUE when it starts its shove (the think is its own).
 float() VR_EnemyShove_Check =
 {
+    vr_eshove_holdfire = FALSE;
     if(!self.th_vrshove || self.vr_oblivious)
     {
         return FALSE; // (oblivious until hurt: it never shoves, however near you stand)
@@ -108,6 +112,10 @@ float() VR_EnemyShove_Check =
     }
     if(time - self.vr_eshove_near < cvar_hget(cvarh_vr_enemy_shove_delay) || time < self.vr_eshove_next)
     {
+        // A vore in reach, its shove only waiting for the delay: it holds its fire (ai_run faces you instead), else
+        // its ball (90 percent a frame up close) always came first.
+        vr_eshove_holdfire = ((self.classname == "monster_shalrath") && (time >= self.vr_eshove_next) &&
+                              (self.enemy == p));
         return FALSE;
     }
     if(!VR_EnemyShove_Ready(self))
@@ -132,6 +140,7 @@ float() VR_EnemyShove_Check =
             FoundTarget(); // (idle, you behind it: it notices you, as Quake's FindTarget would up close)
             return TRUE;
         }
+        vr_eshove_holdfire = ((self.classname == "monster_shalrath") && (self.enemy == p)); // (turns, then shoves)
         return FALSE;
     }
 

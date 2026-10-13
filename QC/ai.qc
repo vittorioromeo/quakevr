@@ -832,6 +832,7 @@ The monster is walking it's beat
 // VR: grunts and enforcers shove you away when you stand too close (vr_enemyshove.qc): checked in the stand, walk and
 // run thinks; TRUE when the shove started.
 float() VR_EnemyShove_Check;
+float vr_eshove_holdfire; // set by VR_EnemyShove_Check: a vore in reach waits for its shove instead of firing
 
 // VR: living hit reactions (vr_hitreact.qc): a monster struck a moment ago steps shorter (a leg hit: with a hitch to
 // that side, taken here); its decisions untouched.
@@ -1210,6 +1211,13 @@ void(float dist) ai_run =
     // VR: too close, it shoves you (before deciding to fire).
     if(VR_EnemyShove_Check())
         return;
+    if(vr_eshove_holdfire)
+    {
+        // (a vore up close, its shove due once the delay passes: it squares up to you rather than throwing a ball)
+        self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
+        ChangeYaw();
+        return;
+    }
 
 // check knowledge of enemy
     float selectedGate = self.vr_ai_gate;
