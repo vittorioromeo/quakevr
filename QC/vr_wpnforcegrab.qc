@@ -262,10 +262,54 @@ void(entity e) VR_Forcegrab_Restore =
     setorigin(e, e.origin);
 }
 
+// Flatscreen play (-flatscreenmode): E. What the view is pointed at, taken with the free hand: the same search, the
+// same flight and the same catch as a force grab in VR, only asked for by a key instead of an open hand held out and
+// flicked (vr_flatplay.cpp sends impulse 46; weapons.qc answers it). With both hands full there is no hand to collect
+// with, and E does nothing.
+void() VR_Forcegrab_FlatGrab =
+{
+    if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0)
+    {
+        return;
+    }
+
+    float xHand = cVR_OffHand;
+    if(!VRIsHandEmpty(self, xHand))
+    {
+        xHand = cVR_MainHand;
+        if(!VRIsHandEmpty(self, xHand))
+        {
+            dprint("flat grab: both hands hold a weapon\n");
+            return;
+        }
+    }
+
+    entity g = VR_Forcegrab_FindTarget(xHand);
+    if(g == world || !VR_Forcegrab_IsEligible(g))
+    {
+        dprint("flat grab: nothing to take where you look\n");
+        return;
+    }
+    if(VR_AxeStick_IsStuck(g))
+    {
+        VR_AxeStick_Tug(g, self, xHand);
+        return;
+    }
+    VR_Forcegrab_Launch(g, xHand);
+    VR_Forcegrab_SetPulled(xHand, g);
+};
+
 // Whether the hand closes in time: empty, gripping, and the grip pressed at most
 // vr_forcegrab_catch_early seconds before `xArrive`.
 float(entity xPlayer, float xHand, float xArrive) VR_Forcegrab_CanCatch =
 {
+    // Flatscreen play (-flatscreenmode): the key is the press, there is nothing to grip. The hand asked to collect was
+    // chosen empty (VR_Forcegrab_FlatGrab), and stays empty on the way in.
+    if(VR_FlatPlay())
+    {
+        return VRIsHandEmpty(xPlayer, xHand);
+    }
+
     if(!VRIsHandEmpty(xPlayer, xHand) || !VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand))
     {
         return FALSE;

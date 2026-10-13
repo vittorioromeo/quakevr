@@ -81,6 +81,7 @@
 #include "vr_extmaps.hpp"
 #include "vr_pbr.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_grasp.hpp"
 #include "vr_modelcollide.hpp"
@@ -1881,6 +1882,7 @@ extern "C" void VR_Init()
     jobs::start(); // the game's thread pool (vr_jobs.hpp), first: the systems below post to it
     imgprefetch::start(); // the images the start-up and the first map load decode, decoded ahead (the file system is up)
     registerCvars();
+    flatplay::init(); // -flatscreenmode (vr_flatplay.cpp): the flag the whole mode hangs on, read once here
     VR_RegisterPackStatus();
     VR_RegisterContinue();
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
@@ -2130,6 +2132,7 @@ extern "C" void VR_BeginFrame()
     bullettime::frame(); // (vr_debug_gadget_button 3: the tap's frame-start check; the tap itself: the view's)
     gearlights::frame(); // the gear lights eased (the side button: the view's, as the gadget is drawn)
     flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
+    flatplay::frame(); // -flatscreenmode: its keys, and the settings the mode stands in for (before the hands are posed)
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
     input::roomscaleJump(hands::current());

@@ -3489,3 +3489,12 @@ QVR_CVAR(vr_brush_bake_fill, "1", CVAR_ARCHIVE)         // ... the map's light t
 QVR_CVAR(vr_brush_bake_report, "0", CVAR_NONE)                // ... each bake said on the console (tests)
 QVR_CVAR(vr_brush_bake_reach, "512", CVAR_ARCHIVE)      // ... a brush made, changed or removed: the brushes within this many units of it baked again (its shadows on them)
 QVR_CVAR(vr_brush_autoload, "0", CVAR_ARCHIVE)         // a map started (not a saved game) gets the brushes of its brush file (vr_brush_save: <game folder>/brushes/<map>.brushes)
+
+// Flatscreen play (-flatscreenmode; vr_flatplay.cpp, docs/vr-port/FLATPLAY.md): the VR gameplay played on the desktop
+// screen, driven by the mouse and keyboard. None of it is archived: the mode follows the command line, and the game runs
+// exactly as before without the flag.
+QVR_CVAR(vr_flatplay, "0", CVAR_NONE)                   // 1 while the mode runs (the flag given and no headset session): set by the engine every frame, read by the game code (QC vr_flatplay) for the controls it takes over
+QVR_CVAR(vr_flatplay_debug, "0", CVAR_NONE)             // each frame's flatscreen pose: the aim, the hands, the punch, what the keys did
+QVR_CVAR(vr_flat_reach, "1", CVAR_NONE)                 // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
+QVR_CVAR(vr_flat_sway, "1", CVAR_NONE)                  // how far the arms trail a turn and a step (0..2): 0 the hands locked to the view
+QVR_CVAR(vr_flat_bob, "1", CVAR_NONE)                   // the walk's bob and the breathing (0..2): the hands' own idle motion
