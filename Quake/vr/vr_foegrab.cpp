@@ -1131,6 +1131,9 @@ void ragdollNeckCheck(int c)
     {
         return;
     }
+    // (A stroke under way goes on while both hands hold it: the twist itself sweeps a palm held at its neck out of the zone,
+    // the stroke cut at 27 of the 30 degrees.)
+    const bool stroking = hd.neckEnt == num && hd.neckTurned > 0.f && qcvm->time - hd.neckLast <= 0.1;
     for(int h = 0; h < 2; h++)
     {
         box3d::RagdollHold rh;
@@ -1138,7 +1141,7 @@ void ragdollNeckCheck(int c)
         {
             return;
         }
-        const bool part = rh.part >= 0 && rh.part < 32 && (headBones & (1u << rh.part)) != 0u;
+        const bool part = stroking || (rh.part >= 0 && rh.part < 32 && (headBones & (1u << rh.part)) != 0u);
         const glm::vec3 palm = palmOf(player, *move, h);
         const float along = za::clamp(glm::dot(joint - palm, neck), 0.f, neckLength);
         const bool onNeck = glm::distance(palm, joint - neck * along) <= neckGrip;
