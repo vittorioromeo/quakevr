@@ -51,10 +51,10 @@ B="map e1m1; wait60; god; notarget"
 for imp in 152 163 167 164; do B="$B; impulse $imp; wait60; vr_hotblade_test 1; wait40; vr_hotblade_report; vr_hotblade_test 2; wait5"; done
 run blade_parts "$B" 'main v_axe\.mdl glow 1\.00 part 3\.4/8\.5 verts 10/223 light 0\.9[0-9] reach 72;main v_ksword\.mdl glow 1\.00 part 22\.4/28\.0 verts 8/230;main v_crowbar\.mdl glow 1\.00 part 10\.5/11\.0 verts 280/464;main v_chainsaw\.mdl glow 1\.00 part 13\.9/25\.3 verts 18/285;grip off the hand.s 0\.0[0-9], tip off its muzzle 0\.0[0-9]'
 run superaxe "map e1m1; wait60; god; notarget; impulse 168; wait60; vr_hotblade_test 1; wait40; vr_hotblade_report" 'main v_hammer\.mdl glow 1\.00 part 2\.3/5\.9 verts 295/795'
-# Embers off the heated part held still (3 a puff, 10 puffs a second: 30), none with Embers per Puff 0; no light at 0.
+# Embers off the heated part held still (4 a puff, 12 puffs a second: 48), none with Embers per Puff 0; no light at 0.
 E="map e1m1; wait60; god; notarget; impulse 152; wait20; vr_hotblade_test 1; wait150; vr_hotblade_report"
-run embers "$E" 'embers (2[5-9]|3[0-5]), trail 0 in'
-run embers_off "vr_hotblade_embers 0; vr_hotblade_light 0; $E; vr_hotblade_embers 3; vr_hotblade_light 1" 'embers 0, trail 0 in;light 0\.00'
+run embers "$E" 'embers (4[0-9]|5[0-6]), trail 0 in'
+run embers_off "vr_hotblade_embers 0; vr_hotblade_light 0; $E; vr_hotblade_embers 4; vr_hotblade_light 1" 'embers 0, trail 0 in;light 0\.00'
 # A swing (the mock hand swept across, 10 cm and 5 degrees a frame): fire and sparks behind it; none with Swing Trail 0.
 W="map e1m1; wait60; god; notarget; impulse 152; vr_mock_hand main 0.6 1.6 -0.55 0 30 0; wait20; vr_hotblade_test 1; wait30"
 i=0
@@ -78,4 +78,16 @@ if [[ "swing" =~ $F ]]; then
   for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do R="$R; wait4; vr_hotblade_test 1"; done
   run swing_cold "map vrfiringrange; wait60; vr_motion_play $TAKE; wait300" 'Dummy: 29\.6 damage'
   run swing_hot "map vrfiringrange; wait60; vr_motion_play $TAKE$R; wait200" 'Dummy: 44\.4 damage;monster_army lit \(a blow\)'
+fi
+# Screenshots, checked by eye (scratch/hotblade/shots_*.png; not PASS/FAIL): each blade held red-hot seen from the side
+# (the axe, the sword, the crowbar, the Super Axe, the chainsaw: only the heated part glows, its light on the hand), the
+# axe dropped on e1m2's floor (glowing there), a swing's trail of fire and sparks (just after it, and 10 frames on).
+if [[ "shots" =~ $F ]]; then
+  S="map e1m1; wait60; god; notarget; vr_mock_hand main 0.1 1.4 -0.4 0 0 0; vr_mock_camera 0.8 1.5 -0.7 10 90"
+  for imp in 152 163 167 168; do S="$S; impulse $imp; wait60; vr_hotblade_test 1; wait40; screenshot; vr_hotblade_test 2; wait5"; done
+  S="$S; impulse 164; wait60; vr_hotblade_test 1; vr_mock_hand main 0.1 1.4 -0.4 60 0 0; wait40; screenshot"
+  bash C:/OHWorkspace/qvr-kit/run.sh "$name" -Script "$P; $S; wait5; toggleconsole; quit" -Filter "composed" -Out hotblade/shots_blades.png | grep composed
+  S="map e1m2; wait60; god; notarget; impulse 152; vr_mock_hand main 0.0 1.2 -0.9 0 90 0; wait40; vr_hotblade_test 1; wait10; vr_hotblade_test 14; wait5; vr_mock_hand main 0.3 1.0 0.1 -80 0 0; wait100; vr_mock_camera 0.3 0.7 -0.4 50 60; wait3; screenshot"
+  bash C:/OHWorkspace/qvr-kit/run.sh "$name" -Script "$P; $S; wait5; toggleconsole; quit" -Filter "composed" -Out hotblade/shots_dropped.png | grep composed
+  bash C:/OHWorkspace/qvr-kit/run.sh "$name" -Script "$P; vr_hotblade_embers 0; $W; screenshot; wait10; screenshot; vr_hotblade_embers 4; wait5; toggleconsole; quit" -Filter "composed" -Out hotblade/shots_trail.png | grep composed
 fi

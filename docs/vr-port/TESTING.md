@@ -836,7 +836,7 @@ vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait5; vr_test_spawn_d
 frame). Touch: e1m2's torch 52 in the main hand (as above), `setpos 1740 -175 290 0 30 0; vr_burn_touch 1;
 vr_mock_hand_to main 1775 -150 320` puts it in the ogre. The kit's `scratch/burn_torch2.sh`, `burn_lava.sh`.
 Incandescent blades (ROUND22.md, "Incandescent blades"): `bash Misc/quakevr/hotblade_test.sh <agent> [case regex]`
-(19 cases, ~5 min, each PASS/FAIL; logs in `scratch/hotblade/`). `vr_hotblade_test <n>` (Debug > Tests > Incandescent
+(27 cases and `shots`, ~9 min, each PASS/FAIL; logs in `scratch/hotblade/`). `vr_hotblade_test <n>` (Debug > Tests > Incandescent
 Blades; `developer 1` prints `hotblade: ...`): 1 heats the held blades, 2 quenches, 3 reports each hand's weapon (heat,
 glow, time left) and the holsters' glow, 4 puts them in their fade, 5 holds them half built up (screenshots), 6 lands a
 main-hand blow of base 20 (+ the heat's extra) on the nearest monster or corpse, 7 moves you (use `noclip`) so the main
@@ -847,6 +847,15 @@ the suite passes the printed move itself). Places: e1m2 (a map flame: test 7 fro
 0` a wall torch), e1m7 `setpos -50 48 40` (lava), e1m1 `setpos 200 2820 0` (slime). Real swings: `motion_synth.py
 chop_overhead --weapon axe` at the firing range's dummy, heated by `vr_hotblade_test 1` repeated through the take (the
 take equips its own axe: a new record): 29.6 cold, 44.4 hot, `burning: monster_army lit (a blow)`.
+His tweaks (ROUND22.md, "Incandescent blades: his tweaks"): `vr_hotblade_report` prints what the client draws (each
+glowing blade: hand, holster or lying; the heated part's length of its grip-to-tip line and its vertices of the model's; its
+light; the hand's grip and muzzle against the blade's ends) and the embers and trail particles of the last second and
+since. `vr_hotblade_test 12` lists the blades lying about (heat, glow, the glow sent), 13 throws the main hand's weapon at
+the nearest monster (1.5x the full-damage speed, from 24 units short of it, rigid as a real throw: use e1m2, whose start
+has no weapons lying near the spawned grunt), 14 drops it at the hand. A swing for the trail: the mock hand swept 10 cm
+and 5 degrees a frame (the suite's `W`). `hotblade_test.sh <agent> shots`: composites in `scratch/hotblade/shots_*.png`
+(each blade from the side with `vr_mock_camera 0.8 1.5 -0.7 10 90`, the hand at `0.1 1.4 -0.4 0 0 0`; the chainsaw pitched
+60; the dropped axe; the trail).
 Crates and nails (part 2): `vr_test_spawn 109` puts a crate with one on it ahead (`107` a small one), `vr_burn_test 1`
 lights the nearest (`vr_burn_crate_time`, `vr_burn_crate_spread` short to see it spread and break; `developer 1`:
 `lit (a burning crate)`, `burnt through: it breaks`). `vr_burn_test 6` shoots a nail through the nearest lit torch's

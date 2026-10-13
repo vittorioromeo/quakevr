@@ -2669,8 +2669,8 @@ QVR_CVAR(vr_hotblade_quench, "1", CVAR_ARCHIVE)         // 1: dipped in water or
 QVR_CVAR(vr_hotblade_glow, "1.5", CVAR_ARCHIVE)         // the glow's brightness (0: none; the embers, the light and the trail too; 1 before config 131), on the blade only (vr_hotblade.cpp)
 QVR_CVAR(vr_hotblade_light, "1", CVAR_ARCHIVE)          // brightness of the light an incandescent blade casts (following its glow: the build-up, the fade; 0: none)
 QVR_CVAR(vr_hotblade_light_radius, "72", CVAR_ARCHIVE)  // its reach in units at full glow
-QVR_CVAR(vr_hotblade_embers, "3", CVAR_ARCHIVE)         // embers each puff off the heated part of the blade (0: none)
-QVR_CVAR(vr_hotblade_ember_rate, "10", CVAR_ARCHIVE)    // puffs of embers a second at full glow (fewer as it fades: times the glow squared)
+QVR_CVAR(vr_hotblade_embers, "4", CVAR_ARCHIVE)         // embers each puff off the heated part of the blade (0: none)
+QVR_CVAR(vr_hotblade_ember_rate, "12", CVAR_ARCHIVE)    // puffs of embers a second at full glow (fewer as it fades: times the glow squared)
 QVR_CVAR(vr_hotblade_trail, "1", CVAR_ARCHIVE)          // how many fire and spark particles a swung incandescent blade leaves in the air behind its heated part (0: none; faster swings leave more)
 QVR_CVAR(vr_hotblade_trail_linger, "0.5", CVAR_ARCHIVE) // s they linger in the air
 QVR_CVAR(vr_hotblade_trail_speed, "1.5", CVAR_ARCHIVE)  // m/s the blade's tip must move for a trail (slower: none)
