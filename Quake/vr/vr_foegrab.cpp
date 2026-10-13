@@ -274,6 +274,13 @@ bool bodyFrame(edict_t* m, glm::vec3& origin, glm::mat3& axes)
     return move.hands[h].pos + held::axesFromAngles(&move.hands[h].rot[0], true) * f.palm;
 }
 
+// The same from the controller's own point (VrHandMove::tracked: before the level held the drawn hand out of it).
+[[nodiscard]] glm::vec3 trackedPalmOf(edict_t* ent, const VrMove& move, int h)
+{
+    const grip::HandFrame f = grip::handFrame(h, h == 0, NUM_FOR_EDICT(ent) == 1);
+    return move.hands[h].tracked + held::axesFromAngles(&move.hands[h].rot[0], true) * f.palm;
+}
+
 // Whether `m` can be held: a living monster, standing in the world (not knocked down: its ragdoll), its model the one
 // the hold was taken on (modelindex > 0), the precise hits' target.
 [[nodiscard]] bool canHold(edict_t* m, int modelindex = 0)
@@ -646,13 +653,18 @@ void throwTraceStep()
             t.kind, t.tiltHalf, t.maxTilt, t.turned, t.maxFeet, feetMoved, glm::dot(feet - t.feet0, t.dir), t.kind,
             glm::dot(pelvis - t.pelvis0, t.dir), t.headDown, t.feetGo,
             glm::dot(head - feet, t.dir) > 0.f ? "towards it" : "against it", glm::dot(head - feet, t.dir), t.kind);
-        // Where it lies from the first player's side: its head from its feet.
+        // Where it lies from the first player's side: its head from its feet (the way it lies: a throw goes over its head
+        // and its legs flop on over or back as they land, a low one's head 5 or 20 units on of its feet), and its head
+        // from where its feet stood (where the throw took its top: steadier).
         glm::vec3 ahead = t.feet0 - t.viewer;
         ahead.z = 0.f;
         ahead = glm::length(ahead) > 1e-3f ? glm::normalize(ahead) : glm::vec3{1.f, 0.f, 0.f};
+        const glm::vec3 left = glm::cross(glm::vec3{0.f, 0.f, 1.f}, ahead);
         const glm::vec3 lies = head - feet;
-        Con_Printf("%s trace done: lies %.1f ahead, %.1f to your left (its head from its feet)\n", t.kind,
-            glm::dot(lies, ahead), glm::dot(lies, glm::cross(glm::vec3{0.f, 0.f, 1.f}, ahead)));
+        const glm::vec3 went = head - t.feet0;
+        Con_Printf("%s trace done: lies %.1f ahead, %.1f to your left (its head from its feet); its head %.1f ahead, "
+                   "%.1f to your left of where it stood\n",
+            t.kind, glm::dot(lies, ahead), glm::dot(lies, left), glm::dot(went, ahead), glm::dot(went, left));
         t.ent = 0;
     }
 }
@@ -872,7 +884,9 @@ NeckTwist neckStep(int c, edict_t* m, const VrMove& move, const glm::vec3& neck)
     const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
     const bool fresh = hd.neckEnt != ent || time - hd.neckLast > 0.1;
     const float toMetres = 1.f / units::metresToUnits();
-    const glm::vec3 d = (palmOf(player, move, 1) - palmOf(player, move, 0)) * toMetres;
+    // (The controllers' own points, as their velocities are: the drawn hands, held out of the level or a ragdoll's
+    // limbs, kept the line between them short while the controllers moved on, its turn read up to half again too fast.)
+    const glm::vec3 d = (trackedPalmOf(player, move, 1) - trackedPalmOf(player, move, 0)) * toMetres;
     const glm::vec3 &v0 = move.hands[0].vel, &v1 = move.hands[1].vel;
     const glm::vec3 n = glm::length(neck) > 1e-4f ? glm::normalize(neck) : glm::vec3{0.f, 0.f, 1.f};
     const float len2 = za::max(glm::dot(d, d), neckMinArm * neckMinArm);
@@ -881,7 +895,14 @@ NeckTwist neckStep(int c, edict_t* m, const VrMove& move, const glm::vec3& neck)
     const float acrossLen2 = za::max(glm::dot(across, across), za::max(neckMinArm * neckMinArm, 0.25f * len2));
     const glm::vec3 sweep = glm::cross(d, v1 - v0);
     const float aboutNeck = glm::dot(n, sweep) / acrossLen2;
-    const glm::vec3 palms = (sweep - n * glm::dot(n, sweep)) / len2 + n * aboutNeck;
+    // (Never faster than the line between the palms turns, |d x (v1 - v0)| / |d|^2: its shadow across a neck that
+    // wobbles as a ragdoll lies, the line nearly along it, would add up to that again.)
+    const float lineTurn = glm::length(sweep) / len2;
+    glm::vec3 palms = (sweep - n * glm::dot(n, sweep)) / len2 + n * aboutNeck;
+    if(glm::length(palms) > lineTurn)
+    {
+        palms *= lineTurn / glm::length(palms);
+    }
     // (The axes: the neck, the line between the hands across it, the third.)
     const glm::vec3 side = glm::length(across) > 1e-4f ? glm::normalize(across) : glm::vec3{0.f};
     const glm::vec3 axes[3]{n, side, glm::cross(n, side)};
@@ -959,10 +980,11 @@ NeckTwist neckStep(int c, edict_t* m, const VrMove& move, const glm::vec3& neck)
     if(debug(2))
     {
         Con_Printf("foegrab: both hands on %s (%d)'s head: twist %.0f deg/s (about its neck: the palms %.0f, the wrists "
-                   "%.0f), stroke %.0f deg, fastest %.0f deg/s; each palm %.2f m/s about their middle, together %.2f "
-                   "m/s%s\n",
-            PR_GetString(m->v.classname), ent, t.speed, glm::degrees(aboutNeck), glm::degrees(glm::dot(wrists, n)),
-            t.turned, t.peak, tangential, common, t.twisting ? " (a twist)" : "");
+                   "%.0f; the palms' line %.0f, %.2f m long), stroke %.0f deg, fastest %.0f deg/s; each palm %.2f m/s "
+                   "about their middle, together %.2f m/s%s\n",
+            PR_GetString(m->v.classname), ent, t.speed, glm::degrees(glm::dot(palms, n)), glm::degrees(glm::dot(wrists, n)),
+            glm::degrees(lineTurn), za::sqrt(glm::dot(d, d)), t.turned, t.peak, tangential, common,
+            t.twisting ? " (a twist)" : "");
     }
     return t;
 }
@@ -1118,6 +1140,9 @@ void ragdollNeckCheck(int c)
     {
         return;
     }
+    // (A stroke under way goes on while both hands hold it: the twist itself sweeps a palm held at its neck out of the zone,
+    // the stroke cut at 27 of the 30 degrees.)
+    const bool stroking = hd.neckEnt == num && hd.neckTurned > 0.f && qcvm->time - hd.neckLast <= 0.1;
     for(int h = 0; h < 2; h++)
     {
         box3d::RagdollHold rh;
@@ -1125,7 +1150,7 @@ void ragdollNeckCheck(int c)
         {
             return;
         }
-        const bool part = rh.part >= 0 && rh.part < 32 && (headBones & (1u << rh.part)) != 0u;
+        const bool part = stroking || (rh.part >= 0 && rh.part < 32 && (headBones & (1u << rh.part)) != 0u);
         const glm::vec3 palm = palmOf(player, *move, h);
         const float along = za::clamp(glm::dot(joint - palm, neck), 0.f, neckLength);
         const bool onNeck = glm::distance(palm, joint - neck * along) <= neckGrip;

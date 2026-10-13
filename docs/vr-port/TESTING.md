@@ -1320,8 +1320,10 @@ lifts"): each case one game on vrfiringrange, a grunt 36 units ahead (`vr_test_s
 forward; the hands' reach is capped about 1.2 m, so the enemy stands close), gripped with `+grabmain`/`+graboff`, then
 pulled. `dir`: left, right, towards you, away, with the hands at its shoulders, its box's middle, low, and uneven; PASS:
 `foegrab: both hands turn ... to your left` (the way), `throw trace` its head along the throw at 0.2 s, and
-`throw trace done: lies <a> ahead, <l> to your left` (its head from its feet, from the first player's side: printed by
-every throw trace now). `JUDO_ONLY=<regex>` runs only the matching cases (`judo_<height>_<way>`), `JUDO_EXTRA=<cmds>`
+`throw trace done: lies <a> ahead, <l> to your left (its head from its feet); its head <a> ahead, <l> to your left of
+where it stood` (from the first player's side: printed by every throw trace now): its head on the pulled side by 8+
+of where it stood or of its feet, the larger (a throw goes over its head: its legs flop on over or back as they land,
+or its feet slide back, each alone varying). `JUDO_ONLY=<regex>` runs only the matching cases (`judo_<height>_<way>`), `JUDO_EXTRA=<cmds>`
 adds commands; the logs go to `scratch/judo_test_<case>.txt`.
 `hold`: thrown left and held on (`vr_foegrab_throw_hold`), the hands then lowered and drawn 0.5 m back: PASS when both
 hands hold it (`foegrab: ... held on as a ragdoll by 2 hands`), it lies to the left, and `vr_foegrab_status` (which now
