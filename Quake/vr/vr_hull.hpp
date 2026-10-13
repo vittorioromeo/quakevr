@@ -77,6 +77,10 @@ void afterLoad();
 void updateCrouch(edict_t* ent, const glm::vec3& head);
 // Whether a client has his crouched box (the box moveBox, entBox, touchBox and hitBox give him).
 [[nodiscard]] bool isCrouched(const edict_t* ent);
+// SV_AirMove (vr_crouch_speed): the stick's most speed `maxspeed` for a client crouched (his eyes from updateCrouch under
+// the tallest crouched box's top: down to vr_crouch_speed_scale of it 8 units under, never over 90% of the stealth AI's
+// footsteps' speed, vr_stealth_run_speed), eased in and out over 0.25 s (one call a server frame); as it is standing.
+[[nodiscard]] float crouchSpeedMax(edict_t* ent, float maxspeed);
 
 // VR_ClientPreMove: vr_hull_walktest's random walk drives the first player (a test aid; nothing when not running).
 void walkTestFrame(edict_t* ent);

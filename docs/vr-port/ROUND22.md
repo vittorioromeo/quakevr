@@ -5015,3 +5015,26 @@ were already in `quakevr/vr_defaults.cfg`; those eight lines are gone from it (n
 to the new one; a hand-set value stays. Test: `Misc/quakevr/config129_test.sh` (PASS). Melee eval, full set: 168/177,
 one FAIL -> FAIL take whose one-hand bash push is now seen at 0.391 s, not 0.375 (the firmer 3 m/s bash speed).
 e1m1 smoke clean; the vore (6 shoves) and bloodless tests pass with the new defaults.
+
+## Crouched, slower and silent (worktree `crouchspeed`, 2026-10-13)
+
+The author: crouched, the most speed drops to about 0.75 of normal, and stays under the speed at which unalerted
+monsters hear your steps. `vr_crouch_speed` (1, on) and `vr_crouch_speed_scale` (0.75; 0.2-1), on Locomotion
+(Settings > Locomotion: Slower When Crouched, Crouched Speed). New cvars, so no config migration.
+
+- **The threshold.** The stealth AI's footsteps (vr_stealth.qc `VR_Stealth_PlayerFrameNow`): on the ground, horizontal
+  speed over `vr_stealth_run_speed` (280), a step noise (`vr_stealth_noise_run` 400) every 0.25 s. Running is
+  `sv_maxspeed` 320, so 0.75 gives 240, under 280 as asked. Whatever the scale, the crouched most speed is also capped
+  at 90% of `vr_stealth_run_speed` (252 by default; it follows that slider), so crouched is silent at any setting.
+- **Crouched** is the engine's crouch (vr_hull.cpp, the crouched hitbox's heights, measured whether or not
+  `vr_crouch_hull` is on): eyes under the tallest crouched box's top (52 with `vr_crouch_height` 36 / `vr_crouch_step` 8;
+  the mock's standing eyes are 56.6 over the feet), fully slowed 8 units lower (44), between in proportion. There is no
+  crouch button in the port. The slowing's share eases at 4/s (0.25 s from none to all), so crouching mid-run slows
+  you at 320 u/s² (Quake's ground friction alone is about 1100) and standing gives the speed back the same way.
+- **Where.** One call, `VR_CrouchSpeedMax` (vr_hull.cpp), in SV_AirMove after stamina and carrying (sv_user.c). It caps
+  only the stick's wish speed: walk, run, the speed button, any hand-steered move. Jumps and falls (air control is
+  capped at 30 anyway), knockback, movers and swimming are untouched.
+
+Test: `Misc/quakevr/crouch_speed_test.sh <agent>` (start map, speed button held, a grunt 150 units off in the dark,
+`vr_stealth_debug 2`): crouched (head 0.9 m) top speed 240, no step heard; crouched at scale 1: 252, unheard; standing
+320, heard ("hears noise 1"); `vr_crouch_speed 0` crouched 320, heard. 4 PASS. e1m1/e1m2 smoke clean.

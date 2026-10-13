@@ -135,6 +135,13 @@
         slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").extend().help("Walking speed (running is this times the running multiplier)."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").extend().help("How much faster running is than walking."),
+        toggle("Slower When Crouched", vr_crouch_speed)
+            .help("Crouched for real (your eyes a little under standing), the stick moves you at most Crouched Speed times "
+                  "your top speed, eased in and out as you crouch and stand, and always slow enough that monsters that "
+                  "haven't noticed you don't hear your steps. Jumps, falls and knockback are untouched (vr_crouch_speed)."),
+        slider("Crouched Speed", vr_crouch_speed_scale, 0.2f, 1.f, 0.05f, "%.2fx")
+            .help("Crouched, the most speed the stick moves you at, times your top speed. Whatever it is, crouched you "
+                  "stay under the speed whose steps monsters hear (Stealth AI > Running From) (vr_crouch_speed_scale)."),
         toggle("Walk Up Slopes Slowly", vr_slope_walk)
             .help("Standing on a slope you can walk on, gravity only presses you into it, none of it pulls you downhill: "
                   "with the stick pushed only a little you still walk up slopes and stairs with a smooth ramp over them "
