@@ -647,6 +647,11 @@ void resetHandMoves()
         open("Shell Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a shell sits in the fingers: take one from the pouch, then tune it there (its Grip and Fingers). "
                   "The taped pair has its own."),
+        header("At the Pouch"),
+        toggle("Reload at the Pouch", "vr_reload_pouch_shot")
+            .help("Bring the port under it down onto the shells in the ammo pouch, the gun upright (its port facing down "
+                  "into the pouch, within Reloading: Pouch Angle): a shell goes in, from your shells. One a touch: take "
+                  "it away and back for the next."),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
@@ -728,6 +733,14 @@ void resetHandMoves()
             .help("How near the front half of its barrels a hit (from above or below) must land."),
         slider("Hit After Loading", "vr_reload_ssg_hit_after_load", 0.f, 1.f, 0.01f, "%.2f s")
             .help("How long after a shell goes in before a hit opens or shuts it (the loading hand drawing back is no hit)."),
+        header("At the Pouch"),
+        toggle("Reload at the Pouch", "vr_reload_pouch_sshot")
+            .help("Broken open, touch its open barrels to the shells in the ammo pouch: its empty chambers fill, from your "
+                  "shells. No free hand needed: two super shotguns, each reloaded at the pouch. Shut, nothing."),
+        slider("Pouch Contact", "vr_reload_pouch_sshot_contact", 0.f, 30.f, 1.f, "%.0f cm").extend(0.f, 60.f)
+            .help("How near its breech must come to the shells in the pouch (the other guns': Reloading, Pouch Contact)."),
+        slider("Pouch Angle", "vr_reload_pouch_sshot_angle", 5.f, 180.f, 5.f, "%.0f deg")
+            .help("How far off pointing its open barrels down into the pouch it may be (180: any way)."),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
@@ -749,6 +762,10 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageReloadNailgun()
 {
     return {
+        header("At the Pouch"),
+        toggle("Reload at the Pouch", "vr_reload_pouch_nail")
+            .help("With its magazine out, bring its empty well down onto the magazines standing in the ammo pouch, along "
+                  "them (Reloading: Pouch Angle): a fresh magazine seats, from your nails. With one in, nothing."),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
@@ -835,6 +852,11 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageReloadSuperNailgun()
 {
     return {
+        header("At the Pouch"),
+        toggle("Reload at the Pouch", "vr_reload_pouch_snail")
+            .help("With its magazine out, bring its empty well onto the magazines standing in the ammo pouch, along them "
+                  "(the gun on its side: its well is on its left; Reloading: Pouch Angle): a fresh magazine seats, from "
+                  "your nails. With one in, nothing."),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
@@ -921,6 +943,10 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageReloadThunderbolt()
 {
     return {
+        header("At the Pouch"),
+        toggle("Reload at the Pouch", "vr_reload_pouch_light")
+            .help("With its cell out, bring its empty well down onto the cells standing in the ammo pouch, along them "
+                  "(Reloading: Pouch Angle): a fresh cell seats, from your cells. With one in, nothing."),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
@@ -1109,7 +1135,9 @@ void resetHandMoves()
                   "what the gun in your other hand takes): the shotgun a shell at a time into the port under it; the "
                   "nailgun, the super nailgun and the thunderbolt a magazine into its well (out by B/Y, a hard pull, or "
                   "bumped out by the next); the grenade, proximity and rocket launchers a round at a time butt first into "
-                  "the muzzle; the other guns reload at the hip holsters for now. Needs Weapon Mode Immersive."),
+                  "the muzzle; the other guns reload at the hip holsters for now. A gun brought to the pouch by its port "
+                  "or well reloads there too (Reloading at the Pouch: two guns, no free hand). Needs Weapon Mode "
+                  "Immersive."),
         header("Weapons"),
         open("Shotgun", pageIndex(pageReloadShotgun)).help("Its shells (pairs, their pose) and its loading port."),
         open("Super Shotgun", pageIndex(pageReloadSuperShotgun)).help("Broken open: each way to open and close it, their thresholds; its breech."),
@@ -1163,6 +1191,28 @@ void resetHandMoves()
                   "once it has left both guns' wells and this long has passed."),
         toggle("Eject Button", "vr_reload_eject_button")
             .help("The B/Y button of the controller holding a nailgun, super nailgun or thunderbolt drops its magazine."),
+        header("Reloading at the Pouch"),
+        toggle("Shotgun", "vr_reload_pouch_shot")
+            .help("Its port brought down onto the shells in the ammo pouch, upright: a shell a touch."),
+        toggle("Super Shotgun", "vr_reload_pouch_sshot")
+            .help("Broken open, its open barrels touched to the shells in the pouch at any angle: its chambers fill. Its "
+                  "page has its own contact and angle."),
+        toggle("Nailgun", "vr_reload_pouch_nail")
+            .help("Its well empty, brought down onto the magazines in the pouch along them: a fresh one seats."),
+        toggle("Super Nailgun", "vr_reload_pouch_snail")
+            .help("Its well empty, brought onto the magazines in the pouch along them (the gun on its side): a fresh one "
+                  "seats."),
+        toggle("Thunderbolt", "vr_reload_pouch_light")
+            .help("Its well empty, brought down onto the cells in the pouch along them: a fresh one seats."),
+        slider("Pouch Contact", "vr_reload_pouch_contact", 0.f, 20.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
+            .help("How near the load point (the shotgun's port, a well) must come to the rounds standing in the pouch."),
+        slider("Pouch Angle", "vr_reload_pouch_angle", 5.f, 90.f, 5.f, "%.0f deg")
+            .help("How far off the way the pouch's rounds go in the gun may lie: a well along the magazines, the "
+                  "shotgun's port facing down into the pouch."),
+        slider("Pouch Clearance", "vr_reload_pouch_clearance", 0.f, 20.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
+            .help("A touch reloads once: the gun must leave the rounds by this much more than Pouch Contact before the "
+                  "next counts (the shotgun's next shell). The launchers don't reload at the pouch; at a holster the "
+                  "holster wins."),
         header("Ammo Pouch"),
         toggle("Show", "vr_ammo_pouch_show").help("Draw the pouch (off: it still works where it is)."),
         slider("X", "vr_ammo_pouch_x", -10.f, 10.f, 0.25f, "%.2f").extend()

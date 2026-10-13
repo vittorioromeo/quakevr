@@ -915,21 +915,21 @@ void() VR_Reload_Test =
             VR_Reload_AmmoChanged(self);
         }
     }
-    else if(step == 30 || step == 31)
+    else if(step == 30)
     {
-        // The main hand's gun (pouch reloading's dual-wield tests): 30 its magazine emptied into the reserve (as 5), 31 its
-        // super shotgun broken open (as 15).
+        // The main hand's gun (pouch reloading's dual-wield tests): its magazine emptied into the reserve (as 5) and, a
+        // super shotgun shut, broken open (as 15).
         float mw = VRGetEntWeapon(self, cVR_MainHand);
-        if(step == 30 && mw != WID_FIST)
+        if(mw != WID_FIST)
         {
             VR_AmmoUtil_AddAmmoCountByAmmoId(self, WeaponIdToAmmoId(mw, VRGetEntWeaponFlags(self, cVR_MainHand)),
                 VRGetEntWeaponClip(self, cVR_MainHand));
             VRSetEntWeaponClip(self, cVR_MainHand, 0);
             VR_Reload_AmmoChanged(self);
         }
-        else if(step == 31 && mw == WID_SUPER_SHOTGUN && !VR_Reload_SsgIsOpen(self, cVR_MainHand))
+        if(mw == WID_SUPER_SHOTGUN && VR_Reload_ManualInHand(self, cVR_MainHand) && !VR_Reload_SsgIsOpen(self, cVR_MainHand))
         {
-            VR_Reload_SsgBreak(self, cVR_MainHand, "test step 31");
+            VR_Reload_SsgBreak(self, cVR_MainHand, "test step 30");
         }
     }
     else if(step == 6)

@@ -5,6 +5,7 @@
 #   1. dual-wielded super shotguns, both emptied and broken open: each filled at the pouch (2 each, the reserve 4 less),
 #      the off hand's again at several angles; shut, nothing; 4 units above the rounds (15 cm), nothing, 1.5 (6 cm) fills;
 #      Super Shotgun's toggle off, nothing.
+#   (The mock hand's pitch 50 holds the gun about level: upright, its port and wells facing down.)
 #   2. the shotgun: a shell per touch (held there, still one; away and back, two); upside down (its port facing up), none.
 #   3. the nailgun: its magazine in, nothing; dropped, the gun upside down, nothing; upright, a fresh magazine (the nails
 #      50 less); the thunderbolt likewise; the super nailgun rolled onto its side (its well on its left).
@@ -34,7 +35,7 @@ nails() { echo "$1" | sed -n "/^MARK $2 *$/,\$p" | grep -m1 "^reload: mode" | se
 mark() { echo "echo MARK $1;$REP"; }
 
 # 1. Dual-wielded super shotguns.
-SSG="$(setup 155);impulse 155;wait5;vr_reload_test 5;impulse 125;wait2;vr_reload_test 30;impulse 125;wait2;vr_reload_test 15;impulse 125;wait2;vr_reload_test 31;impulse 125;wait20"
+SSG="$(setup 155);impulse 155;wait5;vr_reload_test 5;impulse 125;wait2;vr_reload_test 30;impulse 125;wait2;vr_reload_test 15;impulse 125;wait20"
 S="$SSG;$(mark start);$(to "0 0 0");$(mark off);vr_mock_hand main 0.3 1.3 -0.4 0 0 0;wait15;vr_mock_hand_to main pouchport;wait15;$(mark main)"
 for pose in "90 0 0" "-60 45 0" "0 90 90" "45 0 180"; do
     S="$S;vr_reload_test 5;impulse 125;wait2;$(to "$pose");$(mark "${pose// /_}")"

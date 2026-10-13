@@ -5038,3 +5038,54 @@ monsters hear your steps. `vr_crouch_speed` (1, on) and `vr_crouch_speed_scale` 
 Test: `Misc/quakevr/crouch_speed_test.sh <agent>` (start map, speed button held, a grunt 150 units off in the dark,
 `vr_stealth_debug 2`): crouched (head 0.9 m) top speed 240, no step heard; crouched at scale 1: 252, unheard; standing
 320, heard ("hears noise 1"); `vr_crouch_speed 0` crouched 320, heard. 4 PASS. e1m1/e1m2 smoke clean.
+
+## Pouch reloading (worktree `pouchreload`, 2026-10-13)
+
+The author: reload a gun by bringing it to the ammo pouch, above all the super shotgun broken open (two of them
+dual-wielded with manual reloading: no free hand to fetch shells), and most guns where it makes sense; the receiver
+should touch the pouch's drawn rounds at an angle that matches them, the super shotgun at any angle; per-gun toggles
+and leniency settings (spec and his answers: the kit's scratch/POUCHRELOAD.md). Immersive reloading only.
+
+- **Where the rounds are.** The pouch is the client's (its place, turn, size); the engine now sends the box its rounds
+  stand in (`view::ammoPouchRounds`: the full pouch's depth, the rounds' row ±3.2, from the rim at 1.5 to the magazines'
+  tops at 2.9, in its model units; middle and half-axes, z up along the rounds) with each move (`VrMove::ammoPouch` ->
+  `.ammopouchpos`, `.ammopouchx/y/z`; carried with the player's origin between moves as the hands are). The pouch is
+  now placed even when `vr_ammo_pouch_show` is 0 (not drawn), since it still works there.
+- **The rule** (QC `VR_Reload_PouchFrame`, per hand each frame, from `VR_Reload_HandFrame`): the gun's load point (the
+  engine's `.loadportpos`, as drawn) within the contact of that box, the gun able to take rounds and lying right:
+  - **Super shotgun**: broken open (shut: nothing), its breech within `vr_reload_pouch_sshot_contact` (10 cm) at any
+    angle (`vr_reload_pouch_sshot_angle` 180; lower: the breech facing down into the pouch within it): its empty
+    chambers filled from the reserve (two; one if one shell is left). It stays open (Close When Loaded closes it, as for
+    a pair by hand).
+  - **Shotgun**: its port's opening (`.loadportface`) facing down into the pouch within `vr_reload_pouch_angle` (35
+    deg), within `vr_reload_pouch_contact` (4 cm): one shell per touch (the gun's tube loads one at a time by hand too).
+  - **Nailgun, super nailgun, thunderbolt**: only with the well empty (the magazine dropped, pulled or knocked out); the
+    well's axis (`.loadportaxis`, a magazine's feed end up it) along the magazines standing in the pouch within that
+    angle: a fresh magazine seated, min(its size, the reserve), with the hand-seated magazine's sound, buzz and the
+    cell's sparks. A magazine in: nothing (the touch used up, so ejecting at the pouch needs the gun taken away first).
+    The super nailgun's well is on its left: the gun rolled onto its side.
+  - **Not the launchers**: their rounds stand nose up in the pouch and go in butt first at the muzzle; no pose meets
+    them sensibly.
+  - A touch counts once (`.vr_pouch_touch`): the next after the load point has left the rounds by the contact plus
+    `vr_reload_pouch_clearance` (4 cm). The reserve empty: the empty pouch's knock once a touch, nothing loaded.
+  - **Holstering**: the gun's hand at a holster hotspot (hips, shoulders, upper) makes no pouch reload; the angle and the
+    empty receiver guard the rest (a gun holstered hangs muzzle down: its port and well face sideways).
+  - Feedback as by hand: the shell-in sound and the gun's buzz, the shell (or pair) drawn sliding from the pouch's top
+    into the gun (vr_collectfx.cpp "into the gun"), the full tube's knock.
+  - The pouch shows the rounds of the gun brought to it (`VR_Reload_PouchNearHand`): a nailgun at the pouch beside a
+    shotgun in the other hand shows magazines.
+- The gun's body is eased off the body's self-collision near the pouch by its load point too (vr_selfcollide.cpp), as a
+  hand reaching into the pouch is, so the gun can reach the rounds.
+- **Settings** (new cvars, default on; no migration): Weapons > Reloading, "Reloading at the Pouch": a toggle per gun
+  (`vr_reload_pouch_shot`, `_sshot`, `_nail`, `_snail`, `_light`), Pouch Contact, Pouch Angle, Pouch Clearance; each
+  gun's page repeats its toggle ("At the Pouch"), the Super Shotgun's with its own Pouch Contact and Pouch Angle.
+- Debug > Tests > Reloading: "Empty and Break Open the Main Hand's Gun" (`vr_reload_test 30`). Mock:
+  `vr_mock_hand_to <hand> pouchport [units]` (the hand's own gun's load point on the rounds' top, units above them).
+
+Tests: `Misc/quakevr/reload/pouch_test.sh <agent>` (24 checks, all PASS; the mock's pitch 50 holds a gun level):
+dual-wielded super shotguns emptied and broken open fill at the pouch (2 each, shells 34 -> 32 -> 30), the off hand's
+again at pitch 90, -60/45, 0/90/90 and 45/0/180; 4 units above the rounds nothing, 1.5 fills; its toggle off nothing;
+shut nothing. Shotgun: a shell per touch (1, held 1, away and back 2), upside down none. Nailgun, thunderbolt, super
+nailgun (rolled): magazine in nothing; out and the wrong way nothing; right: a fresh magazine (nails 200 -> 176, cells
+200 -> 164, nails 200 -> 164). No nails: nothing and the knock. At the left hip holster nothing; the hip's reach made to
+win at the pouch nothing, back to normal it fills. Save, load: 2 kept, filled again after the load.
