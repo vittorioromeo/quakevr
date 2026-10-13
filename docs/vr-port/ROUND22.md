@@ -4908,7 +4908,8 @@ along the throw at 0.2 s, and lying 12-32 units to that side of its feet (toward
 
 His ask: after the judo throw the enemy's ragdoll stays held in your hands, the topple and the forces still applied, not
 detached but softly (not glued), so you can steer where it goes and pull it. Holding Enemies > Hold On After Throw
-(`vr_foegrab_throw_hold` 1), Held On Force (`_hold_force` 350 N a hand), Held On Spring (`_hold_hertz` 4 Hz).
+(`vr_foegrab_throw_hold` 1), Held On Strength (`_hold_strength` 0.3 of its weight a hand), Held On Spring (`_hold_hertz`
+4 Hz).
 
 - After `throwDown` (the knockdown, the topple, the slack), `handOver` gives each holding hand the ragdoll's limb nearest
   it (within 16 units) through the ragdoll limb hold that already exists (corpses, knockdowns: a kinematic body at the
@@ -4917,15 +4918,59 @@ detached but softly (not glued), so you can steer where it goes and pull it. Hol
   (`VR_FoeGrab_HandOver`: the hand's held field, as `VR_Ragdoll_Handtouch` sets it), and the foegrab holds hand the
   grip over (not hidden from the QC any more): from there the QC's `VR_Ragdoll_HandFrame` holds and lets go as with any
   ragdoll limb (the grips let go: dropped, or thrown with the hands' throw; its two-handed throw too).
-- 350 N a hand: two hands give 700 N, under a grunt's 785 N weight, so it still falls (the dir test, held on, still
-  passes all 16) and is never held up, but lowered to it you drag it (the hold test: its pelvis 59 -> 44 units ahead over
-  a 0.5 m pull; at 250 N only 59 -> 54: friction). From your chest the pull on a body lying on the floor is mostly up.
+- 0.3 of its weight a hand (`box3d::ragdollWeight`; a grunt's ragdoll weighs 2108 N, 215 kg of parts, an enforcer's
+  2616 N, so a force in newtons fits no two kinds): two hands give 0.6 of it, so it still falls (the dir test, held on,
+  still passes all 16) and is never held up, but lowered to it you drag it. The hold test's drag, its pelvis nearer over
+  a 0.5 m pull, 4 runs each: 0.2 a hand 0-8 units (it lies on the floor: friction), 0.25 3-8, 0.3 5-19, 0.35 6-12 but
+  it lies only 13-17 units to the side (the hold holds its fall back; 0.3: 18-25). From your chest the pull on a body
+  lying on the floor is mostly up: lower your hands to it. (First made as newtons, 350 a hand; changed to the share
+  with the lift below.)
 - While held it passes through the holding hands (`carryStep`: `ragdollGrace` kept up; a grace is lengthened, never
   shortened). `vr_foegrab_status` prints the ragdoll held on: its pelvis from the player, each hand's distance to its
   limb. The code is organised for more two-hand moves (the lift below, the neck snap to come): `twoHandCheck` measures
   both hands on one enemy once a frame (`TwoHands`) and tries each move; `handOver`/`carryStep` are the moves' shared
   ragdoll hold.
 
-Test: `judo_test.py <agent> hold`: thrown left and held on by 2 hands, lies 25 units to the left, then the lowered
-hands drag it 0.5 m nearer: its pelvis 58.8 -> 44.2 units ahead, still 2 hands; Hold On off: let go as thrown, lies 35
-units left. PASS.
+Test: `judo_test.py <agent> hold`: thrown left and held on by 2 hands, lies 18 units to the left, then the lowered
+hands drag it 0.5 m nearer: its pelvis 61.0 -> 42.2 units ahead, still 2 hands; Hold On off: let go as thrown, lies 28
+units left. PASS (4+ units of drag asked: it varies run to run with how it landed).
+
+### 3. The lift (`vr_foegrab_lift`, on)
+
+His ask: walked close to a humanoid (soldier, enforcer, zombie, knight, death knight, AD's humanoid kinds; not ogres,
+shamblers, fiends, vores), grab with two hands and pull **up** (instead of to a side: the judo throw): it becomes an
+active ragdoll, flailing, which you can carry and throw down; it breaks free (you get shoved back) after a time, 2 s by
+default; sliders for the thresholds and the time. Holding Enemies > Lift:
+
+| cvar (row) | default | |
+|---|---|---|
+| `vr_foegrab_lift` (Lift) | 1 | on |
+| `vr_foegrab_lift_speed` (Lift Speed) | 1.2 m/s | the hands' mean speed up, within 45 degrees of straight up |
+| `vr_foegrab_lift_reach` (Lift Reach) | 48 units | you this near it (middles, level; held at arm's length ~36) |
+| `vr_foegrab_lift_time` (Breaks Free After) | 2 s | |
+| `vr_foegrab_lift_strength` (Lift Strength) | 1.2 | each hand's most pull, a share of its ragdoll's weight |
+| `vr_foegrab_lift_up` (Lift Launch) | 160 units/s | it leaves the floor this fast |
+| `vr_foegrab_lift_shove` (Break-Free Shove) | 48 units | how far it shoves you back |
+| `vr_foegrab_lift_classes` (console) | grunt, enforcer, zombie, knight, death knight, AD soldiers/knights/mummy/skull wizard, ranged knight, infected | |
+
+- `twoHandCheck` tries the lift first (`liftCheck`): an upward pull (mean velocity up at Lift Speed, steeper than
+  45 degrees) is never a throw. Not a humanoid, or too far: nothing (`vr_foegrab_debug` says why). Else QC
+  `VR_FoeGrab_Lift` knocks it down with an upward launch (`VR_Knockdown_Start`; its get-up held off past the lift
+  time), the throw's grunt plays, both hands hold on (`handOver`, at Lift Strength and an 8 Hz spring: a corpse limb
+  hold's) and it flails: `box3d::ragdollFlail` -> `ragactive::beginFlail`, a living swim in a new `Liquid::Air` (the
+  lava flail's thrash: limbs thrown about, torso and head thrashing, at full strength, never left "out of the liquid").
+- Carried: the QC's ragdoll hold, so walking carries it, and letting go of the grips drops it or throws it with the
+  hands' throw (`VR_Ragdoll_HandFrame`; a knockdown's fall damage on landing as ever); let go of, its flail ends.
+- At the lift time `breakFree`: both holds released, the flail ended, QC `VR_FoeGrab_BreakFree` clears the held
+  fields, shoves you back (`VR_EnemyShove_Push`'s slide) and makes its get-up due at once: it rises (in the test
+  through its get-up 1.75 s later). Killed while lifted: a body held, its flail a dying one's (no break free).
+- Strength as a share of its weight: the ragdolls weigh far more than the QC's masses (a grunt 2108 N, an enforcer
+  2616 N). At 0.75 a hand an enforcer (a hand on its forearm, a light part) sagged to the floor, its pelvis 11 units up;
+  at 1.2 both kinds are carried (pelvis 31-35 units off the floor, the limbs 4-8 units from the hands).
+- For the neck snap to come: `TwoHands` (both hands' palms and velocities on one enemy, measured once a frame), the
+  moves tried in turn in `twoHandCheck`, and `handOver`/`carryStep` (the ragdoll held on afterwards) are shared.
+
+Test `judo_test.py <agent> lift` (6 games): grunt and enforcer lifted by 2 hands, flailing, pelvis held up (11.0 and
+8.5 units over the player's origin, ~19 off the floor lying), broke free after 2.00 s, you shoved 48-49 units; lifted
+and thrown down at 1 s: let go of, no break free; an ogre: not lifted (not a humanoid); Lift Reach 24 with it 36 off:
+not lifted; Lift off: not lifted. All PASS.

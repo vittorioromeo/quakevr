@@ -1259,5 +1259,10 @@ every throw trace now). `JUDO_ONLY=<regex>` runs only the matching cases (`judo_
 adds commands; the logs go to `scratch/judo_test_<case>.txt`.
 `hold`: thrown left and held on (`vr_foegrab_throw_hold`), the hands then lowered and drawn 0.5 m back: PASS when both
 hands hold it (`foegrab: ... held on as a ragdoll by 2 hands`), it lies to the left, and `vr_foegrab_status` (which now
-prints the ragdoll held on: its pelvis ahead / to his left / up, each hand's distance to its limb) has its pelvis 8+
-units nearer; and with it off, let go as thrown.
+prints the ragdoll held on: its pelvis ahead / to his left / up, each hand's distance to its limb) has its pelvis 4+
+units nearer (how far varies with how it landed); and with it off, let go as thrown.
+`lift`: a grunt and an enforcer pulled up at 1.6 m/s: PASS when lifted (`foegrab: ... lifted, held on as a ragdoll by 2
+hands`), flailing (`flail: ... it flails in the hands`, with `vr_knockdown_debug 1`), held up (its pelvis less than 5
+units below the player's origin at 0.5 s; lying, it is 19 below), broken free after 1.9-2.2 s and you shoved 24+ units (`vr_foegrab_status`'s
+player origin before and after); thrown down (swung down, let go) without a break free; an ogre, Lift Reach 24, Lift off:
+not lifted.

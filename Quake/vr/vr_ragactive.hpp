@@ -340,7 +340,8 @@ enum class Liquid : uint8_t
     None,
     Water,
     Slime,
-    Lava
+    Lava,
+    Air // no liquid: a living one lifted off its feet flails (beginFlail; a lava flail's thrash)
 };
 struct Swim
 {
@@ -593,8 +594,15 @@ bool beginLivingSwim(State& s, const Parts& p, const Context& c);
 void swimGoal(State& s, bool hasGoal, const glm::vec3& goal);
 // A living swimmer killed: its swim a dying one's from now (weakening as it drowns or burns).
 void swimDies(State& s, double now);
-// Whether it swims now (a living knockdown's or a death's).
+// Whether it swims now (a living knockdown's or a death's; or flails in the air: beginFlail).
 [[nodiscard]] bool swimming(const State& s);
+// A living knockdown lifted off its feet (vr_foegrab.cpp's lift; box3d's ragdollFlail; the drive begun): it flails as in
+// lava (its arms and legs thrown about, its torso and head thrashing) at full strength, out of any liquid, until
+// endFlail. Whether it began (not while it swims, rises or staggers).
+bool beginFlail(State& s, const Parts& p, const Context& c);
+// Its flail over (let go of, broken free): its strengths fade as a swim's out of the liquid.
+void endFlail(State& s, const Context& c);
+[[nodiscard]] bool flailing(const State& s);
 // Whether a living knockdown hangs from a ledge or pulls itself up now (its get-up waits).
 [[nodiscard]] bool climbing(const State& s);
 // A living knockdown (the drive begun: its fall's, or one begun for this, holding its frame) falling past a ledge's lip

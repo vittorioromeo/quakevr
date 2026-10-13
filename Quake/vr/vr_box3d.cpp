@@ -4342,6 +4342,10 @@ void livingSwim(RagdollBodies& r)
             ragactive::swimDies(a, qcvm->time);
             return;
         }
+        if(ragactive::flailing(a))
+        {
+            return; // (lifted, flailing in the air: no shore to make for)
+        }
         if(qcvm->time - r.swimGoalAt >= swimGoalEvery || r.swimGoalAt < 0.0)
         {
             r.swimGoalAt = qcvm->time;
@@ -15294,6 +15298,52 @@ bool ragdollCanDrown(edict_t* ent)
     return world && vr_ragdoll_active_liquids.value != 0.f && activeLiving(ent) && canRagdoll(ent);
 }
 
+bool ragdollFlail(edict_t* ent, bool on)
+{
+    RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp || !rp->rig)
+    {
+        return false;
+    }
+    RagdollBodies& r = *rp;
+    ragactive::State& a = r.active;
+    ragactive::Context c; // (what beginFlail and endFlail read)
+    c.world = world->id;
+    c.now = qcvm->time;
+    c.gravity = za::max(-b3World_GetGravity(world->id).z, 0.f);
+    c.liquidAt = liquidFor(r.num);
+    c.num = r.num;
+    c.born = r.born;
+    if(!on)
+    {
+        const bool was = ragactive::flailing(a);
+        ragactive::endFlail(a, c);
+        return was;
+    }
+    if(!activeLiving(ent) || (a.on && ragactive::swimming(a)))
+    {
+        return false;
+    }
+    const bool fresh = !a.on;
+    if(fresh)
+    {
+        beginLiving(r, ent);
+    }
+    if(ragactive::beginFlail(a, activeParts(r), c))
+    {
+        if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+        {
+            Con_Printf("flail: %d %s lifted: it flails in the hands\n", r.num, PR_GetString(ent->v.classname));
+        }
+        return true;
+    }
+    if(fresh)
+    {
+        ragactive::end(a);
+    }
+    return false;
+}
+
 bool ragdollDrowning(edict_t* ent)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
@@ -15934,6 +15984,24 @@ bool ragdollGrab(edict_t* corpse, edict_t* player, int hand)
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck)
 {
     return ent && player && holdSoft(ent, player, hand, reach, force, hertz, stuck);
+}
+
+float ragdollWeight(edict_t* ent)
+{
+    const RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp)
+    {
+        return 0.f;
+    }
+    float mass = 0.f;
+    for(int b = 0; b < rp->count; b++)
+    {
+        if(!partCut(*rp, b))
+        {
+            mass += b3Body_GetMass(rp->body[static_cast<za::SizeT>(b)]);
+        }
+    }
+    return mass * za::max(-b3World_GetGravity(world->id).z, 0.f);
 }
 
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity)

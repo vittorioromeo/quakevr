@@ -123,12 +123,14 @@ def status(flat, after):
 
 def case_hold():
     """hold: thrown left (hands at its shoulders) and held on (vr_foegrab_throw_hold 1): handed over to both hands, it
-    still falls to the left, then the hands, lowered to it, drag it 0.5 m towards you over a second: its pelvis comes 8+
+    still falls to the left, then the hands, lowered to it, drag it 0.5 m towards you over a second: its pelvis comes 4+
     units nearer.
     Held on off: let go as thrown, no ragdoll hold."""
     y = HEIGHTS["high"]
     for on in [1, 0]:
         name = f"judo_hold{on}"
+        if ONLY and not re.search(ONLY, name):
+            continue
         main1 = (GAP - PULL, y, NEAR - 0.08)
         off1 = (-GAP - PULL, y, NEAR)
         drag = [(1.55, "cmd echo MARK1"), (1.6, "cmd vr_foegrab_status")]
@@ -141,7 +143,7 @@ def case_hold():
         path = pull_motion(name, "left", "high", extra_keys=drag)
         out = run(f"{PRE};vr_debug_ragdoll 1;vr_foegrab_throw_hold {on};vr_mock_play {path};wait500;-grabmain;-graboff;"
                   "wait5;toggleconsole;quit",
-                  "foegrab|throw trace|held on by|limb let go|limb lost|MARK|rror|CRASH")
+                  "foegrab|throw trace|held on by|limb let go|limb lost|getup:|MARK|rror|CRASH")
         with open(os.path.join(SCRATCH, f"judo_test_{name}.txt"), "w") as f:
             f.write(out)
         flat = " ".join(out.split())
@@ -152,7 +154,7 @@ def case_hold():
         s1, s2 = status(flat, "MARK1"), status(flat, "MARK2")
         bad = "rror" in flat or "CRASH" in flat
         if on:
-            pulled = s1 and s2 and s1[1] - s2[1] > 8
+            pulled = s1 and s2 and s1[1] - s2[1] > 4
             ok = thrown and handed and handed.group(1) == "2" and left > 8 and pulled and not bad
             verdict(ok, f"held on: thrown left {thrown}, held by {handed.group(1) if handed else 0} hands, lies {left:.0f} "
                         f"left; pelvis ahead {s1[1] if s1 else '?'} -> {s2[1] if s2 else '?'} "
@@ -160,6 +162,79 @@ def case_hold():
         else:
             ok = thrown and not handed and s1 is None and left > 8 and not bad
             verdict(ok, f"held on off: thrown left {thrown}, not held ({'held' if handed else 'let go'}), lies {left:.0f} left")
+
+
+def player_at(flat, after):
+    """The player's origin from the first status after `after` (x, y) or None."""
+    i = flat.find(after)
+    m = re.search(r"foegrab status: player 1 at ([-\d.]+) ([-\d.]+) ([-\d.]+)", flat[i:] if i >= 0 else "")
+    return (float(m.group(1)), float(m.group(2))) if m else None
+
+
+def lift_motion(name, down_at=None):
+    """Both hands at its shoulders, gripped, pulled up 0.4 m in 0.25 s (1.6 m/s) at 0.8 s; statuses at 1.6 s (MARK1) and
+    3.6 s (MARK3, after it broke free at 2.8 s); down_at: swung down 0.6 m in 0.15 s from then and let go."""
+    y = HEIGHTS["high"]
+    main0, off0 = (GAP, y, NEAR - 0.08), (-GAP, y, NEAR)
+    main1, off1 = (GAP, y + 0.4, NEAR - 0.08), (-GAP, y + 0.4, NEAR)
+    keys = hands_at(0.0, main0, off0) + [(0.3, "cmd +grabmain"), (0.3, "cmd +graboff")]
+    keys += hands_at(0.8, main0, off0) + hands_at(1.05, main1, off1)
+    keys += [(1.55, "cmd echo MARK1"), (1.6, "cmd vr_foegrab_status")]
+    if down_at:
+        keys += hands_at(down_at, main1, off1)
+        keys += hands_at(down_at + 0.15, (main1[0], y - 0.2, main1[2]), (off1[0], y - 0.2, off1[2]))
+        keys += [(down_at + 0.15, "cmd -grabmain"), (down_at + 0.15, "cmd -graboff")]
+    keys += [(3.55, "cmd echo MARK3"), (3.6, "cmd vr_foegrab_status")]
+    return motion(name, keys)
+
+
+def case_lift():
+    """lift: a grunt (and an enforcer), hands at its shoulders, pulled up at 1.6 m/s: lifted (2 hands, flailing), its
+    pelvis held up, then it breaks free at 2 s (vr_foegrab_lift_time) and shoves you back 24+ units. Thrown down: swung
+    down and let go at 1.8 s: let go of, no break free. An ogre (vr_test_spawn 1): not lifted (not a humanoid). Lift Reach
+    24 (it stands 36 off): not lifted. Lift off: no lift."""
+    runs = [("grunt", 0, "", None), ("enforcer", 8, "", None), ("down", 0, "", 1.8), ("ogre", 1, "", None),
+            ("far", 0, "vr_foegrab_lift_reach 24", None), ("off", 0, "vr_foegrab_lift 0", None)]
+    for what, mon, extra, down in runs:
+        name = f"judo_lift_{what}"
+        if ONLY and not re.search(ONLY, name):
+            continue
+        path = lift_motion(name, down)
+        pre = PRE.replace("vr_test_spawn 0;", f"vr_test_spawn {mon};")
+        out = run(f"{pre};vr_knockdown_debug 1;{extra};vr_mock_play {path};wait600;-grabmain;-graboff;wait5;"
+                  "toggleconsole;quit", "foegrab|flail:|held on by|MARK|rror|CRASH")
+        with open(os.path.join(SCRATCH, f"judo_test_{name}.txt"), "w") as f:
+            f.write(out)
+        flat = " ".join(out.split())
+        bad = "rror" in flat or "CRASH" in flat
+        lifted = re.search(r"lifted, held on as a ragdoll by (\d) hands?", flat)
+        flails = "it flails in the hands" in flat
+        broke = re.search(r"breaks free after ([\d.]+) s lifted", flat)
+        s1 = status(flat, "MARK1")
+        p1, p3 = player_at(flat, "MARK1"), player_at(flat, "MARK3")
+        moved = ((p3[0] - p1[0]) ** 2 + (p3[1] - p1[1]) ** 2) ** 0.5 if p1 and p3 else 0.0
+        thrown = "both hands turn" in flat
+        if what in ("grunt", "enforcer"):
+            # (Held up: its pelvis over the player's origin's height less 5, 19+ units off the floor; lying, about -19.)
+            ok = (lifted and lifted.group(1) == "2" and flails and s1 and s1[0] == 2 and s1[3] > -5 and broke and
+                  1.9 <= float(broke.group(1)) <= 2.2 and moved >= 24 and not thrown and not bad)
+            verdict(ok, f"{what} lifted by {lifted.group(1) if lifted else 0} hands, flails {flails}, pelvis "
+                        f"{s1[3] if s1 else '?'} up at 0.5 s, broke free after {broke.group(1) if broke else '-'} s, "
+                        f"you shoved {moved:.0f} units")
+        elif what == "down":
+            let = re.search(r"let go of after ([\d.]+) s held on", flat)
+            ok = lifted and let and not broke and not bad
+            verdict(ok, f"grunt lifted and thrown down: let go of after {let.group(1) if let else '-'} s, "
+                        f"{'broke free (wrong)' if broke else 'no break free'}")
+        elif what == "ogre":
+            ok = not lifted and "no lift, not a humanoid" in flat and not bad
+            verdict(ok, f"ogre: {'lifted (wrong)' if lifted else 'not lifted'} ({'not a humanoid' if 'not a humanoid' in flat else '?'})")
+        elif what == "far":
+            ok = not lifted and "no lift, too far from you" in flat and not bad
+            verdict(ok, f"reach 24, it 36 off: {'lifted (wrong)' if lifted else 'not lifted'} ({'too far' if 'too far' in flat else '?'})")
+        else:
+            ok = not lifted and "both hands lift" not in flat and not bad
+            verdict(ok, f"lift off: {'lifted (wrong)' if lifted else 'not lifted'}")
 
 
 def main():

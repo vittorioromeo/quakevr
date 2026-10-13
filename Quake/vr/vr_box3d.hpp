@@ -252,6 +252,10 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
 // (false: no ragdoll).
 [[nodiscard]] bool ragdollCanDrown(edict_t* ent);
 bool ragdollDrowning(edict_t* ent);
+// A living knockdown lifted off its feet by a player's two hands (vr_foegrab.cpp's lift): `on`, its ragdoll flails (as in
+// lava: ragactive::beginFlail; only the kinds driven alive); off, it stops (its strengths fade). False: not begun (no
+// ragdoll, not an active kind, swimming), or (off) it wasn't flailing.
+bool ragdollFlail(edict_t* ent, bool on);
 // A living monster's ragdoll (of the active classes) guarding its head from a blow coming from `at` (units) for `hold`
 // s: its arms up before its face (vr_ragdoll_active_guard; QC VR_Guard_Raise). False: it can't.
 bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
@@ -316,6 +320,8 @@ bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
 // when the limb lags `stuck` units off for half a second. The QC's held field must name `ent` (else it ends next step);
 // let go of as any (ragdollRelease).
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck);
+// What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
+[[nodiscard]] float ragdollWeight(edict_t* ent);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
 // 0 nothing, 1 holding a limb; the distance (units) from the hand to the limb's held point (-1: none).
 [[nodiscard]] int ragdollHeld(edict_t* player, int hand);

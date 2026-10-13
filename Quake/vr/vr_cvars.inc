@@ -2812,8 +2812,18 @@ QVR_CVAR(vr_foegrab_throw_grunt_sound, "2", CVAR_ARCHIVE)  // which grunt (the m
 QVR_CVAR(vr_foegrab_throw_feet_speed, "30", CVAR_ARCHIVE) // units/s: its feet swept back against the throw as it topples (the turn faster, about a pivot raised to match: it spins in place); 0: its feet held still 0.5 s
 QVR_CVAR(vr_foegrab_throw_spin, "0.55", CVAR_ARCHIVE)      // share of the hands' twist of it about the vertical it spins on with (at most 720 degrees/s)
 QVR_CVAR(vr_foegrab_throw_hold, "1", CVAR_ARCHIVE)        // 1: after the throw the enemy's ragdoll stays in your hands, held softly (it still topples and falls; you steer and drag it; let go of the grips to drop or throw it); 0: thrown, let go
-QVR_CVAR(vr_foegrab_throw_hold_force, "350", CVAR_ARCHIVE) // N: the most each hand pulls the thrown ragdoll's limb with (a grunt weighs about 785 N: two hands at 350 drag it, lowered to it, but never hold it up)
+QVR_CVAR(vr_foegrab_throw_hold_strength, "0.3", CVAR_ARCHIVE) // the most each hand pulls the thrown ragdoll's limb with, a share of its weight (two at 0.3: they drag it, lowered to it, but never hold it up)
 QVR_CVAR(vr_foegrab_throw_hold_hertz, "4", CVAR_ARCHIVE)   // Hz: how quickly the held limb follows the hand (its spring's rate, critically damped)
+// The lift (vr_foegrab.cpp liftCheck, QC VR_FoeGrab_Lift): walked up close to a humanoid, both hands on it pull it up
+// (instead of to a side: the judo throw): off its feet as a ragdoll, flailing, carried, thrown down; it breaks free.
+QVR_CVAR(vr_foegrab_lift, "1", CVAR_ARCHIVE)               // 1: the lift on
+QVR_CVAR(vr_foegrab_lift_speed, "1.2", CVAR_ARCHIVE)       // m/s: the hands' mean speed up (within 45 degrees of straight up) that lifts
+QVR_CVAR(vr_foegrab_lift_reach, "48", CVAR_ARCHIVE)        // units: and you this near it (your middle to its, level; a grunt held at arm's length is about 36 off)
+QVR_CVAR(vr_foegrab_lift_time, "2", CVAR_ARCHIVE)          // s: held up this long it breaks free (you're shoved back, it gets up)
+QVR_CVAR(vr_foegrab_lift_strength, "1.2", CVAR_ARCHIVE)    // the most each hand holds the lifted ragdoll with, a share of its weight (two at 1.2 carry it, flailing, a hand on a forearm: 0.75 let an enforcer sag to the floor)
+QVR_CVAR(vr_foegrab_lift_up, "160", CVAR_ARCHIVE)          // units/s: it leaves the floor this fast up as it is lifted
+QVR_CVAR(vr_foegrab_lift_shove, "48", CVAR_ARCHIVE)        // units: breaking free it shoves you back this far (0: not at all)
+QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz monster_ranged_knight infected", CVAR_ARCHIVE) // the humanoids that can be lifted (classnames; "infected": Dawn of the Machine's infected); never ogres, fiends, shamblers, vores
 QVR_CVAR(vr_foegrab_throw_grace, "0.75", CVAR_ARCHIVE)    // s: the thrown enemy's ragdoll passes through your hands (and your body: vr_box3d_throw_grace_body) this long; 0: they knock it as it goes
 QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds taken and let go (and why); 2: and each held frame
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)

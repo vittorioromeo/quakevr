@@ -687,7 +687,8 @@ struct SwimParts
 
 [[nodiscard]] const char* liquidName(Liquid l)
 {
-    return l == Liquid::Water ? "water" : l == Liquid::Slime ? "slime" : l == Liquid::Lava ? "lava" : "none";
+    return l == Liquid::Water ? "water" : l == Liquid::Slime ? "slime" : l == Liquid::Lava ? "lava" :
+           l == Liquid::Air   ? "the air" : "none";
 }
 
 void startSwim(State& s, const Parts& p, const Context& c, Liquid l, float t)
@@ -795,9 +796,10 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         startSwim(s, p, c, l, t);
     }
     const SwimParts sp = swimParts(p);
-    bool in = false;
+    const bool air = w.liquid == Liquid::Air; // (a lifted one's flail: in it until endFlail)
+    bool in = air;
     bool headIn = false;
-    if(c.liquidAt && liquidsOn())
+    if(!air && c.liquidAt && liquidsOn())
     {
         for(const int b : {0, sp.chest, sp.head})
         {
@@ -3531,6 +3533,34 @@ void swimDies(State& s, double now)
 bool swimming(const State& s)
 {
     return s.on && s.swim.liquid != Liquid::None;
+}
+
+bool beginFlail(State& s, const Parts& p, const Context& c)
+{
+    if(!p.rig || s.swim.liquid != Liquid::None || s.rise.on || s.stagger.on)
+    {
+        return false;
+    }
+    // (As a living swim begins: a fall ends, the thrash leads from here.)
+    s.fall.on = false;
+    s.swim = Swim{};
+    s.swim.living = true;
+    s.support = Fade{};
+    startSwim(s, p, c, Liquid::Air, static_cast<float>(c.now - s.begun));
+    return true;
+}
+
+void endFlail(State& s, const Context& c)
+{
+    if(s.swim.liquid == Liquid::Air)
+    {
+        stopSwim(s, c, static_cast<float>(c.now - s.begun));
+    }
+}
+
+bool flailing(const State& s)
+{
+    return s.on && s.swim.liquid == Liquid::Air;
 }
 
 bool climbing(const State& s)
