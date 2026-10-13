@@ -420,6 +420,7 @@ touching you on vrtesthall, god, his shove settings, walking into it ~20 s): at 
 Bloodless shoves, bashes and slaps (ROUND22.md, "Shoves, slaps and bashes draw no blood"): `bash
 Misc/quakevr/bloodless_test.sh <agent>` (`vr_smallgibs_test 23` on a grunt: gore hits, wound events, blood particles and
 small gibs all 0 for shove, bash and slap, their damage dealt; the punch control bleeds).
+Config version 129 (his bash, shove and parry values compiled in): `bash Misc/quakevr/config129_test.sh <agent>` (PASS).
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:

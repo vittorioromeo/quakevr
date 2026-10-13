@@ -4900,3 +4900,14 @@ Test: `Misc/quakevr/bloodless_test.sh` (`vr_smallgibs_test 23`, also Debug > Gor
 punches on a grunt). Before: shove and bash 10 gore hits, 10 wound events, 10 blood particles; slap 10/10/0. After: all
 0, damage still dealt (103, 100, 250); the punch control 10/10/10. Melee eval: canary 36/45, 0 differences before;
 full 168/177, 0 differences after.
+
+### His parry and bash tweaks are the defaults
+
+Compiled in (vr_cvars.inc) from his config: `vr_bash_speed` 2 -> 3, `vr_shove_speed` 2.4 -> 3.5, `vr_bash_sound` 1 -> 0.7,
+`vr_knockdown_bash` 0 -> 1, `vr_parry_push_enemy` 1 -> 0.55, `vr_parry_push_player` 1 -> 0.8, `vr_parry_wobble` 1 -> 0.7,
+`vr_parry_drop_chance` 0.5 -> 0, `vr_parry_stamina` 0 -> 1, `vr_parry_stamina_cost_2h` 12 -> 10. All but the two speeds
+were already in `quakevr/vr_defaults.cfg`; those eight lines are gone from it (now equal to the compiled-in values, as
+`vr_savedefaults` would write it). Config version 129 (vr_cvars.cpp) moves a config still at an old compiled-in value
+to the new one; a hand-set value stays. Test: `Misc/quakevr/config129_test.sh` (PASS). Melee eval, full set: 168/177,
+one FAIL -> FAIL take whose one-hand bash push is now seen at 0.391 s, not 0.375 (the firmer 3 m/s bash speed).
+e1m1 smoke clean; the vore (6 shoves) and bloodless tests pass with the new defaults.
