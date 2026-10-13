@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //gl_texmgr.c -- fitzquake's texture manager. manages opengl texture images
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 #include "glquake.h"
 
 typedef struct {
@@ -1435,6 +1436,7 @@ GL_TexImage -- calls glTexImage2D/3D based on texture type
 */
 static void GL_TexImage (gltexture_t *glt, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
 {
+	VR_TRACY_SCOPE("Texture upload");
 	const GLvoid **images = (const GLvoid **)pixels; // for arrays/cubemaps "pixels" is actually an array of pointers
 	unsigned int i;
 
@@ -2016,6 +2018,7 @@ TexMgr_LoadImage
 gltexture_t *TexMgr_LoadImage (qmodel_t *owner, const char *name, int width, int height, enum srcformat format,
 			       byte *data, const char *source_file, src_offset_t source_offset, unsigned flags)
 {
+	VR_TRACY_SCOPE("Texture preparation");
 	return TexMgr_LoadImageEx (owner, name, width, height, 1, format, data, source_file, source_offset, flags);
 }
 
@@ -2658,3 +2661,15 @@ int GLPalette_Postprocess (void)
 
 	return 1;
 }
+
+#ifdef QVR_TRACY
+double TexMgr_TracyBytes(void)
+{
+    gltexture_t *glt;
+    double bytes = 0;
+    for(glt = active_gltextures; glt; glt = glt->next)
+        bytes += (double)glt->width * glt->height * glt->depth * (glt->flags & TEXPREF_CUBEMAP ? 6 : 1)
+            * 4 * (glt->flags & TEXPREF_MIPMAP ? 4.0 / 3.0 : 1);
+    return bytes;
+}
+#endif

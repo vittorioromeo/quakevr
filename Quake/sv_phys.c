@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_phys.c
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 
 /*
 
@@ -1304,6 +1305,7 @@ SV_Physics
 */
 void SV_Physics (void)
 {
+	VR_TRACY_SCOPE("Server physics");
 	int	i;
 	int	entity_cap; // For sv_freezenonclients 
 	edict_t	*ent;

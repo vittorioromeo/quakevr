@@ -5360,6 +5360,17 @@ za::Vector<Item> pageDebugProfiling()
             .help("How often the profiler times the GPU: each timed frame stalls it a little. Off: CPU times only."),
         slider("Report Interval", vr_profile_interval, 0.f, 30.f, 1.f, "%.0f s")
             .help("Performance Profile (Graphics): seconds between its reports in the console and its CSV. 0: only on Dump Profile."),
+#ifdef QVR_TRACY
+        command("Tracy Pool Self-Test", "vr_tracy_test_memory").help("Exercise realloc, cache frees, hunk reset and memory detail changes."),
+        command("Tracy Status", "vr_tracy_status").help("Connection, nesting, dropped zones and GPU query state."),
+        command("Tracy QC Detail On", "vr_tracy_qc_detail 1").help("Named QuakeC functions and builtins; costs more during capture."),
+        command("Tracy QC Detail Off", "vr_tracy_qc_detail 0"),
+        command("Tracy Memory Detail On", "vr_tracy_memory_detail 1").help("Snapshot and allocation events for Zone, Hunk and Cache."),
+        command("Tracy Memory Detail Off", "vr_tracy_memory_detail 0"),
+#else
+        command("Tracy Build Info", "echo Tracy requires the optional Release-Tracy build")
+            .help("Build with Misc/quakevr/build_tracy.ps1 for external CPU/GPU captures. Normal builds compile Tracy out."),
+#endif
         command("Print Report", "vr_profile_report")
             .help("vr_profile_report: the last 5 seconds' table in the console (in qconsole.log with -condebug)."),
         command("Dump Profile", "vr_profile_dump")
