@@ -294,11 +294,16 @@ void() AD_EvilHealth =
     }
 };
 
-// OnLoadGame (its globals read): the loaded game's choice is the cvar's again, for its next levels.
+// OnLoadGame (its globals read): the loaded game's choice is the cvar's again, for its next levels; an older save's
+// upgrades (the player's) onto his weapons.
 void() AD_LoadedGame =
 {
     cvar_set("vr_ad_evil", vr_ad_evil_on ? "1" : "0");
     cvar_set("scratch4", vr_ad_evil_on ? "1" : "0");
+    for(entity lp = find(world, classname, "player"); lp; lp = find(lp, classname, "player"))
+    {
+        AD_UpgradesToWeapons(lp);
+    }
 };
 
 // AD_Frame: a change of the choice mid-game played now; AD's code at its skill 4 while Evil plays.

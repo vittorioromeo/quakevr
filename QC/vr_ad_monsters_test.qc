@@ -4,7 +4,8 @@
 // vr_limbs_test, vr_ragdoll_list) the scripts check each model: Misc/quakevr/ad_monsters_test.sh.
 //   1 the map's AD monsters by class: how many, registered (vr_ad_mon), rigged (canragdoll), alive
 //   2 the nearest AD monster's state: class, model, its data, its ragdoll, knockdown, head, limbs, corpse, solid, frame
-//   3 the nearest killed by a blow of its health (dies whole); 4 hit for 1000 (a corpse: gibbed)
+//   3 the nearest killed by a blow of its health (dies whole); 4 hit for 1000 (a corpse: gibbed); 5 the nearest awake
+//   one's neck snapped (VR_FoeGrab_NeckSnap)
 
 .float vr_ad_tested; // (AD_MT_Report: counted with its class)
 
@@ -110,6 +111,31 @@ void() AD_MonstersTestFrame =
             self = oldSelf;
             dprint(sprintf("admtest: %s hit: health %g corpse %g gibbed %g drawn %g\n", m.classname, m.health, m.vr_corpse,
                 m.ad_gibbed, m.modelindex != 0));
+        }
+    }
+    else if(request == 5)
+    {
+        // 5: the nearest's neck snapped by your hands (VR_FoeGrab_NeckSnap: AD's Killed, VR_AD_NeckSnapKilled).
+        // (the nearest awake one: a map's dormant monster, not yet triggered, can't be hurt)
+        entity p5 = find(world, classname, "player");
+        entity m5 = world;
+        for(entity e5 = nextent(world); e5; e5 = nextent(e5))
+        {
+            if((e5.flags & FL_MONSTER) && e5.ad_classtype && e5.health > 0 && e5.takedamage &&
+               (m5 == world || vlen(e5.origin - p5.origin) < vlen(m5.origin - p5.origin)))
+            {
+                m5 = e5;
+            }
+        }
+        if(m5 != world)
+        {
+            float before = killed_monsters;
+            entity oldSelf5 = self;
+            self = p5;
+            float r = VR_FoeGrab_NeckSnap(m5, 1, 0);
+            self = oldSelf5;
+            dprint(sprintf("admtest: %s neck snapped: result %g health %g deadflag %g killed %g\n", m5.classname, r,
+                m5.health, m5.deadflag, killed_monsters - before));
         }
     }
 };

@@ -508,11 +508,7 @@ void(float xHand) VR_EnemyGuns_Frame =
 // W_AttackImpl for an enemy gun: a shot from its clip, or the empty click.
 void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_EnemyGun_Attack =
 {
-    if(VR_IsADGun(xWeapon) && VRGetWeaponClip(xHand) >= 1)
-    {
-        VR_ADGun_Attack(xHand, xWeapon, xAttackFinished, xOutAttackFinished); // AD support (vr_ad_enemyguns.qc)
-        return;
-    }
+    if(VR_ADGun_Attack(xHand, xWeapon, xAttackFinished, xOutAttackFinished)) { return; } // AD support (vr_ad_enemyguns.qc)
     if(VRGetWeaponClip(xHand) < 1)
     {
         if(time > xAttackFinished)

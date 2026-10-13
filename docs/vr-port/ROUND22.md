@@ -4583,7 +4583,7 @@ information; P1b's loose ends.
   own kinds of gun) instead of the placeholder burst rifle for everyone.
 - Damage is Quake VR's (T_Damage; AD's monsters take it through AD's damage with their ammunition resistance: rockets for
   the rockets, grenades and flames, cells for the plasma and poison, shells for the pellets).
-- Every number of your use of them is a setting (`vr_adgun_<gun>_<what>`, 44 cvars): damage, blast, speed, rounds and time
+- Every number of your use of them is a setting (`vr_adgun_<gun>_<what>`, 43 cvars, and `vr_adgun_drops`): damage, blast, speed, rounds and time
   between shots; the grenades' fuse; the shotgun's pellets and spread; the flamethrowers' fuel, reach, rate, burn time,
   poison damage and time; `vr_adgun_drops` 0: the soldiers drop nothing. VR Settings > Combat > Enemy Weapons > Arcane
   Dimensions' Guns (also from Advanced > Arcane Dimensions > Soldiers' Guns). Defaults: the AD monsters' own numbers where
@@ -5647,3 +5647,21 @@ From review r4 (adpbrload 1.1-1.6, 2.1, 4.1-4.3; adpbrgen 1, 2), one commit each
   125/125 (stock, e1m1); generator tests 24 OK.
 - Not changed: the stale duplicate "Generated-channel provenance emission" section above, the census JSON's absolute
   paths, the wasted decode before the complete-authored/external checks (r4 1.2), the 55 flat companions (3.1).
+## Review fixes: AD soldiers' guns, sky fog, AD isolation (worktree `fixad3`, 2026-10-13)
+
+- An AD soldier's gun carried or holstered into a level without that soldier (or with `vr_adgun_drops 0`) quit the
+  engine (`SV_ModelIndex: model progs/mon_soldier.mdl#gun4 not precached`). DecodeLevelParms now precaches every carried
+  AD gun and its sounds (`VR_ADGun_EnsureCarried`, one AD support call). Test: `vr_ad_test 87`, `changelevel start`,
+  `vr_ad_test 88` (TESTING.md); reproduced before, PASS after.
+- AD's sky fog was read from the integer stat (1.3 became 1, so the fog was 0 and the map's own was hidden). It is now
+  read from `cl.statsf`. `vr_ad_skyfog_info` prints the client's value: `stat 1.3, sky fog drawn 0.3` after `vr_ad_test 66`.
+- A gun model the engine can't make (another AD release, a replacement pack, a save loaded without AD's data) now loads
+  Quake VR's stand-in (`v_gruntgun.mdl` or `v_enfrifle.mdl`) under the gun's name instead of a Host_Error on the
+  soldier's spawn (`vr_ad_test 89`). The weapon settings slot is still the AD gun's (27-31), so the stand-in may sit
+  slightly off in the hand.
+- AD isolation: the gadget's AD page moved to `vr_ad_gadget.inc`, its outer page button to `vr_ad_gearlights.inc`, and
+  `pageAdGuns` to `vr_menu_ad_guns.inc`. The neck snap's AD branches moved to `VR_AD_NeckSnapKilled` (vr_ad_monsters.qc;
+  `vr_ad_mtest 5`: an AD rocket soldier and a mummy die by AD's Killed). OnLoadGame's upgrade loop moved into
+  `AD_LoadedGame`. `VR_ADGun_Attack`, `VR_ADGun_Available` and `adguns::slotNames` are now one-line calls. The guns'
+  test rows moved to Debug > Tests > Arcane Dimensions Monsters. Also fixed: the vr_api.h comments and the
+  `vr_ad_test` help.

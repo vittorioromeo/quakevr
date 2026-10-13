@@ -9,11 +9,20 @@
 //
 // Their models are AD's own monsters' guns, cut out of AD's monster models where they are installed (the engine's
 // vr_adguns.cpp: "<monster model>#gun<skin>", the gun of the soldier's kind in that soldier's skin; nothing of AD's is in
-// Quake VR's files). Without AD's data (a saved game loaded elsewhere) Quake VR's own enemy guns stand in.
+// Quake VR's files). Without AD's data Quake VR's own enemy guns stand in for guns made then (a saved game loaded
+// elsewhere keeps the "#gun" names in its precache list: the engine loads the stand-in's file under such a name, as it
+// does for an AD release whose models differ from the measured one: vr_adguns.cpp derivedFile).
 
 float(float wid) VR_IsADGun =
 {
     return wid >= WID_ADROCKET && wid <= WID_ADFUMIGATOR;
+};
+
+// VR_Pack_WeaponAvailable: AD's soldiers' guns are carried (kept, given) only while AD's data is loaded (their models
+// AD's).
+float() VR_ADGun_Available =
+{
+    return cvar("vr_ad_mounted") != 0;
 };
 
 // The gun's settings' name part (vr_adgun_<key>_*).
@@ -83,7 +92,7 @@ float(float wid) VR_ADGun_ClipSize =
 };
 
 // vr_ad_enemyguns.qc (after AD's files) defines these.
-void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack; // VR_EnemyGun_Attack
+float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack; // VR_EnemyGun_Attack: TRUE fired
 void(float xHand) VR_ADGun_Frame;   // VR_EnemyGuns_Frame: a hand's flamethrower stream's end
 void() VR_ADGun_Drop;               // VR_AD_Dying: self, an armed AD soldier, drops its own gun
 void(float xClass) VR_ADGun_Prepare; // VR_AD_MonsterSetup: an armed AD soldier's gun model made and precached now

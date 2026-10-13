@@ -34,6 +34,10 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
 // Mod_LoadModel (VR_DerivedModelFile): the .mdl file of a gun model named so (allocated with VR_HeapMalloc), or null.
 [[nodiscard]] byte* derivedFile(const char* name, unsigned int* path_id);
 
+// The weapon settings (vr_weapons.cpp): whether a slot's ID `id` is gun model `name`'s base name, whatever its skin
+// ("progs/mon_soldier.mdl#gun" names "progs/mon_soldier.mdl#gun4").
+[[nodiscard]] bool slotNames(const char* id, const char* name);
+
 // vr_adgun_models: each gun made now, its triangles, box and muzzle (the weapon settings' anchors).
 void info_f();
 

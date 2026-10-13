@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_weapons.hpp"
+#include "vr_adguns.hpp"
 #include "vr_anchor.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -80,20 +81,10 @@ void onIdChanged(cvar_t* /* var */)
 void onChanged(cvar_t* var);
 
 // Whether a slot's ID names the model `name`: the same name, or (AD support) an AD soldier's gun's base name, whatever
-// its skin ("progs/mon_soldier.mdl#gun" names "progs/mon_soldier.mdl#gun4": vr_adguns.hpp): one gun, one slot.
+// its skin (adguns::slotNames): one gun, one slot.
 [[nodiscard]] bool namesModel(const char* id, const char* name)
 {
-    if(!strcmp(id, name))
-    {
-        return true;
-    }
-    const char* gun = strstr(name, "#gun");
-    if(!gun)
-    {
-        return false;
-    }
-    const size_t n = static_cast<size_t>(gun - name) + 4;
-    return strlen(id) == n && !strncmp(id, name, n);
+    return !strcmp(id, name) || adguns::slotNames(id, name); // AD support (vr_adguns.cpp)
 }
 
 } // namespace

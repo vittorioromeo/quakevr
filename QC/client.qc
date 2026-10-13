@@ -186,11 +186,7 @@ void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
-    AD_LoadedGame(); // AD support: the loaded game's Evil skill choice (vr_ad_player.qc)
-    for(entity lp = find(world, classname, "player"); lp; lp = find(lp, classname, "player"))
-    {
-        AD_UpgradesToWeapons(lp); // AD support: an older save's upgrades (the player's) onto his weapons
-    }
+    AD_LoadedGame(); // AD support: the loaded game's Evil skill choice, an older save's upgrades (vr_ad_player.qc)
     // The load's pause/loading screens often arrive with neither controller gripping. Protect only the weapons
     // restored in the hands, starting in game time (the server stays paused until the client is ready).
     entity p = find(world, classname, "player");
@@ -425,6 +421,7 @@ void() DecodeLevelParms =
     self.holsterweaponinst4 = WeaponInst_Carried(self.holsterweapon4, parm37, parm47);
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
     AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
+    VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
 
     // ------------------------------------------------------------------------
     // Mission packs:

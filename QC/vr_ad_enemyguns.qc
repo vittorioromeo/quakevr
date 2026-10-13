@@ -107,6 +107,21 @@ void(float wid) VR_ADGun_Placed =
     }
 };
 
+// DecodeLevelParms: p's carried guns (hands, holsters) brought from the last level: their models made and precached and
+// their sounds precached in this one, which may have no such soldier (or vr_adgun_drops off): the hands' and holsters'
+// models are sent by their precache index (SV_ModelIndex fails on one not precached).
+void(entity p) VR_ADGun_EnsureCarried =
+{
+    VR_ADGun_Placed(p.weapon);
+    VR_ADGun_Placed(p.weapon2);
+    VR_ADGun_Placed(p.holsterweapon0);
+    VR_ADGun_Placed(p.holsterweapon1);
+    VR_ADGun_Placed(p.holsterweapon2);
+    VR_ADGun_Placed(p.holsterweapon3);
+    VR_ADGun_Placed(p.holsterweapon4);
+    VR_ADGun_Placed(p.holsterweapon5);
+};
+
 // Self, an armed AD soldier dying: its own gun, where it held it, full (VR_DropEnemyGun).
 void() VR_ADGun_Drop =
 {
@@ -497,8 +512,13 @@ void(float xHand) VR_ADGun_Frame =
 // The trigger
 
 // VR_EnemyGun_Attack for an AD soldier's gun with a round (or fuel) in it: one shot (a flame), the next after its time.
-void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack =
+// FALSE (nothing done): not one of AD's guns, or empty (the enemy guns' empty click).
+float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack =
 {
+    if(!VR_IsADGun(xWeapon) || VRGetWeaponClip(xHand) < 1)
+    {
+        return FALSE;
+    }
     RuneApplyBlackNoise(self);
     SuperDamageSound();
     makevectors(VRGetWeaponFireRot(xHand));
@@ -531,6 +551,7 @@ void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinishe
     {
         dprint(sprintf("adgun: %s fired (hand %g), %g left\n", VR_ADGun_Name(xWeapon), xHand, VRGetWeaponClip(xHand)));
     }
+    return TRUE;
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -918,6 +939,47 @@ void(float request, entity p) AD_GunTest =
         W_SetCurrentAmmoFor(cVR_MainHand);
         self = was;
         bprint(sprintf("adgun: %s in your main hand\n", VR_ADGun_Name(gw)));
+        return;
+    }
+    if(request == 87)
+    {
+        // Carried through a level change: the rocket soldier's launcher in the main hand (with vr_weapon_grip_mode 1)
+        // and the plasma soldier's rifle in the left shoulder holster; then `changelevel` to a map without those
+        // soldiers (or vr_adgun_drops 0) and `vr_ad_test 88`.
+        entity was2 = self;
+        self = p;
+        VR_ADGun_Ensure(WID_ADROCKET);
+        VR_WeaponUtil_EntAddWeapon(self, WID_ADROCKET);
+        VRGiveEntWeapon(self, cVR_MainHand, WID_ADROCKET, 0, WeaponIdToBaseClipSize(WID_ADROCKET));
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        self = was2;
+        VR_ADGun_Ensure(WID_ADPLASMA);
+        p.holsterweapon0 = WID_ADPLASMA;
+        p.holsterweaponflags0 = 0;
+        p.holsterweaponinst0 = WeaponInst_Carried(WID_ADPLASMA, WeaponIdToBaseClipSize(WID_ADPLASMA), 0);
+        p.holsterweaponmodel0 = WeaponIdToModel(WID_ADPLASMA, 0);
+        bprint(sprintf("adgun carry: armed %s (%s), holster %s (%s)\n", VR_ADGun_Name(p.weapon), p.weaponmodel,
+            VR_ADGun_Name(p.holsterweapon0), p.holsterweaponmodel0));
+        return;
+    }
+    if(request == 88)
+    {
+        float okHand = p.weapon == WID_ADROCKET && p.weaponmodel == WeaponIdToModel(WID_ADROCKET, 0);
+        float okHolster = p.holsterweapon0 == WID_ADPLASMA && p.holsterweaponmodel0 == WeaponIdToModel(WID_ADPLASMA, 0);
+        bprint(sprintf("adgun carry: %s: hand %g (%s), holster %g (%s), drops %g: %s\n", mapname, p.weapon,
+            p.weaponmodel, p.holsterweapon0, p.holsterweaponmodel0, cvar("vr_adgun_drops"),
+            (okHand && okHolster) ? "PASS" : "FAIL"));
+        return;
+    }
+    if(request == 89)
+    {
+        // A gun model the engine cannot make (as another release of AD's model, or a replacement pack): id's soldier's
+        // model named as an AD gun. Quake VR's stand-in's file loads under the name (before: a Host_Error).
+        entity g = spawn();
+        setmodel(g, sprintf("%s#gun0", "progs/soldier.mdl")); // (made: setmodel precaches it late)
+        bprint(sprintf("adgun standin: %s index %g size %v: %s\n", g.model, g.modelindex, g.size,
+            (g.modelindex > 0 && vlen(g.size) > 0) ? "PASS" : "FAIL"));
+        remove(g);
         return;
     }
     if(request == 72)

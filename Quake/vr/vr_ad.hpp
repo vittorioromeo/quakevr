@@ -40,4 +40,7 @@ void registerCommands();
 // vr_ad_tint_info: AD's screen tint, asked for (STAT_QVR_ADTINT/ADTINTDEN) and drawn (VR_AD_TintBlend).
 void tintInfo();
 
+// vr_ad_skyfog_info: AD's sky fog as the client has it (STAT_QVR_ADSKYFOG, density + 1) and as drawn (VR_AD_SkyFog).
+void skyFogInfo();
+
 } // namespace qvr::ad
