@@ -1057,7 +1057,7 @@ static void Host_CheckAutosave (void)
 		return;
 	// QVR: none in Setup's preparation (-prepare, vr_prepare.cpp): it loads the newer campaigns' start maps, and their
 	// level-start autosaves made Continue offer a game the player never played.
-	if (COM_CheckParm ("-prepare"))
+	if (COM_PrepareRun ()) // (-preparerelight alone too)
 		return;
 
 	if (cls.signon == SIGNONS)
