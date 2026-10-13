@@ -107,7 +107,7 @@
 	#define b3TracyCZoneC( ctx, color, active ) TracyCZoneC( ctx, color, active )
 	#define b3TracyCZoneNC( ctx, name, color, active ) TracyCZoneNC( ctx, name, color, active )
 	#define b3TracyCZoneEnd( ctx ) TracyCZoneEnd( ctx )
-	#define b3TracyCFrame TracyCFrameMark
+	#define b3TracyCFrame TracyCFrameMarkNamed("Box3D") // QVR: separate physics steps from host frames
 #else
 	#define b3TracyCZoneC( ctx, color, active )
 	#define b3TracyCZoneNC( ctx, name, color, active )

@@ -1,5 +1,8 @@
 # Box3D (vendored)
 
+Optional `QvrTracy=true` builds enable upstream `BOX3D_PROFILE` zones. `src/core.h` changes its frame mark to a
+named `Box3D` frame set so physics substeps do not duplicate the engine's unnamed frame marks. See `TRACY.md`.
+
 Erin Catto's 3D rigid-body physics engine, the successor to Box2D. MIT licence (`LICENSE`).
 
 - Upstream: https://github.com/erincatto/box3d

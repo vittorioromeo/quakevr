@@ -8,6 +8,7 @@
 // round to a slot still pending is it read waiting (counted as a stall in the report).
 
 #include "vr_profile.hpp"
+#include "vr_tracy.h"
 #include "vr_profile_systems.hpp"
 #include "vr_bench.hpp"
 #include "vr_engine.hpp"
@@ -937,6 +938,7 @@ double nowSeconds()
 
 void begin(const char* name, bool gpu)
 {
+    VR_TracyBegin(name, gpu);
     beginPhase(name, gpu);
     if(!active)
     {
@@ -1003,12 +1005,14 @@ void endScope()
 
 void end()
 {
+    VR_TracyEnd();
     endPhase();
     endScope();
 }
 
 void init()
 {
+    VR_TracyInit();
     nodes.clear();
     Node root;
     root.name = "frame";
@@ -1035,6 +1039,7 @@ unsigned gpuFrameCount = 0; // VR_ProfileFrame's frames: the GPU is timed on one
 
 extern "C" void VR_ProfileFrame()
 {
+    VR_TracyFrame();
     using namespace qvr::profile;
     if(nodes.empty() || cls.state == ca_dedicated)
     {

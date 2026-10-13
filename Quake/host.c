@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "steam.h"
 #include <setjmp.h>
+#include "vr/vr_tracy.h"
 
 /*
 
@@ -1447,7 +1448,10 @@ void _Host_Frame (double time)
 	VR_ProfileFrame (); // QVR: ends the last frame's profile, begins this one's
 
 	if (setjmp (host_abortserver) )
+	{
+		VR_TracyAbort();
 		return;			// something bad happened, or the server disconnected
+	}
 
 	time = VR_HostFrameTime (time); // QVR: a motion take playing back: its recorded frame times
 

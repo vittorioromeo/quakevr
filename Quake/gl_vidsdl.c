@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cfgfile.h"
 #include "bgmusic.h"
 #include "resource.h"
+#include "vr/vr_tracy.h"
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #else
@@ -1464,6 +1465,7 @@ void	VID_Shutdown (void)
 	if (vid_initialized)
 	{
 		VID_FreeMouseCursors();
+		VR_TracyGLShutdown();
 		SDL_GL_DeleteContext(gl_context);
 		gl_context = NULL;
 		SDL_DestroyWindow(draw_context);
