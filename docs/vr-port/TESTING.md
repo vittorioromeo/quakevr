@@ -415,6 +415,8 @@ shoves: parry, enforcers, knocked off a hold"): vrclimb's start, `climb_plays.py
 hangs from rung 56 with both hands; `impulse 221` blasts 3 s later (`vr_climb_blast_letgo` 30 / 50: let go / held); a
 grunt beside: `vr_mock_look 0 90; impulse 241` (`vr_test_spawn_dist 40`, `vr_enemy_shove 0` until hanging), `vr_mock_look
 0 0`, then the play; `vr_physics_player` prints the body's place and velocity.
+The vore's shove (ROUND22.md, "The vore never shoves"): `bash Misc/quakevr/voreshove_test.sh <agent>` (a vore spawned
+touching you on vrtesthall, god, his shove settings, walking into it ~20 s): at least 4 shoves (8 now; 2 before the fix).
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:

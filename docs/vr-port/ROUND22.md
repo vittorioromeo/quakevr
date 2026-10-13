@@ -4871,3 +4871,19 @@ VR follow-up: try strength 1..3 on generated AD masonry and check both stock exp
 Authored walls, hands and weapons should retain their relief. Cleanup candidates: ignored scratch/pbr_strength*,
 scratch/boxes*, private pbr_boxproof.bsp, fixture backup/retired evidence, private eyeshots/imagehash and the
 retained renderer integration stash. No files were deleted.
+
+## The vore never shoves; shoves, slaps and bashes draw no blood; his parry/bash tweaks as defaults (shovefix)
+
+### The vore never shoves
+
+His report: with `vr_enemy_shove_vore 1` the vore never shoved him, only threw balls, even touching it. Two causes
+(vr_enemyshove.qc, ai.qc ai_run):
+- `VR_EnemyShove_Ready` read `pain_finished` as "staggered". For a vore it is its 3 s pain-sound cooldown (its pain
+  frames last 0.5 s and the check never runs in them): any hit of yours, or its own ball's blast up close, kept it
+  from shoving for 3 s while it went on firing. A vore now ignores `pain_finished` there.
+- During `vr_enemy_shove_delay` (and while turning to face you) the check returned FALSE and `ai_run` went on to
+  `CheckAnyAttack`, whose ball (about 90 percent a frame up close) always came first. A vore in reach, its cooldown
+  over, now holds its fire (`vr_eshove_holdfire`): it turns to you until the shove starts. During the cooldown it may
+  still fire.
+
+Test: `Misc/quakevr/voreshove_test.sh` (vore spawned touching you, walking into it ~20 s): 2 shoves before, 8 after.
