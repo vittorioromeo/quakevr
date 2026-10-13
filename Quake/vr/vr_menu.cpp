@@ -1052,8 +1052,18 @@ int campaignsBloodyShown = -1;
                   "the spot, limp in your hands until you let go of the grips. Standing, staggering, knocked down or "
                   "lifted, as long as it lives. With both hands on its head the neck snap is the only move: no judo "
                   "throw, no lift. The same humanoids as the lift: never ogres, fiends, shamblers or vores."),
+        cycle("Twist Detection", vr_foegrab_necksnap_method, {{0.f, "Velocity"}, {1.f, "Hand Line"}})
+            .help("How the twist is measured. Velocity: how fast your hands move round its neck, added up stroke by "
+                  "stroke (Twist Speed, Twist Angle). Hand Line: the line between your hands, across its neck and "
+                  "relative to its head, compared with where it pointed up to Twist Window ago: turned Twist Angle "
+                  "within that window, it snaps (slow shuffles never add up; tilting doesn't count). Both also count "
+                  "both wrists rolling the same way."),
+        slider("Twist Window", vr_foegrab_necksnap_window, 0.1f, 1.f, 0.05f, "%.2f s")
+            .help("Hand Line only: the head must turn Twist Angle within this long (0.3 s and 30 deg: as fast as 100 "
+                  "deg/s on average)."),
         slider("Twist Speed", vr_foegrab_necksnap_speed, 30.f, 600.f, 10.f, "%.0f deg/s").extend(10.f, 2000.f)
-            .help("How fast the twist must turn the head at its fastest (a quick push-pull reaches 150-250 deg/s)."),
+            .help("Velocity only: how fast the twist must turn the head at its fastest (a quick push-pull reaches "
+                  "150-250 deg/s)."),
         slider("Twist Angle", vr_foegrab_necksnap_angle, 10.f, 120.f, 5.f, "%.0f deg").extend(1.f, 360.f)
             .help("And how far round it must turn the head in one stroke, one way (hands 30 cm apart, one 15 cm forward "
                   "and the other 15 cm back: 45 deg)."),
