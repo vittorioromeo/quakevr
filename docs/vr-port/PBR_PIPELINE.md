@@ -149,6 +149,16 @@ It has an ASCII `qvr-pbr-stock-v1` header and sorted 32-digit source-hash prefix
 excluded from learned world maps in code. The explosive-box model guards also remain for custom box skins.
 Generated-only AD sources still use independently verified normal/height provenance and `vr_pbr_strength`.
 
+Only companions the loader can use are shipped (`shipped()` in the generator): a source the engine draws somewhere,
+and not one in `stock.txt`. Not drawn means a comparison pack's own picture (`--authored`, vr_extmaps' files: never a
+diffuse) or a miptex every occurrence of which has a replacement image in the game itself or a root above it
+(`quakevr`); a replacement only in a base game below it (id1's HD textures, a mission pack) keeps the miptex's
+companion, for installs without it. `generate` writes the rest only with `--comparison-output scratch/<dir>`. `prune`
+brings an existing bundle to the same rule without inference (same roots as its generation; every manifest entry must
+be found): the rejected PNGs are moved to `--aside`, and the manifest, census and provenance index are rewritten. The
+2026-10 prune moved 999 of 2987 (712 stock, 218 Quetoo comparison pictures, 69 miptex AD replaces): 364.3 MB to
+114.7 MB, with every AD map's world census unchanged (ROUND22.md, "Review fixes (adpbrload)").
+
 After adding replacement packs, refresh the census and stock index before shipping another generated bundle:
 
 ```powershell
