@@ -6212,6 +6212,8 @@ za::Vector<Item> pageDebugTools()
         command("Into Their Fade", "developer 1; vr_hotblade_test 4").help("vr_hotblade_test 4: half of Fades Over left: watch them fade out."),
         command("Half Heated (Held There)", "developer 1; vr_hotblade_test 5").help("vr_hotblade_test 5: their build-up at half, held there (the look of a blade heating)."),
         command("Quench Them", "developer 1; vr_hotblade_test 2").help("vr_hotblade_test 2: cold at once (no hiss)."),
+        command("Strike the Nearest Monster or Corpse", "developer 1; vr_hotblade_test 6")
+            .help("vr_hotblade_test 6: a blow of the main hand's weapon (base 20, the heat's extra too) lands on the nearest monster or corpse: a red-hot blade sets it on fire (A Grunt Ahead, A Grunt's Corpse Ahead above)."),
         command("Report", "developer 1; vr_hotblade_test 3").help("vr_hotblade_test 3: the console: each hand's and holster's weapon's heat, glow and time left."),
         command("Blade into the Nearest Flame", "developer 1; noclip; vr_hotblade_test 7")
             .help("vr_hotblade_test 7 (with noclip): you are moved so that the main hand's blade is in the nearest of the map's flames or wall torches. Keep the hand still."),

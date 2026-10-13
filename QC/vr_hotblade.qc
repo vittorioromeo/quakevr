@@ -309,7 +309,7 @@ string(entity r, float xWid) VR_HotBlade_Desc =
 vector() VR_HotBlade_TestTip =
 {
     entity b = VR_Blow(cVR_MainHand);
-    if(b.mh_n <= 0 || !VR_HotBlade_Heatable(self.weapon))
+    if(b.mh_n <= 0 || self.weapon == WID_FIST)
     {
         return '0 0 0';
     }
@@ -439,14 +439,35 @@ void() VR_HotBlade_TestFrame =
     {
         dprint(sprintf("hotblade: report: main %s; off %s; hud %g %g\n", VR_HotBlade_Desc(self.weaponinst, self.weapon),
             VR_HotBlade_Desc(self.weaponinst2, self.weapon2), self.vr_hot_hud, self.vr_hot_hud2));
-        float k;
-        for(k = 0; k < 6; ++k)
+        dprint(sprintf("hotblade: report: holsters' glow %g %g %g %g %g %g\n", VR_HotBlade_Glow(self.holsterweaponinst0),
+            VR_HotBlade_Glow(self.holsterweaponinst1), VR_HotBlade_Glow(self.holsterweaponinst2),
+            VR_HotBlade_Glow(self.holsterweaponinst3), VR_HotBlade_Glow(self.holsterweaponinst4),
+            VR_HotBlade_Glow(self.holsterweaponinst5)));
+    }
+    else if(ask == 6)
+    {
+        // The nearest monster or corpse struck by the main hand's weapon as a landed blow of strength 1 (its damage as
+        // VRMeleeDmg prices a weapon of base 20, the heat's extra too: T_Damage_VRMelee).
+        entity m = findradius(self.origin, 400);
+        entity near = world;
+        float nearD = 100000;
+        for(; m; m = m.chain)
         {
-            r = VRGetEntHolsterWeaponInst(self, k);
-            if(r != world)
+            if((m.flags & FL_MONSTER) && m.takedamage && vlen(m.origin - self.origin) < nearD)
             {
-                dprint(sprintf("hotblade: report: holster %g %s\n", k, VR_HotBlade_Desc(r, 0)));
+                nearD = vlen(m.origin - self.origin);
+                near = m;
             }
+        }
+        if(near != world)
+        {
+            float dmg = (20 + VR_HotBlade_Extra(self, cVR_MainHand));
+            vector mid = (near.absmin + near.absmax) * 0.5;
+            dprint(sprintf("hotblade: test: strike %s (health %g, corpse %g) for %g\n", near.classname, near.health,
+                near.vr_corpse, dmg));
+            VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, normalize(mid - self.origin));
+            T_Damage_VRMelee(near, self, self, dmg);
+            VR_ClearHitKind();
         }
     }
     else if(ask == 7)
@@ -455,6 +476,10 @@ void() VR_HotBlade_TestFrame =
         if(f != '0 0 0')
         {
             VR_HotBlade_TestPut(f, "the nearest map flame");
+        }
+        else
+        {
+            dprint(sprintf("hotblade: test: no flame (%g fire spots)\n", vr_fire_spots));
         }
     }
     else if(ask == 8 || ask == 11)
@@ -511,9 +536,9 @@ void() VR_HotBlade_TestFrame =
             // The off hand (the mock headset's: vr_mock_hand_to) moved so that its torch's flame is round the blade's tip
             // (moving the player would move both hands).
             vector d = tip - (VR_WallTorch_Head(c) + '0 0 1' * (6 * c.wt_fire));
-            vector to = VRGetEntHandPos(self, cVR_OffHand) + d;
-            localcmd(sprintf("vr_mock_hand_to off %g %g %g\n", to_x, to_y, to_z));
-            dprint(sprintf("hotblade: test: the off hand's torch's flame brought to the blade (moved %.0f)\n", vlen(d)));
+            localcmd(sprintf("vr_mock_hand_to off by %g %g %g\n", d_x, d_y, d_z));
+            dprint(sprintf("hotblade: test: the off hand's torch's flame brought to the blade (moved %.0f: by %g %g %g)\n",
+                vlen(d), d_x, d_y, d_z));
         }
         else
         {
