@@ -5118,7 +5118,7 @@ win at the pouch nothing, back to normal it fills. Save, load: 2 kept, filled ag
 ## Judo: the throw's direction, held throws and lifts (2026-10-13, worktree `foegrab3`)
 
 His note: "The judo throw detection is still a bit inconsistent. I was pulling the enemy towards my left, and it fell
-towards the other side." Then two new options (held throws, lifts) and, later, a neck snap (to follow here).
+towards the other side." Then two new options (held throws, lifts) and, later, a neck snap (section 4).
 
 ### 1. The throw's direction
 
@@ -5217,3 +5217,62 @@ Test `judo_test.py <agent> lift` (6 games): grunt and enforcer lifted by 2 hands
 8.5 units over the player's origin, ~19 off the floor lying), broke free after 2.00 s, you shoved 48-49 units; lifted
 and thrown down at 1 s: let go of, no break free; an ogre: not lifted (not a humanoid); Lift Reach 24 with it 36 off:
 not lifted; Lift off: not lifted. All PASS.
+
+### 4. The neck snap (`vr_foegrab_necksnap`, on)
+
+His ask: both hands holding a humanoid's head (where a headshot counts), twisted in a circle either way with enough
+speed and turn (not pulled to a side: the judo throw; not up: the lift): a big bone crack, it dies on the spot; alive
+standing, staggering or knocked down (an active ragdoll); then it stays limp in the hands as a ragdoll until the grips
+let go. Holding Enemies > Neck Snap:
+
+| cvar (row) | default | |
+|---|---|---|
+| `vr_foegrab_necksnap` (Neck Snap) | 1 | on |
+| `vr_foegrab_necksnap_speed` (Twist Speed) | 200 deg/s | the hands' twist of the head at least this fast, |
+| `vr_foegrab_necksnap_angle` (Twist Angle) | 45 deg | kept up while it turns this far one way |
+| `vr_foegrab_necksnap_margin` (Head Grip Margin) | 2 units | the head zone grown by this for the holds |
+| `vr_foegrab_necksnap_volume` (Crack Volume) | 1 | |
+| `vr_foegrab_necksnap_strength` (Snapped Body Hold) | 1.2 | each hand's most pull on the body afterwards, a share of its weight |
+| `vr_foegrab_necksnap_hertz` (Snapped Body Spring) | 24 Hz | how stiffly its head follows the hands afterwards |
+
+- **At its head.** Standing (the foegrab's holds, `twoHandCheck`): each hold's spot, mapped to its model standing
+  (`hitmodel_rest`), within positional damage's head sphere plus `VR_HEAD_MARGIN` and the margin (QC `VR_FoeGrab_OnHead`:
+  `PositionalHead`, the headshots' one source). A ragdoll (staggering, knocked down, lifted or thrown and held on: the
+  QC's ragdoll holds, `ragdollNeckCheck`): the part each hand holds one of its head's (`limbInfo` 1), or the palm on its
+  head (`ragdollHeadAt`, the margin at the neck). The humanoids are the lift's list (`vr_foegrab_lift_classes`); others
+  are measured and refused at the snap (`no neck snap, not a humanoid`).
+- **The twist** (`neckStep`): the palms turning about each other, d x (v1 - v0) / |d|^2 (d off palm to main palm,
+  metres; opposite motion across d: about the vertical, one hand forward and the other back; about the forward axis, one
+  up and the other down), plus both wrists rolling the same way about the line between the hands (each hand's turn since
+  the last frame along d, from its angles; the lesser of the two when they agree), smoothed over 30 ms. It is a twist
+  when each palm's speed about the hands' middle (the roll at 8 cm) is more than their mean velocity: a pull together
+  (judo, lift) is not, and while the hands twist the head the lift and the throw aren't tried (the throw's wheel term
+  would read one hand up, one down as a throw). At Twist Speed or more its turn one way adds up (another axis, more than
+  60 degrees off, starts again; slower, it starts again); at Twist Angle it snaps (no retry for 0.5 s).
+- **The snap** (QC `VR_FoeGrab_NeckSnap`): standing, it is knocked down first (`VR_Knockdown_Start`, no push: its
+  ragdoll made now); then `.vr_death_hit` the head's (a collapse, limp), health -1 (whole, no gib) and `Killed` by the
+  player (counted; a zombie or a mummy with `VR_Decap_ZombieDie`, dead for good, lying; AD's monsters by `ad_Killed`,
+  AD's zombies `VR_AD_ZombieKilled`); a knocked-down one's death code runs at once (`VR_Knockdown_FastForwardDeath`)
+  and its ragdoll stays. The crack on its voice channel after the death code, so it replaces the death cry; both hands
+  buzz. The training dummy shows "neck snapped".
+- **Held limp.** Standing: both holds hand over to its ragdoll (`handOver` with `Why::Snapped`, at Snapped Body Hold
+  and Spring), each holding its **head's part** (`ragdollHoldSoft`'s new `head`: the nearest part was the enforcer's
+  chest and its loose gun, which let go). A ragdoll already: the hands' holds go on (a lift's flail ends), and it is the
+  carried one (`carryStep`: passes through the hands; `vr_foegrab_status` prints `(snapped)`). Let go of the grips: let
+  go of (dropped or thrown with the hands' throw, as any ragdoll). The head bears the whole body on a light part: at the
+  lift's 8 Hz the enforcer's head hung 21-25 units below the hands, 16 Hz 7-10, 24 Hz 2-5 (the grunt's 2 at 16): 24.
+- The sound: `Misc/quakevr/make_necksnap_sound.py` (pure Python, a fixed seed) writes `quakevr/sound/vr/necksnap.wav`
+  (0.55 s, 22050 Hz): a hard broadband transient through bony resonances (1.1, 2.3, 4.1 kHz), a second lower crack
+  11 ms on, the vertebrae's crunch (13 clicks spreading out), a cartilage pop (820 Hz), a gliding 170-85 Hz body thump,
+  a faint crackle dying away; soft-clipped, peak -0.5 dBFS.
+- Tests: the mock plays take `rel` keys now (a hand's keyframes from where it is when the play reaches its first: after
+  `vr_mock_hand_to ... ragdoll head`, a twist about a lying ragdoll's head). `judo_test.py <agent> neck` (14 games):
+  standing grunt twisted 75 degrees in 0.2 s clockwise, anticlockwise and rolled about the forward axis, an enforcer, a
+  zombie, a knocked-down grunt both ways, a staggering one, a lifted one: all snapped at 46-49 degrees turned, 368-382
+  deg/s, killed in the state asked (`necksnap: ... (standing|knocked down|staggering`), held by 2 hands 0.6 s later,
+  let go of 0.4 s after the grips; an ogre's head: not snapped (not a humanoid); hands at its chest, 75 degrees in 1 s,
+  Neck Snap off: nothing; hands at its head pulled left: still thrown to the left. All PASS. `judo_test dir hold lift`
+  (24) and `stagger_test.sh judo` (6) still pass.
+- In VR: a real twist's speed and angle (the defaults are guesses: a quick wrench reads 300-450 deg/s), whether the
+  hold at its head is easy to take (the head zone is large: hands on a grunt's shoulders tops may count), the wrists'
+  roll (untested with the mock), the crack's loudness, and how the limp body hangs from its head.

@@ -1293,3 +1293,17 @@ hands`), flailing (`flail: ... it flails in the hands`, with `vr_knockdown_debug
 units below the player's origin at 0.5 s; lying, it is 19 below), broken free after 1.9-2.2 s and you shoved 24+ units (`vr_foegrab_status`'s
 player origin before and after); thrown down (swung down, let go) without a break free; an ogre, Lift Reach 24, Lift off:
 not lifted.
+`neck` (ROUND22.md, "The neck snap"; 14 games): both hands at a grunt's head (tracking `0 1.39 -1.16`, each hand
+0.12 m aside; an ogre's `0 1.71 -1.16`) twisted 75 degrees in 0.2 s about the vertical both ways and about the forward
+axis, an enforcer's, a zombie's; a knocked-down grunt (`vr_knockdown_push 0` so it falls in place, down 12 s, then
+`vr_mock_walk_to nearest monster_army 24`, a settle, then the hands put at its ragdoll's head by `vr_mock_hand_to <hand>
+ragdoll head 0` and moved by the play's new `rel` keys), a staggering one (`vr_knockdown_test 21`, Chance 0.01,
+`vr_ragdoll_active_stagger_travel 0.03` so it stays in reach), a lifted one; PASS when `foegrab: both hands snap ...'s
+neck ...: killed`, `necksnap: ... (standing|knocked down|staggering, ...)`, `vr_foegrab_status` at MARK1 has `(snapped)
+with 2 hand(s)`, `let go of after` once the grips let go and no ragdoll held at MARK2. Not snapped: the ogre (`no neck
+snap, not a humanoid`), the hands at its chest, 75 degrees in 1 s, `vr_foegrab_necksnap 0`; a pull to the left at its
+head is still `both hands turn ... to your left`. `vr_foegrab_debug 2` prints each frame's twist (`... 's head: twist
+<deg/s> (the palms, the wrists), turned <deg>; each palm <m/s> about their middle, together <m/s>`) or which hand is not
+at its head (its spot in its frame: forward, left, up from its origin).
+Mock plays (`vr_mock_play`) take `<t> rel <main|off> <dx> <dy> <dz>` keys: a hand's keyframes from where it is when the
+play reaches its first (after a `vr_mock_hand_to`); before it the hand is left alone.

@@ -250,6 +250,7 @@ GRUNT_HEAD = (0.0, 1.39, -1.16)
 OGRE_HEAD = (0.0, 1.71, -1.16)
 GRUNT_CHEST = (0.0, 0.80, -1.10)
 NECK_R = 0.12
+RAG_NECK_R = 0.09  # (a ragdoll's head: both hands well within the limb grab's reach of it)
 
 
 def twist_keys(t0, dur, deg, sign, centre, r, rel=False, axis="y", steps=10):
@@ -297,15 +298,15 @@ def neck_standing_motion(name, centre, deg, dur, sign, axis="y", pull=None):
 
 
 def neck_ragdoll_motion(name, deg, dur, sign, start=0.0):
-    """From `start`: both hands put at its ragdoll's head (vr_mock_hand_to ... ragdoll head), moved NECK_R apart to
+    """From `start`: both hands put at its ragdoll's head (vr_mock_hand_to ... ragdoll head), moved RAG_NECK_R apart to
     its sides (the main hand right), gripped, twisted about the vertical 0.35 s later; statuses (MARK1) 0.6 s after
     the twist, the grips let go 0.4 s after that, a status (MARK2) 0.35 s later."""
     s = start
     keys = [(s, "cmd vr_mock_hand_to main ragdoll head 0"), (s, "cmd vr_mock_hand_to off ragdoll head 0")]
     keys += [(s + 0.03, "rel main 0 0 0"), (s + 0.03, "rel off 0 0 0")]
-    keys += [(s + 0.1, "rel main %.3f 0 0" % NECK_R), (s + 0.1, "rel off %.3f 0 0" % -NECK_R)]
+    keys += [(s + 0.1, "rel main %.3f 0 0" % RAG_NECK_R), (s + 0.1, "rel off %.3f 0 0" % -RAG_NECK_R)]
     keys += [(s + 0.12, "cmd +grabmain"), (s + 0.12, "cmd +graboff")]
-    keys += twist_keys(s + 0.35, dur, deg, sign, (0.0, 0.0, 0.0), NECK_R, rel=True)
+    keys += twist_keys(s + 0.35, dur, deg, sign, (0.0, 0.0, 0.0), RAG_NECK_R, rel=True)
     m1 = s + 0.35 + dur + 0.6
     keys += [(m1, "cmd echo MARK1"), (m1 + 0.05, "cmd vr_foegrab_status"), (m1 + 0.4, "cmd -grabmain"),
              (m1 + 0.4, "cmd -graboff"), (m1 + 0.75, "cmd echo MARK2"), (m1 + 0.8, "cmd vr_foegrab_status")]
@@ -325,6 +326,7 @@ def case_neck():
         ("grunt_ccw", 0, GRUNT_HEAD, 75, 0.2, -1, "y", None, "", "snap"),
         ("grunt_roll", 0, GRUNT_HEAD, 75, 0.2, 1, "z", None, "", "snap"),
         ("enforcer", 8, GRUNT_HEAD, 75, 0.2, 1, "y", None, "", "snap"),
+        ("zombie", 2, GRUNT_HEAD, 75, 0.2, 1, "y", None, "", "snap"),
         ("knocked_cw", 0, "kd", 75, 0.2, 1, "y", None, "", "snap"),
         ("knocked_ccw", 0, "kd", 75, 0.2, -1, "y", None, "", "snap"),
         ("stagger", 0, "stagger", 75, 0.2, 1, "y", None,
