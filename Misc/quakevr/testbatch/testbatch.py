@@ -150,7 +150,13 @@ def run_copy(agent, k, launch, base, games, cases, result):
         with open(f"{gdir}/id1/tb/c{n}.cfg", "w", encoding="ascii", errors="replace", newline="\n") as f:
             f.write("\n".join(body) + "\n")
         execs.append(f"exec tb/c{n}.cfg")
-    pre = ["vr_fixed_frames 1"] if os.environ.get("TB_FIXED", "1") != "0" else []
+    # Unpaced frames of the real-time run's length: a real-time test run draws host_maxfps (the test baseline's 250)
+    # frames a second over the server's 72 Hz ticks (host_fixedtick), and the client's per-frame work (the hands, their
+    # hits) is tuned on that; vr_fixed_frames_rate 72 (a tick a frame) is faster still but changes such results.
+    rate = os.environ.get("TB_RATE", "250")
+    pre = ["vr_fixed_frames 1", f"vr_fixed_frames_rate {rate}"] if os.environ.get("TB_FIXED", "1") != "0" else []
+    if os.environ.get("TB_NODRAW") == "1":
+        pre.append("vr_mock_fast 2")  # (unpaced frames not drawn: for a suite none of whose checks reads the drawing)
     script = ";".join(pre + ["vr_test_snapshot"] + execs + ["toggleconsole", "quit"])
     total = 120 + sum(c["timeout"] for _, c in cases)
     argv = ["powershell", "-NoProfile", "-File", f"{KIT}/run.ps1", "-Name", agent, "-Instance", str(k), "-Low",
@@ -167,6 +173,8 @@ def run_copy(agent, k, launch, base, games, cases, result):
     time.sleep(0.5)
     while proc.poll() is None:
         try:
+            if os.path.getsize(log) < pos:
+                pos, partial = 0, ""  # (the game's new log; the one read was the folder's last game's)
             with open(log, "rb") as f:
                 f.seek(pos)
                 data = f.read()
@@ -178,7 +186,7 @@ def run_copy(agent, k, launch, base, games, cases, result):
             *done, partial = partial.split("\n")
             for line in done:
                 m = re.match(r"@@TB_(BEGIN|END) (\d+)", line.strip())
-                if m:
+                if m and int(m.group(2)) in limits:  # (another shard's: the folder's last game's log)
                     cur, since = (int(m.group(2)), time.time()) if m.group(1) == "BEGIN" else (None, None)
         if cur is not None and time.time() - since > limits[cur]:
             timed_out[cur] = limits[cur]
@@ -245,22 +253,40 @@ def exec_dir(d, agent, copies):
         progressed = False
         for (launch, base, games), members in groups.items():
             k = max(1, min(copies, len(members)))
-            shards, load = [[] for _ in range(k)], [0] * k
-            for n, c in sorted(members, key=lambda nc: -cost(nc[1])):
-                j = load.index(min(load))
-                load[j] += cost(c)
-                shards[j].append((n, c))
-            result, threads = {}, []
-            for j, sh in enumerate(shards):
+            if os.environ.get("TB_ISOLATE") == "1":
+                # a game for each case (still unpaced and in parallel): a suite whose cases can't share a game
+                shards = [[nc] for nc in sorted(members, key=lambda nc: -cost(nc[1]))]
+            else:
+                shards, load = [[] for _ in range(k)], [0] * k
+                for n, c in sorted(members, key=lambda nc: -cost(nc[1])):
+                    j = load.index(min(load))
+                    load[j] += cost(c)
+                    shards[j].append((n, c))
+            for sh in shards:
                 sh.sort(key=lambda nc: nc[0])
-                t = threading.Thread(target=run_copy, args=(agent, j + 1, launch, base, games, sh, result))
+            # k copies at once (each its own game folder), each taking the next shard when its game ends
+            result, queue, lock = {}, list(range(len(shards))), threading.Lock()
+
+            def worker(inst):
+                while True:
+                    with lock:
+                        if not queue:
+                            return
+                        j = queue.pop(0)
+                    got = {}
+                    try:
+                        run_copy(agent, inst, launch, base, games, shards[j], got)
+                    except Exception as e:  # (its cases never started: the next round runs them)
+                        got[inst] = ([f"testbatch: copy {inst} failed: {e!r}"], {})
+                    result[j] = got[inst]
+            threads = [threading.Thread(target=worker, args=(i + 1,)) for i in range(k)]
+            for t in threads:
                 t.start()
-                threads.append(t)
             for t in threads:
                 t.join()
-            stats["games"] += k
-            for j in range(k):
-                lines, timed_out = result[j + 1]
+            stats["games"] += len(shards)
+            for j in range(len(shards)):
+                lines, timed_out = result[j]
                 header, per, ended = split_copy(lines, timed_out)
                 for n, c in shards[j]:
                     if n not in per:
