@@ -964,6 +964,9 @@ void() func_enemy_dispenser_use =
         self.targetname = "vr_test_statue"; // (a statue wakes when used: woken below, as its map's trigger would)
     }
     self.angles = '0 1 0' * yaw; // (before its spawn function: walkmonster_start's ideal_yaw is taken from it)
+    // Where it is before its spawn function too, as a map's entity is: a spawn function that makes something at its
+    // own origin (func_weapon_grabbable: AD's soldiers' guns, 312..319) made it at the world's origin, far away.
+    setorigin(self, org);
 
     VR_EnemyDispenser_Spawn(choice);
 

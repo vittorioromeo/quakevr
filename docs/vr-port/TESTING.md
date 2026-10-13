@@ -1280,6 +1280,12 @@ the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the cur
 (svc_skybox) and sky fog (STAT_QVR_ADSKYFOG). The gadget's AD page: `vr_gadget_page` (or `vr_gadget_page_press`, the
 outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget_screen_dump <name>` to look at it.
 
+The Debug menu's AD pickup rows (2026-10-13): `vr_test_spawn_dist 64; vr_test_spawn N; impulse 241; wait100;
+vr_ad_test 86` for N 300..319 (and a monster's number: 0.., 200..) prints `adspawn: N: <classname> (<model>) at D ahead
+xA, height H: PASS` for the pickup, gun or monster nearest the spawn point (within reach ahead: PASS, then removed for the
+next). Runs: `-Games "-game hipnotic -game rogue -game ad -game quakevr"` for an AD map (ad_dm1: a quiet start; in
+ad_crucial and start the player moves or hangs at the start, so its numbers mean nothing).
+
 ## Piled-up decals: the mark limit a spot (2026-10-12)
 
 `vr_decal_bucket_max` (32 shipped) caps the marks one 32-unit world cell lists. A pile to test on: in `vrfiringrange`,

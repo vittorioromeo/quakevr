@@ -804,6 +804,46 @@ void(float request, entity p) AD_GunTest =
         VR_ADWeapons_Report(p);
         return;
     }
+    if(request == 86)
+    {
+        // What the Debug menu's AD pickup row (vr_test_spawn N with impulse 241) just made: the pickup or weapon with a
+        // model nearest where it was made (vr_test_spawn_dist ahead), where it lies from you (ahead, within reach) and its
+        // model (adspawn: one line, PASS or FAIL); then removed, for the next row's. A monster the spawner made too.
+        makevectors('0 1 0' * p.v_viewangle_y);
+        vector at = p.origin + v_forward * cvar("vr_test_spawn_dist");
+        entity n = world;
+        float best = 4096;
+        for(entity e3 = nextent(world); e3; e3 = nextent(e3))
+        {
+            string k = substring(e3.classname, 0, 5);
+            if(e3.modelindex > 0 && (k == "item_" || k == "weapo" || e3.classname == "thrown_weapon" ||
+               ((e3.flags & FL_MONSTER) && e3.health > 0)) &&
+               vlen(e3.origin - at) < best)
+            {
+                n = e3;
+                best = vlen(e3.origin - at);
+            }
+        }
+        if(n == world)
+        {
+            bprint(sprintf("adspawn: %g: nothing made: FAIL\n", cvar("vr_test_spawn")));
+            return;
+        }
+        vector mid = (n.absmin + n.absmax) * 0.5;
+        vector flat = mid - p.origin;
+        float dz = flat_z;
+        flat_z = 0;
+        float dist = vlen(flat);
+        float ahead = dist > 0 ? (flat * v_forward) / dist : 0;
+        float near = (dist < max(128, cvar("vr_test_spawn_dist") + 64) && ahead > 0.7 && fabs(dz) < 64);
+        bprint(sprintf("adspawn: %g: %s (%s) at %g ahead x%g, height %g: %s\n", cvar("vr_test_spawn"), n.classname, n.model,
+            rint(dist), rint(ahead * 100) / 100, rint(dz), near ? "PASS" : "FAIL"));
+        if(near)
+        {
+            remove(n);
+        }
+        return;
+    }
     if(request == 84)
     {
         float grip2 = cvar("vr_weapon_grip_mode");
