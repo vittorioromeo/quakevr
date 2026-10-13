@@ -529,13 +529,20 @@ extern "C" byte* VR_PBRImage(const char* name, int* w, int* h, enum srcformat* f
     return nullptr;
 }
 
+// TexMgr_LoadNormalMap: a new normal map's verified generated components, by its source (once per upload).
+extern "C" int VR_PBRGeneratedFlags(const char* source)
+{
+    if(source && source[0])
+        for(const qvr::pbr::Strength& s : qvr::pbr::strengths)
+            if(!strcmp(s.path, source)) return static_cast<int>(s.flags);
+    return 0;
+}
+
+// Every draw batch (R_AddBModelCall): the flags resolved at load, no search.
 extern "C" void VR_PBRStrength(const gltexture_t* normalmap, float* normal, float* height)
 {
-    unsigned flags{};
-    if(normalmap)
-        for(const qvr::pbr::Strength& s : qvr::pbr::strengths)
-            if(!strcmp(s.path, normalmap->source_file)) { flags = s.flags; break; }
-    qvr::pbr::componentStrength(flags, qvr::vr_pbr_strength.value, normal, height);
+    qvr::pbr::componentStrength(static_cast<unsigned>(TexMgr_NormalMapGenerated(normalmap)), qvr::vr_pbr_strength.value,
+        normal, height);
 }
 
 extern "C" int VR_PBREnabled()

@@ -475,6 +475,7 @@ struct gltexture_s *TexMgr_NormalMap (struct gltexture_s *glt); // its normal ma
 struct gltexture_s *TexMgr_LoadExtNormalMap (struct gltexture_s *base, const char *name, int width, int height, byte *data,
 	int worldwidth); // QVR: an external pack's normal map for base (vr/vr_extmaps.cpp), not made its own; data NULL: only one already made
 qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
+int TexMgr_NormalMapGenerated (const struct gltexture_s *nm); // QVR: a normal map's verified generated components (vr/vr_pbr.cpp: 1 normal, 2 height), resolved when it was made
 
 extern gpulightbuffer_t r_lightbuffer;
 extern gpuframedata_t r_framedata;

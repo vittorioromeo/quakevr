@@ -205,6 +205,7 @@ int VR_PBRNormal (struct gltexture_s *base, const char *image, const char *share
     enum srcformat fmt, int worldwidth, int flags); // content-addressed world companions; authored components first
 unsigned char *VR_PBRImage (const char *name, int *width, int *height, enum srcformat *fmt); // reloadable component composition
 void VR_PBRForget (struct gltexture_s *base);
+int VR_PBRGeneratedFlags (const char *source); // TexMgr_LoadNormalMap: a new normal map's verified generated components (1 normal, 2 height)
 int VR_PBREnabled (void); // vr_pbr: content companions, and an embedded world texture's authored _norm/_bump lookup
 void VR_PBRExternal (struct gltexture_s *base, const char *normal, char *path, size_t size);
 
