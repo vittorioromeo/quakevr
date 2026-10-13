@@ -1360,3 +1360,65 @@ play reaches its first (after a `vr_mock_hand_to`); before it the hand is left a
 origin), a held grunt walked into with `vr_foegrab_step_in` 1 (dist ~5.6, let go: 12 again) and 0 (stops at 12).
 Uses the mock hand on the grunt (`vr_mock_hand_to main nearest monster_army 6`, `+grabmain`) with Follow, Pull 0 and
 Let Go Beyond 200 so the hold stays while he walks in. `voreshove_test.sh` is marginal with the inset on (3-4 shoves).
+
+## Batched test cases: many cases a game, games in parallel (2026-10-14)
+
+A headless case used to be a game of its own (kit `run.sh`: start-up ~0.8 s, the first map ~2 s, the case's frames at
+the wall clock's pace, quit), one after another. `Misc/quakevr/testbatch/` plays a suite's cases as batches instead, as
+the kit's `eval.sh` does the melee takes (ROUND22.md, "Faster test suites": the numbers):
+
+- **Many cases in one game.** Each case runs from its own cfg between `echo @@TB_BEGIN <n>` / `vr_test_reset` and
+  `disconnect` / `echo @@TB_END <n>`. `vr_test_snapshot` (at the batch's start) and `vr_test_reset` (engine,
+  `vr_testbatch.cpp`): the cvars a case set go back to the batch's start (a cvar made since: its default), every engine
+  `+command` is let go (`-grabmain`, `-forward`), the mock headset's poses, buttons, sticks, glides, plays, aims, walks,
+  turns and camera go back to start-up (`resetMockState`), the client's `rand()` is seeded as at start-up. The case's
+  own `map` does the rest (the server, the entities, `sv_random_seed`, the items). Not reset: aliases, the game folder
+  (`vr_campaign_native`: every case of a batch should switch the same way), what the menus or saves leave behind.
+- **Games in parallel.** The cases are split between up to `TB_JOBS` (8) copies of the game (kit `run.ps1 -Instance
+  <k>`, their own game folders; the agent's other game folders, `ad`, linked in), as many as the kit's free run slots
+  allow (`slots.sh acquire_many`, with the agent's run lock held: its runs still go one at a time).
+- **Unpaced frames.** The batches run `vr_fixed_frames 1; vr_fixed_frames_rate 250`: the real-time test run's frames
+  (the baseline's `host_maxfps` 250 over the server's 72 Hz ticks, `host_fixedtick`), as fast as they come. At rate 72
+  (a tick a frame) the client's per-frame work (the hands' hits) sees 3.5 times fewer frames, and reload_test.sh lost 5
+  of its 110 checks: keep 250 unless a suite is proven at another (`TB_RATE`). `TB_NODRAW=1` (`vr_mock_fast 2`) skips
+  drawing the frames (5-10 times faster again): a suite opts in (`export TB_NODRAW=${TB_NODRAW-1}`) once its verdicts
+  are proven the same, since a check that reads the drawing (a "first drawn" line, the pixels) needs the frames drawn.
+- **Each case's output as run.sh would have printed it alone**: `exit=0` (or the copy's `TIMEOUT` / `ENGINE ERROR` /
+  `ENGINE CRASH` lines for the case that ended it), its console lines through its `-Filter` (Select-String's: a regex,
+  case-insensitive), the same blank lines and CRLFs. A case past its `-Timeout` is stopped (`TIMEOUT after <n> s`, the
+  game killed) and the cases after it in that copy run again in a new one, as do a crashed copy's.
+- **Not batched** (run alone by `run.sh`, as before): `-Out`, `-Clean`, `-RealTime`, `-Visible`, `-Full`,
+  `--exclusive` (timings), and a script that takes a `screenshot`.
+
+A bash suite keeps its shape: its body in a function, its `bash $KIT/run.sh $AGENT ...` calls as `tb_run_sh ...`:
+
+    source "$(dirname "$0")/../testbatch/testbatch.sh"   # (from Misc/quakevr/<dir>/)
+    tb_body() {
+        log=$(tb_run_sh -Script "map e1m1;wait60;...;toggleconsole;quit" -Filter "^reload:" 2>&1)
+        check ...                                          # as before
+    }
+    tb_main "$AGENT" tb_body "$@"
+
+`tb_main` runs the body twice: first collecting its runs (`tb_run_sh` prints nothing; that pass's output is thrown
+away), then the batches, then the body for real, each `tb_run_sh` printing that run's output. A run whose arguments
+differ the second time (a script built from an earlier run's output) runs then, alone (a batch of one). A Python
+suite: `testbatch.run_sh(AGENT, [...run.sh arguments...])` in place of its subprocess call, and
+`sys.exit(testbatch.two_pass(AGENT, "<name>", main))` (main resets its own fail count: it runs twice); or
+`testbatch.Batch` (`case()`, `run()`, `output()`) for a suite that lists its cases first.
+
+- `TB_SLOW=1`: every run by `run.sh`, one after another, at the wall clock's pace: the suite as it was (its reference
+  results). A converted suite is proven by both (same PASS/FAIL, numbers within the run-to-run spread).
+- `TB_FIXED=0` (real-time frames in the batches), `TB_ISOLATE=1` (a game for each case, still unpaced and in parallel:
+  a suite whose cases can't share a game), `TB_JOBS=N`, `TB_RATE`, `TB_NODRAW`, `TB_STATS=1` (games, cases, seconds).
+- The cases, outputs and `stats.json`: `<tree>/scratch/testbatch/<suite>/`.
+
+Waits that end on a condition (engine, `vr_testbatch.cpp`), in place of a fixed `waitN` long enough for the slowest
+run; each counts frames as `wait` does (a server tick each) and goes on at once when its condition holds:
+
+- `vr_waituntil <cvar> <op> <value> <frames>`: until the cvar compares so (`== != < <= > >=`; numbers as numbers,
+  else text, `==`/`!=` only). QC can raise a flag for it with `cvar_set`.
+- `vr_waitprint <frames> <text...>`: until the console prints a line holding the text (after the command).
+- Running out prints `vr_waituntil: timed out ...` / `vr_waitprint: timed out ...` and the script goes on.
+
+A fixed wait that a check measures across (frames, seconds, distances after it) is the check's own: replace only waits
+that end on an event (the ragdoll settled, the line printed), and prove the suite again.

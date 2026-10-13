@@ -15,11 +15,14 @@
 #   6. save and load: a gun filled at the pouch keeps its shells; after the load, a touch fills it again.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 REP="vr_reload_test 0;impulse 125;wait2"
 F="^reload: (off hand|mode|[0-9] into|.*from the pouch|.*pouch is empty|.*magazine in: nothing|the super shotgun open)|^MARK"
-run() { bash $KIT/run.sh $AGENT -Script "$1;toggleconsole;quit" -Filter "$F" 2>&1; }
+run() { tb_run_sh -Script "$1;toggleconsole;quit" -Filter "$F" 2>&1; }
 # The off hand holding gun impulse $1 (150 + its id), the main hand empty, given ammo.
 setup() { echo "map e1m1;wait60;developer 1;vr_reload_debug 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse $1;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;give n 200;give c 200;vr_mock_hand main 0.3 1.3 -0.4 0 0 0;vr_mock_hand off -0.3 1.3 -0.40 0 0 0;wait10"; }
 # The off hand away from the pouch at pose $1, then its gun's load point at the pouch's rounds ($2 units above them).
@@ -84,3 +87,6 @@ log=$(run "$(setup 155);vr_reload_test 5;impulse 125;wait2;vr_reload_test 15;imp
 check $([ "$(clip "$log" filled)" = 2 ] && [ "$(clip "$log" loaded)" = 2 ] && [ "$(clip "$log" again)" = 2 ] && echo 1 || echo 0) "save and load: filled $(clip "$log" filled), loaded $(clip "$log" loaded), emptied and filled again $(clip "$log" again)"
 
 exit $fail
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

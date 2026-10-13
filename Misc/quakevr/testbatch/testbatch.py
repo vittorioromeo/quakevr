@@ -144,19 +144,22 @@ def run_copy(agent, k, launch, base, games, cases, result):
     gdir = game_dir(agent, base, k)
     os.makedirs(f"{gdir}/id1/tb", exist_ok=True)
     link_extra_games(agent, base, k)
+    # Unpaced frames of the real-time run's length: a real-time test run draws host_maxfps (the test baseline's 250)
+    # frames a second over the server's 72 Hz ticks (host_fixedtick), and the client's per-frame work (the hands, their
+    # hits) is tuned on that; vr_fixed_frames_rate 72 (a tick a frame) is faster still but changes such results. Set
+    # for each case after its reset (the snapshot keeps the baseline's), unless the case sets the clock itself (its
+    # own vr_fixed_frames: at its rate, as alone).
+    rate = os.environ.get("TB_RATE", "250")
+    fixed = ["vr_fixed_frames 1", f"vr_fixed_frames_rate {rate}"] if os.environ.get("TB_FIXED", "1") != "0" else []
     execs = []
     for n, c in cases:
-        body = [f"echo @@TB_BEGIN {n}", "vr_test_reset"] + case_lines(c["script"]) + ["disconnect", f"echo @@TB_END {n}"]
+        own = re.search(r"(^|;)\s*vr_fixed_frames\b", c["script"]) is not None
+        body = ([f"echo @@TB_BEGIN {n}", "vr_test_reset"] + ([] if own else fixed) + case_lines(c["script"]) +
+                ["disconnect", f"echo @@TB_END {n}"])
         with open(f"{gdir}/id1/tb/c{n}.cfg", "w", encoding="ascii", errors="replace", newline="\n") as f:
             f.write("\n".join(body) + "\n")
         execs.append(f"exec tb/c{n}.cfg")
-    # Unpaced frames of the real-time run's length: a real-time test run draws host_maxfps (the test baseline's 250)
-    # frames a second over the server's 72 Hz ticks (host_fixedtick), and the client's per-frame work (the hands, their
-    # hits) is tuned on that; vr_fixed_frames_rate 72 (a tick a frame) is faster still but changes such results.
-    rate = os.environ.get("TB_RATE", "250")
-    pre = ["vr_fixed_frames 1", f"vr_fixed_frames_rate {rate}"] if os.environ.get("TB_FIXED", "1") != "0" else []
-    if os.environ.get("TB_NODRAW") == "1":
-        pre.append("vr_mock_fast 2")  # (unpaced frames not drawn: for a suite none of whose checks reads the drawing)
+    pre = ["vr_mock_fast 2"] if os.environ.get("TB_NODRAW") == "1" else []  # (unpaced frames not drawn)
     script = ";".join(pre + ["vr_test_snapshot"] + execs + ["toggleconsole", "quit"])
     total = 120 + sum(c["timeout"] for _, c in cases)
     argv = ["powershell", "-NoProfile", "-File", f"{KIT}/run.ps1", "-Name", agent, "-Instance", str(k), "-Low",
@@ -379,10 +382,14 @@ def run_sh(agent, args, exclusive=False):
         _two["n"] = b.case(args)
         return ""
     if _two["pass"] == "replay" and not exclusive:
-        _two["n"] += 1
-        n = _two["n"]
-        if n <= len(b.args) and b.args[n - 1] == args and n in b.outs:
-            return b.outs[n]
+        # the first collected run with the same arguments not handed out yet (by arguments, not position: a run
+        # retried a different number of times than in the first pass leaves the others where they were)
+        used = _two.setdefault("used", set())
+        n = next((i for i, a in enumerate(b.args, 1) if a == args and i not in used), None)
+        if n is not None:
+            used.add(n)
+            if n in b.outs:
+                return b.outs[n]
         solo = Batch(agent, os.path.basename(b.dir) + "_solo")
         solo.case(args)
         solo.run()
@@ -408,7 +415,7 @@ def two_pass(agent, name, fn, *a, **kw):
         pass
     _two.update({"pass": None})
     b.run_batched()
-    _two.update({"pass": "replay", "n": 0})
+    _two.update({"pass": "replay", "n": 0, "used": set()})
     try:
         return fn(*a, **kw)
     finally:

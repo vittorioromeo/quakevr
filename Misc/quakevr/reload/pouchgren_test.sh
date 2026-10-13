@@ -15,6 +15,9 @@
 #      smaller): drawn 0.6 of its size at the other grenades' 0.78, its box with it; the grenade's own unchanged.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 REP="vr_reload_test 0;impulse 125;wait2"
@@ -43,49 +46,52 @@ frames() { echo "$1" | grep "vrpouch_ammo.mdl" | sed -E 's/.* frame ([0-9]+) ski
 for row in "160 rocket_launcher 0.0_14.0_16.0_16.0" "158 grenade_launcher 0.0_17.0_19.0_20.0" "159 proximity_launcher 0.0_21.0_23.0_24.0"; do
     set -- $row; name=${2//_/ }; want=${3//_/ }
     S="$(setup $1)"
-    log=$(bash $KIT/run.sh $AGENT -Script "$S;give r 0;wait5;vr_dumpview;give r 1;wait5;vr_dumpview;give r 3;wait5;vr_dumpview;give r 9;wait5;vr_dumpview;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$S;give r 0;wait5;vr_dumpview;give r 1;wait5;vr_dumpview;give r 3;wait5;vr_dumpview;give r 9;wait5;vr_dumpview;toggleconsole;quit" -Filter "$F" 2>&1)
     check $([ "$(frames "$log")" = "$want" ] && echo 1 || echo 0) "$name: the pouch shows 0, 1, 3, 9 rounds as frames.skins $(frames "$log") (want $want)"
 done
-log=$(bash $KIT/run.sh $AGENT -Script "$(setup 158);impulse 42;wait5;$REP;vr_dumpview;toggleconsole;quit" -Filter "$F" 2>&1)
+log=$(tb_run_sh -Script "$(setup 158);impulse 42;wait5;$REP;vr_dumpview;toggleconsole;quit" -Filter "$F" 2>&1)
 m=$(echo "$log" | grep "^reload: rockets" | tail -1 | sed -E 's/.*multi-rockets ([0-9]+).*/\1/')
 want="$((16 + (m < 4 ? m : 4))).1"; [ "$m" = 0 ] && want=0.1
 check $([ "$(frames "$log")" = "$want" ] && echo 1 || echo 0) "the multi-grenade mode: $m multi-rockets shown as $(frames "$log") (want $want: skin 1)"
 
 # 2. The ammo pouch's grenade armed by hand goes off; armed, it doesn't load.
-log=$(bash $KIT/run.sh $AGENT -Script "$(setup 158);$POUCH;$GRIP;$PIN;$AWAY;$LETGO;wait400;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+log=$(tb_run_sh -Script "$(setup 158);$POUCH;$GRIP;$PIN;$AWAY;$LETGO;wait400;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
 check $(echo "$log" | grep -q "hand grenade armed (the pin pulled)" && echo "$log" | grep -q "^grenade: grenade goes off" && echo 1 || echo 0) "the ammo pouch's grenade: the pin pulled, let go of, it goes off ($(echo "$log" | grep -m1 "goes off" | cut -c1-60))"
-blog=$(bash $KIT/run.sh $AGENT -Script "$(setup 158);$BACK;$GRIP;$PIN;$AWAY;$LETGO;wait400;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+blog=$(tb_run_sh -Script "$(setup 158);$BACK;$GRIP;$PIN;$AWAY;$LETGO;wait400;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
 check $(echo "$blog" | grep -q "hand grenade armed (the pin pulled)" && echo "$blog" | grep -q "^grenade: grenade goes off" && echo 1 || echo 0) "the back pouch's grenade: the same"
-log=$(bash $KIT/run.sh $AGENT -Script "$(setup 158);$POUCH;$GRIP;$PIN;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+log=$(tb_run_sh -Script "$(setup 158);$POUCH;$GRIP;$PIN;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
 check $(echo "$log" | grep -q "hand grenade armed" && [ "$(clip "$log")" = 0 ] && ! echo "$log" | grep -q "^reload: 1 into" && echo 1 || echo 0) "an armed grenade at the muzzle is not loaded (clip $(clip "$log"))"
 
 # 3. The back pouch's grenade into the grenade launcher; the multi-grenade; the ammo pouch's back into the back pouch.
-log=$(bash $KIT/run.sh $AGENT -Script "$(setup 158);$REP;$BACK;$GRIP;$REP;$HELD;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+log=$(tb_run_sh -Script "$(setup 158);$REP;$BACK;$GRIP;$REP;$HELD;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
 check $(echo "$log" | grep -q "^grenade: hand grenade taken from the pouch" && echo "$log" | grep -q "^reload: rockets 33 " && [ "$(clip "$log")" = 1 ] && echo 1 || echo 0) "the back pouch's grenade goes into the grenade launcher (rockets 34 -> 33, clip $(clip "$log"))"
-log=$(bash $KIT/run.sh $AGENT -Script "$(setup 158);impulse 42;wait5;$REP;$BACK;$GRIP;$REP;$HELD;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+log=$(tb_run_sh -Script "$(setup 158);impulse 42;wait5;$REP;$BACK;$GRIP;$REP;$HELD;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
 m0=$(echo "$log" | grep "^reload: rockets" | head -1 | sed -E 's/.*multi-rockets ([0-9]+).*/\1/')
 m1=$(echo "$log" | grep "^reload: rockets" | tail -1 | sed -E 's/.*multi-rockets ([0-9]+).*/\1/')
 check $(echo "$log" | grep -q "^grenade: hand multi-grenade taken" && [ $((m0 - m1)) = 1 ] && [ "$(clip "$log")" = 1 ] && echo 1 || echo 0) "the multi-grenade mode: the back pouch's multi-grenade goes in (multi-rockets $m0 -> $m1)"
-log=$(bash $KIT/run.sh $AGENT -Script "$(setup 158);$POUCH;$GRIP;$REP;$BACK;$LETGO;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+log=$(tb_run_sh -Script "$(setup 158);$POUCH;$GRIP;$REP;$BACK;$LETGO;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
 check $(echo "$log" | grep -q "put back in the pouch" && echo "$log" | grep "^reload: rockets" | tail -1 | grep -q "^reload: rockets 34 " && echo 1 || echo 0) "the ammo pouch's grenade let go of at the back pouch goes in (rockets 34)"
 
 # 4. Proximity grenades: the back pouch's into the proximity launcher; the ammo pouch's armed and let go of: a mine.
-log=$(bash $KIT/run.sh $AGENT -Script "$(setup 159);$BACK;$GRIP;$REP;$HELD;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+log=$(tb_run_sh -Script "$(setup 159);$BACK;$GRIP;$REP;$HELD;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
 check $(echo "$log" | grep -q "^grenade: hand proximity grenade taken" && [ "$(clip "$log")" = 1 ] && echo 1 || echo 0) "the back pouch's proximity grenade goes into the proximity launcher (clip $(clip "$log"))"
-log=$(bash $KIT/run.sh $AGENT -Script "$(setup 159);$POUCH;$GRIP;$PIN;$AWAY;$LETGO;wait20;$REP;wait400;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+log=$(tb_run_sh -Script "$(setup 159);$POUCH;$GRIP;$PIN;$AWAY;$LETGO;wait20;$REP;wait400;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
 mines=$(echo "$log" | grep "^reload: rockets" | sed -E 's/.* ([0-9]+) mines.*/\1/' | tr '\n' ' ')
 check $(echo "$log" | grep -q "proximity grenade armed" && echo "$log" | grep -q "a mine" && [ "$mines" = "0 1 0 " ] && echo 1 || echo 0) "the ammo pouch's proximity grenade armed, let go of: a mine, gone off by the player (mines $mines)"
-log=$(bash $KIT/run.sh $AGENT -Script "$(setup 159);$POUCH;$GRIP;$PIN;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+log=$(tb_run_sh -Script "$(setup 159);$POUCH;$GRIP;$PIN;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
 check $(echo "$log" | grep -q "proximity grenade armed" && [ "$(clip "$log")" = 0 ] && echo 1 || echo 0) "an armed proximity grenade is not loaded (clip $(clip "$log"))"
 
 # 5. A grenade lying about, shot (test step 19): it goes off.
-log=$(bash $KIT/run.sh $AGENT -Script "$(OFFZ=-0.2 setup 158);vr_reload_test 12;impulse 125;wait60;vr_reload_test 19;impulse 125;wait30;$REP;toggleconsole;quit" -Filter "$F|set off" 2>&1)
+log=$(tb_run_sh -Script "$(OFFZ=-0.2 setup 158);vr_reload_test 12;impulse 125;wait60;vr_reload_test 19;impulse 125;wait30;$REP;toggleconsole;quit" -Filter "$F|set off" 2>&1)
 check $(echo "$log" | grep -q "^grenade: grenade goes off" && echo "$log" | grep -q "rockets [0-9]* .*, 0 rounds lying" && echo 1 || echo 0) "a grenade lying about, shot, goes off"
 
 # 6. The proximity grenade's size: the back pouch's, as drawn (VR_GrenShot_Make's print), at vr_prox_scale 0.47 and 0.78.
 size() { echo "$1" | grep -m1 "^grenade: .*($2) drawn" | sed -E "s/.* drawn ([-0-9.]+) .*/\1/"; }
-p47=$(size "$(bash $KIT/run.sh $AGENT -Script "$(setup 159);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/proxbomb.mdl)
-p78=$(size "$(bash $KIT/run.sh $AGENT -Script "vr_prox_scale 0.78;$(setup 159);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/proxbomb.mdl)
-g78=$(size "$(bash $KIT/run.sh $AGENT -Script "$(setup 158);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/grenade.mdl)
+p47=$(size "$(tb_run_sh -Script "$(setup 159);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/proxbomb.mdl)
+p78=$(size "$(tb_run_sh -Script "vr_prox_scale 0.78;$(setup 159);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/proxbomb.mdl)
+g78=$(size "$(tb_run_sh -Script "$(setup 158);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/grenade.mdl)
 check $(awk -v a="$p47" -v b="$p78" -v g="$g78" 'BEGIN { r = a / b; print (a > 0 && b > 0 && g > 0 && r > 0.58 && r < 0.63) ? 1 : 0 }') "the proximity grenade 40% smaller than at 0.78 (drawn $p47 against $p78 units across; the grenade $g78)"
 exit $fail
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"
