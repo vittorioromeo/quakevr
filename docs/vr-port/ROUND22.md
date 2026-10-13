@@ -4871,3 +4871,29 @@ VR follow-up: try strength 1..3 on generated AD masonry and check both stock exp
 Authored walls, hands and weapons should retain their relief. Cleanup candidates: ignored scratch/pbr_strength*,
 scratch/boxes*, private pbr_boxproof.bsp, fixture backup/retired evidence, private eyeshots/imagehash and the
 retained renderer integration stash. No files were deleted.
+
+## Magazine re-pull and Reinsertion Delay (magfix2, 2026-10-13)
+
+Author notes: (1) a magazine pulled out, put back in and pulled again without letting go of the grip would not come out
+a second time (it took a fresh grip); (2) besides the reinsertion clearance, a short time after a magazine came out (or
+knocked the old one out) it should seat even if kept close, "maybe 0.2 or 0.3 s", with a slider next to the clearance.
+
+(1) vr_reload.qc: VR_Reload_SeatMagInto marks the hand that seated the magazine it held (.vr_mag_rehold, bit 1 off,
+2 main). The next VR_Reload_MagFrame of that hand consumes the bit and, if it still grips and is empty, latches the
+magazine hold at once (no fresh grip edge, no hotspot/reach test), logging "(still gripping it as it seated)". A pull
+then takes it out as from any hold. Cleared on death.
+
+(2) vr_reload_reinsert_time (default 0.25 s, archived; 0: by the clearance only): VR_Reload_HeldFrame also rearms a
+fresh held magazine (r.vr_ammo_wid set; shells unchanged) once that long has gone since VR_Reload_MarkFresh (pulled
+out, or the bumping magazine that knocked one out). The well check is unchanged, so it still seats only within the
+insertion reach. Loose magazines keep the eject cooldown and the clearance. Menu: Advanced VR Options > Weapons >
+Reloading > "Magazine Reinsertion Delay" (0..1 s, step 0.05, extended to 5), right below Magazine Reinsertion Clearance.
+
+Tests: reload_test.sh section 8 adds the out/in/out/in/out never-let-go run (3 out, 2 in, 2 re-holds) and the bumping
+magazine kept at the well with Delay 0.25 (out at 0.14 s, seated by 0.32 s) and 0 (stays out); vr_reload_test 28 adds
+3 direct checks (21 passed). The self-test sets the cvar with sprintf("%g"): ftos keeps one decimal (0.25 -> "0.2").
+Whole reload_test.sh: 108 PASS, 0 FAIL (an earlier run had a flaky lying-shell pickup and the Firing Animation Speed
+timing, both unrelated and passing on the rerun).
+
+VR: pull a magazine, push it back without letting go, pull again (repeat); bump a magazine out with a new one and hold
+the new one at the well: it should seat after about a quarter second, not at once. Tune Magazine Reinsertion Delay.
