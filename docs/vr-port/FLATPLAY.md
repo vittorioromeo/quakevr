@@ -73,6 +73,14 @@ belt to reach for on the screen.
 **The body presses the buttons it walks into.** `Quake/vr/vr_physics.cpp` lets a flatscreen player's body do the hand
 touch it does for an untracked player, whatever `vr_body_interactions` says.
 
+**Co-op: the mode is each player's own.** A client in the mode says so in its move (bit 15 of the VR block's
+`vrBits0`, `protocol::moveFlatplayBit`); the server takes it out of the QC's bits and sets that player's
+`.vr_flatscreen` (`Quake/vr/vr_server.cpp`). Every game-side gate asks for the player it is about (`VR_FlatPlay(player)`
+in `QC/vr_util.qc`: reloading, `E`'s grab, `1` and `2`, the grip-less catch; the body's hand touch in
+`vr_physics.cpp`). So a flatscreen host leaves reloading on for the VR players who join it, and a flatscreen client on a
+VR host gets `E`, `1` and `2` and no reloading. The engine's `vr_flatplay` cvar is the local client's mode only (its
+hands, its flashlight, its keys).
+
 ## Tuning
 
 `vr_flat_reach` (1), `vr_flat_sway` (1), `vr_flat_bob` (1) — all not saved, all in the Debug menu. The pose's own

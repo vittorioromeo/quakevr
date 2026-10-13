@@ -318,6 +318,16 @@ def neck_standing_motion(name, centre, deg, dur, sign, axis="y", pull=None):
         return motion(name, keys)
     if pull == "uponly":
         keys += hands_at(1.05, (main0[0], cy + 0.4, cz), (off0[0], cy + 0.4, cz))
+    elif pull in ("smoothturn", "snapturn", "twistturn"):
+        # (The player turned with the stick, the hands still in play space: smooth at 0.6 of vr_turn_speed 3.25, about
+        # 195 deg/s, for 0.5 s; snap: two flicks (vr_snap_turn 45 in `extra`); twistturn: smooth while twisting.)
+        if pull == "snapturn":
+            keys += [(0.8, "cmd vr_mock_stick main 1 0"), (0.9, "cmd vr_mock_stick main 0 0"),
+                     (1.0, "cmd vr_mock_stick main 1 0"), (1.1, "cmd vr_mock_stick main 0 0")]
+        else:
+            keys += [(0.8, "cmd vr_mock_stick main 0.6 0"), (1.3, "cmd vr_mock_stick main 0 0")]
+        if pull == "twistturn":
+            keys += turn_keys(0.8, dur, deg, sign, centre, NECK_R, axis)
     elif pull:
         dx, dz = WAYS[pull]
         keys += hands_at(0.8 + PULL_T, (main0[0] + dx * PULL, cy, cz + dz * PULL), (off0[0] + dx * PULL, cy, cz + dz * PULL))
@@ -354,7 +364,9 @@ def case_neck():
     forward, the off hand 20 cm back, or the other way, in 0.3 s, straight, eased): standing at its head, its neck, the
     hands wider (0.36 m apart, 15 cm each), uneven (25 cm and 10 cm), knocked down at its ragdoll's head both ways and
     at its neck: snapped; the same in 1.2 s: nothing. Both hands at its head pulled left, or up: neither thrown nor
-    lifted (the neck snap the only move there); lifted by the shoulders (one hand in its head zone), then twisted: snapped."""
+    lifted (the neck snap the only move there); lifted by the shoulders (one hand in its head zone), then twisted: snapped.
+    The player turning with the stick, the hands still on its head: smooth (about 195 deg/s) or snap (two 45s): nothing;
+    a twist while smooth-turning: snapped."""
     runs = [  # (name, monster, centre or 'kd'/'stagger', deg, dur, sign, axis, pull, extra, want)
         ("grunt_cw", 0, GRUNT_HEAD, 75, 0.2, 1, "y", None, "", "snap"),
         ("grunt_ccw", 0, GRUNT_HEAD, 75, 0.2, -1, "y", None, "", "snap"),
@@ -382,6 +394,11 @@ def case_neck():
         ("chest", 0, GRUNT_CHEST, 75, 0.2, 1, "y", None, "", "none"),
         ("slow", 0, GRUNT_HEAD, 75, 1.0, 1, "y", None, "", "none"),
         ("off", 0, GRUNT_HEAD, 75, 0.2, 1, "y", None, "vr_foegrab_necksnap 0", "none"),
+        # (The stick's turn is not the wrists': holding the head still while turning smooth or snap: nothing; a twist
+        # while turning: snapped.)
+        ("smooth_turn", 0, GRUNT_HEAD, 0, 0, 1, "y", "smoothturn", "vr_snap_turn 0", "none"),
+        ("snap_turn", 0, GRUNT_HEAD, 0, 0, 1, "y", "snapturn", "vr_snap_turn 45", "none"),
+        ("twist_turn", 0, GRUNT_HEAD, 75, 0.2, 1, "y", "twistturn", "vr_snap_turn 0", "snap"),
     ]
     for what, mon, centre, deg, dur, sign, axis, pull, extra, want in runs:
         name = f"judo_neck_{what}"

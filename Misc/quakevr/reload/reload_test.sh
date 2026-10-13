@@ -333,10 +333,17 @@ check $(echo "$log" | grep -q "handed off to the off hand" && h 1 | grep -q "off
 # out again without the grip ever let go, twice (it took a fresh grip: the second pull did nothing).
 PULL="vr_mock_hand_to off mag -6 0;wait10"
 BACK="$(OTO "lport 10");$(OTO "lport");reset vr_reload_bump_speed;wait10"
-log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;$(OTO "mag 0");$OGRIP;reset vr_reload_bump_speed;wait5;$PULL;$BACK;$REP;$PULL;$BACK;$PULL;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+# (Release Seated Magazine off: vr_reload_mag_release 0.)
+log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;vr_reload_mag_release 0;$(OTO "mag 0");$OGRIP;reset vr_reload_bump_speed;wait5;$PULL;$BACK;$REP;$PULL;$BACK;$PULL;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 holds=$(echo "$log" | grep "^reload: off hand weapon") # (not "off hand on/off the magazine": vr_reload_debug 2)
 outs=$(echo "$log" | grep -c "out of the gun (hand 1, pulled off"); ins=$(echo "$log" | grep -c "seated (hand 1)")
-check $([ "$outs" = 3 ] && [ "$ins" = 2 ] && [ $(echo "$log" | grep -c "still gripping it as it seated") = 2 ] && h 1 | grep -q "holds nothing | main hand weapon 6 clip 24 holds nothing, main mag 1" && h 2 | grep -q "holds a round of 24 | main hand weapon 6 clip 0 holds nothing, main mag 0" && echo 1 || echo 0) "the same magazine out, in, out again, in, out again, never let go ($outs out, $ins in)"
+check $([ "$outs" = 3 ] && [ "$ins" = 2 ] && [ $(echo "$log" | grep -c "still gripping it as it seated") = 2 ] && h 1 | grep -q "holds nothing | main hand weapon 6 clip 24 holds nothing, main mag 1" && h 2 | grep -q "holds a round of 24 | main hand weapon 6 clip 0 holds nothing, main mag 0" && echo 1 || echo 0) "Release Seated Magazine off: the same magazine out, in, out again, in, out again, never let go ($outs out, $ins in)"
+# Release Seated Magazine on (the default): pulled out, put back in, the hand still gripping moved on to the front grip
+# (apart: it would have pulled it out again held on) and let go: it stays seated; a fresh grip on it pulls it out.
+log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;$(OTO "mag 0");$OGRIP;reset vr_reload_bump_speed;wait5;$PULL;$BACK;$REP;$APART;$(OTO "heldspot 0");$OLETGO;$REP;$(OTO "mag 0");$OGRIP;reset vr_reload_bump_speed;wait5;$PULL;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+holds=$(echo "$log" | grep "^reload: off hand weapon")
+outs=$(echo "$log" | grep -c "out of the gun (hand 1, pulled off"); ins=$(echo "$log" | grep -c "seated (hand 1)")
+check $([ "$outs" = 2 ] && [ "$ins" = 1 ] && ! echo "$log" | grep -q "still gripping it as it seated" && ! echo "$log" | grep -q "out of the gun (hand 1, the hands" && h 1 | grep -q "main hand weapon 6 clip 24 holds nothing, main mag 1" && h 2 | grep -q "holds nothing | main hand weapon 6 clip 24 holds nothing, main mag 1" && h 3 | grep -q "holds a round of 24 | main hand weapon 6 clip 0 holds nothing, main mag 0" && echo 1 || echo 0) "Release Seated Magazine: seated, the hand moved on to the front grip and let go: stays in; a fresh grip pulls it out ($outs out, $ins in)"
 # Reinsertion Delay: a magazine that knocked the old one out, kept at the well, stays out ~0.2 s (Reinsertion Delay
 # 0.25) and seats by ~0.35 s; Delay 0: by the clearance only (still out after 0.75 s).
 for T in 0.25 0; do

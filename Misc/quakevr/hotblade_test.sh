@@ -61,6 +61,11 @@ i=0
 for x in 0.6 0.5 0.4 0.3 0.2 0.1 0 -0.1 -0.2 -0.3 -0.4 -0.5; do W="$W; vr_mock_hand main $x 1.6 -0.55 0 $(( 30 - i * 5 )) 0; wait1"; i=$(( i + 1 )); done
 run trail "$W; wait10; vr_hotblade_report" 'trail ([5-9][0-9]|[1-9][0-9][0-9]) in|[0-9]+, ([5-9][0-9]|[1-9][0-9][0-9]) since'
 run trail_off "vr_hotblade_trail 0; $W; wait10; vr_hotblade_report; vr_hotblade_trail 1" 'trail 0 in the last second; [0-9]+, 0 since'
+# The hand still, the player moving (flying forward with the stick, noclip, and smooth-turning): no trail (the swing is
+# measured relative to him).
+run trail_walk "map e1m1; wait60; god; notarget; noclip; impulse 152; wait20; vr_hotblade_test 1; wait30; vr_snap_turn 0; vr_mock_stick off 0 1; vr_mock_stick main 0.6 0; wait100; vr_hotblade_report; vr_mock_stick off 0 0; vr_mock_stick main 0 0" 'client: 1 glowing; embers [0-9]+, trail 0 in the last second; [0-9]+, 0 since'
+# Dropped glowing, then the option turned off: the lying weapon stops glowing (sent 0; the client draws none).
+run off_lying "map e1m2; wait60; god; notarget; impulse 152; wait20; vr_hotblade_test 1; wait10; vr_hotblade_test 14; wait100; vr_hotblade 0; wait10; vr_hotblade_test 12; vr_hotblade_report; vr_hotblade 1" 'test: weapon 2 dropped;sent 0\.00;client: 0 glowing' 'sent (1|0\.[1-9])'
 # Dropped (let go of where the hand is), it glows on the ground as in a hand (the client: lying), its heat ticking down
 # there (6 s, the last 3 fading) until it is cold and the client draws none.
 run drop_cools "vr_hotblade_time 6; vr_hotblade_fade 3; map e1m2; wait60; god; notarget; impulse 152; wait20; vr_hotblade_test 1; wait10; vr_hotblade_test 14; wait100; vr_hotblade_test 12; vr_hotblade_report; wait144; vr_hotblade_test 12; wait200; vr_hotblade_test 12; vr_hotblade_report" \

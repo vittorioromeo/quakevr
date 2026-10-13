@@ -3798,7 +3798,7 @@ float() getWeaponCycleMode =
 
     // Flatscreen play (-flatscreenmode): 1 and 2 cycle the weapons collected into the left and the right hand, so
     // cycling is on whatever vr_weapon_cycle_mode says.
-    if(VR_FlatPlay())
+    if(VR_FlatPlay(self))
     {
         return QVR_WEAPONCYCLEMODE_ALLOWED;
     }
@@ -4611,7 +4611,7 @@ void() ImpulseCommands =
     if(self.impulse == 46)
     {
         self.impulse = 0;
-        if(VR_FlatPlay())
+        if(VR_FlatPlay(self))
         {
             VR_Forcegrab_FlatGrab();
         }
@@ -4622,7 +4622,7 @@ void() ImpulseCommands =
     {
         // Flatscreen play (-flatscreenmode): 1 cycles the left hand's weapon and 2 the right hand's, through the weapons
         // collected (the same cycling the controller's Y and B do); Quake's own weapon select stands for the other keys.
-        if(VR_FlatPlay() && (self.impulse == 1 || self.impulse == 2))
+        if(VR_FlatPlay(self) && (self.impulse == 1 || self.impulse == 2))
         {
             float xOffHand = self.impulse == 1;
             self.impulse = 0;

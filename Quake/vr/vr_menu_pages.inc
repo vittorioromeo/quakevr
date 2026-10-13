@@ -1169,6 +1169,11 @@ void resetHandMoves()
                   "even if it never left the well by the clearance: kept close, it seats after a moment, never at "
                   "once. Larger: more time to move it away; 0: by the clearance only. Loose magazines keep the eject "
                   "cooldown and the clearance."),
+        toggle("Release Seated Magazine", "vr_reload_mag_release")
+            .help("On: a magazine you push into its well leaves your hand as it seats, so moving the hand on to the "
+                  "foregrip while still gripping never pulls it back out; to pull it out again, let go and grip it "
+                  "afresh. Off: the hand still gripping holds the seated magazine, so pulling it straight back out "
+                  "works without letting go."),
         slider("Shell Slide In", "vr_reload_insert_time", 0.f, 0.5f, 0.01f, "%.2f s")
             .help("A shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it for this "
                   "long, following the gun (0: gone at once). It is loaded at once all the same."),

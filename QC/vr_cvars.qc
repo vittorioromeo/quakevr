@@ -692,7 +692,7 @@ float cvarh_vr_forcegrabbable_health_boxes;
 float cvarh_vr_forcegrabbable_box_scale;
 float cvarh_vr_forcegrabbable_return_time_deathmatch;
 float cvarh_vr_forcegrabbable_return_time_singleplayer;
-float cvarh_vr_flatplay; // -flatscreenmode (vr_flatplay.cpp): the game played on the desktop screen (docs/vr-port/FLATPLAY.md)
+float cvarh_vr_flatplay; // -flatscreenmode (vr_flatplay.cpp): this machine's client only; the game asks per player (VR_FlatPlay: .vr_flatscreen)
 float cvarh_vr_reload_mode;
 float cvarh_vr_reload_shell_pairs;
 float cvarh_vr_cellcord_laser;
@@ -707,6 +707,7 @@ float cvarh_vr_reload_test;
 float cvarh_vr_reload_pull_apart;
 float cvarh_vr_reload_reinsert_clearance;
 float cvarh_vr_reload_reinsert_time;
+float cvarh_vr_reload_mag_release;
 float cvarh_vr_reload_hit_reach;
 float cvarh_vr_reload_ssg_hit_close_angle;
 float cvarh_vr_reload_ssg_hit_close_speed;
@@ -1517,6 +1518,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_reload_pull_apart);
     VR_CVAR_HMAKE(vr_reload_reinsert_clearance);
     VR_CVAR_HMAKE(vr_reload_reinsert_time);
+    VR_CVAR_HMAKE(vr_reload_mag_release);
     VR_CVAR_HMAKE(vr_reload_hit_reach);
     VR_CVAR_HMAKE(vr_reload_ssg_hit_close_angle);
     VR_CVAR_HMAKE(vr_reload_ssg_hit_close_speed);

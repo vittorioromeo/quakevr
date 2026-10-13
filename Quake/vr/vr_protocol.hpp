@@ -79,6 +79,9 @@ inline constexpr int QVR_BUTTON_OFFHANDSECONDARY = 1 << 4;  // the hand's upper 
 inline constexpr int QVR_BUTTON_MAINHANDSECONDARY = 1 << 5; // in the game (-> QC QVR_VRBITS0_*HAND_SECONDARY: the grapple's reel)
 inline constexpr int QVR_BUTTON_OFFHANDPRIMARY = 1 << 6;  // the hand's lower face button (X; A on the main hand) is held,
 inline constexpr int QVR_BUTTON_MAINHANDPRIMARY = 1 << 7; // in the game (-> QC QVR_VRBITS0_*HAND_PRIMARY: the grapple's unreel)
+// The VR block's vrBits0 (QC QVR_VRBITS0_* in bits 0-13): bit 15 says this client plays flatscreen (-flatscreenmode:
+// vr_flatplay.cpp); the server takes it out (QC's bit 15 is its own) and sets the player's .vr_flatscreen.
+inline constexpr int moveFlatplayBit = 1 << 15;
 
 // VR stats (cl.stats / cl.statsf indices).
 enum Stat : int

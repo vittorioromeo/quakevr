@@ -17,6 +17,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 
@@ -79,8 +80,7 @@ struct Seen
     Blade blade;
     float light{0.f};
     float radius{0.f};
-    int bladeVerts{0};
-    int verts{0};
+    const entity_t* e{nullptr}; // (its entity: the report counts its glowing vertices then, not every frame)
 };
 
 // The model's grip and tip in its pose's space (a frame's: worked out again each frame, the weapon's settings may change).
@@ -100,6 +100,10 @@ Track tracks[maxTracks];
 PoseBlade poseCache[poseCacheSize];
 int poseCacheNext = 0;
 double lastQueue = -1.0;
+// The player at the last frame (carry): the pivot of the play space's turn (hands::State playerOrigin + lean), its turn.
+glm::vec3 lastPlayer{0.f};
+float lastTurnYaw = 0.f;
+double lastPlayerAt = -1.0;
 Seen seen[maxSources];
 int seenCount = 0;
 int embersMade = 0; // this second's (since statFrom)
@@ -308,12 +312,14 @@ void emberPoint(const entity_t& e, const float m[16], const Blade& b, glm::vec3&
 }
 
 // The trail a moving blade `e` (drawn by `m`) leaves this frame between where its heated part was (`t`, last frame) and
-// is (`b`): each particle somewhere on the heated part's shape (a vertex of it) between where it was and is.
-void trail(Track& t, const entity_t& e, const float m[16], const Blade& b, float glow, float dt, const glm::vec3& color)
+// is (`b`): each particle somewhere on the heated part's shape (a vertex of it) between where it was and is. Its speed
+// (units/s): `ownSpeed` (a hand's tip relative to the player), else (< 0) its tip's move since the last frame.
+void trail(Track& t, const entity_t& e, const float m[16], const Blade& b, float glow, float dt, const glm::vec3& color,
+    float ownSpeed)
 {
     const float amount = za::max(0.f, vr_hotblade_trail.value);
     const float step = glm::distance(b.tip, t.tip);
-    const float speed = dt > 0.f ? step / dt : 0.f;
+    const float speed = ownSpeed >= 0.f ? ownSpeed : dt > 0.f ? step / dt : 0.f;
     const float slowest = za::max(0.f, vr_hotblade_trail_speed.value) * units::metresToUnits();
     if(amount <= 0.f || dt <= 0.f || speed <= slowest || step > trailMaxStep || !particles::enabled())
     {
@@ -357,6 +363,27 @@ void trail(Track& t, const entity_t& e, const float m[16], const Blade& b, float
         t.due = 0.f; // (capped: not owed)
     }
     trailMade += made;
+}
+
+// A hand's blade's last frame carried along with the player (his box's move `from` -> `to` and his turn `turn` degrees
+// since: hands::State playerOrigin + lean, turnYaw), so its trail measures the swing relative to him: walking, running, riding
+// a lift, falling or turning with the stick leaves none.
+void carry(Track& t, const glm::vec3& from, const glm::vec3& to, float turn)
+{
+    const auto place = [&](const glm::vec3& p) { return to + hands::rotateYaw(p - from, turn); };
+    t.root = place(t.root);
+    t.tip = place(t.tip);
+    for(int c = 0; c < 3; c++)
+    {
+        const glm::vec3 axis = hands::rotateYaw(glm::vec3{t.m[4 * c], t.m[4 * c + 1], t.m[4 * c + 2]}, turn);
+        t.m[4 * c] = axis.x;
+        t.m[4 * c + 1] = axis.y;
+        t.m[4 * c + 2] = axis.z;
+    }
+    const glm::vec3 origin = place(glm::vec3{t.m[12], t.m[13], t.m[14]});
+    t.m[12] = origin.x;
+    t.m[13] = origin.y;
+    t.m[14] = origin.z;
 }
 
 // Track `key`'s (a hand's or a lying blade's): its last frame, or a new one (an unused slot, else the oldest).
@@ -505,7 +532,21 @@ void queue(const hands::State& s)
             Track& t = src1.kind < 2 ? trackFor(-1 - src1.kind, src1.kind, 1) : trackFor(src1.num, 2, maxLying);
             if(t.seen >= 0.0 && cl.time - t.seen < 0.15)
             {
-                trail(t, *src1.e, m, b, g, dt, color);
+                // A hand's: its swing relative to the player, not his own motion (walking, running, riding, falling,
+                // turning with the stick): its tip's speed from the hand's own (play space) velocity and turn, and its
+                // last frame carried along with him. A lying or flying one's: the world's.
+                float ownSpeed = -1.f;
+                if(src1.kind < 2 && s.valid)
+                {
+                    const float m2u = units::metresToUnits();
+                    const glm::vec3 arm = (b.tip - s.pos[src1.kind]) / m2u;
+                    ownSpeed = glm::length(s.vel[src1.kind] + glm::cross(s.angVel[src1.kind], arm)) * m2u;
+                    if(lastPlayerAt >= 0.0)
+                    {
+                        carry(t, lastPlayer, s.playerOrigin + s.lean, za::remainder(s.turnYaw - lastTurnYaw, 360.f));
+                    }
+                }
+                trail(t, *src1.e, m, b, g, dt, color, ownSpeed);
             }
             t.seen = cl.time;
             t.root = b.root;
@@ -525,18 +566,11 @@ void queue(const hands::State& s)
         w.blade = b;
         w.light = light;
         w.radius = radius;
-        if(const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(src1.e->model)); hdr && b.known)
-        {
-            // (For the report: how much of the model glows.)
-            const float zb = zeroBlendOf(*src1.e);
-            for(int v = 0; v < hdr->numverts; v++)
-            {
-                const glm::vec3 posed = anchor::posedVertex(*src1.e, v, zb);
-                w.bladeVerts += glm::dot(glm::vec3{b.plane}, posed) + b.plane.w >= 0.5f ? 1 : 0;
-            }
-            w.verts = hdr->numverts;
-        }
+        w.e = src1.e;
     }
+    lastPlayer = s.playerOrigin + s.lean;
+    lastTurnYaw = s.turnYaw;
+    lastPlayerAt = s.valid ? cl.time : -1.0;
     for(int i = 0; i < maxSources; i++)
     {
         if(lit[i] && !litNow[i])
@@ -594,10 +628,26 @@ void report_f()
         const Seen& w = seen[i];
         const Blade& b = w.blade;
         const char* where = w.kind == 0 ? "off" : w.kind == 1 ? "main" : w.kind < 2 + protocol::numHolsters ? "holster" : "lying";
+        // (How much of the model glows: its vertices as the entity stands now, still the last frame's while it shows the
+        // same model; posed only here, for the report.)
+        int bladeVerts = 0, verts = 0;
+        const aliashdr_t* hdr = connected() && w.e && w.model && w.e->model == w.model && w.model->type == mod_alias
+                                    ? static_cast<const aliashdr_t*>(Mod_Extradata(w.e->model))
+                                    : nullptr;
+        if(hdr && b.known)
+        {
+            const float zb = zeroBlendOf(*w.e);
+            for(int v = 0; v < hdr->numverts; v++)
+            {
+                const glm::vec3 posed = anchor::posedVertex(*w.e, v, zb);
+                bladeVerts += glm::dot(glm::vec3{b.plane}, posed) + b.plane.w >= 0.5f ? 1 : 0;
+            }
+            verts = hdr->numverts;
+        }
         // (Short: one console line.) The heated part's length of the grip-to-tip line, its vertices of the model's.
         Con_Printf("hotblade: client: %s %s glow %.2f part %.1f/%.1f verts %d/%d light %.2f reach %.0f\n", where,
             w.model ? COM_SkipPath(w.model->name) : "?", w.glow, glm::distance(b.root, b.tip), glm::distance(b.grip, b.tip),
-            w.bladeVerts, w.verts, w.light, w.radius);
+            bladeVerts, verts, w.light, w.radius);
         view::WeaponMount mount;
         if(w.kind < 2 && view::weaponMount(w.kind, mount))
         {

@@ -708,18 +708,11 @@ const DefaultChange defaultChanges[] = {
     {128, &vr_ragdoll_active_stagger_travel, "0.2"},
     // 129: the author's bash, shove and parry values compiled in (ROUND22.md, "His parry and bash tweaks are the
     // defaults"): firmer pushes to bash (3 m/s) and shove (3.5), quieter bash sounds, a weapon's bash knocks down,
-    // shorter parry pushes, a softer arm knock, parry stamina on (no random drop), a cheaper two-handed parry. Most were
-    // in vr_defaults.cfg already (a config at the old compiled-in values had them from before it).
+    // shorter parry pushes, a softer arm knock, parry stamina on (no random drop), a cheaper two-handed parry. Only the
+    // two speeds migrate: the rest shipped at their new values already (vr_defaults.cfg), so a config at an old
+    // compiled-in value there (bash sound 1, parry stamina 0, ...) was set by hand and keeps it.
     {129, &vr_bash_speed, "2"},
     {129, &vr_shove_speed, "2.4"},
-    {129, &vr_bash_sound, "1"},             // 0.7 (vr_defaults.cfg)
-    {129, &vr_knockdown_bash, "0"},         // 1 (vr_defaults.cfg)
-    {129, &vr_parry_push_enemy, "1"},       // 0.55 (vr_defaults.cfg)
-    {129, &vr_parry_push_player, "1"},      // 0.8 (vr_defaults.cfg)
-    {129, &vr_parry_wobble, "1"},           // 0.7 (vr_defaults.cfg)
-    {129, &vr_parry_drop_chance, "0.5"},    // 0 (vr_defaults.cfg)
-    {129, &vr_parry_stamina, "0"},          // 1 (vr_defaults.cfg)
-    {129, &vr_parry_stamina_cost_2h, "12"}, // 10 (vr_defaults.cfg)
     // 130: touching a monster no longer gives you away, only grabbing it does (the author, 2026-10-13: "just touching
     // an enemy doesn't alert them -- but grabbing them does"; ROUND22.md, "Stealth: a touch no longer gives you away").
     {130, &vr_stealth_contact, "1"},

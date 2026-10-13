@@ -362,8 +362,14 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     hands::angleVectors(fs.aim, fwd, right, up);
 
     // How far the arms are left behind by a turn and by a step.
+    // (A step's: back along his own horizontal motion, whatever way he faces: walking forward leaves the guns behind,
+    // under the crosshair, strafing beside it. The whole never more than maxTrail.)
     const float trail = za::clamp(fs.yawRate * turnLag, -maxTrail, maxTrail) * sway;
-    const glm::vec3 lag = right * -trail - (fwd * fs.vel.x + right * fs.vel.y) * (moveLag * sway);
+    glm::vec3 lag = right * -trail - glm::vec3{fs.vel.x, fs.vel.y, 0.f} * (moveLag * sway);
+    if(const float lagLen = glm::length(lag); lagLen > maxTrail)
+    {
+        lag *= maxTrail / lagLen;
+    }
 
     const bool mainHolds = heldIn(HAND_MAIN) >= 0;
     const bool offHolds = heldIn(HAND_OFF) >= 0;

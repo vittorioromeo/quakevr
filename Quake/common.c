@@ -1638,6 +1638,20 @@ qboolean COM_CheckParmImplied (const char *flag, const char *impliedBy, const ch
 
 /*
 ================
+COM_PrepareRun
+
+QVR: whether this is the installer's preparation run (vr_prepare.cpp): -prepare, or -preparerelight alone (the relight
+is a step of the preparation run, so it implies -prepare). Every reader of the flag asks here.
+================
+*/
+qboolean COM_PrepareRun (void)
+{
+	return COM_CheckParmImplied ("-prepare", "-preparerelight",
+		"the relight is a step of the preparation run, so -preparerelight runs the preparation too");
+}
+
+/*
+================
 COM_CheckRegistered
 
 Looks for the pop.txt file and verifies it.

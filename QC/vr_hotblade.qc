@@ -351,6 +351,10 @@ void() VR_HotBlade_Hud =
         65536 * VR_HotBlade_Level(self.holsterweaponinst4, 15) + 1048576 * VR_HotBlade_Level(self.holsterweaponinst5, 15);
 };
 
+// The option turned off: the weapons lying about or flying told once their glow is gone (the engine draws one by its
+// .vr_hot_glow alone: it would keep glowing until the option was on again).
+float vr_hot_off_cleared;
+
 // Each player frame (PlayerVRMelee, after VR_Melee_Frame: the blades' points as tracked this frame).
 void() VR_HotBlade_Frame =
 {
@@ -358,8 +362,18 @@ void() VR_HotBlade_Frame =
     {
         self.vr_hot_hud = 0;
         self.vr_hot_hud2 = 0;
+        if(!vr_hot_off_cleared)
+        {
+            vr_hot_off_cleared = TRUE;
+            entity t;
+            for(t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
+            {
+                t.vr_hot_glow = 0;
+            }
+        }
         return;
     }
+    vr_hot_off_cleared = FALSE;
     if(time >= self.vr_hot_next || self.vr_hot_next > time + 1)
     {
         float dt = min(0.2, max(0, time - self.vr_hot_last));

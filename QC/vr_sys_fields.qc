@@ -134,6 +134,7 @@
 
 .float offhand_hotspot;
 .float sawcord; // the chainsaws' starter cords (vr_chainsaw.qc VR_SAWCORD_*: which hand holds one, a pull)
+.float vr_flatscreen; // this player plays flatscreen (-flatscreenmode, his own client: the engine sets it from his move): VR_FlatPlay
 .float handdrop; // a heavy weapon wrenched out of a hand (the engine's vr_weight_drop: VR_HANDDROP_*, weapons.qc)
 .float mainhand_hotspot;
 

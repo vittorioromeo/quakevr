@@ -318,6 +318,7 @@ extern	int		safemode;
 
 int COM_CheckParm (const char *parm);
 qboolean COM_CheckParmImplied (const char *flag, const char *impliedBy, const char *why); // QVR: a flag another flag implies (-evalcopy implies -noconfigwrite, -noautoexec; -preparerelight implies -prepare), said once in the console
+qboolean COM_PrepareRun (void); // QVR: the installer's preparation run: -prepare, or -preparerelight (which implies it)
 
 void COM_Init (void);
 void COM_InitArgv (int argc, char **argv);

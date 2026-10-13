@@ -65,9 +65,14 @@ float(entity m, float xYaw, float xTier) VR_FoeGrab_Throw =
     else
     {
         makevectors('0 1 0' * xYaw);
+        vector was = m.velocity;
         m.velocity = v_forward * max(0, cvar_hget(cvarh_vr_foegrab_throw_push)) +
                      '0 0 1' * max(0, cvar_hget(cvarh_vr_foegrab_throw_lift));
         result = VR_Knockdown_Start(m) ? 1 : -2;
+        if(result < 1)
+        {
+            m.velocity = was; // (not knocked down: it stands, no shove)
+        }
     }
     if(result < 1)
     {
@@ -127,11 +132,16 @@ float(entity m, float xUp, float xHold) VR_FoeGrab_Lift =
     }
     else
     {
+        vector was = m.velocity;
         m.velocity = '0 0 1' * max(0, xUp);
         result = VR_Knockdown_Start(m) ? 1 : -2;
         if(result == 1)
         {
             m.vr_kd_until = max(m.vr_kd_until, time + xHold);
+        }
+        else
+        {
+            m.velocity = was; // (not knocked down: it stands, no hop)
         }
     }
     if(result < 1)
