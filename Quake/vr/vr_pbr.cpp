@@ -538,6 +538,11 @@ extern "C" void VR_PBRStrength(const gltexture_t* normalmap, float* normal, floa
     qvr::pbr::componentStrength(flags, qvr::vr_pbr_strength.value, normal, height);
 }
 
+extern "C" int VR_PBREnabled()
+{
+    return qvr::vr_pbr.value != 0.f;
+}
+
 extern "C" void VR_PBRForget(gltexture_t* base)
 {
     for(qvr::pbr::Use& u : qvr::pbr::uses)

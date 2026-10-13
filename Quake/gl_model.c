@@ -794,7 +794,7 @@ static void Mod_LoadTextures (lump_t *l)
 				else //use the texture from the bsp file
 				{
 					qboolean fullbrights = Mod_CheckFullbrights ((byte *)(tx+1), pixels); // QVR: kept for the external maps
-					int extmaps = VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height);
+					int extmaps = VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height); // QVR: before the normal map (vr_pbr asks whether the pack's is complete)
 					q_snprintf (texturename, sizeof(texturename), "%s:%s", loadmodel->name, tx->name);
 					offset = (src_offset_t)(mt+1) - (src_offset_t)mod_base;
 					if (fullbrights)
@@ -818,11 +818,14 @@ static void Mod_LoadTextures (lump_t *l)
 						tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
 							SRC_INDEXED, (byte *)(tx+1), loadmodel->name, offset, TEXPREF_MIPMAP | extraflags);
 					}
-					// QVR: heights only if drawn smooth (the shifts would bend its texels), but for the ammo and
-					// health boxes (the expansions' have no replacement textures), whose depth is a texel or two
-					q_snprintf (filename, sizeof(filename), "textures/%s/%s", mapname, tx->name);
-					q_snprintf (texturename, sizeof(texturename), "textures/%s", tx->name);
-					VR_LoadNormalMap (tx->gltexture, filename, texturename, (byte *)(tx+1), SRC_INDEXED, tx->width,
+					// QVR: a made map's heights only if drawn smooth (the shifts would bend its texels), but for the
+					// ammo and health boxes (the expansions' have no replacement textures), whose depth is a texel or
+					// two; authored and companion maps keep theirs. Authored _norm/_bump files beside the texture's
+					// name only with content companions on (vr_pbr; off: the made map alone, no lookups, as before)
+					q_snprintf (filename, sizeof(filename), "textures/%s/%s", mapname, tx->name); // QVR
+					q_snprintf (texturename, sizeof(texturename), "textures/%s", tx->name); // QVR
+					VR_LoadNormalMap (tx->gltexture, VR_PBREnabled () ? filename : NULL, VR_PBREnabled () ? texturename : NULL,
+						(byte *)(tx+1), SRC_INDEXED, tx->width,
 						TexMgr_IndexedSmooth () || VR_ModelHasTrait (loadmodel, VR_MODEL_TRAIT_AmmoBoxInsensitive) ? NORMALMAP_HEIGHTS : 0);
 					if (extmaps) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
 						VR_ExtMapsAttach (tx, loadmodel, fullbrights);
