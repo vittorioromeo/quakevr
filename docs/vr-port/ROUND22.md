@@ -5738,3 +5738,7 @@ Smoke (e1m1, e1m2) clean; melee eval 168/177 (the one known FAIL -> FAIL timing 
 Open: flying forward in flatscreen play the hands still sit ~33 units behind (the hands' world-space easing,
 `handEase`, adds ~20 to the capped 12-unit lag): easing them in the player's frame would bound the trail by maxTrail,
 but changes the feel (his call).
+
+## Neck snap: the hand-line detector (his idea), selectable
+
+`vr_foegrab_necksnap_method` 0 (default: the velocity strokes, unchanged) / 1 (Hand Line: the line between the tracked palms, laid across the neck, compared with each sample of the last `vr_foegrab_necksnap_window` s, default 0.3; turned Twist Angle within it snaps; the wrists rolling the same way, summed over the same window, also snaps). Standing it is measured in the enemy's yaw frame; a ragdoll's in play space (its chest turns whole with the hands: measured against the chest a 75 deg twist read 27). The stick's turn is taken out (old samples turned by the play yaw now). Window 0.3 not 0.4: a 1.2 s push-pull turns the line 33 deg in its busiest 0.4 s, 26 in 0.3 (30 deg / 0.3 s = 100 deg/s, the velocity method's Twist Speed). Menu: Neck Snap > Twist Detection, Twist Window (always shown, help says Hand Line only). `vr_foegrab_status` prints the method and the windowed angle. Tests: judo_test.py neck under `JUDO_NECK_METHOD=1` 29/29 (largest no-snap 26 deg, the 3 s 60-deg shuffle 6), method 0 29/29, dir+lift 22/22.
