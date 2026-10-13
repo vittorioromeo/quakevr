@@ -71,10 +71,6 @@
         slider("Reach", "vr_adgun_fumigator_range", 64.f, 800.f, 8.f, "%.0f units").extend(32.f, 2000.f),
         slider("Fuel", "vr_adgun_fumigator_fuel", 10.f, 400.f, 10.f, "%.0f puffs").extend(1.f, 2000.f),
         slider("Time Between Puffs", "vr_adgun_fumigator_rate", 0.05f, 0.5f, 0.01f, "%.2f s").extend(0.05f, 2.f),
-        header("Tests"),
-        command("Fire Each Gun at a Target", "vr_ad_test 70")
-            .help("Each gun into your main hand, fired at a target ahead: what it dealt (needs Arcane Dimensions' data)."),
-        command("Drop Each Gun", "vr_ad_test 71"),
-        command("Gun Models", "vr_adgun_models"),
+        // (their tests: Debug > Tests > Arcane Dimensions Monsters, vr_menu_ad_monsters.inc)
     };
 }

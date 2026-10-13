@@ -62,6 +62,20 @@
                   "corpse to gib."),
         command("Gib the Nearest", "vr_ad_mtest 4")
             .help("Destructive: the nearest AD monster or corpse hit for 1000: a corpse is gibbed (its own head and gib)."),
+        command("Snap the Nearest's Neck", "vr_ad_mtest 5")
+            .help("Destructive: the nearest awake AD monster's neck snapped as by your hands: it dies by AD's own death "
+                  "(a zombie or a mummy for good)."),
+        header("Soldiers' Guns (AD installed)"),
+        command("Fire Each Gun at a Target", "vr_ad_test 70")
+            .help("Each gun into your main hand, fired at a target ahead: what it dealt (adgun test: lines)."),
+        command("Drop Each Gun", "vr_ad_test 71").help("Each gun dropped from a soldier's place: its model and clip."),
+        command("Gun Models", "vr_adgun_models").help("The guns made from AD's monster models: triangles, box, muzzle."),
+        command("Stand-In Gun Model", "vr_ad_test 89")
+            .help("A gun model the engine cannot make (another AD release): Quake VR's stand-in loads under its name."),
+        command("Arm for a Level Change", "vr_ad_test 87")
+            .help("The rocket soldier's launcher in your main hand, the plasma soldier's rifle in the left shoulder "
+                  "holster (hold the grip): then change level and Check After a Level Change."),
+        command("Check After a Level Change", "vr_ad_test 88").help("Both still carried, their models loaded: PASS."),
         header("Ahead of You (AD installed)"),
         // ad_monsters_gen.py: begin (Misc/quakevr/ad_monsters_gen.py writes these)
         adSpawnRow(200, command("A Death Knight Ahead", "vr_test_spawn 200; vr_test_spawn_dist 128; impulse 241"))
