@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Neck snap method: compare Holding Enemies > Neck Snap > Twist Detection Velocity vs Hand Line (Twist Window 0.3 s): quick push-pulls, slow shuffles (no snap), wrist rolls, stick turning
 Getting close (Holding Enemies > Getting Close): hands reach grunt/enforcer/ogre heads at Body Inset 0/4/8; grab a shoulder, step in (Step In on/off: net plus or minus?), let go inside: eases apart, never stuck
 Hot blades 2: glow and light only on the blade; light fades with it; dropped blade glows and cools; more embers (settings); swing trail; reheat buzz; thrown hot axe burns
 Neck snap 2: both hands on head/neck never judo/lift; push one hand forward, other back (quick) snaps; shoulder grab still judos
