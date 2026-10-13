@@ -8,8 +8,8 @@ gripped (+grabmain, +graboff), then a vr_mock_play motion pulls them (tracking s
   dir      pulls left, right, towards you and away (vr_foegrab_throw_away 1) with the hands at its shoulders, at its box's
            middle, low on it, and uneven (the main hand higher and faster aside): PASS each when the throw goes the
            pulled way ("foegrab: both hands turn ... to your left") and its ragdoll lies that side of where it stood
-           ("throw trace done: ... its head <f> ahead, <l> to your left of where it stood"; the way it lies, its head
-           from its feet, printed, not judged: a throw goes over its head and its legs flop on over or back).
+           ("throw trace done: lies <f> ahead, <l> to your left (its head from its feet); its head <f> ahead, <l> to
+           your left of where it stood": either, the larger, 8+ that side; each alone varies with how it lands).
   hold     thrown and held on (vr_foegrab_throw_hold), dragged; off: let go (case_hold).
   lift     lifted, carried, broke free; thrown down; not an ogre, not too far, not off (case_lift).
   neck     the neck snap: a grunt's head twisted both ways and rolled, an enforcer's, a knocked-down, a staggering and a
@@ -113,12 +113,17 @@ def case_dir():
                             r"([-\d.]+) ahead, ([-\d.]+) to your left", flat)
             tip = re.search(r"throw trace: 0\.[12]\d s tilt \d+ deg.*?head ([-\d.]+) along the throw", flat)
             got = m.group(3) if m else "no throw"
-            # (Judged by where its head went: the way it lies, its head from its feet, flips with how its legs land.)
+            # (Its head on that side of where it stood or of its feet, the larger: a throw goes over its head and its legs
+            # flop on over or back as they land (its head 1-20 units left of its feet in a low left throw, then 14-26 of
+            # where it stood), or its feet slide back (its head 8-15 on of where it stood in an uneven away, 24-30 of its
+            # feet).)
             way_a, way_l, ahead, left = [float(g) for g in lie.groups()] if lie else (0.0, 0.0, 0.0, 0.0)
+            best_a = max(ahead, way_a) if way == "away" else min(ahead, way_a)
+            best_l = max(left, way_l) if way == "left" else min(left, way_l)
             early = float(tip.group(1)) if tip else 0.0
             # (Its start too, its head along the throw at 0.1-0.3 s; pulled towards you it passes through you:
             # vr_foegrab_throw_grace.)
-            side_ok = {"left": left > 8, "right": left < -8, "towards": ahead < -8, "away": ahead > 8}[way]
+            side_ok = {"left": best_l > 8, "right": best_l < -8, "towards": best_a < -8, "away": best_a > 8}[way]
             ok = got == WORDS[way] and early > 8 and side_ok and "rror" not in flat and "CRASH" not in flat
             verdict(ok, f"{height} {way}: thrown {got}" + (f" ({m.group(1)} deg/s, {m.group(2)} m/s)" if m else "") +
                     (f", tips {early:.0f} along at 0.2 s, its head {ahead:.0f} ahead, {left:.0f} left (lies head "
