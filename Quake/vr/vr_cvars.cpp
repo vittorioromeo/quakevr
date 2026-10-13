@@ -723,8 +723,12 @@ const DefaultChange defaultChanges[] = {
     // 130: touching a monster no longer gives you away, only grabbing it does (the author, 2026-10-13: "just touching
     // an enemy doesn't alert them -- but grabbing them does"; ROUND22.md, "Stealth: a touch no longer gives you away").
     {130, &vr_stealth_contact, "1"},
+    // 131: the neck snap's twist measured about the neck from the hands' places (a push-pull snaps it; ROUND22.md, "Neck
+    // snap: only move at the head, a push-pull twists").
+    {131, &vr_foegrab_necksnap_speed, "200"},
+    {131, &vr_foegrab_necksnap_angle, "45"},
 };
-constexpr int configVersion = 130;
+constexpr int configVersion = 131;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

@@ -1313,9 +1313,16 @@ ragdoll head 0` and moved by the play's new `rel` keys), a staggering one (`vr_k
 `vr_ragdoll_active_stagger_travel 0.03` so it stays in reach), a lifted one; PASS when `foegrab: both hands snap ...'s
 neck ...: killed`, `necksnap: ... (standing|knocked down|staggering, ...)`, `vr_foegrab_status` at MARK1 has `(snapped)
 with 2 hand(s)`, `let go of after` once the grips let go and no ragdoll held at MARK2. Not snapped: the ogre (`no neck
-snap, not a humanoid`), the hands at its chest, 75 degrees in 1 s, `vr_foegrab_necksnap 0`; a pull to the left at its
-head is still `both hands turn ... to your left`. `vr_foegrab_debug 2` prints each frame's twist (`... 's head: twist
-<deg/s> (the palms, the wrists), turned <deg>; each palm <m/s> about their middle, together <m/s>`) or which hand is not
-at its head (its spot in its frame: forward, left, up from its origin).
+snap, not a humanoid`), the hands at its chest, 75 degrees in 1 s, `vr_foegrab_necksnap 0`. Since "Neck snap: the only
+move at the head" (25 games): push-pulls (`pp_*`: the main hand 20 cm forward and the off hand 20 cm back, or the other
+way, in 0.3 s, straight and eased; wide 0.36 m apart 15 cm each; uneven 25/10 cm) standing at its head and at its neck
+(tracking `0 1.19 -1.16`: its holds 15-16 units over its origin), knocked down at its ragdoll's head both ways and at
+its neck (`vr_mock_hand_to <hand> ragdoll neck 0`: its head's joint) snap; the same in 1.2 s does not; both hands at its
+head pulled left (`head_pull`) or up (`head_lift`): neither `both hands turn` nor lifted. The lifted case lifts by the
+shoulders (`0 1.09 -1.16`: one hold in the head zone) and twists after. The knocked-down cases' ragdoll grab misses with
+one hand now and then (`ragdoll: a limb taken by hand 0` only; seen 2 in about 14 runs, not the snap's code): rerun with
+`JUDO_ONLY`. `vr_foegrab_debug 2` prints each frame's twist (`... 's head: twist <deg/s> (about its neck: the palms, the
+wrists), stroke <deg>, fastest <deg/s>; each palm <m/s> about their middle, together <m/s>`) or which hand is not at
+its head (its spot in its frame: forward, left, up from its origin).
 Mock plays (`vr_mock_play`) take `<t> rel <main|off> <dx> <dy> <dz>` keys: a hand's keyframes from where it is when the
 play reaches its first (after a `vr_mock_hand_to`); before it the hand is left alone.

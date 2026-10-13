@@ -5412,3 +5412,54 @@ weapon record's, as AD's `wi_adup`), kept in saves.
 - In VR: how long 2 s in a flame feels; whether the glow reads as red-hot metal in the headset (brightness, hue 18) and
   the build-up as heating; the sizzle, ring and hiss levels; reaching into a brazier with the axe without catching fire
   yourself; dipping in water.
+
+## Neck snap: only move at the head, a push-pull twists (worktree `foegrab3`, 2026-10-14)
+
+His notes on the neck snap (section 4 of "Judo: ..."): "most of my neck snaps get detected as judo throws. If both hands
+are on the head or neck, then judo throw should not be possible at all: the only eligible action should be the neck
+snap." And: "If my hands are on either side of the head, just moving one hand forward and one backward would create the
+twist necessary to snap the neck. At the moment I have to snap my wrists and twist them."
+
+- **Both hands at its head: only the neck snap.** `neckCheck` returns true whenever both holds are at its head, twisting
+  or not: the lift and the judo throw aren't tried (before, a hold at the head that didn't read as a twist fell through
+  to them: his push-pulls read as throws). Neck Snap off, the lift and the throw are tried as before.
+- **The neck.** `VR_FoeGrab_OnHead` (QC) is the head sphere grown (as before) but no lower than
+  `vr_foegrab_necksnap_neck` (Neck Length, 3 units) below the head sphere's bottom. Measured on the grunt (spots on its
+  model standing, up from its origin; head 23 up, radius 7.2): the hands at its head 21-24, at its neck 13.6-16.3, the
+  judo suite's "high" (shoulders) 10.3-12.3. The grown sphere reached down to 10.3, so the shoulder holds were at the
+  head (by 0.5 units) and with the new rule they lost their judo throw: the cut at 12.8 keeps them the judo's and the
+  neck the snap's. A ragdoll (knocked down, staggering, lifted): a palm also counts within 6 units (`neckGrip`) of its
+  neck's line, from its head's joint down Neck Length (`box3d::ragdollNeck`, new: its head's joint, its head's middle and
+  the line between them as it lies).
+- **The twist** (`neckStep`, rewritten): the neck's axis is its up standing, the neck's line for a ragdoll. The palms:
+  the line between them swept round, d x (v1 - v0) / |d|^2, and about the neck the angle its shadow across the neck
+  sweeps, n.(d x (v1 - v0)) / |d across n|^2 (at least half |d|: hands nearly along the neck can't show its turn). So
+  one hand pushed forward and the other pulled back turns the head as far as the line between them turns, whatever
+  the wrists do. The wrists: each hand's turn since the last frame, about the neck, the line between the hands and the
+  third axis, the lesser of the two when they agree. Each axis takes the larger of the palms' and the wrists' (a hand
+  gripping the head turns as much as the line between the hands sweeps: both measure the same turn; summed they would
+  count it twice), smoothed over 30 ms. A twist: each palm's speed about their middle (the wrists' turn at 8 cm) at least
+  0.75 of their mean velocity (was more than all of it: a push with the other hand still is a twist now). A stroke adds
+  its turn one way while the twist is at 0.4 of Twist Speed or more; it snaps at Twist Angle turned with its fastest
+  at Twist Speed (`neckSnapDue`; before, the turn only added up above Twist Speed, so a push-pull's ease in and out
+  was lost).
+- Defaults: Twist Speed 200 -> 100 deg/s, Twist Angle 45 -> 30 deg (configs still at the old defaults take the new:
+  `vr_cfg_version` 131). A push-pull of 20 cm each way, the hands 0.24 m apart (the tests'), turns the line 59 degrees;
+  0.3 m apart, 15 cm each, 45; 0.36 apart, 15 cm, 40. Its fastest (standing, `vr_foegrab_necksnap_angle 100000` to
+  measure): in 0.3 s 325, 0.5 s 210, 0.7 s 154, 0.9 s 119, 1.2 s 91 deg/s and no stroke: up to about 0.9 s snaps, 1.2 s
+  does nothing.
+- Menu (Holding Enemies > Neck Snap): the toggle's help (head or neck, push-pull, the only move), Twist Speed's and
+  Angle's help with the numbers, new row Neck Length. The debug line (`vr_foegrab_debug 2`): `twist <deg/s> (about its
+  neck: the palms, the wrists), stroke <deg>, fastest <deg/s>`. The mock's `vr_mock_hand_to <hand> ragdoll neck`: at its
+  head's joint.
+- Tests: `judo_test.py <agent> neck` (25 games): the 13 kept (the lifted one now lifts by the shoulders, one hold in
+  the head zone, then twists) and push-pulls standing at its head forward and back (325-329 deg/s, snapped at 31-33
+  degrees), wide (201), uneven 25/10 cm (305), at its neck (328), knocked down at its head both ways (391-435) and at
+  its neck (516): all snapped, held limp by 2 hands, let go of with the grips; the same push-pull in 1.2 s standing and
+  knocked down: nothing; both hands at its head pulled left or up: not thrown, not lifted, not snapped (replaces "a pull
+  at its head is still a judo throw"). All PASS (the knocked-down cases' ragdoll grab missed with the main hand in 2 of
+  about 14 runs, before any twist: reruns pass). `judo_test dir hold lift` 24 PASS, `stagger_test.sh judo` 0 FAIL, an
+  e1m1 smoke clean.
+- In VR: push-pulls at his pace both ways at a standing grunt's head and neck, and a lying one's; whether a shoulder
+  grab still throws (judo) and a neck grab never does; whether Twist Speed 100 / Angle 30 snaps too easily when he only
+  repositions his hands on a head (a slow repositioning stays below 100 deg/s; a quick one could snap).

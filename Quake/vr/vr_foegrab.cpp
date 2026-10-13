@@ -66,6 +66,9 @@ constexpr float liftHertz = 8.f;      // Hz: a lifted one's hold's spring (a rag
 constexpr float neckSmooth = 0.03f;   // s: the hands' twist of a head smoothed over about this long (neckStep)
 constexpr float neckRollArm = 0.08f;  // m: the wrists' roll of a head counts as the hands this far out turning it (neckStep)
 constexpr float neckMinArm = 0.04f;   // m: hands nearer together count as this far apart (the twist's measure)
+constexpr float neckGrip = 6.f;       // units: a palm this near a ragdoll's neck's line holds its neck (ragdollNeckCheck)
+constexpr float neckFloor = 0.4f;     // a twist slower than this share of vr_foegrab_necksnap_speed ends the stroke (neckStep)
+constexpr float neckPullShare = 0.75f; // a twist: each palm's speed about their middle at least this share of their mean velocity
 
 // Why a hand let go (QC VR_FoeGrab_Released's xWhy).
 enum class Why : int
@@ -129,6 +132,7 @@ struct Holder
     float neckTurned{0.f};
     glm::vec3 neckAxis{0.f};
     float neckPeak{0.f};
+    float neckStroke{0.f}; // the fastest twist of the stroke now (rad/s)
     glm::mat3 neckRot[2]{glm::mat3{1.f}, glm::mat3{1.f}};
     double neckAgain{0.0};
     double neckLast{-1.0};
@@ -837,18 +841,26 @@ float callQcAt(const char* name, edict_t* player, edict_t* m, const glm::vec3& a
 struct NeckTwist
 {
     float speed{0.f};    // the hands' twist of the head now, degrees/s (smoothed)
-    float turned{0.f};   // how far it has turned one way at vr_foegrab_necksnap_speed or more, degrees
+    float turned{0.f};   // how far this stroke has turned it one way, degrees
+    float peak{0.f};     // the stroke's fastest twist, degrees/s
     bool twisting{false}; // the hands twist it more than they pull it together (no throw, no lift)
 };
 
-// Each frame both hands of player `c` hold `m` by the head: the hands' twist of it. The two palms turning about each
-// other, d x (v1 - v0) / |d|^2 (d from the off palm to the main one, metres, at least neckMinArm; v their velocities,
-// m/s: opposite motion across d), plus both wrists rolling the same way about the line between them (each hand's turn
-// since the last frame along d; the lesser when both turn the same way, else none), smoothed over neckSmooth. It is a
-// twist when each palm's speed about their middle (or the wrists' roll at neckRollArm) is more than their mean velocity:
-// a pull together (the judo throw, the lift) is not. At vr_foegrab_necksnap_speed or more, twisting, its turn one way
-// adds up (another way, more than 60 degrees off, starts again); slower, it starts again.
-NeckTwist neckStep(int c, edict_t* m, const VrMove& move)
+// Each frame both hands of player `c` hold `m` by the head, `neck` its neck's line (unit, world: up standing; a ragdoll's
+// from its neck's joint to its head, as it lies): the hands' twist of it, from their places and from their turns.
+// - The palms: the line between them (d, off palm to main palm, metres) swept round, d x (v1 - v0) / |d|^2 (v their
+//   velocities, m/s: opposite motion across d). About the neck it is the angle d's shadow across the neck sweeps,
+//   n.(d x (v1 - v0)) / |d across n|^2 (at least neckMinArm and half |d|): one hand pushed forward and the other pulled back, the hands
+//   either side of its head, turns it about its neck however they are turned.
+// - The wrists: both hands turning the same way (each hand's turn since the last frame, from its angles; about each of
+//   the neck, the line between the hands and the third axis the lesser of the two when they agree, else none): the
+//   wrists rolled or snapped round.
+// Each axis takes the larger of the two (a hand gripping the head turns as much as the line between the hands sweeps:
+// either way measures the same turn), smoothed over neckSmooth. It is a twist when each palm's speed about their middle
+// (the wrists' turn at neckRollArm) is at least neckPullShare of their mean velocity: a pull together is not. A stroke
+// adds up its turn one way while it twists at neckFloor of vr_foegrab_necksnap_speed or more (another way, more than
+// 60 degrees off, starts another); slower, it ends. Its fastest twist is kept (vr_foegrab_necksnap_speed: neckCheck).
+NeckTwist neckStep(int c, edict_t* m, const VrMove& move, const glm::vec3& neck)
 {
     Holder& hd = holders[c];
     edict_t* player = EDICT_NUM(c + 1);
@@ -859,10 +871,18 @@ NeckTwist neckStep(int c, edict_t* m, const VrMove& move)
     const float toMetres = 1.f / units::metresToUnits();
     const glm::vec3 d = (palmOf(player, move, 1) - palmOf(player, move, 0)) * toMetres;
     const glm::vec3 &v0 = move.hands[0].vel, &v1 = move.hands[1].vel;
+    const glm::vec3 n = glm::length(neck) > 1e-4f ? glm::normalize(neck) : glm::vec3{0.f, 0.f, 1.f};
     const float len2 = za::max(glm::dot(d, d), neckMinArm * neckMinArm);
-    const glm::vec3 turn = glm::cross(d, v1 - v0) / len2;
-    const glm::vec3 axis = glm::length(d) > 1e-4f ? glm::normalize(d) : glm::vec3{0.f};
-    float wrist[2]{0.f, 0.f};
+    const glm::vec3 across = d - n * glm::dot(n, d);
+    // (Hands nearly along the neck can't show its turn: at most twice the arm's own measure, 30 degrees off it.)
+    const float acrossLen2 = za::max(glm::dot(across, across), za::max(neckMinArm * neckMinArm, 0.25f * len2));
+    const glm::vec3 sweep = glm::cross(d, v1 - v0);
+    const float aboutNeck = glm::dot(n, sweep) / acrossLen2;
+    const glm::vec3 palms = (sweep - n * glm::dot(n, sweep)) / len2 + n * aboutNeck;
+    // (The axes: the neck, the line between the hands across it, the third.)
+    const glm::vec3 side = glm::length(across) > 1e-4f ? glm::normalize(across) : glm::vec3{0.f};
+    const glm::vec3 axes[3]{n, side, glm::cross(n, side)};
+    glm::vec3 turn[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     for(int h = 0; h < 2; h++)
     {
         const glm::mat3 rot = held::axesFromAngles(&move.hands[h].rot[0], true);
@@ -870,19 +890,26 @@ NeckTwist neckStep(int c, edict_t* m, const VrMove& move)
         {
             // (A small turn's axis times its angle: the skew part of the turn since the last frame.)
             const glm::mat3 dr = rot * glm::transpose(hd.neckRot[h]);
-            const glm::vec3 w{dr[1][2] - dr[2][1], dr[2][0] - dr[0][2], dr[0][1] - dr[1][0]};
-            wrist[h] = glm::dot(w, axis) * (0.5f / dt);
+            turn[h] = glm::vec3{dr[1][2] - dr[2][1], dr[2][0] - dr[0][2], dr[0][1] - dr[1][0]} * (0.5f / dt);
         }
         hd.neckRot[h] = rot;
     }
-    const float roll = wrist[0] * wrist[1] > 0.f ? (za::abs(wrist[0]) < za::abs(wrist[1]) ? wrist[0] : wrist[1]) : 0.f;
-    const glm::vec3 spin = turn + axis * roll;
+    glm::vec3 wrists{0.f}, spin{0.f};
+    for(const glm::vec3& a : axes)
+    {
+        const float w0 = glm::dot(turn[0], a), w1 = glm::dot(turn[1], a);
+        const float w = w0 * w1 > 0.f ? (za::abs(w0) < za::abs(w1) ? w0 : w1) : 0.f;
+        const float p = glm::dot(palms, a);
+        wrists += a * w;
+        spin += a * (za::abs(p) >= za::abs(w) ? p : w);
+    }
     if(fresh)
     {
         hd.neckSpin = spin;
         hd.neckTurned = 0.f;
         hd.neckAxis = glm::vec3{0.f};
         hd.neckPeak = 0.f;
+        hd.neckStroke = 0.f;
     }
     else
     {
@@ -891,30 +918,43 @@ NeckTwist neckStep(int c, edict_t* m, const VrMove& move)
     hd.neckEnt = ent;
     hd.neckLast = time;
     const float rate = glm::length(hd.neckSpin);
-    const float tangential = glm::length(turn) * 0.5f * za::sqrt(len2) + za::abs(roll) * neckRollArm;
+    const float tangential = za::max(glm::length(palms) * 0.5f * za::sqrt(len2), glm::length(wrists) * neckRollArm);
     const float common = glm::length(0.5f * (v0 + v1));
     NeckTwist t;
     t.speed = glm::degrees(rate);
-    t.twisting = tangential > common && tangential > 0.05f;
-    if(t.twisting && t.speed >= za::max(vr_foegrab_necksnap_speed.value, 1.f))
+    t.twisting = tangential >= neckPullShare * common && tangential > 0.05f;
+    const float floor = glm::radians(za::max(vr_foegrab_necksnap_speed.value, 1.f)) * neckFloor;
+    if(t.twisting && rate >= floor)
     {
         const glm::vec3 way = hd.neckSpin / rate;
-        hd.neckTurned = glm::dot(way, hd.neckAxis) > 0.5f ? hd.neckTurned + rate * dt : rate * dt;
+        if(glm::dot(way, hd.neckAxis) > 0.5f)
+        {
+            hd.neckTurned += rate * dt;
+            hd.neckStroke = za::max(hd.neckStroke, rate);
+        }
+        else
+        {
+            hd.neckTurned = rate * dt;
+            hd.neckStroke = rate;
+        }
         hd.neckAxis = way;
     }
     else
     {
         hd.neckTurned = 0.f;
         hd.neckAxis = glm::vec3{0.f};
+        hd.neckStroke = 0.f;
     }
     hd.neckPeak = za::max(hd.neckPeak, t.speed);
     t.turned = glm::degrees(hd.neckTurned);
+    t.peak = glm::degrees(hd.neckStroke);
     if(debug(2))
     {
-        Con_Printf("foegrab: both hands on %s (%d)'s head: twist %.0f deg/s (the palms %.0f, the wrists %.0f), turned %.0f "
-                   "deg; each palm %.2f m/s about their middle, together %.2f m/s%s\n",
-            PR_GetString(m->v.classname), ent, t.speed, glm::degrees(glm::length(turn)), glm::degrees(roll), t.turned,
-            tangential, common, t.twisting ? " (a twist)" : "");
+        Con_Printf("foegrab: both hands on %s (%d)'s head: twist %.0f deg/s (about its neck: the palms %.0f, the wrists "
+                   "%.0f), stroke %.0f deg, fastest %.0f deg/s; each palm %.2f m/s about their middle, together %.2f "
+                   "m/s%s\n",
+            PR_GetString(m->v.classname), ent, t.speed, glm::degrees(aboutNeck), glm::degrees(glm::dot(wrists, n)),
+            t.turned, t.peak, tangential, common, t.twisting ? " (a twist)" : "");
     }
     return t;
 }
@@ -942,7 +982,7 @@ void neckSnap(int c, edict_t* m, const NeckTwist& t, bool ragdoll)
         {
             Con_Printf("foegrab: both hands twist %s (%d)'s head %.0f deg at %.0f deg/s: no neck snap, not a humanoid "
                        "(vr_foegrab_lift_classes)\n",
-                name, num, t.turned, t.speed);
+                name, num, t.turned, t.peak);
         }
         return;
     }
@@ -951,7 +991,7 @@ void neckSnap(int c, edict_t* m, const NeckTwist& t, bool ragdoll)
     if(debug() || dummy)
     {
         Con_Printf("foegrab: both hands snap %s (%d)'s neck, twisted %.0f deg at %.0f deg/s (%s): %s\n", name, num, t.turned,
-            t.speed, ragdoll ? "a ragdoll" : "standing",
+            t.peak, ragdoll ? "a ragdoll" : "standing",
             result >= 3.f ? "killed, no ragdoll to hold" : result >= 2.f ? "the training dummy (it stands)" :
             result >= 1.f ? "killed" : "it can't die now");
     }
@@ -980,10 +1020,19 @@ void neckSnap(int c, edict_t* m, const NeckTwist& t, bool ragdoll)
     }
 }
 
+// Whether a stroke of the hands' twist (neckStep) snaps the neck: turned vr_foegrab_necksnap_angle one way, at
+// vr_foegrab_necksnap_speed at its fastest, not just after a snap.
+[[nodiscard]] bool neckSnapDue(const Holder& hd, const NeckTwist& t)
+{
+    return t.turned >= za::max(vr_foegrab_necksnap_angle.value, 1.f) &&
+           t.peak >= za::max(vr_foegrab_necksnap_speed.value, 1.f) && qcvm->time >= hd.neckAgain;
+}
+
 // Both hands' holds of player `c` on `m` (twoHandCheck): at its head, the headshots' zone (QC VR_FoeGrab_OnHead: each
-// hold's spot as on its model standing, within its head sphere grown by vr_foegrab_necksnap_margin), the twist measured
-// (neckStep) and its neck snapped at vr_foegrab_necksnap_angle turned (neckSnap). True: the hands twist its head (the
-// lift and the throw aren't tried).
+// hold's spot as on its model standing, within its head sphere grown by vr_foegrab_necksnap_margin: down to the neck's
+// base), the twist measured about its up (neckStep) and its neck snapped (neckSnapDue, neckSnap). True: both hands at its
+// head, twisting or not: the neck snap is the only move then (the lift and the throw aren't tried; Neck Snap off, they
+// are).
 bool neckCheck(int c, edict_t* m, const VrMove& move)
 {
     Holder& hd = holders[c];
@@ -1017,19 +1066,20 @@ bool neckCheck(int c, edict_t* m, const VrMove& move)
         }
         return false;
     }
-    const NeckTwist t = neckStep(c, m, move);
-    if(t.turned >= za::max(vr_foegrab_necksnap_angle.value, 1.f) && qcvm->time >= hd.neckAgain)
+    const NeckTwist t = neckStep(c, m, move, glm::vec3{0.f, 0.f, 1.f});
+    if(neckSnapDue(hd, t))
     {
         neckSnap(c, m, t, false);
-        return true;
     }
-    return t.twisting;
+    return true;
 }
 
 // Each frame, for player `c` without the foegrab's holds: both his hands holding one living monster's ragdoll (the QC's
 // ragdoll holds: VR_Ragdoll_Handtouch's, a knocked-down or staggering one's; handOver's, lifted or thrown and held on) by
-// its head (the part each holds one of its head's, or the palm nearest its head's part or at its neck within
-// vr_foegrab_necksnap_margin): the twist measured (neckStep) and its neck snapped (neckSnap).
+// its head or neck (the part each holds one of its head's, or the palm nearest its head's part, or within
+// vr_foegrab_necksnap_margin of its neck's joint, or within neckGrip of its neck: vr_foegrab_necksnap_neck units from the
+// joint down to its body): the twist measured about its neck as
+// it lies (box3d::ragdollNeck; neckStep) and its neck snapped (neckSnapDue, neckSnap).
 void ragdollNeckCheck(int c)
 {
     Holder& hd = holders[c];
@@ -1053,6 +1103,12 @@ void ragdollNeckCheck(int c)
     }
     const uint32_t headBones = box3d::limbInfo(m, 1, 0);
     const float margin = za::clamp(vr_foegrab_necksnap_margin.value, 0.f, 32.f);
+    const float neckLength = za::clamp(vr_foegrab_necksnap_neck.value, 0.f, 32.f);
+    glm::vec3 joint{0.f}, neck{0.f, 0.f, 1.f}, head{0.f};
+    if(!box3d::ragdollNeck(num, joint, neck, head))
+    {
+        return;
+    }
     for(int h = 0; h < 2; h++)
     {
         box3d::RagdollHold rh;
@@ -1061,13 +1117,16 @@ void ragdollNeckCheck(int c)
             return;
         }
         const bool part = rh.part >= 0 && rh.part < 32 && (headBones & (1u << rh.part)) != 0u;
-        if(!part && box3d::ragdollHeadAt(num, palmOf(player, *move, h), margin) != 1)
+        const glm::vec3 palm = palmOf(player, *move, h);
+        const float along = za::clamp(glm::dot(joint - palm, neck), 0.f, neckLength);
+        const bool onNeck = glm::distance(palm, joint - neck * along) <= neckGrip;
+        if(!part && !onNeck && box3d::ragdollHeadAt(num, palm, margin) != 1)
         {
             return;
         }
     }
-    const NeckTwist t = neckStep(c, m, *move);
-    if(t.turned >= za::max(vr_foegrab_necksnap_angle.value, 1.f) && qcvm->time >= hd.neckAgain)
+    const NeckTwist t = neckStep(c, m, *move, neck);
+    if(neckSnapDue(hd, t))
     {
         neckSnap(c, m, t, true);
     }
