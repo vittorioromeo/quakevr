@@ -348,7 +348,10 @@ void SV_AirMove (void)
 	wishspeed = VectorNormalize(wishdir);
 	maxspeed = sv_maxspeed.value; // QVR: tired, slower (vr_stamina_speed)
 	if (sv_player->v.movetype != MOVETYPE_NOCLIP)
+	{
 		maxspeed *= VR_StaminaSpeedScale (sv_player) * VR_CarryMoveScale (sv_player);
+		maxspeed = VR_CrouchSpeedMax (sv_player, maxspeed); // QVR: crouched, slower, under the stealth AI's footsteps
+	}
 	if (wishspeed > maxspeed)
 	{
 		VectorScale (wishvel, maxspeed/wishspeed, wishvel); // QVR: maxspeed: stamina
