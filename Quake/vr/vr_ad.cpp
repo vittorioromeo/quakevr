@@ -283,6 +283,7 @@ void registerCommands()
 {
     Cmd_AddCommand("vr_ad_info", statusCommand);
     Cmd_AddCommand("vr_ad_tint_info", tintInfo);
+    Cmd_AddCommand("vr_ad_skyfog_info", skyFogInfo);
 }
 
 } // namespace qvr::ad
@@ -383,7 +384,7 @@ struct TintState
 // map's worldspawn key or r_skyfog): Fog_SetupFrame's.
 extern "C" float VR_AD_SkyFog(float mapOwn)
 {
-    const float stat = static_cast<float>(cl.stats[qvr::protocol::STAT_QVR_ADSKYFOG]);
+    const float stat = cl.statsf[qvr::protocol::STAT_QVR_ADSKYFOG]; // (density + 1: a float stat, not the int's 1)
     return stat >= 1.f ? za::clamp(stat - 1.f, 0.f, 1.f) : mapOwn;
 }
 
@@ -429,6 +430,12 @@ void qvr::ad::tintInfo()
         cl.stats[protocol::STAT_QVR_ADTINT], cl.stats[protocol::STAT_QVR_ADTINTDEN] & 255,
         (cl.stats[protocol::STAT_QVR_ADTINTDEN] & 256) ? "fade" : "tint", tintState.shown, tintState.colour[0],
         tintState.colour[1], tintState.colour[2], qvr::vr_ad_tints.value, v_blend[3]);
+}
+
+void qvr::ad::skyFogInfo()
+{
+    Con_Printf("adskyfog: stat %g, sky fog drawn %g (the map's own: -1)\n",
+        cl.statsf[protocol::STAT_QVR_ADSKYFOG], VR_AD_SkyFog(-1.f));
 }
 
 // A shotgun's pellets/tracer leave one muzzle together. Point hull traces can meet the
