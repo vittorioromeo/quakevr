@@ -9,7 +9,9 @@
 //
 // Their models are AD's own monsters' guns, cut out of AD's monster models where they are installed (the engine's
 // vr_adguns.cpp: "<monster model>#gun<skin>", the gun of the soldier's kind in that soldier's skin; nothing of AD's is in
-// Quake VR's files). Without AD's data (a saved game loaded elsewhere) Quake VR's own enemy guns stand in.
+// Quake VR's files). Without AD's data Quake VR's own enemy guns stand in for guns made then (a saved game loaded
+// elsewhere keeps the "#gun" names in its precache list: the engine loads the stand-in's file under such a name, as it
+// does for an AD release whose models differ from the measured one: vr_adguns.cpp derivedFile).
 
 float(float wid) VR_IsADGun =
 {
