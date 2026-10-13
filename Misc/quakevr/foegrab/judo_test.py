@@ -8,7 +8,8 @@ gripped (+grabmain, +graboff), then a vr_mock_play motion pulls them (tracking s
   dir      pulls left, right, towards you and away (vr_foegrab_throw_away 1) with the hands at its shoulders, at its box's
            middle, low on it, and uneven (the main hand higher and faster aside): PASS each when the throw goes the
            pulled way ("foegrab: both hands turn ... to your left") and its ragdoll lies that side of where it stood
-           ("throw trace done: ... lies <f> ahead, <l> to your left").
+           ("throw trace done: ... its head <f> ahead, <l> to your left of where it stood"; the way it lies, its head
+           from its feet, printed, not judged: a throw goes over its head and its legs flop on over or back).
   hold     thrown and held on (vr_foegrab_throw_hold), dragged; off: let go (case_hold).
   lift     lifted, carried, broke free; thrown down; not an ogre, not too far, not off (case_lift).
   neck     the neck snap: a grunt's head twisted both ways and rolled, an enforcer's, a knocked-down, a staggering and a
@@ -108,17 +109,20 @@ def case_dir():
             flat = " ".join(out.split())
             m = re.search(r"both hands turn \S+ \(\d+\) (\d+) deg/s at ([\d.]+) m/s, (to your left|to your right|"
                           r"towards you|away from you)", flat)
-            lie = re.search(r"lies ([-\d.]+) ahead, ([-\d.]+) to your left", flat)
+            lie = re.search(r"lies ([-\d.]+) ahead, ([-\d.]+) to your left \(its head from its feet\); its head "
+                            r"([-\d.]+) ahead, ([-\d.]+) to your left", flat)
             tip = re.search(r"throw trace: 0\.[12]\d s tilt \d+ deg.*?head ([-\d.]+) along the throw", flat)
             got = m.group(3) if m else "no throw"
-            ahead, left = (float(lie.group(1)), float(lie.group(2))) if lie else (0.0, 0.0)
+            # (Judged by where its head went: the way it lies, its head from its feet, flips with how its legs land.)
+            way_a, way_l, ahead, left = [float(g) for g in lie.groups()] if lie else (0.0, 0.0, 0.0, 0.0)
             early = float(tip.group(1)) if tip else 0.0
             # (Its start too, its head along the throw at 0.1-0.3 s; pulled towards you it passes through you:
             # vr_foegrab_throw_grace.)
             side_ok = {"left": left > 8, "right": left < -8, "towards": ahead < -8, "away": ahead > 8}[way]
             ok = got == WORDS[way] and early > 8 and side_ok and "rror" not in flat and "CRASH" not in flat
             verdict(ok, f"{height} {way}: thrown {got}" + (f" ({m.group(1)} deg/s, {m.group(2)} m/s)" if m else "") +
-                    (f", tips {early:.0f} along at 0.2 s, lies {ahead:.0f} ahead, {left:.0f} left" if lie else ", no trace"))
+                    (f", tips {early:.0f} along at 0.2 s, its head {ahead:.0f} ahead, {left:.0f} left (lies head "
+                     f"{way_a:.0f} ahead, {way_l:.0f} left of its feet)" if lie else ", no trace"))
 
 
 def status(flat, after):
@@ -353,7 +357,8 @@ def case_neck():
     hands at its chest, a twist too slow (75 degrees in 1 s), Neck Snap off. Push-pulls (pp: the main hand 20 cm
     forward, the off hand 20 cm back, or the other way, in 0.3 s, straight, eased): standing at its head, its neck, the
     hands wider (0.36 m apart, 15 cm each), uneven (25 cm and 10 cm), knocked down at its ragdoll's head both ways and
-    at its neck: snapped; the same in 1.2 s: nothing. Both hands at its head pulled left, or up: neither thrown nor
+    at its neck: snapped; the same in 1.2 s standing, in 1.5 s knocked down (the hands nearer: the same twist pace):
+    nothing (a ragdoll's hand grab missed: run again, up to 3 tries). Both hands at its head pulled left, or up: neither thrown nor
     lifted (the neck snap the only move there); lifted by the shoulders (one hand in its head zone), then twisted: snapped."""
     runs = [  # (name, monster, centre or 'kd'/'stagger', deg, dur, sign, axis, pull, extra, want)
         ("grunt_cw", 0, GRUNT_HEAD, 75, 0.2, 1, "y", None, "", "snap"),
@@ -375,7 +380,9 @@ def case_neck():
         ("pp_knocked_back", 0, "kd", 20, 0.3, -1, "pp", None, "", "snap"),
         ("pp_knocked_neck", 0, "kdneck", 20, 0.3, 1, "pp", None, "", "snap"),
         ("pp_slow", 0, GRUNT_HEAD, 20, 1.2, 1, "pp", None, "", "none"),
-        ("pp_knocked_slow", 0, "kd", 20, 1.2, 1, "pp", None, "", "none"),
+        # (The hands 0.18 m apart at its ragdoll's head, not 0.24: 20 cm in 1.2 s turns the line between them at 109
+        # deg/s at most, over Twist Speed; 1.5 s is the standing 1.2 s's pace, 87.)
+        ("pp_knocked_slow", 0, "kd", 20, 1.5, 1, "pp", None, "", "none"),
         ("head_pull", 0, GRUNT_HEAD, 0, 0, 1, "y", "left", "", "none"),
         ("head_lift", 0, GRUNT_HEAD, 0, 0, 1, "y", "uponly", "", "none"),
         ("ogre", 1, OGRE_HEAD, 75, 0.2, 1, "y", None, "", "ogre"),
@@ -399,8 +406,15 @@ def case_neck():
         else:
             path = neck_standing_motion(name, centre, deg, dur, sign, axis, pull)
             go = f"vr_mock_play {path}"
-        out = run(f"{pre};vr_knockdown_debug 1;{extra};{go};wait500;-grabmain;-graboff;wait5;toggleconsole;quit",
-                  "foegrab|necksnap:|held on by|ragdoll: a limb|stagger|MARK|rror|CRASH")
+        # (A ragdoll's: both hands must take its limbs, else nothing is measured, a 'none' passing for nothing; the touch
+        # grab misses with one hand now and then before any twist: up to 3 tries.)
+        for _ in range(3):
+            out = run(f"{pre};vr_knockdown_debug 1;{extra};{go};wait500;-grabmain;-graboff;wait5;toggleconsole;quit",
+                      "foegrab|necksnap:|held on by|ragdoll: a limb|stagger|MARK|rror|CRASH")
+            took = "limb taken by hand 0" in out and "limb taken by hand 1" in out
+            if centre not in ("kd", "kdneck", "stagger") or took:
+                break
+            print(f"  ({what}: a hand's ragdoll grab missed, again)")
         with open(os.path.join(SCRATCH, f"judo_test_{name}.txt"), "w") as f:
             f.write(out)
         flat = " ".join(out.split())
@@ -429,8 +443,10 @@ def case_neck():
             verdict(ok, f"ogre: {'snapped (wrong)' if died else 'not snapped'} "
                         f"({'not a humanoid' if 'not a humanoid' in flat else '?'})")
         else:
-            ok = not died and not snap and not thrown and not lifted and not bad
-            verdict(ok, f"{what}: {how}{', thrown (wrong)' if thrown else ''}{', lifted (wrong)' if lifted else ''}")
+            held = took or centre not in ("kd", "kdneck", "stagger")
+            ok = not died and not snap and not thrown and not lifted and not bad and held
+            verdict(ok, f"{what}: {how}{', thrown (wrong)' if thrown else ''}{', lifted (wrong)' if lifted else ''}"
+                        f"{'' if held else ', a hand never took its ragdoll (nothing measured)'}")
 
 
 def main():
