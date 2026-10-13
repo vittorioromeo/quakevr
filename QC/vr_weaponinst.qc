@@ -21,6 +21,17 @@
 // goes with the weapon (hands, holsters, drops, saves; a level change: parm64), so a plain axe found later stays plain.
 .float wi_adup;
 
+// Incandescent blades (vr_hotblade.qc): a melee weapon held in a flame or lava glows and burns what it strikes. The heat
+// is the weapon's (its record's), so it goes with it held, holstered, dropped and saved, and cools on its own clock.
+.float wi_heat;    // the build-up in a flame, 0..1 (as it was at wi_heat_at; it falls off out of the flame)
+.float wi_heat_at; // when wi_heat was last raised
+.float wi_hot_end; // when it stops being incandescent (time; past: not)
+
+// (vr_hotblade.qc, after vr_burning.qc: the melee and the damage call it.)
+float(entity p, float xHand) VR_HotBlade_Extra;
+void(entity p, float xHand, entity xTarg, float xAlive, vector xAt, vector xDir) VR_HotBlade_Struck;
+void() VR_HotBlade_Frame;
+
 float qvr_weaponinst_next; // The next id to try (saved with the game; carried to the next level: parm49).
 
 // Every record's id is below this; 0: not known yet (a load or a new map: the progs' globals start again), and the first
@@ -103,6 +114,9 @@ entity(entity xFrom) WeaponInst_Clone =
 {
     entity r = WeaponInst_New(xFrom.wi_clip);
     r.wi_adup = xFrom.wi_adup; // (AD support: its upgrades too)
+    r.wi_heat = xFrom.wi_heat; // (its heat: vr_hotblade.qc)
+    r.wi_heat_at = xFrom.wi_heat_at;
+    r.wi_hot_end = xFrom.wi_hot_end;
     return r;
 };
 

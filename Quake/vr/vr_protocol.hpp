@@ -150,6 +150,10 @@ enum Stat : int
     // AD support: the sky fog AD set (QC vr_ad_bridge.qc VR_AD_SkyFog, AD's r_skyfog): its density (0-1) + 1; 0 the map's
     // own (gl_fog.c: VR_AD_SkyFog).
     STAT_QVR_ADSKYFOG,
+    // Incandescent blades (QC vr_hotblade.qc VR_HotBlade_Hud; vr_meleehud.cpp): how the hands' weapons glow (0-255 each:
+    // the off hand's bits 0-7, the main hand's 8-15) and the holsters' (0-15 each: holster i bits 4i..4i+3).
+    STAT_QVR_HOTBLADE,
+    STAT_QVR_HOTBLADEHOLSTER,
     STAT_QVR_END
 };
 

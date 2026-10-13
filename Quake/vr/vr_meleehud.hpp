@@ -33,4 +33,9 @@ void queue(const hands::State& s);
 // The counter glow on `e`, 0..1 (0 but on what the hands hold while the window is open).
 [[nodiscard]] float entityGlow(const entity_t* e);
 
+// Incandescent blades (QC vr_hotblade.qc, STAT_QVR_HOTBLADE*; vr_hotblade_glow, vr_hotblade_hue): the glow of `e` if it
+// is a hand's or a holster's glowing weapon, coded for the alias shader (4 + 2 x its colour + its strength 0..2), else
+// 0. Each hand's weapon also sheds a few embers.
+[[nodiscard]] float hotGlow(const entity_t* e);
+
 } // namespace qvr::meleehud

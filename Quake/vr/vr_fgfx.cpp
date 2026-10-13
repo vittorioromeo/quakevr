@@ -276,14 +276,20 @@ glm::vec3 glowColor()
 extern "C" float VR_EntityGlow(const entity_t* e)
 {
     // The toolgun's target (vr_toolgun.cpp: its hue's, or 2..3 red: the remover's), else the force grab's (in the
-    // player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp).
+    // player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp), else an incandescent blade's (4 and over: its
+    // colour and strength coded, vr_meleehud.cpp hotGlow).
     const float t = qvr::toolgun::entityGlow(e);
     if(t != 0.f)
     {
         return t;
     }
     const float g = qvr::fgfx::entityGlow(e);
-    return g > 0.f ? g : -qvr::meleehud::entityGlow(e);
+    if(g > 0.f)
+    {
+        return g;
+    }
+    const float counter = qvr::meleehud::entityGlow(e);
+    return counter > 0.f ? -counter : qvr::meleehud::hotGlow(e);
 }
 
 extern "C" void VR_EntityGlowColor(float rgb[3])

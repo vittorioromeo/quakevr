@@ -1648,7 +1648,7 @@ QVR_DECAL_FUNCTIONS \
 
 // force grab's glow; the liquid's look
 #define QVR_WORLD_FS_GLOW_LIQUID \
-"	if (in_glow > 0.) // QVR: force grab's glow (vr/vr_fgfx.cpp); 2..3 the toolgun remover's red (vr/vr_toolgun.cpp)\n" \
+"	if (in_glow > 0. && in_glow < 3.5) // QVR: force grab's glow (vr/vr_fgfx.cpp); 2..3 the toolgun remover's red (vr/vr_toolgun.cpp); (4 and over, an incandescent blade's: models only)\n" \
 "	{\n" \
 "		float rim = 1.0 - abs(dot(facing, normalize(EyePos - in_pos)));\n" \
 "		vec3 glowColor = in_glow > 1.5 ? vec3(1.0, 0.12, 0.06) : SceneTone.yzw; // QVR: the player's hue\n" \
@@ -2488,7 +2488,15 @@ SPECULAR_AA_FUNCTIONS
 "	vec3 glowing = fullbright + emissive;\n" \
 "	result.rgb += fullbright + glowing * (in_fbboost * (1.0 - max(glowing.r, max(glowing.g, glowing.b))));\n" \
 "	result.rgb += wounds.glow; // QVR: a fresh burn's embers\n" \
-"	if (in_glow != 0.) // QVR: force grab's glow round the edges (vr/vr_fgfx.cpp); negative, the counter's (vr/vr_meleehud.cpp)\n" \
+"	if (in_glow > 3.5) // QVR: an incandescent blade (vr/vr_meleehud.cpp hotGlow): 4 + 2 x its colour (8 levels a channel: r + 8g + 64b) + its strength (0..2); the metal glows from within, its bright parts most\n" \
+"	{\n" \
+"		float hv = in_glow - 4.0;\n" \
+"		float hcode = floor(hv * 0.5);\n" \
+"		vec3 hcolor = vec3(mod(hcode, 8.0), mod(floor(hcode / 8.0), 8.0), floor(hcode / 64.0)) / 7.0;\n" \
+"		float hrim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n" \
+"		result.rgb += hcolor * (hv - 2.0 * hcode) * (0.22 + 1.1 * dot(skin, vec3(0.3, 0.59, 0.11)) + 0.6 * hrim * hrim);\n" \
+"	}\n" \
+"	else if (in_glow != 0.) // QVR: force grab's glow round the edges (vr/vr_fgfx.cpp); negative, the counter's (vr/vr_meleehud.cpp)\n" \
 "	{\n" \
 "		float rim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n" \
 "		vec3 glowColor = in_glow > 1.5 ? vec3(1.0, 0.12, 0.06) : in_glow > 0. ? SceneTone.yzw : vec3(1.0, 0.66, 0.2); // QVR: the player's hue; the counter's gold; the toolgun remover's red (2..3: vr/vr_toolgun.cpp)\n" \

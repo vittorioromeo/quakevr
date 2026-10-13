@@ -607,6 +607,7 @@ void() ad_light_torch_small_walltorch =
 	self.ad_estate_off = ad_light_torch_off;
 
 	// Check for any custom light styles
+	VR_FireSpot_AD(2); // QVR: its flame heats blades and lights torches again (vr_walltorch.qc)
 	ad_light_customstyle_start();
 };
 
@@ -669,6 +670,7 @@ void() ad_light_flame_large_yellow =
 	ad_setup_light_particle(ad_PARTICLE_STYLE_FLAMEL);
 	
 	// Check for any custom light styles
+	VR_FireSpot_AD(1); // QVR: its flame heats blades and lights torches again (vr_walltorch.qc)
 	ad_light_customstyle_start();
 };
 
@@ -731,6 +733,7 @@ void() ad_light_flame_small_yellow =
 	ad_setup_light_particle(ad_PARTICLE_STYLE_FLAMES);
 
 	// Check for any custom light styles
+	VR_FireSpot_AD(0); // QVR: its flame heats blades and lights torches again (vr_walltorch.qc)
 	ad_light_customstyle_start();
 };
 //Duplicate (small yellow flame)
@@ -859,6 +862,7 @@ void() ad_light_flame_pyre =
 	ad_setup_light_particle(ad_PARTICLE_STYLE_FLAMEL);
 
 	// Check for any custom light styles
+	VR_FireSpot_AD(1); // QVR: its flame heats blades and lights torches again (vr_walltorch.qc)
 	ad_light_customstyle_start();
 };
 
@@ -905,6 +909,7 @@ void() ad_light_flame_brazier_short =
 	ad_setup_light_particle(ad_PARTICLE_STYLE_FLAMES);
 
 	// Check for any custom light styles
+	VR_FireSpot_AD(0); // QVR: its flame heats blades and lights torches again (vr_walltorch.qc)
 	ad_light_customstyle_start();
 };
 
@@ -951,6 +956,7 @@ void() ad_light_flame_brazier_tall =
 	ad_setup_light_particle(ad_PARTICLE_STYLE_FLAMES);
 
 	// Check for any custom light styles
+	VR_FireSpot_AD(0); // QVR: its flame heats blades and lights torches again (vr_walltorch.qc)
 	ad_light_customstyle_start();
 };
 
