@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_sha256.hpp"
+#include "vr_mem.hpp"
 #include "vr_modelmetadata.h"
 #include "Zancle/Container/Vector.hpp"
 #include <cstring>
@@ -43,65 +44,123 @@ struct Strength
     char path[MAX_QPATH]{};
     unsigned flags{};
 };
-za::Vector<Provenance> provenance;
-za::Vector<Strength> strengths;
-bool provenanceLoaded{};
+za::Vector<Strength> strengths; // the live textures' companions (VR_PBRForget empties it with them)
 struct StockSource { char hash[33]{}; };
-za::Vector<StockSource> stockSources;
-bool stockLoaded{};
+// A companion's state by its source's hash: missing, or its verified generated components (verifiedFlags).
+struct Companion
+{
+    char source[33]{};
+    bool missing{};
+    unsigned flags{};
+};
+
+// The bundle's indexes and what its companions were verified as: content-addressed, so kept until the game
+// folders change (not re-read and re-hashed at every map).
+struct Session
+{
+    za::Vector<Provenance> provenance;
+    za::Vector<StockSource> stockSources;
+    za::Vector<Companion> companions;
+    bool provenanceLoaded{};
+    bool stockLoaded{};
+    auto members() { return mem::list(provenance, stockSources, companions, provenanceLoaded, stockLoaded); }
+};
+mem::Cache<Session> session{"pbr companions", mem::GameDirChange};
+
+// A text index's records after its header line: LF or CRLF (a checkout or an editor may have made either). Each
+// record line goes to `record` (without its line end); false when the header differs.
+template <class F>
+bool parseLines(const char* data, const char* header, F&& record)
+{
+    const size_t headerLength = strlen(header);
+    if(!data || strncmp(data, header, headerLength)) return false;
+    const char* line = data + headerLength;
+    if(*line == '\r') ++line;
+    if(*line != '\n') return false;
+    ++line;
+    while(*line)
+    {
+        const char* end = strchr(line, '\n');
+        size_t length = end ? static_cast<size_t>(end - line) : strlen(line);
+        const char* next = end ? end + 1 : line + length;
+        if(length && line[length - 1] == '\r') --length;
+        if(length && !record(line, length)) break; // malformed: the rest is not trusted
+        line = next;
+    }
+    return true;
+}
+
+int parseStock(const char* data, za::Vector<StockSource>& out)
+{
+    int records{};
+    parseLines(data, "qvr-pbr-stock-v1", [&](const char* line, size_t length)
+    {
+        if(length != 32 || strspn(line, "0123456789abcdef") < 32) return false;
+        StockSource source{};
+        memcpy(source.hash, line, 32);
+        out.emplaceBack(source);
+        ++records;
+        return true;
+    });
+    return records;
+}
+
+int parseProvenance(const char* data, za::Vector<Provenance>& out)
+{
+    int records{};
+    parseLines(data, "qvr-pbr-provenance-v1", [&](const char* line, size_t length)
+    {
+        char text[160];
+        if(length >= sizeof(text)) return false;
+        memcpy(text, line, length);
+        text[length] = 0;
+        Provenance p{};
+        int consumed{};
+        if(sscanf(text, "%32s %64s %u%n", p.source, p.output, &p.flags, &consumed) != 3 ||
+            strlen(p.source) != 32 || strlen(p.output) != 64 || p.flags > 3 || consumed == 0)
+            return false; // Malformed or unknown records never acquire generated strength.
+        out.emplaceBack(p);
+        ++records;
+        return true;
+    });
+    return records;
+}
+
+// A present index that gives no records is a broken file, not an empty bundle: say so.
+template <class T>
+void loadIndex(const char* file, int (*parse)(const char*, za::Vector<T>&), za::Vector<T>& out)
+{
+    const int mark = Hunk_LowMark();
+    const char* data = reinterpret_cast<const char*>(COM_LoadHunkFile(file, nullptr));
+    if(data && parse(data, out) == 0)
+        Con_Warning("%s: no records read (malformed?)\n", file);
+    Hunk_FreeToLowMark(mark);
+}
 
 bool isStockSource(const char* hash)
 {
-    if(!stockLoaded)
+    if(!session.stockLoaded)
     {
-        stockLoaded = true;
-        const int mark = Hunk_LowMark();
-        const char* data = reinterpret_cast<const char*>(COM_LoadHunkFile("textures/pbr/stock.txt", nullptr));
-        constexpr char header[] = "qvr-pbr-stock-v1\n";
-        if(data && !strncmp(data, header, sizeof(header) - 1))
-        {
-            const char* line = data + sizeof(header) - 1;
-            while(*line)
-            {
-                StockSource source{};
-                if(strspn(line, "0123456789abcdef") != 32 || (line[32] != '\n' && line[32] != '\0')) break;
-                memcpy(source.hash, line, 32);
-                stockSources.emplaceBack(source);
-                line += 32;
-                if(*line == '\n') ++line;
-            }
-        }
-        Hunk_FreeToLowMark(mark);
+        session.stockLoaded = true;
+        loadIndex("textures/pbr/stock.txt", parseStock, session.stockSources);
     }
-    for(const StockSource& source : stockSources)
+    for(const StockSource& source : session.stockSources)
         if(!strncmp(source.hash, hash, 32)) return true;
     return false;
 }
 
 void loadProvenance()
 {
-    if(provenanceLoaded) return;
-    provenanceLoaded = true;
-    const int mark = Hunk_LowMark();
-    const char* data = reinterpret_cast<const char*>(COM_LoadHunkFile("textures/pbr/provenance.txt", nullptr));
-    constexpr char header[] = "qvr-pbr-provenance-v1\n";
-    if(data && !strncmp(data, header, sizeof(header) - 1))
-    {
-        const char* line = data + sizeof(header) - 1;
-        while(*line)
-        {
-            Provenance p{};
-            int consumed{};
-            if(sscanf(line, "%32s %64s %u%n", p.source, p.output, &p.flags, &consumed) != 3 ||
-                strlen(p.source) != 32 || strlen(p.output) != 64 || p.flags > 3 || consumed == 0)
-                break; // Malformed or unknown records never acquire generated strength.
-            provenance.emplaceBack(p);
-            line = strchr(line, '\n');
-            if(!line) break;
-            ++line;
-        }
-    }
-    Hunk_FreeToLowMark(mark);
+    if(session.provenanceLoaded) return;
+    session.provenanceLoaded = true;
+    loadIndex("textures/pbr/provenance.txt", parseProvenance, session.provenance);
+}
+
+Companion* companion(const char* hash)
+{
+    for(Companion& c : session.companions)
+        if(!strncmp(c.source, hash, 32)) return &c;
+    return nullptr;
 }
 
 void rememberStrength(const char* path, unsigned flags)
@@ -162,7 +221,7 @@ unsigned verifiedFlags(const char* source, const byte* rgba, int w, int h)
     loadProvenance();
     char digest[65];
     hashSource(rgba, SRC_RGBA, w, h, digest);
-    for(const Provenance& p : provenance)
+    for(const Provenance& p : session.provenance)
         if(!strncmp(p.source, source, 32) && !strcmp(p.output, digest)) return p.flags;
     return 0; // Missing/stale metadata is conservatively treated as authored.
 }
@@ -384,7 +443,7 @@ void test_f()
         int checked{};
         for(const Use& u : uses)
         {
-            if(!u.base || !u.found || !isStockSource(u.hash)) continue;
+            if(!u.base || !isStockSource(u.hash)) continue; // (none has a companion: not shipped)
             ++checked;
             const gltexture_t* nm = TexMgr_NormalMap(u.base);
             float ns{}, hs{};
@@ -412,11 +471,46 @@ void test_f()
     q_strlcpy(proof.source, "00000000000000000000000000000000", sizeof(proof.source));
     hashSource(pixels, SRC_RGBA, 2, 1, proof.output);
     proof.flags = 3;
-    provenance.emplaceBack(proof);
+    session.provenance.emplaceBack(proof);
     check(verifiedFlags(proof.source, pixels, 2, 1) == 3, "matching decoded companion provenance");
     check(verifiedFlags(proof.source, changed, 2, 1) == 0, "stale companion provenance stays authored");
     check(verifiedFlags(proof.source, pixels, 1, 2) == 0, "provenance binds output dimensions");
-    provenance.popBack();
+    session.provenance.popBack();
+    {
+        // The indexes parse alike with LF and CRLF line ends (a Windows checkout or an editor can make the latter).
+        auto withCRLF = [](const char* text)
+        {
+            const size_t length = strlen(text);
+            char* out = static_cast<char*>(Hunk_AllocNoFill(length * 2 + 1));
+            char* o = out;
+            for(const char* c = text; *c; ++c)
+            {
+                if(*c == '\n' && (c == text || c[-1] != '\r')) *o++ = '\r';
+                *o++ = *c;
+            }
+            *o = 0;
+            return out;
+        };
+        const int mark = Hunk_LowMark();
+        const char* stock = reinterpret_cast<const char*>(COM_LoadHunkFile("textures/pbr/stock.txt", nullptr));
+        za::Vector<StockSource> lf, crlf;
+        const int records = parseStock(stock, lf);
+        check(records > 1000 && parseStock(withCRLF(stock ? stock : ""), crlf) == records &&
+                  !memcmp(lf.back().hash, crlf.back().hash, 33),
+            "shipped stock.txt parses, the same with CRLF");
+        const char provenanceText[] = "qvr-pbr-provenance-v1\n"
+            "000498127d0fd3e511919fd2abe15e2d 16188e3b8952f9e0f48f677a14145fd03b9a083a7efee70c5694666b16c3b1c4 3\n"
+            "0008d2d8e0c3c884494127187ebbc296 9716bbde367499f2b2e8c5f5bd00799d79869750d8c495b87b53d977e3f5298d 0\n";
+        za::Vector<Provenance> plf, pcrlf;
+        check(parseProvenance(provenanceText, plf) == 2 && parseProvenance(withCRLF(provenanceText), pcrlf) == 2 &&
+                  pcrlf[0].flags == 3 && !strcmp(pcrlf[1].output, plf[1].output),
+            "provenance parses the same with CRLF");
+        za::Vector<StockSource> bad;
+        check(parseStock("qvr-pbr-stock-v1\r\n0123456789abcdef0123456789abcdeX\n", bad) == 0 &&
+                  parseStock("qvr-pbr-stock-v2\n0123456789abcdef0123456789abcdef\n", bad) == 0,
+            "malformed stock lines and other headers give no records");
+        Hunk_FreeToLowMark(mark);
+    }
     const byte indexed[] = {0, 1, 254, 255};
     byte expanded[16];
     for(int i = 0; i < 4; ++i)
@@ -557,11 +651,7 @@ extern "C" void VR_PBRForget(gltexture_t* base)
             u.base = nullptr;
     for(const qvr::pbr::Use& u : qvr::pbr::uses)
         if(u.base) return;
-    qvr::pbr::provenance.clear();
-    qvr::pbr::strengths.clear();
-    qvr::pbr::provenanceLoaded = false;
-    qvr::pbr::stockSources.clear();
-    qvr::pbr::stockLoaded = false;
+    qvr::pbr::strengths.clear(); // (the indexes and verified companions stay: session, until the game folders change)
 }
 
 extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* shared,
@@ -586,25 +676,29 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
     int w{}, h{};
     enum srcformat f{};
     byte* generated = nullptr;
-    if(use.preserveMaterial)
+    if(!use.preserveMaterial) // (the bundle has no companions for stock textures: nothing to look up)
     {
-        // Keep coverage diagnostics without decoding a companion the original loader will never use.
-        for(const char* extension : {".png", ".tga", ".jpg"})
+        pbr::Companion* known = pbr::companion(use.hash);
+        if(!known || !known->missing) // (a source without one: no lookups again this session)
         {
-            char file[MAX_QPATH];
-            q_snprintf(file, sizeof(file), "%s%s", r.generated, extension);
-            use.found |= COM_FileExists(file, nullptr) != 0;
+            generated = Image_LoadImage(r.generated, &w, &h, &f);
+            use.found = generated && f == SRC_RGBA;
         }
-    }
-    else
-    {
-        generated = Image_LoadImage(r.generated, &w, &h, &f);
-        use.found = generated && f == SRC_RGBA;
+        if(!known)
+        {
+            // Verified once per session: the bundle is content-addressed, so the same file decodes the same.
+            pbr::Companion c{};
+            memcpy(c.source, use.hash, 32);
+            c.missing = !use.found;
+            c.flags = use.found ? pbr::verifiedFlags(use.hash, generated, w, h) : 0u;
+            pbr::session.companions.emplaceBack(c);
+            known = &pbr::session.companions.back();
+        }
+        use.generatedFlags = use.found ? known->flags : 0u;
     }
     const bool completeExternal = !use.preserveMaterial && use.found && extmaps::completePending();
     if(use.found && !use.preserveMaterial)
     {
-        use.generatedFlags = pbr::verifiedFlags(use.hash, generated, w, h);
         r.generatedFlags = use.generatedFlags;
         // Exact frame and map first. A _norm's RGB and nonflat alpha outrank generated components independently.
         for(const char* source : {image, shared})
