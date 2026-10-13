@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Neck snap: both hands on a humanoid head (standing, staggered, knocked down), twist fast: crack, dies, stays limp in hands till you let go; head zone not too big; crack loudness
 Judo: pull left (hands at belt, or one hand higher) and it falls left; after a throw it stays softly held, drag it (lower hands)
 Lift: both hands on a grunt/enforcer, pull up fast: it flails, carry or throw it down; breaks free and shoves you after 2 s; ogres not
 Magazines: pull out, push back, pull out again without letting go; bumped-out one: new one at the well seats after ~0.25 s (Reloading > Magazine Reinsertion Delay)
