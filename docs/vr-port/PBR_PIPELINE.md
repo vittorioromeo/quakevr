@@ -55,7 +55,8 @@ scratch/env/Scripts/python.exe Misc/quakevr/pbr_generate.py generate --game C:/G
 
 Use `scan` instead of `generate` to census without loading models. Use `--limit 12 --output scratch/pbr-preview`
 for a short sample. `--palette path/to/palette.lmp` provides an explicit 768-byte palette. Within each game folder,
-numeric pakN precedence applies followed by loose files. Packed and loose BSP29/BSP2 texture lumps are bounds-checked.
+the engine's order applies: pak0, pak1, ... above the loose files (each PAK above the ones before it), and only the
+contiguous pak0..N are mounted (a pak3 after a missing pak2, or a `pak_old.pak`, is not). Packed and loose BSP29/BSP2 texture lumps are bounds-checked.
 Repeat `--game` for independent mods: each is scanned with its own PAK/loose precedence. The first game/palette-game
 with a palette supplies it; prefer an explicit palette if a mod changes it.
 
@@ -65,7 +66,7 @@ absent. For a complete explicit order, list every root including AD, for example
 --texture-game C:/Games/Quake/ad --texture-game C:/Games/Quake/id1`. Filename lookup first tries
 `textures/<map>/<name>`, then `textures/<name>`. Within either filename it tries PNG, TGA and JPG across all game
 roots in that order: a map-specific replacement in a lower game wins over a generic higher-game replacement, and
-a lower-game PNG wins over a higher-game TGA. Each root retains numeric PAK/loose precedence. Selected images are
+a lower-game PNG wins over a higher-game TGA. Each root keeps the engine's PAK-above-loose order. Selected images are
 hashed with their decoded RGBA, including transparency; their origin and maps are recorded. This includes packed
 AD replacements such as `textures/{speedbz_grid1.tga`, rather than assuming all map pixels come from BSP miptex.
 

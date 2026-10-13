@@ -186,15 +186,20 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(index, ("qvr-pbr-provenance-v1\n" + "\n".join(sorted(expected)) + "\n").encode("ascii"))
 
     def test_pak_and_loose_precedence_collision(self):
-        make_pak(self.root / "pak2.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 2, np.uint8))})
-        make_pak(self.root / "pak10.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 10, np.uint8))})
-        entry = pbr.entries(self.root)["maps/test.bsp"]
-        self.assertEqual(int(list(pbr.bsp_textures(pbr.read_entry(entry)))[0][1][0,0]), 10)
+        # The engine's order (COM_AddGameDirectory): loose files, then pak0, pak1, ... on top; a gap ends the PAKs.
+        def value(entries):
+            return int(list(pbr.bsp_textures(pbr.read_entry(entries["maps/test.bsp"])))[0][1][0, 0])
         (self.root / "maps").mkdir()
         (self.root / "maps/test.bsp").write_bytes(make_bsp("same", np.full((4,4), 99, np.uint8)))
-        entry = pbr.entries(self.root)["maps/test.bsp"]
-        self.assertEqual(int(list(pbr.bsp_textures(pbr.read_entry(entry)))[0][1][0,0]), 99)
-        self.source(rgb=2)
+        self.assertEqual(value(pbr.entries(self.root)), 99)
+        make_pak(self.root / "pak3.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 3, np.uint8))})
+        make_pak(self.root / "pak_old.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 7, np.uint8))})
+        self.assertEqual(value(pbr.entries(self.root)), 99)  # no pak0: pak3 and pak_old are never mounted
+        make_pak(self.root / "pak0.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 0, np.uint8))})
+        self.assertEqual(value(pbr.entries(self.root)), 0)  # a PAK above the loose file
+        make_pak(self.root / "pak1.pak", {"maps/test.bsp": make_bsp("same", np.full((4,4), 1, np.uint8))})
+        self.assertEqual(value(pbr.entries(self.root)), 1)  # pak1 above pak0; pak3 after the missing pak2 still not
+        self.source(rgb=1)
         self.source(rgb=99)
         self.assertEqual(len(self.sources), 2)
 
@@ -222,12 +227,17 @@ class PipelineTests(unittest.TestCase):
         # PNG in lower game wins over TGA in higher game for the same filename.
         chosen, _ = pbr.selected_override("maps/ext.bsp", "wall", indexes)
         self.assertTrue(np.all(chosen == (0, 255, 0, 255)))
-        # Highest game wins when the extensions agree; loose files override its PAKs.
+        # Highest game wins when the extensions agree; its PAKs override its loose files (as the engine mounts them).
         (high / "textures").mkdir()
         (high / "textures/wall.tga").write_bytes(blue)
         chosen, origin = pbr.selected_override("maps/other.bsp", "wall", [pbr.entries(high),pbr.entries(low)])
+        self.assertTrue(np.all(chosen == (255, 0, 0, 255)))
+        self.assertIn("pak0.pak:textures/wall.tga", origin)
+        # A loose file the PAKs don't have is still found.
+        (high / "textures/loose.tga").write_bytes(blue)
+        chosen, origin = pbr.selected_override("maps/other.bsp", "loose", [pbr.entries(high),pbr.entries(low)])
         self.assertTrue(np.all(chosen == (0, 0, 255, 0)))
-        self.assertTrue(origin.endswith("wall.tga"))
+        self.assertTrue(origin.endswith("loose.tga"))
 
     def test_discovery_change_reuses_verified_previous_output(self):
         self.source()

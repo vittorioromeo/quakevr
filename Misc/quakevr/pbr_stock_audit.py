@@ -17,28 +17,8 @@ import pbr_generate as pbr
 
 
 def engine_entries(folder):
-    # COM_AddGameDirectory mounts only contiguous pak0..N, with each PAK above loose files.
-    # pbr_generate's discovery inventory is deliberately broader; audit effective files here.
-    loose = {p.relative_to(folder).as_posix().lower(): (p, 0, p.stat().st_size)
-             for p in folder.rglob("*") if p.is_file() and p.suffix.lower() != ".pak"}
-    number = 0
-    while True:
-        files = {p.name.lower(): p for p in folder.glob("*") if p.is_file()}
-        pak = files.get(f"pak{number}.pak")
-        if not pak:
-            break
-        with pak.open("rb") as stream:
-            magic, offset, size = struct.unpack("<4sii", stream.read(12))
-            if magic != b"PACK" or size % 64:
-                raise ValueError(f"bad pack: {pak}")
-            stream.seek(offset)
-            directory = stream.read(size)
-        for pos in range(0, size, 64):
-            raw, start, length = struct.unpack_from("<56sii", directory, pos)
-            name = raw.split(b"\0")[0].decode("latin1").replace("\\", "/").lower()
-            loose[name] = (pak, start, length)
-        number += 1
-    return loose
+    # COM_AddGameDirectory: contiguous pak0..N, each PAK above loose files (the generator uses the same lookup).
+    return pbr.entries(folder)
 
 
 def mdl_skins(data):

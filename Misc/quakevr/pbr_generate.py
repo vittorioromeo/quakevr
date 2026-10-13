@@ -66,9 +66,16 @@ def write_provenance(output, lines):
 
 
 def entries(folder):
-    """PAK precedence numerically, then loose files; retain locations, not whole PAKs."""
+    """The engine's files of a game folder (COM_AddGameDirectory): loose files below pak0, pak1, ... (each PAK above the
+    ones before it), mounting only the contiguous pak0..N; retain locations, not whole PAKs."""
     result = {}
-    paks = sorted(folder.glob("pak*.pak"), key=lambda p: int(p.stem[3:]))
+    for p in sorted(folder.rglob("*")):
+        if p.is_file() and p.suffix.lower() != ".pak":
+            result[p.relative_to(folder).as_posix().lower()] = (p, 0, p.stat().st_size)
+    names = {p.name.lower(): p for p in folder.glob("*") if p.is_file()}  # PAK0.PAK too (Steam's id1)
+    paks = []
+    while f"pak{len(paks)}.pak" in names:
+        paks.append(names[f"pak{len(paks)}.pak"])
     for pak in paks:
         with pak.open("rb") as f:
             magic, offset, size = struct.unpack("<4sii", f.read(12))
@@ -82,9 +89,6 @@ def entries(folder):
                 if start < 0 or length < 0 or start + length > pak.stat().st_size:
                     raise ValueError(f"invalid PAK entry: {pak}:{name}")
                 result[name] = (pak, start, length)
-    for p in sorted(folder.rglob("*")):
-        if p.is_file() and p.suffix.lower() != ".pak":
-            result[p.relative_to(folder).as_posix().lower()] = (p, 0, p.stat().st_size)
     return result
 
 
