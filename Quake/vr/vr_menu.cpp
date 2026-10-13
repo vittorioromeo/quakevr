@@ -1063,7 +1063,7 @@ int campaignsBloodyShown = -1;
         slider("Neck Length", vr_foegrab_necksnap_neck, 0.f, 12.f, 0.5f, "%.1f units").extend(0.f, 32.f)
             .help("How far below its head your hands still hold its neck (as good as its head: only the neck snap). "
                   "Lower, at its shoulders, both hands throw it (judo) or lift it."),
-        slider("Crack Volume", vr_foegrab_necksnap_volume, 0.f, 1.f, 0.05f, "%.2f")
+        slider("Crack Volume", vr_foegrab_necksnap_volume, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 2.f)
             .help("The bone-cracking sound's volume (0 silent)."),
         slider("Snapped Body Hold", vr_foegrab_necksnap_strength, 0.f, 2.f, 0.05f, "%.2f").extend(0.f, 10.f)
             .help("The most each hand holds the limp body with afterwards, as a share of its weight: above 0.5 two hands "
