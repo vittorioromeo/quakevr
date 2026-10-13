@@ -46,6 +46,37 @@ struct Strength
 za::Vector<Provenance> provenance;
 za::Vector<Strength> strengths;
 bool provenanceLoaded{};
+struct StockSource { char hash[33]{}; };
+za::Vector<StockSource> stockSources;
+bool stockLoaded{};
+
+bool isStockSource(const char* hash)
+{
+    if(!stockLoaded)
+    {
+        stockLoaded = true;
+        const int mark = Hunk_LowMark();
+        const char* data = reinterpret_cast<const char*>(COM_LoadHunkFile("textures/pbr/stock.txt", nullptr));
+        constexpr char header[] = "qvr-pbr-stock-v1\n";
+        if(data && !strncmp(data, header, sizeof(header) - 1))
+        {
+            const char* line = data + sizeof(header) - 1;
+            while(*line)
+            {
+                StockSource source{};
+                if(strspn(line, "0123456789abcdef") != 32 || (line[32] != '\n' && line[32] != '\0')) break;
+                memcpy(source.hash, line, 32);
+                stockSources.emplaceBack(source);
+                line += 32;
+                if(*line == '\n') ++line;
+            }
+        }
+        Hunk_FreeToLowMark(mark);
+    }
+    for(const StockSource& source : stockSources)
+        if(!strncmp(source.hash, hash, 32)) return true;
+    return false;
+}
 
 void loadProvenance()
 {
@@ -235,6 +266,99 @@ void stats_f()
         found, queried, normal, height, static_cast<size_t>(recipes.size()));
 }
 
+// Machine-readable GPU census: includes all precached brush and alias models, animated frames,
+// and the external authored normal actually selected for each world material. No image export.
+void audit_f()
+{
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    const bool worldOnly = Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "world");
+    auto audit = [](qmodel_t* owner, const char* name, gltexture_t* base, gltexture_t* nm)
+    {
+        if(!nm) return;
+        const size_t bytes = static_cast<size_t>(nm->width) * nm->height * 4;
+        byte* pixels = static_cast<byte*>(VR_HeapMalloc(bytes));
+        GL_Bind(GL_TEXTURE0, nm);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+        char digest[65];
+        hashSource(pixels, SRC_RGBA, nm->width, nm->height, digest);
+        const size_t count = bytes / 4;
+        byte* alpha = static_cast<byte*>(VR_HeapMalloc(count));
+        for(size_t p = 0; p < count; ++p)
+        {
+            alpha[p] = pixels[p * 4 + 3];
+            pixels[p * 4 + 3] = 255;
+        }
+        char rgbDigest[65], heightDigest[65];
+        hashSource(pixels, SRC_RGBA, nm->width, nm->height, rgbDigest);
+        sha256::Hasher heightHash;
+        heightHash.update(alpha, count);
+        sha256::toHex(heightHash.finish(), heightDigest);
+        VR_HeapFree(alpha);
+        VR_HeapFree(pixels);
+        float ns{}, hs{};
+        VR_PBRStrength(nm, &ns, &hs);
+        bool authored = TexMgr_NormalMapAuthored(base);
+        if(nm != TexMgr_NormalMap(base))
+        {
+            authored = true; // External authored material, unless it is another animation frame's procedural map.
+            bool resolved = false;
+            for(int model = 1; model < MAX_MODELS && !resolved; ++model)
+            {
+                const qmodel_t* materialOwner = cl.model_precache[model];
+                if(!materialOwner || materialOwner->type != mod_brush) continue;
+                for(int i = 0; i < materialOwner->numtextures; ++i)
+                {
+                    const texture_t* candidate = materialOwner->textures[i];
+                    if(candidate && candidate->gltexture && TexMgr_NormalMap(candidate->gltexture) == nm)
+                    {
+                        authored = TexMgr_NormalMapAuthored(candidate->gltexture);
+                        resolved = true;
+                        break;
+                    }
+                }
+            }
+        }
+        Con_Printf("pbr audit: %d %s %s %s %u %u %s %s %.2f %.2f %s %s %d\n", vr_pbr.value != 0.f,
+            cl.worldmodel ? cl.worldmodel->name : "none", owner->name, name,
+            nm->width, nm->height, digest, nm->source_file[0] ? nm->source_file : "flat", ns, hs, rgbDigest, heightDigest, authored);
+    };
+    for(int model = 1; model < MAX_MODELS; ++model)
+    {
+        qmodel_t* owner = cl.model_precache[model];
+        if(!owner || owner->name[0] == '*') continue;
+        if(owner->type == mod_alias)
+        {
+            if(worldOnly) continue;
+            for(aliashdr_t* hdr = static_cast<aliashdr_t*>(Mod_Extradata(owner)); hdr; hdr = Mod_NextSurface(hdr))
+                for(int skin = 0; skin < hdr->numskins; ++skin)
+                    for(int frame = 0; frame < 4; ++frame)
+                    {
+                        if(!hdr->gltextures[skin][frame]) continue;
+                        bool repeated = false;
+                        for(int prior = 0; prior < frame; ++prior)
+                            repeated |= hdr->gltextures[skin][prior] == hdr->gltextures[skin][frame];
+                        if(repeated) continue;
+                        char name[32];
+                        q_snprintf(name, sizeof(name), "skin%d.%d", skin, frame);
+                        audit(owner, name, hdr->gltextures[skin][frame], TexMgr_NormalMap(hdr->gltextures[skin][frame]));
+                    }
+            continue;
+        }
+        if(owner->type != mod_brush) continue;
+        for(int i = 0; i < owner->numtextures; ++i)
+        {
+            texture_t* tx = owner->textures[i];
+            if(!tx || !tx->gltexture) continue;
+            gltexture_t* nm = TexMgr_NormalMap(tx->gltexture);
+            gltexture_t* spec{};
+            gltexture_t* fullbright = tx->fullbright;
+            float material[4];
+            VR_ExtMapsCall(tx, &nm, &spec, &fullbright, material);
+            audit(owner, tx->name, tx->gltexture, nm);
+        }
+    }
+}
+
 void test_f()
 {
     int passed{}, total{};
@@ -255,6 +379,23 @@ void test_f()
     check(normal == 0.f && height == 0.f, "generated zero lower bound");
     componentStrength(3, 99.f, &normal, &height);
     check(normal == 8.f && height == 8.f, "generated upper bound");
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "stock"))
+    {
+        int checked{};
+        for(const Use& u : uses)
+        {
+            if(!u.base || !u.found || !isStockSource(u.hash)) continue;
+            ++checked;
+            const gltexture_t* nm = TexMgr_NormalMap(u.base);
+            float ns{}, hs{};
+            VR_PBRStrength(nm, &ns, &hs);
+            check(u.preserveMaterial && !u.attached && !u.generatedFlags && ns == 1.f && hs == 1.f,
+                "stock source retains existing components and strength");
+        }
+        check(checked > 6, "stock coverage extends beyond explosive boxes");
+        check(!isStockSource("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+            "unknown content remains eligible for generated relief");
+    }
     const byte pixels[] = {1, 2, 3, 255, 4, 5, 6, 255};
     char a[65], b[65];
     hashSource(pixels, SRC_RGBA, 2, 1, a);
@@ -334,6 +475,7 @@ void init()
 {
     Cmd_AddCommand("vr_pbr_stats", stats_f);
     Cmd_AddCommand("vr_pbr_test", test_f);
+    Cmd_AddCommand("vr_pbr_audit", audit_f);
 }
 } // namespace qvr::pbr
 
@@ -406,6 +548,8 @@ extern "C" void VR_PBRForget(gltexture_t* base)
     qvr::pbr::provenance.clear();
     qvr::pbr::strengths.clear();
     qvr::pbr::provenanceLoaded = false;
+    qvr::pbr::stockSources.clear();
+    qvr::pbr::stockLoaded = false;
 }
 
 extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* shared,
@@ -420,19 +564,33 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
     pbr::hashSource(data, fmt, base->source_width, base->source_height, use.hash);
     pbr::Recipe r{};
     q_snprintf(r.generated, sizeof(r.generated), "textures/pbr/%.32s_norm", use.hash);
+    // AD reuses many stock/mission-pack pixels, including installed diffuse replacements. They already
+    // had procedural or authored relief before the learned corpus existed. Preserve their complete
+    // established material path (including partial authored maps), also when AD reuses those pixels.
+    const bool box = VR_ModelHasTrait(base->owner, VR_MODEL_TRAIT_ExplosiveBoxFile) ||
+                     VR_ModelHasTrait(base->owner, VR_MODEL_TRAIT_ExplosiveCrateFile);
+    use.preserveMaterial = box || pbr::isStockSource(use.hash);
     const int mark = Hunk_LowMark();
     int w{}, h{};
     enum srcformat f{};
-    byte* generated = Image_LoadImage(r.generated, &w, &h, &f);
-    use.found = generated && f == SRC_RGBA;
-    const bool completeExternal = use.found && extmaps::completePending();
-    // The world corpus also contains the stock explosive-box pixels reused by AD maps. Their learned
-    // companion displaced the boxes' established procedural relief. Keep the brush models' original
-    // material loader, including its authored file/pack overrides, independently of world PBR.
-    const bool box = VR_ModelHasTrait(base->owner, VR_MODEL_TRAIT_ExplosiveBoxFile) ||
-                     VR_ModelHasTrait(base->owner, VR_MODEL_TRAIT_ExplosiveCrateFile);
-    use.preserveMaterial = box;
-    if(use.found && !box)
+    byte* generated = nullptr;
+    if(use.preserveMaterial)
+    {
+        // Keep coverage diagnostics without decoding a companion the original loader will never use.
+        for(const char* extension : {".png", ".tga", ".jpg"})
+        {
+            char file[MAX_QPATH];
+            q_snprintf(file, sizeof(file), "%s%s", r.generated, extension);
+            use.found |= COM_FileExists(file, nullptr) != 0;
+        }
+    }
+    else
+    {
+        generated = Image_LoadImage(r.generated, &w, &h, &f);
+        use.found = generated && f == SRC_RGBA;
+    }
+    const bool completeExternal = !use.preserveMaterial && use.found && extmaps::completePending();
+    if(use.found && !use.preserveMaterial)
     {
         use.generatedFlags = pbr::verifiedFlags(use.hash, generated, w, h);
         r.generatedFlags = use.generatedFlags;

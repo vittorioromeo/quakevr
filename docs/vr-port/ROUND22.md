@@ -5412,3 +5412,25 @@ weapon record's, as AD's `wi_adup`), kept in saves.
 - In VR: how long 2 s in a flame feels; whether the glow reads as red-hot metal in the headset (brightness, hue 18) and
   the build-up as heating; the sizzle, ring and hiss levels; reaching into a brazier with the axe without catching fire
   yourself; dipping in water.
+
+
+## Complete stock/mission-pack PBR preservation audit (2026-10-13)
+
+The box-only guard missed shared world material hashes. A complete installed id1/Hipnotic/Rogue census now
+protects the original authored/procedural loader by 1,559 BSP source identities, including HD replacements.
+The generated corpus overlaps 712 stock identities (526 learned components, 186 baked authored copies).
+Alias skins stay excluded; no further model regression was reproduced. Existing stock material selection also
+stays intact when AD reuses those pixels, while novel AD companions retain their generated-only strength.
+
+Historical reproduction on every campaign map changed 1,175 procedural world comparisons (535 Quake,
+360 Hipnotic, 280 Rogue): 1,175 normal RGB changes and 1,135 height changes. All 1,953 authored external
+material comparisons remained intact. Protected runtime: all 73 maps, 81,770 paired world/brush/alias/frame
+comparisons identical at strength 8, zero missing pairs; 1,720 additional nearest/smooth and external-off/on
+controls identical. Composition 17/17, live/GPU component precedence 6/6 each, stock guard 84/84,
+scanner 4/4 and pipeline 18/18 pass; build and e1m1 smoke pass. Native AD generated city5_7b still scales
+3/3, authored/stock city5_3 stays 1/1. No original companion PNGs or authored height were modified.
+
+See PBR_STOCK_AUDIT.md, pbr_stock_audit.json and pbr_stock_runtime.json for the counts and pixel-free
+census/evidence; PBR_PIPELINE.md documents refreshing protection for later texture packs. The scanner follows
+the engine's contiguous-PAK/Pak-before-loose precedence; generator discovery is broader and is not treated as
+proof of runtime selection. New vr_pbr_audit command supports actual GPU material hashes (world-only optional).

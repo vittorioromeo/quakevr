@@ -49,7 +49,7 @@ def stage(id1):
     files = []
     backups = []
 
-    def save(path, color):
+    def save(path, color, width=4, height=4, rgba=None):
         file = ROOT / path
         if file.exists():
             assert path.startswith("quakevr/textures/pbr/") and path.endswith("_norm.png"), f"Refusing to overwrite {file}"
@@ -58,7 +58,7 @@ def stage(id1):
             file.replace(backup)
             backups.append(path)
         file.parent.mkdir(parents=True, exist_ok=True)
-        png(file, 4, 4, bytes(color) * 16)
+        png(file, width, height, rgba if rgba is not None else bytes(color) * width * height)
         files.append(path)
 
     for name, color in [("generated", (128, 160, 250, 191)), ("normal", (140, 150, 245, 255)),
@@ -85,10 +85,16 @@ def stage(id1):
             continue
         indices = textures[pos + mip:pos + mip + w * h]
         rgba = bytes(channel for index in indices for channel in (*palette[index * 3:index * 3 + 3], 255))
+        # Learned-only fixtures must not reuse a protected stock content hash. One private diffuse
+        # pixel changes its identity; production pixels and the stock protection index stay untouched.
+        modified = bytearray(rgba)
+        modified[2] ^= 1
+        rgba = bytes(modified)
         digest = hashlib.sha256(b"qvr-pbr-v1\0" + struct.pack("<II", w, h) + rgba).hexdigest()
         if digest in seen:
             continue
         seen.add(digest)
+        save(f"quakevr/textures/e1m1/{name}.png", None, w, h, rgba)
         save(f"quakevr/textures/pbr/{digest[:32]}_norm.png", (128, 160, 250, 191))
         output = hashlib.sha256(b"qvr-pbr-v1\0" + struct.pack("<II", 4, 4) + bytes((128, 160, 250, 191)) * 16).hexdigest()
         rows.append(f"{digest[:32]} {output} 3\n")
