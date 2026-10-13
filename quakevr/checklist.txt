@@ -56,6 +56,8 @@ AD settings: dedicated page, player/enemy pellet speeds, ammo models and Off/AD-
 Reloads: autosave reload briefly retains held guns; magazine reinsertion distance slider; ammo/shell/magazine collection ends at pouch centre
 AD lighting: stationary pulse near ad_crucial -215 -2287 136 matches authored lamps; compare briefly with r_flatlightstyles 1
 
+Pouch reload: two super shotguns broken open, dip each barrel end into the ammo pouch (fills); shotgun port-down onto the shells (one per touch); empty nailgun well lowered onto the magazines (fresh mag); 35 deg / SSG 10 cm too strict or loose? (Weapons > Reloading > Reloading at the Pouch)
+
 [Still open from 1.0.x]
 MG1 west stairs: walk up slowly and jump, head low (a short catch at the top crest may remain); lava: you keep burning 3 s after stepping out
 Shoved into water: a grunt shoved off vrstart's island near the shore gets up; far out, gives up after ~3 s and sinks
