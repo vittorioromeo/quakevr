@@ -1171,6 +1171,9 @@ the pouch and `vr_mock_hand_to main lport` (the breech, turned with the barrels:
 hand down 10 units in four frames (`ssg: pried open`, `broken open by the pry`), up again (`ssg: the barrels lifted
 shut`); `vr_reload_debug 2` prints the pry's angle every frame and `ssg: hand N open A deg, its breech ...` (the drawn
 barrels against the model's turned breech: `turned 0.00 off`). The self-test's section: `reload: PASS ... super shotgun`.
+Two super shotguns (ROUND22.md, "Two super shotguns"): then `impulse 155` (a second in the main hand); `+flickreloadleft`
+logs only `the super shotgun (hand 0) broken open by a flick` / `closed by a flick`, `+flickreloadright` only `(hand 1)`;
+both at once toggle both. A `(hand 1) ... by the pry` after a left flick is the old bug.
 The cell cords (ROUND21.md, "Cell cords"): `bash Misc/quakevr/cellcord_test.sh <agent>` (the laser cannon held: the pouch shows cells, its cord plugged into cell 0 with its ends on the weapon's end and the contact; no cells: loose, hanging; cells again: plugging, then plugged; two cannons: cells 0 and 2; the option off: none; Mjolnir and the Super Axe on). `vr_cellcord_info` (Debug, or Weapons > Reloading > Cell Cords > Cord Points) prints each hand's cord: `cellcord main: lasercannon plugged cell=0 gunend=0.00 plug=0.00 below=-13.8`.
 The super shotgun's ways to open and close (reload_test.sh section 7, the author's notes): each switch in a matrix (one
 off: that way does nothing, the other three still work; `vr_reload_ssg_pry_angle 40`, `_lift_angle 40` there: the mock

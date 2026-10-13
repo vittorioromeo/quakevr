@@ -175,6 +175,18 @@ log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$POUCH;$GRIP;$AT;$REP;toggleco
 check $(echo "$log" | grep -q "the super shotgun is shut: break it open first" && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "clip 0 .*holds a round of 2" && echo 1 || echo 0) "shut, a pair at its breech is refused (the can't click)"
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$EASY;$FIRE;$TO2H;$GRIP;$GENTLE wait10;$TURN wait10;$REP;$DOWN wait10;$REP;wait20;$UP wait40;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "ssg: both hands on it" && [ "$(opens "$log")" = 010 ] && echo "$log" | grep -q "broken open by the pry: 2 spent" && echo "$log" | grep -q "closed by the barrels lifted" && echo 1 || echo 0) "both hands on it: gentle moves and turns keep it shut, the pry opens it, the barrels lifted shut it ($(opens "$log"))"
+# Two super shotguns (the author's note of round 22: a flick of the left hand shut the right hand's gun; the other hand's
+# flick bit, the pry's, was read with that hand on its own gun): each hand's flick opens and shuts only its own, one after
+# the other or both at once. Toggles as "<hand><o|c>": 0 the off hand, o broken open, c closed.
+FLICKR="+flickreloadright;wait3;-flickreloadright;wait40"
+FLICK2="+flickreloadleft;+flickreloadright;wait3;-flickreloadleft;-flickreloadright;wait40"
+toggles() { echo "$1" | grep -o "the super shotgun (hand [01]) \(broken open\|closed\) by" | sed 's/.*hand \([01]\)) \(.\).*/\1\2/' | sed 's/b$/o/' | tr '\n' ' ' | sed 's/ $//'; }
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;impulse 155;wait10;$FLICK;$FLICKR;$FLICK;$FLICKR;$FLICKR;$FLICK;$FLICKR;$FLICK;toggleconsole;quit" -Filter "$F7" 2>&1)
+t=$(toggles "$log")
+check $([ "$t" = "0o 1o 0c 1c 1o 0o 1c 0c" ] && echo 1 || echo 0) "two super shotguns: the left flick opens and shuts only the left one, the right only the right ($t)"
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;impulse 155;wait10;$FLICK2;$FLICK2;toggleconsole;quit" -Filter "$F7" 2>&1)
+t=$(toggles "$log" | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ $//')
+check $([ "$t" = "0c 0o 1c 1o" ] && echo 1 || echo 0) "two super shotguns flicked at once: both open, both shut ($t)"
 JOLT="$TO2H;$GRIP;$DOWN wait10;vr_mock_hand_to main by 0 0 36;wait3;vr_mock_hand_to main by 0 0 -36;wait40"
 # (Lift Hold 0.2 set: the shipped 0 since 2026-10-08, the author's, shuts it on a jolt too.)
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$EASY;vr_reload_ssg_lift_hold 0.2;$FIRE;$BY;$REP;$JOLT;$REP;$LETGO;$REST;wait20;$TO2H;$GRIP;vr_reload_debug 2;wait2;vr_reload_debug 1;toggleconsole;quit" -Filter "$F7" 2>&1)
