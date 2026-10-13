@@ -4,6 +4,7 @@
 [next branch: test these first]
 Stealth: brushing against an unaware enemy no longer alerts it; grabbing it does (Stealth AI > Touching Gives You Away, now off)
 Flatscreen play (desktop, launched with -flatscreenmode): hands look like natural viewmodels (turn, walk, idle); E grabs what you look at; 1 / 2 cycle the left / right hand's weapons; LMB and RMB fire and hit the crosshair; V melee; body hits press buttons; no reloading; flashlight always on the head (Debug > Reports > Flatscreen Play: reach, sway, bob)
+Flatscreen: what you grab stays grabbed and picked-up weapons stay in your hands (the flat hands are closed) — nothing lets go on its own; change a held weapon with 1 / 2, there is no drop key yet
 Without -flatscreenmode the desktop build and all VR gameplay are unchanged
 Neck snap: both hands on a humanoid head (standing, staggered, knocked down), twist fast: crack, dies, stays limp in hands till you let go; head zone not too big; crack loudness
 Judo: pull left (hands at belt, or one hand higher) and it falls left; after a throw it stays softly held, drag it (lower hands)
