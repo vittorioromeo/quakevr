@@ -16679,7 +16679,7 @@ int ragdollHeadAt(int num, const glm::vec3& at, float neck)
     return glm::distance(neckAt, at) <= za::max(neckReach * r->scale, neck) ? 1 : 0;
 }
 
-bool ragdollNeck(int num, glm::vec3& joint, glm::vec3& axis, glm::vec3& head)
+bool ragdollNeck(int num, glm::vec3& joint, glm::vec3& axis, glm::vec3& head, glm::mat3* body)
 {
     const RagdollBodies* r = ragdollOf(num);
     if(!r)
@@ -16697,10 +16697,18 @@ bool ragdollNeck(int num, glm::vec3& joint, glm::vec3& axis, glm::vec3& head)
     head = hq * (ragdoll::limbMiddle(rig, 1u << bone) * r->scale) + world->toU(hx.p);
     const int parent = rig.bones[bone].parent;
     joint = head;
+    if(body)
+    {
+        *body = glm::mat3_cast(hq);
+    }
     if(parent >= 0)
     {
         const b3WorldTransform px = b3Body_GetTransform(r->body[static_cast<za::SizeT>(parent)]);
         joint = fromB3(px.q) * (rig.bones[bone].pivot * r->scale) + world->toU(px.p);
+        if(body)
+        {
+            *body = glm::mat3_cast(fromB3(px.q));
+        }
     }
     const glm::vec3 d = head - joint;
     axis = glm::length(d) > 0.5f ? glm::normalize(d) : hq * glm::vec3{0.f, 0.f, 1.f};
