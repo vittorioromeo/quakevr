@@ -651,7 +651,10 @@ extern "C" void VR_PBRForget(gltexture_t* base)
             u.base = nullptr;
     for(const qvr::pbr::Use& u : qvr::pbr::uses)
         if(u.base) return;
-    qvr::pbr::strengths.clear(); // (the indexes and verified companions stay: session, until the game folders change)
+    // No live texture has a companion now: their compositions' reload recipes and strengths go too (the indexes
+    // and verified companions stay: session, until the game folders change).
+    qvr::pbr::strengths.clear();
+    qvr::pbr::recipes.clear();
 }
 
 extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* shared,
