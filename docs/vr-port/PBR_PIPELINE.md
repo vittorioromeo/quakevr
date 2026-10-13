@@ -138,6 +138,36 @@ flags are independently derived from the manifest: bit 1 means generated normal 
 alpha, giving values 0 through 3. Authored channels remain unflagged. Missing or stale metadata is treated as
 authored by the runtime, protecting authored overrides from generated-only relief scaling.
 
+## Preserve existing Quake and mission-pack materials
+
+Content identity is shared across games: AD uses many original Quake/Hipnotic/Rogue pictures and their installed
+HD replacements. A learned companion must not replace those materials' established procedural relief, or fill
+an authored pack's deliberately flat height. `textures/pbr/stock.txt` protects their complete original material
+loader, including authored normal/bump files, external pack matching, animation fallbacks and procedural relief.
+It has an ASCII `qvr-pbr-stock-v1` header and sorted 32-digit source-hash prefixes. Alias skins are independently
+excluded from learned world maps in code. The explosive-box model guards also remain for custom box skins.
+Generated-only AD sources still use independently verified normal/height provenance and `vr_pbr_strength`.
+
+After adding replacement packs, refresh the census and stock index before shipping another generated bundle:
+
+```powershell
+scratch/env/Scripts/python.exe Misc/quakevr/pbr_stock_audit.py --stock "id1=$taskSteamQuake/id1" --stock "hipnotic=$taskSteamQuake/hipnotic" --stock "rogue=$taskSteamQuake/rogue" --texture-game quakevr --bundle quakevr
+```
+
+Repeat `--stock campaign=folder` highest-first for additional base roots (the agent kit's qbase roots follow
+the native Steam roots). This audit uses the engine's contiguous `pak0..N` mounting and PAK-before-loose
+precedence; unused PAKs beyond a numbering gap are excluded. It scans every BSP miptex, animated frame and MDL
+single/group skin, plus selected replacements, and writes hashes/metadata rather than stock image assets.
+The shipped census is `docs/vr-port/pbr_stock_audit.json`. File overlaps are potential collisions, not proof
+that an authored external map lost either component; the engine alone decides external matching/fallbacks.
+
+`Misc/quakevr/pbr_stock_sweep.ps1` runs paired `vr_pbr 0/1` loads on every campaign map. `vr_pbr_audit` hashes
+the actual GPU normal RGB/height alpha, dimensions, material source and generated strength for every precached
+world/brush/alias material. `pbr_stock_audit.py --verify-log <log>` (repeat for each campaign) rejects missing
+pairs and any changed stock material. Use a separate sweep for nearest/smooth filtering and external maps off.
+Pass native installation roots through the sweep's `-ExtraArgs '-basedir ".../Quake" -basedir ".../worktree"'`;
+the final worktree owns test writes. The sweep uses generated strength 8 to verify stock isolation at the limit.
+
 ## Refresh, resume and install
 
 Rerun the same command after adding a PAK or loose BSP. Source content, model hashes, authored component contents,
