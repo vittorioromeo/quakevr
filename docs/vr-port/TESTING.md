@@ -1119,6 +1119,13 @@ top`); a gun handed off to the off hand (the main hand lets go while the off han
 pulled out and seated again. The mock's hand arrives in one frame, far faster than a hand: set
 `vr_reload_bump_speed 100` while it comes. `vr_reload_debug 2` prints the hold's pull, snap and apart every frame, 3 each
 empty hand's distance off the magazine's box. The report line ends `, main mag M`.
+The same magazine pulled out, put back (`lport 10`, then `lport`) and pulled out again, three times, the off hand's grip
+never let go: 3 `out of the gun`, 2 `seated`, each seat followed by `hand 0 holds the magazine ... (still gripping it as
+it seated)` (ROUND22.md, "Magazine re-pull and Reinsertion Delay"). Reinsertion Delay (`vr_reload_reinsert_time`,
+default 0.25 s): a pouch magazine that knocked the old one out, kept at the well (`lport`), is out at ~0.14 s and seated
+by ~0.32 s; with 0 it stays out (only the clearance rearms it). `vr_reload_test 28; impulse 125` checks both rules
+directly (`reload reinsertion: 21 passed, 0 failed`). With `vr_reload_debug 2` grep `held round`/`reload: off hand
+weapon`, not `reload: off hand` (it also matches `off hand on/off the magazine`).
 The ammo button (section 9): `vr_mock_hand_to main wbutton <degrees> [units] [azimuth]` (0 its front, 180 behind), 20
 approaches in a straight line at a quarter unit a frame from 0-60 degrees (95% must press) and 20 from 120-180 (none).
 

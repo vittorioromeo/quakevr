@@ -1134,6 +1134,11 @@ void resetHandMoves()
             .help("After pulling or knocking a magazine out, withdraw this far beyond its insertion reach before it can "
                   "go back in. Also applies to the new magazine that knocked it out. Smaller: a shorter out-and-back "
                   "motion; 0: just outside the reach. Loose magazines also clear the collision leniency and eject cooldown."),
+        slider("Magazine Reinsertion Delay", "vr_reload_reinsert_time", 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("Or this long after a held magazine was pulled out, or knocked the old one out, it can go back in "
+                  "even if it never left the well by the clearance: kept close, it seats after a moment, never at "
+                  "once. Larger: more time to move it away; 0: by the clearance only. Loose magazines keep the eject "
+                  "cooldown and the clearance."),
         slider("Shell Slide In", "vr_reload_insert_time", 0.f, 0.5f, 0.01f, "%.2f s")
             .help("A shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it for this "
                   "long, following the gun (0: gone at once). It is loaded at once all the same."),

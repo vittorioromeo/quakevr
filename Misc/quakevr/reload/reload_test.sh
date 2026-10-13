@@ -317,6 +317,26 @@ check $(echo "$log" | grep -q "knocked out by a hit at [0-9.]* m/s, 0\.[0-9] uni
 log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;$(OTO "heldspot 0");$OGRIP;-grabright;vr_mock_button main grip 0;wait30;$REP;$(MTO "mag 0");+grabright;vr_mock_button main grip 1;wait15;reset vr_reload_bump_speed;vr_mock_hand_to main mag -6 0;wait10;$REP;$(MTO "lport 10");$(MTO "lport");reset vr_reload_bump_speed;wait10;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 holds=$(echo "$log" | grep "^reload: off hand")
 check $(echo "$log" | grep -q "handed off to the off hand" && h 1 | grep -q "off hand weapon 6 clip 24 mag 1" && echo "$log" | grep -q "hand 1 holds the magazine of the gun in hand 0" && h 2 | grep -q "off hand weapon 6 clip 0 mag 0 holds nothing | main hand weapon 0 clip 0 holds a round of 24" && h 3 | grep -q "off hand weapon 6 clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds nothing" && echo 1 || echo 0) "a gun carried by the off hand: its magazine pulled out by the main hand, then seated again"
+# The author's note (ROUND22.md, "Magazine re-pull and Reinsertion Delay"): the magazine pulled out, put back in and pulled
+# out again without the grip ever let go, twice (it took a fresh grip: the second pull did nothing).
+PULL="vr_mock_hand_to off mag -6 0;wait10"
+BACK="$(OTO "lport 10");$(OTO "lport");reset vr_reload_bump_speed;wait10"
+log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;$(OTO "mag 0");$OGRIP;reset vr_reload_bump_speed;wait5;$PULL;$BACK;$REP;$PULL;$BACK;$PULL;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+holds=$(echo "$log" | grep "^reload: off hand weapon") # (not "off hand on/off the magazine": vr_reload_debug 2)
+outs=$(echo "$log" | grep -c "out of the gun (hand 1, pulled off"); ins=$(echo "$log" | grep -c "seated (hand 1)")
+check $([ "$outs" = 3 ] && [ "$ins" = 2 ] && [ $(echo "$log" | grep -c "still gripping it as it seated") = 2 ] && h 1 | grep -q "holds nothing | main hand weapon 6 clip 24 holds nothing, main mag 1" && h 2 | grep -q "holds a round of 24 | main hand weapon 6 clip 0 holds nothing, main mag 0" && echo 1 || echo 0) "the same magazine out, in, out again, in, out again, never let go ($outs out, $ins in)"
+# Reinsertion Delay: a magazine that knocked the old one out, kept at the well, stays out ~0.2 s (Reinsertion Delay
+# 0.25) and seats by ~0.35 s; Delay 0: by the clearance only (still out after 0.75 s).
+for T in 0.25 0; do
+    log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;vr_reload_reinsert_time $T;$POUCH;$GRIP;vr_mock_hand_to main lport 10;wait10;vr_mock_hand_to main lport 10;wait10;vr_mock_hand_to main lport;wait7;$REP;wait10;$REP;wait30;$REP;toggleconsole;quit" -Filter "^reload:" 2>&1 | grep -v "held round\|pulling the\|full well")
+    holds=$(echo "$log" | grep "^reload: off hand")
+    MOUT="clip 0 mag 0 holds nothing | main hand weapon 0 clip 0 holds a round of 24"; MIN="clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds nothing"
+    if [ "$T" = 0 ]; then late="$MOUT"; else late="$MIN"; fi
+    check $(echo "$log" | grep -q "knocked out by a hit" && h 1 | grep -q "$MOUT" && h 2 | grep -q "$late" && h 3 | grep -q "$late" && echo 1 || echo 0) "Reinsertion Delay $T: the bumping magazine kept at the well $( [ "$T" = 0 ] && echo "stays out" || echo "out at 0.14 s, seated by 0.32 s")"
+done
+log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait60;vr_weapon_grip_mode 1;vr_reload_test 28;impulse 125;wait3;toggleconsole;quit" -Filter "reload reinsertion|reload: FAIL" 2>&1)
+echo "$log" | grep "FAIL"
+check $(echo "$log" | grep -qE "reload reinsertion: [0-9]+ passed, 0 failed" && echo 1 || echo 0) "the reinsertion self-test: clearance and Reinsertion Delay ($(echo "$log" | grep -o "[0-9]* passed, [0-9]* failed"))"
 
 # 9. The ammo button: from its front pressed, from behind never, at cone 80 (the default was; 50 now) and depth 0.5;
 #    from the side refused at cone 50 depth 0, from behind pressed at 180. Then approaches as a finger makes them (a

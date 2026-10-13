@@ -64,6 +64,9 @@
 .float vr_mag_pull_apart1; // the main hand's
 .float vr_mag_seated0;     // when the off hand's gun last had a magazine seated (no hit knocks it out just after)
 .float vr_mag_seated1;     // the main hand's gun's
+.float vr_mag_rehold;     // hands that just seated the magazine they held and still grip (1 off, 2 main): they hold it at
+                         // once, no fresh grip needed (VR_Reload_MagFrame; the author's note: pulled out, put back in
+                         // without letting go, it wouldn't pull out again)
 // What a player's pouch gives (VR_Reload_PlayerFrame): its ammo (AID_*; 0 none yet: shells) and, for a magazine, the gun
 // it is for (WID_*; 0 shells): the last gun held whose ammo the pouch has (any shotgun: shells; a nailgun, a super nailgun,
 // a thunderbolt: its magazine), kept while the hands hold nothing of the kind (empty, a melee weapon). And for the
@@ -847,6 +850,7 @@ void(float xGunHand, entity r, float xHeld) VR_Reload_SeatMagInto =
     if(xHeld)
     {
         VR_Reload_Haptic(self, xHand, 0.06, 150, 0.9);
+        self.vr_mag_rehold = self.vr_mag_rehold | (xHand == cVR_MainHand ? 2 : 1);
     }
     VR_Reload_Haptic(self, gunHand, 0.1, 60, 0.9);
     VR_Reload_Log(sprintf("%s seated (hand %g%s): the gun holds %g", VR_Reload_Desc(r), gunHand,
@@ -1375,6 +1379,7 @@ void(float xHand) VR_Reload_MagFrame =
     if(self.health <= 0 || !self.ishuman)
     {
         self.vr_mag_pull = 0;
+        self.vr_mag_rehold = 0;
         return;
     }
     if(sec && !secWas && cvar_hget(cvarh_vr_reload_eject_button) && VR_Reload_MagIn(self, xHand))
@@ -1390,6 +1395,8 @@ void(float xHand) VR_Reload_MagFrame =
 
     float gunHand = VRGetOtherHand(xHand);
     float grabbing = VR_HandGrabUtil_IsHandGrabbing(self, xHand);
+    float rehold = (self.vr_mag_rehold & bit) != 0;
+    self.vr_mag_rehold = self.vr_mag_rehold - (self.vr_mag_rehold & bit);
     if(!grabbing || !VR_Reload_MagIn(self, gunHand))
     {
         self.vr_mag_pull = self.vr_mag_pull - (self.vr_mag_pull & bit);
@@ -1403,8 +1410,9 @@ void(float xHand) VR_Reload_MagFrame =
         float on = VR_Reload_HasMagBox(self, gunHand)
                        ? (xHand == cVR_MainHand ? self.mainhand_hotspot : self.offhand_hotspot) == QVR_HS_MAGAZINE
                        : VR_Reload_MagDist(self, gunHand, VRGetEntHandPos(self, xHand)) <= cvar_hget(cvarh_vr_reload_pull_reach);
-        if(VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && VRIsHandEmpty(self, xHand) &&
-           !VR_Forcegrab_IsHandBusy(self, xHand) && on)
+        // (Or the hand still gripping the magazine it just seated: it holds it on, to pull out again.)
+        if(((VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && on) || rehold) && VRIsHandEmpty(self, xHand) &&
+           !VR_Forcegrab_IsHandBusy(self, xHand))
         {
             self.vr_mag_pull = self.vr_mag_pull | bit;
             if(xHand == cVR_MainHand)
@@ -1417,7 +1425,8 @@ void(float xHand) VR_Reload_MagFrame =
             }
             VR_Reload_SnapRate(xHand, gunHand, TRUE);
             VR_Reload_Haptic(self, xHand, 0.04, 140, 0.4);
-            VR_Reload_Log(sprintf("hand %g holds the magazine of the gun in hand %g", xHand, gunHand));
+            VR_Reload_Log(sprintf("hand %g holds the magazine of the gun in hand %g%s", xHand, gunHand,
+                rehold ? " (still gripping it as it seated)" : ""));
         }
         return;
     }
@@ -1948,9 +1957,13 @@ float(float xHand, entity r) VR_Reload_HeldFrame =
         dprint(sprintf("reload: a held round %.1f units from the port (leniency %g): at %v, the port %v\n", d,
             leniency, VR_Reload_RoundRef(r), port));
     }
-    if(d > leniency + max(0, cvar_hget(cvarh_vr_reload_reinsert_clearance)))
+    // (Well away, or vr_reload_reinsert_time gone since it came out or knocked one out: a magazine just out, or that knocked
+    // one out, may seat; the author: even kept close it goes in after a moment, never at once.)
+    float waitFor = cvar_hget(cvarh_vr_reload_reinsert_time);
+    if(d > leniency + max(0, cvar_hget(cvarh_vr_reload_reinsert_clearance)) ||
+       (r.vr_ammo_fresh && r.vr_ammo_wid && waitFor > 0 && time >= r.vr_ammo_fresh_at + waitFor))
     {
-        r.vr_ammo_fresh = FALSE; // (well away: a magazine just out, or that knocked one out, may seat when brought back)
+        r.vr_ammo_fresh = FALSE;
     }
     if(d > leniency)
     {

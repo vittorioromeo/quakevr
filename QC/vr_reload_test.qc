@@ -800,6 +800,7 @@ void(float xRight) VR_Reload_TestHeldAt =
 void() VR_Reload_TestReinsert =
 {
     float old = cvar_hget(cvarh_vr_reload_reinsert_clearance);
+    float oldTime = cvar_hget(cvarh_vr_reload_reinsert_time);
     vr_reload_test_pass = 0;
     vr_reload_test_fail = 0;
     VR_Reload_TestSetup();
@@ -824,6 +825,7 @@ void() VR_Reload_TestReinsert =
         vector desired = self.offloadportpos + '1 0 0' * (boundary - 0.01);
         setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
         r.vr_ammo_fresh = TRUE;
+        r.vr_ammo_fresh_at = time; // (just out: Reinsertion Delay not gone)
         VR_Reload_HeldFrame(cVR_MainHand, r);
         VR_Reload_Check(r.vr_ammo_fresh, sprintf("clearance %g: held just inside stays fresh", extra));
         desired = self.offloadportpos + '1 0 0' * (boundary + 0.01);
@@ -852,6 +854,24 @@ void() VR_Reload_TestReinsert =
     setorigin(r, r.origin + '0 0 120');
     r.vr_ammo_fresh_at = time + 1;
     VR_Reload_Check(!VR_Reload_FreshLeft(r), "loose: spatial clearance does not bypass eject cooldown");
+    // Reinsertion Delay (the author: kept close, it goes in after a moment): held inside the clearance band (past the
+    // reach, so nothing loads), fresh until vr_reload_reinsert_time has gone since it came out; 0 never by time.
+    cvar_set("vr_reload_reinsert_clearance", "4");
+    float reach2 = VR_Reload_PortRadius(WID_NAILGUN) + VR_Reload_MagRadius(r.vr_ammo_wid);
+    setorigin(r, r.origin + self.offloadportpos + '1 0 0' * (reach2 + 2) - VR_Reload_RoundRef(r));
+    for(float j = 0; j < 3; j++)
+    {
+        float delay = j == 2 ? 0 : 0.25;
+        float ago = j == 0 ? 0.2 : 0.3;
+        cvar_set("vr_reload_reinsert_time", sprintf("%g", delay)); // (not ftos: one decimal, 0.25 -> 0.2)
+        r.vr_ammo_fresh = TRUE;
+        r.vr_ammo_fresh_at = time - ago;
+        VR_Reload_HeldFrame(cVR_MainHand, r);
+        float rearmed = !r.vr_ammo_fresh;
+        VR_Reload_Check(rearmed == (j == 1), sprintf("delay %g, out %g s ago, kept close: %s", delay, ago,
+            rearmed ? "may seat" : "stays fresh"));
+    }
+    cvar_set("vr_reload_reinsert_time", sprintf("%g", oldTime));
     cvar_set("vr_reload_reinsert_clearance", ftos(old));
     VR_Carry_SetHeld(self, cVR_MainHand, world);
     r.carry_player = world;
