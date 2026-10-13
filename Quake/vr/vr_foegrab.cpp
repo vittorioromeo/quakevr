@@ -2062,6 +2062,17 @@ void qvr::foegrab::calcStats(edict_t* ent, int* statsi)
     statsi[STAT_QVR_FOEGRAB] = bits;
 }
 
+bool qvr::foegrab::holds(const edict_t* player, const edict_t* m)
+{
+    const Holder* hd = holderOf(const_cast<edict_t*>(player));
+    if(!hd || !m)
+    {
+        return false;
+    }
+    const int e = NUM_FOR_EDICT(const_cast<edict_t*>(m));
+    return (hd->holds[0].active && hd->holds[0].ent == e) || (hd->holds[1].active && hd->holds[1].ent == e);
+}
+
 bool qvr::foegrab::holding(int hand)
 {
     return hand >= 0 && hand <= 1 && (cl.stats[protocol::STAT_QVR_FOEGRAB] & (1 << hand)) != 0;

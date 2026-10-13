@@ -960,6 +960,14 @@ int campaignsBloodyShown = -1;
                   "along with you. Breaks Free: its shove pushes you fully, as ever, and tears it from your hands."),
         slider("Shove Resistance", vr_foegrab_shove_resist, 0.f, 1.f, 0.05f, "%.2f")
             .help("Resisted: share of a held enemy's shove taken off, times its hold."),
+        header("Getting Close"),
+        slider("Body Inset", vr_body_monster_inset, 0.f, 12.f, 1.f, "%.0f units")
+            .help("Your body and a monster's meet this much further in on each side (both bodies: twice this closer face "
+                  "to face), so your hands reach its neck and head. Only between you and monsters: walls, doors, "
+                  "monsters against each other, shots and melee keep their boxes. 0: as before."),
+        toggle("Step In", vr_foegrab_step_in)
+            .help("While a hand holds an enemy, your body and its body don't meet: step in and bring the other hand to "
+                  "its head. Let go while overlapping and the two are pushed gently apart (never stuck)."),
         header("Two-Hand Throw"),
         toggle("Two-Hand Throw", vr_foegrab_throw)
             .help("Hold one enemy with both hands and turn it over hard, a judo throw: one shoulder down and the other up, "
@@ -6966,6 +6974,9 @@ za::Vector<Item> pageDebugTests()
         command("A Melee Blow Now", "impulse 242")
             .help("The nearest melee monster within 150 units strikes for 10 damage through the actual parry test. With notarget, it attacks only when asked. Parry Stops Attacks also cancels blows asked for during its stagger."),
         header("Holding Enemies"),
+        command("Nearest Body Contact", "vr_body_contact_status")
+            .help("vr_body_contact_status: the live monster nearest you, how far (origins, level), how deep your two "
+                  "bodies overlap (> 0) by Body Inset, whether a hand holds it (Step In)."),
         command("Who Is Held?", "vr_foegrab_status")
             .help("vr_foegrab_status: each hand holding an enemy, its hold, how firmly the enemy is held in all, how far "
                   "the hand is from the spot it holds (Combat > Holding Enemies); an enemy held on as a ragdoll after a "

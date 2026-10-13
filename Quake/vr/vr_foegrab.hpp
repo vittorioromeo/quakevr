@@ -65,6 +65,9 @@ void afterPoses();  // VR_ServerFrameEnd, after it
 // Server: the player's holds as stats (STAT_QVR_FOEGRAB*), for the drawn hands.
 void calcStats(edict_t* ent, int* statsi);
 
+// Server: whether a hand of `player` holds `m` now (vr_bodycontact.cpp: vr_foegrab_step_in).
+[[nodiscard]] bool holds(const edict_t* player, const edict_t* m);
+
 // Client: whether `hand` holds an enemy now.
 [[nodiscard]] bool holding(int hand);
 
