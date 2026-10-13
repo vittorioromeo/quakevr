@@ -42,7 +42,7 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   drive the shadowed map lights (better placed than the map's light entities).
 - **Distance-field AO** (round 20 discussion): only if capsule/box AO leaves obvious gaps.
 - **Vore shove** (the author, 2026-10-02: "I would like the vore to also have a shove attack when the player is
-  close, later on"): extend the enemy shove (QC/vr_enemyshove.qc) to the vore (shalrath), with its own animation.
+  close, later on"): done (ROUND22.md, "The vore shoves you"); its own animation is the item below.
 - **Flashlight optional; a brighter option** (the author, 2026-10-02): partly there. VR Settings has Flashlight
   (`vr_flashlight` 0: no belt torch, its zones and grabs off, `vr_flashlight.cpp` enabled()) and, since 2026-10-04/07,
   Ambient Light (`vr_ambient_light`, a floor of light) and Light Contrast. Left: check that nothing else assumes the
@@ -74,6 +74,14 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   engine wakes the pickup). Small absolute gain (QuakeC is ~0.07 ms a frame): review, then decide.
 
 ## Later (the author, 2026-10-11, before 1.0.0: "Make sure everything is in the backlog for later")
+
+### Vore: a two-handed shove animation (the author, 2026-10-13: "Not urgent, backlog.")
+
+His note: "The vore now correctly shoves me away, but it would be nice to use a different animation, like a two-handed
+shove." Today the vore's shove (QC/vr_enemyshove.qc, `shal_shove1..`, orig_mon_shalrath.qc) replays the end of its
+ball throw, a swing of its arms. To do: new frames in `progs/shalrath.mdl` for a two-handed push (both arms forward
+together, the blow on the frame both reach out; made as Misc/quakevr/make_enemyshove.py made the grunt's and
+enforcer's), the blow frame (now the 5th) and vr_enemy_shove_vore_* kept matching.
 
 ### Performance
 

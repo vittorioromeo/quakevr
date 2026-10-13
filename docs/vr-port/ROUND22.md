@@ -5412,3 +5412,27 @@ weapon record's, as AD's `wi_adup`), kept in saves.
 - In VR: how long 2 s in a flame feels; whether the glow reads as red-hot metal in the headset (brightness, hue 18) and
   the build-up as heating; the sizzle, ring and hiss levels; reaching into a brazier with the axe without catching fire
   yourself; dipping in water.
+
+## The VR main menu centred up and down (menucenter, 2026-10-13)
+
+The author's note: the VR main menu still sat towards the panel's bottom. It started at Quake's y 4 (the title) and
+ran down to y 312 (twelve rows 20 apart, four group gaps), on a panel from y -220 to 420: its middle 58 below the
+panel's.
+
+- menu.c `M_Main_Layout`: in the headset (`VR_MenuCanvas`) the title, the rows and their cursor (and the flat banner's
+  place) move up together (`m_main_top`, Quake's 4 before) so the title's top to the last row's bottom is centred in the
+  panel; never lower than Quake's place, never above the panel's top (4 under it). The spacing may use the whole
+  panel's height: at Menu Height 1.5 the rows are now 20 apart (were squeezed to fit from y 32 down). Menu Height 1 is
+  unchanged (the panel is Quake's 200 rows: 13 apart, y 4..195). The laser and mouse pick rows from the same layout.
+- The corner buttons and the VR banner (left of them) stand far left of the rows (x -336..-136 against 19..300), the
+  version box and update notice right of them, so moving the rows up crowds nothing.
+- A flat screen is unchanged (decision): its corner buttons and the top right notice stand at the title's height, the
+  banner and the long rows would run into them. It stays from y 4 down (middle 130 on a 320-row canvas).
+- `menu_vr pos` prints `main title and rows y a..b (middle m; the canvas's y c..d, middle n)`.
+
+Numbers: VR y -54..254 (middle 100.0; panel -220..420, middle 100.2), was 4..312 (middle 158); rows x 19..300 as
+before. Mock laser at (25,-16) picks VR Calibration, (290,94) Single Player, (30,244) Quit; on the title (160,-40) the
+selection stays. Menu Height 1.5: y -47..249 on -52..252. Flat: rows 16 apart, y 4..256, as before.
+
+VR check: the main menu's title and list in the panel's middle up and down, equal room above MAIN and below Quit; the
+laser picks the row it points at; the banner and the corner buttons where they were.

@@ -85,6 +85,8 @@ extern cvar_t ui_mouse_sound; // menu.c
 extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
 void M_Main_RowsExtent(float* left, float* right); // menu.c: its rows' ends as last drawn (menu_vr pos)
+void M_Main_RowsSpan(float* top, float* bottom, float* canvasTop, float* canvasBottom); // menu.c: its top, its last
+                                                                                        // row's bottom, the canvas's
 extern int m_singleplayer_cursor; // menu.c: Single Player's (menu_vr pos)
 int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
 float M_ContentRightBelow(float y); // menu.c: how far right its menu shown draws below y (the main menu's rows as drawn)
@@ -12988,6 +12990,10 @@ void qvr::menu::command_f()
                 float rx0, rx1;
                 M_Main_RowsExtent(&rx0, &rx1);
                 Con_Printf("menu_vr pos: main rows x %.0f..%.0f (middle %.1f; the title's 160)\n", rx0, rx1, (rx0 + rx1) * 0.5f);
+                float ry0, ry1, cy0, cy1;
+                M_Main_RowsSpan(&ry0, &ry1, &cy0, &cy1);
+                Con_Printf("menu_vr pos: main title and rows y %.0f..%.0f (middle %.1f; the canvas's y %.0f..%.0f, middle %.1f)\n",
+                    ry0, ry1, (ry0 + ry1) * 0.5f, cy0, cy1, (cy0 + cy1) * 0.5f);
                 menuui::printLaser();
                 return;
             }

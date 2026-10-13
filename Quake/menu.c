@@ -1508,15 +1508,23 @@ void M_Menu_Main_f (void)
 }
 
 
+// QVR: the main menu's top (menu y: the title's, the flat banner's; the rows start 28 below), as M_Main_Layout last
+// placed it: Quake's 4, or in the headset higher, the title, rows and banner centred in the panel (the author's note:
+// the VR main menu sat towards the panel's bottom). A flat screen keeps Quake's place (its corner buttons and notices
+// stand above it, level with the title's row).
+static int m_main_top = 4;
+
 // QVR: the rows' spacing and the groups' gaps: Quake's 20 and 10, closer where the canvas is too short for them all (a
 // flat screen's 200 rows, the headset's panel at Menu Height 1): the gaps a little first, then the rows (to 15), then the
 // gaps the rest of the way; then, still too short, the rows to 13 with no gaps, their letters drawn smaller (to fit 15
-// apart); the last row's letters, 20 tall, kept inside it.
+// apart); the last row's letters, 20 tall, kept inside it. In the headset the whole panel's height is theirs and the
+// menu is centred in it (m_main_top).
 void M_Main_Layout (int *step, int *gap)
 {
 	drawtransform_t transform;
-	float left, top, right, bottom;
-	int rows = 0, groups = 0, i, avail;
+	float left, top, right, bottom, sx, sy;
+	int rows = 0, groups = 0, i, avail, height;
+	qboolean centred = VR_MenuCanvas (&sx, &sy);
 
 	for (i = 0; i < MAIN_ITEMS; i++)
 	{
@@ -1525,21 +1533,31 @@ void M_Main_Layout (int *step, int *gap)
 	}
 	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
 	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
-	avail = (int)(bottom - 2 - 32 - 20);
+	if (!centred)
+		top = 0.f; // (Quake's place: from y 4 down)
+	avail = (int)(bottom - 2 - (q_min (top, 0.f) + 4) - 28 - 20);
 	*step = CLAMP (15, (avail - groups * 6) / (rows - 1), 20);
 	if ((rows - 1) * *step > avail) // more rows than fit 15 apart (a flat screen's 200 rows): closer, to 13, their letters
 		*step = q_max (13, avail / (rows - 1)); // smaller (M_Main_Draw), no gaps
 	*gap = CLAMP (0, (avail - (rows - 1) * *step) / groups, 10);
+
+	// the title's top to the last row's bottom, its middle at the panel's, never lower than Quake's place nor above the
+	// panel's top
+	height = 28 + (rows - 1) * *step + groups * *gap + 20;
+	m_main_top = 4;
+	if (centred)
+		m_main_top = CLAMP ((int) ceil (top + 4.f), Q_rint ((top + bottom - height) * 0.5f), 4);
 }
 
 // QVR: each row's right end and bottom (menu x and y) as last drawn: M_ContentRightBelow (the corner's version box and
 // update notice keep clear of them: vr_menubrand.cpp). A row not shown: nothing.
 static float m_main_row_right[MAIN_ITEMS], m_main_row_bottom[MAIN_ITEMS];
 
-// QVR: a row's top (menu y): Quake's 32 for the first, a step for each row shown above it, a gap for each group.
+// QVR: a row's top (menu y): 28 below the menu's top (Quake's 32) for the first, a step for each row shown above it, a
+// gap for each group.
 static int M_Main_RowY (int item, int step, int gap)
 {
-	int i, y = 32;
+	int i, y = m_main_top + 28;
 
 	for (i = 0; i < item; i++)
 		if (M_Main_Shown (i))
@@ -1623,9 +1641,9 @@ void M_Main_Draw (void)
 	m_main_shift = M_Main_Shift (text, scale);
 	x = 72 + m_main_shift; // QVR: the rows' left (Quake's 72), centred
 
-	M_DrawPlaque (16 + m_main_shift, 4); // QVR: the Quake VR banner, moved with the rows
+	M_DrawPlaque (16 + m_main_shift, m_main_top); // QVR: the Quake VR banner, moved with the rows
 	p = Draw_CachePic ("gfx/ttl_main.lmp");
-	M_DrawPic ( (320-p->width)/2, 4, p);
+	M_DrawPic ( (320-p->width)/2, m_main_top, p); // QVR: m_main_top (centred in the headset)
 
 	for (i = 0; i < MAIN_ITEMS; i++)
 	{
@@ -1689,6 +1707,22 @@ void M_Main_RowsExtent (float *left, float *right)
 	for (i = 0; i < MAIN_ITEMS; i++)
 		if (M_Main_Shown (i) && i != MAIN_CONTINUE)
 			*right = q_max (*right, m_main_row_right[i]);
+}
+
+// QVR: the main menu's top (the title's) and its last row's bottom as last drawn, and the canvas's top and bottom (menu
+// y), for menu_vr pos.
+void M_Main_RowsSpan (float *top, float *bottom, float *canvasTop, float *canvasBottom)
+{
+	drawtransform_t transform;
+	float left, right;
+	int i;
+
+	*top = (float) m_main_top;
+	*bottom = -1e9f;
+	for (i = 0; i < MAIN_ITEMS; i++)
+		*bottom = q_max (*bottom, m_main_row_bottom[i]);
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, canvasTop, &right, canvasBottom);
 }
 
 // QVR: the cursor to the next row shown up (-1) or down (1), round the ends.
