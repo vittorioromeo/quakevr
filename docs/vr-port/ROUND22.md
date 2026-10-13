@@ -5600,3 +5600,21 @@ twist necessary to snap the neck. At the moment I have to snap my wrists and twi
 - In VR: push-pulls at his pace both ways at a standing grunt's head and neck, and a lying one's; whether a shoulder
   grab still throws (judo) and a neck grab never does; whether Twist Speed 100 / Angle 30 snaps too easily when he only
   repositions his hands on a head (a slow repositioning stays below 100 deg/s; a quick one could snap).
+
+## Optional Tracy profiling foundation (2026-10-13)
+
+- Official Tracy v0.14.1 public client source + BSD license vendored; `QvrTracy=true` opt-in optimized MSBuild
+  outputs and intermediates are separate `Release-Tracy` folders. `Misc/quakevr/build_tracy.ps1` builds it.
+  Normal engine compiles out the client and bridge; its existing profiler/CSV remains functional.
+- Existing C/C++ CPU and GPU profiling scopes feed Tracy independently of `vr_profile`; Box3D native zones enabled
+  only in profiling builds. Main/worker thread names, host frame marks, separate named Box3D frame marks.
+- On-demand, localhost only, no system tracing/sampling/callstacks or competing crash handler. Coarse GPU default
+  (`vr_tracy_gpu 1`, `vr_tracy_gpu_detail 0`); detail 1 covers every existing GPU scope. CPU stacks/source cache and
+  async GPU query ring are bounded; reserve ends, drop whole zones rather than stall. Recover explicit zones after
+  Host_Error/Host_EndGame longjmp; query deletion before GL shutdown, new context/session timestamps on reconnect.
+- Builds pass; no-viewer e1m1 smoke exits0, zero drops/GPU context0. Matching CLI tools read actual trace:
+  CPU171 names/443679 events, GPU43 names/128004 events, Box3D39 names/45307 events, 1783 host frames with `vr_profile 0`.
+  Both same-process reconnect traces decode after intentional Host_Error/reload and GL query recreation (contexts1–3).
+  Stack bound test PASS (depth1→1, overflow0;65 deliberate drops). Normal profiler e1m1 report still works.
+- `docs/vr-port/TRACY.md` describes setup, captured evidence, workload-specific overhead, limits and wrapper API for
+  next-stage QC/jobs/loading/resources/memory coverage. Private `.tracy`/CSV/JSON evidence remains in scratch/profile.

@@ -1,6 +1,7 @@
 // vr_jobs.cpp -- see vr_jobs.hpp. No engine headers here.
 
 #include "vr_jobs.hpp"
+#include "vr_tracy.h"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -88,7 +89,10 @@ int Pool::workers() const noexcept
 
 void Pool::post(detail::JobPtr<detail::Job> job)
 {
-    impl->threads->post([job = ZA_MOVE(job)] { job->claimAndRun(); });
+    impl->threads->post([job = ZA_MOVE(job)] {
+        VR_TracyThreadName("Quake VR worker");
+        job->claimAndRun();
+    });
 }
 
 // ----------------------------------------------------------------------------
@@ -210,6 +214,7 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
     za::parallelFor(
         *impl->threads, impl->loops, count,
         [&](za::SizeT begin, za::SizeT end) {
+            VR_TracyThreadName("Quake VR worker");
             body(begin, end);
             if(za::ThisThread::getId() == caller)
             {
