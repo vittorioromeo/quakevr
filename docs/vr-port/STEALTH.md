@@ -87,7 +87,7 @@ along with the hands when the server moves him, `rebaseHands`). The host's and e
 
 ## Contact
 
-A player touching an Idle/Alert monster spots him (Hostile) at once (`vr_stealth_contact`): his body's box within 4
+With `vr_stealth_contact` on (off by default since 2026-10-13: then only grabbing a monster spots you), a player touching an Idle/Alert monster spots him (Hostile) at once: his body's box within 4
 units of the monster's, either hand (`handpos`/`offhandpos`) inside its box grown by 4, his held weapons (melee hits
 are damage anyway) and a held prop's box overlapping. Checked in PlayerPostThink over `findradius(origin, 160)`.
 
@@ -252,7 +252,7 @@ swimmers, and `vr_ai_enhanced 0`: Quake's movetogoal.
 
 `vr_ai_enhanced 1`, `vr_stealth_meter 1`, `vr_stealth_meter_time 1.5`, `vr_stealth_meter_decay 0.2`,
 `vr_stealth_glimpse 0.3`, `vr_stealth_light_dark 20`, `vr_stealth_light_bright 80`, `vr_stealth_crouch 0.4`,
-`vr_stealth_still 0.5`, `vr_stealth_sight_range 1500`, `vr_stealth_peripheral 0.3`, `vr_stealth_contact 1`,
+`vr_stealth_still 0.5`, `vr_stealth_sight_range 1500`, `vr_stealth_peripheral 0.3`, `vr_stealth_contact 0`,
 `vr_stealth_noise 1`, `vr_stealth_run_speed 250`, `vr_stealth_noise_run 400`, `vr_stealth_noise_props 1200`,
 `vr_stealth_noise_guns 1`, `vr_stealth_noise_melee 1`, `vr_stealth_noise_blasts 1`, `vr_stealth_noise_wall 0.5`, `vr_stealth_noise_solid 0.15`,
 `vr_stealth_noise_absorb 0.6`, `vr_stealth_gates 1`, `vr_stealth_seethrough 1`, `vr_stealth_investigate 1`, `vr_stealth_turn 0.6`, `vr_stealth_search_time 5`,

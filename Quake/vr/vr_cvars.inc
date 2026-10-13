@@ -3402,7 +3402,7 @@ QVR_CVAR(vr_stealth_crouch, "0.4", CVAR_ARCHIVE)     // the meter's rate in a fu
 QVR_CVAR(vr_stealth_still, "0.5", CVAR_ARCHIVE)      // the meter's rate while you stand still (walking 1, running 2)
 QVR_CVAR(vr_stealth_sight_range, "1500", CVAR_ARCHIVE) // units at which a monster no longer makes you out (full rate within 128)
 QVR_CVAR(vr_stealth_peripheral, "0.3", CVAR_ARCHIVE) // the meter's rate out of a monster's front cone (behind it: none)
-QVR_CVAR(vr_stealth_contact, "1", CVAR_ARCHIVE)      // touching a monster (body, hands, a held prop) gives you away
+QVR_CVAR(vr_stealth_contact, "0", CVAR_ARCHIVE)      // touching a monster (body, hands, a held prop) gives you away (0, the author's 2026-10-13: only taking hold of it does: VR_FoeGrab_Taken)
 QVR_CVAR(vr_stealth_noise, "1", CVAR_ARCHIVE)        // monsters hear noises (running, props, blows, shots, blasts) through the level
 QVR_CVAR(vr_stealth_run_speed, "280", CVAR_ARCHIVE)  // units/s over which you run (and are heard)
 QVR_CVAR(vr_stealth_noise_run, "400", CVAR_ARCHIVE)  // units your running is heard at (in the open)

@@ -18,6 +18,8 @@ float stt_fails;
 float stt_tick;    // a scene's next progress line
 entity stt_gib;    // the body scene's gib
 
+float(entity m, float xHand, float xUnused) VR_FoeGrab_Taken; // (vr_foegrab.qc, after this file)
+
 void(string xName, float xPass, string xInfo) VR_STT_Report =
 {
     if(!xPass)
@@ -222,10 +224,37 @@ void() VR_Stealth_TestFrame =
         }
         return;
     }
-    // 6: touching it in the dark: Hostile.
+    // 6: touching it in the dark: Hostile with "Touching Gives You Away" on (vr_stealth_contact; off by default since
+    // 2026-10-13: then touching it is unnoticed, step 6's first half, and only taking hold of it spots you: its second).
     if(stt_step == 6)
     {
-        if(stt_stage == 0) { VR_STT_Reset(TRUE); VR_STT_Stage(1); return; }
+        if(stt_stage == 0) { VR_STT_Reset(TRUE); cvar_set("vr_stealth_contact", "0"); VR_STT_Stage(10); return; }
+        if(stt_stage == 10 && t > 0.3)
+        {
+            vector d0 = normalize(stt_phome - m.origin);
+            d0_z = 0;
+            setorigin(p, m.origin + normalize(d0) * (m.maxs_x - p.mins_x + 2) + '0 0 1' * (p.origin_z - m.origin_z));
+            VR_STT_Stage(11);
+            return;
+        }
+        if(stt_stage == 11 && t > 0.5)
+        {
+            VR_STT_Report("touch unnoticed (contact off)", m.enemy != p, sprintf("enemy %s", m.enemy.classname));
+            entity os6 = self;
+            self = p;
+            VR_FoeGrab_Taken(m, cVR_MainHand, 0);
+            self = os6;
+            VR_STT_Stage(12);
+            return;
+        }
+        if(stt_stage == 12 && t > 0.2)
+        {
+            VR_STT_Report("grabbed: spotted (contact off)", m.enemy == p, sprintf("enemy %s", m.enemy.classname));
+            VR_STT_Reset(TRUE);
+            cvar_set("vr_stealth_contact", "1");
+            VR_STT_Stage(1);
+            return;
+        }
         if(stt_stage == 1 && t > 0.3)
         {
             vector d = normalize(stt_phome - m.origin);
@@ -236,7 +265,8 @@ void() VR_Stealth_TestFrame =
         }
         if(stt_stage == 2 && t > 0.5)
         {
-            VR_STT_Report("touch", m.enemy == p, sprintf("enemy %s, %.0f units apart", m.enemy.classname, vlen(p.origin - m.origin)));
+            VR_STT_Report("touch (contact on)", m.enemy == p, sprintf("enemy %s, %.0f units apart", m.enemy.classname, vlen(p.origin - m.origin)));
+            cvar_set("vr_stealth_contact", "0");
             VR_STT_Next(7);
         }
         return;

@@ -720,8 +720,11 @@ const DefaultChange defaultChanges[] = {
     {129, &vr_parry_drop_chance, "0.5"},    // 0 (vr_defaults.cfg)
     {129, &vr_parry_stamina, "0"},          // 1 (vr_defaults.cfg)
     {129, &vr_parry_stamina_cost_2h, "12"}, // 10 (vr_defaults.cfg)
+    // 130: touching a monster no longer gives you away, only grabbing it does (the author, 2026-10-13: "just touching
+    // an enemy doesn't alert them -- but grabbing them does"; ROUND22.md, "Stealth: a touch no longer gives you away").
+    {130, &vr_stealth_contact, "1"},
 };
-constexpr int configVersion = 129;
+constexpr int configVersion = 130;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
