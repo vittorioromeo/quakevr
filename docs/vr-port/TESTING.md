@@ -1288,6 +1288,9 @@ code: 1 Shadow Axe, 2 Widowmaker, 4 Plasma Gun; parm64's packing); `7` an older 
 the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the current loadout's parms; `66` AD's sky
 (svc_skybox) and sky fog (STAT_QVR_ADSKYFOG). The gadget's AD page: `vr_gadget_page` (or `vr_gadget_page_press`, the
 outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget_screen_dump <name>` to look at it.
+Carried through a level change (2026-10-13): `vr_adgun_drops 0; vr_weapon_grip_mode 1; map ad_dm1; wait60; vr_ad_test 87;
+wait10; changelevel start; wait60; vr_ad_test 88` prints `adgun carry: start: ... PASS` (87 arms the main hand and the
+left shoulder holster; before the fix the engine quit with "SV_ModelIndex: model ...#gun4 not precached").
 
 The Debug menu's AD pickup rows (2026-10-13): `vr_test_spawn_dist 64; vr_test_spawn N; impulse 241; wait100;
 vr_ad_test 86` for N 300..319 (and a monster's number: 0.., 200..) prints `adspawn: N: <classname> (<model>) at D ahead

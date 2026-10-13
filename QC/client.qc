@@ -425,6 +425,7 @@ void() DecodeLevelParms =
     self.holsterweaponinst4 = WeaponInst_Carried(self.holsterweapon4, parm37, parm47);
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
     AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
+    VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
 
     // ------------------------------------------------------------------------
     // Mission packs:
