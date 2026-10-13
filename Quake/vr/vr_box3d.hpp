@@ -252,6 +252,10 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
 // (false: no ragdoll).
 [[nodiscard]] bool ragdollCanDrown(edict_t* ent);
 bool ragdollDrowning(edict_t* ent);
+// A living knockdown lifted off its feet by a player's two hands (vr_foegrab.cpp's lift): `on`, its ragdoll flails (as in
+// lava: ragactive::beginFlail; only the kinds driven alive); off, it stops (its strengths fade). False: not begun (no
+// ragdoll, not an active kind, swimming), or (off) it wasn't flailing.
+bool ragdollFlail(edict_t* ent, bool on);
 // A living monster's ragdoll (of the active classes) guarding its head from a blow coming from `at` (units) for `hold`
 // s: its arms up before its face (vr_ragdoll_active_guard; QC VR_Guard_Raise). False: it can't.
 bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
@@ -260,6 +264,10 @@ int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs)
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
 // `count` of them) slack a moment. False: no ragdoll.
 bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, int count);
+// `ent`'s ragdoll passes through player `player`'s (entity number) hands' bodies (and his body: vr_box3d_throw_grace_body)
+// for `seconds` from now at least (a throw's grace, as a thrown prop's: vr_box3d_throw_grace; a later call may lengthen
+// it, never shorten it). False: no ragdoll.
+bool ragdollGrace(edict_t* ent, int player, float seconds);
 // The two-hand throw's topple (vr_foegrab_throw_topple; ROUND21.md, "Holding enemies"): `ent`'s ragdoll (just made by
 // ragdollKnockdown) turned over about its feet towards level `dir`, a sweep: its parts' shared launch (the throw's push and
 // lift) shared out by height (the feet none, the top all), `topple` rad/s about the level axis through its feet across
@@ -307,6 +315,13 @@ bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet)
 // off hand, 1 the main). grab: take the limb of `corpse` the hand is on; release: let go (the limb keeps `velocity`,
 // units/s).
 bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
+// A soft hold (vr_foegrab.cpp: an enemy thrown or lifted, held on): hand `hand` (QC's) of `player` holds the limb of
+// `ent`'s ragdoll nearest it, within `reach` units of its surface, by a spring of at most `force` N at `hertz`, let go of
+// when the limb lags `stuck` units off for half a second. The QC's held field must name `ent` (else it ends next step);
+// let go of as any (ragdollRelease).
+bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck);
+// What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
+[[nodiscard]] float ragdollWeight(edict_t* ent);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
 // 0 nothing, 1 holding a limb; the distance (units) from the hand to the limb's held point (-1: none).
 [[nodiscard]] int ragdollHeld(edict_t* player, int hand);

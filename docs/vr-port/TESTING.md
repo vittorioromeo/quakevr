@@ -1273,3 +1273,23 @@ in use). Change the limit and `vr_decal_count` again: the grid is listed again u
 Timing: the bench scenarios `decals_pile` / `decals_pile_255` (`world+brush` in `gpu_phase_ms`); separate runs are
 noisy with the GPU's clocks, so compare in one process with windows alternating the limit (ROUND22.md, "Piled-up
 blood: a mark limit a spot"). Look for whole marks only, never a cell-shaped hole, at any limit.
+## Judo throws, held throws and lifts with the mock hands (2026-10-13)
+
+`python Misc/quakevr/foegrab/judo_test.py <agent> [dir]` (ROUND22.md, "Judo: the throw's direction, held throws and
+lifts"): each case one game on vrfiringrange, a grunt 36 units ahead (`vr_test_spawn 0`), both mock hands put in it by a
+`vr_mock_play` file it writes to `quakevr/motions/judo_*.mock` (git-ignored; tracking space: x right, y up, -z
+forward; the hands' reach is capped about 1.2 m, so the enemy stands close), gripped with `+grabmain`/`+graboff`, then
+pulled. `dir`: left, right, towards you, away, with the hands at its shoulders, its box's middle, low, and uneven; PASS:
+`foegrab: both hands turn ... to your left` (the way), `throw trace` its head along the throw at 0.2 s, and
+`throw trace done: lies <a> ahead, <l> to your left` (its head from its feet, from the first player's side: printed by
+every throw trace now). `JUDO_ONLY=<regex>` runs only the matching cases (`judo_<height>_<way>`), `JUDO_EXTRA=<cmds>`
+adds commands; the logs go to `scratch/judo_test_<case>.txt`.
+`hold`: thrown left and held on (`vr_foegrab_throw_hold`), the hands then lowered and drawn 0.5 m back: PASS when both
+hands hold it (`foegrab: ... held on as a ragdoll by 2 hands`), it lies to the left, and `vr_foegrab_status` (which now
+prints the ragdoll held on: its pelvis ahead / to his left / up, each hand's distance to its limb) has its pelvis 4+
+units nearer (how far varies with how it landed); and with it off, let go as thrown.
+`lift`: a grunt and an enforcer pulled up at 1.6 m/s: PASS when lifted (`foegrab: ... lifted, held on as a ragdoll by 2
+hands`), flailing (`flail: ... it flails in the hands`, with `vr_knockdown_debug 1`), held up (its pelvis less than 5
+units below the player's origin at 0.5 s; lying, it is 19 below), broken free after 1.9-2.2 s and you shoved 24+ units (`vr_foegrab_status`'s
+player origin before and after); thrown down (swung down, let go) without a break free; an ogre, Lift Reach 24, Lift off:
+not lifted.

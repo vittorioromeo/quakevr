@@ -995,12 +995,45 @@ int campaignsBloodyShown = -1;
                   "the air rather than falling over its feet: this fast. 0: its feet stay where they stood a moment."),
         slider("Twist Spin", vr_foegrab_throw_spin, 0.f, 2.f, 0.05f, "%.2f")
             .help("Share of your hands' twist of it about the vertical it spins on with as it falls (at most 720 deg/s)."),
+        toggle("Hold On After Throw", vr_foegrab_throw_hold)
+            .help("On: the thrown enemy stays in your hands as a ragdoll, held softly: it still topples and falls the way "
+                  "you threw it, and you can steer it, drag it along, pull it about; let go of the grips to drop it or "
+                  "throw it. Off: both hands let go as it is thrown."),
+        slider("Held On Strength", vr_foegrab_throw_hold_strength, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 5.f)
+            .help("Hold On After Throw: the most each hand pulls the thrown body with, as a share of its weight. Below "
+                  "0.5 two hands drag it (lower your hands to it) but never hold it up; above, it hangs from your hands."),
+        slider("Held On Spring", vr_foegrab_throw_hold_hertz, 1.f, 12.f, 0.5f, "%.1f Hz").extend(0.5f, 30.f)
+            .help("Hold On After Throw: how quickly the held limb follows your hand (higher: stiffer)."),
+        slider("Passes Through You", vr_foegrab_throw_grace, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("The thrown enemy passes through your hands, and you, this long as it falls: your hands, still in it and "
+                  "moving on, or you standing where you pull it, no longer knock it back over the other way. 0: they do."),
         slider("Throw Grunt", vr_foegrab_throw_grunt, 0.f, 1.f, 0.05f, "%.2f")
             .help("Your grunt as you throw an enemy down, this loud (0 off)."),
         cycle("Throw Grunt Sound", vr_foegrab_throw_grunt_sound, gruntChoices())
             .help("Which grunt the throw makes: the same choices as climbing's Mantle Grunt Sound. The deeper ones are "
                   "Quake's played slower. Hear it with Hear Throw Grunt."),
         command("Hear Throw Grunt", "vr_foegrab_throw_grunt_test").help("Plays the throw's grunt as set, at full volume."),
+        header("Lift"),
+        toggle("Lift", vr_foegrab_lift)
+            .help("Walk up close to a humanoid (a grunt, an enforcer, a zombie, a knight, a death knight, Arcane Dimensions' "
+                  "soldiers and knights), hold it with both hands and pull up instead of to a side: it comes off its feet, a "
+                  "ragdoll flailing in your hands. Carry it, throw it down (let go of the grips as you swing). After a while "
+                  "it breaks free and shoves you back. Never ogres, fiends, shamblers or vores (the console's "
+                  "vr_foegrab_lift_classes)."),
+        slider("Lift Speed", vr_foegrab_lift_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend(0.1f, 10.f)
+            .help("How fast your hands must pull up together (within 45 degrees of straight up) to lift it."),
+        slider("Lift Reach", vr_foegrab_lift_reach, 24.f, 96.f, 2.f, "%.0f units").extend(0.f, 200.f)
+            .help("And how close you must stand to it (your middle to its; held at arm's length a grunt is about 36 units "
+                  "off; 32 units are about a metre)."),
+        slider("Breaks Free After", vr_foegrab_lift_time, 0.5f, 10.f, 0.25f, "%.2f s").extend(0.1f, 60.f)
+            .help("Held up this long, it breaks free: your hands lose it, it shoves you back and gets up."),
+        slider("Lift Strength", vr_foegrab_lift_strength, 0.f, 2.f, 0.05f, "%.2f").extend(0.f, 10.f)
+            .help("The most each hand holds the lifted body with, as a share of its weight: above 0.5 two hands carry it "
+                  "(the more, the less it sags); below, it sinks to the floor, still held."),
+        slider("Lift Launch", vr_foegrab_lift_up, 0.f, 400.f, 10.f, "%.0f units/s").extend(0.f, 1000.f)
+            .help("How fast it leaves the floor as you lift it."),
+        slider("Break-Free Shove", vr_foegrab_lift_shove, 0.f, 160.f, 4.f, "%.0f units").extend(0.f, 500.f)
+            .help("How far it shoves you back as it breaks free (0: not at all)."),
     };
 }
 
@@ -6882,13 +6915,18 @@ za::Vector<Item> pageDebugTests()
         header("Holding Enemies"),
         command("Who Is Held?", "vr_foegrab_status")
             .help("vr_foegrab_status: each hand holding an enemy, its hold, how firmly the enemy is held in all, how far "
-                  "the hand is from the spot it holds (Combat > Holding Enemies)."),
+                  "the hand is from the spot it holds (Combat > Holding Enemies); an enemy held on as a ragdoll after a "
+                  "throw or a lift: where its pelvis is from you, how far each held limb is from its hand."),
+        command("A Grunt Within Reach", "vr_test_spawn 0; vr_test_spawn_dist 36; impulse 241")
+            .help("A grunt 36 units ahead, facing you: close enough to hold with both hands and lift (Combat > Holding "
+                  "Enemies > Lift: pull up) or judo-throw (turn it over to a side)."),
         command("Walk the Nearest Away", "vr_foegrab_walk_test 110 1")
             .help("vr_foegrab_walk_test 110 1: the live monster nearest you walks straight away from you at 110 units/s "
                   "for a second; how far it got is printed. Held, it should hardly move (A Grunt Ahead first)."),
         cycle("Log Holds", "vr_foegrab_debug", {{0.f, "Off"}, {1.f, "Taken and Let Go"}, {2.f, "Every Frame"}})
             .help("vr_foegrab_debug: the console logs each hold taken and let go and why (and a grip that found none), "
-                  "each two-hand throw tried and how it went, and each two-hand hold's hardest turn; Every Frame: each "
+                  "each two-hand throw and lift tried and how it went (why a lift wasn't: not a humanoid, too far), a "
+                  "ragdoll held on and let go of or broken free, and each two-hand hold's hardest turn; Every Frame: each "
                   "held enemy's movement, each hand's stretch, both hands' turn."),
         command("Hurt the Held to 30%", "vr_foegrab_hurt 0.3")
             .help("vr_foegrab_hurt 0.3: the enemy you hold (else the one nearest you) is left with 30% of its full health: "

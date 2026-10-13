@@ -94,3 +94,73 @@ float(entity m, float xYaw, float xTier) VR_FoeGrab_Throw =
     }
     return result;
 };
+
+// The engine (vr_foegrab.cpp handOver): m, thrown or lifted, its ragdoll held on by hand xHand of the player self (the
+// engine's soft hold on the limb nearest the hand: box3d ragdollHoldSoft). The hand holds it as a ragdoll's limb (as
+// VR_Ragdoll_Handtouch takes one): VR_Ragdoll_HandFrame lets go of it as any (the grip let go: it keeps the hand's throw).
+// Returns 1 held, 0 the hand is busy (a weapon, something held).
+float(entity m, float xHand, float xUnused) VR_FoeGrab_HandOver =
+{
+    if(!VRIsHandEmpty(self, xHand) || VR_Forcegrab_IsHandBusy(self, xHand) || !isragdoll(m))
+    {
+        return 0;
+    }
+    VR_Carry_SetHeld(self, xHand, m);
+    return 1;
+};
+
+// The engine (vr_foegrab.cpp liftCheck): m pulled straight up by both hands of the player self: knocked down (its
+// ragdoll launched up at xUp units/s), its get-up held off xHold s (it can't rise in the hands; it breaks free before).
+// Returns 1 lifted, 2 the training dummy (shown: it stands), -2 it can't be knocked down now (no ragdoll or get-up, no
+// room for one, down already, flying or swimming).
+float(entity m, float xUp, float xHold) VR_FoeGrab_Lift =
+{
+    float dummy = VR_IsDummy(m);
+    float result;
+    if(dummy)
+    {
+        result = 2;
+    }
+    else if((m.flags & (FL_FLY | FL_SWIM)) || m.vr_knockdown || !m.vr_kd_chance_h || !canragdoll(m) || !VR_Knockdown_MakeRoom(m))
+    {
+        result = -2;
+    }
+    else
+    {
+        m.velocity = '0 0 1' * max(0, xUp);
+        result = VR_Knockdown_Start(m) ? 1 : -2;
+        if(result == 1)
+        {
+            m.vr_kd_until = max(m.vr_kd_until, time + xHold);
+        }
+    }
+    if(result < 1)
+    {
+        haptic(cVR_OffHand, 0, 0.1, 40, 0.5); // (it holds its ground)
+        haptic(cVR_MainHand, 0, 0.1, 40, 0.5);
+    }
+    if(dummy)
+    {
+        floattext(m.origin + '0 0 1' * (m.maxs_z + 8), "lifted", '0.4 1 0.4', 0.6);
+    }
+    return result;
+};
+
+// The engine (vr_foegrab.cpp breakFree): m, lifted by the player self, broke free (vr_foegrab_lift_time): the hands
+// holding it lose it, it shoves him back xDist units (VR_EnemyShove_Push's slide) and gets up as soon as it lies.
+float(entity m, float xDist, float xUnused) VR_FoeGrab_BreakFree =
+{
+    if(VR_Carry_Held(self, cVR_OffHand) == m)
+    {
+        VR_Carry_SetHeld(self, cVR_OffHand, world);
+    }
+    if(VR_Carry_Held(self, cVR_MainHand) == m)
+    {
+        VR_Carry_SetHeld(self, cVR_MainHand, world);
+    }
+    VR_EnemyShove_Push(self, self.origin - m.origin, xDist);
+    m.vr_kd_until = time;
+    haptic(cVR_OffHand, 0, 0.2, 60, 0.9);
+    haptic(cVR_MainHand, 0, 0.2, 60, 0.9);
+    return 1;
+};
