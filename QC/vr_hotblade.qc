@@ -115,11 +115,58 @@ string(vector p) VR_HotBlade_FireAt =
     return VR_WallTorch_FireAt(world, p);
 };
 
+// Until when some weapon may still be incandescent (the lying weapons are looked at only until then).
+nosave float vr_hot_any_until;
+float vr_hot_lying_next;
+
 // Record `r` becomes (or stays) incandescent: full again.
 void(entity r) VR_HotBlade_Heat =
 {
     r.wi_hot_end = time + max(0.1, cvar_hget(cvarh_vr_hotblade_time));
     r.wi_heat = 0;
+    vr_hot_any_until = max(vr_hot_any_until, r.wi_hot_end);
+};
+
+// Every VR_HOT_TICK while a weapon may be hot: the weapons lying about (thrown, dropped, placed: thrown_weapon props)
+// that are shed a few sparks, and one that lies in water or slime is quenched. (The engine draws only the hands' and
+// the holsters' weapons glowing.)
+void() VR_HotBlade_Lying =
+{
+    if(time < vr_hot_lying_next || (time > vr_hot_any_until && vr_hot_any_until > 0))
+    {
+        return;
+    }
+    vr_hot_lying_next = time + VR_HOT_TICK;
+    if(vr_hot_any_until <= 0)
+    {
+        vr_hot_any_until = time + max(0.1, cvar_hget(cvarh_vr_hotblade_time)); // (after a load: look a while)
+    }
+    float vol = min(1, max(0, cvar_hget(cvarh_vr_hotblade_sound)));
+    entity t;
+    for(t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
+    {
+        entity r = t.weaponinst;
+        if(!VR_HotBlade_IsHot(r) || !VR_HotBlade_Heatable(t.weapon))
+        {
+            continue;
+        }
+        vector mid = (t.absmin + t.absmax) * 0.5;
+        float c = pointcontents(mid);
+        if((c == CONTENT_WATER || c == CONTENT_SLIME) && cvar_hget(cvarh_vr_hotblade_quench))
+        {
+            dprint(sprintf("hotblade: a lying weapon %g quenched\n", t.weapon));
+            VR_HotBlade_Cool(r);
+            if(vol > 0)
+            {
+                sound(t, CHAN_AUTO, "vr/blade_quench.wav", vol, ATTN_NORM);
+            }
+            particle2(mid + '0 0 4', '0 0 40', QVR_PARTICLE_PRESET_BIGSMOKE, 6);
+        }
+        else if(random() < 0.5 * VR_HotBlade_Glow(r) && cvar_hget(cvarh_vr_hotblade_glow) > 0)
+        {
+            particle2(mid, '0 0 25', QVR_PARTICLE_PRESET_SPARKS, 1);
+        }
+    }
 };
 
 // Record `r` cooled at once (the water's).
@@ -287,6 +334,7 @@ void() VR_HotBlade_Frame =
         VR_HotBlade_HandTick(cVR_OffHand, dt);
         VR_HotBlade_HandTick(cVR_MainHand, dt);
     }
+    VR_HotBlade_Lying();
     VR_HotBlade_Hud();
 };
 
