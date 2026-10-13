@@ -5286,3 +5286,73 @@ His note: "make it so that just touching an enemy doesn't alert them -- but grab
 (`VR_FoeGrab_Taken`) spots you whatever it says, as before. Config version 130 takes a config still at the old
 default (1) to 0. `vr_stealth_test 1` step 6: touching it with the option off is unnoticed, then grabbing it spots you,
 then with the option on touching it does (15 scenes PASS); `stealth_tests.sh all` PASS.
+
+## Three launch flags imply what they already require (worktree `flatplay`, 2026-10-14)
+
+The author's list, nothing else: `-flatscreenmode` implies no VR backend, `-evalcopy` implies `-noconfigwrite` and
+`-noautoexec`, `-preparerelight` implies `-prepare`. No new flags, no renames, no aliases, no cvar changes.
+
+- **`COM_CheckParmImplied (flag, impliedBy, why)`** (`Quake/common.c`, declared in `common.h`): the engine's
+  `COM_CheckParm` for a flag another flag implies — it returns whether the flag is in effect (given, or implied by one
+  that was given), and prints the implication once, at the first place that honors it:
+  `Command line: -evalcopy implies -noautoexec: the evaluation's copy runs its own script, not the player's
+  autoexec.cfg`. A registry of the pairs already announced (`implied_parms`, file-scope) keeps it to one line each.
+- **`-evalcopy`** (`Quake/host.c` `Host_WriteConfiguration`, `Quake/cmd.c` `Cmd_Exec_f`): the evaluation's copy leaves
+  the config alone and does not run the player's autoexec, asked with either flag now.
+- **`-preparerelight`** (`Quake/vr/vr_prepare.cpp` `prepare::active`): the relight is a step of the preparation run, so
+  the flag alone runs the whole preparation. Its progress file needs `-prepare`'s path, so an implied run prints its
+  `Prepare:` lines to the console only (`vr_prepare.hpp` documents it).
+- **`-flatscreenmode`** (`Quake/vr/vr_main.cpp` `startBackend`): the mode runs only while no headset session is up, so
+  the flag is what asks for no backend at all — no OpenXR session, no mock one either, which is what
+  `vr_backend none; vr_restart` used to be typed for. `flatplay::flagGiven()` answers it,
+  `flatplay::noteBackendImplied()` says it once. Start the game without the flag to play in a headset.
+  `docs/vr-port/FLATPLAY.md` follows (its "Turning it on" section).
+
+Tests (headless, the kit's mock run; the flags passed with `-ExtraArgs`, so they are real command-line flags):
+
+- `-flatscreenmode`: `Command line: -flatscreenmode implies no VR backend: none is started ...`, then
+  `vr_flatplay_status` → `-flatscreenmode given, a headset session none, the mode on`, `vr_status` → `VR: inactive`,
+  and no `VR: started mock backend`. Without the flag: `VR: started mock backend`, `VR: active, backend "mock"`,
+  `a headset session up, the mode off` — as before.
+- `-evalcopy` alone (`+vr_haptics_strength 0 +quit` to ask for a config write): both implication lines, no
+  `execing autoexec.cfg`, no `Wrote ironwail.cfg.`. Without it: `execing autoexec.cfg` and `Wrote ironwail.cfg.`, no
+  implication lines.
+- `-preparerelight` alone: `Command line: -preparerelight implies -prepare: ...` then the whole preparation
+  (`Prepare: start 1.0.1-dev`, `step maps 1..3` all ok, guns, models, campaigns, `step relight`, `done`, quit).
+  Without it: no `Prepare:` line at all.
+- e1m1 smoke: clean (`map e1m1; wait60; screenshot; quit`, no engine error, no crash).
+
+Existing invocations left as they are: the motion review's copy (`vr_motion_review.cpp`) and the installer's
+preparation run (`Installer/.../GamePreparation.cs`) still pass `-noconfigwrite -noautoexec` (and `-prepare <path>
+-preparerelight`) explicitly. They are now redundant but harmless, and the explicit form is what keeps their own logs
+free of the implication lines; the progress file still needs `-prepare`'s path.
+
+## Flatscreen play: the hands grip (agent/flatplay, second commit)
+
+**The cause, in one line:** a flatscreen hand never reported its grip — `handButtons(h).grab` comes only from the
+controller's grip bindings, which do not exist on the desktop — so every hold check in the game code saw an open hand:
+`VRWeaponLetGo` (`QC/weapons.qc`, `vr_weapon_grip_mode 0`: `return !grabbing`) let go of any weapon, and
+`QC/vr_carry.qc`'s upkeep (`if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))`) dropped any carried thing. The force
+grab's catch was already special-cased for the mode (`VR_Forcegrab_CanCatch`), which is why E could bring something
+in at all; keeping it was never possible.
+
+**The fix:** `gripping()` in `Quake/vr/vr_client.cpp` — `handButtons(hand).grab || flatplay::active()` — is what the
+`QVR_VRBITS0_*HAND_GRABBING` bits, the throw estimate and `client::grabbing()` all read. While no headset session is
+up and `-flatscreenmode` is given the hands are closed; every other run answers exactly as before (`flatplay::active()`
+is false, so `gripping()` is the controller's grip). Documented in `docs/vr-port/FLATPLAY.md`, "The hands are closed".
+
+**Measured** (`map e1m1`, then `impulse 154` the shotgun into the main hand, `impulse 176` the nailgun into the off
+hand, then the game's own list `vr_test_weaponinst 0; impulse 120`, ~60 frames later):
+
+- before: `weaponinst: main - | off - | holster 5 weapon 2 #5 | holster 6 weapon 4 #6 | lying weapon 4 #4 367u |
+  lying weapon 4 #7 177u` — both hands empty, both weapons on the floor.
+- after: `weaponinst: main weapon 4 #7 clip 8 | off weapon 6 #8 clip 24 | holster 5 weapon 2 #5 | holster 6 weapon 4 #6`
+  — both held, nothing lying, full magazines.
+- the same script with no `-flatscreenmode` (mock backend started, no grip pressed): unchanged, the hands stay empty.
+- `eval.sh`: 168/177 pass, the same one take (`slash_horizontal_ltr_2026-10-12_12-29-35.csv`, FAIL -> FAIL, a
+  one-frame difference in its first event) differs from the baseline before and after this change; the mode is off in
+  every eval run.
+- e1m1 smoke: clean.
+
+Test-harness note: `+attack` / `-attack` in a kit run script stops the rest of the script from running, so firing in
+flatscreen mode is not measured here; it is the mode's existing mouse path and reads none of the grip state.

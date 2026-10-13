@@ -1,8 +1,8 @@
 # Flatscreen play (`-flatscreenmode`)
 
 Quake VR's gameplay played on the desktop screen, with no headset. Everything here is behind the command-line flag
-`-flatscreenmode` and only while there is no headset session (`VR_IsActive() == 0`): start the game without the flag and
-none of it happens, and a headset that takes the game over turns it off (the game says so in the console).
+`-flatscreenmode` and only while there is no headset session (`VR_IsActive() == 0`) — and the flag implies no session
+(see below). Start the game without the flag and none of it happens.
 
 Engine side: `Quake/vr/vr_flatplay.cpp`. Game-code side: `QC/vr_util.qc` (`VR_FlatPlay`), `QC/weapons.qc`,
 `QC/vr_wpnforcegrab.qc`.
@@ -11,8 +11,10 @@ Engine side: `Quake/vr/vr_flatplay.cpp`. Game-code side: `QC/vr_util.qc` (`VR_Fl
 
     ironwail.exe -flatscreenmode
 
-With no headset attached the game has no VR backend, which is what the mode asks for. To see it on a machine that does
-have a headset, or in a test run: `vr_backend none; vr_restart`.
+**`-flatscreenmode` implies no VR backend.** The mode runs only while no headset session is up, so the flag is what asks
+for no backend at all: no OpenXR session, no mock one either — what `vr_backend none; vr_restart` used to be typed for.
+The game says once, in the console, that the flag implied it (`startBackend`, `Quake/vr/vr_main.cpp`). Start the game
+without the flag to play in a headset.
 
 `vr_flatplay_status` (console, or Debug > Reports > Flatscreen Play Status) says whether the flag was given, whether a
 headset session is up, and whether the mode is on.
@@ -53,6 +55,13 @@ while the game has the keys (`key_dest == key_game`).
 `1` and `2` go through the existing weapon cycling (`CycleWeaponCommand`, the controller's B and Y); `getWeaponCycleMode`
 returns ALLOWED while the mode is on, whatever `vr_weapon_cycle_mode` says. The other number keys keep Quake's own
 weapon select.
+
+**The hands are closed.** There is no grip to hold on the desktop, so a flatscreen hand reports its grip as pressed:
+`gripping()` in `Quake/vr/vr_client.cpp` answers for the `QVR_VRBITS0_*HAND_GRABBING` bits and for `client::grabbing`
+while the mode runs. The game's hold checks ask for that bit (`VRWeaponLetGo` in `QC/weapons.qc`, the carried thing's
+upkeep in `QC/vr_carry.qc`), and with an open hand everything a flatscreen player is given leaves the hand on the frame
+it arrives in. With it, what the mode puts in a hand stays there: `E` takes, `1` and `2` move weapons between the hands,
+and a hand lets go of nothing by itself (the mode has no key for letting go).
 
 **No reloading.** `VRIsWeaponReloadingEnabled` (`QC/vr_util.qc`) is off: a magazine is refilled from the reserve as it
 empties, with no handling step.

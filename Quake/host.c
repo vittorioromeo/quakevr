@@ -592,7 +592,10 @@ Writes key bindings and archived cvars to engine config file
 */
 void Host_WriteConfiguration (void)
 {
-	if (COM_CheckParm ("-noconfigwrite")) // QVR: a second copy of the game (the motion review's re-evaluation) leaves the config alone
+	// QVR: a second copy of the game (the motion review's re-evaluation) leaves the config alone. -evalcopy implies
+	// -noconfigwrite: the copy is started with -evalcopy, so it never writes a config of its own (the line naming the
+	// implication is printed once, COM_CheckParmImplied).
+	if (COM_CheckParmImplied ("-noconfigwrite", "-evalcopy", "the evaluation's copy of the game never writes the config"))
 		return;
 	if (config_not_loaded) // QVR: the saved config could not be run (Cmd_Exec_f): writing this game's defaults would lose it
 	{

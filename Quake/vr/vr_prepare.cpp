@@ -249,7 +249,10 @@ void relightResult()
 
 bool active()
 {
-    return COM_CheckParm("-prepare") != 0;
+    // -preparerelight implies -prepare: the relight is a step of the preparation run, so asking for the relight alone
+    // runs the preparation just as -prepare does (its one console line: COM_CheckParmImplied).
+    return COM_CheckParmImplied("-prepare", "-preparerelight",
+        "the relight is a step of the preparation run, so -preparerelight runs the preparation too");
 }
 
 void start()
@@ -258,7 +261,7 @@ void start()
     {
         return;
     }
-    const int arg = COM_CheckParm("-prepare");
+    const int arg = COM_CheckParm("-prepare"); // the progress file follows the flag itself: an implied -prepare (-preparerelight alone) has no path to write to
     if(arg && arg + 1 < com_argc && com_argv[arg + 1][0] != '-' && com_argv[arg + 1][0] != '+')
     {
         run.out = fopen(com_argv[arg + 1], "w");
