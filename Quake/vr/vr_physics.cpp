@@ -8,6 +8,7 @@
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_physics.hpp"
 #include "vr_held.hpp"
 #include "vr_hull.hpp"
@@ -520,7 +521,7 @@ void touch(edict_t* ent, edict_t* target)
 
     const func_t handtouch = fieldFunc(target, f().handtouch);
     if(handtouch && !target->free && isClient(ent) &&
-        (!fieldFloatOr(ent, f().ishuman, 0.f) || vr_body_interactions.value || !handsTracked(ent)))
+        (!fieldFloatOr(ent, f().ishuman, 0.f) || vr_body_interactions.value || flatplay::active() || !handsTracked(ent)))
     {
         setHandtouchParams(HAND_FAKE, ent, target);
         callField(target, ent, handtouch);

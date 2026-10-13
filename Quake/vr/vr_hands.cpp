@@ -6,6 +6,7 @@
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_handpose.hpp"
 #include "vr_main.hpp"
 #include "vr_throw.hpp"
@@ -748,11 +749,20 @@ void update()
         state.headHeight = vr_height_calibration.value;
 
         const glm::vec3 centre = state.playerOrigin + fwd * 16.5f + up * 15.5f;
-        state.pos[HAND_OFF] = centre - right * 5.5f;
-        state.pos[HAND_MAIN] = centre + right * 5.5f;
-        for(glm::vec3& rot : state.rot)
+        if(flatplay::active())
         {
-            rot = aim + glm::vec3{0.f, 0.f, vr_fakevr_handroll.value};
+            // -flatscreenmode: the hands posed from the view, the weapon in each hand and the player's own motion
+            // (vr_flatplay.cpp); the pose below is the old one, for a flat game started without the flag.
+            flatplay::poseHands(state, aim);
+        }
+        else
+        {
+            state.pos[HAND_OFF] = centre - right * 5.5f;
+            state.pos[HAND_MAIN] = centre + right * 5.5f;
+            for(glm::vec3& rot : state.rot)
+            {
+                rot = aim + glm::vec3{0.f, 0.f, vr_fakevr_handroll.value};
+            }
         }
         for(int h = 0; h < HAND_COUNT; h++)
         {

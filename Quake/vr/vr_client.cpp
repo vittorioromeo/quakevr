@@ -11,6 +11,7 @@
 #include "vr_drawblend.hpp"
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_fireparticles.hpp"
@@ -366,8 +367,10 @@ VrMove unposed;
     }
     offhandAttackImpulse = false;
 
-    if(vrActive())
+    if(vrActive() || flatplay::active())
     {
+        // -flatscreenmode too: the game code runs its VR gameplay for a player whose hands the game poses itself
+        // (QVR_VRBITS0_HANDSTRACKED; held weapons, the force grab, melee, the holsters).
         move.buttons |= QVR_BUTTON_HANDSTRACKED;
     }
     // A hand holding the flashlight (or a chainsaw's cord) does not force grab.

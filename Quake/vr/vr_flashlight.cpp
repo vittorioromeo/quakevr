@@ -2,6 +2,7 @@
 // vr_flashlight.cpp -- see vr_flashlight.hpp.
 
 #include "vr_flashlight.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_avatar.hpp"
 #include "vr_coil.hpp"
 #include "vr_body.hpp"
@@ -582,14 +583,16 @@ BeamTrace beamTraces[beamRings][beamSides];
 
 [[nodiscard]] bool enabled()
 {
-    return vr_flashlight.value != 0.f && vrActive();
+    // -flatscreenmode too: the lamp is the flatscreen player's, worn on the head and always lit (headMode).
+    return vr_flashlight.value != 0.f && (vrActive() || flatplay::active());
 }
 
 // vr_flashlight 2, Always on Head (patch 1.0.1): no torch on the belt; it is worn at a temple (Mode::OnHead, on the
 // side vr_flashlight_side names) and stays there: the trigger at it switches it, nothing takes it off (wearOnHead).
+// Flatscreen play (-flatscreenmode) is worn the same way: there is no belt to reach for it on the screen.
 [[nodiscard]] bool headMode()
 {
-    return static_cast<int>(vr_flashlight.value) == 2;
+    return static_cast<int>(vr_flashlight.value) == 2 || flatplay::active();
 }
 bool headModeWas = false; // vr_flashlight was 2 when last set (onModeChanged)
 
