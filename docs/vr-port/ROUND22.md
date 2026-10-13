@@ -5278,3 +5278,43 @@ let go. Holding Enemies > Neck Snap:
   roll (once, by hand, not in the suite: both mock hands at a grunt's head pitched 75 degrees in 0.2 s, their palms
   still: the wrists read 320-430 deg/s, smoothed 360-384, snapped at 48 degrees), the crack's loudness, and how the limp
   body hangs from its head.
+
+## Three launch flags imply what they already require (worktree `flatplay`, 2026-10-14)
+
+The author's list, nothing else: `-flatscreenmode` implies no VR backend, `-evalcopy` implies `-noconfigwrite` and
+`-noautoexec`, `-preparerelight` implies `-prepare`. No new flags, no renames, no aliases, no cvar changes.
+
+- **`COM_CheckParmImplied (flag, impliedBy, why)`** (`Quake/common.c`, declared in `common.h`): the engine's
+  `COM_CheckParm` for a flag another flag implies — it returns whether the flag is in effect (given, or implied by one
+  that was given), and prints the implication once, at the first place that honors it:
+  `Command line: -evalcopy implies -noautoexec: the evaluation's copy runs its own script, not the player's
+  autoexec.cfg`. A registry of the pairs already announced (`implied_parms`, file-scope) keeps it to one line each.
+- **`-evalcopy`** (`Quake/host.c` `Host_WriteConfiguration`, `Quake/cmd.c` `Cmd_Exec_f`): the evaluation's copy leaves
+  the config alone and does not run the player's autoexec, asked with either flag now.
+- **`-preparerelight`** (`Quake/vr/vr_prepare.cpp` `prepare::active`): the relight is a step of the preparation run, so
+  the flag alone runs the whole preparation. Its progress file needs `-prepare`'s path, so an implied run prints its
+  `Prepare:` lines to the console only (`vr_prepare.hpp` documents it).
+- **`-flatscreenmode`** (`Quake/vr/vr_main.cpp` `startBackend`): the mode runs only while no headset session is up, so
+  the flag is what asks for no backend at all — no OpenXR session, no mock one either, which is what
+  `vr_backend none; vr_restart` used to be typed for. `flatplay::flagGiven()` answers it,
+  `flatplay::noteBackendImplied()` says it once. Start the game without the flag to play in a headset.
+  `docs/vr-port/FLATPLAY.md` follows (its "Turning it on" section).
+
+Tests (headless, the kit's mock run; the flags passed with `-ExtraArgs`, so they are real command-line flags):
+
+- `-flatscreenmode`: `Command line: -flatscreenmode implies no VR backend: none is started ...`, then
+  `vr_flatplay_status` → `-flatscreenmode given, a headset session none, the mode on`, `vr_status` → `VR: inactive`,
+  and no `VR: started mock backend`. Without the flag: `VR: started mock backend`, `VR: active, backend "mock"`,
+  `a headset session up, the mode off` — as before.
+- `-evalcopy` alone (`+vr_haptics_strength 0 +quit` to ask for a config write): both implication lines, no
+  `execing autoexec.cfg`, no `Wrote ironwail.cfg.`. Without it: `execing autoexec.cfg` and `Wrote ironwail.cfg.`, no
+  implication lines.
+- `-preparerelight` alone: `Command line: -preparerelight implies -prepare: ...` then the whole preparation
+  (`Prepare: start 1.0.1-dev`, `step maps 1..3` all ok, guns, models, campaigns, `step relight`, `done`, quit).
+  Without it: no `Prepare:` line at all.
+- e1m1 smoke: clean (`map e1m1; wait60; screenshot; quit`, no engine error, no crash).
+
+Existing invocations left as they are: the motion review's copy (`vr_motion_review.cpp`) and the installer's
+preparation run (`Installer/.../GamePreparation.cs`) still pass `-noconfigwrite -noautoexec` (and `-prepare <path>
+-preparerelight`) explicitly. They are now redundant but harmless, and the explicit form is what keeps their own logs
+free of the implication lines; the progress file still needs `-prepare`'s path.

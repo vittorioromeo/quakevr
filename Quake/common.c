@@ -1595,6 +1595,49 @@ int COM_CheckParm (const char *parm)
 
 /*
 ================
+COM_CheckParmImplied
+
+QVR: a command-line flag that another flag implies, so that the implication is honored where the
+flag is read and not only where it is written out:
+  -evalcopy implies -noconfigwrite and -noautoexec (the motion review's copy of the game),
+  -preparerelight implies -prepare (the relight is a step of the preparation run).
+Returns whether the flag is in effect: given, or implied by a flag that was given. The first time an
+implied flag is used, the game says so in the console: a run always says which flags it is honoring
+and which flag set them. `why` is that one line.
+================
+*/
+typedef struct
+{
+	const char	*flag;
+	const char	*impliedBy;
+} impliedparm_t;
+
+impliedparm_t implied_parms[8]; // QVR: the implications already announced (one console line each)
+int implied_parm_count;         // QVR: how many there are
+
+qboolean COM_CheckParmImplied (const char *flag, const char *impliedBy, const char *why)
+{
+	int		i;
+
+	if (COM_CheckParm (flag))
+		return true;
+	if (!COM_CheckParm (impliedBy))
+		return false;
+	for (i = 0; i < implied_parm_count; i++)
+		if (!Q_strcmp (implied_parms[i].flag, flag) && !Q_strcmp (implied_parms[i].impliedBy, impliedBy))
+			return true; // already said
+	if (implied_parm_count < (int)countof (implied_parms))
+	{
+		implied_parms[implied_parm_count].flag = flag;
+		implied_parms[implied_parm_count].impliedBy = impliedBy;
+		implied_parm_count++;
+	}
+	Con_Printf ("Command line: %s implies %s: %s\n", impliedBy, flag, why);
+	return true;
+}
+
+/*
+================
 COM_CheckRegistered
 
 Looks for the pop.txt file and verifies it.

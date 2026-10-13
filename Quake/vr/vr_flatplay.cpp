@@ -14,6 +14,9 @@
 //
 // The keys are read from the keyboard state, not from bindings: nothing is rebound and no config changes. The keys Quake
 // already uses (1 and 2, its own weapon select) are answered by the game code only while the flag is on.
+//
+// -flatscreenmode implies no VR backend (vr_main.cpp's startBackend): the mode runs only while no headset session is up,
+// so the flag is what asks for no backend at all, and noteBackendImplied says so once.
 
 #include "vr_flatplay.hpp"
 
@@ -43,6 +46,7 @@ struct FlatState
 {
     bool flag{false};            // -flatscreenmode on the command line
     bool announced{false};       // its console line was printed
+    bool backendNoted{false};    // the "-flatscreenmode implies no VR backend" line was printed
     bool wasOn{false};           // last frame: to say so when a headset takes the game back
 
     bool keyGrab{false};         // E, last frame (press edges)
@@ -254,6 +258,23 @@ bool active()
     // The flag, and no headset session: asked where it is needed rather than remembered, so that a system asked before
     // the first frame (a fresh start's flashlight) gives the same answer as one asked later.
     return fs.flag && !vrActive();
+}
+
+bool flagGiven()
+{
+    return fs.flag;
+}
+
+void noteBackendImplied()
+{
+    // One line, named by the flag that implied it (the same shape as the engine's COM_CheckParmImplied).
+    if(fs.backendNoted)
+    {
+        return;
+    }
+    fs.backendNoted = true;
+    Con_Printf("Command line: -flatscreenmode implies no VR backend: none is started (flatscreen play runs only while "
+               "no headset session is up; start the game without the flag to play in a headset)\n");
 }
 
 void init()

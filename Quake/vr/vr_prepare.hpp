@@ -2,6 +2,9 @@
 
 // vr_prepare.hpp -- the installer's preparation run: `ironwail.exe ... -prepare <progress file> [-preparerelight]`.
 //
+// -preparerelight implies -prepare: the relight is a step of the preparation run, so the flag alone runs the whole
+// preparation (the progress file needs -prepare's path, so an implied run prints its lines to the console only).
+//
 // The work a first start would otherwise do in the headset, done by the installer (Installer/, GamePreparation.cs) with
 // the game hidden: Quake VR's first maps loaded once each (vrcalibration, vrtutorial, vrstart: their compiled hulls,
 // ambient occlusion and normal maps written to the disk caches, cache/; vrstart's hulls are 10 s of a cold load), then,

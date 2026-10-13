@@ -190,6 +190,16 @@ void stopBackend()
 
 void startBackend()
 {
+    // -flatscreenmode implies no VR backend (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md): the mode plays the VR gameplay
+    // on the desktop screen and runs only while no headset session is up, so the flag is what asks for no backend --
+    // what `vr_backend none; vr_restart` used to be typed for. It says so once; the game plays in a headset when the
+    // flag is not given.
+    if(flatplay::flagGiven())
+    {
+        flatplay::noteBackendImplied();
+        return;
+    }
+
     // -vrmock: the mock headset whatever vr_backend says (the review's re-evaluation runs a second copy of the game
     // beside the one in the headset: it must never open the runtime's session).
     za::UniquePtr<qvr::Backend> backend = createBackend(COM_CheckParm("-vrmock") ? "mock" : vr_backend.string);

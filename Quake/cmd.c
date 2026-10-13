@@ -448,8 +448,9 @@ void Cmd_Exec_f (void)
 	path = Cmd_Argv (1);
 
 	// QVR: -noautoexec: a second copy of the game (the motion review's re-evaluation) runs its own script, not the
-	// player's (which could start anything, a re-evaluation among them)
-	if (!q_strcasecmp (path, "autoexec.cfg") && COM_CheckParm ("-noautoexec"))
+	// player's (which could start anything, a re-evaluation among them). -evalcopy implies -noautoexec, so a copy asked
+	// for with -evalcopy alone skips it too (said once: COM_CheckParmImplied).
+	if (!q_strcasecmp (path, "autoexec.cfg") && COM_CheckParmImplied ("-noautoexec", "-evalcopy", "the evaluation's copy runs its own script, not the player's autoexec.cfg"))
 		return;
 	if (!q_strcasecmp (path, "autoexec.cfg") && Cmd_ForeignStartupConfig ("autoexec.cfg", 0))
 		return;

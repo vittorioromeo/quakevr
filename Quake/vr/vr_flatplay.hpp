@@ -5,6 +5,10 @@
 // runs: the game is exactly as it was. With it, the flat player's hands are marked as tracked, so the VR gameplay --
 // held weapons, the force grab, melee, body interactions -- runs on poses the game makes up from the view angles, the
 // weapon in each hand and the player's own movement, instead of a headset's tracking.
+//
+// -flatscreenmode implies no VR backend: the mode needs no headset session to begin with, so the flag stands in for
+// `vr_backend none; vr_restart` (vr_main.cpp's startBackend asks flatplay::flagGiven, and flatplay::noteBackendImplied
+// says once what the flag implied). Start the game without the flag to play in a headset.
 
 #pragma once
 
@@ -15,6 +19,13 @@ namespace qvr::flatplay
 
 // The mode runs now: -flatscreenmode was given and no headset session is up.
 [[nodiscard]] bool active();
+
+// -flatscreenmode was given, whatever the headset: vr_main.cpp's backend selection, which the flag implies no backend
+// for (noteBackendImplied).
+[[nodiscard]] bool flagGiven();
+
+// The one console line for that implication (vr_main.cpp asks before it starts a backend).
+void noteBackendImplied();
 
 // VR_Init: reads the flag, registers vr_flatplay_status.
 void init();

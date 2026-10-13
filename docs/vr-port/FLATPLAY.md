@@ -1,8 +1,8 @@
 # Flatscreen play (`-flatscreenmode`)
 
 Quake VR's gameplay played on the desktop screen, with no headset. Everything here is behind the command-line flag
-`-flatscreenmode` and only while there is no headset session (`VR_IsActive() == 0`): start the game without the flag and
-none of it happens, and a headset that takes the game over turns it off (the game says so in the console).
+`-flatscreenmode` and only while there is no headset session (`VR_IsActive() == 0`) — and the flag implies no session
+(see below). Start the game without the flag and none of it happens.
 
 Engine side: `Quake/vr/vr_flatplay.cpp`. Game-code side: `QC/vr_util.qc` (`VR_FlatPlay`), `QC/weapons.qc`,
 `QC/vr_wpnforcegrab.qc`.
@@ -11,8 +11,10 @@ Engine side: `Quake/vr/vr_flatplay.cpp`. Game-code side: `QC/vr_util.qc` (`VR_Fl
 
     ironwail.exe -flatscreenmode
 
-With no headset attached the game has no VR backend, which is what the mode asks for. To see it on a machine that does
-have a headset, or in a test run: `vr_backend none; vr_restart`.
+**`-flatscreenmode` implies no VR backend.** The mode runs only while no headset session is up, so the flag is what asks
+for no backend at all: no OpenXR session, no mock one either — what `vr_backend none; vr_restart` used to be typed for.
+The game says once, in the console, that the flag implied it (`startBackend`, `Quake/vr/vr_main.cpp`). Start the game
+without the flag to play in a headset.
 
 `vr_flatplay_status` (console, or Debug > Reports > Flatscreen Play Status) says whether the flag was given, whether a
 headset session is up, and whether the mode is on.
