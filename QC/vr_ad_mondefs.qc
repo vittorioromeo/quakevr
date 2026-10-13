@@ -27,6 +27,7 @@ float(entity e) VR_AD_CorpseParts;       // VR_Corpse_Parts: its corpse's head, 
 void(entity e, entity attacker, float damage, float xStagger) VR_AD_Pain; // a bash's or a parry's stagger: AD's pain function
 float(entity e) VR_AD_IsRunning;         // a knockdown's get-up: its think is its run (AD's th_run)
 void(entity e, entity by) VR_AD_ZombieKilled; // VR_Decap_After: an AD zombie beheaded or cut: killed for good, lying
+float(entity e, entity by) VR_AD_NeckSnapKilled; // VR_FoeGrab_NeckSnap: an AD monster killed by AD's Killed; FALSE not AD's
 void() VR_AD_RunNow;                     // a knockdown's get-up over: self runs (AD's th_run)
 string(float choice) VR_AD_DispenserModel; // VR_EnemyDispenser_Model: an AD monster (200..), "" none
 float(float choice) VR_AD_DispenserSpawn;  // VR_EnemyDispenser_Spawn: TRUE when it was one

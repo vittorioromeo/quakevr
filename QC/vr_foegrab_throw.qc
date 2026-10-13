@@ -190,8 +190,6 @@ float(entity m, vector xAt, float xMargin) VR_FoeGrab_OnHead =
     return vlen(p - head) < xHeadRadius + VR_HEAD_MARGIN + xMargin;
 };
 
-void(entity ad_targ, entity ad_attacker) ad_Killed;
-
 // The engine: both hands of the player self twisted the head of m (a humanoid: its class list) round: its neck snaps. It
 // dies on the spot, killed by him, whole (no gib, no head wound; a zombie or a mummy for good, lying as its ragdoll does,
 // as a beheaded one's), its ragdoll limp (.vr_death_hit the head's: a collapse); the crack at xVolume on its voice
@@ -223,24 +221,12 @@ float(entity m, float xVolume, float xRagdoll) VR_FoeGrab_NeckSnap =
     m.vr_death_hit = 1;
     m.vr_death_hitpos = '0 0 0';
     m.health = -1;
-    if(VR_Decap_IsZombie(m) || m.classname == "monster_mummy")
+    if(!VR_AD_NeckSnapKilled(m, self)) // AD support: an AD monster dies by AD's Killed (vr_ad_monsters.qc)
     {
-        if(m.vr_ad_mon)
-        {
-            VR_AD_ZombieKilled(m, self);
-        }
-        else
+        if(VR_Decap_IsZombie(m) || m.classname == "monster_mummy")
         {
             m.th_die = VR_Decap_ZombieDie; // (its death code gibs it)
-            Killed(m, self);
         }
-    }
-    else if(m.vr_ad_mon)
-    {
-        ad_Killed(m, self);
-    }
-    else
-    {
         Killed(m, self);
     }
     m.vr_death_hit = 1; // (its ragdoll, made later standing, collapses)

@@ -1246,6 +1246,7 @@ class's: `tune`, `ownFloat` in `vr_box3d.cpp`). `mon_` models are monsters for t
 | Parries of AD's melee | `VR_Parry_MeleeMonster`: `VR_ADM_MELEE` (AD's melee is our `T_Damage(enemy, self, self)` through `VR_AD_DamageOurs`) | (headset) |
 | Armour's blunt sound | `VR_Hit_Armoured`: `VR_ADM_ARMOUR` | (headset) |
 | Corpse (dying body and lying corpse gibbed as Quake VR's) | `VR_Corpse_Watch` in `VR_AD_Died`; AD's last death frame makes the body touchable, not a trigger (`VR_AD_BodySolid` patch); `AD_Run` hands a corpse's damage to our `T_DamageDeal` | `vr_ad_mtest 3/4`: corpse 2, gibbed (AD's head and its unique gib) |
+| Neck snap (both hands twist its head) | `VR_FoeGrab_NeckSnap` calls `VR_AD_NeckSnapKilled`: AD's Killed (a zombie or mummy for good: `VR_AD_ZombieKilled`) | `vr_ad_mtest 5` (the nearest awake one): `result 1 health -1 deadflag 2 killed 1` (211 rocket soldier, 238 mummy) |
 | Ragdoll on death | the engine (any dead monster with a rig, not solid) | `vr_ad_mtest 2` (ragdoll 1) |
 | Blood pool, stealth (a body noticed), shock, parry unsway, AI gate | `VR_AD_Dying` / `VR_AD_Died` | (code path) |
 | Highlight log (kills, headshots, melee) | `VR_Highlight_Kill` in `VR_AD_Dying` (the blow's inflictor from `VR_AD_KdSave`), `VR_Highlight_Killed` in `VR_AD_Died` | (code path) |

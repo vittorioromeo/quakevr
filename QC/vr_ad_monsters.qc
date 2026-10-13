@@ -344,6 +344,25 @@ void(entity e, entity by) VR_AD_ZombieKilled =
     ad_Killed(e, by);
 };
 
+// VR_FoeGrab_NeckSnap: its neck snapped by `by`: an AD monster dies by AD's Killed (a zombie or a mummy for good, lying
+// as a beheaded one: VR_AD_ZombieKilled). FALSE: not one of AD's (Quake VR's Killed).
+float(entity e, entity by) VR_AD_NeckSnapKilled =
+{
+    if(!e.vr_ad_mon)
+    {
+        return FALSE;
+    }
+    if(VR_Decap_IsZombie(e) || e.classname == "monster_mummy")
+    {
+        VR_AD_ZombieKilled(e, by);
+    }
+    else
+    {
+        ad_Killed(e, by);
+    }
+    return TRUE;
+};
+
 float(entity e) VR_AD_IsRunning =
 {
     return e.vr_ad_mon && e.ad_th_run && e.think == e.ad_th_run;
