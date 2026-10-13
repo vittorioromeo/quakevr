@@ -5278,3 +5278,11 @@ let go. Holding Enemies > Neck Snap:
   roll (once, by hand, not in the suite: both mock hands at a grunt's head pitched 75 degrees in 0.2 s, their palms
   still: the wrists read 320-430 deg/s, smoothed 360-384, snapped at 48 degrees), the crack's loudness, and how the limp
   body hangs from its head.
+
+## Stealth: a touch no longer gives you away (2026-10-13)
+
+His note: "make it so that just touching an enemy doesn't alert them -- but grabbing them does". The setting existed:
+`vr_stealth_contact` (Advanced VR > Stealth AI > Touching Gives You Away), now off by default; grabbing a monster
+(`VR_FoeGrab_Taken`) spots you whatever it says, as before. Config version 130 takes a config still at the old
+default (1) to 0. `vr_stealth_test 1` step 6: touching it with the option off is unnoticed, then grabbing it spots you,
+then with the option on touching it does (15 scenes PASS); `stealth_tests.sh all` PASS.

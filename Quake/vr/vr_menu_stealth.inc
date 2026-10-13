@@ -37,7 +37,8 @@
         slider("Out of the Corner of Its Eye", vr_stealth_peripheral, 0.f, 1.f, 0.05f, "x%.2f")
             .help("The meter's speed with you to its side (out of its front cone); behind it, it sees nothing."),
         toggle("Touching Gives You Away", vr_stealth_contact)
-            .help("Your body, either hand or a prop you hold touching a monster: it spots you at once."),
+            .help("Your body, either hand or a prop you hold touching a monster: it spots you at once. Off: brushing past "
+                  "one is unnoticed; taking hold of it (grabbing) still gives you away."),
         slider("Sneak Attack Damage", vr_stealth_sneak, 1.f, 3.f, 0.05f, "x%.2f").extend(0.f, 10.f)
             .help("Any damage you deal (a blow, a shot, an explosion) to a monster that hasn't noticed anything. 1: none."),
         header("Hearing"),
