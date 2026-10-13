@@ -56,6 +56,13 @@ while the game has the keys (`key_dest == key_game`).
 returns ALLOWED while the mode is on, whatever `vr_weapon_cycle_mode` says. The other number keys keep Quake's own
 weapon select.
 
+**The hands are closed.** There is no grip to hold on the desktop, so a flatscreen hand reports its grip as pressed:
+`gripping()` in `Quake/vr/vr_client.cpp` answers for the `QVR_VRBITS0_*HAND_GRABBING` bits and for `client::grabbing`
+while the mode runs. The game's hold checks ask for that bit (`VRWeaponLetGo` in `QC/weapons.qc`, the carried thing's
+upkeep in `QC/vr_carry.qc`), and with an open hand everything a flatscreen player is given leaves the hand on the frame
+it arrives in. With it, what the mode puts in a hand stays there: `E` takes, `1` and `2` move weapons between the hands,
+and a hand lets go of nothing by itself (the mode has no key for letting go).
+
 **No reloading.** `VRIsWeaponReloadingEnabled` (`QC/vr_util.qc`) is off: a magazine is refilled from the reserve as it
 empties, with no handling step.
 

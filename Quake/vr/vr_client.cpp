@@ -106,6 +106,15 @@ bool offhandAttackImpulse = false; // pressed and released between two moves
     return hand == HAND_OFF ? leftButtons : rightButtons;
 }
 
+// Whether a hand grips: its controller's grip key, or a flatscreen hand, which is closed. -flatscreenmode has no grip
+// to hold (its keys are E, 1 and 2, V) and its hands are drawn holding, so this is reported as held: every hold check
+// in the game code asks for the gripping bit (QC weapons.qc VRWeaponLetGo, vr_carry.qc), and without it a flatscreen
+// player lets go of a weapon or a carried thing on the frame it arrives in.
+[[nodiscard]] bool gripping(int hand)
+{
+    return handButtons(hand).grab || flatplay::active();
+}
+
 #define QVR_BUTTON_COMMANDS(name, expr)          \
     void name##Down_f()                          \
     {                                            \
@@ -254,7 +263,7 @@ VrMove unposed;
         // Every move carries a throw estimate: while grabbing, as if let go now (the helping
         // hand of a two-handed throw); once let go, the one taken at the release, until the next
         // grab (the server throws with the move that carries the release, or a later one).
-        const bool grabbing = handButtons(h).grab;
+        const bool grabbing = gripping(h);
         const double latest = throwing::latestTime(h);
         if(wasGrabbing[h] && !grabbing)
         {
@@ -353,8 +362,8 @@ VrMove unposed;
             bits |= bit;
         }
     };
-    set(handButtons(HAND_OFF).grab, VRBITS0_OFFHAND_GRABBING);
-    set(handButtons(HAND_MAIN).grab, VRBITS0_MAINHAND_GRABBING);
+    set(gripping(HAND_OFF), VRBITS0_OFFHAND_GRABBING);
+    set(gripping(HAND_MAIN), VRBITS0_MAINHAND_GRABBING);
     set(handButtons(HAND_OFF).reload, VRBITS0_OFFHAND_RELOADING);
     set(handButtons(HAND_MAIN).reload, VRBITS0_MAINHAND_RELOADING);
     // (Not with the other hand on its barrel or anywhere on it: flick::allowed.)
@@ -714,7 +723,7 @@ void init()
 
 bool grabbing(int hand)
 {
-    return handButtons(hand).grab;
+    return gripping(hand);
 }
 
 const EntityVr* entityVr(int num)

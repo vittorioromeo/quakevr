@@ -5318,3 +5318,33 @@ Existing invocations left as they are: the motion review's copy (`vr_motion_revi
 preparation run (`Installer/.../GamePreparation.cs`) still pass `-noconfigwrite -noautoexec` (and `-prepare <path>
 -preparerelight`) explicitly. They are now redundant but harmless, and the explicit form is what keeps their own logs
 free of the implication lines; the progress file still needs `-prepare`'s path.
+
+## Flatscreen play: the hands grip (agent/flatplay, second commit)
+
+**The cause, in one line:** a flatscreen hand never reported its grip — `handButtons(h).grab` comes only from the
+controller's grip bindings, which do not exist on the desktop — so every hold check in the game code saw an open hand:
+`VRWeaponLetGo` (`QC/weapons.qc`, `vr_weapon_grip_mode 0`: `return !grabbing`) let go of any weapon, and
+`QC/vr_carry.qc`'s upkeep (`if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))`) dropped any carried thing. The force
+grab's catch was already special-cased for the mode (`VR_Forcegrab_CanCatch`), which is why E could bring something
+in at all; keeping it was never possible.
+
+**The fix:** `gripping()` in `Quake/vr/vr_client.cpp` — `handButtons(hand).grab || flatplay::active()` — is what the
+`QVR_VRBITS0_*HAND_GRABBING` bits, the throw estimate and `client::grabbing()` all read. While no headset session is
+up and `-flatscreenmode` is given the hands are closed; every other run answers exactly as before (`flatplay::active()`
+is false, so `gripping()` is the controller's grip). Documented in `docs/vr-port/FLATPLAY.md`, "The hands are closed".
+
+**Measured** (`map e1m1`, then `impulse 154` the shotgun into the main hand, `impulse 176` the nailgun into the off
+hand, then the game's own list `vr_test_weaponinst 0; impulse 120`, ~60 frames later):
+
+- before: `weaponinst: main - | off - | holster 5 weapon 2 #5 | holster 6 weapon 4 #6 | lying weapon 4 #4 367u |
+  lying weapon 4 #7 177u` — both hands empty, both weapons on the floor.
+- after: `weaponinst: main weapon 4 #7 clip 8 | off weapon 6 #8 clip 24 | holster 5 weapon 2 #5 | holster 6 weapon 4 #6`
+  — both held, nothing lying, full magazines.
+- the same script with no `-flatscreenmode` (mock backend started, no grip pressed): unchanged, the hands stay empty.
+- `eval.sh`: 168/177 pass, the same one take (`slash_horizontal_ltr_2026-10-12_12-29-35.csv`, FAIL -> FAIL, a
+  one-frame difference in its first event) differs from the baseline before and after this change; the mode is off in
+  every eval run.
+- e1m1 smoke: clean.
+
+Test-harness note: `+attack` / `-attack` in a kit run script stops the rest of the script from running, so firing in
+flatscreen mode is not measured here; it is the mode's existing mouse path and reads none of the grip state.
