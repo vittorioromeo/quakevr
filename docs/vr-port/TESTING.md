@@ -1292,6 +1292,8 @@ outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget
 Carried through a level change (2026-10-13): `vr_adgun_drops 0; vr_weapon_grip_mode 1; map ad_dm1; wait60; vr_ad_test 87;
 wait10; changelevel start; wait60; vr_ad_test 88` prints `adgun carry: start: ... PASS` (87 arms the main hand and the
 left shoulder holster; before the fix the engine quit with "SV_ModelIndex: model ...#gun4 not precached").
+`vr_ad_test 89`: a gun model the engine cannot make (another AD release, a replacement pack) loads Quake VR's stand-in
+under its name: `adgun standin: progs/soldier.mdl#gun0 index N ...: PASS` (before: Host_Error).
 
 The Debug menu's AD pickup rows (2026-10-13): `vr_test_spawn_dist 64; vr_test_spawn N; impulse 241; wait100;
 vr_ad_test 86` for N 300..319 (and a monster's number: 0.., 200..) prints `adspawn: N: <classname> (<model>) at D ahead

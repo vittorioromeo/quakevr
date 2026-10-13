@@ -489,8 +489,14 @@ byte* derivedFile(const char* name, unsigned int* path_id)
     const char* why = "";
     if(!buildNamed(name, path_id, b, why))
     {
-        Con_DPrintf("AD gun model: %s: %s\n", name, why);
-        return nullptr;
+        // Not made (another release of AD's model, a replacement pack, its file missing): Quake VR's own stand-in's
+        // file under the gun's name (as QC's VR_ADGun_Model without AD's data), never a failed map load.
+        char base[MAX_QPATH];
+        int skin = 0;
+        const Gun* g = parse(name, base, sizeof(base), skin) ? gunOf(base) : nullptr;
+        const char* standIn = (g && g->model == modelmeta::Id::AdSoldier) ? "progs/v_gruntgun.mdl" : "progs/v_enfrifle.mdl";
+        Con_DPrintf("AD gun model: %s: %s: %s stands in\n", name, why, standIn);
+        return COM_LoadMallocFile(standIn, path_id);
     }
     byte* out = static_cast<byte*>(VR_HeapMalloc(b.file.size() + 1));
     memcpy(out, b.file.data(), b.file.size());
