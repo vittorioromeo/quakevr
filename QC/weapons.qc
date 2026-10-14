@@ -3743,6 +3743,9 @@ float(entity xPlayer, float xDir, float xWeapon,
     float minWeapon = WID_GRAPPLE;
     float maxWeapon = WID_LASER_CANNON;
 
+    // Flatscreen play (-flatscreenmode): the empty hand (the fist) is one step of the cycle, both ways.
+    if(VR_FlatPlay(xPlayer)) { minWeapon = WID_FIST; }
+
     // Just for safety.
     float maxIterations = maxWeapon + 1;
 
@@ -3768,7 +3771,7 @@ float(entity xPlayer, float xDir, float xWeapon,
         }
 
         // Do not select unavailable weapons.
-        if(!VR_WeaponUtil_EntHasWeapon(xPlayer, xWeapon))
+        if(xWeapon != WID_FIST && !VR_WeaponUtil_EntHasWeapon(xPlayer, xWeapon))
         {
             continue;
         }

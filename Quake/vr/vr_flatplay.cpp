@@ -292,7 +292,7 @@ void frame()
     {
         fs.announced = true;
         Con_Printf("Quake VR: flatscreen play (-flatscreenmode): the VR gameplay on the desktop screen. E grabs what you "
-                   "look at, 1 and 2 cycle the weapons you collected into the left and right hand, V punches, the mouse "
+                   "look at, 1 and 2 cycle the weapons you collected (and the empty hand) into the left and right hand, V punches, the mouse "
                    "fires the hand it fires in VR. vr_flatplay_status says what the mode is doing.\n");
     }
     if(!on && fs.wasOn)
@@ -428,7 +428,7 @@ void status_f()
         vr_flatplay.value, vr_flat_reach.value, vr_flat_sway.value, vr_flat_bob.value);
     Con_Printf("  E pressed %d times (force grab), V %d (punch); E and V are read from the keyboard, not from bindings.\n",
         fs.grabs, fs.punches);
-    Con_Printf("  the game code: reloading off, the flashlight worn and always lit, body interactions on, 1 and 2 cycle "
+    Con_Printf("  the game code: reloading off, the flashlight worn and always lit, body interactions on, 1, 2 and the wheel cycle (empty hand included) "
                "the weapons collected into the left and right hand.\n");
 }
 
