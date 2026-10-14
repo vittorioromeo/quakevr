@@ -5796,3 +5796,45 @@ limits and private kit evidence. Author follow-up: ordinary liquid combat/wet co
 ## 2026-10-14: exact voxel optimization (voxelopt)
 
 Reuse exact barycentric fractions and ordered chamfer neighbours, with an interior-cell fast path and 4.1 KB bounded stack storage. No geometry/settings changes. Against the current d986 baseline, 288 fixture comparisons preserve sampled points, voxel states/distances, pieces/reports and rebuilt hull mass bytes; allocation balance zero. Eleven frozen inputs, 16 alternating repetitions: voxel medians improve 22.5-37.4%, sequential decomposition 5.8-19.9%. Live captures were excluded because scene/input matching was insufficient; no live FPS gain claim. Normal/profiling builds, smoke, shotgun port/fallback and lying nailgun magazine checks pass. Details: VOXEL_OPTIMIZATION.md; private evidence backed up in kit/scratch/voxelopt. Author VR check: held/mirrored/dropped gun ports and wells.
+
+## Peripheral hit and low-health blood feedback (bloodfx, 2026-10-14)
+
+Two independent cosmetic blood-red vignettes are on by default, with a clear central circle and combined
+opacity bounded at 0.8. VR Settings > Blood Feedback contains archived controls; Debug > Tools has directional,
+neutral, armor-only and real damage-payload previews, plus quantitative reports. Defaults: hit on, duration
+0.45 s, intensity 0.22, directional bias 0.75; health on, threshold 35, intensity 0.25, individual beat width
+0.25 s, base rate 0.75 Hz, low-health rate scale 2, severity exponent 1. Full details: BLOOD_FEEDBACK.md.
+
+svc_damage is unchanged, including legacy colour shifts, view kicks, hand feedback and haptics. Separate hit
+world directions are reprojected per rendered eye/view; front maps to upper edge, rear to lower, vertical
+hits to their corresponding edge. Missing/near/zero sources are neutral. A listen server can also recognize
+world/self/owned-projectile hits by an exact protocol-quantized inflictor-centre match. Remote servers and old
+demos have no ownership metadata, so their available coordinates remain directional. This is the conservative
+compatibility limit. Effect clocks freeze paused; death/intermission/respawn, clear-state/map/save-load/disconnect
+and reverse demo playback clear history. Health is reconstructed from local authoritative STAT_HEALTH.
+
+Existing scene resolve/warp applies blood before colour shifts; no new GL state. Movement comfort, bullet-time,
+palette modes and full-black fades retain their existing composition. Portal cameras are excluded. Legacy damage
+tints remain independently enabled, so stronger combined feedback can be reduced through Screen Tints.
+
+Validation: normal and Release-Tracy builds passed; native Quake/AD and Tracy e1m1 damage+health smoke passed.
+28 production-engine quantitative cases passed. At intensity 0.6/bias 1, actual damage-payload left/right and
+front/rear/vertical edge peaks were 0.5671 against 0 opposite; neutral 0.5671 all round; armor-only 0.5671.
+A 180-degree head turn swaps the preferred side. At 0.5 s of a 1 s hit, opacity 0.15; halving intensity gives
+0.075, then doubling duration gives 0.1687. Pause leaves the clock unchanged across 72 frames. Independent
+toggles, threshold/healing, death/respawn, fresh save/load, map/disconnect all passed. Default health 34/20/10/1
+gives peak 0.0071/0.1071/0.1786/0.2429 and rate 0.7929/1.3929/1.8214/2.2071 Hz; at threshold/death, zero.
+Exponent 2 at health 20 lowers peak to 0.0459; rate scale 0 keeps 0.75 Hz. A recorded demo retained health 20,
+reverse playback cleared hit history/clock to zero, and demo pause retained clock 0.1111 across 20 frames.
+
+Both eye images: inactive max difference 1 byte (mean below 0.000003), hit centre max difference 0–1 byte,
+intended peripheral green attenuation 2.75–3.03 bytes versus 0.09–0.10 opposite, full-black pixels exactly zero.
+Flat scene inactive/centre differences <=1 byte and black scene pixels zero; pause/HUD overlays remain visible.
+Native baseline/left/right/health1 comparison uses test intensity 0.6 to make bias legible. Calibration board
+link rebuilt successfully (qbsp/vis/light all exit 0), menu-path check 6 found, 0 missing.
+Evidence/scripts/results backed up to C:/OHWorkspace/qvr-kit/scratch/bloodfx.
+
+Author VR review: judge mild default strength and comfort, front/rear convention, head turns, low-health beat
+frequency/width, and interaction with movement vignette and black fades. No melee/gameplay changes.
+The test's early artificial health-zero/health-100 sequence made a later save fail to parse; a fresh-map
+save/load passed, so the permanent harness isolates saves from that artificial death state.

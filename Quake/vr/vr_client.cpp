@@ -3,6 +3,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
+#include "vr_blood.hpp"
 #include "vr_bttrails.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_collectfx.hpp"
@@ -698,6 +699,7 @@ void init()
     shock::registerCommands();
     smoulder::registerCommands();
     comfortfade::registerCommands();
+    blood::registerCommands();
     deathview::registerCommands();
     weaponfx::registerCommands();
     bttrails::registerCommands();
@@ -800,6 +802,7 @@ extern "C" void VR_OnClientClearState()
     shock::clear();
     smoulder::clear();
     comfortfade::clear();
+    blood::clear();
     deathview::clear();
     weaponfx::clear();
     bttrails::clear();
