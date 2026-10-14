@@ -34,6 +34,7 @@ Vore: stand next to one (it shoves you away); parry one
 Prop climbing: large crate and stack, every side with bent and extended arms; failed grabs must not pull crates through your body
 Prop carrying: light vs heavy crate and explosive box; heavy/bulky loads slow thumbstick movement; pulling 60 kg line feels right?
 Toolgun: beam leaves the lens centre; a hard stick click while holding a prop keeps it; B/Y panel, tool tiles, stick-press cycles tools, spawn grid, physgun wrist rotation; panel readable and well placed?
+Spawn ghost by hand: choose an item, hold X in the off hand and reach forward/aside/up — the ghost follows your hand 1:1; hold A in the gun hand and turn your wrist — it yaws only, it does not move; both sticks still walk and turn you; let go and place it with the trigger; that hand's jump is quiet while you hold it — natural? turning yourself with the gun's stick swings the ghost too (by design), is that OK?
 Brush tool (toolgun 6th tile): create, move, resize, paint, copy, delete boxes; stand on, climb and shoot them
 Brush shapes: make a wedge, cylinder, pyramid; turn one with Rotate; Undo
 Brush light: a new box goes from flat light to shadows; next to a flickering light it flickers too; AD moving items/lifts and flashlight shadows through portals remain stable
