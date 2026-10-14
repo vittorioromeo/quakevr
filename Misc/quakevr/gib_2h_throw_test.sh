@@ -19,6 +19,8 @@
 #   back     (not a throw: THROWS=back) from arm's length back into the chest, 7 m/s (the body's collision)
 AGENT=$1; OUT=${2:-$(mktemp -d)}; EXTRA=${3:-}; HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd -W 2>/dev/null || pwd)
 python - "$HERE" "$OUT" <<'PY'
 import sys, math, importlib.util
@@ -70,7 +72,7 @@ run() { # <throw> <stagger 0|1> <kind: gib|small|gib<pick>: vr_test_held_pick's 
     [ "$3" = small ] && take="vr_smallgibs_test 9"
     case $3 in gib[0-9]*) take="vr_test_held_pick ${3#gib};impulse 252";; esac
     local cfg=""; [ -n "$CFG" ] && cfg="exec $CFG;"
-    bash $KIT/run.sh $AGENT -Script "map vrfiringrange;wait60;${cfg}god;notarget;developer 1;vr_test_held_destroy 1;vr_debug_box3d 1;$EXTRA;vr_mock_hand off $offp;vr_mock_hand main $mainp;wait10;+graboff;vr_mock_button off grip 1;$take;wait20;+grabright;vr_mock_button main grip 1;wait20;vr_mock_play $OUT/$1$2.txt;wait200;toggleconsole;quit" \
+    tb_run_sh -Script "map vrfiringrange;wait60;${cfg}god;notarget;developer 1;vr_test_held_destroy 1;vr_debug_box3d 1;$EXTRA;vr_mock_hand off $offp;vr_mock_hand main $mainp;wait10;+graboff;vr_mock_button off grip 1;$take;wait20;+grabright;vr_mock_button main grip 1;wait20;vr_mock_play $OUT/$1$2.txt;wait200;toggleconsole;quit" \
         -Filter "carry:|gib: |test: |throw: two|box3d: [0-9]+ .*thrown by|throw (grace|watched)|blow|smallgib: a gib burst|sgibtest: held" > "$OUT/$1$2_$3.log" 2>&1
     local both=$(grep -c "carry: both hands$" "$OUT/$1$2_$3.log")
     local burst=$(grep -c "gib: burst" "$OUT/$1$2_$3.log")
@@ -84,3 +86,6 @@ for kind in ${KINDS:-gib small}; do
     done
 done
 echo "total bursts: $(grep -c "burst [1-9]" "$SUMMARY") of $(wc -l < "$SUMMARY") throws ($(grep -c "both 0" "$SUMMARY") not held in both)"
+}
+source "$(dirname "$0")/testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

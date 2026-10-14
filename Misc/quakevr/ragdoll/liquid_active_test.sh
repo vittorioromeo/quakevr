@@ -25,13 +25,15 @@
 #   cost     4 grunts killed together in the pool (--exclusive): vr_ragdoll_active_list's drive cost, the step's
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
 CASES=${*:-water knight ogre enforcer hknight drown fallin head lava slime actoff off land}
 PY=${PY:-py -3.13}
 SUM="$TREE/Misc/quakevr/ragdoll/liquid_trace.py"
 PRE="wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_ragdoll_active_seed ${SEED:-0};vr_ragdoll_active_trace 3"
 FILTER="^drown:|struggles|^ragtrace|^ragswim|down alive|gets up|limp at frame|active death|ragdoll: [0-9]+ (in |out of)|drowned|burnt|gibbed|rror|CRASH|exit=|TIMEOUT|steptime|vr_ragdoll_active_list|^  [0-9]+: "
-run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "$FILTER" -Timeout 400 2>&1 | tr -d '\r'; }
+run() { tb_run_sh -Script "$1" -Filter "$FILTER" -Timeout 400 2>&1 | tr -d '\r'; }
 # drop <map> <x y z> <monster> <then> [dist]
 drop() {
     run "sv_random_seed ${SEED:-7};map $1;$PRE;vr_ragdoll_active_liquids ${LIQ:-1};noclip;setpos $2 0 ${YAW:-0} 0;wait5;vr_test_spawn $3;vr_test_spawn_dist ${5:-150};impulse 241;$4;toggleconsole;quit"
@@ -88,3 +90,6 @@ for c in $CASES; do
         done ;;
     esac
 done
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

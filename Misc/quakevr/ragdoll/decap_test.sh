@@ -10,12 +10,14 @@
 # there: 34 the rocket ogre).
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 CASES=${*:-live axe refuse corpse saw zombie thrown gib save monsters pop popoff popzombie}
 MON=${MON:-0}
 PRE="wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_test_spawn_dist 80"
 SPAWN() { echo "vr_test_spawn ${1:-$MON};impulse 241;wait20"; }
 FILTER="${FILTER:-^decap|beheaded|rror|^ragdoll [0-9]|cut off|gibbed|axestick: |^loaded}"
-run() { bash $KIT/run.sh $AGENT -Script "$1;wait5;toggleconsole;quit" -Filter "$FILTER" -Timeout 240 2>&1 | grep -v "^$\|^exit=0"; }
+run() { tb_run_sh -Script "$1;wait5;toggleconsole;quit" -Filter "$FILTER" -Timeout 240 2>&1 | grep -v "^$\|^exit=0"; }
 for c in $CASES; do
     echo "== $c"
     case $c in
@@ -39,3 +41,6 @@ for c in $CASES; do
     monsters) for m in ${MONS:-0 5 1 8 6 7 4 9 3 12 14 10 13}; do run "map vrfiringrange;$PRE;$(SPAWN $m);vr_decap_test 1;wait60;vr_ragdoll_list 1"; done ;;
     esac
 done
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

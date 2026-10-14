@@ -25,6 +25,9 @@ import re
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "testbatch"))
+import testbatch  # noqa: E402
+
 KIT = "C:/OHWorkspace/qvr-kit"
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "foegrab3"
 TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
@@ -57,8 +60,8 @@ def verdict(ok, what):
 
 
 def run(script, filt, timeout=300, extra=()):
-    cmd = ["C:/Program Files/Git/bin/bash.exe", f"{KIT}/run.sh", AGENT, "-Script", script, "-Filter", filt, "-Timeout", str(timeout), *extra]
-    out = subprocess.run(cmd, capture_output=True, text=True, errors="replace").stdout
+    # (testbatch.run_sh: the kit's run.sh, its runs played as batches by main's two passes; TB_SLOW=1: each alone)
+    out = testbatch.run_sh(AGENT, ["-Script", script, "-Filter", filt, "-Timeout", str(timeout), *extra])
     return out.replace("\r", "")
 
 
@@ -434,6 +437,8 @@ def case_neck():
 
 
 def main():
+    global FAILS
+    FAILS = 0  # (testbatch.two_pass runs this twice: the first pass's verdicts mean nothing)
     os.makedirs(SCRATCH, exist_ok=True)
     for c in CASES:
         print(f"== {c}")
@@ -443,4 +448,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(testbatch.two_pass(AGENT, "foegrab_judo_test", main))

@@ -19,11 +19,13 @@
 #            limbs (its stumps), a forearm cut off lying on the floor
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 CASES=${*:-models corpse live chance cap grab save zombie blast perf}
 KINDS=${KINDS:-0 1 2 3 4 5 6 7 8 9 10 12 13 14}
 PRE="map vrfiringrange;wait20;god;notarget;developer 1;vr_test_spawn ${MON:-0}"
 FILTER="^limbtest|^vr_limb_models|^  *[0-9]+ [a-z_0-9]+ +bones|^vr_physics_steptime|rror|CRASH"
-run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "${3:-$FILTER}" -Timeout 300 ${2:+-Out $2} 2>&1 | grep -v "^$" | grep -v "^exit=0"; }
+run() { tb_run_sh -Script "$1" -Filter "${3:-$FILTER}" -Timeout 300 ${2:+-Out $2} 2>&1 | grep -v "^$" | grep -v "^exit=0"; }
 for c in $CASES; do
     echo "== $c"
     case $c in
@@ -68,3 +70,6 @@ for c in $CASES; do
     *) echo "unknown case $c" ;;
     esac
 done
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

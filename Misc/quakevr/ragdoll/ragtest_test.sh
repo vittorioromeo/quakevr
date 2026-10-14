@@ -9,6 +9,8 @@
 #   SELF=0|1  vr_ragdoll_self_collide for the run (default: the game's)
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
 SRC="$TREE/Quake/vr/vr_ragtest.cpp"
 MON=${MON:-0}
@@ -49,7 +51,7 @@ for name in $LEDGES; do
     S="$S;vr_test_spawn $MON;impulse 241;wait40;vr_menu_press $PAGE > $label;wait400"
 done
 S="$S;vr_ragdoll_act status;toggleconsole;quit"
-bash $KIT/run.sh $AGENT -Script "$S" -Filter "^ragact|vr_menu_press:|rror|CRASH|exit=|TIMEOUT" -Timeout 900 2>&1 | tr -d '\r' > "$OUT"
+tb_run_sh -Script "$S" -Filter "^ragact|vr_menu_press:|rror|CRASH|exit=|TIMEOUT" -Timeout 900 2>&1 | tr -d '\r' > "$OUT"
 grep -E "rror|CRASH|TIMEOUT" "$OUT" | head -5
 pass=0; fail=0
 while IFS='|' read -r name label; do
@@ -64,3 +66,6 @@ while IFS='|' read -r name label; do
 done <<< "$ROWS"
 grep -E "^ragact: status" "$OUT"
 echo "ragtest: $pass passed, $fail failed"
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

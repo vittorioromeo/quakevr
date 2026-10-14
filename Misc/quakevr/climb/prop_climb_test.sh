@@ -27,6 +27,8 @@
 AGENT=${1:?agent}; shift
 CASES=${*:-heavy stack side light close knock hang off lift movelight liftlight}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
 W=C:/OHWorkspace/qvr-agents/$AGENT
 D=$W/scratch/climb
@@ -52,12 +54,12 @@ for name, offx, main in (('pc_liftlight', -0.7, (0.12, 1.638, -0.69)), ('pc_move
 LIFT="wait500;viewpos;-graboff;-grabmain;wait10;setpos -318 88 24 0 0 0;noclip;wait50;vr_mock_play $D/pc_liftride.txt"
 fail=0
 run() { # name kind play extra-before after-play frames dist
-  bash $KIT/run.sh $AGENT -Script "map vrclimb;wait30;god;notarget;developer 1;vr_climb 1;vr_climb_debug 1;setpos -300 -100 24 0 90 0;noclip;wait20;vr_test_spawn_dist $7;vr_test_spawn $2;impulse 241;wait90;$4;vr_mock_play $D/$3.txt;$5;wait$6;viewpos;vr_climb_debug 0;developer 0;toggleconsole;quit" \
+  tb_run_sh -Script "map vrclimb;wait30;god;notarget;developer 1;vr_climb 1;vr_climb_debug 1;setpos -300 -100 24 0 90 0;noclip;wait20;vr_test_spawn_dist $7;vr_test_spawn $2;impulse 241;wait90;$4;vr_mock_play $D/$3.txt;$5;wait$6;viewpos;vr_climb_debug 0;developer 0;toggleconsole;quit" \
     -Timeout 200 -Filter "climb:|ENGINE|Player pos" 2>&1 | grep "climb:\|ENGINE\|Player pos" | grep -v "hold search\|eases onto" | tr -d '\r'
 }
 climb2() { # setup play after: a light crate (vr_climb_prop_mass 70) in the off hand; vr_climb_debug 2's climbreach lines
   # (each hold's sync: how far its tracked hand drifted from the hold), the arms with room to bend (shoulder reach 0.5)
-  bash $KIT/run.sh $AGENT -Script "map vrclimb;wait30;god;notarget;developer 1;vr_climb 1;vr_climb_debug 2;vr_climb_prop_mass 70;vr_body_shoulder_reach 0.5;$1;vr_mock_play $D/$2.txt;$3;viewpos;vr_climb_debug 0;developer 0;vr_body_shoulder_reach 0.08;vr_climb_prop_mass 60;toggleconsole;quit" \
+  tb_run_sh -Script "map vrclimb;wait30;god;notarget;developer 1;vr_climb 1;vr_climb_debug 2;vr_climb_prop_mass 70;vr_body_shoulder_reach 0.5;$1;vr_mock_play $D/$2.txt;$3;viewpos;vr_climb_debug 0;developer 0;vr_body_shoulder_reach 0.08;vr_climb_prop_mass 60;toggleconsole;quit" \
     -Timeout 200 -Filter "climb:|climbreach |ENGINE|Player pos| kg[)]" 2>&1 | grep -E "climb:|climbreach |ENGINE|Player pos| kg[)]" | grep -v "hold search\|eases onto" | tr -d '\r'
 }
 both() { # frames both hands held, and the main hand's largest sync meanwhile
@@ -118,3 +120,6 @@ for c in $CASES; do
   verdict $c $ok
 done
 exit $fail
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

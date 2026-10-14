@@ -28,11 +28,13 @@
 # MON=5: the knight instead of the grunt (vr_test_spawn: the Thing ahead).
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 CASES=${*:-flat stairs blast shot gib cap save slowmo grab twohand pull pile burn wounds walk blows retro}
 PRE="wait30;god;notarget;vr_ragdoll 1;$XPRE;vr_debug_ragdoll 1;vr_test_spawn ${MON:-0}"
 DEAD="vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0"
 FILTER="^ragdoll|^vr_ragdoll_list|^vr_physics_steptime|corpses in the physics|gibbed|corpse: .* hit by|rror|CRASH|pushed at|  (held|pulled) by|flames on it|^wounds|soldier.mdl#rag|force grab: (a rag|caught a)"
-run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "${3:-$FILTER}" -Timeout 300 ${2:+-Out $2} 2>&1 | grep -v "^$" | grep -v "part [0-9]* blasted"; }
+run() { tb_run_sh -Script "$1" -Filter "${3:-$FILTER}" -Timeout 300 ${2:+-Out $2} 2>&1 | grep -v "^$" | grep -v "part [0-9]* blasted"; }
 # The hand on the limb nearest it, 1 unit over its middle (twice: the mock hand reaches from where it was), the player
 # first stepped down off e1m1's start platform (LOW: on the grunt's floor). (3 units over it left the hand 2.3 units off
 # the limb's surface, out of vr_ragdoll_grab_reach since the author's 2 of 2026-10-07, 3cca8fccd: it was 6. And from the
@@ -73,7 +75,7 @@ for c in $CASES; do
         if [ -n "$EYES" ]; then
             S="map vrfiringrange;$PRE;vr_bullettime_fx 0;vr_test_spawn_dist 100;vr_timescale 0.1;wait5;$DEAD;wait130"
             for i in $(seq 30); do S="$S;wait2;screenshot"; done
-            bash $KIT/run.sh $AGENT -Clean -Script "$S;toggleconsole;quit" -Filter "first drawn" -Timeout 300 2>&1 | tr -d '\n' | grep -o "poses.*"; echo
+            tb_run_sh -Clean -Script "$S;toggleconsole;quit" -Filter "first drawn" -Timeout 300 2>&1 | tr -d '\n' | grep -o "poses.*"; echo
             ${PY:-py -3.13} - "$KIT/bases/$AGENT/qbase/quakevr/screenshots" "$KIT/scratch/ragdoll_slowmo.png" <<'PY'
 import glob, os, sys
 from PIL import Image, ImageChops, ImageStat
@@ -123,3 +125,6 @@ PY
         run "map e1m1;$PRE;vr_retro 1;vr_test_spawn_dist 90;impulse 241;wait20;vr_retro_list;$DEAD;wait100;vr_retro_list;toggleconsole;quit" "" "soldier.mdl" | grep -o "progs/soldier.mdl.*skin.*texture [0-9x]*" | sed 's/  */ /g' ;;
     esac
 done
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

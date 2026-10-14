@@ -14,7 +14,8 @@
 // the slowest run (each wait counts frames as "wait" does: a server tick each):
 //   vr_waituntil <cvar> <op> <value> <frames>   until the cvar compares so (== != < <= > >=; numbers as numbers, else
 //                                               as text: == and != only), at most <frames>
-//   vr_waitprint <frames> <text...>             until the console prints a line holding the text (after the command)
+//   vr_waitprint <frames>[x<n>] <text...>       until the console prints a line holding the text (after the command;
+//                                               x<n>: n such lines), at most <frames>
 // A wait that runs out prints "vr_waituntil: timed out ..." / "vr_waitprint: timed out ..." (a test can fail on it) and
 // goes on with the script. The rest of the command line after a wait runs once it ends, in that frame.
 
@@ -155,6 +156,9 @@ struct Wait
     za::String text;
     za::String line; // the console's line so far (since the last newline)
     bool printed{false};
+    bool lineCounted{false}; // (this line already counted)
+    int seen{0};             // lines holding the text so far
+    int need{1};             // lines wanted (<frames>x<count>)
 };
 Wait waiting;
 
@@ -221,7 +225,8 @@ void step()
     {
         if(waiting.kind == WaitKind::Print)
         {
-            Con_Printf("vr_waitprint: timed out after %d frames waiting for \"%s\"\n", waiting.frames, waiting.text.cStr());
+            Con_Printf("vr_waitprint: timed out after %d frames waiting for \"%s\" (%d of %d lines)\n", waiting.frames,
+                waiting.text.cStr(), waiting.seen, waiting.need);
         }
         else
         {
@@ -267,13 +272,15 @@ void waitPrint_f()
 {
     if(Cmd_Argc() < 3)
     {
-        Con_Printf("vr_waitprint <frames> <text...>: waits (as \"wait\" does, a tick a frame) until the console prints a "
-                   "line holding the text, at most <frames>\n");
+        Con_Printf("vr_waitprint <frames>[x<count>] <text...>: waits (as \"wait\" does, a tick a frame) until the console prints a "
+                   "line holding the text (x<count>: that many lines), at most <frames>\n");
         return;
     }
     waiting = Wait{};
     waiting.kind = WaitKind::Print;
     waiting.frames = waiting.left = Q_atoi(Cmd_Argv(1));
+    const char* times = strchr(Cmd_Argv(1), 'x'); // <frames>x<count>: that many lines holding it
+    waiting.need = times ? za::max(1, Q_atoi(times + 1)) : 1;
     // The text: the rest of the line after the frames (its words as typed; quotes around it dropped).
     const char* rest = Cmd_Args();
     while(*rest == ' ')
@@ -331,14 +338,22 @@ extern "C" void VR_TestConsolePrint(const char* text)
         if(*p == '\n')
         {
             waiting.line.clear();
+            waiting.lineCounted = false;
             continue;
+        }
+        if(waiting.lineCounted)
+        {
+            continue; // (a line counts once)
         }
         waiting.line += *p;
         if(waiting.line.size() >= waiting.text.size() && strstr(waiting.line.cStr(), waiting.text.cStr()))
         {
-            waiting.printed = true;
-            waiting.line.clear();
-            return;
+            waiting.lineCounted = true;
+            if(++waiting.seen >= waiting.need)
+            {
+                waiting.printed = true;
+                return;
+            }
         }
     }
 }
