@@ -238,7 +238,7 @@ void gpuConnect(uint64_t session)
 bool coarse(const char* name)
 {
     return std::strcmp(name, "eye L") == 0 || std::strcmp(name, "eye R") == 0 ||
-        std::strcmp(name, "window view") == 0 || std::strcmp(name, "shadow maps") == 0;
+        std::strcmp(name, "window view") == 0 || std::strcmp(name, "shadow maps") == 0 || std::strcmp(name, "3D") == 0;
 }
 void status()
 {
