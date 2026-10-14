@@ -14,6 +14,8 @@ void VR_TracyGLShutdown(void);
 void VR_TracyThreadName(const char *name);
 void VR_TracyText(const char *text); // copied annotation of the innermost zone; dynamic strings allowed
 void VR_TracyBeginAt(const char *name, const char *file, unsigned line);
+struct vr_tracy_loc {const char *name; const char *function; const char *file; unsigned line; unsigned color;}; // layout of ___tracy_source_location_data
+void VR_TracyBeginLoc(const struct vr_tracy_loc *loc); // static location, no per-call allocation
 int VR_TracyQCEnabled(void);
 void VR_TracyQC(const char *name, const char *file, int builtin);
 void VR_TracyQCEnd(void);
@@ -73,23 +75,20 @@ static inline void VR_TracyAllocationWindow(int enter) {(void)enter;}
 #ifdef QVR_TRACY
 // clang C cleanup handles all ordinary returns; Host_Error uses VR_TracyAbort.
 static inline void VR_TracyCleanup(int *unused) {(void)unused; VR_TracyEnd();}
-#define VR_TRACY_SCOPE(name) int vr_tracy_scope __attribute__((cleanup(VR_TracyCleanup))) = (VR_TracyBeginAt(name, __FILE__, __LINE__), 0)
+#define VR_TRACY_SCOPE(name) static const struct vr_tracy_loc vr_tracy_loc_ = {name, "QVR", __FILE__, __LINE__, 0}; \
+    int vr_tracy_scope __attribute__((cleanup(VR_TracyCleanup))) = (VR_TracyBeginLoc(&vr_tracy_loc_), 0)
 #else
 #define VR_TRACY_SCOPE(name) ((void)0)
 #endif
 #ifdef __cplusplus
 }
-#ifdef QVR_TRACY
-#include <source_location>
-#endif
 namespace qvr::tracyprof
 {
 class Scope
 {
 public:
 #ifdef QVR_TRACY
-    explicit Scope(const char *name, std::source_location location = std::source_location::current())
-    { VR_TracyBeginAt(name, location.file_name(), location.line()); }
+    explicit Scope(const vr_tracy_loc *loc) { VR_TracyBeginLoc(loc); }
 #else
     explicit Scope(const char *name) {(void)name;}
 #endif
@@ -98,5 +97,14 @@ public:
     Scope& operator=(const Scope&) = delete;
 };
 }
+#define QVR_TRACY_CAT2(a, b) a##b
+#define QVR_TRACY_CAT(a, b) QVR_TRACY_CAT2(a, b)
+#ifdef QVR_TRACY
+#define QVR_TRACY_SCOPE(var, name) \
+    static constexpr vr_tracy_loc QVR_TRACY_CAT(var, _loc){name, "QVR", __FILE__, __LINE__, 0}; \
+    qvr::tracyprof::Scope var{&QVR_TRACY_CAT(var, _loc)}
+#else
+#define QVR_TRACY_SCOPE(var, name) qvr::tracyprof::Scope var{name}
+#endif
 #endif
 #endif

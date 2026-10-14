@@ -53,7 +53,7 @@ bool detail::Job::claimAndRun() noexcept
     {
         return false;
     }
-    qvr::tracyprof::Scope scope{"Job execute"};
+    QVR_TRACY_SCOPE(scope, "Job execute");
     execute();
     counters.tasks.fetchAddRelaxed(1u);
     phase.storeRelease(2);
@@ -63,7 +63,7 @@ bool detail::Job::claimAndRun() noexcept
 
 void detail::Job::wait() noexcept
 {
-    qvr::tracyprof::Scope scope{"Job wait or claim"};
+    QVR_TRACY_SCOPE(scope, "Job wait or claim");
     if(claimAndRun())
     {
         counters.claimedByWaiter.fetchAddRelaxed(1u);
@@ -71,7 +71,7 @@ void detail::Job::wait() noexcept
     }
     for(int p; (p = phase.loadAcquire()) != 2;)
     {
-        qvr::tracyprof::Scope scope{"Job blocking wait"};
+        QVR_TRACY_SCOPE(scope, "Job blocking wait");
         phase.waitOnceAcquire(p);
     }
 }
@@ -96,7 +96,7 @@ int Pool::workers() const noexcept
 
 void Pool::post(detail::JobPtr<detail::Job> job)
 {
-    qvr::tracyprof::Scope scope{"Job enqueue"};
+    QVR_TRACY_SCOPE(scope, "Job enqueue");
 #ifdef QVR_TRACY
     VR_TracyPlot("Job queue entries", tracyQueued.fetch_add(1, std::memory_order_relaxed) + 1);
 #endif
@@ -191,7 +191,7 @@ Site* sites() noexcept
 void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel,
     Site* site) noexcept
 {
-    qvr::tracyprof::Scope scope{"Job parallel dispatch and join"};
+    QVR_TRACY_SCOPE(scope, "Job parallel dispatch and join");
     if(site) VR_TracyText(site->name);
     if(count == 0)
     {
@@ -231,7 +231,7 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
         *impl->threads, impl->loops, count,
         [&](za::SizeT begin, za::SizeT end) {
             VR_TracyThreadName("Quake VR worker");
-            qvr::tracyprof::Scope scope{"Job parallel chunk"};
+            QVR_TRACY_SCOPE(scope, "Job parallel chunk");
             VR_TracyText(site ? site->name : "parallelFor");
             body(begin, end);
             if(za::ThisThread::getId() == caller)

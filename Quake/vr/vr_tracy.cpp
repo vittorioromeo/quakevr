@@ -57,6 +57,8 @@ ___tracy_source_location_data sources[maxNames]{};
 unsigned names{};
 std::atomic_flag sourceLock = ATOMIC_FLAG_INIT;
 std::atomic<unsigned> dropped{0};
+unsigned forceClosed{};
+bool abortedByError{};
 SDL_threadID mainThread{};
 cvar_t gpuEnabled = {"vr_tracy_gpu", "1", CVAR_NONE};
 cvar_t gpuDetail = {"vr_tracy_gpu_detail", "0", CVAR_NONE};
@@ -90,17 +92,24 @@ void boxSync()
 }
 void boxCheckpoint()
 {
-    std::lock_guard lock{boxLock};
-    boxSync();
-    if(!boxSession) return;
-    const auto actual = static_cast<unsigned long long>(b3GetByteCount());
-    const bool pass = actual == boxBytes;
-    if(!pass) ++memoryMismatches;
-    VR_TracyPlot("Box3D heap bytes", static_cast<double>(actual));
-    VR_TracyPlot("Tracy default captured bytes", static_cast<double>(boxBytes));
-    VR_TracyPlot("Box3D live allocations", static_cast<double>(boxLive.size()));
-    VR_TracyPlot("Tracy pool mismatches", memoryMismatches);
-    Con_Printf("Tracy Box3D default: %s live %zu bytes %llu/%llu\n", pass ? "PASS" : "FAIL", boxLive.size(), boxBytes, actual);
+    bool pass;
+    size_t live;
+    unsigned long long captured, actual;
+    {
+        std::lock_guard lock{boxLock};
+        boxSync();
+        if(!boxSession) return;
+        actual = static_cast<unsigned long long>(b3GetByteCount());
+        captured = boxBytes;
+        live = boxLive.size();
+        pass = actual == captured;
+        if(!pass) ++memoryMismatches;
+        VR_TracyPlot("Box3D heap bytes", static_cast<double>(actual));
+        VR_TracyPlot("Tracy default captured bytes", static_cast<double>(captured));
+        VR_TracyPlot("Box3D live allocations", static_cast<double>(live));
+        VR_TracyPlot("Tracy pool mismatches", memoryMismatches);
+    }
+    Con_Printf("Tracy Box3D default: %s live %zu bytes %llu/%llu\n", pass ? "PASS" : "FAIL", live, captured, actual);
 }
 unsigned resourceFrame{};
 double displayPeriodMs{};
@@ -233,14 +242,16 @@ bool coarse(const char* name)
 }
 void status()
 {
-    Con_Printf("Tracy 0.14.1: %s, CPU depth %u, dropped %u, GPU %s detail %.0f pending %u context %u\n",
+    Con_Printf("Tracy 0.14.1: %s, CPU depth %u, dropped %u, force-closed at frame start %u, GPU %s detail %.0f pending %u context %u\n",
         TracyCIsConnected ? "connected" : "waiting on localhost:8086", thread.depth,
-        dropped.load(std::memory_order_relaxed), gpuReady ? "ready" : "idle", gpuDetail.value,
+        dropped.load(std::memory_order_relaxed), forceClosed, gpuReady ? "ready" : "idle", gpuDetail.value,
         pending, contextSerial);
 }
 void memoryTest()
 {
-    qvr::tracyprof::Scope scope{"Tracy allocation lifecycle test"};
+    QVR_TRACY_SCOPE(scope, "Tracy allocation lifecycle test");
+    Con_Printf("Tracy memory test: run from the console/menu, not mid-fight (may evict cache)\n");
+    const float oldDetail = memoryDetail.value;
     Cvar_SetValueQuick(&memoryDetail, 1);
     void* ptr = Z_Malloc(37);
     Memory_TracyValidate();
@@ -268,6 +279,7 @@ void memoryTest()
     memorySync();
     Z_Free(ptr);
     Memory_TracyValidate();
+    Cvar_SetValueQuick(&memoryDetail, oldDetail);
     unsigned long long bytes[3]{};
     for(const auto& [p, a] : allocations) bytes[a.pool] += a.bytes;
     Con_Printf("Tracy memory test: allocations %zu Zone %llu Hunk %llu Cache %llu bytes\n", allocations.size(), bytes[0], bytes[1], bytes[2]);
@@ -381,6 +393,7 @@ extern "C" void VR_TracyEnd()
 }
 extern "C" void VR_TracyAbort()
 {
+    if(thread.depth || thread.overflow) abortedByError = true;
     while(thread.depth || thread.overflow) VR_TracyEnd();
     qcDepth = qcOverflow = 0;
     memoryTransitions = 0;
@@ -388,6 +401,9 @@ extern "C" void VR_TracyAbort()
 extern "C" void VR_TracyFrame()
 {
     // Previous frame may have left explicit C scopes open after a non-local exit.
+    // Count them: a leak outside Host_Error recovery shows up in vr_tracy_status.
+    if(thread.depth || thread.overflow) { if(!abortedByError) ++forceClosed; }
+    abortedByError = false;
     VR_TracyAbort();
     TracyCFrameMark;
     memorySync();
@@ -424,7 +440,7 @@ extern "C" void VR_TracyFrame()
                     q_snprintf(value, sizeof(value), "%s=%s", name, v->string);
                     VR_TracyText(value);
                 }
-            for(const char* name : {"vr_pbr", "vr_pbr_strength", "vr_parallax", "vr_parallax_models", "vr_parallax_distance", "vr_parallax_grazing", "vr_parallax_depth_write", "vr_parallax_steps", "vr_ragdolls", "vr_jobs_threads", "vr_tracy_qc_detail", "vr_tracy_memory_detail", "vr_tracy_gpu_detail"})
+            for(const char* name : {"vr_ragdolls", "vr_jobs_threads", "vr_tracy_qc_detail", "vr_tracy_memory_detail", "vr_tracy_gpu_detail"})
                 if(const auto* v = Cvar_FindVar(name))
                 {
                     q_snprintf(value, sizeof(value), "%s=%s", name, v->string);
@@ -517,6 +533,21 @@ extern "C" void VR_TracyBeginAt(const char* name, const char* file, unsigned lin
     o.cpu = ___tracy_emit_zone_begin_alloc_callstack(loc, TRACY_CALLSTACK, 1);
 #else
     o.cpu = ___tracy_emit_zone_begin_alloc(loc, 1);
+#endif
+    if(o.cpu.active) o.connection = o.cpu.connectionId;
+    else o.cpu = {};
+}
+extern "C" void VR_TracyBeginLoc(const struct vr_tracy_loc* loc)
+{
+    if(thread.depth == maxDepth) { ++thread.overflow; dropped.fetch_add(1, std::memory_order_relaxed); return; }
+    Open& o = thread.stack[thread.depth++];
+    o = {};
+    if(!TracyCIsConnected) return;
+    const auto* data = reinterpret_cast<const ___tracy_source_location_data*>(loc);
+#ifdef TRACY_CALLSTACK
+    o.cpu = ___tracy_emit_zone_begin_callstack(data, TRACY_CALLSTACK, 1);
+#else
+    o.cpu = ___tracy_emit_zone_begin(data, 1);
 #endif
     if(o.cpu.active) o.connection = o.cpu.connectionId;
     else o.cpu = {};
