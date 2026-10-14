@@ -162,27 +162,24 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 };
 
 // StartFrame: every monster and player in a liquid, four times a second: how high it comes up them (wet under it;
-// lava and slime burn only as they hurt: VR_Wound_Hit). The monsters and players alone are stepped through (findflags:
+// lava and slime burn only as they hurt: VR_Wound_Hit). The due monsters and players alone are stepped through (findflagsdue:
 // VR_Wound_Takes's flags), the cheap checks first; the dummy's time is set as the others' (it takes none with vr_dummy_gore off).
 void() VR_Wounds_Frame =
 {
-    entity e = findflags(world, flags, FL_MONSTER | FL_CLIENT);
+    entity e = findflagsdue(world, flags, FL_MONSTER | FL_CLIENT, vr_wound_liquid_next, time, modelindex);
     while(e)
     {
-        if(e.vr_wound_liquid_next <= time && e.modelindex)
+        e.vr_wound_liquid_next = time + 0.25;
+        if(!VR_Dummy_Clean(e))
         {
-            e.vr_wound_liquid_next = time + 0.25;
-            if(!VR_Dummy_Clean(e))
+            float level = VR_Wound_Level(e);
+            if(level > 0)
             {
-                float level = VR_Wound_Level(e);
-                if(level > 0)
-                {
-                    vector at = (e.absmin + e.absmax) * 0.5;
-                    at_z = VR_Wound_LiquidTop(e);
-                    woundevent(e, at, '0 0 -1', QVR_WOUND_WATER, 0, vr_wound_liquid == CONTENT_WATER ? 0 : (vr_wound_liquid == CONTENT_SLIME ? 1 : 2));
-                }
+                vector at = (e.absmin + e.absmax) * 0.5;
+                at_z = VR_Wound_LiquidTop(e);
+                woundevent(e, at, '0 0 -1', QVR_WOUND_WATER, 0, vr_wound_liquid == CONTENT_WATER ? 0 : (vr_wound_liquid == CONTENT_SLIME ? 1 : 2));
             }
         }
-        e = findflags(e, flags, FL_MONSTER | FL_CLIENT);
+        e = findflagsdue(e, flags, FL_MONSTER | FL_CLIENT, vr_wound_liquid_next, time, modelindex);
     }
 };
