@@ -431,9 +431,18 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
     return m.bindings.back().bound;
 }
 
+[[nodiscard]] glm::vec3 storedVertex(const aliashdr_t* hdr, int pose, int vertex)
+{
+    const trivertx_t* verts = reinterpret_cast<const trivertx_t*>(
+        reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+    const trivertx_t& v = verts[pose * hdr->numverts + vertex];
+    return {v.v[0], v.v[1], v.v[2]};
+}
+
+// As drawn: dequantised (vr_mdl_dequant; off: the stored bytes).
 [[nodiscard]] glm::vec3 poseVertex(const aliashdr_t* hdr, int pose, int vertex)
 {
-    return mdldequant::poseVertex(hdr, pose, vertex); // as drawn: dequantised (vr_mdl_dequant)
+    return mdldequant::poseVertex(hdr, pose, vertex);
 }
 
 // Pose index for the entity's current frame (animated for frame groups).
@@ -567,7 +576,7 @@ bool posedVertices(const entity_t& ent, float zeroBlend, za::Vector<glm::vec3>& 
     now.resize(hdr->numverts);
     for(int v = 0; v < hdr->numverts; v++)
     {
-        rest[v] = poseVertex(hdr, zero, v);
+        rest[v] = storedVertex(hdr, zero, v); // (the binding, kept: the stored bytes whatever vr_mdl_dequant)
         now[v] = glm::mix(drawnVertex(ent, hdr, v), rest[v], CLAMP(0.f, zeroBlend, 1.f));
     }
     return true;

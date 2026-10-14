@@ -12,7 +12,7 @@ namespace qvr::mdldequant
 void init();
 void registerCommands();
 
-// A .mdl vertex of a pose (an index into its poses' vertices) as it is drawn, in the model's byte units (times the
+// A .mdl vertex of a pose (an index into its poses' vertices) as it is drawn (anchors: vr_anchor.cpp), in the model's byte units (times the
 // header's scale plus scale_origin: model units): the stored bytes, moved by the dequantised offset while
 // vr_mdl_dequant is on. `aliashdr` is a PV_QUAKE1 aliashdr_t.
 [[nodiscard]] glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex);

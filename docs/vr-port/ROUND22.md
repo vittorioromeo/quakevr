@@ -5910,3 +5910,10 @@ Note for the author's check: turning *yourself* with the gun's stick while its A
 hold follows the hand's way in the world, as the physgun's wrist does. Author VR check: choose a grunt, hold X in the
 left hand and reach forward, aside and up; let go and place it; hold A in the gun hand and turn your wrist; then the
 same with the gun in the left hand.
+
+## Model vertex wobble: .mdl vertices dequantised at load (worktree `dequant`, 2026-10-15)
+
+Backlog "Model vertex wobble" (1). `vr_mdl_dequant` (default 1; Graphics > Models and Effects > Steady Model Vertices):
+each .mdl vertex follows the smoothest path through its animation within half a byte step of every stored value; 0 is
+the old look exactly. Debug > Reports > Steady Vertices Check (`vr_mdl_dequant_check`). Design, numbers (near-still
+wobble -46% to -100%, 114 ms load for 139 models), the proof for 0 and what to try in the headset: `MDL_DEQUANT.md`.

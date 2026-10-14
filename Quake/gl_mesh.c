@@ -58,12 +58,10 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *aliasmodel, aliashdr_t *paliashdr)
 		for (j=0 ; j<paliashdr->numverts ; j++)
 			verts[i*paliashdr->numverts + j] = poseverts[i][j];
 
-	// QVR: each vertex's path along its animations dequantised (vr/vr_mdldequant.cpp: vr_mdl_dequant)
-	{
-		unsigned *dequant = (unsigned *) Hunk_AllocNoFill (paliashdr->numposes * paliashdr->numverts * sizeof (unsigned));
-		paliashdr->dequant = (byte *)dequant - (byte *)paliashdr;
-		VR_MdlDequantCompute (paliashdr, dequant);
-	}
+	// QVR: room for each vertex's path along its animations dequantised (vr/vr_mdldequant.cpp: vr_mdl_dequant), computed
+	// by the first upload with it on (GLMesh_LoadVertexBuffer)
+	paliashdr->dequant = (byte *) Hunk_AllocNoFill (paliashdr->numposes * paliashdr->numverts * sizeof (unsigned)) - (byte *)paliashdr;
+	paliashdr->dequantready = 0;
 
 	// there can never be more than this number of verts and we just put them all on the hunk
 	// (each vertex can be used twice, once with the original UVs and once with the seam adjustment)
@@ -288,6 +286,15 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 		if (mainhdr->poseverttype == PV_QUAKE1)
 		{
 			unsigned *frac;
+			const qboolean dequant = VR_MdlDequantOn ();
+			for (hdr = mainhdr; dequant && hdr; hdr = Mod_NextSurface (hdr))
+			{
+				if (hdr->dequant && !hdr->dequantready)
+				{
+					VR_MdlDequantCompute (hdr, (unsigned *) ((byte *) hdr + hdr->dequant));
+					hdr->dequantready = 1;
+				}
+			}
 			vertofs = GL_AlignSSBO (vertofs);
 			for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
 				hdr->vbofracofs = vertofs;
@@ -297,7 +304,7 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 				for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
 				{
 					const aliasmesh_t *desc = (aliasmesh_t *) ((byte *) hdr + hdr->meshdesc);
-					const unsigned *src = hdr->dequant && VR_MdlDequantOn () ? (const unsigned *) ((byte *) hdr + hdr->dequant) + hdr->numverts * f : NULL;
+					const unsigned *src = dequant && hdr->dequantready ? (const unsigned *) ((byte *) hdr + hdr->dequant) + hdr->numverts * f : NULL;
 					for (v = 0; v < hdr->numverts_vbo; v++)
 						*frac++ = src ? src[desc[v].vertindex] : 0;
 				}

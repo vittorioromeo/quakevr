@@ -20,8 +20,10 @@
 //   uploads every loaded model's buffer again. Nothing is done per frame on the CPU.
 // - Normals: kept (each pose's stored normal index): the positions move by half a step at most, which turns no face
 //   noticeably; the normals' own coarseness (162 directions) is another matter.
-// - The CPU's copies: anchors (vr_anchor.cpp: things mounted on a vertex) read the drawn positions (poseVertex); the rig
-//   fits, hit zones, collisions and AO bakes keep the stored bytes (half a step is far below their tolerances).
+// - The CPU's copies: anchors (vr_anchor.cpp: your weapons' flashes, mounts and shells on their vertices) follow the
+//   drawn positions (poseVertex; their binding to vertices keeps the stored rest pose). The rig fits (r_lerpmodels 3's
+//   swings are added to the dequantised poses on the GPU), hit zones, collisions and AO bakes keep the stored bytes:
+//   half a step is far below their tolerances.
 
 #include "vr_mdldequant.hpp"
 #include "vr_cvars.hpp"
@@ -42,9 +44,9 @@ namespace
 
 constexpr float halfStep = 0.5f;     // the box round each stored value, in steps
 constexpr int maxSweeps = 400;       // the solver's limit per vertex and axis
-constexpr float tolerance = 2e-4f;   // ... it stops once no value moves more than this (steps)
+constexpr float tolerance = 1e-3f;   // ... it stops once no value moves more than this (steps)
 constexpr float lipschitz = 16.f;    // the largest eigenvalue of D2'D2 (second differences)
-constexpr float cutFactor = 4.f;     // a jump this many times the run's median step splits it
+constexpr float cutFactor = 3.f;     // a step this many times the median of the steps round it splits a run
 constexpr float loopFactor = 1.5f;   // a run whose last pose is this near its first (times its median step) loops
 
 struct Run
@@ -115,7 +117,7 @@ void stemOf(const char* name, char out[17])
     return values[values.size() / 2];
 }
 
-// A named run split at its jumps, each part's loop found.
+// A run of frames split at its jumps (unrelated animations: frames without names), each part's loop found.
 void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, Run run)
 {
     if(run.count < 3)
@@ -128,11 +130,22 @@ void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, 
     {
         steps.pushBack(poseDistance(verts, numverts, run.first + i, run.first + i + 1));
     }
-    const float cut = cutFactor * za::max(medianOf(steps), 1.f);
+    // a jump: a step much longer than the steps round it (two each side), or than a step
+    const auto jump = [&](int i) {
+        za::Vector<float> round;
+        for(int k = i - 2; k <= i + 2; k++)
+        {
+            if(k != i && k >= 0 && k + 1 < run.count)
+            {
+                round.pushBack(steps[static_cast<size_t>(k)]);
+            }
+        }
+        return steps[static_cast<size_t>(i)] > cutFactor * za::max(medianOf(round), 1.f);
+    };
     int start = 0;
     for(int i = 0; i < run.count; i++)
     {
-        const bool end = i + 1 == run.count || steps[static_cast<size_t>(i)] > cut;
+        const bool end = i + 1 == run.count || jump(i);
         if(!end)
         {
             continue;
@@ -200,48 +213,49 @@ struct Solve
     za::Vector<float> v, x, y, g, d, next;
 };
 
-// g = D2'D2 y (second differences; a loop's wrap round).
-void gradient(Solve& s, int n, bool loop)
+// g = D2'D2 y (second differences; a loop's wrap round), d the second differences (n >= 3).
+void gradient(const float* y, float* d, float* g, int n, bool loop)
 {
-    for(int i = 0; i < n; i++)
+    for(int i = 1; i < n - 1; i++)
     {
-        s.g[static_cast<size_t>(i)] = 0.f;
+        d[i] = y[i - 1] - 2.f * y[i] + y[i + 1];
     }
-    const int first = loop ? 0 : 1;
-    const int last = loop ? n : n - 1;
-    for(int i = first; i < last; i++)
+    d[0] = loop ? y[n - 1] - 2.f * y[0] + y[1] : 0.f;
+    d[n - 1] = loop ? y[n - 2] - 2.f * y[n - 1] + y[0] : 0.f;
+    for(int i = 1; i < n - 1; i++)
     {
-        const int a = (i + n - 1) % n;
-        const int b = (i + 1) % n;
-        const float d = s.y[static_cast<size_t>(a)] - 2.f * s.y[static_cast<size_t>(i)] + s.y[static_cast<size_t>(b)];
-        s.g[static_cast<size_t>(a)] += d;
-        s.g[static_cast<size_t>(i)] -= 2.f * d;
-        s.g[static_cast<size_t>(b)] += d;
+        g[i] = d[i - 1] - 2.f * d[i] + d[i + 1];
     }
+    g[0] = (loop ? d[n - 1] : 0.f) - 2.f * d[0] + d[1];
+    g[n - 1] = d[n - 2] - 2.f * d[n - 1] + (loop ? d[0] : 0.f);
 }
 
-// The smoothest values within half a step of s.v (n of them) into s.x; the sweeps taken.
+// The smoothest values within half a step of s.v (n >= 3 of them) into s.x; the sweeps taken.
 int solve(Solve& s, int n, bool loop)
 {
+    const float* v = s.v.data();
+    float* x = s.x.data();
+    float* y = s.y.data();
+    float* g = s.g.data();
+    float* d = s.d.data();
+    float* next = s.next.data();
     for(int i = 0; i < n; i++)
     {
-        s.x[static_cast<size_t>(i)] = s.v[static_cast<size_t>(i)];
-        s.y[static_cast<size_t>(i)] = s.v[static_cast<size_t>(i)];
+        x[i] = v[i];
+        y[i] = v[i];
     }
     float t = 1.f;
     int sweep = 0;
     for(; sweep < maxSweeps; sweep++)
     {
-        gradient(s, n, loop);
+        gradient(y, d, g, n, loop);
         float moved = 0.f;
         float restart = 0.f;
         for(int i = 0; i < n; i++)
         {
-            const size_t k = static_cast<size_t>(i);
-            const float stepped = s.y[k] - s.g[k] / lipschitz;
-            s.next[k] = za::clamp(stepped, s.v[k] - halfStep, s.v[k] + halfStep);
-            moved = za::max(moved, za::abs(s.next[k] - s.x[k]));
-            restart += s.g[k] * (s.next[k] - s.x[k]);
+            next[i] = za::clamp(y[i] - g[i] * (1.f / lipschitz), v[i] - halfStep, v[i] + halfStep);
+            moved = za::max(moved, za::abs(next[i] - x[i]));
+            restart += g[i] * (next[i] - x[i]);
         }
         float tn = 0.5f * (1.f + za::sqrt(1.f + 4.f * t * t));
         if(restart > 0.f) // the momentum points uphill: start it again
@@ -252,9 +266,8 @@ int solve(Solve& s, int n, bool loop)
         const float beta = (t - 1.f) / tn;
         for(int i = 0; i < n; i++)
         {
-            const size_t k = static_cast<size_t>(i);
-            s.y[k] = s.next[k] + beta * (s.next[k] - s.x[k]);
-            s.x[k] = s.next[k];
+            y[i] = next[i] + beta * (next[i] - x[i]);
+            x[i] = next[i];
         }
         t = tn;
         if(moved < tolerance)
@@ -277,7 +290,7 @@ int solve(Solve& s, int n, bool loop)
 }
 
 // Every pose's offsets (numposes x numverts packed; zero where a run is too short to smooth).
-void compute(const aliashdr_t* hdr, unsigned* out)
+void compute(const aliashdr_t* hdr, unsigned* out, long* sweeps = nullptr, long* solves = nullptr)
 {
     const trivertx_t* verts = posesOf(hdr);
     const size_t total = static_cast<size_t>(hdr->numposes) * hdr->numverts;
@@ -316,7 +329,12 @@ void compute(const aliashdr_t* hdr, unsigned* out)
                 {
                     continue; // (a still vertex stays: nothing to smooth)
                 }
-                solve(s, r.count, r.loop);
+                const int taken = solve(s, r.count, r.loop);
+                if(sweeps)
+                {
+                    *sweeps += taken + 1;
+                    ++*solves;
+                }
                 for(int i = 0; i < r.count; i++)
                 {
                     const float offset = s.x[static_cast<size_t>(i)] - s.v[static_cast<size_t>(i)];
@@ -336,8 +354,14 @@ struct Check
     int loops{0};
     double jitterBefore{0.0};
     double jitterAfter{0.0};
-    double worstJitterBefore{0.0};
-    double worstJitterAfter{0.0};
+    double slowBefore{0.0}; // roughness: the fourth differences' root mean square per axis (steps; rounding noise alone: 2.4)
+    double slowAfter{0.0};
+    long slowPoints{0};
+    double stillBefore{0.0}; // the second differences' root mean square (steps) on the axes a vertex moves 3 steps or less along
+    double stillAfter{0.0};
+    long stillPoints{0};
+    long sweeps{0}; // the solver's, all vertices and axes
+    long solves{0};
     float maxOffset{0.f};
     bool same{true};
     double ms{0.0};
@@ -349,9 +373,9 @@ struct Check
     const size_t total = static_cast<size_t>(hdr->numposes) * hdr->numverts;
     za::Vector<unsigned> fresh(total);
     const double t0 = Sys_DoubleTime();
-    compute(hdr, fresh.data());
+    compute(hdr, fresh.data(), &c.sweeps, &c.solves);
     c.ms = (Sys_DoubleTime() - t0) * 1000.0;
-    if(hdr->dequant)
+    if(hdr->dequant && hdr->dequantready)
     {
         const auto* stored = reinterpret_cast<const unsigned*>(reinterpret_cast<const byte*>(hdr) + hdr->dequant);
         c.same = !memcmp(stored, fresh.data(), total * sizeof(unsigned));
@@ -392,23 +416,73 @@ struct Check
         const int last = r.loop ? r.count : r.count - 1;
         for(int vert = 0; vert < hdr->numverts; vert++)
         {
+            bool slow[3]; // the axes it moves along by 3 steps or less over the run: its wobble is the rounding's alone
+            for(int axis = 0; axis < 3; axis++)
+            {
+                int lo = 255, hi = 0;
+                for(int i = 0; i < r.count; i++)
+                {
+                    const int value = verts[static_cast<size_t>(r.first + i) * hdr->numverts + vert].v[axis];
+                    lo = za::min(lo, value);
+                    hi = za::max(hi, value);
+                }
+                slow[axis] = hi > lo && hi - lo <= 3;
+            }
             for(int i = first; i < last; i++)
             {
                 const int a = r.first + (i + r.count - 1) % r.count;
                 const int m = r.first + i;
                 const int b = r.first + (i + 1) % r.count;
-                const double before = glm::length(at(a, vert, false) - 2.f * at(m, vert, false) + at(b, vert, false));
-                const double after = glm::length(at(a, vert, true) - 2.f * at(m, vert, true) + at(b, vert, true));
-                sumBefore += before;
-                sumAfter += after;
-                c.worstJitterBefore = za::max(c.worstJitterBefore, before);
-                c.worstJitterAfter = za::max(c.worstJitterAfter, after);
+                const glm::vec3 d2Before = at(a, vert, false) - 2.f * at(m, vert, false) + at(b, vert, false);
+                const glm::vec3 d2After = at(a, vert, true) - 2.f * at(m, vert, true) + at(b, vert, true);
+                sumBefore += glm::length(d2Before);
+                sumAfter += glm::length(d2After);
                 points++;
+                for(int axis = 0; axis < 3; axis++)
+                {
+                    if(slow[axis])
+                    {
+                        const double before = d2Before[axis] / hdr->scale[axis];
+                        const double after = d2After[axis] / hdr->scale[axis];
+                        c.stillBefore += before * before;
+                        c.stillAfter += after * after;
+                        c.stillPoints++;
+                    }
+                }
+                const bool inner = r.loop ? r.count >= 5 : i >= 2 && i + 2 < r.count;
+                for(int axis = 0; inner && axis < 3; axis++) // roughness: the fourth difference (a cubic's residual), steps
+                {
+                    const auto fourth = [&](bool after) {
+                        double sum = 0.0;
+                        constexpr double weights[5] = {1.0, -4.0, 6.0, -4.0, 1.0};
+                        for(int k = -2; k <= 2; k++)
+                        {
+                            const int pose = r.first + (i + k + r.count) % r.count;
+                            sum += weights[k + 2] * at(pose, vert, after)[axis];
+                        }
+                        return sum / hdr->scale[axis];
+                    };
+                    const double before = fourth(false);
+                    const double after = fourth(true);
+                    c.slowBefore += before * before;
+                    c.slowAfter += after * after;
+                    c.slowPoints++;
+                }
             }
         }
     }
     c.jitterBefore = points ? sumBefore / static_cast<double>(points) : 0.0;
     c.jitterAfter = points ? sumAfter / static_cast<double>(points) : 0.0;
+    if(c.stillPoints)
+    {
+        c.stillBefore = za::sqrt(c.stillBefore / static_cast<double>(c.stillPoints));
+        c.stillAfter = za::sqrt(c.stillAfter / static_cast<double>(c.stillPoints));
+    }
+    if(c.slowPoints)
+    {
+        c.slowBefore = za::sqrt(c.slowBefore / static_cast<double>(c.slowPoints));
+        c.slowAfter = za::sqrt(c.slowAfter / static_cast<double>(c.slowPoints));
+    }
     return c;
 }
 
@@ -416,7 +490,7 @@ constexpr const char* defaultCheckModels[] = {"progs/soldier.mdl", "progs/knight
     "progs/shambler.mdl", "progs/player.mdl", "progs/v_shot.mdl", "progs/v_axe.mdl", "progs/v_nail.mdl", "progs/dog.mdl",
     "progs/demon.mdl", "progs/zombie.mdl", "progs/flame2.mdl"};
 
-void checkOne(const char* name)
+void checkOne(const char* name, bool listRuns)
 {
     qmodel_t* model = Mod_ForName(name, false);
     if(!model || model->type != mod_alias)
@@ -432,11 +506,31 @@ void checkOne(const char* name)
     }
     const Check c = checkModel(hdr);
     const double less = c.jitterBefore > 0.0 ? 100.0 * (1.0 - c.jitterAfter / c.jitterBefore) : 0.0;
+    const double slowLess = c.slowBefore > 0.0 ? 100.0 * (1.0 - c.slowAfter / c.slowBefore) : 0.0;
+    const double stillLess = c.stillBefore > 0.0 ? 100.0 * (1.0 - c.stillAfter / c.stillBefore) : 0.0;
     Con_Printf("mdldequant: check %s: %d verts, %d poses, %d runs (%d loops); max offset %.3f steps (%s); jitter %.4f -> "
-               "%.4f units (-%.0f%%), worst %.3f -> %.3f; %.2f ms; %d bytes; stored %s\n",
+               "%.4f units (-%.0f%%), roughness %.3f -> %.3f steps (-%.0f%%), near-still wobble %.3f -> %.3f steps (-%.0f%%); %.2f ms, %.1f sweeps; %d bytes; stored %s\n",
         name, hdr->numverts, hdr->numposes, c.runs, c.loops, c.maxOffset, c.maxOffset <= halfStep ? "ok" : "OVER",
-        c.jitterBefore, c.jitterAfter, less, c.worstJitterBefore, c.worstJitterAfter, c.ms,
-        hdr->numposes * hdr->numverts * 4, c.same ? "same" : "DIFFERENT");
+        c.jitterBefore, c.jitterAfter, less, c.slowBefore, c.slowAfter, slowLess, c.stillBefore, c.stillAfter, stillLess, c.ms,
+        c.solves ? static_cast<double>(c.sweeps) / static_cast<double>(c.solves) : 0.0, hdr->numposes * hdr->numverts * 4,
+        c.same ? "same" : "DIFFERENT");
+    if(listRuns) // (one model named: its runs, by their first frame's name)
+    {
+        for(const Run& r : runsOf(hdr))
+        {
+            const char* first = "";
+            for(int f = 0; f < hdr->numframes; f++)
+            {
+                if(hdr->frames[f].firstpose == r.first)
+                {
+                    first = hdr->frames[f].name;
+                    break;
+                }
+            }
+            Con_Printf("mdldequant: run %s: poses %d..%d (%s)%s\n", name, r.first, r.first + r.count - 1, first,
+                r.loop ? " loop" : "");
+        }
+    }
 }
 
 // vr_mdl_dequant_check [model ...]: the numbers above, for the named models (default: a few monsters and weapons).
@@ -446,14 +540,14 @@ void check_f()
     {
         for(int i = 1; i < Cmd_Argc(); i++)
         {
-            checkOne(Cmd_Argv(i));
+            checkOne(Cmd_Argv(i), Cmd_Argc() == 2);
         }
     }
     else
     {
         for(const char* name : defaultCheckModels)
         {
-            checkOne(name);
+            checkOne(name, false);
         }
     }
     Con_Printf("mdldequant: loads: %d models dequantised in %.1f ms, %.1f KB of offsets (vr_mdl_dequant %s)\n",
@@ -502,7 +596,7 @@ glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex)
     const size_t k = static_cast<size_t>(pose) * hdr->numverts + vertex;
     const trivertx_t& t = posesOf(hdr)[k];
     glm::vec3 p{t.v[0], t.v[1], t.v[2]};
-    if(hdr->dequant && vr_mdl_dequant.value != 0.f)
+    if(hdr->dequant && hdr->dequantready && vr_mdl_dequant.value != 0.f)
     {
         const unsigned packed = reinterpret_cast<const unsigned*>(reinterpret_cast<const byte*>(hdr) + hdr->dequant)[k];
         p += glm::vec3{decode(packed, 0), decode(packed, 1), decode(packed, 2)};
