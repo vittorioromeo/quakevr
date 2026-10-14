@@ -204,3 +204,10 @@ TODO: linux support
 
 Audited and the gadget's AD page added (ROUND22.md, same section). Left: the custom keys' names on it (strings, not
 stats), the jump boots' power level, coop.
+
+## Tracy review leftovers (2026-10-14)
+
+- Tracy VR code (`Quake/vr/vr_tracy.cpp` and its hooks) uses `std::` containers, mutexes and atomics: move to Zancle
+  per CODE_STYLE (Tracy build only; not a mechanical swap).
+- The bench JSON / profile CSV settings list gained 7 `vr_pbr`/`vr_parallax` entries with Tracy commit d5ba4af43
+  (harmless), and the capture metadata prefix scan still repeats those names: dedupe.
