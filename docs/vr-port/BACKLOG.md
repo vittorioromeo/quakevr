@@ -326,3 +326,7 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
   (vr_anim_smooth_rig_error). Builds on vr_animsmooth.cpp; pairs with (1).
 - (3) Higher-precision formats (MD3 16-bit, IQM/MD5 float; the 2021 rerelease ships float models): check what the
   engine already loads before relying on it; covers only models that have replacements.
+
+## VR Settings menu organisation (2026-10-15)
+
+- His words: "turn each subsection of the 'VR Settings' menu into a submenu, for better organization".
