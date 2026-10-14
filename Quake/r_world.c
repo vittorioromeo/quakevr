@@ -233,6 +233,11 @@ static void R_BModelMatrix (entity_t *ent, float mat[16]) // QVR: (R_PaintBrushW
 		VR_BrushTransform (ent, mat); // QVR
 }
 
+void VR_BModelMatrix (entity_t *ent, float mat[16]) // QVR: (vr/vr_permdecals.cpp: a mark on a door into its own space)
+{
+	R_BModelMatrix (ent, mat);
+}
+
 // QVR: a brush prop (not a map's door or lift) drawn split by a teleporter (vr/vr_portals.cpp): R_SortEntities keeps it
 // though its own place is out of view, for its half drawn through the gate may be in view (a box sticking out of the
 // gate seen from the destination's side, its middle still at the entrance: its frustum cull dropped both halves).
@@ -378,6 +383,7 @@ static void R_FlushBModelCalls (void)
 	GL_VertexAttribIPointerFunc (3, 4, GL_UNSIGNED_BYTE, sizeof (glvert_t), (void *) offsetof (glvert_t, styles));
 	GL_VertexAttribPointerFunc (4, 1, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, swellpin));
 	GL_VertexAttribPointerFunc (5, 3, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, centre));
+	GL_VertexAttribPointerFunc (6, 4, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, grime)); // QVR: the permanent decals' layer (enabled while it is read: R_DrawBrushModels_Real)
 
 	if (gl_bindless_able)
 	{
@@ -626,7 +632,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	if (pass <= BP_ALPHATEST || pass == BP_SHOWTRIS)
 		glEnable (GL_CLIP_DISTANCE1);
 	// setup state
-	state = GLS_CULL_BACK | GLS_ATTRIBS(4);
+	state = GLS_CULL_BACK | GLS_ATTRIBS(pass == BP_SOLID && VR_PermDecalsOn () ? 7 : 4); // QVR: 7: the permanent decals' layer (attribute 6; vr/vr_permdecals.cpp)
 	if (!translucent)
 		state |= GLS_BLEND_OPAQUE;
 	else

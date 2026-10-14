@@ -10,6 +10,7 @@
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_modellight.hpp"
+#include "vr_permdecals.hpp"
 #include "vr_profile.hpp"
 #include "vr_retro.hpp"
 #include "vr_stereo.hpp"
@@ -120,6 +121,7 @@ struct Decal
     za::Vector<za::U32> buckets;
     za::U32 bucketsMask = 0;
     int brush = 0; // the runtime brush (vr_brushes.cpp) it lies on, by id (0: none; -1: more than one)
+    bool permTried = false; // baked into the permanent layer and found no face there (vr_permdecals: it stays live)
 };
 
 // Oldest first (drawn in that order; the oldest go first): a ring of vr_decal_max slots, whose marks' triangles keep
@@ -717,7 +719,8 @@ void makeAtlas()
 // The static world along `from` -> `to`: where, and its normal.
 [[nodiscard]] bool hitWorld(const glm::vec3& from, const glm::vec3& to, glm::vec3& where, glm::vec3& normal, float& fraction)
 {
-    const trace_t tr = worldtrace::world(from, to, false);
+    // With the permanent layer (vr_permdecals), the brush models too: a mark on a door is baked into its faces.
+    const trace_t tr = worldtrace::world(from, to, permdecals::on());
     const bool world = tr.fraction < 1.f && !tr.startsolid && !tr.allsolid;
     // The boxes made in the game are the world's kind too (vr_brushes.cpp): the nearer of the two.
     glm::vec3 bw, bn;
@@ -965,6 +968,12 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
     return glm::length(up) > 0.3f ? glm::normalize(up) : glm::vec3{0.f};
 }
 
+// Mark `d` as the permanent layer bakes it (vr_permdecals.cpp): settled (spread to its full size, darkened).
+[[nodiscard]] permdecals::Stamp stampOf(const Decal& d)
+{
+    return {d.centre, d.u, d.v, d.normal, d.depth, 1.f - d.darken, d.cell, 0};
+}
+
 bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o = {})
 {
     QVR_PROFILE("decal add");
@@ -1029,9 +1038,20 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     d.depth = big ? za::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f;
     za::Vector<Corner>& tris = scratch.tris;
     clipToWorld(d, n, d.depth, tris, d.brush);
+    // With the permanent layer (vr_permdecals), its part on the brush models (doors, lifts) baked at once, in their own
+    // space: the live marks are the static world's.
+    int onModels = 0;
+    if(permdecals::on())
+    {
+        if(!atlas)
+        {
+            makeAtlas();
+        }
+        onModels = permdecals::bakeEntities(stampOf(d));
+    }
     if(tris.empty())
     {
-        return false;
+        return onModels > 0;
     }
     // Drops (a steady drip from wounds, gibs and ceilings) take at most a quarter of the marks: the
     // oldest drop goes, not a splat or a pool (the others keep their order).
@@ -1557,6 +1577,69 @@ void buildWorld()
     gfx::upload(worldGridBuffer, worldGrid.data(), worldGrid.size() * sizeof(za::U32));
 }
 
+int permFrame = -1; // the host frame bakeSettled last ran in (VR_DecalsFrame's first view: the main thread)
+
+// With the permanent layer (vr_permdecals), the marks that have settled (shown, spread, darkened; a tenth of a second
+// at least, for a hit's second effect to find its first: add) baked into it and gone from the ring, so that the live
+// cap no longer limits what stays: those on the static world (those on the boxes made in the game stay live: theirs
+// go with them, removeOn). Then what was baked drawn into the layer's atlas. Once a frame, before the world draws.
+void bakeSettled()
+{
+    if(permFrame == host_framecount)
+    {
+        return;
+    }
+    permFrame = host_framecount;
+    if(!cl.worldmodel)
+    {
+        return;
+    }
+    if(vr_decals.value && permdecals::on() && !decals.empty())
+    {
+        QVR_PROFILE("decals baked");
+        if(!atlas)
+        {
+            makeAtlas();
+        }
+        // Kept marks moved back over the baked ones (in order), the baked then off the front.
+        const za::SizeT n = decals.size();
+        za::SizeT firstKept = n;
+        for(za::SizeT i = n; i-- > 0;)
+        {
+            Decal& d = decals[i];
+            const double settled =
+                d.born + za::max(0.1f, d.grow, d.darken > 0.f ? za::max(d.grow, 8.f) : 0.f);
+            if(d.brush == 0 && !d.permTried && cl.time >= settled)
+            {
+                if(permdecals::bakeWorld(stampOf(d)) > 0)
+                {
+                    unsettle(d);
+                    dropCount -= isDrop(d);
+                    continue;
+                }
+                d.permTried = true; // (no face of the layer under it: it stays live)
+            }
+            firstKept--;
+            if(firstKept != i)
+            {
+                za::genericSwap(decals[firstKept], decals[i]);
+            }
+        }
+        for(za::SizeT i = 0; i < firstKept; i++)
+        {
+            decals.popFront();
+        }
+        if(firstKept > 0)
+        {
+            worldDirty = true;
+        }
+    }
+    if(atlas)
+    {
+        permdecals::flush(atlas);
+    }
+}
+
 void draw()
 {
     QVR_GPU_PROFILE("decals");
@@ -1782,6 +1865,37 @@ void stress_f()
     Con_DPrintf("vr_decal_stress: %d of %d marks, size %.0f, %s\n", made, count, size, name);
 }
 
+void at_f()
+{
+    if(Cmd_Argc() < 7 || !cl.worldmodel)
+    {
+        Con_Printf("vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size]: a mark where the line meets a surface\n");
+        return;
+    }
+    const glm::vec3 from{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
+    const glm::vec3 dir{Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5)), Q_atof(Cmd_Argv(6))};
+    const char* name = Cmd_Argc() > 7 ? Cmd_Argv(7) : "blood";
+    const Kind kind = !q_strcasecmp(name, "hole") ? Hole : !q_strcasecmp(name, "scorch") ? Scorch : !q_strcasecmp(name, "pool") ? Pool : Blood;
+    const float size = Cmd_Argc() > 8 ? Q_atof(Cmd_Argv(8)) : 24.f;
+    glm::vec3 where, normal;
+    float f;
+    if(glm::dot(dir, dir) < 1e-6f || !hitWorld(from, from + glm::normalize(dir) * 512.f, where, normal, f))
+    {
+        Con_Printf("vr_decal_at: nothing there\n");
+        return;
+    }
+    // Its turn and cell from its arguments (rand: the same mark each run, whatever ran before it).
+    unsigned seed = 2166136261u;
+    for(const char* c = Cmd_Args(); c && *c; c++)
+    {
+        seed = (seed ^ static_cast<unsigned char>(*c)) * 16777619u;
+    }
+    srand(seed);
+    const bool made = add(kind, where, normal, size);
+    Con_Printf("vr_decal_at: %s at %.1f %.1f %.1f (normal %.2f %.2f %.2f)\n", made ? "laid" : "none", where.x, where.y,
+        where.z, normal.x, normal.y, normal.z);
+}
+
 void count_f()
 {
     int kinds[KindCount]{};
@@ -1903,6 +2017,7 @@ void clear()
     gibs.clear();
     holes.clear();
     gore::clear();
+    permdecals::clear(); // (and those baked for good)
 }
 
 // A mark laid on brush `id` (one on several brushes: if its middle is in lo..hi).
@@ -2165,6 +2280,7 @@ using namespace qvr;
 extern "C" void VR_DecalsFrame(float clock[4])
 {
     using namespace qvr::decals;
+    bakeSettled(); // (the permanent layer's: once a frame)
     clock[0] = clock[1] = clock[2] = clock[3] = 0.f;
     if(!vr_decals.value || !onWorld() || !cl.worldmodel)
     {
@@ -2207,6 +2323,7 @@ extern "C" void VR_DecalsFrame(float clock[4])
 extern "C" void VR_BindDecals(void)
 {
     using namespace qvr::decals;
+    permdecals::bind(); // (the permanent layer: its table on 10, its atlas on unit 18)
     if(worldDecals.empty() || !atlas)
     {
         return;

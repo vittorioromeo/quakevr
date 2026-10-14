@@ -19,6 +19,7 @@
 #include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_decals.hpp"
+#include "vr_permdecals.hpp"
 #include "vr_gore.hpp"
 #include "vr_envmap.hpp"
 #include "vr_lighting.hpp"
@@ -2012,6 +2013,8 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_stress", decals::stress_f);
+    Cmd_AddCommand("vr_decal_at", decals::at_f);
+    Cmd_AddCommand("vr_permdecal_info", permdecals::info_f);
     Cmd_AddCommand("vr_limits", limits::command_f);
     bench::registerCommands(); // vr_bench_begin, vr_bench_end, vr_bench_seed
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
