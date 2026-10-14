@@ -309,6 +309,7 @@ typedef struct savedata_s
 	unsigned int	progscrc;		// QVR: the progs' CRC (qcvm->crc)
 	char			vrcontext[512];	// QVR: what the game is played as (VR_SaveContext: the campaign, the map package, titles)
 	const char		*vrbrushes;		// QVR: the runtime brushes' lines (VR_SaveBrushLines; valid until the next fill)
+	const char		*vrdecals;		// QVR: the permanent decals' lines (VR_SaveDecalLines; valid until the next fill)
 	byte			*buffer;
 	int				buffersize;
 } savedata_t;

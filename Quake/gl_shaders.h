@@ -594,6 +594,7 @@ LIQUID_SWELL // QVR
 QVR_ZFIX_FUNCTION // QVR: gl_zfix's push back (vr_glsl.h)
 "layout(location=5) in vec3 in_surfacecentre; // QVR: BSP teleporter visual scaling pivot\n"
 "layout(location=4) in float in_swellpin; // QVR: the geometric waves' mesh (vr/vr_water.cpp); 0 elsewhere (unset)\n"
+QVR_WORLD_VS_PERMDECALS // QVR: the permanent decals' layer (vr/vr_permdecals.cpp)
 "\n"
 "invariant gl_Position; // QVR: the opaque world's depth pre-pass (glprogs.world_depth) gives the very same depths\n"
 "layout(location=0) flat out uint out_flags;\n"
@@ -635,6 +636,8 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "		gl_Position.z = QVR_ZFixDepth(gl_Position.z, gl_Position.w);\n"
 "	out_uv = in_uv.xy;\n"
 "	out_lmuv = in_uv.zw;\n"
+"	out_grime = in_grime.xy; // QVR\n"
+"	out_grimepages = in_grime.zw; // QVR\n"
 "	out_depth = gl_Position.w;\n"
 "	out_coord = (gl_Position.xy / gl_Position.w * 0.5 + 0.5) * vec2(LIGHT_TILES_X, LIGHT_TILES_Y);\n"
 "	out_flags = call.flags;\n"
@@ -734,6 +737,7 @@ LIQUID_FUNCTIONS // QVR
 "	layout(location=9) flat in uvec4 in_samplers;\n"
 QVR_WORLD_FS_INPUTS // QVR: the world fragment shader's Quake VR inputs
 "#endif\n"
+QVR_WORLD_FS_PERMDECAL_INPUTS // QVR: the permanent decals' layer (vr/vr_permdecals.cpp)
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"

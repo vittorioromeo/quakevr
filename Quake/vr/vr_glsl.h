@@ -124,7 +124,8 @@ QVR_TONE_GLSL
 "	vec4	PortalMax[8]; // QVR: ... its box (xyz)\n" \
 "	vec4	PortalUV; // QVR: scene viewport to portal composite pixels\n" \
 "	vec4	TeleportLook; // QVR: starry surface size and opacity\n" \
-"	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n"
+"	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n" \
+"	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none), y its atlas's slots a row, z one over its side in texels\n"
 
 // the frame data the alias shaders read (vr/vr_lighting.cpp); its own names, since the alias
 // instance buffer has a ViewProj, Fog, EyePos and ScreenDither of its own.
@@ -1444,9 +1445,49 @@ LIQUID_SWELL \
 "	return m;\n" \
 "}\n"
 
+// QVR: the permanent decals' layer (vr/vr_permdecals.cpp): a face's texels in its own plane, in pages of 30 x 30, each
+// page's slot in the atlas (32 x 32: a texel of its neighbours' round it; 4 mip levels) found in the page table
+// (PermDecalTable: each page's slot + 1, 0 none; a face's pages from in_grimepages.x, in_grimepages.y of them across +
+// 4096 down). The texel is half the factor the marks baked there multiply the texture by (10 bits: 512 / 1023 is 1).
+// Read at the pixel's footprint's mip level (the narrower way: its larger side), kept inside the slot at that level.
+#define QVR_PERMDECAL_FUNCTIONS \
+"layout(std430, binding=10) restrict readonly buffer PermDecalTableBuffer\n" \
+"{\n" \
+"	uint PermDecalTable[];\n" \
+"};\n" \
+"layout(binding=18) uniform sampler2D PermDecalAtlas;\n" \
+"\n" \
+"vec4 PermDecalsAt(vec2 g, vec2 pages, vec2 dgdx, vec2 dgdy) // w 1: a page there\n" \
+"{\n" \
+"	float across = mod(pages.y, 4096.0), down = floor(pages.y / 4096.0);\n" \
+"	vec2 page = clamp(floor(g * (1.0 / 30.0)), vec2(0.0), vec2(across, down) - 1.0);\n" \
+"	uint e = PermDecalTable[uint(pages.x + 0.5) + uint(page.y * across + page.x + 0.5)];\n" \
+"	if (e == 0u)\n" \
+"		return vec4(1.0, 1.0, 1.0, 0.0);\n" \
+"	uint slot = e - 1u, row = uint(PermDecals.y + 0.5);\n" \
+"	float lod = clamp(log2(max(max(length(dgdx), length(dgdy)), 1e-6)), 0.0, 3.0);\n" \
+"	float rim = 0.5 * exp2(ceil(lod));\n" \
+"	vec2 local = clamp(g - page * 30.0 + 1.0, vec2(rim), vec2(32.0 - rim));\n" \
+"	vec2 at = (vec2(float(slot % row), float(slot / row)) * 32.0 + local) * PermDecals.z;\n" \
+"	return vec4(textureLod(PermDecalAtlas, at, lod).rgb * (1023.0 / 512.0), 1.0);\n" \
+"}\n"
+
+// the world vertex shader's permanent decals (QVR_PERMDECAL_FUNCTIONS): their attribute and outputs
+#define QVR_WORLD_VS_PERMDECALS \
+"layout(location=6) in vec4 in_grime; // QVR: the permanent decals' layer (glvert_t.grime): the texel on its face, the face's first page, its pages (across + 4096 down; 0: none)\n" \
+"layout(location=21) out vec2 out_grime; // QVR\n" \
+"layout(location=22) flat out vec2 out_grimepages; // QVR\n"
+
+// the world fragment shader's
+#define QVR_WORLD_FS_PERMDECAL_INPUTS \
+"layout(location=21) in vec2 in_grime; // QVR: the permanent decals' layer (QVR_PERMDECAL_FUNCTIONS)\n" \
+"layout(location=22) flat in vec2 in_grimepages; // QVR\n"
+
 // QVR: the decals on the world's own surfaces (QVR_DECAL_FUNCTIONS) on its texture, before its light: the world's
 // instance only (Instance.retro.w, R_InitBModelInstance), not brush models (the meshes were laid on the world alone);
-// its fullbrights and sheen covered as much
+// its fullbrights and sheen covered as much. Then the permanent decals' layer (QVR_PERMDECAL_FUNCTIONS), the world's
+// faces and its brush models' (the faces laid out: 4096 + 1 at least, both counts; where the parallax mapping moved the
+// texture to)
 #define QVR_WORLD_FS_DECALS \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n" \
 "	vec3 decal_mod = vec3(1.0);\n" \
@@ -1456,6 +1497,20 @@ LIQUID_SWELL \
 "		decal_mod = DecalsAt(decal_pos, in_pos, facing, dpdx, dpdy);\n" \
 "		result.rgb *= decal_mod;\n" \
 "		fullbright *= decal_mod;\n" \
+"	}\n" \
+"	vec2 grime_dx = dFdx(in_grime), grime_dy = dFdy(in_grime);\n" \
+"	if (PermDecals.x > 0.0 && in_grimepages.y > 4096.5)\n" \
+"	{\n" \
+"		vec2 grime = parallax ? in_grime + ParallaxShiftWorld(puv - uv, duvdx, duvdy, vec3(grime_dx, 0.0), vec3(grime_dy, 0.0)).xy : in_grime;\n" \
+"		vec4 perm = PermDecalsAt(grime, in_grimepages, grime_dx, grime_dy);\n" \
+"		result.rgb *= perm.rgb;\n" \
+"		fullbright *= perm.rgb;\n" \
+"		decal_mod *= perm.rgb;\n" \
+"		if (PermDecals.w > 0.5 && perm.w > 0.5) // vr_permdecal_show: the pages unlit, green, their marks on them\n" \
+"		{\n" \
+"			result.rgb = vec3(0.0);\n" \
+"			fullbright = perm.rgb * vec3(0.6, 1.0, 0.6);\n" \
+"		}\n" \
 "	}\n" \
 "#else\n" \
 "	const vec3 decal_mod = vec3(1.0);\n" \
@@ -1468,6 +1523,7 @@ PARALLAX_FUNCTIONS \
 SPECULAR_AA_FUNCTIONS \
 QVR_BOX_WOUNDS \
 QVR_DECAL_FUNCTIONS \
+QVR_PERMDECAL_FUNCTIONS \
 "// QVR: the screen derivatives of the baked light's brightness lum, for its bumps (BakedBump): the lightmap's slope\n" \
 "// here, from its luxels in full precision, times how its coordinates change across the screen. dFdx of the filtered\n" \
 "// light itself was 0 between steps of the filter's 8-bit weights (1/256 of a luxel) and of the 8-bit light, and a\n" \

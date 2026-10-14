@@ -468,6 +468,7 @@ typedef struct gpuframedata_s {
 	float	portaluv[4]; // QVR: scene viewport pixels to portal composite pixels
 	float	teleportlook[4]; // QVR: starry surface size and opacity
 	float	ambient[4];		// QVR: the baked light's own fill light (vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (vr/vr_lighting.cpp, vr/vr_glsl.h)
+	float	permdecals[4];	// QVR: the permanent decals' layer (vr/vr_permdecals.cpp: VR_PermDecalsFrame): on, slots a row, one over the atlas's side
 } gpuframedata_t;
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin

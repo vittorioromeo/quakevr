@@ -2935,6 +2935,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("The training dummy's health over its head, as a bar and a number, turned to face you. Off: its sign only."),
         header("Marks"),
         toggle("Decals", vr_decals).help("Blood, scorch marks and bullet chips on walls and floors (the gore needs them)."),
+        toggle("Permanent Decals", vr_permdecals)
+            .help("Marks stay for good, baked into the walls, floors, doors and lifts they land on: as many as you like at no extra cost a frame. Off: only the newest Max Decals stay, each for its Decal Lifetime."),
         slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many; more cost GPU time where they pile up (768 shipped)."),
         slider("Decals Piled in One Spot", vr_decal_bucket_max, 8.f, 255.f, 8.f, "%.0f")
             .help("How many marks one spot of the floor or wall keeps where they pile up (a corpse cut apart in one place). Past it the oldest there go whole, never leaving holes in the others. Each pixel there walks all of them: more cost GPU time when you look at the pile (32 shipped, 255 the most)."),
@@ -5757,6 +5759,7 @@ za::Vector<Item> pageDebugReports()
         command("Bloody Hands and Washing", "vr_gore_hands_info")
             .help("vr_gore_hands_info: the blood on your hands and body (texels), the wounds kept to re-open, the wash and its re-opening, and the blood on your weapons and props."),
         command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),
+        command("Permanent Decals", "vr_permdecal_info").help("vr_permdecal_info: the marks baked for good (Permanent Decals): faces laid out, pages and atlas slots used, the atlas's memory, marks baked, pages given up when it was full."),
         command("Particle Lighting", "vr_particle_light_report").help("vr_particle_light_report: the last frame's lit particles (Lit Particles), their mean light and colour against unlit, and the lightmap traces it took."),
         command("Model Lighting", "vr_model_ambient_show").help("vr_model_ambient_show: the six nearest entities' ambient light."),
         command("Ambient Occlusion", "vr_ao_show").help("vr_ao_show: the ambient occlusion's occluders and bake."),
@@ -5890,6 +5893,7 @@ za::Vector<Item> pageDebugTools()
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
         command("Decal Stress: Splatters", "vr_decal_stress 64 48").help("vr_decal_stress [count] [size] [splatter|pool|wall|run|stack|cluster]: 64 marks laid the same way each time (tests compare two builds' images); here splatters on the floor ahead."),
+        toggle("Show Permanent Decal Pages", vr_permdecal_show).help("vr_permdecal_show: the baked marks' pages drawn unlit and green, the marks on them (where the layer has texels; a mark on a door moves with it)."),
         command("Decal Stress: Pools", "vr_decal_stress 64 48 pool").help("vr_decal_stress 64 48 pool: 64 pools spreading on the floor ahead (over 6 seconds, darkening)."),
         command("Decal Stress: Wall", "vr_decal_stress 64 32 wall").help("vr_decal_stress 64 32 wall: 64 splatters on the wall ahead."),
         command("Decal Stress: Runs", "vr_decal_stress 64 16 run").help("vr_decal_stress 64 16 run: 64 runs spreading down the wall ahead (over 3 seconds)."),

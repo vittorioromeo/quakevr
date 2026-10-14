@@ -4,6 +4,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_brushes.hpp"
+#include "vr_permdecals.hpp"
 #include "vr_progs.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_engine.hpp"
@@ -628,6 +629,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     char build[128] = "?";
     sscanf(line, "// qvr_save %d progs %x build %127[^\r\n]", &format, &crc, build);
     qvr::brushes::readSaveLines(text); // (made again after the load: restoreAfterLoad)
+    qvr::permdecals::readSaveLines(text); // (the permanent decals: baked again once its map has loaded)
     if(format > VR_SAVE_FORMAT)
     {
         Con_Printf("ERROR: %s was saved by a newer build (%s, save format %d; this one, %s, reads up to %d): not loaded\n",

@@ -671,6 +671,7 @@ void GL_BuildBModelVertexBuffer (void)
 		Sys_Error ("GL_BuildBModelVertexBuffer: out of memory on %u bytes", varray_bytes);
 	memset (varray + brush_reserve.firstvert, 0, sizeof (glvert_t) * (numverts - brush_reserve.firstvert)); // QVR
 	varray_index = 0;
+	VR_PermDecalsLayout (); // QVR: the world's faces laid out for the permanent decals (vr/vr_permdecals.cpp)
 	
 	for (j=1 ; j<MAX_MODELS ; j++)
 	{
@@ -747,6 +748,7 @@ void GL_BuildBModelVertexBuffer (void)
 				vert->swellpin = 0.f;
 				VectorAdd (fa->mins, fa->maxs, vert->centre);
 				VectorScale (vert->centre, 0.5f, vert->centre);
+				VR_PermDecalsVertex (m, i, vec, vert->grime); // QVR: its texel in the permanent decals' layer
 				vert->st[0] = s;
 				vert->st[1] = t;
 

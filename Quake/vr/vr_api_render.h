@@ -54,7 +54,13 @@ void VR_RetroUpload (void);								// R_UploadFrameData: retro textures' setting
 void VR_RetroBind (int unit);							// a world or model draw, program in use: the palette's table on that unit (vr_retro.h's QVR_RETRO_LUT_UNIT_*)
 void VR_RetroCall (struct entity_s *e, const struct texture_s *t, float out[4]);	// R_AddBModelCall: a texture's Quake size and the set for it on entity e (0: the instance's)
 void VR_DecalsFrame (float clock[4]);	// R_SetupView: the decals on the world (vr_decals.cpp): their buffers made again if they came or went; the shader's clock (DecalClock)
-void VR_BindDecals (void);	// R_DrawBrushModels_Real: their buffers (3, 4) and atlas (unit 14) for the world's shader
+void VR_BindDecals (void);	// R_DrawBrushModels_Real: their buffers (3, 4) and atlas (unit 14) for the world's shader; the permanent decals' table (10) and atlas (unit 18)
+void VR_PermDecalsLayout (void);	// GL_BuildBModelVertexBuffer: the world's faces laid out for the permanent decals' layer (vr_permdecals.cpp)
+void VR_PermDecalsVertex (const struct qmodel_s *m, int surface, const float *pos, float out[4]);	// ... a vertex's coordinates in it (glvert_t.grime; zero: none)
+int VR_PermDecalsOn (void);	// R_DrawBrushModels_Real: the layer read (attribute 6 enabled in the solid pass)
+void VR_PermDecalsFrame (float out[4]);	// R_SetupView: the layer's settings (PermDecals), after VR_DecalsFrame baked what settled
+struct entity_s;
+void VR_BModelMatrix (struct entity_s *ent, float mat[16]);	// r_world.c: a brush entity's matrix as drawn (R_BModelMatrix)
 void VR_RetroInstance (struct entity_s *e, float out[4]);	// R_InitBModelInstance: an entity's set (x; 0 none)
 void VR_RetroSprite (const struct entity_s *e, const struct mspriteframe_s *frame, int showtris, float out[4]); // R_FlushSpriteInstances: the batch's set, its texture's Quake size; bound
 float VR_RetroParticles (void);						// R_DrawParticles_Real: the Particles set for Quake's particles (0 none); bound

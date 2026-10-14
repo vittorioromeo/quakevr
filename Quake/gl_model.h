@@ -140,6 +140,7 @@ typedef struct glvert_s {
 	unsigned	styles;
 	float		swellpin; // QVR: zero on ordinary BSP faces
 	vec3_t		centre; // QVR: teleporter visual scaling pivot
+	float		grime[4]; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp): its texel on the face, the face's first page, its pages; zero: none
 } glvert_t;
 
 typedef struct msurface_s
