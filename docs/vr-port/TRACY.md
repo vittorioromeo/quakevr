@@ -5,15 +5,26 @@ tools from https://github.com/wolfpld/tracy/releases/tag/v0.14.1. The viewer/too
 
 ## Build and connect
 
-Build the usual QC first. From the repository root, run:
+In Visual Studio 2022, open `Windows/VisualStudio/ironwail.sln`, select **Release-Tracy | x64** in the
+configuration toolbar, and build the solution. This configuration derives its optimization, runtime library,
+ThinLTO and PDB settings from Release and enables Tracy automatically. All three projects (ironwail, zancle
+and qvr_doom) have matching, isolated Release-Tracy outputs. The engine build also compiles QC.
+
+From the repository root, the helper selects the same configuration:
 
 ```powershell
 ./Misc/quakevr/build_tracy.ps1
 ```
 
-This builds optimized Release with PDB symbols using MSBuild `-p:QvrTracy=true`. It uses separate
+The equivalent direct MSBuild command is:
+
+```powershell
+MSBuild Windows/VisualStudio/ironwail.sln -p:Configuration=Release-Tracy -p:Platform=x64 -m
+```
+
+No extra `QvrTracy` property is required. It uses separate
 `Windows/VisualStudio/Build-ironwail/bin/x64/Release-Tracy/ironwail.exe` and `Release-Tracy` intermediate folders.
-Normal Release/Debug outputs are preserved. Without the property, Tracy is compiled out: no client, listener,
+Normal Release/Debug outputs are preserved. Those configurations compile Tracy out by default: no client, listener,
 queries, Box3D instrumentation or wrapper state. Normal builds keep the existing in-game profiler. Disabled C argument hooks are non-evaluating macros,
 so QC string lookups, resource expressions and conversions disappear even without optimization; resource walks
 and capture metadata are also guarded by the profiling build/connection. An -O0 side-effect fixture passed.
@@ -140,7 +151,7 @@ optional zone callstacks, statistical samples and OS context switches are differ
 has the first dataset, with zero statistical samples and zero scheduler context-switch events.
 
 Equivalent MSBuild properties are `QvrTracyCallstackDepth=8` and `QvrTracySystemTracing=true`, alongside
-`QvrTracy=true`. All variants use the separate Release-Tracy output; normal outputs remain separate. Debug > Reports
+the `Release-Tracy` configuration. The legacy `Configuration=Release` plus `QvrTracy=true` build remains supported. All variants use the separate Release-Tracy output; normal outputs remain separate. Debug > Reports
 contains Tracy status/detail/self-test controls in profiling builds and a build-information row in normal builds.
 
 ### Headless memory/nesting validation
