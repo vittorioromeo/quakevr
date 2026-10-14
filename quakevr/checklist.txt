@@ -83,7 +83,7 @@ MG1 Horde (horde1, horde5): dead and holding fire does nothing; release and pres
 MG1 developer tests: rune returns, electrode buttons, revival; quake vibration comfortable
 
 [Tune / record]
-Tracy (Debug > Reports, optional profiling build): save CPU/GPU/QC/jobs/loading/memory capture; detail changes and reconnect stay stable; assess overhead in VR; normal build stays unchanged
+Tracy (Debug > Reports, optional profiling build): save CPU/GPU/QC/jobs/loading/memory capture; coarse GPU includes 3D; detail changes and reconnect stay stable; assess overhead in VR during AD combat/held corpse; normal build stays unchanged
 Weapon damage, grapple, stamina costs, roll weight and throw damage
 Record new melee takes in vrmelee-recording (Motion Recorder); replay stays in that room
 
