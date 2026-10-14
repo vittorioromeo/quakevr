@@ -5742,3 +5742,27 @@ but changes the feel (his call).
 ## Neck snap: the hand-line detector (his idea), selectable
 
 `vr_foegrab_necksnap_method` 0 (default: the velocity strokes, unchanged) / 1 (Hand Line: the line between the tracked palms, laid across the neck, compared with each sample of the last `vr_foegrab_necksnap_window` s, default 0.3; turned Twist Angle within it snaps; the wrists rolling the same way, summed over the same window, also snaps). Standing it is measured in the enemy's yaw frame; a ragdoll's in play space (its chest turns whole with the hands: measured against the chest a 75 deg twist read 27). The stick's turn is taken out (old samples turned by the play yaw now). Window 0.3 not 0.4: a 1.2 s push-pull turns the line 33 deg in its busiest 0.4 s, 26 in 0.3 (30 deg / 0.3 s = 100 deg/s, the velocity method's Twist Speed). Menu: Neck Snap > Twist Detection, Twist Window (always shown, help says Hand Line only). `vr_foegrab_status` prints the method and the windowed angle. Tests: judo_test.py neck under `JUDO_NECK_METHOD=1` 29/29 (largest no-snap 26 deg, the 3 s 60-deg shuffle 6), method 0 29/29, dir+lift 22/22.
+
+
+## Tracy stage 2: QC, jobs, loading, resources and allocation lifetimes (2026-10-14)
+
+- Default coarse capture extends QC VM, worker/claiming-thread jobs and waits, file/model/texture/image preparation,
+  GL uploads, map/save/load, physics, audio and network regions. New scopes retain caller file/line; detailed QC
+  functions/builtins copy transient names/files rather than retaining unloaded program pointers. Existing profiler stays intact.
+- `vr_tracy_qc_detail=0`, `vr_tracy_memory_detail=0`; GPU defaults remain 1/coarse. Debug > Reports controls and normal
+  build information added, calibration paths 5 found/0 missing. Registered system capacities sampled every 60 connected
+  frames, summed for shared scratch/cache labels; frame draw/triangle/particle and VR timing plots have explicit limits.
+- Exact named physical Zone/Hunk/Cache block events account for baseline, realloc, frees, cache relocation, hunk reset,
+  detail transitions and reconnect. Native Box3D/default allocation macros retain requested-byte accounting and a worker-safe
+  live mirror, preserving survivors at late attach/reconnect. Allocator behavior and gameplay are unchanged.
+- A true decoded checkpoint test caught v0.14.1's unknown-MemoryDiscard serial-clock edge. Only announced names in the
+  current session are discarded; fresh sessions begin with allocation baselines. All final decoded checkpoints match the
+  independent engine pool/native Box3D state, not merely pointer lifetime validity. No ignored memory faults.
+- Native reader uses matching official staged server/file-reader source and test-only pinned dependencies, with no game
+  dependencies or downloads. Full captured evidence, controls, build options, coverage/limits and measurements are in TRACY.md.
+- Normal/default profiling builds, normal profiler smoke, stock save/load/error, simple-CSQC error/recovery, representative
+  expansion/integrated native AD and two captures with surviving/growing/freed bodies passed. Callstack capture proves actual
+  zone stacks; optional ETW compile passed without any elevated run. General heap/scheduler data remains explicitly scoped.
+- Exclusive uncapped e1m1, 3×1200 frames/state: CPU busy normal 1.0758 ms, idle 1.0288, coarse 1.1434, details 1.5053; all zero >33 ms hitches/drops. Raw rows versioned in TRACY_STAGE2_OVERHEAD.csv; scene/headset variability explicitly documented.
+- Disabled argument hooks are non-evaluating macros; an -O0 fixture proves dynamic names/resource expressions have no side effects. Resource/metadata walks remain build/connection guarded.
+- Final allocator review defers snapshots during the temporary hunk-header/cache-relocation window and rejects cross-session frees; host recovery clears the guard. Existing lifecycle replay verifies decoded checkpoints after this change.

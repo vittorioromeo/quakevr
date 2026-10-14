@@ -29,6 +29,8 @@ extern "C" double TexMgr_TracyBytes(void);
 extern "C" void Memory_TracySnapshot(void);
 extern "C" void Memory_TracyValidate(void);
 extern "C" int Memory_TracyCacheMove(cache_user_t* cache);
+extern "C" const char* VR_ActiveCampaignFolder();
+extern "C" int VR_IsNativeCampaignLaunch();
 
 namespace
 {
@@ -71,6 +73,7 @@ uint64_t memorySession{};
 bool memoryActive{}, snapshotting{};
 bool poolAnnounced[3]{};
 unsigned memoryMismatches{};
+unsigned memoryTransitions{};
 // Native Box3D macros use Tracy's default pool. Keep survivors even while disconnected, so later
 // native frees/reallocations remain meaningful in the next capture. Box3D can allocate on workers.
 std::mutex boxLock;
@@ -108,7 +111,7 @@ thread_local bool qcOpen[1024]{};
 thread_local unsigned qcDepth{}, qcOverflow{};
 void memorySync()
 {
-    if(snapshotting) return;
+    if(snapshotting || memoryTransitions) return;
     const uint64_t session = TracyCIsConnected ? tracy::GetProfiler().ConnectionId() : 0;
     const bool active = session && memoryDetail.value != 0;
     if(session == memorySession && active == memoryActive) return;
@@ -380,6 +383,7 @@ extern "C" void VR_TracyAbort()
 {
     while(thread.depth || thread.overflow) VR_TracyEnd();
     qcDepth = qcOverflow = 0;
+    memoryTransitions = 0;
 }
 extern "C" void VR_TracyFrame()
 {
@@ -411,6 +415,9 @@ extern "C" void VR_TracyFrame()
             VR_TracyText(com_gamedir);
             VR_TracyText(gl_renderer ? gl_renderer : "unknown GL renderer");
             char value[512];
+            const char* campaign = VR_ActiveCampaignFolder();
+            q_snprintf(value, sizeof(value), "campaign=%s native_launch=%d", campaign ? campaign : "external/default", VR_IsNativeCampaignLaunch());
+            VR_TracyText(value);
             for(const char* name : qvr::profile::settingCvars)
                 if(const auto* v = Cvar_FindVar(name))
                 {
@@ -540,7 +547,7 @@ extern "C" void VR_TracyAlloc(const void* ptr, unsigned long long bytes, int poo
 extern "C" void VR_TracyFree(const void* ptr)
 {
     memorySync();
-    if(!memoryActive) return;
+    if(!memoryActive || !TracyCIsConnected || memorySession != tracy::GetProfiler().ConnectionId()) return;
     const auto it = allocations.find(ptr);
     if(it == allocations.end()) return;
     ___tracy_emit_memory_free_named(ptr, poolNames[it->second.pool]);
@@ -567,7 +574,7 @@ extern "C" int VR_TracyCheckPool(int pool, unsigned long long count, unsigned lo
 extern "C" void VR_TracyHunkReset(int mark)
 {
     memorySync();
-    if(!memoryActive) return;
+    if(!memoryActive || !TracyCIsConnected || memorySession != tracy::GetProfiler().ConnectionId()) return;
     for(auto it = allocations.begin(); it != allocations.end();)
         if(it->second.pool == 1 && it->second.end > mark)
         {
@@ -575,6 +582,19 @@ extern "C" void VR_TracyHunkReset(int mark)
             it = allocations.erase(it);
         }
         else ++it;
+}
+extern "C" void VR_TracyAllocationWindow(int enter)
+{
+    if(enter)
+    {
+        memorySync(); // old headers are still valid before the transition
+        ++memoryTransitions;
+    }
+    else
+    {
+        if(memoryTransitions) --memoryTransitions;
+        memorySync(); // new header/cache state is now complete, including a late connection
+    }
 }
 extern "C" void VR_TracyGLShutdown()
 {

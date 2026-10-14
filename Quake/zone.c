@@ -644,6 +644,7 @@ static void *Hunk_AllocInternal (int size, const char *name, hunkflags_t flags)
 
 	seg = hunk_segments[i];
 	h = (hunk_t *) (SEG_MEM (seg) + hunk_low_used - seg->base);
+	VR_TracyAllocationWindow(1); // cache relocation can call tracing while this new header is not initialized
 	hunk_low_used += size;
 	seg->used = hunk_low_used - seg->base;
 
@@ -659,6 +660,7 @@ static void *Hunk_AllocInternal (int size, const char *name, hunkflags_t flags)
 	else
 		h->name[0] = '\0';
 
+	VR_TracyAllocationWindow(0);
 	VR_TracyAlloc(h + 1, h->size, 1, hunk_low_used);
 	return (void *)(h+1);
 }
