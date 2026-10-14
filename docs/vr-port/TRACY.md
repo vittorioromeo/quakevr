@@ -41,7 +41,7 @@ Existing `vr_profile`, panel, CSV captures and benchmark commands remain functio
 |---|---|---|
 | `vr_tracy_status` | command | Connection, nesting depth, drops, GPU pending queries and context generation |
 | `vr_tracy_gpu` | 1 | Enable GPU zones; 0 keeps CPU tracing and drains pending GPU timestamps |
-| `vr_tracy_gpu_detail` | 0 | 0: eyes, shadow maps and window view; 1: every existing GPU scope |
+| `vr_tracy_gpu_detail` | 0 | 0: whole 3D, eyes, shadow maps and window view; 1: every existing GPU scope |
 | `vr_tracy_qc_detail` | 0 | Copied, individually named QC functions and builtins in server/client VMs |
 | `vr_tracy_memory_detail` | 0 | Live baseline and allocation/free/reset events for Zone, Hunk and Cache |
 | `vr_tracy_test_memory` | command | Realloc, forced cache relocation, hunk reset, detail changes and independent byte/count checks |

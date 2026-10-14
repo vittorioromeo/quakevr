@@ -5770,3 +5770,7 @@ but changes the feel (his call).
 ## 2026-10-14: exact gun hull reuse
 
 Retain winning scored points/initial hulls and reuse unchanged completed-piece gaps. 278 frozen-output comparisons preserve point/piece order and non-timing report bytes, including refinement/failure and parallel cases. Narrow profiling separates decomposition from cache preparation: voxelization remains dominant; no strong whole-hitch speedup established. Normal/profiling builds, smoke and gun port/well checks pass; melee retains 168/177 baseline verdicts. Details and temporary-memory limits: GUN_HULL_REUSE.md. Author VR check: held/mirrored and dropped gun ports/wells.
+
+## 2026-10-14: multi-scenario stacked profiling
+
+Six validated depth-eight captures cover e1m1 AI, cold/warm weapons, wound-driven ragdolls, explicitly drive-disabled sleep, verified native holding and integrated AD. Matching AD depth-zero pair has the same state hash/counts; stacks add roughly 9-11% mean CPU in this pair. Whole 3D GPU scope is now available at coarse detail. New source-backed findings and synthetic/reference limits: MULTI_SCENARIO_PROFILE.md. Artifacts backed up outside worker trees in kit/scratch/profilemulti. No gameplay changes.
