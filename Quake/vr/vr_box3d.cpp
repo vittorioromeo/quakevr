@@ -72,6 +72,7 @@
 #include "vr_physics.hpp"
 #include "vr_physsound.hpp"
 #include "vr_profile.hpp"
+#include "vr_tracy.h"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
 #include "vr_limbmodel.hpp"
@@ -3348,6 +3349,7 @@ bool makeRagdollRoom(edict_t* ent)
 // (limbMass).
 [[nodiscard]] b3HullData* boneHull(const ragdoll::Bone& bone, float k, float& volume)
 {
+    QVR_TRACY_SCOPE(tracyScope, "ragdoll bone hull");
     za::Array<b3Vec3, 128> pts;
     const int n = za::min(static_cast<int>(bone.points.size()), static_cast<int>(pts.size()));
     glm::vec3 lo{1e30f}, hi{-1e30f};
@@ -3494,6 +3496,7 @@ void startCutDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* joi
 // from whatever frame it is in (beheaded: ragdollDecap), its loose piece hidden (what it held: its death code drops it).
 bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
 {
+    QVR_TRACY_SCOPE(tracyScope, "ragdoll create");
     qmodel_t* model = modelOf(ent);
     const ragdoll::Rig* rig = ragdoll::rigFor(model);
     if(!rig)
@@ -4443,6 +4446,7 @@ void livingClimb(RagdollBodies& r, float dt)
 
 void driveActive(Slot& s, float dt)
 {
+    QVR_TRACY_SCOPE(tracyScope, "ragdoll active update");
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
     const int every = static_cast<int>(vr_ragdoll_active_trace.value);
     const bool trace = every > 0 && static_cast<int>(qcvm->time * 72.0 + 0.5) % every == 0;
@@ -4702,6 +4706,7 @@ void shockRagdoll(edict_t* ent, Slot& s, float dt)
 // published for the client.
 void writeRagdoll(edict_t* ent, Slot& s)
 {
+    QVR_TRACY_SCOPE(tracyScope, "ragdoll publish");
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
     const ragdoll::Rig& rig = *r.rig;
     // Knocked down, then killed where it lay ("Knockdowns"): its loose pieces (its weapon, welded) go, as a dead one's
@@ -14893,112 +14898,119 @@ extern "C" void VR_PhysicsFrameEnd(void)
     // physics sounds' scrapes).
     QVR_PROFILE("box3d write");
     const double tWrite = Sys_DoubleTime();
-    updateRecoveries(); // (knocked-down monsters getting up: Knockdowns)
-    const bool scrapes = physsound::scrapesWanted();
-    const bool bodyScrapes = scrapes && vr_physsound_bodies.value > 0.f;
-    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
-        Slot& s = world->slots[num];
-        if(s.ragdoll >= 0)
+        QVR_TRACY_SCOPE(tracyScope, "box3d publish bodies");
+        updateRecoveries(); // (knocked-down monsters getting up: Knockdowns)
+        const bool scrapes = physsound::scrapesWanted();
+        const bool bodyScrapes = scrapes && vr_physsound_bodies.value > 0.f;
+        for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
         {
-            writeRagdoll(EDICT_NUM(num), s); // (every frame: a part may be awake in an island of its own, his shotgun)
-            if(bodyScrapes && s.ragdoll >= 0 && !EDICT_NUM(num)->free)
+            Slot& s = world->slots[num];
+            if(s.ragdoll >= 0)
             {
-                noteBodySlide(num, s, dt / static_cast<float>(pieces));
+                writeRagdoll(EDICT_NUM(num), s); // (every frame: a part may be awake in an island of its own, his shotgun)
+                if(bodyScrapes && s.ragdoll >= 0 && !EDICT_NUM(num)->free)
+                {
+                    noteBodySlide(num, s, dt / static_cast<float>(pieces));
+                }
+                continue;
             }
-            continue;
+            if(s.kind == Kind::Corpse && s.corpseDynamic && (!s.asleep || b3Body_IsAwake(s.body)))
+            {
+                writeCorpse(EDICT_NUM(num), s);
+                if(bodyScrapes && !s.asleep && !EDICT_NUM(num)->free)
+                {
+                    noteBodySlide(num, s, dt / static_cast<float>(pieces));
+                }
+                continue;
+            }
+            if(s.kind == Kind::Prop && (!s.asleep || b3Body_IsAwake(s.body)))
+            {
+                edict_t* ent = EDICT_NUM(num);
+                writeProp(ent, s);
+                if(ent->free)
+                {
+                    destroyBody(s);
+                }
+                else if(scrapes && !s.asleep && s.sound != physsound::Material::None)
+                {
+                    noteSlide(num, s, dt / static_cast<float>(pieces));
+                }
+            }
         }
-        if(s.kind == Kind::Corpse && s.corpseDynamic && (!s.asleep || b3Body_IsAwake(s.body)))
-        {
-            writeCorpse(EDICT_NUM(num), s);
-            if(bodyScrapes && !s.asleep && !EDICT_NUM(num)->free)
-            {
-                noteBodySlide(num, s, dt / static_cast<float>(pieces));
-            }
-            continue;
-        }
-        if(s.kind == Kind::Prop && (!s.asleep || b3Body_IsAwake(s.body)))
-        {
-            edict_t* ent = EDICT_NUM(num);
-            writeProp(ent, s);
-            if(ent->free)
-            {
-                destroyBody(s);
-            }
-            else if(scrapes && !s.asleep && s.sound != physsound::Material::None)
-            {
-                noteSlide(num, s, dt / static_cast<float>(pieces));
-            }
-        }
+        rideStanding();
     }
-    rideStanding();
     const double tAfter = Sys_DoubleTime();
 
-    // Then what they touched, in the step's order, each pair once.
-    for(size_t i = 0; i < impacts.size(); i++)
     {
-        const auto [a, b] = impacts[i];
-        if(za::find(impacts.begin(), impacts.begin() + static_cast<za::PtrDiffT>(i), impacts[i]) != impacts.begin() + static_cast<za::PtrDiffT>(i))
+        QVR_TRACY_SCOPE(tracyScope, "box3d after callbacks");
+        // Then what they touched, in the step's order, each pair once.
+        for(size_t i = 0; i < impacts.size(); i++)
         {
-            continue;
-        }
-        edict_t* ea = EDICT_NUM(a);
-        edict_t* eb = EDICT_NUM(b);
-        if(ea->free || eb->free)
-        {
-            continue;
-        }
-        if(world->slots[a].kind == Kind::Prop && world->slots[b].kind == Kind::Mover)
-        {
-            // A prop meeting a door, a lift or a button: as two props below, its touch sees the speed it came at, not
-            // what the bounce left (a rock thrown at a wall button presses it from vr_button_throw_speed: QC buttons.qc).
-            const glm::vec3 after = vec(ea->v.velocity), before = world->slots[a].arrival;
-            const bool faster = glm::length(before) > glm::length(after);
-            if(faster)
+            const auto [a, b] = impacts[i];
+            if(za::find(impacts.begin(), impacts.begin() + static_cast<za::PtrDiffT>(i), impacts[i]) != impacts.begin() + static_cast<za::PtrDiffT>(i))
             {
-                store(before, ea->v.velocity);
+                continue;
             }
-            SV_Impact(ea, eb);
-            if(faster && !ea->free && vec(ea->v.velocity) == before)
+            edict_t* ea = EDICT_NUM(a);
+            edict_t* eb = EDICT_NUM(b);
+            if(ea->free || eb->free)
             {
-                store(after, ea->v.velocity);
+                continue;
             }
-            continue;
-        }
-        if(world->slots[a].kind != Kind::Prop || world->slots[b].kind != Kind::Prop)
-        {
+            if(world->slots[a].kind == Kind::Prop && world->slots[b].kind == Kind::Mover)
+            {
+                // A prop meeting a door, a lift or a button: as two props below, its touch sees the speed it came at, not
+                // what the bounce left (a rock thrown at a wall button presses it from vr_button_throw_speed: QC buttons.qc).
+                const glm::vec3 after = vec(ea->v.velocity), before = world->slots[a].arrival;
+                const bool faster = glm::length(before) > glm::length(after);
+                if(faster)
+                {
+                    store(before, ea->v.velocity);
+                }
+                SV_Impact(ea, eb);
+                if(faster && !ea->free && vec(ea->v.velocity) == before)
+                {
+                    store(after, ea->v.velocity);
+                }
+                continue;
+            }
+            if(world->slots[a].kind != Kind::Prop || world->slots[b].kind != Kind::Prop)
+            {
+                SV_Impact(ea, eb);
+                continue;
+            }
+            // Two props (a thrown weapon, box or gib meeting a gib or a head lying about, what takes damage): they touch
+            // after the step, whose bounce has spent the thrown one's speed, so its hit was too slow to hurt
+            // (forcegrabbable_touch: vr_throw_hit_min_speed, the damage by speed). The touch sees the velocities they came
+            // with (the step's start), as a monster's (touchNearby, before the step) does; what the touch sets stays, else
+            // the step's are put back.
+            const glm::vec3 afterA = vec(ea->v.velocity), afterB = vec(eb->v.velocity);
+            const glm::vec3 beforeA = world->slots[a].arrival, beforeB = world->slots[b].arrival;
+            if(vr_debug_box3d.value)
+            {
+                Con_Printf("box3d: %d %s and %d %s touch, at %.0f and %.0f u/s (%.0f and %.0f after the step)\n", a,
+                    PR_GetString(ea->v.classname), b, PR_GetString(eb->v.classname), glm::length(beforeA), glm::length(beforeB),
+                    glm::length(afterA), glm::length(afterB));
+            }
+            store(beforeA, ea->v.velocity);
+            store(beforeB, eb->v.velocity);
             SV_Impact(ea, eb);
-            continue;
+            if(!ea->free && vec(ea->v.velocity) == beforeA)
+            {
+                store(afterA, ea->v.velocity);
+            }
+            if(!eb->free && vec(eb->v.velocity) == beforeB)
+            {
+                store(afterB, eb->v.velocity);
+            }
         }
-        // Two props (a thrown weapon, box or gib meeting a gib or a head lying about, what takes damage): they touch
-        // after the step, whose bounce has spent the thrown one's speed, so its hit was too slow to hurt
-        // (forcegrabbable_touch: vr_throw_hit_min_speed, the damage by speed). The touch sees the velocities they came
-        // with (the step's start), as a monster's (touchNearby, before the step) does; what the touch sets stays, else
-        // the step's are put back.
-        const glm::vec3 afterA = vec(ea->v.velocity), afterB = vec(eb->v.velocity);
-        const glm::vec3 beforeA = world->slots[a].arrival, beforeB = world->slots[b].arrival;
-        if(vr_debug_box3d.value)
-        {
-            Con_Printf("box3d: %d %s and %d %s touch, at %.0f and %.0f u/s (%.0f and %.0f after the step)\n", a,
-                PR_GetString(ea->v.classname), b, PR_GetString(eb->v.classname), glm::length(beforeA), glm::length(beforeB),
-                glm::length(afterA), glm::length(afterB));
-        }
-        store(beforeA, ea->v.velocity);
-        store(beforeB, eb->v.velocity);
-        SV_Impact(ea, eb);
-        if(!ea->free && vec(ea->v.velocity) == beforeA)
-        {
-            store(afterA, ea->v.velocity);
-        }
-        if(!eb->free && vec(eb->v.velocity) == beforeB)
-        {
-            store(afterB, eb->v.velocity);
-        }
+        callShocks();
+        callFalls();
+        watchInside();
+        physsound::frameEnd(); // the frame's knocks and scrapes
+
     }
-    callShocks();
-    callFalls();
-    watchInside();
-    physsound::frameEnd(); // the frame's knocks and scrapes
 
     const double t3 = Sys_DoubleTime();
     if(frameTiming && world->frameSamples.size() < stepSamplesMax)

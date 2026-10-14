@@ -1,6 +1,7 @@
 // vr_bench.cpp -- see vr_bench.hpp.
 
 #include "vr_bench.hpp"
+#include "vr_tracy.h"
 #include "vr_cvars.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_box3d.hpp"
@@ -510,6 +511,7 @@ void finish()
 
 void begin_f()
 {
+    QVR_TRACY_SCOPE(tracyScope, "Benchmark begin");
     if(Cmd_Argc() < 2)
     {
         Con_Printf("vr_bench_begin <name> [frames | <seconds>s]: records each frame's times until vr_bench_end (or the "
@@ -530,6 +532,7 @@ void begin_f()
                         ch == '_' || ch == '-' || ch == '.';
         c.name += ok ? ch : '_';
     }
+    VR_TracyText(c.name.cStr());
     c.map = cl.mapname;
     c.targetFrames = 0;
     c.targetSeconds = 0.0;
