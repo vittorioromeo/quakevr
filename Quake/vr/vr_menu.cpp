@@ -1494,6 +1494,8 @@ int campaignsBloodyShown = -1;
             .help("Seconds until a hit fades away. 0: no hit effect. Pausing freezes it."),
         slider("Hit Intensity", vr_blood_hit_intensity, 0.f, 0.8f, 0.02f, "%.2f")
             .help("Strongest opacity of a hit. Hits taking less than 20 health plus armor are lighter. Overlapping hits remain bounded."),
+        slider("Hit Coverage", vr_blood_hit_size, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How far the hit's red edges reach into your view. Larger covers more area without changing intensity or direction. 0: none; 1: widest. A clear centre always remains. Independent of Health Coverage."),
         slider("Directional Bias", vr_blood_hit_bias, 0.f, 1.f, 0.05f, "%.2f")
             .help("0: equal on every edge. 1: strongest towards the source, weakest opposite. Front: upper edge; rear: lower; above/below: upper/lower. Turns follow the world direction. Unknown, near-player and known self/environment hits are even."),
         header("Low Health"),
@@ -1503,6 +1505,8 @@ int campaignsBloodyShown = -1;
             .help("Pulses below this health, from the local player's actual health stat. None at or above it, or while dead."),
         slider("Health Intensity", vr_blood_health_intensity, 0.f, 0.8f, 0.02f, "%.2f")
             .help("Peak opacity as health approaches zero. The centre stays clear. Both blood effects together never exceed 0.8 opacity."),
+        slider("Health Coverage", vr_blood_health_size, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How far low-health pulses reach into your view. Larger covers more area without changing intensity or pulse timing. 0: none; 1: widest. A clear centre always remains. Independent of Hit Coverage."),
         slider("Pulse Duration", vr_blood_health_duration, 0.05f, 2.f, 0.05f, "%.2f s")
             .help("Width of each beat. Independent of rate: wide beats overlap smoothly when pulses become frequent."),
         slider("Pulse Rate", vr_blood_health_rate, 0.1f, 3.f, 0.05f, "%.2f Hz")

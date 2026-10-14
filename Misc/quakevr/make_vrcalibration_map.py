@@ -365,7 +365,7 @@ board(N.join(["Again later, from the menus:", "Height: {menu:VR Settings>Set Hei
               "Body: {menu:Body Calibration}"]), 0, TEXT_Y, 100, 270, "0.28")
 board(N.join(["Hands: {menu:Hand/Gun Calibration}", "Seated? {menu:Body Calibration>Position}", "Skin: {menu:Body>Skin Tone}"]),
       0, TEXT_Y, 78, 270, "0.28")
-board("Hit and health edges: {menu:Blood Feedback}", 0, TEXT_Y, 60, 270, "0.23")
+board("Blood edge sizes: {menu:Blood Feedback}", 0, TEXT_Y, 60, 270, "0.23")
 # over the doorway, where it leads: "{calibration exit}" is VR TUTORIAL at a first start (QC changelevel_touch sends it
 # there until the tutorial has been started once), else VR HUB (the engine, as the room loads: vr_worldtext.cpp)
 board(N.join(["{calibration exit}", "Walk through when you are done."]), 0, -H + 7, DOOR_Z + CASE + 20, 90, "0.33")
