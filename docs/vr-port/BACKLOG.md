@@ -312,3 +312,17 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
   back to the original loop. Behaviour identical: same results, runaway/error messages, profile counts; verify with
   the QC-heavy suites (ragdoll, AD, melee eval) and a seeded e1m1 log compared against the old loop.
 - First measure QC's share of the frame on a busy map (vr_qcprofile, Tracy QC zones).
+
+## Model vertex wobble (2026-10-14)
+
+- Cause: .mdl stores each frame's vertices as 3 bytes (0-255 per axis) times a per-model scale/offset, so positions
+  snap to 1/255 of the model's extent (~0.25 units on a ~60-unit model), independently per frame: the rippling. Linear
+  blending between frames adds limb shrinking/swimming.
+- (1, first) Dequantise at load, all models: per vertex, the smoothest trajectory through the animation that stays
+  within each stored value's +/- half-step box (iterative smooth-and-clamp or a small least-squares fit). No vertex moves
+  more than the data's own error; zero per-frame cost; a toggle; before/after visual check. ~1-2 agent-days.
+- (2) Rigged monsters: rebuild vertices from the fitted skeleton on every frame (rest pose x bone transform), not only
+  between frames as r_lerpmodels 3 / vr_anim_smooth_rig do; removes quantisation noise, leaving the fit error
+  (vr_anim_smooth_rig_error). Builds on vr_animsmooth.cpp; pairs with (1).
+- (3) Higher-precision formats (MD3 16-bit, IQM/MD5 float; the 2021 rerelease ships float models): check what the
+  engine already loads before relying on it; covers only models that have replacements.
