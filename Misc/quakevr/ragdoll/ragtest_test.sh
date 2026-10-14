@@ -9,6 +9,7 @@
 #   SELF=0|1  vr_ragdoll_self_collide for the run (default: the game's)
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 TREE=C:/OHWorkspace/qvr-agents/$AGENT

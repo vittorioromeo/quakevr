@@ -22,6 +22,7 @@
 #   cost    6 grunts shoved at once (--exclusive): the drive's ms a frame and the physics step's, stagger 1 and 0
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 TREE=C:/OHWorkspace/qvr-agents/$AGENT

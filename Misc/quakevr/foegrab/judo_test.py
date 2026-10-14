@@ -28,6 +28,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "testbatch"))
 import testbatch  # noqa: E402
 
+os.environ.setdefault("TB_NODRAW", "1")  # (batched frames not drawn: no check here reads the drawing; testbatch.py)
+
 KIT = "C:/OHWorkspace/qvr-kit"
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "foegrab3"
 TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"

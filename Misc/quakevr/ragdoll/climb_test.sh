@@ -12,6 +12,7 @@
 # N=n: n trials each (sv_random_seed SEED0, SEED0 + 1, ...).
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 CASES=${*:-pull drop hit off}

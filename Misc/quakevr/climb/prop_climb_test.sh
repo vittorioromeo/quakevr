@@ -27,6 +27,7 @@
 AGENT=${1:?agent}; shift
 CASES=${*:-heavy stack side light close knock hang off lift movelight liftlight}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
