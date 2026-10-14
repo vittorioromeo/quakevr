@@ -243,3 +243,17 @@ stats), the jump boots' power level, coop.
 - Retro (blocky) textures: baked marks render smooth; match the retro filtering.
 - Gore's delayed marks appear at once on doors and lifts (brush-entity marks bake immediately).
 - Marks on brush-tool boxes stay live (not baked).
+
+## QuakeC VM overhead, short of a JIT (2026-10-14; profile first with the Tracy build's QC zones)
+
+- Generic native predicates: QC registers a filter once (string or field/op/value triples, e.g. "flags & FL_MONSTER &&
+  vr_liquid_next <= time && takedamage"), the engine compiles it; `findfilter(start, filterId)` walks edicts natively
+  (generalises findflagsdue, d05011ec3).
+- Native loops calling back into QC: `forall(filterId, func)` iterates and filters natively, entering the VM (via its
+  function index, PR_ExecuteProgram) only for matches.
+- Natively maintained entity lists (monsters, burning, ...) kept current as flags change, so loops visit members only.
+- Faster interpreter (pr_exec.c): threaded dispatch (computed goto), fused superinstructions (field load + compare),
+  fewer bounds checks in hot opcodes; typically 1.5-2x for all QC; verify with the QC regression suite.
+- Biggest step, only if QC still dominates after the above: ahead-of-time translation of our own progs.dat to C at
+  build time (VM kept as fallback for mods with their own progs); must match VM semantics, saves, debugging.
+- Check what fteqcc supports beyond plain function pointers before relying on QC "lambdas".
