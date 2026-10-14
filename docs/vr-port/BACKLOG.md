@@ -211,3 +211,14 @@ stats), the jump boots' power level, coop.
   per CODE_STYLE (Tracy build only; not a mechanical swap).
 - The bench JSON / profile CSV settings list gained 7 `vr_pbr`/`vr_parallax` entries with Tracy commit d5ba4af43
   (harmless), and the capture metadata prefix scan still repeats those names: dedupe.
+
+## Open from round 22 (2026-10-14; credits ran out)
+
+- **Persistent blood decals (decal option A):** bake marks pushed out by the per-spot limit (`vr_decal_bucket_max`, 32) into per-surface blood layers so piles keep their dense look. Notes from decalcap: the dropped marks are exactly the set to bake; a 768-mark pile touches ~62 grid cells; the layer needs much finer texels than the lightmap's 16 units; sample it after the shader's parallax offset; handle the end-of-life fade. Waiting on his VR check of the 32 limit.
+- **Neck snap method:** he compares Twist Detection Velocity vs Hand Line (`vr_foegrab_necksnap_method`) in VR; keep the winner as default, consider removing the other. Add a wrist-roll-only test for Hand Line; run Hand Line's neck suite 3x, plus `hold` and `ragdoll/stagger_test.sh judo` under it (skipped for budget).
+- **AD humanoids and the neck snap / lift:** add `monster_centurion` and the fumigator to `vr_foegrab_lift_classes`; verify head zones and ragdolls (knocked-down/staggered snaps, lift flail) on each AD humanoid in the list (never tested).
+- **Step In:** optional depth cap so the player can't walk right through a held enemy (`vr_foegrab_step_in`); he judges if Step In is a net plus.
+- **Body Inset vs vore shoves:** `voreshove_test.sh` now gets 3-4 shoves (needs 4) at inset 4: vores stand closer and die to their own splash; restore the test's margin.
+- **Flaky tests:** judo_test `hold` "held on" drag (moves 4-12 units by landing; ~1 in 3 under the 4-unit bar); hotblade_test `throw_cold`/`throw_hot` (axe sometimes arrives under 6.3 m/s after a bounce).
+- **Incandescent blades leftovers:** weapons start cold after a level change; Quoth's long wall torch is no fire spot (flame position unknown); force-grab/counter/toolgun glows override the heat glow on an aimed dropped blade.
+- **Main menu:** flat menu still bottom-heavy (needs a limit clear of the corner buttons/notice box); VR menu with a Continue row (a save present) untested after vertical centring.
