@@ -44,7 +44,7 @@ namespace
 
 constexpr float halfStep = 0.5f;     // the box round each stored value, in steps
 constexpr int maxSweeps = 400;       // the solver's limit per vertex and axis
-constexpr float tolerance = 2e-4f;   // ... it stops once no value moves more than this (steps)
+constexpr float tolerance = 1e-3f;   // ... it stops once no value moves more than this (steps)
 constexpr float lipschitz = 16.f;    // the largest eigenvalue of D2'D2 (second differences)
 constexpr float cutFactor = 3.f;     // a step this many times the median of the steps round it splits a run
 constexpr float loopFactor = 1.5f;   // a run whose last pose is this near its first (times its median step) loops
@@ -210,51 +210,52 @@ void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, 
 // The solver's buffers for one vertex and axis along a run.
 struct Solve
 {
-    za::Vector<float> v, x, y, g, next;
+    za::Vector<float> v, x, y, g, d, next;
 };
 
-// g = D2'D2 y (second differences; a loop's wrap round).
-void gradient(Solve& s, int n, bool loop)
+// g = D2'D2 y (second differences; a loop's wrap round), d the second differences (n >= 3).
+void gradient(const float* y, float* d, float* g, int n, bool loop)
 {
-    for(int i = 0; i < n; i++)
+    for(int i = 1; i < n - 1; i++)
     {
-        s.g[static_cast<size_t>(i)] = 0.f;
+        d[i] = y[i - 1] - 2.f * y[i] + y[i + 1];
     }
-    const int first = loop ? 0 : 1;
-    const int last = loop ? n : n - 1;
-    for(int i = first; i < last; i++)
+    d[0] = loop ? y[n - 1] - 2.f * y[0] + y[1] : 0.f;
+    d[n - 1] = loop ? y[n - 2] - 2.f * y[n - 1] + y[0] : 0.f;
+    for(int i = 1; i < n - 1; i++)
     {
-        const int a = (i + n - 1) % n;
-        const int b = (i + 1) % n;
-        const float d = s.y[static_cast<size_t>(a)] - 2.f * s.y[static_cast<size_t>(i)] + s.y[static_cast<size_t>(b)];
-        s.g[static_cast<size_t>(a)] += d;
-        s.g[static_cast<size_t>(i)] -= 2.f * d;
-        s.g[static_cast<size_t>(b)] += d;
+        g[i] = d[i - 1] - 2.f * d[i] + d[i + 1];
     }
+    g[0] = (loop ? d[n - 1] : 0.f) - 2.f * d[0] + d[1];
+    g[n - 1] = d[n - 2] - 2.f * d[n - 1] + (loop ? d[0] : 0.f);
 }
 
-// The smoothest values within half a step of s.v (n of them) into s.x; the sweeps taken.
+// The smoothest values within half a step of s.v (n >= 3 of them) into s.x; the sweeps taken.
 int solve(Solve& s, int n, bool loop)
 {
+    const float* v = s.v.data();
+    float* x = s.x.data();
+    float* y = s.y.data();
+    float* g = s.g.data();
+    float* d = s.d.data();
+    float* next = s.next.data();
     for(int i = 0; i < n; i++)
     {
-        s.x[static_cast<size_t>(i)] = s.v[static_cast<size_t>(i)];
-        s.y[static_cast<size_t>(i)] = s.v[static_cast<size_t>(i)];
+        x[i] = v[i];
+        y[i] = v[i];
     }
     float t = 1.f;
     int sweep = 0;
     for(; sweep < maxSweeps; sweep++)
     {
-        gradient(s, n, loop);
+        gradient(y, d, g, n, loop);
         float moved = 0.f;
         float restart = 0.f;
         for(int i = 0; i < n; i++)
         {
-            const size_t k = static_cast<size_t>(i);
-            const float stepped = s.y[k] - s.g[k] / lipschitz;
-            s.next[k] = za::clamp(stepped, s.v[k] - halfStep, s.v[k] + halfStep);
-            moved = za::max(moved, za::abs(s.next[k] - s.x[k]));
-            restart += s.g[k] * (s.next[k] - s.x[k]);
+            next[i] = za::clamp(y[i] - g[i] * (1.f / lipschitz), v[i] - halfStep, v[i] + halfStep);
+            moved = za::max(moved, za::abs(next[i] - x[i]));
+            restart += g[i] * (next[i] - x[i]);
         }
         float tn = 0.5f * (1.f + za::sqrt(1.f + 4.f * t * t));
         if(restart > 0.f) // the momentum points uphill: start it again
@@ -265,9 +266,8 @@ int solve(Solve& s, int n, bool loop)
         const float beta = (t - 1.f) / tn;
         for(int i = 0; i < n; i++)
         {
-            const size_t k = static_cast<size_t>(i);
-            s.y[k] = s.next[k] + beta * (s.next[k] - s.x[k]);
-            s.x[k] = s.next[k];
+            y[i] = next[i] + beta * (next[i] - x[i]);
+            x[i] = next[i];
         }
         t = tn;
         if(moved < tolerance)
@@ -305,7 +305,7 @@ void compute(const aliashdr_t* hdr, unsigned* out, long* sweeps = nullptr, long*
     {
         longest = za::max(longest, r.count);
     }
-    for(za::Vector<float>* b : {&s.v, &s.x, &s.y, &s.g, &s.next})
+    for(za::Vector<float>* b : {&s.v, &s.x, &s.y, &s.g, &s.d, &s.next})
     {
         b->resize(static_cast<size_t>(longest));
     }
