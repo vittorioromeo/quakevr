@@ -108,7 +108,7 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     <ClInclude Include="..\..\Quake\vr\*.h;..\..\Quake\vr\*.hpp" />
     <!-- The precompiled header's own compile (/Yc) misses LanguageStandard_C (the ClangCL toolset leaves it out of that
          step), and a header made as C17 (clang-cl's default) is refused by the C11 files that use it. -->
-    <ClCompile Update="..\..\Quake\quakedef.c">
+    <ClCompile Update="..\..\Quake\*.c">
       <AdditionalOptions>/std:c11 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <!-- Box3D (Quake/vr/external/box3d/README.md): the physics library, C17, run on the engine's job pool. No FMA
@@ -117,7 +117,7 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     <ClCompile Include="..\..\Quake\vr\external\box3d\src\*.c">
       <CompileAs>CompileAsC</CompileAs>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalOptions>/clang:-ffp-contract=off %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-Wno-overriding-option /clang:-ffp-contract=off %(AdditionalOptions)</AdditionalOptions>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)box3d\</ObjectFileName>
     </ClCompile>
@@ -209,4 +209,11 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <Project>{E286BCD0-E4E0-4F68-B335-083019EA8E02}</Project>
     </ProjectReference>
   </ItemGroup>
+  <!-- VS2026 (v18) ClangCL: its newer clang has _m_prefetch built in, so SDL_endian.h's own definition of it is refused
+       ("definition of builtin function"); its guard macro skips that definition. -->
+  <ItemDefinitionGroup Condition="'$(VisualStudioVersion)' != '' and $([System.Version]::Parse('$(VisualStudioVersion)').Major) &gt;= 18">
+    <ClCompile>
+      <PreprocessorDefinitions>__PRFCHWINTRIN_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
 </Project>
