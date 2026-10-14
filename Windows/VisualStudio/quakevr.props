@@ -5,17 +5,20 @@
      lld-link): the C files as C11 (as upstream's), the Quake VR C++ files as C++23, so any of them can include Zancle
      (Quake/vr/external/zancle/README.md). -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!-- Opt-in only; normal builds do not include/link Tracy. Release remains optimized with symbols. -->
+  <!-- Release-Tracy opts in automatically; the legacy QvrTracy property still works for other configurations. -->
   <PropertyGroup>
     <QvrTracyCallstackDepth Condition="'$(QvrTracyCallstackDepth)'==''">0</QvrTracyCallstackDepth>
     <QvrTracySystemTracing Condition="'$(QvrTracySystemTracing)'==''">false</QvrTracySystemTracing>
+    <QvrTracy Condition="'$(Configuration)'=='Release-Tracy' and '$(QvrTracy)'==''">true</QvrTracy>
     <QvrTracy Condition="'$(QvrTracy)'==''">false</QvrTracy>
   </PropertyGroup>
   <PropertyGroup Condition="'$(QvrTracy)'=='true'">
     <QvrTracyTraceDefines Condition="'$(QvrTracySystemTracing)'!='true'">TRACY_NO_SYSTEM_TRACING;TRACY_NO_CONTEXT_SWITCH;TRACY_NO_SAMPLING</QvrTracyTraceDefines>
     <QvrTracyStackDefines Condition="'$(QvrTracyCallstackDepth)'!='0'">TRACY_CALLSTACK=$(QvrTracyCallstackDepth)</QvrTracyStackDefines>
-    <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)-Tracy\</IntDir>
-    <OutDir>$(SolutionDir)Build-$(ProjectName)\bin\$(PlatformShortName)\$(Configuration)-Tracy\</OutDir>
+    <QvrTracyOutputConfiguration>$(Configuration)-Tracy</QvrTracyOutputConfiguration>
+    <QvrTracyOutputConfiguration Condition="'$(Configuration)'=='Release-Tracy'">$(Configuration)</QvrTracyOutputConfiguration>
+    <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(QvrTracyOutputConfiguration)\</IntDir>
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\bin\$(PlatformShortName)\$(QvrTracyOutputConfiguration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(QvrTracy)'=='true'">
     <ClCompile>
@@ -74,7 +77,7 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
   </ItemDefinitionGroup>
   <!-- Release: ThinLTO (the ClangCL toolset ignores WholeProgramOptimization and the MSVC linker's LTCG), its cache in
        the intermediate folder so that a rebuild of one file re-optimises only what changed. -->
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">
     <ClCompile>
       <!-- Optimised for speed, inlining across functions more (/Ob3), without the security checks. -->
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
