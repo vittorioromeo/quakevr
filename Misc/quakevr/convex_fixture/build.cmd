@@ -1,7 +1,7 @@
 @echo off
 call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64 >nul
 set CC="C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\Llvm\x64\bin\clang-cl.exe"
-set FLAGS=/nologo /O2 /MD /DNDEBUG /DZA_STATIC /Gy /Gw /clang:-ffp-contract=off /IQuake/vr /IQuake/vr/external /IQuake/vr/external/box3d/include /IQuake/vr/external/zancle/include /Iscratch/gunhullopt
+set FLAGS=/nologo /O2 /MD /DNDEBUG /DZA_STATIC /Gy /Gw /clang:-ffp-contract=off /IQuake/vr /IQuake/vr/external /IQuake/vr/external/box3d/include /IQuake/vr/external/zancle/include /Iscratch/gunhullopt %1
 %CC% %FLAGS% /clang:-std=c++23 /c scratch/gunhullopt/baseline_fixture.cpp /Ddecompose=baselineDecompose /Dhull=baselineHull /Dbuild=baselineBuild /DcutsSite=baselineCutsSite /DmakeBuild=baselineMakeBuild /Foscratch/gunhullopt/baseline.obj
 if errorlevel 1 exit /b 1
 %CC% %FLAGS% /clang:-std=c++23 /c scratch/gunhullopt/optimized_fixture.cpp /Foscratch/gunhullopt/optimized.obj
