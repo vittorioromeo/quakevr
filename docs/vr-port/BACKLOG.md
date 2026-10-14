@@ -296,3 +296,19 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 - **Glove customization (23:08:18):** alongside skin tone/bracers, offer fingerless/full-finger glove textures and independent hue, saturation and lightness controls for glove color.
 - **Pillar/pipe climbing feasibility (23:10:39):** research climbing by bracing a hand on each side and moving upward hand-over-hand.
 - **Climbing leg animation (23:10:39):** legs should seek plausible support points on walls, ledges, pillars and ladders so looking down shows believable assistance during climbing.
+
+### Faster QuakeC interpreter: research notes (2026-10-14, Quake/pr_exec.c)
+
+- Today: one switch over 66 opcodes in while(1); per statement ++profile with a runaway check (0x1000000) and an
+  `if (qcvm->trace)` test; OPA/OPB/OPC recompute `&qcvm->globals[st->a]` per access (likely reloaded after stores:
+  clang-cl in MSVC mode has no strict aliasing); QVR hooks: OP_ADDRESS world + fieldwatch checks, Tracy/vr_qcprofile/
+  vr_profile_fine branches on calls (keep them).
+- Steps (cheapest first): (1) cache globals/edicts in locals, separate traced loop, runaway counted on backward jumps
+  and calls with profile totals kept exact (~0.5 day, ~1.2-1.4x); (2) computed-goto dispatch (clang only; ~0.5 day,
+  ~1.2-1.3x); (3) pre-decoded statements per VM ({handler, operand pointers}) built at progs load, original statements
+  kept for errors/PR_PrintStatement/xstatement/profile (~2 days, most of a ~2x); (4) superinstructions for the hot
+  pairs profiling finds (field load + IF/IFNOT or compare, ADDRESS + STORE; ~1 day).
+- Isolation: new loop in a VR file (e.g. vr_qcexec.c) with one `// QVR` hook in PR_ExecuteProgram and a cvar to fall
+  back to the original loop. Behaviour identical: same results, runaway/error messages, profile counts; verify with
+  the QC-heavy suites (ragdoll, AD, melee eval) and a seeded e1m1 log compared against the old loop.
+- First measure QC's share of the frame on a busy map (vr_qcprofile, Tracy QC zones).
