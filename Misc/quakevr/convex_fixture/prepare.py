@@ -23,8 +23,16 @@ for text, filename, current in [(baseline, "baseline_fixture.cpp", False), (opti
     text = text[:i] + '''b3HullData* fixtureHull(const b3Vec3*,int,int);
 void fixtureVisit(int);
 void fixtureRetained(size_t);
+void fixtureVoxel(const int*, const void*, const float*, size_t);
+void fixtureSample(const glm::vec3&);
+void fixtureVoxelTime(double);
 ''' + text[i:]
     text = text.replace("b3CreateHull(", "fixtureHull(")
+    text = text.replace('    QVR_TRACY_SCOPE(tracyScope, "convex voxelise");', '    QVR_TRACY_SCOPE(tracyScope, "convex voxelise");\n    const double fixtureVoxelStart = Sys_DoubleTime();', 1)
+    text = text.replace("                const int k = g.cellOf(p);", "#ifndef FIXTURE_BENCHMARK\n                fixtureSample(p);\n#endif\n                const int k = g.cellOf(p);", 1)
+    needle = "    pass(-1);"
+    assert needle in text
+    text = text.replace(needle, needle + "\n    fixtureVoxelTime(Sys_DoubleTime() - fixtureVoxelStart);\n    fixtureVoxel(g.n, g.state.data(), g.dist.data(), count);", 1)
     for sig, stage in [("void regionPoints(", 0), ("[[nodiscard]] float gapOf(", 1)]:
         i = text.index(sig)
         j = text.index("{", i)

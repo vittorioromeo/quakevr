@@ -54,11 +54,18 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
         const float longest = za::max(glm::distance(a, b), za::max(glm::distance(a, c), glm::distance(b, c)));
         // Half a cell apart: the cells marked are 26-connected, which no 6-connected flood passes.
         const int steps = CLAMP(1, static_cast<int>(ceilf(longest / (g.cell * 0.5f))), 1024);
+        const glm::vec3 ba = b - a, ca = c - a;
+        za::Array<float, 1025> fractions;
         for(int i = 0; i <= steps; i++)
         {
+            fractions[static_cast<size_t>(i)] = static_cast<float>(i) / steps;
+        }
+        for(int i = 0; i <= steps; i++)
+        {
+            const glm::vec3 row = a + ba * fractions[static_cast<size_t>(i)];
             for(int j = 0; j <= steps - i; j++)
             {
-                const glm::vec3 p = a + (b - a) * (static_cast<float>(i) / steps) + (c - a) * (static_cast<float>(j) / steps);
+                const glm::vec3 p = row + ca * fractions[static_cast<size_t>(j)];
                 const int k = g.cellOf(p);
                 if(static_cast<size_t>(k) < count)
                 {
@@ -110,7 +117,24 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
     {
         g.dist[k] = g.state[k] == outside ? unreached : 0.f;
     }
+    struct Neighbour
+    {
+        int dx, dy, dz;
+        float weight;
+    };
+    // The same 13 neighbours, in the original dz/dy/dx order. Interior cells need no bounds checks.
+    constexpr Neighbour neighbours[]{
+        {-1, -1, -1, 1.73205f}, {0, -1, -1, 1.41421f}, {1, -1, -1, 1.73205f},
+        {-1, 0, -1, 1.41421f}, {0, 0, -1, 1.f}, {1, 0, -1, 1.41421f},
+        {-1, 1, -1, 1.73205f}, {0, 1, -1, 1.41421f}, {1, 1, -1, 1.73205f},
+        {-1, -1, 0, 1.41421f}, {0, -1, 0, 1.f}, {1, -1, 0, 1.41421f}, {-1, 0, 0, 1.f}};
     const auto pass = [&](int dir) {
+        za::Array<int, 13> offsets;
+        for(size_t i = 0; i < offsets.size(); i++)
+        {
+            const Neighbour& n = neighbours[i];
+            offsets[i] = dir * (n.dx + g.n[0] * n.dy + layer * n.dz);
+        }
         const int x0 = dir > 0 ? 0 : g.n[0] - 1, y0 = dir > 0 ? 0 : g.n[1] - 1, z0 = dir > 0 ? 0 : g.n[2] - 1;
         for(int z = z0; z >= 0 && z < g.n[2]; z += dir)
         {
@@ -124,25 +148,22 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
                     {
                         continue;
                     }
-                    // The 13 neighbours before it in this pass's order.
-                    for(int dz = -1; dz <= 0; dz++)
+                    if(x > 0 && x < g.n[0] - 1 && y > 0 && y < g.n[1] - 1 && z > 0 && z < g.n[2] - 1)
                     {
-                        for(int dy = -1; dy <= 1; dy++)
+                        for(size_t i = 0; i < offsets.size(); i++)
                         {
-                            for(int dx = -1; dx <= 1; dx++)
+                            d = za::min(d, g.dist[static_cast<size_t>(k + offsets[i])] + neighbours[i].weight);
+                        }
+                    }
+                    else
+                    {
+                        for(size_t i = 0; i < offsets.size(); i++)
+                        {
+                            const Neighbour& n = neighbours[i];
+                            const int nx = x + n.dx * dir, ny = y + n.dy * dir, nz = z + n.dz * dir;
+                            if(nx >= 0 && ny >= 0 && nz >= 0 && nx < g.n[0] && ny < g.n[1] && nz < g.n[2])
                             {
-                                if(dz == 0 && (dy > 0 || (dy == 0 && dx >= 0)))
-                                {
-                                    continue;
-                                }
-                                const int nx = x + dx * dir, ny = y + dy * dir, nz = z + dz * dir;
-                                if(nx < 0 || ny < 0 || nz < 0 || nx >= g.n[0] || ny >= g.n[1] || nz >= g.n[2])
-                                {
-                                    continue;
-                                }
-                                const int m = (dx != 0) + (dy != 0) + (dz != 0);
-                                const float w = m == 1 ? 1.f : m == 2 ? 1.41421f : 1.73205f;
-                                d = za::min(d, g.dist[static_cast<size_t>(g.index(nx, ny, nz))] + w);
+                                d = za::min(d, g.dist[static_cast<size_t>(k + offsets[i])] + n.weight);
                             }
                         }
                     }
