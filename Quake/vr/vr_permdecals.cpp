@@ -810,8 +810,14 @@ void info_f()
         static_cast<int>(laid), static_cast<int>(map.table.size()));
     Con_Printf("permdecals: atlas %d^2 (%.1f MB with mips), %d of %d slots used\n", atlas.size, bytes / (1024.0 * 1024.0),
         static_cast<int>(used), static_cast<int>(atlas.slots.size()));
-    Con_Printf("permdecals: %d stamps kept; baked %lld stamps on %lld faces, %lld pages taken, %lld given up, %lld dropped\n",
-        static_cast<int>(stamps.size()), counts.stamps, counts.faces, counts.pages, counts.evicted, counts.dropped);
+    int onModels = 0;
+    for(const Stamp& s : stamps)
+    {
+        onModels += s.model != 0;
+    }
+    Con_Printf("permdecals: %d stamps kept (%d on brush models); baked %lld stamps on %lld faces, %lld pages taken, %lld "
+               "given up, %lld dropped\n",
+        static_cast<int>(stamps.size()), onModels, counts.stamps, counts.faces, counts.pages, counts.evicted, counts.dropped);
 }
 
 const char* saveLines()

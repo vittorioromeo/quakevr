@@ -51,7 +51,11 @@ Branch `agent/permdecals`, pushed to `feature/permdecals`.
   rand seeded from its arguments); prints the entity it met.
 - Settings > Gore > Marks: "Permanent Decals" (`vr_permdecals`, default 1).
 
-## Tests (headless; scripts in the worktree's scratch/, git-ignored)
+## Tests (headless)
+
+`Misc/quakevr/permdecal_test.sh <agent>` is the regression (marks past a live cap of 16 all baked, two on brush
+entities, the same stamps after a load in the same game and in a new one). The rest were one-off scripts in the
+worktree's scratch/ (git-ignored):
 
 - Live vs baked (`ab.sh`, vrclimb wall, 8 marks): same shapes and colours; baked a little softer (0.5 units a texel; at
   1 visibly blurrier, at 2 a smudge).
