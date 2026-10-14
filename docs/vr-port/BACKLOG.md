@@ -257,3 +257,42 @@ stats), the jump boots' power level, coop.
 - Biggest step, only if QC still dominates after the above: ahead-of-time translation of our own progs.dat to C at
   build time (VM kept as fallback for mods with their own progs); must match VM semantics, saves, debugging.
 - Check what fteqcc supports beyond plain function pointers before relying on QC "lambdas".
+
+## Playtest voice notes, 2026-10-14 (deferred by the author)
+
+The author explicitly deferred every request below; only the blood-vignette coverage adjustment is current work.
+All 21 recordings were transcribed and reviewed chronologically before triage. Times below identify source recordings.
+
+### Arcane Dimensions and expansion regressions
+
+- **AD stealth integration (22:13:00):** enemies seem to notice the player immediately rather than using the new stealth AI. Investigate native AD enemy integration; do not treat this observation as a confirmed cause.
+- **AD enemy grenade launcher (22:14:26):** dropped soldier launcher produces oversized old-model grenades that sometimes stick in its muzzle. Use the newer projectile model and player-launcher-equivalent size/physics/clearance. Recorded weapon 21, `progs/mon_soldier.mdl#gun6`, in vrfiringrange near (8, -680, 41).
+- **AD enemy weapon polish (22:16:03):** all enemy weapons need proper models, particles and general polish, beyond the launcher-specific issue above.
+- **Expansion relief coverage (23:04:41):** some Scourge of Armagon textures appear to lack relief. Audit whether authored maps are missing or whether AD generation/loading caused a regression; preserve authored relief priority.
+- **Armagon torso collision (23:16:08):** on hipend, shots hit the boss's legs but seem to pass through its torso. Investigate projectile/hit collision, recorded near (923, -676, 152).
+
+### Throwing, grabbing and living ragdolls
+
+- **Bullet-time throws (22:31:57):** small upward nudges can launch objects too far, while full throws feel wrong; available settings did not produce a good feel. Revisit velocity/time-scale handling and consistency.
+- **Mid-air trick catches (22:31:57):** add appropriate main-handle grab leniency for re-catching tossed/spinning weapons, such as an axe; current timing/handle precision is too finicky.
+- **Enemy occlusion of force grab (22:37:38):** bodies should block force-grab line of sight so physical enemy interaction does not accidentally grab an object behind the enemy.
+- **Bullet-time lift/neck-snap responsiveness (22:38:26):** both interactions feel hard and unresponsive in slow motion; investigate gesture/velocity checks versus time scaling.
+- **Thrown living-enemy damage (r2m1, 22:46:26):** increase meaningful impact damage from slamming or throwing a lifted living enemy from height.
+- **Landing crush (r2m1, 22:47:42):** jumping from sufficient height onto a living ragdoll should crush/damage the contacted body part, with appropriate head/limb destruction for a strong impact.
+- **Walking nudges (r2m1, 22:48:15):** legs should gently push nearby/underfoot ragdolls without those bodies blocking the player's walking movement; avoid excessive pushes.
+- **Head/wall slams and live-ragdoll access (dm2, 22:55:25):** allow grabbing a living enemy and smashing its head into a wall to kill it. Keep lifting as one way to activate ragdoll interaction, but investigate additional natural ways to enter that state.
+- **Impact dismemberment (dm2, 22:57:26):** wall/ground impacts should accumulate damage on struck heads/limbs and eventually pop or explode them; includes repeated held head slams and headfirst falls, beyond generic body damage.
+
+### Neck-snap tuning and diagnostics
+
+- **Strict head/neck grab region (dm2, 22:55:25 amended 22:55:58):** unintended snaps occur with hands far from the head or on shoulders. Restrict eligibility to the actual head/neck; shoulder holds must not count.
+- **Crack sound impact (22:39:40):** even maximum volume feels weak/background. Investigate source position, attenuation/occlusion and sound treatment so a successful snap has a powerful crack.
+- **In-world diagnostic toggle (23:01:26):** add to the Neck Snap menu, matching the selected algorithm. Show head/neck bounds, hand/twist vectors, angles, speed/strength and thresholds with arrows/bars on a selected or nearest enemy. Diagnose why twist-speed/angle setting changes seem ineffective and results feel inconsistent/random.
+
+### Maps, presentation and future interactions
+
+- **Firing-range laser cannon spawn (22:37:06):** one cannon starts inside its platform and glitches. Investigate map placement versus physics regression; vrfiringrange player position (138, -757, 41).
+- **Persistent-decal continuation (23:07:45; see PERM_DECALS.md and earlier leftovers):** investigate reported blood/decal slowdowns and explain/test exactly when marks become baked, including whether baking starts only at the bucket limit. Disabling persistent decals leaves some marks and removes others; research and tune that transition/visibility behavior.
+- **Glove customization (23:08:18):** alongside skin tone/bracers, offer fingerless/full-finger glove textures and independent hue, saturation and lightness controls for glove color.
+- **Pillar/pipe climbing feasibility (23:10:39):** research climbing by bracing a hand on each side and moving upward hand-over-hand.
+- **Climbing leg animation (23:10:39):** legs should seek plausible support points on walls, ledges, pillars and ladders so looking down shows believable assistance during climbing.
