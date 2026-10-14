@@ -55,4 +55,10 @@ void clear();
 // vr_permdecal_info: the layer's pages, atlas and stamps.
 void info_f();
 
+// Saves: the stamps as the save's comment lines (VR_SaveDecalLines; valid until the next call); a save's read before
+// its load (VR_ReadSaveInfo), baked again once its map has loaded (restore, once a frame: true if it baked).
+[[nodiscard]] const char* saveLines();
+void readSaveLines(const char* text);
+bool restore();
+
 } // namespace qvr::permdecals

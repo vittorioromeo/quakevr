@@ -19,7 +19,9 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 namespace qvr::permdecals
 {
@@ -473,6 +475,113 @@ void keep(const Stamp& s)
     counts.stamps++;
 }
 
+// ---- Saves -------------------------------------------------------------------------------------------------------
+//
+// The stamps go into the saved game as comment lines (COM_Parse skips them): "// qvrdecals 1 map <model> n <count>",
+// then "// qvrd <base64>" lines of 35-byte records (the middle in 1/8 units, the half extents in 1/64, the normal in
+// 1/32767, the depth in 1/4 units, the darkness, the cell, the model), baked again once the saved game's map has loaded.
+
+constexpr int recordBytes = 35;
+constexpr za::SizeT lineChars = 4000; // base64 characters a line (a multiple of 4)
+
+// What the saves read and write (the main thread's): the lines of the last save (valid until the next: the save's
+// thread writes them), the records of the save being loaded, and the map loads seen (a record set waits for the next).
+struct SaveState
+{
+    za::String lines;
+    za::Vector<za::U8> pending;
+    char pendingMap[MAX_QPATH] = {};
+    int pendingAfterLoad = -1; // the map load it waits for (-1: none)
+    int mapLoads = 0;
+};
+SaveState saves;
+
+constexpr const char* base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+[[nodiscard]] int base64Value(char c)
+{
+    return c >= 'A' && c <= 'Z' ? c - 'A'
+           : c >= 'a' && c <= 'z' ? c - 'a' + 26
+           : c >= '0' && c <= '9' ? c - '0' + 52
+           : c == '+' ? 62
+           : c == '/' ? 63
+                      : -1;
+}
+
+void putInt(za::U8*& p, long long v, int bytes)
+{
+    for(int i = 0; i < bytes; i++)
+    {
+        *p++ = static_cast<za::U8>((static_cast<unsigned long long>(v) >> (8 * i)) & 0xFF);
+    }
+}
+
+[[nodiscard]] long long getInt(const za::U8*& p, int bytes)
+{
+    unsigned long long v = 0;
+    for(int i = 0; i < bytes; i++)
+    {
+        v |= static_cast<unsigned long long>(*p++) << (8 * i);
+    }
+    const unsigned long long sign = 1ull << (8 * bytes - 1);
+    return static_cast<long long>((v ^ sign) - sign); // (sign-extended)
+}
+
+[[nodiscard]] long long quantise(float v, float scale, long long lo, long long hi)
+{
+    return za::clamp(static_cast<long long>(za::floor(v * scale + 0.5f)), lo, hi);
+}
+
+void encode(const Stamp& s, za::U8* p)
+{
+    for(int k = 0; k < 3; k++)
+    {
+        putInt(p, quantise(s.centre[k], 8.f, -2147483647ll, 2147483647ll), 4);
+    }
+    for(int k = 0; k < 3; k++)
+    {
+        putInt(p, quantise(s.u[k], 64.f, -32767, 32767), 2);
+    }
+    for(int k = 0; k < 3; k++)
+    {
+        putInt(p, quantise(s.v[k], 64.f, -32767, 32767), 2);
+    }
+    for(int k = 0; k < 3; k++)
+    {
+        putInt(p, quantise(s.normal[k], 32767.f, -32767, 32767), 2);
+    }
+    putInt(p, quantise(s.depth, 4.f, 0, 127), 1);
+    putInt(p, quantise(s.dark, 127.f, 0, 127), 1);
+    putInt(p, za::clamp(s.cell, 0, 127), 1);
+    putInt(p, za::clamp(s.model, 0, 32767), 2);
+}
+
+[[nodiscard]] Stamp decode(const za::U8* p)
+{
+    Stamp s;
+    for(int k = 0; k < 3; k++)
+    {
+        s.centre[k] = static_cast<float>(getInt(p, 4)) / 8.f;
+    }
+    for(int k = 0; k < 3; k++)
+    {
+        s.u[k] = static_cast<float>(getInt(p, 2)) / 64.f;
+    }
+    for(int k = 0; k < 3; k++)
+    {
+        s.v[k] = static_cast<float>(getInt(p, 2)) / 64.f;
+    }
+    for(int k = 0; k < 3; k++)
+    {
+        s.normal[k] = static_cast<float>(getInt(p, 2)) / 32767.f;
+    }
+    s.depth = static_cast<float>(getInt(p, 1)) / 4.f;
+    s.dark = static_cast<float>(getInt(p, 1)) / 127.f;
+    s.cell = static_cast<int>(getInt(p, 1));
+    s.model = static_cast<int>(getInt(p, 2));
+    return s;
+}
+
 // The flushes' program: a slot's quad, the mark's texel read as the live marks read it, its factor halved (the blend
 // doubles it: GL_DST_COLOR, GL_SRC_COLOR multiplies the slot by it, in 0..2).
 constexpr const char* bakeVertexSource = R"(#version 430
@@ -546,6 +655,15 @@ int bakeEntities(const Stamp& s)
         }
         const int number = atoi(m->name + 1);
         if(number <= 0 || number >= static_cast<int>(map.submodels.size()) || map.submodels[static_cast<za::SizeT>(number)] != m)
+        {
+            continue;
+        }
+        // Far from it (its box's middle where drawn, roughly: its origin's offset), not looked at further.
+        const glm::vec3 middle = glm::vec3{e->origin[0], e->origin[1], e->origin[2]} +
+                                 (glm::vec3{m->mins[0], m->mins[1], m->mins[2]} + glm::vec3{m->maxs[0], m->maxs[1], m->maxs[2]}) * 0.5f;
+        const float half = glm::length(glm::vec3{m->maxs[0], m->maxs[1], m->maxs[2]} - glm::vec3{m->mins[0], m->mins[1], m->mins[2]}) * 0.5f;
+        if(glm::distance(middle, s.centre) > half * za::max(1.f, e->scale > 0 ? static_cast<float>(e->scale) / 16.f : 1.f) +
+                                                 glm::length(s.u) + glm::length(s.v) + s.depth + 64.f)
         {
             continue;
         }
@@ -692,9 +810,123 @@ void info_f()
         static_cast<int>(stamps.size()), counts.stamps, counts.faces, counts.pages, counts.evicted, counts.dropped);
 }
 
+const char* saveLines()
+{
+    SaveState& s = saves;
+    s.lines.clear();
+    if(!laidOut() || stamps.empty())
+    {
+        return "";
+    }
+    za::Vector<za::U8> bytes; // (a save's: no scratch kept for it)
+    bytes.resize(stamps.size() * recordBytes);
+    for(za::SizeT i = 0; i < stamps.size(); i++)
+    {
+        encode(stamps[i], bytes.data() + i * recordBytes);
+    }
+    s.lines += va("// qvrdecals 1 map %s n %d\n", map.name, static_cast<int>(stamps.size()));
+    za::SizeT column = 0;
+    for(za::SizeT i = 0; i < bytes.size(); i += 3)
+    {
+        if(column == 0)
+        {
+            s.lines += "// qvrd ";
+        }
+        const za::SizeT left = bytes.size() - i;
+        const unsigned v = (static_cast<unsigned>(bytes[i]) << 16) | (left > 1 ? static_cast<unsigned>(bytes[i + 1]) << 8 : 0u) |
+                           (left > 2 ? static_cast<unsigned>(bytes[i + 2]) : 0u);
+        s.lines += base64Chars[(v >> 18) & 63];
+        s.lines += base64Chars[(v >> 12) & 63];
+        s.lines += left > 1 ? base64Chars[(v >> 6) & 63] : '=';
+        s.lines += left > 2 ? base64Chars[v & 63] : '=';
+        column += 4;
+        if(column >= lineChars || i + 3 >= bytes.size())
+        {
+            s.lines += '\n';
+            column = 0;
+        }
+    }
+    return s.lines.cStr();
+}
+
+void readSaveLines(const char* text)
+{
+    SaveState& s = saves;
+    s.pending.clear();
+    s.pendingAfterLoad = -1;
+    const char* header = text ? strstr(text, "\n// qvrdecals 1 map ") : nullptr;
+    int count = 0;
+    if(!header || sscanf(header + 1, "// qvrdecals 1 map %63s n %d", s.pendingMap, &count) != 2 || count <= 0)
+    {
+        return;
+    }
+    unsigned v = 0;
+    int bits = 0;
+    for(const char* p = strstr(text, "\n// qvrd "); p; p = strstr(p + 1, "\n// qvrd "))
+    {
+        for(const char* c = p + 9; *c && *c != '\r' && *c != '\n' && *c != '='; c++)
+        {
+            const int x = base64Value(*c);
+            if(x < 0)
+            {
+                continue;
+            }
+            v = (v << 6) | static_cast<unsigned>(x);
+            bits += 6;
+            if(bits >= 8)
+            {
+                bits -= 8;
+                s.pending.pushBack(static_cast<za::U8>((v >> bits) & 0xFF));
+            }
+        }
+    }
+    if(s.pending.size() < static_cast<za::SizeT>(count) * recordBytes)
+    {
+        Con_Printf("permdecals: the saved game's marks are cut short (%d of %d): not baked again\n",
+            static_cast<int>(s.pending.size() / recordBytes), count);
+        s.pending.clear();
+        return;
+    }
+    s.pending.resize(static_cast<za::SizeT>(count) * recordBytes);
+    s.pendingAfterLoad = s.mapLoads + 1;
+}
+
+bool restore()
+{
+    SaveState& s = saves;
+    if(s.pendingAfterLoad < 0 || s.mapLoads < s.pendingAfterLoad || !laidOut())
+    {
+        return false;
+    }
+    s.pendingAfterLoad = -1;
+    int baked = 0;
+    const int count = static_cast<int>(s.pending.size() / recordBytes);
+    if(on() && !ZA_STRCMP(s.pendingMap, map.name))
+    {
+        for(int i = 0; i < count; i++)
+        {
+            const Stamp st = decode(s.pending.data() + static_cast<za::SizeT>(i) * recordBytes);
+            if(bakeOn(st) > 0)
+            {
+                keep(st);
+                baked++;
+            }
+        }
+        Con_DPrintf("permdecals: %d of the saved game's %d marks baked again\n", baked, count);
+    }
+    s.pending.clear();
+    return baked > 0;
+}
+
 } // namespace qvr::permdecals
 
 using namespace qvr;
+
+// SaveData_Fill: the permanent decals as the save's "// qvrdecals" and "// qvrd" lines ("" none; valid until the next).
+extern "C" const char* VR_SaveDecalLines(void)
+{
+    return qvr::permdecals::saveLines();
+}
 
 // GL_BuildBModelVertexBuffer: the world model's faces laid out (kept if the same map is loaded again at the same
 // density: what was baked stays).
@@ -707,6 +939,7 @@ extern "C" void VR_PermDecalsLayout(void)
     {
         return;
     }
+    saves.mapLoads++; // (a saved game's marks wait for its map: restore)
     if(map.model == m && map.surfaces == m->numsurfaces && map.density == density && !ZA_STRCMP(map.name, m->name))
     {
         return;

@@ -1606,6 +1606,10 @@ void bakeSettled()
     {
         return;
     }
+    if(permdecals::restore() && !atlas) // (a saved game's marks, once its map has loaded)
+    {
+        makeAtlas();
+    }
     if(vr_decals.value && permdecals::on() && !decals.empty())
     {
         QVR_PROFILE("decals baked");
