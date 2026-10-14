@@ -255,3 +255,36 @@ normal run range show run-to-run variability; do not call these universal instru
 a clear cost here; repeat with the actual workload/headset when deciding which detail modes to enable. The final
 campaign annotation, non-evaluating compile-out macros and allocator transition guard were added afterward; the
 annotation/hunk work runs before warmup, and disabled Release hooks already optimized away, so recorded steady frame paths are unchanged.
+
+
+## Ragdoll callstack experiment (2026-10-14)
+
+An exclusive optimized Release-Tracy depth-8 e1m1 capture at 250 FPS, QC/memory detail off and coarse GPU,
+recorded 5,607,014 completed stacked CPU zones, 1,096 stack payloads and 16,188 decoded source frames.
+The matching reader found zero nesting errors, unresolved frames, truncation, samples or context switches.
+Eight grunts were spawned/killed with seed 7, then observed while driven, settled and awakened by a blast;
+a separate mock capture proved a held shin. These are explicit zone timings, not sampled functions or scheduler data.
+
+Narrow regions now isolate ragdoll creation/bone hulls/active updates/publication and body publication/after callbacks.
+Benchmark begin annotates existing vr_bench_begin names for exact phase boundaries. No gameplay/cvar defaults changed.
+Each death took 0.148-0.286 ms, including 0.082-0.132 ms for 11 bone hulls. The 35.496 ms sync hitch occurred
+0.653 s before the first ragdoll creation and reproduced without callstacks (36.810 ms): bone hulls are not its cause.
+Decoded stack 527 follows syncEntities -> createBody -> addPropShapes -> gunPieces -> cutGun -> convex::decompose -> jobs::parallelFor.
+Six nested dispatches are annotated convex cuts; 30.414 ms remains exclusive to the coarse sync zone, so this proves
+gun decomposition executes there without assigning all unscoped time to its internals. Next targeted scopes would bracket
+whole decomposition/voxelisation/hull work and record cache hit/key reasons; preserve the existing concave collision shapes.
+
+| Phase | State | Box3D mean / p99 ms per physics step (depth 8) | Mean CPU busy ms, depth 8 / depth 0 |
+|---|---|---:|---:|
+| Active | 8 ragdolls, 3 driven initially; 117.2 world bodies awake on average | 0.737 / 0.904 | 0.7424 / 0.5579 |
+| Settled | all 88 ragdoll parts asleep, 16 other world bodies awake | 0.134 / 0.156 | 0.5686 / 0.4672 |
+| Blast/contact | 95.4 world bodies awake on average | 0.659 / 0.754 | 0.7251 / 0.5340 |
+
+The 600-render-frame active benchmark contains 171 physics steps; distinguish per-render-frame and per-step costs.
+Native Solve Constraints dominates active/contact physics; pose publication and after-step callbacks remain small.
+One held corpse raises Box3D mean/p99 from 0.0657/0.0831 to 0.1325/0.1899 ms per step.
+Depth-8 CPU-busy overhead versus the identical connected depth-0 scenario is approximately 7% empty, 18% creation,
+33% active, 22% settled and 36% contact. This is one sequential pair, not a universal overhead or tail-regression estimate.
+Normal Release/QC/FGD/statics/precedence checks and e1m1 smoke passed; both optimized builds and three captures passed.
+Local evidence in retained adpbrload/scratch: RAGDOLL_PROFILE.md, rag_stack_flat.tracy, rag_stack_mock.tracy,
+rag_nostack_flat.tracy, analysis JSON/stack exports, and reusable rag_capture.ps1/rag_analyze.py/rag_reader.cpp.
