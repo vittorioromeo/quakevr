@@ -5796,3 +5796,43 @@ limits and private kit evidence. Author follow-up: ordinary liquid combat/wet co
 ## 2026-10-14: exact voxel optimization (voxelopt)
 
 Reuse exact barycentric fractions and ordered chamfer neighbours, with an interior-cell fast path and 4.1 KB bounded stack storage. No geometry/settings changes. Against the current d986 baseline, 288 fixture comparisons preserve sampled points, voxel states/distances, pieces/reports and rebuilt hull mass bytes; allocation balance zero. Eleven frozen inputs, 16 alternating repetitions: voxel medians improve 22.5-37.4%, sequential decomposition 5.8-19.9%. Live captures were excluded because scene/input matching was insufficient; no live FPS gain claim. Normal/profiling builds, smoke, shotgun port/fallback and lying nailgun magazine checks pass. Details: VOXEL_OPTIMIZATION.md; private evidence backed up in kit/scratch/voxelopt. Author VR check: held/mirrored/dropped gun ports and wells.
+## The spawn tool's ghost, held by a hand (worktree `tghost`, 2026-10-14)
+
+The spawn tool's ghost was moved and turned with the sticks, which took the player's walking and turning away and put
+the ghost's controls on a thumbstick. It is held by the hands now, and the spawn tool takes no stick at all: the off one
+walks, the gun's turns, as with any other gun. No new cvars, no new panel rows; `vr_toolgun_snap` and
+`vr_toolgun_turn_axis` are the physgun's alone (their panel rows already live on its page).
+
+`Quake/vr/vr_toolgun.cpp`: `GhostHold` (which hand moves the ghost, which turns it, and how far the holding hand has
+gone), `ghostShowing()` (the toolgun held, its aim and the choice valid, not picking, the spawn tool), and
+`ghostHoldFrame()`, run from `toolgun::frame()` before `sticksFrame()`. The other hand's A / X press takes the hold and
+nothing else: from then on only that hand's *translation* counts, applied 1:1 in the gun's level axes (`levelAxes()`:
+its forward flattened, its right, the world up) as offsets, so the ghost never jumps at the press and that hand's
+rotation does nothing. The gun hand's A / X press holds its turn: the ghost's yaw only, from the change in that hand's
+way (`handTurnWeight`, the physgun wrist's damping, so a hand near straight up or down does not spin it); its pitch and
+twist and the offsets are untouched. A release ends the hold and keeps what it did; `reset()` (the panel's Reset,
+`vr_toolgun_reset`) clears both. `toolgun::button()` swallows that hand's A / X while a ghost shows — no jump, and the
+hook never sees it (`primaryHeld` is set from the key actually sent) — and with nothing chosen, picking, or another tool
+in hand the button goes through exactly as before. `sticksTaken()` is unchanged: the spawn tool never takes a stick. The
+gun's stick press still cycles the tools, A / X held still the one before. `vr_toolgun_status` prints the offsets, the
+turn, which hand holds it, and where that hand is and how far it has followed.
+
+`Misc/quakevr/toolgun_spawn_6dof_test.sh <agent>` (new) proves it in vrfiringrange with a grunt chosen, both hand
+orientations. The A / X presses, in order, are taken by the tool, by the tool, *not* taken with no choice, by the tool,
+by the tool, by the tool. A hand moved by -20 +10 +15 (the player faces west: 20 along the gun's forward, 10 to its
+right, 15 up, its aim `-0.87 -0.00 -0.50`) gives offsets `20.0 10.0 15.0`; turning that hand in place changes nothing;
+walking with the off stick while its A / X is held moves the player 83 units and the offsets not at all; the trigger
+places the grunt at `44 -546 57` where that ghost stood (`45 -546 57`); the sticks then walk and turn the player with
+the ghost untouched. The gun hand's yaw +90 turns the ghost `0.0 -> 90.0` with the offsets unchanged, its pitch swings
+the aim 0.2 degrees and the ghost 0.0, its twist swings the aim -37.7 and the ghost -37.6 (the turn follows the way and
+nothing else); its stick still turns the player and its press with A / X held lands on the tool before. Offsets survive
+a tool change; Reset clears offsets and turn to zero; the physgun with A / X held reports `adjust 1` as before. With the
+gun in the off hand (a fresh map: `impulse 189` gives it there only when the main hand does not hold one) the same holds
+with the hands swapped: the main hand's A / X moves it `20.3 10.2 15.2`, the off hand's yaw turns it 90.0.
+`toolgun_panel_test.sh` and `toolgun_joint_menu_test.sh` pass unchanged (70 picks, 0 wrong, both hands), the melee
+canary is unchanged, e1m1 smoke clean, build 0 warnings.
+
+Note for the author's check: turning *yourself* with the gun's stick while its A / X is held turns the ghost too — the
+hold follows the hand's way in the world, as the physgun's wrist does. Author VR check: choose a grunt, hold X in the
+left hand and reach forward, aside and up; let go and place it; hold A in the gun hand and turn your wrist; then the
+same with the gun in the left hand.

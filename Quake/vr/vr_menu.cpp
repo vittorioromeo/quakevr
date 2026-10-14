@@ -6232,7 +6232,8 @@ za::Vector<Item> pageDebugTools()
         command("Toolgun Spawn Catalog", "vr_toolgun_spawnlist").help("Lists every AD spawn entry and whether it is available in this map."), // AD support
         command("Toolgun Status", "vr_toolgun_status")
             .help("vr_toolgun_status: its hand and tool, where it aims and what it meets (its place, pinned or loose, its joints), "
-                  "the spawn choice and ghost, what the physgun holds, the scale gizmo, the joints (console)."),
+                  "the spawn choice and ghost (its offsets, turn, and which hand holds it), what the physgun holds, the scale "
+                  "gizmo, the joints (console)."),
         command("Unfreeze Everything", "vr_toolgun_unfreeze_all").help("vr_toolgun_unfreeze_all: every prop the physgun froze falls again."),
         command("Remove Every Joint", "vr_toolgun_unjoin_all").help("vr_toolgun_unjoin_all: the toolgun's joints, all of them."),
         command("Open or Close Its Panel", "vr_toolgun_menu")
