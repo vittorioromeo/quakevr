@@ -429,7 +429,7 @@ int VR_EntityTrail (int ent, int type);											// CL_RocketTrail: rockets, la
 // Client view (view.c): runs on the main thread, before the renderer.
 void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
 int VR_BloodActive (void); // peripheral feedback; independent of screen tints
-void VR_BloodBind (void); // uniforms 2 and 3 in viewblend/warpscale
+void VR_BloodBind (void); // uniforms 2..4 in viewblend/warpscale
 void VR_OnDamage (int armor, int blood, const float *from);	// V_ParseDamage: a hit knocks the drawn hands, the controllers buzz (vr_painknock.cpp)
 
 // Console (console.c).

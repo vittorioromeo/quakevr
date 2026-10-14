@@ -5838,3 +5838,34 @@ Author VR review: judge mild default strength and comfort, front/rear convention
 frequency/width, and interaction with movement vignette and black fades. No melee/gameplay changes.
 The test's early artificial health-zero/health-100 sequence made a later save fail to parse; a fresh-map
 save/load passed, so the permanent harness isolates saves from that artificial death state.
+
+
+## Adjustable blood-vignette coverage (22:08:07 note; bloodfx_size)
+
+The requested size adjustment follows the backlog-first triage published in 5f7ed2009. Only blood coverage
+changed: archived vr_blood_hit_size and vr_blood_health_size independently control Hit Coverage and Health
+Coverage on VR Settings > Blood Feedback. Both default to 0.65, range 0-1 in 0.05 menu steps; zero hides only
+that effect, one gives the widest coverage. Existing intensity, direction, damage handling and pulse controls
+are unchanged. Each effect now receives its own radial mask before bounded alpha composition.
+
+Defaults move the clear/full radii from the old fixed 0.6/1.162 to 0.4125/0.8475, making the red reach much
+farther into peripheral vision. The full range runs from a narrow outer rim to broad coverage, while even the
+widest setting retains a clear centre of radius 0.15 (normalized screen coordinates). Values clamp to 0-1;
+NaN becomes zero. New cvars acquire defaults automatically, without changing existing intensity preferences.
+
+Normal and Release-Tracy builds passed; normal VR/flat capture smokes and Tracy smoke passed. Calibration
+board text rebuilt (qbsp/vis/light exit 0); menu path check: 6 found, 0 missing. Focused production-GPU tests
+covered 18 size/toggle states per view, without repeating unrelated original regression suites. At sizes
+0.20/0.65/1.00, left-eye hit pixels affected by more than two bytes were 416757/810474/979310, health
+425454/815569/981620. Right-eye hit counts: 416409/810607/979352; health425469/815517/981672. Flat scene:
+hit121509/253294/309117, health123880/254965/309754. Every view increased monotonically, with no pointwise
+coverage regression over two bytes. Changing an inactive effect's size, zeroing only its size, or disabling
+its toggle changed the independent effect by at most one byte. Clear-centre differences were at most one
+byte in the eyes, zero flat. Negative, above-range and invalid sizes matched their bounded reference images.
+Retained scalars at the captured peak: hit0.2200, health0.2429, rate2.2071 Hz.
+
+Off/default/wide comparisons use original default intensities and actual eye captures; desktop mirror
+updates can lag uncapped mock frames. VR and flat comparisons visibly confirm the wider default and broader
+maximum while preserving the clear centre. Reusable test: Misc/quakevr/test_blood_size.py, run with the bundled
+image Python, optional --tracy-smoke. Evidence and scripts: C:/OHWorkspace/qvr-kit/scratch/bloodfx_size.
+Author VR review: choose preferred independent coverage and confirm the new defaults are comfortably visible.

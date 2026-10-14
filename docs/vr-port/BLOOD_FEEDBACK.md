@@ -9,10 +9,12 @@ damage, aim, legacy view kicks, hand knocks, or haptics.
 | vr_blood_hit | 1 | Hit vignette on/off |
 | vr_blood_hit_duration | 0.45 | Seconds to fade out, 0–5; 0 disables |
 | vr_blood_hit_intensity | 0.22 | Maximum single-hit edge opacity, 0–0.8 |
+| vr_blood_hit_size | 0.65 | Hit coverage, 0-1; 0 hides it, 1 widest |
 | vr_blood_hit_bias | 0.75 | Directional preference, 0–1; 0 is even |
 | vr_blood_health | 1 | Low-health vignette on/off |
 | vr_blood_health_threshold | 35 | Health below which pulses appear, 1–200 |
 | vr_blood_health_intensity | 0.25 | Peak opacity approaching zero health, 0–0.8 |
+| vr_blood_health_size | 0.65 | Independent health coverage, 0-1; 0 hides it, 1 widest |
 | vr_blood_health_duration | 0.25 | Individual beat width in seconds, 0.05–2 |
 | vr_blood_health_rate | 0.75 | Frequency near threshold in Hz, 0.1–3 |
 | vr_blood_health_rate_scale | 2 | Extra frequency as severity increases, 0–4 |
@@ -28,7 +30,13 @@ A hit lasts the configured duration with a quadratic fade. Its strength counts b
 armor damage, reaching maximum at 20 combined damage; smaller hits retain at least a quarter.
 Eight overlapping hits retain separate world directions. Their lobes add within an opacity bound.
 Hit and health alpha compose as 1 − (1 − hit) × (1 − health), limited to 0.8. The inner circle
-(radius 0.6 in normalized screen coordinates) stays untouched by these effects.
+stays untouched by these effects. Hit Coverage and Health Coverage independently control how far each
+effect reaches inward, without changing peak intensity, direction, hit duration or pulse timing.
+The wider defaults start at radius 0.4125 and reach full strength at 0.8475 in normalized screen
+coordinates; previously the fixed radii were 0.6 and 1.162. At maximum coverage the inner clear
+radius is still 0.15, with full strength from 0.55. At small positive sizes the effect retreats
+to the outer edges/corners. Size zero hides only that effect; its existing toggle remains independent.
+Values are clamped to 0-1; NaN is treated as zero.
 
 The direction is stored in world space and projected using each rendered eye/view's current angles.
 Left/right hits prefer that edge; front prefers the upper edge, rear the lower edge; above/below
@@ -61,3 +69,8 @@ directions, head turns, armor-only events, pause/expiry, timing/intensity contro
 toggles, threshold/healing, death/respawn, save/load, map/disconnect, scaling curves and visual
 eye/flat composition. Real-headset review should confirm mild defaults, peripheral depth/comfort,
 left/right versus front/rear cues, health pulsation, and overlapping movement-comfort/black fades.
+
+Coverage GPU regression: run Misc/quakevr/test_blood_size.py with the bundled image Python and optional --tracy-smoke.
+It measures actual left/right eye images and flat scene pixels for monotonic coverage, independent masks/toggles,
+zero/out-of-range/invalid sizes and the minimum clear centre. Evidence lives in scratch/blood_size.
+VR comparisons use captured eye images because uncapped mock runs can outpace the desktop mirror update rate.

@@ -848,7 +848,7 @@
 // entity 7
 {
 "classname" "func_worldtext_banner"
-"worldtext" "Hit and health edges: {menu:Blood Feedback}"
+"worldtext" "Blood edge sizes: {menu:Blood Feedback}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.23"
 "angle" "270"

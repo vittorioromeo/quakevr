@@ -174,6 +174,7 @@ void info_f()
     float hit = 0.f;
     for(const Hit& e : hits)
         hit = 1.f - (1.f - hit) * (1.f - hitLook(e, clock - e.at));
+    Con_Printf("blood size: hit %.3f health %.3f\n", setting(vr_blood_hit_size, 0.f, 1.f), setting(vr_blood_health_size, 0.f, 1.f));
     const glm::vec4 p = projection(r_refdef.viewangles);
     const auto edge = [&p](float x, float y)
     {
@@ -276,9 +277,9 @@ bool active()
 {
     advance();
     if(!playable() || portals::viewing()) return false;
-    if(healthLook(cl.stats[STAT_HEALTH], phase).peak > 0.f) return true;
+    if(setting(vr_blood_health_size, 0.f, 1.f) > 0.f && healthLook(cl.stats[STAT_HEALTH], phase).peak > 0.f) return true;
     for(const Hit& h : hits)
-        if(hitLook(h, clock - h.at) > 0.f) return true;
+        if(setting(vr_blood_hit_size, 0.f, 1.f) > 0.f && hitLook(h, clock - h.at) > 0.f) return true;
     return false;
 }
 void bind()
@@ -286,6 +287,7 @@ void bind()
     advance();
     const glm::vec4 p = projection(r_refdef.viewangles);
     GL_Uniform4fFunc(2, p.x, p.y, p.z, p.w);
+    GL_Uniform4fFunc(4, setting(vr_blood_hit_size, 0.f, 1.f), setting(vr_blood_health_size, 0.f, 1.f), 0.f, 0.f);
     GL_Uniform4fFunc(3, static_cast<float>(glx + r_refdef.vrect.x),
         static_cast<float>(gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height),
         1.f / za::max(r_refdef.vrect.width, 1), 1.f / za::max(r_refdef.vrect.height, 1));
