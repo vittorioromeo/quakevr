@@ -334,3 +334,4 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 ## Other
 
 - Review b7ee7d69a9c1ff5cd838b03916f3cdfb31457158 and related commits' toolgun changes
+- His words: "I feel that enemies like knights often get too close and go through the player when they perform a melee attack, which can be disorienting and make it difficult for the player to parry or counterattack. Is this something specific to knights? Should we add some sort of minimum radius distance from the player that the enemy will be smoothly pushed back into when performing a melee attack?"
