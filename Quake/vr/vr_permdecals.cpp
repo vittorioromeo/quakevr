@@ -619,7 +619,7 @@ void main()
 
 bool on()
 {
-    return vr_permdecals.value != 0.f && cl.worldmodel && laidOut();
+    return vr_permdecals.value != 0.f && vr_decals.value != 0.f && cl.worldmodel && laidOut();
 }
 
 int bakeWorld(const Stamp& s)
@@ -697,6 +697,10 @@ int bakeEntities(const Stamp& s)
 
 void flush(unsigned decalAtlas)
 {
+    if(atlas.texture && atlas.size != atlasSizeWanted() && laidOut())
+    {
+        (void)ensureAtlas(); // (vr_permdecal_atlas changed: made again at its size, what was baked baked again)
+    }
     if(!atlas.texture || (pending.vertices.empty() && pending.clears.empty() && !pending.table))
     {
         atlas.serial++;

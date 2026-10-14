@@ -34,7 +34,7 @@ struct Stamp
     int model;
 };
 
-// The layer on (vr_permdecals) and the map laid out for it.
+// The layer on (vr_permdecals, with vr_decals: off hides what was baked) and the map laid out for it.
 [[nodiscard]] bool on();
 
 // Stamp `s` (in the world's space, its model ignored) baked on the static world's faces under it; how many faces.
