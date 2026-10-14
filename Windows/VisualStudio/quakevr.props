@@ -2,7 +2,7 @@
 <!-- Quake VR module build settings, imported by ironwail.vcxproj (after its own, so these override them; the toolset:
      quakevr.toolset.props).
      The whole engine is built by clang-cl (the ClangCL toolset: Visual Studio's "C++ Clang tools for Windows"; linked by
-     lld-link): the C files as C11 (as upstream's), the Quake VR C++ files as C++23, so any of them can include Zancle
+     lld-link): the C files as C17, the Quake VR C++ files as C++23, so any of them can include Zancle
      (Quake/vr/external/zancle/README.md). -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Release-Tracy opts in automatically; the legacy QvrTracy property still works for other configurations. -->
@@ -107,9 +107,9 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     </ClCompile>
     <ClInclude Include="..\..\Quake\vr\*.h;..\..\Quake\vr\*.hpp" />
     <!-- The precompiled header's own compile (/Yc) misses LanguageStandard_C (the ClangCL toolset leaves it out of that
-         step), and a header made as C17 (clang-cl's default) is refused by the C11 files that use it. -->
+         step), and the header and the files that use it must agree; VS2026 also drops it for the files themselves. -->
     <ClCompile Update="..\..\Quake\*.c">
-      <AdditionalOptions>/std:c11 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/std:c17 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <!-- Box3D (Quake/vr/external/box3d/README.md): the physics library, C17, run on the engine's job pool. No FMA
          contraction (its cross-platform determinism relies on it; the build has no FMA instructions anyway: x64's
