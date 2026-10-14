@@ -222,3 +222,13 @@ stats), the jump boots' power level, coop.
 - **Flaky tests:** judo_test `hold` "held on" drag (moves 4-12 units by landing; ~1 in 3 under the 4-unit bar); hotblade_test `throw_cold`/`throw_hot` (axe sometimes arrives under 6.3 m/s after a bounce).
 - **Incandescent blades leftovers:** weapons start cold after a level change; Quoth's long wall torch is no fire spot (flame position unknown); force-grab/counter/toolgun glows override the heat glow on an aimed dropped blade.
 - **Main menu:** flat menu still bottom-heavy (needs a limit clear of the corner buttons/notice box); VR menu with a Continue row (a save present) untested after vertical centring.
+
+## Test suite speed-up leftovers (2026-10-14, branch agent/fasttests)
+
+- Merge agent/fasttests into next (5 commits: testbatch helper + 22 batched suites, 8100 s -> 1200 s) after a check.
+- Prove and commit the uncommitted conversions in worktree qvr-agents/fasttests: 19 more release-suite scripts, 3
+  Python suites, batching of runs built from earlier runs' output, the expanded TESTING.md section, the kit README line.
+- Finish the full release suite's old-way baseline (stopped at 33 of 43) and record before/after.
+- brush_test.py: not batched yet (uses saves and screenshots every run).
+- guard/decap (drawn frames) and voreshove (real-time frames) stay unbatched: find a way if worthwhile.
+- ROUND22.md note for the speed-up.
