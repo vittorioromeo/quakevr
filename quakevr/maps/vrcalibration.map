@@ -848,19 +848,28 @@
 // entity 7
 {
 "classname" "func_worldtext_banner"
+"worldtext" "Hit and health edges: {menu:Blood Feedback}"
+"worldtext_halign" "1"
+"worldtext_scale" "0.23"
+"angle" "270"
+"origin" "0 156 60"
+}
+// entity 8
+{
+"classname" "func_worldtext_banner"
 "worldtext" "{calibration exit}\nWalk through when you are done."
 "worldtext_halign" "1"
 "worldtext_scale" "0.33"
 "angle" "90"
 "origin" "0 -153 132"
 }
-// entity 8
+// entity 9
 {
 "classname" "info_player_start"
 "origin" "0 0 26"
 "angle" "90"
 }
-// entity 9
+// entity 10
 {
 "classname" "light"
 "_surface" "ceil1_1"
@@ -870,7 +879,7 @@
 "_surface_offset" "2"
 "origin" "0 0 160"
 }
-// entity 10
+// entity 11
 {
 "classname" "light"
 "_surface" "light3_3"
@@ -880,7 +889,7 @@
 "_surface_offset" "2"
 "origin" "0 0 160"
 }
-// entity 11
+// entity 12
 {
 "classname" "light"
 "light" "200"
@@ -888,7 +897,7 @@
 "_color" "1 0.9 0.75"
 "origin" "55.0866 -137.7166 132"
 }
-// entity 12
+// entity 13
 {
 "classname" "light"
 "light" "200"
@@ -896,7 +905,7 @@
 "_color" "1 0.9 0.75"
 "origin" "137.7166 -55.0866 132"
 }
-// entity 13
+// entity 14
 {
 "classname" "light"
 "light" "200"
@@ -904,7 +913,7 @@
 "_color" "1 0.9 0.75"
 "origin" "137.7166 55.0866 132"
 }
-// entity 14
+// entity 15
 {
 "classname" "light"
 "light" "200"
@@ -912,7 +921,7 @@
 "_color" "1 0.9 0.75"
 "origin" "55.0866 137.7166 132"
 }
-// entity 15
+// entity 16
 {
 "classname" "light"
 "light" "200"
@@ -920,7 +929,7 @@
 "_color" "1 0.9 0.75"
 "origin" "-55.0866 137.7166 132"
 }
-// entity 16
+// entity 17
 {
 "classname" "light"
 "light" "200"
@@ -928,7 +937,7 @@
 "_color" "1 0.9 0.75"
 "origin" "-137.7166 55.0866 132"
 }
-// entity 17
+// entity 18
 {
 "classname" "light"
 "light" "200"
@@ -936,7 +945,7 @@
 "_color" "1 0.9 0.75"
 "origin" "-137.7166 -55.0866 132"
 }
-// entity 18
+// entity 19
 {
 "classname" "light"
 "light" "200"
@@ -944,7 +953,7 @@
 "_color" "1 0.9 0.75"
 "origin" "-55.0866 -137.7166 132"
 }
-// entity 19
+// entity 20
 {
 "classname" "light"
 "light" "280"
@@ -952,7 +961,7 @@
 "_color" "1 0.97 0.92"
 "origin" "0 0 196"
 }
-// entity 20
+// entity 21
 {
 "classname" "light"
 "light" "260"

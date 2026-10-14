@@ -474,6 +474,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageWeaponDamage();
 [[nodiscard]] za::Vector<Item> pageHotBlades();
 [[nodiscard]] za::Vector<Item> pageDamage();
+[[nodiscard]] za::Vector<Item> pageBloodFeedback();
 [[nodiscard]] za::Vector<Item> pageFingersCollisions();
 [[nodiscard]] za::Vector<Item> pageFlashlightLowGrip();
 [[nodiscard]] za::Vector<Item> pageFlashlightOverheadGrip();
@@ -1483,6 +1484,36 @@ int campaignsBloodyShown = -1;
 }
 
 // Split from Gameplay: damage multipliers, positional damage and knockback.
+[[nodiscard]] za::Vector<Item> pageBloodFeedback()
+{
+    return {
+        header("When Hit"),
+        toggle("Hit Blood Vignette", vr_blood_hit)
+            .help("Blood-red edges after a hit, including armor-only damage. The centre stays clear. Independent of Screen Tints and low-health pulses."),
+        slider("Hit Duration", vr_blood_hit_duration, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("Seconds until a hit fades away. 0: no hit effect. Pausing freezes it."),
+        slider("Hit Intensity", vr_blood_hit_intensity, 0.f, 0.8f, 0.02f, "%.2f")
+            .help("Strongest opacity of a hit. Hits taking less than 20 health plus armor are lighter. Overlapping hits remain bounded."),
+        slider("Directional Bias", vr_blood_hit_bias, 0.f, 1.f, 0.05f, "%.2f")
+            .help("0: equal on every edge. 1: strongest towards the source, weakest opposite. Front: upper edge; rear: lower; above/below: upper/lower. Turns follow the world direction. Unknown, near-player and known self/environment hits are even."),
+        header("Low Health"),
+        toggle("Low Health Blood Vignette", vr_blood_health)
+            .help("Blood-red edges pulse below the health threshold. Losing health makes them stronger and more frequent; healing eases them. Independent of hits."),
+        slider("Health Threshold", vr_blood_health_threshold, 1.f, 100.f, 1.f, "%.0f").extend(1.f, 200.f)
+            .help("Pulses below this health, from the local player's actual health stat. None at or above it, or while dead."),
+        slider("Health Intensity", vr_blood_health_intensity, 0.f, 0.8f, 0.02f, "%.2f")
+            .help("Peak opacity as health approaches zero. The centre stays clear. Both blood effects together never exceed 0.8 opacity."),
+        slider("Pulse Duration", vr_blood_health_duration, 0.05f, 2.f, 0.05f, "%.2f s")
+            .help("Width of each beat. Independent of rate: wide beats overlap smoothly when pulses become frequent."),
+        slider("Pulse Rate", vr_blood_health_rate, 0.1f, 3.f, 0.05f, "%.2f Hz")
+            .help("Beats per second near the threshold. Low-health Rate Scale increases this as health falls, up to 6 Hz."),
+        slider("Low-health Rate Scale", vr_blood_health_rate_scale, 0.f, 4.f, 0.1f, "%.1f")
+            .help("Rate is Pulse Rate times (1 + severity times this). 0: constant rate; 2: up to three times as frequent."),
+        slider("Health Scaling Curve", vr_blood_health_curve, 0.25f, 4.f, 0.05f, "%.2f")
+            .help("Severity is the missing share below the threshold, raised to this power. 1: linear; above 1: gentler near the threshold; below 1: stronger sooner. Both opacity and rate use severity."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageDamage()
 {
     return {
@@ -5849,6 +5880,18 @@ za::Vector<Item> pageDebugReports()
 za::Vector<Item> pageDebugTools()
 {
     return {
+        header("Blood Feedback"),
+        command("Blood Feedback Report", "vr_blood_info"),
+        command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),
+        command("Preview Hit Left", "vr_blood_test left"),
+        command("Preview Hit Right", "vr_blood_test right"),
+        command("Preview Hit Front", "vr_blood_test front"),
+        command("Preview Hit Rear", "vr_blood_test rear"),
+        command("Preview Hit Above", "vr_blood_test up"),
+        command("Preview Hit Below", "vr_blood_test down"),
+        command("Preview Neutral Hit", "vr_blood_test neutral"),
+        command("Preview Armor Hit", "vr_blood_test armor"),
+        command("Clear Hit Preview", "vr_blood_test clear"),
         header("Rebuild and Reload"),
         command("Rebuild Ledge Map", "vr_ledges rebuild").help("vr_ledges rebuild: the map's ledges found again (a moment), with their count."),
         command("Reload Models", "vr_model_reload")
@@ -8160,6 +8203,7 @@ const Page pages[] = {
     {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
     {"Arcane Dimensions' Guns", pageAdGuns, pageEnemyWeapons}, // AD support: the AD soldiers' guns (vr_ad_enemyguns.qc)
     {"Incandescent Blades", pageHotBlades, pageWeaponsHub}, // (QC vr_hotblade.qc)
+    {"Blood Feedback", pageBloodFeedback, pageMain, LevelStandard},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -8698,6 +8742,7 @@ za::Vector<Item> pageMain()
                   "hands, grabbing the edge (needs Climbing on; with Climbing off, Quake's jump out stays)."),
 
         header("Comfort"),
+        open("Blood Feedback", pageIndex(pageBloodFeedback)).help("Independent peripheral feedback for hits and low health, with timing, strength and directional controls."),
         cycle("Vignette", vr_comfort_vignette, {{0.f, "Off"}, {1.f, "Moving and Turning"}, {2.f, "Moving Only"}, {3.f, "Turning Only"}})
             .help("Darkens the edges of your view while the sticks move or turn you: it eases motion sickness for many. "
                   "Your own steps in the room never do it."),

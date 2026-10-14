@@ -153,13 +153,18 @@ static const char viewblend_vertex_shader[] =
 ////////////////////////////////////////////////////////////////
 
 static const char viewblend_fragment_shader[] =
+QVR_BLOOD_UNIFORMS // QVR: damage and low-health peripheral feedback
 "layout(location=0) uniform vec4 Color;\n"
 "\n"
 "layout(location=0) out vec4 out_fragcolor;\n"
 "\n"
 "void main()\n"
 "{\n"
-"	out_fragcolor = Color;\n"
+"	float blood = QvrBloodAlpha();\n"
+"	if (blood == 0.0) { out_fragcolor = Color; return; }\n"
+"	float alpha = 1.0 - (1.0 - blood) * (1.0 - Color.a);\n"
+"	vec3 rgb = vec3(0.42, 0.008, 0.015) * blood * (1.0 - Color.a) + Color.rgb * Color.a;\n"
+"	out_fragcolor = vec4(rgb / max(alpha, 0.00001), alpha);\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -181,6 +186,7 @@ static const char warpscale_vertex_shader[] =
 ////////////////////////////////////////////////////////////////
 
 static const char warpscale_fragment_shader[] =
+QVR_BLOOD_UNIFORMS // QVR
 "layout(binding=0) uniform sampler2D Tex;\n"
 "\n"
 "layout(location=0) uniform vec4 UVScaleWarpTime; // xy=Scale z=Warp w=Time\n"
@@ -205,6 +211,7 @@ static const char warpscale_fragment_shader[] =
 "#endif // WARP\n"
 "\n"
 "	out_fragcolor = texture(Tex, uv * uv_scale);\n"
+"	out_fragcolor.rgb = mix(out_fragcolor.rgb, vec3(0.42, 0.008, 0.015), QvrBloodAlpha());\n"
 "	out_fragcolor.rgb = mix(out_fragcolor.rgb, BlendColor.rgb, BlendColor.a);\n"
 "}\n";
 

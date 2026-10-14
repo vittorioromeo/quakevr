@@ -837,6 +837,19 @@ QVR_CVAR(vr_menu_holster_back_z, "0", CVAR_NONE)
 // Comfort vignette (vr_input.cpp comfortVignette, the eyes' post-process): the view's edges darkened while the sticks move
 // or turn you (not your own steps in the room, nor a teleport): 0 off, 1 moving and turning, 2 moving only, 3 turning only;
 // how dark (0 .. 1: at 1 a narrow tunnel).
+// Independent cosmetic blood feedback; legacy screen tints and view kicks stay intact.
+QVR_CVAR(vr_blood_hit, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_hit_duration, "0.45", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_hit_intensity, "0.22", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_hit_bias, "0.75", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_threshold, "35", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_intensity, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_duration, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_rate, "0.75", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_rate_scale, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_curve, "1", CVAR_ARCHIVE)
+
 QVR_CVAR(vr_comfort_vignette, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_comfort_vignette_strength, "0.5", CVAR_ARCHIVE)
 // Comfort fade (vr_comfortfade.cpp): seconds the view takes to come back from black when the game moves you at once (a

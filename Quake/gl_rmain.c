@@ -891,7 +891,7 @@ GL_NeedsSceneEffects
 */
 qboolean GL_NeedsSceneEffects (void)
 {
-	return framebufs.scene.samples > 1 || water_warp || r_refdef.scale != 1;
+	return framebufs.scene.samples > 1 || water_warp || r_refdef.scale != 1 || VR_BloodActive (); // QVR
 }
 
 /*
@@ -2091,7 +2091,7 @@ void R_WarpScaleView (void)
 	srcw = r_refdef.vrect.width / r_refdef.scale;
 	srch = r_refdef.vrect.height / r_refdef.scale;
 
-	needwarpscale = r_refdef.scale != 1 || water_warp || (v_blend[3] && gl_polyblend.value && !softemu);
+	needwarpscale = r_refdef.scale != 1 || water_warp || VR_BloodActive () || (v_blend[3] && gl_polyblend.value && !softemu);
 	fbodest = GL_NeedsPostprocess () ? framebufs.composite.fbo : 0;
 
 	if (msaa)
@@ -2129,6 +2129,7 @@ void R_WarpScaleView (void)
 
 	t = M_ForcedUnderwater () ? realtime : cl.time;
 	GL_Uniform4fFunc (0, smax, tmax, water_warp ? 1.f/256.f : 0.f, (float)t);
+	VR_BloodBind (); // QVR: before the existing color shift (black fades stay black)
 	if (v_blend[3] && gl_polyblend.value && !softemu)
 		GL_Uniform4fvFunc (1, 1, v_blend);
 	else
