@@ -335,3 +335,23 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 
 - Review b7ee7d69a9c1ff5cd838b03916f3cdfb31457158 and related commits' toolgun changes
 - His words: "I feel that enemies like knights often get too close and go through the player when they perform a melee attack, which can be disorienting and make it difficult for the player to parry or counterattack. Is this something specific to knights? Should we add some sort of minimum radius distance from the player that the enemy will be smoothly pushed back into when performing a melee attack?"
+
+## His notes, 2026-10-15
+
+- MDL dequantisation follow-up (docs/vr-port/MDL_DEQUANT.md; vr_mdl_dequant): "Much better! But I still see some
+  wobbling/pulsating and, most importantly, a noticeable itch at the loop point for certain animations (e.g. grunt and
+  knight idle animation)." Ideas: treat looping animations as cyclic (smooth across last->first frame, so the loop
+  seam is continuous); detect loops for unnamed-frame models (QVR soldier etc.: split only at jumps today); stronger
+  temporal smoothing within the half-step box (e.g. minimise higher derivatives, or a global least-squares over the
+  cycle); remaining pulsation may be linear inter-frame blending, so consider smoothing the interpolation too
+  (r_lerpmodels 3 spline) or rebuilding rigged monsters from the fitted skeleton (backlog item (2) above).
+- Quad damage on the player's body/IK arms: a different effect than electricity, so the two states are distinct.
+- Several VR menus open at once, each with its own state, e.g. two side by side for different tasks in parallel.
+- Strong prop/weapon throws and melee hits make enemies lose balance like a shove (chance based, and/or a %hp damage
+  threshold, prop weight, ...); maybe strong fist hits to the head too.
+- Slow motion still turns on by accident: double-tapping the wrist gadget screen during frantic melee/shoves. Find a
+  good fix (e.g. ignore taps while the hand moves fast or right after a blow, a deliberate gesture, a hold, ...).
+- Active-ragdoll get-up moves the body around too much: it visibly glides on the ground plane instead of just
+  getting up (ragstagger/ragmove get-up pin).
+- More gore: thin blood streams from bullet holes in enemies; teeth flying out when punching faces; real-time vertex
+  deformation showing flesh chunks torn away; thinner, longer-range blood splatters onto surfaces behind a shot enemy.
