@@ -34,10 +34,10 @@ Prop carrying: light vs heavy crate and explosive box; heavy/bulky loads slow th
 Toolgun: beam leaves the lens centre; a hard stick click while holding a prop keeps it; B/Y panel, tool tiles, stick-press cycles tools, spawn grid, physgun wrist rotation; panel readable and well placed?
 Brush tool (toolgun 6th tile): create, move, resize, paint, copy, delete boxes; stand on, climb and shoot them
 Brush shapes: make a wedge, cylinder, pyramid; turn one with Rotate; Undo
-Brush light: a new box goes from flat light to shadows; next to a flickering light it flickers too
+Brush light: a new box goes from flat light to shadows; next to a flickering light it flickers too; AD moving items/lifts and flashlight shadows through portals remain stable
 Brush saving: save/load restores brushes; Bake Map keeps original intact and creates a complete separate map with entities, old and new brushes
 Arms: bracers on/off same skin tone; skin slider affects only skin; two gadget straps and stable position; bent wrists fit hands; blood crosses hand/arm seam
-Box3D update: props, ragdolls, teleporter pass-through feel unchanged; Physics AVX2 on vs off feel the same; held/mirrored and dropped gun ports/wells still accept shells/magazines after hull reuse
+Box3D update: props, ragdolls, teleporter pass-through feel unchanged; Physics AVX2 on vs off feel the same; held/mirrored and dropped gun ports/wells still accept shells/magazines after hull reuse and voxel optimization
 Deaths: shoot grunts and knights in the body vs the head (different falls); a charging knight stumbles; grab a dying arm
 Hit reactions: shoot a living grunt in the body, head, arm, leg: flinch, knee buckle, limp (Strength slider)
 Shoves: one-hand shove (staggers, falls about half the time), two-hand shove; ogres rarely fall: rates OK?
