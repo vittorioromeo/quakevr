@@ -6,6 +6,7 @@
 
 #include "vr_angvel.hpp"
 #include "vr_backend.hpp"
+#include "vr_tracy.h"
 #include "vr_touch.hpp"
 #include "vr_body.hpp"
 #include "vr_box3d.hpp"
@@ -1427,6 +1428,7 @@ public:
 
     [[nodiscard]] bool start() override
     {
+        VR_TracyDisplay(0, -1); // mock has no runtime display-period or skipped-period feedback
         ensureTextures();
         return true;
     }

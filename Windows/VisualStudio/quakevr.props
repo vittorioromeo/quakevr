@@ -7,15 +7,19 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Opt-in only; normal builds do not include/link Tracy. Release remains optimized with symbols. -->
   <PropertyGroup>
+    <QvrTracyCallstackDepth Condition="'$(QvrTracyCallstackDepth)'==''">0</QvrTracyCallstackDepth>
+    <QvrTracySystemTracing Condition="'$(QvrTracySystemTracing)'==''">false</QvrTracySystemTracing>
     <QvrTracy Condition="'$(QvrTracy)'==''">false</QvrTracy>
   </PropertyGroup>
   <PropertyGroup Condition="'$(QvrTracy)'=='true'">
+    <QvrTracyTraceDefines Condition="'$(QvrTracySystemTracing)'!='true'">TRACY_NO_SYSTEM_TRACING;TRACY_NO_CONTEXT_SWITCH;TRACY_NO_SAMPLING</QvrTracyTraceDefines>
+    <QvrTracyStackDefines Condition="'$(QvrTracyCallstackDepth)'!='0'">TRACY_CALLSTACK=$(QvrTracyCallstackDepth)</QvrTracyStackDefines>
     <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)-Tracy\</IntDir>
     <OutDir>$(SolutionDir)Build-$(ProjectName)\bin\$(PlatformShortName)\$(Configuration)-Tracy\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(QvrTracy)'=='true'">
     <ClCompile>
-      <PreprocessorDefinitions>QVR_TRACY;TRACY_ENABLE;TRACY_ON_DEMAND;TRACY_ONLY_LOCALHOST;TRACY_NO_CRASH_HANDLER;TRACY_NO_SYSTEM_TRACING;TRACY_NO_CONTEXT_SWITCH;TRACY_NO_SAMPLING;BOX3D_PROFILE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>QVR_TRACY;TRACY_ENABLE;TRACY_ON_DEMAND;TRACY_ONLY_LOCALHOST;TRACY_NO_CRASH_HANDLER;$(QvrTracyTraceDefines);$(QvrTracyStackDefines);BOX3D_PROFILE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\..\Quake\vr\external\tracy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link><AdditionalDependencies>dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>

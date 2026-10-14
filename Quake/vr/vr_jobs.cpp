@@ -2,6 +2,10 @@
 
 #include "vr_jobs.hpp"
 #include "vr_tracy.h"
+#ifdef QVR_TRACY
+#include <atomic>
+namespace { std::atomic<unsigned> tracyQueued{0}; }
+#endif
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -49,6 +53,7 @@ bool detail::Job::claimAndRun() noexcept
     {
         return false;
     }
+    qvr::tracyprof::Scope scope{"Job execute"};
     execute();
     counters.tasks.fetchAddRelaxed(1u);
     phase.storeRelease(2);
@@ -58,6 +63,7 @@ bool detail::Job::claimAndRun() noexcept
 
 void detail::Job::wait() noexcept
 {
+    qvr::tracyprof::Scope scope{"Job wait or claim"};
     if(claimAndRun())
     {
         counters.claimedByWaiter.fetchAddRelaxed(1u);
@@ -65,6 +71,7 @@ void detail::Job::wait() noexcept
     }
     for(int p; (p = phase.loadAcquire()) != 2;)
     {
+        qvr::tracyprof::Scope scope{"Job blocking wait"};
         phase.waitOnceAcquire(p);
     }
 }
@@ -89,8 +96,15 @@ int Pool::workers() const noexcept
 
 void Pool::post(detail::JobPtr<detail::Job> job)
 {
+    qvr::tracyprof::Scope scope{"Job enqueue"};
+#ifdef QVR_TRACY
+    VR_TracyPlot("Job queue entries", tracyQueued.fetch_add(1, std::memory_order_relaxed) + 1);
+#endif
     impl->threads->post([job = ZA_MOVE(job)] {
         VR_TracyThreadName("Quake VR worker");
+#ifdef QVR_TRACY
+        VR_TracyPlot("Job queue entries", tracyQueued.fetch_sub(1, std::memory_order_relaxed) - 1);
+#endif
         job->claimAndRun();
     });
 }
@@ -177,6 +191,8 @@ Site* sites() noexcept
 void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel,
     Site* site) noexcept
 {
+    qvr::tracyprof::Scope scope{"Job parallel dispatch and join"};
+    if(site) VR_TracyText(site->name);
     if(count == 0)
     {
         return;
@@ -215,6 +231,8 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
         *impl->threads, impl->loops, count,
         [&](za::SizeT begin, za::SizeT end) {
             VR_TracyThreadName("Quake VR worker");
+            qvr::tracyprof::Scope scope{"Job parallel chunk"};
+            VR_TracyText(site ? site->name : "parallelFor");
             body(begin, end);
             if(za::ThisThread::getId() == caller)
             {

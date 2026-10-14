@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //image.c -- image loading
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 
 static byte *Image_LoadPCX (FILE *f, int *width, int *height);
 static byte *Image_LoadLMP (FILE *f, int *width, int *height);
@@ -135,6 +136,7 @@ unsigned char *Image_DecodeMemory (const unsigned char *bytes, int length, int *
 
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt)
 {
+	VR_TRACY_SCOPE("Image decode");
 	double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 	byte *data = Image_LoadImageRun (name, width, height, fmt);
 	VR_TimeAdd (data ? "image files found and decoded (png, tga, pcx, lmp)" : "image files looked for, none found", Sys_DoubleTime () - t0);
@@ -148,6 +150,7 @@ static unsigned char *Image_HunkAlloc (int bytes, const char *what)
 
 static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum srcformat *fmt)
 {
+	VR_TRACY_SCOPE("Image decode");
 	static const char *const stbi_formats[] = {"png", "tga", "jpg", NULL};
 	FILE	*f;
 	int		i;
@@ -308,6 +311,7 @@ Image_LoadPCX
 */
 static byte *Image_LoadPCX (FILE *f, int *width, int *height)
 {
+	VR_TRACY_SCOPE("Image decode");
 	pcxheader_t	pcx;
 	int			x, y, w, h, readbyte, runlength, start;
 	byte		*p, *data;
@@ -403,6 +407,7 @@ Image_LoadLMP
 */
 static byte *Image_LoadLMP (FILE *f, int *width, int *height)
 {
+	VR_TRACY_SCOPE("Image decode");
 	lmpheader_t	qpic;
 	size_t		pix;
 	int			mark;

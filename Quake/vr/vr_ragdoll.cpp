@@ -4,6 +4,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_tracy.h"
 #include "vr_api_render.h"
 #include "vr_cvars.hpp"
 #include "vr_box3d.hpp"
@@ -2448,6 +2449,16 @@ void swapModels()
     recordGetup();
 }
 
+#ifdef QVR_TRACY
+void tracyPlots()
+{
+    int count = 0, bodies = 0;
+    for(const auto& p : draw.byNum)
+        if(p.rig) { ++count; bodies += p.bodies; }
+    VR_TracyPlot("Published ragdolls", count);
+    VR_TracyPlot("Published ragdoll bodies", bodies);
+}
+#endif
 void restoreModels()
 {
     for(const Swapped& s : draw.swapped)

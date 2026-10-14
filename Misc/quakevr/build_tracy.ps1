@@ -1,9 +1,9 @@
 # Dedicated optimized build; normal Release outputs and intermediate files are preserved.
-param([string]$MSBuild = 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe')
+param([ValidateRange(0, 32)][int]$CallstackDepth = 0, [switch]$SystemTracing, [string]$MSBuild = 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe')
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $log = Join-Path $repo 'scratch/build_tracy.log'
-& $MSBuild (Join-Path $repo 'Windows/VisualStudio/ironwail.sln') '-p:Configuration=Release' '-p:Platform=x64' '-p:QvrTracy=true' '-m' '-v:q' '-nologo' *> $log
+& $MSBuild (Join-Path $repo 'Windows/VisualStudio/ironwail.sln') '-p:Configuration=Release' '-p:Platform=x64' '-p:QvrTracy=true' "-p:QvrTracyCallstackDepth=$CallstackDepth" "-p:QvrTracySystemTracing=$($SystemTracing.IsPresent.ToString().ToLowerInvariant())" '-m' '-v:q' '-nologo' *> $log
 $buildExit = $LASTEXITCODE
 Get-Content $log | Select-String ' error |warning C' | Select-Object -First 20
 if ($buildExit -ne 0) { throw "Tracy build failed ($buildExit), see $log" }

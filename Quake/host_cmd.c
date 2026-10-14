@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 #include "q_ctype.h"
 #include "json.h"
 #include <time.h>
@@ -2443,6 +2444,7 @@ Host_Savegame_f
 */
 static void Host_Savegame_f (void)
 {
+	VR_TRACY_SCOPE("Save game");
 	char		relname[MAX_OSPATH];
 	char		name[MAX_OSPATH];
 	const char	*skipnotify;
@@ -2553,6 +2555,7 @@ Host_Loadgame_f
 */
 static void Host_Loadgame_f (void)
 {
+	VR_TRACY_SCOPE("Load game");
 	static char	*start;
 	
 	char	name[MAX_OSPATH];

@@ -14,6 +14,7 @@
 #include "vr_engine.hpp"
 #include "vr_input.hpp"
 #include "vr_profile.hpp"
+#include "vr_tracy.h"
 #include "vr_xr_runtime.hpp"
 
 #include "Zancle/Base/InitializerList.hpp"
@@ -768,6 +769,7 @@ private:
             const XrTime steps = (frameState.predictedDisplayTime - timing.lastDisplay + period / 2) / period;
             timing.missed += steps > 1 ? static_cast<int>(steps - 1) : 0;
         }
+        VR_TracyDisplay(static_cast<double>(period) * 1e-6, timing.missed);
         timing.lastDisplay = frameState.predictedDisplayTime;
 
         if(timing.since < 0.0)

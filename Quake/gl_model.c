@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // on the same machine.
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 static qmodel_t*	loadmodel;
 static char	loadname[32];	// for hunk tags
 
@@ -413,6 +414,7 @@ Loads a model into the cache
 */
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 {
+	VR_TRACY_SCOPE("Model preparation");
 	byte	*buf;
 	int		mod_type;
 	qboolean	derived, recorded; // QVR

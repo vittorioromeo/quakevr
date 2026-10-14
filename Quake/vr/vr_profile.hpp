@@ -68,7 +68,7 @@ enum Phase
 inline constexpr const char* settingCvars[] = {"vr_graphics_preset", "vid_fsaa", "r_scale", "vr_render_scale",
     "vr_visibility_mask", "r_oit", "vr_mirror", "host_maxfps", "vid_vsync", "vr_shadow_dlights", "vr_shadow_dlight_size",
     "vr_shadow_precision", "vr_shadow_muzzleflash", "vr_shadow_maplights", "vr_shadow_maplight_size", "vr_shadow_self",
-    "vr_shadow_filter", "vr_shadow_atlas", "vr_shadow_distance", "vr_dlight_models", "vr_specular", "vr_normalmaps",
+    "vr_pbr", "vr_pbr_strength", "vr_parallax", "vr_parallax_models", "vr_parallax_distance", "vr_parallax_grazing", "vr_parallax_depth_write", "vr_shadow_filter", "vr_shadow_atlas", "vr_shadow_distance", "vr_dlight_models", "vr_specular", "vr_normalmaps",
     "vr_bloom", "vr_bloom_radius", "vr_particles", "vr_particle_mult", "r_particles", "vr_decals", "vr_decal_max",
     "vr_blob_shadows", "vr_texture_smooth", "gl_texturemode", "gl_texture_anisotropy", "vr_body_mode", "vr_body_blood",
     "vr_gib_blood", "r_dynamic", "r_softemu", "r_waterwarp", "r_lerpmodels", "vr_flashlight", "vr_retro",

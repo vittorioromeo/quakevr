@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 #include "q_ctype.h"
 #include "bgmusic.h"
 #include "steam.h"
@@ -2280,6 +2281,8 @@ into the file.
 */
 int COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id)
 {
+	VR_TRACY_SCOPE("File open");
+	VR_TracyText(filename);
 	return COM_FindFile (filename, NULL, file, path_id);
 }
 
@@ -2315,6 +2318,8 @@ Allways appends a 0 byte.
 
 byte *COM_LoadFile (const char *path, int usehunk, unsigned int *path_id)
 {
+	VR_TRACY_SCOPE("File load");
+	VR_TracyText(path);
 	int		h;
 	byte	*buf;
 	char	base[32];
