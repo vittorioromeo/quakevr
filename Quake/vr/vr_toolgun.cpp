@@ -21,8 +21,7 @@
 // nothing), and A/X held in the gun's hand turns it (its yaw, from that hand's way, not its pitch or twist); while a
 // ghost is held that hand's jump and the hook's unreel are quiet. The gun's stick press switches to the next tool
 // (X/A held: the one before). B/Y opens and closes its panel over the gun (vr_toolgun_panel.cpp). Single player: the
-// listen server's
-// edicts, changed between its frames (as a console command does).
+// listen server's edicts, changed between its frames (as a console command does).
 
 #include "vr_toolgun.hpp"
 #include "vr_toolgun_brush.hpp"
