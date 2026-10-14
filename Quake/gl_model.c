@@ -276,6 +276,27 @@ void Mod_ReloadAliasModel (qmodel_t *mod)
 
 /*
 ===================
+Mod_ReuploadAliasModels -- QVR: every loaded alias model's vertex buffer built again from its data (vr_mdl_dequant)
+===================
+*/
+void Mod_ReuploadAliasModels (void)
+{
+	int		i;
+	qmodel_t	*mod;
+	void	*hdr;
+
+	for (i=0 , mod=mod_known ; i<mod_numknown ; i++, mod++)
+	{
+		if (mod->type != mod_alias || mod->needload || !mod->meshvbo)
+			continue;
+		hdr = Cache_Check (&mod->cache);
+		if (hdr)
+			GLMesh_LoadVertexBuffer (mod, (aliashdr_t *) hdr);
+	}
+}
+
+/*
+===================
 Mod_ReloadAliasModels -- QVR: vr_model_reload: every loaded alias model whose name `match` accepts, read again; the
 number read
 ===================

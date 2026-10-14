@@ -1738,7 +1738,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "// gl_mesh.c) keeps the flash's size: moved only as far as the gun vertex it rides on (its 4th bytes) is steadied.\n" \
 "vec3 PackedPos(uint index)\n" \
 "{\n" \
-"	return vec3((PackedPosNor[index].xxx >> uvec3(0, 8, 16)) & 255u);\n" \
+"	return vec3((PackedPosNor[index].xxx >> uvec3(0, 8, 16)) & 255u) + PoseOffset(index); // dequantised (vr_mdldequant.cpp)\n" \
 "}\n" \
 "vec3 ZeroBlend(vec3 pos, InstanceData inst)\n" \
 "{\n" \
@@ -1748,7 +1748,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "	float blend = float(uint(inst.Padding) >> 24) / 255.0;\n" \
 "	uvec2 z = PackedPosNor[zero + uint(gl_VertexID)];\n" \
 "	if ((z.y & 0x80000000u) == 0u)\n" \
-"		return mix(pos, vec3((z.xxx >> uvec3(0, 8, 16)) & 255u), blend);\n" \
+"		return mix(pos, PackedPos(zero + uint(gl_VertexID)), blend);\n" \
 "	uint ref = (z.x >> 24) | ((z.y >> 16) & 0x7F00u);\n" \
 "	vec3 gun = mix(PackedPos(uint(inst.Pose1) + ref), PackedPos(uint(inst.Pose2) + ref), inst.Blend);\n" \
 "	return pos - (gun - PackedPos(zero + ref)) * blend;\n" \

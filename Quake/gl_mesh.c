@@ -58,6 +58,13 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *aliasmodel, aliashdr_t *paliashdr)
 		for (j=0 ; j<paliashdr->numverts ; j++)
 			verts[i*paliashdr->numverts + j] = poseverts[i][j];
 
+	// QVR: each vertex's path along its animations dequantised (vr/vr_mdldequant.cpp: vr_mdl_dequant)
+	{
+		unsigned *dequant = (unsigned *) Hunk_AllocNoFill (paliashdr->numposes * paliashdr->numverts * sizeof (unsigned));
+		paliashdr->dequant = (byte *)dequant - (byte *)paliashdr;
+		VR_MdlDequantCompute (paliashdr, dequant);
+	}
+
 	// there can never be more than this number of verts and we just put them all on the hunk
 	// (each vertex can be used twice, once with the original UVs and once with the seam adjustment)
 	desc = (aliasmesh_t *) Hunk_Alloc (sizeof (aliasmesh_t) * pheader->numverts * 2);
@@ -169,6 +176,8 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 	if (numverts >= 65535)
 		Sys_Error ("Model %s has too many verts (%d)", m->name, numverts);
 
+	if (mainhdr->poseverttype == PV_QUAKE1) // QVR: the dequantised offsets after the poses (PoseFrac)
+		totalvbosize = GL_AlignSSBO (totalvbosize) + mainhdr->numposes * numverts * sizeof (unsigned);
 	totalvbosize = GL_AlignSSBO (totalvbosize);
 	if (mainhdr->poseverttype == PV_QUAKE1 || mainhdr->poseverttype == PV_MD3)
 		totalvbosize += numverts * sizeof (meshst_t);
@@ -274,6 +283,27 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 			}
 		}
 		VR_HeapFree (flamerefs); // QVR
+
+		// QVR: the dequantised offsets (vr/vr_mdldequant.cpp), in the poses' order; zero (the stored bytes) while vr_mdl_dequant is 0
+		if (mainhdr->poseverttype == PV_QUAKE1)
+		{
+			unsigned *frac;
+			vertofs = GL_AlignSSBO (vertofs);
+			for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+				hdr->vbofracofs = vertofs;
+			frac = (unsigned *) (vbodata + vertofs);
+			for (f = 0; f < mainhdr->numposes; f++)
+			{
+				for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+				{
+					const aliasmesh_t *desc = (aliasmesh_t *) ((byte *) hdr + hdr->meshdesc);
+					const unsigned *src = hdr->dequant && VR_MdlDequantOn () ? (const unsigned *) ((byte *) hdr + hdr->dequant) + hdr->numverts * f : NULL;
+					for (v = 0; v < hdr->numverts_vbo; v++)
+						*frac++ = src ? src[desc[v].vertindex] : 0;
+				}
+			}
+			vertofs = (byte *) frac - vbodata;
+		}
 	}
 	else // PV_IQM
 	{

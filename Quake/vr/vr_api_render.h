@@ -127,6 +127,8 @@ int VR_AnimSmooth (const struct entity_s *e, const void *aliashdr, int pose1, in
 int VR_AnimSmoothPinned (const struct entity_s *e, const void *aliashdr, short *pose1, short *pose2, float *blend); // R_SetupAliasFrame: the entity vr_anim_smooth_pin holds between two frames: its lerp
 void VR_AnimSmoothBind (const struct entity_s *e, int channel); // the batch's swings and its model's rest pose bound for the alias shader (SSBOs 8, 9), after its pose buffers
 void VR_AliasInstance (const struct entity_s *e, const float matrix[16], const void *aliashdr, int kind, vraliasinstance_t *out); // R_DrawAliasModel_Real: kind 1 standard, 0 showtris/showskel, 2 depth only (all zero)
+void VR_MdlDequantCompute (const void *aliashdr, unsigned *out); // GL_MakeAliasModelDisplayLists: per pose and vertex, its dequantised offset from the stored bytes (vr_mdldequant.cpp)
+int VR_MdlDequantOn (void); // GLMesh_LoadVertexBuffer: vr_mdl_dequant (0: the offsets uploaded as zero, the stored bytes drawn)
 void VR_AliasFlameRefs (const void *aliashdr, unsigned short *refs); // GLMesh_LoadVertexBuffer: per VBO vertex, 0 or 1 + the gun vertex a muzzle flash's vertex rides on
 void VR_AliasMorph (const struct entity_s *e, const void *aliashdr, float ambient[24]); // instance: a weapon's morph into its other model (Ambient[2..5].w)
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting

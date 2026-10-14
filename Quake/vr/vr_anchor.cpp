@@ -3,6 +3,7 @@
 
 #include "vr_anchor.hpp"
 #include "vr_engine.hpp"
+#include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -432,10 +433,7 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
 
 [[nodiscard]] glm::vec3 poseVertex(const aliashdr_t* hdr, int pose, int vertex)
 {
-    const trivertx_t* verts = reinterpret_cast<const trivertx_t*>(
-        reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-    const trivertx_t& v = verts[pose * hdr->numverts + vertex];
-    return {v.v[0], v.v[1], v.v[2]};
+    return mdldequant::poseVertex(hdr, pose, vertex); // as drawn: dequantised (vr_mdl_dequant)
 }
 
 // Pose index for the entity's current frame (animated for frame groups).

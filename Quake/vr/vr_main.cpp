@@ -25,6 +25,7 @@
 #include "vr_lighting.hpp"
 #include "vr_angvel.hpp"
 #include "vr_animsmooth.hpp"
+#include "vr_mdldequant.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_backend.hpp"
 #include "vr_throw.hpp"
@@ -1901,6 +1902,7 @@ extern "C" void VR_Init()
     VR_FileCacheRegisterCommands();
     jobs::registerCommands();
     animsmooth::registerCommands();
+    mdldequant::registerCommands();
     hitreact::registerCommands();
     edictindex::registerCommands();
     weapons::registerCvars();
@@ -1943,6 +1945,7 @@ extern "C" void VR_Init()
     voicenotes::init();
     highlights::init();
     cleanskins::init();
+    mdldequant::init();
     posing::init();
     sightalign::init();
     bodycal::init();
