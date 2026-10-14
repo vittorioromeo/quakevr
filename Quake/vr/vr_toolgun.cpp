@@ -14,10 +14,14 @@
 // While the physgun holds something both sticks are its, no button needed (the gun's stick: forward and back, and turns
 // it about vr_toolgun_turn_axis; the other: up, down and sideways); no walking or turning meanwhile (vr_input.cpp), and
 // neither stick's press does anything. It also turns with the gun's hand (vr_toolgun_physgun_wrist); X/A held snaps its
-// angles to vr_toolgun_snap (kept when let go). Else X/A held on the toolgun's hand: the sticks move the ghost, or scale
-// the aimed prop (the gun's stick, up and down). The gun's stick press switches to the next tool (X/A held: the one
-// before). B/Y opens and closes its panel over the gun (vr_toolgun_panel.cpp). Single player: the listen server's
-// edicts, changed between its frames (as a console command does).
+// angles to vr_toolgun_snap (kept when let go). X/A held on the toolgun's hand also scales the aimed prop (the gun's
+// stick, up and down). The spawn tool takes no stick at all: you walk with one and turn with the other as ever. With
+// its ghost showing, A/X held in the other hand moves it (its offsets, 1:1 with that hand's translation along the
+// gun's level way; its place at the press is kept and only the hand's movement from then on counts, its rotation does
+// nothing), and A/X held in the gun's hand turns it (its yaw, from that hand's way, not its pitch or twist); while a
+// ghost is held that hand's jump and the hook's unreel are quiet. The gun's stick press switches to the next tool
+// (X/A held: the one before). B/Y opens and closes its panel over the gun (vr_toolgun_panel.cpp). Single player: the
+// listen server's edicts, changed between its frames (as a console command does).
 
 #include "vr_toolgun.hpp"
 #include "vr_toolgun_brush.hpp"
@@ -218,6 +222,20 @@ struct Gizmo
     float along0{0.f};
     float reach0{0.f};
 };
+
+// The spawn tool's hold: its ghost driven by a hand rather than by a stick (docs/vr-port/TOOLGUN.md, "Spawn"). The
+// other hand's A/X held moves it (`move`: the ghost's offsets, 1:1 with that hand's translation, along the gun's level
+// way); the gun hand's A/X held turns it (`turn`: its yaw, from that hand's way). Neither hand's stick is taken: the
+// player walks and turns as ever. `yaw`: that hand's yaw last frame (the turn is counted from it as it points,
+// handTurnWeight: its way, not its twist).
+struct GhostHold
+{
+    int move{-1}; // the hand whose A/X moves the ghost (-1: none)
+    int turn{-1}; // and the hand whose A/X turns it
+    float yaw{0.f};
+    glm::vec3 seen{0.f}; // (tests) what the follow integrated, units
+};
+GhostHold ghostHold;
 
 struct ToolgunState
 {
@@ -523,13 +541,20 @@ void pick(int num)
     Con_Printf("toolgun: picked %s (%s)\n", sel.classname, sel.model);
 }
 
+// The ghost is showing: the spawn tool in hand, something chosen, the aim known, not picking it from the world. Its
+// hold (ghostHold) is only for this: A/X elsewhere is the sticks' as ever.
+[[nodiscard]] bool ghostShowing()
+{
+    return tg.hand >= 0 && tg.aim.valid && tg.sel.valid && !tg.picking && currentTool() == Tool::Spawn;
+}
+
 // Where the ghost stands: on what the gun points at (lifted onto a floor; out from a wall or a ceiling), moved by the
 // offsets along the gun's level way, facing you, turned by the turn.
 void updateGhost()
 {
     tg.ghost = false;
     const Aim& a = tg.aim;
-    if(!a.valid || !tg.sel.valid || tg.picking || currentTool() != Tool::Spawn)
+    if(!ghostShowing())
     {
         return;
     }
@@ -1037,9 +1062,39 @@ void sticksFrame(float dt)
     }
     case Tool::Brush: toolgun::brushtool::push(push); break;
     default:
-        tg.offset += glm::vec3{push, side, lift};
-        tg.turn[axis] += turn;
+        // The spawn tool's ghost takes no stick (its hold: ghostHoldFrame); Remove and Joint have none.
         break;
+    }
+}
+
+// The ghost held by a hand: its offsets follow that hand's translation (1:1, along the gun's level forward, right and
+// up, so walking carries it with the aim), its yaw follows the other hand's way. Only the hand's movement counts, from
+// the moment its A/X was pressed: its place then, and its rotation, move the ghost nothing.
+void ghostHoldFrame(const hands::State& s, float dt)
+{
+    const float before = ghostHold.yaw;
+    if(ghostHold.turn >= 0)
+    {
+        ghostHold.yaw = tg.handRot.y; // (kept current while the ghost is away, so its turn does not jump on its return)
+    }
+    if(dt <= 0.f || key_dest != key_game || !ghostShowing())
+    {
+        return;
+    }
+    if(ghostHold.move >= 0 && s.valid)
+    {
+        glm::vec3 fwd, right;
+        levelAxes(tg.aim.dir, fwd, right);
+        const glm::vec3 gone = s.vel[ghostHold.move] * dt * units::metresToUnits(); // metres a second in Quake axes,
+        // without the player's own (hands::State::vel is metres: the offsets are units)
+        // The offsets are components along the gun's level way, not a world vector: add the components.
+        tg.offset += glm::vec3{glm::dot(gone, fwd), glm::dot(gone, right), gone.z};
+        ghostHold.seen += gone;
+    }
+    if(ghostHold.turn == tg.hand)
+    {
+        const float turned = za::remainder(tg.handRot.y - before, 360.f) * handTurnWeight(tg.handRot.x);
+        tg.turn.y += turned;
     }
 }
 
@@ -1129,6 +1184,7 @@ void reset()
     tg.glowNum = tg.glow2 = 0;
     tg.ghost = false;
     tg.aim = {};
+    ghostHold = {};
     toolgun::brushtool::reset();
 }
 
@@ -1183,6 +1239,14 @@ bool button(int hand, posing::Button b, bool down)
         if(b == posing::Button::Primary)
         {
             tg.adjust = false;
+            if(ghostHold.turn == hand)
+            {
+                ghostHold.turn = -1;
+            }
+            if(ghostHold.move == hand)
+            {
+                ghostHold.move = -1;
+            }
         }
         else if(b == posing::Button::Trigger && hand == tg.hand)
         {
@@ -1212,7 +1276,17 @@ bool button(int hand, posing::Button b, bool down)
             taken = true;
             return true;
         case posing::Button::Primary:
-            tg.adjust = key_dest == key_game;
+            // With the spawn tool's ghost showing this hand's A/X turns it (its yaw); else A/X is the sticks' (the
+            // physgun's snap, the scale tool's).
+            if(key_dest == key_game && ghostShowing())
+            {
+                ghostHold.turn = hand;
+                ghostHold.yaw = tg.handRot.y;
+            }
+            else
+            {
+                tg.adjust = key_dest == key_game;
+            }
             taken = true;
             return true;
         case posing::Button::Trigger:
@@ -1242,12 +1316,21 @@ bool button(int hand, posing::Button b, bool down)
                 taken = true;
                 return true;
             }
-            setTool((static_cast<int>(currentTool()) + (tg.adjust ? -1 : 1) + static_cast<int>(Tool::Count)) %
+            setTool((static_cast<int>(currentTool()) + (tg.adjust || ghostHold.turn >= 0 ? -1 : 1) + static_cast<int>(Tool::Count)) %
                     static_cast<int>(Tool::Count));
             taken = true;
             return true;
         default: return false;
         }
+    }
+    // The other hand's A/X held while the spawn tool's ghost shows: that hand moves the ghost. Its press and its
+    // release are the tool's, so no key reaches the game: neither its jump nor the hook's unreel while it is held.
+    if(b == posing::Button::Primary && key_dest == key_game && ghostShowing())
+    {
+        ghostHold.move = hand;
+        ghostHold.seen = glm::vec3{0.f};
+        taken = true;
+        return true;
     }
     // The other hand's trigger: a click on the panel, where its laser meets it; else what the physgun holds frozen there.
     if(b == posing::Button::Trigger && panel::trigger(hand, true))
@@ -1324,18 +1407,24 @@ void frame(const hands::State& s)
         tg.gizmo = {};
         tg.adjust = tg.trigger = tg.firePressed = tg.freezePressed = false;
         tg.aim = {};
+        ghostHold = {};
         toolgun::brushtool::reset();
         return;
     }
     const ServerVm vm;
     const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
     updateAim(s);
+    ghostHoldFrame(s, dt);
     sticksFrame(dt);
     const bool fire = tg.firePressed;
     const bool freeze = tg.freezePressed;
     tg.firePressed = tg.freezePressed = false;
     const Aim& a = tg.aim;
     const Tool tool = currentTool();
+    if(tool != Tool::Spawn)
+    {
+        ghostHold = {}; // (another tool: its A/X is the sticks' again)
+    }
     if(tool != Tool::Physgun && tg.drag.num)
     {
         dragEnd(false);
@@ -1758,6 +1847,20 @@ void status_f()
     }
     Con_Printf("toolgun: selection %s, ghost %s at %.0f %.0f %.0f yaw %.0f\n", tg.sel.valid ? tg.sel.label : "none",
         tg.ghost ? "shown" : "none", tg.ghostOrigin.x, tg.ghostOrigin.y, tg.ghostOrigin.z, tg.ghostAngles.y);
+    if(currentTool() == Tool::Spawn)
+    {
+        Con_Printf("toolgun: ghost offsets %.1f %.1f %.1f, turn %.1f %.1f %.1f, held %s %s\n", tg.offset.x, tg.offset.y,
+            tg.offset.z, tg.turn.x, tg.turn.y, tg.turn.z,
+            ghostHold.move >= 0 ? (ghostHold.move == HAND_MAIN ? "move:main" : "move:off") : "move:none",
+            ghostHold.turn >= 0 ? (ghostHold.turn == HAND_MAIN ? "turn:main" : "turn:off") : "turn:none");
+        if(ghostHold.move >= 0)
+        {
+            const glm::vec3& p = hands::current().pos[ghostHold.move];
+            const glm::vec3& v = hands::current().vel[ghostHold.move];
+            Con_Printf("toolgun: the holding hand at %.1f %.1f %.1f, moving %.1f %.1f %.1f, followed %.1f %.1f %.1f\n", p.x, p.y,
+                p.z, v.x, v.y, v.z, ghostHold.seen.x, ghostHold.seen.y, ghostHold.seen.z);
+        }
+    }
     if(tg.drag.num)
     {
         edict_t* e = EDICT_NUM(tg.drag.num);

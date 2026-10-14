@@ -19,7 +19,7 @@ no ammunition and fires nothing; its hand's buttons are the tool's. Single playe
 | Stick press | the next tool (A / X held: the one before); the gun's screen names it. Not when bullet time has that stick (`vr_bullettime_trigger`); neither stick's press does anything while the physgun holds something |
 | B / Y | opens or closes the toolgun's panel over the gun |
 | Sticks, while the physgun holds something | move and turn it, no button needed (no walking or turning until you let go) |
-| A / X held | the physgun's hold: its angles snap to 15 degree steps (`vr_toolgun_snap`; the snap stays when let go). Spawn and Scale: the sticks move and turn the ghost, or scale (no walking or turning meanwhile) |
+| A / X held | the physgun's hold: its angles snap to 15 degree steps (`vr_toolgun_snap`; the snap stays when let go). Scale: its sticks scale the aimed prop (no walking or turning meanwhile). Spawn, with a ghost showing: the other hand's A / X moves that ghost with the hand, the gun hand's turns it (no walking, no jump, no unreel from that hand while held; the sticks are still yours) |
 
 The other hand: a thin laser points at the panel and its trigger clicks there (off the panel the trigger is its own
 again: its weapon fires). While the physgun holds a prop, the other hand's trigger (off the panel) freezes it.
@@ -45,9 +45,10 @@ trigger still uses the tool. A menu opened meanwhile hides it until it closes.
   - More: twenty cheats as buttons (Debug > Cheats and Recording's own rows: God Mode, Noclip, ..., Pause; a switch
     lit while on) and Panel Size.
 
-The sticks: the physgun's hold always (A / X held: snapped), Spawn's ghost and Scale with A / X held:
+The sticks: the physgun's hold always (A / X held: snapped), Scale with A / X held. Spawn takes no stick at all: you
+walk with one and turn with the other as ever, and its ghost is held by the hands instead (below).
 
-| Stick | Spawn and Physgun | Scale |
+| Stick | Physgun | Scale |
 |---|---|---|
 | the gun's, forward / back | pushes it away / pulls it in | grows / shrinks the aimed prop |
 | the gun's, left / right | turns it (about the panel's Sticks Turn: yaw by default) | - |
@@ -59,6 +60,18 @@ The sticks: the physgun's hold always (A / X held: snapped), Spawn's ghost and S
 - **Spawn.** Choose what on the panel's grid (tabs: monsters, props, weapons, items), or Pick (the next shot chooses
   what it hits). A see-through ghost of it stands where the gun points (on the floor; off a wall), facing you; the
   trigger makes it there, as a map would. Reset puts the ghost back (its offsets and turn); Clear empties the choice.
+  Move and turn the ghost with your hands, not with a stick (no new settings):
+  - **the other hand's A / X held, and move that hand** — the ghost goes with it, 1:1, along the gun's level forward,
+    right and up (its own pitch and roll do not tilt the offsets). The ghost stays where the gun points: only the
+    hand's movement from the press counts, and the ghost does not jump when you press. Turning that hand does nothing.
+    Let go, the offsets stay.
+  - **the gun hand's A / X held, and turn that hand** — the ghost's yaw only, from that hand's way: 90 degrees of the
+    hand's yaw turns it 90 degrees, and turning yourself turns it with you (as the physgun's hold does); its pitch and
+    twist do nothing, and its offsets stay. Damped as the physgun's wrist is when the hand points near straight up or
+    down (`vr_toolgun_physgun_wrist`'s weight).
+  While a ghost is held that hand's A / X is the tool's: no jump, and the hook does not unreel. With nothing chosen, or
+  another tool in hand, A / X is exactly what it was. The gun's stick press still changes the tool (A / X held: the one
+  before). `vr_toolgun_status` prints the ghost's offsets and turn and which hand holds it.
 - **Remove.** What the gun points at glows red; the trigger removes it (as Debug > Cheats' Scene clean-up does: its
   fire out, a head's flies quiet). Never you.
 - **Physgun.** Hold the trigger on something to drag it at its distance (a prop's physics body follows the beam and
@@ -139,7 +152,11 @@ panel), `vr_toolgun_mock_laser <x> <y>` (its 256 x 192 pixels from the top left)
 widget's middle: its label, as `vr_toolgun_panel_dump` lists them) then `vr_mock_button off trigger 1/0` (the laser
 hand's: the off hand's while the gun is in the main hand), `vr_mock_button main stickclick 1/0` (the next tool),
 `vr_mock_button main trigger 1/0` (the tool), `vr_mock_button main primary 1` with `vr_mock_stick main|off <x> <y>`
-(the offsets), `vr_toolgun_status` (the tool, the panel, the gun's screen, what the physgun holds and its angles).
+(the physgun's offsets), `vr_mock_button off primary 1` with `vr_mock_hand_to off by <x> <y> <z>` (`vr_mock_hand_glide
+1.0`: the hand moves Spawn's ghost) or `vr_mock_hand main 0.0 1.5 -0.3 <pitch> <yaw> <roll>` (its way turns it; a
+relative `vr_mock_hand_turn` turns about the hand's own axes, not the world's), `vr_debug_buttons 1` (who took a
+button), `vr_toolgun_status` (the tool, the panel, the gun's screen, what the physgun holds and its angles, the ghost's
+offsets, turn and which hand holds it).
 
 - `Misc/quakevr/toolgun_panel_test.sh <agent> [--shots]`: the panel's tiles hit by their pixels, the tools cycled by the
   stick press (the gun's screen each time), the Joint and Hinge tiles, God Mode, the Panel Size slider dragged, the
@@ -149,10 +166,17 @@ hand's: the off hand's while the gun is in the main hand), `vr_mock_button main 
 - `Misc/quakevr/toolgun_joint_menu_test.sh <agent> [--debug]`: the joint tiles clicked with the laser (every choice from
   every other, 70 picks) after the physgun held a crate and with a joint half made, each kind then made and unjoined,
   the gun in either hand (ROUND21.md, "Toolgun: the joint choice crash").
+- `Misc/quakevr/toolgun_spawn_6dof_test.sh <agent>`: Spawn's ghost held by the hands: the off hand's A / X and its
+  translation moving it 1:1 along the gun's level way, that hand's rotation doing nothing, the trigger placing the thing
+  where the held ghost stands, the gun hand's A / X turning it by its way alone (its pitch and twist nothing), the
+  sticks walking and turning the player all the while, Reset, A / X back to the game with no choice or another tool, and
+  the gun in the off hand (ROUND22.md, "The spawn tool's ghost, held by a hand").
 
 ## Known limits
 
-- With the gun in the right hand, A (jump) is the tool's while you hold it.
+- With the gun in the right hand, A (jump) is the tool's while you hold it: with the physgun it is the snap, and while
+  a Spawn ghost shows it is the ghost's hold — that hand does not jump and the hook does not unreel for the duration.
+  With nothing chosen, or another tool in hand, it jumps as ever.
 - Saved games don't keep frozen props or joints (they fall, unjoined, when loaded).
 - Brush-model items (health, ammo boxes, explosive boxes) show their ghost only on maps that already have them loaded
   (their thumbnails are drawn from their files whatever the map).
