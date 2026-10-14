@@ -72,6 +72,15 @@ worktree's scratch/ (git-ignored):
 - Note: a CPU hitch alone shifts the mock's view slightly (`vr_decal_atlas` in an unmarked run: mean 0.8 over the
   frame); whole-frame comparisons need the exact setup above.
 
+## To try in VR
+
+- A long fight (e1m1, gore 2): marks never fade; the frame rate where blood piles up stays as it was with none.
+- Up close: baked marks a little softer than fresh ones (0.5 units a texel); `vr_permdecal_density 0.25` (next map)
+  sharper, at four times the atlas's use.
+- Shoot or bleed on a door or lift, then ride or open it: the marks move with it.
+- Save, load (also after quitting): the marks come back.
+- Debug > Tools > Show Permanent Decal Pages: where the layer has texels.
+
 ## Decisions
 
 - Density 0.5 units a texel, not the spec's ~2 (bullet chips are 6 units: 3 texels at 2 was a smudge); pages of 30
