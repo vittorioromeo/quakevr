@@ -330,3 +330,7 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 ## VR Settings menu organisation (2026-10-15)
 
 - His words: "turn each subsection of the 'VR Settings' menu into a submenu, for better organization".
+
+## Other
+
+- Review b7ee7d69a9c1ff5cd838b03916f3cdfb31457158 and related commits' toolgun changes
