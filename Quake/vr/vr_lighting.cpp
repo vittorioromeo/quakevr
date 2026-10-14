@@ -22,6 +22,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/SmallVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Cbrt.hpp"
@@ -316,11 +317,14 @@ void addSurface(const msurface_t* s)
     {
         return;
     }
+    if(s->numedges < 3) { return; }
+    // One capacity check per polygon, keeping the same triangle fan and surface order.
+    uint32_t*& out = indices.reserveMore(static_cast<size_t>(s->numedges - 2) * 3);
     for(int k = 2; k < s->numedges; k++)
     {
-        indices.pushBack(static_cast<uint32_t>(s->vbo_firstvert));
-        indices.pushBack(static_cast<uint32_t>(s->vbo_firstvert + k - 1));
-        indices.pushBack(static_cast<uint32_t>(s->vbo_firstvert + k));
+        *out++ = static_cast<uint32_t>(s->vbo_firstvert);
+        *out++ = static_cast<uint32_t>(s->vbo_firstvert + k - 1);
+        *out++ = static_cast<uint32_t>(s->vbo_firstvert + k);
     }
 }
 
@@ -363,6 +367,19 @@ struct BrushCaster
 };
 za::Vector<BrushCaster> brushCasters;
 za::Vector<entity_t*> aliasCasters;
+
+// Rebuilt for every shadow-render invocation, including each portal camera. Only the model type is
+// filtered here: msgtime, itemsOnly, scale and origin remain live per-light tests in collectBrushes.
+using BrushCandidates = za::SmallVector<entity_t*, 64>;
+
+void collectBrushCandidates(BrushCandidates& candidates)
+{
+    for(int i = 1; i < cl.num_entities; i++)
+    {
+        entity_t* e = &cl_entities[i];
+        if(e->model && e->model->type == mod_brush) { candidates.pushBack(e); }
+    }
+}
 
 // A map light's moving casters, collected once a frame (whether it has any), drawn later.
 struct SlotCasters
@@ -421,12 +438,12 @@ bool touches(const entity_t* e, const glm::vec3& light, float radius)
 // Doors, lifts and platforms near the light.
 // With `itemsOnly`, only the brush models of items (ammo and health boxes, maps/b_*.bsp): they
 // move; the map's own doors and lifts are in its baked light already.
-void collectBrushes(const glm::vec3& light, float radius, bool itemsOnly)
+void collectBrushes(const BrushCandidates& candidates, const glm::vec3& light, float radius, bool itemsOnly)
 {
     brushCasters.clear();
-    for(int i = 1; i < cl.num_entities; i++)
+    for(entity_t* candidate : candidates)
     {
-        entity_t& e = cl_entities[i];
+        entity_t& e = *candidate;
         // (the boxes made in the game are not in the baked light either: vr_brushes.cpp)
         if(!e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0] ||
             (itemsOnly && qvr::modelmeta::has(e.model, qvr::modelmeta::Trait::Submodel) && !qvr::brushes::isRuntime(e.model)) ||
@@ -1424,7 +1441,7 @@ void selectPortalLights(const glm::vec3& eye)
     }
 }
 
-void renderPortalLight(PortalLight& l)
+void renderPortalLight(PortalLight& l, const BrushCandidates& candidates)
 {
     const dlight_t& source = cl_dlights[l.index];
     const glm::vec3 origin{source.origin[0], source.origin[1], source.origin[2]};
@@ -1438,7 +1455,7 @@ void renderPortalLight(PortalLight& l)
     indices.clear();
     collectWorld(cl.worldmodel->nodes, origin, source.radius);
     size_t worldCount = indices.size();
-    collectBrushes(origin, source.radius, false);
+    collectBrushes(candidates, origin, source.radius, false);
     collectAliases(origin, source.radius, own, source.key != cl.viewentity, true);
     renderLight(atlas, origin, source.radius, views, cubeViews(l.sourceTile, l.size, views), l.size,
         worldCount, true, true);
@@ -1448,7 +1465,7 @@ void renderPortalLight(PortalLight& l)
     indices.clear();
     collectWorld(cl.worldmodel->nodes, l.pos, source.radius);
     worldCount = indices.size();
-    collectBrushes(l.pos, source.radius, false);
+    collectBrushes(candidates, l.pos, source.radius, false);
     collectAliases(l.pos, source.radius, own, source.key != cl.viewentity, true);
     renderLight(atlas, l.pos, source.radius, views, cubeViews(l.exitTile, l.size, views), l.size,
         worldCount, true, true, nullptr, &clip);
@@ -1677,6 +1694,15 @@ extern "C" void VR_RenderShadowMaps(void)
     selectDlights(eye, dt);
     selectMapLights(eye, dt);
 
+    profile::begin("shadow brush candidates", false);
+    BrushCandidates candidates;
+    if(portalLightCount > 0 || za::anyOf(dlightSlots.begin(), dlightSlots.end(), [](const DlightSlot& s) { return s.selected; }) ||
+        za::anyOf(mapSlots.begin(), mapSlots.end(), [](const MapSlot& s) { return s.light >= 0; }))
+    {
+        collectBrushCandidates(candidates);
+    }
+    profile::end();
+
     // Moving casters of the map lights: none near means nothing to draw (and no light entry). Kept
     // for their drawing below.
     const auto& lights = modellight::mapLights();
@@ -1690,7 +1716,7 @@ extern "C" void VR_RenderShadowMaps(void)
             const auto& l = lights[s.light];
             indices.clear();
             collectAliases(l.pos, l.value / l.scale, 0, true);
-            collectBrushes(l.pos, l.value / l.scale, true);
+            collectBrushes(candidates, l.pos, l.value / l.scale, true);
             s.hasCasters = !aliasCasters.empty() || !brushCasters.empty();
             SlotCasters& c = slotCasters[i];
             c.aliases.swap(aliasCasters);
@@ -1892,10 +1918,16 @@ extern "C" void VR_RenderShadowMaps(void)
             }
             profile::begin("dlight casters", false);
             indices.clear();
+            profile::begin("dlight world casters", false);
             collectWorld(cl.worldmodel->nodes, center, reach);
+            profile::end();
             const size_t worldCount = indices.size();
-            collectBrushes(center, reach, false);
+            profile::begin("dlight brush casters", false);
+            collectBrushes(candidates, center, reach, false);
+            profile::end();
+            profile::begin("dlight alias casters", false);
             collectAliases(center, reach, l.key > 0 && l.key < cl.num_entities ? l.key : 0, l.key != cl.viewentity);
+            profile::end();
             profile::end();
             renderLight(atlas, p, l.radius, views, numViews, slot.size, worldCount, true, true);
         }
@@ -1903,7 +1935,7 @@ extern "C" void VR_RenderShadowMaps(void)
         profile::end();
 
         profile::begin("portal light shadows", true);
-        for(int i = 0; i < portalLightCount; i++) { renderPortalLight(portalLights[i]); }
+        for(int i = 0; i < portalLightCount; i++) { renderPortalLight(portalLights[i], candidates); }
         profile::end();
 
         profile::begin("map light shadows", true);
