@@ -233,3 +233,13 @@ stats), the jump boots' power level, coop.
 - brush_test.py: not batched yet (uses saves and screenshots every run).
 - guard/decap (drawn frames) and voreshove (real-time frames) stay unbatched: find a way if worthwhile.
 - ROUND22.md note for the speed-up.
+
+## Permanent decals leftovers (2026-10-14; design and status: docs/vr-port/PERM_DECALS.md)
+
+- Phase 3: instanced brush models (b_*.bsp item boxes share one model) and props (alias models): per-entity layers
+  with a unique UV unwrap, or keep projected decals with a cap.
+- Phase 4: coop: clients bake from the replicated decal events; a mid-game joiner gets a snapshot or a fresh start.
+- Atlas full: evicted marks are lost and small atlases (1024) thrash; downsample or merge instead of evicting.
+- Retro (blocky) textures: baked marks render smooth; match the retro filtering.
+- Gore's delayed marks appear at once on doors and lifts (brush-entity marks bake immediately).
+- Marks on brush-tool boxes stay live (not baked).
