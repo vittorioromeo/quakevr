@@ -20,6 +20,10 @@
       <Configuration>Release-Tracy</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-TracyFull|x64">
+      <Configuration>Release-TracyFull</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E286BCD0-E4E0-4F68-B335-083019EA8E02}</ProjectGuid>
@@ -84,7 +88,7 @@
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">
+  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull')">
     <ClCompile>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>

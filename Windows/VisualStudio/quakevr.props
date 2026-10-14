@@ -7,16 +7,19 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Release-Tracy opts in automatically; the legacy QvrTracy property still works for other configurations. -->
   <PropertyGroup>
+    <!-- Release-TracyFull: build_tracy.ps1 -CallstackDepth 8 -SystemTracing (zone call stacks, sampling, context switches). -->
+    <QvrTracyCallstackDepth Condition="'$(Configuration)'=='Release-TracyFull' and '$(QvrTracyCallstackDepth)'==''">8</QvrTracyCallstackDepth>
+    <QvrTracySystemTracing Condition="'$(Configuration)'=='Release-TracyFull' and '$(QvrTracySystemTracing)'==''">true</QvrTracySystemTracing>
     <QvrTracyCallstackDepth Condition="'$(QvrTracyCallstackDepth)'==''">0</QvrTracyCallstackDepth>
     <QvrTracySystemTracing Condition="'$(QvrTracySystemTracing)'==''">false</QvrTracySystemTracing>
-    <QvrTracy Condition="'$(Configuration)'=='Release-Tracy' and '$(QvrTracy)'==''">true</QvrTracy>
+    <QvrTracy Condition="('$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull') and '$(QvrTracy)'==''">true</QvrTracy>
     <QvrTracy Condition="'$(QvrTracy)'==''">false</QvrTracy>
   </PropertyGroup>
   <PropertyGroup Condition="'$(QvrTracy)'=='true'">
     <QvrTracyTraceDefines Condition="'$(QvrTracySystemTracing)'!='true'">TRACY_NO_SYSTEM_TRACING;TRACY_NO_CONTEXT_SWITCH;TRACY_NO_SAMPLING</QvrTracyTraceDefines>
     <QvrTracyStackDefines Condition="'$(QvrTracyCallstackDepth)'!='0'">TRACY_CALLSTACK=$(QvrTracyCallstackDepth)</QvrTracyStackDefines>
     <QvrTracyOutputConfiguration>$(Configuration)-Tracy</QvrTracyOutputConfiguration>
-    <QvrTracyOutputConfiguration Condition="'$(Configuration)'=='Release-Tracy'">$(Configuration)</QvrTracyOutputConfiguration>
+    <QvrTracyOutputConfiguration Condition="'$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull'">$(Configuration)</QvrTracyOutputConfiguration>
     <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(QvrTracyOutputConfiguration)\</IntDir>
     <OutDir>$(SolutionDir)Build-$(ProjectName)\bin\$(PlatformShortName)\$(QvrTracyOutputConfiguration)\</OutDir>
   </PropertyGroup>

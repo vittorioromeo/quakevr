@@ -18,6 +18,10 @@
       <Configuration>Release-Tracy</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-TracyFull|x64">
+      <Configuration>Release-TracyFull</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}</ProjectGuid>
@@ -66,7 +70,7 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">
+  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull')">
     <ClCompile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
