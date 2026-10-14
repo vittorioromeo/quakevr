@@ -486,6 +486,8 @@ float(string folder, float track) campaignmusic = #0; // a campaign's own CD tra
 // The next entity after `start` (in edict order) with any of `flags` set in the float field `fld`; world when none: a
 // loop over the monsters (findflags(world, flags, FL_MONSTER)...) steps through them alone, in the engine (vr_builtins.cpp).
 entity(entity start, .float fld, float flags) findflags = #0;
+// Live findflags order, returning only deadline <= now with a nonzero required field; no cached candidates.
+entity(entity start, .float fld, float flags, .float deadline, float now, .float required) findflagsdue = #0;
 // findflags(), past the entities whose box's centre ((absmin + absmax) * 0.5) is further from `eye` than `range` (vlen) or
 // less than `mincos` ahead (normalize(centre - eye) * v_forward), in QuakeC's own float steps: the same entities pass as
 // with that test in QuakeC (VR_Stealth_LookAbout's torches and bodies; vr_builtins.cpp).

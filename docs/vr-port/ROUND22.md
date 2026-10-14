@@ -5779,6 +5779,20 @@ Six validated depth-eight captures cover e1m1 AI, cold/warm weapons, wound-drive
 
 Reserve/write each surface's exact triangle fan in one batch; collect ordered brush candidates locally per shadow-render invocation, including portal cameras, retaining live per-light eligibility/transform checks. No cvar/default/budget changes. Narrow world/brush/alias/candidate CPU scopes expose their shares. Normal/profiling builds and normal smoke pass; 12,264 exact oracle collections (216,614,502 indices) preserve index bytes/caster order/ranges, and all 18 active-light before/after atlas hashes match across moving runtime brushes, aliases, light removal, water, two virtual portal lights, rebuild and map reload. One exclusive matched AD pair: action caster collection 0.09154→0.08265 ms/frame plus new scan 0.00187; full shadow CPU 0.18442→0.17140, GPU 0.05450→0.05448. Counts/settings/endhash match; steady whole-frame busy rises, so no general FPS/tail claim. Short QC-function-detail diagnostic identifies liquids/wounds frame scans as future investigation targets; generic QVR builtin time is unresolved by operation, and QC/physics/melee stay unchanged. Details/limits: AD_CASTER_CPU_OPTIMIZATION.md; private evidence: kit/scratch/adcpuopt. Author VR check: AD combat, moving items/lifts and flashlight shadows through gates at actual resolution.
 
+## Liquid/wound frame scan CPU cost (2026-10-14)
+
+The live findflagsdue iterator moves only the existing float deadline/nonzero-field gates from QC into native
+code. Callbacks, edict order, intervals, cvar gates and spawn/remove/reuse behavior stay the same. No new
+settings, persistent fields or quality changes. Three interleaved AD pairs save 29.46 µs/frame in detailed
+liquid+wound scopes; coarse QC VM saves 13.93 µs steady and 12.01 µs action. Settings/counts match, every
+pair improves, and whole-frame variation is not an FPS claim.
+
+Reference scans, NaN/infinity/signed-zero/boundary cases, liquid/wound/dummy/swimmer/model-zero paths,
+vanilla/AD transitions and save/load pass: 30 full entity-state checkpoints and ordered records match.
+Restored normal/Tracy builds and final normal e1m1 smoke pass. See
+[QC_LIQUID_WOUND_CPU_OPTIMIZATION.md](QC_LIQUID_WOUND_CPU_OPTIMIZATION.md) for methods, absolute times,
+limits and private kit evidence. Author follow-up: ordinary liquid combat/wet corpses/dummies in VR.
+
 ## 2026-10-14: exact voxel optimization (voxelopt)
 
 Reuse exact barycentric fractions and ordered chamfer neighbours, with an interior-cell fast path and 4.1 KB bounded stack storage. No geometry/settings changes. Against the current d986 baseline, 288 fixture comparisons preserve sampled points, voxel states/distances, pieces/reports and rebuilt hull mass bytes; allocation balance zero. Eleven frozen inputs, 16 alternating repetitions: voxel medians improve 22.5-37.4%, sequential decomposition 5.8-19.9%. Live captures were excluded because scene/input matching was insufficient; no live FPS gain claim. Normal/profiling builds, smoke, shotgun port/fallback and lying nailgun magazine checks pass. Details: VOXEL_OPTIMIZATION.md; private evidence backed up in kit/scratch/voxelopt. Author VR check: held/mirrored/dropped gun ports and wells.

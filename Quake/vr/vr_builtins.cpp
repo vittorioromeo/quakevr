@@ -1149,6 +1149,33 @@ void PF_findflags()
     G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(nextFlagged(from, field, flags)));
 }
 
+// The same live iterator with the frame loops' pure interval/eligibility checks in native code.
+// No snapshot: every call resumes after start, so a due callback may change/remove/spawn later edicts.
+// Keep <= (rather than rejecting >) and float truth tests: NaN deadlines are not due; NaN eligibility is true.
+void PF_findflagsdue()
+{
+    int e = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    const int field = G_INT(OFS_PARM1);
+    const int flags = static_cast<int>(G_FLOAT(OFS_PARM2));
+    const int deadline = G_INT(OFS_PARM3);
+    const float now = G_FLOAT(OFS_PARM4);
+    const int required = G_INT(OFS_PARM5);
+    if(field < 0 || field >= qcvm->progs->entityfields || deadline < 0 || deadline >= qcvm->progs->entityfields ||
+        required < 0 || required >= qcvm->progs->entityfields)
+    {
+        PR_RunError("findflagsdue: invalid field offset");
+    }
+    while((e = nextFlagged(e, field, flags)) != 0)
+    {
+        const edict_t* ed = EDICT_NUM(e);
+        if(E_FLOAT(ed, deadline) <= now && E_FLOAT(ed, required) != 0.f)
+        {
+            break;
+        }
+    }
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(e));
+}
+
 // entity findflagsinview(entity start, .float fld, float flags, vector eye, float range, float mincos): findflags(),
 // past the entities whose box's centre ((absmin + absmax) * 0.5) is further from `eye` than `range` (vlen) or less than
 // `mincos` ahead of it (normalize(centre - eye) * v_forward): the QuakeC test of the stealth AI's look about
@@ -2436,6 +2463,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"bodysmoulder", PF_bodysmoulder},
     {"portal_carry", PF_portal_carry},
     {"findflags", PF_findflags},
+    {"findflagsdue", PF_findflagsdue},
     {"findflagsinview", PF_findflagsinview},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
