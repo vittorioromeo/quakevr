@@ -5766,3 +5766,7 @@ but changes the feel (his call).
 - Exclusive uncapped e1m1, 3×1200 frames/state: CPU busy normal 1.0758 ms, idle 1.0288, coarse 1.1434, details 1.5053; all zero >33 ms hitches/drops. Raw rows versioned in TRACY_STAGE2_OVERHEAD.csv; scene/headset variability explicitly documented.
 - Disabled argument hooks are non-evaluating macros; an -O0 fixture proves dynamic names/resource expressions have no side effects. Resource/metadata walks remain build/connection guarded.
 - Final allocator review defers snapshots during the temporary hunk-header/cache-relocation window and rejects cross-session frees; host recovery clears the guard. Existing lifecycle replay verifies decoded checkpoints after this change.
+
+## 2026-10-14: exact gun hull reuse
+
+Retain winning scored points/initial hulls and reuse unchanged completed-piece gaps. 278 frozen-output comparisons preserve point/piece order and non-timing report bytes, including refinement/failure and parallel cases. Narrow profiling separates decomposition from cache preparation: voxelization remains dominant; no strong whole-hitch speedup established. Normal/profiling builds, smoke and gun port/well checks pass; melee retains 168/177 baseline verdicts. Details and temporary-memory limits: GUN_HULL_REUSE.md. Author VR check: held/mirrored and dropped gun ports/wells.

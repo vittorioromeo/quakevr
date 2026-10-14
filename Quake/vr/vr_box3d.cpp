@@ -1939,6 +1939,7 @@ GunPiecesDisk gunPiecesDisk;
 
 [[nodiscard]] unsigned long long gunPiecesKey(const za::Vector<glm::vec3>& triangles, const convex::Settings& settings)
 {
+    QVR_TRACY_SCOPE(tracyScope, "gun pieces key");
     unsigned long long h = diskcache::fnvStart;
     h = diskcache::fnv(h, &settings.cell, sizeof(settings.cell));
     h = diskcache::fnv(h, &settings.tolerance, sizeof(settings.tolerance));
@@ -1950,6 +1951,7 @@ GunPiecesDisk gunPiecesDisk;
 
 [[nodiscard]] bool readGunPieces(unsigned long long key, za::Vector<convex::Piece>& pieces, convex::Report& report)
 {
+    QVR_TRACY_SCOPE(tracyScope, "gun pieces read");
     unsigned count = 0, points = 0;
     za::Vector<char> data;
     if(!diskcache::read("gunpieces", convex::build(), key, "gpc", gunPiecesMagic, count, points, data) ||
@@ -1988,6 +1990,7 @@ GunPiecesDisk gunPiecesDisk;
 
 void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pieces, const convex::Report& report)
 {
+    QVR_TRACY_SCOPE(tracyScope, "gun pieces write");
     za::I32 points = 0;
     for(const convex::Piece& piece : pieces)
     {
@@ -2032,10 +2035,17 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
 [[nodiscard]] bool cutGun(const za::Vector<glm::vec3>& triangles, const convex::Settings& settings,
     za::Vector<convex::Piece>& pieces, convex::Report& report, const char* name)
 {
+    QVR_TRACY_SCOPE(tracyScope, "gun pieces cut");
     const int mode = static_cast<int>(za::clamp(vr_gun_pieces_cache.value, 0.f, 2.f));
     const unsigned long long key = mode ? gunPiecesKey(triangles, settings) : 0;
     const double t0 = Sys_DoubleTime();
     const bool fromDisk = mode && readGunPieces(key, pieces, report);
+#ifdef QVR_TRACY
+    char detail[192];
+    snprintf(detail, sizeof(detail), "%s mode=%d hit=%d key=%016llx corners=%zu most=%d", name, mode, fromDisk, key,
+        static_cast<size_t>(triangles.size()), settings.maxPieces);
+    VR_TracyText(detail);
+#endif
     if(fromDisk)
     {
         gunPiecesDisk.read++;
