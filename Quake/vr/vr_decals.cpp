@@ -974,6 +974,16 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
     return {d.centre, d.u, d.v, d.normal, d.depth, 1.f - d.darken, d.cell, 0};
 }
 
+// A live mark the ring lets go of before it settled (more marks in a frame than vr_decal_max), baked as it would have
+// settled with the permanent layer on (vr_permdecals): not lost to the cap.
+void bakeEarly(const Decal& d)
+{
+    if(d.brush == 0 && !d.permTried && permdecals::on())
+    {
+        (void)permdecals::bakeWorld(stampOf(d));
+    }
+}
+
 bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o = {})
 {
     QVR_PROFILE("decal add");
@@ -1061,6 +1071,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
         {
             if(isDrop(decals[k]))
             {
+                bakeEarly(decals[k]);
                 unsettle(decals[k]);
                 worldDirty = true;
                 decals.eraseAt(k);
@@ -1073,6 +1084,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     // it changed.
     while(decals.size() >= static_cast<za::SizeT>(max))
     {
+        bakeEarly(decals.front());
         popOldest();
     }
     if(decals.capacity() != static_cast<za::SizeT>(max))
@@ -1892,8 +1904,10 @@ void at_f()
     }
     srand(seed);
     const bool made = add(kind, where, normal, size);
-    Con_Printf("vr_decal_at: %s at %.1f %.1f %.1f (normal %.2f %.2f %.2f)\n", made ? "laid" : "none", where.x, where.y,
-        where.z, normal.x, normal.y, normal.z);
+    int entity = 0;
+    (void)worldtrace::world(from, from + glm::normalize(dir) * 512.f, true, false, 0, 0, &entity);
+    Con_Printf("vr_decal_at: %s at %.1f %.1f %.1f (normal %.2f %.2f %.2f), entity %d\n", made ? "laid" : "none", where.x,
+        where.y, where.z, normal.x, normal.y, normal.z, entity);
 }
 
 void count_f()

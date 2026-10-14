@@ -1457,19 +1457,19 @@ LIQUID_SWELL \
 "};\n" \
 "layout(binding=18) uniform sampler2D PermDecalAtlas;\n" \
 "\n" \
-"vec3 PermDecalsAt(vec2 g, vec2 pages, vec2 dgdx, vec2 dgdy)\n" \
+"vec4 PermDecalsAt(vec2 g, vec2 pages, vec2 dgdx, vec2 dgdy) // w 1: a page there\n" \
 "{\n" \
 "	float across = mod(pages.y, 4096.0), down = floor(pages.y / 4096.0);\n" \
 "	vec2 page = clamp(floor(g * (1.0 / 30.0)), vec2(0.0), vec2(across, down) - 1.0);\n" \
 "	uint e = PermDecalTable[uint(pages.x + 0.5) + uint(page.y * across + page.x + 0.5)];\n" \
 "	if (e == 0u)\n" \
-"		return vec3(1.0);\n" \
+"		return vec4(1.0, 1.0, 1.0, 0.0);\n" \
 "	uint slot = e - 1u, row = uint(PermDecals.y + 0.5);\n" \
 "	float lod = clamp(log2(max(max(length(dgdx), length(dgdy)), 1e-6)), 0.0, 3.0);\n" \
 "	float rim = 0.5 * exp2(ceil(lod));\n" \
 "	vec2 local = clamp(g - page * 30.0 + 1.0, vec2(rim), vec2(32.0 - rim));\n" \
 "	vec2 at = (vec2(float(slot % row), float(slot / row)) * 32.0 + local) * PermDecals.z;\n" \
-"	return textureLod(PermDecalAtlas, at, lod).rgb * (1023.0 / 512.0);\n" \
+"	return vec4(textureLod(PermDecalAtlas, at, lod).rgb * (1023.0 / 512.0), 1.0);\n" \
 "}\n"
 
 // the world vertex shader's permanent decals (QVR_PERMDECAL_FUNCTIONS): their attribute and outputs
@@ -1502,10 +1502,15 @@ LIQUID_SWELL \
 "	if (PermDecals.x > 0.0 && in_grimepages.y > 4096.5)\n" \
 "	{\n" \
 "		vec2 grime = parallax ? in_grime + ParallaxShiftWorld(puv - uv, duvdx, duvdy, vec3(grime_dx, 0.0), vec3(grime_dy, 0.0)).xy : in_grime;\n" \
-"		vec3 perm_mod = PermDecalsAt(grime, in_grimepages, grime_dx, grime_dy);\n" \
-"		result.rgb *= perm_mod;\n" \
-"		fullbright *= perm_mod;\n" \
-"		decal_mod *= perm_mod;\n" \
+"		vec4 perm = PermDecalsAt(grime, in_grimepages, grime_dx, grime_dy);\n" \
+"		result.rgb *= perm.rgb;\n" \
+"		fullbright *= perm.rgb;\n" \
+"		decal_mod *= perm.rgb;\n" \
+"		if (PermDecals.w > 0.5 && perm.w > 0.5) // vr_permdecal_show: the pages unlit, green, their marks on them\n" \
+"		{\n" \
+"			result.rgb = vec3(0.0);\n" \
+"			fullbright = perm.rgb * vec3(0.6, 1.0, 0.6);\n" \
+"		}\n" \
 "	}\n" \
 "#else\n" \
 "	const vec3 decal_mod = vec3(1.0);\n" \

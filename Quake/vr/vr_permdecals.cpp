@@ -810,7 +810,8 @@ extern "C" int VR_PermDecalsOn(void)
     return on() && atlas.texture && atlas.free.size() != atlas.slots.size();
 }
 
-// R_SetupView: the shader's settings (PermDecals: x 1 on, y slots a row, z one over the atlas's side).
+// R_SetupView: the shader's settings (PermDecals: x 1 on, y slots a row, z one over the atlas's side, w 1: the pages
+// shown, vr_permdecal_show).
 extern "C" void VR_PermDecalsFrame(float out[4])
 {
     using namespace qvr::permdecals;
@@ -822,4 +823,5 @@ extern "C" void VR_PermDecalsFrame(float out[4])
     out[0] = 1.f;
     out[1] = static_cast<float>(atlas.perRow);
     out[2] = 1.f / static_cast<float>(atlas.size);
+    out[3] = vr_permdecal_show.value != 0.f ? 1.f : 0.f;
 }
