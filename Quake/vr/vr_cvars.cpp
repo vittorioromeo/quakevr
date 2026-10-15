@@ -721,7 +721,7 @@ const DefaultChange defaultChanges[] = {
     {131, &vr_hotblade_glow, "1"},
     // 132: the neck snap's twist measured about the neck from the hands' places (a push-pull snaps it; ROUND22.md, "Neck
     // snap: only move at the head, a push-pull twists").
-    {132, &vr_foegrab_necksnap_speed, "200"},
+    // (Its twist speed, Velocity's, gone with it: ROUND22.md, "Neck snap: the Hand Line only".)
     {132, &vr_foegrab_necksnap_angle, "45"},
     // 133: the author's values of 2026-10-15 11:06 ("I have tweaked settings for the blood feedback, for the quad
     // effects, and some other damage and combat settings. Please make those the new defaults"; ROUND22.md, "His blood,
@@ -738,8 +738,6 @@ const DefaultChange defaultChanges[] = {
     {133, &vr_bash_damage, "10"},                    // 5
     {133, &vr_melee_phase_time, "0.35"},             // 0.2
     {133, &vr_foegrab_lift_time, "2"},               // 3.5
-    {133, &vr_foegrab_necksnap_method, "0"},         // 1
-    {133, &vr_foegrab_necksnap_speed, "100"},        // 210
     {133, &vr_foegrab_necksnap_angle, "30"},         // 80
     {133, &vr_foegrab_necksnap_window, "0.3"},       // 0.2
     {133, &vr_foegrab_necksnap_neck, "3"},           // 1.5
@@ -766,8 +764,15 @@ const DefaultChange defaultChanges[] = {
         "monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_dcrossbow "
         "monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz "
         "monster_ranged_knight infected"},
+    // 135: the neck snap measured by the hand line only (Velocity and its Twist Speed gone), at the author's values ("I
+    // took the neck snap settings ... Those are the ones I want", 2026-10-15; ROUND22.md, "Neck snap: the Hand Line
+    // only"): 75 degrees within 0.15 s, the head zone as the headshots' (no margin, no neck below it).
+    {135, &vr_foegrab_necksnap_angle, "80"},         // 75
+    {135, &vr_foegrab_necksnap_window, "0.2"},       // 0.15
+    {135, &vr_foegrab_necksnap_margin, "2"},         // 0
+    {135, &vr_foegrab_necksnap_neck, "1.5"},         // 0
 };
-constexpr int configVersion = 134;
+constexpr int configVersion = 135;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

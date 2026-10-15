@@ -670,11 +670,11 @@ def decap_preset(name, args):
 
 def necksnap_preset(name, args):
     """Both empty hands take hold of the training dummy (gripped after the playback's setup: a grip closed during it
-    doesn't hold) and turn about its up: at its head 90 degrees in 0.2 s (snaps under either twist detector), the turn
-    at its shoulders or 20 degrees at its head (snaps under neither). Not in the `necksnap` group: `neck_snap_push_pull`,
-    pushed and pulled 25 cm each way with the wrists turning 100 degrees about the vertical in 0.3 s (2026-10-15, at
-    the shipped settings: snaps under Velocity; Hand Line misses it, the palms' line turning 61 degrees in its 0.2 s
-    window). The dummy `--necksnap-distance` ahead."""
+    doesn't hold) and turn about its up: at its head 90 degrees in 0.2 s (snaps), the turn at its shoulders or 20
+    degrees at its head (doesn't). Not in the `necksnap` group: `neck_snap_push_pull`, pushed and pulled 25 cm each way
+    with the wrists turning 100 degrees about the vertical in 0.3 s (2026-10-15, at the then shipped settings: the hand
+    line missed it, the palms' line turning 61 degrees in its 0.2 s window; Velocity, gone since, snapped it). The
+    dummy `--necksnap-distance` ahead."""
     shapes = {
         # (the hands' height below the head's middle, half their spread, the turn in degrees, push-pull)
         "neck_snap_turn": (0.0, 0.12, 90.0, False),

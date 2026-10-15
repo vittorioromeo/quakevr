@@ -982,6 +982,11 @@ int campaignsBloodyShown = -1;
                   "sure: grunts, enforcers, zombies, knights, rottweilers, mummies and the infected always; death knights, "
                   "ogres, fiends, spawns, scorpions and ranged knights only when hurt; never shamblers, vores, bosses, "
                   "flyers or swimmers. One hand never throws. The training dummy shows how it would go."),
+        toggle("Show Diagnostic", vr_foegrab_throw_debug)
+            .help("Over the enemy you hold (else the nearest): your hands' turn of it (an arrow from its top: the way it "
+                  "would fall) and their speed against Turn to Throw and Hands' Speed, what stops a throw now (one hand, "
+                  "both at its head: the neck snap's; pulling up: the lift's; away from you; its kind or health) and the "
+                  "last try's result. Each try is printed to the console."),
         slider("Turn to Throw", vr_foegrab_throw_twist, 60.f, 600.f, 10.f, "%.0f deg/s").extend(10.f, 2000.f)
             .help("How fast your hands must turn the enemy over (about a level axis) to throw it. Log Holds (Debug > "
                   "Tests > Holding Enemies) prints your hardest turn of each hold."),
@@ -1038,6 +1043,11 @@ int campaignsBloodyShown = -1;
                   "ragdoll flailing in your hands. Carry it, throw it down (let go of the grips as you swing). After a while "
                   "it breaks free and shoves you back. Never ogres, fiends, shamblers or vores (the console's "
                   "vr_foegrab_lift_classes)."),
+        toggle("Show Diagnostic", vr_foegrab_lift_debug)
+            .help("Over the humanoid you hold (else the nearest): your hands' pull (an arrow: green once fast enough and "
+                  "within 45 degrees of straight up) against Lift Speed, the Lift Reach circle round it (green with you "
+                  "inside), what stops a lift now (one hand, both at its head: the neck snap's; not a humanoid; too far) "
+                  "and the last try's result. Each try is printed to the console."),
         slider("Lift Speed", vr_foegrab_lift_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend(0.1f, 10.f)
             .help("How fast your hands must pull up together (within 45 degrees of straight up) to lift it."),
         slider("Lift Reach", vr_foegrab_lift_reach, 24.f, 96.f, 2.f, "%.0f units").extend(0.f, 200.f)
@@ -1066,26 +1076,18 @@ int campaignsBloodyShown = -1;
                   "the spot, limp in your hands until you let go of the grips. Standing, staggering, knocked down or "
                   "lifted, as long as it lives. With both hands on its head the neck snap is the only move: no judo "
                   "throw, no lift. The same humanoids as the lift: never ogres, fiends, shamblers or vores."),
-        cycle("Twist Detection", vr_foegrab_necksnap_method, {{0.f, "Velocity"}, {1.f, "Hand Line"}})
-            .help("How the twist is measured. Velocity: how fast your hands move round its neck, added up stroke by "
-                  "stroke (Twist Speed, Twist Angle). Hand Line: the line between your hands, across its neck and "
-                  "relative to its head, compared with where it pointed up to Twist Window ago: turned Twist Angle "
-                  "within that window, it snaps (slow shuffles never add up; tilting doesn't count). Both also count "
-                  "both wrists rolling the same way."),
         toggle("Show Diagnostic", vr_foegrab_necksnap_debug)
             .help("Over the humanoid you hold (else the nearest): its head zone (green once both hands are in it), where "
                   "each hand holds (green at its head or neck, orange at a shoulder: never counts), the line between "
-                  "your hands, the twist's arc against Twist Angle and a panel of the selected method's numbers against "
-                  "their thresholds; the last try's result. Each try's largest turn is printed to the console."),
-        slider("Twist Window", vr_foegrab_necksnap_window, 0.1f, 1.f, 0.05f, "%.2f s")
-            .help("Hand Line only: the head must turn Twist Angle within this long (0.3 s and 30 deg: as fast as 100 "
-                  "deg/s on average)."),
-        slider("Twist Speed", vr_foegrab_necksnap_speed, 30.f, 600.f, 10.f, "%.0f deg/s").extend(10.f, 2000.f)
-            .help("Velocity only: how fast the twist must turn the head at its fastest (a quick push-pull reaches "
-                  "150-250 deg/s)."),
+                  "your hands, the twist's arc against Twist Angle and a panel of the hand line's numbers against it; "
+                  "the last try's result. Each try's largest turn is printed to the console."),
         slider("Twist Angle", vr_foegrab_necksnap_angle, 10.f, 120.f, 5.f, "%.0f deg").extend(1.f, 360.f)
-            .help("And how far round it must turn the head in one stroke, one way (hands 30 cm apart, one 15 cm forward "
-                  "and the other 15 cm back: 45 deg)."),
+            .help("How far round your hands must turn its head, one way, within Twist Window: the line between your "
+                  "hands, across its neck and relative to its head, against where it pointed then (hands 30 cm apart, one "
+                  "15 cm forward and the other 15 cm back: 45 deg), or both wrists rolling the same way. Slow shuffles "
+                  "never add up; tilting doesn't count."),
+        slider("Twist Window", vr_foegrab_necksnap_window, 0.1f, 1.f, 0.05f, "%.2f s")
+            .help("The head must turn Twist Angle within this long (0.15 s and 75 deg: 500 deg/s on average)."),
         slider("Head Grip Margin", vr_foegrab_necksnap_margin, 0.f, 12.f, 1.f, "%.0f units").extend(-8.f, 32.f)
             .help("Your hands count as on its head this far outside its head zone (the headshots'; 32 units are about a "
                   "metre)."),
@@ -7132,8 +7134,16 @@ za::Vector<Item> pageDebugTests()
                   "held enemy's movement, each hand's stretch, both hands' turn."),
         toggle("Neck Snap Diagnostic", "vr_foegrab_necksnap_debug")
             .help("vr_foegrab_necksnap_debug: over the humanoid you hold (else the nearest), its head zone, where each "
-                  "hand holds, the twist against the selected method's thresholds (Combat > Holding Enemies > Neck Snap, "
-                  "Show Diagnostic)."),
+                  "hand holds, the hand line's twist against Twist Angle (Combat > Holding Enemies > Neck Snap, Show "
+                  "Diagnostic)."),
+        toggle("Lift Diagnostic", "vr_foegrab_lift_debug")
+            .help("vr_foegrab_lift_debug: over the humanoid you hold (else the nearest), your hands' pull up against Lift "
+                  "Speed and 45 degrees, your reach, what stops a lift now and the last try (Combat > Holding Enemies > "
+                  "Lift, Show Diagnostic)."),
+        toggle("Judo Throw Diagnostic", "vr_foegrab_throw_debug")
+            .help("vr_foegrab_throw_debug: over the enemy you hold (else the nearest), your hands' turn and speed against "
+                  "Turn to Throw and Hands' Speed, the turn's way, what stops a throw now and the last try (Combat > "
+                  "Holding Enemies > Two-Hand Throw, Show Diagnostic)."),
         command("Hurt the Held to 30%", "vr_foegrab_hurt 0.3")
             .help("vr_foegrab_hurt 0.3: the enemy you hold (else the one nearest you) is left with 30% of its full health: "
                   "a death knight, an ogre or a fiend can then be thrown (Combat > Holding Enemies, Hurt Below)."),
