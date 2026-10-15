@@ -5742,7 +5742,9 @@ void() wpnthrow_stabilize =
     }
 }
 
-void() forcegrabbable_think_impl =
+// The QuakeC of forcegrabbable_think_impl, the fallback of its native copy (propthink, vr_propthink.cpp: keep the two
+// the same; vr_propthink_check compares them).
+void() forcegrabbable_think_qc =
 {
     // In water (not the "just spawned" waterlevel 1 of an entity never checked since).
     if(self.waterlevel >= 1 && self.watertype <= CONTENT_WATER)
@@ -5814,6 +5816,16 @@ void() forcegrabbable_think_impl =
     if(self.throwhit == QVR_THROWHIT_HIT && !self.vr_rigid) // rigid ones settle in the engine
     {
         wpnthrow_stabilize();
+    }
+}
+
+// A force-grabbable thing's think (thrown and dropped weapons, pickups as objects): water, dust, settling after a throw.
+// In the engine (propthink: 5-18% of all the QuakeC's statements were here; docs/vr-port/QC_VM.md), else in QuakeC.
+void() forcegrabbable_think_impl =
+{
+    if(!propthink(vr_weapondrop_particles_on))
+    {
+        forcegrabbable_think_qc();
     }
 }
 
