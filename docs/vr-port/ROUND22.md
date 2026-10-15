@@ -5948,3 +5948,23 @@ found, vrtesthall 14 found, 0 missing. e1m1 smoke clean, build 0 warnings.
 
 Checklist (proposed): "VR Settings: each section is its own page (Height Calibration ... Sound); open a few, change a
 value, Back returns to VR Settings; Reset All still there and still resets them; nothing you used to set there missing."
+
+## Faster test suites: batched cases shipped (worktree `fastship`, branch `agent/fasttests`, 2026-10-15)
+
+The batched test cases from 2026-10-14 (`Misc/quakevr/testbatch/`: many cases in one game between `vr_test_snapshot`
+and `vr_test_reset`, games in parallel, unpaced frames; `vr_waituntil`, `vr_waitprint`; TESTING.md "Batched test
+cases") merged with next and proven again: the 28 converted suites (the reload family, the ragdoll suites, limbs,
+prop_climb, gib_2h_throw, ad_monsters, collectfx, weapon_catch, voreshove, judo) each run alone (`TB_SLOW=1`) and
+batched. 9361 s alone -> 1646 s batched (5.7x; reload_test.sh 1156 s -> 80-157 s, judo 608 s -> 14 s), the same
+verdicts but for cases that flip between two runs of the same kind (ragtest's crawl and catch, climb's per-monster
+lines; reload_test alone under load failed 2, then 9: wall-clock frames; batched 112 of 112 both times). Table and
+notes: TESTING.md "The batched suites, proven again on next".
+
+- next's newer cases kept: reload_test's two Release Seated Magazine cases batched; judo's slow shuffle and
+  `JUDO_NECK_METHOD` cases batched through its `run()`.
+- Found by collectfx batched: `load` right after `save` read the save half written (Ironwail saves in a background
+  thread). `load` now waits for it (`Host_WaitForSaveThread`, host_cmd.c): a quick save then a quick load could hit it.
+- Not changed: guard and decap batched with frames drawn, voreshove with real-time frames; brush_test.py not batched;
+  the 19 release-suite conversions left uncommitted in the old worktree are lost (BACKLOG.md).
+
+Nothing to test in VR (test harness), but quick save then at once quick load: the game loads (no error).

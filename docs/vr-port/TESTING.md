@@ -1427,3 +1427,38 @@ run; each counts frames as `wait` does (a server tick each) and goes on at once 
 
 A fixed wait that a check measures across (frames, seconds, distances after it) is the check's own: replace only waits
 that end on an event (the ragdoll settled, the line printed), and prove the suite again.
+
+### The batched suites, proven again on next (2026-10-15)
+
+Each suite run alone (`TB_SLOW=1`) and batched, one after the other, the machine shared with other agents' runs
+(the alone times are the busier for it). Verdicts: the suite's PASS/FAIL lines, in order.
+
+| suite | verdicts | alone: PASS/FAIL | batched | alone s | batched s |
+|---|---|---|---|---|---|
+| reload/reload | 112 | 110/2 (2nd: 103/9) | 112/0 (twice) | 1156 | 157 (2nd: 80) |
+| reload/front, eject, contact, pouch, pouchgren, worldparts | 129 | all PASS | the same | 1792 | 151 |
+| reload/gunshape, magcollide | 33 | all PASS | the same | 660 | 313 |
+| ragdoll/stagger, grab, guard | 84 | all PASS | the same | 1801 | 147 |
+| ragdoll/ragtest | 32 | 30/2, 2nd 32/0 | 30/2, 2nd 32/0 | 213 | 17 |
+| ragdoll/climb | 28 | 19/9, 2nd 22/6 | 20/8 (twice) | 663 | 34 |
+| ragdoll/liquid_active | 1 | PASS | PASS | 208 | 10 |
+| climb/prop_climb, weapon_catch, voreshove | 18 | all PASS | the same | 206 | 37 |
+| collectfx | 9 | all PASS | all PASS (after the load fix below) | 43 | 7 |
+| foegrab/judo (dir hold lift neck) | 54 | all PASS | the same | 608 | 14 |
+| ragdoll/active, decap, dismember, env, ragdoll; limbs; gib_2h_throw; ad_monsters | measurements | | | 2011 | 759 |
+| **all 28** | | | | **9361** | **1646** |
+
+- The verdicts that differ are the same cases flipping between two runs of the same kind: ragtest's `crawl` and `catch`
+  (chance; flips batched too), climb's per-monster lines (physics; the suite passes either way), reload_test's under
+  load alone (wall-clock frames: the second alone run, beside other runs, failed 9; batched: 112 both times).
+- The measurement suites print numbers, no verdicts: the same cases and lines, the numbers within two alone runs'
+  spread (gib_2h_throw: 9 and 12 bursts of 28 alone, 12 and 10 batched; ad_monsters: word for word the same).
+  liquid_active's `knight water` line ends "FAIL energy 83 J" batched (both times), its paddle 3.8 s long; alone it
+  paddled 5.0 s both times (each monster's paddle is chance: 3.8 to 5.3 s in both forms); not one of the suite's verdicts.
+- collectfx's "save and load while it goes in" failed batched: `load` right after `save` (2 frames, unpaced) read the
+  save half written (`ED_ParseEntity: EOF without closing brace`). `load` now waits for a save still being written
+  (`Host_WaitForSaveThread`, host_cmd.c): a quick save then quick load could hit it too.
+- ad_monsters needs `ad` in the agent's game folder (`kit/bases/<name>/qbase/ad`, a junction to the Steam AD folder);
+  without it every case prints "no AD monster", alone and batched alike.
+- Outputs, times and the compare scripts: `scratch/parity/` (`parity.sh`, `parity_cmp.py`, `parity_pair.py`,
+  `parity_words.py`) in worktree `fastship`.

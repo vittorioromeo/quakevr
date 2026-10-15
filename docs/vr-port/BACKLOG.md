@@ -226,13 +226,15 @@ stats), the jump boots' power level, coop.
 
 ## Test suite speed-up leftovers (2026-10-14, branch agent/fasttests)
 
-- Merge agent/fasttests into next (5 commits: testbatch helper + 22 batched suites, 8100 s -> 1200 s) after a check.
-- Prove and commit the uncommitted conversions in worktree qvr-agents/fasttests: 19 more release-suite scripts, 3
-  Python suites, batching of runs built from earlier runs' output, the expanded TESTING.md section, the kit README line.
+- (Done 2026-10-15, worktree fastship: next merged in, the 28 batched suites proven again alone vs batched, 9361 s ->
+  1646 s; TESTING.md "The batched suites, proven again on next".)
+- Redo the conversions that were left uncommitted in worktree qvr-agents/fasttests (19 more release-suite scripts, 3
+  Python suites, the kit README line): lost, that worktree was reused for another branch. (Runs built from earlier
+  runs' output are batched: each runs as a batch of one, testbatch.sh.)
 - Finish the full release suite's old-way baseline (stopped at 33 of 43) and record before/after.
 - brush_test.py: not batched yet (uses saves and screenshots every run).
-- guard/decap (drawn frames) and voreshove (real-time frames) stay unbatched: find a way if worthwhile.
-- ROUND22.md note for the speed-up.
+- guard/decap are batched with their frames drawn and voreshove with real-time frames (17, 32 and 15 s batched):
+  frames not drawn / unpaced only if worthwhile (it changed their verdicts).
 
 ## Permanent decals leftovers (2026-10-14; design and status: docs/vr-port/PERM_DECALS.md)
 
