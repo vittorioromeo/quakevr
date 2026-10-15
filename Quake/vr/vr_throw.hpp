@@ -21,18 +21,15 @@ struct Estimate
                            // (weight::throwVelocity).
     glm::vec3 pos{0.f};    // world position of the object's centre when it left the hand
     double time{0.0};      // when it left the hand
-    // vr_throw_slowmo_aim: degrees the slowed hand's own estimate went off the way the controller moved (0: the same,
-    // or not slow motion), and metres the hand was behind its controller at the peak (vr_debug_throw).
+    // Slow motion: degrees the slowed hand's own estimate went off the way the controller moved (0: the same, or not
+    // slow motion), and metres the hand was behind its controller at the peak (vr_debug_throw).
     float aimTurn{0.f};
     float lag{0.f};
-    float rate{1.f}; // the windows' seconds in the samples' clock's one (slow motion: vr_throw_slowmo_real_time, _tempo)
-    float flickRate{1.f}; // slow motion: the wrist flick's speed kept of the game's time's (vr_throw_slowmo_flick)
-    float flickShare{0.f}; // ... and the flick's share of the controller's throw (its speed over the throw's)
-    float nudge{0.f};      // slow motion: how far it was a nudge, as strong as at full speed (vr_throw_slowmo_short_travel)
-    float travel{0.f};     // ... the stroke's path (metres) and length (real seconds) that told
+    float rate{1.f}; // the windows' seconds in the samples' clock's one (slow motion: the real time's times the gain)
+    float travel{0.f};     // the stroke's path (metres) and length (real seconds)
     float strokeTime{0.f};
-    // vr_throw_slowmo_stroke: the multiple of the controller's real speed thrown (1 to 1/timescale; under strokeGain's
-    // when capped), the stroke's tempo (real seconds: its path over its peak) and peak speed (real m/s); 0: not so.
+    // The multiple of the controller's real speed thrown (1 to 1/timescale; under strokeGain's when capped), the
+    // stroke's tempo (real seconds: its path over its peak) and peak speed (real m/s); 0: no estimate.
     float gain{0.f};
     float tempo{0.f};
     float peak{0.f};
@@ -51,7 +48,7 @@ struct Motion
 
 // `hand`: the hand's motion (as drawn: in slow motion the slowed hand, timescale::filterHands); `controller`: its
 // controller's own (the same unless the slowed hand lags it), whose estimate gives the throw's direction and spin axis in
-// slow motion (vr_throw_slowmo_aim).
+// slow motion (strokeEstimate).
 void sample(int hand, double time, const Motion& handMotion, const Motion& controller);
 
 // The estimate as of the newest sample, as if released now.

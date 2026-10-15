@@ -405,10 +405,12 @@ void drawInEye(const hands::State& s, bool headText)
     const bool visible = panelVisible();
     if(visible && !panelWasVisible)
     {
-        for(MenuPanel& p : menuPanels) // (opened again: in front of the head)
+        for(MenuPanel& p : menuPanels) // (opened again: in front of the head, unless a hand or New Panel placed it)
         {
-            p.yawOffset = s.headAngles.y - hands::playSpaceYaw();
-            p.placement.placed = false;
+            if(!p.placement.placed)
+            {
+                p.yawOffset = s.headAngles.y - hands::playSpaceYaw();
+            }
         }
     }
     panelWasVisible = visible;

@@ -6936,6 +6936,10 @@ the corner buttons stay clear. The headset is unchanged: it centres in its panel
 present) the check shows the block centred (about 115 px above, 110 below at 960x540), its save lines clear of the box.
 Screenshots (scratch/): mm_flat_before.png, mm_flat_after.png (run with -ExtraArgs "-flatscreenmode"),
 mm_vr_nocontinue.png, mm_vr_continue.png. Not tested in a real headset.
+Follow-up (branch agent/mainmenu2): on the flat screen the title now starts at menu y -20 (the canvas reaches -60; the
+corner buttons end about -29), so the rows get 24 more units above the unchanged bottom limit 200. With the Continue row
+(14 rows) that is steps 13 and gaps 1 (before: none); fewer rows give wider gaps. The headset path is untouched.
+Screenshots: scratch/mm2_flat_after.png, mm2_vr.png.
 ## The small crates' lips: not a bug (2026-10-15, worktree `fastship`, branch `agent/climblip`)
 
 The note in "Review fixes" (`vr_climb_try` finds no hold at a small crate's lip, spawns 123/124) was a wrong probe: the
@@ -6969,7 +6973,7 @@ and the judo throw".
   `velocity`). `vr_motion_eval`'s `necksnap <method>` option is gone.
 - **His values the defaults** (from his config): Twist Angle 75 (was 80), Twist Window 0.15 s (0.2), Head Grip Margin 0
   (2), Neck Length 0 (1.5); his speed 210 dropped with Velocity; hertz 24, strength 1.25, volume 1 were the defaults
-  already. `configVersion` 135 migrates a config at the old defaults.
+  already. `configVersion` 137 migrates a config at the old defaults.
 - **Lift and judo throw diagnostics** (Holding Enemies > Lift / Two-Hand Throw > Show Diagnostic, and Debug > Tests >
   Holding Enemies: Lift Diagnostic, Judo Throw Diagnostic; `vr_foegrab_lift_debug`, `vr_foegrab_throw_debug`, not saved),
   like the neck snap's. Over the enemy both hands hold (else the one a hand holds, else the monster nearest the palms;
@@ -6997,3 +7001,57 @@ and the judo throw".
 
 Checklist (in checklist.txt, replacing the method comparison): the lift and judo throw diagnostics against what you
 feel.
+## Bullet-time throws: the stroke's tempo only (2026-10-15, worktree `fastship`, branch `agent/throwlean`)
+
+His note: the new slow-motion throwing feels mostly good; keep only it and drop the rest, leaner settings. The
+stroke-tempo throw ("Bullet-time throws: the stroke's tempo" above) is now the only one: `vr_throw.cpp` `estimateAt` and
+`estimateBothAt` always go through `strokeEstimate` (at timescale 1 the hand's and controller's samples are the same, the
+gain 1: exactly `releasePeak` as before). Gone with the old path: `motionRate`, `withOwnAim`, `Tempo`, `armVelAt`,
+`armSpeed`, the free `valueAt`, and `Estimate`'s `flickRate`, `flickShare`, `nudge` (and `vr_debug_throw`'s old-path
+lines). About 250 lines less.
+
+Removed cvars (listed in `retiredCvars`: an old config's lines are dropped quietly; config version 136, nothing to
+migrate) and their Throwing-page rows:
+- `vr_throw_slowmo_stroke` (the A/B switch; row "Slow Motion: Throw Strength by Stroke")
+- `vr_throw_slowmo_real_time` (1 was required for the stroke path; row "Slow Motion: Throws in Real Time"): the
+  release's windows and the release speed threshold are always in the player's real time in slow motion
+- `vr_throw_slowmo_tempo` ("Slow Throws Match"), `vr_throw_slowmo_aim` ("Throw Where You Aim"), `vr_throw_slowmo_flick`
+  ("Real-Time Flicks"), `vr_throw_slowmo_flick_arm` ("Wrist Flick Below"), `vr_throw_slowmo_short_travel` ("Nudge
+  Below"), `vr_throw_slowmo_long_travel` ("Arm Throw From"); with them version 111's three default-change rows
+
+Kept (the stroke path reads them): `vr_throw_slowmo_stroke_time` (0.09 s, "Full Stroke Tempo", its help now explains the
+mechanic), `vr_throw_slowmo_max_speed` (15 m/s), `vr_throw_slowmo_real_strength` (0, "Throws As In Real Time"). The
+bullet-time tap and trigger settings are untouched.
+
+One difference: while the slowed hands are still catching up right after bullet time ends (timescale 1, hand behind its
+controller), a throw had the controller's way at the lagging hand's speed (`withOwnAim`); now the controller's way and
+speed (the stroke path at gain 1), as at full speed. `vr_debug_throw 1` prints its stroke line then too.
+
+Tests: `flick_slowmo_compare.sh` identical to before the change (all 17 rows, every column: lob50 bullet x1.23,
+overhand x1.49, overhand0 made slowly x0.88); `stroke_sweep_test.sh lob` as in the section above (lob50 x1.23, lob70
+x1.35; made 3.3x slower x1.01, gain x3.33); `throw_slowmo_test.sh` in bullet time runs with its stroke lines; the
+removed cvars set from a script are silent; e1m1 smoke clean.
+## VR Settings submenus merged, biosuit glow defaults
+
+The 20 VR Settings submenus (rows: Height 4, Hands 8, Holsters 11, Ammo Pouch 5, Controls 1, Locomotion 6, Comfort 5,
+Teleportation 2, Turning 2, Flashlight 2, Lighting 2, Weapons 4, Bullet Time 3, Body 4, Haptics 1, HUD 3, Sound 3,
+Display 2, Scaling 4, Graphics 10) are now 9, each part under a small header, every row kept (vr_menu.cpp, addVrsPart):
+Height and Hand Calibration; Holster Calibration; Ammo Pouch; Locomotion and Controls; Comfort, Teleport and Turning;
+Weapons and Bullet Time; Body and Flashlight; HUD, Haptics and Sound; Display and Graphics (Display, Lighting, Scaling,
+Graphics). The boards' menu paths were renamed (make_vrcalibration_map.py, make_vrtesthall_map.py; both maps rebuilt;
+vr_menu_path_check: 0 missing). Biosuit glow defaults from his config: vr_suit_glow 1 and vr_suit_glow_light 1 (were 2);
+configVersion 135. The pentagram (2, 2) and quad values already match his config.
+
+## Menu panels kept when the menu closes (worktree `tghost`, branch `agent/panelkeep`, 2026-10-15)
+
+His note: the extra menu panels must not close when he returns to the game. Now leaving the menu by any way (Back to
+game, Esc, the menu button, the dashboard) HIDES them: `MenuInstance::open` stays true, `menu::instanceOpen` is false
+while the menu is not shown, `tidyInstances` only makes the first panel current again (it no longer closes the rest).
+Opening the menu shows every panel with its page/submenu, scroll and selection as left; map changes and loads keep
+them too (Quickload no longer closes them). Only Close Panel (or Back out of a panel's first page) removes one.
+Placement: `vr_panel.cpp drawInEye` no longer unplaces panels when the menu reappears, so a panel placed by grip (or
+by New Panel) stays put (stored in play-space, so it follows the player across maps); a main panel never moved is
+still re-centred in front of the head. Back to game reopens on the FIRST panel's page, whichever panel it was pressed
+on. Not done: a page that becomes invalid after a map change falling back to the panel's top page (the pages are
+static, none is map-dependent today). Test: `Misc/quakevr/menu_panels_test.py` steps 10-12 (hide, reopen, map change,
+Close Panel) pass.

@@ -621,9 +621,6 @@ const DefaultChange defaultChanges[] = {
     {111, &vr_strike_stamina_cost_2h, "6"},        // 12
     {111, &vr_strike_stamina_punch, "4"},          // 6
     {111, &vr_sword_damage_mult, "1"},             // 1.1 (vr_defaults.cfg)
-    {111, &vr_throw_slowmo_flick, "1"},            // 0.9
-    {111, &vr_throw_slowmo_long_travel, "0.2"},    // 0.5
-    {111, &vr_throw_slowmo_short_travel, "0.15"},  // 0.25
     {111, &vr_weapon_throw_damage_mult, "0.35"},   // 0.4
     {111, &vr_weight_damage_exp, "0.4"},           // 0.375
     {111, &vr_weight_lenient, "0.5"},              // 0.515
@@ -764,15 +761,22 @@ const DefaultChange defaultChanges[] = {
         "monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_dcrossbow "
         "monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz "
         "monster_ranged_knight infected"},
-    // 135: the neck snap measured by the hand line only (Velocity and its Twist Speed gone), at the author's values ("I
+    // 135: the biosuit glow as he tuned it (ROUND22.md, "VR Settings submenus merged").
+    {135, &vr_suit_glow, "1"},                       // 2
+    {135, &vr_suit_glow_light, "1"},                 // 2
+    // 136: the bullet-time throw is the stroke's tempo's alone (ROUND22.md, "Bullet-time throws: the stroke's tempo
+    // only"): the older rules' settings are retired (retiredCvars), nothing here to change.
+};
+constexpr int configVersion = 137;
+    // 137: the neck snap measured by the hand line only (Velocity and its Twist Speed gone), at the author's values ("I
     // took the neck snap settings ... Those are the ones I want", 2026-10-15; ROUND22.md, "Neck snap: the Hand Line
     // only"): 75 degrees within 0.15 s, the head zone as the headshots' (no margin, no neck below it).
-    {135, &vr_foegrab_necksnap_angle, "80"},         // 75
-    {135, &vr_foegrab_necksnap_window, "0.2"},       // 0.15
-    {135, &vr_foegrab_necksnap_margin, "2"},         // 0
-    {135, &vr_foegrab_necksnap_neck, "1.5"},         // 0
+    {137, &vr_foegrab_necksnap_angle, "80"},         // 75
+    {137, &vr_foegrab_necksnap_window, "0.2"},       // 0.15
+    {137, &vr_foegrab_necksnap_margin, "2"},         // 0
+    {137, &vr_foegrab_necksnap_neck, "1.5"},         // 0
 };
-constexpr int configVersion = 135;
+constexpr int configVersion = 137;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -1221,6 +1225,16 @@ constexpr const char* retiredCvars[] = {
     "vr_knockdown_shove_feet_speed",
     "vr_knockdown_shove_feet_hold",
     "vr_hub_map", // 2026-10-09: the hub is vrstart, the only one (the old hub, vrstart_old, removed)
+    // 2026-10-15: the bullet-time throw is the stroke's tempo's alone (ROUND22.md, "Bullet-time throws: the stroke's
+    // tempo only"); its switch and the older rules' settings.
+    "vr_throw_slowmo_stroke",
+    "vr_throw_slowmo_real_time",
+    "vr_throw_slowmo_tempo",
+    "vr_throw_slowmo_aim",
+    "vr_throw_slowmo_flick",
+    "vr_throw_slowmo_flick_arm",
+    "vr_throw_slowmo_short_travel",
+    "vr_throw_slowmo_long_travel",
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

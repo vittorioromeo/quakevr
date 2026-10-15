@@ -12,7 +12,8 @@
   8. New Panel again: on the VR Settings (the first shows a page for one panel at a time), where it was last
   9. both hands at once: the off hand's laser on the second, the main hand's on the first: each panel's row follows its
      own laser
- 10. the menu button (Back to game) closes them all; the menu opened again: one panel
+ 10. the menu button (Back to game) hides them; opened again (and after a map change): each panel back as left
+ 11. Close Panel (vr_menu_panels close) still removes one
 Prints PASS/FAIL per check; exits 1 on a failure.
 """
 import os
@@ -40,8 +41,12 @@ steps = [
     ("reopen", "vr_menu_panels open;wait10"),
     ("hands", "vr_menu_panels focus 1;menu_vr 3;wait5;vr_mock_laser 100 20 panel 2 hand off;vr_mock_laser 100 60 panel 1;wait10"),
     ("hands2", "vr_mock_laser 100 40 panel 2 hand off;wait10"),
+    ("pre", "vr_mock_laser off;vr_mock_laser off hand off;vr_menu_panels focus 2;wait5"),
     ("closed", "vr_mock_laser off;vr_mock_laser off hand off;wait2;vr_mock_button main menu 1;wait5;vr_mock_button main menu 0;wait10"),
-    ("again", "vr_mock_button main menu 1;wait5;vr_mock_button main menu 0;wait20"),
+    ("again", "vr_mock_button main menu 1;wait5;vr_mock_button main menu 0;wait20;vr_menu_panels focus 2;wait5"),
+    ("map", "vr_mock_button main menu 1;wait5;vr_mock_button main menu 0;wait10;map e1m2;wait60;"
+            "vr_mock_button main menu 1;wait5;vr_mock_button main menu 0;wait20;vr_menu_panels focus 2;wait5"),
+    ("close2", "vr_menu_panels close 2;wait5"),
 ]
 script = ";".join(f"{cmd};echo STEP {name};vr_menu_panels;vr_menu_panel" for name, cmd in steps) + ";toggleconsole;quit"
 out = subprocess.run([BASH, f"{KIT}/run.sh", agent, "-Script", script, "-Filter", "STEP|MENUPANEL|one panel at a time|exit="],
@@ -113,7 +118,15 @@ check(panel("hands", 1)["row"] != panel("hands", 2)["row"] or panel("hands", 1)[
       "9 two lasers, two rows")
 check(panel("hands2", 2)["row"] != panel("hands", 2)["row"] and panel("hands2", 1)["row"] == panel("hands", 1)["row"],
       "9 the off hand's laser moves its panel's row, the main hand's panel kept")
-check(get("closed")["open"] == 0, "10 the menu button closes every panel")
-check(get("again")["open"] == 1, "10 opened again: one panel")
+check(get("closed")["open"] == 0, "10 the menu button hides every panel (none shown)")
+pr, ag, mp = get("pre"), get("again"), get("map")
+same = lambda x, y: x["from"] is not None and y["from"] is not None and all(abs(a - c) < 2.0 for a, c in zip(x["from"], y["from"]))
+near = lambda x, y: x["from"] is not None and y["from"] is not None and abs(sum(a * a for a in x["from"]) - sum(a * a for a in y["from"])) < 100.0  # (the new map's spawn turns the play space: the same distance round the head)
+check(ag["open"] == 2 and panel("again", 1)["page"] == panel("pre", 1)["page"] and panel("again", 2)["page"] == panel("pre", 2)["page"]
+      and panel("again", 2)["row"] == panel("pre", 2)["row"], "10 opened again: both panels back on their pages and rows")
+check(same(pr, ag), "10 the second panel in the same place (%s -> %s)" % (pr["from"], ag["from"]))
+check(mp["open"] == 2 and panel("map", 1)["page"] == panel("pre", 1)["page"] and panel("map", 2)["page"] == panel("pre", 2)["page"]
+      and near(pr, mp), "11 after a map change: both panels back, same pages and place (%s)" % (mp["from"],))
+check(get("close2")["open"] == 1, "12 Close Panel still removes one")
 check("exit=0" in out, "the game quit normally")
 sys.exit(fail)
