@@ -312,3 +312,5 @@
 .float vr_shot_radius;  // a grenade shots set off (vr_grenade.qc, "Shooting grenades"; engine: vr_hitmodel.cpp VR_ShotTargetClip): shots
                         // and missiles meet a cube this half size round its middle (0: Quake's rules); with takedamage
 .float vr_shot_ownfrom; // its owner's own shots meet it from then (not as it leaves his launcher or hand)
+.float vr_melee_time; // a monster's melee attack (ai_charge, ai_melee and kin; AD's ad_ai_*): when it last stepped or
+                      // struck in one; the engine keeps it out of your head meanwhile (vr_enemy_melee_space)
