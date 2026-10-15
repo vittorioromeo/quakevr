@@ -59,7 +59,8 @@ constexpr const char* sections[] = {"Monsters", "Props", "Weapons", "Items", "Fi
 constexpr int sectionCount = 5;
 constexpr int gridColumns = 4;
 constexpr int gridRows = 2;
-constexpr int maxEntries = 128; // AD support: retain every installed spawn entry
+constexpr int maxEntries = 256; // a tab's entries and its groups' empty cells (AD support: every installed spawn entry)
+constexpr int maxPacks = 16;    // the groups a tab shows (toolgun::spawnablePack)
 // // a section's (the spawn list has fewer)
 
 constexpr const char* jointHints[] = {"Shoot a prop, then another: they stay stuck as they are.",
@@ -656,21 +657,47 @@ void spawnPage(Ui& ui)
             ps.section = i;
         }
     }
-    // The section's entries, a page of them.
+    // The section's entries, a page of them: id's and Quake VR's own first, then each pack's (the Scourge of Armagon's,
+    // the Dissolution of Eternity's, the Machine packs', ...: toolgun::spawnablePack) as a group of its own from a fresh
+    // page, in the list's order, Arcane Dimensions' last (-1: an empty cell).
     constexpr int perPage = gridColumns * gridRows;
-    za::InPlaceVector<int, maxEntries> entries;
-    bool lastAD = false; // AD support
-    for(int i = 0; i < toolgun::spawnableCount() && entries.size() < entries.capacity(); i++)
+    const auto inSection = [](int i) { return !strcmp(toolgun::spawnableSection(i), sections[ps.section]); };
+    za::InPlaceVector<const char*, maxPacks> packs;
+    packs.pushBack("");
+    for(int i = 0; i < toolgun::spawnableCount(); i++)
     {
-        if(!strcmp(toolgun::spawnableSection(i), sections[ps.section]))
+        const char* pack = toolgun::spawnablePack(i);
+        bool known = !strcmp(pack, "AD");
+        for(int k = 0; k < static_cast<int>(packs.size()) && !known; k++)
         {
-            // AD support: Arcane Dimensions' entries, a group of their own from a fresh page (-1: an empty cell).
-            const bool ad = toolgun::spawnableAD(i);
-            while(ad && !lastAD && entries.size() % perPage != 0 && entries.size() < entries.capacity())
+            known = !strcmp(packs[k], pack);
+        }
+        if(inSection(i) && !known && packs.size() < packs.capacity() - 1)
+        {
+            packs.pushBack(pack);
+        }
+    }
+    packs.pushBack("AD");
+    za::InPlaceVector<int, maxEntries> entries;
+    za::InPlaceVector<int, maxPacks> groupPages; // each group's first page (">>": the next group's)
+    for(int k = 0; k < static_cast<int>(packs.size()); k++)
+    {
+        bool first = true;
+        for(int i = 0; i < toolgun::spawnableCount() && entries.size() < entries.capacity(); i++)
+        {
+            if(!inSection(i) || strcmp(toolgun::spawnablePack(i), packs[k]))
+            {
+                continue;
+            }
+            while(first && k > 0 && entries.size() % perPage != 0 && entries.size() < entries.capacity())
             {
                 entries.pushBack(-1);
             }
-            lastAD = ad;
+            if(first)
+            {
+                groupPages.pushBack(static_cast<int>(entries.size()) / perPage);
+            }
+            first = false;
             if(entries.size() < entries.capacity())
             {
                 entries.pushBack(i);
@@ -711,6 +738,16 @@ void spawnPage(Ui& ui)
         if(button(ui, Rect{bar.x0 + 44.f, bar.y0, bar.x0 + 60.f, bar.y1}, ">"))
         {
             page = (page + 1) % pages;
+        }
+        // The next pack's group (the first again after the last).
+        if(groupPages.size() > 1 && button(ui, Rect{bar.x0 + 63.f, bar.y0, bar.x0 + 81.f, bar.y1}, ">>"))
+        {
+            int next = groupPages[0];
+            for(int k = static_cast<int>(groupPages.size()) - 1; k >= 0; k--)
+            {
+                next = groupPages[k] > page ? groupPages[k] : next;
+            }
+            page = next;
         }
         if(ui.mode == Mode::Draw)
         {

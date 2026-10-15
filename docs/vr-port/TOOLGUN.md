@@ -35,7 +35,11 @@ trigger still uses the tool. A menu opened meanwhile hides it until it closes.
 - **Under it, only the chosen tool's choices:**
   - Spawn: tabs (Monsters, Props, Weapons, Items, Fire) and a grid of thumbnails (each model drawn from its file once,
     `vr_toolgun_icons.cpp`), eight a page (`<`, `>`); a tap chooses. Pick (the next shot picks from the world), Reset
-    (the ghost's offsets and turn), Clear.
+    (the ghost's offsets and turn), Clear. Each tab lists id's and Quake VR's own first, then each pack's as a group
+    from a fresh page, its label tagged (SoA: Scourge of Armagon, DoE: Dissolution of Eternity, MG / MG3: the Machine
+    packs, Honey, Corpses; Arcane Dimensions' AD last); `>>` jumps to the next group. An entry whose pack's data (or
+    rules: AD's map, Dawn of the Machine's campaign for its upgrades) is not there is dimmed, "(unavailable)"
+    (`Quake/vr/vr_toolgun_packs.inc`; ROUND22.md, "Every expansion's entities in the toolgun's spawn panel").
   - Remove: how; Clear Props Made Since the Map Loaded.
   - Physgun: Turn With the Wrist, Snap (X/A) Off/15/45/90, Sticks Turn Pitch/Yaw/Roll, Unfreeze Everything.
   - Scale: Proportional, Reset Its Size.
@@ -176,6 +180,11 @@ offsets, turn and which hand holds it).
   where the held ghost stands, the gun hand's A / X turning it by its way alone (its pitch and twist nothing), the
   sticks walking and turning the player all the while, Reset, A / X back to the game with no choice or another tool, and
   the gun in the off hand (ROUND22.md, "The spawn tool's ghost, held by a hand").
+- `Misc/quakevr/toolgun_spawnall_test.sh <agent> [<first> [<last>]]`: every spawn entry made once, eight at a time on a
+  ring around the player (`vr_toolgun_spawn_test <first> <last>`, then `vr_toolgun_spawn_test check`: each still
+  there, then all removed; Debug > Toolgun's "Spawn Every Toolgun Entry"): each printed spawned and alive, gone,
+  failed or unavailable. `MAPCMD="vr_campaign_native mg3;map map1"` for Dawn of the Machine's campaign-only ones
+  (ROUND22.md, "Every expansion's entities in the toolgun's spawn panel").
 
 ## Known limits
 

@@ -40,6 +40,7 @@
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -80,7 +81,11 @@ struct Spawnable
     bool rulesOnly{false}; // AD support
     int debugChoice{-1}; // AD support
     bool wall{false};    // hung on the wall it is aimed at, facing out of it (a wall torch: ghostPoint)
-    int needs{0};        // 1: made only while its model is there (an expansion's); 2: and only in an AD map (AD's lights)
+    int needs{0};        // 1: made only while its model is there (an expansion's); 2: and only in an AD map (AD's lights);
+                         // 3: only in Dawn of the Machine's campaign (its upgrades: vr_toolgun_packs.inc)
+    const char* probe{nullptr}; // the file `needs` 1 looks for (nullptr: the model)
+    const char* pack{nullptr};  // the pack's group on the panel, from a fresh page (nullptr: id's and Quake VR's own)
+    int frame{0};               // the ghost's frame (a placed corpse's)
 };
 
 constexpr Spawnable spawnables[] = {
@@ -155,6 +160,7 @@ constexpr Spawnable spawnables[] = {
 #include "vr_ad_spawnguns.inc" // AD support: AD's soldiers' guns, after its upgrades (the Weapons tab's AD group)
 #undef QVR_AD_SPAWN // AD support
 #undef QVR_AD_GUN // AD support
+#include "vr_toolgun_packs.inc" // the expansions' entries and id's others (after these: the entries' numbers stay)
 };
 constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spawnables[0]));
 
@@ -164,7 +170,8 @@ constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spaw
 {
     if(s.adOnly && !ad::spawnAvailable(s.model, s.rulesOnly)) { return false; } // AD support
     if(s.needs == 2 && !VR_AD_RulesOn()) { return false; }
-    return s.needs == 0 || COM_FileExists(s.model, nullptr);
+    if(s.needs == 3) { return Cvar_VariableValue("vr_campaign") == 5.f; } // (QC MG3_Campaign)
+    return s.needs == 0 || (COM_FileExists(s.model, nullptr) && (!s.probe || COM_FileExists(s.probe, nullptr)));
 }
 
 constexpr const char* toolNames[] = {"Spawn", "Remove", "Physgun", "Scale", "Joint", "Brush"};
@@ -360,6 +367,7 @@ void select(int i)
     sel.value = s.value;
     sel.lift = s.lift;
     sel.skin = s.skin;
+    sel.frame = s.frame;
     sel.setModel = s.setModel;
     sel.wall = s.wall;
     tg.picking = false;
@@ -1746,6 +1754,11 @@ bool spawnableAvailable(int i)
     return i >= 0 && i < spawnableTotal && entryAvailable(spawnables[i]);
 }
 bool spawnableAD(int i) { return i >= 0 && i < spawnableTotal && spawnables[i].adOnly; }
+const char* spawnablePack(int i)
+{
+    if(i < 0 || i >= spawnableTotal) { return ""; }
+    return spawnables[i].adOnly ? "AD" : spawnables[i].pack ? spawnables[i].pack : "";
+}
 int spawnableDebugChoice(int i) { return i >= 0 && i < spawnableTotal ? spawnables[i].debugChoice : -1; }
 const char* spawnableClass(int i) { return i >= 0 && i < spawnableTotal ? spawnables[i].classname : ""; }
 
@@ -1833,6 +1846,113 @@ const char* stateLine()
 
 namespace
 {
+
+// vr_toolgun_spawn_test [<first> [<last>]]: the spawn list's entries first..last (all by default) each made once as the
+// spawn tool makes it (box3d::spawnClass and its field), on a ring around the player at its feet's height, each printed
+// "spawned <edict>", "failed" (its spawn function made nothing, or removed it at once) or "unavailable" (not here:
+// toolgun::spawnableAvailable); `vr_toolgun_spawn_test check` a moment later: each one made still there ("alive") or
+// gone since (its own think removed it), then every one removed. For tests and Debug > Toolgun's "Spawn Every Entry".
+struct SpawnTestMade
+{
+    int entry;
+    int num;
+};
+struct SpawnTest
+{
+    za::InPlaceVector<SpawnTestMade, 512> made;
+};
+SpawnTest spawnTest;
+
+struct SvVmScope
+{
+    qcvm_t* old{nullptr};
+    SvVmScope() { PR_PushQCVM(&sv.qcvm, &old); }
+    ~SvVmScope() { PR_PopQCVM(old); }
+};
+
+void spawnTestCheck()
+{
+    int alive = 0, gone = 0;
+    {
+        const SvVmScope vm;
+        for(const SpawnTestMade& m : spawnTest.made)
+        {
+            // (its class as it is now: a spawn function may rename it, weapon_bloody_sg a weapon_shotgun)
+            const edict_t* e = EDICT_NUM(m.num);
+            const bool kept = !e->free;
+            Con_Printf("spawntest: %d \"%s\" %s %s\n", m.entry, spawnables[m.entry].label, kept ? "alive" : "gone",
+                e->free ? "(freed)" : PR_GetString(e->v.classname));
+            (kept ? alive : gone)++;
+        }
+    }
+    for(const SpawnTestMade& m : spawnTest.made)
+    {
+        const SvVmScope vm;
+        if(!EDICT_NUM(m.num)->free)
+        {
+            removeTarget(m.num);
+        }
+    }
+    Con_Printf("spawntest: check %d alive, %d gone\n", alive, gone);
+    spawnTest.made.clear();
+}
+
+void spawnTest_f()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        Con_Printf("vr_toolgun_spawn_test: no game running\n");
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "check"))
+    {
+        spawnTestCheck();
+        return;
+    }
+    const int first = za::clamp(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0, 0, spawnableTotal - 1);
+    const int last = za::clamp(Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : spawnableTotal - 1, first, spawnableTotal - 1);
+    glm::vec3 feet{0.f};
+    float yaw = 0.f;
+    {
+        const SvVmScope vm;
+        const edict_t* player = EDICT_NUM(1);
+        feet = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2] + player->v.mins[2]};
+        yaw = player->v.angles[1];
+    }
+    const int count = last - first + 1;
+    int spawned = 0, failed = 0, unavailable = 0;
+    for(int i = first; i <= last; i++)
+    {
+        const Spawnable& s = spawnables[i];
+        if(!entryAvailable(s))
+        {
+            Con_Printf("spawntest: %d %s \"%s\" %s: unavailable\n", i, s.section, s.label, s.classname);
+            unavailable++;
+            continue;
+        }
+        // A ring 160 units out (the entries a ring's step apart), facing the player.
+        const float a = glm::radians(yaw + 360.f * static_cast<float>(i - first) / static_cast<float>(count));
+        const glm::vec3 at = feet + glm::vec3{za::cos(a) * 160.f, za::sin(a) * 160.f, s.lift + 1.f};
+        const glm::vec3 angles{0.f, glm::degrees(a) + 180.f, 0.f};
+        edict_t* e = box3d::spawnClass(s.classname, at, angles, s.setModel ? s.model : nullptr, s.key, s.value);
+        if(e)
+        {
+            const SvVmScope vm;
+            Con_Printf("spawntest: %d %s \"%s\" %s: spawned %d\n", i, s.section, s.label, s.classname, NUM_FOR_EDICT(e));
+            if(spawnTest.made.size() < spawnTest.made.capacity())
+            {
+                spawnTest.made.pushBack(SpawnTestMade{i, NUM_FOR_EDICT(e)});
+            }
+            spawned++;
+        }
+        else
+        {
+            Con_Printf("spawntest: %d %s \"%s\" %s: failed\n", i, s.section, s.label, s.classname);
+            failed++;
+        }
+    }
+    Con_Printf("spawntest: %d spawned, %d failed, %d unavailable\n", spawned, failed, unavailable);
+}
 
 // vr_toolgun_select <n | clear>: the spawn list's entry n (the spawnables' order: 0 the Grunt), or nothing.
 // AD support: catalog evidence for the shared Debug and toolgun spawn menus.
@@ -1974,6 +2094,7 @@ void status_f()
 void qvr::toolgun::registerCommands()
 {
     Cmd_AddCommand("vr_toolgun_spawnlist", spawnlist_f); // AD support
+    Cmd_AddCommand("vr_toolgun_spawn_test", spawnTest_f);
     Cmd_AddCommand("vr_toolgun_select", select_f);
     Cmd_AddCommand("vr_toolgun_pick", pick_f);
     Cmd_AddCommand("vr_toolgun_reset", reset_f);

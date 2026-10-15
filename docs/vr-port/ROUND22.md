@@ -7432,3 +7432,45 @@ lightning right; the shotguns, nails, laser cannon, proximity grenade, lava nail
 enemy guns and both thrown weapons credited with the previous weapon); after 18 passed, 0 failed. AD's guns are not in
 the test base (skipped). To try in VR: a Honey weapon-specific button with the right weapon and a wrong one, after
 firing the right one first.
+
+## Every expansion's entities in the toolgun's spawn panel (worktree `permdecals`, branch `agent/spawnall`, 2026-10-15)
+
+His note: the spawn panel should have every expansion's entities too (the Machine packs' armour shards, Armagon's
+wetsuit...); be thorough. The list was built from every QC spawn function and `quakevr.fgd` (367 classes) against the
+panel; the diff, with what was skipped and why: `qvr-kit/scratch/spawnall_diff.txt`.
+
+- **75 new entries** (`Quake/vr/vr_toolgun_packs.inc`, appended after the old ones: `vr_toolgun_select` numbers stay;
+  195 entries in all). Monsters: id's rotfish and ogre marksman, Quake VR's training dummy; Armagon's gremlin,
+  centroid, spike mine, Armagon; Eternity's mummy, wrath, overlord, phantom swordsman, eel, the three guardians (its
+  spawnflag picks the look: without one `monster_morph` is an objerror), Hephaestus, the dragon; Dawn of the Machine's
+  four infected, demo dog, rocket ogre, ranged knight, slime, shub zombie, lava man, blood shambler, orb, ghost; Honey's
+  spectral knight. Weapons (grabbable): Mjolnir, the proximity gun, the laser cannon, the Super Axe; the bloody
+  shotguns. Items: small health, the large ammo boxes, both keys, the four runes; wetsuit, empathy shields, horn of
+  conjuring; lava nails, multi rockets, plasma, power shield, anti-grav belt; armour shard, lava suit, the five
+  upgrades. Props: eight placed corpses (`misc_corpse` styles), the buzzsaw, Honey's tree. Fire: the fireball spout,
+  the Machine packs' gas flare.
+- **Availability** (`entryAvailable`): `needs` 1 the model (or `probe`: the file the spawn function checks, e.g.
+  Honey's spear: precaching it missing is a Host_Error) on the search path, owned packs' read in place
+  (`owned/mg3/...`); 3 Dawn of the Machine's campaign (its once-a-map upgrades, QC `MG3_UpgradeSpawn`). Unavailable
+  entries are dimmed as AD's are.
+- **The panel**: each tab lists id's and Quake VR's first, then each pack as a group from a fresh page in the list's
+  order (`toolgun::spawnablePack`; Arcane Dimensions' last, as before), labels tagged SoA / DoE / MG3 / MG / Honey;
+  `>>` (beside `<` `>`) jumps to the next group. Monsters now has 14 pages, Items 8.
+- **QC**: `item_armor_shard` reads MG3's model in place in any map when the pack is owned (MG3.md, "Decisions" 5: as
+  the Super Axe), `item_artifact_lavasuit` MG3's model before the biosuit stand-in; a live spawn (`vr_spawn_live`) of
+  `misc_corpse` works outside the Machine world, of a `buzzsaw` snaps its yaw to 90 degrees (else an objerror), of a
+  bloody shotgun in Dawn of the Machine stays outside Bloody Nightmare.
+- **Debug > Toolgun**: Spawn Every Toolgun Entry (`vr_toolgun_spawn_test [<first> [<last>]]`: each entry made once on
+  a ring around the player, spawned / failed / unavailable) and Check and Clear the Spawn Test (`... check`: each
+  still there or gone, then all removed).
+
+Tests: `Misc/quakevr/toolgun_spawnall_test.sh <agent>` (vrfiringrange) PASS: 119 spawned and alive, 0 failed, 76
+unavailable (AD's 64 with no AD here; Honey's 2; the upgrades and the gas flare outside Dawn of the Machine).
+`MAPCMD="vr_campaign_native mg3;map map1" ... 120 194`: the upgrades, the gas flare, shard, lava suit all alive (some
+others "gone" there only because map1's ring spots are in walls: each alone is alive). `toolgun_panel_test.sh` PASS;
+e1m1 smoke clean. Screenshots of the new groups: `scratch/toolgun_spawnall.png` (`scratch/spawnall_shots.sh`).
+
+Not done / to check in VR: AD's other monsters and items (`ad_monsters_gen.py`'s list is the supported set; no AD data
+here to test them), Quoth (no support in the QC), the scripted bosses and map logic (the diff's SKIPPED). Check the new
+ghosts' heights (each a fixed lift: the dragon, Armagon and the guardians are big), Honey's entries with Honey
+installed, and that 14 pages of monsters with `>>` read well on the panel.
