@@ -1282,7 +1282,10 @@ up there); `noplace` or `target <classname|#entity>` keeps the running map (and 
 With AD's data linked into the agent's base (`qbase/ad`): `vr_ad_test 70` fires each AD soldier's gun from the main hand
 at a target ahead and prints `adgun test: ... PASS` (it sets `vr_weapon_grip_mode 1` for itself; aim the mock hand
 level: `vr_mock_hand main 0.25 1.20 -0.40 70 0 0`; about 2.4 s a gun); `71` drops each from a soldier's place and checks
-its model and clip; `72` prints their settings; `73`..`80` put one in the main hand (WID_ADROCKET's order: with
+its model and clip; `72` prints their settings; `90` (same level hand) fires the grenade soldier's launcher beside our
+grenade launcher (the same grenade: model, box, movement, touch, blast, fuse, speed), the rocket soldier's (our rocket)
+and the plasma rifle, and checks each shot 0.3 s on is flying, its own, 90+ units from the muzzle (`adgun shots:`; a
+fifth, uncounted line: AD's old grenade model for comparison); `73`..`80` put one in the main hand (WID_ADROCKET's order: with
 `vr_weapon_grip_mode 1`); `vr_adgun_models` prints the gun models made from AD's monsters (box, muzzle). Real drops:
 `vr_test_spawn_dead 1; vr_test_spawn 211; impulse 241` (227, 223, 212, 217, 220, 232, 235: the grenade and plasma
 soldiers, defender, eliminator, centurion, pyro, fumigator), `developer 1` prints `adgun: ... drops its ...`.
