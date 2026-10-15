@@ -1060,6 +1060,11 @@ int campaignsBloodyShown = -1;
                   "relative to its head, compared with where it pointed up to Twist Window ago: turned Twist Angle "
                   "within that window, it snaps (slow shuffles never add up; tilting doesn't count). Both also count "
                   "both wrists rolling the same way."),
+        toggle("Show Diagnostic", vr_foegrab_necksnap_debug)
+            .help("Over the humanoid you hold (else the nearest): its head zone (green once both hands are in it), where "
+                  "each hand holds (green at its head or neck, orange at a shoulder: never counts), the line between "
+                  "your hands, the twist's arc against Twist Angle and a panel of the selected method's numbers against "
+                  "their thresholds; the last try's result. Each try's largest turn is printed to the console."),
         slider("Twist Window", vr_foegrab_necksnap_window, 0.1f, 1.f, 0.05f, "%.2f s")
             .help("Hand Line only: the head must turn Twist Angle within this long (0.3 s and 30 deg: as fast as 100 "
                   "deg/s on average)."),
@@ -1074,9 +1079,10 @@ int campaignsBloodyShown = -1;
                   "metre)."),
         slider("Neck Length", vr_foegrab_necksnap_neck, 0.f, 12.f, 0.5f, "%.1f units").extend(0.f, 32.f)
             .help("How far below its head your hands still hold its neck (as good as its head: only the neck snap). "
-                  "Lower, at its shoulders, both hands throw it (judo) or lift it."),
+                  "Lower, or out at its shoulders, both hands throw it (judo) or lift it: a shoulder never counts."),
         slider("Crack Volume", vr_foegrab_necksnap_volume, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 2.f)
-            .help("The bone-cracking sound's volume (0 silent)."),
+            .help("The bone-cracking sound's volume (0 silent): from its head and in your hands. Above 1 the layers in "
+                  "your hands grow louder still."),
         slider("Snapped Body Hold", vr_foegrab_necksnap_strength, 0.f, 2.f, 0.05f, "%.2f").extend(0.f, 10.f)
             .help("The most each hand holds the limp body with afterwards, as a share of its weight: above 0.5 two hands "
                   "carry it; below, it sinks to the floor, still held."),
@@ -7005,6 +7011,10 @@ za::Vector<Item> pageDebugTests()
                   "each two-hand throw and lift tried and how it went (why a lift wasn't: not a humanoid, too far), a "
                   "ragdoll held on and let go of or broken free, and each two-hand hold's hardest turn; Every Frame: each "
                   "held enemy's movement, each hand's stretch, both hands' turn."),
+        toggle("Neck Snap Diagnostic", "vr_foegrab_necksnap_debug")
+            .help("vr_foegrab_necksnap_debug: over the humanoid you hold (else the nearest), its head zone, where each "
+                  "hand holds, the twist against the selected method's thresholds (Combat > Holding Enemies > Neck Snap, "
+                  "Show Diagnostic)."),
         command("Hurt the Held to 30%", "vr_foegrab_hurt 0.3")
             .help("vr_foegrab_hurt 0.3: the enemy you hold (else the one nearest you) is left with 30% of its full health: "
                   "a death knight, an ogre or a fiend can then be thrown (Combat > Holding Enemies, Hurt Below)."),

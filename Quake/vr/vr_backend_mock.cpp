@@ -14,6 +14,7 @@
 #include "vr_gearlights.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_foegrab.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
@@ -854,8 +855,22 @@ void mockHandTo_f()
             Con_Printf("vr_mock_hand_to: no %s\n", Cmd_Argv(3));
             return;
         }
-        target.z += Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
-        Con_Printf("vr_mock_hand_to: %s %d: %.1f %.1f %.1f\n", Cmd_Argv(3), found, target.x, target.y, target.z);
+        // ("head": the middle of its head zone, the neck snap's: foegrab::headZoneCentre; then `units` over it.)
+        const bool head = Cmd_Argc() >= 5 && !q_strcasecmp(Cmd_Argv(4), "head");
+        if(head)
+        {
+            PR_PushQCVM(&sv.qcvm, &oldVm);
+            const bool zone = foegrab::headZoneCentre(EDICT_NUM(found), target);
+            PR_PopQCVM(oldVm);
+            if(!zone)
+            {
+                Con_Printf("vr_mock_hand_to: %s %d has no head zone\n", Cmd_Argv(3), found);
+                return;
+            }
+        }
+        target.z += Cmd_Argc() >= 5 + (head ? 1 : 0) ? Q_atof(Cmd_Argv(4 + (head ? 1 : 0))) : 0.f;
+        Con_Printf("vr_mock_hand_to: %s %d%s: %.1f %.1f %.1f\n", Cmd_Argv(3), found, head ? "'s head" : "", target.x,
+            target.y, target.z);
         moveHandTo(hand, target);
         return;
     }

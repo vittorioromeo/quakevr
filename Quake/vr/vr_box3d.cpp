@@ -16083,6 +16083,25 @@ bool ragdollHold(int player, int hand, RagdollHold& out)
     return true;
 }
 
+bool ragdollHoldPoint(int player, int hand, glm::vec3& out)
+{
+    const int index = world ? grabIndex(player, hand) : -1;
+    if(index < 0)
+    {
+        return false;
+    }
+    const World::RagdollGrab& g = world->ragdollGrabs[static_cast<za::SizeT>(index)];
+    const RagdollBodies* r = ragdollOf(g.num);
+    if(!r || g.part >= r->count || B3_IS_NULL(g.joint) || !b3Joint_IsValid(g.joint))
+    {
+        return false;
+    }
+    // (The joint's frame B is on the part, at the anchor: ragdollHold.)
+    const b3Transform frameB = b3Joint_GetLocalFrameB(g.joint);
+    out = world->toU(b3TransformPoint(b3Body_GetTransform(r->body[static_cast<za::SizeT>(g.part)]), frameB.p));
+    return true;
+}
+
 int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out)
 {
     if(!world)

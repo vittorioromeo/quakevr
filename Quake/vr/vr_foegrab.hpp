@@ -75,4 +75,15 @@ void calcStats(edict_t* ent, int* statsi);
 // eased on and off. Returns how far it is on it, 0 (the controller's) .. 1.
 float drawnHand(const hands::State& s, int hand, glm::vec3& pos, const glm::vec3& rot);
 
+// Client (a listen server's): the neck snap's diagnostic (vr_foegrab_necksnap_debug; Neck Snap > Show Diagnostic) over
+// the enemy both hands hold by the head, else the one a hand holds, else the humanoid nearest the hands: its head zone
+// (green with both hands in it), where each hand holds or would (green at its head or neck, orange at a shoulder, red
+// off it), the line between the palms, the twist's arc against Twist Angle and a panel of the selected method's numbers
+// against their thresholds; the last hold's outcome a few seconds after. `eye` the viewer's (the panel faces it).
+void neckDebugDraw(const glm::vec3& eye);
+
+// Server (its QC VM current): the middle of `m`'s head zone, the neck snap's (standing: on its model standing; its
+// ragdoll's head as it lies). False: none. The mock's `vr_mock_hand_to <hand> nearest <classname> head`.
+bool headZoneCentre(edict_t* m, glm::vec3& centre);
+
 } // namespace qvr::foegrab

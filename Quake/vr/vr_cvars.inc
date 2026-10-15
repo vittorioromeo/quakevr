@@ -2877,7 +2877,8 @@ QVR_CVAR(vr_foegrab_necksnap_method, "0", CVAR_ARCHIVE)   // how the twist is me
 QVR_CVAR(vr_foegrab_necksnap_window, "0.3", CVAR_ARCHIVE) // seconds (0.1-1): method 1's window
 QVR_CVAR(vr_foegrab_necksnap_margin, "2", CVAR_ARCHIVE)    // units: the head zone (the headshots') grown by this for the hands' holds
 QVR_CVAR(vr_foegrab_necksnap_neck, "3", CVAR_ARCHIVE)      // units: its neck's length: holds this far below its head (the head sphere's bottom; a ragdoll's: from its head's joint down) are at its head too; lower (its shoulders) they are the judo throw's and the lift's
-QVR_CVAR(vr_foegrab_necksnap_volume, "1", CVAR_ARCHIVE)    // the crack's volume (0 silent)
+QVR_CVAR(vr_foegrab_necksnap_volume, "1", CVAR_ARCHIVE)    // the crack's volume (0 silent; up to 2: the layers in your hands louder too)
+QVR_CVAR(vr_foegrab_necksnap_debug, "0", CVAR_NONE)       // 1: the neck snap's diagnostic over the held (or nearest) humanoid: its head zone, where each hand holds, the twist against the selected method's thresholds; each hold's largest turn printed (vr_foegrab.cpp neckDebugDraw)
 QVR_CVAR(vr_foegrab_necksnap_strength, "1.2", CVAR_ARCHIVE) // the most each hand holds the limp body with afterwards, a share of its weight (above 0.5 two hands carry it)
 QVR_CVAR(vr_foegrab_necksnap_hertz, "24", CVAR_ARCHIVE)   // Hz: how stiffly its head follows the hands afterwards (the hold's spring: the light head bears the body's weight, it sags less the stiffer)
 QVR_CVAR(vr_foegrab_throw_grace, "0.75", CVAR_ARCHIVE)    // s: the thrown enemy's ragdoll passes through your hands (and your body: vr_box3d_throw_grace_body) this long; 0: they knock it as it goes

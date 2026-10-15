@@ -22,6 +22,7 @@ import wave
 RATE = 22050
 LENGTH = 0.55  # s
 SEED = 1337
+DRIVE = 4.0  # the soft clip's drive (loudness: see make)
 
 
 def biquad_bandpass(x, centre, q):
@@ -113,7 +114,7 @@ def make():
     pop = burst(rng, 0.012, 0.002) + [0.0] * int(0.04 * RATE)
     add(out, t0 + 0.028, biquad_bandpass(pop, 820.0, 9.0), 1.1)
     # The neck's dull body thump under it all.
-    add(out, t0, thump(170.0, 85.0, 0.045, 0.25), 0.55)
+    add(out, t0, thump(150.0, 70.0, 0.06, 0.3), 1.1)
     # A faint gristly crackle dying away.
     t = t0 + 0.14
     gain = 0.22
@@ -121,9 +122,10 @@ def make():
         add(out, t, click(rng, rng.uniform(1800.0, 5000.0), 3.0, 0.002, 0.0006), gain * rng.uniform(0.4, 1.0))
         t += rng.uniform(0.012, 0.045)
         gain *= 0.85
-    # Soft clip (it is meant to hit hard), peak at -0.5 dBFS, fades at both ends.
+    # Soft clip driven hard (it is meant to hit hard: its loudest 50 ms as loud as the blows', vr/headshot.wav's, about
+    # -4 dBFS; it was -10 driven at 1.6, a background tick), peak at -0.5 dBFS, fades at both ends.
     peak = max(abs(v) for v in out) or 1.0
-    out = [math.tanh(1.6 * v / peak) for v in out]
+    out = [math.tanh(DRIVE * v / peak) for v in out]
     peak = max(abs(v) for v in out) or 1.0
     level = 10.0 ** (-0.5 / 20.0) / peak
     fade_out = int(0.06 * RATE)
