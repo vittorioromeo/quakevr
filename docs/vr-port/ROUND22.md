@@ -7772,3 +7772,63 @@ rig is first used). Regression: `grip_gap_test.py` cycle 7 checks and forcegrab 
 In VR: grab a crate by its lid or a barrel by its rim with your hand pushed well in: the prop should drop out of the
 hand so the hand lies on the lid or round the rim; a grab with the hand already on the surface should not move it.
 A hand pushed in more than about 18 cm (Most Move 0.75) stays partly in.
+
+## Flesh dents (worktree `goreflesh`, branch `agent/goreflesh`, 2026-10-16)
+
+BACKLOG "More gore" (his notes, 2026-10-15): "real-time vertex deformation showing flesh chunks torn away". His
+decision: dent + wound, persisting on the living, corpses and ragdolls, no see-through holes.
+
+- **Where a dent lives** (`vr_dents.cpp`): each body (the entity; its `.mdl`, a ragdoll's source) keeps up to
+  `vr_gore_dents_max` (8, at most 16) dents in its model's **rest pose** (pose 0, model units): centre, radius, the
+  struck surface's rest normal, depth, and a blade's long axis with its stretch. The wound system already finds where
+  a blow meets the drawn triangles (`vr_wounds.cpp` `strike`); the dent takes the nearest facing drawn triangle to that
+  point and carries the point to the same triangle in pose 0 by its barycentrics (a blade's swing too, through the
+  triangle's frame). A shot, pellet or nail makes a small dent (r 2-3.6 units, 1-1.6 deep), a blade or blunt blow a
+  longer one (r 3-5, drawn out 2.2-3x along the swing), a blast one crater on its nearest facing point (r 3.8-5.5,
+  2-3 deep) and two lesser ones where its bleeds land. Burns, lightning and liquids make none.
+- **Drawn** (`vr_glsl.h` `QVR_DENT_FUNCTIONS`, `QVR_ALIAS_VS_DENTS`, `DentsAt`): the alias vertex shader reads the
+  vertex's rest place (a `.mdl`'s pose 0; a ragdoll's skinned model's bind pose, which is that same pose 0) and pushes
+  it in along its normal as drawn, after the poses, the smoothing, its rebuild from the skeleton and a hit reaction's
+  kick, so a dent goes with every animation and the ragdoll. The bowl is (1 - t^2)^2 (t the distance in radii, squashed
+  along a blade's axis and flattened 2x along the dent's normal so a gun held before the chest is left out), only where
+  the surface faces the dent's (an arm resting on the chest in pose 0 isn't dented with it); the deepest counts. Quake's
+  meshes are coarse (a small dent may move no vertex), so the fragment shader measures each pixel in the rest pose too:
+  raw flesh inside a torn (noise) edge, a pale lip, a dark bloody core, a dark blood rim out to 1.35 radii, wet sheen,
+  and the bowl's slope bent into the normal (the rest pose's screen derivatives; Mikkelsen's surface gradient) and
+  shading the model's own light (its far wall lit, its near one dark) whatever the bumps' setting.
+- **No holes:** the depth is held to 0.6 of the radius and to 0.4 of the body's thickness under the point (a ray
+  through the drawn triangles: an arm, a tail, a head's side), whatever the depth and size scales.
+- **Not flesh:** a triangle on a rig's loose piece (`vr_ragdoll.cpp`: the grunt's gun) gets no dent, and a blast's
+  crater skips it.
+- **Many:** a dent landing mostly on another merges into it (wider by 0.3 of the smaller, up to 1.25x and 7 units,
+  a little deeper); a full body merges its oldest into the dent nearest it (or lets it go: its painted wound stays).
+- **Rows:** one GL buffer (SSBO 12) of 128 bodies x 16 dents x 3 vec4s (96 KB), a block per body, written only when a
+  body's dents change (or the scales do); the instance's `Dent`/`DentScale` say which rows and the drawn model's
+  pose-to-units scale. Past 128 bodies the one hit longest ago gives its dents up. Map changes and `wounds::clear` forget
+  them, a removed entity (`QVR_SVC_WOUNDCLEAR`) forgets its own.
+- **The flesh chunk** is the existing small gibs' (`vr_smallgibs.qc`): already torn out where a hit lands, by its damage
+  (not added again here).
+
+Settings (Gore > Wounds on Models, archived): Flesh Dents `vr_gore_dents` (1), Dent Depth `vr_gore_dents_depth` (1),
+Dent Size `vr_gore_dents_size` (1), Dents per Body `vr_gore_dents_max` (8). They ride on the wound events: with Dynamic
+Wounds, Burns and Wet from Liquids all off, no dents. Debug: `vr_gore_dents_info` (Debug > the info commands: Flesh
+Dents), `vr_wounds_test nearest <kind> [amount] [right] [up] [pellets]` (new `nearest`: the monster model nearest the
+view) and Debug rows Dent the Nearest Monster: Nail / Blade / Blast; `vr_wounds_debug 1` prints each dent (radius,
+depth, thickness under it).
+
+Tests (headless, vrtesthall, `scratch/dentshots.sh <monster> <distance> <eye height> <prefix> "<cvars>"`: nails, six
+pellets, a blade, then a blast; each with dents on and off; then `vr_test_kill 1` and the ragdoll from above; the
+painted blood off, `vr_wounds 0`, to see the dents alone): the grunt's shoulder, chest and forehead (the blade's,
+upright) show dark torn craters with a pale lip that are not there with the dents off; the blast's crater sits on the
+nearest facing flesh (the gun skipped); the ogre's chest crater from the pellets reads as a bloody hole; both ragdolls
+keep their dents (gone with `vr_gore_dents 0`). Pictures: `scratch/g_alive.png`, `g_rag.png`, `o_alive.png`,
+`o_rag.png`.
+
+Cost (`scratch/dentperf.sh`, `--exclusive`, 1440 mock eyes, 20 grunts in a fan in view, 32 bodies dented by
+`vr_wounds_test all` (222 dents)): the models' GPU time 0.533 ms a frame with the dents, 0.485 without (+0.05 ms, both
+eyes), the frame's GPU 1.643 vs 1.596; the models' CPU 0.070 vs 0.069 ms (a lookup per instance); placing a dent 9 us
+(its triangle search, the thickness ray); no allocation per frame (the profiler's count 0).
+
+In VR: shoot a grunt with the nailgun and the shotgun, cut one with a blade, rocket an ogre: each hit should leave a
+small dark crater of raw flesh with a bloody rim that stays as he moves, dies and falls as a ragdoll; never a hole
+through an arm. Too subtle or too much: Dent Depth and Dent Size.

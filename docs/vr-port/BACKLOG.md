@@ -332,3 +332,5 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 
 - More gore: thin blood streams from bullet holes in enemies; teeth flying out when punching faces; real-time vertex
   deformation showing flesh chunks torn away; thinner, longer-range blood splatters onto surfaces behind a shot enemy.
+  - Vertex deformation: done as flesh dents (ROUND22.md, "Flesh dents": hits push the surface in, a crater of raw
+    flesh with a bloody rim, kept on corpses and ragdolls; `vr_gore_dents*`, Gore > Wounds on Models). To check in VR.
