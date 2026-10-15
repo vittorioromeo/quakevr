@@ -5537,8 +5537,9 @@ za::Vector<Item> pageDebugProfiling()
                   "never move them."),
         command("Benchmark Capture (10 s)", "vr_bench_begin manual 10s")
             .help("vr_bench_begin manual 10s: the next 10 seconds' frame times (median, 95th and 99th percentiles, worst), "
-                  "each GPU pass, the heap events and what there is, into quakevr/profile/bench/manual.json and a line in "
-                  "the console (docs/vr-port/BENCHMARKS.md). Stand still and press it."),
+                  "each GPU pass, the heap events, scene counts and a sparse player map-position trail, into "
+                  "quakevr/profile/bench/manual.json and a line in the console (docs/vr-port/BENCHMARKS.md). "
+                  "Stand still and press it."),
         cycle("External Profiler Collects", vr_bench_profiler, {{0.f, "As Started"}, {1.f, "Benchmark Windows"}, {2.f, "Map Loads"}})
             .help("For a CPU profiler run on the game (VTune started paused: -start-paused): Benchmark Windows resumes its "
                   "collection for each Benchmark Capture (vr_bench_begin) alone, Map Loads for each load alone (the map "

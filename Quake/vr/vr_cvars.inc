@@ -544,6 +544,25 @@ QVR_CVAR(vr_xr_res_warn_mpx, "6", CVAR_ARCHIVE)
 // the runtime's wait for the image (SteamVR's OpenGL path: its copy out of it) overlaps the scene's drawing; 0 before
 // the scene (the old order, for comparison).
 QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
+// Opt-in app depth + dynamic image-motion synthesis. Extension choice is latched at backend start.
+QVR_CVAR(vr_xr_frame_synthesis, "0", CVAR_ARCHIVE)
+// 1: synchronously save one valid stereo frame's synthesis inputs/outputs for diagnostics; never a performance run.
+QVR_CVAR(vr_xr_frame_synthesis_capture, "0", CVAR_NONE)
+#if defined(QVR_HAVE_GL_VULKAN_BRIDGE) && defined(__linux__)
+// Experimental GL/Zink -> Vulkan2 transport, latched at VR start.
+// Requires the opt-in bridge build; frame synthesis has its own default-off cvar.
+QVR_CVAR(vr_xr_vulkan_interop, "0", CVAR_ARCHIVE)
+// Experimental: release after bound-queue submit; wait fences at staging reuse.
+QVR_CVAR(vr_xr_vulkan_defer_wait, "0", CVAR_ARCHIVE)
+#endif
+// Synthesis buffer size relative to the runtime recommendation, latched at backend start.
+QVR_CVAR(vr_xr_frame_synthesis_scale, "0.25", CVAR_ARCHIVE)
+// Runtime hint only: request additional time between application frames while synthesis is active.
+QVR_CVAR(vr_xr_frame_synthesis_relaxed, "0", CVAR_ARCHIVE)
+// Experimental only: permit the runtime's sRGB8 motion format when signed float is unavailable.
+QVR_CVAR(vr_xr_frame_synthesis_srgb_motion, "0", CVAR_ARCHIVE)
+// Signed NDC range for sRGB8 motion encoding; invalid/out-of-range flow falls back to camera motion, then neutral motion (no clamping).
+QVR_CVAR(vr_xr_frame_synthesis_motion_range, "0.125", CVAR_ARCHIVE)
 // 1: a line a second in qvr_openxr.txt while VR runs: the frames (rendered, the last one shown again, without layers),
 // the display periods missed, and each OpenXR call's time (average and worst), the session's state; 0 none.
 QVR_CVAR(vr_xr_log_timing, "1", CVAR_ARCHIVE)
@@ -1687,7 +1706,7 @@ QVR_CVAR(vr_retrolight_shadow_soft, "0", CVAR_ARCHIVE)      // their levels' edg
 QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
 QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)
 QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (vr_profile_systems.cpp): each system's ms a frame with a bar; 1 over the wrist gadget's hand, 2 floating in front
-QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)
+QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // 0 disables all profiler GPU queries; N >= 1 times phase GPU scopes every frame and detailed call-tree GPU scopes one frame in N (CPU scopes continue)
 QVR_CVAR(vr_profile_detail, "1", CVAR_NONE)            // 2: the profiler also times every trace (SV_Move) and every QuakeC builtin call apart (dearer)
 QVR_CVAR(vr_profile_csv, "0", CVAR_NONE)               // 1: the profiler writes a row a second, a column per system, to <gamedir>/profile/systems_<date>_<time>.csv
 QVR_CVAR(vr_profile_hitch, "1.5", CVAR_NONE)           // while the profiler collects, frames over this many budgets (refresh periods) are logged with their breakdown (console, profile/hitches_*.csv); 0 off

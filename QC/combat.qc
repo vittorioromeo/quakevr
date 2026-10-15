@@ -149,6 +149,7 @@ Killed
 ============
 */
 void(entity m) VR_Parry_Unsway;
+string(float wid) WeaponIdToWeaponName;
 
 void(entity targ, entity attacker) Killed =
 {
@@ -200,6 +201,21 @@ void(entity targ, entity attacker) Killed =
     }
 
 // bump the monster counter
+    // Diagnostic marker after the dummy/infected early-outs, before the real monster death effects.
+    // Disabled captures only test the cheap builtin; no label lookup or event work then.
+    if((self.flags & FL_MONSTER) && benchkillactive())
+    {
+        string benchWeapon = vr_hitweapon;
+        if(benchWeapon == "")
+        {
+            if(attacker.flags & FL_CLIENT)
+                benchWeapon = WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand));
+            else
+                benchWeapon = attacker.classname;
+        }
+        benchkill(self, benchWeapon, vr_hitkind);
+    }
+
     if((self.flags & FL_MONSTER) && !self.vr_dummy_dead && (!MGH_Active() || self.classname != "monster_zombie"))
     {
         killed_monsters = killed_monsters + 1;

@@ -375,12 +375,17 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
 void copyToRuntimePanel()
 {
     Backend* be = backend();
-    const unsigned image = be ? be->acquirePanelImage(canvas.width, canvas.height) : 0;
+    const GraphicsImage image = be ? be->acquirePanelImage(canvas.width, canvas.height) : GraphicsImage{};
     if(!image)
     {
         return;
     }
-    gfx::copy(canvas, image);
+    if(image.api != GraphicsApi::OpenGL)
+    {
+        be->releasePanelImage();
+        return;
+    }
+    gfx::copy(canvas, static_cast<gfx::Texture>(image.image));
     be->releasePanelImage();
 }
 

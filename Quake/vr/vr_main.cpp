@@ -97,6 +97,7 @@
 #include "vr_propthink.hpp"
 #include "vr_retro.hpp"
 #include "vr_fatigue.hpp"
+#include "vr_frame_synthesis.hpp"
 #include "vr_xr_runtime.hpp"
 #include "vr_weight.hpp"
 #include "vr_weapons.hpp"
@@ -188,6 +189,7 @@ void stopBackend()
     }
 
     Con_Printf("VR: stopping %s backend\n", state->backend->name());
+    frame_synthesis::shutdown();
     state->backend->stop();
     state->backend.reset();
 }

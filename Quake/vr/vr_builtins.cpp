@@ -5,6 +5,7 @@
 
 #include "vr_progs.hpp"
 #include "vr_brushes.hpp"
+#include "vr_bench.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
@@ -682,6 +683,22 @@ void PF_campaignmusic()
 void PF_highlighting()
 {
     G_FLOAT(OFS_RETURN) = highlights::active() ? 1.f : 0.f;
+}
+
+void PF_benchkillactive()
+{
+    G_FLOAT(OFS_RETURN) = bench::killMarkersEnabled() ? 1.f : 0.f;
+}
+
+void PF_benchkill()
+{
+    if(!bench::killMarkersEnabled())
+    {
+        return;
+    }
+    edict_t* e = G_EDICT(OFS_PARM0);
+    bench::noteKill(NUM_FOR_EDICT(e), PR_GetString(e->v.classname), G_STRING(OFS_PARM1),
+        static_cast<int>(G_FLOAT(OFS_PARM2)));
 }
 
 // highlight(kind, score, subject, detail, since): a moment for the log; `subject`'s classname (world: none); `score` 0:
@@ -2496,6 +2513,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"meleewristspeed", PF_meleewristspeed},
     {"meleewiggled", PF_meleewiggled},
     {"meleegripago", PF_meleegripago},
+    {"benchkillactive", PF_benchkillactive},
+    {"benchkill", PF_benchkill},
 };
 
 static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200,

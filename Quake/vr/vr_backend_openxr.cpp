@@ -16,6 +16,8 @@
 #include "vr_profile.hpp"
 #include "vr_tracy.h"
 #include "vr_xr_runtime.hpp"
+#include "vr_synthesis_math.hpp"
+#include "vr_synthesis_submission.hpp"
 
 #include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -36,8 +38,14 @@
 #define XR_USE_PLATFORM_XLIB
 #endif
 #define XR_USE_GRAPHICS_API_OPENGL
+#if defined(QVR_HAVE_GL_VULKAN_BRIDGE) && defined(__linux__)
+#define QVR_OPENXR_INTEROP
+#define XR_USE_GRAPHICS_API_VULKAN
+#include "vr_openxr_vulkan.hpp"
+#endif
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
+#include "vr_openxr_synthesis_compat.hpp"
 
 #ifndef GL_SRGB8_ALPHA8
 #define GL_SRGB8_ALPHA8 0x8C43
@@ -45,11 +53,17 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <cmath>
 
 namespace qvr
 {
 namespace
 {
+#ifdef QVR_OPENXR_INTEROP
+// A discarded backend must not permit another runtime/device while failed
+// native work still owns retained session/device/image resources.
+bool interopParentsRetained = false;
+#endif
 
 // A crash inside the runtime, caught where the game calls it (vr_xr_guard 1): 1.0.0 died in VDXR 1.1.0's
 // xrEnumerateSwapchainImages, a null read (virtualdesktop-openxr.dll+0x9a668): its OpenGL path takes the swapchain's
@@ -182,6 +196,14 @@ public:
     // next: the loader unloads a runtime with its last instance and reads XR_RUNTIME_JSON again at the next.
     [[nodiscard]] bool start() override
     {
+#ifdef QVR_OPENXR_INTEROP
+        if(interopParentsRetained)
+        {
+            Con_Warning("OpenXR: prior interop teardown could not drain; new runtime start blocked until process restart\n");
+            return false;
+        }
+        interopMode = vr_xr_vulkan_interop.value > 0.f; // latched before enabled graphics extension selection
+#endif
         xrruntime::beginLog();
         const xrruntime::Plan plan = xrruntime::plan();
         xrruntime::note("OpenXR runtime choice: %s\n", plan.summary.cStr());
@@ -219,6 +241,9 @@ public:
                     vdxr ? "set Virtual Desktop's OpenXR runtime to SteamVR (the Streamer's settings), or " : "");
             }
             stop(); // (all of it: the next runtime starts from nothing)
+#ifdef QVR_OPENXR_INTEROP
+            if(interopTeardownBlocked) return false; // native parents/resources stay alive; no fallback/reset
+#endif
             resetRuntimeState();
         }
         xrruntime::setOutcome(plan, -1);
@@ -241,6 +266,33 @@ public:
 
     void stop() override
     {
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode)
+        {
+            traceInteropTeardown("begin");
+            frameInvalid = true;
+            if(!settleInteropFrame()) return; // close/release XR ownership before bridge drain
+            traceInteropTeardown("XR frame/images settled");
+            for(Swapchain* sc : {&swapchains[0], &swapchains[1], &panel,
+                    &synthesisMotion[0], &synthesisMotion[1], &synthesisDepth[0], &synthesisDepth[1]})
+                restoreInteropSrgb(*sc);
+            bool drained = true;
+            // Imports and app Vulkan children must drain before native parents.
+            for(gl_vulkan::Bridge* bridge : {&eyeBridges[0], &eyeBridges[1], &panelBridge,
+                    &motionBridges[0], &motionBridges[1], &depthBridges[0], &depthBridges[1]})
+                if(!bridge->shutdown())
+                {
+                    xrruntime::warn("OpenXR interop: bridge drain failed: %s\n", bridge->error());
+                    drained = false;
+                }
+            if(!drained)
+            {
+                blockInteropTeardown("bridge work/imports could not drain");
+                return;
+            }
+            traceInteropTeardown("all staging bridges drained/destroyed");
+        }
+#endif
         if(instance != XR_NULL_HANDLE)
         {
             xrruntime::keepGraphicsModules();
@@ -251,16 +303,36 @@ public:
             endFrame(false);
         }
 
-        for(Swapchain* sc : {&swapchains[0], &swapchains[1], &panel})
+        for(Swapchain* sc : {&swapchains[0], &swapchains[1], &panel,
+                 &synthesisMotion[0], &synthesisMotion[1], &synthesisDepth[0], &synthesisDepth[1]})
         {
             if(sc->handle != XR_NULL_HANDLE)
             {
-                const XrSwapchain handle = sc->handle;
-                guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
+#ifdef QVR_OPENXR_INTEROP
+                if(interopMode) traceInteropTeardown(va("destroy swapchain %p begin", reinterpret_cast<void*>(sc->handle)));
+                if(interopMode && xrDestroySwapchain(sc->handle) != XR_SUCCESS)
+                {
+                    blockInteropTeardown("xrDestroySwapchain failed");
+                    return;
+                }
+                if(interopMode) traceInteropTeardown("destroy swapchain success");
+                if(!interopMode)
+#endif
+                {
+                    const XrSwapchain handle = sc->handle;
+                    guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
+                }
                 *sc = Swapchain{};
             }
         }
         panelPending = panelShown = false;
+        lastProjectionTime = 0;
+        synthesisAvailable = false;
+        fatalSwapchainError = false;
+        for(int eye = 0; eye < 2; ++eye)
+        {
+            synthesisMotionAcquired[eye] = synthesisDepthAcquired[eye] = synthesisReady[eye] = false;
+        }
         haveLastViews = holding = false;
         timing = Timing{};
         for(int eye = 0; eye < 2; eye++)
@@ -296,19 +368,63 @@ public:
 
         if(session != XR_NULL_HANDLE)
         {
-            const XrSession handle = session;
-            guarded("xrDestroySession", [handle] { return xrDestroySession(handle); });
+#ifdef QVR_OPENXR_INTEROP
+            if(interopMode) traceInteropTeardown("destroy session begin");
+            if(interopMode && xrDestroySession(session) != XR_SUCCESS)
+            {
+                blockInteropTeardown("xrDestroySession failed");
+                return;
+            }
+            if(interopMode) traceInteropTeardown("destroy session success");
+            if(!interopMode)
+#endif
+            {
+                const XrSession handle = session;
+                guarded("xrDestroySession", [handle] { return xrDestroySession(handle); });
+            }
             session = XR_NULL_HANDLE;
         }
 
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode)
+        {
+            traceInteropTeardown("terminal bound-queue fence begin");
+            if(!vulkanBootstrap.drainAfterSessionDestroy(session == XR_NULL_HANDLE))
+            {
+                blockInteropTeardown(vulkanBootstrap.error());
+                return;
+            }
+            traceInteropTeardown("terminal bound-queue fence complete; destroy Vulkan device begin");
+            if(!vulkanBootstrap.shutdown(true))
+            {
+                blockInteropTeardown(vulkanBootstrap.error());
+                return;
+            }
+            traceInteropTeardown("Vulkan device/instance destroyed");
+        }
+#endif
         if(instance != XR_NULL_HANDLE)
         {
-            const XrInstance handle = instance;
-            guarded("xrDestroyInstance", [handle] { return xrDestroyInstance(handle); });
+#ifdef QVR_OPENXR_INTEROP
+            if(interopMode && xrDestroyInstance(instance) != XR_SUCCESS)
+            {
+                blockInteropTeardown("xrDestroyInstance failed");
+                return;
+            }
+            if(interopMode) traceInteropTeardown("XR instance destroyed");
+            if(!interopMode)
+#endif
+            {
+                const XrInstance handle = instance;
+                guarded("xrDestroyInstance", [handle] { return xrDestroyInstance(handle); });
+            }
             instance = XR_NULL_HANDLE;
             q_snprintf(crashBase, sizeof(crashBase), "OpenXR stopped (%s)", runtime[0] ? runtime : "no runtime");
             VR_SetCrashVr(crashBase);
         }
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode) interopTeardownBlocked = interopParentsRetained = false;
+#endif
 
         if(sessionRunning || swapIntervalChanged)
         {
@@ -325,6 +441,26 @@ public:
         if(frameBegun)
         {
             endFrame(false); // the previous frame was not rendered (e.g. while loading)
+        }
+        synthesisReady[0] = synthesisReady[1] = false;
+        synthesisContent.begin();
+        synthesisExportSeconds[0] = synthesisExportSeconds[1] = 0.0;
+        batchExportSeconds = 0.0;
+        synthesisFrameRejected = false;
+        submitSucceeded = false;
+        frameInvalid = false;
+#ifdef QVR_OPENXR_INTEROP
+        interopEyeReleased[0] = interopEyeReleased[1] = false;
+        interopEyeQueued[0] = interopEyeQueued[1] = false;
+        synthesisMotionReleased[0] = synthesisMotionReleased[1] = false;
+        synthesisDepthReleased[0] = synthesisDepthReleased[1] = false;
+        synthesisExportPending[0] = synthesisExportPending[1] = false;
+        synthesisPendingValid[0] = synthesisPendingValid[1] = false;
+#endif
+        if(fatalSwapchainError)
+        {
+            xrruntime::warn("OpenXR: swapchain image lifecycle failed; stopping the session before another acquire\n");
+            return false;
         }
 
         double t0 = Sys_DoubleTime();
@@ -531,15 +667,29 @@ public:
         return system;
     }
 
-    [[nodiscard]] unsigned acquireEyeImage(int eye) override
+    [[nodiscard]] GraphicsImage acquireEyeImage(int eye) override
     {
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode)
+        {
+            if(eye < 0 || eye >= 2 || !frameBegun) return {};
+            const unsigned texture = acquireInteropImage(swapchains[eye], eyeBridges[eye]);
+            captureTexture[eye] = texture;
+            const Swapchain& sc = swapchains[eye];
+            return texture ? GraphicsImage{GraphicsApi::OpenGL, texture, 0, GL_RGBA8, sc.width, sc.height} : GraphicsImage{};
+        }
+#endif
         const unsigned texture = acquireImage(swapchains[eye]);
         captureTexture[eye] = texture;
-        return texture;
+        const Swapchain& sc = swapchains[eye];
+        return texture ? GraphicsImage{GraphicsApi::OpenGL, texture, 0, sc.format, sc.width, sc.height} : GraphicsImage{};
     }
 
-    void releaseEyeImage(int eye) override
+    [[nodiscard]] bool releaseEyeImage(int eye) override
     {
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode && (eye < 0 || eye >= 2)) return false;
+#endif
         // Opt-in native-port diagnostic: capture the actual XR color image, not
         // the desktop mirror. Preserve the renderer's current texture binding.
         if(COM_CheckParm("-qvr-frame-capture") && sessionState == XR_SESSION_STATE_FOCUSED &&
@@ -566,8 +716,235 @@ public:
             }
         }
         const double t0 = Sys_DoubleTime();
-        releaseImage(swapchains[eye]);
+#ifdef QVR_OPENXR_INTEROP
+        bool released;
+        if(interopMode)
+        {
+            const Swapchain& sc = swapchains[eye];
+            released = sc.acquired && sc.waited && eyeBridges[eye].healthy();
+            interopEyeQueued[eye] = released;
+            interopEyeReleased[eye] = false;
+            restoreInteropSrgb(swapchains[eye]);
+        }
+        else
+        {
+            released = releaseImage(swapchains[eye]);
+            timeCall(CallRelease, t0);
+        }
+#else
+        const bool released = releaseImage(swapchains[eye]);
         timeCall(CallRelease, t0);
+#endif
+        if(!released) frameInvalid = true;
+        else haveLastViews = false; // A new release invalidates cached held-frame image/pose pairs.
+        return released;
+    }
+
+    [[nodiscard]] bool frameSynthesisAvailable() const override
+    {
+        return synthesisAvailable && vr_xr_frame_synthesis.value > 0.f;
+    }
+
+    [[nodiscard]] FrameSynthesisImages synthesisImages(int eye, unsigned motion, unsigned depth) const
+    {
+        FrameSynthesisImages images;
+        images.contentFrameId = motion && depth ? synthesisContent.frameId() : 0;
+        const Swapchain& motionChain = synthesisMotion[eye];
+        const Swapchain& depthChain = synthesisDepth[eye];
+        images.motion = {GraphicsApi::OpenGL, motion, 0, motionChain.format, motionChain.width, motionChain.height};
+        images.depth = {GraphicsApi::OpenGL, depth, 0, depthChain.format, depthChain.width, depthChain.height};
+        images.srgb8Motion = synthesisSrgbMotion;
+        if(images.srgb8Motion)
+        {
+            synthesis::Srgb8MotionEncoding encoding;
+            const float range = CLAMP(0.0625f, vr_xr_frame_synthesis_motion_range.value, 0.5f);
+            if(synthesis::srgb8MotionEncoding(range, encoding))
+            {
+                images.motionScaleX = images.motionScaleY = encoding.scale;
+                images.motionOffsetX = images.motionOffsetY = encoding.offset;
+            }
+        }
+        return images;
+    }
+
+    [[nodiscard]] bool lastFrameSubmitted() const override { return submitSucceeded; }
+    [[nodiscard]] double previousProjectionTime() const override
+    {
+        return lastProjectionTime ? static_cast<double>(lastProjectionTime) * 1e-9 : -1.0;
+    }
+
+    [[nodiscard]] FrameSynthesisImages frameSynthesisConfiguration(int eye) const override
+    {
+        if(!frameSynthesisAvailable() || eye < 0 || eye > 1) return {};
+        return synthesisImages(eye, 0, 0);
+    }
+
+    [[nodiscard]] FrameSynthesisImages acquireFrameSynthesisImages(int eye) override
+    {
+        if(!frameSynthesisAvailable() || !frameBegun || eye < 0 || eye > 1 ||
+            synthesisMotionAcquired[eye] || synthesisDepthAcquired[eye])
+        {
+            return {};
+        }
+#ifdef QVR_OPENXR_INTEROP
+        const unsigned motion = interopMode ? acquireInteropImage(synthesisMotion[eye], motionBridges[eye]) :
+            acquireSynthesisImage(synthesisMotion[eye]);
+#else
+        const unsigned motion = acquireSynthesisImage(synthesisMotion[eye]);
+#endif
+        synthesisMotionAcquired[eye] = motion != 0;
+#ifdef QVR_OPENXR_INTEROP
+        const unsigned depth = !motion ? 0 : interopMode ? acquireInteropImage(synthesisDepth[eye], depthBridges[eye]) :
+            acquireSynthesisImage(synthesisDepth[eye]);
+#else
+        const unsigned depth = motion ? acquireSynthesisImage(synthesisDepth[eye]) : 0;
+#endif
+        synthesisDepthAcquired[eye] = depth != 0;
+        if(!motion || !depth)
+        {
+            releaseFrameSynthesisImages(eye, false, {});
+            return {};
+        }
+        if(!synthesisContent.acquire(eye, synthesisMotion[eye].acquiredIndex, synthesisDepth[eye].acquiredIndex))
+        {
+            releaseFrameSynthesisImages(eye, false, {});
+            return {};
+        }
+        return synthesisImages(eye, motion, depth);
+    }
+
+    void releaseFrameSynthesisImages(int eye, bool valid, const FrameSynthesisMetadata& metadata) override
+    {
+        if(eye < 0 || eye > 1) return;
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode)
+        {
+            synthesisMetadata[eye] = metadata;
+            synthesisPendingValid[eye] = valid;
+            synthesisExportPending[eye] = true;
+            return;
+        }
+#endif
+        const double exportBegan = Sys_DoubleTime();
+        bool motionReleased = false, depthReleased = false;
+        // Even an invalid producer export completes the staging semaphore cycle,
+        // then releases the XR images without attaching synthesis to the frame.
+        {
+            if(synthesisMotionAcquired[eye]) motionReleased = releaseImage(synthesisMotion[eye]);
+            if(synthesisDepthAcquired[eye]) depthReleased = releaseImage(synthesisDepth[eye]);
+        }
+        const bool released = motionReleased && depthReleased;
+        synthesisMotionAcquired[eye] = synthesisDepthAcquired[eye] = false;
+        if(!released) synthesisAvailable = false;
+        synthesisMetadata[eye] = metadata;
+        const auto& pose = metadata.appSpaceDelta;
+        const XrPosef delta{{pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w},
+            {pose.position.x, pose.position.y, pose.position.z}};
+        synthesisReady[eye] = valid && released && pose.valid && xr::validSynthesisMetadata(
+            metadata.nearZ, metadata.farZ, delta, {metadata.motionScaleX, metadata.motionScaleY},
+            {metadata.motionOffsetX, metadata.motionOffsetY});
+        synthesisReady[eye] = synthesisContent.complete(eye, metadata.contentFrameId,
+            synthesisReady[eye], motionReleased, depthReleased);
+        synthesisExportSeconds[eye] = Sys_DoubleTime() - exportBegan;
+    }
+
+    [[nodiscard]] bool completeFrameExports(bool stereoRendered) override
+    {
+#ifdef QVR_OPENXR_INTEROP
+        if(!interopMode) return true;
+        QVR_PROFILE("synthesis transport");
+        const double exportBegan = Sys_DoubleTime();
+        struct Export
+        {
+            Swapchain* swapchain;
+            gl_vulkan::Bridge* bridge;
+            bool valid;
+        } exports[6]{};
+        gl_vulkan::Bridge* bridges[6]{};
+        std::size_t count = 0;
+        const auto add = [&](Swapchain& sc, gl_vulkan::Bridge& bridge, bool valid)
+        {
+            if(!sc.acquired) return;
+            if(count < 6)
+            {
+                exports[count] = {&sc, &bridge, valid};
+                bridges[count] = &bridge;
+                ++count;
+            }
+        };
+        for(int eye = 0; eye < 2; ++eye)
+        {
+            add(swapchains[eye], eyeBridges[eye], stereoRendered && interopEyeQueued[eye]);
+            add(synthesisMotion[eye], motionBridges[eye], stereoRendered && synthesisExportPending[eye] &&
+                synthesisPendingValid[eye] && synthesisMotionAcquired[eye] && synthesisDepthAcquired[eye]);
+            add(synthesisDepth[eye], depthBridges[eye], stereoRendered && synthesisExportPending[eye] &&
+                synthesisPendingValid[eye] && synthesisMotionAcquired[eye] && synthesisDepthAcquired[eye]);
+        }
+        const bool deferWait = vr_xr_vulkan_defer_wait.value > 0.f;
+        const bool copied = gl_vulkan::completeQueuedExports(bridges, count, [&](gl_vulkan::Bridge& bridge)
+        {
+            QVR_PROFILE("synthesis enqueue");
+            for(std::size_t i = 0; i < count; ++i)
+                if(exports[i].bridge == &bridge)
+                    return enqueueInteropImage(*exports[i].swapchain, bridge, exports[i].valid);
+            return false;
+        }, deferWait ? gl_vulkan::ExportCompletion::DeferUntilReuse : gl_vulkan::ExportCompletion::Wait);
+        if(!copied)
+        {
+            invalidateInteropFrame("batched frame export/fence failed; acquired native images retained");
+            return false;
+        }
+
+        bool released = true;
+        for(std::size_t i = 0; i < count; ++i)
+        {
+            QVR_PROFILE("synthesis release");
+            const bool oneReleased = releaseCompletedInteropImage(*exports[i].swapchain, *exports[i].bridge, deferWait);
+            released = oneReleased && released;
+            for(int eye = 0; eye < 2; ++eye)
+            {
+                if(exports[i].swapchain == &swapchains[eye]) interopEyeReleased[eye] = oneReleased;
+                if(exports[i].swapchain == &synthesisMotion[eye])
+                {
+                    synthesisMotionReleased[eye] = oneReleased;
+                    if(oneReleased) synthesisMotionAcquired[eye] = false;
+                }
+                if(exports[i].swapchain == &synthesisDepth[eye])
+                {
+                    synthesisDepthReleased[eye] = oneReleased;
+                    if(oneReleased) synthesisDepthAcquired[eye] = false;
+                }
+            }
+        }
+        for(int eye = 0; eye < 2; ++eye)
+        {
+            if(!synthesisExportPending[eye]) continue;
+            const bool motionReleased = synthesisMotionReleased[eye];
+            const bool depthReleased = synthesisDepthReleased[eye];
+            const FrameSynthesisMetadata& metadata = synthesisMetadata[eye];
+            const auto& pose = metadata.appSpaceDelta;
+            const XrPosef delta{{pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w},
+                {pose.position.x, pose.position.y, pose.position.z}};
+            synthesisReady[eye] = stereoRendered && motionReleased && depthReleased && synthesisPendingValid[eye] &&
+                pose.valid && xr::validSynthesisMetadata(metadata.nearZ, metadata.farZ, delta,
+                    {metadata.motionScaleX, metadata.motionScaleY}, {metadata.motionOffsetX, metadata.motionOffsetY});
+            synthesisReady[eye] = synthesisContent.complete(eye, metadata.contentFrameId,
+                synthesisReady[eye], motionReleased, depthReleased);
+            synthesisExportPending[eye] = false;
+            if(!motionReleased || !depthReleased) synthesisAvailable = false;
+        }
+        batchExportSeconds = Sys_DoubleTime() - exportBegan;
+        return released;
+#else
+        (void)stereoRendered;
+        return true;
+#endif
+    }
+
+    void rejectFrameSynthesis() override
+    {
+        synthesisFrameRejected = true;
+        synthesisReady[0] = synthesisReady[1] = false;
     }
 
     void endFrame(bool rendered) override
@@ -576,9 +953,17 @@ public:
         {
             return;
         }
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode && rendered && !holding && (!interopEyeReleased[0] || !interopEyeReleased[1]))
+        {
+            frameInvalid = true;
+            haveLastViews = false;
+        }
+#endif
         frameBegun = false;
 
         XrCompositionLayerProjectionView projViews[2]{};
+        XrFrameSynthesisInfoEXT synthesisInfo[2]{};
         XrCompositionLayerProjection layer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
 
         XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
@@ -587,10 +972,23 @@ public:
 
         const XrCompositionLayerBaseHeader* submitted[2];
         uint32_t count = 0;
+        XrCompositionLayerProjectionView candidateLastViews[2]{};
 
         const bool held = rendered && holding && haveLastViews;
+        const bool candidateProjection = rendered && frameState.shouldRender && !frameInvalid && !held;
+        // Verify the per-eye renderer mappings describe one rigid app-space
+        // transform, then serialize exactly the same pose into both views.
+        const auto applicationMatrix = [](const Pose& pose) {
+            glm::mat4 matrix = glm::mat4_cast(pose.orientation);
+            matrix[3] = glm::vec4{pose.position, 1.f};
+            return matrix;
+        };
+        const bool sharedApplication = synthesisReady[0] && synthesisReady[1] && synthesis::sameApplicationDelta(
+            applicationMatrix(synthesisMetadata[0].appSpaceDelta), applicationMatrix(synthesisMetadata[1].appSpaceDelta));
+        const bool withSynthesis = rendered && frameState.shouldRender && !held && !frameInvalid && !synthesisFrameRejected &&
+            sharedApplication && synthesisContent.ready() && frameSynthesisAvailable();
         holding = false;
-        if(rendered && frameState.shouldRender)
+        if(rendered && frameState.shouldRender && !frameInvalid)
         {
             for(int eye = 0; eye < 2; eye++)
             {
@@ -606,10 +1004,24 @@ public:
                 projViews[eye].fov = views[eye].fov;
                 projViews[eye].subImage.swapchain = swapchains[eye].handle;
                 projViews[eye].subImage.imageRect.extent = {swapchains[eye].width, swapchains[eye].height};
-                lastViews[eye] = projViews[eye];
+                candidateLastViews[eye] = projViews[eye];
+                if(withSynthesis)
+                {
+                    XrFrameSynthesisInfoEXT& info = synthesisInfo[eye];
+                    const Pose& pose = synthesisMetadata[0].appSpaceDelta;
+                    const XrPosef delta{{pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w},
+                        {pose.position.x, pose.position.y, pose.position.z}};
+                    info = xr::frameSynthesisInfo(synthesisMotion[eye].handle, synthesisDepth[eye].handle,
+                        synthesisMotion[eye].width, synthesisMotion[eye].height,
+                        synthesisMetadata[eye].nearZ, synthesisMetadata[eye].farZ, delta,
+                        vr_xr_frame_synthesis_relaxed.value > 0.f);
+                    info.motionVectorScale.x = synthesisMetadata[eye].motionScaleX;
+                    info.motionVectorScale.y = synthesisMetadata[eye].motionScaleY;
+                    info.motionVectorOffset.x = synthesisMetadata[eye].motionOffsetX;
+                    info.motionVectorOffset.y = synthesisMetadata[eye].motionOffsetY;
+                    projViews[eye].next = &info;
+                }
             }
-            haveLastViews = true;
-
             layer.space = worldSpace;
             layer.viewCount = 2;
             layer.views = projViews;
@@ -622,7 +1034,11 @@ public:
         }
 
         XrCompositionLayerQuad quad{XR_TYPE_COMPOSITION_LAYER_QUAD};
-        if(panelPending && frameState.shouldRender)
+        if(panelPending && frameState.shouldRender
+#ifdef QVR_OPENXR_INTEROP
+            && (!interopMode || !frameInvalid)
+#endif
+            )
         {
             // Placed anew only after it was away for a while, not across a frame or two without
             // it (loading, a skipped 2D pass).
@@ -642,35 +1058,84 @@ public:
             submitted[count++] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&quad);
             timing.panels++;
         }
-        panelShown = panelPending && frameState.shouldRender;
+        panelShown = panelPending && frameState.shouldRender
+#ifdef QVR_OPENXR_INTEROP
+            && (!interopMode || !frameInvalid)
+#endif
+            ;
         panelPending = false;
 
         endInfo.layerCount = count;
         endInfo.layers = count ? submitted : nullptr;
         const double t0 = Sys_DoubleTime();
-        check(xrEndFrame(session, &endInfo), "xrEndFrame");
+        const XrResult ended = xrEndFrame(session, &endInfo);
+        submitSucceeded = check(ended, "xrEndFrame");
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode) submitSucceeded = ended == XR_SUCCESS;
+        if(interopMode && !submitSucceeded)
+        {
+            haveLastViews = false;
+            panelShown = false;
+        }
+#endif
+        if(submitSucceeded && candidateProjection)
+        {
+            for(int eye = 0; eye < 2; ++eye) lastViews[eye] = candidateLastViews[eye];
+            haveLastViews = true;
+        }
+        lastProjectionTime = submitSucceeded && layer.viewCount == 2 && !held ? frameState.predictedDisplayTime : 0;
+        timeCall(CallEnd, t0);
         if(COM_CheckParm("-qvr-frame-diagnostics") && Sys_DoubleTime() - diagnosticLayersAt >= 1.0)
         {
             diagnosticLayersAt = Sys_DoubleTime();
-            xrruntime::logLine(va("FRAME_LAYERS projection=%d stereo_views=%u quad=%d total=%u held=%d\n",
-                layer.viewCount == 2, layer.viewCount, panelShown, count, held));
+            bool deferredExports = false;
+#ifdef QVR_OPENXR_INTEROP
+            deferredExports = interopMode && vr_xr_vulkan_defer_wait.value > 0.f;
+#endif
+            xrruntime::logLine(va("FRAME_LAYERS projection=%d stereo_views=%u quad=%d total=%u held=%d synthesis=%d synthesis_relaxed=%d defer_wait=%d\n",
+                layer.viewCount == 2, layer.viewCount, panelShown, count, held, withSynthesis,
+                withSynthesis && vr_xr_frame_synthesis_relaxed.value > 0.f,
+                deferredExports));
+            if(synthesisAvailable)
+            {
+                const auto& left = synthesisContent.eye(0);
+                const auto& right = synthesisContent.eye(1);
+                xrruntime::logLine(va("FRAME_SYNTHESIS_CONTENT frame=%llu fresh=%d/%d motion_index=%u/%u depth_index=%u/%u "
+                    "app_delta_shared=%d submitted=%d near_far=%g/%g,%g/%g native_gl_export_cpu_ms=%.3f/%.3f batch_export_cpu_ms=%.3f\n",
+                    static_cast<unsigned long long>(synthesisContent.frameId()), synthesisReady[0], synthesisReady[1],
+                    left.motionIndex, right.motionIndex, left.depthIndex, right.depthIndex, sharedApplication,
+                    withSynthesis && submitSucceeded, synthesisMetadata[0].nearZ, synthesisMetadata[0].farZ,
+                    synthesisMetadata[1].nearZ, synthesisMetadata[1].farZ,
+                    synthesisExportSeconds[0] * 1000.0, synthesisExportSeconds[1] * 1000.0, batchExportSeconds * 1000.0));
+            }
         }
-        timeCall(CallEnd, t0);
         timing.frames++;
     }
 
-    [[nodiscard]] unsigned acquirePanelImage(int width, int height) override
+    [[nodiscard]] GraphicsImage acquirePanelImage(int width, int height) override
     {
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode && (fatalSwapchainError || interopTeardownBlocked)) return {};
+#endif
         if(!frameBegun || panelPending || width <= 0 || height <= 0 || !ensurePanelSwapchain(width, height))
         {
-            return 0;
+            return {};
         }
-        return acquireImage(panel);
+#ifdef QVR_OPENXR_INTEROP
+        const unsigned texture = interopMode ? acquireInteropImage(panel, panelBridge) : acquireImage(panel);
+#else
+        const unsigned texture = acquireImage(panel);
+#endif
+        return texture ? GraphicsImage{GraphicsApi::OpenGL, texture, 0, panel.format, panel.width, panel.height} : GraphicsImage{};
     }
 
     void releasePanelImage() override
     {
+#ifdef QVR_OPENXR_INTEROP
+        panelPending = interopMode ? releaseInteropImage(panel, panelBridge) : releaseImage(panel);
+#else
         panelPending = releaseImage(panel);
+#endif
     }
 
     [[nodiscard]] bool runtimePanel(Pose& pose, glm::vec2& size) const override
@@ -703,12 +1168,44 @@ private:
     {
         if(panel.handle != XR_NULL_HANDLE && panel.width == width && panel.height == height)
         {
+#ifdef QVR_OPENXR_INTEROP
+            if(interopMode && (panel.vulkanImages.empty() || !panelBridge.healthy()))
+            {
+                invalidateInteropFrame("cached panel chain lacks native images or healthy bridge");
+                return false;
+            }
+#endif
             return true;
         }
         if(panel.handle != XR_NULL_HANDLE)
         {
-            const XrSwapchain handle = panel.handle;
-            guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
+#ifdef QVR_OPENXR_INTEROP
+            if(interopMode)
+            {
+                panelShown = panelPending = false;
+                if(panel.acquired)
+                {
+                    invalidateInteropFrame("panel resize while native image remains acquired");
+                    return false;
+                }
+                restoreInteropSrgb(panel);
+                if(!panelBridge.shutdown())
+                {
+                    blockInteropTeardown(panelBridge.error());
+                    return false;
+                }
+                if(xrDestroySwapchain(panel.handle) != XR_SUCCESS)
+                {
+                    blockInteropTeardown("panel swapchain destruction failed");
+                    return false;
+                }
+            }
+            else
+#endif
+            {
+                const XrSwapchain handle = panel.handle;
+                guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
+            }
             panel = Swapchain{};
         }
         return createSwapchain(panel, width, height,
@@ -720,9 +1217,118 @@ private:
         XrSwapchain handle{XR_NULL_HANDLE};
         int32_t width{0};
         int32_t height{0};
+        int64_t format{0};
         za::Vector<XrSwapchainImageOpenGLKHR> images;
+#ifdef QVR_OPENXR_INTEROP
+        za::Vector<XrSwapchainImageVulkanKHR> vulkanImages;
+        XrSwapchainCreateInfo request{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+        SDL_GLContext writeContext{nullptr};
+        bool srgbSaved{false}, srgbWasEnabled{false};
+#endif
+        uint32_t acquiredIndex{0};
+        bool acquired{false};
+        bool waited{false};
     };
 
+#ifdef QVR_OPENXR_INTEROP
+    openxr_vulkan::Bootstrap vulkanBootstrap;
+    gl_vulkan::Bridge eyeBridges[2], panelBridge, motionBridges[2], depthBridges[2];
+    bool interopMode{false}, interopTeardownBlocked{false};
+    bool interopEyeReleased[2]{false, false};
+    bool interopEyeQueued[2]{false, false};
+    bool synthesisExportPending[2]{false, false};
+    bool synthesisPendingValid[2]{false, false};
+    bool synthesisMotionReleased[2]{false, false}, synthesisDepthReleased[2]{false, false};
+
+    void traceInteropTeardown(const char* stage)
+    {
+        xrruntime::logLine(va("%s INTEROP_TEARDOWN t=%.6f %s\n", wallClock(), Sys_DoubleTime(), stage));
+    }
+
+    void blockInteropTeardown(const char* reason)
+    {
+        interopTeardownBlocked = interopParentsRetained = true;
+        fatalSwapchainError = frameInvalid = true;
+        haveLastViews = false;
+        panelShown = panelPending = false;
+        xrruntime::warn("OpenXR interop: retained native parents; fallback/recreation blocked: %s\n", reason);
+    }
+    void invalidateInteropFrame(const char* reason)
+    {
+        frameInvalid = fatalSwapchainError = true;
+        haveLastViews = false;
+        panelShown = panelPending = false;
+        xrruntime::warn("OpenXR interop: frame rejected: %s\n", reason);
+    }
+    void restoreInteropSrgb(Swapchain& sc)
+    {
+        if(sc.srgbSaved && SDL_GL_GetCurrentContext() == sc.writeContext)
+        {
+            if(sc.srgbWasEnabled) glEnable(GL_FRAMEBUFFER_SRGB);
+            else glDisable(GL_FRAMEBUFFER_SRGB);
+            sc.srgbSaved = false;
+            sc.writeContext = nullptr;
+        }
+    }
+    gl_vulkan::Bridge* bridgeFor(Swapchain& sc)
+    {
+        if(&sc == &swapchains[0]) return &eyeBridges[0];
+        if(&sc == &swapchains[1]) return &eyeBridges[1];
+        for(int eye = 0; eye < 2; ++eye)
+        {
+            if(&sc == &synthesisMotion[eye]) return &motionBridges[eye];
+            if(&sc == &synthesisDepth[eye]) return &depthBridges[eye];
+        }
+        return &sc == &panel ? &panelBridge : nullptr;
+    }
+    bool settleInteropFrame()
+    {
+        bool settled = true;
+        panelShown = panelPending = false;
+        haveLastViews = false;
+        for(Swapchain* sc : {&swapchains[0], &swapchains[1], &panel,
+                &synthesisMotion[0], &synthesisMotion[1], &synthesisDepth[0], &synthesisDepth[1]})
+        {
+            if(!sc->acquired) continue;
+            if(!sc->waited)
+            {
+                XrSwapchainImageWaitInfo wait{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+                wait.timeout = 100'000'000;
+                const double began = Sys_DoubleTime();
+                XrResult result;
+                do { result = xrWaitSwapchainImage(sc->handle, &wait); }
+                while(result == XR_TIMEOUT_EXPIRED && Sys_DoubleTime() - began < 5.0);
+                sc->waited = result == XR_SUCCESS;
+            }
+            if(!sc->waited) { settled = false; continue; }
+            if(auto* bridge = bridgeFor(*sc); bridge && !bridge->waitForCompletion())
+            {
+                // Paired submission may have stopped between motion and depth.
+                // Keep completion-before-release even on this failure path.
+                settled = false;
+                continue;
+            }
+            // No layer will reference these images. Destination commands have
+            // completed on the bound queue with restored layout. Staging GL
+            // work has no access to XR destination images until a copy submit.
+            XrSwapchainImageReleaseInfo release{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+            if(xrReleaseSwapchainImage(sc->handle, &release) == XR_SUCCESS)
+                sc->acquired = sc->waited = false;
+            else settled = false;
+        }
+        if(frameBegun)
+        {
+            endFrame(false); // zero layers, even when an acquisition remains tracked
+            if(!submitSucceeded) settled = false;
+        }
+        if(!settled)
+        {
+            blockInteropTeardown("could not settle acquired XR images; keeping tracked state and native parents");
+            return false;
+        }
+        return true;
+    }
+#endif
     XrInstance instance{XR_NULL_HANDLE};
     XrSystemId systemId{XR_NULL_SYSTEM_ID};
     XrSession session{XR_NULL_HANDLE};
@@ -746,6 +1352,20 @@ private:
     XrPath handPaths[2]{XR_NULL_PATH, XR_NULL_PATH}; // [0] left, [1] right
     XrSpace handSpaces[2]{XR_NULL_HANDLE, XR_NULL_HANDLE};
     Swapchain swapchains[2];
+    Swapchain synthesisMotion[2], synthesisDepth[2];
+    XrFrameSynthesisConfigViewEXT synthesisConfig[2]{};
+    FrameSynthesisMetadata synthesisMetadata[2];
+    bool synthesisMotionAcquired[2]{false, false}, synthesisDepthAcquired[2]{false, false};
+    bool synthesisReady[2]{false, false};
+    synthesis::SubmissionContent synthesisContent;
+    double synthesisExportSeconds[2]{0.0, 0.0};
+    double batchExportSeconds{0.0}; // Whole stereo batch once; includes outstanding producer GPU work.
+    bool synthesisFrameRejected{false};
+    bool synthesisExtension{false}, synthesisAvailable{false}, submitSucceeded{false};
+    bool frameInvalid{false};
+    bool fatalSwapchainError{false};
+    bool synthesisSrgbMotion{false};
+    XrTime lastProjectionTime{0};
     Swapchain panel;
     int64_t colorFormat{GL_RGBA8};
     bool panelPending{false}; // an image was released for the frame being finished
@@ -1090,36 +1710,212 @@ private:
         return XR_ERROR_RUNTIME_FAILURE;
     }
 
+#ifdef QVR_OPENXR_INTEROP
+    bool createInteropSwapchain(Swapchain& sc, const XrSwapchainCreateInfo& request, const char* what,
+        gl_vulkan::Format stagingFormat = gl_vulkan::Format::SrgbColorBytes)
+    {
+        const auto failed = [this](const char* reason) { invalidateInteropFrame(reason); return false; };
+        gl_vulkan::Bridge* bridge = bridgeFor(sc);
+        if(!bridge || sc.handle != XR_NULL_HANDLE || interopTeardownBlocked) return failed("invalid native chain creation state");
+        const XrResult created = xrCreateSwapchain(session, &request, &sc.handle);
+        if(created != XR_SUCCESS) { check(created, what); return failed("native swapchain creation failed"); }
+        sc.request = request;
+        sc.width = static_cast<int32_t>(request.width);
+        sc.height = static_cast<int32_t>(request.height);
+        // Renderer descriptors remain GL; request.format describes the XR VkImage.
+        sc.format = stagingFormat == gl_vulkan::Format::MotionRGBA16F ? 0x881A :
+            stagingFormat == gl_vulkan::Format::DepthD32F ? 0x8CAC : GL_RGBA8;
+        uint32_t count = 0;
+        if(xrEnumerateSwapchainImages(sc.handle, 0, &count, nullptr) != XR_SUCCESS || !count)
+        {
+            xrruntime::warn("OpenXR interop: native swapchain image count failed/empty\n");
+            return failed("native swapchain image count failed");
+        }
+        sc.vulkanImages.resize(count, XrSwapchainImageVulkanKHR{XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR});
+        const uint32_t capacity = count;
+        if(xrEnumerateSwapchainImages(sc.handle, capacity, &count,
+            reinterpret_cast<XrSwapchainImageBaseHeader*>(sc.vulkanImages.data())) != XR_SUCCESS || count != capacity)
+        {
+            xrruntime::warn("OpenXR interop: native swapchain image enumeration failed/changed\n");
+            return failed("native swapchain image enumeration failed");
+        }
+        for(const auto& image : sc.vulkanImages)
+            if(!image.image || !gl_vulkan::destinationFromSwapchainRequest(image.image, request, created).image)
+                return failed("native image/usage contract invalid");
+        if(!bridge->initialize(vulkanBootstrap.context(), stagingFormat, request.width, request.height))
+        {
+            xrruntime::warn("OpenXR interop: staging initialization failed: %s\n", bridge->error());
+            return failed(bridge->error());
+        }
+        xrruntime::logLine(va("OpenXR interop: %s %dx%d, XR VkFormat=%lld, GL internal=%s, "
+            "depth-attachment-export=%d, usage=0x%llx, %u native images\n",
+            what, sc.width, sc.height, static_cast<long long>(request.format),
+            glFormatName(sc.format), stagingFormat == gl_vulkan::Format::DepthD32F,
+            static_cast<unsigned long long>(request.usageFlags), count));
+        return true;
+    }
+    unsigned acquireInteropImage(Swapchain& sc, gl_vulkan::Bridge& bridge)
+    {
+        if(fatalSwapchainError || interopTeardownBlocked || !frameBegun || !sc.handle || sc.acquired)
+            return 0;
+        // A prior successful export can remain in flight after XR release.
+        // Drain before reusing staging, command buffers, descriptors or fences.
+        // This also handles toggling defer_wait off while work is outstanding.
+        {
+            QVR_PROFILE("synthesis reuse wait");
+            if(!bridge.waitForCompletion() || !bridge.healthy())
+            {
+                invalidateInteropFrame(bridge.error());
+                return 0;
+            }
+        }
+        XrSwapchainImageAcquireInfo acquire{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+        uint32_t index = 0;
+        const double acquiredAt = Sys_DoubleTime();
+        const XrResult acquired = xrAcquireSwapchainImage(sc.handle, &acquire, &index);
+        timeCall(CallAcquire, acquiredAt);
+        if(acquired != XR_SUCCESS)
+        {
+            check(acquired, "xrAcquireSwapchainImage (interop)");
+            invalidateInteropFrame("swapchain acquire failed");
+            return 0;
+        }
+        sc.acquired = true;
+        sc.acquiredIndex = index;
+        XrSwapchainImageWaitInfo wait{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+        wait.timeout = 100'000'000; // 100 ms attempts, total wait bounded to five seconds
+        const double began = Sys_DoubleTime();
+        XrResult waited;
+        do { waited = xrWaitSwapchainImage(sc.handle, &wait); }
+        while(waited == XR_TIMEOUT_EXPIRED && Sys_DoubleTime() - began < 5.0);
+        timeCall(CallWaitImage, began);
+        if(waited != XR_SUCCESS)
+        {
+            check(waited, "xrWaitSwapchainImage (interop)");
+            invalidateInteropFrame("swapchain wait failed/timed out; image retained without access/release");
+            return 0;
+        }
+        sc.waited = true;
+        if(index >= sc.vulkanImages.size() || !sc.vulkanImages[index].image)
+        {
+            // No app GPU access occurred; a successfully waited image can be returned.
+            (void)releaseImage(sc);
+            invalidateInteropFrame("native acquired image index/handle invalid");
+            return 0;
+        }
+        sc.writeContext = SDL_GL_GetCurrentContext();
+        if(!sc.writeContext)
+        {
+            invalidateInteropFrame("GL renderer context is not current");
+            return 0;
+        }
+        if(sc.format == GL_RGBA8)
+        {
+            sc.srgbWasEnabled = glIsEnabled(GL_FRAMEBUFFER_SRGB) != GL_FALSE;
+            sc.srgbSaved = true;
+            glDisable(GL_FRAMEBUFFER_SRGB); // already gamma-encoded Quake bytes
+        }
+        if(!bridge.beginGlWrite())
+        {
+            restoreInteropSrgb(sc);
+            invalidateInteropFrame(bridge.error());
+            return 0;
+        }
+        return bridge.glTexture();
+    }
+    bool enqueueInteropImage(Swapchain& sc, gl_vulkan::Bridge& bridge, bool contentValid)
+    {
+        if(!sc.acquired || !sc.waited || sc.acquiredIndex >= sc.vulkanImages.size())
+        {
+            restoreInteropSrgb(sc);
+            invalidateInteropFrame("release without a valid acquired/waited native image");
+            return false;
+        }
+        auto destination = gl_vulkan::destinationFromSwapchainRequest(sc.vulkanImages[sc.acquiredIndex].image, sc.request, XR_SUCCESS);
+        destination.acquiredAndWaited = true;
+        // Invalid producer data still returns staging ownership, without reading
+        // uninitialized pixels or modifying the runtime image.
+        const bool copied = contentValid ? bridge.enqueueCopyTo(destination) : bridge.enqueueCancelGlWrite();
+        restoreInteropSrgb(sc);
+        if(!copied)
+        {
+            invalidateInteropFrame(bridge.error());
+            return false; // native image remains acquired; teardown must drain before destroying it
+        }
+        return true;
+    }
+    bool releaseCompletedInteropImage(Swapchain& sc, gl_vulkan::Bridge& bridge, bool allowSubmitted = false)
+    {
+        if(!sc.acquired || !sc.waited || !(bridge.healthy() || (allowSubmitted && bridge.submitted())))
+        {
+            invalidateInteropFrame("native release requires a healthy completed or permitted submitted export");
+            return false;
+        }
+        XrSwapchainImageReleaseInfo release{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+        const double t0 = Sys_DoubleTime();
+        const XrResult result = xrReleaseSwapchainImage(sc.handle, &release);
+        timeCall(CallRelease, t0);
+        if(result != XR_SUCCESS)
+        {
+            invalidateInteropFrame("native swapchain release failed");
+            return false;
+        }
+        sc.acquired = sc.waited = false;
+        return true;
+    }
+    bool releaseInteropImage(Swapchain& sc, gl_vulkan::Bridge& bridge, bool contentValid = true)
+    {
+        if(!enqueueInteropImage(sc, bridge, contentValid) || !bridge.waitForCompletion())
+        {
+            invalidateInteropFrame(bridge.error());
+            return false;
+        }
+        return releaseCompletedInteropImage(sc, bridge);
+    }
+#endif
     // A swapchain of width x height images in colorFormat, validated against what the runtime offered (the format,
     // the size, the sample count), each request logged before the call; the images checked (a count, none zero).
-    bool createSwapchain(Swapchain& sc, int32_t width, int32_t height, XrSwapchainUsageFlags usage, const char* what)
+    bool createSwapchain(Swapchain& sc, int32_t width, int32_t height, XrSwapchainUsageFlags usage, const char* what,
+        int64_t format = 0)
     {
         XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
         info.usageFlags = usage;
-        info.format = colorFormat;
+        info.format = format ? format : colorFormat;
         info.sampleCount = 1;
         info.width = static_cast<uint32_t>(width);
         info.height = static_cast<uint32_t>(height);
         info.faceCount = 1;
         info.arraySize = 1;
         info.mipCount = 1;
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode)
+        {
+            const bool depth = info.format == VK_FORMAT_D32_SFLOAT;
+            const auto staging = depth ? gl_vulkan::Format::DepthD32F :
+                info.format == VK_FORMAT_R16G16B16A16_SFLOAT ? gl_vulkan::Format::MotionRGBA16F :
+                gl_vulkan::Format::SrgbColorBytes;
+            // Runtime depth is written through its attachment, never a transfer.
+            if(!depth) info.usageFlags |= XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT;
+            return createInteropSwapchain(sc, info, what, staging);
+        }
+#endif
         bool offered = offeredFormats.empty(); // (none listed: the runtime's word is all there is)
         for(int64_t f : offeredFormats)
         {
-            offered = offered || f == colorFormat;
+            offered = offered || f == info.format;
         }
         const uint32_t maxW = maxImageWidth ? maxImageWidth : 16384u;
         const uint32_t maxH = maxImageHeight ? maxImageHeight : 16384u;
         if(!offered || width <= 0 || height <= 0 || info.width > maxW || info.height > maxH || runtimeFaulted)
         {
-            xrruntime::warn("OpenXR: %s not requested: %dx%d %s (%s)\n", what, width, height, glFormatName(colorFormat),
+            xrruntime::warn("OpenXR: %s not requested: %dx%d %s (%s)\n", what, width, height, glFormatName(info.format),
                 runtimeFaulted ? "the runtime crashed before"
                 : !offered     ? "a format the runtime doesn't offer"
                                : va("a size outside 1..%ux%u", maxW, maxH));
             return false;
         }
         step("%s: requesting %dx%d %s (0x%llx), usage 0x%llx, %u sample, %u face, array %u, %u mip", what, width, height,
-            glFormatName(colorFormat), static_cast<unsigned long long>(colorFormat), static_cast<unsigned long long>(usage),
+            glFormatName(info.format), static_cast<unsigned long long>(info.format), static_cast<unsigned long long>(usage),
             info.sampleCount, info.faceCount, info.arraySize, info.mipCount);
 #ifdef _WIN32
         if(vr_xr_test_drop_context.value != 0.f) // (the test of contextReady: no context current, once)
@@ -1148,7 +1944,7 @@ private:
         sc.handle = handle;
         sc.width = width;
         sc.height = height;
-
+        sc.format = info.format;
         uint32_t imageCount = 0;
         step("%s: xrEnumerateSwapchainImages (the count)", what);
         const XrResult counted = guarded("xrEnumerateSwapchainImages", [handle, &imageCount]
@@ -1190,7 +1986,7 @@ private:
         {
         }
         xrruntime::logLine(va("%s OpenXR: %s: %dx%d %s, %u images, %u sample, usage 0x%llx\n", wallClock(), what, width, height,
-            glFormatName(colorFormat), imageCount, info.sampleCount, static_cast<unsigned long long>(usage)));
+            glFormatName(info.format), imageCount, info.sampleCount, static_cast<unsigned long long>(usage)));
         return true;
     }
 
@@ -1204,6 +2000,9 @@ private:
             case 0x8051: return "GL_RGB8";
             case 0x881A: return "GL_RGBA16F";
             case 0x881B: return "GL_RGB16F";
+            case 0x822F: return "GL_RG16F";
+            case 0x8230: return "GL_RG32F";
+            case 0x8814: return "GL_RGBA32F";
             case 0x8059: return "GL_RGB10_A2";
             case 0x8C3A: return "GL_R11F_G11F_B10F";
             case 0x81A5: return "GL_DEPTH_COMPONENT16";
@@ -1216,36 +2015,102 @@ private:
     }
 
     // The GL texture of the swapchain's next image, acquired and waited for; 0 on failure.
-    [[nodiscard]] unsigned acquireImage(const Swapchain& sc)
+    [[nodiscard]] unsigned acquireImage(Swapchain& sc)
     {
+        if(sc.handle == XR_NULL_HANDLE || sc.acquired) return 0;
         XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
         uint32_t index = 0;
         double t0 = Sys_DoubleTime();
         const XrResult acquired = xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index);
         timeCall(CallAcquire, t0);
-        if(!check(acquired, "xrAcquireSwapchainImage"))
+        if(acquired != XR_SUCCESS)
         {
+            check(acquired, "xrAcquireSwapchainImage");
             return 0;
         }
+        sc.acquired = true;
+        sc.acquiredIndex = index;
 
         XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
         waitInfo.timeout = XR_INFINITE_DURATION;
         t0 = Sys_DoubleTime();
         const XrResult waited = xrWaitSwapchainImage(sc.handle, &waitInfo);
         timeCall(CallWaitImage, t0);
-        if(!check(waited, "xrWaitSwapchainImage"))
+        if(waited != XR_SUCCESS)
         {
-            XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-            xrReleaseSwapchainImage(sc.handle, &releaseInfo);
+            check(waited, "xrWaitSwapchainImage");
+            // Keep the acquired image tracked and never access or release it
+            // without a successful wait. A later acquire is refused until the
+            // backend tears this swapchain down.
+            fatalSwapchainError = true;
+            return 0;
+        }
+        sc.waited = true;
+        if(index >= sc.images.size() || !sc.images[index].image)
+        {
+            xrruntime::warn("OpenXR: acquired swapchain image index %u is outside the %u enumerated images\n",
+                index, static_cast<unsigned>(sc.images.size()));
+            releaseImage(sc); // the wait succeeded, so this acquired image can be returned safely
+            fatalSwapchainError = true;
             return 0;
         }
         return sc.images[index].image;
     }
 
-    bool releaseImage(const Swapchain& sc) const
+    bool releaseImage(Swapchain& sc)
     {
+        if(sc.handle == XR_NULL_HANDLE || !sc.acquired || !sc.waited) return false;
         XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-        return check(xrReleaseSwapchainImage(sc.handle, &releaseInfo), "xrReleaseSwapchainImage");
+        const bool released = check(xrReleaseSwapchainImage(sc.handle, &releaseInfo), "xrReleaseSwapchainImage");
+        if(released) sc.acquired = sc.waited = false;
+        else
+        {
+            // The chain still owns an acquired image; never attempt another acquire
+            // or reuse a cached held frame after an unsuccessful release.
+            fatalSwapchainError = true;
+            frameInvalid = true;
+            haveLastViews = false;
+        }
+        return released;
+    }
+
+    [[nodiscard]] unsigned acquireSynthesisImage(Swapchain& sc)
+    {
+        if(sc.handle == XR_NULL_HANDLE || sc.acquired) return 0;
+        XrSwapchainImageAcquireInfo acquire{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+        uint32_t index = 0;
+        double t0 = Sys_DoubleTime();
+        const XrResult acquired = xrAcquireSwapchainImage(sc.handle, &acquire, &index);
+        timeCall(CallAcquire, t0);
+        if(acquired != XR_SUCCESS)
+        {
+            check(acquired, "xrAcquireSwapchainImage (synthesis)");
+            synthesisAvailable = false;
+            return 0;
+        }
+        sc.acquired = true;
+        sc.acquiredIndex = index;
+        XrSwapchainImageWaitInfo wait{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+        wait.timeout = XR_INFINITE_DURATION;
+        t0 = Sys_DoubleTime();
+        const XrResult waited = xrWaitSwapchainImage(sc.handle, &wait);
+        timeCall(CallWaitImage, t0);
+        if(waited != XR_SUCCESS)
+        {
+            xrruntime::warn("OpenXR: synthesis image wait failed (%d); color-only until backend restart\n", waited);
+            // An acquired image must not be released before a successful wait.
+            // Its swapchain remains owned until stop() destroys it.
+            synthesisAvailable = false;
+            return 0;
+        }
+        sc.waited = true;
+        if(index >= sc.images.size() || !sc.images[index].image)
+        {
+            releaseImage(sc);
+            synthesisAvailable = false;
+            return 0;
+        }
+        return sc.images[index].image;
     }
 
     static void destroySpace(XrSpace& space)
@@ -1467,6 +2332,8 @@ private:
         stateTrailText[0] = '\0';
         endReason = SessionEnd::Lost;
         visibilityMaskExtension = false;
+        synthesisExtension = synthesisAvailable = false;
+        lastProjectionTime = 0;
         frameControllerExtension = false;
         userPresenceExtension = supportsUserPresence = userPresenceKnown = false;
         isUserPresent = true;
@@ -1486,20 +2353,50 @@ private:
     bool createInstance()
     {
         // Quest 3 controllers get their own profile with this extension (Touch otherwise).
+#ifdef QVR_OPENXR_INTEROP
+        za::Vector<const char*> extensions{interopMode ? XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME : XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
+#else
         za::Vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
+#endif
         uint32_t available = 0;
         xrEnumerateInstanceExtensionProperties(nullptr, 0, &available, nullptr);
         za::Vector<XrExtensionProperties> extensionList(available, XrExtensionProperties{XR_TYPE_EXTENSION_PROPERTIES});
         xrEnumerateInstanceExtensionProperties(nullptr, available, &available, extensionList.data());
         za::String offered;
+        bool frameSynthesisOffered = false;
+        bool spaceWarpOffered = false;
+#ifdef QVR_OPENXR_INTEROP
+        bool vulkan2Offered = false;
+#endif
         for(const XrExtensionProperties& p : extensionList)
         {
             offered += offered.empty() ? "" : " ";
             offered += p.extensionName;
+            // Names rather than extension structs: native headers may predate frame synthesis.
+            frameSynthesisOffered |= !strcmp(p.extensionName, "XR_EXT_frame_synthesis");
+            spaceWarpOffered |= !strcmp(p.extensionName, "XR_FB_space_warp");
+#ifdef QVR_OPENXR_INTEROP
+            vulkan2Offered |= !strcmp(p.extensionName, XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME);
+#endif
         }
         xrruntime::logLine(va("OpenXR: %u extensions offered: ", available));
         xrruntime::logLine(offered.cStr()); // (longer than va's buffer)
         xrruntime::logLine("\n");
+        synthesisExtension = frameSynthesisOffered && vr_xr_frame_synthesis.value > 0.f;
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode)
+        {
+            if(!vulkan2Offered)
+            {
+                xrruntime::warn("OpenXR interop: runtime does not offer Vulkan2\n");
+                return false;
+            }
+            xrruntime::logLine("OpenXR interop: Vulkan2 graphics selected; EXT synthesis remains separately opt-in\n");
+        }
+#endif
+        if(synthesisExtension) extensions.pushBack(XR_EXT_FRAME_SYNTHESIS_EXTENSION_NAME);
+        xrruntime::logLine(va("OpenXR: app frame synthesis requested=%d EXT_offered=%d FB_offered=%d EXT_enabled=%d\n",
+            vr_xr_frame_synthesis.value > 0.f, frameSynthesisOffered, spaceWarpOffered, synthesisExtension));
         for(const XrExtensionProperties& p : extensionList)
         {
             if(!strcmp(p.extensionName, "XR_VALVE_frame_controller_interaction"))
@@ -1633,6 +2530,24 @@ private:
             info.next = nullptr;
             created = xrCreateInstance(&info, &instance);
         }
+        if(XR_FAILED(created) && synthesisExtension)
+        {
+            xrruntime::warn("OpenXR: frame synthesis instance request failed (%d); retrying color-only\n", created);
+            za::Vector<const char*> ordinary;
+            for(const char* extension : extensions)
+                if(strcmp(extension, XR_EXT_FRAME_SYNTHESIS_EXTENSION_NAME)) ordinary.pushBack(extension);
+            synthesisExtension = false;
+            info.enabledExtensionCount = static_cast<uint32_t>(ordinary.size());
+            info.enabledExtensionNames = ordinary.data();
+            created = xrCreateInstance(&info, &instance);
+            enabled.clear();
+            for(const char* extension : ordinary)
+            {
+                enabled += enabled.empty() ? "" : " ";
+                enabled += extension;
+            }
+            xrruntime::logLine(va("OpenXR: extensions enabled after color-only retry: %s\n", enabled.cStr()));
+        }
         if(!check(created, "xrCreateInstance"))
         {
             return false;
@@ -1718,6 +2633,17 @@ private:
                 system.graphicsProperties.maxSwapchainImageWidth, system.graphicsProperties.maxSwapchainImageHeight));
         }
 
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode)
+        {
+            if(!vulkanBootstrap.initialize(instance, systemId, true))
+            {
+                xrruntime::warn("OpenXR interop: Vulkan bootstrap failed: %s\n", vulkanBootstrap.error());
+                return false;
+            }
+            return true;
+        }
+#endif
         // Required before creating an OpenGL session.
         PFN_xrGetOpenGLGraphicsRequirementsKHR getRequirements = nullptr;
         xrGetInstanceProcAddr(instance, "xrGetOpenGLGraphicsRequirementsKHR",
@@ -1791,6 +2717,20 @@ private:
 
     bool createSession()
     {
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode)
+        {
+            if(!vulkanBootstrap.createSession(session))
+            {
+                xrruntime::warn("OpenXR interop: Vulkan2 session failed: %s\n", vulkanBootstrap.error());
+                return false;
+            }
+            getVisibilityMask = nullptr;
+            if(visibilityMaskExtension)
+                xrGetInstanceProcAddr(instance, "xrGetVisibilityMaskKHR", reinterpret_cast<PFN_xrVoidFunction*>(&getVisibilityMask));
+            return true;
+        }
+#endif
 #ifdef _WIN32
         XrGraphicsBindingOpenGLWin32KHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR};
         binding.hDC = wglGetCurrentDC();
@@ -2295,7 +3235,21 @@ public:
 private:
     bool createSwapchains()
     {
+        for(int eye = 0; eye < 2; ++eye)
+        {
+            synthesisConfig[eye] = {};
+            synthesisConfig[eye].type = XR_TYPE_FRAME_SYNTHESIS_CONFIG_VIEW_EXT;
+            configViews[eye].next = synthesisExtension ? &synthesisConfig[eye] : nullptr;
+        }
         uint32_t viewCount = 0;
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode)
+        {
+            if(xrEnumerateViewConfigurationViews(instance, systemId,
+                XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 0, &viewCount, nullptr) != XR_SUCCESS) return false;
+        }
+        else
+#endif
         xrEnumerateViewConfigurationViews(instance, systemId,
             XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 0, &viewCount, nullptr);
         if(viewCount != 2)
@@ -2304,8 +3258,20 @@ private:
             return false;
         }
 
-        xrEnumerateViewConfigurationViews(instance, systemId,
+        XrResult configuration = xrEnumerateViewConfigurationViews(instance, systemId,
             XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 2, &viewCount, configViews);
+        if(XR_FAILED(configuration) && synthesisExtension)
+        {
+            xrruntime::warn("OpenXR: synthesis view configuration failed (%d); using color-only\n", configuration);
+            synthesisExtension = false; // enabled instance extension is left unused
+            for(auto& view : configViews) view.next = nullptr;
+            configuration = xrEnumerateViewConfigurationViews(instance, systemId,
+                XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 2, &viewCount, configViews);
+        }
+        if(!check(configuration, "xrEnumerateViewConfigurationViews")) return false;
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode && (configuration != XR_SUCCESS || viewCount != 2)) return false;
+#endif
         Con_Printf("OpenXR: recommended %ux%u per eye, largest %ux%u\n", configViews[0].recommendedImageRectWidth,
             configViews[0].recommendedImageRectHeight, configViews[0].maxImageRectWidth, configViews[0].maxImageRectHeight);
         xrruntime::logLine(va("OpenXR: eyes: recommended %ux%u (%.1f Mpx), largest %ux%u, %u samples recommended\n",
@@ -2313,6 +3279,65 @@ private:
             configViews[0].recommendedImageRectWidth * configViews[0].recommendedImageRectHeight * 1e-6,
             configViews[0].maxImageRectWidth, configViews[0].maxImageRectHeight, configViews[0].recommendedSwapchainSampleCount));
 
+#ifdef QVR_OPENXR_INTEROP
+        if(interopMode)
+        {
+            uint32_t count = 0;
+            if(xrEnumerateSwapchainFormats(session, 0, &count, nullptr) != XR_SUCCESS || !count) return false;
+            za::Vector<int64_t> formats(count);
+            const uint32_t capacity = count;
+            if(xrEnumerateSwapchainFormats(session, capacity, &count, formats.data()) != XR_SUCCESS || count != capacity)
+                return false;
+            bool srgb = false, unorm = false, motion = false, depth = false;
+            for(int64_t format : formats)
+            {
+                xrruntime::logLine(va("OpenXR interop: offered VkFormat=%lld\n", static_cast<long long>(format)));
+                srgb |= format == VK_FORMAT_R8G8B8A8_SRGB;
+                unorm |= format == VK_FORMAT_R8G8B8A8_UNORM;
+                motion |= format == VK_FORMAT_R16G16B16A16_SFLOAT;
+                depth |= format == VK_FORMAT_D32_SFLOAT;
+            }
+            if(!srgb && !unorm)
+            {
+                xrruntime::warn("OpenXR interop: no compatible RGBA8 SRGB/UNORM native color format\n");
+                return false;
+            }
+            colorFormat = srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+            if(!srgb) Con_Warning("OpenXR interop: UNORM color fallback; gamma-encoded colors may look brighter\n");
+            synthesisAvailable = synthesisSrgbMotion = false;
+            xrruntime::logLine(va("OpenXR interop: native color VkFormat=%lld; GL_RGBA8 staging\n",
+                static_cast<long long>(colorFormat)));
+            if(!createEyeSwapchains()) return false;
+            bool extents = true;
+            for(const auto& config : synthesisConfig)
+                extents &= config.recommendedMotionVectorImageRectWidth > 0 && config.recommendedMotionVectorImageRectHeight > 0;
+            if(synthesisExtension && !extents)
+                xrruntime::warn("OpenXR interop: EXT returned an empty recommended motion extent; using color-only\n");
+            if(synthesisExtension && motion && depth && extents)
+            {
+                const float scale = CLAMP(0.125f, vr_xr_frame_synthesis_scale.value, 1.f);
+                for(int eye = 0; eye < 2; ++eye)
+                {
+                    const auto& config = synthesisConfig[eye];
+                    // EXT supplies paired motion/depth extents; never substitute
+                    // the color size when the extension contract is absent.
+                    const int w = za::max(32, static_cast<int>(config.recommendedMotionVectorImageRectWidth * scale));
+                    const int h = za::max(32, static_cast<int>(config.recommendedMotionVectorImageRectHeight * scale));
+                    if(!createSwapchain(synthesisMotion[eye], w, h,
+                        XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
+                        "xrCreateSwapchain (Vulkan synthesis motion)", VK_FORMAT_R16G16B16A16_SFLOAT) ||
+                       !createSwapchain(synthesisDepth[eye], w, h,
+                        XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
+                        "xrCreateSwapchain (Vulkan synthesis depth)", VK_FORMAT_D32_SFLOAT)) return false;
+                }
+                synthesisAvailable = true;
+            }
+            xrruntime::logLine(va("OpenXR interop: synthesis targets=%d EXT=%d RGBA16F=%d D32=%d; "
+                "fresh stereo producer exports required; compositor interpolation unverified\n",
+                synthesisAvailable, synthesisExtension, motion, depth));
+            return true;
+        }
+#endif
         // Quake renders gamma-encoded colours: an sRGB swapchain written without sRGB
         // conversion hands them to the compositor unchanged.
         if(configViews[0].recommendedImageRectWidth == 0 || configViews[0].recommendedImageRectHeight == 0)
@@ -2372,7 +3397,75 @@ private:
                 Con_Warning("OpenXR: the swapchain is not sRGB: the headset will show the game brighter and paler than it is\n");
             }
         }
-        return createEyeSwapchains();
+        if(!createEyeSwapchains()) return false;
+        if(synthesisExtension)
+        {
+            int64_t motion = 0, depth = 0;
+            synthesisSrgbMotion = false;
+            for(int64_t f : formats)
+            {
+                if(f == 0x881A) motion = f; // GL_RGBA16F: signed, linear RG motion.
+                else if(!motion && f == 0x822F) motion = f; // GL_RG16F.
+                else if(!motion && (f == 0x881B || f == 0x8230 || f == 0x8814)) motion = f;
+                if(f == 0x8CAC) depth = f; // GL_DEPTH_COMPONENT32F.
+                else if(!depth && (f == 0x81A6 || f == 0x81A5)) depth = f;
+            }
+            if(!motion && vr_xr_frame_synthesis_srgb_motion.value > 0.f)
+            {
+                for(int64_t f : formats)
+                {
+                    if(f == GL_SRGB8_ALPHA8)
+                    {
+                        motion = f;
+                        synthesisSrgbMotion = true;
+                        break;
+                    }
+                }
+            }
+            if(motion && depth)
+            {
+                synthesisAvailable = true;
+                const float scale = CLAMP(0.125f, vr_xr_frame_synthesis_scale.value, 1.f);
+                for(int eye = 0; eye < 2; ++eye)
+                {
+                    const uint32_t rw = synthesisConfig[eye].recommendedMotionVectorImageRectWidth;
+                    const uint32_t rh = synthesisConfig[eye].recommendedMotionVectorImageRectHeight;
+                    const int w = za::max(32, static_cast<int>((rw ? rw : swapchains[eye].width) * scale));
+                    const int h = za::max(32, static_cast<int>((rh ? rh : swapchains[eye].height) * scale));
+                    if(!createSwapchain(synthesisMotion[eye], w, h,
+                        XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
+                        "xrCreateSwapchain (synthesis motion)", motion) ||
+                       !createSwapchain(synthesisDepth[eye], w, h,
+                        XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
+                        "xrCreateSwapchain (synthesis depth)", depth))
+                    {
+                        synthesisAvailable = false;
+                        break;
+                    }
+                    if(synthesisMotion[eye].images.empty() || synthesisDepth[eye].images.empty())
+                    {
+                        synthesisAvailable = false;
+                        break;
+                    }
+                }
+            }
+            if(!motion || !depth)
+                xrruntime::logLine("OpenXR: synthesis needs a supported motion format and a depth format; try vr_xr_frame_synthesis_srgb_motion 1 only for the experimental sRGB8 path\n");
+            else if(synthesisSrgbMotion)
+                xrruntime::logLine(va("OpenXR: experimental sRGB8 motion encoding enabled (range %.4f NDC, quantized; motion beyond range clips)\n",
+                    CLAMP(0.0625f, vr_xr_frame_synthesis_motion_range.value, 0.5f)));
+            if(!synthesisAvailable)
+            {
+                for(Swapchain* sc : {&synthesisMotion[0], &synthesisMotion[1], &synthesisDepth[0], &synthesisDepth[1]})
+                {
+                    if(sc->handle != XR_NULL_HANDLE) xrDestroySwapchain(sc->handle);
+                    *sc = {};
+                }
+            }
+            xrruntime::logLine(va("OpenXR: frame synthesis images %s (motion format=%s, depth format=%s); color-only fallback when unavailable\n",
+                synthesisAvailable ? "available" : "unavailable", glFormatName(motion), glFormatName(depth)));
+        }
+        return true;
     }
 
     // The eyes' swapchains, at the recommended size for the whole session: vr_render_scale changes
@@ -2403,15 +3496,37 @@ private:
             {
                 if(sc.handle != XR_NULL_HANDLE)
                 {
-                    const XrSwapchain handle = sc.handle;
-                    guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
+#ifdef QVR_OPENXR_INTEROP
+                    if(interopMode)
+                    {
+                        if(sc.acquired || !bridgeFor(sc)->shutdown())
+                        {
+                            blockInteropTeardown("eye recreation requires settled image and drained bridge");
+                            return false;
+                        }
+                        if(xrDestroySwapchain(sc.handle) != XR_SUCCESS)
+                        {
+                            blockInteropTeardown("eye swapchain destruction failed");
+                            return false;
+                        }
+                    }
+                    else
+#endif
+                    {
+                        const XrSwapchain handle = sc.handle;
+                        guarded("xrDestroySwapchain", [handle] { return xrDestroySwapchain(handle); });
+                    }
                     sc = Swapchain{};
                 }
             }
+            return true;
         };
         const auto createBoth = [this, w, h, &destroyBoth]
         {
-            destroyBoth();
+            if(!destroyBoth())
+            {
+                return false;
+            }
             return createSwapchain(swapchains[0], w, h, XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT, "xrCreateSwapchain (left eye)") &&
                    createSwapchain(swapchains[1], w, h, XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT, "xrCreateSwapchain (right eye)");
         };
@@ -2593,6 +3708,13 @@ private:
 
 za::UniquePtr<Backend> makeOpenXrBackend()
 {
+#ifdef QVR_OPENXR_INTEROP
+    if(interopParentsRetained)
+    {
+        Con_Warning("OpenXR interop: backend recreation blocked while native parents remain retained\n");
+        return nullptr;
+    }
+#endif
     return za::makeUnique<OpenXrBackend>();
 }
 

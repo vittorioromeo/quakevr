@@ -1664,13 +1664,14 @@ public:
         return &hidden_;
     }
 
-    [[nodiscard]] unsigned acquireEyeImage(int eye) override
+    [[nodiscard]] GraphicsImage acquireEyeImage(int eye) override
     {
-        return textures[eye];
+        return textures[eye] ? GraphicsImage{GraphicsApi::OpenGL, textures[eye], 0, 0, width_, height_} : GraphicsImage{};
     }
 
-    void releaseEyeImage(int /* eye */) override
+    [[nodiscard]] bool releaseEyeImage(int /* eye */) override
     {
+        return true;
     }
 
     // The runtime's panel as a runtime shows it while the eyes are not rendered (menus before a map), placed as

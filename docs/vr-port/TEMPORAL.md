@@ -6,6 +6,17 @@ Status: research and design only, nothing implemented. Written 2026-09-26 agains
 through OpenGL-to-Vulkan interop with FSR as the fallback. It also answers the licensing question as far as research
 can. It is not legal advice.
 
+2026-10-13 Steam Frame update: SteamVR/OpenXR 2.18.2 advertises both app-vector
+frame synthesis extensions and accepted an instance-only `XR_EXT_frame_synthesis`
+probe together with OpenGL. The runtime reprojection discussion below describes
+the earlier PC/Virtual Desktop research and is not a current Steam Frame support
+claim. [SPACEWARP.md](SPACEWARP.md) records native evidence and the implementation
+gate. This document's proposed `previousUV-currentUV` convention needs conversion
+before EXT submission; this document's direct geometry-motion/TAA stage remains
+unimplemented. A separate opt-in EXT 2D path now uses captured depth and GPU
+image-motion estimation, with native CPU and offscreen GL fixture validation.
+It does not implement this document's exact alias/IQM/brush history or TAA.
+
 Reference machine: Quest 3 over Virtual Desktop (VDXR or SteamVR), RTX 4090, eye images 3292x3524 (11.6 Mpx an eye,
 23.2 Mpx a frame), 120 Hz (8.33 ms a frame).
 

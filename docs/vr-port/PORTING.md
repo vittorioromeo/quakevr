@@ -4,6 +4,16 @@ Quake VR is an engine-independent module (`Quake/vr/`, C++23 on Zancle and glm, 
 hooks. This page says what a port to another QuakeSpasm-lineage engine — vkQuake is the target in mind — has to
 provide, what carries over as is, and what must be written again.
 
+For Steam Frame frame synthesis, Vulkan is now the target path rather than an
+optional renderer experiment: the isolated OpenGL test records compositor
+shared-image failures during every tested depth-swapchain creation, including
+without `XR_EXT_frame_synthesis`, while the native Vulkan test creates both-eye
+FP16-motion/D32-depth swapchains and completes its 120-frame data fixture
+without those errors. OpenXR's EXT submission structure requires both the
+motion and depth subimages, so omitting the failing depth path is not a valid
+workaround. See the dated [Steam Frame probe](SPACEWARP_GL_OPENXR_SWAPCHAIN_PROBE_2026-10-14.md)
+and [Vulkan roadmap](SPACEWARP_VULKAN_ROADMAP.md).
+
 ## The boundary
 
 | Layer | Files | What a port does |
@@ -14,9 +24,26 @@ provide, what carries over as is, and what must be written again.
 | **Engine symbols** | `vr_engine.hpp` | The only place engine headers are included from, and the list of engine symbols no header declares |
 | **Rendering the module does itself** | `vr_gfx.hpp` (interface) + `vr_gfx_gl.cpp` (Ironwail/OpenGL) | Write `vr_gfx_vk.cpp` |
 | **Stereo view setup** | `vr_stereo.cpp` | Rewrite for the other renderer's frame structure |
+| **Runtime-owned image handles** | `vr_backend.hpp` `GraphicsImage`: API tag, opaque image/view handles, native format and extent | Preserve the API tag and ownership metadata; never reinterpret a Vulkan image handle as a GL texture name |
 | **Shadows and per-pixel lights** | `vr_lighting.cpp` + `SHADOW_FUNCTIONS` and the light loops in `vr_glsl.h` (spliced into `gl_shaders.h`) | Rewrite on the other renderer (see [LIGHTING.md](LIGHTING.md)) |
 | **OpenXR graphics binding** | `vr_backend_openxr.cpp` (WGL / `XR_KHR_opengl_enable`) | `XR_KHR_vulkan_enable2` |
 | **Everything else** | about 70 files: hands, body IK, throwing, two-handed aiming, holsters, weapons, particles, panel, gadget, menu, protocol, server, physics, rigid bodies, force-grab support, OpenXR session/input | Recompile |
+
+`GraphicsImage` is interface groundwork only. Current stereo, panel and synthesis
+consumers explicitly accept OpenGL images and safely reject another API; this
+does not add a Vulkan backend or make the existing GL renderer usable with
+Vulkan swapchains. The brush renderer exposes `R_BuildBModelVertexData()` for
+CPU-side BSP vertices, and `vr_bsp_mesh.*` builds a bounds-checked fan-index
+packet with per-surface material ranges for opaque world surfaces. It also
+builds a compact owned position/UV packet with local indices for later native
+renderer upload. Neither packet is connected to Quake's running renderer yet.
+The generic Vulkan buffer uploader and indexed draw recorder exist in
+`vr_vulkan_bsp.*`; the standalone Steam Frame fixture exercises them with a
+synthetic packet in the same format. `-DQVR_ENABLE_NATIVE_VULKAN_BSP=ON`
+compiles and links that component into the engine when the Vulkan SDK is
+installed. The Quake gameplay renderer does not call that code yet; its runtime
+graphics binding, production shader pipeline/material upload, stereo passes,
+depth retention and OpenXR frame submission remain to be integrated.
 
 Every engine edit is marked `// QVR` (a comment in each hunk), so
 `git diff v0.8.2 HEAD -- Quake ':!Quake/vr'` or a search for `QVR` lists the whole engine side ([IRONWAIL_DIFF.md](IRONWAIL_DIFF.md):
@@ -67,13 +94,17 @@ on the main thread by `VR_SetupViewEntities` (view entities, weapon transforms).
   2D pass redirected into the canvas (`beginCanvas`/`endCanvas`/`applyCanvasBlend`), `copy(target, image)` to a
   runtime's swapchain image, and textures (the mock backend's eyes, the particle atlas).
 
-`vr_gfx_gl.cpp` (about 400 lines) is the whole OpenGL implementation: one shader, one stream buffer, framebuffers.
-A Vulkan version needs two or three pipelines (blend × depth variants), a per-frame vertex ring buffer, and render
-passes for the targets; estimated 400–600 lines.
+`vr_gfx_gl.cpp` contains the module's OpenGL drawing implementation. In the
+2026-10-14 checkout it is about 2,055 lines, not the roughly 400 lines stated
+in an earlier estimate. It covers the module's graphics features, not Quake's
+world/alias renderer. A Vulkan module renderer needs Vulkan pipelines, buffers,
+target/render-pass integration, descriptors, barriers, shader variants and
+resource lifetime handling; line estimates are withheld until a compiling
+renderer slice exists.
 
 ## OpenXR on Vulkan
 
-Today: `XR_KHR_opengl_enable` with a WGL binding, GL swapchain formats, `XrSwapchainImageOpenGLKHR`, the backend
+Today: `XR_KHR_opengl_enable` with WGL/GLX bindings, GL swapchain formats, `XrSwapchainImageOpenGLKHR`, the backend
 handing out GL texture names (`vr_backend.hpp`), and acquire → render → release → `xrEndFrame` inline in
 `VR_RenderView`. For Vulkan:
 
@@ -90,18 +121,31 @@ handing out GL texture names (`vr_backend.hpp`), and acquire → render → rele
    (`VR_AfterSubmit`: release the images, `xrEndFrame`).
 6. The panel copy and the desktop mirror become `vkCmdBlitImage`; the desktop's vsync a present mode.
 
-## Estimated effort
+## Porting scope and size
 
-| Piece | Size |
-|---|---|
-| Engine hooks (shared) | a day: same call sites |
-| `vr_gfx_vk.cpp` | 400–600 lines |
-| Stereo view setup for vkQuake | 300–500 lines |
-| 2D canvas pass | 200–300 lines |
-| Alias extras (bone matrices, zero blend, mirroring) in vkQuake's shaders | 150–250 lines, plus engine changes |
-| OpenXR Vulkan binding and frame synchronisation | 300 lines + about 80 in vkQuake's device creation |
+The earlier estimates of about 2,000 lines of adapter code and 400–600 lines
+for `vr_gfx_vk.cpp` are withdrawn as too optimistic. A fresh count of this
+Ironwail checkout is about 2,055 lines in `vr_gfx_gl.cpp`, 1,070 in
+`vr_stereo.cpp`, 1,897 in `vr_backend_openxr.cpp`, and 2,450 in
+`vr_lighting.cpp`; these counts exclude the engine hooks, shader strings and
+the actual Quake GL renderer that also needs Vulkan support.
 
-About 2,000 lines of adapter code; the rest of the module (about 14,000 lines) is reused as is.
+The audited vkQuake snapshot is commit
+[`33ad15e6c9a5303c1af1050f63391baad289b4e7`](https://github.com/Novum/vkQuake/tree/33ad15e6c9a5303c1af1050f63391baad289b4e7).
+Its Vulkan video/device and frame-submit path is concentrated in a 4,395-line
+`Quake/gl_vidsdl.c`; render-pass construction is in a separate 1,127-line
+`Quake/r_passes.c`, and brush rendering spans thousands of lines. Its Vulkan
+instance/device initialization and queued frame submission are integrated into
+the renderer, so adding OpenXR requires device-creation order changes and
+render-pass/frame synchronization—not only a new VR graphics adapter.
+
+No defensible total line count or calendar estimate exists yet. The next
+engineering gate is a small vkQuake branch that obtains the runtime-selected
+Vulkan device, binds an OpenXR session, renders each eye into OpenXR color
+images, then adds valid motion/depth targets and submits EXT metadata. Only
+after that should the full Quake VR engine hooks, stereo gameplay and module
+graphics be ported. The separate Steam Frame Vulkan fixture proves the runtime
+API path, but does not make the game-renderer port complete.
 
 ## Known engine-specific corners (to hide behind the adapter when porting)
 

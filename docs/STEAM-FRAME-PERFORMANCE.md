@@ -597,8 +597,8 @@ This measures the contact solver itself, not the full per-frame scene build.
 
 I then profiled the same scratch binary and map for 299 frames with the hand
 held in that blocking torso contact and 325 frames with both hands separated.
-At mock eye resolution 384x384, render scale 0.45, and profile GPU queries
-disabled, `body collide` averaged 0.040 ms per frame in both intervals; the
+At mock eye resolution 384x384, render scale 0.45, and `vr_profile_gpu 0`,
+`body collide` averaged 0.040 ms per frame in both intervals; the
 interval maxima were 0.226 ms with contact and 0.210 ms with hands apart.
 The mock run did not reproduce the roughly 1.4 ms scope seen among selected
 unworn hitch frames, so that earlier scope remains unexplained and is not
@@ -638,3 +638,190 @@ revisiting that path.
 
 Raw run JSON, XR traces and logs are retained on the Frame under
 `performance-results/frame-tail-hitches-20261012/body-collision-abba-20261012`.
+
+## Wearer OpenXR profile (2026-10-12)
+
+I recorded a live Steam Frame session with the installed native ARM64 build while
+the wearer looked around and used the controllers in `vrstart`. The runtime
+trace confirms fresh two-view projection submissions during the active portions
+of the session. The 5-second engine profile shows why isolated headline FPS
+values are misleading: performance changed substantially from one interval to
+the next.
+
+The profile reported these representative intervals:
+
+| Interval | Frame period mean / worst frame | XR submit mean | Server mean |
+|---|---:|---:|---:|
+| Idle/reprojection period (17:54:37–18:02:57) | about 6.25 ms (~160 host iterations/s) | about 0.1 ms; SteamVR reused the previous image | negligible |
+| First sustained fresh-render period (18:03:47–18:04:52) | 11.77 ms mean; 49.47 ms worst sampled frame | 7.19 ms mean | 0.66 ms mean |
+| Slow intervals (18:06:47–18:07:12) | 52.95 ms mean; 64.36 ms worst sampled frame | 44.55 ms mean | 3.35 ms mean |
+| Later active intervals (18:07:47–18:08:12) | 18.33 ms mean; 26.86 ms worst sampled frame | 12.61 ms mean | 1.39 ms mean |
+
+This capture predates the later SteamVR restart that restored the ability to
+launch Quake. The user's report of poor performance after that restart has not
+yet been captured in a separate instrumented run.
+
+The 160 host iterations/s period is not evidence of gameplay: OpenXR diagnostics
+showed that SteamVR was reusing the previous image for nearly all of those
+iterations. During fresh rendering, the per-second trace varied from roughly 43 to 100
+rendered frames, with missed 13.89 ms display periods ranging from zero to 24
+per second. One 75-second stretch averaged 86 rendered frames/s with nearly no
+misses; later stretches averaged about 57–65 frames/s and missed more periods.
+This variability means the capture is a real-wearer observation, not a
+repeatable performance benchmark or a before/after result.
+
+`xr submit` dominated the slow engine intervals while server work remained
+small. This scope includes work and waits around OpenXR submission; without GPU
+timing data it cannot distinguish GPU saturation from driver/runtime
+synchronization. The session requested `vr_profile_gpu 0` and recorded no
+detailed GPU times. Astra's later code review found that the separate phase
+timestamps still ran despite that setting, so this capture was not free of
+GPU-query overhead. No GPU-time or GPU-bound claim can be made from these
+records, and overhead interpretation requires a new capture after the fix.
+The profile used eye swapchains of
+1728x1728, `vr_render_scale 0.45`, the Zink/Turnip OpenGL renderer, and
+`-noconfigwrite`. A further capture with GPU timing enabled and a controlled,
+repeatable scene is needed before choosing a rendering optimization.
+
+The test also exercised live controller input and a shotgun kill in the
+training scene. The game wrote its normal Steam Frame
+`quakevr/autosave/vrstart.sav` during play; config writes were disabled. No
+QuakeQuest install, owned game data, or other save files were changed. Raw
+profiles and OpenXR diagnostics remain in the maintainer's private audit
+workspace because they contain headset and controller pose telemetry.
+
+No performance change is justified by this capture alone. The next useful test
+is a controlled wearer run with GPU timing enabled, the same map and saved
+workload, and a separately captured baseline before changing render scale or
+submission behavior.
+
+## Profiler corrections after code review (2026-10-12)
+
+The phase profiler now latches `vr_profile_gpu` at the frame boundary: zero
+disables both phase and detailed GPU timestamps while CPU timing continues.
+For positive integer N, phase GPU timing keeps its previous every-frame
+cadence and the detailed call tree samples one frame in N. Captures record
+profiling, OpenXR eye scale/acquire/focus, upscale/sharpen, `gl_finish`, and
+`r_speeds` settings so their overhead and rendering context can be checked.
+
+The detailed query ring now drops a sample still unavailable when its slot
+is reused, rather than waiting for `GL_QUERY_RESULT`. Its console and CSV
+report `gpu_dropped_samples` separately from hitch counts; an interval with
+no resolved GPU samples reports GPU timing as unavailable. This old blocking
+path applied only to enabled detailed GPU sampling and does not explain the
+wearer run's requested-zero capture. The host estimate now excludes measured
+XR wait/acquire/release/submit calls and window swap, consistently with frame
+history; it is host wall time outside those waits, not actual CPU execution.
+Direct `xrEndFrame` timing ends before diagnostic file logging.
+
+These are measurement and overhead corrections, with no measured Steam Frame
+performance gain claimed. At that time, the wearer capture above predated the
+SteamVR restart and a controlled post-fix capture was still required; the later
+wearer run is recorded below.
+
+The corrected `ironwail` target built successfully as native ARM64 Linux Release
+with Clang 19.1.7. A standalone CPU-only regression test includes the actual
+profiler implementation and substitutes GL query functions: it verified zero
+at startup and after queries had been allocated, frame-latched paired scopes,
+every-frame phase cadence for positive N, unavailable query support, readback
+only after availability, dropped-sample ownership/counts, interval reset, and
+the host wait estimate. It starts no game or VR runtime and uses no game data.
+For an existing native CMake build, reproduce it from the repository root:
+
+```sh
+clang++ -std=c++23 -DNDEBUG -DZA_STATIC -DUSE_SDL2 -fno-exceptions \
+  -ffunction-sections -fdata-sections -I Quake -I Quake/vr \
+  -I Quake/vr/external -I Quake/vr/external/zancle/include \
+  -I Quake/vr/external/box3d/include -I /usr/include/SDL2 \
+  Misc/quakevr/tests/vr_profile_query_test.cpp build/libqvr_zancle.a \
+  -pthread -Wl,--gc-sections -o build/vr_profile_query_test
+build/vr_profile_query_test
+```
+
+The rebuilt game had not yet been installed or launched at this stage; those
+checks alone did not verify physical tracking, controller gameplay, or wearer
+FPS. The later wearer validation is recorded below.
+
+## Corrected wearer OpenXR profile (2026-10-13)
+
+I built the corrected profiler for native ARM64 with Clang 19.1.7 on Frame,
+passed its CPU-only GPU-query regression test, and launched that build against
+the existing native game data without replacing the installed release binary.
+The wearer played for 15 minutes 57 seconds after SteamVR had been restarted.
+SteamVR/OpenXR 2.18.2 submitted fresh stereo views throughout active play, and
+both Frame controller poses were valid. The profile used 1728x1728 eye images,
+`vr_render_scale 0.45`, `vr_profile 1`, `vr_profile_gpu 4`, and
+`vr_profile_csv 1`; GPU query readback did not block, and no samples were
+dropped. A Quaddicted map-index refresh ran during the first ten seconds.
+
+The 947 one-second system samples span `vrstart`, `start`, and E1M1. Overall
+median frame rate was 71.9 fps; the broad distribution hides a strong scene
+difference:
+
+| Scene | Samples | Median FPS | GPU median / p95 | GPU world/brush p95 | Samples below 60 FPS |
+|---|---:|---:|---:|---:|---:|
+| `e1m1` | 505 s | 72.0 | 7.78 / 13.52 ms | 10.30 ms | 27 (5.3%) |
+| `vrstart` | 429 s | 71.8 | 9.66 / 32.75 ms | 29.69 ms | 123 (28.7%) |
+
+The E1M1 fight mostly held 72 fps: its frame-period p95 was 19.34 ms, with four
+one-second samples below 45 fps. In `vrstart`, low-frame-rate intervals
+coincided with GPU world/brush time rising as high as 39 ms; the 5-second call
+tree recorded a 23.76 ms GPU-eye average in one 38 fps interval. This points to
+scene-dependent GPU rendering cost as the main repeatable issue in that area.
+XR wait/end-frame times also rose during slow intervals, so compositor pacing
+contributes to the observed frame periods. CPU game work stayed comparatively
+small (overall busy-time median 2.95 ms); E1M1 physics median was 0.05 ms. A
+single 55 ms Box3D synchronization hitch occurred in `vrstart`, but it did not
+explain the repeated GPU-heavy slow intervals and does not justify simplifying
+physics on its own.
+
+This is a real wearer OpenXR capture, unlike the hidden-window fixture runs.
+It sampled the authored `vrstart` area and E1M1, not every campaign map. Raw
+CSV/log files are retained privately in
+`performance-results/wearer-profile-fixed-20261013/`; `qvr_openxr.txt` includes
+head and controller pose telemetry. The normal Frame release executable was
+not replaced. The next useful optimization experiment is a controlled A/B at
+the same `vrstart` viewpoints, changing one world-rendering cost at a time.
+
+## Application frame synthesis review (updated 2026-10-14)
+
+SteamVR/OpenXR 2.18.2 advertises both `XR_FB_space_warp` and
+`XR_EXT_frame_synthesis`. An instance-only native probe successfully enabled
+EXT together with OpenGL and queried 1728x1728 synthesis recommendations for
+each eye. An opt-in EXT path now captures per-eye depth, estimates dynamic 2D
+image motion from separate final-color histories, and submits both through valid
+per-view composition chains when the runtime and images are usable. It remains
+off by default and has not been validated as a headset scene. See
+[the exact implementation, fallback and validation gate](vr-port/SPACEWARP.md).
+Native CPU tests and an isolated hidden desktop GL fixture passed, including
+independent dynamic foreground motion in both eyes, reversed/conventional depth,
+nearest-sample MSAA resolve and actual depth/vector export. The fixture created
+no OpenXR session and is not a campaign performance or image-quality result.
+
+The first in-game safety gate used a full-resolution GPU reduction and a
+synchronous 1x1 readback per eye. Detailed profiling measured those readbacks
+at 9.48 ms left and 8.03 ms right. A bounded GPU-side fallback now preserves
+finite in-range flow, otherwise uses camera reprojection and finally neutral
+motion; it never clamps an invalid vector. Repeated 450-frame gore replays then
+measured 13.889 ms/frame with synthesis on and 13.891 ms off, with about
+1.4 ms added CPU and 1.6 ms added GPU-eye time. The run submitted EXT metadata
+but had no valid wearer pose, so the compositor's generated frames and the
+headset's depth/motion diagnostic still need a wearer test. Detailed captures
+and limitations are in [the frame-synthesis status](vr-port/SPACEWARP.md).
+
+The OpenGL result still lacks a suitable signed-linear motion format. The Vulkan
+probe found FP16 motion and D32 depth swapchains, and a standalone Vulkan XR
+fixture now submitted 120 stereo frames with moving per-eye test rectangles.
+GPU readback verified opposite signed X/Y vectors, a stationary zero-vector
+background, foreground depth 0.35 and background depth 1.0. This is controlled
+image-data evidence, not a Quake renderer integration or proof that SteamVR used
+the fields to generate displayed frames. SteamVR's authoritative next check is
+the in-headset **Draw Performance Assessment Game Textures** diagnostic, which
+shows depth/motion images; its overlay reports submitted formats as `Dxx` and
+`Mxx`. That wearer-visible result is still outstanding. The fixture's short
+compositor log reported two reprojected frames, but does not attribute them to
+EXT frame synthesis. Details are in [the Vulkan frame-loop record](../../performance-results/spacewarp-vulkan-frame-loop-20261014/RESULTS.md).
+
+Frame synthesis can improve displayed motion below refresh, but does not reduce
+the measured world-render GPU cost and needs its own game-level overhead and
+image-quality comparison.

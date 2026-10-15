@@ -639,7 +639,7 @@ GL_BuildBModelVertexBuffer
 Rebuilds gl_bmodel_vbo with all surfaces from world + all brush models
 ==================
 */
-void GL_BuildBModelVertexBuffer (void)
+glvert_t *R_BuildBModelVertexData (size_t *out_bytes)
 {
 	unsigned int	numverts, varray_bytes, varray_index;
 	int			i, j, k;
@@ -647,6 +647,9 @@ void GL_BuildBModelVertexBuffer (void)
 	glvert_t	*varray;
 	float		lmscalex = 1.f / 16.f / lightmap_width;
 	float		lmscaley = 1.f / 16.f / lightmap_height;
+	if (!out_bytes)
+		return NULL;
+	*out_bytes = 0;
 
 // count all verts in all models
 	numverts = 0;
@@ -668,7 +671,7 @@ void GL_BuildBModelVertexBuffer (void)
 	varray_bytes = sizeof (glvert_t) * numverts;
 	varray = (glvert_t *) VR_HeapMalloc (varray_bytes);
 	if (!varray)
-		Sys_Error ("GL_BuildBModelVertexBuffer: out of memory on %u bytes", varray_bytes);
+		Sys_Error ("R_BuildBModelVertexData: out of memory on %u bytes", varray_bytes);
 	memset (varray + brush_reserve.firstvert, 0, sizeof (glvert_t) * (numverts - brush_reserve.firstvert)); // QVR
 	varray_index = 0;
 	VR_PermDecalsLayout (); // QVR: the world's faces laid out for the permanent decals (vr/vr_permdecals.cpp)
@@ -794,6 +797,25 @@ void GL_BuildBModelVertexBuffer (void)
 			}
 		}
 	}
+
+	*out_bytes = varray_bytes;
+	return varray;
+}
+
+/*
+==================
+GL_BuildBModelVertexBuffer
+
+Builds the shared CPU brush-surface vertex data, then uploads it for OpenGL.
+Other renderer backends can consume R_BuildBModelVertexData directly.
+==================
+*/
+void GL_BuildBModelVertexBuffer (void)
+{
+	size_t varray_bytes;
+	glvert_t *varray = R_BuildBModelVertexData (&varray_bytes);
+	if (!varray)
+		Sys_Error ("GL_BuildBModelVertexBuffer: could not build brush vertex data");
 
 // upload to GPU
 	gl_bmodel_vbo_size = varray_bytes;

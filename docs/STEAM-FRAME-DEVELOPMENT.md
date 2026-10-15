@@ -506,6 +506,97 @@ collected. This is not wearer gameplay or performance evidence. See
 `quakevr/profile/profile_vrstart_2026-10-12_17-54-37.csv` on the Frame. Repeat
 only when the HMD presence sensor and both controller pose actions are live.
 
+### GPU hang after a kill (the training dummy), and the Turnip autotune switch (2026-10-15)
+
+Killing a monster (first seen with the axe on the firing range's dummy) could freeze the headset and reset the GPU:
+`gpu fault ring 2 ... status 00CE1185` with UCHE read-translation faults at 64-byte strides inside unmapped holes next to
+~4 MB buffers, or a BR_SP/CP write fault. It reproduces without a wearer: `Misc/frame/run-dummy-kill-repro.py` (a scratch
+copy of the game, the OpenXR backend with no wearer, `vr_dummy_test 3` six times on `vrfiringrange`) and
+`Misc/frame/killrepro-matrix.py` (randomised A/B rounds; a hang leaves a devcoredump if
+`install-devcore-watch-service.sh` was run). The crash is probabilistic: the unchanged build passed about half of the
+real-path runs (`rel_base` 2/4, `h2_async` 1/4), and `ZINK_DEBUG=flushsync` made it near certain, so A/Bs use that.
+
+What the runs established (HEAD source plus only test hooks):
+
+- **Needed:** the world shader's decal loop (`DecalsAt` in `vr_glsl.h`) actually executing its buffer and atlas loads. With
+  `vr_decals 0` or `vr_decals_world 0` it never crashed; with the loads compiled in but never reached it passed; making
+  the shader read but not apply them still crashed.
+- **Not the cause (each tested):** SSBOs as such (the same data through buffer textures and `texelFetch` still crashed);
+  buffer replacement or orphaning (updating in place still crashed); the OpenXR layer or FDM; `vr_dummy_gore`, wounds or
+  the mock backend; private-memory spill in the shader (the disassembly has none: about 10,000 instructions, 6 loops,
+  32 registers); a buffer missing from the submit's BO list (Zink submits its whole global list, 300+ BOs).
+- **Lowered the odds in the headless runs (it did not hold on the headset, see the update below):** forcing sysmem rendering (`TU_DEBUG=sysmem`) or the autotuner's `TU_AUTOTUNE_ALGO=prefer_sysmem`, or
+  `TU_DEBUG=noubwc`. Forced gmem (`TU_DEBUG=gmem`) and `ZINK_DESCRIPTORS=lazy` looked fixed under flushsync but still
+  crashed on the real async path (gmem 1/4, lazy 2/4). Not fixed: `nolrz`, `nobin`, `flushall`, `nodescprefetch`,
+  `nopreamble`, `nouboopt`, and the other autotune algorithms.
+
+**Update, same day: `prefer_sysmem` did not hold on the headset.** A wearer's run with the launcher's `prefer_sysmem` crashed on
+the first kill (a double-barrel shotgun, 14 pellets, 14:02; the game log ends on that kill). The devcoredump's faulting submit
+(fence 43336; the in-flight IB is `CP_IB1_BASE` at register 0xb16 on a7xx, not the ring's rptr, which already points at the next
+submit) has its world pass binned and rendered in GMEM, 3 bins. So the autotuner did not pick sysmem for that pass although
+`TU_AUTOTUNE_ALGO=prefer_sysmem` was set (the launcher was edited at 12:01, the game started at 14:01). Turnip's autotune
+overrides the algorithm for some passes (the library logs `selecting=GMEM reason=fdm` and `reason=preempt_latency_risk`), and
+Valve's FDM injection layer adds foveation to the render passes Zink makes, so a worn headset can force GMEM where the
+headless runs (no wearer) get sysmem. Which reason applied was not captured (`MESA_LOG_LEVEL=debug` printed no autotune lines).
+
+The fault: `BR_SP` read, translation fault at iova 0xec0 (other dumps 0 and 0xf00, sometimes UCHE). In both dumps it is
+frozen (`RBBM_STATUS3` bit 24, SMMU stalled on fault) right after a 1x1x1 `gather_indirect` compute dispatch that follows the
+GMEM world pass; the faulting instruction is not identified. The decal data are fine in that submit: SSBO bindings 3 and 4 and
+the atlas have valid descriptors with the engine's exact sizes (Decals 4560 B = 57 records, DecalGrid 38468 B), so an earlier
+note here that the decal SSBO base was null is not supported by the dump. Never binding SSBOs 3 and 4 at all (`h2_dnobind`)
+still reproduces the signature 3/3.
+
+Checked since, all without result:
+
+- The engine's and Mesa's own state is right. A test build (`QVR_DECAL_BINDTEST`, test hook only) asked Mesa for the buffer,
+  start and size of SSBO bindings 3 and 4 right before every world draw: over 100,000 checks, even in runs that then
+  crashed, there was no mismatch. Unbinding and rebinding both before each draw still crashed (async 3/3, flushsync 1/3).
+- Mesa's threads are not it: with `GALLIUM_THREAD=0`, with `mesa_glthread=false` and with both, on the release binary's
+  async path, 4 rounds each: `rel_base` 4/4 crashed, `GALLIUM_THREAD=0` 4/4, both off 4/4, glthread off 2/4.
+- The headless runs did not have the Steam client's environment: a shortcut-launched game inherits
+  `MESA_GL_VERSION_OVERRIDE=4.3` and `MESA_GLSL_VERSION_OVERRIDE=430` (the game log says GL 4.3; the 292 headless runs said
+  4.6). With both set (`ov_*` variants, 4 rounds, 6 kills): no switch 3/4 crashed, `prefer_sysmem` 0/4, `vr_decals_world 0`
+  0/4. The override is not what separates the headset from the rig.
+- Forcing GMEM reproduces what the headset did. The wearer's faulting submit had the world pass in GMEM although
+  `prefer_sysmem` was set (autotune picks GMEM for `fdm` or `preempt_latency_risk`, which a headless run need not hit). Matrix `gm1`
+  (Steam environment, `TU_DEBUG=gmem` unless noted, 4 rounds, 6 kills): no other switch 2/4 hung, `prefer_sysmem` on top of the
+  forced GMEM 3/4 hung (the headset's outcome), `vr_decals_world 0` 0/4 hung (one round logged ten non-fatal `BR_SP` WRITE faults
+  at iova 0x100/0x300 from the Zink flush thread, the game ran on), `vr_decals_world 0` under flushsync as well 0/4, and
+  `TU_DEBUG=sysmem` (no forced GMEM) 0/4. So `vr_decals_world 0` removes the hang but not necessarily every fault; the hard
+  `TU_DEBUG=sysmem` override is clean in 8/8 headless runs of that kind so far. (A `source=CP` WRITE fault at iova
+  0x1100b00xx at the very end of a run is process exit, harmless; the matrix scripts count it as a fault line.)
+
+**What works:** `vr_decals_world 0`. The decals are then drawn as meshes and the world shader never runs `DecalsAt`.
+12/12 clean on the release binary (6 under flushsync, 6 async), 4/4 more with the Steam environment above, plus 3/3 earlier
+under flushsync, against a flushsync baseline that crashes about 93% (13/14). It costs the shader-based decal look on the world, not stability. Not yet
+confirmed by a wearer, and not yet in the launchers.
+
+Headless real-path results before the headset run (clean runs of 4, 6 kills each): `prefer_sysmem` 4/4 on the HEAD test
+build and 4/4 on the release binary, `TU_DEBUG=sysmem` 4/4, `TU_DEBUG=noubwc` 4/4, gmem 1/4, lazy 2/4, no switch 1/4 and 2/4.
+
+Cost of `prefer_sysmem`, on the mock-stereo `combat_48` benchmark (720 frames, 2 rounds, `run-perf-modes.py`): no switch
+30.3 ms mean frame (world pass 22.4 ms GPU), `prefer_sysmem` 29.0 ms (18.5 ms), `TU_DEBUG=sysmem` 29.2 ms, `noubwc`
+33.5 ms, gmem 35.8 ms, lazy 31.5 ms. The launchers keep `TU_AUTOTUNE_ALGO="${TU_AUTOTUNE_ALGO:-prefer_sysmem}"` for the
+frame time, not as the hang fix.
+
+**Replaying a kill on the real runtime.** `vr_motion_play <take> xr [kill]` (docs/vr-port/MOTIONS.md) plays a Motion Recorder take
+through the OpenXR backend: the take's head, hands and buttons drive the game, the runtime renders, paces and composites as for a
+wearer (the eyes are the take's head with the runtime's own offsets; `kill` lets the dummy die of the take's blows, as live).
+`run-dummy-kill-repro.py --scenario replay --take <file> --map vrfiringrange --repeat N --play-arg kill --backend openxr
+--exe ironwail-replay` runs it on the Frame, one play per kill. `Misc/quakevr/motion_synth.py gun_kill --rate 72
+--name gun_kill_ssg` writes a take of one double-barrel shot at the dummy; replayed headless it prints the wearer's line
+(`84 damage - weapon fire: Double-barrelled Shotgun, 14 pellets, 14 head (x1.50) - health 0/30 - killed`) four times in a
+row (`replay-gun2`). The axe is a throw: that take wants recording in the headset (Motion Recorder). A recording of a kill can
+only be made where the game survives the kill (the take is written when it stops), hence a workaround active in the launcher
+first.
+
+Not yet done: a wearer's run with `vr_decals_world 0` or `TU_DEBUG=sysmem` (kill several monsters, with the shotgun), the
+replay matrix (does the replay hang the GPU as often as `vr_dummy_test 3`?), and a minimal report to Mesa/Turnip. The first-run baseline is probabilistic, so a single clean headset run proves little; the matrix
+(`killrepro-matrix.py <name> <rounds> rel_base,rel_dw0 6`) is the check. A hang also takes down SteamVR and the gamescope
+session, which usually restarts by itself (it did at 14:02). Once (after many hangs in one night's runs) it did not:
+gamescope aborted on `Assertion '!modifiers.empty()'` in `CVulkanTexture::BInit` on every start while an orphaned
+vrserver/vrcompositor from the previous session was still running; rebooting the headset cleared it.
+
 ## Credits and source
 
 - Original mod and engine source: [Vittorio Romeo's Quake VR](https://github.com/vittorioromeo/quakevr).
