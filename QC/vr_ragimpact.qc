@@ -3,12 +3,14 @@
 // should hurt it meaningfully; landing on one from a height crushes the part under you; a held head smashed into a wall
 // kills, and heads and limbs struck again and again pop.
 //
-// - Impacts (vr_ragimpact): the engine (vr_box3d.cpp noteRagImpacts) gives each ragdoll's hardest strike on the level (the
-//   world, a door, a fixture) in a frame: the part's speed (m/s; no faster than vr_ragimpact_whip times its body's) and
-//   the mass behind it (kg: the part's, plus vr_ragimpact_body of the rest). Damage: vr_ragimpact_damage x that mass x
-//   (its speed - vr_ragimpact_min_speed), times vr_ragimpact_head on the head. Who counts: a living monster down as a
-//   ragdoll (knocked down, thrown, lifted, held); a corpse held by a player, or let go of by one within
-//   vr_ragimpact_time. A burst of strikes (a bounce, its parts one after another) counts once a VR_RIMP_GAP.
+// - Impacts (vr_ragimpact): the engine (vr_box3d.cpp noteRagImpacts) gives each ragdoll part's hardest strike on the
+//   level (the world, a door, a fixture) in a frame: its speed (m/s; no faster than vr_ragimpact_whip times its body's,
+//   unless a hand holds the part) and the mass behind it (kg: the part's, plus vr_ragimpact_body of the rest, plus
+//   vr_ragimpact_held_mass when a hand holds it: your arm drives it). Damage: vr_ragimpact_damage x that mass x (its speed
+//   - vr_ragimpact_min_speed, or vr_ragimpact_held_speed held), times vr_ragimpact_head on the head. Who counts: a body
+//   you drive, alive (down as a ragdoll) or dead: held in your hand, or let go of (thrown, dropped; a two-hand throw, a
+//   lift) within vr_ragimpact_time. One falling over by itself (a shove's knockdown) takes only its fall damage. A burst
+//   of strikes on one piece (a bounce) counts once a VR_RIMP_GAP.
 // - The living: the damage to its health (T_Damage: its pain, its death), and worn into the head or limb struck (the
 //   corpse pieces' own damage, vr_limb_corpse_dmg: one count for the living and the dead, vr_limbs.qc VR_Limb_WearInto).
 //   A piece's own health: its corpse health (vr_corpse_health_<monster>) times vr_ragimpact_piece_hp. A head worn past it
@@ -22,8 +24,8 @@
 //   was staggered within vr_foegrab_manhandle_stagger s (a shove landed on it, a hit or throw unbalanced it, it recovered
 //   from a stagger: .vr_kd_shaken) or is at vr_foegrab_manhandle_health of its health or less knocks it down, held in the
 //   hand as a lifted one (VR_FoeGrab_Manhandle). A staggering ragdoll a hand takes goes down (the engine's grabRagdoll).
-// - vr_knockdown_debug 1 prints each strike dealt (2: the engine's every strike); vr_knockdown_test 50..57 test it
-//   (VR_RagImpact_Test).
+// - vr_knockdown_debug 1 prints each strike dealt (2: the engine's every strike); vr_knockdown_test 50..58 test it
+//   (VR_RagImpact_Test); Misc/quakevr/foegrab/ragimpact_test.py runs them.
 
 float VR_RIMP_GAP = 0.15; // s: strikes on one piece this close together count as one (the first: the hardest of its frame)
 .float vr_rimp_next[17];  // until when a strike on each piece does not count again (the torso 0, the head 1, a limb its joint + 1)
@@ -132,24 +134,27 @@ void(entity m, entity xBy, vector xAt, float xPiece, float xDamage, string xWhat
     float hp = max(1, VR_Corpse_Health() * max(0, cvar_hget(cvarh_vr_ragimpact_piece_hp)));
     vector mid = (m.absmin + m.absmax) * 0.5;
     vector vel = normalize(xAt - mid) * 200; // (a pop's burst: its blood and bits go out from the body)
-    vr_rimp_dealt = vr_rimp_dealt + 1;
-    vr_rimp_total = vr_rimp_total + xDamage;
     string piece = xPiece == 0 ? "head" : (xPiece > 0 ? sprintf("limb %g", xPiece) : "torso");
     float loud = vr_rimp_test || cvar_hget(cvarh_vr_knockdown_debug);
     if(m.health <= 0)
     {
         // A corpse: its head or limb worn as any weapon's hit wears it (past its health: popped). Its torso: nothing.
+        if(xPiece < 0)
+        {
+            return;
+        }
+        vr_rimp_dealt = vr_rimp_dealt + 1;
+        vr_rimp_total = vr_rimp_total + xDamage;
         if(loud)
         {
             dprint(sprintf("ragimpact: %s corpse, %s: %s, %.1f into its %s\n", m.classname, xWhat, xBy.classname, xDamage,
                 piece));
         }
-        if(xPiece >= 0)
-        {
-            VR_Limb_WearInto(m, xBy, xPiece, xDamage, vel, QVR_DECAP_BLUNT, hp, "impact");
-        }
+        VR_Limb_WearInto(m, xBy, xPiece, xDamage, vel, QVR_DECAP_BLUNT, hp, "impact");
         return;
     }
+    vr_rimp_dealt = vr_rimp_dealt + 1;
+    vr_rimp_total = vr_rimp_total + xDamage;
     float worn = 0;
     if(xPiece >= 0)
     {
@@ -286,11 +291,11 @@ void(entity p, float xSpeed) VR_RagImpact_Crush =
     VR_RagImpact_Deal(best, p, bestAt, piece, dmg, sprintf("crushed, you landing at %.1f m/s", speed));
 };
 
-// For tests (vr_knockdown_test 50..57; self the player), the nearest monster down as a ragdoll, alive (dead: 57): 50 its
-// state (health, its head's and limbs' worn damage, the strikes dealt so far), 51 flung away from you at
-// vr_test_throw_up_speed m/s and 3 m/s up (into a wall), 52 you put 256 units over its middle (a two-storey drop onto
-// it), 53 the same 96 units (a short hop), 54 the nearest standing monster made staggered now (.vr_kd_shaken), 55 its
-// health set to a fifth, 56 strikes printed from now (57: off again).
+// For tests (vr_knockdown_test 50..58; self the player), the nearest monster down as a ragdoll, alive: 50 its state (any
+// nearest, a corpse too: health, its head's and limbs' worn damage, the strikes dealt so far), 51 flung at the nearest
+// wall at vr_test_throw_up_speed m/s and 3 m/s up (as your throw), 52 you put 256 units over its middle (a two-storey
+// drop onto it), 53 the same 96 units (a short hop); the nearest standing one: 54 made staggered now (.vr_kd_shaken), 55
+// its health set to a fifth, 58 moved to 48 units off the nearest wall; 56 strikes printed from now (57: off again).
 void(float xMode) VR_RagImpact_Test =
 {
     if(xMode == 56 || xMode == 57)

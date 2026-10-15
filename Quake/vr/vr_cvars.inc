@@ -2343,7 +2343,7 @@ QVR_CVAR(vr_ragimpact_whip, "2", CVAR_ARCHIVE)            // a part's speed coun
 QVR_CVAR(vr_ragimpact_held_mass, "20", CVAR_ARCHIVE)      // kg of your arm behind a part your hand holds (a head held and slammed: the hand drives it)
 QVR_CVAR(vr_ragimpact_held_speed, "1", CVAR_ARCHIVE)      // m/s: a part your hand holds counts from this speed (the hand slows as it drives a body: 2-4 m/s slams)
 QVR_CVAR(vr_ragimpact_head, "1.5", CVAR_ARCHIVE)          // a strike on the head deals this much more
-QVR_CVAR(vr_ragimpact_piece_hp, "0.5", CVAR_ARCHIVE)       // a head's or limb's own health, times its corpse health (vr_corpse_health_<monster>): worn past it, it pops
+QVR_CVAR(vr_ragimpact_piece_hp, "0.4", CVAR_ARCHIVE)       // a head's or limb's own health, times its corpse health (vr_corpse_health_<monster>): worn past it, it pops
 QVR_CVAR(vr_ragimpact_time, "2", CVAR_ARCHIVE)            // s: a body (alive or dead) you hold, or let go of (threw) this long ago, takes impacts (0: only while held)
 QVR_CVAR(vr_ragimpact_crush, "1", CVAR_ARCHIVE)           // landing on a living ragdoll from a height crushes the part under your feet, times this (0: off)
 QVR_CVAR(vr_ragimpact_crush_speed, "400", CVAR_ARCHIVE)   // units/s: landing slower than this crushes nothing (a 100-unit drop; 2 storeys: about 640)

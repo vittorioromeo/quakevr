@@ -2,7 +2,7 @@
 
 Usage: python Misc/quakevr/foegrab/ragimpact_test.py <agent worktree name> [case ...]
 Cases (all by default):
-  wall      a knocked-down grunt 48 units off a wall flung at it at 7 m/s and 3 m/s up (vr_knockdown_test 58, 0, 51; as
+  wall      a grunt 48 units off a wall knocked down where it stands and flung at it at 7 m/s and 3 m/s up (vr_knockdown_test 58, 0, 51; as
             your throw): its strikes deal 15 or more; Impacts off: none.
   slam      a grunt knocked down where it stands, its ragdoll's head taken in the main hand (vr_mock_hand_to ... ragdoll
             head), turned palm down, lifted 0.6 m and slammed down 1.2 m in 0.2 s ten times (the hand kept above the floor: the head about 2.5 m/s): killed, its head popped.
@@ -68,7 +68,7 @@ def state(flat):
 
 def case_wall():
     for what, extra in [("on", ""), ("off", "vr_ragimpact 0;")]:
-        flat = run(f"wall_{what}", f"{PRE};{extra}vr_test_spawn_dist 64;vr_knockdown_test 58;wait5;vr_knockdown_test 0;"
+        flat = run(f"wall_{what}", f"{PRE};{extra}vr_knockdown_push 0;vr_knockdown_test 58;wait5;vr_knockdown_test 0;"
                    "wait3;vr_test_throw_up_speed 7;vr_knockdown_test 51;wait150;vr_knockdown_test 50")
         s = state(flat)
         bad = "rror" in flat or "CRASH" in flat or not s or "flung at 7.0" not in flat

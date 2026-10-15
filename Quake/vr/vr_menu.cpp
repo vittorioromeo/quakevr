@@ -1051,6 +1051,13 @@ int campaignsBloodyShown = -1;
             .help("How fast it leaves the floor as you lift it."),
         slider("Break-Free Shove", vr_foegrab_lift_shove, 0.f, 160.f, 4.f, "%.0f units").extend(0.f, 500.f)
             .help("How far it shoves you back as it breaks free (0: not at all)."),
+        slider("Grab While Staggered", vr_foegrab_manhandle_stagger, 0.f, 5.f, 0.25f, "%.2f s").extend(0.f, 30.f)
+            .help("A humanoid staggered this recently (a shove, a hit or throw that unbalanced it, a stagger it just "
+                  "recovered from) goes down when one hand grabs it: a ragdoll in your hand, as a lifted one (it flails and "
+                  "breaks free). One staggering as a ragdoll goes down when a hand takes it. 0: never."),
+        slider("Grab When Weak", vr_foegrab_manhandle_health, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A humanoid at this share of its full health or less (0.25: a quarter) goes down when one hand grabs it, "
+                  "as above. 0: never."),
         header("Neck Snap"),
         toggle("Neck Snap", vr_foegrab_necksnap)
             .help("Hold a humanoid's head or neck with both hands and twist it round: push one hand forward and pull "
@@ -1141,6 +1148,25 @@ int campaignsBloodyShown = -1;
                   "ogre a quarter. 0: all alike."),
         slider("Hit Cooldown", vr_hit_stagger_cooldown, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
             .help("After a hit unbalances it, no hit does again for this long (no stunlock). Shoves always can."),
+        header("Impacts"),
+        toggle("Impacts Hurt", vr_ragimpact)
+            .help("A monster you hold or threw as a ragdoll, alive or dead, is hurt where it strikes a wall or the floor "
+                  "hard: its speed times the mass behind it. Its head or limb struck wears down too, and pops past its own "
+                  "health (a head worn through kills). Slam a held head into a wall again and again; throw a lifted one into "
+                  "a wall."),
+        slider("Impact Damage", vr_ragimpact_damage, 0.f, 0.5f, 0.01f, "%.2f").extend(0.f, 5.f)
+            .help("Damage per kg m/s past Least Speed (a grunt's torso thrown into a wall at 6 m/s: about 15)."),
+        slider("Least Speed", vr_ragimpact_min_speed, 0.5f, 8.f, 0.25f, "%.2f m/s").extend(0.5f, 30.f)
+            .help("Slower strikes do nothing (a body dropped from your hands strikes at about 4 m/s)."),
+        slider("Held Least Speed", vr_ragimpact_held_speed, 0.25f, 5.f, 0.25f, "%.2f m/s").extend(0.25f, 30.f)
+            .help("A part your hand holds (a head slammed) counts from this speed: your hand slows as it drives a body."),
+        slider("Head Strikes", vr_ragimpact_head, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A strike on the head deals this much more."),
+        slider("Head and Limb Health", vr_ragimpact_piece_hp, 0.1f, 2.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
+            .help("A head's or limb's own health, times its corpse's (a grunt's 80: 32 at 0.4): struck past it, it pops."),
+        slider("Landing Crush", vr_ragimpact_crush, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("Landing on a monster lying as a ragdoll from a height (2 storeys or so) crushes the part under your "
+                  "feet, times this. 0: never."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
@@ -7088,6 +7114,21 @@ za::Vector<Item> pageDebugTests()
         command("Hit Stagger: Strong Blow on the Nearest", "developer 1; vr_knockdown_test 42")
             .help("The nearest monster struck by a strong blow's stagger alone (no damage): 1 a ragdoll's stagger, 2 "
                   "pushed and flinching, 0 kept its balance, -1 still in its Hit Cooldown."),
+        command("Impacts: Print Strikes", "developer 1; vr_knockdown_test 56")
+            .help("Impacts (Combat > Knockdowns): every strike of a held or thrown body on a wall or the floor printed "
+                  "(\"ragimpact:\": its speed, the mass behind it, the damage, the head or limb worn). vr_knockdown_test 57: off."),
+        command("Impacts: State of the Nearest", "developer 1; vr_knockdown_test 50")
+            .help("The nearest monster's health, its head's and limbs' worn damage, and the strikes dealt so far."),
+        command("Impacts: Throw the Nearest Down One at a Wall", "developer 1; vr_test_throw_up_speed 7; vr_knockdown_test 51")
+            .help("The nearest knocked-down monster flung at the nearest wall at 7 m/s and a little up, as if you threw "
+                  "it (knock one down first: Shove the Nearest Down)."),
+        command("Impacts: Drop You onto the Nearest Down One", "developer 1; vr_knockdown_test 52")
+            .help("You put 256 units (2 storeys) over the nearest knocked-down monster: landing on it crushes the part under "
+                  "your feet (Landing Crush). vr_knockdown_test 53: 96 units, too low to crush."),
+        command("Manhandle: the Nearest Staggered Now", "developer 1; vr_knockdown_debug 1; vr_knockdown_test 54")
+            .help("The nearest standing monster counts as just staggered: grab it with one hand within Grab While "
+                  "Staggered (Holding Enemies) and it goes down in your hand. vr_knockdown_test 55: its health to a fifth "
+                  "(Grab When Weak)."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),
