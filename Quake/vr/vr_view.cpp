@@ -3151,6 +3151,7 @@ void wristInfo_f();
 // Held props' grips (grip::setHandFrame): where the empty hand's palm and grip channel are in its frame (the move's place
 // and angles), every frame; not measured without the jointed hand (the default hand's are used).
 void gripFrame_f();
+void quadInfo_f();
 
 void updateGripFrame(const hands::State& s, int hand)
 {
@@ -3160,6 +3161,7 @@ void updateGripFrame(const hands::State& s, int hand)
         Cmd_AddCommand("vr_grip_frame", gripFrame_f);
         Cmd_AddCommand("vr_gear_status", gearStatus_f);
         Cmd_AddCommand("vr_body_wrist_info", wristInfo_f);
+        Cmd_AddCommand("vr_quad_info", quadInfo_f);
     }
     grip::HandFrame f;
     qmodel_t* const model = viewModel(handrig::modelName);
@@ -6705,9 +6707,47 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
     {
         ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
     }
-    if(cl.items & IT_QUAD)
+    if((cl.items & IT_QUAD) && static_cast<int>(vr_quad_look.value) != 1) // 1: the blue glow only (quadGlow)
     {
         quadArcs(s);
+    }
+}
+
+// Quad Damage's blue glow (vr_quad_look 1, 2): its strength this frame (0 none), gently pulsing, set by quadGlow; the
+// alias shader's blue rim glow on the hands and less on the body (view::quadGlow, VR_EntityGlow), and blue light from
+// the hands and the chest on the world round you.
+float quadGlowLevel = 0.f;
+
+void quadGlow(const hands::State& s)
+{
+    const bool on = (cl.items & IT_QUAD) && vr_body_powerups.value != 0.f && static_cast<int>(vr_quad_look.value) >= 1 &&
+                    cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid && !deathview::immersive();
+    // A slow breath (about 0.8 Hz) and a slower swell under it: 0.64 .. 1.
+    const double t = cl.time;
+    const float pulse = 0.82f + 0.12f * static_cast<float>(za::sin(t * 5.0)) + 0.06f * static_cast<float>(za::sin(t * 1.9 + 1.3));
+    quadGlowLevel = on ? za::clamp(vr_quad_glow.value, 0.f, 2.f) * pulse : 0.f;
+    const float light = on ? za::clamp(vr_quad_glow_light.value, 0.f, 2.f) * pulse : 0.f;
+    for(int hand = 0; hand < 2; hand++) // (the body's own: Quake's blue quad light round you, cl_main.c)
+    {
+        emissive::quadLight(hand, s.pos[hand], light * 0.8f, 110.f); // (inside the hand: lights the world, not it)
+    }
+}
+
+// vr_quad_info: Quad Damage on you as drawn last frame: the look, the glow on the hands and the body, and its lights.
+void quadInfo_f()
+{
+    Con_Printf("quad: on %d look %d glow %.2f hand %.2f body %.2f arcsframe %d\n", (cl.items & IT_QUAD) ? 1 : 0,
+        static_cast<int>(vr_quad_look.value), quadGlowLevel, view::quadGlow(&entities.hand[0][FingerBase].ent),
+        view::quadGlow(&entities.body.ent), oncePerFrame.quadArcs);
+    for(int i = 0; i < emissive::quadLights; i++)
+    {
+        for(const dlight_t& dl : cl_dlights)
+        {
+            if(dl.key == emissive::quadLightKey - i && dl.die > cl.time)
+            {
+                Con_Printf("quad light %d: radius %.0f colour %.2f %.2f %.2f\n", i, dl.radius, dl.color[0], dl.color[1], dl.color[2]);
+            }
+        }
     }
 }
 
@@ -7254,6 +7294,28 @@ const entity_t* cloneSource(const entity_t* e)
     }
     const auto i = static_cast<int>((p - clone) / sizeof(ViewEntity));
     return &clones[i].ent == e ? &reinterpret_cast<const ViewEntity*>(&entities)[i].ent : nullptr;
+}
+
+float quadGlow(const entity_t* e)
+{
+    if(quadGlowLevel <= 0.f || !e)
+    {
+        return 0.f;
+    }
+    if(const entity_t* source = cloneSource(e))
+    {
+        e = source;
+    }
+    if(e == &entities.body.ent)
+    {
+        return za::min(quadGlowLevel * 0.3f, 1.f); // less: seen from inside, its edges are all round the view
+    }
+    bool weapon = false;
+    if(handOf(e, weapon) >= 0 && (!weapon || isHandModel(e->model)))
+    {
+        return za::min(quadGlowLevel * 0.6f, 1.f);
+    }
+    return 0.f;
 }
 
 void bareLight(const entity_t* e, float lightcolor[3])
@@ -8384,6 +8446,7 @@ extern "C" void VR_SetupViewEntities()
     setupHolsters(s, idleTexts);
     setupWorldWeapons(s, idleTexts);
     setupBody(s);
+    quadGlow(s); // Quad Damage's blue glow and light (vr_quad_look)
     setupPauldrons();
     setupGadget(s);
     VR_PrecacheSkinMasks();

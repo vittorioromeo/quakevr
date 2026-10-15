@@ -501,6 +501,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageMaps();
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
+[[nodiscard]] za::Vector<Item> pageVrsHud();
 [[nodiscard]] za::Vector<Item> pageColours();
 [[nodiscard]] za::Vector<Item> pageBulletTime();
 [[nodiscard]] za::Vector<Item> pageStamina();
@@ -969,6 +970,10 @@ int campaignsBloodyShown = -1;
         toggle("Step In", vr_foegrab_step_in)
             .help("While a hand holds an enemy, your body and its body don't meet: step in and bring the other hand to "
                   "its head. Let go while overlapping and the two are pushed gently apart (never stuck)."),
+        slider("Melee Space", vr_enemy_melee_space, 0.f, 48.f, 2.f, "%.0f units")
+            .help("A monster attacking you in melee (a knight's swing and its run past you, an ogre's chainsaw, a "
+                  "fiend's claws) is kept this far from your head, pushed back smoothly, so it never fills your view and "
+                  "you can parry. Its blows still reach you. 0: off (it charges in until your bodies meet)."),
         header("Two-Hand Throw"),
         toggle("Two-Hand Throw", vr_foegrab_throw)
             .help("Hold one enemy with both hands and turn it over hard, a judo throw: one shoulder down and the other up, "
@@ -1119,6 +1124,23 @@ int campaignsBloodyShown = -1;
                   "1: as far as it goes; less: only ledges close by force the knockdown; more: further ones too."),
         slider("Ledge Margin", vr_knockdown_ledge_margin, 0.f, 128.f, 4.f, "%.0f units").extend(0.f, 512.f)
             .help("How far past that a ledge still counts, in units (16: about a monster's half width)."),
+        header("Hits Unbalance"),
+        toggle("Strong Hits Unbalance", vr_hit_stagger)
+            .help("A strong throw (a heavy prop or a weapon, fast) or melee blow may make a monster lose its balance as a "
+                  "shove does: it staggers as a ragdoll and recovers, or by its knockdown chance goes over. Monsters "
+                  "without one are pushed and flinch. The stronger the hit and the more of its health it took, the likelier."),
+        slider("Hit Chance", vr_hit_stagger_chance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 100.f)
+            .help("Every hit's chance, times this (100: every hit past Least Impact)."),
+        slider("Least Impact", vr_hit_stagger_min, 0.f, 0.95f, 0.05f, "%.2f")
+            .help("Weaker hits never unbalance (1: a 6 kg crate thrown at 10 m/s, or a 30-damage blow); from here to 1 "
+                  "the chance rises to sure."),
+        slider("Head Blows", vr_hit_stagger_head, 1.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A melee blow to the head (fists too) counts this much more."),
+        slider("Big Monsters Resist", vr_hit_stagger_resist, 0.f, 2.f, 0.05f, "%.2f")
+            .help("The chance times (30 / its full health) to this power: 0.75 leaves the shambler about a tenth, the "
+                  "ogre a quarter. 0: all alike."),
+        slider("Hit Cooldown", vr_hit_stagger_cooldown, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("After a hit unbalances it, no hit does again for this long (no stunlock). Shoves always can."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
@@ -1825,7 +1847,12 @@ int campaignsBloodyShown = -1;
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt (with Dynamic Wounds, on the Gore page: where you are hit)."),
         open("Wounds Drip Blood: Gore", pageIndex(pageGore)).help("The wounds' dripping blood is on Gore (Arm Drip Rate)."),
         toggle("Show Powerups", vr_body_powerups)
-            .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
+            .help("Quad damage glows or sparks around your hands, the pentagram makes you glow, the ring fades you."),
+        cycle("Quad Damage Look", vr_quad_look, {{1.f, "Blue Glow"}, {0.f, "Lightning Arcs"}, {2.f, "Both"}})
+            .help("Quad damage on you: a soft pulsing blue glow round your hands, arms and body, lighting the world round you "
+                  "blue; or Quake's electric arcs crackling over your hands and forearms (as when lightning strikes you); or both."),
+        slider("Quad Glow", vr_quad_glow, 0.f, 2.f, 0.1f, "%.1fx").help("How strongly the blue glow shows on your hands, arms and body."),
+        slider("Quad Glow Light", vr_quad_glow_light, 0.f, 2.f, 0.1f, "%.1fx").help("How much blue light your hands and body cast on the world round you (0: none)."),
         toggle("Anchors Follow Body", vr_body_anchors)
             .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
         slider("Hip Holsters Follow Legs", vr_holster_leg_follow, 0.f, 1.f, 0.05f, "%.2f")
@@ -2985,7 +3012,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 {
     return {
         open("Doom", pageIndex(pageDoom)).help("Play Doom on the gadget's screen: a touchscreen under your fingertip."),
-        open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageMain)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
+        open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageVrsHud)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
         slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 3.f),
         header("Placement"),
         slider("Along the Arm", vr_gadget_x, -15.f, 15.f, 0.5f, "%.1f cm").extend(-40.f, 40.f),
@@ -5770,7 +5797,7 @@ za::Vector<Item> pageDebugReports()
         command("Ragdolls", "vr_ragdoll_list 2").help("vr_ragdoll_list [1|2]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed and the hands holding it; with 2 also how far its flames are from its limbs), and Box3D's bodies (Gibs and Corpses > Ragdoll Settings)."),
         command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
         command("Smooth Animation Check", "vr_anim_smooth_check").help("vr_anim_smooth_check [model ...]: each rigged monster's frames drawn as Model Animation Smooth draws them (r_lerpmodels 3): the weights at the frames (exact), how near a frame the shape is just off it, how far mid-frame it is from Quake's blend, and how much limbs turning 30 degrees or more shrink mid-frame (Quake's blend, the spline, with the swung limbs)."),
-        command("Steady Vertices Check", "vr_mdl_dequant_check").help("vr_mdl_dequant_check [model ...]: each model's vertices dequantised (Steady Model Vertices, vr_mdl_dequant): its animation runs and loops, the largest offset from the stored values (at most half a step), how much the vertices' second differences shrink (all of them; the slow parts, where the file's rounding shows), the time it takes, and the load totals."),
+        command("Steady Vertices Check", "vr_mdl_dequant_check").help("vr_mdl_dequant_check [model ...]: each model's vertices dequantised (Steady Model Vertices, vr_mdl_dequant): its animation runs and loops, the largest offset from the stored values (at most half a step), how much the vertices' second differences shrink (all of them; the slow parts, where the file's rounding shows), the loops the game's QuakeC plays (their seams: second differences there and inside, stored, as before and now), how far the normals turn from frame to frame, the time it takes, and the load totals."),
         command("Smooth Animation Models", "vr_anim_smooth_info").help("vr_anim_smooth_info [model [frames]]: the models drawn smoothed: the frames that follow by name or were seen, the rig's bones and how many poses each is fitted too badly in to swing."),
         command("Trace Nearest Monster's Motion", "vr_anim_smooth_trace 180").help("vr_anim_smooth_trace <frames> [<entity> | <model>]: the nearest monster's drawn animation over the next frames (here 180): how much its points' speed changes from frame to frame (median, p95, most), printed at the end. Run it with Model Animation on Quake's Blend, then Smooth, to compare (even frames: vr_fixed_frames 1)."),
         command("Pin Nearest Monster Mid-Swing", "vr_anim_smooth_pin 41 42 0.5 -1 -1 ogre").help("vr_anim_smooth_pin <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]: a monster (here the nearest ogre: its chainsaw swing) drawn held between two frames, to compare Model Animation's settings on it; vr_anim_smooth_pin off lets it go."),
@@ -5856,6 +5883,8 @@ za::Vector<Item> pageDebugReports()
         command("Relighting: Status", "vr_relight_status").help("vr_relight_status: the relighting's state (a batch's maps done, each light running: its stage and process id; the progress and time left), how the map in play is lit, the light.exe found."),
         command("Relighting: Tool Lookup", "vr_relight_get_tool status").help("vr_relight_get_tool status: the light.exe found (or not), the folder Download ericw-tools writes, the pinned file (version, size, sha256), its URL and the last download's result. vr_relight_tool_dir points both lookup and download at a test folder; vr_relight_tool_url at a test server."),
         command("Relighting: Batch's Maps", "vr_relight_batch -list").help("vr_relight_batch -list: the maps Graphics > Relighting's Relight These Maps would take (Maps, Episode, Game), with their files and sizes, without relighting them."),
+        command("Menu Panel Place", "vr_menu_panel").help("vr_menu_panel: where the menu panel is (MENUPANEL: moved by a hand or not, held, its middle, from the head, the way it faces, its size). vr_menu_panel reset puts it back in front of you."),
+        command("Menu Panel Back in Front", "vr_menu_panel reset").help("vr_menu_panel reset: the menu panel, moved by a grip, back in front of your head, as it opens."),
         command("Menu Rows", "menu_vr rows").help("menu_vr rows: this page's rows as drawn (MROW: row, top, label), the scroll, the section gap, and whether the laser and mouse find each row where it is drawn."),
         toggle("Menu Links: Print, Do Not Open", vr_menu_link_dryrun)
             .help("vr_menu_link_dryrun: the version box's Support on Ko-fi link (bottom right of the menus) prints its address "
@@ -5986,6 +6015,9 @@ za::Vector<Item> pageDebugTools()
             .help("vr_shock_self_test [damage]: struck by a bolt of that much (10 a shambler's, 30 a lightning gun's): Quad's arcs over "
                   "your hands, arms and body (Gore > Lightning Shock > Arcs on You), without the damage. vr_shock_self_info: the arcs "
                   "on you last frame by part (console)."),
+        command("Quad Damage On You", "impulse 190; vr_quad_info")
+            .help("impulse 190: Quad Damage on (an hour) or off; vr_quad_info: its look (Body > Quad Damage Look), the glow on your "
+                  "hands and body and its blue lights last frame (console)."),
         command("Electrified Water", "vr_shock_test 1").help("vr_shock_test 1 [radius] [seconds]: arcs on the water below the point 128 units ahead."),
         command("Lightning Bolt at the Nearest", "vr_shock_hit_test 30")
             .help("vr_shock_hit_test <damage>: a lightning gun's bolt from your eyes into the nearest monster or corpse: its arcs and a burn "
@@ -6993,6 +7025,12 @@ za::Vector<Item> pageDebugTests()
         command("Nearest Body Contact", "vr_body_contact_status")
             .help("vr_body_contact_status: the live monster nearest you, how far (origins, level), how deep your two "
                   "bodies overlap (> 0) by Body Inset, whether a hand holds it (Step In)."),
+        command("Closest Melee Approach", "vr_enemy_melee_space_status")
+            .help("vr_enemy_melee_space_status: per kind of monster after you, the closest its box and its middle came to "
+                  "your head (level; below 0 your head was inside it), the same while it attacked in melee, and how far "
+                  "Melee Space pushed it back."),
+        command("Clear Melee Approach Log", "vr_enemy_melee_space_status reset")
+            .help("Starts the closest-approach log above again."),
         command("Who Is Held?", "vr_foegrab_status")
             .help("vr_foegrab_status: each hand holding an enemy, its hold, how firmly the enemy is held in all, how far "
                   "the hand is from the spot it holds (Combat > Holding Enemies); an enemy held on as a ragdoll after a "
@@ -7050,6 +7088,12 @@ za::Vector<Item> pageDebugTests()
         command("Shove the Nearest, Steady Stagger", "vr_knockdown_chance 0.01; vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
             .help("Knockdowns' Chance 0.01 (set it back after): its balance all but full, so it staggers and recovers, "
                   "back to its animation and its AI (the hand-back's gap printed: \"handback:\")."),
+        command("Hit Stagger: Chances of the Nearest", "developer 1; vr_knockdown_test 40")
+            .help("Hits Unbalance (Combat > Knockdowns): the nearest monster's chance to lose its balance to a weak tap, "
+                  "a strong blow, a punch to the head, a heavy throw and a thrown weapon (\"hit stagger chances:\")."),
+        command("Hit Stagger: Strong Blow on the Nearest", "developer 1; vr_knockdown_test 42")
+            .help("The nearest monster struck by a strong blow's stagger alone (no damage): 1 a ragdoll's stagger, 2 "
+                  "pushed and flinching, 0 kept its balance, -1 still in its Hit Cooldown."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),
@@ -8013,6 +8057,26 @@ struct Page
 };
 
 [[nodiscard]] za::Vector<Item> pageMain();
+[[nodiscard]] za::Vector<Item> pageVrsHeight();
+[[nodiscard]] za::Vector<Item> pageVrsHands();
+[[nodiscard]] za::Vector<Item> pageVrsHolsters();
+[[nodiscard]] za::Vector<Item> pageVrsAmmoPouch();
+[[nodiscard]] za::Vector<Item> pageVrsControls();
+[[nodiscard]] za::Vector<Item> pageVrsLocomotion();
+[[nodiscard]] za::Vector<Item> pageVrsComfort();
+[[nodiscard]] za::Vector<Item> pageVrsTeleport();
+[[nodiscard]] za::Vector<Item> pageVrsTurning();
+[[nodiscard]] za::Vector<Item> pageVrsFlashlight();
+[[nodiscard]] za::Vector<Item> pageVrsLighting();
+[[nodiscard]] za::Vector<Item> pageVrsWeapons();
+[[nodiscard]] za::Vector<Item> pageVrsBulletTime();
+[[nodiscard]] za::Vector<Item> pageVrsBody();
+[[nodiscard]] za::Vector<Item> pageVrsHaptics();
+[[nodiscard]] za::Vector<Item> pageVrsHud();
+[[nodiscard]] za::Vector<Item> pageVrsSound();
+[[nodiscard]] za::Vector<Item> pageVrsDisplay();
+[[nodiscard]] za::Vector<Item> pageVrsScaling();
+[[nodiscard]] za::Vector<Item> pageVrsGraphics();
 [[nodiscard]] za::Vector<Item> pageAdvanced();
 [[nodiscard]] za::Vector<Item> pageWeaponOffsets();
 [[nodiscard]] za::Vector<Item> pageWofsHand();
@@ -8213,9 +8277,53 @@ const Page pages[] = {
     {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
     {"Arcane Dimensions' Guns", pageAdGuns, pageEnemyWeapons}, // AD support: the AD soldiers' guns (vr_ad_enemyguns.qc)
     {"Incandescent Blades", pageHotBlades, pageWeaponsHub}, // (QC vr_hotblade.qc)
-    {"Blood Feedback", pageBloodFeedback, pageMain, LevelStandard},
+    {"Blood Feedback", pageBloodFeedback, pageVrsComfort, LevelStandard},
+    // VR Settings' sections as pages (ROUND22.md, "VR Settings' sections as submenus"): vrSettingsParts.
+    {"VR Settings - Height Calibration", pageVrsHeight, pageMain, LevelStandard},
+    {"VR Settings - Hand Calibration", pageVrsHands, pageMain, LevelStandard},
+    {"VR Settings - Holster Calibration", pageVrsHolsters, pageMain, LevelStandard},
+    {"VR Settings - Ammo Pouch", pageVrsAmmoPouch, pageMain, LevelStandard},
+    {"VR Settings - Controls", pageVrsControls, pageMain, LevelStandard},
+    {"VR Settings - Locomotion", pageVrsLocomotion, pageMain, LevelStandard},
+    {"VR Settings - Comfort", pageVrsComfort, pageMain, LevelStandard},
+    {"VR Settings - Teleportation", pageVrsTeleport, pageMain, LevelStandard},
+    {"VR Settings - Turning", pageVrsTurning, pageMain, LevelStandard},
+    {"VR Settings - Flashlight", pageVrsFlashlight, pageMain, LevelStandard},
+    {"VR Settings - Lighting", pageVrsLighting, pageMain, LevelStandard},
+    {"VR Settings - Weapons", pageVrsWeapons, pageMain, LevelStandard},
+    {"VR Settings - Bullet Time", pageVrsBulletTime, pageMain, LevelStandard},
+    {"VR Settings - Body", pageVrsBody, pageMain, LevelStandard},
+    {"VR Settings - Haptics", pageVrsHaptics, pageMain, LevelStandard},
+    {"VR Settings - HUD", pageVrsHud, pageMain, LevelStandard},
+    {"VR Settings - Sound", pageVrsSound, pageMain, LevelStandard},
+    {"VR Settings - Display", pageVrsDisplay, pageMain, LevelStandard},
+    {"VR Settings - Scaling", pageVrsScaling, pageMain, LevelStandard},
+    {"VR Settings - Graphics", pageVrsGraphics, pageMain, LevelStandard},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
+
+// VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
+// pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
+const PageBuilder vrSettingsParts[] = {pageVrsHeight, pageVrsHands, pageVrsHolsters, pageVrsAmmoPouch, pageVrsControls,
+    pageVrsLocomotion, pageVrsComfort, pageVrsTeleport, pageVrsTurning, pageVrsFlashlight, pageVrsLighting,
+    pageVrsWeapons, pageVrsBulletTime, pageVrsBody, pageVrsHaptics, pageVrsHud, pageVrsSound, pageVrsDisplay,
+    pageVrsScaling, pageVrsGraphics};
+
+[[nodiscard]] bool vrSettingsPage(int p)
+{
+    if(p == PageMain)
+    {
+        return true;
+    }
+    for(const PageBuilder b : vrSettingsParts)
+    {
+        if(pages[p].build == b)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 // The roots of the pages' tree as Search and the boards' menu paths walk it (breadth first, in this order): the VR
 // Settings and the Advanced VR Options, each opened on its own (the VR Settings: Options' and the main menu's rows; the
@@ -8373,6 +8481,145 @@ void onPresetChosen(cvar_t* var)
 }
 
 // ----------------------------------------------------------------------------
+// One VR menu's own state (MULTI_MENU.md, stage 2): the page it shows, its Back stack, each page's selected row and
+// scroll, what is under way (a slider or the scrollbar dragged, a slider held at its end, a drop-down list open, the help
+// box and its paging, an armed Reset), as a MenuInstance; the code works on the current one (ui()); the panel's
+// placement and canvas are in vr_panel.cpp (by menu::currentInstance()). Shared on purpose: the pages' built rows and
+// their "built for" latches (a page shown twice shows the same rows), the settings themselves, Quake's own menus, and the
+// keyboard pages (Search, Console, Map Library: their text input is one at a time, the console's line is Quake's own,
+// and their state holds shared data: Search's index and recent list, the Map Library's caches). No setting's value is
+// kept here: every row reads its setting as it draws.
+// ----------------------------------------------------------------------------
+
+constexpr int midPos = 204; // as Ironwail's OPTIONS_MIDPOS
+
+constexpr int helpMinLines = 4;     // the help's box: four lines at least (Search's and the Map Library's)
+constexpr int helpMaxLines = 7;     // and at most; a longer help turns pages in it (drawHelp)
+
+// Back (ROUND21.md, "Back where you came from"): the way the player came to the page shown, as a stack of places, the page
+// shown on top: VR pages (their numbers) and, below them, the menus outside the VR pages that they were entered from
+// (outsidePlace: the main menu's VR Settings, Advanced VR or Select Campaign rows, Options > VR
+// Settings, a corner button over any menu), and Ironwail's Levels entered from a VR page (the corner's Levels). Back pops
+// the page shown and goes to the place under it, the cursor where it was left (each page's and menu's own). A place
+// already on the stack is gone back to rather than added again (no loops). Nothing under the page: up the menus' tree
+// (homeOf), the VR Settings to Options. A Search result's page goes back up the tree, not to Search (openEntry).
+struct NavStack
+{
+    static constexpr int capacity = 48;
+    int places[capacity]{};
+    int count{0};
+};
+
+// Where a page was left: its selected row, found again by its label when the page is built anew (its
+// rows changed: another weapon's offsets, a choice showing more settings or fewer) and at the next
+// start (vr_menu_positions), and the line of the view it was on (the scroll).
+struct RowAnchor
+{
+    bool valid{false};
+    za::String section; // the header above it ("": none)
+    za::String label;
+    int index{0}; // where it was: of the rows alike, the nearest is taken
+    int line{0};  // its line in the view (the cursor less the scroll)
+};
+
+// The help box's lines on the page shown: its rows' longest help, wrapped (helpMinLines to helpMaxLines). Worked out
+// again when the page, its rows or the line's width change, not every frame.
+struct HelpBox
+{
+    int page{-1};
+    int build{-1};
+    int columns{0};
+    int lines{helpMinLines};
+};
+
+// A VR page's rows' leftmost text (menu x), for the corner's buttons (menu::contentLeft). Kept per page and build.
+struct RowsLeft
+{
+    int page{-1};
+    int build{-1};
+    int left{0};
+};
+
+// A slider stepped by the keys held (stepSlider).
+struct SliderHold
+{
+    const cvar_t* endCvar = nullptr; // stopped at a bar's end: which, which way, since when
+    int endDir = 0;
+    double endSince = 0.0;
+    double outsideSince = 0.0; // held past the ends since
+};
+
+// A drop-down list open (a choice row's choices next to it: "Drop-down lists" below).
+struct DropDown
+{
+    bool open{false};
+    int page{-1};
+    int row{-1};               // the row's index in the page's list
+    const cvar_t* cvar{nullptr}; // its setting and how many choices it had (a rebuilt page checked against them)
+    int count{0};
+    int hover{0};  // the choice highlighted
+    int scroll{0}; // the first choice shown
+    bool scrollGrab{false};
+    // Laid out as it opened: the inside's left, width and top (menu coordinates), its rows, its width in
+    // characters (M_DrawTextBox), the longest label's.
+    int x{0}, width{0}, top{0}, rows{0}, chars{0}, labelChars{0};
+};
+
+// The help shown, and since when (its pages turn from the first; a new text starts over).
+struct HelpPaging
+{
+    za::U32 hash{0};
+    double since{0.0};
+    int shown{-1}; // the page of it shown (for the developer line when it turns)
+};
+
+// Where VR_Menu_Draw last noted the page to be (vr_menu_positions is written on a change only).
+struct NotedPlace
+{
+    int page = -1, cursor = -1, scroll = -1, build = -1;
+};
+
+struct MenuInstance
+{
+    int page{PageMain}; // the page shown
+    NavStack nav;
+    bool navReturning{false}; // leaving the VR pages by Back for an outside menu (VR_NavEntered: not a new way in)
+    int navJumpPending{-1};   // the outside menu a jump (VR_NavJump) is opening
+
+    int cursors[pageCount]{};         // each page's selected row
+    int scrolls[pageCount]{};         // and its first row shown
+    RowAnchor leftAnchors[pageCount]; // each page's position as last shown (invalid: at the top)
+    int visits[pageCount]{};          // when each page was last shown (a count; 0: not since the start)
+    int visitCount{0};
+
+    bool sliderGrab{false};     // a slider follows the mouse while its button is held
+    float sliderGrabHold{-1.f}; // grabbed on a thumb pinned at an end (a value past it): where, kept until the mouse moves off
+    bool scrollGrab{false};     // the scrollbar likewise
+    SliderHold sliderHold;      // (stepSlider: the menu's keys)
+    DropDown dropDown;
+    HelpBox helpBox;
+    HelpPaging helpPaging;
+    RowsLeft rowsLeft;
+    int scrollbarX{midPos + 188}; // where the scrollbar was drawn
+
+    int resetArmedPage{-1};       // Reset This Page pressed once (the footer), on that page, then
+    double resetArmedTime{0.0};
+    bool resetAllArmed{false};    // Reset All to Defaults pressed once: Press Again to Reset All
+    double resetAllArmedTime{0.0};
+
+    int bodyCloneLatch{-1}; // the page a row tweaking the body was chosen on (bodyClonePage), while it stays shown
+    NotedPlace notedPlace;
+};
+
+MenuInstance menuInstances[menu::instanceCount];
+int currentMenu = 0;
+
+[[nodiscard]] MenuInstance& ui()
+{
+    return menuInstances[currentMenu];
+}
+
+// ----------------------------------------------------------------------------
 // Wrappers (VR Settings' own rows over other settings, vr_cvars.inc vr_menu_*): Turning Mode, Move Towards and the one
 // mirrored hand calibration. Their cvars aren't saved: each is shown as the settings it stands for are now (syncWrappers,
 // as the pages are built and drawn) and, set, sets them (onWrapperSet). Their defaults are those settings' defaults, so
@@ -8382,8 +8629,6 @@ void onPresetChosen(cvar_t* var)
 bool wrapperBusy = false;      // a wrapper shown (syncWrappers): not a choice made
 float lastSnapAngle = 45.f;    // Turning Mode: Snap goes back to the angle last used (45 at first)
 int mainPageSnap = -1;         // VR Settings built with snap turning (Snap Angle shown) or smooth (Turn Speed shown)
-bool resetAllArmed = false;    // Reset All to Defaults pressed once: Press Again to Reset All
-double resetAllArmedTime = 0.0;
 
 // One hand-calibration row: the main hand's setting, the off hand's (nullptr: vr_handcal_off_mirror mirrors it) and
 // how the off hand's goes (-1: the other way, mirrored).
@@ -8646,18 +8891,60 @@ void resetAll(); // (below: after the pages' building)
 // words, in the order they come to it. Every other setting is under Advanced VR Options (ROUND21.md, "VR Settings for
 // first-time players"), and so is each row here, on its topic's page. No link to them here (nor to Search): the main
 // menu's Advanced VR row and the corner's Advanced VR and Search buttons open them, and the trees of Search and of the
-// boards' menu paths start at both pages (menuRoots).
+// boards' menu paths start at both pages (menuRoots). Each of its sections is a page of its own, linked from here
+// (vrSettingsParts; ROUND22.md, "VR Settings' sections as submenus"); Reset All to Defaults stays here.
 za::Vector<Item> pageMain()
 {
-    const bool snap = vr_snap_turn.value > 0.f;
-    mainPageSnap = snap ? 1 : 0;
-    const char* handHelp = "Both hands, mirrored: moves or turns the drawn hands (and what they hold) on your controllers, "
-                           "so they sit where your real hands are. Show Controller helps; 0 is the shipped calibration.";
-    const char* holsterHelp = "Both holsters of the pair, mirrored: moves them forward, inward (towards your middle) or up "
-                              "from their shipped place (0), in Quake's units (about 3 cm). Shown on your body while "
-                              "you choose here.";
-    za::Vector<Item> list{
-        header("Height Calibration"),
+    return {
+        header("Calibration"),
+        open("Height Calibration", pageIndex(pageVrsHeight))
+            .help("Your height (Set Height Now measures it), the world's scale and the floor's height."),
+        open("Hand Calibration", pageIndex(pageVrsHands))
+            .help("Moves and turns the drawn hands on your controllers, so they sit where your real hands are."),
+        open("Holster Calibration", pageIndex(pageVrsHolsters))
+            .help("Where the hip, chest and back holsters are on your body, and the guns drawn over your shoulders."),
+        open("Ammo Pouch", pageIndex(pageVrsAmmoPouch))
+            .help("Where immersive reloading's pouch is on your belt, its size and its ammo counter."),
+
+        header("Moving"),
+        open("Controls", pageIndex(pageVrsControls)).help("What opens the menu besides the menu button."),
+        open("Locomotion", pageIndex(pageVrsLocomotion))
+            .help("Where the stick takes you, running or walking, the sticks' deadzone and swap, swimming."),
+        open("Comfort", pageIndex(pageVrsComfort))
+            .help("Blood Feedback, the vignette, the fade on scripted teleports and the view when you die."),
+        open("Teleportation", pageIndex(pageVrsTeleport)).help("Teleporting to where you point, and how far."),
+        open("Turning", pageIndex(pageVrsTurning)).help("Smooth or snap turning, and how fast or how far."),
+
+        header("Playing"),
+        open("Flashlight", pageIndex(pageVrsFlashlight)).help("The flashlight's kind and the side it hangs on."),
+        open("Weapons", pageIndex(pageVrsWeapons))
+            .help("Holding the grip or sticky, two-handed guns and the reloading mode."),
+        open("Bullet Time", pageIndex(pageVrsBulletTime)).help("What starts and stops bullet time."),
+        open("Body", pageIndex(pageVrsBody))
+            .help("How much of your body you see, the wrist gadget's arm, leaning and Reset Position."),
+        open("Haptics", pageIndex(pageVrsHaptics)).help("How strongly the controllers vibrate."),
+        open("HUD", pageIndex(pageVrsHud)).help("The HUD's kind, the crosshair and Doom on the wrist gadget."),
+
+        header("Sight and Sound"),
+        open("Lighting", pageIndex(pageVrsLighting)).help("The light where no lamp reaches, and the shadows' contrast."),
+        open("Display", pageIndex(pageVrsDisplay)).help("The headset's brightness and contrast."),
+        open("Scaling", pageIndex(pageVrsScaling))
+            .help("The eyes' render resolution, upscaling, sharpening and foveated rendering."),
+        open("Graphics", pageIndex(pageVrsGraphics))
+            .help("Retro looks, antialiasing, texture filtering, bloom, tone mapping and bump and parallax mapping."),
+        open("Sound", pageIndex(pageVrsSound)).help("The game's and the music's volume, and spatial sound."),
+
+        header("Reset"),
+        action(ui().resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
+            .help("Every Quake VR setting back to as it shipped, but not your calibration (height, floor, body and hands: "
+                  "Reset Hand Offsets for those). Press it twice: the second time within 3 seconds."),
+    };
+}
+
+// VR Settings' sections, each a page linked from it (titled "VR Settings - <section>").
+[[nodiscard]] za::Vector<Item> pageVrsHeight()
+{
+    return {
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
             .help("Your real height: it puts your eyes at the right height in the game and fits the body to you. Set "
                   "Height Now measures it."),
@@ -8668,8 +8955,14 @@ za::Vector<Item> pageMain()
                   "see them."),
         slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f)
             .help("Moves the floor up or down: change it if you feel you are floating above it or sunk into it."),
+    };
+}
 
-        header("Hand Calibration"),
+[[nodiscard]] za::Vector<Item> pageVrsHands()
+{
+    const char* handHelp = "Both hands, mirrored: moves or turns the drawn hands (and what they hold) on your controllers, "
+                           "so they sit where your real hands are. Show Controller helps; 0 is the shipped calibration.";
+    return {
         toggle("Show Controller", "vr_show_controller")
             .help("Draws your real controllers, see-through, where the game tracks them: line the hands up with them "
                   "below. Not saved."),
@@ -8686,8 +8979,15 @@ za::Vector<Item> pageMain()
         action("Reset Hand Offsets", resetHandOffsets)
             .help("Both hands' moves and turns back to the shipped calibration. Each hand's own values: Advanced VR "
                   "Options > Weapons > Hand/Gun Calibration."),
+    };
+}
 
-        header("Holster Calibration"),
+[[nodiscard]] za::Vector<Item> pageVrsHolsters()
+{
+    const char* holsterHelp = "Both holsters of the pair, mirrored: moves them forward, inward (towards your middle) or up "
+                              "from their shipped place (0), in Quake's units (about 3 cm). Shown on your body while "
+                              "you choose here.";
+    return {
         slider("Hip Holsters Forward", vr_menu_holster_hip_x, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
             .help(holsterHelp),
         slider("Hip Holsters Inward", vr_menu_holster_hip_y, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
@@ -8713,10 +9013,14 @@ za::Vector<Item> pageMain()
             .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
                   "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "
                   "> Body and Display."),
+    };
+}
 
-        // (The author's note e1m1_2026-10-07_22-40-30: its basics here, after the holsters; the rest of it, its turn, its
-        // reach and the counter's place, on Advanced VR Options > Weapons > Reloading.)
-        header("Ammo Pouch"),
+// (The author's note e1m1_2026-10-07_22-40-30: its basics here, after the holsters; the rest of it, its turn, its reach
+// and the counter's place, on Advanced VR Options > Weapons > Reloading.)
+[[nodiscard]] za::Vector<Item> pageVrsAmmoPouch()
+{
+    return {
         slider("Ammo Pouch Forward", vr_ammo_pouch_x, -10.f, 10.f, 0.25f, "%+.2f").extend(-40.f, 40.f)
             .help("Immersive reloading's pouch on the front of your belt, where you take rounds and magazines: forward "
                   "(negative: back, round the hips), in Quake's units (about 3 cm). With the body drawn, 0 is on the belly."),
@@ -8729,11 +9033,17 @@ za::Vector<Item> pageMain()
                   "Weapons > Reloading > Reach)."),
         toggle("Ammo Counter", vr_ammo_pouch_counter)
             .help("A small screen on the ammo pouch: how many of what it gives (shells, nails, cells) you have left."),
+    };
+}
 
-        header("Controls"),
-        cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp),
+[[nodiscard]] za::Vector<Item> pageVrsControls()
+{
+    return {cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp)};
+}
 
-        header("Locomotion"),
+[[nodiscard]] za::Vector<Item> pageVrsLocomotion()
+{
+    return {
         cycle("Move Towards", vr_menu_move_towards, {{1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}})
             .help("Where pushing the stick forward takes you: where you look (Head), or where that hand points, so you "
                   "can walk one way and look another."),
@@ -8750,8 +9060,12 @@ za::Vector<Item> pageMain()
         toggle("Jump Out of Water", "vr_water_jump") // (the author: here too, as on Movement > Swimming)
             .help("On (Quake's): swimming against an edge with room above it lifts you out. Off: you climb out with your "
                   "hands, grabbing the edge (needs Climbing on; with Climbing off, Quake's jump out stays)."),
+    };
+}
 
-        header("Comfort"),
+[[nodiscard]] za::Vector<Item> pageVrsComfort()
+{
+    return {
         open("Blood Feedback", pageIndex(pageBloodFeedback)).help("Independent peripheral feedback for hits and low health, with timing, strength and directional controls."),
         cycle("Vignette", vr_comfort_vignette, {{0.f, "Off"}, {1.f, "Moving and Turning"}, {2.f, "Moving Only"}, {3.f, "Turning Only"}})
             .help("Darkens the edges of your view while the sticks move or turn you: it eases motion sickness for many. "
@@ -8767,14 +9081,25 @@ za::Vector<Item> pageMain()
                   "Immersive: your view goes into your body's head and follows it as it falls (its place smoothed, its "
                   "turns only sideways, never pitch or roll; the hands hidden; Third Person while a menu is open). Back "
                   "to normal when you respawn. Its fine tuning: Advanced VR Options > Body, Death View."),
+    };
+}
 
-        header("Teleportation"),
+[[nodiscard]] za::Vector<Item> pageVrsTeleport()
+{
+    return {
         toggle("Teleport", vr_teleport_enabled)
             .help("Jump to the spot you point at instead of walking there: the gentlest way to get around."),
         slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f)
             .help("How far a teleport reaches, in Quake's units (one is about 3 cm)."),
+    };
+}
 
-        header("Turning"),
+// Built with snap turning (Snap Angle shown) or smooth (Turn Speed shown): built again when that changes (items()).
+[[nodiscard]] za::Vector<Item> pageVrsTurning()
+{
+    const bool snap = vr_snap_turn.value > 0.f;
+    mainPageSnap = snap ? 1 : 0;
+    za::Vector<Item> list{
         cycle("Turning Mode", vr_menu_turning, {{0.f, "Smooth"}, {1.f, "Snap"}})
             .help("Smooth: the turning stick turns you steadily. Snap: each push turns you at once by Snap Angle, which "
                   "many find more comfortable."),
@@ -8789,23 +9114,35 @@ za::Vector<Item> pageMain()
         list.pushBack(slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend()
                 .help("How fast smooth turning turns you."));
     }
-    list.pushBackMultiple(
-        header("Flashlight"),
+    return list;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsFlashlight()
+{
+    return {
         cycle("Flashlight", vr_flashlight, {{0.f, "Off"}, {1.f, "Immersive"}, {2.f, "Always on Head"}})
             .help("Immersive: a torch on your belt: pull the trigger with an open hand at it to switch it on or off; press "
                   "the grip to take it in your hand. Always on Head: worn at your temple, on from the start: pull the "
                   "trigger with an open hand at it to switch it."),
         cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}})
             .help("The side of your belt the torch hangs on (Always on Head: the temple it is worn at)."),
+    };
+}
 
-        header("Lighting"),
+[[nodiscard]] za::Vector<Item> pageVrsLighting()
+{
+    return {
         slider("Ambient Light", "vr_ambient_light", 0.f, 0.4f, 0.01f, "%.2f").extend()
             .help("Light in the places no lamp reaches: raise it if the levels are too dark to see without the "
                   "flashlight (0: none)."),
         slider("Light Contrast", "vr_light_contrast", 1.f, 2.5f, 0.02f, "%.2f").extend()
             .help("Darker shadows with lamps as bright: higher is moodier (1: Quake's)."),
+    };
+}
 
-        header("Weapons"),
+[[nodiscard]] za::Vector<Item> pageVrsWeapons()
+{
+    return {
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}})
             .help("Hold: keep the grip pressed to hold a weapon. Sticky: a press takes it, another lets it go."),
         slider("Grip Grace After Loading", vr_weapon_load_grace, 0.f, 2.f, 0.05f, "%.2f s")
@@ -8818,8 +9155,12 @@ za::Vector<Item> pageMain()
             .help("Guns have magazines. Immersive: the shotgun is loaded a shell at a time from the ammo pouch on your "
                   "belt, the other guns at the hip holsters. Simple: a gun held at a hip holster reloads. Disabled: no "
                   "reloading. Only with the Immersive weapon mode."),
+    };
+}
 
-        header("Bullet Time"),
+[[nodiscard]] za::Vector<Item> pageVrsBulletTime()
+{
+    return {
         cycle("Activation", vr_menu_bullettime, bulletTimeChoices())
             .help("What starts and stops bullet time (the world slowed while the gadget's TIME meter lasts). Wrist "
                   "Gadget: tap its screen hard with your other hand (or the butt of its gun). A thumbstick press: that "
@@ -8832,8 +9173,12 @@ za::Vector<Item> pageMain()
             .help("Screen taps don't count for this long after a melee blow of yours lands, or you shove or bash, nor "
                   "while your hands move fast (Calm Hands Speed, Advanced VR Options > Combat > Bullet Time): no slow "
                   "motion by accident in a melee. 0: off."),
+    };
+}
 
-        header("Body"),
+[[nodiscard]] za::Vector<Item> pageVrsBody()
+{
+    return {
         cycle("Body Type", vr_body_mode, {{3.f, "Full Body"}, {2.f, "Torso and Arms"}, {0.f, "Only Hands"}})
             .help("How much of your body you see: all of it, legs and all; the torso and arms; or only the hands."),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}})
@@ -8845,33 +9190,53 @@ za::Vector<Item> pageMain()
         command("Reset Position", "vr_recenter")
             .help("Puts your body back under your head, and facing where you look, if it was left behind (after "
                   "leaning over something, or walking into a wall)."),
+    };
+}
 
-        header("Haptics"),
+[[nodiscard]] za::Vector<Item> pageVrsHaptics()
+{
+    return {
         slider("Vibration Strength", vr_haptics_strength, 0.f, 1.f, 0.1f, "%.1f").extend(0.f, 2.f)
             .help("How strongly the controllers vibrate (0: never)."),
+    };
+}
 
-        header("HUD"),
+[[nodiscard]] za::Vector<Item> pageVrsHud()
+{
+    return {
         cycle("HUD", vr_hud_mode, {{1.f, "Wrist Gadget"}, {0.f, "Status Bar"}})
             .help("Wrist Gadget: health, armour and ammo on your wrist. Status Bar: Quake's, on a hand."),
         cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}})
             .help("A mark where your gun aims: a dot, or a laser beam from the muzzle."),
         open("Doom on the Wrist Gadget", pageIndex(pageDoom))
             .help("Play Doom on the gadget's screen while you play Quake: touch it with your fingertip."),
+    };
+}
 
-        header("Sound"),
+[[nodiscard]] za::Vector<Item> pageVrsSound()
+{
+    return {
         slider("Volume", "volume", 0.f, 1.f, 0.05f, "%.2f").help("The game's sounds."),
         slider("Music Volume", "bgmvolume", 0.f, 1.f, 0.05f, "%.2f").help("The music's volume."),
         toggle("Spatial Sound", vr_snd_spatial)
             .help("Sounds come from where they are around your head, muffled by walls, with the room's echo. Best with "
                   "headphones."),
+    };
+}
 
-        header("Display"),
+[[nodiscard]] za::Vector<Item> pageVrsDisplay()
+{
+    return {
         slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").extend()
             .help("The headset's brightness: lower is brighter (1: neutral)."),
         slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").extend()
             .help("The headset's contrast (1: neutral)."),
+    };
+}
 
-        header("Scaling"),
+[[nodiscard]] za::Vector<Item> pageVrsScaling()
+{
+    return {
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
             .help("Eye rendering resolution, times the headset's. Above 1: smoother edges, slower. Below 1: faster, "
                   "blurrier."),
@@ -8883,8 +9248,12 @@ za::Vector<Item> pageMain()
         cycle("Foveated Rendering", vr_foveated, {{0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"}})
             .help("Draws the edges of the view, which the lenses blur anyway, in less detail: faster. NVIDIA graphics "
                   "cards only."),
+    };
+}
 
-        header("Graphics"),
+[[nodiscard]] za::Vector<Item> pageVrsGraphics()
+{
+    return {
         toggle("Retro Textures", vr_retro)
             .help("Detailed textures drawn in Quake's chunky, pixelated look, crisp as you move your head."),
         toggle("Retro Lighting", "vr_retrolight")
@@ -8908,13 +9277,7 @@ za::Vector<Item> pageMain()
             .help("Makes generated bumps and grooves stronger. 1: the generated shape; 0: flat. Authored normal and height components keep their own strength."),
         toggle("Parallax Mapping", "vr_parallax")
             .help("Walls and floors look carved: their dark parts sink in as you move your head (needs Bump Mapping)."),
-
-        header("Reset"),
-        action(resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
-            .help("Every Quake VR setting back to as it shipped, but not your calibration (height, floor, body and hands: "
-                  "Reset Hand Offsets for those). Press it twice: the second time within 3 seconds.")
-    );
-    return list;
+    };
 }
 
 // Split from VR Settings: its body and display settings (the quick ones; all of them under Advanced VR Options).
@@ -10232,24 +10595,7 @@ za::Vector<Item> pageWofsFlashlight()
     return list;
 }
 
-int page = PageMain;
-
-// Back (ROUND21.md, "Back where you came from"): the way the player came to the page shown, as a stack of places, the page
-// shown on top: VR pages (their numbers) and, below them, the menus outside the VR pages that they were entered from
-// (outsidePlace: the main menu's VR Settings, Advanced VR or Select Campaign rows, Options > VR
-// Settings, a corner button over any menu), and Ironwail's Levels entered from a VR page (the corner's Levels). Back pops
-// the page shown and goes to the place under it, the cursor where it was left (each page's and menu's own). A place
-// already on the stack is gone back to rather than added again (no loops). Nothing under the page: up the menus' tree
-// (homeOf), the VR Settings to Options. A Search result's page goes back up the tree, not to Search (openEntry).
-struct NavStack
-{
-    static constexpr int capacity = 48;
-    int places[capacity]{};
-    int count{0};
-};
-NavStack nav;
-bool navReturning = false; // leaving the VR pages by Back for an outside menu (VR_NavEntered: not a new way in)
-int navJumpPending = -1;    // the outside menu a jump (VR_NavJump) is opening
+// (The page shown, the Back stack: MenuInstance::page, nav.)
 
 [[nodiscard]] constexpr int outsidePlace(int state)
 {
@@ -10258,34 +10604,34 @@ int navJumpPending = -1;    // the outside menu a jump (VR_NavJump) is opening
 
 [[nodiscard]] int navTop()
 {
-    return nav.count > 0 ? nav.places[nav.count - 1] : -1000;
+    return ui().nav.count > 0 ? ui().nav.places[ui().nav.count - 1] : -1000;
 }
 
 void navReset()
 {
-    nav.count = 0;
+    ui().nav.count = 0;
 }
 
 // `place` on top: back to it where it already is on the stack (what was above it dropped), else added.
 void navPush(int place)
 {
-    for(int i = nav.count - 1; i >= 0; i--)
+    for(int i = ui().nav.count - 1; i >= 0; i--)
     {
-        if(nav.places[i] == place)
+        if(ui().nav.places[i] == place)
         {
-            nav.count = i + 1;
+            ui().nav.count = i + 1;
             return;
         }
     }
-    if(nav.count == NavStack::capacity)
+    if(ui().nav.count == NavStack::capacity)
     {
-        for(int i = 1; i < nav.count; i++)
+        for(int i = 1; i < ui().nav.count; i++)
         {
-            nav.places[i - 1] = nav.places[i];
+            ui().nav.places[i - 1] = ui().nav.places[i];
         }
-        nav.count--;
+        ui().nav.count--;
     }
-    nav.places[nav.count++] = place;
+    ui().nav.places[ui().nav.count++] = place;
 }
 
 // The menu outside the VR pages the player is in now (m_none: none, or one not to come back to).
@@ -10326,25 +10672,11 @@ void navEnterFrom(int outside)
 // The page last shown, on top of the stack (made so when something else changed the page).
 void navSyncTop()
 {
-    if(navTop() != page)
+    if(navTop() != ui().page)
     {
-        navPush(page);
+        navPush(ui().page);
     }
 }
-int cursors[pageCount]{};
-int scrolls[pageCount]{};
-
-// Where a page was left: its selected row, found again by its label when the page is built anew (its
-// rows changed: another weapon's offsets, a choice showing more settings or fewer) and at the next
-// start (vr_menu_positions), and the line of the view it was on (the scroll).
-struct RowAnchor
-{
-    bool valid{false};
-    za::String section; // the header above it ("": none)
-    za::String label;
-    int index{0}; // where it was: of the rows alike, the nearest is taken
-    int line{0};  // its line in the view (the cursor less the scroll)
-};
 
 [[nodiscard]] const char* rowLabel(const Item& item)
 {
@@ -10401,9 +10733,6 @@ struct RowAnchor
 RowAnchor savedAnchors[pageCount];
 int savedRank[pageCount]{}; // its place in the cvar
 
-RowAnchor leftAnchors[pageCount]; // each page's position as last shown (invalid: at the top)
-int visits[pageCount]{};          // when each page was last shown (a count; 0: not since the start)
-int visitCount = 0;
 int builds[pageCount]{};          // how many times each page's list was built (its rows may have changed)
 za::String positionsParsed;      // vr_menu_positions as last read (loadPositions)
 bool positionsLoaded = false;
@@ -10424,7 +10753,7 @@ void loadPositions()
 {
     // Read again while no page has been shown, should the cvar change (the config executed after a
     // write, the console).
-    if(positionsLoaded && (visitCount > 0 || positionsParsed == vr_menu_positions.string))
+    if(positionsLoaded && (ui().visitCount > 0 || positionsParsed == vr_menu_positions.string))
     {
         return;
     }
@@ -10487,9 +10816,7 @@ void loadPositions()
     return strcmp(var.string, var.default_string) != 0;
 }
 
-// Reset This Page (the footer): armed by a first press, done by a second within 3 seconds.
-int resetArmedPage = -1;
-double resetArmedTime = 0.0;
+// Reset This Page (the footer): armed by a first press, done by a second within 3 seconds (MenuInstance::resetArmed*).
 
 // The pages of one weapon's or prop's settings (their own resets, Reset This Weapon...): no Reset This Page, and not on
 // Changed Settings (the held one's values, not settings of their own).
@@ -10549,7 +10876,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     if(settings && !slotPage(pages[page].build) && pages[page].build != pageChanged)
     {
         list.pushBack(header("This Page"));
-        list.pushBack(action(resetArmedPage == page ? "Press Again to Reset" : "Reset This Page", resetThisPage)
+        list.pushBack(action(ui().resetArmedPage == page ? "Press Again to Reset" : "Reset This Page", resetThisPage)
                 .help("Every setting on this page (as Menu Detail shows it) back to its default. Press it twice: the second "
                       "time within 3 seconds."));
     }
@@ -10565,16 +10892,20 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     za::Vector<Item> (&built)[pageCount] = menuPages.built;
     bool (&done)[pageCount] = menuPages.done;
     const bool weaponOffsets = weaponOffsetsPage(pages[page].build);
-    if(page == PageMain)
+    if(vrSettingsPage(page))
     {
         syncWrappers(); // Turning Mode, Move Towards, the hands: as their settings are now
-        if(mainPageSnap >= 0 && mainPageSnap != (vr_snap_turn.value > 0.f ? 1 : 0))
+    }
+    if(pages[page].build == pageVrsTurning && mainPageSnap >= 0 &&
+        mainPageSnap != (vr_snap_turn.value > 0.f ? 1 : 0))
+    {
+        done[page] = false; // Snap Angle shown, or Turn Speed
+    }
+    if(page == PageMain)
+    {
+        if(ui().resetAllArmed && realtime - ui().resetAllArmedTime > 3.0)
         {
-            done[page] = false; // Snap Angle shown, or Turn Speed
-        }
-        if(resetAllArmed && realtime - resetAllArmedTime > 3.0)
-        {
-            resetAllArmed = false; // Reset All to Defaults not pressed again in time
+            ui().resetAllArmed = false; // Reset All to Defaults not pressed again in time
             done[page] = false;
         }
     }
@@ -10671,9 +11002,9 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         done[page] = false; // cvars registered since (a row naming one was left out)
     }
-    if(resetArmedPage == page && realtime - resetArmedTime > 3.0)
+    if(ui().resetArmedPage == page && realtime - ui().resetArmedTime > 3.0)
     {
-        resetArmedPage = -1; // Reset This Page not pressed again in time
+        ui().resetArmedPage = -1; // Reset This Page not pressed again in time
         done[page] = false;
     }
     // (A check above: done[page] = false, and the page is built anew here, its selected row kept.)
@@ -10682,7 +11013,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         // The row selected: in the list about to be replaced; on the first build, where the last start
         // left the page (vr_menu_positions).
         loadPositions();
-        RowAnchor anchor = anchorOf(built[page], cursors[page], scrolls[page]);
+        RowAnchor anchor = anchorOf(built[page], ui().cursors[page], ui().scrolls[page]);
         if(built[page].empty())
         {
             anchor = savedAnchors[page];
@@ -10715,11 +11046,11 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         // The same row again, on the same line of the view; gone, the cursor kept where it was (on a
         // setting).
         const int n = static_cast<int>(built[page].size());
-        int& cursor = cursors[page];
+        int& cursor = ui().cursors[page];
         if(const int row = anchor.valid ? findRow(built[page], anchor) : -1; row >= 0)
         {
             cursor = row;
-            scrolls[page] = q_max(row - anchor.line, 0);
+            ui().scrolls[page] = q_max(row - anchor.line, 0);
         }
         cursor = CLAMP(0, cursor, q_max(n - 1, 0));
         for(int i = cursor; n > 0 && !selectable(built[page][cursor]) && i >= 0; i--)
@@ -10736,7 +11067,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         {
             if(built[page][i].action == sightAlignApply || built[page][i].action == sightAlignUndo)
             {
-                cursors[page] = i;
+                ui().cursors[page] = i;
                 break;
             }
         }
@@ -10744,11 +11075,6 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     return built[page];
 }
 
-bool sliderGrab = false; // a slider follows the mouse while its button is held
-float sliderGrabHold = -1.f; // grabbed on a thumb pinned at an end (a value past it): where, kept until the mouse moves off
-bool scrollGrab = false; // the scrollbar likewise
-
-constexpr int midPos = 204; // as Ironwail's OPTIONS_MIDPOS
 
 // Where things go, in the menu's height (menuui::menuHeight: Quake's 200 on the desktop, more in
 // a headset, Quake's 320 x 200 in its middle): the title at the top, the list under it, and the
@@ -10762,8 +11088,6 @@ struct Layout
     int bottom;
 };
 
-constexpr int helpMinLines = 4;     // the help's box: four lines at least (Search's and the Map Library's)
-constexpr int helpMaxLines = 7;     // and at most; a longer help turns pages in it (drawHelp)
 constexpr int helpMaxWrapped = 64;  // lines wrapped at most (the longest help is far shorter)
 
 // The help's line, in characters: the canvas's width (the flat menu's is 420, a headset's 320 or more), 50 at most.
@@ -10819,33 +11143,24 @@ int wrapHelp(const char* text, int columns, int* starts = nullptr, int* lengths 
 [[nodiscard]] const char* itemHelp(const Item& item);
 
 // The help box's lines on the page shown: its rows' longest help, wrapped (helpMinLines to helpMaxLines). Worked out
-// again when the page, its rows or the line's width change, not every frame.
-struct HelpBox
-{
-    int page{-1};
-    int build{-1};
-    int columns{0};
-    int lines{helpMinLines};
-};
-HelpBox helpBox;
-
+// again when the page, its rows or the line's width change, not every frame (MenuInstance::helpBox).
 [[nodiscard]] int helpBoxLines()
 {
     const int columns = helpColumns();
-    if(helpBox.page != page || helpBox.build != builds[page] || helpBox.columns != columns)
+    if(ui().helpBox.page != ui().page || ui().helpBox.build != builds[ui().page] || ui().helpBox.columns != columns)
     {
-        helpBox.page = page;
-        helpBox.build = builds[page];
-        helpBox.columns = columns;
+        ui().helpBox.page = ui().page;
+        ui().helpBox.build = builds[ui().page];
+        ui().helpBox.columns = columns;
         int longest = 0;
-        for(const Item& item : menuPages.built[page])
+        for(const Item& item : menuPages.built[ui().page])
         {
             const char* help = itemHelp(item);
             longest = help ? q_max(longest, wrapHelp(help, columns)) : longest;
         }
-        helpBox.lines = CLAMP(helpMinLines, longest, helpMaxLines);
+        ui().helpBox.lines = CLAMP(helpMinLines, longest, helpMaxLines);
     }
-    return helpBox.lines;
+    return ui().helpBox.lines;
 }
 
 // The console page's left and right edges (menu x; vr_menu_console.inc).
@@ -10875,7 +11190,7 @@ void consoleEdges(float& left, float& right);
     // The version label in the bottom right corner (vr_menubrand.cpp): where the page reaches under it (a flat screen's
     // narrower canvas), the page ends above it.
     int bottom = top + height;
-    if(float labelLeft, labelTop; menuui::versionLabelClearance(labelLeft, labelTop) && pageRight(pages[page].build) > labelLeft)
+    if(float labelLeft, labelTop; menuui::versionLabelClearance(labelLeft, labelTop) && pageRight(pages[ui().page].build) > labelLeft)
     {
         bottom = q_min(bottom, static_cast<int>(za::floor(labelTop)));
     }
@@ -10883,7 +11198,7 @@ void consoleEdges(float& left, float& right);
     // and below the status box in the top right corner where the page reaches under it (Search and the Map Library,
     // from x 12 440 and 460 across; the other pages to their scrollbar).
     int listTop = menuui::toolbarBeside() ? top + 36 : q_max(top + 36, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2);
-    const auto build = pages[page].build;
+    const auto build = pages[ui().page].build;
     const float right = build == pageMaps ? 12.f + 460.f : build == pageSearch ? 12.f + 440.f : midPos + 200.f;
     listTop = q_max(listTop, static_cast<int>(za::ceil(menuui::statusBottom(right))) + 2);
     return {top, listTop, bottom - 4 - 8 * helpBoxLines(), bottom};
@@ -10903,23 +11218,15 @@ void consoleEdges(float& left, float& right);
 
 // A VR page's rows' leftmost text (menu x), for the corner's buttons (menu::contentLeft): each label right-aligned
 // to the values' column (drawItem: midPos - 28 - its width), headers and lines of information centred (these 40
-// characters at most). Kept per page and build.
-struct RowsLeft
-{
-    int page{-1};
-    int build{-1};
-    int left{0};
-};
-RowsLeft rowsLeft;
-
+// characters at most). Kept per page and build (MenuInstance::rowsLeft).
 [[nodiscard]] int pageRowsLeft()
 {
-    if(rowsLeft.page != page || rowsLeft.build != builds[page])
+    if(ui().rowsLeft.page != ui().page || ui().rowsLeft.build != builds[ui().page])
     {
-        rowsLeft.page = page;
-        rowsLeft.build = builds[page];
+        ui().rowsLeft.page = ui().page;
+        ui().rowsLeft.build = builds[ui().page];
         int left = 0;
-        for(const Item& item : menuPages.built[page])
+        for(const Item& item : menuPages.built[ui().page])
         {
             const int len = item.label ? static_cast<int>(strlen(item.label)) : 0;
             const int x = item.kind == Item::Header ? (320 - 8 * len) / 2
@@ -10929,9 +11236,9 @@ RowsLeft rowsLeft;
             const bool marked = item.cvar && item.kind != Item::Action && item.kind != Item::Header && item.kind != Item::Info;
             left = q_min(left, marked ? x - 10 : x);
         }
-        rowsLeft.left = left;
+        ui().rowsLeft.left = left;
     }
-    return rowsLeft.left;
+    return ui().rowsLeft.left;
 }
 
 // The rows' heights: 8 pixels each, a section's header (and the first, under the title) with a gap above it
@@ -11007,7 +11314,7 @@ RowsLeft rowsLeft;
 // The rows shown on the page as it is scrolled now.
 [[nodiscard]] int visibleRows(const za::Vector<Item>& list)
 {
-    return rowsFrom(list, scrolls[page]);
+    return rowsFrom(list, ui().scrolls[ui().page]);
 }
 
 // The rows the list's height holds (the scrollbar's track).
@@ -11031,7 +11338,7 @@ RowsLeft rowsLeft;
 void moveCursor(const za::Vector<Item>& list, int dir)
 {
     const int n = static_cast<int>(list.size());
-    int& cursor = cursors[page];
+    int& cursor = ui().cursors[ui().page];
     int i = cursor;
     do
     {
@@ -11055,7 +11362,7 @@ void moveCursor(const za::Vector<Item>& list, int dir)
 // The page's position to keep (vr_menu_positions): none while it is at its top (as it opens anyway).
 void noteLeft(int p, const za::Vector<Item>& list)
 {
-    leftAnchors[p] = cursors[p] == firstSelectable(list) && scrolls[p] == 0 ? RowAnchor{} : anchorOf(list, cursors[p], scrolls[p]);
+    ui().leftAnchors[p] = ui().cursors[p] == firstSelectable(list) && ui().scrolls[p] == 0 ? RowAnchor{} : anchorOf(list, ui().cursors[p], ui().scrolls[p]);
 }
 
 // Shows `target`, with its cursor on a setting: where it was left (pages built anew as they are
@@ -11067,27 +11374,27 @@ void closeDropDown(); // (the drop-down lists, below: a page shown closes the on
 void showPage(int target)
 {
     closeDropDown();
-    page = target;
-    weightPageShown(pages[page].build); // a weight page: what is in the hand now
-    if(weaponOffsetsPage(pages[page].build))
+    ui().page = target;
+    weightPageShown(pages[ui().page].build); // a weight page: what is in the hand now
+    if(weaponOffsetsPage(pages[ui().page].build))
     {
         weaponOffsetsStale = true; // the weapon in hand now
     }
-    if(pages[page].build == pageReviewTakes)
+    if(pages[ui().page].build == pageReviewTakes)
     {
         motion::review::invalidate(); // takes recorded, evaluated or moved since
     }
     // Built again each time it is shown (its row kept): rows that depend on anything not checked in items() (what is
     // changed now: Changed Settings; a state a builder reads) are as they are now, not as when the page was last built
     // (by Search, a menu path or Changed Settings, which build every page).
-    menuPages.done[page] = false;
-    const auto& list = items(page);
-    if(!selectable(list[cursors[page]]))
+    menuPages.done[ui().page] = false;
+    const auto& list = items(ui().page);
+    if(!selectable(list[ui().cursors[ui().page]]))
     {
-        cursors[page] = firstSelectable(list);
+        ui().cursors[ui().page] = firstSelectable(list);
     }
-    noteLeft(page, list);
-    visits[page] = ++visitCount;
+    noteLeft(ui().page, list);
+    ui().visits[ui().page] = ++ui().visitCount;
 }
 
 bool slotPage(PageBuilder build)
@@ -11101,21 +11408,28 @@ bool slotPage(PageBuilder build)
 // anti-aliasing).
 void resetAll()
 {
-    if(!resetAllArmed || realtime - resetAllArmedTime > 3.0)
+    if(!ui().resetAllArmed || realtime - ui().resetAllArmedTime > 3.0)
     {
-        resetAllArmed = true;
-        resetAllArmedTime = realtime;
+        ui().resetAllArmed = true;
+        ui().resetAllArmedTime = realtime;
         menuPages.done[PageMain] = false; // its label: Press Again to Reset All
         return;
     }
-    resetAllArmed = false;
+    ui().resetAllArmed = false;
     menuPages.done[PageMain] = false;
     za::Vector<cvar_t*> reset;
-    for(const Item& item : items(PageMain))
+    for(int p = 0; p < pageCount; p++)
     {
-        if(item.cvar && item.kind != Item::Action && !wrapperCvar(*item.cvar))
+        if(!vrSettingsPage(p))
         {
-            reset.pushBack(item.cvar);
+            continue;
+        }
+        for(const Item& item : items(p))
+        {
+            if(item.cvar && item.kind != Item::Action && !wrapperCvar(*item.cvar))
+            {
+                reset.pushBack(item.cvar);
+            }
         }
     }
     for(cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
@@ -11142,16 +11456,16 @@ void resetAll()
 
 void resetThisPage()
 {
-    if(resetArmedPage != page || realtime - resetArmedTime > 3.0)
+    if(ui().resetArmedPage != ui().page || realtime - ui().resetArmedTime > 3.0)
     {
-        resetArmedPage = page;
-        resetArmedTime = realtime;
-        menuPages.done[page] = false; // its label: Press Again to Reset
+        ui().resetArmedPage = ui().page;
+        ui().resetArmedTime = realtime;
+        menuPages.done[ui().page] = false; // its label: Press Again to Reset
         return;
     }
-    resetArmedPage = -1;
+    ui().resetArmedPage = -1;
     int n = 0;
-    for(const Item& item : items(page))
+    for(const Item& item : items(ui().page))
     {
         if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar) && !serverrules::locked(item.cvar))
         {
@@ -11159,8 +11473,8 @@ void resetThisPage()
             n++;
         }
     }
-    Con_Printf("VR: %s: %d setting%s back to %s default\n", pages[page].title, n, n == 1 ? "" : "s", n == 1 ? "its" : "their");
-    menuPages.done[page] = false;
+    Con_Printf("VR: %s: %d setting%s back to %s default\n", pages[ui().page].title, n, n == 1 ? "" : "s", n == 1 ? "its" : "their");
+    menuPages.done[ui().page] = false;
 }
 
 const char* changedNone()
@@ -11273,18 +11587,18 @@ void openFromAnywhere(int target)
 // Leaving the VR pages by Back for `state` (an outside menu: vr_menuui.cpp opens it as its own Back would).
 void leaveTo(int state)
 {
-    navReturning = true;
+    ui().navReturning = true;
     menuui::openMenu(state);
-    navReturning = false;
+    ui().navReturning = false;
 }
 
 // Back from the page shown (a key, a button): where the player came from (NavStack), else up the tree.
 void goBack()
 {
     navSyncTop();
-    if(nav.count >= 2)
+    if(ui().nav.count >= 2)
     {
-        nav.count--;
+        ui().nav.count--;
         const int dest = navTop();
         if(dest >= 0)
         {
@@ -11298,21 +11612,21 @@ void goBack()
         return;
     }
     navReset();
-    if(page == PageMain)
+    if(ui().page == PageMain)
     {
         M_Menu_Options_f(); // (its sound as it is drawn)
         return;
     }
-    if(pages[page].build == pageBodyCalibration && qvr::setup::waitsOnMenu())
+    if(pages[ui().page].build == pageBodyCalibration && qvr::setup::waitsOnMenu())
     {
         // VR Calibration waits on this page (paused, or the body's result not trusted): Back closes the menu, as the
         // menu button does, and the calibration goes on (not up the tree, the menu still open and it still waiting)
-        navPush(page);
+        navPush(ui().page);
         menuui::backToGame(HAND_MAIN);
         S_LocalSound("misc/menu2.wav");
         return;
     }
-    const int dest = homeOf(page);
+    const int dest = homeOf(ui().page);
     navPush(dest);
     showPage(dest);
     S_LocalSound("misc/menu2.wav");
@@ -11322,9 +11636,9 @@ void goBack()
 [[nodiscard]] int backTarget(int& outside)
 {
     outside = m_none;
-    if(nav.count >= 2 && navTop() == page)
+    if(ui().nav.count >= 2 && navTop() == ui().page)
     {
-        const int dest = nav.places[nav.count - 2];
+        const int dest = ui().nav.places[ui().nav.count - 2];
         if(dest < 0)
         {
             outside = -1 - dest;
@@ -11332,7 +11646,7 @@ void goBack()
         }
         return dest;
     }
-    return page == PageMain ? -1 : homeOf(page);
+    return ui().page == PageMain ? -1 : homeOf(ui().page);
 }
 
 // A setting's value as shown: a server rule's is the remote server's (vr_serverrules.cpp), the rest their own.
@@ -11374,17 +11688,10 @@ void goBack()
 // value set further off in the console or a config stays as it is until stepped towards the bar
 // (then it comes onto the limit at once). An extendable slider stops at the bar's end first: a new
 // press goes past, or holding on there for a moment; past the ends, holding steps faster the longer
-// it is held (2x after a second, then 5x, then 10x), on multiples of those steps.
-struct SliderHold
-{
-    const cvar_t* endCvar = nullptr; // stopped at a bar's end: which, which way, since when
-    int endDir = 0;
-    double endSince = 0.0;
-    double outsideSince = 0.0; // held past the ends since
-};
-SliderHold sliderHold; // (stepSlider: the menu's keys)
+// it is held (2x after a second, then 5x, then 10x), on multiples of those steps (MenuInstance::sliderHold).
 
-// The sliders' fine adjustment: while either grip is held in the headset (a grip does nothing else in the menus), or
+// The sliders' fine adjustment: while either grip is held in the headset (on the panel's frame, or moved, a grip moves
+// the panel instead: vr_menu_grab), or
 // Shift on a flat screen, a slider steps by vr_menu_fine_step of its step (0.1: a tenth), and shows the decimals that
 // takes (sliderText).
 bool fineForced = false; // (vr_menu_slider_step's "fine": the modifier as if held)
@@ -11447,10 +11754,10 @@ void sliderText(const Item& item, float value, char* buf, size_t size)
 float stepSlider(const Item& item, int dir, bool repeat)
 {
     constexpr double endHold = 0.6;
-    const cvar_t*& endCvar = sliderHold.endCvar;
-    int& endDir = sliderHold.endDir;
-    double& endSince = sliderHold.endSince;
-    double& outsideSince = sliderHold.outsideSince;
+    const cvar_t*& endCvar = ui().sliderHold.endCvar;
+    int& endDir = ui().sliderHold.endDir;
+    double& endSince = ui().sliderHold.endSince;
+    double& outsideSince = ui().sliderHold.outsideSince;
 
     // (A negative value under a negativeLabel, stored -1, is the bar's leftmost step: stepping right goes to
     // negativeStart, stepping left from there back to it.)
@@ -11579,9 +11886,9 @@ void change(const Item& item, int dir, bool repeat = false)
 // The list row under the mouse, or -1.
 [[nodiscard]] int rowAt(float cy)
 {
-    const auto& list = items(page);
+    const auto& list = items(ui().page);
     const float yrel = cy - static_cast<float>(layout().listTop);
-    const int first = scrolls[page];
+    const int first = ui().scrolls[ui().page];
     const int last = first + visibleRows(list);
     int i = -1;
     float y = 0.f;
@@ -11604,8 +11911,8 @@ void change(const Item& item, int dir, bool repeat = false)
 }
 
 // A long list's scrollbar, right of the values (as far as the screen goes), as Ironwail's lists
-// have: its thumb's top (pixels below listTop) and height (rows). False when the list fits.
-int scrollbarX = midPos + 188; // where it was drawn
+// have: its thumb's top (pixels below listTop) and height (rows). False when the list fits. (Where it was drawn:
+// MenuInstance::scrollbarX.)
 
 [[nodiscard]] bool scrollbar(const za::Vector<Item>& list, int& y, int& height)
 {
@@ -11617,17 +11924,17 @@ int scrollbarX = midPos + 188; // where it was drawn
     const int track = trackRows(list);
     const int n = static_cast<int>(list.size());
     height = CLAMP(2, static_cast<int>(track * visibleRows(list) / static_cast<float>(n) + 0.5f), track);
-    y = static_cast<int>(CLAMP(0, scrolls[page], most) * 8 / static_cast<float>(most) * (track - height) + 0.5f);
+    y = static_cast<int>(CLAMP(0, ui().scrolls[ui().page], most) * 8 / static_cast<float>(most) * (track - height) + 0.5f);
     return true;
 }
 
 // The cursor moved onto the nearest visible setting if the list scrolled it out of view.
 void keepCursorVisible()
 {
-    const auto& list = items(page);
+    const auto& list = items(ui().page);
     const int rows = visibleRows(list);
-    const int scroll = scrolls[page];
-    int& cursor = cursors[page];
+    const int scroll = ui().scrolls[ui().page];
+    int& cursor = ui().cursors[ui().page];
     const int dir = cursor < scroll ? 1 : cursor >= scroll + rows ? -1 : 0;
     if(dir != 0)
     {
@@ -11649,9 +11956,9 @@ void printRows()
         Con_Printf("menu_vr rows: not on a VR page\n");
         return;
     }
-    const auto& list = items(page);
+    const auto& list = items(ui().page);
     const Layout l = layout();
-    const int first = scrolls[page];
+    const int first = ui().scrolls[ui().page];
     const int shown = visibleRows(list);
     int bad = 0;
     for(int i = first; i < first + shown; i++)
@@ -11674,7 +11981,7 @@ void printRows()
 // The list scrolled to where the mouse holds the scrollbar, the cursor kept on a visible setting.
 void scrollTo(float cy)
 {
-    const auto& list = items(page);
+    const auto& list = items(ui().page);
     int y, height;
     if(!scrollbar(list, y, height))
     {
@@ -11683,7 +11990,7 @@ void scrollTo(float cy)
     const int most = maxScroll(list);
     const float yrel = cy - layout().listTop - height * 4.f;
     const int range = q_max((trackRows(list) - height) * 8, 1);
-    scrolls[page] = CLAMP(0, static_cast<int>(yrel * most / range + 0.5f), most);
+    ui().scrolls[ui().page] = CLAMP(0, static_cast<int>(yrel * most / range + 0.5f), most);
     keepCursorVisible();
 }
 
@@ -11720,21 +12027,7 @@ void setSliderAt(const Item& item, float cx)
 // and right still step through the choices without it.
 // ----------------------------------------------------------------------------
 
-struct DropDown
-{
-    bool open{false};
-    int page{-1};
-    int row{-1};               // the row's index in the page's list
-    const cvar_t* cvar{nullptr}; // its setting and how many choices it had (a rebuilt page checked against them)
-    int count{0};
-    int hover{0};  // the choice highlighted
-    int scroll{0}; // the first choice shown
-    bool scrollGrab{false};
-    // Laid out as it opened: the inside's left, width and top (menu coordinates), its rows, its width in
-    // characters (M_DrawTextBox), the longest label's.
-    int x{0}, width{0}, top{0}, rows{0}, chars{0}, labelChars{0};
-};
-DropDown dropDown;
+// (Its state: MenuInstance::dropDown.)
 
 constexpr int dropDownBar = 16; // the scrollbar's column, inside the box's right edge
 
@@ -11746,30 +12039,30 @@ constexpr int dropDownBar = 16; // the scrollbar's column, inside the box's righ
 
 void closeDropDown()
 {
-    dropDown.open = false;
-    dropDown.scrollGrab = false;
+    ui().dropDown.open = false;
+    ui().dropDown.scrollGrab = false;
 }
 
 // The open list's row, or null (closed now if its page or row is gone, or the corner's buttons took the selection).
 [[nodiscard]] const Item* dropDownItem()
 {
-    if(!dropDown.open)
+    if(!ui().dropDown.open)
     {
         return nullptr;
     }
-    if(m_state != m_vr || page != dropDown.page || menuui::toolbarFocused())
-    {
-        closeDropDown();
-        return nullptr;
-    }
-    const auto& list = items(page);
-    if(dropDown.row >= static_cast<int>(list.size()))
+    if(m_state != m_vr || ui().page != ui().dropDown.page || menuui::toolbarFocused())
     {
         closeDropDown();
         return nullptr;
     }
-    const Item& item = list[dropDown.row];
-    if(item.kind != Item::Cycle || item.cvar != dropDown.cvar || static_cast<int>(item.choices.size()) != dropDown.count)
+    const auto& list = items(ui().page);
+    if(ui().dropDown.row >= static_cast<int>(list.size()))
+    {
+        closeDropDown();
+        return nullptr;
+    }
+    const Item& item = list[ui().dropDown.row];
+    if(item.kind != Item::Cycle || item.cvar != ui().dropDown.cvar || static_cast<int>(item.choices.size()) != ui().dropDown.count)
     {
         closeDropDown();
         return nullptr;
@@ -11779,15 +12072,15 @@ void closeDropDown()
 
 void dropDownShowHover()
 {
-    if(dropDown.hover < dropDown.scroll)
+    if(ui().dropDown.hover < ui().dropDown.scroll)
     {
-        dropDown.scroll = dropDown.hover;
+        ui().dropDown.scroll = ui().dropDown.hover;
     }
-    else if(dropDown.hover >= dropDown.scroll + dropDown.rows)
+    else if(ui().dropDown.hover >= ui().dropDown.scroll + ui().dropDown.rows)
     {
-        dropDown.scroll = dropDown.hover - dropDown.rows + 1;
+        ui().dropDown.scroll = ui().dropDown.hover - ui().dropDown.rows + 1;
     }
-    dropDown.scroll = CLAMP(0, dropDown.scroll, q_max(dropDown.count - dropDown.rows, 0));
+    ui().dropDown.scroll = CLAMP(0, ui().dropDown.scroll, q_max(ui().dropDown.count - ui().dropDown.rows, 0));
 }
 
 // The list of `item`'s choices (the page's row `row`), opened by its row: as wide as its longest
@@ -11804,10 +12097,10 @@ void openDropDown(const Item& item, int row)
     }
     longest = q_min(longest, 30);
 
-    DropDown& d = dropDown;
+    DropDown& d = ui().dropDown;
     d.open = true;
     d.scrollGrab = false;
-    d.page = page;
+    d.page = ui().page;
     d.row = row;
     d.cvar = item.cvar;
     d.count = n;
@@ -11830,7 +12123,7 @@ void openDropDown(const Item& item, int row)
     }
 
     // Up and down: the current choice level with the row, the box inside the menu.
-    const int rowY = l.listTop + rowTop(items(page), scrolls[page], row);
+    const int rowY = l.listTop + rowTop(items(ui().page), ui().scrolls[ui().page], row);
     d.top = rowY - (cur - d.scroll) * 8;
     d.top = CLAMP(l.top + 12, d.top, q_max(l.top + 12, l.bottom - 12 - d.rows * 8));
     S_LocalSound("misc/menu3.wav");
@@ -11839,7 +12132,7 @@ void openDropDown(const Item& item, int row)
 // Sets the hovered choice and closes the list.
 void pickDropDown(const Item& item)
 {
-    const float v = item.choices[CLAMP(0, dropDown.hover, dropDown.count - 1)].value;
+    const float v = item.choices[CLAMP(0, ui().dropDown.hover, ui().dropDown.count - 1)].value;
     cvar_t* const cvar = item.cvar;
     closeDropDown();
     Cvar_SetValueQuick(cvar, v); // (`item` may be gone after this: a page rebuilt by the setting's change)
@@ -11848,20 +12141,20 @@ void pickDropDown(const Item& item)
 
 [[nodiscard]] bool insideDropDown(float cx, float cy)
 {
-    const DropDown& d = dropDown;
+    const DropDown& d = ui().dropDown;
     return cx >= d.x - 6 && cx < d.x + d.width + 6 && cy >= d.top - 6 && cy < d.top + d.rows * 8 + 6;
 }
 
 [[nodiscard]] bool onDropDownBar(float cx, float cy)
 {
-    const DropDown& d = dropDown;
+    const DropDown& d = ui().dropDown;
     return d.count > d.rows && insideDropDown(cx, cy) && cx >= d.x + d.width - dropDownBar;
 }
 
 // The choice under the mouse, or -1.
 [[nodiscard]] int dropDownChoiceAt(float cx, float cy)
 {
-    const DropDown& d = dropDown;
+    const DropDown& d = ui().dropDown;
     if(!insideDropDown(cx, cy) || onDropDownBar(cx, cy) || cy < d.top || cy >= d.top + d.rows * 8)
     {
         return -1;
@@ -11873,14 +12166,14 @@ void pickDropDown(const Item& item)
 // The scrollbar's thumb: its top (pixels below the list's top) and height (rows).
 void dropDownThumb(int& y, int& height)
 {
-    const DropDown& d = dropDown;
+    const DropDown& d = ui().dropDown;
     height = q_max(static_cast<int>(d.rows * d.rows / static_cast<float>(d.count) + 0.5f), 2);
     y = static_cast<int>(d.scroll * 8 / static_cast<float>(d.count - d.rows) * (d.rows - height) + 0.5f);
 }
 
 void dropDownScrollTo(float cy)
 {
-    DropDown& d = dropDown;
+    DropDown& d = ui().dropDown;
     if(d.count <= d.rows)
     {
         return;
@@ -11898,7 +12191,7 @@ void drawDropDown()
     {
         return;
     }
-    const DropDown& d = dropDown;
+    const DropDown& d = ui().dropDown;
     M_DrawTextBox(d.x - 8, d.top - 8, d.chars, d.rows);
     const int cur = currentChoice(*item);
     const int textRight = d.x + d.width - (d.count > d.rows ? dropDownBar : 0);
@@ -11937,7 +12230,7 @@ bool dropDownKey(int key)
     {
         return false;
     }
-    DropDown& d = dropDown;
+    DropDown& d = ui().dropDown;
     switch(key)
     {
         case K_ESCAPE:
@@ -12000,7 +12293,7 @@ bool dropDownMousemove(float cx, float cy)
     {
         return false;
     }
-    DropDown& d = dropDown;
+    DropDown& d = ui().dropDown;
     if(d.scrollGrab)
     {
         if(keydown[K_MOUSE1])
@@ -12244,14 +12537,6 @@ const char* itemHelp(const Item& item)
     return help;
 }
 
-// The help shown, and since when (its pages turn from the first; a new text starts over).
-struct HelpPaging
-{
-    za::U32 hash{0};
-    double since{0.0};
-    int shown{-1}; // the page of it shown (for the developer line when it turns)
-};
-HelpPaging helpPaging;
 
 constexpr double helpPageBase = 2.0; // seconds a part of the help stays, and more for each word on it (vr_menu_help_wpm)
 
@@ -12271,11 +12556,11 @@ void drawHelp(const char* text)
         {
             hash = (hash ^ static_cast<unsigned char>(*c)) * 16777619u;
         }
-        if(hash != helpPaging.hash)
+        if(hash != ui().helpPaging.hash)
         {
-            helpPaging.hash = hash;
-            helpPaging.since = realtime;
-            helpPaging.shown = -1;
+            ui().helpPaging.hash = hash;
+            ui().helpPaging.since = realtime;
+            ui().helpPaging.shown = -1;
         }
         // Each page's time from its words; the pages one after another, then the first again.
         const int pageCount = (lines + box - 1) / box;
@@ -12294,7 +12579,7 @@ void drawHelp(const char* text)
             durations[pg] = helpPageBase + 60.0 * words / CLAMP(60.0, static_cast<double>(vr_menu_help_wpm.value), 600.0);
             cycle += durations[pg];
         }
-        double t = fmod(realtime - helpPaging.since, cycle);
+        double t = fmod(realtime - ui().helpPaging.since, cycle);
         int shown = 0;
         while(shown < pageCount - 1 && t >= durations[shown])
         {
@@ -12302,10 +12587,10 @@ void drawHelp(const char* text)
             shown++;
         }
         first = shown * box;
-        if(shown != helpPaging.shown)
+        if(shown != ui().helpPaging.shown)
         {
-            helpPaging.shown = shown;
-            Con_DPrintf("menu help: part %d of %d (%d lines, %.1f s)\n", shown + 1, pageCount, lines, realtime - helpPaging.since);
+            ui().helpPaging.shown = shown;
+            Con_DPrintf("menu help: part %d of %d (%d lines, %.1f s)\n", shown + 1, pageCount, lines, realtime - ui().helpPaging.since);
         }
 
         // Which part is shown: the bar's thumb, and its share of the text.
@@ -12364,7 +12649,7 @@ za::Vector<Item> pageMaps()
 
 void dumpPages()
 {
-    const int was = page;
+    const int was = ui().page;
     int depth[pageCount];
     int from[pageCount];
     int linksIn[pageCount]{};
@@ -12430,7 +12715,7 @@ void dumpPages()
 // grew, HELPSUM the count, the longest and how many need turning pages. For the help's fit (the menu's tests).
 void helpCheck(int columnsAsked)
 {
-    const int was = page;
+    const int was = ui().page;
     const int columns = columnsAsked > 0 ? columnsAsked : helpColumns();
     int rows = 0, longest = 0, longestChars = 0, turning = 0, grown = 0;
     int histogram[helpMaxLines + 2]{};
@@ -12824,7 +13109,7 @@ int qvr::menu::retroOverridePage()
 // closes it at once, as the menu button does; elsewhere Quake's way (to the main menu first).
 extern "C" int VR_MenuToggleCloses()
 {
-    return m_state == m_vr && key_dest == key_menu && pages[page].build == pageBodyCalibration &&
+    return m_state == m_vr && key_dest == key_menu && pages[ui().page].build == pageBodyCalibration &&
            qvr::setup::waitsOnMenu();
 }
 
@@ -12866,15 +13151,15 @@ extern "C" void VR_NavJump(int state)
         navEnterFrom(outsideMenu());
     }
     navPush(outsidePlace(state));
-    navJumpPending = state;
+    ui().navJumpPending = state;
 }
 
 // An outside menu opened (Ironwail's Levels; `previous` the menu shown before): by a jump or by Back into it, its place on
 // the stack kept; from its own way in (Single Player, a mod's), the stack started again (its Back its own).
 extern "C" void VR_NavEntered(int state, int previous)
 {
-    const bool kept = navJumpPending == state || navReturning || previous == m_skill || previous == state;
-    navJumpPending = -1;
+    const bool kept = ui().navJumpPending == state || ui().navReturning || previous == m_skill || previous == state;
+    ui().navJumpPending = -1;
     if(!kept || navTop() != outsidePlace(state))
     {
         navReset();
@@ -12884,12 +13169,12 @@ extern "C" void VR_NavEntered(int state, int previous)
 // Back from an outside menu entered by a jump: where it came from (nonzero), else 0 (its own Back).
 extern "C" int VR_NavBack(int state)
 {
-    if(nav.count < 2 || navTop() != outsidePlace(state))
+    if(ui().nav.count < 2 || navTop() != outsidePlace(state))
     {
         navReset();
         return 0;
     }
-    nav.count--;
+    ui().nav.count--;
     const int dest = navTop();
     if(dest >= 0)
     {
@@ -12998,7 +13283,7 @@ void qvr::menu::command_f()
                 menuui::toolbarRight(), menuui::toolbarBeside() ? "beside" : "over", menuui::toolbarBottom());
             if(m_state == m_vr)
             {
-                Con_Printf("menu_vr pos: rows from y %d, %d shown\n", layout().listTop, visibleRows(items(page)));
+                Con_Printf("menu_vr pos: rows from y %d, %d shown\n", layout().listTop, visibleRows(items(ui().page)));
             }
             float bx0, bx1, by0, by1;
             menuui::bannerRect(bx0, bx1, by0, by1);
@@ -13051,13 +13336,13 @@ void qvr::menu::command_f()
                 key_dest == key_menu && m_state == m_singleplayer ? va(", row %d", m_singleplayer_cursor) : "");
             return;
         }
-        const auto& list = items(page);
-        const int cursor = cursors[page];
+        const auto& list = items(ui().page);
+        const int cursor = ui().cursors[ui().page];
         int outside = m_none;
         const int back = backTarget(outside);
-        Con_Printf("menu_vr pos: page %d \"%s\" (back to %d%s), row %d \"%s\" under \"%s\", scroll %d of %d rows%s\n", page,
-            pages[page].title, back, outside != m_none ? va(", menu %d", outside) : "", cursor, rowLabel(list[cursor]), rowSection(list, cursor),
-            scrolls[page], static_cast<int>(list.size()), corner);
+        Con_Printf("menu_vr pos: page %d \"%s\" (back to %d%s), row %d \"%s\" under \"%s\", scroll %d of %d rows%s\n", ui().page,
+            pages[ui().page].title, back, outside != m_none ? va(", menu %d", outside) : "", cursor, rowLabel(list[cursor]), rowSection(list, cursor),
+            ui().scrolls[ui().page], static_cast<int>(list.size()), corner);
         if(cursor < static_cast<int>(list.size()) && list[cursor].cvar && list[cursor].kind == Item::Slider)
         {
             char shown[64];
@@ -13067,7 +13352,7 @@ void qvr::menu::command_f()
         }
         if(const Item* open = dropDownItem())
         {
-            const DropDown& d = dropDown;
+            const DropDown& d = ui().dropDown;
             Con_Printf("menu_vr pos: list open on row %d, %d choices, highlighted %d \"%s\", shows %d from %d, box x %d..%d y %d..%d\n",
                 d.row, d.count, d.hover, open->choices[d.hover].label, d.rows, d.scroll, d.x, d.x + d.width, d.top, d.top + d.rows * 8);
         }
@@ -13083,7 +13368,7 @@ void qvr::menu::command_f()
             // menu_vr <page> <row>: the cursor on that row (counted from 0, headers and lines of text included), if it
             // can rest there (scripts, screenshots); or on the first setting whose label starts with <row>'s text
             // (menu_vr 90 "Holstered X").
-            const auto& list = items(page);
+            const auto& list = items(ui().page);
             int row = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : -1;
             if(Cmd_Argc() > 2 && (Cmd_Argv(2)[0] < '0' || Cmd_Argv(2)[0] > '9'))
             {
@@ -13098,7 +13383,7 @@ void qvr::menu::command_f()
             }
             if(row >= 0 && row < static_cast<int>(list.size()) && selectable(list[row]))
             {
-                cursors[page] = row;
+                ui().cursors[ui().page] = row;
             }
         }
     }
@@ -13106,7 +13391,7 @@ void qvr::menu::command_f()
 
 bool qvr::menu::holsterPreview(int& hand, int& kind)
 {
-    if(m_state != m_vr || pages[page].build != pageWofsHolstered || vr_weapon_holster_preview.value == 0.f ||
+    if(m_state != m_vr || pages[ui().page].build != pageWofsHolstered || vr_weapon_holster_preview.value == 0.f ||
         weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weaponOffsetsHolster < 0 ||
         weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
     {
@@ -13125,7 +13410,7 @@ bool qvr::menu::holsterPreview(int& hand, int& kind)
 
 bool qvr::menu::flashlightMountPreview(int& hand)
 {
-    if(m_state != m_vr || pages[page].build != pageWofsFlashlight || vr_flashlight_mount_preview.value == 0.f ||
+    if(m_state != m_vr || pages[ui().page].build != pageWofsFlashlight || vr_flashlight_mount_preview.value == 0.f ||
         weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
     {
         return false; // not on the page, off, the empty hand, or the hand holds another weapon now
@@ -13137,7 +13422,6 @@ bool qvr::menu::flashlightMountPreview(int& hand)
 namespace
 {
 
-int bodyCloneLatch = -1; // the page a row tweaking the body was chosen on (bodyClonePage), while it stays shown
 
 // A setting placing (or showing) something worn on the body: the holsters, the pouches, the flashlight on the belt and
 // on the head, the wrist gadget's mount, the virtual stock, the pauldrons.
@@ -13171,24 +13455,34 @@ int bodyCloneLatch = -1; // the page a row tweaking the body was chosen on (body
 
 bool qvr::menu::bodyClonePage()
 {
-    if(key_dest != key_menu || m_state != m_vr || page < 0 || page >= pageCount)
+    if(key_dest != key_menu || m_state != m_vr || ui().page < 0 || ui().page >= pageCount)
     {
-        bodyCloneLatch = -1;
+        ui().bodyCloneLatch = -1;
         return false;
     }
-    const PageBuilder b = pages[page].build;
-    if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || bodyCloneLatch == page)
+    const PageBuilder b = pages[ui().page].build;
+    if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || ui().bodyCloneLatch == ui().page)
     {
         return true;
     }
     const cvar_t* chosen = selectedSetting();
-    bodyCloneLatch = chosen && tweaksBody(chosen->name) ? page : -1;
-    return bodyCloneLatch == page;
+    ui().bodyCloneLatch = chosen && tweaksBody(chosen->name) ? ui().page : -1;
+    return ui().bodyCloneLatch == ui().page;
 }
 
 int qvr::menu::currentPage()
 {
-    return page;
+    return ui().page;
+}
+
+int qvr::menu::currentInstance()
+{
+    return currentMenu;
+}
+
+void qvr::menu::selectInstance(int instance)
+{
+    currentMenu = CLAMP(0, instance, instanceCount - 1);
 }
 
 int qvr::menu::toolgunCheatCount()
@@ -13235,8 +13529,8 @@ const cvar_t* qvr::menu::selectedSetting()
     {
         return nullptr;
     }
-    const auto& list = items(page);
-    const int cursor = cursors[page];
+    const auto& list = items(ui().page);
+    const int cursor = ui().cursors[ui().page];
     return cursor >= 0 && cursor < static_cast<int>(list.size()) ? list[cursor].cvar : nullptr;
 }
 
@@ -13246,7 +13540,7 @@ void qvr::menu::jumpToAdvanced()
     {
         Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(LevelAdvanced)); // (the corner's Advanced VR: the pages it lists)
     }
-    if(m_state == m_vr && page == PageAdvanced)
+    if(m_state == m_vr && ui().page == PageAdvanced)
     {
         S_LocalSound("misc/menu1.wav");
         return;
@@ -13357,7 +13651,7 @@ float qvr::menu::contentLeft()
     {
         return static_cast<float>(M_ContentLeft());
     }
-    const auto build = pages[page].build;
+    const auto build = pages[ui().page].build;
     if(build == pageSearch || build == pageMaps || build == pageConsole)
     {
         return 0.f; // (Search and the Map Library from x 12 at least; the console's page right of the buttons)
@@ -13371,7 +13665,7 @@ float qvr::menu::contentRightBelow(float y)
     {
         return M_ContentRightBelow(y);
     }
-    const auto build = pages[page].build;
+    const auto build = pages[ui().page].build;
     const Layout l = layout();
     if(build == pageConsole || build == pageSearch || build == pageMaps)
     {
@@ -13379,7 +13673,7 @@ float qvr::menu::contentRightBelow(float y)
     }
     // The rows down to the help's box (or the bottom), as far right as their scrollbar's box (scrollbarX + 12); the help
     // centred at its widest (helpColumns), its paging bar right of it (drawHelp).
-    const za::Vector<Item>& list = menuPages.built[page];
+    const za::Vector<Item>& list = menuPages.built[ui().page];
     const bool help = hasHelp(list);
     float right = -1e9f;
     if(y < static_cast<float>(help ? l.helpTop - 4 : l.bottom - 8))
@@ -13399,14 +13693,14 @@ float qvr::menu::contentLeftBelow(float y)
     {
         return M_ContentLeftBelow(y);
     }
-    const auto build = pages[page].build;
+    const auto build = pages[ui().page].build;
     const Layout l = layout();
     if(build == pageConsole || build == pageSearch || build == pageMaps)
     {
         return y < static_cast<float>(l.bottom) ? contentLeft() : 1e9f; // (down to the bottom)
     }
     // As contentRightBelow: the rows down to the help's box (or the bottom), the help under them.
-    const za::Vector<Item>& list = menuPages.built[page];
+    const za::Vector<Item>& list = menuPages.built[ui().page];
     const bool help = hasHelp(list);
     float left = 1e9f;
     if(y < static_cast<float>(help ? l.helpTop - 4 : l.bottom - 8))
@@ -13429,7 +13723,7 @@ void qvr::menu::jumpToChecklist()
 {
     const int target = pageIndex(pageChecklist);
     checklist::refresh(true);
-    if(m_state == m_vr && page == target)
+    if(m_state == m_vr && ui().page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;
@@ -13439,7 +13733,7 @@ void qvr::menu::jumpToChecklist()
 
 void qvr::menu::jumpToSettings()
 {
-    if(m_state == m_vr && page == PageMain)
+    if(m_state == m_vr && ui().page == PageMain)
     {
         S_LocalSound("misc/menu1.wav");
         return;
@@ -13466,7 +13760,7 @@ void qvr::menu::jumpToRelighting()
     {
         Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(pages[target].level)); // (as the corner's Advanced VR)
     }
-    if(m_state == m_vr && page == target)
+    if(m_state == m_vr && ui().page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;
@@ -13477,7 +13771,7 @@ void qvr::menu::jumpToRelighting()
 void qvr::menu::jumpToRecording()
 {
     const int target = pageIndex(pageRecording);
-    if(m_state == m_vr && page == target)
+    if(m_state == m_vr && ui().page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;
@@ -13487,25 +13781,25 @@ void qvr::menu::jumpToRecording()
 
 void qvr::menu::selectEnd(int dir)
 {
-    if(m_state == m_vr && pages[page].build == pageSearch)
+    if(m_state == m_vr && pages[ui().page].build == pageSearch)
     {
         search.focusKey = 0; // from the corner's buttons: the keys
         return;
     }
-    if(m_state == m_vr && pages[page].build == pageConsole)
+    if(m_state == m_vr && pages[ui().page].build == pageConsole)
     {
         consolePage.focusKey = 0;
         return;
     }
-    if(m_state == m_vr && pages[page].build == pageMaps)
+    if(m_state == m_vr && pages[ui().page].build == pageMaps)
     {
         mapPage.focusKey = 0; // from the corner's buttons: the keys
         return;
     }
     if(m_state == m_vr)
     {
-        const auto& list = items(page);
-        cursors[page] = dir > 0 ? firstSelectable(list) : lastSelectable(list);
+        const auto& list = items(ui().page);
+        ui().cursors[ui().page] = dir > 0 ? firstSelectable(list) : lastSelectable(list);
     }
 }
 
@@ -13526,16 +13820,16 @@ void qvr::menu::reopen(int target)
 
 bool qvr::menu::scroll(int rows)
 {
-    if(m_state != m_vr || sliderGrab || scrollGrab)
+    if(m_state != m_vr || ui().sliderGrab || ui().scrollGrab)
     {
         return false;
     }
-    if(pages[page].build == pageConsole)
+    if(pages[ui().page].build == pageConsole)
     {
         consoleScroll(-rows); // (the stick down: newer)
         return true;
     }
-    if(pages[page].build == pageMaps)
+    if(pages[ui().page].build == pageMaps)
     {
         mapPage.resultScroll -= rows; // (the stick down: the next packages)
         mapsScrollTo(-1);
@@ -13544,17 +13838,17 @@ bool qvr::menu::scroll(int rows)
     if(dropDownItem())
     {
         // The stick moves the open list's highlight, the list scrolling with it.
-        dropDown.hover = CLAMP(0, dropDown.hover + rows, dropDown.count - 1);
+        ui().dropDown.hover = CLAMP(0, ui().dropDown.hover + rows, ui().dropDown.count - 1);
         dropDownShowHover();
         return true;
     }
-    const auto& list = items(page);
+    const auto& list = items(ui().page);
     const int most = maxScroll(list);
     if(most <= 0)
     {
         return false;
     }
-    scrolls[page] = CLAMP(0, scrolls[page] + rows, most);
+    ui().scrolls[ui().page] = CLAMP(0, ui().scrolls[ui().page] + rows, most);
     keepCursorVisible();
     return true;
 }
@@ -13585,20 +13879,20 @@ extern "C" void VR_MenuSavePositions()
     za::Vector<int> order;
     for(int p = 0; p < pageCount; p++)
     {
-        if(visits[p] > 0)
+        if(ui().visits[p] > 0)
         {
             order.pushBack(p);
         }
     }
-    za::stableSort(order.begin(), order.end(), [](int a, int b) { return visits[a] > visits[b]; }); // (stable: ties in the order std::sort gave a few)
+    za::stableSort(order.begin(), order.end(), [](int a, int b) { return ui().visits[a] > ui().visits[b]; }); // (stable: ties in the order std::sort gave a few)
     for(const int p : order)
     {
-        add(p, leftAnchors[p]);
+        add(p, ui().leftAnchors[p]);
     }
     order.clear();
     for(int p = 0; p < pageCount; p++)
     {
-        if(visits[p] == 0 && savedAnchors[p].valid)
+        if(ui().visits[p] == 0 && savedAnchors[p].valid)
         {
             order.pushBack(p);
         }
@@ -13615,41 +13909,32 @@ extern "C" void VR_MenuSavePositions()
     }
 }
 
-namespace
-{
-// Where VR_Menu_Draw last noted the page to be (vr_menu_positions is written on a change only).
-struct NotedPlace
-{
-    int page = -1, cursor = -1, scroll = -1, build = -1;
-};
-NotedPlace notedPlace;
-} // namespace
 
 extern "C" void VR_Menu_Draw()
 {
     syncPresets(); // (Comfort, Handedness: the choice the settings match now)
-    if(pages[page].build == pageSearch)
+    if(pages[ui().page].build == pageSearch)
     {
         drawSearch();
         return;
     }
-    if(pages[page].build == pageConsole)
+    if(pages[ui().page].build == pageConsole)
     {
         drawConsolePage();
         return;
     }
-    if(pages[page].build == pageMaps)
+    if(pages[ui().page].build == pageMaps)
     {
         drawMapsPage();
         return;
     }
-    const auto& list = items(page);
-    int& cursor = cursors[page];
-    int& scroll = scrolls[page];
+    const auto& list = items(ui().page);
+    int& cursor = ui().cursors[ui().page];
+    int& scroll = ui().scrolls[ui().page];
 
     if(!keydown[K_MOUSE1])
     {
-        sliderGrab = scrollGrab = false;
+        ui().sliderGrab = ui().scrollGrab = false;
     }
 
     const Layout l = layout();
@@ -13658,7 +13943,7 @@ extern "C" void VR_Menu_Draw()
     M_DrawPlaque(16, underRow ? q_max(l.top + 4, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2) : l.top + 4);
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
     M_DrawPic((320 - title->width) / 2, l.top + 4, title);
-    const char* name = pages[page].title;
+    const char* name = pages[ui().page].title;
     M_PrintWhite((320 - 8 * static_cast<int>(strlen(name))) / 2, l.top + 28, name);
 
     const int n = static_cast<int>(list.size());
@@ -13674,17 +13959,17 @@ extern "C" void VR_Menu_Draw()
     const int rows = visibleRows(list);
 
     // Where the page is, to keep (on a change only: no strings built every frame).
-    int& notedPage = notedPlace.page;
-    int& notedCursor = notedPlace.cursor;
-    int& notedScroll = notedPlace.scroll;
-    int& notedBuild = notedPlace.build;
-    if(page != notedPage || cursor != notedCursor || scroll != notedScroll || builds[page] != notedBuild)
+    int& notedPage = ui().notedPlace.page;
+    int& notedCursor = ui().notedPlace.cursor;
+    int& notedScroll = ui().notedPlace.scroll;
+    int& notedBuild = ui().notedPlace.build;
+    if(ui().page != notedPage || cursor != notedCursor || scroll != notedScroll || builds[ui().page] != notedBuild)
     {
-        notedPage = page;
+        notedPage = ui().page;
         notedCursor = cursor;
         notedScroll = scroll;
-        notedBuild = builds[page];
-        noteLeft(page, list);
+        notedBuild = builds[ui().page];
+        noteLeft(ui().page, list);
     }
 
     // While the sticks' selection is on the corner's buttons, no row is selected (nor its help shown).
@@ -13696,8 +13981,8 @@ extern "C" void VR_Menu_Draw()
 
     if(int y, height; scrollbar(list, y, height))
     {
-        scrollbarX = q_min(midPos + 188, static_cast<int>(glcanvas.right) - 16);
-        M_DrawTextBox(scrollbarX - 4, l.listTop + y - 4, 0, height - 1);
+        ui().scrollbarX = q_min(midPos + 188, static_cast<int>(glcanvas.right) - 16);
+        M_DrawTextBox(ui().scrollbarX - 4, l.listTop + y - 4, 0, height - 1);
     }
 
     if(cursor < n && rowSelected)
@@ -13714,29 +13999,29 @@ extern "C" void VR_Menu_Draw()
 
 extern "C" void VR_Menu_Key(int key, int repeat)
 {
-    if(pages[page].build == pageSearch)
+    if(pages[ui().page].build == pageSearch)
     {
         searchKey(key);
         return;
     }
-    if(pages[page].build == pageConsole)
+    if(pages[ui().page].build == pageConsole)
     {
         consoleKey(key);
         return;
     }
-    if(pages[page].build == pageMaps)
+    if(pages[ui().page].build == pageMaps)
     {
         mapsKey(key);
         return;
     }
-    const auto& list = items(page);
-    const int cursor = cursors[page];
+    const auto& list = items(ui().page);
+    const int cursor = ui().cursors[ui().page];
 
-    if(sliderGrab || scrollGrab)
+    if(ui().sliderGrab || ui().scrollGrab)
     {
         if(!keydown[K_MOUSE1] || key == K_ESCAPE || key == K_BBUTTON || key == K_MOUSE2)
         {
-            sliderGrab = scrollGrab = false;
+            ui().sliderGrab = ui().scrollGrab = false;
         }
         return;
     }
@@ -13790,9 +14075,9 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 
         case K_MOUSE1:
             // On the scrollbar: it is dragged.
-            if(int y, height; m_mousex >= scrollbarX - 8 && scrollbar(list, y, height))
+            if(int y, height; m_mousex >= ui().scrollbarX - 8 && scrollbar(list, y, height))
             {
-                scrollGrab = true;
+                ui().scrollGrab = true;
                 scrollTo(m_mousey);
                 break;
             }
@@ -13810,11 +14095,11 @@ extern "C" void VR_Menu_Key(int key, int repeat)
                     const Item& item = list[cursor];
                     const int past = item.negativeLabel && item.cvar->value < 0.f ? 0 : pastEnd(item, item.cvar->value);
                     const float thumb = midPos + 4.f + (past > 0 ? 72.f : 0.f);
-                    sliderGrab = true;
-                    sliderGrabHold = -1.f;
+                    ui().sliderGrab = true;
+                    ui().sliderGrabHold = -1.f;
                     if(past && za::fabs(m_mousex - thumb) <= 6.f)
                     {
-                        sliderGrabHold = m_mousex;
+                        ui().sliderGrabHold = m_mousex;
                     }
                     else
                     {
@@ -13853,15 +14138,15 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 // slider.
 extern "C" void VR_Menu_Char(int key)
 {
-    if(pages[page].build == pageSearch && key >= 32 && key < 127)
+    if(pages[ui().page].build == pageSearch && key >= 32 && key < 127)
     {
         typeInSearch(static_cast<char>(key));
     }
-    if(pages[page].build == pageConsole && key >= 32 && key < 127)
+    if(pages[ui().page].build == pageConsole && key >= 32 && key < 127)
     {
         typeInConsole(static_cast<char>(key));
     }
-    if(pages[page].build == pageMaps && key >= 32 && key < 127)
+    if(pages[ui().page].build == pageMaps && key >= 32 && key < 127)
     {
         mapsTypeIn(static_cast<char>(key));
     }
@@ -13869,24 +14154,24 @@ extern "C" void VR_Menu_Char(int key)
 
 extern "C" int VR_Menu_TextEntry()
 {
-    return pages[page].build == pageSearch || pages[page].build == pageConsole || pages[page].build == pageMaps
+    return pages[ui().page].build == pageSearch || pages[ui().page].build == pageConsole || pages[ui().page].build == pageMaps
                ? TEXTMODE_NOPOPUP
                : TEXTMODE_OFF; // (the page's own keyboard)
 }
 
 extern "C" void VR_Menu_Mousemove(float cx, float cy)
 {
-    if(pages[page].build == pageSearch)
+    if(pages[ui().page].build == pageSearch)
     {
         searchMouse(cx, cy);
         return;
     }
-    if(pages[page].build == pageConsole)
+    if(pages[ui().page].build == pageConsole)
     {
         consoleMouse(cx, cy);
         return;
     }
-    if(pages[page].build == pageMaps)
+    if(pages[ui().page].build == pageMaps)
     {
         mapsMouse(cx, cy);
         return;
@@ -13896,23 +14181,23 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
         return;
     }
 
-    const auto& list = items(page);
-    int& cursor = cursors[page];
+    const auto& list = items(ui().page);
+    int& cursor = ui().cursors[ui().page];
 
-    if(sliderGrab || scrollGrab)
+    if(ui().sliderGrab || ui().scrollGrab)
     {
         if(!keydown[K_MOUSE1])
         {
-            sliderGrab = scrollGrab = false;
+            ui().sliderGrab = ui().scrollGrab = false;
             return;
         }
-        if(scrollGrab)
+        if(ui().scrollGrab)
         {
             scrollTo(cy);
         }
-        else if(sliderGrabHold < 0.f || za::fabs(cx - sliderGrabHold) >= 4.f)
+        else if(ui().sliderGrabHold < 0.f || za::fabs(cx - ui().sliderGrabHold) >= 4.f)
         {
-            sliderGrabHold = -1.f;
+            ui().sliderGrabHold = -1.f;
             setSliderAt(list[cursor], cx);
         }
         return;

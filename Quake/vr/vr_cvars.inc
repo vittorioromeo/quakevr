@@ -18,6 +18,7 @@ QVR_CVAR(vr_hull_monsters, "1", CVAR_ARCHIVE)          // the narrow entity widt
 QVR_CVAR(vr_hull_players, "1", CVAR_ARCHIVE)           // ... between players
 QVR_CVAR(vr_hull_boxes, "1", CVAR_ARCHIVE)             // ... between the player and other solid boxes (explosive boxes, solid items)
 QVR_CVAR(vr_body_monster_inset, "4", CVAR_ARCHIVE)     // Combat > Holding Enemies > Body Inset: units (0-12) each level side of the player's box and a monster's comes in where the two bodies meet (both ways; twice as close face to face): the map, monsters against monsters, shots and melee keep their boxes (vr_bodycontact.cpp)
+QVR_CVAR(vr_enemy_melee_space, "16", CVAR_ARCHIVE)      // Combat > Holding Enemies > Melee Space: units (0-48) a monster attacking you in melee (its charge, its blow) is kept from your head (level, to its box), pushed back smoothly; 0: off (vr_bodycontact.cpp; vr_enemy_melee_space_status)
 QVR_CVAR(vr_hull_hit_width, "24", CVAR_ARCHIVE)        // the player's width that shots, missiles and splash traces hit (not bodies moving: vr_hull_ent_width) (8-32; 0: Quake's 32)
 QVR_CVAR(vr_hull_hit_head, "1", CVAR_ARCHIVE)          // ... and their box reaches only to the top of his head (the headset's, 5 units over it): crouched behind cover, shots over it miss; monsters' bullets aim no higher than 70% of it; 0: Quake's height, standing or not
 QVR_CVAR(vr_crouch_hull, "1", CVAR_ARCHIVE)            // Movement > Player Hitbox > Crouching: crouched (your eyes under vr_crouch_height over your feet) your box is that tall: under low ceilings and through small teleporters, behind cover from shots; kept until there's room to stand (vr_hull.cpp; HULLS.md "Crouching"); 0: always standing
@@ -778,6 +779,8 @@ QVR_CVAR(vr_update_test_version, "", CVAR_NONE)        // test aid: this version
 QVR_CVAR(vr_menu_vr_style, "1", CVAR_ARCHIVE)          // menus made for the headset (vr_menuui.cpp): filling the panel, rows spaced out, modern sliders and switches, a laser pointer
 QVR_CVAR(vr_menu_main_mods, "0", CVAR_ARCHIVE)        // the main menu's Mods row (Options > Mods has it anyway; Ironwail's own rule still hides it for a mod with its own menu)
 QVR_CVAR(vr_menu_fine_step, "0.1", CVAR_ARCHIVE)      // a slider's step while the fine-adjust modifier is held (a grip in the headset, Shift on a flat screen): this much of its own (0.01 to 1)
+QVR_CVAR(vr_menu_grab, "2", CVAR_ARCHIVE)             // moving the menu panel with a grip (vr_menuui.cpp PanelGrab): 0 never; 1 with the laser on its frame (lit there); 2 also on its face once the hand moves vr_menu_grab_deadzone with the grip held (not after a stick push or with the trigger held: the fine modifier then)
+QVR_CVAR(vr_menu_grab_deadzone, "4", CVAR_ARCHIVE)    // cm a hand moves with a grip held on the panel's face before it takes hold of the panel (vr_menu_grab 2)
 QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
 QVR_CVAR(vr_menu_laser_hue, "-1", CVAR_ARCHIVE)        // that laser's colour: hue (degrees; 35 amber; -1 vr_player_hue)
@@ -1198,7 +1201,12 @@ QVR_CVAR(vr_body_swim_kick, "1", CVAR_ARCHIVE)        // swimming, how wide the 
 QVR_CVAR(vr_body_swim_kick_rate, "1.5", CVAR_ARCHIVE) // and how many more kicks a second at full stick (0.7 treading water)
 QVR_CVAR(vr_body_turn_step, "40", CVAR_ARCHIVE)       // degrees the body turns over its planted feet before they step round
 QVR_CVAR(vr_body_state, "1", CVAR_ARCHIVE)            // the body shows the armour worn and, bloodier, the damage taken
-QVR_CVAR(vr_body_powerups, "1", CVAR_ARCHIVE)         // and the powerups: quad damage arcs, pentagram glow, ring translucency, biosuit tint
+QVR_CVAR(vr_body_powerups, "1", CVAR_ARCHIVE)         // and the powerups: quad damage's glow or arcs, pentagram glow, ring translucency, biosuit tint
+// Quad Damage on you (vr_view.cpp quadGlow): 0 Quake's electric arcs over the hands and forearms (the look of being
+// struck by lightning too), 1 a soft pulsing blue glow round the hands, arms and body and blue light from them, 2 both.
+QVR_CVAR(vr_quad_look, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_quad_glow, "1", CVAR_ARCHIVE)             // the glow's strength (0 none .. 2)
+QVR_CVAR(vr_quad_glow_light, "1", CVAR_ARCHIVE)       // the blue light the hands and body cast on the world (0 none .. 2)
 QVR_CVAR(vr_body_blood, "1", CVAR_ARCHIVE)            // the wounded arms and hands drip blood (vr_body_state's wounds; above 1, more drops)
 QVR_CVAR(vr_wounds, "1", CVAR_ARCHIVE)                // blood painted on models where they are hit (vr_wounds.cpp); your body and hands take it instead of the wound skins
 QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted on models (explosions, fire, lightning, lava, slime), embers while fresh
@@ -2315,6 +2323,18 @@ QVR_CVAR(vr_knockdown_onehand, "1", CVAR_ARCHIVE)         // the chance times th
 QVR_CVAR(vr_knockdown_twohand, "1.75", CVAR_ARCHIVE)      // and this for a two-handed one
 QVR_CVAR(vr_knockdown_bash, "1", CVAR_ARCHIVE)            // and this for a weapon's bash (0: only open-palm shoves)
 QVR_CVAR(vr_knockdown_stamina, "1", CVAR_ARCHIVE)         // how much low stamina cuts the chance: times 1 - this x the share spent (0: no effect)
+// Hits that unbalance (QC vr_hitstagger.qc; Combat > Knockdowns, "Hits Unbalance"): a strong throw or melee blow may make
+// a monster lose its balance as a shove does (the active-ragdoll stagger; others: pushed and a forced pain), by chance.
+QVR_CVAR(vr_hit_stagger, "1", CVAR_ARCHIVE)               // on (0: only shoves and bashes unbalance)
+QVR_CVAR(vr_hit_stagger_chance, "1", CVAR_ARCHIVE)        // every hit's chance times this (testing: 100, every hit past the least impact)
+QVR_CVAR(vr_hit_stagger_min, "0.5", CVAR_ARCHIVE)         // impact (1: the reference throw or blow) under this never unbalances; from it to 1 the chance rises 0 .. 1
+QVR_CVAR(vr_hit_stagger_throw_ref, "60", CVAR_ARCHIVE)    // kg m/s: a thrown prop's or weapon's momentum (mass x speed into it) that makes impact 1 (a 6 kg crate at 10 m/s)
+QVR_CVAR(vr_hit_stagger_melee_ref, "30", CVAR_ARCHIVE)    // a melee blow's damage (its zone's multiplier in) that makes impact 1
+QVR_CVAR(vr_hit_stagger_damage, "1", CVAR_ARCHIVE)        // impact plus this x the hit's damage as a share of its full health
+QVR_CVAR(vr_hit_stagger_head, "1.5", CVAR_ARCHIVE)        // a melee blow to the head (fist or weapon): impact times this
+QVR_CVAR(vr_hit_stagger_resist, "0.75", CVAR_ARCHIVE)     // big monsters resist: the chance times (30 / its full health) ^ this, above 30 health (0: none; shambler 0.1, ogre 0.24)
+QVR_CVAR(vr_hit_stagger_push, "1", CVAR_ARCHIVE)          // its push, times a shove's (impact 1: a two-hand shove's; 0.5 .. 1.25)
+QVR_CVAR(vr_hit_stagger_cooldown, "4", CVAR_ARCHIVE)      // s after an unbalancing hit before another hit can unbalance it (no stunlock)
 QVR_CVAR(vr_knockdown_time_min, "2.5", CVAR_ARCHIVE)      // seconds it stays down, at least,
 QVR_CVAR(vr_knockdown_time_max, "4.5", CVAR_ARCHIVE)      // and at most (at random between)
 QVR_CVAR(vr_knockdown_hit_time, "0.5", CVAR_ARCHIVE)      // seconds each hit while down adds (not past Time Max from the hit)
