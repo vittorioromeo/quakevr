@@ -13315,6 +13315,7 @@ namespace
 // bounded horizontal nudge to nearby limbs without changing player collision.
 void nudgeWalkedRagdolls(float dt)
 {
+    if(!vr_box3d_walk_nudge.value) { return; }
     world->walkOrigins.resize(svs.maxclients + 1);
     for(int player = 1; player <= svs.maxclients; player++)
     {
@@ -13334,7 +13335,7 @@ void nudgeWalkedRagdolls(float dt)
         for(size_t num = svs.maxclients + 1; num < world->slots.size(); num++)
         {
             const RagdollBodies* r = ragdollOf(static_cast<int>(num));
-            if(!r || !world->slots[num].corpseDynamic) { continue; }
+            if(!r) { continue; } // (its parts are dynamic bodies whatever Corpse Collision is)
             for(int part = 0; part < r->count; part++)
             {
                 const b3BodyId b = r->body[static_cast<za::SizeT>(part)];
