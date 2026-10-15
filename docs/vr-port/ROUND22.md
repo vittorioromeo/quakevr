@@ -7296,7 +7296,12 @@ in `activeClasses` (vr_box3d.cpp), and none of AD's own classnames were there.
 
   The lift: `judo_test.py adneck` (its lift verdict now needs the flail, but for the skull wizard). Its case turned to
   face the monster with `vr_mock_turn`, which doesn't exist (`vr_mock_turn_to`): the player sometimes faced away and
-  his hands closed on nothing; fixed.
+  his hands closed on nothing; fixed. Three runs (batched, unbatched, unbatched with frames drawn): every driven class
+  lifted flails (the zombie knight lifted in 1 of 3, its hands closing on nothing in the others); the standing snaps
+  pass for 11-12 of 16 a run, the failing set varying (the player ends 3 units from its origin, inside it, and the
+  hands find no hit sphere within 4 m: the harness, the centurion too, which isn't driven) but for two every time: the
+  zombie knight (one hand read at its shoulder, even with the zone on its head) and the skull wizard (both at its
+  shoulders; not driven, its zone unchanged). No baseline run: restoring the old files for one was refused.
 - Melee eval 168/177 (as before; the same 3 differ from the baseline). e1m1 smoke and AD's `start` (a death sergeant
   shoved) clean.
 - To try in VR (AD): shove a rocket grunt, a fumigator, a death knight and a zombie knight hard: they stagger, fall,
