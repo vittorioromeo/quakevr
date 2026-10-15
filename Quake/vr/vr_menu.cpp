@@ -1229,8 +1229,11 @@ int campaignsBloodyShown = -1;
             .help("How far from the body it looks for room to stand, never through a wall, floor or ceiling. No room: it "
                   "stays down (dragged into a tight corner or under something low) and tries again."),
         slider("Search in Water", vr_knockdown_water_search, 0.f, 512.f, 16.f, "%.0f units").extend(0.f, 2048.f)
-            .help("Lying in water, slime or lava: how far it looks for a floor where its head is out of it (the shallows, "
-                  "the bank) to get up on."),
+            .help("Swimming in water, slime or lava: how far it looks for a floor where its head is out of it (the "
+                  "shallows, the bank) to paddle to. It gets up on one within Room Search of where it floats."),
+        slider("Climb Out of Water", vr_knockdown_water_climb, 0.f, 96.f, 4.f, "%.0f units").extend(0.f, 256.f)
+            .help("Getting up in a liquid: how far over its body the floor it gets up onto may be. Higher (carried down "
+                  "there, or deep under): it swims up first, or gets up where it floats."),
         slider("Give Up in Water", vr_knockdown_water_giveup, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
             .help("No such floor for this long after its time to get up: it gets up where it floats, as a walking "
                   "monster again (it sinks, and can drown). 0: it floats until one is found."),

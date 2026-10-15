@@ -611,6 +611,8 @@ struct RagdollBodies
     double riseStuck{-1.0}; // risen, its spot taken since (it slumps after a while)
     double swimGoalAt{-1.0}; // a living knockdown swimming (livingSwim): when its goal (where it can stand) was looked for
     bool drowning{false};    // knocked down drowning (ragdollDrowning): its living swim begins frantic
+    bool heldWet{false};     // its get-up asked while a hand holds it in a liquid (ragdollGetUp: it stays down; printed once)
+    bool neckSnapped{false}; // its neck snapped (ragdollNeckSnapped): its head's joint loose, never driven
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -4512,6 +4514,29 @@ void driveActive(Slot& s, float dt)
             ragactive::lapse(r.active, parts, qcvm->time);
             r.riseAsked = false; // (the QC already waits: not one of its lapses)
         }
+        else if(a.rise.on)
+        {
+            // Carried off (ROUND22.md, "Carried into water: no snap back"): its pelvis in a liquid (it swims, and gets up
+            // there later), or a player's hand holding it far from its get-up's spot: it slumps (one of its lapses), its
+            // spot forgotten, never pinned back to where it lay.
+            const b3Vec3 p = b3Body_GetPosition(r.body[0]);
+            bool held = false;
+            for(const World::RagdollGrab& g : world->ragdollGrabs)
+            {
+                held = held || g.num == r.num;
+            }
+            constexpr float carriedOff = 64.f; // units, level, from the get-up's spot
+            const bool wet = liquidFor(r.num)(glmv(p)) != ragactive::Liquid::None;
+            if(wet || (held && glm::length(glm::vec2{world->toU(p) - r.riseSpot}) > carriedOff))
+            {
+                if(vr_knockdown_debug.value)
+                {
+                    Con_Printf("getup: %d carried off its get-up (%s): it slumps\n", r.num,
+                        wet ? "into a liquid" : "held far from its spot");
+                }
+                ragactive::lapse(r.active, parts, qcvm->time);
+            }
+        }
     }
     ragactive::Context c;
     c.world = world->id;
@@ -4991,7 +5016,9 @@ void updateRecoveries()
 // Lying in water, slime or lava (NOTES.md vrstart_2026-10-09_17-55-49: a knockdown floating in deep water never got up;
 // one over the bottom stood on it, under water, and drowned): a floor anywhere under the place, with its eyes out of
 // the liquid there, reached over the body (from up to 96 units over it: out over a pool's edge or onto a quay), out to
-// vr_knockdown_water_search: shallow water's bottom or the bank. `anywhere` (QC: no such place for a while): the box
+// `range` (a get-up's: where it stands up, near the body; ROUND22.md, "Carried into water: no snap back") or, `range` 0
+// (a swimmer's goal: livingSwim), vr_knockdown_water_search: shallow water's bottom or the bank (a get-up searching that
+// far stood up on the bank it had been carried from, 190 units off). `anywhere` (QC: no such place for a while): the box
 // clear at the body or around it, floor or none (it stands up in the liquid, a walking monster again, and sinks).
 [[nodiscard]] bool standSpot(edict_t* ent, const glm::vec3& from, const glm::vec3& at, const glm::vec3& mins,
     const glm::vec3& maxs, float range, glm::vec3& out, bool anywhere = false)
@@ -5023,10 +5050,18 @@ void updateRecoveries()
             {
                 const float a = glm::two_pi<float>() * static_cast<float>(d) / static_cast<float>(dirs);
                 const glm::vec3 c = base + glm::vec3{za::cos(a), za::sin(a), 0.f} * radius;
-                if(point(eye, glm::vec3{c.x, c.y, eye.z}, ent).fraction >= 1.f && boxClear(c))
+                if(point(eye, glm::vec3{c.x, c.y, eye.z}, ent).fraction >= 1.f)
                 {
-                    out = c;
-                    return true;
+                    // (Lying on a pool's bottom, the box about its pelvis reaches into the floor: lifted out of it.)
+                    for(const float lift : {0.f, 8.f, 16.f, 24.f, 32.f})
+                    {
+                        const glm::vec3 o = c + glm::vec3{0.f, 0.f, lift};
+                        if(boxClear(o))
+                        {
+                            out = o;
+                            return true;
+                        }
+                    }
                 }
             }
         }
@@ -5040,7 +5075,7 @@ void updateRecoveries()
         const trace_t down = point(eye, eye - glm::vec3{0.f, 0.f, 1024.f}, ent);
         const float bottom = down.fraction < 1.f ? down.endpos[2] : eye.z - 1024.f;
         const float eyes = (maxs.z - mins.z) * 0.8f; // (over its feet: a monster's eyes, about)
-        int walls = 0, noFloor = 0, deep = 0, noRoom = 0; // (vr_knockdown_debug 2: why each place wasn't)
+        int walls = 0, noFloor = 0, deep = 0, high = 0, noRoom = 0; // (vr_knockdown_debug 2: why each place wasn't)
         const auto tryWet = [&](const glm::vec3& c) {
             const glm::vec3 over{c.x, c.y, top.z};
             if(point(top, over, ent).fraction < 1.f)
@@ -5060,6 +5095,11 @@ void updateRecoveries()
                 ++deep;
                 return false; // (its head under: deep here)
             }
+            if(range > 0.f && floor.z > from.z + za::max(vr_knockdown_water_climb.value, 0.f))
+            {
+                ++high;
+                return false; // (a get-up's: a bank far over its body, carried down there; it swims up to it first)
+            }
             // (On a slope, the box over the point meets the slope: up to a step higher, it falls onto it.)
             for(const float lift : {0.25f, 6.f, 12.f, 18.f})
             {
@@ -5077,9 +5117,9 @@ void updateRecoveries()
             if(vr_knockdown_debug.value >= 2.f)
             {
                 Con_Printf("knockdown: %d in a liquid at %.0f %.0f %.0f (over it to %.0f, its bottom %.0f): %s; places with a "
-                           "wall between %d, no floor %d, too deep %d, no room %d\n",
+                           "wall between %d, no floor %d, too deep %d, too high %d, no room %d\n",
                     NUM_FOR_EDICT(ent), from.x, from.y, from.z, top.z, bottom, found ? "a floor found" : "none", walls,
-                    noFloor, deep, noRoom);
+                    noFloor, deep, high, noRoom);
             }
             return found;
         };
@@ -5087,7 +5127,7 @@ void updateRecoveries()
         {
             return report(true);
         }
-        const float wetRange = za::max(za::max(range, 0.f), vr_knockdown_water_search.value);
+        const float wetRange = range > 0.f ? range : za::max(vr_knockdown_water_search.value, 0.f);
         for(float radius = step; radius <= wetRange + 0.01f; radius += radius < 48.f ? step : 2.f * step)
         {
             const int dirs = za::clamp(static_cast<int>(glm::two_pi<float>() * radius / step), 8, 32);
@@ -15456,10 +15496,12 @@ void handBack(edict_t* ent, RagdollBodies& r, int frame, float yaw, const glm::v
                 n++;
             }
         }
+        const glm::vec3 lay = rec.pos[0];
         Con_Printf("handback: %d %s %s: its pose from the animated frame %d: %.1f units at most, %.1f mean; blended over "
-                   "%.2f s\n",
+                   "%.2f s; its pelvis at %.0f %.0f %.0f, it stands at %.0f %.0f %.0f (%.0f units across)\n",
             num, PR_GetString(ent->v.classname), why, frame >= 0 ? frame : static_cast<int>(ent->v.frame), most,
-            n > 0 ? sum / static_cast<float>(n) : 0.f, duration);
+            n > 0 ? sum / static_cast<float>(n) : 0.f, duration, lay.x, lay.y, lay.z, spot.x, spot.y, spot.z,
+            glm::length(glm::vec2{spot - lay}));
     }
     rec.start = qcvm->time;
     if(vr_knockdown_debug.value >= 2.f)
@@ -16038,6 +16080,25 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
     {
         return 0;
     }
+    // Carried in a liquid by a player's hand (ROUND22.md, "Carried into water: no snap back"): it swims in his grip and
+    // stays down until let go of (then it paddles to where it can stand, as one shoved in, the QC's give-up in a liquid
+    // timed from then: -1, asked again).
+    if(!r->active.rise.on && liquidAt(world->toU(b3Body_GetPosition(r->body[0]))))
+    {
+        for(const World::RagdollGrab& g : world->ragdollGrabs)
+        {
+            if(g.num == num)
+            {
+                if(vr_knockdown_debug.value && !r->heldWet)
+                {
+                    Con_Printf("knockdown: %d held in a liquid: stays down until let go of\n", num);
+                }
+                r->heldWet = true;
+                return -1;
+            }
+        }
+    }
+    r->heldWet = false;
     // Its body rising (vr_ragdoll_active_getup): on until it stands (-1), then handed back there (3 or 4: risen), if
     // its spot is still free (it was chosen 1-2.5 s ago: the player or a monster may stand there now).
     if(r->active.on && r->active.rise.on)

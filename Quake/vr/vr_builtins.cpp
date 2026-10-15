@@ -1646,7 +1646,8 @@ void PF_ragdollstaggered()
 // e gets up from its ragdoll, starting from frameA or frameB (whichever fits how it lies; -1 none): 0 no room within
 // range (it stays down), else 1 or 2 (the frame chosen), e at the place found, turned to it (.vr_knockdown 2). In a
 // liquid: where it can stand with its head out (box3d standSpot); anywhere: its box free, floor or none. Its body rising
-// first (vr_ragdoll_active_getup): -1 while it does, then 3 or 4 (risen: standing in its get-up's last frame).
+// first (vr_ragdoll_active_getup): -1 while it does, then 3 or 4 (risen: standing in its get-up's last frame). Held in a
+// liquid by a hand: -1 (it stays down until let go of).
 void PF_ragdollgetup()
 {
     const float* lo = G_VECTOR(OFS_PARM3);

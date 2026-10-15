@@ -401,7 +401,10 @@ void() VR_Knockdown_Think =
     float which = ragdollgetup(self, self.vr_kd_frame, self.vr_kd_frame2, self.vr_kd_mins, self.vr_kd_maxs, search);
     if(which < 0)
     {
-        self.nextthink = time + 0.05; // (its body rising through its get-up: asked again until it stands)
+        // (Its body rising through its get-up: asked again until it stands. Or held in a liquid by a hand: it stays
+        // down, its give-up in the liquid timed from when it is let go of.)
+        self.vr_kd_wet_since = 0;
+        self.nextthink = time + 0.05;
         return;
     }
     if(which >= 3)
