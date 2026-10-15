@@ -125,6 +125,8 @@ void VR_AliasDent (const struct entity_s *e, const void *aliashdr, float dent[4]
 void VR_DentBind (void); // the flesh dents' rows bound for the alias shaders (SSBO 12), the changed ones written first
 struct gltexture_s *VR_AliasSkinMask (const struct entity_s *e);
 void VR_PrecacheSkinMasks (void);
+// The gloves' painted leather for a hand (vr_glove_paint; vr_render.cpp): its detail and wear, its relief (grey: none)
+void VR_AliasGlovePaint (const struct entity_s *e, struct gltexture_s *out[2]);
 // r_lerpmodels 3 (vr_animsmooth.cpp): whether `e`, drawn between poses pose1 and pose2 at `blend` (R_SetupAliasFrame's),
 // goes along a spline through four poses: smooth[0], [1] the first and fourth (pose numbers), [2] 1 + where its bones'
 // swings are in the batch's buffer (0: none), weights the four poses'. `zeroblend`: its instance's padding (a steadied

@@ -8247,3 +8247,44 @@ punch a grunt's face hard with a fist (teeth; a soft punch none: Punch Hardness 
 ## VR menu panel: grip also pushes and pulls it
 
 A gripped panel already followed the hand in 3D, but 1:1 (a 30 cm arm move shifted a far panel ~30 cm). Now the hand's move towards/away from the panel (from the head) counts `vr_menu_grab_reach` times (default 3; 1 = as before), the distance clamped to `vr_menu_grab_dist_min` 30 .. `vr_menu_grab_dist_max` 200 cm (a panel taken farther than the max, like the 150-unit default, can be pulled in but not pushed further out; one taken nearer than the min is not pinched). The panel keeps its hand-set turn (as before). The distance is part of the placement (hide/restore, remembered). No thumbstick use: sticks while gripping are the fine modifier and disarm the grab. Test (headless, mock hand): hand 30 cm back: 150 -> 121.7 units from the head; forward again: 150; far forward stays 150; far back clamps at 9.4 units (30 cm). menu_panels_test.py passes.
+
+## Gloves: worn leather, a painted layer he can edit (worktree `flatfist`, branch `agent/glovepaint`, 2026-10-16)
+
+His request: a painted texture on top of the gloves, worn and used (knuckles, wear over the finger joints, stitching
+along the seams), editable by hand in an image editor. The procedural leather alone read smooth, more rubber than
+leather, at arm's length.
+
+- **Engine.** `vr_glove_paint` (default 1; VR Settings > Player Appearance > Gloves > "Worn Leather"; 0 the plain
+  leather as before). Per hand skin `progs/hand_rig_0N_00_glove` (else skin 0's): **RGB** detail multiplied with the
+  HSL colour (128 grey = the colour as it is), **A** wear (the leather paler, greyer and matte there: a black glove's
+  scuffs grey, a brown one's tan; the sheen down to 30%); `_glove_height` its relief (128 flat; its slope bends the
+  normal as the mask's seams did). With the painted layer the mask's A seams step aside (the paint has them), the
+  shader's own grain goes finer and to 35% (close-up texture under the paint), and the hem's band counts as worn (0.4).
+  Units 7 and 8 of the model shader (`GloveTex`, `GloveHeightTex`); the instance's `Glove.w` carries the flags (+4
+  the layer, +8 the layer with its relief). Loaded unowned outside the draw loops (`VR_PrecacheSkinMasks`), freed and read again at
+  every map load (`worldGeneration`) and by `vr_gloves_reload` (Debug > Rebuild and Reload > "Reload Glove Paint"),
+  so his edits show without a restart; `developer 1` prints each read. Missing files: today's procedural look.
+- **Content.** `Misc/quakevr/make_glove_paint.py` (genguarded; deterministic; ~15 s) paints at 1024 x 1024 (twice
+  the skin: ~3 texels a mm) from the rig's 3D positions: a 3D cellular pebble grain (~1.7 mm) with a coarser crease
+  network in places and a mottled tone; the knuckles scuffed through in abraded patches with grime round them; the
+  PIP/DIP joints' backs scuffed less, the leather wrinkled across them, folded deep on the palm's side; the palm's
+  folds (heart, head and life lines); three stitched "points" down the back; `make_skin_masks.py`'s seam lines (now a
+  function, `seam_lines`; its masks bit for bit the same) sewn: a groove, a lip either side, slanted thread stitches
+  with needle holes, the thread paler; the fingertips worn; 50 scratches. One file pair serves all four hand skins
+  (they differ only by static blood, which the glove masks leave out); a skin can have its own by name.
+- **Docs.** `docs/vr-port/GLOVES.md`: the files, the channels, the reload, the generator and its guard.
+
+Tested (headless, vrfiringrange, 2048 x 2048 eyes, about a headset's pixels a degree; `scratch/glove_paint_shots.py`,
+before/after sheets `scratch/gp_final_close.png`, `scratch/gp_final_far.png`; 1:1 crops `scratch/glove_paint_close.png`,
+`scratch/glove_paint_far.png`): full brown, black, red, fingerless brown, black, blue; backs and palms, 25-30 cm and
+~55 cm away. At arm's length the knuckles' grey/tan scuffs, the joints' wear, the stitched points and the palm's folds
+read as worn leather on all six; close up the wrinkles, thread and scratches hold. Bare hands: `vr_glove_paint` 0 vs
+1 in separate runs differ by 11019 px, two runs with 0 by 11552 (the scene's own run-to-run noise). GPU (`--exclusive
+-RealTime`, hands 13 cm from the eyes, gloves 2): frame GPU 1.094 / 1.080 / 1.092 / 1.066 ms for paint off / on / off
+/ on: no measurable cost (4 taps more, on gloved pixels only). e1m1 then e1m2 with gloves, the reload, paint toggled:
+no errors; the files read at each map and on the reload.
+
+For him in VR: whether the wear is too pale or too much (paint the PNG's alpha, or `make_glove_paint.py`'s
+`scuffed()` levels), the stitched points down the back (three rows; delete them in the PNG if unwanted), the relief's
+strength (`vr_glsl.h`: `paintSlope = 2.0 * ...`). Note: `developer 1` warns that QuakeSpasm can't read the PNGs (a
+compatibility note for mods; Quake VR reads them).
