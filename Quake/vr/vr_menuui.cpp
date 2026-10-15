@@ -411,6 +411,9 @@ struct PanelGrab
     glm::vec3 armedSpot{0.f};           // and its laser on the panel
     bool sticksMoved{false};            // a stick was pushed while it was armed: the fine modifier, not a grab
     glm::vec3 centre{0.f}, right{0.f}, up{0.f}, spot{0.f}; // the panel and the laser's spot, in the hand's frame
+    glm::vec3 dirAtTake{1.f, 0.f, 0.f}; // from the head to the panel's middle when taken
+    glm::vec3 handFromHead{0.f};        // the hand's place from the head then
+    float distAtTake{0.f};              // the panel's middle's distance from the head then (units)
 };
 PanelGrab panelGrab;
 
@@ -437,6 +440,10 @@ void haptic(int hand, float seconds, float amplitude);
     panelGrab.right = toHand * glm::normalize(xAxis);
     panelGrab.up = toHand * glm::normalize(yAxis);
     panelGrab.spot = toHand * (spot - origin);
+    const glm::vec3 toPanel = corner + (xAxis + yAxis) * 0.5f - s.head;
+    panelGrab.distAtTake = glm::length(toPanel);
+    panelGrab.dirAtTake = panelGrab.distAtTake > 1.f ? toPanel / panelGrab.distAtTake : glm::vec3{1.f, 0.f, 0.f};
+    panelGrab.handFromHead = origin - s.head;
     pointingHand = hand;
     return true;
 }
@@ -458,9 +465,27 @@ void followHold(const hands::State& s)
         right = glm::normalize(glm::cross(facing, glm::vec3{0.f, 0.f, 1.f}));
         up = glm::cross(right, facing);
     }
+    // Pushed and pulled: the hand's move towards or away from where the panel was (from the head) counts
+    // vr_menu_grab_reach times, so that an arm's length is the room's worth; the distance kept within
+    // vr_menu_grab_dist_min..max cm (never pinched in from where it was taken).
+    glm::vec3 centre = origin + basis * panelGrab.centre;
+    const float reach = za::fmax(1.f, vr_menu_grab_reach.value);
+    if(reach > 1.f)
+    {
+        const glm::vec3 toPanel = centre - s.head;
+        const float dist = glm::length(toPanel);
+        if(dist > 1.f)
+        {
+            const float radial = glm::dot((origin - s.head) - panelGrab.handFromHead, panelGrab.dirAtTake);
+            const float lo = za::fmin(panelGrab.distAtTake, vr_menu_grab_dist_min.value * 0.01f * units::metresToUnits());
+            const float hi = za::fmax(panelGrab.distAtTake, vr_menu_grab_dist_max.value * 0.01f * units::metresToUnits());
+            const float want = za::fmax(lo, za::fmin(hi, dist + (reach - 1.f) * radial));
+            centre = s.head + toPanel * (want / dist);
+        }
+    }
     const int was = menu::currentInstance(); // (the menu held, whichever the menu code works on)
     menu::selectInstance(panelGrab.menu);
-    panel::placeMenu(s, origin + basis * panelGrab.centre, right, up);
+    panel::placeMenu(s, centre, right, up);
     menu::selectInstance(was);
 }
 

@@ -8243,3 +8243,7 @@ the machine, not the gore). So: within the runs' noise, under 0.05 ms a frame.
 In VR: shoot a grunt with the shotgun up close and watch the streams pour as it stands, falls and lies; check that the
 pools under it grow where the streams land; shoot one standing a little in front of a wall (the streaks behind it);
 punch a grunt's face hard with a fist (teeth; a soft punch none: Punch Hardness for Teeth) and pick a tooth up.
+
+## VR menu panel: grip also pushes and pulls it
+
+A gripped panel already followed the hand in 3D, but 1:1 (a 30 cm arm move shifted a far panel ~30 cm). Now the hand's move towards/away from the panel (from the head) counts `vr_menu_grab_reach` times (default 3; 1 = as before), the distance clamped to `vr_menu_grab_dist_min` 30 .. `vr_menu_grab_dist_max` 200 cm (a panel taken farther than the max, like the 150-unit default, can be pulled in but not pushed further out; one taken nearer than the min is not pinched). The panel keeps its hand-set turn (as before). The distance is part of the placement (hide/restore, remembered). No thumbstick use: sticks while gripping are the fine modifier and disarm the grab. Test (headless, mock hand): hand 30 cm back: 150 -> 121.7 units from the head; forward again: 150; far forward stays 150; far back clamps at 9.4 units (30 cm). menu_panels_test.py passes.
