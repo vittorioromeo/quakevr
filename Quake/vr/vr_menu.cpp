@@ -7064,6 +7064,12 @@ za::Vector<Item> pageDebugTests()
         command("Shove the Nearest, Steady Stagger", "vr_knockdown_chance 0.01; vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
             .help("Knockdowns' Chance 0.01 (set it back after): its balance all but full, so it staggers and recovers, "
                   "back to its animation and its AI (the hand-back's gap printed: \"handback:\")."),
+        command("Hit Stagger: Chances of the Nearest", "developer 1; vr_knockdown_test 40")
+            .help("Hits Unbalance (Combat > Knockdowns): the nearest monster's chance to lose its balance to a weak tap, "
+                  "a strong blow, a punch to the head, a heavy throw and a thrown weapon (\"hit stagger chances:\")."),
+        command("Hit Stagger: Strong Blow on the Nearest", "developer 1; vr_knockdown_test 42")
+            .help("The nearest monster struck by a strong blow's stagger alone (no damage): 1 a ragdoll's stagger, 2 "
+                  "pushed and flinching, 0 kept its balance, -1 still in its Hit Cooldown."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),

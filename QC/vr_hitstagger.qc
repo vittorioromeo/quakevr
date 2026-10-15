@@ -14,7 +14,7 @@
 //   and, with Knockdowns and an active ragdoll (vr_ragdoll_active_stagger), staggering as a ragdoll, its balance the
 //   shove's roll against its knockdown chance (so it recovers, or by that chance goes over: VR_Knockdown_Stagger). Other
 //   monsters (no ragdoll, flying, Arcane Dimensions'): pushed and a forced pain, kept from attacking a moment (as a bash).
-// - vr_knockdown_debug (developer 1) prints each roll; vr_knockdown_test 40..45 test it (VR_HitStagger_Test).
+// - vr_knockdown_debug (developer 1) prints each roll; vr_knockdown_test 40..46 test it (VR_HitStagger_Test).
 
 float VR_HST_HEALTH_REF = 30;  // the full health big monsters' resistance is reckoned from (a grunt's: none)
 float VR_HST_BOSS = 1000;      // full health from which a monster is never unbalanced by a hit (Chthon, Shub and their kin)
@@ -159,11 +159,11 @@ float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamag
     return VR_HitStagger_Try(e, xBy, xDir, impact, xDamage, sprintf("a throw (%.1f kg, %.0f kg m/s)", xMass, momentum));
 };
 
-// For tests (vr_knockdown_test 40..45; self the player), on the nearest live monster: 40 lists its chances (a weak tap, a
+// For tests (vr_knockdown_test 40..46; self the player), on the nearest live monster: 40 lists its chances (a weak tap, a
 // strong blow, a strong punch to the head, a heavy throw, a thrown weapon), 41 a heavy throw (a 12 kg crate at 10 m/s),
 // 42 a strong blow (36 damage), 43 a weak tap (5), 44 a strong punch to the head (20), 45 its state. 41..44 deal no
 // damage (the stagger alone) and print "hit stagger test: <class> <what>: <0 none, 1 a ragdoll's stagger, 2 pushed and
-// pained, -1 its cooldown>".
+// pained, -1 its cooldown>"; 46 the nearest loose prop thrown into it (the real hit: VR_Prop_Flung).
 void(float xMode) VR_HitStagger_Test =
 {
     entity best = world;
@@ -197,6 +197,45 @@ void(float xMode) VR_HitStagger_Test =
     {
         dprint(sprintf("hit stagger state: %s knockdown %g stagger %g, cooldown %.2f s\n", best.classname, best.vr_knockdown,
             best.vr_kd_stagger, max(0, best.vr_hst_next - time)));
+        return;
+    }
+    if(xMode == 46)
+    {
+        // The real way: the loose prop nearest you thrown as yours (VR_Carry_Throw) into its middle from 40 units before
+        // it at vr_test_throw_up_speed m/s (its hit: VR_Prop_Flung; the roll printed with vr_knockdown_debug).
+        entity prop = world;
+        float near = 1024;
+        for(entity p = nextent(world); p != world; p = nextent(p))
+        {
+            if(p.vr_rigid && p.carry_player == world && (p.touch == forcegrabbable_touch || p.vr_impact) &&
+               vlen(p.origin - self.origin) < near)
+            {
+                near = vlen(p.origin - self.origin);
+                prop = p;
+            }
+        }
+        if(prop == world)
+        {
+            dprint("hit stagger test: no prop\n");
+            return;
+        }
+        vector to = best.origin - self.origin;
+        to_z = 0;
+        to = normalize(to);
+        vector mid = (best.absmin + best.absmax) * 0.5;
+        prop.throwhit = QVR_THROWHIT_HIT;
+        prop.owner = world;
+        prop.vr_fling_hit = 0;
+        prop.fg_state = 0;
+        prop.flags = prop.flags - (prop.flags & FL_ONGROUND);
+        prop.carry_letgo = self;
+        prop.carry_letgo_time = time;
+        setorigin(prop, mid - to * (40 + best.maxs_x) - (prop.mins + prop.maxs) * 0.5);
+        prop.vr_spin = '0 0 0';
+        prop.avelocity = '0 0 0';
+        VR_Carry_Throw(prop, to * cvar("vr_test_throw_up_speed") * VRMetersToUnits());
+        dprint(sprintf("hit stagger test: %s (%.1f kg) thrown at %s at %.1f m/s\n", prop.classname, VR_Thrown_Mass(prop),
+            best.classname, cvar("vr_test_throw_up_speed")));
         return;
     }
     float cooling = time < best.vr_hst_next;

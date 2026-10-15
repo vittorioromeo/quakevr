@@ -348,7 +348,8 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 - Quad damage on the player's body/IK arms: a different effect than electricity, so the two states are distinct.
 - Several VR menus open at once, each with its own state, e.g. two side by side for different tasks in parallel.
 - Strong prop/weapon throws and melee hits make enemies lose balance like a shove (chance based, and/or a %hp damage
-  threshold, prop weight, ...); maybe strong fist hits to the head too.
+  threshold, prop weight, ...); maybe strong fist hits to the head too. Done (ROUND22.md, "Hits that unbalance";
+  `vr_hit_stagger*`, Combat > Knockdowns > Hits Unbalance).
 - Slow motion still turns on by accident: double-tapping the wrist gadget screen during frantic melee/shoves. Find a
   good fix (e.g. ignore taps while the hand moves fast or right after a blow, a deliberate gesture, a hold, ...).
 - Active-ragdoll get-up moves the body around too much: it visibly glides on the ground plane instead of just
