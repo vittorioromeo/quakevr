@@ -1776,7 +1776,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "layout(std430, binding=9) restrict readonly buffer SmoothSwingBuffer { vec4 SmoothSwing[]; };\n" \
 "vec3 RigSwing(uint base)\n" \
 "{\n" \
-"	vec4 r = SmoothRest[gl_VertexID];\n" \
+"	vec4 r = SmoothRest[3u * uint(gl_VertexID)];\n" \
 "	float bone = floor(r.w);\n" \
 "	uint i = base + uint(bone) * 3u;\n" \
 "	vec4 p = vec4(r.xyz, 1.0);\n" \
@@ -1786,10 +1786,32 @@ QVR_PERMDECAL_FUNCTIONS \
 "// vertex moved whole with its bone.\n" \
 "vec3 RigKick(uint base)\n" \
 "{\n" \
-"	vec4 r = SmoothRest[gl_VertexID];\n" \
+"	vec4 r = SmoothRest[3u * uint(gl_VertexID)];\n" \
 "	uint i = base + uint(floor(r.w)) * 3u;\n" \
 "	vec4 p = vec4(r.xyz, 1.0);\n" \
 "	return vec3(dot(SmoothSwing[i], p), dot(SmoothSwing[i + 1u], p), dot(SmoothSwing[i + 2u], p));\n" \
+"}\n" \
+"// QVR: vr_anim_smooth_rebuild: 9 rows a bone (its swing, its motion now from its rest place to the poses' bytes, its\n" \
+"// turn with its share in the first's w); each vertex's rebuild place on its bone (units) and share, its normal so: the\n" \
+"// vertex (and normal) moved from the spline's (`pos`, swung) to its bone's by both shares.\n" \
+"vec3 RigRebuild(uint base, vec3 pos, inout vec3 nor)\n" \
+"{\n" \
+"	uint v = 3u * uint(gl_VertexID);\n" \
+"	vec4 r = SmoothRest[v];\n" \
+"	float bone = floor(r.w);\n" \
+"	uint i = base + uint(bone) * 9u;\n" \
+"	vec4 p = vec4(r.xyz, 1.0);\n" \
+"	pos += (r.w - bone) * 2.0 * vec3(dot(SmoothSwing[i], p), dot(SmoothSwing[i + 1u], p), dot(SmoothSwing[i + 2u], p));\n" \
+"	vec4 q = SmoothRest[v + 1u];\n" \
+"	float k = q.w * SmoothSwing[i + 6u].w;\n" \
+"	if (k > 0.0)\n" \
+"	{\n" \
+"		vec4 c = vec4(q.xyz, 1.0);\n" \
+"		vec3 n = SmoothRest[v + 2u].xyz;\n" \
+"		pos = mix(pos, vec3(dot(SmoothSwing[i + 3u], c), dot(SmoothSwing[i + 4u], c), dot(SmoothSwing[i + 5u], c)), k);\n" \
+"		nor = mix(nor, vec3(dot(SmoothSwing[i + 6u].xyz, n), dot(SmoothSwing[i + 7u].xyz, n), dot(SmoothSwing[i + 8u].xyz, n)), k);\n" \
+"	}\n" \
+"	return pos;\n" \
 "}\n" \
 "\n" \
 "// QVR: the model's own occlusion at this vertex in a pose (vr/vr_ao.cpp: 1 open), in its position's 4th byte\n" \
@@ -1823,6 +1845,8 @@ QVR_PERMDECAL_FUNCTIONS \
 "#if POSEVERTTYPE == 0\n" \
 "		if (inst.Smooth.z > 0)\n" \
 "			lerpedPos += RigSwing(uint(inst.Smooth.z - 1));\n" \
+"		else if (inst.Smooth.z < 0)\n" \
+"			lerpedPos = RigRebuild(uint(-inst.Smooth.z - 1), lerpedPos, smoothnor);\n" \
 "		if (inst.Smooth.w > 1)\n" \
 "			lerpedPos += RigKick(uint(inst.Smooth.w - 2));\n" \
 "#endif\n" \
