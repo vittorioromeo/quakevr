@@ -53,6 +53,8 @@ float     ldmg;
 
     if(vlen(delta) > 100)
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
 
     ldmg = (random() + random() + random()) * 8;
     T_Damage(self.enemy, self, self, ldmg);

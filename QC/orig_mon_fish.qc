@@ -81,6 +81,8 @@ void() fish_melee =
 
     if(vlen(delta) > 60)
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
 
     sound(self, CHAN_VOICE, "fish/bite.wav", 1, ATTN_NORM);
     ldmg = (random() + random()) * 3;

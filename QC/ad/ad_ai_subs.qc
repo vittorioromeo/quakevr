@@ -782,9 +782,11 @@ void() ad_ai_resetangles =
 void(float ad_dist) ad_ai_charge =
 {
 	self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
+	VR_MeleeArc_TurnBegin(); // AD support: melee arc: the swing's turn held, ai_face's and movetogoal's step's (fight.qc)
 	ad_ai_face ();
 	local vector ad_before = self.origin; // QVR: (VR_MeleeSpace_Step: fight.qc)
 	ad_movetogoal (ad_dist);
+	VR_MeleeArc_TurnEnd(); // AD support: (melee arc)
 	VR_MeleeSpace_Step(ad_before);
 };
 
@@ -795,7 +797,9 @@ void(float ad_dist) ad_ai_chargenoturn =
 {
 	self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
 	local vector ad_before = self.origin;
+	VR_MeleeArc_TurnBegin(); // AD support: melee arc: movetogoal's step turns it too (fight.qc)
 	ad_movetogoal (ad_dist);
+	VR_MeleeArc_TurnEnd(); // AD support: (melee arc)
 	VR_MeleeSpace_Step(ad_before);
 };
 
@@ -810,7 +814,7 @@ void() ad_ai_charge_side =
 	
 	// aim to the left of the enemy for a flyby
 	self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
-	ChangeYaw ();
+	VR_MeleeArc_TurnBegin(); ChangeYaw (); VR_MeleeArc_TurnEnd(); // AD support: melee arc: the swing's turn held (fight.qc)
 
 	makevectors (self.angles);
 	ad_dtemp = self.enemy.origin - (30 * v_right);
@@ -829,7 +833,7 @@ void() ad_ai_charge_front =
 	self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
 	local	float	ad_heading;
 	
-	ad_ai_face();			// Turn towards enemy first
+	VR_MeleeArc_TurnBegin(); ad_ai_face(); VR_MeleeArc_TurnEnd(); // AD support: melee arc: the swing's turn held (fight.qc)			// Turn towards enemy first
 
 	makevectors (self.angles);
 	ad_heading = vectoyaw(self.enemy.origin - self.origin);
@@ -1156,7 +1160,7 @@ void() ad_ai_melee =
 
 	if (!self.enemy) return;			// removed before stroke
 	ad_ai_damagebreakable(10);				// Damage any breakables
-	if (!ad_ai_checkmelee(ad_MONAI_MELEEFRONT,ad_FALSE)) return;	// Too far away
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEEFRONT,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed? - no blood/damage, quick exit
 	// This candamage test not in origina id code (sync'd to melee_side)
@@ -1198,7 +1202,7 @@ void(float ad_dmg_multiplier) ad_ai_meleesmash =
 	if (!self.enemy) return;						// removed before stroke
 	ad_ai_damagebreakable(3*ad_dmg_multiplier);			// Damage any breakables
 	// Is the enemy too far away, ++ extra Z height
-	if (!ad_ai_checkmelee(self.ad_meleerange, ad_MONAI_MELEEZTALL)) return;
+	if (!(ad_ai_checkmelee(self.ad_meleerange, ad_MONAI_MELEEZTALL) && VR_MeleeArc_Hits(FALSE))) return; // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed? - no blood/damage, quick exit
 	// This candamage test not in origina id code (sync'd to melee_side)
@@ -1243,7 +1247,7 @@ void() ad_ai_melee_side =
 	if (!self.enemy) return;	// removed before stroke
 	ad_ai_damagebreakable(10);		// Damage any breakables
 	ad_ai_charge_side();			// move (20 units) to the side of enemy
-	if (!ad_ai_checkmelee(ad_MONAI_MELEESIDE,ad_FALSE)) return;	// Too far away
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEESIDE,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed? - no blood/damage, quick exit
 	if (!ad_CanDamage (self.enemy, self)) return;

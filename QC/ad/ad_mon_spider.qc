@@ -193,7 +193,7 @@ void() ad_spider_melee =
 		
 	ad_ai_charge(10);									// Get closer for extra bite
 	ad_ai_damagebreakable(10);							// Damage any breakables
-	if (!ad_ai_checkmelee(ad_MONAI_MELEESPIDER,ad_FALSE)) return;	// Too far away
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEESPIDER,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed?
 	if (!self.enemy.takedamage) return;

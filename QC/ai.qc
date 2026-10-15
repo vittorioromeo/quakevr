@@ -1053,7 +1053,10 @@ void() ai_run_melee =
     if(FacingIdeal())
     {
         self.vr_melee_begun = time; // VR: one attack's blows, one parry (combat.qc VR_Parry)
-        self.th_melee();
+        if(self.classname == "monster_knight")
+            knight_attack(); // QVR: as CheckAttack's (it turned first here: melee arc)
+        else
+            self.th_melee();
         self.attack_state = AS_STRAIGHT;
     }
 };
