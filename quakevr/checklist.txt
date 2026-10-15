@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Pentagram / Biosuit (Debug > Test Effects): body and hands glow pulsing red / green with matching hand light; with Quad too the glows take turns; does the red read as red under the yellow flash? biosuit at 2 too strong? Glow 0 = old tint
+Your tweaks are now defaults (config 133): blood feedback, Quad 2/2/2, bash 5, neck snap Hand Line 210/80, throws, lift, limb grab, reload, decals, PBR, bare forearms; values you set by hand are kept
 Bullet time: frantic melee (punches, shoves, bashes) near the wrist gadget never starts slow motion; a calm double tap still does (Screen Tap > Quiet After Blows / Calm Hands Speed)
 Get-up: shoved-over grunts and knights roll over and rise where they lie, no slide away and back (Ragdoll Settings > Get Up in Place)
 VR menu panel: point just outside its edge (frame lights) and hold grip: it follows your hand, stays where let go; grip on the panel + move a few cm also moves it; grip held still on a slider still fine-steps; reopen: back in front of you
