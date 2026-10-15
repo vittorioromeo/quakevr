@@ -598,6 +598,7 @@ The interpretation main loop
 #define OPC ((eval_t *)&qcvm->globals[(unsigned short)st->c])
 
 static void PR_ExecuteProgramRun (func_t fnum);
+#include "vr/vr_qcexec.c" // QVR: the faster loop (QCExec_Run; docs/vr-port/QC_VM.md)
 
 // QVR: the profiler's "quakec" scope round the outermost call (vr_profile_report); with profiling off, one test.
 void PR_ExecuteProgram (func_t fnum)
@@ -631,6 +632,9 @@ static void PR_ExecuteProgramRun (func_t fnum)
 	int profile, startprofile;
 	edict_t		*ed;
 	int		exitdepth;
+
+	if (QCExec_Run (fnum)) // QVR: the faster loop ran it (vr/vr_qcexec.c; vr_qcexec 0: the one below)
+		return;
 
 	if (!fnum || fnum >= qcvm->progs->numfunctions)
 	{
