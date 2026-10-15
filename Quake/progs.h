@@ -327,6 +327,7 @@ void PR_PopQCVM(qcvm_t *oldvm);
 void PR_Init (void);
 
 void PR_ExecuteProgram (func_t fnum);
+float PR_RandomNumber (void); // QVR: QuakeC's random() (pr_cmds.c), drawn from the server's stream
 void PR_ClearProgs(qcvm_t *vm);
 qboolean PR_LoadProgs (const char *filename, qboolean fatal);
 void PR_EnableExtensions (void);

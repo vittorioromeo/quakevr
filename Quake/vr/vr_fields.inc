@@ -87,6 +87,8 @@ QVR_FIELD(vr_spin)
 QVR_FIELD(vr_pickup_spin) // a weapon pickup drawn as its prop (no EF_ROTATE): drawn spinning as a pickup while not a rigid body (U_QVR_SPIN)
 QVR_FIELD(vr_impact) // a prop's hits (vr_box3d.cpp): .void(float speed) called with how hard it hit something (m/s)
 QVR_FIELD(throwhit) // QVR_THROWHIT_NEVER_HIT (0) while a thrown thing's throw lasts (vr_box3d.cpp's hit box)
+QVR_FIELD(throwstabilize)    // a thrown weapon's settling after it lands: degrees a think towards lying flat (vr_propthink.cpp)
+QVR_FIELD(throwstabilizedim) // ... and which of its angles (0 pitch, 1 yaw, 2 roll)
 QVR_FIELD(vr_blocksight) // a solid prop monsters can't see through (a crate, an explosive box: sightblocked, vr_crates.cpp)
 QVR_FIELD(vr_shot_radius)  // a grenade shots set off (vr_hitmodel.cpp VR_ShotTargetClip): the half size of the cube shots meet round its middle; 0 none
 QVR_FIELD(vr_shot_ownfrom) // and when its owner's own shots start to meet it (not as it leaves his launcher or hand)
