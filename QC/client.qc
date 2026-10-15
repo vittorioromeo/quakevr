@@ -153,6 +153,7 @@ void() SetChangeParms =
     parm48 = self.holsterweaponinst5.wi_uid;
     parm49 = qvr_weaponinst_next;
     parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
+    WeaponInst_PackHot(self); // (the blades still glowing: parm65..72)
     parm39 = self.weaponclipsize;
     parm50 = self.vr_flashlight_state;
     parm40 = self.weaponclipsize2;
@@ -306,6 +307,7 @@ void() SetNewParms =
     parm48 = 0;
     parm49 = qvr_weaponinst_next;
     parm64 = 0; // (AD support: no upgrades)
+    parm65 = 0; parm66 = 0; parm67 = 0; parm68 = 0; parm69 = 0; parm70 = 0; parm71 = 0; parm72 = 0; // (cold)
     parm50 = 0;
 };
 
@@ -421,6 +423,7 @@ void() DecodeLevelParms =
     self.holsterweaponinst4 = WeaponInst_Carried(self.holsterweapon4, parm37, parm47);
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
     AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
+    WeaponInst_UnpackHot(self);
     VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
 
     // ------------------------------------------------------------------------

@@ -35,6 +35,7 @@ float(entity xThing) VR_HotBlade_ThrownExtra;
 void(entity xThing, entity xTarg, entity xBy, float xAlive, vector xAt, vector xDir) VR_HotBlade_ThrownStruck;
 .float vr_hot_glow; // on a weapon prop (thrown_weapon): its glow 0..1 for the engine (VR_HotBlade_Lying; U_QVR_WEAPONUID)
 
+nosave float vr_hot_any_until; // Until when some weapon may still be incandescent (vr_hotblade.qc)
 float qvr_weaponinst_next; // The next id to try (saved with the game; carried to the next level: parm49).
 
 // Every record's id is below this; 0: not known yet (a load or a new map: the progs' globals start again), and the first
@@ -246,4 +247,45 @@ string(entity e, float xHand) VRWeaponInstDesc =
 {
     entity r = VRGetEntWeaponInst(e, xHand);
     return sprintf("weapon %g #%g clip %g", xHand == cVR_OffHand ? e.weapon2 : e.weapon, r.wi_uid, r.wi_clip);
+};
+
+// Incandescent blades across a level change (parm65..72: the two hands' records, then the six holsters'): the seconds a
+// blade has left to glow, in tenths, 0 = cold (the new level's clock restarts, so the end is carried as a time left).
+float(entity r) WeaponInst_HotParm =
+{
+    return (r != world && r.wi_hot_end > time) ? ceil((r.wi_hot_end - time) * 10) : 0;
+};
+
+void(entity p) WeaponInst_PackHot =
+{
+    parm65 = WeaponInst_HotParm(p.weaponinst);
+    parm66 = WeaponInst_HotParm(p.weaponinst2);
+    parm67 = WeaponInst_HotParm(p.holsterweaponinst0);
+    parm68 = WeaponInst_HotParm(p.holsterweaponinst1);
+    parm69 = WeaponInst_HotParm(p.holsterweaponinst2);
+    parm70 = WeaponInst_HotParm(p.holsterweaponinst3);
+    parm71 = WeaponInst_HotParm(p.holsterweaponinst4);
+    parm72 = WeaponInst_HotParm(p.holsterweaponinst5);
+};
+
+void(entity r, float xTenths) WeaponInst_UnpackHotOne =
+{
+    if(r != world && xTenths > 0)
+    {
+        r.wi_hot_end = time + xTenths / 10;
+        r.wi_heat = 0;
+        vr_hot_any_until = max(vr_hot_any_until, r.wi_hot_end);
+    }
+};
+
+void(entity p) WeaponInst_UnpackHot =
+{
+    WeaponInst_UnpackHotOne(p.weaponinst, parm65);
+    WeaponInst_UnpackHotOne(p.weaponinst2, parm66);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst0, parm67);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst1, parm68);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst2, parm69);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst3, parm70);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst4, parm71);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst5, parm72);
 };
