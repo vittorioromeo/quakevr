@@ -1231,6 +1231,11 @@ QVR_CVAR(vr_wounds_bump_burns, "3", CVAR_ARCHIVE)     // ... the relief of their
 QVR_CVAR(vr_wounds_bump_blood, "1.5", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
 QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blood is over the skins (0..1)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
+// Flesh dents (vr_dents.cpp; ROUND22.md, "Flesh dents"): hits push monsters' and corpses' surfaces in, raw flesh inside.
+QVR_CVAR(vr_gore_dents, "1", CVAR_ARCHIVE)            // bullets, pellets, nails, blades and blasts dent the bodies they hit
+QVR_CVAR(vr_gore_dents_depth, "1", CVAR_ARCHIVE)      // how deep the dents push in, times their own (0 flat: the raw flesh only)
+QVR_CVAR(vr_gore_dents_size, "1", CVAR_ARCHIVE)       // how wide the dents are, times their own (and as much deeper)
+QVR_CVAR(vr_gore_dents_max, "8", CVAR_ARCHIVE)        // dents a body keeps (1..16): past it, the oldest merges into its neighbour
 // Gore: bloody hands and washing (vr_wounds.cpp; ROUND21.md, "Gore: bloody hands, washing, dying bodies, blood mist").
 QVR_CVAR(vr_gore_hands, "1", CVAR_ARCHIVE)            // grabbing a gib or a head bloodies the hand holding it: how much (0 none; the wound skins: 1 a bloody hand)
 QVR_CVAR(vr_gore_wash, "1", CVAR_ARCHIVE)             // water washes the blood off your body and hands, where they are under it

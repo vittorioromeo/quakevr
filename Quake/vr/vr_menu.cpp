@@ -3000,6 +3000,14 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("How deep your bleeding wounds look sunk into the skin (Finer detail only; 0 flat)."),
         slider("Blood Opacity", vr_wounds_blood_alpha, 0.2f, 1.f, 0.05f, "%.2f")
             .help("How opaque the painted blood is over the skins: a little of the skin shows through below 1."),
+        toggle("Flesh Dents", vr_gore_dents)
+            .help("Bullets, pellets, nails, blades and blasts push monsters' and corpses' surfaces in where they strike: a crater "
+                  "of raw flesh with a bloody rim, kept through every animation and on ragdolls (with Dynamic Wounds or Burns on)."),
+        slider("Dent Depth", vr_gore_dents_depth, 0.f, 3.f, 0.25f, "%.2fx")
+            .help("How deep the dents push in (0: flat, the raw flesh only). Never through a thin part: an arm, a tail."),
+        slider("Dent Size", vr_gore_dents_size, 0.25f, 3.f, 0.25f, "%.2fx").help("How wide the dents are (and as much deeper)."),
+        slider("Dents per Body", vr_gore_dents_max, 1.f, 16.f, 1.f, "%.0f")
+            .help("How many dents a body keeps: past it, the oldest merges into the one nearest it."),
         header("Lightning Shock"),
         toggle("Lightning Shock", vr_shock_death)
             .help("A monster the lightning strikes, alive or dead, keeps Quad Damage's arcs crawling over it a while, on through its "
@@ -5965,6 +5973,13 @@ za::Vector<Item> pageDebugReports()
         command("Gear (Hidden When Dead)", "vr_gear_status").help("vr_gear_status: what of the gear is drawn (holstered guns and their parts, holster sleeves, ammo pouch, grenade pouch, flashlight and cord, wrist gadget, body) and whether the HUD is the status bar on a hand: dead, with Hide Gear When Dead, only the status bar."),
         command("Hit Detection", "vr_hitmodel_stats").help("vr_hitmodel_stats: precise hit detection's tests so far (hits, shots through a box beside the model) and their cost."),
         command("Wounds", "vr_wounds_info").help("vr_wounds_info: the wound masks in use."),
+        command("Flesh Dents", "vr_gore_dents_info").help("vr_gore_dents_info: the bodies with flesh dents, their dents, the cost of placing them."),
+        command("Dent the Nearest Monster: Nail", "vr_wounds_test nearest 2 20 0 6")
+            .help("vr_wounds_test nearest 2 20 0 6: a nail's wound and flesh dent on the monster nearest you, from your view (Gore > Flesh Dents)."),
+        command("Dent the Nearest Monster: Blade", "vr_wounds_test nearest 3 40 0 10")
+            .help("vr_wounds_test nearest 3 40 0 10: a blade's long dent on it."),
+        command("Dent the Nearest Monster: Blast", "vr_wounds_test nearest 4 80")
+            .help("vr_wounds_test nearest 4 80: a blast's crater on its side facing you, a couple of lesser dents round it."),
         command("Bloody Hands and Washing", "vr_gore_hands_info")
             .help("vr_gore_hands_info: the blood on your hands and body (texels), the wounds kept to re-open, the wash and its re-opening, and the blood on your weapons and props."),
         command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),

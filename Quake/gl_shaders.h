@@ -1321,6 +1321,8 @@ NOISE_FUNCTIONS
 "	vec4	HotBlade; // QVR: an incandescent blade's glow only on its blade: xyz . pose + w, 0 at the blade's root to 1 (vr/vr_hotblade.cpp; zero: all of it)\n"\
 "	vec4	Glove; // QVR: gloves (vr/vr_view.cpp gloveLook): the leather's rgb, w the skin mask's channel (1 fingerless G, 2 full B; 0 none)\n"\
 "	vec4	GloveCuff; // QVR: ... a bare forearm's cuff: x below this u, from v y, its hem to v z, below v w (zero: none)\n"\
+"	vec4	Dent; // QVR: flesh dents (vr/vr_dents.cpp): x its rows' first in Dents, y their count (0 none), zw xy of its pose's origin in units\n"\
+"	vec4	DentScale; // QVR: ... its pose to units: xyz the scale, w z of the origin\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1430,6 +1432,7 @@ ALIAS_INSTANCE_BUFFER
 "#endif // POSEVERTTYPE check\n"
 "\n"
 QVR_ALIAS_VS_FUNCTIONS // QVR: the recoil steadied (ZeroBlend), the poses' occlusion
+QVR_DENT_FUNCTIONS // QVR: flesh dents (vr/vr_dents.cpp)
 "float r_avertexnormal_dot(vec3 vertexnormal, vec3 dir) // from MH \n"
 "{\n"
 "	float d = dot(vertexnormal, dir);\n"
@@ -1462,6 +1465,7 @@ QVR_ALIAS_VS_HANDFOLD // QVR: a bare forearm's hand's end inside the arm folded 
 "	mat4x3 worldmatrix = transpose(mat3x4(inst.WorldMatrix[0], inst.WorldMatrix[1], inst.WorldMatrix[2]));\n"
 "	vec3 lerpedPos = mix(pose1.pos, pose2.pos, inst.Blend);\n"
 QVR_ALIAS_VS_SMOOTH // QVR: r_lerpmodels 3: along a spline through four poses, the limbs swung round their joints
+QVR_ALIAS_VS_DENTS // QVR: flesh dents (vr/vr_dents.cpp): pushed in round where the blows struck
 "	lerpedPos = ZeroBlend(lerpedPos, inst); // QVR: blend towards frame 0 (vr/vr_render.cpp)\n"
 "	vec3 lerpedVert = (worldmatrix * vec4(lerpedPos, 1.0)).xyz;\n"
 "	gl_ClipDistance[0] = dot(vec4(lerpedVert, 1.0), ShadowClip); // QVR: virtual light exit plane\n"
@@ -1532,6 +1536,7 @@ QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown
 "{\n"
 "	vec2 uv = in_texcoord;\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: for the normal map (before any discard)\n"
+"	vec3 drdx = dFdx(in_restpos), drdy = dFdy(in_restpos); // QVR: the rest pose's, for the flesh dents' bowls (DentBump)\n"
 "	vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);\n"
 "	if (RetroLight[5].z > 0.) // QVR: retro lighting (vr_retrolight.h): the skin's grid, in its Quake texels (Retro.w: their share of the texture's)\n"
 "	{\n"
