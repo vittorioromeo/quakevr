@@ -73,6 +73,9 @@
             .help("The grenade soldier's launcher fired beside yours (the same grenade?), the rocket soldier's and a "
                   "plasma rifle: each shot 0.3 s on, still flying and clear of the muzzle (adgun shots: lines). Aim "
                   "level."),
+        command("Make the Nearest Shooter Fire", "vr_ad_test 92")
+            .help("The AD pyro, fumigator or plasma soldier nearest you fires once at the monster or body nearest it (its "
+                  "flames, poison, electric bolt: their effects as the guns' you carry). Press again for a stream."),
         command("Gun Models", "vr_adgun_models").help("The guns made from AD's monster models: triangles, box, muzzle."),
         command("Stand-In Gun Model", "vr_ad_test 89")
             .help("A gun model the engine cannot make (another AD release): Quake VR's stand-in loads under its name."),

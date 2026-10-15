@@ -65,6 +65,15 @@
         slider("Reach", "vr_adgun_fumigator_range", 64.f, 800.f, 8.f, "%.0f units").extend(32.f, 2000.f),
         slider("Fuel", "vr_adgun_fumigator_fuel", 10.f, 400.f, 10.f, "%.0f puffs").extend(1.f, 2000.f),
         slider("Time Between Puffs", "vr_adgun_fumigator_rate", 0.05f, 0.5f, 0.01f, "%.2f s").extend(0.05f, 2.f),
+        header("Flamethrowers' Look"),
+        slider("AD's Flames Opacity", "vr_adgun_stream_alpha", 0.1f, 1.f, 0.05f, "%.2f")
+            .help("How opaque AD's own flame and poison sprites are (the pyros' and fumigators', theirs and yours). 1: AD's."),
+        slider("Our Fire With Them", "vr_adgun_stream_fire", 0.f, 6.f, 1.f, "%.0f")
+            .help("Tongues of the torches' fire (green: poison) carried with each of AD's flames, a tenth of a second, "
+                  "and green smoke puffing off a poisoned body. 0: AD's alone."),
+        toggle("Electric Bolts", "vr_adgun_bolt_fx")
+            .help("The plasma rifles' bolts (the soldiers', eliminators' and centurions', theirs and yours): a faint "
+                  "smoke and electric arcs and sparks along them, at the muzzle and where they strike. Off: AD's smoke."),
         // (their tests: Debug > Tests > Arcane Dimensions Monsters, vr_menu_ad_monsters.inc)
     };
 }

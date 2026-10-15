@@ -173,6 +173,40 @@ void(float xHand) VR_ADGun_FireGrenade =
 // ---------------------------------------------------------------------------------------------------------------------
 // Plasma
 
+// The plasma rifles' bolts (the soldiers', eliminators' and centurions', AD's ad_launch_plasma: fired by those monsters
+// or by the player with their dropped guns) are electric, one path for both: TRUE for such a bolt (not a poisonous one).
+float(entity bolt) VR_ADGun_IsElectric =
+{
+    float k = bolt.ad_classproj;
+    return !bolt.ad_poisonous && (k == ad_CT_MONARMYPLASMA || k == ad_CT_MONELIMATOR || k == ad_CT_MONCENTURION);
+};
+
+// An electric bolt leaving a muzzle at `org` going `dir`, or (`xHit`) striking there: blue-white sparks and crackling
+// arcs (vr_adgun_bolt_fx; its trail is the engine's: vr_particles.cpp electricTrail).
+void(vector org, vector dir, float xHit) VR_ADGun_BoltFx =
+{
+    if(cvar("vr_adgun_bolt_fx"))
+    {
+        dir = normalize(dir);
+        particle2(xHit ? org - dir * 4 : org, xHit ? dir * -1 : dir, QVR_PARTICLE_PRESET_ELECTRICSPARKS, xHit ? 10 : 8);
+    }
+};
+
+// An electric bolt has struck `t` (alive before: `xAlive`) at `xAt` going `xDir`: the lightning's electrocution, on the
+// living and on the dead (vr_shock.qc: the lightning gun's short arcs over it, then its lasting shock: arcs, a corpse's
+// convulsions, crackle and burns).
+void(entity t, float xAlive, vector xAt, vector xDir) VR_ADGun_BoltShock =
+{
+    if(!(t.flags & FL_MONSTER) && !t.vr_corpse)
+    {
+        return;
+    }
+    bodyshock(t, 0.75);
+    VR_Shock_Hit(t, xAlive, xAt, xDir);
+    dprint(sprintf("adgun bolt shock: %s alive before %g, health %g, corpse %g, shock left %g\n", t.classname, xAlive,
+        t.health, t.vr_corpse, max(0, t.vr_shock_until - time)));
+};
+
 // A plasma bolt (AD's, launched as its soldier's: its model, light and sparks) strikes: its hit and its blast, Quake VR's
 // damage (not AD's own for that monster's bolt).
 void() VR_ADGun_PlasmaTouch =
@@ -201,11 +235,14 @@ void() VR_ADGun_PlasmaTouch =
         float before = other.health;
         float dmg = self.vr_adgun_dmg * PositionalDamageFactor(PositionalDamage(other, trace_endpos, dir));
         spawn_touchblood(dmg);
+        vector at = trace_endpos;
         T_Damage(other, self, self.owner, dmg);
         vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
+        VR_ADGun_BoltShock(other, before > 0, at, dir);
     }
     vr_ad_ammo = 0;
     particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 8);
+    VR_ADGun_BoltFx(self.origin, dir, TRUE);
     ad_SpawnExplosion(random() < 0.3 ? ad_EXPLODE_PLASMA_SMALL : ad_EXPLODE_ELECT_SMALL, self.origin, ad_SOUND_PLASMA_HIT);
     ad_entity_remove(self, 1);
 };
@@ -227,7 +264,7 @@ void(float xHand, float xWid) VR_ADGun_FirePlasma =
     m.vr_adgun_wid = xWid;
     m.vr_adgun_dmg = VR_ADGun_Value(xWid, "damage");
     m.vr_adgun_splash = VR_ADGun_Value(xWid, "splash");
-    VR_ShotPlace(m, xHand);
+    VR_ShotPlace(m, xHand); // (its muzzle's crackle: ad_launch_plasma's VR_ADGun_BoltFx, as the monsters')
     VRGunHaptic(xHand, 0.3, 60, 0.7);
 };
 
@@ -261,16 +298,32 @@ void() VR_ADGun_PoisonThink =
         {
             v.vr_adpoison = world;
         }
+        dprint(sprintf("adpoison: %s's poison ends (puffs %g, health %g, %g s left)\n", v.classname, self.frags, v.health,
+            max(0, self.attack_finished - time)));
         remove(self);
         return;
     }
-    vr_ad_ammo = AD_AMMO_CELLS;
-    float before = v.health;
-    T_Damage(v, self, self.owner, self.dmg * 0.5);
-    vr_adgun_hits = vr_adgun_hits + max(0, before - v.health);
-    vr_ad_ammo = 0;
-    particle(v.origin + (v.mins + v.maxs) * 0.5 + randomVec(8), '0 0 10', 56 + rint(random() * 7), 6);
-    self.nextthink = time + 0.5;
+    // Green smoke puffing off it all the while (every quarter second; vr_adgun_stream_fire 0: AD's few motes), its damage
+    // every other time (half a second).
+    if(cvar("vr_adgun_stream_fire") > 0)
+    {
+        particle2(v.origin + (v.mins + v.maxs) * 0.5, (v.maxs - v.mins) * (0.5 / 16), QVR_PARTICLE_PRESET_POISONPUFF, 2);
+        self.frags = self.frags + 1; // (puffs sent: the tests)
+    }
+    else if(!self.cnt)
+    {
+        particle(v.origin + (v.mins + v.maxs) * 0.5 + randomVec(8), '0 0 10', 56 + rint(random() * 7), 6);
+    }
+    self.cnt = !self.cnt;
+    if(self.cnt)
+    {
+        vr_ad_ammo = AD_AMMO_CELLS;
+        float before = v.health;
+        T_Damage(v, self, self.owner, self.dmg * 0.5);
+        vr_adgun_hits = vr_adgun_hits + max(0, before - v.health);
+        vr_ad_ammo = 0;
+    }
+    self.nextthink = time + 0.25;
 };
 
 // `xVictim` poisoned by `xBy` for `xTime` s, `xDps` a second (again: from now on, the stronger of the two).
@@ -293,10 +346,53 @@ void(entity xVictim, entity xBy, float xDps, float xTime) VR_ADGun_Poison =
         setorigin(p, xVictim.origin);
         xVictim.vr_adpoison = p;
         p.dmg = 0;
+        p.cnt = 0;
+        if(cvar("vr_adgun_stream_fire") > 0) // (green smoke puffing off it from the first: VR_ADGun_PoisonThink)
+        {
+            particle2(xVictim.origin + (xVictim.mins + xVictim.maxs) * 0.5, (xVictim.maxs - xVictim.mins) * (0.5 / 16),
+                QVR_PARTICLE_PRESET_POISONPUFF, 3);
+        }
     }
     p.owner = xBy;
     p.dmg = max(p.dmg, xDps);
     p.attack_finished = max(p.attack_finished, time + xTime);
+};
+
+// A flamethrower's flame or poison puff (`flame`: AD's sprite, the player's or a pyro's or fumigator's own), each think
+// (`xShare` of a tenth of a second): AD's sprite see-through (vr_adgun_stream_alpha) and our torches' fire tongues
+// carried with it (vr_adgun_stream_fire a tenth of a second; green: poison). Not as smoke under water.
+void(entity flame, float poison) VR_ADGun_StreamFx =
+{
+    float a = cvar("vr_adgun_stream_alpha");
+    flame.alpha = (a > 0 && a < 1) ? max(0.1, a) : 0; // (0: opaque)
+    float n = cvar("vr_adgun_stream_fire") * (flame.classname == "vr_adflame" ? 0.5 : 1);
+    if(n <= 0 || (!poison && flame.model != ad_SBURST_FLAME))
+    {
+        return;
+    }
+    n = floor(n + random()); // (a half: every other think on average)
+    if(n > 0)
+    {
+        float sp = vlen(flame.velocity);
+        vector v = sp > 750 ? flame.velocity * (750 / sp) : flame.velocity; // (as sent: under 8 a unit, by 1/16)
+        particle2(flame.origin, v * 0.01, poison ? QVR_PARTICLE_PRESET_ADPOISON : QVR_PARTICLE_PRESET_ADFLAME, n);
+    }
+};
+
+// A flamethrower's muzzle at `org` (`dir` the way it sprays) as a flame leaves it, a pyro's or fumigator's or the
+// player's with their dropped gun: a few slow tongues of fire licking out of it and its smoke (the fumigator's: green, no
+// smoke; under water: nothing).
+void(vector org, vector dir, float poison, float water) VR_ADGun_StreamMuzzle =
+{
+    if(cvar("vr_adgun_stream_fire") <= 0 || water)
+    {
+        return;
+    }
+    particle2(org, normalize(dir) * 0.6, poison ? QVR_PARTICLE_PRESET_ADPOISON : QVR_PARTICLE_PRESET_ADFLAME, 1);
+    if(!poison && random() < 0.3)
+    {
+        particle2(org, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
+    }
 };
 
 void() VR_ADGun_FlameThink =
@@ -311,6 +407,7 @@ void() VR_ADGun_FlameThink =
     self.velocity_z = self.velocity_z + 10 + random() * 20; // (drifting up, slowing down: AD's flames)
     self.velocity = self.velocity - self.movedir * 0.125;
     self.nextthink = time + 0.05;
+    VR_ADGun_StreamFx(self, self.vr_adgun_poison > 0 || self.model == ad_SBURST_POISON);
 };
 
 // A flame or puff meets something: what takes damage takes its damage once, then catches fire or is poisoned.
@@ -389,6 +486,8 @@ void(float xHand, float xWid) VR_ADGun_FireFlame =
     f.think = VR_ADGun_FlameThink;
     f.nextthink = time + 0.05;
     f.touch = VR_ADGun_FlameTouch;
+    VR_ADGun_StreamFx(f, poison);
+    VR_ADGun_StreamMuzzle(org, dir, poison, water);
     VRGunHaptic(xHand, 0.1, 40, 0.4);
 };
 
@@ -925,6 +1024,65 @@ void(float request, entity p) AD_GunTest =
         cvar_set("vr_weapon_grip_mode", "1");
         bprint(sprintf("adweapons: the main hand fires: %s\n", VR_ADWeapons_Fire(p, "held") ? "PASS" : "FAIL"));
         cvar_set("vr_weapon_grip_mode", ftos(grip2));
+        return;
+    }
+    if(request == 92)
+    {
+        // 92: the nearest AD pyro, fumigator or plasma soldier (plasma, eliminator, centurion) to you fires once, as its
+        // own attack does, at the monster or body nearest it (none: 200 units ahead of it); again for a stream.
+        entity sh = world;
+        float shd = 2048;
+        for(entity e92 = findflags(world, flags, FL_MONSTER); e92; e92 = findflags(e92, flags, FL_MONSTER))
+        {
+            float k92 = e92.ad_classtype;
+            if(e92.health > 0 && vlen(e92.origin - p.origin) < shd && (k92 == ad_CT_MONPYRO || k92 == ad_CT_MONFUMIGATOR ||
+                k92 == ad_CT_MONARMYPLASMA || k92 == ad_CT_MONELIMATOR || k92 == ad_CT_MONCENTURION))
+            {
+                sh = e92;
+                shd = vlen(e92.origin - p.origin);
+            }
+        }
+        if(sh == world)
+        {
+            bprint("adfx: no AD pyro, fumigator or plasma soldier near\n");
+            return;
+        }
+        entity tg = world;
+        float tgd = 1024;
+        for(entity t92 = findflags(world, flags, FL_MONSTER); t92; t92 = findflags(t92, flags, FL_MONSTER))
+        {
+            if(t92 != sh && t92.takedamage && vlen(t92.origin - sh.origin) < tgd)
+            {
+                tg = t92;
+                tgd = vlen(t92.origin - sh.origin);
+            }
+        }
+        makevectors(sh.angles);
+        vector from92 = sh.origin + '0 0 12' + v_forward * 16;
+        vector to92 = tg != world ? (tg.absmin + tg.absmax) * 0.5 : from92 + v_forward * 200;
+        vector dir92 = normalize(to92 - from92);
+        sh.angles_y = vectoyaw(dir92);
+        entity os92 = self;
+        self = sh;
+        if(sh.ad_classtype == ad_CT_MONPYRO || sh.ad_classtype == ad_CT_MONFUMIGATOR)
+        {
+            ad_pyroflame_spawn(from92, dir92);
+            if(tg != world && tg.health > 0 && (tg.flags & FL_ONGROUND))
+            {
+                // (A flame is a trigger: it touches what moves into it. A standing target hops, as one walking would.)
+                tg.flags = tg.flags - FL_ONGROUND;
+                tg.velocity_z = 80;
+            }
+        }
+        else
+        {
+            ad_launch_plasma(from92, dir92, sh.ad_classtype, ad_SPEED_PLASMA);
+            ad_newmis.velocity = dir92 * ad_SPEED_PLASMA;
+            ad_newmis.angles = vectoangles(ad_newmis.velocity);
+        }
+        self = os92;
+        dprint(sprintf("adfx: %s fires at %s (health %g, takedamage %g, poisoned %g)\n", sh.classname, tg.classname,
+            tg.health, tg.takedamage, tg.vr_adpoison != world));
         return;
     }
     if(request == 90)
