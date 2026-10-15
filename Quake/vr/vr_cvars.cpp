@@ -759,8 +759,15 @@ const DefaultChange defaultChanges[] = {
     {133, &vr_decal_bucket_max, "32"},               // 24
     {133, &vr_body_bracers, "1"},                    // 0
     {133, &vr_pbr_strength, "1"},                    // 2.5
+    // 134: AD's fumigator and centurion are humanoids for the lift and the neck snap (ROUND22.md, "Neck snap: strict
+    // zone, diagnostic, slow motion, crack").
+    {134, &vr_foegrab_lift_classes,
+        "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade "
+        "monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_dcrossbow "
+        "monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz "
+        "monster_ranged_knight infected"},
 };
-constexpr int configVersion = 133;
+constexpr int configVersion = 134;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

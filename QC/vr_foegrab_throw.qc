@@ -183,41 +183,53 @@ float(entity m, float xDist, float xUnused) VR_FoeGrab_BreakFree =
 };
 
 // The neck snap (Combat > Holding Enemies > Neck Snap; vr_foegrab.cpp neckCheck, ragdollNeckCheck; ROUND22.md, "The neck
-// snap"). The engine: whether xAt (a hand's hold, on m's model) is at its head or neck: positional damage's head zone, the
-// headshots' (VR_Decap_HeadZone; the point as on its model standing: hitmodel_rest), grown by xMargin units, down to
-// vr_foegrab_necksnap_neck units below the head sphere's bottom and no lower (the sphere grown reaches its shoulders:
-// a hold there is the judo throw's, the lift's).
-float(entity m, vector xAt, float xMargin) VR_FoeGrab_OnHead =
+// snap"). The engine: m's head sphere, positional damage's, the headshots' (VR_Decap_HeadZone), as
+// '<forward> <up> <radius>' from its origin standing (turned with its yaw); radius 0: none. The engine's head zone for the
+// hands' holds is shaped from it (vr_foegrab.cpp headZoneOf: the head, then a column as narrow as its neck under it; never
+// its shoulders).
+vector(entity m) VR_FoeGrab_HeadZone =
 {
     if(!VR_Decap_HeadZone(m))
     {
-        return FALSE;
+        return '0 0 0';
     }
-    float yaw = m.angles_y * (3.14159265 / 180);
-    vector facing;
-    facing_x = cos(yaw);
-    facing_y = sin(yaw);
-    facing_z = 0;
-    vector head = m.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
-    vector p = hitmodel_target(m) ? hitmodel_rest(m, xAt) : xAt;
-    if(p_z < head_z - xHeadRadius - max(0, cvar_hget(cvarh_vr_foegrab_necksnap_neck)))
+    vector r;
+    r_x = xHeadForward;
+    r_y = xHeadUp;
+    r_z = xHeadRadius;
+    return r;
+};
+
+// The neck snap's crack (xVolume 0-2): in both hands of the player self (his hands' channels: played from each hand,
+// right by the head they hold, a hand's breadth from his ears: it fills his head), and from m (its voice channel, cutting
+// its death cry off; world: none). Two hands and the head: three layers, as loud as the loudest
+// blows (vr/necksnap.wav alone is a dry transient: Misc/quakevr/make_necksnap_sound.py).
+void(entity m, float xVolume) VR_FoeGrab_Crack =
+{
+    if(xVolume <= 0)
     {
-        return FALSE;
+        return;
     }
-    return vlen(p - head) < xHeadRadius + VR_HEAD_MARGIN + xMargin;
+    float hands = min(1, 0.7 * xVolume);
+    sound(self, VRGetHandChannel(cVR_OffHand), "vr/necksnap.wav", hands, ATTN_NORM);
+    sound(self, VRGetHandChannel(cVR_MainHand), "vr/necksnap.wav", hands, ATTN_NORM);
+    if(m != world)
+    {
+        sound(m, CHAN_VOICE, "vr/necksnap.wav", min(1, xVolume), ATTN_NORM);
+    }
 };
 
 // The engine: both hands of the player self twisted the head of m (a humanoid: its class list) round: its neck snaps. It
 // dies on the spot, killed by him, whole (no gib, no head wound; a zombie or a mummy for good, lying as its ragdoll does,
-// as a beheaded one's), its ragdoll limp (.vr_death_hit the head's: a collapse); the crack at xVolume on its voice
-// channel, over its death cry. Standing (xRagdoll 0), it is knocked down first (VR_Knockdown_Start, no push): its ragdoll
+// as a beheaded one's), its ragdoll limp (.vr_death_hit the head's: a collapse); the crack (VR_FoeGrab_Crack, xVolume 0-2)
+// in his hands and over its death cry. Standing (xRagdoll 0), it is knocked down first (VR_Knockdown_Start, no push): its ragdoll
 // made now, for the hands to hold (the engine's handOver). Returns 1 killed, a ragdoll; 3 killed standing (no ragdoll:
 // its death animation, the hands let go); 2 the training dummy (shown: it stands); 0 it can't die now (dead already).
 float(entity m, float xVolume, float xRagdoll) VR_FoeGrab_NeckSnap =
 {
     if(VR_IsDummy(m))
     {
-        sound(m, CHAN_AUTO, "vr/necksnap.wav", xVolume, ATTN_NORM);
+        VR_FoeGrab_Crack(m, xVolume);
         floattext(m.origin + '0 0 1' * (m.maxs_z + 8), "neck snapped", '0.4 1 0.4', 0.6);
         haptic(cVR_OffHand, 0, 0.15, 50, 0.8);
         haptic(cVR_MainHand, 0, 0.15, 50, 0.8);
@@ -247,7 +259,7 @@ float(entity m, float xVolume, float xRagdoll) VR_FoeGrab_NeckSnap =
         Killed(m, self);
     }
     m.vr_death_hit = 1; // (its ragdoll, made later standing, collapses)
-    sound(m, CHAN_VOICE, "vr/necksnap.wav", xVolume, ATTN_NORM);
+    VR_FoeGrab_Crack(m, xVolume);
     haptic(cVR_OffHand, 0, 0.25, 45, 1);
     haptic(cVR_MainHand, 0, 0.25, 45, 1);
     dprint(sprintf("necksnap: %s's neck snapped (%s, %s), %s; killed: %g monsters\n", m.classname, was,

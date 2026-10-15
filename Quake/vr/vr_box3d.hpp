@@ -340,6 +340,9 @@ struct RagdollHold
     glm::quat turn{1.f, 0.f, 0.f, 0.f};
 };
 [[nodiscard]] bool ragdollHold(int player, int hand, RagdollHold& out);
+// Where on the ragdoll that hand's hold grips now (its anchor on the part, world units): the neck snap's head zone test
+// (vr_foegrab.cpp ragdollNeckCheck). False: no ragdoll hold.
+[[nodiscard]] bool ragdollHoldPoint(int player, int hand, glm::vec3& out);
 // A limb's point (flames on a ragdoll: vr_burning.qc): the limb nearest `at` (-1: not a ragdoll); a point into a limb's
 // space (units) and back.
 [[nodiscard]] int ragdollBone(int num, const glm::vec3& at);

@@ -6682,3 +6682,78 @@ rounds); e1m1 smoke clean; menu paths 0 missing. Rerun: `Misc/quakevr/adbugs_tes
 Checklist (proposed): "AD soldiers' guns: kill a grenade soldier and fire his launcher: Quake VR's grenades leave the
 muzzle cleanly, bounce and go off as your launcher's, from his own gun (6 shots, then spent); the rocket soldier's fires
 your rockets; plasma soldiers' rifles fire AD's bolts that spark and push props; each still looks like his gun."
+
+
+## Neck snap: strict zone, diagnostic, slow motion, crack (worktree `qcscanopt`, branch `agent/necksnap3`, 2026-10-15)
+
+Voice notes 2026-10-14 ("Neck-snap tuning and diagnostics", "Bullet-time lift/neck-snap responsiveness") and the
+leftovers "Neck snap method" / "AD humanoids". Both detectors kept (his defaults: Hand Line, 80 deg within 0.2 s).
+
+- **Why it felt random and the settings ineffective** (found with the diagnostic and headless numbers):
+  - Twist Speed does nothing under Hand Line (only the angle within the window counts): his 210 never mattered.
+  - The old head zone was the head sphere grown (radius + 3.5 + margin, 12.7 units on a grunt) down to the neck's
+    length under it: a grunt's shoulder tops (9-11 units out, 15-18 up) were inside it, and an enforcer's or a hell
+    knight's shoulder pads rise beside the head, so shoulder holds snapped. On a ragdoll a hold whose limb was the head
+    counted wherever the palm was, the palm nearest a head part counted, and a stroke under way skipped the zone check.
+  - A lifted ragdoll flails: its head swings past palms held on its shoulders (measured: the holds 7-11 units out from
+    its neck's axis, its arms' parts), so a twist after a lift by the shoulders snapped by chance.
+  - Slow motion: the hands' velocities are given in the game's time (1/scale faster) and the settle, retry, window and
+    break grace were game seconds. At 0.3: the settle after both grips took 0.5 s of the player's (a quick twist or lift
+    was missed), the retry 1.7 s, a gentle 0.4 m/s pull read 1.33 m/s (over Lift Speed), a slow twist read 3.3 times as
+    fast and Hand Line's 0.2 s window was 0.67 s: lenient here, deaf there.
+  - On a lying ragdoll the twist counts only about its neck (along the floor): twisting about the vertical is mostly a
+    tilt of it (110 deg about the vertical read 22 within the window; the diagnostic draws the neck's axis).
+- **Strict zone** (vr_foegrab.cpp `HeadZone`, both methods, standing and ragdolls): the head sphere counts down to 0.35 of
+  its radius under its middle and no further across its axis than 0.9 of the radius + margin; under that a column as
+  narrow as the neck (0.75 of the radius + margin; a grunt: 7.4 units) down to Neck Length under the sphere. Standing:
+  each hold's spot on the model standing (as before). Ragdolls: where each hold grips the body (new
+  `box3d::ragdollHoldPoint`), and its limb the head's or the one the head hangs from (never an arm); the palm only without
+  a hold point (+2 units). A stroke under way grows the zone 6 units (was: no check). QC `VR_FoeGrab_OnHead` became
+  `VR_FoeGrab_HeadZone` (the head sphere's numbers); `cvarh_vr_foegrab_necksnap_neck` dropped. Behaviour change: a
+  lift by the upper chest then a twist no longer snaps (judo_test `lifted` now expects none): take its head.
+- **Diagnostic** `vr_foegrab_necksnap_debug` (Neck Snap > Show Diagnostic; Debug > Holding Enemies > Neck Snap
+  Diagnostic): over the held humanoid (else the one a hand holds, else the nearest within 64 units of the hands) its zone
+  (cyan, green with both hands in), each hand's spot (green head/neck, orange shoulder, red off) and a line to the palm,
+  the palms' line (yellow), the neck axis (magenta), the twist's arc against Twist Angle (grey) and the turn now (orange,
+  green at the angle), and a panel: the method, turn vs angle (bar, threshold tick), fastest vs Twist Speed (Velocity;
+  "not used" under Hand Line), the two measures (line/palms and wrists), where each hand is, the hold's best, the last
+  outcome for 4 s. Each two-hand hold's end prints `necksnap diag: ... largest turn N deg (snaps at A), fastest S deg/s:
+  snapped|no snap` (also with vr_foegrab_debug). vr_foegrab_debug 1 logs where both hands are when not at the head.
+- **Slow motion**: the gestures are measured on the player's clock (`gameSeconds`, `realFrame`, `realVel`): the settle,
+  retry, Hand Line window and sample step, the break grace, the twist's integration and smoothing, the two-hand
+  velocities (lift, judo throw, neck snap) in real units. The slowed hands still lag their controllers
+  (vr_timescale_hand_speed/spin: 8 m/s and 20 rad/s of the game's time, 2.4 m/s and 344 deg/s real at 0.3).
+- **Crack**: vr/necksnap.wav regenerated louder (make_necksnap_sound.py: the soft clip driven at 4 not 1.6, a bigger
+  lower thump; its loudest 50 ms -9.7 -> -3.4 dBFS, 200 ms -15.2 -> -7.7: as loud as vr/headshot.wav, -3.6/-7.0), and
+  three layers (QC `VR_FoeGrab_Crack`): one from each hand (CHAN_HAND: right by the head held, near the ears; 0.7 of the
+  volume) and one from its head (its voice channel, cutting its death cry). Crack Volume now reaches 2 (the hands'
+  layers louder).
+- **AD**: `monster_centurion` and `monster_fumigator` in vr_foegrab_lift_classes (config 134). Mock: `vr_mock_hand_to
+  <hand> nearest <classname> head [units]` (its head zone's middle). judo_test `adneck` (AD's data, on vrfiringrange,
+  vr_ad_everywhere): each AD humanoid's head snap standing, lift, and knocked-down holds (fumigator, death knight, pyro;
+  JUDO_AD_KD=1 all).
+- **Hand Line vs Velocity** (for his choice): Hand Line compares the palms' line across the neck now with each sample of
+  the window, relative to the enemy's yaw (a ragdoll: play space), and the wrists' common roll; it ignores speed, so slow
+  shuffles never add up and only the angle within the window tunes it; a tilt is not a turn. Velocity integrates the
+  palms' and wrists' rotation about the neck stroke by stroke and needs a fastest speed: it also catches push-pulls and
+  strokes longer than a window, and tilts count. Both pass the same suite; Hand Line is simpler to tune (one angle, one
+  window); Velocity is more forgiving of slow-but-big twists.
+- **Tests** (judo_test.py; `case_neck` now pins its reference thresholds, 100 deg/s, 30 deg, 0.3 s, neck 3; new
+  `neckdefaults` at the shipped defaults with 110-degree twists): neck (Velocity) 39/39 (new: shoulders, shoulders_pp,
+  lifted_shoulders no snap; quick, slowmo_quick, slowmo_pp, slowmo_knocked snap; slowmo_slow none); neck (Hand Line)
+  39/39 with its lying-ragdoll cases measured, not judged (the mock twists about the vertical: a lying neck read 7-35
+  of 75 degrees, the hands at its neck joint once 141: a line nearly along the neck swings wildly); neckdefaults 8/8
+  under each method; lift 10/10 (new: quick and slow-motion quick lifted, gentle 0.4 m/s not, slowed or not; it pins
+  Breaks Free After 2, the shipped 3.5); hold 2/2; ragdoll/stagger_test.sh judo 0 FAIL; adneck: every AD humanoid's
+  lift by the chest (2 hands; none flails: AD's have no driven rigs), head snaps standing for 12 of 15 (the centurion:
+  killed standing, it hovers, never knocked down nor lifted); the eliminator's, the fumigator's and the zombie knight's
+  heads were not taken from their head zone's sides (the zombie knight's head sits 3-5 units to its side of the zone:
+  headfit 2.8 3.1 21.1; positional damage's head zones have no sideways offset); knocked-down pyro, fumigator, death
+  knight held at the head and measured. Melee eval 168/177 (3 bash numbers differ from eval_baseline.csv: his
+  vr_bash_damage default, not this). Runs flake now and then under load (a hold's ragdoll grab missed, a frame jump past
+  a twist): rerun.
+
+Checklist (proposed): "Neck snap: hold a grunt's or enforcer's shoulders and twist hard: no snap; hands on its head or
+neck and twist: snaps with a loud crack in your hands. Turn on Neck Snap > Show Diagnostic: the zone, hand dots and the
+turn arc/panel match what you feel; Twist Speed reads 'not used' under Hand Line. In bullet time grab a head and twist
+right away: snaps as at full speed; a slow twist doesn't. Lift a centurion and a fumigator (AD)."
