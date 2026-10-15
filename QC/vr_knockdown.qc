@@ -721,13 +721,12 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
 void(entity m) VR_Knockdown_WhyNot =
 {
     float most = cvar("vr_ragdoll_max");
-    dprint(sprintf("whynot: %s health %g, vr_knockdown %g, chance handle %g (%g x vr_knockdown_chance %g), flags fly/swim %g, "
-        "monster %g\n", m.classname, m.health, m.vr_knockdown, m.vr_kd_chance_h,
-        m.vr_kd_chance_h ? cvar_hget(m.vr_kd_chance_h) : 0, cvar_hget(cvarh_vr_knockdown_chance), m.flags & (FL_FLY | FL_SWIM),
-        (m.flags & FL_MONSTER) ? 1 : 0));
-    dprint(sprintf("whynot: vr_knockdown %g, canragdoll %g, ragdollcanstagger %g, isragdoll %g, dummy anchored %g, stamina %g of %g "
-        "(on %g)\n", cvar_hget(cvarh_vr_knockdown), canragdoll(m), ragdollcanstagger(m), isragdoll(m),
-        VR_IsDummy(m) && cvar_hget(cvarh_vr_dummy_anchored), VR_Stamina_Left(self), VR_Stamina_Max(), VR_Stamina_On()));
+    dprint(sprintf("whynot: %s health %g, vr_knockdown %g, chance handle %g (%g x vr_knockdown_chance %g), flags fly/swim %g\n",
+        m.classname, m.health, m.vr_knockdown, m.vr_kd_chance_h, m.vr_kd_chance_h ? cvar_hget(m.vr_kd_chance_h) : 0,
+        cvar_hget(cvarh_vr_knockdown_chance), m.flags & (FL_FLY | FL_SWIM))); // (sprintf: 8 arguments at most)
+    dprint(sprintf("whynot: vr_knockdown %g, canragdoll %g, ragdollcanstagger %g, isragdoll %g, dummy anchored %g, stamina %g of %g\n",
+        cvar_hget(cvarh_vr_knockdown), canragdoll(m), ragdollcanstagger(m), isragdoll(m),
+        VR_IsDummy(m) && cvar_hget(cvarh_vr_dummy_anchored), VR_Stamina_On() ? VR_Stamina_Left(self) : -1, VR_Stamina_Max()));
     float count = 0;
     float freeable = 0;
     for(entity x = nextent(world); x; x = nextent(x))

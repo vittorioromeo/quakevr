@@ -60,7 +60,7 @@ RELOAD["map"] = f"map {MAP};wait60"
 PRE = (os.environ.get("RR_PRE", "") + f";sv_random_seed 7;map {MAP};wait{os.environ.get('RR_START', '30')};god 1;notarget 1;developer 1;"
        "echo ATSTART;vr_test_spawn 0;vr_knockdown_test 5;vr_foegrab_debug 1;vr_foegrab_leniency 6;"
        "vr_knockdown_debug 1;vr_knockdown_chance 100;vr_foegrab_lift_time 2;wait5")
-FILT = "AFTERLOAD|foegrab: [a-z_]* \(|PHASE_|knockdown: |lifted, held|no lift|rror|CRASH|ragdoll"
+FILT = r"AFTERLOAD|foegrab: [a-z_]* \(|PHASE_|knockdown: |lifted, held|no lift|rror|CRASH|ragdoll"
 MODES = sys.argv[2:] or list(RELOAD)
 fails = 0
 for m in MODES:
