@@ -78,7 +78,9 @@ MG_poseInfo MG_poses[] =
 void() VR_MG_PlacedBody; // (below)
 
 void() misc_corpse = {
-    if(!MG_WorldGuard()) return;
+    // QVR: made by the toolgun's spawn panel (vr_spawn_live: vr_walltorch.qc), in any map; a map's, only in the Machine
+    // packs' world as upstream has it.
+    if(!vr_spawn_live && !MG_WorldGuard()) return;
     if(MG3_RuneRemoved()) return; // Dawn of the Machine: not with this many runes
     if(self.style < 0 || self.style >= MG_poses.length)
     {

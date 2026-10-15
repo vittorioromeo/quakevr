@@ -73,6 +73,8 @@ void tempEntities();
 [[nodiscard]] int spawnableSkin(int i);
 [[nodiscard]] bool spawnableAvailable(int i); // AD support
 [[nodiscard]] bool spawnableAD(int i); // AD support
+// The pack an entry comes from: its group on the panel ("" id's and Quake VR's own, "AD", "SoA", "DoE", "MG3", ...).
+[[nodiscard]] const char* spawnablePack(int i);
 [[nodiscard]] int spawnableDebugChoice(int i); // AD support
 [[nodiscard]] const char* spawnableClass(int i); // AD support
 [[nodiscard]] int selectedSpawnable();

@@ -688,7 +688,7 @@ Worn by hand in VR: carried and let go of over the torso."
 [
 ]
 
-@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) model({ "path": "progs/armorshard.mdl" }) =
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
 	item_armor_shard : "5 armour (green when none is worn), up to 200 (Dawn of the Machine; needs its model)."
 [
 ]

@@ -118,6 +118,13 @@ void() buzzsaw =
     self.solid = SOLID_TRIGGER;
     self.movetype = MOVETYPE_FLY;
 
+    // QVR: made by the toolgun (vr_spawn_live: vr_walltorch.qc), turned any way: its blade along the nearest axis.
+    if(vr_spawn_live)
+    {
+        self.angles_y = anglemod(rint(self.angles_y / 90) * 90);
+        if(self.angles_y >= 359) { self.angles_y = 0; }
+    }
+
     if(self.angles_y == 0 || self.angles_y == 180)
         setsize(self, '-18 0 -18', '18 0 18');
     else if(self.angles_y == 90 || self.angles_y == 270)

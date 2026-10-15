@@ -44,10 +44,20 @@ void() MG3_armor_shard_touch = {
 5 armour (green when none is worn), up to 200 (Dawn of the Machine; needs its model).
 */
 void() item_armor_shard = {
-    if(!VR_Pack_RequireSpawn(VR_Has("progs/armorshard.mdl"), "Dawn of the Machine")) return;
-    precache_model("progs/armorshard.mdl");
+    // Its model on the search path (Dawn of the Machine's own maps), else read in place from the owned pack in any map
+    // (MG3.md, "Decisions" 5: the toolgun's spawn panel and other maps' shards), else nothing.
+    if(!VR_Pack_RequireSpawn(VR_Has("progs/armorshard.mdl") || VR_Has("owned/mg3/progs/armorshard.mdl"), "Dawn of the Machine")) return;
     precache_sound("items/armor1.wav");
-    setmodel(self, "progs/armorshard.mdl");
+    if(VR_Has("progs/armorshard.mdl"))
+    {
+        precache_model("progs/armorshard.mdl");
+        setmodel(self, "progs/armorshard.mdl");
+    }
+    else
+    {
+        precache_model("owned/mg3/progs/armorshard.mdl");
+        setmodel(self, "owned/mg3/progs/armorshard.mdl");
+    }
     self.handtouch = MG3_armor_shard_touch;
     setsize(self, '-16 -16 0', '16 16 56');
     StartItem();
@@ -114,7 +124,8 @@ The player takes no damage from lava or slime for 30 seconds (Dawn of the Machin
 data).
 */
 void() item_artifact_lavasuit = {
-    string mdl = VR_ModelOr("progs/lavasuit.mdl", "progs/suit.mdl");
+    // (its own model on the search path, else read in place from the owned pack, else the biosuit's)
+    string mdl = VR_ModelOr("progs/lavasuit.mdl", VR_ModelOr("owned/mg3/progs/lavasuit.mdl", "progs/suit.mdl"));
     self.handtouch = powerup_touch;
     precache_model(mdl);
     precache_sound("items/suit.wav");
