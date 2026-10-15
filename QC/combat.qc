@@ -338,7 +338,7 @@ void(float xMode) VR_HitStagger_Test;
 // recovered from: a hand's hold knocks it down, VR_FoeGrab_Manhandle); your landing's crush; the tests.
 .float vr_kd_shaken;
 void(entity e) VR_Manhandle_Shaken;
-void(entity p, float xSpeed) VR_RagImpact_Crush;
+float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush;
 void(float xMode) VR_RagImpact_Test;
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;
