@@ -2944,7 +2944,11 @@ void qvr::foegrab::neckDebugDraw(const glm::vec3& eye)
         {4, 3.f, hl ? 0.f : track * za::min(t.peak / (2.f * speedNeed), 1.f), hl ? 0.f : track, speedColour},
         {4, 3.f + track * 0.5f, hl ? 0.f : 0.15f, hl ? 0.f : 0.15f, tick},
     };
-    const glm::vec3 at = z.centre + glm::vec3{0.f, 0.f, z.sphere() + 16.f};
+    // (Beside its head, on the viewer's right, a little higher: the hands and the head stay clear.)
+    const glm::vec3 look = z.centre - eye;
+    const glm::vec3 right = glm::length(glm::vec2{look}) > 0.1f ?
+                                glm::normalize(glm::vec3{look.y, -look.x, 0.f}) : glm::vec3{0.f, -1.f, 0.f};
+    const glm::vec3 at = z.centre + right * (z.sphere() + 9.f) + glm::vec3{0.f, 0.f, 6.f};
     const glm::vec3 toPanel = at - eye;
     const float yaw = glm::degrees(za::atan2(toPanel.y, toPanel.x));
     text3d::queueOverlay(text, at, glm::vec3{0.f, yaw, 0.f}, 0.06f, za::Span<const text3d::OverlayBar>{bars, 4});
