@@ -2306,17 +2306,12 @@ entity(entity shooter, vector org, vector dir) VR_LaunchRocket =
     return missile;
 };
 
-entity(float xHand) W_FireRocket =
+// The rocket launcher's rocket from self's hand `xHand` (its speed, model, touch, muzzle clearance and graze): the
+// launcher's shot, and any gun's that fires our rocket (AD support: AD's rocket soldier's dropped launcher,
+// vr_ad_enemyguns.qc). None of the gun's ammo, sound, kick or haptics.
+entity(float xHand) VR_FireRocketMissile =
 {
-    entity missile;
-
-    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
-
-    sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
-
-    self.punchangle_x = -2;
-
-    missile = spawn();
+    entity missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_FLYMISSILE;
     missile.solid = SOLID_BBOX;
@@ -2338,6 +2333,18 @@ entity(float xHand) W_FireRocket =
     setorigin(missile, VRGetMuzzlePos(xHand));
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
+    return missile;
+};
+
+entity(float xHand) W_FireRocket =
+{
+    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
+
+    sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
+
+    self.punchangle_x = -2;
+
+    entity missile = VR_FireRocketMissile(xHand);
 
     // HIPNOTIC
     //MED 11/09/96
@@ -2789,18 +2796,13 @@ void() GrenadeTouch =
 W_FireGrenade
 ================
 */
-void(float xHand) W_FireGrenade =
+// The grenade launcher's grenade from self's hand `xHand` (its speed, model, size, bounce, fuse, explosion, muzzle
+// clearance and catchability): the launcher's shot, and any gun's that fires our grenade (AD support: AD's grenade
+// soldier's dropped launcher, vr_ad_enemyguns.qc). None of the gun's ammo, sound, kick or haptics.
+entity(float xHand) VR_FireGrenadeMissile =
 {
-    entity missile;
     vector tmpAngles;
-
-    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
-
-    sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
-
-    self.punchangle_x = -2;
-
-    missile = spawn();
+    entity missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
@@ -2850,6 +2852,18 @@ void(float xHand) W_FireGrenade =
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     VR_Grenade_Make(missile, GrenadeExplode, 2.5, TRUE); // QVR: catchable too with vr_grenade_catch 2
+    return missile;
+};
+
+void(float xHand) W_FireGrenade =
+{
+    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
+
+    sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
+
+    self.punchangle_x = -2;
+
+    VR_FireGrenadeMissile(xHand);
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 75, 1.0);

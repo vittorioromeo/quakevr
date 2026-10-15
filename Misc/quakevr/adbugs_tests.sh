@@ -4,7 +4,8 @@
 #   stealth  vr_stealth_test 1's scenes on an AD rocket soldier (the debug spawner's 211) on e1m1 under the AD campaign
 #            (15 scenes; 7, a map's trigger, needs AD's own player: pass on AD's start map, n/a here), and the same
 #            soldier 300 units ahead of him on AD's start, him dark (vr_stealth_light_force 10): Idle after 7 s
-#   guns     vr_ad_test 71: each armed AD soldier's drop with vr_adgun_ours 1 (Quake VR's weapons) and 0 (AD's guns)
+#   guns     vr_ad_test 71: each armed AD soldier's drop (AD's own single-use guns); vr_ad_test 73: the grenade launcher
+#            fires our grenade (model, size, physics, fuse), clear of its muzzle
 #   armagon  hipend: vr_test_monsters 5 (the hit probe) on the Armagon: its torso's heights hit (precise hits on and off)
 #   range    vrfiringrange: the two laser cannons after 5 s (vr_pickup_test 5): on their pads, at rest
 AGENT=${1:?worktree name}
@@ -18,10 +19,8 @@ if [ "$WHAT" = stealth ] || [ "$WHAT" = all ]; then
     run "skill 1;vr_campaign_native ad;wait30;map start;wait60;god;developer 1;vr_test_spawn_dist 300;wait2;vr_stealth_light_force 10;vr_test_spawn 211;impulse 241;wait420;vr_ad_mtest 2" "admtest: stealth|rror|NULL"
 fi
 if [ "$WHAT" = guns ] || [ "$WHAT" = all ]; then
-    for o in 1 0; do
-        echo "== guns (vr_adgun_ours $o)"
-        run "skill 1;vr_campaign_native ad;wait30;map start;wait60;god;notarget;developer 1;vr_adgun_ours $o;vr_ad_test 71;wait5;vr_adgun_ours 1" "adgun drop|rror"
-    done
+    echo "== guns (drops by class)"
+    run "skill 1;vr_campaign_native ad;wait30;map start;wait60;god;notarget;developer 1;vr_ad_test 71" "adgun drop|rror"
 fi
 if [ "$WHAT" = armagon ] || [ "$WHAT" = all ]; then
     echo "== armagon (precise, then boxes)"

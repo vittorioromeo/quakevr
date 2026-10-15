@@ -1,25 +1,24 @@
 // vr_ad_enemyguns.qc -- AD support: Arcane Dimensions' armed soldiers drop their own guns, and the player fires them
 // (WID_ADROCKET..WID_ADFUMIGATOR; their tables: vr_ad_guns_defs.qc; after AD's files: AD's names, models and sounds).
 //
-// Who drops what (VR_ADGun_Drop, from VR_AD_Dying): the rocket soldier his launcher (a rocket a shot: a direct hit and a
-// blast), the grenade soldier his (bouncing grenades on a fuse, set off by a monster they strike; catchable as yours),
-// the plasma soldier, the eliminator and the centurion their plasma guns (AD's plasma bolts: a hit and a small blast),
-// the defender his shotgun (a wide spread of pellets: AD's projectile pellets where its rules apply), the pyro his
+// Who drops what (VR_ADGun_Drop, from VR_AD_Dying): the rocket soldier his launcher (Quake VR's rocket), the grenade
+// soldier his (Quake VR's grenade: the launcher's model, size, bounce, fuse, blast; catchable as yours), the plasma
+// soldier, the eliminator and the centurion their plasma guns (AD's plasma bolts, as the Plasma Gun's: a hit and a
+// small blast; our impact sparks and prop push), the defender his shotgun (Quake VR's pellets: FireBullets' tracers,
+// puffs, blood and decals; AD's projectile pellets where its rules apply), the pyro his
 // flamethrower (a stream of flames: each flame's damage, and what it touches set on fire: Quake VR's burning) and the
 // fumigator his poison sprayer (a stream of poison: each puff's damage, and what it touches poisoned for a while). AD's
 // plain soldier and enforcer drop Quake VR's grunt's burst rifle and enforcer's laser rifle (their own kinds of gun).
-// vr_adgun_ours 1 (default): they drop Quake VR's weapon of its kind instead (VR_ADGun_ForClass); the pyro and the
-// fumigator still theirs.
 //
 // The player's use only: every number is a setting (vr_adgun_<gun>_<what>: VR Settings > Combat > Enemy Weapons >
-// Arcane Dimensions' Guns), each gun's damage, blast, speed, rounds and time between shots, the grenades' fuse, the
+// Arcane Dimensions' Guns), each gun's rounds and time between shots, the plasma guns' damage, blast and speed, the
 // shotgun's pellets and spread, the flamethrowers' fuel, reach and what they leave burning or poisoned. The monsters'
 // own attacks are AD's. vr_adgun_drops 0: the armed soldiers drop nothing.
 //
 // Single use, as the grunts' burst rifle (vr_enemyguns.qc): the clip is the gun's only ammo (the flamethrowers': their
 // fuel, a unit a flame), never refilled; empty, it clicks, smokes and crackles (VR_EnemyGun_Spent) and is still a club.
 // Damage is Quake VR's (T_Damage: AD's monsters take it through AD's damage, with their ammunition resistance: the
-// rockets', the grenades' and the flames' as rockets, the plasma's as cells, the pellets' as shells).
+// rockets and grenades (ours, their own damage settings: Weapons' damage) as rockets, the flames' as rockets, the plasma's as cells, the pellets' as shells).
 //
 // `vr_ad_test 70` fires each gun from your main hand at a target ahead and reports what each did; `71` drops each from
 // a soldier's place ahead and checks it; `72` prints the settings. developer 1: `adgun:` lines.
@@ -38,21 +37,18 @@ float vr_adgun_hits;     // what the guns' shots dealt (the tests)
 // ---------------------------------------------------------------------------------------------------------------------
 // Drops
 
-// The gun an AD soldier of class `t` drops (-1: none). vr_adgun_ours 1 (Vittorio, 2026-10-14: AD's dropped guns are
-// Quake VR's weapons, their models, projectiles, effects, physics and clearance): Quake VR's weapon of its kind, loaded
-// (as an ogre's or an enforcer's drop): the launchers, the defender's shotgun the super shotgun (two barrels, a wide
-// spread), the plasma guns (cells, energy bolts) the laser cannon. The pyro's and the fumigator's have no kind of ours:
-// AD's (ARCANE_DIMENSIONS.md 17.6, for Vittorio to decide).
+// The gun an AD soldier of class `t` drops (-1: none). Their own single-use guns (Vittorio, 2026-10-15: "their own
+// single-use weapons", looking and feeling different, sharing our guns' projectiles where they have a kind of ours:
+// VR_ADGun_Fire; a drop mapped to our weapons, 2026-10-14's vr_adgun_ours, was reverted).
 float(float t) VR_ADGun_ForClass =
 {
     float wid = -1;
-    float ours = cvar("vr_adgun_ours");
-    if(t == ad_CT_MONARMYROCKET)       { wid = ours ? WID_ROCKET_LAUNCHER : WID_ADROCKET; }
-    else if(t == ad_CT_MONARMYGRENADE) { wid = ours ? WID_GRENADE_LAUNCHER : WID_ADGRENADE; }
-    else if(t == ad_CT_MONARMYPLASMA)  { wid = ours ? WID_LASER_CANNON : WID_ADPLASMA; }
-    else if(t == ad_CT_MONDEFENDER)    { wid = ours ? WID_SUPER_SHOTGUN : WID_ADDEFENDER; }
-    else if(t == ad_CT_MONELIMATOR)    { wid = ours ? WID_LASER_CANNON : WID_ADELIMINATOR; }
-    else if(t == ad_CT_MONCENTURION)   { wid = ours ? WID_LASER_CANNON : WID_ADCENTURION; }
+    if(t == ad_CT_MONARMYROCKET)       { wid = WID_ADROCKET; }
+    else if(t == ad_CT_MONARMYGRENADE) { wid = WID_ADGRENADE; }
+    else if(t == ad_CT_MONARMYPLASMA)  { wid = WID_ADPLASMA; }
+    else if(t == ad_CT_MONDEFENDER)    { wid = WID_ADDEFENDER; }
+    else if(t == ad_CT_MONELIMATOR)    { wid = WID_ADELIMINATOR; }
+    else if(t == ad_CT_MONCENTURION)   { wid = WID_ADCENTURION; }
     else if(t == ad_CT_MONPYRO)        { wid = WID_ADPYRO; }
     else if(t == ad_CT_MONFUMIGATOR)   { wid = WID_ADFUMIGATOR; }
     else if(t == ad_CT_MONARMY)        { wid = WID_GRUNTGUN; }  // (AD's plain soldier: the grunt's own kind of gun)
@@ -152,127 +148,24 @@ void() VR_ADGun_Drop =
 // ---------------------------------------------------------------------------------------------------------------------
 // Rockets and grenades
 
-// A rocket strikes (self): its hit and its blast (not on what it hit: the hit dealt it), as yours (T_MissileTouch).
-void() VR_ADGun_RocketTouch =
-{
-    if(VR_OwnerSpared(other))
-    {
-        return;
-    }
-    if(pointcontents(self.origin) == CONTENT_SKY)
-    {
-        remove(self);
-        return;
-    }
-    vr_ad_ammo = AD_AMMO_ROCKETS;
-    if(other.takedamage)
-    {
-        float before = other.health;
-        T_Damage(other, self, self.owner, self.vr_adgun_dmg);
-        vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
-    }
-    if(self.vr_adgun_splash > 0)
-    {
-        T_RadiusDamage(self, self.owner, self.vr_adgun_splash, other);
-    }
-    vr_ad_ammo = 0;
-    sound(self, CHAN_WEAPON, "soldier/rocket_hit.wav", 1, ATTN_NORM);
-    self.origin = self.origin - 8 * normalize(self.velocity);
-    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-    WriteVec3(MSG_BROADCAST, self.origin);
-    BecomeExplosion();
-};
-
+// The rocket soldier's launcher fires Quake VR's rocket (VR_FireRocketMissile: the rocket launcher's speed, model, hit,
+// blast and muzzle clearance); its own sound, kick and rate.
 void(float xHand) VR_ADGun_FireRocket =
 {
     sound(self, VRGetGunChannel(xHand), "soldier/rocket_fire.wav", 1, ATTN_NORM);
     self.punchangle_x = -2;
-    entity m = spawn();
-    m.owner = self;
-    m.movetype = MOVETYPE_FLYMISSILE;
-    m.solid = SOLID_BBOX;
-    m.classname = "missile";
-    m.velocity = VRGetWeaponFireRotFwd(xHand) * max(100, VR_ADGun_Value(WID_ADROCKET, "speed")) +
-                 vrProjectileVelocity(xHand, 0.4);
-    m.angles = vectoangles(m.velocity);
-    m.touch = VR_ADGun_RocketTouch;
-    m.nextthink = time + 6;
-    m.think = SUB_Remove;
-    m.vr_adgun_wid = WID_ADROCKET;
-    m.vr_adgun_dmg = VR_ADGun_Value(WID_ADROCKET, "damage");
-    m.vr_adgun_splash = VR_ADGun_Value(WID_ADROCKET, "splash");
-    setmodel(m, ad_MODEL_PROJ_ROCKET);
-    setsize(m, '0 0 0', '0 0 0');
-    setorigin(m, VRGetMuzzlePos(xHand));
-    VR_ShotPlace(m, xHand);
-    VR_Stealth_GrazeMissile(m);
+    VR_FireRocketMissile(xHand);
     VRGunHaptic(xHand, 0.45, 75, 0.9);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 3);
 };
 
-// A grenade goes off (self): its blast.
-void() VR_ADGun_GrenadeExplode =
-{
-    vr_ad_ammo = AD_AMMO_ROCKETS;
-    T_RadiusDamage(self, self.owner, self.vr_adgun_splash, world);
-    vr_ad_ammo = 0;
-    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
-    WriteVec3(MSG_BROADCAST, self.origin);
-    BecomeExplosion();
-};
-
-// It bounces, or a monster it strikes sets it off (its blast round it: the hit's part of it on the monster).
-void() VR_ADGun_GrenadeTouch =
-{
-    if(VR_OwnerSpared(other))
-    {
-        return;
-    }
-    if(other.takedamage == DAMAGE_AIM)
-    {
-        float before = other.health;
-        VR_ADGun_GrenadeExplode();
-        vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
-        return;
-    }
-    if(vlen(self.velocity) > 10)
-    {
-        sound(self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);
-    }
-    if(self.velocity == '0 0 0')
-    {
-        self.avelocity = '0 0 0';
-    }
-};
-
+// The grenade soldier's launcher fires Quake VR's grenade (VR_FireGrenadeMissile: the grenade launcher's model, size,
+// bounce, fuse, blast, muzzle clearance and catchability; not AD's oversized monster grenade); its own kick and rate.
 void(float xHand) VR_ADGun_FireGrenade =
 {
     sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
     self.punchangle_x = -2;
-    entity m = spawn();
-    m.owner = self;
-    m.movetype = MOVETYPE_BOUNCE;
-    m.solid = SOLID_BBOX;
-    m.classname = "grenade";
-    makevectors(VRGetWeaponFireRot(xHand));
-    m.velocity = v_forward * max(100, VR_ADGun_Value(WID_ADGRENADE, "speed")) + crandom() * v_right * 10 + crandom() * v_up * 10 +
-                 vrProjectileVelocity(xHand, 0.6);
-    m.avelocity = '300 300 300';
-    m.angles = vectoangles(m.velocity);
-    m.touch = VR_ADGun_GrenadeTouch;
-    float fuse = max(0.2, VR_ADGun_Value(WID_ADGRENADE, "fuse"));
-    m.nextthink = time + fuse;
-    m.think = VR_ADGun_GrenadeExplode;
-    m.vr_adgun_wid = WID_ADGRENADE;
-    m.vr_adgun_splash = VR_ADGun_Value(WID_ADGRENADE, "damage");
-    setmodel(m, ad_MODEL_PROJ_GRENADE);
-    setsize(m, '0 0 0', '0 0 0');
-    setorigin(m, VRGetMuzzlePos(xHand));
-    VR_ShotPlace(m, xHand);
-    VR_Stealth_GrazeMissile(m);
-    VR_Grenade_Make(m, VR_ADGun_GrenadeExplode, fuse, TRUE); // (catchable as your launcher's, by vr_grenade_catch)
+    VR_FireGrenadeMissile(xHand);
     VRGunHaptic(xHand, 0.4, 75, 0.9);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 };
@@ -293,6 +186,11 @@ void() VR_ADGun_PlasmaTouch =
         remove(self);
         return;
     }
+    // Quake VR's bolt hit (as the laser cannon's and the nails'): the prop it meets pushed, where on a body it struck
+    // (PositionalDamage: a head more), our sparks with AD's flash.
+    vector dir = normalize(self.velocity);
+    VR_ShotPush_Laser(other, self.origin, dir);
+    VR_TouchTrace(self.origin - dir * 8, self.origin + dir * 8);
     vr_ad_ammo = AD_AMMO_CELLS;
     if(self.vr_adgun_splash > 0)
     {
@@ -301,11 +199,13 @@ void() VR_ADGun_PlasmaTouch =
     if(other.takedamage)
     {
         float before = other.health;
-        spawn_touchblood(self.vr_adgun_dmg);
-        T_Damage(other, self, self.owner, self.vr_adgun_dmg);
+        float dmg = self.vr_adgun_dmg * PositionalDamageFactor(PositionalDamage(other, trace_endpos, dir));
+        spawn_touchblood(dmg);
+        T_Damage(other, self, self.owner, dmg);
         vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
     }
     vr_ad_ammo = 0;
+    particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 8);
     ad_SpawnExplosion(random() < 0.3 ? ad_EXPLODE_PLASMA_SMALL : ad_EXPLODE_ELECT_SMALL, self.origin, ad_SOUND_PLASMA_HIT);
     ad_entity_remove(self, 1);
 };
@@ -912,7 +812,7 @@ void(float request, entity p) AD_GunTest =
         entity oldSelf = self;
         for(float ci = 0; ci < 8; ci++)
         {
-            // (each armed soldier's drop, vr_adgun_ours: Quake VR's weapon of its kind or AD's gun)
+            // (each armed soldier's drop)
             float wid = VR_ADGun_ForClass(ci == 0 ? ad_CT_MONARMYROCKET : (ci == 1 ? ad_CT_MONARMYGRENADE :
                 (ci == 2 ? ad_CT_MONARMYPLASMA : (ci == 3 ? ad_CT_MONDEFENDER : (ci == 4 ? ad_CT_MONELIMATOR :
                 (ci == 5 ? ad_CT_MONCENTURION : (ci == 6 ? ad_CT_MONPYRO : ad_CT_MONFUMIGATOR)))))));
@@ -999,8 +899,16 @@ void(float request, entity p) AD_GunTest =
         for(float w2 = WID_ADROCKET; w2 <= WID_ADFUMIGATOR; w2++)
         {
             float st = (w2 == WID_ADPYRO || w2 == WID_ADFUMIGATOR);
-            bprint(sprintf("%s (%s): damage %g, splash %g, speed %g, ", VR_ADGun_Name(w2), WeaponIdToModel(w2, 0),
-                VR_ADGun_Value(w2, "damage"), VR_ADGun_Value(w2, "splash"), VR_ADGun_Value(w2, "speed")));
+            if(w2 == WID_ADROCKET || w2 == WID_ADGRENADE)
+            {
+                bprint(sprintf("%s (%s): Quake VR's %s, ", VR_ADGun_Name(w2), WeaponIdToModel(w2, 0),
+                    w2 == WID_ADROCKET ? "rocket" : "grenade"));
+            }
+            else
+            {
+                bprint(sprintf("%s (%s): damage %g, splash %g, speed %g, ", VR_ADGun_Name(w2), WeaponIdToModel(w2, 0),
+                    VR_ADGun_Value(w2, "damage"), VR_ADGun_Value(w2, "splash"), VR_ADGun_Value(w2, "speed")));
+            }
             bprint(sprintf("%s %g, %s %g\n", st ? "fuel" : "ammo", VR_ADGun_ClipSize(w2), st ? "rate" : "refire",
                 VR_ADGun_Value(w2, st ? "rate" : "refire")));
         }
