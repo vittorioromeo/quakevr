@@ -281,6 +281,12 @@ extern "C" float VR_EntityGlow(const entity_t* e)
     // player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp), else an incandescent blade's (4 and over: its
     // colour and strength coded, vr_hotblade.cpp entityGlow), else a power-up's on your hands and body (under -2: its
     // colour and strength coded, vr_view.cpp powerupGlow).
+    // (A glowing blade's heat comes first: aiming at a dropped hot blade must not hide that it is incandescent.)
+    const float hotFirst = qvr::hotblade::entityGlow(e);
+    if(hotFirst != 0.f)
+    {
+        return hotFirst;
+    }
     const float t = qvr::toolgun::entityGlow(e);
     if(t != 0.f)
     {
