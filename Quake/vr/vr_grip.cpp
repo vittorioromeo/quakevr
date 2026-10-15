@@ -464,7 +464,7 @@ glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const flo
     {
         const glm::mat3 toProp = glm::transpose(h.now.rot);
         glm::vec3 move{0.f};
-        if(gripfit::fit(num, hand, h.local, false, toProp, -(toProp * h.now.pos), h.prop.lo, h.prop.hi, move))
+        if(gripfit::fit(num, hand, h.local, false, toProp, -(toProp * h.now.pos), h.prop.lo, h.prop.hi, &h.prop.vertices, move))
         {
             h.fit = -(h.now.rot * move);
             h.now.pos += h.fit;

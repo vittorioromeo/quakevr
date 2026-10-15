@@ -1979,6 +1979,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_grasp_sweep", view::graspSweep_f);
     Cmd_AddCommand("vr_grasp_spheres", grasp::spheres_f);
     Cmd_AddCommand("vr_grip_fit_last", gripfit::last_f);
+    Cmd_AddCommand("vr_grip_fit_drawn", gripfit::drawn_f);
     Cmd_AddCommand("vr_hand_reload", handrig::reload_f);
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
     Cmd_AddCommand("vr_model_reload", view::modelReload_f);

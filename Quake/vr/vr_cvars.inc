@@ -2188,11 +2188,10 @@ QVR_CVAR(vr_held_collide_walls, "1", CVAR_ARCHIVE)    // a prop held in one hand
 QVR_CVAR(vr_held_collide_wall_max, "40", CVAR_ARCHIVE) // with it: cm, the most it and the hand are drawn held back (pushed further, it goes in by the rest; the server drops it 32 units past)
 QVR_CVAR(vr_held_collide_monsters, "1", CVAR_ARCHIVE) // a prop held in one hand stops at the monsters' drawn models, the hand with it, as weapons do (vr_model_collide, vr_model_collide_max; looks only: vr_modelcollide.cpp); never dropped for it
 QVR_CVAR(vr_held_fit_gap, "0", CVAR_ARCHIVE)          // with it: cm between the curled fingers and what they hold (negative: sunk in)
-QVR_CVAR(vr_grip_fit, "1", CVAR_ARCHIVE)              // once per grab: a prop the posed hand (palm, fingers) sinks into past vr_grip_fit_depth is moved out along its escape direction, in steps, and held there (vr_gripfit.cpp; 0: off)
-QVR_CVAR(vr_grip_fit_depth, "2.5", CVAR_ARCHIVE)      // with it: cm the hand may sink into a prop's collision shape before it is moved
-QVR_CVAR(vr_grip_fit_step, "1", CVAR_ARCHIVE)         // with it: cm, the most it is moved per step
-QVR_CVAR(vr_grip_fit_steps, "12", CVAR_ARCHIVE)       // with it: the most steps (1..32); the best place found is kept if none fits
-QVR_CVAR(vr_grip_fit_max, "10", CVAR_ARCHIVE)         // with it: cm, the most it is moved in all (0: no cap)
+QVR_CVAR(vr_grip_fit, "1", CVAR_ARCHIVE)              // once per grab: a prop the drawn hand (palm, back, wrist; fingers as they grip) sinks into is moved out of the hand the least way that leaves it on the surface, and held there (vr_gripfit.cpp; 0: off)
+QVR_CVAR(vr_grip_fit_finger_depth, "0.4", CVAR_ARCHIVE) // with it: cm the fingers and thumb may press into the prop (contact)
+QVR_CVAR(vr_grip_fit_palm_depth, "0.2", CVAR_ARCHIVE) // with it: cm the palm, the back of the hand and the wrist may press into it
+QVR_CVAR(vr_grip_fit_reach, "0.75", CVAR_ARCHIVE)     // with it: the most it is moved, in hand lengths (the least overlap within that if it can't clear)
 QVR_CVAR(vr_carry_grab_bias, "0", CVAR_ARCHIVE)       // cm: a hand takes a box, gib, backpack or armour if its fist (the palm and the curled fingers) is within this of the thing's drawn surface (negative: pressed that far into it; vr_held.cpp grabTouch)
 QVR_CVAR(vr_carry_grab_drawn, "1", CVAR_ARCHIVE)      // 1: the explosive boxes (carried, not force-grabbable) are taken by the fist against their drawn surface too, as everything else carried (vr_carry_grab_bias; with vr_box3d_hand_push_fist, your own hands); 0: by the hand's 5-unit box against their entity box (the old: taken with the fist up to 12 cm off)
 QVR_CVAR(vr_weapon_grab_drawn, "1", CVAR_ARCHIVE)     // 1: a weapon lying about (dropped, thrown, a monster's) is taken where the fist touches its drawn shape (vr_carry_grab_bias), a crowbar by its bar, a sword by its blade, or by the box round its handle as before; 0: only by that box

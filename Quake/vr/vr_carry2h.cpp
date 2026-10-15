@@ -224,7 +224,7 @@ static void fitGrip(edict_t* ent, edict_t* player, Hold& hold, const Frame& obje
             continue;
         }
         glm::vec3 move{0.f};
-        if(gripfit::fit(num, i, local, true, glm::mat3_cast(toObject * hands[i].rot), toObject * (hands[i].pos - object.pos), lo, hi,
+        if(gripfit::fit(num, i, local, true, glm::mat3_cast(toObject * hands[i].rot), toObject * (hands[i].pos - object.pos), lo, hi, nullptr,
                move))
         {
             hold.grip[i] += move;

@@ -3686,17 +3686,17 @@ void hologramTestMessage()
         slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()
             .help("Space left between your fingers and what they hold (negative: sunk in). Per model: vr_held_fit_gaps in the console."),
         toggle("Keep Fingers Out of Props", vr_grip_fit)
-            .help("Once, as you grip a prop (or take it with your other hand too): if your hand would sink into it too far "
-                  "(fingers phasing through it), it is moved out of your hand a step at a time, so your hand holds it nearer "
-                  "its edge, and kept there while you hold it. Not for weapons, nor props with a Fixed or Along the Handle grip."),
-        slider("Fingers Out: Allowed Depth", vr_grip_fit_depth, 0.f, 8.f, 0.5f, "%.1f cm")
-            .help("How deep your hand may sink into what it grips before it is moved out."),
-        slider("Fingers Out: Step", vr_grip_fit_step, 0.25f, 5.f, 0.25f, "%.2f cm")
-            .help("How far it is moved out at most per step."),
-        slider("Fingers Out: Most Steps", vr_grip_fit_steps, 1.f, 32.f, 1.f, "%.0f")
-            .help("How many steps at most; if it still doesn't fit, the shallowest place found is kept."),
-        slider("Fingers Out: Most Move", vr_grip_fit_max, 0.f, 30.f, 1.f, "%.0f cm")
-            .help("How far it is moved in all at most (0: no limit)."),
+            .help("Once, as you grip a prop (or take it with your other hand too): if your drawn hand (palm, back, wrist, "
+                  "fingers as they will grip) would sink into it, it is moved out of your hand the least way that leaves the "
+                  "hand resting on its surface, and kept there while you hold it. Not for weapons, nor props with a Fixed or "
+                  "Along the Handle grip."),
+        slider("Fingers Out: Finger Contact", vr_grip_fit_finger_depth, 0.f, 3.f, 0.1f, "%.1f cm")
+            .help("How deep your fingers may press into what they grip (a snug contact) before it is moved."),
+        slider("Fingers Out: Palm Contact", vr_grip_fit_palm_depth, 0.f, 3.f, 0.1f, "%.1f cm")
+            .help("How deep your palm, the back of your hand and your wrist may press into it before it is moved."),
+        slider("Fingers Out: Most Move", vr_grip_fit_reach, 0.1f, 2.f, 0.05f, "%.2f hands")
+            .help("How far it is moved at most, in hand lengths; if your hand still can't rest on it, the place where it "
+                  "sinks in least within that is kept."),
         toggle("Held Things Collide", vr_held_collide)
             .help("Things you hold one in each hand, or a thing in one hand and a weapon in the other, bump into each other "
                   "instead of passing through: each hand is drawn moved back with what it holds, a short buzz as they meet. "
@@ -5726,8 +5726,11 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_ragdoll_hand_probe: each hand holding a ragdoll's limb: the limb's lag, the hand drawn off its "
                   "controller onto it, its palm and fingertips from the limb's mesh (cm), the fingers that met it."),
         command("Grip Fit: Last", "vr_grip_fit_last")
-            .help("vr_grip_fit_last: the last grip fit (Keep Fingers Out of Props): the hand's depth in the prop before and "
-                  "after, the steps, the move, its time; then the worst case (every step) timed 1000 times."),
+            .help("vr_grip_fit_last: the last grip fit (Keep Fingers Out of Props): the drawn hand's overlap with the prop "
+                  "before and after (the fingers apart), the move, its time; then the worst case timed 1000 times."),
+        command("Grip Fit: Drawn Hand", "vr_grip_fit_drawn")
+            .help("vr_grip_fit_drawn: each hand holding a prop, as drawn now: how many of its mesh's points are in the "
+                  "prop's shape and how deep (cm), the hand and the fingers apart."),
         command("Grasp Bench", "vr_grasp_bench")
             .help("vr_grasp_bench: each hand's grasp solve on what it holds, timed (afresh, and again 1000 times)."),
         command("Grasp Sweep", "vr_grasp_sweep 5")
