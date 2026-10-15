@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Motion Recorder (vrmelee-recording): record Neck Snap Expected takes (start the take, then grip the dummy's head, twist hard) and Neck Snap Not Expected ones (shoulders, slow/small turn, pull, lift); dummy stays standing and holdable; Review Takes lists them; include a push-pull with wrist roll
 Neck snap: shoulders twisted hard = no snap; head/neck twist = snap with a loud crack in your hands; Neck Snap > Show Diagnostic matches what you feel; bullet time: grab-and-twist / grab-and-lift right away work; lying enemy: twist about its own neck; AD fumigator/centurion liftable
 Native prop think: throw/drop weapons and pickups into water and onto floors: float/sink, dust, settle flat as before; Debug > Profiling > Native Prop Think off/on changes nothing visible
 AD soldiers' guns: own single-use guns again; the grenade soldier's launcher fires your grenades (clean exit, also two-handed), the rocket soldier's your rockets; plasma rifles fire AD bolts that spark and push props
