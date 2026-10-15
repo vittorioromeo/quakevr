@@ -1776,3 +1776,11 @@ lying. Save and load keep them (and their sleep). ragdoll_test flat, cap, save u
 **In the headset:** MG3's start map and map2b: the placed ogres (and shamblers) lie on their blood pools; walk up to
 one, take a limb, lift and drag it, cut it, shoot it to gibs. Walking on, the bodies left behind lie still as placed.
 Open question: a placed ogre is heavy (200 kg) lifted by the head in the mock (24 units behind the hand after 30 up).
+
+## Beams: the broadcast's message boundaries count the beam id (2026-10-15, worktree `backlogclean`, branch `agent/beamfix`)
+
+The non-AD part of AD P1b (6267ce7d2): `tempEntityLength` (vr_server.cpp) counts Quake VR's beam id byte in a
+TE_LIGHTNING1-3/TE_BEAM when the progs are ours (PRFL_QUAKEVR_PROGS). It was one short, so a beam never ended on a
+boundary and the QuakeC temp entities right after it had none either: a full broadcast dropped more than it had to
+(never garbled). Lightning gun held 5 s in e1m1 with `vr_debug_net 2` (220-240 broadcast bytes a second, no errors);
+e1m1 smoke clean.

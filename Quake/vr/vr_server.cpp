@@ -284,7 +284,8 @@ BroadcastRoom broadcastRoom{};
         case TE_LIGHTNING1:
         case TE_LIGHTNING2:
         case TE_LIGHTNING3:
-        case TE_BEAM: return 2 + 2 + 6 * coord;              // the entity, from, to
+        case TE_BEAM:                                         // the entity (and Quake VR's beam id: VR_ParseBeamEntity), from, to
+            return 2 + 2 + ((sv.protocolflags & PRFL_QUAKEVR_PROGS) ? 1 : 0) + 6 * coord;
         default: return 0;
     }
 }
