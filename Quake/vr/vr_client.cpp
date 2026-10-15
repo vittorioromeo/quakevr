@@ -562,6 +562,10 @@ void parseParticle2()
         case Preset::ChainsawSmoke: break;                 // (too faint for Quake's dots)
         case Preset::ContactSparks: puff(111, count); break;
         case Preset::BatterySmoke: break;                  // (too faint for Quake's dots)
+        case Preset::AdFlame: break;                       // (AD's own flame sprites stand alone)
+        case Preset::AdPoison: break;
+        case Preset::PoisonPuff: puff(56 + (rand() & 7), count * 2); break; // (the greens)
+        case Preset::ElectricSparks: puff(244, count); break;
         default: puff(73, count); break;
     }
 }

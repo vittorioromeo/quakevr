@@ -114,7 +114,11 @@ void() ad_pyroflame_touch =
 			else ad_PoisonDeBuff(other);
 		}
 		// Poison anything else (very quick death, high damage)
-		else ad_T_Damage (other, self, self, ad_DAMAGE_MONFLAME, ad_DAMARMOR);
+		else {
+			ad_T_Damage (other, self, self, ad_DAMAGE_MONFLAME, ad_DAMARMOR);
+			// Quake VR: poisoned for a while too, its green puffs (vr_ad_enemyguns.qc: the poison sprayer's, as the player's)
+			if (other.flags & ad_FL_MONSTER) VR_ADGun_Poison(other, self.owner, cvar("vr_adgun_fumigator_poison"), cvar("vr_adgun_fumigator_poisontime"));
+		}
 	}
 };
 
@@ -129,6 +133,7 @@ void() ad_pyroflame_think =
 		self.velocity_z = self.velocity_z + 10 + (random() * 20);
 		self.velocity = self.velocity - (self.movedir * 0.125);
 		self.nextthink = time + 0.1;
+		VR_ADGun_StreamFx(self, self.owner.ad_classtype != ad_CT_MONPYRO); // Quake VR: our fire with it (vr_ad_enemyguns.qc)
 	}
 }
 
@@ -200,6 +205,9 @@ void(vector ad_org, vector ad_dir) ad_pyroflame_spawn =
 	ad_newmis.nextthink = time + 0.1;
 	ad_newmis.think = ad_pyroflame_think;
 	ad_newmis.touch = ad_pyroflame_touch;
+	// Quake VR: see-through, our fire with it, its muzzle's fire and smoke (vr_ad_enemyguns.qc: as the player's)
+	VR_ADGun_StreamFx(ad_newmis, self.ad_classtype != ad_CT_MONPYRO);
+	VR_ADGun_StreamMuzzle(ad_org, ad_dir, self.ad_classtype != ad_CT_MONPYRO, pointcontents(ad_org) <= ad_CONTENT_WATER);
 };
 
 //----------------------------------------------------------------------

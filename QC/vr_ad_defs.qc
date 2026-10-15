@@ -130,6 +130,12 @@ void(entity pellet) VR_AD_PelletPrepare;
 void(entity pellet) VR_AD_PelletLaunch;
 float(entity shooter, float speed) VR_AD_PelletSpeed;
 void(entity missile) VR_AD_Ordnance;
+void(entity flame, float poison) VR_ADGun_StreamFx;        // a flamethrower's flame (a pyro's, a fumigator's): our fire too
+void(entity t, float xAlive, vector xAt, vector xDir) VR_ADGun_BoltShock; // a plasma rifle's bolt's hit: electrocuted
+float(entity bolt) VR_ADGun_IsElectric;                   // a plasma rifle's bolt (the soldiers', eliminators', centurions')
+void(vector org, vector dir, float xHit) VR_ADGun_BoltFx;  // ... its muzzle's or its hit's sparks and arcs
+void(vector org, vector dir, float poison, float water) VR_ADGun_StreamMuzzle; // a flamethrower's muzzle: fire, smoke
+void(entity xVictim, entity xBy, float xDps, float xTime) VR_ADGun_Poison; // poisoned for a while: damage, green puffs
 float(entity targ) VR_AD_Skybox;                  // AD's trigger_skybox: its sky by svc_skybox to every client; TRUE: done
 float(entity client, float density) VR_AD_SkyFog; // AD's sky fog: the player's STAT_QVR_ADSKYFOG; TRUE: done
 float() VR_AD_WeaponTouch;

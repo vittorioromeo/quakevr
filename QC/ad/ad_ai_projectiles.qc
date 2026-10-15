@@ -303,7 +303,9 @@ void() ad_Touch_PlasmaProjectile =
 	if (other == self.owner) return;			// Touching self, do nothing
 	if (other.solid == ad_SOLID_TRIGGER) return;	// trigger field, do nothing
 	if (self.waitmin > time) return;			// plasma touch has been disabled
-	
+	// Quake VR: an electric bolt's hit crackles (vr_ad_enemyguns.qc, as the player's with the dropped gun)
+	if (VR_ADGun_IsElectric(self)) VR_ADGun_BoltFx(self.origin, self.velocity, ad_TRUE);
+
 	// Default damage for plasma (override on worldspawn)
 	if (self.ad_classproj == ad_CT_PLAYER) self.pos1 = ad_map_plasmagundmg; 
 	// Default damage for all monsters
@@ -362,7 +364,10 @@ void() ad_Touch_PlasmaProjectile =
 		// Plasma hits always kill any zombie (1 hit)
 		if (other.ad_classgroup == ad_CG_ZOMBIE) self.dmg = ad_DAMAGE_ZOMBIECLASS;
 		// Don't bother with damage if there is none!
+		ad_tself = other; ad_org = self.origin; ad_dir = normalize(self.velocity); ad_vec_x = other.health > 0;
 		if (self.dmg > 0) ad_T_Damage (other, self, self.owner, self.dmg, ad_DAMARMOR);
+		// Quake VR: the soldiers', eliminators' and centurions' electric bolts electrocute (as the player's: vr_ad_enemyguns.qc)
+		if (VR_ADGun_IsElectric(self)) VR_ADGun_BoltShock(ad_tself, ad_vec_x, ad_org, ad_dir);
 
 	}
 	//----------------------------------------------------------------------
@@ -486,6 +491,8 @@ void(vector ad_org, vector ad_dir, float ad_proj_type, float ad_proj_speed) ad_l
 		ad_newmis.angles_y = rint(random()*360);	// Random angle
 		ad_newmis.frame = 0;						// Start really small
 	}
+	// Quake VR: an electric bolt's muzzle crackles (vr_ad_enemyguns.qc: the monsters' and the player's with their guns)
+	if (VR_ADGun_IsElectric(ad_newmis)) VR_ADGun_BoltFx(ad_org, ad_dir, ad_FALSE);
 
 	//----------------------------------------------------------------------
 	// Is DP engine active for new particle trail?

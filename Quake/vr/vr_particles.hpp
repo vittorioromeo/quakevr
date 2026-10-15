@@ -56,7 +56,18 @@ enum class Preset : int
     ContactSparks,
     // A spent thunderbolt cell smoking (QC vr_reload.qc, vr_reload_battery_smoke_time): `count` thin grey wisps rising
     // off its top, each vr_reload_battery_smoke_alpha opaque.
-    BatterySmoke
+    BatterySmoke,
+    // AD support: Arcane Dimensions' flamethrowers (QC vr_ad_enemyguns.qc: the pyro's and the fumigator's streams, the
+    // monsters' and the player's): `count` tongues of the torches' fire (CellFire) at random angles, carried along with
+    // one of AD's flame sprites (`dir`: its velocity / 100); AdPoison's green. Also their muzzles' (`dir` slow).
+    AdFlame,
+    AdPoison,
+    // AD support: a body poisoned (vr_ad_enemyguns.qc's poison): `count` puffs of green smoke over it, `dir` its half
+    // size / 16 (the box they rise from).
+    PoisonPuff,
+    // AD support: an electric gun's muzzle and its bolt's hit (AD's plasma rifles: vr_ad_enemyguns.qc): `count` blue-white
+    // sparks thrown along `dir` (a direction) and short crackling arcs.
+    ElectricSparks
 };
 
 // Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the

@@ -383,6 +383,12 @@ float QVR_PARTICLE_PRESET_WOODDUST      = 15; // a crate or a piece of one break
 float QVR_PARTICLE_PRESET_SAWSMOKE      = 16; // a running chainsaw's faint exhaust (vr_chainsaw.qc): count puffs, dir their way out
 float QVR_PARTICLE_PRESET_CONTACTSPARKS = 17; // a thunderbolt cell making or breaking contact (vr_reload.qc): count small blue-white sparks
 float QVR_PARTICLE_PRESET_BATTERYSMOKE  = 18; // a spent thunderbolt cell smoking (vr_reload.qc): count thin grey wisps
+// AD support (vr_ad_enemyguns.qc): flamethrowers' fire and poison tongues carried along (dir: velocity / 100), a poisoned
+// body's green puffs (dir: its half size / 16), an electric gun's sparks and arcs (dir: a direction).
+float QVR_PARTICLE_PRESET_ADFLAME        = 19;
+float QVR_PARTICLE_PRESET_ADPOISON       = 20;
+float QVR_PARTICLE_PRESET_POISONPUFF     = 21;
+float QVR_PARTICLE_PRESET_ELECTRICSPARKS = 22;
 
 //
 //
