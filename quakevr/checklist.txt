@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Faster QuakeC loop: play e1m1 and an AD map, nothing behaves differently; Debug > Profiling > QuakeC Loop: Original vs Fast
 AD stealth: sneak up on AD soldiers/knights in the dark: they stay unaware; lit, they notice in ~1 s
 AD soldiers drop our weapons (rocket/grenade launcher, super shotgun, laser cannon for plasma); fire them; Arcane Dimensions > Guns: AD's own guns = old drops
 Hipend: shots hit the Armagon's torso, not only the legs
