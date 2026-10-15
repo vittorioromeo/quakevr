@@ -7714,3 +7714,61 @@ before (the pouch grenade's "not within reach" happens with the fit off too); e1
 In VR: grab a crate or barrel with the hand pushed well into it (or by an edge at an odd angle): the prop should jump
 out of the hand a little, so the fingers sit at its surface, not through it; a normal grab should not move it. Try the
 Allowed Depth and Most Move sliders if it moves too much or too little.
+
+### Second pass: the drawn hand on the surface (worktree `flatfist`, branch `agent/gripfit2`, 2026-10-15)
+
+His verdict on the first pass's pictures: "In both your screenshot the hand is almost completely embedded inside the
+crate. Both the hand and finger overlap should be minimized." (The first pass's settings above are replaced.)
+
+What was wrong: the hand was 93 grasp spheres: the fingers and one thin sheet at the palm's skin (radius 0.5 cm), so
+the back of the hand, the wrist and the ball of the thumb were never measured; a sphere counted as sunk only if it
+was in both open and in the fist (a finger could pass with its base clear closed and its tip clear open, in no one
+pose); the escape was one fixed direction, the move capped at 10 cm with 2.5 cm allowed. New measuring tool,
+`vr_grip_fit_drawn` (Debug > Profiling and Memory > Grip Fit: Drawn Hand): every vertex of the hand as drawn now
+(455) in the held prop's shape, the hand and the fingers apart (cm).
+
+- **The hand is the drawn mesh** (`vr_gripfit.cpp`): its vertices posed as the hand draws them, through the rig
+  frame `vr_view.cpp` keeps every frame (a matrix and the fingers' shifts; the open-sphere store is gone). The palm
+  joint's vertices (palm, back of the hand, wrist: 40 points) and each finger's and the thumb's with its ball (4
+  points each) at three curls of the closing path (0, 2, 4), each part thinned once per rig by farthest-point
+  sampling: 100 points.
+- **A finger as the grasp draws it:** closed from open until it touches, or sunk open, from the tightest curl it is
+  clear at; so a finger counts as in only if it is in at every curl, by its least sunk curl (all its points in one
+  pose). Fingers may press `vr_grip_fit_finger_depth` (0.4 cm) in, the palm, back and wrist `vr_grip_fit_palm_depth`
+  (0.2 cm). The overlap is every point's depth past its allowance, summed.
+- **The shape:** the Box3D hulls, each face pushed out to the drawn model's furthest vertex along it (at most 6 cm:
+  the barrel's hoops stand 4 cm out of its hull; the crates' hulls are their drawn boxes exactly).
+- **The move:** the ways out are the faces nearest the sunk points (the 3 most weighted by depth, the pair of the
+  first two, the depth-weighted sum); along each, the distance that clears every point is solved at once from the
+  face distances; tried in order of that distance (the least move first), capped at `vr_grip_fit_reach` hand lengths
+  (0.75, 18 cm), the first 2 measured there: the first that clears is kept, else the one in least (never deeper than
+  before). Menu (Carrying): Finger Contact, Palm Contact, Most Move (hands); the step rows are gone (no steps).
+
+Tests (headless, e1m1; `scratch/gf2_test.sh`, `gf2_2h.sh`, `gf2_place.sh`): the drawn hand 40 frames after the grab,
+`vr_grip_fit_drawn` (points in of 172 hand / 283 fingers, deepest cm), off = `vr_grip_fit 0`:
+
+| grab | off: hand | off: fingers | on: hand | on: fingers | moved |
+| --- | --- | --- | --- | --- | --- |
+| small crate, hand 13 over its middle (by the top) | 106, 6.2 | 247, 7.2 | 0 | 0 | 10.1 cm |
+| small crate, 6 over its middle (whole hand in) | 172, 28.2 | 283, 29.2 | 130, 11.9 | 272, 11.5 | 18 (the cap) |
+| barrel, 12 over its middle | 112, 7.7 | 256, 8.9 | 0 | 0 | 13.5 |
+| health box beside the fist | 0 | 48, 0.67 | 0 | 48, 0.67 | 0 (clear) |
+| explosive box, 10 over its corner (whole hand in) | 172, 29.5 | 283, 27.5 | 172, 11.2 | 283, 9.2 | 18 (the cap) |
+| health box on the palm (surface fit off) | 37, 3.8 | 117, 4.7 | 0 | 27, 1.7 | 4.5 |
+| second hand into a held health box (4 cm in) | 60, 4.1 | 175, 5.1 | 0 | 9, 1.2 | 5.1 |
+
+The fingers left in (0.5-1.7 cm) are the grasp solve's own snug contact as it wraps (the health box held clear shows
+the same 0.67 cm with the fit off). Pictures (`scratch/gf2_pair.png`, side views; the hand placed in reach so the arm
+is drawn: `gf2_place.sh`, the crate taken by its lid's near edge with the hand 6 units under the lid, the barrel at its
+rim): off, the hand is inside the crate (only the forearm shows) and inside the barrel's wall; on, it lies on the lid
+and holds the barrel's outside at the rim (drawn: 7 and 0 hand points in, under 0.5 cm). Note: in the first pass's
+`nearest` cases the hand is beyond arm's reach, so no arm is drawn and the fist on the lid reads as a fingertip.
+
+Timing (`--exclusive`, `vr_grip_fit_last`, the barrel's 66 faces): the solver's worst case (every point in every
+hull, all ways, 2 measured) 31.4 us mean; a live barrel grab 70-76 us with cold caches (the shape 14, posing the hand
+7), a crate 25-39 us, a clear grab 13 us. No allocation at a grab (fixed arrays; the rig's points are chosen when the
+rig is first used). Regression: `grip_gap_test.py` cycle 7 checks and forcegrab 6, 0 failed; e1m1 smoke clean.
+
+In VR: grab a crate by its lid or a barrel by its rim with your hand pushed well in: the prop should drop out of the
+hand so the hand lies on the lid or round the rim; a grab with the hand already on the surface should not move it.
+A hand pushed in more than about 18 cm (Most Move 0.75) stays partly in.
