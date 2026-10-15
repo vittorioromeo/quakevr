@@ -6,8 +6,23 @@ Items the author approved or asked about, not yet started. Each has a note on wh
 
 ### Active humanoid coverage for AD's soldiers (author, 2026-10-12)
 
-Left: extend living and dying active behaviours to AD grunt/enforcer variants after validating their rig semantics,
-get-up clips, attack origins and locomotion; the author explicitly permits deferring this rig/behaviour work.
+NOT done (checked 2026-10-15: no commit; ROUND22.md only has AD soldiers' guns, the lift classes and the neck-snap
+tests, and the lift test notes "none flails: AD's have no driven rigs"). Left: extend living and dying active
+behaviours to AD grunt/enforcer variants after validating their rig semantics, get-up clips, attack origins and
+locomotion; the author explicitly permits deferring this rig/behaviour work.
+
+### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
+
+Research climbing by bracing a hand on each side of a pillar or pipe and moving upward hand-over-hand. Open.
+
+### Climbing leg animation (legs seek footholds) (23:10:39, 2026-10-14)
+
+Legs should seek plausible support points on walls, ledges, pillars and ladders, so looking down shows believable
+assistance during climbing. Open.
+
+### Repository chores
+
+## To manually revisit (author unsure)
 
 ### Flies on corpses and gibs (the author, 2026-10-02: "add it to the to-do list")
 
@@ -24,14 +39,19 @@ models with an arm, made for the flat view. To do: bloody skins for `progs/v_sho
 picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and laid as the Super Axe's are
 (`vr_monstermods.cpp superAxePoses`), with their own weapon settings slots.
 
-### Repository chores
-
-## Proposed, waiting on the author
-
 - **Temporal AA, then DLSS/DLAA and FSR 3.1** (`docs/vr-port/TEMPORAL.md`): stage 2a (motion vectors for both eyes) is
   safe to start any time; the DLSS helper waits
   on TEMPORAL.md's section 12 questions (private use or public, the helper's licence, FSR 3.1, TAA as default AA, 120
   vs 90 Hz with DLSS).
+
+## In progress, 2026-10-15 (other workers; not open here)
+
+Thrown living-enemy damage, Landing crush, Impact dismemberment, Glove customization, Vore two-handed shove animation,
+Model vertex wobble (2) (rigged monsters' vertices rebuilt from the fitted skeleton). Their texts were removed from
+this file; the workers' ROUND22.md sections carry them.
+
+## Proposed, waiting on the author
+
 - **The graphics on the flat screen** (asked round 20): most features already draw on the desktop; to do: the
   float scene, tone mapping, grades and bloom for the window, and a check of each feature with VR off.
 - **Lower-end graphics settings before a release** (the author, round 20: "maybe later on before release, you can
@@ -67,14 +87,6 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   engine wakes the pickup). Small absolute gain (QuakeC is ~0.07 ms a frame): review, then decide.
 
 ## Later (the author, 2026-10-11, before 1.0.0: "Make sure everything is in the backlog for later")
-
-### Vore: a two-handed shove animation (the author, 2026-10-13: "Not urgent, backlog.")
-
-His note: "The vore now correctly shoves me away, but it would be nice to use a different animation, like a two-handed
-shove." Today the vore's shove (QC/vr_enemyshove.qc, `shal_shove1..`, orig_mon_shalrath.qc) replays the end of its
-ball throw, a swing of its arms. To do: new frames in `progs/shalrath.mdl` for a two-handed push (both arms forward
-together, the blow on the frame both reach out; made as Misc/quakevr/make_enemyshove.py made the grunt's and
-enforcer's), the blow frame (now the 5th) and vr_enemy_shove_vore_* kept matching.
 
 ### AD soldiers' guns: refine their VR models (author, 2026-10-15)
 
@@ -184,7 +196,7 @@ TODO: linux support
 - **AD relief authoring pilot:** the pilot of 10-20 textures (reviewed height masks, `_bump`/`_norm` sidecars) is not
   started.
 - **Optional vertex breathing reduction:** the dequantisation shipped; the per-bone rigid-fit option is the wobble
-  item (2), not started.
+  item (2), in progress 2026-10-15 (another worker).
 - **Hidden mock blank readback:** some isolated eye/window captures are entirely black even with flat lightstyles;
   investigate capture/target validity separately if needed. This is not evidence of the reported lamp flicker.
 ### Native AD inventory and interface (author, 2026-10-12 11:27:41)
@@ -203,8 +215,16 @@ stats), the jump boots' power level, coop.
 ## Open from round 22 (2026-10-14; credits ran out)
 
 - **Neck snap:** Hand Line kept, Velocity removed (2026-10-15, ROUND22.md "Neck snap: the Hand Line only"). Still open: a wrist-roll-only test; `ragdoll/stagger_test.sh judo` under it.
-- **AD humanoids and the neck snap / lift:** add `monster_centurion` and the fumigator to `vr_foegrab_lift_classes`; verify head zones and ragdolls (knocked-down/staggered snaps, lift flail) on each AD humanoid in the list (never tested).
-- **Step In:** optional depth cap so the player can't walk right through a held enemy (`vr_foegrab_step_in`); he judges if Step In is a net plus.
+- **AD humanoids and the neck snap / lift:** PARTLY done. Done: the centurion and fumigator are in
+  `vr_foegrab_lift_classes` (config 134, cf44e08a3) and `judo_test.py adneck` (4f18290ce; ROUND22.md, "Neck snap: strict
+  zone, diagnostic, slow motion, crack") lifted every AD humanoid, snapped 12 of 15 heads standing and measured held
+  knocked-down pyro, fumigator and death knight. Left: the zombie knight's head sits 3-5 units to the side of its head
+  zone (headfit 2.8 3.1 21.1; positional damage's zones have no sideways offset); the eliminator's and fumigator's heads
+  were not taken from the zone's sides; AD's humanoids have no driven rigs, so a lift does not flail them; the
+  centurion hovers (never knocked down nor lifted) and its snap is untested.
+- **Step In:** NOT done (checked 2026-10-15): nothing like a depth cap exists; with Step In the player walks through a held
+  enemy and out its far side, held only within Let Go Beyond (ROUND22.md, "Closer to enemies: body inset and step in",
+  its Notes). Left: an optional depth cap (`vr_foegrab_step_in`); he judges if Step In is a net plus.
 - (Done 2026-10-15, fastship: walk 2500 frames) **Body Inset vs vore shoves:** `voreshove_test.sh` now gets 3-4 shoves (needs 4) at inset 4: vores stand closer and die to their own splash; restore the test's margin.
 - (Done 2026-10-15 except hotblade throw, unreproduced alone) **Flaky tests:** judo_test `hold` "held on" drag (moves 4-12 units by landing; ~1 in 3 under the 4-unit bar); hotblade_test `throw_cold`/`throw_hot` (axe sometimes arrives under 6.3 m/s after a bounce).
 - (Done 2026-10-15 except Quoth long torch flame position) **Incandescent blades leftovers:** weapons start cold after a level change; Quoth's long wall torch is no fire spot (flame position unknown); force-grab/counter/toolgun glows override the heat glow on an aimed dropped blade.
@@ -229,9 +249,10 @@ stats), the jump boots' power level, coop.
 - Phase 4: coop: clients bake from the replicated decal events; a mid-game joiner gets a snapshot or a fresh start.
 - (Done 2026-10-15, `agent/permdecals3`: the atlas grows by layers up to `vr_permdecal_atlas_max`; past that the
   least recently baked page still gives its slot up. Downsampling old pages there is the remaining idea.)
-- Retro (blocky) textures: baked marks render smooth; match the retro filtering.
-- Gore's delayed marks appear at once on doors and lifts (brush-entity marks bake immediately).
-- Marks on brush-tool boxes stay live (not baked).
+- Retro (blocky) textures: baked marks render smooth; match the retro filtering. Still open (PERM_DECALS.md, "Open").
+- Gore's delayed marks appear at once on doors and lifts (brush-entity marks bake immediately). Still open.
+- Marks on brush-tool boxes stay live (not baked). Still open, by design for now (PERM_DECALS.md, "When a mark is baked":
+  "Never").
 
 ## QuakeC VM overhead, short of a JIT (2026-10-14; profile first with the Tracy build's QC zones)
 
@@ -266,11 +287,8 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 - **Mid-air trick catches (22:31:57):** add appropriate main-handle grab leniency for re-catching tossed/spinning weapons, such as an axe; current timing/handle precision is too finicky.
 - **Enemy occlusion of force grab (22:37:38):** bodies should block force-grab line of sight so physical enemy interaction does not accidentally grab an object behind the enemy.
 - **Bullet-time lift/neck-snap responsiveness (22:38:26):** both interactions feel hard and unresponsive in slow motion; investigate gesture/velocity checks versus time scaling.
-- **Thrown living-enemy damage (r2m1, 22:46:26):** increase meaningful impact damage from slamming or throwing a lifted living enemy from height.
-- **Landing crush (r2m1, 22:47:42):** jumping from sufficient height onto a living ragdoll should crush/damage the contacted body part, with appropriate head/limb destruction for a strong impact.
 - (Partly: cvar vr_box3d_walk_nudge added; nudge does not fire yet, ROUND22 "Small fixes") **Walking nudges (r2m1, 22:48:15):** legs should gently push nearby/underfoot ragdolls without those bodies blocking the player's walking movement; avoid excessive pushes.
 - **Head/wall slams and live-ragdoll access (dm2, 22:55:25):** allow grabbing a living enemy and smashing its head into a wall to kill it. Keep lifting as one way to activate ragdoll interaction, but investigate additional natural ways to enter that state.
-- **Impact dismemberment (dm2, 22:57:26):** wall/ground impacts should accumulate damage on struck heads/limbs and eventually pop or explode them; includes repeated held head slams and headfirst falls, beyond generic body damage.
 
 ### Neck-snap tuning and diagnostics
 
@@ -280,11 +298,6 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 
 ### Maps, presentation and future interactions
 
-- **Firing-range laser cannon spawn (22:37:06):** one cannon starts inside its platform and glitches. Investigate map placement versus physics regression; vrfiringrange player position (138, -757, 41).
-- **Persistent-decal continuation (23:07:45; see PERM_DECALS.md and earlier leftovers):** investigate reported blood/decal slowdowns and explain/test exactly when marks become baked, including whether baking starts only at the bucket limit. Disabling persistent decals leaves some marks and removes others; research and tune that transition/visibility behavior.
-- **Glove customization (23:08:18):** alongside skin tone/bracers, offer fingerless/full-finger glove textures and independent hue, saturation and lightness controls for glove color.
-- **Pillar/pipe climbing feasibility (23:10:39):** research climbing by bracing a hand on each side and moving upward hand-over-hand.
-- **Climbing leg animation (23:10:39):** legs should seek plausible support points on walls, ledges, pillars and ladders so looking down shows believable assistance during climbing.
 
 ### Faster QuakeC interpreter: research notes (2026-10-14, Quake/pr_exec.c)
 
@@ -309,34 +322,15 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 - Cause: .mdl stores each frame's vertices as 3 bytes (0-255 per axis) times a per-model scale/offset, so positions
   snap to 1/255 of the model's extent (~0.25 units on a ~60-unit model), independently per frame: the rippling. Linear
   blending between frames adds limb shrinking/swimming.
-- (2) Rigged monsters: rebuild vertices from the fitted skeleton on every frame (rest pose x bone transform), not only
-  between frames as r_lerpmodels 3 / vr_anim_smooth_rig do; removes quantisation noise, leaving the fit error
-  (vr_anim_smooth_rig_error). Builds on vr_animsmooth.cpp; pairs with (1).
+- (2) Rigged monsters: in progress 2026-10-15 (another worker).
 - (3) Higher-precision formats (MD3 16-bit, IQM/MD5 float; the 2021 rerelease ships float models): check what the
   engine already loads before relying on it; covers only models that have replacements.
 
 ## Other
 
-- Review b7ee7d69a9c1ff5cd838b03916f3cdfb31457158 and related commits' toolgun changes
 - His words: "I feel that enemies like knights often get too close and go through the player when they perform a melee attack, which can be disorienting and make it difficult for the player to parry or counterattack. Is this something specific to knights? Should we add some sort of minimum radius distance from the player that the enemy will be smoothly pushed back into when performing a melee attack?"
 
 ## His notes, 2026-10-15
 
-- MDL dequantisation follow-up (docs/vr-port/MDL_DEQUANT.md; vr_mdl_dequant): "Much better! But I still see some
-  wobbling/pulsating and, most importantly, a noticeable itch at the loop point for certain animations (e.g. grunt and
-  knight idle animation)." Ideas: treat looping animations as cyclic (smooth across last->first frame, so the loop
-  seam is continuous); detect loops for unnamed-frame models (QVR soldier etc.: split only at jumps today); stronger
-  temporal smoothing within the half-step box (e.g. minimise higher derivatives, or a global least-squares over the
-  cycle); remaining pulsation may be linear inter-frame blending, so consider smoothing the interpolation too
-  (r_lerpmodels 3 spline) or rebuilding rigged monsters from the fitted skeleton (backlog item (2) above).
-- Quad damage on the player's body/IK arms: a different effect than electricity, so the two states are distinct.
-- Several VR menus open at once, each with its own state, e.g. two side by side for different tasks in parallel.
-- Strong prop/weapon throws and melee hits make enemies lose balance like a shove (chance based, and/or a %hp damage
-  threshold, prop weight, ...); maybe strong fist hits to the head too. Done (ROUND22.md, "Hits that unbalance";
-  `vr_hit_stagger*`, Combat > Knockdowns > Hits Unbalance).
-- Slow motion still turns on by accident: double-tapping the wrist gadget screen during frantic melee/shoves. Find a
-  good fix (e.g. ignore taps while the hand moves fast or right after a blow, a deliberate gesture, a hold, ...).
-- Active-ragdoll get-up moves the body around too much: it visibly glides on the ground plane instead of just
-  getting up (ragstagger/ragmove get-up pin).
 - More gore: thin blood streams from bullet holes in enemies; teeth flying out when punching faces; real-time vertex
   deformation showing flesh chunks torn away; thinner, longer-range blood splatters onto surfaces behind a shot enemy.
