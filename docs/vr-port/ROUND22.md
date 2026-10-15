@@ -6953,3 +6953,47 @@ TE_LIGHTNING1-3/TE_BEAM when the progs are ours (PRFL_QUAKEVR_PROGS). It was one
 boundary and the QuakeC temp entities right after it had none either: a full broadcast dropped more than it had to
 (never garbled). Lightning gun held 5 s in e1m1 with `vr_debug_net 2` (220-240 broadcast bytes a second, no errors);
 e1m1 smoke clean.
+
+## Neck snap: the Hand Line only; lift and judo throw diagnostics (2026-10-15, worktree `backlogclean`, branch `agent/foediag`)
+
+His notes: "Please only keep the handline technique, get rid of everything else that's related to the other technique
+and update the values with my new ones", and "add similar diagnostic views for the other interactions such as the lift
+and the judo throw".
+
+- **Hand Line only.** His `vr_foegrab_necksnap_method 1` is Hand Line (checked: the cycle row's 1). Velocity is gone:
+  `vr_foegrab_necksnap_method` and `vr_foegrab_necksnap_speed` (Velocity's alone: the hand line never read a speed),
+  the menu's Twist Detection and Twist Speed rows, the stroke tracking (vr_foegrab.cpp `neckSpin`, `neckAxis`,
+  `neckPeak`, `neckStroke`, `neckSmooth`, `neckRollArm`, `neckFloor`, `neckPullShare`). `neckStep` is now the hand line
+  itself (the old `neckWindowStep`; the wrists' roll about the neck reads as before: the lesser of the two when they turn
+  the same way). Logs and the motion event say "deg within <window> s" (`necksnap/handline`; older takes say
+  `velocity`). `vr_motion_eval`'s `necksnap <method>` option is gone.
+- **His values the defaults** (from his config): Twist Angle 75 (was 80), Twist Window 0.15 s (0.2), Head Grip Margin 0
+  (2), Neck Length 0 (1.5); his speed 210 dropped with Velocity; hertz 24, strength 1.25, volume 1 were the defaults
+  already. `configVersion` 135 migrates a config at the old defaults.
+- **Lift and judo throw diagnostics** (Holding Enemies > Lift / Two-Hand Throw > Show Diagnostic, and Debug > Tests >
+  Holding Enemies: Lift Diagnostic, Judo Throw Diagnostic; `vr_foegrab_lift_debug`, `vr_foegrab_throw_debug`, not saved),
+  like the neck snap's. Over the enemy both hands hold (else the one a hand holds, else the monster nearest the palms;
+  the one last tried stays 4 s, lifted or thrown). The lift: the hands' pull, an arrow from between the palms (12 units a
+  m/s; green once at Lift Speed and within 45 degrees of straight up), the cone of both (grey), the Lift Reach circle
+  round its feet (green with you inside); its panel: up vs Lift Speed, the pull's angle vs 45, your distance vs Lift
+  Reach (bars with the threshold mid-track), hands on it, humanoid or not, `now:` what stops it this frame (pull up
+  faster, pull straighter up, one hand, settling the grip, at its head: the neck snap's, not a humanoid, too far, just
+  tried), its best pull and the last try's result. The throw: the turn's way, an arrow from its top (0.08 units a
+  deg/s), the Turn to Throw circle; its panel: turn vs Turn to Throw, the hands' speed vs Hands' Speed, the way (left,
+  right, towards, away), `now:` (turn it over faster, hands too slow, pulling up: the lift's, at its head, away from you:
+  a shove's, its kind, not hurt enough) and the best and last. Each try prints `lift diag:` / `throw diag:` with the
+  numbers against the thresholds; a two-hand hold that ends untried prints its best (`... no lift`, `... no throw`).
+  The reasons come from `twoHandCheck`, `liftCheck` and `throwCheck` themselves (the measuring moved to `twoHandsOf`,
+  shared with the frames they don't measure), so they can't drift from the real rules.
+- **Tests.** Build clean. `judo_test.py backlogclean neck neckdefaults lift hold dir`: 71/73, the two passing on a rerun
+  (`pp_knocked_fwd`: a ragdoll grab missed, the known flake; `defaults_stagger`: at his values a staggering grunt's 110
+  degrees in 0.2 s read 66 within 0.15 s, under 75: the case now twists 140, snapped at 82). `case_neck` pins its
+  reference (30 deg, 0.3 s, neck 3, now margin 2 too); `JUDO_NECK_METHOD` gone. Melee eval 168/177 before and after (the
+  same 3 bash numbers off the baseline: his `vr_bash_damage`). Neck snap takes (eval.sh, now Hand Line only; the kit's
+  copy backed up to `qvr-kit/scratch/eval.sh.bak_backlogclean`): 6/6 caught, 0/6 false (before, at the old defaults: 6/6,
+  1/6 false). Headless screenshots: `scratch/diag_lift.png` (held still: "pull up faster"; then LIFTED at 2 m/s, 36 of
+  48 units), `scratch/diag_throw.png` (a slow pull left: turn 160 of 130 deg/s, hands 0.6 of 3 m/s, "hands too slow";
+  then thrown right at 840 deg/s). `vr_menu_path_check maps/vrcalibration.map`: 0 missing. e1m1 smoke clean.
+
+Checklist (in checklist.txt, replacing the method comparison): the lift and judo throw diagnostics against what you
+feel.

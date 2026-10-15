@@ -119,22 +119,21 @@ head (`target <classname>`) the blows are judged the same way (it loses its head
 
 ### Neck snap takes
 
-For tuning the neck snap's twist detectors (ROUND22.md, "Neck snap takes"). Empty hands, the training dummy (it can be
+For tuning the neck snap's twist detector, the hand line (ROUND22.md, "Neck snap takes"). Empty hands, the training dummy (it can be
 held, `vr_foegrab`; its neck "snaps" without it dying: the console says `the training dummy (it stands)`). Motion
 Recorder > Category **Neck Snap Expected** (Detail: head, neck, push_pull, turn, tilt): take hold of its head or neck
 with both grips after starting the take, twist as you would to snap it, let go, end the take. **Neck Snap Not Expected**
 (Detail: shoulders, slow, small, pull, lift, adjusting): both hands on it doing something that must not snap it (a twist
 at the shoulders, a slow or small turn of the head, pulling or lifting it by the head, shifting the grip). Grip after the
 take starts: playback holds the dummy only with a grip that closes during the take (one closed during its setup doesn't
-take hold). The game's snap is the take's `necksnap` event (sub `velocity` or `handline`: the detector that fired; its
-detail the stroke, `83 deg at 863 deg/s standing`), from `vr_foegrab.cpp` `neckSnap`. Verdicts (`expect.cfg`): **Neck
+take hold). The game's snap is the take's `necksnap` event (sub `handline`, the detector that fired: `velocity` in takes
+before 2026-10-15; its detail the turn, `83 deg within 0.15 s standing`), from `vr_foegrab.cpp` `neckSnap`. Verdicts (`expect.cfg`): **Neck
 Snap Expected** passes with a `necksnap`, **Not Expected** without one; blows on the way in are allowed. The take's
 header records the `vr_foegrab_necksnap*` settings it was recorded with.
 
-`eval.sh` keeps these takes out of the melee sets (not in the melee count or its baseline) and replays them under each
-detector (`vr_motion_eval <takes> necksnap 0|1`: `vr_foegrab_necksnap_method` for the replays, put back after; the other
-neck snap settings as set; `eval_status.csv` unchanged), printing per detector the expected snaps caught and missed and
-the false snaps, each miss and false snap by name.
+`eval.sh` keeps these takes out of the melee sets (not in the melee count or its baseline) and replays them once at
+the neck snap settings as set (`vr_motion_eval <takes>`; their verdicts go to `eval_status.csv`, as the lift's and the
+judo throw's), printing the expected snaps caught and missed and the false snaps, each miss and false snap by name.
 
 ### Lift and judo throw takes
 
