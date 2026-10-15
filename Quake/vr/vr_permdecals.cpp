@@ -122,6 +122,15 @@ za::Vector<Stamp> stamps;
 constexpr za::SizeT noneUnbaked = ~za::SizeT{0};
 za::SizeT unbakedFrom = noneUnbaked;
 
+// Marks on brush models (doors, lifts) that show later (the gore's flying blood: vr_decals.cpp's delay), in their
+// model's space as they were laid: baked when they show (bakeDue), as the static world's live marks show then.
+struct Waiting
+{
+    Stamp stamp;
+    double due; // cl.time it shows at
+};
+za::Vector<Waiting> waiting;
+
 // vr_permdecal_info's counts since the map's start.
 struct Counts
 {
@@ -435,8 +444,10 @@ void quad(int slot, int px, int py, const Layout& l, const Stamp& s, const Frame
 }
 
 // Mark `s` (frame `f`, in model `m`'s space) baked on face `index` if it lies on it (facing about its way, its middle
-// near the face's plane, its rectangle over the face: as vr_decals.cpp's clipToWorld lays the live marks).
-bool bakeFace(const qmodel_t* m, int index, const Stamp& s, const Frame& f)
+// near the face's plane, its rectangle over the face: as vr_decals.cpp's clipToWorld lays the live marks). True if it
+// lies on it, even with its pages' slots all dropped (the atlas full: the stamp still kept, for the saves). `dry`: only
+// whether it lies on it, nothing baked.
+bool bakeFace(const qmodel_t* m, int index, const Stamp& s, const Frame& f, bool dry)
 {
     if(index < 0 || index >= static_cast<int>(map.faces.size()))
     {
@@ -479,6 +490,10 @@ bool bakeFace(const qmodel_t* m, int index, const Stamp& s, const Frame& f)
     {
         return false;
     }
+    if(dry)
+    {
+        return true;
+    }
     // The pages its part on the face reaches (and a texel round: their neighbours' texels in a slot's rim).
     glm::vec2 lo{1e30f}, hi{-1e30f};
     for(const glm::vec3& p : poly)
@@ -508,12 +523,12 @@ bool bakeFace(const qmodel_t* m, int index, const Stamp& s, const Frame& f)
         }
     }
     counts.faces += baked;
-    return baked;
+    return true;
 }
 
 // Stamp `s` baked on its model's faces (the world's: those its box reaches down the BSP tree; a brush model's: all of
-// its own); how many.
-int bakeOn(const Stamp& s)
+// its own); how many it lies on (`dry`: only those counted, nothing baked).
+int bakeOn(const Stamp& s, bool dry = false)
 {
     Frame f;
     if(!laidOut() || !frameOf(s, f) || !ensureAtlas())
@@ -557,7 +572,7 @@ int bakeOn(const Stamp& s)
             }
             for(unsigned int i = 0; i < node->numsurfaces; i++)
             {
-                faces += bakeFace(world, static_cast<int>(node->firstsurface + i), s, f);
+                faces += bakeFace(world, static_cast<int>(node->firstsurface + i), s, f, dry);
             }
         }
         return faces;
@@ -569,7 +584,7 @@ int bakeOn(const Stamp& s)
     const qmodel_t* sub = map.submodels[static_cast<za::SizeT>(s.model)];
     for(int i = 0; i < sub->nummodelsurfaces; i++)
     {
-        faces += bakeFace(world, sub->firstmodelsurface + i, s, f);
+        faces += bakeFace(world, sub->firstmodelsurface + i, s, f, dry);
     }
     return faces;
 }
@@ -821,12 +836,13 @@ int bakeWorld(const Stamp& s)
     return faces;
 }
 
-int bakeEntities(const Stamp& s)
+int bakeEntities(const Stamp& s, double due)
 {
     if(!on())
     {
         return 0;
     }
+    const bool later = due > cl.time; // (shown later: kept waiting, in the model's space as it is now)
     int faces = 0;
     for(int i = 1; i < cl.num_entities; i++)
     {
@@ -868,14 +884,55 @@ int bakeEntities(const Stamp& s)
         {
             continue;
         }
-        const int n = bakeOn(ms);
+        const int n = bakeOn(ms, later);
         if(n > 0)
         {
-            keep(ms);
+            if(later)
+            {
+                waiting.pushBack({ms, due});
+            }
+            else
+            {
+                keep(ms);
+            }
             faces += n;
         }
     }
     return faces;
+}
+
+int bakeDue()
+{
+    if(waiting.empty() || !on())
+    {
+        return 0;
+    }
+    int baked = 0;
+    za::SizeT left = 0;
+    for(za::SizeT i = 0; i < waiting.size(); i++)
+    {
+        // (due over a minute ahead: the clock went back, a load or a new map's: baked now)
+        if(const Waiting& w = waiting[i]; w.due > cl.time && w.due < cl.time + 60.0)
+        {
+            waiting[left++] = w;
+            continue;
+        }
+        if(bakeOn(waiting[i].stamp) > 0)
+        {
+            keep(waiting[i].stamp);
+            baked++;
+        }
+    }
+    waiting.resize(left);
+    return baked;
+}
+
+void waitingStamps(za::Vector<Stamp>& out)
+{
+    for(const Waiting& w : waiting)
+    {
+        out.pushBack(w.stamp);
+    }
 }
 
 namespace
@@ -1146,6 +1203,7 @@ void bind()
 void clear()
 {
     stamps.clear();
+    waiting.clear();
     unbakedFrom = noneUnbaked;
     counts = Counts{};
     freeAllSlots(atlas.layers > 0 ? 1 : 0); // (a new map: the atlas one layer again, at the next flush)
@@ -1173,6 +1231,10 @@ void info_f()
     Con_Printf("permdecals: %d stamps kept (%d on brush models); baked %lld stamps on %lld faces, %lld pages taken, %lld "
                "given up, %lld dropped\n",
         static_cast<int>(stamps.size()), onModels, counts.stamps, counts.faces, counts.pages, counts.evicted, counts.dropped);
+    if(!waiting.empty())
+    {
+        Con_Printf("permdecals: %d marks on brush models waiting to show\n", static_cast<int>(waiting.size()));
+    }
     Con_Printf("permdecals: %lld flushes drew %lld quads (%lld the most in one, %lld slots emptied the most in one), "
                "%.1f KB of page table uploaded%s\n",
         counts.flushes, counts.quads, counts.worstQuads, counts.worstClears, static_cast<double>(counts.tableBytes) / 1024.0,
@@ -1306,6 +1368,7 @@ using namespace qvr;
 extern "C" const char* VR_SaveDecalLines(void)
 {
     qvr::decals::liveStamps(qvr::permdecals::saves.live); // (the live ring's marks not baked yet: kept too)
+    qvr::permdecals::waitingStamps(qvr::permdecals::saves.live); // (and the brush models' not shown yet)
     return qvr::permdecals::saveLines(qvr::permdecals::saves.live);
 }
 
@@ -1391,6 +1454,7 @@ extern "C" void VR_PermDecalsLayout(void)
         map.table.resize(map.table.size() + static_cast<za::SizeT>(across) * static_cast<za::SizeT>(down), 0u);
     }
     stamps.clear();
+    waiting.clear();
     unbakedFrom = noneUnbaked;
     counts = Counts{};
     freeAllSlots(atlas.layers > 0 ? 1 : 0);
@@ -1446,7 +1510,7 @@ extern "C" void VR_PermDecalsFrame(float out[4])
     {
         return;
     }
-    out[0] = 1.f;
+    out[0] = 1.f + static_cast<float>(TexMgr_NearestKind()); // (2, 3: read on the texels of the textures drawn nearest)
     out[1] = static_cast<float>(atlas.perRow);
     out[2] = 1.f / static_cast<float>(atlas.size);
     out[3] = vr_permdecal_show.value != 0.f ? 1.f : 0.f;

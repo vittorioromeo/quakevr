@@ -126,7 +126,7 @@ QVR_TONE_GLSL
 "	vec4	PortalUV; // QVR: scene viewport to portal composite pixels\n" \
 "	vec4	TeleportLook; // QVR: starry surface size and opacity\n" \
 "	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n" \
-"	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none), y its atlas's slots a row, z one over its side in texels\n"
+"	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n"
 
 // the frame data the alias shaders read (vr/vr_lighting.cpp); its own names, since the alias
 // instance buffer has a ViewProj, Fog, EyePos and ScreenDither of its own.
@@ -1472,6 +1472,52 @@ LIQUID_SWELL \
 "	vec2 local = clamp(g - page * 30.0 + 1.0, vec2(rim), vec2(32.0 - rim));\n" \
 "	vec2 at = (vec2(float(slot % row), float(slot / row)) * 32.0 + local) * PermDecals.z;\n" \
 "	return vec4(textureLod(PermDecalAtlas, vec3(at, float(layer)), lod).rgb * (1023.0 / 512.0), 1.0);\n" \
+"}\n" \
+"// The layer as blocky as the texture under it: read at the middle of the texture's block or texel there, so a mark\n" \
+"// has the surface's blocks. Retro textures' blocks (Retro > 0, snapping: their soft edges, smooth again far off), or\n" \
+"// the texture's own texels where it is drawn nearest (PermDecals.x 2: Quake's own textures, their size in_retro.xy's;\n" \
+"// 3: every texture); smooth otherwise. tuv: where the texture is read (parallax's), at the layer's texel g; lq: its\n" \
+"// Quake size, tsize its own. The layer's texel at another point of the texture: both are laid along the face (affine\n" \
+"// maps), their screen derivatives give one from the other.\n" \
+"vec4 PermDecalsLook(vec2 g, vec2 pages, vec2 dgdx, vec2 dgdy, vec2 tuv, vec2 duvdx, vec2 duvdy, vec2 lq, vec2 tsize)\n" \
+"{\n" \
+"	vec2 grid = vec2(0.0);\n" \
+"	float soft = 0.0, far = 0.0;\n" \
+"	if (Retro > 0)\n" \
+"	{\n" \
+"		if (RetroP0.w > 0.0 && RetroFar < 1.0)\n" \
+"		{\n" \
+"			grid = RetroGrid;\n" \
+"			soft = RetroP0.y;\n" \
+"			far = RetroFar;\n" \
+"		}\n" \
+"	}\n" \
+"	else if (PermDecals.x > 2.5 || (PermDecals.x > 1.5 && lq.x > 0.0 && all(lessThan(abs(tsize - lq), vec2(0.5)))))\n" \
+"		grid = tsize;\n" \
+"	mat2 uvm = mat2(duvdx, duvdy);\n" \
+"	float det = determinant(uvm);\n" \
+"	vec2 span = (abs(duvdx) + abs(duvdy)) * grid; // the blocks a pixel spans: a pixel or more, the smooth read (mipmapped) the same\n" \
+"	if (grid.x <= 0.0 || abs(det) < 1e-14 || max(span.x, span.y) >= 1.0)\n" \
+"		return PermDecalsAt(g, pages, dgdx, dgdy);\n" \
+"	mat2 tog = mat2(dgdx, dgdy) * inverse(uvm);\n" \
+"	// the blocks as RetroBlocks has them: one read inside a block, two or four over its edges (P0.y pixels wide)\n" \
+"	vec2 p = tuv * grid - 0.5;\n" \
+"	vec2 i = floor(p), f = p - i;\n" \
+"	f = clamp((f - 0.5) / max(span * soft, vec2(1e-4)) + 0.5, 0.0, 1.0);\n" \
+"	bvec2 edge = bvec2(f.x > 0.0 && f.x < 1.0, f.y > 0.0 && f.y < 1.0);\n" \
+"	vec2 c = i + vec2(edge.x ? 0.0 : f.x, edge.y ? 0.0 : f.y);\n" \
+"	vec2 at = g + tog * ((c + 0.5) / grid - tuv), step_s = tog * vec2(1.0 / grid.x, 0.0), step_t = tog * vec2(0.0, 1.0 / grid.y);\n" \
+"	vec4 r = PermDecalsAt(at, pages, dgdx, dgdy);\n" \
+"	if (edge.x)\n" \
+"		r = mix(r, PermDecalsAt(at + step_s, pages, dgdx, dgdy), f.x);\n" \
+"	if (edge.y)\n" \
+"	{\n" \
+"		vec4 r2 = PermDecalsAt(at + step_t, pages, dgdx, dgdy);\n" \
+"		if (edge.x)\n" \
+"			r2 = mix(r2, PermDecalsAt(at + step_s + step_t, pages, dgdx, dgdy), f.x);\n" \
+"		r = mix(r, r2, f.y);\n" \
+"	}\n" \
+"	return far > 0.0 ? mix(r, PermDecalsAt(g, pages, dgdx, dgdy), far) : r;\n" \
 "}\n"
 
 // the world vertex shader's permanent decals (QVR_PERMDECAL_FUNCTIONS): their attribute and outputs
@@ -1504,7 +1550,7 @@ LIQUID_SWELL \
 "	if (PermDecals.x > 0.0 && in_grimepages.y > 4096.5)\n" \
 "	{\n" \
 "		vec2 grime = parallax ? in_grime + ParallaxShiftWorld(puv - uv, duvdx, duvdy, vec3(grime_dx, 0.0), vec3(grime_dy, 0.0)).xy : in_grime;\n" \
-"		vec4 perm = PermDecalsAt(grime, in_grimepages, grime_dx, grime_dy);\n" \
+"		vec4 perm = PermDecalsLook(grime, in_grimepages, grime_dx, grime_dy, puv, duvdx, duvdy, in_retro.xy, vec2(textureSize(Tex, 0)));\n" \
 "		result.rgb *= perm.rgb;\n" \
 "		fullbright *= perm.rgb;\n" \
 "		decal_mod *= perm.rgb;\n" \

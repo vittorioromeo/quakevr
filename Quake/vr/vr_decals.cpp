@@ -1144,8 +1144,8 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     d.depth = big ? za::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f;
     za::Vector<Corner>& tris = scratch.tris;
     clipToWorld(d, n, d.depth, tris, d.brush);
-    // With the permanent layer (vr_permdecals), its part on the brush models (doors, lifts) baked at once, in their own
-    // space: the live marks are the static world's.
+    // With the permanent layer (vr_permdecals), its part on the brush models (doors, lifts) baked when it shows (at once,
+    // or after its delay), in their own space: the live marks are the static world's.
     int onModels = 0;
     if(permdecals::on())
     {
@@ -1153,7 +1153,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
         {
             makeAtlas();
         }
-        onModels = permdecals::bakeEntities(stampOf(d));
+        onModels = permdecals::bakeEntities(stampOf(d), d.born); // (shown later: baked then)
     }
     if(tris.empty())
     {
@@ -1700,6 +1700,7 @@ void bakeSettled()
         if(shown)
         {
             (void)permdecals::rebake();
+            (void)permdecals::bakeDue(); // (the brush models' marks shown by now)
         }
         if(shown || kept)
         {
