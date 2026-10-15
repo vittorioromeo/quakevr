@@ -12763,6 +12763,42 @@ bool shapeNearest(int num, const glm::vec3& a, const glm::vec3& b, glm::vec3& ou
     return true;
 }
 
+int hullPlanes(int num, glm::vec4* planes, int maxPlanes, int* hullEnds, int maxHulls, int& hulls)
+{
+    hulls = 0;
+    if(!world || num <= 0 || num >= static_cast<int>(world->slots.size()))
+    {
+        return 0;
+    }
+    const Slot& s = world->slots[num];
+    if((s.kind != Kind::Held && s.kind != Kind::Prop) || B3_IS_NULL(s.body) || !b3Body_IsValid(s.body))
+    {
+        return 0;
+    }
+    za::Array<b3ShapeId, maxBodyShapes> shapes;
+    const int n = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
+    int count = 0;
+    for(int i = 0; i < n && hulls < maxHulls; i++)
+    {
+        if(b3Shape_GetType(shapes[i]) != b3_hullShape)
+        {
+            continue;
+        }
+        const b3HullData* hull = b3Shape_GetHull(shapes[i]);
+        const b3Plane* p = hull ? b3GetHullPlanes(hull) : nullptr;
+        if(!p || hull->faceCount <= 0 || count + hull->faceCount > maxPlanes)
+        {
+            continue;
+        }
+        for(int k = 0; k < hull->faceCount; k++)
+        {
+            planes[count++] = glm::vec4{p[k].normal.x, p[k].normal.y, p[k].normal.z, p[k].offset * world->m2u};
+        }
+        hullEnds[hulls++] = count;
+    }
+    return count;
+}
+
 bool isBox3DProp(int num)
 {
     return world && num > 0 && num < static_cast<int>(world->slots.size()) && world->slots[num].kind == Kind::Prop;

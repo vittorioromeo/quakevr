@@ -3,6 +3,8 @@
 #include "vr_carry2h.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_grip.hpp"
+#include "vr_gripfit.hpp"
 #include "vr_held.hpp"
 #include "vr_physics.hpp"
 #include "vr_profile.hpp"
@@ -203,6 +205,40 @@ static Frame foldedHand(edict_t* player, int hand)
     return {fieldVec(player, hand ? f.handpos : f.offhandpos), fromAngles(&angles[0], true)};
 }
 
+// The grip fit (vr_gripfit.hpp) of the hand that has just taken hold of what the other holds (the other's was fitted as
+// it took it, or is its grip's own place): its grip on it moved out of it if the hand sinks in too deep (the drawn hand is
+// held on its grip), the line between the grips with it.
+static void fitGrip(edict_t* ent, edict_t* player, Hold& hold, const Frame& object, const Frame hands[2])
+{
+    const int num = NUM_FOR_EDICT(ent);
+    const int first = grip::serverHand(num);
+    const bool local = cls.state != ca_dedicated && NUM_FOR_EDICT(player) == 1;
+    const glm::vec3 lo{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
+    const glm::vec3 hi{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+    const glm::quat toObject = glm::inverse(object.rot);
+    bool moved = false;
+    for(int i = 0; i < 2; i++)
+    {
+        if(i == first)
+        {
+            continue;
+        }
+        glm::vec3 move{0.f};
+        if(gripfit::fit(num, i, local, true, glm::mat3_cast(toObject * hands[i].rot), toObject * (hands[i].pos - object.pos), lo, hi,
+               move))
+        {
+            hold.grip[i] += move;
+            moved = true;
+        }
+    }
+    if(moved)
+    {
+        const glm::vec3 d = hold.grip[1] - hold.grip[0];
+        hold.span = glm::length(d);
+        hold.axis = hold.span > 1e-4f ? d / hold.span : glm::vec3{1.f, 0.f, 0.f};
+    }
+}
+
 glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
 {
     QVR_PROFILE("carry2h");
@@ -224,7 +260,12 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
     const auto it = holds.find(num);
     if(grab || it == holds.end())
     {
-        holds[num] = record({origin, fromAngles(ent->v.angles, brush)}, hands);
+        Hold& hold = holds[num];
+        hold = record({origin, fromAngles(ent->v.angles, brush)}, hands);
+        if(grab)
+        {
+            fitGrip(ent, player, hold, {origin, fromAngles(ent->v.angles, brush)}, hands);
+        }
         watches.erase(num);
         letGo.erase(num); // (in both hands again)
         return origin;
