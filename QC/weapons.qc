@@ -228,12 +228,23 @@ float PositionalDamageFactor(float positionalDamageType)
 // The head of a target that supports headshots, in its own frame: `forward` of its origin along its
 // facing, `up` above it, `radius` its size. Measured on the models' standing frames (the centroid of
 // their top vertices), with the old heights as a check. FALSE for targets without a head to aim at.
+// `left`: to its left (0 but for a head off its middle: AD's zombie knight's), the head's middle at origin +
+// facing * forward + VR_HeadSide(facing) + up.
 float xHeadForward;
 float xHeadUp;
 float xHeadRadius;
+float xHeadLeft;
+vector(vector xFacing) VR_HeadSide =
+{
+    vector s = '0 0 0';
+    s_x = -xFacing_y;
+    s_y = xFacing_x;
+    return s * xHeadLeft;
+};
 float(entity xTarget) PositionalHead =
 {
     string c = xTarget.classname;
+    xHeadLeft = 0;
     if(xTarget.vr_mg3_mon && MG3_PositionalHead(xTarget)) { return TRUE; } // (QVR: Dawn of the Machine's own models: vr_mg3_ogre.qc)
     if(xTarget.vr_ad_mon) { return VR_AD_PositionalHead(xTarget); } // AD support: AD's monsters' heads (vr_ad_monsters.qc)
     if(c == "monster_army")             { xHeadForward = 3;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
@@ -315,7 +326,7 @@ float PositionalPointRegion(entity xTarget, vector rest) =
     float yaw = xTarget.angles_y * (3.14159265 / 180);
     vector facing = '0 0 0';
     facing_x = cos(yaw); facing_y = sin(yaw);
-    vector head = xTarget.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    vector head = xTarget.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
     vector side = '0 0 0';
     side_x = -facing_y; side_y = facing_x;
     float inHead = vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN;
@@ -349,7 +360,7 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     facing_x = cos(yaw);
     facing_y = sin(yaw);
     facing_z = 0;
-    vector head = xTarget.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    vector head = xTarget.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
 
     // Precise hits (vr_hit_precise): the shot struck the model as drawn (at xEndpos, within its tolerance of it). Where
     // that place is on the model standing (hitmodel_rest: the same place of the same triangle in its stand frame, at its
@@ -4144,6 +4155,7 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
     float yaw = t.angles_y * (3.14159265 / 180);
     head_x = head_x + cos(yaw) * xHeadForward;
     head_y = head_y + sin(yaw) * xHeadForward;
+    head = head + VR_HeadSide('1 0 0' * cos(yaw) + '0 1 0' * sin(yaw));
     for(k = 0; k < 24; ++k)
     {
         float a = k * (3.14159265 * 2 / 24);

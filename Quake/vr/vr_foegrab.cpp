@@ -981,20 +981,31 @@ struct HeadZone
 }
 
 // `m`'s head zone's size (QC VR_FoeGrab_HeadZone: its head sphere, '<forward> <up> <radius>' from its origin standing);
-// false: none.
-bool headSphereOf(edict_t* m, glm::vec3& out)
+// false: none. `left`: its middle's offset to its left (QC VR_FoeGrab_HeadLeft: AD's zombie knight's; 0 for most).
+bool headSphereOf(edict_t* m, glm::vec3& out, float* left = nullptr)
 {
     const func_t fn = findFunction("VR_FoeGrab_HeadZone");
     if(!fn)
     {
         return false;
     }
+    const func_t leftFn = left ? findFunction("VR_FoeGrab_HeadLeft") : 0;
     const int oldSelf = pr_global_struct->self;
     pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(m);
     G_INT(OFS_PARM0) = EDICT_TO_PROG(m);
     PR_ExecuteProgram(fn);
     out = vec(G_VECTOR(OFS_RETURN));
+    if(left)
+    {
+        *left = 0.f;
+        if(leftFn)
+        {
+            G_INT(OFS_PARM0) = EDICT_TO_PROG(m);
+            PR_ExecuteProgram(leftFn);
+            *left = G_FLOAT(OFS_RETURN);
+        }
+    }
     pr_global_struct->self = oldSelf;
     return out.z > 0.f;
 }
@@ -1004,13 +1015,15 @@ bool headSphereOf(edict_t* m, glm::vec3& out)
 {
     HeadZone z;
     glm::vec3 s{0.f};
-    if(!headSphereOf(m, s))
+    float left = 0.f;
+    if(!headSphereOf(m, s, &left))
     {
         return z;
     }
     const float yaw = glm::radians(m->v.angles[1]);
     z.valid = true;
-    z.centre = vec(m->v.origin) + glm::vec3{za::cos(yaw), za::sin(yaw), 0.f} * s.x + glm::vec3{0.f, 0.f, s.y};
+    z.centre = vec(m->v.origin) + glm::vec3{za::cos(yaw), za::sin(yaw), 0.f} * s.x +
+               glm::vec3{-za::sin(yaw), za::cos(yaw), 0.f} * left + glm::vec3{0.f, 0.f, s.y};
     z.radius = s.z;
     z.margin = za::clamp(vr_foegrab_necksnap_margin.value, -8.f, 32.f);
     z.neck = za::clamp(vr_foegrab_necksnap_neck.value, 0.f, 32.f);

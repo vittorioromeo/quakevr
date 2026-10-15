@@ -4324,7 +4324,7 @@ void hologramTestMessage()
             .help("Debug > Tests > Ragdoll Behaviours: each behaviour below set going on the nearest grunt, enforcer, "
                   "knight, death knight, ogre or zombie."),
         toggle("Active Deaths", vr_ragdoll_active)
-            .help("A dying grunt, enforcer, knight, death knight, ogre or zombie goes limp as soon as he stops being solid, "
+            .help("A dying grunt, enforcer, knight, death knight, ogre or zombie (AD's soldiers, knights and zombies too) goes limp as soon as he stops being solid, "
                   "his body playing his death animation as his strength fades (legs first): he stumbles if he dies on the "
                   "move, may hold his wound and may crawl before going limp; a headshot or beheading collapses him. Off: "
                   "limp at Go Limp At (vr_ragdoll_active)."),
