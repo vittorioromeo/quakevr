@@ -119,6 +119,8 @@ b36b2b38..., 169 pixels apart by 1/255 on the ogre): builds of this branch with 
 exact files (byte-identical PNGs) in different runs; the final build's runs land in the same 1/255 run-to-run noise
 (97-376 pixels, never more than 1/255). With 1: 38679 pixels differ (up
 to 70/255: sub-pixel shifts all over the ogre). r_lerpmodels 3 with the pin's four poses draws normally both ways.
+With the loops and normals (2026-10-15): 0 gave md5 355b30a9... (the base's image) in one run and 429 pixels of 1/255
+in another; 1 differs in 45778 pixels (up to 88/255: the shifts and the smoothed shading).
 
 ## To try in the headset
 
