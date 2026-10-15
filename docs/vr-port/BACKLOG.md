@@ -205,9 +205,9 @@ stats), the jump boots' power level, coop.
 - **Neck snap method:** he compares Twist Detection Velocity vs Hand Line (`vr_foegrab_necksnap_method`) in VR; keep the winner as default, consider removing the other. Add a wrist-roll-only test for Hand Line; run Hand Line's neck suite 3x, plus `hold` and `ragdoll/stagger_test.sh judo` under it (skipped for budget).
 - **AD humanoids and the neck snap / lift:** add `monster_centurion` and the fumigator to `vr_foegrab_lift_classes`; verify head zones and ragdolls (knocked-down/staggered snaps, lift flail) on each AD humanoid in the list (never tested).
 - **Step In:** optional depth cap so the player can't walk right through a held enemy (`vr_foegrab_step_in`); he judges if Step In is a net plus.
-- **Body Inset vs vore shoves:** `voreshove_test.sh` now gets 3-4 shoves (needs 4) at inset 4: vores stand closer and die to their own splash; restore the test's margin.
-- **Flaky tests:** judo_test `hold` "held on" drag (moves 4-12 units by landing; ~1 in 3 under the 4-unit bar); hotblade_test `throw_cold`/`throw_hot` (axe sometimes arrives under 6.3 m/s after a bounce).
-- **Incandescent blades leftovers:** weapons start cold after a level change; Quoth's long wall torch is no fire spot (flame position unknown); force-grab/counter/toolgun glows override the heat glow on an aimed dropped blade.
+- (Done 2026-10-15, fastship: walk 2500 frames) **Body Inset vs vore shoves:** `voreshove_test.sh` now gets 3-4 shoves (needs 4) at inset 4: vores stand closer and die to their own splash; restore the test's margin.
+- (Done 2026-10-15 except hotblade throw, unreproduced alone) **Flaky tests:** judo_test `hold` "held on" drag (moves 4-12 units by landing; ~1 in 3 under the 4-unit bar); hotblade_test `throw_cold`/`throw_hot` (axe sometimes arrives under 6.3 m/s after a bounce).
+- (Done 2026-10-15 except Quoth long torch flame position) **Incandescent blades leftovers:** weapons start cold after a level change; Quoth's long wall torch is no fire spot (flame position unknown); force-grab/counter/toolgun glows override the heat glow on an aimed dropped blade.
 - **Main menu:** flat menu still bottom-heavy (needs a limit clear of the corner buttons/notice box); VR menu with a Continue row (a save present) untested after vertical centring.
 
 ## Test suite speed-up leftovers (2026-10-14, branch agent/fasttests)
@@ -268,7 +268,7 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 - **Bullet-time lift/neck-snap responsiveness (22:38:26):** both interactions feel hard and unresponsive in slow motion; investigate gesture/velocity checks versus time scaling.
 - **Thrown living-enemy damage (r2m1, 22:46:26):** increase meaningful impact damage from slamming or throwing a lifted living enemy from height.
 - **Landing crush (r2m1, 22:47:42):** jumping from sufficient height onto a living ragdoll should crush/damage the contacted body part, with appropriate head/limb destruction for a strong impact.
-- **Walking nudges (r2m1, 22:48:15):** legs should gently push nearby/underfoot ragdolls without those bodies blocking the player's walking movement; avoid excessive pushes.
+- (Partly: cvar vr_box3d_walk_nudge added; nudge does not fire yet, ROUND22 "Small fixes") **Walking nudges (r2m1, 22:48:15):** legs should gently push nearby/underfoot ragdolls without those bodies blocking the player's walking movement; avoid excessive pushes.
 - **Head/wall slams and live-ragdoll access (dm2, 22:55:25):** allow grabbing a living enemy and smashing its head into a wall to kill it. Keep lifting as one way to activate ragdoll interaction, but investigate additional natural ways to enter that state.
 - **Impact dismemberment (dm2, 22:57:26):** wall/ground impacts should accumulate damage on struck heads/limbs and eventually pop or explode them; includes repeated held head slams and headfirst falls, beyond generic body damage.
 

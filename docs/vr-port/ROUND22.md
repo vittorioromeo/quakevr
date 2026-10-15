@@ -6833,3 +6833,19 @@ notes: TESTING.md "The batched suites, proven again on next".
   the 19 release-suite conversions left uncommitted in the old worktree are lost (BACKLOG.md).
 
 Nothing to test in VR (test harness), but quick save then at once quick load: the game loads (no error).
+
+## Small fixes (worktree `fastship`, branch `agent/smallfix`, 2026-10-15)
+
+- judo_test `hold`: the drag bar is 2 units (the 0.5 m drag moved the pelvis 8-13 here, 4-12 in the flaky runs): still
+  proves it is pulled nearer. hotblade `throw_cold/throw_hot`: 5 runs, all pass (19.7/25.4 damage at 8.8 m/s); the
+  under-6.3 m/s bounce did not reproduce alone, only batched: not widened blind.
+- voreshove_test: the walk is 2500 frames (was 1500) for the same 4 shoves (3-4 came in 1500 at Body Inset 4).
+- Blades keep their glow across `changelevel` (`WeaponInst_PackHot`, parm65..72: time left in tenths per hand/holster
+  record); hotblade_test `levelchange`. A hot blade's outline now comes before force-grab/counter/toolgun outlines
+  (`VR_EntityGlow`, vr_fgfx.cpp). Quoth's `light_torch_long_walltorch` is still no fire spot: its flame's place in
+  `misc_longtrch.mdl` is unknown (needs the model's flame vertex or a measured offset).
+- Walking nudges: `nudgeWalkedRagdolls` already existed in vr_box3d.cpp (untested). Added `vr_box3d_walk_nudge` (1;
+  Feet Nudge Ragdolls in the corpse menu; 0 disables) and dropped its `corpseDynamic` requirement. A probe (walk a
+  stick from y -288 to 32 through a dead grunt at y -126, Walk Through) still moves the pelvis 0.0: the nudge does not
+  fire yet (overlap test or ragdollOf not matching); the probe is scratch/walknudge_probe.sh, not committed. Open.
+- Not investigated: bullet-time gib_2h bursts, weapon_catch "in the air", liquid_active knight batch FAIL.

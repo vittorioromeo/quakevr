@@ -146,7 +146,7 @@ string(vector p) VR_HotBlade_FireAt =
 };
 
 // Until when some weapon may still be incandescent (the lying weapons are looked at only until then).
-nosave float vr_hot_any_until;
+// (vr_hot_any_until: vr_weaponinst.qc)
 float vr_hot_lying_next;
 
 // Record `r` becomes (or stays) incandescent: full again.

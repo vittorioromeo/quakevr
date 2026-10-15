@@ -4237,6 +4237,8 @@ void hologramTestMessage()
         cycle("You and Corpses", vr_corpse_collide_player, {{0.f, "Walk Through"}, {1.f, "Step Over"}, {2.f, "Solid"}})
             .help("Step Over: a corpse is a low step you walk onto. Solid: walk round it or jump onto it "
                   "(vr_corpse_collide_player)."),
+        toggle("Feet Nudge Ragdolls", vr_box3d_walk_nudge)
+            .help("Walking through or over a ragdoll gently nudges the limbs your body overlaps along your pace, without blocking you (vr_box3d_walk_nudge)."),
         toggle("Monsters Step Over Corpses", vr_corpse_collide_monsters)
             .help("Monsters walk over corpses as a low step instead of through them (vr_corpse_collide_monsters)."),
         header("Ragdolls (Experimental)"),

@@ -74,6 +74,8 @@ run drop_cools "vr_hotblade_time 6; vr_hotblade_fade 3; map e1m2; wait60; god; n
 T="map e1m2; wait60; god; notarget; impulse 152; wait5; vr_test_spawn 0; vr_test_spawn_dist 64; impulse 241; wait30"
 run throw_cold "$T; vr_hotblade_test 13; wait60" 'throw hit: Axe into monster_army at 276 u/s .*: (19\.[5-9]|20\.[0-1]) damage' 'set on fire'
 run throw_hot "$T; vr_hotblade_test 1; wait5; vr_hotblade_test 13; wait60" 'throw hit: Axe into monster_army at 276 u/s .*: 25\.[2-6] damage;a thrown weapon 2 struck monster_army \(alive\): set on fire;monster_army lit \(a blow\)'
+# A level change: a blade still glowing keeps glowing (its time left carried in parm65..72), a cold one stays cold.
+run levelchange "vr_hotblade_time 30; map e1m2; wait60; god; notarget; impulse 152; wait20; vr_hotblade_test 1; wait20; changelevel e1m3; wait60; wait10; vr_hotblade_report" 'client: 1 glowing'
 # A real swing (a synthetic overhead chop with the axe at the firing range's dummy): cold and hot, the hot one 1.5x
 # (base 20 -> 30) and the dummy lit.
 if [[ "swing" =~ $F ]]; then
