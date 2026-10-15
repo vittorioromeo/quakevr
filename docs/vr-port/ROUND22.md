@@ -6005,6 +6005,29 @@ equals the aim's swing, so this looks intended; and the off hand's move integrat
 in slow motion on a headset that reports velocity (not the mock, which differences positions on game time) the ghost
 follows the hand at the time scale's fraction. A position delta would be exact.
 
+## The spawn ghost stays put while you turn it (worktree `tghost`, branch `agent/tghost3`, 2026-10-15)
+
+Voice note (10:51): with the gun hand's A / X held to turn the ghost, it followed the gun as the hand swung, so the
+turn was hard to see; and the turn should be about twice as fast.
+
+- `vr_toolgun.cpp`: `GhostHold` gains `fixed`, `point`, `dir`. The frame the gun hand's turn starts (`ghostHoldFrame`)
+  it keeps the aimed point (`ghostPoint`, split out of `updateGhost`) and the aim's way; while it turns `updateGhost`
+  places and faces the ghost from those (`ghostDir()`), plus the offsets and the turn. Let go (or another tool, or
+  the gun put down: `ghostHold = {}`), it follows the aim again with the turn kept. The off hand's move, if held at
+  the same time, goes along the fixed way (`ghostDir()`), so it stays 1:1.
+- The turn is `ghostTurnRate` (2) times the hand's yaw (was 1:1). With the base fixed, 90 degrees of hand yaw turns
+  the ghost 180 in the world, as before (when the aim's swing added the other 90), but now in place.
+- Stick turn with A / X held: the ghost stays put in the world, its turn unchanged (was: carried round with you).
+- `vr_toolgun_status` says `fixed` / `following` after the hold.
+- `toolgun_spawn_6dof_test.sh`: turn = 2x the aim's swing (both hands' guns), the ghost's origin unchanged through
+  yaw / pitch / twist / a 0.3 m move of the gun with A / X held, its world yaw = the press's + the turn, no jump at
+  the press; let go: `following`, turn kept, ghost moved > 8 units to the aim and facing it + the turn. PASS. (The
+  off hand's 1:1 move read 21.6 vs 20 on one run, 20.4 on the next: timing noise in the velocity-integrated follow,
+  untouched here.)
+
+Checklist: "Spawn tool: hold A on the gun hand and turn your wrist: the ghost stays where it was and turns twice as
+fast as your hand; let go and it follows the gun again, still turned."
+
 ## Melee space: monsters kept out of your head while they attack (worktree `tghost`, 2026-10-15)
 
 His note: knights "often get too close and go through the player" when they attack. Why: the player's body is narrow

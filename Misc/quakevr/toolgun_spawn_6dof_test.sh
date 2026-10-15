@@ -7,8 +7,10 @@
 #      stick still walks, letting go keeps the offsets, and the trigger places the thing where that ghost stands;
 #   2. the sticks are the player's with the spawn tool in hand: the off one walks, the gun's turns, and the ghost's
 #      offsets and turn are untouched by either;
-#   3. the gun hand's A/X held: the hand's way turns the ghost (its yaw only: 90 degrees of the hand's yaw, and every
-#      step's turn equal to how far the gun's aim swung), its pitch and twist move nothing; the gun's stick still turns
+#   3. the gun hand's A/X held: the hand's way turns the ghost (its yaw only, twice over: 90 degrees of the hand's yaw
+#      turn it 180, and every step's turn twice how far the gun's aim swung), its pitch and twist move nothing; the
+#      ghost stays where it stood at the press, facing as then plus the turn, however the gun aims or moves; let go,
+#      it follows the aim again with the turn kept; the gun's stick still turns
 #      the player and its press still changes the tool (A/X held: the one before, and again the one before that);
 #   4. Reset clears the offsets and the turn; with nothing chosen A/X is the game's again, with another tool in hand it
 #      is the sticks' (vr_debug_buttons says who took each press);
@@ -61,6 +63,11 @@ a('vr_mock_hand main 0.0 1.5 -0.3 75 90 0;wait20')
 st('PITCH')
 a('vr_mock_hand main 0.0 1.5 -0.3 75 90 40;wait20')
 st('TWIST')
+a('vr_mock_hand main 0.3 1.4 -0.1 75 90 40;wait20')
+st('SHIFT')
+a('vr_mock_button main primary 0;wait5')
+st('FREE')
+a('vr_mock_button main primary 1;wait3')
 look('LS0')
 a('vr_mock_stick main 1 0;wait20;vr_mock_stick main 0 0;wait20')
 look('LS1')
@@ -97,14 +104,14 @@ a('wait5;toggleconsole;quit')
 print(';'.join(s))
 EOF
 )
-out=$(bash $KIT/run.sh $AGENT -Script "$S" -Timeout 600 -Filter 'toolgun|Player pos|VR buttons|^S0|^LW[01]|^W[01]|^T[01]|STICKS|^HOLD0|^MOVED|^HANDTURN|^HELD|^KEPT|^PLACED|^TURN0|^YAW90|^PITCH|^TWIST|^LS[01]|^LSTURN|PREVTOOL|^BACK|^RESET|^NOSEL|^ADJUST|^OFF0|^OFFMOVED|^OFFYAW|ENGINE|CRASH|exit=|TIMEOUT' 2>&1)
+out=$(bash $KIT/run.sh $AGENT -Script "$S" -Timeout 600 -Filter 'toolgun|Player pos|VR buttons|^S0|^LW[01]|^W[01]|^T[01]|STICKS|^HOLD0|^MOVED|^HANDTURN|^HELD|^KEPT|^PLACED|^TURN0|^YAW90|^PITCH|^TWIST|^SHIFT|^FREE|^LS[01]|^LSTURN|PREVTOOL|^BACK|^RESET|^NOSEL|^ADJUST|^OFF0|^OFFMOVED|^OFFYAW|ENGINE|CRASH|exit=|TIMEOUT' 2>&1)
 [ -n "$VERBOSE" ] && echo "$out" | tail -140
 echo "$out" | python -c "
 import sys, re, math
 t = sys.stdin.read()
 fails = []
 tags = ['S0', 'HOLD0', 'MOVED', 'HANDTURN', 'HELD', 'KEPT', 'PLACED', 'STICKS', 'TURN0', 'YAW90', 'PITCH', 'TWIST',
-        'LSTURN', 'PREVTOOL', 'PREVTOOL2', 'BACK', 'RESET', 'ADJUST', 'OFF0', 'OFFMOVED', 'OFFYAW']
+        'SHIFT', 'FREE', 'LSTURN', 'PREVTOOL', 'PREVTOOL2', 'BACK', 'RESET', 'ADJUST', 'OFF0', 'OFFMOVED', 'OFFYAW']
 nxt = dict(zip(tags, tags[1:] + ['ZZZ']))
 def block(tag):
     m = re.search(r'(?m)^' + tag + r'\b(.*?)(?=(?:^' + nxt[tag] + r'\b)|\Z)', t, re.S)
@@ -143,7 +150,7 @@ else:
     # The A/X presses, in order: who took each one.
     presses = re.findall(r'VR buttons: (main|off) hand\'s lower face button \([AX]\) pressed([^\n]*)', t)
     got = [(h, 'taken by the toolgun' in rest) for h, rest in presses]
-    want = [('off', True), ('main', True), ('off', False), ('main', True), ('main', True), ('off', True)]
+    want = [('off', True), ('main', True), ('main', True), ('off', False), ('main', True), ('main', True), ('off', True)]
     print('A/X presses:', got)
     if got != want: fails.append(f'who takes A/X {got}')
     # 1. The off hand's A/X moves the ghost with it.
@@ -188,16 +195,37 @@ else:
     # 3. The gun hand's A/X turns the ghost with its way, and nothing else.
     u = offs(b['TURN0'])
     if not u or u[7] != 'turn:main' or u[6] != 'move:none': fails.append(f'the hold is not the gun hand turning {u}')
-    for name, p, c in (('yaw 90', 'TURN0', 'YAW90'), ('pitch', 'YAW90', 'PITCH'), ('twist', 'PITCH', 'TWIST')):
+    # (the turn is twice the hand's way: RATE; the ghost stands where it stood at the press, facing as then plus the turn)
+    RATE = 2.0
+    gp, gt = ghost(b['STICKS']), ghost(b['TURN0'])
+    if not gp or not gt or gt[0] != 'shown' or max(abs(x - y) for x, y in zip(gp[1][:3], gt[1][:3])) > 2:
+        fails.append(f'the ghost moved when the gun hand s A/X was pressed {gp} {gt}')
+    base = azimuth(aim(b['TURN0'])) + 180.0
+    for name, p, c in (('yaw 90', 'TURN0', 'YAW90'), ('pitch', 'YAW90', 'PITCH'), ('twist', 'PITCH', 'TWIST'), ('shift', 'TWIST', 'SHIFT')):
         pa, ca, po, co = aim(b[p]), aim(b[c]), offs(b[p]), offs(b[c])
         dz = d(azimuth(ca), azimuth(pa))
-        print(name, ': aim swung', round(dz, 1), 'turn', po[4], '->', co[4], 'offsets', po[:3], '->', co[:3])
+        gc = ghost(b[c])
+        print(name, ': aim swung', round(dz, 1), 'turn', po[4], '->', co[4], 'offsets', po[:3], '->', co[:3], 'ghost', gc)
         if not co or max(abs(x - y) for x, y in zip(co[:3], po[:3])) > 0.001:
             fails.append(f'the hand s {name} moved the ghost offsets')
-        if abs(d(co[4] - po[4], dz)) > 1.0:
-            fails.append(f'the ghost turn did not follow the hand way ({name}): {round(dz, 1)} vs {co[4] - po[4]}')
+        if abs(d(co[4] - po[4], RATE * dz)) > 2.0:
+            fails.append(f'the ghost turn is not {RATE}x the hand way ({name}): {round(dz, 1)} vs {co[4] - po[4]}')
         if co[3] != po[3] or co[5] != po[5]: fails.append(f'the hand s {name} pitched or rolled the ghost')
-    if abs(d(offs(b['YAW90'])[4] - offs(b['TURN0'])[4], 90.0)) > 2.0: fails.append('90 degrees of hand yaw did not turn the ghost')
+        if not gc or gc[0] != 'shown' or max(abs(x - y) for x, y in zip(gc[1][:3], gt[1][:3])) > 1.0:
+            fails.append(f'the ghost did not stay put as the gun hand {name} with A/X held: {gt} -> {gc}')
+        if not gc or abs(d(gc[1][3], base + co[4])) > 1.5:
+            fails.append(f'the held ghost does not face as at the press plus the turn ({name}): {gc} {base} {co[4]}')
+        if 'fixed' not in b[c]: fails.append(f'the status does not say the ghost is fixed ({name})')
+    if abs(d(offs(b['YAW90'])[4] - offs(b['TURN0'])[4], RATE * 90.0)) > 2.0: fails.append('90 degrees of hand yaw did not turn the ghost 180')
+    # Let go: the ghost follows the aim again, the turn kept.
+    fo, fg, fs = offs(b['FREE']), ghost(b['FREE']), offs(b['SHIFT'])
+    print('let go:', fo, fg, 'aim', aim(b['FREE']))
+    if not fo or fo[7] != 'turn:none' or 'following' not in b['FREE']: fails.append(f'letting go of A/X did not end the turn {fo}')
+    if not fo or fo[4] != fs[4]: fails.append('letting go of A/X lost the turn')
+    if not fg or fg[0] != 'shown' or max(abs(x - y) for x, y in zip(fg[1][:3], gt[1][:3])) < 8:
+        fails.append(f'the ghost did not follow the aim again when let go {gt} -> {fg}')
+    if not fg or abs(d(fg[1][3], azimuth(aim(b['FREE'])) + 180.0 + fo[4])) > 3.0:
+        fails.append(f'the let-go ghost does not face the aim plus the turn {fg}')
     if abs(d(offs(b['PITCH'])[4], offs(b['YAW90'])[4])) > 5.0: fails.append('the hand pitch turned the ghost')
     ls0, ls1 = pos('LS0'), pos('LS1')
     if not ls0 or not ls1 or abs(d(ls1[3], ls0[3])) < 5: fails.append('the gun stick did not turn the player while its A/X was held')
@@ -232,7 +260,7 @@ else:
     if not oy or oy[7] != 'turn:off': fails.append('the gun hand does not turn the ghost with the gun in the off hand')
     dz = d(azimuth(aim(b['OFFYAW'])), azimuth(aim(b['OFFMOVED'])))
     print('off-hand gun: aim swung', round(dz, 1), 'turn', om[4], '->', oy[4])
-    if abs(d(oy[4] - om[4], dz)) > 1.0 or max(abs(x - y) for x, y in zip(oy[:3], om[:3])) > 0.001:
+    if abs(d(oy[4] - om[4], RATE * dz)) > 2.0 or max(abs(x - y) for x, y in zip(oy[:3], om[:3])) > 0.001:
         fails.append('the off-hand gun: its hand turns the ghost wrong')
 if re.search(r'ENGINE CRASH|ENGINE ERROR|TIMEOUT|exit=[1-9]', t): fails.append('crash')
 print('FAIL: ' + '; '.join(fails) if fails else 'PASS')
