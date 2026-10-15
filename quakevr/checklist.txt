@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Quad Damage (Debug > Cheats): hands/arms/body glow soft pulsing blue, hands throw blue light; nothing glows in your eyes; Body > Quad Damage Look: Lightning Arcs = old look, Both = both; glow/light sliders; lightning strike still arcs; glow goes when quad ends
 VR Settings: each section is its own page (Height Calibration ... Sound); open a few, change a value, Back returns to VR Settings; Turning with snap on/off; Reset All still resets them; nothing you used to set there missing
 Blood Feedback: hits from left/right/above feel directional as you turn your head; duration/intensity/bias/coverage controls and hit toggle work; wider coverage is visible in the headset
 Blood Feedback: below Health Threshold pulses grow stronger/faster as health drops; healing stops them; pulse/intensity/curve/coverage controls and low-health toggle work independently
