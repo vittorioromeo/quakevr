@@ -1368,12 +1368,14 @@ play reaches its first (after a `vr_mock_hand_to`); before it the hand is left a
 
 ## Closer to enemies: body inset and step in (2026-10-13)
 
-`bash Misc/quakevr/foegrab/closein_test.sh <agent> [approach wall stepin]` (ROUND22.md, "Closer to enemies"):
+`bash Misc/quakevr/foegrab/closein_test.sh <agent> [approach wall stepin stepcap]` (ROUND22.md, "Closer to enemies"):
 `vr_body_contact_status` lines after walking into a grunt, an ogre and an enforcer at `vr_body_monster_inset` 4 and 0
 (dist 12/20, 20/28, 14/22; set to 0 touching: apart within 60 frames, backs off), the back wall at 0 and 12 (same
 origin), a held grunt walked into with `vr_foegrab_step_in` 1 (dist ~5.6, let go: 12 again) and 0 (stops at 12).
 Uses the mock hand on the grunt (`vr_mock_hand_to main nearest monster_army 6`, `+grabmain`) with Follow, Pull 0 and
-Let Go Beyond 200 so the hold stays while he walks in. `voreshove_test.sh` is marginal with the inset on (3-4 shoves).
+Let Go Beyond 200 so the hold stays while he walks in. `stepcap`: the held grunt walked into
+for 50 frames at `vr_foegrab_step_in_depth` 0 (H1 ~10.7 deep, then through: held 0, another grunt nearest) and 8 (stops
+at depth 7.97, dist 4.03; slides aside 47 units and backs off 97, still held). `voreshove_test.sh` is marginal with the inset on (3-4 shoves).
 
 ## Batched test cases: many cases a game, games in parallel (2026-10-14)
 

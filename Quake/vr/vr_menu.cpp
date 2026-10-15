@@ -972,6 +972,10 @@ int campaignsBloodyShown = -1;
         toggle("Step In", vr_foegrab_step_in)
             .help("While a hand holds an enemy, your body and its body don't meet: step in and bring the other hand to "
                   "its head. Let go while overlapping and the two are pushed gently apart (never stuck)."),
+        slider("Step In Depth", vr_foegrab_step_in_depth, 0.f, 32.f, 1.f, "%.0f units")
+            .help("With Step In, how far your body goes into the held enemy past where you would meet; there it stops "
+                  "you as a solid body (you slide along it), so you can't walk through it. Stepping back or aside is "
+                  "always free. 0: no limit (you can walk right through it)."),
         slider("Melee Space", vr_enemy_melee_space, 0.f, 48.f, 2.f, "%.0f units")
             .help("A monster attacking you in melee (a knight's swing and its run past you, an ogre's chainsaw, a "
                   "fiend's claws) is kept this far from your head, pushed back smoothly, so it never fills your view and "
