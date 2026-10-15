@@ -7772,3 +7772,57 @@ rig is first used). Regression: `grip_gap_test.py` cycle 7 checks and forcegrab 
 In VR: grab a crate by its lid or a barrel by its rim with your hand pushed well in: the prop should drop out of the
 hand so the hand lies on the lid or round the rim; a grab with the hand already on the surface should not move it.
 A hand pushed in more than about 18 cm (Most Move 0.75) stays partly in.
+
+## Crushing pops heads and limbs: down ones, corpses, same-level jumps (worktree `dequant`, branch `agent/crushpop`, 2026-10-16)
+
+His note (dm1): landing on a ragdoll, alive or dead, never popped its head or limbs, from any height; repeated jumps
+onto a lying head should pop it after a few, two or three heights at once; ogres and shamblers hurt only.
+
+Why it never popped in play (the headless tests landed on the torso, so they passed):
+- **The part under your feet was never the head.** `ragdollbone(m, feet)` is the part whose surface is nearest the
+  feet, and your feet go through a lying body to the floor: under the head that is the chest or a shoulder. The test
+  dropped you over the box's middle, the torso anyway.
+- **Corpses were skipped** (`health <= 0`), so a dead ragdoll never went through `VR_Limb_WearInto`.
+- **Same-level jumps never counted**: a jump lands at ~270 u/s, under Quake's landing gate (-300) and the crush's
+  least speed (400).
+- Wear from a crush was its damage, small at a jump's speed; a living one's limb only pops on the killing blow.
+
+Now (QC `vr_ragimpact.qc` `VR_RagImpact_Crush`, `VR_RagImpact_Underfoot`; `client.qc`):
+- **What your foot touches** (`VR_RagImpact_Underfoot`): a 3x3 column of points 6 units apart round your feet's middle,
+  from 6 under your feet to 26 over them, each asking `ragdollbone(m, p, 2)` (new optional `within`: -1 unless a part's
+  surface is within 2 units; engine `box3d::ragdollBone`); the head before a limb before the torso, then nearest the
+  middle. Living ones down or staggering and **corpses** (ragdolls, not gibbed) alike.
+- **Same-level jumps count**: the crush's landing gate is the lower of Crush Least Speed and Stomp Least Speed (100 at
+  least), not Quake's 300; a soft landing's `jump_flag` is zeroed once you are down so it counts once. Crush Least Speed
+  `vr_ragimpact_crush_speed` 400 -> **200** u/s (a same-level jump: ~260 here).
+- **Per-landing wear** (`vr_ragimpact_crush_wear` 0.3, row Crush Wear): a landing wears that share of the head's or
+  limb's own health (`vr_ragimpact_piece_hp` x corpse health: a grunt's 32) at the least speed, rising with the square of
+  the way to **Crush Pop Speed** (`vr_ragimpact_crush_pop` 380 u/s, about a 90-unit fall to the floor: two heights onto a
+  body lying down), where it is all of it: popped at once. A same-level jump wears ~0.35: the third pops the head. The
+  wear is the shared `vr_limb_corpse_dmg`, so a living one's wear carries over to its corpse. Health damage is the
+  crush's as before (`vr_ragimpact_damage` x 50 kg x the excess speed; head 1.5x): a jump ~11 to the torso, ~17 to the
+  head.
+- **Big ones hurt only** (`vr_ragimpact_crush_big` 200 kg, row Crush Big Mass: ogre, fiend, vore, shambler, AD's
+  bigger ones): no head or limb is worn, and one landing takes at most `vr_ragimpact_crush_big_max` 0.25 of its full
+  health (row Crush Big Most); the stomp's knockdown is unchanged.
+- A living one's limb still pops only on the killing blow (as every limb pop; worn through, the next blow that kills it,
+  or a crush on its corpse, pops it).
+- The stomp knockdown is unchanged, but a humanoid landed on from the stomp's height (420 u/s) now dies of the crush
+  (head popped, or ~75 damage), so the knockdown is mostly for big and tough ones (an ogre from 256 units: 50 damage,
+  knocked down).
+- Debug > Tests: "Impacts: Jump onto the Nearest Ragdoll's Head" (`vr_test_drop_height 46; vr_knockdown_test 60`) and
+  "Drop onto the Nearest Ragdoll's Head" (112). Tests 60/61 put you over the nearest ragdoll's head / left shin, your
+  feet `vr_test_drop_height` over the floor; 62 kills the nearest living one.
+
+Verified (headless, `python Misc/quakevr/foegrab/ragimpact_test.py dequant crush stompwear`, 0 FAILS; new case
+`stompwear`): same-level jumps (46 units, 8.2 m/s) on a down grunt's head: 0.35 a landing, dead at the second, head
+popped at the third (as its corpse). 112 units on a down grunt's head: popped in one landing. A corpse: 112 units on its
+head, then its shin: both pop. Standing grunt, knight, enforcer, 112 units over their top: head popped (76-81 damage).
+Ogre, shambler: 50/51 damage, alive, nothing popped. Crush case: 256 onto a down one 104 to the torso; 16 units over the
+floor nothing; standing grunt 64/128 units 40.6/84.6 to the head (128 pops it); 16 nothing; ogre 256 knocked down by the
+stomp (alive); cushion 100 vs 95. wall, grab pass; slam is flaky (head slams' speeds vary run to run: 1 fail, 1 pass on
+this branch, a pass on the base). Melee eval 168/177 (baseline). e1m1 smoke clean.
+
+In VR: knock a grunt down and jump on its head from beside it: the third jump pops it. Kill one, jump off a ledge
+about twice your height onto its head, then onto a leg: each pops. Do the same onto a standing grunt, knight or
+enforcer: its head pops. Onto an ogre or a shambler: it is hurt, never killed outright, nothing pops.

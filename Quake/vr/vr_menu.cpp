@@ -7261,7 +7261,15 @@ za::Vector<Item> pageDebugTests()
                   "it (knock one down first: Shove the Nearest Down)."),
         command("Impacts: Drop You onto the Nearest Down One", "developer 1; vr_knockdown_test 52")
             .help("You put 256 units (2 storeys) over the nearest knocked-down monster: landing on it crushes the part under "
-                  "your feet (Landing Crush). vr_knockdown_test 53: 96 units, too low to crush."),
+                  "your feet (Landing Crush). vr_knockdown_test 53: 96 units."),
+        command("Impacts: Jump onto the Nearest Ragdoll's Head", "developer 1; vr_knockdown_test 56; vr_test_drop_height 46; "
+                "vr_knockdown_test 60")
+            .help("You put over the nearest ragdoll's head (one down or a corpse), your feet 46 units over the floor: a "
+                  "jump from the same level (Crush Wear; the third pops it). vr_knockdown_test 61: over its shin; 62: "
+                  "the nearest living one killed."),
+        command("Impacts: Drop onto the Nearest Ragdoll's Head", "developer 1; vr_knockdown_test 56; vr_test_drop_height "
+                "112; vr_knockdown_test 60")
+            .help("As above from 112 units (two heights, Crush Pop Speed): its head pops at once."),
         command("Impacts: Drop You onto the Nearest Standing One", "developer 1; vr_knockdown_test 56; vr_knockdown_test 59")
             .help("You put Drop Height (vr_test_drop_height, 256) units over the nearest standing monster's head: landing "
                   "on it crushes its head (Landing Crush, Crush Standing Ones)."),

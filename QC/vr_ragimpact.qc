@@ -534,7 +534,7 @@ float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush =
 // units over its middle (a two-storey drop onto it), 53 the same 96 units (a short hop); the nearest standing one: 54
 // made staggered now (.vr_kd_shaken), 55 its health set to a fifth, 58 moved to 48 units off the nearest wall, 59 you put
 // vr_test_drop_height units over its top; 56 strikes printed from now (57: off again); the nearest ragdoll (down or a
-// corpse): 60 you over its head, 61 over its right shin, your feet vr_test_drop_height over its feet; 62 the nearest
+// corpse): 60 you over its head, 61 over its left shin, your feet vr_test_drop_height over the floor; 62 the nearest
 // living one killed whole.
 void(float xMode) VR_RagImpact_Test =
 {
