@@ -249,8 +249,8 @@ def palm_marks(rig, p, n, pt, seed):
         pt.wear = np.maximum(pt.wear, 0.15 * ridge)
         th, holes = stitches(pt, d, x, span, offset=0.075, step=0.2, slant=0.0)
         pt.shade *= 1 - 0.3 * holes
-        pt.shade = pt.shade * (1 - th) + 1.4 * th
-        pt.wear = np.maximum(pt.wear, 0.5 * th)
+        pt.shade = pt.shade * (1 - th) + 1.3 * th
+        pt.wear = np.maximum(pt.wear, 0.4 * th)
         pt.height += 0.15 * th
     # the palm's folds (as the skin's: the heart line under the fingers, the head line across, the life line round
     # the thumb's ball), the wrist's
@@ -292,12 +292,12 @@ def scratches(img_wear, img_shade, img_h, covered, rng, back_map):
     H, W = covered.shape
     ys, xs = np.nonzero(covered & back_map)
     count = 0
-    while count < 70:
+    while count < 50:
         i = rng.integers(len(ys))
         y0, x0 = float(ys[i]), float(xs[i])
         ang = rng.uniform(0, np.pi)
-        length = rng.uniform(10, 40) * SCALE / 2
-        bend = rng.uniform(-0.6, 0.6)
+        length = rng.uniform(14, 40) * SCALE / 2
+        bend = rng.uniform(-0.25, 0.25)
         strength = rng.uniform(0.4, 1.0)
         pts = []
         for t in np.linspace(0, 1, 6):
@@ -323,7 +323,7 @@ def scratches(img_wear, img_shade, img_h, covered, rng, back_map):
         taper = np.sin(np.pi * along) ** 0.5
         s = np.clip(1 - d / (0.9 * SCALE / 2 + 0.35), 0, 1) * taper * strength
         s *= covered[y_lo:y_hi, x_lo:x_hi]
-        img_wear[y_lo:y_hi, x_lo:x_hi] = np.maximum(img_wear[y_lo:y_hi, x_lo:x_hi], 0.6 * s)
+        img_wear[y_lo:y_hi, x_lo:x_hi] = np.maximum(img_wear[y_lo:y_hi, x_lo:x_hi], 0.45 * s)
         img_shade[y_lo:y_hi, x_lo:x_hi] *= 1 + 0.25 * s
         img_h[y_lo:y_hi, x_lo:x_hi] -= 0.12 * s
         count += 1

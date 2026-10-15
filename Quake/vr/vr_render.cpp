@@ -634,6 +634,10 @@ GloveLayers gloveLayers;
                                             TEXPREF_MIPMAP | TEXPREF_NOPICMIP | TEXPREF_ALPHA)
                                       : nullptr;
         Hunk_FreeToLowMark(mark);
+        if(texture)
+        {
+            Con_DPrintf("glove paint: %s read (%d x %d)\n", path, width, height);
+        }
         if(texture || s == 0)
         {
             return texture;

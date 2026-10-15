@@ -139,11 +139,11 @@
   "by": "make_hand_rig.py"
  },
  "quakevr/progs/hand_rig_00_00_glove.png": {
-  "sha256": "1c7bce4cdd70947c8c05479484c77e8463c0347e86ca9ba1398bf65c42b117f2",
+  "sha256": "5ebefeaf2f33c7283355c08ed62b63efd1e0a79cbd373f2ac5ceebaf6d2b65ed",
   "by": "make_glove_paint.py"
  },
  "quakevr/progs/hand_rig_00_00_glove_height.png": {
-  "sha256": "43258015894374ab0de8126c96f9d6f4ed4eae76ebbe85712aa704e257060585",
+  "sha256": "89d05c5b32b1d71b552ed03c1cd0e0165273646380b8a0e7b1fb8b3774dcd163",
   "by": "make_glove_paint.py"
  },
  "quakevr/progs/hand_rig_00_00_norm.png": {
