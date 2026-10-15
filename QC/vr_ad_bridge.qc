@@ -1021,6 +1021,7 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
     {
         vector d = dir + crandom() * pattern_x * v_right + crandom() * pattern_y * v_up;
         ad_Launch_Bullet(muzzle, d, ssg ? ad_CT_PROJ_SSG : ad_CT_PROJ_SG, speed + crandom() * 10);
+        VR_DamageCredit_FromHand(ad_newmis, self, xHand);
         if(wid == WID_SUPER_SHOTGUN && AD_HandUpgraded(xHand, ad_IT_UPGRADE_SSG))
         {
             ad_newmis.weapon = TRUE; // (AD's: the Widowmaker's pellets kill zombies; it asked the player's upgrade)
@@ -1228,6 +1229,7 @@ void(float xHand) AD_FirePlasma =
     self.punchangle_x = -2;
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 1);
     ad_launch_plasma(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand), ad_CT_PLAYER, ad_SPEED_PLAYPLASMA);
+    VR_DamageCredit_FromHand(ad_newmis, self, xHand);
     weaponfired(self, xHand);
     VRGunHaptic(xHand, 0.3, 60, 0.7);
 };

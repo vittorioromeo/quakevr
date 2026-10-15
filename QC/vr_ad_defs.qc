@@ -135,7 +135,7 @@ void(entity t, float xAlive, vector xAt, vector xDir) VR_ADGun_BoltShock; // a p
 float(entity bolt) VR_ADGun_IsElectric;                   // a plasma rifle's bolt (the soldiers', eliminators', centurions')
 void(vector org, vector dir, float xHit) VR_ADGun_BoltFx;  // ... its muzzle's or its hit's sparks and arcs
 void(vector org, vector dir, float poison, float water) VR_ADGun_StreamMuzzle; // a flamethrower's muzzle: fire, smoke
-void(entity xVictim, entity xBy, float xDps, float xTime) VR_ADGun_Poison; // poisoned for a while: damage, green puffs
+void(entity xVictim, entity xFrom, entity xBy, float xDps, float xTime) VR_ADGun_Poison; // poisoned for a while: damage, green puffs
 float(entity targ) VR_AD_Skybox;                  // AD's trigger_skybox: its sky by svc_skybox to every client; TRUE: done
 float(entity client, float density) VR_AD_SkyFog; // AD's sky fog: the player's STAT_QVR_ADSKYFOG; TRUE: done
 float() VR_AD_WeaponTouch;

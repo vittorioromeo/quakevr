@@ -18,7 +18,6 @@ string ZOMBIE_ONGROUND = "ZOMBIE_ONGROUND";
 
 // .float alpha: declared in vr_fields.qc (the crates' pieces use it too).
 
-.float damage_weapon; //cg: used to indicate what weapon caused the damage.
-                      //    so far reliable only for player weapons
+// .float damage_weapon: declared in vr_dmgcredit.qc (the weapon a blow is credited with, for FL_SPECIFICDAMAGE).
 
 .float rangescale;
