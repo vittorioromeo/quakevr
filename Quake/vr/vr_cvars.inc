@@ -2114,6 +2114,7 @@ QVR_CVAR(vr_enemygun_spent_shake, "0.3", CVAR_ARCHIVE)   // model units the spen
 QVR_CVAR(vr_enemygun_spent_haptics, "0.35", CVAR_ARCHIVE) // and how hard it buzzes in the hand then (0: not at all)
 QVR_CVAR(vr_enemygun_spent_volume, "0.5", CVAR_ARCHIVE) // the volume of the corpses' crackle (misc/power.wav) as it starts (0: silent)
 QVR_CVAR(vr_adgun_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' armed soldiers drop their own guns as they die (QC vr_ad_enemyguns.qc; the plain soldier and enforcer Quake VR's burst rifle and laser rifle); 0: none
+QVR_CVAR(vr_adgun_ours, "1", CVAR_ARCHIVE) // AD support: what they drop is Quake VR's weapon of its kind (rocket and grenade soldiers: your launchers; the defender: the super shotgun; the plasma guns: the laser cannon); 0: AD's own guns (the pyro's and fumigator's always: no kind of ours)
 QVR_CVAR(vr_adgun_rocket_damage, "25", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (your shots only): a rocket's direct hit (AD's soldier's: 25 and up to 5)
 QVR_CVAR(vr_adgun_rocket_splash, "30", CVAR_ARCHIVE) // ... its blast round where it strikes (not on what it hit; 0: none; AD's: 25)
 QVR_CVAR(vr_adgun_rocket_speed, "800", CVAR_ARCHIVE) // ... its rockets' speed, units a second (AD's soldier's: 575 and faster by skill)

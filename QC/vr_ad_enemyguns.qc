@@ -8,6 +8,8 @@
 // flamethrower (a stream of flames: each flame's damage, and what it touches set on fire: Quake VR's burning) and the
 // fumigator his poison sprayer (a stream of poison: each puff's damage, and what it touches poisoned for a while). AD's
 // plain soldier and enforcer drop Quake VR's grunt's burst rifle and enforcer's laser rifle (their own kinds of gun).
+// vr_adgun_ours 1 (default): they drop Quake VR's weapon of its kind instead (VR_ADGun_ForClass); the pyro and the
+// fumigator still theirs.
 //
 // The player's use only: every number is a setting (vr_adgun_<gun>_<what>: VR Settings > Combat > Enemy Weapons >
 // Arcane Dimensions' Guns), each gun's damage, blast, speed, rounds and time between shots, the grenades' fuse, the
@@ -36,16 +38,21 @@ float vr_adgun_hits;     // what the guns' shots dealt (the tests)
 // ---------------------------------------------------------------------------------------------------------------------
 // Drops
 
-// The gun an AD soldier of class `t` drops (-1: none).
+// The gun an AD soldier of class `t` drops (-1: none). vr_adgun_ours 1 (Vittorio, 2026-10-14: AD's dropped guns are
+// Quake VR's weapons, their models, projectiles, effects, physics and clearance): Quake VR's weapon of its kind, loaded
+// (as an ogre's or an enforcer's drop): the launchers, the defender's shotgun the super shotgun (two barrels, a wide
+// spread), the plasma guns (cells, energy bolts) the laser cannon. The pyro's and the fumigator's have no kind of ours:
+// AD's (ARCANE_DIMENSIONS.md 17.6, for Vittorio to decide).
 float(float t) VR_ADGun_ForClass =
 {
     float wid = -1;
-    if(t == ad_CT_MONARMYROCKET)       { wid = WID_ADROCKET; }
-    else if(t == ad_CT_MONARMYGRENADE) { wid = WID_ADGRENADE; }
-    else if(t == ad_CT_MONARMYPLASMA)  { wid = WID_ADPLASMA; }
-    else if(t == ad_CT_MONDEFENDER)    { wid = WID_ADDEFENDER; }
-    else if(t == ad_CT_MONELIMATOR)    { wid = WID_ADELIMINATOR; }
-    else if(t == ad_CT_MONCENTURION)   { wid = WID_ADCENTURION; }
+    float ours = cvar("vr_adgun_ours");
+    if(t == ad_CT_MONARMYROCKET)       { wid = ours ? WID_ROCKET_LAUNCHER : WID_ADROCKET; }
+    else if(t == ad_CT_MONARMYGRENADE) { wid = ours ? WID_GRENADE_LAUNCHER : WID_ADGRENADE; }
+    else if(t == ad_CT_MONARMYPLASMA)  { wid = ours ? WID_LASER_CANNON : WID_ADPLASMA; }
+    else if(t == ad_CT_MONDEFENDER)    { wid = ours ? WID_SUPER_SHOTGUN : WID_ADDEFENDER; }
+    else if(t == ad_CT_MONELIMATOR)    { wid = ours ? WID_LASER_CANNON : WID_ADELIMINATOR; }
+    else if(t == ad_CT_MONCENTURION)   { wid = ours ? WID_LASER_CANNON : WID_ADCENTURION; }
     else if(t == ad_CT_MONPYRO)        { wid = WID_ADPYRO; }
     else if(t == ad_CT_MONFUMIGATOR)   { wid = WID_ADFUMIGATOR; }
     else if(t == ad_CT_MONARMY)        { wid = WID_GRUNTGUN; }  // (AD's plain soldier: the grunt's own kind of gun)
@@ -137,8 +144,8 @@ void() VR_ADGun_Drop =
     VR_DropEnemyGun(wid);
     if(cvar("developer"))
     {
-        dprint(sprintf("adgun: %s drops its %s (%g in it)\n", self.classname, VR_EnemyGun_Name(wid),
-            WeaponIdToBaseClipSize(wid)));
+        dprint(sprintf("adgun: %s drops its %s (%g in it)\n", self.classname,
+            VR_IsADGun(wid) ? VR_EnemyGun_Name(wid) : WeaponIdToWeaponName(wid), WeaponIdToBaseClipSize(wid)));
     }
 };
 
@@ -903,8 +910,12 @@ void(float request, entity p) AD_GunTest =
         setorigin(s, p.origin + v_forward * 96);
         s.angles = p.angles;
         entity oldSelf = self;
-        for(float wid = WID_ADROCKET; wid <= WID_ADFUMIGATOR; wid++)
+        for(float ci = 0; ci < 8; ci++)
         {
+            // (each armed soldier's drop, vr_adgun_ours: Quake VR's weapon of its kind or AD's gun)
+            float wid = VR_ADGun_ForClass(ci == 0 ? ad_CT_MONARMYROCKET : (ci == 1 ? ad_CT_MONARMYGRENADE :
+                (ci == 2 ? ad_CT_MONARMYPLASMA : (ci == 3 ? ad_CT_MONDEFENDER : (ci == 4 ? ad_CT_MONELIMATOR :
+                (ci == 5 ? ad_CT_MONCENTURION : (ci == 6 ? ad_CT_MONPYRO : ad_CT_MONFUMIGATOR)))))));
             self = s;
             VR_DropEnemyGun(wid);
             self = oldSelf;
@@ -918,7 +929,8 @@ void(float request, entity p) AD_GunTest =
             }
             float ok = (w != world && w.model == WeaponIdToModel(wid, 0) && w.weaponinst.wi_clip == WeaponIdToBaseClipSize(wid) &&
                         w.modelindex > 0);
-            bprint(sprintf("adgun drop: %s: %s, %g rounds: %s\n", VR_ADGun_Name(wid), w != world ? w.model : "none",
+            bprint(sprintf("adgun drop: %s (%g): %s, %g rounds: %s\n", VR_IsADGun(wid) ? VR_ADGun_Name(wid) :
+                WeaponIdToWeaponName(wid), wid, w != world ? w.model : "none",
                 w != world ? w.weaponinst.wi_clip : 0, ok ? "PASS" : "FAIL"));
             if(ok) { pass++; } else { fail++; }
         }
