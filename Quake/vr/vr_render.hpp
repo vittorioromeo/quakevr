@@ -16,4 +16,9 @@ void anchorMatrix(const view::ViewEntity& ve, const glm::vec3& extra, float out[
 // or not, at `scale` (ENTSCALE_*).
 void entityMatrix(const entity_t& e, bool mirrored, int scale, const glm::vec3& extra, float out[16]);
 
+// The gloves' painted leather (vr_glove_paint, vr_render.cpp): read again from its files (vr_gloves_reload); and what a
+// hand has of it (0 none, 1 its detail and wear, 2 its relief too: added to its instance's Glove.w times 4).
+void glovesReload_f();
+[[nodiscard]] int glovePaintFlags(const entity_t* e);
+
 } // namespace qvr::render

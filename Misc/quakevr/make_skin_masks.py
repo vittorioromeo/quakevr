@@ -63,8 +63,10 @@ def seam_relief(d, run):
     return -0.35 * groove + 0.3 * dots
 
 
-def seams(rig, name, p, n):
-    """A finger's texels' relief (0 flat): its seams."""
+def seam_lines(rig, name, p, n):
+    """A finger's seams at its texels: [(distance across the seam's line, distance along it, weight 0..1)] (hand
+    units), and whether the first is the palm side's base seam (the later ones the sides'), for seams() and
+    make_glove_paint.py (its stitches along the same lines)."""
     seg, along, side, lateral = hand.finger_coords(rig, name, p, n)
     pts = rig.fingers[name]["points"]
     segs = rig.fingers[name]["segments"]
@@ -79,9 +81,21 @@ def seams(rig, name, p, n):
     run = along + np.where(seg > 0, lengths[0], 0) + np.where(seg > 1, lengths[1], 0)  # along the whole finger
     tip = np.where(seg == 2, np.clip((0.85 * lengths[2] - along) / 0.3, 0, 1), 1.0)  # the seams end before the tip
     if name == "thumb":  # round its base, where it is set into the palm
-        return seam_relief(along - 0.45 * lengths[0], theta * r) * (seg == 0)
-    out = sum(seam_relief((theta - c) * r, run) for c in (np.pi * 0.58, -np.pi * 0.58)) * tip  # the sides, towards the palm
-    base = seam_relief(along - 0.35, theta * r) * (seg == 0) * (np.abs(theta) > np.pi * 0.6)  # across the palm side's base
+        return [(along - 0.45 * lengths[0], theta * r, (seg == 0) * 1.0)], False
+    sides = [((theta - c) * r, run, tip) for c in (np.pi * 0.58, -np.pi * 0.58)]  # the sides, towards the palm
+    base = (along - 0.35, theta * r, (seg == 0) * (np.abs(theta) > np.pi * 0.6) * 1.0)  # across the palm side's base
+    return [base] + sides, True
+
+
+def seams(rig, name, p, n):
+    """A finger's texels' relief (0 flat): its seams."""
+    lines, has_base = seam_lines(rig, name, p, n)
+    if not has_base:
+        d, run, w = lines[0]
+        return seam_relief(d, run) * w
+    out = sum(seam_relief(d, run) for d, run, _ in lines[1:]) * lines[1][2]
+    d, run, w = lines[0]
+    base = seam_relief(d, run) * w
     return np.where(np.abs(base) > np.abs(out), base, out)
 
 
@@ -90,53 +104,58 @@ def save(path, r, g, b, a):
     Image.fromarray(np.clip(np.round(img * 255), 0, 255).astype(np.uint8), 'RGBA').save(path, compression='tga_rle')
 
 
-models, shifts, rig, mesh, islands = hand.build(str(PROGS))
-layout, size = hand.layout_islands(islands)
-pos, norm, part = hand.rasterize(mesh, layout, size)
-covered = part >= 0
-nails = np.zeros_like(covered)
-relief = np.zeros(covered.shape)
-fingerless = np.where(part == 0, 1.0, 0.0)  # the palm's island: the back and palm of the hand
-for i, name in enumerate(hand.FINGERS):
-    m = part == i + 1
-    relief[m] = seams(rig, name, pos[m], norm[m])
-    seg, along, side, _ = hand.finger_coords(rig, name, pos[m], norm[m])
-    pts = rig.fingers[name]['points']
-    length = np.linalg.norm(pts[3] - pts[2])
-    a = (along - .40 * length) / (.62 * length)
-    nails[m] = (seg == 2) & (a > 0) & (a < 1.05) & (side > .5)
-    last, share = FINGERLESS.get(name, FINGERLESS_OTHER)
-    cut = share * np.linalg.norm(pts[last + 1] - pts[last])
-    d = np.where(seg < last, 1e3, np.where(seg == last, cut - along, -1.0))
-    fingerless[m] = np.where(d > 0, edge_value(d), 0.0)
-fingerless = spread(fingerless, covered)
-full = spread(np.where(covered, 1.0, 0.0), covered)
-leather = spread(np.where(covered, 0.5 + relief, 0.5), covered)
-skin = grow(grow(covered)) & ~grow(nails)
-
-
 def lmp(path):
     data = path.read_bytes()
     w, h = struct.unpack('<ii', data[:8])
     return np.frombuffer(data[8:], np.uint8).reshape(h, w)
 
 
-pal = palette() / 255.0
-clean = lmp(PROGS / 'hand_rig_00_00.lmp')
-for n in range(4):
-    idx = lmp(PROGS / f'hand_rig_{n:02d}_00.lmp')
-    kept = ~grow(~(idx == clean))  # static blood (and a texel round it) left out
-    mask = skin & kept
-    save(PROGS / f'hand_rig_{n:02d}_00_skinmask.tga', mask * 1.0, fingerless * kept, full * kept, leather)
-    print(f'hand {n}: {mask.sum()} skin texels; nails excluded {nails.sum()}; fingerless glove '
-          f'{(fingerless * kept > 0.3).sum()}, full {(full * kept > 0.3).sum()}; seam texels {(relief < -0.1).sum()}')
-for n in range(16):
-    img = np.array(Image.open(PROGS / f'vrbody_{n:02d}_00.tga').convert('RGB'))
-    base = np.array(Image.open(PROGS / f'vrbody_{n // 4 * 4:02d}_00.tga').convert('RGB'))
-    h, w = img.shape[:2]
-    yy, xx = np.mgrid[:h, :w]
-    mask = (xx < w * .5) & (yy < h * .4) & ~grow(np.any(img != base, axis=2))
-    zero = np.zeros(mask.shape)
-    save(PROGS / f'vrbody_{n:02d}_00_skinmask.tga', mask * 1.0, zero, zero, zero + 0.5)  # A flat: the cuff's plain leather
-    assert not mask[yy >= h * .4].any()
-    print(f'body {n}: {mask.sum()} skin texels, clothing/static blood excluded')
+def main():
+    models, shifts, rig, mesh, islands = hand.build(str(PROGS))
+    layout, size = hand.layout_islands(islands)
+    pos, norm, part = hand.rasterize(mesh, layout, size)
+    covered = part >= 0
+    nails = np.zeros_like(covered)
+    relief = np.zeros(covered.shape)
+    fingerless = np.where(part == 0, 1.0, 0.0)  # the palm's island: the back and palm of the hand
+    for i, name in enumerate(hand.FINGERS):
+        m = part == i + 1
+        relief[m] = seams(rig, name, pos[m], norm[m])
+        seg, along, side, _ = hand.finger_coords(rig, name, pos[m], norm[m])
+        pts = rig.fingers[name]['points']
+        length = np.linalg.norm(pts[3] - pts[2])
+        a = (along - .40 * length) / (.62 * length)
+        nails[m] = (seg == 2) & (a > 0) & (a < 1.05) & (side > .5)
+        last, share = FINGERLESS.get(name, FINGERLESS_OTHER)
+        cut = share * np.linalg.norm(pts[last + 1] - pts[last])
+        d = np.where(seg < last, 1e3, np.where(seg == last, cut - along, -1.0))
+        fingerless[m] = np.where(d > 0, edge_value(d), 0.0)
+    fingerless = spread(fingerless, covered)
+    full = spread(np.where(covered, 1.0, 0.0), covered)
+    leather = spread(np.where(covered, 0.5 + relief, 0.5), covered)
+    skin = grow(grow(covered)) & ~grow(nails)
+
+
+    pal = palette() / 255.0
+    clean = lmp(PROGS / 'hand_rig_00_00.lmp')
+    for n in range(4):
+        idx = lmp(PROGS / f'hand_rig_{n:02d}_00.lmp')
+        kept = ~grow(~(idx == clean))  # static blood (and a texel round it) left out
+        mask = skin & kept
+        save(PROGS / f'hand_rig_{n:02d}_00_skinmask.tga', mask * 1.0, fingerless * kept, full * kept, leather)
+        print(f'hand {n}: {mask.sum()} skin texels; nails excluded {nails.sum()}; fingerless glove '
+              f'{(fingerless * kept > 0.3).sum()}, full {(full * kept > 0.3).sum()}; seam texels {(relief < -0.1).sum()}')
+    for n in range(16):
+        img = np.array(Image.open(PROGS / f'vrbody_{n:02d}_00.tga').convert('RGB'))
+        base = np.array(Image.open(PROGS / f'vrbody_{n // 4 * 4:02d}_00.tga').convert('RGB'))
+        h, w = img.shape[:2]
+        yy, xx = np.mgrid[:h, :w]
+        mask = (xx < w * .5) & (yy < h * .4) & ~grow(np.any(img != base, axis=2))
+        zero = np.zeros(mask.shape)
+        save(PROGS / f'vrbody_{n:02d}_00_skinmask.tga', mask * 1.0, zero, zero, zero + 0.5)  # A flat: the cuff's plain leather
+        assert not mask[yy >= h * .4].any()
+        print(f'body {n}: {mask.sum()} skin texels, clothing/static blood excluded')
+
+
+if __name__ == '__main__':
+    main()

@@ -1514,6 +1514,8 @@ NOISE_FUNCTIONS
 "layout(binding=1) uniform sampler2D FullbrightTex;\n"
 "layout(binding=2) uniform sampler2D NormalTex; // QVR\n"
 "layout(binding=6) uniform sampler2D SkinMaskTex; // QVR: authored skin only\n"
+"layout(binding=7) uniform sampler2D GloveTex; // QVR: a glove's painted leather (vr_glove_paint): RGB its detail, A its wear\n"
+"layout(binding=8) uniform sampler2D GloveHeightTex; // QVR: ... its relief (0.5 flat)\n"
 "\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	layout(location=0) noperspective in vec2 in_texcoord;\n"

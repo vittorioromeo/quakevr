@@ -2536,10 +2536,12 @@ SPECULAR_AA_FUNCTIONS
 "// detail (nails, creases): the skin mask's A (make_skin_masks.py: its seams and stitches, 0.5 flat; read at ax/ay a\n" \
 "// texel along u/v for their slope), the hem's rolled edge (hem 0..1 over the edge band, dhem its slope a texel), and\n" \
 "// a pebbled grain of its own, faded out where a pebble would be under ~2 pixels. Out: the colour's shade, the relief's\n" \
-"// slope (in uv units, for WoundBump), its sheen's share.\n" \
-"float GloveLeather(vec2 uv, vec2 duvdx, vec2 duvdy, vec2 ts, float a, float ax, float ay, float hem, vec2 dhem, out vec2 slope, out float gloss)\n" \
+"// slope (in uv units, for WoundBump), its sheen's share. painted: a painted layer gives the grain (vr_glove_paint):\n" \
+"// this one's finer and fainter, a texture under it.\n" \
+"float GloveLeather(vec2 uv, vec2 duvdx, vec2 duvdy, vec2 ts, float a, float ax, float ay, float hem, vec2 dhem, bool painted, out vec2 slope, out float gloss)\n" \
 "{\n" \
-"	const float cells = 0.55; // grain cells a texel: the hand's 1.5 texels a mm, a pebble ~1.2 mm\n" \
+"	float cells = painted ? 1.1 : 0.55; // grain cells a texel: the hand's 1.5 texels a mm, a pebble ~1.2 mm\n" \
+"	float grainK = painted ? 0.35 : 1.0;\n" \
 "	float px = cells * max(length(duvdx * ts), length(duvdy * ts)); // cells a pixel\n" \
 "	float fine = 1.0 - smoothstep(0.25, 0.6, px);\n" \
 "	vec2 s = 1.6 * vec2(ax - a, ay - a); // the seams (A 0.5 flat; 1.6 texels its full range)\n" \
@@ -2551,9 +2553,9 @@ SPECULAR_AA_FUNCTIONS
 "		vec4 gr = LeatherGrain(uv * ts * cells);\n" \
 "		float e = clamp(gr.x / 0.2, 0.0, 1.0);\n" \
 "		pebble = e * (2.0 - e); // 0 in a crevice, 1 on a pebble's top\n" \
-"		s += fine * 0.14 * 2.0 * (1.0 - e) * step(gr.x, 0.2) / 0.2 * gr.yz * cells;\n" \
-"		pebble = mix(0.85, pebble, fine);\n" \
-"		tone = mix(0.5, gr.w, fine);\n" \
+"		s += grainK * fine * 0.14 * 2.0 * (1.0 - e) * step(gr.x, 0.2) / 0.2 * gr.yz * cells;\n" \
+"		pebble = mix(0.85, pebble, fine * grainK);\n" \
+"		tone = mix(0.5, gr.w, fine * grainK);\n" \
 "	}\n" \
 "	slope = s * vec2(1.0, ts.y / ts.x);\n" \
 "	float seam = clamp(1.0 + 1.8 * (a - 0.5), 0.3, 1.5); // grooves dark, stitches light\n" \
@@ -2636,7 +2638,8 @@ SPECULAR_AA_FUNCTIONS
 "	{ // their soft edges blending in (no untoned ring); gloves (vr_gloves) over it, the skin toned where they leave it bare\n" \
 "		float skinShare = (1.0 - wounds.burn) * (1.0 - wounds.blood * instances[in_instance].WoundSide.w) * (1.0 - 0.5 * wounds.wet);\n" \
 "		vec4 mask = textureGrad(SkinMaskTex, uv, duvdx, duvdy);\n" \
-"		float gm = glove.w > 1.5 ? mask.b : glove.w > 0.5 ? mask.g : 0.0; // make_skin_masks.py: 0.55 at the edge, 1 a hem inside\n" \
+"		float gmode = mod(glove.w, 4.0), gpaint = floor(glove.w * 0.25); // Glove.w: the channel, 4 times the painted layer's (vr_render.cpp glovePaintFlags)\n" \
+"		float gm = gmode > 1.5 ? mask.b : gmode > 0.5 ? mask.g : 0.0; // make_skin_masks.py: 0.55 at the edge, 1 a hem inside\n" \
 "		float cover = smoothstep(0.3, 0.5, gm), hem = clamp((gm - 0.55) / 0.45, 0.0, 1.0);\n" \
 "		vec2 ts = vec2(textureSize(SkinMaskTex, 0));\n" \
 "		vec4 mx = vec4(0.5), my = vec4(0.5);\n" \
@@ -2645,7 +2648,7 @@ SPECULAR_AA_FUNCTIONS
 "		{\n" \
 "			mx = textureGrad(SkinMaskTex, uv + vec2(1.0 / ts.x, 0.0), duvdx, duvdy);\n" \
 "			my = textureGrad(SkinMaskTex, uv + vec2(0.0, 1.0 / ts.y), duvdx, duvdy);\n" \
-"			dhem = (glove.w > 1.5 ? vec2(mx.b, my.b) : vec2(mx.g, my.g)) - gm;\n" \
+"			dhem = (gmode > 1.5 ? vec2(mx.b, my.b) : vec2(mx.g, my.g)) - gm;\n" \
 "			dhem = hem > 0.0 && hem < 1.0 ? dhem / 0.45 : vec2(0.0);\n" \
 "		}\n" \
 "		vec4 cuff = instances[in_instance].GloveCuff;\n" \
@@ -2656,13 +2659,38 @@ SPECULAR_AA_FUNCTIONS
 "			hem = clamp((uv.y - cuff.y) / (cuff.z - cuff.y), 0.0, 1.0);\n" \
 "			dhem = vec2(0.0, hem > 0.0 && hem < 1.0 ? 1.0 / ((cuff.z - cuff.y) * ts.y) : 0.0);\n" \
 "			mask.a = mx.a = my.a = 0.5; // plain leather\n" \
+"			gpaint = 0.0; // (the hand's painted layer only)\n" \
 "		}\n" \
 "		cover *= step(0.5, glove.w);\n" \
 "		vec3 toned = tone.w > 0.0 ? result.rgb * mix(vec3(1.0), tone.rgb, mask.r * (1.0 - cover)) : result.rgb;\n" \
 "		vec3 leather = glove.rgb;\n" \
 "		if (cover > 0.0) // its own relief, none of the skin's painted detail (GloveLeather)\n" \
 "		{\n" \
-"			leather *= GloveLeather(uv, duvdx, duvdy, ts, mask.a, mx.a, my.a, hem, dhem, leatherSlope, leatherGloss);\n" \
+"			vec3 paint = vec3(0.5);\n" \
+"			float wear = 0.0;\n" \
+"			vec2 paintSlope = vec2(0.0);\n" \
+"			if (gpaint > 0.5) // QVR: its painted leather (vr_glove_paint; make_glove_paint.py): RGB its detail times the colour\n" \
+"			{ // (0.5 as it is), A its wear; its relief in place of the mask's seams (the painted ones over them)\n" \
+"				vec4 gp = textureGrad(GloveTex, uv, duvdx, duvdy);\n" \
+"				paint = gp.rgb;\n" \
+"				wear = max(gp.a, 0.4 * (1.0 - hem)); // (the hem's edge rubbed too)\n" \
+"				mask.a = mx.a = my.a = 0.5;\n" \
+"				if (gpaint > 1.5)\n" \
+"				{\n" \
+"					vec2 hs = vec2(textureSize(GloveHeightTex, 0));\n" \
+"					float h0 = textureGrad(GloveHeightTex, uv, duvdx, duvdy).r;\n" \
+"					float hx = textureGrad(GloveHeightTex, uv + vec2(1.0 / hs.x, 0.0), duvdx, duvdy).r;\n" \
+"					float hy = textureGrad(GloveHeightTex, uv + vec2(0.0, 1.0 / hs.y), duvdx, duvdy).r;\n" \
+"					paintSlope = 2.0 * vec2(hx - h0, hy - h0) * hs / ts.x; // (GloveLeather's units: a mask texel's)\n" \
+"				}\n" \
+"			}\n" \
+"			// worn: paler, greyer, matte (a black glove's scuffs grey, a brown one's tan)\n" \
+"			float lum = dot(glove.rgb, vec3(0.299, 0.587, 0.114));\n" \
+"			vec3 worn = mix(vec3(lum), glove.rgb, 0.45) * 1.6 + vec3(0.075, 0.068, 0.06);\n" \
+"			leather = mix(glove.rgb, worn, wear) * paint * 2.0;\n" \
+"			leather *= GloveLeather(uv, duvdx, duvdy, ts, mask.a, mx.a, my.a, hem, dhem, gpaint > 0.5, leatherSlope, leatherGloss);\n" \
+"			leatherSlope += paintSlope;\n" \
+"			leatherGloss *= 1.0 - 0.7 * wear;\n" \
 "			leatherCover = cover * skinShare;\n" \
 "		}\n" \
 "		wounds.look += skinShare * (mix(toned, leather, cover) - result.rgb);\n" \

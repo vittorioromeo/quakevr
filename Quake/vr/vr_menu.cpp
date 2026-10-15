@@ -6049,6 +6049,9 @@ za::Vector<Item> pageDebugTools()
         command("Reload Models", "vr_model_reload")
             .help("vr_model_reload: every model read again from its file (edited in Blender), with the hands' and collisions' caches."),
         command("Reload Hand Model", "vr_hand_reload").help("vr_hand_reload: the jointed hand (progs/hand_rig.md5mesh) read again."),
+        command("Reload Glove Paint", "vr_gloves_reload")
+            .help("vr_gloves_reload: the gloves' painted leather (progs/hand_rig_00_00_glove.png, _glove_height.png) read "
+                  "again, as edited in an image editor (docs/vr-port/GLOVES.md). A map change reads it again too."),
         command("Reload Detail Textures", "vr_detail_reload").help("vr_detail_reload: the detail textures' settings read again, the textures rebuilt."),
         command("Reload Shaders", "vr_shader_reload")
             .help("vr_shader_reload [n]: the engine's shaders compiled again (n: QVR_SHADER_AB, 0 by default; a shader change's A/B in one run, paused, for images and timings)."),
@@ -9543,6 +9546,9 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("How strong the colour is: 0 grey, black or white leather; 1 the purest."),
         slider("Glove Lightness", vr_glove_lightness, 0.f, 1.f, 0.05f, "%.2f")
             .help("0 black, 0.5 the colour at its fullest, 1 white. The hand's own creases and knuckles shade it."),
+        toggle("Worn Leather", vr_glove_paint)
+            .help("The gloves' leather painted worn: scuffed knuckles, creases over the finger joints, stitched seams, "
+                  "scratches (progs/hand_rig_00_00_glove.png: editable, docs/vr-port/GLOVES.md). Off: plain new leather."),
         header("Pauldrons"),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
         cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
