@@ -395,6 +395,8 @@ QVR_CVAR(vr_bullettime_tap_gesture, "1", CVAR_ARCHIVE) // the screen tap's gestu
 QVR_CVAR(vr_bullettime_tap_double_window, "0.8", CVAR_ARCHIVE) // seconds: a double tap's second tap must come this soon after its first (the volume lifted off the screen between them)
 QVR_CVAR(vr_bullettime_tap_min_gap, "0.05", CVAR_ARCHIVE) // seconds: a double tap's second tap no sooner than this after its first (sooner: a new first tap; an arm wiggled or flicked fast is no double tap)
 QVR_CVAR(vr_bullettime_tap_double_speed, "0.2", CVAR_ARCHIVE) // m/s: a double tap's least speed into the screen, per tap (instead of vr_bullettime_tap_speed)
+QVR_CVAR(vr_bullettime_tap_blow_quiet, "0.5", CVAR_ARCHIVE) // QVR round 22: real seconds after a melee blow of the player's lands, or he shoves or bashes (either hand), in which screen taps don't count (a double tap's first waiting is dropped): a melee's thick turned slow motion on by accident; 0: off
+QVR_CVAR(vr_bullettime_tap_calm_speed, "2.5", CVAR_ARCHIVE) // QVR round 22: m/s (real): screen taps don't count within 0.3 s of the gadget's hand going faster than this, or the tapping hand across the screen (its motion into and out of it is the tap's own; the play space's: walking aside); blows and shoves need 3 or more; 0: off
 QVR_CVAR(vr_bullettime_tap_speed, "0.5", CVAR_ARCHIVE) // m/s: the least speed into the screen (the hands' speed towards each other along its normal: both may move)
 QVR_CVAR(vr_bullettime_tap_angle, "80", CVAR_ARCHIVE) // degrees: how far off straight into the screen the strike may come (a swing across it comes from the side)
 QVR_CVAR(vr_bullettime_tap_margin, "0.5", CVAR_ARCHIVE) // cm round the screen's edges where the strike may land too
@@ -2498,6 +2500,7 @@ QVR_CVAR(vr_ragdoll_active_getup, "1", CVAR_ARCHIVE)    // a knocked-down grunt,
 QVR_CVAR(vr_ragdoll_active_getup_pin, "2.5", CVAR_ARCHIVE) // body weights: its pelvis's pin to the get-up's at most
 QVR_CVAR(vr_ragdoll_active_getup_blend, "0.2", CVAR_ARCHIVE) // s: risen, its ragdoll blended into the animated monster over this
 QVR_CVAR(vr_ragdoll_active_getup_pace, "0.8", CVAR_ARCHIVE) // its get-up's frames' speed, times the get-up's own (vr_knockdown_getup_speed)
+QVR_CVAR(vr_ragdoll_active_getup_hold, "1", CVAR_ARCHIVE) // QVR round 22: 1: a get-up rises where it lies: it rolls over and is pulled in on the spot (its body's level motion held), only the get-up's own frames move it; 0: as before (its roll over carried it off along the floor like a wheel, up to 60 units, and the pin dragged it back)
 QVR_CVAR(vr_test_kill, "0", CVAR_NONE)                  // n: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3), a leg (4), nowhere known (6) (QC combat.qc VR_TestKill_Frame; the active ragdolls' tests)
 QVR_CVAR(vr_ragdoll_active_env, "1", CVAR_ARCHIVE)       // an active death senses what is round him (walls, floors, ledges, crates) and uses his hands on it (the three below); 0: his death ignores it (ROUND22.md, "Active ragdolls: environment")
 QVR_CVAR(vr_ragdoll_active_env_brace, "1", CVAR_ARCHIVE) // falling onto a floor, a wall or a crate within reach: his arms go out to it and take the landing, giving

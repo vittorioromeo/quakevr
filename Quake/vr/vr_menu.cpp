@@ -4433,6 +4433,10 @@ void hologramTestMessage()
             .help("Its get-up's speed, times the get-up's own (vr_ragdoll_active_getup_pace)."),
         slider("Get-Up Blend", vr_ragdoll_active_getup_blend, 0.05f, 1.f, 0.05f, "%.2f s")
             .help("Risen, its ragdoll blends into the animated monster over this (vr_ragdoll_active_getup_blend)."),
+        toggle("Get Up in Place", vr_ragdoll_active_getup_hold)
+            .help("On: it rolls over and gathers itself where it lies, then rises; only the get-up's own motion moves "
+                  "it. Off: as before, its roll carried it along the floor and it was dragged back "
+                  "(vr_ragdoll_active_getup_hold)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
@@ -9165,6 +9169,10 @@ za::Vector<Item> pageMain()
         cycle("Screen Tap", "vr_bullettime_tap_gesture", {{0.f, "Single Tap"}, {1.f, "Double Tap"}})
             .help("Activation by the Wrist Gadget: Double Tap, two quick taps on its screen (a single one does nothing, "
                   "so a stray knock never starts it); Single Tap, one hard tap."),
+        slider("Quiet After Blows", "vr_bullettime_tap_blow_quiet", 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("Screen taps don't count for this long after a melee blow of yours lands, or you shove or bash, nor "
+                  "while your hands move fast (Calm Hands Speed, Advanced VR Options > Combat > Bullet Time): no slow "
+                  "motion by accident in a melee. 0: off."),
     };
 }
 

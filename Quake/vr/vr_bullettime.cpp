@@ -10,6 +10,7 @@
 #include "vr_highlights.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
+#include "vr_progs.hpp"
 #include "vr_twohand.hpp"
 #include "vr_timescale.hpp"
 #include "vr_units.hpp"
@@ -40,6 +41,14 @@ struct State
     double tappedAt = -1.0;    // realtime of the last tap that counted (tapping())
     double firstTapAt = -1.0;  // vr_bullettime_tap_gesture 1: realtime of a double tap's first tap (-1: none waiting)
     bool tapLifted = true;     // the striking volume off the screen since the last tap counted (none counts before)
+    // The frantic-melee guards (calm()): the player's last landed blow, shove or bash as the QC has it (.vr_blow_time,
+    // server time) and the realtime it changed; the realtime a hand was last faster than vr_bullettime_tap_calm_speed,
+    // which and how fast.
+    float blowField = 0.f;
+    double blowAt = -1e9;
+    double fastAt = -1e9;
+    int fastHand = 0;
+    float fastSpeed = 0.f;
     bool stickTaken[HAND_COUNT] = {}; // the stick press taken at its press (vr_bullettime_trigger): its release is too
     glm::vec3 viewPos[HAND_COUNT]{};   // the hands' places (hands::State::pos) as the view tested the tap (movedSinceView)
     bool viewValid = false;
@@ -302,6 +311,59 @@ struct Against
     return a;
 }
 
+// The frantic-melee guards (his note 2026-10-15: double taps in a melee's thick turned slow motion on by accident). Each
+// frame: whether the player's hands are calm enough for a screen tap to count, else why not (in `why`). Not within
+// vr_bullettime_tap_blow_quiet real seconds of a blow of his landing, a shove or a bash (the QC's .vr_blow_time), nor
+// within calmTime of a hand going faster than vr_bullettime_tap_calm_speed (real m/s, in the play space: walking
+// aside): the gadget's hand at all, the tapping one across the screen (against the gadget's hand; its motion into or
+// out of the screen is the tap's own). Blows, shoves and bashes need 3 m/s or more; a tap is a hand brought to the
+// wrist held still. A double tap's first waiting is dropped meanwhile.
+constexpr float calmTime = 0.3f; // s
+[[nodiscard]] bool calm(const hands::State& s, int hand, const Screen& z, char* why, int whyLen)
+{
+    const double now = realtime;
+    if(edict_t* player = sv.active && svs.maxclients >= 1 ? svs.clients[0].edict : nullptr)
+    {
+        const float blow = progs::fieldFloatOr(player, progs::fields().vr_blow_time, 0.f);
+        if(blow != state.blowField)
+        {
+            state.blowField = blow;
+            state.blowAt = blow > 0.f ? now : -1e9; // (0: none yet, or a new map's)
+        }
+    }
+    const float limit = vr_bullettime_tap_calm_speed.value;
+    if(limit > 0.f)
+    {
+        const int g = hands::gadgetHand();
+        const float scale = timescale::handScale(); // (in slow motion the hands' velocities are the game's)
+        const glm::vec3 rel = s.vel[hand] - s.vel[g];
+        const float speed[2] = {glm::length(s.vel[g]) * scale, glm::length(rel - z.normal * glm::dot(rel, z.normal)) * scale};
+        const int who[2] = {g, hand};
+        for(int i = 0; i < 2; i++)
+        {
+            if(speed[i] > limit)
+            {
+                state.fastAt = now;
+                state.fastHand = who[i];
+                state.fastSpeed = speed[i];
+            }
+        }
+    }
+    const float quiet = za::max(0.f, vr_bullettime_tap_blow_quiet.value);
+    if(now - state.blowAt < static_cast<double>(quiet))
+    {
+        q_snprintf(why, static_cast<size_t>(whyLen), "%.2f s after a blow, shove or bash", now - state.blowAt);
+        return false;
+    }
+    if(limit > 0.f && now - state.fastAt < static_cast<double>(calmTime))
+    {
+        q_snprintf(why, static_cast<size_t>(whyLen), "the %s hand at %.1f m/s %.2f s ago", state.fastHand == hands::gadgetHand() ? "gadget's" : "tapping",
+            state.fastSpeed, now - state.fastAt);
+        return false;
+    }
+    return true;
+}
+
 // The screen tap: the other hand's striking volume (strikers) over the gadget's screen (a point within
 // vr_bullettime_tap_margin of its edges), having come straight into it (within vr_bullettime_tap_angle of its normal) at
 // vr_bullettime_tap_speed or more (against the screen's own motion: both may move), then stopped on it (a point within
@@ -314,6 +376,16 @@ struct Against
 // within vr_bullettime_tap_double_window of the first but no sooner than vr_bullettime_tap_min_gap; one alone does nothing.
 void tapScreen(const hands::State& s, int hand, const Screen& z)
 {
+    char why[96];
+    const bool restless = !calm(s, hand, z, why, static_cast<int>(sizeof(why)));
+    if(restless && state.firstTapAt >= 0.0)
+    {
+        if(vr_debug_bullettime.value)
+        {
+            Con_Printf("bullet time: a double tap's first dropped (%s)\n", why);
+        }
+        state.firstTapAt = -1.0;
+    }
     const bool allowed = (vr_bullettime_tap_holding.value != 0.f || held::handEmpty(hand)) &&
                          (vr_bullettime_tap_twohanded.value != 0.f || !twoHanded());
     if(!allowed)
@@ -418,6 +490,17 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
     // The impact: the volume on the face (a point within the depth over it, or a little through it), the fastest point
     // slowed.
     const Against a = against(s, z, strike[state.tapStriker]);
+    if(touching >= 0 && a.into <= state.tapPeak * za::clamp(vr_bullettime_tap_stop.value, 0.f, 1.f) && restless)
+    {
+        // A melee's thick (calm()): no tap, no feedback; the volume must lift off before the next.
+        if(vr_debug_bullettime.value)
+        {
+            Con_Printf("bullet time: a tap at %.2f m/s ignored (%s)\n", state.tapPeak, why);
+        }
+        state.tapPeak = 0.f;
+        state.tapLifted = false;
+        return;
+    }
     if(touching >= 0 && a.into <= state.tapPeak * za::clamp(vr_bullettime_tap_stop.value, 0.f, 1.f))
     {
         // What struck: the part furthest in, and the others within a centimetre of it (a flat slap lands the palm and the

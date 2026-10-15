@@ -293,6 +293,8 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .float bat_exhaust;   // and what that left (as a blow's mh_exhaust: 0 paid in full)
 
 .float vr_bash_time;      // on a player: when the next bash may be
+.float vr_blow_time;      // on a player: when a blow of his last landed, or he last shoved or bashed (the engine's
+                          // bullet time ignores gadget screen taps a moment after: vr_bullettime_tap_blow_quiet)
 .float vr_arms;           // on a player: arms crossed (the unarmed parry),
 .float vr_arms_since;     // since when (0: reported)
 .float vr_bash_mark;      // on a monster: found by this frame's bash (VR_Bash_Find),
@@ -2691,6 +2693,10 @@ float(float xBoth) VR_Shove_HandsPush =
 // forced).
 void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xScale, float xPush) VR_Bash_Hit =
 {
+    if(self.flags & FL_CLIENT)
+    {
+        self.vr_blow_time = time; // (bullet time's screen tap: vr_bullettime_tap_blow_quiet)
+    }
     float push = cvar_hget(cvarh_vr_bash_push) * xPush;
     float dmg = cvar_hget(cvarh_vr_bash_damage) * xScale;
     float stagger = xScale;
@@ -3061,6 +3067,8 @@ void() VR_Bash =
         both = TRUE; // an open palm, the other hand pushing along with the flashlight in its fist
     }
 
+    self.vr_blow_time = time; // (bullet time's screen tap: vr_bullettime_tap_blow_quiet)
+
     // The motion recorder (vr_motion.qc): a push, whatever it meets; once a push (its frames in a row).
     if(VR_PlayerTime() - self.vr_motion_pushseen > 0.15)
     {
@@ -3271,6 +3279,7 @@ float(float xHand) VR_Melee_Strike =
 void(float xHand) VR_Melee_Landed =
 {
     entity b = VR_Blow(xHand);
+    self.vr_blow_time = time; // (bullet time's screen tap: vr_bullettime_tap_blow_quiet)
     self.show_hostile = time + 1; // a blow that landed wakes monsters up (as a gun's shot: W_AttackImpl)
     // QVR: heard by its strength and the held thing's weight (a fist's 200 units at strength 1; vr_stealth.qc)
     VR_Stealth_Noise(self.origin, 200 * b.mh_strength * (1 + max(0, VR_Weight_HeldMass(self, xHand)) / 3) *

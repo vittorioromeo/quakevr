@@ -5918,6 +5918,74 @@ each .mdl vertex follows the smoothest path through its animation within half a 
 the old look exactly. Debug > Reports > Steady Vertices Check (`vr_mdl_dequant_check`). Design, numbers (near-still
 wobble -46% to -100%, 114 ms load for 139 models), the proof for 0 and what to try in the headset: `MDL_DEQUANT.md`.
 
+## Slow motion by accident, and get-ups that glide (worktree `flatfist`, 2026-10-15)
+
+His notes of 2026-10-15 (BACKLOG.md): "Slow motion still turns on by accident: double-tapping the wrist gadget screen
+during frantic melee/shoves" and "Active-ragdoll get-up moves the body around too much: it visibly glides on the ground
+plane instead of just getting up".
+
+### The screen tap in a melee's thick (vr_bullettime.cpp `calm()`)
+
+His shipped tap is permissive (Double Tap, 0.2 m/s a tap, 80 degrees off straight, a 0.8 s window): two knocks of a
+punching hand on the wrist in a melee are a double tap. Two guards, each checked every frame; while either holds, a tap
+that lands is ignored (no click, no glitch, `bullet time: a tap at N m/s ignored (...)` with `vr_debug_bullettime 1`)
+and a double tap's first waiting is dropped:
+
+- **Quiet after blows** `vr_bullettime_tap_blow_quiet` 0.5 s (real): after a melee blow of his lands, or he shoves or
+  bashes (either hand). The QC stamps the player's `.vr_blow_time` (VR_Melee_Landed, the push code in VR_Bash, and
+  VR_Bash_Hit, which `vr_knockdown_test 21` calls); the engine notes the realtime it changes.
+- **Calm hands** `vr_bullettime_tap_calm_speed` 2.5 m/s (real, the play space's: walking doesn't count): within 0.3 s of
+  the gadget's hand going faster, or the tapping hand moving that fast across the screen against it (its motion into
+  and out of the screen is the tap's own and never counts: a hard deliberate tap is not a swing). Blows, shoves and
+  bashes need 3 m/s or more (`vr_melee_speed` 3.2, `vr_shove_speed` 3.5, `vr_bash_speed` 3); his held poses settle at
+  1.6 at most.
+
+Both 0: as before. Menu: VR Settings > Bullet Time > Quiet After Blows (basic page, under Screen Tap); Advanced >
+Combat > Bullet Time > Screen Tap: Quiet After Blows and Calm Hands Speed.
+
+**Test** `Misc/quakevr/gadget_tap_melee_test.sh <agent>` (vrfiringrange, shipped tap settings, 1.7 m/s taps): a calm
+double tap on, again off; a double tap 0.2 s after a shove (`vr_knockdown_test 21`) ignored, 1 s after on, off; a 4 m/s
+swing across the screen then at once a double tap ignored ("the tapping hand"); the gadget's arm swung 3.8 m/s then a
+double tap ignored ("the gadget's hand"); the guards off, the swing-then-double-tap on as before. 11/11 PASS.
+
+### Get-ups in place (vr_ragactive.cpp `holdLevel`, `riseFrame`)
+
+Measured first: each rise's body (its mass centre) traced level from where it lay (`getup: N level travel: ...`, a new
+line with `vr_knockdown_debug 1`; `vr_debug_ragdoll 2` adds it to the trace). The cause: the roll over (a body lying
+the other way up from its get-up's first frame: grunt, enforcer, knight) turns the whole body about the edge it rolls
+over, on the floor: with the floor's grip it rolls like a wheel, and the edge is its farthest part on that side (an arm
+flung out), so a knight rolled 50 units along the floor; then the pin pulled its pelvis back over 0.6 s, overshooting
+the spot by 13. The out-and-back is the glide.
+
+`vr_ragdoll_active_getup_hold` 1 (default; Gibs and Corpses > Ragdoll Settings > Get Up in Place): while rolling over its
+mass centre's level motion is eased back towards where it lay (`holdLevel`: towards going back there over 0.15 s, at most
+1 m/s, the same change to every part: its turn and pose untouched), so it turns over on the spot. 0: as before.
+
+Headless (vrfiringrange, seeds 7 and 11, `vr_knockdown_test 0` then 1, and a sure one-hand shove `vr_knockdown_test 21`
+with Chance 100 getting up on its own; 4 rises each; farthest the body went from where it lay, units, and its level path
+while rolling):
+
+| Monster | farthest, before | after | path rolling, before | after |
+|---|---|---|---|---|
+| grunt | 10-41 | 4-8 | 9-35 | 3-4 |
+| enforcer | 39-54 | 16-24 | 27-40 | 5-8 |
+| knight | 36-71 | 4-9 | 30-61 | 3-4 |
+| death knight, ogre, zombie (no roll) | 5-12 | 4-12 | 0 | 0 |
+
+What is left is the get-up's own: the body's middle comes over its feet as it stands (the enforcer's 16-24 units with
+its pelvis still on the clip's within 3; the zombie rises up its fall backwards, 10-12). Tried and dropped: moving the
+get-up's spot to where the pelvis lies after the roll (its first frame's pelvis on the body's): its stand ended farther
+from where it lay (grunt 1-3 -> 2-10 units, enforcer 16-24 -> 26-30), no gain while pulled in.
+
+Checks: `stagger_test.sh flatfist backpedal steady getup taken lost judo` (N 4): 42 PASS, 1 FAIL, `taken` once (the grunt rose
+without the player on its spot: it lands differently each run), then 4 of 4 PASS with the hold and 3 of 3 without;
+backpedal, steady, getup (handed back, 1 and 0), lost and judo all PASS. `eval.sh` 111 hits in 111 takes; e1m1 smoke clean;
+build 0 warnings.
+
+**In the headset**: shove grunts and knights over and watch them get up: they should turn over where they lie and rise
+there, not slide off and back. Melee frantically near your wrist (punches, shoves, gun bashes with the off hand's gadget
+in the way): slow motion should never start; then hold the wrist still and double tap: it should start as before.
+
 ## VR Settings' sections as submenus (worktree `bloodfx`, branch `agent/vrsubmenus`, 2026-10-15)
 
 Backlog "VR Settings menu organisation": "turn each subsection of the 'VR Settings' menu into a submenu". VR Settings

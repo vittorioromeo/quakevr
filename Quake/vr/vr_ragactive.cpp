@@ -1034,6 +1034,34 @@ void turnWhole(const Parts& p, const Context& c, const glm::quat& want, float ra
     }
 }
 
+// Its whole body held where it is on the floor (level): its middle's level motion eased (share `k` of
+// 1 - e^(-dt / 0.05 s) a frame) towards going back to level `anchor` over 0.15 s (at most 1 m/s), every part's motion
+// changed alike (its turn and pose untouched). A get-up's roll over and pull-in (vr_ragdoll_active_getup_hold): the roll
+// is about the edge it rolls over, and the floor's grip makes it a wheel: the body rolled away (a knight 50 units, an
+// arm flung out the edge), then the pin dragged it back.
+void holdLevel(const Parts& p, const Context& c, const glm::vec3& anchor, float k)
+{
+    if(k <= 0.f)
+    {
+        return;
+    }
+    glm::vec3 vel;
+    const glm::vec3 at = massCentre(p, &vel);
+    glm::vec3 want = level(anchor - at) / 0.15f;
+    if(const float l = glm::length(want); l > 1.f)
+    {
+        want *= 1.f / l;
+    }
+    const glm::vec3 add = (want - level(vel)) * ((1.f - za::exp(-c.dt / 0.05f)) * za::min(k, 1.f));
+    for(int b = 0; b < p.count; b++)
+    {
+        if(!cut(p, b))
+        {
+            b3Body_SetLinearVelocity(p.body[b], b3v(glmv(b3Body_GetLinearVelocity(p.body[b])) + add));
+        }
+    }
+}
+
 // ---- Staggers ----
 // A shove's stagger: its pelvis pinned up and carried along the shove (easing out over `time`), its top pushed, its
 // weight held up by its muscles (support), its feet planted where they stand (each leg's reach) and stepping after its
@@ -1364,8 +1392,7 @@ void fallFrame(State& s, const Parts& p, const Context& c, float t)
 // ---- Get-ups ----
 constexpr float riseTurnRate = 9.f; // rad/s per radian its pelvis is turned off the get-up's
 constexpr float riseTurnMost = 4.f; // rad/s
-constexpr float riseLost = 1.f;     // m: its pelvis this far off the get-up's once pulled in: it lets go
-// Pulled into the get-up's first frame where it will stand (its pin's pull and its muscles rising over the
+constexpr float riseLost = 1.f;     // m: its pelvis this far off the get-up's once pulled in: it lets go// Pulled into the get-up's first frame where it will stand (its pin's pull and its muscles rising over the
 // preparation), then the get-up played by its body, its pelvis pinned to the clip's (risen by the pin, its weight held
 // up), held at its last frame: done.
 void riseFrame(State& s, const Parts& p, const Context& c, const ClipPose& pose)
@@ -1383,6 +1410,7 @@ void riseFrame(State& s, const Parts& p, const Context& c, const ClipPose& pose)
         else
         {
             rollOver(p, c, r.rollAxis, r.rollSign, pelvis, floorAt(c, pelvis, 0.6f, pelvis.z - 0.2f));
+            holdLevel(p, c, r.lay, vr_ragdoll_active_getup_hold.value);
         }
     }
     // Rolled over: the whole body turned as one towards the get-up's turn of its pelvis (its parts' spin and their motion
@@ -1398,6 +1426,12 @@ void riseFrame(State& s, const Parts& p, const Context& c, const ClipPose& pose)
         return glmv(b3Body_GetPosition(p.body[b])) - (s.origin + s.turn * (pose.pos[static_cast<za::SizeT>(b)] * p.k));
     };
     r.error = glm::length(off(0));
+    {
+        const glm::vec3 at = massCentre(p);
+        r.path[c.now < r.rollUntil ? 0 : c.now < s.clip.t0 ? 1 : 2] += glm::length(level(at - r.last));
+        r.most = za::max(r.most, glm::length(level(at - r.lay)));
+        r.last = at;
+    }
     r.errorMost = c.now > r.end - 0.3 ? za::max(r.errorMost, r.error) : r.errorMost; // (as it stands up)
     // (Pulled in and still far off its get-up (caught on something, knocked away): it lets go, and tries again later.)
     if(c.now > s.clip.t0 && r.error > riseLost)
@@ -1414,9 +1448,11 @@ void riseFrame(State& s, const Parts& p, const Context& c, const ClipPose& pose)
         const glm::vec3 e = off(0) * p.m2u;
         const glm::vec3 a = glm::degrees(
             ragpose::rotationVector(glm::normalize(s.turn * pose.rot[0]) * glm::inverse(bodyRot(p, 0))));
-        Con_Printf("getup: %d %.2f s %s frame %.1f: its pelvis off %.1f %.1f %.1f units, turned off %.0f %.0f %.0f deg\n", c.num,
-            static_cast<float>(c.now - s.begun), c.now < r.rollUntil ? "rolling" : c.now < s.clip.t0 ? "pulled in" : "rising",
-            pose.framePos, e.x, e.y, e.z, a.x, a.y, a.z);
+        const glm::vec3 moved = (r.last - r.lay) * p.m2u;
+        Con_Printf("getup: %d %.2f s %s frame %.1f: its pelvis off %.1f %.1f %.1f units, turned off %.0f %.0f %.0f deg; its "
+                   "mass centre %.1f %.1f from where it lay\n",
+            c.num, static_cast<float>(c.now - s.begun), c.now < r.rollUntil ? "rolling" : c.now < s.clip.t0 ? "pulled in" : "rising",
+            pose.framePos, e.x, e.y, e.z, a.x, a.y, a.z, moved.x, moved.y);
     }
     if(!r.done && c.now >= r.end + 0.12)
     {
@@ -1450,6 +1486,10 @@ void riseFrame(State& s, const Parts& p, const Context& c, const ClipPose& pose)
                        "up), turned %.0f deg off (%.0f %.0f %.0f); its parts at most %.1f units (%s), %.0f deg (%s)\n",
                 c.num, static_cast<float>(c.now - s.begun), r.error * p.m2u, pe.z, r.errorMost * p.m2u, turned(0), axis.x,
                 axis.y, axis.z, most * p.m2u, p.rig->bones[worst].name, turnMost, p.rig->bones[turnWorst].name);
+            Con_Printf("getup: %d level travel: its mass centre went %.1f units rolling, %.1f pulled in, %.1f rising; ends %.1f "
+                       "from where it lay (at most %.1f); the clip's own %.1f\n",
+                c.num, r.path[0] * p.m2u, r.path[1] * p.m2u, r.path[2] * p.m2u, glm::length(level(r.last - r.lay)) * p.m2u,
+                r.most * p.m2u, r.clipOwn * p.m2u);
         }
     }
 }
@@ -3457,6 +3497,15 @@ void beginRise(State& s, const Parts& p, const RiseInfo& info, double now)
     r.prep = prep;
     r.end = now + static_cast<double>(roll + prep + static_cast<float>(za::abs(info.last - info.first)) / fps);
     r.polled = now;
+    r.lay = massCentre(p);
+    r.last = r.lay;
+    {
+        glm::quat qa, qb;
+        glm::vec3 ta, tb;
+        ragdoll::bonePose(*p.rig, ragdoll::poseOfFrame(s.model, info.first), 0, qa, ta);
+        ragdoll::bonePose(*p.rig, ragdoll::poseOfFrame(s.model, info.last), 0, qb, tb);
+        r.clipOwn = glm::length(level(s.turn * ((tb - ta) * p.k)));
+    }
     s.on = true;
 }
 
