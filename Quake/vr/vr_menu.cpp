@@ -6379,6 +6379,13 @@ za::Vector<Item> pageDebugTools()
         header("Toolgun"),
         command("A Toolgun in Your Hand", "impulse 169").help("impulse 169: the toolgun in the main hand (189: the off hand)."),
         command("Toolgun Spawn Catalog", "vr_toolgun_spawnlist").help("Lists every AD spawn entry and whether it is available in this map."), // AD support
+        command("Spawn Every Toolgun Entry", "vr_toolgun_spawn_test")
+            .help("vr_toolgun_spawn_test: every entry of the spawn panel made once on a ring around you (God Mode first: "
+                  "the monsters come too), each printed spawned, failed or unavailable (console). Then Check and Clear "
+                  "the Spawn Test."),
+        command("Check and Clear the Spawn Test", "vr_toolgun_spawn_test check")
+            .help("vr_toolgun_spawn_test check: each one the spawn test made, still there or gone since (console); then "
+                  "all of them removed."),
         command("Toolgun Status", "vr_toolgun_status")
             .help("vr_toolgun_status: its hand and tool, where it aims and what it meets (its place, pinned or loose, its joints), "
                   "the spawn choice and ghost (its offsets, turn, and which hand holds it), what the physgun holds, the scale "

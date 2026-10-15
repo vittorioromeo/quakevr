@@ -9,10 +9,12 @@ AGENT=${1:-spawnall}
 FIRST=${2:-0}
 LAST=${3:-199}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
-S=$(FIRST=$FIRST LAST=$LAST python -c "
+# (MAPCMD="vr_campaign_native mg3;map map1": in Dawn of the Machine's own campaign, for its upgrades and gas flare)
+MAPCMD=${MAPCMD:-map vrfiringrange}
+S=$(FIRST=$FIRST LAST=$LAST MAPCMD="$MAPCMD" python -c "
 import os
 first, last = int(os.environ['FIRST']), int(os.environ['LAST'])
-s = ['map vrfiringrange;wait60;god;notarget;vr_toolgun_spawnlist;wait5']
+s = [os.environ['MAPCMD'] + ';wait60;god;notarget;vr_toolgun_spawnlist;wait5']
 for a in range(first, last + 1, 8):
     s.append(f'vr_toolgun_spawn_test {a} {min(a + 7, last)};wait40;vr_toolgun_spawn_test check;wait10')
 s.append('echo SPAWNALLEND;wait5;toggleconsole;quit')

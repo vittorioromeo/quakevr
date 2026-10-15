@@ -679,6 +679,7 @@ void spawnPage(Ui& ui)
     }
     packs.pushBack("AD");
     za::InPlaceVector<int, maxEntries> entries;
+    za::InPlaceVector<int, maxPacks> groupPages; // each group's first page (">>": the next group's)
     for(int k = 0; k < static_cast<int>(packs.size()); k++)
     {
         bool first = true;
@@ -691,6 +692,10 @@ void spawnPage(Ui& ui)
             while(first && k > 0 && entries.size() % perPage != 0 && entries.size() < entries.capacity())
             {
                 entries.pushBack(-1);
+            }
+            if(first)
+            {
+                groupPages.pushBack(static_cast<int>(entries.size()) / perPage);
             }
             first = false;
             if(entries.size() < entries.capacity())
@@ -733,6 +738,16 @@ void spawnPage(Ui& ui)
         if(button(ui, Rect{bar.x0 + 44.f, bar.y0, bar.x0 + 60.f, bar.y1}, ">"))
         {
             page = (page + 1) % pages;
+        }
+        // The next pack's group (the first again after the last).
+        if(groupPages.size() > 1 && button(ui, Rect{bar.x0 + 63.f, bar.y0, bar.x0 + 81.f, bar.y1}, ">>"))
+        {
+            int next = groupPages[0];
+            for(int k = static_cast<int>(groupPages.size()) - 1; k >= 0; k--)
+            {
+                next = groupPages[k] > page ? groupPages[k] : next;
+            }
+            page = next;
         }
         if(ui.mode == Mode::Draw)
         {

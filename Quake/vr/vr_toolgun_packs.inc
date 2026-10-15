@@ -80,11 +80,11 @@ QVR_PACK("Items", "DoE", "DoE Anti-Grav Belt", "item_powerup_belt", "progs/beltu
 // Dawn of the Machine.
 QVR_PACK("Items", "MG3", "MG3 Armour Shard", "item_armor_shard", "owned/mg3/progs/armorshard.mdl", 0.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Items", "MG3", "MG3 Lava Suit", "item_artifact_lavasuit", "owned/mg3/progs/lavasuit.mdl", 24.f, nullptr, 0.f, 0, 1, nullptr, 0)
-QVR_PACK("Items", "MG3", "MG3 Health Upgrade", "item_upgrade_health", "progs/item_h_player.mdl", 0.f, nullptr, 0.f, 0, 3, nullptr, 0)
-QVR_PACK("Items", "MG3", "MG3 Shells Upgrade", "item_upgrade_shells", "progs/backpackshells.mdl", 0.f, nullptr, 0.f, 0, 3, nullptr, 0)
-QVR_PACK("Items", "MG3", "MG3 Nails Upgrade", "item_upgrade_nails", "progs/backpacknails.mdl", 0.f, nullptr, 0.f, 0, 3, nullptr, 0)
-QVR_PACK("Items", "MG3", "MG3 Rockets Upgrade", "item_upgrade_rockets", "progs/backpacker.mdl", 0.f, nullptr, 0.f, 0, 3, nullptr, 0)
-QVR_PACK("Items", "MG3", "MG3 Cells Upgrade", "item_upgrade_cells", "progs/backpackcells.mdl", 0.f, nullptr, 0.f, 0, 3, nullptr, 0)
+QVR_PACK("Items", "MG3", "MG3 Health Upgrade", "item_upgrade_health", "owned/mg3/progs/item_h_player.mdl", 0.f, nullptr, 0.f, 0, 3, nullptr, 0)
+QVR_PACK("Items", "MG3", "MG3 Shells Upgrade", "item_upgrade_shells", "owned/mg3/progs/backpackshells.mdl", 0.f, nullptr, 0.f, 0, 3, nullptr, 0)
+QVR_PACK("Items", "MG3", "MG3 Nails Upgrade", "item_upgrade_nails", "owned/mg3/progs/backpacknails.mdl", 0.f, nullptr, 0.f, 0, 3, nullptr, 0)
+QVR_PACK("Items", "MG3", "MG3 Rockets Upgrade", "item_upgrade_rockets", "owned/mg3/progs/backpacker.mdl", 0.f, nullptr, 0.f, 0, 3, nullptr, 0)
+QVR_PACK("Items", "MG3", "MG3 Cells Upgrade", "item_upgrade_cells", "owned/mg3/progs/backpackcells.mdl", 0.f, nullptr, 0.f, 0, 3, nullptr, 0)
 
 // Props: Dimension of the Machine's placed corpses (misc_corpse's style: vr_mg_corpses.qc MG_poses; a dead monster's
 // body in the physics, a ragdoll once a player comes near: vr_corpse_placed), and the packs' own.

@@ -435,7 +435,7 @@ void(float xWid, float xBit, string xName) MG3_Bloody_Spawn =
     {
         self.handtouch = MG3_Bloody_Touch;
     }
-    if(MG3_Campaign())
+    if(MG3_Campaign() && !vr_spawn_live) // (one the toolgun makes stays: vr_spawn_live, vr_walltorch.qc)
     {
         entity check = spawn();
         check.owner = self;
