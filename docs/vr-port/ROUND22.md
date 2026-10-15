@@ -6967,7 +6967,7 @@ gain 1: exactly `releasePeak` as before). Gone with the old path: `motionRate`, 
 `armSpeed`, the free `valueAt`, and `Estimate`'s `flickRate`, `flickShare`, `nudge` (and `vr_debug_throw`'s old-path
 lines). About 250 lines less.
 
-Removed cvars (listed in `retiredCvars`: an old config's lines are dropped quietly; config version 135, nothing to
+Removed cvars (listed in `retiredCvars`: an old config's lines are dropped quietly; config version 136, nothing to
 migrate) and their Throwing-page rows:
 - `vr_throw_slowmo_stroke` (the A/B switch; row "Slow Motion: Throw Strength by Stroke")
 - `vr_throw_slowmo_real_time` (1 was required for the stroke path; row "Slow Motion: Throws in Real Time"): the
@@ -6998,3 +6998,17 @@ Weapons and Bullet Time; Body and Flashlight; HUD, Haptics and Sound; Display an
 Graphics). The boards' menu paths were renamed (make_vrcalibration_map.py, make_vrtesthall_map.py; both maps rebuilt;
 vr_menu_path_check: 0 missing). Biosuit glow defaults from his config: vr_suit_glow 1 and vr_suit_glow_light 1 (were 2);
 configVersion 135. The pentagram (2, 2) and quad values already match his config.
+
+## Menu panels kept when the menu closes (worktree `tghost`, branch `agent/panelkeep`, 2026-10-15)
+
+His note: the extra menu panels must not close when he returns to the game. Now leaving the menu by any way (Back to
+game, Esc, the menu button, the dashboard) HIDES them: `MenuInstance::open` stays true, `menu::instanceOpen` is false
+while the menu is not shown, `tidyInstances` only makes the first panel current again (it no longer closes the rest).
+Opening the menu shows every panel with its page/submenu, scroll and selection as left; map changes and loads keep
+them too (Quickload no longer closes them). Only Close Panel (or Back out of a panel's first page) removes one.
+Placement: `vr_panel.cpp drawInEye` no longer unplaces panels when the menu reappears, so a panel placed by grip (or
+by New Panel) stays put (stored in play-space, so it follows the player across maps); a main panel never moved is
+still re-centred in front of the head. Back to game reopens on the FIRST panel's page, whichever panel it was pressed
+on. Not done: a page that becomes invalid after a map change falling back to the panel's top page (the pages are
+static, none is map-dependent today). Test: `Misc/quakevr/menu_panels_test.py` steps 10-12 (hide, reopen, map change,
+Close Panel) pass.
