@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Native prop think: throw/drop weapons and pickups into water and onto floors: float/sink, dust, settle flat as before; Debug > Profiling > Native Prop Think off/on changes nothing visible
 AD soldiers' guns: own single-use guns again; the grenade soldier's launcher fires your grenades (clean exit, also two-handed), the rocket soldier's your rockets; plasma rifles fire AD bolts that spark and push props
 Impacts (Combat > Knockdowns > Impacts): throw a lifted grunt hard into a wall (7 m/s kills); slam a held head into a wall (~3 kill, head pops); jump from a ledge onto a downed grunt (crush); feel and amounts OK?
 Manhandle (Holding Enemies): one-hand grab of a just-shoved/staggered grunt or one at <=25% health takes it down and holds it; a healthy one is held standing as before
