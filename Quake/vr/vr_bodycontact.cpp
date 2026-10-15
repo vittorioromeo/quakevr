@@ -6,10 +6,13 @@
 #include "vr_cvars.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_hull.hpp"
+#include "vr_progs.hpp"
 
 #include "Zancle/Base/Limits.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 
 using namespace qvr;
 
@@ -240,6 +243,158 @@ bool pushApart(edict_t* p, edict_t* m, float dt)
     return true;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Melee space (vr_enemy_melee_space): a monster in a melee attack (QC's ai_charge, ai_melee and kin mark .vr_melee_time)
+// charges until the two bodies meet, and the bodies are narrow (the hull's vr_hull_ent_width, the inset above) or its
+// flyby (the knight's ai_charge_side) passes a hand's width from the player's origin: its model then fills his head. So
+// while it attacks it is kept that far from his head (level, to its own box), pushed back smoothly by walk steps.
+
+constexpr float meleeRecent = 0.25f;  // s: a mark this recent is an attack going on (monsters think every 0.1 s)
+constexpr float spaceRate = 12.f;     // 1/s: the share of the shortfall taken back each second (about 80 ms to settle)
+constexpr float spaceMinSpeed = 40.f; // units/s: and never slower than this (the last bit closes)
+constexpr float approachReach = 160.f; // units: monsters this near the head are logged (vr_enemy_melee_space_status)
+constexpr int approachRows = 48;
+
+// Per kind (classname): the closest the player's head came to a monster's box (level; < 0 inside it) and to its origin,
+// then only while it attacked in melee, and how much the melee space pushed it back.
+struct ApproachRow
+{
+    char name[40]{};
+    float gap{ZA_FLOAT_INFINITY};
+    float dist{ZA_FLOAT_INFINITY};
+    float meleeGap{ZA_FLOAT_INFINITY};
+    float meleeDist{ZA_FLOAT_INFINITY};
+    float pushed{0.f};
+    int pushFrames{0};
+};
+struct ApproachLog
+{
+    ApproachRow rows[approachRows];
+    int count{0};
+};
+ApproachLog approachLog;
+
+[[nodiscard]] ApproachRow* approachRow(const char* name)
+{
+    for(int i = 0; i < approachLog.count; ++i)
+    {
+        if(!q_strcasecmp(approachLog.rows[i].name, name))
+        {
+            return &approachLog.rows[i];
+        }
+    }
+    if(approachLog.count >= approachRows)
+    {
+        return nullptr;
+    }
+    ApproachRow& r = approachLog.rows[approachLog.count++];
+    r = {};
+    q_strlcpy(r.name, name, sizeof(r.name));
+    return &r;
+}
+
+[[nodiscard]] float meleeSpaceSetting()
+{
+    return za::clamp(vr_enemy_melee_space.value, 0.f, 48.f);
+}
+
+// The player's head (headpos: with a lean not above his origin); flat or not yet set: his eyes.
+[[nodiscard]] glm::vec3 headOf(edict_t* p)
+{
+    const int ofs = progs::fields().headpos;
+    const glm::vec3 h = ofs >= 0 ? progs::fieldVec(p, ofs) : glm::vec3{0.f};
+    return h != glm::vec3{0.f} ? h : vec(p->v.origin) + vec(p->v.view_ofs);
+}
+
+// How far a level point is from the monster's own box, level (< 0: inside, by its least way out).
+[[nodiscard]] float levelGap(const glm::vec2& h, const edict_t* m)
+{
+    const glm::vec2 lo{m->v.origin[0] + m->v.mins[0], m->v.origin[1] + m->v.mins[1]};
+    const glm::vec2 hi{m->v.origin[0] + m->v.maxs[0], m->v.origin[1] + m->v.maxs[1]};
+    const glm::vec2 out{za::max(lo.x - h.x, 0.f, h.x - hi.x), za::max(lo.y - h.y, 0.f, h.y - hi.y)};
+    if(out != glm::vec2{0.f})
+    {
+        return glm::length(out);
+    }
+    return -za::min(za::min(h.x - lo.x, hi.x - h.x), za::min(h.y - lo.y, hi.y - h.y));
+}
+
+[[nodiscard]] bool meleeing(edict_t* m)
+{
+    const float t = progs::fieldFloatOr(m, progs::fields().vr_melee_time, 0.f);
+    return t > 0.f && static_cast<float>(qcvm->time) - t <= meleeRecent;
+}
+
+// One monster against one player this frame: logged, and pushed back out of his head if it attacks him in melee.
+void meleeSpace(edict_t* p, edict_t* m, const glm::vec3& head, float dt)
+{
+    const glm::vec2 h{head.x, head.y};
+    const glm::vec2 away = glm::vec2{m->v.origin[0], m->v.origin[1]} - h;
+    const float dist = glm::length(away);
+    if(dist > approachReach || PROG_TO_EDICT(m->v.enemy) != p)
+    {
+        return;
+    }
+    const float gap = levelGap(h, m);
+    const bool attacking = meleeing(m);
+    ApproachRow* row = approachRow(PR_GetString(m->v.classname));
+    if(row)
+    {
+        row->gap = za::min(row->gap, gap);
+        row->dist = za::min(row->dist, dist);
+        if(attacking)
+        {
+            row->meleeGap = za::min(row->meleeGap, gap);
+            row->meleeDist = za::min(row->meleeDist, dist);
+        }
+    }
+    const float space = meleeSpaceSetting();
+    // Not one he stands on or that stands on him (the head over its top, or its feet over his head).
+    const bool level = head.z > m->v.absmin[2] && p->v.absmin[2] < m->v.absmax[2];
+    if(space <= 0.f || !attacking || gap >= space || !level || steppedIn(p, m) ||
+        !(static_cast<int>(m->v.flags) & (FL_ONGROUND | FL_FLY | FL_SWIM)))
+    {
+        return;
+    }
+    // Back along the line from his head through its origin (straight on: the way it faces, reversed).
+    glm::vec2 dir = dist > 0.01f ? away / dist : glm::vec2{0.f};
+    if(dist <= 0.01f)
+    {
+        const float yaw = glm::radians(m->v.angles[1]);
+        dir = -glm::vec2{za::cos(yaw), za::sin(yaw)};
+    }
+    const float shortfall = space - gap;
+    const float step = za::min(shortfall, za::max(shortfall * spaceRate * dt, spaceMinSpeed * dt));
+    vec3_t move{dir.x * step, dir.y * step, 0.f};
+    if(SV_movestep(m, move, true) && row)
+    {
+        row->pushed += step;
+        ++row->pushFrames;
+    }
+}
+
+// vr_enemy_melee_space_status [reset]: per kind of monster that came near the first player's head since the last reset
+// (or the map's start), the closest its box and its origin came to his head (level), then the same while it attacked in
+// melee, and how far the melee space pushed it back.
+void meleeSpaceStatus_f()
+{
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset"))
+    {
+        approachLog.count = 0;
+        Con_Printf("melee space: log cleared\n");
+        return;
+    }
+    Con_Printf("melee space: %.0f units (vr_enemy_melee_space), %d kinds\n", static_cast<double>(meleeSpaceSetting()),
+        approachLog.count);
+    for(int i = 0; i < approachLog.count; ++i)
+    {
+        const ApproachRow& r = approachLog.rows[i];
+        const auto val = [](float v) { return v == ZA_FLOAT_INFINITY ? -999.0 : static_cast<double>(v); };
+        Con_Printf("melee space: %s gap %.1f dist %.1f melee gap %.1f dist %.1f pushed %.1f in %d frames\n", r.name,
+            val(r.gap), val(r.dist), val(r.meleeGap), val(r.meleeDist), static_cast<double>(r.pushed), r.pushFrames);
+    }
+}
+
 // The first player's nearest live monster: how far (origins, level), how deep in their pair's hull (> 0 overlapping),
 // held, stepped in.
 void status_f()
@@ -293,11 +448,12 @@ void status_f()
 void qvr::bodycontact::init()
 {
     Cmd_AddCommand("vr_body_contact_status", status_f);
+    Cmd_AddCommand("vr_enemy_melee_space_status", meleeSpaceStatus_f);
 }
 
 void qvr::bodycontact::serverFrame()
 {
-    if(!sv.active || !anyOn() || qcvm != &sv.qcvm)
+    if(!sv.active || qcvm != &sv.qcvm)
     {
         return;
     }
@@ -317,10 +473,16 @@ void qvr::bodycontact::serverFrame()
         {
             continue;
         }
+        const glm::vec3 head = headOf(p);
         for(int e = svs.maxclients + 1; e < qcvm->num_edicts; ++e)
         {
             edict_t* m = EDICT_NUM(e);
-            if(m->free || !isMonster(m) || m->v.health <= 0.f || !within(p, m, nearReach) || steppedIn(p, m))
+            if(m->free || !isMonster(m) || m->v.health <= 0.f)
+            {
+                continue;
+            }
+            meleeSpace(p, m, head, dt);
+            if(!anyOn() || !within(p, m, nearReach) || steppedIn(p, m))
             {
                 continue;
             }

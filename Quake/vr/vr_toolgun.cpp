@@ -226,16 +226,24 @@ struct Gizmo
 // The spawn tool's hold: its ghost driven by a hand rather than by a stick (docs/vr-port/TOOLGUN.md, "Spawn"). The
 // other hand's A/X held moves it (`move`: the ghost's offsets, 1:1 with that hand's translation, along the gun's level
 // way); the gun hand's A/X held turns it (`turn`: its yaw, from that hand's way). Neither hand's stick is taken: the
-// player walks and turns as ever. `yaw`: that hand's yaw last frame (the turn is counted from it as it points,
-// handTurnWeight: its way, not its twist).
+// player walks and turns as ever. `yaw`: that hand's yaw in the play space last frame (the turn is counted from it as it points,
+// handTurnWeight: its way, not its twist, ghostTurnRate times over). While it turns the ghost stands where it stood at the
+// press (`fixed`: the aimed point and the aim's way then), so the hand swinging the turn does not carry it off; let go,
+// it follows the aim again, the turn kept.
 struct GhostHold
 {
     int move{-1}; // the hand whose A/X moves the ghost (-1: none)
     int turn{-1}; // and the hand whose A/X turns it
     float yaw{0.f};
+    bool fixed{false};
+    glm::vec3 point{0.f};          // (fixed) the aimed point at the press, before the offsets
+    glm::vec3 dir{1.f, 0.f, 0.f};  // and the aim's way then
     glm::vec3 seen{0.f}; // (tests) what the follow integrated, units
 };
 GhostHold ghostHold;
+
+// The ghost's turn for a degree of the gun hand's way (ghostHoldFrame).
+constexpr float ghostTurnRate = 2.f;
 
 struct ToolgunState
 {
@@ -548,16 +556,10 @@ void pick(int num)
     return tg.hand >= 0 && tg.aim.valid && tg.sel.valid && !tg.picking && currentTool() == Tool::Spawn;
 }
 
-// Where the ghost stands: on what the gun points at (lifted onto a floor; out from a wall or a ceiling), moved by the
-// offsets along the gun's level way, facing you, turned by the turn.
-void updateGhost()
+// The point the ghost stands on before its offsets: what the gun points at (lifted onto a floor; out from a wall or a
+// ceiling).
+[[nodiscard]] glm::vec3 ghostPoint(const Aim& a)
 {
-    tg.ghost = false;
-    const Aim& a = tg.aim;
-    if(!ghostShowing())
-    {
-        return;
-    }
     const float distance = a.target ? za::min(a.targetDistance, a.worldDistance) : a.worldDistance;
     glm::vec3 point = a.from + a.dir * distance;
     const glm::vec3 normal = a.target && a.targetDistance < a.worldDistance ? -a.dir : a.normal;
@@ -569,10 +571,30 @@ void updateGhost()
     {
         point += normal * 16.f; // (off a wall or a ceiling: its box out of it, near enough)
     }
+    return point;
+}
+
+// The aim's way the ghost goes by: the aim's, or the one it had when the turn's hold fixed the ghost.
+[[nodiscard]] const glm::vec3& ghostDir()
+{
+    return ghostHold.fixed ? ghostHold.dir : tg.aim.dir;
+}
+
+// Where the ghost stands: on ghostPoint (or where it was fixed), moved by the offsets along the gun's level way, facing
+// you, turned by the turn.
+void updateGhost()
+{
+    tg.ghost = false;
+    if(!ghostShowing())
+    {
+        return;
+    }
+    const glm::vec3 point = ghostHold.fixed ? ghostHold.point : ghostPoint(tg.aim);
+    const glm::vec3& dir = ghostDir();
     glm::vec3 fwd, right;
-    levelAxes(a.dir, fwd, right);
+    levelAxes(dir, fwd, right);
     tg.ghostOrigin = point + fwd * tg.offset.x + right * tg.offset.y + glm::vec3{0.f, 0.f, tg.offset.z};
-    tg.ghostAngles = glm::vec3{tg.turn.x, yawOf(a.dir) + 180.f + tg.turn.y, tg.turn.z};
+    tg.ghostAngles = glm::vec3{tg.turn.x, yawOf(dir) + 180.f + tg.turn.y, tg.turn.z};
     tg.ghost = true;
 }
 
@@ -1022,9 +1044,15 @@ void jointShot(int num, const glm::vec3& at, const glm::vec3& normal)
     return tg.drag.num != 0 && currentTool() == Tool::Physgun;
 }
 
+// A/X held on the gun's hand gives it the sticks, except with the spawn tool (its ghost takes none: ghostHoldFrame).
+[[nodiscard]] bool adjustTakesSticks()
+{
+    return tg.adjust && currentTool() != Tool::Spawn;
+}
+
 void sticksFrame(float dt)
 {
-    if(!(tg.adjust || physgunHolds()) || tg.hand < 0 || key_dest != key_game)
+    if(!(adjustTakesSticks() || physgunHolds()) || tg.hand < 0 || key_dest != key_game)
     {
         return;
     }
@@ -1068,15 +1096,32 @@ void sticksFrame(float dt)
 }
 
 // The ghost held by a hand: its offsets follow that hand's translation (1:1, along the gun's level forward, right and
-// up, so walking carries it with the aim), its yaw follows the other hand's way. Only the hand's movement counts, from
+// up, so walking carries it with the aim), its yaw follows the gun hand's way (ghostTurnRate times over, the ghost fixed
+// where it stood meanwhile: GhostHold). Only the hand's movement counts, from
 // the moment its A/X was pressed: its place then, and its rotation, move the ghost nothing.
+// The turn is the gun hand's A/X held (tg.adjust, as for the other tools) while the ghost shows, decided each frame: a
+// tool change with A/X still held hands it to the next tool's sticks (and the stick press keeps going back), and a
+// ghost that shows up under a held A/X starts turning from the hand's way then.
 void ghostHoldFrame(const hands::State& s, float dt)
 {
+    const bool turning = tg.adjust && tg.hand >= 0 && key_dest == key_game && ghostShowing();
+    const bool wasTurning = turning && ghostHold.turn == tg.hand;
     const float before = ghostHold.yaw;
-    if(ghostHold.turn >= 0)
+    ghostHold.turn = turning ? tg.hand : -1;
+    // Turning fixes the ghost where it stands at the press (updateGhost); let go, it follows the aim again.
+    if(!turning)
     {
-        ghostHold.yaw = tg.handRot.y; // (kept current while the ghost is away, so its turn does not jump on its return)
+        ghostHold.fixed = false;
     }
+    else if(!ghostHold.fixed)
+    {
+        ghostHold.fixed = true;
+        ghostHold.point = ghostPoint(tg.aim);
+        ghostHold.dir = tg.aim.dir;
+    }
+    // The hand's yaw in the play space: the player's own turn (the stick's, still the player's) turns the ghost nothing.
+    // (Kept current while not turning, so the turn does not jump when it starts.)
+    ghostHold.yaw = tg.handRot.y - s.turnYaw;
     if(dt <= 0.f || key_dest != key_game || !ghostShowing())
     {
         return;
@@ -1084,16 +1129,16 @@ void ghostHoldFrame(const hands::State& s, float dt)
     if(ghostHold.move >= 0 && s.valid)
     {
         glm::vec3 fwd, right;
-        levelAxes(tg.aim.dir, fwd, right);
+        levelAxes(ghostDir(), fwd, right);
         const glm::vec3 gone = s.vel[ghostHold.move] * dt * units::metresToUnits(); // metres a second in Quake axes,
         // without the player's own (hands::State::vel is metres: the offsets are units)
         // The offsets are components along the gun's level way, not a world vector: add the components.
         tg.offset += glm::vec3{glm::dot(gone, fwd), glm::dot(gone, right), gone.z};
         ghostHold.seen += gone;
     }
-    if(ghostHold.turn == tg.hand)
+    if(wasTurning)
     {
-        const float turned = za::remainder(tg.handRot.y - before, 360.f) * handTurnWeight(tg.handRot.x);
+        const float turned = za::remainder(ghostHold.yaw - before, 360.f) * handTurnWeight(tg.handRot.x) * ghostTurnRate;
         tg.turn.y += turned;
     }
 }
@@ -1276,17 +1321,9 @@ bool button(int hand, posing::Button b, bool down)
             taken = true;
             return true;
         case posing::Button::Primary:
-            // With the spawn tool's ghost showing this hand's A/X turns it (its yaw); else A/X is the sticks' (the
-            // physgun's snap, the scale tool's).
-            if(key_dest == key_game && ghostShowing())
-            {
-                ghostHold.turn = hand;
-                ghostHold.yaw = tg.handRot.y;
-            }
-            else
-            {
-                tg.adjust = key_dest == key_game;
-            }
+            // Held: the sticks' (the physgun's snap, the scale tool's); with the spawn tool's ghost showing it turns
+            // the ghost instead (its yaw, ghostHoldFrame) and the sticks stay the player's.
+            tg.adjust = key_dest == key_game;
             taken = true;
             return true;
         case posing::Button::Trigger:
@@ -1316,7 +1353,7 @@ bool button(int hand, posing::Button b, bool down)
                 taken = true;
                 return true;
             }
-            setTool((static_cast<int>(currentTool()) + (tg.adjust || ghostHold.turn >= 0 ? -1 : 1) + static_cast<int>(Tool::Count)) %
+            setTool((static_cast<int>(currentTool()) + (tg.adjust ? -1 : 1) + static_cast<int>(Tool::Count)) %
                     static_cast<int>(Tool::Count));
             taken = true;
             return true;
@@ -1356,7 +1393,7 @@ bool button(int hand, posing::Button b, bool down)
 
 bool sticksTaken()
 {
-    return (tg.adjust || physgunHolds()) && heldHand() >= 0 && key_dest == key_game;
+    return (adjustTakesSticks() || physgunHolds()) && heldHand() >= 0 && key_dest == key_game;
 }
 
 void sticks(const glm::vec2& off, const glm::vec2& main)
@@ -1849,10 +1886,11 @@ void status_f()
         tg.ghost ? "shown" : "none", tg.ghostOrigin.x, tg.ghostOrigin.y, tg.ghostOrigin.z, tg.ghostAngles.y);
     if(currentTool() == Tool::Spawn)
     {
-        Con_Printf("toolgun: ghost offsets %.1f %.1f %.1f, turn %.1f %.1f %.1f, held %s %s\n", tg.offset.x, tg.offset.y,
+        Con_Printf("toolgun: ghost offsets %.1f %.1f %.1f, turn %.1f %.1f %.1f, held %s %s, %s\n", tg.offset.x, tg.offset.y,
             tg.offset.z, tg.turn.x, tg.turn.y, tg.turn.z,
             ghostHold.move >= 0 ? (ghostHold.move == HAND_MAIN ? "move:main" : "move:off") : "move:none",
-            ghostHold.turn >= 0 ? (ghostHold.turn == HAND_MAIN ? "turn:main" : "turn:off") : "turn:none");
+            ghostHold.turn >= 0 ? (ghostHold.turn == HAND_MAIN ? "turn:main" : "turn:off") : "turn:none",
+            ghostHold.fixed ? "fixed" : "following");
         if(ghostHold.move >= 0)
         {
             const glm::vec3& p = hands::current().pos[ghostHold.move];

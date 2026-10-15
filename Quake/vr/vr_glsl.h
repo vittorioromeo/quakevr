@@ -2560,6 +2560,16 @@ SPECULAR_AA_FUNCTIONS
 "		hcolor = mix(hcolor, vec3(1.0, 0.85, 0.55), clamp(hlum * hs - 0.2, 0.0, 0.45));\n" \
 "		result.rgb = result.rgb * (1.0 - 0.3 * min(hs, 1.0)) + hcolor * hs * (0.1 + 0.9 * hlum + 0.45 * hrim * hrim);\n" \
 "	}\n" \
+"	else if (in_glow < -1.5) // QVR: a power-up's glow on your hands and body (vr/vr_view.cpp powerupGlow: Quad's blue, the pentagram's red, the biosuit's green): -2 - 2 x its colour (16 levels a channel: r + 16g + 256b) - its strength (0..1); a soft rim over a faint wash, none right at the eyes\n" \
+"	{\n" \
+"		float qv = -in_glow - 2.0;\n" \
+"		float qcode = floor(qv * 0.5);\n" \
+"		float qs = qv - 2.0 * qcode;\n" \
+"		vec3 qcolor = vec3(mod(qcode, 16.0), mod(floor(qcode / 16.0), 16.0), floor(qcode / 256.0)) / 15.0;\n" \
+"		float qrim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n" \
+"		float qnear = smoothstep(6.0, 16.0, length(in_pos));\n" \
+"		result.rgb += qcolor * (qs * qnear * (pow(qrim, 2.5) * 1.4 + 0.08));\n" \
+"	}\n" \
 "	else if (in_glow != 0.) // QVR: force grab's glow round the edges (vr/vr_fgfx.cpp); negative, the counter's (vr/vr_meleehud.cpp)\n" \
 "	{\n" \
 "		float rim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n" \

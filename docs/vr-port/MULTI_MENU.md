@@ -1,7 +1,57 @@
 # Several VR menus open at once (research, 2026-10-15)
 
 His note (BACKLOG "His notes, 2026-10-15"): "Several VR menus open at once, each with its own state, e.g. two side by
-side for different tasks in parallel." Research only: nothing here is built yet.
+side for different tasks in parallel." And: "if the same page is open on both menus, will it automatically sync the
+values? It should." Scope (his clarification): only settings (cvars, config values) must always agree between panels;
+per-page view state (cursor, scroll, expanded or collapsed, drafts, which rows a page shows) need not.
+
+## Status (2026-10-15, worktree `bloodfx`, branch `agent/multimenu`)
+
+- **Stage 1 done**: the panel can be grabbed (ROUND22.md, "Moving the menu panel"): a grip with the laser on its frame
+  (a band just outside it, lit under the laser) takes it at once; on its face (`vr_menu_grab 2`, the default) once the
+  hand moves `vr_menu_grab_deadzone` (4 cm) with the grip held, not after a stick push or with the trigger held (the
+  sliders' fine modifier, as before). Held, it keeps its place in the laser's frame (kept upright); let go, it stays in
+  the play space until the menus close. `vr_menu_panel [reset]`, `vr_mock_laser frame`,
+  `Misc/quakevr/menu_grab_test.py <agent>`.
+- **Stage 2 done**: `MenuInstance` in vr_menu.cpp (page, Back stack and its outside-menu flags, each page's cursor,
+  scroll, left anchor and visits, slider/scrollbar drag, slider hold, drop-down, help box and paging, rows' left edge,
+  scrollbar x, armed resets, body clone latch, noted place), read through `ui()`; `menu::instanceCount` (1),
+  `currentInstance()`, `selectInstance()`. vr_panel.cpp's `MenuPanel` per instance (placement, its yaw when it
+  appeared, its canvas handle: the 2D layer's canvas for now); the grab records the menu it holds. Proven unchanged:
+  `menu_vr dump` byte-identical (182 pages, 4719 rows), `menu_coverage.py` PASS, the VR and flat navigation logs
+  (keys, laser, mouse, drop-down steps, scroll) identical but the build hash.
+- **Kept single (stage 2 decision)**: the keyboard pages' state (Search's `search`, the Console page's `consolePage`,
+  the Map Library's `mapPage`): their text input is one at a time (the console's line is Quake's own `key_lines`), and
+  their structs mix view state with shared data (Search's index and recent list, the Map Library's caches and stats).
+  Stage 3: allow each of them in one panel at a time, or split their view fields (query, results, scroll, hover/focus)
+  into a per-instance struct then.
+
+## Settings that must stay in sync between panels (for stage 3)
+
+Every row reads its value from its cvar as it is drawn, and sliders, cycles, toggles and drop-downs write the cvar at
+once (no edit buffer; `ui_live_preview` only pauses the game, menu.c), so two panels on the same page agree by
+construction. Weapon Offsets/Weights and Held Object pages bind to the edited slot's own cvars (`weapons::cvar`,
+`props::cvar`); which weapon/hand/prop is edited is shared (one context for both panels). What holds a copy of a
+setting, or a value not yet applied:
+
+- **Wrappers** (vr_cvars.inc `vr_menu_turning`, `vr_menu_move_towards`, `vr_menu_hands_*`, `vr_menu_bullettime`):
+  unsaved copies shown as the settings they stand for are now. `syncWrappers()` runs in `items()` for any VR Settings
+  page; stage 3 must keep fetching each panel's rows with `items()` before drawing it (true today), else a panel shows a
+  stale copy. `lastSnapAngle` (Turning Mode's remembered Snap angle) is shared: fine.
+- **Presets** (`vr_comfort_preset`, `vr_handedness`, `vr_graphics_preset`: "Custom" when the settings differ):
+  `syncPresets()` runs once per `VR_Menu_Draw`; with two panels it must run before each (or once per frame before
+  both).
+- **Staged results applied by a button**: Align Sights to My Aim (`sightalign`, Apply/Undo; latch
+  `weaponOffsetsSightVersion`), Body Calibration (`bodycal`, Apply/Undo; `bodycalVersion`), Retro Textures' "Apply to
+  Checked Categories" (the All Categories settings copied into each category on the press). Their state is in the
+  shared modules, so both panels show the same pending result; the apply is one action. No change needed, but they
+  should not offer Apply twice at once (stage 3: one panel at a time, as the risks below say).
+- **Shared text buffers** (`readouts`, `pageTexts`): info rows' texts are written into shared buffers as they are
+  asked for; each panel's draw must use them before the other's draw rewrites them (true when panels draw one after
+  the other).
+
+Not settings, so not synced (his scope): cursors, scrolls, drop-downs, help paging, the Reset All armed label (baked
+into VR Settings' built rows: both panels show it armed), Search's query, the Map Library's filters and picks.
 
 ## How the menu is held today
 
@@ -15,7 +65,7 @@ side for different tasks in parallel." Research only: nothing here is built yet.
   `mapPage`.
 - **Panel** (`vr_panel.cpp`): one offscreen canvas holds the *whole* 2D layer (menus, console, HUD). While a menu is
   open it is one quad (`facingQuad`) `vr_menu_distance` ahead, its yaw latched when it opens (`panelYawOffset`); it
-  cannot be grabbed or moved. Not in the eyes, it goes to the runtime's own quad layer (`copyToRuntimePanel`), one only.
+  cannot be grabbed or moved (stage 1 since: it can). Not in the eyes, it goes to the runtime's own quad layer (`copyToRuntimePanel`), one only.
 - **Input** (`vr_menuui.cpp`): each hand's laser is intersected with that one quad (`panel::menuQuad`), the hit turned
   into window coordinates and sent as Quake's single mouse (`M_Mousemove`, `m_mousex/y`) with `Key_Event(K_MOUSE1)`;
   the sticks and buttons become menu keys. `pointingHand` picks which hand's laser is the mouse. The corner toolbar,

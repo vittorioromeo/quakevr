@@ -832,6 +832,34 @@ void emissive::hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& c
     }
 }
 
+void emissive::powerupLight(int index, const glm::vec3& pos, float strength, float radius, const glm::vec3& color)
+{
+    if(index < 0 || index >= powerupLights)
+    {
+        return;
+    }
+    if(strength <= 0.f || radius <= 0.f)
+    {
+        killDlight(powerupLightKey - index);
+        return;
+    }
+    dlight_t* dl = CL_AllocDlight(powerupLightKey - index);
+    dl->origin[0] = pos.x;
+    dl->origin[1] = pos.y;
+    dl->origin[2] = pos.z;
+    dl->die = static_cast<float>(cl.time + 0.05);
+    const float k = za::clamp(strength, 0.f, 2.f);
+    const float reach = za::clamp(radius, 8.f, 400.f);
+    if(vr_dlight_falloff.value != 0.f)
+    {
+        setGlow(dl, color * k, reach, 0.f);
+    }
+    else
+    {
+        setGlow(dl, color, reach * za::sqrt(k), 0.f); // (Quake's falloff: the reach dims it)
+    }
+}
+
 bool emissive::isLavaGun(const qmodel_t* model)
 {
     return model && (modelmeta::is(model, modelmeta::Id::VLava) || modelmeta::is(model, modelmeta::Id::VLava2));

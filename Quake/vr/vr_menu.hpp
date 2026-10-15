@@ -9,6 +9,13 @@
 namespace qvr::menu
 {
 
+// The VR menus that can be open at once, each with its own page, Back stack, selection and what is under way
+// (vr_menu.cpp MenuInstance; MULTI_MENU.md). One today. The menu code works on the current one: the menu's entry points
+// (draw, keys, mouse) act on it, and selectInstance switches (before drawing or feeding another).
+inline constexpr int instanceCount = 1;
+[[nodiscard]] int currentInstance();
+void selectInstance(int instance);
+
 // The path to a VR Settings page from Quake's main menu, the fewest links from the VR Settings or the Advanced VR Options
 // by the labels the player reads on the way ("Options > VR Settings > ...", "Advanced VR > Movement > Locomotion"; the
 // main menu's Advanced VR row and the corner's button open those); `spec` is the page's title,

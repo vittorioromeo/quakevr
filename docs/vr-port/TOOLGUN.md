@@ -65,10 +65,13 @@ walk with one and turn with the other as ever, and its ghost is held by the hand
     right and up (its own pitch and roll do not tilt the offsets). The ghost stays where the gun points: only the
     hand's movement from the press counts, and the ghost does not jump when you press. Turning that hand does nothing.
     Let go, the offsets stay.
-  - **the gun hand's A / X held, and turn that hand** — the ghost's yaw only, from that hand's way: 90 degrees of the
-    hand's yaw turns it 90 degrees, and turning yourself turns it with you (as the physgun's hold does); its pitch and
-    twist do nothing, and its offsets stay. Damped as the physgun's wrist is when the hand points near straight up or
-    down (`vr_toolgun_physgun_wrist`'s weight).
+  - **the gun hand's A / X held, and turn that hand** — the ghost's yaw only, from that hand's way, twice over: 90
+    degrees of the hand's yaw turn it 180 (`ghostTurnRate`, a constant in `vr_toolgun.cpp`). While held the ghost
+    stays where it stood at the press, facing as it did then plus the turn: aiming or moving the gun, or turning
+    yourself (the stick: the hand's way counts in your play space, so the turn is unchanged), leaves it in place, so
+    you can see the turn as you make it. Its pitch and twist do nothing, and its offsets stay. Let go, it follows the
+    aim again (it may jump to where the gun now points), the turn kept. Damped as the physgun's wrist is when the hand
+    points near straight up or down (`vr_toolgun_physgun_wrist`'s weight).
   While a ghost is held that hand's A / X is the tool's: no jump, and the hook does not unreel. With nothing chosen, or
   another tool in hand, A / X is exactly what it was. The gun's stick press still changes the tool (A / X held: the one
   before). `vr_toolgun_status` prints the ghost's offsets and turn and which hand holds it.

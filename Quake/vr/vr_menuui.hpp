@@ -65,6 +65,20 @@ void update(const hands::State& s);
 // menu (and for the release of such a press). A press also makes that hand the pointing one.
 [[nodiscard]] int triggerKey(int hand, bool down, int key);
 
+// A grip pressed or let go (vr_menu_grab, MULTI_MENU.md stage 1): with the laser on the panel's frame it takes hold of
+// the panel and true is returned (its key is not sent, nor its release's); on the panel's face it takes hold once the
+// hand moves (the key still sent: the sliders' fine modifier until then).
+[[nodiscard]] bool gripButton(int hand, bool down);
+
+// A stick was pushed in the menus: a grip held on the panel's face is the fine modifier then, never a grab.
+void sticksPushed();
+
+// A hand holds the menu panel.
+[[nodiscard]] bool panelHeld();
+
+// vr_menu_panel [reset]: prints where the menu panel is (MENUPANEL), or puts it back in front of the head.
+void panelPlace_f();
+
 // Draws the laser and its spot on the panel, in the eye being rendered (after the panel), and the spectator camera's
 // preview (vr_spectator_preview) under it (not in the camera's own view).
 void drawInEye(const hands::State& s);
