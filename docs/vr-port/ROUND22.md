@@ -7926,3 +7926,57 @@ clean.
 In VR: let a knight charge and step to its side as it swings (it should miss, then turn and come again); sneak behind
 one and wake it: it should turn to you before the first blow lands. Standing in front, blows land as before. Too easy
 to dodge: raise Swing Turn (the old tracking was up to 40 a frame); too strict: widen Melee Arc Angle.
+## Gib props: every monster's head and gibs (worktree `backlogclean`, branch `agent/gibprops`, 2026-10-16)
+
+His notes: an AD crossbow knight's head could not be picked up and ignored physics; the hammer hunter ogre's head was a
+physics object but never burst; every enemy's gibs should be proper props.
+
+How id's do it: `ThrowHead` (player.qc) makes the monster itself its head and `ThrowGib` spawns each gib; both call
+`VR_MakeGibGrabbable` (the model's box, touchable, force-grabbable, carried; a Box3D rigid body from its first landing,
+VR_Gib_Touch, or when taken) and `VR_Gib_MakeDestroyable` (vr_gib_health times 1, a head 1.5; armed after 0.2 s; damage
+goes to `VR_Gib_Damage`, which bursts it: blood mist, small gibs, a head's brain). The props table (vr_props.inc) only
+tunes masses: a model with no slot (every AD head) is a prop all the same, its mass estimated (an AD head: its share of
+its ragdoll's, `VR_Limb_SetMass`, as a beheading's). Every id1, Scourge of Armagon, Dissolution of Eternity, Honey
+and Dimension/Dawn of the Machine monster goes through these two (the gremlin's `Gremlin_ThrowHead` and MG3's own deaths
+too): nothing to fix there.
+
+Why AD's were not: two ways.
+- AD's own gibbing (a live one blown apart: AD's `monster_ThrowGib`, `ThrowGib`) spawns AD's `item_gib` entities, head
+  (kind 25) and gibs alike: bouncing, fading after 10-20 s, never ours. Now two `ad_import.py` hooks (FUNC_PATCHES:
+  `ai_gibs.qc`) call `VR_AD_Gibbed` (our gore, small gibs and limbs, as ThrowHead's) and `VR_AD_GibThrown` for each
+  gib (vr_ad_monsters.qc): the head made as `VR_Decap_ThrowHead` makes one (the monster's class, HeadThink, grabbable,
+  destroyable 1.5, its ragdoll's head mass), each flesh gib as ThrowGib's. Kept AD's: stone/metal/wood monsters'
+  gibs (AD's gibtype; AD switches it to metal before a machine's parts), weapons and armour among the custom gibs (an
+  impact sound of wood/metal/chain, or a `progs/w_` model: crossbows, swords, grenade launchers), contact-damage gibs
+  (gib1dmg), the robot floyd's and the snowman's heads (no flesh). With vr_gib_limbs 2 AD's meat gibs give way to the
+  limbs as id's do; a head already cut off is not thrown again.
+- A corpse gibbed is Quake VR's (`VR_Corpse_Parts`: ThrowHead on the AD monster, AD's head model): a prop, but it kept AD's
+  class, so `AD_Run` sent every hit on it to AD's T_Damage, which knows nothing of VR_Gib_Die: the hammer ogre's
+  unbreakable head. `AD_Run` now skips our gibs and heads (`.vr_gib`, `th_die == VR_Gib_Die`), AD's gibs made ours too.
+
+Test: `vr_gibprops_test` (vr_gibprops_test.qc; Debug > Gore Tests > Gib Props rows), run by
+`Misc/quakevr/gibprops_test.sh <agent> <map> <alive|corpse> <spawner choices...>` (AD: `PRE="vr_campaign_native ad"`,
+map start), which prints the table (`gibprops_table.py`): per monster the debug spawner makes, gibbed alive (or killed
+whole and its corpse gibbed), its head grabbable and destroyable, a Box3D body once landed (physicsdamp), taken by the
+main hand's touch with the mock's grip held, carried with a held body (heldbox), loose again when let go, then shot
+(armed, burst, the small gibs made); its gibs grabbable and destroyable. Every head below: grabbable 1, Box3D 1 (a few
+still in the air at 150 frames: enforcer, boglord, hell knight, polyp, flak ogre, deflector, prince; all Box3D once let
+go), taken/held/loose 1/1/1, destroyable 1, burst with 22 small gibs; every gib of ours grabbable and destroyable.
+
+| Game | Monster (head model) | Head: prop / destroyable / bursts before | after |
+|---|---|---|---|
+| id1 | grunt h_guard, ogre h_ogre, zombie h_zombie, shambler h_shams, scrag h_wizard, knight h_knight, death knight h_hellkn, rottweiler h_dog, enforcer h_mega, fiend h_demon, vore h_shal; corpses gibbed too | yes / yes / yes | same |
+| id1 | spawn, rotfish, Chthon, Shub (no head) | - | - |
+| hipnotic | gremlin h_grem, centroid h_scourg | yes / yes / yes | same |
+| rogue | mummy h_zombie, eel eelgib (ThrowHead); wrath, dragon: gibs at the death's end, all props (3/3); swordsman, overlord, Guardian, lava man: no gibs | yes / yes / yes | same |
+| Honey | marksman ogre h_ogre, sknight h_hellkn | yes / yes / yes | same |
+| MG3 | rocket ogre h_ogre, demo dog h_dog, ranged knight h_hellkn, super shambler h_shams; infected: its grunt head thrown as a gib (by design), its zombie h_zombie | yes / yes / yes | same |
+| AD, gibbed alive | death knight h_dknight, zombie knight h_zombiek, crossbow knight h_dcrossbow, hunter ogres h_hogre / h_hogreham (mace h_hogre), death guard h_dguard, gaunt h_gaunt, soldiers h_soldier, defender/eliminator h_enforcer, gargoyle h_gargoyle, minotaur h_minotaur, death fury h_dfury, centurion h_centurion, death sergeant h_dknight, drole h_drole, boglord h_boglord, gug h_boglordb, scorpion h_scorpion, justice h_justice, pyro/fumigator h_pyro, eel h_eel, freddie h_ogre, AD's zombies h_zombie, scrag h_wizard, hell knight h_hellkn, polyp h_gaunt, flak ogre h_ogre, deflector h_deflector, prince h_dprince, Quoth death guard h_dguardq | no / no / no (AD's item_gib) | yes / yes / yes |
+| AD, corpse gibbed | the same heads (crossbow knight, hammer ogre, hunter ogre, soldier, fury, drole, scorpion, death guard tested) | yes / no / no (AD's T_Damage) | yes / yes / yes |
+| AD | spiders and vorelings (AD throws more gibs instead), skull wizard, lost soul, boil, jim, swampling, wraith, death lord, steel claw, sentinel, fishing ogre (no head); golem, seeker, floyd, snowman (stone/metal: AD's); Nour, ice golem, judge (never gibbed by damage) | - | gibs: flesh ones props (spiders 6/6, boil 12/12, wraith 6/6...) |
+
+Regression: e1m1 fight (vr_test_monsters 3) and ad_tfuma fight (163 woken, 77 killed; pyros gibbed by AD's code) clean.
+
+In VR: blow apart an AD crossbow knight or a hunter ogre (rocket, quad shotgun): its head should land, be picked up and
+thrown like a grunt's, and burst into small gibs and a brain when shot or thrown hard; the same for the hammer ogre's
+head off its gibbed corpse. Its crossbow, sword or grenade launcher lying there stays AD's (not grabbable).

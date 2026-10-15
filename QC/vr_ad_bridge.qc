@@ -38,10 +38,12 @@ float(entity client, float density, vector colour) VR_AD_Fog =
 
 // AD's code owns `e`'s damage, pain and death: AD's monsters, breakables, its other damageable entities (not a player).
 // An AD monster's corpse or dying body that Quake VR's corpses took (vr_ad_monsters.qc) is Quake VR's: gibbed as one.
+// So is a gib or head of ours: an AD monster's head made of the monster itself by our gibbing (ThrowHead) and AD's own
+// gibs made ours (VR_AD_GibThrown) keep AD's class, and our T_Damage bursts them (VR_Gib_Damage).
 float(entity e) AD_Run =
 {
     return !(e.flags & FL_CLIENT) && (e.ad_classtype || e.ad_th_die || e.ad_th_pain) && e.vr_corpse != 2 &&
-           !e.vr_corpse_dying && !e.vr_shootnade;
+           !e.vr_corpse_dying && !e.vr_shootnade && !e.vr_gib && e.th_die != VR_Gib_Die;
 };
 
 // AD's T_Damage on one of Quake VR's own (the player, our monsters, our gibs and props): our T_Damage takes it, with

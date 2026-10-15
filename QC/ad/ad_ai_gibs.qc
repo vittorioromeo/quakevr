@@ -615,6 +615,7 @@ void(float ad_gib_no, float ad_gib_qty) ad_ThrowGib =
 		ad_gibitem.nextthink = time + ad_GIB_FADETIME + random() * ad_GIB_FADETIME;
 		ad_gibitem.ad_pain_finished = ad_gibitem.nextthink;
 		ad_gibitem.think = ad_RemoveGib;
+		VR_AD_GibThrown(ad_gibitem, ad_gib_no);
 
 		ad_gib_qty = ad_gib_qty - 1;
 	}
@@ -626,6 +627,7 @@ void(float ad_gib_no, float ad_gib_qty) ad_ThrowGib =
 void() ad_monster_ThrowGib =
 {
 	self.ad_gibbed = ad_TRUE;		// Monster has offical gone to pieces ;)
+	VR_AD_Gibbed();
 
 	//----------------------------------------------------------------------
 	// New set of gib sounds - gib1, gib3, gib5

@@ -562,6 +562,7 @@ void() worldspawn =
 };
 
 void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
+void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
 
 void() StartFrame =
 {
@@ -598,6 +599,7 @@ void() StartFrame =
     VR_Debris_Frame(); // VR: at a new map's first frame, its rocks and bricks (vr_debris.qc)
     VR_Reload_PropsFrame(); // VR: guns lying about load as held ones do (vr_reload.qc)
     VR_SmallGib_TestFrame(); // VR: the small gibs' tests (vr_smallgibs_test, vr_smallgibs_test.qc)
+    VR_GibProps_TestFrame(); // VR: every monster's head and gibs as props (vr_gibprops_test, vr_gibprops_test.qc)
     VR_TestDispenser_Frame(); // VR: a map's monster dispenser used from the console (vr_test_dispenser <n>, buttons.qc)
     VR_TestKill_Frame(); // VR: the nearest live monster killed by a shot struck where asked (vr_test_kill <n>, combat.qc)
     VR_TestHit_Frame(); // VR: the nearest live monster struck where asked, never killed (vr_test_hit <n>, vr_hitreact.qc)
