@@ -147,7 +147,7 @@ void VR_PortalFrameData (float plane[8][4], float mins[8][4], float maxs[8][4]);
 float VR_TeleportOpacity (void); // starry surface opacity in the current view
 unsigned VR_PortalTexture (void);							// ... the view through it for this eye's teleport faces (0: none)
 void VR_PortalAddPVS (byte *pvs, const float org[3]);		// ... what is round the gates' destinations, sent (SV_WriteEntitiesToClient)
-float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1)
+float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1; its other codes: vr_fgfx.cpp, -2..-3 Quad Damage's blue)
 void VR_EntityGlowColor (float rgb[3]);						// and its colour (the player's hue; SceneTone.yzw in the frame data)
 float VR_EntityFullbrightBoost (const struct entity_s *e);	// how much brighter its dim fullbright texels shine (0 none): the held weapons' sights (vr_weapon_glow)
 void VR_AliasLightCurve (float lightcolor[3]);				// R_SetupAliasLighting, before the minimum light: the lightmap contrast

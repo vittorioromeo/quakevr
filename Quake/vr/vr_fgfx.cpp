@@ -14,6 +14,7 @@
 #include "vr_protocol.hpp"
 #include "vr_weapons.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -278,7 +279,8 @@ extern "C" float VR_EntityGlow(const entity_t* e)
 {
     // The toolgun's target (vr_toolgun.cpp: its hue's, or 2..3 red: the remover's), else the force grab's (in the
     // player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp), else an incandescent blade's (4 and over: its
-    // colour and strength coded, vr_hotblade.cpp entityGlow).
+    // colour and strength coded, vr_hotblade.cpp entityGlow), else Quad Damage's blue on your hands and body (-2 .. -3:
+    // -2 - its strength, vr_view.cpp quadGlow).
     const float t = qvr::toolgun::entityGlow(e);
     if(t != 0.f)
     {
@@ -290,7 +292,17 @@ extern "C" float VR_EntityGlow(const entity_t* e)
         return g;
     }
     const float counter = qvr::meleehud::entityGlow(e);
-    return counter > 0.f ? -counter : qvr::hotblade::entityGlow(e);
+    if(counter > 0.f)
+    {
+        return -counter;
+    }
+    const float hot = qvr::hotblade::entityGlow(e);
+    if(hot != 0.f)
+    {
+        return hot;
+    }
+    const float quad = qvr::view::quadGlow(e);
+    return quad > 0.f ? -2.f - quad : 0.f;
 }
 
 extern "C" void VR_EntityGlowColor(float rgb[3])

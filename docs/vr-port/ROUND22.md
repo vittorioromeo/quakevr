@@ -5948,3 +5948,39 @@ found, vrtesthall 14 found, 0 missing. e1m1 smoke clean, build 0 warnings.
 
 Checklist (proposed): "VR Settings: each section is its own page (Height Calibration ... Sound); open a few, change a
 value, Back returns to VR Settings; Reset All still there and still resets them; nothing you used to set there missing."
+
+## Quad Damage on you: a blue glow (worktree `adcpuopt`, branch `agent/quadglow`, 2026-10-15)
+
+His words: "an effect on your body and arms that looks different from the electricity effect ... a 'blue glow' + blue
+dynamic light coming out of the player's hands/arms/body. Make it a new (default) option, keep the current lighting
+arcs as an alternative." Until now Quad drew `shock::armArcs` over the hands and forearms (vr_view.cpp `quadArcs`, body
+shown only), the very arcs lightning leaves on you when it strikes (vr_shock.cpp `drawSelf`, `vr_shock_self_*`), so the
+two looked the same.
+
+- `vr_quad_look` (1; Body > Quad Damage Look, under Show Powerups): 1 Blue Glow, 0 Lightning Arcs (the old look,
+  unchanged), 2 Both. `vr_quad_glow` (1, 0..2, Quad Glow) and `vr_quad_glow_light` (1, 0..2, Quad Glow Light).
+  `vr_body_powerups 0` still turns all of it off. New cvars only: no config migration.
+- The glow (vr_view.cpp `quadGlow`, once a frame after `setupBody`): a strength breathing 0.64..1 (about 0.8 Hz, a
+  slower swell under it), x 0.6 on the hand models (empty hands too) and x 0.3 on the body (seen from inside, its edges
+  are all round the view), copies in a mirror alike (`view::quadGlow`). It reaches the alias shader through
+  `VR_EntityGlow` as a new code, -2 - strength (after the toolgun, force grab, counter and hot blade codes, which keep
+  their ranges): `QVR_ALIAS_FS_GLOW` adds a saturated blue `(0.12, 0.35, 1)` x (rim^2.5 x 1.4 + 0.08), faded out within
+  16 units of the eye (`smoothstep(6, 16)`), so nothing glows right at the eyes and the view is never washed.
+- The light: two unshadowed blue dlights at the hands (`emissive::quadLight`, keys -0x5980/-0x5981, radius 110,
+  strength 0.8 x pulse x `vr_quad_glow_light`; inside the hand, so it lights the world, not the hand). The body's own is
+  Quake's existing blue quad light round you (cl_main.c `EF_QEX_QUADLIGHT`), so no third light. Dead, at the
+  intermission, in the immersive death view or with the quad gone: strength 0, lights killed the same frame.
+- The lightning-strike shock still draws its arcs whatever the look (it never went through `quadArcs`).
+- Debug > Tools > Test Effects: Quad Damage On You (`impulse 190; vr_quad_info`): `vr_quad_info` prints the look, the glow
+  on hand and body and the lights.
+
+Verified (mock, e1m1 start, looking down 50 at both hands out): `scratch/quad_glow_vs_arcs.png` (none, glow, arcs, glow
++ `vr_shock_self_test 10`, quad ended). Arm region mean RGB: no quad 118/87/65, glow 121/108/168, arcs 101/81/112, glow +
+struck 128/123/191 (selfshock arcs=17 drawn over the glow); the floor 3.7/3.0/2.1 without quad, back to exactly that once
+it ends (`vr_quad_info`: glow 0, no lights). Cost (`--exclusive`, `vr_profile_report 5`, 5 s each): arcs GPU 1.140 ms a
+frame (models 0.121, world 0.294, 176 draws), glow 1.081 (models 0.127, world 0.307, 173 draws): +0.006 ms on models,
++0.013 on the world for the two lights, within noise overall. Build 0 warnings, e1m1 smoke clean (`vr_quad_look 2`: both).
+
+Checklist (proposed): "Quad Damage (Debug > Cheats > Quad Damage): your hands, arms and body glow a soft pulsing blue
+and the hands throw blue light round you; nothing glows in your eyes; Body > Quad Damage Look: Lightning Arcs brings
+back the old arcs, Both shows both; struck by lightning you still get arcs; when the quad runs out the glow and light go."

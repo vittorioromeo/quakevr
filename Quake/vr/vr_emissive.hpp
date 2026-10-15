@@ -33,6 +33,12 @@ void lavaGunLight(int index, const glm::vec3& pos, float strength);
 inline constexpr int hotBladeLights = 16;
 void hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& color, float strength, float radius);
 
+// Quad Damage's blue glow (vr_view.cpp quadGlow): light `index` (0, 1 the hands) this frame at `pos`, reaching `radius`
+// units, `strength` 0..2 (0: put out). Unshadowed.
+inline constexpr int quadLights = 2;
+inline constexpr int quadLightKey = -0x5980; // their dlights' keys: this - the index
+void quadLight(int index, const glm::vec3& pos, float strength, float radius);
+
 // Is `model` a lava nailgun's (its lava ammo's model)?
 [[nodiscard]] bool isLavaGun(const qmodel_t* model);
 

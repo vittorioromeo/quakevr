@@ -1826,7 +1826,12 @@ int campaignsBloodyShown = -1;
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt (with Dynamic Wounds, on the Gore page: where you are hit)."),
         open("Wounds Drip Blood: Gore", pageIndex(pageGore)).help("The wounds' dripping blood is on Gore (Arm Drip Rate)."),
         toggle("Show Powerups", vr_body_powerups)
-            .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
+            .help("Quad damage glows or sparks around your hands, the pentagram makes you glow, the ring fades you."),
+        cycle("Quad Damage Look", vr_quad_look, {{1.f, "Blue Glow"}, {0.f, "Lightning Arcs"}, {2.f, "Both"}})
+            .help("Quad damage on you: a soft pulsing blue glow round your hands, arms and body, lighting the world round you "
+                  "blue; or Quake's electric arcs crackling over your hands and forearms (as when lightning strikes you); or both."),
+        slider("Quad Glow", vr_quad_glow, 0.f, 2.f, 0.1f, "%.1fx").help("How strongly the blue glow shows on your hands, arms and body."),
+        slider("Quad Glow Light", vr_quad_glow_light, 0.f, 2.f, 0.1f, "%.1fx").help("How much blue light your hands and body cast on the world round you (0: none)."),
         toggle("Anchors Follow Body", vr_body_anchors)
             .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
         slider("Hip Holsters Follow Legs", vr_holster_leg_follow, 0.f, 1.f, 0.05f, "%.2f")
@@ -5983,6 +5988,9 @@ za::Vector<Item> pageDebugTools()
             .help("vr_shock_self_test [damage]: struck by a bolt of that much (10 a shambler's, 30 a lightning gun's): Quad's arcs over "
                   "your hands, arms and body (Gore > Lightning Shock > Arcs on You), without the damage. vr_shock_self_info: the arcs "
                   "on you last frame by part (console)."),
+        command("Quad Damage On You", "impulse 190; vr_quad_info")
+            .help("impulse 190: Quad Damage on (an hour) or off; vr_quad_info: its look (Body > Quad Damage Look), the glow on your "
+                  "hands and body and its blue lights last frame (console)."),
         command("Electrified Water", "vr_shock_test 1").help("vr_shock_test 1 [radius] [seconds]: arcs on the water below the point 128 units ahead."),
         command("Lightning Bolt at the Nearest", "vr_shock_hit_test 30")
             .help("vr_shock_hit_test <damage>: a lightning gun's bolt from your eyes into the nearest monster or corpse: its arcs and a burn "
