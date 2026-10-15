@@ -6759,6 +6759,10 @@ za::Vector<Item> pageDebugTests()
         command("Whole-Map Monsters: Kill All", "vr_test_monsters 3")
             .help("Every live monster of the map dies at once (just enough damage: deaths, corpses and as many ragdolls "
                   "as Most Ragdolls allows (vr_ragdoll_max). The benchmarks' mg3_*_kill. Reload afterward."),
+        command("Hit Probe: Nearest Monster", "vr_test_monsters 5")
+            .help("Level shots (precise hits) at the nearest live monster every 8 units from below its box to 160 above "
+                  "it: the heights from its origin that hit it (one hitprobe: line). A tall model's parts out of reach "
+                  "show as gaps."),
         open("Stealth AI", pageIndex(pageStealthTests))
             .help("The stealth AI's scenes on e1m1 (Combat > Stealth AI): seeing, hearing, touch, investigating."),
         open("Ragdoll Behaviours", pageIndex(pageRagdollTests))
