@@ -7534,6 +7534,69 @@ int skinTone(const entity_t* e, float tone[4])
     return kind;
 }
 
+namespace
+{
+
+// HSL (hue in degrees, saturation and lightness 0..1) to RGB.
+[[nodiscard]] glm::vec3 hslToRgb(float hue, float sat, float light)
+{
+    const float h = (hue - 360.f * std::floor(hue / 360.f)) / 60.f;
+    const float c = (1.f - std::fabs(2.f * light - 1.f)) * sat;
+    const float x = c * (1.f - std::fabs(std::fmod(h, 2.f) - 1.f));
+    const float m = light - 0.5f * c;
+    const glm::vec3 rgb = h < 1.f ? glm::vec3{c, x, 0.f} : h < 2.f ? glm::vec3{x, c, 0.f} : h < 3.f ? glm::vec3{0.f, c, x} :
+        h < 4.f ? glm::vec3{0.f, x, c} : h < 5.f ? glm::vec3{x, 0.f, c} : glm::vec3{c, 0.f, x};
+    return rgb + glm::vec3{m};
+}
+
+} // namespace
+
+int gloveLook(const entity_t* e, float glove[4], float cuff[4])
+{
+    float tone[4];
+    const int kind = skinTone(e, tone);
+    const int mode = static_cast<int>(CLAMP(0.f, vr_gloves.value, 2.f));
+    glove[0] = glove[1] = glove[2] = glove[3] = 0.f;
+    cuff[0] = cuff[1] = cuff[2] = cuff[3] = 0.f;
+    if(!kind || !mode)
+    {
+        return 0;
+    }
+    const glm::vec3 colour = hslToRgb(vr_glove_hue.value, CLAMP(0.f, vr_glove_saturation.value, 1.f),
+        CLAMP(0.f, vr_glove_lightness.value, 1.f));
+    glove[0] = colour.x;
+    glove[1] = colour.y;
+    glove[2] = colour.z;
+    glove[3] = static_cast<float>(mode); // the skin mask's channel: G fingerless, B full (make_skin_masks.py)
+    if(kind == 2)
+    {
+        if(!drawnBare)
+        {
+            glove[3] = 0.f; // the bracers cover the wrist: nothing of the glove on the body
+            return 0;
+        }
+        // The cuff over a bare forearm's end: the arms' skin block (make_vrbody.py: its rings 1/9 of the block's height
+        // apart, the forearm's last 0.14 m over 2 of them, the wrist at lipVpos and the lip over the hand at 1) from
+        // cuffBack metres behind the wrist to the lip, a hem cuffHem wide along its edge.
+        constexpr float cuffBack = 0.045f, cuffHem = 0.006f;
+        constexpr float pad = bodybare::skinPad, blockV = bodybare::skinBlockV - 2.f * pad;
+        constexpr float perMetre = 2.f / 0.14f / 9.f; // the block's v (0..1) a metre along the forearm's end
+        const float start = bodybare::lipVpos - cuffBack * perMetre;
+        cuff[0] = bodybare::skinBlockU;
+        cuff[1] = pad + blockV * start;
+        cuff[2] = pad + blockV * (start + cuffHem * perMetre);
+        cuff[3] = bodybare::skinBlockV;
+    }
+    return kind;
+}
+
+int skinMaskWanted(const entity_t* e)
+{
+    float tone[4], glove[4], cuff[4];
+    const int kind = skinTone(e, tone);
+    return kind && (tone[3] != 0.f || gloveLook(e, glove, cuff)) ? kind : 0;
+}
+
 bool heldRoundRef(int hand, glm::vec3& out, float* radius)
 {
     const int num = hand == 0 || hand == 1 ? held::heldEntity(hand) : 0;

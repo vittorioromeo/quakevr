@@ -320,9 +320,12 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         ZA_MEMSET(out->skintintrange, 0, sizeof(out->skintintrange));
     }
     ZA_MEMSET(out->skintone, 0, sizeof(out->skintone));
+    ZA_MEMSET(out->glove, 0, sizeof(out->glove));
+    ZA_MEMSET(out->glovecuff, 0, sizeof(out->glovecuff));
     if(standard)
     {
         (void)view::skinTone(e, out->skintone);
+        (void)view::gloveLook(e, out->glove, out->glovecuff);
     }
     if(out->glow[0] > 3.5f) // an incandescent blade glows on its blade only (vr_hotblade.cpp)
     {
@@ -541,9 +544,8 @@ void VR_PrecacheSkinMasks()
         {
             continue;
         }
-        float tone[4]{};
-        const int kind = view::skinTone(e, tone);
-        if(!kind || tone[3] == 0.f)
+        const int kind = view::skinMaskWanted(e);
+        if(!kind)
         {
             continue;
         }
@@ -564,7 +566,7 @@ void VR_PrecacheSkinMasks()
             if(pixels)
             {
                 texture = TexMgr_LoadImage(nullptr, path, width, height, format, pixels, path, 0,
-                    TEXPREF_MIPMAP | TEXPREF_NOPICMIP);
+                    TEXPREF_MIPMAP | TEXPREF_NOPICMIP | TEXPREF_ALPHA); // (A: the skin's shading, the gloves')
             }
             Hunk_FreeToLowMark(mark);
         }
@@ -574,9 +576,8 @@ void VR_PrecacheSkinMasks()
 
 gltexture_t* VR_AliasSkinMask(const entity_t* e)
 {
-    float tone[4]{};
-    const int kind = view::skinTone(e, tone);
-    if(!kind || tone[3] == 0.f || !e->model || skinMasks.frees != TexMgr_FreeCount())
+    const int kind = view::skinMaskWanted(e);
+    if(!kind || !e->model || skinMasks.frees != TexMgr_FreeCount())
     {
         return blacktexture;
     }

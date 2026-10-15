@@ -7055,3 +7055,41 @@ still re-centred in front of the head. Back to game reopens on the FIRST panel's
 on. Not done: a page that becomes invalid after a map change falling back to the panel's top page (the pages are
 static, none is map-dependent today). Test: `Misc/quakevr/menu_panels_test.py` steps 10-12 (hide, reopen, map change,
 Close Panel) pass.
+
+## Gloves; Player Appearance (2026-10-15, worktree `fastship`, branch `agent/playerlook`)
+
+His words: "Glove options: fingerless or full gloves, with hue, saturation and lightness controls ... Collect all the
+player customization options into a new submenu under 'VR Settings' ... Ideally, all of these things should be
+arbitrarily combinable."
+
+**Gloves** (`vr_gloves` 0 none / 1 fingerless / 2 full; `vr_glove_hue` 25, `vr_glove_saturation` 0.45,
+`vr_glove_lightness` 0.2: a dark brown leather; all archived, config 138, new settings only). Drawn the way the skin
+tone is, no painted art: the skin masks (`progs/hand_rig_NN_00_skinmask.tga`, `vrbody_NN_00_skinmask.tga`,
+`Misc/quakevr/make_skin_masks.py`) gained three channels beside R (the skin, unchanged bit for bit): **G** the
+fingerless glove (the palm island; each finger's first segment to 55% of its length; the thumb's long base and half of
+its second segment), **B** the full glove (the whole hand, nails too), both leaving the static blood of the damaged
+skins out and both 0.55 at the glove's edge rising to 1 a 3 mm hem inside it (made from the finger coordinates in 3D,
+so the islands' UV seams get no hem); **A** the skin's own brightness over the clean skin's mean, halved. The alias
+shader (`vr_glsl.h` QVR_ALIAS_FS_LIGHT) puts the leather (the HSL colour, `vr_view.cpp gloveLook`, times the skin's
+own shading from A: creases, knuckles and grain kept; the hem 40% darker at the edge) over the covered texels and
+tones only the skin the glove leaves bare, so every skin tone x glove x colour works, and dynamic wounds, burns and
+water still show on the glove (the same skin share as the tone's). The mask is now loaded with alpha
+(`TEXPREF_ALPHA`) and bound whenever a tone or a glove is on (`view::skinMaskWanted`). **Bare forearms**
+(`vr_body_bracers 0`): the body's forearm gets a cuff from 4.5 cm behind the wrist to the lip over the hand, with
+its hem, drawn from the arms' skin block rows (`GloveCuff`, from vr_bodybare.inc's numbers: crisp at any texture
+size, no mask needed); with the bracers the bracer's lip covers the join and nothing of the glove is on the body. Only
+the jointed hand (`vr_hand_rig 1`) gets gloves, as only it gets the skin tone. New instance fields: `Glove`,
+`GloveCuff` (gl_shaders.h, vr_api_render.h).
+
+**Player Appearance** (VR Settings, after Body and Flashlight; page 184 "VR Settings - Player Appearance"): Body
+(Build, Skin Tone, Bracers), Gloves (Gloves, Hue, Saturation, Lightness), Pauldrons (on, Style, Size). Their one home:
+Build left Body and Display, Bracers and Skin Tone left Body, the pauldrons' on/style/size left Body - Arms and
+Pauldrons (their fit stays there); each old page links here. The calibration room's board line "Skin: Body > Skin
+Tone" is now "Look: VR Settings > Player Appearance" (`make_vrcalibration_map.py`, map rebuilt;
+`vr_menu_path_check` 0 missing on vrcalibration and vrtesthall).
+
+Tested (headless, vrfiringrange, eye captures): bare; fingerless dark leather; full bright blue; bracers + full red +
+skin tone -0.8; fingerless green + skin tone 0.7; bracers + fingerless white + tone -0.4: each as set, fingertips
+toned, cuffs and bracers right; e1m1 through body modes 0/2/3 and `vr_hand_rig 0/1` with gloves on: no errors. For
+him in VR: the leather's look up close (its shading strength: the shader's 0.85 of A), the fingerless edge's place,
+the cuff's length (4.5 cm), and the default colour.

@@ -388,7 +388,10 @@ built-in ones.
 | `vr_flashlight_side` | 0 | the hip the torch hangs on: 0 left, 1 right |
 | `vr_body_mode` | 3 (shipped) | 0 off, 2 torso and arms, 3 full body |
 | `vr_body_build` | 1 | 0 lean, 1 athletic, 2 brawny |
-| `vr_body_bracers` | 1 | the forearms' leather bracers and the wrist gadget's straps; 0 bare forearms, the skin running on into the hands (Body page: Bracers; with the jointed hand) |
+| `vr_body_bracers` | 0 | the forearms' leather bracers and the wrist gadget's straps; 0 bare forearms, the skin running on into the hands (VR Settings > Player Appearance: Bracers; with the jointed hand) |
+| `vr_skin_tone` | 0 | the skin of the hands and arms darker (-1) or lighter (+1); 0 as painted (VR Settings > Player Appearance) |
+| `vr_gloves` | 0 | leather gloves on the jointed hands: 0 none, 1 fingerless (fingertips bare, in the skin tone), 2 full; with bare forearms a cuff over the wrist (VR Settings > Player Appearance) |
+| `vr_glove_hue`, `vr_glove_saturation`, `vr_glove_lightness` | 25, 0.45, 0.2 | the gloves' colour (hue in degrees; saturation and lightness 0..1); the hand's own shading kept |
 | `vr_body_torso_back`, `vr_body_legs_back` | 0.07, 0.3 (shipped) | body placement, metres behind your head |
 | `vr_bodycal_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_rise`, `_swing` | 0 | Body Calibration's measurements (cm, metres, degrees; 0 lengths: not calibrated) |
 | `vr_body_tweak_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_rise`, `_swing` | 0 | your tweaks on top of them, the same units (uncalibrated: on the default body) |
