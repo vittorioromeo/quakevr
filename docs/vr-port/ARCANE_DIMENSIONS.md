@@ -1358,7 +1358,7 @@ rounds and single use are kept; what it shares:
 |---|---|---|
 | Rocket soldier's launcher | our rocket (`VR_FireRocketMissile`: model, speed, hit, blast, muzzle clearance) | model, fire sound |
 | Grenade soldier's launcher | our grenade (`VR_FireGrenadeMissile`: model, size, bounce, fuse, blast, clearance, catch) | model |
-| Plasma rifle, eliminator's, centurion's plasma guns | our bolt hit (positional damage, prop push, sparks) | AD's plasma bolt (model, light, flash): the Plasma Gun's |
+| Plasma rifle, eliminator's, centurion's plasma guns | our bolt hit (positional damage, prop push, sparks), electric trail and electrocution (also the monsters' bolts) | AD's plasma bolt (model, light, flash): the Plasma Gun's |
 | Defender's shotgun | our pellets (`FireBullets`: tracers, puffs, blood, decals) | model, sound, spread |
 | Pyro's flamethrower, fumigator's sprayer | our burning (the pyro's) | flames and puffs, poison (no kind of ours) |
 
@@ -1366,9 +1366,14 @@ Their models are to be refined (BACKLOG.md, "AD soldiers' guns: refine their VR 
 AD draws and runs it, with no design chosen here:
 
 - **The pyro's flamethrower and the fumigator's poison sprayer**: no Quake VR weapon of their kind; their streams are
-  AD's (above).
-- **Poison**: the fumigator's puffs and AD's poison debuff (its damage over time, its green tint). Burning is merged with
-  Quake VR's (16.3); poison has no Quake VR counterpart (no VR effect on the hands or view beyond AD's tint).
+  AD's sprites, but (2026-10-15, his voice notes; the monsters' and the dropped guns' alike) see-through
+  (`vr_adgun_stream_alpha`) with our torches' fire tongues carried along (green for poison: `vr_adgun_stream_fire`),
+  fire at the muzzle and the pyro's smoke (ROUND22.md, "AD flamethrowers, poison and electric bolts").
+- **Poison**: AD's poison debuff on the player (its damage over time, its green tint) is AD's. A body poisoned by a
+  fumigator's spray (the player's sprayer, or a fumigator's in infighting) puffs green smoke until the poison ends.
+- **The plasma rifles' bolts** (the soldiers', eliminators', centurions'): AD's model, with our electric trail (faint
+  smoke, arcs, sparks: `vr_adgun_bolt_fx`), muzzle and hit crackle, and the lightning's electrocution on what they
+  strike, alive or dead (vr_shock.qc); they move as missiles so that they strike bodies.
 - **Bleeding**: AD's bleed debuff, its tint only.
 - **AD's monster projectiles**: about a hundred AD projectile models (`ad_MODEL_PROJ_*`: plasma, the gargoyles' and
   gaunts' balls, the bog lord's, Nour's, the swamplings', snowballs, ice shards, spider and scorpion spit, the

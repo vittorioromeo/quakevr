@@ -1300,6 +1300,11 @@ wait10; changelevel start; wait60; vr_ad_test 88` prints `adgun carry: start: ..
 left shoulder holster; before the fix the engine quit with "SV_ModelIndex: model ...#gun4 not precached").
 `vr_ad_test 89`: a gun model the engine cannot make (another AD release, a replacement pack) loads Quake VR's stand-in
 under its name: `adgun standin: progs/soldier.mdl#gun0 index N ...: PASS` (before: Host_Error).
+The AD shooters' effects (2026-10-15): `god; notarget; developer 1`, a pyro, fumigator or plasma soldier (232, 235,
+223/217/220) and a target monster spawned apart, then `vr_ad_test 92` (repeat it, `wait7` apart, for a stream): the
+nearest shooter fires at the monster nearest it (`adfx: ... fires at ...`); `adpoison: X's poison ends (puffs N, ...)`
+and `adgun bolt shock: X alive before A ... shock left S` report the poison and the electrocution
+(`scratch/adfx_enemy.sh`, `adfx_bolt.sh` in the profilemulti worktree).
 
 The Debug menu's AD pickup rows (2026-10-13): `vr_test_spawn_dist 64; vr_test_spawn N; impulse 241; wait100;
 vr_ad_test 86` for N 300..319 (and a monster's number: 0.., 200..) prints `adspawn: N: <classname> (<model>) at D ahead

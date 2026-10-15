@@ -6809,3 +6809,47 @@ notes: TESTING.md "The batched suites, proven again on next".
   the 19 release-suite conversions left uncommitted in the old worktree are lost (BACKLOG.md).
 
 Nothing to test in VR (test harness), but quick save then at once quick load: the game loads (no error).
+
+## AD flamethrowers, poison and electric bolts: our effects (worktree `profilemulti`, branch `agent/adfx`, 2026-10-15)
+
+His voice notes of 2026-10-15 13:28-13:31, and his clarification: the same for the AD soldiers firing them as for the
+player with their dropped guns, one path for both (`vr_ad_enemyguns.qc`; the AD files call it, `// Quake VR` lines).
+
+- **Flamethrower and poison sprayer** (the pyro's, the fumigator's): AD's flame and poison sprites see-through
+  (`vr_adgun_stream_alpha`, 0.5; 1: AD's), drawn in the soft-sprite pass with the entity's alpha (r_sprite.c: a batch
+  per alpha, no depth written when see-through; Ironwail drew sprites opaque whatever their alpha), and our torches'
+  fire tongues (CellFire) at random angles carried along with each (`vr_adgun_stream_fire`, 2 a tenth of a second; green
+  for poison; presets `AdFlame`, `AdPoison`). The muzzle licks a tongue a flame; the pyro's smokes (gun smoke, 3 in 10),
+  the fumigator's does not. Not as fire under water (AD's smoke sprite there).
+- **Poisoned bodies** puff green smoke (additive, faintly glowing: `PoisonPuff`, 2 every quarter second over their box)
+  until the poison ends (death or its time); the damage stays every half second. A fumigator's spray on a monster
+  (infighting) now poisons it too, as the player's sprayer does (`vr_adgun_fumigator_poison`/`_poisontime`), on top of
+  AD's own hit; AD's poison on the player is unchanged (no puffs over your own view). `vr_adgun_stream_fire 0`: AD's
+  old motes.
+- **Electric bolts** (the plasma soldiers', eliminators' and centurions', `progs/proj_plasma.mdl`, theirs and the
+  player's): AD's grenade-smoke trail replaced by a faint smoke, crackling arcs and blue-white sparks
+  (vr_particles.cpp `electricTrail`, from `VR_EntityTrail`); the muzzle and the hit crackle (`ElectricSparks`, from
+  `ad_launch_plasma` and both touches); `vr_adgun_bolt_fx` 1 (0: AD's). The poisonous green bolts keep AD's look.
+- **Electrocution**: what a bolt strikes, alive or dead, gets the lightning gun's arcs and lasting shock
+  (`bodyshock` + `VR_Shock_Hit`: convulsing ragdoll, crackle, burns; `vr_shock_*` settings). The bolts now move as
+  missiles (FLYMISSILE), so they strike bodies (only missiles touch corpses): monsters' bolts also hit monsters a little
+  more easily (Quake's missile box against monsters); the player is hit as before.
+- Debug > Tests > Arcane Dimensions Monsters: "Make the Nearest Shooter Fire" (`vr_ad_test 92`: the nearest AD pyro,
+  fumigator or plasma soldier fires once at the monster or body nearest it; a standing target hops, as flames are
+  triggers that touch only what moves into them). Settings > AD guns: "Flamethrowers' Look" (the three settings).
+
+Checked (headless, scratch/): `adfx_pyro_player.png` (your flamethrower: AD's, ours, ours with the sprites at 0.1 to
+show the tongues), `adfx_enemy_pyro.png` and `adfx_enemy_fumigator.png` (a pyro and a fumigator spraying a monster,
+before/after; the fumigator's third: the poisoned pyro puffing), `adfx_enemy_bolt_corpse.png` (an eliminator's bolt
+before/after, then the struck body's arcs). Lines: `adgun bolt shock: monster_army alive before 1 ... shock left 3`
+(an eliminator's bolt, and the player's with the dropped gun, on a living grunt) and `... alive before 0, corpse 1,
+shock left 3` (an eliminator's bolt on the body); `adpoison: monster_pyro's poison ends (puffs 11)`. `vr_ad_test 70`
+8/8 PASS; e1m1 smoke clean; build 0 warnings. Not managed headless: the player's own bolt into a body (the mock hand
+could not be aimed into a lying body; the same touch and movement as the monsters' bolts, which did).
+Frame cost, a sustained spray from your flamethrower (3 s, real time, exclusive): frame 4.47 -> 4.42 ms (noise),
+particle sim 0.015 -> 0.020 ms, particles drawn 0.057 -> 0.052 ms CPU, 0.10 -> 0.16 ms GPU.
+
+To test in VR: AD map with pyros and fumigators (and drop their guns): the streams see-through with fire (green)
+tongues, the muzzle's fire and the pyro's smoke; poisoned monsters puffing green until it wears off; an eliminator's or
+plasma soldier's bolts: thin crackling trail, sparks at the muzzle and the hit, the struck monster or body arcing and
+convulsing.
