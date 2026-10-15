@@ -7055,3 +7055,29 @@ still re-centred in front of the head. Back to game reopens on the FIRST panel's
 on. Not done: a page that becomes invalid after a map change falling back to the panel's top page (the pages are
 static, none is map-dependent today). Test: `Misc/quakevr/menu_panels_test.py` steps 10-12 (hide, reopen, map change,
 Close Panel) pass.
+
+## Model vertex wobble 3: rigged monsters rebuilt from the skeleton (worktree `dequant`, branch `agent/rigrebuild`, 2026-10-15)
+
+His words: "there still is a bit of wobble. Ideally this should be implemented in an efficient way and be toggleable."
+Backlog "Model vertex wobble" (2). `vr_anim_smooth_rebuild` (archived, **default 1**: the numbers are clean),
+Graphics > Models and Effects > Rebuild From Skeleton (after Swing Limbs); Debug > Reports: Rebuild Fit Limit
+(`vr_anim_smooth_rebuild_error`, 0.5 units). Design and numbers: MDL_DEQUANT.md, "Item (2)"; vr_animsmooth.cpp, "C".
+
+- A rigged monster (soldier, knight, hell knight, dog, enforcer, fiend, ogre; not the shambler: under half its vertices
+  fit) is drawn every frame, with any Model Animation and at the poses too, as each vertex's fixed place on its bone moved
+  by the bone; a vertex the skeleton fits worse (round the joints) keeps the frames' place (faded between 0.5 and 1 unit
+  rms). Normals turn with the bone.
+- The stored bone fits carry the rounding; rebuilding on them was worse than off. The bones are refitted at load to the
+  dequantised poses (two rounds of places and Gauss-Newton fits), so the loop seams and the motion are the dequantised
+  ones, the per-vertex jitter gone.
+- Cost: precomputed per model (with the rig's data); per instance 9 rows a bone (memoised per view as before), no
+  per-frame allocations; +0.07 ms a frame for 60 idle grunts (about 1.1 us each), on the GPU 2 more reads a vertex.
+- Numbers (idle grunt, knight; worst vertex's second difference, p95, units): 10 Hz grunt 0.456 -> 0.314 (0.272 with
+  Smooth), knight 1.071 -> 0.865; 90 Hz grunt worst 0.059 -> 0.032. Off draws as before (Smooth keeps its rows and
+  shader path; the trace now samples the dequantised poses as drawn).
+- `vr_anim_smooth_info`: each model's rebuild counts and fit rms, instances rebuilt and VR_AnimSmooth's time.
+- Found, not fixed: with Model Animation Smooth an idle knight jolts (`vr_anim_smooth_trace` at 90 Hz: one vertex up to
+  2.5 units a frame, p95 0.46; Quake's blend 0.10), rebuild or not: the spline itself (a mispredicted next frame or
+  span on the unnamed knight frames?).
+- To try: an idle grunt and knight, Rebuild From Skeleton on and off, Quake's Blend and Smooth: the breathing frames
+  without the surface's wobble, the same shape (elbows, knees, the gun).

@@ -16,7 +16,16 @@
 //   fit blended along the spline. A bone fitted badly in any of the four poses (vr_anim_smooth_rig_error, or folded away:
 //   the grunt's dropped gun) or turning more than 150 degrees isn't swung; a vertex far off its bone swings less.
 // At a pose itself (the lerp's start, its end, a frame held) nothing of this is drawn: the instance is drawn as
-// r_lerpmodels 1 draws it, its vertices exactly the frame's. Your weapons are never smoothed (their flashes, mounts and
+// r_lerpmodels 1 draws it, its vertices exactly the frame's.
+// C, the rebuild (vr_anim_smooth_rebuild; any r_lerpmodels, every frame, at the poses too): a rigged monster's vertices
+// from its skeleton, so the file's rounding (a byte a 255th of the model's size, per frame) doesn't show. Made once a
+// model (rigData): its bones refitted to every pose as drawn (dequantised: vr_mdldequant.cpp; the stored fits follow
+// the rounding), each vertex's place on its bone the mean of its poses' places taken back by those fits, its normal
+// so, and its share by how far the poses are from it (vr_anim_smooth_rebuild_error; a model with under half its
+// vertices rebuilt fully isn't rebuilt). Each instance: its bones' refitted keys along its spline (or Quake's blend),
+// 9 rows a bone (rebuildRows; their share the fits of the lerp's two poses, blended: a pose fitted badly isn't
+// rebuilt, faded across the lerps round it), and the shader moves each vertex (and normal) from where A and B put it to
+// its bone's place by both shares (RigRebuild). The loops' seams are the dequantised poses' (smoothed round the loop). Your weapons are never smoothed (their flashes, mounts and
 // shells follow Quake's blend: vr_anchor.cpp), nor skeletal models (IQM, a ragdoll's skinned model). What the game
 // tests against a model's shape (vr_hitmodel.cpp, vr_modelcollide.cpp) keeps Quake's blend: the drawn shape between
 // frames is a few units off it at most mid-swing (vr_anim_smooth_check).

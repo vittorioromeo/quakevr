@@ -5848,6 +5848,7 @@ za::Vector<Item> pageDebugReports()
         command("Pin Nearest Monster Mid-Swing", "vr_anim_smooth_pin 41 42 0.5 -1 -1 ogre").help("vr_anim_smooth_pin <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]: a monster (here the nearest ogre: its chainsaw swing) drawn held between two frames, to compare Model Animation's settings on it; vr_anim_smooth_pin off lets it go."),
         command("Unpin Monster", "vr_anim_smooth_pin off").help("vr_anim_smooth_pin off: the pinned monster animates again."),
         slider("Limb Fit Limit", "vr_anim_smooth_rig_error", 0.25f, 5.f, 0.25f, "%.2f units").help("vr_anim_smooth_rig_error: a bone fitted to a frame worse than this (rms) isn't swung between it and its neighbours; a vertex further off its bone swings less (none at twice it)."),
+        slider("Rebuild Fit Limit", "vr_anim_smooth_rebuild_error", 0.1f, 2.f, 0.1f, "%.1f units").help("vr_anim_smooth_rebuild_error: with Rebuild From Skeleton, a point further than this (rms over the frames) off its bone's fits is rebuilt less (not at twice it); a model with under half its points rebuilt is drawn as before (Smooth Animation Models: each model's counts)."),
         command("Corpse Poses", "vr_corpse_poses").help("vr_corpse_poses [1]: every dead monster and placed corpse: its model, "
                                                          "frame and where that is in its death, a ragdoll or why not; those "
                                                          "drawn mid-death (upright) are counted as not lying. 1: the counts only."),
