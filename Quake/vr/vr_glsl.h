@@ -1821,10 +1821,11 @@ QVR_PERMDECAL_FUNCTIONS \
 
 // flesh dents (vr/vr_dents.cpp): each vertex measured in the rest pose (a .mdl's pose 0 in units; a skeletal model's
 // bind pose: a ragdoll's is that same pose 0) and pushed in along its normal as drawn, after every pose, smoothing,
-// rebuild and kick: the dents go with the body however it moves
+// rebuild and kick: the dents go with the body however it moves. Times the vertex's flesh (its model's table, from the
+// body's header row before its dents: 0 a weapon, never dented or painted; out_restnor.w for the fragment shader).
 #define QVR_ALIAS_VS_DENTS \
 "	out_restpos = vec3(0.0);\n" \
-"	out_restnor = vec3(0.0);\n" \
+"	out_restnor = vec4(0.0);\n" \
 "	if (inst.Dent.y > 0.5)\n" \
 "	{\n" \
 "#if POSEVERTTYPE == 1\n" \
@@ -1832,11 +1833,18 @@ QVR_PERMDECAL_FUNCTIONS \
 "#else\n" \
 "		PoseVertex rest = GetPoseVertex(0u);\n" \
 "#endif\n" \
+"		float flesh = 1.0;\n" \
+"		uint fleshAt = uint(Dents[uint(inst.Dent.x) - 1u].x);\n" \
+"		if (fleshAt > 0u)\n" \
+"		{\n" \
+"			uint fv = fleshAt - 1u + uint(gl_VertexID);\n" \
+"			flesh = Dents[fv >> 2u][fv & 3u];\n" \
+"		}\n" \
 "		out_restpos = rest.pos * inst.DentScale.xyz + vec3(inst.Dent.zw, inst.DentScale.w);\n" \
-"		out_restnor = normalize(rest.nor);\n" \
+"		out_restnor = vec4(normalize(rest.nor), flesh);\n" \
 "		float dent_t;\n" \
 "		vec3 dent_g;\n" \
-"		float push = DentDepth(out_restpos, out_restnor, uint(inst.Dent.x), uint(inst.Dent.y), 1.0, dent_t, dent_g);\n" \
+"		float push = flesh > 0.0 ? flesh * DentDepth(out_restpos, out_restnor.xyz, uint(inst.Dent.x), uint(inst.Dent.y), 1.0, dent_t, dent_g) : 0.0;\n" \
 "		if (push > 0.0)\n" \
 "		{\n" \
 "			vec3 dn = mix(pose1.nor, pose2.nor, inst.Blend);\n" \
@@ -1985,7 +1993,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "layout(location=14) flat out float out_woundside; // QVR: 1 on its right side (its wound mask's other layer: vr/vr_wounds.cpp)\n" \
 "layout(location=15) flat out float out_retroset; // QVR: its retro textures' set (vr/vr_retro.h; your body's by part)\n" \
 "layout(location=16) out vec3 out_restpos; // QVR: flesh dents (vr/vr_dents.cpp): where in the model's rest pose (units; zero: no dents)\n" \
-"layout(location=17) out vec3 out_restnor; // QVR: ... its normal there\n"
+"layout(location=17) out vec4 out_restnor; // QVR: ... its normal there, and its flesh (w: 0 a weapon)\n"
 
 // which side's wound mask a vertex reads (vr/vr_wounds.cpp): your body's arms and legs share their skin's texels,
 // mirrored, so its mask is two layers, the left side's (with the middle's) and the right side's; a vertex's side is its
@@ -2255,7 +2263,7 @@ SPECULAR_AA_FUNCTIONS
 "layout(location=14) flat in float in_woundside; // QVR: 1 on its right side (vr/vr_wounds.cpp: your body's mask, one a side)\n" \
 "layout(location=15) flat in float in_retroset; // QVR: its retro textures' set (vr/vr_retro.h)\n" \
 "layout(location=16) in vec3 in_restpos; // QVR: flesh dents (vr/vr_dents.cpp): where in the model's rest pose\n" \
-"layout(location=17) in vec3 in_restnor; // QVR: ... its normal there\n"
+"layout(location=17) in vec4 in_restnor; // QVR: ... its normal there, and its flesh (w: 0 a weapon)\n"
 
 // per-pixel lights, normal maps, ambient, wounds, morphs
 #define QVR_ALIAS_FS_FUNCTIONS \
@@ -2674,13 +2682,15 @@ QVR_DENT_FUNCTIONS \
 "{\n" \
 "	Dented o = Dented(0.0, 0.0, 0.0, 1e9, vec3(0.0));\n" \
 "	vec4 di = instances[in_instance].Dent;\n" \
-"	if (di.y < 0.5)\n" \
+"	float flesh = smoothstep(0.15, 0.85, in_restnor.w); // (none on a weapon, and where flesh meets it, faded)\n" \
+"	if (di.y < 0.5 || flesh <= 0.0)\n" \
 "		return o;\n" \
-"	o.depth = DentDepth(in_restpos, normalize(in_restnor), uint(di.x), uint(di.y), 1.5, o.t, o.grad);\n" \
+"	o.depth = flesh * DentDepth(in_restpos, normalize(in_restnor.xyz), uint(di.x), uint(di.y), 1.5, o.t, o.grad);\n" \
+"	o.grad *= flesh;\n" \
 "	float tear = WoundNoise(in_restpos.xy * 1.3 + in_restpos.z * 0.71) * 0.65 + WoundNoise(in_restpos.yz * 3.7 + in_restpos.x * 0.53) * 0.35;\n" \
 "	float edge = o.t + (tear - 0.5) * 0.45; // torn, not round\n" \
-"	o.cover = 1.0 - smoothstep(0.62, 0.7, edge);\n" \
-"	o.rim = (1.0 - smoothstep(0.75, 1.35, edge)) * (1.0 - o.cover);\n" \
+"	o.cover = (1.0 - smoothstep(0.62, 0.7, edge)) * flesh;\n" \
+"	o.rim = (1.0 - smoothstep(0.75, 1.35, edge)) * (flesh - o.cover);\n" \
 "	return o;\n" \
 "}\n" \
 "// Raw flesh: muscle in two reds, a little fat and sinew, darker and bloodier towards the crater's core.\n" \
