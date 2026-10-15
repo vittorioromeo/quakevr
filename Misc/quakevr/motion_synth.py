@@ -314,7 +314,8 @@ class Take:
             rows.append(row)
         columns = list(rows[0].keys())
         category = self.label.split("_")[0]
-        for c in ("no_hit", "palm_shove_1h", "palm_shove_2h", "parry_pose", "parry_bash", "hilt_pommel", "gun_strike"):
+        for c in ("no_hit", "palm_shove_1h", "palm_shove_2h", "parry_pose", "parry_bash", "hilt_pommel", "gun_strike",
+                  "neck_snap", "no_neck_snap"):
             if self.label.startswith(c):
                 category = c
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -623,6 +624,9 @@ def preset(name, args):
     take = decap_preset(name, args)
     if take:
         return take
+    take = necksnap_preset(name, args)
+    if take:
+        return take
     take = fix_preset(name, args)
     if take:
         return take
@@ -661,6 +665,49 @@ def decap_preset(name, args):
     return take
 
 
+def necksnap_preset(name, args):
+    """Both empty hands take hold of the training dummy (gripped after the playback's setup: a grip closed during it
+    doesn't hold) and turn about its up: at its head 90 degrees in 0.2 s (snaps under either twist detector), the turn
+    at its shoulders or 20 degrees at its head (snaps under neither). Not in the `necksnap` group: `neck_snap_push_pull`,
+    pushed and pulled 25 cm each way with the wrists turning 100 degrees about the vertical in 0.3 s (2026-10-15, at
+    the shipped settings: snaps under Velocity; Hand Line misses it, the palms' line turning 61 degrees in its 0.2 s
+    window). The dummy `--necksnap-distance` ahead."""
+    shapes = {
+        # (the hands' height below the head's middle, half their spread, the turn in degrees, push-pull)
+        "neck_snap_turn": (0.0, 0.12, 90.0, False),
+        "neck_snap_push_pull": (0.0, 0.12, 100.0, True),
+        "no_neck_snap_shoulders": (0.3, 0.2, 90.0, False),
+        "no_neck_snap_small": (0.0, 0.12, 20.0, False),
+    }
+    if name not in shapes:
+        return None
+    lower, half, turn, push_pull = shapes[name]
+    ws, eye, T = args.world_scale, args.eye_height, args.duration
+    d = args.necksnap_distance
+    c = (d, 0.0, args.head - lower)
+    take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, target=(d, 0.0), note="synthetic")
+    take.fists = {"main", "off"}
+    at = {"main": add(c, (0.0, -half, 0.0)), "off": add(c, (0.0, half, 0.0))}
+    take.start({h: ((0.3, -0.2 if h == "main" else 0.2, eye - 0.5), fist_pose(h)) for h in ("main", "off")})
+    take.hold(0.3, phase="pre")
+    take.glide({h: (at[h], fist_pose(h)) for h in at}, 0.4)
+    take.grip("main", True)
+    take.grip("off", True)
+    take.hold(0.4)
+
+    def turned(s):
+        q = qaxis((0, 0, 1), turn * s)  # (to the left, seen from above)
+        if push_pull:  # the main hand 25 cm ahead, the off hand 25 cm back, the wrists turning with them
+            return {"main": (add(at["main"], (0.25 * s, 0.0, 0.0)), qmul(q, fist_pose("main"))),
+                    "off": (add(at["off"], (-0.25 * s, 0.0, 0.0)), qmul(q, fist_pose("off")))}
+        return {h: (add(c, qrot(q, sub(at[h], c))), qmul(q, fist_pose(h))) for h in at}
+
+    take.move(T, turned, phase="rec")
+    take.hold(0.5, phase="tail")
+    return take
+
+
+NECKSNAP_PRESETS = ["neck_snap_turn", "no_neck_snap_shoulders", "no_neck_snap_small"]
 DECAP_PRESETS = ["decapitation_horizontal_rtl", "decapitation_horizontal_ltr", "decapitation_diagonal_down_left",
                  "no_decapitation_flat", "no_decapitation_body", "no_decapitation_stab"]
 FIX_PRESETS = ["chop_horizontal", "chop_diagonal", "chop_overhead", "punch_down_gib", "chop_down_gib",
@@ -671,7 +718,8 @@ PRESETS = ["slash_overhead", "slash_horizontal_rtl", "slash_horizontal_ltr", "sl
 DEFAULT_DURATION = {"slap_forehand": 0.18, "slap_backhand": 0.18, "stab": 0.15, "no_decapitation_stab": 0.15, "punch_straight": 0.15, "palm_shove_1h": 0.15, "palm_shove_2h": 0.15,
                     "chop_horizontal": 0.22, "chop_diagonal": 0.22, "chop_overhead": 0.22, "punch_down_gib": 0.16,
                     "chop_down_gib": 0.22, "punch_straight_off": 0.15, "palm_shove_2h_torch": 0.15,
-                    "palm_shove_torch_only": 0.15}
+                    "palm_shove_torch_only": 0.15, "neck_snap_turn": 0.2, "no_neck_snap_shoulders": 0.2,
+                    "no_neck_snap_small": 0.2}
 
 
 def main():
@@ -686,6 +734,9 @@ def main():
     ap.add_argument("--eye-height", type=float, default=1.646)
     ap.add_argument("--neck", type=float, default=0.62, help="the decapitation presets: metres from the eye down to "
                     "the hand (the blade level with the dummy's neck)")
+    ap.add_argument("--head", type=float, default=1.39, help="the neck snap presets: the dummy's head's middle, metres "
+                    "up from the floor")
+    ap.add_argument("--necksnap-distance", type=float, default=0.7, help="the neck snap presets: metres to the dummy")
     ap.add_argument("--two-handed", action="store_true", help="the sword's with the off hand on the grip")
     ap.add_argument("--weapon", default="axe", choices=sorted(WEAPON_FAR),
                     help="the chop presets' weapon; crowbar, chainsaw, superaxe: the sword presets' too")
@@ -700,7 +751,7 @@ def main():
     ap.add_argument("--dummy-health", type=int, help="its health (vr_dummy_health; -1 its enemy's own)")
     args = ap.parse_args()
     if args.list or not args.preset:
-        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS))
+        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS + NECKSNAP_PRESETS))
         return
     if args.settings_from:
         configure(settings_from_cfg(args.settings_from))
@@ -708,7 +759,8 @@ def main():
         DUMMY["vr_dummy_type"] = str(args.dummy_type)
     if args.dummy_health is not None:
         DUMMY["vr_dummy_health"] = str(args.dummy_health)
-    names = PRESETS if args.preset == "all" else DECAP_PRESETS if args.preset == "decap" else [args.preset]
+    names = (PRESETS if args.preset == "all" else DECAP_PRESETS if args.preset == "decap" else
+             NECKSNAP_PRESETS if args.preset == "necksnap" else [args.preset])
     for name in names:
         a = argparse.Namespace(**vars(args))
         a.duration = args.duration or DEFAULT_DURATION.get(name, 0.3)

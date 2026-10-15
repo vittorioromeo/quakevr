@@ -96,6 +96,15 @@ const za::Vector<Category> categoryList = {
             {"body", "Body Slash"}, {"shoulder", "Shoulder Slash"}}},
     // Slaps (QC vr_melee.qc VR_Melee_Slaps; ROUND21.md, "Slaps"): an open hand swung across.
     {{"slap", "Expected Slap"}, {any, {"forehand", "Forehand"}, {"backhand", "Backhand"}}},
+    // Neck snaps (ROUND22.md, "Neck snap takes"): both hands holding the training dummy's head, neck or shoulders and
+    // twisting; the take should (should not) snap its neck (vr_foegrab.cpp neckSnap: the "necksnap" event). eval.sh
+    // replays them under both twist detectors (vr_motion_eval ... necksnap <method>).
+    {{"neck_snap", "Neck Snap Expected"},
+        {any, {"head", "At the Head"}, {"neck", "At the Neck"}, {"push_pull", "Push-Pull"}, {"turn", "Turn"},
+            {"tilt", "Tilt"}}},
+    {{"no_neck_snap", "Neck Snap Not Expected"},
+        {any, {"shoulders", "At the Shoulders"}, {"slow", "Too Slow"}, {"small", "Too Small"}, {"pull", "Pull"},
+            {"lift", "Lift"}, {"adjusting", "Adjusting the Grip"}}},
 };
 } // namespace
 
@@ -109,7 +118,7 @@ za::Vector<int> categoryOrder()
     // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
     static constexpr const char* order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
         "hilt_pommel", "punch", "slap", "palm_shove_1h", "palm_shove_2h", "gun_strike", "decapitation", "no_decapitation",
-        "other"};
+        "neck_snap", "no_neck_snap", "other"};
     const auto& list = categories();
     za::Vector<int> out;
     for(const char* name : order)
@@ -645,7 +654,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 {
     static constexpr const char* prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
-        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult"};
+        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult", "vr_foegrab_necksnap"};
     za::String out;
     for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
     {
