@@ -1144,7 +1144,8 @@ struct Match
     {
         const Event& e = events[i];
         if(hitsAndPushes && !isHit(e) && e.kind != "push" && e.kind != "parry" && e.kind != "deflect" && e.kind != "strike" &&
-           e.kind != "decap" && e.kind != "necksnap")
+           e.kind != "decap" && e.kind != "necksnap" &&
+           e.kind != "lift" && e.kind != "judothrow")
         {
             continue;
         }

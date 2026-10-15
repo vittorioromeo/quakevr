@@ -1806,6 +1806,13 @@ bool liftCheck(int c, const TwoHands& t)
         Con_Printf("foegrab: both hands lift %s (%d) at %.2f m/s up, %.0f units from you: %s\n", name, NUM_FOR_EDICT(m),
             up, off, result >= 2.f ? "would be lifted (it stands)" : result >= 1.f ? "lifted" : "it can't be knocked down now");
     }
+    if(result >= 1.f)
+    {
+        // The motion recorder's "lift" event (MOTIONS.md, "Lift and judo throw takes"): the hands' pull up; sub says
+        // whether it was knocked down or the training dummy would have been (it stands).
+        qvr::motion::qcEvent("lift", result >= 2.f ? "standing" : "knocked_down", -1, up, nullptr, m,
+            va("%.2f m/s up, %.0f units from you", up, off));
+    }
     if(result != 1.f)
     {
         return true;
@@ -1873,6 +1880,10 @@ void throwCheck(int c, const TwoHands& t)
     }
     if(result >= 1.f)
     {
+        // The motion recorder's "judothrow" event: the two-hand throw's way (sub), the turn.
+        qvr::motion::qcEvent("judothrow", along > throwAwayCos ? "away" : along < -throwAwayCos ? "towards" :
+                glm::cross(away, dir).z > 0.f ? "left" : "right",
+            -1, twist, nullptr, m, va("%.0f deg/s at %.2f m/s, %s", twist, speed, wayName));
         // Held on (vr_foegrab_throw_hold): its ragdoll stays in the hands, softly (it falls, toppled, and the hands steer
         // and drag it); else let go.
         if(vr_foegrab_throw_hold.value == 0.f ||
