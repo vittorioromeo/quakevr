@@ -129,7 +129,7 @@ struct Previous
     glm::vec3 handSpin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float handSpinLag[2]{0.f, 0.f}; // seconds the spin is older than its sample: half the turn's interval (its middle)
     // The same of the controller's own orientation (timescale::controllerPose: the slowed hand's lags it), for the
-    // throw's direction in slow motion (vr_throw_slowmo_aim).
+    // throw's direction in slow motion (vr_throw.cpp strokeEstimate).
     glm::quat ownRot[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}};
     double ownRotTime[2]{-1.0, -1.0};
     glm::vec3 ownSpin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
@@ -535,7 +535,7 @@ void updateVelocities(const TrackingState* t)
         glm::vec3 throwSpin = state.angVel[h];
         float throwSpinLag = 0.f;
         // The controller's own motion where the slowed hand lags it (slow motion: timescale::controllerPose), the same
-        // otherwise: the way a throw goes (vr_throw_slowmo_aim).
+        // otherwise: the way a throw goes (vr_throw.cpp strokeEstimate).
         throwing::Motion own{state.pos[h], throwVel, throwSpin, throwForward};
         const Pose* ctrl = t ? timescale::controllerPose(h) : nullptr;
         if(t && t->hands[h].velocityValid)

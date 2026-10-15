@@ -3,7 +3,7 @@
 # the release's windows in real time", "Throws in bullet time: the way the controller moved"), played with
 # `vr_debug_throw 1` after the cvars (e.g. "vr_bullettime;wait" for bullet time at 0.3x; add
 # "vr_timescale_hand_speed 0;vr_timescale_hand_spin 0" for unslowed hands: each throw then 1/0.3 of the full-speed one,
-# the same direction; "vr_throw_slowmo_real_time 0": as before; "vr_throw_slowmo_aim 0": the slowed hand's way).
+# the same direction).
 # `stretch` (default 1): every motion that many times slower (3.333: the same throws made slowly in bullet time at 0.3x).
 # `keyrate` (default 90): the motion's keys a second (throw_plays.py --rate; 1000: smooth between the frames, the
 # throws much less dependent on where the frames fall, which moved the 90-key throws by up to 10 degrees).
