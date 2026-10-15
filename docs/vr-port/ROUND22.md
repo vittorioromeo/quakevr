@@ -8160,6 +8160,52 @@ eyes), the frame's GPU 1.643 vs 1.596; the models' CPU 0.070 vs 0.069 ms (a look
 In VR: shoot a grunt with the nailgun and the shotgun, cut one with a blade, rocket an ogre: each hit should leave a
 small dark crater of raw flesh with a bloody rim that stays as he moves, dies and falls as a ragdoll; never a hole
 through an arm. Too subtle or too much: Dent Depth and Dent Size.
+
+### Weapons aren't flesh; small craters on heads (worktree `goreflesh`, branch `agent/dentfix`, 2026-10-16)
+
+His question: "since the grunt's weapon is part of its model, does it also get dented and looks like flesh?" It could:
+placement skipped the gun's triangles, but the shader dented and painted every vertex by its rest-pose distance, so a
+dent on the hand or chest beside the gun reached into the gun. And a rocket's crater on a grunt's face covered all of it.
+
+- **A flesh table per model** (`vr_dents.cpp` `fleshOf`, made with its first dent): each vertex's flesh, 1 or 0, fading
+  from 0 to 1 over 1.5 units (rest pose) from a non-flesh piece. Not flesh: (1) the rig's loose pieces; (2) any piece
+  of the mesh (its triangles joined by their corners; a triangle with a repeated corner joins nothing) shrunk to a
+  speck (under 0.5 units) in some frame: a weapon dropped in a death, a muzzle flash, on any model, rig or none (AD's);
+  (3) a short list of rig bones that are weapons held to the end (`notFleshBones`). A piece tucked away at rest (the
+  zombie's and mummy's thrown flesh) is marked but nothing fades near it. (1) and (2) agree vertex for vertex on id's
+  monsters, so (2) is what covers rigless models.
+- **Drawn:** the table (4 vertices a row) after the bodies' rows in the dents' buffer (16384 rows: 65536 vertices;
+  past it a model is all flesh); a header row before each body's dents gives its model's table, read by `gl_VertexID`
+  (a `.mdl`'s drawn vertex, and the same index in a ragdoll's skinned model). The vertex shader multiplies the push by
+  it (and skips the dents on a weapon's vertices) and hands it on in `out_restnor.w`; `DentsAt` scales the crater,
+  rim, depth and slope by it (smoothstep 0.15-0.85). A triangle with a corner of no flesh still gets no dent.
+- **Per model** (`vr_gore_dents_info` lists each model's counts): grunt 86 of 555 vertices (the shotgun), enforcer 59
+  of 479 (the rifle and its flash), ogre 119 of 497 (the chainsaw's four pieces, and his left hand: the grenade
+  launcher, by bone), knight 61 of 655 (the sword), hell knight 59 of 538 (blade and guard), Rogue's gremlin 38 of 123
+  (the gun he holds); zombie 20 and mummy 12 (the thrown flesh, inside them). By bone label, AD's weapon hands (each
+  bone the weapon with the hand round its grip): the crossbow knight, the three hunter ogres, the death guard, the
+  justice and the judicator knights, the death sergeant's hand and flail; AD's enforcer, pyro and centurion guns (hidden
+  on death) are found as dropped pieces. AD isn't installed here: its rows are untested. Not covered (left as flesh):
+  armour (the knights are armour all over: none would be dented), the death knight's and the fury's swords (their bones
+  carry the forearm too).
+- **Blast craters** (and a blast's lesser wounds round it): held to the part they land on, at most 0.8 of the part's
+  half width (half its rest points' middle extent: the grunt's chest's cap 5.8, a forearm's 2), 0.4 on the head and
+  its jaw (the grunt's cap 1.9: an eye, not the face); no rig, 0.6 of the thickness under it; never under 1.5. Where the crater
+  lands, the head counts 10 units further than it is: a rocket at his face craters his chest or shoulder unless the head
+  is clearly nearest. Merges keep the smaller cap.
+
+Tests (vrtesthall, `vr_wounds 0`, `scratch/fleshshots.sh <monster> <distance> <eye m> <prefix> <cvars> "<rights>"
+"<ups>"`: a grid of nails at the weapon): the grunt (40 nails over the gun and the hands on it, `fl_grunt_gun.png`), the
+enforcer (28 at the rifle, `fl_enf.png`) and the ogre (20 at the launcher and arm, `fl_ogre_box.png`): flesh dented
+right up to each weapon, the weapon as before. `scratch/fleshblast.sh 0 50 1.15 fl_blast 26`: a blast at the grunt's
+face height cratered his chest (r 5.4); a 120 one a little aside left a crater the size of an eye on his brow
+(`fl_blast_face.png`). `scratch/fleshrag.sh`: a dented ragdoll still shows its craters on the body. e1m1 smoke clean.
+Cost: placing a dent 9.1-9.7 us (8.8-8.9 before; the table made once per model); the shader adds one read per vertex
+of a dented body. The GPU A/B (`dentperf.sh`) was swamped by other load on the machine (both builds swung 0.5 ms
+either way): to be measured again on a quiet machine.
+
+In VR: shoot a grunt's hands and chest round his gun, an enforcer's round his rifle, an ogre's left forearm: craters
+on the flesh, none on the weapons. Rocket a grunt at his face: a crater on his chest or a small one on his face.
 ## More gore: blood streams, back-splatter, teeth (worktree `gorefx`, branch `agent/gorefx`, 2026-10-16)
 
 His words: "I basically want this to look like a continuous thin blood waterfall. Research some techniques to implement
