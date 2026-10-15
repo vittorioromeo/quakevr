@@ -1456,7 +1456,7 @@ LIQUID_SWELL \
 "{\n" \
 "	uint PermDecalTable[];\n" \
 "};\n" \
-"layout(binding=18) uniform sampler2D PermDecalAtlas;\n" \
+"layout(binding=18) uniform sampler2DArray PermDecalAtlas; // (its layers: PermDecals.y squared slots each)\n" \
 "\n" \
 "vec4 PermDecalsAt(vec2 g, vec2 pages, vec2 dgdx, vec2 dgdy) // w 1: a page there\n" \
 "{\n" \
@@ -1465,12 +1465,13 @@ LIQUID_SWELL \
 "	uint e = PermDecalTable[uint(pages.x + 0.5) + uint(page.y * across + page.x + 0.5)];\n" \
 "	if (e == 0u)\n" \
 "		return vec4(1.0, 1.0, 1.0, 0.0);\n" \
-"	uint slot = e - 1u, row = uint(PermDecals.y + 0.5);\n" \
+"	uint row = uint(PermDecals.y + 0.5), perlayer = row * row;\n" \
+"	uint slot = (e - 1u) % perlayer, layer = (e - 1u) / perlayer;\n" \
 "	float lod = clamp(log2(max(max(length(dgdx), length(dgdy)), 1e-6)), 0.0, 3.0);\n" \
 "	float rim = 0.5 * exp2(ceil(lod));\n" \
 "	vec2 local = clamp(g - page * 30.0 + 1.0, vec2(rim), vec2(32.0 - rim));\n" \
 "	vec2 at = (vec2(float(slot % row), float(slot / row)) * 32.0 + local) * PermDecals.z;\n" \
-"	return vec4(textureLod(PermDecalAtlas, at, lod).rgb * (1023.0 / 512.0), 1.0);\n" \
+"	return vec4(textureLod(PermDecalAtlas, vec3(at, float(layer)), lod).rgb * (1023.0 / 512.0), 1.0);\n" \
 "}\n"
 
 // the world vertex shader's permanent decals (QVR_PERMDECAL_FUNCTIONS): their attribute and outputs

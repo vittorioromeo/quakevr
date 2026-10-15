@@ -6302,3 +6302,38 @@ red and the hands throw red light; Biosuit: the same in green; with Quad too, th
 Body > Pentagram Glow / Biosuit Glow 0 brings back the old tint." "A fresh config has his blood feedback, Quad (glow
 and arcs, 2x), bash, neck snap (method 1), judo throw, lift, limb grab, reload, decal and PBR values, and bare
 forearms."
+
+## Permanent decals: the slowdown, a full atlas, on and off (worktree `permdecals`, branch `agent/permdecals3`, 2026-10-15)
+
+His note (23:07:45): blood/decal slowdowns, exactly when marks bake (and whether only at the bucket limit), and off
+leaving some marks and removing others. Details, tables and the rule: `PERM_DECALS.md` ("When a mark is baked", "On and
+off", "Performance").
+
+- **The slowdown**: the bake (`permdecals::flush`, every frame a mark baked) asked GL for the framebuffer, viewport and
+  scissor; a glGet waits for the GPU. With the GPU busy (98%, as under a compositor) one flush took up to 325 ms of CPU
+  and 230 of 711 flushes over 0.5 ms in a gore-2 crowd fight (vrfiringrange, 32 monsters, 16 blasts); now 0.09 ms at
+  most, none over 0.5 (no glGet: it runs before `R_SetupGL` and leaves framebuffer 0, as the shadow maps do). Also the
+  whole page table went up for each new page (152 MB in 6 s; now 0.43 MB, changed runs only), emptied slots were a
+  scissored clear each (one draw now), the full-atlas eviction scanned every slot per page (an O(1) list now), and the
+  program and texture were made at the first mark (5-10 ms; now in the load). New `vr_permdecal_bake_max` (1024 pages
+  a frame; the rest stay live a frame or more).
+- **When marks bake**: not at the bucket limit (`vr_decal_bucket_max` only lists the live marks): chips, scorches,
+  plain blood 0.1 s after they show; spreading marks when spread; the gore's drying marks (sprays, runs, pools) after
+  8 s; at once when the live ring lets them go early, and on doors and lifts.
+- **Atlas full keeps marks**: a 2D array that grows by layers (`vr_permdecal_atlas_max`, 512 MB: 6 layers of 85 MB at
+  4096); only full at that does a page give its slot up. A 1024 atlas at density 0.25 grew to 4 layers with none given
+  up, its frame the same as one 4096 layer's (peak 1); capped at one layer it lost 2922 pages.
+- **On and off, one rule**: every mark is kept, on or off; on shows them all baked; off (`vr_permdecals 0`) shows the
+  newest `vr_decal_max` live, exactly as the game without the layer (frame-identical to the layer off from the start);
+  marks let go while off are kept and baked once on (only those: 0.46 ms); `vr_decals 0` hides both (the frame with no
+  marks), 1 brings them back. Saves keep the live marks not baked yet too.
+
+Files: `Quake/vr/vr_permdecals.cpp/.hpp`, `vr_decals.cpp/.hpp` (`showRecord`, `pushDecal`, `bakeSettled`'s budget and
+switch, `liveStamps`), `vr_glsl.h` (array sampler), `vr_gfx.hpp/_gl.cpp` (`gfx::update`), `vr_cvars.inc` (two cvars),
+`vr_menu.cpp` (help texts). `Misc/quakevr/permdecal_test.sh` (7 runs: cap/doors/saves, burst budget, atlas growth, the
+on/off frames; `permdecal_shots.py`) PASS under his defaults (512/24); build 0 warnings; e1m1 smoke clean. Off against
+the base build: 33 pixels of 518400 differ by 1.
+
+Checklist (proposed): "Permanent Decals: a big gore fight (e1m1 or a crowd) has no stutter as blood lands; turning
+Permanent Decals off leaves the newest marks (Max Decals) and on again brings every mark back, none darker; marks made
+while off are there once on; save and load keep the freshest marks too."
