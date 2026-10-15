@@ -766,8 +766,6 @@ const DefaultChange defaultChanges[] = {
     {135, &vr_suit_glow_light, "1"},                 // 2
     // 136: the bullet-time throw is the stroke's tempo's alone (ROUND22.md, "Bullet-time throws: the stroke's tempo
     // only"): the older rules' settings are retired (retiredCvars), nothing here to change.
-};
-constexpr int configVersion = 137;
     // 137: the neck snap measured by the hand line only (Velocity and its Twist Speed gone), at the author's values ("I
     // took the neck snap settings ... Those are the ones I want", 2026-10-15; ROUND22.md, "Neck snap: the Hand Line
     // only"): 75 degrees within 0.15 s, the head zone as the headshots' (no margin, no neck below it).
