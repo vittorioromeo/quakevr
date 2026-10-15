@@ -6072,3 +6072,53 @@ at 5 m/s, 194-215 kg m/s): stagger through VR_Prop_Flung. Shoves unchanged (test
 Checklist (proposed): "Hits unbalance: throw a heavy crate or a weapon hard at a grunt, or punch/axe it hard (the head
 counts more): it staggers back as from a shove (sometimes falls); light taps never; an ogre seldom, a shambler rarely;
 hitting it again right after doesn't re-stagger it (4 s). Combat > Knockdowns > Hits Unbalance to tune or turn off."
+
+## Impacts and manhandling (worktree `voxelopt`, branch `agent/ragimpact`, 2026-10-15)
+
+BACKLOG "Playtest voice notes, 2026-10-14" > "Throwing, grabbing and living ragdolls": Thrown living-enemy damage,
+Landing crush, Head/wall slams and live-ragdoll access, Impact dismemberment. His decision for more ways into live-ragdoll
+interaction: "Grab while staggered" and "Low health".
+
+`QC/vr_ragimpact.qc` (new, after vr_foegrab_throw.qc); engine `vr_box3d.cpp` (`noteRagImpacts`, `callRagImpacts`,
+`grabRagdoll`) and `vr_foegrab.cpp` (`manhandle`).
+- **Strikes** (engine): each ragdoll part's hardest hit on the level (world, doors, fixtures) per frame, from Box3D's hit
+  events: its approach speed (m/s), capped at `vr_ragimpact_whip` (2) x its body's speed before the step (a limb or welded
+  sword whipping on a throw is no blow) unless a hand holds the part; the mass behind it: the part's + `vr_ragimpact_body`
+  (0.1) of the rest + `vr_ragimpact_held_mass` (20 kg, your arm) when held. Grunt: 80 kg, torso 23 kg, head 5 kg; behind
+  a held head 33 kg, a free torso 29 kg. Not a loose weapon, not while staggering or getting up.
+- **Damage** (QC `VR_RagImpact_Hit`): `vr_ragimpact_damage` (0.15) x mass x (speed - `vr_ragimpact_min_speed` (2.5), or
+  `vr_ragimpact_held_speed` (1) for a held part), x `vr_ragimpact_head` (1.5) on the head; one strike per piece per 0.15 s.
+  Only bodies you drive: held, or let go of/thrown within `vr_ragimpact_time` (2 s; the two-hand throw now marks
+  `vr_rag_letgo`). A shove's knockdown falling over by itself takes only its fall damage, as before.
+- **Pieces** (shared count `vr_limb_corpse_dmg[]`, the corpse wear's): the head (`ragdollhead`) or limb (`VR_Limb_At`)
+  struck accumulates the damage; its own health = corpse health x `vr_ragimpact_piece_hp` (0.4: a grunt's head 32). The
+  living: damage to health (T_Damage); a head worn past it pops and kills (`VR_Decap_Arm`, sure); a limb worn past it
+  pops on the strike that kills (`VR_Limb_Arm`), else on the next strike once dead. The dead: `VR_Limb_WearInto` (the
+  shared wear path; torso strikes do nothing on corpses).
+- **Landing crush** (`client.qc` landing -> `VR_RagImpact_Crush`): landing at `vr_ragimpact_crush_speed` (400 u/s) or
+  more on a living ragdoll: the part under your feet (`ragdollbone` within your feet's square) takes damage x
+  `vr_ragimpact_crush_mass` (50 kg) x (speed - 400 u/s in m/s) x `vr_ragimpact_crush` (1), the same piece path.
+- **Manhandling**: one hand taking hold of a humanoid (the lift's classes, not the dummy) staggered within
+  `vr_foegrab_manhandle_stagger` (1.5 s: a shove landed, an unbalancing hit, a stagger recovered; `.vr_kd_shaken`) or at
+  `vr_foegrab_manhandle_health` (0.25) of its health or less: knocked down in place, held in that hand as a lifted one
+  (lift strength, flailing, breaks free after Lift Time). A staggering ragdoll a hand takes goes down
+  (`ragactive::lapse`). Healthy and steady: held standing as before; lifting unchanged.
+- Menu: Combat > Knockdowns, "Impacts" (7 rows); Combat > Holding Enemies after Lift: "Grab While Staggered", "Grab
+  When Weak". Debug > Tests: Impacts print/state/throw at a wall/drop you onto it, Manhandle staggered now.
+  `vr_knockdown_test 50..58` (`VR_RagImpact_Test`). `vr_knockdown_debug 2`: the engine's every strike.
+- Test: `Misc/quakevr/foegrab/ragimpact_test.py <agent> [wall slam crush grab]`. The judo test's staggering neck snap
+  case now sets `vr_foegrab_manhandle_stagger 0` (else the grab knocks it down first: snapped "knocked down").
+
+Verified (headless): a grunt knocked down 48 units off a wall and flung at it at 7 m/s: 8 strikes, 58.6 damage, dead
+(Impacts off: 0 strikes, 30 health). Ten one-hand head slams on the floor (the hand kept above it, the head 1.7-3.9 m/s):
+4-6 head strikes of 3-19, dead after about 3, head popped; 3/3 runs. Dropped 256 units onto a knocked-down grunt
+(20.3 m/s): 57 to its torso, dead; 96 units: nothing. One-hand grab: staggered -> knocked down, held; at a fifth of its
+health -> knocked down, held; healthy -> held standing; staggering ragdoll taken -> goes down, "staggered and fell".
+Regressions: melee eval 168/177 (same take differs FAIL -> FAIL as before), judo lift 6/6, judo neck staggering PASS,
+limb wear 11/11, e1m1 smoke clean, menu paths 0 missing, build 0 warnings.
+
+Checklist (proposed): "Impacts: lift a grunt and throw it hard into a wall: it is badly hurt or killed; grab a knocked-down
+grunt's head with one hand and slam it on the floor or a wall 3-4 times: it dies, and its head pops soon after; jump onto
+a knocked-down one from a high ledge: the part you land on is crushed. Shove a grunt and grab it with one hand within a
+second or so: it goes down in your hand; same for one badly hurt; a healthy one you just hold. Combat > Knockdowns >
+Impacts and Holding Enemies > Grab While Staggered/When Weak to tune."
