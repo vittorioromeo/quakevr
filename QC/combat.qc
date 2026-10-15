@@ -1476,9 +1476,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     //MED
     // moved damage_attacker down a bit
 
-    // HONEY
-    // cg: check if this needs a specific damage type
-    if((targ.flags & FL_SPECIFICDAMAGE) && !(attacker.damage_weapon & targ.items)) {
+    // HONEY: a target only some weapons hurt, by the credit of what struck it (vr_dmgcredit.qc).
+    if(!VR_DamageCredit_Accepts(targ, inflictor))
+    {
         return FALSE;
     }
 

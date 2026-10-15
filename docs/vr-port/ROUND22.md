@@ -7107,3 +7107,39 @@ snapped, 40 samples over 3.3 s:
 standing and lying, and carry its body by the head: the head should loll and roll; carry a knocked-down grunt into deep
 water and hold it, then let go: it swims, then gets up where it floats or at the bank beside it. Not done: a loaded
 game's ragdoll made again has a stiff neck.
+
+## Weapon damage credit from the damage dealer (2026-10-15, worktree `backlogclean`, branch `agent/dmgcredit`)
+
+His words: "Please fix the missile weapon credit in a robust non-hacky way." Honey's `FL_SPECIFICDAMAGE` targets (a
+button given `.items`: "shoot it with the rocket launcher") take damage only from those weapons. T_Damage read the
+*attacker's* `.damage_weapon`, which only some fire functions set on the player, some after the shot: a nail, laser,
+plasma bolt, lava nail, bomblet or thrown weapon was credited with whatever the player had fired or swung last, and even
+the shotguns' own pellets with the weapon before them.
+
+Now (`QC/vr_dmgcredit.qc`): whatever deals the damage carries the credit, stamped once where it is made, and T_Damage
+reads its *inflictor's* (`VR_DamageCredit_Accepts`; the shotguns' hit test and a grenade's bounce-or-blow too).
+- `WeaponIdToDamageCredit`: one table from weapon id to Honey's IT_* bit; variants as the weapon they stand for (lava
+  nails, multi grenades/rockets, the plasma guns, AD's soldiers' guns, the proximity gun as the grenade launcher, the
+  grunt's gun as the shotgun, the enforcer's rifle as the laser cannon, the melee weapons as the axe); fist, grapple,
+  toolgun and AD's flamethrowers credit nothing.
+- A player's projectile: `VR_ShotLaunched(missile, hand)` (the launch hook every player projectile already went
+  through as `VR_ShotPlace`, renamed at the call sites: base, Hipnotic, Rogue, enemy and AD guns) credits it with the
+  hand's weapon. AD's player plasma and projectile pellets and the flamethrowers' flames, which don't go through it,
+  call `VR_DamageCredit_FromHand`.
+- Hitscan (the player is the inflictor): `FireBullets` (every player shotgun, the grunt's gun, AD's defender) and
+  `W_FireLightning` credit the player from the hand before the shot; the underwater discharges and the lightning-in-water
+  shock too. The old after-the-shot stamps are gone, and so is `LightningDamage`'s (a bolt's credit is its `from`'s).
+- Thrown weapons: `MakeThrown` credits the weapon thrown. Props credit nothing.
+- What a dealer makes inherits its credit (`VR_DamageCredit_Inherit`): explosions are their missile (the same entity),
+  the multi grenade's bomblets theirs, Mjolnir's (and the Super Axe burst's) lightning chain its base, which takes the
+  hand's weapon (`HIP_SpawnMjolnirBase(xHand)`), AD's poison its spray (`VR_ADGun_Poison` takes it).
+- Monsters' shots stay unstamped (their own credit: the grunt's Honey `IT_SHOTGUN`); traps' and monsters' lightning
+  bolts no longer borrow `IT_LIGHTNING` from `LightningDamage`.
+
+Test: `vr_dmgcredit_test 1` (Debug > Tests > Damage Credit; `100+i` one weapon): each weapon fired from the main hand
+at a target taking only its own bit, then only another weapon's bit (the player's last credit set to that one first).
+e1m1, hand aimed level (`vr_mock_hand main 0.2 1.0 -0.3 65 0 0`): before 3 passed, 15 failed (only grenade, rocket and
+lightning right; the shotguns, nails, laser cannon, proximity grenade, lava nails, multi grenades/rockets, plasma, the
+enemy guns and both thrown weapons credited with the previous weapon); after 18 passed, 0 failed. AD's guns are not in
+the test base (skipped). To try in VR: a Honey weapon-specific button with the right weapon and a wrong one, after
+firing the right one first.

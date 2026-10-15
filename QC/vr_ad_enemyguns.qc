@@ -264,7 +264,7 @@ void(float xHand, float xWid) VR_ADGun_FirePlasma =
     m.vr_adgun_wid = xWid;
     m.vr_adgun_dmg = VR_ADGun_Value(xWid, "damage");
     m.vr_adgun_splash = VR_ADGun_Value(xWid, "splash");
-    VR_ShotPlace(m, xHand); // (its muzzle's crackle: ad_launch_plasma's VR_ADGun_BoltFx, as the monsters')
+    VR_ShotLaunched(m, xHand); // (its muzzle's crackle: ad_launch_plasma's VR_ADGun_BoltFx, as the monsters')
     VRGunHaptic(xHand, 0.3, 60, 0.7);
 };
 
@@ -282,7 +282,6 @@ void(float xHand) VR_ADGun_FireDefender =
     vr_pellet_damage = 0;
     VRGunHaptic(xHand, 0.4, 70, 0.9);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
-    self.damage_weapon = IT_SUPER_SHOTGUN; // HONEY
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -326,8 +325,9 @@ void() VR_ADGun_PoisonThink =
     self.nextthink = time + 0.25;
 };
 
-// `xVictim` poisoned by `xBy` for `xTime` s, `xDps` a second (again: from now on, the stronger of the two).
-void(entity xVictim, entity xBy, float xDps, float xTime) VR_ADGun_Poison =
+// `xVictim` poisoned by `xBy` with `xFrom` (the spray that struck: its damage credit) for `xTime` s, `xDps` a second
+// (again: from now on, the stronger of the two).
+void(entity xVictim, entity xFrom, entity xBy, float xDps, float xTime) VR_ADGun_Poison =
 {
     if(xDps <= 0 || xTime <= 0 || !xVictim.takedamage || xVictim.health <= 0)
     {
@@ -354,6 +354,7 @@ void(entity xVictim, entity xBy, float xDps, float xTime) VR_ADGun_Poison =
         }
     }
     p.owner = xBy;
+    VR_DamageCredit_Inherit(p, xFrom);
     p.dmg = max(p.dmg, xDps);
     p.attack_finished = max(p.attack_finished, time + xTime);
 };
@@ -441,7 +442,7 @@ void() VR_ADGun_FlameTouch =
     }
     if(self.vr_adgun_poison > 0)
     {
-        VR_ADGun_Poison(other, self.owner, self.vr_adgun_poison, self.vr_adgun_ptime);
+        VR_ADGun_Poison(other, self, self.owner, self.vr_adgun_poison, self.vr_adgun_ptime);
     }
     remove(self);
 };
@@ -465,6 +466,7 @@ void(float xHand, float xWid) VR_ADGun_FireFlame =
     vector org = VRGetMuzzlePos(xHand);
     entity f = spawn();
     f.classname = "vr_adflame";
+    VR_DamageCredit_FromHand(f, self, xHand);
     f.owner = self;
     f.movetype = MOVETYPE_FLYMISSILE;
     f.solid = SOLID_TRIGGER;
@@ -705,7 +707,7 @@ void() VR_ADGun_ShotsTestThink =
             setmodel(og, ad_MODEL_PROJ_GRENADE);
             setsize(og, '0 0 0', '0 0 0');
             setorigin(og, VRGetMuzzlePos(cVR_MainHand));
-            VR_ShotPlace(og, cVR_MainHand);
+            VR_ShotLaunched(og, cVR_MainHand);
             VR_Grenade_Make(og, GrenadeExplode, 2.5, TRUE);
         }
         else { VR_EnemyGun_Attack(cVR_MainHand, wid, 0, &self.attack_finished); }

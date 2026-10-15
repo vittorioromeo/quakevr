@@ -104,7 +104,7 @@ float(float xHand, entity xVictim, vector xAt, float xDmg) MG3_SuperAxe_Strike =
         MG3_SuperAxe_EndChain(self);
         delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, MG3_SUPERAXE_BURST_CELLS);
         trace_endpos = xAt;
-        HIP_SpawnMjolnirBase();
+        HIP_SpawnMjolnirBase(xHand);
         vr_superaxe_bursts++;
         if(cvar("developer"))
         {

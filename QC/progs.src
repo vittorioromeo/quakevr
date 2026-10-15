@@ -8,6 +8,8 @@ vr_weaponinst.qc
 // has already compiled).
 vr_util.qc
 vr_handgrabutil.qc
+// The weapon a blow is credited with (Honey's FL_SPECIFICDAMAGE): stamped where the damage dealer is made, read by T_Damage.
+vr_dmgcredit.qc
 
 vr_portal_ai.qc
 vr_portal_ai_test.qc

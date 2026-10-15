@@ -383,7 +383,7 @@ float FL_PARTIALGROUND  = VRUTIL_POWER_OF_TWO(10); // Not all corners are valid.
 float FL_WATERJUMP      = VRUTIL_POWER_OF_TWO(11); // Player jumping out of water.
 float FL_JUMPRELEASED   = VRUTIL_POWER_OF_TWO(12); // For jump debouncing.
 float FL_EASYHANDTOUCH  = VRUTIL_POWER_OF_TWO(13); // Adds bonus to boundaries for handtouch.
-float FL_SPECIFICDAMAGE = VRUTIL_POWER_OF_TWO(14); // HONEY.
+float FL_SPECIFICDAMAGE = VRUTIL_POWER_OF_TWO(14); // HONEY: takes damage only from the weapons in its .items (vr_dmgcredit.qc).
 float FL_FORCEGRABBABLE = VRUTIL_POWER_OF_TWO(15); // VR.
 
 //

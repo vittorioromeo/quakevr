@@ -626,6 +626,14 @@ void(entity xMissile, float xHand) VR_ShotPlace =
     }
 };
 
+// A player's projectile just launched from hand `xHand` (self the player; every weapon's, the expansions' and the
+// enemy guns' too): credited with the hand's weapon (vr_dmgcredit.qc), and placed behind what the muzzle is inside.
+void(entity xMissile, float xHand) VR_ShotLaunched =
+{
+    VR_DamageCredit_FromHand(xMissile, self, xHand);
+    VR_ShotPlace(xMissile, xHand);
+};
+
 // The projectiles placed this frame with something that takes damage along the weapon (VR_ShotPlace) touch what they
 // meet there now (the first one's hit may have shoved it), where they meet it: at the end of the player's frame
 // (PlayerPostThink), after its weapons fired and before the projectiles move.
@@ -770,10 +778,10 @@ void(float xHand, float stat) HIP_FireLaser =
 
         org = org + (aofs*v_right);
         newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
-        VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+        VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
         org = org - (2*aofs*v_right);
         newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
-        VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+        VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     }
     else if(stat == 1)
     {
@@ -784,13 +792,13 @@ void(float xHand, float stat) HIP_FireLaser =
         if(random() < 0.1)
         {
             newmis = HIP_LaunchLaser(org, dir, extraVel, 1);
-            VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+            VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
             newmis.dmg = VR_LaserBoltDamage(TRUE);
         }
         else
         {
             newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
-            VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+            VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
         }
     }
 
@@ -991,6 +999,7 @@ void(entity prev, entity own, float dst) HIP_SpawnMjolnirLightning =
    light.lastvictim = prev;
    light.distance = dst;
    light.owner = own;
+   VR_DamageCredit_Inherit(light, own); // (the chain's credit: its base's)
    light.v_angle = self.angles;
    light.v_angle_x = 0;
    light.v_angle_z = 0;
@@ -999,7 +1008,8 @@ void(entity prev, entity own, float dst) HIP_SpawnMjolnirLightning =
    light.nextthink = time;
    };
 
-void() HIP_SpawnMjolnirBase =
+// xHand: the hand whose weapon struck it (Mjolnir, the Super Axe's burst): the chain's credit.
+void(float xHand) HIP_SpawnMjolnirBase =
    {
    entity light;
    // spawn lightning base
@@ -1008,6 +1018,7 @@ void() HIP_SpawnMjolnirBase =
    light.origin = trace_endpos;
    light.flags = 0;
    light.owner = self;
+   VR_DamageCredit_FromHand(light, self, xHand);
    light.struck_by_mjolnir = 1;
    light.think = SUB_Remove;
    light.nextthink = time + 1;
@@ -1041,6 +1052,7 @@ void(float xHand, vector xAt) HIP_FireMjolnirLightning =
         cells = self.ammo_cells;
         self.ammo_cells = 0;
         discharged = 1;
+        VR_DamageCredit_FromHand(self, self, xHand); // (the discharge's inflictor: the player)
         T_RadiusDamage(self, self, 35*cells, world);
         discharged = 0;
         W_SetCurrentAmmo();
@@ -1049,7 +1061,7 @@ void(float xHand, vector xAt) HIP_FireMjolnirLightning =
 
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 15);
 
-    HIP_SpawnMjolnirBase();
+    HIP_SpawnMjolnirBase(xHand);
 };
 
 // A swing (tagged by PlayerVRMeleeImpl) struck at trace_endpos, going along `xDir`: kept for the
@@ -1792,7 +1804,7 @@ float(entity hit, float damage) AddMultiDamage =
     }
 
     // HONEY
-    return !((hit.flags & FL_SPECIFICDAMAGE) && !(hit.items & self.damage_weapon));
+    return VR_DamageCredit_Accepts(hit, self); // (the shooter's hitscan shot: FireBullets credited him)
 };
 
 /*
@@ -2067,6 +2079,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
 
 void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
 {
+    VR_DamageCredit_FromHand(self, self, xHand); // (a hitscan shot's inflictor: the shooter; vr_dmgcredit.qc)
     if(VRGet2HAiming(self))
     {
         spread *= cvar_hget(cvarh_vr_2h_spread_reduction);
@@ -2153,9 +2166,6 @@ void(float xHand) W_FireShotgun =
     }
 
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
-
-    // HONEY
-    self.damage_weapon = IT_SHOTGUN;
 };
 
 
@@ -2208,9 +2218,6 @@ void(float xHand) W_FireSuperShotgun =
 
     particle2(VRGetMuzzlePos(xHand) - '0 2 0', '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
     particle2(VRGetMuzzlePos(xHand) + '0 2 0', '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
-
-    // HONEY
-    self.damage_weapon = IT_SUPER_SHOTGUN;
 };
 
 
@@ -2254,9 +2261,6 @@ void() T_MissileTouch =
 
     float rocketScale = VR_WpnDmgScale(self.owner, cvarh_vr_dmg_rocket, 100); // (Weapon Damage)
     damg = (100 + random()*20) * rocketScale;
-
-    // HONEY
-    self.owner.damage_weapon = IT_ROCKET_LAUNCHER;
 
     if(other.health)
     {
@@ -2331,7 +2335,7 @@ entity(float xHand) VR_FireRocketMissile =
     setmodel(missile, "progs/missile.mdl");
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
-    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     return missile;
 };
@@ -2423,9 +2427,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 
     e1 = e2 = world;
 
-    // HONEY
-    self.damage_weapon = IT_LIGHTNING;
-
+    // (The bolt's credit is `from`'s: a player's by his lightning gun, W_FireLightning; vr_dmgcredit.qc.)
     traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise),
     // VR: the prop the beam hits or goes through, pushed (a player's bolt: 30; a shambler's by its damage).
     VR_ShotPush(trace_ent, p1, trace_endpos, p2 - p1, QVR_SHOTPUSH_LIGHTNING, damage / 30);
@@ -2567,7 +2569,7 @@ float(float xHand, vector xAt, float xCells, float xWeapon) VR_LGWater_ShockAt =
     }
 
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, xCells); // the bolt that shorts out
-    self.damage_weapon = xWeapon; // HONEY
+    VR_DamageCredit_FromHand(self, self, xHand); // (the shock's: the player's, its inflictor)
 
     float radius = max(1, cvar_hget(cvarh_vr_lg_water_radius));
     dprint(sprintf("lgwater: shock (hand %g in %g, body %g, waterlevel %g, weapon %g)\n", xHand, handIn, bodyIn,
@@ -2651,6 +2653,8 @@ void(float xHand) W_FireLightning =
         return;
     }
 
+    VR_DamageCredit_FromHand(self, self, xHand); // (the bolt's and the discharge's inflictor: the player; vr_dmgcredit.qc)
+
     // VR: in water, the shock (vr_lg_water).
     if(cvar_hget(cvarh_vr_lg_water) && VR_LGWater_Shock(xHand))
     {
@@ -2669,10 +2673,6 @@ void(float xHand) W_FireLightning =
         T_RadiusDamage(self, self, 35 * cells, world);
         discharged = 0;
         W_SetCurrentAmmo();
-
-        // HONEY
-        self.damage_weapon = IT_LIGHTNING;
-
         return;
     }
 
@@ -2752,9 +2752,6 @@ void() GrenadeTouch =
         return; // retain the grenade's bounce and its original fuse
     }
 
-    // HONEY
-    self.owner.damage_weapon = IT_GRENADE_LAUNCHER;
-
     if(other.takedamage == DAMAGE_AIM && other.mg3_chthon)
     {
         // Dawn of the Machine's Chthon (upstream GrenadeTouch): the whole blast into him (his middle is far above where it
@@ -2774,7 +2771,7 @@ void() GrenadeTouch =
         {
             MG3_Shub_GrenadeHit(); // (Dawn of the Machine's Shub: the hit hers, the blast without her: vr_mg3_shub.qc)
         }
-        else if(!((other.flags & FL_SPECIFICDAMAGE) && !(other.items & IT_GRENADE_LAUNCHER))) // HONEY
+        else if(VR_DamageCredit_Accepts(other, self)) // HONEY: else it bounces off what its weapon can't hurt
         {
             GrenadeExplode();
         }
@@ -2849,7 +2846,7 @@ entity(float xHand) VR_FireGrenadeMissile =
     setmodel(missile, "progs/grenade.mdl");
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
-    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     VR_Grenade_Make(missile, GrenadeExplode, 2.5, TRUE); // QVR: catchable too with vr_grenade_catch 2
     return missile;
@@ -3046,7 +3043,7 @@ void(float xHand) W_FireProximityGrenade =
 
     setmodel(missile, "progs/proxbomb.mdl");
     setorigin(missile, VRGetMuzzlePos(xHand));
-    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     setsize(missile, '-1 -1 -1', '1 1 1');
 
@@ -3103,7 +3100,7 @@ void(float xHand) W_FireSuperSpikes =
     dir = v_forward;
 
     newmis = launch_spike(VRGetMuzzlePos(xHand), dir);
-    VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.touch = superspike_touch;
     newmis.vr_shot_push_kind = QVR_SHOTPUSH_SUPERNAIL;
     setmodel(newmis, "progs/s_spike.mdl");
@@ -3142,7 +3139,7 @@ void(float xHand, float ox) W_FireSpikes =
     delAmmoOrClipAndUpdateCounter(xHand, AID_NAILS, 1);
     dir = v_forward;
     newmis = launch_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
-    VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
 
     newmis.velocity += vrProjectileVelocity(xHand, 1.0);
     VR_Burn_NailLaunched(newmis); // VR: through a torch's flame, a lava nail (vr_burning.qc)
@@ -6475,6 +6472,7 @@ void MakeThrown(entity newmis,
 
     newmis.owner = thrower;
     newmis.vr_throw_self = 0;
+    VR_DamageCredit_SetWeapon(newmis, xWeapon); // (its blow the weapon's: vr_dmgcredit.qc)
 
     newmis.throwstabilize = 8;
     newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);

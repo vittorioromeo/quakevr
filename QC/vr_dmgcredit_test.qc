@@ -226,7 +226,7 @@ void() VR_DCTest_Think =
         VR_DCTest_Place(dist, vr_dctest_pass ? VR_DCTest_Last(i) : VR_DCTest_Expect(i));
         p.damage_weapon = VR_DCTest_Last(i); // (the last blow another weapon's)
         vr_dctest_hit = FALSE;
-        vr_dctest_by = "";
+        if(!vr_dctest_pass) { vr_dctest_by = ""; } // (what struck it in either pass)
         float clip = VRGetEntWeaponClip(p, cVR_MainHand);
         VR_DCTest_Fire(i);
         if(cvar("developer"))

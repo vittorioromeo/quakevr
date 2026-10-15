@@ -173,14 +173,8 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
 - **Rogue's teamplay variants** (`rogue_teamplay.qc`): their item and weapon management is commented out (never
   rewritten for hands and holsters), so `teamplay 3`-style Rogue modes don't work in VR; their impulses
   (`weapons.qc`) are off too.
-- **Rogue's lava nails against players** (`rogue_lava_wpn.qc`): Rogue's ignored armor; here armor counts (the save
-  and restore of the armor around `T_Damage` is commented out). Deathmatch only.
 - **`readytime`** (`vr_defs.qc`): one for every client (no shooting or taking weapons just after a load or a
   spawn); in co-op one player's spawn holds the others for that moment.
-- **`.damage_weapon` of missiles** (`orig_mon_soldier.qc`, Honey's `FL_SPECIFICDAMAGE`): set for the grunt's shot;
-  the plasma and other missile functions may credit the wrong weapon against targets that take only some.
-- **A thrown laser cannon's Quake box** (`weapons.qc`, `WeaponIdToThrowBounds`): the old note said its bounds were
-  wrong; unchecked since Box3D took thrown weapons' collision.
 
 ## Deferred from his release-day notes (2026-10-10)
 
