@@ -7107,3 +7107,16 @@ snapped, 40 samples over 3.3 s:
 standing and lying, and carry its body by the head: the head should loll and roll; carry a knocked-down grunt into deep
 water and hold it, then let go: it swims, then gets up where it floats or at the bank beside it. Not done: a loaded
 game's ragdoll made again has a stiff neck.
+
+## Menu corner: Toolgun shortcut (worktree `tghost`, 2026-10-15)
+
+A "Toolgun" button joins the top-left corner shortcuts (laser, stick focus, flat-screen icon row), between New Panel
+and Checklist, shown only at Menu Detail: Developer (`vr_menu_level 2`, as the Checklist). Pressing it closes the menu
+like Quicksave and runs the Debug menu's own path: `impulse 169` (toolgun in the main hand), `impulse 189` (off hand)
+when the main hand holds a weapon; if a hand already holds a toolgun it only says so. It prints
+`Toolgun: in the main|off hand.`; unavailable (dim, reason printed) outside a local single-player game or while dead.
+The column's fit-above-Recording scaling counts the shown buttons, so the smallest panel adapts. The Checklist was
+already Developer-only (corner button and Debug > Checklist); unchanged. `vr_mock_laser toolgun`.
+Verified: build 0 warnings; dev vs standard corner screenshots (`scratch/tg_dev.png`, `scratch/tg_std.png`: Checklist
+and Toolgun only in dev); laser click gives hand 1 (main) or, after `impulse 152`, hand 0 (off) in `vr_toolgun_status`;
+`vr_menu_path_check`: 6 found, 0 missing; e1m1 runs. In VR: press it with a weapon in the main hand.
