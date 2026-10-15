@@ -99,4 +99,64 @@ from the spawns, which dominate the averages).
   kept for errors and the profilers) and superinstructions (field load + IF/IFNOT, ADDRESS + STOREP): perhaps another
   1.3-1.5x on the interpreter, i.e. ~0.03 ms a frame. Not worth a second statement format.
 - Native versions of the few hot QuakeC functions (forcegrabbable_think_impl runs 5-18% of all statements on these
-  scenes) or the backlog's native filters (`findfilter`, `forall`) cut statements rather than their cost.
+  scenes; done below) or the backlog's native filters (`findfilter`, `forall`) cut statements rather than their cost.
+
+## Native prop think (worktree `qcvm`, branch `agent/fgnative`, 2026-10-15)
+
+`forcegrabbable_think_impl` (QC/weapons.qc: water entry and exit, slowing in water, the dust puff, settling a thrown
+weapon) runs for every thrown or dropped weapon, pickup-as-object and bag, 50 times a second each. Its work is now the
+`propthink` builtin (`Quake/vr/vr_propthink.cpp`), the way liquids and wounds moved their gates (d05011ec3): the
+QuakeC stays as `forcegrabbable_think_qc`, and `forcegrabbable_think_impl` is `if(!propthink(particles))
+forcegrabbable_think_qc();`. `vr_prop_think_native` (archived, 1; Debug > Profiling "Native Prop Think") 0 runs the
+QuakeC.
+
+- **Same steps:** every field read and written in QuakeC's float steps (its constants as floats: `0.85f`, `0.15f`,
+  `0.3f`; `(int)` casts for its bit ops), random() drawn only where the QuakeC draws it (`PR_RandomNumber`, PF_random's
+  body: the server's stream, the probes' numbers), the same particle2 message (`progs::sendParticle2`), the model's
+  test as `!= string_null` (not empty), NaN angles straightened as the QuakeC does (its dprint too). The edict index
+  is told of `.flags` (FL_INWATER is an indexed bit) as the QuakeC's STOREP tells it (`edictindex::fieldStored`).
+- **Declines** (returns FALSE, nothing touched, the QuakeC runs): the cvar 0, a progs without one of the fields, self
+  the world (the QuakeC's own error), or the angle the settling would bring round beyond 65536 or infinite (the
+  QuakeC's loop: long, or forever to the runaway error). Decided before anything is written: those inputs aren't
+  changed by the water part.
+- **`vr_propthink_check [states]`** (Debug > Profiling "Prop Think Check"): on each thing thinking
+  forcegrabbable_think, forcegrabbable_item_think or wpnthrow_think, as it is and in `states` (200) made-up states
+  (waterlevel/type, ammocounter, rigid or not, velocities round the 10 u/s edge and NaN, flags, lastwatertime round
+  0.15 s, throwhit, throwstabilize and its axis, angles on every range edge, far out and NaN, no model, particles on
+  and off), runs the QuakeC and the native from the same state and compares the whole edict's fields, the next
+  number of the server's stream and the broadcast bytes; then puts everything back.
+
+### Checks
+
+- `vr_propthink_check 300`: e1m1 27 things, 8127 states; vrfiringrange 86, 25886; AD ad_crucial 157, 47257: all
+  identical (233/706/1266 declined: the far-out angles). A first run that gave the QuakeC a different particles
+  value than the native reported every resulting random/particle difference (the check sees them).
+- Seeded fights (scratch `ptfight.py`: sv_random_seed 7, 8 weapons and items spawned round the player, 24 monsters,
+  impulse 232 flings thrice, a weapon change, 600 frames; `vr_bench_statehash` at 4 points): cvar 0, 0 again, 1, 1
+  again all equal on e1m1, vrfiringrange and ad_crucial.
+- Force grab, catch and throw tests with the cvar 0 and 1: see ROUND22.md, "Native prop think".
+
+### Numbers
+
+QuakeC statements in the seeded 600-frame fights (whole run):
+
+| scene | cvar 0 (QuakeC) | cvar 1 (native) | change | forcegrabbable_think_qc's own (cvar 0) |
+|---|---|---|---|---|
+| e1m1 | 12,568,598 | 11,859,870 | -5.6% | 643,624 |
+| vrfiringrange | 13,152,321 | 11,534,341 | -12.3% | 1,481,480 |
+| AD ad_crucial | 20,224,393 | 17,208,098 | -14.9% | 2,792,855 |
+
+(cvar 0 also pays the wrapper's ~6 statements a call; before this change the totals were those less the wrapper's:
+about 0.10/0.23/0.45 M less.) With the native the wrapper is 5 statements a think.
+
+Exclusive timing (scratch `pttime.py`: the same fights with props, 900 measured frames, 3 reps alternated, medians):
+
+| scene | QC statements a frame 0 / 1 | quakec ms 0 / 1 | frame ms 0 / 1 |
+|---|---|---|---|
+| e1m1 | 22,857 / 21,695 (-5%) | 0.203 / 0.209 | 6.45 / 6.07 |
+| vrfiringrange | 24,260 / 21,477 (-11%) | 0.197 / 0.198 | 4.57 / 4.77 |
+| AD ad_crucial | 33,975 / 28,055 (-17%) | 0.422 / 0.436 | 4.82 / 5.97 |
+
+The statements go down by 1.2-5.9 thousand a frame; at ~1.1-1.5 ns a statement that is ~2-8 µs a frame, under the
+runs' noise (quakec's reps spread 0.03-0.05 ms, frame totals more: other agents' runs, spawn hitches). No frame-time
+claim: QuakeC was already ~0.2-0.4 ms of a frame.

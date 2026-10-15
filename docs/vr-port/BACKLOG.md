@@ -76,6 +76,23 @@ ball throw, a swing of its arms. To do: new frames in `progs/shalrath.mdl` for a
 together, the blow on the frame both reach out; made as Misc/quakevr/make_enemyshove.py made the grunt's and
 enforcer's), the blow frame (now the 5th) and vr_enemy_shove_vore_* kept matching.
 
+### AD soldiers' guns: refine their VR models (author, 2026-10-15)
+
+His note: "We will eventually refine these models." The eight guns AD's armed soldiers drop are single use and their
+own (ROUND22.md, "AD soldiers' guns: their own again, our shots inside"); their models are cut from AD's monster models
+by the engine (`<monster>.mdl#gun<n>`, `vr_adgun_models`), low-poly and textured as the monster. Per gun:
+- **Rocket soldier's launcher** (`mon_soldier.mdl#gun4`): fires our rocket. Model: a proper launcher shape, a muzzle
+  that reads where the rocket leaves.
+- **Grenade soldier's launcher** (`mon_soldier.mdl#gun6`): fires our grenade (no longer AD's oversized one). Model: a
+  drum or tube that reads as a grenade launcher, distinct from ours.
+- **Plasma soldier's rifle** (`mon_soldier.mdl#gun8`), **eliminator's** (`mon_enforcer.mdl#gun6`) and **centurion's**
+  (`mon_centurion.mdl#gun0`) plasma guns: AD's plasma bolt with our hit. Models: three distinct energy guns; maybe a
+  glowing cell or coil (a fullbright skin) and a charge readout of their single-use rounds.
+- **Defender's shotgun** (`mon_enforcer.mdl#gun3`): our pellets. Model: a wide-barrelled riot gun.
+- **Pyro's flamethrower** (`mon_pyro.mdl#gun0`) and **fumigator's poison sprayer** (`mon_fumigator.mdl#gun0`): AD's
+  flames and puffs. Models: a fuel tank or canister that shows the fuel left.
+For all: grip and muzzle offsets checked in the headset, a pickup outline, the spent look (VR_EnemyGun_Spent) kept.
+
 ### Performance
 
 - **Optimise decals** (PERF_DECISIONS.md 15): in a rocket fight (`play_e1m1_lights`) ~900 marks are 1.34 ms of the

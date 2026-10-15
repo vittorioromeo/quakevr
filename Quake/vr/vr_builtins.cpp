@@ -24,6 +24,7 @@
 #include "vr_physics.hpp"
 #include "vr_portals.hpp"
 #include "vr_props.hpp"
+#include "vr_propthink.hpp"
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
 #include "vr_collectfx.hpp"
@@ -1088,13 +1089,8 @@ void PF_meleegripago()
 }
 
 // particle2(origin, direction, preset, count): unreliable, like vanilla particle().
-void PF_particle2()
+void particle2Message(const float* org, const float* dir, int preset, int count)
 {
-    const float* org = G_VECTOR(OFS_PARM0);
-    const float* dir = G_VECTOR(OFS_PARM1);
-    const int preset = static_cast<int>(G_FLOAT(OFS_PARM2));
-    const int count = static_cast<int>(G_FLOAT(OFS_PARM3));
-
     if(sv.datagram.cursize > MAX_DATAGRAM - 24)
     {
         return;
@@ -1113,6 +1109,12 @@ void PF_particle2()
     MSG_WriteByte(&sv.datagram, preset);
     MSG_WriteShort(&sv.datagram, count);
     VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
+}
+
+void PF_particle2()
+{
+    particle2Message(G_VECTOR(OFS_PARM0), G_VECTOR(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)),
+        static_cast<int>(G_FLOAT(OFS_PARM3)));
 }
 
 // entity findflags(entity start, .float field, float flags): the next entity after `start` (in edict order, free ones
@@ -2464,6 +2466,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"portal_carry", PF_portal_carry},
     {"findflags", PF_findflags},
     {"findflagsdue", PF_findflagsdue},
+    {"propthink", propthink::PF_propthink},
     {"findflagsinview", PF_findflagsinview},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
@@ -2502,6 +2505,11 @@ static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200
 void sendWound(int num, const float* org, const float* dir, int kind, int amount, int extra)
 {
     sendWoundEvent(num, org, dir, kind, amount, extra);
+}
+
+void sendParticle2(const float* org, const float* dir, int preset, int count)
+{
+    particle2Message(org, dir, preset, count);
 }
 
 // vr_forcegrab_grid_stats: the force grab's searches since the last (and resets them).

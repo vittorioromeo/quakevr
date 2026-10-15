@@ -159,6 +159,8 @@ void onEdictFree(edict_t* ed);
 // A wound on entity num's model at org going dir (unit), QVR_WOUND_* kind (QC vr_wounds.qc), amount 0..255, extra: QC's
 // woundevent sent from the engine (a held stump's blood on the hand: vr_box3d.cpp).
 void sendWound(int num, const float* org, const float* dir, int kind, int amount, int extra);
+// QC's particle2(org, dir, preset, count) sent from the engine (a native of QuakeC: vr_propthink.cpp).
+void sendParticle2(const float* org, const float* dir, int preset, int count);
 // vr_test_remove <entity number>: the entity removed, as QC's remove() (tests: its slot reused).
 void testRemove_f();
 // vr_model_check [1]: every entity's .modelindex against its .model, and the client's models against the server's

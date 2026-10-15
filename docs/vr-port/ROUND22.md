@@ -6569,6 +6569,32 @@ BACKLOG.md's two QuakeC VM notes, steps 0-2; details and numbers in QC_VM.md.
 Checklist (proposed): "Play a few minutes of a busy map (e1m1, an AD map): nothing about the monsters, items or
 triggers behaves differently. Debug > Profiling > QuakeC Loop: Original and back to Fast changes nothing you can see."
 
+## Native prop think (worktree `qcvm`, branch `agent/fgnative`, 2026-10-15)
+
+QC_VM.md's next step: `forcegrabbable_think_impl` (5-18% of all QuakeC statements) now runs in the engine; details and
+numbers in QC_VM.md, "Native prop think".
+
+- **What:** the `propthink` builtin (`Quake/vr/vr_propthink.cpp`) does the think's water, dust and settling work step
+  for step as the QuakeC, kept as `forcegrabbable_think_qc` and run when the builtin declines (cvar off, fields
+  missing, an angle too far out to settle natively). `vr_prop_think_native` (archived, 1): 0 the QuakeC. Debug >
+  Profiling: "Native Prop Think", "Prop Think Check" (`vr_propthink_check [states]`: QuakeC and native from the same
+  states on every prop in the map, compared field by field, random stream and particle message included).
+- **Plumbing:** `PR_RandomNumber` (PF_random's body, pr_cmds.c), `progs::sendParticle2`, `edictindex::fieldStored`
+  (a native's .flags write followed as a STOREP), `srvrandom::stream/setStream` (the check), fields
+  `throwstabilize`/`throwstabilizedim` in vr_fields.inc.
+- **Same behaviour:** the check identical on 81,270 states (e1m1, vrfiringrange, ad_crucial); seeded fights with props
+  spawned and flung give the same state hashes at 4 points with the cvar 0 and 1 on the three maps. The force grab,
+  catch and throw tests (forcegrab_block, weapon_catch, throw_spin, throw_trigger, throw_grace, toss_catch,
+  pickup_mag), each run twice with the cvar 0 and twice with 1: the same verdicts and outcomes in all four; their
+  numbers (a few mm, a few ms of a throw's age) vary as much between two runs of one setting as between the
+  settings (the mock's real-time plays). weapon_catch's "in the air" check fails in all four (its seed; not this).
+- **Gain:** QuakeC statements -5% (e1m1), -11% (vrfiringrange), -17% (AD) a frame in those fights; in time a few µs a
+  frame, under the noise (no frame-time claim).
+
+Checklist (proposed): "Throw and drop weapons and pickups into water, onto the floor and on the range: they float or
+sink, puff dust and settle flat after a throw as before; Debug > Profiling > Native Prop Think off and on changes
+nothing you can see."
+
 ## Impacts and manhandling (worktree `voxelopt`, branch `agent/ragimpact`, 2026-10-15)
 
 BACKLOG "Playtest voice notes, 2026-10-14" > "Throwing, grabbing and living ragdolls": Thrown living-enemy damage,
@@ -6618,6 +6644,44 @@ grunt's head with one hand and slam it on the floor or a wall 3-4 times: it dies
 a knocked-down one from a high ledge: the part you land on is crushed. Shove a grunt and grab it with one hand within a
 second or so: it goes down in your hand; same for one badly hurt; a healthy one you just hold. Combat > Knockdowns >
 Impacts and Holding Enemies > Grab While Staggered/When Weak to tune."
+
+## AD soldiers' guns: their own again, our shots inside (worktree `profilemulti`, branch `agent/adguns2`, 2026-10-15)
+
+**Supersedes** "AD soldiers' drops" in "AD stealth, AD soldiers' drops, Armagon's torso..." above (that section is left
+as reviewed). His words: "I want the soldier's drops to be their own single-use weapons. They should look and feel
+different, but also share some properties with our guns (e.g. the grenades shot by the soldier's grenade launcher should
+be the same, not the old and blocky ones)."
+
+- **Reverted:** `vr_adgun_ours` (cvar, the "Drop Quake VR's Weapons" row, adbugs_tests.sh's two variants): every armed AD
+  soldier drops its own single-use gun again (`VR_ADGun_ForClass`). Kept from that round: AD stealth, Armagon's torso,
+  the range's laser cannons. `vr_ad_test 71` still drops by soldier class.
+- **Shared with ours** (each gun keeps its model, sound, rate of fire, rounds and single use; ARCANE_DIMENSIONS.md 17.6
+  has the table): the grenade soldier's launcher fires our grenade and the rocket soldier's our rocket, through the
+  launchers' own code, split out of `W_FireGrenade`/`W_FireRocket` as `VR_FireGrenadeMissile`/`VR_FireRocketMissile`
+  (model, size, bounce, fuse, blast, damage settings, muzzle clearance, catchability); the plasma rifle and the
+  eliminator's and centurion's guns keep AD's bolt (the Plasma Gun's) with our hit (positional damage, prop push,
+  sparks); the defender's shotgun already fired our pellets (`FireBullets`); the pyro's and fumigator's streams stay AD's
+  (no kind of ours; the pyro's already sets our burning). Gone with them: `vr_adgun_rocket_damage/_splash/_speed` and
+  `vr_adgun_grenade_damage/_speed/_fuse` (and their six menu rows: the shots are ours, tuned by Weapon Damage);
+  ammo and time between shots stay per gun.
+- **The muzzle self-touch:** measured by `vr_ad_test 90` (new; Debug > AD's "Soldiers' Guns" > "Their Shots Leaving
+  the Muzzle"; the QC counter `vr_owner_touches` in `VR_OwnerSpared`). A launched grenade (ours as much as AD's old one)
+  is touched by its firer 1-2 times as it leaves the muzzle: the engine's body touch (`VR_TouchLinks`) meets the
+  catchable grenade's box inside the player's; every such touch is spared by `VR_OwnerSpared` and does nothing.
+  Rockets and plasma bolts: 0. So the touch was not the stick, and nothing in it needed changing; AD's old grenade had a
+  drawn box of 19x8x8 units against ours' 6x2x2, and is no longer fired. Headless, at four hand poses (level, low,
+  raised, pointed down), the AD gun's grenade is 99-181 units out and flying 0.3 s on, as ours; no stick reproduced with
+  the old model either (it may have been its look). His headset check decides.
+
+Verified: build 0 warnings; `vr_ad_test 71` 8/8 (each class its own gun, its clip); `vr_ad_test 90` 7/7 (the AD
+grenade: `progs/grenade.mdl`, box 6.3x2.3x2.2, bounce, fuse 2.50, 600 u/s, GrenadeTouch/GrenadeExplode, the same as the
+grenade launcher's; 179 units out 0.3 s on; rocket `progs/missile.mdl` 1000 u/s; plasma bolt with our touch);
+`vr_ad_test 70` 8/8 (grenade 104 dealt, our blast); killed rocket and grenade soldiers drop their own launchers (5, 6
+rounds); e1m1 smoke clean; menu paths 0 missing. Rerun: `Misc/quakevr/adbugs_tests.sh <agent> guns`.
+
+Checklist (proposed): "AD soldiers' guns: kill a grenade soldier and fire his launcher: Quake VR's grenades leave the
+muzzle cleanly, bounce and go off as your launcher's, from his own gun (6 shots, then spent); the rocket soldier's fires
+your rockets; plasma soldiers' rifles fire AD's bolts that spark and push props; each still looks like his gun."
 
 
 ## Neck snap: strict zone, diagnostic, slow motion, crack (worktree `qcscanopt`, branch `agent/necksnap3`, 2026-10-15)

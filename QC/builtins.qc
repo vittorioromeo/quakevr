@@ -492,6 +492,10 @@ entity(entity start, .float fld, float flags, .float deadline, float now, .float
 // less than `mincos` ahead (normalize(centre - eye) * v_forward), in QuakeC's own float steps: the same entities pass as
 // with that test in QuakeC (VR_Stealth_LookAbout's torches and bodies; vr_builtins.cpp).
 entity(entity start, .float fld, float flags, vector eye, float range, float mincos) findflagsinview = #0;
+// forcegrabbable_think_impl's work on self in the engine (vr_propthink.cpp; `particles`: vr_weapondrop_particles_on):
+// the same fields, the same random() draw and the same particle2 as forcegrabbable_think_qc. FALSE when it did nothing
+// (vr_prop_think_native 0, a progs without the fields, an angle too far out to bring round natively): the QuakeC runs.
+float(float particles) propthink = #0;
 vector(vector start, vector end) liquidentry = #0;
 void(vector org, vector dir, float strength, float snd) watersplash = #0;
 float QVR_SPLASH_SILENT = 0; // the caller plays its own sound

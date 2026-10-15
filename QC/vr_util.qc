@@ -540,7 +540,12 @@ float(entity ent, float xHand) VRIsWeaponReloadFlickingEnabledFor =
 // A missile's touch (self the missile): whether it leaves `xOther` alone as its owner (Quake: never on the one who fired
 // it). One carried through a teleporter (.vr_gate_crossed, set by the engine) meets its owner: your nail or rocket at
 // your own image, seen through the gate, hits you.
+float vr_owner_touches; // the touches a missile had of its owner (the tests: vr_ad_test 90)
 float(entity xOther) VR_OwnerSpared =
 {
+    if(xOther == self.owner)
+    {
+        vr_owner_touches++;
+    }
     return xOther == self.owner && !self.vr_gate_crossed;
 }

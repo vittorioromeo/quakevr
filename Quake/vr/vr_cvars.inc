@@ -2136,16 +2136,9 @@ QVR_CVAR(vr_enemygun_spent_shake, "0.3", CVAR_ARCHIVE)   // model units the spen
 QVR_CVAR(vr_enemygun_spent_haptics, "0.35", CVAR_ARCHIVE) // and how hard it buzzes in the hand then (0: not at all)
 QVR_CVAR(vr_enemygun_spent_volume, "0.5", CVAR_ARCHIVE) // the volume of the corpses' crackle (misc/power.wav) as it starts (0: silent)
 QVR_CVAR(vr_adgun_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' armed soldiers drop their own guns as they die (QC vr_ad_enemyguns.qc; the plain soldier and enforcer Quake VR's burst rifle and laser rifle); 0: none
-QVR_CVAR(vr_adgun_ours, "1", CVAR_ARCHIVE) // AD support: what they drop is Quake VR's weapon of its kind (rocket and grenade soldiers: your launchers; the defender: the super shotgun; the plasma guns: the laser cannon); 0: AD's own guns (the pyro's and fumigator's always: no kind of ours)
-QVR_CVAR(vr_adgun_rocket_damage, "25", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (your shots only): a rocket's direct hit (AD's soldier's: 25 and up to 5)
-QVR_CVAR(vr_adgun_rocket_splash, "30", CVAR_ARCHIVE) // ... its blast round where it strikes (not on what it hit; 0: none; AD's: 25)
-QVR_CVAR(vr_adgun_rocket_speed, "800", CVAR_ARCHIVE) // ... its rockets' speed, units a second (AD's soldier's: 575 and faster by skill)
-QVR_CVAR(vr_adgun_rocket_ammo, "5", CVAR_ARCHIVE) // ... the rockets it holds (its own: never refilled)
+QVR_CVAR(vr_adgun_rocket_ammo, "5", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled)
 QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next
-QVR_CVAR(vr_adgun_grenade_damage, "60", CVAR_ARCHIVE) // the grenade soldier's dropped launcher: a grenade's blast (AD's monster grenades: 40)
-QVR_CVAR(vr_adgun_grenade_speed, "600", CVAR_ARCHIVE) // ... its grenades' speed as they leave it (AD's soldier's: 500 and up)
-QVR_CVAR(vr_adgun_grenade_fuse, "2.5", CVAR_ARCHIVE) // ... seconds a grenade bounces about before it goes off (a monster it strikes sets it off at once)
-QVR_CVAR(vr_adgun_grenade_ammo, "6", CVAR_ARCHIVE) // ... the grenades it holds
+QVR_CVAR(vr_adgun_grenade_ammo, "6", CVAR_ARCHIVE) // the grenade soldier's dropped launcher (Quake VR's grenades: vr_dmg_grenade): the grenades it holds
 QVR_CVAR(vr_adgun_grenade_refire, "0.8", CVAR_ARCHIVE) // ... seconds from a shot to the next
 QVR_CVAR(vr_adgun_plasma_damage, "18", CVAR_ARCHIVE) // the plasma soldier's dropped rifle: a plasma bolt's hit (AD's monsters' bolts: 15 and up to 5)
 QVR_CVAR(vr_adgun_plasma_splash, "15", CVAR_ARCHIVE) // ... its small blast (0: none; AD's: 20)
@@ -2845,6 +2838,7 @@ QVR_CVAR(vr_grapple_unreel_slack, "256", CVAR_ARCHIVE)   // units of slack the u
 QVR_CVAR(vr_grapple_reel_home, "5", CVAR_ARCHIVE)        // units from the rope's end at the muzzle the loose hook's tail is reeled to before it goes back in (it was 9)
 QVR_CVAR(vr_grapple_quick_time, "0.5", CVAR_ARCHIVE)     // seconds the front button's reel-in takes (the hook reeled in, speeding up then slowing down; a short rope quicker); 0: straight back at vr_grapple_quick_speed
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_prop_think_native, "1", CVAR_ARCHIVE)        // force-grabbable things' think (water, dust, settling after a throw) in the engine (vr_propthink.cpp), the same as its QuakeC; 0: in QuakeC (forcegrabbable_think_qc), to compare or rule it out
 QVR_CVAR(vr_2h_spread_reduction, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_throw_velocity_mult, "1.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_handoff, "1", CVAR_ARCHIVE)                // letting go of a two-handed weapon leaves it in the other hand: a sword changes hands, a gun hangs from its foregrip
