@@ -7350,3 +7350,53 @@ pass moved as much). e1m1 smoke: no errors.
 For him in VR: blood on a wall with retro textures on (Graphics > Retro Textures) and with nearest texture filtering:
 the baked marks should have the wall's blocks; gibbing a monster against a door: its blood lands on the door when the
 flying blood arrives, not at the hit.
+
+## Stomp: landing on a standing monster knocks it down (2026-10-15, worktree `fastship`, branch `agent/stompkd`)
+
+The author: jumping on top of a fully alive enemy should damage it and knock it down, or kill it from high enough.
+
+- **What**: `VR_RagImpact_Crush` (the landing crush, unchanged) now hands a standing monster that lives through the crush
+  to `VR_RagImpact_Stomp` (vr_ragimpact.qc): landing fast enough, it is knocked down as a shove's knockdown
+  (`VR_Knockdown_Start` + `ragdollshovetopple`, the shove's gates: `vr_knockdown`, a knockdown chance handle, no fliers or
+  swimmers, `canragdoll`, an anchored dummy never, and the ragdoll pool's room via `VR_Knockdown_MakeRoom`), toppled
+  along your way (standing still: away from you; straight on top: backwards), and gets up after the usual
+  `vr_knockdown_time_*`. You bounce up off it (`vr_ragimpact_stomp_bounce` 200 u/s) instead of sinking through as it
+  falls; the crush cushion (no fall damage) applies to a stomp too. A lethal landing still kills through the crush
+  (Quake's death, a ragdoll corpse).
+- **Settings** (Combat > Knockdowns, after the crush rows; all archived): `vr_ragimpact_stomp` 1 (Stomp Knocks Down),
+  `vr_ragimpact_stomp_speed` 420 u/s (Stomp Least Speed: about a 115-unit drop; a 128-unit drop lands at 437),
+  `vr_ragimpact_stomp_heavy` 130 kg (Stomp Heavy Mass: heavier monsters need the least speed times the cube root of
+  mass/130, masses from `VR_Grapple_MonsterMass`: ogre, fiend, vore 250 kg 522 u/s, about a 180-unit drop; shambler 600
+  kg 699 u/s, about 315 units; super shambler 800 kg about 375 units; 0: all alike), `vr_ragimpact_stomp_bounce` 200
+  (Stomp Bounce). The stomp works with the crush off (`vr_ragimpact_crush 0`) or with Crush Standing Ones off.
+- **Why a cube root**: a square root put the shambler at ~430 units, past the 352-unit drop that already pops its head
+  (the crush), so it could never be stomped down; the cube root leaves it a window (~315-345 units).
+- **Prints**: `vr_knockdown_debug 1` (or the tests' `vr_knockdown_test 56`) prints `ragimpact stomp:` lines (knocked
+  down, stands under the least speed, or cannot be knocked down and why); `vr_knockdown_test 50` adds a
+  `ragimpact doll:` line (ragdoll, knockdown, health).
+
+Measured (headless, vrfiringrange, `vr_knockdown_test 59` drops onto the head, knockdown time 3 s, state 150 frames and
+1200 frames later; scratch/stomp_test.py):
+
+| monster | drop | landing | crush | knocked down | dead | later |
+|---|---|---|---|---|---|---|
+| grunt | 64 | under 400 | none | no | no | standing, 30 hp |
+| grunt | 128 | 437 u/s | 13 to the head | yes, bounced 200 | no | up again, 13 hp |
+| grunt | 192 | 17.4 m/s | 53 | - | yes, ragdoll | - |
+| grunt | 256 | 19.9 m/s | 81, head pops | - | yes, ragdoll | - |
+| grunt | 384 | 24.5 m/s | 133, head pops | - | yes, ragdoll | - |
+| ogre | 128 | 436 | 13 | no (under 522) | no | standing |
+| ogre | 192 | 538 | 49 | yes | no | up again, 138 hp |
+| ogre | 256 | 20 m/s | head pops | - | yes, ragdoll | - |
+| shambler | 256 | 628 | 81 | no (under 699) | no | standing |
+| shambler | 320 | 706 | 109 | yes | no | up again, 463 hp |
+| shambler | 352 | 23.5 m/s | head pops | - | yes, ragdoll | - |
+
+`ragimpact_test.py crush`: all pass, with a new check (the 128-unit drop onto a standing grunt knocks it down). Melee
+eval 168/177 (as before). e1m1 smoke: no errors.
+
+For him in VR: jump off a ledge or a crate onto a grunt's head (about a storey): it should go down under you and you
+bounce up off it, then it gets up; from two storeys it dies. An ogre takes a higher jump; a shambler about two storeys,
+and higher pops its head. Off-centre on the shoulders: the crush strikes the torso or an arm, the knockdown the same.
+Open: a big monster's head crush kills from fairly low (ogre 256, shambler 352 units: the crush's head wear, not the
+stomp); if that feels too easy, `vr_ragimpact_piece_hp` or the crush's mass is the knob.
