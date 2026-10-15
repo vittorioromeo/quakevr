@@ -578,48 +578,53 @@ def run_neck(runs, settings, method):
                         f"{'' if held else ', a hand never took its ragdoll (nothing measured)'}")
 
 
-# Arcane Dimensions' humanoids (vr_foegrab_lift_classes; the debug spawner's choices, vr_ad_monsters.qc), on AD's start map
+# Arcane Dimensions' humanoids (vr_foegrab_lift_classes; the debug spawner's choices, vr_ad_monsters.qc), on vrfiringrange
 # through its campaign (AD's data linked into the agent's base, qbase/ad).
 AD_HUMANOIDS = {227: "monster_army_grenade", 223: "monster_army_plasma", 211: "monster_army_rocket",
                 212: "monster_defender", 217: "monster_eliminator", 232: "monster_pyro", 235: "monster_fumigator",
                 220: "monster_centurion", 202: "monster_dcrossbow", 216: "monster_dfury", 205: "monster_dguard",
                 200: "monster_dknight", 225: "monster_dsergeant", 201: "monster_zombiek", 238: "monster_mummy",
                 206: "monster_skullwiz"}
-AD_PRE = ("sv_random_seed 7;skill 1;vr_campaign_native ad;wait30;map start;wait60;god;notarget;developer 1;"
+AD_PRE = ("sv_random_seed 7;skill 1;vr_campaign_native ad;wait30;map vrfiringrange;wait60;god;notarget;developer 1;vr_ad_everywhere 1;"
           "vr_foegrab_debug 1;vr_foegrab_leniency 6;vr_test_spawn {mon};vr_test_spawn_dist 36;impulse 241;wait40")
 
 
 def head_target_motion(name, cls, dz, deg, dur, sign, axis="y", lift=False):
     """Both hands put at the middle of the nearest `cls`'s head zone (vr_mock_hand_to ... nearest <cls> head <dz>: dz
-    units over it), moved NECK_R apart to its sides, gripped at 0.12 s; twisted at 0.5 s (turn_keys); or (lift) pulled up
-    0.4 m in 0.25 s at 0.5 s. Statuses (MARK1) at 1.4 s, the grips let go at 1.8 s, a status (MARK2) at 2.15 s."""
+    units over it), moved NECK_R apart to its sides, gripped at
+    0.12 s; twisted at 0.5 s (turn_keys); or (lift) pulled up 0.4 m in 0.25 s at 0.5 s. Statuses (MARK1) at 1.4 s, the
+    grips let go at 1.8 s, a status (MARK2) at 2.15 s."""
+    r = NECK_R
     keys = [(0.0, f"cmd vr_mock_hand_to main nearest {cls} head {dz}"),
             (0.0, f"cmd vr_mock_hand_to off nearest {cls} head {dz}")]
     keys += [(0.03, "rel main 0 0 0"), (0.03, "rel off 0 0 0")]
-    keys += [(0.1, "rel main %.3f 0 0" % NECK_R), (0.1, "rel off %.3f 0 0" % -NECK_R)]
+    keys += [(0.1, "rel main %.3f 0 0" % r), (0.1, "rel off %.3f 0 0" % -r)]
     keys += [(0.12, "cmd +grabmain"), (0.12, "cmd +graboff")]
     if lift:
-        keys += [(0.5, "rel main %.3f 0 0" % NECK_R), (0.5, "rel off %.3f 0 0" % -NECK_R)]
-        keys += [(0.75, "rel main %.3f 0.4 0" % NECK_R), (0.75, "rel off %.3f 0.4 0" % -NECK_R)]
+        keys += [(0.5, "rel main %.3f 0 0" % r), (0.5, "rel off %.3f 0 0" % -r)]
+        keys += [(0.75, "rel main %.3f 0.4 0" % r), (0.75, "rel off %.3f 0.4 0" % -r)]
     else:
-        keys += turn_keys(0.5, dur, deg, sign, (0.0, 0.0, 0.0), NECK_R, axis, rel=True)
+        keys += turn_keys(0.5, dur, deg, sign, (0.0, 0.0, 0.0), r, axis, rel=True)
     keys += [(1.4, "cmd echo MARK1"), (1.45, "cmd vr_foegrab_status"), (1.8, "cmd -grabmain"), (1.8, "cmd -graboff"),
              (2.15, "cmd echo MARK2"), (2.2, "cmd vr_foegrab_status")]
     return motion(name, keys)
 
 
 def case_adneck():
-    """adneck: each AD humanoid (AD_HUMANOIDS) standing, both hands at its head zone (its sides), twisted 110 deg in 0.2 s (the defaults: 80 within 0.2 s):
-    its neck snapped standing, held by both hands; both hands 14 units under its head's middle (its chest's top, under its
-    neck) pulled up at 1.6 m/s: lifted, held by both hands, flailing; knocked down (JUDO_AD_KD=1: each, else the
-    centurion, the fumigator, a death knight and a pyro), its ragdoll's head twisted: snapped. Its head zone and ragdoll
-    numbers in scratch/judo_test_judo_ad_*.txt."""
+    """adneck: each AD humanoid (AD_HUMANOIDS), walked up to (24 units), standing, both hands at its head zone (its
+    sides), twisted 110 deg in 0.2 s (the defaults: 80 within 0.2 s): its neck snapped standing, held by both hands (the
+    centurion: killed standing, no ragdoll: it hovers, it is never knocked down); both hands 14 units under its head's
+    middle (its chest's top, under its neck) pulled up at 1.6 m/s: lifted, held by both hands (whether it flails is
+    printed: AD's have no driven rigs; the centurion: not lifted, it can't be knocked down); knocked down (JUDO_AD_KD=1:
+    each, else the fumigator, a death knight and a pyro), both hands at its ragdoll's head, twisted about the vertical:
+    held at its head and measured (lying, the twist is mostly a tilt of its neck: Hand Line reads the part about it).
+    Its numbers in scratch/judo_test_judo_ad_*.txt."""
     kd_all = os.environ.get("JUDO_AD_KD", "") == "1"
     for mon, cls in AD_HUMANOIDS.items():
         short = cls.replace("monster_", "")
         pre = AD_PRE.format(mon=mon)
         for kind in ("snap", "lift", "kd"):
-            if kind == "kd" and not kd_all and mon not in (220, 235, 200, 232):
+            if kind == "kd" and not kd_all and mon not in (235, 200, 232):
                 continue
             name = f"judo_ad_{short}_{kind}"
             if ONLY and not re.search(ONLY, name):
@@ -630,7 +635,8 @@ def case_adneck():
                       f"vr_mock_walk_to nearest {cls} 24;wait200;vr_mock_walk_to off;wait90;vr_mock_play {path}")
             else:
                 path = head_target_motion(name, cls, -14 if kind == "lift" else 0, 110, 0.2, 1, lift=kind == "lift")
-                go = f"vr_mock_play {path}"
+                go = (f"vr_mock_walk_to nearest {cls} 24;wait200;vr_mock_walk_to off;wait30;vr_mock_turn monster;wait5;"
+                      f"vr_mock_turn off;vr_mock_play {path}")
             for _ in range(3):
                 out = run(f"{pre};vr_knockdown_debug 1;{go};wait500;-grabmain;-graboff;wait5;toggleconsole;quit",
                           "foegrab|necksnap|flail:|held on by|ragdoll: a limb|vr_mock_hand_to|MARK|rror|CRASH")
@@ -650,12 +656,21 @@ def case_adneck():
             if kind == "lift":
                 lifted = re.search(r"lifted, held on as a ragdoll by (\d) hands?", flat)
                 flails = "it flails in the hands" in flat
-                ok = lifted and lifted.group(1) == "2" and flails and not snap and not bad
+                hover = mon == 220 and "it can't be knocked down now" in flat
+                ok = ((lifted and lifted.group(1) == "2") or hover) and not snap and not bad
                 verdict(ok, f"{short} lift: {'lifted by ' + lifted.group(1) if lifted else 'not lifted'}, flails {flails}"
+                            f"{' (it hovers: never knocked down)' if hover else ''}"
                             f"{', snapped (wrong)' if snap else ''}; the hands at its {'/'.join(where[0]) if where else '?'}")
+            elif kind == "kd":
+                best = re.search(r"its largest turn (\d+) deg", flat)
+                ok = took and best and not bad
+                verdict(ok, f"{short} kd (measured): {snap.group(3) + ' ' + snap.group(4) if snap else 'no snap'}; "
+                            f"both hands at its head, its largest turn {best.group(1) if best else '?'} deg"
+                            f"{'' if took else ', a hand never took its ragdoll'}")
             else:
                 want = "standing" if kind == "snap" else "a ragdoll"
-                ok = snap and snap.group(3) == want and snap.group(4).startswith("killed") and held == 2 and not bad
+                ok = snap and snap.group(3) == want and snap.group(4).startswith("killed") and not bad and (
+                    held == 2 or (mon == 220 and "no ragdoll to hold" in snap.group(4)))
                 verdict(ok, f"{short} {kind}: {snap.group(3) + ' ' + snap.group(4) if snap else 'no snap'}, "
                             f"{snap.group(1) + ' deg' if snap else ''}; held by {held} hands at MARK1"
                             f"{'' if kind == 'snap' or took else ', a hand never took its ragdoll'}"
