@@ -224,7 +224,8 @@ def case_lift():
             continue
         path = lift_motion(name, down, *timing)
         pre = PRE.replace("vr_test_spawn 0;", f"vr_test_spawn {mon};")
-        out = run(f"{pre};vr_knockdown_debug 1;{extra};vr_mock_play {path};wait600;-grabmain;-graboff;wait5;"
+        # (Breaks free after 2 s: the test's; the shipped Breaks Free After is the author's 3.5 since 2026-10-15.)
+        out = run(f"{pre};vr_knockdown_debug 1;vr_foegrab_lift_time 2;{extra};vr_mock_play {path};wait600;-grabmain;-graboff;wait5;"
                   "toggleconsole;quit", "foegrab|flail:|held on by|MARK|rror|CRASH")
         with open(os.path.join(SCRATCH, f"judo_test_{name}.txt"), "w") as f:
             f.write(out)
