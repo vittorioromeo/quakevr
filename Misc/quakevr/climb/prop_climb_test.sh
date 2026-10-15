@@ -21,11 +21,13 @@
 #          carried 20+ units; a light hold no longer halves the carry (before: drifted 11 units)
 #   liftlight  the off hand on a light large crate beside vrclimb's lift, the main on the lift's lip as it rises: the body
 #          rides the lift at its speed while both hold (the push carries it: VR_ClimbCarried), sync within 1.5
-# light, close: the let-go is the slip ("pulled away"), not any let-go. Not covered: the small crates (spawns 123, 124;
-# vr_climb_try finds no hold at a small crate's lip, ROUND22.md "Review fixes").
+#   lip    the small crates' lips by vr_climb_try (two games, no climb): a small one on a large one (spawn 123; its lip
+#          80 over the feet, 4 behind the large one's) is a hold; a small one alone (spawn 124; 32 over the feet) is none
+#          from the ground (under vr_climb_prop_min_height 36: the grip carries it), a hold at 30
+# light, close: the let-go is the slip ("pulled away"), not any let-go.
 # The plays (climb_plays.py pullup) are written to the agent's scratch/climb. Prints each case's lines and the verdicts.
 AGENT=${1:?agent}; shift
-CASES=${*:-heavy stack side light close knock hang off lift movelight liftlight}
+CASES=${*:-heavy stack side light close knock hang off lift movelight liftlight lip}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
@@ -63,6 +65,10 @@ climb2() { # setup play after: a light crate (vr_climb_prop_mass 70) in the off 
   tb_run_sh -Script "map vrclimb;wait30;god;notarget;developer 1;vr_climb 1;vr_climb_debug 2;vr_climb_prop_mass 70;vr_body_shoulder_reach 0.5;$1;vr_mock_play $D/$2.txt;$3;viewpos;vr_climb_debug 0;developer 0;vr_body_shoulder_reach 0.08;vr_climb_prop_mass 60;toggleconsole;quit" \
     -Timeout 200 -Filter "climb:|climbreach |ENGINE|Player pos| kg[)]" 2>&1 | grep -E "climb:|climbreach |ENGINE|Player pos| kg[)]" | grep -v "hold search\|eases onto" | tr -d '\r'
 }
+tries() { # spawn, then vr_climb_try commands: the test crate ahead, the tries from the ground
+  tb_run_sh -Script "map vrclimb;wait30;god;notarget;developer 1;vr_climb 1;setpos -300 -100 24 0 90 0;noclip;wait20;vr_test_spawn_dist 40;vr_test_spawn $1;impulse 241;wait90;$2;vr_climb_prop_min_height 36;developer 0;toggleconsole;quit" \
+    -Timeout 200 -Filter "climbtry|ENGINE" 2>&1 | grep "climbtry\|ENGINE" | tr -d '\r'
+}
 both() { # frames both hands held, and the main hand's largest sync meanwhile
   echo "$1" | awk '/^climbreach [0-9]/ { split($4, o, "/"); for(i = 1; i <= NF; i++) if($i == "main") split($(i + 1), m, "/");
     for(i = 1; i <= NF; i++) if($i == "sync") s = $(i + 2); if(o[1] > 0 && m[1] > 0) { n++; if(s > mx) mx = s } }
@@ -92,6 +98,8 @@ for c in $CASES; do
     # on the open floor facing +y: the light crate ahead-left, the explosive box (80.5 kg: heavy) ahead-right, its face
     # 16 ahead as the crate's; flung sideways (+x, along its lip) once both hands hold
     movelight) log=$(climb2 "setpos -342 -100 24 0 90 0;noclip;wait20;vr_test_spawn_dist 40;vr_test_spawn 120;impulse 241;wait30;vr_physics_spawn misc_explobox 16 -44;wait60;setpos -300 -100 24 0 90 0;noclip;wait30" pc_movelight "wait90;vr_physics_fling nearest $FLING 90;wait120");;
+    # the small crates' lips (their front 16 ahead of the middle: y -76; a hold's hand 2 behind)
+    lip)   log=$(tries 123 "vr_climb_try -300 -74 80 main"; tries 124 "vr_climb_try -300 -74 32 main;vr_climb_prop_min_height 30;vr_climb_try -300 -74 32.5 main");;
     *) echo "unknown case $c"; continue;;
   esac
   echo "$log" > "$D/pc_$c.log" # (the whole log, the climbreach lines too)
@@ -117,6 +125,9 @@ for c in $CASES; do
              awk -v n="$nboth" -v s="$msync" -v z="$z" 'BEGIN{exit !(n >= 10 && s < 1.5 && z > 40)}' && ok=1;;
     movelight) [ "$(echo "$log" | grep -c "(light, ")" = 1 ] && [ "$(echo "$log" | grep -c "(heavy, ")" = 1 ] &&
              awk -v n="$nboth" -v s="$msync" -v y="$y" 'BEGIN{exit !(n >= 10 && s < 1.5 && y > -80)}' && ok=1;;
+    lip)   echo "$log" | grep -q "climbtry -300.00 -74.00 80.00 main: exact hold .* top 80.1" &&
+             echo "$log" | grep -q "climbtry -300.00 -74.00 32.00 main: none.* 1 low" &&
+             echo "$log" | grep -q "climbtry -300.00 -74.00 32.50 main: exact hold .* top 32.1" && ok=1;;
   esac
   verdict $c $ok
 done

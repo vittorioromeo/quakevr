@@ -6926,3 +6926,14 @@ convulsing.
 feet, a few units, never flung; your walk does not slow. Feet Nudge Ragdolls off (under Corpse Collision, beside
 Corpses): they stay put.
 In bullet time, take a small gib in both hands and throw it: it flies, it doesn't burst in your face.
+
+## The small crates' lips: not a bug (2026-10-15, worktree `fastship`, branch `agent/climblip`)
+
+The note in "Review fixes" (`vr_climb_try` finds no hold at a small crate's lip, spawns 123/124) was a wrong probe: the
+hand was put where the large crate's hold is, but a small crate's front is 4 units further back (y -76, not -80) and its
+top lower. At its own lip: a small crate on a large one (123, 80 over the feet) is an exact hold (hand at -300 -74 80:
+the hold 1.1 units off, top 80.1; from 4 units out, a lenient one); a small crate alone (124, 32 over the feet) is none
+from the ground, turned down as `low`: under `vr_climb_prop_min_height` 36, as the rule means (the grip carries it); at 30
+the same hand holds (top 32.1). Exact holds always report "0 holds seen" (that count is the lenient search's), which
+read as a miss. No engine change. `prop_climb_test.sh` has a new `lip` case (those three tries) and drops its "Not
+covered" line: 12 PASS. e1m1 smoke clean. Still untested: a real grip and pull on a small crate on a stack.
