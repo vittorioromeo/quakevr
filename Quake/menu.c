@@ -1535,7 +1535,7 @@ void M_Main_Layout (int *step, int *gap)
 	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
 	if (!centred)
 	{
-		top = 0.f; // (Quake's place: from y 4 down)
+		top = q_max (top, -24.f); // (the title up to y -20 at most: the canvas above Quake's 4 spaces the groups)
 		bottom = q_min (bottom, 200.f); // to Quake's 200, not the screen's: the notice box and corner buttons fill below it
 	}
 	avail = (int)(bottom - 2 - (q_min (top, 0.f) + 4) - 28 - 20);
@@ -1548,7 +1548,9 @@ void M_Main_Layout (int *step, int *gap)
 	// panel's top
 	height = 28 + (rows - 1) * *step + groups * *gap + 20;
 	m_main_top = 4;
-	if (centred)
+	if (!centred)
+		m_main_top = q_min (4, (int) ceil (top + 4.f));
+	else
 		m_main_top = CLAMP ((int) ceil (top + 4.f), Q_rint ((top + bottom - height) * 0.5f), 4);
 }
 
