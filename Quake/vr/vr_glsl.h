@@ -2510,6 +2510,69 @@ SPECULAR_AA_FUNCTIONS
 "	return normalize(abs(det) * n - grad);\n" \
 "}\n" \
 "\n" \
+"// QVR: a glove's leather grain (vr_gloves): pebbles between thin crevices, a cellular pattern at g (cells): x the\n" \
+"// distance to the nearest crevice (F2 - F1), yz its slope (in cells), w the nearest pebble's own random 0..1 (its tone)\n" \
+"vec4 LeatherGrain(vec2 g)\n" \
+"{\n" \
+"	vec2 i = floor(g), f = g - i;\n" \
+"	float d1 = 8.0, d2 = 8.0, tone = 0.0;\n" \
+"	vec2 v1 = vec2(1.0), v2 = vec2(1.0);\n" \
+"	for (int y = -1; y <= 1; y++)\n" \
+"		for (int x = -1; x <= 1; x++)\n" \
+"		{\n" \
+"			uvec2 q = uvec2(ivec2(i) + ivec2(x, y) + 4096);\n" \
+"			uint h = (q.x * 1597334677u) ^ (q.y * 3812015801u);\n" \
+"			h *= 1597334677u;\n" \
+"			vec2 r = vec2(x, y) + 0.1 + 0.8 * vec2(uvec2(h, h * 747796405u) >> 8) * (1.0 / 16777216.0) - f;\n" \
+"			float d = dot(r, r);\n" \
+"			if (d < d1) { d2 = d1; v2 = v1; d1 = d; v1 = r; tone = float(h >> 24) / 255.0; }\n" \
+"			else if (d < d2) { d2 = d; v2 = r; }\n" \
+"		}\n" \
+"	d1 = sqrt(d1); d2 = sqrt(d2);\n" \
+"	return vec4(d2 - d1, v1 / max(d1, 1e-4) - v2 / max(d2, 1e-4), tone);\n" \
+"}\n" \
+"\n" \
+"// QVR: a glove's leather where it covers (vr_gloves): its colour times its own relief, none of the skin's painted\n" \
+"// detail (nails, creases): the skin mask's A (make_skin_masks.py: its seams and stitches, 0.5 flat; read at ax/ay a\n" \
+"// texel along u/v for their slope), the hem's rolled edge (hem 0..1 over the edge band, dhem its slope a texel), and\n" \
+"// a pebbled grain of its own, faded out where a pebble would be under ~2 pixels. Out: the colour's shade, the relief's\n" \
+"// slope (in uv units, for WoundBump), its sheen's share.\n" \
+"float GloveLeather(vec2 uv, vec2 duvdx, vec2 duvdy, vec2 ts, float a, float ax, float ay, float hem, vec2 dhem, out vec2 slope, out float gloss)\n" \
+"{\n" \
+"	const float cells = 0.55; // grain cells a texel: the hand's 1.5 texels a mm, a pebble ~1.2 mm\n" \
+"	float px = cells * max(length(duvdx * ts), length(duvdy * ts)); // cells a pixel\n" \
+"	float fine = 1.0 - smoothstep(0.25, 0.6, px);\n" \
+"	vec2 s = 1.6 * vec2(ax - a, ay - a); // the seams (A 0.5 flat; 1.6 texels its full range)\n" \
+"	float roll = 0.6 * sin(3.14159 * hem);\n" \
+"	s += 0.6 * 3.14159 * cos(3.14159 * hem) * dhem; // the hem rolled over\n" \
+"	float pebble = 1.0, tone = 0.5;\n" \
+"	if (fine > 0.0)\n" \
+"	{\n" \
+"		vec4 gr = LeatherGrain(uv * ts * cells);\n" \
+"		float e = clamp(gr.x / 0.2, 0.0, 1.0);\n" \
+"		pebble = e * (2.0 - e); // 0 in a crevice, 1 on a pebble's top\n" \
+"		s += fine * 0.14 * 2.0 * (1.0 - e) * step(gr.x, 0.2) / 0.2 * gr.yz * cells;\n" \
+"		pebble = mix(0.85, pebble, fine);\n" \
+"		tone = mix(0.5, gr.w, fine);\n" \
+"	}\n" \
+"	slope = s * vec2(1.0, ts.y / ts.x);\n" \
+"	float seam = clamp(1.0 + 1.8 * (a - 0.5), 0.3, 1.5); // grooves dark, stitches light\n" \
+"	gloss = clamp(seam, 0.0, 1.0) * mix(0.35, 1.0, pebble) * (0.5 + 0.5 * hem);\n" \
+"	return seam * (0.88 + 0.14 * pebble) * (0.96 + 0.08 * tone) * (1.0 - 0.3 * (1.0 - hem)) * (1.0 + 0.15 * roll);\n" \
+"}\n" \
+"\n" \
+"// QVR: a glove's leather's sheen, soft and broad, in the model's own light (k: GloveLeather's gloss times its cover)\n" \
+"vec3 GloveSheen(vec3 n, float k)\n" \
+"{\n" \
+"	if (k <= 0.0 || dot(in_bumplight.xyz, in_bumplight.xyz) <= 0.0)\n" \
+"		return vec3(0.0);\n" \
+"	vec3 v = normalize(-in_pos);\n" \
+"	vec3 l = normalize(in_bumplight.xyz);\n" \
+"	float s = pow(max(dot(n, normalize(l + v)), 0.0), 18.0);\n" \
+"	float f = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);\n" \
+"	return min(in_color.rgb, vec3(1.0)) * k * (s * 0.12 + f * 0.05);\n" \
+"}\n" \
+"\n" \
 "bool Morph(out vec3 seam)\n" \
 "{\n" \
 "	seam = vec3(0.0);\n" \
@@ -2567,22 +2630,41 @@ SPECULAR_AA_FUNCTIONS
 "	Wounds wounds = WoundsAt(uv, result.rgb); // QVR: wounds painted on the model (vr/vr_wounds.cpp)\n" \
 "	vec4 tone = instances[in_instance].SkinTone;\n" \
 "	vec4 glove = instances[in_instance].Glove;\n" \
+"	vec2 leatherSlope = vec2(0.0); // QVR: a glove's leather (GloveLeather): its relief, its cover, its sheen\n" \
+"	float leatherCover = 0.0, leatherGloss = 0.0;\n" \
 "	if (tone.w > 0.0 || glove.w > 0.0) // QVR: skin only (vr_skin_tone): the skin's share of the look toned, painted blood/char keep their colour,\n" \
 "	{ // their soft edges blending in (no untoned ring); gloves (vr_gloves) over it, the skin toned where they leave it bare\n" \
 "		float skinShare = (1.0 - wounds.burn) * (1.0 - wounds.blood * instances[in_instance].WoundSide.w) * (1.0 - 0.5 * wounds.wet);\n" \
 "		vec4 mask = textureGrad(SkinMaskTex, uv, duvdx, duvdy);\n" \
 "		float gm = glove.w > 1.5 ? mask.b : glove.w > 0.5 ? mask.g : 0.0; // make_skin_masks.py: 0.55 at the edge, 1 a hem inside\n" \
 "		float cover = smoothstep(0.3, 0.5, gm), hem = clamp((gm - 0.55) / 0.45, 0.0, 1.0);\n" \
+"		vec2 ts = vec2(textureSize(SkinMaskTex, 0));\n" \
+"		vec4 mx = vec4(0.5), my = vec4(0.5);\n" \
+"		vec2 dhem = vec2(0.0);\n" \
+"		if (glove.w > 0.0 && gm > 0.3)\n" \
+"		{\n" \
+"			mx = textureGrad(SkinMaskTex, uv + vec2(1.0 / ts.x, 0.0), duvdx, duvdy);\n" \
+"			my = textureGrad(SkinMaskTex, uv + vec2(0.0, 1.0 / ts.y), duvdx, duvdy);\n" \
+"			dhem = (glove.w > 1.5 ? vec2(mx.b, my.b) : vec2(mx.g, my.g)) - gm;\n" \
+"			dhem = hem > 0.0 && hem < 1.0 ? dhem / 0.45 : vec2(0.0);\n" \
+"		}\n" \
 "		vec4 cuff = instances[in_instance].GloveCuff;\n" \
 "		if (glove.w > 0.0 && cuff.x > 0.0 && uv.x < cuff.x && uv.y < cuff.w) // a bare forearm's cuff, by the skin's rows\n" \
 "		{\n" \
 "			float fw = max(abs(duvdx.y), abs(duvdy.y)) + 1e-6;\n" \
 "			cover = smoothstep(-fw, fw, uv.y - cuff.y);\n" \
 "			hem = clamp((uv.y - cuff.y) / (cuff.z - cuff.y), 0.0, 1.0);\n" \
+"			dhem = vec2(0.0, hem > 0.0 && hem < 1.0 ? 1.0 / ((cuff.z - cuff.y) * ts.y) : 0.0);\n" \
+"			mask.a = mx.a = my.a = 0.5; // plain leather\n" \
 "		}\n" \
 "		cover *= step(0.5, glove.w);\n" \
 "		vec3 toned = tone.w > 0.0 ? result.rgb * mix(vec3(1.0), tone.rgb, mask.r * (1.0 - cover)) : result.rgb;\n" \
-"		vec3 leather = glove.rgb * mix(1.0, 2.0 * mask.a, 0.85) * (1.0 - 0.4 * (1.0 - hem)); // the skin's own shading kept; its hem darker\n" \
+"		vec3 leather = glove.rgb;\n" \
+"		if (cover > 0.0) // its own relief, none of the skin's painted detail (GloveLeather)\n" \
+"		{\n" \
+"			leather *= GloveLeather(uv, duvdx, duvdy, ts, mask.a, mx.a, my.a, hem, dhem, leatherSlope, leatherGloss);\n" \
+"			leatherCover = cover * skinShare;\n" \
+"		}\n" \
 "		wounds.look += skinShare * (mix(toned, leather, cover) - result.rgb);\n" \
 "	}\n" \
 "	result.rgb = wounds.look;\n" \
@@ -2595,6 +2677,8 @@ SPECULAR_AA_FUNCTIONS
 "	vec3 n = normalize(in_nor);\n" \
 "	float bumpk = instances[in_instance].AO.z; // QVR: its normal map's strength: a made one's LightTweak.w, an authored one's own (vr_normalmap_authored)\n" \
 "	vec3 bumped = bumpk > 0. && (in_bumplight.w > 0. || NumLights > 0u || instances[in_instance].Ambient[0].w > 0.) ? BumpedNormalK(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, bumpk) : n;\n" \
+"	if (leatherCover > 0.) // QVR: a glove's leather: the skin's bumps (creases, nails) under it gone, its own relief instead\n" \
+"		bumped = WoundBump(normalize(mix(bumped, n, leatherCover)), leatherSlope * leatherCover, duvdx, duvdy, dpdx, dpdy);\n" \
 "	if (wounds.flatten > 0.) // QVR: blood and water fill the bumps\n" \
 "		bumped = normalize(mix(bumped, n, wounds.flatten));\n" \
 "	if (wounds.slope != vec2(0.)) // QVR: your own wounds' relief (the fine masks): char crusted, blood sunk in\n" \

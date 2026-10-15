@@ -1567,6 +1567,7 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "#endif\n"
 "	result.rgb += spec; // QVR\n"
 "	result.rgb += WoundSheen(wounds, bumped); // QVR: wet blood and water shine\n"
+"	result.rgb += GloveSheen(bumped, leatherGloss * leatherCover); // QVR: a glove's leather's soft sheen\n"
 "	result.rgb += ModelRimReflect(n, bumped, skin, result.a); // QVR: rim light and reflections (vr/vr_envmap.cpp)\n"
 "#if POSEVERTTYPE == 2 \n"
 "	result.a *= in_color.a;\n"
