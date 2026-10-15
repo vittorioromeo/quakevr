@@ -58,6 +58,7 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -474,6 +475,9 @@ VrMove unposed;
 
 za::Vector<client::EntityVr> entityData;
 
+// Brush models precached after the map loaded (parsePrecacheModel): not drawn (client::lateBrushModel).
+za::InPlaceVector<const qmodel_t*, 32> lateBrushModels;
+
 [[nodiscard]] bool vrProtocol()
 {
     return (cl.protocolflags & PRFL_QUAKEVR) != 0;
@@ -573,7 +577,22 @@ void parsePrecacheModel()
         Host_Error("svc_quakevr: bad model precache index %d", index);
     }
 
-    cl.model_precache[index] = Mod_ForName(name, false);
+    if(cl.model_precache[index] && !strcmp(cl.model_precache[index]->name, name))
+    {
+        return; // (a datagram's repeat of one known: VR_WriteRecentPrecaches)
+    }
+    qmodel_t* const model = Mod_ForName(name, false);
+    cl.model_precache[index] = model;
+    if(model && model->type == mod_brush && name[0] != '*')
+    {
+        // A brush model's lightmaps and vertices are built with the map (R_NewMap): one loaded after is not drawn. The
+        // toolgun's are precached with every map (QC VR_Toolgun_Precache).
+        Con_DPrintf("late brush model %s: not drawn until the map loads again (precache it at the map's load)\n", name);
+        if(lateBrushModels.size() < lateBrushModels.capacity())
+        {
+            lateBrushModels.pushBack(model);
+        }
+    }
 }
 
 void parsePrecacheSound()
@@ -586,6 +605,10 @@ void parsePrecacheSound()
         Host_Error("svc_quakevr: bad sound precache index %d", index);
     }
 
+    if(cl.sound_precache[index] && !strcmp(cl.sound_precache[index]->name, name))
+    {
+        return; // (a datagram's repeat: VR_WriteRecentPrecaches)
+    }
     cl.sound_precache[index] = S_PrecacheSound(name);
 }
 
@@ -747,6 +770,18 @@ const EntityVr* entityVr(int num)
     return &entityData[num];
 }
 
+bool lateBrushModel(const qmodel_t* model)
+{
+    for(const qmodel_t* m : lateBrushModels)
+    {
+        if(m == model)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace qvr::client
 
 extern "C" void VR_OnSetAngle(float yaw)
@@ -786,6 +821,7 @@ extern "C" void VR_WriteDemoState(sizebuf_t* msg)
 extern "C" void VR_OnClientClearState()
 {
     entityData.clear();
+    lateBrushModels.clear();
     particles::clear();
     decals::clear();
     worldtext::clientReset();

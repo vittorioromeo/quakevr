@@ -74,7 +74,8 @@ void() MG3_UpgradeTouch = {
     } else {
         MG3_SetUpgradeMask(self.MG3_upgrade_kind, mask | self.upgrade_flag);
         float newmax = MG3_ApplyUpgrade(self.MG3_upgrade_kind, other);
-        if(other.ishuman) MG3_sprint_args(other, "$mg3_qc_upgrade_success", self.netname, ftos(newmax));
+        if(!MG3_Campaign()) { if(other.ishuman) sprint(other, sprintf("Ammo backpack: filled to %s\n", ftos(newmax))); }
+        else if(other.ishuman) MG3_sprint_args(other, "$mg3_qc_upgrade_success", self.netname, ftos(newmax));
     }
     VRItemPickupHaptic(other);
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
@@ -99,8 +100,15 @@ void() MG3_UpgradeStart = {
     VR_PickupObj_Mark(QVR_PICKUPOBJ_HOLSTER);
 };
 
-void(float kind, string mdl, string snd, string name) MG3_UpgradeSpawn = {
-    if(!MG3_Campaign()) { remove(self); return; }
+// `owned`: the model read in place from the owned pack ("": none). Outside the campaign the toolgun makes the ammo
+// upgrades (vr_spawn_live) in any map as ammo backpacks (his decision: ROUND22.md, "The toolgun's spawns: loaded, placed
+// and drawn at once"): the map has no bit (MG3_UpgradeFlag 0), so each fills its ammo to the usual most, every time.
+void(float kind, string mdl, string owned, string snd, string name) MG3_UpgradeSpawn = {
+    if(!MG3_Campaign())
+    {
+        if(!vr_spawn_live || owned == "" || !VR_Has(owned)) { remove(self); return; }
+        mdl = owned;
+    }
     precache_model(mdl);
     precache_sound(snd);
     if(!self.upgrade_flag) self.upgrade_flag = MG3_UpgradeFlag();
@@ -118,24 +126,24 @@ void(float kind, string mdl, string snd, string name) MG3_UpgradeSpawn = {
 /*QUAKED item_upgrade_health (0 .5 .8) (0 0 0) (32 32 32)
 Dawn of the Machine: health capacity upgrade (+10 health capacity, once per map; heals to the new capacity).
 */
-void() item_upgrade_health = { MG3_UpgradeSpawn(MG3_UPGRADE_HEALTH, "progs/item_h_player.mdl", "player/tornoff2.wav", "$mg3_qc_upgrade_health"); };
+void() item_upgrade_health = { MG3_UpgradeSpawn(MG3_UPGRADE_HEALTH, "progs/item_h_player.mdl", "", "player/tornoff2.wav", "$mg3_qc_upgrade_health"); };
 
 /*QUAKED item_upgrade_shells (0 .5 .8) (0 0 0) (32 32 32)
 Dawn of the Machine: shell capacity upgrade (+10 shells capacity, once per map; fills it).
 */
-void() item_upgrade_shells = { MG3_UpgradeSpawn(AID_SHELLS, "progs/backpackshells.mdl", "weapons/lock4.wav", "$mg3_qc_upgrade_shell"); };
+void() item_upgrade_shells = { MG3_UpgradeSpawn(AID_SHELLS, "progs/backpackshells.mdl", "owned/mg3/progs/backpackshells.mdl", "weapons/lock4.wav", "$mg3_qc_upgrade_shell"); };
 
 /*QUAKED item_upgrade_nails (0 .5 .8) (0 0 0) (32 32 32)
 Dawn of the Machine: nail capacity upgrade (+10 nails capacity, once per map; fills it).
 */
-void() item_upgrade_nails = { MG3_UpgradeSpawn(AID_NAILS, "progs/backpacknails.mdl", "weapons/lock4.wav", "$mg3_qc_upgrade_nail"); };
+void() item_upgrade_nails = { MG3_UpgradeSpawn(AID_NAILS, "progs/backpacknails.mdl", "owned/mg3/progs/backpacknails.mdl", "weapons/lock4.wav", "$mg3_qc_upgrade_nail"); };
 
 /*QUAKED item_upgrade_rockets (0 .5 .8) (0 0 0) (32 32 32)
 Dawn of the Machine: rocket capacity upgrade (+10 rockets capacity, once per map; fills it).
 */
-void() item_upgrade_rockets = { MG3_UpgradeSpawn(AID_ROCKETS, "progs/backpacker.mdl", "weapons/lock4.wav", "$mg3_qc_upgrade_rocket"); };
+void() item_upgrade_rockets = { MG3_UpgradeSpawn(AID_ROCKETS, "progs/backpacker.mdl", "owned/mg3/progs/backpacker.mdl", "weapons/lock4.wav", "$mg3_qc_upgrade_rocket"); };
 
 /*QUAKED item_upgrade_cells (0 .5 .8) (0 0 0) (32 32 32)
 Dawn of the Machine: cell capacity upgrade (+10 cells capacity, once per map; fills it).
 */
-void() item_upgrade_cells = { MG3_UpgradeSpawn(AID_CELLS, "progs/backpackcells.mdl", "weapons/lock4.wav", "$mg3_qc_upgrade_cell"); };
+void() item_upgrade_cells = { MG3_UpgradeSpawn(AID_CELLS, "progs/backpackcells.mdl", "owned/mg3/progs/backpackcells.mdl", "weapons/lock4.wav", "$mg3_qc_upgrade_cell"); };

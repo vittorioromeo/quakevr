@@ -223,6 +223,8 @@ int VR_AD_PelletsPass (const struct edict_s *mover, const struct edict_s *target
 int VR_AD_RulesOn (void);				// AD support (vr_ad.cpp): the map spawning plays by Arcane Dimensions' rules
 int VR_AD_OwnsClassname (const char *classname, int ours);	// AD support: AD's ad_<classname> spawns it, not Quake VR's
 int VR_AD_SpawnsOutside (const char *classname);	// AD support: outside AD's rules, AD's ad_<classname> spawns it (an artifact, a pickup, a ladder)
+int VR_AD_ToolgunSpawnsOutside (const char *classname); // AD support: and the toolgun's (AD's backpacks too)
+int VR_AD_SpawnOutsideNow (void);				// AD support: AD's world setup once a map, before the first such
 void VR_AD_TintBlend (float *r, float *g, float *b, float *a, float percent);	// AD support: V_CalcBlend, AD's screen tint over Quake's colour shifts (0-255 colour, 0-1 alpha)
 float VR_AD_SkyFog (float mapOwn);	// AD support: Fog_SetupFrame, the sky fog AD set (STAT_QVR_ADSKYFOG), else mapOwn
 void VR_OnSpawnServerSpawned (void);		// SV_SpawnServer, after ED_LoadFromFile (before the settling frames)
@@ -346,6 +348,7 @@ void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearSta
 void VR_OnSetAngle (float yaw);							// svc_setangle: the server turned the view
 void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data
 void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending
+void VR_WriteRecentPrecaches (struct sizebuf_s *msg);	// SV_SendClientDatagram: late precaches before their use
 // The unreliable broadcast's room (vr_server.cpp): a full sv.datagram drops whole messages, never part of one.
 void VR_BroadcastClear (void);							// SV_ClearDatagram: clears sv.datagram
 void VR_BroadcastQCRun (void);							// PR_ExecuteProgram, a server QuakeC run from the engine (not nested)

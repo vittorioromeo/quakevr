@@ -6,6 +6,8 @@
 
 #include <glm/glm.hpp>
 
+struct qmodel_s;
+
 namespace qvr::client
 {
 
@@ -32,5 +34,8 @@ void init(); // registers input commands
 
 // Null when the server doesn't speak the VR protocol or the entity has no VR data.
 [[nodiscard]] const EntityVr* entityVr(int num);
+
+// A brush model precached after the map loaded: not drawn (its lightmaps and vertices are built with the map).
+[[nodiscard]] bool lateBrushModel(const qmodel_s* model);
 
 } // namespace qvr::client

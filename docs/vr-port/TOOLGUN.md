@@ -185,8 +185,14 @@ offsets, turn and which hand holds it).
 - `Misc/quakevr/toolgun_spawnall_test.sh <agent> [<first> [<last>]]`: every spawn entry made once, eight at a time on a
   ring around the player (`vr_toolgun_spawn_test <first> <last>`, then `vr_toolgun_spawn_test check`: each still
   there, then all removed; Debug > Toolgun's "Spawn Every Toolgun Entry"): each printed spawned and alive, gone,
-  failed or unavailable. `MAPCMD="vr_campaign_native mg3;map map1"` for Dawn of the Machine's campaign-only ones
-  (ROUND22.md, "Every expansion's entities in the toolgun's spawn panel").
+  failed or unavailable; an alive one the client does not draw (no model there, or a brush model loaded after the map)
+  is "invisible" and fails; the server's precaches the client lacks are printed. `MAPCMD="vr_campaign_native mg3;map
+  map1"` for Dawn of the Machine's campaign-only ones (ROUND22.md, "Every expansion's entities in the toolgun's spawn
+  panel").
+- `vr_toolgun_spawn_trace [entry] [frames]` (Debug > Toolgun, "Trace the Chosen Spawn"): one entry made ahead of you,
+  its server model, scale, box and place and its client model and scale printed each frame (a pop, an invisible one).
+  With `developer 1` each spawn prints where it was placed, at what scale and offset; `vr_toolgun_status` prints the
+  ghost as drawn: the two match (ROUND22.md, "The toolgun's spawns: loaded, placed and drawn at once").
 
 ## Known limits
 
@@ -194,5 +200,7 @@ offsets, turn and which hand holds it).
   a Spawn ghost shows it is the ghost's hold — that hand does not jump and the hook does not unreel for the duration.
   With nothing chosen, or another tool in hand, it jumps as ever.
 - Saved games don't keep frozen props or joints (they fall, unjoined, when loaded).
-- Brush-model items (health, ammo boxes, explosive boxes) show their ghost only on maps that already have them loaded
-  (their thumbnails are drawn from their files whatever the map).
+- A brush model loaded after the map is never drawn (its lightmaps and vertices are built with the map): the toolgun's
+  brush-model items and boxes (and AD's golems' rubble, `maps/ad_brk/rock01/02.bsp`) are precached with every map (QC
+  `VR_Toolgun_Precache`); any other one loaded late prints "late brush model ... not drawn" (developer 1).
+- AD's monsters appear after AD's own spawn delay (about 0.3-1.2 s, as in AD's maps); AD's items at once.

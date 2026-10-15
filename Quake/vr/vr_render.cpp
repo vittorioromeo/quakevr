@@ -18,6 +18,7 @@
 #include "vr_props.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_hitreact.hpp"
+#include "vr_toolgun.hpp"
 #include "vr_hotblade.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_weapons.hpp"
@@ -45,6 +46,10 @@ namespace
         if(const view::ViewEntity* ve = view::find(e); ve && ve->netEntity > 0)
         {
             return client::entityVr(ve->netEntity); // (a part of a world entity: a lying gun's magazine)
+        }
+        if(const client::EntityVr* ghost = toolgun::ghostVr(e))
+        {
+            return ghost; // (the toolgun's ghost of an item: as it will be once placed)
         }
         return collectfx::entityVr(e); // (a thing put away, drawn going in: the item's own)
     }

@@ -8043,3 +8043,61 @@ In VR: bind the hip shotgun (a hand at the holster, click the stick), throw it: 
 from a dropped one; grab one on its way back; try the shoulders and the chest holsters, the off hand, the axe and an
 expansion weapon; look at the lanyard on the gun in the hand and at the holster (Chain Size, Opacity), and the tether
 across a room.
+## The toolgun's spawns: loaded, placed and drawn at once (worktree `fastship`, branch `agent/tgspawnfix`, 2026-10-16)
+
+His notes: a megahealth (or others) spawned in a map without one is invisible; health boxes, the megahealth and ammo
+spawn big for a moment and then shrink, and their ghost shows the big one in the wrong place; AD's and MG3's ammo and
+armour backpacks spawnable in any map (his decision; maps keep AD's rule, ARCANE_DIMENSIONS.md 16.1); the ghosts of
+some AD monsters (the Death Knight...) look corrupted, "their bones all messed up".
+
+- **Invisible spawns**: the megahealth is a brush model (`maps/b_bh100.bsp`); a brush model's lightmaps and vertices are
+  built with the map (R_NewMap), so one loaded later reached the client but was never drawn. QC `VR_Toolgun_Precache`
+  now precaches every brush-model entry with each map (id's health and ammo boxes small and big, the explosive boxes,
+  Rogue's lava nails, multi rockets and plasma boxes where its pak is, AD's golems' rubble `maps/ad_brk/rock01/02.bsp`):
+  13-21 small files. The client prints `late brush model ... not drawn` (developer 1) for any other
+  (`client::lateBrushModel`).
+- **Late precaches reach the client before their use**: a late model or sound precache was sent only in the reliable
+  message, which goes after the frame's datagram (and waits for the last one's ack), so the entity made with it or a
+  sound started on it came first: the model drawn as nothing until a later update, the sound lost. Each late precache is
+  now also written at the head of every client's datagram for half a second (`VR_WriteRecentPrecaches`, sv_main.c
+  SV_SendClientDatagram after svc_time); the client skips one it knows. Everything else an entry needs (models, sounds)
+  is precached late, when it is chosen (the ghost's probe, below) or made.
+- **Final size from the spawn itself**: `box3d::spawnClass` (the toolgun, `vr_physics_spawn`, the brush tool) runs QC
+  `VR_SpawnLive_Finish` right after the spawn function: Dawn of the Machine's upgrade started (its 0.5 s), AD's item
+  start (`AD_SpawnLive_Finish`: a backpack's setup and AD's 0.1-0.6 s spread), the item placed (`VRPlaceItemNow`:
+  dropped, a box shrunk to its object, a pickup scaled and floated: StartItem's 0.2 s) and made an object
+  (`VR_PickupObj_Place`: the 0.3 s after). The first frame the client sees is the final one.
+- **The ghost as the placed item**: an Items entry (or a picked `item_`) is probed once when chosen and aimed at a floor:
+  made where the ghost stands (`spawnClass` probe: QC `vr_spawn_live` 2, no ammo box's weapon drop) and removed at once;
+  its model, skin, frame, scale and offsets and its origin's move are kept (`GhostLook`) and the ghost drawn with them
+  (`toolgun::ghostVr`, render::networkData). The probe also precaches what the item needs before it is placed.
+- **Backpacks anywhere**: AD's ammo and armour backpacks (`ad_item_backpack`, `_armour`) through the toolgun in any map
+  while AD's data is mounted (`VR_AD_ToolgunSpawnsOutside`; the entries no longer AD-maps-only); MG3's four ammo
+  upgrades (shells, nails, rockets, cells) in any map as ammo backpacks: outside the campaign the model is read from the
+  owned pack and the map has no upgrade bit, so each fills that ammo to the usual most, every time ("Ammo backpack:
+  filled to N"). The health upgrade stays campaign-only.
+- **AD ghosts**: Rebuild From Skeleton keyed each entity's cached bone rows by its poses and settings, not its model; the
+  ghost is a temp entity whose slot draws whatever is chosen, so a new choice on the same poses (frame 0) took the last
+  one's bones. The key now includes the model (`vr_animsmooth.cpp` Key; the same would have hit an edict reused by
+  another model). Screenshots, before/after (Death Knight, Crossbow Knight, Hunter Ogre, Centurion):
+  `scratch/ghost_before.png`, `scratch/ghost_after.png` (`scratch/ghost_shots.sh`).
+- **Debug > Toolgun**: Trace the Chosen Spawn (`vr_toolgun_spawn_trace [entry] [frames]`: its server model, scale, box,
+  place and its client model and scale each frame); `vr_toolgun_spawn_test check` prints "invisible" for an alive one
+  the client doesn't draw and the precaches the client lacks; `vr_toolgun_status` the ghost as drawn; with developer 1
+  each spawn prints where it was placed, scale and offset.
+
+Tests: `toolgun_spawnall_test.sh fastship 0 239` (vrfiringrange) PASS: 199 spawned and alive, 0 failed, 0 invisible,
+11 unavailable; precaches 457 models / 834 sounds, 0 not on the client; the five AD backpacks and four MG3 ammo
+backpacks alive there. `vr_toolgun_spawn_trace` on every entry (`scratch/trace_all.sh`): every item's server scale and
+box the same from the frame it is made, its client scale final from the first frame it is drawn (id's boxes 0.2,
+armour 0.5, powerups 0.6, backpacks 0.75); the megahealth drawn (was "no model"); AD's items drawn from frame 1-3 (were
+frame 37-95). Ghost vs placed (`scratch/ghost_numbers.sh`: health, megahealth, green armour, shells, quad, AD health
+vial, AD ammo backpack, MG3 shells backpack): model, origin, scale and offset identical. `toolgun_panel_test.sh` PASS;
+e1m1 smoke (a megahealth and an AD backpack spawned) clean.
+
+Not done: AD's monsters still appear after AD's own spawn delay (0.3-1.2 s, as in AD's maps). Weapons' entries are a
+spawner that makes the weapon (unchanged). The Debug menu's QC spawner keeps the backpacks AD-maps-only.
+
+In VR: spawn a megahealth, health, ammo and an armour in vrfiringrange: each appears small at once where its ghost was,
+with no big flash; the ghost shows the small box on the floor. Choose AD's Death Knight after another AD monster: its
+ghost should look like the monster. Spawn AD's and MG3's backpacks in an id map and take them.

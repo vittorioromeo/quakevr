@@ -4,7 +4,8 @@
 # god and notarget; eight entries at a time on a ring around the player (vr_toolgun_spawn_test <first> <last>), a
 # moment later each checked still there and removed (vr_toolgun_spawn_test check). Prints each entry's result
 # (spawned and alive / spawned but gone / failed / unavailable) and the totals.
-# PASS: no entry failed or gone (an unavailable one: its pack's data or its rules are not here), no crash.
+# PASS: no entry failed, gone or invisible (a model the client does not draw; an unavailable one: its pack's data or
+# its rules are not here), no crash.
 AGENT=${1:-spawnall}
 FIRST=${2:-0}
 LAST=${3:-199}
@@ -30,7 +31,7 @@ for m in re.finditer(r'spawntest: (\d+) (\w+) \"([^\"]+)\" (\S+): (spawned \d+|f
     rows[int(m.group(1))] = [m.group(2), m.group(3), m.group(4), m.group(5).split()[0], '']
 for m in re.finditer(r'spawntest: (\d+) \"[^\"]+\" (alive|gone) (.*)', t):
     n = int(m.group(1))
-    if n in rows: rows[n][4] = m.group(2) + ('' if m.group(2) == 'alive' else ' ' + m.group(3).strip())
+    if n in rows: rows[n][4] = m.group(2) + ('' if m.group(2) == 'alive' and 'invisible' not in m.group(3) else ' ' + m.group(3).strip())
 fails = []
 for n in sorted(rows):
     sec, label, cls, res, chk = rows[n]

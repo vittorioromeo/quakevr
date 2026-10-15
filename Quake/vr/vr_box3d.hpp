@@ -89,9 +89,10 @@ void reset();
 // A map entity made by its spawn function (`classname`) at `origin`, turned `angles` (set before it: a monster's
 // ideal_yaw is taken from them), its "model" `model` and the float field `key` set to `value` first when given (a rock's
 // model, func_weapon_grabbable's weapon). Null if there is no such spawn function, or it removed itself. vr_physics_spawn's
-// and the toolgun's.
+// and the toolgun's. An item is placed at once (QC VR_SpawnLive_Finish): its final size and place from its first frame.
+// `probe`: made only to be looked at and removed at once (the toolgun's ghost: QC vr_spawn_live 2).
 edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model = nullptr,
-    const char* key = nullptr, float value = 0.f);
+    const char* key = nullptr, float value = 0.f, bool probe = false);
 
 // The toolgun's (vr_toolgun.cpp). A prop pinned is a kinematic body where its entity is (as a pickup hanging), until
 // unpinned: frozen, or moved by the physgun's beam (its entity moved, its body follows and pushes the others). Edict

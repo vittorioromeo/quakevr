@@ -5,6 +5,11 @@
 // VR Utilities Implementation Details
 // ----------------------------------------------------------------------------
 
+// Set by the engine round a spawn function it runs after the map has spawned (box3d::spawnClass: the toolgun, physics
+// spawns): 1 a live spawn (what a map makes static stays an entity: vr_walltorch.qc; an item placed at once:
+// VR_SpawnLive_Finish), 2 the toolgun's ghost's probe (made to be looked at and removed: nothing else made with it).
+nosave float vr_spawn_live;
+
 // The per-hand getters run many times a frame (the QC VM interprets every statement, and a call
 // costs several), so they are branchless selects that fteqcc inlines (`inline`: its inliner takes
 // only branch-free bodies): the off hand's (cVR_OffHand, 0) value for 0, the main hand's for any
