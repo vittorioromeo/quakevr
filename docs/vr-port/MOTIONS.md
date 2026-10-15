@@ -74,6 +74,10 @@ with them off.
 | No Decapitation | `no_decapitation` | a blade's blow at the head or neck (or near) that must not cut it off | stab, pommel, hilt, flat (a flat slap), slow, body, shoulder |
 | Neck Snap Expected | `neck_snap` | both hands hold the dummy's head or neck and twist: its neck should snap | head, neck, push_pull, turn, tilt |
 | Neck Snap Not Expected | `no_neck_snap` | both hands on the dummy (head, neck or shoulders) and moving it, but no snap | shoulders, slow, small, pull, lift, adjusting |
+| Lift Expected | `lift` | both hands on the dummy pulling it up (the two-hand lift, `vr_foegrab_lift`) | straight, fast, angled, close, far |
+| Lift Not Expected | `no_lift` | both hands on it moving it but no lift | slow, sideways, too_far, one_hand, adjusting, throw |
+| Judo Throw Expected | `judo_throw` | both hands turning it down (the two-hand throw, `vr_foegrab_throw`) | left, right, towards, away, fast, hip |
+| Judo Throw Not Expected | `no_judo_throw` | both hands on it turning or moving it but no throw | slow, small, shove, lift, one_hand, adjusting |
 | Other | `other` | anything else (`vr_motion_note`) | |
 
 The "parry state" the evaluation reads, each server frame of the replay's labelled part (phase `rec`): the parry test
@@ -131,6 +135,23 @@ header records the `vr_foegrab_necksnap*` settings it was recorded with.
 detector (`vr_motion_eval <takes> necksnap 0|1`: `vr_foegrab_necksnap_method` for the replays, put back after; the other
 neck snap settings as set; `eval_status.csv` unchanged), printing per detector the expected snaps caught and missed and
 the false snaps, each miss and false snap by name.
+
+### Lift and judo throw takes
+
+For tuning the two-hand lift and throw (ROUND22.md, "Lift and judo throw takes"), the same way as the neck snap takes:
+empty hands, the training dummy, both grips taken after the take starts. **Lift Expected** (straight, fast, angled,
+close, far): pull it up hard with both hands. **Lift Not Expected** (slow, sideways, too_far, one_hand, adjusting,
+throw): a slow pull, a pull across, too far from you, one hand, shifting the grip, a throw. **Judo Throw Expected**
+(left, right, towards, away, fast, hip): both hands turn it over the way you throw. **Judo Throw Not Expected** (slow,
+small, shove, lift, one_hand, adjusting). The game's events: `lift` (sub `knocked_down`, or `standing` for the dummy,
+which is not knocked down; detail `1.59 m/s up, 23 units from you`) from `liftCheck` and `judothrow` (sub `left`,
+`right`, `towards`, `away`; the turn in deg/s; detail the speed and way) from `throwCheck`, both in `vr_foegrab.cpp`.
+Verdicts (`expect.cfg`): the Expected categories pass with their event, the Not Expected ones without it; blows on the
+way in are allowed. The dummy stays standing and holdable (the training dummy is only "would be lifted/thrown (it
+stands)"). The header records the `vr_foegrab_lift*` and `vr_foegrab_throw*` settings.
+
+`eval.sh` keeps these takes out of the melee sets and replays them once (the takes' own settings), printing per kind
+the expected ones caught and missed and the false ones, every take by name (report only, no baseline).
 
 A take's label is `<category>` or `<category>_<detail>` (`slash_overhead`, `parry_pose_sword_2h_blade`).
 
@@ -533,6 +554,10 @@ python Misc/quakevr/motion_synth.py decap --out quakevr/motions/decaptest   # th
 The decapitation presets (`decap`): `decapitation_horizontal_rtl`, `_ltr`, `_diagonal_down_left` (the edge across the
 dummy's neck), `no_decapitation_flat` (the same with the flat leading), `_body` (35 cm lower), `_stab` (a thrust into the
 neck); `--neck` (0.62 m) the hand's height below the eye.
+
+The lift and judo throw presets (`liftjudo`; `scratch/synth_*`, never his folder): `lift_straight`, `lift_fast`,
+`no_lift_slow`, `no_lift_sideways`, `judo_throw_left`, `_right`, `_towards`, `no_judo_throw_slow`, `_small`;
+both fists on the dummy's shoulders (`--head`, `--necksnap-distance`).
 
 The neck snap presets (`necksnap`; keep them out of the author's folder, e.g. `--out scratch/synth_necksnap`):
 `neck_snap_turn` (both fists at the dummy's head, gripped after the setup, turned 90 degrees about the vertical in 0.2

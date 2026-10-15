@@ -6790,6 +6790,30 @@ snap takes"), so his real twists become a regression set for both twist detector
 Checklist (proposed): "Motion Recorder: record a few Neck Snap Expected takes (grip the dummy's head after starting the
 take, twist hard) and Neck Snap Not Expected ones (twist at the shoulders, a slow or small turn, a pull): each saves,
 the dummy stays standing and holdable, and Review Takes lists them under their categories."
+## Lift and judo throw takes in the motion recorder (worktree `qcscanopt`, 2026-10-15)
+
+His request: "add expected/unexpected lifts and judo throws to the motion recorder, so that we can tweak those too".
+The neck snap pattern, four categories (MOTIONS.md, "Lift and judo throw takes"):
+
+- **Recording**: Motion Recorder > Category **Lift Expected** (`lift`), **Lift Not Expected** (`no_lift`), **Judo Throw
+  Expected** (`judo_throw`), **Judo Throw Not Expected** (`no_judo_throw`), with Detail tags. Empty hands, the training
+  dummy: start the take, grip it with both hands, pull it up or turn it down, let go, end the take. The dummy only
+  reports "would be lifted/thrown (it stands)": it stays standing and holdable. The game's events: `lift` and
+  `judothrow` (`vr_foegrab.cpp`); the header lists `vr_foegrab_lift*` and `vr_foegrab_throw*`.
+- **Verdicts** (`expect.cfg`): `lift` needs a `lift` event, `no_lift` none, the same for `judo_throw`/`judothrow`.
+- **eval.sh** (kit, staged as `qcscanopt/scratch/eval_lift.sh`, based on the current kit eval.sh, with the neck snap
+  section kept): the four kinds are out of the melee sets, then replayed once from a take list; per kind `expected
+  caught a/b, missed c, false d/e`, each take by name. Report only.
+- **Synthetic takes** (`motion_synth.py liftjudo`, `source: synthetic`, in `scratch/`): `lift_straight`, `lift_fast`,
+  `no_lift_slow`, `no_lift_sideways`, `judo_throw_left/right/towards`, `no_judo_throw_slow/small`. All nine give the
+  expected verdict at the shipped settings: lifts caught 2/2 (1.6 m/s up, standing), throws caught 3/3 (580-1156 deg/s at
+  3.2-3.5 m/s), 0 false of 4. (No `too_far` synthetic: the hands can't reach there.)
+- Melee eval 168/177 (unchanged); build 0 warnings.
+
+Checklist (proposed): "Motion Recorder: record Lift Expected takes (grip the dummy with both hands after starting, pull
+it up hard) and Judo Throw Expected ones (turn it down), plus Not Expected ones (a slow pull, a slow or small turn): each
+saves, the dummy stays standing and holdable, and Review Takes lists them under their categories."
+
 ## Faster test suites: batched cases shipped (worktree `fastship`, branch `agent/fasttests`, 2026-10-15)
 
 The batched test cases from 2026-10-14 (`Misc/quakevr/testbatch/`: many cases in one game between `vr_test_snapshot`
