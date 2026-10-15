@@ -41,6 +41,7 @@ float cvarh_vr_forcegrab_eligible_particles;
 float cvarh_vr_forcegrab_mode;
 float cvarh_vr_forcegrab_distance;
 float cvarh_vr_forcegrab_cone;
+float cvarh_vr_forcegrab_bodies_block;
 float cvarh_vr_forcegrab_flick_speed;
 float cvarh_vr_forcegrab_flick_turn;
 float cvarh_vr_forcegrab_time;
@@ -862,6 +863,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_forcegrab_mode);
     VR_CVAR_HMAKE(vr_forcegrab_distance);
     VR_CVAR_HMAKE(vr_forcegrab_cone);
+    VR_CVAR_HMAKE(vr_forcegrab_bodies_block);
     VR_CVAR_HMAKE(vr_forcegrab_flick_speed);
     VR_CVAR_HMAKE(vr_forcegrab_flick_turn);
     VR_CVAR_HMAKE(vr_forcegrab_time);

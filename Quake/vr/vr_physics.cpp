@@ -214,19 +214,26 @@ constexpr float weaponDrawnReach = 48.f;
         // not anywhere) with vr_weapon_grab_handle_leniency more: a gun is taken by its grip from as far off it as the
         // grip is from the fist's lowest over the floor. Not in the air: a force grab's catch takes it by its own
         // handtouch, and a weapon flying at the hand is caught by the fist on it.
+        // In the air (tossed up to re-grip it, flipped, spinning): vr_weapon_catch_handle_leniency at its handle, a trick
+        // catch's (ROUND22.md, "Mid-air catches": the closing fist missed a falling axe's handle by a few centimetres).
+        // Not one a force grab pulls (QC fg_state 1): its catch is its own (vr_forcegrab_catch_radius).
         const int h = which == HAND_OFF ? 0 : 1;
         const float m2u = units::metresToUnits();
+        const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
+        const bool atHandle =
+            glm::distance(hand, vec(target->v.origin)) <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u;
         float slack = 0.f;
         if(lyingWeapon(target))
         {
             slack = za::max(vr_weapon_grab_slack.value, 0.f) * 0.01f * m2u;
-            const float leniency = za::max(vr_weapon_grab_handle_leniency.value, 0.f) * 0.01f * m2u;
-            const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
-            if(leniency > 0.f &&
-                glm::distance(hand, vec(target->v.origin)) <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u)
+            if(atHandle)
             {
-                slack += leniency;
+                slack += za::max(vr_weapon_grab_handle_leniency.value, 0.f) * 0.01f * m2u;
             }
+        }
+        else if(atHandle && fieldFloatOr(target, f().fg_state, 0.f) != 1.f)
+        {
+            slack = za::max(vr_weapon_catch_handle_leniency.value, 0.f) * 0.01f * m2u;
         }
         if(held::grabTouch(target, player, h, slack))
         {

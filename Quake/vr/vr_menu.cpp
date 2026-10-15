@@ -3324,6 +3324,16 @@ void hologramTestMessage()
             .help("In slow motion (bullet time, not Sandevistan), a throw's release is judged over the same stretch of "
                   "your real motion as at full speed, and its wrist flick by your real wrist speed. Off: over the slowed "
                   "clock's, which took in three times the arm's arc at 0.3x (throws went off, the wrist's share too big)."),
+        toggle("Slow Motion: Throw Strength by Stroke", vr_throw_slowmo_stroke)
+            .help("In slow motion (bullet time), a quick toss, flick or nudge goes as far as you made it, and a full "
+                  "throw made slowly with the slowed world goes as far as at full speed: the slower your stroke against "
+                  "a real-speed one of its length, the more it is raised, smoothly, no threshold. Off: the old nudge "
+                  "and flick rules below."),
+        slider("Slow Motion: Full Stroke Tempo", vr_throw_slowmo_stroke_time, 0.04f, 0.2f, 0.005f, "%.3f s").extend()
+            .help("A full arm throw's stroke at real speed: its path over its peak speed. Lower: slowed throws reach full "
+                  "strength sooner, real-speed throws in bullet time are raised a little more."),
+        slider("Slow Motion: Most Raised Speed", vr_throw_slowmo_max_speed, 0.f, 40.f, 1.f, "%.0f m/s").extend()
+            .help("The fastest a slowed throw is raised to (never below how fast you moved). 0: no cap."),
         toggle("Slow Motion: Throw Where You Aim", vr_throw_slowmo_aim)
             .help("In slow motion (bullet time, not Sandevistan), a throw goes the way your controller moved, as the same "
                   "motion at full speed would, even when the slowed hand lags behind it; its speed stays the slowed "
@@ -3567,7 +3577,14 @@ void hologramTestMessage()
             .extend(0.f, 20.f)
             .help("A gun lying on a table or the floor is taken by its handle with your fist this much farther off it than "
                   "the slack above (the hand at its handle; your hand nudging it doesn't stop it). Only a direct grab: a "
-                  "weapon caught in the air still needs your fist on it, and a force grab is unchanged. 0: as anywhere on it."),
+                  "weapon caught in the air has Mid-Air Catch Leniency, and a force grab is unchanged. 0: as anywhere on it."),
+        slider("Mid-Air Catch Leniency", vr_weapon_catch_handle_leniency, 0.f, 15.f, 0.5f, "%.1f cm")
+            .help("A weapon in the air (tossed up to re-grip it, flipped, spinning) is caught by its handle with your fist "
+                  "this much off it. Not a force grab's pull. 0: only by your fist on it."),
+        slider("Mid-Air Catch Window", vr_weapon_catch_window, 0.f, 0.5f, 0.05f, "%.2f s")
+            .help("A weapon in the air is caught by a grip closed up to this long before it reaches your fist, and the "
+                  "hand that tossed it may close again at once: it catches it as it comes back down. 0: as a weapon lying "
+                  "about (0.125 s, and not within 0.125 s of letting go)."),
         toggle("Lenient Weapon Catch", vr_weapon_grab_box)
             .help("The old catch: a weapon is also taken when your hand comes within a hand's width of its handle, the "
                   "fist up to 20 cm off it. Off: only when your closed fist touches it, as a box or a gib."),
@@ -7669,6 +7686,9 @@ za::Vector<Item> pageDebugTests()
         toggle("Force Grab", vr_forcegrab_mode).help("Pull pickups and weapons to your hand from afar."),
         slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f").extend(100.f, 4000.f),
         slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").extend().help("How far off where the hand points an object may be."),
+        toggle("Bodies Block", vr_forcegrab_bodies_block)
+            .help("An enemy (or a body) between your hand and an object hides it from the force grab, as a wall does. "
+                  "Off: only walls do."),
         slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend()
             .help("How fast the hand moves back or up to pull."),
         slider("Flick Turn", vr_forcegrab_flick_turn, 50.f, 800.f, 25.f, "%.0f deg/s").extend()

@@ -6193,6 +6193,35 @@ void(float xHand, entity ent, entity entPlayer,
     W_SetCurrentAmmo();
 }
 
+// A mid-air catch (vr_weapon_catch_window; ROUND22.md, "Mid-air catches"): a weapon in the air (not lying about, not
+// one a force grab pulls) is caught by a grip closed up to that long before it reaches the fist, not only 0.125 s; and
+// the hand that just let it go (a toss to re-grip it, a flip) may close again at once (VR_HandGrabUtil_StartedHandGrabbing
+// waits 0.125 s after a release): it catches it once it comes back down, from 0.05 s after the release (not the throw's
+// own fist closing again as it leaves).
+float(entity ent, entity entPlayer, float xHand) wpnthrow_midair_catch =
+{
+    float window = cvar("vr_weapon_catch_window");
+    if(window <= 0 || (ent.flags & FL_ONGROUND) || ent.fg_state == 1 || vlen(ent.velocity) < 30)
+    {
+        return FALSE;
+    }
+    if(!VR_HandGrabUtil_IsHandGrabbing(entPlayer, xHand))
+    {
+        return FALSE;
+    }
+    float grabbed = VR_HandGrabUtil_Impl_GetLastGrabTime(entPlayer, xHand);
+    float released = VR_HandGrabUtil_Impl_GetLastReleaseTime(entPlayer, xHand);
+    if(grabbed <= released || time >= grabbed + window)
+    {
+        return FALSE;
+    }
+    if(released + 0.125 > grabbed)
+    {
+        return ent.velocity_z < 0 && time >= released + 0.05;
+    }
+    return TRUE;
+}
+
 float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
 {
     entity entPlayer = ent.handtouch_ent;
@@ -6209,7 +6238,7 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
     float performWeaponSwitch = FALSE;
 
     // Must catch it: the grab started as it touches, or a force grab caught in time.
-    if(VRGetHandtouchHand(ent) == xHand && (pStartedGrabbing || forcegrabCatching))
+    if(VRGetHandtouchHand(ent) == xHand && (pStartedGrabbing || forcegrabCatching || wpnthrow_midair_catch(ent, entPlayer, xHand)))
     {
         performWeaponSwitch = TRUE;
     }

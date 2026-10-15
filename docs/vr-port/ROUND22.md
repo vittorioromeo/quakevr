@@ -6337,3 +6337,79 @@ the base build: 33 pixels of 518400 differ by 1.
 Checklist (proposed): "Permanent Decals: a big gore fight (e1m1 or a crowd) has no stutter as blood lands; turning
 Permanent Decals off leaves the newest marks (Max Decals) and on again brings every mark back, none darker; marks made
 while off are there once on; save and load keep the freshest marks too."
+## Bullet-time throws: the stroke's tempo (worktree `fasttests`, branch `agent/btthrow`, 2026-10-15)
+
+His note: small flicks and tosses should feel small in bullet time (gun tricks, tossing a prop a few centimetres up to
+re-grip it), smooth slowed full-arm throws should go full strength; the round-21 nudge/flick rules made an invisible
+threshold past which a throw was suddenly strong again. Before (`flick_slowmo_compare.sh`, metres at 45 degrees, bullet
+time 0.3x made at real speed / made 3.3x slower, over full speed): nudges 1.00 / 0.00-0.06, lob40 1.00 / 0.10, lob50
+1.72 / 0.27, lob60 1.71 / 0.46, overhand0 1.47 / 1.01: the step between lob40 and lob50 and a 10x jump in the made-slowly
+column.
+
+Now (`vr_throw_slowmo_stroke` 1, default; `vr_throw.cpp` `strokeGain`, `strokeEstimate`): in slow motion (not
+Sandevistan) a throw is its controller's velocity and spin in the player's real time times a gain. The stroke (as
+`strokeOf` measured it: the controller's path to the release while its speed is over a fifth of its peak) has a tempo,
+path over peak speed (real seconds: grows with how slowly it was made, and unlike the duration not moved by where the
+speed's edges fall). A real-speed stroke of that path has `vr_throw_slowmo_stroke_time` (0.09 s) for a full arm's
+(0.5 m to the release), down to 0.6 of it for none. The gain is tempo over that, clamped to 1 .. 1/timescale: a stroke
+made k times slower is raised k times, so it comes out at the speed the same stroke has at real speed, however slowly
+it was made (a slow 5 cm toss is still a 5 cm toss; a slowed full throw is a full throw). No threshold: the gain is
+continuous in the motion. The release's windows are taken at the same multiple (real seconds for a real-speed stroke,
+the game's for one made slowly with the world). The speed and way are the controller's (the slowed hand's 8 m/s cap and
+lag no longer limit a throw), raised at most to `vr_throw_slowmo_max_speed` (15 m/s; never under the real speed). The
+object still leaves the hand as drawn. Both-hand throws the same. `vr_throw_slowmo_real_strength` 1 still means gain 1.
+`vr_throw_slowmo_stroke 0`: the old rules (`_flick`, `_flick_arm`, `_short_travel`, `_long_travel`, `_tempo`,
+`_aim`), kept for an A/B. Timescale 1: untouched (the path never runs). Menu, the throwing rows after "Slow Motion: Throws in Real Time": "Slow Motion: Throw
+Strength by Stroke", "Full Stroke Tempo", "Most Raised Speed". `vr_debug_throw 1` prints "the stroke X m in Y s, peak
+Z m/s real, tempo T s: gain xG".
+
+Tests (headless, `Misc/quakevr/throw_slowmo/`): `stroke_sweep_test.sh <agent> lob|toss` (new: 3 .. 70 cm strokes in
+their real-speed time, full speed and bullet time made 1, 1.5, 2, 2.5 and 3.3 times slower), `flick_slowmo_compare.sh`.
+Bullet time, made at real speed, over full speed: every flick, nudge and lob up to 35 cm x1.00; lob50 x1.00-1.23, lob70
+x1.35, overhand0 x1.00, overhand (with its wrist, tempo 0.118 s) x1.49. Made 3.3x slower (slowly with the world): lobs
+from 35 cm and both overhands x0.88-1.01 (overhand0 0.88); shorter strokes x0.1-0.9, rising smoothly with length (they
+go about as far as the same stroke at real speed allows: the gain reaches 1/timescale only for long strokes). Every
+column and row is monotone in the stroke, no step. Tosses at real speed in bullet time rise as at full speed: 3 cm 1.0
+cm, 5 cm 2.4 cm, 8 cm 5.7 cm, 12 cm 11 cm. The parallel runs in `flick_slowmo_compare.sh` shared one worktree's console
+log (a column could come back empty or another's): it now runs them one after another.
+
+Trade-offs: a stroke made a little slower than real speed but faster than the world (1.5 to 2.5x) comes out between, a
+long one up to 1.4x the full-speed distance (it reads as made slowly, its natural tempo quicker than the synthetic
+lob's); a real-speed full throw in bullet time goes up to 1.5x as far (the old rules: 1.2-1.7x). His real strokes may
+have other tempos than the synthetic min-jerk ones: Full Stroke Tempo moves the balance (lower: slowed throws reach full
+strength sooner, real-speed ones raised a little more).
+
+## Mid-air catches (same worktree)
+
+Re-catching a tossed or spinning weapon by its handle. `Misc/quakevr/throw_slowmo/toss_catch_test.sh <agent> [cm]`
+(new): the axe in the main hand tossed straight up 4 or 8 cm, the grip closed 0.05 .. 0.4 game seconds after the
+release, at full speed and in bullet time. Before: caught only with the grip closed 0.15-0.25 s after (8 cm: 3 of 7;
+4 cm: 2 of 7): closing at once was refused (`VR_HandGrabUtil_StartedHandGrabbing` ignores a grab within 0.125 s of a
+release) and in the air the fist had to touch the drawn axe exactly. Now 5 of 7 (8 cm) and 4 of 7 (4 cm), the same in
+bullet time; the late ones (the axe already 7-15 cm below the hand) still miss.
+- `vr_weapon_catch_handle_leniency` (6 cm; engine `vr_physics.cpp` `handOn`): a weapon in the air, the hand's point
+  within `vr_weapon_grab_anywhere_min` of its handle, is caught with the fist that far off its drawn surface (not one a
+  force grab pulls: QC `fg_state` 1, its catch is its own). Lying weapons keep `vr_weapon_grab_handle_leniency`.
+- `vr_weapon_catch_window` (0.25 s, game time; QC `weapons.qc` `wpnthrow_midair_catch`): a weapon in the air is caught by
+  a grip closed up to that long before it reaches the fist, and the hand that tossed it may close again at once: it
+  catches it once it comes back down (falling), from 0.05 s after the release (not the throw's own fist closing as it
+  leaves). 0: as before.
+Menu: after "Handle Grab Leniency", "Mid-Air Catch Leniency" and "Mid-Air Catch Window".
+
+## Force grabs: bodies block the view (same worktree)
+
+`VR_Forcegrab_FindTarget` traced the line to a candidate through level geometry only, so a thing behind an enemy was
+pulled through him. Now (`vr_forcegrab_bodies_block` 1; menu: "Bodies Block" after "Aim Cone") a second trace with monsters
+skips a candidate whose line first meets a monster (alive, or a solid corpse) or a ragdoll (`developer 2`:
+"forcegrab: <thing> behind <monster>, skipped"). `Misc/quakevr/forcegrab_block_test.sh <agent>` (new): a health box 150
+units ahead on the firing range, the mock's force grab at it: nothing between, caught; a grunt 80 units ahead, skipped
+(no catch); the same with the cvar 0, caught; a ragdoll there, skipped while it stands, caught once it lies down.
+
+Checklist (proposed):
+- "Bullet time: toss a gun or a prop a few cm up and re-grab it: it rises a few cm, as at full speed. Flick a weapon:
+  as far as at full speed. A full throw made slowly with the world: as far as at full speed. Try throws of every size
+  and speed between: the distance grows smoothly, no sudden jump. Outside bullet time throws are unchanged."
+- "Toss the axe (or a gun) up and catch it by its handle as it comes down, also closing the hand straight after the
+  toss: it is caught; a spinning flip too. A weapon lying about grabs as before."
+- "Force grab a weapon or prop with an enemy standing in front of it: nothing comes (it does with the enemy out of the
+  way)."
