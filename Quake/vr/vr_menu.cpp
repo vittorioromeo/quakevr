@@ -1124,6 +1124,23 @@ int campaignsBloodyShown = -1;
                   "1: as far as it goes; less: only ledges close by force the knockdown; more: further ones too."),
         slider("Ledge Margin", vr_knockdown_ledge_margin, 0.f, 128.f, 4.f, "%.0f units").extend(0.f, 512.f)
             .help("How far past that a ledge still counts, in units (16: about a monster's half width)."),
+        header("Hits Unbalance"),
+        toggle("Strong Hits Unbalance", vr_hit_stagger)
+            .help("A strong throw (a heavy prop or a weapon, fast) or melee blow may make a monster lose its balance as a "
+                  "shove does: it staggers as a ragdoll and recovers, or by its knockdown chance goes over. Monsters "
+                  "without one are pushed and flinch. The stronger the hit and the more of its health it took, the likelier."),
+        slider("Hit Chance", vr_hit_stagger_chance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 100.f)
+            .help("Every hit's chance, times this (100: every hit past Least Impact)."),
+        slider("Least Impact", vr_hit_stagger_min, 0.f, 0.95f, 0.05f, "%.2f")
+            .help("Weaker hits never unbalance (1: a 6 kg crate thrown at 10 m/s, or a 30-damage blow); from here to 1 "
+                  "the chance rises to sure."),
+        slider("Head Blows", vr_hit_stagger_head, 1.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A melee blow to the head (fists too) counts this much more."),
+        slider("Big Monsters Resist", vr_hit_stagger_resist, 0.f, 2.f, 0.05f, "%.2f")
+            .help("The chance times (30 / its full health) to this power: 0.75 leaves the shambler about a tenth, the "
+                  "ogre a quarter. 0: all alike."),
+        slider("Hit Cooldown", vr_hit_stagger_cooldown, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("After a hit unbalances it, no hit does again for this long (no stunlock). Shoves always can."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
@@ -7065,6 +7082,12 @@ za::Vector<Item> pageDebugTests()
         command("Shove the Nearest, Steady Stagger", "vr_knockdown_chance 0.01; vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
             .help("Knockdowns' Chance 0.01 (set it back after): its balance all but full, so it staggers and recovers, "
                   "back to its animation and its AI (the hand-back's gap printed: \"handback:\")."),
+        command("Hit Stagger: Chances of the Nearest", "developer 1; vr_knockdown_test 40")
+            .help("Hits Unbalance (Combat > Knockdowns): the nearest monster's chance to lose its balance to a weak tap, "
+                  "a strong blow, a punch to the head, a heavy throw and a thrown weapon (\"hit stagger chances:\")."),
+        command("Hit Stagger: Strong Blow on the Nearest", "developer 1; vr_knockdown_test 42")
+            .help("The nearest monster struck by a strong blow's stagger alone (no damage): 1 a ragdoll's stagger, 2 "
+                  "pushed and flinching, 0 kept its balance, -1 still in its Hit Cooldown."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),

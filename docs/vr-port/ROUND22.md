@@ -6038,3 +6038,37 @@ vore never stamps), e1m1 smoke clean, toolgun 6DOF PASS.
 
 Author VR check: let knights, a fiend and an ogre attack you standing still, then lean in and step in; try Melee Space
 0 / 16 / 24.
+## Hits that unbalance (worktree `voxelopt`, branch `agent/hitstagger`, 2026-10-15)
+
+His note (BACKLOG "His notes, 2026-10-15"): "Strong prop/weapon throws and melee hits make enemies lose balance like a
+shove (chance based, and/or a %hp damage threshold, prop weight, ...); maybe strong fist hits to the head too."
+
+`QC/vr_hitstagger.qc` (new; after vr_knockdown.qc). Hooks: `T_Damage_VRMelee` (combat.qc: every hand's blow, fist or
+weapon, after its push) and `VR_Prop_Flung` (vr_carry.qc: thrown props and thrown weapons, after their damage).
+- **Impact**: a throw's momentum into it (its mass x its approach speed, kg m/s) over `vr_hit_stagger_throw_ref` (60: a
+  6 kg crate at 10 m/s); a blow's damage (its speed, weapon and zone already in) over `vr_hit_stagger_melee_ref` (30),
+  times `vr_hit_stagger_head` (1.5) at the head (the positional zone, else the top fifth of its box; fists too). Plus
+  `vr_hit_stagger_damage` (1) x the damage as a share of its full health (the %hp part).
+- **Chance**: 0 under `vr_hit_stagger_min` (0.5: taps), rising to sure at impact 1; times (30 / full health) ^
+  `vr_hit_stagger_resist` (0.75) above 30 health: ogre 0.24, shambler 0.11 at most; times `vr_hit_stagger_chance` (1).
+  Never: a dummy that stays put (Dummy Stays Put), one down or staggering, in a parry's stagger, a boss (1000+ health).
+- **Cooldown**: `vr_hit_stagger_cooldown` (4 s) from an unbalancing hit; shoves and bashes ignore and don't set it.
+- **Reaction, the shove's**: pushed as a shove (520 u/s and a 140 hop x `vr_bash_push`, x impact clamped 0.5..1.25 x
+  `vr_hit_stagger_push`); with Knockdowns and an active stagger, the ragdoll stagger of `VR_Knockdown_Try` (now
+  `VR_Knockdown_Stagger`, shared), its balance the shove's roll against its knockdown chance x min(1.5, impact): it
+  recovers or goes over. Others (no rig, flying, AD's): a forced pain and 0.75 s x push without attacking, as a bash.
+- Menu: Combat > Knockdowns, "Hits Unbalance" (6 rows: on, Hit Chance, Least Impact, Head Blows, Big Monsters Resist,
+  Hit Cooldown); Debug > Tests: "Hit Stagger: Chances of the Nearest" (40), "... Strong Blow on the Nearest" (42).
+  `vr_knockdown_test 40..46` (VR_HitStagger_Test): 40 chances, 41 heavy throw, 42 strong blow, 43 weak tap, 44 head
+  punch (the stagger alone, no damage), 45 state, 46 the nearest loose prop thrown into it for real.
+
+Verified (headless, fresh monster per trial, 20 each): grunt heavy throw 20/20, strong blow 20/20, head punch 20/20 (all
+ragdoll staggers; balance 0..1, some fell), weak tap 0/20; ogre heavy throw 7/20, strong blow 3/20 (chance 0.24);
+shambler heavy throw 4/20, strong blow 1/20 (chance 0.11; pushed and pained). Cooldown: a second strong blow at once -1,
+1.9 s left still -1, at 0 s staggers again; a staggering/down grunt never re-triggers. Real throws (test 46, a 40 kg crate
+at 5 m/s, 194-215 kg m/s): stagger through VR_Prop_Flung. Shoves unchanged (test 22: a stagger, fell). Melee eval
+168/177 (1 take differs FAIL -> FAIL: a detection timing, 0.375 -> 0.391 s, outside this change). e1m1 smoke clean, build 0 warnings.
+
+Checklist (proposed): "Hits unbalance: throw a heavy crate or a weapon hard at a grunt, or punch/axe it hard (the head
+counts more): it staggers back as from a shove (sometimes falls); light taps never; an ogre seldom, a shambler rarely;
+hitting it again right after doesn't re-stagger it (4 s). Combat > Knockdowns > Hits Unbalance to tune or turn off."

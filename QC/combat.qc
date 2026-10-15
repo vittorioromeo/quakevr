@@ -328,6 +328,12 @@ void(float xChanceH, float xFrame, void() xGetup) VR_Knockdown_SetupOwn;
 void(float xChanceH, float xLastA, float xFirstA, float xLastB, float xFirstB) VR_Knockdown_SetupReverse;
 float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try;
 void() VR_Knockdown_FastForwardDeath;
+// Hits that unbalance (vr_hitstagger.qc): a melee blow's (T_Damage_VRMelee), a thrown thing's (vr_carry.qc VR_Prop_Flung).
+.float vr_hst_next; // when a hit may unbalance it again (vr_hit_stagger_cooldown)
+float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_HitStagger_Melee;
+float(entity e, vector xAt) VR_HitStagger_Head;
+float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamage) VR_HitStagger_Throw;
+void(float xMode) VR_HitStagger_Test;
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;
 // Head pops (vr_decap.qc, "Head pops"): the player's shot being fired (W_FireShotgun, W_FireSuperShotgun,
@@ -2495,6 +2501,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     float hotHand = vr_hitkind == QVR_HITKIND_MELEE ? vr_hithand : -1;
     vector hotAt = vr_hitpos;
     vector hotDir = vr_hitdir;
+    float head = VR_HitStagger_Head(targ, vr_hitpos);
     float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);
     if(decap)
     {
@@ -2520,6 +2527,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     {
         VR_Push(targ, targ.origin - attacker.origin, min(600, damage * 10) * cvar_hget(cvarh_vr_melee_push),
             min(200, damage * 3) * cvar_hget(cvarh_vr_melee_push));
+    }
+    // VR: a strong blow may unbalance it as a shove does (vr_hitstagger.qc; a head blow counts more).
+    if(r && alive && damage > 0)
+    {
+        VR_HitStagger_Melee(targ, attacker, targ.origin - attacker.origin, damage, head);
     }
     return r;
 };
