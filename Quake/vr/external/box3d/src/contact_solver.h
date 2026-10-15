@@ -52,7 +52,7 @@ typedef struct b3ContactConstraint
 	int manifoldCount;
 } b3ContactConstraint;
 
-int b3GetWideContactConstraintByteCount( void );
+int b3GetWideContactConstraintByteCount( int simdWidth );
 
 // Overflow contacts don't fit into the constraint graph coloring
 void b3PrepareContacts_Overflow( b3StepContext* context );
@@ -75,3 +75,46 @@ void b3PushContacts_Convex( b3SolverBlock block, b3StepContext* context );
 void b3SolveContacts_Convex( b3SolverBlock block, b3StepContext* context );
 void b3ApplyRestitution_Convex( b3SolverBlock block, b3StepContext* context );
 void b3StoreImpulses_Convex( b3SolverBlock block, b3StepContext* context, int workerIndex );
+
+void b3PrepareContacts_ConvexW4( b3SolverBlock block, b3StepContext* context );
+void b3WarmStartContacts_ConvexW4( b3SolverBlock block, b3StepContext* context );
+void b3PushContacts_ConvexW4( b3SolverBlock block, b3StepContext* context );
+void b3SolveContacts_ConvexW4( b3SolverBlock block, b3StepContext* context );
+void b3ApplyRestitution_ConvexW4( b3SolverBlock block, b3StepContext* context );
+void b3StoreImpulses_ConvexW4( b3SolverBlock block, b3StepContext* context, int workerIndex );
+int b3GetWideContactConstraintByteCountW4( void );
+
+void b3PrepareContacts_ConvexW8( b3SolverBlock block, b3StepContext* context );
+void b3WarmStartContacts_ConvexW8( b3SolverBlock block, b3StepContext* context );
+void b3PushContacts_ConvexW8( b3SolverBlock block, b3StepContext* context );
+void b3SolveContacts_ConvexW8( b3SolverBlock block, b3StepContext* context );
+void b3ApplyRestitution_ConvexW8( b3SolverBlock block, b3StepContext* context );
+void b3StoreImpulses_ConvexW8( b3SolverBlock block, b3StepContext* context, int workerIndex );
+int b3GetWideContactConstraintByteCountW8( void );
+
+void b3PrepareContacts_MeshWide( b3SolverBlock block, b3StepContext* context );
+void b3WarmStartContacts_MeshWide( b3SolverBlock block, b3StepContext* context );
+void b3PushContacts_MeshWide( b3SolverBlock block, b3StepContext* context );
+void b3SolveContacts_MeshWide( b3SolverBlock block, b3StepContext* context );
+void b3ApplyRestitution_MeshWide( b3SolverBlock block, b3StepContext* context );
+void b3StoreImpulses_MeshWide( b3SolverBlock block, b3StepContext* context, int workerIndex );
+int b3GetWideMeshConstraintByteCount( int simdWidth );
+int b3GetWideMeshManifoldByteCount( int simdWidth );
+
+void b3PrepareContacts_MeshWideW4( b3SolverBlock block, b3StepContext* context );
+void b3WarmStartContacts_MeshWideW4( b3SolverBlock block, b3StepContext* context );
+void b3PushContacts_MeshWideW4( b3SolverBlock block, b3StepContext* context );
+void b3SolveContacts_MeshWideW4( b3SolverBlock block, b3StepContext* context );
+void b3ApplyRestitution_MeshWideW4( b3SolverBlock block, b3StepContext* context );
+void b3StoreImpulses_MeshWideW4( b3SolverBlock block, b3StepContext* context, int workerIndex );
+int b3GetWideMeshConstraintByteCountW4( void );
+int b3GetWideMeshManifoldByteCountW4( void );
+
+void b3PrepareContacts_MeshWideW8( b3SolverBlock block, b3StepContext* context );
+void b3WarmStartContacts_MeshWideW8( b3SolverBlock block, b3StepContext* context );
+void b3PushContacts_MeshWideW8( b3SolverBlock block, b3StepContext* context );
+void b3SolveContacts_MeshWideW8( b3SolverBlock block, b3StepContext* context );
+void b3ApplyRestitution_MeshWideW8( b3SolverBlock block, b3StepContext* context );
+void b3StoreImpulses_MeshWideW8( b3SolverBlock block, b3StepContext* context, int workerIndex );
+int b3GetWideMeshConstraintByteCountW8( void );
+int b3GetWideMeshManifoldByteCountW8( void );

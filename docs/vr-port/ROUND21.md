@@ -11005,3 +11005,7 @@ His requests: a button in the menu's bottom left corner that opens the recording
   back to the main menu. `obs_test.py` 15/15 (OBS's row at row 2).
 - **Jump Out of Water** (`vr_water_jump`, toggle, the same help as Movement > Swimming's) right below Swimming on the VR
   Settings page (Standard). `vr_menu_dump 0` lists it there; no menu path changed (`vr_menu_path_check` 0 missing).
+
+## Continued in ROUND22.md
+
+Round 21 ends with the 1.0.0 release (2026-10-10). Later notes (patch 1.0.1 onwards) are in `ROUND22.md`.

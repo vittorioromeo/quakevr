@@ -50,40 +50,39 @@ T Throws<T>(Action a, string what) where T : Exception
 
 var tests = new List<(string Name, Action Body)>
 {
-    ("statement: three claims, unanswered at first, Continue only with YES to all three", () =>
+    ("statement: two claims, unanswered at first, Continue only with YES to both", () =>
     {
-        Eq(3, AiStatement.Claims.Count, "claims");
+        Eq(2, AiStatement.Claims.Count, "claims");
         Eq(5, AiStatement.Paragraphs.Count, "paragraphs");
         True(AiStatement.Paragraphs[1].Contains("renaissance") && !AiStatement.Paragraphs[1].Contains("reinassance"), "spelling fixed");
         var s = new AiStatement();
         var changes = 0;
         s.Changed += () => ++changes;
-        for (var i = 0; i < 3; ++i)
+        for (var i = 0; i < 2; ++i)
         {
             Eq<bool?>(null, s[i], $"claim {i + 1} starts unanswered");
         }
-        Eq(3, s.Unanswered, "unanswered");
+        Eq(2, s.Unanswered, "unanswered");
         True(!s.AllYes, "nothing answered: no Continue");
         s.Answer(0, true);
-        s.Answer(1, true);
         True(!s.AllYes, "one unanswered: no Continue");
-        s.Answer(2, false);
+        s.Answer(1, false);
         True(!s.AllYes, "one NO: no Continue");
-        Eq<bool?>(false, s[2], "NO kept");
-        s.Answer(2, true);
+        Eq<bool?>(false, s[1], "NO kept");
+        s.Answer(1, true);
         True(s.AllYes, "all YES: Continue");
         Eq(0, s.Unanswered, "all answered");
         s.Answer(1, false);
         True(!s.AllYes, "YES switched back to NO: no Continue");
         Eq<bool?>(false, s[1], "a set claim switches between YES and NO only");
         s.Answer(1, false);
-        Eq(5, changes, "Changed fires on real changes only");
-        // Every mix of the 3^3 states: Continue exactly when all three are YES.
-        for (var m = 0; m < 27; ++m)
+        Eq(4, changes, "Changed fires on real changes only");
+        // Every mix of the 3^2 states: Continue exactly when both are YES.
+        for (var m = 0; m < 9; ++m)
         {
             var t = new AiStatement();
             var allYes = true;
-            for (int i = 0, v = m; i < 3; ++i, v /= 3)
+            for (int i = 0, v = m; i < 2; ++i, v /= 3)
             {
                 if (v % 3 != 0)
                 {
@@ -418,12 +417,15 @@ var tests = new List<(string Name, Action Body)>
             LaunchCommand.Arguments(@"C:\Games\Quake\", @"C:\Users\p\QuakeVR", LaunchVariant.Vr), "vr (trailing backslash dropped)");
         True(LaunchCommand.Arguments("a", "b", LaunchVariant.Flat).EndsWith(" +vr_enabled 0"), "flat");
         True(LaunchCommand.Arguments("a", "b", LaunchVariant.Log).EndsWith(" -condebug"), "log");
+        True(LaunchCommand.Arguments("a", "b", LaunchVariant.Diagnostics).EndsWith(" -diagnostics"), "diagnostics");
         var all = ShortcutPlanner.Plan(new ShortcutOptions { DesktopDir = @"T:\Desk", StartMenuDir = @"T:\Prog" }, @"Q:\Quake", @"T:\QVR");
-        Eq(5, all.Count, "desktop + 4 in the Start menu");
+        Eq(6, all.Count, "desktop + 5 in the Start menu");
+        Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (diagnostics).lnk", all[4].LinkPath, "diagnostics in the Start menu");
+        True(all[4].Arguments.EndsWith(" -diagnostics", StringComparison.Ordinal), "the diagnostics shortcut's -diagnostics");
         Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (flat screen).lnk", all[2].LinkPath, "flat in the Start menu");
         Eq(@"T:\QVR", all[0].WorkingDirectory, "start in the Quake VR folder");
         var desktopOnly = ShortcutPlanner.Plan(new ShortcutOptions { DesktopDir = @"T:\Desk", StartMenu = false, Log = false }, @"Q:\Quake", @"T:\QVR");
-        Eq(2, desktopOnly.Count, "desktop: VR + flat");
+        Eq(2, desktopOnly.Count, "desktop: VR + flat (no diagnostics shortcut on the desktop)");
         Eq(0, ShortcutPlanner.Plan(new ShortcutOptions { Desktop = false, StartMenu = false }, "q", "v").Count, "none");
     }),
     (".lnk round trip through IShellLink", () =>
@@ -482,7 +484,8 @@ var tests = new List<(string Name, Action Body)>
             PackagePath = zip, TargetDir = target, QuakeDir = quake, Shortcuts = options, RelightOnFirstRun = true,
         }, progress, CancellationToken.None);
         Eq(11, record.Files.Count, "files installed");
-        Eq(5, record.Shortcuts.Count, "shortcuts");
+        Eq(6, record.Shortcuts.Count, "shortcuts");
+        True(File.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed", "Quake VR Unleashed (diagnostics).lnk")), "the diagnostics shortcut");
         True(record.RelightPending, "relight pending");
         True(File.Exists(Path.Combine(target, "quakevr", "progs.dat")), "progs.dat");
         True(!Directory.EnumerateFiles(target, "*.qvrnew", SearchOption.AllDirectories).Any(), "no staging leftovers");
@@ -512,7 +515,7 @@ var tests = new List<(string Name, Action Body)>
         Eq("player config", File.ReadAllText(Path.Combine(target, "quakevr", "ironwail.cfg")), "config kept");
         True(File.Exists(Path.Combine(target, "quakevr", "s0.sav")), "save kept");
         True(!File.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed", "Quake VR Unleashed (flat screen).lnk")), "stale shortcut removed");
-        Eq(4, r2.Shortcuts.Count, "shortcuts after update");
+        Eq(5, r2.Shortcuts.Count, "shortcuts after update");
         Eq(record.InstalledAt, r2.InstalledAt, "install date kept");
 
         // A shortcut of the same name the player made elsewhere is never deleted.
@@ -522,7 +525,7 @@ var tests = new List<(string Name, Action Body)>
 
         File.AppendAllText(Path.Combine(target, "quakevr", "default.cfg"), "\n// player edit");
         var u = Uninstaller.Uninstall(target, new UninstallOptions());
-        Eq(4, u.ShortcutsRemoved, "shortcuts removed");
+        Eq(5, u.ShortcutsRemoved, "shortcuts removed");
         True(!Directory.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed")), "Start menu folder removed");
         True(File.Exists(foreign), "foreign shortcut still there");
         Eq("quakevr/default.cfg", string.Join("|", u.ChangedKept), "changed shipped file kept");
@@ -604,7 +607,25 @@ var tests = new List<(string Name, Action Body)>
         Eq(2, r.MapsOk, "maps ok");
         Eq(1, r.MapsFailed, "maps failed");
         var p = GamePreparation.Apply(new PreparationResult(), "step maps 3 3 vrstart");
-        True(p?.Status?.Contains("the hub") == true && p.Fraction is > 0.6 and < 0.7, "the hub's step: its name, two thirds of the bar without a relight");
+        True(p?.Status?.Contains("the hub") == true && p.Fraction is > 0.35 and < 0.45, "the hub's step: its name, two thirds of the first maps' part of the bar without a relight");
+        // The hub's guns and models, then the installed campaigns with models of their own (each line logged).
+        string[] more = ["step guns", "result guns read=0 cut=12 written=12 1.0", "step models", "result models 102 162 2.8",
+            "step campaigns 1 3 dopa", "campaign dopa none 0.3", "step campaigns 2 3 mg1", "campaign mg1 ok 4.1 models=8 limbs=0",
+            "step campaigns 3 3 mg3", "campaign mg3 failed 600.0", "result campaigns ok=1 none=1 failed=1"];
+        r = Read(false, [.. maps, .. more, "done"]);
+        True(r.Finished && r.CampaignsOk == 1 && r.CampaignsNone == 1 && r.CampaignsFailed == 1, "campaigns: one prepared, one with none of its own, one failed");
+        foreach (var l in more.Where(l => !l.StartsWith("result campaigns", StringComparison.Ordinal)))
+        {
+            True(GamePreparation.Apply(new PreparationResult(), l) is not null, $"read: {l}");
+        }
+        p = GamePreparation.Apply(new PreparationResult(), "step campaigns 2 3 mg1");
+        True(p?.Status?.Contains("Dimension of the Machine (2 of 3)") == true && p.Fraction is > 0.75 and < 0.85, "a campaign's step: its title, past the hub's part");
+        True(GamePreparation.Apply(new PreparationResult(), "step models")?.Fraction is > 0.6 and < 0.7, "the models' step: after the first maps");
+        p = GamePreparation.Apply(new PreparationResult(), "campaign mg1 ok 4.1 models=8 limbs=2");
+        True(p?.Log?.Contains("Dimension of the Machine") == true && p.Log.Contains("8 models") && p.Log.Contains("2 monster limbs"), "a campaign's line: its counts");
+        True(GamePreparation.Apply(new PreparationResult(), "campaign mg3 failed 600.0")?.Level == LogLevel.Warning, "a failed campaign: a warning");
+        p = GamePreparation.Apply(new PreparationResult(), "result guns read=4 cut=12 written=12 1.0");
+        True(p?.Log?.Contains("12 made, 4 made before") == true, "the guns' line: its counts");
         p = GamePreparation.Apply(new PreparationResult { RelightAsked = true }, "relight 50 Relighting: 12 of 79 maps (00:41)");
         True(p?.Fraction is > 0.5 and < 0.6 && p.Status == "Relighting: 12 of 79 maps (00:41)", "relight's progress: the maps' part then half the rest; the game's status");
         r = Read(true, [.. maps, "step relight", "relight 99 x", "result relight ended=1 maps=12 relit=10 skipped=2 failed=0 cancelled=0 own=11 | 10 maps relit, 2 skipped in 0:42", "done"]);
@@ -644,7 +665,11 @@ var tests = new List<(string Name, Action Body)>
                 var src = File.ReadAllText(cpp);
                 True(src.Contains("\"-prepare\"") && src.Contains("\"-preparerelight\"") &&
                      src.Contains("result relight ended=%d maps=%d relit=%d skipped=%d failed=%d cancelled=%d") &&
-                     src.Contains("\"step maps %d %d %s\"") && src.Contains("\"map %s ok %.1f\"") && src.Contains("line(\"done\")"), "the engine's lines");
+                     src.Contains("\"step maps %d %d %s\"") && src.Contains("\"map %s ok %.1f\"") && src.Contains("line(\"done\")") &&
+                     src.Contains("line(\"step guns\")") && src.Contains("\"result guns read=%d cut=%d written=%d %.1f\"") &&
+                     src.Contains("line(\"step models\")") && src.Contains("\"result models %d %d %.1f\"") &&
+                     src.Contains("\"step campaigns %d %d %s\"") && src.Contains("\"campaign %s ok %.1f models=%d limbs=%d\"") &&
+                     src.Contains("\"campaign %s none %.1f\"") && src.Contains("\"campaign %s failed %.1f\""), "the engine's lines");
                 break;
             }
         }
@@ -1446,7 +1471,7 @@ var tests = new List<(string Name, Action Body)>
         True(File.ReadAllText(Path.Combine(backup.Dir, "quakevr", "vr_defaults.cfg")).Contains("fov 110"), "the player's vr_defaults.cfg backed up");
         Eq(0, Backup.Verify(backup.Dir).Count, "backup checked");
         True(!FirstStartRelight.Pending(target) && !r2.RelightPending && r2.Choices.RelightOnFirstRun, "relight inputs unchanged: no relight, still chosen");
-        Eq(5, r2.Shortcuts.Count, "shortcuts kept");
+        Eq(6, r2.Shortcuts.Count, "shortcuts kept");
         Eq(quakeBefore, Snapshot(quake), "Quake folder untouched");
 
         // v3 ships a new light: the relight is asked again. An update from the console (no shortcut folders) keeps the shortcuts.
@@ -1456,7 +1481,7 @@ var tests = new List<(string Name, Action Body)>
             TargetDir = target, QuakeDir = quake, RelightOnFirstRun = true,
         }, null, CancellationToken.None);
         True(FirstStartRelight.Pending(target) && r3.RelightPending, "a new light.exe: relight at the next start");
-        Eq(5, r3.Shortcuts.Count, "console update: shortcuts kept");
+        Eq(6, r3.Shortcuts.Count, "console update: shortcuts kept");
         True(File.Exists(Path.Combine(shortcuts, "Desktop", "Quake VR Unleashed.lnk")), "desktop shortcut still there");
         True(before.All(kv => Hashes()[kv.Key] == kv.Value), "player files still identical");
         // A fresh folder with Mode = Update is a normal full install.

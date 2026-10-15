@@ -368,6 +368,7 @@ void CL_UpdateTEnts (void);
 
 void CL_FreeState(void);
 void CL_ClearState (void);
+void CL_ForgetModels (void); // QVR: COM_SwitchGameInternal, the models reset: the client's state as at start-up
 
 //
 // cl_demo.c

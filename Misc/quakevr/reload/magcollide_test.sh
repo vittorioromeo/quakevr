@@ -13,6 +13,9 @@
 # The magazine's pull, eject, knock-out and contact loading: reload_test.sh, contact_test.sh, gunshape_test.sh.
 # Prints PASS/FAIL per check (and the numbers); exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 BASE="map e1m1;wait60;developer 1;vr_reload_debug 1;vr_weapon_grip_mode 1;impulse 9;wait2"
@@ -22,7 +25,7 @@ OFFGUN="wait3;vr_test_weaponinst 7;impulse 120;wait3;give n 100;give c 100;vr_mo
 STEPS=""
 for o in 4 1 0 -0.5 -1; do STEPS="$STEPS;vr_mock_hand_to main magpalm 0 $o;wait3;vr_mock_hand_to main magpalm 0 $o;wait3;echo STEP $o;vr_debug_hand_collide 1;wait1;vr_debug_hand_collide 0"; done
 for c in 1 0; do
-    log=$(bash $KIT/run.sh $AGENT -Script "vr_reload_mag_collide $c;$BASE;impulse 156;$OFFGUN$STEPS;toggleconsole;quit" -Filter "^STEP|^handcollide: hand 1" 2>&1 | grep -v "^$\|^exit")
+    log=$(tb_run_sh -Script "vr_reload_mag_collide $c;$BASE;impulse 156;$OFFGUN$STEPS;toggleconsole;quit" -Filter "^STEP|^handcollide: hand 1" 2>&1 | grep -v "^$\|^exit")
     last=$(echo "$log" | sed -n '/^STEP -1/,$p' | grep "^handcollide" | tail -1)
     echo "  magazine collide $c, 1 unit into it: ${last#handcollide: hand 1 }"
     if [ $c = 1 ]; then
@@ -34,7 +37,7 @@ done
 
 # 2. A held grenade up into the magazine from below (along -2: 0.5 of its length under its far end).
 for c in 1 0; do
-    log=$(bash $KIT/run.sh $AGENT -Script "vr_reload_mag_collide $c;$BASE;impulse 156;$OFFGUN;vr_test_held_hand 1;vr_test_held_pick 10;impulse 252;+grabright;vr_mock_button main grip 1;wait20;vr_mock_hand_to main magheld -2 -1.01;wait3;vr_mock_hand_to main magheld -2 -1.01;wait3;vr_debug_carry 1;wait2;vr_debug_carry 0;toggleconsole;quit" -Filter "^held: .*meet .*deep|^test:" 2>&1)
+    log=$(tb_run_sh -Script "vr_reload_mag_collide $c;$BASE;impulse 156;$OFFGUN;vr_test_held_hand 1;vr_test_held_pick 10;impulse 252;+grabright;vr_mock_button main grip 1;wait20;vr_mock_hand_to main magheld -2 -1.01;wait3;vr_mock_hand_to main magheld -2 -1.01;wait3;vr_debug_carry 1;wait2;vr_debug_carry 0;toggleconsole;quit" -Filter "^held: .*meet .*deep|^test:" 2>&1)
     meetLine=$(echo "$log" | grep "meet" | tail -1)
     echo "  magazine collide $c: ${meetLine:-no meet}"
     [ $c = 1 ] && check $(echo "$meetLine" | grep -q "(a weapon's magazine) meet" && echo 1 || echo 0) "a held grenade under the magazine: kept off it"
@@ -42,14 +45,14 @@ for c in 1 0; do
 done
 
 # 3. The held nailgun's body.
-log=$(bash $KIT/run.sh $AGENT -Script "vr_debug_box3d 1;$BASE;impulse 156;$OFFGUN;wait10;vr_debug_box3d 0;toggleconsole;quit" -Filter "hand's weapon progs/v_nail.mdl|vr_mag_on_v_nail.mdl seated" 2>&1)
+log=$(tb_run_sh -Script "vr_debug_box3d 1;$BASE;impulse 156;$OFFGUN;wait10;vr_debug_box3d 0;toggleconsole;quit" -Filter "hand's weapon progs/v_nail.mdl|vr_mag_on_v_nail.mdl seated" 2>&1)
 echo "$log" | grep -v "^$\|^exit" | sort -u | head -3 | sed 's/^/  /'
 check $(echo "$log" | grep -q "off hand's weapon progs/v_nail.mdl: [0-9]* convex pieces and its magazine" && echo 1 || echo 0) "the held nailgun's body: its pieces and its magazine"
 
 # 4. Lying guns.
 for gun in 156 157 161; do
     for c in 1 0; do
-        d=$(bash $KIT/run.sh $AGENT -Script "vr_reload_mag_collide $c;$BASE;impulse $gun;$OFFGUN;vr_reload_test 20;impulse 125;wait120;vr_reload_test 27;impulse 125;wait3;toggleconsole;quit" -Filter "a point in its magazine" 2>&1 | grep -o "body [0-9.e-]* units" | tail -1 | cut -d' ' -f2)
+        d=$(tb_run_sh -Script "vr_reload_mag_collide $c;$BASE;impulse $gun;$OFFGUN;vr_reload_test 20;impulse 125;wait120;vr_reload_test 27;impulse 125;wait3;toggleconsole;quit" -Filter "a point in its magazine" 2>&1 | grep -o "body [0-9.e-]* units" | tail -1 | cut -d' ' -f2)
         [ $c = 1 ] && on=$d || off=$d
     done
     check $(awk -v a="$on" -v b="$off" 'BEGIN { print (a != "" && b != "" && a + 0 < 0.01 && b + 0 > 1) ? 1 : 0 }') "impulse $gun's gun lying: its magazine part of its body ($on units; off $off)"
@@ -57,7 +60,7 @@ done
 
 # 4b. The main hand gripping the magazine (the two-handed hold): held, and drawn where it is tracked (not pushed off it).
 for gun in 156 157 161; do
-    log=$(bash $KIT/run.sh $AGENT -Script "$BASE;impulse $gun;$OFFGUN;vr_mock_hand_to main mag 0;wait3;vr_mock_hand_to main mag 0;wait10;+grabmain;vr_mock_button main grip 1;wait30;vr_debug_hand_offset 2;wait3;vr_debug_hand_offset 0;toggleconsole;quit" -Filter "^handoffset main|holds the magazine" 2>&1)
+    log=$(tb_run_sh -Script "$BASE;impulse $gun;$OFFGUN;vr_mock_hand_to main mag 0;wait3;vr_mock_hand_to main mag 0;wait10;+grabmain;vr_mock_button main grip 1;wait30;vr_debug_hand_offset 2;wait3;vr_debug_hand_offset 0;toggleconsole;quit" -Filter "^handoffset main|holds the magazine" 2>&1)
     most=$(echo "$log" | grep -o "total [0-9.]*" | awk '{if($2 > m) m = $2} END {print m + 0}')
     check $(echo "$log" | grep -q "holds the magazine of the gun in hand 0" && awk -v m="$most" 'BEGIN { print m < 0.05 ? 1 : 0 }') "impulse $gun's gun: the hand gripping its magazine holds it, drawn on it ($most units off its tracked place)"
 done
@@ -73,3 +76,6 @@ for c in 1 0; do
 done
 echo "  (the profile's box3d step and reach: their average and worst per frame)"
 exit $fail
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

@@ -106,6 +106,8 @@ struct StorageBuffer
     za::SizeT size{0};     // bytes uploaded
 };
 void upload(StorageBuffer& buffer, const void* data, za::SizeT bytes);
+// `bytes` of it from `offset` changed in place (not orphaned: the rest kept; within what was uploaded, else nothing).
+void update(StorageBuffer& buffer, const void* data, za::SizeT offset, za::SizeT bytes);
 // Bound to `binding` (GL_SHADER_STORAGE_BUFFER), as uploaded; nothing if empty.
 void bindStorage(unsigned binding, const StorageBuffer& buffer);
 // A 2D texture on texture unit `unit`.
@@ -287,6 +289,20 @@ void end2D();
 // files are another game's; the gfx.wad pictures looked up by name (Draw_NewGame loaded them again).
 void onGameDirChanged();
 
+// A picture the 2D pass draws (a texture of the texture manager: nearest filtering, kept over game changes), its pixels
+// replaced at will (Doom's screen on the wrist gadget: vr_doom.cpp).
+struct Picture
+{
+    void* texture{nullptr}; // gltexture_t
+    unsigned char* pixels{nullptr}; // its source (the texture manager reloads it from there)
+    int width{0};
+    int height{0};
+};
+// Made when first needed (once: the size never changes); `name` a literal.
+void ensurePicture(Picture& picture, int width, int height, const char* name);
+// Its pixels replaced: width x height RGBA, rows top first.
+void updatePicture(Picture& picture, const void* rgba);
+
 // 2D drawing between begin2D() and end2D(), in virtual screen coordinates (y down).
 namespace draw2D
 {
@@ -294,6 +310,7 @@ void color(const glm::vec4& rgba);                         // tints what follows
 void fill(float x, float y, float w, float h, const glm::vec3& rgb);
 void pic(float x, float y, const char* wadName, float scale = 1.f); // a gfx.wad picture
 void text(float x, float y, float size, const char* text);  // the console font
+void picture(const Picture& picture, float x, float y, float w, float h); // whole, stretched over the rectangle
 } // namespace draw2D
 
 // The engine's 2D pass (menus, console, HUD) redirected into `canvas`, cleared to transparent

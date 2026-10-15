@@ -102,6 +102,7 @@ typedef struct cmd_function_s
 } cmd_function_t;
 
 void	Cmd_Init (void);
+qboolean Cmd_ForeignConfigsAllowed (void); // QVR: autoexec.cfg, config.cfg from outside quakevr at the start too
 
 cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t srctype, qboolean qcinterceptable);
 void Cmd_RemoveCommand (cmd_function_t *cmd);

@@ -95,10 +95,52 @@ After `vr_knockdown_time_min` to `_max` seconds (at random), `VR_Knockdown_Think
 
    Then it runs. Pain during the get-up plays its sound and the get-up goes on.
 
+## Active staggers, falls and get-ups (feature branch; ROUND22.md, "Active ragdolls: stagger, judo, get-up")
+
+With Active Deaths (`vr_ragdoll_active`) and its classes (grunt, enforcer, knight, death knight, ogre, zombie):
+
+- **Stagger, a backpedal** (`vr_ragdoll_active_stagger`): every shove that could knock it down (its chance above 0, not
+  over a ledge, not wading) makes it a ragdoll at once (`.vr_kd_stagger` 1, still `.vr_knockdown` 1: touchable, not
+  solid), held up by its muscles, its pelvis pinned and carried back about as far as the shove used to slide a standing
+  one (`vr_ragdoll_active_stagger_travel` 1.2 x `VR_Shove_Reach`, at most 4 m: a grunt's one-hand shove 107 units), kept
+  upright, its feet stepping back after its middle (quick steps, up to `vr_ragdoll_active_stagger_steps` 6), its arms
+  thrown out ahead and wheeling. Its **balance** is the knockdown's roll against its chance (`0.5 + 2.5 x (roll -
+  chance)`, 0..1). **Beaten** (balance under 0.5: the roll under the chance, the old rule's knockdown) it backpedals 3
+  or 4 steps and **gives way**: a fall, a knockdown from then (`VR_Knockdown_Think`: down `vr_knockdown_time_min`..`_max`
+  from the fall). **Steady** it takes its steps (and up to 3 more to catch itself, still leaning) and **recovers**:
+  handed back standing (`ragdollstaggered` 2: its stand frame fitted where it stands, a 0.2 s blend), its AI on
+  (`th_run`). Either goes over anyway leaning past twice `vr_ragdoll_active_stagger_lean` (30 degrees) over its feet (a
+  steady one also past it for 0.36 s), or its knees giving. So the rate it goes down is the knockdown's chance again.
+- **Falls**: a stagger gone over, a shove's knockdown and a two-hand throw brace their arms for the floor (or a wall)
+  the way they go, keep some tone in the torso and head, flinch as they land, then go limp (then they struggle,
+  `vr_knockdown_wiggle`). A throw's body is slack where the hands held it (0.6 s) and curls.
+- **Get-up** (`vr_ragdoll_active_getup`): `ragdollgetup` (the same fit and room search) starts the body's rise and
+  returns -1 while it goes (the QC asks every 0.05 s; not asked for 0.35 s, it slumps and tries again later); lying the
+  other way up it rolls over first, then it is pulled into the get-up's first frame where it will stand, then risen
+  through the get-up (its own frames up to the first standing one, or the death backwards) and handed back standing
+  (3 or 4: `VR_Knockdown_Afoot`, `th_run`). Not in a liquid, nor `anywhere`: those get up as before.
+
+- **In a liquid** (`vr_ragdoll_active_liquids`): a living knockdown lying in water deep enough paddles at full
+  strength, its head held up, pushed by its strokes towards where it can stand (`standSpot`'s liquid search, looked for
+  again every second), turning to face it; in lava or slime it flails. Killed meanwhile, its strokes weaken as a death's.
+- **Drowning** (`vr_ragdoll_active_drown`, a chance): one standing out of breath under water (vr_liquids.qc's first
+  drowning tick) is knocked down instead of that tick's damage (QC `VR_Knockdown_Drown`): its living swim, frantic at
+  first, takes it to where it can stand, and it gets up there.
+- **Ledges** (`vr_ragdoll_active_pullup`, a chance; Grab Ledges on): falling past a lip near a hand (a fall, or a body
+  dropped or toppled off it) it grabs it, hangs, then pulls itself up onto the top (its pelvis pinned along the way, its
+  muscles holding its weight) and lies there a knockdown; else it drops. Its get-up waits meanwhile.
+- **Grabbing others** (`vr_ragdoll_active_grab`, a chance): going down (alive or dying), a hand grabs at another monster
+  within reach (standing, or its ragdoll) a moment, slowing the fall; a ragdoll held is dragged along.
+- **Guarding the head** (`vr_ragdoll_active_guard`, a chance): a hand of yours swung at its head (melee, never a shot):
+  its arms up before its face 0.6 s, standing (a hit reaction's guard) or as a ragdoll (staggering, down, rising).
+
 ## Saved games
 
 State 1 (down) remakes its ragdoll on load (the engine's `wantsRagdoll` takes knocked-down monsters). Without a
-ragdoll (Ragdolls turned off meanwhile), it gets up where it is when it fits there.
+ragdoll (Ragdolls turned off meanwhile), it gets up where it is when it fits there. A stagger (`.vr_kd_stagger` 1) is
+begun again where it stands (`ragdollstaggered` 3: its ragdoll made again without one), no push, from its saved
+balance and way (`.vr_kd_balance`, `.vr_kd_dir`): steady it recovers, beaten it gives way. A rise is begun again from
+how it lies. A death's drive is not saved (a loaded dying body lies limp).
 
 ## Tests (headless, `vr_knockdown_test <mode>`)
 

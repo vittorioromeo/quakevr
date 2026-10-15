@@ -125,6 +125,19 @@ def mantle(hy=1.638, fwd=-0.69):
     L += ["0.700 cmd +graboff", "0.750 cmd +grabmain", "2.600 cmd -graboff", "2.600 cmd -grabmain"]
     return L, 3.0
 
+def pullup(hy, low, fwd=-0.69, fwd_to=-0.45, hold=6.0):
+    # prop climbing (prop_climb_test.sh): both hands onto a lip at height hy (tracking metres), pulled down to `low` and
+    # in to `fwd_to` over 2 s (a long pull: a mantle from a high stack), let go at 3.6 s; `low` near hy: a hang, held
+    # until `hold` s
+    L = []
+    for h, x in (("off", -0.12), ("main", 0.12)):
+        L += [f"0.000 {h} {x} 1.2 -0.3 0 0 0", f"0.500 {h} {x} {hy} {fwd} 0 0 0", f"1.000 {h} {x} {hy} {fwd} 0 0 0",
+              f"3.000 {h} {x} {low} {fwd_to} 0 0 0", f"{hold:.3f} {h} {x} {low} {fwd_to} 0 0 0"]
+    L += ["0.700 cmd +graboff", "0.750 cmd +grabmain"]
+    if hy - low > 0.5:
+        L += ["3.600 cmd -graboff", "3.600 cmd -grabmain"]
+    return L, hold
+
 def mover(kind, hy=1.638, fwd=-0.69):
     # vrclimb's moving ledges (ROUND21.md, "Ledge map"): both hands take the lift's lip as it rises (grabbed moving), ride
     # it, and pull over its top at 4 s (a mantle onto it, moving); "liftride": they hang on (the script may remove the

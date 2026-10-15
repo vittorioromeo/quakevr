@@ -200,6 +200,38 @@ const KnownSword knownSwords[] = {
          return v;
      }(),
         112, 135},
+    // AD support: Arcane Dimensions' armed monsters (their guns and gear, hidden in their deaths; vr_ad_monsters.qc
+    // VR_AD_Dying drops them), to the Grem entry below.
+    {qvr::modelmeta::Id::AdSoldier, 555, 810, [] {
+         za::Vector<int> v(86);
+         za::iota(v.begin(), v.end(), 463);
+         return v;
+     }(), 8, 28},
+    {qvr::modelmeta::Id::AdEnforcer, 222, 424, [] {
+         za::Vector<int> v;
+         for(int i = 0; i <= 16; i++) { v.pushBack(i); }
+         for(int i = 45; i <= 60; i++) { v.pushBack(i); }
+         return v;
+     }(), 41, 65},
+    {qvr::modelmeta::Id::AdCenturion, 284, 544, [] {
+         za::Vector<int> v;
+         for(int i = 0; i <= 16; i++) { v.pushBack(i); }
+         for(int i = 45; i <= 60; i++) { v.pushBack(i); }
+         for(int i = 222; i <= 283; i++) { v.pushBack(i); }
+         return v;
+     }(), 18, 42},
+    {qvr::modelmeta::Id::AdPyro, 277, 530, [] {
+         za::Vector<int> v;
+         for(int i = 0; i <= 32; i++) { v.pushBack(i); }
+         for(int i = 194; i <= 225; i++) { v.pushBack(i); }
+         return v;
+     }(), 41, 65},
+    {qvr::modelmeta::Id::AdFumigator, 277, 530, [] {
+         za::Vector<int> v;
+         for(int i = 0; i <= 32; i++) { v.pushBack(i); }
+         for(int i = 194; i <= 225; i++) { v.pushBack(i); }
+         return v;
+     }(), 41, 65},
     // Hipnotic's gremlin: the gun he steals (its own piece, tucked inside his body but in his g* frames), hidden in his
     // deaths (death1-12, flip1-8: he drops it, gremlin_die), so his ragdoll holds none (ROUND21.md, "Ragdolls 5").
     {qvr::modelmeta::Id::Grem, 123, 245, [] {
@@ -213,6 +245,15 @@ const KnownSword knownSwords[] = {
 // What a monster's model drops (the log's name for it).
 [[nodiscard]] const char* droppedName(const char* model)
 {
+    switch(qvr::modelmeta::identifyPath(model))
+    {
+    case qvr::modelmeta::Id::AdSoldier: return "burst rifle";                                  // AD support
+    case qvr::modelmeta::Id::AdEnforcer: return "gun and muzzle effect";                       // AD support
+    case qvr::modelmeta::Id::AdCenturion: return "gun, muzzle effect and hover board";         // AD support
+    case qvr::modelmeta::Id::AdPyro:                                                           // AD support
+    case qvr::modelmeta::Id::AdFumigator: return "gun, muzzle effect and hose";                // AD support
+    default: break;
+    }
     const auto id = qvr::modelmeta::identifyPath(model);
     if(id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Mg3OgreRocket)
     {
@@ -419,10 +460,13 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     const bool knight = id == qvr::modelmeta::Id::Knight;
     const bool hellKnight = id == qvr::modelmeta::Id::Hknight;
     // The ogre, the soldier and the enforcer: only Quake VR's own models (by their known vertices); the gremlin: Hipnotic's;
-    // the rocket ogre: MG3's.
+    // the rocket ogre: MG3's; Arcane Dimensions' armed monsters: AD's.
+    const bool adKnown = id == qvr::modelmeta::Id::AdSoldier || id == qvr::modelmeta::Id::AdEnforcer || // AD support
+                         id == qvr::modelmeta::Id::AdCenturion || id == qvr::modelmeta::Id::AdPyro ||  // AD support
+                         id == qvr::modelmeta::Id::AdFumigator;                                         // AD support
     const bool knownOnly = id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Soldier ||
                            id == qvr::modelmeta::Id::Enforcer || id == qvr::modelmeta::Id::Grem ||
-                           id == qvr::modelmeta::Id::Mg3OgreRocket;
+                           id == qvr::modelmeta::Id::Mg3OgreRocket || adKnown;
     if(!knight && !hellKnight && !knownOnly)
     {
         return;

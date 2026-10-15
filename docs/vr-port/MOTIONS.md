@@ -2,7 +2,7 @@
 
 The melee (swords, weapons used as clubs, fists, parries, bashes, shoves) keeps reading some real motions as
 the wrong thing. The motion recorder lets you record takes of your own motions in the headset, each labelled with
-what it should do ("expected slash", "no hit", ...), in front of the firing range's training dummy. Played back in
+what it should do ("expected slash", "no hit", ...), in front of the melee recording room's central training dummy. Played back in
 the mock headset against the same dummy, the takes test the melee code: each should register what its label
 says, and the "no hit" ones nothing.
 
@@ -16,7 +16,7 @@ says, and the "no hit" ones nothing.
 
 ## Recording in the headset
 
-1. **Go to the firing range**: Advanced VR > Play > Firing Range (`map vrfiringrange`).
+1. **Go to the melee recording room**: Motion Recorder > Melee Recording Room, or Advanced VR > Play > Melee Recording Room (`map vrmelee-recording`). The firing range remains the sandbox.
 2. **Stand in front of the training dummy** as you would fight it. Where you stand and which way you face,
    relative to the dummy, is recorded every frame (and playback puts you there again), so a swing that reaches
    it in the take reaches it in the replay. Move as you like during a take: steps and the stick are recorded too.
@@ -48,7 +48,7 @@ that must do nothing: wiggles, weak or slow swings, reloading, aiming, walking w
 dummy. **Other** is for anything else: say what it is with `vr_motion_note "..."` in the console (it goes into
 every take's header until you clear it: `vr_motion_note ""`).
 
-**The dummy's attacks** (the Dummy Attacks button beside it) are off unless you turn them on, and off again at every
+**The dummy's attacks** (`vr_dummy_attacks 1`, or the existing Dummy Attacks setting) are off unless you turn them on, and off again at every
 map load. With them on, your takes can hold real parries and counters (a counter bash is a `parrybash`); the take
 says so (`dummy attacks: on`) and records each of its blows, and its replays have the dummy strike at the same
 moments. Takes that should not depend on the dummy (all the categories but Parry Bash and Other) are best recorded
@@ -72,6 +72,12 @@ with them off.
 | Expected Gun Strike | `gun_strike` | a gun used as a club | swing, butt |
 | Decapitation | `decapitation` | a blade's blow at the neck that should cut the head off (a sword, an axe, the chainsaw) | horizontal_ltr, horizontal_rtl, diagonal_down_left, diagonal_down_right, backswing_up_left, backswing_up_right, from_behind |
 | No Decapitation | `no_decapitation` | a blade's blow at the head or neck (or near) that must not cut it off | stab, pommel, hilt, flat (a flat slap), slow, body, shoulder |
+| Neck Snap Expected | `neck_snap` | both hands hold the dummy's head or neck and twist: its neck should snap | head, neck, push_pull, turn, tilt |
+| Neck Snap Not Expected | `no_neck_snap` | both hands on the dummy (head, neck or shoulders) and moving it, but no snap | shoulders, slow, small, pull, lift, adjusting |
+| Lift Expected | `lift` | both hands on the dummy pulling it up (the two-hand lift, `vr_foegrab_lift`) | straight, fast, angled, close, far |
+| Lift Not Expected | `no_lift` | both hands on it moving it but no lift | slow, sideways, too_far, one_hand, adjusting, throw |
+| Judo Throw Expected | `judo_throw` | both hands turning it down (the two-hand throw, `vr_foegrab_throw`) | left, right, towards, away, fast, hip |
+| Judo Throw Not Expected | `no_judo_throw` | both hands on it turning or moving it but no throw | slow, small, shove, lift, one_hand, adjusting |
 | Other | `other` | anything else (`vr_motion_note`) | |
 
 The "parry state" the evaluation reads, each server frame of the replay's labelled part (phase `rec`): the parry test
@@ -110,6 +116,41 @@ shoulder. Several of each, at different angles and speeds, one- and two-handed. 
 and `vr_motion_eval no_decapitation_*` evaluate them; the table's `events` column has each blow's detail: the data to
 set the rules by (a range of slash or tilt angles, the edge rather than the flat). Against a monster that can lose its
 head (`target <classname>`) the blows are judged the same way (it loses its head only if the blow also kills it).
+
+### Neck snap takes
+
+For tuning the neck snap's twist detector, the hand line (ROUND22.md, "Neck snap takes"). Empty hands, the training dummy (it can be
+held, `vr_foegrab`; its neck "snaps" without it dying: the console says `the training dummy (it stands)`). Motion
+Recorder > Category **Neck Snap Expected** (Detail: head, neck, push_pull, turn, tilt): take hold of its head or neck
+with both grips after starting the take, twist as you would to snap it, let go, end the take. **Neck Snap Not Expected**
+(Detail: shoulders, slow, small, pull, lift, adjusting): both hands on it doing something that must not snap it (a twist
+at the shoulders, a slow or small turn of the head, pulling or lifting it by the head, shifting the grip). Grip after the
+take starts: playback holds the dummy only with a grip that closes during the take (one closed during its setup doesn't
+take hold). The game's snap is the take's `necksnap` event (sub `handline`, the detector that fired: `velocity` in takes
+before 2026-10-15; its detail the turn, `83 deg within 0.15 s standing`), from `vr_foegrab.cpp` `neckSnap`. Verdicts (`expect.cfg`): **Neck
+Snap Expected** passes with a `necksnap`, **Not Expected** without one; blows on the way in are allowed. The take's
+header records the `vr_foegrab_necksnap*` settings it was recorded with.
+
+`eval.sh` keeps these takes out of the melee sets (not in the melee count or its baseline) and replays them once at
+the neck snap settings as set (`vr_motion_eval <takes>`; their verdicts go to `eval_status.csv`, as the lift's and the
+judo throw's), printing the expected snaps caught and missed and the false snaps, each miss and false snap by name.
+
+### Lift and judo throw takes
+
+For tuning the two-hand lift and throw (ROUND22.md, "Lift and judo throw takes"), the same way as the neck snap takes:
+empty hands, the training dummy, both grips taken after the take starts. **Lift Expected** (straight, fast, angled,
+close, far): pull it up hard with both hands. **Lift Not Expected** (slow, sideways, too_far, one_hand, adjusting,
+throw): a slow pull, a pull across, too far from you, one hand, shifting the grip, a throw. **Judo Throw Expected**
+(left, right, towards, away, fast, hip): both hands turn it over the way you throw. **Judo Throw Not Expected** (slow,
+small, shove, lift, one_hand, adjusting). The game's events: `lift` (sub `knocked_down`, or `standing` for the dummy,
+which is not knocked down; detail `1.59 m/s up, 23 units from you`) from `liftCheck` and `judothrow` (sub `left`,
+`right`, `towards`, `away`; the turn in deg/s; detail the speed and way) from `throwCheck`, both in `vr_foegrab.cpp`.
+Verdicts (`expect.cfg`): the Expected categories pass with their event, the Not Expected ones without it; blows on the
+way in are allowed. The dummy stays standing and holdable (the training dummy is only "would be lifted/thrown (it
+stands)"). The header records the `vr_foegrab_lift*` and `vr_foegrab_throw*` settings.
+
+`eval.sh` keeps these takes out of the melee sets and replays them once (the takes' own settings), printing per kind
+the expected ones caught and missed and the false ones, every take by name (report only, no baseline).
 
 A take's label is `<category>` or `<category>_<detail>` (`slash_overhead`, `parry_pose_sword_2h_blade`).
 
@@ -312,8 +353,9 @@ expectations are written in these kinds), or change both.
 
 ## Playback (the mock headset)
 
-`vr_motion_play <take> [options]` plays a take in the mock headset (`vr_backend mock`), in a map already loaded
-(`map vrfiringrange`). `<take>` is a file name in `quakevr/motions`, a path relative to the game folder, or an
+`vr_motion_play <take> [options]` plays a take in the mock headset (`vr_backend mock`), loading
+`vrmelee-recording` automatically if needed. `map <name>` overrides the room for another fixture.
+`<take>` is a file name in `quakevr/motions`, a path relative to the game folder, or an
 absolute path (`.csv` optional).
 
 1. **Setup** (1.3 s of game time, holding the take's first pose): the settings that place the hands and the body are
@@ -348,7 +390,7 @@ at the same server time in the same state; two evaluations of the same takes wri
 run at `developer 0` (their thousands of "can't find" texture lines cost seconds), the takes at yours, and
 `host_maxfps` is raised to 1000 meanwhile (the game time is the takes' own either way): about 1.6 s a take.
 
-Options: `target <classname|#entity>` (another target), `yaw <degrees>` (the player's heading: another placement),
+Options: `map <name>` (another map), `target <classname|#entity>` (another target), `yaw <degrees>` (the player's heading: another placement),
 `rate <hz>` (the take resampled at another headset's frame rate: poses slerped, velocities interpolated, the server
 frames left to the engine; to check the melee at 72, 90, 120 or 144 Hz),
 `noplace` (where the player is), `watch` (the recorded pace), `save` (the replay as a take:
@@ -377,7 +419,7 @@ author's `ironwail.cfg`, or `exec` a file of its `vr_wofs_*`, `vr_2h_*`, `vr_lea
 
 `vr_motion_eval [<folder, pattern or take>] [options]` plays every take (by default all of `quakevr/motions`; a
 folder: its `.csv` takes; a pattern: `punch_*`, `no_hit_*`, in `motions/` or a folder), each in the map loaded
-afresh (`vrfiringrange`, or `map <name>`: the same start every time), judges each against
+afresh (`vrmelee-recording`, or `map <name>`: the same start every time), judges each against
 `quakevr/motions/expect.cfg`, and writes the table `motions/eval_<date>_<time>.csv` (or `out <file>`):
 
 | Column | |
@@ -405,13 +447,13 @@ evaluation that judges the takes as they are: not with `rate`, `recorded` or ano
 takes themselves are never written. The review (below) reads it.
 
 ```
-map vrfiringrange
+map vrmelee-recording
 vr_motion_eval                          // every take in quakevr/motions
 vr_motion_eval punch_*                  // one category
 vr_motion_eval C:/some/folder recorded  // a folder, with the melee settings as recorded
 ```
 
-From the agent kit: `bash <kit>/run.sh <agent> -Script "map vrfiringrange;wait60;vr_motion_eval <folder> quit" -Timeout 900 -Filter "eval:|PASS|FAIL"`.
+From the agent kit: `bash <kit>/run.sh <agent> -Script "map vrmelee-recording;wait60;vr_motion_eval <folder> quit" -Timeout 900 -Filter "eval:|PASS|FAIL"`.
 
 ### expect.cfg
 
@@ -511,6 +553,17 @@ python Misc/quakevr/motion_synth.py decap --out quakevr/motions/decaptest   # th
 The decapitation presets (`decap`): `decapitation_horizontal_rtl`, `_ltr`, `_diagonal_down_left` (the edge across the
 dummy's neck), `no_decapitation_flat` (the same with the flat leading), `_body` (35 cm lower), `_stab` (a thrust into the
 neck); `--neck` (0.62 m) the hand's height below the eye.
+
+The lift and judo throw presets (`liftjudo`; `scratch/synth_*`, never his folder): `lift_straight`, `lift_fast`,
+`no_lift_slow`, `no_lift_sideways`, `judo_throw_left`, `_right`, `_towards`, `no_judo_throw_slow`, `_small`;
+both fists on the dummy's shoulders (`--head`, `--necksnap-distance`).
+
+The neck snap presets (`necksnap`; keep them out of the author's folder, e.g. `--out scratch/synth_necksnap`):
+`neck_snap_turn` (both fists at the dummy's head, gripped after the setup, turned 90 degrees about the vertical in 0.2
+s), `no_neck_snap_shoulders` (the same turn at its shoulders), `no_neck_snap_small` (20 degrees at its head); by name
+only, `neck_snap_push_pull` (a 25 cm push-pull, the wrists turning 100 degrees: Hand Line misses it at the shipped
+settings, 2026-10-15). `--head` (1.39 m) the head's middle above the floor, `--necksnap-distance` (0.7 m) the dummy's.
+`EVAL_TAKES=<that folder> bash kit/eval.sh <agent>` runs them through eval.sh's neck snap section.
 
 Options: `--out <folder>`, `--duration <s>` (the motion; 0.3, a thrust 0.15), `--distance <m>` (from the head to the
 dummy's middle, straight ahead), `--rate <Hz>` (90), `--world-scale` (1.25), `--eye-height` (1.646),

@@ -1051,6 +1051,28 @@ void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, flo
 
 /*
 =============
+Draw_TextureRect -- QVR: a texture of the texture manager drawn whole over a rectangle (the wrist gadget's Doom screen:
+vr_gfx_gl.cpp draw2D::picture)
+=============
+*/
+void Draw_TextureRect (float x, float y, float w, float h, gltexture_t *tex, float alpha)
+{
+	guivertex_t	*verts;
+
+	if (!tex || alpha <= 0.0f)
+		return;
+	Draw_SetTexture (tex);
+	GL_PushCanvasColor (1.f, 1.f, 1.f, alpha);
+	verts = Draw_AllocQuad ();
+	Draw_SetVertex (verts++, x,   y,   0.f, 0.f);
+	Draw_SetVertex (verts++, x+w, y,   1.f, 0.f);
+	Draw_SetVertex (verts++, x+w, y+h, 1.f, 1.f);
+	Draw_SetVertex (verts++, x,   y+h, 0.f, 1.f);
+	GL_PopCanvasColor ();
+}
+
+/*
+=============
 Draw_TransPicTranslate -- johnfitz -- rewritten to use texmgr to do translation
 
 Only used for the player color selection menu

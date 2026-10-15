@@ -68,6 +68,7 @@ void() VR_Pack_Refresh =
 float(float wid) VR_Pack_WeaponAvailable =
 {
     if(wid == WID_SUPERAXE) { if(!vr_pack_refreshed) { VR_Pack_Refresh(); } return vr_have_superaxe; } // (MG3's, read in place)
+    if(VR_IsADGun(wid)) { return VR_ADGun_Available(); } // AD support: AD's soldiers' guns (vr_ad_guns_defs.qc)
     return TRUE;
 };
 

@@ -6,6 +6,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_climb.hpp"
+#include "vr_bodycontact.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_cvars.hpp"
 #include "vr_explosiondebris.hpp"
@@ -284,7 +285,8 @@ BroadcastRoom broadcastRoom{};
         case TE_LIGHTNING1:
         case TE_LIGHTNING2:
         case TE_LIGHTNING3:
-        case TE_BEAM: return 2 + 2 + 6 * coord;              // the entity, from, to
+        case TE_BEAM:                                         // the entity (and Quake VR's beam id: VR_ParseBeamEntity), from, to
+            return 2 + 2 + ((sv.protocolflags & PRFL_QUAKEVR_PROGS) ? 1 : 0) + 6 * coord;
         default: return 0;
     }
 }
@@ -615,6 +617,17 @@ void setMagBox(edict_t* ent, int h, const glm::vec3& origin, const glm::vec3& ha
     setFieldVec(ent, h ? f.magboxz : f.offmagboxz, none ? glm::vec3{0.f} : gate.turn * box[3]);
 }
 
+// The ammo pouch's rounds (VrMove::ammoPouch) into .ammopouchpos, .ammopouchx/y/z (on the body: never through a portal;
+// all zero: none).
+void setAmmoPouch(edict_t* ent, const glm::vec3 (&box)[4])
+{
+    const FieldOffsets& f = fields();
+    setFieldVec(ent, f.ammopouchpos, box[0]);
+    setFieldVec(ent, f.ammopouchx, box[1]);
+    setFieldVec(ent, f.ammopouchy, box[2]);
+    setFieldVec(ent, f.ammopouchz, box[3]);
+}
+
 } // namespace
 
 extern "C" void VR_ReadMoveExtras(client_t* client)
@@ -682,12 +695,16 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         setFieldVec(ent, h ? f.loadportface : f.offloadportface, port.turn * move.loadPortFace[h]);
         setMagBox(ent, h, move.origin, move.hands[h].pos, move.magBox[h]);
     }
+    setAmmoPouch(ent, move.ammoPouch);
     if(clientNum >= static_cast<int>(clientBits.size()))
     {
         clientBits.resize(clientNum + 1);
     }
     ClientBits& bits = clientBits[clientNum];
-    bits.received = move.vrBits0;
+    bits.received = move.vrBits0 & ~protocol::moveFlatplayBit;
+    // This player plays flatscreen (-flatscreenmode, his own client's: vr_flatplay.cpp): the QC's per-player gate
+    // (VR_FlatPlay: no reloading, E's grab, 1 and 2 cycling; the hands' touch below).
+    setFieldFloat(ent, f.vr_flatscreen, (move.vrBits0 & protocol::moveFlatplayBit) ? 1.f : 0.f);
     // Bit 14 (QC QVR_VRBITS0_HANDSTRACKED): this client's hands come from real tracking, so the QC
     // can tell a VR player from a flat-screen one (and from a bot).
     const int tracked = (move.buttons & QVR_BUTTON_HANDSTRACKED) ? (1 << 14) : 0;
@@ -780,10 +797,22 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_WEAPONCLIPSIZE, f.weaponclipsize);
     stat(STAT_QVR_WEAPONCLIPSIZE2, f.weaponclipsize2);
     stat(STAT_QVR_MELEE, f.vr_melee_hud);
+    stat(STAT_QVR_HOTBLADE, f.vr_hot_hud); // incandescent blades' glow (vr_meleehud.cpp)
+    stat(STAT_QVR_HOTBLADEHOLSTER, f.vr_hot_hud2);
     statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value == 0.f ? static_cast<int>(vr_reload_mode.value) : 0;
     stat(STAT_QVR_POUCHKIND, f.vr_pouch_kind);
     stat(STAT_QVR_POUCHCOUNT, f.vr_pouch_count);
     statsf[STAT_QVR_STEALTH] = fieldFloatOr(ent, f.stl_hud, -1.f);
+    stat(STAT_QVR_ADHUD, f.vr_ad_hud); // AD support: AD's row on the wrist gadget (vr_gadget.cpp)
+    stat(STAT_QVR_ADKEYS, f.vr_ad_hudkeys);
+    stat(STAT_QVR_ADTIME, f.vr_ad_hudtime);
+    stat(STAT_QVR_ADTINT, f.vr_ad_tint); // AD support: AD's screen tint (vr_ad.cpp VR_AD_TintBlend)
+    stat(STAT_QVR_ADTINTDEN, f.vr_ad_tintden);
+    stat(STAT_QVR_ADART1, f.vr_ad_hudart1); // AD support: the gadget's AD page (vr_gadget.cpp adPage)
+    stat(STAT_QVR_ADART2, f.vr_ad_hudart2);
+    stat(STAT_QVR_ADDEBUFF, f.vr_ad_huddebuff);
+    stat(STAT_QVR_ADUPGRADES, f.vr_ad_hudup);
+    stat(STAT_QVR_ADSKYFOG, f.vr_ad_skyfog); // AD support: AD's sky fog (vr_ad.cpp VR_AD_SkyFog)
 
     const int holsterWeapon[numHolsters] = {f.holsterweapon0, f.holsterweapon1,
         f.holsterweapon2, f.holsterweapon3, f.holsterweapon4, f.holsterweapon5};
@@ -935,7 +964,10 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
     if(bits & U_QVR_WEAPONUID)
     {
         edict_t* const inst = weaponInst(ent, f.weaponinst);
-        MSG_WriteLong(msg, weaponUid(inst));
+        // Its id (records' ids stay far below 2^24), an incandescent blade's glow in bits 24-30 (0-127: QC .vr_hot_glow,
+        // vr_hotblade.cpp draws it; 0 in older demos).
+        const int hot = CLAMP(0, static_cast<int>(fieldFloatOr(ent, f.vr_hot_glow, 0.f) * 127.f + 0.5f), 127);
+        MSG_WriteLong(msg, (weaponUid(inst) & 0xFFFFFF) | (hot << 24));
         // Its clip: the rounds in it, shown on its ammo screen as a held gun's (vr_view.cpp setupWorldWeapons).
         MSG_WriteByte(msg, CLAMP(0, static_cast<int>(inst ? fieldFloatOr(inst, f.wi_clip, 0.f) : 0.f), 255));
     }
@@ -963,6 +995,7 @@ extern "C" void VR_ServerFrameEnd()
     tips::serverFrame(); // the map tips whose entity is gone (before its slot is reused)
 
     qvr::foegrab::serverFrame(); // held enemies slowed and dragged (before their poses are kept)
+    qvr::bodycontact::serverFrame(); // a player and a monster overlapping (a hold let go of) pushed apart
     qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
     qvr::axestick::serverFrame(); // thrown axes stuck in things go with them (after the poses above)
     qvr::foegrab::afterPoses(); // the held spots placed (after the poses above); a hand pulled too far lets go
@@ -1078,6 +1111,11 @@ void rebaseHands(edict_t* player)
         }
     }
     move.headPos += delta;
+    if(move.ammoPouch[3] != glm::vec3{0.f})
+    {
+        move.ammoPouch[0] += delta; // (the ammo pouch goes with the body)
+        setAmmoPouch(player, move.ammoPouch);
+    }
     // Re-evaluate crossing after walking, including a crossing on a release frame.
     for(int h = 0; h < 2; h++)
     {
@@ -1318,6 +1356,7 @@ void init()
     Cmd_AddCommand("vr_net_stats", netStats_f);
     climb::init();
     foegrab::init();
+    bodycontact::init();
     ledges::init();
 }
 

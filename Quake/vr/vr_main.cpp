@@ -3,6 +3,7 @@
 #include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
+#include "vr_adguns.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_bench.hpp"
 #include "vr_edictindex.hpp"
@@ -18,16 +19,22 @@
 #include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_decals.hpp"
+#include "vr_permdecals.hpp"
 #include "vr_gore.hpp"
 #include "vr_envmap.hpp"
 #include "vr_lighting.hpp"
 #include "vr_angvel.hpp"
+#include "vr_animsmooth.hpp"
+#include "vr_mdldequant.hpp"
+#include "vr_hitreact.hpp"
 #include "vr_backend.hpp"
 #include "vr_throw.hpp"
 #include "vr_client.hpp"
 #include "vr_body.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
+#include "vr_hotblade.hpp"
+#include "vr_carry2h.hpp"
 #include "vr_highlights.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
@@ -36,6 +43,7 @@
 #include "vr_mapindex.hpp"
 #include "vr_update.hpp"
 #include "vr_obs.hpp"
+#include "vr_ad.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
@@ -47,6 +55,7 @@
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_doom.hpp"
 #include "vr_physics.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
@@ -65,6 +74,7 @@
 #include "vr_profile.hpp"
 #include "vr_portals.hpp"
 #include "vr_progs.hpp"
+#include "vr_ragtest.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
@@ -72,7 +82,9 @@
 #include "vr_voicenotes.hpp"
 #include "vr_detail.hpp"
 #include "vr_extmaps.hpp"
+#include "vr_pbr.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_grasp.hpp"
 #include "vr_modelcollide.hpp"
@@ -82,6 +94,7 @@
 #include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
 #include "vr_props.hpp"
+#include "vr_propthink.hpp"
 #include "vr_retro.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_xr_runtime.hpp"
@@ -98,7 +111,9 @@
 #include "vr_wounds.hpp"
 #include "vr_cleanskins.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_brushes.hpp"
 
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Abort.hpp"
 #include "Zancle/Base/Assert.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -179,6 +194,16 @@ void stopBackend()
 
 void startBackend()
 {
+    // -flatscreenmode implies no VR backend (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md): the mode plays the VR gameplay
+    // on the desktop screen and runs only while no headset session is up, so the flag is what asks for no backend --
+    // what `vr_backend none; vr_restart` used to be typed for. It says so once; the game plays in a headset when the
+    // flag is not given.
+    if(flatplay::flagGiven())
+    {
+        flatplay::noteBackendImplied();
+        return;
+    }
+
     // -vrmock: the mock headset whatever vr_backend says (the review's re-evaluation runs a second copy of the game
     // beside the one in the headset: it must never open the runtime's session).
     za::UniquePtr<qvr::Backend> backend = createBackend(COM_CheckParm("-vrmock") ? "mock" : vr_backend.string);
@@ -196,6 +221,43 @@ void startBackend()
 
     Con_Printf("VR: started %s backend\n", backend->name());
     state->backend = ZA_MOVE(backend);
+}
+
+// The runtime ended the session (beginFrame returned false). The runtime asking the game to exit (the player quit it
+// from SteamVR's dashboard, Virtual Desktop's or Meta's menu: OpenXR's EXITING) quits the game, as the console's quit
+// does, the config saved (vr_xr_exit_quits 1; 0 1.0.0's way: flat); the headset or runtime lost: flat, VR restartable.
+void sessionEnded()
+{
+    const bool exit = state->backend->sessionEnd() == qvr::Backend::SessionEnd::Exit;
+    const bool quit = exit && vr_xr_exit_quits.value != 0.f;
+    const char* line = quit   ? "VR: the runtime asked the game to exit: quitting (vr_xr_exit_quits 1)\n"
+                       : exit ? "VR: the runtime asked the game to exit: playing flat (vr_xr_exit_quits 0; vr_restart starts "
+                                "VR again)\n"
+                              : va("VR: %s session lost: playing flat (the headset or the runtime went away; vr_restart, VR "
+                                   "Settings > Restart VR, starts VR again)\n",
+                                    state->backend->name());
+    if(quit)
+    {
+        Con_Printf("%s", line);
+    }
+    else
+    {
+        Con_Warning("%s", line);
+    }
+    xrruntime::logLine(line);
+    const char* states = state->backend->sessionStates();
+    if(states[0])
+    {
+        const char* statesLine = va("VR: the session's last states: %s\n", states);
+        Con_Printf("%s", statesLine);
+        xrruntime::logLine(statesLine);
+    }
+    stopBackend(); // the session and the instance destroyed (before the quit too)
+    if(quit)
+    {
+        CL_Disconnect(); // as closing the window does (in_sdl.c): Host_Shutdown saves the config
+        Sys_Quit();
+    }
 }
 
 void onBackendSettingChanged(cvar_t* /* var */)
@@ -253,6 +315,9 @@ void VR_StartGame_f()
     {
         return;
     }
+
+    // Every config has run (autoexec.cfg too): the controller keys still the VR ones?
+    qvr::input::guardBindings();
 
     // (A vr_motion_eval from the start-up script loads its own map: neither the hub nor the demos meanwhile.)
     if(qvr::motion::evaluating())
@@ -391,14 +456,26 @@ extern "C" __declspec(dllimport) int __stdcall K32GetProcessMemoryInfo(void* pro
     unsigned long size);
 #endif
 
-// Live GL objects of a kind: the names that are objects, from 1 until 4096 in a row are not.
+// Live GL objects of a kind: the names that are objects, from 1 until 4096 in a row are not. `freeNames` (sorted; may
+// be empty): names known to be no object (glGen*'s: freeGlNames), counted as misses without asking glIs*.
 using GlIsFn = GLboolean(APIENTRY*)(GLuint);
-int countGlObjects(GlIsFn isObject, GLuint& highest)
+int countGlObjects(GlIsFn isObject, GLuint& highest, const za::Vector<GLuint>& freeNames = {})
 {
     int count = 0;
     highest = 0;
+    const GLuint* f = freeNames.data();
+    const GLuint* const fEnd = f + freeNames.size();
     for(GLuint name = 1, misses = 0; misses < 4096 && name < (1u << 22); name++)
     {
+        while(f != fEnd && *f < name)
+        {
+            ++f;
+        }
+        if(f != fEnd && *f == name)
+        {
+            misses++;
+            continue;
+        }
         if(isObject(name))
         {
             count++;
@@ -412,6 +489,41 @@ int countGlObjects(GlIsFn isObject, GLuint& highest)
     }
     return count;
 }
+
+// The memory log's count at each load (vr_memstats_glscan 1): each glIs* call waits for the driver's thread (0.5 us
+// each, 12-13 ms for some 25,000), and most names it asks about are no object: the gaps between them and the 4096 after
+// the last. glGen* hands out names that are no object (the GL spec: "names not currently in use"), so one glGen* call
+// of a few thousand names (deleted again at once) answers for all of those: the count skips them and asks glIs* only
+// about the rest. The same count by construction (vr_memstats_glscan 2 checks it); a driver that hands out other names
+// (never reused, from a counter) only saves less. Programs have no glGen* (glCreateProgram makes one at a time): asked
+// as before.
+struct GlFreeNames
+{
+    za::Vector<GLuint> textures, buffers, framebuffers, queries;
+    // How many to ask for next time, per kind: the last count's gaps (its highest name less its objects) and the 4096
+    // after the last, with a margin (a shortfall only asks glIs* about the names past them).
+    za::U32 want[4]{8192, 8192, 8192, 8192};
+};
+GlFreeNames glFreeNames;
+
+using GlGenFn = void(APIENTRY*)(GLsizei, GLuint*);
+using GlDeleteFn = void(APIENTRY*)(GLsizei, const GLuint*);
+
+void freeGlNames(za::Vector<GLuint>& out, za::U32 want, GlGenFn gen, GlDeleteFn remove)
+{
+    out.clear();
+    if(!gen || !remove)
+    {
+        return;
+    }
+    out.resize(want);
+    gen(static_cast<GLsizei>(want), out.data());
+    remove(static_cast<GLsizei>(want), out.data());
+    za::quickSort(out.begin(), out.end());
+}
+
+void APIENTRY genTextures(GLsizei n, GLuint* names) { glGenTextures(n, names); }
+void APIENTRY deleteTextures(GLsizei n, const GLuint* names) { glDeleteTextures(n, names); }
 
 struct MemSample
 {
@@ -453,7 +565,8 @@ MemStatsCalls memStatsCalls;
 
 // queryGpu: the GPU's memory asked of GL (its glGets wait for the driver's thread: 2-4 ms when the GPU is busy; the
 // memory log and the status line read NVML's on a worker instead, gpustats::latestVram, where there is one).
-MemSample sampleMemory(bool scanGl = true, bool queryGpu = true)
+// skipFree: the names glGen* hands out not asked about (GlFreeNames: the same count, a tenth of the calls).
+MemSample sampleMemory(bool scanGl = true, bool queryGpu = true, bool skipFree = false)
 {
     MemSample m;
 
@@ -520,13 +633,33 @@ MemSample sampleMemory(bool scanGl = true, bool queryGpu = true)
         isQuery = reinterpret_cast<GlIsFn>(SDL_GL_GetProcAddress("glIsQuery"));
         isProgram = reinterpret_cast<GlIsFn>(SDL_GL_GetProcAddress("glIsProgram"));
     }
+    GlFreeNames& fn = glFreeNames;
+    if(skipFree)
+    {
+        freeGlNames(fn.textures, fn.want[0], genTextures, deleteTextures);
+        freeGlNames(fn.buffers, fn.want[1], GL_GenBuffersFunc, GL_DeleteBuffersFunc);
+        freeGlNames(fn.framebuffers, fn.want[2], GL_GenFramebuffersFunc, GL_DeleteFramebuffersFunc);
+        freeGlNames(fn.queries, fn.want[3], GL_GenQueriesFunc, GL_DeleteQueriesFunc);
+    }
+    const za::Vector<GLuint> none;
     GLuint highest = 0;
-    m.glTextures = countGlObjects(glIsTexture, highest);
-    const auto count = [&](GlIsFn fn) { return fn ? countGlObjects(fn, highest) : -1; };
-    m.buffers = count(isBuffer);
-    m.framebuffers = count(isFramebuffer);
-    m.queries = count(isQuery);
-    m.programs = count(isProgram);
+    const auto count = [&](GlIsFn is, const za::Vector<GLuint>& skip, za::U32* want) {
+        if(!is)
+        {
+            return -1;
+        }
+        const int n = countGlObjects(is, highest, skipFree ? skip : none);
+        if(want)
+        {
+            *want = za::min<za::U32>(65536u, highest - static_cast<za::U32>(n) + 4096u + 256u);
+        }
+        return n;
+    };
+    m.glTextures = count(glIsTexture, fn.textures, skipFree ? &fn.want[0] : nullptr);
+    m.buffers = count(isBuffer, fn.buffers, skipFree ? &fn.want[1] : nullptr);
+    m.framebuffers = count(isFramebuffer, fn.framebuffers, skipFree ? &fn.want[2] : nullptr);
+    m.queries = count(isQuery, fn.queries, skipFree ? &fn.want[3] : nullptr);
+    m.programs = count(isProgram, none, nullptr);
     m.scanMs = static_cast<double>(scanClock.getElapsedTime().asMicroseconds()) / 1e3;
     return m;
 }
@@ -864,27 +997,93 @@ void VR_MemStats_f()
     }
 }
 
-// vr_debug_crash [access|abort|assert|zassert]: crashes the game on purpose, to test the crash report (vr_crash.cpp,
-// VR_InstallCrashHandler: in a test run, qvr_crash.txt with the stack and qvr_crash.dmp): an access violation (the
-// default) or abort(). In Debug builds, a failed ZA_ASSERT to test Zancle's assert handler (vr_zancle.cpp: a Quake
-// error, in a test run the report): in the engine's code (assert), or in Zancle's library (zassert: with
-// QVR_ZANCLE_DEBUG, the library built with its asserts).
-void VR_DebugCrash_f()
+// vr_crash_test <kind>: ends the game on purpose, to test the crash report (vr_crash.cpp: quakevr/crash/<date>_<time>.txt
+// with the stack and a .dmp beside it; a test run: qvr_crash.txt too, printed by run.sh as ENGINE CRASH). Kinds:
+//   av          an access violation on the main thread (the default)
+//   thread      an access violation on a thread pool worker (vr_jobs)
+//   stack       a stack overflow on the main thread (the vectored handler)
+//   error       a Sys_Error ("Quake VR: Unleashed - Error"; its dialog names the report)
+//   threaderror a Sys_Error on a worker (reported and ended there)
+//   assert      a failed assert's report (Zancle's handler, in any build: a Quake error)
+//   zassert     a failed ZA_ASSERT in Zancle's library (Debug with QVR_ZANCLE_DEBUG only)
+//   abort       abort() (std::terminate and the CRT's fatal checks end the same way)
+//   purecall    a pure virtual call (the CRT's handler)
+//   hosterror   a Host_Error (not fatal: back to the console, its caller's stack printed)
+extern "C" void VR_ReportAssert(const char* code, const char* file, int line); // vr_zancle.cpp
+#ifdef _MSC_VER
+extern "C" int __cdecl _purecall(void); // the CRT's: its handler (vr_crash.cpp's) is called
+#endif
+
+namespace
 {
-    const char* const kind = Cmd_Argc() > 1 ? Cmd_Argv(1) : "access";
-    if(q_strcasecmp(kind, "abort") == 0)
+
+volatile int crashTestNothing = 0; // (volatile: the compiler can't see what the crash tests read or write)
+
+void crashTestAccessViolation()
+{
+    int* volatile nowhere = nullptr;
+    *nowhere = 1;
+}
+
+// Each call keeps 4 KB of its own: 1 MB of main thread stack is gone after ~250 calls.
+[[gnu::noinline]] int crashTestRecurse(int depth)
+{
+    volatile char block[4096];
+    block[0] = static_cast<char>(depth);
+    if(depth < 0 || crashTestNothing < 0)
     {
-        za::abort();
+        return block[0];
+    }
+    return crashTestRecurse(depth + 1) + block[0];
+}
+
+} // namespace
+
+void VR_CrashTest_f()
+{
+    const char* const kind = Cmd_Argc() > 1 ? Cmd_Argv(1) : "av";
+    if(q_strcasecmp(kind, "av") == 0 || q_strcasecmp(kind, "access") == 0)
+    {
+        crashTestAccessViolation();
+        return;
+    }
+    if(q_strcasecmp(kind, "thread") == 0 || q_strcasecmp(kind, "threaderror") == 0)
+    {
+        const bool error = q_strcasecmp(kind, "threaderror") == 0;
+        crashTestNothing = 0;
+        jobs::Future<void> task = jobs::async([error] {
+            crashTestNothing = 1;
+            if(VR_OnMainThread())
+            {
+                return; // (no worker: vr_jobs_threads 0)
+            }
+            if(error)
+            {
+                Sys_Error("vr_crash_test threaderror: a fatal error on a worker thread");
+            }
+            crashTestAccessViolation();
+        });
+        // A worker's to take (a wait now would run it here): up to 2 s for one to.
+        for(int i = 0; i < 200 && crashTestNothing == 0; i++)
+        {
+            Sys_Sleep(10);
+        }
+        task.wait();
+        Con_Printf("vr_crash_test %s: it ran on the main thread (no thread pool worker: vr_jobs_threads)\n", kind);
+        return;
+    }
+    if(q_strcasecmp(kind, "stack") == 0)
+    {
+        crashTestNothing = crashTestRecurse(0);
+        return;
+    }
+    if(q_strcasecmp(kind, "error") == 0)
+    {
+        Sys_Error("vr_crash_test error: a fatal error on purpose");
     }
     if(q_strcasecmp(kind, "assert") == 0)
     {
-#ifdef ZA_DEBUG
-        const volatile bool holds = false; // (volatile: not a constant the compiler folds)
-        ZA_ASSERT(holds && "vr_debug_crash assert");
-#else
-        Con_Printf("vr_debug_crash assert: Zancle's asserts are off in this build (Debug builds have them)\n");
-#endif
-        return;
+        VR_ReportAssert("holds && \"vr_crash_test assert\"", __FILE__, __LINE__);
     }
     if(q_strcasecmp(kind, "zassert") == 0)
     {
@@ -892,12 +1091,26 @@ void VR_DebugCrash_f()
         za::Thread none;
         none.join(); // Zancle's Thread.cpp: ZA_ASSERT(m_joinable)
 #else
-        Con_Printf("vr_debug_crash zassert: Zancle's library is built without its asserts (Debug with QVR_ZANCLE_DEBUG has them)\n");
+        Con_Printf("vr_crash_test zassert: Zancle's library is built without its asserts (Debug with QVR_ZANCLE_DEBUG has them)\n");
 #endif
         return;
     }
-    int* volatile nowhere = nullptr; // (volatile: the compiler can't see it is null)
-    *nowhere = 1;
+    if(q_strcasecmp(kind, "abort") == 0)
+    {
+        za::abort();
+    }
+    if(q_strcasecmp(kind, "purecall") == 0)
+    {
+#ifdef _MSC_VER
+        _purecall();
+#endif
+        return;
+    }
+    if(q_strcasecmp(kind, "hosterror") == 0)
+    {
+        Host_Error("vr_crash_test hosterror: an error that ends the game session, not the program");
+    }
+    Con_Printf("vr_crash_test [av | thread | stack | error | threaderror | assert | zassert | abort | purecall | hosterror]\n");
 }
 
 // vr_memstats_log: the same, as a row of quakevr/profile/memstats_<date>.csv every so many seconds
@@ -919,7 +1132,8 @@ MemLog memLog;
 
 // The GL objects counted as each map loads (VR_NewMap): every name tested with glIs* up to 4096 past the last one found,
 // some 25,000 calls that wait for the driver's thread, 12-13 ms: a dropped frame when a row did it in play. A count
-// that grows from one load to the next is a leak; the rows repeat the last load's.
+// that grows from one load to the next is a leak; the rows repeat the last load's. vr_memstats_glscan 1 (GlFreeNames):
+// the names glGen* hands out not asked about, the same count in a few ms; 2: both, compared.
 MemSample glCounted;
 
 void countGlForLog()
@@ -929,7 +1143,21 @@ void countGlForLog()
         return;
     }
     QVR_PROFILE("memory log");
-    glCounted = sampleMemory(true);
+    const int mode = static_cast<int>(vr_memstats_glscan.value);
+    glCounted = sampleMemory(true, true, mode > 0);
+    if(mode < 2)
+    {
+        return;
+    }
+    const MemSample whole = sampleMemory(true);
+    const MemSample& c = glCounted;
+    const bool same = c.glTextures == whole.glTextures && c.buffers == whole.buffers &&
+                      c.framebuffers == whole.framebuffers && c.queries == whole.queries && c.programs == whole.programs;
+    Con_Printf("vr_memstats_glscan 2: %s; %.2f ms skipping glGen*'s names, %.2f ms every name (textures %d %d, buffers "
+               "%d %d, framebuffers %d %d, queries %d %d, programs %d %d)\n",
+        same ? "the same counts" : "THE COUNTS DIFFER", c.scanMs, whole.scanMs, c.glTextures, whole.glTextures,
+        c.buffers, whole.buffers, c.framebuffers, whole.framebuffers, c.queries, whole.queries, c.programs,
+        whole.programs);
 }
 
 void writeMemLogRow(const char* reason)
@@ -1663,11 +1891,20 @@ extern "C" void VR_Init()
     state = new State{};
 
     VR_TimeInit(); // vr_startup_times, vr_walltime
+    VR_GLSafeInit(); // vr_glsafe_retry, vr_glsafe_status
+    VR_DiagnosticsInit(); // vr_diagnostics_status
     jobs::start(); // the game's thread pool (vr_jobs.hpp), first: the systems below post to it
     imgprefetch::start(); // the images the start-up and the first map load decode, decoded ahead (the file system is up)
     registerCvars();
+    flatplay::init(); // -flatscreenmode (vr_flatplay.cpp): the flag the whole mode hangs on, read once here
     VR_RegisterPackStatus();
+    VR_RegisterContinue();
+    Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
+    VR_FileCacheRegisterCommands();
     jobs::registerCommands();
+    animsmooth::registerCommands();
+    mdldequant::registerCommands();
+    hitreact::registerCommands();
     edictindex::registerCommands();
     weapons::registerCvars();
     props::registerCvars();
@@ -1687,6 +1924,7 @@ extern "C" void VR_Init()
     menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
     toolgun::registerCommands();
+    brushes::registerCommands();
     Cmd_AddCommand("vr_menu_search", menu::search_f);
     Cmd_AddCommand("vr_menu_slider_step", menu::sliderStep_f);
     Cmd_AddCommand("maps_page_stats", menu::mapsPageStats_f); // (the map browser page: vr_menu_maps.inc)
@@ -1694,6 +1932,8 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);
     Cmd_AddCommand("vr_tips_test", tips::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
+    Cmd_AddCommand("vr_menu_panel", menuui::panelPlace_f);
+    Cmd_AddCommand("vr_menu_panels", menu::panels_f);
     Cmd_AddCommand("vr_mock_mouse", menuui::mockMouse_f);
     Cmd_AddCommand("vr_mock_key", menuui::mockKey_f);
     Cmd_AddCommand("vr_bigfont", bigfont::report_f);
@@ -1708,6 +1948,7 @@ extern "C" void VR_Init()
     voicenotes::init();
     highlights::init();
     cleanskins::init();
+    mdldequant::init();
     posing::init();
     sightalign::init();
     bodycal::init();
@@ -1719,6 +1960,7 @@ extern "C" void VR_Init()
     cellcord::init();
     detail::init();
     extmaps::init();
+    pbr::init();
     imgcache::init();
     modelkeep::init();
     hull::init();
@@ -1729,6 +1971,7 @@ extern "C" void VR_Init()
     server::init();
     Cmd_AddCommand("vr_dumpview", view::dumpView_f);
     Cmd_AddCommand("vr_carry_check", held::carryCheck_f);
+    Cmd_AddCommand("vr_carry_load_test", carry2h::loadTest_f);
     Cmd_AddCommand("vr_grasp_dump", view::graspDump_f);
     Cmd_AddCommand("vr_grasp_bench", view::graspBench_f);
     Cmd_AddCommand("vr_ragdoll_hand_probe", view::ragdollHandProbe_f);
@@ -1738,7 +1981,9 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
     Cmd_AddCommand("vr_model_reload", view::modelReload_f);
     Cmd_AddCommand("vr_prop_query_test", progs::propQueriesTest_f);
+    Cmd_AddCommand("vr_gamecode", progs::gameCode_f);
     Cmd_AddCommand("vr_forcegrab_grid_stats", progs::forcegrabGridStats_f);
+    propthink::registerCommands(); // vr_propthink_check
     Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
     Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
@@ -1751,43 +1996,52 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_wounds_test", wounds::test_f);
     Cmd_AddCommand("vr_wounds_info", wounds::info_f);
     Cmd_AddCommand("vr_gore_hands_test", wounds::handsTest_f);
+    Cmd_AddCommand("vr_wrist_blood_test", wounds::wristTest_f);
     Cmd_AddCommand("vr_gore_wash_test", wounds::washTest_f);
     Cmd_AddCommand("vr_gore_hands_info", wounds::handsInfo_f);
     Cmd_AddCommand("vr_gore_spatter_test", wounds::spatterTest_f);
     Cmd_AddCommand("vr_cleanskins", cleanskins::list_f);
     Cmd_AddCommand("vr_gore_mist_test", particles::mistTest_f);
     Cmd_AddCommand("vr_particle_light_report", particles::lightReport_f);
+    Cmd_AddCommand("vr_hotblade_report", hotblade::report_f);
     Cmd_AddCommand("vr_wounds_dump", wounds::dump_f);
     Cmd_AddCommand("vr_test_remove", progs::testRemove_f);
     Cmd_AddCommand("vr_model_check", progs::modelCheck_f);
     Cmd_AddCommand("vr_test_dialog", testDialog_f);
     Cmd_AddCommand("vr_test_confirm", testConfirm_f);
     Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
+    Cmd_AddCommand("vr_anchor_where", view::anchorWhere_f);
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
     Cmd_AddCommand("vr_hotspot_fit", view::hotspotFit_f);
     anchor::registerCommands();
     portals::registerCommands(); // vr_portals_info
+    ragtest::registerCommands(); // vr_ragdoll_act
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_stress", decals::stress_f);
+    Cmd_AddCommand("vr_decal_at", decals::at_f);
+    Cmd_AddCommand("vr_permdecal_info", permdecals::info_f);
     Cmd_AddCommand("vr_limits", limits::command_f);
     bench::registerCommands(); // vr_bench_begin, vr_bench_end, vr_bench_seed
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
+    Cmd_AddCommand("vr_prepare_models", prepare::precacheModels_f); // (Setup's preparation run, vr_prepare.cpp)
     Cmd_AddCommand("vr_vram_report", vram::report_f);
     allocsites::registerCommands(); // vr_alloc_sites
-    Cmd_AddCommand("vr_debug_crash", VR_DebugCrash_f);
+    Cmd_AddCommand("vr_crash_test", VR_CrashTest_f);
     lighting::init();
     timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
     envmap::init(); // vr_envmap_dump
     profile::init();
+    doom::init(); // vr_doom and its commands (qvr_doom.dll loaded when first opened)
     audio::init(); // spatial audio's commands (vr_snd_info, vr_snd_test...); Steam Audio is loaded on first use
     mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
     update::registerCommands(); // vr_update_status, vr_update_check_now, vr_update_compare (vr_update.cpp)
     obs::registerCommands(); // vr_obs_status, vr_obs_toggle, vr_obs_connect (vr_obs.cpp)
+    ad::registerCommands(); // vr_ad_info (vr_ad.cpp: Arcane Dimensions)
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
     relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)
@@ -1810,6 +2064,7 @@ extern "C" void VR_StopDownloads()
 
 extern "C" void VR_Shutdown()
 {
+    doom::shutdown(); // Doom's settings saved, qvr_doom.dll unloaded
     hull::finishLoads(); // (a map load's builds, if a quit came in the middle of one)
     box3d::finishLoads();
     mapindex::finish(); // the map index fetch, cancelled and joined (vr_mapindex.cpp)
@@ -1864,8 +2119,7 @@ extern "C" void VR_BeginFrame()
     QVR_PROFILE("vr frame setup"); // the rest: the recorder, the texts queued anew, the input
     if(!began)
     {
-        Con_Warning("VR: %s session lost\n", state->backend->name());
-        stopBackend();
+        sessionEnded();
     }
     if(state->backend)
     {
@@ -1896,13 +2150,16 @@ extern "C" void VR_BeginFrame()
     profile::overlay();  // the profiler's panel (vr_profile_overlay)
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
+    doom::frame(); // Doom on the wrist gadget (vr_doom): its clock, its keys, its sounds at the gadget
     bullettime::frame(); // (vr_debug_gadget_button 3: the tap's frame-start check; the tap itself: the view's)
     gearlights::frame(); // the gear lights eased (the side button: the view's, as the gadget is drawn)
     flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
+    flatplay::frame(); // -flatscreenmode: its keys, and the settings the mode stands in for (before the hands are posed)
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
     input::roomscaleJump(hands::current());
     toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
+    brushes::frame(); // the boxes made in the game: their slots written (vr_brushes.cpp)
 }
 
 extern "C" int VR_RuntimeMenuPause()

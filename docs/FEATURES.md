@@ -255,9 +255,19 @@ you like). Throws stay true in it. Combat > *Bullet Time*.
   its screen (Tips > Screens > *Game Messages as Hologram*); centre prints float in front of you. HUD and Menus >
   *Wrist Gadget* sets its arm, size, placement and colours.
 - **Status bar:** the classic Quake status bar on a hand (VR Settings > *HUD: Status bar*).
+- **Doom on the wrist gadget** (VR Settings > *Doom on the Wrist Gadget*; `vr_doom`): a real game of Doom on the
+  gadget's screen, running in real time beside Quake (Quake's pause pauses it; closing it keeps its place). The screen
+  is a **touchscreen**: touch it with your other hand's index fingertip (a buzz as it touches; buttons light up under
+  your finger): a drag stick moves and turns, FIRE, USE, Doom's menu, the map, weapons, always run; tap Doom's menu
+  items; press through the screen while steering to fire. Raise the gadget and look at it, and its hand's stick and
+  buttons play Doom until you lower it (Controls: Touch Only, Controller and Touch, Controller Only). Its sounds come
+  from the gadget. Freedoom is included; your own DOOM, DOOM II or Final DOOM is found on Steam and GOG, or dropped
+  into `quakevr/doom/wads`, and played instead. A big floating panel instead of the gadget, for comfort. No music yet.
+  docs/vr-port/DOOM.md.
 - **Menus** float in front of you, with modern sliders, switches and drop-down lists. Point with the laser from your
   hand, pull the trigger to click, and drag sliders. The sticks work too. *Back to Game* is at the top left, or you
-  can hold the menu button. Settings pages show their changes live, and in single player the game keeps running
+  can hold the menu button. Any controller opens the menu by clicking both sticks together (*Menu Button*: or
+  hold Y or B). Settings pages show their changes live, and in single player the game keeps running
   underneath. The main menu has *VR Calibration*, *Map Library*, *VR Settings* and *Advanced VR* rows.
 - **Corner buttons** on every menu: Back to Game, Search, Console, VR Settings, Advanced VR, Levels, Map Library,
   Relighting and Checklist (on a flat screen too: HUD and Menus > Menu > *Corner Buttons on a Flat Screen*).
@@ -281,6 +291,8 @@ one (Flashlight > *Flick to Turn Over*). Bring it to the gun in your other hand 
 (or let go of it there); it comes off with the other hand and B or Y, or goes back to your belt when the gun is
 holstered or dropped. It can clip on your head too. It stays on across level changes and goes off when you start a map
 afresh. It's a real spotlight: it lights models and casts shadows. Settings: the *Flashlight* page and its grips' pages.
+Set *Chest Flashlight* to *Always on Head* for a simpler torch: none on the belt, one worn at your temple (on the
+*Flashlight Side*), on from the start; put a hand at it and pull the trigger to switch it.
 
 ## Haptics
 
@@ -361,6 +373,15 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
 - **Official campaigns** (the main menu's *Select Campaign*, or Play > Official Campaigns): the re-release's Dimension of the
   Past, Dimension of the Machine (with its Horde mode) and Dawn of the Machine (with its Bloody Nightmare difficulty)
   play natively in VR, in single player, when you own them. See [INSTALL.md](INSTALL.md#official-campaigns).
+- **Continue and autosaves:** the game saves itself as each level starts and every half minute or so of quiet play,
+  all in one folder (`autosave\<map>.sav` for Quake, `autosave\<campaign>~<map>.sav` for the other campaigns,
+  `autosave\<package>~<map>.sav` for a Map Library map; never over your own saves, never in the hub or the tutorial,
+  never in multiplayer). Every save remembers its campaign and its Map Library package: loading any save (the Load
+  menu, `load`, Continue) switches to that campaign and mounts that package first, and the Load menu names them
+  ("Dimension of the Machine - The Gateway"). *Continue*, the main menu's first row and the button beside the hub's
+  quick-start stand, loads your newest save, its map, campaign or package and time shown; a save whose package is no
+  longer installed is skipped. The hub's campaign stones keep the campaign you last played selected.
+  `vr_autosave_level_start 0`: no level-start saves; `sv_autosave 0`: no autosaves at all.
 - **Map Library** (the main menu, or the corner's *Map Library*): browse [Quaddicted](https://www.quaddicted.com/)'s
   archive of custom maps, then download, install and play one in the game; *Uninstall* and *Reinstall* manage what you
   installed, and the download cache is capped (Debug > Tools > *Download Cache Size*). See

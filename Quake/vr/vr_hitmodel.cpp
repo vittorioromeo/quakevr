@@ -1,6 +1,7 @@
 // vr_hitmodel.cpp -- see vr_hitmodel.hpp.
 
 #include "vr_hitmodel.hpp"
+#include "vr_ad.hpp" // AD support: small pellets retain precise model/corpse impacts.
 #include "vr_engine.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
@@ -996,7 +997,23 @@ bool clip(edict_t* ent, const glm::vec3& a, const glm::vec3& b, const glm::vec3&
         moverRadius = za::min(moverRadius, -mins[k], maxs[k]);
     }
     moverRadius = za::max(0.f, moverRadius);
-    return segment(ent, a, b, tol + moverRadius, maxT, c, out);
+    bool hit = segment(ent, a, b, tol + moverRadius, maxT, c, out);
+    // A part drawn as an entity of its own, not solid (QC .vr_hit_extra: the Armagon's torso on its legs): met as this
+    // monster's, the nearer of the two.
+    const int partOfs = qvr::progs::fields().vr_hit_extra;
+    const int partNum = partOfs >= 0 ? qvr::progs::fieldInt(ent, partOfs) : 0;
+    if(partNum != 0)
+    {
+        edict_t* part = PROG_TO_EDICT(partNum);
+        Hit h;
+        if(part != ent && !part->free && part->v.modelindex > 0.f &&
+           segment(part, a, b, tol + moverRadius, hit ? out.t : maxT, c, h) && (!hit || h.t < out.t))
+        {
+            out = h;
+            hit = true;
+        }
+    }
+    return hit;
 }
 
 namespace
@@ -2063,23 +2080,31 @@ extern "C" int VR_HitModelClip(edict_t* ent, const float* start, const float* mi
 }
 
 // A projectile's move (SV_PushEntity): a solid missile (MOVETYPE_FLYMISSILE, a bouncing grenade) meets monsters'
-// models; its class from .vr_hitclass (the grappling hook's), else a gun's.
+// models; its class from .vr_hitclass (the grappling hook's), else a gun's. AD support: its small MOVETYPE_FLY
+// pellets retain that precision and meet corpses without changing AD's chosen projectile size/movement mode.
 extern "C" int VR_HitModelMoveFlags(edict_t* ent)
 {
-    if(!qvr::hitmodel::enabled() || (static_cast<int>(ent->v.solid) != SOLID_BBOX && static_cast<int>(ent->v.solid) != SOLID_SLIDEBOX))
+    if(static_cast<int>(ent->v.solid) != SOLID_BBOX && static_cast<int>(ent->v.solid) != SOLID_SLIDEBOX)
     {
         return 0;
     }
-    if(static_cast<int>(ent->v.movetype) != MOVETYPE_FLYMISSILE && static_cast<int>(ent->v.movetype) != MOVETYPE_BOUNCE)
+    const bool adPellet = qvr::ad::precisePellet(ent);
+    const int move = static_cast<int>(ent->v.movetype);
+    if(move != MOVETYPE_FLYMISSILE && move != MOVETYPE_BOUNCE && !(adPellet && move == MOVETYPE_FLY))
     {
         return 0;
+    }
+    const int corpseFlags = adPellet ? MOVE_HITGIBS : 0;
+    if(!qvr::hitmodel::enabled())
+    {
+        return corpseFlags;
     }
     const int cls = static_cast<int>(qvr::progs::fieldFloatOr(ent, qvr::progs::fields().vr_hitclass, 0.f));
     if(cls < 0)
     {
-        return 0; // its box, as before
+        return corpseFlags; // its box, as before
     }
-    return MOVE_HITMODEL | ((cls & 3) << MOVE_HITMODEL_CLASS_SHIFT);
+    return corpseFlags | MOVE_HITMODEL | ((cls & 3) << MOVE_HITMODEL_CLASS_SHIFT);
 }
 
 // ----------------------------------------------------------------------------

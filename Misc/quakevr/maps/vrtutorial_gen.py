@@ -1199,6 +1199,7 @@ def build_room6():
 
 # ---- Room 7: a fist fight. A warning, a grunt from the alcove, its rifle, three targets to shoot, a button for another.
 R7 = dict(x0=4896, y0=416, x1=5536, y1=928)
+R7_PILLAR = (5152, 5280, 736, 768)     # x0, x1, y0, y1: 160 in from the door (the ceiling lamps' row at 800 clear)
 
 
 def build_room7():
@@ -1209,10 +1210,14 @@ def build_room7():
     room("room7", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 288, bands(TX["panel2"]))
     checkpoint("cp7", 5216, 880, LOW, 270)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 288, 3, 2, 220)
+    # a pillar in the middle just inside the door (the author, 2026-10-10: he faces the board as soon as he is in), the
+    # room's walls' bands on it (structural); 256 clear on either side, the alcove's way to him and the targets clear
+    px0, px1, py0, py1 = R7_PILLAR
+    SOLIDS.append(((px0, py0, LOW), (px1, py1, LOW + 288)))
     banner(N.join(["LESSON 7: FIGHT", "", "WARNING: AN ENEMY IS COMING!", "Fight it with your fists:",
                    "block its blows, then strike.", "", "Once it is dead, take its rifle",
                    "and shoot the three targets to go on."]),
-           5216, r["y0"] + 4, LOW + 176, 90, "0.3")   # (over the exit door: ahead of the way in)
+           (px0 + px1) / 2, py1 + 4, LOW + 104, 90, "0.3")   # (on the pillar's face to the door)
     # the alcove the grunts come from (a spawner in it); the button for another
     air("r7_alcove", (r["x1"], 608, LOW), (r["x1"] + 64, 736, LOW + 128), style=bands(TX["panel5"]))
     door_frame(out, door_air("r7_alcove_mouth", (r["x1"], 608, LOW), (r["x1"] + 1, 736, LOW + 128)))
@@ -1466,6 +1471,7 @@ ARENA_POOL = ((704, -1120), (960, -992))
 MEZZ_N = ((256, -512), (1408, -384))
 MEZZ_W = ((256, -1408), (384, -512))
 MEZZ_Z = LOW + 176
+MEZZ_N_GAP = (688, 768)  # the north mezzanine railing's gap over its ladder (x 704-752)
 
 
 def build_room12():
@@ -1484,7 +1490,13 @@ def build_room12():
     for z in range(16, MEZZ_Z - LOW, 20):
         out.append(cylinder((704, -519, LOW + z), (752, -519, LOW + z), 1.75, 8, TX["rung"]))
         out.append(cylinder((391, -1000, LOW + z), (391, -952, LOW + z), 1.75, 8, TX["rung"]))
-    railing(out, (384, -520), (1408, -520), MEZZ_Z, 36)
+    # (on the north mezzanine's edge, its posts 0.5 in from it: at -520 it stood 8 out, in the air off the ledge; the
+    # author, 2026-10-10: "detached from the actual ledge")
+    # A gap where the ladder (x 704-752) arrives, 16 clear each side of it: the climb's top step leads straight on
+    # (the author, 1.0.1: the railing over the ladder's top made him climb over it). West of it posts every 76 (304
+    # long: whole-unit posts), east of it every 64 as before.
+    for x0, x1, every in ((384, MEZZ_N_GAP[0], 76), (MEZZ_N_GAP[1], 1408, 64)):
+        railing(out, (x0, MEZZ_N[0][1] + 2), (x1, MEZZ_N[0][1] + 2), MEZZ_Z, 36, every)
     # the pit, its stairs, the pool at its bottom
     (px0, py0), (px1, py1) = PIT
     air("arena_pit", (px0, py0, LOW - 128), (px1, py1, LOW), style=bands(TX["panel5"]))
@@ -1604,6 +1616,15 @@ def build_extras():
         banner(N.join(["BULLET TIME", "", "Double-tap your wrist gadget's screen", "with your other hand: time slows down.",
                        "Double-tap again to stop it.", "It runs down, then recharges."]), 1856, -652, LOW + 96, 90,
                "0.28")
+        # the halls to the arena (hall_12a, hall_12b): lamps (lit by nothing but the arena's door, they were near black)
+        out = group("halls12")
+        ceiling_lamp(out, 1856, -416, LOW + 160, 32, 64, 200)
+        ceiling_lamp(out, 1856, -592, LOW + 160, 64, 32, 200)
+        ceiling_lamp(out, 1616, -592, LOW + 160, 64, 32, 200)
+        # lesson 1's hall, before its board: how to open the menu (1.0.1: a player's Pico under SteamVR had no menu
+        # button reaching the game; vr_menu_button's stick chord does). Last of all, so that a 1.0.0 save's edicts
+        # keep their numbers.
+        tip("t1_menu", "The menu: the menu button," + N + "or click both sticks together.", 520, 256, 60, 160)
 
 
 ROOMS = [build_room1, build_bend, build_room2, build_room3, build_room4, build_room5, build_room6, build_room7,

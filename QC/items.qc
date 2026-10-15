@@ -253,7 +253,7 @@ void() PlaceItem =
     self.handtouch = itemTouch;
 
     // HONEY
-    if(!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
+    if(!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
     {
         item_unspawn();
     }
@@ -318,6 +318,7 @@ Sets the clipping size and plants the object on the floor
 void() StartItem =
 {
     if(MG_MonsterInhibited()) return;
+    if(AD_ItemStartOff()) return; // AD support: an AD map's STARTOFF item waits for its trigger (vr_ad_bridge.qc)
     self.nextthink = time + 0.2;    // items start after other solids
     self.think = PlaceItem;
 };
@@ -447,7 +448,11 @@ void() health_touch =
     self.solid = SOLID_NOT;
 
     // Megahealth = rot down the player's super health
-    if(self.healtype == 2 && !RuneHasElder(other))
+    if(self.healtype == 2 && !RuneHasElder(other) && AD_MegaRot(other))
+    {
+        // AD support: AD's rot in an AD map (one rot however many megahealths, vr_ad_bridge.qc)
+    }
+    else if(self.healtype == 2 && !RuneHasElder(other))
     {
         VR_ItemUtil_EntAddItem(other, IID_SUPERHEALTH);
         self.nextthink = time + 5;
@@ -671,6 +676,7 @@ void() VR_PickupObj_Regen =
 // (VR_PickupObj_Regen, not SUB_regen's trigger where it was taken).
 void(entity xItem) VR_PickupObj_Taken =
 {
+    AD_ItemTaken(xItem); // AD support: AD's item respawn in an AD map (vr_ad_bridge.qc)
     if(xItem.model != string_null)
     {
         return;
@@ -1077,10 +1083,13 @@ void() weapon_touch =
     float ammoId;
     ammoId = WeaponIdToAmmoId(weaponId, 0 /* weaponflags */);
 
-    hadammo = VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId);
+    if(ammoId != AID_NONE) // AD support: the Shadow Axe's pickup (weapon_upgrade_axe) is an axe: no ammo
+    {
+        hadammo = VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId);
 
-    VR_AmmoUtil_SetAmmoCountByAmmoId(other, ammoId,
-        hadammo + WeaponIdToInitialAmmoCount(weaponId));
+        VR_AmmoUtil_SetAmmoCountByAmmoId(other, ammoId,
+            hadammo + WeaponIdToInitialAmmoCount(weaponId));
+    }
 
     VRItemPickupHaptic(other);
 
@@ -1097,7 +1106,7 @@ void() weapon_touch =
     // A fresh pickup is ready to fire: move rounds from the bounded reserve into its own magazine.
     // Pool-only firing modes keep their ammo in the reserve. Existing weapon instances never pass here.
     float clip = 0;
-    if(other.ishuman && VRIsWeaponReloadingEnabled() && WeaponIdToSupportsReload(weaponId))
+    if(other.ishuman && VRIsWeaponReloadingEnabled(other) && WeaponIdToSupportsReload(weaponId))
     {
         clip = max(0, min(WeaponIdToBaseClipSize(weaponId), VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId)));
         VR_AmmoUtil_DelAmmoCountByAmmoId(other, ammoId, clip);
@@ -1115,11 +1124,13 @@ void() weapon_touch =
             if(VRIsHandEmpty(other, cVR_MainHand))
             {
                 VRGiveEntWeapon(other, cVR_MainHand, weaponId, 0, clip);
+                AD_UpgradeGiven(stemp, other, cVR_MainHand); // AD support: an upgrade's on the weapon it gives
                 W_SetCurrentAmmoFor(cVR_MainHand);
             }
             else if(VRIsHandEmpty(other, cVR_OffHand))
             {
                 VRGiveEntWeapon(other, cVR_OffHand, weaponId, 0, clip);
+                AD_UpgradeGiven(stemp, other, cVR_OffHand); // AD support
                 W_SetCurrentAmmoFor(cVR_OffHand);
             }
             else
@@ -1145,6 +1156,7 @@ void() weapon_touch =
         }
 
         VRGiveEntWeapon(other, touchinghand, weaponId, 0, clip);
+        AD_UpgradeGiven(stemp, other, touchinghand); // AD support: an upgrade's on the weapon it gives
         W_SetCurrentAmmoFor(touchinghand);
     }
 
@@ -1525,6 +1537,8 @@ void(string xModelNameSmall, string xModelNameBig,
      float xAmmoId, vector xSize)
 impl_item_ammo_pickup =
 {
+    xModelNameSmall = AD_AmmoModel(xAmmoId, FALSE, xModelNameSmall); // AD support: appearance only, VR pickup remains owner
+    xModelNameBig = AD_AmmoModel(xAmmoId, TRUE, xModelNameBig); // AD support
     if(!VR_Pack_AmmoAvailable(xAmmoId) || !fileexists(xModelNameSmall) || !fileexists(xModelNameBig))
     {
         remove(self);
@@ -1551,6 +1565,7 @@ impl_item_ammo_pickup =
     self.classname = VR_AmmoUtil_AmmoIdToItemName(xAmmoId);
 
     setsize(self, '0 0 0', xSize);
+    AD_AmmoBoxFit(xSize); // AD support: an AD ammo model's bounds and frame (vr_ad_bridge.qc)
     if(deathmatch) { self.wait = 30; }
     StartItem();
 

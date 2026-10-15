@@ -388,6 +388,14 @@ not water-vised by VisPatch, so it looks opaque.
 
 QVR:U's own maps (the hub, tutorial and firing range) are already relit in the package.
 
+## Doom on the wrist gadget
+
+The wrist gadget plays Doom (VR Settings > *Doom on the Wrist Gadget*). Freedoom, free and included, is played unless
+you own DOOM: a Steam copy (The Ultimate DOOM, DOOM II, Final DOOM, DOOM + DOOM II) or a GOG one is found by itself.
+Any other copy: drop `DOOM.WAD` (or `DOOM1.WAD`, `DOOM2.WAD`, `TNT.WAD`, `PLUTONIA.WAD`) into `quakevr\doom\wads\`
+(the Doom page's *Open the WAD Folder* opens it); the page shows which one is in use and lets you pick another. Doom's
+settings and saves are in `quakevr\doom\`.
+
 ## Voice notes
 
 Voice notes (see [FEATURES.md](FEATURES.md#playtesting-tools)) are saved as `.wav` files in `quakevr\notes\`. To turn
@@ -431,10 +439,24 @@ only comes back after restarting SteamVR or Virtual Desktop too, it's them.
 
 ## Troubleshooting and bug reports
 
+**If the game crashes, or VR doesn't start, run the Start menu's Quake VR Unleashed (diagnostics) shortcut and send us
+the folder it names.** You can also add `-diagnostics` to the command line, or use `QuakeVR.bat -diagnostics` for a
+zip install. Play until the problem happens, then quit. The game puts everything a report needs in one folder,
+`quakevr\diagnostics\<date>_<time>`, and opens that folder when you quit:
+- the console;
+- the graphics driver's messages;
+- the OpenXR runtime's and loader's messages;
+- the crash report, if there is one;
+- copies of SteamVR's and Virtual Desktop's logs from that run.
+
+Zip the folder and attach it. This mode is slower, so use it only for a report. Debug > Crashes > Diagnostics Mode turns
+it on from the next start.
+
 Start the game with the Start menu's **Quake VR Unleashed (log for bug reports)** (or add `-condebug` to its command
 line; `QuakeVR.bat -condebug` for a zip install). The console goes to `qconsole.log` in the folder the game started
-in (the QVR:U folder), which is the most useful thing to attach to a report. If the game crashes, it writes
-`qvr_crash.txt` and `qvr_crash.dmp` in the same folder: attach both.
+in (the QVR:U folder), which is the most useful thing to attach to a report. If the game crashes or stops on an
+error, it writes a crash report, `quakevr\crash\<date>_<time>.txt`, and a `.dmp` beside it, and its message names
+them: attach both.
 
 Paths under *Advanced VR* need *Menu Detail: Advanced* (the last row of every page) for most pages, and *Debug* pages
 need *Developer*.
@@ -449,7 +471,8 @@ need *Developer*.
 | Water isn't see-through | Needs maps relit with the VisPatch files (by the installer, the script, or in the game with *See-Through Liquids*), and *Transparency > Water Alpha* below 1 (0.3 by default). See [RELIGHTING.md](RELIGHTING.md#troubleshooting). |
 | No sound | Check the Windows output device (your headset's audio) and Ironwail's volume options. |
 | Slow or stuttering | See [Performance](#performance). |
-| A crash | `qconsole.log` up to the crash, `qvr_crash.txt` and `qvr_crash.dmp`, and what you were doing. |
+| A crash | Run the **Diagnostics** shortcut, make it crash again and send the `quakevr\diagnostics\<date>_<time>` folder. Otherwise send `qconsole.log` up to the crash, the crash report and its `.dmp` (`quakevr\crash\`). Either way, say what you were doing. |
+| VR starts then fails, or crashes at the first frame | Set `vr_xr_api_layers 0` (Debug > Crashes > OpenXR API Layers). This turns off overlays' and toolkits' OpenXR layers. Close overlays such as RivaTuner, Discord's and Steam's. With Virtual Desktop, also try its OpenXR runtime set to SteamVR, with SteamVR started first. `vr_xr_runtime_explain` lists the layers and the other programs' DLLs in the game. |
 | Settings in a mess | *Options > Reset All*, or delete `quakevr\ironwail.cfg` for a completely fresh start (the installer's *Install again from scratch* with *Reset settings* does the same, keeping a backup). |
 
 Report bugs and ideas on the [GitHub issues page](https://github.com/vittorioromeo/quakevr/issues), with the log,

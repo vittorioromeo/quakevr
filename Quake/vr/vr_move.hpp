@@ -56,6 +56,9 @@ struct VrMove
     // The magazine attached to each hand's gun as drawn (hands::State::magBox: its middle, then its three half-axes; all
     // zero: none); -> .offmagbox*, .magbox* (QC vr_reload.qc: grips and hits on its whole shape).
     glm::vec3 magBox[2][4]{};
+    // Where the rounds stand in the ammo pouch, as placed (view::ammoPouchRounds: a box, its middle and half-axes, the
+    // last up along the rounds; all zero: no pouch); -> .ammopouchpos, .ammopouchx/y/z (QC vr_reload.qc: pouch reloading).
+    glm::vec3 ammoPouch[4]{};
     // The stealth AI's view of this player (QC vr_stealth.qc; vr_stealth.cpp): his flashlight's beam as his client lit
     // it (flashlight::beamNow; sent only while lit) and the light on him as his client measures it (stealth::lightAt:
     // his map's lightmaps and the dynamic lights he sees, his own lamp's aside; -1 unknown).

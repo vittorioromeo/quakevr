@@ -824,6 +824,12 @@ $built = Get-Item $exe
 if ($built.LastWriteTime -lt (Get-Date).AddDays(-30)) { Warn "ironwail.exe is from $($built.LastWriteTime): an incremental build left it (use -Rebuild if in doubt)" }
 $warnCount = @(Select-String -Path (Join-Path $logs "msbuild.log") -Pattern "warning C\d+" -ErrorAction SilentlyContinue).Count
 Say "built $exe ($warnCount compiler warning lines)"
+# The release's symbols kept beside it (out\release\<version>\symbols, not uploaded): a player's crash report (its
+# module offsets) or minidump read again with this exact exe and .pdb, whatever is built since (RELEASING.md).
+$symbolsDir = Join-Path $outDir "symbols"
+New-Item -ItemType Directory -Force $symbolsDir | Out-Null
+Copy-Item $exe, ([IO.Path]::ChangeExtension($exe, ".pdb")) $symbolsDir -Force
+Say "symbols kept: $symbolsDir (ironwail.exe, ironwail.pdb)"
 
 # ------------------------------------------------------------------------------------------------------------------
 Step "Package (Windows\package-quakevr.ps1, the allowlist)"

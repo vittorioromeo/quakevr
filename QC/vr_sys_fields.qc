@@ -134,6 +134,7 @@
 
 .float offhand_hotspot;
 .float sawcord; // the chainsaws' starter cords (vr_chainsaw.qc VR_SAWCORD_*: which hand holds one, a pull)
+.float vr_flatscreen; // this player plays flatscreen (-flatscreenmode, his own client: the engine sets it from his move): VR_FlatPlay
 .float handdrop; // a heavy weapon wrenched out of a hand (the engine's vr_weight_drop: VR_HANDDROP_*, weapons.qc)
 .float mainhand_hotspot;
 
@@ -239,6 +240,13 @@
 .vector offmagboxx;
 .vector offmagboxy;
 .vector offmagboxz;
+// Where the rounds stand in the ammo pouch on the front of the belt, as the client places it (the engine; vr_reload.qc
+// VR_Reload_PouchFrame: pouch reloading): a box, its middle and its three half-axes (out of the body, to the left, up along
+// the rounds standing in it); the axes all zero: no pouch.
+.vector ammopouchpos;
+.vector ammopouchx;
+.vector ammopouchy;
+.vector ammopouchz;
 .vector shotrot;    // where the hand's shots go (angles): its aim turned by the weapon's Shot Pitch/Yaw (the engine)
 .vector offshotrot;
 
@@ -304,3 +312,5 @@
 .float vr_shot_radius;  // a grenade shots set off (vr_grenade.qc, "Shooting grenades"; engine: vr_hitmodel.cpp VR_ShotTargetClip): shots
                         // and missiles meet a cube this half size round its middle (0: Quake's rules); with takedamage
 .float vr_shot_ownfrom; // its owner's own shots meet it from then (not as it leaves his launcher or hand)
+.float vr_melee_time; // a monster's melee attack (ai_charge, ai_melee and kin; AD's ad_ai_*): when it last stepped or
+                      // struck in one; the engine keeps it out of your head meanwhile (vr_enemy_melee_space)

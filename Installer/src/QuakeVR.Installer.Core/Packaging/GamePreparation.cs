@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using QuakeVR.Installer.Core.Detection;
 using QuakeVR.Installer.Core.Shortcuts;
 
 namespace QuakeVR.Installer.Core.Packaging;
@@ -19,6 +20,12 @@ public sealed class PreparationResult
     public bool Cancelled { get; set; }
     public int MapsOk { get; set; }
     public int MapsFailed { get; set; }
+    /// <summary>Installed campaigns whose own models were prepared on their start map (Dimension of the Machine, Dawn
+    /// of the Machine), passed over with none of their own (Dimension of the Past), or not prepared (their models'
+    /// normal maps are made at their first visit instead).</summary>
+    public int CampaignsOk { get; set; }
+    public int CampaignsNone { get; set; }
+    public int CampaignsFailed { get; set; }
     public bool RelightAsked { get; set; }
     /// <summary>The relight's batch ended with no map failed or cancelled: the game's first start relights nothing.</summary>
     public bool RelightDone { get; set; }
@@ -35,8 +42,10 @@ public sealed class PreparationResult
 /// <summary>
 /// The work a first start would otherwise do in the headset, done by the installer with the game hidden (the engine's
 /// <c>-prepare</c> run, Quake/vr/vr_prepare.cpp): Quake VR's first maps loaded once (their compiled hulls, ambient
-/// occlusion and normal maps written to the game's disk caches: vrstart's first load 12 s to under 1 s), then, when the
-/// relight is pending, every map relit with the bundled ericw-tools, exactly as the game's first start would (the same
+/// occlusion and normal maps written to the game's disk caches: vrstart's first load 12 s to under 1 s), on the hub the
+/// weapons monsters drop and every model of the game's folders (their collision shapes and skins' normal maps), then the
+/// same for each installed campaign with models of its own, on its start map (Dimension of the Machine, Dawn of the
+/// Machine; the engine passes over the others), then, when the relight is pending, every map relit with the bundled ericw-tools, exactly as the game's first start would (the same
 /// command, <c>vr_relight_batch everything</c>, so the game finds them current and relights nothing). A relight that
 /// finished removes the first-start marker (<see cref="FirstStartRelight"/>); one that did not (skipped, failed, no
 /// light.exe) leaves it, and the game relights at its first start as before. Never fatal: the install is done already.
@@ -52,6 +61,12 @@ public static class GamePreparation
 
     /// <summary>The share of the bar the maps take (the relight the rest).</summary>
     const double MapsPart = 0.15;
+
+    /// <summary>Within the maps' share: Quake VR's first maps up to this, then the hub's guns and models, then the
+    /// installed campaigns from <see cref="CampaignsFrom"/> to the end.</summary>
+    const double FirstMapsTo = 0.6;
+    const double ModelsFrom = 0.65;
+    const double CampaignsFrom = 0.7;
 
     /// <summary>The game's command line: the shortcut's, then the preparation run's switches (as the motion review starts
     /// its copies: the mock headset, so no VR runtime is opened; no config written; no player's autoexec; no sound).</summary>
@@ -87,17 +102,57 @@ public static class GamePreparation
             "vrstart" => "the hub",
             _ => m,
         };
+        static string Campaign(string folder) =>
+            ExpansionDetector.Campaigns.FirstOrDefault(c => string.Equals(c.Folder, folder, StringComparison.OrdinalIgnoreCase))?.Title ?? folder;
         switch (words[0])
         {
             case "start":
                 r.Started = true;
-                return new PreparationProgress(0, "Preparing the game", $"Preparing the game ({string.Join(' ', words.Skip(1))}): its first maps loaded once" +
+                return new PreparationProgress(0, "Preparing the game", $"Preparing the game ({string.Join(' ', words.Skip(1))}): its first maps and every model loaded once" +
                                                                    (r.RelightAsked ? ", then every map relit" : "") + ", so the first start doesn't wait for them.");
             case "step" when words.Length >= 5 && words[1] == "maps":
             {
                 var i = Int(words[2]);
                 var n = Math.Max(1, Int(words[3]));
-                return new PreparationProgress(MapsShare(r) * (i - 1) / n, $"Preparing the game: loading {Map(words[4])} ({i} of {n})");
+                return new PreparationProgress(MapsShare(r) * FirstMapsTo * (i - 1) / n, $"Preparing the game: loading {Map(words[4])} ({i} of {n})");
+            }
+            case "step" when words.Length >= 2 && words[1] == "guns":
+                return new PreparationProgress(MapsShare(r) * FirstMapsTo, "Preparing the game: the monsters' weapons");
+            case "result" when words.Length >= 6 && words[1] == "guns":
+            {
+                int F(string w) => Int(w.Split('=', 2) is [_, var v] ? v : "");
+                return new PreparationProgress(null, null, $"Prepared the shapes of the weapons monsters drop ({F(words[3])} made, {F(words[2])} made before; {words[5]} s).");
+            }
+            case "step" when words.Length >= 2 && words[1] == "models":
+                return new PreparationProgress(MapsShare(r) * ModelsFrom, "Preparing the game: the models' normal maps");
+            case "result" when words.Length >= 5 && words[1] == "models":
+                return new PreparationProgress(null, null, $"Prepared the normal maps of {Int(words[2])} models and {Int(words[3])} monster limbs ({words[4]} s).");
+            case "step" when words.Length >= 5 && words[1] == "campaigns":
+            {
+                var i = Int(words[2]);
+                var n = Math.Max(1, Int(words[3]));
+                return new PreparationProgress(MapsShare(r) * (CampaignsFrom + (1 - CampaignsFrom) * (i - 1) / n),
+                    $"Preparing the game: {Campaign(words[4])} ({i} of {n})");
+            }
+            case "campaign" when words.Length >= 4:
+            {
+                var title = Campaign(words[1]);
+                switch (words[2])
+                {
+                    case "ok":
+                    {
+                        ++r.CampaignsOk;
+                        var fields = words.Skip(4).Select(w => w.Split('=', 2)).Where(p => p.Length == 2).ToDictionary(p => p[0], p => Int(p[1]));
+                        int F(string k) => fields.TryGetValue(k, out var v) ? v : 0;
+                        return new PreparationProgress(null, null, $"Prepared {title}: the normal maps of its {F("models")} models and {F("limbs")} monster limbs ({words[3]} s).");
+                    }
+                    case "none":
+                        ++r.CampaignsNone;
+                        return new PreparationProgress(null, null, $"{title} has no models of its own: nothing more to prepare.");
+                    default:
+                        ++r.CampaignsFailed;
+                        return new PreparationProgress(null, null, $"{title} could not be prepared: the game makes its models' normal maps at their first visit.", LogLevel.Warning);
+                }
             }
             case "map" when words.Length >= 4:
             {

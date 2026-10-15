@@ -108,6 +108,15 @@ float IID_ENFRIFLE           = 46; // VR: an enforcer's laser rifle.
 float IID_CROWBAR            = 47; // VR: the crowbar.
 float IID_SUPERAXE           = 48; // MG3: Dawn of the Machine's Super Axe (vr_mg3_weapons.qc).
 float IID_TOOLGUN            = 49; // VR: the toolgun (vr_toolgun.qc; a debug and sandbox tool).
+float IID_ADROCKET           = 50; // AD support: the AD soldiers' guns (WID_ADROCKET..WID_ADFUMIGATOR, in order).
+float IID_ADGRENADE          = 51;
+float IID_ADPLASMA           = 52;
+float IID_ADDEFENDER         = 53;
+float IID_ADELIMINATOR       = 54;
+float IID_ADCENTURION        = 55;
+float IID_ADPYRO             = 56;
+float IID_ADFUMIGATOR        = 57;
+float IID_LAST               = 57; // the last item id
 
 //
 //
@@ -136,7 +145,18 @@ float WID_ENFRIFLE         = 16; // VR: an enforcer's laser rifle (vr_enemyguns.
 float WID_CROWBAR          = 17; // VR: the crowbar (vr_crowbar.qc; a melee weapon, one hand or two, as the swords)
 float WID_SUPERAXE         = 18; // MG3: Dawn of the Machine's Super Axe (vr_mg3_weapons.qc; MG3's model read in place, any campaign)
 float WID_TOOLGUN          = 19; // VR: the toolgun (vr_toolgun.qc, the engine's vr_toolgun.cpp: no ammo, its tools the engine's)
-float WID_LAST             = 19; // the last weapon id
+// AD support: Arcane Dimensions' armed soldiers' own guns, dropped as they die (vr_ad_enemyguns.qc; single use, their
+// clip their only ammo, as WID_GRUNTGUN's). Their models are made from AD's monster models in place (the engine's
+// vr_adguns.cpp: "<monster model>#gun<skin>"), so they exist only while AD's data is installed.
+float WID_ADROCKET         = 20; // AD: the rocket soldier's launcher
+float WID_ADGRENADE        = 21; // AD: the grenade soldier's launcher
+float WID_ADPLASMA         = 22; // AD: the plasma soldier's rifle
+float WID_ADDEFENDER       = 23; // AD: the defender's shotgun
+float WID_ADELIMINATOR     = 24; // AD: the eliminator's plasma gun
+float WID_ADCENTURION      = 25; // AD: the centurion's plasma gun
+float WID_ADPYRO           = 26; // AD: the pyro's flamethrower
+float WID_ADFUMIGATOR      = 27; // AD: the fumigator's poison sprayer
+float WID_LAST             = 27; // the last weapon id
 float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a shotgun fires (yours, Weapon Damage; a grunt's, vr_enemyguns.qc; 0: id's 4)
 // FireBulletsImpl's tracers (the tracer builtin): the hand that fires (-1 a monster's gun) and where they start (its muzzle).
 float vr_tracer_hand;
@@ -363,6 +383,12 @@ float QVR_PARTICLE_PRESET_WOODDUST      = 15; // a crate or a piece of one break
 float QVR_PARTICLE_PRESET_SAWSMOKE      = 16; // a running chainsaw's faint exhaust (vr_chainsaw.qc): count puffs, dir their way out
 float QVR_PARTICLE_PRESET_CONTACTSPARKS = 17; // a thunderbolt cell making or breaking contact (vr_reload.qc): count small blue-white sparks
 float QVR_PARTICLE_PRESET_BATTERYSMOKE  = 18; // a spent thunderbolt cell smoking (vr_reload.qc): count thin grey wisps
+// AD support (vr_ad_enemyguns.qc): flamethrowers' fire and poison tongues carried along (dir: velocity / 100), a poisoned
+// body's green puffs (dir: its half size / 16), an electric gun's sparks and arcs (dir: a direction).
+float QVR_PARTICLE_PRESET_ADFLAME        = 19;
+float QVR_PARTICLE_PRESET_ADPOISON       = 20;
+float QVR_PARTICLE_PRESET_POISONPUFF     = 21;
+float QVR_PARTICLE_PRESET_ELECTRICSPARKS = 22;
 
 //
 //

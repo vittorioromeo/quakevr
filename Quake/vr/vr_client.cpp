@@ -3,6 +3,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
+#include "vr_blood.hpp"
 #include "vr_bttrails.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_collectfx.hpp"
@@ -11,6 +12,7 @@
 #include "vr_drawblend.hpp"
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_fireparticles.hpp"
@@ -39,6 +41,7 @@
 #include "vr_comfortfade.hpp"
 #include "vr_deathview.hpp"
 #include "vr_teleport.hpp"
+#include "vr_testbatch.hpp"
 #include "vr_tips.hpp"
 #include "vr_throw.hpp"
 #include "vr_trace.hpp"
@@ -49,6 +52,7 @@
 #include "vr_weight.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_wounds.hpp"
+#include "vr_hitreact.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_toolgun.hpp"
 
@@ -82,6 +86,9 @@ enum VrBits0 : int
     VRBITS0_OFFHAND_PREVRELOADFLICKING = 1 << 11,
     VRBITS0_MAINHAND_RELOADFLICKING = 1 << 12,
     VRBITS0_MAINHAND_PREVRELOADFLICKING = 1 << 13,
+    // (Not a QC bit: this client plays flatscreen, -flatscreenmode; the server takes it out of the bits and sets the
+    // player's .vr_flatscreen: vr_server.cpp, protocol::moveFlatplayBit.)
+    VRBITS0_FLATPLAY = protocol::moveFlatplayBit,
 };
 
 // ----------------------------------------------------------------------------
@@ -102,6 +109,15 @@ bool offhandAttackImpulse = false; // pressed and released between two moves
 [[nodiscard]] HandButtons& handButtons(int hand)
 {
     return hand == HAND_OFF ? leftButtons : rightButtons;
+}
+
+// Whether a hand grips: its controller's grip key, or a flatscreen hand, which is closed. -flatscreenmode has no grip
+// to hold (its keys are E, 1 and 2, V) and its hands are drawn holding, so this is reported as held: every hold check
+// in the game code asks for the gripping bit (QC weapons.qc VRWeaponLetGo, vr_carry.qc), and without it a flatscreen
+// player lets go of a weapon or a carried thing on the frame it arrives in.
+[[nodiscard]] bool gripping(int hand)
+{
+    return handButtons(hand).grab || flatplay::active();
 }
 
 #define QVR_BUTTON_COMMANDS(name, expr)          \
@@ -252,7 +268,7 @@ VrMove unposed;
         // Every move carries a throw estimate: while grabbing, as if let go now (the helping
         // hand of a two-handed throw); once let go, the one taken at the release, until the next
         // grab (the server throws with the move that carries the release, or a later one).
-        const bool grabbing = handButtons(h).grab;
+        const bool grabbing = gripping(h);
         const double latest = throwing::latestTime(h);
         if(wasGrabbing[h] && !grabbing)
         {
@@ -272,12 +288,11 @@ VrMove unposed;
                 Con_Printf("throw %s: %.2f m/s (%.2f %.2f %.2f), spin %.1f rad/s, hand now %.2f m/s\n",
                     h == HAND_MAIN ? "main" : "off", glm::length(e.vel), e.vel.x, e.vel.y, e.vel.z,
                     glm::length(e.angVel), glm::length(hs.vel[h]));
-                if(e.aimTurn > 0.f || e.lag > 0.f || e.rate != 1.f || e.travel > 0.f)
+                if(e.gain > 0.f) // slow motion, or the slowed hands catching up after it
                 {
-                    Con_Printf("  slow motion: windows x%.2f of the clock's, the controller's way (the slowed hand's %.1f "
-                               "deg off it), the hand %.2f m behind it at the peak; the flick (%.0f%% of it) x%.2f (%.2f m/s)\n",
-                        e.rate, e.aimTurn, e.lag, e.flickShare * 100.f, e.flickRate, glm::length(e.flick));
-                    Con_Printf("  slow motion: the stroke %.2f m in %.2f s, a nudge x%.2f\n", e.travel, e.strokeTime, e.nudge);
+                    Con_Printf("  slow motion: the stroke %.3f m in %.2f s, peak %.2f m/s real, tempo %.3f s: gain x%.2f "
+                               "(windows x%.2f; the slowed hand %.1f deg off, %.2f m behind)\n",
+                        e.travel, e.strokeTime, e.peak, e.tempo, e.gain, e.rate, e.aimTurn, e.lag);
                 }
                 if(vr_debug_throw.value >= 2.f)
                 {
@@ -332,6 +347,15 @@ VrMove unposed;
     }
 
     move.headVel = hs.headVel;
+    // The ammo pouch's rounds as placed last frame (pouch reloading; all zero: no pouch). It goes with the body, not the
+    // hands: no move since it was placed.
+    if(!view::ammoPouchRounds(move.ammoPouch))
+    {
+        for(glm::vec3& v : move.ammoPouch)
+        {
+            v = glm::vec3{0.f};
+        }
+    }
 
     // VR bits: current state only. The server fills in the "PREV" bits once per server
     // frame, so that press edges survive several moves arriving in one frame.
@@ -342,8 +366,8 @@ VrMove unposed;
             bits |= bit;
         }
     };
-    set(handButtons(HAND_OFF).grab, VRBITS0_OFFHAND_GRABBING);
-    set(handButtons(HAND_MAIN).grab, VRBITS0_MAINHAND_GRABBING);
+    set(gripping(HAND_OFF), VRBITS0_OFFHAND_GRABBING);
+    set(gripping(HAND_MAIN), VRBITS0_MAINHAND_GRABBING);
     set(handButtons(HAND_OFF).reload, VRBITS0_OFFHAND_RELOADING);
     set(handButtons(HAND_MAIN).reload, VRBITS0_MAINHAND_RELOADING);
     // (Not with the other hand on its barrel or anywhere on it: flick::allowed.)
@@ -357,6 +381,7 @@ VrMove unposed;
         VRBITS0_MAINHAND_RELOADFLICKING);
     set(twohand::aiming(), VRBITS0_2H_AIMING);
     set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
+    set(flatplay::active(), VRBITS0_FLATPLAY);
     move.vrBits0 = static_cast<za::U16>(bits);
 
     if(offhandAttack || offhandAttackImpulse)
@@ -365,8 +390,10 @@ VrMove unposed;
     }
     offhandAttackImpulse = false;
 
-    if(vrActive())
+    if(vrActive() || flatplay::active())
     {
+        // -flatscreenmode too: the game code runs its VR gameplay for a player whose hands the game poses itself
+        // (QVR_VRBITS0_HANDSTRACKED; held weapons, the force grab, melee, the holsters).
         move.buttons |= QVR_BUTTON_HANDSTRACKED;
     }
     // A hand holding the flashlight (or a chainsaw's cord) does not force grab.
@@ -528,6 +555,10 @@ void parseParticle2()
         case Preset::ChainsawSmoke: break;                 // (too faint for Quake's dots)
         case Preset::ContactSparks: puff(111, count); break;
         case Preset::BatterySmoke: break;                  // (too faint for Quake's dots)
+        case Preset::AdFlame: break;                       // (AD's own flame sprites stand alone)
+        case Preset::AdPoison: break;
+        case Preset::PoisonPuff: puff(56 + (rand() & 7), count * 2); break; // (the greens)
+        case Preset::ElectricSparks: puff(244, count); break;
         default: puff(73, count); break;
     }
 }
@@ -666,12 +697,14 @@ void init()
     shells::registerCommands();
     explosiondebris::registerCommands();
     srvrandom::registerCommands();
+    testbatch::registerCommands();
     serverrules::registerCommands();
     fireparticles::registerCommands();
     Cmd_AddCommand("vr_walltorch_tilt_test", walltorch::tiltTest);
     shock::registerCommands();
     smoulder::registerCommands();
     comfortfade::registerCommands();
+    blood::registerCommands();
     deathview::registerCommands();
     weaponfx::registerCommands();
     bttrails::registerCommands();
@@ -701,7 +734,7 @@ void init()
 
 bool grabbing(int hand)
 {
-    return handButtons(hand).grab;
+    return gripping(hand);
 }
 
 const EntityVr* entityVr(int num)
@@ -774,6 +807,7 @@ extern "C" void VR_OnClientClearState()
     shock::clear();
     smoulder::clear();
     comfortfade::clear();
+    blood::clear();
     deathview::clear();
     weaponfx::clear();
     bttrails::clear();
@@ -812,7 +846,9 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     data.offset = (bits & U_QVR_OFFSET) ? readCoords3() : glm::vec3{0.f};
     data.noRotate = (bits & U_QVR_NOROTATE) != 0;
     data.spin = (bits & U_QVR_SPIN) != 0;
-    data.weaponUid = (bits & U_QVR_WEAPONUID) ? MSG_ReadLong() : 0;
+    const int uidBits = (bits & U_QVR_WEAPONUID) ? MSG_ReadLong() : 0;
+    data.weaponUid = uidBits & 0xFFFFFF;
+    data.hotGlow = static_cast<float>((uidBits >> 24) & 127) / 127.f; // an incandescent blade's (vr_hotblade.cpp)
     data.clip = (bits & U_QVR_WEAPONUID) ? MSG_ReadByte() : -1;
     data.noMag = (bits & U_QVR_NOMAG) != 0;
     data.ssgOpen = (bits & U_QVR_SSGOPEN) != 0;
@@ -864,6 +900,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_EJECT: shells::parseEject(); break;
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
+        case QVR_SVC_HITREACT: hitreact::parseEvent(); break;
         case QVR_SVC_WEAPONGONE: wounds::parseWeaponGone(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;
         case QVR_SVC_ROPE: rope::parseCorners(); break;
@@ -1090,8 +1127,8 @@ void thrownGunRopeStart(int key, float* start)
         return;
     }
     const glm::vec3 handle{gun->origin[0], gun->origin[1], gun->origin[2]};
-    const glm::vec3 muzzle = view::entityAnchorPosition(*gun, false, 0.f,
-        static_cast<int>(weapons::value(slot, weapons::Key::MuzzleAnchorVertex)),
+    const glm::vec3 muzzle = view::anchorPosition(*gun, false, 0.f,
+        weapons::anchor(slot, weapons::Key::MuzzleAnchor),
         weapons::vec(slot, weapons::Key::MuzzleOffsetX, weapons::Key::MuzzleOffsetY, weapons::Key::MuzzleOffsetZ));
     const glm::vec3 along = muzzle - handle;
     const float len = glm::length(along);

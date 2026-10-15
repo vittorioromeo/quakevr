@@ -185,6 +185,7 @@ extern "C" void VR_TimeInit()
 
 extern "C" void VR_TimeMark(const char* stage)
 {
+    VR_GLStep("done: %s", stage); // the breadcrumbs (vr_glsafe.cpp)
     if(command.start >= 0.0)
     {
         const double now = Sys_DoubleTime();

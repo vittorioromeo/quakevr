@@ -922,6 +922,7 @@ void() monster_armagon
    body.movetype = MOVETYPE_STEP;
    self.trigger_field = body;
    body.trigger_field = self;
+   self.vr_hit_extra = body; // QVR: precise hits meet its torso (drawn by the body, not solid) as its (vr_hitmodel.cpp)
 
    setmodel(body, "progs/armabody.mdl");
    setmodel(self, "progs/armalegs.mdl");

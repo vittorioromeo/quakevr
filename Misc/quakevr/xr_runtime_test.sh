@@ -169,9 +169,12 @@ JSON
 S="vr_xr_test 1;vr_xr_test_runtimes \"$ALL\";vr_xr_test_active \"$ST\";vr_xr_test_processes VirtualDesktop.Streamer.exe;echo CMDLINE1;vr_xr_runtime_explain;vr_xr_runtime 4;echo CMDLINE4;vr_xr_runtime_explain"
 S="$S;vr_xr_runtime 3;vr_xr_runtime_json \"$F/rel/other_openxr.json\";vr_backend openxr;wait20;toggleconsole;quit"
 bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -ExtraArgs "+vr_xr_runtime 1" -Filter "CMDLINE|choice:|command line|OpenXR|^  [0-9]\." > "$OUT/cmdline.log"
+cp -f "$XRLOG" "$OUT/cmdline_openxr.txt"
 L="$OUT/cmdline.log"
 check $L "+vr_xr_runtime 1 on the command line: said so" "CMDLINE1" "set on the command line \(\+vr_xr_runtime 1\): set again at every start"     "choice: Virtual Desktop \(VDXR\): Virtual Desktop \(VDXR\) - chosen on the command line$"     "CMDLINE4" "the command line's \+vr_xr_runtime 1 is set again at the next start" "choice: Auto: Virtual Desktop \(VDXR\) - Streamer running$"
-check $L "a relative library_path resolved" "trying other_openxr.json" "the loader loaded FakeXR fakexr_other"     "other_openxr.json's library is the one loaded: .*scratch.fakexr.fakexr_other\.dll"
+# (In qvr_openxr.txt, not the console: the console wraps a line past its width, and the path's length goes with the
+# worktree's name: a longer one split it, and this check failed in some worktrees only.)
+check "$OUT/cmdline_openxr.txt" "a relative library_path resolved" "trying other_openxr.json" "the loader loaded FakeXR fakexr_other"     "other_openxr.json's library is the one loaded: .*scratch.fakexr.fakexr_other\.dll"
 
 # 3. An XR_RUNTIME_JSON the game was started with wins (and is left as it is).
 export XR_RUNTIME_JSON="$(cygpath -w "$ME")"
@@ -195,9 +198,11 @@ cp -f "$XRLOG" "$OUT/headset_openxr.txt"
 L="$OUT/headset_openxr.txt"
 check $L "the fake headset's session logged" "extensions enabled: XR_KHR_opengl_enable" "system \"FakeXR headset\"" \
     "layers: a projection layer in stage space" "eyes: recommended 600x640" "formats offered .*: GL_RGBA8 GL_SRGB8_ALPHA8" \
-    "format chosen: GL_SRGB8_ALPHA8" "xrCreateSwapchain: 480x512 GL_SRGB8_ALPHA8, 3 images" "eye images 480x512 .*vr_xr_eye_scale 0.8" \
-    "session FOCUSED" "xr 1\.[0-9]s: [0-9]+ frames \([0-9]+ rendered" "session VISIBLE \(no input focus" "session FOCUSED"
-# (The second's timing line with the frames shown again may come before or after the focus is back.)
+    "format chosen: GL_SRGB8_ALPHA8" "xrCreateSwapchain \(left eye\): 480x512 GL_SRGB8_ALPHA8, 3 images" "eye images 480x512 .*vr_xr_eye_scale 0.8" \
+    "session FOCUSED" "session VISIBLE \(no input focus" "session FOCUSED"
+# (The first timing line may come after the focus is lost: the fake headset's frames aren't paced, frame 150 can come
+# before a second has passed; the second's, with the frames shown again, before or after the focus is back.)
+check $L "a timing line a second" "session FOCUSED" "xr 1\.[0-9]s: [0-9]+ frames \([0-9]+ rendered"
 check $L "the last frame shown again while unfocused" "session VISIBLE \(no input focus" "[1-9][0-9]* last again"
 check "$LOG" "unfocused: the last frame shown again, valid layers" "the focus lost" "the focus back" \
     "xrDestroySession: [0-9]+ frames: [0-9]+ projection layers \((9[0-9]|10[0-9]) without an image released"
@@ -243,4 +248,192 @@ check $L "the status box: a Quest 3's panel, the eyes too large" "status: Eyes 3
 check $L "Eye Image Size 0.66: the eyes at the panel's size, no warning" "SCALED" "status: = runtime's 3096x3312 x0\.66 x1\.00" \
     "status: Panel 2064x2208: runtime 225%, eyes 98%"
 if sed -n '/SCALED/,$p' $L | grep -q "status: !"; then echo "FAIL: a warning at Eye Image Size 0.66"; fails=$((fails + 1)); else echo "PASS: no warning at 0.66"; fi
+# 7. A crash inside the runtime (VDXR 1.1.0's null read in xrEnumerateSwapchainImages, 1.0.1), caught (vr_xr_guard 1).
+# a: only VDXR's sRGB swapchains crash (FAKEXR_FAULT_SRGB): once more in GL_RGBA8, VR on with it; each request logged
+# before its call; vr_xr_runtime_explain lists the API layers and the other programs' DLLs.
+LOG="$OUT/fault_fake.log"; : > "$LOG"
+export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_HEADSET=fakexr_vd,fakexr_steam FAKEXR_FAULT_SRGB=fakexr_vd
+unset FAKEXR_FAIL_INSTANCE FAKEXR_D3D11 FAKEXR_EYE FAKEXR_UNFOCUS FAKEXR_SYSTEM
+P="vr_xr_test 1;vr_xr_runtime 4;vr_xr_test_runtimes \"$VD,$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes \"VirtualDesktop.Streamer.exe,vrserver.exe\";vr_backend openxr;map start;wait60"
+bash "$KIT/run.sh" "$NAME" -Script "$P;echo FAULTSTATUS;vr_xr_runtime_explain;toggleconsole;quit" -Full \
+    -Filter "OpenXR|VR:|FAULTSTATUS|last start|API layers|DLLs" > "$OUT/fault_srgb.log"
+cp -f "$XRLOG" "$OUT/fault_srgb_openxr.txt"
+L="$OUT/fault_srgb.log"
+check $L "a crash in the runtime's sRGB swapchain: caught, once more in GL_RGBA8" "trying Virtual Desktop" \
+    "FakeXR fakexr_vd [0-9.]+ crashed inside xrEnumerateSwapchainImages: an access violation reading 0x0 in" \
+    "^fakexr_vd\.dll\+0x[0-9a-f]+; caught \(vr_xr_guard 1\)" \
+    "once more in GL_RGBA8" "the eye swapchains are GL_RGBA8 \(GL_SRGB8_ALPHA8 failed: the runtime crashed in it, caught\)" \
+    "FAULTSTATUS" "implicit OpenXR API layers: [0-9]+ installed" "other programs' DLLs in the game" "last start: .*Virtual Desktop"
+check "$OUT/fault_srgb_openxr.txt" "the requests logged before each call, the retry's too" "API layers: [0-9]+ on" "GL interop: glCreateMemoryObjectsEXT" \
+    "xrCreateSession \(OpenGL" "xrCreateSwapchain \(left eye\): requesting 400x440 GL_SRGB8_ALPHA8 \(0x8c43\), usage 0x1, 1 sample" \
+    "xrCreateSwapchain \(left eye\): xrEnumerateSwapchainImages \(3 OpenGL images\)" "crashed inside xrEnumerateSwapchainImages" \
+    "xrCreateSwapchain \(left eye\): requesting 400x440 GL_RGBA8" "xrCreateSwapchain \(right eye\): 400x440 GL_RGBA8, 3 images" "OpenXR: started"
+check "$LOG" "the fake runtime crashed once, then made the GL_RGBA8 swapchains" "fakexr_vd xrEnumerateSwapchainImages: crashing" \
+    "fakexr_vd xrCreateSwapchain 400x440 format 0x8058" "fakexr_vd xrCreateSwapchain 400x440 format 0x8058"
+# b: every VDXR swapchain crashes (FAKEXR_FAULT_IMAGES): VDXR given up (destroyed, guarded), Auto on to SteamVR's fake; a
+# crash later: the report's VR line names the runtime, the headset and the layers.
+: > "$LOG"
+unset FAKEXR_FAULT_SRGB
+export FAKEXR_FAULT_IMAGES=fakexr_vd
+bash "$KIT/run.sh" "$NAME" -Script "$P;vr_crash_test av" -Full -Filter "OpenXR|VR:|ENGINE CRASH|crash" > "$OUT/fault_all.log"
+unset FAKEXR_FAULT_IMAGES FAKEXR_HEADSET
+L="$OUT/fault_all.log"
+check $L "every swapchain crashing: that runtime given up, the next one started" "trying Virtual Desktop" \
+    "crashed inside xrEnumerateSwapchainImages" "once more in GL_RGBA8" "crashed inside xrEnumerateSwapchainImages" \
+    "Virtual Desktop \(VDXR\) failed to start" "VR: FakeXR fakexr_vd [0-9.]+ crashed \(xrEnumerateSwapchainImages: an access violation" \
+    "the game caught it and tries the next runtime" \
+    "trying SteamVR" "OpenXR runtime: FakeXR fakexr_steam"
+check $L "the crash report's VR line" "ENGINE CRASH" "VR: OpenXR FakeXR fakexr_steam [0-9.]+ \(SteamVR\); API layers: [0-9]+ on" "overlays/hooks: " \
+    "headset \"FakeXR headset\""
+check "$LOG" "VDXR's fake destroyed after its crashes, SteamVR's made" "fakexr_vd xrEnumerateSwapchainImages: crashing" \
+    "fakexr_vd xrEnumerateSwapchainImages: crashing" "fakexr_vd xrDestroySession" "fakexr_vd xrDestroyInstance" "fakexr_steam xrCreateInstance"
+# c: the GL context not current when the swapchain is asked for (vr_xr_test_drop_context): made current again, logged;
+# the runtime finds it current.
+: > "$LOG"
+export FAKEXR_HEADSET=fakexr_steam
+S="vr_xr_test 1;vr_xr_runtime 2;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_xr_test_drop_context 1;vr_backend openxr;wait30;toggleconsole;quit"
+bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "OpenXR|VR:" > "$OUT/dropctx.log"
+unset FAKEXR_HEADSET
+cp -f "$XRLOG" "$OUT/dropctx_openxr.txt"
+check "$OUT/dropctx_openxr.txt" "the GL context made current again before the swapchain" "xrCreateSession: GL context [0-9A-Fa-fx]+, DC" \
+    "xrCreateSwapchain \(left eye\): GL context 0+, DC 0+ current" "the game's GL context wasn't current on this thread .*made current again: done" \
+    "xrCreateSwapchain \(left eye\): 400x440 GL_SRGB8_ALPHA8, 3 images" "OpenXR: started"
+if grep -q "NO GL CONTEXT" "$LOG"; then echo "FAIL: the fake runtime saw no GL context"; fails=$((fails + 1)); else echo "PASS: the fake runtime always had the GL context"; fi
+# 8. Diagnostics mode (-diagnostics): <game folder>/diagnostics/<date>_<time> gets the console, the GL debug output (a
+# message of the game's own first), the OpenXR debug messenger's messages (the fake runtime's with FAKEXR_DEBUG_UTILS,
+# and the loader's), what is said to a debugger, the crash report, the logs copied; off by default: no folder.
+export FAKEXR_LOG="$(cygpath -w "$OUT/diag_fake.log")" FAKEXR_HEADSET=fakexr_steam FAKEXR_DEBUG_UTILS=fakexr_steam
+DIAGS="C:/OHWorkspace/qvr-kit/bases/$NAME/qbase/quakevr/diagnostics"
+before=$(ls "$DIAGS" 2>/dev/null | wc -l)
+S="vr_xr_test 1;vr_xr_runtime 2;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_backend openxr;map start;wait60;vr_diagnostics_status;vr_crash_test av"
+bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -ExtraArgs "-diagnostics" -Filter "iagnostics|ENGINE CRASH" > "$OUT/diag.log"
+unset FAKEXR_HEADSET FAKEXR_DEBUG_UTILS
+DIAG="$DIAGS/$(ls "$DIAGS" | tail -1)"
+check "$DIAG/console.log" "diagnostics: the console" "Diagnostics mode \(-diagnostics\): logs go to .*diagnostics" "Diagnostics mode on"
+check "$DIAG/gl_debug.log" "diagnostics: GL debug output" "Quake VR diagnostics: GL debug output on"
+check "$DIAG/openxr_debug.log" "diagnostics: the OpenXR messenger" "debug messenger: on \(XR_EXT_debug_utils\)" \
+    "\[info\] FAKEXR-hello xrCreateDebugUtilsMessengerEXT \(1 so far\)" "OpenXR-Loader" "step: xrCreateSession"
+check "$DIAG/diagnostics.txt" "diagnostics: the summary, the logs copied after the crash" "diagnostics \(-diagnostics\)" \
+    "debug_output.log: OutputDebugString .*: caught" "Ended: a crash" "Logs copied:" "gl_startup.log -> gl_startup.log"
+if ls "$DIAG"/crash/*.txt > /dev/null 2>&1 && [ -f "$DIAG/debug_output.log" ]; then echo "PASS: diagnostics: the crash report and debug_output.log in the folder"
+else echo "FAIL: diagnostics: no crash report or debug_output.log in $DIAG"; fails=$((fails + 1)); fi
+# Khronos' core validation layer (quakevr/xr_layers): loaded in diagnostics mode, its log written; a normal run that starts
+# VR and crashes has no such module in its report.
+check "$DIAG/openxr_debug.log" "diagnostics: the core validation layer on" "core validation: ON \(openxr_validation.log\)"
+check "$DIAG/openxr_validation.log" "diagnostics: openxr_validation.log" "Known false positive" "Core Validation Layer is initialized"
+if grep -q -i "xr_layers.XrApiLayer_core_validation.dll" "$DIAG"/crash/*.txt; then echo "PASS: diagnostics: the validation layer's DLL in the crash report's modules"
+else echo "FAIL: diagnostics: no XrApiLayer_core_validation.dll in $DIAG/crash"; fails=$((fails + 1)); fi
+CRASHES="$TREE/quakevr/crash"
+export FAKEXR_HEADSET=fakexr_steam
+bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "ENGINE CRASH" > "$OUT/diag_normal.log"
+unset FAKEXR_HEADSET
+R=$(ls -t "$CRASHES"/*.txt | head -1)
+if grep -q -i "openxr_loader.dll" "$R" && ! grep -q -i "XrApiLayer_core_validation" "$R"; then echo "PASS: no validation layer outside diagnostics mode"
+else echo "FAIL: the normal run's report $R: the loader missing or the validation layer loaded"; fails=$((fails + 1)); fi
+mid=$(ls "$DIAGS" | wc -l)
+bash "$KIT/run.sh" "$NAME" -Script "wait5;toggleconsole;quit" -Filter "iagnostics" > /dev/null
+after=$(ls "$DIAGS" | wc -l)
+if [ "$mid" -eq $((before + 1)) ] && [ "$after" -eq "$mid" ]; then echo "PASS: diagnostics: one folder for -diagnostics, none without"
+else echo "FAIL: diagnostics folders: $before -> $mid -> $after"; fails=$((fails + 1)); fi
+# 9. The vendors' controller profiles (vr_xr_vendor_profiles, ROUND22.md "Menu on any controller"): offered, each
+# extension enabled and its profile's bindings suggested (with its menu button); vr_xr_vendor_profiles 0: none asked;
+# a runtime turning a path down (FAKEXR_REJECT_PATH): the profile's basic bindings, without the menu button.
+VEXT="XR_BD_controller_interaction,XR_HTC_vive_cosmos_controller_interaction,XR_HTC_vive_focus3_controller_interaction"
+VEXT="$VEXT,XR_EXT_hp_mixed_reality_controller,XR_EXT_samsung_odyssey_controller"
+LOG="$OUT/vendor_fake.log"; : > "$LOG"
+export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_HEADSET=fakexr_steam FAKEXR_EXTENSIONS="$VEXT"
+S="vr_xr_test 1;vr_xr_runtime 2;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe"
+bash "$KIT/run.sh" "$NAME" -Script "$S;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/vendor.log"
+cp -f "$XRLOG" "$OUT/vendor_openxr.txt"
+check "$OUT/vendor_openxr.txt" "vendor profiles: each extension enabled" "XR_BD_controller_interaction controller profile enabled" \
+    "XR_HTC_vive_cosmos_controller_interaction controller profile enabled" "XR_HTC_vive_focus3_controller_interaction controller profile enabled" \
+    "XR_EXT_hp_mixed_reality_controller controller profile enabled" "XR_EXT_samsung_odyssey_controller controller profile enabled"
+check "$OUT/vendor_openxr.txt" "vendor profiles: each one's bindings suggested" "bindings suggested for /interaction_profiles/bytedance/pico_neo3_controller" \
+    "bindings suggested for /interaction_profiles/bytedance/pico4_controller" "bindings suggested for /interaction_profiles/htc/vive_cosmos_controller" \
+    "bindings suggested for /interaction_profiles/htc/vive_focus3_controller" "bindings suggested for /interaction_profiles/hp/mixed_reality_controller" \
+    "bindings suggested for /interaction_profiles/samsung/odyssey_controller" "OpenXR: started"
+check "$LOG" "vendor profiles: the runtime got them" "pico_neo3_controller: 29 bindings" "pico4_controller: 29 bindings" \
+    "vive_cosmos_controller: 23 bindings" "vive_focus3_controller: 27 bindings" "hp/mixed_reality_controller: 22 bindings" \
+    "samsung/odyssey_controller: 22 bindings"
+: > "$LOG"
+bash "$KIT/run.sh" "$NAME" -Script "$S;vr_xr_vendor_profiles 0;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/vendor0.log"
+if grep -q "bytedance\|vive_cosmos\|vive_focus3\|hp/mixed\|samsung" "$LOG"; then echo "FAIL: vr_xr_vendor_profiles 0 still asked for a vendor profile"; fails=$((fails + 1))
+else echo "PASS: vr_xr_vendor_profiles 0: no vendor profile asked"; fi
+: > "$LOG"
+export FAKEXR_EXTENSIONS=XR_BD_controller_interaction FAKEXR_REJECT_PATH=left/input/menu/click
+bash "$KIT/run.sh" "$NAME" -Script "$S;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/vendorreject.log"
+cp -f "$XRLOG" "$OUT/vendorreject_openxr.txt"
+check "$OUT/vendorreject_openxr.txt" "vendor profiles: a path turned down, only that one dropped" \
+    "pico_neo3_controller: /user/hand/left/input/menu/click turned down by the runtime" \
+    "bindings suggested for /interaction_profiles/bytedance/pico_neo3_controller \(28 of 29: 1 turned down\)" "OpenXR: started"
+check "$LOG" "vendor profiles: every binding but the menu button" "pico_neo3_controller: /user/hand/left/input/menu/click turned down" \
+    "pico_neo3_controller: 28 bindings"
+unset FAKEXR_EXTENSIONS
+# 9b. A runtime turning down some of Touch's paths (1.0.1, ROUND22.md "Controls as if another controller": one bad path
+# lost the whole profile, and the runtime played Quest controllers as another): the finger sensors turned down, the
+# rest of Touch kept (grips, A/B/X/Y, triggers), the runtime plays the hands as Touch, the game logs the profile and the
+# controller keys. Then every full profile turned down: the simple controller, and the limited-controls warning.
+: > "$LOG"
+export FAKEXR_REJECT_PATH="oculus/touch=thumbstick/touch;oculus/touch=trigger/touch"
+bash "$KIT/run.sh" "$NAME" -Script "$S;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/touchreject.log"
+cp -f "$XRLOG" "$OUT/touchreject_openxr.txt"
+check "$OUT/touchreject_openxr.txt" "Touch: its finger sensors turned down, the rest kept" \
+    "touch_controller: /user/hand/left/input/thumbstick/touch turned down by the runtime" \
+    "bindings suggested for /interaction_profiles/oculus/touch_controller \(25 of 29: 4 turned down\)" \
+    "the (left|right) hand's controller profile: /interaction_profiles/oculus/touch_controller" \
+    "the controller keys: LTRIGGER \"\+offhandattack\".*LSHOULDER \"\+graboff\".*ABUTTON \"\+jump\""
+check "$LOG" "Touch: the runtime holds grips, triggers, A/B/X/Y" \
+    "played as /interaction_profiles/oculus/touch_controller, bound: .*right/input/trigger/value.*left/input/squeeze/value.*right/input/squeeze/value.*left/input/x/click.*right/input/a/click.*right/input/b/click"
+if grep "played as /interaction_profiles/oculus/touch_controller" "$LOG" | grep -q "thumbstick/touch\|trigger/touch"; then
+    echo "FAIL: Touch: a turned-down path still bound"; fails=$((fails + 1))
+else echo "PASS: Touch: the turned-down paths left out"; fi
+: > "$LOG"
+export FAKEXR_REJECT_PATH="oculus/touch=/user;microsoft=/user;index=/user;vive_controller=/user"
+bash "$KIT/run.sh" "$NAME" -Script "$S;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/simple.log"
+cp -f "$XRLOG" "$OUT/simple_openxr.txt"
+check "$OUT/simple_openxr.txt" "every full profile turned down: the simple controller, said" \
+    "no bindings for /interaction_profiles/oculus/touch_controller: the runtime does not have it" \
+    "WARNING: OpenXR: the runtime plays the (left|right) controller as /interaction_profiles/khr/simple_controller"
+unset FAKEXR_HEADSET FAKEXR_REJECT_PATH
+# 9c. Gamepad bindings over the VR ones (Ironwail's own: the grips weapon cycling, no grab on any controller key):
+# vr_startgame's check (vr_bindings_check here) sets vr_bindings.cfg again.
+bash "$KIT/run.sh" "$NAME" -Script "bind LTRIGGER +jump;unbind LSHOULDER;unbind RSHOULDER;vr_bindings_check;wait5;bind LSHOULDER;bind RSHOULDER;bind LTRIGGER;toggleconsole;quit" \
+    -Filter "grab on any controller key|LSHOULDER|RSHOULDER|LTRIGGER" > "$OUT/guard.log"
+check "$OUT/guard.log" "gamepad bindings: the VR ones set again" "no grab on any controller key \(LTRIGGER \"\+jump\"" \
+    "\"LSHOULDER\" = \"\+graboff\"" "\"RSHOULDER\" = \"\+grabmain\"" "\"LTRIGGER\" = \"\+offhandattack\""
+# 10. The runtime ending the session (FAKEXR_END at xrWaitFrame 150, ROUND22.md "Exit from the runtime's menu"): exit (the
+# player quit the game from SteamVR's dashboard: STOPPING, then EXITING after xrEndSession): the game quits at once
+# (vr_xr_exit_quits 1; the script's own echo never comes), the session and instance destroyed; vr_xr_exit_quits 0: flat;
+# restart (READY again after IDLE): the session begun again, the game in VR; loss and instanceloss: flat, said why.
+P="vr_xr_test 1;vr_xr_runtime 2;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_backend openxr;map start"
+export FAKEXR_HEADSET=fakexr_steam
+for kind in exit exit0 restart loss instanceloss; do
+    LOG="$OUT/end_${kind}_fake.log"; : > "$LOG"
+    export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_END="150:${kind%0}"
+    q=1; [ "$kind" = exit0 ] && q=0
+    bash "$KIT/run.sh" "$NAME" -Script "$P;vr_xr_exit_quits $q;wait400;echo STILLRUNNING;vr_xr_exit_quits 1;toggleconsole;quit" -Full         -Filter "VR: |STILLRUNNING|^exit=|TIMEOUT|ENGINE" > "$OUT/end_$kind.log"
+    cp -f "$XRLOG" "$OUT/end_${kind}_openxr.txt"
+done
+unset FAKEXR_HEADSET FAKEXR_END
+# (The states in qvr_openxr.txt: the console wraps the long line.)
+L="$OUT/end_exit.log"
+check $L "exit from the runtime's menu: the game quits" "^exit=0" "VR: the runtime asked the game to exit: quitting \(vr_xr_exit_quits 1\)" \
+    "VR: stopping openxr backend"
+if grep -q "STILLRUNNING" $L; then echo "FAIL: the game ran on after the runtime's exit"; fails=$((fails + 1)); else echo "PASS: quit at the runtime's exit, not the script's"; fi
+check "$OUT/end_exit_fake.log" "exit: the session ended, then destroyed with the instance" "the session ends: exit" "xrEndSession$" \
+    "xrDestroySession" "xrDestroyInstance"
+if grep -q "NOT_STOPPING" "$OUT"/end_*_fake.log; then echo "FAIL: xrEndSession outside STOPPING"; fails=$((fails + 1)); else echo "PASS: xrEndSession only when STOPPING"; fi
+check "$OUT/end_exit_openxr.txt" "exit: qvr_openxr.txt names the states" "session STOPPING" "session ended \(xrEndSession\): waiting for the runtime" \
+    "session IDLE" "session EXITING" "the runtime asks the game to exit \(states: .*STOPPING > IDLE > EXITING\)" \
+    "VR: the runtime asked the game to exit: quitting" "VR: the session's last states: .*FOCUSED > VISIBLE > SYNCHRONIZED > STOPPING > IDLE > EXITING$"
+check "$OUT/end_exit0.log" "vr_xr_exit_quits 0: flat" "VR: the runtime asked the game to exit: playing flat \(vr_xr_exit_quits 0" \
+    "VR: stopping openxr backend" "STILLRUNNING"
+check "$OUT/end_restart_openxr.txt" "restart: the session begun again" "session STOPPING" "session ended \(xrEndSession\)" "session IDLE" \
+    "session READY" "session SYNCHRONIZED" "session FOCUSED"
+check "$OUT/end_restart.log" "restart: the game plays on in VR" "STILLRUNNING" "VR: stopping openxr backend"
+if grep -q "session lost\|asked the game to exit" "$OUT/end_restart.log"; then echo "FAIL: restart taken for an end"; fails=$((fails + 1)); else echo "PASS: restart: no end said"; fi
+check "$OUT/end_loss.log" "loss: flat, said why" "VR: openxr session lost: playing flat" "VR: stopping openxr backend" "STILLRUNNING"
+check "$OUT/end_loss_openxr.txt" "loss: the states" "session loss pending" "VR: the session's last states: .*FOCUSED > LOSS_PENDING$"
+check "$OUT/end_instanceloss.log" "instance loss: flat, said why" "VR: openxr session lost: playing flat" "VR: stopping openxr backend" "STILLRUNNING"
+check "$OUT/end_instanceloss_openxr.txt" "instance loss: the states" "instance loss pending" "VR: the session's last states: .*FOCUSED > INSTANCE_LOSS_PENDING$"
 echo "xr_runtime_test: $fails failed"

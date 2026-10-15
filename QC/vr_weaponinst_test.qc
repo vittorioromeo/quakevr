@@ -23,6 +23,13 @@ string(entity xInst, float xWid) VR_WeaponInst_TestDesc =
 
 void() VR_WeaponInst_TestList =
 {
+    if(self.vr_weapon_load_until > 0)
+    {
+        bprint(sprintf("weapon load grace: time %.3f, %.3f s left, main original %g off original %g\n", time,
+            max(0, self.vr_weapon_load_until - time),
+            self.vr_weapon_load_main != world && self.vr_weapon_load_main == self.weaponinst,
+            self.vr_weapon_load_off != world && self.vr_weapon_load_off == self.weaponinst2));
+    }
     string s = sprintf("weaponinst: main %s | off %s", VR_WeaponInst_TestDesc(self.weaponinst, self.weapon),
         VR_WeaponInst_TestDesc(self.weaponinst2, self.weapon2));
     float hs;

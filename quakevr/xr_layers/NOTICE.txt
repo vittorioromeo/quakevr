@@ -1,0 +1,23 @@
+Khronos OpenXR core validation API layer (XR_APILAYER_LUNARG_core_validation)
+
+XrApiLayer_core_validation.dll and XrApiLayer_core_validation.json are built, unchanged, from the
+OpenXR SDK source, release 1.1.63 (the version of the OpenXR loader Quake VR ships):
+  https://github.com/KhronosGroup/OpenXR-SDK-Source/releases/tag/release-1.1.63
+  (source archive release-1.1.63.tar.gz, SHA-256
+   a3b97a36f11abe256a7ea1668a0a468aac9b738e94bea6b468f0ae31ad537a46)
+Built with Visual Studio 2022 (MSVC 14.44), x64 Release, static C runtime, optimised for size:
+  cmake -G "Visual Studio 17 2022" -A x64 -DBUILD_LOADER=OFF -DBUILD_API_LAYERS=ON -DBUILD_TESTS=OFF
+        -DBUILD_CONFORMANCE_TESTS=OFF -DBUILD_SDK_TESTS=OFF -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+        "-DCMAKE_CXX_FLAGS_RELEASE=-O1 -Gy -DNDEBUG" "-DCMAKE_C_FLAGS_RELEASE=-O1 -Gy -DNDEBUG"
+        "-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=-OPT:REF -OPT:ICF"
+  cmake --build . --config Release --target XrApiLayer_core_validation
+
+Copyright (c) 2017-2026 The Khronos Group Inc.
+Copyright (c) 2017-2019 Valve Corporation
+Copyright (c) 2017-2019 LunarG, Inc.
+Licensed under the Apache License, Version 2.0 (LICENSE.txt in this folder).
+
+Quake VR loads it only in diagnostics mode (-diagnostics, the "Quake VR Unleashed (diagnostics)"
+shortcut, or vr_diagnostics 1), as an explicit API layer found through XR_API_LAYER_PATH; its
+findings go to quakevr/diagnostics/<date>_<time>/openxr_validation.log. vr_diagnostics_xr_validation 0
+keeps it out of a diagnostics run. Outside diagnostics mode nothing loads it.

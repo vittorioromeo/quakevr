@@ -21,6 +21,7 @@ void() info_intermission =
 
 void() SetChangeParms =
 {
+    if(AD_SetChangeParms()) return; // AD support: AD's level state (parm57..72), an exit's inventory reset (vr_ad_bridge.qc)
     MG3_EncodeParms(); // (Dawn of the Machine's upgrades: kept even by the SetNewParms below, vr_mg3_defs.qc)
 
     if(self.health <= 0)
@@ -151,6 +152,8 @@ void() SetChangeParms =
     parm47 = self.holsterweaponinst4.wi_uid;
     parm48 = self.holsterweaponinst5.wi_uid;
     parm49 = qvr_weaponinst_next;
+    parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
+    WeaponInst_PackHot(self); // (the blades still glowing: parm65..72)
     parm39 = self.weaponclipsize;
     parm50 = self.vr_flashlight_state;
     parm40 = self.weaponclipsize2;
@@ -184,6 +187,17 @@ void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
+    AD_LoadedGame(); // AD support: the loaded game's Evil skill choice, an older save's upgrades (vr_ad_player.qc)
+    // The load's pause/loading screens often arrive with neither controller gripping. Protect only the weapons
+    // restored in the hands, starting in game time (the server stays paused until the client is ready).
+    entity p = find(world, classname, "player");
+    while(p)
+    {
+        p.vr_weapon_load_until = time + max(0, cvar("vr_weapon_load_grace"));
+        p.vr_weapon_load_main = VRGetEntWeaponInst(p, cVR_MainHand);
+        p.vr_weapon_load_off = VRGetEntWeaponInst(p, cVR_OffHand);
+        p = find(p, classname, "player");
+    }
 }
 
 void() SetNewParms =
@@ -292,6 +306,8 @@ void() SetNewParms =
     parm47 = 0;
     parm48 = 0;
     parm49 = qvr_weaponinst_next;
+    parm64 = 0; // (AD support: no upgrades)
+    parm65 = 0; parm66 = 0; parm67 = 0; parm68 = 0; parm69 = 0; parm70 = 0; parm71 = 0; parm72 = 0; // (cold)
     parm50 = 0;
 };
 
@@ -304,14 +320,14 @@ void() DecodeLevelParms =
         SetNewParms();
     }
 
-    if(!deathmatch)
+    if(!deathmatch && !AD_Rules()) // AD support: AD's hub keeps the inventory (AD_DecodeLevelParms)
     {
         if(world.model == "maps/start.bsp")
             SetNewParms();        // take away all stuff on starting new episode
     }
 
     // HIPNOTIC
-    if(world.model == "maps/start.bsp")
+    if(world.model == "maps/start.bsp" && !AD_Rules()) // (AD support, as above)
         SetNewParms();      // take away all stuff on starting new episode
     if(world.model == "maps/hip1m1.bsp")
         SetNewParms();      // take away all stuff on starting new episode
@@ -362,6 +378,7 @@ void() DecodeLevelParms =
     MG3_BloodyNightmareLevel();
     MG3_BloodyNightmareStrip();
     VR_Trailer_StripParms(); // QVR: the trailer scene starts empty-handed (vr_trailer.qc)
+    AD_DecodeLevelParms(); // AD support: AD's worldspawn inventory keys and map variables in an AD map (vr_ad_bridge.qc)
 
     self.items = parm1;
     self.health = parm2;
@@ -405,6 +422,9 @@ void() DecodeLevelParms =
     self.holsterweaponinst3 = WeaponInst_Carried(self.holsterweapon3, parm36, parm46);
     self.holsterweaponinst4 = WeaponInst_Carried(self.holsterweapon4, parm37, parm47);
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
+    AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
+    WeaponInst_UnpackHot(self);
+    VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
 
     // ------------------------------------------------------------------------
     // Mission packs:
@@ -734,6 +754,7 @@ void() changelevel_touch =
 {
     if(other.classname != "player")
         return;
+    if(!AD_ChangelevelTouch()) return; // AD support: AD's exits off until triggered, its on-exit rules (vr_ad_bridge.qc)
 
     float noexit;
     noexit = cvar_hget(cvarh_noexit);
@@ -793,6 +814,7 @@ When the player touches this, he gets sent to the map listed in the "map" variab
 */
 void() trigger_changelevel =
 {
+    AD_ChangelevelSpawn(); // AD support: AD's exit keys in an AD map (vr_ad_bridge.qc)
     if(!self.map)
         objerror ("changelevel trigger doesn't have map");
 
@@ -812,6 +834,8 @@ void() trigger_changelevel =
 void() set_suicide_frame;
 
 // called by ClientKill and DeadThink
+nosave float vr_restart_queued; // VR: respawn's "restart" asked for (a new server starts it at 0 again)
+
 void() respawn =
 {
     // VR: a map with checkpoints (vrtutorial: info_vr_checkpoint) brings him back at the latest, the level as it was
@@ -852,6 +876,12 @@ void() respawn =
     else
     {
         // restart the entire server
+        // VR: once: PlayerDeathThink asks again every frame the button is held until the restart runs, and "Loading..."
+        // puts it off for frames (each restart loaded the last save again: ROUND22.md, "Respawn loaded the map several
+        // times"); MG1 Horde's MGH_restart_queued likewise
+        if(vr_restart_queued)
+            return;
+        vr_restart_queued = TRUE;
         localcmd ("restart\n");
     }
 };
@@ -924,6 +954,7 @@ entity() SelectSpawnPoint =
 {
     entity spot;
     if(MGH_Active()) { spot=MGH_SelectSpawn(); if(spot) return spot; }
+    spot = AD_SelectSpawnPoint(); if(spot) return spot; // AD support: AD's spawn points in an AD map (vr_ad_bridge.qc)
     entity thing;
     float  pcount;
 
@@ -1197,6 +1228,7 @@ void() PutClientInServer =
     self.offloadportpos = self.origin;
     self.magboxx = self.magboxy = self.magboxz = '0 0 0'; // (no magazine, until a move says)
     self.offmagboxx = self.offmagboxy = self.offmagboxz = '0 0 0';
+    self.ammopouchx = self.ammopouchy = self.ammopouchz = '0 0 0'; // (no ammo pouch, until a move says)
 
     self.handvel = '0 0 0';
     self.offhandvel = '0 0 0';
@@ -1233,6 +1265,8 @@ void() PutClientInServer =
         readytime = time + 0.5;
     }
     if(MGH_Active()) { MGH_horde_set_keys(self); MGH_ResetHunger(self); }
+    AD_PlayerSpawned(); // AD support: what AD's code reads of a player, in an AD map (vr_ad_bridge.qc)
+    AD_UpgradesToWeapons(self); // AD support: an older game's upgrades (the player's) onto his weapons (vr_ad_bridge.qc)
 };
 
 void() SpawnAllAmmoBoxWeapons =
@@ -1468,6 +1502,8 @@ void() PlayerJump =
         return;
     }
 
+    if(AD_JumpBoots()) return; // AD support: AD's Jump Boots' jumps, in the air too (vr_ad_items.qc)
+
     if(!(self.flags & FL_ONGROUND))
         return;
 
@@ -1557,7 +1593,8 @@ void() WaterMove =
 
     if(self.watertype == CONTENT_LAVA)
     {    // do damage
-        if(self.dmgtime < time && self.lavasuit_finished <= time) // (the lava suit: none, MG3)
+        if(self.dmgtime < time && self.lavasuit_finished <= time && // (the lava suit: none, MG3)
+           !AD_LavaShield(self)) // AD support: nor with AD's Lava Shield (vr_ad_items.qc)
         {
             if(self.radsuit_finished > time)
                 self.dmgtime = time + 1;
@@ -1747,6 +1784,7 @@ void() PlayerPreThink =
 
     // HONEY
     fog_updateAll();
+    AD_PlayerPreThink(); // AD support: AD's ladders in an AD map (vr_ad_bridge.qc)
 
     if(intermission_running)
     {
@@ -1867,7 +1905,7 @@ void() PlayerPreThink =
     // The grappling hooks of the guns in the hands and the holsters (vr_grapple.qc)
     VR_Grapple_PlayerFrame();
 
-    // Slid by a grunt's or an enforcer's shove (vr_enemyshove.qc)
+    // Slid by a grunt's, an enforcer's or a vore's shove (vr_enemyshove.qc)
     VR_EnemyShove_PlayerFrame();
 };
 
@@ -2251,6 +2289,11 @@ void() PlayerPostThink =
 // check to see if player landed and play landing sound
     if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
     {
+        VR_RagImpact_Crush(self, -self.jump_flag); // QVR: landing on a living ragdoll crushes it (vr_ragimpact.qc)
+    }
+    if(AD_PlayerLanded()) {} // AD support: AD's fall rules in an AD map (vr_ad_bridge.qc)
+    else if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
+    {
         if(self.watertype == CONTENT_WATER)
             sound(self, CHAN_BODY, "player/h2ojump.wav", 1, ATTN_NORM);
         else if(self.jump_flag < -650)
@@ -2271,6 +2314,7 @@ void() PlayerPostThink =
         self.jump_flag = self.velocity_z;
 
     CheckPowerups();
+    AD_PlayerPostThink(); // AD support: AD's first frame, spawn targets and debuffs in an AD map (vr_ad_bridge.qc)
     VR_Grapple_GunFrames(); // QVR: a grappling gun whose hook is out drawn empty (vr_grapple.qc)
     VR_Stealth_PlayerFrame(); // QVR: his running heard, his touch felt, how lit he is (vr_stealth.qc)
 };
@@ -2661,7 +2705,7 @@ void(entity targ, entity attacker) ClientObituary =
                 if(attacker.classname == "monster_oldone" || MG3_Shub_Is(attacker) || MG3_Shub_IsChild(attacker)) // (QVR: MG3's and her eyes)
                     bprint(" became one with Shub-Niggurath\n");
                 if(attacker.classname == "monster_shalrath")
-                    bprint(" was exploded by a Vore\n");
+                    bprint(attacker.vr_eshove_striking ? " was swatted by a Vore\n" : " was exploded by a Vore\n"); // (QVR: its shove)
                 if(attacker.classname == "monster_shambler")
                     bprint(" was smashed by a Shambler\n");
                 if(attacker.classname == "monster_tarbaby")
@@ -3097,6 +3141,7 @@ void() PlayerVRMelee =
     PlayerVRMeleeHeadbutt();
     VR_Heartbeat();
     VR_Melee_Frame(); // both hands' new poses (vr_melee.qc)
+    VR_HotBlade_Frame(); // the blades in a flame heat, in water cool (vr_hotblade.qc)
     VR_Buttons_WeaponFrame(); // a held weapon touching a wall button presses it, all of it (buttons.qc)
     VR_Gib_HeldFrame(); // a gib held in one hand struck by the other (vr_carry.qc)
     VR_Bash();

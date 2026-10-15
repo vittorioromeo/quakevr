@@ -4,6 +4,7 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_progs.hpp"
+#include "vr_brushes.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
@@ -23,6 +24,7 @@
 #include "vr_physics.hpp"
 #include "vr_portals.hpp"
 #include "vr_props.hpp"
+#include "vr_propthink.hpp"
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
 #include "vr_collectfx.hpp"
@@ -749,15 +751,16 @@ void PF_WriteVec3()
 // The entities sent a wound this map: their removal is sent (onEdictFree).
 za::Vector<za::U8> woundsSent;
 
+void sendWoundEvent(int num, const float* org, const float* dir, int kind, int amount, int extra); // (below)
+
 void PF_woundevent()
 {
-    const int num = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
-    const float* org = G_VECTOR(OFS_PARM1);
-    const float* dir = G_VECTOR(OFS_PARM2);
-    const int kind = static_cast<int>(G_FLOAT(OFS_PARM3));
-    const int amount = static_cast<int>(G_FLOAT(OFS_PARM4) + 0.5f);
-    const int extra = static_cast<int>(G_FLOAT(OFS_PARM5));
+    sendWoundEvent(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), G_VECTOR(OFS_PARM1), G_VECTOR(OFS_PARM2),
+        static_cast<int>(G_FLOAT(OFS_PARM3)), static_cast<int>(G_FLOAT(OFS_PARM4) + 0.5f), static_cast<int>(G_FLOAT(OFS_PARM5)));
+}
 
+void sendWoundEvent(int num, const float* org, const float* dir, int kind, int amount, int extra)
+{
     if(sv.state != ss_active || sv.datagram.cursize > MAX_DATAGRAM - 32)
     {
         return;
@@ -783,6 +786,41 @@ void PF_woundevent()
         woundsSent.resize(static_cast<za::SizeT>(num) + 1, 0);
     }
     woundsSent[static_cast<za::SizeT>(num)] = 1;
+}
+
+// A living monster struck (vr_hitreact.cpp: its hit reaction drawn): void(entity e, vector at, vector dir, float part,
+// float damage, float share) hitreact. `at` the point struck, `dir` the push (unit), `part` PositionalDamage's (0 body,
+// 1 head, 2 arm, 3 leg; -1 unknown), `damage` (0..255), `share` the share of its health the blow took (0..1).
+// Unreliable, to every client.
+void PF_hitreact()
+{
+    const int num = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    const float* at = G_VECTOR(OFS_PARM1);
+    const float* dir = G_VECTOR(OFS_PARM2);
+    const int part = static_cast<int>(G_FLOAT(OFS_PARM3));
+    const int damage = static_cast<int>(G_FLOAT(OFS_PARM4) + 0.5f);
+    const float share = G_FLOAT(OFS_PARM5);
+
+    if(sv.state != ss_active || sv.datagram.cursize > MAX_DATAGRAM - 32)
+    {
+        return;
+    }
+
+    MSG_WriteByte(&sv.datagram, protocol::svc_quakevr);
+    MSG_WriteByte(&sv.datagram, protocol::QVR_SVC_HITREACT);
+    MSG_WriteShort(&sv.datagram, num);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(&sv.datagram, at[i], sv.protocolflags);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteChar(&sv.datagram, CLAMP(-127, static_cast<int>(dir[i] * 127.f), 127));
+    }
+    MSG_WriteByte(&sv.datagram, CLAMP(0, part + 1, 255));
+    MSG_WriteByte(&sv.datagram, CLAMP(0, damage, 255));
+    MSG_WriteByte(&sv.datagram, CLAMP(0, static_cast<int>(share * 255.f + 0.5f), 255));
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
 }
 
 // torchflametouch(t): what of you the flame of torch `t`, held by you, touches (single player: the client's last
@@ -1051,13 +1089,8 @@ void PF_meleegripago()
 }
 
 // particle2(origin, direction, preset, count): unreliable, like vanilla particle().
-void PF_particle2()
+void particle2Message(const float* org, const float* dir, int preset, int count)
 {
-    const float* org = G_VECTOR(OFS_PARM0);
-    const float* dir = G_VECTOR(OFS_PARM1);
-    const int preset = static_cast<int>(G_FLOAT(OFS_PARM2));
-    const int count = static_cast<int>(G_FLOAT(OFS_PARM3));
-
     if(sv.datagram.cursize > MAX_DATAGRAM - 24)
     {
         return;
@@ -1076,6 +1109,12 @@ void PF_particle2()
     MSG_WriteByte(&sv.datagram, preset);
     MSG_WriteShort(&sv.datagram, count);
     VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
+}
+
+void PF_particle2()
+{
+    particle2Message(G_VECTOR(OFS_PARM0), G_VECTOR(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)),
+        static_cast<int>(G_FLOAT(OFS_PARM3)));
 }
 
 // entity findflags(entity start, .float field, float flags): the next entity after `start` (in edict order, free ones
@@ -1110,6 +1149,33 @@ void PF_findflags()
     const int field = G_INT(OFS_PARM1);
     const int flags = static_cast<int>(G_FLOAT(OFS_PARM2));
     G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(nextFlagged(from, field, flags)));
+}
+
+// The same live iterator with the frame loops' pure interval/eligibility checks in native code.
+// No snapshot: every call resumes after start, so a due callback may change/remove/spawn later edicts.
+// Keep <= (rather than rejecting >) and float truth tests: NaN deadlines are not due; NaN eligibility is true.
+void PF_findflagsdue()
+{
+    int e = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    const int field = G_INT(OFS_PARM1);
+    const int flags = static_cast<int>(G_FLOAT(OFS_PARM2));
+    const int deadline = G_INT(OFS_PARM3);
+    const float now = G_FLOAT(OFS_PARM4);
+    const int required = G_INT(OFS_PARM5);
+    if(field < 0 || field >= qcvm->progs->entityfields || deadline < 0 || deadline >= qcvm->progs->entityfields ||
+        required < 0 || required >= qcvm->progs->entityfields)
+    {
+        PR_RunError("findflagsdue: invalid field offset");
+    }
+    while((e = nextFlagged(e, field, flags)) != 0)
+    {
+        const edict_t* ed = EDICT_NUM(e);
+        if(E_FLOAT(ed, deadline) <= now && E_FLOAT(ed, required) != 0.f)
+        {
+            break;
+        }
+    }
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(e));
 }
 
 // entity findflagsinview(entity start, .float fld, float flags, vector eye, float range, float mincos): findflags(),
@@ -1284,6 +1350,18 @@ void PF_carryfit()
 
 // vector(entity e, entity player, float grab) carry2h: a prop held in both hands (vr_carry2h.cpp): at the second
 // hand's grip (grab 1) the grips are kept and its origin returned; after, where it goes (its angles set at once).
+void PF_carrybody()
+{
+    const glm::vec3 target{G_VECTOR(OFS_PARM2)[0], G_VECTOR(OFS_PARM2)[1], G_VECTOR(OFS_PARM2)[2]};
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    const glm::vec3 result = carry2h::bodyPlace(ent, G_EDICT(OFS_PARM1), target);
+    const int index = static_cast<int>(ent->v.modelindex);
+    const bool brush = index > 0 && index < MAX_MODELS && sv.models[index] && sv.models[index]->type == mod_brush;
+    const carry2h::Frame at{result, carry2h::fromAngles(ent->v.angles, brush)};
+    pr_global_struct->trace_allsolid = carry2h::bodyFits(ent, G_EDICT(OFS_PARM1), at) ? 0.f : 1.f;
+    for(int i = 0; i < 3; i++) { G_VECTOR(OFS_RETURN)[i] = result[i]; }
+}
+
 void PF_carry2h()
 {
     const glm::vec3 v = carry2h::serverPlace(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), G_FLOAT(OFS_PARM2) != 0.f);
@@ -1519,10 +1597,57 @@ void PF_ragdollshovetopple()
     G_FLOAT(OFS_RETURN) = foegrab::shoveTopple(G_EDICT(OFS_PARM0), dir, G_FLOAT(OFS_PARM2), ledge, reach) ? 1.f : 0.f;
 }
 
+// float ragdollcanstagger(entity e): whether a shove makes e stagger as a ragdoll (vr_ragdoll_active_stagger, its kind's).
+void PF_ragdollcanstagger()
+{
+    G_FLOAT(OFS_RETURN) = box3d::ragdollCanStagger(G_EDICT(OFS_PARM0)) ? 1.f : 0.f;
+}
+
+// float ragdolldrown(entity e, float begin): a drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; QC
+// VR_Knockdown_Drown): begin 0, whether e can (its kind driven alive, Swim and Flail on); begin 1, its knockdown's
+// ragdoll just made: its living swim begun frantic.
+void PF_ragdolldrown()
+{
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    G_FLOAT(OFS_RETURN) = (G_FLOAT(OFS_PARM1) != 0.f ? box3d::ragdollDrowning(ent) : box3d::ragdollCanDrown(ent)) ? 1.f : 0.f;
+}
+
+// float ragdollguard(entity e, vector at, float hold): a living monster's ragdoll guarding its head from a blow coming
+// from `at` (units) for `hold` s (vr_ragdoll_active_guard; QC VR_Guard_Raise). 0: it can't.
+void PF_ragdollguard()
+{
+    const float* at = G_VECTOR(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = box3d::ragdollGuard(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]}, G_FLOAT(OFS_PARM2)) ? 1.f : 0.f;
+}
+
+// float ragdollstagger(entity e, vector dir, float push, float balance, float reach): e, just knocked down by a shove
+// along dir (its ragdoll made), staggers instead (push: the shove's; balance 0 about to fall .. 1 steady; reach: the
+// units the shove carries a standing one). 0: it can't (a knockdown, as before).
+void PF_ragdollstagger()
+{
+    const float* d = G_VECTOR(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = box3d::ragdollStagger(G_EDICT(OFS_PARM0), glm::vec3{d[0], d[1], d[2]}, G_FLOAT(OFS_PARM2),
+                              G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4))
+                              ? 1.f
+                              : 0.f;
+}
+
+// float ragdollstaggered(entity e, vector mins, vector maxs): e's stagger: 1 going, 0 fallen (down now), 2 recovered (up
+// where it stands, its box mins..maxs, handed back to its animation: .vr_knockdown 2).
+void PF_ragdollstaggered()
+{
+    const float* lo = G_VECTOR(OFS_PARM1);
+    const float* hi = G_VECTOR(OFS_PARM2);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(
+        box3d::ragdollStaggered(G_EDICT(OFS_PARM0), glm::vec3{lo[0], lo[1], lo[2]}, glm::vec3{hi[0], hi[1], hi[2]}));
+}
+
 // float ragdollgetup(entity e, float frameA, float frameB, vector mins, vector maxs, float range, optional float anywhere):
 // e gets up from its ragdoll, starting from frameA or frameB (whichever fits how it lies; -1 none): 0 no room within
 // range (it stays down), else 1 or 2 (the frame chosen), e at the place found, turned to it (.vr_knockdown 2). In a
-// liquid: where it can stand with its head out (box3d standSpot); anywhere: its box free, floor or none.
+// liquid: where it can stand with its head out (box3d standSpot); anywhere: its box free, floor or none. Its body rising
+// first (vr_ragdoll_active_getup): -1 while it does, then 3 or 4 (risen: standing in its get-up's last frame). Held in a
+// liquid by a hand: -1 (it stays down until let go of).
 void PF_ragdollgetup()
 {
     const float* lo = G_VECTOR(OFS_PARM3);
@@ -1620,7 +1745,9 @@ void PF_ragdolllimb()
 }
 
 // float ragdolllimbs(entity e, float what, [float bone]): box3d::limbInfo (0 the limb joints not cut, bits; 1 the
-// head's bones; 2 the bones cut off; 3 the head bone, -1 none; 4 what a cut at `bone` takes now; 5 `bone`'s parent).
+// head's bones; 2 the bones cut off; 3 the head bone, -1 none; 4 what a cut at `bone` takes now; 5 `bone`'s parent; 6 the
+// joint of limb `bone` by name: 0 the left shoulder, 1 the right, 2 the left hip, 3 the right, 4-7 their elbow or knee, 0
+// none).
 void PF_ragdolllimbs()
 {
     const int what = static_cast<int>(G_FLOAT(OFS_PARM1));
@@ -2253,6 +2380,11 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollknockdown", PF_ragdollknockdown},
     {"ragdollshovetopple", PF_ragdollshovetopple},
     {"ragdollgetup", PF_ragdollgetup},
+    {"ragdollcanstagger", PF_ragdollcanstagger},
+    {"ragdolldrown", PF_ragdolldrown},
+    {"ragdollguard", PF_ragdollguard},
+    {"ragdollstagger", PF_ragdollstagger},
+    {"ragdollstaggered", PF_ragdollstaggered},
     {"ragdollrelease", PF_ragdollrelease},
     {"ragdollheld", PF_ragdollheld},
     {"ragdollreach", PF_ragdollreach},
@@ -2293,6 +2425,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"WriteVec3", PF_WriteVec3},
     {"particle2", PF_particle2},
     {"woundevent", PF_woundevent},
+    {"hitreact", PF_hitreact},
     {"haptic", PF_haptic},
     {"handimpact", PF_handimpact},
     {"carryangles", PF_carryangles},
@@ -2302,6 +2435,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"carryfrontpouch", PF_carryfrontpouch},
     {"carryfit", PF_carryfit},
     {"carry2h", PF_carry2h},
+    {"carrybody", PF_carrybody},
     {"carryreach", PF_carryreach},
     {"carry2hoff", PF_carry2hoff},
     {"carry2hkeep", PF_carry2hkeep},
@@ -2332,6 +2466,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"bodysmoulder", PF_bodysmoulder},
     {"portal_carry", PF_portal_carry},
     {"findflags", PF_findflags},
+    {"findflagsdue", PF_findflagsdue},
+    {"propthink", propthink::PF_propthink},
     {"findflagsinview", PF_findflagsinview},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
@@ -2366,6 +2502,16 @@ static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200
     "VR builtins must not overlap Ironwail's downward-allocated builtins");
 
 } // namespace
+
+void sendWound(int num, const float* org, const float* dir, int kind, int amount, int extra)
+{
+    sendWoundEvent(num, org, dir, kind, amount, extra);
+}
+
+void sendParticle2(const float* org, const float* dir, int preset, int count)
+{
+    particle2Message(org, dir, preset, count);
+}
 
 // vr_forcegrab_grid_stats: the force grab's searches since the last (and resets them).
 void forcegrabGridStats_f()
@@ -2447,6 +2593,7 @@ void onEdictFree(edict_t* ed)
         ropesim::forget(num);
         box3d::toolForget(num); // (the toolgun's pins and joints on it)
         toolgun::forget(num);   // (and what its tools hold)
+        brushes::edictFreed(num); // (a box made in the game: its brush goes with it)
     }
     if(num <= 0 || num >= static_cast<int>(woundsSent.size()) || !woundsSent[static_cast<za::SizeT>(num)])
     {

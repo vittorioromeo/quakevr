@@ -411,6 +411,7 @@ bool programFailed[shadeCount][2][2]{};
 
 [[nodiscard]] GLuint compile(GLenum type, const char* source, const char* name)
 {
+    VR_GLStep("compile %s %s shader", name, type == GL_VERTEX_SHADER ? "vertex" : type == GL_FRAGMENT_SHADER ? "fragment" : "compute");
     const GLuint shader = GL_CreateShaderFunc(type);
     GL_ShaderSourceFunc(shader, 1, &source, nullptr);
     GL_CompileShaderFunc(shader);
@@ -971,6 +972,7 @@ unsigned glProgram(const char* vertex, const char* fragment, const char* name)
     {
         GL_AttachShaderFunc(p, fs);
     }
+    VR_GLStep("link %s", name);
     GL_LinkProgramFunc(p);
     GL_DeleteShaderFunc(vs);
     if(fs)
@@ -1164,6 +1166,17 @@ void upload(StorageBuffer& b, const void* data, za::SizeT bytes)
     }
     GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, b.buffer);
     GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, 0, static_cast<GLsizeiptr>(bytes), data);
+    GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void update(StorageBuffer& b, const void* data, za::SizeT offset, za::SizeT bytes)
+{
+    if(!b.buffer || bytes == 0 || offset + bytes > b.size)
+    {
+        return;
+    }
+    GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, b.buffer);
+    GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(bytes), data);
     GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
@@ -1963,6 +1976,11 @@ void text(float x, float y, float size, const char* str)
     Draw_StringEx(x, y, size, str);
 }
 
+void picture(const Picture& p, float x, float y, float w, float h)
+{
+    Draw_TextureRect(x, y, w, h, static_cast<gltexture_t*>(p.texture), 1.f);
+}
+
 } // namespace draw2D
 
 void beginCanvas(Target& canvas, int width, int height, bool mipmaps, float lodBias)
@@ -2031,6 +2049,33 @@ void copy(const Target& target, Texture image)
     GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 
     bindWindow(); // it is called with the window's 2D pass bound
+}
+
+void ensurePicture(Picture& p, int width, int height, const char* name)
+{
+    if(p.texture)
+    {
+        return;
+    }
+    p.width = width;
+    p.height = height;
+    p.pixels = static_cast<unsigned char*>(VR_HeapMalloc(static_cast<size_t>(width) * height * 4));
+    memset(p.pixels, 0, static_cast<size_t>(width) * height * 4);
+    p.texture = TexMgr_LoadImage(nullptr, name, width, height, SRC_RGBA, p.pixels, "", reinterpret_cast<src_offset_t>(p.pixels),
+        TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_UNCOMPRESSED);
+}
+
+void updatePicture(Picture& p, const void* rgba)
+{
+    if(!p.texture)
+    {
+        return;
+    }
+    memcpy(p.pixels, rgba, static_cast<size_t>(p.width) * p.height * 4);
+    glBindTexture(GL_TEXTURE_2D, static_cast<gltexture_t*>(p.texture)->texnum);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, p.width, p.height, GL_RGBA, GL_UNSIGNED_BYTE, p.pixels);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    GL_ClearBindings();
 }
 
 Texture createTexture(int width, int height, const void* rgba, bool mipmaps, const char* label)

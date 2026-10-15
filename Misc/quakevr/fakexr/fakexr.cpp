@@ -12,6 +12,24 @@
 //   FAKEXR_EYE            WxH, the eyes' recommended size (400x440)
 //   FAKEXR_SYSTEM         the headset's name (systemName: "FakeXR headset"), e.g. "Meta Quest 3" (its panel known)
 //   FAKEXR_UNFOCUS        a-b: the session VISIBLE (not focused: as with SteamVR's dashboard) from xrWaitFrame a to b
+//   FAKEXR_END            n:kind, the session ended at xrWaitFrame n as the runtimes end it: exit (the player quit the
+//                         game from the runtime's menu: VISIBLE, SYNCHRONIZED, STOPPING; after xrEndSession IDLE, then
+//                         EXITING), restart (the same, then READY again: the headset back on), loss (LOSS_PENDING),
+//                         instanceloss (XrEventDataInstanceLossPending)
+//   FAKEXR_FAULT_IMAGES   copies whose xrEnumerateSwapchainImages crashes filling the images (a null read, as VDXR
+//                         1.1.0's did: the game's vr_xr_guard catches it); FAKEXR_FAULT_SRGB: only sRGB swapchains'
+//   FAKEXR_DEBUG_UTILS    copies that offer XR_EXT_debug_utils: a messenger that sends 3 messages once made
+//   FAKEXR_EXTENSIONS     more extensions every copy offers (comma-separated names, e.g. XR_BD_controller_interaction:
+//                         the game's vendor controller profiles); each xrSuggestInteractionProfileBindings is logged
+//                         (its profile and binding count)
+//   FAKEXR_REJECT_PATH    a binding path's text: a suggestion holding a path that contains it is turned down
+//                         (XR_ERROR_PATH_UNSUPPORTED), as a runtime turns down a path its profile lacks; several
+//                         separated by ';', each one "profile=path" for one profile's only (texts contained in them,
+//                         e.g. "oculus/touch=thumbstick/touch;left/input/menu/click")
+//   FAKEXR_PROFILE        the profile the hands are played as (a text contained in it), if it was suggested; else the
+//                         first suggested of Touch, WMR, Index, Vive, simple (as VDXR picks). Said at
+//                         xrAttachSessionActionSets (logged with its bindings), by xrGetCurrentInteractionProfile and
+//                         by an XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED
 //   FAKEXR_D3D11          copies that load d3d11.dll at xrCreateInstance and free it at xrDestroyInstance (as VDXR
 //                         does), logging whether it is still loaded after (the game keeps it: vr_backend_openxr.cpp)
 //
@@ -81,13 +99,54 @@ XRAPI_ATTR XrResult XRAPI_CALL enumerateInstanceExtensionProperties(
     {
         return XR_ERROR_API_LAYER_NOT_PRESENT;
     }
-    *count = 1;
+    const bool debugUtils = listed("FAKEXR_DEBUG_UTILS");
+    char extra[1024] = "";
+    GetEnvironmentVariableA("FAKEXR_EXTENSIONS", extra, sizeof(extra));
+    const char* names[16];
+    uint32_t n = 0;
+    names[n++] = "XR_KHR_opengl_enable"; // (the game's graphics binding)
+    if(debugUtils)
+    {
+        names[n++] = "XR_EXT_debug_utils";
+    }
+    for(char* token = strtok(extra, ","); token && n < 16; token = strtok(nullptr, ","))
+    {
+        names[n++] = token;
+    }
+    *count = n;
     if(capacity == 0)
     {
         return XR_SUCCESS;
     }
-    strcpy(properties[0].extensionName, "XR_KHR_opengl_enable"); // (the game's graphics binding)
-    properties[0].extensionVersion = 10;
+    for(uint32_t i = 0; i < n && i < capacity; i++)
+    {
+        strncpy_s(properties[i].extensionName, names[i], _TRUNCATE);
+        properties[i].extensionVersion = 1;
+    }
+    return XR_SUCCESS;
+}
+
+// FAKEXR_DEBUG_UTILS: a messenger that says hello once made (the game's diagnostics mode logs it).
+XRAPI_ATTR XrResult XRAPI_CALL createDebugUtilsMessenger(
+    XrInstance, const XrDebugUtilsMessengerCreateInfoEXT* info, XrDebugUtilsMessengerEXT* messenger)
+{
+    *messenger = reinterpret_cast<XrDebugUtilsMessengerEXT>(static_cast<uintptr_t>(0xd1a6));
+    XrDebugUtilsMessengerCallbackDataEXT data{XR_TYPE_DEBUG_UTILS_MESSENGER_CALLBACK_DATA_EXT};
+    data.messageId = "FAKEXR-hello";
+    data.functionName = "xrCreateDebugUtilsMessengerEXT";
+    data.message = "the fake runtime's messenger is on";
+    for(int i = 0; i < 3; i++)
+    {
+        info->userCallback(XR_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT, XR_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT, &data,
+            info->userData);
+    }
+    log("xrCreateDebugUtilsMessengerEXT");
+    return XR_SUCCESS;
+}
+
+XRAPI_ATTR XrResult XRAPI_CALL destroyDebugUtilsMessenger(XrDebugUtilsMessengerEXT)
+{
+    log("xrDestroyDebugUtilsMessengerEXT");
     return XR_SUCCESS;
 }
 
@@ -155,6 +214,7 @@ struct FakeSwapchain
     uint32_t next{0};
     bool everReleased{false};
     bool releasedSinceEnd{false};
+    int64_t format{0};
 };
 
 struct Headset
@@ -168,11 +228,24 @@ struct Headset
     XrSession session{XR_NULL_HANDLE};
     int frame{0}; // xrWaitFrame calls
     int unfocusFrom{-1}, unfocusTo{-1};
+    int endAt{-1};      // FAKEXR_END's frame
+    char endKind[16]{}; // and kind
+    bool exitAfterStop{false}, readyAfterStop{false};
     uint32_t eyeWidth{400}, eyeHeight{440};
     int periodMs{0};
     int frames{0}, projections{0}, held{0}, quads{0}, empty{0}, focusLost{0};
     char paths[512][128]{};
     int pathCount{0};
+    // The profiles' last accepted suggestions (xrSuggestInteractionProfileBindings), and the one the hands are played as.
+    struct Suggestion
+    {
+        XrPath profile{XR_NULL_PATH};
+        XrPath bindings[128]{};
+        uint32_t count{0};
+    };
+    Suggestion suggestions[24];
+    int suggestionCount{0};
+    XrPath current{XR_NULL_PATH};
 };
 Headset hs;
 
@@ -241,6 +314,10 @@ XRAPI_ATTR XrResult XRAPI_CALL createSession(XrInstance, const XrSessionCreateIn
     {
         sscanf(text, "%d-%d", &hs.unfocusFrom, &hs.unfocusTo);
     }
+    if(GetEnvironmentVariableA("FAKEXR_END", text, sizeof(text)))
+    {
+        sscanf(text, "%d:%15s", &hs.endAt, hs.endKind);
+    }
     if(GetEnvironmentVariableA("FAKEXR_PERIOD_MS", text, sizeof(text)))
     {
         hs.periodMs = atoi(text);
@@ -274,15 +351,53 @@ XRAPI_ATTR XrResult XRAPI_CALL beginSession(XrSession, const XrSessionBeginInfo*
 
 XRAPI_ATTR XrResult XRAPI_CALL endSession(XrSession)
 {
+    if(hs.state != XR_SESSION_STATE_STOPPING)
+    {
+        log("xrEndSession: not STOPPING (XR_ERROR_SESSION_NOT_STOPPING)");
+        return XR_ERROR_SESSION_NOT_STOPPING;
+    }
+    log("xrEndSession");
     pushState(XR_SESSION_STATE_IDLE);
+    if(hs.exitAfterStop)
+    {
+        pushState(XR_SESSION_STATE_EXITING);
+    }
+    if(hs.readyAfterStop)
+    {
+        pushState(XR_SESSION_STATE_READY);
+    }
+    hs.exitAfterStop = hs.readyAfterStop = false;
     return XR_SUCCESS;
 }
+
+// In the state queue: an XrEventDataInstanceLossPending rather than a state (FAKEXR_END instanceloss); an
+// XrEventDataInteractionProfileChanged (xrAttachSessionActionSets).
+constexpr XrSessionState instanceLossEvent = XR_SESSION_STATE_MAX_ENUM;
+constexpr XrSessionState profileChangedEvent = static_cast<XrSessionState>(XR_SESSION_STATE_MAX_ENUM - 1);
 
 XRAPI_ATTR XrResult XRAPI_CALL pollEvent(XrInstance, XrEventDataBuffer* buffer)
 {
     if(hs.queueHead == hs.queueTail)
     {
         return XR_EVENT_UNAVAILABLE;
+    }
+    if(hs.queue[hs.queueHead] == instanceLossEvent)
+    {
+        hs.queueHead = (hs.queueHead + 1) % 32;
+        auto* loss = reinterpret_cast<XrEventDataInstanceLossPending*>(buffer);
+        loss->type = XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING;
+        loss->next = nullptr;
+        loss->lossTime = nowNs() + 1000000000;
+        return XR_SUCCESS;
+    }
+    if(hs.queue[hs.queueHead] == profileChangedEvent)
+    {
+        hs.queueHead = (hs.queueHead + 1) % 32;
+        auto* profile = reinterpret_cast<XrEventDataInteractionProfileChanged*>(buffer);
+        profile->type = XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED;
+        profile->next = nullptr;
+        profile->session = hs.session;
+        return XR_SUCCESS;
     }
     auto* changed = reinterpret_cast<XrEventDataSessionStateChanged*>(buffer);
     changed->type = XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED;
@@ -332,6 +447,11 @@ XRAPI_ATTR XrResult XRAPI_CALL createSwapchain(XrSession, const XrSwapchainCreat
         }
         sc = FakeSwapchain{};
         sc.handle = hs.nextHandle++;
+        sc.format = info->format;
+        if(!wglGetCurrentContext())
+        {
+            log("xrCreateSwapchain: NO GL CONTEXT CURRENT");
+        }
         // In the game's context (current on this thread), its bindings kept.
         GLint texture = 0, unpack = 0;
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
@@ -385,6 +505,13 @@ XRAPI_ATTR XrResult XRAPI_CALL enumerateSwapchainImages(
         return XR_ERROR_HANDLE_INVALID;
     }
     *count = imageCount;
+    // VDXR 1.1.0's crash (1.0.1): a null read filling the images, in the runtime.
+    if(capacity > 0 && (listed("FAKEXR_FAULT_IMAGES") || (sc->format == glSrgb8Alpha8 && listed("FAKEXR_FAULT_SRGB"))))
+    {
+        log("xrEnumerateSwapchainImages: crashing (FAKEXR_FAULT_*)");
+        volatile const unsigned* nowhere = nullptr;
+        return static_cast<XrResult>(*nowhere);
+    }
     auto* gl = reinterpret_cast<XrSwapchainImageOpenGLKHR*>(images);
     for(uint32_t i = 0; i < capacity && i < imageCount; i++)
     {
@@ -434,6 +561,31 @@ XRAPI_ATTR XrResult XRAPI_CALL waitFrame(XrSession, const XrFrameWaitInfo*, XrFr
     {
         pushState(XR_SESSION_STATE_FOCUSED);
         log("the focus back");
+    }
+    if(hs.frame == hs.endAt)
+    {
+        char text[64];
+        _snprintf_s(text, sizeof(text), _TRUNCATE, "the session ends: %s (FAKEXR_END)", hs.endKind);
+        log(text);
+        if(!strcmp(hs.endKind, "loss"))
+        {
+            pushState(XR_SESSION_STATE_LOSS_PENDING);
+        }
+        else if(!strcmp(hs.endKind, "instanceloss"))
+        {
+            pushState(instanceLossEvent);
+        }
+        else
+        {
+            hs.exitAfterStop = !strcmp(hs.endKind, "exit");
+            hs.readyAfterStop = !strcmp(hs.endKind, "restart");
+            if(hs.state == XR_SESSION_STATE_FOCUSED)
+            {
+                pushState(XR_SESSION_STATE_VISIBLE);
+            }
+            pushState(XR_SESSION_STATE_SYNCHRONIZED);
+            pushState(XR_SESSION_STATE_STOPPING);
+        }
     }
     if(hs.periodMs > 0)
     {
@@ -586,6 +738,127 @@ XRAPI_ATTR XrResult XRAPI_CALL pathToString(XrInstance, XrPath path, uint32_t ca
     return XR_SUCCESS;
 }
 
+// FAKEXR_REJECT_PATH's entries: one turning this binding of this profile down.
+[[nodiscard]] bool rejected(const char* profile, const char* binding)
+{
+    char list[1024] = "";
+    if(GetEnvironmentVariableA("FAKEXR_REJECT_PATH", list, sizeof(list)) == 0 || !list[0])
+    {
+        return false;
+    }
+    char* context = nullptr;
+    for(char* entry = strtok_s(list, ";", &context); entry; entry = strtok_s(nullptr, ";", &context))
+    {
+        char* path = entry;
+        if(char* eq = strchr(entry, '='))
+        {
+            *eq = '\0';
+            path = eq + 1;
+            if(!strstr(profile, entry))
+            {
+                continue;
+            }
+        }
+        if(path[0] && strstr(binding, path))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Logged with its profile and binding count; FAKEXR_REJECT_PATH turns down one holding a path it names. Accepted, it
+// replaces the profile's last (as the specification has it).
+XRAPI_ATTR XrResult XRAPI_CALL suggestBindings(XrInstance instance, const XrInteractionProfileSuggestedBinding* info)
+{
+    char profile[256] = "?";
+    uint32_t len = 0;
+    pathToString(instance, info->interactionProfile, sizeof(profile), &len, profile);
+    for(uint32_t i = 0; i < info->countSuggestedBindings; i++)
+    {
+        char binding[256] = "";
+        pathToString(instance, info->suggestedBindings[i].binding, sizeof(binding), &len, binding);
+        if(rejected(profile, binding))
+        {
+            char text[600];
+            _snprintf_s(text, sizeof(text), _TRUNCATE, "xrSuggestInteractionProfileBindings %s: %s turned down", profile, binding);
+            log(text);
+            return XR_ERROR_PATH_UNSUPPORTED;
+        }
+    }
+    char text[400];
+    _snprintf_s(text, sizeof(text), _TRUNCATE, "xrSuggestInteractionProfileBindings %s: %u bindings", profile,
+        info->countSuggestedBindings);
+    log(text);
+
+    Headset::Suggestion* kept = nullptr;
+    for(int i = 0; i < hs.suggestionCount && !kept; i++)
+    {
+        kept = hs.suggestions[i].profile == info->interactionProfile ? &hs.suggestions[i] : nullptr;
+    }
+    if(!kept && hs.suggestionCount < 24)
+    {
+        kept = &hs.suggestions[hs.suggestionCount++];
+    }
+    if(kept)
+    {
+        kept->profile = info->interactionProfile;
+        kept->count = info->countSuggestedBindings < 128 ? info->countSuggestedBindings : 128;
+        for(uint32_t i = 0; i < kept->count; i++)
+        {
+            kept->bindings[i] = info->suggestedBindings[i].binding;
+        }
+    }
+    return XR_SUCCESS;
+}
+
+// The profile the hands are played as (FAKEXR_PROFILE, or VDXR's order), logged with its bindings; the game told.
+XRAPI_ATTR XrResult XRAPI_CALL attachSessionActionSets(XrSession, const XrSessionActionSetsAttachInfo*)
+{
+    char wanted[256] = "";
+    GetEnvironmentVariableA("FAKEXR_PROFILE", wanted, sizeof(wanted));
+    const char* order[] = {wanted, "/interaction_profiles/oculus/touch_controller",
+        "/interaction_profiles/microsoft/motion_controller", "/interaction_profiles/valve/index_controller",
+        "/interaction_profiles/htc/vive_controller", "/interaction_profiles/khr/simple_controller"};
+    const Headset::Suggestion* chosen = nullptr;
+    for(const char* name : order)
+    {
+        for(int i = 0; name[0] && i < hs.suggestionCount && !chosen; i++)
+        {
+            char profile[256] = "";
+            uint32_t len = 0;
+            pathToString(fakeInstance, hs.suggestions[i].profile, sizeof(profile), &len, profile);
+            const bool match = name == wanted ? strstr(profile, name) != nullptr : !strcmp(profile, name);
+            chosen = match ? &hs.suggestions[i] : nullptr;
+        }
+        if(chosen)
+        {
+            break;
+        }
+    }
+    hs.current = chosen ? chosen->profile : XR_NULL_PATH;
+    char text[8192];
+    uint32_t len = 0;
+    char profile[256] = "none";
+    if(chosen)
+    {
+        pathToString(fakeInstance, chosen->profile, sizeof(profile), &len, profile);
+    }
+    int at = _snprintf_s(text, sizeof(text), _TRUNCATE, "xrAttachSessionActionSets: the hands played as %s, bound:", profile);
+    for(uint32_t i = 0; chosen && i < chosen->count && at > 0 && at < static_cast<int>(sizeof(text)) - 140; i++)
+    {
+        char binding[128] = "";
+        pathToString(fakeInstance, chosen->bindings[i], sizeof(binding), &len, binding);
+        at += _snprintf_s(text + at, sizeof(text) - at, _TRUNCATE, " %s", binding);
+    }
+    log(text);
+    if(chosen)
+    {
+        pushState(profileChangedEvent);
+    }
+    return XR_SUCCESS;
+}
+
 XRAPI_ATTR XrResult XRAPI_CALL createActionSet(XrInstance, const XrActionSetCreateInfo*, XrActionSet* set)
 {
     *set = newHandle<XrActionSet>();
@@ -626,7 +899,7 @@ XRAPI_ATTR XrResult XRAPI_CALL getActionStateVector2f(XrSession, const XrActionS
 
 XRAPI_ATTR XrResult XRAPI_CALL getCurrentInteractionProfile(XrSession, XrPath, XrInteractionProfileState* state)
 {
-    state->interactionProfile = XR_NULL_PATH;
+    state->interactionProfile = hs.current;
     return XR_SUCCESS;
 }
 
@@ -654,6 +927,8 @@ const Entry entries[] = {
     {"xrGetInstanceProcAddr", reinterpret_cast<PFN_xrVoidFunction>(getInstanceProcAddr)},
     {"xrEnumerateInstanceExtensionProperties", reinterpret_cast<PFN_xrVoidFunction>(enumerateInstanceExtensionProperties)},
     {"xrCreateInstance", reinterpret_cast<PFN_xrVoidFunction>(createInstance)},
+    {"xrCreateDebugUtilsMessengerEXT", reinterpret_cast<PFN_xrVoidFunction>(createDebugUtilsMessenger)},
+    {"xrDestroyDebugUtilsMessengerEXT", reinterpret_cast<PFN_xrVoidFunction>(destroyDebugUtilsMessenger)},
     {"xrDestroyInstance", reinterpret_cast<PFN_xrVoidFunction>(destroyInstance)},
     {"xrGetInstanceProperties", reinterpret_cast<PFN_xrVoidFunction>(getInstanceProperties)},
     {"xrGetSystem", reinterpret_cast<PFN_xrVoidFunction>(getSystem)},
@@ -692,8 +967,8 @@ const Entry headsetEntries[] = {
     {"xrDestroyActionSet", reinterpret_cast<PFN_xrVoidFunction>(succeed)},
     {"xrCreateAction", reinterpret_cast<PFN_xrVoidFunction>(createAction)},
     {"xrDestroyAction", reinterpret_cast<PFN_xrVoidFunction>(succeed)},
-    {"xrSuggestInteractionProfileBindings", reinterpret_cast<PFN_xrVoidFunction>(succeed)},
-    {"xrAttachSessionActionSets", reinterpret_cast<PFN_xrVoidFunction>(succeed)},
+    {"xrSuggestInteractionProfileBindings", reinterpret_cast<PFN_xrVoidFunction>(suggestBindings)},
+    {"xrAttachSessionActionSets", reinterpret_cast<PFN_xrVoidFunction>(attachSessionActionSets)},
     {"xrSyncActions", reinterpret_cast<PFN_xrVoidFunction>(syncActions)},
     {"xrGetActionStateBoolean", reinterpret_cast<PFN_xrVoidFunction>(getActionStateBoolean)},
     {"xrGetActionStateFloat", reinterpret_cast<PFN_xrVoidFunction>(getActionStateFloat)},

@@ -26,9 +26,11 @@
 #include "vr_avatar.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_sightalign.hpp"
+#include "vr_toolgun_icons.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
+#include "vr_ad.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -359,6 +361,9 @@ constexpr const char* mg1Resources[] = {
 constexpr const char* mg3Resources[] = {
 #include "vr_pack_mg3.inc"
 };
+constexpr const char* adResources[] = {
+#include "vr_pack_ad.inc"
+};
 struct Campaign
 {
     const char* folder;
@@ -380,7 +385,11 @@ Campaign campaigns[] = {
     {"dopa", "Dimension of the Past", "e5start", 3, true, dopaResources, countof(dopaResources), 0, {}},
     {"mg1", "Dimension of the Machine", "start", 4, true, mg1Resources, countof(mg1Resources), 0, {}},
     {"mg3", "Dawn of the Machine", "start", 5, true, mg3Resources, countof(mg3Resources), 0, {}},
+    // AD support: Arcane Dimensions, the latest release only (vr_ad.cpp; status 3: another version, refused); its
+    // native support in progress (ARCANE_DIMENSIONS.md P1b): developer launch, vr_campaign_native ad
+    {"ad", "Arcane Dimensions", "start", 6, false, adResources, countof(adResources), 0, {}},
 };
+static_assert(qvr::ad::campaignIndex == 6, "vr_ad.hpp's campaign index is campaigns[]'s AD row");
 int activeCampaign = 0;
 bool discoveredCampaigns = false;
 bool developerNative = false;
@@ -501,6 +510,7 @@ void discoverCampaigns()
             if(Sys_FileType(folder) != FS_ENT_DIRECTORY) { continue; }
             c.status = inspectPack(c.folder, c.resources, c.resourceCount, roots[r].cStr());
             if(c.status == 0) { continue; } // none of its data (a texture pack's folder): the next root's copy counts
+            if(c.status == 1 && i == qvr::ad::campaignIndex) { c.status = qvr::ad::versionStatus(folder); } // AD support: the latest only
             q_strlcpy(c.root, roots[r].cStr(), sizeof(c.root));
             // A damaged higher-priority owned copy is explicit, never masked by another release.
             break;
@@ -511,13 +521,15 @@ void discoverCampaigns()
 // `syncHub`: the hub's choice (vr_activestartpaknameidx, archived) made the active campaign's too: when a campaign is
 // chosen (the selector, a map or a changelevel that picks one), never when the game folders are only rebuilt (a map
 // package mounted, a mission pack re-added): that would undo a choice made at the hub's buttons before its portal.
+// Nor when Quake's campaign is made active only for one of Quake VR's own maps (the hub, the tutorial, the calibration
+// room: 1.0.1, a player's "after restarting, the hub shows the first campaign"), nor by Setup's preparation: the hub
+// shows the campaign last played as the one chosen, across restarts (3, 4 and 5 too: the hub's lecterns name them all).
 void publishCampaign(bool syncHub = false)
 {
     if(!Cvar_FindVar("vr_campaign")) { return; }
     Cvar_SetROM("vr_honey_context", "0");
-    // The archived legacy hub selector only describes the original three campaigns.
     if(syncHub)
-    { Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, activeCampaign <= 2 ? activeCampaign : 0); }
+    { Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, activeCampaign); }
     Cvar_SetROM("vr_campaign", va("%d", activeCampaign));
     Cvar_SetROM("vr_campaign_schema", va("%d", campaigns[activeCampaign].schema));
     for(int i = 3; i < int(countof(campaigns)); ++i)
@@ -545,11 +557,12 @@ bool campaignMultiplayerRequested()
 // (vr_campaign_native).
 [[nodiscard]] bool soloOnly(int index)
 {
-    return index == 3 || index == 4 || index == 5;
+    return index == 3 || index == 4 || index == 5 || index == 6;
 }
 
 int missingLanguage(int index, const char** first = nullptr)
 {
+    if(index < 3 || index > 5) { return 0; } // (AD support: Arcane Dimensions has no rerelease language table)
     const char* const* keys = index == 3 ? dopaLanguageKeys : index == 4 ? mg1LanguageKeys : mg3LanguageKeys;
     const size_t count = index == 3 ? countof(dopaLanguageKeys) : index == 4 ? countof(mg1LanguageKeys) : countof(mg3LanguageKeys);
     int missing = 0;
@@ -565,6 +578,7 @@ int missingLanguage(int index, const char** first = nullptr)
 const char* campaignStatus(int i)
 {
     return campaigns[i].status == 0 ? "missing" : campaigns[i].status == 2 ? "incomplete/corrupt" :
+        campaigns[i].status == 3 ? "another version: only the latest (1.80 patch 1) is played" : // (AD support)
         campaigns[i].nativeReady ? (i >= 3 && Cvar_FindVar("language") && missingLanguage(i) ? "installed; language data incomplete" : "ready") : "installed; native support in progress";
 }
 
@@ -753,13 +767,28 @@ extern "C" const char* VR_GameDirectoryRoot(const char* dir, int index)
     // "-basedir <Quake> -basedir <Quake VR>"). A quakevr folder in the Quake folder too (an old zip install, or the
     // author's link to his checkout) was searched under it: with no saved config of its own, a new install ran that
     // folder's ironwail.cfg (its Menu Detail, voice notes, no first start), and listed its saves and maps.
+    // 1.0.1: the last that has the game code (progs.dat, or a pak0.pak), else the last that has the folder. A quakevr
+    // folder with a config and saves but no game code, in a later base dir (Ironwail's Saved Games user dir, where a
+    // pre-release launched without -basedir saved them: COM_InitBaseDir's store branch adds it last), made every
+    // progs.dat searched id's: Quake VR's gameplay off, weapons only props (VR_OnProgsLoaded's game code check).
     if(!q_strcasecmp(dir, vrGameDir) && com_numbasedirs > 1)
     {
-        int only = com_numbasedirs - 1;
-        while(only > 0 && Sys_FileType(va("%s/%s", com_basedirs[only], dir)) != FS_ENT_DIRECTORY)
+        int only = -1;
+        int folder = -1;
+        for(int i = com_numbasedirs - 1; i >= 0 && only < 0; --i)
         {
-            --only;
+            if(Sys_FileType(va("%s/%s", com_basedirs[i], dir)) != FS_ENT_DIRECTORY)
+            {
+                continue;
+            }
+            folder = folder < 0 ? i : folder;
+            if(Sys_FileType(va("%s/%s/progs.dat", com_basedirs[i], dir)) == FS_ENT_FILE ||
+                Sys_FileType(va("%s/%s/pak0.pak", com_basedirs[i], dir)) == FS_ENT_FILE)
+            {
+                only = i;
+            }
         }
+        only = only >= 0 ? only : folder >= 0 ? folder : 0;
         return index == 0 ? com_basedirs[only] : nullptr;
     }
     return index < com_numbasedirs ? com_basedirs[index] : nullptr;
@@ -805,7 +834,7 @@ extern "C" void VR_InitCampaignDirectories()
 
 namespace
 {
-bool selectCampaign(int selected, bool developer, bool start)
+bool selectCampaign(int selected, bool developer, bool start, bool syncHub = true)
 {
     if(selected < 0 || selected >= int(countof(campaigns))) { return false; }
     Campaign& c = campaigns[selected];
@@ -837,7 +866,7 @@ bool selectCampaign(int selected, bool developer, bool start)
     const bool changed = activeCampaign != selected;
     activeCampaign = selected;
     developerNative = developer && selected >= 3; // (only the native campaigns have gates it opens)
-    publishCampaign(true);
+    publishCampaign(syncHub);
     if(changed || !gameDirAlreadyAdded(vrGameDir))
     {
         rebuildingCampaign = true;
@@ -872,7 +901,7 @@ void campaignSelectCommand()
 {
     if(Cmd_Argc() != 2) { reportCampaigns(); return; }
     const int i = campaignIndex(Cmd_Argv(1));
-    if(i < 0) { Con_Printf("VR: campaign must be id1, hipnotic, rogue, dopa, mg1 or mg3.\n"); return; }
+    if(i < 0) { Con_Printf("VR: campaign must be id1, hipnotic, rogue, dopa, mg1, mg3 or ad.\n"); return; }
     selectCampaign(i, !q_strcasecmp(Cmd_Argv(0), "vr_campaign_native"), true);
 }
 
@@ -883,7 +912,7 @@ void campaignHubCommand()
 {
     const char* map = Cmd_Argc() > 1 ? Cmd_Argv(1) : VR_HubMap();
     if(!VR_IsVrMap(map)) { map = VR_HubMap(); }
-    if(selectCampaign(0, false, false)) { Cbuf_InsertText(va("map %s\n", map)); }
+    if(selectCampaign(0, false, false, false)) { Cbuf_InsertText(va("map %s\n", map)); }
 }
 } // namespace
 
@@ -909,6 +938,20 @@ extern "C" int VR_CampaignUnavailable(int index)
 { return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || !campaigns[index].nativeReady || (index >= 3 && missingLanguage(index)) ||
     (soloOnly(index) && campaignMultiplayerRequested()); }
 
+// Setup's preparation (vr_prepare.cpp) goes through the campaigns: each one's folder, start map, whether its folder is
+// on the search path only while it is the active one (Dimension of the Past, of the Machine, Dawn of the Machine: the
+// mission packs' folders are on Quake's too), and the campaign made the active one without a map (the selector's way:
+// the game folders rebuilt, the server shut down; false, and nothing changed, when it cannot be played).
+extern "C" int VR_CampaignCount() { return int(countof(campaigns)); }
+extern "C" const char* VR_CampaignFolder(int index)
+{ return index >= 0 && index < int(countof(campaigns)) ? campaigns[index].folder : ""; }
+extern "C" const char* VR_CampaignStartMap(int index)
+{ return index >= 0 && index < int(countof(campaigns)) ? campaigns[index].start : ""; }
+extern "C" int VR_CampaignFolderOnlyWhenActive(int index) { return index >= 3 && index < int(countof(campaigns)); }
+extern "C" int VR_SelectCampaignNoMap(int index)
+{ return !VR_CampaignUnavailable(index) && selectCampaign(index, false, false, false) ? 1 : 0; }
+extern "C" void VR_GameFolderName(const char* path, char* out, size_t size) { gameFolderName(path, out, size); }
+
 extern "C" void VR_BeforeAddGameDirectory(const char* dir)
 {
     if(addingMissionPacks || q_strcasecmp(dir, vrGameDir))
@@ -929,6 +972,12 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
             COM_AddGameDirectory(pack);
         }
     }
+    // AD support: Arcane Dimensions' own models, sounds and HUD icons in every campaign while its latest release is
+    // installed (decision 16: its artifacts, pickups and ladders anywhere; vr_ad.cpp), under the active campaign's
+    // folder, whose files win (VR_SkipSearchPath: qvr::ad::skipOutside).
+    if(activeCampaign != qvr::ad::campaignIndex && campaigns[qvr::ad::campaignIndex].status == 1 &&
+        !gameDirAlreadyAdded(campaigns[qvr::ad::campaignIndex].folder))
+    { COM_AddGameDirectory(campaigns[qvr::ad::campaignIndex].folder); }
     if(activeCampaign >= 3 && campaigns[activeCampaign].status == 1 &&
         !gameDirAlreadyAdded(campaigns[activeCampaign].folder))
     { COM_AddGameDirectory(campaigns[activeCampaign].folder); }
@@ -996,6 +1045,8 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
     const int i = campaignIndex(name);
     if(i < 0) { return 0; }
     if(!strcmp(filename, "progs.dat") && i >= 3) { return 1; }
+    if(i == qvr::ad::campaignIndex && qvr::ad::skipInFolder(filename)) { return 1; } // AD support: only AD's own files
+    if(i == qvr::ad::campaignIndex && i != activeCampaign) { return qvr::ad::skipOutside(filename) ? 1 : 0; } // (AD support: and in another campaign, only its models, sounds, icons)
     if(i >= 3) { return i != activeCampaign; }
     if(start) { return i != activeCampaign; }
     // Isolate campaign maps and sidecars, while retaining optional pack brush models
@@ -1091,6 +1142,7 @@ extern "C" void VR_OnGameDirChanged()
     qvr::flashlight::onGameDirChanged();
     qvr::bigfont::onGameDirChanged();
     qvr::gadget::onGameDirChanged();
+    qvr::toolgun::icons::onGameDirChanged(); // (the toolgun panel's thumbnails, made again from the new files)
     qvr::mem::on(qvr::mem::GameDirChange); // the registered caches that name it (vr_mem.hpp)
     Con_DPrintf("VR: game directory changed: model and game file caches emptied\n");
 }
@@ -1152,7 +1204,7 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
 {
     if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
     if(VR_IsVrMap(map))
-    { return activeCampaign == 0 || selectCampaign(0, false, false); }
+    { return activeCampaign == 0 || selectCampaign(0, false, false, false); }
     int requested = campaignForMap(map, activeCampaign);
     if(!strcmp(map, "start") && activeCampaign <= 2)
     {
@@ -1173,6 +1225,41 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
     return 1;
 }
 
+namespace
+{
+// A save's campaign (its vr_save_campaign global, world.qc), -1 when it has none.
+int savedCampaignKey(const char* text)
+{
+    const char* context = strstr(text, "\"vr_save_campaign\"");
+    if(!context) { return -1; }
+    COM_Parse(context + strlen("\"vr_save_campaign\""));
+    const int saved = Q_atoi(com_token);
+    return saved >= 0 && saved < int(countof(campaigns)) ? saved : -1;
+}
+
+// The load about to spawn its map (VR_CanLoadSaveMap): the map, and the save's campaign it runs in whatever its name
+// says (a map package's "start", an "e1m1x"). Taken by that spawn's VR_CheckSpawnCampaignMap, and by any spawn.
+int spawnSaveCampaign = -1;
+char spawnSaveMap[MAX_QPATH] = {};
+} // namespace
+
+// `load`: the save's map in the save's campaign (VR_CanLoadCampaignSave made it the active one): a save belongs to the
+// campaign it was played in, never to the one its map's name suggests. A save without the key: the map's own check.
+extern "C" int VR_CanLoadSaveMap(const char* map, const char* text)
+{
+    spawnSaveCampaign = -1;
+    const int saved = savedCampaignKey(text);
+    if(!gameDirAlreadyAdded(vrGameDir) || VR_IsVrMap(map) || saved < 0) { return VR_CanLoadCampaignMap(map); }
+    if(saved != activeCampaign && !selectCampaign(saved, saved >= 3 && !campaigns[saved].nativeReady, false)) { return 0; }
+    char source[MAX_OSPATH] = {};
+    if(COM_FileExists(va("maps/%s.bsp", map), nullptr))
+    { gameFolderName(com_filesource, source, sizeof(source)); }
+    Cvar_SetROM("vr_honey_context", !q_strcasecmp(source, "honey") ? "1" : "0");
+    spawnSaveCampaign = saved;
+    q_strlcpy(spawnSaveMap, map, sizeof(spawnSaveMap));
+    return 1;
+}
+
 // SV_SpawnServer (every spawn: map, changelevel, restart, load): the map against the campaign already chosen, never a
 // switch. A switch rebuilds the game folders and shuts the server down, which cannot happen inside a spawn (the
 // server's progs are switched in: PR_SwitchQCVM's "already active"); map and load choose the campaign before they
@@ -1190,12 +1277,14 @@ extern "C" void VR_CheckSpawnCampaignMap(const char* map)
         requested = legacy >= 0 && legacy <= 2 ? legacy : activeCampaign;
     }
     if(VR_IsVrMap(map)) { requested = 0; }
+    else if(spawnSaveCampaign >= 0 && !strcmp(map, spawnSaveMap)) { requested = spawnSaveCampaign; } // (a load's)
+    spawnSaveCampaign = -1;
     if(requested != activeCampaign)
     {
         if(requested <= 2 && activeCampaign <= 2 && campaigns[requested].status == 1)
         {
             activeCampaign = requested;
-            publishCampaign(true);
+            publishCampaign(!VR_IsVrMap(map));
         }
         else
         {
@@ -1205,6 +1294,12 @@ extern "C" void VR_CheckSpawnCampaignMap(const char* map)
     }
     if(soloOnly(activeCampaign) && !developerNative && campaignMultiplayerRequested())
     { Host_Error("VR: %s is single-player only; set coop 0, deathmatch 0 and maxplayers 1", campaigns[activeCampaign].title); }
+    // A campaign's map running (a save loaded in the campaign already active too): the hub's choice is the campaign
+    // last played (publishCampaign).
+    if(!VR_IsVrMap(map) && static_cast<int>(qvr::vr_activestartpaknameidx.value) != activeCampaign)
+    { Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, activeCampaign); }
+    // The hub's Continue button (QC buttons.qc: shown only when there is a save to continue) reads it as it spawns.
+    if(VR_IsVrMap(map)) { VR_ContinueRefresh(); }
     char source[MAX_OSPATH] = {};
     if(COM_FileExists(va("maps/%s.bsp", map), nullptr))
     { gameFolderName(com_filesource, source, sizeof(source)); }
@@ -1244,13 +1339,48 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
         // Ready campaign saves obey ordinary data/solo readiness, including when already active.
         // Keep unfinished developer-save behavior for the campaigns still being ported.
         if(savedCampaign >= 3 && campaigns[savedCampaign].nativeReady)
-        { if(!selectCampaign(savedCampaign, false, false)) { return 0; } }
+        {
+            if(!selectCampaign(savedCampaign, false, false))
+            {
+                SCR_CenterPrint(va("This save is of %s,\nwhich can't be started now:\nnot loaded (see the console)",
+                    campaigns[savedCampaign].title));
+                return 0;
+            }
+        }
         else if(savedCampaign != activeCampaign &&
                 !selectCampaign(savedCampaign, savedCampaign >= 3 && !campaigns[savedCampaign].nativeReady, false))
-        { return 0; }
+        {
+            SCR_CenterPrint(va("This save is of %s,\nwhich can't be started now:\nnot loaded (see the console)",
+                campaigns[savedCampaign].title));
+            return 0;
+        }
     }
     return 1;
 }
+
+// VR_CanLoadCampaignSave's checks, quietly and changing nothing (Continue, vr_continue.cpp: which save it offers): the
+// save's campaign (vr_save_campaign), or -1 when it would be refused (no keys, another mission-pack installation, a
+// campaign this game can't start now).
+extern "C" int VR_SaveCampaign(const char* text)
+{
+    const char* marker = strstr(text, "\"vr_save_packmask\"");
+    const char* context = strstr(text, "\"vr_save_campaign\"");
+    if(!marker || !context) { return -1; }
+    if(!gameDirAlreadyAdded(vrGameDir)) { return 0; }
+    COM_Parse(marker + strlen("\"vr_save_packmask\""));
+    if(Q_atoi(com_token) != 1 + (packStatus[0] == 1) + 2 * (packStatus[1] == 1)) { return -1; }
+    COM_Parse(context + strlen("\"vr_save_campaign\""));
+    const int saved = Q_atoi(com_token);
+    if(saved < 0 || saved >= int(countof(campaigns)) || VR_CampaignUnavailable(saved)) { return -1; }
+    return saved;
+}
+
+extern "C" const char* VR_CampaignTitle(int index)
+{ return index >= 0 && index < int(countof(campaigns)) ? campaigns[index].title : ""; }
+
+extern "C" int VR_ActiveCampaign() { return activeCampaign; }
+extern "C" int VR_CampaignForMap(const char* map)
+{ return gameDirAlreadyAdded(vrGameDir) ? campaignForMap(map, activeCampaign) : activeCampaign; }
 
 extern "C" int VR_IsNewCampaignDirectory(const char* dir) { return campaignIndex(dir) >= 3; }
 extern "C" int VR_IsNativeCampaignLaunch()
@@ -1266,7 +1396,8 @@ extern "C" int VR_ShouldMountCampaignDirectory(const char* dir)
     // Native explicit -game/game pack tokens are represented by context only. The
     // VR hook mounts the selected pack after optional packs, before VR overrides.
     return !nativeCampaignPaths || i < 3 ||
-        (addingMissionPacks && i == activeCampaign && campaigns[i].status == 1);
+        (addingMissionPacks && i == activeCampaign && campaigns[i].status == 1) ||
+        (addingMissionPacks && i == qvr::ad::campaignIndex && campaigns[i].status == 1); // (AD support: in every campaign)
 }
 
 // Hub portals use changelevel, which preserves spawn parms. Stock selections need

@@ -269,6 +269,7 @@ void() worldspawn =
     precache_sound("vr/bash.wav");
     precache_sound("vr/bash_parry.wav");
     precache_sound("vr/parry.wav");
+    precache_sound("vr/necksnap.wav"); // the neck snap's crack (vr_foegrab_throw.qc; Misc/quakevr/make_necksnap_sound.py)
     precache_sound("vr/counter_open.wav"); // counter-attacks (vr_counter_sound; vr_melee.qc): the window opening,
     precache_sound("vr/counter.wav");      // and a counter landing
     precache_sound("vr/grenade_fuse.wav"); // a caught grenade lit (vr_grenade.qc),
@@ -556,6 +557,8 @@ void() worldspawn =
 
     //MED
     footsteps = 1;
+
+    AD_WorldSpawn(); // AD support: AD's world setup in an AD map (vr_ad_bridge.qc)
 };
 
 void() StartFrame =
@@ -576,11 +579,13 @@ void() StartFrame =
     MGH_PowerupFrame();
     MGH_TestFrame();
     MG3_Frame();
+    AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
+    AD_MonstersTestFrame(); // AD support: vr_ad_mtest (vr_ad_monsters_test.qc)
     MG3_BestiaryTestFrame(); // vr_mg3_btest (vr_mg3_bestiary_test.qc)
     MG3_ShubTestFrame(); // vr_mg3_shubtest (vr_mg3_shub_test.qc)
     MG3_ChthonTestFrame(); // vr_mg3_ctest (vr_mg3_chthon_test.qc)
@@ -591,6 +596,9 @@ void() StartFrame =
     VR_Reload_PropsFrame(); // VR: guns lying about load as held ones do (vr_reload.qc)
     VR_SmallGib_TestFrame(); // VR: the small gibs' tests (vr_smallgibs_test, vr_smallgibs_test.qc)
     VR_TestDispenser_Frame(); // VR: a map's monster dispenser used from the console (vr_test_dispenser <n>, buttons.qc)
+    VR_TestKill_Frame(); // VR: the nearest live monster killed by a shot struck where asked (vr_test_kill <n>, combat.qc)
+    VR_TestHit_Frame(); // VR: the nearest live monster struck where asked, never killed (vr_test_hit <n>, vr_hitreact.qc)
+    VR_Guard_Frame(); // VR: monsters guard their heads from a hand swung at them (vr_ragdoll_active_guard, vr_hitreact.qc)
     VR_DropCapTest_Frame(); // VR: the cap on dropped enemy weapons' test (vr_dropcap_test, vr_dropcap_test.qc)
     VR_CrouchTest_Frame(); // VR: the crouched box's shots test (vr_crouch_test, vr_crouch_test.qc)
     VR_Decap_TestFrame(); // VR: decapitation's tests (vr_decap_test, vr_decap.qc)
@@ -598,6 +606,7 @@ void() StartFrame =
     VR_PickupTest_Frame(); // VR: the weapon pickups' tests (vr_pickup_test, vr_pickup_test.qc)
     VR_Dummy_TestFrame(); // VR: the training dummy's tests (vr_dummy_test, vr_dummy.qc)
     VR_Burn_TestFrame(); // VR: the burning tests (vr_burn_test, vr_burning.qc)
+    VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)
     VR_Burn_MapFrame(); // VR: visible mapper flames burn tracked hands/body (vr_burning.qc)
     VR_Burn_NailFrame(); // VR: nails through a torch's flame become lava nails (vr_burning.qc)

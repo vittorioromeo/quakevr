@@ -111,6 +111,8 @@ private:
 
 // Forgets the models checked (a game directory change reuses their slots).
 void reset();
+// The body's motion begins afresh (motion playback, each take): the gait, the feet's stance, wading, the arms' easing.
+void resetMotion();
 
 // A drawn hand, in world space: its wrist, the top of the (gripping) hand, where the thumb and
 // index finger are, the back of the hand (away from the palm), and the direction from the wrist
@@ -121,6 +123,7 @@ struct HandPose
     glm::vec3 up{0.f, 0.f, 1.f};
     glm::vec3 back{0.f, 0.f, 1.f};
     glm::vec3 forward{0.f};
+    glm::vec3 unit{0.f}; // the jointed hand's size: world units a hand unit along its x, y, z (0: not the jointed hand)
 };
 
 // Poses the body for this frame, per hand (HAND_OFF, HAND_MAIN). Returns the entity origin (the
@@ -154,8 +157,10 @@ struct ForearmFrame
 // The forearm's girth `along` it (0 the elbow, 1 the wrist) for a body build (0 lean, 1 athletic, 2 brawny): the
 // semi-axes of the bracer's ring there (make_vrbody.py's, in metres; the bracer runs from 0.13 m to the wrist of a
 // 0.26 m forearm, before it the ring where it starts), `hint` along the forearm frame's z (the little finger's
-// side), `other` along its y. Its rings are polygons inside this ellipse. Between them it is straight.
-void forearmGirth(int build, float along, float& hint, float& other);
+// side), `other` along its y. Its rings are polygons inside this ellipse. Between them it is straight. `bare`: the bare
+// forearm's skin instead (vr_body_bracers 0, make_vrbody.py's bare_rings: from 0.15 m, easing down to the hand's
+// wrist at the default hand size).
+void forearmGirth(int build, float along, float& hint, float& other, bool bare);
 
 // The arms alone, solved as pose() does (the torso and the arm IK: no legs, no skinning), for the forearms' frames
 // (forearmFrame) when the body isn't drawn. The elbow isn't swung to ease a bent wrist (vr_body_wrist_limits): with no

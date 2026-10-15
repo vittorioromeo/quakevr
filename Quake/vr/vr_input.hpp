@@ -10,6 +10,13 @@ namespace qvr::input
 
 void init();
 
+// After the start-up configs (vr_startgame): the controller keys with no grab bound to any (another config's gamepad
+// bindings) get quakevr/vr_bindings.cfg again (vr_bindings_guard).
+void guardBindings();
+
+// The controller keys' bindings in a line (and guardBindings' repair, if any): qvr_openxr.txt at the session's start.
+void describeBindings(char* out, size_t size);
+
 // Once per host frame with the backend's input.
 void update(const InputState& in);
 
@@ -23,6 +30,10 @@ void roomscaleJump(const hands::State& s);
 // The same for the lower face button (A on the main hand, X on the off hand): the grappling hook's unreel
 // (QVR_BUTTON_*HANDPRIMARY). Its key (jump, reload) is pressed as ever.
 [[nodiscard]] bool primaryHeld(int hand);
+
+// What opens the menu, for the boards and hints: "menu button", or "menu button or both sticks" with vr_menu_button's
+// stick chord on (vr_input.cpp).
+[[nodiscard]] const char* menuButtonName();
 
 // The comfort vignette now (vr_comfort_vignette): how dark the view's edges are, 0 .. 1 (vr_comfort_vignette_strength
 // times how much the sticks move and turn you), for the eyes' post-process.

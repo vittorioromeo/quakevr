@@ -298,7 +298,11 @@ extern "C" int VR_BigFont_CanDraw(const char* text)
     return 1;
 }
 
-extern "C" float VR_BigFont_DrawScaled(int x, int y, float scale, const char* text)
+namespace
+{
+
+// `text` from (x, y) at `scale` times the size, drawn or only measured; its width.
+[[nodiscard]] float layOut(int x, int y, float scale, const char* text, bool draw)
 {
     ensureBuilt();
     if(font.pic.empty())
@@ -319,13 +323,28 @@ extern "C" float VR_BigFont_DrawScaled(int x, int y, float scale, const char* te
         else if(const int g = glyphAt(s, length); g >= 0)
         {
             const GlyphDef& d = glyphDefs[g];
-            Draw_SubPic(at, static_cast<float>(y), d.width * scale, cellRows * scale, pic, static_cast<float>(font.column[g]) / w,
-                0.f, static_cast<float>(d.width) / w, 1.f, nullptr, 1.f);
+            if(draw)
+            {
+                Draw_SubPic(at, static_cast<float>(y), d.width * scale, cellRows * scale, pic,
+                    static_cast<float>(font.column[g]) / w, 0.f, static_cast<float>(d.width) / w, 1.f, nullptr, 1.f);
+            }
             at += d.advance * scale;
         }
         s.removePrefix(length);
     }
     return at - static_cast<float>(x);
+}
+
+} // namespace
+
+extern "C" float VR_BigFont_DrawScaled(int x, int y, float scale, const char* text)
+{
+    return layOut(x, y, scale, text, true);
+}
+
+extern "C" float VR_BigFont_WidthScaled(float scale, const char* text)
+{
+    return layOut(0, 0, scale, text, false);
 }
 
 extern "C" int VR_BigFont_Draw(int x, int y, const char* text)

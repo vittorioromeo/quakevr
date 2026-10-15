@@ -48,7 +48,7 @@ Build (every build file compiles the same set):
   with its stack), for the engine's files and, with `QVR_ZANCLE_DEBUG`, the library's: installed at startup with
   `za::setAssertHandler` (`VR_InstallCrashHandler`). Without `QVR_ZANCLE_DEBUG` the library has no assert function
   (`Assert.cpp` defines it with `ZA_DEBUG` only) and `vr_zancle.cpp` defines it for the engine's Debug files.
-  `vr_debug_crash assert` / `zassert` (Debug > Crashes) fail one, in the engine's code or the library's.
+  `vr_crash_test assert` / `zassert` (Debug > Crashes) fail one, in the engine's code or the library's.
 - CMake (`Quake/vr/vr.cmake`): on Windows configure with `-T ClangCL` (plain MSVC stops with a message). The Makefiles:
   `-pthread` or `-lsynchronization`; the engine's C++ files are `-std=c++23 -DZA_STATIC` with Zancle's `include`.
 

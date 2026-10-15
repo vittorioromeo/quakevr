@@ -5,6 +5,7 @@
 #include "vr_still.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
+#include "vr_input.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
@@ -1341,7 +1342,7 @@ void frame()
             : st.step == Step::WaitRaise ? za::String(st.captures.empty() ? "raise it as you would your own, hold still"
                                                                            : "lower it, then raise it again")
                                          : za::String("hold still...");
-    text += "\nmenu button: stop";
+    text += va("\n%s: stop", input::menuButtonName());
     const float m2u = units::metresToUnits();
     const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
     const glm::vec3 at = s.head + fwd * (0.8f * m2u) + glm::vec3{0.f, 0.f, 0.25f * m2u};

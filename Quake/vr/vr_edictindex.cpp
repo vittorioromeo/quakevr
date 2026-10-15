@@ -525,4 +525,22 @@ void registerCommands()
     Cmd_AddCommand("vr_edictindex_stats", stats_f);
 }
 
+void fieldStored(edict_t* ed, int field)
+{
+    if(!edictIndex.valid || !sv.qcvm.edicts || field < 0 || field >= static_cast<int>(watch.fieldwatch.size()))
+    {
+        return;
+    }
+    const unsigned char watched = watch.fieldwatch[field];
+    const byte* p = reinterpret_cast<const byte*>(ed);
+    const byte* base = reinterpret_cast<const byte*>(sv.qcvm.edicts);
+    if(watched == 0 || p < base || p >= base + static_cast<size_t>(sv.qcvm.max_edicts) * sv.qcvm.edict_size)
+    {
+        return;
+    }
+    // (the mask VR_EdictIndex_Address records for that field's STOREP)
+    markPending(static_cast<int>((p - base) / sv.qcvm.edict_size),
+        static_cast<unsigned char>(watched == watchClassname ? watchClassname : 2u << (watched - 2)));
+}
+
 } // namespace qvr::edictindex

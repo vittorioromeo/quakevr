@@ -37,6 +37,11 @@
 # Saves anywhere in the game folder (tests write them under maps/ too) and the config's copies (the kit's
 # ironwail.cfg.baseline, ironwail.cfg.from-tests, dated backups)
 *.sav
+*.sav.addon
+# The player's runtime brushes kept for a map (vr_brush_save: brushes/<map>.brushes), and brush_test.py's map with
+# them baked in (vr_brush_bake_write)
+/brushes/
+/maps/brushbake_*
 /ironwail.cfg.*
 # What the engine writes for debugging and tests (vr_highlights, vr_portals_shot, vr_wounds, the traces' cvars,
 # vr_decal_atlas, the grasp dump, -condebug)
@@ -56,3 +61,12 @@
 /maps/vrwip.*
 /progs/hand_rig.md5mesh.old
 /qvr_openxr.txt
+# Crash reports (vr_crash.cpp: quakevr/crash/<date>_<time>.txt and .dmp)
+/crash/
+# Diagnostics mode's folders (vr_diagnostics.cpp: quakevr/diagnostics/<date>_<time>/)
+/diagnostics/
+# Doom on the wrist gadget (vr_doom): its settings and saves, and the player's own WADs dropped in
+/doom/*.cfg
+/doom/savegame/
+/doom/wads/*
+!/doom/wads/README.txt

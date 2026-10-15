@@ -415,7 +415,9 @@ def g8_fight():
     health("fight")
     # its rifle: walked to, gripped; the three targets on the west wall shot
     # (from the west, the targets' side: the fight's corpse lies where it fell, east, often by the gun, and a hand
-    # coming over it grips the corpse)
+    # coming over it grips the corpse); round the east of the pillar inside the door (x 5152..5280, y 736..768)
+    walk(5330, 800, 16, 150)
+    walk(5330, 700, 16, 150)
     walk(5250, 690, 16, 150)
     c("vr_mock_walk_to nearest thrown_weapon 28")
     w(200)
@@ -841,6 +843,8 @@ def script(args):
         x, y, z, yaw = STARTS[args.start]
         c("setpos %d %d %d 0 %d 0" % (x, y, z, yaw), "noclip")
         w(20)
+    if GOD and start > names.index("fight"):
+        c("god")    # (started past the fist fight, where --god turns it on)
     for name, fn in GATES[start:]:
         fn()
     if "ENDS" in OUT:

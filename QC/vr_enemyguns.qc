@@ -52,11 +52,15 @@ void() VR_EnemyGuns_Precache =
 
 float(float xWid) VR_IsEnemyGun =
 {
-    return xWid == WID_GRUNTGUN || xWid == WID_ENFRIFLE;
+    return xWid == WID_GRUNTGUN || xWid == WID_ENFRIFLE || VR_IsADGun(xWid); // (AD support: AD's soldiers' guns)
 };
 
 string(float xWid) VR_EnemyGun_Name =
 {
+    if(VR_IsADGun(xWid))
+    {
+        return VR_ADGun_Name(xWid); // AD support
+    }
     if(xWid == WID_GRUNTGUN)
     {
         return cvar_hget(cvarh_vr_grunt_burst) ? "grunt's burst rifle" : "grunt's shotgun";
@@ -268,7 +272,8 @@ void() VR_RifleLaser_Touch =
         float before = other.health;
         vector hitAt = trace_ent == other ? trace_endpos : self.origin;
         vector hitDir = v_forward;
-        float dmg = self.vr_laser_damage * PositionalDamageFactor(PositionalDamage(trace_ent, trace_endpos, v_forward));
+        float dmg = self.vr_laser_damage * PositionalDamageFactor(PositionalDamage(other, hitAt, hitDir));
+        VR_SetHitKind(QVR_HITKIND_SHOT, -1, hitAt, hitDir);
         // (A kill at the head or a limb pops it by chance, as an enemy's bolt: vr_decap_pop_laser, vr_limbs.qc.)
         float pop = VR_Decap_LaserArm(other, self.owner, hitAt, hitDir, dmg);
         if(T_Damage(other, self, self.owner, dmg))
@@ -280,6 +285,7 @@ void() VR_RifleLaser_Touch =
         {
             VR_Decap_After(other);
         }
+        VR_ClearHitKind();
         if(cvar_hget(cvarh_vr_debug_shots))
         {
             dprint(sprintf("rifle laser: hit %s (%s) at %g at %v, %g damage, health %g -> %g\n", other.classname,
@@ -480,6 +486,7 @@ void(float xHand) VR_BurstRound =
 // let go; the burst ends with the clip, or with the gun leaving the hand.
 void(float xHand) VR_EnemyGuns_Frame =
 {
+    VR_ADGun_Frame(xHand); // AD support: a flamethrower's stream ending (vr_ad_enemyguns.qc)
     float left = VR_GetBurstLeft(xHand);
     if(left < 1)
     {
@@ -501,6 +508,7 @@ void(float xHand) VR_EnemyGuns_Frame =
 // W_AttackImpl for an enemy gun: a shot from its clip, or the empty click.
 void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_EnemyGun_Attack =
 {
+    if(VR_ADGun_Attack(xHand, xWeapon, xAttackFinished, xOutAttackFinished)) { return; } // AD support (vr_ad_enemyguns.qc)
     if(VRGetWeaponClip(xHand) < 1)
     {
         if(time > xAttackFinished)

@@ -15,7 +15,8 @@ the first things to set. This page goes further: every menu page, the controls, 
 
 ## The VR Settings menu
 
-Open the menu with the controller's menu button (on Index controllers, the left B button) and pick **VR Settings**
+Open the menu with the controller's menu button (on Index controllers, the left B button), or click both sticks
+together (any controller: *Menu Button*, below), and pick **VR Settings**
 (also Options > VR Settings) or **Advanced VR** (the corner's *Advanced VR* button too). `menu_vr` in the console opens it directly, and `menu_vr <n>` opens page *n* (0 is VR Settings, 1 is
 Advanced VR Options, then the pages in the order listed below; `menu_vr list` prints the numbers).
 
@@ -61,6 +62,7 @@ corner's *Search* button.
 |---|---|
 | **Height Calibration** | Height, *Set Height Now*, World Scale, Floor Offset |
 | **Hand Calibration** | Show Controller (the real controllers drawn, to line the hands up; not saved), Hand Forward, Hand Inward, Hand Up (cm), Hand Pitch, Hand Yaw, Hand Roll (degrees), *Reset Hand Offsets* |
+| **Holster Calibration** | Hip, Chest and Back Holsters Forward, Inward, Up, *Reset Holsters*, Shoulder Holster Weapons (the guns in the back pair, over the shoulders, drawn: off by default) |
 | **Locomotion** | Move Towards (Head, Left Hand, Right Hand), Default Speed (run or walk), Stick Deadzone, Swap Stick Functions |
 | **Comfort** | Vignette (off, moving and turning, moving only, turning only), Vignette Strength |
 | **Teleportation** | Teleport, Teleport Range |
@@ -85,8 +87,8 @@ on **Carrying and Throwing**; Force Grab on **Force Grab**; the Graphics Preset 
 *Headset*, *Sound*, *Tips*, *Changed Settings* and *Run VR Calibration Again* are under Advanced VR Options > **Setup**.
 
 **Body and Display:** Handedness (a preset: right- or left-handed, or Custom), Swap Stick Functions, Wrist Gadget Arm
-and Flashlight Side (Handedness sets all three), World Scale, Floor Offset (A), Chest Flashlight, Body (off, torso and
-arms, full body), Build, Holster Models, Status Bar hand, Desktop Mirror (off, left eye, both eyes), *Recording (Window
+and Flashlight Side (Handedness sets all three), World Scale, Floor Offset (A), Chest Flashlight (Off, Immersive, Always on Head), Body (off, torso and
+arms, full body), Build, Holster Models, Hip, Chest and Shoulder Holster Weapons (each pair's guns drawn or not; the shoulders' off by default), Status Bar hand, Desktop Mirror (off, left eye, both eyes), *Recording (Window
 View)*. **Headset:** VR on or off, Restart VR, OpenXR Runtime, Render Scale, Upscaling (bilinear, FSR, NIS), Sharpness,
 Foveated Rendering (off, conservative, balanced, aggressive), Hide Lens Corners; Near Clip, Held Items at the Eyes and
 Float Depth (A).
@@ -175,7 +177,7 @@ about a screenful each. Pages marked (D) show only at Menu Detail: Developer.
 | **Wall Torches** | Taking torches off walls, force-grabbing them, blows before one dies, burning, lighting again, shooting them off |
 | **Rocks and Bricks** | Throwable rocks and bricks placed in maps: where, how many (in a map, in multiplayer, in an area), sizes |
 | **Crates** | Breakable wooden crates placed in maps: density, stacking, health, pieces, what's inside, the crowbar, hiding behind them |
-| **Gibs and Corpses** | Grabbing gibs and heads, their damage, destroying gibs, hard throws bursting them; gibbing corpses; pushable corpses; ragdolls (and, at Developer, *Ragdolls* and per-monster pages) |
+| **Gibs and Corpses** | Grabbing gibs and heads, their damage, destroying gibs, hard throws bursting them; gibbing corpses; pushable corpses; ragdolls (and, at Developer, *Ragdolls* and per-monster pages; *Ragdolls* has whether a ragdoll's limbs meet each other and each active-ragdoll behaviour's strength, chance and time, and links to Debug > Tests > *Ragdoll Behaviours*) |
 | **Held Object Offsets**, **Held Object Weights** (D) | Where each prop sits in the hand, and its weight |
 
 **Gore**
@@ -229,7 +231,8 @@ reverb, sounds from your hands, Doppler, near field), the underwater muffle and 
 Again*.
 
 **Debug** (D): the checklist, voice notes, and the Views, Logging, Profiling and Memory, Reports, Tools and Tests
-pages.
+pages. Tests > *Ragdoll Behaviours* sets each active-ragdoll behaviour going on the nearest grunt, enforcer, knight,
+death knight, ogre or zombie (`vr_ragdoll_act <name>`; the console says whether it began).
 
 **Graphics**
 
@@ -317,13 +320,27 @@ Handed* on, nothing needs rebinding.
 | Stick click | `RTHUMB` | `LTHUMB` | `+reloadmain` / `+speed` (run/walk) |
 | Stick | turns; up/down are `DPAD_UP` / `DPAD_DOWN` (`+moveup` / `+movedown`: swim up and down) | moves | |
 | Menu button | Escape (not rebindable) | | |
+| Both sticks clicked together | the menu, as the menu button (VR Settings > *Menu Button*) | | |
 
 - **Index controllers** have no menu button, so their left B opens the menu. **Quest (Touch) controllers under
   SteamVR** reach the game as Index controllers (SteamVR keeps the Touch menu button for its dashboard), so there
   the left Y opens the menu; under Virtual Desktop's VDXR they are Touch controllers and the left menu button opens
   it. **Vive wands** use the trackpads as
   sticks and their clicks as A/X, and the right menu button as B. **Windows Mixed Reality** controllers use the
-  trackpad clicks as A/X and the right menu button as B.
+  trackpad clicks as A/X and the right menu button as B. **Pico, Vive Cosmos and Focus 3, HP Reverb G2 and Samsung
+  Odyssey** controllers get their own bindings when the runtime offers their profile (`vr_xr_vendor_profiles 1`,
+  the default), each with its left menu button as the menu.
+- **Controls that act as a gamepad's** (the left trigger jumps, the grips change weapons, A does nothing): another
+  config's gamepad bindings over the VR ones. At each start, after every config (`autoexec.cfg` too), a controller
+  with no grab on any of its keys gets the VR bindings again, said in the console (`vr_bindings_guard 1`, the
+  default; 0 never). Another source port's `autoexec.cfg` or `config.cfg` in `id1` is not run (see below). Debug > Logging > *Restore
+  Controller Bindings* (`vr_bindings_reset`) sets them by hand. `qvr_openxr.txt` (in `quakevr`) names the controller
+  profile the runtime plays each hand as, and the buttons' bindings.
+- **Menu Button** (VR Settings > Controls, and HUD and Menus > Menu; `vr_menu_button`): for a controller whose menu
+  button never reaches the game (a Pico under SteamVR, which keeps it for its own menu). *Or Both Sticks* (the
+  default): click both sticks together, within a third of a second. *Hold Y* / *Hold B*: hold it for a moment in
+  the game (its own action happens first). *Y*: Y is the menu button (no previous weapon, voice notes or reel on
+  it). Each opens the menu, and closes it from any page; *Menu Button Only* turns them off.
 - **Useful extra commands to bind:** `+teleport` (with *Teleport* on), `vr_flashlight_toggle`, `+vr_note` (record a
   voice note from any key).
 - **Desktop keys** (flat-screen play and testing): `k`/`l` grab with the left/right hand, `n`/`m` reload, `o`/`i`
@@ -371,10 +388,11 @@ built-in ones.
 | `vr_flashlight_side` | 0 | the hip the torch hangs on: 0 left, 1 right |
 | `vr_body_mode` | 3 (shipped) | 0 off, 2 torso and arms, 3 full body |
 | `vr_body_build` | 1 | 0 lean, 1 athletic, 2 brawny |
+| `vr_body_bracers` | 1 | the forearms' leather bracers and the wrist gadget's straps; 0 bare forearms, the skin running on into the hands (Body page: Bracers; with the jointed hand) |
 | `vr_body_torso_back`, `vr_body_legs_back` | 0.07, 0.3 (shipped) | body placement, metres behind your head |
 | `vr_bodycal_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_rise`, `_swing` | 0 | Body Calibration's measurements (cm, metres, degrees; 0 lengths: not calibrated) |
 | `vr_body_tweak_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_rise`, `_swing` | 0 | your tweaks on top of them, the same units (uncalibrated: on the default body) |
-| `vr_flashlight` | 1 | the chest flashlight |
+| `vr_flashlight` | 1 | the flashlight: 0 off, 1 Immersive (on the belt), 2 Always on Head (worn at the temple on `vr_flashlight_side`'s side; the trigger at it switches it; on when chosen and at a fresh start) |
 
 ### Weapons, throwing and melee
 
@@ -387,6 +405,7 @@ built-in ones.
 | `vr_2h_mode` | 2 | two-handed: 0 off, 1 basic, 2 virtual stock |
 | `vr_2h_handoff` | 1 | two-handed hand-off |
 | `vr_holster_mode` | 0 | 0 immersive holsters, 1 quick slots |
+| `vr_holster_weapons_draw_hip`, `_upper`, `_shoulder` | 1, 1, 0 | each pair's holstered guns drawn (0: hidden, still taken and put away there) |
 | `vr_reload_mode` | 2 | reloading: 0 none, 1 all holsters, 2 hip holsters |
 | `vr_crosshair` | 0 | 0 off, 1 dot, 2 laser, 3 soft laser |
 | `vr_weapon_throw_velocity_mult` | 1 | throw speed |
@@ -404,6 +423,7 @@ built-in ones.
 | `vr_positional_damage` | 1 | headshots, arm and leg shots |
 | `vr_push` | 0.6 (shipped) | all knockback |
 | `vr_gore` | 2 | 0 Quake VR's blood only, 1 more, 2 over the top |
+| `vr_ragdoll_self_collide` | 1 | a ragdoll's own limbs meet each other (not jointed neighbours, parts deep in each other until apart, or an arm reaching for a wound or a wall); 0 they pass through each other |
 | `vr_decals`, `vr_decal_max`, `vr_decal_life` | 1, 768, 240 (shipped) | blood and scorch marks |
 
 ### HUD and menus
@@ -460,7 +480,14 @@ Running with `-game quakevr` executes these, in order, from `quakevr\quake.rc`:
 2. **`ironwail.cfg`**: your saved settings. It's written when you quit, and it wins over the defaults.
 3. **`quakevr.cfg`**: settings the Quake VR QuakeC needs (gameplay fixes, item scale, opaque lava) and
    `vr_enabled 1`. It runs after your config, so these win.
-4. **`autoexec.cfg`**: yours, if you create one. Put your personal overrides here: it runs last.
+4. **`autoexec.cfg`**: yours, if you create one, in `quakevr`. Put your personal overrides here: it runs last.
+
+**Other games' configs:** at the start, `autoexec.cfg` (and, with no saved `ironwail.cfg`, the legacy `config.cfg`)
+run only from Quake VR's own folder (`quakevr`). One found only elsewhere (`id1` next to a GOG or Steam Quake, a
+re-release folder, another base folder) belongs to another source port, and its gamepad bindings would turn the
+controllers into a gamepad's: it is skipped, and the console names it once. `vr_foreign_configs 1` (Debug > Logging
+> *Other Ports' Startup Configs*; `-foreignconfigs` on the command line) runs them from any folder, as before 1.0.1.
+`exec <file>` typed or bound runs a file from any folder; `exec autoexec.cfg` follows the start's rule.
 
 **Shipped defaults:** each line of `vr_defaults.cfg` is `vr_default <variable> <value>`. This sets the variable and
 makes the value its default, so resets and presets go back to it. `vr_savedefaults` rewrites the file from the
@@ -493,6 +520,8 @@ changed yourself is left alone.
 | `vr_show_hip_holsters 1` (and `_upper_`, `_shoulder_`, `vr_show_virtual_stock`) | Show the holsters and the virtual stock |
 | `vr_note_devices` | List microphones for voice notes |
 | `vr_debug_throw 1` | Print each throw's measurement |
+| `vr_ragdoll_act <name>` | An active-ragdoll behaviour (a death by zone, a stumble, a crawl, a lost limb, a swim, a ledge hang, a stagger, a get-up, ...) on the nearest supported monster, and whether it began; no name: the list (Debug > Tests > Ragdoll Behaviours) |
+| `vr_menu_press <page> > <button>` | A menu button pressed from the console (tests) |
 | `developer 1` | More messages: force grab pulls and catches, throws, compatibility mode |
 
 For the rest, the developer notes in [vr-port/](vr-port/) describe each system and its variables:

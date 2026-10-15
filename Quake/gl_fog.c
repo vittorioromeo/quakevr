@@ -313,7 +313,7 @@ void Fog_SetupFrame (void)
 	memcpy(r_framedata.fogdata, Fog_GetColor(), 3 * sizeof(float));
 	memcpy(r_framedata.skyfogdata, r_framedata.fogdata, 3 * sizeof(float));
 	r_framedata.fogdata[3] = density * density;
-	r_framedata.skyfogdata[3] = density > 0.f ? CLAMP (0.f, skyfog, 1.f) : 0.f;
+	r_framedata.skyfogdata[3] = density > 0.f ? CLAMP (0.f, VR_AD_SkyFog (skyfog), 1.f) : 0.f; // QVR: AD support: the sky fog AD set (vr/vr_ad.cpp)
 	VR_WaterFog (r_framedata.fogdata, r_framedata.skyfogdata); // QVR: an eye's in a liquid (vr/vr_water.cpp)
 }
 

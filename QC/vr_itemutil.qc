@@ -25,7 +25,7 @@ void(string xFnName, float xItemId) VR_ItemUtil_Impl_PrintInvalidItemCategory =
 
 // Indexed by item id (IID_*, vr_defs.qc): its bit, and which of .items, .hipnotic_items and
 // .rogue_items holds it (tables: an array accessor's few comparisons, not a chain of 43).
-float vr_itemutil_flag[50] =
+float vr_itemutil_flag[58] =
 {
     0, // 0 IID_NONE
     IT_ARMOR1, // 1 IID_ARMOR1
@@ -76,10 +76,18 @@ float vr_itemutil_flag[50] =
     HIP_IT_ENFRIFLE, // 46 IID_ENFRIFLE
     HIP_IT_CROWBAR, // 47 IID_CROWBAR
     HIP_IT_SUPERAXE, // 48 IID_SUPERAXE
-    HIP_IT_TOOLGUN // 49 IID_TOOLGUN
+    HIP_IT_TOOLGUN, // 49 IID_TOOLGUN
+    HIP_IT_ADROCKET, // 50 IID_ADROCKET
+    HIP_IT_ADGRENADE, // 51 IID_ADGRENADE
+    HIP_IT_ADPLASMA, // 52 IID_ADPLASMA
+    HIP_IT_ADDEFENDER, // 53 IID_ADDEFENDER
+    HIP_IT_ADELIMINATOR, // 54 IID_ADELIMINATOR
+    HIP_IT_ADCENTURION, // 55 IID_ADCENTURION
+    HIP_IT_ADPYRO, // 56 IID_ADPYRO
+    HIP_IT_ADFUMIGATOR // 57 IID_ADFUMIGATOR
 };
 
-float vr_itemutil_category[50] =
+float vr_itemutil_category[58] =
 {
     IID_CATEGORY_INVALID, // 0 IID_NONE
     IID_CATEGORY_ITEMS, // 1 IID_ARMOR1
@@ -130,12 +138,20 @@ float vr_itemutil_category[50] =
     IID_CATEGORY_HIPNOTIC_ITEMS, // 46 IID_ENFRIFLE
     IID_CATEGORY_HIPNOTIC_ITEMS, // 47 IID_CROWBAR
     IID_CATEGORY_HIPNOTIC_ITEMS, // 48 IID_SUPERAXE
-    IID_CATEGORY_HIPNOTIC_ITEMS // 49 IID_TOOLGUN
+    IID_CATEGORY_HIPNOTIC_ITEMS, // 49 IID_TOOLGUN
+    IID_CATEGORY_HIPNOTIC_ITEMS, // 50 IID_ADROCKET
+    IID_CATEGORY_HIPNOTIC_ITEMS, // 51 IID_ADGRENADE
+    IID_CATEGORY_HIPNOTIC_ITEMS, // 52 IID_ADPLASMA
+    IID_CATEGORY_HIPNOTIC_ITEMS, // 53 IID_ADDEFENDER
+    IID_CATEGORY_HIPNOTIC_ITEMS, // 54 IID_ADELIMINATOR
+    IID_CATEGORY_HIPNOTIC_ITEMS, // 55 IID_ADCENTURION
+    IID_CATEGORY_HIPNOTIC_ITEMS, // 56 IID_ADPYRO
+    IID_CATEGORY_HIPNOTIC_ITEMS // 57 IID_ADFUMIGATOR
 };
 
 float(float xItemId) VR_ItemUtil_Impl_ItemIdToFlag =
 {
-    if(xItemId < IID_ARMOR1 || xItemId > IID_TOOLGUN)
+    if(xItemId < IID_ARMOR1 || xItemId > IID_LAST)
     {
         VR_ItemUtil_Impl_PrintInvalidItemId("VR_ItemUtil_Impl_ItemIdToFlag", xItemId);
         return 0;
@@ -152,7 +168,7 @@ float(float xItemId) VR_ItemUtil_Impl_ItemIdToFlag =
 
 float(float xItemId) VR_ItemUtil_ItemIdToItemCategory =
 {
-    if(xItemId < IID_ARMOR1 || xItemId > IID_TOOLGUN)
+    if(xItemId < IID_ARMOR1 || xItemId > IID_LAST)
     {
         VR_ItemUtil_Impl_PrintInvalidItemId("VR_ItemUtil_ItemIdToItemCategory", xItemId);
         return IID_CATEGORY_INVALID;

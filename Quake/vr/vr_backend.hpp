@@ -185,8 +185,28 @@ public:
     virtual void stop() = 0;
 
     // Once per host frame: pumps runtime events, waits for the next frame and updates
-    // tracking. Returns false if the session was lost.
+    // tracking. Returns false if the session ended (sessionEnd says why).
     [[nodiscard]] virtual bool beginFrame(TrackingState& tracking, FrameState& frame) = 0;
+
+    // Why beginFrame returned false. Exit: the runtime asked the game to exit (OpenXR's EXITING: the player quit it from
+    // SteamVR's dashboard, Virtual Desktop's or Meta's menu): the game quits (vr_xr_exit_quits 1). Lost: the runtime or
+    // the headset went away (LOSS_PENDING, the instance's loss): the game plays on, flat.
+    enum class SessionEnd
+    {
+        Lost,
+        Exit
+    };
+    [[nodiscard]] virtual SessionEnd sessionEnd() const
+    {
+        return SessionEnd::Lost;
+    }
+
+    // The session's last states as the runtime gave them, oldest first ("FOCUSED > VISIBLE > ... > EXITING"), for the
+    // log line saying why the session ended; "" if the backend has none.
+    [[nodiscard]] virtual const char* sessionStates() const
+    {
+        return "";
+    }
 
     // Whether a frame begun by beginFrame is waiting to be finished (eyes may be rendered).
     [[nodiscard]] virtual bool frameActive() const
@@ -276,5 +296,9 @@ public:
 // Console commands driving the mock backend's tracking and controllers: vr_mock_button,
 // vr_mock_stick, vr_mock_hand, vr_mock_look.
 void registerMockCommands();
+
+// vr_test_reset (vr_testbatch.cpp): the mock backend's console-set state as at start-up (the poses, buttons, sticks,
+// glides, plays, aims, walks, turns, camera, and the scripted moves' velocities): a batched test's next case.
+void resetMockState();
 
 } // namespace qvr

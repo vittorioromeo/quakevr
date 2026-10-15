@@ -11,13 +11,13 @@ void(float xRequest) VR_MonstersTest_Run =
     entity oself = self, oother = other, oact = activator;
     for(entity e = nextent(world); e; e = nextent(e))
     {
-        if(e.MG_deferred)
+        if(e.MG_deferred || AD_TestWaiting(e)) // (AD support: AD's own delayed monsters too)
         {
             if(xRequest == 4)
             {
                 self = e;
                 activator = p;
-                MG_MonsterActivate();
+                self.use(); // MG_MonsterActivate (AD support: AD_MonsterActivate, AD's monster_spawn)
                 acted++;
             }
             else
@@ -35,7 +35,12 @@ void(float xRequest) VR_MonstersTest_Run =
             dead++;
             continue;
         }
-        if(p && xRequest == 2 && e.enemy != p && e.th_run)
+        if(p && xRequest == 2 && e.enemy != p && AD_Run(e))
+        {
+            self = e;
+            if(AD_TestWake(p)) acted++; // AD support: AD's monsters by AD's AI
+        }
+        else if(p && xRequest == 2 && e.enemy != p && e.th_run)
         {
             self = e;
             self.enemy = p;
@@ -74,6 +79,65 @@ void(float xRequest) VR_MonstersTest_Run =
                    awake, dead, waiting, acted));
 };
 
+// 5: the hit probe: level shots (a gun's trace, precise hits: MOVE_HITMODEL) from the player's side at the nearest live
+// monster (from 72 units out of its box), every 8 units from below its box to 160 above it, through its middle: the heights (from its origin) that hit
+// it, as ranges (a boss drawn as two entities, the Armagon's legs and torso: both its own).
+void() VR_MonstersTest_HitProbe =
+{
+    entity p = find(world, classname, "player");
+    entity m = world;
+    float best = 3000;
+    for(entity e = findflags(world, flags, FL_MONSTER); e; e = findflags(e, flags, FL_MONSTER))
+    {
+        if(e.health > 0 && vlen(e.origin - p.origin) < best)
+        {
+            best = vlen(e.origin - p.origin);
+            m = e;
+        }
+    }
+    if(m == world)
+    {
+        bprint("hitprobe: no monster near\n");
+        return;
+    }
+    vector dir = m.origin - p.origin;
+    dir_z = 0;
+    dir = normalize(dir);
+    float from = 0, last = 0, open = FALSE, hits = 0;
+    for(float z = m.mins_z - 16; z <= m.maxs_z + 160; z = z + 8)
+    {
+        vector a = m.origin - dir * (m.maxs_x + 72) + '0 0 1' * z;
+        vector b = a + dir * (2 * m.maxs_x + 144);
+        traceline(a, b, MOVE_HITMODEL, p);
+        // (past anything else in the way: a map's invisible walls, another monster)
+        for(float k = 0; k < 4 && trace_ent != m && trace_ent != world && trace_fraction < 1; k++)
+        {
+            traceline(trace_endpos + dir, b, MOVE_HITMODEL, trace_ent);
+        }
+        if(trace_ent == m)
+        {
+            hits = hits + 1;
+            if(!open)
+            {
+                from = z;
+                open = TRUE;
+            }
+            last = z;
+        }
+        else if(open)
+        {
+            bprint(sprintf("hitprobe:   hit from %g to %g\n", from, last));
+            open = FALSE;
+        }
+    }
+    if(open)
+    {
+        bprint(sprintf("hitprobe:   hit from %g to %g\n", from, last));
+    }
+    bprint(sprintf("hitprobe: %s at %v (solid %g, %.0f away) box z %g..%g: %g hits (the heights above)\n", m.classname,
+        m.origin, m.solid, best, m.mins_z, m.maxs_z, hits));
+};
+
 void() VR_MonstersTest_Frame =
 {
     float request = cvar("vr_test_monsters");
@@ -82,5 +146,10 @@ void() VR_MonstersTest_Frame =
         return;
     }
     cvar_set("vr_test_monsters", "0");
+    if(request == 5)
+    {
+        VR_MonstersTest_HitProbe();
+        return;
+    }
     VR_MonstersTest_Run(request);
 };

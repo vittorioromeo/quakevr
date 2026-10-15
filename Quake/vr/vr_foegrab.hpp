@@ -65,11 +65,33 @@ void afterPoses();  // VR_ServerFrameEnd, after it
 // Server: the player's holds as stats (STAT_QVR_FOEGRAB*), for the drawn hands.
 void calcStats(edict_t* ent, int* statsi);
 
+// Server: whether a hand of `player` holds `m` now (vr_bodycontact.cpp: vr_foegrab_step_in).
+[[nodiscard]] bool holds(const edict_t* player, const edict_t* m);
+
 // Client: whether `hand` holds an enemy now.
 [[nodiscard]] bool holding(int hand);
 
 // Client: the drawn `hand`'s place (its controller's `pos`, turned `rot`) moved so that its palm is on the spot it holds,
 // eased on and off. Returns how far it is on it, 0 (the controller's) .. 1.
 float drawnHand(const hands::State& s, int hand, glm::vec3& pos, const glm::vec3& rot);
+
+// Client (a listen server's): the neck snap's diagnostic (vr_foegrab_necksnap_debug; Neck Snap > Show Diagnostic) over
+// the enemy both hands hold by the head, else the one a hand holds, else the humanoid nearest the hands: its head zone
+// (green with both hands in it), where each hand holds or would (green at its head or neck, orange at a shoulder, red
+// off it), the line between the palms, the twist's arc against Twist Angle and a panel of the hand line's numbers
+// against it; the last hold's outcome a few seconds after. `eye` the viewer's (the panel faces it).
+void neckDebugDraw(const glm::vec3& eye);
+
+// Client (a listen server's): the lift's and the judo throw's diagnostics (vr_foegrab_lift_debug, vr_foegrab_throw_debug;
+// Lift / Two-Hand Throw > Show Diagnostic) over the enemy both hands hold, else the one a hand holds, else the monster
+// nearest the hands. The lift: the hands' pull (an arrow from between them: green once at Lift Speed and within 45
+// degrees of straight up, the cone of both), the Lift Reach circle round its feet (green with you inside). The throw: the
+// turn's way from its top (an arrow, as long as the turn; the circle Turn to Throw). Each with a panel of its numbers
+// against their thresholds, what stops it now, its best and the last try's result. `eye` the viewer's.
+void grabDebugDraw(const glm::vec3& eye);
+
+// Server (its QC VM current): the middle of `m`'s head zone, the neck snap's (standing: on its model standing; its
+// ragdoll's head as it lies). False: none. The mock's `vr_mock_hand_to <hand> nearest <classname> head`.
+bool headZoneCentre(edict_t* m, glm::vec3& centre);
 
 } // namespace qvr::foegrab

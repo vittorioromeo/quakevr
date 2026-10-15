@@ -24,9 +24,13 @@ float vr_limb_endspurts; // the pieces' fountains' drops thrown (the tests)
 .float vr_limb_gibbed;   // when it was gibbed throwing its own limbs (VR_Limb_GibAll; ThrowGib's meat gibs not then: vr_gib_limbs 2)
 .float vr_limb_bserial;  // the blast its pellets below are of (vr_sgib_blastserial)
 .float vr_limb_bdmg[16]; // the blast's damage at each limb (by its joint)
+.float vr_limb_corpse_dmg[16]; // a corpse's damage worn into each piece, any weapon's (VR_Limb_CorpseWear: 0 the head, else the joint)
 .float vr_limb_btotal;   // the blast's damage on it in all
 .vector vr_limb_bat;     // the limb pellets' points summed
 .float vr_limb_bn;       // and how many
+.float vr_limb_wserial;  // a hitscan blast on a corpse: the blast its pellets below are of (vr_sgib_blastserial)
+.float vr_limb_wn[16];   // its pellets on each piece not yet worn in (0 the head, else the joint; VR_Limb_CorpseWear)
+.float vr_limb_wtotal;   // and on it in all
 
 float VR_LIMB_POP_SIZE = 1.0; // a popped limb's burst (a head's is VR_DECAP_POP_SIZE)
 
@@ -38,7 +42,7 @@ float(float xBone) VR_Limb_Bit =
 // A zombie or a mummy: a lost limb kills it for good (vr_limbs_zombies).
 float(entity e) VR_Limb_IsZombie =
 {
-    return e.classname == "monster_zombie" || e.classname == "monster_mummy";
+    return e.classname == "monster_zombie" || e.classname == "monster_mummy" || (e.vr_ad_mon & VR_ADM_ZOMBIE); // (AD support)
 };
 
 // Whether `e` may lose limbs: the option, a monster with a rig and limbs left (not a statue, not a gib).
@@ -492,6 +496,169 @@ float(entity c, float xHand, vector xAt) VR_Limb_CorpseBlow =
     return VR_Decap_Roll(c) && VR_Limb_Cut(c, self, vr_decap_slashvel, how, bone, FALSE);
 };
 
+// ----------------------------------------------------------------------------
+// Corpse pieces' own health (the author's rule, round 22): a hit by any weapon on a ragdolled corpse's head or a limb
+// wears down that piece only; when the damage worn into it reaches the monster's corpse health (vr_corpse_hp's start:
+// VR_Corpse_Health, after the hit's kind multiplier vr_corpse_dmg_<kind>) the piece pops off (a blade's or the
+// chainsaw's is cut off), whatever the weapon's pop chance. The pop roll (VR_Corpse_Damage's armed vr_decap_ent) still
+// comes first; a hit it popped wears nothing. Torso hits take the whole-body corpse health (enough gibs it). A hitscan
+// blast splits its damage by its pellets: each piece's share worn into it, the torso's share to the whole body.
+// Explosions (and their splash, burning, a stuck axe's bleeding) keep the whole-body path and their blast pops
+// (VR_Limb_BlastPops), as does every hit with Limb Gore/Corpses off, a rig without limbs or a body not ragdolled.
+
+// The piece of ragdolled corpse `targ` a hit at `xAt` wears: 0 its head, a limb's joint, -1 the torso.
+float(entity targ, vector xAt) VR_Limb_WearPiece =
+{
+    if(!targ.vr_headless && cvar_hget(cvarh_vr_decap) && cvar_hget(cvarh_vr_decap_corpses) && ragdollhead(targ, xAt, 0) > 0)
+    {
+        return 0;
+    }
+    float bone = VR_Limb_At(targ, xAt);
+    return (bone > 0 && bone < 16) ? bone : -1;
+};
+
+// A hitscan blast's pellet at `e` at `xAt` (VR_Decap_Pellet): counted on the piece it strikes, if `e` is a corpse.
+void(entity e, vector xAt) VR_Limb_WearPellet =
+{
+    if(!vr_sgib_blast || e.health > 0 || !isragdoll(e) || !VR_Limb_Allowed(e))
+    {
+        return;
+    }
+    if(e.vr_limb_wserial != vr_sgib_blastserial)
+    {
+        e.vr_limb_wserial = vr_sgib_blastserial;
+        for(float i = 0; i < 16; i++)
+        {
+            e.vr_limb_wn[i] = 0;
+        }
+        e.vr_limb_wtotal = 0;
+    }
+    e.vr_limb_wtotal = e.vr_limb_wtotal + 1;
+    float piece = VR_Limb_WearPiece(e, xAt);
+    if(piece >= 0)
+    {
+        e.vr_limb_wn[piece] = e.vr_limb_wn[piece] + 1;
+    }
+};
+
+// What a worn-through piece comes off as: a blade's or the chainsaw's cut, a shot's pop, else a blunt pop.
+float(float xKind) VR_Limb_WearHow =
+{
+    if(xKind == QVR_CDMG_BLADES) { return QVR_DECAP_SWING; }
+    if(xKind == QVR_CDMG_CHAINSAW) { return QVR_DECAP_SAW; }
+    if(xKind == QVR_CDMG_SHOTS) { return vr_decap_weapon == QVR_DECAP_SSG ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN; }
+    if(xKind == QVR_CDMG_LIGHTNING) { return QVR_DECAP_LIGHTNING; }
+    if(xKind == QVR_CDMG_NAILS) { return QVR_DECAP_LASER; } // (nails, lasers, AD's pellets: a shot's pop)
+    return QVR_DECAP_BLUNT;
+};
+
+// `xDamage` worn into piece `xPiece` (0 the head, else a joint) of `targ`: it comes off (`xHow`, flung `xVel`) when its
+// total reaches `xHp`. TRUE if it came off.
+float(entity targ, entity attacker, float xPiece, float xDamage, vector xVel, float xHow, float xHp, string xWhat) VR_Limb_WearInto =
+{
+    targ.vr_limb_corpse_dmg[xPiece] = targ.vr_limb_corpse_dmg[xPiece] + xDamage;
+    dprint(sprintf("corpse limb: %s joint %g %s damage %.1f / %.1f\n", targ.classname, xPiece, xWhat,
+        targ.vr_limb_corpse_dmg[xPiece], xHp));
+    if(targ.vr_limb_corpse_dmg[xPiece] < xHp)
+    {
+        return FALSE;
+    }
+    if(xPiece == 0)
+    {
+        return VR_Decap_Cut(targ, attacker, xVel, xHow);
+    }
+    return VR_Limb_Cut(targ, attacker, xVel, xHow, xPiece, FALSE);
+};
+
+// A hit of `damage` (its kind's multiplier in) and kind `kind` (QVR_CDMG_*) on corpse `targ` (VR_Corpse_Damage, after
+// its pop roll): its head's and limbs' shares worn into them. The damage left for the whole body returned.
+float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseWear =
+{
+    if(!VR_Limb_Allowed(targ) || !cvar_hget(cvarh_vr_limbs_corpses) || !isragdoll(targ) || damage <= 0 ||
+       kind == QVR_CDMG_EXPLOSIONS || kind == QVR_CDMG_FIRE || vr_hitkind == QVR_HITKIND_SPLASH ||
+       vr_hitkind == QVR_HITKIND_BLEED)
+    {
+        return damage;
+    }
+    string kindName = VR_Corpse_DamageKindName(kind);
+    float how = VR_Limb_WearHow(kind);
+    VR_Corpse_Parts(targ);
+    float hp = max(1, VR_Corpse_Health());
+    float i;
+
+    // A hitscan blast (ApplyMultiDamage): its damage split by its pellets on each piece; the torso's share left.
+    if(vr_hitpellets > 0 && targ.vr_limb_wserial == vr_sgib_blastserial && targ.vr_limb_wtotal > 0)
+    {
+        float total = targ.vr_limb_wtotal;
+        vector dir = normalize(vr_hitdir != '0 0 0' ? vr_hitdir : ((targ.absmin + targ.absmax) * 0.5 - vr_decap_src));
+        float left = damage;
+        for(i = 0; i < 16; i++)
+        {
+            float n = targ.vr_limb_wn[i];
+            targ.vr_limb_wn[i] = 0; // (worn in: a later hit of the same blast counts its own pellets)
+            if(n <= 0 || (i == 0 && targ.vr_headless))
+            {
+                continue;
+            }
+            float share = damage * n / total;
+            left = left - share;
+            VR_Limb_WearInto(targ, attacker, i, share, dir * VR_DECAP_SHOT_SPEED, how, hp, kindName);
+        }
+        targ.vr_limb_wtotal = 0;
+        if(left < damage)
+        {
+            dprint(sprintf("corpse limb: %s blast %.1f of %.1f worn into its pieces\n", targ.classname, damage - left, damage));
+        }
+        return max(0, left);
+    }
+
+    // One hit: where it struck (the lightning gun's bolt, a tagged blow or shot, a positional shot, the thing itself).
+    vector at;
+    if(vr_limb_wear_ent == targ && vr_limb_wear_time == time)
+    {
+        at = vr_limb_wear_at;
+    }
+    else if(vr_hitkind != QVR_HITKIND_NONE && vr_hitpos != '0 0 0')
+    {
+        at = vr_hitpos;
+    }
+    else if(vr_hitpart_target == targ && vr_hitpart_time == time && vr_hitpart_pos != '0 0 0')
+    {
+        at = vr_hitpart_pos;
+    }
+    else if(inflictor != attacker && inflictor != world && inflictor != targ)
+    {
+        at = inflictor.origin;
+    }
+    else
+    {
+        return damage; // (nowhere known: the whole body's)
+    }
+    float piece = VR_Limb_WearPiece(targ, at);
+    if(piece < 0)
+    {
+        dprint(sprintf("corpse limb: %s %s torso hit, whole-body damage\n", targ.classname, kindName));
+        return damage;
+    }
+    // Physical flung things go their own way, as VR_Limb_ThrownArm's; else along the hit (a shot's "blade" speed).
+    vector vel;
+    if(vr_hitkind == QVR_HITKIND_NONE && inflictor != attacker && inflictor != world)
+    {
+        vel = inflictor.velocity;
+    }
+    else
+    {
+        vector d = vr_hitdir;
+        if(d == '0 0 0')
+        {
+            d = (inflictor != attacker && inflictor != world) ? inflictor.velocity : at - (attacker.origin + attacker.view_ofs);
+        }
+        vel = normalize(d) * VR_DECAP_SHOT_SPEED;
+    }
+    VR_Limb_WearInto(targ, attacker, piece, damage, vel, how, hp, kindName);
+    return 0;
+};
+
 // The running chainsaw's bar in `e` at `xAt` on a limb (VR_Decap_Saw's second half): 2 a corpse's cut off, 1 a live one
 // armed, 0 neither.
 float(entity e, float xHand, vector xAt) VR_Limb_Saw =
@@ -886,6 +1053,7 @@ void(entity e, float xDamage, vector xAt, vector xDir) VR_Decap_Pellet =
 {
     VR_Decap_HeadPellet(e, xDamage, xAt, xDir);
     VR_Limb_Pellet(e, xDamage, xAt, xDir);
+    VR_Limb_WearPellet(e, xAt); // (a corpse's pieces' own health: VR_Limb_CorpseWear)
 };
 
 float(entity targ) VR_Decap_BlastArm =
@@ -908,19 +1076,19 @@ float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm =
 
 // An enforcer's laser bolt (an enemy's: Laser_Touch, any monster's at another; or your enforcer's rifle:
 // VR_RifleLaser_Touch) about to deal `xDamage` to `targ` for `attacker`, striking it at `xAt` going `xDir`: armed if
-// it strikes a living monster's head or a limb (VR_Decap_OnHead, VR_Limb_At: on its model as it is animated), the kill
-// popping it at vr_decap_pop_laser (times Head Chance or Limb Chance; a zombie: only a blow that knocks it down).
+// it strikes a monster's head or a limb (VR_Decap_OnHead, VR_Limb_At: on its model as animated or ragdolled), the kill
+// or corpse hit popping it at vr_decap_pop_laser (times Head Chance or Limb Chance; corpses obey their own toggles).
 float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage) VR_Decap_LaserArm =
 {
     float chance = min(1, max(0, cvar_hget(cvarh_vr_decap_pop_laser)));
-    if(chance <= 0 || targ.health <= 0 || !targ.takedamage || !(targ.flags & FL_MONSTER) || targ == attacker)
+    if(chance <= 0 || !targ.takedamage || !(targ.flags & FL_MONSTER) || targ == attacker)
     {
         return FALSE;
     }
     xDir = normalize(xDir);
     if(VR_Decap_Allowed(targ) && VR_Decap_OnHead(targ, xAt, xDir))
     {
-        if((targ.classname == "monster_zombie" && xDamage < VR_DECAP_ZOMBIE_DOWN) ||
+        if((VR_Decap_IsZombie(targ) && xDamage < VR_DECAP_ZOMBIE_DOWN) ||
            !VR_Decap_Arm(targ, attacker, xAt, xDir * VR_DECAP_SHOT_SPEED, QVR_DECAP_LASER))
         {
             return FALSE;

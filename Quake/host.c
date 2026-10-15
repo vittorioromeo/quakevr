@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "steam.h"
 #include <setjmp.h>
+#include "vr/vr_tracy.h"
 
 /*
 
@@ -355,6 +356,12 @@ void Host_ReportError (const char *error, ...)
 	q_vsnprintf (string, sizeof(string), error, argptr);
 	va_end (argptr);
 	Con_Printf ("Host_Error: %s\n",string);
+	{
+		// QVR: where it came from (the caller's stack, symbols from ironwail.pdb; vr_crash.cpp)
+		char stack[1024];
+		if (VR_DescribeCallers (stack, sizeof (stack), 1, 10))
+			Con_Printf ("  from %s\n", stack);
+	}
 
 	if (sv.active)
 		Host_ShutdownServer (false);
@@ -586,7 +593,10 @@ Writes key bindings and archived cvars to engine config file
 */
 void Host_WriteConfiguration (void)
 {
-	if (COM_CheckParm ("-noconfigwrite")) // QVR: a second copy of the game (the motion review's re-evaluation) leaves the config alone
+	// QVR: a second copy of the game (the motion review's re-evaluation) leaves the config alone. -evalcopy implies
+	// -noconfigwrite: the copy is started with -evalcopy, so it never writes a config of its own (the line naming the
+	// implication is printed once, COM_CheckParmImplied).
+	if (COM_CheckParmImplied ("-noconfigwrite", "-evalcopy", "the evaluation's copy of the game never writes the config"))
 		return;
 	if (config_not_loaded) // QVR: the saved config could not be run (Cmd_Exec_f): writing this game's defaults would lose it
 	{
@@ -1040,8 +1050,15 @@ Host_CheckAutosave
 static void Host_CheckAutosave (void)
 {
 	float health_change, speed, elapsed, score;
+	char autosavename[MAX_QPATH]; // QVR
 
 	if (!sv_autosave.value || sv_autosave_interval.value <= 0.f || svs.maxclients != 1 || sv_player->v.health <= 0.f || cl.intermission)
+		return;
+	if (!VR_AutosaveAllowed (sv.name)) // QVR: none on Quake VR's own maps (the hub, the tutorial...: vr_continue.cpp)
+		return;
+	// QVR: none in Setup's preparation (-prepare, vr_prepare.cpp): it loads the newer campaigns' start maps, and their
+	// level-start autosaves made Continue offer a game the player never played.
+	if (COM_PrepareRun ()) // (-preparerelight alone too)
 		return;
 
 	if (cls.signon == SIGNONS)
@@ -1074,6 +1091,20 @@ static void Host_CheckAutosave (void)
 	{
 		sv.autosave.cheat += host_frametime;
 		return;
+	}
+
+	// QVR: an autosave as the level starts (a map or a changelevel; a loaded game is not one: Host_Loadgame_f), the
+	// player in and a moment into it, whatever the score: vr_autosave_level_start, Continue's (vr_continue.cpp)
+	if (!sv.autosave.level_started && cls.signon == SIGNONS && qcvm->time >= 2.5)
+	{
+		sv.autosave.level_started = true;
+		if (Cvar_VariableValue ("vr_autosave_level_start"))
+		{
+			VR_AutosaveName (sv.name, autosavename, sizeof (autosavename));
+			sv.autosave.time = qcvm->time;
+			Cbuf_InsertText (va ("save \"%s\" 0\n", autosavename)); // (next, before any queued command)
+			return;
+		}
 	}
 
 	// Don't save if the player has been hurt recently
@@ -1120,7 +1151,8 @@ static void Host_CheckAutosave (void)
 
 	sv.autosave.time = qcvm->time;
 	sv.autosave.cheat = 0;
-	Cbuf_AddText (va ("save \"autosave/%s\" 0\n", sv.name));
+	VR_AutosaveName (sv.name, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>~<map> for the other campaigns, <package>~<map> for a map package
+	Cbuf_AddText (va ("save \"%s\" 0\n", autosavename));
 }
 
 /*
@@ -1416,7 +1448,10 @@ void _Host_Frame (double time)
 	VR_ProfileFrame (); // QVR: ends the last frame's profile, begins this one's
 
 	if (setjmp (host_abortserver) )
+	{
+		VR_TracyAbort();
 		return;			// something bad happened, or the server disconnected
+	}
 
 	time = VR_HostFrameTime (time); // QVR: a motion take playing back: its recorded frame times
 
@@ -1664,6 +1699,8 @@ void Host_Init (void)
 	Memory_InitCvars (); // QVR: vr_zone_threadcheck
 	COM_Init ();
 	COM_InitFilesystem ();
+	VR_SetCrashDir (com_gamedir); // QVR: crash reports in <game folder>/crash (quakevr/crash; vr_crash.cpp)
+	VR_DiagnosticsBegin (); // QVR: -diagnostics: everything in <game folder>/diagnostics/<date>_<time> (vr/vr_diagnostics.cpp)
 	VR_TimeMark ("filesystem (paks, game dirs)"); // QVR
 	Host_InitLocal ();
 	W_LoadWadFile (); //johnfitz -- filename is now hard-coded for honesty
@@ -1776,6 +1813,8 @@ void Host_Shutdown(void)
 		return;
 	}
 	isdown = true;
+	VR_GLStartupShutdown (host_parms->errstate != 0); // QVR: a quit or an error ends the GL start-up's log well (vr/vr_glsafe.cpp)
+	VR_DiagnosticsEnd (0); // QVR: diagnostics mode: the summaries, the logs copied, the folder shown (vr/vr_diagnostics.cpp)
 
 // keep Con_Printf from trying to update the screen
 	scr_disabled_for_loading = true;

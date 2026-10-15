@@ -220,12 +220,12 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
         Console.WriteLine("dry run: nothing downloaded or installed");
         return 0;
     }
-    // The wizard's Statement page: the console installs only with YES to all three, given as --accept-statement.
+    // The wizard's Statement page: the console installs only with YES to both claims, given as --accept-statement.
     if (!Flag("accept-statement"))
     {
         Console.Write(AiStatement.Format());
         Console.WriteLine();
-        Console.WriteLine("To install, pass --accept-statement: it answers YES to all three statements above.");
+        Console.WriteLine("To install, pass --accept-statement: it answers YES to both claims above.");
         return 3;
     }
     var probe = new WindowsSystemProbe();

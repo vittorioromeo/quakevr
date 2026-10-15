@@ -49,6 +49,9 @@ int				lightmap_width;
 int				lightmap_height;
 gltexture_t		*lux_texture;	// QVR: the light's directions (deluxemaps), laid out as lightmap_texture; NULL without
 static unsigned	*lux_data;		// QVR
+static qvr_brush_reserve_t	brush_reserve;	// QVR: the runtime brushes' slots (vr/vr_brushes.cpp), made at each map's load
+static short	*brush_reserve_lmblock;	// QVR: ... each slot's lightmap rectangle: its block, x and y in it (3 a slot)
+static int		*brush_reserve_lmxy;	// QVR: ... and its texel in lightmap_texture (2 a slot: brush_reserve.lmxy)
 
 
 /*
@@ -469,6 +472,23 @@ void GL_BuildLightmaps (void)
 
 	// allocate lightmap blocks
 	GL_PackLitSurfaces ();
+	// QVR: the runtime brushes' lightmap rectangles (vr/vr_brushes.cpp), one a slot, after the map's own
+	memset (&brush_reserve, 0, sizeof (brush_reserve));
+	VR_HeapFree (brush_reserve_lmblock);
+	VR_HeapFree (brush_reserve_lmxy);
+	brush_reserve_lmblock = NULL;
+	brush_reserve_lmxy = NULL;
+	brush_reserve.slots = R_RuntimeBrushSlotsFor (VR_RuntimeBrushSlots ());
+	if (brush_reserve.slots > 0)
+	{
+		brush_reserve_lmblock = (short *) VR_HeapCalloc (brush_reserve.slots * 3, sizeof (short));
+		brush_reserve_lmxy = (int *) VR_HeapCalloc (brush_reserve.slots * 2, sizeof (int));
+		if (!brush_reserve_lmblock || !brush_reserve_lmxy)
+			Sys_Error ("GL_BuildLightmaps: out of memory for %d runtime brush slots", brush_reserve.slots);
+		for (i = 0; i < brush_reserve.slots; i++)
+			brush_reserve_lmblock[i * 3] = (short) AllocBlock (QVR_BRUSH_SLOT_LMW, QVR_BRUSH_SLOT_LMH,
+				&brush_reserve_lmblock[i * 3 + 1], &brush_reserve_lmblock[i * 3 + 2]);
+	}
 
 	// determine combined texture size and allocate memory for it
 	xblocks = (int) ceil (sqrt (lightmap_count));
@@ -516,6 +536,24 @@ void GL_BuildLightmaps (void)
 	for (i = 0, j = VEC_SIZE (lit_surfs); i < j; i++)
 		GL_FillSurfaceLightmap (lit_surfs[i]);
 
+	// QVR: the runtime brushes' rectangles, grey until a brush's light is written there
+	if (brush_reserve.slots > 0)
+	{
+		int s, x, y;
+		brush_reserve.lmwidth = lightmap_width;
+		brush_reserve.lmheight = lightmap_height;
+		brush_reserve.lmxy = brush_reserve_lmxy;
+		for (s = 0; s < brush_reserve.slots; s++)
+		{
+			const lightmap_t *slm = &lightmaps[brush_reserve_lmblock[s * 3]];
+			brush_reserve_lmxy[s * 2] = slm->xofs + brush_reserve_lmblock[s * 3 + 1];
+			brush_reserve_lmxy[s * 2 + 1] = slm->yofs + brush_reserve_lmblock[s * 3 + 2];
+			for (y = 0; y < QVR_BRUSH_SLOT_LMH; y++)
+				for (x = 0; x < QVR_BRUSH_SLOT_LMW; x++)
+					lightmap_data[(brush_reserve_lmxy[s * 2 + 1] + y) * lightmap_width + brush_reserve_lmxy[s * 2] + x] = 0xff808080u;
+		}
+	}
+
 	// QVR: the light's directions (deluxemaps: the world's .lux), in a texture laid out as the lightmap's
 	if (cl.worldmodel->luxdata)
 	{
@@ -524,6 +562,14 @@ void GL_BuildLightmaps (void)
 			Sys_Error ("GL_BuildLightmaps: out of memory on %" SDL_PRIu64 " bytes", (uint64_t)(lmsize * sizeof (*lux_data)));
 		for (i = 0, j = VEC_SIZE (lit_surfs); i < j; i++)
 			VR_FillSurfaceLux (lit_surfs[i], lux_data, lightmap_width);
+		if (brush_reserve.slots > 0) // QVR: the runtime brushes' rectangles: the light straight on, until theirs is written
+		{
+			int s, x, y;
+			for (s = 0; s < brush_reserve.slots; s++)
+				for (y = 0; y < QVR_BRUSH_SLOT_LMH; y++)
+					for (x = 0; x < QVR_BRUSH_SLOT_LMW; x++)
+						lux_data[(brush_reserve_lmxy[s * 2 + 1] + y) * lightmap_width + brush_reserve_lmxy[s * 2] + x] = 0xffff8080u;
+		}
 		lux_texture = TexMgr_LoadImage (cl.worldmodel, "luxmap", lightmap_width, lightmap_height,
 			SRC_LIGHTMAP, (byte *)lux_data, "", (src_offset_t)lux_data,
 			TEXPREF_ALPHA | TEXPREF_LINEAR | TEXPREF_NOPICMIP);
@@ -615,13 +661,17 @@ void GL_BuildBModelVertexBuffer (void)
 			numverts += m->surfaces[i].numedges;
 		}
 	}
-	
+	brush_reserve.firstvert = numverts; // QVR: the runtime brushes' slots after the map's (zero until written)
+	numverts += brush_reserve.slots * QVR_BRUSH_SLOT_VERTS;
+
 // build vertex array
 	varray_bytes = sizeof (glvert_t) * numverts;
 	varray = (glvert_t *) VR_HeapMalloc (varray_bytes);
 	if (!varray)
 		Sys_Error ("GL_BuildBModelVertexBuffer: out of memory on %u bytes", varray_bytes);
+	memset (varray + brush_reserve.firstvert, 0, sizeof (glvert_t) * (numverts - brush_reserve.firstvert)); // QVR
 	varray_index = 0;
+	VR_PermDecalsLayout (); // QVR: the world's faces laid out for the permanent decals (vr/vr_permdecals.cpp)
 	
 	for (j=1 ; j<MAX_MODELS ; j++)
 	{
@@ -698,6 +748,7 @@ void GL_BuildBModelVertexBuffer (void)
 				vert->swellpin = 0.f;
 				VectorAdd (fa->mins, fa->maxs, vert->centre);
 				VectorScale (vert->centre, 0.5f, vert->centre);
+				VR_PermDecalsVertex (m, i, vec, vert->grime); // QVR: its texel in the permanent decals' layer
 				vert->st[0] = s;
 				vert->st[1] = t;
 
@@ -784,7 +835,7 @@ void GL_BuildBModelMarkBuffers (void)
 	for (j = 1 ; j < MAX_MODELS; j++)
 	{
 		qmodel_t *m = cl.model_precache[j];
-		if (!m || m->type != mod_brush)
+		if (!m || m->type != mod_brush || VR_IsRuntimeBrushModel (m)) // QVR: a runtime brush is in its slot
 			continue;
 		m->firstcmd = numtex;
 		numtex += m->texofs[TEXTYPE_COUNT];
@@ -792,6 +843,11 @@ void GL_BuildBModelMarkBuffers (void)
 		for (i = 0; i < m->nummodelsurfaces; i++)
 			numtris += q_max (m->surfaces[i + m->firstmodelsurface].numedges, 2) - 2;
 	}
+	// QVR: the runtime brushes' slots after the map's commands and indices (vr/vr_brushes.cpp)
+	brush_reserve.firstcmd = numtex;
+	brush_reserve.firstindex = numtris * 3;
+	numtex += brush_reserve.slots * QVR_BRUSH_SLOT_CMDS;
+	numtris += brush_reserve.slots * QVR_BRUSH_SLOT_INDEXES / 3;
 
 	// count marksurfaces used by worldmodel leafs
 	for (i = 0; i < cl.worldmodel->numleafs; i++)
@@ -860,7 +916,7 @@ void GL_BuildBModelMarkBuffers (void)
 	{
 		qmodel_t *m = cl.model_precache[j];
 		msurface_t *s;
-		if (!m || m->type != mod_brush)
+		if (!m || m->type != mod_brush || VR_IsRuntimeBrushModel (m)) // QVR
 			continue;
 
 		memset (texidx, 0, sizeof(texidx[0]) * m->numtextures);
@@ -885,7 +941,7 @@ void GL_BuildBModelMarkBuffers (void)
 	{
 		qmodel_t *m = cl.model_precache[j];
 		msurface_t *s;
-		if (!m || m->type != mod_brush)
+		if (!m || m->type != mod_brush || VR_IsRuntimeBrushModel (m)) // QVR
 			continue;
 
 		memset (texidx, 0, sizeof(texidx[0]) * m->numtextures);
@@ -932,4 +988,75 @@ void GL_BuildBModelMarkBuffers (void)
 	VR_HeapFree (mark);
 	VR_HeapFree (idx);
 	VR_HeapFree (cmds);
+}
+
+/*
+===============
+R_RuntimeBrushReserve, R_RuntimeBrushUpload, R_RuntimeBrushLightmap -- QVR
+
+The runtime brushes' slots (vr/vr_brushes.cpp; vr_api_render.h): written when a brush is made, changed or removed.
+===============
+*/
+int R_RuntimeBrushSlotsFor (int wanted)
+{
+	return q_max (0, q_min (wanted, QVR_BRUSH_MAX_SLOTS));
+}
+
+const qvr_brush_reserve_t *R_RuntimeBrushReserve (void)
+{
+	return &brush_reserve;
+}
+
+void R_RuntimeBrushUpload (int slot, const void *verts, int numverts, const unsigned *indexes, int numindexes,
+	const void *cmds, int numcmds)
+{
+	bmodel_draw_indirect_t	all[QVR_BRUSH_SLOT_CMDS];
+
+	if (slot < 0 || slot >= brush_reserve.slots || !gl_bmodel_vbo || !gl_bmodel_ibo || !gl_bmodel_indirect_buffer)
+		return;
+	numverts = q_min (numverts, QVR_BRUSH_SLOT_VERTS);
+	numindexes = q_min (numindexes, QVR_BRUSH_SLOT_INDEXES);
+	numcmds = q_min (numcmds, QVR_BRUSH_SLOT_CMDS);
+	if (numverts > 0)
+	{
+		GL_BindBuffer (GL_ARRAY_BUFFER, gl_bmodel_vbo);
+		GL_BufferSubDataFunc (GL_ARRAY_BUFFER, (GLintptr) ((brush_reserve.firstvert + slot * QVR_BRUSH_SLOT_VERTS) * sizeof (glvert_t)),
+			numverts * sizeof (glvert_t), verts);
+	}
+	if (numindexes > 0)
+	{
+		GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, gl_bmodel_ibo);
+		GL_BufferSubDataFunc (GL_ELEMENT_ARRAY_BUFFER, (GLintptr) ((brush_reserve.firstindex + slot * QVR_BRUSH_SLOT_INDEXES) * sizeof (GLuint)),
+			numindexes * sizeof (GLuint), indexes);
+	}
+	memset (all, 0, sizeof (all));
+	if (numcmds > 0)
+		memcpy (all, cmds, numcmds * sizeof (all[0]));
+	GL_BindBuffer (GL_SHADER_STORAGE_BUFFER, gl_bmodel_indirect_buffer);
+	GL_BufferSubDataFunc (GL_SHADER_STORAGE_BUFFER, (GLintptr) ((brush_reserve.firstcmd + slot * QVR_BRUSH_SLOT_CMDS) * sizeof (all[0])),
+		sizeof (all), all);
+}
+
+void R_RuntimeBrushLightmap (int slot, const unsigned *texels, const unsigned *lux)
+{
+	int x, y, r;
+
+	if (slot < 0 || slot >= brush_reserve.slots || !lightmap_texture || !lightmap_data || !brush_reserve_lmxy || !texels)
+		return;
+	x = brush_reserve_lmxy[slot * 2];
+	y = brush_reserve_lmxy[slot * 2 + 1];
+	for (r = 0; r < QVR_BRUSH_SLOT_LMH; r++)
+		memcpy (lightmap_data + (y + r) * lightmap_width + x, texels + r * QVR_BRUSH_SLOT_LMW, QVR_BRUSH_SLOT_LMW * sizeof (unsigned));
+	// (GL_Bind skips a texture already bound there, unit and all: the null texture first makes it select unit 0)
+	GL_Bind (GL_TEXTURE0, NULL);
+	GL_Bind (GL_TEXTURE0, lightmap_texture);
+	glTexSubImage2D (GL_TEXTURE_2D, 0, x, y, QVR_BRUSH_SLOT_LMW, QVR_BRUSH_SLOT_LMH, GL_RGBA, GL_UNSIGNED_BYTE, texels);
+	if (lux && lux_texture && lux_data)
+	{
+		for (r = 0; r < QVR_BRUSH_SLOT_LMH; r++)
+			memcpy (lux_data + (y + r) * lightmap_width + x, lux + r * QVR_BRUSH_SLOT_LMW, QVR_BRUSH_SLOT_LMW * sizeof (unsigned));
+		GL_Bind (GL_TEXTURE0, NULL);
+		GL_Bind (GL_TEXTURE0, lux_texture);
+		glTexSubImage2D (GL_TEXTURE_2D, 0, x, y, QVR_BRUSH_SLOT_LMW, QVR_BRUSH_SLOT_LMH, GL_RGBA, GL_UNSIGNED_BYTE, lux);
+	}
 }

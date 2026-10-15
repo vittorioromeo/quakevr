@@ -831,6 +831,24 @@ b3ShapeExtent b3ComputeShapeExtent( const b3Shape* shape, b3Vec3 localCenter )
 	return extent;
 }
 
+float b3ComputeShapeMinExtent( const b3Shape* shape, b3Vec3 localCenter )
+{
+	switch ( shape->type )
+	{
+		case b3_capsuleShape:
+			return shape->capsule.radius;
+
+		case b3_sphereShape:
+			return shape->sphere.radius;
+
+		case b3_hullShape:
+			return shape->hull->innerRadius;
+
+		default:
+			return b3ComputeShapeExtent( shape, localCenter ).minExtent;
+	}
+}
+
 b3CastOutput b3RayCastShape( const b3Shape* shape, b3Transform transform, const b3RayCastInput* input )
 {
 	b3RayCastInput localInput = *input;
@@ -1549,6 +1567,14 @@ const b3HeightFieldData* b3Shape_GetHeightField( b3ShapeId shapeId )
 	return shape->heightField;
 }
 
+const b3CompoundData* b3Shape_GetCompound( b3ShapeId shapeId )
+{
+	b3World* world = b3GetWorld( shapeId.world0 );
+	b3Shape* shape = b3GetShape( world, shapeId );
+	B3_ASSERT( shape->type == b3_compoundShape );
+	return shape->compound;
+}
+
 void b3Shape_SetSphere( b3ShapeId shapeId, const b3Sphere* sphere )
 {
 	b3World* world = b3GetUnlockedWorld( shapeId.world0 );
@@ -2079,8 +2105,6 @@ typedef struct b3MeshImpactContext
 	b3Vec3 meshLocalCentroidB1, meshLocalCentroidB2;
 	float fallbackRadius;
 	bool isSensor;
-
-	int visitCount;
 } b3MeshImpactContext;
 
 static bool b3MeshTimeOfImpactFcn( b3Vec3 a, b3Vec3 b, b3Vec3 c, int triangleIndex, void* context )
@@ -2088,8 +2112,6 @@ static bool b3MeshTimeOfImpactFcn( b3Vec3 a, b3Vec3 b, b3Vec3 c, int triangleInd
 	B3_UNUSED( triangleIndex );
 
 	b3MeshImpactContext* toiContext = context;
-
-	toiContext->visitCount += 1;
 
 	// Early out for parallel movement
 	b3Vec3 c1 = toiContext->meshLocalCentroidB1;
@@ -2270,8 +2292,8 @@ b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* swee
 		b3Vec3 localCentroidB = b3GetShapeCentroid( shapeB );
 		context.localCentroidB = localCentroidB;
 
-		b3ShapeExtent extents = b3ComputeShapeExtent( shapeB, context.localCentroidB );
-		context.fallbackRadius = b3MaxFloat( 0.75f * extents.minExtent, B3_SPECULATIVE_DISTANCE );
+		float minExtent = b3ComputeShapeMinExtent( shapeB, context.localCentroidB );
+		context.fallbackRadius = b3MaxFloat( 0.75f * minExtent, B3_SPECULATIVE_DISTANCE );
 
 		// Swept bounds of shapeB
 		b3AABB bounds = b3ComputeSweptShapeAABB( shapeB, sweepB, maxFraction );
@@ -2289,8 +2311,6 @@ b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* swee
 	{
 		// todo implement b3MeshTimeOfImpact and b3HeightFieldTimeOfImpact
 		// Note: assuming mesh is static
-
-		uint64_t ticks = b3GetTicks();
 
 		b3MeshImpactContext context = { 0 };
 		context.toiInput.sweepA = *sweepA;
@@ -2322,8 +2342,8 @@ b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* swee
 		context.meshLocalCentroidB1 = b3InvTransformPoint( xfA, b3TransformPoint( xfB1, localCentroidB ) );
 		context.meshLocalCentroidB2 = b3InvTransformPoint( xfA, b3TransformPoint( xfB2, localCentroidB ) );
 
-		b3ShapeExtent extents = b3ComputeShapeExtent( shapeB, context.localCentroidB );
-		context.fallbackRadius = b3MaxFloat( 0.5f * extents.minExtent, B3_LINEAR_SLOP );
+		float minExtent = b3ComputeShapeMinExtent( shapeB, context.localCentroidB );
+		context.fallbackRadius = b3MaxFloat( 0.5f * minExtent, B3_LINEAR_SLOP );
 
 		// Swept bounds of shapeB
 		// todo pass in xfA to get local bounds directly
@@ -2339,12 +2359,6 @@ b3TOIOutput b3ShapeTimeOfImpact( b3Shape* shapeA, b3Shape* shapeB, b3Sweep* swee
 		else if ( typeA == b3_heightShape )
 		{
 			b3QueryHeightField( shapeA->heightField, localBounds, b3MeshTimeOfImpactFcn, &context );
-		}
-
-		float ms = b3GetMilliseconds( ticks );
-		if ( ms > 1000.0f * b3GetStallThreshold() )
-		{
-			b3Log( "CCD stall: visited %d triangles", context.visitCount );
 		}
 
 		return context.toiOutput;

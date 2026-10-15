@@ -317,6 +317,8 @@ extern	int		safemode;
  */
 
 int COM_CheckParm (const char *parm);
+qboolean COM_CheckParmImplied (const char *flag, const char *impliedBy, const char *why); // QVR: a flag another flag implies (-evalcopy implies -noconfigwrite, -noautoexec; -preparerelight implies -prepare), said once in the console
+qboolean COM_PrepareRun (void); // QVR: the installer's preparation run: -prepare, or -preparerelight (which implies it)
 
 void COM_Init (void);
 void COM_InitArgv (int argc, char **argv);
@@ -401,6 +403,7 @@ typedef struct searchpath_s
 } searchpath_t;
 
 extern searchpath_t *com_searchpaths;
+qboolean COM_SamePath (const char *a, const char *b); // QVR: the same folder (case, separators)
 extern searchpath_t *com_base_searchpaths;
 
 extern THREAD_LOCAL qfileofs_t com_filesize;

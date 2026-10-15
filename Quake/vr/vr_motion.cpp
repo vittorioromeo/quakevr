@@ -96,6 +96,29 @@ const za::Vector<Category> categoryList = {
             {"body", "Body Slash"}, {"shoulder", "Shoulder Slash"}}},
     // Slaps (QC vr_melee.qc VR_Melee_Slaps; ROUND21.md, "Slaps"): an open hand swung across.
     {{"slap", "Expected Slap"}, {any, {"forehand", "Forehand"}, {"backhand", "Backhand"}}},
+    // Neck snaps (ROUND22.md, "Neck snap takes"): both hands holding the training dummy's head, neck or shoulders and
+    // twisting; the take should (should not) snap its neck (vr_foegrab.cpp neckSnap: the "necksnap" event). eval.sh
+    // replays them at the neck snap settings as set (the Hand Line).
+    {{"neck_snap", "Neck Snap Expected"},
+        {any, {"head", "At the Head"}, {"neck", "At the Neck"}, {"push_pull", "Push-Pull"}, {"turn", "Turn"},
+            {"tilt", "Tilt"}}},
+    {{"no_neck_snap", "Neck Snap Not Expected"},
+        {any, {"shoulders", "At the Shoulders"}, {"slow", "Too Slow"}, {"small", "Too Small"}, {"pull", "Pull"},
+            {"lift", "Lift"}, {"adjusting", "Adjusting the Grip"}}},
+    // Lifts and judo throws (ROUND22.md, "Lift and judo throw takes"): both hands on the training dummy pulling it up
+    // (vr_foegrab_lift: the "lift" event) or turning it down (the two-hand throw: the "judothrow" event).
+    {{"lift", "Lift Expected"},
+        {any, {"straight", "Straight Up"}, {"fast", "Fast"}, {"angled", "Angled"}, {"close", "Close to You"},
+            {"far", "Far from You"}}},
+    {{"no_lift", "Lift Not Expected"},
+        {any, {"slow", "Too Slow"}, {"sideways", "Sideways"}, {"too_far", "Too Far from You"},
+            {"one_hand", "One Hand"}, {"adjusting", "Adjusting the Grip"}, {"throw", "A Throw"}}},
+    {{"judo_throw", "Judo Throw Expected"},
+        {any, {"left", "To the Left"}, {"right", "To the Right"}, {"towards", "Towards You"}, {"away", "Away from You"},
+            {"fast", "Fast"}, {"hip", "Hip Throw"}}},
+    {{"no_judo_throw", "Judo Throw Not Expected"},
+        {any, {"slow", "Too Slow"}, {"small", "Too Small a Turn"}, {"shove", "A Shove"}, {"lift", "A Lift"},
+            {"one_hand", "One Hand"}, {"adjusting", "Adjusting the Grip"}}},
 };
 } // namespace
 
@@ -109,7 +132,7 @@ za::Vector<int> categoryOrder()
     // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
     static constexpr const char* order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
         "hilt_pommel", "punch", "slap", "palm_shove_1h", "palm_shove_2h", "gun_strike", "decapitation", "no_decapitation",
-        "other"};
+        "neck_snap", "no_neck_snap", "lift", "no_lift", "judo_throw", "no_judo_throw", "other"};
     const auto& list = categories();
     za::Vector<int> out;
     for(const char* name : order)
@@ -645,7 +668,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 {
     static constexpr const char* prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
-        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult"};
+        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult", "vr_foegrab_necksnap", "vr_foegrab_lift", "vr_foegrab_throw"};
     za::String out;
     for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
     {
@@ -697,7 +720,9 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         {
             if(const cvar_t* var = weapons::cvar(slot, static_cast<weapons::Key>(key)))
             {
-                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + var->string;
+                za::String value = var->string;
+                za::replace(value.begin(), value.end(), ' ', '_'); // an anchor's numbers (playback reads them back)
+                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + value;
             }
         }
     }
@@ -705,6 +730,12 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 }
 
 } // namespace
+
+// The header's "weapon settings" line as it would be written now (vr_motion_play.cpp's vr_motion_header_check).
+za::String weaponSettingsLine()
+{
+    return weaponSettings();
+}
 
 za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
 {
@@ -788,9 +819,9 @@ za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
     // them: a grunt of a grunt's health).
     if(first && first->sv && first->sv->monster && first->sv->monClass == "vr_dummy")
     {
-        line("dummy", va("vr_dummy_type %s vr_dummy_health %s vr_dummy_gore %s vr_dummy_gib %s vr_dummy_regen %s",
+        line("dummy", va("vr_dummy_type %s vr_dummy_health %s vr_dummy_gore %s vr_dummy_gib %s vr_dummy_regen %s vr_dummy_anchored %s",
                           vr_dummy_type.string, vr_dummy_health.string, vr_dummy_gore.string, vr_dummy_gib.string,
-                          vr_dummy_regen.string));
+                          vr_dummy_regen.string, vr_dummy_anchored.string));
     }
     line("melee settings", meleeSettings());
     line("settings", allSettings());
@@ -894,7 +925,12 @@ enum class Rec
 
 Rec rec = Rec::Off;
 void finishTake();
-za::Vector<za::Pair<TakeInfo, za::Vector<Row>>> unsaved; // takes that could not be written
+struct UnsavedTake
+{
+    TakeInfo info;
+    za::Vector<Row> rows;
+};
+za::Vector<UnsavedTake> unsaved; // takes that could not be written
 // The buttons the recorder can take (vr_motion_button's), an index into taken's.
 constexpr bool HandInput::*recButtons[] = {
     &HandInput::trigger, &HandInput::grip, &HandInput::primary, &HandInput::secondary, &HandInput::stickClick};
@@ -1304,12 +1340,12 @@ void saveUnsaved_f()
     }
     for(auto it = unsaved.begin(); it != unsaved.end();)
     {
-        takeLabel = it->first.label;
-        takeStamp = it->first.date; // YYYY-MM-DD HH:MM:SS, as a file name's
+        takeLabel = it->info.label;
+        takeStamp = it->info.date; // YYYY-MM-DD HH:MM:SS, as a file name's
         za::replace(takeStamp.begin(), takeStamp.end(), ' ', '_');
         za::replace(takeStamp.begin(), takeStamp.end(), ':', '-');
         const za::String path = takePath(motionsDir());
-        if(writeTake(path, it->first, it->second))
+        if(writeTake(path, it->info, it->rows))
         {
             Con_Printf("Motion recorder: saved %s\n", path.cStr());
             it = unsaved.erase(it);

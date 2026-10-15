@@ -16,7 +16,8 @@
 # The game folder is an allowlist: the files git tracks under quakevr\ (less the development
 # data in $devOnly) plus the build outputs in $generated. Nothing untracked ever ships: custom
 # maps, mod folders, saves, configs, screenshots, notes, caches and test dumps stay out however
-# they got into the folder.
+# they got into the folder. Tracked binaries ship the same way: quakevr\xr_layers is Khronos' OpenXR core validation
+# layer (loaded in diagnostics mode only; its LICENSE.txt and NOTICE.txt beside it).
 
 param(
     [switch]$Build,
@@ -86,7 +87,7 @@ $modified = & git -C $root --no-optional-locks status --porcelain --untracked-fi
 if ($modified) { Write-Warning "tracked game files differ from the commit; their working-tree content ships:`n$($modified -join "`n")" }
 
 # Engine: the build's executable, its DLLs and ironwail.pak, and the exe's full .pdb: a player's crash report
-# (qvr_crash.txt) names the functions on the stack only with it beside the exe, and qvr_crash.dmp opens in a
+# (quakevr\crash\<date>_<time>.txt) names the functions on the stack only with it beside the exe, and its .dmp opens in a
 # debugger with it. The build names itself (VR_BuildVersion: the console, the VR Settings page, the report).
 $engineFiles = @(Get-ChildItem $bin -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in ".exe", ".dll", ".pak" -or $_.Name -eq "ironwail.pdb" })
 $toolFiles = @("relight_maps.py", "vis_maps.py", "quakepak.py", "quakeimage.py", "relight_probe.py")
@@ -150,13 +151,16 @@ Set-Content -Encoding ascii (Join-Path $dist "QuakeVR.bat") "@echo off`r`nstart 
 Set-Content -Encoding ascii (Join-Path $dist "README-QuakeVR.txt") @"
 Quake VR (Ironwail + OpenXR)
 
+Installed with QuakeVR-Setup.exe? Start Quake VR from the shortcut it made (Start menu or desktop):
+it tells the game where Quake is. The steps below are for the zip.
+
 1. Copy everything here into your Quake folder (the one containing id1). Scourge of Armagon
    (hipnotic) and Dissolution of Eternity (rogue) are used automatically if installed.
 2. Start your OpenXR runtime (SteamVR, Oculus, Virtual Desktop...) and put the headset on.
 3. Run QuakeVR.bat.
 
-If the game crashes, it writes qvr_crash.txt and qvr_crash.dmp in the folder it was started
-from: please attach both to the bug report, with the build named at the bottom of VR Settings
+If the game crashes, it writes a crash report in quakevr\crash (a .txt and a .dmp; its message
+names them): please attach both to the bug report, with the build named at the bottom of VR Settings
 (ironwail.pdb, beside the exe, is what lets the report name the functions; keep it there).
 
 Options > VR Settings has the comfort, body, weapon and display settings. The controller

@@ -35,13 +35,38 @@ struct ViewEntity
 // Null if `e` is not a VR view entity.
 [[nodiscard]] const ViewEntity* find(const entity_t* e);
 
-// World position of an anchor vertex of `ve`'s model, with `extra` offsets applied in the
-// entity's (mirrored) space before the model's own scaling.
-[[nodiscard]] glm::vec3 anchorPosition(const ViewEntity& ve, int anchorIndex, const glm::vec3& extra);
+// The alias shader's skin tint of `e` (vraliasinstance_t's skintint, skintintrange) with bare forearms (vr_body_bracers
+// 0): your body (and its copy in a mirror), its forearms' skin turning to the hand's colour towards the wrist; a jointed
+// hand (w -1), its end inside the arm folded onto the wrist's line. False for any other entity (none).
+[[nodiscard]] bool skinTint(const entity_t* e, float tint[4], float range[4]);
+// Skin-only tone: kind 1 the jointed hand, 2 the body, zero other entities.
+[[nodiscard]] int skinTone(const entity_t* e, float tone[4]);
+// A power-up's glow on `e` (Quad's blue, the pentagram's red, the biosuit's green; vr_view.cpp powerupGlow): on your
+// hands and body (and their copies in a mirror) the alias shader's code, -2 - 2 x its colour (r + 16g + 256b, 16 levels
+// a channel) - its strength (0..1); else 0.
+[[nodiscard]] float powerupGlow(const entity_t* e);
 
-// The same for any alias entity (a weapon lying in the world), drawn mirrored or not.
-[[nodiscard]] glm::vec3 entityAnchorPosition(
-    const entity_t& e, bool mirrored, float zeroBlend, int anchorIndex, const glm::vec3& extra);
+// With bare forearms (vr_body_bracers 0) the jointed hands are drawn in your body's light, so that the skin is lit alike
+// on both sides of the wrist: bareLight (r_alias.c's light colour, R_SetupAliasLighting) and bareShade (the instance's
+// light direction and the light round it, vraliasinstance_t) keep the body's and give it to the hands.
+void bareLight(const entity_t* e, float lightcolor[3]);
+void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
+
+// The view entity a copy in the body's mirror image (vr_bodyclone.cpp) is of; null if `e` is not one. (find() gives the
+// copy's own ViewEntity: its place, turn and mirroring the image's.)
+[[nodiscard]] const entity_t* cloneSource(const entity_t* e);
+
+// World position of an anchor of `ve`'s model (its text: vr_anchor.hpp), with `extra` offsets applied in the
+// entity's (mirrored) space before the model's own scaling.
+[[nodiscard]] glm::vec3 anchorPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra);
+
+// The same for any alias entity (a weapon lying in the world), drawn mirrored or not (a view entity: as above).
+[[nodiscard]] glm::vec3 anchorPosition(
+    const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra);
+
+// World position of `ve`'s model's vertex `vertex` (its file's order) as drawn: not an attachment (the melee HUD's embers
+// off a random vertex).
+[[nodiscard]] glm::vec3 vertexPosition(const ViewEntity& ve, int vertex);
 
 // Immersive reloading: the reference point of the round `hand` holds (a magazine's top, moved by its
 // vr_reload_mag_<kind>_x/y/z, and its radius in `radius`; a shell's middle, radius -1), as drawn. False: it holds none.
@@ -133,7 +158,14 @@ struct WeaponFrame
 // up to 3), and cell `index`'s copper contact on its top (world) and its up (the cell cords, vr_cellcord.cpp). False: no
 // pouch drawn.
 [[nodiscard]] int ammoPouchCells();
+// The leather bag's centre, using the pouch's rendered pose (turn, crouch and size included).
+[[nodiscard]] bool ammoPouchCentre(glm::vec3& at);
 [[nodiscard]] bool ammoPouchCell(int index, glm::vec3& at, glm::vec3& up);
+// Where the rounds stand in the ammo pouch as placed last frame (drawn or not: vr_ammo_pouch_show 0 still places it), a
+// box (its middle, then its half-axes: out of the body, to the left, up along the rounds; hands::State::magBox's form):
+// from the pouch's rim up to the rounds' tops, across its width (pouch reloading: QC vr_reload.qc VR_Reload_PouchFrame).
+// False: no pouch (not immersive reloading, dead).
+[[nodiscard]] bool ammoPouchRounds(glm::vec3 (&box)[4]);
 [[nodiscard]] int handOf(const entity_t* e, bool& weapon);
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).
@@ -249,6 +281,7 @@ struct DrawnWeapon
 
 // vr_hotspots_check: the migrated hotspots against the old two-handed grips, every slot, either hand.
 void hotspotsCheck_f();
+void anchorWhere_f(); // vr_anchor_where
 
 // vr_weapon_hotspot_here <1..4> [<type>] [main|off]: hotspot n of the weapon in the main hand (or the named one) put
 // where the other hand is now, as a grip (1) or the type given (3: a cup) -- the Weapon Offsets page's "Put It Where the
@@ -299,7 +332,7 @@ void prepareModels();
 void resetCaches();
 
 // vr_model_reload [model ...]: models edited in Blender (docs/vr-port/MODELS_IN_BLENDER.md) read again from their files,
-// and what the engine worked out from them forgotten (the anchors' strip order, the grasp's shapes, the collision
+// and what the engine worked out from them forgotten (the anchors' bindings, the grasp's shapes, the collision
 // triangles, the body's bones). Without arguments: the weapons (progs/v_*.mdl), the body (progs/vrbody*.mdl: its
 // .md5mesh and skins) and the wrist gadget (progs/vrgadget*.mdl) that are loaded.
 void modelReload_f();

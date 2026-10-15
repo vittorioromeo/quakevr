@@ -6,7 +6,7 @@ Quake VR is, the short installation and the default controls. New documents go i
 **Kinds of document.** *Guides* describe the game as it is now and are kept current. *Topic notes* explain one
 system: how it works and why. *Research and plans* were written before or while something was built: their
 "Status" line says how much of it exists. *Reports* are dated snapshots (measurements, reviews, feedback batches):
-true on their date, not updated afterwards. The *round log* (`ROUND21.md`) records the current feedback round as it
+true on their date, not updated afterwards. The *round log* (`ROUND22.md`; `ROUND21.md` up to 1.0.0) records the current feedback round as it
 happens; the durable parts belong in a guide or topic note.
 
 ## For players
@@ -88,7 +88,8 @@ happens; the durable parts belong in a guide or topic note.
 
 ## Round log
 
-[vr-port/ROUND21.md](vr-port/ROUND21.md): the current round, a running log of every change, newest at the end.
+[vr-port/ROUND22.md](vr-port/ROUND22.md): the current round (after 1.0.0), a running log of every change, newest at the end.
+[vr-port/ROUND21.md](vr-port/ROUND21.md): round 21, up to the 1.0.0 release.
 Search it for a cvar's or a feature's name to find why it is the way it is. Its sections up to 2026-10-03 are in the
 archive below; ROUND21.md's index lists each title and its file.
 
@@ -127,6 +128,6 @@ correct). To read one: `git log --diff-filter=D --oneline -- <path>` gives the c
 - [Misc/quakevr/particles/README.md](../Misc/quakevr/particles/README.md): the explosion particle texture's source and how it was made.
 - [quakevr/textures_quetoo/README.md](../quakevr/textures_quetoo/README.md): the Quetoo material maps and their
   authors.
-- `Quake/vr/external/*/README.md`: each vendored library's version and licence (Box3D, Steam Audio, Zancle).
+- `Quake/vr/external/*/README.md`: each vendored library's version and licence (Box3D, Steam Audio, Zancle, Tracy v0.14.1 BSD-3).
 - [LICENSE.txt](../LICENSE.txt): the GNU GPL v2. QuakeSpasm's own readmes were removed on 2026-10-10 (in git history; credits in
   [CREDITS.md](vr-port/CREDITS.md)).

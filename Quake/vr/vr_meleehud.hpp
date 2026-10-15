@@ -33,4 +33,6 @@ void queue(const hands::State& s);
 // The counter glow on `e`, 0..1 (0 but on what the hands hold while the window is open).
 [[nodiscard]] float entityGlow(const entity_t* e);
 
+// (Incandescent blades' glow: vr_hotblade.hpp.)
+
 } // namespace qvr::meleehud

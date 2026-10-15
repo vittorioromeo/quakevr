@@ -38,6 +38,7 @@
 //     units apart (a wall 220 wide); each vr_smallgibs_test_n times (keep it small: 10); after 1.5 s, stuck, burst or
 //     neither (removed then). Prints a
 //     table: per gib and hand speed, stuck/thrown (burst) and the mean release speed
+//  23 shoves, weapon bashes, slaps and punches (10 each): the gore each sent; none for the first three (VR_HitBloodless)
 // With vr_smallgibs_test_dummy 1 their target is the nearest training dummy instead (vr_dummy_gore: it bleeds as a grunt);
 // 1, 2, 3, 4 and 6 print the gore each sent too (gore hits, wound events, blood particles), to compare with a grunt's.
 
@@ -494,6 +495,48 @@ void() VR_SmallGib_StickFrame =
     vr_sgib_test = 0;
 };
 
+// Test 23: `n` shoves and weapon bashes (VR_Bash_Hit, as a landed one deals them), slaps and punches (a fist's blow,
+// W_FistMelee's way: a punch's blood splash, none for a slap) on `m`: the gore each sent. Shoves, bashes and slaps draw
+// none (ROUND22.md, "Shoves, slaps and bashes draw no blood"); the punches, to compare, do.
+void(entity m, float n) VR_SmallGib_TestBloodless =
+{
+    vector mid = (m.absmin + m.absmax) * 0.5;
+    vector fwd = mid - self.origin;
+    fwd_z = 0;
+    fwd = normalize(fwd);
+    for(float kind = 0; kind < 4; kind++)
+    {
+        string name = kind == 0 ? "shove" : (kind == 1 ? "bash" : (kind == 2 ? "slap" : "punch"));
+        float made = vr_sgib_made;
+        float hurt = 0;
+        VR_SmallGib_TestGoreMark();
+        for(float i = 0; i < n; i++)
+        {
+            m.health = 100000;
+            if(kind < 2)
+            {
+                VR_Bash_Hit(m, mid, fwd, kind == 0 ? QVR_HITKIND_SHOVE : QVR_HITKIND_BASH, -1, 1, 1);
+            }
+            else
+            {
+                VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, fwd);
+                vr_melee_slap = (kind == 2);
+                if(!vr_melee_slap)
+                {
+                    VR_HitBloodSplash(m, mid, 25);
+                }
+                T_Damage_VRMelee(m, self, self, 25);
+                vr_melee_slap = FALSE;
+                VR_ClearHitKind();
+            }
+            hurt = hurt + (100000 - m.health);
+        }
+        bprint(sprintf("sgibtest: bloodless %s: %d on %s, %.0f damage, %d small gibs\n", name, n, m.classname, hurt,
+            vr_sgib_made - made));
+        VR_SmallGib_TestGorePrint(strcat("bloodless ", name));
+    }
+};
+
 void(float xCase) VR_SmallGib_TestStart =
 {
     vr_sgib_test = xCase;
@@ -658,6 +701,10 @@ void(float xCase) VR_SmallGib_TestStart =
             self.super_damage_finished = 0;
         }
         remove(spk);
+    }
+    else if(xCase == 23)
+    {
+        VR_SmallGib_TestBloodless(m, min(n, 10));
     }
     else if(xCase == 4)
     {
@@ -907,7 +954,7 @@ void(float xCase) VR_SmallGib_TestStart =
             self = p;
         }
     }
-    if(xCase <= 5)
+    if(xCase <= 5 || xCase == 23)
     {
         vr_sgib_test = 0;
     }

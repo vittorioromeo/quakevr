@@ -56,7 +56,18 @@ enum class Preset : int
     ContactSparks,
     // A spent thunderbolt cell smoking (QC vr_reload.qc, vr_reload_battery_smoke_time): `count` thin grey wisps rising
     // off its top, each vr_reload_battery_smoke_alpha opaque.
-    BatterySmoke
+    BatterySmoke,
+    // AD support: Arcane Dimensions' flamethrowers (QC vr_ad_enemyguns.qc: the pyro's and the fumigator's streams, the
+    // monsters' and the player's): `count` tongues of the torches' fire (CellFire) at random angles, carried along with
+    // one of AD's flame sprites (`dir`: its velocity / 100); AdPoison's green. Also their muzzles' (`dir` slow).
+    AdFlame,
+    AdPoison,
+    // AD support: a body poisoned (vr_ad_enemyguns.qc's poison): `count` puffs of green smoke over it, `dir` its half
+    // size / 16 (the box they rise from).
+    PoisonPuff,
+    // AD support: an electric gun's muzzle and its bolt's hit (AD's plasma rifles: vr_ad_enemyguns.qc): `count` blue-white
+    // sparks thrown along `dir` (a direction) and short crackling arcs.
+    ElectricSparks
 };
 
 // Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the
@@ -126,6 +137,12 @@ void smoulderSmoke(const glm::vec3& org, const glm::vec3& out, int count, float 
 // The counter glow (vr_meleehud.cpp): a golden ember leaving a held weapon's surface at `org`, going `vel`, `bright`
 // 0..1 (its first alpha). Nothing with vr_particles 0.
 void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright);
+
+// Incandescent blades (vr_hotblade.cpp): an ember leaving the heated part of a blade at `org`, going `vel`, in `color`
+// (the glow's hue) `bright` 0..1; and one of the particles a swung blade leaves behind (`spark`: a spark, else a small
+// tongue of flame) at `org`, drifting `vel`, lingering `life` seconds. Nothing with vr_particles 0.
+void hotEmber(const glm::vec3& org, const glm::vec3& vel, const glm::vec3& color, float bright);
+void hotTrail(const glm::vec3& org, const glm::vec3& vel, const glm::vec3& color, float bright, float life, bool spark);
 
 // The gore's blood mist (vr_gore_mist*): the large, faint clouds every blood effect makes, at `org` drifting along `dir`,
 // as for a blood effect `count` strong. Nothing with vr_particles 0 or vr_gore_mist 0.

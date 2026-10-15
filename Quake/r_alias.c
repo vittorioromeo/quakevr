@@ -193,6 +193,31 @@ float R_FrameLerpFinish (const entity_t *e)
 
 /*
 =================
+R_AnimHistoryPush -- QVR: r_lerpmodels 3 (vr/vr_animsmooth.cpp): a new lerp starts from e's current pose: the lerp
+that ends here (animfrom to currentpose) becomes the history its spline curves in from, if it ran about its time up to
+now; one cut short by this one (Quake jumps to its end: never drawn at that speed) or that ended a while ago (the pose
+held, the model out of sight) is none: the new lerp starts from rest. Called before lerpstart moves on.
+=================
+*/
+static void R_AnimHistoryPush (entity_t *e)
+{
+	float since = (float)(cl.time - e->lerpstart);
+	float span = e->animlerpfinish > e->lerpstart ? e->animlerpfinish - e->lerpstart : e->lerptime;
+	if (e->lerpstart > 0.f && since >= span * 0.5f && since <= span * 1.6f + 0.02f && e->animfrom != e->currentpose)
+	{
+		e->animpose0 = e->animfrom;
+		e->animspan0 = since;
+	}
+	else
+	{
+		e->animpose0 = e->currentpose;
+		e->animspan0 = 0.f;
+	}
+	e->animfrom = e->currentpose;
+}
+
+/*
+=================
 R_SetupAliasFrame -- johnfitz -- rewritten to support lerping
 =================
 */
@@ -224,6 +249,8 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 		e->animlerpfinish = 0; // QVR
 		e->previouspose = posenum;
 		e->currentpose = posenum;
+		e->animfrom = e->animpose0 = posenum; // QVR: r_lerpmodels 3's history
+		e->animspan0 = 0.f;
 		e->lerpflags -= LERP_RESETANIM;
 	}
 	else if (e->currentpose != posenum) // pose changed, start new lerp
@@ -234,10 +261,13 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 			e->animlerpfinish = 0; // QVR
 			e->previouspose = posenum;
 			e->currentpose = posenum;
+			e->animfrom = e->animpose0 = posenum; // QVR
+			e->animspan0 = 0.f;
 			e->lerpflags -= LERP_RESETANIM2;
 		}
 		else
 		{
+			R_AnimHistoryPush (e); // QVR: r_lerpmodels 3: the lerp ending here becomes the spline's first span
 			e->lerpstart = cl.time;
 			e->animlerpfinish = (e->lerpflags & LERP_FINISH) ? e->lerpfinish : 0.f; // QVR: R_FrameLerpFinish
 			e->previouspose = e->currentpose;
@@ -264,6 +294,7 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 		lerpdata->pose1 = posenum;
 		lerpdata->pose2 = posenum;
 	}
+	VR_AnimSmoothPinned (e, paliashdr, &lerpdata->pose1, &lerpdata->pose2, &lerpdata->blend); // QVR: vr_anim_smooth_pin
 }
 
 /*
@@ -486,7 +517,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	GLuint		buffers[2];
 	GLintptr	offsets[2];
 	GLsizeiptr	sizes[2];
-	gltexture_t* textures[3];	// QVR: and the normal map
+	gltexture_t* textures[4];	// QVR: and the normal map
 	const float	*vrbones;	// QVR: bone matrices of an IK-posed body
 	int			numvrbones;	// QVR
 	GLuint		vrbonebuf;	// QVR
@@ -615,6 +646,9 @@ void R_FlushAliasInstances (qboolean showtris)
 	GL_BindBuffer (GL_ARRAY_BUFFER, model->meshvbo);
 	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, model->meshindexesvbo);
 	GL_BindBuffersRange (GL_SHADER_STORAGE_BUFFER, 1, 2, buffers, offsets, sizes);
+	if (poseverttype == PV_QUAKE1) // QVR: the dequantised offsets (PoseFrac: vr/vr_mdldequant.cpp)
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 11, model->meshvbo, mainhdr->vbofracofs, sizeof (unsigned) * totalverts * mainhdr->numposes);
+	VR_AnimSmoothBind (ibuf.ent, 0); // QVR: r_lerpmodels 3's swings (the model's rig: its rest pose, the instances' bones)
 	GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_EnvCubeTexture ()); // QVR: the reflections' cube map (EnvCube)
 	GL_BindNative (GL_TEXTURE13, GL_TEXTURE_2D_ARRAY, VR_WoundTexture ()); // QVR: the wound masks (WoundMasks)
 	GL_BindNative (GL_TEXTURE15, GL_TEXTURE_2D_ARRAY, VR_WoundFineTexture ()); // QVR: your own finer ones (WoundMasksFine)
@@ -663,7 +697,9 @@ void R_FlushAliasInstances (qboolean showtris)
 		if (showtris) { textures[0] = blacktexture; textures[1] = whitetexture; }
 		textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
-		GL_BindTextures (0, 3, textures); // QVR: and the normal map
+		textures[3] = showtris || r_lightmap_cheatsafe ? blacktexture : VR_AliasSkinMask (ibuf.ent);
+		GL_BindTextures (0, 3, textures); // QVR: normal map
+		GL_BindTextures (6, 1, &textures[3]); // QVR: skin mask, separate from retro LUT on unit 3
 		GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount); // QVR: drawcount
 		rs_aliaspasses += hdr->numtris * drawcount;
 	}
@@ -699,7 +735,9 @@ void R_FlushAliasInstances (qboolean showtris)
 			if (showtris) { textures[0] = blacktexture; textures[1] = whitetexture; }
 			textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
-			GL_BindTextures (0, 3, textures); // QVR: and the normal map
+			textures[3] = showtris || r_lightmap_cheatsafe ? blacktexture : VR_AliasSkinMask (ibuf.ent);
+			GL_BindTextures (0, 3, textures); // QVR: normal map
+			GL_BindTextures (6, 1, &textures[3]); // QVR: skin mask, separate from retro LUT on unit 3
 			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount); // QVR: drawcount
 			rs_aliaspasses += hdr->numtris * drawcount;
 		}
@@ -809,6 +847,31 @@ static void R_DrawSkeleton (const aliashdr_t *paliashdr, const float model_matri
 	}
 
 	Hunk_FreeToLowMark (mark);
+}
+
+/*
+=================
+R_AliasSmoothInstance -- QVR
+
+r_lerpmodels 3 (vr/vr_animsmooth.cpp): the instance drawn along a spline through four poses (its InstanceData's Smooth
+and SmoothW), its rig's limbs swung round their joints; off (zeros) at a pose itself, whatever the setting: there it is
+drawn as r_lerpmodels 1 draws it. `batchindex`: its place in its batch (0 starts one), `channel` 0 the batches, 1 the
+wound paint (VR_AnimSmoothBind).
+=================
+*/
+static void R_AliasSmoothInstance (const entity_t *e, const aliashdr_t *hdr, const lerpdata_t *lerpdata, int totalverts, aliasinstance_t *inst, int batchindex, int channel)
+{
+	int		smooth[4];
+	float	weights[4];
+	memset (inst->vr.smooth, 0, sizeof (inst->vr.smooth));
+	memset (inst->vr.smoothw, 0, sizeof (inst->vr.smoothw));
+	if (!VR_AnimSmooth (e, hdr, lerpdata->pose1, lerpdata->pose2, lerpdata->blend, inst->padding, batchindex, channel, smooth, weights))
+		return;
+	inst->vr.smooth[0] = smooth[0] * totalverts;
+	inst->vr.smooth[1] = smooth[1] * totalverts;
+	inst->vr.smooth[2] = smooth[2];
+	inst->vr.smooth[3] = smooth[3]; // (1 on; 2 + the first row of its hit reaction's kicked bones: vr/vr_hitreact.cpp)
+	memcpy (inst->vr.smoothw, weights, sizeof (weights));
 }
 
 /*
@@ -981,6 +1044,7 @@ cull:
 		cached->gen = aliasdepthgen;
 	}
 	VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr); // QVR
+	R_AliasSmoothInstance (e, paliashdr, &lerpdata, totalverts, instance, ibuf.count - 1, 0); // QVR: r_lerpmodels 3
 	if (mode == ALIAS_STANDARD)
 		VR_DebugAliasPose (e, paliashdr, lerpdata.pose1, lerpdata.pose2, lerpdata.blend, model_matrix); // QVR: vr_debug_pose_check
 	if (portal_split)
@@ -1067,6 +1131,7 @@ qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, in
 	}
 	data.inst.padding = VR_AliasZeroBlend (e, hdr, totalverts);
 	VR_AliasWoundPaintSide (e, side, data.inst.vr.woundside);
+	R_AliasSmoothInstance (e, hdr, &lerpdata, totalverts, &data.inst, 0, 1); // QVR: r_lerpmodels 3, as it is drawn
 
 	GL_UseProgram (glprogs.woundpaint[hdr->poseverttype]);
 	GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (hdr->poseverttype == PV_IQM ? 5 : 1));
@@ -1097,6 +1162,9 @@ qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, in
 	GL_BindBuffer (GL_ARRAY_BUFFER, e->model->meshvbo);
 	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, e->model->meshindexesvbo);
 	GL_BindBuffersRange (GL_SHADER_STORAGE_BUFFER, 1, 2, buffers, offsets, sizes);
+	if (hdr->poseverttype == PV_QUAKE1) // QVR: the dequantised offsets (PoseFrac: vr/vr_mdldequant.cpp)
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 11, e->model->meshvbo, hdr->vbofracofs, sizeof (unsigned) * totalverts * hdr->numposes);
+	VR_AnimSmoothBind (e, 1); // QVR: r_lerpmodels 3's swings (its rig: the rest pose, the bones)
 	if (hdr->poseverttype == PV_IQM)
 	{
 		GL_VertexAttribPointerFunc (0, 3, GL_FLOAT, GL_FALSE, sizeof (iqmvert_t), (void*)(hdr->vbovertofs + offsetof (iqmvert_t, xyz)));

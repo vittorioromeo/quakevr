@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_main.c -- server main program
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 
 server_t	sv;
 server_static_t	svs;
@@ -1985,6 +1986,8 @@ static void SV_SpawnServerRun (const char *server);
 // QVR: a map's load, a scope of its own for the profiler (its hitch log).
 void SV_SpawnServer (const char *server)
 {
+	VR_TRACY_SCOPE("Map load");
+	VR_TracyText(server);
 	VR_CheckSpawnCampaignMap (server); // QVR: never a campaign switch here (map and load chose it before they disconnected)
 	VR_NoteMapSpawn (server); // QVR: the map (and its map package) a crash report names
 	VR_ProfileBegin ("map spawn");

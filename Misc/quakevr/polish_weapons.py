@@ -11,15 +11,19 @@
 #
 # What stays (mdlpolish.py): the header's scale and origin (what the weapon offsets and Scale apply about), every
 # old vertex's bytes and index, every old triangle, UV and texel but the edge wear's. New vertices and triangles are
-# appended, sharing no vertex with the old ones, so vr_anchor.cpp's strip order -- every anchor index (hand, muzzle,
-# two-handed grip, ammo screen and button, shell port) -- names the same vertex at the same place (checked here for
-# every anchor of every slot using the model), the hotspots (model space) stay where they were, and the new parts
+# appended, sharing no vertex with the old ones, so every anchor (hand, muzzle, two-handed grip, ammo screen and button,
+# magazine mount, shell port: points on the surface, vr_anchor.hpp) stays on the surface where it was in every pose
+# (checked here for every anchor in use on the model: within anchors.TOLERANCE, bound on the old model and on the new
+# as the engine binds them, anchors.py), the hotspots (model space) stay where they were, and the new parts
 # fit inside the old bounds (the write fails otherwise). The new parts keep clear of where the hands hold the gun
 # (the grips, triggers, foregrips, pumps): the fitted fingers close on the same surfaces as before.
 # The double shotgun then goes through reuv_shot2.py (POST): its fore-end's stretched UVs re-mapped and repainted,
 # its holes closed; UVs and texels there change, the old vertices, triangles and anchors do not.
+# The plasma gun, super nailgun, rocket launcher (and their lava and multi skins), grappling hook and Mjolnir go through
+# reuv_weapons.py (POST): their stretched skin re-mapped and repainted from the old paint (UVs and texels change;
+# positions and anchors do not).
 # The shotgun then goes through split_auto_pump (its auto pump): the first of its fore-end's rings taken out (its own
-# vertices collapsed: no anchor, the strip order unchanged), the other three given their own texels, the moving
+# vertices collapsed: no anchor on them), the other three given their own texels, the moving
 # fore-end and the gun without it written apart (progs/vr_pump_on_v_shot.mdl, vr_pumpbody_on_v_shot.mdl).
 #
 # What is added, in the guns' own ramps (never a fullbright index: the sights and screens keep theirs):
@@ -41,13 +45,16 @@ import numpy as np
 import genguard
 import mdlpolish as mp
 import refine_laserg
+import refine_light
 import reuv_shot2
-from improve_weapons import strip_order
+import reuv_weapons
+import anchors
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "src_models", "r21")
 ORIGINAL = os.path.join(HERE, "src_models")  # the models before round 16: the id-made triangles and skin rows
 INC = os.path.join(HERE, "..", "..", "Quake", "vr", "vr_weapons.inc")
+VIEW = os.path.join(HERE, "..", "..", "Quake", "vr", "vr_view.cpp")  # its magMounts: each magazine's anchor vertex
 
 X, Y, Z = np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0])
 
@@ -179,7 +186,7 @@ def tri_texels(m, tri):
 
 def split_auto_pump(p, path):
     """After the polish: the first ring taken out of v_shot.mdl (its vertices collapsed onto one: its triangles
-    vanish, the vertex and triangle orders, and so every anchor, stay); the other three given their own copy of their
+    vanish, the vertex and triangle orders stay, and no anchor is on them); the other three given their own copy of their
     texels (the id skin paints the rings on the fore-end's body under them: the body's stripes would stay behind as the
     rings slide) and the body's stripes painted over in the colour between them; the moving pump and the gun without
     it written apart, next to it."""
@@ -197,7 +204,8 @@ def split_auto_pump(p, path):
     # two-handed grip's anchor is on).
     ring_texels = set()
     other_texels = set()
-    body = mesh.piece[strip_order(p.m.tris[:p.m.old_nt])[48]]
+    grip = next(t for w, model, t in anchors.collect() if model == "progs/v_shot.mdl" and w.endswith(" TwoHHandAnchor"))
+    body = mesh.piece[min(anchors.anchor_vertices(mp.Model(path), [grip]))]
     for t in range(p.m.old_nt):
         if ring[t] >= 0:
             ring_texels |= tri_texels(m, m.tris[t])
@@ -253,7 +261,7 @@ SPLIT_OUTPUTS = {"v_shot.mdl": ["vr_pump_on_v_shot.mdl", "vr_pumpbody_on_v_shot.
 
 # The shotgun's loading port (docs/vr-port/RELOAD.md: immersive reloading, shells pushed in from below): an opening
 # under the receiver ahead of the trigger guard and behind the pump, as a pump gun's. Parts can only be added, never cut
-# (the old triangles stay, and with them the anchors' strip order): the opening is a well under the receiver's keel, a
+# (the old triangles stay): the opening is a well under the receiver's keel, a
 # steel housing round it whose inner walls, lined from a dull steel at its mouth to black up at the keel, go up to a black
 # ceiling laid just under the keel (following it, a grid of rays): from below a deep dark hole (the author: the framed
 # plate it was didn't read as one), the shells sliding up into it (vr_collectfx.cpp, its "into the gun" variant); a brass
@@ -373,37 +381,51 @@ RECIPES = {
 WEAR_ONLY = ["v_grpple.mdl", "v_laserg.mdl", "v_hammer.mdl"]
 # After the polish: the double shotgun's fore-end re-mapped (its old UVs were stretched) and its holes closed
 # (reuv_shot2.py: the old vertices, triangles and anchors stay; those UVs and texels change); the laser cannon's
-# stretched keel, bottom and grip re-mapped and its body's vents carved (refine_laserg.py: Blender, headless). Then
-# every model's inverted vertex normals are turned (mdlpolish.fix_inverted_normals).
-POST = {"v_shot2.mdl": reuv_shot2.fix, "v_laserg.mdl": refine_laserg.fix}
+# stretched keel, bottom and grip re-mapped and its body's vents carved (refine_laserg.py: Blender, headless); the
+# thunderbolt's right side made its left's mirror image, its sides' lower faces re-mapped and its panels' slots carved
+# (refine_light.py: Blender, headless). Then every model's inverted vertex normals are turned
+# (mdlpolish.fix_inverted_normals).
+POST = {"v_shot2.mdl": reuv_shot2.fix, "v_laserg.mdl": refine_laserg.fix, "v_light.mdl": refine_light.fix}
+# The super nailgun's, rocket launcher's, grappling hook's and Mjolnir's stretched skins re-mapped and repainted from
+# their old paint (reuv_weapons.py: the positions, triangles and anchors stay; UVs and texels change); the plasma gun
+# (the thunderbolt's mesh) first through refine_light.py (its sides), then reuv_weapons.py (the rest).
+POST.update({name: reuv_weapons.fix for name in reuv_weapons.SPECS})
+POST["v_plasma.mdl"] = lambda path: (refine_light.fix(path), reuv_weapons.fix(path))
 
 
 # ----------------------------------------------------------------------------
 
 def slot_anchors():
-    """{model file: set of anchor indices} from vr_weapons.inc's defaults."""
-    d = {}
-    for s, k, v in re.findall(r'QVR_WEAPON_DEFAULT\((\d+), (\w+), "([^"]*)"\)', open(INC).read()):
-        d.setdefault(int(s), {})[k] = v
+    """{model file: [(where, anchor text)]}: the anchors in use (anchors.collect: vr_weapons.inc's defaults, the
+    magazines' mounts, the shells' ports)."""
     out = {}
-    for s, keys in d.items():
-        m = keys.get("ID", "")
-        if not m.startswith("progs/"):
-            continue
-        a = out.setdefault(m[len("progs/"):], set())
-        for k in ("HandAnchorVertex", "MuzzleAnchorVertex", "TwoHHandAnchorVertex", "WpnButtonAnchorVertex",
-                  "WpnTextAnchorVertex"):
-            if k in keys:
-                a.add(int(float(keys[k])))
+    for where, model, text in anchors.collect():
+        if model.startswith("progs/"):
+            out.setdefault(model[len("progs/"):], []).append((where, text))
     return out
 
 
-def anchors_of(path, anchors):
-    m = mp.Model(path)
-    order = strip_order(m.tris)
-    P = np.frombuffer(bytes(m.pose_bytes(0)), np.uint8).reshape(-1, 4)
-    # The position's bytes (not the normal's: an anchor is a place, and fix_inverted_normals may turn its normal).
-    return {a: (order[a], bytes(P[order[a]][:3])) for a in anchors}
+def anchors_of(path, texts):
+    """{(where, text): (distance from the surface at rest, [its place in every pose])} on the model at `path`, bound as
+    the engine binds it (anchors.py; a point is bound to the nearest triangle, so the vertex numbering may change)."""
+    mesh = anchors.Mesh(path)
+    out = {}
+    for where, text in texts:
+        b = mesh.bind(text)
+        out[(where, text)] = (b.distance, [mesh.position(b, p) for p in range(len(mesh.poses))])
+    return out
+
+
+def moved_anchors(before, after):
+    """[(where, text, how far)]: the anchors more than anchors.TOLERANCE off the new surface at rest, or moved more than
+    that in any pose."""
+    out = []
+    for key, (d0, p0) in before.items():
+        d1, p1 = after[key]
+        far = max([d1] + [math.dist(a, b) for a, b in zip(p0, p1)])
+        if far > anchors.TOLERANCE:
+            out.append(key + (far,))
+    return out
 
 
 def polish(name, out_dir):
@@ -432,21 +454,27 @@ def main():
     args = sys.argv[1:]
     out_dir = args[0] if args and not args[0].endswith(".mdl") else os.path.join(HERE, "..", "..", "quakevr", "progs")
     names = [a for a in args if a.endswith(".mdl")] or sorted(list(RECIPES) + WEAR_ONLY)
-    anchors = slot_anchors()
+    in_use = slot_anchors()
     # The files edited in Blender since a generator wrote them are not overwritten (genguard.py: --keep-edited, --force).
     guard = genguard.Guard("polish_weapons.py", [os.path.join(out_dir, n) for n in names] +
                            [os.path.join(out_dir, x) for n in names for x in SPLIT_OUTPUTS.get(n, [])])
     bad = 0
     for name in names:
-        before = anchors_of(os.path.join(SRC, name), anchors.get(name, set()))
+        texts = in_use.get(name, [])
+        before = anchors_of(os.path.join(SRC, name), texts)
+        # An anchor on this script's own parts (a magazine's, not on the source's surface): where the shipped file has it.
+        shipped = os.path.join(HERE, "..", "..", "quakevr", "progs", name)
+        far = [k for k, (d, _) in before.items() if d > anchors.TOLERANCE]
+        if far and os.path.exists(shipped):
+            before.update({k: v for k, v in anchors_of(shipped, far).items()})
         old_nt, tris, verts, rows, texels = polish(name, out_dir)
-        after = anchors_of(os.path.join(out_dir, name), anchors.get(name, set()))
-        moved = [a for a in before if before[a] != after[a]]
+        after = anchors_of(os.path.join(out_dir, name), texts)
+        moved = moved_anchors(before, after)
         bad += len(moved)
         print("%-13s %4d -> %4d triangles (+%3d, x%.2f), %3d new vertices, %2d new skin rows, %4d texels worn; "
-              "anchors %s%s" % (name, old_nt, old_nt + tris, tris, (old_nt + tris) / old_nt, verts, rows, texels,
-                                ", ".join(str(a) for a in sorted(before)) or "none",
-                                "" if not moved else "  MOVED: %s" % moved))
+              "%d anchors%s" % (name, old_nt, old_nt + tris, tris, (old_nt + tris) / old_nt, verts, rows, texels,
+                                len(texts), "" if not moved else "  MOVED: %s" % "; ".join(
+                                    "%s \"%s\" %.3f" % m for m in moved)))
     guard.finish()
     if bad:
         sys.exit("anchors moved")

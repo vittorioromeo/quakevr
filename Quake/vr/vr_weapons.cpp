@@ -2,6 +2,8 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_weapons.hpp"
+#include "vr_adguns.hpp"
+#include "vr_anchor.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
@@ -77,6 +79,13 @@ void onIdChanged(cvar_t* /* var */)
 
 // Any setting's change: what was made from the settings is looked at again (an ID's: the slots found again too).
 void onChanged(cvar_t* var);
+
+// Whether a slot's ID names the model `name`: the same name, or (AD support) an AD soldier's gun's base name, whatever
+// its skin (adguns::slotNames): one gun, one slot.
+[[nodiscard]] bool namesModel(const char* id, const char* name)
+{
+    return !strcmp(id, name) || adguns::slotNames(id, name); // AD support (vr_adguns.cpp)
+}
 
 } // namespace
 
@@ -155,8 +164,12 @@ namespace
 // placeholders before). 38: the author's Super Axe (slot 24: Offset Z and its first hotspot, 2026-10-08), each key only
 // where the config still held its old default. 39: the author's nailgun foregrip (slot 3: its first hotspot, the evening
 // of 2026-10-08), each key only where the config still held its old default. 40: slot 26 (the toolgun,
-// Misc/quakevr/make_toolgun.py; an unused placeholder before). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 40;
+// Misc/quakevr/make_toolgun.py; an unused placeholder before). 41: the anchors (round 22: points on the models' surfaces, not vertex
+// indices; vr_anchor.hpp): each of the config's indices to its slot's default, that vertex's point (convertAnchors). 42: the
+// toolgun's muzzle (slot 26) on its lens's front middle (`15.4 0.0064 5.7941`, make_toolgun.py's point; the old one, a
+// corner of the lens's back, was about 1 cm off), where the config still held the old point. 43: slots 27-31 (AD support: Arcane
+// Dimensions' soldiers' guns, vr_adguns.cpp; unused placeholders before). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 43;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -209,6 +222,32 @@ void takeWhereOld(za::Span<const OldDefault> changes)
             Cvar_SetQuick(&var, var.default_string);
         }
     }
+}
+
+// Every anchor of the config that is not a point (vr_wofs_version < 41: a vertex index in the old strip order of the
+// slot's model) to the slot's default, which is that vertex's point (the defaults were converted exactly: the same place
+// in every pose). A player's own index (no menu sets one; it named a vertex of 1.0's model files) gets the default too.
+void convertAnchors()
+{
+    int converted = 0;
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        for(int k = 0; k < static_cast<int>(Key::Count); k++)
+        {
+            const Key key = static_cast<Key>(k);
+            if(!anchorKey(key))
+            {
+                continue;
+            }
+            cvar_t& var = cvarAt(slot, key);
+            if(!anchor::isAnchor(var.string))
+            {
+                Cvar_SetQuick(&var, var.default_string);
+                converted++;
+            }
+        }
+    }
+    Con_DPrintf("Weapon settings: %d anchor indices replaced by their points\n", converted);
 }
 
 // The configs are read before anything asks for a slot.
@@ -278,7 +317,7 @@ void migrate()
     }
     if(vr_wofs_version.value < 15)
     {
-        constexpr Key tuned[] = {Key::TwoHDisplayMode, Key::TwoHHandAnchorVertex, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY,
+        constexpr Key tuned[] = {Key::TwoHDisplayMode, Key::TwoHHandAnchor, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY,
             Key::TwoHFixedOffsetZ, Key::TwoHBladeGrip, Key::OffsetX, Key::OffsetY, Key::OffsetZ, Key::Scale};
         for(int slot = 0; slot < numSlots; slot++)
         {
@@ -413,7 +452,7 @@ void migrate()
     }
     if(vr_wofs_version.value < 23) // the grappling hook's quick release button: these keys only
     {
-        for(const Key key : {Key::WpnButtonAnchorVertex, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
+        for(const Key key : {Key::WpnButtonAnchor, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
                  Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll, Key::WpnButtonMode})
         {
             cvar_t& var = cvarAt(17, key);
@@ -541,6 +580,25 @@ void migrate()
     {
         resetSlot(26);
     }
+    if(vr_wofs_version.value < 41) // the anchors: points, not vertex indices
+    {
+        convertAnchors();
+    }
+    if(vr_wofs_version.value < 42) // the toolgun's muzzle on its lens's middle: where still the old point
+    {
+        cvar_t& var = cvarAt(26, Key::MuzzleAnchor);
+        if(!strcmp(var.string, "15.0245 -0.6162 5.3987"))
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+    if(vr_wofs_version.value < 43) // AD support: the AD soldiers' guns (unused placeholders before)
+    {
+        for(int slot = 27; slot <= 31; slot++)
+        {
+            resetSlot(slot);
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -639,6 +697,18 @@ cvar_t* cvar(int slot, Key key)
     return slot >= 0 && slot < numSlots ? &cvarAt(slot, key) : nullptr;
 }
 
+bool anchorKey(Key key)
+{
+    return key == Key::HandAnchor || key == Key::MuzzleAnchor || key == Key::TwoHHandAnchor || key == Key::WpnButtonAnchor ||
+           key == Key::WpnTextAnchor;
+}
+
+const char* anchor(int slot, Key key)
+{
+    const cvar_t* var = anchorKey(key) ? cvar(slot, key) : nullptr;
+    return var ? var->string : "";
+}
+
 void markCurrent()
 {
     if(vr_wofs_version.value < 22) // the author's holstered poses, 2026-09-29: these keys only
@@ -687,7 +757,7 @@ void markCurrent()
     }
     if(vr_wofs_version.value < 23) // the grappling hook's quick release button (as migrate)
     {
-        for(const Key key : {Key::WpnButtonAnchorVertex, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
+        for(const Key key : {Key::WpnButtonAnchor, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
                  Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll, Key::WpnButtonMode})
         {
             cvar_t& var = cvarAt(17, key);
@@ -730,6 +800,13 @@ void markCurrent()
     if(vr_wofs_version.value < 40) // the toolgun (as migrate)
     {
         resetSlot(26);
+    }
+    if(vr_wofs_version.value < 43) // AD support: the AD soldiers' guns (as migrate)
+    {
+        for(int slot = 27; slot <= 31; slot++)
+        {
+            resetSlot(slot);
+        }
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
@@ -932,7 +1009,7 @@ bool retired(Key key)
 {
     switch(key)
     {
-        case Key::HandAnchorVertex:
+        case Key::HandAnchor:
         case Key::HandOffsetX:
         case Key::HandOffsetY:
         case Key::HandOffsetZ:
@@ -955,7 +1032,7 @@ bool retired(Key key)
         case Key::TwoHFingerOpen:
         case Key::TwoHFingerThumbOpen:
         case Key::TwoHDisplayMode: // the two-handed grips: hotspots now
-        case Key::TwoHHandAnchorVertex:
+        case Key::TwoHHandAnchor:
         case Key::TwoHFixedOffsetX:
         case Key::TwoHFixedOffsetY:
         case Key::TwoHFixedOffsetZ:
@@ -1058,7 +1135,7 @@ int slotForModel(const qmodel_t* model)
     int found = -1;
     for(int slot = 0; slot < numSlots; slot++)
     {
-        if(!strcmp(cvarAt(slot, Key::ID).string, model->name))
+        if(namesModel(cvarAt(slot, Key::ID).string, model->name))
         {
             found = slot;
             break;
@@ -1078,7 +1155,7 @@ int slotForName(const char* name)
     migrate();
     for(int slot = 0; slot < numSlots; slot++)
     {
-        if(!strcmp(cvarAt(slot, Key::ID).string, name))
+        if(namesModel(cvarAt(slot, Key::ID).string, name))
         {
             return slot;
         }
@@ -1144,11 +1221,11 @@ bool inheritable(Key key)
     {
         case Key::ID:
         case Key::InheritFrom:
-        case Key::HandAnchorVertex:
-        case Key::MuzzleAnchorVertex:
-        case Key::TwoHHandAnchorVertex:
-        case Key::WpnTextAnchorVertex:
-        case Key::WpnButtonAnchorVertex: return false;
+        case Key::HandAnchor:
+        case Key::MuzzleAnchor:
+        case Key::TwoHHandAnchor:
+        case Key::WpnTextAnchor:
+        case Key::WpnButtonAnchor: return false;
         default: return !retired(key);
     }
 }

@@ -277,10 +277,12 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
     return px;
 }
 
-// Image_LoadImage: a png, tga or jpg found and decoded (ahead or not) in this window, for the next session's list.
+// Image_LoadImage: a png, tga or jpg found and decoded (ahead or not) in this window, for the next session's list: one
+// that took over 0.2 ms (over 1 ms before: the calibration room's 112 smaller ones, 50 ms decoded on the main thread at
+// every start, read ahead now for 10 ms of the start-up; its images 120 to 80 ms).
 extern "C" void VR_ImagePrefetchNote(const char* name, double seconds)
 {
-    if(windowOpen && seconds > 0.001 && za::find(decoded.begin(), decoded.end(), name) == decoded.end())
+    if(windowOpen && seconds > 0.0002 && za::find(decoded.begin(), decoded.end(), name) == decoded.end())
     {
         decoded.pushBack(name);
     }

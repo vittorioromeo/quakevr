@@ -21,9 +21,10 @@ new = t.split('=== NEW')[1].split('=== KEPT')[0]
 kept = t.split('=== KEPT')[1]
 want = {'vr_body_crouch_torso_back': '0.2', 'vr_body_crouch_shoulders_out': '0.02', 'vr_hip_holster_crouch_x': '6',
         'vr_hip_holster_crouch_y': '3', 'vr_hip_holster_crouch_roll': '40', 'vr_ammo_pouch_crouch_x': '2',
-        'vr_ammo_pouch_crouch_z': '7', 'vr_ammo_pouch_crouch_pitch': '29', 'vr_cfg_version': '116'}
+        'vr_ammo_pouch_crouch_z': '7', 'vr_ammo_pouch_crouch_pitch': '29'}
 got = dict(re.findall(r'\"(\w+)\" is \"([^\"]*)\"', new))
-ok = all(got.get(k) == v for k, v in want.items())
+# (migrated to the latest version: 116 or later)
+ok = all(got.get(k) == v for k, v in want.items()) and int(got.get('vr_cfg_version', '0')) >= 116
 k2 = dict(re.findall(r'\"(\w+)\" is \"([^\"]*)\"', kept))
 ok = ok and k2.get('vr_hip_holster_crouch_x') == '4' and k2.get('vr_hip_holster_crouch_y') == '3'
 print('PASS' if ok else 'FAIL')"

@@ -2439,31 +2439,22 @@ extern "C" int VR_AddonForMapCommand(const char* map)
     return mapinstall::activate(mapinstall::packageFor(map)) ? 1 : 0;
 }
 
-// `load`: the package the save was made in (its <save>.addon), else the one its map is in, mounted before the load.
-extern "C" void VR_AddonForSave(const char* savepath, const char* map)
+// `load`: the package the save was made in (its `// qvr_package` line, else the <save>.addon beside an older save:
+// VR_SavePackage), mounted before the load; none when it was made in none. VR_SavePackageReady refused the load
+// already when that package is not installed. A save that doesn't say (before both): the package its map is in.
+extern "C" void VR_AddonForSave(const char* text, const char* savepath, const char* map)
 {
     if(!VR_QuakeVRMounted())
     {
         return;
     }
-    za::String sha;
-    if(files::readText((za::String{savepath} + ".addon").cStr(), sha))
+    char sha[72];
+    if(VR_SavePackage(text, savepath, sha, sizeof(sha)))
     {
-        while(sha.size() && (sha.back() == '\n' || sha.back() == '\r' || sha.back() == ' '))
-        {
-            sha.popBack();
-        }
-        if(sha.size() && !mapinstall::installed(sha))
-        {
-            Con_Printf("maps: the save was made in a map package no longer installed (%s)\n", sha.cStr());
-            sha = za::String{};
-        }
+        mapinstall::activate(za::String{sha});
+        return;
     }
-    if(sha.empty())
-    {
-        sha = mapinstall::packageFor(map);
-    }
-    mapinstall::activate(sha);
+    mapinstall::activate(mapinstall::packageFor(map));
 }
 
 // A map spawned: the crash report's context (vr_crash.cpp), so that a crash in a map package's map names it.
@@ -2482,6 +2473,7 @@ extern "C" void VR_NoteMapSpawn(const char* map)
         line += ", no map package";
     }
     VR_SetCrashContext(line.cStr());
+    VR_GLMapSpawned(map); // the GL start-up's end (vr_glsafe.cpp)
 }
 
 // `save`: the package mounted now, noted beside the save (removed when there is none).

@@ -442,7 +442,12 @@ void() VR_SmallGib_Think =
     if(self.vr_sgib_grace && time >= self.vr_sgib_grace)
     {
         self.vr_sgib_grace = 0;
-        self.owner = world;
+        // (The body it came from no longer its owner; not the player holding it or who threw it: taken and thrown
+        // within its grace (in bullet time, its game time slowed), a throw's owner went at once and it hit him, bursting.)
+        if(self.owner != self.carry_player && self.owner != self.carry_letgo)
+        {
+            self.owner = world;
+        }
         VR_SmallGib_Rigid(self);
     }
     if(self.carry_player != world)
@@ -969,9 +974,9 @@ void(entity targ, entity inflictor, entity attacker, float xDamage) VR_SmallGib_
         vr_sgib_blastby = attacker;
         return;
     }
-    if(vr_hitkind == QVR_HITKIND_MELEE && vr_melee_slap)
+    if(VR_HitBloodless())
     {
-        return; // a slap tears nothing out (vr_melee_slap)
+        return; // a slap, a shove or a bash tears nothing out (vr_melee_slap, combat.qc VR_HitBloodless)
     }
     vector at = vr_hitpos;
     if(vr_hitkind == QVR_HITKIND_MELEE && vr_sgib_at != '0 0 0')

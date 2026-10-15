@@ -116,7 +116,7 @@ occupied (`vr_decal_count`), 580-600 KB uploaded at every build, and the prefix 
 
 - **Option**: size it from the distinct cells (counted with the stamps), not every mark's cells.
 - **Win**: most of the prefix pass and the upload (about 0.05 ms a build; less GPU upload).
-- **Drawback**: fewer buckets, more cells sharing one: a bucket keeps its newest 64 marks, so a crowded one could drop
+- **Drawback**: fewer buckets, more cells sharing one: a bucket keeps its newest 64 marks (255 since 2026-10-11), so a crowded one could drop
   marks the larger grid shows (a visual change where marks pile up; `decals_1024_stream` already has 52 capped).
 - **Recommendation**: worth measuring the capped buckets with it before deciding; not urgent.
 
@@ -234,6 +234,11 @@ swords 19 (the death knight's first death a 23 ms frame), the ogre's chainsaw 84
 - **Win**: no 20-85 ms frame at the first death of each kind in the first session.
 - **Drawback**: a change to Setup's preparation (a few seconds more, a new step) just before a release.
 - **Recommendation**: later, not for this release.
+- **Done (1.0.1, 2026-10-10)**: the preparation run's last step on the hub, `vr_pickup_test 4`: the 16 weapons a monster
+  can drop (the grunt's and enforcer's guns, both knights' swords, the ogre's chainsaw, the random and ammo-box drops'
+  eleven) dropped once with `CreateThrownWeapon`, as a death drops them; a held gun's triangles are the dropped one's,
+  so holding one reads the same file. 13 cut in 1.0 s on the hub (`result guns read=0 cut=13 written=13`); a later
+  session's grunt death reads its gun (0.2 ms), and the 16 dropped again read all, 0 cut.
 
 ### 14. Ironwail's per-frame upload buffer starts at 1 MB (decided and done 2026-10-10: starts at 8 MB)
 
@@ -261,6 +266,30 @@ its cell's bucket (up to 64, each a whole 80-byte record read before its early-o
 - **Win**: up to ~1.3 ms of GPU at 2048 (about 2.4 at his eyes) in fights that leave many marks.
 - **Drawback**: visible (fewer marks kept where they pile up).
 - **Recommendation**: his call; the fights hold 90 Hz on this machine at 2048, not at his eyes in a rocket fight.
+- **Done (2026-10-10, worktree `decal101`), the same image**: world+brush GPU at 2782 3.02 -> 2.74 ms (the marks'
+  share 1.10 -> 0.82; no marks 1.93), back to back, 2 runs each. Three changes: a mark listed only in the grid cells
+  that reach its rectangle (a bucket still keeps the newest 64 of all it counted: the same marks drawn; 10.5k grid
+  entries instead of 18k), the shader's early-out on a mark's full-size rectangle before its age, spread and filtering,
+  and the solid world's programs without the decals' retro textures' code (made when they first have a retro set): that
+  code's mere presence cost a quarter of the marks' time. The grid's build 0.06 -> 0.07 ms a frame. ROUND21.md,
+  "Decals on the world: a quarter cheaper, the same image".
+- **Options left (visible)**: a bucket capping on the marks reaching its cells (fewer capped: old marks show again where
+  they pile up) with 16-unit cells: about 0.1 ms more, a 1.2 MB grid uploaded at each build (0.3 now); one atlas read a
+  mark instead of up to 4 along a grazing view: up to 0.24 ms (blurrier or shimmering marks at grazing angles); a lower
+  `vr_decal_max`.
+- **Fixed (2026-10-11, worktree `decalstack`, 1.0.1)**: the newest-64 cap a bucket (since the marks went into the
+  world's shader, 2026-10-04: in 1.0.0 too, not decal101's) left square, cell-edged holes in older pools under a pile of
+  gibs' marks. A bucket now lists up to 255 marks of those reaching its cells, and a mark is listed in all its buckets
+  or none (newest first, each of them with room): no holes; past 255 on one cell the oldest go whole. World+brush at
+  2782 in the rocket fight: before decal101 3.07, 1.0.1 2.77, now 2.87 ms (two thirds of decal101's saving kept; the
+  rest is the marks the cap had dropped, drawn again). ROUND22.md, "Pools piled up: no square holes".
+- **Capped lower (2026-10-12, worktree `decalcap`)**: a pile of 255 marks on one cell (a corpse cut apart in one place)
+  cost the frame rate where it was looked at: each of its pixels walks the bucket's whole list. `vr_decal_bucket_max`
+  (32 shipped, 1-255; Advanced VR Settings > Gore, Marks) lists that many a bucket, with the same all-buckets-or-none
+  rule (the oldest of a pile go whole, no holes). World+brush with 768 marks piled on one spot, eyes 2048, unpaced and
+  interleaved in one process (4 windows each, 300 frames): 32 1.46-3.35 ms, 255 3.36-6.36 ms, +1.8 to +4.8 ms in every
+  pair. The pile is thinner at 32 (its oldest marks gone). Later: bake old marks into per-surface blood layers (option
+  A). ROUND22.md, "Piled-up blood: a mark limit a spot".
 
 ## Leads (2026-10-08 follow-up)
 

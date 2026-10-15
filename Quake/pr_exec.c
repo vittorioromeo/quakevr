@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 
 static const char *const pr_opnames[] =
 {
@@ -519,6 +520,7 @@ static int PR_EnterFunction (dfunction_t *f)
 	}
 
 	qcvm->xfunction = f;
+	VR_TracyQC(VR_TracyQCEnabled() ? PR_GetString(f->s_name) : "", VR_TracyQCEnabled() ? PR_GetString(f->s_file) : "", 0);
 	if (qcprof.active) // QVR: vr_qcprofile
 	{
 		qcprof.stack[qcvm->depth].t0 = QCProf_Ticks ();
@@ -558,6 +560,7 @@ static int PR_LeaveFunction (void)
 		qcprof.stack[qcvm->depth - 1].child += dt;
 	}
 
+	VR_TracyQCEnd();
 	// up stack
 	qcvm->depth--;
 	qcvm->xfunction = qcvm->stack[qcvm->depth].f;
@@ -608,10 +611,13 @@ The interpretation main loop
 #define OPC ((eval_t *)&qcvm->globals[(unsigned short)st->c])
 
 static void PR_ExecuteProgramRun (func_t fnum);
+#include "vr/vr_qcexec.c" // QVR: the faster loop (QCExec_Run; docs/vr-port/QC_VM.md)
 
 // QVR: the profiler's "quakec" scope round the outermost call (vr_profile_report); with profiling off, one test.
 void PR_ExecuteProgram (func_t fnum)
 {
+	VR_TRACY_SCOPE("QC VM");
+	VR_TracyText(qcvm == &sv.qcvm ? "server QC VM" : "client QC VM");
 	const qboolean outer_sv = qcvm->depth == 0 && qcvm == &sv.qcvm;
 	if (outer_sv) // QVR: QuakeC is between broadcast messages (a full sv.datagram drops whole ones)
 		VR_BroadcastQCRun ();
@@ -639,6 +645,9 @@ static void PR_ExecuteProgramRun (func_t fnum)
 	int profile, startprofile;
 	edict_t		*ed;
 	int		exitdepth;
+
+	if (QCExec_Run (fnum)) // QVR: the faster loop ran it (vr/vr_qcexec.c; vr_qcexec 0: the one below)
+		return;
 
 	if (!fnum || fnum >= qcvm->progs->numfunctions)
 	{
@@ -896,6 +905,7 @@ static void PR_ExecuteProgramRun (func_t fnum)
 			if (i >= qcvm->numbuiltins)
 				PR_RunError("Bad builtin call number %d", i);
 			PR_CheckBuiltinExtension (newf);
+			VR_TracyQC(VR_TracyQCEnabled() ? PR_GetString(newf->s_name) : "", VR_TracyQCEnabled() ? PR_GetString(newf->s_file) : "", 1);
 			if (qcprof.active) // QVR: vr_qcprofile: the builtin's own time (QuakeC it calls out), in its caller's self too
 			{
 				const unsigned long long child0 = qcprof.stack[qcvm->depth].child, t0 = QCProf_Ticks ();
@@ -921,6 +931,7 @@ static void PR_ExecuteProgramRun (func_t fnum)
 			}
 			else
 				qcvm->builtins[i]();
+			VR_TracyQCEnd();
 			break;
 		}
 		// Normal function

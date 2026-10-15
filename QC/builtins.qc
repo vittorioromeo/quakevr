@@ -148,6 +148,7 @@ string(string fmt, ...) sprintf = #627; // DP_QC_SPRINTF
 
 void(vector o, vector d, float preset, float count) particle2 = #0; // start a particle2 effect
 void(entity e, vector org, vector dir, float kind, float amount, float extra) woundevent = #0; // a wound painted on e's model by every client (vr_wounds.qc)
+void(entity e, vector at, vector dir, float part, float damage, float share) hitreact = #0; // a living monster struck: its flinch drawn by every client (vr_hitreact.qc)
 void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #0; // VR haptics function
 void(float hand, float strength, vector dir) handimpact = #0; // knock the `self` player's drawn hand (a parried blow)
 // The `self` player's `hand` has just caught `e` from a force grab, which flew at `org` turned `ang`: its client eases the
@@ -214,6 +215,9 @@ vector(entity e, vector handangles, float lefthand) propgrip = #0;
 // and its place in the hand returned (`offset` is .carry_offset; placed again at once when its settings change).
 vector(entity e, entity player, float hand, float lefthand, vector handangles, vector offset) carrygrip = #0;
 vector(entity e, vector handangles, vector offset) carryplace = #0;
+// Keep a solid carried prop outside its carrier's torso, sweeping from its current pose.
+// trace_allsolid: trapped between torso and level, release it.
+vector(entity e, entity player, vector target) carrybody = #0;
 // A hand grenade just taken from the grenade pouch (after carrygrip; `offset` its .carry_offset): turned in the hand by
 // vr_grenade_pouch_hold_* (its angles now), its origin's place in the hand returned (.carry_offset).
 vector(entity e, vector handangles, vector offset) carrypouch = #0;
@@ -281,7 +285,23 @@ float(entity e) ragdollknockdown = #0;
 // pushed whole so it goes over (reach: the units to past its edge), turned as it falls (vr_knockdown_shove_ledge_topple
 // times strength: the shove's push, two hands 1): 0 no ragdoll.
 float(entity e, vector dir, float strength, float ledge, float reach) ragdollshovetopple = #0;
+// (Its body rising first, vr_ragdoll_active_getup: -1 while it does, then 3 or 4: risen, in its get-up's last frame.)
 float(entity e, float frameA, float frameB, vector mins, vector maxs, float range, optional float anywhere) ragdollgetup = #0;
+// Active staggers (vr_ragdoll_active_stagger): whether a shove makes e stagger as a ragdoll; e (just knocked down by a
+// shove along dir, its ragdoll made) staggering instead (push: the shove's; balance 0 about to fall .. 1 steady; reach:
+// the units the shove carries a standing one; 0: it can't); how its stagger goes: 1 on, 0 fallen (down now), 2
+// recovered (up where it stands with box mins..maxs, its ragdoll blended into its animation), 3 lost (a loaded game: its
+// ragdoll made again without its stagger; the QC begins it again, VR_Knockdown_Think).
+float(entity e) ragdollcanstagger = #0;
+// A drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; VR_Knockdown_Drown): begin 0 whether e can (its
+// kind driven alive, Swim and Flail on); begin 1 its knockdown just made: its swim begun frantic.
+float(entity e, float begin) ragdolldrown = #0;
+// A living monster's ragdoll (a stagger, knocked down, getting up) guarding its head from a blow coming from `at`
+// (vr_ragdoll_active_guard; vr_hitreact.qc VR_Guard_Raise): its arms up before its face for `hold` s. 0: it can't (not
+// one of the kinds driven alive, Active Deaths off).
+float(entity e, vector at, float hold) ragdollguard = #0;
+float(entity e, vector dir, float push, float balance, float reach) ragdollstagger = #0;
+float(entity e, vector mins, vector maxs) ragdollstaggered = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;
@@ -466,10 +486,16 @@ float(string folder, float track) campaignmusic = #0; // a campaign's own CD tra
 // The next entity after `start` (in edict order) with any of `flags` set in the float field `fld`; world when none: a
 // loop over the monsters (findflags(world, flags, FL_MONSTER)...) steps through them alone, in the engine (vr_builtins.cpp).
 entity(entity start, .float fld, float flags) findflags = #0;
+// Live findflags order, returning only deadline <= now with a nonzero required field; no cached candidates.
+entity(entity start, .float fld, float flags, .float deadline, float now, .float required) findflagsdue = #0;
 // findflags(), past the entities whose box's centre ((absmin + absmax) * 0.5) is further from `eye` than `range` (vlen) or
 // less than `mincos` ahead (normalize(centre - eye) * v_forward), in QuakeC's own float steps: the same entities pass as
 // with that test in QuakeC (VR_Stealth_LookAbout's torches and bodies; vr_builtins.cpp).
 entity(entity start, .float fld, float flags, vector eye, float range, float mincos) findflagsinview = #0;
+// forcegrabbable_think_impl's work on self in the engine (vr_propthink.cpp; `particles`: vr_weapondrop_particles_on):
+// the same fields, the same random() draw and the same particle2 as forcegrabbable_think_qc. FALSE when it did nothing
+// (vr_prop_think_native 0, a progs without the fields, an angle too far out to bring round natively): the QuakeC runs.
+float(float particles) propthink = #0;
 vector(vector start, vector end) liquidentry = #0;
 void(vector org, vector dir, float strength, float snd) watersplash = #0;
 float QVR_SPLASH_SILENT = 0; // the caller plays its own sound

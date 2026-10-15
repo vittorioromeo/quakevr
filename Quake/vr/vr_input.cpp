@@ -18,10 +18,12 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
+#include "vr_doom.hpp"
 #include "vr_main.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
 #include "vr_posing.hpp"
+#include "vr_progs.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_timescale.hpp"
 #include "vr_flashlight.hpp"
@@ -138,19 +140,136 @@ void escape()
     Key_Event(K_ESCAPE, false);
 }
 
-void menuButton(int hand, bool now, bool before)
+InputState previous; // last frame's input
+
+void menuButton(int hand, bool now, bool before, const char* source)
 {
     if(!now || before)
     {
         return;
     }
-    if(key_dest == key_menu && m_state != m_none && !M_WaitingForKeyBinding())
+    const bool closes = key_dest == key_menu && m_state != m_none && !M_WaitingForKeyBinding();
+    if(vr_debug_buttons.value)
+    {
+        Con_Printf("VR buttons: %s hand's %s: %s\n", hand == HAND_MAIN ? "main" : "off", source,
+            closes ? "closes the menu" : key_dest == key_game ? "opens the menu" : "Escape");
+    }
+    if(closes)
     {
         menuui::backToGame(hand);
     }
     else
     {
         escape();
+    }
+}
+
+// vr_menu_button: the menu without the controller's menu button, which some controllers and runtimes never pass on (a
+// player's Pico Neo 3 under SteamVR). Each way is a press of the menu button (menuButton, and the posing mode's): it
+// opens the menu, or closes it from any page.
+// - 1 and up: both stick clicks together, the second within chordWindow of the first (or in the same frame). That second
+//   click (press and release) is the menu's: the game never gets it. The first went to the game as ever (+speed or
+//   +reloadmain, or bullet time's stick).
+// - 2: or Y (the off hand's upper button) held holdSeconds in the game; 3: B (the main hand's) so. The press reached the
+//   game first (a weapon switch), as a tap must not wait.
+// - 4: or Y pressed: Y is taken whole (press and release), before the posing mode, the toolgun or a voice note.
+// Never while a take plays back (vr_motion_play: its sticks are the take's).
+constexpr double chordWindow = 0.3;
+constexpr double holdSeconds = 0.8;
+
+struct MenuGestures
+{
+    double stickDown[HAND_COUNT]{};  // when each stick click went down (realtime)
+    bool stickTaken[HAND_COUNT]{};   // that stick click is the chord's (its release goes nowhere either)
+    bool yTaken{false};              // vr_menu_button 4: Y held as the menu
+    double holdSince{-1.0};          // vr_menu_button 2, 3: the held button's press in the game (-1: none)
+    bool holdDone{false};            // this hold has opened the menu, or began outside the game
+    bool press[HAND_COUNT]{};        // this frame: a gesture pressed the menu with this hand
+    const char* source[HAND_COUNT]{}; // ... which (vr_debug_buttons)
+    bool menuWas[HAND_COUNT]{};      // last frame's menu press, the button's or a gesture's
+};
+MenuGestures menuGestures;
+
+[[nodiscard]] int menuButtonMode()
+{
+    return motion::playing() ? 0 : CLAMP(0, static_cast<int>(vr_menu_button.value), 4);
+}
+
+// A button of hand `h` changed (`now`): true when a menu gesture takes it (the game never gets it).
+[[nodiscard]] bool menuGestureButton(const InputState& in, int h, bool HandInput::*button, bool now)
+{
+    MenuGestures& g = menuGestures;
+    const int mode = menuButtonMode();
+    if(button == &HandInput::stickClick)
+    {
+        const int o = 1 - h;
+        if(!now)
+        {
+            const bool taken = g.stickTaken[h];
+            g.stickTaken[h] = false;
+            return taken;
+        }
+        g.stickDown[h] = realtime;
+        if(g.stickTaken[h])
+        {
+            return true; // (the chord's other click, in the same frame)
+        }
+        const bool otherHeld = in.hands[o].stickClick && !g.stickTaken[o];
+        const bool otherJust = otherHeld && (!previous.hands[o].stickClick || realtime - g.stickDown[o] <= chordWindow);
+        if(mode < 1 || !otherJust)
+        {
+            return false;
+        }
+        g.stickTaken[h] = true;
+        if(!previous.hands[o].stickClick)
+        {
+            g.stickTaken[o] = true; // (both in this frame: the other's press, still to come, is the chord's too)
+        }
+        g.press[h] = true;
+        g.source[h] = "both sticks clicked";
+        return true;
+    }
+    if(button == &HandInput::secondary && h == HAND_OFF)
+    {
+        if(now && mode == 4)
+        {
+            g.yTaken = true;
+            g.press[h] = true;
+            g.source[h] = "Y (vr_menu_button 4)";
+            return true;
+        }
+        if(!now && g.yTaken)
+        {
+            g.yTaken = false;
+            return true;
+        }
+    }
+    return false;
+}
+
+// Once a frame, before the buttons: vr_menu_button 2 and 3, Y or B held in the game (as the game got it: not a voice
+// note's, the flashlight's, the posing mode's...).
+void menuHold(const bool secondaryDown[HAND_COUNT])
+{
+    MenuGestures& g = menuGestures;
+    const int mode = menuButtonMode();
+    const int h = mode == 2 ? HAND_OFF : HAND_MAIN;
+    if((mode != 2 && mode != 3) || !secondaryDown[h])
+    {
+        g.holdSince = -1.0;
+        g.holdDone = false;
+        return;
+    }
+    if(g.holdSince < 0.0)
+    {
+        g.holdSince = realtime;
+        g.holdDone = key_dest != key_game; // (a hold that began in a menu: B and Y go back a page there)
+    }
+    if(!g.holdDone && key_dest == key_game && realtime - g.holdSince >= holdSeconds)
+    {
+        g.holdDone = true;
+        g.press[h] = true;
+        g.source[h] = h == HAND_OFF ? "Y held" : "B held";
     }
 }
 
@@ -164,7 +283,6 @@ bool secondaryDown[HAND_COUNT] = {};
 // And the lower one (A/X): the hook unreels while it is (primaryHeld).
 bool primaryDown[HAND_COUNT] = {};
 
-InputState previous;
 glm::vec2 moveAxes{0.f};
 bool snapTurnArmed = true;
 
@@ -251,14 +369,27 @@ void turn(float x)
     }
 }
 
-// Once a frame, after the sticks: the comfort vignette's target (moving: the stick's push; turning: smooth turning's, or
-// a snap's pulse, at once), eased in quickly and out more slowly.
+// How fast an enemy's shove slides you now (QC vr_enemyshove.qc .vr_eshove_speed; 0 .. 1: a run's 320 units/s and
+// more), the local player's on this machine's server (a coop guest's own slide is the host's to read: none here).
+[[nodiscard]] float shoveSlide()
+{
+    if(!sv.active || svs.maxclients < 1 || svs.clients[0].edict == nullptr)
+    {
+        return 0.f;
+    }
+    const float speed = qvr::progs::fieldFloatOr(svs.clients[0].edict, qvr::progs::fields().vr_eshove_speed, 0.f);
+    return za::min(1.f, za::max(0.f, speed / 320.f));
+}
+
+// Once a frame, after the sticks: the comfort vignette's target (moving: the stick's push, or an enemy's shove sliding
+// you: ROUND22.md, "The vore shoves you"; turning: smooth turning's, or a snap's pulse, at once), eased in quickly and
+// out more slowly.
 void updateComfort()
 {
     ComfortMotion& c = comfortMotion;
     const int mode = static_cast<int>(vr_comfort_vignette.value);
     const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
-    const float moving = mode == 1 || mode == 2 ? za::min(1.f, glm::length(moveAxes)) : 0.f;
+    const float moving = mode == 1 || mode == 2 ? za::min(1.f, za::max(glm::length(moveAxes), shoveSlide())) : 0.f;
     const float turning = mode == 1 || mode == 3 ? za::max(c.turn, c.snapPulse > 0.f ? 1.f : 0.f) : 0.f;
     const float target = key_dest == key_game ? za::max(moving, turning) : 0.f;
     const float tau = target > c.amount ? 0.08f : 0.25f;
@@ -305,6 +436,23 @@ void checkBindings_f()
     Cvar_SetValueQuick(&vr_bindings_version, static_cast<float>(bindingsVersion));
 }
 
+// vr_bindings_reset (Debug > Logging > Restore Controller Bindings): vr_bindings.cfg again, whatever the version.
+void resetBindings_f()
+{
+    Con_Printf("Quake VR: setting the controller bindings (vr_bindings.cfg)\n");
+    Cbuf_InsertText("exec vr_bindings.cfg\n");
+    Cvar_SetValueQuick(&vr_bindings_version, static_cast<float>(bindingsVersion));
+}
+
+// guardBindings' last repair, for qvr_openxr.txt (describeBindings): its log is not open yet at vr_startgame.
+char bindingsRepair[256];
+
+[[nodiscard]] bool bindsGrab(int key)
+{
+    const char* b = keybindings[key];
+    return b && q_strcasestr(b, "grab");
+}
+
 } // namespace
 
 namespace qvr::input
@@ -313,6 +461,67 @@ namespace qvr::input
 void init()
 {
     Cmd_AddCommand("vr_checkbindings", checkBindings_f);
+    Cmd_AddCommand("vr_bindings_reset", resetBindings_f);
+    Cmd_AddCommand("vr_bindings_check", guardBindings); // what vr_startgame runs (tests)
+}
+
+// 1.0.1 (ROUND22.md "Controls as if another controller": a player's left trigger jumped, his grips grabbed nothing, A
+// did nothing: Ironwail's own gamepad bindings, LTRIGGER +jump, LSHOULDER/RSHOULDER "impulse 12"/"impulse 10", from a
+// config run after Quake VR's). A controller with a grab on none of its keys is never a VR player's choice (no weapon,
+// ladder or ledge can be taken in that hand; a config that rebinds only the left grip leaves the right one grabbing):
+// the VR bindings again. Rebinding a grip to another grab command (an alias with "grab" in its name) is left alone.
+void guardBindings()
+{
+    if(vr_bindings_guard.value == 0.f)
+    {
+        return;
+    }
+    bool grabs[HAND_COUNT] = {};
+    for(const ButtonKeys& b : buttonKeys)
+    {
+        for(int h = 0; h < HAND_COUNT; ++h)
+        {
+            grabs[h] = grabs[h] || bindsGrab(b.key[h]);
+        }
+    }
+    if(grabs[0] && grabs[1])
+    {
+        return;
+    }
+
+    const auto bound = [](int key) { return keybindings[key] ? keybindings[key] : ""; };
+    q_snprintf(bindingsRepair, sizeof(bindingsRepair),
+        "no grab on %s controller's keys (LTRIGGER \"%s\", LSHOULDER \"%s\", RSHOULDER \"%s\", ABUTTON \"%s\")",
+        !grabs[0] && !grabs[1] ? "either" : !grabs[0] ? "the left" : "the right", bound(K_LTRIGGER), bound(K_LSHOULDER),
+        bound(K_RSHOULDER), bound(K_ABUTTON));
+    Con_Warning("Quake VR: %s: another config's gamepad bindings. Setting the controller bindings again (vr_bindings.cfg; "
+                "vr_bindings_guard 0: never)\n",
+        bindingsRepair);
+    // Where they may have come from: the loose configs on the search path that ran at the start (a pak's are Quake's own;
+    // only the game folder's own autoexec.cfg and config.cfg, vr_foreign_configs 0, and its own saved config).
+    for(const searchpath_t* s = com_searchpaths; s; s = s->next)
+    {
+        for(const char* name : {"config.cfg", "autoexec.cfg", CONFIG_NAME})
+        {
+            const bool ran = (Cmd_ForeignConfigsAllowed() && strcmp(name, CONFIG_NAME) != 0) ||
+                             COM_SamePath(s->filename, com_gamedir);
+            if(!s->pack && ran && Sys_FileType(va("%s/%s", s->filename, name)) == FS_ENT_FILE)
+            {
+                Con_Printf("  %s/%s\n", s->filename, name);
+            }
+        }
+    }
+    Cbuf_InsertText("exec vr_bindings.cfg\n");
+}
+
+void describeBindings(char* out, size_t size)
+{
+    const auto bound = [](int key) { return keybindings[key] ? keybindings[key] : ""; };
+    q_snprintf(out, size,
+        "LTRIGGER \"%s\", RTRIGGER \"%s\", LSHOULDER \"%s\", RSHOULDER \"%s\", XBUTTON \"%s\", ABUTTON \"%s\", YBUTTON \"%s\", "
+        "BBUTTON \"%s\"%s%s",
+        bound(K_LTRIGGER), bound(K_RTRIGGER), bound(K_LSHOULDER), bound(K_RSHOULDER), bound(K_XBUTTON), bound(K_ABUTTON),
+        bound(K_YBUTTON), bound(K_BBUTTON), bindingsRepair[0] ? "; set again at the start: " : "", bindingsRepair);
 }
 
 namespace
@@ -320,11 +529,29 @@ namespace
 const InputState released; // (update: without VR, everything is released)
 } // namespace
 
+const char* menuButtonName()
+{
+    return vr_menu_button.value >= 1.f ? "menu button or both sticks" : "menu button";
+}
+
 void update(const InputState& tracked)
 {
     // Without VR, everything is released (keys held when the session ends must come up).
     const bool active = vrActive();
-    const InputState& in = active ? tracked : released;
+    const InputState& raw = active ? tracked : released;
+    // Doom on the wrist gadget with the focus takes the gadget hand's stick and buttons (its menu button stays Quake's):
+    // Quake sees them let go meanwhile (vr_doom.hpp).
+    InputState masked;
+    const bool doomTakes = doom::takesOffHand(raw);
+    if(doomTakes)
+    {
+        masked = raw;
+        const int g = hands::gadgetHand();
+        HandInput none;
+        none.menu = raw.hands[g].menu;
+        masked.hands[g] = none;
+    }
+    const InputState& in = doomTakes ? masked : raw;
 
     // The sticks by what they do: the moving one (vr_stick_swap: the right), the turning one.
     const HandInput& off = in.hands[hands::moveHand()];
@@ -333,6 +560,13 @@ void update(const InputState& tracked)
     // Where the hands point at the menu, before the trigger clicks there.
     menuui::update(hands::current());
 
+    // vr_menu_button's ways to the menu: Y or B held (the stick chord and Y pressed: with the buttons, below).
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        menuGestures.press[h] = false;
+    }
+    menuHold(secondaryDown);
+
     for(int h = 0; h < HAND_COUNT; h++)
     {
         for(const ButtonKeys& b : buttonKeys)
@@ -340,6 +574,12 @@ void update(const InputState& tracked)
             const bool now = in.hands[h].*b.button;
             if(now != previous.hands[h].*b.button)
             {
+                // A menu gesture's button is the menu's alone (vr_menu_button: both stick clicks, Y).
+                if(menuGestureButton(in, h, b.button, now))
+                {
+                    logButton(h, b, now, b.key[h], "the menu gesture (vr_menu_button)");
+                    continue;
+                }
                 // The weapon posing mode takes the buttons pressed while it runs (vr_posing.cpp).
                 if(posing::button(h, posingButton(b.button), now))
                 {
@@ -400,6 +640,12 @@ void update(const InputState& tracked)
                         continue;
                     }
                 }
+                // A grip on the menu panel's frame takes hold of it (vr_menu_grab).
+                if(b.button == &HandInput::grip && menuui::gripButton(h, now))
+                {
+                    logButton(h, b, now, b.key[h], "the menu panel's grab");
+                    continue;
+                }
                 // A trigger pointing at the menu is its mouse button.
                 const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
                 logButton(h, b, now, key, nullptr);
@@ -420,9 +666,13 @@ void update(const InputState& tracked)
             }
         }
 
-        if(in.hands[h].menu == previous.hands[h].menu || !posing::button(h, posing::Button::Menu, in.hands[h].menu))
+        // The menu button, or a gesture standing for it (a press for one frame).
+        const bool menuNow = in.hands[h].menu || menuGestures.press[h];
+        const bool menuBefore = menuGestures.menuWas[h];
+        menuGestures.menuWas[h] = menuNow;
+        if(menuNow == menuBefore || !posing::button(h, posing::Button::Menu, menuNow))
         {
-            menuButton(h, in.hands[h].menu, previous.hands[h].menu);
+            menuButton(h, menuNow, menuBefore, menuGestures.press[h] ? menuGestures.source[h] : "menu button");
         }
     }
 
@@ -443,6 +693,10 @@ void update(const InputState& tracked)
         // The off hand's stick navigates and changes values (the arrow keys). The main hand's only
         // scrolls (on a page with a scrollbar) or moves the selection up and down: its left and
         // right do nothing, so that navigating never changes a setting by accident (round 20).
+        if(glm::length(off.stick) > 0.3f || glm::length(main.stick) > 0.3f)
+        {
+            menuui::sticksPushed(); // (a grip held on the panel is the fine modifier, not its grab)
+        }
         const bool scrolls = menuui::scrollStick(main.stick.y);
         if(scrolls && za::fabs(main.stick.y) > 0.3f)
         {
@@ -465,7 +719,8 @@ void update(const InputState& tracked)
     }
     else if(toolgun::sticksTaken())
     {
-        // The toolgun's X/A held: the sticks move and turn what it places or holds (no walking, no turning).
+        // The toolgun's physgun holding something, or its X/A held: the sticks move and turn what it holds or places (no
+        // walking, no turning).
         for(StickKey& k : stickKeys)
         {
             stickKey(k, 0.f, false);

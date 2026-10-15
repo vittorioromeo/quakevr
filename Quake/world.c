@@ -1008,20 +1008,25 @@ static trace_t SV_ClipMoveToBoxEntityQVR (edict_t *touch, vec3_t mins, vec3_t ma
 	hull_t		*hull;
 	vec3_t		start_l, end_l;
 	qboolean	narrowtouch;
+	qboolean	pair; // a player's and a monster's bodies (vr_body_monster_inset; VR_BodyContactHull)
 
-	if (clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch))
+	pair = clip->bodymove && VR_BodyContactHull (clip->passedict, touch, mins, maxs, hullmins, hullmaxs);
+	if (!pair)
 	{
-		m = clip->entmins;
-		M = clip->entmaxs;
-	}
-	narrowtouch = clip->bodymove ? VR_HullTouchBox (touch, clip->passedict, tmins, tmaxs)
-		: VR_HullHitBox (touch, tmins, tmaxs, clip->hitmodel >= 0 || clip->hitgibs || clip->type == MOVE_MISSILE); // a shot or missile: the player's hit box (vr_hull_hit_width, vr_hull_hit_head)
-	if (m == mins && !narrowtouch)
-		return SV_ClipMoveToEntity (touch, clip->start, mins, maxs, clip->end);
+		if (clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch))
+		{
+			m = clip->entmins;
+			M = clip->entmaxs;
+		}
+		narrowtouch = clip->bodymove ? VR_HullTouchBox (touch, clip->passedict, tmins, tmaxs)
+			: VR_HullHitBox (touch, tmins, tmaxs, clip->hitmodel >= 0 || clip->hitgibs || clip->type == MOVE_MISSILE); // a shot or missile: the player's hit box (vr_hull_hit_width, vr_hull_hit_head)
+		if (m == mins && !narrowtouch)
+			return SV_ClipMoveToEntity (touch, clip->start, mins, maxs, clip->end);
 
-	// SV_HullForEntity's box, with the narrower boxes
-	VectorSubtract (narrowtouch ? tmins : touch->v.mins, M, hullmins);
-	VectorSubtract (narrowtouch ? tmaxs : touch->v.maxs, m, hullmaxs);
+		// SV_HullForEntity's box, with the narrower boxes
+		VectorSubtract (narrowtouch ? tmins : touch->v.mins, M, hullmins);
+		VectorSubtract (narrowtouch ? tmaxs : touch->v.maxs, m, hullmaxs);
+	}
 	hull = SV_HullForBox (hullmins, hullmaxs);
 
 	memset (&trace, 0, sizeof(trace_t));
@@ -1032,6 +1037,14 @@ static trace_t SV_ClipMoveToBoxEntityQVR (edict_t *touch, vec3_t mins, vec3_t ma
 	VectorSubtract (clip->end, touch->v.origin, end_l);
 	++vr_profcounts.hullchecks;
 	SV_RecursiveHullCheck (hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
+	// a player and a monster already in each other: a move that goes no deeper passes (they never stick)
+	if (pair && trace.startsolid && VR_BodyContactLetsOut (clip->passedict, touch, hullmins, hullmaxs, start_l, end_l))
+	{
+		memset (&trace, 0, sizeof(trace_t));
+		trace.fraction = 1;
+		VectorCopy (clip->end, trace.endpos);
+		return trace;
+	}
 	if (trace.fraction != 1)
 		VectorAdd (trace.endpos, touch->v.origin, trace.endpos);
 	if (trace.fraction < 1 || trace.startsolid)
@@ -1101,6 +1114,8 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		touch = EDICT_FROM_AREA(l);
 		if (touch->v.solid == SOLID_NOT)
 			continue;
+		if (VR_AD_PelletsPass (clip->passedict, touch)) // AD support: a blast's pellets never stop one another
+			continue;
 		// QVR: a grenade shots set off (.vr_shot_radius: VR_ShotTargetClip): a shot or a missile meets a cube round it,
 		// its owner's own shots too; any other move meets it by Quake's rules.
 		if (touch != clip->passedict && touch->v.takedamage && touch->v.solid != SOLID_BSP
@@ -1139,6 +1154,9 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 			corpse = true;
 		}
 		if (touch == clip->passedict && !clip->hitpass)
+			continue;
+		// QVR: a player and the enemy his hand holds don't meet (vr_foegrab_step_in)
+		if (clip->bodymove && VR_BodyContactPasses (clip->passedict, touch, clip->mins, clip->maxs))
 			continue;
 		if (touch->v.solid == SOLID_TRIGGER)
 			Sys_Error ("Trigger in clipping list");

@@ -143,6 +143,7 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		strings[numstrings++] = extradefs;
 	strings[numstrings++] = source;
 
+	VR_GLStep ("compile %s %s shader", name, typestr); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	shader = GL_CreateShaderFunc (type);
 	GL_ObjectLabelFunc (GL_SHADER, shader, -1, name);
 	GL_ShaderSourceFunc (shader, numstrings, strings, NULL);
@@ -180,6 +181,7 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 		++shaders;
 	}
 
+	VR_GLStep ("link %s", name); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	GL_LinkProgramFunc (program);
 	GL_GetProgramivFunc (program, GL_LINK_STATUS, &status);
 
@@ -347,9 +349,10 @@ void GL_CreateShaders (void)
 	for (oit = 0; oit < 2; oit++)
 		for (dither = 0; dither < 3; dither++)
 			for (mode = 0; mode < 3; mode++)
-				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d", oit, dither, mode);
+				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d%s", oit, dither, mode,
+					mode == WORLDSHADER_SOLID ? "; NO_DECAL_RETRO 1" : ""); // QVR: the decals' retro textures' code: GL_WorldDecalRetroProgram's
 	for (dither = 0; dither < 3; dither++) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
-		glprogs.world_pdo[dither] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo|OIT 0; DITHER %d; MODE %d; PDO 1", dither, WORLDSHADER_SOLID);
+		glprogs.world_pdo[dither] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo|OIT 0; DITHER %d; MODE %d; PDO 1; NO_DECAL_RETRO 1", dither, WORLDSHADER_SOLID);
 
 	for (dither = 0; dither < 2; dither++)
 	{
@@ -375,13 +378,13 @@ void GL_CreateShaders (void)
 				for (poseverttype = 0; poseverttype < 3; poseverttype++) 
 					glprogs.alias[oit][mode][alphatest][poseverttype] =
 					GL_CreateProgram (alias_vertex_shader, alias_fragment_shader, "alias|OIT %d; MODE %d; ALPHATEST %d; POSEVERTTYPE %d", oit, mode, alphatest, poseverttype);
-	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR
-		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|POSEVERTTYPE %d", poseverttype);
+	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR; MODE 0 (standard) in these: an undefined name in #if is an error in GLSL (strict drivers)
+		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|MODE 0; POSEVERTTYPE %d", poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: into all their faces at once (vr/vr_lighting.cpp)
 		glprogs.alias_depth_layered[poseverttype] = gl_viewport_layer_able ?
-			GL_CreateProgram (alias_vertex_shader, NULL, "alias depth layered|POSEVERTTYPE %d; LAYERED %d", poseverttype, gl_viewport_layer_able) : 0;
+			GL_CreateProgram (alias_vertex_shader, NULL, "alias depth layered|MODE 0; POSEVERTTYPE %d; LAYERED %d", poseverttype, gl_viewport_layer_able) : 0;
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: wounds painted on models (vr/vr_wounds.cpp)
-		glprogs.woundpaint[poseverttype] = GL_CreateProgram (alias_vertex_shader, wound_paint_fragment_shader, "wound paint|POSEVERTTYPE %d; WOUNDPAINT 1", poseverttype);
+		glprogs.woundpaint[poseverttype] = GL_CreateProgram (alias_vertex_shader, wound_paint_fragment_shader, "wound paint|MODE 0; POSEVERTTYPE %d; WOUNDPAINT 1", poseverttype);
 	glprogs.woundpaintbox = GL_CreateProgram (wound_paint_box_vertex_shader, wound_paint_fragment_shader, "wound paint box"); // QVR: a held brush model's (vr/vr_wounds.cpp)
 
 	glprogs.debug3d = GL_CreateProgram (debug3d_vertex_shader, debug3d_fragment_shader, "debug3d");
@@ -393,6 +396,28 @@ void GL_CreateShaders (void)
 	for (mode = 0; mode < 3; mode++)
 		glprogs.palette_init[mode] = GL_CreateComputeProgram (palette_init_compute_shader, "palette init|MODE %d", mode);
 	glprogs.palette_postprocess = GL_CreateComputeProgram (palette_postprocess_compute_shader, "palette postprocess");
+}
+
+/*
+=============
+GL_WorldDecalRetroProgram
+
+QVR: the solid world's program with the decals' retro textures' code (vr_retro: the decals have a retro set), made the
+first time it is needed. The others go without it (NO_DECAL_RETRO): its mere presence slowed the decals' loop by a
+quarter (PERF_DECISIONS.md 15), and making these at the start would add to every start's shaders.
+=============
+*/
+GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo)
+{
+	GLuint *program = pdo ? &glprogs.world_pdo_decal_retro[dither] : &glprogs.world_decal_retro[oit][dither];
+	if (!*program)
+	{
+		if (pdo)
+			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo decal retro|OIT 0; DITHER %d; MODE %d; PDO 1", dither, WORLDSHADER_SOLID);
+		else
+			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world decal retro|OIT %d; DITHER %d; MODE %d", oit, dither, WORLDSHADER_SOLID);
+	}
+	return *program;
 }
 
 /*

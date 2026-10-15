@@ -48,7 +48,8 @@ left half. `vr_stick_swap 1` swaps only what the sticks do (the right one moves)
 
 Controllers without some of these: Index has no menu button, so its left B opens the menu. Vive wands use the
 trackpads as sticks and their clicks as A/X, and the right menu button as B. WMR uses the trackpad clicks as A/X
-and the right menu button as B. In menus both sticks navigate, A selects and B goes back.
+and the right menu button as B. In menus both sticks navigate, A selects and B goes back. Both sticks clicked
+together open and close the menu on any controller (VR Settings > *Menu Button*, `vr_menu_button`).
 
 The defaults live in `quakevr/vr_bindings.cfg`. They are applied once (`vr_bindings_version`) on top of whatever
 config was saved before, including one inherited from `id1`; "Reset to defaults" applies them again.
@@ -115,6 +116,16 @@ prints it.
 
 ## If something goes wrong
 
+**The quickest report:** the Start menu's **Quake VR Unleashed (diagnostics)** shortcut (or `-diagnostics`) puts
+everything in `quakevr\diagnostics\<date>_<time>`, which opens when you quit:
+- the console;
+- the GL driver's messages;
+- the OpenXR loader's and runtime's messages;
+- the crash report;
+- SteamVR's and Virtual Desktop's logs.
+
+Send that folder zipped.
+
 Add `-condebug` to the command line (or `QuakeVR.bat -condebug`): the console goes to `qconsole.log` in the Quake folder, which
 is the most useful thing to send me along with a description. In particular:
 
@@ -128,6 +139,10 @@ is the most useful thing to send me along with a description. In particular:
   `vr_grasp_dump main hand.obj` writes the drawn hand and the held model as an .obj to send me. Hand/Gun
   Calibration > Fit Fingers to What You Hold off shows the controller's curls alone, Jointed Hand off the old
   hands.
+- **Controls act like a gamepad's** (the left trigger jumps, a grip changes weapons): another config's bindings. The
+  console names a skipped `autoexec.cfg` or `config.cfg` from outside `quakevr` (another source port's in `id1`;
+  `vr_foreign_configs 1` runs them) and the start's repair (`no grab on the left controller's keys`); Debug >
+  Logging > *Restore Controller Bindings* sets them by hand. Your own overrides go in `quakevr\autoexec.cfg`.
 - **A crash:** the log up to the crash, and what you were doing.
 - **Slower than it should be:** VR Settings > Advanced VR Options > Debug > Profiling and Memory: the Profiler
   Panel, a CSV Capture and the Memory Log (what each shows: [BENCHMARKS.md](BENCHMARKS.md), "Profiling in the

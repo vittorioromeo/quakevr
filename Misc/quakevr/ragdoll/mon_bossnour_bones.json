@@ -1,0 +1,7 @@
+{"bones": [["pelvis", -1, [14, 8], "root"], ["head", 0, [3], ["ball", 40, 30]],
+ ["tail1", 0, [0], ["ball", 40, 20], 4], ["tail2", 2, [16], ["ball", 45, 20], 3, "tip"],
+ ["upperarm_l", 0, [15], ["ball", 70, 40]], ["forearm_l", 4, [9], ["ball", 60, 30], 0, "tip"],
+ ["upperarm_r", 0, [7], ["ball", 70, 40]], ["forearm_r", 6, [17], ["ball", 60, 30], 0, "tip"],
+ ["arm_ml", 0, [10], ["ball", 60, 30], 0, "tip"], ["arm_mr", 0, [11], ["ball", 60, 30], 0, "tip"],
+ ["arm_ll", 0, [12], ["ball", 60, 30]], ["hand_ll", 10, [6], ["ball", 60, 30], 0, "tip"],
+ ["arm_lr", 0, [4], ["ball", 60, 30], 0, "tip"]]}

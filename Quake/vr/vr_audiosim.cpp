@@ -3,6 +3,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_audiosim.hpp"
+#include "vr_brushes.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Erase.hpp"
@@ -847,7 +848,8 @@ int trackBrushEntities(Simulation& sim, float unitsPerMetre)
     {
         const entity_t* e = &cl_entities[i];
         const qmodel_t* m = e->model;
-        if(!m || m->type != mod_brush || !qvr::modelmeta::has(m, qvr::modelmeta::Trait::Submodel))
+        if(!m || m->type != mod_brush || !qvr::modelmeta::has(m, qvr::modelmeta::Trait::Submodel) ||
+            qvr::brushes::isRuntime(m)) // (a box made in the game is no submodel of the map's: "*qvrbrush/N")
         {
             continue;
         }

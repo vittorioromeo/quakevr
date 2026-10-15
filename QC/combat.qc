@@ -18,6 +18,15 @@ float QVR_HITKIND_SPLASH   = 6; // an explosion's (or a discharge's) radius dama
 float QVR_HITKIND_BLEED    = 7; // a thrown axe stuck in it bleeding it (vr_axestick.qc): no new wound
 
 float vr_hitkind;     // QVR_HITKIND_*
+
+// The blow being dealt draws no blood (ROUND22.md, "Shoves, slaps and bashes draw no blood"): a shove, a weapon's bash
+// (a parry bash) or a slap keep their damage, knockback and stagger, but spray no blood, paint no wound, send no gore
+// and tear no small gibs (VR_Gore_Hit, VR_Wound_Hit, VR_SmallGib_Hit, VR_Bash_Hit).
+float() VR_HitBloodless =
+{
+    return vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE ||
+           (vr_hitkind == QVR_HITKIND_MELEE && vr_melee_slap);
+};
 float vr_hithand;     // the hand that struck or fired (-1: unknown)
 string vr_hitweapon;  // what fired, when not the weapon in vr_hithand ("": that one)
 vector vr_hitpos;     // where it struck ('0 0 0': unknown)
@@ -46,8 +55,36 @@ void(float xKind, float xHand, vector xPos, vector xDir) VR_SetHitKind =
     vr_hitdir = xDir;
 };
 
+// The blow VRMeleeDmg last priced, inside a hand's VR_SetHitKind .. VR_ClearHitKind: its strength from speed alone
+// (mh_core; 0: none, as a test's or a headbutt's damage) and its hand.
+float vr_mdmg_core;
+float vr_mdmg_hand;
+
+// Hard damage caps per blow (the author, round 22): a weapon's blow deals between vr_melee_dmg_min and
+// vr_melee_dmg_max times its own base damage, whatever its speed and zone: its strength from speed (mh_core) times the
+// zone's multiplier `xZone` is bounded, then the rest stays multiplied in (a pommel's or the hook's share, the punch and
+// slap multipliers, a counter, stamina, the weapon's Melee Damage x and weight, vr_melee_dmg_multiplier, Quad).
+// `xDamage`: the blow's damage with its zone's multiplier. Only a hand's blow VRMeleeDmg priced; else as it is.
+float(float xDamage, float xZone) VR_Melee_CapDamage =
+{
+    float c = vr_mdmg_core * xZone;
+    if(vr_hitkind != QVR_HITKIND_MELEE || vr_hithand != vr_mdmg_hand || c <= 0)
+    {
+        return xDamage;
+    }
+    float lo = max(0, cvar_hget(cvarh_vr_melee_dmg_min));
+    float hi = max(lo, cvar_hget(cvarh_vr_melee_dmg_max));
+    float capped = min(hi, max(lo, c));
+    if(capped != c && cvar("developer") >= 2)
+    {
+        dprint(sprintf("melee debug: strength x zone %.2f capped to %.2f (vr_melee_dmg_min/max)\n", c, capped));
+    }
+    return xDamage * capped / c;
+};
+
 void() VR_ClearHitKind =
 {
+    vr_mdmg_core = 0;
     vr_hitkind = QVR_HITKIND_NONE;
     vr_hithand = -1;
     vr_hitweapon = "";
@@ -118,6 +155,7 @@ void(entity targ, entity attacker) Killed =
     entity oself;
 
     VR_Stealth_Died(targ); // QVR: its body may be noticed (vr_stealth.qc)
+    AD_MonsterKilled(targ, attacker); // AD support: AD's keys on our monsters (deathtarget) in an AD map
     oself = self;
     self = targ;
     // VR: the firing range's training dummy killed by what passed by its own report (VR_Dummy_Hit; a zombie it stands as
@@ -230,6 +268,8 @@ void(entity targ, entity attacker) Killed =
 // to players and monsters (vr_corpse_collide_player, _monsters).
 
 .float vr_corpse;         // 1 dying (watched: VR_Corpse_Think2), 2 a corpse that can be gibbed
+.float vr_corpse_placed;  // a mapper's corpse (misc_corpse, vr_mg_corpses.qc): 1 lying as placed (no ragdoll), 2 woken (a
+                          // player came near, vr_box3d.cpp): a ragdoll as a killed monster's body
 .float vr_corpse_hp;      // what damage it takes yet
 .float vr_corpse_frame;   // its frame at the last look: the death animation is over when it stops changing
 .float vr_corpse_since;   // when it died
@@ -288,6 +328,18 @@ void(float xChanceH, float xFrame, void() xGetup) VR_Knockdown_SetupOwn;
 void(float xChanceH, float xLastA, float xFirstA, float xLastB, float xFirstB) VR_Knockdown_SetupReverse;
 float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try;
 void() VR_Knockdown_FastForwardDeath;
+// Hits that unbalance (vr_hitstagger.qc): a melee blow's (T_Damage_VRMelee), a thrown thing's (vr_carry.qc VR_Prop_Flung).
+.float vr_hst_next; // when a hit may unbalance it again (vr_hit_stagger_cooldown)
+float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_HitStagger_Melee;
+float(entity e, vector xAt) VR_HitStagger_Head;
+float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamage) VR_HitStagger_Throw;
+void(float xMode) VR_HitStagger_Test;
+// Impacts and manhandling (vr_ragimpact.qc): when it was last staggered (a shove, an unbalancing hit, a stagger
+// recovered from: a hand's hold knocks it down, VR_FoeGrab_Manhandle); your landing's crush; the tests.
+.float vr_kd_shaken;
+void(entity e) VR_Manhandle_Shaken;
+void(entity p, float xSpeed) VR_RagImpact_Crush;
+void(float xMode) VR_RagImpact_Test;
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;
 // Head pops (vr_decap.qc, "Head pops"): the player's shot being fired (W_FireShotgun, W_FireSuperShotgun,
@@ -343,6 +395,10 @@ float(entity e) VR_Corpse_Parts =
     vr_corpse_gib2 = "progs/gib2.mdl";
     vr_corpse_gib3 = "progs/gib3.mdl";
 
+    if(e.vr_ad_mon)
+    {
+        return VR_AD_CorpseParts(e); // AD support: AD's monsters' heads and gibs (vr_ad_monsters.qc)
+    }
     if(e.th_die == army_die)
     {
         vr_corpse_head = "progs/h_guard.mdl";
@@ -697,6 +753,12 @@ float(entity inflictor, entity attacker) VR_Corpse_DamageKind;
 string(float xKind) VR_Corpse_DamageKindName;
 float(float xKind) VR_Corpse_DamageKindMult;
 
+float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseWear;
+// Where a hit that no other global places struck (the lightning gun's bolt, VR_LightningHit): its corpse's piece worn.
+vector vr_limb_wear_at;
+entity vr_limb_wear_ent;
+float vr_limb_wear_time;
+
 // Its damage, from T_Damage (instead of Quake's): gibbed at no health.
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Damage =
 {
@@ -753,6 +815,14 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     damage = damage * kindMult;
     string kindName = VR_Corpse_DamageKindName(kind);
 
+    // Any weapon's hit on its head or a limb wears down that piece only (vr_limbs.qc, "Corpse pieces' own health");
+    // the torso's share (a blast's, or a torso hit) goes on to the whole-body pool below. Explosions keep it whole.
+    damage = VR_Limb_CorpseWear(targ, inflictor, attacker, damage, kind);
+    if(damage <= 0)
+    {
+        return TRUE;
+    }
+
     // Never gibbed (vr_corpse_nogib): it takes the hit (blood, small gibs, the engine's push) but loses no health.
     if(VR_Corpse_NoGib(1))
     {
@@ -792,6 +862,7 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
     vr_sgib_corpsegib = TRUE;
 
     self.vr_corpse = 0;
+    self.vr_corpse_placed = 0; // (a mapper's corpse no more: vr_mg_corpses.qc)
     self.vr_corpse_dying = 0; // (gibbed dying: its death code stops, ThrowHead's think instead)
     self.vr_corpse_hp = 0;
     self.takedamage = DAMAGE_NO;
@@ -921,6 +992,8 @@ void(float xHand) VR_Corpse_StrikeFrame =
     {
         VR_Burn_Ignite(c, self, at, dir, VR_BURN_BLOW);
     }
+    // So does an incandescent blade (vr_hotblade.qc).
+    VR_HotBlade_Struck(self, xHand, c, FALSE, at, dir);
 };
 
 float() getVRMeleeBloodlust =
@@ -954,7 +1027,8 @@ float VR_SHOVE_SAFEFALL = 150; // units of drop without damage; 0.4 a unit beyon
 // throw): from the speed it came down at, the drop that speed takes (v^2 / 2g) beyond VR_SHOVE_SAFEFALL, 0.4 a unit (as
 // a shove's fall was measured), so the harder it lands the more it takes. Called by the engine: standing, as it lands
 // (SV_Physics_Step: its speed down); knocked down (vr_knockdown.qc), its ragdoll's hardest hit on the level in a frame
-// (vr_box3d.cpp: that hit's speed along the vertical). A burst of hits (the ragdoll's limbs, a bounce) counts once.
+// (vr_box3d.cpp: that hit's speed along the vertical, no faster than its whole body came down: a sword or a tail whipping
+// into the floor is no fall). A burst of hits (the ragdoll's limbs, a bounce) counts once.
 .float vr_fall_time; // until when a landing does not hurt it again
 void(entity m, float xSpeed) VR_Monster_Fall =
 {
@@ -981,6 +1055,10 @@ void() VR_Shove_Think;
 // A push of `e` along `xDir` at `xSpeed` (units/s, horizontal) starts a slide (VR_Push).
 void(entity e, vector xDir, float xSpeed) VR_Shove_Start =
 {
+    if(VR_IsDummy(e) && cvar_hget(cvarh_vr_dummy_anchored))
+    {
+        return; // (vr_dummy_anchored: it stays where it stands)
+    }
     entity s = e.vr_shove;
     if(s == world || s.classname != "vr_shove" || s.owner != e)
     {
@@ -1251,6 +1329,58 @@ void(entity p, string xWhy) VR_Climb_KnockOff =
 };
 
 // The damage itself (T_DamageImpl's).
+// VR: active ragdolls (vr_ragdoll_active; the engine's vr_ragactive.cpp, ROUND22.md "Active ragdolls: core and deaths"):
+// the blow that killed a monster, kept for its ragdoll (made a few frames later, at its first frame not solid): where on
+// it the blow struck (PositionalRegion's: 1 the head, 2 a limb, 3 a leg, 0 the body; a shotgun's pellets: the head if
+// half of them, else the legs if most, else the body; -1 unknown) and the point, from its origin as it died ('0 0 0':
+// unknown; its body is thrown after: vr_kill_push). A headshot's ragdoll
+// collapses; a wound in the body or a limb may be held by a hand.
+.float vr_death_hit;
+.vector vr_death_hitpos;
+
+void(entity targ) VR_Ragdoll_NoteDeathHit =
+{
+    float part = -1;
+    vector at = '0 0 0';
+    if(vr_hitpart_target == targ && vr_hitpart_time == time)
+    {
+        part = vr_hitpart;
+        at = vr_hitpart_pos;
+    }
+    if(vr_hitpellets > 0)
+    {
+        part = 0;
+        if(vr_hitpellets_head * 2 >= vr_hitpellets)
+        {
+            part = 1;
+        }
+        else if(vr_hitpellets_leg * 2 > vr_hitpellets)
+        {
+            part = 3;
+        }
+    }
+    if(at == '0 0 0' && vr_hitpos != '0 0 0' && vlen(vr_hitpos - targ.origin) < 96)
+    {
+        at = vr_hitpos;
+        if(part < 0)
+        {
+            part = 0;
+        }
+    }
+    targ.vr_death_hit = part;
+    targ.vr_death_hitpos = '0 0 0';
+    if(at != '0 0 0')
+    {
+        targ.vr_death_hitpos = at - targ.origin;
+    }
+};
+
+// VR: living hit reactions (vr_hitreact.qc; ROUND22.md, "Active ragdolls: living hit reactions"): a living monster's
+// blow sent to the clients (they draw its flinch) and its steps slowed a moment; a shotgun blast's pellets' points
+// gathered for it (TraceAttack).
+void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit;
+void(entity e, vector at, vector dir) VR_HitReact_Pellet;
+
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageDeal =
 {
     vector    dir;
@@ -1380,6 +1510,13 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     if(deathmatch)
     {
         damage = RuneApplyBlack(damage, attacker);
+    }
+
+    // AD support: AD's Blast Belt takes a blast's damage (its push given), halves the rest with Quad (vr_ad_items.qc)
+    damage = AD_ArtifactDamage(targ, inflictor, damage);
+    if(damage < 0)
+    {
+        return FALSE;
     }
 
     //MED
@@ -1555,6 +1692,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
         float hlScore = VR_Highlight_Kill(targ, inflictor, attacker, isVRMelee); // VR: the highlight log (vr_highlights.qc)
         string hlWhat = vr_hl_what;
+        VR_Ragdoll_NoteDeathHit(targ); // VR: active ragdolls: where it was struck
         Killed (targ, attacker);
         VR_Highlight_Killed(targ, hlScore, hlWhat);
         return TRUE;
@@ -1570,6 +1708,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             }
         }
     }
+
+    VR_HitReact_Hit(targ, inflictor, attacker, take); // VR: a living monster flinches (vr_hitreact.qc)
 
     // react to the damage
     oldself = self;
@@ -1641,6 +1781,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         return FALSE; // only a melee blow opens it (vr_mg3_weapons.qc)
     }
+    damage = AD_Resist(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's ammo resistance (vr_ad_player.qc)
+    if(AD_Run(targ))
+    {
+        return AD_Damage(targ, inflictor, attacker, damage, isVRMelee); // AD support: AD's entities by AD's T_Damage (vr_ad_bridge.qc)
+    }
     if(targ.vr_shootnade)
     {
         return VR_GrenShot_Damage(targ, inflictor, attacker, damage, isVRMelee);
@@ -1691,7 +1836,8 @@ float(entity e) VR_Parry_MeleeMonster =
            c == "monster_dog" || c == "monster_shambler" || c == "monster_super_shambler" || c == "monster_fish" || c == "monster_gremlin" ||
            c == "monster_mummy" || c == "monster_super_wrath" || c == "monster_sword" || c == "monster_morph" ||
            c == "monster_dragon" || c == "monster_scourge" || c == "monster_ogre_marksman" || c == "monster_tarbaby" ||
-           e.vr_dummy_striking || e.vr_eshove_striking;
+           e.vr_dummy_striking || e.vr_eshove_striking ||
+           (e.vr_ad_mon & VR_ADM_MELEE); // AD support: AD's monsters that strike in melee (vr_ad_monsters.qc)
 };
 
 // Whether `p`'s `hand` holds a weapon with the hand's forward across `toAttacker` (horizontal, unit):
@@ -2030,10 +2176,17 @@ void(entity m, entity p) VR_Parry_Interrupt =
     {
         VR_Dragon_ParryInterrupt();
     }
-    else if(m.th_pain && m.classname != "monster_tarbaby" && m.classname != "monster_morph")
+    else if((m.th_pain || m.vr_ad_mon) && m.classname != "monster_tarbaby" && m.classname != "monster_morph")
     {
         m.pain_finished = 0;
-        m.th_pain(p, 1000);
+        if(m.vr_ad_mon)
+        {
+            VR_AD_Pain(m, p, 1000, 0); // AD support: AD's pain function (vr_ad_monsters.qc)
+        }
+        else
+        {
+            m.th_pain(p, 1000);
+        }
         if(m.frame != frameBefore)
         {
             m.vr_parry_frame0 = m.frame;
@@ -2348,12 +2501,22 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     // Positional damage for a blow (vr_melee_positional): the zone of the point on the model it met, the same the guns
     // use. Off: 1, and nothing is recorded - exactly the flat melee damage of before.
     float mult = VR_Melee_Positional(targ, vr_hitpos, vr_hitdir);
-    damage = damage * mult;
+    damage = VR_Melee_CapDamage(damage * mult, mult);
     float decap = VR_Decap_Blow(targ, attacker, damage); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
+    float alive = targ.health > 0 && !targ.vr_corpse && !targ.vr_corpse_dying; // (a corpse keeps its own health to gib)
+    float hotHand = vr_hitkind == QVR_HITKIND_MELEE ? vr_hithand : -1;
+    vector hotAt = vr_hitpos;
+    vector hotDir = vr_hitdir;
+    float head = VR_HitStagger_Head(targ, vr_hitpos);
     float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);
     if(decap)
     {
         VR_Decap_After(targ);
+    }
+    // VR: an incandescent blade sets what it struck on fire (vr_hotblade.qc).
+    if(hotHand >= 0 && damage > 0)
+    {
+        VR_HotBlade_Struck(attacker, hotHand, targ, alive, hotAt, hotDir);
     }
     if(r && damage > 0 && targ != attacker && (attacker.flags & FL_CLIENT))
     {
@@ -2370,6 +2533,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     {
         VR_Push(targ, targ.origin - attacker.origin, min(600, damage * 10) * cvar_hget(cvarh_vr_melee_push),
             min(200, damage * 3) * cvar_hget(cvarh_vr_melee_push));
+    }
+    // VR: a strong blow may unbalance it as a shove does (vr_hitstagger.qc; a head blow counts more).
+    if(r && alive && damage > 0)
+    {
+        VR_HitStagger_Melee(targ, attacker, targ.origin - attacker.origin, damage, head);
     }
     return r;
 };
@@ -2496,4 +2664,91 @@ void(entity attacker, float damage) T_BeamDamage =
         }
         head = head.chain;
     }
+};
+
+// The tests' target (the engine's vr_ragdoll_act, vr_ragtest.cpp: the nearest monster of a kind it supports, set by
+// VR_TestOnly for the length of one test call): world, the nearest as each test finds it. VR_TestKill_Frame,
+// VR_TestHit_Frame, VR_Limb_TestTarget (vr_test_cut) and VR_Knockdown_Test take it instead of their nearest.
+entity vr_test_only;
+void(entity xTarget) VR_TestOnly =
+{
+    vr_test_only = xTarget;
+};
+
+// Whether a test looking for its nearest monster skips `e` (vr_test_only set, and not it).
+float(entity e) VR_TestSkips =
+{
+    return (vr_test_only != world && e != vr_test_only);
+};
+
+// Test aid `vr_test_kill <n>` (console; the active ragdolls' tests, Misc/quakevr/ragdoll/active_test.sh): the live
+// monster nearest the player killed by a shot of his (20 damage on its last point of health), struck (n - 1) on: 0 the body, 1 the head, 2 an arm (its right
+// side as he sees it), 3 a leg, on its side facing him; 5: nowhere known. Prints `test kill:`.
+void() VR_TestKill_Frame =
+{
+    float want = cvar("vr_test_kill");
+    if(want < 1)
+    {
+        return;
+    }
+    cvar_set("vr_test_kill", "0");
+    entity pl = find(world, classname, "player");
+    entity best = world;
+    float bestD = 100000;
+    entity e = nextent(world);
+    while(e)
+    {
+        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e) && !VR_TestSkips(e) &&
+           vlen(e.origin - pl.origin) < bestD)
+        {
+            bestD = vlen(e.origin - pl.origin);
+            best = e;
+        }
+        e = nextent(e);
+    }
+    if(best == world)
+    {
+        dprint("test kill: no live monster\n");
+        return;
+    }
+    float part = want - 1;
+    vector dir = best.origin - pl.origin;
+    dir_z = 0;
+    dir = normalize(dir);
+    vector right = '0 0 0';
+    right_x = dir_y;
+    right_y = 0 - dir_x;
+    float lo = best.absmin_z;
+    float hi = best.absmax_z;
+    vector at = (best.absmin + best.absmax) * 0.5 - dir * ((best.maxs_x - best.mins_x) * 0.35);
+    at_z = lo + (hi - lo) * 0.6;
+    if(part == 1)
+    {
+        at_z = hi - (hi - lo) * 0.08;
+    }
+    else if(part == 2)
+    {
+        at_z = lo + (hi - lo) * 0.62;
+        at = at + right * ((best.maxs_y - best.mins_y) * 0.4);
+    }
+    else if(part == 3)
+    {
+        at_z = lo + (hi - lo) * 0.22;
+    }
+    VR_ClearHitKind();
+    vr_hitpart_target = world;
+    if(part < 4)
+    {
+        VR_SetHitKind(QVR_HITKIND_SHOT, -1, at, dir);
+        vr_hitpart = part;
+        vr_hitpart_target = best;
+        vr_hitpart_time = time;
+        vr_hitpart_pos = at;
+    }
+    dprint(sprintf("test kill: %s at %v struck %g at %v\n", best.classname, best.origin, part, at));
+    // (A shotgun blast's worth on its last point of health: its kill push a real shot's, vr_kill_push.)
+    best.health = 1;
+    T_Damage(best, pl, pl, 20);
+    VR_ClearHitKind();
+    vr_hitpart_target = world;
 };

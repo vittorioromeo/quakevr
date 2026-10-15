@@ -27,10 +27,9 @@
 #   boolean, headless, blender/carve_mesh.py; QVR_BLENDER names another blender.exe), small sights, a thin barrel at
 #   the muzzle, the grunts' gun a wire stock.
 # Nine frames (0..8, the same pose): the frames a gun's firing animation steps through.
-# The anchors (slots 21, 22: WpnTextAnchorVertex, MuzzleAnchorVertex; configs keep them) stay at their indices:
-# pin_anchors orders the triangles so the counter's cut-out vertex and the barrel's bore centre come at them (GUNS'
-# anchors). The bounds' corner (scale_origin, about which the weapon Scale pivots: the Offsets and hotspots follow it)
-# is pinned too (GUNS' origin); the script prints both.
+# The anchors (slots 21, 22: WpnTextAnchor, MuzzleAnchor; points on the surface, vr_anchor.hpp): the counter's
+# cut-out vertex (GUNS' counter) and the barrel's bore centre; the script prints them. The bounds' corner
+# (scale_origin, about which the weapon Scale pivots: the Offsets and hotspots follow it) is pinned (GUNS' origin).
 
 import math
 import os
@@ -41,7 +40,6 @@ import numpy as np
 
 import genguard
 import mdlpolish as mp
-from improve_weapons import strip_order
 from make_chainsaw import principal
 from make_swords import Mdl
 from mdlgen import HEADER, anorms, cross, dot, mul, norm, sub
@@ -90,7 +88,7 @@ GUNS = {
         barrel=4.2,           # the thin barrel's reach past the muzzle's face
         sight_top=15.0,
         origin=(-29.899999618530273, -6.170675277709961, -4.599999904632568),  # the bounds' corner (vr_weapons.inc)
-        anchors=(23, 7, 1829),  # WpnTextAnchorVertex (strip index, the cut-out's vertex), MuzzleAnchorVertex
+        counter=7,            # the WpnTextAnchor's vertex (of the cut-out)
         cuts=[slot((x - 0.5, x + 0.5, -3.1, 3.1, 11.0, 30.0), 0.4, (x, 2.0, 40.0), 'z')  # the receiver's top grooves
               for x in (2.0, 4.9, 7.6, 10.3, 12.7)]
              + [slot((1.75, 8.0, 2.0, 12.0, 6.85, 9.1), 0.3, (2.5, 20.0, 9.7), '+y')]    # the window (on the right)
@@ -112,7 +110,7 @@ GUNS = {
         top_squash=(ENF_TOP_PIVOT, ENF_TOP_SQUASH),  # its top lowered (ENF_TOP_PIVOT)
         symmetric=True,       # mirrored exactly about y = 0 (symmetrize), on a byte grid centred on it
         origin=(-16.39794921875, -6.089954376220703, -4.599999904632568),  # the bounds' corner (vr_weapons.inc)
-        anchors=(37, 14, 1813),
+        counter=14,
         # The housing's five vents, over its top and down its sides (their bottoms follow its slope), both sides;
         # the muzzle cone's two grooves, all round.
         cuts=[slot((x0, x1, 1.95 * s, 12.0 * s, 7.6 - 0.07 * (0.5 * (x0 + x1) - 9.0), 30.0), 0.5,
@@ -430,7 +428,7 @@ def carve(gun, skin, sw, cuts, name):
     """The cuts (dicts: box (x0, x1, y0, y1, z0, z1), depth, probe (a ray's origin and direction onto the painted
     vent: the recess's walls take that texel)) taken out of the gun's mesh by Blender (blender/carve_mesh.py,
     headless). The cut-out's own vertices keep their indices and the triangles left whole their order (the counter
-    anchors are strip-order indices of the cut-out's vertices); the recesses' faces are flat-shaded. Returns the
+    anchor is on a cut-out's vertex); the recesses' faces are flat-shaded. Returns the
     triangles cut away and added."""
     import json
     import subprocess
@@ -684,86 +682,6 @@ def parts(path, spec, fore):
     return tris, verts, rows, texels, muzzle
 
 
-def pin_anchors(path, text_index, text_vertex, muzzle_index, muzzle):
-    """Keeps the weapon settings' anchors (strip-order indices: configs keep them, so a changed index would leave a
-    config's counter and muzzle elsewhere): orders the file's triangles so that strip-order index `text_index` is
-    the cut-out's vertex `text_vertex` (where the counter was) and `muzzle_index` a vertex at the bore's bottom centre.
-    The strip builder (improve_weapons.strip_order, vr_anchor.cpp's) joins triangles only through shared vertices,
-    so a run of one piece's triangles gives the same strips wherever it stands: pieces filling the strip order up to
-    the counter's index (a subset sum), the body (its triangles rotated to start at one with the counter's vertex),
-    more pieces up to the muzzle index, the barrel, then the rest. Returns the pieces moved."""
-    m = mp.Model(path)
-    T = list(m.tris)
-    Q = m.positions(0)
-    root = list(range(len(m.st)))
-
-    def find(v):
-        while root[v] != v:
-            root[v] = root[root[v]]
-            v = root[v]
-        return v
-
-    for _, a, b, c in T:
-        for x in (b, c):
-            ra, rx = find(a), find(x)
-            if ra != rx:
-                root[rx] = ra
-    pieces = {}
-    for i, t in enumerate(T):
-        pieces.setdefault(find(t[1]), []).append(i)
-    pieces = list(pieces.values())
-    bore = {v for v in range(len(Q)) if np.linalg.norm(Q[v] - muzzle) < 0.15}
-    body = next(pc for pc in pieces if any(text_vertex in T[i][1:] for i in pc))
-    barrel = next(pc for pc in pieces if any(set(T[i][1:]) & bore for i in pc))
-    assert body is not barrel
-    pool = [pc for pc in pieces if pc is not body and pc is not barrel]
-    sizes = [len(strip_order([T[i] for i in pc])) for pc in pool]
-    ob = strip_order([T[i] for i in barrel])
-
-    def subset(target, avoid=()):
-        reach = {0: []}  # strip entries -> the pool pieces giving them
-        for k, n in enumerate(sizes):
-            if k in avoid:
-                continue
-            for total, used in list(reach.items()):
-                if total + n <= target and total + n not in reach:
-                    reach[total + n] = used + [k]
-        return reach.get(target)
-
-    # The counter: the body's triangles rotated to start at one with its vertex (in the first strip's first corners),
-    # after pool pieces filling the strip order up to there; the muzzle: more pool pieces, then the barrel.
-    for s0 in [k for k, i in enumerate(body) if text_vertex in T[i][1:]]:
-        lead = body[s0:] + body[:s0]
-        o = strip_order([T[i] for i in lead])
-        for k in [k for k, v in enumerate(o) if v == text_vertex and k <= text_index]:
-            before = subset(text_index - k)
-            if before is None:
-                continue
-            start = text_index - k + len(o)
-            for kb in [kb for kb, v in enumerate(ob) if v in bore]:
-                if muzzle_index - kb - start < 0:
-                    continue
-                middle = subset(muzzle_index - kb - start, set(before))
-                if middle is not None:
-                    break
-            else:
-                continue
-            break
-        else:
-            continue
-        break
-    else:
-        raise AssertionError('%s: no order of the pieces keeps the anchors %d and %d' % (path, text_index, muzzle_index))
-    chosen = set(before) | set(middle)
-    order = ([i for k in before for i in pool[k]] + lead + [i for k in middle for i in pool[k]] + barrel
-             + [i for k, pc in enumerate(pool) if k not in chosen for i in pc])
-    m.tris = [T[i] for i in order]
-    full = strip_order(m.tris)
-    assert full[text_index] == text_vertex and full[muzzle_index] in bore
-    m.write(path)
-    return len(chosen)
-
-
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     progs = os.path.join(here, '..', '..', 'quakevr', 'progs')
@@ -798,17 +716,14 @@ def main():
         path = os.path.join(out_dir, name)
         write_mdl(path, gun, m.skin, m.sw, m.sh, lo, hi)
         tris, verts, rows, texels, muzzle = parts(path, spec, fore)
-        # The anchors kept at their indices (WpnTextAnchorVertex, MuzzleAnchorVertex: a vertex at the bore's bottom
-        # centre).
-        moved = pin_anchors(path, *spec['anchors'], muzzle)
+        # The anchors (WpnTextAnchor: the counter's vertex; MuzzleAnchor: the vertex at the bore's bottom centre).
+        import anchors
         done = mp.Model(path)
         Q = done.positions(0)
-        order = strip_order(done.tris)
-        print('%s: %d triangles, %d vertices; scale_origin %s; muzzle anchor %d at %s (the bore: %s); counter anchor '
-              '%d at %s (%d pieces moved ahead of the barrel)' % (
-                  name, len(done.tris), len(done.st), np.round(done.origin, 4).tolist(), spec['anchors'][2],
-                  np.round(Q[order[spec['anchors'][2]]], 2).tolist(), np.round(muzzle, 2).tolist(), spec['anchors'][0],
-                  np.round(Q[order[spec['anchors'][0]]], 2).tolist(), moved))
+        bore = min(range(len(Q)), key=lambda v: np.linalg.norm(Q[v] - muzzle))
+        print('%s: %d triangles, %d vertices; scale_origin %s; muzzle anchor "%s" (the bore: %s); counter anchor "%s"' % (
+            name, len(done.tris), len(done.st), np.round(done.origin, 4).tolist(), anchors.vertex_text(path, bore),
+            np.round(muzzle, 2).tolist(), anchors.vertex_text(path, spec['counter'])))
         print('%s: %d vertices, %d triangles (%d degenerate dropped), scale %.3f of the %s\'s; sealer: %s' % (
             name, len(gun.st), len(gun.tris), dropped, scale, spec['src'], '; '.join(sealer.log) or 'nothing to do'))
         print('  carved: %d triangles cut away, %d added (%d cuts, %d slivers split away); parts: +%d triangles, +%d vertices, %d skin rows, '

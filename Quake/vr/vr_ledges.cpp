@@ -28,9 +28,12 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_ledges.hpp"
+#include "vr_box3d.hpp"
+#include "vr_brushes.hpp"
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
+#include "vr_mem.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
@@ -509,10 +512,12 @@ void lineLedges(const Hull& h, const Line& line, za::Vector<Edge>& edges, za::Ve
 }
 
 jobs::Site linesSite{"ledge lines"}; // (its parallelFor: vr_jobs_sites)
+za::U32 lastSerial = 0;              // the last map made's Map::serial (build, the main thread)
 
 [[nodiscard]] za::UniquePtr<Map> build(const qmodel_t* model)
 {
     auto map = za::makeUnique<Map>();
+    map->serial = ++lastSerial;
     const double t0 = Sys_DoubleTime();
     hull_t* hull = const_cast<hull_t*>(&model->hulls[0]);
     if(model->type == mod_brush && hull->clipnodes && hull->planes && model->surfaces)
@@ -570,7 +575,8 @@ struct Cache
     return w && !strcmp(cache.world, w->name) && cache.vertexes == w->numvertexes && cache.surfaces == w->numsurfaces;
 }
 
-int dropped = 0; // generation()
+int dropped = 0;       // generation()
+int forgotten = 0;     // forgets()
 
 void resetCache()
 {
@@ -589,7 +595,8 @@ void resetCache()
 [[nodiscard]] bool fromThisMap(const qmodel_t* model)
 {
     return model && model->type == mod_brush && sv.worldmodel &&
-           (model == sv.worldmodel || (qvr::modelmeta::has(model, qvr::modelmeta::Trait::Submodel) && model->surfaces == sv.worldmodel->surfaces));
+           (model == sv.worldmodel || (qvr::modelmeta::has(model, qvr::modelmeta::Trait::Submodel) && model->surfaces == sv.worldmodel->surfaces) ||
+               qvr::brushes::isRuntime(model)); // (a box made in the game: vr_brushes.cpp)
 }
 
 // Totals over the maps made (vr_ledges, and the load's line with developer or vr_climb_debug).
@@ -663,6 +670,209 @@ void ledges_f()
 
 } // namespace
 
+namespace
+{
+
+// propLedges: how far the walkable top of a prop goes in from `from` (on the edge `edge` of face `f`), horizontally
+// against `out`, across face after face (up to maxDepth).
+[[nodiscard]] float topDepth(const box3d::ClimbShape& shape, const box3d::ClimbBody& body, int f, int edge,
+    glm::vec3 from, const glm::vec3& out)
+{
+    const auto point = [&](int corner) {
+        return body.origin + body.turn * shape.points[static_cast<za::SizeT>(shape.corner[static_cast<za::SizeT>(corner)])];
+    };
+    float walked = 0.f;
+    for(int hop = 0; hop < 16 && walked < maxDepth; hop++)
+    {
+        const box3d::ClimbShape::Face& face = shape.faces[static_cast<za::SizeT>(f)];
+        const glm::vec3 n = body.turn * face.normal;
+        if(n.z < minTopNormal)
+        {
+            break;
+        }
+        const glm::vec3 w{-out.x, -out.y, (out.x * n.x + out.y * n.y) / n.z}; // in along the face, a unit horizontally
+        glm::vec3 centre{0.f};
+        for(int k = 0; k < face.count; k++)
+        {
+            centre += point(face.first + k);
+        }
+        centre /= static_cast<float>(face.count);
+        float exit = 1e9f;
+        int exitEdge = -1;
+        for(int j = 0; j < face.count; j++)
+        {
+            if(j == edge)
+            {
+                continue;
+            }
+            const glm::vec3 pj = point(face.first + j), qj = point(face.first + (j + 1) % face.count);
+            glm::vec3 inward = glm::cross(n, qj - pj);
+            if(glm::dot(inward, centre - pj) < 0.f)
+            {
+                inward = -inward;
+            }
+            const float along = glm::dot(w, inward);
+            if(along < -1e-6f)
+            {
+                const float s = glm::dot(pj - from, inward) / along;
+                if(s > -1e-3f && s < exit)
+                {
+                    exit = s;
+                    exitEdge = j;
+                }
+            }
+        }
+        if(exitEdge < 0)
+        {
+            break;
+        }
+        walked += za::max(0.f, exit);
+        from += w * za::max(0.f, exit);
+        // On across that edge: the face beyond, entered by its edge back to this one.
+        const int next = shape.across[static_cast<za::SizeT>(face.first + exitEdge)];
+        const box3d::ClimbShape::Face& nf = shape.faces[static_cast<za::SizeT>(next)];
+        edge = -1;
+        for(int j = 0; j < nf.count; j++)
+        {
+            if(shape.across[static_cast<za::SizeT>(nf.first + j)] == f)
+            {
+                edge = j;
+            }
+        }
+        f = next;
+    }
+    return za::min(walked, maxDepth);
+}
+
+} // namespace
+
+void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody& body, const glm::vec3& mins,
+    const glm::vec3& maxs, Map& out, za::Vector<int>& nums)
+{
+    constexpr int maxCorners = 64;
+    za::Array<glm::vec3, maxCorners> p;
+    for(const box3d::ClimbShape::Face& face : shape.faces)
+    {
+        const glm::vec3 n = body.turn * face.normal;
+        if(n.z < minTopNormal || face.count < 3 || face.count > maxCorners)
+        {
+            continue;
+        }
+        glm::vec3 centre{0.f}, lo{1e9f}, hi{-1e9f};
+        for(int k = 0; k < face.count; k++)
+        {
+            p[k] = body.origin + body.turn * shape.points[static_cast<za::SizeT>(shape.corner[static_cast<za::SizeT>(face.first + k)])];
+            centre += p[k];
+            lo = glm::min(lo, p[k]);
+            hi = glm::max(hi, p[k]);
+        }
+        if(lo.x > maxs.x || lo.y > maxs.y || lo.z > maxs.z || hi.x < mins.x || hi.y < mins.y || hi.z < mins.z)
+        {
+            continue;
+        }
+        centre /= static_cast<float>(face.count);
+        // A bevel is walkable too, but its plane stops where the main top begins. Extending that plane inward
+        // made a crate's apparent top rise with arm extension (and depended on which bevel the hand reached).
+        // Use the most upright connected walkable face for the lip's top plane; retain its outer boundary.
+        const box3d::ClimbShape::Face* top = &face;
+        glm::vec3 topNormal = n;
+        for(int pass = 0; pass < maxCorners; pass++)
+        {
+            const box3d::ClimbShape::Face* next = top;
+            for(int j = 0; j < top->count; j++)
+            {
+                const auto& adjacent = shape.faces[static_cast<za::SizeT>(shape.across[static_cast<za::SizeT>(top->first + j)])];
+                const glm::vec3 normal = body.turn * adjacent.normal;
+                if(normal.z > topNormal.z + 1e-4f)
+                {
+                    next = &adjacent;
+                    topNormal = normal;
+                }
+            }
+            if(next == top) { break; }
+            top = next;
+        }
+        const glm::vec3 topPoint = body.origin + body.turn *
+            shape.points[static_cast<za::SizeT>(shape.corner[static_cast<za::SizeT>(top->first)])];
+        for(int k = 0; k < face.count; k++)
+        {
+            glm::vec3 a = p[k], b = p[(k + 1) % face.count];
+            float len = glm::distance(a, b);
+            const glm::vec3 m = body.turn * shape.faces[static_cast<za::SizeT>(shape.across[static_cast<za::SizeT>(face.first + k)])].normal;
+            if(len < 1.f || m.z >= minTopNormal)
+            {
+                continue; // (a crease between two tops: the top goes on beyond it)
+            }
+            glm::vec3 dir = (b - a) / len;
+            glm::vec3 o{dir.y, -dir.x, 0.f}; // horizontal, square to the lip,
+            if(glm::length(o) < 0.3f)
+            {
+                continue;
+            }
+            o = glm::normalize(o);
+            if(glm::dot(o, 0.5f * (a + b) - centre) < 0.f)
+            {
+                o = -o; // away from the top
+            }
+            if(glm::dot(glm::vec2{dir}, glm::vec2{-o.y, o.x}) < 0.f)
+            {
+                za::genericSwap(a, b); // (`dir` along `out` turned a quarter anticlockwise, as the map's)
+                dir = -dir;
+            }
+            // Only a bevel's (a narrow chamfer: a lift of a few units) takes the top's plane: a long walkable slope
+            // (a wedge's, a ramp's) keeps its own lip, or the hold would float above it by the slope's height.
+            static constexpr float maxBevelLift = 6.f;
+            const float az = topPoint.z - (topNormal.x * (a.x - topPoint.x) + topNormal.y * (a.y - topPoint.y)) / topNormal.z;
+            const float bz = topPoint.z - (topNormal.x * (b.x - topPoint.x) + topNormal.y * (b.y - topPoint.y)) / topNormal.z;
+            if(za::max(fabsf(az - a.z), fabsf(bz - b.z)) <= maxBevelLift)
+            {
+                a.z = az;
+                b.z = bz;
+            }
+            len = glm::distance(a, b);
+            dir = (b - a) / len;
+            const glm::vec3 eMins = glm::min(a, b), eMaxs = glm::max(a, b);
+            if(eMins.x > maxs.x || eMins.y > maxs.y || eMins.z > maxs.z || eMaxs.x < mins.x || eMaxs.y < mins.y || eMaxs.z < mins.z)
+            {
+                continue;
+            }
+            // The drop: its own side under the lip, going down square to it, flares out this far over minDrop.
+            glm::vec3 down = glm::cross(m, dir);
+            if(down.z > 0.f)
+            {
+                down = -down;
+            }
+            if(down.z > -0.3f)
+            {
+                continue; // (the face beyond hardly falls away)
+            }
+            const float dropOut = 0.5f + za::max(0.f, glm::dot(down, o)) / -down.z * minDrop;
+            if(dropOut > edgeReach)
+            {
+                continue;
+            }
+            // The top's depth from the middle of the lip, in square to it (horizontally, along the top): across this
+            // face and on across the walkable faces beyond (a bevelled lip's strip, then the top), to where the top ends.
+            const float depth = topDepth(shape, body, static_cast<int>(&face - shape.faces.data()), k, 0.5f * (a + b), o);
+            Edge e;
+            e.a = a;
+            e.dir = dir;
+            e.len = len;
+            e.out = o;
+            e.normal = topNormal;
+            e.firstSample = static_cast<int>(out.samples.size());
+            e.samples = 1;
+            e.sampleStart = 0.f;
+            e.spacing = za::max(len, sampleStep);
+            e.mins = eMins;
+            e.maxs = eMaxs;
+            out.edges.pushBack(e);
+            out.samples.pushBack(Sample{dropOut, za::max(0.f, depth)});
+            nums.pushBack(num);
+        }
+    }
+}
+
 const Sample& Map::sampleAt(const Edge& e, float t) const
 {
     const int i = za::clamp(static_cast<int>(za::lround((t - e.sampleStart) / e.spacing)), 0, e.samples - 1);
@@ -682,6 +892,15 @@ namespace
     const auto part = [](int v) { return static_cast<uint64_t>(static_cast<uint32_t>(v) & 0x1fffffu); };
     return (part(c.x) << 42) | (part(c.y) << 21) | part(c.z);
 }
+
+// Show Ledges' buffers (debugDraw, the main thread).
+struct DrawScratch
+{
+    Map props;              // the solid props' ledges as they lie now
+    za::Vector<int> nums;   // and each one's prop
+    auto members() { return mem::list(props, nums); }
+};
+mem::Scratch<DrawScratch> drawScratch{"ledges draw"};
 
 } // namespace
 
@@ -753,6 +972,37 @@ size_t Map::bytes() const
 int generation()
 {
     return dropped;
+}
+
+void forget(const qmodel_t* model)
+{
+    if(!model)
+    {
+        return;
+    }
+    const auto it = cache.maps.find(za::String{model->name});
+    if(it != cache.maps.end())
+    {
+        cache.maps.erase(it);
+        forgotten++;
+    }
+}
+
+int forgets()
+{
+    return forgotten;
+}
+
+bool alive(const Map* m, za::U32 serial)
+{
+    for(const auto& kv : cache.maps)
+    {
+        if(kv.second.get() == m)
+        {
+            return m->serial == serial;
+        }
+    }
+    return false;
 }
 
 const Map* of(const qmodel_t* model)
@@ -855,6 +1105,37 @@ void debugDraw()
         if(const Map* m = of(sv.models[index]))
         {
             drawMap(*m, vec(ent->v.origin), true);
+        }
+    }
+    // The solid props' ledges as they lie now (vr_climb_props), orange; their ticks every 8 units as above.
+    if(vr_climb_props.value != 0.f)
+    {
+        const glm::vec3 propColour{1.f, 0.55f, 0.1f};
+        Map& props = drawScratch.props;
+        za::Vector<int>& nums = drawScratch.nums;
+        props.edges.clear();
+        props.samples.clear();
+        nums.clear();
+        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+        {
+            box3d::ClimbBody body;
+            if(const box3d::ClimbShape* shape = box3d::climbShape(i, body); shape && glm::distance(body.origin, eye) < range + 64.f)
+            {
+                propLedges(i, *shape, body, eye - glm::vec3{range}, eye + glm::vec3{range}, props, nums);
+            }
+        }
+        for(const Edge& e : props.edges)
+        {
+            const Sample& s = props.sampleAt(e, 0.f);
+            lines::glow(e.a, e.point(e.len), 0.8f, glm::vec4{propColour, 1.f}, glm::vec4{propColour, 1.f});
+            for(float t = 0.f; t <= e.len + 1e-3f; t += 8.f)
+            {
+                const glm::vec3 q = e.point(za::min(t, e.len));
+                const glm::vec3 tick = s.dropOut > 2.f ? trimColour : propColour;
+                lines::glow(q, q + e.out * 4.f, 0.6f, glm::vec4{tick, 1.f}, glm::vec4{tick, 0.6f});
+                lines::line(q, q - e.out * za::min(s.depth, maxDepth), 0.3f, glm::vec4{0.85f, 0.85f, 0.85f, 0.8f},
+                    glm::vec4{0.85f, 0.85f, 0.85f, 0.2f});
+            }
         }
     }
     PR_PopQCVM(oldvm);

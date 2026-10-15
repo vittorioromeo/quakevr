@@ -181,7 +181,7 @@ typedef struct bmodel_bindless_gpu_call_s {
 	GLuint64	padding;	// QVR: (uvclamp on 16 bytes, as std430 places it)
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
-	GLfloat		extmat[4];	// QVR: the external maps' numbers (VR_ExtMapsCall)
+	GLfloat		extmat[4];	// QVR: x/w generated normal/height multipliers; y/z external sheen/hardness
 	GLfloat		retro[4];	// QVR: retro textures (VR_RetroCall): the texture's Quake size, its set
 } bmodel_bindless_gpu_call_t;
 
@@ -192,7 +192,7 @@ typedef struct bmodel_bound_gpu_call_s {
 	GLint		padding;
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
-	GLfloat		extmat[4];	// QVR: the external maps' numbers (VR_ExtMapsCall)
+	GLfloat		extmat[4];	// QVR: x/w generated normal/height multipliers; y/z external sheen/hardness
 	GLfloat		retro[4];	// QVR: retro textures (VR_RetroCall)
 } bmodel_bound_gpu_call_t;
 
@@ -233,6 +233,11 @@ static void R_BModelMatrix (entity_t *ent, float mat[16]) // QVR: (R_PaintBrushW
 		VR_BrushTransform (ent, mat); // QVR
 }
 
+void VR_BModelMatrix (entity_t *ent, float mat[16]) // QVR: (vr/vr_permdecals.cpp: a mark on a door into its own space)
+{
+	R_BModelMatrix (ent, mat);
+}
+
 // QVR: a brush prop (not a map's door or lift) drawn split by a teleporter (vr/vr_portals.cpp): R_SortEntities keeps it
 // though its own place is out of view, for its half drawn through the gate may be in view (a box sticking out of the
 // gate seen from the destination's side, its middle still at the entrance: its frustum cull dropped both halves).
@@ -261,7 +266,7 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	inst->padding[1] = VR_ParallaxDepth (ent, mat, NULL, 1); // QVR: its parallax depth in units (vr_parallax)
 	inst->padding[2] = ent == &cl_entities[0] ? 0.f : VR_BrushAOSelf (ent); // QVR: its own dynamic occlusion group (vr/vr_ao.cpp)
 	VR_RetroInstance (ent, inst->retro); // QVR: retro textures (vr/vr_retro.cpp)
-	inst->retro[3] = ent == &cl_entities[0] ? 1.f : 0.f; // QVR: the world: its decals (vr/vr_decals.cpp, QVR_WORLD_FS_DECALS)
+	inst->retro[3] = ent == &cl_entities[0] || VR_IsRuntimeBrushModel (ent->model) ? 1.f : 0.f; // QVR: the world and the boxes made in the game (vr/vr_brushes.cpp): their decals (vr/vr_decals.cpp, QVR_WORLD_FS_DECALS)
 	if (ent == &cl_entities[0]) // QVR: a held prop's blood (vr/vr_wounds.cpp)
 	{
 		memset (inst->wound, 0, sizeof (inst->wound));
@@ -378,6 +383,7 @@ static void R_FlushBModelCalls (void)
 	GL_VertexAttribIPointerFunc (3, 4, GL_UNSIGNED_BYTE, sizeof (glvert_t), (void *) offsetof (glvert_t, styles));
 	GL_VertexAttribPointerFunc (4, 1, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, swellpin));
 	GL_VertexAttribPointerFunc (5, 3, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, centre));
+	GL_VertexAttribPointerFunc (6, 4, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, grime)); // QVR: the permanent decals' layer (enabled while it is read: R_DrawBrushModels_Real)
 
 	if (gl_bindless_able)
 	{
@@ -446,6 +452,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 
 	nm = TexMgr_NormalMap (tx); // QVR: or an external pack's, its specular map, its glow hidden (vr/vr_extmaps.cpp)
 	extflags = VR_ExtMapsCall (tx && t ? t : NULL, &nm, &spec, &fb, extmat);
+	VR_PBRStrength (nm, &extmat[0], &extmat[3]); // QVR: independent component provenance after authored pack selection
 	flags = zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != false) << 2) | extflags;
 	if (t && TEXTYPE_ISLIQUID (t->type)) // QVR: the liquid's kind for its look (gl_shaders.h LiquidKind)
 		flags |= (t->type - TEXTYPE_FIRSTLIQUID + 1) << 3;
@@ -515,6 +522,8 @@ static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean 
 		dither = r_softemu_lightmap_banding.value > 0.f ? 2 : 0;
 		break;
 	}
+	if (!alphatest && r_framedata.decalclock[3] > 0.5f) // QVR: the decals with retro textures (VR_DecalsFrame: their set)
+		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit);
 	if (pdo && !oit && !alphatest) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
 		return glprogs.world_pdo[dither];
 	return glprogs.world[oit][dither][alphatest];
@@ -623,7 +632,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	if (pass <= BP_ALPHATEST || pass == BP_SHOWTRIS)
 		glEnable (GL_CLIP_DISTANCE1);
 	// setup state
-	state = GLS_CULL_BACK | GLS_ATTRIBS(4);
+	state = GLS_CULL_BACK | GLS_ATTRIBS(pass == BP_SOLID && VR_PermDecalsOn () ? 7 : 4); // QVR: 7: the permanent decals' layer (attribute 6; vr/vr_permdecals.cpp)
 	if (!translucent)
 		state |= GLS_BLEND_OPAQUE;
 	else

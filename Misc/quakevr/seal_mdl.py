@@ -21,7 +21,7 @@
 # the triangle that has it, so it faces the way its neighbours do (clockwise seen from outside) whatever
 # the shape. Every new vertex is a new index (a copy of a loop's corner, or a point derived from the
 # loop's corners): the old triangles and vertices are untouched and the new triangles share no vertex with
-# them, so vr_anchor.cpp's strip order of the old vertices, and every anchor index, stays. The new vertices
+# them, so every anchor (a point on the old surface) stays where it is. The new vertices
 # are computed per frame from the loop's own corners (a copy follows its corner exactly; a bore's rings are
 # fixed in the loop's frame), so they follow the gun through recoil and spinning barrels.
 

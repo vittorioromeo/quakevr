@@ -539,6 +539,16 @@ void(float xLarge) VR_FireSpot =
     vr_fire_spots = vr_fire_spots + 1;
 };
 
+// AD support: Arcane Dimensions' flames (ad_lights.qc: its torch, flames, pyre, braziers), static and lit for good (not
+// LIGHTOFF, nothing to switch them): their places too, as the map's own flames'.
+void(float xLarge) VR_AD_FireSpot =
+{
+    if(!(self.spawnflags & 1) && self.targetname == "")
+    {
+        VR_FireSpot(xLarge);
+    }
+};
+
 // A fire the head `xHead` of torch `t` is in: another torch's flame (on its wall, or taken and lit), one of the map's
 // flames, a lava ball, or lava. "" none.
 string(entity t, vector xHead) VR_WallTorch_FireAt =

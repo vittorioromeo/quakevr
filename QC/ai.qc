@@ -293,13 +293,29 @@ visible
 returns 1 if the entity is visible to self, even if not infront ()
 =============
 */
+// QVR: where a monster looks for `e` (visible's spot2): a VR player crouched (his crouched box: the engine's
+// QVR_VRBITS0_CROUCHED) at his real eyes (vr_crouch_sight), never above a standing player's; the rest at their view_ofs.
+// Behind cover lower than he stands, he is out of sight (Arcane Dimensions' height-aware sight; its monsters' too:
+// vr_ad_player.qc VR_AD_ViewOfs).
+vector(entity e) VR_SightOfs =
+{
+    if(e.headpos == '0 0 0' || !VRHasBit(e.vrbits0, QVR_VRBITS0_CROUCHED) || e.classname != "player" ||
+       !cvar("vr_crouch_sight"))
+    {
+        return e.view_ofs;
+    }
+    vector o = e.view_ofs;
+    o_z = min(o_z, e.headpos_z - e.origin_z);
+    return o;
+};
+
 float (entity client) visible =
 {
     vector spot1, spot2;
     float res;
 
     spot1 = self.origin + self.view_ofs;
-    spot2 = client.origin + client.view_ofs;
+    spot2 = client.origin + VR_SightOfs(client); // QVR: a crouched player's real eyes (vr_crouch_sight)
 
     // The gate route is a monster's own, for its enemy (or, with none, the player FindTarget looks for): other callers'
     // visible() (projectiles, items, a gremlin's victim scan, a second target) leave it as it is.
@@ -309,7 +325,7 @@ float (entity client) visible =
         self.vr_ai_target = client;
         self.vr_ai_gate = 0;
     }
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK))) { res = bbox_visible(self, spot2); }
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK))) { res = bbox_visible(self, spot2); }
     else                                   { res = point_visible(spot1, spot2); }
     if(res && VR_Crate_HidesFrom(self, client, spot1)) { res = FALSE; }
     // Through a gate: not across a water surface either (point_visible's rule: one end in a liquid, the other not).
@@ -439,7 +455,7 @@ void() HuntTarget =
     // HONEY
     // cg: tarbabies can now spawn really angry and start jumping around
     // without even having a clear view of player
-    if(self.classname == "monster_tarbaby" && (!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID)))
+    if(self.classname == "monster_tarbaby" && (!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID)))
     {
         self.think = self.th_missile;
     }
@@ -458,7 +474,7 @@ void() SightSound =
     float rsnd;
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
     {
         return;
     }
@@ -816,9 +832,15 @@ The monster is walking it's beat
 // VR: grunts and enforcers shove you away when you stand too close (vr_enemyshove.qc): checked in the stand, walk and
 // run thinks; TRUE when the shove started.
 float() VR_EnemyShove_Check;
+float vr_eshove_holdfire; // set by VR_EnemyShove_Check: a vore in reach waits for its shove instead of firing
+
+// VR: living hit reactions (vr_hitreact.qc): a monster struck a moment ago steps shorter (a leg hit: with a hitch to
+// that side, taken here); its decisions untouched.
+float(float dist) VR_HitReact_Dist;
 
 void(float dist) ai_walk =
 {
+    dist = VR_HitReact_Dist(dist);
     movedist = dist;
 
     if(VR_EnemyShove_Check())
@@ -1155,6 +1177,7 @@ void(float dist) ai_run =
     float    axis;
 
     VR_Parry_Unsway(self); // (its stagger cut short: a knockdown, a grab)
+    dist = VR_HitReact_Dist(dist); // VR: struck a moment ago: shorter steps (vr_hitreact.qc)
     movedist = dist;
     self.vr_melee_begun = 0; // VR: running again, its melee attack (if any) is over (combat.qc VR_Parry)
 // see if the enemy is dead
@@ -1188,6 +1211,13 @@ void(float dist) ai_run =
     // VR: too close, it shoves you (before deciding to fire).
     if(VR_EnemyShove_Check())
         return;
+    if(vr_eshove_holdfire)
+    {
+        // (a vore up close, its shove due once the delay passes: it squares up to you rather than throwing a ball)
+        self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
+        ChangeYaw();
+        return;
+    }
 
 // check knowledge of enemy
     float selectedGate = self.vr_ai_gate;

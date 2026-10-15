@@ -457,7 +457,8 @@ float(entity e, float xSpeed) VR_Thrown_Damage =
     float mass = VR_Thrown_Mass(e);
     float curve = weightdamage(mass);
     float bySpeed = throwweight(2, mass, VR_Thrown_Own(e, "w_throwmin"), VR_Thrown_Own(e, "w_throwcurve"), xSpeed, dmgSpeed);
-    return bySpeed * GetThrownWeaponBaseDamage(e) * own * curve * VR_Thrown_HeavyMult(e, mass) *
+    // (An incandescent blade's base is raised as its blows' are: vr_hotblade.qc VR_HotBlade_ThrownExtra.)
+    return bySpeed * (GetThrownWeaponBaseDamage(e) + VR_HotBlade_ThrownExtra(e)) * own * curve * VR_Thrown_HeavyMult(e, mass) *
            cvar_hget(cvarh_vr_weapon_throw_damage_mult) * VR_Thrown_2hMult(e);
 };
 
@@ -801,10 +802,17 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
     VR_Blunt_HitLayer(self, CHAN_AUTO, other);
     spawn_touchblood(dmg); // (splinters off a crate: spawn_touchblood)
     float pop = VR_Decap_ThrownArm(other, self, attacker, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
+    vector flight = self.velocity;
+    entity struck = other;
     T_Damage(other, self, attacker, dmg);
     if(pop)
     {
         VR_Decap_After(other);
+    }
+    // VR: thrown hard and heavy, it may unbalance a monster as a shove does (vr_hitstagger.qc).
+    if(struck.health > 0 && attacker != world)
+    {
+        VR_HitStagger_Throw(struck, attacker, flight, mass, xSpeed, dmg);
     }
     return TRUE;
 };
@@ -1158,6 +1166,14 @@ void(entity p, vector xFrom) VR_Carry_Teleported =
 
 float(entity box, vector target) VR_Carry_Follow =
 {
+    vector wanted = target;
+    target = carrybody(box, self, target);
+    // As at a wall: a hand pulled much farther than the stopped prop lets go. A torso/wall trap releases it too.
+    if(trace_allsolid || vlen(target - wanted) > 32)
+    {
+        dprint("carry: stopped at the body, let go\n");
+        return FALSE;
+    }
     // A solid prop (an explosive box: a big brush model whose origin is a bottom corner, in the floor it stands on) by its
     // middle, kept its smallest half-size off a wall (the others as before: by their origin).
     vector from = box.origin;
@@ -1422,6 +1438,14 @@ void() VR_Carry_TwoHandFrame =
     // box out of the level already (carry2h: stopped at a wall, slid along it), so it goes there as it is (VR_Carry_Follow's
     // trace of its centre, kept its smallest half-size off what it met, put a turned box's corners into walls).
     vector to = carry2h(box, self, FALSE);
+    vector wanted = to;
+    to = carrybody(box, self, to);
+    if(trace_allsolid || vlen(to - wanted) > 32)
+    {
+        VR_Carry_EndTwoHands(box);
+        VR_Carry_Release(cVR_MainHand, box);
+        return;
+    }
     if(cvar("vr_carry_two_hands_solid") && time >= self.carry_teleported)
     {
         if(frametime > 0)
@@ -2158,7 +2182,7 @@ float(entity e) VR_Gore_Bleeds =
 // explosion's, 3 a hand's blow). Not for damage from the world (lava, slime, drowning, falls).
 void(entity targ, entity inflictor, float take) VR_Gore_Hit =
 {
-    if(take <= 0 || inflictor == world || !VR_Gore_Bleeds(targ))
+    if(take <= 0 || inflictor == world || !VR_Gore_Bleeds(targ) || VR_HitBloodless())
     {
         return;
     }

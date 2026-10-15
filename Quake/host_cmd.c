@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 #include "q_ctype.h"
 #include "json.h"
 #include <time.h>
@@ -1459,6 +1460,7 @@ void SaveList_Init (void)
 				FileList_Add (savename, &savelist);
 		}
 	}
+
 }
 
 //==============================================================================
@@ -2096,6 +2098,8 @@ Host_AutoLoad
 */
 static qboolean Host_AutoLoad (void)
 {
+	char	cmdline[MAX_QPATH * 2]; // QVR
+
 	if (!sv_autoload.value || !sv.lastsave[0] || svs.maxclients != 1 || cl.intermission)
 		return false;
 
@@ -2110,15 +2114,22 @@ static qboolean Host_AutoLoad (void)
 	else if (sv_autoload.value < 3.f && sv_player->v.health > 0.f)
 		return false;
 
+	// QVR: the caller's command line, tokenized again after the commands run below: its own "Loading..." deferral
+	// (VR_LoadingDefer) reads it, and had a load put off left the last one run there ("wait"), the restart was lost
+	q_snprintf (cmdline, sizeof (cmdline), "%s %s", Cmd_Argv (0), Cmd_Args () ? Cmd_Args () : "");
 	sv.autoloading = true;
 	Con_Printf ("Autoloading...\n");
 	Cbuf_AddText (va ("load \"%s\"\n", sv.lastsave));
 	Cbuf_Execute ();
+	Cmd_TokenizeString (cmdline);
 
 	if (sv.autoloading)
 	{
 		sv.autoloading = false;
-		Con_Printf ("Autoload failed!\n");
+		// QVR: put off for "Loading..." (vr_loading.cpp) is not a failure: the caller's own deferral takes its place and
+		// runs it again then, autoloading
+		if (!VR_LoadingWaiting ())
+			Con_Printf ("Autoload failed!\n");
 		return false;
 	}
 
@@ -2191,6 +2202,12 @@ static void Host_Restart_f (void)
 		return;
 
 	if (cmd_source != src_command)
+		return;
+
+	// QVR: a restart queued before an autoload's load (Host_AutoLoad runs the commands ahead of it first) is the same
+	// dead player's request: each would load the save again, one after another (ROUND22.md, "Respawn loaded the map
+	// several times")
+	if (sv.autoloading)
 		return;
 
 	if (!(Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "fresh")) && Host_AutoLoad ())
@@ -2427,6 +2444,7 @@ Host_Savegame_f
 */
 static void Host_Savegame_f (void)
 {
+	VR_TRACY_SCOPE("Save game");
 	char		relname[MAX_OSPATH];
 	char		name[MAX_OSPATH];
 	const char	*skipnotify;
@@ -2537,6 +2555,7 @@ Host_Loadgame_f
 */
 static void Host_Loadgame_f (void)
 {
+	VR_TRACY_SCOPE("Load game");
 	static char	*start;
 	
 	char	name[MAX_OSPATH];
@@ -2582,6 +2601,10 @@ static void Host_Loadgame_f (void)
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
 
+	// QVR: a save still being written in the background (a load right after a save) is finished first: read half
+	// written, it fails with "ED_ParseEntity: EOF without closing brace" (collectfx_test.sh's batched case found it)
+	Host_WaitForSaveThread ();
+
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
 
 	// Look for savefile in basedirs instead of gamedir
@@ -2626,7 +2649,8 @@ static void Host_Loadgame_f (void)
 		return;
 	}
 
-	if (!VR_CanLoadCampaignSave(start) || !VR_ReadSaveInfo (start, relname)) // QVR: + its build and model list
+	// QVR: its map package installed, its campaign made the active one, its build and model list
+	if (!VR_SavePackageReady (start, name) || !VR_CanLoadCampaignSave(start) || !VR_ReadSaveInfo (start, relname))
     {
         VR_HeapFree(start);
         start = NULL;
@@ -2678,8 +2702,8 @@ static void Host_Loadgame_f (void)
 	data = COM_ParseStringNewline (data);
 	q_strlcpy (mapname, com_token, sizeof(mapname));
 	data = COM_ParseFloatNewline (data, &time);
-	VR_AddonForSave (name, mapname); // QVR: the map package the save was made in, mounted (before the disconnect below)
-	if (!VR_CanLoadCampaignMap (mapname)) // QVR: the map's campaign chosen now: SV_SpawnServer never switches
+	VR_AddonForSave (start, name, mapname); // QVR: the map package the save was made in, mounted (before the disconnect below)
+	if (!VR_CanLoadSaveMap (mapname, start)) // QVR: the save's campaign kept for its map: SV_SpawnServer never switches
 	{
 		VR_HeapFree (start);
 		start = NULL;
@@ -2768,6 +2792,7 @@ static void Host_Loadgame_f (void)
 	VR_CheckLoadedReferences (entnum); // QVR: a reference past the loaded edicts is the world (a dev warning)
 	qcvm->time = time;
 	sv.autosave.time = time;
+	sv.autosave.level_started = true; // QVR: a loaded game is not a level's start (vr_continue.cpp)
 
 	VR_HeapFree (start);
 	start = NULL;

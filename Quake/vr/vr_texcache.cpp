@@ -13,6 +13,7 @@
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
 #include "vr_jobs.hpp"
+#include "vr_tracy.h"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -42,6 +43,7 @@ za::Vector<za::String> pruned;
 // again).
 void prune(const char* kind, const char* build)
 {
+    QVR_TRACY_SCOPE(tracyScope, "disk cache prune");
     const za::String id = dirFor(kind, build);
     if(za::find(pruned.begin(), pruned.end(), id) != pruned.end())
     {
@@ -65,6 +67,7 @@ void prune(const char* kind, const char* build)
 // A file: 4 bytes of magic, the version, two numbers of the caller's, then the data.
 bool readFile(const za::String& path, const char (&magic)[5], unsigned& a, unsigned& b, za::Vector<char>& data)
 {
+    QVR_TRACY_SCOPE(tracyScope, "disk cache read");
     FILE* in = Sys_fopen(path.cStr(), "rb");
     if(!in)
     {
@@ -101,8 +104,12 @@ constexpr za::SizeT writesMost = 64;
 void writeFile(const char* kind, const char* build, const za::String& path, const char (&magic)[5], unsigned a, unsigned b,
     const void* data, size_t length)
 {
+    QVR_TRACY_SCOPE(tracyScope, "disk cache write prepare");
     prune(kind, build);
-    qvr::files::createDirectories(dirFor(kind, build).cStr());
+    {
+        QVR_TRACY_SCOPE(tracyScope, "disk cache directories");
+        qvr::files::createDirectories(dirFor(kind, build).cStr());
+    }
     const za::String tmp = path + va(".%u.tmp", static_cast<unsigned>(Sys_DoubleTime() * 1e6) & 0xffffffu);
     za::Vector<unsigned char> bytes;
     const unsigned header[3] = {version, a, b};
@@ -119,10 +126,13 @@ void writeFile(const char* kind, const char* build, const za::String& path, cons
     }
     if(writes.size() >= writesMost)
     {
+        QVR_TRACY_SCOPE(tracyScope, "disk cache oldest wait");
         writes.front().wait();
         writes.erase(writes.begin());
     }
+    QVR_TRACY_SCOPE(submitScope, "disk cache submit");
     writes.pushBack(qvr::jobs::async([tmp, path, bytes = ZA_MOVE(bytes)] {
+        QVR_TRACY_SCOPE(tracyScope, "disk cache write async");
         FILE* out = Sys_fopen(tmp.cStr(), "wb");
         if(!out)
         {

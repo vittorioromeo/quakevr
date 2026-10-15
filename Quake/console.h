@@ -73,6 +73,7 @@ qboolean Con_CopySelectionToClipboard (void);
 //
 void LOG_Init (quakeparms_t *parms);
 void LOG_Close (void);
+void LOG_Reopen (const char *path); // QVR: diagnostics mode
 void Con_DebugLog (const char *msg);
 
 #endif	/* __CONSOLE_H */

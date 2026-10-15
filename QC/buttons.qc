@@ -96,6 +96,8 @@ float() button_campaign_unavailable =
 
 void() button_fire =
 {
+    if(VR_AD_ButtonFire()) return; // AD support: preserve AD targets and states
+
     if(button_campaign_unavailable())
     {
         if(self.enemy.classname == "player")
@@ -165,6 +167,8 @@ void() button_use =
 
 void() button_touch =
 {
+    if(VR_AD_ButtonTouch()) return; // AD support
+
     if(other.classname != "player")
     {
         return;
@@ -271,6 +275,7 @@ float(vector xA, vector xB, float xR, vector xLo, vector xHi) VR_SegmentMeetsBox
 // A wall button a held thing may press now: not freed, still pressed by touch, not in or coming out.
 float(entity xButton) VR_Button_Pressable =
 {
+    if(!VR_AD_ButtonEnabled(xButton)) return FALSE; // AD support: an AD button its map has disabled (vr_ad_bridge.qc)
     return xButton.solid == SOLID_BSP && xButton.vr_wpntouch == button_wpntouch && xButton.state != STATE_UP &&
            xButton.state != STATE_TOP && xButton.state != STATE_DISABLED;
 };
@@ -478,6 +483,13 @@ void() func_button =
 {
     if(MG_MonsterInhibited()) return;
     if(MG_WorldCampaign()) MG_ButtonInit();
+    // The hub's Continue button ("vr_continue"): there only when there is a save to continue (the engine's
+    // vr_continue_available, looked at as a Quake VR map spawns: vr_continue.cpp); its save is shown over it.
+    if(self.buttonEffect == 3 && substring(self.targetname, 0, 11) == "vr_continue" && !cvar("vr_continue_available"))
+    {
+        remove(self);
+        return;
+    }
     if(button_campaign_unavailable())
     {
         self.worldtext = strcat(self.worldtext, "\n(unavailable)");
@@ -551,7 +563,7 @@ void() func_button =
     else self.pos2 = self.pos1 + self.movedir*(fabs(self.movedir*self.size) - self.lip);
 
     // HONEY
-    if(!MG_WorldCampaign() && (self.spawnflags & START_DISABLED)) {
+    if(!VR_OtherFlags() && (self.spawnflags & START_DISABLED)) {
         button_disable(self);
     }
 
@@ -753,7 +765,8 @@ void() func_weapon_dispenser =
 // A weapon lying ready to be picked up: "weapon" its id (WID_*), "weaponflags" its flags (a knight's
 // sword, WID_SWORD 13, with 1 is the hell knight's; an ogre's chainsaw, WID_CHAINSAW 14, full of fuel; a grunt's
 // shotgun, WID_GRUNTGUN 15, and an enforcer's laser rifle, WID_ENFRIFLE 16, full: Enemy Weapons' Shells, Shots; the
-// crowbar, WID_CROWBAR 17: vr_crowbar.qc, whose weapon_crowbar is the same). Spawnflag 1 (AS_PLACED): it lies as its
+// crowbar, WID_CROWBAR 17: vr_crowbar.qc, whose weapon_crowbar is the same; AD support: Arcane Dimensions' soldiers'
+// guns, 20..27, full: vr_ad_enemyguns.qc, Quake VR's stand-ins without AD's data). Spawnflag 1 (AS_PLACED): it lies as its
 // "angles" (pitch yaw roll) turn it, not any way (vrtrailer's Super Axe on its pedestal). Spawnflag 2 (BY_HANDLE): a hand
 // closing anywhere on it takes it by its handle, ready to use, never carried by a hotspot (vr_grab_by_handle).
 float WEAPON_GRABBABLE_AS_PLACED = 1;
@@ -761,10 +774,44 @@ float WEAPON_GRABBABLE_BY_HANDLE = 2;
 
 // The weapon spawner `xSpawner` lays (its origin, its turn), the weapon lying about; world without the weapon's data.
 // vrtrailer's reset lays it again (vr_trailer.qc).
+// Its drawn box turned as it lies (an alias model's pitch the other way): the lowest of its corners, from its origin.
+float(entity w) VR_WeaponGrabbable_Lowest =
+{
+    vector dlo = drawnbounds(w, 0);
+    vector dhi = drawnbounds(w, 1);
+    makevectors('-1 0 0' * w.angles_x + '0 1 0' * w.angles_y + '0 0 1' * w.angles_z);
+    float lo = 100000;
+    for(float c = 0; c < 8; c++)
+    {
+        vector k = '1 0 0' * ((c & 1) ? dhi_x : dlo_x) + '0 1 0' * ((c & 2) ? dhi_y : dlo_y) + '0 0 1' * ((c & 4) ? dhi_z : dlo_z);
+        lo = min(lo, v_forward_z * k_x - v_right_z * k_y + v_up_z * k_z);
+    }
+    return lo;
+};
+
+// Turned at random, a long weapon placed a little over a table (vrfiringrange's laser cannons: 12 units over theirs)
+// could start sunk into it, and the physics threw it out of it across the range: raised until its turned drawn box
+// clears what is under its origin (it falls onto it and settles as before).
+void(entity w) VR_WeaponGrabbable_Clear =
+{
+    float lo = VR_WeaponGrabbable_Lowest(w);
+    traceline(w.origin, w.origin + '0 0 1' * (lo - 8), TRUE, w);
+    if(trace_fraction >= 1 || trace_startsolid)
+    {
+        return;
+    }
+    float lift = trace_endpos_z + 1 - (w.origin_z + lo);
+    if(lift > 0)
+    {
+        setorigin(w, w.origin + '0 0 1' * lift);
+    }
+};
+
 entity(entity xSpawner) VR_WeaponGrabbable_Make =
 {
     // Turned any way, still: it falls and settles on its drawn shape (a rigid body, MakeThrown).
     vector rot = (xSpawner.spawnflags & WEAPON_GRABBABLE_AS_PLACED) ? xSpawner.angles : randomVec(180);
+    VR_ADGun_Placed(xSpawner.weapon); // AD support: an AD soldier's gun (20..27): its model and sounds (vr_ad_enemyguns.qc)
     entity w = CreateThrownWeapon(xSpawner, xSpawner.weapon, xSpawner.weaponflags,
         WeaponInst_New(WeaponIdToBaseClipSize(xSpawner.weapon)) /* a new one, loaded */,
         xSpawner.origin, rot,
@@ -774,6 +821,10 @@ entity(entity xSpawner) VR_WeaponGrabbable_Make =
         WeaponIdToThrowDamage(xSpawner.weapon)
     );
     w.vr_grab_by_handle = (xSpawner.spawnflags & WEAPON_GRABBABLE_BY_HANDLE) ? 1 : 0;
+    if(w)
+    {
+        VR_WeaponGrabbable_Clear(w);
+    }
     return w;
 };
 
@@ -846,6 +897,7 @@ string(float choice) VR_EnemyDispenser_Model =
     else if(choice == 62) { return "owned/mg3/progs/teleporter_eye.mdl"; }
     else if(choice == 63) { return "owned/mg3/progs/teleporter_eye.mdl"; }
     else if(choice == 50) { return "progs/boss.mdl"; } // (id's: MG3's spheres too, its spawn checks)
+    else if(choice >= 200 && VR_AD_DispenserModel(choice) != "") { return VR_AD_DispenserModel(choice); } // AD support: AD's monsters (vr_ad_monsters.qc)
 
     return NULLSTR;
 };
@@ -855,6 +907,10 @@ string(float choice) VR_EnemyDispenser_Model =
 void(float choice) VR_EnemyDispenser_Spawn =
 {
     // The classname a map's monster has: sight sounds, obituaries and the like go by it.
+    if(VR_AD_DispenserSpawn(choice))
+    {
+        return; // AD support: AD's monsters, from 100 (vr_ad_monsters.qc)
+    }
          if(choice == 0)  { self.classname = "monster_army";        monster_army(); }
     else if(choice == 1)  { self.classname = "monster_ogre";        monster_ogre(); }
     else if(choice == 2)  { self.classname = "monster_zombie";      monster_zombie(); }
@@ -945,6 +1001,9 @@ void() func_enemy_dispenser_use =
         self.targetname = "vr_test_statue"; // (a statue wakes when used: woken below, as its map's trigger would)
     }
     self.angles = '0 1 0' * yaw; // (before its spawn function: walkmonster_start's ideal_yaw is taken from it)
+    // Where it is before its spawn function too, as a map's entity is: a spawn function that makes something at its
+    // own origin (func_weapon_grabbable: AD's soldiers' guns, 312..319) made it at the world's origin, far away.
+    setorigin(self, org);
 
     VR_EnemyDispenser_Spawn(choice);
 

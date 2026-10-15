@@ -12,7 +12,7 @@ namespace qvr::progs
 {
 
 inline constexpr int firstExtSpawnParm = 17;
-inline constexpr int lastExtSpawnParm = 56; // (51..56: Dawn of the Machine's upgrades and bloody weapons, QC/vr_mg3_defs.qc)
+inline constexpr int lastExtSpawnParm = 72; // (51..56: Dawn of the Machine's upgrades and bloody weapons, QC/vr_mg3_defs.qc; 57..72: Arcane Dimensions' level state, QC/vr_ad_bridge.qc)
 inline constexpr int numExtSpawnParms = lastExtSpawnParm - firstExtSpawnParm + 1;
 
 // Offsets (in floats, from edict_t::v) of the VR entity fields; -1 when absent.
@@ -156,13 +156,22 @@ void bindBuiltins();
 void resetBuiltinState();
 // ED_Free (VR_OnEdictFree): a wounded entity's removal sent to the clients (QVR_SVC_WOUNDCLEAR).
 void onEdictFree(edict_t* ed);
+// A wound on entity num's model at org going dir (unit), QVR_WOUND_* kind (QC vr_wounds.qc), amount 0..255, extra: QC's
+// woundevent sent from the engine (a held stump's blood on the hand: vr_box3d.cpp).
+void sendWound(int num, const float* org, const float* dir, int kind, int amount, int extra);
+// QC's particle2(org, dir, preset, count) sent from the engine (a native of QuakeC: vr_propthink.cpp).
+void sendParticle2(const float* org, const float* dir, int preset, int count);
 // vr_test_remove <entity number>: the entity removed, as QC's remove() (tests: its slot reused).
 void testRemove_f();
 // vr_model_check [1]: every entity's .modelindex against its .model, and the client's models against the server's
 // (saved games and late precaches: Misc/quakevr/precache/precache_test.sh).
 void modelCheck_f();
-// The server's frame: a loaded save's warning (another build's: VR_ReadSaveInfo) centre printed once the player is in.
+// The server's frame: a loaded save's warning (another build's: VR_ReadSaveInfo) centre printed once the player is in;
+// or the game code's (progs.dat not this build's: the check at each progs load).
 void loadNoticeFrame();
+// vr_gamecode: where the game code (progs.dat) comes from and whether it is this build's (said again), the base dirs and
+// the search path (Debug > Diagnostics; a player's "guns only props" report).
+void gameCode_f();
 
 } // namespace qvr::progs
 

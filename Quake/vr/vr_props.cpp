@@ -10,6 +10,7 @@
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -83,6 +84,45 @@ struct NameEqual
 ankerl::unordered_dense::map<za::String, int, NameHash, NameEqual> slotCache;
 ankerl::unordered_dense::map<const qmodel_t*, int> modelSlotCache;
 
+// Which of the models drawn at their own sizes a model is (ownScale): Quake's grenades and the rocket in flight.
+enum class Own : za::U8
+{
+    None,
+    Prox,
+    Grenade,
+    Rocket,
+};
+
+// Which of them the model `name` is.
+[[nodiscard]] Own ownOf(const char* name)
+{
+    if(!name)
+    {
+        return Own::None;
+    }
+    if(!strcmp(name, "progs/proxbomb.mdl"))
+    {
+        return Own::Prox;
+    }
+    if(!strcmp(name, "progs/grenade.mdl") || !strcmp(name, "progs/mervup.mdl"))
+    {
+        return Own::Grenade;
+    }
+    return !strcmp(name, "progs/missile.mdl") ? Own::Rocket : Own::None;
+}
+
+// Each slot's, by its vr_prop_id_NN (size(): many times a frame for every entity drawn or touched), found again
+// whenever an ID changes (clearSlotCaches, as slotCache) and once the settings are registered: read only otherwise.
+za::Array<Own, numSlots> slotOwn{};
+
+void findSlotOwn()
+{
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        slotOwn[static_cast<za::SizeT>(slot)] = ownOf(cvarAt(slot, Key::ID).string);
+    }
+}
+
 // The keys' defaults as numbers (value() of no slot).
 float keyDefaultValues[numKeys];
 
@@ -93,6 +133,7 @@ void clearSlotCaches()
 {
     slotCache.clear();
     modelSlotCache.clear();
+    findSlotOwn();
     generation++;
 }
 
@@ -625,6 +666,7 @@ void registerCvars()
     {
         keyDefaultValues[key] = static_cast<float>(atof(keyDefaults[key]));
     }
+    findSlotOwn(); // (the IDs as registered: a change from now on calls onChanged)
 }
 
 int slotsUsed()
@@ -715,34 +757,41 @@ float valueFor(const qmodel_t* model, Key key)
 namespace
 {
 
-// A model's own size, as a Size (times its slot's): Quake's grenades (vr_grenade_scale: the grenade, the multi-grenade;
-// vr_prox_scale: the proximity grenade) and the rocket in flight (vr_rocket_scale), by its name.
-[[nodiscard]] float ownScale(const char* name)
+// Which of them a loaded model is, by its identity (modelmeta: the same names, kept per model until a map or game
+// directory change or its reload).
+[[nodiscard]] Own ownOf(const qmodel_t* model)
 {
-    if(!name)
+    const modelmeta::ModelMetadata& m = modelmeta::get(model);
+    if(m.is(modelmeta::Id::Proxbomb))
     {
-        return 1.f;
+        return Own::Prox;
     }
-    if(!strcmp(name, "progs/proxbomb.mdl"))
+    if(m.is(modelmeta::Id::Grenade) || m.is(modelmeta::Id::Mervup))
     {
-        return za::clamp(vr_prox_scale.value, 0.2f, 2.f);
+        return Own::Grenade;
     }
-    if(!strcmp(name, "progs/grenade.mdl") || !strcmp(name, "progs/mervup.mdl"))
+    return m.is(modelmeta::Id::Missile) ? Own::Rocket : Own::None;
+}
+
+// A model's own size, as a Size (times its slot's): Quake's grenades (vr_grenade_scale: the grenade, the multi-grenade;
+// vr_prox_scale: the proximity grenade) and the rocket in flight (vr_rocket_scale). (By name, four string compares,
+// until 2026-10-12: a slot's is kept by slot, a model's by modelmeta.)
+[[nodiscard]] float ownScale(Own own)
+{
+    switch(own)
     {
-        return za::clamp(vr_grenade_scale.value, 0.25f, 2.f);
+        case Own::Prox: return za::clamp(vr_prox_scale.value, 0.2f, 2.f);
+        case Own::Grenade: return za::clamp(vr_grenade_scale.value, 0.25f, 2.f);
+        case Own::Rocket: return za::clamp(vr_rocket_scale.value, 0.25f, 2.f);
+        default: return 1.f;
     }
-    if(!strcmp(name, "progs/missile.mdl"))
-    {
-        return za::clamp(vr_rocket_scale.value, 0.25f, 2.f);
-    }
-    return 1.f;
 }
 
 } // namespace
 
 float size(int slot)
 {
-    const float own = slot >= 0 && slot < numSlots ? ownScale(cvarAt(slot, Key::ID).string) : 1.f;
+    const float own = slot >= 0 && slot < numSlots ? ownScale(slotOwn[static_cast<za::SizeT>(slot)]) : 1.f;
     return za::clamp(value(slot, Key::Size), 0.05f, 10.f) * own;
 }
 
@@ -756,7 +805,7 @@ float drawnSize(const qmodel_t* model)
     // Quake's grenades and the rocket in flight at their own sizes too (ownScale: in size() for a model with a slot):
     // everything drawn or made from their drawn shape takes it, as a Size.
     const int slot = slotForModel(model);
-    return slot >= 0 ? size(slot) : size(slot) * ownScale(model->name);
+    return slot >= 0 ? size(slot) : size(slot) * ownScale(ownOf(model));
 }
 
 bool lengthKey(Key key)

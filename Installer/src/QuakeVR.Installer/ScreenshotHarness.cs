@@ -578,7 +578,7 @@ static class ScreenshotHarness
     /// <summary>
     /// The Statement page, unanswered, mixed and all YES, saved to PNG and driven through its real controls (the radio
     /// buttons' automation peers, as a screen reader or a click would): the switches start with neither YES nor NO, a
-    /// picked one cannot go back to neither, and the footer's Continue is enabled only with YES to all three. Returns
+    /// picked one cannot go back to neither, and the footer's Continue is enabled only with YES to both. Returns
     /// what went wrong, or null.
     /// </summary>
     /// <summary>The Play page's two Play buttons, pressed through their automation peers with the game's start
@@ -702,7 +702,7 @@ static class ScreenshotHarness
         {
         }
         await Save(view, Path.Combine(dir, "1d-statement-mixed.png"));
-        if (vm.Statement[0] != true || vm.Statement[1] != false || vm.Statement[2] is not null)
+        if (vm.Statement[0] != true || vm.Statement[1] != false)
         {
             return $"the mixed answers did not reach the statement ({string.Join(",", Enumerable.Range(0, Core.AiStatement.Claims.Count).Select(i => vm.Statement[i]?.ToString() ?? "unset"))}; switches {string.Join("", radios.Select(r => r.IsChecked == true ? "1" : "0"))})";
         }
@@ -712,19 +712,18 @@ static class ScreenshotHarness
         }
 
         Pick(1, true);
-        Pick(2, true);
         await Save(view, Path.Combine(dir, "1e-statement-all-yes.png"));
         if (Check(true, "all yes") is { } e3)
         {
             return e3;
         }
-        Pick(2, false);
+        Pick(1, false);
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
         if (Check(false, "one switched to no") is { } e4)
         {
             return e4;
         }
-        Pick(2, true);
+        Pick(1, true);
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
         if (Check(true, "back to all yes") is { } e5)
         {

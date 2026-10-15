@@ -1,7 +1,7 @@
 # render_views.py -- renders a Quake VR .mdl (its skin 0, frame 0, flat-lit as the engine's software look) from several
 # angles, headless, for before/after checks of model edits:
 #   blender -b --factory-startup --python-exit-code 1 -P Misc/quakevr/blender/render_views.py -- model.mdl out_prefix
-#           [size] [view ...]
+#           [size] [view ...]   (model.mdl may be several joined by '+': a gun with its magazine and well)
 # Writes out_prefix_<view>.png per view. Views: left, right, top, bottom, front, back, the three-quarter ones
 # (fl: front-left from above, bl: back-left from below, br: back-right from below), and close-ups of a box given as
 # zoom:x0,x1,y0,y1,z0,z1:dir (dir one of the views above; the camera frames the box). Model space: +x forward,
@@ -32,10 +32,11 @@ def main():
     size = int(argv[2]) if len(argv) > 2 else 512
     views = argv[3:] or ["left", "right", "top", "bottom", "fl", "bl"]
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    ob = MB.import_mdl(bpy.context, path)
-    if ob.data.shape_keys:
-        for kb in ob.data.shape_keys.key_blocks[1:]:
-            kb.value = 0.0
+    obs = [MB.import_mdl(bpy.context, one) for one in path.split("+")]  # (a+b: drawn together, e.g. a gun and its well)
+    for ob in obs:
+        if ob.data.shape_keys:
+            for kb in ob.data.shape_keys.key_blocks[1:]:
+                kb.value = 0.0
     sc = bpy.context.scene
     sc.render.engine = "BLENDER_WORKBENCH"
     # QVR_RENDER_LIGHT=FLAT shows the skin's texels as they are (UV checks); STUDIO (default) the shape.
@@ -53,7 +54,7 @@ def main():
     cam = bpy.data.objects.new("cam", cam_data)
     sc.collection.objects.link(cam)
     sc.camera = cam
-    pts = [ob.matrix_world @ v.co for v in ob.data.vertices]
+    pts = [ob.matrix_world @ v.co for ob in obs for v in ob.data.vertices]
     for view in views:
         box = None
         name = view

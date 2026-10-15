@@ -7,12 +7,14 @@
 #include "vr_held.hpp"
 #include "vr_hue.hpp"
 #include "vr_lines.hpp"
+#include "vr_hotblade.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_menu.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
 #include "vr_weapons.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -276,14 +278,36 @@ glm::vec3 glowColor()
 extern "C" float VR_EntityGlow(const entity_t* e)
 {
     // The toolgun's target (vr_toolgun.cpp: its hue's, or 2..3 red: the remover's), else the force grab's (in the
-    // player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp).
+    // player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp), else an incandescent blade's (4 and over: its
+    // colour and strength coded, vr_hotblade.cpp entityGlow), else a power-up's on your hands and body (under -2: its
+    // colour and strength coded, vr_view.cpp powerupGlow).
+    // (A glowing blade's heat comes first: aiming at a dropped hot blade must not hide that it is incandescent.)
+    const float hotFirst = qvr::hotblade::entityGlow(e);
+    if(hotFirst != 0.f)
+    {
+        return hotFirst;
+    }
     const float t = qvr::toolgun::entityGlow(e);
     if(t != 0.f)
     {
         return t;
     }
     const float g = qvr::fgfx::entityGlow(e);
-    return g > 0.f ? g : -qvr::meleehud::entityGlow(e);
+    if(g > 0.f)
+    {
+        return g;
+    }
+    const float counter = qvr::meleehud::entityGlow(e);
+    if(counter > 0.f)
+    {
+        return -counter;
+    }
+    const float hot = qvr::hotblade::entityGlow(e);
+    if(hot != 0.f)
+    {
+        return hot;
+    }
+    return qvr::view::powerupGlow(e);
 }
 
 extern "C" void VR_EntityGlowColor(float rgb[3])

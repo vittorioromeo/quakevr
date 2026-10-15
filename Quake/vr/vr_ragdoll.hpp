@@ -82,12 +82,19 @@ struct Rig
 // Whether `model` has a seed table (the grunt's; vr_ragdoll 1): cheap, by its name.
 [[nodiscard]] bool eligible(const qmodel_t* model);
 
+// A seed table's death endpoints, without deriving the rig (animation smoothing); none for a model (`hdr`) the table
+// doesn't fit (another vertex count: a mod's replacement).
+[[nodiscard]] bool deathBoundary(const qmodel_t* model, const aliashdr_t* hdr, int frame, bool first);
+
 // The rig of `model`, derived on first use (tens of milliseconds) and kept: nullptr if it has none or the derivation
 // failed (the model isn't the one the seed table was made for).
 [[nodiscard]] const Rig* rigFor(qmodel_t* model);
 
 // The rigs of `count` models made at once, on the game's thread pool (the map's start: rigFor's for each, faster).
 void warmRigs(qmodel_t* const* models, int count);
+#ifdef QVR_TRACY
+void tracyPlots();
+#endif
 
 // Bone `b`'s transform from the rest pose to pose `pose` (the model's space, units): p' = rot * p + pos.
 void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
@@ -118,6 +125,9 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 
 // Where `frame` is in the death animation it belongs to: 0 its first frame .. 1 its last; -1 not a death frame.
 [[nodiscard]] float deathProgress(const Rig& rig, int frame);
+
+// The last frame of the death animation `frame` belongs to; -1 not a death frame.
+[[nodiscard]] int deathEnd(const Rig& rig, int frame);
 
 // The server's ragdolls as the client draws them (a listen server's: vr_box3d.cpp publishes after each step). Each bone's
 // body in the world: p_world = rot * (scale * p_rest) + pos (units); the bones from `bodies` on have none (hidden).

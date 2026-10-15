@@ -54,8 +54,9 @@ namespace
 
 [[noreturn]] void reportAssert(const char* code, const char* file, const int line)
 {
-    // A test run (QVR_NO_ERROR_DIALOG): the crash report, with the stack that failed it (vr_crash.cpp).
-    if(getenv("QVR_NO_ERROR_DIALOG"))
+    // A Quake error: its crash report has the stack that failed it (vr_crash.cpp; off the main thread too). Before the
+    // engine is up (a static initialiser's: no host to shut down) the report alone, and the process ends.
+    if(!host_parms)
     {
         char what[1024];
         q_snprintf(what, sizeof(what), "Zancle assertion failed: ZA_ASSERT(%s) at %s:%d", code, file, line);
@@ -65,6 +66,12 @@ namespace
 }
 
 } // namespace
+
+// vr_crash_test assert (vr_main.cpp): a failed assert's report in any build (Release has no ZA_ASSERT to fail).
+extern "C" void VR_ReportAssert(const char* code, const char* file, const int line)
+{
+    reportAssert(code, file, line);
+}
 
 // Called first thing (VR_InstallCrashHandler), before any other thread: Zancle's handler is not synchronised.
 extern "C" void VR_InstallZancleAssertHandler()

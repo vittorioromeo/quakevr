@@ -11,6 +11,10 @@ namespace qvr::menuui
 
 // Where a flat screen's banner (vr_menubrand.cpp, M_DrawPlaque) was last drawn, menu x and y (x1 < x0: not drawn).
 void bannerRect(float& x0, float& x1, float& y0, float& y1);
+// And the VR menu style's banner (VR_MenuDrawBannerColumn): its rect, true if left of the corner's buttons (false:
+// under them); whether it was drawn in the last frames.
+bool bannerColumnRect(float& x0, float& x1, float& y0, float& y1);
+[[nodiscard]] bool bannerColumnShown();
 // menu_vr pos: the version label (vr_menubrand.cpp, VR_MenuDrawVersion) as last drawn: its text, its box (menu x and y)
 // and what the menu draws right to under it, or why it was left out.
 void printVersionLabel();
@@ -61,9 +65,34 @@ void update(const hands::State& s);
 // menu (and for the release of such a press). A press also makes that hand the pointing one.
 [[nodiscard]] int triggerKey(int hand, bool down, int key);
 
+// A grip pressed or let go (vr_menu_grab, MULTI_MENU.md stage 1): with the laser on the panel's frame it takes hold of
+// the panel and true is returned (its key is not sent, nor its release's); on the panel's face it takes hold once the
+// hand moves (the key still sent: the sliders' fine modifier until then).
+[[nodiscard]] bool gripButton(int hand, bool down);
+
+// A stick was pushed in the menus: a grip held on the panel's face is the fine modifier then, never a grab.
+void sticksPushed();
+
+// A hand holds the menu panel.
+[[nodiscard]] bool panelHeld();
+
+// vr_menu_panel [reset]: prints where the menu panel is (MENUPANEL), or puts it back in front of the head.
+void panelPlace_f();
+
 // Draws the laser and its spot on the panel, in the eye being rendered (after the panel), and the spectator camera's
 // preview (vr_spectator_preview) under it (not in the camera's own view).
 void drawInEye(const hands::State& s);
+
+// The laser from `start` to `end` (with its spot there when `onPanel`; brighter while `held`), in the eye being rendered:
+// the menus' (`size` 1), and the toolgun's panel's (thinner: vr_toolgun_laser_size).
+void drawLaser(const glm::vec3& start, const glm::vec3& end, bool onPanel, bool held, float size);
+
+// The VR menu style's widgets drawn wherever the 2D pass draws (the toolgun's panel: vr_toolgun_panel.cpp), in its
+// coordinates: a switch (19 wide, round the row y's middle, y + 4), a slider (Quake's: 10 cells from x, the value's text
+// `desc` at x + 96), a button (x0..x1, `half` high each way of yc; lit: the selected one's colours).
+void paintSwitch(float x, float y, bool on);
+void paintSlider(int x, int y, float range, const char* desc);
+void paintButton(float x0, float x1, float yc, float half, bool lit);
 
 // Whether a menu in the headset shows the spectator camera's preview (vr_spectator_preview, while the camera is on;
 // placed by the last 2D pass): vr_stereo.cpp then makes it from the camera's image.
@@ -86,6 +115,7 @@ void backToGame(int hand);
 [[nodiscard]] float toolbarBottom();
 [[nodiscard]] float toolbarRight(); // the buttons' right edge (menu x; far left when they are not shown)
 [[nodiscard]] float toolbarLeft();  // and their left edge (menu x; far left when they are not shown)
+[[nodiscard]] float toolbarTop();   // and the first one's top edge (menu y; far up when they are not shown)
 [[nodiscard]] bool toolbarFocused();
 [[nodiscard]] bool toolbarRow(); // on a flat screen: a row of icons along the canvas's top
 // In the headset: whether the column (its buttons, the banner under them, the spectator switch) stands clear left of

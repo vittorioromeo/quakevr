@@ -195,6 +195,7 @@ extern	const char	*gl_version;
 	x(void,			ClearBufferfv, (GLenum buffer, GLint drawbuffer, const GLfloat *value))\
 	x(void,			BlendFunci, (GLuint buf, GLenum sfactor, GLenum dfactor))\
 	x(void,			DebugMessageCallback, (GLDEBUGPROC callback, const void *userParam))\
+	x(void,			DebugMessageInsert, (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *buf))\
 	x(void,			ObjectLabel, (GLenum identifier, GLuint name, GLsizei length, const GLchar *label))\
 	x(void,			PushDebugGroup, (GLenum source, GLuint id, GLsizei length, const char * message))\
 	x(void,			PopDebugGroup, (void))\
@@ -467,6 +468,7 @@ typedef struct gpuframedata_s {
 	float	portaluv[4]; // QVR: scene viewport pixels to portal composite pixels
 	float	teleportlook[4]; // QVR: starry surface size and opacity
 	float	ambient[4];		// QVR: the baked light's own fill light (vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (vr/vr_lighting.cpp, vr/vr_glsl.h)
+	float	permdecals[4];	// QVR: the permanent decals' layer (vr/vr_permdecals.cpp: VR_PermDecalsFrame): on, slots a row, one over the atlas's side
 } gpuframedata_t;
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin
@@ -474,6 +476,7 @@ struct gltexture_s *TexMgr_NormalMap (struct gltexture_s *glt); // its normal ma
 struct gltexture_s *TexMgr_LoadExtNormalMap (struct gltexture_s *base, const char *name, int width, int height, byte *data,
 	int worldwidth); // QVR: an external pack's normal map for base (vr/vr_extmaps.cpp), not made its own; data NULL: only one already made
 qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
+int TexMgr_NormalMapGenerated (const struct gltexture_s *nm); // QVR: a normal map's verified generated components (vr/vr_pbr.cpp: 1 normal, 2 height), resolved when it was made
 
 extern gpulightbuffer_t r_lightbuffer;
 extern gpuframedata_t r_framedata;
@@ -586,6 +589,8 @@ typedef struct glprogs_s {
 	/* 3d */
 	GLuint		world[2][3][3];		// [OIT][standard/dithered/banded][solid/alpha test/water]
 	GLuint		world_pdo[3];		// QVR: [standard/dithered/banded] solid, not OIT, writing the parallax hits' depth (vr_parallax_depth_write)
+	GLuint		world_decal_retro[2][3];	// QVR: [OIT][standard/dithered/banded] solid, with the decals' retro textures' code (world[][][solid] and world_pdo go without it, NO_DECAL_RETRO): made when first needed (GL_WorldDecalRetroProgram)
+	GLuint		world_pdo_decal_retro[3];	// QVR: [standard/dithered/banded] world_pdo's, the same
 	GLuint		water[2][2];		// [OIT][dither]
 	GLuint		skystencil;
 	GLuint		world_depth;		// QVR: the opaque world's depth pre-pass (r_world.c)
@@ -617,6 +622,7 @@ void GL_UseProgram (GLuint program);
 void GL_ClearCachedProgram (void);
 void GL_CreateShaders (void);
 void GL_DeleteShaders (void);
+GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
 void GL_ReloadShaders_f (void); // QVR: tests (vr_shader_reload)
 
 typedef struct glframebufs_s {

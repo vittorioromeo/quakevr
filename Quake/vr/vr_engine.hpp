@@ -19,6 +19,7 @@ extern cvar_t r_particles; // r_part.c: particle effects enabled
 extern cvar_t sv_gravity;							// sv_phys.c
 extern cvar_t sv_maxvelocity;						// sv_phys.c
 int ED_FindFieldOffset (const char *name);			// pr_edict.c
+dfunction_t *VR_ED_FindFunction (const char *fn_name);	// pr_edict.c (vr_ad.cpp)
 trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end); // world.c
 int S_KnownSfxCount (void);							// snd_dma.c (vr_limits)
 int S_KnownSfxMax (void);							// snd_dma.c
@@ -28,6 +29,7 @@ int Mod_KnownMax (void);							// gl_model.c
 qboolean Mod_CheckFullbrights (byte *pixels, int count);	// gl_model.c (vr_modelload.cpp)
 int TexMgr_Count (void);							// gl_texmgr.c
 int TexMgr_Max (void);								// gl_texmgr.c
+unsigned int TexMgr_FreeCount (void);				// gl_texmgr.c: textures freed so far (a cached gltexture_t* is stale once it moves)
 void TexMgr_ReloadImagesNamed (const char *prefix);	// gl_texmgr.c: the textures whose names start with `prefix` uploaded again (vr_sights.cpp)
 int Draw_CachedPicsMax (void);						// gl_draw.c
 extern int menu_numcachepics;						// gl_draw.c

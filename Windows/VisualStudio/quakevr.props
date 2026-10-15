@@ -2,9 +2,43 @@
 <!-- Quake VR module build settings, imported by ironwail.vcxproj (after its own, so these override them; the toolset:
      quakevr.toolset.props).
      The whole engine is built by clang-cl (the ClangCL toolset: Visual Studio's "C++ Clang tools for Windows"; linked by
-     lld-link): the C files as C11 (as upstream's), the Quake VR C++ files as C++23, so any of them can include Zancle
+     lld-link): the C files as C17, the Quake VR C++ files as C++23, so any of them can include Zancle
      (Quake/vr/external/zancle/README.md). -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Release-Tracy opts in automatically; the legacy QvrTracy property still works for other configurations. -->
+  <PropertyGroup>
+    <!-- Release-TracyFull: build_tracy.ps1 -CallstackDepth 8 -SystemTracing (zone call stacks, sampling, context switches). -->
+    <QvrTracyCallstackDepth Condition="'$(Configuration)'=='Release-TracyFull' and '$(QvrTracyCallstackDepth)'==''">8</QvrTracyCallstackDepth>
+    <QvrTracySystemTracing Condition="'$(Configuration)'=='Release-TracyFull' and '$(QvrTracySystemTracing)'==''">true</QvrTracySystemTracing>
+    <QvrTracyCallstackDepth Condition="'$(QvrTracyCallstackDepth)'==''">0</QvrTracyCallstackDepth>
+    <QvrTracySystemTracing Condition="'$(QvrTracySystemTracing)'==''">false</QvrTracySystemTracing>
+    <QvrTracy Condition="('$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull') and '$(QvrTracy)'==''">true</QvrTracy>
+    <QvrTracy Condition="'$(QvrTracy)'==''">false</QvrTracy>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(QvrTracy)'=='true'">
+    <QvrTracyTraceDefines Condition="'$(QvrTracySystemTracing)'!='true'">TRACY_NO_SYSTEM_TRACING;TRACY_NO_CONTEXT_SWITCH;TRACY_NO_SAMPLING</QvrTracyTraceDefines>
+    <QvrTracyStackDefines Condition="'$(QvrTracyCallstackDepth)'!='0'">TRACY_CALLSTACK=$(QvrTracyCallstackDepth)</QvrTracyStackDefines>
+    <QvrTracyOutputConfiguration>$(Configuration)-Tracy</QvrTracyOutputConfiguration>
+    <QvrTracyOutputConfiguration Condition="'$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull'">$(Configuration)</QvrTracyOutputConfiguration>
+    <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(QvrTracyOutputConfiguration)\</IntDir>
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\bin\$(PlatformShortName)\$(QvrTracyOutputConfiguration)\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(QvrTracy)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>QVR_TRACY;TRACY_ENABLE;TRACY_ON_DEMAND;TRACY_ONLY_LOCALHOST;TRACY_NO_CRASH_HANDLER;$(QvrTracyTraceDefines);$(QvrTracyStackDefines);BOX3D_PROFILE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\Quake\vr\external\tracy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link><AdditionalDependencies>dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup Condition="'$(QvrTracy)'=='true'">
+    <ClCompile Include="..\..\Quake\vr\external\tracy\TracyClient.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <!-- Upstream source has warnings under clang's strict engine warning set. -->
+      <AdditionalOptions>/clang:-std=c++17 /clang:-w %(AdditionalOptions)</AdditionalOptions>
+      <ObjectFileName>$(IntDir)tracy\</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
   <PropertyGroup>
     <!-- lld-link has no incremental linking (/INCREMENTAL is ignored with a warning). -->
     <LinkIncremental>false</LinkIncremental>
@@ -46,7 +80,7 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
   </ItemDefinitionGroup>
   <!-- Release: ThinLTO (the ClangCL toolset ignores WholeProgramOptimization and the MSVC linker's LTCG), its cache in
        the intermediate folder so that a rebuild of one file re-optimises only what changed. -->
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">
     <ClCompile>
       <!-- Optimised for speed, inlining across functions more (/Ob3), without the security checks. -->
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -73,20 +107,29 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     </ClCompile>
     <ClInclude Include="..\..\Quake\vr\*.h;..\..\Quake\vr\*.hpp" />
     <!-- The precompiled header's own compile (/Yc) misses LanguageStandard_C (the ClangCL toolset leaves it out of that
-         step), and a header made as C17 (clang-cl's default) is refused by the C11 files that use it. -->
-    <ClCompile Update="..\..\Quake\quakedef.c">
-      <AdditionalOptions>/std:c11 %(AdditionalOptions)</AdditionalOptions>
+         step), and the header and the files that use it must agree; VS2026 also drops it for the files themselves. -->
+    <ClCompile Update="..\..\Quake\*.c">
+      <AdditionalOptions>/std:c17 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <!-- Box3D (Quake/vr/external/box3d/README.md): the physics library, C17, single-threaded. No FMA contraction (its
-         cross-platform determinism relies on it; the build has no FMA instructions anyway, x64's baseline). -->
+    <!-- Box3D (Quake/vr/external/box3d/README.md): the physics library, C17, run on the engine's job pool. No FMA
+         contraction (its cross-platform determinism relies on it; the build has no FMA instructions anyway: x64's
+         baseline, and the AVX2 kernels below do not enable FMA). -->
     <ClCompile Include="..\..\Quake\vr\external\box3d\src\*.c">
       <CompileAs>CompileAsC</CompileAs>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalOptions>/clang:-ffp-contract=off %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-Wno-overriding-option /clang:-ffp-contract=off %(AdditionalOptions)</AdditionalOptions>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)box3d\</ObjectFileName>
     </ClCompile>
-    <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
+    <!-- wide8.c: Box3D's AVX2 kernels (contact solver, convex manifolds), picked at run time only on a CPU with AVX2
+         (src/simd.c b3GetSIMDWidth; wide4.c is the SSE2 copy), so the exe still runs without AVX2. clang compiles them
+         for AVX2 by a pragma around them (src/core.h B3_AVX2_BEGIN), not by /arch: the rest of the program stays at the
+         x64 baseline. intrin.h is included first because verstable.h includes it inside that pragma, where clang 19
+         refuses its declarations (_xend: "attribute 'target' multiversioning"). -->
+    <ClCompile Update="..\..\Quake\vr\external\box3d\src\wide8.c">
+      <AdditionalOptions>/FIintrin.h %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\src\*.inl;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
     <!-- The C heap (Quake/vr/vr_crtheap.c): its report (vr_crtheap_info.c), a C file each; QVR_MIMALLOC with mimalloc. -->
     <ClCompile Include="..\..\Quake\vr\vr_crtheap.c;..\..\Quake\vr\vr_crtheap_info.c">
       <CompileAs>CompileAsC</CompileAs>
@@ -166,4 +209,11 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <Project>{E286BCD0-E4E0-4F68-B335-083019EA8E02}</Project>
     </ProjectReference>
   </ItemGroup>
+  <!-- VS2026 (v18) ClangCL: its newer clang has _m_prefetch built in, so SDL_endian.h's own definition of it is refused
+       ("definition of builtin function"); its guard macro skips that definition. -->
+  <ItemDefinitionGroup Condition="'$(VisualStudioVersion)' != '' and $([System.Version]::Parse('$(VisualStudioVersion)').Major) &gt;= 18">
+    <ClCompile>
+      <PreprocessorDefinitions>__PRFCHWINTRIN_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
 </Project>

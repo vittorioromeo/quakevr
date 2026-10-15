@@ -137,10 +137,75 @@ float (entity targ) visible;
 float(entity targ) infront;
 float(entity targ) range;
 
+// QVR: melee space (vr_enemy_melee_space; ROUND22.md, "Melee space"). The player's body is narrow (vr_hull_ent_width,
+// vr_body_monster_inset) and a melee step goes until the bodies meet, or past him (the knight's flyby): the monster's
+// model then fills his head. A melee step (ai_charge, ai_charge_side; AD's ad_ai_charge and kin) is cut short where its
+// box would come nearer his head (level) than the space and nearer than it was; the engine (vr_bodycontact.cpp) pushes
+// back smoothly one that is nearer all the same (he stepped or leaned in, a leap landed). Its blows still reach him.
+
+// How far the level point h is from self's box at o (level; < 0: inside it), squared with its sign (no sqrt builtin
+// needed: only compared).
+float(float d) VR_MeleeSpace_Sq = { return d < 0 ? -d * d : d * d; };
+float(vector h, vector o) VR_MeleeSpace_Gap =
+{
+    float dx, dy, lo, hi;
+    lo = o_x + self.mins_x - h_x;
+    hi = h_x - (o_x + self.maxs_x);
+    dx = lo > hi ? lo : hi;
+    lo = o_y + self.mins_y - h_y;
+    hi = h_y - (o_y + self.maxs_y);
+    dy = lo > hi ? lo : hi;
+    if(dx > 0 || dy > 0)
+    {
+        if(dx < 0) { dx = 0; }
+        if(dy < 0) { dy = 0; }
+        return dx * dx + dy * dy;
+    }
+    return VR_MeleeSpace_Sq(dx > dy ? dx : dy);
+};
+
+// After a melee step from `before`: back along it to where it keeps the space (or no nearer than it was).
+void(vector before) VR_MeleeSpace_Step =
+{
+    entity p;
+    vector h, way;
+    float space, keep, f, lo, hi, i;
+    p = self.enemy;
+    space = cvar("vr_enemy_melee_space");
+    if(space <= 0 || !p || !(p.flags & FL_CLIENT) || self.origin == before)
+        return;
+    h = p.headpos;
+    if(h == '0 0 0')
+        h = p.origin + p.view_ofs;
+    if(h_z < self.absmin_z || p.absmin_z > self.absmax_z)
+        return; // (over it or under it)
+    keep = VR_MeleeSpace_Gap(h, before);
+    if(keep > space * space)
+        keep = space * space;
+    if(VR_MeleeSpace_Gap(h, self.origin) >= keep)
+        return;
+    way = self.origin - before;
+    lo = 0; // the most of the step that keeps it (bisected)
+    hi = 1;
+    for(i = 0; i < 6; i++)
+    {
+        f = (lo + hi) * 0.5;
+        if(VR_MeleeSpace_Gap(h, before + way * f) >= keep)
+            lo = f;
+        else
+            hi = f;
+    }
+    setorigin(self, before + way * lo);
+};
+
 void(float d) ai_charge =
 {
+    vector before;
+    self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
     ai_face();
+    before = self.origin;
     movetogoal (d);        // done in C code...
+    VR_MeleeSpace_Step(before);
 };
 
 void() ai_charge_side =
@@ -150,6 +215,7 @@ void() ai_charge_side =
 
 // aim to the left of the enemy for a flyby
 
+    self.vr_melee_time = time; // QVR: (as ai_charge)
     self.ideal_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
     ChangeYaw();
 
@@ -157,7 +223,9 @@ void() ai_charge_side =
     dtemp = self.enemy.origin - 30*v_right;
     heading = vectoyaw(dtemp - self.origin);
 
+    dtemp = self.origin;
     walkmove(heading, 20);
+    VR_MeleeSpace_Step(dtemp);
 };
 
 
@@ -175,6 +243,7 @@ void() ai_melee =
     if(!self.enemy)
         return;        // removed before stroke
 
+    self.vr_melee_time = time; // QVR: (as ai_charge)
     delta = self.enemy.origin - self.origin;
 
     if(vlen(delta) > 60)

@@ -440,6 +440,10 @@ float(float xHand) VR_Chainsaw_Cut =
         {
             VR_QuadSound(self, "the chainsaw cut");
         }
+        if(hurt > 0 && e.takedamage)
+        {
+            VR_HotBlade_Struck(self, xHand, e, alive, at, dir); // an incandescent bar sets it on fire (vr_hotblade.qc)
+        }
         VR_ClearHitKind();
         if(flesh)
         {

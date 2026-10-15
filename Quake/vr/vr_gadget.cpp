@@ -12,6 +12,7 @@
 // its last 16 lines for it: Con_NotifyLine), laid out by vr_text3d facing the viewer.
 
 #include "vr_gadget.hpp"
+#include "vr_doom.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_body.hpp"
 #include "vr_portals.hpp"
@@ -112,13 +113,19 @@ enum PicId : int
     PicKey = 23,         // sb_key1, 2
     PicPowerup = 25,     // sb_invis, sb_invuln, sb_suit, sb_quad
     PicSigil = 29,       // sb_sigil1 .. 4
-    PicCount = 33
+    PicAdArtifact = 33,  // AD support: Arcane Dimensions' artifact icons, its own files (STAT_QVR_ADHUD's bits 0-5)
+    PicAdKey = 39,       // AD support: its custom keys' icons, by HUD skin (adib_ckey1 .. 14)
+    PicCount = 53
 };
 
 constexpr const char* picNames[PicCount] = {"num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
     "num_8", "num_9", "num_minus", "face5", "face4", "face3", "face2", "face1", "sb_armor1", "sb_armor2", "sb_armor3",
     "sb_shells", "sb_nails", "sb_rocket", "sb_cells", "sb_key1", "sb_key2", "sb_invis", "sb_invuln", "sb_suit", "sb_quad",
-    "sb_sigil1", "sb_sigil2", "sb_sigil3", "sb_sigil4"};
+    "sb_sigil1", "sb_sigil2", "sb_sigil3", "sb_sigil4",
+    "gfx/adib_lshield.lmp", "gfx/adib_atank.lmp", "gfx/adib_bbelt.lmp", "gfx/adib_jboots.lmp", "gfx/adib_sharp.lmp",
+    "gfx/adib_nailp.lmp", "gfx/adib_ckey1.lmp", "gfx/adib_ckey2.lmp", "gfx/adib_ckey3.lmp", "gfx/adib_ckey4.lmp",
+    "gfx/adib_ckey5.lmp", "gfx/adib_ckey6.lmp", "gfx/adib_ckey7.lmp", "gfx/adib_ckey8.lmp", "gfx/adib_ckey9.lmp",
+    "gfx/adib_ckey10.lmp", "gfx/adib_ckey11.lmp", "gfx/adib_ckey12.lmp", "gfx/adib_ckey13.lmp", "gfx/adib_ckey14.lmp"};
 
 // The grey pictures (made from the game's gfx.wad when first drawn; again after a game change: onGameDirChanged).
 struct GreyPics
@@ -137,9 +144,27 @@ void buildGreys()
     {
         greys.ok[i] = false;
         lumpinfo_t* info = nullptr;
-        const qpic_t* p = static_cast<const qpic_t*>(W_GetLumpName(picNames[i], &info));
-        if(!p || !info || info->type != TYP_QPIC || p->width <= 0 || p->height <= 0 || p->width > 64 || p->height > 64 ||
-            static_cast<size_t>(info->size) < sizeof(int) * 2 + static_cast<size_t>(p->width * p->height))
+        const qpic_t* p = nullptr;
+        size_t bytes = 0;
+        za::Vector<byte> file; // (a picture's own file: AD's icons)
+        if(!strncmp(picNames[i], "gfx/", 4)) // AD support: Arcane Dimensions' icons, while its data is mounted
+        {
+            if(byte* buf = COM_LoadMallocFile(picNames[i], nullptr))
+            {
+                file.resize(static_cast<za::SizeT>(com_filesize));
+                memcpy(file.data(), buf, file.size());
+                free(buf);
+                p = reinterpret_cast<const qpic_t*>(file.data());
+                bytes = file.size();
+            }
+        }
+        else
+        {
+            p = static_cast<const qpic_t*>(W_GetLumpName(picNames[i], &info));
+            bytes = p && info && info->type == TYP_QPIC ? static_cast<size_t>(info->size) : 0;
+        }
+        if(!p || bytes < sizeof(int) * 2 || p->width <= 0 || p->height <= 0 || p->width > 64 || p->height > 64 ||
+            bytes < sizeof(int) * 2 + static_cast<size_t>(p->width * p->height))
         {
             continue;
         }
@@ -184,6 +209,12 @@ void buildGreys()
         buildGreys();
     }
     return greys.ok[id] ? reinterpret_cast<qpic_t*>(greys.pic[id].data()) : nullptr;
+}
+
+// Whether picture `id` can be drawn (AD's icons only while its data is there).
+[[nodiscard]] bool picOk(int id)
+{
+    return id < PicAdArtifact || greyPic(id) != nullptr;
 }
 
 // The screen's font: the console's (gl_draw.c's char_texture, padded 10 x 10 cells), its white half's greys stretched
@@ -365,6 +396,12 @@ struct Readout
     const char* level{""};
     int kills{0}, totalKills{0}, secrets{0}, totalSecrets{0};
     int stealth{-1}; // the stealth gem's (STAT_QVR_STEALTH): -1 none
+    int adHud{0};    // AD support: Arcane Dimensions' artifacts, debuffs, custom keys (STAT_QVR_ADHUD), their skins, the
+    int adKeys{0};   // soonest artifact's seconds left
+    int adTime{0};
+    int adArt[2]{0, 0}; // AD support: the AD page's: each artifact's seconds left (STAT_QVR_ADART1, ADART2: 8 bits each)
+    int adDebuff{0};    // the poison and bleeding still to come, the burning's seconds (STAT_QVR_ADDEBUFF)
+    int adUp{0};        // the carried weapons' upgrades (STAT_QVR_ADUPGRADES: 3 bits a weapon)
 };
 
 // QC's ammo type (AID_*: vr_defs.qc) as the picture of its kind (-1 none); Rogue's lava nails, multi-rockets and plasma
@@ -400,6 +437,13 @@ struct Readout
     r.secrets = cl.stats[STAT_SECRETS];
     r.totalSecrets = cl.stats[STAT_TOTALSECRETS];
     r.stealth = cl.stats[protocol::STAT_QVR_STEALTH];
+    r.adHud = cl.stats[protocol::STAT_QVR_ADHUD];
+    r.adKeys = cl.stats[protocol::STAT_QVR_ADKEYS];
+    r.adTime = cl.stats[protocol::STAT_QVR_ADTIME];
+    r.adArt[0] = cl.stats[protocol::STAT_QVR_ADART1];
+    r.adArt[1] = cl.stats[protocol::STAT_QVR_ADART2];
+    r.adDebuff = cl.stats[protocol::STAT_QVR_ADDEBUFF];
+    r.adUp = cl.stats[protocol::STAT_QVR_ADUPGRADES];
 
     switch(static_cast<int>(vr_gadget_test_state.value))
     {
@@ -461,6 +505,17 @@ struct Readout
             r.totalKills = 456;
             r.secrets = 12;
             r.totalSecrets = 34;
+            break;
+        case 6: // AD support: Arcane Dimensions' row: every artifact, the three debuffs, two custom keys, a timer
+            r.adHud = 0x3f | 0x1c0 | 0x600;
+            r.adKeys = 2 | (5 << 4);
+            r.adTime = 27;
+            // (its page: the artifacts' times, one for good; poison, bleeding, burning; a Shadow Axe in the main hand,
+            // a Widowmaker in the right hip holster and another in the left shoulder's, a Plasma Gun in the off hand)
+            r.adArt[0] = 27 | (255 << 8) | (61 << 16);
+            r.adArt[1] = 12 | (45 << 8) | (90 << 16);
+            r.adDebuff = 18 | (6 << 8) | (3 << 16);
+            r.adUp = 1 | (4 << 3) | (2 << 15) | (2 << 6);
             break;
         default: break;
     }
@@ -675,16 +730,54 @@ void infoRows(const Readout& r, const Palette& pal)
     constexpr int itemBits[10] = {IT_KEY1, IT_KEY2, IT_INVISIBILITY, IT_INVULNERABILITY, IT_SUIT, IT_QUAD,
         1 << 28, 1 << 29, 1 << 30, static_cast<int>(1u << 31)};
     const auto itemPic = [](int i) { return i < 2 ? PicKey + i : i < 6 ? PicPowerup + (i - 2) : PicSigil + (i - 6); };
-    const auto itemWidth = [&](int i) {
-        const qpic_t* p = greyPic(itemPic(i));
-        return p ? static_cast<float>(p->width) : 16.f;
-    };
     const auto columnsLeftOf = [](float x) { return za::max(0, static_cast<int>((x - 4.f - margin) / 8.f)); };
 
-    float itemsW = 0.f; // at full size, with their gaps
+    // What is shown at the right, left to right: the keys, powerups and sigils; then (AD support) Arcane Dimensions'
+    // artifacts (AD's icons), the soonest one's seconds left, its custom keys (by HUD skin) and its debuffs (blinking).
+    struct Entry
+    {
+        int pic;          // a picture, or -1: the text
+        const char* text;
+        glm::vec3 rgb;
+    };
+    za::Array<Entry, 32> entries{};
+    int count = 0;
+    const auto add = [&](int pic, const char* text, const glm::vec3& rgb) {
+        if(count < 32) { entries[count++] = Entry{pic, text, rgb}; }
+    };
     for(int i = 0; i < 10; i++)
     {
-        itemsW += r.items & itemBits[i] ? itemWidth(i) + 2.f : 0.f;
+        if(r.items & itemBits[i]) { add(itemPic(i), nullptr, i >= 2 && i < 6 ? pal.value : pal.label); } // (powerups in use: white)
+    }
+    char adTime[8] = "";
+    for(int i = 0; i < 6; i++)
+    {
+        if((r.adHud & (1 << i)) && picOk(PicAdArtifact + i)) { add(PicAdArtifact + i, nullptr, pal.value); }
+    }
+    if(r.adTime > 0 && (r.adHud & 0x3f))
+    {
+        q_snprintf(adTime, sizeof(adTime), "%d", za::min(r.adTime, 999));
+        add(-1, adTime, pal.value);
+    }
+    for(int k = 0; k < 4; k++)
+    {
+        const int pic = PicAdKey + CLAMP(0, (r.adKeys >> (4 * k)) & 15, 13);
+        if((r.adHud & (512 << k)) && picOk(pic)) { add(pic, nullptr, pal.label); }
+    }
+    constexpr const char* debuffs[3] = {"BURN", "POISON", "BLEED"};
+    for(int d = 0; d < 3; d++)
+    {
+        if(r.adHud & (64 << d)) { add(-1, debuffs[d], blinking(pal.warn)); }
+    }
+    const auto entryWidth = [&](const Entry& e) {
+        return e.pic >= 0 ? (greyPic(e.pic) ? static_cast<float>(greyPic(e.pic)->width) : 16.f)
+                          : static_cast<float>(strlen(e.text)) * 8.f;
+    };
+
+    float itemsW = 0.f; // at full size, with their gaps
+    for(int i = 0; i < count; i++)
+    {
+        itemsW += entryWidth(entries[i]) + 2.f;
     }
 
     char stats[64], shortStats[64];
@@ -696,15 +789,19 @@ void infoRows(const Readout& r, const Palette& pal)
     const float scale = small ? 0.5f : 1.f;
 
     float x = meterRight;
-    for(int i = 9; i >= 0; i--)
+    for(int i = count - 1; i >= 0; i--)
     {
-        if(r.items & itemBits[i])
+        const Entry& e = entries[i];
+        x -= entryWidth(e) * scale;
+        if(e.pic >= 0)
         {
-            x -= itemWidth(i) * scale;
-            const glm::vec3& rgb = i >= 2 && i < 6 ? pal.value : pal.label; // (powerups in use: white)
-            drawPic(x, small ? infoY[0] : infoY[0] + 1.f, itemPic(i), scale, rgb, pal);
-            x -= small ? 1.f : 2.f;
+            drawPic(x, small ? infoY[0] : infoY[0] + 1.f, e.pic, scale, e.rgb, pal);
         }
+        else
+        {
+            drawText(x, small ? infoY[0] + 1.f : infoY[0] + 5.f, 8.f * scale, e.text, e.rgb, pal);
+        }
+        x -= small ? 1.f : 2.f;
     }
     const int columns = columnsLeftOf(x);                          // the level's line
     const int columns2 = small ? columnsLeftOf(meterRight) : columns; // the second line
@@ -737,6 +834,8 @@ void infoRows(const Readout& r, const Palette& pal)
     drawText(margin, infoY[1], 8.f, line, pal.label, pal);
 }
 
+#include "vr_ad_gadget.inc" // AD support: the Arcane Dimensions page (adPage, adPageShown, adTogglePage)
+
 void layout()
 {
     const Palette pal = palette();
@@ -755,6 +854,7 @@ void layout()
     fill(0.f, height - 2.f, width, 2.f, frame);
     fill(0.f, 0.f, 2.f, height, frame);
     fill(width - 2.f, 0.f, 2.f, height, frame);
+    if(adPageShown()) { adPage(r, pal); return; } // AD support: the Arcane Dimensions page in its place (togglePage)
 
     // Health (the face its icon; red under 25) and armour.
     const int face = r.health >= 100 ? 4 : CLAMP(0, r.health / 20, 4);
@@ -2294,15 +2394,19 @@ void renderScreen()
 {
     QVR_GPU_PROFILE("gadget screen");
     text3d::renderScreens(); // the weapons' ammo screens' images too
+    doom::renderScreen(); // Doom's picture and its touch controls (vr_doom), while it is open and can be seen
     if(!active())
     {
         return;
     }
 
-    gfx::ensureTarget(target, width * 2, height * 2, true, "gadget screen"); // mipmaps: for its text's glow
-    gfx::begin2D(target, width, height);
-    layout();
-    gfx::end2D();
+    if(!doom::onGadget()) // (Doom shows instead: the HUD isn't drawn)
+    {
+        gfx::ensureTarget(target, width * 2, height * 2, true, "gadget screen"); // mipmaps: for its text's glow
+        gfx::begin2D(target, width, height);
+        layout();
+        gfx::end2D();
+    }
     renderHologram();
     renderFps();
 
@@ -2315,9 +2419,22 @@ void renderScreen()
     }
 }
 
+bool togglePage()
+{
+    return adTogglePage(); // AD support (vr_ad_gadget.inc)
+}
+
+int page()
+{
+    return adPageShown() ? 1 : 0; // AD support (vr_ad_gadget.inc)
+}
+
 void drawScreen()
 {
-    if(!active() || !current.valid || !target.texture)
+    doom::drawPanel(); // (vr_doom_panel: Doom's floating panel)
+    // Doom open on the gadget (vr_doom): its picture instead of the HUD's.
+    const gfx::Texture doomTexture = doom::onGadget() ? doom::gadgetTexture() : 0;
+    if(!active() || !current.valid || (!target.texture && !doomTexture))
     {
         return;
     }
@@ -2352,6 +2469,20 @@ void drawScreen()
         tapFx.glitchFrames = 0;
     }
     const float g = za::max(k > 0.f ? glitch(realtime) * za::min(k, 1.f) : 0.f, tap);
+    if(doomTexture)
+    {
+        // Doom's: its own CRT strength (vr_doom_crt, half the HUD's: a picture, not text), a scanline a pixel, no glow.
+        const float dk = za::clamp(k * vr_doom_crt.value * 0.5f, 0.f, 2.f);
+        glm::vec3 corner2;
+        glm::vec2 size2;
+        screenRect(corner2, size2);
+        gfx::draw(quad, gfx::sceneViewProjection(),
+            {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
+                .params = {time, dk, za::min(g, tap), 0.f},
+                .screen = {200.f * size2.x / size2.y, 200.f, 1.f}, .trueColor = true},
+            doomTexture);
+        return;
+    }
     gfx::draw(quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
             .params = {time, k, g, textGlow()},
@@ -2572,6 +2703,8 @@ void gadgetInfo_f()
 // vr_gadget_screen_dump [name]: the screen's image as drawn this frame (before the CRT and the glow), flat, to screenshots/<name>.png (default gadget_screen), for tests.
 void screenDump_f()
 {
+    // (Doom's picture and its touch controls while Doom shows: vr_doom.)
+    const gfx::Target& target = doom::onGadget() && doom::gadgetTexture() ? doom::screenTarget() : gadget::target;
     if(!target.texture || !target.framebuffer)
     {
         Con_Printf("vr_gadget_screen_dump: no screen yet\n");

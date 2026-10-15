@@ -681,6 +681,252 @@ void logText(const char* text, bool always = false)
     return plan;
 }
 
+// A JSON string's value: the first "key": "value" in text, its escapes (\\ and \/) undone ("" when there is none).
+[[nodiscard]] za::String jsonString(const char* text, const char* key)
+{
+    za::String value;
+    char quoted[128];
+    q_snprintf(quoted, sizeof(quoted), "\"%s\"", key);
+    const char* p = strstr(text, quoted);
+    if(!p)
+    {
+        return value;
+    }
+    p += strlen(quoted);
+    while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n' || *p == ':')
+    {
+        p++;
+    }
+    if(*p != '"')
+    {
+        return value;
+    }
+    for(p++; *p && *p != '"'; p++)
+    {
+        if(*p == '\\' && p[1])
+        {
+            p++;
+        }
+        value += *p;
+    }
+    return value;
+}
+
+[[nodiscard]] za::String libraryOf(const char* manifest);
+
+#ifdef _WIN32
+// The implicit OpenXR API layers installed: the loader puts each one between the game and the runtime unless its
+// registry value is nonzero, its manifest's disable_environment variable is set, or it has an enable_environment
+// variable that isn't. An overlay's or a toolkit's layer that misuses the runtime breaks it for the game: the leading
+// suspect of 1.0.0's VDXR crash (vr_backend_openxr.cpp, guardedCall).
+struct ApiLayer
+{
+    za::String manifest;
+    za::String name;
+    za::String library;
+    za::String disableVar;
+    za::String enableVar;
+    bool registryOff = false;
+};
+
+// The disable_environment variables vr_xr_api_layers 0 set (cleared again with 1).
+za::Vector<za::String> layerVarsSet;
+
+[[nodiscard]] za::Vector<ApiLayer> implicitLayers()
+{
+    za::Vector<ApiLayer> layers;
+    for(HKEY root : {HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER})
+    {
+        HKEY key = nullptr;
+        if(RegOpenKeyExA(root, "SOFTWARE\\Khronos\\OpenXR\\1\\ApiLayers\\Implicit", 0, KEY_READ, &key) != ERROR_SUCCESS)
+        {
+            continue;
+        }
+        for(DWORD i = 0; i < 64; i++)
+        {
+            char name[1024];
+            DWORD length = sizeof(name);
+            DWORD type = 0;
+            DWORD off = 0;
+            DWORD size = sizeof(off);
+            const LONG r = RegEnumValueA(key, i, name, &length, nullptr, &type, reinterpret_cast<BYTE*>(&off), &size);
+            if(r == ERROR_NO_MORE_ITEMS)
+            {
+                break;
+            }
+            if(r != ERROR_SUCCESS)
+            {
+                continue;
+            }
+            ApiLayer layer;
+            layer.manifest = name;
+            layer.registryOff = type == REG_DWORD && off != 0;
+            if(FILE* f = fopen(name, "rb"))
+            {
+                char text[8192];
+                const size_t n = fread(text, 1, sizeof(text) - 1, f);
+                fclose(f);
+                text[n] = 0;
+                layer.name = jsonString(text, "name");
+                layer.disableVar = jsonString(text, "disable_environment");
+                layer.enableVar = jsonString(text, "enable_environment");
+                layer.library = libraryOf(name);
+            }
+            layers.pushBack(static_cast<ApiLayer&&>(layer));
+        }
+        RegCloseKey(key);
+    }
+    return layers;
+}
+
+[[nodiscard]] bool envSet(const za::String& var)
+{
+    char value[64];
+    return !var.empty() && GetEnvironmentVariableA(var.cStr(), value, sizeof(value)) > 0;
+}
+
+void setEnv(const char* var, const char* value)
+{
+    SetEnvironmentVariableA(var, value); // (the loader's getenv reads the process environment)
+    _putenv_s(var, value ? value : "");
+}
+
+// vr_xr_api_layers 0: each layer's disable_environment variable set; 1: the ones the game set cleared.
+void applyLayerSwitch(const za::Vector<ApiLayer>& layers)
+{
+    const bool off = vr_xr_api_layers.value == 0.f;
+    if(!off)
+    {
+        for(const za::String& var : layerVarsSet)
+        {
+            setEnv(var.cStr(), nullptr);
+        }
+        layerVarsSet.clear();
+        return;
+    }
+    for(const ApiLayer& layer : layers)
+    {
+        if(!layer.disableVar.empty() && !envSet(layer.disableVar))
+        {
+            setEnv(layer.disableVar.cStr(), "1");
+            layerVarsSet.pushBack(layer.disableVar);
+        }
+    }
+}
+
+// "on", "off (...)": what the loader will do with it.
+[[nodiscard]] za::String layerState(const ApiLayer& layer)
+{
+    if(layer.name.empty())
+    {
+        return "manifest unreadable";
+    }
+    if(layer.registryOff)
+    {
+        return "off (its registry value)";
+    }
+    if(envSet(layer.disableVar))
+    {
+        bool ours = false;
+        for(const za::String& var : layerVarsSet)
+        {
+            ours = ours || var == layer.disableVar;
+        }
+        return va("off (%s set%s)", layer.disableVar.cStr(), ours ? " by vr_xr_api_layers 0" : "");
+    }
+    if(!layer.enableVar.empty() && !envSet(layer.enableVar))
+    {
+        return va("off (only with %s set)", layer.enableVar.cStr());
+    }
+    return layer.disableVar.empty() ? "ON (no switch to turn it off)" : "ON";
+}
+
+// The other programs' DLLs in the game's process, with what the known ones are: overlays and hooks that sit on the
+// graphics APIs (they also load d3d11.dll and dxgi.dll before any runtime does), proxies next to the exe.
+struct KnownModule
+{
+    const char* file; // lower case
+    const char* what;
+};
+constexpr KnownModule knownModules[] = {
+    {"rtsshooks64.dll", "RivaTuner Statistics Server / MSI Afterburner overlay"},
+    {"gameoverlayrenderer64.dll", "Steam overlay"},
+    {"discordhook64.dll", "Discord overlay"},
+    {"graphics-hook64.dll", "OBS game capture"},
+    {"reshade64.dll", "ReShade"},
+    {"nvspcap64.dll", "NVIDIA overlay (ShadowPlay)"},
+    {"nvcamera64.dll", "NVIDIA Ansel / filters"},
+    {"ow-graphics-hook64.dll", "Overwolf"},
+    {"owclient.dll", "Overwolf"},
+    {"virtualdesktop.injector64.dll", "Virtual Desktop's injector"},
+    {"fpsmonitorhook64.dll", "FPS Monitor overlay"},
+    {"mirillishook64.dll", "Mirillis Action! capture"},
+    {"bdcamvk64.dll", "Bandicam capture"},
+    {"xsplit.core.hook64.dll", "XSplit capture"},
+};
+// Names a proxy DLL next to the exe takes (ReShade and other injectors): ours never are.
+constexpr const char* proxyNames[] = {"opengl32.dll", "dxgi.dll", "d3d11.dll", "d3d9.dll", "d3d12.dll", "dinput8.dll",
+    "version.dll", "winmm.dll"};
+
+[[nodiscard]] bool startsWithNoCase(const char* text, const char* prefix)
+{
+    return prefix[0] && _strnicmp(text, prefix, strlen(prefix)) == 0;
+}
+
+// Each DLL of another program: "name (what) at path" lines for the log; the summary's "name (what)".
+void foreignModules(za::Vector<za::String>& lines, za::String& summary)
+{
+    char windows[MAX_PATH] = "";
+    GetWindowsDirectoryA(windows, sizeof(windows));
+    char exeDir[MAX_PATH] = "";
+    GetModuleFileNameA(nullptr, exeDir, sizeof(exeDir));
+    if(char* slash = strrchr(exeDir, '\\'))
+    {
+        slash[1] = 0;
+    }
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, GetCurrentProcessId());
+    if(snap == INVALID_HANDLE_VALUE)
+    {
+        return;
+    }
+    MODULEENTRY32 me{};
+    me.dwSize = sizeof(me);
+    for(BOOL ok = Module32First(snap, &me); ok; ok = Module32Next(snap, &me))
+    {
+        char lower[MAX_PATH];
+        q_strlcpy(lower, me.szModule, sizeof(lower));
+        for(char* c = lower; *c; c++)
+        {
+            *c = static_cast<char>(tolower(static_cast<unsigned char>(*c)));
+        }
+        const char* what = nullptr;
+        for(const KnownModule& k : knownModules)
+        {
+            what = !what && !strcmp(lower, k.file) ? k.what : what;
+        }
+        const bool inWindows = startsWithNoCase(me.szExePath, windows);
+        const bool inGame = startsWithNoCase(me.szExePath, exeDir);
+        bool proxy = false;
+        for(const char* p : proxyNames)
+        {
+            proxy = proxy || (!inWindows && !strcmp(lower, p));
+        }
+        if((!what && (inWindows || (inGame && !proxy))) || me.hModule == GetModuleHandleA(nullptr))
+        {
+            continue;
+        }
+        const char* tag = what ? what : proxy ? "a proxy of a system DLL (ReShade or another injector?)" : nullptr;
+        lines.pushBack(va("%s%s%s%s at %s", me.szModule, tag ? " (" : "", tag ? tag : "", tag ? ")" : "", me.szExePath));
+        if(tag && summary.size() < 600)
+        {
+            summary += summary.empty() ? "" : ", ";
+            summary += va("%s (%s)", me.szModule, tag);
+        }
+    }
+    CloseHandle(snap);
+}
+#endif
+
 // The graphics DLLs a runtime loads that the GPU driver keeps pointers into, kept loaded for good once a runtime
 // loaded them (keepGraphicsModules()). VDXR loads d3d11.dll (it renders with D3D11 and shares the game's OpenGL images
 // through NVIDIA's GL/D3D interop) and unloads it with itself; NVIDIA's OpenGL driver thread then reads d3d11.dll's
@@ -716,6 +962,22 @@ void describe()
         modules += graphicsModuleKept[i] ? " kept" : GetModuleHandleA(graphicsModules[i]) ? " loaded" : " not loaded";
     }
     note("  graphics DLLs: %s\n", modules.cStr());
+    const za::Vector<ApiLayer> layers = implicitLayers();
+    note("  implicit OpenXR API layers: %d installed%s\n", static_cast<int>(layers.size()),
+        vr_xr_api_layers.value == 0.f ? " (vr_xr_api_layers 0: each turned off by its own variable)" : "");
+    for(const ApiLayer& layer : layers)
+    {
+        note("    %s: %s\n", layer.name.empty() ? fileName(layer.manifest.cStr()) : layer.name.cStr(), layerState(layer).cStr());
+        note("       %s\n", layer.library.empty() ? layer.manifest.cStr() : layer.library.cStr());
+    }
+    za::Vector<za::String> foreign;
+    za::String foreignSummary;
+    foreignModules(foreign, foreignSummary);
+    note("  other programs' DLLs in the game: %s\n", foreign.empty() ? "none" : va("%d", static_cast<int>(foreign.size())));
+    for(const za::String& line : foreign)
+    {
+        note("    %s\n", line.cStr());
+    }
 #endif
     for(const Known& k : known)
     {
@@ -791,28 +1053,10 @@ void explain_f()
     const size_t n = fread(text, 1, sizeof(text) - 1, f);
     fclose(f);
     text[n] = 0;
-    const char* p = strstr(text, "\"library_path\"");
-    if(!p)
+    const za::String path = jsonString(text, "library_path");
+    if(path.empty())
     {
         return library;
-    }
-    p += strlen("\"library_path\"");
-    while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n' || *p == ':')
-    {
-        p++;
-    }
-    if(*p != '"')
-    {
-        return library;
-    }
-    za::String path;
-    for(p++; *p && *p != '"'; p++)
-    {
-        if(*p == '\\' && p[1])
-        {
-            p++; // (JSON's escapes: \\ and \/)
-        }
-        path += *p;
     }
     const bool absolute = (path.size() > 1 && path.cStr()[1] == ':') || path.cStr()[0] == '\\' || path.cStr()[0] == '/';
     if(!absolute)
@@ -970,11 +1214,37 @@ void use(const Plan& plan, const Attempt& attempt)
     }
     const char* value = attempt.manifest.empty() ? nullptr : attempt.manifest.cStr();
 #ifdef _WIN32
-    SetEnvironmentVariableA("XR_RUNTIME_JSON", value); // (the loader's getenv reads the process environment)
-    _putenv_s("XR_RUNTIME_JSON", value ? value : "");
+    setEnv("XR_RUNTIME_JSON", value);
+    applyLayerSwitch(implicitLayers());
 #endif
     note("OpenXR: trying %s (%s): %s\n", attempt.label.cStr(), attempt.reason.cStr(),
         value ? value : "the system's active runtime");
+}
+
+za::String layersAndOverlays()
+{
+    za::String text;
+#ifdef _WIN32
+    int on = 0;
+    za::String names;
+    for(const ApiLayer& layer : implicitLayers())
+    {
+        const za::String st = layerState(layer);
+        const bool active = !strncmp(st.cStr(), "ON", 2);
+        on += active ? 1 : 0;
+        if(names.size() < 400)
+        {
+            names += names.empty() ? "" : ", ";
+            names += va("%s%s", layer.name.empty() ? fileName(layer.manifest.cStr()) : layer.name.cStr(), active ? "" : " (off)");
+        }
+    }
+    text = va("API layers: %d on%s%s%s", on, names.empty() ? "" : " (", names.cStr(), names.empty() ? "" : ")");
+    za::Vector<za::String> foreign;
+    za::String overlays;
+    foreignModules(foreign, overlays);
+    text += va("; overlays/hooks: %s", overlays.empty() ? "none known" : overlays.cStr());
+#endif
+    return text;
 }
 
 bool simulatedFailure(const Attempt& attempt)

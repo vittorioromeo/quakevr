@@ -631,7 +631,7 @@ stop at a seam instead of reading the skin's other parts past it
 */
 static void TexMgr_AuthoredHeights (gltexture_t *glt, byte *data, int *kind)
 {
-	int x, y, i, n = glt->width * glt->height;
+	int x, i, n = glt->width * glt->height;
 
 	*kind &= ~NORMALMAP_FLAT;
 	for (i = 0; i < n && data[i * 4 + 3] == 255; i++)
@@ -644,14 +644,29 @@ static void TexMgr_AuthoredHeights (gltexture_t *glt, byte *data, int *kind)
 	TexMgr_EnsureHeightMask (); // (only now: most authored maps are flat, VR_SetHeightMaskLazy)
 	if (!heightmask)
 		return;
-	for (y = 0; y < (int) glt->height; y++)
-		for (x = 0; x < (int) glt->width; x++)
+	// Each texel as before (the same sums), its rows shared out on the pool (TexMgr_ForRows: 60 ms of every start's
+	// calibration room, the body's and the hands' 1024 x 1024 maps, on one thread), the mask's column of each x
+	// worked out once; a texel at the top (255) stays there, as the sum gives.
+	{
+		const int width = (int) glt->width, height = (int) glt->height;
+		const float scale = glt->width / (float) heightmask_width; // the mask's texels in these
+		int *columns = (int *) VR_HeapMalloc (sizeof (int) * (size_t) width);
+		for (x = 0; x < width; x++)
+			columns[x] = x * heightmask_width / width;
+		TexMgr_ForRows (height, width * height, [&] (int row)
 		{
-			int mx = x * heightmask_width / glt->width, my = y * heightmask_height / glt->height;
-			float d = heightmask[my * heightmask_width + mx] * (glt->width / (float) heightmask_width); // in these texels
-			byte *a = &data[(y * glt->width + x) * 4 + 3];
-			*a = (byte) (255 - (int) ((255 - *a) * CLAMP (0.f, (d - 0.5f) / HEIGHT_RIM, 1.f) + 0.5f));
-		}
+			const byte *mask = heightmask + (row * heightmask_height / height) * heightmask_width;
+			byte *a = data + (size_t) row * width * 4 + 3;
+			for (int col = 0; col < width; col++, a += 4)
+			{
+				if (*a == 255)
+					continue;
+				float d = mask[columns[col]] * scale; // in these texels
+				*a = (byte) (255 - (int) ((255 - *a) * CLAMP (0.f, (d - 0.5f) / HEIGHT_RIM, 1.f) + 0.5f));
+			}
+		});
+		VR_HeapFree (columns);
+	}
 }
 
 /*
@@ -850,8 +865,7 @@ extern "C" int VR_MakeNormalMap (gltexture_t *glt, byte *data, int kind, int wor
 					VR_NormalCacheStore (TexMgr_NormalCacheBuild (), key, data, glt->width, glt->height);
 			}
 			Hunk_FreeToLowMark (cmark);
-			VR_TimeAdd (hit && cache == 1 ? "normal maps of skins read from the cache" : "normal maps made from skins", Sys_DoubleTime () - t0);
-		}
+			VR_TimeAdd (hit && cache == 1 ? "normal maps of skins read from the cache" : "normal maps made from skins", Sys_DoubleTime () - t0);		}
 		else
 		{
 			TexMgr_EnsureHeightMask ();
@@ -880,15 +894,18 @@ extern "C" float VR_AlphaCoverage (const byte *data, int count)
 VR_LoadNormalMap -- the normal map dynamic lights light a world texture or a skin with (vr_normalmaps): an
 authored <image>_norm, or a <image>_bump height map, beside a replacement image; else one made from the texture's
 own shading (`data`, as loaded). `shared`: another image whose authored maps serve if `image` has none (a model's
-skin 0: all its skins lie on the same texture coordinates). `worldwidth` is the texture's width in the world. `flags`: NORMALMAP_HEIGHTS keeps
-the heights parallax mapping walks in its alpha (an authored _norm's own alpha, 255 if it has none); NORMALMAP_SKIN
+skin 0: all its skins lie on the same texture coordinates). `worldwidth` is the texture's width in the world. File-authored
+world maps always keep height alpha. `flags`: NORMALMAP_HEIGHTS keeps the heights of procedural maps and skins;
+NORMALMAP_SKIN
 makes it from a model skin's colours (TexMgr_SkinToNormals). Authored ones are marked NORMALMAP_FILE.
 =================
 */
 extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const char *shared, byte *data, enum srcformat format,
 	int worldwidth, int flags)
 {
-	int heights = flags & NORMALMAP_HEIGHTS, n;
+	// File-authored world relief is independent of the diffuse's nearest/linear filtering.
+	// The caller's height flag still controls procedural shading and model skins below.
+	int heights = (flags & NORMALMAP_SKIN) ? flags & NORMALMAP_HEIGHTS : NORMALMAP_HEIGHTS, n;
 	static constexpr struct { const char *suffix; int kind; } authored[] = {
 		{"_norm", NORMALMAP_AUTHORED},
 		{"_bump", NORMALMAP_SHADING},
@@ -899,6 +916,8 @@ extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const cha
 	byte			*img;
 
 	if (!glt || !data || !VR_NormalMaps () || TexMgr_NormalMap (glt) != TexMgr_NormalMap (NULL))
+		return;
+	if (VR_PBRNormal (glt, image, shared, data, format, worldwidth, flags))
 		return;
 	for (n = 0; n < 2; n++)
 	for (i = 0; (n ? shared : image) && i < (int) countof (authored); i++)

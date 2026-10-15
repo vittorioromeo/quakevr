@@ -153,13 +153,18 @@ static const char viewblend_vertex_shader[] =
 ////////////////////////////////////////////////////////////////
 
 static const char viewblend_fragment_shader[] =
+QVR_BLOOD_UNIFORMS // QVR: damage and low-health peripheral feedback
 "layout(location=0) uniform vec4 Color;\n"
 "\n"
 "layout(location=0) out vec4 out_fragcolor;\n"
 "\n"
 "void main()\n"
 "{\n"
-"	out_fragcolor = Color;\n"
+"	float blood = QvrBloodAlpha();\n"
+"	if (blood == 0.0) { out_fragcolor = Color; return; }\n"
+"	float alpha = 1.0 - (1.0 - blood) * (1.0 - Color.a);\n"
+"	vec3 rgb = vec3(0.42, 0.008, 0.015) * blood * (1.0 - Color.a) + Color.rgb * Color.a;\n"
+"	out_fragcolor = vec4(rgb / max(alpha, 0.00001), alpha);\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -181,6 +186,7 @@ static const char warpscale_vertex_shader[] =
 ////////////////////////////////////////////////////////////////
 
 static const char warpscale_fragment_shader[] =
+QVR_BLOOD_UNIFORMS // QVR
 "layout(binding=0) uniform sampler2D Tex;\n"
 "\n"
 "layout(location=0) uniform vec4 UVScaleWarpTime; // xy=Scale z=Warp w=Time\n"
@@ -205,6 +211,7 @@ static const char warpscale_fragment_shader[] =
 "#endif // WARP\n"
 "\n"
 "	out_fragcolor = texture(Tex, uv * uv_scale);\n"
+"	out_fragcolor.rgb = mix(out_fragcolor.rgb, vec3(0.42, 0.008, 0.015), QvrBloodAlpha());\n"
 "	out_fragcolor.rgb = mix(out_fragcolor.rgb, BlendColor.rgb, BlendColor.a);\n"
 "}\n";
 
@@ -463,7 +470,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "#endif // BINDLESS\n"\
 "	vec4	uvclamp; // QVR: parallax mapping's rays stay in s .x to .z, t .y to .w, repeating (none where .z <= .x)\n"\
 "	vec4	detail; // QVR: the texture's detail (vr/vr_detail.cpp): s and t scales (s < 0: axes swapped), strength (0 none), layer\n"\
-"	vec4	extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp): y the specular map's brightness, z its hardness\n"\
+"	vec4	extmat; // QVR: x/w generated normal/height multipliers; y/z external sheen/hardness\n"\
 "	vec4	retro; // QVR: retro textures (vr_retro.h): xy the texture's Quake size, z its set (0: the instance's)\n"\
 "};\n"\
 "const uint\n"\
@@ -594,6 +601,7 @@ LIQUID_SWELL // QVR
 QVR_ZFIX_FUNCTION // QVR: gl_zfix's push back (vr_glsl.h)
 "layout(location=5) in vec3 in_surfacecentre; // QVR: BSP teleporter visual scaling pivot\n"
 "layout(location=4) in float in_swellpin; // QVR: the geometric waves' mesh (vr/vr_water.cpp); 0 elsewhere (unset)\n"
+QVR_WORLD_VS_PERMDECALS // QVR: the permanent decals' layer (vr/vr_permdecals.cpp)
 "\n"
 "invariant gl_Position; // QVR: the opaque world's depth pre-pass (glprogs.world_depth) gives the very same depths\n"
 "layout(location=0) flat out uint out_flags;\n"
@@ -635,6 +643,8 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "		gl_Position.z = QVR_ZFixDepth(gl_Position.z, gl_Position.w);\n"
 "	out_uv = in_uv.xy;\n"
 "	out_lmuv = in_uv.zw;\n"
+"	out_grime = in_grime.xy; // QVR\n"
+"	out_grimepages = in_grime.zw; // QVR\n"
 "	out_depth = gl_Position.w;\n"
 "	out_coord = (gl_Position.xy / gl_Position.w * 0.5 + 0.5) * vec2(LIGHT_TILES_X, LIGHT_TILES_Y);\n"
 "	out_flags = call.flags;\n"
@@ -644,7 +654,7 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	out_alpha = instance.alpha < 0.0 ? 1.0 : instance.alpha;\n"
 "#endif\n"
 "	out_glow = instance.glow; // QVR\n"
-"	out_pdepth = instance.parallax; // QVR\n"
+"	out_pdepth = instance.parallax * call.extmat.w; // QVR\n"
 "	out_uvclamp = call.uvclamp; // QVR\n"
 "	out_detail = call.detail; // QVR\n"
 "	out_extmat = call.extmat; // QVR\n"
@@ -734,6 +744,7 @@ LIQUID_FUNCTIONS // QVR
 "	layout(location=9) flat in uvec4 in_samplers;\n"
 QVR_WORLD_FS_INPUTS // QVR: the world fragment shader's Quake VR inputs
 "#endif\n"
+QVR_WORLD_FS_PERMDECAL_INPUTS // QVR: the permanent decals' layer (vr/vr_permdecals.cpp)
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
@@ -1302,6 +1313,12 @@ NOISE_FUNCTIONS
 "	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own); w retro lighting's (vr_retrolight.h): a Quake texel's share of the texture's (0: 1)\n"\
 "	vec4	PortalClip; // QVR: this instance's teleporter half\n"\
 "	vec4	RetroPart; // QVR: your body's parts by bone (vr/vr_retro.cpp bodyParts): xy the low bits of bones 0..23, 24..47, zw the high bits\n"\
+"	ivec4	Smooth; // QVR: r_lerpmodels 3 (vr/vr_animsmooth.cpp): x, y the first and fourth poses, z 1 + its bones' first row in SmoothSwing (0 none), w 1 on (2 + its hit reaction's kicked bones' first row: vr/vr_hitreact.cpp)\n"\
+"	vec4	SmoothW; // QVR: ... the four poses' weights\n"\
+"	vec4	SkinTint; // QVR: bare forearms' ends tinted to the hand's skin (vr/vr_view.cpp skinTint): rgb times the skin, w how much (0 none)\n"\
+"	vec4	SkinTintRange; // QVR: ... where in the skin: x below this u, y from this v (none) to z (all), w below this v\n"\
+"	vec4	SkinTone; // QVR: skin-only tone, excludes painted wounds\n"\
+"	vec4	HotBlade; // QVR: an incandescent blade's glow only on its blade: xyz . pose + w, 0 at the blade's root to 1 (vr/vr_hotblade.cpp; zero: all of it)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1355,6 +1372,7 @@ ALIAS_INSTANCE_BUFFER
 "		mat3x4 BonePoses[];\n"
 "	};\n"
 "\n"
+"	vec3 bind_pos; // QVR: in_pos, a bare forearm's hand's end inside the arm folded in (QVR_ALIAS_VS_HANDFOLD)\n"
 "	PoseVertex GetPoseVertex(uint pose)\n"
 "	{\n"
 "		mat3x4 blendmat = BonePoses[pose + in_indices.x] * in_weights.x;\n"
@@ -1365,7 +1383,7 @@ ALIAS_INSTANCE_BUFFER
 "			blendmat += BonePoses[pose + in_indices.w] * in_weights.w;\n"
 "		}\n"
 "		mat4x3 anim = transpose(blendmat);\n"
-"		return PoseVertex((anim * vec4(in_pos, 1.0)).xyz, (anim * vec4(in_nor.xyz, 0.0)).xyz);\n"
+"		return PoseVertex((anim * vec4(bind_pos, 1.0)).xyz, (anim * vec4(in_nor.xyz, 0.0)).xyz);\n"
 "	}\n"
 "\n"
 "#else // PV_QUAKE1 || PV_MD3\n"
@@ -1375,6 +1393,17 @@ ALIAS_INSTANCE_BUFFER
 "	{\n"
 "		uvec2 PackedPosNor[];\n"
 "	};\n"
+"#if POSEVERTTYPE == 0 // QVR: each pose's vertex dequantised (vr/vr_mdldequant.cpp): its offset from the stored bytes, in steps (zero: the bytes)\n"
+"	layout(std430, binding=11) restrict readonly buffer PoseFracBuffer\n"
+"	{\n"
+"		uint PoseFrac[];\n"
+"	};\n"
+"	vec3 Dequantised (vec3 pos, uint index) // (none: the bytes exactly, the same instructions after as before)\n"
+"	{\n"
+"		uint frac = PoseFrac[index];\n"
+"		return frac == 0u ? pos : pos + unpackSnorm4x8(frac).xyz * 0.5;\n"
+"	}\n"
+"#endif\n"
 "\n"
 "	PoseVertex GetPoseVertex (uint pose)\n"
 "	{\n"
@@ -1392,7 +1421,7 @@ ALIAS_INSTANCE_BUFFER
 "		ret.nor.z = coslat;\n"
 "		return ret;\n"
 "#else // PV_QUAKE1\n"
-"		return PoseVertex(vec3((data.xxx >> uvec3(0, 8, 16)) & 255), unpackSnorm4x8(data.y).xyz);\n"
+"		return PoseVertex(Dequantised(vec3((data.xxx >> uvec3(0, 8, 16)) & 255), pose + gl_VertexID), unpackSnorm4x8(data.y).xyz); // QVR: dequantised\n"
 "#endif // POSEVERTTYPE\n"
 "	}\n"
 "\n"
@@ -1425,10 +1454,12 @@ QVR_ALIAS_VS_OUTPUTS // QVR: the alias vertex shader's Quake VR outputs
 "	out_fbboost = inst.Glow.z; // QVR\n"
 "	out_pdepth = inst.Glow.w; // QVR: parallax mapping's depth (vr_parallax_models)\n"
 "	out_texcoord = in_uv;\n"
+QVR_ALIAS_VS_HANDFOLD // QVR: a bare forearm's hand's end inside the arm folded in (vr/vr_view.cpp skinTint)
 "	PoseVertex pose1 = GetPoseVertex(inst.Pose1);\n"
 "	PoseVertex pose2 = GetPoseVertex(inst.Pose2);\n"
 "	mat4x3 worldmatrix = transpose(mat3x4(inst.WorldMatrix[0], inst.WorldMatrix[1], inst.WorldMatrix[2]));\n"
 "	vec3 lerpedPos = mix(pose1.pos, pose2.pos, inst.Blend);\n"
+QVR_ALIAS_VS_SMOOTH // QVR: r_lerpmodels 3: along a spline through four poses, the limbs swung round their joints
 "	lerpedPos = ZeroBlend(lerpedPos, inst); // QVR: blend towards frame 0 (vr/vr_render.cpp)\n"
 "	vec3 lerpedVert = (worldmatrix * vec4(lerpedPos, 1.0)).xyz;\n"
 "	gl_ClipDistance[0] = dot(vec4(lerpedVert, 1.0), ShadowClip); // QVR: virtual light exit plane\n"
@@ -1480,6 +1511,7 @@ NOISE_FUNCTIONS
 "layout(binding=0) uniform sampler2D Tex;\n"
 "layout(binding=1) uniform sampler2D FullbrightTex;\n"
 "layout(binding=2) uniform sampler2D NormalTex; // QVR\n"
+"layout(binding=6) uniform sampler2D SkinMaskTex; // QVR: authored skin only\n"
 "\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	layout(location=0) noperspective in vec2 in_texcoord;\n"
@@ -1516,6 +1548,7 @@ QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights
 "	RetroBegin(in_retroset, retro.y > 0.0 ? retro.yz : vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
 "	vec4 result = Retro > 0 ? RetroSample(Tex, uv, duvdx, duvdy, true) : textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
+QVR_ALIAS_FS_SKINTINT // QVR: bare forearms' ends tinted to the hand's skin
 "#if ALPHATEST\n"
 "	// QVR: alpha to coverage (vr_alpha_coverage with MSAA; opaque draws): the alpha sharpened to about a pixel's\n"
 "	// width round the cutoff gives the samples covered; without it, Quake's test\n"

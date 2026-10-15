@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_input.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
@@ -187,6 +188,21 @@ void drawOptionScreens()
                 text3d::queue("SELECTED", at3, glm::vec3{0.f, glm::degrees(za::atan2(dir.y, dir.x)), 0.f},
                     text3d::Align::Centre, 0.3f, true);
             }
+            continue;
+        }
+        // The hub's Continue button ("vr_continue"; QC keeps it only when there is a save to continue): its save, the
+        // map, the campaign and when, on a screen above its label (vr_continue.cpp).
+        if(!q_strncasecmp(target, "vr_continue", 11) && VR_ContinueAvailable())
+        {
+            char title[96], detail[96];
+            VR_ContinueDescribe(title, sizeof(title), detail, sizeof(detail));
+            glm::vec3 lo, hi;
+            restBox(e, lo, hi);
+            const glm::vec3 dir{e->v.movedir[0], e->v.movedir[1], e->v.movedir[2]};
+            // (above the lectern's cap: the button is 18 below its top)
+            const glm::vec3 at3 = 0.5f * (lo + hi) + glm::vec3{0.f, 0.f, 0.5f * (hi.z - lo.z) + overTop(e, 24.f)} + dir * 2.f;
+            text3d::queue(va("%s\n%s", title, detail), at3, glm::vec3{0.f, glm::degrees(za::atan2(dir.y, dir.x)), 0.f},
+                text3d::Align::Centre, 0.3f, true);
             continue;
         }
         if(q_strncasecmp(target, prefix, prefixLength))
@@ -656,7 +672,7 @@ void flowFrame()
     }
     if(flow.step != Step::Idle && flow.step != Step::Body)
     {
-        text += flow.step == Step::Done ? "" : inRoom() ? "\n\nmenu button: pause" : "\n\nmenu button: stop";
+        text += flow.step == Step::Done ? "" : va("\n\n%s: %s", input::menuButtonName(), inRoom() ? "pause" : "stop");
         drawText(text);
     }
 }
@@ -822,6 +838,7 @@ void init()
     Cmd_AddCommand("vr_setup_stop", stop_f);
     Cmd_AddCommand("vr_menu_path_check", menu::pathCheck_f);
     Cmd_AddCommand("vr_menu_dump", menu::dump_f);
+    Cmd_AddCommand("vr_menu_press", menu::press_f);
 }
 
 void frame()

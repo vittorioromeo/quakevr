@@ -10,6 +10,9 @@
 #      gun in each hand, the hand pitched two ways.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 REP="vr_reload_test 0;impulse 125;wait3"
@@ -21,7 +24,7 @@ for row in "156 157 off" "156 156 off" "157 156 off" "157 157 off" "161 156 off"
     S="$BASE;impulse $off;wait3;vr_test_weaponinst 7;impulse 120;wait3;give n 200;give c 200"
     if [ $main != 0 ]; then S="$S;impulse $main;wait3"; fi
     S="$S;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.25 -0.40 50 0 0;wait10;vr_mock_button $hand secondary 1;wait3;vr_mock_button $hand secondary 0;wait90;$REP;toggleconsole;quit"
-    log=$(bash $KIT/run.sh $AGENT -Script "$S" -Filter "^reload: (off hand|.*out of the gun|.*seated \(hand)" 2>&1)
+    log=$(tb_run_sh -Script "$S" -Filter "^reload: (off hand|.*out of the gun|.*seated \(hand)" 2>&1)
     outs=$(echo "$log" | grep -c "out of the gun")
     seats=$(echo "$log" | grep -c "seated (hand")
     st=$(echo "$log" | grep "^reload: off hand" | tail -1)
@@ -34,10 +37,13 @@ for gun in 156 157 161; do for hand in off main; do for pitch in 0 30; do
     S="$BASE;impulse $gun;wait3"
     if [ $hand = off ]; then S="$S;vr_test_weaponinst 7;impulse 120;wait3"; fi
     S="$S;vr_mock_hand off -0.15 1.25 -0.40 $pitch 30 10;vr_mock_hand main 0.25 1.25 -0.40 $pitch -30 -10;wait10;vr_mock_button $hand secondary 1;wait3;vr_mock_button $hand secondary 0;wait5;toggleconsole;quit"
-    line=$(bash $KIT/run.sh $AGENT -Script "$S" -Filter "out of the gun|u/s" 2>&1 | grep -A1 "out of the gun" | tr "\n" " ")
+    line=$(tb_run_sh -Script "$S" -Filter "out of the gun|u/s" 2>&1 | grep -A1 "out of the gun" | tr "\n" " ")
     along=$(echo "$line" | sed -n "s/.*seated one's \([-0-9.]*\).*/\1/p")
     way=$(echo "$line" | sed -n "s/.*up), \([-0-9.]*\) along.*/\1/p")
     up=$(echo "$line" | sed -n "s/.*u\/s (\([-0-9.]*\) up).*/\1/p")
     check $(awk -v a="$along" -v w="$way" -v u="$up" 'BEGIN { print (a != "" && a >= 0.98 && w != "" && w >= 0.65 && u != "" && u < 0) ? 1 : 0 }') "gun $gun, the $hand hand pitched $pitch: as it sat (feed end along the seated one's $along), pushed out of its well ($way along its way out, $up u/s up)"
 done; done; done
 exit $fail
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

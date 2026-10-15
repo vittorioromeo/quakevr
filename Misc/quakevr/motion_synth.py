@@ -314,7 +314,8 @@ class Take:
             rows.append(row)
         columns = list(rows[0].keys())
         category = self.label.split("_")[0]
-        for c in ("no_hit", "palm_shove_1h", "palm_shove_2h", "parry_pose", "parry_bash", "hilt_pommel", "gun_strike"):
+        for c in ("no_hit", "palm_shove_1h", "palm_shove_2h", "parry_pose", "parry_bash", "hilt_pommel", "gun_strike",
+                  "neck_snap", "no_neck_snap", "lift", "no_lift", "judo_throw", "no_judo_throw"):
             if self.label.startswith(c):
                 category = c
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -323,7 +324,7 @@ class Take:
             f.write("# format: 1\n# label: %s\n# category: %s\n# detail: %s\n# note: %s\n" %
                     (self.label, category, self.label[len(category) + 1:], self.note))
             f.write("# date: %s\n# source: synthetic (Misc/quakevr/motion_synth.py)\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
-            f.write("# map: vrfiringrange\n# vr_world_scale: %g\n# units per metre: %.4f\n" % (self.world_scale, m2u))
+            f.write("# map: vrmelee-recording\n# vr_world_scale: %g\n# units per metre: %.4f\n" % (self.world_scale, m2u))
             f.write("# vr_height_calibration: %g\n" % self.eye_height)
             (mp, my), (op, oy) = HAND_OFFSETS["main"], HAND_OFFSETS["off"]
             f.write("# hand angles: vr_gunangle %g vr_gunyaw %g vr_offhandpitch %g vr_offhandyaw %g\n" % (mp, my, op, oy))
@@ -476,7 +477,7 @@ def settings_from_cfg(path):
 
 
 # The melee fixes' tests (ROUND21.md, "Melee fixes: flashlight, axe on walls, gibs"): a weapon chopped into a wall
-# (--weapon; vr_motion_play <take> noplace yaw <heading>, standing in front of one), a fist and a weapon struck down at a
+# (--weapon; vr_motion_play <take> map <fixture> noplace yaw <heading>, standing in front of one), a fist and a weapon struck down at a
 # gib on the floor (0.45 m ahead, 3-5 cm left), and the flashlight's punch and shoves (--mock: vr_mock_play, the torch
 # taken in the mock first: a take can't carry it).
 CHOPS = {
@@ -623,6 +624,12 @@ def preset(name, args):
     take = decap_preset(name, args)
     if take:
         return take
+    take = necksnap_preset(name, args)
+    if take:
+        return take
+    take = liftjudo_preset(name, args)
+    if take:
+        return take
     take = fix_preset(name, args)
     if take:
         return take
@@ -661,6 +668,96 @@ def decap_preset(name, args):
     return take
 
 
+def necksnap_preset(name, args):
+    """Both empty hands take hold of the training dummy (gripped after the playback's setup: a grip closed during it
+    doesn't hold) and turn about its up: at its head 90 degrees in 0.2 s (snaps), the turn at its shoulders or 20
+    degrees at its head (doesn't). Not in the `necksnap` group: `neck_snap_push_pull`, pushed and pulled 25 cm each way
+    with the wrists turning 100 degrees about the vertical in 0.3 s (2026-10-15, at the then shipped settings: the hand
+    line missed it, the palms' line turning 61 degrees in its 0.2 s window; Velocity, gone since, snapped it). The
+    dummy `--necksnap-distance` ahead."""
+    shapes = {
+        # (the hands' height below the head's middle, half their spread, the turn in degrees, push-pull)
+        "neck_snap_turn": (0.0, 0.12, 90.0, False),
+        "neck_snap_push_pull": (0.0, 0.12, 100.0, True),
+        "no_neck_snap_shoulders": (0.3, 0.2, 90.0, False),
+        "no_neck_snap_small": (0.0, 0.12, 20.0, False),
+    }
+    if name not in shapes:
+        return None
+    lower, half, turn, push_pull = shapes[name]
+    ws, eye, T = args.world_scale, args.eye_height, args.duration
+    d = args.necksnap_distance
+    c = (d, 0.0, args.head - lower)
+    take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, target=(d, 0.0), note="synthetic")
+    take.fists = {"main", "off"}
+    at = {"main": add(c, (0.0, -half, 0.0)), "off": add(c, (0.0, half, 0.0))}
+    take.start({h: ((0.3, -0.2 if h == "main" else 0.2, eye - 0.5), fist_pose(h)) for h in ("main", "off")})
+    take.hold(0.3, phase="pre")
+    take.glide({h: (at[h], fist_pose(h)) for h in at}, 0.4)
+    take.grip("main", True)
+    take.grip("off", True)
+    take.hold(0.4)
+
+    def turned(s):
+        q = qaxis((0, 0, 1), turn * s)  # (to the left, seen from above)
+        if push_pull:  # the main hand 25 cm ahead, the off hand 25 cm back, the wrists turning with them
+            return {"main": (add(at["main"], (0.25 * s, 0.0, 0.0)), qmul(q, fist_pose("main"))),
+                    "off": (add(at["off"], (-0.25 * s, 0.0, 0.0)), qmul(q, fist_pose("off")))}
+        return {h: (add(c, qrot(q, sub(at[h], c))), qmul(q, fist_pose(h))) for h in at}
+
+    take.move(T, turned, phase="rec")
+    take.hold(0.5, phase="tail")
+    return take
+
+
+def liftjudo_preset(name, args):
+    """Both empty hands take hold of the training dummy's shoulders (gripped after the playback's setup) and lift it
+    (pull it straight up 0.5 m: `lift_straight` in 0.35 s, `lift_fast` 0.6 m in 0.25 s; not lifts: `no_lift_slow` in
+    2 s, `no_lift_sideways` 0.5 m across) or turn it down about a level axis through its middle (`judo_throw_left`,
+    `_right`: tipping its top to the side, `_towards`: tipping it to you, 120 degrees in 0.25 s; not throws:
+    `no_judo_throw_slow` 2 s, `no_judo_throw_small` 15 degrees). Synthetic (2026-10-15, tuned to the shipped
+    settings). The dummy `--necksnap-distance` ahead, its shoulders `--head` less 0.3 m up."""
+    shapes = {
+        # (kind, how far/much, seconds)
+        "lift_straight": ("lift", 0.5, 0.35), "lift_fast": ("lift", 0.6, 0.25),
+        "no_lift_slow": ("lift", 0.5, 2.0), "no_lift_sideways": ("side", 0.5, 0.35),
+        "judo_throw_left": ("roll", -120.0, 0.25), "judo_throw_right": ("roll", 120.0, 0.25),
+        "judo_throw_towards": ("pitch", -120.0, 0.25),
+        "no_judo_throw_slow": ("roll", 120.0, 2.0), "no_judo_throw_small": ("roll", 15.0, 0.25),
+    }
+    if name not in shapes:
+        return None
+    kind, amount, T = shapes[name]
+    ws, eye = args.world_scale, args.eye_height
+    d = args.necksnap_distance
+    half = 0.2
+    c = (d, 0.0, args.head - 0.3)  # the shoulders' middle
+    take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, target=(d, 0.0), note="synthetic")
+    take.fists = {"main", "off"}
+    at = {"main": add(c, (0.0, -half, 0.0)), "off": add(c, (0.0, half, 0.0))}
+    take.start({h: ((0.3, -0.2 if h == "main" else 0.2, eye - 0.5), fist_pose(h)) for h in ("main", "off")})
+    take.hold(0.3, phase="pre")
+    take.glide({h: (at[h], fist_pose(h)) for h in at}, 0.4)
+    take.grip("main", True)
+    take.grip("off", True)
+    take.hold(0.4)
+    mid = (d, 0.0, args.head - 0.7)  # the dummy's middle, the turn's pivot
+
+    def moved(s):
+        if kind in ("lift", "side"):
+            way = (0.0, 0.0, 1.0) if kind == "lift" else (0.0, 1.0, 0.0)
+            return {h: (add(at[h], tuple(amount * s * x for x in way)), fist_pose(h)) for h in at}
+        q = qaxis((1, 0, 0) if kind == "roll" else (0, 1, 0), amount * s)
+        return {h: (add(mid, qrot(q, sub(at[h], mid))), qmul(q, fist_pose(h))) for h in at}
+
+    take.move(T, moved, phase="rec")
+    take.hold(0.5, phase="tail")
+    return take
+
+
+LIFTJUDO_PRESETS = ["lift_straight", "lift_fast", "no_lift_slow", "no_lift_sideways", "judo_throw_left",
+                    "judo_throw_right", "judo_throw_towards", "no_judo_throw_slow", "no_judo_throw_small"]
+NECKSNAP_PRESETS = ["neck_snap_turn", "no_neck_snap_shoulders", "no_neck_snap_small"]
 DECAP_PRESETS = ["decapitation_horizontal_rtl", "decapitation_horizontal_ltr", "decapitation_diagonal_down_left",
                  "no_decapitation_flat", "no_decapitation_body", "no_decapitation_stab"]
 FIX_PRESETS = ["chop_horizontal", "chop_diagonal", "chop_overhead", "punch_down_gib", "chop_down_gib",
@@ -671,7 +768,8 @@ PRESETS = ["slash_overhead", "slash_horizontal_rtl", "slash_horizontal_ltr", "sl
 DEFAULT_DURATION = {"slap_forehand": 0.18, "slap_backhand": 0.18, "stab": 0.15, "no_decapitation_stab": 0.15, "punch_straight": 0.15, "palm_shove_1h": 0.15, "palm_shove_2h": 0.15,
                     "chop_horizontal": 0.22, "chop_diagonal": 0.22, "chop_overhead": 0.22, "punch_down_gib": 0.16,
                     "chop_down_gib": 0.22, "punch_straight_off": 0.15, "palm_shove_2h_torch": 0.15,
-                    "palm_shove_torch_only": 0.15}
+                    "palm_shove_torch_only": 0.15, "neck_snap_turn": 0.2, "no_neck_snap_shoulders": 0.2,
+                    "no_neck_snap_small": 0.2}
 
 
 def main():
@@ -686,6 +784,9 @@ def main():
     ap.add_argument("--eye-height", type=float, default=1.646)
     ap.add_argument("--neck", type=float, default=0.62, help="the decapitation presets: metres from the eye down to "
                     "the hand (the blade level with the dummy's neck)")
+    ap.add_argument("--head", type=float, default=1.39, help="the neck snap presets: the dummy's head's middle, metres "
+                    "up from the floor")
+    ap.add_argument("--necksnap-distance", type=float, default=0.7, help="the neck snap presets: metres to the dummy")
     ap.add_argument("--two-handed", action="store_true", help="the sword's with the off hand on the grip")
     ap.add_argument("--weapon", default="axe", choices=sorted(WEAPON_FAR),
                     help="the chop presets' weapon; crowbar, chainsaw, superaxe: the sword presets' too")
@@ -700,7 +801,7 @@ def main():
     ap.add_argument("--dummy-health", type=int, help="its health (vr_dummy_health; -1 its enemy's own)")
     args = ap.parse_args()
     if args.list or not args.preset:
-        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS))
+        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS + NECKSNAP_PRESETS + LIFTJUDO_PRESETS))
         return
     if args.settings_from:
         configure(settings_from_cfg(args.settings_from))
@@ -708,7 +809,9 @@ def main():
         DUMMY["vr_dummy_type"] = str(args.dummy_type)
     if args.dummy_health is not None:
         DUMMY["vr_dummy_health"] = str(args.dummy_health)
-    names = PRESETS if args.preset == "all" else DECAP_PRESETS if args.preset == "decap" else [args.preset]
+    names = (PRESETS if args.preset == "all" else DECAP_PRESETS if args.preset == "decap" else
+             NECKSNAP_PRESETS if args.preset == "necksnap" else
+             LIFTJUDO_PRESETS if args.preset == "liftjudo" else [args.preset])
     for name in names:
         a = argparse.Namespace(**vars(args))
         a.duration = args.duration or DEFAULT_DURATION.get(name, 0.3)

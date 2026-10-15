@@ -16,6 +16,8 @@
 .float vr_gate_crossed; // when a missile was last carried through a teleporter (set by the engine: VR_PortalToss); then it meets its owner (VR_OwnerSpared)
 .float vr_sgib; // a small gib (vr_smallgibs.qc): when it was made
 .float vr_sgib_id; // its serial in the small gibs' ring (0: gone)
+.entity vr_hit_extra; // precise hits (vr_hitmodel.cpp): a part drawn as an entity of its own (not solid) its shots meet
+                      // as this monster (the Armagon's torso: hip_mon_arma.qc)
 .float vr_flies; // a severed head's flies buzz round it (HeadThink, player.qc; VR_Head_StopFlies)
 .float think2Arg;
 
@@ -30,6 +32,9 @@
 .float mainhand_lastgrabtime;
 .float offhand_lastreleasetime;
 .float mainhand_lastreleasetime;
+.float vr_weapon_load_until; // after loading a save: the original held weapons stay for this long
+.entity vr_weapon_load_main;
+.entity vr_weapon_load_off;
 
 
 //

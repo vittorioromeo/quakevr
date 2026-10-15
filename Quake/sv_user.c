@@ -233,10 +233,11 @@ void SV_WaterMove (void)
 		wishvel[2] += cmd.upmove;
 
 	wishspeed = VectorLength(wishvel);
-	if (wishspeed > sv_maxspeed.value)
+	float carrymax = sv_maxspeed.value * VR_CarryMoveScale (sv_player); // QVR: cap sprint/diagonal carry speed too
+	if (wishspeed > carrymax)
 	{
-		VectorScale (wishvel, sv_maxspeed.value/wishspeed, wishvel);
-		wishspeed = sv_maxspeed.value;
+		VectorScale (wishvel, carrymax/wishspeed, wishvel);
+		wishspeed = carrymax;
 	}
 	wishspeed *= 0.7;
 
@@ -347,7 +348,10 @@ void SV_AirMove (void)
 	wishspeed = VectorNormalize(wishdir);
 	maxspeed = sv_maxspeed.value; // QVR: tired, slower (vr_stamina_speed)
 	if (sv_player->v.movetype != MOVETYPE_NOCLIP)
-		maxspeed *= VR_StaminaSpeedScale (sv_player);
+	{
+		maxspeed *= VR_StaminaSpeedScale (sv_player) * VR_CarryMoveScale (sv_player);
+		maxspeed = VR_CrouchSpeedMax (sv_player, maxspeed); // QVR: crouched, slower, under the stealth AI's footsteps
+	}
 	if (wishspeed > maxspeed)
 	{
 		VectorScale (wishvel, maxspeed/wishspeed, wishvel); // QVR: maxspeed: stamina
@@ -424,14 +428,14 @@ void SV_ClientThink (void)
 		SV_NoclipMove ();
 	else if (sv_player->v.waterlevel >= 2 && sv_player->v.movetype != MOVETYPE_NOCLIP)
 	{
-		float scale = VR_WaterStickScale (sv_player, true); // QVR: swimming: the stick slowed, strokes
+		float scale = VR_WaterStickScale (sv_player, true) * VR_CarryMoveScale (sv_player); // QVR: swimming: the stick slowed, strokes
 		cmd.forwardmove *= scale; cmd.sidemove *= scale; cmd.upmove *= scale; // QVR
 		SV_WaterMove ();
 		VR_AfterWaterMove (sv_player, cmd.forwardmove, cmd.sidemove, cmd.upmove); // QVR
 	}
 	else
 	{
-		float scale = VR_WaterStickScale (sv_player, false); // QVR: wading in shallow water
+		float scale = VR_WaterStickScale (sv_player, false) * VR_CarryMoveScale (sv_player); // QVR: wading in shallow water
 		cmd.forwardmove *= scale; cmd.sidemove *= scale; cmd.upmove *= scale; // QVR
 		SV_AirMove ();
 	} // QVR

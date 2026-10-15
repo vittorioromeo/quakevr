@@ -36,7 +36,7 @@ struct SearchResult
 };
 
 constexpr int searchMaxResults = 60;
-constexpr int searchRecentMax = 6;           // results opened kept under the keyboard
+constexpr int searchRecentMax = 10;           // results opened kept under the keyboard
 constexpr float searchRecentHeight = 12.f;   // a line of them (menu y)
 constexpr int searchMaxQuery = 48; // (the longest cvars' names)
 
@@ -579,9 +579,9 @@ void openEntry(int entry)
     // the stack, the pages above the result put on it (the VR Settings too for one of theirs; not above the Advanced
     // VR Options), then whatever Search was opened from.
     navSyncTop();
-    if(navTop() == page)
+    if(navTop() == ui().page)
     {
-        nav.count--;
+        ui().nav.count--;
     }
     za::Vector<int> chain;
     for(int p = target; static_cast<int>(chain.size()) < pageCount; p = homeOf(p))
@@ -604,8 +604,8 @@ void openEntry(int entry)
         {
             if(list[i].label && selectable(list[i]) && label == list[i].label)
             {
-                cursors[target] = i;
-                scrolls[target] = q_max(i - 3, 0);
+                ui().cursors[target] = i;
+                ui().scrolls[target] = q_max(i - 3, 0);
                 break;
             }
         }
@@ -1134,7 +1134,7 @@ void searchMouse(float x, float y)
 void openSearchPage()
 {
     const int target = pageIndex(pageSearch);
-    if(m_state == m_vr && page == target)
+    if(m_state == m_vr && ui().page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;

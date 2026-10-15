@@ -644,9 +644,29 @@ def finish(raster, nworld, detail=None, margin=8, supersample=2, agree_deg=6.0, 
     img, cov, keep = resolve(raster, tan, agree_deg=agree_deg, spread_deg=spread_deg)
     f = supersample
     img = downsample(img, f)
+    img = clamp_z(img)
     cov = cov.reshape(raster.h // f, f, raster.w // f, f).any((1, 3))
     img, _ = dilate(img, cov, margin)
     return img, keep
+
+
+# The least z a map's normal keeps (encode's own floor). Box-filtering the supersamples of a sharp bevel (its two faces
+# bent past each other) can leave a pixel's mean pointing into the surface (z < 0: the crowbar's 400 of 347k pixels,
+# round 21's art pass): such a pixel keeps its direction across the surface, tilted up to this z.
+MIN_Z = 0.05
+
+
+def clamp_z(tn, min_z=MIN_Z):
+    """Tangent normals (h, w, 3) with z under min_z raised to it, x and y scaled to keep them of unit length."""
+    low = tn[..., 2] < min_z
+    if not low.any():
+        return tn
+    tn = tn.copy()
+    xy = tn[low][:, :2]
+    r = np.maximum(np.linalg.norm(xy, axis=1, keepdims=True), 1e-9)
+    tn[low, :2] = xy / r * math.sqrt(1.0 - min_z * min_z)
+    tn[low, 2] = min_z
+    return tn
 
 
 # ----------------------------------------------------------------------------

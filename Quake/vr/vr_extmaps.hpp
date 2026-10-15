@@ -22,6 +22,8 @@ namespace qvr::extmaps
 
 // VR_Init: the vr_extmaps_stats and vr_extmaps_frames commands.
 void init();
+// The accepted pack map is complete: generated companions need not duplicate its RGB and alpha in VRAM.
+bool completePending();
 
 // The texture whose surface (normal map, parallax heights, specular map, detail) `t` is drawn with: an animation's
 // frame its lead frame's (VR_AnimSurfaces, vr_anim_surface), else `t`. Its colours and glow stay its own.

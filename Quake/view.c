@@ -488,6 +488,8 @@ void V_CalcBlend (void)
 		g = g*(1-a2) + cl.cshifts[j].destcolor[1]*a2;
 		b = b*(1-a2) + cl.cshifts[j].destcolor[2]*a2;
 	}
+	if (gl_cshiftpercent.value && !cl.intermission)
+		VR_AD_TintBlend (&r, &g, &b, &a, gl_cshiftpercent.value); // QVR: AD support: Arcane Dimensions' screen tint (vr_ad.cpp)
 
 	v_blend[0] = r/255.0;
 	v_blend[1] = g/255.0;
@@ -579,6 +581,7 @@ void V_PolyBlend (void)
 	GL_UseProgram (glprogs.viewblend);
 	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
 	GL_Uniform4fvFunc (0, 1, v_blend);
+	VR_BloodBind (); // QVR: zero when no peripheral effect is active
 
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 

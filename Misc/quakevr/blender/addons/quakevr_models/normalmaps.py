@@ -77,7 +77,13 @@ def hand_skin(progs):
 def body_skin(progs, index):
     """The body's skin `index` (vrbody_NN_00.tga, as the author painted it) as RGB, or None."""
     path = os.path.join(progs, "vrbody_%02d_00.tga" % index)
-    return nb.read_tga(path) if os.path.exists(path) else None
+    if not os.path.exists(path):
+        return None
+    paint = nb.read_tga(path)
+    size = normalbody.BODY_SKIN
+    ys = np.minimum(paint.shape[0] - 1, ((np.arange(size) + 0.5) * paint.shape[0] / size).astype(int))
+    xs = np.minimum(paint.shape[1] - 1, ((np.arange(size) + 0.5) * paint.shape[1] / size).astype(int))
+    return paint[ys[:, None], xs[None, :]]
 
 
 def body_low(progs):

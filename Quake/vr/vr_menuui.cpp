@@ -25,9 +25,9 @@
 //   togglemenu) returns to that page, its selection and scroll as they were (vr_menu_remember).
 //   Only that way of closing it is remembered: Escape from the main menu, or a menu closing
 //   because a game started or loaded, opens the main menu next time, as Quake does.
-// - Under it, "Advanced VR" and "Levels" jump to the Advanced VR Options and to the level list from
-//   any menu. The laser clicks the three; the sticks reach them too: a stick's click on any menu, or
-//   up from a VR page's first setting (down from its last), then up and down, A to press, B back.
+// - Under it, "Quicksave" and "Quickload" use the keyboard bindings' quick slot; "Advanced VR" and
+//   "Levels" jump to their pages from any menu. The laser clicks the shortcuts; the sticks reach them too: a stick's
+//   click on any menu, or up from a VR page's first setting (down from its last), then up and down, A to press, B back.
 // - The main hand's stick scrolls a page with a scrollbar (the VR pages, and Ironwail's lists: the
 //   options, maps, mods, key bindings), a row at a time at a rate growing with the push, the
 //   selection kept where it is while it stays in view. It never changes a setting: its left and
@@ -49,9 +49,11 @@
 #include "vr_stereo.hpp"
 #include "vr_units.hpp"
 #include "vr_window.hpp"
-#include "vr_toolgun.hpp"
 
+#include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
@@ -156,28 +158,41 @@ struct Hit
     glm::vec3 point{0.f};
     glm::vec2 uv{0.f};           // on the canvas, v up
     bool onRuntimePanel{false}; // on the runtime's own panel (the menus before a map): no world to draw the laser in
+    bool frame{false};          // not valid: just outside the panel, on its frame (a grip there moves it: PanelGrab)
+    int menu{0};                // which menu's panel (menu::instanceCount: the nearest the ray meets)
 };
+
+// The panel's frame: a band this much of its height wide round it, where a grip takes hold of it.
+constexpr float frameBand = 0.08f;
 
 int pointingHand = HAND_MAIN;
 Hit hits[HAND_COUNT];
 bool mouseHeld[HAND_COUNT]{};
-glm::ivec2 lastSent{-100000};
-glm::vec2 lastSentMenu{0.f}; // the menus' mouse it made
+int heldMenu[HAND_COUNT]{}; // the menu a hand's trigger clicked (its release goes there)
+
+// Each menu's mouse as the laser last moved it (window position, and the menus' mouse it made).
+struct SentMouse
+{
+    glm::ivec2 window{-100000};
+    glm::vec2 menu{0.f};
+};
+SentMouse sentMouse[menu::instanceCount];
 
 // The selected row's highlight as last drawn (the menu, its y), and as the pointer last saw it: a
-// tick in the pointing hand when the pointer moves the selection.
+// tick in the pointing hand when the pointer moves the selection. Each menu panel's.
 struct Highlight
 {
     int menu{m_none};
     int y{0};
     bool operator==(const Highlight&) const = default;
 };
-Highlight drawnHighlight, seenHighlight;
+Highlight drawnHighlight[menu::instanceCount], seenHighlight[menu::instanceCount];
 
 // A hand's pointing ray in the world: the controller as tracked, aimed as a gun is (the hand calibration's pitch and
 // yaw: vr_gunangle, vr_offhandpitch), placed from the head. Not the hands' state's pose, which follows a held
 // weapon's weight in game time (frozen while a menu pauses the game).
-[[nodiscard]] bool pointerRay(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& dir)
+// With its whole orientation (`basis`: the pointing direction, left and up as columns), for holding the panel.
+[[nodiscard]] bool pointerFrame(const hands::State& s, int hand, glm::vec3& origin, glm::mat3& basis)
 {
     const TrackingState& t = tracking();
     if(!s.valid || !t.head.valid || !t.hands[hand].valid)
@@ -190,7 +205,20 @@ Highlight drawnHighlight, seenHighlight;
     const glm::quat aim = hands::aimedController(t.hands[hand].orientation, hand); // the calibration's pitch and yaw
 
     origin = s.head + hands::rotateYaw(quakeFromTracking(t.hands[hand].position - t.head.position) * units::metresToUnits(), turn);
-    dir = glm::normalize(hands::rotateYaw(quakeFromTracking(aim * glm::vec3{0.f, 0.f, -1.f}), turn));
+    const glm::vec3 fwd = glm::normalize(hands::rotateYaw(quakeFromTracking(aim * glm::vec3{0.f, 0.f, -1.f}), turn));
+    const glm::vec3 up = glm::normalize(hands::rotateYaw(quakeFromTracking(aim * glm::vec3{0.f, 1.f, 0.f}), turn));
+    basis = glm::mat3{fwd, glm::cross(up, fwd), up};
+    return true;
+}
+
+[[nodiscard]] bool pointerRay(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& dir)
+{
+    glm::mat3 basis;
+    if(!pointerFrame(s, hand, origin, basis))
+    {
+        return false;
+    }
+    dir = basis[0];
     return true;
 }
 
@@ -200,22 +228,24 @@ struct MockLaser
 {
     bool on{false};
     glm::vec2 spot{0.f};
+    bool frame{false}; // (vr_mock_laser frame: on the panel's frame, above its top edge's middle)
+    int menu{-1};      // on that menu's panel (vr_mock_laser ... panel <n>; -1: the focused one's as it was set)
 };
-MockLaser mockLaser;
+MockLaser mockLaser; // (the main hand's; the toolgun's panel has its own: vr_toolgun_mock_laser)
+MockLaser mockOffLaser; // (the off hand's: vr_mock_laser ... hand off, for both hands at once)
 
-// The hand the mock laser is: the main one, or the off hand while the toolgun's menu is on the gun in the main hand (its
-// laser is the other hand's: vr_toolgun.cpp).
-[[nodiscard]] int mockLaserHand()
+[[nodiscard]] MockLaser* mockFor(int hand)
 {
-    return toolgun::menuOnGun() && toolgun::heldHand() == HAND_MAIN ? HAND_OFF : HAND_MAIN;
+    MockLaser* m = hand == HAND_MAIN ? &mockLaser : &mockOffLaser;
+    return m->on ? m : nullptr;
 }
 
 // The mock laser's spot on the canvas (v up).
-[[nodiscard]] glm::vec2 mockLaserUv()
+[[nodiscard]] glm::vec2 mockLaserUv(const MockLaser& m = mockLaser)
 {
     drawtransform_t t;
     Draw_GetCanvasTransform(CANVAS_MENU, &t);
-    return {(mockLaser.spot.x * t.scale[0] + t.offset[0] + 1.f) * 0.5f, (mockLaser.spot.y * t.scale[1] + t.offset[1] + 1.f) * 0.5f};
+    return {(m.spot.x * t.scale[0] + t.offset[0] + 1.f) * 0.5f, (m.spot.y * t.scale[1] + t.offset[1] + 1.f) * 0.5f};
 }
 
 // Where a hand points on the runtime's own panel, which shows the menus while the world is not drawn (before a map, over
@@ -233,7 +263,7 @@ glm::vec2 runtimePanelUv[HAND_COUNT]{};
     {
         return hit;
     }
-    if(mockLaser.on && hand == mockLaserHand())
+    if(mockLaser.on && hand == HAND_MAIN)
     {
         return {true, glm::vec3{0.f}, mockLaserUv(), true};
     }
@@ -265,58 +295,222 @@ glm::vec2 runtimePanelUv[HAND_COUNT]{};
     return {true, glm::vec3{0.f}, uv, true};
 }
 
+// A spot `uv` of a panel (corner, axes): on it, on its frame, or neither.
+[[nodiscard]] Hit hitAt(const glm::vec3& p, const glm::vec2& uv, const glm::vec3& xAxis, const glm::vec3& yAxis, int menu)
+{
+    Hit hit;
+    hit.menu = menu;
+    if(uv.x >= 0.f && uv.x <= 1.f && uv.y >= 0.f && uv.y <= 1.f)
+    {
+        hit.valid = true;
+        hit.point = p;
+        hit.uv = uv;
+        return hit;
+    }
+
+    // Outside it: on its frame?
+    const float bandX = frameBand * glm::length(yAxis) / za::fmax(1e-3f, glm::length(xAxis));
+    if(uv.x >= -bandX && uv.x <= 1.f + bandX && uv.y >= -frameBand && uv.y <= 1.f + frameBand)
+    {
+        hit.frame = true;
+        hit.point = p;
+        hit.uv = uv;
+    }
+    return hit;
+}
+
+// Where a hand's laser meets the menus' panels (several: MULTI_MENU.md): the nearest it is on, else the nearest whose
+// frame it is on.
 [[nodiscard]] Hit intersect(const hands::State& s, int hand)
 {
     Hit hit;
+    hit.menu = menu::currentInstance();
     glm::vec3 corner, xAxis, yAxis, origin, dir;
-    if(!s.valid || !panel::menuQuad(s, corner, xAxis, yAxis))
+    if(!s.valid || !panel::menuQuad(s, 0, corner, xAxis, yAxis))
     {
-        return intersectRuntimePanel(hand); // (the menu is not in the eyes)
+        hit = intersectRuntimePanel(hand); // (the menu is not in the eyes: the focused menu's, the one drawn)
+        hit.menu = menu::currentInstance();
+        return hit;
     }
-    if(mockLaser.on && hand == mockLaserHand())
+    if(const MockLaser* m = mockFor(hand))
     {
-        const glm::vec2 uv = mockLaserUv();
-        return {true, corner + xAxis * uv.x + yAxis * uv.y, uv};
+        // On its panel (the one it was set on, while open), wherever it is.
+        const int target = m->menu >= 0 && menu::instanceOpen(m->menu) ? m->menu : 0;
+        const int was = menu::currentInstance();
+        menu::selectInstance(target); // (its menu's canvas transform)
+        const glm::vec2 uv = m->frame ? glm::vec2{0.5f, 1.f + frameBand * 0.5f} : mockLaserUv(*m);
+        menu::selectInstance(was);
+        if(!panel::menuQuad(s, target, corner, xAxis, yAxis))
+        {
+            return hit;
+        }
+        const glm::vec3 p = corner + xAxis * uv.x + yAxis * uv.y;
+        if(!m->frame)
+        {
+            hit.valid = true; // (wherever it is, as before)
+            hit.point = p;
+            hit.uv = uv;
+            hit.menu = target;
+            return hit;
+        }
+        return hitAt(p, uv, xAxis, yAxis, target);
     }
     if(!pointerRay(s, hand, origin, dir))
     {
         return hit;
     }
 
-    const glm::vec3 normal = glm::cross(xAxis, yAxis);
-    const float along = glm::dot(dir, normal);
-    if(za::fabs(along) < 1e-6f)
+    float best = 0.f;
+    for(int i = 0; i < menu::instanceCount; i++)
     {
-        return hit;
+        if(!panel::menuQuad(s, i, corner, xAxis, yAxis))
+        {
+            continue;
+        }
+        const glm::vec3 normal = glm::cross(xAxis, yAxis);
+        const float along = glm::dot(dir, normal);
+        if(za::fabs(along) < 1e-6f)
+        {
+            continue;
+        }
+        const float t = glm::dot(corner - origin, normal) / along;
+        if(t <= 0.f)
+        {
+            continue;
+        }
+        const glm::vec3 p = origin + dir * t;
+        const glm::vec2 uv{glm::dot(p - corner, xAxis) / glm::dot(xAxis, xAxis), glm::dot(p - corner, yAxis) / glm::dot(yAxis, yAxis)};
+        const Hit h = hitAt(p, uv, xAxis, yAxis, i);
+        const bool better = (h.valid && (!hit.valid || t < best)) || (h.frame && !hit.valid && (!hit.frame || t < best));
+        if(better)
+        {
+            hit = h;
+            best = t;
+        }
     }
-    const float t = glm::dot(corner - origin, normal) / along;
-    if(t <= 0.f)
-    {
-        return hit;
-    }
+    return hit;
+}
 
-    const glm::vec3 p = origin + dir * t;
-    const glm::vec2 uv{glm::dot(p - corner, xAxis) / glm::dot(xAxis, xAxis), glm::dot(p - corner, yAxis) / glm::dot(yAxis, yAxis)};
-    if(uv.x < 0.f || uv.x > 1.f || uv.y < 0.f || uv.y > 1.f)
+// ----------------------------------------------------------------------------
+// Moving the panel (MULTI_MENU.md, stage 1): a grip with the laser on the panel's frame takes hold of it at once; on its
+// face (vr_menu_grab 2), once the hand has moved vr_menu_grab_deadzone cm with the grip held, the trigger not held and
+// no stick pushed (else the grip is the sliders' fine modifier, as before). Held, the panel keeps where it is from the
+// hand's laser (moved and turned with it, kept upright); let go, it stays there while the menus are open.
+// ----------------------------------------------------------------------------
+
+struct PanelGrab
+{
+    int hand{-1};                       // the hand holding the panel (-1: none)
+    int menu{0};                        // which menu's panel (menu::currentInstance when taken)
+    bool pressTaken[HAND_COUNT]{};      // the grip's press took hold (its key not sent): its release is the grab's too
+    int armedHand{-1};                  // a grip pressed on the panel's face, not yet moved
+    int armedMenu{0};                   // on that menu's panel
+    glm::vec3 armedAt{0.f};             // where that hand was then
+    glm::vec3 armedSpot{0.f};           // and its laser on the panel
+    bool sticksMoved{false};            // a stick was pushed while it was armed: the fine modifier, not a grab
+    glm::vec3 centre{0.f}, right{0.f}, up{0.f}, spot{0.f}; // the panel and the laser's spot, in the hand's frame
+};
+PanelGrab panelGrab;
+
+void haptic(int hand, float seconds, float amplitude);
+
+[[nodiscard]] int grabMode()
+{
+    return static_cast<int>(vr_menu_grab.value);
+}
+
+// The panel taken by `hand`, its laser at `spot` (world).
+[[nodiscard]] bool takeHold(const hands::State& s, int hand, int menuIndex, const glm::vec3& spot)
+{
+    glm::vec3 origin, corner, xAxis, yAxis;
+    glm::mat3 basis;
+    if(!pointerFrame(s, hand, origin, basis) || !panel::menuQuad(s, menuIndex, corner, xAxis, yAxis))
     {
-        return hit;
+        return false;
     }
-    return {true, p, uv};
+    const glm::mat3 toHand = glm::transpose(basis);
+    panelGrab.hand = hand;
+    panelGrab.menu = menuIndex;
+    panelGrab.centre = toHand * (corner + (xAxis + yAxis) * 0.5f - origin);
+    panelGrab.right = toHand * glm::normalize(xAxis);
+    panelGrab.up = toHand * glm::normalize(yAxis);
+    panelGrab.spot = toHand * (spot - origin);
+    pointingHand = hand;
+    return true;
+}
+
+// The held panel where the hand has it now, upright (its right edge level).
+void followHold(const hands::State& s)
+{
+    glm::vec3 origin;
+    glm::mat3 basis;
+    if(!pointerFrame(s, panelGrab.hand, origin, basis))
+    {
+        return;
+    }
+    glm::vec3 right = basis * panelGrab.right;
+    glm::vec3 up = basis * panelGrab.up;
+    const glm::vec3 facing = glm::normalize(glm::cross(up, right)); // (away from the viewer)
+    if(za::fabs(facing.z) < 0.98f)
+    {
+        right = glm::normalize(glm::cross(facing, glm::vec3{0.f, 0.f, 1.f}));
+        up = glm::cross(right, facing);
+    }
+    const int was = menu::currentInstance(); // (the menu held, whichever the menu code works on)
+    menu::selectInstance(panelGrab.menu);
+    panel::placeMenu(s, origin + basis * panelGrab.centre, right, up);
+    menu::selectInstance(was);
+}
+
+void updateGrab(const hands::State& s, bool on)
+{
+    if(!on)
+    {
+        panelGrab.hand = -1;
+        panelGrab.armedHand = -1;
+        return;
+    }
+    if(const int h = panelGrab.armedHand; h >= 0)
+    {
+        glm::vec3 origin;
+        glm::mat3 basis;
+        if(panelGrab.sticksMoved || mouseHeld[h] || panelGrab.hand >= 0)
+        {
+            panelGrab.armedHand = -1;
+        }
+        else if(pointerFrame(s, h, origin, basis) &&
+                glm::distance(origin, panelGrab.armedAt) > za::fmax(0.f, vr_menu_grab_deadzone.value) * 0.01f * units::metresToUnits())
+        {
+            panelGrab.armedHand = -1;
+            const bool onIt = hits[h].valid && hits[h].menu == panelGrab.armedMenu;
+            if(takeHold(s, h, panelGrab.armedMenu, onIt ? hits[h].point : panelGrab.armedSpot))
+            {
+                haptic(h, 0.03f, 0.3f);
+            }
+        }
+    }
+    if(panelGrab.hand >= 0)
+    {
+        followHold(s);
+    }
 }
 
 // The spot as a window position (the canvas covers the 2D layer's viewport) to M_Mousemove: when
 // it moved past the hand's tremor (so that it does not undo the sticks' moves), at all while the
-// button is held (dragging), or when the desktop's mouse moved the menus' since.
+// button is held (dragging), or when the desktop's mouse moved the menus' since. The hit's menu is selected first (the
+// panel pointed at is the focused one: MULTI_MENU.md).
 void moveMouse(const Hit& hit, bool force, bool held)
 {
+    menu::selectInstance(hit.menu);
+    SentMouse& sent = sentMouse[menu::currentInstance()];
     const glm::ivec2 p{glx + static_cast<int>(hit.uv.x * glwidth), gly + static_cast<int>((1.f - hit.uv.y) * glheight)};
-    const glm::ivec2 d = glm::abs(p - lastSent);
+    const glm::ivec2 d = glm::abs(p - sent.window);
     const int threshold = held ? 0 : 3;
-    if(force || d.x > threshold || d.y > threshold || glm::vec2{m_mousex, m_mousey} != lastSentMenu)
+    if(force || d.x > threshold || d.y > threshold || glm::vec2{m_mousex, m_mousey} != sent.menu)
     {
-        lastSent = p;
+        sent.window = p;
         M_Mousemove(p.x, p.y);
-        lastSentMenu = {m_mousex, m_mousey};
+        sent.menu = {m_mousex, m_mousey};
     }
 }
 
@@ -356,7 +550,7 @@ void appendStrip(za::Vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3
 // ----------------------------------------------------------------------------
 
 // A column at the panel's top left, over every menu: "Back to game" (closes the menu, which reopens where it was),
-// "Main Menu" (Quake's main menu, from anywhere),
+// "Quicksave" and "Quickload" (the same quick slot as the keyboard bindings), "Main Menu" (Quake's main menu),
 // "Search" and "Console" (Quake's console with a keyboard: commands typed in the headset), "VR Settings" (the VR
 // Settings page), "Advanced VR" (the Advanced VR Options page), "Levels" (Ironwail's level list), "Map Library",
 // "Relighting" (Graphics > Relighting) and "Checklist" (the playtest checklist, its open items counted on it;
@@ -365,6 +559,8 @@ void appendStrip(za::Vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3
 enum Tool
 {
     ToolBack,
+    ToolQuicksave,
+    ToolQuickload,
     ToolMainMenu, // the main menu, from any menu (the VR pages' Back stack started again)
     ToolSearch, // the VR menus' Search page (vr_menu_search.inc)
     ToolConsole, // Quake's console with a keyboard (vr_menu_console.inc)
@@ -373,22 +569,108 @@ enum Tool
     ToolLevels,
     ToolMaps, // the map browser: the external map index, installed and played from here (vr_menu_maps.inc)
     ToolRelighting, // Graphics > Relighting (the map's lights baked again: vr_relight)
+    ToolNewPanel, // another menu panel (MULTI_MENU.md): in the headset only
     ToolChecklist, // (the last: shown at Menu Detail: Developer only)
     ToolCount
 };
 
 // (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game".)
-constexpr const char* toolLabels[ToolCount]{"Back to game", "Main Menu", "Search", "Console", "VR Settings", "Advanced VR", "Levels",
-    "Map Library", "Relighting", "Checklist 99"};
+constexpr const char* toolLabels[ToolCount]{"Back to game", "Quicksave", "Quickload", "Main Menu", "Search", "Console",
+    "VR Settings", "Advanced VR", "Levels", "Map Library", "Relighting", "New Panel", "Checklist 99"};
 
 // Their names for the tests' commands (vr_mock_laser, vr_mock_mouse).
-constexpr const char* toolNames[ToolCount]{"back", "main", "search", "console", "settings", "advanced", "levels", "maps", "relighting",
-    "checklist"};
+constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "main", "search", "console", "settings",
+    "advanced", "levels", "maps", "relighting", "newpanel", "checklist"};
 
 // The buttons shown: the Checklist (the last) only at Menu Detail: Developer (the playtest checklist is the author's).
 [[nodiscard]] int toolsShown()
 {
     return menu::developerLevel() ? ToolCount : ToolChecklist;
+}
+
+// New Panel only in the headset (its panels are): on a flat screen's row it is left out, the buttons after it a place
+// nearer (toolSlot).
+[[nodiscard]] bool toolHidden(int tool)
+{
+    return tool == ToolNewPanel && !qvr::menuui::active();
+}
+
+[[nodiscard]] int toolSlot(int tool)
+{
+    return tool > ToolNewPanel && toolHidden(ToolNewPanel) ? tool - 1 : tool;
+}
+
+// The last button shown.
+[[nodiscard]] int lastTool()
+{
+    return toolHidden(toolsShown() - 1) ? toolsShown() - 2 : toolsShown() - 1;
+}
+
+// A button's label: on a menu panel after the first (MULTI_MENU.md), Back to game closes that panel only.
+[[nodiscard]] const char* toolLabel(int tool)
+{
+    return tool == ToolBack && menu::currentInstance() > 0 ? "Close Panel" : toolLabels[tool];
+}
+
+// Match save quick's restrictions and load quick's file lookup. Leave unavailable buttons in the same place, so
+// opening a menu before a game or after dying never moves the other shortcuts under the laser.
+[[nodiscard]] const char* toolUnavailable(int tool)
+{
+    if(tool == ToolNewPanel)
+    {
+        glm::vec3 corner, xAxis, yAxis;
+        if(!qvr::menuui::active() || !panel::menuQuad(hands::current(), 0, corner, xAxis, yAxis))
+        {
+            return "Only with the menu in the headset";
+        }
+        if(menu::openInstances() >= menu::instanceCount)
+        {
+            return "Three panels open at most";
+        }
+    }
+    if(tool == ToolQuicksave)
+    {
+        if(!sv.active)
+        {
+            return "Not playing a local game";
+        }
+        if(sv.nomonsters)
+        {
+            return "Cannot save with nomonsters";
+        }
+        if(cl.intermission)
+        {
+            return "Cannot save in intermission";
+        }
+        if(svs.maxclients != 1)
+        {
+            return "Cannot save multiplayer games";
+        }
+        if(svs.clients[0].active && svs.clients[0].edict->v.health <= 0)
+        {
+            return "Cannot save a dead player";
+        }
+    }
+    else if(tool == ToolQuickload)
+    {
+        if(Host_IsSaving())
+        {
+            return "Saving game; try again shortly";
+        }
+        if(Sys_FileExists(va("%s/quick.sav", com_gamedir)))
+        {
+            return nullptr;
+        }
+        for(int i = com_numbasedirs - 1; i >= 0; i--)
+        {
+            if(Sys_FileExists(va("%s/quick.sav", com_basedirs[i])))
+            {
+                return nullptr;
+            }
+        }
+        return "No quicksave in this game";
+    }
+    return nullptr;
 }
 
 // Where the column goes: across, menu pixels; up and down, from the canvas's top in true pixels
@@ -419,6 +701,7 @@ struct ToolbarLayout
     float left{0.f}, top{0.f}; // the canvas's corner
     float bottom{0.f};         // the canvas's bottom edge (menu y)
     float k{1.f};
+    float columnHalf{half}, buttonGap{gap}; // smaller only when the column would reach the bottom corner's rows
     float x0{0.f}, x1{0.f};    // the column's edges (the row: its first button's)
     float edge{0.f};           // where the column's right edge goes: columnRight, or left of a wider menu
     float limit{0.f};          // the nearest the column may come to the menu (menu::contentLeft, less columnGap)
@@ -426,32 +709,33 @@ struct ToolbarLayout
     bool row{false};           // the flat screen's row of icons
 
     // Half a button's height (true pixels), and a button's middle (menu y).
-    [[nodiscard]] float bh() const { return row ? rowHalf : half; }
+    [[nodiscard]] float bh() const { return row ? rowHalf : columnHalf; }
     [[nodiscard]] float yc(int tool) const
     {
-        return row ? top + (rowCorner + rowHalf) / k : top + (corner + half + tool * (2.f * half + gap)) / k;
+        return row ? top + (rowCorner + rowHalf) / k :
+                     top + (corner + columnHalf + tool * (2.f * columnHalf + buttonGap)) / k;
     }
 
     // A button's left and right edges.
-    [[nodiscard]] float bx0(int tool) const { return row ? x0 + tool * (iconButton + rowGap) : x0; }
+    [[nodiscard]] float bx0(int tool) const { return row ? x0 + toolSlot(tool) * (iconButton + rowGap) : x0; }
     [[nodiscard]] float bx1(int tool) const { return row ? bx0(tool) + iconButton : x1; }
 
     // The last button's bottom edge (menu y), and the buttons' right edge.
-    [[nodiscard]] float buttonsBottom() const { return yc(toolsShown() - 1) + bh() / k; }
-    [[nodiscard]] float right() const { return bx1(toolsShown() - 1); }
+    [[nodiscard]] float buttonsBottom() const { return yc(lastTool()) + bh() / k; }
+    [[nodiscard]] float right() const { return bx1(lastTool()); }
 
     // What a click on `tool` takes: as far as the panel's edges, split halfway between buttons.
     [[nodiscard]] bool hit(int tool, float x, float y) const
     {
-        const bool last = tool == toolsShown() - 1;
+        const bool last = tool == lastTool();
         if(row)
         {
             const float rx0 = tool == 0 ? left : bx0(tool) - rowGap * 0.5f;
             const float rx1 = bx1(tool) + (last ? 2.f : rowGap * 0.5f);
             return x >= rx0 && x <= rx1 && y >= top && y <= yc(tool) + (rowHalf + 2.f) / k;
         }
-        const float y0 = tool == 0 ? top : yc(tool) - (half + gap * 0.5f) / k;
-        const float y1 = yc(tool) + (half + (last ? 2.f : gap * 0.5f)) / k;
+        const float y0 = tool == 0 ? top : yc(tool) - (columnHalf + buttonGap * 0.5f) / k;
+        const float y1 = yc(tool) + (columnHalf + (last ? 2.f : buttonGap * 0.5f)) / k;
         return x >= left && x <= x1 + 2.f && y >= y0 && y <= y1;
     }
 };
@@ -488,6 +772,19 @@ struct ToolbarLayout
     }
     l.labels = l.x1 <= l.limit;
     l.row = !qvr::menuui::active(); // (a flat screen)
+    if(!l.row)
+    {
+        // Keep every shortcut above Recording/OBS even with Menu Height and Row Spacing at their smallest.
+        // Normal panels keep the author's large targets; constrained panels fit the column as a whole.
+        const int bottomRow = qvr::obs::banner().shown ? 2 : 1;
+        const float reserve = ToolbarLayout::corner + 2.f * ToolbarLayout::half +
+                              bottomRow * (2.f * ToolbarLayout::half + ToolbarLayout::gap) + ToolbarLayout::gap;
+        const float room = (l.bottom - l.top) * l.k - ToolbarLayout::corner - reserve;
+        const float height = toolsShown() * (2.f * ToolbarLayout::half + ToolbarLayout::gap) - ToolbarLayout::gap;
+        const float fit = za::fmin(1.f, za::fmax(0.1f, room / height));
+        l.columnHalf *= fit;
+        l.buttonGap *= fit;
+    }
     if(!l.labels || l.row)
     {
         l.labels = false;
@@ -509,7 +806,12 @@ struct Toolbar
     int focusMenu{m_none};
     glm::vec2 focusMouse{0.f}; // the laser's spot when they did: moving it on gives the selection back
 };
-Toolbar toolbar;
+Toolbar toolbars[menu::instanceCount]; // each menu panel's (MULTI_MENU.md): the current menu's, tb()
+
+[[nodiscard]] Toolbar& tb()
+{
+    return toolbars[menu::currentInstance()];
+}
 
 // The status box (VR_MenuDrawStatus) as last drawn: its lines' count and the longest's length, for the menus' rows to
 // keep clear of it (menuui::statusBottom).
@@ -551,14 +853,14 @@ FlatMouse flatMouse;
 // The button at a spot of the menu (-1: none).
 [[nodiscard]] int toolAt(float x, float y)
 {
-    if(toolbar.menu != m_state)
+    if(tb().menu != m_state)
     {
         return -1;
     }
     const ToolbarLayout l = toolbarLayout();
     for(int t = 0; t < toolsShown(); t++)
     {
-        if(l.hit(t, x, y))
+        if(!toolHidden(t) && l.hit(t, x, y))
         {
             return t;
         }
@@ -568,9 +870,9 @@ FlatMouse flatMouse;
 
 void focusTool(int tool)
 {
-    toolbar.focused = tool;
-    toolbar.focusMenu = m_state;
-    toolbar.focusMouse = {m_mousex, m_mousey};
+    tb().focused = tool;
+    tb().focusMenu = m_state;
+    tb().focusMouse = {m_mousex, m_mousey};
 }
 
 // The page "Back to game" left (m_none: none), to open again.
@@ -707,7 +1009,7 @@ constexpr int obsRow = 2;
 [[nodiscard]] bool cornerRowAt(const ToolbarLayout& l, const BannerLayout& b, int row, float x, float y)
 {
     const float reach = (ToolbarLayout::half + ToolbarLayout::gap * 0.5f) / l.k;
-    return toolbar.menu == m_state && qvr::menuui::active() && x >= l.left && x <= b.x1 + 2.f && y >= b.yc - reach &&
+    return tb().menu == m_state && qvr::menuui::active() && x >= l.left && x <= b.x1 + 2.f && y >= b.yc - reach &&
            (row == 0 ? y <= l.bottom : y < b.yc + reach);
 }
 
@@ -802,7 +1104,7 @@ void placeFlatRecording(const ToolbarLayout& l)
     {
         const BannerLayout b = recordingBannerLayout(l);
         spot = {(b.x0 + b.x1) * 0.5f, b.yc};
-        return toolbar.menu == m_state;
+        return tb().menu == m_state;
     }
     const FlatRecording& f = flatRecording;
     spot = {(f.x0 + f.x1) * 0.5f, (f.y0 + f.y1) * 0.5f};
@@ -913,9 +1215,10 @@ void toggleSpectator(int hand)
 struct MenuUiScratch
 {
     za::Vector<gfx::Vertex> laser;
+    za::Vector<gfx::Vertex> frame; // (the panel's frame, lit under the laser or held)
     za::Vector<gfx::Vertex> preview;
     za::Vector<za::String> status;
-    auto members() { return qvr::mem::list(laser, preview, status); }
+    auto members() { return qvr::mem::list(laser, frame, preview, status); }
 };
 mem::Scratch<MenuUiScratch> scratch{"menu laser"};
 
@@ -926,7 +1229,7 @@ void drawPreview(const hands::State& s)
     float aspect = 0.f;
     const unsigned texture = previewPlaced() && !stereo::isSpectator() ? stereo::spectatorPreview(aspect) : 0;
     glm::vec3 corner, xAxis, yAxis;
-    if(!texture || !panel::menuQuad(s, corner, xAxis, yAxis))
+    if(!texture || !panel::menuQuad(s, 0, corner, xAxis, yAxis))
     {
         return;
     }
@@ -984,165 +1287,224 @@ int menuHeight()
     return active() ? heightSetting() : 320; // (flat: the menu canvas fits 420 x 320, gl_draw.c CANVAS_MENU)
 }
 
+// A hand's laser on its menu (hits[hand]): the menu's mouse moved there (that menu selected), a tick when it moves the
+// selection, the corner's buttons and the bottom rows lit under it, with a tick. False when it keeps to another panel (a
+// held trigger's).
+bool pointTo(int hand)
+{
+    const Hit& hit = hits[hand];
+    if(mouseHeld[hand] && hit.menu != heldMenu[hand])
+    {
+        return false;
+    }
+    moveMouse(hit, false, mouseHeld[hand]);
+
+    const int i = menu::currentInstance();
+    Backend* be = backend();
+    if(drawnHighlight[i] != seenHighlight[i] && drawnHighlight[i].menu == seenHighlight[i].menu && be && !vr_disablehaptics.value)
+    {
+        be->haptic(hand, 0.01f, 200.f, 0.12f);
+    }
+
+    const int hovered = toolAt(m_mousex, m_mousey);
+    if(hovered >= 0 && hovered != tb().hovered)
+    {
+        haptic(hand, 0.01f, 0.15f);
+    }
+    tb().hovered = hovered;
+
+    // And the spectator camera's switch, OBS's row above it, the Recording button between them, the version box's Ko-fi
+    // link (or the update notice above it).
+    const auto light = [hand](bool now, bool& was) {
+        if(now && !was)
+        {
+            haptic(hand, 0.01f, 0.15f);
+        }
+        was = now;
+    };
+    light(bannerAt(m_mousex, m_mousey), tb().bannerHovered);
+    light(obsBannerAt(m_mousex, m_mousey), tb().obsHovered);
+    light(recordingAt(m_mousex, m_mousey), tb().recordingHovered);
+    light(versionLinkAt(m_mousex, m_mousey), tb().linkHovered);
+    return true;
+}
+
 void update(const hands::State& s)
 {
+    menu::tidyInstances(); // (the menu closed, or a panel after the first left the VR pages)
     const bool on = active(); // (the laser meets the panel in the eyes, or the runtime's: intersect)
     for(int h = 0; h < HAND_COUNT; h++)
     {
         hits[h] = on ? intersect(s, h) : Hit{};
     }
+    updateGrab(s, on);
 
+    // Each laser moves the mouse of the menu it is on (a held trigger keeps to its panel). With several panels both hands
+    // at once (MULTI_MENU.md, stage 4): the other hand's on a panel the pointing hand's is not on, first; then the
+    // pointing hand's, whose menu takes the keys and the sticks (focused).
+    bool lit[menu::instanceCount]{};
+    const int other = 1 - pointingHand;
+    if(on && menu::openInstances() >= 2 && hits[other].valid &&
+        (!hits[pointingHand].valid || hits[other].menu != hits[pointingHand].menu))
+    {
+        lit[hits[other].menu] = pointTo(other);
+    }
     if(on && hits[pointingHand].valid)
     {
-        moveMouse(hits[pointingHand], false, mouseHeld[pointingHand]);
-
-        Backend* be = backend();
-        if(drawnHighlight != seenHighlight && drawnHighlight.menu == seenHighlight.menu && be && !vr_disablehaptics.value)
+        lit[hits[pointingHand].menu] = pointTo(pointingHand);
+    }
+    for(int i = 0; i < menu::instanceCount; i++)
+    {
+        seenHighlight[i] = drawnHighlight[i];
+        if(!lit[i])
         {
-            be->haptic(pointingHand, 0.01f, 200.f, 0.12f);
+            // Nothing lit under a laser on a panel no laser is on.
+            Toolbar& t = toolbars[i];
+            t.hovered = -1;
+            t.bannerHovered = t.obsHovered = t.recordingHovered = t.linkHovered = false;
         }
     }
-    seenHighlight = drawnHighlight;
-
-    // The corner's buttons light up under the laser, with a tick.
-    const int hovered = on && hits[pointingHand].valid ? toolAt(m_mousex, m_mousey) : -1;
-    if(hovered >= 0 && hovered != toolbar.hovered)
-    {
-        haptic(pointingHand, 0.01f, 0.15f);
-    }
-    toolbar.hovered = hovered;
-
-    // And the spectator camera's switch.
-    const bool bannerHovered = on && hits[pointingHand].valid && bannerAt(m_mousex, m_mousey);
-    if(bannerHovered && !toolbar.bannerHovered)
-    {
-        haptic(pointingHand, 0.01f, 0.15f);
-    }
-    toolbar.bannerHovered = bannerHovered;
-
-    // And OBS's row above it.
-    const bool obsHovered = on && hits[pointingHand].valid && obsBannerAt(m_mousex, m_mousey);
-    if(obsHovered && !toolbar.obsHovered)
-    {
-        haptic(pointingHand, 0.01f, 0.15f);
-    }
-    toolbar.obsHovered = obsHovered;
-
-    // And the Recording button between them.
-    const bool recordingHovered = on && hits[pointingHand].valid && recordingAt(m_mousex, m_mousey);
-    if(recordingHovered && !toolbar.recordingHovered)
-    {
-        haptic(pointingHand, 0.01f, 0.15f);
-    }
-    toolbar.recordingHovered = recordingHovered;
-
-    // And the version box's Ko-fi link (or the update notice above it).
-    const bool linkHovered = on && hits[pointingHand].valid && versionLinkAt(m_mousex, m_mousey);
-    if(linkHovered && !toolbar.linkHovered)
-    {
-        haptic(pointingHand, 0.01f, 0.15f);
-    }
-    toolbar.linkHovered = linkHovered;
 
     // The sticks' selection on them lasts while the menu stays and the laser is not moved on (a
     // hand's tremor aside).
-    if(toolbar.focused >= 0 &&
-        (!toolbarShown() || m_state != toolbar.focusMenu || M_WaitingForKeyBinding() ||
-            (on && hits[pointingHand].valid && glm::distance(glm::vec2{m_mousex, m_mousey}, toolbar.focusMouse) > 12.f)))
+    if(tb().focused >= 0 &&
+        (!toolbarShown() || m_state != tb().focusMenu || M_WaitingForKeyBinding() ||
+            (on && hits[pointingHand].valid && glm::distance(glm::vec2{m_mousex, m_mousey}, tb().focusMouse) > 12.f)))
     {
-        toolbar.focused = -1;
+        tb().focused = -1;
     }
 }
 
 void mockLaser_f()
 {
-    if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "off"))
+    // Trailing options: panel <n> (that menu panel, MULTI_MENU.md; else the focused one), hand off (the off hand's laser).
+    int argc = Cmd_Argc();
+    int target = menu::currentInstance();
+    int hand = HAND_MAIN;
+    while(argc >= 3)
     {
-        mockLaser.on = false;
-        return;
-    }
-    if(float x, y; Cmd_Argc() == 2 && (!q_strcasecmp(Cmd_Argv(1), "yes") || !q_strcasecmp(Cmd_Argv(1), "no")))
-    {
-        if(!M_Confirm_ButtonSpot(q_strcasecmp(Cmd_Argv(1), "yes") ? 1 : 0, &x, &y))
+        if(!q_strcasecmp(Cmd_Argv(argc - 2), "panel"))
         {
-            Con_Printf("vr_mock_laser %s: no confirmation dialog is up\n", Cmd_Argv(1));
+            target = CLAMP(0, Q_atoi(Cmd_Argv(argc - 1)) - 1, menu::instanceCount - 1);
+        }
+        else if(!q_strcasecmp(Cmd_Argv(argc - 2), "hand"))
+        {
+            hand = q_strcasecmp(Cmd_Argv(argc - 1), "off") ? HAND_MAIN : HAND_OFF;
+        }
+        else
+        {
+            break;
+        }
+        argc -= 2;
+    }
+    MockLaser& m = hand == HAND_MAIN ? mockLaser : mockOffLaser;
+    const int was = menu::currentInstance();
+    menu::selectInstance(target); // (its menu's layout: the named spots)
+    [&] {
+        if(argc == 2 && !q_strcasecmp(Cmd_Argv(1), "off"))
+        {
+            m = {};
             return;
         }
-        mockLaser = {true, {x, y}};
-        pointingHand = mockLaserHand();
-        return;
-    }
-    if(float x, y; Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "kofi"))
-    {
-        if(!versionLinkSpot(x, y))
+        if(argc == 2 && !q_strcasecmp(Cmd_Argv(1), "frame"))
         {
-            Con_Printf("vr_mock_laser kofi: the version box is not shown\n");
+            m = {true, {0.f, 0.f}, true};
+            m.menu = target;
+            pointingHand = hand;
+            return;
         }
-        mockLaser = {true, {x, y}};
-        pointingHand = mockLaserHand();
-        return;
-    }
-    if(float x, y; Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "update"))
-    {
-        if(!updateLinkSpot(x, y))
+        if(float x, y; argc == 2 && (!q_strcasecmp(Cmd_Argv(1), "yes") || !q_strcasecmp(Cmd_Argv(1), "no")))
         {
-            Con_Printf("vr_mock_laser update: the update notice is not shown\n");
-        }
-        mockLaser = {true, {x, y}};
-        pointingHand = mockLaserHand();
-        return;
-    }
-    if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "obs"))
-    {
-        const qvr::obs::Banner o = qvr::obs::banner();
-        if(!o.shown)
-        {
-            Con_Printf("vr_mock_laser obs: OBS's row is not shown\n");
-        }
-        const BannerLayout b = obsBannerLayout(toolbarLayout(), o);
-        mockLaser = {true, {(b.x0 + b.x1) * 0.5f, b.yc}};
-        pointingHand = mockLaserHand();
-        return;
-    }
-    if(glm::vec2 spot; Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "recording"))
-    {
-        if(!recordingSpot(spot))
-        {
-            Con_Printf("vr_mock_laser recording: the Recording button is not shown\n");
-        }
-        mockLaser = {true, spot};
-        pointingHand = mockLaserHand();
-        return;
-    }
-    if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "spectator"))
-    {
-        const BannerLayout b = bannerLayout(toolbarLayout());
-        mockLaser = {true, {(b.x0 + b.x1) * 0.5f, b.yc}};
-        pointingHand = mockLaserHand();
-        return;
-    }
-    if(Cmd_Argc() == 2)
-    {
-        for(int t = 0; t < ToolCount; t++)
-        {
-            if(!q_strcasecmp(Cmd_Argv(1), toolNames[t]))
+            if(!M_Confirm_ButtonSpot(q_strcasecmp(Cmd_Argv(1), "yes") ? 1 : 0, &x, &y))
             {
-                const ToolbarLayout l = toolbarLayout();
-                mockLaser = {true, {(l.bx0(t) + l.bx1(t)) * 0.5f, l.yc(t)}};
-                pointingHand = mockLaserHand();
+                Con_Printf("vr_mock_laser %s: no confirmation dialog is up\n", Cmd_Argv(1));
                 return;
             }
+            m = {true, {x, y}};
+            m.menu = target;
+            pointingHand = hand;
+            return;
         }
-    }
-    if(Cmd_Argc() == 3)
-    {
-        mockLaser = {true, {Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2))}};
-        pointingHand = mockLaserHand();
-        return;
-    }
-    Con_Printf("vr_mock_laser <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
-               "checklist | spectator | recording | obs | kofi | update | yes | no | off: the main hand's laser on that spot of the menu "
-               "(yes, no: a confirmation dialog's buttons)\n");
+        if(float x, y; argc == 2 && !q_strcasecmp(Cmd_Argv(1), "kofi"))
+        {
+            if(!versionLinkSpot(x, y))
+            {
+                Con_Printf("vr_mock_laser kofi: the version box is not shown\n");
+            }
+            m = {true, {x, y}};
+            m.menu = target;
+            pointingHand = hand;
+            return;
+        }
+        if(float x, y; argc == 2 && !q_strcasecmp(Cmd_Argv(1), "update"))
+        {
+            if(!updateLinkSpot(x, y))
+            {
+                Con_Printf("vr_mock_laser update: the update notice is not shown\n");
+            }
+            m = {true, {x, y}};
+            m.menu = target;
+            pointingHand = hand;
+            return;
+        }
+        if(argc == 2 && !q_strcasecmp(Cmd_Argv(1), "obs"))
+        {
+            const qvr::obs::Banner o = qvr::obs::banner();
+            if(!o.shown)
+            {
+                Con_Printf("vr_mock_laser obs: OBS's row is not shown\n");
+            }
+            const BannerLayout b = obsBannerLayout(toolbarLayout(), o);
+            m = {true, {(b.x0 + b.x1) * 0.5f, b.yc}};
+            m.menu = target;
+            pointingHand = hand;
+            return;
+        }
+        if(glm::vec2 spot; argc == 2 && !q_strcasecmp(Cmd_Argv(1), "recording"))
+        {
+            if(!recordingSpot(spot))
+            {
+                Con_Printf("vr_mock_laser recording: the Recording button is not shown\n");
+            }
+            m = {true, spot};
+            m.menu = target;
+            pointingHand = hand;
+            return;
+        }
+        if(argc == 2 && !q_strcasecmp(Cmd_Argv(1), "spectator"))
+        {
+            const BannerLayout b = bannerLayout(toolbarLayout());
+            m = {true, {(b.x0 + b.x1) * 0.5f, b.yc}};
+            m.menu = target;
+            pointingHand = hand;
+            return;
+        }
+        if(argc == 2)
+        {
+            for(int t = 0; t < ToolCount; t++)
+            {
+                if(!q_strcasecmp(Cmd_Argv(1), toolNames[t]))
+                {
+                    const ToolbarLayout l = toolbarLayout();
+                    m = {true, {(l.bx0(t) + l.bx1(t)) * 0.5f, l.yc(t)}};
+            m.menu = target;
+                    pointingHand = hand;
+                    return;
+                }
+            }
+        }
+        if(argc == 3)
+        {
+            m = {true, {Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2))}};
+            m.menu = target;
+            pointingHand = hand;
+            return;
+        }
+        Con_Printf("vr_mock_laser <x> <y> | back | quicksave | quickload | main | search | console | settings | advanced | levels | maps | relighting | "
+                   "checklist | spectator | recording | obs | kofi | update | yes | no | frame | off [panel <n>] [hand off]: a hand's laser (the main one's; hand off: the other's) on that spot of the menu (panel <n>: of that menu panel) "
+                   "(yes, no: a confirmation dialog's buttons)\n");
+    }();
+    menu::selectInstance(was);
 }
 
 void mockMouse_f()
@@ -1200,7 +1562,7 @@ void mockMouse_f()
     }
     if(next == 0)
     {
-        Con_Printf("vr_mock_mouse <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
+        Con_Printf("vr_mock_mouse <x> <y> | back | quicksave | quickload | main | search | console | settings | advanced | levels | maps | relighting | "
                    "checklist | recording | kofi | update | yes | no [click]: the desktop mouse on that spot of the menu (yes, no: a "
                    "confirmation dialog's buttons), clicked with click\n");
         return;
@@ -1255,7 +1617,7 @@ void mockKey_f()
     {
         Key_Event(key, false);
     }
-    Con_Printf("vr_mock_key: %s, menu %d, corner button %d%s\n", name, m_state, toolbarFocused() ? toolbar.focused : -1,
+    Con_Printf("vr_mock_key: %s, menu %d, corner button %d%s\n", name, m_state, toolbarFocused() ? tb().focused : -1,
         key_dest == key_menu ? "" : " (menu closed)");
 }
 
@@ -1266,8 +1628,8 @@ void printRecordingButton()
     {
         const BannerLayout b = recordingBannerLayout(l);
         Con_Printf("menu_vr pos: recording button \"%s\" x %.0f..%.0f, y %.1f (row %d of the bottom left corner)%s%s\n",
-            b.text, b.x0, b.x1, b.yc, recordingRow, toolbar.menu == m_state ? "" : " (not drawn)",
-            toolbar.recordingHovered ? " (lit)" : "");
+            b.text, b.x0, b.x1, b.yc, recordingRow, tb().menu == m_state ? "" : " (not drawn)",
+            tb().recordingHovered ? " (lit)" : "");
         return;
     }
     const FlatRecording& f = flatRecording;
@@ -1278,7 +1640,7 @@ void printRecordingButton()
         return;
     }
     Con_Printf("menu_vr pos: recording button x %.0f..%.0f, y %.1f..%.1f (menu from x %.0f)%s\n", f.x0, f.x1, f.y0, f.y1,
-        f.contentLeft, toolbar.recordingHovered ? " (lit)" : "");
+        f.contentLeft, tb().recordingHovered ? " (lit)" : "");
 }
 
 void printLaser()
@@ -1298,7 +1660,7 @@ bool pointerOn(bool hover)
 {
     if(active())
     {
-        return hits[pointingHand].valid;
+        return hits[pointingHand].valid && hits[pointingHand].menu == menu::currentInstance();
     }
     if(vrActive() || !ui_mouse.value)
     {
@@ -1331,6 +1693,16 @@ float toolbarRight()
 float toolbarLeft()
 {
     return toolbarShown() ? toolbarLayout().bx0(0) : -1e9f;
+}
+
+float toolbarTop()
+{
+    if(!toolbarShown())
+    {
+        return -1e9f;
+    }
+    const ToolbarLayout l = toolbarLayout();
+    return l.yc(0) - l.bh() / l.k;
 }
 
 bool toolbarBeside()
@@ -1375,12 +1747,12 @@ bool toolbarRow()
 
 bool toolbarFocused()
 {
-    return toolbarShown() && toolbar.focused >= 0 && toolbar.focusMenu == m_state;
+    return toolbarShown() && tb().focused >= 0 && tb().focusMenu == m_state;
 }
 
 void focusToolbar(int dir)
 {
-    focusTool(dir > 0 || toolbarRow() ? ToolBack : toolsShown() - 1); // (the row: its first, from either end of a page)
+    focusTool(dir > 0 || toolbarRow() ? ToolBack : lastTool()); // (the row: its first, from either end of a page)
     S_LocalSound("misc/menu1.wav");
 }
 
@@ -1390,6 +1762,9 @@ void backToGame(int hand)
     {
         return;
     }
+    // (The other panels hide with the menu and come back with it, as left: only Close Panel closes one. The menu
+    // reopens on the first panel's page, whichever panel this was pressed on.)
+    menu::selectInstance(0);
 
     remembered = {};
     remembered.state = reopenable(m_state);
@@ -1415,10 +1790,36 @@ void backToGame(int hand)
 // shown again.
 void useTool(int tool, int hand)
 {
-    toolbar.focused = -1;
+    if(const char* reason = toolUnavailable(tool))
+    {
+        Con_Printf("%s: %s.\n", toolLabels[tool], reason);
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    tb().focused = -1;
     switch(tool)
     {
-        case ToolBack: backToGame(hand); break;
+        case ToolBack:
+            if(menu::currentInstance() > 0)
+            {
+                menu::closeInstance(menu::currentInstance()); // (a panel after the first: Close Panel)
+                haptic(hand, 0.04f, 0.4f);
+                break;
+            }
+            backToGame(hand);
+            break;
+        case ToolQuicksave:
+            backToGame(hand);
+            Cbuf_InsertText("echo Quicksaving...; wait; save quick\n");
+            break;
+        case ToolQuickload:
+            remembered = {}; // A loaded game reopens the main menu, as the Load menu does.
+            IN_Activate();
+            key_dest = key_game;
+            m_state = m_none;
+            haptic(hand, 0.04f, 0.4f);
+            Cbuf_InsertText("echo Quickloading...; wait; load quick\n");
+            break;
         case ToolMainMenu: menu::jumpToMainMenu(); break;
         case ToolSearch: menu::openSearch(); break;
         case ToolConsole: menu::openConsole(); break;
@@ -1437,6 +1838,7 @@ void useTool(int tool, int hand)
         case ToolChecklist: menu::jumpToChecklist(); break;
         case ToolMaps: menu::openMaps(); break;
         case ToolRelighting: menu::jumpToRelighting(); break;
+        case ToolNewPanel: menu::openInstance(); break;
         default: break;
     }
 }
@@ -1501,6 +1903,10 @@ int triggerKey(int hand, bool down, int key)
         if(mouseHeld[hand])
         {
             mouseHeld[hand] = false;
+            if(menu::instanceOpen(heldMenu[hand]))
+            {
+                menu::selectInstance(heldMenu[hand]); // (released on the menu it pressed)
+            }
             return K_MOUSE1;
         }
         return key;
@@ -1517,8 +1923,20 @@ int triggerKey(int hand, bool down, int key)
     {
         return key;
     }
-    moveMouse(hits[hand], true, true); // the click lands where it points now
+    // One mouse button: the other hand's click (still held, on another panel or this one) is let go of first.
+    const int other = 1 - hand;
+    if(mouseHeld[other])
+    {
+        mouseHeld[other] = false;
+        if(menu::instanceOpen(heldMenu[other]))
+        {
+            menu::selectInstance(heldMenu[other]);
+        }
+        Key_Event(K_MOUSE1, false);
+    }
+    moveMouse(hits[hand], true, true); // the click lands where it points now (its menu focused)
     mouseHeld[hand] = true;
+    heldMenu[hand] = hits[hand].menu;
     return K_MOUSE1;
 }
 
@@ -1527,6 +1945,8 @@ bool spectatorPreviewWanted()
     return active() && previewPlaced();
 }
 
+void drawHandLaser(const hands::State& s, int h); // (a hand's laser and the frame it lights)
+
 void drawInEye(const hands::State& s)
 {
     if(!active() || !s.valid)
@@ -1534,27 +1954,152 @@ void drawInEye(const hands::State& s)
         return;
     }
     drawPreview(s);
+    drawHandLaser(s, pointingHand);
+    // With several panels, the other hand's laser too where it is on (or holds) a panel the pointing hand's is not on: one
+    // laser a panel, each moving its own panel's mouse (update).
+    const int other = 1 - pointingHand;
+    if(menu::openInstances() >= 2 &&
+        (panelGrab.hand == other || ((hits[other].valid || hits[other].frame) &&
+                                        (!hits[pointingHand].valid || hits[other].menu != hits[pointingHand].menu))))
+    {
+        drawHandLaser(s, other);
+    }
+}
 
+void drawHandLaser(const hands::State& s, int h)
+{
     // At the pose the eyes are drawn with.
-    const int h = pointingHand;
     glm::vec3 start, dir;
     if(!pointerRay(s, h, start, dir))
     {
         return;
     }
     const Hit hit = intersect(s, h);
-    const glm::vec3 end = hit.valid ? hit.point : start + dir * 30.f;
 
+    // The panel's frame lit while the laser is on it or the panel is held (where a grip takes hold of it).
+    const bool holding = panelGrab.hand == h;
+    if(glm::vec3 corner, xAxis, yAxis; (holding || hit.frame) && panel::menuQuad(s, holding ? panelGrab.menu : hit.menu, corner, xAxis, yAxis))
+    {
+        za::Vector<gfx::Vertex>& vertices = scratch.frame;
+        vertices.clear();
+        const float band = frameBand * glm::length(yAxis);
+        const glm::vec3 x = glm::normalize(xAxis) * (band * 0.3f);
+        const glm::vec3 y = glm::normalize(yAxis) * (band * 0.3f);
+        const glm::vec3 c[4]{corner - x - y, corner + xAxis + x - y, corner + xAxis + yAxis + x + y, corner + yAxis - x + y};
+        const glm::vec4 colour = hue::color(vr_menu_laser_hue, 0.5f, 1.f, holding ? 0.9f : 0.6f);
+        for(int i = 0; i < 4; i++)
+        {
+            appendStrip(vertices, c[i], c[(i + 1) % 4], band * (holding ? 0.15f : 0.1f), colour, colour);
+        }
+        gfx::draw(vertices, gfx::sceneViewProjection(),
+            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
+    }
+
+    if(holding)
+    {
+        glm::vec3 origin;
+        glm::mat3 basis;
+        if(pointerFrame(s, h, origin, basis))
+        {
+            drawLaser(start, origin + basis * panelGrab.spot, true, true, 1.f);
+        }
+        return;
+    }
+    drawLaser(start, hit.valid || hit.frame ? hit.point : start + dir * 30.f, hit.valid || hit.frame, mouseHeld[h], 1.f);
+}
+
+bool gripButton(int hand, bool down)
+{
+    if(!down)
+    {
+        if(panelGrab.armedHand == hand)
+        {
+            panelGrab.armedHand = -1;
+        }
+        if(panelGrab.hand == hand)
+        {
+            panelGrab.hand = -1;
+        }
+        return za::exchange(panelGrab.pressTaken[hand], false);
+    }
+
+    const Hit& hit = hits[hand];
+    if(grabMode() <= 0 || !active() || M_WaitingForKeyBinding() || panelGrab.hand >= 0 || hit.onRuntimePanel)
+    {
+        return false;
+    }
+    if(hit.frame)
+    {
+        if(takeHold(hands::current(), hand, hit.menu, hit.point))
+        {
+            panelGrab.pressTaken[hand] = true;
+            haptic(hand, 0.03f, 0.3f);
+            return true;
+        }
+        return false;
+    }
+    glm::vec3 origin;
+    glm::mat3 basis;
+    if(grabMode() >= 2 && hit.valid && !mouseHeld[hand] && pointerFrame(hands::current(), hand, origin, basis))
+    {
+        panelGrab.armedHand = hand; // (the grip goes on to the menu: the fine modifier until the hand moves)
+        panelGrab.armedAt = origin;
+        panelGrab.armedSpot = hit.point;
+        panelGrab.armedMenu = hit.menu;
+        panelGrab.sticksMoved = false;
+    }
+    return false;
+}
+
+void sticksPushed()
+{
+    if(panelGrab.armedHand >= 0)
+    {
+        panelGrab.sticksMoved = true;
+    }
+}
+
+bool panelHeld()
+{
+    return panelGrab.hand >= 0;
+}
+
+void panelPlace_f()
+{
+    if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "reset"))
+    {
+        panel::unplaceMenu();
+        return;
+    }
+    glm::vec3 corner, xAxis, yAxis;
+    const hands::State& s = hands::current();
+    if(!s.valid || !panel::menuQuad(s, corner, xAxis, yAxis))
+    {
+        Con_Printf("MENUPANEL not shown in the eyes\n");
+        return;
+    }
+    const glm::vec3 centre = corner + (xAxis + yAxis) * 0.5f;
+    const glm::vec3 facing = glm::normalize(glm::cross(yAxis, xAxis));
+    const glm::vec3 fromHead = centre - s.head;
+    Con_Printf("MENUPANEL placed %d held %d armed %d centre %.1f %.1f %.1f from head %.1f %.1f %.1f facing yaw %.1f pitch %.1f "
+               "size %.1f x %.1f\n",
+        panel::menuPlaced() ? 1 : 0, panelGrab.hand, panelGrab.armedHand, centre.x, centre.y, centre.z, fromHead.x, fromHead.y,
+        fromHead.z, glm::degrees(za::atan2(facing.y, facing.x)), glm::degrees(za::asin(CLAMP(-1.f, facing.z, 1.f))),
+        glm::length(xAxis), glm::length(yAxis));
+}
+
+void drawLaser(const glm::vec3& start, const glm::vec3& end, bool onPanel, bool held, float size)
+{
     za::Vector<gfx::Vertex>& vertices = scratch.laser;
     vertices.clear();
-    const float bright = mouseHeld[h] ? 1.f : 0.8f;
+    const float bright = held ? 1.f : 0.8f;
     // In the player's hue (vr_menu_laser_hue; 35 its old amber, the menus' own).
-    appendStrip(vertices, start, end, 0.3f, hue::color(vr_menu_laser_hue, 0.6f, 1.f, 0.9f * bright),
-        hue::color(vr_menu_laser_hue, 0.5f, 1.f, hit.valid ? 0.5f * bright : 0.f));
-    if(hit.valid)
+    appendStrip(vertices, start, end, 0.3f * size, hue::color(vr_menu_laser_hue, 0.6f, 1.f, 0.9f * bright),
+        hue::color(vr_menu_laser_hue, 0.5f, 1.f, onPanel ? 0.5f * bright : 0.f));
+    if(onPanel)
     {
-        appendStrip(vertices, hit.point, hit.point, 1.6f, hue::color(vr_menu_laser_hue, 0.3f, 1.f, 1.f), {});
-        appendStrip(vertices, hit.point, hit.point, 0.7f, {1.f, 1.f, 1.f, 1.f}, {});
+        appendStrip(vertices, end, end, 1.6f * size, hue::color(vr_menu_laser_hue, 0.3f, 1.f, 1.f), {});
+        appendStrip(vertices, end, end, 0.7f * size, {1.f, 1.f, 1.f, 1.f}, {});
     }
 
     gfx::draw(vertices, gfx::sceneViewProjection(),
@@ -1662,12 +2207,21 @@ extern "C" int VR_MenuDrawCheckbox(int x, int y, int on)
     {
         return 0;
     }
+    menuui::paintSwitch(static_cast<float>(x), static_cast<float>(y), on != 0);
+    return 1;
+}
 
+void qvr::menuui::paintSwitch(float x, float y, bool on)
+{
     const Painter p;
     const float yc = y + 4.f;
     p.rounded(x, x + 19.f, yc, 4.25f, 4.25f, on ? colors::fill : colors::switchOff);
     p.disc(on ? x + 14.75f : x + 4.25f, yc, 3.f, on ? colors::thumb : colors::knobOff);
-    return 1;
+}
+
+void qvr::menuui::paintSlider(int x, int y, float range, const char* desc)
+{
+    drawStyledSlider(x, y, range, -1.f, 0, desc);
 }
 
 // Quake's box: a border 8 pixels wide round `width` (rounded up to even) characters across and
@@ -1715,7 +2269,7 @@ extern "C" int VR_MenuDrawHighlight(int cx, int cy)
         return 0;
     }
 
-    drawnHighlight = {m_state, cy};
+    drawnHighlight[menu::currentInstance()] = {m_state, cy};
 
     const Painter p;
     const float left = za::fmin(cx - 4.f, 8.f);
@@ -1734,11 +2288,15 @@ extern "C" int VR_MenuDrawButton(int x0, int x1, int y, int selected)
     {
         return 0;
     }
-    const Painter p;
-    const float yc = y + 4.f;
-    p.rounded(static_cast<float>(x0), static_cast<float>(x1), yc, 8.f, 3.f, selected ? colors::highlightEdge : colors::boxBorder);
-    p.rounded(x0 + 1.f, x1 - 1.f, yc, 7.f, 2.f, selected ? colors::buttonHover : colors::track);
+    menuui::paintButton(static_cast<float>(x0), static_cast<float>(x1), y + 4.f, 8.f, selected != 0);
     return 1;
+}
+
+void qvr::menuui::paintButton(float x0, float x1, float yc, float half, bool lit)
+{
+    const Painter p;
+    p.rounded(x0, x1, yc, half, 3.f, lit ? colors::highlightEdge : colors::boxBorder);
+    p.rounded(x0 + 1.f, x1 - 1.f, yc, half - 1.f, 2.f, lit ? colors::buttonHover : colors::track);
 }
 
 void qvr::menuui::drawListHighlight(float x0, float x1, int y)
@@ -1802,8 +2360,40 @@ void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4
     switch(tool)
     {
         case ToolBack:
+            if(menu::currentInstance() > 0)
+            {
+                // Close Panel (a menu panel after the first): a cross.
+                for(int i = 0; i < 7; i++)
+                {
+                    const float t = static_cast<float>(i) * 1.2f - 3.6f;
+                    p.disc(x + 4.5f + t, yc + t / p.k, 0.9f, ink);
+                    p.disc(x + 4.5f + t, yc - t / p.k, 0.9f, ink);
+                }
+                break;
+            }
             p.arrowHead(x, 5.f, yc, 4.5f, ink);
             p.rect(x + 4.f, x + w, yc, 1.25f, ink);
+            break;
+        case ToolNewPanel:
+            // Another panel: a sheet, a plus beside it.
+            p.band(x, x + 5.f, yc, -4.5f, 4.5f, ink);
+            p.band(x + 1.f, x + 4.f, yc, -3.5f, 3.5f, colors::boxFill);
+            p.rect(x + 5.5f, x + w, yc, 0.7f, ink);
+            p.band(x + 6.65f, x + 7.85f, yc, -1.75f, 1.75f, ink);
+            break;
+        case ToolQuicksave:
+        case ToolQuickload:
+            // A tray with a down arrow to save, an up arrow to load.
+            p.band(x, x + 1.3f, yc, 1.5f, 4.5f, ink);
+            p.band(x + w - 1.3f, x + w, yc, 1.5f, 4.5f, ink);
+            p.rect(x, x + w, yc + 4.f / p.k, 0.6f, ink);
+            p.band(x + 3.9f, x + 5.1f, yc, -4.5f, 0.f, ink);
+            for(int i = 0; i < 3; i++)
+            {
+                const float t = static_cast<float>(i);
+                const float y = tool == ToolQuicksave ? -1.f + t : -2.5f - t;
+                p.rect(x + 2.f + t, x + 7.f - t, yc + y / p.k, 0.6f, ink);
+            }
             break;
         case ToolMainMenu:
             // A house: a stepped roof over its walls, a door in them.
@@ -1964,7 +2554,7 @@ extern "C" void VR_MenuDrawStatus()
 // (vr_menu_flat_shortcuts), where the desktop mouse lights them up.
 extern "C" void VR_MenuDrawOverlay()
 {
-    toolbar.menu = m_none;
+    tb().menu = m_none;
     flatRecording.leftOut = menuui::active() ? "the headset's row instead" : "the corner's buttons not drawn";
     if(!menuui::active() && key_dest == key_menu)
     {
@@ -1985,12 +2575,12 @@ extern "C" void VR_MenuDrawOverlay()
     if(!menuui::active())
     {
         const FlatMouse& fm = flatMouse;
-        toolbar.hovered = -1;
+        tb().hovered = -1;
         for(int t = 0; fm.moved && ui_mouse.value && t < toolsShown(); t++)
         {
-            if(l.hit(t, m_mousex, m_mousey))
+            if(!toolHidden(t) && l.hit(t, m_mousex, m_mousey))
             {
-                toolbar.hovered = t;
+                tb().hovered = t;
             }
         }
     }
@@ -2007,31 +2597,39 @@ extern "C" void VR_MenuDrawOverlay()
     }
     for(int t = 0; t < toolsShown(); t++)
     {
-        const bool hot = toolbar.hovered == t || (menuui::toolbarFocused() && toolbar.focused == t);
+        if(toolHidden(t))
+        {
+            continue;
+        }
+        const bool enabled = !toolUnavailable(t);
+        const bool selected = tb().hovered == t || (menuui::toolbarFocused() && tb().focused == t);
+        const bool hot = enabled && selected;
         const float yc = l.yc(t);
         const float x0 = l.bx0(t), x1 = l.bx1(t);
-        p.rounded(x0, x1, yc, l.bh(), 3.f, hot ? colors::highlightEdge : colors::boxBorder);
+        p.rounded(x0, x1, yc, l.bh(), 3.f, selected ? colors::highlightEdge : colors::boxBorder);
         p.rounded(x0 + 1.f, x1 - 1.f, yc, l.bh() - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
 
-        const glm::vec4& ink = hot ? colors::thumb : colors::fill;
+        const glm::vec4 ink = (hot ? colors::thumb : colors::fill) * (enabled ? 1.f : 0.4f);
         const float ix = x0 + (l.row ? 4.f : ToolbarLayout::pad);
         drawToolIcon(p, t, ix, yc, ink);
 
         if(l.labels)
         {
             float x = ix + ToolbarLayout::icon + ToolbarLayout::labelGap;
-            for(const char* c = t == ToolChecklist ? checklistLabel : toolLabels[t]; *c; c++, x += 8.f)
+            GL_PushCanvasColor(1.f, 1.f, 1.f, enabled ? 1.f : 0.4f);
+            for(const char* c = t == ToolChecklist ? checklistLabel : toolLabel(t); *c; c++, x += 8.f)
             {
                 Draw_CharacterEx(x, yc - 4.f, 8.f, 8.f, hot ? *c : (*c | 128));
             }
+            GL_PopCanvasColor();
         }
     }
 
     // The row's icons have no labels: the one under the mouse (or selected) names itself in a box under it.
-    const int named = toolbar.hovered >= 0 ? toolbar.hovered : menuui::toolbarFocused() ? toolbar.focused : -1;
+    const int named = tb().hovered >= 0 ? tb().hovered : menuui::toolbarFocused() ? tb().focused : -1;
     if(l.row && named >= 0 && named < toolsShown())
     {
-        const char* label = named == ToolChecklist ? checklistLabel : toolLabels[named];
+        const char* label = named == ToolChecklist ? checklistLabel : toolLabel(named);
         const float x0 = l.bx0(named);
         const float x1 = x0 + 4.f + 8.f * static_cast<float>(strlen(label)) + 4.f;
         const float yc = l.buttonsBottom() + 2.f + ToolbarLayout::rowHalf;
@@ -2043,13 +2641,13 @@ extern "C" void VR_MenuDrawOverlay()
             Draw_CharacterEx(x, yc - 4.f, 8.f, 8.f, *c);
         }
     }
-    toolbar.menu = m_state;
+    tb().menu = m_state;
 
     // The spectator camera's switch (the headset's menus: the window's view is the headset's mirror), bottom left.
     if(menuui::active())
     {
         const BannerLayout b = bannerLayout(l);
-        const bool hot = toolbar.bannerHovered;
+        const bool hot = tb().bannerHovered;
         const bool on = spectatorOn();
         p.rounded(b.x0, b.x1, b.yc, ToolbarLayout::half, 3.f, hot ? colors::highlightEdge : colors::boxBorder);
         p.rounded(b.x0 + 1.f, b.x1 - 1.f, b.yc, ToolbarLayout::half - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
@@ -2064,7 +2662,7 @@ extern "C" void VR_MenuDrawOverlay()
 
         // The Recording button above it: a camera, the label as the corner's buttons'.
         const BannerLayout rb = recordingBannerLayout(l);
-        const bool recHot = toolbar.recordingHovered;
+        const bool recHot = tb().recordingHovered;
         p.rounded(rb.x0, rb.x1, rb.yc, ToolbarLayout::half, 3.f, recHot ? colors::highlightEdge : colors::boxBorder);
         p.rounded(rb.x0 + 1.f, rb.x1 - 1.f, rb.yc, ToolbarLayout::half - 1.f, 2.f, recHot ? colors::buttonHover : colors::boxFill);
         drawRecordingIcon(p, rb.x0 + ToolbarLayout::pad, rb.yc, recHot ? colors::thumb : colors::fill);
@@ -2080,7 +2678,7 @@ extern "C" void VR_MenuDrawOverlay()
         if(const qvr::obs::Banner o = qvr::obs::banner(); o.shown)
         {
             const BannerLayout ob = obsBannerLayout(l, o);
-            const bool obsHot = toolbar.obsHovered;
+            const bool obsHot = tb().obsHovered;
             p.rounded(ob.x0, ob.x1, ob.yc, ToolbarLayout::half, 3.f, obsHot ? colors::highlightEdge : colors::boxBorder);
             p.rounded(ob.x0 + 1.f, ob.x1 - 1.f, ob.yc, ToolbarLayout::half - 1.f, 2.f,
                 obsHot ? colors::buttonHover : colors::boxFill);
@@ -2102,17 +2700,20 @@ extern "C" void VR_MenuDrawOverlay()
             }
             top.yc = ob.yc; // (as wide as the Recording button still)
         }
-        placePreview(l, top);
+        if(menu::currentInstance() == 0)
+        {
+            placePreview(l, top); // (on the first panel only)
+        }
     }
     else
     {
         // A flat screen's Recording button, bottom left, where the menu leaves room: lit under the mouse.
         placeFlatRecording(l);
         const FlatRecording& f = flatRecording;
-        toolbar.recordingHovered = flatRecordingShown() && recordingAt(m_mousex, m_mousey) && menuui::pointerOn(true);
+        tb().recordingHovered = flatRecordingShown() && recordingAt(m_mousex, m_mousey) && menuui::pointerOn(true);
         if(!f.leftOut)
         {
-            const bool hot = toolbar.recordingHovered;
+            const bool hot = tb().recordingHovered;
             const float half = (f.y1 - f.y0) * l.k * 0.5f;
             const float yc = (f.y0 + f.y1) * 0.5f;
             p.rounded(f.x0, f.x1, yc, half, 3.f, hot ? colors::highlightEdge : colors::boxBorder);
@@ -2141,26 +2742,26 @@ extern "C" int VR_MenuKey(int key, int repeat)
 {
     if(key == K_MOUSE1 && !repeat && !M_WaitingForKeyBinding() && menuui::versionLinkPress())
     {
-        toolbar.focused = -1;
+        tb().focused = -1;
         haptic(pointingHand, 0.02f, 0.3f);
         return 1;
     }
     if(!menuui::toolbarShown() || M_WaitingForKeyBinding())
     {
-        toolbar.focused = -1;
+        tb().focused = -1;
         return 0;
     }
 
     if(key == K_MOUSE1 && !repeat && recordingAt(m_mousex, m_mousey) && menuui::pointerOn(false))
     {
-        toolbar.focused = -1;
+        tb().focused = -1;
         haptic(pointingHand, 0.02f, 0.3f);
         menu::jumpToRecording();
         return 1;
     }
     if(key == K_MOUSE1 && !repeat && obsBannerAt(m_mousex, m_mousey))
     {
-        toolbar.focused = -1;
+        tb().focused = -1;
         if(qvr::obs::press())
         {
             haptic(pointingHand, 0.02f, 0.3f);
@@ -2169,7 +2770,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
     }
     if(key == K_MOUSE1 && bannerAt(m_mousex, m_mousey))
     {
-        toolbar.focused = -1;
+        tb().focused = -1;
         toggleSpectator(pointingHand);
         return 1;
     }
@@ -2178,7 +2779,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
         const int t = toolAt(m_mousex, m_mousey);
         if(t < 0)
         {
-            toolbar.focused = -1;
+            tb().focused = -1;
             return 0;
         }
         menuui::useTool(t, pointingHand);
@@ -2193,7 +2794,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
         }
         if(menuui::toolbarFocused())
         {
-            toolbar.focused = -1;
+            tb().focused = -1;
         }
         else
         {
@@ -2205,7 +2806,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
 
     if(!menuui::toolbarFocused())
     {
-        toolbar.focused = -1;
+        tb().focused = -1;
         return 0;
     }
 
@@ -2216,14 +2817,19 @@ extern "C" int VR_MenuKey(int key, int repeat)
         {
             case K_LEFTARROW:
             case K_RIGHTARROW:
-                if(const int next = toolbar.focused + (key == K_RIGHTARROW ? 1 : -1); next >= 0 && next < toolsShown())
+            {
+                const int step = key == K_RIGHTARROW ? 1 : -1;
+                int next = tb().focused + step;
+                next += toolHidden(next) ? step : 0; // (over New Panel, not on this row)
+                if(next >= 0 && next < toolsShown())
                 {
-                    toolbar.focused = next;
+                    tb().focused = next;
                     S_LocalSound("misc/menu1.wav");
                 }
                 return 1;
+            }
             case K_DOWNARROW:
-                toolbar.focused = -1;
+                tb().focused = -1;
                 if(m_state == m_vr)
                 {
                     menu::selectEnd(1);
@@ -2241,10 +2847,10 @@ extern "C" int VR_MenuKey(int key, int repeat)
         case K_DOWNARROW:
         {
             const int dir = key == K_DOWNARROW ? 1 : -1;
-            const int next = toolbar.focused + dir;
+            const int next = tb().focused + dir;
             if(next >= 0 && next < toolsShown())
             {
-                toolbar.focused = next;
+                tb().focused = next;
             }
             else if(repeat)
             {
@@ -2252,7 +2858,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
             }
             else
             {
-                toolbar.focused = -1;
+                tb().focused = -1;
                 if(m_state == m_vr)
                 {
                     menu::selectEnd(dir); // on round the page: its first setting below, its last above
@@ -2263,18 +2869,18 @@ extern "C" int VR_MenuKey(int key, int repeat)
         }
         case K_ENTER:
         case K_KP_ENTER:
-        case K_ABUTTON: menuui::useTool(toolbar.focused, HAND_MAIN); return 1;
+        case K_ABUTTON: menuui::useTool(tb().focused, HAND_MAIN); return 1;
         case K_ESCAPE:
         case K_BBUTTON:
         case K_MOUSE2:
         case K_MOUSE4:
-            toolbar.focused = -1;
+            tb().focused = -1;
             S_LocalSound("misc/menu1.wav");
             return 1;
         case K_LEFTARROW:
         case K_RIGHTARROW: return 1; // nothing to change here (and nothing under it changed)
         default:
-            toolbar.focused = -1; // another key: the menu's again
+            tb().focused = -1; // another key: the menu's again
             return 0;
     }
 }
@@ -2383,17 +2989,12 @@ namespace
 
 extern "C" int VR_MenuRunsGame()
 {
-    // The toolgun's menu on the gun: the game goes on (a monster after you too), as the gun's tools do.
-    if(key_dest == key_menu && sv.active && svs.maxclients == 1 && !cl.intermission && qvr::toolgun::menuOnGun())
-    {
-        return 1;
-    }
     if(!ui_live_preview.value || !vrActive() || key_dest != key_menu || !sv.active || svs.maxclients != 1 ||
         cl.intermission)
     {
         return 0;
     }
-    switch(m_state)
+    switch(menu::mainState()) // (the first panel's menu: the others show VR pages only)
     {
         case m_options:
         case m_video:

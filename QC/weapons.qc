@@ -148,11 +148,16 @@ float() VRMeleeDmgQuadMult =
 
 float(float xHand, float xBase) VRMeleeDmg =
 {
+    // An incandescent blade's blow hits harder (vr_hotblade_damage more base damage: vr_hotblade.qc).
+    xBase = xBase + VR_HotBlade_Extra(self, xHand);
     if(!VRHandsTracked(self) || !self.ishuman)
     {
-        return 20;
+        return 20 + VR_HotBlade_Extra(self, xHand);
     }
 
+    // The damage caps bound this blow's strength (times its zone's multiplier) when it lands (T_Damage_VRMelee).
+    vr_mdmg_core = VR_Blow(xHand).mh_core;
+    vr_mdmg_hand = xHand;
     return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
            VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
 }
@@ -230,6 +235,7 @@ float(entity xTarget) PositionalHead =
 {
     string c = xTarget.classname;
     if(xTarget.vr_mg3_mon && MG3_PositionalHead(xTarget)) { return TRUE; } // (QVR: Dawn of the Machine's own models: vr_mg3_ogre.qc)
+    if(xTarget.vr_ad_mon) { return VR_AD_PositionalHead(xTarget); } // AD support: AD's monsters' heads (vr_ad_monsters.qc)
     if(c == "monster_army")             { xHeadForward = 3;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
     if(c == "monster_ogre" || c == "monster_ogre_marksman") { xHeadForward = 9; xHeadUp = 33; xHeadRadius = 10; return TRUE; }
     if(c == "monster_enforcer")         { xHeadForward = 2;  xHeadUp = 27; xHeadRadius = 7.4; return TRUE; }
@@ -660,10 +666,10 @@ void() VR_ShotImpacts =
 // box it started in, not what was struck: traced again from the projectile itself.
 void(vector xFrom, vector xTo) VR_TouchTrace =
 {
-    traceline(xFrom, xTo, VR_HitModelFlags(self), self);
+    traceline(xFrom, xTo, VR_HitModelFlags(self) | MOVE_HITGIBS, self);
     if(trace_startsolid && trace_ent != other && trace_ent != world)
     {
-        traceline(self.origin, xTo, VR_HitModelFlags(self), self);
+        traceline(self.origin, xTo, VR_HitModelFlags(self) | MOVE_HITGIBS, self);
     }
 };
 
@@ -1237,6 +1243,9 @@ void() W_Precache =
     precache_sound("knight/sword2.wav");
     precache_sound("weapons/holster0.wav");
     precache_sound("weapons/holster1.wav");
+    precache_sound("vr/blade_sizzle.wav"); // incandescent blades (vr_hotblade.qc)
+    precache_sound("vr/blade_hot.wav");
+    precache_sound("vr/blade_quench.wav");
 };
 
 /*
@@ -1255,7 +1264,7 @@ void(float xHand) W_FireAxe =
     float  bleed;
     bleed = FALSE;
 
-    xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe));
+    xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe) * AD_AxeScale(xHand)); // AD support: the Shadow Axe (vr_ad_bridge.qc)
 
     // HONEY
     // Check if we maybe should gib some zombies for fun!
@@ -1941,6 +1950,7 @@ void(float damage, vector dir) TraceAttack =
             {
                 SpawnBlood (org, vel*0.2, damage);
                 VR_Wound_Pellet(trace_ent, trace_endpos, dir, damage); // VR: painted on its model (vr_wounds.qc)
+                VR_HitReact_Pellet(trace_ent, trace_endpos, dir); // VR: where its flinch is (vr_hitreact.qc)
             }
             bleed = TRUE;
         }
@@ -2061,11 +2071,17 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
     {
         spread *= cvar_hget(cvarh_vr_2h_spread_reduction);
     }
+    spread = AD_SharpSpread(spread); // AD support: AD's Sharp Shooter (vr_ad_items.qc)
 
     // From behind the muzzle, along the shot's line (VR_ShotBackPoint): what the muzzle is inside is hit too.
     vector muzzle = VRGetMuzzlePos(xHand);
     vector src = VR_ShotBackPoint(xHand, muzzle, dir);
 
+    if(AD_Pellets(self)) // AD support: AD's projectile pellets (vr_ad_projectiles; vr_ad_bridge.qc)
+    {
+        AD_FirePellets(xHand, shotcount, dir, spread, muzzle);
+        return;
+    }
     VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
     vr_tracer_hand = xHand;
     vr_tracer_from = muzzle;
@@ -2089,6 +2105,7 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
         dir = VR_Crate_ShotAim(src, dir, self.enemy);
 
     weaponfired(self, -1); // VR: its gun's muzzle flash (a grunt's: vr_weaponfx.cpp)
+    if(AD_EnemyPellets(shotcount, dir, spread, src)) return; // AD support: AD's pellets (vr_ad_bridge.qc)
     vr_tracer_hand = -1;
     vr_tracer_from = src; // (the clients start a grunt's tracers at its gun's muzzle)
     FireBulletsImpl(shotcount, dir, spread, src, 2048, FALSE);
@@ -2171,7 +2188,7 @@ void(float xHand) W_FireSuperShotgun =
     }
     else
     {
-        FireBullets(xHand, 14, dir, '0.035 0.025 0');
+        FireBullets(xHand, AD_WidowmakerPellets(xHand, 14), dir, '0.035 0.025 0'); // AD support: the Widowmaker's 21 (vr_ad_bridge.qc)
     }
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
@@ -2289,17 +2306,12 @@ entity(entity shooter, vector org, vector dir) VR_LaunchRocket =
     return missile;
 };
 
-entity(float xHand) W_FireRocket =
+// The rocket launcher's rocket from self's hand `xHand` (its speed, model, touch, muzzle clearance and graze): the
+// launcher's shot, and any gun's that fires our rocket (AD support: AD's rocket soldier's dropped launcher,
+// vr_ad_enemyguns.qc). None of the gun's ammo, sound, kick or haptics.
+entity(float xHand) VR_FireRocketMissile =
 {
-    entity missile;
-
-    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
-
-    sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
-
-    self.punchangle_x = -2;
-
-    missile = spawn();
+    entity missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_FLYMISSILE;
     missile.solid = SOLID_BBOX;
@@ -2321,6 +2333,18 @@ entity(float xHand) W_FireRocket =
     setorigin(missile, VRGetMuzzlePos(xHand));
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
+    return missile;
+};
+
+entity(float xHand) W_FireRocket =
+{
+    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
+
+    sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
+
+    self.punchangle_x = -2;
+
+    entity missile = VR_FireRocketMissile(xHand);
 
     // HIPNOTIC
     //MED 11/09/96
@@ -2357,7 +2381,13 @@ float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
         playershock(t, damage, at); // VR: arcs over the struck player's arms and body (vr_shock_self_time)
     }
     float pop = VR_Decap_BoltArm(t, at, xDir, damage);
+    vr_limb_wear_at = at; // (a corpse's head or limb struck wears down: VR_Limb_CorpseWear)
+    vr_limb_wear_ent = t;
+    vr_limb_wear_time = time;
+    vr_ad_ammo = AD_AMMO_CELLS; // AD support: lightning is cells to AD's ammo resistance (vr_ad_player.qc)
     float r = T_Damage(t, from, from, damage);
+    vr_ad_ammo = 0;
+    vr_limb_wear_ent = world;
     VR_Shock_Hit(t, shockAlive, at, xDir); // VR: lightning's lasting shock (vr_shock.qc)
     if(pop)
     {
@@ -2766,18 +2796,13 @@ void() GrenadeTouch =
 W_FireGrenade
 ================
 */
-void(float xHand) W_FireGrenade =
+// The grenade launcher's grenade from self's hand `xHand` (its speed, model, size, bounce, fuse, explosion, muzzle
+// clearance and catchability): the launcher's shot, and any gun's that fires our grenade (AD support: AD's grenade
+// soldier's dropped launcher, vr_ad_enemyguns.qc). None of the gun's ammo, sound, kick or haptics.
+entity(float xHand) VR_FireGrenadeMissile =
 {
-    entity missile;
     vector tmpAngles;
-
-    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
-
-    sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
-
-    self.punchangle_x = -2;
-
-    missile = spawn();
+    entity missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
@@ -2827,6 +2852,18 @@ void(float xHand) W_FireGrenade =
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     VR_Grenade_Make(missile, GrenadeExplode, 2.5, TRUE); // QVR: catchable too with vr_grenade_catch 2
+    return missile;
+};
+
+void(float xHand) W_FireGrenade =
+{
+    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
+
+    sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
+
+    self.punchangle_x = -2;
+
+    VR_FireGrenadeMissile(xHand);
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 75, 1.0);
@@ -3176,6 +3213,7 @@ void() spike_touch =
             spawn_touchblood (adjDmg);
             bleed = TRUE;
         }
+        AD_NailPierce(other); // AD support: AD's Nail Piercer: the nail on through the body (vr_ad_items.qc)
     }
 
     if(!bleed)
@@ -3234,6 +3272,7 @@ void() superspike_touch =
         {
             spawn_touchblood (adjDmg);
         }
+        AD_NailPierce(other); // AD support: AD's Nail Piercer (vr_ad_items.qc)
     }
 
     if(!bleed)
@@ -3474,6 +3513,11 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
 
         *xOutAttackFinished = time + RuneApplyHell(0.8, self);
     }
+    else if(xWeapon == WID_LIGHTNING && AD_PlasmaGun(xHand, xWeaponFlags)) // AD support: the Plasma Gun (vr_ad_bridge.qc)
+    {
+        AD_FirePlasma(xHand);
+        *xOutAttackFinished = time + 0.2;
+    }
     else if(xWeapon == WID_LIGHTNING)
     {
         player_light1(xHand);
@@ -3713,6 +3757,9 @@ float(entity xPlayer, float xDir, float xWeapon,
     float minWeapon = WID_GRAPPLE;
     float maxWeapon = WID_LASER_CANNON;
 
+    // Flatscreen play (-flatscreenmode): the empty hand (the fist) is one step of the cycle, both ways.
+    if(VR_FlatPlay(xPlayer)) { minWeapon = WID_FIST; }
+
     // Just for safety.
     float maxIterations = maxWeapon + 1;
 
@@ -3738,7 +3785,7 @@ float(entity xPlayer, float xDir, float xWeapon,
         }
 
         // Do not select unavailable weapons.
-        if(!VR_WeaponUtil_EntHasWeapon(xPlayer, xWeapon))
+        if(xWeapon != WID_FIST && !VR_WeaponUtil_EntHasWeapon(xPlayer, xWeapon))
         {
             continue;
         }
@@ -3762,6 +3809,13 @@ float(entity xPlayer, float xDir, float xWeapon,
 float() getWeaponCycleMode =
 {
     if(!VRHandsTracked(self) || !self.ishuman)
+    {
+        return QVR_WEAPONCYCLEMODE_ALLOWED;
+    }
+
+    // Flatscreen play (-flatscreenmode): 1 and 2 cycle the weapons collected into the left and the right hand, so
+    // cycling is on whatever vr_weapon_cycle_mode says.
+    if(VR_FlatPlay(self))
     {
         return QVR_WEAPONCYCLEMODE_ALLOWED;
     }
@@ -4569,8 +4623,46 @@ void() ImpulseCommands =
         return;
     }
 
+    // Flatscreen play (-flatscreenmode): E force-grabs what the view is pointed at (vr_flatplay.cpp reads the key and
+    // sends the impulse; the force grab itself is the game's own, vr_wpnforcegrab.qc).
+    if(self.impulse == 46)
+    {
+        self.impulse = 0;
+        if(VR_FlatPlay(self))
+        {
+            VR_Forcegrab_FlatGrab();
+        }
+        return;
+    }
+
     if(self.impulse >= 1 && self.impulse <= 8)
     {
+        // Flatscreen play (-flatscreenmode): 1 cycles the left hand's weapon and 2 the right hand's, through the weapons
+        // collected (the same cycling the controller's Y and B do); Quake's own weapon select stands for the other keys.
+        if(VR_FlatPlay(self) && (self.impulse == 1 || self.impulse == 2))
+        {
+            float xOffHand = self.impulse == 1;
+            self.impulse = 0;
+            if(getWeaponCycleMode() != QVR_WEAPONCYCLEMODE_ALLOWED)
+            {
+                return;
+            }
+            if(xOffHand)
+            {
+                if(time >= self.offhand_attack_finished && !VR_Grapple_ButtonsBusy(cVR_OffHand))
+                {
+                    CycleWeaponCommand(cVR_OffHand, self.weapon2, &self.weapon2,
+                        self.weaponflags2, &self.weaponflags2);
+                }
+            }
+            else if(time >= self.attack_finished && !VR_Grapple_ButtonsBusy(cVR_MainHand))
+            {
+                CycleWeaponCommand(cVR_MainHand, self.weapon, &self.weapon,
+                    self.weaponflags, &self.weaponflags);
+            }
+            return;
+        }
+
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
             W_ChangeWeapon();
@@ -4941,6 +5033,13 @@ void() ImpulseCommands =
             traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, self); // (on the floor)
             spawned = VR_Crate_TestSpawn(trace_endpos, spawnKind == 107 ? 1 : 2, spawnPlayer.v_viewangle_y + 30, spawnKind == 109);
         }
+        else if(spawnKind >= 120 && spawnKind <= 124)
+        {
+            // The climbing tests' crates, square to you (VR_Crate_ClimbTestSpawn): 120 a large one, 121 two large ones
+            // stacked, 122 a large one on its side, 123 a small one on a large one, 124 a small one.
+            traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, self); // (on the floor)
+            spawned = VR_Crate_ClimbTestSpawn(trace_endpos, spawnPlayer.v_viewangle_y, spawnKind - 119);
+        }
         else if(spawnKind == 111 || spawnKind == 112)
         {
             // A barrel (vr_crates.qc's vr_barrel: vrstart's), upright or lying across your view (it may roll).
@@ -4972,7 +5071,7 @@ void() ImpulseCommands =
             }
             self = spawnPlayer;
         }
-        else if(spawnKind >= 100)
+        else if(spawnKind >= 100 && spawnKind < 200) // (AD support: 200.. AD's monsters, by the dispenser below)
         {
             self = spawn();
             setorigin(self, spawnAt - '16 16 0'); // a box's origin is its corner: its middle there
@@ -5643,7 +5742,9 @@ void() wpnthrow_stabilize =
     }
 }
 
-void() forcegrabbable_think_impl =
+// The QuakeC of forcegrabbable_think_impl, the fallback of its native copy (propthink, vr_propthink.cpp: keep the two
+// the same; vr_propthink_check compares them).
+void() forcegrabbable_think_qc =
 {
     // In water (not the "just spawned" waterlevel 1 of an entity never checked since).
     if(self.waterlevel >= 1 && self.watertype <= CONTENT_WATER)
@@ -5715,6 +5816,16 @@ void() forcegrabbable_think_impl =
     if(self.throwhit == QVR_THROWHIT_HIT && !self.vr_rigid) // rigid ones settle in the engine
     {
         wpnthrow_stabilize();
+    }
+}
+
+// A force-grabbable thing's think (thrown and dropped weapons, pickups as objects): water, dust, settling after a throw.
+// In the engine (propthink: 5-18% of all the QuakeC's statements were here; docs/vr-port/QC_VM.md), else in QuakeC.
+void() forcegrabbable_think_impl =
+{
+    if(!propthink(vr_weapondrop_particles_on))
+    {
+        forcegrabbable_think_qc();
     }
 }
 
@@ -5922,7 +6033,6 @@ void() forcegrabbable_touch =
 {
     if(self.owner != world && other == self.owner)
         return;
-
     if(other.solid == SOLID_TRIGGER)
         return;    // trigger field, do nothing
 
@@ -5980,11 +6090,14 @@ void() forcegrabbable_touch =
                     self.classname, vlen(self.velocity), time - self.carry_letgo_time, adjDmg));
             }
             float pop = VR_Decap_ThrownArm(other, self, thrower, adjDmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
+            float wasAlive = other.health > 0 && !other.vr_corpse && !other.vr_corpse_dying;
             T_Damage(other, self, thrower, adjDmg);
             if(pop)
             {
                 VR_Decap_After(other);
             }
+            // VR: an incandescent blade thrown sets what it struck on fire (vr_hotblade.qc).
+            VR_HotBlade_ThrownStruck(self, other, thrower, wasAlive, self.origin, normalize(self.velocity));
             self.vr_fling_hit = time; // (not hit again as a flung prop as it bounces off: VR_FLING_REHIT)
         }
         // hit wall
@@ -6105,6 +6218,35 @@ void(float xHand, entity ent, entity entPlayer,
     W_SetCurrentAmmo();
 }
 
+// A mid-air catch (vr_weapon_catch_window; ROUND22.md, "Mid-air catches"): a weapon in the air (not lying about, not
+// one a force grab pulls) is caught by a grip closed up to that long before it reaches the fist, not only 0.125 s; and
+// the hand that just let it go (a toss to re-grip it, a flip) may close again at once (VR_HandGrabUtil_StartedHandGrabbing
+// waits 0.125 s after a release): it catches it once it comes back down, from 0.05 s after the release (not the throw's
+// own fist closing again as it leaves).
+float(entity ent, entity entPlayer, float xHand) wpnthrow_midair_catch =
+{
+    float window = cvar("vr_weapon_catch_window");
+    if(window <= 0 || (ent.flags & FL_ONGROUND) || ent.fg_state == 1 || vlen(ent.velocity) < 30)
+    {
+        return FALSE;
+    }
+    if(!VR_HandGrabUtil_IsHandGrabbing(entPlayer, xHand))
+    {
+        return FALSE;
+    }
+    float grabbed = VR_HandGrabUtil_Impl_GetLastGrabTime(entPlayer, xHand);
+    float released = VR_HandGrabUtil_Impl_GetLastReleaseTime(entPlayer, xHand);
+    if(grabbed <= released || time >= grabbed + window)
+    {
+        return FALSE;
+    }
+    if(released + 0.125 > grabbed)
+    {
+        return ent.velocity_z < 0 && time >= released + 0.05;
+    }
+    return TRUE;
+}
+
 float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
 {
     entity entPlayer = ent.handtouch_ent;
@@ -6121,7 +6263,7 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
     float performWeaponSwitch = FALSE;
 
     // Must catch it: the grab started as it touches, or a force grab caught in time.
-    if(VRGetHandtouchHand(ent) == xHand && (pStartedGrabbing || forcegrabCatching))
+    if(VRGetHandtouchHand(ent) == xHand && (pStartedGrabbing || forcegrabCatching || wpnthrow_midair_catch(ent, entPlayer, xHand)))
     {
         performWeaponSwitch = TRUE;
     }
@@ -6892,7 +7034,7 @@ VRUnloadWeapon =
 void(entity entPlayer, float xHand, float xWeapon, float xWeaponFlags)
 VRTryReloadWeapon =
 {
-    if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) && !VR_Reload_ManualFor(xWeapon) &&
+    if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) && !VR_Reload_ManualForInst(xWeapon, VRGetEntWeaponInst(entPlayer, xHand)) &&
        (VRGetEntWeaponClip(entPlayer, xHand) < WeaponIdToBaseClipSize(xWeapon)) &&
        PlayerHasAmmoForWeapon(entPlayer, xWeapon, xWeaponFlags))
     {
@@ -6909,11 +7051,22 @@ VRTryUnloadWeapon =
     }
 }
 
+// The save's original weapon instance stays in this hand briefly after loading (both release checks agree).
+float(entity ent, float xHand) VRWeaponLoadProtected =
+{
+    entity restored = xHand == cVR_MainHand ? ent.vr_weapon_load_main : ent.vr_weapon_load_off;
+    return time < ent.vr_weapon_load_until && restored != world && restored == VRGetEntWeaponInst(ent, xHand);
+}
+
 // Whether the weapon in `xHand` is let go of (to be thrown, holstered or switched to the other
 // hand): with vr_weapon_grip_mode 0 whenever its grip is not held; with 1 ("sticky") only once
 // the grip is let go a second time since the weapon came to the hand.
 float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
 {
+    if(VRWeaponLoadProtected(ent, xHand))
+    {
+        return FALSE;
+    }
     float grabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
     if(cvar_hget(cvarh_vr_weapon_grip_mode) != 1)
     {
@@ -6975,7 +7128,7 @@ float(float xHotspot) VRLetGoDropsAt =
 // a throw fires no last shot as the weapon leaves.
 float(entity ent, float xHand) VRWeaponLeavingHand =
 {
-    if(VRIsHandWeaponless(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand))
+    if(VRIsHandWeaponless(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand) || VRWeaponLoadProtected(ent, xHand))
     {
         return FALSE;
     }

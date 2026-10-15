@@ -1342,6 +1342,12 @@ void Con_Printf (const char *fmt, ...)
 // also echo to debugging console
 	Sys_Printf ("%s", Con_StripControlPrefixes (msg));
 
+	// QVR: background file/map parsing may log, but must not touch the console buffer or GL.
+	if (!VR_OnMainThread ())
+		return;
+
+	VR_TestConsolePrint (msg); // QVR: vr_waitprint's wait for a line
+
 	if (!con_initialized)
 		return;
 
@@ -1529,6 +1535,13 @@ void Con_SafePrintf (const char *fmt, ...)
 	va_start (argptr, fmt);
 	q_vsnprintf (msg, sizeof(msg), fmt, argptr);
 	va_end (argptr);
+
+	// QVR: never race the main thread's loading flag; Con_Printf keeps worker output in the log.
+	if (!VR_OnMainThread ())
+	{
+		Con_Printf ("%s", msg);
+		return;
+	}
 
 	temp = scr_disabled_for_loading;
 	scr_disabled_for_loading = true;
@@ -2618,6 +2631,30 @@ void LOG_Init (quakeparms_t *parms)
 
 	Con_DebugLog (va("LOG started on: %s \n", session));
 
+}
+
+/*
+================
+LOG_Reopen
+
+QVR: the console log from here on in path (diagnostics mode: vr/vr_diagnostics.cpp), with or without -condebug
+================
+*/
+void LOG_Reopen (const char *path)
+{
+	time_t	now = time (NULL);
+	char	session[24];
+	int	fd = open (path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	if (fd == -1)
+	{
+		fprintf (stderr, "Error: Unable to create log file %s\n", path);
+		return;
+	}
+	if (log_fd != -1)
+		close (log_fd);
+	log_fd = fd;
+	strftime (session, sizeof(session), "%m/%d/%Y %H:%M:%S", localtime(&now));
+	Con_DebugLog (va("LOG started on: %s \n", session));
 }
 
 void LOG_Close (void)

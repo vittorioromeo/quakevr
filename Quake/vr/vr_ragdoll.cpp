@@ -4,6 +4,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_tracy.h"
 #include "vr_api_render.h"
 #include "vr_cvars.hpp"
 #include "vr_box3d.hpp"
@@ -55,6 +56,9 @@ using ragdoll::Rig;
 using ragdoll::maxBones;
 
 constexpr float deg = 0.017453292f;
+// A loose piece no bigger than this (units, its largest side) in the rest pose is a speck tucked away, hidden in the
+// ragdoll (derive; the zombie's and the mummy's flesh 1.2-1.4, a weapon 25 or more).
+constexpr float looseSpeck = 4.f;
 
 // ----------------------------------------------------------------------------
 // The seed tables: per model, its bones (where they are in the rest pose, pose 0) and joints. Numbers of ours (measured
@@ -520,7 +524,12 @@ constexpr Seed playerSeeds[] = {
     {"shin_r", 9, Joint::Hinge, {-22.4f, -4.5f, -16.3f}, {-19.4f, -4.7f, -11.9f}, {-24.6f, -4.4f, -19.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+#define QVR_AD_RIG_SEEDS
+#include "vr_ad_rigs.inc" // AD support: Arcane Dimensions' monsters' seeds
+#undef QVR_AD_RIG_SEEDS
+
 constexpr SeedTable seedTables[] = {
+#include "vr_ad_rigs.inc" // AD support: their tables
     {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
     {modelmeta::Id::Ogre, 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},
@@ -943,6 +952,9 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ||
         hdr->numverts != table.numVerts || hdr->numposes < 2 || table.count > maxBones)
     {
+        // (Said once a model, not only to developers: another .mdl or an .md5 in its place, a model pack's, leaves that
+        // monster's dead without ragdolls; a player's console shows why. rigFor remembers the failure.)
+        log.developer = false;
         q_snprintf(log.text, sizeof(log.text),
             "ragdoll: %s is not the model its seed table was made for (%d vertices, the table's %d; pose type %d; %d poses; "
             "surfaces %s)\n",
@@ -1305,6 +1317,26 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     }
     const SeedTable& tb = table;
     rig.hideLoose = tb.looseWeapons;
+    // A loose piece tucked away in the rest pose (the zombie's and the mummy's flesh, shrunk inside the chest until he
+    // throws it): its ragdoll part would be that speck (a part is its rest pose's hull), its 3 kg in a fraction of a
+    // unit, welded in a knocked-down one's chest (vr_knockdown_weld) 166 times denser than the body and whirling
+    // so fast it shook the whole ragdoll apart (a judo-thrown mummy's parts hitting the floor at 4000-12000 u/s, fall
+    // damage on flat ground; ROUND22.md). Hidden in every ragdoll, as the player's weapons are.
+    for(int b = table.count; b < numBones; b++)
+    {
+        const Bone& bone = rig.bones[b];
+        glm::vec3 lo{1e30f}, hi{-1e30f};
+        for(const glm::vec3& p : bone.points)
+        {
+            lo = glm::min(lo, p);
+            hi = glm::max(hi, p);
+        }
+        if(bone.joint == Joint::Loose && !bone.points.empty() &&
+            za::max(hi.x - lo.x, za::max(hi.y - lo.y, hi.z - lo.z)) < looseSpeck)
+        {
+            rig.hideLoose = true;
+        }
+    }
     rig.deaths = tb.deaths;
     for(int i = 0; i < tb.deaths; i++)
     {
@@ -1677,6 +1709,23 @@ bool eligible(const qmodel_t* model)
     return tableOf(model) != nullptr;
 }
 
+bool deathBoundary(const qmodel_t* model, const aliashdr_t* hdr, int frame, bool first)
+{
+    // (only for the model the table was made for, as derive() checks: a mod's other soldier.mdl has its own frames)
+    if(const SeedTable* t = tableOf(model); t && hdr && hdr->poseverttype == aliashdr_t::PV_QUAKE1 &&
+        hdr->numverts == t->numVerts && !Mod_NextSurface(const_cast<aliashdr_t*>(hdr)))
+    {
+        for(int i = 0; i < t->deaths; i++)
+        {
+            if(frame == (first ? t->deathFirst[i] : t->deathLast[i]))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 const Rig* rigFor(qmodel_t* model)
 {
     const SeedTable* table = tableOf(model);
@@ -1808,6 +1857,18 @@ float deathProgress(const Rig& rig, int frame)
         }
     }
     return -1.f;
+}
+
+int deathEnd(const Rig& rig, int frame)
+{
+    for(int i = 0; i < rig.deaths; i++)
+    {
+        if(frame >= rig.deathFirst[i] && frame <= rig.deathLast[i])
+        {
+            return rig.deathLast[i];
+        }
+    }
+    return -1;
 }
 
 uint32_t headBones(const Rig& rig)
@@ -2388,6 +2449,16 @@ void swapModels()
     recordGetup();
 }
 
+#ifdef QVR_TRACY
+void tracyPlots()
+{
+    int count = 0, bodies = 0;
+    for(const auto& p : draw.byNum)
+        if(p.rig) { ++count; bodies += p.bodies; }
+    VR_TracyPlot("Published ragdolls", count);
+    VR_TracyPlot("Published ragdoll bodies", bodies);
+}
+#endif
 void restoreModels()
 {
     for(const Swapped& s : draw.swapped)

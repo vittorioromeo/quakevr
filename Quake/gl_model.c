@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // on the same machine.
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 static qmodel_t*	loadmodel;
 static char	loadname[32];	// for hunk tags
 
@@ -275,6 +276,27 @@ void Mod_ReloadAliasModel (qmodel_t *mod)
 
 /*
 ===================
+Mod_ReuploadAliasModels -- QVR: every loaded alias model's vertex buffer built again from its data (vr_mdl_dequant)
+===================
+*/
+void Mod_ReuploadAliasModels (void)
+{
+	int		i;
+	qmodel_t	*mod;
+	void	*hdr;
+
+	for (i=0 , mod=mod_known ; i<mod_numknown ; i++, mod++)
+	{
+		if (mod->type != mod_alias || mod->needload || !mod->meshvbo)
+			continue;
+		hdr = Cache_Check (&mod->cache);
+		if (hdr)
+			GLMesh_LoadVertexBuffer (mod, (aliashdr_t *) hdr);
+	}
+}
+
+/*
+===================
 Mod_ReloadAliasModels -- QVR: vr_model_reload: every loaded alias model whose name `match` accepts, read again; the
 number read
 ===================
@@ -413,6 +435,7 @@ Loads a model into the cache
 */
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 {
+	VR_TRACY_SCOPE("Model preparation");
 	byte	*buf;
 	int		mod_type;
 	qboolean	derived, recorded; // QVR
@@ -442,6 +465,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	VR_ModelMetadataChanged (mod); // QVR: alias-cache eviction and explicit reload invalidate copied metadata
 	VR_ModelSourcesForget (mod); // QVR: the files it was made from (a campaign switch's check: recorded below)
 	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
+		return mod;
+	if (VR_RuntimeBrushModel (mod)) // QVR: a box made in the game (vr/vr_brushes.cpp)
 		return mod;
 	buf = VR_DerivedModelFile (mod->name, &mod->path_id); // QVR: a model made from another's file (a taken torch's flame)
 	derived = buf != NULL; // QVR
@@ -792,6 +817,7 @@ static void Mod_LoadTextures (lump_t *l)
 				else //use the texture from the bsp file
 				{
 					qboolean fullbrights = Mod_CheckFullbrights ((byte *)(tx+1), pixels); // QVR: kept for the external maps
+					int extmaps = VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height); // QVR: before the normal map (vr_pbr asks whether the pack's is complete)
 					q_snprintf (texturename, sizeof(texturename), "%s:%s", loadmodel->name, tx->name);
 					offset = (src_offset_t)(mt+1) - (src_offset_t)mod_base;
 					if (fullbrights)
@@ -815,11 +841,16 @@ static void Mod_LoadTextures (lump_t *l)
 						tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
 							SRC_INDEXED, (byte *)(tx+1), loadmodel->name, offset, TEXPREF_MIPMAP | extraflags);
 					}
-					// QVR: heights only if drawn smooth (the shifts would bend its texels), but for the ammo and
-					// health boxes (the expansions' have no replacement textures), whose depth is a texel or two
-					VR_LoadNormalMap (tx->gltexture, NULL, NULL, (byte *)(tx+1), SRC_INDEXED, tx->width,
+					// QVR: a made map's heights only if drawn smooth (the shifts would bend its texels), but for the
+					// ammo and health boxes (the expansions' have no replacement textures), whose depth is a texel or
+					// two; authored and companion maps keep theirs. Authored _norm/_bump files beside the texture's
+					// name only with content companions on (vr_pbr; off: the made map alone, no lookups, as before)
+					q_snprintf (filename, sizeof(filename), "textures/%s/%s", mapname, tx->name); // QVR
+					q_snprintf (texturename, sizeof(texturename), "textures/%s", tx->name); // QVR
+					VR_LoadNormalMap (tx->gltexture, VR_PBREnabled () ? filename : NULL, VR_PBREnabled () ? texturename : NULL,
+						(byte *)(tx+1), SRC_INDEXED, tx->width,
 						TexMgr_IndexedSmooth () || VR_ModelHasTrait (loadmodel, VR_MODEL_TRAIT_AmmoBoxInsensitive) ? NORMALMAP_HEIGHTS : 0);
-					if (VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height)) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
+					if (extmaps) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
 						VR_ExtMapsAttach (tx, loadmodel, fullbrights);
 				}
 				Hunk_FreeToLowMark (mark);
@@ -4369,6 +4400,11 @@ error:
 static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shader)
 {
 	char texname[MAX_QPATH];
+	// QVR: Quake VR's body skins (shader "vrbody": VR_MD5SharedSkins) are one copy for all its builds and bare/bracer
+	// models, which use the same 16 skins: unowned and kept for the session (TEXPREF_PERSIST), as are their normal maps
+	// (a normal map takes its skin's owner and persistence); a model's own skins are its own as before
+	qmodel_t *skinowner = VR_MD5SharedSkins (shader) ? NULL : mod;
+	int skinpersist = skinowner ? 0 : TEXPREF_PERSIST;
 
 	VR_MD5SkinsReset (); // QVR: (VR_MD5SkinNormalMap) the islands made anew for this surface
 
@@ -4384,28 +4420,36 @@ static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shade
 		{
 			q_snprintf(texname, sizeof(texname), "progs/%s_%02u_%02u", shader, surf->numskins, f);
 
+			// QVR: a shared skin another model loaded already (its normal map is linked to it already)
+			if (!skinowner && (surf->gltextures[surf->numskins][f] = TexMgr_FindTexture (NULL, texname)) != NULL)
+			{
+				gltexture_t *fb = TexMgr_FindTexture (NULL, va ("%s_glow", texname));
+				surf->fbtextures[surf->numskins][f] = fb ? fb : TexMgr_FindTexture (NULL, va ("%s_luma", texname));
+				continue;
+			}
+
 			data = Image_LoadImage (texname, (int*)&fwidth, (int*)&fheight, &fmt);
 			//now load whatever we found
 			if (data) //load external image
 			{
-				surf->gltextures[surf->numskins][f] = TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_NOBRIGHT|TEXPREF_MIPMAP );
+				surf->gltextures[surf->numskins][f] = TexMgr_LoadImage (skinowner, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_NOBRIGHT|TEXPREF_MIPMAP|skinpersist ); // QVR: skinowner, skinpersist
 				surf->fbtextures[surf->numskins][f] = NULL;
 				if (fmt == SRC_INDEXED)
 				{	//8bit base texture. use it for fullbrights.
 					if (Mod_CheckFullbrights (data, fwidth*fheight))
-						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (mod, va("%s_luma", texname), fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_FULLBRIGHT|TEXPREF_MIPMAP );
+						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (skinowner, va("%s_luma", texname), fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_FULLBRIGHT|TEXPREF_MIPMAP|skinpersist );
 				}
 				else
 				{	//we found a 32bit base texture.
 					if (!surf->fbtextures[surf->numskins][f])
 					{
 						q_snprintf(texname, sizeof(texname), "progs/%s_%02u_%02u_glow", shader, surf->numskins, f);
-						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP);
+						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(skinowner, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP|skinpersist);
 					}
 					if (!surf->fbtextures[surf->numskins][f])
 					{
 						q_snprintf(texname, sizeof(texname), "progs/%s_%02u_%02u_luma", shader, surf->numskins, f);
-						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP);
+						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(skinowner, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP|skinpersist);
 					}
 				}
 

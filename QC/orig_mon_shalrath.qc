@@ -70,6 +70,19 @@ void() shal_attack9     =[      $attack9,       shal_attack10   ] {ShalMissile()
 void() shal_attack10    =[      $attack10,      shal_attack11   ] {ai_face();};
 void() shal_attack11    =[      $attack11,      shal_run1   ] {};
 
+// VR: the shove (vr_enemyshove.qc; ROUND22.md, "The vore shoves you"): up close, the end of its throw without the ball
+// -- its arms drawn back and up, swung forward and down at you (the blow, its 5th frame), back.
+void() shal_shove1      =[      $attack5,       shal_shove2     ] {
+sound(self, CHAN_VOICE, "shalrath/attack.wav", 1, ATTN_NORM);
+ai_face();
+};
+void() shal_shove2      =[      $attack6,       shal_shove3     ] {ai_face();};
+void() shal_shove3      =[      $attack7,       shal_shove4     ] {ai_face();};
+void() shal_shove4      =[      $attack8,       shal_shove5     ] {ai_face();};
+void() shal_shove5      =[      $attack9,       shal_shove6     ] {VR_EnemyShove_Hit();};
+void() shal_shove6      =[      $attack10,      shal_shove7     ] {};
+void() shal_shove7      =[      $attack11,      shal_run1       ] {};
+
 void() shal_pain1       =[      $pain1, shal_pain2      ] {};
 void() shal_pain2       =[      $pain2, shal_pain3      ] {};
 void() shal_pain3       =[      $pain3, shal_pain4      ] {};
@@ -223,7 +236,7 @@ void() monster_shalrath =
     precache_sound2("shalrath/sight.wav");
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
         self.cnt = -1;
     }
 
@@ -235,11 +248,12 @@ void() monster_shalrath =
     self.th_die = shalrath_die;
     self.th_pain = shalrath_pain;
     self.th_missile = shal_attack1;
+    self.th_vrshove = shal_shove1; // (VR: up close, vr_enemyshove.qc)
 
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = shalrath_start;
         return;

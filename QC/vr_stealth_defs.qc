@@ -25,6 +25,8 @@
 .float stl_class;       // 0 not yet known; 1 the stealth rules apply; -1 excluded (a boss, a flyer, a swimmer)
 .float stl_hear;        // its kind's hearing (times)
 .float stl_sight;       // and eyes (the meter's rate, times)
+.float stl_ad;          // AD support: one of AD's monsters (its own AI: vr_ad_stealth.qc): 1, 2 one that never walks; -1
+                        // excluded; 0 not AD's
 .float stl_look_time;   // searching: when it looks elsewhere next; walking: until when it walks
 .float stl_look_base;   // and the yaw it looks about
 .vector stl_walk_from;  // walking: where it was a second ago

@@ -1657,6 +1657,134 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     return surfaceAbove(org, 96.f, surface) ? za::max(0, static_cast<int>(45.f - 0.3f * (surface.z - org.z))) : 0;
 }
 
+// AD support: a flamethrower's stream (Preset::AdFlame, AdPoison): our torches' fire tongues (CellFire, as fireSource)
+// at random angles over AD's flame sprite, going its way (`dir` its velocity / 100) and slowing, rising, fading.
+void adStreamFire(const glm::vec3& org, const glm::vec3& dir, int count, bool poison)
+{
+    const glm::vec3 vel = dir * 100.f;
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellFire;
+        p.type = Custom;
+        p.additive = true;
+        const glm::vec3 c = poison ? glm::mix(glm::vec3{0.2f, 0.85f, 0.12f}, glm::vec3{0.55f, 1.f, 0.25f}, rnd(0.f, 1.f))
+                                   : fireColor();
+        const float life = rnd(0.25f, 0.45f);
+        p.color = glm::vec4{c, poison ? 0.5f : 0.65f};
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(6.f, 10.f);
+        p.grow = 16.f;
+        p.spin = rnd(-2.5f, 2.5f);
+        p.drag = 2.f;
+        p.org = org + inBox(3.f);
+        p.vel = vel * rnd(0.5f, 0.9f) + inBox(12.f) + glm::vec3{0.f, 0.f, 10.f};
+        p.acc = glm::vec3{0.f, 0.f, poison ? 8.f : 45.f};
+    });
+}
+
+// AD support: puffs of green smoke over a poisoned body (Preset::PoisonPuff): rising from anywhere in its box (`half`
+// its half size / 16), swelling and thinning.
+void poisonPuff(const glm::vec3& org, const glm::vec3& half, int count)
+{
+    const glm::vec3 box = glm::abs(half) * 16.f;
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        p.type = Custom;
+        // (Faintly glowing, as AD's poison: additive, so that it shows in the dark too.)
+        p.additive = true;
+        const float g = rnd(0.8f, 1.1f);
+        p.color = glm::vec4{0.32f * g, 0.75f * g, 0.12f * g, rnd(0.3f, 0.45f)};
+        const float life = rnd(1.f, 1.6f);
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(2.4f, 3.6f);
+        p.grow = 2.5f;
+        p.spin = rnd(-0.6f, 0.6f);
+        p.drag = 0.8f;
+        p.org = org + glm::vec3{rnd(-box.x, box.x), rnd(-box.y, box.y), rnd(-box.z, box.z)} * 0.8f;
+        p.vel = inBox(6.f) + glm::vec3{0.f, 0.f, rnd(6.f, 14.f)};
+        p.acc = glm::vec3{0.f, 0.f, 4.f};
+    });
+}
+
+// Short blue-white crackling arcs (CellLightning), `count` of them about `org`, `reach` units out.
+void electricArcs(const glm::vec3& org, float count, float reach, float size)
+{
+    make(count, [&](Particle& p, int) {
+        p.cell = CellLightning;
+        p.type = Custom;
+        p.additive = true;
+        const float w = rnd(0.8f, 1.f);
+        p.color = glm::vec4{w * rnd(0.55f, 0.75f), w * rnd(0.75f, 0.9f), w, rnd(0.7f, 1.f)};
+        const float life = rnd(0.05f, 0.14f);
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(0.7f, 1.3f) * size;
+        p.spin = rnd(-20.f, 20.f);
+        p.org = org + inBox(reach);
+    });
+}
+
+// AD support: an electric gun's muzzle or its bolt's hit (Preset::ElectricSparks): crackling arcs and `count` quick
+// blue-white sparks thrown along `dir`.
+void electricSparks(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const glm::vec3 d = glm::length(dir) > 0.01f ? glm::normalize(dir) : glm::vec3{0.f};
+    electricArcs(org + d * 2.f, za::max(1.f, count * 0.4f), 2.f, 2.2f);
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSpark;
+        const float w = rnd(0.8f, 1.f);
+        p.color = glm::vec4{w * rnd(0.6f, 0.85f), w * rnd(0.8f, 1.f), w, 1.f};
+        const float life = rnd(0.12f, 0.35f);
+        p.die = cl.time + life;
+        p.scale = rnd(0.2f, 0.4f);
+        p.type = Custom;
+        p.fade = -1.f / life;
+        p.grow = -0.3f;
+        p.drag = 1.5f;
+        p.additive = true;
+        p.streak = 0.025f;
+        p.acc = gravity(0.5f);
+        p.org = org + inBox(0.5f);
+        p.vel = d * rnd(40.f, 140.f) + onSphere() * rnd(30.f, 80.f);
+    });
+}
+
+// AD support: AD's plasma rifles' bolt (progs/proj_plasma.mdl, the soldiers', eliminators' and centurions', theirs and
+// the player's: its model's grenade smoke flag): a faint smoke and crackling arcs and sparks along it.
+void electricTrail(const glm::vec3& from, const glm::vec3& to)
+{
+    const float length = glm::length(to - from);
+    smokeTrail(from, to, 9.f, 0.6f, 0.12f, 0.6f);
+    const glm::vec3 d = to - from;
+    const float arcs = perLength(length, 9.f);
+    for(int i = 0; i < static_cast<int>(arcs); i++)
+    {
+        electricArcs(from + d * rnd(0.f, 1.f), 1.f, 1.5f, 1.4f);
+    }
+    make(perLength(length, 12.f), [&](Particle& p, int) {
+        p.cell = CellSpark;
+        const float w = rnd(0.8f, 1.f);
+        p.color = glm::vec4{w * rnd(0.6f, 0.85f), w * rnd(0.8f, 1.f), w, 1.f};
+        const float life = rnd(0.15f, 0.3f);
+        p.die = cl.time + life;
+        p.scale = rnd(0.18f, 0.32f);
+        p.type = Custom;
+        p.fade = -1.f / life;
+        p.drag = 2.f;
+        p.additive = true;
+        p.streak = 0.02f;
+        p.acc = gravity(0.3f);
+        p.org = from + d * rnd(0.f, 1.f) + inBox(1.f);
+        p.vel = onSphere() * rnd(25.f, 70.f);
+    });
+}
+
+[[nodiscard]] bool adElectricBolt(const qmodel_t* m)
+{
+    return m && !strcmp(m->name, "progs/proj_plasma.mdl"); // AD support
+}
+
 } // namespace
 
 bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
@@ -1720,6 +1848,10 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         case Preset::ChainsawSmoke: chainsawSmoke(org, glm::length(dir) > 0.01f ? glm::normalize(dir) : dir, count); break;
         case Preset::ContactSparks: contactSparks(org, count); break;
         case Preset::BatterySmoke: batterySmoke(org, count); break;
+        case Preset::AdFlame: adStreamFire(org, dir, count, false); break;
+        case Preset::AdPoison: adStreamFire(org, dir, count, true); break;
+        case Preset::PoisonPuff: poisonPuff(org, dir, count); break;
+        case Preset::ElectricSparks: electricSparks(org, dir, count); break;
         default: blood(org, dir, count); break;
     }
     return true;
@@ -2146,6 +2278,74 @@ void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright)
         p.org = org;
         p.vel = vel;
     });
+}
+
+void hotEmber(const glm::vec3& org, const glm::vec3& vel, const glm::vec3& color, float bright)
+{
+    if(bright <= 0.f || !enabled())
+    {
+        return;
+    }
+
+    // Small and hot: the glow's colour, yellower in the middle of some, rising off the metal and dimming as they go.
+    make(1.f, [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.additive = true;
+        const float yellow = rnd(0.f, 0.45f);
+        p.color = glm::vec4{glm::mix(color, glm::vec3{1.f, 0.85f, 0.45f}, yellow), za::min(1.f, bright)};
+        p.die = cl.time + rnd(0.35f, 0.8f);
+        p.scale = rnd(0.3f, 0.55f);
+        p.type = Custom;
+        p.fade = -1.4f;
+        p.grow = -0.3f;
+        p.drag = 1.6f;
+        p.spin = rnd(-6.f, 6.f);
+        p.acc = gravity(-0.025f);
+        p.org = org;
+        p.vel = vel;
+    }, false);
+}
+
+void hotTrail(const glm::vec3& org, const glm::vec3& vel, const glm::vec3& color, float bright, float life, bool spark)
+{
+    if(bright <= 0.f || life <= 0.f || !enabled())
+    {
+        return;
+    }
+
+    make(1.f, [&](Particle& p, int) {
+        p.additive = true;
+        p.type = Custom;
+        p.org = org;
+        p.vel = vel;
+        const float l = life * rnd(0.6f, 1.f);
+        p.die = cl.time + l;
+        if(spark)
+        {
+            // A spark thrown off the hot metal: bright, tiny, falling a little.
+            p.cell = CellSpark;
+            p.color = glm::vec4{glm::mix(color, glm::vec3{1.f, 0.9f, 0.6f}, rnd(0.3f, 0.7f)), za::min(1.f, bright)};
+            p.scale = rnd(0.25f, 0.45f);
+            p.fade = -za::min(1.f, bright) / l;
+            p.grow = -0.15f;
+            p.drag = 2.5f;
+            p.acc = gravity(0.06f);
+            p.spin = rnd(-8.f, 8.f);
+        }
+        else
+        {
+            // A small tongue of flame hanging in the air where the blade passed, rising as it fades.
+            p.cell = CellFire;
+            p.angle = -1.5707963f + rnd(-0.4f, 0.4f); // upright (the shader turns +angle counterclockwise)
+            p.color = glm::vec4{glm::mix(color, glm::vec3{1.f, 0.6f, 0.15f}, 0.35f), 0.75f * za::min(1.f, bright)};
+            p.scale = rnd(1.f, 1.8f);
+            p.fade = -p.color.a / l;
+            p.grow = 0.6f;
+            p.drag = 3.f;
+            p.acc = gravity(-0.03f);
+            p.spin = rnd(-0.4f, 0.4f);
+        }
+    }, false);
 }
 
 void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
@@ -3262,6 +3462,11 @@ extern "C" int VR_EntityTrail(int ent, int type)
         const glm::vec3 extent{e.model->maxs[0] - e.model->mins[0], e.model->maxs[1] - e.model->mins[1],
             e.model->maxs[2] - e.model->mins[2]};
         size = za::clamp(glm::length(extent) * 0.5f / 9.f, 0.7f, 2.5f);
+    }
+    if((type & 127) == 1 && qvr::vr_adgun_bolt_fx.value && adElectricBolt(e.model)) // AD support: its plasma rifles' bolt: electric, not grenade smoke
+    {
+        electricTrail({e.trailorg[0], e.trailorg[1], e.trailorg[2]}, {e.origin[0], e.origin[1], e.origin[2]});
+        return 1;
     }
     rocketTrail({e.trailorg[0], e.trailorg[1], e.trailorg[2]}, {e.origin[0], e.origin[1], e.origin[2]}, type, size);
     return 1;

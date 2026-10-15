@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_decals.hpp"
+#include "vr_brushes.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -9,6 +10,7 @@
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_modellight.hpp"
+#include "vr_permdecals.hpp"
 #include "vr_profile.hpp"
 #include "vr_retro.hpp"
 #include "vr_stereo.hpp"
@@ -118,6 +120,9 @@ struct Decal
     // a mark keeps its place, so only the new ones are hashed when the grid is made again.
     za::Vector<za::U32> buckets;
     za::U32 bucketsMask = 0;
+    int brush = 0; // the runtime brush (vr_brushes.cpp) it lies on, by id (0: none; -1: more than one)
+    bool permTried = false; // baked into the permanent layer and found no face there (vr_permdecals: it stays live)
+    bool fromLayer = false; // one of the permanent layer's, shown live while it is off (showRecord: dropped when on)
 };
 
 // Oldest first (drawn in that order; the oldest go first): a ring of vr_decal_max slots, whose marks' triangles keep
@@ -715,8 +720,20 @@ void makeAtlas()
 // The static world along `from` -> `to`: where, and its normal.
 [[nodiscard]] bool hitWorld(const glm::vec3& from, const glm::vec3& to, glm::vec3& where, glm::vec3& normal, float& fraction)
 {
-    const trace_t tr = worldtrace::world(from, to, false);
-    if(tr.fraction >= 1.f || tr.startsolid || tr.allsolid)
+    // With the permanent layer (vr_permdecals), the brush models too: a mark on a door is baked into its faces.
+    const trace_t tr = worldtrace::world(from, to, permdecals::on());
+    const bool world = tr.fraction < 1.f && !tr.startsolid && !tr.allsolid;
+    // The boxes made in the game are the world's kind too (vr_brushes.cpp): the nearer of the two.
+    glm::vec3 bw, bn;
+    float bf = 1.f;
+    if(brushes::traceLine(from, to, bw, bn, bf) && (!world || bf < tr.fraction))
+    {
+        where = bw;
+        normal = bn;
+        fraction = bf;
+        return true;
+    }
+    if(!world)
     {
         return false;
     }
@@ -773,10 +790,12 @@ void clipPolygon(const za::Vector<glm::vec3>& poly, const glm::vec3& normal, flo
 // Lays decal `d` (on a surface facing `n`) on the world: its footprint (the box of its centre, u
 // and v, `depth` deep either side of the surface) cut out of each face of the world in it that faces
 // about its way, as triangles (into `tris`, emptied first), lifted off the face a little. Faces are found down the BSP
-// tree (those on the nodes whose planes cross the box); sky, liquids and fences are left out.
-void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Corner>& tris)
+// tree (those on the nodes whose planes cross the box); sky, liquids and fences are left out. `brush`: the runtime brush
+// it was laid on (0: none, -1: more than one).
+void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Corner>& tris, int& brush)
 {
     tris.clear();
+    brush = 0;
     const qmodel_t* m = cl.worldmodel;
     const float hu = glm::length(d.u), hv = glm::length(d.v);
     if(!m || !m->nodes || hu <= 0.f || hv <= 0.f)
@@ -793,6 +812,30 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
     za::Vector<glm::vec3>& poly = scratch.poly;
     za::Vector<glm::vec3>& clipped = scratch.clipped;
     constexpr za::SizeT maxCorners = 32 * 3; // over very broken ground, the rest is left out
+    // `poly` (a face facing `sn`) cut to the footprint, as triangles into `tris`.
+    const auto layOn = [&](const glm::vec3& sn) {
+        for(int k = 0; k < 4 && poly.size() >= 3; k++)
+        {
+            clipPolygon(poly, sideNormal[k], sideDist[k], clipped);
+            poly.swap(clipped);
+        }
+        if(poly.size() < 3)
+        {
+            return;
+        }
+        // A fan of triangles, lifted off the face (not fighting it for depth), its cell
+        // coordinates from where each corner is in the footprint.
+        const auto corner = [&](const glm::vec3& p) {
+            const glm::vec3 r = p - d.centre;
+            return Corner{p + sn * 0.2f, {glm::dot(r, U) / hu * 0.5f + 0.5f, glm::dot(r, V) / hv * 0.5f + 0.5f}};
+        };
+        for(za::SizeT k = 1; k + 1 < poly.size() && tris.size() < maxCorners; k++)
+        {
+            tris.pushBack(corner(poly[0]));
+            tris.pushBack(corner(poly[k]));
+            tris.pushBack(corner(poly[k + 1]));
+        }
+    };
     const mnode_t* stack[256];
     int top = 0;
     stack[top++] = m->nodes + m->hulls[0].firstclipnode;
@@ -851,29 +894,28 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
                 const float* p = m->vertexes[vi].position;
                 poly.pushBack({p[0], p[1], p[2]});
             }
-            for(int k = 0; k < 4 && poly.size() >= 3; k++)
-            {
-                clipPolygon(poly, sideNormal[k], sideDist[k], clipped);
-                poly.swap(clipped);
-            }
-            if(poly.size() < 3)
-            {
-                continue;
-            }
-            // A fan of triangles, lifted off the face (not fighting it for depth), its cell
-            // coordinates from where each corner is in the footprint.
-            const auto corner = [&](const glm::vec3& p) {
-                const glm::vec3 r = p - d.centre;
-                return Corner{p + sn * 0.2f, {glm::dot(r, U) / hu * 0.5f + 0.5f, glm::dot(r, V) / hv * 0.5f + 0.5f}};
-            };
-            for(za::SizeT k = 1; k + 1 < poly.size() && tris.size() < maxCorners; k++)
-            {
-                tris.pushBack(corner(poly[0]));
-                tris.pushBack(corner(poly[k]));
-                tris.pushBack(corner(poly[k + 1]));
-            }
+            layOn(sn);
         }
     }
+    // The boxes made in the game (vr_brushes.cpp): their faces in the footprint's box, as the world's.
+    brushes::facesIn(lo, hi, [&](const za::Vector<glm::vec3>& face, const glm::vec3& sn, int id) {
+        if(tris.size() >= maxCorners || face.size() < 3 || glm::dot(sn, n) < 0.5f ||
+            za::fabs(glm::dot(d.centre - face[0], sn)) > depth)
+        {
+            return;
+        }
+        poly.clear();
+        for(const glm::vec3& p : face)
+        {
+            poly.pushBack(p);
+        }
+        const za::SizeT before = tris.size();
+        layOn(sn);
+        if(tris.size() > before)
+        {
+            brush = brush == 0 || brush == id ? id : -1;
+        }
+    });
 }
 
 // The direction along a surface at `where` (normal `n`) that the light lighting it comes from: the
@@ -925,6 +967,117 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
     }
     const glm::vec3 up = glm::vec3{0.f, 0.f, 1.f} - n * n.z;
     return glm::length(up) > 0.3f ? glm::normalize(up) : glm::vec3{0.f};
+}
+
+// Mark `d` as the permanent layer bakes it (vr_permdecals.cpp): settled (spread to its full size, darkened).
+[[nodiscard]] permdecals::Stamp stampOf(const Decal& d)
+{
+    return {d.centre, d.u, d.v, d.normal, d.depth, 1.f - d.darken, d.cell, 0};
+}
+
+// A live mark the ring lets go of (to the cap, a drop's limit, its life) before it was baked: baked as it would have
+// settled with the permanent layer on (vr_permdecals), not lost; with the layer off, kept for when it is on again
+// (permdecals::record; the rule: vr_permdecals.hpp's kept).
+void bakeEarly(const Decal& d)
+{
+    if(d.brush != 0 || d.permTried || d.fromLayer)
+    {
+        return;
+    }
+    if(permdecals::on())
+    {
+        (void)permdecals::bakeWorld(stampOf(d));
+    }
+    else
+    {
+        permdecals::record(stampOf(d));
+    }
+}
+
+// Mark `d` (its triangles `tris`) into the ring: the oldest go first if it is full (as many as vr_decal_max, lowered,
+// leaves no room for), the ring made `max` long if that changed; into the ring's next slot, its triangles into the
+// buffer the slot's last mark had.
+void pushDecal(const Decal& d, const za::Vector<Corner>& tris, int max)
+{
+    while(decals.size() >= static_cast<za::SizeT>(max))
+    {
+        bakeEarly(decals.front());
+        popOldest();
+    }
+    if(decals.capacity() != static_cast<za::SizeT>(max))
+    {
+        decals.setCapacity(static_cast<za::SizeT>(max));
+    }
+    Decal& slot = decals.pushBack();
+    za::Vector<Corner> buffer = ZA_MOVE(slot.tris);
+    za::Vector<za::U32> bucketBuffer = ZA_MOVE(slot.buckets);
+    slot = d;
+    slot.staticAt = -1;
+    slot.tris = ZA_MOVE(buffer);
+    slot.buckets = ZA_MOVE(bucketBuffer);
+    slot.buckets.clear();
+    slot.bucketsMask = 0;
+    slot.tris.assignRange(tris.begin(), tris.end());
+    dropCount += isDrop(slot);
+    worldDirty = true; // (`vertices`, made each frame, take it in the next one: in both eyes together)
+}
+
+// The permanent layer switched off (vr_permdecals 0), or a save loaded with it off: the newest of its marks on the
+// static world shown live, as many as the ring has room for (vr_decal_max with the live ones), older than the live ones
+// (the ring's order), settled (spread, darkened) and with a whole life ahead (vr_decal_life). They stay in the layer's
+// stamps (fromLayer: dropped from the ring, not baked again, when it is on again). The rule: vr_permdecals.hpp's kept.
+za::Vector<permdecals::Stamp> recordShown; // (showRecord's)
+za::Vector<Decal> liveKept;               // (showRecord's: the live marks moved behind those shown)
+
+void showRecord()
+{
+    const int max = static_cast<int>(vr_decal_max.value);
+    if(max <= 0 || !cl.worldmodel)
+    {
+        return;
+    }
+    QVR_PROFILE("decals from the permanent layer");
+    permdecals::newestWorld(max - static_cast<int>(za::min(decals.size(), static_cast<za::SizeT>(max))), recordShown);
+    if(recordShown.empty())
+    {
+        return;
+    }
+    if(!atlas)
+    {
+        makeAtlas();
+    }
+    liveKept.clear();
+    while(!decals.empty())
+    {
+        unsettle(decals.front());
+        dropCount -= isDrop(decals.front());
+        liveKept.pushBack(ZA_MOVE(decals.front()));
+        decals.popFront();
+    }
+    worldDirty = true;
+    za::Vector<Corner>& tris = scratch.tris;
+    int shown = 0;
+    for(const permdecals::Stamp& s : recordShown)
+    {
+        Decal d{s.centre, s.u, s.v, s.cell, cl.time - 9.0};
+        d.darken = za::clamp(1.f - s.dark, 0.f, 0.9f);
+        d.normal = s.normal;
+        d.depth = s.depth;
+        d.fromLayer = true;
+        clipToWorld(d, d.normal, d.depth, tris, d.brush);
+        if(!tris.empty())
+        {
+            pushDecal(d, tris, max);
+            shown++;
+        }
+    }
+    for(Decal& d : liveKept)
+    {
+        pushDecal(d, d.tris, max);
+    }
+    liveKept.clear();
+    Con_DPrintf("decals: %d of the permanent layer's %d newest marks shown live (vr_permdecals 0)\n", shown,
+        static_cast<int>(recordShown.size()));
 }
 
 bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o = {})
@@ -990,10 +1143,21 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     d.normal = n;
     d.depth = big ? za::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f;
     za::Vector<Corner>& tris = scratch.tris;
-    clipToWorld(d, n, d.depth, tris);
+    clipToWorld(d, n, d.depth, tris, d.brush);
+    // With the permanent layer (vr_permdecals), its part on the brush models (doors, lifts) baked at once, in their own
+    // space: the live marks are the static world's.
+    int onModels = 0;
+    if(permdecals::on())
+    {
+        if(!atlas)
+        {
+            makeAtlas();
+        }
+        onModels = permdecals::bakeEntities(stampOf(d));
+    }
     if(tris.empty())
     {
-        return false;
+        return onModels > 0;
     }
     // Drops (a steady drip from wounds, gibs and ceilings) take at most a quarter of the marks: the
     // oldest drop goes, not a splat or a pool (the others keep their order).
@@ -1003,6 +1167,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
         {
             if(isDrop(decals[k]))
             {
+                bakeEarly(decals[k]);
                 unsettle(decals[k]);
                 worldDirty = true;
                 decals.eraseAt(k);
@@ -1011,29 +1176,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
             }
         }
     }
-    // Room for it: the oldest go (as many as vr_decal_max, lowered, leaves no room for); the ring made that size if
-    // it changed.
-    while(decals.size() >= static_cast<za::SizeT>(max))
-    {
-        popOldest();
-    }
-    if(decals.capacity() != static_cast<za::SizeT>(max))
-    {
-        decals.setCapacity(static_cast<za::SizeT>(max));
-    }
-    // Into the ring's next slot, its triangles into the buffer the slot's last mark had.
-    Decal& slot = decals.pushBack();
-    za::Vector<Corner> buffer = ZA_MOVE(slot.tris);
-    za::Vector<za::U32> bucketBuffer = ZA_MOVE(slot.buckets);
-    slot = d;
-    slot.staticAt = -1;
-    slot.tris = ZA_MOVE(buffer);
-    slot.buckets = ZA_MOVE(bucketBuffer);
-    slot.buckets.clear();
-    slot.bucketsMask = 0;
-    slot.tris.assignRange(tris.begin(), tris.end());
-    dropCount += isDrop(slot);
-    worldDirty = true; // (`vertices`, made each frame, take it in the next one: in both eyes together)
+    pushDecal(d, tris, max);
     return true;
 }
 
@@ -1290,6 +1433,7 @@ double expire()
     const double life = za::max(5.f, vr_decal_life.value);
     while(!decals.empty() && cl.time - decals.front().born > life)
     {
+        bakeEarly(decals.front()); // (the permanent layer off: kept for when it is on)
         popOldest();
     }
     return life;
@@ -1316,12 +1460,25 @@ static_assert(sizeof(WorldDecal) == 80);
 static_assert(cellsPerRow == 8 && cellRows == 4 && atlasWidth == 2048 && atlasHeight == 1024,
     "QVR_DECAL_FUNCTIONS (vr_glsl.h) has the atlas's layout");
 
-// The grid they are found in (DecalGrid): cells of 32 units, hashed into buckets as the shader hashes them; a bucket
-// lists at most 64 marks (the newest), each once.
+// The grid they are found in (DecalGrid): cells of 32 units, hashed into buckets as the shader hashes them. A mark is
+// listed in the buckets of the cells that reach its rectangle (at its full size, through the surface along its normal:
+// where the shader can find a pixel in it), each once (its memberships: Decal::buckets).
 constexpr float worldCell = 32.f;
-constexpr za::U32 worldBucketMarks = 64;
-// A mark is listed in every cell its box reaches, and as far again as the parallax mapping can move a pixel along a
-// surface (3 times its depth, vr_parallax_depth up to 4).
+// A bucket lists at most vr_decal_bucket_max marks (32 shipped; 255 at most: its header's length, 8 bits). Past that a
+// mark is left out of every bucket it is in, not only the full one: newest first, a mark is listed only if each of its
+// buckets has room. A pile of more marks than that on one cell loses its oldest whole, as the ring loses its oldest;
+// never a cell-shaped hole in an older mark under newer ones (2026-10-11: the newest 64 of each bucket left square
+// holes in the pools under a pile of gibs'). Each pixel of the world walks its bucket's whole list: a pile of 255 cost
+// the frame rate where it was looked at (2026-10-12: vr_decal_bucket_max).
+constexpr za::U32 worldBucketMarksMax = 255;
+za::U32 worldBucketMarks = worldBucketMarksMax; // the limit the last grid made was listed under
+
+[[nodiscard]] za::U32 worldBucketLimit()
+{
+    return static_cast<za::U32>(za::clamp(static_cast<int>(vr_decal_bucket_max.value), 1, static_cast<int>(worldBucketMarksMax)));
+}
+// The cells looked at: those of a mark's box, and as far again as the parallax mapping can move a pixel along a
+// surface (3 times its depth, vr_parallax_depth up to 4); listed, those that reach its rectangle.
 constexpr float worldReach = 12.f;
 
 [[nodiscard]] za::U32 worldCellHash(int x, int y, int z)
@@ -1335,12 +1492,16 @@ za::Vector<za::U32> worldGrid;
 // Reused scratch: stamp each bucket once per mark (its memberships kept in the mark: Decal::buckets).
 za::Vector<za::U32> worldBucketStamp;
 za::U32 worldStamp = 0;
+// Reused scratch: whether each mark was listed in the last grid made (each of its buckets had room), by ring order.
+za::Vector<za::U8> worldMarkListed;
+za::U32 worldLeftOut = 0; // marks left out of the last grid made (a bucket of theirs full)
 gfx::StorageBuffer worldDecalBuffer, worldGridBuffer;
 double worldClock = 0.0; // cl.time the marks' times count from (the floats near 0)
 long long worldBuilds = 0;
 int worldFrame = -1; // the host frame of the last view that drew the marks on the world (VR_DecalsFrame: its first view makes the grid)
 
-// Mark `d`'s buckets in first-cell order, each once, into `out`. The stamp table matches mask + 1.
+// Mark `d`'s buckets in first-cell order, each once, into `out`: those of the cells reaching its rectangle. The stamp
+// table matches mask + 1.
 void worldBuckets(const WorldDecal& d, za::U32 mask, za::Vector<za::U32>& out)
 {
     if(++worldStamp == 0)
@@ -1354,12 +1515,27 @@ void worldBuckets(const WorldDecal& d, za::U32 mask, za::Vector<za::U32>& out)
                              glm::abs(glm::vec3{d.n}) * d.n.w + glm::vec3{worldReach};
     const glm::ivec3 lo{glm::floor((c - extent) * (1.f / worldCell))};
     const glm::ivec3 hi{glm::floor((c + extent) * (1.f / worldCell))};
+    // A cell reaches the rectangle unless its box (a little larger: the shader's rounding) projected on the
+    // rectangle's length or width way misses it (the shader's own early-out, with room to spare; the projection
+    // along the other ways only lets more cells in).
+    const glm::vec3 u{d.u}, v{d.v};
+    const float half = worldCell * 0.5f + 0.25f;
+    const float reachU = d.u.w * 1.002f + 0.05f + half * (za::fabs(u.x) + za::fabs(u.y) + za::fabs(u.z));
+    const float reachV = d.v.w * 1.002f + 0.05f + half * (za::fabs(v.x) + za::fabs(v.y) + za::fabs(v.z));
     for(int z = lo.z; z <= hi.z; z++)
     {
         for(int y = lo.y; y <= hi.y; y++)
         {
             for(int x = lo.x; x <= hi.x; x++)
             {
+                const glm::vec3 r =
+                    glm::vec3{static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f} *
+                        worldCell -
+                    c;
+                if(za::fabs(glm::dot(r, u)) > reachU || za::fabs(glm::dot(r, v)) > reachV)
+                {
+                    continue;
+                }
                 const za::U32 b = worldCellHash(x, y, z) & mask;
                 if(worldBucketStamp[b] != worldStamp)
                 {
@@ -1414,14 +1590,18 @@ void buildWorld()
     const za::U32 mask = buckets - 1;
     {
         QVR_PROFILE("decal grid count");
-        // Each bucket's header counts its marks first (then its list's start and length: the prefix pass).
+        // Newest first, a mark is listed if each of its buckets has room (its header counts the marks listed in it,
+        // then holds its list's start and length: the prefix pass): in all of them, or none.
         worldGrid.assign(1 + buckets, 0u);
         if(worldBucketStamp.size() != buckets)
         {
             worldBucketStamp.assign(buckets, 0u);
             worldStamp = 0;
         }
-        for(za::SizeT k = 0; k < decals.size(); k++)
+        worldMarkListed.assign(decals.size(), za::U8{0});
+        worldLeftOut = 0;
+        worldBucketMarks = worldBucketLimit();
+        for(za::SizeT k = decals.size(); k-- > 0;)
         {
             Decal& d = decals[k];
             if(d.bucketsMask != mask) // (new, or the grid's size changed)
@@ -1430,20 +1610,31 @@ void buildWorld()
                 worldBuckets(worldDecals[k], mask, d.buckets);
                 d.bucketsMask = mask;
             }
+            bool room = true;
+            for(const za::U32 b : d.buckets)
+            {
+                room = room && worldGrid[1 + b] < worldBucketMarks;
+            }
+            if(!room)
+            {
+                worldLeftOut++;
+                continue;
+            }
+            worldMarkListed[k] = 1;
             for(const za::U32 b : d.buckets)
             {
                 worldGrid[1 + b]++;
             }
         }
     }
-    // Each bucket's list: the newest 64 of its marks (the oldest are under them).
+    // Each bucket's list: the marks listed in it, newest first.
     za::U32 total = 0;
     {
         QVR_PROFILE("decal grid prefix");
         worldGrid[0] = mask;
         for(za::U32 b = 0; b < buckets; b++)
         {
-            const za::U32 n = za::min(worldGrid[1 + b], worldBucketMarks);
+            const za::U32 n = worldGrid[1 + b];
             worldGrid[1 + b] = total << 8; // (its length counted up as the fill lists its marks)
             total += n;
         }
@@ -1451,24 +1642,132 @@ void buildWorld()
     }
     {
         QVR_PROFILE("decal grid fill");
-        // A bucket's header's length grows with each mark listed, up to 64: a bucket with fewer marks lists them all,
-        // so it ends at min(its marks, 64), the length the prefix pass gave its list.
+        // Newest first again: a bucket's header's length grows with each mark listed, to the length the prefix pass
+        // gave its list (vr_decal_bucket_max at most, 255: its 8 bits).
         for(za::SizeT k = worldDecals.size(); k-- > 0;)
         {
+            if(!worldMarkListed[k])
+            {
+                continue;
+            }
             for(const za::U32 b : decals[k].buckets)
             {
                 za::U32& header = worldGrid[1 + b];
-                if((header & 255u) < worldBucketMarks)
-                {
-                    worldGrid[1 + buckets + (header >> 8) + (header & 255u)] = static_cast<za::U32>(k);
-                    header++;
-                }
+                worldGrid[1 + buckets + (header >> 8) + (header & 255u)] = static_cast<za::U32>(k);
+                header++;
             }
         }
     }
     QVR_PROFILE("decal buffers upload");
     gfx::upload(worldDecalBuffer, worldDecals.data(), worldDecals.size() * sizeof(WorldDecal));
     gfx::upload(worldGridBuffer, worldGrid.data(), worldGrid.size() * sizeof(za::U32));
+}
+
+int permFrame = -1;  // the host frame bakeSettled last ran in (VR_DecalsFrame's first view: the main thread)
+int layerShown = -1; // the permanent layer shown (1) or kept off (0) at the last frame with vr_decals on (-1: not yet)
+za::Vector<za::U8> bakedNow; // (bakeSettled's: the marks gone from the ring this frame, by ring order)
+
+// With the permanent layer (vr_permdecals), the marks that have settled (shown, spread, darkened; a tenth of a second
+// at least, for a hit's second effect to find its first: add; 8 s for blood that darkens as it dries) baked into it and
+// gone from the ring, so that the live cap no longer limits what stays: those on the static world (those on the boxes
+// made in the game stay live: theirs go with them, removeOn). The oldest first, vr_permdecal_bake_max pages a frame at
+// most (the others stay live a frame or more). Those shown from it while it was off (fromLayer) leave the ring. Then
+// what was baked drawn into the layer's atlas. Once a frame, before the world draws. The layer switched off: its newest
+// marks shown live (showRecord); on again: what was kept while off baked (rebake).
+void bakeSettled()
+{
+    if(permFrame == host_framecount)
+    {
+        return;
+    }
+    permFrame = host_framecount;
+    if(!cl.worldmodel)
+    {
+        return;
+    }
+    const int restored = permdecals::restore(); // (a saved game's marks, once its map has loaded)
+    if(restored != 0 && !atlas)
+    {
+        makeAtlas();
+    }
+    if(vr_decals.value)
+    {
+        const bool shown = permdecals::on(), kept = permdecals::kept();
+        if(kept && (layerShown == 1 || restored == 2))
+        {
+            showRecord();
+        }
+        if(shown)
+        {
+            (void)permdecals::rebake();
+        }
+        if(shown || kept)
+        {
+            layerShown = shown ? 1 : 0;
+        }
+    }
+    if(vr_decals.value && permdecals::on() && !decals.empty())
+    {
+        QVR_PROFILE("decals baked");
+        if(!atlas)
+        {
+            makeAtlas();
+        }
+        const int budget = za::max(1, static_cast<int>(vr_permdecal_bake_max.value));
+        const za::SizeT n = decals.size();
+        bakedNow.assign(n, 0);
+        za::SizeT gone = 0;
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            Decal& d = decals[i];
+            if(d.fromLayer)
+            {
+                bakedNow[i] = 1; // (in the layer already)
+                gone++;
+                continue;
+            }
+            const double settled =
+                d.born + za::max(0.1f, d.grow, d.darken > 0.f ? za::max(d.grow, 8.f) : 0.f);
+            if(d.brush == 0 && !d.permTried && cl.time >= settled && permdecals::pendingPages() < budget)
+            {
+                if(permdecals::bakeWorld(stampOf(d)) > 0)
+                {
+                    bakedNow[i] = 1;
+                    gone++;
+                    continue;
+                }
+                d.permTried = true; // (no face of the layer under it: it stays live)
+            }
+        }
+        // Kept marks moved back over the gone ones (in order), the gone then off the front.
+        if(gone > 0)
+        {
+            za::SizeT firstKept = n;
+            for(za::SizeT i = n; i-- > 0;)
+            {
+                if(bakedNow[i])
+                {
+                    unsettle(decals[i]);
+                    dropCount -= isDrop(decals[i]);
+                    continue;
+                }
+                firstKept--;
+                if(firstKept != i)
+                {
+                    za::genericSwap(decals[firstKept], decals[i]);
+                }
+            }
+            for(za::SizeT i = 0; i < firstKept; i++)
+            {
+                decals.popFront();
+            }
+            worldDirty = true;
+        }
+    }
+    if(atlas)
+    {
+        permdecals::flush(atlas);
+    }
 }
 
 void draw()
@@ -1575,28 +1874,83 @@ void draw()
     }
 }
 
-// `count` splatter marks on the floor ahead of the player, `size` units across (vr_decal_stress):
-// how many were made.
-int stressMarks(int count, float size)
+// What vr_decal_stress lays: splatters on the floor (its default), spreading pools on the floor, splatters on the wall
+// ahead, runs spreading down it (every kind of the world's shader's paths, laid the same way each time: tests compare
+// the images of two builds); pools stacked on a spot 96 units ahead (each 0.5 to 1 times the size, as gibs' pools
+// piled up: decal_stack_test.sh), or pools and splatters in turn clustered round it (0.4 to 1 times the size, up to
+// the size away: a gib's burst).
+enum class Stress
+{
+    Splatter,
+    Pool,
+    Wall,
+    Run,
+    Stack,
+    Cluster
+};
+
+// `count` marks of `kind` on the floor ahead of the player (or the wall ahead), `size` units across
+// (vr_decal_stress): how many were made.
+int stressMarks(int count, float size, Stress kind)
 {
     vec3_t forward, right, up;
     AngleVectors(cl.viewangles, forward, right, up);
     const glm::vec3 f{forward[0], forward[1], 0.f}, r{right[0], right[1], 0.f};
     const auto& e = cl_entities[cl.viewentity];
     const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
+    const bool wall = kind == Stress::Wall || kind == Stress::Run;
+    const bool pile = kind == Stress::Stack || kind == Stress::Cluster;
+    // The marks' turns and atlas cells (rand) the same each time: what else draws from it (as many times as frames
+    // came, or a chip somewhere) leaves them as they were
+    srand(stressSerial * 2654435761u + 1u);
     int made = 0;
     for(int i = 0; i < count; i++)
     {
-        // Permute the 64 x 64 lattice so that the newest marks cover the whole area.
+        // Permute the 64 x 64 lattice so that the newest marks cover the whole area (on a wall: 6 units apart across
+        // it, 2 up it from 32 below the eyes).
         const unsigned k = (stressSerial++ * 109u) & 4095u;
-        const glm::vec3 from = origin + f * (64.f + 6.f * static_cast<float>(k & 63u)) +
-                              r * (6.f * (static_cast<float>(k >> 6u) - 31.5f)) + glm::vec3{0.f, 0.f, 24.f};
+        const glm::vec3 across = r * (6.f * (static_cast<float>(k >> 6u) - 31.5f));
+        glm::vec3 from = wall ? origin + across + glm::vec3{0.f, 0.f, 2.f * static_cast<float>(k & 63u) - 32.f}
+                              : origin + f * (64.f + 6.f * static_cast<float>(k & 63u)) + across +
+                                    glm::vec3{0.f, 0.f, 24.f};
+        float markSize = size;
+        if(pile)
+        {
+            // (stacked: a few units apart, round the spot, as add takes one mark a place in a tenth of a second)
+            const bool stack = kind == Stress::Stack;
+            const float turn = static_cast<float>(i) * 2.39996f, out = 2.5f + 0.25f * static_cast<float>(i);
+            const float a = stack ? out * za::cos(turn) : random(-1.f, 1.f) * size;
+            const float b = stack ? out * za::sin(turn) : random(-1.f, 1.f) * size;
+            from = origin + glm::normalize(f) * (96.f + a) + glm::normalize(r) * b + glm::vec3{0.f, 0.f, 24.f};
+            markSize = size * (stack ? random(0.5f, 1.f) : random(0.4f, 1.f));
+        }
+        const glm::vec3 to = wall ? from + glm::normalize(f) * 2048.f : from - glm::vec3{0.f, 0.f, 2048.f};
         glm::vec3 where, normal;
         float fraction;
-        if(hitWorld(from, from - glm::vec3{0.f, 0.f, 2048.f}, where, normal, fraction))
+        if(!hitWorld(from, to, where, normal, fraction))
         {
-            made += place(Mark::Splatter, where, normal, size);
+            continue;
         }
+        MarkOptions o;
+        Mark mark = Mark::Splatter;
+        if(kind == Stress::Pool || kind == Stress::Stack || (kind == Stress::Cluster && (i & 1)))
+        {
+            mark = Mark::Pool;
+            o.grow = 6.f;
+            o.growFrom = 0.12f;
+            o.darken = 0.5f;
+        }
+        else if(kind == Stress::Run)
+        {
+            mark = Mark::Streak;
+            o.along = glm::vec3{0.f, 0.f, -1.f};
+            o.aspect = 4.f;
+            o.grow = 3.f;
+            o.growFrom = 0.15f;
+            o.fromStart = true;
+            o.darken = 0.3f;
+        }
+        made += place(mark, where, normal, markSize, o);
     }
     return made;
 }
@@ -1610,8 +1964,68 @@ void stress_f()
     }
     const int count = Cmd_Argc() > 1 ? za::clamp(atoi(Cmd_Argv(1)), 1, 64) : 64;
     const float size = Cmd_Argc() > 2 ? za::clamp(Q_atof(Cmd_Argv(2)), 1.f, 256.f) : 64.f;
-    const int made = stressMarks(count, size);
-    Con_DPrintf("vr_decal_stress: %d of %d marks, size %.0f\n", made, count, size);
+    const char* name = Cmd_Argc() > 3 ? Cmd_Argv(3) : "splatter";
+    Stress kind = Stress::Splatter;
+    if(!q_strcasecmp(name, "pool"))
+    {
+        kind = Stress::Pool;
+    }
+    else if(!q_strcasecmp(name, "wall"))
+    {
+        kind = Stress::Wall;
+    }
+    else if(!q_strcasecmp(name, "run"))
+    {
+        kind = Stress::Run;
+    }
+    else if(!q_strcasecmp(name, "stack"))
+    {
+        kind = Stress::Stack;
+    }
+    else if(!q_strcasecmp(name, "cluster"))
+    {
+        kind = Stress::Cluster;
+    }
+    else if(q_strcasecmp(name, "splatter"))
+    {
+        Con_Printf("vr_decal_stress [count] [size] [splatter|pool|wall|run|stack|cluster]: unknown kind %s\n", name);
+        return;
+    }
+    const int made = stressMarks(count, size, kind);
+    Con_DPrintf("vr_decal_stress: %d of %d marks, size %.0f, %s\n", made, count, size, name);
+}
+
+void at_f()
+{
+    if(Cmd_Argc() < 7 || !cl.worldmodel)
+    {
+        Con_Printf("vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size]: a mark where the line meets a surface\n");
+        return;
+    }
+    const glm::vec3 from{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
+    const glm::vec3 dir{Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5)), Q_atof(Cmd_Argv(6))};
+    const char* name = Cmd_Argc() > 7 ? Cmd_Argv(7) : "blood";
+    const Kind kind = !q_strcasecmp(name, "hole") ? Hole : !q_strcasecmp(name, "scorch") ? Scorch : !q_strcasecmp(name, "pool") ? Pool : Blood;
+    const float size = Cmd_Argc() > 8 ? Q_atof(Cmd_Argv(8)) : 24.f;
+    glm::vec3 where, normal;
+    float f;
+    if(glm::dot(dir, dir) < 1e-6f || !hitWorld(from, from + glm::normalize(dir) * 512.f, where, normal, f))
+    {
+        Con_Printf("vr_decal_at: nothing there\n");
+        return;
+    }
+    // Its turn and cell from its arguments (rand: the same mark each run, whatever ran before it).
+    unsigned seed = 2166136261u;
+    for(const char* c = Cmd_Args(); c && *c; c++)
+    {
+        seed = (seed ^ static_cast<unsigned char>(*c)) * 16777619u;
+    }
+    srand(seed);
+    const bool made = add(kind, where, normal, size);
+    int entity = 0;
+    (void)worldtrace::world(from, from + glm::normalize(dir) * 512.f, true, false, 0, 0, &entity);
+    Con_Printf("vr_decal_at: %s at %.1f %.1f %.1f (normal %.2f %.2f %.2f), entity %d\n", made ? "laid" : "none", where.x,
+        where.y, where.z, normal.x, normal.y, normal.z, entity);
 }
 
 void count_f()
@@ -1627,9 +2041,16 @@ void count_f()
         }
         kinds[kind]++;
     }
+    int showing = 0, onBrushes = 0;
+    for(za::SizeT k = 0; k < decals.size(); k++)
+    {
+        showing += decals[k].tris.empty() ? 0 : 1;
+        onBrushes += !decals[k].tris.empty() && decals[k].brush != 0 ? 1 : 0;
+    }
     Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips, %d splatters, %d streaks, %d pools, %d splotches\n",
         static_cast<int>(decals.size()), kinds[Blood], kinds[BloodDrop], kinds[Scorch], kinds[Hole], kinds[Splatter],
         kinds[Streak], kinds[Pool], kinds[Splotch]);
+    Con_Printf("decals laid: %d (%d on runtime brushes; the rest removed in place)\n", showing, onBrushes);
     Con_Printf("%d vertices settled (%d of them left by marks gone), %d changing (made again each frame)\n",
         static_cast<int>(staticVertices.size()), staticGone, static_cast<int>(vertices.size()));
     Con_Printf("settled vertices uploaded %lld times so far, %.1f KB in all (%.1f KB a frame for both eyes if copied "
@@ -1642,12 +2063,12 @@ void count_f()
                    "texture heights %s): %d marks, %d grid entries, made %lld times so far\n",
             vr_parallax.value, vr_parallax_depth.value, TexMgr_IndexedSmooth() ? "on" : "only replacement textures' (vr_texture_smooth 2 for Quake's)",
             static_cast<int>(worldDecals.size()), static_cast<int>(worldGrid.size()), worldBuilds);
-        za::U32 occupied = 0, capped = 0, largest = 0;
-        za::Vector<za::U32> counts; // each bucket's marks (uncapped: the grid lists the newest 64)
+        za::U32 occupied = 0, full = 0, largest = 0, longest = 0;
+        za::Vector<za::U32> counts; // each bucket's marks (all of them: the grid lists them while each of a mark's has room)
         counts.assign(worldGrid.empty() ? 0u : worldGrid[0] + 1u, 0u);
         for(za::SizeT k = 0; k < decals.size(); k++)
         {
-            if(!worldGrid.empty() && decals[k].bucketsMask == worldGrid[0]) // (listed in the last grid made)
+            if(!worldGrid.empty() && decals[k].bucketsMask == worldGrid[0]) // (hashed for the last grid made)
             {
                 for(const za::U32 b : decals[k].buckets)
                 {
@@ -1655,15 +2076,17 @@ void count_f()
                 }
             }
         }
-        for(const za::U32 n : counts)
+        for(za::SizeT b = 0; b < counts.size(); b++)
         {
-            occupied += n > 0;
-            capped += n > worldBucketMarks;
-            largest = za::max(largest, n);
+            occupied += counts[b] > 0;
+            full += counts[b] > worldBucketMarks;
+            largest = za::max(largest, counts[b]);
+            longest = za::max(longest, worldGrid[1 + b] & 255u);
         }
-        Con_Printf("world decal grid: %d buckets, %u occupied, %u capped at %u, %u largest uncapped; "
-                   "%.1f KB marks, %.1f KB grid\n",
-            static_cast<int>(counts.size()), occupied, capped, worldBucketMarks, largest,
+        const za::U32 listed = worldGrid.empty() ? 0u : static_cast<za::U32>(worldGrid.size()) - worldGrid[0] - 2u;
+        Con_Printf("world decal grid: %d buckets, %u occupied, %u over %u marks (%u marks left out whole), %u the most "
+                   "in one, %u the longest list; %u listed (the cells reaching each mark); %.1f KB marks, %.1f KB grid\n",
+            static_cast<int>(counts.size()), occupied, full, worldBucketMarks, worldLeftOut, largest, longest, listed,
             static_cast<double>(worldDecals.size() * sizeof(WorldDecal)) / 1024.0,
             static_cast<double>(worldGrid.size() * sizeof(za::U32)) / 1024.0);
     }
@@ -1726,12 +2149,64 @@ void clear()
     gibs.clear();
     holes.clear();
     gore::clear();
+    permdecals::clear(); // (and those baked for good)
+}
+
+// A mark laid on brush `id` (one on several brushes: if its middle is in lo..hi).
+[[nodiscard]] bool onBrush(const Decal& d, int id, const glm::vec3& lo, const glm::vec3& hi)
+{
+    return !d.tris.empty() && (d.brush == id || (d.brush == -1 && !glm::any(glm::lessThan(d.centre, lo)) &&
+                                                     !glm::any(glm::greaterThan(d.centre, hi))));
+}
+
+int countOn(int id, const glm::vec3& lo, const glm::vec3& hi)
+{
+    int n = 0;
+    for(za::SizeT k = 0; k < decals.size(); k++)
+    {
+        n += onBrush(decals[k], id, lo, hi) ? 1 : 0;
+    }
+    return n;
+}
+
+void removeOn(int id, const glm::vec3& lo, const glm::vec3& hi)
+{
+    for(za::SizeT k = 0; k < decals.size(); k++)
+    {
+        Decal& d = decals[k];
+        if(!onBrush(d, id, lo, hi))
+        {
+            continue;
+        }
+        // Gone in place (its ring slot kept: the ring only loses its oldest): no area, no triangles.
+        unsettle(d);
+        d.tris.clear();
+        d.u = d.v = glm::vec3{0.f};
+        d.depth = 0.f;
+        d.buckets.clear();
+        d.bucketsMask = 0;
+        worldDirty = true;
+        builtFrame = -1;
+    }
 }
 
 // Decals on the walls (vr_memstats).
 int liveCount()
 {
     return static_cast<int>(decals.size());
+}
+
+void liveStamps(za::Vector<permdecals::Stamp>& out)
+{
+    out.clear();
+    for(za::SizeT k = 0; k < decals.size(); k++)
+    {
+        const Decal& d = decals[k];
+        if(d.brush == 0 && !d.permTried && !d.fromLayer && !d.tris.empty())
+        {
+            out.pushBack(stampOf(d));
+        }
+    }
 }
 
 // A ragdoll's limb (vr_ragdoll.cpp, every frame it is drawn: `key` its entity's and the limb's), its end at `at`: flung
@@ -1950,6 +2425,7 @@ using namespace qvr;
 extern "C" void VR_DecalsFrame(float clock[4])
 {
     using namespace qvr::decals;
+    bakeSettled(); // (the permanent layer's: once a frame)
     clock[0] = clock[1] = clock[2] = clock[3] = 0.f;
     if(!vr_decals.value || !onWorld() || !cl.worldmodel)
     {
@@ -1968,6 +2444,10 @@ extern "C" void VR_DecalsFrame(float clock[4])
     if(!atlas)
     {
         makeAtlas();
+    }
+    if(worldBucketLimit() != worldBucketMarks)
+    {
+        worldDirty = true; // (vr_decal_bucket_max changed: the grid listed again under it)
     }
     if(worldDirty && firstView)
     {
@@ -1988,6 +2468,7 @@ extern "C" void VR_DecalsFrame(float clock[4])
 extern "C" void VR_BindDecals(void)
 {
     using namespace qvr::decals;
+    permdecals::bind(); // (the permanent layer: its table on 10, its atlas on unit 18)
     if(worldDecals.empty() || !atlas)
     {
         return;

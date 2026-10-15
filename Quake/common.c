@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 #include "q_ctype.h"
 #include "bgmusic.h"
 #include "steam.h"
@@ -1595,6 +1596,63 @@ int COM_CheckParm (const char *parm)
 
 /*
 ================
+COM_CheckParmImplied
+
+QVR: a command-line flag that another flag implies, so that the implication is honored where the
+flag is read and not only where it is written out:
+  -evalcopy implies -noconfigwrite and -noautoexec (the motion review's copy of the game),
+  -preparerelight implies -prepare (the relight is a step of the preparation run).
+Returns whether the flag is in effect: given, or implied by a flag that was given. The first time an
+implied flag is used, the game says so in the console: a run always says which flags it is honoring
+and which flag set them. `why` is that one line.
+================
+*/
+typedef struct
+{
+	const char	*flag;
+	const char	*impliedBy;
+} impliedparm_t;
+
+impliedparm_t implied_parms[8]; // QVR: the implications already announced (one console line each)
+int implied_parm_count;         // QVR: how many there are
+
+qboolean COM_CheckParmImplied (const char *flag, const char *impliedBy, const char *why)
+{
+	int		i;
+
+	if (COM_CheckParm (flag))
+		return true;
+	if (!COM_CheckParm (impliedBy))
+		return false;
+	for (i = 0; i < implied_parm_count; i++)
+		if (!Q_strcmp (implied_parms[i].flag, flag) && !Q_strcmp (implied_parms[i].impliedBy, impliedBy))
+			return true; // already said
+	if (implied_parm_count < (int)countof (implied_parms))
+	{
+		implied_parms[implied_parm_count].flag = flag;
+		implied_parms[implied_parm_count].impliedBy = impliedBy;
+		implied_parm_count++;
+	}
+	Con_Printf ("Command line: %s implies %s: %s\n", impliedBy, flag, why);
+	return true;
+}
+
+/*
+================
+COM_PrepareRun
+
+QVR: whether this is the installer's preparation run (vr_prepare.cpp): -prepare, or -preparerelight alone (the relight
+is a step of the preparation run, so it implies -prepare). Every reader of the flag asks here.
+================
+*/
+qboolean COM_PrepareRun (void)
+{
+	return COM_CheckParmImplied ("-prepare", "-preparerelight",
+		"the relight is a step of the preparation run, so -preparerelight runs the preparation too");
+}
+
+/*
+================
 COM_CheckRegistered
 
 Looks for the pop.txt file and verifies it.
@@ -2223,6 +2281,8 @@ into the file.
 */
 int COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id)
 {
+	VR_TRACY_SCOPE("File open");
+	VR_TracyText(filename);
 	return COM_FindFile (filename, NULL, file, path_id);
 }
 
@@ -2258,6 +2318,8 @@ Allways appends a 0 byte.
 
 byte *COM_LoadFile (const char *path, int usehunk, unsigned int *path_id)
 {
+	VR_TRACY_SCOPE("File load");
+	VR_TracyText(path);
 	int		h;
 	byte	*buf;
 	char	base[32];
@@ -2808,7 +2870,11 @@ static void COM_SwitchGameInternal (const char *paths, qboolean vrCampaign)
 	//clear out and reload appropriate data
 	Cache_FlushExcept (VR_ModelCacheKept); // QVR: Cache_Flush but the kept models'
 	Mod_ResetAll();
-	VR_LoadingGameChanged (); // QVR: the client's world model was among them (vr_loading.cpp)
+	// QVR: nothing points at the reset models: the client's state as at start-up (CL_ForgetModels), the server's world
+	// (shut down above) gone too. Frames before the next map (the Loading... notice's) see no world, not a cleared one.
+	CL_ForgetModels ();
+	sv.worldmodel = NULL;
+	memset (sv.models, 0, sizeof (sv.models));
 	Sky_ClearAll();
 	if (!isDedicated)
 	{
@@ -2948,6 +3014,49 @@ static void COM_AddBaseDir (const char *path)
 		Sys_Error ("Too many basedirs (%d)", com_numbasedirs);
 	if ((size_t) q_strlcpy (com_basedirs[com_numbasedirs++], path, sizeof (com_basedirs[0])) >= sizeof (com_basedirs[0]))
 		Sys_Error ("Basedir too long (%d characters, max %d):\n%s\n", (int)strlen (path), (int)sizeof (com_basedirs[0]), path);
+}
+
+/*
+=================
+COM_AddExeBaseDir
+
+QVR: started without -basedir (QuakeVR.bat, ironwail.exe itself, a launcher's or Steam's entry for it: not the
+installer's shortcuts, which pass "-basedir <Quake> -basedir <Quake VR>"), Quake is found as Ironwail finds it (the
+current folder, Steam, GOG, Epic) and the exe's own folder, an install's, was no base dir: the quakevr searched was
+another one (VR_GameDirectoryRoot: the last base dir that has one), a leftover in the Quake folder (a source build's link
+or copy, an old zip install: its progs.dat ran with this engine) or in Ironwail's Saved Games folder (no progs.dat: id's
+ran, Quake VR's gameplay off, guns only props). The exe's folder, when its quakevr has the game code, is added as the
+last base dir: its quakevr is the one searched, and its config the one saved.
+=================
+*/
+qboolean COM_SamePath (const char *a, const char *b) // QVR: also Cmd_Exec_f, vr_input.cpp
+{
+	for (;; ++a, ++b)
+	{
+		while (Sys_IsPathSep (a[0]) && (Sys_IsPathSep (a[1]) || !a[1]))
+			++a; // (repeated and trailing separators)
+		while (Sys_IsPathSep (b[0]) && (Sys_IsPathSep (b[1]) || !b[1]))
+			++b;
+		if (!*a || !*b)
+			return !*a && !*b;
+		if (Sys_IsPathSep (*a) ? !Sys_IsPathSep (*b) : q_tolower (*a) != q_tolower (*b))
+			return false;
+	}
+}
+
+static void COM_AddExeBaseDir (void)
+{
+	int i;
+	const char *dir = host_parms->exedir;
+	if (COM_CheckParm ("-basedir") || !dir || !*dir)
+		return;
+	if (Sys_FileType (va ("%s/quakevr/progs.dat", dir)) != FS_ENT_FILE)
+		return;
+	for (i = 0; i < com_numbasedirs; i++)
+		if (COM_SamePath (com_basedirs[i], dir))
+			return;
+	COM_AddBaseDir (dir);
+	Con_Printf ("VR: no -basedir: the exe's own folder added as the last base dir (its quakevr): %s\n", dir);
 }
 
 /*
@@ -3506,6 +3615,7 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 
 	if (host_parms->userdir != host_parms->basedir)
 		COM_AddBaseDir (host_parms->userdir);
+	COM_AddExeBaseDir (); // QVR
 
 	if (startarg)
 		COM_PatchCmdLine (startarg);

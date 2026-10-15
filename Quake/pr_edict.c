@@ -324,6 +324,20 @@ static ddef_t *ED_FindField (const char *name)
 	return NULL;
 }
 
+// AD support: the field AD's imported QuakeC has for a map key Quake VR has no field of that type for: ad_<key>
+// (QC/ad/AD_IMPORT.txt; Arcane Dimensions, vr_ad.cpp). In a map played by AD's rules; elsewhere only for a key no
+// field of Quake VR's has (AD's artifacts, pickups and ladders spawn in any map).
+static ddef_t *ED_FindADKeyField (const char *keyname, ddef_t *ours)
+{
+	ddef_t *ad;
+	ad = ED_FindField (va ("ad_%s", keyname));
+	if (!VR_AD_RulesOn ())
+		return ours ? NULL : ad; // (outside AD's rules: only a key no field of Quake VR's takes, for AD's entities there)
+	if (!ad || (ours && (ours->type & ~DEF_SAVEGLOBAL) == (ad->type & ~DEF_SAVEGLOBAL)))
+		return NULL; // (none, or the same key both ways: Quake VR's field is the key's)
+	return ad;
+}
+
 /*
 ============
 ED_FindFieldOffset
@@ -391,6 +405,12 @@ static dfunction_t *ED_FindFunction (const char *fn_name)
 			return func;
 	}
 	return NULL;
+}
+
+// QVR: ED_FindFunction for the VR module (vr_ad.cpp: AD support, which classnames only AD's QuakeC spawns)
+dfunction_t *VR_ED_FindFunction (const char *fn_name)
+{
+	return ED_FindFunction (fn_name);
 }
 
 /*
@@ -1407,6 +1427,12 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		//johnfitz
 
 		key = ED_FindField (keyname);
+		if (qcvm == &sv.qcvm) // AD support: in an AD map, AD's field takes a key Quake VR has none (of that type) for
+		{
+			ddef_t *adkey = ED_FindADKeyField (keyname, key);
+			if (adkey)
+				key = adkey;
+		}
 		if (!key)
 		{
 			//johnfitz -- HACK -- suppress error becuase fog/sky/alpha fields might not be mentioned in defs.qc
@@ -1570,6 +1596,16 @@ void ED_LoadFromFile (const char *data)
 //
 	// look for the spawn function
 		func = ED_FindFunction (classname);
+		// AD support: in a map played by Arcane Dimensions' rules, AD's version of the classname (its QuakeC's
+		// ad_<classname>) where AD owns it (vr_ad.cpp VR_AD_OwnsClassname; ARCANE_DIMENSIONS.md 5.4)
+		if (VR_AD_RulesOn ())
+		{
+			dfunction_t *adfunc = ED_FindFunction (va ("ad_%s", classname));
+			if (adfunc && VR_AD_OwnsClassname (classname, func != NULL))
+				func = adfunc;
+		}
+		else if (!func && VR_AD_SpawnsOutside (classname)) // AD support: AD's artifacts, pickups, ladders in any map (vr_ad.cpp)
+			func = ED_FindFunction (va ("ad_%s", classname));
 
 		if (!func)
 		{
@@ -2298,6 +2334,7 @@ void PR_Init (void)
 	Cmd_AddCommand ("profile", PR_Profile_f);
 	Cmd_AddCommand ("profile_qc", PR_ProfileQC_f); // QVR: per-function time (vr_qcprofile)
 	Cvar_RegisterVariable (&vr_qcprofile);
+	VR_QCExec_Init (); // QVR: vr_qcexec, vr_qcexec_bench
 	Cvar_RegisterVariable (&nomonsters);
 	Cvar_SetCallback (&nomonsters, ED_Nomonsters_f);
 	Cvar_RegisterVariable (&gamecfg);
@@ -2510,6 +2547,9 @@ void SaveData_Fill (savedata_t *save)
 		save->spawn_parms[i] = svs.clients->spawn_parms[i];
 	save->skill = current_skill;
 	save->time = qcvm->time;
+	VR_SaveContext (save->vrcontext, sizeof (save->vrcontext)); // QVR: the campaign, the map package, the titles
+	save->vrbrushes = VR_SaveBrushLines (); // QVR: the runtime brushes (vr/vr_brushes.cpp)
+	save->vrdecals = VR_SaveDecalLines (); // QVR: the permanent decals (vr/vr_permdecals.cpp)
 
 	/* determine buffer size */
 	size = sizeof (*save->knownstrings) * qcvm->numknownstrings;
@@ -2621,6 +2661,11 @@ void SaveData_WriteHeader (savedata_t *save)
 	fprintf (save->file, "// qvr_save %d progs %04x build %s\n", VR_SAVE_FORMAT, save->progscrc, VR_BuildVersion ());
 	for (i = 1; i <= save->nummodels; i++)
 		fprintf (save->file, "// qvr_model %d %s\n", i, save->models[i]);
+	fputs (save->vrcontext, save->file); // QVR: // qvr_campaign, qvr_package, ... (vr_continue.cpp)
+	if (save->vrbrushes)
+		fputs (save->vrbrushes, save->file); // QVR: // qvrb lines: the runtime brushes
+	if (save->vrdecals)
+		fputs (save->vrdecals, save->file); // QVR: // qvrdecals and qvrd lines: the permanent decals
 
 	ED_WriteGlobals (save);
 }

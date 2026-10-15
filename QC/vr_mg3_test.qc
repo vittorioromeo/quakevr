@@ -486,10 +486,10 @@ void() MG3_T_RuneReport = {
     float mon = 0, items = 0, inter = 0, corpses = 0;
     entity e = nextent(world);
     while(e) {
-        if((e.flags & FL_MONSTER) || e.MG_deferred) mon++;
+        if(((e.flags & FL_MONSTER) && !e.vr_corpse_placed) || e.MG_deferred) mon++;
         else if(e.flags & FL_ITEM) items++;
         if(e.classname == "info_intermission") inter++;
-        if(e.classname == "misc_corpse") corpses++;
+        if(e.classname == "misc_corpse" || e.vr_corpse_placed) corpses++; // (a placed body: vr_mg_corpses.qc)
         e = nextent(e);
     }
     dprint(sprintf("mg3test: %s with %g runes: %g monsters, %g items, %g intermission views, %g corpses (total_monsters %g)\n", mapname, MG3_RuneCount(), mon, items, inter, corpses, total_monsters));

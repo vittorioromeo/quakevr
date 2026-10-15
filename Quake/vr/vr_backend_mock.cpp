@@ -6,12 +6,15 @@
 
 #include "vr_angvel.hpp"
 #include "vr_backend.hpp"
+#include "vr_tracy.h"
+#include "vr_touch.hpp"
 #include "vr_body.hpp"
 #include "vr_box3d.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_foegrab.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
@@ -20,6 +23,7 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -211,6 +215,11 @@ void mockHandTurn_f()
 //   <t> grip <main|off> <0..1>                               the analog grip, linear between its keys (a hand
 //                                                            opening over tens of milliseconds, as a real one does;
 //                                                            its button pressed from 0.5): the throws' release
+//   <t> rel <main|off> <dx> <dy> <dz>                        a hand's keyframes from where it is when the play
+//                                                            reaches its first (metres, tracking space: after a
+//                                                            vr_mock_hand_to, a motion about a ragdoll's head);
+//                                                            before it the hand is left alone (a hand's keys are
+//                                                            all rel or none)
 // Poses in between are interpolated (positions linearly, orientations by slerp), and the hands
 // report the motion's velocities between their keyframes, as a runtime would. At the end the last
 // poses stay, as vr_mock_hand leaves them. The head's keyframes with angles turn it too (a lean's tilt: pitch up,
@@ -221,7 +230,10 @@ struct PlayKey
     glm::vec3 pos;
     bool hasRot;
     glm::quat rot;
+    bool rel{false}; // ("rel": pos from playAnchor)
 };
+glm::vec3 playAnchor[HAND_COUNT + 1];
+bool playAnchored[HAND_COUNT + 1]{};
 struct PlayButton
 {
     double t;
@@ -255,6 +267,10 @@ void mockPlay_f()
     playNextButton = 0;
     playStart = -1.0;
     playEnd = 0.0;
+    for(bool& anchored : playAnchored)
+    {
+        anchored = false;
+    }
     if(Cmd_Argc() != 2)
     {
         return;
@@ -287,6 +303,15 @@ void mockPlay_f()
             if(const int hand = mockHand(what); hand >= 0)
             {
                 playGrips[hand].pushBack({t, CLAMP(0.f, value, 1.f)});
+                playEnd = za::max(playEnd, t);
+            }
+            continue;
+        }
+        if(sscanf(line, "%lf rel %15s %f %f %f", &t, what, &x, &y, &z) == 5)
+        {
+            if(const int hand = mockHand(what); hand >= 0)
+            {
+                playKeys[hand].pushBack({t, {x, y, z}, false, glm::quat{1.f, 0.f, 0.f, 0.f}, true});
                 playEnd = za::max(playEnd, t);
             }
             continue;
@@ -355,7 +380,21 @@ void playFrame(double now, glm::vec3* vel, glm::vec3* angVel, bool* played)
         const PlayKey& k1 = i + 1 < keys.size() ? keys[i + 1] : keys[i];
         const double span = k1.t - k0.t;
         const float s = span > 0.0 ? static_cast<float>(za::clamp((t - k0.t) / span, 0.0, 1.0)) : 1.f;
-        mockHandPos[target] = glm::mix(k0.pos, k1.pos, s);
+        glm::vec3 from{0.f};
+        if(k0.rel)
+        {
+            if(t < keys[0].t)
+            {
+                continue; // (not reached yet: the hand left where it is)
+            }
+            if(!playAnchored[target])
+            {
+                playAnchor[target] = mockHandPos[target] - keys[0].pos;
+                playAnchored[target] = true;
+            }
+            from = playAnchor[target];
+        }
+        mockHandPos[target] = from + glm::mix(k0.pos, k1.pos, s);
         mockHandSet[target] = true;
         if(target == mockHead)
         {
@@ -458,10 +497,11 @@ void mockLook_f()
 // (view::weaponHotspot; the flick reload test).
 // (view::heldWeaponPoint; vr_weapon_grab_anywhere tests).
 // "vr_mock_hand_to <main|off> ragdoll <part> [<units>]": at the middle of that part of the ragdoll nearest you (its
-// rig's bone number: vr_ragdoll_info; "near": the part nearest the hand), `units` over it (the grab tests). "vr_mock_hand_to <main|off> by <dx> <dy> <dz>":
+// rig's bone number: vr_ragdoll_info; "near": the part nearest the hand; "head", "neck": its head's joint), `units` over it (the grab tests). "vr_mock_hand_to <main|off> by <dx> <dy> <dz>":
 // moved by that much (world units: lifting, swinging what it holds). "vr_mock_hand_to <main|off> nearest <classname>
 // [<units>]": at the origin of the entity of that classname nearest you (vr_limb: a limb cut off), `units` over it.
-// "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "holster <0..5>": at that holster's
+// "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "pouchport [<units>]": the hand's own
+// gun's load point on the pouch's rounds' top, units above them (pouch reloading); "holster <0..5>": at that holster's
 // point (body::Holster); "grenadepouch": at the grenade pouch (vr_handgrenade); "vr_mock_hand_to <main|off> lport
 // [<units>]": what the hand holds (a shell's middle, a magazine's top: view::heldRoundRef) at the loading port of the gun the
 // other hand holds, `units` below it; "lportmid": its middle there (a magazine's too: the top-of-the-magazine tests).
@@ -469,6 +509,8 @@ void mockLook_f()
 // (1 its feed end, 0 its middle, -1 its far end), `out` units off its side (vr_reload.qc: grips and hits on its box);
 // "magpalm": the palm's middle there instead of the hand's point, "magheld" the middle of what it holds (the solid
 // magazine's tests: vr_reload_mag_collide).
+// "vr_mock_hand_to <main|off> touch <x> <y> [<cm>]": its fingertip `cm` in front of the touchscreen (vr_touch.hpp: the
+// screen an app asks touches of, Doom's) at its pixel (x, y).
 // "vr_mock_hand_to <main|off> wbutton <front|side|back|degrees> [<units>] [<azimuth>]": its fingertip `units` (2) off the
 // other gun's ammo button, in front of its face, beside it or behind it, or `degrees` off its face (0 front, 180 behind)
 // turned `azimuth` degrees round it (vr_weapon_button_cone).
@@ -714,6 +756,28 @@ void mockHandTo_f()
         moveHandTo(hand, target);
         return;
     }
+    if((Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "pouchport") && hand >= 0)
+    {
+        // Pouch reloading (vr_reload.qc VR_Reload_PouchFrame): the hand's own gun's load point on the top middle of the
+        // rounds standing in the ammo pouch, `units` above it along them (negative: into them), the hand turned as it is;
+        // as drawn last frame.
+        const hands::State& st = hands::current();
+        glm::vec3 box[4];
+        if(!st.loadPortValid[hand] || !view::ammoPouchRounds(box))
+        {
+            Con_Printf("vr_mock_hand_to: no gun with a load point in that hand, or no ammo pouch\n");
+            return;
+        }
+        const float up = glm::length(box[3]);
+        const glm::vec3 top = box[0] + box[3] +
+                              (up > 1e-4f ? box[3] / up : glm::vec3{0.f, 0.f, 1.f}) *
+                                  (Cmd_Argc() == 4 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 0.f);
+        Con_Printf("vr_mock_hand_to: the pouch's rounds' top %.1f %.1f %.1f (up %.2f %.2f %.2f), the load point %.1f off the hand\n",
+            top.x, top.y, top.z, box[3].x / za::max(up, 1e-4f), box[3].y / za::max(up, 1e-4f), box[3].z / za::max(up, 1e-4f),
+            glm::distance(st.loadPort[hand], st.pos[hand]));
+        moveHandTo(hand, top - (st.loadPort[hand] - st.pos[hand]));
+        return;
+    }
     if((ammoPouch || loadPort) && hand >= 0)
     {
         // Immersive reloading (vr_reload.qc): at the ammo pouch's reach point; or what the hand holds (a round from it)
@@ -792,8 +856,36 @@ void mockHandTo_f()
             Con_Printf("vr_mock_hand_to: no %s\n", Cmd_Argv(3));
             return;
         }
-        target.z += Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
-        Con_Printf("vr_mock_hand_to: %s %d: %.1f %.1f %.1f\n", Cmd_Argv(3), found, target.x, target.y, target.z);
+        // ("head": the middle of its head zone, the neck snap's: foegrab::headZoneCentre; then `units` over it.)
+        const bool head = Cmd_Argc() >= 5 && !q_strcasecmp(Cmd_Argv(4), "head");
+        if(head)
+        {
+            PR_PushQCVM(&sv.qcvm, &oldVm);
+            const bool zone = foegrab::headZoneCentre(EDICT_NUM(found), target);
+            PR_PopQCVM(oldVm);
+            if(!zone)
+            {
+                Con_Printf("vr_mock_hand_to: %s %d has no head zone\n", Cmd_Argv(3), found);
+                return;
+            }
+        }
+        target.z += Cmd_Argc() >= 5 + (head ? 1 : 0) ? Q_atof(Cmd_Argv(4 + (head ? 1 : 0))) : 0.f;
+        Con_Printf("vr_mock_hand_to: %s %d%s: %.1f %.1f %.1f\n", Cmd_Argv(3), found, head ? "'s head" : "", target.x,
+            target.y, target.z);
+        moveHandTo(hand, target);
+        return;
+    }
+    if(hand >= 0 && Cmd_Argc() >= 5 && !q_strcasecmp(Cmd_Argv(2), "touch"))
+    {
+        // The touchscreen (vr_touch.hpp): the fingertip `cm` (0) in front of the screen an app asks touches of, at its
+        // pixel (x, y); a step to 0 or under touches it, back out to 2 lets go.
+        glm::vec3 target{0.f};
+        if(!touch::handTarget(hand, Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Cmd_Argc() >= 6 ? Q_atof(Cmd_Argv(5)) : 0.f,
+               target))
+        {
+            Con_Printf("vr_mock_hand_to: no touchscreen asked for (Doom: vr_doom 1)\n");
+            return;
+        }
         moveHandTo(hand, target);
         return;
     }
@@ -811,12 +903,16 @@ void mockHandTo_f()
         {
             qcvm_t* oldVm = nullptr;
             PR_PushQCVM(&sv.qcvm, &oldVm);
-            // (Part "near": the one nearest the hand; "head": its rig's head.)
+            // (Part "near": the one nearest the hand; "head": its rig's head; "neck": its head's joint.)
             const edict_t* player = EDICT_NUM(1);
             const bool nearest = !q_strcasecmp(Cmd_Argv(3), "near");
             const int num = box3d::ragdollPartCentre(nearest ? hands::current().pos[hand]
                                                              : glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]},
-                nearest ? -1 : !q_strcasecmp(Cmd_Argv(3), "head") ? -2 : Q_atoi(Cmd_Argv(3)), target);
+                nearest                                ? -1
+                : !q_strcasecmp(Cmd_Argv(3), "head") ? -2
+                : !q_strcasecmp(Cmd_Argv(3), "neck") ? -3
+                                                       : Q_atoi(Cmd_Argv(3)),
+                target);
             PR_PopQCVM(oldVm);
             if(!num)
             {
@@ -832,6 +928,7 @@ void mockHandTo_f()
     if(hand < 0 || (!weapon && !spot && !carried && !inHeld && !button && !wrist && !heldSpot && Cmd_Argc() != 5))
     {
         Con_Printf("usage: vr_mock_hand_to <main|off> <x> <y> <z>\n"
+                   "       vr_mock_hand_to <main|off> touch <x> <y> [<cm in front>]\n"
                    "       vr_mock_hand_to <main|off> weapon <fraction> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> spot <hotspot index> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> carried\n"
@@ -844,6 +941,7 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n"
                    "       vr_mock_hand_to <main|off> nearest <classname> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> ammopouch\n"
+                   "       vr_mock_hand_to <main|off> pouchport [<units above>]\n"
                    "       vr_mock_hand_to <main|off> holster <0..5>\n"
                    "       vr_mock_hand_to <main|off> grenadepouch\n"
                    "       vr_mock_hand_to <main|off> lport [<units below it>]\n"
@@ -1221,6 +1319,10 @@ bool mockCameraSet = false;
 glm::vec3 mockCameraPos{0.f};
 glm::quat mockCameraRot{1.f, 0.f, 0.f, 0.f};
 
+// resetMockState's calls so far: the backend's own scripted moves (their velocities, the shake) start again when it
+// sees a new count (MockBackend::beginFrame).
+za::U64 mockResetCount = 0;
+
 void mockCamera_f()
 {
     if(Cmd_Argc() == 1)
@@ -1346,6 +1448,7 @@ public:
 
     [[nodiscard]] bool start() override
     {
+        VR_TracyDisplay(0, -1); // mock has no runtime display-period or skipped-period feedback
         ensureTextures();
         return true;
     }
@@ -1367,6 +1470,16 @@ public:
             endFrame(false); // the previous frame was not rendered (as OpenXR's backend ends it)
         }
         frameBegun = true;
+        if(seenResets != mockResetCount)
+        {
+            // resetMockState (vr_test_reset): the scripted moves as a new backend's
+            seenResets = mockResetCount;
+            za::fill(handMotion, ScriptedMotion{});
+            za::fill(handTurn, ScriptedTurn{});
+            headMotion = ScriptedMotion{};
+            shake.start = -1.0;
+            shake.frame = -10;
+        }
 
         glm::vec3 playVel[HAND_COUNT + 1], playAngVel[HAND_COUNT + 1];
         bool played[HAND_COUNT + 1]{};
@@ -1654,6 +1767,7 @@ private:
         double start{-1.0}; // realtime when the shake started (vr_mock_shake)
         int frame{-10};      // the last frame it moved the head (host_framecount): a gap starts it again
     } shake;
+    za::U64 seenResets = 0; // mockResetCount when the scripted moves last started again
 };
 
 } // namespace
@@ -1691,6 +1805,38 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_camera", mockCamera_f);
     Cmd_AddCommand("vr_mock_fingers", mockFingers_f);
     Cmd_AddCommand("vr_mock_play", mockPlay_f);
+}
+
+void resetMockState()
+{
+    mockInput = InputState{};
+    za::fill(mockHandPos, glm::vec3{0.f});
+    za::fill(mockHandSet, false);
+    za::fill(mockHandRot, glm::quat{1.f, 0.f, 0.f, 0.f});
+    za::fill(mockHandRotSet, false);
+    za::fill(handGlide, HandGlide{});
+    mockHeadOrientation = glm::quat{1.f, 0.f, 0.f, 0.f};
+    za::fill(playAnchor, glm::vec3{0.f});
+    za::fill(playAnchored, false);
+    for(za::Vector<PlayKey>& keys : playKeys)
+    {
+        keys.clear();
+    }
+    playButtons.clear();
+    for(za::Vector<PlayGrip>& grips : playGrips)
+    {
+        grips.clear();
+    }
+    playNextButton = 0;
+    playStart = -1.0;
+    playEnd = 0.0;
+    za::fill(mockAim, MockAim{});
+    mockWalk = MockWalk{};
+    mockTurn = MockTurn{};
+    mockCameraSet = false;
+    mockCameraPos = glm::vec3{0.f};
+    mockCameraRot = glm::quat{1.f, 0.f, 0.f, 0.f};
+    mockResetCount++;
 }
 
 za::UniquePtr<Backend> makeMockBackend()

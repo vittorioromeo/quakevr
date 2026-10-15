@@ -38,6 +38,10 @@ bool grunt(edict_t* ent, float choice, float volume);
 // (an enemy: vr_foegrab.cpp).
 [[nodiscard]] bool handFree(edict_t* ent, int hand, bool holsters = true); // (holsters false: the grip at one counts not)
 
+// Server: the prop (its edict number) `ent`'s hand `hand` (0 off, 1 main) holds a ledge of (vr_climb.cpp, "Holds on
+// props"), 0 none: its hand's bodies don't push it (vr_box3d.cpp).
+[[nodiscard]] int heldProp(edict_t* ent, int hand);
+
 // Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
 // maps are another world's).
 void reset();

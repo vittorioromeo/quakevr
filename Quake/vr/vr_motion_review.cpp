@@ -749,7 +749,7 @@ void startJob(const za::Vector<za::String>& paths)
         list += p + '\n';
     }
     // The copy's script: the map, a moment for the mock headset to start, the evaluation, and quit.
-    za::String script = "sv_autosave 0\nmap vrfiringrange\n";
+    za::String script = "sv_autosave 0\nmap vrmelee-recording\n";
     for(int i = 0; i < 60; i++)
     {
         script += "wait\n";

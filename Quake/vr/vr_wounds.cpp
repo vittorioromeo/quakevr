@@ -116,6 +116,7 @@ GLuint bloodArray = 0; // ... and the blood on them that isn't theirs (spatter, 
                        // your masks in the pool, a layer each, the last your body's right side's)
 bool foreign = false;  // painting blood that isn't yours (paintOnYou's): into bloodArray
 int fineSize = 0;     // their side in texels (0: none; yours in the pool)
+int allocatedOwnRes = -1, allocatedBodyRes = -1; // routing changes also clear masks, even with the same array size
 GLuint washStencil = 0; // a depth-stencil texture as big as the largest mask: a wash takes its blood off each texel once
 int washStencilSize = 0;
 double lastTick = -1.0;
@@ -216,9 +217,9 @@ void resetGear()
 }
 
 // vr_wounds_own_res: 0, or a power of two from 512 to 2048.
-[[nodiscard]] int ownRes()
+[[nodiscard]] int detailRes(float value)
 {
-    const int want = static_cast<int>(vr_wounds_own_res.value);
+    const int want = static_cast<int>(value);
     if(want <= 0)
     {
         return 0;
@@ -230,6 +231,9 @@ void resetGear()
     }
     return res;
 }
+
+[[nodiscard]] int ownRes() { return detailRes(vr_wounds_own_res.value); }
+[[nodiscard]] int bodyRes() { return za::max(ownRes(), detailRes(vr_wounds_body_res.value)); }
 
 [[nodiscard]] int maskCount()
 {
@@ -297,7 +301,7 @@ void resetGear()
 {
     for(int slot = 0; slot < ownSlots - 1; slot++)
     {
-        bool taken = false;
+        bool taken = fineSize > 0 && masks[static_cast<za::SizeT>(layers + slot)].ent;
         for(const Mask& m : masks)
         {
             taken = taken || (m.ent && m.otherSlot == slot);
@@ -383,9 +387,10 @@ void releaseTexture()
 // The texture array and its framebuffer, `poolSize()` layers, and the fine masks (made again, empty, when either changes).
 bool ensureTexture()
 {
-    const int wantFine = ownRes();
+    const int wantOwn = ownRes(), wantBody = bodyRes();
+    const int wantFine = za::max(wantOwn, wantBody);
     const int want = poolSize() + (wantFine > 0 ? 0 : 1); // (chunky: your body's right side, an extra layer)
-    if(array && layers == want && fineSize == wantFine)
+    if(array && layers == want && fineSize == wantFine && allocatedOwnRes == wantOwn && allocatedBodyRes == wantBody)
     {
         return true;
     }
@@ -425,6 +430,8 @@ bool ensureTexture()
     GL_GenFramebuffersFunc(1, &fbo);
     layers = want;
     fineSize = wantFine;
+    allocatedOwnRes = wantOwn;
+    allocatedBodyRes = wantBody;
     masks.clear();
     masks.resize(static_cast<za::SizeT>(want + (wantFine > 0 ? ownSlots : 0)), Mask{});
     maskOf.clear();
@@ -742,10 +749,12 @@ int acquire(const entity_t* e, bool view, bool create, bool box = false)
     {
         return -1;
     }
-    // Yours in the fine masks (vr_wounds_own_res), the rest in the pool.
-    const bool fine = view && fineSize > 0;
+    // The tall body atlas needs finer blood than the hands to give their arms comparable texels per metre.
+    // Preserve vr_wounds_own_res (including chunky hands); a body-only minimum selects its fine mask.
+    const int resolution = modelmeta::has(e->model, modelmeta::Trait::Body) ? bodyRes() : ownRes();
+    const bool fine = view && fineSize > 0 && resolution > 0;
     int w = 0, h = 0;
-    if(!regionOf(e->model, w, h, fine ? fineSize : 0, box))
+    if(!regionOf(e->model, w, h, fine ? resolution : 0, box))
     {
         return -1;
     }
@@ -759,6 +768,19 @@ int acquire(const entity_t* e, bool view, bool create, bool box = false)
     for(int i = fine ? layers : 0; i < end; i++)
     {
         const Mask& m = masks[static_cast<za::SizeT>(i)];
+        if(fine)
+        {
+            bool shared = false;
+            for(int p = 0; p < layers; p++)
+            {
+                const Mask& pooled = masks[static_cast<za::SizeT>(p)];
+                shared = shared || (pooled.ent && pooled.otherSlot == i - layers);
+            }
+            if(shared)
+            {
+                continue;
+            }
+        }
         if(!m.ent)
         {
             best = i;
@@ -1099,6 +1121,26 @@ void onLiquid(Mask& m, const Event& ev)
     m.liquid = ev.extra == 1 ? 1 : 0;
 }
 
+// The body and its hands are distinct models but one skin surface. Paint the very same world-space splats on
+// the neighbour models, so a wound at their shared wrist has the same noise and edges on each side of the seam.
+void bridgeOwnWound(entity_t* source, const za::Vector<Splat>& splats)
+{
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    for(entity_t* e : own)
+    {
+        if(!e || e == source)
+        {
+            continue;
+        }
+        const int layer = acquire(e, true, true);
+        if(layer >= 0)
+        {
+            paint(layer, e, splats);
+        }
+    }
+}
+
 void wound(const Target& t, const Event& ev)
 {
     const int layer = acquire(t.ent, t.view, true);
@@ -1271,6 +1313,10 @@ void wound(const Target& t, const Event& ev)
     }
     splats.erase(za::removeIf(splats.begin(), splats.end(), [](const Splat& s) { return !paintsAnything(s); }), splats.end());
     paint(layer, t.ent, splats);
+    if(t.view)
+    {
+        bridgeOwnWound(t.ent, splats);
+    }
 }
 
 void logPlayerWound(const Event& ev); // (below: the player's wounds, to re-open after a wash)
@@ -1628,6 +1674,22 @@ void smearHand(int hand, int blots, float amount, bool theirs = true)
     }
     foreign = theirs; // (a gib's, a blow's: not yours, healing leaves it; your wounds re-opening: yours)
     paint(layer, e, splats);
+    if(own[0])
+    {
+        avatar::Skeleton sk;
+        const int bodyLayer = acquire(own[0], true, true);
+        if(bodyLayer >= 0 && avatar::skeleton(sk))
+        {
+            // Reuse the hand's patch noise on the wrist, fading a few centimetres up the arm. A whole-body liquid
+            // smear would paint every surface below the hand; this spherical bound keeps it local to this wrist.
+            for(Splat& s : splats)
+            {
+                s.v[3] = glm::vec4{sk.wrist[hand], s.v[3].w};
+                s.v[4].x = 0.12f * sk.m2w;
+            }
+            paint(bodyLayer, own[0], splats);
+        }
+    }
     foreign = false;
 }
 
@@ -2708,9 +2770,9 @@ void washGear(float amount)
 }
 
 // Mask `layer`'s blood: texels with any, and their blood summed.
-void maskBlood(int layer, int& count, double& sum)
+void maskBlood(int layer, int& count, double& sum, int region = -1)
 {
-    const Mask& m = masks[static_cast<za::SizeT>(layer)];
+    const Mask& m = masks[static_cast<za::SizeT>(region >= 0 ? region : layer)];
     za::Vector<byte> rgba(static_cast<za::SizeT>(m.w) * static_cast<za::SizeT>(m.h) * 4);
     GLint previous = 0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
@@ -3198,6 +3260,70 @@ void handsTest_f()
     Con_Printf("vr_gore_hands_test: a gib's blood on the %s hand\n", hand ? "main" : "off");
 }
 
+// A local seam wound starting on either model, for both-direction regression and the in-game Debug page.
+void wristTest_f()
+{
+    const int hand = Cmd_Argc() > 2 && ZA_STRCMP(Cmd_Argv(2), "off") == 0 ? 0 : 1;
+    const bool arm = Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "arm") == 0;
+    entity_t* own[3]{};
+    avatar::Skeleton sk;
+    view::woundTargets(own);
+    if(!vr_wounds.value || !own[0] || !own[hand + 1] || !avatar::skeleton(sk) || !ensureTexture())
+    {
+        Con_Printf("wrist blood: enable Dynamic Wounds and the body with jointed hands\n");
+        return;
+    }
+    entity_t* source = own[arm ? 0 : hand + 1];
+    const int layer = acquire(source, true, true);
+    if(layer < 0)
+    {
+        return;
+    }
+    const glm::vec3 axis = glm::normalize(sk.wrist[hand] - sk.elbow[hand]);
+    za::Vector<Splat> splats;
+    splats.pushBack(woundSplat(sk.wrist[hand], 0.12f * sk.m2w, glm::vec3{0.f, 0.f, 1.f}, axis,
+        1.f, 0.12f * sk.m2w, -1.f, 0.f, paintBlood));
+    int before[2]{};
+    for(int i = 0; i < 2; i++)
+    {
+        const int l = acquire(own[i == 0 ? 0 : hand + 1], true, true);
+        double sum;
+        if(l >= 0)
+        {
+            int in[2], side[2];
+            const int n = layersOf(l, in, side);
+            for(int j = 0; j < n; j++)
+            {
+                int count;
+                maskBlood(in[j], count, sum, l);
+                before[i] += count;
+            }
+        }
+    }
+    paint(layer, source, splats);
+    bridgeOwnWound(source, splats);
+    end();
+    int after[2]{};
+    for(int i = 0; i < 2; i++)
+    {
+        const int l = acquire(own[i == 0 ? 0 : hand + 1], true, false);
+        double sum;
+        if(l >= 0)
+        {
+            int in[2], side[2];
+            const int n = layersOf(l, in, side);
+            for(int j = 0; j < n; j++)
+            {
+                int count;
+                maskBlood(in[j], count, sum, l);
+                after[i] += count;
+            }
+        }
+    }
+    Con_Printf("wrist blood: from %s %s, body %d -> %d, hand %d -> %d texels\n", arm ? "arm" : "hand",
+        hand ? "main" : "off", before[0], after[0], before[1], after[1]);
+}
+
 void washTest_f()
 {
     const float amount = Cmd_Argc() > 1 ? static_cast<float>(atof(Cmd_Argv(1))) : 0.25f;
@@ -3558,13 +3684,14 @@ void info_f()
         used, maskCount(), layerSize, layerSize, static_cast<double>(layers) * layerSize * layerSize * 4.0 / (1024.0 * 1024.0), fineSize,
         fineSize, static_cast<double>(maskCount() - layers) * fineSize * fineSize * 5.0 / (1024.0 * 1024.0), paintsTotal,
         static_cast<double>(lastPaintMs));
+    Con_Printf("wounds: own resolution hands %d body %d (shared array %d)\n", ownRes(), bodyRes(), fineSize);
     for(int i = 0; i < maskCount(); i++)
     {
         const Mask& m = masks[static_cast<za::SizeT>(i)];
         if(m.ent)
         {
-            Con_Printf("  %2d %s%s %dx%d, drawn %.1f s ago%s%s\n", i, m.model ? m.model->name : "?",
-                m.view ? (isFine(i) ? " (you, fine)" : " (you)") : "", m.w, m.h,
+            Con_Printf("  %2d %s%s %dx%d, foreign blood slot %d, drawn %.1f s ago%s%s\n", i, m.model ? m.model->name : "?",
+                m.view ? (isFine(i) ? " (you, fine)" : " (you)") : "", m.w, m.h, bloodLayerOf(i),
                 vr_gametime - m.lastDrawn, m.wetLeft > 0.f ? ", wet" : "", m.hotLeft > 0.f ? ", hot" : "");
         }
     }

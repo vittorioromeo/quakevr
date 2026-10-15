@@ -22,6 +22,7 @@ void() shalrath_start =
         n.th_die = shalrath_die;
         n.th_pain = shalrath_pain;
         n.th_missile = shal_attack1;
+        n.th_vrshove = shal_shove1; // (VR: up close, vr_enemyshove.qc)
         if(self.cnt <= -1){
                 total_monsters = total_monsters + 1;
                 WriteByte(MSG_ALL, SVC_UPDATESTAT);

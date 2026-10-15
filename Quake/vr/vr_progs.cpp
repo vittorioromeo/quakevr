@@ -1,7 +1,10 @@
 // vr_progs.cpp -- binds the Quake VR QuakeC entry points, globals and spawn parms.
 
+#include "vr_ad.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
+#include "vr_brushes.hpp"
+#include "vr_permdecals.hpp"
 #include "vr_progs.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_engine.hpp"
@@ -41,7 +44,7 @@ namespace
 
 Bindings sv_bindings;
 
-// Level-start values of parm17..parm56, per client (parm1..parm16 live in client_t).
+// Level-start values of parm17..parm72, per client (parm1..parm16 live in client_t).
 za::Vector<float> extSpawnParms;
 
 // Set while Host_Loadgame_f respawns the server, for `spawnServerFromSaveFile`.
@@ -165,6 +168,83 @@ func_t findFunction(const char* name)
 
 using namespace qvr::progs;
 
+namespace
+{
+
+// The game code's check (checkGameCode): what was said last (its source, kind and missing fields), said again only when
+// that changes (the progs load at every map); and its centre print for the player, once in the game (loadNoticeFrame).
+za::String gameCodeChecked;
+za::String gameCodeNotice;
+
+// Whether the progs.dat loaded is this build's (the 1.0.0 report "guns can only be grabbed as props", a player who had
+// built a pre-release: another folder's progs.dat, or id's, ran with this engine). Said in the console (a condump has
+// it) and, when it is not, centre-printed once: a progs.dat that is not Quake VR's (id's, from id1 or a mission pack:
+// Quake VR's gameplay off, weapons only props) while quakevr is the game; or Quake VR's but older than this engine (some
+// of the VR fields it binds by name missing: another build's quakevr folder).
+void checkGameCode(const Bindings& b)
+{
+    if(!COM_FileExists("progs.dat", nullptr))
+    {
+        return;
+    }
+    char source[MAX_OSPATH];
+    if(Sys_FileType(com_filesource) == FS_ENT_DIRECTORY)
+    {
+        q_snprintf(source, sizeof(source), "%s/progs.dat", com_filesource);
+    }
+    else
+    {
+        q_strlcpy(source, com_filesource, sizeof(source));
+    }
+    int total = 0;
+    int missing = 0;
+    const char* firstMissing = "";
+    if(b.isVrProgs)
+    {
+#define QVR_FIELD(name)                                                                                                \
+    ++total;                                                                                                           \
+    if(b.fields.name < 0 && !missing++)                                                                                \
+    {                                                                                                                  \
+        firstMissing = #name;                                                                                          \
+    }
+#include "vr_fields.inc"
+#undef QVR_FIELD
+    }
+    const char* key = va("%s|%d|%d", source, b.isVrProgs ? 1 : 0, missing);
+    if(gameCodeChecked == key)
+    {
+        return;
+    }
+    gameCodeChecked = za::String{key};
+    // (quakevr the game: the last of the game dirs. A mod over it, "-game quakevr -game <mod>", brings its own progs.)
+    const char* games = com_gamenames;
+    const char* last = strrchr(games, ';');
+    const bool vrGame = !q_strcasecmp(last ? last + 1 : games, "quakevr");
+    Con_Printf("[skipnotify]VR: game code %s: %s\n", source,
+        !b.isVrProgs ? "not Quake VR's" : missing ? "Quake VR's, older than this engine" : "Quake VR's, this build's");
+    if(!b.isVrProgs && vrGame)
+    {
+        Con_Warning("VR: this progs.dat is not Quake VR's game code (%s): Quake VR's gameplay is off, weapons are only "
+                    "props. The quakevr folder searched has none: start Quake VR with the shortcut its installer made, "
+                    "or from the folder it is installed in; \"path\" lists the folders searched.\n",
+            source);
+        gameCodeNotice = za::String{"Quake VR's game code was not found\nWeapons are only props: start Quake VR\n"
+                                    "with its installer's shortcut (console: path)"};
+    }
+    else if(missing)
+    {
+        Con_Warning("VR: this progs.dat is older than this engine (%s: %d of the %d VR fields missing, %s the first): "
+                    "another build's quakevr folder, not this one's; weapons and more misbehave. Start Quake VR with "
+                    "the shortcut its installer made, or update or remove that folder; \"path\" lists the folders "
+                    "searched.\n",
+            source, missing, total, firstMissing);
+        gameCodeNotice = za::String{"Quake VR's game code is from another build\nWeapons may misbehave: start Quake VR\n"
+                                    "with its installer's shortcut (console: path)"};
+    }
+}
+
+} // namespace
+
 extern "C" void VR_OnProgsLoaded()
 {
     if(qcvm != &sv.qcvm)
@@ -236,6 +316,7 @@ extern "C" void VR_OnProgsLoaded()
         Con_DPrintf("VR: progs without Quake VR's gameplay: compatibility mode\n");
     }
 
+    checkGameCode(b);
     sv_bindings = b;
 }
 
@@ -252,6 +333,7 @@ void resetServerWorld()
     qvr::physics::resetRigidBodies(); // (with the two-handed holds)
     qvr::box3d::reset();
     qvr::toolgun::reset(); // (what its tools hold, by entity number)
+    qvr::brushes::reset(); // (the boxes made in the game: the map's)
     qvr::ropesim::reset();
     qvr::climb::reset();
     qvr::foegrab::reset();
@@ -288,6 +370,7 @@ extern "C" void VR_OnClearMemory()
 extern "C" void VR_OnSpawnServerBeforeLoad()
 {
     resetServerWorld();
+    qvr::ad::beforeLoad(); // vr_ad_rules for this map, before anything of it spawns (and QC's hook reads it)
     VR_EdictIndex_Reset(); // (the edicts cleared)
     qvr::physics::precacheWaterSounds();
     qvr::physsound::precache(); // the props' knocks and scrapes, the climbing grab
@@ -545,6 +628,8 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     unsigned int crc = 0;
     char build[128] = "?";
     sscanf(line, "// qvr_save %d progs %x build %127[^\r\n]", &format, &crc, build);
+    qvr::brushes::readSaveLines(text); // (made again after the load: restoreAfterLoad)
+    qvr::permdecals::readSaveLines(text); // (the permanent decals: baked again once its map has loaded)
     if(format > VR_SAVE_FORMAT)
     {
         Con_Printf("ERROR: %s was saved by a newer build (%s, save format %d; this one, %s, reads up to %d): not loaded\n",
@@ -577,16 +662,43 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     return 1;
 }
 
+void qvr::progs::gameCode_f()
+{
+    const char* vrRoot = VR_GameDirectoryRoot("quakevr", 0);
+    for(int i = 0; i < com_numbasedirs; i++)
+    {
+        Con_Printf("base dir %d: %s%s\n", i + 1, com_basedirs[i],
+            vrRoot == com_basedirs[i] ? " (its quakevr is the one searched)" : "");
+    }
+    Con_Printf("game dirs: %s\n", com_gamenames);
+    if(!sv.active)
+    {
+        Con_Printf("game code: checked when a map loads (no game running)\n");
+    }
+    else
+    {
+        const bool noticed = gameCodeNotice.empty(); // (its centre print not again)
+        gameCodeChecked.clear();                     // (said again)
+        checkGameCode(sv_bindings);
+        if(noticed)
+        {
+            gameCodeNotice.clear();
+        }
+    }
+    Cbuf_InsertText("path\n");
+}
+
 void qvr::progs::loadNoticeFrame()
 {
-    // (the loaded game's player in it: the save's warning where it is seen)
-    if(saveInfo.notice.empty() || svs.maxclients < 1 || !svs.clients[0].spawned)
+    // (the loaded game's player in it: the save's warning where it is seen; or the game code's, checkGameCode)
+    za::String& notice = !saveInfo.notice.empty() ? saveInfo.notice : gameCodeNotice;
+    if(notice.empty() || svs.maxclients < 1 || !svs.clients[0].spawned)
     {
         return;
     }
     MSG_WriteByte(&svs.clients[0].message, svc_centerprint);
-    MSG_WriteString(&svs.clients[0].message, saveInfo.notice.cStr());
-    saveInfo.notice.clear();
+    MSG_WriteString(&svs.clients[0].message, notice.cStr());
+    notice.clear();
 }
 
 namespace
@@ -750,7 +862,7 @@ extern "C" void VR_OnLoadGame()
     loadingSaveGame = false;
     VR_EdictIndex_Reset(); // (the edicts parsed from the save)
 
-    // parm17..parm56 were restored with the other globals and still hold the level-start
+    // parm17..parm72 were restored with the other globals and still hold the level-start
     // values (QC only rewrites them in SetNewParms/SetChangeParms), so they become the
     // single-player client's stored parms, like parm1..16 do from the savegame header.
     VR_StoreSpawnParms(0);
@@ -762,6 +874,7 @@ extern "C" void VR_OnLoadGame()
     qvr::physics::resetRigidBodies();
 
     rebindLoadedModels();
+    qvr::brushes::restoreAfterLoad(); // (the saved game's brushes on their entities, their models by the names just bound)
 
     qvr::walltorch::restoreAfterLoad(); // the map's wall torches the save lacks (made with vr_walltorch 0, now on)
     qvr::climb::reset();                // (holds on the loaded game's entities: none)

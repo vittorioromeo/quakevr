@@ -1,6 +1,7 @@
 // vr_painknock.cpp -- see vr_painknock.hpp.
 
 #include "vr_painknock.hpp"
+#include "vr_blood.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
@@ -343,5 +344,6 @@ void registerCommands()
 
 extern "C" void VR_OnDamage(int armor, int blood, const float* from)
 {
+    qvr::blood::onDamage(armor, blood, from);
     qvr::painknock::onDamage(armor, blood, from);
 }

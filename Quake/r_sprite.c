@@ -46,6 +46,7 @@ static int numsoftsprites;
 static qboolean softpass;
 static GLuint softdistances;
 static float batchsoftfade;
+static float batchalpha = 1.f; // QVR: the entity's alpha (soft pass only; see-through: no depth written)
 static entity_t *batchentity; // QVR: retro textures (vr/vr_retro.cpp)
 static mspriteframe_t *batchframe; // QVR
 
@@ -169,12 +170,13 @@ static void R_FlushSpriteInstances (void)
 		GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZWRITE | GLS_CULL_BACK | GLS_ATTRIBS(2));
 	else if (softpass) // QVR
 	{
-		GL_SetState (GLS_BLEND_ALPHA | GLS_CULL_BACK | GLS_ATTRIBS(2));
+		GL_SetState (GLS_BLEND_ALPHA | (batchalpha < 1.f ? GLS_NO_ZWRITE : 0) | GLS_CULL_BACK | GLS_ATTRIBS(2));
 		glBlendFunc (GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	else
 		GL_SetState (GLS_BLEND_OPAQUE | GLS_CULL_BACK | GLS_ATTRIBS(2));
-	GL_Uniform4fFunc (0, softpass && softdistances ? batchsoftfade : 0.f, softpass ? 1.f : 0.f, 0.f, 0.f); // QVR
+	GL_Uniform4fFunc (0, softpass && softdistances ? batchsoftfade : 0.f, softpass ? 1.f : 0.f,
+		softpass ? batchalpha : 1.f, 0.f); // QVR
 	if (softpass && softdistances) // QVR
 		GL_BindNative (GL_TEXTURE1, GL_TEXTURE_2D, softdistances);
 
@@ -220,6 +222,7 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 	spritevert_t	*verts;
 	float			scale = ENTSCALE_DECODE(e->scale);
 	float			softfade = 0.f; // QVR
+	float			alpha; // QVR
 
 	frame = R_GetSpriteFrame (e);
 	psprite = (msprite_t *) e->model->cache.data;
@@ -277,9 +280,12 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 	if (softpass && softdistances && psprite->type != SPR_ORIENTED) // QVR: not those lying on walls
 		softfade = VR_SoftSpriteFade (0.5f * q_max (frame->right - frame->left, frame->up - frame->down) * scale);
 
+	// QVR: its alpha (AD's see-through flames, vr_adgun_stream_alpha): in the soft pass, premultiplied
+	alpha = softpass ? ENTALPHA_DECODE (e->alpha) : 1.f;
+
 	if (numbatchquads)
 		if (numbatchquads == countof(batchverts) / 4 || batchmodel != e->model || batchtexture != frame->gltexture
-			|| batchsoftfade != softfade) // QVR
+			|| batchsoftfade != softfade || batchalpha != alpha) // QVR
 			R_FlushSpriteInstances ();
 
 	if (!numbatchquads)
@@ -288,6 +294,7 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 		batchtexture = frame->gltexture;
 		batchshowtris = showtris;
 		batchsoftfade = softfade; // QVR
+		batchalpha = alpha; // QVR
 		batchentity = e; // QVR: retro textures (its model's set)
 		batchframe = frame; // QVR
 	}

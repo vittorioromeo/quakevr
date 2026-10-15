@@ -2,6 +2,7 @@
 
 #include "vr_hull.hpp"
 #include "vr_alloccount.hpp"
+#include "vr_brushes.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
@@ -3166,6 +3167,16 @@ constexpr int maxCrouchLevels = 8;
 constexpr float crouchStandMargin = 2.f; // units his eyes rise past a box's top before a taller one is tried
 float crouchBox[crouchSlots]{};
 
+// Crouched, slower (vr_crouch_speed; VR_CrouchSpeedMax): per client, his eyes' height over his feet at his last move
+// (0: unknown) and the slowing's share now (0 none .. 1 fully crouched), eased towards his eyes' over
+// crouchSpeedEaseTime; cleared at each map's load. Fully slowed crouchSpeedBand units under the tallest crouched box's
+// top; the crouched most speed never over crouchSpeedQuiet of the stealth AI's footsteps' speed (vr_stealth_run_speed).
+constexpr float crouchSpeedBand = 8.f;
+constexpr float crouchSpeedEaseTime = 0.25f;
+constexpr float crouchSpeedQuiet = 0.9f;
+float crouchEye[crouchSlots]{};
+float crouchSlowShare[crouchSlots]{};
+
 bool crouchOn()
 {
     return vr_crouch_hull.value != 0.f;
@@ -3466,9 +3477,9 @@ int subOf(Brushes& b, int index)
     }
     known = -1;
     qmodel_t* m = sv.models[index];
-    if(!m || m->type != mod_brush || !m->hulls[0].clipnodes || m->numnodes <= 0)
+    if(!m || m->type != mod_brush || !m->hulls[0].clipnodes || m->numnodes <= 0 || brushes::isRuntime(m))
     {
-        return known;
+        return known; // (a runtime brush's: clipBSP meets its planes directly)
     }
     const hull_t& h0 = m->hulls[0];
     for(za::SizeT i = 0; i < b.subs.size(); ++i)
@@ -5657,9 +5668,11 @@ void init()
 void beforeLoad()
 {
     settle();
-    for(float& c : crouchBox)
+    for(int i = 0; i < crouchSlots; ++i)
     {
-        c = 0.f; // (each map starts standing)
+        crouchBox[i] = 0.f; // (each map starts standing)
+        crouchEye[i] = 0.f;
+        crouchSlowShare[i] = 0.f;
     }
     qmodel_t* world = sv.worldmodel;
     if(!wanted() || world->type != mod_brush || world->numnodes <= 0 || built.clipnodes == world->hulls[0].clipnodes)
@@ -5918,6 +5931,23 @@ bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const
     }
     const int index = static_cast<int>(ent->v.modelindex);
     qmodel_t* model = index >= 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(model && brushes::isRuntime(model))
+    {
+        // A box made in the game (vr_brushes.cpp): its convex planes met directly (its model is made again in place
+        // when it changes: never in the brushes kept here).
+        const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+        if(!brushes::clipBox(model, glm::vec3{start[0], start[1], start[2]} - origin, glm::vec3{boxMins[0], boxMins[1], boxMins[2]},
+               glm::vec3{boxMaxs[0], boxMaxs[1], boxMaxs[2]}, glm::vec3{end[0], end[1], end[2]} - origin, trace))
+        {
+            return false;
+        }
+        ++vr_profcounts.hullchecks;
+        for(int i = 0; i < 3; ++i)
+        {
+            trace.endpos[i] += origin[i];
+        }
+        return true;
+    }
     if(!model || model->type != mod_brush || !worldBrushes(sv.worldmodel))
     {
         return false;
@@ -6082,6 +6112,7 @@ void updateCrouch(edict_t* ent, const glm::vec3& head)
     {
         return;
     }
+    crouchEye[num] = (ent->free || head == glm::vec3{0.f}) ? 0.f : head.z - (ent->v.origin[2] + ent->v.mins[2]);
     float& c = crouchBox[num];
     if(!crouchOn() || !sv.active || !sv.worldmodel || ent->free || head == glm::vec3{0.f})
     {
@@ -6232,7 +6263,41 @@ void walkTestFrame(edict_t* ent)
     }
 }
 
+float crouchSpeedMax(edict_t* ent, float maxspeed)
+{
+    const int num = clientNum(ent);
+    if(num < 1 || num >= crouchSlots || !sv.worldmodel)
+    {
+        return maxspeed;
+    }
+    // The share his eyes ask for: none over the tallest crouched box's top, all crouchSpeedBand units under it.
+    float want = 0.f;
+    if(vr_crouch_speed.value != 0.f && crouchEye[num] > 0.f)
+    {
+        float levels[maxCrouchLevels];
+        const float top = levels[crouchLevels(sv.worldmodel, levels) - 1];
+        want = za::clamp((top - crouchEye[num]) / crouchSpeedBand, 0.f, 1.f);
+    }
+    float& share = crouchSlowShare[num];
+    const float step = static_cast<float>(host_frametime) / crouchSpeedEaseTime;
+    share = want > share ? za::min(want, share + step) : za::max(want, share - step);
+    if(share <= 0.f)
+    {
+        return maxspeed;
+    }
+    const float scaled = maxspeed * za::clamp(vr_crouch_speed_scale.value, 0.2f, 1.f);
+    const float quiet = za::max(0.f, vr_stealth_run_speed.value * crouchSpeedQuiet);
+    const float crouched = za::min(maxspeed, za::min(scaled, quiet));
+    return maxspeed + (crouched - maxspeed) * share;
+}
+
 } // namespace qvr::hull
+
+// SV_AirMove (walking, in the air): crouched, the stick's most speed (vr_crouch_speed; qvr::hull::crouchSpeedMax).
+extern "C" float VR_CrouchSpeedMax(edict_t* ent, float maxspeed)
+{
+    return qvr::hull::crouchSpeedMax(ent, maxspeed);
+}
 
 extern "C" int VR_HullMoveBox(edict_t* passedict, const float* mins, const float* maxs, float* boxmins, float* boxmaxs)
 {

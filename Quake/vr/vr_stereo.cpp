@@ -24,6 +24,7 @@
 #include "vr_lines.hpp"
 #include "vr_loading.hpp"
 #include "vr_main.hpp"
+#include "vr_hotblade.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_menuui.hpp"
 #include "vr_panel.hpp"
@@ -868,6 +869,7 @@ extern "C" int VR_RenderView()
     crosshair::queue(hands::current());
     fgfx::queue(hands::current());
     meleehud::queue(hands::current()); // the counter glow (vr_counter_glow)
+    hotblade::queue(hands::current()); // incandescent blades: their light, embers and trails
     body::queueDebug(hands::current());
     envmap::update(); // the weapons' reflections: a face of the cube, once for both eyes (vr_envmap.cpp)
 

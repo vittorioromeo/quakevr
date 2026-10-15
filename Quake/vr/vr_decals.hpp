@@ -21,6 +21,7 @@
 #pragma once
 
 #include "vr_particles.hpp"
+#include "vr_permdecals.hpp"
 
 #include <glm/glm.hpp>
 
@@ -83,6 +84,11 @@ void draw();
 
 // All gone (a new map).
 void clear();
+// Those laid on runtime brush `id` gone (it changed or was removed: vr_brushes.cpp, the marks on its faces; the world's
+// beside it stay); a mark on several brushes, if its middle is in lo..hi (the brush's box).
+void removeOn(int id, const glm::vec3& lo, const glm::vec3& hi);
+// How many there are on runtime brush `id`, as removeOn finds them (vr_brush_list: the marks on a brush).
+[[nodiscard]] int countOn(int id, const glm::vec3& lo, const glm::vec3& hi);
 
 // vr_decal_count: how many there are, of each kind.
 void count_f();
@@ -90,10 +96,17 @@ void count_f();
 // vr_decal_stress [count 1..64] [size]: deterministic floor splatters ahead, for profiling.
 void stress_f();
 
+// vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size]: a mark where the line from x y z along dx dy dz (512
+// units) meets the world or a brush model, as a hit lays it (tests: the same place each run).
+void at_f();
+
 // vr_decal_atlas: writes the marks' atlas to <gamedir>/decal_atlas.png, as they look on a grey wall.
 void atlas_f();
 
 // Decals on the walls (vr_memstats).
 [[nodiscard]] int liveCount();
+
+// A save: the live marks on the static world not among the permanent layer's stamps (as they settle), into `out`.
+void liveStamps(za::Vector<permdecals::Stamp>& out);
 
 } // namespace qvr::decals

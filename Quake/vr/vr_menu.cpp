@@ -1,4 +1,5 @@
 #include "vr_cheats.hpp"
+#include "vr_doom.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_alloccount.h"
 // vr_menu.cpp -- the "VR Settings" pages (Options > VR Settings), drawn like Ironwail's options
@@ -27,6 +28,7 @@
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
+#include "vr_panel.hpp"
 #include "vr_obs.hpp"
 #include "vr_menupaint.hpp"
 #include "vr_motion.hpp"
@@ -44,6 +46,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
 #include "vr_props.hpp"
+#include "vr_ragtest.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_retro.hpp"
@@ -82,6 +85,9 @@ extern qboolean keydown[MAX_KEYS]; // keys.c
 extern cvar_t ui_mouse_sound; // menu.c
 extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
+void M_Main_RowsExtent(float* left, float* right); // menu.c: its rows' ends as last drawn (menu_vr pos)
+void M_Main_RowsSpan(float* top, float* bottom, float* canvasTop, float* canvasBottom); // menu.c: its top, its last
+                                                                                        // row's bottom, the canvas's
 extern int m_singleplayer_cursor; // menu.c: Single Player's (menu_vr pos)
 int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
 float M_ContentRightBelow(float y); // menu.c: how far right its menu shown draws below y (the main menu's rows as drawn)
@@ -467,7 +473,9 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageWeightDamage();
 [[nodiscard]] za::Vector<Item> pageAimingSettings();
 [[nodiscard]] za::Vector<Item> pageWeaponDamage();
+[[nodiscard]] za::Vector<Item> pageHotBlades();
 [[nodiscard]] za::Vector<Item> pageDamage();
+[[nodiscard]] za::Vector<Item> pageBloodFeedback();
 [[nodiscard]] za::Vector<Item> pageFingersCollisions();
 [[nodiscard]] za::Vector<Item> pageFlashlightLowGrip();
 [[nodiscard]] za::Vector<Item> pageFlashlightOverheadGrip();
@@ -483,6 +491,8 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDebugCheats();
 [[nodiscard]] za::Vector<Item> pageStealth();
 [[nodiscard]] za::Vector<Item> pageStealthTests();
+[[nodiscard]] za::Vector<Item> pageRagdollTests();
+[[nodiscard]] za::Vector<Item> pageRagdolls();
 [[nodiscard]] za::Vector<Item> pageSpawnWeapons();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
@@ -492,6 +502,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageMaps();
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
+[[nodiscard]] za::Vector<Item> pageVrsHud();
 [[nodiscard]] za::Vector<Item> pageColours();
 [[nodiscard]] za::Vector<Item> pageBulletTime();
 [[nodiscard]] za::Vector<Item> pageStamina();
@@ -499,6 +510,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageGore();
 [[nodiscard]] za::Vector<Item> pageLimbGore();
 [[nodiscard]] za::Vector<Item> pageScreens();
+[[nodiscard]] za::Vector<Item> pageDoom();
 [[nodiscard]] za::Vector<Item> pageTips();
 [[nodiscard]] za::Vector<Item> pageHipHolsters();
 [[nodiscard]] za::Vector<Item> pageClimbing();
@@ -571,12 +583,27 @@ mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
     return {{0.f, "Jump grunt"}, {1.f, "Hard landing"}, {2.f, "Jump, deeper"}, {3.f, "Landing, deeper"}, {4.f, "Pain grunt"}};
 }
 
+// vr_menu_button's choices (VR Settings > Controls, HUD and Menus > Menu): what opens the menu besides the menu button.
+[[nodiscard]] za::Vector<Choice> menuButtonChoices()
+{
+    return {{0.f, "Menu Button Only"}, {1.f, "Or Both Sticks"}, {2.f, "Or Both Sticks, Hold Y"}, {3.f, "Or Both Sticks, Hold B"},
+        {4.f, "Or Both Sticks, Y"}};
+}
+
+const char* const menuButtonHelp =
+    "What opens the menu (and closes it from any page) besides the controller's menu button, which some controllers and "
+    "runtimes keep for themselves (Pico under SteamVR). Both Sticks: click both sticks together. Hold Y or B: hold it "
+    "for a moment in the game (its own action happens first). Y: Y is the menu button, no longer previous weapon. "
+    "Escape on the keyboard always works.";
+
 #include "vr_menu_props.inc"
 #include "vr_menu_pages.inc"
 #include "vr_menu_recording.inc"
 #include "vr_menu_cheats.inc"
 #include "vr_menu_toolgun.inc"
 #include "vr_menu_stealth.inc"
+#include "vr_menu_ragtests.inc"
+#include "vr_menu_ad_monsters.inc" // AD support: Debug > Tests > Arcane Dimensions Monsters
 
 // ----------------------------------------------------------------------------
 // Pages of the port's own tweaks
@@ -618,6 +645,8 @@ int motionPageCategory = -1;
     motionPageCategory = static_cast<int>(vr_motion_category.value);
     return {
         header("Record Motions for the Melee"),
+        command("Melee Recording Room", "map vrmelee-recording")
+            .help("All melee weapons and one central training dummy, with clear room to record your motions."),
         toggle("Arm Recorder", vr_motion_armed)
             .help("Armed: click the Record Button to start a take of the Category, click it again to end it and save "
                   "it (quakevr/motions). A beep and a buzz each time; REC in view."),
@@ -774,7 +803,7 @@ int campaignsBloodyShown = -1;
 [[nodiscard]] za::Vector<Item> pageCampaigns()
 {
     za::Vector<Item> items{header("Official Campaigns")};
-    for(int i = 0; i < 6; ++i)
+    for(int i = 0; i < VR_CampaignCount(); ++i) // (Arcane Dimensions too: its row dim until it is ready)
     {
         Item choice = row(VR_CampaignLabel, VR_CampaignHelp, VR_SelectCampaign, i, -1);
         choice.dimArg = [](int index) -> bool { return VR_CampaignUnavailable(index) != 0; };
@@ -806,6 +835,7 @@ int campaignsBloodyShown = -1;
         action("VR Hub", playHub),
         action("Tutorial", playTutorial),
         action("Firing Range", playFiringRange),
+        command("Melee Recording Room", "map vrmelee-recording"),
         header("Bots (Multiplayer)"),
         action("Add Bot (Team 0)", addBotTeam0),
         action("Add Bot (Team 1)", addBotTeam1),
@@ -858,7 +888,7 @@ int campaignsBloodyShown = -1;
     return {
         toggle("Enemy Shoves", vr_enemy_shove)
             .help("Grunts and enforcers shove you away, pushing their gun out with both hands, when you stand too close "
-                  "for a moment. Never while they fire, are staggered or knocked away."),
+                  "for a moment; vores swing their arms at you. Never while they fire, are staggered or knocked away."),
         slider("Too Close", vr_enemy_shove_range, 36.f, 96.f, 2.f, "%.0f units").extend(32.f, 160.f)
             .help("How close you must be (between your middles, flat: touching is 32 units) for them to shove you."),
         slider("Delay", vr_enemy_shove_delay, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 10.f)
@@ -876,6 +906,13 @@ int campaignsBloodyShown = -1;
             .help("An enforcer's shove's damage, times Damage."),
         slider("Enforcer Push", vr_enemy_shove_enforcer_distance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How far an enforcer's shove pushes you, times Push Distance."),
+        toggle("Vores Shove", vr_enemy_shove_vore)
+            .help("Vores shove you too, swinging their arms down at you: the hardest shove of all. They reach a little "
+                  "farther (they are wider)."),
+        slider("Vore Damage", vr_enemy_shove_vore_damage, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("A vore's shove's damage, times Damage."),
+        slider("Vore Push", vr_enemy_shove_vore_distance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How far a vore's shove pushes you, times Push Distance."),
     };
 }
 
@@ -926,6 +963,18 @@ int campaignsBloodyShown = -1;
                   "along with you. Breaks Free: its shove pushes you fully, as ever, and tears it from your hands."),
         slider("Shove Resistance", vr_foegrab_shove_resist, 0.f, 1.f, 0.05f, "%.2f")
             .help("Resisted: share of a held enemy's shove taken off, times its hold."),
+        header("Getting Close"),
+        slider("Body Inset", vr_body_monster_inset, 0.f, 12.f, 1.f, "%.0f units")
+            .help("Your body and a monster's meet this much further in on each side (both bodies: twice this closer face "
+                  "to face), so your hands reach its neck and head. Only between you and monsters: walls, doors, "
+                  "monsters against each other, shots and melee keep their boxes. 0: as before."),
+        toggle("Step In", vr_foegrab_step_in)
+            .help("While a hand holds an enemy, your body and its body don't meet: step in and bring the other hand to "
+                  "its head. Let go while overlapping and the two are pushed gently apart (never stuck)."),
+        slider("Melee Space", vr_enemy_melee_space, 0.f, 48.f, 2.f, "%.0f units")
+            .help("A monster attacking you in melee (a knight's swing and its run past you, an ogre's chainsaw, a "
+                  "fiend's claws) is kept this far from your head, pushed back smoothly, so it never fills your view and "
+                  "you can parry. Its blows still reach you. 0: off (it charges in until your bodies meet)."),
         header("Two-Hand Throw"),
         toggle("Two-Hand Throw", vr_foegrab_throw)
             .help("Hold one enemy with both hands and turn it over hard, a judo throw: one shoulder down and the other up, "
@@ -933,6 +982,11 @@ int campaignsBloodyShown = -1;
                   "sure: grunts, enforcers, zombies, knights, rottweilers, mummies and the infected always; death knights, "
                   "ogres, fiends, spawns, scorpions and ranged knights only when hurt; never shamblers, vores, bosses, "
                   "flyers or swimmers. One hand never throws. The training dummy shows how it would go."),
+        toggle("Show Diagnostic", vr_foegrab_throw_debug)
+            .help("Over the enemy you hold (else the nearest): your hands' turn of it (an arrow from its top: the way it "
+                  "would fall) and their speed against Turn to Throw and Hands' Speed, what stops a throw now (one hand, "
+                  "both at its head: the neck snap's; pulling up: the lift's; away from you; its kind or health) and the "
+                  "last try's result. Each try is printed to the console."),
         slider("Turn to Throw", vr_foegrab_throw_twist, 60.f, 600.f, 10.f, "%.0f deg/s").extend(10.f, 2000.f)
             .help("How fast your hands must turn the enemy over (about a level axis) to throw it. Log Holds (Debug > "
                   "Tests > Holding Enemies) prints your hardest turn of each hold."),
@@ -964,12 +1018,101 @@ int campaignsBloodyShown = -1;
                   "the air rather than falling over its feet: this fast. 0: its feet stay where they stood a moment."),
         slider("Twist Spin", vr_foegrab_throw_spin, 0.f, 2.f, 0.05f, "%.2f")
             .help("Share of your hands' twist of it about the vertical it spins on with as it falls (at most 720 deg/s)."),
-        slider("Throw Grunt", vr_foegrab_throw_grunt, 0.f, 1.f, 0.1f, "%.1f")
+        toggle("Hold On After Throw", vr_foegrab_throw_hold)
+            .help("On: the thrown enemy stays in your hands as a ragdoll, held softly: it still topples and falls the way "
+                  "you threw it, and you can steer it, drag it along, pull it about; let go of the grips to drop it or "
+                  "throw it. Off: both hands let go as it is thrown."),
+        slider("Held On Strength", vr_foegrab_throw_hold_strength, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 5.f)
+            .help("Hold On After Throw: the most each hand pulls the thrown body with, as a share of its weight. Below "
+                  "0.5 two hands drag it (lower your hands to it) but never hold it up; above, it hangs from your hands."),
+        slider("Held On Spring", vr_foegrab_throw_hold_hertz, 1.f, 12.f, 0.5f, "%.1f Hz").extend(0.5f, 30.f)
+            .help("Hold On After Throw: how quickly the held limb follows your hand (higher: stiffer)."),
+        slider("Passes Through You", vr_foegrab_throw_grace, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("The thrown enemy passes through your hands, and you, this long as it falls: your hands, still in it and "
+                  "moving on, or you standing where you pull it, no longer knock it back over the other way. 0: they do."),
+        slider("Throw Grunt", vr_foegrab_throw_grunt, 0.f, 1.f, 0.05f, "%.2f")
             .help("Your grunt as you throw an enemy down, this loud (0 off)."),
         cycle("Throw Grunt Sound", vr_foegrab_throw_grunt_sound, gruntChoices())
             .help("Which grunt the throw makes: the same choices as climbing's Mantle Grunt Sound. The deeper ones are "
                   "Quake's played slower. Hear it with Hear Throw Grunt."),
         command("Hear Throw Grunt", "vr_foegrab_throw_grunt_test").help("Plays the throw's grunt as set, at full volume."),
+        header("Lift"),
+        toggle("Lift", vr_foegrab_lift)
+            .help("Walk up close to a humanoid (a grunt, an enforcer, a zombie, a knight, a death knight, Arcane Dimensions' "
+                  "soldiers and knights), hold it with both hands and pull up instead of to a side: it comes off its feet, a "
+                  "ragdoll flailing in your hands. Carry it, throw it down (let go of the grips as you swing). After a while "
+                  "it breaks free and shoves you back. Never ogres, fiends, shamblers or vores (the console's "
+                  "vr_foegrab_lift_classes)."),
+        toggle("Show Diagnostic", vr_foegrab_lift_debug)
+            .help("Over the humanoid you hold (else the nearest): your hands' pull (an arrow: green once fast enough and "
+                  "within 45 degrees of straight up) against Lift Speed, the Lift Reach circle round it (green with you "
+                  "inside), what stops a lift now (one hand, both at its head: the neck snap's; not a humanoid; too far) "
+                  "and the last try's result. Each try is printed to the console."),
+        slider("Lift Speed", vr_foegrab_lift_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend(0.1f, 10.f)
+            .help("How fast your hands must pull up together (within 45 degrees of straight up) to lift it."),
+        slider("Lift Reach", vr_foegrab_lift_reach, 24.f, 96.f, 2.f, "%.0f units").extend(0.f, 200.f)
+            .help("And how close you must stand to it (your middle to its; held at arm's length a grunt is about 36 units "
+                  "off; 32 units are about a metre)."),
+        slider("Breaks Free After", vr_foegrab_lift_time, 0.5f, 10.f, 0.25f, "%.2f s").extend(0.1f, 60.f)
+            .help("Held up this long, it breaks free: your hands lose it, it shoves you back and gets up."),
+        slider("Lift Strength", vr_foegrab_lift_strength, 0.f, 2.f, 0.05f, "%.2f").extend(0.f, 10.f)
+            .help("The most each hand holds the lifted body with, as a share of its weight: above 0.5 two hands carry it "
+                  "(the more, the less it sags); below, it sinks to the floor, still held."),
+        slider("Lift Launch", vr_foegrab_lift_up, 0.f, 400.f, 10.f, "%.0f units/s").extend(0.f, 1000.f)
+            .help("How fast it leaves the floor as you lift it."),
+        slider("Break-Free Shove", vr_foegrab_lift_shove, 0.f, 160.f, 4.f, "%.0f units").extend(0.f, 500.f)
+            .help("How far it shoves you back as it breaks free (0: not at all)."),
+        slider("Grab While Staggered", vr_foegrab_manhandle_stagger, 0.f, 5.f, 0.25f, "%.2f s").extend(0.f, 30.f)
+            .help("A humanoid staggered this recently (a shove, a hit or throw that unbalanced it, a stagger it just "
+                  "recovered from) goes down when one hand grabs it: a ragdoll in your hand, as a lifted one (it flails and "
+                  "breaks free). One staggering as a ragdoll goes down when a hand takes it. 0: never."),
+        slider("Grab When Weak", vr_foegrab_manhandle_health, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A humanoid at this share of its full health or less (0.25: a quarter) goes down when one hand grabs it, "
+                  "as above. 0: never."),
+        header("Neck Snap"),
+        toggle("Neck Snap", vr_foegrab_necksnap)
+            .help("Hold a humanoid's head or neck with both hands and twist it round: push one hand forward and pull "
+                  "the other back, or turn both wrists the same way, or both. Its neck snaps with a crack and it dies on "
+                  "the spot, limp in your hands until you let go of the grips. Standing, staggering, knocked down or "
+                  "lifted, as long as it lives. With both hands on its head the neck snap is the only move: no judo "
+                  "throw, no lift. The same humanoids as the lift: never ogres, fiends, shamblers or vores."),
+        toggle("Show Diagnostic", vr_foegrab_necksnap_debug)
+            .help("Over the humanoid you hold (else the nearest): its head zone (green once both hands are in it), where "
+                  "each hand holds (green at its head or neck, orange at a shoulder: never counts), the line between "
+                  "your hands, the twist's arc against Twist Angle and a panel of the hand line's numbers against it; "
+                  "the last try's result. Each try's largest turn is printed to the console."),
+        slider("Twist Angle", vr_foegrab_necksnap_angle, 10.f, 120.f, 5.f, "%.0f deg").extend(1.f, 360.f)
+            .help("How far round your hands must turn its head, one way, within Twist Window: the line between your "
+                  "hands, across its neck and relative to its head, against where it pointed then (hands 30 cm apart, one "
+                  "15 cm forward and the other 15 cm back: 45 deg), or both wrists rolling the same way. Slow shuffles "
+                  "never add up; tilting doesn't count."),
+        slider("Twist Window", vr_foegrab_necksnap_window, 0.1f, 1.f, 0.05f, "%.2f s")
+            .help("The head must turn Twist Angle within this long (0.15 s and 75 deg: 500 deg/s on average)."),
+        slider("Head Grip Margin", vr_foegrab_necksnap_margin, 0.f, 12.f, 1.f, "%.0f units").extend(-8.f, 32.f)
+            .help("Your hands count as on its head this far outside its head zone (the headshots'; 32 units are about a "
+                  "metre)."),
+        slider("Neck Length", vr_foegrab_necksnap_neck, 0.f, 12.f, 0.5f, "%.1f units").extend(0.f, 32.f)
+            .help("How far below its head your hands still hold its neck (as good as its head: only the neck snap). "
+                  "Lower, or out at its shoulders, both hands throw it (judo) or lift it: a shoulder never counts."),
+        slider("Crack Volume", vr_foegrab_necksnap_volume, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 2.f)
+            .help("The bone-cracking sound's volume (0 silent): from its head and in your hands. Above 1 the layers in "
+                  "your hands grow louder still."),
+        slider("Snapped Body Hold", vr_foegrab_necksnap_strength, 0.f, 2.f, 0.05f, "%.2f").extend(0.f, 10.f)
+            .help("The most each hand holds the limp body with afterwards, as a share of its weight: above 0.5 two hands "
+                  "carry it; below, it sinks to the floor, still held."),
+        slider("Snapped Body Spring", vr_foegrab_necksnap_hertz, 4.f, 30.f, 1.f, "%.0f Hz").extend(0.5f, 30.f)
+            .help("How stiffly its head follows your hands afterwards: the light head bears the whole body's weight, so "
+                  "the softer, the lower it hangs below your hands."),
+        toggle("Broken Neck Flops", vr_foegrab_necksnap_loose)
+            .help("A snapped neck's joint goes loose: its head flops and rolls as if the vertebrae broke. Off: it stays "
+                  "as stiff as any body's."),
+        slider("Broken Neck Swing", vr_foegrab_necksnap_cone, 30.f, 170.f, 5.f, "%.0f deg")
+            .help("How far a snapped neck lets the head swing off its line (a living neck's: about 45; past about 120 "
+                  "the head sinks into the chest)."),
+        slider("Broken Neck Twist", vr_foegrab_necksnap_twist, 30.f, 175.f, 5.f, "%.0f deg")
+            .help("How far a snapped neck lets the head turn either way about it."),
+        slider("Broken Neck Friction", vr_foegrab_necksnap_friction, 0.f, 1.f, 0.05f, "%.2f")
+            .help("What holds a snapped neck from flopping freely, as a share of the body's joint friction (0: none)."),
     };
 }
 
@@ -1007,6 +1150,42 @@ int campaignsBloodyShown = -1;
                   "1: as far as it goes; less: only ledges close by force the knockdown; more: further ones too."),
         slider("Ledge Margin", vr_knockdown_ledge_margin, 0.f, 128.f, 4.f, "%.0f units").extend(0.f, 512.f)
             .help("How far past that a ledge still counts, in units (16: about a monster's half width)."),
+        header("Hits Unbalance"),
+        toggle("Strong Hits Unbalance", vr_hit_stagger)
+            .help("A strong throw (a heavy prop or a weapon, fast) or melee blow may make a monster lose its balance as a "
+                  "shove does: it staggers as a ragdoll and recovers, or by its knockdown chance goes over. Monsters "
+                  "without one are pushed and flinch. The stronger the hit and the more of its health it took, the likelier."),
+        slider("Hit Chance", vr_hit_stagger_chance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 100.f)
+            .help("Every hit's chance, times this (100: every hit past Least Impact)."),
+        slider("Least Impact", vr_hit_stagger_min, 0.f, 0.95f, 0.05f, "%.2f")
+            .help("Weaker hits never unbalance (1: a 6 kg crate thrown at 10 m/s, or a 30-damage blow); from here to 1 "
+                  "the chance rises to sure."),
+        slider("Head Blows", vr_hit_stagger_head, 1.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A melee blow to the head (fists too) counts this much more."),
+        slider("Big Monsters Resist", vr_hit_stagger_resist, 0.f, 2.f, 0.05f, "%.2f")
+            .help("The chance times (30 / its full health) to this power: 0.75 leaves the shambler about a tenth, the "
+                  "ogre a quarter. 0: all alike."),
+        slider("Hit Cooldown", vr_hit_stagger_cooldown, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("After a hit unbalances it, no hit does again for this long (no stunlock). Shoves always can."),
+        header("Impacts"),
+        toggle("Impacts Hurt", vr_ragimpact)
+            .help("A monster you hold or threw as a ragdoll, alive or dead, is hurt where it strikes a wall or the floor "
+                  "hard: its speed times the mass behind it. Its head or limb struck wears down too, and pops past its own "
+                  "health (a head worn through kills). Slam a held head into a wall again and again; throw a lifted one into "
+                  "a wall."),
+        slider("Impact Damage", vr_ragimpact_damage, 0.f, 0.5f, 0.01f, "%.2f").extend(0.f, 5.f)
+            .help("Damage per kg m/s past Least Speed (a grunt's torso thrown into a wall at 6 m/s: about 15)."),
+        slider("Least Speed", vr_ragimpact_min_speed, 0.5f, 8.f, 0.25f, "%.2f m/s").extend(0.5f, 30.f)
+            .help("Slower strikes do nothing (a body dropped from your hands strikes at about 4 m/s)."),
+        slider("Held Least Speed", vr_ragimpact_held_speed, 0.25f, 5.f, 0.25f, "%.2f m/s").extend(0.25f, 30.f)
+            .help("A part your hand holds (a head slammed) counts from this speed: your hand slows as it drives a body."),
+        slider("Head Strikes", vr_ragimpact_head, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A strike on the head deals this much more."),
+        slider("Head and Limb Health", vr_ragimpact_piece_hp, 0.1f, 2.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
+            .help("A head's or limb's own health, times its corpse's (a grunt's 80: 32 at 0.4): struck past it, it pops."),
+        slider("Landing Crush", vr_ragimpact_crush, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("Landing on a monster lying as a ragdoll from a height (2 storeys or so) crushes the part under your "
+                  "feet, times this. 0: never."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
@@ -1062,8 +1241,11 @@ int campaignsBloodyShown = -1;
             .help("How far from the body it looks for room to stand, never through a wall, floor or ceiling. No room: it "
                   "stays down (dragged into a tight corner or under something low) and tries again."),
         slider("Search in Water", vr_knockdown_water_search, 0.f, 512.f, 16.f, "%.0f units").extend(0.f, 2048.f)
-            .help("Lying in water, slime or lava: how far it looks for a floor where its head is out of it (the shallows, "
-                  "the bank) to get up on."),
+            .help("Swimming in water, slime or lava: how far it looks for a floor where its head is out of it (the "
+                  "shallows, the bank) to paddle to. It gets up on one within Room Search of where it floats."),
+        slider("Climb Out of Water", vr_knockdown_water_climb, 0.f, 96.f, 4.f, "%.0f units").extend(0.f, 256.f)
+            .help("Getting up in a liquid: how far over its body the floor it gets up onto may be. Higher (carried down "
+                  "there, or deep under): it swims up first, or gets up where it floats."),
         slider("Give Up in Water", vr_knockdown_water_giveup, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
             .help("No such floor for this long after its time to get up: it gets up where it floats, as a walking "
                   "monster again (it sinks, and can drown). 0: it floats until one is found."),
@@ -1119,6 +1301,8 @@ int campaignsBloodyShown = -1;
     };
 }
 
+#include "vr_menu_ad_guns.inc" // AD support: Combat > Enemy Weapons > Arcane Dimensions' Guns (pageAdGuns)
+
 // The weapons monsters drop as they die (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser
 // rifles"): their base damage and ammo. Their offsets and weights are in the weapon menus (slots _19 .. _23).
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons()
@@ -1127,6 +1311,10 @@ int campaignsBloodyShown = -1;
         header("Their Damage"),
         open("Weapon Damage", pageIndex(pageWeaponDamage))
             .help("The swords', chainsaws', burst rifles' and laser rifles' damage, with every other weapon's."),
+        open("Arcane Dimensions' Guns", pageIndex(pageAdGuns)) // AD support (vr_menu_ad_guns.inc)
+            .help("Arcane Dimensions' armed soldiers' own guns: the rocket and grenade launchers, plasma guns, the "
+                  "defender's shotgun, the pyro's flamethrower and the fumigator's poison sprayer. Their damage, ammo and "
+                  "speed, to balance them."),
         header("Lying About"),
         slider("Most Lying About", vr_enemy_weapon_drop_max, 0.f, 128.f, 4.f, "%.0f").extend(0.f, 512.f)
             .help("The grunts' burst rifles, the enforcers' laser rifles and the ogres' chainsaws lying about: past this "
@@ -1366,6 +1554,40 @@ int campaignsBloodyShown = -1;
 }
 
 // Split from Gameplay: damage multipliers, positional damage and knockback.
+[[nodiscard]] za::Vector<Item> pageBloodFeedback()
+{
+    return {
+        header("When Hit"),
+        toggle("Hit Blood Vignette", vr_blood_hit)
+            .help("Blood-red edges after a hit, including armor-only damage. The centre stays clear. Independent of Screen Tints and low-health pulses."),
+        slider("Hit Duration", vr_blood_hit_duration, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("Seconds until a hit fades away. 0: no hit effect. Pausing freezes it."),
+        slider("Hit Intensity", vr_blood_hit_intensity, 0.f, 0.8f, 0.02f, "%.2f")
+            .help("Strongest opacity of a hit. Hits taking less than 20 health plus armor are lighter. Overlapping hits remain bounded."),
+        slider("Hit Coverage", vr_blood_hit_size, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How far the hit's red edges reach into your view. Larger covers more area without changing intensity or direction. 0: none; 1: widest. A clear centre always remains. Independent of Health Coverage."),
+        slider("Directional Bias", vr_blood_hit_bias, 0.f, 1.f, 0.05f, "%.2f")
+            .help("0: equal on every edge. 1: strongest towards the source, weakest opposite. Front: upper edge; rear: lower; above/below: upper/lower. Turns follow the world direction. Unknown, near-player and known self/environment hits are even."),
+        header("Low Health"),
+        toggle("Low Health Blood Vignette", vr_blood_health)
+            .help("Blood-red edges pulse below the health threshold. Losing health makes them stronger and more frequent; healing eases them. Independent of hits."),
+        slider("Health Threshold", vr_blood_health_threshold, 1.f, 100.f, 1.f, "%.0f").extend(1.f, 200.f)
+            .help("Pulses below this health, from the local player's actual health stat. None at or above it, or while dead."),
+        slider("Health Intensity", vr_blood_health_intensity, 0.f, 0.8f, 0.02f, "%.2f")
+            .help("Peak opacity as health approaches zero. The centre stays clear. Both blood effects together never exceed 0.8 opacity."),
+        slider("Health Coverage", vr_blood_health_size, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How far low-health pulses reach into your view. Larger covers more area without changing intensity or pulse timing. 0: none; 1: widest. A clear centre always remains. Independent of Hit Coverage."),
+        slider("Pulse Duration", vr_blood_health_duration, 0.05f, 2.f, 0.05f, "%.2f s")
+            .help("Width of each beat. Independent of rate: wide beats overlap smoothly when pulses become frequent."),
+        slider("Pulse Rate", vr_blood_health_rate, 0.1f, 3.f, 0.05f, "%.2f Hz")
+            .help("Beats per second near the threshold. Low-health Rate Scale increases this as health falls, up to 6 Hz."),
+        slider("Low-health Rate Scale", vr_blood_health_rate_scale, 0.f, 4.f, 0.1f, "%.1f")
+            .help("Rate is Pulse Rate times (1 + severity times this). 0: constant rate; 2: up to three times as frequent."),
+        slider("Health Scaling Curve", vr_blood_health_curve, 0.25f, 4.f, 0.05f, "%.2f")
+            .help("Severity is the missing share below the threshold, raised to this power. 1: linear; above 1: gentler near the threshold; below 1: stronger sooner. Both opacity and rate use severity."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageDamage()
 {
     return {
@@ -1653,6 +1875,11 @@ int campaignsBloodyShown = -1;
         open("Body Calibration", pageIndex(pageBodyCalibration)),
         header("Body"),
         open("Body and Build: Body and Display", pageIndex(pageBodyDisplay)).help("The body on or off and its build are on Body and Display."),
+        toggle("Bracers", vr_body_bracers)
+            .help("The leather bracers on your forearms. Off: bare forearms with the wrist gadget strapped round the skin, running "
+                  "on into the hands (with the jointed hand, vr_hand_rig 1: the default)."),
+        slider("Skin Tone", vr_skin_tone, -1.f, 1.f, 0.05f, "%.2f")
+            .help("Darken or lighten the skin on your hands and arms in both bracer modes. Zero keeps your painted skin. Blood, nails, clothes and gadgets keep their own colours."),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s").extend()
             .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
@@ -1668,7 +1895,18 @@ int campaignsBloodyShown = -1;
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt (with Dynamic Wounds, on the Gore page: where you are hit)."),
         open("Wounds Drip Blood: Gore", pageIndex(pageGore)).help("The wounds' dripping blood is on Gore (Arm Drip Rate)."),
         toggle("Show Powerups", vr_body_powerups)
-            .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
+            .help("Quad damage glows blue or sparks around your hands, the pentagram glows red, the biosuit green, the ring fades you."),
+        cycle("Quad Damage Look", vr_quad_look, {{1.f, "Blue Glow"}, {0.f, "Lightning Arcs"}, {2.f, "Both"}})
+            .help("Quad damage on you: a soft pulsing blue glow round your hands, arms and body, lighting the world round you "
+                  "blue; or Quake's electric arcs crackling over your hands and forearms (as when lightning strikes you); or both."),
+        slider("Quad Glow", vr_quad_glow, 0.f, 2.f, 0.1f, "%.1fx").help("How strongly the blue glow shows on your hands, arms and body."),
+        slider("Quad Glow Light", vr_quad_glow_light, 0.f, 2.f, 0.1f, "%.1fx").help("How much blue light your hands and body cast on the world round you (0: none)."),
+        slider("Pentagram Glow", vr_pent_glow, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("The pentagram of protection on you: a pulsing red glow on your hands, arms and body (0: Quake VR's old red tint instead). With more than one power-up, the glows take turns."),
+        slider("Pentagram Glow Light", vr_pent_glow_light, 0.f, 2.f, 0.1f, "%.1fx").help("How much red light your hands cast on the world round you (0: none)."),
+        slider("Biosuit Glow", vr_suit_glow, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("The biosuit on you: a pulsing green glow on your hands, arms and body (0: Quake VR's old green tint instead). With more than one power-up, the glows take turns."),
+        slider("Biosuit Glow Light", vr_suit_glow_light, 0.f, 2.f, 0.1f, "%.1fx").help("How much green light your hands cast on the world round you (0: none)."),
         toggle("Anchors Follow Body", vr_body_anchors)
             .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
         slider("Hip Holsters Follow Legs", vr_holster_leg_follow, 0.f, 1.f, 0.05f, "%.2f")
@@ -2310,7 +2548,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Where the torch held at your head lets B or Y clip it on, and where a hand takes it off (B or Y, or the grip): "
                   "balls at your temples and forehead, moved forward, up and out. Apart from where it then sits (On Head)."),
         slider("Head Zone Up", vr_flashlight_head_zone_up, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
-            .help("The default, 0.040, is 4 cm higher than the first zone."),
+            .help("The default is 0.150 (15 cm over your eyes' height)."),
         slider("Head Zone Out", vr_flashlight_head_zone_out, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
             .help("Away from your head: to the side at the temples, ahead at the forehead."),
         slider("Head Zone Radius", vr_flashlight_head_zone_radius, 0.02f, 0.3f, 0.005f, "%.3f m").extend()
@@ -2694,6 +2932,11 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             {{0.f, "Chunky (as monsters)"}, {512.f, "Fine (5 MB)"}, {1024.f, "Finer (20 MB)"}, {2048.f, "Finest (80 MB)"}})
             .help("Your own body's and hands' wounds, burns and wetness: finer than their skin and smooth-edged, with a relief "
                   "(Chunky: in the skin's own pixels, as the monsters')."),
+        cycle("Body Wounds' Detail", vr_wounds_body_res,
+            {{0.f, "As Hands"}, {512.f, "Fine"}, {1024.f, "Match Hands"}, {2048.f, "Finest"}})
+            .help("A minimum for your body's blood, burns and wetness. The long arm texture needs more rows than the hands: "
+                  "1024 gives arms about the same blood detail per metre as Chunky hands. Shares the finer mask array "
+                  "(1024: 20 MB, 2048: 80 MB); the hands keep Your Wounds' Detail. As Hands uses that setting alone."),
         slider("Your Burns' Relief", vr_wounds_bump_burns, 0.f, 3.f, 0.25f, "%.2fx")
             .help("How crusted and cracked the char on your arms looks in the light (Finer detail only; 0 flat)."),
         slider("Your Wounds' Depth", vr_wounds_bump_blood, 0.f, 3.f, 0.25f, "%.2fx")
@@ -2800,13 +3043,19 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Dummy Stands Again", vr_dummy_gib_respawn, 0.5f, 10.f, 0.5f, "%.1f s").extend(0.1f, 60.f)
             .help("How long a killed training dummy takes to stand again (its body stays, as its enemy's)."),
         dummyHealthSlider(),
+        toggle("Dummy Stays Put", vr_dummy_anchored)
+            .help("The training dummy is never shoved away, staggered or knocked down; it still flinches and takes the hit. For recording shoves and bashes (vr_dummy_anchored)."),
         slider("Dummy Health Refills", vr_dummy_regen, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 120.f)
             .help("How long after its last hit the training dummy's health fills up again (0: never; it stays as hit until it dies and stands again)."),
         toggle("Dummy Health Bar", vr_dummy_healthbar)
             .help("The training dummy's health over its head, as a bar and a number, turned to face you. Off: its sign only."),
         header("Marks"),
         toggle("Decals", vr_decals).help("Blood, scorch marks and bullet chips on walls and floors (the gore needs them)."),
-        slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many; more cost GPU time where they pile up (768 shipped)."),
+        toggle("Permanent Decals", vr_permdecals)
+            .help("Marks stay for good, baked into the walls, floors, doors and lifts they land on: as many as you like at no extra cost a frame. Off: only the newest Max Decals show, each for its Decal Lifetime, as without it; the others are kept and come back when it is on again."),
+        slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many; more cost GPU time where they pile up (512 shipped)."),
+        slider("Decals Piled in One Spot", vr_decal_bucket_max, 8.f, 255.f, 8.f, "%.0f")
+            .help("How many marks one spot of the floor or wall keeps where they pile up (a corpse cut apart in one place). Past it the oldest there go whole, never leaving holes in the others. Each pixel there walks all of them: more cost GPU time when you look at the pile (24 shipped, 255 the most)."),
         slider("Decal Lifetime", vr_decal_life, 10.f, 600.f, 10.f, "%.0f s").extend(),
         toggle("Gib Blood", vr_gib_blood).help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
         slider("Gib Blood Trail", vr_gib_blood_trail, 0.f, 3.f, 0.25f, "%.2fx").extend().help("How dense their trail of blood and drops is (0 none)."),
@@ -2816,7 +3065,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 [[nodiscard]] za::Vector<Item> pageGadget()
 {
     return {
-        open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageMain)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
+        open("Doom", pageIndex(pageDoom)).help("Play Doom on the gadget's screen: a touchscreen under your fingertip."),
+        open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageVrsHud)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
         slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 3.f),
         header("Placement"),
         slider("Along the Arm", vr_gadget_x, -15.f, 15.f, 0.5f, "%.1f cm").extend(-40.f, 40.f),
@@ -2833,6 +3083,87 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 void hologramTestMessage()
 {
     qvr::gadget::testMessage();
+}
+
+// Doom on the wrist gadget (vr_doom.cpp, docs/vr-port/DOOM.md): open it, the WAD it plays, its controls.
+[[nodiscard]] const char* doomStatusLine()
+{
+    return doom::menuStatus();
+}
+
+[[nodiscard]] const char* doomWadHint()
+{
+    return "Own DOOM? Drop DOOM.WAD into quakevr/doom/wads";
+}
+
+[[nodiscard]] za::Vector<Item> pageDoom()
+{
+    za::Vector<Item> items = {
+        header("Doom on the Wrist Gadget"),
+        command("Open or Close Doom", "vr_doom")
+            .help("Doom on the gadget's screen instead of the HUD, running beside Quake in real time (Quake's pause "
+                  "pauses it; closed, it waits where it was). Touch the screen with your other hand's fingertip to "
+                  "play; raise the gadget and look at it to give its stick and buttons to Doom (bindable: vr_doom)."),
+        info(doomStatusLine),
+        header("WAD"),
+        info(doomWadHint),
+        row(doom::wadRow, doom::wadHelp, doom::pickWad, -1, -1),
+    };
+    const int count = doom::wadCount();
+    for(int i = 0; i < count; i++)
+    {
+        items.pushBack(row(doom::wadRow, doom::wadHelp, doom::pickWad, i, -1));
+    }
+    const Item rest[] = {
+        command("Open the WAD Folder", "vr_doom_open_folder")
+            .help("Opens quakevr/doom/wads on the desktop: put DOOM.WAD, DOOM1.WAD, DOOM2.WAD, TNT.WAD or PLUTONIA.WAD "
+                  "there, then Search Again."),
+        command("Search Again", "vr_doom_wads").help("Looks for WADs again (the console lists them: vr_doom_wads)."),
+        header("Controls"),
+        cycle("Controls", vr_doom_controls, {{0.f, "Touch Only"}, {1.f, "Controller and Touch"}, {2.f, "Controller Only"}})
+            .help("Touch Only: everything on the screen with your fingertip; the sticks and buttons stay Quake's. "
+                  "Controller and Touch: also, while Doom has the focus (the gadget raised and looked at, or touched), "
+                  "the gadget hand's stick moves and turns, trigger fires, grip uses, X next weapon, Y Doom's menu, "
+                  "stick press the map; your other hand stays Quake's. Controller Only: no touch controls."),
+        cycle("Touch Controls Shown", vr_doom_overlay, {{0.f, "When Your Finger Is Near"}, {1.f, "Always"}, {2.f, "Never"}})
+            .help("The buttons drawn over Doom's picture (with Touch Only: always, faint when your finger is away)."),
+        toggle("Hard Press Fires", vr_doom_hard_fire)
+            .help("Pressing through the screen (Hard Press Depth) while steering with the MOVE stick, or on the "
+                  "picture, fires: one finger can move and shoot."),
+        toggle("Always Run", vr_doom_always_run).help("Doom's always run (RUN on the touch bar)."),
+        slider("Look to Focus", vr_doom_focus_look, 0.f, 2.f, 0.1f, "%.1f s")
+            .help("How long you look at the raised gadget before its stick and buttons go to Doom (0: only a touch)."),
+        slider("Out of View to Unfocus", vr_doom_focus_grace, 0.1f, 3.f, 0.1f, "%.1f s")
+            .help("How long the gadget may be out of view (lowered, looked away from) before they come back to Quake."),
+        slider("Light Button Presses", vr_doom_light_presses, 0.f, 10.f, 1.f, "%.0f")
+            .help("Press the gadget's side button (the light on/off one) this many times in quick succession to open "
+                  "Doom on the gadget; one press of it then closes Doom again, without toggling the light (0: off). "
+                  "The light itself keeps toggling with each press and is put back as it was."),
+        slider("Light Press Gap", vr_doom_light_gap, 0.1f, 1.f, 0.05f, "%.2f s")
+            .help("The longest time between two of those presses."),
+        toggle("Pause When Not Focused", vr_doom_pause_unfocused)
+            .help("Off: Doom keeps running while you play Quake. On: it pauses until you look at it or touch it."),
+        header("Picture and Sound"),
+        toggle("4:3 Picture", vr_doom_aspect).help("Doom's picture as it was shown (4:3, bars at the sides); off: stretched over the screen."),
+        slider("CRT Look", vr_doom_crt, 0.f, 2.f, 0.1f, "%.1fx").help("Times the gadget's CRT look (0: a clean picture)."),
+        slider("Volume", vr_doom_volume, 0.f, 1.f, 0.05f, "%.2f").help("Doom's sounds, from the gadget, against the game's."),
+        toggle("Big Floating Panel", vr_doom_panel)
+            .help("Doom on a big panel in front of you instead of the gadget (placed as you turn this on, it moves with "
+                  "you; touch it as the gadget)."),
+        slider("Panel Width", vr_doom_panel_size, 0.2f, 1.5f, 0.05f, "%.2f m"),
+        command("Place the Panel in Front", "vr_doom_panel_place"),
+        header("Touchscreen"),
+        slider("Touch Distance", vr_touch_press, 0.f, 2.f, 0.1f, "%.1f cm")
+            .help("How near the screen your fingertip must come for a touch (it must come from in front)."),
+        slider("Release Distance", vr_touch_release, 0.3f, 4.f, 0.1f, "%.1f cm").help("How far off it a touch ends."),
+        slider("Hard Press Depth", vr_touch_hard, 0.5f, 4.f, 0.1f, "%.1f cm").help("How far through the screen is a hard press."),
+        slider("Touch Haptics", vr_touch_haptic, 0.f, 1.f, 0.05f, "%.2f").help("Your hand's buzz as a touch begins."),
+    };
+    for(const Item& i : rest)
+    {
+        items.pushBack(i);
+    }
+    return items;
 }
 
 // Split from Wrist Gadget (and Immersion): the wrist gadget's screen, the weapons' ammo screens and
@@ -3037,38 +3368,18 @@ void hologramTestMessage()
             .help("Tilts every throw up (or down, below 0). 0: as throws were tuned; the hand calibration doesn't change them."),
         toggle("Analog Release", vr_throw_release)
             .help("A throw lets go as the grip starts to open, not only once it is released."),
-        toggle("Slow Motion: Throws in Real Time", vr_throw_slowmo_real_time)
-            .help("In slow motion (bullet time, not Sandevistan), a throw's release is judged over the same stretch of "
-                  "your real motion as at full speed, and its wrist flick by your real wrist speed. Off: over the slowed "
-                  "clock's, which took in three times the arm's arc at 0.3x (throws went off, the wrist's share too big)."),
-        toggle("Slow Motion: Throw Where You Aim", vr_throw_slowmo_aim)
-            .help("In slow motion (bullet time, not Sandevistan), a throw goes the way your controller moved, as the same "
-                  "motion at full speed would, even when the slowed hand lags behind it; its speed stays the slowed "
-                  "hand's. Off: the way the lagging hand moved to catch up (fast throws went 20 to 30 degrees high)."),
-        slider("Slow Motion: Real-Time Flicks", vr_throw_slowmo_flick, 0.f, 1.f, 0.05f, "%.2f")
-            .help("In slow motion (bullet time, not Sandevistan), a wrist flick at real speed throws as at full speed: its "
-                  "speed in your real time, not three times it in the slowed world's (a flick that threw 1 m threw 8 m). "
-                  "The arm's part of a throw is unchanged. 0: as before; between: a blend."),
-        slider("Slow Motion: Wrist Flick Below", vr_throw_slowmo_flick_arm, 0.f, 0.9f, 0.05f, "%.2f").extend()
-            .help("In slow motion, a throw your arm moves less than this share of (your wrist's turn doing the "
-                  "rest) is a wrist flick, thrown as far as the same flick at full speed, however fast or gently you "
-                  "flicked. A throw your arm carries keeps the arm's speed. Higher: flicks with more arm count too."),
-        slider("Slow Motion: Nudge Below", vr_throw_slowmo_short_travel, 0.f, 0.5f, 0.01f, "%.2f m").extend()
-            .help("In slow motion, a throw whose hand moved less than this up to the release (from where the motion "
-                  "got going) is a nudge, thrown as hard as the same nudge at full speed (a 10 cm nudge went 14 "
-                  "times as far). Longer throws, from Arm Throw From up, keep the bullet-time scaling. 0: off."),
-        slider("Slow Motion: Arm Throw From", vr_throw_slowmo_long_travel, 0.f, 0.6f, 0.01f, "%.2f m").extend()
-            .help("In slow motion, a throw whose hand moved this far or more up to the release is the arm's, with the "
-                  "bullet-time scaling (a slow throw made with the slowed world goes as at full speed). Between Nudge "
-                  "Below and this: a blend."),
+        slider("Slow Motion: Full Stroke Tempo", vr_throw_slowmo_stroke_time, 0.04f, 0.2f, 0.005f, "%.3f s").extend()
+            .help("In slow motion (bullet time), a quick toss, flick or nudge goes as far as you made it, and a full "
+                  "throw made slowly with the slowed world goes as far as at full speed: the slower your stroke against "
+                  "a real-speed one of its length, the more it is raised. This is a full arm throw's stroke at real "
+                  "speed (its path over its peak speed). Lower: slowed throws reach full strength sooner, real-speed "
+                  "throws in bullet time are raised a little more."),
+        slider("Slow Motion: Most Raised Speed", vr_throw_slowmo_max_speed, 0.f, 40.f, 1.f, "%.0f m/s").extend()
+            .help("The fastest a slowed throw is raised to (never below how fast you moved). 0: no cap."),
         toggle("Slow Motion: Throws As In Real Time", vr_throw_slowmo_real_strength)
-            .help("In slow motion, every throw is as strong as the same motion at full speed: no bullet-time scaling. "
-                  "A throw you make slowly with the slowed world then goes as slowly as you made it. Off: nudges and "
-                  "flicks as in real time, longer throws scaled."),
-        toggle("Slow Motion: Slow Throws Match", vr_throw_slowmo_tempo)
-            .help("In slow motion, a throw you make slowly, with the slowed world, is judged as the same throw at full "
-                  "speed (its release over the same part of the arc); one faster than the slowed hands can follow, over "
-                  "your real motion. Off: always over your real motion (a slow throw came out a few degrees lower)."),
+            .help("In slow motion, every throw is as strong as the same motion at full speed: never raised. A throw "
+                  "you make slowly with the slowed world then goes as slowly as you made it. Off: raised by the "
+                  "stroke's tempo (Full Stroke Tempo)."),
         toggle("Spin From Controller Turn", vr_throw_spin_from_pose)
             .help("A throw's spin from how the controller turned, not the runtime's angular velocity (Virtual Desktop "
                   "reports it in the controller's frame: a flick facing away from the play space's front spun throws "
@@ -3284,7 +3595,14 @@ void hologramTestMessage()
             .extend(0.f, 20.f)
             .help("A gun lying on a table or the floor is taken by its handle with your fist this much farther off it than "
                   "the slack above (the hand at its handle; your hand nudging it doesn't stop it). Only a direct grab: a "
-                  "weapon caught in the air still needs your fist on it, and a force grab is unchanged. 0: as anywhere on it."),
+                  "weapon caught in the air has Mid-Air Catch Leniency, and a force grab is unchanged. 0: as anywhere on it."),
+        slider("Mid-Air Catch Leniency", vr_weapon_catch_handle_leniency, 0.f, 15.f, 0.5f, "%.1f cm")
+            .help("A weapon in the air (tossed up to re-grip it, flipped, spinning) is caught by its handle with your fist "
+                  "this much off it. Not a force grab's pull. 0: only by your fist on it."),
+        slider("Mid-Air Catch Window", vr_weapon_catch_window, 0.f, 0.5f, 0.05f, "%.2f s")
+            .help("A weapon in the air is caught by a grip closed up to this long before it reaches your fist, and the "
+                  "hand that tossed it may close again at once: it catches it as it comes back down. 0: as a weapon lying "
+                  "about (0.125 s, and not within 0.125 s of letting go)."),
         toggle("Lenient Weapon Catch", vr_weapon_grab_box)
             .help("The old catch: a weapon is also taken when your hand comes within a hand's width of its handle, the "
                   "fist up to 20 cm off it. Off: only when your closed fist touches it, as a box or a gib."),
@@ -3323,6 +3641,14 @@ void hologramTestMessage()
         toggle("Two-Handed Stops at Walls", vr_carry_two_hands_solid)
             .help("What you hold in both hands stops at walls, floors and doors however hard you push, and slides along "
                   "them; it keeps its turn where a new one would put it in. Off: it goes where your hands put it."),
+        toggle("Carried Things Stop at Your Body", "vr_carry_body_collision")
+            .help("Things you carry stop at your torso. Your hands follow their grips as you press them against it."),
+        slider("Carry Load: Mass", "vr_carry_move_mass", 0.f, 300.f, 10.f, "%.0f kg")
+            .help("Carried mass that halves stick walking speed. Both hands are counted; 0 disables the mass penalty."),
+        slider("Carry Load: Size", "vr_carry_move_size", 0.f, 3.f, 0.05f, "%.2f m")
+            .help("Total carried length allowed without a bulk penalty; twice this halves stick walking speed. 0 disables the size penalty."),
+        slider("Carry Load: Minimum Speed", "vr_carry_move_min", 0.1f, 1.f, 0.05f, "%.2fx")
+            .help("Minimum fraction of stick walking speed under load; 1 disables the slowdown."),
         toggle("Fit to the Hand", vr_held_surface_fit)
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
         slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()
@@ -3528,6 +3854,63 @@ void hologramTestMessage()
 
 // Combat > Burning (QC vr_burning.qc): what a lit torch, a thrown one or a lava nail sets on fire; crates; nails through
 // a torch's flame.
+// Combat > Arcane Dimensions (AD support, ARCANE_DIMENSIONS.md decisions 2 and 22): AD's projectile pellets and whose
+// projectile rules play (QC vr_ad_bridge.qc AD_Pellets).
+[[nodiscard]] za::Vector<Item> pageArcaneDimensions()
+{
+    return {
+        cycle("Projectile Rules", vr_ad_projectiles, {{1.f, "Off"}, {0.f, "AD Maps Only"}, {2.f, "Everywhere"}})
+            .help("Whose rules shotguns and monster projectiles play by. AD Maps Only: Arcane Dimensions' in its maps "
+                  "(projectile pellets you see fly, from your shotguns and the grunts'; the hell knights', scrags', ogres' "
+                  "and zombies' missiles at its speeds for the skill), Quake's elsewhere. Off: Quake's everywhere. "
+                  "Everywhere: its rules wherever its data is loaded. Its own monsters always play by its rules."),
+        slider("Pellet Spread", vr_ad_pellet_spread, 0.f, 2.f, 0.05f, "x%.2f").extend(0.f, 4.f)
+            .help("Arcane Dimensions' pellets: how wide they spread, times its own (the shotgun 0.04, the super shotgun "
+                  "0.14 by 0.08: wider than Quake VR's hitscan, aimed with the hand). 0: every pellet straight."),
+        slider("Player Pellet Speed", vr_ad_pellet_speed, 0.25f, 3.f, 0.05f, "x%.2f").extend(0.1f, 10.f)
+            .help("How fast your pellets fly, times Arcane Dimensions' (the shotgun 2000, the super shotgun 1500 units a "
+                  "second): faster is nearer hitscan."),
+        slider("Enemy Pellet Speed", vr_ad_enemy_pellet_speed, 0.25f, 3.f, 0.05f, "x%.2f").extend(0.1f, 10.f)
+            .help("Enemy shotgun pellets' speed multiplier, independent of yours. Applies to Quake grunts using AD projectile rules and AD enemies in any map."),
+        slider("Pellet Damage", vr_ad_pellet_damage, 0.f, 3.f, 0.05f, "x%.2f").extend(0.f, 10.f)
+            .help("Your pellets' damage, times Weapon Damage's shotgun and super shotgun pellet (4: Arcane Dimensions')."),
+        header("Feature Scope"),
+        cycle("Ammo Models", vr_ad_ammo_models, {{0.f, "Off"}, {1.f, "AD Maps Only"}, {2.f, "Everywhere"}})
+            .help("AD's custom ammo boxes while its data is loaded. Off: original Quake boxes. Newly spawned ammo only; reload the map to change existing boxes. Ammo counts, held weapons and VR pickup physics stay the same."),
+        cycle("Ammo Resistance", vr_ad_resistance, {{0.f, "Off"}, {1.f, "AD Maps Only"}, {2.f, "Everywhere"}})
+            .help("AD ammo resistance and vulnerability on entities with resistance keys. Everywhere preserves AD monsters' resistance outside AD maps; ordinary enemies without keys stay unchanged. Takes effect immediately."),
+        cycle("Weapon Upgrades", vr_ad_upgrades, {{0.f, "Off"}, {1.f, "With AD Content"}, {2.f, "Everywhere"}})
+            .help("Shadow Axe, Widowmaker and Plasma Gun upgrade effects and new pickups. Owned upgrades are preserved while Off. "
+                  "With AD Content: in AD maps, and in any map while Additional Content is Everywhere (their pickups placed "
+                  "there or spawned with the toolgun). Everywhere: in any map regardless. No automatic replacement of ordinary guns."),
+        toggle("Evil Skill (with Nightmare)", vr_ad_evil)
+            .help("Arcane Dimensions' fifth skill, in any campaign while its data is installed: chosen with Nightmare (the "
+                  "start map's skill hall, or Arcane Dimensions' own Evil choice, which sets this). 50 health at most "
+                  "(megahealth 100), the Shadow Axe's blows, Arcane Dimensions' monsters at their hardest. Kept in saves."),
+        slider("Screen Tints", vr_ad_tints, 0.f, 1.f, 0.05f, "x%.2f")
+            .help("Arcane Dimensions' screen colours, times this: green while poisoned, dark amber while bleeding, "
+                  "orange while burning (with Burn Damage off), a book's dark background while you read it. Eased in and out. 0: none. Its "
+                  "cinematic cameras' fades to black always play (Graphics' colour shift settings apply to all)."),
+        toggle("Hand-Climbed Ladders", vr_climb_ladders)
+            .help("Arcane Dimensions' ladders climbed with your hands, as ledges (Hand Climbing on): grip an actual "
+                  "rung, pull yourself up hand over hand, mantle at its top; a ladder with no rung within reach (a flat "
+                  "ladder wall) is held anywhere on it. While hands climb ladders, keyboard ladder movement and jump "
+                  "climbing are off; with this or Hand Climbing off, ladders climb Arcane Dimensions' way (hold jump)."),
+        cycle("Additional Content", vr_ad_everywhere, {{0.f, "AD Maps Only"}, {1.f, "Everywhere"}})
+            .help("Arcane Dimensions' monsters, new artifacts, custom keys, health vials and gems, custom items, ladders and "
+                  "weapons (the Shadow Axe, Widowmaker and Plasma Gun with Weapon Upgrades on; its soldiers' guns) in any "
+                  "map that places them (custom maps, the toolgun), while its data is installed. AD Maps Only: only in its own "
+                  "maps. Its pickups that would replace Quake VR's (backpacks) are only ever in its maps. Disabling required monsters or keys in AD maps would prevent progress, so they remain available there."),
+        command("Map Logic / Inventory Override", "")
+            .unavailableBecause("AD map logic, key progression and scripted inventory remain AD-map-only. A global override is not supported: it would break triggers, exits and item placement. VR interactions, hit fixes and physics always remain active."),
+        open("Soldiers' Guns", pageIndex(pageAdGuns))
+            .help("Arcane Dimensions' armed soldiers' own guns, dropped as they die: their damage, ammo and speed."),
+        command("AD Status", "vr_ad_info"),
+        command("Scope and Ammo Model Test", "vr_ad_test 65")
+            .help("Reports the feature scopes, all eight ammo box models and pickup physics; checks both held weapon models stay unchanged."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageBurning()
 {
     return {
@@ -3839,6 +4222,8 @@ void hologramTestMessage()
         cycle("You and Corpses", vr_corpse_collide_player, {{0.f, "Walk Through"}, {1.f, "Step Over"}, {2.f, "Solid"}})
             .help("Step Over: a corpse is a low step you walk onto. Solid: walk round it or jump onto it "
                   "(vr_corpse_collide_player)."),
+        toggle("Feet Nudge Ragdolls", vr_box3d_walk_nudge)
+            .help("Walking through or over a ragdoll gently nudges the limbs your body overlaps along your pace, without blocking you (vr_box3d_walk_nudge)."),
         toggle("Monsters Step Over Corpses", vr_corpse_collide_monsters)
             .help("Monsters walk over corpses as a low step instead of through them (vr_corpse_collide_monsters)."),
         header("Ragdolls (Experimental)"),
@@ -3931,6 +4316,170 @@ void hologramTestMessage()
             .help("At most this many at once. New deaths replace the oldest dead ragdoll first, then the oldest living knockdown if necessary. 0: ragdolls off."),
         toggle("Ragdolls Meet Each Other", vr_ragdoll_collide_each)
             .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
+        toggle("Limbs Meet Each Other", vr_ragdoll_self_collide)
+            .help("A ragdoll's own limbs meet: an arm stays out of his chest, a leg out of the other, a body folded over "
+                  "lies on itself. Jointed neighbours (a forearm and its upper arm), parts deep in each other as he went "
+                  "limp (until they come apart) and an arm reaching for his wound, a stump or a wall pass through; his gun "
+                  "never meets him. Off: his limbs pass through each other, as before. Ragdolls made from now on "
+                  "(vr_ragdoll_self_collide)."),
+        header("Active Deaths (Experimental)"),
+        open("Test Them", pageIndex(pageRagdollTests))
+            .help("Debug > Tests > Ragdoll Behaviours: each behaviour below set going on the nearest grunt, enforcer, "
+                  "knight, death knight, ogre or zombie."),
+        toggle("Active Deaths", vr_ragdoll_active)
+            .help("A dying grunt, enforcer, knight, death knight, ogre or zombie goes limp as soon as he stops being solid, "
+                  "his body playing his death animation as his strength fades (legs first): he stumbles if he dies on the "
+                  "move, may hold his wound and may crawl before going limp; a headshot or beheading collapses him. Off: "
+                  "limp at Go Limp At (vr_ragdoll_active)."),
+        slider("Muscle Strength", vr_ragdoll_active_strength, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("How strongly the joints follow the death animation (vr_ragdoll_active_strength)."),
+        slider("Strength Lasts", vr_ragdoll_active_fade, 0.25f, 3.f, 0.25f, "%.2fx").extend(0.1f, 5.f)
+            .help("How long the strength lasts, times his death animation's length (vr_ragdoll_active_fade)."),
+        slider("Muscle Stiffness", vr_ragdoll_active_hertz, 2.f, 20.f, 1.f, "%.0f Hz")
+            .help("How quickly a joint at full strength springs towards its pose: more follows the animation tighter, "
+                  "less is looser and lags (vr_ragdoll_active_hertz; at most 20)."),
+        slider("Muscle Damping", vr_ragdoll_active_damping, 0.2f, 2.f, 0.1f, "%.1f")
+            .help("How the joints' springs settle: 1 without overshoot, less bouncy, more sluggish (vr_ragdoll_active_damping)."),
+        slider("Muscle Torque", vr_ragdoll_active_torque, 0.5f, 5.f, 0.25f, "%.2f").extend(0.f, 10.f)
+            .help("A joint's most force at full strength, times the weight of what hangs on it times its lever: a blow "
+                  "or a hand overpowers less of it (vr_ragdoll_active_torque)."),
+        slider("Thrown by His Death", vr_ragdoll_active_pin, 0.f, 2.f, 0.1f, "%.1f").extend(0.f, 5.f)
+            .help("Body weights pulling his pelvis along his death animation's at first (its throw back or forward "
+                  "kept); 0 none (vr_ragdoll_active_pin)."),
+        slider("Thrown For", vr_ragdoll_active_pin_time, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("And that pull fading out over this (vr_ragdoll_active_pin_time)."),
+        slider("Headshot Strength", vr_ragdoll_active_headshot, 0.f, 0.5f, 0.01f, "%.2f")
+            .help("The strength a headshot or a beheading leaves: near 0 a pure collapse (vr_ragdoll_active_headshot)."),
+        slider("Stumble From", vr_ragdoll_active_stumble, 0.f, 300.f, 10.f, "%.0f u/s").extend(0.f, 1000.f)
+            .help("Dying on the move at least this fast, he stumbles on: carried a moment, a leg stepping ahead. 0: "
+                  "never (vr_ragdoll_active_stumble; a run is about 200-300, a walk 50-100)."),
+        toggle("React to Lost Limbs", vr_ragdoll_active_dismember)
+            .help("A dying monster losing a limb holds the stump with his free hand and writhes a few seconds once down; "
+                  "killed standing by a leg cut off, he tries to keep his balance on the other before he falls; with no "
+                  "legs he crawls on his arms. Off: he dies as from any blow (vr_ragdoll_active_dismember)."),
+        slider("Writhing", vr_ragdoll_active_dismember_time, 0.f, 8.f, 0.5f, "%.1f s").extend(0.f, 20.f)
+            .help("How long he writhes holding the stump once down (vr_ragdoll_active_dismember_time)."),
+        slider("Writhe Size", vr_ragdoll_active_writhe, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("How far his torso and legs stir as he writhes, times the default; 0 still (vr_ragdoll_active_writhe)."),
+        slider("Balance on One Leg", vr_ragdoll_active_balance_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 5.f)
+            .help("How long at most he tries to keep his balance on one leg (0: he falls at once) "
+                  "(vr_ragdoll_active_balance_time)."),
+        slider("Falls Past", vr_ragdoll_active_balance_lean, 5.f, 45.f, 1.f, "%.0f deg").extend(1.f, 90.f)
+            .help("And he falls once leaning this far from how he stood (vr_ragdoll_active_balance_lean)."),
+        slider("Hold the Wound", vr_ragdoll_active_wound, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance he puts a free hand on the wound that killed him (vr_ragdoll_active_wound)."),
+        toggle("Use What Is Round Him", vr_ragdoll_active_env)
+            .help("A dying monster senses the walls, floors, ledges and crates round him and uses his hands on them (the "
+                  "three below). Off: his death ignores them (vr_ragdoll_active_env)."),
+        toggle("Catch the Fall", vr_ragdoll_active_env_brace)
+            .help("Falling onto a floor, a wall or a crate within reach, his arms go out to it and take the landing, "
+                  "giving; tumbling with nothing near, he curls up (vr_ragdoll_active_env_brace)."),
+        toggle("Lean on Walls", vr_ragdoll_active_env_lean)
+            .help("Dying with a wall behind or beside him, he braces a hand on it and slumps down it, his knees giving; "
+                  "a crate he braces on, never holds (vr_ragdoll_active_env_lean)."),
+        slider("Arms' Strength", vr_ragdoll_active_env_arms, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("How strongly his arms reach for what is round him (a catch, a lean, a ledge's hold, a brace), times the "
+                  "default; 0 they don't (vr_ragdoll_active_env_arms)."),
+        toggle("Grab Ledges", vr_ragdoll_active_env_ledge)
+            .help("Falling past a ledge's lip near a hand, he grabs it and hangs a moment before dropping; shooting the "
+                  "hand makes him let go (vr_ragdoll_active_env_ledge)."),
+        slider("Grip", vr_ragdoll_active_env_grip, 0.2f, 3.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("Body weights a hand on a ledge holds at most (a hand leaning on a wall a third of it; a heavy monster "
+                  "less): past it he slips off (vr_ragdoll_active_env_grip)."),
+        slider("Hang Time", vr_ragdoll_active_env_hang, 0.5f, 5.f, 0.1f, "%.1f s").extend(0.1f, 30.f)
+            .help("About how long he hangs from a ledge (each 0.45 to 1.65 times it) (vr_ragdoll_active_env_hang)."),
+        slider("Crawl Away", vr_ragdoll_active_crawl, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a humanoid lying after his death rolls onto his front and crawls a few seconds before going "
+                  "limp (vr_ragdoll_active_crawl)."),
+        slider("Crawl Time", vr_ragdoll_active_crawl_time, 0.5f, 8.f, 0.5f, "%.1f s").extend(0.1f, 30.f)
+            .help("How long he crawls (vr_ragdoll_active_crawl_time)."),
+        slider("Crawl Pull", vr_ragdoll_active_crawl_force, 0.2f, 3.f, 0.1f, "%.1f").extend(0.f, 6.f)
+            .help("Body weights his arms pull along the floor at most: more drags him further (vr_ragdoll_active_crawl_force)."),
+        toggle("Swim and Flail in Liquids", vr_ragdoll_active_liquids)
+            .help("Dying in water (drowned, or falling in just after his death) he paddles and kicks, his head held up, "
+                  "weakening as he drowns; in lava or slime he flails, short and violent; then limp. Off: his death in a "
+                  "liquid plays as on land (vr_ragdoll_active_liquids)."),
+        slider("Paddle Time", vr_ragdoll_active_paddle, 1.f, 10.f, 0.5f, "%.1f s").extend(0.2f, 30.f)
+            .help("About how long he paddles in water before going limp (vr_ragdoll_active_paddle)."),
+        slider("Flail Time", vr_ragdoll_active_flail, 0.5f, 4.f, 0.25f, "%.2f s").extend(0.2f, 30.f)
+            .help("About how long he flails in lava (in slime 1.4 times it) before going limp (vr_ragdoll_active_flail)."),
+        header("Hit Reactions (Living Monsters)"),
+        cycle("Hit Reactions", vr_hit_react, {{0.f, "Off"}, {1.f, "Limbs"}, {2.f, "Whole Body"}})
+            .help("A living monster you hit flinches where you hit it, then carries on fighting: its AI, its damage and "
+                  "its hitboxes are as before. Limbs: the bones struck turn round their joints (the head snaps back, an "
+                  "arm swings, a leg's knee buckles and the torso leans over it; a monster with no rig tilts whole). "
+                  "Whole Body: every monster tilts whole. Off: none, and no slow-down (vr_hit_react)."),
+        slider("Reaction Strength", vr_hit_react_strength, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("How far it flinches, times the default (by the share of its health the blow took; "
+                  "vr_hit_react_strength)."),
+        slider("Reaction Length", vr_hit_react_time, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
+            .help("How long a flinch lasts, times the default (its peak at about 0.07 s, gone by about 0.5 s; "
+                  "vr_hit_react_time)."),
+        slider("Hits Slow Them", vr_hit_react_slow, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("A monster hit a moment ago takes shorter steps: a leg hit about half for half a second, with a hitch "
+                  "towards that leg; the body a third, 0.3 s. 0: none (vr_hit_react_slow)."),
+        toggle("Active Shoves and Throws", vr_ragdoll_active_stagger)
+            .help("With Knockdowns, a shove makes a grunt, enforcer, knight, death knight, ogre or zombie backpedal as a "
+                  "ragdoll held up by its muscles, about as far as a shove used to slide it, its arms wheeling: beaten by "
+                  "the knockdown's chance it gives way after 3 or 4 steps (knocked down), else it catches itself and "
+                  "fights on. Going down, its arms brace for the floor; a two-hand throw's body goes slack where you held "
+                  "it and curls as it goes over. Off: the knockdown's chance alone (vr_ragdoll_active_stagger)."),
+        slider("Stagger Falls Past", vr_ragdoll_active_stagger_lean, 10.f, 60.f, 5.f, "%.0f deg")
+            .help("A staggering monster whose middle leans this far past its feet for a third of a second, or twice "
+                  "this far at once, falls whatever its balance (vr_ragdoll_active_stagger_lean)."),
+        slider("Backpedal Steps", vr_ragdoll_active_stagger_steps, 1.f, 10.f, 1.f, "%.0f")
+            .help("How many steps back a shoved monster takes at most (a steady one up to 3 more to catch itself); one "
+                  "the shove beat gives way after 3 or 4 of them (vr_ragdoll_active_stagger_steps)."),
+        slider("Backpedal Distance", vr_ragdoll_active_stagger_travel, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("How far a shoved monster backpedals, times how far the same shove slid a standing one before "
+                  "active shoves (at most 4 m) (vr_ragdoll_active_stagger_travel)."),
+        slider("Shove's Push", vr_ragdoll_active_stagger_push, 0.f, 5.f, 0.25f, "%.2f m/s").extend(0.f, 10.f)
+            .help("A fresh two-hand shove's push on a staggering monster's top (its pelvis carried by its balance, its "
+                  "feet not): more tips it further (vr_ragdoll_active_stagger_push)."),
+        slider("Stagger Balance", vr_ragdoll_active_stagger_pin, 0.5f, 5.f, 0.25f, "%.2f").extend(0.f, 10.f)
+            .help("Body weights holding its pelvis up while it staggers, at most (by its balance: the knockdown's chance "
+                  "against its roll): less, it falls more often (vr_ragdoll_active_stagger_pin)."),
+        slider("Stagger Recovery Blend", vr_ragdoll_active_stagger_blend, 0.05f, 1.f, 0.05f, "%.2f s")
+            .help("Recovered, its ragdoll blends into the animated monster over this (vr_ragdoll_active_stagger_blend)."),
+        toggle("Active Get-Ups", vr_ragdoll_active_getup)
+            .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
+                  "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "
+                  "blends into the get-up from the floor (vr_ragdoll_active_getup)."),
+        slider("Drowning Struggle", vr_ragdoll_active_drown, 0.f, 1.f, 0.05f, "%.2f")
+            .help("With Knockdowns, the chance a grunt, enforcer, knight, death knight, ogre or zombie standing with its "
+                  "head under water, out of breath, struggles as a ragdoll: it paddles frantically for the surface, its "
+                  "head up, towards where it can stand, and gets up there. Needs Swim and Flail in Liquids. 0: it drowns "
+                  "standing (vr_ragdoll_active_drown)."),
+        slider("Pull Up From Ledges", vr_ragdoll_active_pullup, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie falling past a ledge's lip near a "
+                  "hand grabs it (Grab Ledges on) and hangs a moment; then, by this chance, it pulls itself up onto the "
+                  "top and lies there until it gets up, else it drops. Shooting a hand makes it let go. 0: it never grabs "
+                  "(vr_ragdoll_active_pullup)."),
+        slider("Grab Others Falling", vr_ragdoll_active_grab, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a grunt, enforcer, knight, death knight, ogre or zombie going down (knocked down or dying) "
+                  "grabs at another monster within reach, standing or lying, to catch itself: a hand on it a moment, "
+                  "slowing its fall; a body grabbed is dragged along. 0: never (vr_ragdoll_active_grab)."),
+        slider("Guard the Head", vr_ragdoll_active_guard, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a living monster guards its head when your hand swings at it in melee (a sword, an axe, a "
+                  "fist, a bash; never a shot): its arms up before its face a moment. Standing it is drawn as a hit "
+                  "reaction (Hit Reactions on Limbs); staggering, down or getting up, its body's arms. Looks alone: "
+                  "the blow lands where it lands. 0: never (vr_ragdoll_active_guard)."),
+        toggle("Placed Corpses Are Bodies", vr_corpse_placed)
+            .help("The corpses a map places (Dimension and Dawn of the Machine) are dead monsters' bodies: shot, gibbed and "
+                  "burnt, and ragdolls you take and cut once you come near. Off: scenery. The next map load (vr_corpse_placed)."),
+        slider("Placed Corpses Wake At", vr_corpse_placed_wake, 64.f, 512.f, 16.f, "%.0f units")
+            .help("How near you come before a placed corpse becomes a ragdoll (vr_corpse_placed_wake)."),
+        slider("Get-Up Lift", vr_ragdoll_active_getup_pin, 0.5f, 5.f, 0.25f, "%.2f").extend(0.f, 10.f)
+            .help("Body weights pulling its pelvis through its get-up, at most: less, it struggles and may slump "
+                  "(vr_ragdoll_active_getup_pin)."),
+        slider("Get-Up Pace", vr_ragdoll_active_getup_pace, 0.3f, 2.f, 0.1f, "%.1fx")
+            .help("Its get-up's speed, times the get-up's own (vr_ragdoll_active_getup_pace)."),
+        slider("Get-Up Blend", vr_ragdoll_active_getup_blend, 0.05f, 1.f, 0.05f, "%.2f s")
+            .help("Risen, its ragdoll blends into the animated monster over this (vr_ragdoll_active_getup_blend)."),
+        toggle("Get Up in Place", vr_ragdoll_active_getup_hold)
+            .help("On: it rolls over and gathers itself where it lies, then rises; only the get-up's own motion moves "
+                  "it. Off: as before, its roll carried it along the floor and it was dragged back "
+                  "(vr_ragdoll_active_getup_hold)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
@@ -4622,6 +5171,16 @@ void checklistUndo()
 za::Vector<Item> pageDebugViews()
 {
     return {
+        cycle("Body Clone While Tweaking", vr_menu_body_clone, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Every VR Page"}})
+            .help("While a page tweaks something worn on your body (the holsters, the pouches, the flashlight on your belt "
+                  "or head and its zones, the wrist gadget's mount, the virtual stock), a mirror image of your body beside "
+                  "the menu, facing you, with the zones drawn on it too. Every VR Page: on any page (a test). "
+                  "vr_menu_body_clone_info prints where it is."),
+        slider("Body Clone Distance", vr_menu_body_clone_distance, 0.8f, 3.f, 0.1f, "%.1f m").extend(0.5f, 5.f)
+            .help("From your eyes to the image's."),
+        cycle("Body Clone Side", vr_menu_body_clone_side,
+            {{0.f, "Away from Main Hand"}, {1.f, "Left"}, {2.f, "Right"}, {3.f, "Straight Ahead"}})
+            .help("Beside the menu panel, on this side; Straight Ahead: behind the panel (drawn over it)."),
         toggle("Animated Surfaces", vr_anim_surface)
             .help("On: an animated texture's frames (the wall buttons' lit and dim frames) share one surface: the same "
                   "bumps, parallax depth, sheen and detail, only their colours and glow change. Off: each frame its own "
@@ -4659,6 +5218,9 @@ za::Vector<Item> pageDebugViews()
                   "striking volume (your hand's surface blue, the gun's butt orange, white on the zone); And Print "
                   "Sync: also prints each frame how far the zone is from the drawn gadget. The settings: HUD and Menus "
                   "> Wrist Gadget."),
+        command("Press the Gadget Button", "vr_gadget_button_press")
+            .help("vr_gadget_button_press: a press of the wrist gadget's side button without a fingertip (the light; "
+                  "six quick ones open Doom, one closes it)."),
         command("Gear Lights Info", "vr_gear_lights_info")
             .help("vr_gear_lights_info: the gear lights' state, the side button's place and your fingertip's distance to "
                   "it, and the stealth AI's light on you now."),
@@ -4670,8 +5232,9 @@ za::Vector<Item> pageDebugViews()
             .help("Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
                   "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),
         cycle("Show Ledges", vr_debug_ledges, {{0.f, "Off"}, {256.f, "Within 256 units"}, {1.f, "Within 512 units"}, {1024.f, "Within 1024 units"}})
-            .help("The ledge map round you, what climbing holds: lips green (on moving brushes pink), a tick out every 8 units "
-                  "(yellow where the drop starts further out). Built even with climbing off."),
+            .help("The ledge map round you, what climbing holds: lips green (on moving brushes pink; on props orange, as they "
+                  "lie now: Climb Props), a tick out every 8 units (yellow where the drop starts further out). Built even with "
+                  "climbing off."),
         toggle("Log Empty Hand Against Held", vr_debug_hand_collide)
             .help("Prints, each frame an empty hand meets the weapon or the thing the other hand holds, how near the real "
                   "and the drawn hand's palm and knuckles are to its surface, how far the drawn hand and the thing are "
@@ -4805,6 +5368,14 @@ za::Vector<Item> pageDebugLogging()
             .help("Each controller button pressed and let go: the hand, the button, its key and binding, and what took it "
                   "(the posing mode, a voice note, the flashlight); and the controller profile the headset's runtime "
                   "picked for each hand (Virtual Desktop can report Index controllers). For a button that does nothing."),
+        command("Restore Controller Bindings", "vr_bindings_reset")
+            .help("vr_bindings_reset: the controller buttons' keys bound as Quake VR ships them again (quakevr/"
+                  "vr_bindings.cfg: triggers fire, grips grab, A jumps...). For controls that act as a gamepad's (the left "
+                  "trigger jumping, the grips changing weapons)."),
+        toggle("Other Ports' Startup Configs", vr_foreign_configs)
+            .help("vr_foreign_configs: at the start, an autoexec.cfg or config.cfg found only outside Quake VR's own "
+                  "folder (in id1 next to a GOG or Steam Quake, a re-release folder: another source port's) runs too. Off "
+                  "(the default): only quakevr's own; a skipped one is named in the console. Exec by hand runs any."),
         toggle("Wounds", vr_wounds_debug).help("Each wound painted on a model."),
         cycle("Grasp", vr_debug_grasp, {{0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"}})
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),
@@ -4827,6 +5398,15 @@ za::Vector<Item> pageDebugLogging()
                   "also each second the most sent: the broadcast, the reliable messages, a client's own data and entities."),
         toggle("Ragdolls", vr_debug_ragdoll)
             .help("vr_debug_ragdoll: each ragdoll made (when it went limp, its parts), each push on it and each blast's throw."),
+        cycle("Hit Reaction Log", vr_hit_react_debug, {{0.f, "Off"}, {1.f, "Blows"}, {2.f, "Every Frame"}})
+            .help("vr_hit_react_debug: each blow a living monster flinches at printed (the bone struck, its size) and the "
+                  "server's slow-down of its steps; Every Frame: its bones' turns each frame too (hittrace lines)."),
+        toggle("Active Ragdoll Targets", vr_ragdoll_active_debug)
+            .help("vr_ragdoll_active_debug: each active ragdoll's joint targets drawn over it (green as strong as the joint "
+                  "is, grey limp), its pelvis pin (yellow) and its hands' and feet's goals (red: a wound held, a step, a "
+                  "crawl), what is round him: his probes (cyan, orange where they met something), his hands' goals and "
+                  "holds (magenta), the wall he leans on (blue). vr_ragdoll_active_list in the console: each one's "
+                  "strengths and what its death does."),
         cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
             .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot). Also each throw: how "
                   "fast, whether it passes through your hands, and how much its velocity and spin changed by the grace's end "
@@ -4891,6 +5471,17 @@ za::Vector<Item> pageDebugProfiling()
             .help("How often the profiler times the GPU: each timed frame stalls it a little. Off: CPU times only."),
         slider("Report Interval", vr_profile_interval, 0.f, 30.f, 1.f, "%.0f s")
             .help("Performance Profile (Graphics): seconds between its reports in the console and its CSV. 0: only on Dump Profile."),
+#ifdef QVR_TRACY
+        command("Tracy Pool Self-Test", "vr_tracy_test_memory").help("Exercise realloc, cache frees, hunk reset and memory detail changes."),
+        command("Tracy Status", "vr_tracy_status").help("Connection, nesting, dropped zones and GPU query state."),
+        command("Tracy QC Detail On", "vr_tracy_qc_detail 1").help("Named QuakeC functions and builtins; costs more during capture."),
+        command("Tracy QC Detail Off", "vr_tracy_qc_detail 0"),
+        command("Tracy Memory Detail On", "vr_tracy_memory_detail 1").help("Snapshot and allocation events for Zone, Hunk and Cache."),
+        command("Tracy Memory Detail Off", "vr_tracy_memory_detail 0"),
+#else
+        command("Tracy Build Info", "echo Tracy requires the optional Release-Tracy build")
+            .help("Build with Misc/quakevr/build_tracy.ps1 for external CPU/GPU captures. Normal builds compile Tracy out."),
+#endif
         command("Print Report", "vr_profile_report")
             .help("vr_profile_report: the last 5 seconds' table in the console (in qconsole.log with -condebug)."),
         command("Dump Profile", "vr_profile_dump")
@@ -4906,6 +5497,21 @@ za::Vector<Item> pageDebugProfiling()
             .help("profile_qc 30: the 30 QuakeC functions and builtins that took the most time a frame since the last "
                   "report (Time QuakeC Functions on), in the console; then all are zeroed. Press it, do the thing, press "
                   "it again."),
+        cycle("QuakeC Loop", vr_qcexec, {{0.f, "Original"}, {1.f, "Fast (goto)"}, {2.f, "Fast (switch)"}})
+            .help("vr_qcexec: the QuakeC interpreter's loop. Fast (goto), the default: the same results, errors and "
+                  "instruction counts as the original, quicker (docs/vr-port/QC_VM.md). Original: the old loop, to "
+                  "compare or to rule it out."),
+        command("QuakeC Loop Bench", "vr_qcexec_bench")
+            .help("vr_qcexec_bench: times a QuakeC math function in each loop (in a map) and checks they agree; the "
+                  "result in the console."),
+        toggle("Native Prop Think", vr_prop_think_native)
+            .help("vr_prop_think_native: thrown and dropped weapons' and pickups' think (water, dust, settling after a "
+                  "throw) in the engine, the same as its QuakeC, which was 5-18% of all QuakeC run in a fight. Off: the "
+                  "QuakeC (forcegrabbable_think_qc), to compare or rule it out."),
+        command("Prop Think Check", "vr_propthink_check")
+            .help("vr_propthink_check: the prop think's QuakeC and native run from the same states on every force-"
+                  "grabbable thing in the map (as it is and 200 made-up states each) and compared; the result in the "
+                  "console, the map left as it was."),
         command("Edict Index Stats", "vr_edictindex_stats")
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
@@ -5012,7 +5618,7 @@ za::Vector<Item> pageDebugProfiling()
             .help("The game's thread pool shares out the grasp solve, the liquids' volume, the decal atlas and the models' "
                   "occlusion bakes. Off: the calling thread does all of it (the same results, slower: to compare)."),
         toggle("Catch Memory Use off the Main Thread", vr_zone_threadcheck)
-            .help("The game crashes at once, with the culprit's stack (qvr_crash.txt), when a thread other than the main one "
+            .help("The game crashes at once, with the culprit's stack (the crash report), when a thread other than the main one "
                   "uses the hunk, the model cache or the zone (none of them is thread-safe; vr_zone_threadcheck). For "
                   "testing: a map load's crash in its data is often one of these."),
         toggle("Evict Models at Map Start", vr_hitmodel_cachestress)
@@ -5030,6 +5636,11 @@ za::Vector<Item> pageDebugProfiling()
                   "worker of the pool). Measured on a 24-core CPU: 4 is as fast as 6 or 8 up to ~500 awake bodies (and "
                   "leaves cores to the render thread and the headset's runtime); 8 gains another 20% only from ~1000. "
                   "All is slower than 8."),
+        toggle("Physics AVX2", vr_box3d_avx2)
+            .help("vr_box3d_avx2: Box3D's contact solver and hull contacts 8 at a time with AVX2, where the CPU has it "
+                  "(the console says which at the first map). Off (the default): 4 at a time with SSE2. The same results "
+                  "either way; measured in the game (an i9-13900K), AVX2 was no faster with 500 props and a little slower "
+                  "with 40 (Box3D alone, a box pile on a box floor, it is 20% faster). Takes effect at the next physics step."),
         cycle("Physics Threads From", vr_box3d_threads_bodies, {{0.f, "Always"}, {100.f, "100 Bodies"}, {150.f, "150 Bodies"}, {200.f, "200 Bodies"}, {300.f, "300 Bodies"}, {500.f, "500 Bodies"}, {1000.f, "1000 Bodies"}})
             .help("With Physics on Threads: shared out only while at least this many bodies are awake (a smaller step is "
                   "faster on the main thread alone: handing it out costs more than it saves). Measured: even at ~100 awake, "
@@ -5078,6 +5689,10 @@ za::Vector<Item> pageDebugProfiling()
         header("Memory"),
         cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
             .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
+        cycle("Memory Log: GL Count", "vr_memstats_glscan", {{0.f, "Every name"}, {1.f, "Skip free names"}, {2.f, "Both, compared"}})
+            .help("vr_memstats_glscan: the log's count of GL objects at each map load. Skip free names (5 ms): the names "
+                  "the driver hands out as free are not asked about, the same count; every name (13 ms): each asked up "
+                  "to 4096 past the last object; both: compared at every load, printed."),
         toggle("Memory Log: GPU", vr_memstats_log_gpu)
             .help("Also sample the GPU for the Memory Log (its clocks, slowdowns, and each program's use of it: SteamVR, "
                   "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture)."),
@@ -5114,12 +5729,68 @@ za::Vector<Item> pageDebugProfiling()
         command("Heap: Return Free Memory", "vr_heap collect")
             .help("vr_heap collect: mimalloc returns the memory it holds unused to the system, then vr_heap."),
         header("Crashes"),
-        command("Crash the Game", "vr_debug_crash")
-            .help("vr_debug_crash [access | abort]: crashes the game now, on purpose, to test the crash report (in a test run: "
-                  "qvr_crash.txt, the stack, and qvr_crash.dmp in the game folder). The game quits!"),
-        command("Fail a Zancle Assert", "vr_debug_crash assert")
-            .help("vr_debug_crash assert (zassert: in Zancle's library): a failed ZA_ASSERT, to test its report (a Quake "
-                  "error; in a test run, the crash report). Debug builds only (zassert: with QVR_ZANCLE_DEBUG). The game quits!"),
+        command("Crash: Access Violation", "vr_crash_test av")
+            .help("vr_crash_test av: crashes the game now, on purpose, to test the crash report: quakevr/crash/<date>_<time>.txt "
+                  "(the stack with function names, the build, the map) and a .dmp beside it, and a dialog naming them. "
+                  "The game quits!"),
+        command("Crash: On a Worker Thread", "vr_crash_test thread")
+            .help("vr_crash_test thread: an access violation on a thread pool worker: the report has that thread's stack. "
+                  "The game quits!"),
+        command("Crash: Stack Overflow", "vr_crash_test stack")
+            .help("vr_crash_test stack: endless recursion on the main thread: the report, from what is left of its stack. "
+                  "The game quits!"),
+        command("Crash: Fatal Error", "vr_crash_test error")
+            .help("vr_crash_test error: a Sys_Error (the \"Quake VR: Unleashed - Error\" dialog, which names the report). "
+                  "threaderror: one on a worker thread. The game quits!"),
+        command("Crash: Failed Assert", "vr_crash_test assert")
+            .help("vr_crash_test assert: a failed assert's report (Zancle's handler; zassert: one in Zancle's library, "
+                  "Debug builds with QVR_ZANCLE_DEBUG). The game quits!"),
+        command("Crash: abort()", "vr_crash_test abort")
+            .help("vr_crash_test abort: abort(), as std::terminate and the CRT's fatal checks end (purecall: a pure virtual "
+                  "call). The game quits!"),
+        command("Error: Host_Error", "vr_crash_test hosterror")
+            .help("vr_crash_test hosterror: an error that ends the game session but not the program: back to the console, "
+                  "with its caller's stack printed."),
+        header("Startup (GL safe mode)"),
+        toggle("GL Safe Mode", vr_glsafe)
+            .help("vr_glsafe, from the next start: the optional GL features off (persistent mapped buffers, bindless textures, "
+                  "multi-bind, clip control, layered shadow casters, debug output, MSAA, the 8192 shadow atlas), each one "
+                  "logged. Also -glsafe, and on by itself after a start that crashed before its first map."),
+        toggle("AMD Workarounds", vr_gl_workarounds)
+            .help("vr_gl_workarounds, from the next start: on AMD/ATI GPUs bindless textures off, as -nobindless (1.0.0 crashed "
+                  "in AMD's driver at start-up with them). Off: every feature the driver offers."),
+        command("GL Safe Mode Status", "vr_glsafe_status")
+            .help("vr_glsafe_status: whether this run is in safe mode and why, each feature, and the last GL steps "
+                  "(quakevr/crash/gl_startup.log has the start-up's)."),
+        command("Retry the Full Renderer", "vr_glsafe_retry")
+            .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
+        header("Diagnostics"),
+        command("Game Code and Folders", "vr_gamecode")
+            .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "
+                  "game code (progs.dat) comes from: this build's, an older build's quakevr folder or not Quake VR's "
+                  "(then weapons are only props). Said at each start too; a player's console dump has it."),
+        toggle("Diagnostics Mode", vr_diagnostics)
+            .help("vr_diagnostics, from the next start (as -diagnostics or the Diagnostics shortcut): a debug GL context and "
+                  "its messages, the OpenXR debug messenger, what is said to a debugger, the console, the crash report and "
+                  "the runtimes' logs, all in quakevr/diagnostics/<date>_<time>. Slower: for a bug report only."),
+        command("Diagnostics Status", "vr_diagnostics_status")
+            .help("vr_diagnostics_status: whether this run is in diagnostics mode, its folder and the messages so far."),
+        toggle("OpenXR Validation Layer", vr_diagnostics_xr_validation)
+            .help("vr_diagnostics_xr_validation, from the next VR start, in diagnostics mode only: Khronos' core validation "
+                  "layer checks every OpenXR call the game makes (openxr_validation.log in the diagnostics folder). Off: "
+                  "not loaded, if the runtime behaves differently with it."),
+        header("Startup (OpenXR runtime)"),
+        toggle("Runtime Crash Guard", vr_xr_guard)
+            .help("vr_xr_guard: a crash inside the OpenXR runtime while the game makes its eye images or stops it is caught "
+                  "and logged (qvr_openxr.txt): that VR start fails, Auto tries the next runtime, else the game plays flat. "
+                  "Off: the game crashes with its report."),
+        toggle("OpenXR API Layers", vr_xr_api_layers)
+            .help("vr_xr_api_layers, from the next VR start: off turns off every implicit OpenXR API layer installed "
+                  "(overlays, toolkits, capture tools between the game and the runtime) by its own switch. "
+                  "vr_xr_runtime_explain lists them, and the other programs' DLLs in the game."),
+        toggle("Test: No GL Context at the Next VR Start", vr_xr_test_drop_context)
+            .help("vr_xr_test_drop_context 1: the next eye swapchain is requested with no GL context current (once): the "
+                  "game makes its context current again first and logs it in qvr_openxr.txt. Then vr_restart."),
     };
 }
 
@@ -5127,6 +5798,19 @@ za::Vector<Item> pageDebugProfiling()
 za::Vector<Item> pageDebugReports()
 {
     return {
+        header("Flatscreen Play"),
+        command("Flatscreen Play Status", "vr_flatplay_status")
+            .help("-flatscreenmode: the VR gameplay on the desktop screen. Whether the mode is on, its keys, and what it "
+                  "stands in for (reloading off, the flashlight worn, 1 and 2 cycling the weapons collected)."),
+        toggle("Flatscreen Play Print", vr_flatplay_debug)
+            .help("Prints each E and V press, and where the flatscreen hands are, to the console."),
+        slider("Flatscreen Hand Reach", vr_flat_reach, 0.25f, 3.f, 0.05f, "%.2f")
+            .help("How far the flatscreen hands sit from the shoulders: a held gun out in front of the chest, an empty "
+                  "hand at its side."),
+        slider("Flatscreen Turn Lag", vr_flat_sway, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How much the flatscreen arms are left behind by a turn and by a step."),
+        slider("Flatscreen Walk Bob", vr_flat_bob, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How much the flatscreen hands bob on a walk and breathe at rest."),
         header("The Game"),
         command("Official Campaign Status", "vr_campaign_status").help("Owned data and language readiness; active native campaign context."),
         command("Dopa Finale Text", "loc_probe $map_dopa_endtext_final").help("Preview the resolved completion text. loc_probe <key> [arguments] also checks formatted expansion strings."),
@@ -5135,7 +5819,7 @@ za::Vector<Item> pageDebugReports()
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
         command("OpenXR Runtime Choice", "vr_xr_runtime_explain")
-            .help("vr_xr_runtime_explain: what VR Settings > Headset > OpenXR Runtime chooses now and why: the runtimes installed and running, the order they are tried in. Each VR start is logged in qvr_openxr.txt in the game folder (quakevr): what was tried, what the loader loaded, what failed."),
+            .help("vr_xr_runtime_explain: what VR Settings > Headset > OpenXR Runtime chooses now and why: the runtimes installed and running, the order they are tried in, the OpenXR API layers installed and the other programs' DLLs in the game (overlays). Each VR start is logged in qvr_openxr.txt in the game folder (quakevr): what was tried, what the loader loaded, what failed."),
         command("Player", "vr_dumpplayer").help("vr_dumpplayer [client]: a player's VR fields in the game (hands, weapons, hotspots)."),
         command("Models Check", "vr_model_check 1")
             .help("vr_model_check 1: every entity's model index against its model's name, and your models against the "
@@ -5158,8 +5842,28 @@ za::Vector<Item> pageDebugReports()
         command("Wrists and Grips", "vr_bodycal_debug").help("vr_bodycal_debug: one line a hand, next frame: the wrist and the grip."),
         header("World and Physics"),
         command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
+        command("Active Ragdolls", "vr_ragdoll_active_list").help("vr_ragdoll_active_list: each active ragdoll (vr_ragdoll_active): how long driven, its legs', torso's, arms' and head's strength, its pelvis pin, what its death does (stumbled, a hand on the wound, crawling); and the drive's cost a frame."),
+        command("Strike Holding Hands", "vr_ragdoll_env_hit").help("vr_ragdoll_env_hit [speed]: each dying monster's hand holding on to a wall or a ledge struck as a shot strikes it: it lets go (Gibs and Corpses > Ragdoll Settings > Grab Ledges)."),
+        command("Hit the Nearest Monster: Leg", "vr_test_hit 4").help("vr_test_hit <n>: the live monster nearest you struck by a shot of yours (vr_test_hit_damage, never a kill) on its body (1), head (2), an arm (3) or a leg (4): a hit reaction to watch (Gibs and Corpses > Ragdoll Settings, Hit Reactions). vr_test_hit_calm 1: no pain frames, it doesn't turn on you."),
+        command("Hit the Nearest Monster: Head", "vr_test_hit 2").help("vr_test_hit 2: the live monster nearest you struck on its head (see Hit the Nearest Monster: Leg)."),
+        command("Nearest Monster Guards Its Head", "vr_test_guard 1").help("vr_test_guard 1: the live monster nearest you throws its arms up before its face for 0.6 s, as when your hand swings at its head (Gibs and Corpses > Ragdoll Settings > Guard the Head; standing: Hit Reactions on Limbs; a ragdoll: its body's arms)."),
+        command("Hit Reactions Now", "vr_hit_react_info").help("vr_hit_react_info: the monsters flinching now, each blow's age, part, size and whether its bones or its whole model take it."),
+        command("Kill the Nearest Monster", "vr_test_kill 1").help("vr_test_kill <n>: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3) or a leg (4): an active death to watch (Gibs and Corpses > Ragdoll Settings, Active Deaths)."),
+        command("Cut the Nearest Monster's Leg Off", "vr_test_cut 3").help("vr_test_cut <n>: the live monster nearest you killed by a sword's cut at its left arm (1), right arm (2), left leg (3), right leg (4), both legs (5), left forearm (6), left shin (7) or head (8); n + 10: the dead one nearest you cut so. With React to Lost Limbs: he balances on one leg, holds the stump, writhes, crawls with no legs."),
+        command("Cut the Nearest Monster's Arm Off", "vr_test_cut 1").help("vr_test_cut 1: the same at its left arm: his right hand to the stump."),
+        command("Cut Both Its Legs Off", "vr_test_cut 5").help("vr_test_cut 5: the same at both legs: he crawls on his arms."),
         command("Ragdolls", "vr_ragdoll_list 2").help("vr_ragdoll_list [1|2]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed and the hands holding it; with 2 also how far its flames are from its limbs), and Box3D's bodies (Gibs and Corpses > Ragdoll Settings)."),
         command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
+        command("Smooth Animation Check", "vr_anim_smooth_check").help("vr_anim_smooth_check [model ...]: each rigged monster's frames drawn as Model Animation Smooth draws them (r_lerpmodels 3): the weights at the frames (exact), how near a frame the shape is just off it, how far mid-frame it is from Quake's blend, and how much limbs turning 30 degrees or more shrink mid-frame (Quake's blend, the spline, with the swung limbs)."),
+        command("Steady Vertices Check", "vr_mdl_dequant_check").help("vr_mdl_dequant_check [model ...]: each model's vertices dequantised (Steady Model Vertices, vr_mdl_dequant): its animation runs and loops, the largest offset from the stored values (at most half a step), how much the vertices' second differences shrink (all of them; the slow parts, where the file's rounding shows), the loops the game's QuakeC plays (their seams: second differences there and inside, stored, as before and now), how far the normals turn from frame to frame, the time it takes, and the load totals."),
+        command("Smooth Animation Models", "vr_anim_smooth_info").help("vr_anim_smooth_info [model [frames]]: the models drawn smoothed: the frames that follow by name or were seen, the rig's bones and how many poses each is fitted too badly in to swing."),
+        command("Trace Nearest Monster's Motion", "vr_anim_smooth_trace 180").help("vr_anim_smooth_trace <frames> [<entity> | <model>]: the nearest monster's drawn animation over the next frames (here 180): how much its points' speed changes from frame to frame (median, p95, most), printed at the end. Run it with Model Animation on Quake's Blend, then Smooth, to compare (even frames: vr_fixed_frames 1)."),
+        command("Pin Nearest Monster Mid-Swing", "vr_anim_smooth_pin 41 42 0.5 -1 -1 ogre").help("vr_anim_smooth_pin <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]: a monster (here the nearest ogre: its chainsaw swing) drawn held between two frames, to compare Model Animation's settings on it; vr_anim_smooth_pin off lets it go."),
+        command("Unpin Monster", "vr_anim_smooth_pin off").help("vr_anim_smooth_pin off: the pinned monster animates again."),
+        slider("Limb Fit Limit", "vr_anim_smooth_rig_error", 0.25f, 5.f, 0.25f, "%.2f units").help("vr_anim_smooth_rig_error: a bone fitted to a frame worse than this (rms) isn't swung between it and its neighbours; a vertex further off its bone swings less (none at twice it)."),
+        command("Corpse Poses", "vr_corpse_poses").help("vr_corpse_poses [1]: every dead monster and placed corpse: its model, "
+                                                         "frame and where that is in its death, a ragdoll or why not; those "
+                                                         "drawn mid-death (upright) are counted as not lying. 1: the counts only."),
         command("Corpses in the Physics", "vr_corpse_list").help("vr_corpse_list: each corpse's body (fixed or pushable, box or pose, mass), where it lies, and what touches it (Gibs and Corpses > Corpse Collision)."),
         command("Held Props", "vr_carry_check").help("vr_carry_check: each held prop's place and axes in the hand, drawn vs where the game has it, and the fist's gap to it (cm)."),
         command("Props in Floors", "vr_physics_sink").help("vr_physics_sink: how far each prop sinks into the floor."),
@@ -5180,6 +5884,7 @@ za::Vector<Item> pageDebugReports()
         command("Bloody Hands and Washing", "vr_gore_hands_info")
             .help("vr_gore_hands_info: the blood on your hands and body (texels), the wounds kept to re-open, the wash and its re-opening, and the blood on your weapons and props."),
         command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),
+        command("Permanent Decals", "vr_permdecal_info").help("vr_permdecal_info: the marks baked for good (Permanent Decals): faces laid out, pages and atlas slots used, the atlas's layers and memory, marks baked, pages given up when it was full at its most, the flushes' cost."),
         command("Particle Lighting", "vr_particle_light_report").help("vr_particle_light_report: the last frame's lit particles (Lit Particles), their mean light and colour against unlit, and the lightmap traces it took."),
         command("Model Lighting", "vr_model_ambient_show").help("vr_model_ambient_show: the six nearest entities' ambient light."),
         command("Ambient Occlusion", "vr_ao_show").help("vr_ao_show: the ambient occlusion's occluders and bake."),
@@ -5188,10 +5893,15 @@ za::Vector<Item> pageDebugReports()
         toggle("Keep AO Bakes on Disk", vr_ao_cache).help("vr_ao_cache: the models' occlusion bakes kept on disk, so a later session's loads bake nothing (off: baked at every first load; 2 in the console: baked anyway and compared with the file)."),
         header("Hands and Weapons"),
         command("Hand Rig", "vr_hand_rig_info").help("vr_hand_rig_info: the hand's rig against the compiled one."),
+        command("Wrists (Bare Forearms)", "vr_body_wrist_info")
+            .help("vr_body_wrist_info: per hand, the body drawn (bare or with bracers), the hand's size against the body, how "
+                  "far the arm's wrist is from the hand's, where the wrist is, the forearm's direction and the wrist's bend; "
+                  "the body's and the hands' light (with bare forearms the hands are lit as the body)."),
         command("Grasp Spheres", "vr_grasp_spheres").help("vr_grasp_spheres: the fingers' and the palm's contact spheres."),
         command("Grip Frames", "vr_grip_frame")
             .help("vr_grip_frame: each hand's grip frame (the palm and the grip channel) that held props are placed by."),
         command("Hotspots Check", "vr_hotspots_check").help("vr_hotspots_check: each weapon's hotspots, checked against its model."),
+        command("Weapon Anchors", "vr_anchor_where").help("vr_anchor_where: where the held weapons' anchors are this frame (muzzle, ammo button and screen, magazine and well); vr_anchor_info <model> <anchor> where one binds on its model."),
         command("Sight Lines", "vr_sight_lines").help("vr_sight_lines: every weapon's sight line (Align Sights)."),
         command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),
         command("Wrist Gadget", "vr_gadget_info").help("vr_gadget_info: the gadget's pose (once it has been drawn)."),
@@ -5216,6 +5926,10 @@ za::Vector<Item> pageDebugReports()
         command("External Maps", "vr_extmaps_stats all")
             .help("vr_extmaps_stats all: each texture of the map and what it got from the external pack (Graphics: External "
                   "Maps): its picture's match, normal, specular and glow maps (long; without 'all' only the totals)."),
+        command("Companion Maps", "vr_pbr_stats all")
+            .help("Each world texture's source hash, generated companion coverage, and authored normal and height components."),
+        command("Companion Map Tests", "vr_pbr_test")
+            .help("Checks source hashing, dimensions, content collisions and indexed palette expansion."),
         command("Animated Surfaces", "vr_extmaps_frames")
             .help("vr_extmaps_frames: each animated texture of the map (the wall buttons' +0basebtn...) frame by frame: the "
                   "frame whose surface it is drawn with, its normal, specular and glow maps and detail, and whether its "
@@ -5227,6 +5941,10 @@ za::Vector<Item> pageDebugReports()
         command("Relighting: Status", "vr_relight_status").help("vr_relight_status: the relighting's state (a batch's maps done, each light running: its stage and process id; the progress and time left), how the map in play is lit, the light.exe found."),
         command("Relighting: Tool Lookup", "vr_relight_get_tool status").help("vr_relight_get_tool status: the light.exe found (or not), the folder Download ericw-tools writes, the pinned file (version, size, sha256), its URL and the last download's result. vr_relight_tool_dir points both lookup and download at a test folder; vr_relight_tool_url at a test server."),
         command("Relighting: Batch's Maps", "vr_relight_batch -list").help("vr_relight_batch -list: the maps Graphics > Relighting's Relight These Maps would take (Maps, Episode, Game), with their files and sizes, without relighting them."),
+        command("Menu Panel Place", "vr_menu_panel").help("vr_menu_panel: where the menu panel is (MENUPANEL: moved by a hand or not, held, its middle, from the head, the way it faces, its size). vr_menu_panel reset puts it back in front of you."),
+        command("Menu Panel Back in Front", "vr_menu_panel reset").help("vr_menu_panel reset: the menu panel, moved by a grip, back in front of your head, as it opens."),
+        command("Menu Panels", "vr_menu_panels").help("vr_menu_panels: the menu panels open (MENUPANELS: each one's menu, page, selected row and its value as last drawn). vr_menu_panels open, close <n> or focus <n>: another opened (as the corner's New Panel), one closed or given the keys."),
+        command("Open Another Menu Panel", "vr_menu_panels open").help("vr_menu_panels open: another menu panel beside this one, on this page (as the corner's New Panel; three at most, in the headset)."),
         command("Menu Rows", "menu_vr rows").help("menu_vr rows: this page's rows as drawn (MROW: row, top, label), the scroll, the section gap, and whether the laser and mouse find each row where it is drawn."),
         toggle("Menu Links: Print, Do Not Open", vr_menu_link_dryrun)
             .help("vr_menu_link_dryrun: the version box's Support on Ko-fi link (bottom right of the menus) prints its address "
@@ -5260,6 +5978,18 @@ za::Vector<Item> pageDebugReports()
 za::Vector<Item> pageDebugTools()
 {
     return {
+        header("Blood Feedback"),
+        command("Blood Feedback Report", "vr_blood_info"),
+        command("Damage Protocol Preview", "vr_blood_test packet right").help("Round-trip a 20-damage hit through the real packet reader, including existing hand feedback and Screen Tints. Cosmetic debug preview."),
+        command("Preview Hit Left", "vr_blood_test left"),
+        command("Preview Hit Right", "vr_blood_test right"),
+        command("Preview Hit Front", "vr_blood_test front"),
+        command("Preview Hit Rear", "vr_blood_test rear"),
+        command("Preview Hit Above", "vr_blood_test up"),
+        command("Preview Hit Below", "vr_blood_test down"),
+        command("Preview Neutral Hit", "vr_blood_test neutral"),
+        command("Preview Armor Hit", "vr_blood_test armor"),
+        command("Clear Hit Preview", "vr_blood_test clear"),
         header("Rebuild and Reload"),
         command("Rebuild Ledge Map", "vr_ledges rebuild").help("vr_ledges rebuild: the map's ledges found again (a moment), with their count."),
         command("Reload Models", "vr_model_reload")
@@ -5303,8 +6033,16 @@ za::Vector<Item> pageDebugTools()
         header("Test Effects"),
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
+        command("Decal Stress: Splatters", "vr_decal_stress 64 48").help("vr_decal_stress [count] [size] [splatter|pool|wall|run|stack|cluster]: 64 marks laid the same way each time (tests compare two builds' images); here splatters on the floor ahead."),
+        toggle("Show Permanent Decal Pages", vr_permdecal_show).help("vr_permdecal_show: the baked marks' pages drawn unlit and green, the marks on them (where the layer has texels; a mark on a door moves with it)."),
+        command("Decal Stress: Pools", "vr_decal_stress 64 48 pool").help("vr_decal_stress 64 48 pool: 64 pools spreading on the floor ahead (over 6 seconds, darkening)."),
+        command("Decal Stress: Wall", "vr_decal_stress 64 32 wall").help("vr_decal_stress 64 32 wall: 64 splatters on the wall ahead."),
+        command("Decal Stress: Runs", "vr_decal_stress 64 16 run").help("vr_decal_stress 64 16 run: 64 runs spreading down the wall ahead (over 3 seconds)."),
+        command("Decal Stress: Stacked Pools", "vr_decal_stress 1 112 stack; vr_decal_stress 64 40 cluster; vr_decal_stress 64 40 cluster").help("A big pool 96 units ahead, then 128 smaller pools piled round it (as gibs' pools piled up): every pool shows, the older under the newer, with no square holes (decal_stack_test.sh)."),
         command("Blood Mist", "vr_gore_mist_test").help("vr_gore_mist_test: a bleed's blood mist 64 units ahead (Gore > Blood Mist)."),
         command("Gib Blood on Hand", "vr_gore_hands_test main").help("vr_gore_hands_test main: a gib's blood on the main hand, as taking one (Gore > Bloody Hands and Washing)."),
+        command("Wrist Blood from Hand", "vr_wrist_blood_test hand main").help("A wound across the hand/arm seam, starting on the main hand."),
+        command("Wrist Blood from Arm", "vr_wrist_blood_test arm main").help("A wound across the hand/arm seam, starting on the main arm."),
         command("Wash a Quarter Off", "vr_gore_wash_test 0.25").help("vr_gore_wash_test 0.25: a quarter of the blood washed off your hands and body at once, as water over them (Gore > Bloody Hands and Washing)."),
         command("Blood from a Blow", "vr_gore_spatter_test blow").help("vr_gore_spatter_test blow: a blow's blood thrown onto what the main hand holds, the hand and the arm (Gore > Blood on You and Your Gear)."),
         command("List Clean Weapon Skins", "vr_cleanskins").help("vr_cleanskins: the weapon skins with a clean version (a patch beside the model: progs/<model>_<skin>.clean), whether it applies to your files, how often it was applied (Gore > Clean Weapon Skins)."),
@@ -5326,15 +6064,25 @@ za::Vector<Item> pageDebugTools()
         command("Test Console Line", "vr_message_test console Test console log line").help("vr_message_test console <text>: an engine log line, as a warning: in the notify lines only with HUD and Menus > Screens > Console Log on the HUD (vr_hud_console_log 1)."),
         command("Notify Lines Info", "vr_notify_info").help("vr_notify_info: prints the notify lines shown now, in view and in the gadget's log (which of the game's messages and the console's log pass vr_hud_console_log)."),
         cycle("Gadget Screen Readings", "vr_gadget_test_state",
-            {{0.f, "Real"}, {1.f, "Low"}, {2.f, "Exhausted, Counter"}, {3.f, "Hanging, Bullet Time"}, {4.f, "Relighting"}, {5.f, "Every Item"}})
+            {{0.f, "Real"}, {1.f, "Low"}, {2.f, "Exhausted, Counter"}, {3.f, "Hanging, Bullet Time"}, {4.f, "Relighting"}, {5.f, "Every Item"},
+             {6.f, "Arcane Dimensions Row"}})
             .help("vr_gadget_test_state: the wrist gadget's screen shows made-up readings, to see each state of its layout: low health, ammo and "
-                  "stamina; no stamina with a counter's window open; hanging with bullet time running; maps being relit; every key, powerup and sigil."),
+                  "stamina; no stamina with a counter's window open; hanging with bullet time running; maps being relit; every key, powerup and sigil; "
+                  "Arcane Dimensions' artifacts, a timer, custom keys and debuffs (its icons need its data installed)."),
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
         command("Lightning Shock", "vr_shock_test 0").help("vr_shock_test 0: the lightning gun's shock in water (the flash, the arcs over your arms and body), without the damage."),
         command("Lightning Strikes You", "vr_shock_self_test 10; vr_shock_self_info")
             .help("vr_shock_self_test [damage]: struck by a bolt of that much (10 a shambler's, 30 a lightning gun's): Quad's arcs over "
                   "your hands, arms and body (Gore > Lightning Shock > Arcs on You), without the damage. vr_shock_self_info: the arcs "
                   "on you last frame by part (console)."),
+        command("Quad Damage On You", "impulse 190; vr_powerup_info")
+            .help("impulse 190: Quad Damage on (an hour) or off; vr_powerup_info: its look (Body > Quad Damage Look), the glow on your "
+                  "hands and body and its lights last frame (console)."),
+        command("Pentagram On You", "impulse 191; vr_powerup_info")
+            .help("impulse 191: the pentagram of protection on (an hour) or off: its red glow (Body > Pentagram Glow); vr_powerup_info as above."),
+        command("Biosuit On You", "impulse 193; vr_powerup_info")
+            .help("impulse 193: the biosuit on (an hour) or off: its green glow (Body > Biosuit Glow); vr_powerup_info as above. "
+                  "With more than one power-up the glows take turns."),
         command("Electrified Water", "vr_shock_test 1").help("vr_shock_test 1 [radius] [seconds]: arcs on the water below the point 128 units ahead."),
         command("Lightning Bolt at the Nearest", "vr_shock_hit_test 30")
             .help("vr_shock_hit_test <damage>: a lightning gun's bolt from your eyes into the nearest monster or corpse: its arcs and a burn "
@@ -5366,6 +6114,8 @@ za::Vector<Item> pageDebugTools()
         command("Super Shotgun Blasts", "vr_smallgibs_test 2"),
         command("Nails", "vr_smallgibs_test 3"),
         command("Axe, Pommel, Sword, Punch", "vr_smallgibs_test 4").help("vr_smallgibs_test 4: blows of 35 (vr_smallgibs_test_dmg) by the axe's blade and pommel, a sword, and punches of 25."),
+        command("Shove, Bash, Slap: No Blood", "vr_smallgibs_test 23")
+            .help("vr_smallgibs_test 23: 10 shoves, weapon bashes, slaps and punches on it: the gore each sent (gore hits, wound events, blood particles) and small gibs. Shoves, bashes and slaps draw none; the punches, to compare, do."),
         command("Quad Damage", "vr_smallgibs_test 5"),
         command("Chainsaw a Second", "vr_smallgibs_test 6"),
         command("Burst a Gib and a Head", "vr_smallgibs_test 7"),
@@ -5486,6 +6236,31 @@ za::Vector<Item> pageDebugTools()
             .help("vr_limb_test 20: an enforcer's laser bolt (an enemy's) into the nearest living monster's head that kills "
                   "it (health 1): popped at Enforcer Laser's chance (vr_decap_pop_roll 0: always)."),
         command("Enemy Laser at a Limb", "vr_limb_test 21").help("vr_limb_test 21: the same at its forearm."),
+        command("Repeated Blunt Hits on a Corpse Limb", "vr_limb_test 24")
+            .help("vr_limb_test 24: repeated blunt hits detach the nearest corpse's limb without losing the detached piece."),
+        command("Repeated Blunt Hits on a Corpse Torso", "vr_limb_test 25")
+            .help("vr_limb_test 25: a heavy blunt hit to the corpse's torso gibs the whole corpse."),
+        command("One Blunt Hit on a Corpse Limb", "vr_limb_test 28")
+            .help("vr_limb_test 28: one blunt hit wears the struck limb down without popping it (save, load, then "
+                  "Stored Limb Damage)."),
+        command("Stored Limb Damage", "vr_limb_test 29")
+            .help("vr_limb_test 29: prints the damage worn into the nearest corpse's test limb (kept across save/load)."),
+        command("Wear a Corpse Limb Off: Shotgun", "vr_limb_test 30")
+            .help("vr_limb_test 30: shotgun blasts at the nearest corpse's limb until it pops: any weapon's hits wear down "
+                  "the piece they strike (its own corpse health), whatever the pop chance (clearest with Limb Chance and "
+                  "Head Chance at 0)."),
+        command("Wear a Corpse Limb Off: Super Shotgun", "vr_limb_test 31").help("vr_limb_test 31: the same with super shotgun blasts."),
+        command("Wear a Corpse Limb Off: Lightning", "vr_limb_test 32").help("vr_limb_test 32: the same with lightning bolts."),
+        command("Wear a Corpse Limb Off: Nails", "vr_limb_test 33").help("vr_limb_test 33: the same with nails."),
+        command("Wear a Corpse Limb Off: Rifle Laser", "vr_limb_test 34").help("vr_limb_test 34: the same with the enforcer rifle's lasers."),
+        command("Wear a Corpse Limb Off: AD Pellets", "vr_limb_test 35").help("vr_limb_test 35: the same with Arcane Dimensions' projectile pellets."),
+        command("Wear a Corpse Limb Off: Axe", "vr_limb_test 36").help("vr_limb_test 36: the same with axe blows that do not cut (it is cut off when worn through)."),
+        command("Shotgun a Corpse Torso", "vr_limb_test 37").help("vr_limb_test 37: shotgun blasts at the torso take the whole body's health: it gibs, no piece worn."),
+        command("Wear a Corpse Head Off: Shotgun", "vr_limb_test 38").help("vr_limb_test 38: shotgun blasts at the corpse's head until it pops."),
+        command("Held Prop at a Corpse Limb", "vr_limb_test 26")
+            .help("vr_limb_test 26: a blunt hit with a held prop detaches and keeps the corpse's struck limb."),
+        command("Axe at a Corpse Limb", "vr_limb_test 27")
+            .help("vr_limb_test 27: the axe control for the corpse limb tests cuts and keeps the struck limb."),
         command("Hand to the Last Limb", "vr_limb_test 14").help("vr_limb_test 14: the mock main hand put on the last limb thrown (then grip: vr_mock_button main grip 1; vr_limb_test 15 says if it is held)."),
         header("Crowd Gore Tests (goretest: crowd ... in the console; the benchmarks' gore scenarios)"),
         slider("Crowd Radius", vr_gore_test_crowd, 0.f, 1024.f, 64.f, "%.0f units")
@@ -5543,6 +6318,31 @@ za::Vector<Item> pageDebugTools()
             .help("vr_burn_test 11: a lava nail of yours fired down at the nearest crate's piece: it catches fire (Pieces Burn), not bursts; a charred one bursts."),
         command("Count the Pieces", "vr_burn_test 10").help("vr_burn_test 10: the console: the crates' pieces lying about, how many charred, how many burning."),
         command("How It Burns", "vr_burn_test 4").help("vr_burn_test 4: the nearest monster or corpse: where, its health, its flames and the time it burns yet."),
+        header("Incandescent Blades (developer 1: hotblade: ...)"),
+        command("Heat the Held Blades", "developer 1; vr_hotblade_test 1")
+            .help("vr_hotblade_test 1: the melee weapons in your hands red-hot at once, for all of Stays Hot (Weapons > Incandescent Blades)."),
+        command("Into Their Fade", "developer 1; vr_hotblade_test 4").help("vr_hotblade_test 4: half of Fades Over left: watch them fade out."),
+        command("Half Heated (Held There)", "developer 1; vr_hotblade_test 5").help("vr_hotblade_test 5: their build-up at half, held there (the look of a blade heating)."),
+        command("Quench Them", "developer 1; vr_hotblade_test 2").help("vr_hotblade_test 2: cold at once (no hiss)."),
+        command("Strike the Nearest Monster or Corpse", "developer 1; vr_hotblade_test 6")
+            .help("vr_hotblade_test 6: a blow of the main hand's weapon (base 20, the heat's extra too) lands on the nearest monster or corpse: a red-hot blade sets it on fire (A Grunt Ahead, A Grunt's Corpse Ahead above)."),
+        command("Report", "developer 1; vr_hotblade_test 3").help("vr_hotblade_test 3: the console: each hand's and holster's weapon's heat, glow and time left."),
+        command("Blade into the Nearest Flame", "developer 1; noclip; vr_hotblade_test 7")
+            .help("vr_hotblade_test 7 (with noclip): you are moved so that the main hand's blade is in the nearest of the map's flames or wall torches. Keep the hand still."),
+        command("Blade into the Nearest Lava", "developer 1; noclip; god; vr_hotblade_test 8").help("vr_hotblade_test 8: the same into lava near you."),
+        command("Blade into the Nearest Water", "developer 1; noclip; vr_hotblade_test 11").help("vr_hotblade_test 11: the same into slime or water near you (it quenches)."),
+        command("Take the Nearest Wall Torch (Off Hand)", "developer 1; vr_hotblade_test 9").help("vr_hotblade_test 9: the nearest torch on its wall into the off hand (keep its grip held)."),
+        command("Report What the Client Draws", "vr_hotblade_report")
+            .help("vr_hotblade_report: the glowing blades drawn (hands, holsters, lying), the heated part's length and "
+                  "its share of the model's vertices that glow, their light, and the embers and trail particles made in the last second."),
+        command("Report the Lying Blades", "developer 1; vr_hotblade_test 12")
+            .help("vr_hotblade_test 12: each blade lying about or flying: its heat, glow and time left, and the glow sent to the client."),
+        command("Throw It at the Nearest Monster", "developer 1; vr_hotblade_test 13")
+            .help("vr_hotblade_test 13: the main hand's weapon thrown straight at the nearest monster (hard, hardly falling): "
+                  "a red-hot one hits harder and sets it on fire."),
+        command("Drop It Here", "developer 1; vr_hotblade_test 14")
+            .help("vr_hotblade_test 14: the main hand's weapon let go of where the hand is: watch it glow and cool on the ground."),
+        command("Off Hand's Torch to the Blade", "developer 1; vr_hotblade_test 10").help("vr_hotblade_test 10: the off hand's lit torch's flame brought round the main hand's blade (the mock headset's hand)."),
         header("Wall Torches Shot Off Their Walls (developer 1: walltorch: ...)"),
         command("Shoot the Nearest Wall Torch (a Pellet)", "developer 1; vr_test_walltorch_shot 10")
             .help("vr_test_walltorch_shot 10: the wall torch nearest you shot from your eyes with a shotgun's pellets: it comes off its wall and falls lit (VR Settings > Combat > Wall Torches > Shot Off Its Wall)."),
@@ -5578,11 +6378,65 @@ za::Vector<Item> pageDebugTools()
             .help("vr_menu_path_check: every menu page this map's boards name, with its path; a missing one prints MENU PATH MISSING."),
         header("Toolgun"),
         command("A Toolgun in Your Hand", "impulse 169").help("impulse 169: the toolgun in the main hand (189: the off hand)."),
+        command("Toolgun Spawn Catalog", "vr_toolgun_spawnlist").help("Lists every AD spawn entry and whether it is available in this map."), // AD support
         command("Toolgun Status", "vr_toolgun_status")
             .help("vr_toolgun_status: its hand and tool, where it aims and what it meets (its place, pinned or loose, its joints), "
-                  "the spawn choice and ghost, what the physgun holds, the scale gizmo, the joints (console)."),
+                  "the spawn choice and ghost (its offsets, turn, and which hand holds it), what the physgun holds, the scale "
+                  "gizmo, the joints (console)."),
         command("Unfreeze Everything", "vr_toolgun_unfreeze_all").help("vr_toolgun_unfreeze_all: every prop the physgun froze falls again."),
         command("Remove Every Joint", "vr_toolgun_unjoin_all").help("vr_toolgun_unjoin_all: the toolgun's joints, all of them."),
+        command("Open or Close Its Panel", "vr_toolgun_menu")
+            .help("vr_toolgun_menu: the toolgun's panel over the gun, as its B or Y (with the toolgun in a hand; shown when this "
+                  "menu closes)."),
+        command("Next Tool", "vr_toolgun_next").help("vr_toolgun_next: the next tool, as the gun's stick press (-1: the one before)."),
+        command("Panel Widgets", "vr_toolgun_panel_dump")
+            .help("vr_toolgun_panel_dump: the panel's state, where the laser meets it, and its widgets' names and places "
+                  "(its 256 x 192 pixels), for vr_toolgun_mock_laser (console)."),
+        command("Thumbnails", "vr_toolgun_icons")
+            .help("vr_toolgun_icons: the spawn grid's thumbnails made, failed and waiting, and the time they took (console)."),
+        command("Carry Load Test", "vr_carry_load_test").help("Checks torso collision and carry load curves; reports stick speed, physical and drawn overlap, and two-hand deduplication."),
+        header("Boxes (Brush Tool)"),
+        command("A Box Ahead", "vr_brush_here 64")
+            .help("vr_brush_here [size] [height] [texture] [distance]: a box of the map's kind on the floor ahead (stand on it, "
+                  "climb it, shoot it; the toolgun's Brush tool moves, sizes, paints and removes it)."),
+        command("A Ledge to Climb Ahead", "vr_brush_here 96 48 \"\" 72")
+            .help("vr_brush_here 96 48: a box 48 high just ahead, its top a ledge to take with both hands and mantle onto."),
+        command("Undo the Last Brush Edit", "vr_brush_undo")
+            .help("vr_brush_undo: the last brush made, changed or removed in this map taken back (64 deep; the Brush tool's "
+                  "panel has it too)."),
+        command("Save This Map's Brushes", "vr_brush_save")
+            .help("vr_brush_save [name]: every brush of this map to <game folder>/brushes/<map>.brushes (plain .map text with "
+                  "a header; saved games keep their brushes themselves)."),
+        command("Load This Map's Brushes", "vr_brush_load")
+            .help("vr_brush_load [name] [add]: the brushes of <game folder>/brushes/<map>.brushes made, this map's own "
+                  "removed first (\"add\": kept)."),
+        toggle("Load Brushes with the Map", vr_brush_autoload)
+            .help("vr_brush_autoload: a map started (not a saved game) gets the brushes of its brush file (Save This Map's "
+                  "Brushes)."),
+        toggle("Bake the Brushes' Light", vr_brush_bake)
+            .help("vr_brush_bake: each brush's faces lit from the map's lights in the game (shadows, the sun, flickering lights "
+                  "in their own lightstyle), a few ms a frame; off: the flat light where each face is."),
+        command("Bake Every Brush Again", "vr_brush_rebake all")
+            .help("vr_brush_rebake [id | all]: the brushes' light laid out and baked again (after changing the bake's settings)."),
+        command("Bake a Map Copy with Its Brushes", "vr_brush_bake_map")
+            .help("vr_brush_bake_map [new_name]: saves a new playable map with these brushes, lit by ericw-tools (their light and their "
+                  "shadows on the world, as Relighting makes them; minutes). The console gives the new map name. Existing maps "
+                  "and the scene you are editing stay unchanged; load the copy when ready."),
+        command("The Lights the Bake Sees", "vr_brush_lights")
+            .help("vr_brush_lights [x y z | styled]: the map's lights, sun and minimum as the brush bake reads them; near a "
+                  "point, the five nearest and whether the sun is seen there (console)."),
+        command("List the Boxes", "vr_brush_list")
+            .help("vr_brush_list: the boxes made in this map: their entity, revision, texture, bounds and the marks on them "
+                  "(console). vr_brush_text <id>: one's .map text."),
+        command("Remove Every Box", "vr_brush_delete all").help("vr_brush_delete all: every box made in this map, gone."),
+        command("Brush Tool Status", "vr_toolgun_brush_status")
+            .help("vr_toolgun_brush_status: the Brush tool's mode, grid and texture, what it holds and its ghost (console)."),
+        command("Boxes' Self-Test", "vr_brush_selftest")
+            .help("vr_brush_selftest: boxes, a wedge and a prism written as .map text and read back, and their models' hulls "
+                  "tested at points in and out (PASS or FAIL in the console)."),
+        toggle("Shade the Boxes' Faces", vr_brush_shade)
+            .help("vr_brush_shade: a box's flat light shaded by each face's way (top full, sides 0.8, bottom 0.55); off, every "
+                  "face as the light where it is. For boxes made after the change."),
     };
 }
 
@@ -5599,7 +6453,7 @@ za::Vector<Item> pageDebugTools()
 // What tests are done with in the headset (single player).
 za::Vector<Item> pageSpawnWeapons()
 {
-    return {
+    return adSpawnItems({
         header("Grabbable Pickups Ahead of You"),
         command("Shotgun", "vr_physics_spawn weapon_shotgun 64"),
         command("Super Shotgun", "vr_physics_spawn weapon_supershotgun 64"),
@@ -5613,8 +6467,8 @@ za::Vector<Item> pageSpawnWeapons()
         command("Laser Gun", "vr_physics_spawn weapon_laser_gun 64"),
         command("Proximity Gun", "vr_physics_spawn weapon_proximity_gun 64"),
         command("Toolgun", "vr_physics_spawn weapon_toolgun 64")
-            .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its menu."),
-    };
+            .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its panel, its stick press switches the tool."),
+    }, true);
 }
 
 za::Vector<Item> pageMachineHordeTests()
@@ -5898,9 +6752,20 @@ za::Vector<Item> pageMg3ChthonTests()
     };
 }
 
+// The Thing (vr_test_spawn) the Tests page was built for: Put It There's lock follows it (AD support: an AD entry
+// without its data locks it).
+int testsPageSpawn = -1;
+
 za::Vector<Item> pageDebugTests()
 {
+    testsPageSpawn = static_cast<int>(vr_test_spawn.value);
     return {
+        command("Doom: Info", "vr_doom_info")
+            .help("vr_doom_info: Doom's state (level, health, ammo, place), its focus, the screen's distance and angle "
+                  "from your eye, its cost a frame, Quake's time."),
+        toggle("Doom: Show Touches", vr_debug_touch).help("vr_debug_touch: each touch's start and end printed (2: every frame)."),
+        toggle("Doom: Debug", vr_debug_doom).help("vr_debug_doom: Doom's own text, the focus changing and menu taps printed."),
+        command("Doom: Restart", "vr_doom_restart 1").help("Doom stopped (its settings saved) and started again, WADs searched again."),
         command("Official Triggers: Acceptance Test", "vr_mg_trigger_test 1")
             .help("Check native target timing, cancellation, lightning, fades and comfortable quake feedback. Reload afterward."),
         command("Official Triggers: Retarget Teleporter", "vr_mg_trigger_test 4")
@@ -5913,6 +6778,75 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive authored mge2m2 puzzle test. Reload afterward."),
         command("Machine: Equipment Carry Setup", "vr_mg_hub_test 20")
             .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
+        command("Arcane Dimensions: Play (Developer)", "vr_campaign_native ad")
+            .help("AD support in progress (ARCANE_DIMENSIONS.md): a new Arcane Dimensions game at its hub, its own start "
+                  "map, with the latest release (1.80 patch 1) in an ad folder. Its maps play by its rules; the console "
+                  "says what is missing."),
+        command("Arcane Dimensions: Play a Cinematic Camera", "vr_ad_test 1")
+            .help("In an Arcane Dimensions map: its first cinematic camera (misc_camera) plays on you, as its trigger "
+                  "would start it. You are moved to its view and back when it ends (its VR presentation is to come)."),
+        command("Arcane Dimensions: Cinematic Report", "vr_ad_test 2")
+            .help("One adtest: line in the console: the cinematic camera's state, how you are held (move type, solid, "
+                  "damage), where you are."),
+        adSpawnRow(310, command("Arcane Dimensions: Widowmaker Pickup Ahead", "vr_ad_test 5")) // AD support
+            .help("In an Arcane Dimensions map: a Widowmaker pickup (AD's upgrade) appears ahead of you, to take with a "
+                  "hand. Arcane Dimensions: Upgrades Report then says whether you have the upgrade."),
+        command("Arcane Dimensions: Upgrades Report", "vr_ad_test 6")
+            .help("One adtest: line: the AD upgrades you have (Shadow Axe, Widowmaker, Plasma Gun) and your hands' "
+                  "weapons."),
+        adSpawnRow(300, command("Arcane Dimensions: Artifacts Ahead", "vr_physics_spawn item_artifact_jumpboots 64 -48; vr_physics_spawn item_artifact_blastbelt 64 0; vr_physics_spawn item_artifact_sharp_shooter 64 48; vr_physics_spawn item_artifact_lavashield 112 -24; vr_physics_spawn item_artifact_airtank 112 24")) // AD support
+            .help("Any map, with Arcane Dimensions' data installed: its Jump Boots, Blast Belt, Sharp Shooter, Lava Shield "
+                  "and Air Tank ahead of you, to walk into (the wrist gadget shows each one held and the soonest one's "
+                  "seconds left)."),
+        command("Arcane Dimensions: Artifacts Test", "vr_ad_test 10; wait; wait; vr_ad_test 11")
+            .help("Destructive: the new artifacts but the Nail Piercer given (AD's own touch), then their effects "
+                  "measured: the Sharp Shooter's spreads, a blast with and without the Blast Belt (it hurts), the Lava "
+                  "Shield, the Air Tank's air, the Jump Boots' jumps (two adrules: lines)."),
+        command("Arcane Dimensions: Nail Piercer Test", "vr_ad_test 12")
+            .help("Destructive: the Nail Piercer given, two grunts in a line ahead and a nail through the first into the "
+                  "second (Arcane Dimensions: Nail Piercer Result reports them)."),
+        command("Arcane Dimensions: Nail Piercer Result", "vr_ad_test 13"),
+        command("Arcane Dimensions: Burning, Poison, Bleeding", "vr_ad_test 14; wait; wait; vr_ad_test 16; wait; wait; vr_ad_test 18")
+            .help("Destructive: AD's three debuffs on you at once (its burning is your fire's: our flames, its time and "
+                  "damage); the wrist gadget shows them. Debuffs Report says what they took."),
+        command("Arcane Dimensions: Debuffs Report", "vr_ad_test 15; wait; wait; vr_ad_test 17; wait; wait; vr_ad_test 19"),
+        command("Arcane Dimensions: Screen Tint Report", "vr_ad_tint_info")
+            .help("vr_ad_tint_info: the screen tint Arcane Dimensions asks for now (its colour, density, a tint or a "
+                  "camera's fade), the one drawn (eased), Screen Tints, the whole colour shift's alpha."),
+        command("Arcane Dimensions: Shotgun Hit Test", "vr_ad_test 40") // AD support
+            .help("Destructive: freezes an AD grunt 128 units ahead, fires six projectile pellets and reports damage after flight."),
+        command("Arcane Dimensions: Super Shotgun Hit Test", "vr_ad_test 41") // AD support
+            .help("Destructive: the same frozen grunt test, with fourteen projectile pellets."),
+        command("Arcane Dimensions: Burst Rifle Hit Test", "vr_ad_test 42") // AD support
+            .help("Destructive: the same frozen grunt test, with one burst rifle projectile round."),
+        command("Arcane Dimensions: Ammo Model Test", "vr_ad_test 44") // AD support
+            .help("Gives a shotgun and refreshes ammo as AD pickups do; reports the weapon id and model before/after."),
+        command("Arcane Dimensions: Ammo Resistance Test", "vr_ad_test 21")
+            .help("Destructive: a grunt given AD's resistance keys (shells half, nails all, rockets -50%) hit by a shot, a "
+                  "nail, a blow, a rocket, a bolt: in AD maps it resists, elsewhere only AD's own monsters do."),
+        command("Arcane Dimensions: Evil Skill Report", "vr_ad_test 22")
+            .help("Whether AD's Evil skill plays (Nightmare with Evil Skill on), your health and its cap, megahealth's, "
+                  "the axe's blow."),
+        command("Arcane Dimensions: Buttons Test", "vr_ad_test 61")
+            .help("Press this map's laser button with a hand, a weapon and a thrown prop; check disabled state."),
+        command("Arcane Dimensions: Backpacks Test", "vr_ad_test 62")
+            .help("Report map backpacks; create an AD dropped bag, test walkover immunity and grab/holster collection."),
+        command("Arcane Dimensions: Ladder Movement Test", "vr_ad_test 63")
+            .help("Verify tracked hands bypass AD jump/velocity ladder movement only while Hand Climbing and Hand-Climbed "
+                  "Ladders are both on (either off: AD's own climb lifts you)."),
+        command("Arcane Dimensions: Flat Ladder Test", "vr_ad_test 64")
+            .help("Make the nearest wall west of you a ladder with no rungs: grip it anywhere to climb (the fallback for "
+                  "flat ladder walls)."),
+        command("Arcane Dimensions: Ladder Rung Probes", "vr_climb_try -417 -2387 -70 main; vr_climb_try -417 -2387 -60 main")
+            .help("Stand beside ad_crucial's first ladder: report a real rung and the gap above it, using your current grip tolerances."),
+        command("Arcane Dimensions: Ladders Report", "vr_ad_test 24")
+            .help("This map's trigger_ladders and the first one's volume (climbable by hand: Hand-Climbed Ladders)."),
+        command("Arcane Dimensions: Spawnflags and Sight Report", "vr_ad_test 26; wait; wait; vr_ad_test 27")
+            .help("Whose meaning this map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'), and where "
+                  "monsters look for you (crouched: your real eyes)."),
+        command("Arcane Dimensions: Status", "vr_ad_info")
+            .help("vr_ad_info: AD's data (the latest release, another version refused), whether this map plays by AD's "
+                  "rules and why (the campaign, or the signals found), how many of its entities spawned with AD's code."),
         command("Whole-Map Monsters: Report", "vr_test_monsters 1")
             .help("Count this map's monsters: live, awake (hunting someone), dead, waiting for their trigger (one "
                   "monsterstest: line)."),
@@ -5925,8 +6859,16 @@ za::Vector<Item> pageDebugTests()
         command("Whole-Map Monsters: Kill All", "vr_test_monsters 3")
             .help("Every live monster of the map dies at once (just enough damage: deaths, corpses and as many ragdolls "
                   "as Most Ragdolls allows (vr_ragdoll_max). The benchmarks' mg3_*_kill. Reload afterward."),
+        command("Hit Probe: Nearest Monster", "vr_test_monsters 5")
+            .help("Level shots (precise hits) at the nearest live monster every 8 units from below its box to 160 above "
+                  "it: the heights from its origin that hit it (one hitprobe: line). A tall model's parts out of reach "
+                  "show as gaps."),
         open("Stealth AI", pageIndex(pageStealthTests))
             .help("The stealth AI's scenes on e1m1 (Combat > Stealth AI): seeing, hearing, touch, investigating."),
+        open("Ragdoll Behaviours", pageIndex(pageRagdollTests))
+            .help("Each active-ragdoll behaviour set going on the nearest grunt, enforcer, knight, death knight, ogre or "
+                  "zombie: deaths by where struck, stumble, wound, crawl, lost limbs, swim, flail, walls, ledges, flinches, "
+                  "staggers, throws, get-ups; the console says whether each began."),
         open("Machine Horde Tests", pageIndex(pageMachineHordeTests))
             .help("Authored waves, currency, physical rewards, revival and saved equipment. Developer arena only."),
         open("Dawn of the Machine Bestiary", pageIndex(pageMg3BestiaryTests))
@@ -5939,6 +6881,9 @@ za::Vector<Item> pageDebugTests()
             .help("The Super Axe (any campaign with the Dawn of the Machine data), the axe buttons, the laser cannon, the bloody shotguns."),
         open("Dawn of the Machine Monsters", pageIndex(pageMg3MonsterTests))
             .help("The infected (any campaign) and Dawn of the Machine's own monsters (with its data): spawns and checks."),
+        open("Arcane Dimensions Monsters", pageIndex(pageAdMonsterTests)) // AD support
+            .help("Arcane Dimensions' monsters with Quake VR's treatment (ragdolls, beheading, limbs, knockdowns): "
+                  "spawns ahead and reports, in an AD map."),
         open("Dawn of the Machine Tests", pageIndex(pageMg3Tests))
             .help("MG3 native port: state, saved upgrades and capacities. Dawn of the Machine campaign only."),
         command("Machine: Progression Report", "vr_mg_hub_test 3")
@@ -6042,7 +6987,7 @@ za::Vector<Item> pageDebugTests()
         command("Save the Sound Scene", "vr_snd_scene_obj")
             .help("vr_snd_scene_obj: the map as Steam Audio sees it, to the game folder's sound_tests (scene.obj)."),
         header("Ahead of You"),
-        cycle("Thing", vr_test_spawn,
+        adSpawnChoices(cycle("Thing", vr_test_spawn, // AD support
             {{0.f, "Grunt"}, {1.f, "Ogre"}, {2.f, "Zombie"}, {3.f, "Shambler"}, {4.f, "Scrag"}, {5.f, "Knight"},
              {6.f, "Hell Knight"}, {7.f, "Dog"}, {8.f, "Enforcer"}, {9.f, "Fiend"}, {10.f, "Vore"}, {11.f, "Spawn"},
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
@@ -6054,7 +6999,7 @@ za::Vector<Item> pageDebugTests()
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},
-             {110.f, "Rocks and Bricks"}, {111.f, "Barrel"}, {112.f, "Barrel Lying"}, {113.f, "Silver Key"}})
+             {110.f, "Rocks and Bricks"}, {111.f, "Barrel"}, {112.f, "Barrel Lying"}, {113.f, "Silver Key"}})) // AD support
             .help("What Put It There puts ahead of you, facing you (or as Facing says). The mission packs' monsters need their game installed; Dawn "
                   "of the Machine's (its infected, which burst into zombies and fiends; its own monsters, the orb, the sacrifice: MG3's data, read in place)."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
@@ -6076,7 +7021,7 @@ za::Vector<Item> pageDebugTests()
         slider("Box Tilted", vr_test_spawn_tilt, 0.f, 90.f, 1.f, "%.0f degrees")
             .extend()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
-        command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Enemy Weapon Drop Cap", "developer 1; vr_dropcap_test 1")
             .help("vr_dropcap_test 1: 60 grunts spawned ahead and killed one by one (vr_dropcap_test_n), the first one's "
                   "rifle taken into an empty hand, a chainsaw thrown up and three other weapons dropped: the burst rifles "
@@ -6146,21 +7091,50 @@ za::Vector<Item> pageDebugTests()
         command("A Melee Blow Now", "impulse 242")
             .help("The nearest melee monster within 150 units strikes for 10 damage through the actual parry test. With notarget, it attacks only when asked. Parry Stops Attacks also cancels blows asked for during its stagger."),
         header("Holding Enemies"),
+        command("Nearest Body Contact", "vr_body_contact_status")
+            .help("vr_body_contact_status: the live monster nearest you, how far (origins, level), how deep your two "
+                  "bodies overlap (> 0) by Body Inset, whether a hand holds it (Step In)."),
+        command("Closest Melee Approach", "vr_enemy_melee_space_status")
+            .help("vr_enemy_melee_space_status: per kind of monster after you, the closest its box and its middle came to "
+                  "your head (level; below 0 your head was inside it), the same while it attacked in melee, and how far "
+                  "Melee Space pushed it back."),
+        command("Clear Melee Approach Log", "vr_enemy_melee_space_status reset")
+            .help("Starts the closest-approach log above again."),
         command("Who Is Held?", "vr_foegrab_status")
             .help("vr_foegrab_status: each hand holding an enemy, its hold, how firmly the enemy is held in all, how far "
-                  "the hand is from the spot it holds (Combat > Holding Enemies)."),
+                  "the hand is from the spot it holds (Combat > Holding Enemies); an enemy held on as a ragdoll after a "
+                  "throw or a lift: where its pelvis is from you, how far each held limb is from its hand."),
+        command("A Grunt Within Reach", "vr_test_spawn 0; vr_test_spawn_dist 36; impulse 241")
+            .help("A grunt 36 units ahead, facing you: close enough to hold with both hands and lift (Combat > Holding "
+                  "Enemies > Lift: pull up) or judo-throw (turn it over to a side)."),
         command("Walk the Nearest Away", "vr_foegrab_walk_test 110 1")
             .help("vr_foegrab_walk_test 110 1: the live monster nearest you walks straight away from you at 110 units/s "
                   "for a second; how far it got is printed. Held, it should hardly move (A Grunt Ahead first)."),
         cycle("Log Holds", "vr_foegrab_debug", {{0.f, "Off"}, {1.f, "Taken and Let Go"}, {2.f, "Every Frame"}})
             .help("vr_foegrab_debug: the console logs each hold taken and let go and why (and a grip that found none), "
-                  "each two-hand throw tried and how it went, and each two-hand hold's hardest turn; Every Frame: each "
+                  "each two-hand throw and lift tried and how it went (why a lift wasn't: not a humanoid, too far), a "
+                  "ragdoll held on and let go of or broken free, and each two-hand hold's hardest turn; Every Frame: each "
                   "held enemy's movement, each hand's stretch, both hands' turn."),
+        toggle("Neck Snap Diagnostic", "vr_foegrab_necksnap_debug")
+            .help("vr_foegrab_necksnap_debug: over the humanoid you hold (else the nearest), its head zone, where each "
+                  "hand holds, the hand line's twist against Twist Angle (Combat > Holding Enemies > Neck Snap, Show "
+                  "Diagnostic)."),
+        toggle("Lift Diagnostic", "vr_foegrab_lift_debug")
+            .help("vr_foegrab_lift_debug: over the humanoid you hold (else the nearest), your hands' pull up against Lift "
+                  "Speed and 45 degrees, your reach, what stops a lift now and the last try (Combat > Holding Enemies > "
+                  "Lift, Show Diagnostic)."),
+        toggle("Judo Throw Diagnostic", "vr_foegrab_throw_debug")
+            .help("vr_foegrab_throw_debug: over the enemy you hold (else the nearest), your hands' turn and speed against "
+                  "Turn to Throw and Hands' Speed, the turn's way, what stops a throw now and the last try (Combat > "
+                  "Holding Enemies > Two-Hand Throw, Show Diagnostic)."),
         command("Hurt the Held to 30%", "vr_foegrab_hurt 0.3")
             .help("vr_foegrab_hurt 0.3: the enemy you hold (else the one nearest you) is left with 30% of its full health: "
                   "a death knight, an ogre or a fiend can then be thrown (Combat > Holding Enemies, Hurt Below)."),
         command("Heal the Held", "vr_foegrab_hurt 1")
             .help("vr_foegrab_hurt 1: the enemy you hold (else the one nearest you) at its full health again."),
+        command("Snap the Nearest Neck", "vr_foegrab_necksnap_test")
+            .help("vr_foegrab_necksnap_test: the humanoid nearest you has its neck snapped as both hands would (standing, "
+                  "knocked down first), no hands holding it: see its head flop (Broken Neck Flops)."),
         command("Throw the Nearest Left", "vr_foegrab_throw_test 0")
             .help("vr_foegrab_throw_test 0: the monster nearest you thrown to your left as both hands' turn would (its kind "
                   "and health decide; no hands needed). The console traces its fall: its torso's lean, its feet, its head "
@@ -6172,7 +7146,8 @@ za::Vector<Item> pageDebugTests()
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
-                  "staggered). Developer 1 logs grunts' and enforcers' shoves and why one can't shove (Combat > Enemy Shoves)."),
+                  "staggered). Developer 1 logs grunts', enforcers' and vores' shoves and why one can't shove (Combat > "
+                  "Enemy Shoves)."),
         command("Knock Down the Nearest", "vr_knockdown_test 0")
             .help("vr_knockdown_test 0: the nearest monster that can be knocked down is, pushed away from you, whatever "
                   "its chance (A Grunt Ahead first: Debug > Tests)."),
@@ -6189,6 +7164,35 @@ za::Vector<Item> pageDebugTests()
                   "what Knockdowns' Travel is a share of."),
         command("Shove the Nearest, Standing, Two Hands", "vr_knockdown_chance 0; vr_knockdown_debug 1; developer 1; vr_knockdown_test 22")
             .help("The same with a two-handed shove (vr_knockdown_test 22)."),
+        command("Shove the Nearest, Stagger", "vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
+            .help("Print Rolls on, then vr_knockdown_test 21: the nearest monster shoved with one hand, its chance as set; "
+                  "with Active Shoves and Throws (Gibs and Corpses > Ragdoll Settings) it staggers: the console prints its "
+                  "balance and whether it recovered or fell (\"stagger:\"; vr_debug_ragdoll 2: each frame's lean and "
+                  "steps)."),
+        command("Shove the Nearest, Steady Stagger", "vr_knockdown_chance 0.01; vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
+            .help("Knockdowns' Chance 0.01 (set it back after): its balance all but full, so it staggers and recovers, "
+                  "back to its animation and its AI (the hand-back's gap printed: \"handback:\")."),
+        command("Hit Stagger: Chances of the Nearest", "developer 1; vr_knockdown_test 40")
+            .help("Hits Unbalance (Combat > Knockdowns): the nearest monster's chance to lose its balance to a weak tap, "
+                  "a strong blow, a punch to the head, a heavy throw and a thrown weapon (\"hit stagger chances:\")."),
+        command("Hit Stagger: Strong Blow on the Nearest", "developer 1; vr_knockdown_test 42")
+            .help("The nearest monster struck by a strong blow's stagger alone (no damage): 1 a ragdoll's stagger, 2 "
+                  "pushed and flinching, 0 kept its balance, -1 still in its Hit Cooldown."),
+        command("Impacts: Print Strikes", "developer 1; vr_knockdown_test 56")
+            .help("Impacts (Combat > Knockdowns): every strike of a held or thrown body on a wall or the floor printed "
+                  "(\"ragimpact:\": its speed, the mass behind it, the damage, the head or limb worn). vr_knockdown_test 57: off."),
+        command("Impacts: State of the Nearest", "developer 1; vr_knockdown_test 50")
+            .help("The nearest monster's health, its head's and limbs' worn damage, and the strikes dealt so far."),
+        command("Impacts: Throw the Nearest Down One at a Wall", "developer 1; vr_test_throw_up_speed 7; vr_knockdown_test 51")
+            .help("The nearest knocked-down monster flung at the nearest wall at 7 m/s and a little up, as if you threw "
+                  "it (knock one down first: Shove the Nearest Down)."),
+        command("Impacts: Drop You onto the Nearest Down One", "developer 1; vr_knockdown_test 52")
+            .help("You put 256 units (2 storeys) over the nearest knocked-down monster: landing on it crushes the part under "
+                  "your feet (Landing Crush). vr_knockdown_test 53: 96 units, too low to crush."),
+        command("Manhandle: the Nearest Staggered Now", "developer 1; vr_knockdown_debug 1; vr_knockdown_test 54")
+            .help("The nearest standing monster counts as just staggered: grab it with one hand within Grab While "
+                  "Staggered (Holding Enemies) and it goes down in your hand. vr_knockdown_test 55: its health to a fifth "
+                  "(Grab When Weak)."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),
@@ -6232,6 +7236,9 @@ za::Vector<Item> pageDebugTests()
         command("Take It Back", "vr_test_weaponinst 6; impulse 120").help("The main hand takes the carried weapon's handle."),
         command("Switch Hands", "vr_test_weaponinst 7; impulse 120").help("The main hand's weapon into the off hand (8: back)."),
         header("Reloading"),
+        command("Magazine Reinsertion Boundaries", "vr_reload_test 28; impulse 125")
+            .help("Tests held and loose magazine withdrawal thresholds, zero and negative clearance, both guns and eject cooldown. "
+                  "Changes the weapons and ammo in your hands; use a test map."),
         command("Shotgun in the Off Hand", "impulse 154; wait; vr_test_weaponinst 7; impulse 120; give s 40")
             .help("A loaded shotgun into the off hand and 40 shells: the main hand is free for the ammo pouch."),
         command("Nailgun in the Off Hand", "impulse 156; wait; vr_test_weaponinst 7; impulse 120; give n 100")
@@ -6271,6 +7278,10 @@ za::Vector<Item> pageDebugTests()
             .help("The same nose first: a dull tap, it stays in the hand (a proximity grenade goes in)."),
         command("Break the Off Hand's Super Shotgun Open", "vr_reload_test 15; impulse 125")
             .help("As the flick does (Immersive, Break Open on): its barrels take loose pairs."),
+        command("Empty and Break Open the Main Hand's Gun", "vr_reload_test 30; impulse 125")
+            .help("Pouch reloading with two guns: the main hand's magazine emptied into the reserve and, a super shotgun, "
+                  "broken open (the off hand's: Empty the Off Hand's Gun, Break the Off Hand's Super Shotgun Open). "
+                  "Then bring each to the ammo pouch."),
         command("Spent Lava Nails or Plasma in the Off Hand's Gun", "vr_reload_test 16; impulse 125")
             .help("The off hand's nailgun, super nailgun or thunderbolt on its other ammo (lava nails, plasma: 100 given), "
                   "its magazine emptied as if fired dry: eject it to see a spent one smoke."),
@@ -6341,6 +7352,28 @@ za::Vector<Item> pageDebugTests()
         command("To the Jump Wall", "setpos -40 -310 24 0 0 0; noclip")
             .help("In vrclimb: you facing a wall 96 high, 40 units ahead: walk into it, jump and grab its top (Climbing: "
                   "Mid-Air Grab Window)."),
+        command("A Large Crate Ahead", "vr_test_spawn_dist 40; vr_test_spawn 120; impulse 241")
+            .help("vr_test_spawn 120: a large crate (65 kg, 48 high) 40 units ahead, a face square to you: climb it "
+                  "(Climbing: Climb Props). 121: two stacked, 122: one lying on its side, 123: a small one on a large one, "
+                  "124: a small one."),
+        command("Two Large Crates Stacked Ahead", "vr_test_spawn_dist 40; vr_test_spawn 121; impulse 241")
+            .help("vr_test_spawn 121: two large crates, one on the other (96 high), 40 units ahead."),
+        command("A Large Crate on Its Side Ahead", "vr_test_spawn_dist 40; vr_test_spawn 122; impulse 241")
+            .help("vr_test_spawn 122: a large crate lying on its side (40 high), 40 units ahead."),
+        slider("Props Hold Like the Level From", "vr_climb_prop_mass", 0.f, 200.f, 5.f, "%.0f kg")
+            .help("vr_climb_prop_mass: a prop at least this heavy holds like a wall while you hang from it; lighter, your "
+                  "weight pulls it (Light Prop Pull) and it tips or slides towards you, and your hand lets go. Large crate "
+                  "65, explosive box 80, small crate 40, barrel 30. 0: every prop holds."),
+        slider("Light Prop Pull", "vr_climb_prop_pull", 0.f, 100.f, 5.f, "%.0f kg")
+            .help("vr_climb_prop_pull: the most weight a hand on a light prop pulls it with (your weight, Box3D's Player "
+                  "Mass, shared by the holding hands, towards your body)."),
+        slider("Prop Hold Tips Off At", "vr_climb_prop_tilt", 0.f, 45.f, 1.f, "%.0f deg")
+            .help("vr_climb_prop_tilt: a prop's top turned this far from how it lay when you took hold lets your hand go."),
+        slider("Light Prop Slips Off At", "vr_climb_prop_slip", 0.f, 32.f, 1.f, "%.0f units")
+            .help("vr_climb_prop_slip: a light prop's hold moved this far from where you took it lets your hand go."),
+        slider("Prop Knocked Away At", "vr_climb_prop_letgo_speed", 0.f, 600.f, 25.f, "%.0f u/s")
+            .help("vr_climb_prop_letgo_speed: a held prop's hold whose speed changes this much in a frame (a blast, a hit) "
+                  "lets your hand go."),
         header("Weapon Pickups (pickuptest: ... in the console)"),
         command("Every Weapon Pickup Ahead", "vr_pickup_test 1")
             .help("vr_pickup_test 1: every weapon pickup (the mission pack's when loaded) in rows ahead of you, each with "
@@ -6351,6 +7384,30 @@ za::Vector<Item> pageDebugTests()
         command("Take the Nearest Weapon Pickup", "+grabmain; wait; wait; vr_pickup_test 2; wait; wait; -grabmain")
             .help("vr_pickup_test 2, the main grip held (+grabmain): the weapon pickup nearest you taken into an empty "
                   "hand, as a grip takes it: the hand's weapon, its magazine and the ammo left printed."),
+        command("Every Enemy Weapon Dropped Ahead", "vr_debug_box3d 1; vr_pickup_test 4")
+            .help("vr_pickup_test 4: every weapon a monster can drop (the grunt's and enforcer's guns, the knights' "
+                  "swords, the ogre's chainsaw, the random drops') dropped in rows ahead of you as a death drops it; "
+                  "their convex pieces' cut times printed (box3d: ..., read from the disk or cut). Setup's preparation "
+                  "run does this on the hub."),
+        command("Weapons Lying Near", "vr_pickup_test 5")
+            .help("vr_pickup_test 5: each weapon lying within 400 units (a map's, a drop): where it is, how fast it moves, "
+                  "the lowest point of its turned drawn box and the floor under it: one sunk into or thrown off what it "
+                  "lies on shows."),
+        command("Every Model and Limb Precached", "vr_prepare_models")
+            .help("vr_prepare_models: every model of the game's folders (progs/*.mdl) and every monster's limbs loaded now, "
+                  "so their skins' normal maps are made and kept on disk (cache/normalmaps) instead of at a map's first "
+                  "load. Setup's preparation run does this on the hub (2-3 s; the count and time printed)."),
+        command("Every Model of This Campaign Precached", "vr_prepare_models campaign")
+            .help("vr_prepare_models campaign: the active campaign's own folder's models (progs/, every subfolder) and "
+                  "their limbs loaded now. Setup's preparation does this on the start map of each installed campaign "
+                  "with a folder of its own (Dimension of the Machine, Dawn of the Machine)."),
+        header("Saves"),
+        command("What Continue Would Load", "vr_continue_info")
+            .help("vr_continue_info: the save the main menu's Continue row and the hub's Continue button load (the newest "
+                  "loadable save of a campaign's map, an autosave or your own) and the newer ones passed over, printed."),
+        command("List the Saves", "vr_save_info")
+            .help("vr_save_info: every save in the game folder and autosave/, each with what it was played as (its "
+                  "campaign, its Map Library package), its map's title and its line in the Load menu, printed."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")
@@ -6704,6 +7761,9 @@ za::Vector<Item> pageDebugTests()
         toggle("Force Grab", vr_forcegrab_mode).help("Pull pickups and weapons to your hand from afar."),
         slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f").extend(100.f, 4000.f),
         slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").extend().help("How far off where the hand points an object may be."),
+        toggle("Bodies Block", vr_forcegrab_bodies_block)
+            .help("An enemy (or a body) between your hand and an object hides it from the force grab, as a wall does. "
+                  "Off: only walls do."),
         slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend()
             .help("How fast the hand moves back or up to pull."),
         slider("Flick Turn", vr_forcegrab_flick_turn, 50.f, 800.f, 25.f, "%.0f deg/s").extend()
@@ -6933,6 +7993,10 @@ za::Vector<Item> pageHitbox()
         slider("Lowest Crouched Height", vr_crouch_height, 24.f, 52.f, 4.f, "%.0f units")
             .help("Your box's height with your eyes under it (Quake's standing box: 56; the crouching room's tunnel in "
                   "the teleporter test map: 40) (vr_crouch_height)."),
+        toggle("Monsters See Your Eyes", vr_crouch_sight)
+            .help("Crouched (with the crouched hitbox), monsters look for you at your real eyes, not at a standing "
+                  "player's: crouched behind cover lower than you stand, you are out of their sight, as Arcane "
+                  "Dimensions' height-aware monsters check (vr_crouch_sight). Standing: Quake's as ever."),
         cycle("Heights Above It", vr_crouch_step, {{0.f, "None"}, {4.f, "Every 4 units"}, {8.f, "Every 8 units"},
                   {12.f, "Every 12 units"}})
             .help("Taller crouched boxes up to 52, so half a crouch gets you under a ceiling that is a little low: your "
@@ -7099,6 +8163,33 @@ struct Page
 };
 
 [[nodiscard]] za::Vector<Item> pageMain();
+[[nodiscard]] za::Vector<Item> pageVrsHeight();
+[[nodiscard]] za::Vector<Item> pageVrsHands();
+[[nodiscard]] za::Vector<Item> pageVrsHolsters();
+[[nodiscard]] za::Vector<Item> pageVrsAmmoPouch();
+[[nodiscard]] za::Vector<Item> pageVrsControls();
+[[nodiscard]] za::Vector<Item> pageVrsLocomotion();
+[[nodiscard]] za::Vector<Item> pageVrsComfort();
+[[nodiscard]] za::Vector<Item> pageVrsTeleport();
+[[nodiscard]] za::Vector<Item> pageVrsTurning();
+[[nodiscard]] za::Vector<Item> pageVrsFlashlight();
+[[nodiscard]] za::Vector<Item> pageVrsLighting();
+[[nodiscard]] za::Vector<Item> pageVrsWeapons();
+[[nodiscard]] za::Vector<Item> pageVrsBulletTime();
+[[nodiscard]] za::Vector<Item> pageVrsBody();
+[[nodiscard]] za::Vector<Item> pageVrsHaptics();
+[[nodiscard]] za::Vector<Item> pageVrsHud();
+[[nodiscard]] za::Vector<Item> pageVrsSound();
+[[nodiscard]] za::Vector<Item> pageVrsDisplay();
+[[nodiscard]] za::Vector<Item> pageVrsScaling();
+[[nodiscard]] za::Vector<Item> pageVrsGraphics();
+[[nodiscard]] za::Vector<Item> pageVrsHeightHands();
+[[nodiscard]] za::Vector<Item> pageVrsLocoControls();
+[[nodiscard]] za::Vector<Item> pageVrsComfortTurning();
+[[nodiscard]] za::Vector<Item> pageVrsWeaponsBulletTime();
+[[nodiscard]] za::Vector<Item> pageVrsBodyFlashlight();
+[[nodiscard]] za::Vector<Item> pageVrsHudHapticsSound();
+[[nodiscard]] za::Vector<Item> pageVrsDisplayGraphics();
 [[nodiscard]] za::Vector<Item> pageAdvanced();
 [[nodiscard]] za::Vector<Item> pageWeaponOffsets();
 [[nodiscard]] za::Vector<Item> pageWofsHand();
@@ -7291,14 +8382,48 @@ const Page pages[] = {
     {"Reloading - Cell Cords", pageReloadCellCords, pageReloading},
     {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)
     {"Stealth AI Tests", pageStealthTests, pageDebugTests, LevelDeveloper},
+    {"Ragdoll Behaviour Tests", pageRagdollTests, pageDebugTests, LevelDeveloper}, // (vr_menu_ragtests.inc)
     {"Holding Enemies", pageHoldingEnemies, pageCombat},
-    // The toolgun's menu (vr_menu_toolgun.inc): shown on the gun (B/Y), linked from nowhere else; Back from it closes it.
-    {"Toolgun", pageToolgun, pageDebugTools, LevelStandard},
-    {"Toolgun - Spawn", pageToolgunSpawn, pageToolgun, LevelStandard},
-    {"Toolgun - Cheats and Utilities", pageToolgunCheats, pageToolgun, LevelStandard},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
+    {"Doom", pageDoom, pageGadget, LevelStandard},
+    {"Arcane Dimensions", pageArcaneDimensions, pageAdvanced}, // AD support: dedicated tweaks page
+    {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
+    {"Arcane Dimensions' Guns", pageAdGuns, pageEnemyWeapons}, // AD support: the AD soldiers' guns (vr_ad_enemyguns.qc)
+    {"Incandescent Blades", pageHotBlades, pageWeaponsHub}, // (QC vr_hotblade.qc)
+    {"Blood Feedback", pageBloodFeedback, pageVrsComfortTurning, LevelStandard},
+    // VR Settings' sections as pages (ROUND22.md, "VR Settings' sections as submenus"): vrSettingsParts.
+    {"VR Settings - Height and Hand Calibration", pageVrsHeightHands, pageMain, LevelStandard},
+    {"VR Settings - Holster Calibration", pageVrsHolsters, pageMain, LevelStandard},
+    {"VR Settings - Ammo Pouch", pageVrsAmmoPouch, pageMain, LevelStandard},
+    {"VR Settings - Locomotion and Controls", pageVrsLocoControls, pageMain, LevelStandard},
+    {"VR Settings - Comfort, Teleport and Turning", pageVrsComfortTurning, pageMain, LevelStandard},
+    {"VR Settings - Weapons and Bullet Time", pageVrsWeaponsBulletTime, pageMain, LevelStandard},
+    {"VR Settings - Body and Flashlight", pageVrsBodyFlashlight, pageMain, LevelStandard},
+    {"VR Settings - HUD, Haptics and Sound", pageVrsHudHapticsSound, pageMain, LevelStandard},
+    {"VR Settings - Display and Graphics", pageVrsDisplayGraphics, pageMain, LevelStandard},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
+
+// VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
+// pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
+const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsHolsters, pageVrsAmmoPouch, pageVrsLocoControls,
+    pageVrsComfortTurning, pageVrsWeaponsBulletTime, pageVrsBodyFlashlight, pageVrsHudHapticsSound, pageVrsDisplayGraphics};
+
+[[nodiscard]] bool vrSettingsPage(int p)
+{
+    if(p == PageMain)
+    {
+        return true;
+    }
+    for(const PageBuilder b : vrSettingsParts)
+    {
+        if(pages[p].build == b)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 // The roots of the pages' tree as Search and the boards' menu paths walk it (breadth first, in this order): the VR
 // Settings and the Advanced VR Options, each opened on its own (the VR Settings: Options' and the main menu's rows; the
@@ -7456,6 +8581,158 @@ void onPresetChosen(cvar_t* var)
 }
 
 // ----------------------------------------------------------------------------
+// One VR menu's own state (MULTI_MENU.md, stage 2): the page it shows, its Back stack, each page's selected row and
+// scroll, what is under way (a slider or the scrollbar dragged, a slider held at its end, a drop-down list open, the help
+// box and its paging, an armed Reset), as a MenuInstance; the code works on the current one (ui()); the panel's
+// placement and canvas are in vr_panel.cpp (by menu::currentInstance()). Shared on purpose: the pages' built rows and
+// their "built for" latches (a page shown twice shows the same rows), the settings themselves, Quake's own menus, and the
+// keyboard pages (Search, Console, Map Library: their text input is one at a time, the console's line is Quake's own,
+// and their state holds shared data: Search's index and recent list, the Map Library's caches). No setting's value is
+// kept here: every row reads its setting as it draws.
+// ----------------------------------------------------------------------------
+
+constexpr int midPos = 204; // as Ironwail's OPTIONS_MIDPOS
+
+constexpr int helpMinLines = 4;     // the help's box: four lines at least (Search's and the Map Library's)
+constexpr int helpMaxLines = 7;     // and at most; a longer help turns pages in it (drawHelp)
+
+// Back (ROUND21.md, "Back where you came from"): the way the player came to the page shown, as a stack of places, the page
+// shown on top: VR pages (their numbers) and, below them, the menus outside the VR pages that they were entered from
+// (outsidePlace: the main menu's VR Settings, Advanced VR or Select Campaign rows, Options > VR
+// Settings, a corner button over any menu), and Ironwail's Levels entered from a VR page (the corner's Levels). Back pops
+// the page shown and goes to the place under it, the cursor where it was left (each page's and menu's own). A place
+// already on the stack is gone back to rather than added again (no loops). Nothing under the page: up the menus' tree
+// (homeOf), the VR Settings to Options. A Search result's page goes back up the tree, not to Search (openEntry).
+struct NavStack
+{
+    static constexpr int capacity = 48;
+    int places[capacity]{};
+    int count{0};
+};
+
+// Where a page was left: its selected row, found again by its label when the page is built anew (its
+// rows changed: another weapon's offsets, a choice showing more settings or fewer) and at the next
+// start (vr_menu_positions), and the line of the view it was on (the scroll).
+struct RowAnchor
+{
+    bool valid{false};
+    za::String section; // the header above it ("": none)
+    za::String label;
+    int index{0}; // where it was: of the rows alike, the nearest is taken
+    int line{0};  // its line in the view (the cursor less the scroll)
+};
+
+// The help box's lines on the page shown: its rows' longest help, wrapped (helpMinLines to helpMaxLines). Worked out
+// again when the page, its rows or the line's width change, not every frame.
+struct HelpBox
+{
+    int page{-1};
+    int build{-1};
+    int columns{0};
+    int lines{helpMinLines};
+};
+
+// A VR page's rows' leftmost text (menu x), for the corner's buttons (menu::contentLeft). Kept per page and build.
+struct RowsLeft
+{
+    int page{-1};
+    int build{-1};
+    int left{0};
+};
+
+// A slider stepped by the keys held (stepSlider).
+struct SliderHold
+{
+    const cvar_t* endCvar = nullptr; // stopped at a bar's end: which, which way, since when
+    int endDir = 0;
+    double endSince = 0.0;
+    double outsideSince = 0.0; // held past the ends since
+};
+
+// A drop-down list open (a choice row's choices next to it: "Drop-down lists" below).
+struct DropDown
+{
+    bool open{false};
+    int page{-1};
+    int row{-1};               // the row's index in the page's list
+    const cvar_t* cvar{nullptr}; // its setting and how many choices it had (a rebuilt page checked against them)
+    int count{0};
+    int hover{0};  // the choice highlighted
+    int scroll{0}; // the first choice shown
+    bool scrollGrab{false};
+    // Laid out as it opened: the inside's left, width and top (menu coordinates), its rows, its width in
+    // characters (M_DrawTextBox), the longest label's.
+    int x{0}, width{0}, top{0}, rows{0}, chars{0}, labelChars{0};
+};
+
+// The help shown, and since when (its pages turn from the first; a new text starts over).
+struct HelpPaging
+{
+    za::U32 hash{0};
+    double since{0.0};
+    int shown{-1}; // the page of it shown (for the developer line when it turns)
+};
+
+// Where VR_Menu_Draw last noted the page to be (vr_menu_positions is written on a change only).
+struct NotedPlace
+{
+    int page = -1, cursor = -1, scroll = -1, build = -1;
+};
+
+struct MenuInstance
+{
+    int page{PageMain}; // the page shown
+    NavStack nav;
+    bool navReturning{false}; // leaving the VR pages by Back for an outside menu (VR_NavEntered: not a new way in)
+    int navJumpPending{-1};   // the outside menu a jump (VR_NavJump) is opening
+
+    int cursors[pageCount]{};         // each page's selected row
+    int scrolls[pageCount]{};         // and its first row shown
+    RowAnchor leftAnchors[pageCount]; // each page's position as last shown (invalid: at the top)
+    int visits[pageCount]{};          // when each page was last shown (a count; 0: not since the start)
+    int visitCount{0};
+
+    bool sliderGrab{false};     // a slider follows the mouse while its button is held
+    float sliderGrabHold{-1.f}; // grabbed on a thumb pinned at an end (a value past it): where, kept until the mouse moves off
+    bool scrollGrab{false};     // the scrollbar likewise
+    SliderHold sliderHold;      // (stepSlider: the menu's keys)
+    DropDown dropDown;
+    HelpBox helpBox;
+    HelpPaging helpPaging;
+    RowsLeft rowsLeft;
+    int scrollbarX{midPos + 188}; // where the scrollbar was drawn
+
+    int resetArmedPage{-1};       // Reset This Page pressed once (the footer), on that page, then
+    double resetArmedTime{0.0};
+    bool resetAllArmed{false};    // Reset All to Defaults pressed once: Press Again to Reset All
+    double resetAllArmedTime{0.0};
+
+    int bodyCloneLatch{-1}; // the page a row tweaking the body was chosen on (bodyClonePage), while it stays shown
+    NotedPlace notedPlace;
+
+    // Several panels (MULTI_MENU.md, stage 3). Quake's menu state and the menus' mouse are Quake's globals (m_state,
+    // m_mousex/y), the current instance's: the others keep theirs here (selectInstance swaps them).
+    bool open{false};       // (the first: unused, open while the menu is)
+    int quakeState{m_none}; // m_state while not current (the others: m_vr, or m_confirm over a VR page)
+    float mouseX{-1000.f}, mouseY{-1000.f};
+    int refusedPage{-1};    // a page for one panel at a time refused here (another panel shows it), and when: its title
+    double refusedTime{0.0}; // says so for a moment
+    int refusedBy{-1};
+    float drawnValue{0.f}; // the selected row's value as last drawn, and when (vr_menu_panels: the panels kept in step)
+    int drawnFrame{-1};
+};
+
+MenuInstance menuInstances[menu::instanceCount];
+int currentMenu = 0;
+int instanceDrawDepth = 0; // M_Draw's nesting (a dialog draws the menu under it again): only the outermost picks the panel
+int drawnInstance = -1;    // drawing a panel's own canvas (menu::drawInstance): M_Draw draws that one
+
+[[nodiscard]] MenuInstance& ui()
+{
+    return menuInstances[currentMenu];
+}
+
+// ----------------------------------------------------------------------------
 // Wrappers (VR Settings' own rows over other settings, vr_cvars.inc vr_menu_*): Turning Mode, Move Towards and the one
 // mirrored hand calibration. Their cvars aren't saved: each is shown as the settings it stands for are now (syncWrappers,
 // as the pages are built and drawn) and, set, sets them (onWrapperSet). Their defaults are those settings' defaults, so
@@ -7465,8 +8742,6 @@ void onPresetChosen(cvar_t* var)
 bool wrapperBusy = false;      // a wrapper shown (syncWrappers): not a choice made
 float lastSnapAngle = 45.f;    // Turning Mode: Snap goes back to the angle last used (45 at first)
 int mainPageSnap = -1;         // VR Settings built with snap turning (Snap Angle shown) or smooth (Turn Speed shown)
-bool resetAllArmed = false;    // Reset All to Defaults pressed once: Press Again to Reset All
-double resetAllArmedTime = 0.0;
 
 // One hand-calibration row: the main hand's setting, the off hand's (nullptr: vr_handcal_off_mirror mirrors it) and
 // how the off hand's goes (-1: the other way, mirrored).
@@ -7729,18 +9004,53 @@ void resetAll(); // (below: after the pages' building)
 // words, in the order they come to it. Every other setting is under Advanced VR Options (ROUND21.md, "VR Settings for
 // first-time players"), and so is each row here, on its topic's page. No link to them here (nor to Search): the main
 // menu's Advanced VR row and the corner's Advanced VR and Search buttons open them, and the trees of Search and of the
-// boards' menu paths start at both pages (menuRoots).
+// boards' menu paths start at both pages (menuRoots). Each of its sections is a page of its own, linked from here
+// (vrSettingsParts; ROUND22.md, "VR Settings' sections as submenus"); Reset All to Defaults stays here.
 za::Vector<Item> pageMain()
 {
-    const bool snap = vr_snap_turn.value > 0.f;
-    mainPageSnap = snap ? 1 : 0;
-    const char* handHelp = "Both hands, mirrored: moves or turns the drawn hands (and what they hold) on your controllers, "
-                           "so they sit where your real hands are. Show Controller helps; 0 is the shipped calibration.";
-    const char* holsterHelp = "Both holsters of the pair, mirrored: moves them forward, inward (towards your middle) or up "
-                              "from their shipped place (0), in Quake's units (about 3 cm). Shown on your body while "
-                              "you choose here.";
-    za::Vector<Item> list{
-        header("Height Calibration"),
+    return {
+        header("Calibration"),
+        open("Height and Hand Calibration", pageIndex(pageVrsHeightHands))
+            .help("Your height (Set Height Now measures it), the world's scale, the floor's height, and the drawn hands "
+                  "moved and turned on your controllers so they sit where your real hands are."),
+        open("Holster Calibration", pageIndex(pageVrsHolsters))
+            .help("Where the hip, chest and back holsters are on your body, and the guns drawn over your shoulders."),
+        open("Ammo Pouch", pageIndex(pageVrsAmmoPouch))
+            .help("Where immersive reloading's pouch is on your belt, its size and its ammo counter."),
+
+        header("Moving"),
+        open("Locomotion and Controls", pageIndex(pageVrsLocoControls))
+            .help("What opens the menu besides the menu button, where the stick takes you, running or walking, the "
+                  "sticks' deadzone and swap, swimming."),
+        open("Comfort, Teleport and Turning", pageIndex(pageVrsComfortTurning))
+            .help("Blood Feedback, the vignette, the fade on scripted teleports, the view when you die; teleporting to "
+                  "where you point; smooth or snap turning."),
+
+        header("Playing"),
+        open("Weapons and Bullet Time", pageIndex(pageVrsWeaponsBulletTime))
+            .help("Holding the grip or sticky, two-handed guns, the reloading mode, and what starts and stops bullet time."),
+        open("Body and Flashlight", pageIndex(pageVrsBodyFlashlight))
+            .help("How much of your body you see, the wrist gadget's arm, leaning, Reset Position, and the flashlight."),
+        open("HUD, Haptics and Sound", pageIndex(pageVrsHudHapticsSound))
+            .help("The HUD's kind, the crosshair and Doom on the wrist gadget; how strongly the controllers vibrate; the "
+                  "game's and the music's volume and spatial sound."),
+
+        header("Sight"),
+        open("Display and Graphics", pageIndex(pageVrsDisplayGraphics))
+            .help("The headset's brightness and contrast, the light where no lamp reaches, the eyes' render resolution, "
+                  "upscaling and foveated rendering, retro looks, antialiasing, bloom and bump mapping."),
+
+        header("Reset"),
+        action(ui().resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
+            .help("Every Quake VR setting back to as it shipped, but not your calibration (height, floor, body and hands: "
+                  "Reset Hand Offsets for those). Press it twice: the second time within 3 seconds."),
+    };
+}
+
+// VR Settings' sections, merged into the pages linked from it (titled "VR Settings - <section>").
+[[nodiscard]] za::Vector<Item> pageVrsHeight()
+{
+    return {
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
             .help("Your real height: it puts your eyes at the right height in the game and fits the body to you. Set "
                   "Height Now measures it."),
@@ -7751,8 +9061,14 @@ za::Vector<Item> pageMain()
                   "see them."),
         slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f)
             .help("Moves the floor up or down: change it if you feel you are floating above it or sunk into it."),
+    };
+}
 
-        header("Hand Calibration"),
+[[nodiscard]] za::Vector<Item> pageVrsHands()
+{
+    const char* handHelp = "Both hands, mirrored: moves or turns the drawn hands (and what they hold) on your controllers, "
+                           "so they sit where your real hands are. Show Controller helps; 0 is the shipped calibration.";
+    return {
         toggle("Show Controller", "vr_show_controller")
             .help("Draws your real controllers, see-through, where the game tracks them: line the hands up with them "
                   "below. Not saved."),
@@ -7769,8 +9085,15 @@ za::Vector<Item> pageMain()
         action("Reset Hand Offsets", resetHandOffsets)
             .help("Both hands' moves and turns back to the shipped calibration. Each hand's own values: Advanced VR "
                   "Options > Weapons > Hand/Gun Calibration."),
+    };
+}
 
-        header("Holster Calibration"),
+[[nodiscard]] za::Vector<Item> pageVrsHolsters()
+{
+    const char* holsterHelp = "Both holsters of the pair, mirrored: moves them forward, inward (towards your middle) or up "
+                              "from their shipped place (0), in Quake's units (about 3 cm). Shown on your body while "
+                              "you choose here.";
+    return {
         slider("Hip Holsters Forward", vr_menu_holster_hip_x, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
             .help(holsterHelp),
         slider("Hip Holsters Inward", vr_menu_holster_hip_y, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
@@ -7792,10 +9115,18 @@ za::Vector<Item> pageMain()
         action("Reset Holsters", resetHolsters)
             .help("Every pair of holsters back to its shipped place. Each pair's own values (its turn and reach too): "
                   "Advanced VR Options > Weapons > Hip Holsters, and > Hotspots."),
+        toggle("Shoulder Holster Weapons", vr_holster_weapons_draw_shoulder)
+            .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
+                  "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "
+                  "> Body and Display."),
+    };
+}
 
-        // (The author's note e1m1_2026-10-07_22-40-30: its basics here, after the holsters; the rest of it, its turn, its
-        // reach and the counter's place, on Advanced VR Options > Weapons > Reloading.)
-        header("Ammo Pouch"),
+// (The author's note e1m1_2026-10-07_22-40-30: its basics here, after the holsters; the rest of it, its turn, its reach
+// and the counter's place, on Advanced VR Options > Weapons > Reloading.)
+[[nodiscard]] za::Vector<Item> pageVrsAmmoPouch()
+{
+    return {
         slider("Ammo Pouch Forward", vr_ammo_pouch_x, -10.f, 10.f, 0.25f, "%+.2f").extend(-40.f, 40.f)
             .help("Immersive reloading's pouch on the front of your belt, where you take rounds and magazines: forward "
                   "(negative: back, round the hips), in Quake's units (about 3 cm). With the body drawn, 0 is on the belly."),
@@ -7808,8 +9139,17 @@ za::Vector<Item> pageMain()
                   "Weapons > Reloading > Reach)."),
         toggle("Ammo Counter", vr_ammo_pouch_counter)
             .help("A small screen on the ammo pouch: how many of what it gives (shells, nails, cells) you have left."),
+    };
+}
 
-        header("Locomotion"),
+[[nodiscard]] za::Vector<Item> pageVrsControls()
+{
+    return {cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp)};
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsLocomotion()
+{
+    return {
         cycle("Move Towards", vr_menu_move_towards, {{1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}})
             .help("Where pushing the stick forward takes you: where you look (Head), or where that hand points, so you "
                   "can walk one way and look another."),
@@ -7826,8 +9166,13 @@ za::Vector<Item> pageMain()
         toggle("Jump Out of Water", "vr_water_jump") // (the author: here too, as on Movement > Swimming)
             .help("On (Quake's): swimming against an edge with room above it lifts you out. Off: you climb out with your "
                   "hands, grabbing the edge (needs Climbing on; with Climbing off, Quake's jump out stays)."),
+    };
+}
 
-        header("Comfort"),
+[[nodiscard]] za::Vector<Item> pageVrsComfort()
+{
+    return {
+        open("Blood Feedback", pageIndex(pageBloodFeedback)).help("Independent peripheral feedback for hits and low health, with timing, strength and directional controls."),
         cycle("Vignette", vr_comfort_vignette, {{0.f, "Off"}, {1.f, "Moving and Turning"}, {2.f, "Moving Only"}, {3.f, "Turning Only"}})
             .help("Darkens the edges of your view while the sticks move or turn you: it eases motion sickness for many. "
                   "Your own steps in the room never do it."),
@@ -7842,14 +9187,25 @@ za::Vector<Item> pageMain()
                   "Immersive: your view goes into your body's head and follows it as it falls (its place smoothed, its "
                   "turns only sideways, never pitch or roll; the hands hidden; Third Person while a menu is open). Back "
                   "to normal when you respawn. Its fine tuning: Advanced VR Options > Body, Death View."),
+    };
+}
 
-        header("Teleportation"),
+[[nodiscard]] za::Vector<Item> pageVrsTeleport()
+{
+    return {
         toggle("Teleport", vr_teleport_enabled)
             .help("Jump to the spot you point at instead of walking there: the gentlest way to get around."),
         slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f)
             .help("How far a teleport reaches, in Quake's units (one is about 3 cm)."),
+    };
+}
 
-        header("Turning"),
+// Built with snap turning (Snap Angle shown) or smooth (Turn Speed shown): built again when that changes (items()).
+[[nodiscard]] za::Vector<Item> pageVrsTurning()
+{
+    const bool snap = vr_snap_turn.value > 0.f;
+    mainPageSnap = snap ? 1 : 0;
+    za::Vector<Item> list{
         cycle("Turning Mode", vr_menu_turning, {{0.f, "Smooth"}, {1.f, "Snap"}})
             .help("Smooth: the turning stick turns you steadily. Snap: each push turns you at once by Snap Angle, which "
                   "many find more comfortable."),
@@ -7864,24 +9220,40 @@ za::Vector<Item> pageMain()
         list.pushBack(slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend()
                 .help("How fast smooth turning turns you."));
     }
-    list.pushBackMultiple(
-        header("Flashlight"),
-        toggle("Flashlight", vr_flashlight)
-            .help("A torch on your belt: pull the trigger with an open hand at it to switch it on or off; press the grip "
-                  "to take it in your hand."),
-        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}})
-            .help("The side of your chest the torch hangs on."),
+    return list;
+}
 
-        header("Lighting"),
+[[nodiscard]] za::Vector<Item> pageVrsFlashlight()
+{
+    return {
+        cycle("Flashlight", vr_flashlight, {{0.f, "Off"}, {1.f, "Immersive"}, {2.f, "Always on Head"}})
+            .help("Immersive: a torch on your belt: pull the trigger with an open hand at it to switch it on or off; press "
+                  "the grip to take it in your hand. Always on Head: worn at your temple, on from the start: pull the "
+                  "trigger with an open hand at it to switch it."),
+        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}})
+            .help("The side of your belt the torch hangs on (Always on Head: the temple it is worn at)."),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsLighting()
+{
+    return {
         slider("Ambient Light", "vr_ambient_light", 0.f, 0.4f, 0.01f, "%.2f").extend()
             .help("Light in the places no lamp reaches: raise it if the levels are too dark to see without the "
                   "flashlight (0: none)."),
         slider("Light Contrast", "vr_light_contrast", 1.f, 2.5f, 0.02f, "%.2f").extend()
             .help("Darker shadows with lamps as bright: higher is moodier (1: Quake's)."),
+    };
+}
 
-        header("Weapons"),
+[[nodiscard]] za::Vector<Item> pageVrsWeapons()
+{
+    return {
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}})
             .help("Hold: keep the grip pressed to hold a weapon. Sticky: a press takes it, another lets it go."),
+        slider("Grip Grace After Loading", vr_weapon_load_grace, 0.f, 2.f, 0.05f, "%.2f s")
+            .help("After loading a save, keep the restored weapons in your hands this long even without holding the grip. "
+                  "Starts when play resumes; 0 disables it."),
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual Stock"}})
             .help("Hold a gun with both hands to steady it. Virtual Stock: a gun brought near your shoulder also aims "
                   "from it, as against a real stock."),
@@ -7889,8 +9261,12 @@ za::Vector<Item> pageMain()
             .help("Guns have magazines. Immersive: the shotgun is loaded a shell at a time from the ammo pouch on your "
                   "belt, the other guns at the hip holsters. Simple: a gun held at a hip holster reloads. Disabled: no "
                   "reloading. Only with the Immersive weapon mode."),
+    };
+}
 
-        header("Bullet Time"),
+[[nodiscard]] za::Vector<Item> pageVrsBulletTime()
+{
+    return {
         cycle("Activation", vr_menu_bullettime, bulletTimeChoices())
             .help("What starts and stops bullet time (the world slowed while the gadget's TIME meter lasts). Wrist "
                   "Gadget: tap its screen hard with your other hand (or the butt of its gun). A thumbstick press: that "
@@ -7899,8 +9275,16 @@ za::Vector<Item> pageMain()
         cycle("Screen Tap", "vr_bullettime_tap_gesture", {{0.f, "Single Tap"}, {1.f, "Double Tap"}})
             .help("Activation by the Wrist Gadget: Double Tap, two quick taps on its screen (a single one does nothing, "
                   "so a stray knock never starts it); Single Tap, one hard tap."),
+        slider("Quiet After Blows", "vr_bullettime_tap_blow_quiet", 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("Screen taps don't count for this long after a melee blow of yours lands, or you shove or bash, nor "
+                  "while your hands move fast (Calm Hands Speed, Advanced VR Options > Combat > Bullet Time): no slow "
+                  "motion by accident in a melee. 0: off."),
+    };
+}
 
-        header("Body"),
+[[nodiscard]] za::Vector<Item> pageVrsBody()
+{
+    return {
         cycle("Body Type", vr_body_mode, {{3.f, "Full Body"}, {2.f, "Torso and Arms"}, {0.f, "Only Hands"}})
             .help("How much of your body you see: all of it, legs and all; the torso and arms; or only the hands."),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}})
@@ -7912,31 +9296,53 @@ za::Vector<Item> pageMain()
         command("Reset Position", "vr_recenter")
             .help("Puts your body back under your head, and facing where you look, if it was left behind (after "
                   "leaning over something, or walking into a wall)."),
+    };
+}
 
-        header("Haptics"),
+[[nodiscard]] za::Vector<Item> pageVrsHaptics()
+{
+    return {
         slider("Vibration Strength", vr_haptics_strength, 0.f, 1.f, 0.1f, "%.1f").extend(0.f, 2.f)
             .help("How strongly the controllers vibrate (0: never)."),
+    };
+}
 
-        header("HUD"),
+[[nodiscard]] za::Vector<Item> pageVrsHud()
+{
+    return {
         cycle("HUD", vr_hud_mode, {{1.f, "Wrist Gadget"}, {0.f, "Status Bar"}})
             .help("Wrist Gadget: health, armour and ammo on your wrist. Status Bar: Quake's, on a hand."),
         cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}})
             .help("A mark where your gun aims: a dot, or a laser beam from the muzzle."),
+        open("Doom on the Wrist Gadget", pageIndex(pageDoom))
+            .help("Play Doom on the gadget's screen while you play Quake: touch it with your fingertip."),
+    };
+}
 
-        header("Sound"),
+[[nodiscard]] za::Vector<Item> pageVrsSound()
+{
+    return {
         slider("Volume", "volume", 0.f, 1.f, 0.05f, "%.2f").help("The game's sounds."),
         slider("Music Volume", "bgmvolume", 0.f, 1.f, 0.05f, "%.2f").help("The music's volume."),
         toggle("Spatial Sound", vr_snd_spatial)
             .help("Sounds come from where they are around your head, muffled by walls, with the room's echo. Best with "
                   "headphones."),
+    };
+}
 
-        header("Display"),
+[[nodiscard]] za::Vector<Item> pageVrsDisplay()
+{
+    return {
         slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").extend()
             .help("The headset's brightness: lower is brighter (1: neutral)."),
         slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").extend()
             .help("The headset's contrast (1: neutral)."),
+    };
+}
 
-        header("Scaling"),
+[[nodiscard]] za::Vector<Item> pageVrsScaling()
+{
+    return {
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.18f, 2.f)
             .help("Eye rendering resolution, times the headset's. Above 1: smoother edges, slower. Below 1: faster, "
                   "blurrier."),
@@ -7948,8 +9354,12 @@ za::Vector<Item> pageMain()
         cycle("Foveated Rendering", vr_foveated, {{0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"}})
             .help("Draws the edges of the view, which the lenses blur anyway, in less detail: faster. NVIDIA graphics "
                   "cards only."),
+    };
+}
 
-        header("Graphics"),
+[[nodiscard]] za::Vector<Item> pageVrsGraphics()
+{
+    return {
         toggle("Retro Textures", vr_retro)
             .help("Detailed textures drawn in Quake's chunky, pixelated look, crisp as you move your head."),
         toggle("Retro Lighting", "vr_retrolight")
@@ -7967,16 +9377,86 @@ za::Vector<Item> pageMain()
                   "white."),
         toggle("Bump Mapping", "vr_normalmaps")
             .help("Walls and floors get bumps and grooves that catch the light. From the next map."),
+        toggle("Generated Companion Maps", "vr_pbr")
+            .help("Adds normal and height maps generated for the exact wall or floor image. Keeps authored maps. From the next map."),
+        slider("Generated Relief Strength", "vr_pbr_strength", 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 8.f)
+            .help("Makes generated bumps and grooves stronger. 1: the generated shape; 0: flat. Authored normal and height components keep their own strength."),
         toggle("Parallax Mapping", "vr_parallax")
             .help("Walls and floors look carved: their dark parts sink in as you move your head (needs Bump Mapping)."),
-
-        header("Reset"),
-        action(resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
-            .help("Every Quake VR setting back to as it shipped, but not your calibration (height, floor, body and hands: "
-                  "Reset Hand Offsets for those). Press it twice: the second time within 3 seconds.")
-    );
-    return list;
+    };
 }
+
+// Sections joined on one page, each under a small header (ROUND22.md, "VR Settings submenus merged"). The parts keep
+// their own builders (and their own rows); the merged page lists them in turn.
+void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
+{
+    out.pushBack(header(title));
+    for(Item& it : part)
+    {
+        out.pushBack(it);
+    }
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsHeightHands()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Height", pageVrsHeight());
+    addVrsPart(out, "Hands", pageVrsHands());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsLocoControls()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Locomotion", pageVrsLocomotion());
+    addVrsPart(out, "Controls", pageVrsControls());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsComfortTurning()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Comfort", pageVrsComfort());
+    addVrsPart(out, "Teleportation", pageVrsTeleport());
+    addVrsPart(out, "Turning", pageVrsTurning());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsWeaponsBulletTime()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Weapons", pageVrsWeapons());
+    addVrsPart(out, "Bullet Time", pageVrsBulletTime());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsBodyFlashlight()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Body", pageVrsBody());
+    addVrsPart(out, "Flashlight", pageVrsFlashlight());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsHudHapticsSound()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "HUD", pageVrsHud());
+    addVrsPart(out, "Haptics", pageVrsHaptics());
+    addVrsPart(out, "Sound", pageVrsSound());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsDisplayGraphics()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Display", pageVrsDisplay());
+    addVrsPart(out, "Lighting", pageVrsLighting());
+    addVrsPart(out, "Scaling", pageVrsScaling());
+    addVrsPart(out, "Graphics", pageVrsGraphics());
+    return out;
+}
+
 
 // Split from VR Settings: its body and display settings (the quick ones; all of them under Advanced VR Options).
 [[nodiscard]] za::Vector<Item> pageBodyDisplay()
@@ -7988,20 +9468,33 @@ za::Vector<Item> pageMain()
                   "stick moves, the gadget on the right arm, the torch on the right (Custom: set apart, below)."),
         toggle("Swap Stick Functions", vr_stick_swap).help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}).help("The arm the wrist gadget (the HUD) is on."),
-        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}}).help("The side of your chest the torch hangs on (Chest Flashlight)."),
+        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}}).help("The side of your belt the torch hangs on (Chest Flashlight; Always on Head: the temple it is worn at)."),
 
         header("Body"),
         slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f)
             .help("How big the world feels around you (1.25: Quake's sizes as a person sees them)."),
         slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f).advanced()
             .help("Moves the floor up or down: change it if you feel you are floating or sunk in the floor."),
-        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (Flashlight Side): pull the trigger with an open hand at it to switch it on or off; press the grip to take it. B or Y clips it on a gun or on your head."),
+        cycle("Chest Flashlight", vr_flashlight, {{0.f, "Off"}, {1.f, "Immersive"}, {2.f, "Always on Head"}})
+            .help("Immersive: a torch on your belt (Flashlight Side): pull the trigger with an open hand at it to switch it on "
+                  "or off; press the grip to take it. B or Y clips it on a gun or on your head. Always on Head: no torch on the "
+                  "belt, one worn at your temple, on from the start: the trigger with an open hand at it switches it."),
         cycle("Body", vr_body_mode, {{0.f, "Only Hands"}, {2.f, "Torso and Arms"}, {3.f, "Full Body"}})
             .help("How much of your body you see: only the hands; the torso and arms; or all of it, legs and all."),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}})
             .help("The shape of the body you see."),
         toggle("Holster Models", vr_leg_holster_model_enabled)
             .help("Draws the holsters on your body, with a gun in each one that holds one."),
+        toggle("Hip Holster Weapons", vr_holster_weapons_draw_hip)
+            .help("Draws the guns in the two holsters on your hips. Off: not drawn; you still take them and put them "
+                  "away there."),
+        toggle("Chest Holster Weapons", vr_holster_weapons_draw_upper)
+            .help("Draws the guns in the two holsters on your chest. Off: not drawn; you still take them and put them "
+                  "away there."),
+        toggle("Shoulder Holster Weapons", vr_holster_weapons_draw_shoulder)
+            .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair; off "
+                  "by default: they can get in the way of your view). Off: not drawn; you still take them and put them "
+                  "away there."),
 
         header("Display"),
         cycle("Status Bar", vr_sbar_mode, {{1.f, "Off Hand"}, {0.f, "Main Hand"}}).help("The hand Quake's status bar is on (HUD: Status bar)."),
@@ -8042,8 +9535,15 @@ za::Vector<Item> pageMain()
             .help("While the runtime's own menu has the controllers, a single player game pauses as the game's own menu pauses it (the monsters wait, the game's time stands still) and resumes as you come back; or it keeps running. Multiplayer always runs on."),
         slider("Runtime Menu Volume", vr_xr_unfocused_volume, 0.f, 1.f, 0.1f, "%.1f").advanced()
             .help("The game's sounds while the runtime's menu pauses it: 0 silent, 1 unchanged. The music pauses."),
+        cycle("Exit From Runtime Menu", vr_xr_exit_quits, {{1.f, "Quit the Game"}, {0.f, "Play Flat"}}).advanced()
+            .help("Exiting the game from the runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's): the game "
+                  "quits, your settings saved; or it keeps running flat on the desktop (Restart VR brings the headset back)."),
         toggle("Late Image Acquire", vr_xr_late_acquire).advanced()
             .help("Each eye's headset image is taken from the runtime only once its scene is drawn, so the runtime's wait for it (SteamVR copying the last one out) overlaps the drawing. Off: before the scene, the old way, to compare."),
+        toggle("Vendor Controller Profiles", vr_xr_vendor_profiles).advanced()
+            .help("Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2 and Samsung Odyssey controllers get their own buttons, "
+                  "menu button included, when the runtime offers them. Off: they go as the runtime emulates them (the "
+                  "1.0.0 way, if your hands' angle changed). From the next VR start."),
         toggle("OpenXR Timing Log", vr_xr_log_timing).advanced()
             .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state."),
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.18f, 2.f)
@@ -8070,7 +9570,7 @@ za::Vector<Item> pageAdvanced()
 {
     return {
         header("Setup"),
-        open("Body and Display", pageIndex(pageBodyDisplay)).help("Each hand's side, world scale, the body, the status bar, the desktop mirror."),
+        open("Body and Display", pageIndex(pageBodyDisplay)).help("Each hand's side, world scale, the body, the holsters and their guns shown, the status bar, the desktop mirror."),
         open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
         open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
         open("Tips", pageIndex(pageTips)).help("Tips for new players, shown once near what they are about: floating by it or on the wrist gadget."),
@@ -8082,6 +9582,8 @@ za::Vector<Item> pageAdvanced()
         header("Game"),
         open("Play", pageIndex(pagePlay)),
         open("Combat", pageIndex(pageCombat)).help("Melee, parry and bash, stamina, batting and catching, damage and knockback."),
+        open("Arcane Dimensions", pageIndex(pageArcaneDimensions)) // AD support
+            .help("Arcane Dimensions tweaks: independent player and enemy pellet speeds, ammo appearance and feature scope."),
         open("Movement", pageIndex(pageMovement)).help("Locomotion, climbing, swimming and the grappling hook."),
         open("Carrying and Throwing", pageIndex(pageCarryingHub))
             .help("Carrying, throwing, force grab, wall torches, rocks and bricks, gibs; what you hold's offsets and weights."),
@@ -8131,6 +9633,9 @@ za::Vector<Item> pageCombat()
         open("Stealth AI", pageIndex(pageStealth))
             .help("Enhanced AI (on/off: Quake's monsters at once). Monsters idle, alert or hostile: seeing you by the light "
                   "on you, hearing noises, investigating, spreading the alarm; sneak attacks."),
+        open("Arcane Dimensions", pageIndex(pageArcaneDimensions))
+            .help("The Arcane Dimensions mod's projectile pellets: whose rules play where (Auto, Vanilla, Arcane "
+                  "Dimensions), their spread, speed and damage."),
     };
 }
 
@@ -8257,6 +9762,8 @@ za::Vector<Item> pageWeaponsHub()
         open("Aiming", pageIndex(pageAimingSettings)).help("Two-handed aiming; how weight feels: the spring, tired arms."),
         open("Weight and Damage", pageIndex(pageWeightDamage)),
         open("Weapon Damage", pageIndex(pageWeaponDamage)).help("Every weapon's base damage, to balance them."),
+        open("Incandescent Blades", pageIndex(pageHotBlades))
+            .help("Melee weapons held in a flame or lava glow red-hot for a while: harder blows that set enemies on fire."),
         open("Immersion", pageIndex(pageImmersionSettings)).help("Holsters, reloading, throwing weapons, shell casings, haptics."),
         open("Reloading", pageIndex(pageReloading)).help("Reloading's mode; the ammo pouch; a page per gun (its load point, its magazine, holding and pulling it)."),
         open("Lightning Gun in Water", pageIndex(pageLightningWater)).help("The shock fired under water, and electrified water."),
@@ -8264,6 +9771,58 @@ za::Vector<Item> pageWeaponsHub()
         header("Holsters"),
         open("Hotspots", pageIndex(pageHotspotSettings)).help("The virtual stock, the shoulder and upper holsters."),
         open("Hip Holsters", pageIndex(pageHipHolsters)).help("The hip holsters and their slots' models; the grenade pouch at your back."),
+    };
+}
+
+// Weapons > Incandescent Blades (QC vr_hotblade.qc; the glow: vr_meleehud.cpp hotGlow).
+za::Vector<Item> pageHotBlades()
+{
+    return {
+        toggle("Incandescent Blades", vr_hotblade)
+            .help("Hold a melee weapon's blade in a flame (a torch on its wall or in your other hand, a brazier, the map's "
+                  "flames) or dip it in lava: it glows red-hot for a while, hits harder and sets what it strikes on fire. "
+                  "The axe (the Shadow Axe too), the knights' swords, the crowbar, the Super Axe and the chainsaw; not "
+                  "Mjolnir. The heat is the weapon's: it cools held, holstered or dropped alike."),
+        slider("Heating Time", vr_hotblade_heat_time, 0.25f, 10.f, 0.25f, "%.2f s").extend(0.1f, 30.f)
+            .help("How long the blade must stay in the flame. Its glow rises meanwhile and it sizzles; taken out early, "
+                  "it cools back as fast."),
+        slider("Stays Hot", vr_hotblade_time, 5.f, 120.f, 5.f, "%.0f s").extend(1.f, 600.f)
+            .help("How long it stays incandescent. A flame again while it glows makes it full again."),
+        slider("Fades Over", vr_hotblade_fade, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("Its glow is full until these last seconds, then fades out (0: full to the end)."),
+        slider("Extra Damage", vr_hotblade_damage, 0.f, 50.f, 1.f, "+%.0f").extend(0.f, 200.f)
+            .help("Added to the weapon's base damage on every blow while it glows (then times the blow's strength, as "
+                  "its own base: Weapon Damage)."),
+        toggle("Sets Enemies on Fire", vr_hotblade_ignite)
+            .help("Its blows set living enemies on fire (Combat > Burning: the damage and how long)."),
+        toggle("Sets Corpses on Fire", vr_hotblade_ignite_corpses)
+            .help("And corpses (with Combat > Burning > Corpses Burn on)."),
+        toggle("Water Quenches", vr_hotblade_quench)
+            .help("Dipped in water or slime, it cools at once, with a hiss and a puff of steam."),
+        header("Look and Sound"),
+        slider("Glow Brightness", vr_hotblade_glow, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How brightly the heated part of the blade glows (not the handle), held, holstered or lying on the "
+                  "ground, and its embers (0: no glow, no light, no embers, no trail)."),
+        slider("Glow Hue", vr_hotblade_hue, 0.f, 60.f, 1.f, "%.0f").extend(0.f, 355.f)
+            .help("The glow's colour: 0 red, 18 orange-red, 30 orange, 55 yellow."),
+        slider("Light", vr_hotblade_light, 0.f, 2.f, 0.05f, "%.2f")
+            .help("How bright the light the glowing blade casts round it is; it follows the glow, rising as it heats and "
+                  "dying as it fades (0: none)."),
+        slider("Light Reach", vr_hotblade_light_radius, 16.f, 200.f, 4.f, "%.0f").extend(8.f, 400.f)
+            .help("How far that light reaches, in units, at full glow."),
+        slider("Embers per Puff", vr_hotblade_embers, 0.f, 10.f, 1.f, "%.0f").extend(0.f, 32.f)
+            .help("How many embers leave the heated part of the blade at a time, from all over it (0: none)."),
+        slider("Ember Puffs a Second", vr_hotblade_ember_rate, 1.f, 30.f, 1.f, "%.0f").extend(0.f, 60.f)
+            .help("How often they leave it at full glow; fewer as it fades."),
+        slider("Swing Trail", vr_hotblade_trail, 0.f, 3.f, 0.1f, "%.1f")
+            .help("How much fire and how many sparks a swung (or thrown) glowing blade leaves hanging in the air behind its "
+                  "heated part; a faster swing leaves more (0: none)."),
+        slider("Trail Lingers", vr_hotblade_trail_linger, 0.1f, 2.f, 0.05f, "%.2f s").extend(0.05f, 5.f)
+            .help("How long the trail's fire and sparks hang in the air."),
+        slider("Trail From", vr_hotblade_trail_speed, 0.f, 5.f, 0.1f, "%.1f m/s")
+            .help("How fast the blade's tip must move to leave a trail (slower: none)."),
+        slider("Sounds", vr_hotblade_sound, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Volume of the sizzle in the flame, the ring as it turns red-hot and the quench's hiss (0 off)."),
     };
 }
 
@@ -9214,24 +10773,7 @@ za::Vector<Item> pageWofsFlashlight()
     return list;
 }
 
-int page = PageMain;
-
-// Back (ROUND21.md, "Back where you came from"): the way the player came to the page shown, as a stack of places, the page
-// shown on top: VR pages (their numbers) and, below them, the menus outside the VR pages that they were entered from
-// (outsidePlace: the main menu's VR Settings, Advanced VR or Select Campaign rows, Options > VR
-// Settings, a corner button over any menu), and Ironwail's Levels entered from a VR page (the corner's Levels). Back pops
-// the page shown and goes to the place under it, the cursor where it was left (each page's and menu's own). A place
-// already on the stack is gone back to rather than added again (no loops). Nothing under the page: up the menus' tree
-// (homeOf), the VR Settings to Options. A Search result's page goes back up the tree, not to Search (openEntry).
-struct NavStack
-{
-    static constexpr int capacity = 48;
-    int places[capacity]{};
-    int count{0};
-};
-NavStack nav;
-bool navReturning = false; // leaving the VR pages by Back for an outside menu (VR_NavEntered: not a new way in)
-int navJumpPending = -1;    // the outside menu a jump (VR_NavJump) is opening
+// (The page shown, the Back stack: MenuInstance::page, nav.)
 
 [[nodiscard]] constexpr int outsidePlace(int state)
 {
@@ -9240,34 +10782,34 @@ int navJumpPending = -1;    // the outside menu a jump (VR_NavJump) is opening
 
 [[nodiscard]] int navTop()
 {
-    return nav.count > 0 ? nav.places[nav.count - 1] : -1000;
+    return ui().nav.count > 0 ? ui().nav.places[ui().nav.count - 1] : -1000;
 }
 
 void navReset()
 {
-    nav.count = 0;
+    ui().nav.count = 0;
 }
 
 // `place` on top: back to it where it already is on the stack (what was above it dropped), else added.
 void navPush(int place)
 {
-    for(int i = nav.count - 1; i >= 0; i--)
+    for(int i = ui().nav.count - 1; i >= 0; i--)
     {
-        if(nav.places[i] == place)
+        if(ui().nav.places[i] == place)
         {
-            nav.count = i + 1;
+            ui().nav.count = i + 1;
             return;
         }
     }
-    if(nav.count == NavStack::capacity)
+    if(ui().nav.count == NavStack::capacity)
     {
-        for(int i = 1; i < nav.count; i++)
+        for(int i = 1; i < ui().nav.count; i++)
         {
-            nav.places[i - 1] = nav.places[i];
+            ui().nav.places[i - 1] = ui().nav.places[i];
         }
-        nav.count--;
+        ui().nav.count--;
     }
-    nav.places[nav.count++] = place;
+    ui().nav.places[ui().nav.count++] = place;
 }
 
 // The menu outside the VR pages the player is in now (m_none: none, or one not to come back to).
@@ -9308,25 +10850,11 @@ void navEnterFrom(int outside)
 // The page last shown, on top of the stack (made so when something else changed the page).
 void navSyncTop()
 {
-    if(navTop() != page)
+    if(navTop() != ui().page)
     {
-        navPush(page);
+        navPush(ui().page);
     }
 }
-int cursors[pageCount]{};
-int scrolls[pageCount]{};
-
-// Where a page was left: its selected row, found again by its label when the page is built anew (its
-// rows changed: another weapon's offsets, a choice showing more settings or fewer) and at the next
-// start (vr_menu_positions), and the line of the view it was on (the scroll).
-struct RowAnchor
-{
-    bool valid{false};
-    za::String section; // the header above it ("": none)
-    za::String label;
-    int index{0}; // where it was: of the rows alike, the nearest is taken
-    int line{0};  // its line in the view (the cursor less the scroll)
-};
 
 [[nodiscard]] const char* rowLabel(const Item& item)
 {
@@ -9383,9 +10911,6 @@ struct RowAnchor
 RowAnchor savedAnchors[pageCount];
 int savedRank[pageCount]{}; // its place in the cvar
 
-RowAnchor leftAnchors[pageCount]; // each page's position as last shown (invalid: at the top)
-int visits[pageCount]{};          // when each page was last shown (a count; 0: not since the start)
-int visitCount = 0;
 int builds[pageCount]{};          // how many times each page's list was built (its rows may have changed)
 za::String positionsParsed;      // vr_menu_positions as last read (loadPositions)
 bool positionsLoaded = false;
@@ -9406,7 +10931,7 @@ void loadPositions()
 {
     // Read again while no page has been shown, should the cvar change (the config executed after a
     // write, the console).
-    if(positionsLoaded && (visitCount > 0 || positionsParsed == vr_menu_positions.string))
+    if(positionsLoaded && (ui().visitCount > 0 || positionsParsed == vr_menu_positions.string))
     {
         return;
     }
@@ -9469,9 +10994,7 @@ void loadPositions()
     return strcmp(var.string, var.default_string) != 0;
 }
 
-// Reset This Page (the footer): armed by a first press, done by a second within 3 seconds.
-int resetArmedPage = -1;
-double resetArmedTime = 0.0;
+// Reset This Page (the footer): armed by a first press, done by a second within 3 seconds (MenuInstance::resetArmed*).
 
 // The pages of one weapon's or prop's settings (their own resets, Reset This Weapon...): no Reset This Page, and not on
 // Changed Settings (the held one's values, not settings of their own).
@@ -9531,7 +11054,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     if(settings && !slotPage(pages[page].build) && pages[page].build != pageChanged)
     {
         list.pushBack(header("This Page"));
-        list.pushBack(action(resetArmedPage == page ? "Press Again to Reset" : "Reset This Page", resetThisPage)
+        list.pushBack(action(ui().resetArmedPage == page ? "Press Again to Reset" : "Reset This Page", resetThisPage)
                 .help("Every setting on this page (as Menu Detail shows it) back to its default. Press it twice: the second "
                       "time within 3 seconds."));
     }
@@ -9547,16 +11070,20 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     za::Vector<Item> (&built)[pageCount] = menuPages.built;
     bool (&done)[pageCount] = menuPages.done;
     const bool weaponOffsets = weaponOffsetsPage(pages[page].build);
-    if(page == PageMain)
+    if(vrSettingsPage(page))
     {
         syncWrappers(); // Turning Mode, Move Towards, the hands: as their settings are now
-        if(mainPageSnap >= 0 && mainPageSnap != (vr_snap_turn.value > 0.f ? 1 : 0))
+    }
+    if(pages[page].build == pageVrsComfortTurning && mainPageSnap >= 0 &&
+        mainPageSnap != (vr_snap_turn.value > 0.f ? 1 : 0))
+    {
+        done[page] = false; // Snap Angle shown, or Turn Speed
+    }
+    if(page == PageMain)
+    {
+        if(ui().resetAllArmed && realtime - ui().resetAllArmedTime > 3.0)
         {
-            done[page] = false; // Snap Angle shown, or Turn Speed
-        }
-        if(resetAllArmed && realtime - resetAllArmedTime > 3.0)
-        {
-            resetAllArmed = false; // Reset All to Defaults not pressed again in time
+            ui().resetAllArmed = false; // Reset All to Defaults not pressed again in time
             done[page] = false;
         }
     }
@@ -9631,6 +11158,10 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         done[page] = false; // the off hand's own sliders shown or not
     }
+    if(pages[page].build == pageDebugTests && testsPageSpawn != static_cast<int>(vr_test_spawn.value))
+    {
+        done[page] = false; // another Thing chosen (or set by a spawn row): Put It There locked or not
+    }
     if(pages[page].build == pageMotionRecorder && motionPageCategory != static_cast<int>(vr_motion_category.value))
     {
         done[page] = false; // the Detail choice is the category's
@@ -9649,9 +11180,9 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         done[page] = false; // cvars registered since (a row naming one was left out)
     }
-    if(resetArmedPage == page && realtime - resetArmedTime > 3.0)
+    if(ui().resetArmedPage == page && realtime - ui().resetArmedTime > 3.0)
     {
-        resetArmedPage = -1; // Reset This Page not pressed again in time
+        ui().resetArmedPage = -1; // Reset This Page not pressed again in time
         done[page] = false;
     }
     // (A check above: done[page] = false, and the page is built anew here, its selected row kept.)
@@ -9660,7 +11191,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         // The row selected: in the list about to be replaced; on the first build, where the last start
         // left the page (vr_menu_positions).
         loadPositions();
-        RowAnchor anchor = anchorOf(built[page], cursors[page], scrolls[page]);
+        RowAnchor anchor = anchorOf(built[page], ui().cursors[page], ui().scrolls[page]);
         if(built[page].empty())
         {
             anchor = savedAnchors[page];
@@ -9693,11 +11224,11 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         // The same row again, on the same line of the view; gone, the cursor kept where it was (on a
         // setting).
         const int n = static_cast<int>(built[page].size());
-        int& cursor = cursors[page];
+        int& cursor = ui().cursors[page];
         if(const int row = anchor.valid ? findRow(built[page], anchor) : -1; row >= 0)
         {
             cursor = row;
-            scrolls[page] = q_max(row - anchor.line, 0);
+            ui().scrolls[page] = q_max(row - anchor.line, 0);
         }
         cursor = CLAMP(0, cursor, q_max(n - 1, 0));
         for(int i = cursor; n > 0 && !selectable(built[page][cursor]) && i >= 0; i--)
@@ -9714,7 +11245,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         {
             if(built[page][i].action == sightAlignApply || built[page][i].action == sightAlignUndo)
             {
-                cursors[page] = i;
+                ui().cursors[page] = i;
                 break;
             }
         }
@@ -9722,11 +11253,6 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     return built[page];
 }
 
-bool sliderGrab = false; // a slider follows the mouse while its button is held
-float sliderGrabHold = -1.f; // grabbed on a thumb pinned at an end (a value past it): where, kept until the mouse moves off
-bool scrollGrab = false; // the scrollbar likewise
-
-constexpr int midPos = 204; // as Ironwail's OPTIONS_MIDPOS
 
 // Where things go, in the menu's height (menuui::menuHeight: Quake's 200 on the desktop, more in
 // a headset, Quake's 320 x 200 in its middle): the title at the top, the list under it, and the
@@ -9740,8 +11266,6 @@ struct Layout
     int bottom;
 };
 
-constexpr int helpMinLines = 4;     // the help's box: four lines at least (Search's and the Map Library's)
-constexpr int helpMaxLines = 7;     // and at most; a longer help turns pages in it (drawHelp)
 constexpr int helpMaxWrapped = 64;  // lines wrapped at most (the longest help is far shorter)
 
 // The help's line, in characters: the canvas's width (the flat menu's is 420, a headset's 320 or more), 50 at most.
@@ -9797,33 +11321,24 @@ int wrapHelp(const char* text, int columns, int* starts = nullptr, int* lengths 
 [[nodiscard]] const char* itemHelp(const Item& item);
 
 // The help box's lines on the page shown: its rows' longest help, wrapped (helpMinLines to helpMaxLines). Worked out
-// again when the page, its rows or the line's width change, not every frame.
-struct HelpBox
-{
-    int page{-1};
-    int build{-1};
-    int columns{0};
-    int lines{helpMinLines};
-};
-HelpBox helpBox;
-
+// again when the page, its rows or the line's width change, not every frame (MenuInstance::helpBox).
 [[nodiscard]] int helpBoxLines()
 {
     const int columns = helpColumns();
-    if(helpBox.page != page || helpBox.build != builds[page] || helpBox.columns != columns)
+    if(ui().helpBox.page != ui().page || ui().helpBox.build != builds[ui().page] || ui().helpBox.columns != columns)
     {
-        helpBox.page = page;
-        helpBox.build = builds[page];
-        helpBox.columns = columns;
+        ui().helpBox.page = ui().page;
+        ui().helpBox.build = builds[ui().page];
+        ui().helpBox.columns = columns;
         int longest = 0;
-        for(const Item& item : menuPages.built[page])
+        for(const Item& item : menuPages.built[ui().page])
         {
             const char* help = itemHelp(item);
             longest = help ? q_max(longest, wrapHelp(help, columns)) : longest;
         }
-        helpBox.lines = CLAMP(helpMinLines, longest, helpMaxLines);
+        ui().helpBox.lines = CLAMP(helpMinLines, longest, helpMaxLines);
     }
-    return helpBox.lines;
+    return ui().helpBox.lines;
 }
 
 // The console page's left and right edges (menu x; vr_menu_console.inc).
@@ -9853,7 +11368,7 @@ void consoleEdges(float& left, float& right);
     // The version label in the bottom right corner (vr_menubrand.cpp): where the page reaches under it (a flat screen's
     // narrower canvas), the page ends above it.
     int bottom = top + height;
-    if(float labelLeft, labelTop; menuui::versionLabelClearance(labelLeft, labelTop) && pageRight(pages[page].build) > labelLeft)
+    if(float labelLeft, labelTop; menuui::versionLabelClearance(labelLeft, labelTop) && pageRight(pages[ui().page].build) > labelLeft)
     {
         bottom = q_min(bottom, static_cast<int>(za::floor(labelTop)));
     }
@@ -9861,7 +11376,7 @@ void consoleEdges(float& left, float& right);
     // and below the status box in the top right corner where the page reaches under it (Search and the Map Library,
     // from x 12 440 and 460 across; the other pages to their scrollbar).
     int listTop = menuui::toolbarBeside() ? top + 36 : q_max(top + 36, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2);
-    const auto build = pages[page].build;
+    const auto build = pages[ui().page].build;
     const float right = build == pageMaps ? 12.f + 460.f : build == pageSearch ? 12.f + 440.f : midPos + 200.f;
     listTop = q_max(listTop, static_cast<int>(za::ceil(menuui::statusBottom(right))) + 2);
     return {top, listTop, bottom - 4 - 8 * helpBoxLines(), bottom};
@@ -9881,23 +11396,15 @@ void consoleEdges(float& left, float& right);
 
 // A VR page's rows' leftmost text (menu x), for the corner's buttons (menu::contentLeft): each label right-aligned
 // to the values' column (drawItem: midPos - 28 - its width), headers and lines of information centred (these 40
-// characters at most). Kept per page and build.
-struct RowsLeft
-{
-    int page{-1};
-    int build{-1};
-    int left{0};
-};
-RowsLeft rowsLeft;
-
+// characters at most). Kept per page and build (MenuInstance::rowsLeft).
 [[nodiscard]] int pageRowsLeft()
 {
-    if(rowsLeft.page != page || rowsLeft.build != builds[page])
+    if(ui().rowsLeft.page != ui().page || ui().rowsLeft.build != builds[ui().page])
     {
-        rowsLeft.page = page;
-        rowsLeft.build = builds[page];
+        ui().rowsLeft.page = ui().page;
+        ui().rowsLeft.build = builds[ui().page];
         int left = 0;
-        for(const Item& item : menuPages.built[page])
+        for(const Item& item : menuPages.built[ui().page])
         {
             const int len = item.label ? static_cast<int>(strlen(item.label)) : 0;
             const int x = item.kind == Item::Header ? (320 - 8 * len) / 2
@@ -9907,9 +11414,9 @@ RowsLeft rowsLeft;
             const bool marked = item.cvar && item.kind != Item::Action && item.kind != Item::Header && item.kind != Item::Info;
             left = q_min(left, marked ? x - 10 : x);
         }
-        rowsLeft.left = left;
+        ui().rowsLeft.left = left;
     }
-    return rowsLeft.left;
+    return ui().rowsLeft.left;
 }
 
 // The rows' heights: 8 pixels each, a section's header (and the first, under the title) with a gap above it
@@ -9985,7 +11492,7 @@ RowsLeft rowsLeft;
 // The rows shown on the page as it is scrolled now.
 [[nodiscard]] int visibleRows(const za::Vector<Item>& list)
 {
-    return rowsFrom(list, scrolls[page]);
+    return rowsFrom(list, ui().scrolls[ui().page]);
 }
 
 // The rows the list's height holds (the scrollbar's track).
@@ -10009,7 +11516,7 @@ RowsLeft rowsLeft;
 void moveCursor(const za::Vector<Item>& list, int dir)
 {
     const int n = static_cast<int>(list.size());
-    int& cursor = cursors[page];
+    int& cursor = ui().cursors[ui().page];
     int i = cursor;
     do
     {
@@ -10033,7 +11540,7 @@ void moveCursor(const za::Vector<Item>& list, int dir)
 // The page's position to keep (vr_menu_positions): none while it is at its top (as it opens anyway).
 void noteLeft(int p, const za::Vector<Item>& list)
 {
-    leftAnchors[p] = cursors[p] == firstSelectable(list) && scrolls[p] == 0 ? RowAnchor{} : anchorOf(list, cursors[p], scrolls[p]);
+    ui().leftAnchors[p] = ui().cursors[p] == firstSelectable(list) && ui().scrolls[p] == 0 ? RowAnchor{} : anchorOf(list, ui().cursors[p], ui().scrolls[p]);
 }
 
 // Shows `target`, with its cursor on a setting: where it was left (pages built anew as they are
@@ -10042,30 +11549,85 @@ void closeDropDown(); // (the drop-down lists, below: a page shown closes the on
 
 // The page a Search result opened (vr_menu_search.inc): Back from it returns to the results (VR Settings' Back too);
 // -1 once elsewhere.
+// Pages for one panel at a time (MULTI_MENU.md, stage 3): what they edit or stage is one, not a setting each row reads
+// as it draws (the weapon and hotspot edited and Align Sights' pending result, Body Calibration's, the checklist's notes,
+// the retro textures applied to the checked categories, a take reviewed, the keyboard pages' text input). Another panel
+// is refused them while one shows them. 0: any page; else its group (the Weapon Offsets pages are one).
+[[nodiscard]] int oneViewerGroup(int page)
+{
+    if(page < 0 || page >= pageCount)
+    {
+        return 0;
+    }
+    const PageBuilder b = pages[page].build;
+    return weaponOffsetsPage(b)                                 ? 1
+           : b == pageBodyCalibration                           ? 2
+           : b == pageChecklist                                 ? 3
+           : b == pageRetroAll                                  ? 4
+           : b == pageSearch                                    ? 5
+           : b == pageConsole                                   ? 6
+           : b == pageMaps                                      ? 7
+           : b == pageReviewTakes || b == pageReviewTake        ? 8
+                                                                : 0;
+}
+
+// The page a panel shows (its VR page; -1: another menu, or closed).
+[[nodiscard]] int instancePage(int i)
+{
+    const MenuInstance& m = menuInstances[i];
+    const int state = i == currentMenu ? static_cast<int>(m_state) : m.quakeState;
+    const bool open = i == 0 ? key_dest == key_menu && state != m_none : m.open;
+    return open && (state == m_vr || state == m_confirm) ? m.page : -1;
+}
+
+// The other panel showing a page of `page`'s group for one panel at a time (-1: none, or any page).
+[[nodiscard]] int pageTakenBy(int page)
+{
+    const int group = oneViewerGroup(page);
+    for(int i = 0; group && i < menu::instanceCount; i++)
+    {
+        if(i != currentMenu && oneViewerGroup(instancePage(i)) == group)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void showPage(int target)
 {
     closeDropDown();
-    page = target;
-    weightPageShown(pages[page].build); // a weight page: what is in the hand now
-    if(weaponOffsetsPage(pages[page].build))
+    if(const int by = pageTakenBy(target); by >= 0)
+    {
+        // (Its title says so a moment: VR_Menu_Draw.)
+        ui().refusedPage = target;
+        ui().refusedTime = realtime;
+        ui().refusedBy = by;
+        Con_Printf("%s: open in panel %d (one panel at a time)\n", pages[target].title, by + 1);
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    ui().page = target;
+    weightPageShown(pages[ui().page].build); // a weight page: what is in the hand now
+    if(weaponOffsetsPage(pages[ui().page].build))
     {
         weaponOffsetsStale = true; // the weapon in hand now
     }
-    if(pages[page].build == pageReviewTakes)
+    if(pages[ui().page].build == pageReviewTakes)
     {
         motion::review::invalidate(); // takes recorded, evaluated or moved since
     }
     // Built again each time it is shown (its row kept): rows that depend on anything not checked in items() (what is
     // changed now: Changed Settings; a state a builder reads) are as they are now, not as when the page was last built
     // (by Search, a menu path or Changed Settings, which build every page).
-    menuPages.done[page] = false;
-    const auto& list = items(page);
-    if(!selectable(list[cursors[page]]))
+    menuPages.done[ui().page] = false;
+    const auto& list = items(ui().page);
+    if(!selectable(list[ui().cursors[ui().page]]))
     {
-        cursors[page] = firstSelectable(list);
+        ui().cursors[ui().page] = firstSelectable(list);
     }
-    noteLeft(page, list);
-    visits[page] = ++visitCount;
+    noteLeft(ui().page, list);
+    ui().visits[ui().page] = ++ui().visitCount;
 }
 
 bool slotPage(PageBuilder build)
@@ -10079,21 +11641,28 @@ bool slotPage(PageBuilder build)
 // anti-aliasing).
 void resetAll()
 {
-    if(!resetAllArmed || realtime - resetAllArmedTime > 3.0)
+    if(!ui().resetAllArmed || realtime - ui().resetAllArmedTime > 3.0)
     {
-        resetAllArmed = true;
-        resetAllArmedTime = realtime;
+        ui().resetAllArmed = true;
+        ui().resetAllArmedTime = realtime;
         menuPages.done[PageMain] = false; // its label: Press Again to Reset All
         return;
     }
-    resetAllArmed = false;
+    ui().resetAllArmed = false;
     menuPages.done[PageMain] = false;
     za::Vector<cvar_t*> reset;
-    for(const Item& item : items(PageMain))
+    for(int p = 0; p < pageCount; p++)
     {
-        if(item.cvar && item.kind != Item::Action && !wrapperCvar(*item.cvar))
+        if(!vrSettingsPage(p))
         {
-            reset.pushBack(item.cvar);
+            continue;
+        }
+        for(const Item& item : items(p))
+        {
+            if(item.cvar && item.kind != Item::Action && !wrapperCvar(*item.cvar))
+            {
+                reset.pushBack(item.cvar);
+            }
         }
     }
     for(cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
@@ -10120,16 +11689,16 @@ void resetAll()
 
 void resetThisPage()
 {
-    if(resetArmedPage != page || realtime - resetArmedTime > 3.0)
+    if(ui().resetArmedPage != ui().page || realtime - ui().resetArmedTime > 3.0)
     {
-        resetArmedPage = page;
-        resetArmedTime = realtime;
-        menuPages.done[page] = false; // its label: Press Again to Reset
+        ui().resetArmedPage = ui().page;
+        ui().resetArmedTime = realtime;
+        menuPages.done[ui().page] = false; // its label: Press Again to Reset
         return;
     }
-    resetArmedPage = -1;
+    ui().resetArmedPage = -1;
     int n = 0;
-    for(const Item& item : items(page))
+    for(const Item& item : items(ui().page))
     {
         if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar) && !serverrules::locked(item.cvar))
         {
@@ -10137,8 +11706,8 @@ void resetThisPage()
             n++;
         }
     }
-    Con_Printf("VR: %s: %d setting%s back to %s default\n", pages[page].title, n, n == 1 ? "" : "s", n == 1 ? "its" : "their");
-    menuPages.done[page] = false;
+    Con_Printf("VR: %s: %d setting%s back to %s default\n", pages[ui().page].title, n, n == 1 ? "" : "s", n == 1 ? "its" : "their");
+    menuPages.done[ui().page] = false;
 }
 
 const char* changedNone()
@@ -10205,6 +11774,11 @@ void openPage(int target)
 // turn (its cursor off the headers), so that Back goes up the tree.
 void openInTree(int target)
 {
+    if(pageTakenBy(target) >= 0)
+    {
+        showPage(target); // (refused: the page shown stays, its title saying so)
+        return;
+    }
     za::Vector<int> chain;
     for(int p = target; p != PageMain && static_cast<int>(chain.size()) < pageCount; p = homeOf(p))
     {
@@ -10251,23 +11825,27 @@ void openFromAnywhere(int target)
 // Leaving the VR pages by Back for `state` (an outside menu: vr_menuui.cpp opens it as its own Back would).
 void leaveTo(int state)
 {
-    navReturning = true;
+    ui().navReturning = true;
     menuui::openMenu(state);
-    navReturning = false;
+    ui().navReturning = false;
 }
 
 // Back from the page shown (a key, a button): where the player came from (NavStack), else up the tree.
 void goBack()
 {
     navSyncTop();
-    if(nav.count >= 2)
+    if(ui().nav.count >= 2)
     {
-        nav.count--;
+        ui().nav.count--;
         const int dest = navTop();
         if(dest >= 0)
         {
             showPage(dest);
             S_LocalSound("misc/menu2.wav");
+        }
+        else if(currentMenu != 0)
+        {
+            menu::closeInstance(currentMenu); // (a panel other than the first shows VR pages only: Back out of them closes it)
         }
         else
         {
@@ -10276,26 +11854,27 @@ void goBack()
         return;
     }
     navReset();
-    if(page == PageMain)
+    if(ui().page == PageMain)
     {
+        if(currentMenu != 0)
+        {
+            navPush(PageMain);
+            menu::closeInstance(currentMenu);
+            return;
+        }
         M_Menu_Options_f(); // (its sound as it is drawn)
         return;
     }
-    if(pages[page].build == pageBodyCalibration && qvr::setup::waitsOnMenu())
+    if(pages[ui().page].build == pageBodyCalibration && qvr::setup::waitsOnMenu())
     {
         // VR Calibration waits on this page (paused, or the body's result not trusted): Back closes the menu, as the
         // menu button does, and the calibration goes on (not up the tree, the menu still open and it still waiting)
-        navPush(page);
+        navPush(ui().page);
         menuui::backToGame(HAND_MAIN);
         S_LocalSound("misc/menu2.wav");
         return;
     }
-    if(pages[page].build == pageToolgun)
-    {
-        qvr::menu::closeToolgun(); // (the toolgun's menu: back to the game)
-        return;
-    }
-    const int dest = homeOf(page);
+    const int dest = homeOf(ui().page);
     navPush(dest);
     showPage(dest);
     S_LocalSound("misc/menu2.wav");
@@ -10305,9 +11884,9 @@ void goBack()
 [[nodiscard]] int backTarget(int& outside)
 {
     outside = m_none;
-    if(nav.count >= 2 && navTop() == page)
+    if(ui().nav.count >= 2 && navTop() == ui().page)
     {
-        const int dest = nav.places[nav.count - 2];
+        const int dest = ui().nav.places[ui().nav.count - 2];
         if(dest < 0)
         {
             outside = -1 - dest;
@@ -10315,7 +11894,7 @@ void goBack()
         }
         return dest;
     }
-    return page == PageMain ? -1 : homeOf(page);
+    return ui().page == PageMain ? -1 : homeOf(ui().page);
 }
 
 // A setting's value as shown: a server rule's is the remote server's (vr_serverrules.cpp), the rest their own.
@@ -10327,7 +11906,7 @@ void goBack()
 // A server rule while connected to a remote server: shown, dimmed, not changed from here.
 [[nodiscard]] bool lockedItem(const Item& item)
 {
-    return (item.kind == Item::Slider || item.kind == Item::Cycle) && (item.unavailable || serverrules::locked(item.cvar));
+    return item.unavailable || ((item.kind == Item::Slider || item.kind == Item::Cycle) && serverrules::locked(item.cvar)); // AD support: unavailable spawn actions are locked too
 }
 
 [[nodiscard]] int currentChoice(const Item& item)
@@ -10357,17 +11936,10 @@ void goBack()
 // value set further off in the console or a config stays as it is until stepped towards the bar
 // (then it comes onto the limit at once). An extendable slider stops at the bar's end first: a new
 // press goes past, or holding on there for a moment; past the ends, holding steps faster the longer
-// it is held (2x after a second, then 5x, then 10x), on multiples of those steps.
-struct SliderHold
-{
-    const cvar_t* endCvar = nullptr; // stopped at a bar's end: which, which way, since when
-    int endDir = 0;
-    double endSince = 0.0;
-    double outsideSince = 0.0; // held past the ends since
-};
-SliderHold sliderHold; // (stepSlider: the menu's keys)
+// it is held (2x after a second, then 5x, then 10x), on multiples of those steps (MenuInstance::sliderHold).
 
-// The sliders' fine adjustment: while either grip is held in the headset (a grip does nothing else in the menus), or
+// The sliders' fine adjustment: while either grip is held in the headset (on the panel's frame, or moved, a grip moves
+// the panel instead: vr_menu_grab), or
 // Shift on a flat screen, a slider steps by vr_menu_fine_step of its step (0.1: a tenth), and shows the decimals that
 // takes (sliderText).
 bool fineForced = false; // (vr_menu_slider_step's "fine": the modifier as if held)
@@ -10430,10 +12002,10 @@ void sliderText(const Item& item, float value, char* buf, size_t size)
 float stepSlider(const Item& item, int dir, bool repeat)
 {
     constexpr double endHold = 0.6;
-    const cvar_t*& endCvar = sliderHold.endCvar;
-    int& endDir = sliderHold.endDir;
-    double& endSince = sliderHold.endSince;
-    double& outsideSince = sliderHold.outsideSince;
+    const cvar_t*& endCvar = ui().sliderHold.endCvar;
+    int& endDir = ui().sliderHold.endDir;
+    double& endSince = ui().sliderHold.endSince;
+    double& outsideSince = ui().sliderHold.outsideSince;
 
     // (A negative value under a negativeLabel, stored -1, is the bar's leftmost step: stepping right goes to
     // negativeStart, stepping left from there back to it.)
@@ -10562,9 +12134,9 @@ void change(const Item& item, int dir, bool repeat = false)
 // The list row under the mouse, or -1.
 [[nodiscard]] int rowAt(float cy)
 {
-    const auto& list = items(page);
+    const auto& list = items(ui().page);
     const float yrel = cy - static_cast<float>(layout().listTop);
-    const int first = scrolls[page];
+    const int first = ui().scrolls[ui().page];
     const int last = first + visibleRows(list);
     int i = -1;
     float y = 0.f;
@@ -10587,8 +12159,8 @@ void change(const Item& item, int dir, bool repeat = false)
 }
 
 // A long list's scrollbar, right of the values (as far as the screen goes), as Ironwail's lists
-// have: its thumb's top (pixels below listTop) and height (rows). False when the list fits.
-int scrollbarX = midPos + 188; // where it was drawn
+// have: its thumb's top (pixels below listTop) and height (rows). False when the list fits. (Where it was drawn:
+// MenuInstance::scrollbarX.)
 
 [[nodiscard]] bool scrollbar(const za::Vector<Item>& list, int& y, int& height)
 {
@@ -10600,17 +12172,17 @@ int scrollbarX = midPos + 188; // where it was drawn
     const int track = trackRows(list);
     const int n = static_cast<int>(list.size());
     height = CLAMP(2, static_cast<int>(track * visibleRows(list) / static_cast<float>(n) + 0.5f), track);
-    y = static_cast<int>(CLAMP(0, scrolls[page], most) * 8 / static_cast<float>(most) * (track - height) + 0.5f);
+    y = static_cast<int>(CLAMP(0, ui().scrolls[ui().page], most) * 8 / static_cast<float>(most) * (track - height) + 0.5f);
     return true;
 }
 
 // The cursor moved onto the nearest visible setting if the list scrolled it out of view.
 void keepCursorVisible()
 {
-    const auto& list = items(page);
+    const auto& list = items(ui().page);
     const int rows = visibleRows(list);
-    const int scroll = scrolls[page];
-    int& cursor = cursors[page];
+    const int scroll = ui().scrolls[ui().page];
+    int& cursor = ui().cursors[ui().page];
     const int dir = cursor < scroll ? 1 : cursor >= scroll + rows ? -1 : 0;
     if(dir != 0)
     {
@@ -10632,9 +12204,9 @@ void printRows()
         Con_Printf("menu_vr rows: not on a VR page\n");
         return;
     }
-    const auto& list = items(page);
+    const auto& list = items(ui().page);
     const Layout l = layout();
-    const int first = scrolls[page];
+    const int first = ui().scrolls[ui().page];
     const int shown = visibleRows(list);
     int bad = 0;
     for(int i = first; i < first + shown; i++)
@@ -10657,7 +12229,7 @@ void printRows()
 // The list scrolled to where the mouse holds the scrollbar, the cursor kept on a visible setting.
 void scrollTo(float cy)
 {
-    const auto& list = items(page);
+    const auto& list = items(ui().page);
     int y, height;
     if(!scrollbar(list, y, height))
     {
@@ -10666,7 +12238,7 @@ void scrollTo(float cy)
     const int most = maxScroll(list);
     const float yrel = cy - layout().listTop - height * 4.f;
     const int range = q_max((trackRows(list) - height) * 8, 1);
-    scrolls[page] = CLAMP(0, static_cast<int>(yrel * most / range + 0.5f), most);
+    ui().scrolls[ui().page] = CLAMP(0, static_cast<int>(yrel * most / range + 0.5f), most);
     keepCursorVisible();
 }
 
@@ -10703,21 +12275,7 @@ void setSliderAt(const Item& item, float cx)
 // and right still step through the choices without it.
 // ----------------------------------------------------------------------------
 
-struct DropDown
-{
-    bool open{false};
-    int page{-1};
-    int row{-1};               // the row's index in the page's list
-    const cvar_t* cvar{nullptr}; // its setting and how many choices it had (a rebuilt page checked against them)
-    int count{0};
-    int hover{0};  // the choice highlighted
-    int scroll{0}; // the first choice shown
-    bool scrollGrab{false};
-    // Laid out as it opened: the inside's left, width and top (menu coordinates), its rows, its width in
-    // characters (M_DrawTextBox), the longest label's.
-    int x{0}, width{0}, top{0}, rows{0}, chars{0}, labelChars{0};
-};
-DropDown dropDown;
+// (Its state: MenuInstance::dropDown.)
 
 constexpr int dropDownBar = 16; // the scrollbar's column, inside the box's right edge
 
@@ -10729,30 +12287,30 @@ constexpr int dropDownBar = 16; // the scrollbar's column, inside the box's righ
 
 void closeDropDown()
 {
-    dropDown.open = false;
-    dropDown.scrollGrab = false;
+    ui().dropDown.open = false;
+    ui().dropDown.scrollGrab = false;
 }
 
 // The open list's row, or null (closed now if its page or row is gone, or the corner's buttons took the selection).
 [[nodiscard]] const Item* dropDownItem()
 {
-    if(!dropDown.open)
+    if(!ui().dropDown.open)
     {
         return nullptr;
     }
-    if(m_state != m_vr || page != dropDown.page || menuui::toolbarFocused())
-    {
-        closeDropDown();
-        return nullptr;
-    }
-    const auto& list = items(page);
-    if(dropDown.row >= static_cast<int>(list.size()))
+    if(m_state != m_vr || ui().page != ui().dropDown.page || menuui::toolbarFocused())
     {
         closeDropDown();
         return nullptr;
     }
-    const Item& item = list[dropDown.row];
-    if(item.kind != Item::Cycle || item.cvar != dropDown.cvar || static_cast<int>(item.choices.size()) != dropDown.count)
+    const auto& list = items(ui().page);
+    if(ui().dropDown.row >= static_cast<int>(list.size()))
+    {
+        closeDropDown();
+        return nullptr;
+    }
+    const Item& item = list[ui().dropDown.row];
+    if(item.kind != Item::Cycle || item.cvar != ui().dropDown.cvar || static_cast<int>(item.choices.size()) != ui().dropDown.count)
     {
         closeDropDown();
         return nullptr;
@@ -10762,15 +12320,15 @@ void closeDropDown()
 
 void dropDownShowHover()
 {
-    if(dropDown.hover < dropDown.scroll)
+    if(ui().dropDown.hover < ui().dropDown.scroll)
     {
-        dropDown.scroll = dropDown.hover;
+        ui().dropDown.scroll = ui().dropDown.hover;
     }
-    else if(dropDown.hover >= dropDown.scroll + dropDown.rows)
+    else if(ui().dropDown.hover >= ui().dropDown.scroll + ui().dropDown.rows)
     {
-        dropDown.scroll = dropDown.hover - dropDown.rows + 1;
+        ui().dropDown.scroll = ui().dropDown.hover - ui().dropDown.rows + 1;
     }
-    dropDown.scroll = CLAMP(0, dropDown.scroll, q_max(dropDown.count - dropDown.rows, 0));
+    ui().dropDown.scroll = CLAMP(0, ui().dropDown.scroll, q_max(ui().dropDown.count - ui().dropDown.rows, 0));
 }
 
 // The list of `item`'s choices (the page's row `row`), opened by its row: as wide as its longest
@@ -10787,10 +12345,10 @@ void openDropDown(const Item& item, int row)
     }
     longest = q_min(longest, 30);
 
-    DropDown& d = dropDown;
+    DropDown& d = ui().dropDown;
     d.open = true;
     d.scrollGrab = false;
-    d.page = page;
+    d.page = ui().page;
     d.row = row;
     d.cvar = item.cvar;
     d.count = n;
@@ -10813,7 +12371,7 @@ void openDropDown(const Item& item, int row)
     }
 
     // Up and down: the current choice level with the row, the box inside the menu.
-    const int rowY = l.listTop + rowTop(items(page), scrolls[page], row);
+    const int rowY = l.listTop + rowTop(items(ui().page), ui().scrolls[ui().page], row);
     d.top = rowY - (cur - d.scroll) * 8;
     d.top = CLAMP(l.top + 12, d.top, q_max(l.top + 12, l.bottom - 12 - d.rows * 8));
     S_LocalSound("misc/menu3.wav");
@@ -10822,7 +12380,7 @@ void openDropDown(const Item& item, int row)
 // Sets the hovered choice and closes the list.
 void pickDropDown(const Item& item)
 {
-    const float v = item.choices[CLAMP(0, dropDown.hover, dropDown.count - 1)].value;
+    const float v = item.choices[CLAMP(0, ui().dropDown.hover, ui().dropDown.count - 1)].value;
     cvar_t* const cvar = item.cvar;
     closeDropDown();
     Cvar_SetValueQuick(cvar, v); // (`item` may be gone after this: a page rebuilt by the setting's change)
@@ -10831,20 +12389,20 @@ void pickDropDown(const Item& item)
 
 [[nodiscard]] bool insideDropDown(float cx, float cy)
 {
-    const DropDown& d = dropDown;
+    const DropDown& d = ui().dropDown;
     return cx >= d.x - 6 && cx < d.x + d.width + 6 && cy >= d.top - 6 && cy < d.top + d.rows * 8 + 6;
 }
 
 [[nodiscard]] bool onDropDownBar(float cx, float cy)
 {
-    const DropDown& d = dropDown;
+    const DropDown& d = ui().dropDown;
     return d.count > d.rows && insideDropDown(cx, cy) && cx >= d.x + d.width - dropDownBar;
 }
 
 // The choice under the mouse, or -1.
 [[nodiscard]] int dropDownChoiceAt(float cx, float cy)
 {
-    const DropDown& d = dropDown;
+    const DropDown& d = ui().dropDown;
     if(!insideDropDown(cx, cy) || onDropDownBar(cx, cy) || cy < d.top || cy >= d.top + d.rows * 8)
     {
         return -1;
@@ -10856,14 +12414,14 @@ void pickDropDown(const Item& item)
 // The scrollbar's thumb: its top (pixels below the list's top) and height (rows).
 void dropDownThumb(int& y, int& height)
 {
-    const DropDown& d = dropDown;
+    const DropDown& d = ui().dropDown;
     height = q_max(static_cast<int>(d.rows * d.rows / static_cast<float>(d.count) + 0.5f), 2);
     y = static_cast<int>(d.scroll * 8 / static_cast<float>(d.count - d.rows) * (d.rows - height) + 0.5f);
 }
 
 void dropDownScrollTo(float cy)
 {
-    DropDown& d = dropDown;
+    DropDown& d = ui().dropDown;
     if(d.count <= d.rows)
     {
         return;
@@ -10881,7 +12439,7 @@ void drawDropDown()
     {
         return;
     }
-    const DropDown& d = dropDown;
+    const DropDown& d = ui().dropDown;
     M_DrawTextBox(d.x - 8, d.top - 8, d.chars, d.rows);
     const int cur = currentChoice(*item);
     const int textRight = d.x + d.width - (d.count > d.rows ? dropDownBar : 0);
@@ -10920,7 +12478,7 @@ bool dropDownKey(int key)
     {
         return false;
     }
-    DropDown& d = dropDown;
+    DropDown& d = ui().dropDown;
     switch(key)
     {
         case K_ESCAPE:
@@ -10983,7 +12541,7 @@ bool dropDownMousemove(float cx, float cy)
     {
         return false;
     }
-    DropDown& d = dropDown;
+    DropDown& d = ui().dropDown;
     if(d.scrollGrab)
     {
         if(keydown[K_MOUSE1])
@@ -11227,14 +12785,6 @@ const char* itemHelp(const Item& item)
     return help;
 }
 
-// The help shown, and since when (its pages turn from the first; a new text starts over).
-struct HelpPaging
-{
-    za::U32 hash{0};
-    double since{0.0};
-    int shown{-1}; // the page of it shown (for the developer line when it turns)
-};
-HelpPaging helpPaging;
 
 constexpr double helpPageBase = 2.0; // seconds a part of the help stays, and more for each word on it (vr_menu_help_wpm)
 
@@ -11254,11 +12804,11 @@ void drawHelp(const char* text)
         {
             hash = (hash ^ static_cast<unsigned char>(*c)) * 16777619u;
         }
-        if(hash != helpPaging.hash)
+        if(hash != ui().helpPaging.hash)
         {
-            helpPaging.hash = hash;
-            helpPaging.since = realtime;
-            helpPaging.shown = -1;
+            ui().helpPaging.hash = hash;
+            ui().helpPaging.since = realtime;
+            ui().helpPaging.shown = -1;
         }
         // Each page's time from its words; the pages one after another, then the first again.
         const int pageCount = (lines + box - 1) / box;
@@ -11277,7 +12827,7 @@ void drawHelp(const char* text)
             durations[pg] = helpPageBase + 60.0 * words / CLAMP(60.0, static_cast<double>(vr_menu_help_wpm.value), 600.0);
             cycle += durations[pg];
         }
-        double t = fmod(realtime - helpPaging.since, cycle);
+        double t = fmod(realtime - ui().helpPaging.since, cycle);
         int shown = 0;
         while(shown < pageCount - 1 && t >= durations[shown])
         {
@@ -11285,10 +12835,10 @@ void drawHelp(const char* text)
             shown++;
         }
         first = shown * box;
-        if(shown != helpPaging.shown)
+        if(shown != ui().helpPaging.shown)
         {
-            helpPaging.shown = shown;
-            Con_DPrintf("menu help: part %d of %d (%d lines, %.1f s)\n", shown + 1, pageCount, lines, realtime - helpPaging.since);
+            ui().helpPaging.shown = shown;
+            Con_DPrintf("menu help: part %d of %d (%d lines, %.1f s)\n", shown + 1, pageCount, lines, realtime - ui().helpPaging.since);
         }
 
         // Which part is shown: the bar's thumb, and its share of the text.
@@ -11347,7 +12897,7 @@ za::Vector<Item> pageMaps()
 
 void dumpPages()
 {
-    const int was = page;
+    const int was = ui().page;
     int depth[pageCount];
     int from[pageCount];
     int linksIn[pageCount]{};
@@ -11413,7 +12963,7 @@ void dumpPages()
 // grew, HELPSUM the count, the longest and how many need turning pages. For the help's fit (the menu's tests).
 void helpCheck(int columnsAsked)
 {
-    const int was = page;
+    const int was = ui().page;
     const int columns = columnsAsked > 0 ? columnsAsked : helpColumns();
     int rows = 0, longest = 0, longestChars = 0, turning = 0, grown = 0;
     int histogram[helpMaxLines + 2]{};
@@ -11733,6 +13283,66 @@ void qvr::menu::dump_f()
     levelOverride = was;
 }
 
+void qvr::menu::press_f()
+{
+    // (Unquoted, the page and the row split at " > ": a test script's quotes need not survive its shell.)
+    char args[512];
+    q_strlcpy(args, Cmd_Args() ? Cmd_Args() : "", sizeof(args));
+    char* split = strstr(args, " > ");
+    if(!split)
+    {
+        Con_Printf("usage: vr_menu_press <page title> > <row label>\n");
+        return;
+    }
+    *split = '\0';
+    const char* title = args;
+    const char* label = split + 3;
+    const int was = levelOverride;
+    levelOverride = LevelDeveloper;
+    const char* command = nullptr;
+    void (*action)() = nullptr;
+    bool found = false;
+    bool locked = false;
+    for(int p = 0; p < pageCount && !found; p++)
+    {
+        if(q_strcasecmp(pages[p].title, title))
+        {
+            continue;
+        }
+        for(const Item& item : items(p))
+        {
+            if(item.kind == Item::Action && item.label && !q_strcasecmp(item.label, label))
+            {
+                command = item.command;
+                action = item.page < 0 && !item.actionArg ? item.action : nullptr;
+                locked = item.unavailable;
+                found = true;
+                break;
+            }
+        }
+    }
+    levelOverride = was;
+    if(!found || (!command && !action))
+    {
+        Con_Printf("vr_menu_press: no button \"%s\" on page \"%s\"\n", label, title);
+        return;
+    }
+    if(locked)
+    {
+        Con_Printf("vr_menu_press: %s > %s is locked (unavailable), not pressed\n", title, label);
+        return;
+    }
+    Con_Printf("vr_menu_press: %s > %s%s%s\n", title, label, command ? ": " : "", command ? command : "");
+    if(command)
+    {
+        runCommand(command);
+    }
+    else
+    {
+        action();
+    }
+}
+
 int qvr::menu::bodyCalibrationPage()
 {
     return pageIndex(pageBodyCalibration);
@@ -11747,7 +13357,7 @@ int qvr::menu::retroOverridePage()
 // closes it at once, as the menu button does; elsewhere Quake's way (to the main menu first).
 extern "C" int VR_MenuToggleCloses()
 {
-    return m_state == m_vr && key_dest == key_menu && pages[page].build == pageBodyCalibration &&
+    return m_state == m_vr && key_dest == key_menu && pages[ui().page].build == pageBodyCalibration &&
            qvr::setup::waitsOnMenu();
 }
 
@@ -11789,15 +13399,15 @@ extern "C" void VR_NavJump(int state)
         navEnterFrom(outsideMenu());
     }
     navPush(outsidePlace(state));
-    navJumpPending = state;
+    ui().navJumpPending = state;
 }
 
 // An outside menu opened (Ironwail's Levels; `previous` the menu shown before): by a jump or by Back into it, its place on
 // the stack kept; from its own way in (Single Player, a mod's), the stack started again (its Back its own).
 extern "C" void VR_NavEntered(int state, int previous)
 {
-    const bool kept = navJumpPending == state || navReturning || previous == m_skill || previous == state;
-    navJumpPending = -1;
+    const bool kept = ui().navJumpPending == state || ui().navReturning || previous == m_skill || previous == state;
+    ui().navJumpPending = -1;
     if(!kept || navTop() != outsidePlace(state))
     {
         navReset();
@@ -11807,12 +13417,12 @@ extern "C" void VR_NavEntered(int state, int previous)
 // Back from an outside menu entered by a jump: where it came from (nonzero), else 0 (its own Back).
 extern "C" int VR_NavBack(int state)
 {
-    if(nav.count < 2 || navTop() != outsidePlace(state))
+    if(ui().nav.count < 2 || navTop() != outsidePlace(state))
     {
         navReset();
         return 0;
     }
-    nav.count--;
+    ui().nav.count--;
     const int dest = navTop();
     if(dest >= 0)
     {
@@ -11921,7 +13531,7 @@ void qvr::menu::command_f()
                 menuui::toolbarRight(), menuui::toolbarBeside() ? "beside" : "over", menuui::toolbarBottom());
             if(m_state == m_vr)
             {
-                Con_Printf("menu_vr pos: rows from y %d, %d shown\n", layout().listTop, visibleRows(items(page)));
+                Con_Printf("menu_vr pos: rows from y %d, %d shown\n", layout().listTop, visibleRows(items(ui().page)));
             }
             float bx0, bx1, by0, by1;
             menuui::bannerRect(bx0, bx1, by0, by1);
@@ -11929,6 +13539,19 @@ void qvr::menu::command_f()
             {
                 Con_Printf("menu_vr pos: banner x %.0f..%.0f, y %.0f..%.0f (text from x %d)\n", bx0, bx1, by0, by1,
                     m_state == m_vr ? static_cast<int>(menu::contentLeft()) : M_TextLeft());
+            }
+            if(menuui::active())
+            {
+                const bool beside = menuui::bannerColumnRect(bx0, bx1, by0, by1);
+                if(menuui::bannerColumnShown())
+                {
+                    Con_Printf("menu_vr pos: banner x %.0f..%.0f, y %.0f..%.0f (%s the buttons, from x %.0f)\n", bx0, bx1, by0,
+                        by1, beside ? "left of" : "under", menuui::toolbarLeft());
+                }
+                else
+                {
+                    Con_Printf("menu_vr pos: banner not drawn\n");
+                }
             }
             menuui::printVersionLabel();
             menuui::printRecordingButton();
@@ -11947,6 +13570,13 @@ void qvr::menu::command_f()
                 M_Main_Layout(&step, &gap);
                 Con_Printf("menu_vr pos: menu %d (%s), row \"%s\"%s (rows %d apart, groups %d more)\n", static_cast<int>(m_state),
                     name, M_Main_RowLabel(), corner, step, gap);
+                float rx0, rx1;
+                M_Main_RowsExtent(&rx0, &rx1);
+                Con_Printf("menu_vr pos: main rows x %.0f..%.0f (middle %.1f; the title's 160)\n", rx0, rx1, (rx0 + rx1) * 0.5f);
+                float ry0, ry1, cy0, cy1;
+                M_Main_RowsSpan(&ry0, &ry1, &cy0, &cy1);
+                Con_Printf("menu_vr pos: main title and rows y %.0f..%.0f (middle %.1f; the canvas's y %.0f..%.0f, middle %.1f)\n",
+                    ry0, ry1, (ry0 + ry1) * 0.5f, cy0, cy1, (cy0 + cy1) * 0.5f);
                 menuui::printLaser();
                 return;
             }
@@ -11954,13 +13584,13 @@ void qvr::menu::command_f()
                 key_dest == key_menu && m_state == m_singleplayer ? va(", row %d", m_singleplayer_cursor) : "");
             return;
         }
-        const auto& list = items(page);
-        const int cursor = cursors[page];
+        const auto& list = items(ui().page);
+        const int cursor = ui().cursors[ui().page];
         int outside = m_none;
         const int back = backTarget(outside);
-        Con_Printf("menu_vr pos: page %d \"%s\" (back to %d%s), row %d \"%s\" under \"%s\", scroll %d of %d rows%s\n", page,
-            pages[page].title, back, outside != m_none ? va(", menu %d", outside) : "", cursor, rowLabel(list[cursor]), rowSection(list, cursor),
-            scrolls[page], static_cast<int>(list.size()), corner);
+        Con_Printf("menu_vr pos: page %d \"%s\" (back to %d%s), row %d \"%s\" under \"%s\", scroll %d of %d rows%s\n", ui().page,
+            pages[ui().page].title, back, outside != m_none ? va(", menu %d", outside) : "", cursor, rowLabel(list[cursor]), rowSection(list, cursor),
+            ui().scrolls[ui().page], static_cast<int>(list.size()), corner);
         if(cursor < static_cast<int>(list.size()) && list[cursor].cvar && list[cursor].kind == Item::Slider)
         {
             char shown[64];
@@ -11970,7 +13600,7 @@ void qvr::menu::command_f()
         }
         if(const Item* open = dropDownItem())
         {
-            const DropDown& d = dropDown;
+            const DropDown& d = ui().dropDown;
             Con_Printf("menu_vr pos: list open on row %d, %d choices, highlighted %d \"%s\", shows %d from %d, box x %d..%d y %d..%d\n",
                 d.row, d.count, d.hover, open->choices[d.hover].label, d.rows, d.scroll, d.x, d.x + d.width, d.top, d.top + d.rows * 8);
         }
@@ -11986,7 +13616,7 @@ void qvr::menu::command_f()
             // menu_vr <page> <row>: the cursor on that row (counted from 0, headers and lines of text included), if it
             // can rest there (scripts, screenshots); or on the first setting whose label starts with <row>'s text
             // (menu_vr 90 "Holstered X").
-            const auto& list = items(page);
+            const auto& list = items(ui().page);
             int row = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : -1;
             if(Cmd_Argc() > 2 && (Cmd_Argv(2)[0] < '0' || Cmd_Argv(2)[0] > '9'))
             {
@@ -12001,7 +13631,7 @@ void qvr::menu::command_f()
             }
             if(row >= 0 && row < static_cast<int>(list.size()) && selectable(list[row]))
             {
-                cursors[page] = row;
+                ui().cursors[ui().page] = row;
             }
         }
     }
@@ -12009,7 +13639,7 @@ void qvr::menu::command_f()
 
 bool qvr::menu::holsterPreview(int& hand, int& kind)
 {
-    if(m_state != m_vr || pages[page].build != pageWofsHolstered || vr_weapon_holster_preview.value == 0.f ||
+    if(m_state != m_vr || pages[ui().page].build != pageWofsHolstered || vr_weapon_holster_preview.value == 0.f ||
         weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weaponOffsetsHolster < 0 ||
         weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
     {
@@ -12028,7 +13658,7 @@ bool qvr::menu::holsterPreview(int& hand, int& kind)
 
 bool qvr::menu::flashlightMountPreview(int& hand)
 {
-    if(m_state != m_vr || pages[page].build != pageWofsFlashlight || vr_flashlight_mount_preview.value == 0.f ||
+    if(m_state != m_vr || pages[ui().page].build != pageWofsFlashlight || vr_flashlight_mount_preview.value == 0.f ||
         weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
     {
         return false; // not on the page, off, the empty hand, or the hand holds another weapon now
@@ -12037,36 +13667,361 @@ bool qvr::menu::flashlightMountPreview(int& hand)
     return true;
 }
 
-int qvr::menu::currentPage()
+namespace
 {
-    return page;
+
+
+// A setting placing (or showing) something worn on the body: the holsters, the pouches, the flashlight on the belt and
+// on the head, the wrist gadget's mount, the virtual stock, the pauldrons.
+[[nodiscard]] bool tweaksBody(const char* name)
+{
+    constexpr const char* prefixes[] = {"vr_menu_holster_", "vr_hip_offset_", "vr_hip_holster_", "vr_shoulder_holster_",
+        "vr_upper_holster_", "vr_leg_holster_", "vr_grenade_pouch", "vr_ammo_pouch", "vr_flashlight_head",
+        "vr_shoulder_offset_", "vr_virtual_stock", "vr_body_pauldron"};
+    constexpr const char* names[] = {"vr_show_hip_holsters", "vr_show_shoulder_holsters", "vr_show_upper_holsters",
+        "vr_show_grenade_pouch", "vr_show_flashlight_zones", "vr_show_virtual_stock", "vr_flashlight_forward",
+        "vr_flashlight_up", "vr_flashlight_out", "vr_flashlight_tilt", "vr_gadget_scale", "vr_gadget_x", "vr_gadget_y",
+        "vr_gadget_z", "vr_gadget_pitch", "vr_gadget_yaw", "vr_gadget_roll"};
+    for(const char* p : prefixes)
+    {
+        if(!strncmp(name, p, strlen(p)))
+        {
+            return true;
+        }
+    }
+    for(const char* n : names)
+    {
+        if(!strcmp(name, n))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
-bool qvr::menu::toolgunPageShown()
+} // namespace
+
+bool qvr::menu::bodyClonePage()
 {
-    if(key_dest != key_menu || m_state != m_vr || page < 0 || page >= pageCount)
+    if(key_dest != key_menu || m_state != m_vr || ui().page < 0 || ui().page >= pageCount)
     {
+        ui().bodyCloneLatch = -1;
         return false;
     }
-    const PageBuilder b = pages[page].build;
-    return b == pageToolgun || b == pageToolgunSpawn || b == pageToolgunCheats;
+    const PageBuilder b = pages[ui().page].build;
+    if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || ui().bodyCloneLatch == ui().page)
+    {
+        return true;
+    }
+    const cvar_t* chosen = selectedSetting();
+    ui().bodyCloneLatch = chosen && tweaksBody(chosen->name) ? ui().page : -1;
+    return ui().bodyCloneLatch == ui().page;
 }
 
-void qvr::menu::openToolgun()
+int qvr::menu::currentPage()
 {
-    openFromAnywhere(pageIndex(pageToolgun));
+    return ui().page;
 }
 
-void qvr::menu::closeToolgun()
+int qvr::menu::currentInstance()
 {
-    if(key_dest != key_menu)
+    return currentMenu;
+}
+
+void qvr::menu::selectInstance(int instance)
+{
+    instance = CLAMP(0, instance, instanceCount - 1);
+    if(instance == currentMenu)
     {
         return;
     }
-    // As Back to Game (vr_menuui.cpp backToGame), not remembered: the menu button opens the VR Settings as ever.
-    IN_Activate();
-    key_dest = key_game;
-    m_state = m_none;
+    // Quake's menu state and the menus' mouse go with the instance (MenuInstance::quakeState).
+    ui().quakeState = static_cast<int>(m_state);
+    ui().mouseX = m_mousex;
+    ui().mouseY = m_mousey;
+    currentMenu = instance;
+    m_state = static_cast<m_state_e>(ui().quakeState);
+    m_mousex = ui().mouseX;
+    m_mousey = ui().mouseY;
+    M_RefreshBounds(); // (its menu's layout: the lists' mouse)
+}
+
+bool qvr::menu::instanceOpen(int instance)
+{
+    if(instance <= 0)
+    {
+        return key_dest == key_menu && mainState() != m_none;
+    }
+    // (Hidden while the menu is closed: the panels stay open in their places, shown again when it opens, MULTI_MENU.md.)
+    return instance < instanceCount && menuInstances[instance].open && key_dest == key_menu && mainState() != m_none;
+}
+
+int qvr::menu::openInstances()
+{
+    int n = 0;
+    for(int i = 0; i < instanceCount; i++)
+    {
+        n += instanceOpen(i) ? 1 : 0;
+    }
+    return n;
+}
+
+int qvr::menu::mainState()
+{
+    return currentMenu == 0 ? static_cast<int>(m_state) : menuInstances[0].quakeState;
+}
+
+bool qvr::menu::openInstance()
+{
+    if(key_dest != key_menu || m_state == m_none)
+    {
+        return false;
+    }
+    glm::vec3 corner, xAxis, yAxis;
+    if(!panel::menuQuad(hands::current(), 0, corner, xAxis, yAxis))
+    {
+        Con_Printf("New Panel: only with the menu in the headset\n");
+        S_LocalSound("misc/menu1.wav");
+        return false;
+    }
+    int slot = -1;
+    for(int i = 1; i < instanceCount && slot < 0; i++)
+    {
+        slot = menuInstances[i].open ? -1 : i;
+    }
+    if(slot < 0)
+    {
+        Con_Printf("New Panel: %d panels open at most\n", instanceCount);
+        S_LocalSound("misc/menu1.wav");
+        return false;
+    }
+
+    // The page shown here (not one for one panel at a time), else the VR Settings; each page's selection and scroll as
+    // here, nothing under way.
+    const int target = (m_state == m_vr || m_state == m_confirm) && !oneViewerGroup(ui().page) ? ui().page : PageMain;
+    MenuInstance& n = menuInstances[slot];
+    const MenuInstance& from = ui();
+    n = MenuInstance{};
+    for(int p = 0; p < pageCount; p++)
+    {
+        n.cursors[p] = from.cursors[p];
+        n.scrolls[p] = from.scrolls[p];
+        n.leftAnchors[p] = from.leftAnchors[p];
+        n.visits[p] = from.visits[p];
+    }
+    n.visitCount = from.visitCount;
+    n.open = true;
+    n.quakeState = m_vr;
+    n.page = PageMain;
+
+    selectInstance(slot);
+    navReset();
+    if(target == PageMain)
+    {
+        navPush(PageMain);
+        showPage(PageMain);
+    }
+    else
+    {
+        openInTree(target);
+    }
+    panel::openMenuPanel(slot);
+    S_LocalSound("misc/menu2.wav");
+    Con_DPrintf("menu panel %d opened: %s\n", slot + 1, pages[ui().page].title);
+    return true;
+}
+
+namespace
+{
+void closeQuietly(int instance)
+{
+    if(instance <= 0 || instance >= menu::instanceCount || !menuInstances[instance].open)
+    {
+        return;
+    }
+    panel::closeMenuPanel(instance);
+    if(currentMenu == instance)
+    {
+        menu::selectInstance(0);
+    }
+    menuInstances[instance].open = false;
+    menuInstances[instance].quakeState = m_none;
+}
+} // namespace
+
+void qvr::menu::closeInstance(int instance)
+{
+    if(instance > 0 && instance < instanceCount && menuInstances[instance].open)
+    {
+        closeQuietly(instance);
+        S_LocalSound("misc/menu2.wav");
+    }
+}
+
+void qvr::menu::closeExtraInstances()
+{
+    for(int i = 1; i < instanceCount; i++)
+    {
+        closeQuietly(i);
+    }
+}
+
+void qvr::menu::tidyInstances()
+{
+    bool extras = false;
+    for(int i = 1; i < instanceCount; i++)
+    {
+        extras = extras || menuInstances[i].open;
+    }
+    if(!extras)
+    {
+        return;
+    }
+    if(key_dest != key_menu || mainState() == m_none)
+    {
+        // The menu closed (from whichever panel): the panels are hidden, not closed (instanceOpen), each keeping its
+        // page and place; the first is the current one again.
+        if(currentMenu != 0)
+        {
+            const bool none = m_state == m_none;
+            m_state = m_vr;
+            selectInstance(0);
+            if(none)
+            {
+                m_state = m_none;
+            }
+        }
+        return;
+    }
+    if(currentMenu != 0 && m_state != m_vr && m_state != m_confirm)
+    {
+        // Out of the VR pages to one of Quake's menus (single: on the first panel); this panel stays on its page.
+        const m_state_e state = m_state;
+        m_state = m_vr;
+        selectInstance(0);
+        m_state = state;
+    }
+}
+
+void qvr::menu::drawInstance(int instance)
+{
+    const int was = currentMenu;
+    drawnInstance = instance;
+    selectInstance(instance);
+    M_DrawPanel();
+    selectInstance(was);
+    drawnInstance = -1;
+}
+
+void qvr::menu::panels_f()
+{
+    const char* arg = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const int n = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) - 1 : -1;
+    if(!q_strcasecmp(arg, "open"))
+    {
+        openInstance();
+        return;
+    }
+    if(!q_strcasecmp(arg, "close") && n >= 1 && n < instanceCount)
+    {
+        closeInstance(n);
+        return;
+    }
+    if(!q_strcasecmp(arg, "focus") && n >= 0 && n < instanceCount && instanceOpen(n))
+    {
+        selectInstance(n);
+        return;
+    }
+    if(arg[0])
+    {
+        Con_Printf("vr_menu_panels [open | close <2..%d> | focus <1..%d>]: the menu panels open (MENUPANELS), or another opened, "
+                   "one closed or focused (the first closes with Back to game)\n",
+            instanceCount, instanceCount);
+        return;
+    }
+    Con_Printf("MENUPANELS open %d focused %d\n", openInstances(), currentMenu + 1);
+    const int was = currentMenu;
+    for(int i = 0; i < instanceCount; i++)
+    {
+        if(!instanceOpen(i))
+        {
+            continue;
+        }
+        selectInstance(i);
+        const bool vrPage = m_state == m_vr;
+        const auto& list = items(ui().page);
+        const int cursor = ui().cursors[ui().page];
+        const char* row = vrPage && cursor >= 0 && cursor < static_cast<int>(list.size()) ? rowLabel(list[cursor]) : "";
+        Con_Printf("MENUPANEL %d menu %d page %d \"%s\" row \"%s\" value %g drawn %d\n", i + 1, static_cast<int>(m_state),
+            vrPage ? ui().page : -1, vrPage ? pages[ui().page].title : "", row, ui().drawnValue,
+            ui().drawnFrame >= 0 ? host_framecount - ui().drawnFrame : -1);
+    }
+    selectInstance(was);
+}
+
+extern "C" int VR_MenuDrawSelect()
+{
+    if(instanceDrawDepth++ > 0 || drawnInstance >= 0)
+    {
+        return -1;
+    }
+    menu::tidyInstances();
+    if(currentMenu == 0 || !panel::menusInEyes())
+    {
+        return -1; // (on a flat screen, or the runtime's own panel: the focused panel's menu only)
+    }
+    const int was = currentMenu;
+    menu::selectInstance(0);
+    return was;
+}
+
+extern "C" int VR_MenuDrawRestore(int was)
+{
+    instanceDrawDepth--;
+    if(was < 0)
+    {
+        return 0;
+    }
+    menu::selectInstance(was);
+    return 1;
+}
+
+int qvr::menu::toolgunCheatCount()
+{
+    findToolgunCheats();
+    return static_cast<int>(toolgunCheats.list.size());
+}
+
+const char* qvr::menu::toolgunCheatName(int i)
+{
+    return i >= 0 && i < toolgunCheatCount() ? toolgunCheats.list[i].name : "";
+}
+
+bool qvr::menu::toolgunCheatOn(int i)
+{
+    return i >= 0 && i < toolgunCheatCount() && toolgunCheatIsOn(toolgunCheats.list[i]);
+}
+
+void qvr::menu::toolgunCheatUse(int i)
+{
+    if(i < 0 || i >= toolgunCheatCount())
+    {
+        return;
+    }
+    const ToolgunCheat& c = toolgunCheats.list[i];
+    if(c.cvar)
+    {
+        Cvar_SetValueQuick(c.cvar, c.cvar->value != 0.f ? 0.f : 1.f);
+    }
+    if(c.command)
+    {
+        runCommand(c.command);
+    }
+    if(c.action)
+    {
+        c.action();
+    }
+    Con_Printf("toolgun: %s\n", c.name);
 }
 
 const cvar_t* qvr::menu::selectedSetting()
@@ -12075,8 +14030,8 @@ const cvar_t* qvr::menu::selectedSetting()
     {
         return nullptr;
     }
-    const auto& list = items(page);
-    const int cursor = cursors[page];
+    const auto& list = items(ui().page);
+    const int cursor = ui().cursors[ui().page];
     return cursor >= 0 && cursor < static_cast<int>(list.size()) ? list[cursor].cvar : nullptr;
 }
 
@@ -12086,7 +14041,7 @@ void qvr::menu::jumpToAdvanced()
     {
         Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(LevelAdvanced)); // (the corner's Advanced VR: the pages it lists)
     }
-    if(m_state == m_vr && page == PageAdvanced)
+    if(m_state == m_vr && ui().page == PageAdvanced)
     {
         S_LocalSound("misc/menu1.wav");
         return;
@@ -12197,7 +14152,7 @@ float qvr::menu::contentLeft()
     {
         return static_cast<float>(M_ContentLeft());
     }
-    const auto build = pages[page].build;
+    const auto build = pages[ui().page].build;
     if(build == pageSearch || build == pageMaps || build == pageConsole)
     {
         return 0.f; // (Search and the Map Library from x 12 at least; the console's page right of the buttons)
@@ -12211,7 +14166,7 @@ float qvr::menu::contentRightBelow(float y)
     {
         return M_ContentRightBelow(y);
     }
-    const auto build = pages[page].build;
+    const auto build = pages[ui().page].build;
     const Layout l = layout();
     if(build == pageConsole || build == pageSearch || build == pageMaps)
     {
@@ -12219,7 +14174,7 @@ float qvr::menu::contentRightBelow(float y)
     }
     // The rows down to the help's box (or the bottom), as far right as their scrollbar's box (scrollbarX + 12); the help
     // centred at its widest (helpColumns), its paging bar right of it (drawHelp).
-    const za::Vector<Item>& list = menuPages.built[page];
+    const za::Vector<Item>& list = menuPages.built[ui().page];
     const bool help = hasHelp(list);
     float right = -1e9f;
     if(y < static_cast<float>(help ? l.helpTop - 4 : l.bottom - 8))
@@ -12239,14 +14194,14 @@ float qvr::menu::contentLeftBelow(float y)
     {
         return M_ContentLeftBelow(y);
     }
-    const auto build = pages[page].build;
+    const auto build = pages[ui().page].build;
     const Layout l = layout();
     if(build == pageConsole || build == pageSearch || build == pageMaps)
     {
         return y < static_cast<float>(l.bottom) ? contentLeft() : 1e9f; // (down to the bottom)
     }
     // As contentRightBelow: the rows down to the help's box (or the bottom), the help under them.
-    const za::Vector<Item>& list = menuPages.built[page];
+    const za::Vector<Item>& list = menuPages.built[ui().page];
     const bool help = hasHelp(list);
     float left = 1e9f;
     if(y < static_cast<float>(help ? l.helpTop - 4 : l.bottom - 8))
@@ -12269,7 +14224,7 @@ void qvr::menu::jumpToChecklist()
 {
     const int target = pageIndex(pageChecklist);
     checklist::refresh(true);
-    if(m_state == m_vr && page == target)
+    if(m_state == m_vr && ui().page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;
@@ -12279,7 +14234,7 @@ void qvr::menu::jumpToChecklist()
 
 void qvr::menu::jumpToSettings()
 {
-    if(m_state == m_vr && page == PageMain)
+    if(m_state == m_vr && ui().page == PageMain)
     {
         S_LocalSound("misc/menu1.wav");
         return;
@@ -12306,7 +14261,7 @@ void qvr::menu::jumpToRelighting()
     {
         Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(pages[target].level)); // (as the corner's Advanced VR)
     }
-    if(m_state == m_vr && page == target)
+    if(m_state == m_vr && ui().page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;
@@ -12317,7 +14272,7 @@ void qvr::menu::jumpToRelighting()
 void qvr::menu::jumpToRecording()
 {
     const int target = pageIndex(pageRecording);
-    if(m_state == m_vr && page == target)
+    if(m_state == m_vr && ui().page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;
@@ -12327,25 +14282,25 @@ void qvr::menu::jumpToRecording()
 
 void qvr::menu::selectEnd(int dir)
 {
-    if(m_state == m_vr && pages[page].build == pageSearch)
+    if(m_state == m_vr && pages[ui().page].build == pageSearch)
     {
         search.focusKey = 0; // from the corner's buttons: the keys
         return;
     }
-    if(m_state == m_vr && pages[page].build == pageConsole)
+    if(m_state == m_vr && pages[ui().page].build == pageConsole)
     {
         consolePage.focusKey = 0;
         return;
     }
-    if(m_state == m_vr && pages[page].build == pageMaps)
+    if(m_state == m_vr && pages[ui().page].build == pageMaps)
     {
         mapPage.focusKey = 0; // from the corner's buttons: the keys
         return;
     }
     if(m_state == m_vr)
     {
-        const auto& list = items(page);
-        cursors[page] = dir > 0 ? firstSelectable(list) : lastSelectable(list);
+        const auto& list = items(ui().page);
+        ui().cursors[ui().page] = dir > 0 ? firstSelectable(list) : lastSelectable(list);
     }
 }
 
@@ -12366,16 +14321,16 @@ void qvr::menu::reopen(int target)
 
 bool qvr::menu::scroll(int rows)
 {
-    if(m_state != m_vr || sliderGrab || scrollGrab)
+    if(m_state != m_vr || ui().sliderGrab || ui().scrollGrab)
     {
         return false;
     }
-    if(pages[page].build == pageConsole)
+    if(pages[ui().page].build == pageConsole)
     {
         consoleScroll(-rows); // (the stick down: newer)
         return true;
     }
-    if(pages[page].build == pageMaps)
+    if(pages[ui().page].build == pageMaps)
     {
         mapPage.resultScroll -= rows; // (the stick down: the next packages)
         mapsScrollTo(-1);
@@ -12384,22 +14339,38 @@ bool qvr::menu::scroll(int rows)
     if(dropDownItem())
     {
         // The stick moves the open list's highlight, the list scrolling with it.
-        dropDown.hover = CLAMP(0, dropDown.hover + rows, dropDown.count - 1);
+        ui().dropDown.hover = CLAMP(0, ui().dropDown.hover + rows, ui().dropDown.count - 1);
         dropDownShowHover();
         return true;
     }
-    const auto& list = items(page);
+    const auto& list = items(ui().page);
     const int most = maxScroll(list);
     if(most <= 0)
     {
         return false;
     }
-    scrolls[page] = CLAMP(0, scrolls[page] + rows, most);
+    ui().scrolls[ui().page] = CLAMP(0, ui().scrolls[ui().page] + rows, most);
     keepCursorVisible();
     return true;
 }
 
+namespace
+{
+void savePositions();
+} // namespace
+
 extern "C" void VR_MenuSavePositions()
+{
+    // The first panel's (the menu as ever: the others' places are this session's).
+    const int was = currentMenu;
+    menu::selectInstance(0);
+    savePositions();
+    menu::selectInstance(was);
+}
+
+namespace
+{
+void savePositions()
 {
     loadPositions();
     za::String text;
@@ -12425,20 +14396,20 @@ extern "C" void VR_MenuSavePositions()
     za::Vector<int> order;
     for(int p = 0; p < pageCount; p++)
     {
-        if(visits[p] > 0)
+        if(ui().visits[p] > 0)
         {
             order.pushBack(p);
         }
     }
-    za::stableSort(order.begin(), order.end(), [](int a, int b) { return visits[a] > visits[b]; }); // (stable: ties in the order std::sort gave a few)
+    za::stableSort(order.begin(), order.end(), [](int a, int b) { return ui().visits[a] > ui().visits[b]; }); // (stable: ties in the order std::sort gave a few)
     for(const int p : order)
     {
-        add(p, leftAnchors[p]);
+        add(p, ui().leftAnchors[p]);
     }
     order.clear();
     for(int p = 0; p < pageCount; p++)
     {
-        if(visits[p] == 0 && savedAnchors[p].valid)
+        if(ui().visits[p] == 0 && savedAnchors[p].valid)
         {
             order.pushBack(p);
         }
@@ -12454,42 +14425,34 @@ extern "C" void VR_MenuSavePositions()
         Cvar_SetQuick(&vr_menu_positions, text.cStr());
     }
 }
-
-namespace
-{
-// Where VR_Menu_Draw last noted the page to be (vr_menu_positions is written on a change only).
-struct NotedPlace
-{
-    int page = -1, cursor = -1, scroll = -1, build = -1;
-};
-NotedPlace notedPlace;
 } // namespace
+
 
 extern "C" void VR_Menu_Draw()
 {
     syncPresets(); // (Comfort, Handedness: the choice the settings match now)
-    if(pages[page].build == pageSearch)
+    if(pages[ui().page].build == pageSearch)
     {
         drawSearch();
         return;
     }
-    if(pages[page].build == pageConsole)
+    if(pages[ui().page].build == pageConsole)
     {
         drawConsolePage();
         return;
     }
-    if(pages[page].build == pageMaps)
+    if(pages[ui().page].build == pageMaps)
     {
         drawMapsPage();
         return;
     }
-    const auto& list = items(page);
-    int& cursor = cursors[page];
-    int& scroll = scrolls[page];
+    const auto& list = items(ui().page);
+    int& cursor = ui().cursors[ui().page];
+    int& scroll = ui().scrolls[ui().page];
 
     if(!keydown[K_MOUSE1])
     {
-        sliderGrab = scrollGrab = false;
+        ui().sliderGrab = ui().scrollGrab = false;
     }
 
     const Layout l = layout();
@@ -12498,7 +14461,14 @@ extern "C" void VR_Menu_Draw()
     M_DrawPlaque(16, underRow ? q_max(l.top + 4, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2) : l.top + 4);
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
     M_DrawPic((320 - title->width) / 2, l.top + 4, title);
-    const char* name = pages[page].title;
+    const char* name = pages[ui().page].title;
+    char refused[48];
+    if(ui().refusedPage >= 0 && realtime - ui().refusedTime < 2.5)
+    {
+        // A page for one panel at a time refused here (showPage): said a moment in its title's place.
+        q_snprintf(refused, sizeof(refused), "%.22s: in panel %d", pages[ui().refusedPage].title, ui().refusedBy + 1);
+        name = refused;
+    }
     M_PrintWhite((320 - 8 * static_cast<int>(strlen(name))) / 2, l.top + 28, name);
 
     const int n = static_cast<int>(list.size());
@@ -12514,17 +14484,17 @@ extern "C" void VR_Menu_Draw()
     const int rows = visibleRows(list);
 
     // Where the page is, to keep (on a change only: no strings built every frame).
-    int& notedPage = notedPlace.page;
-    int& notedCursor = notedPlace.cursor;
-    int& notedScroll = notedPlace.scroll;
-    int& notedBuild = notedPlace.build;
-    if(page != notedPage || cursor != notedCursor || scroll != notedScroll || builds[page] != notedBuild)
+    int& notedPage = ui().notedPlace.page;
+    int& notedCursor = ui().notedPlace.cursor;
+    int& notedScroll = ui().notedPlace.scroll;
+    int& notedBuild = ui().notedPlace.build;
+    if(ui().page != notedPage || cursor != notedCursor || scroll != notedScroll || builds[ui().page] != notedBuild)
     {
-        notedPage = page;
+        notedPage = ui().page;
         notedCursor = cursor;
         notedScroll = scroll;
-        notedBuild = builds[page];
-        noteLeft(page, list);
+        notedBuild = builds[ui().page];
+        noteLeft(ui().page, list);
     }
 
     // While the sticks' selection is on the corner's buttons, no row is selected (nor its help shown).
@@ -12536,8 +14506,8 @@ extern "C" void VR_Menu_Draw()
 
     if(int y, height; scrollbar(list, y, height))
     {
-        scrollbarX = q_min(midPos + 188, static_cast<int>(glcanvas.right) - 16);
-        M_DrawTextBox(scrollbarX - 4, l.listTop + y - 4, 0, height - 1);
+        ui().scrollbarX = q_min(midPos + 188, static_cast<int>(glcanvas.right) - 16);
+        M_DrawTextBox(ui().scrollbarX - 4, l.listTop + y - 4, 0, height - 1);
     }
 
     if(cursor < n && rowSelected)
@@ -12550,33 +14520,39 @@ extern "C" void VR_Menu_Draw()
     }
 
     drawDropDown(); // over the rows and the help
+
+    if(cursor < n && list[cursor].cvar)
+    {
+        ui().drawnValue = valueOf(list[cursor]);
+        ui().drawnFrame = host_framecount;
+    }
 }
 
 extern "C" void VR_Menu_Key(int key, int repeat)
 {
-    if(pages[page].build == pageSearch)
+    if(pages[ui().page].build == pageSearch)
     {
         searchKey(key);
         return;
     }
-    if(pages[page].build == pageConsole)
+    if(pages[ui().page].build == pageConsole)
     {
         consoleKey(key);
         return;
     }
-    if(pages[page].build == pageMaps)
+    if(pages[ui().page].build == pageMaps)
     {
         mapsKey(key);
         return;
     }
-    const auto& list = items(page);
-    const int cursor = cursors[page];
+    const auto& list = items(ui().page);
+    const int cursor = ui().cursors[ui().page];
 
-    if(sliderGrab || scrollGrab)
+    if(ui().sliderGrab || ui().scrollGrab)
     {
         if(!keydown[K_MOUSE1] || key == K_ESCAPE || key == K_BBUTTON || key == K_MOUSE2)
         {
-            sliderGrab = scrollGrab = false;
+            ui().sliderGrab = ui().scrollGrab = false;
         }
         return;
     }
@@ -12630,9 +14606,9 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 
         case K_MOUSE1:
             // On the scrollbar: it is dragged.
-            if(int y, height; m_mousex >= scrollbarX - 8 && scrollbar(list, y, height))
+            if(int y, height; m_mousex >= ui().scrollbarX - 8 && scrollbar(list, y, height))
             {
-                scrollGrab = true;
+                ui().scrollGrab = true;
                 scrollTo(m_mousey);
                 break;
             }
@@ -12650,11 +14626,11 @@ extern "C" void VR_Menu_Key(int key, int repeat)
                     const Item& item = list[cursor];
                     const int past = item.negativeLabel && item.cvar->value < 0.f ? 0 : pastEnd(item, item.cvar->value);
                     const float thumb = midPos + 4.f + (past > 0 ? 72.f : 0.f);
-                    sliderGrab = true;
-                    sliderGrabHold = -1.f;
+                    ui().sliderGrab = true;
+                    ui().sliderGrabHold = -1.f;
                     if(past && za::fabs(m_mousex - thumb) <= 6.f)
                     {
-                        sliderGrabHold = m_mousex;
+                        ui().sliderGrabHold = m_mousex;
                     }
                     else
                     {
@@ -12693,15 +14669,15 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 // slider.
 extern "C" void VR_Menu_Char(int key)
 {
-    if(pages[page].build == pageSearch && key >= 32 && key < 127)
+    if(pages[ui().page].build == pageSearch && key >= 32 && key < 127)
     {
         typeInSearch(static_cast<char>(key));
     }
-    if(pages[page].build == pageConsole && key >= 32 && key < 127)
+    if(pages[ui().page].build == pageConsole && key >= 32 && key < 127)
     {
         typeInConsole(static_cast<char>(key));
     }
-    if(pages[page].build == pageMaps && key >= 32 && key < 127)
+    if(pages[ui().page].build == pageMaps && key >= 32 && key < 127)
     {
         mapsTypeIn(static_cast<char>(key));
     }
@@ -12709,24 +14685,24 @@ extern "C" void VR_Menu_Char(int key)
 
 extern "C" int VR_Menu_TextEntry()
 {
-    return pages[page].build == pageSearch || pages[page].build == pageConsole || pages[page].build == pageMaps
+    return pages[ui().page].build == pageSearch || pages[ui().page].build == pageConsole || pages[ui().page].build == pageMaps
                ? TEXTMODE_NOPOPUP
                : TEXTMODE_OFF; // (the page's own keyboard)
 }
 
 extern "C" void VR_Menu_Mousemove(float cx, float cy)
 {
-    if(pages[page].build == pageSearch)
+    if(pages[ui().page].build == pageSearch)
     {
         searchMouse(cx, cy);
         return;
     }
-    if(pages[page].build == pageConsole)
+    if(pages[ui().page].build == pageConsole)
     {
         consoleMouse(cx, cy);
         return;
     }
-    if(pages[page].build == pageMaps)
+    if(pages[ui().page].build == pageMaps)
     {
         mapsMouse(cx, cy);
         return;
@@ -12736,23 +14712,23 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
         return;
     }
 
-    const auto& list = items(page);
-    int& cursor = cursors[page];
+    const auto& list = items(ui().page);
+    int& cursor = ui().cursors[ui().page];
 
-    if(sliderGrab || scrollGrab)
+    if(ui().sliderGrab || ui().scrollGrab)
     {
         if(!keydown[K_MOUSE1])
         {
-            sliderGrab = scrollGrab = false;
+            ui().sliderGrab = ui().scrollGrab = false;
             return;
         }
-        if(scrollGrab)
+        if(ui().scrollGrab)
         {
             scrollTo(cy);
         }
-        else if(sliderGrabHold < 0.f || za::fabs(cx - sliderGrabHold) >= 4.f)
+        else if(ui().sliderGrabHold < 0.f || za::fabs(cx - ui().sliderGrabHold) >= 4.f)
         {
-            sliderGrabHold = -1.f;
+            ui().sliderGrabHold = -1.f;
             setSliderAt(list[cursor], cx);
         }
         return;

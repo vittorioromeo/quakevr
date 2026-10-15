@@ -80,6 +80,11 @@ void loaded(const Attempt& attempt, const char* runtimeName);
 // OpenGL driver crashed the game reading it once unloaded).
 void keepGraphicsModules();
 
+// For the crash report's VR line: the implicit API layers (on/off) and the known overlays' DLLs in the game.
+// (vr_xr_runtime_explain and each start's log list them in full: every layer's library, every other program's DLL.)
+// vr_xr_api_layers 0: use() turns each implicit layer off by its manifest's disable_environment variable.
+[[nodiscard]] za::String layersAndOverlays();
+
 // The attempt is SteamVR's (its manifest steamxr_win64.json).
 [[nodiscard]] bool isSteamVR(const Attempt& attempt);
 

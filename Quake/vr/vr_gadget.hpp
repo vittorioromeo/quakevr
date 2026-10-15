@@ -29,6 +29,12 @@ struct Pose
 // Whether the HUD is the gadget's (vr_hud_mode 1, in the headset, in game).
 [[nodiscard]] bool active();
 
+// AD support: the screen's pages (the gadget's outer button, vr_gearlights.cpp; vr_gadget_page): the HUD, and Arcane
+// Dimensions' page (its artifacts with their times, keys, debuffs and the carried weapons' upgrades) while its data is
+// loaded. togglePage: to the other one; false (the HUD kept) without AD's data. page: the one shown (0 the HUD, 1 AD's).
+bool togglePage();
+[[nodiscard]] int page();
+
 // Set by the view every frame (before each eye's scene). It also places the screen's lights.
 void setPose(const Pose& pose);
 [[nodiscard]] const Pose& pose();

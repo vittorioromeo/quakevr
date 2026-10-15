@@ -59,6 +59,10 @@ enum class Part
 };
 [[nodiscard]] bool weightKey(Key key); // Mass, Balance, Length (Span), the spring's multipliers, the damage multipliers
 [[nodiscard]] cvar_t* cvar(int slot, Key key);
+// The anchor keys (*_av: vr_anchor.hpp's text), and a slot's anchor text ("" for a bad slot or a key that is not one,
+// which binds to the model's first vertex): what the drawing reads.
+[[nodiscard]] bool anchorKey(Key key);
+[[nodiscard]] const char* anchor(int slot, Key key);
 void resetSlotToDefaults(int slot, Part part = Part::All);
 
 // Forgets the models' slots found (a game directory change reuses their slots; a model reload, a new map).

@@ -506,30 +506,46 @@ void(entity ent, float value) VRSetMainHandPrevReloadFlickingBit =
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADFLICKING, value);
 }
 
-float() VRIsWeaponReloadingEnabled =
+// Flatscreen play (-flatscreenmode; vr_flatplay.cpp, docs/vr-port/FLATPLAY.md): the VR gameplay played on the desktop
+// screen, with the hands the game poses itself. The gate every flatscreen control hangs on, per player (co-op: his own
+// client's mode, .vr_flatscreen from his move); 0 in a headset and 0 without the flag.
+float(entity xPlayer) VR_FlatPlay =
 {
+    return xPlayer.vr_flatscreen != 0;
+};
+
+float(entity ent) VRIsWeaponReloadingEnabled =
+{
+    // Flatscreen play (-flatscreenmode): no reloading for that player. A magazine is refilled from the reserve as it
+    // empties, with no handling step (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md).
     return (cvar_hget(cvarh_vr_reload_mode) != QVR_RELOADMODE_NONE) &&
-           (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE);
+           (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE) &&
+           !VR_FlatPlay(ent);
 }
 
 float(entity ent, float xHand) VRIsWeaponReloadingEnabledFor =
 {
     return ent.ishuman &&
-           VRIsWeaponReloadingEnabled() &&
+           VRIsWeaponReloadingEnabled(ent) &&
            WeaponIdToSupportsReload(VRGetWeapon(xHand));
 }
 
 float(entity ent, float xHand) VRIsWeaponReloadFlickingEnabledFor =
 {
     return ent.ishuman &&
-           VRIsWeaponReloadingEnabled() &&
+           VRIsWeaponReloadingEnabled(ent) &&
            WeaponIdToSupportsReloadFlicking(VRGetWeapon(xHand));
 }
 
 // A missile's touch (self the missile): whether it leaves `xOther` alone as its owner (Quake: never on the one who fired
 // it). One carried through a teleporter (.vr_gate_crossed, set by the engine) meets its owner: your nail or rocket at
 // your own image, seen through the gate, hits you.
+float vr_owner_touches; // the touches a missile had of its owner (the tests: vr_ad_test 90)
 float(entity xOther) VR_OwnerSpared =
 {
+    if(xOther == self.owner)
+    {
+        vr_owner_touches++;
+    }
     return xOther == self.owner && !self.vr_gate_crossed;
 }

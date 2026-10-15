@@ -32,6 +32,11 @@ KNOWN = {
     'soldier': (list(range(463, 549)), (8, 28)),
     'enforcer': ([22, 23, 100] + list(range(400, 431)) + list(range(455, 479)), None),
     'grem': (list(range(85, 123)), (104, 123)),  # (Hipnotic's gremlin: the stolen gun, tucked in his body but in the g* frames)
+    'mon_soldier': (list(range(463, 549)), (8, 28)),
+    'mon_enforcer': (list(range(17)) + list(range(45, 61)), (41, 65)),
+    'mon_centurion': (list(range(17)) + list(range(45, 61)) + list(range(222, 284)), (18, 42)),
+    'mon_pyro': (list(range(33)) + list(range(194, 226)), (41, 65)),
+    'mon_fumigator': (list(range(33)) + list(range(194, 226)), (41, 65)),
 }
 
 # The models whose every piece but the body is loose (vr_ragdoll.cpp SeedTable::looseWeapons: hidden in the ragdoll):
@@ -115,7 +120,9 @@ for p, n in sizes.items():
     gap = max(np.sqrt(((P[f, pv][:, None, :] - P[f, bodyR][None, :, :]) ** 2).sum(2).min()) for f in range(0, nf, 2))
     hidden = any((P[f, pv].max(0) - P[f, pv].min(0)).max() < 0.5 for f in range(nf))
     hidden = hidden or name in LOOSE_PIECES  # (the player's axe and gun: hidden in his ragdoll, SeedTable::looseWeapons)
-    print('piece %d: %d places, gap %.1f, %s' % (p, n, gap, 'loose (hidden)' if hidden else 'body'))
+    c0 = P[0, pv].mean(0)
+    print('piece %d: %d places, gap %.1f, %s, rest centre %.1f %.1f %.1f' % (p, n, gap, 'loose (hidden)' if hidden else 'body',
+                                                                            c0[0], c0[1], c0[2]))
     if hidden:
         loose.update(pv)
 reps = [v for v in allReps if v not in loose]

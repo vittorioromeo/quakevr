@@ -87,7 +87,7 @@ along with the hands when the server moves him, `rebaseHands`). The host's and e
 
 ## Contact
 
-A player touching an Idle/Alert monster spots him (Hostile) at once (`vr_stealth_contact`): his body's box within 4
+With `vr_stealth_contact` on (off by default since 2026-10-13: then only grabbing a monster spots you), a player touching an Idle/Alert monster spots him (Hostile) at once: his body's box within 4
 units of the monster's, either hand (`handpos`/`offhandpos`) inside its box grown by 4, his held weapons (melee hits
 are damage anyway) and a held prop's box overlapping. Checked in PlayerPostThink over `findradius(origin, 160)`.
 
@@ -175,6 +175,18 @@ before it rises, a monster waiting to be spawned in): no noise, touch, beam or a
 Everything else, id1's and the expansions' (hipnotic, rogue, MG1, MG3, Honey, the dopa monsters), shares it: the hooks
 are in the shared ai.qc (`vr_stealth_test 106` puts down every kind the kit has: id1's, hipnotic's and rogue's).
 
+## Arcane Dimensions
+
+AD's monsters run AD's own AI, and the same rules apply to them (2026-10-15; before, they saw him at once). The
+importer patches AD's AI (`Misc/quakevr/ad_import.py` `FUNC_PATCHES`): AD's FindTarget ticks the stealth AI and hands a
+player's sighting to the meter (AD's relay, a monster that saw him, and its sight groups and sight targets stay
+AD's); its FoundTarget and FoundHuntTarget are Hostile; its ai_stand and ai_walk run Alert; its ai_run loses him.
+`QC/vr_ad_stealth.qc` answers for them (`.stl_ad`): their stand and walk thinks, their path (`ad_movetarget`, paused
+by `ad_pausetime`), AD's FoundTarget, their idle sound for the "huh?". Excluded as Quake VR's: AD's bosses, flyers and
+swimmers; one in AD's passive mode keeps AD's rule (it ignores him until a fight). A turret (it never walks) searches
+where it stands. AD's zombies have the zombies' senses. Tests: `Misc/quakevr/adbugs_tests.sh <agent> stealth`
+(`vr_stealth_test 1`'s scenes on an AD rocket soldier).
+
 ## Senses (`vr_stealth_senses 1`)
 
 | class | hearing | sight |
@@ -252,7 +264,7 @@ swimmers, and `vr_ai_enhanced 0`: Quake's movetogoal.
 
 `vr_ai_enhanced 1`, `vr_stealth_meter 1`, `vr_stealth_meter_time 1.5`, `vr_stealth_meter_decay 0.2`,
 `vr_stealth_glimpse 0.3`, `vr_stealth_light_dark 20`, `vr_stealth_light_bright 80`, `vr_stealth_crouch 0.4`,
-`vr_stealth_still 0.5`, `vr_stealth_sight_range 1500`, `vr_stealth_peripheral 0.3`, `vr_stealth_contact 1`,
+`vr_stealth_still 0.5`, `vr_stealth_sight_range 1500`, `vr_stealth_peripheral 0.3`, `vr_stealth_contact 0`,
 `vr_stealth_noise 1`, `vr_stealth_run_speed 250`, `vr_stealth_noise_run 400`, `vr_stealth_noise_props 1200`,
 `vr_stealth_noise_guns 1`, `vr_stealth_noise_melee 1`, `vr_stealth_noise_blasts 1`, `vr_stealth_noise_wall 0.5`, `vr_stealth_noise_solid 0.15`,
 `vr_stealth_noise_absorb 0.6`, `vr_stealth_gates 1`, `vr_stealth_seethrough 1`, `vr_stealth_investigate 1`, `vr_stealth_turn 0.6`, `vr_stealth_search_time 5`,

@@ -3,6 +3,7 @@
 #include "vr_cvars.hpp"
 #include "vr_body.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_bodyclone.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_props.hpp"
@@ -620,9 +621,6 @@ const DefaultChange defaultChanges[] = {
     {111, &vr_strike_stamina_cost_2h, "6"},        // 12
     {111, &vr_strike_stamina_punch, "4"},          // 6
     {111, &vr_sword_damage_mult, "1"},             // 1.1 (vr_defaults.cfg)
-    {111, &vr_throw_slowmo_flick, "1"},            // 0.9
-    {111, &vr_throw_slowmo_long_travel, "0.2"},    // 0.5
-    {111, &vr_throw_slowmo_short_travel, "0.15"},  // 0.25
     {111, &vr_weapon_throw_damage_mult, "0.35"},   // 0.4
     {111, &vr_weight_damage_exp, "0.4"},           // 0.375
     {111, &vr_weight_lenient, "0.5"},              // 0.515
@@ -674,9 +672,109 @@ const DefaultChange defaultChanges[] = {
     {121, &vr_climb_leniency_air, "4"},
     {121, &vr_climb_air_grab_time, "0.3"},
     // 122: the "Loading..." notice off (1.0.0 release blocker: deferring a level change crashed a campaign switch).
+    // (A config older than 122 at its 1 keeps 1: the default is 1 again since 123.)
     {122, &vr_loading_notice, "1"},
+    // 124: the author's judo throw (1.0.1, his config of 2026-10-11: "I've tweaked the judo throw values a little bit
+    // to make them feel even better"): launched further along the throw and less up, toppled slower, the feet swept
+    // back slower, the grunt a little louder. A config at the old defaults takes them.
+    {124, &vr_foegrab_throw_feet_speed, "60"}, // 30
+    {124, &vr_foegrab_throw_grunt, "0.6"}, // 0.75
+    {124, &vr_foegrab_throw_lift, "170"}, // 120
+    {124, &vr_foegrab_throw_push, "190"}, // 240
+    {124, &vr_foegrab_throw_topple, "300"}, // 200
+    // 125: the knocked body's launch 1 -> 1.3 (the author, 2026-10-11, with 124's judo throw values: every shove and
+    // throw launches further). A config at the old 1 takes it.
+    {125, &vr_knockdown_push, "1"},
+    // 126: the author's values after his 1.0.1 test (his config of 2026-10-11 15:29: "I tweaked some values, please make
+    // them the new defaults"; ROUND22.md, "The author's 1.0.1 values are the defaults"): the flashlight's head zones
+    // further forward, lower and wider, its belt clip a little forward, a slightly softer flick; Doom's CRT look
+    // stronger; the comfort vignette a little lighter. A config at the old defaults takes them.
+    {126, &vr_flashlight_head_zone_forward, "0.05"}, // 0.07 (vr_defaults.cfg)
+    {126, &vr_flashlight_head_zone_up, "0.19"},      // 0.15 (vr_defaults.cfg)
+    {126, &vr_flashlight_head_zone_radius, "0.105"}, // 0.125 (vr_defaults.cfg)
+    {126, &vr_flashlight_forward, "0.02"},           // 0.025 (vr_defaults.cfg)
+    {126, &vr_flashlight_flick_speed, "800"},        // 750
+    {126, &vr_doom_crt, "1"},                        // 2
+    {126, &vr_comfort_vignette_strength, "0.6"},     // 0.5
+    // 127: the guns in the shoulder holsters (on the back, the highest pair) not drawn: "Sometimes the holstered model
+    // interferes with the view" (the author, 2026-10-11; ROUND22.md, "Hide holstered weapons per pair"). A config with
+    // them drawn (1) takes it.
+    {127, &vr_holster_weapons_draw_shoulder, "1"},
+    // 128: a shoved monster backpedals about as far as the old standing slide took it (the author, 2026-10-11: "they seem
+    // to cover much less distance than before"; ROUND22.md, "Shoves: the backpedal").
+    {128, &vr_ragdoll_active_stagger_travel, "0.2"},
+    // 129: the author's bash, shove and parry values compiled in (ROUND22.md, "His parry and bash tweaks are the
+    // defaults"): firmer pushes to bash (3 m/s) and shove (3.5), quieter bash sounds, a weapon's bash knocks down,
+    // shorter parry pushes, a softer arm knock, parry stamina on (no random drop), a cheaper two-handed parry. Only the
+    // two speeds migrate: the rest shipped at their new values already (vr_defaults.cfg), so a config at an old
+    // compiled-in value there (bash sound 1, parry stamina 0, ...) was set by hand and keeps it.
+    {129, &vr_bash_speed, "2"},
+    {129, &vr_shove_speed, "2.4"},
+    // 130: touching a monster no longer gives you away, only grabbing it does (the author, 2026-10-13: "just touching
+    // an enemy doesn't alert them -- but grabbing them does"; ROUND22.md, "Stealth: a touch no longer gives you away").
+    {130, &vr_stealth_contact, "1"},
+    // 131: incandescent blades glow brighter (the author, 2026-10-13: "I have increased the default glow strength";
+    // ROUND22.md, "Incandescent blades: his tweaks").
+    {131, &vr_hotblade_glow, "1"},
+    // 132: the neck snap's twist measured about the neck from the hands' places (a push-pull snaps it; ROUND22.md, "Neck
+    // snap: only move at the head, a push-pull twists").
+    // (Its twist speed, Velocity's, gone with it: ROUND22.md, "Neck snap: the Hand Line only".)
+    {132, &vr_foegrab_necksnap_angle, "45"},
+    // 133: the author's values of 2026-10-15 11:06 ("I have tweaked settings for the blood feedback, for the quad
+    // effects, and some other damage and combat settings. Please make those the new defaults"; ROUND22.md, "His blood,
+    // quad and combat tweaks are the defaults"). A config at the old defaults takes them.
+    {133, &vr_blood_health_intensity, "0.25"},       // 0.3
+    {133, &vr_blood_health_size, "0.65"},            // 0.75
+    {133, &vr_blood_hit_bias, "0.75"},               // 0.9
+    {133, &vr_blood_hit_duration, "0.45"},           // 0.4
+    {133, &vr_blood_hit_intensity, "0.22"},          // 0.4
+    {133, &vr_blood_hit_size, "0.65"},               // 0.6
+    {133, &vr_quad_look, "1"},                       // 2
+    {133, &vr_quad_glow, "1"},                       // 2
+    {133, &vr_quad_glow_light, "1"},                 // 2
+    {133, &vr_bash_damage, "10"},                    // 5
+    {133, &vr_melee_phase_time, "0.35"},             // 0.2
+    {133, &vr_foegrab_lift_time, "2"},               // 3.5
+    {133, &vr_foegrab_necksnap_angle, "30"},         // 80
+    {133, &vr_foegrab_necksnap_window, "0.3"},       // 0.2
+    {133, &vr_foegrab_necksnap_neck, "3"},           // 1.5
+    {133, &vr_foegrab_necksnap_strength, "1.2"},     // 1.25
+    {133, &vr_foegrab_throw_feet_speed, "30"},       // 20
+    {133, &vr_foegrab_throw_push, "240"},            // 220
+    {133, &vr_foegrab_throw_speed, "2.5"},           // 3
+    {133, &vr_foegrab_throw_spin, "0.55"},           // 0.5
+    {133, &vr_foegrab_throw_topple, "200"},          // 180
+    {133, &vr_foegrab_throw_twist, "140"},           // 130
+    {133, &vr_ragdoll_grab_force, "3000"},           // 4000
+    {133, &vr_ragdoll_hand_stick, "2"},              // 4
+    {133, &vr_ragdoll_hand_turn, "60"},              // 70
+    {133, &vr_reload_port_sshot_radius, "3"},        // 3.15
+    {133, &vr_reload_reinsert_clearance, "4"},       // 1.5
+    {133, &vr_decal_max, "768"},                     // 512
+    {133, &vr_decal_bucket_max, "32"},               // 24
+    {133, &vr_body_bracers, "1"},                    // 0
+    {133, &vr_pbr_strength, "1"},                    // 2.5
+    // 134: AD's fumigator and centurion are humanoids for the lift and the neck snap (ROUND22.md, "Neck snap: strict
+    // zone, diagnostic, slow motion, crack").
+    {134, &vr_foegrab_lift_classes,
+        "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade "
+        "monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_dcrossbow "
+        "monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz "
+        "monster_ranged_knight infected"},
+    // 135: the biosuit glow as he tuned it (ROUND22.md, "VR Settings submenus merged").
+    {135, &vr_suit_glow, "1"},                       // 2
+    {135, &vr_suit_glow_light, "1"},                 // 2
+    // 136: the bullet-time throw is the stroke's tempo's alone (ROUND22.md, "Bullet-time throws: the stroke's tempo
+    // only"): the older rules' settings are retired (retiredCvars), nothing here to change.
+    // 137: the neck snap measured by the hand line only (Velocity and its Twist Speed gone), at the author's values ("I
+    // took the neck snap settings ... Those are the ones I want", 2026-10-15; ROUND22.md, "Neck snap: the Hand Line
+    // only"): 75 degrees within 0.15 s, the head zone as the headshots' (no margin, no neck below it).
+    {137, &vr_foegrab_necksnap_angle, "80"},         // 75
+    {137, &vr_foegrab_necksnap_window, "0.2"},       // 0.15
+    {137, &vr_foegrab_necksnap_margin, "2"},         // 0
+    {137, &vr_foegrab_necksnap_neck, "1.5"},         // 0
 };
-constexpr int configVersion = 122;
+constexpr int configVersion = 137;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -811,6 +909,14 @@ void migrateConfig()
             Con_DPrintf("VR: %s: new default %s (was %s)\n", c.var->name, c.var->default_string, c.before);
             Cvar_SetQuick(c.var, c.var->default_string);
         }
+    }
+    // 123: the "Loading..." notice back on (1.0.1: its campaign-switch crash found and fixed, ROUND21.md, "The
+    // Loading... crash, root cause"). Only a 1.0.0 config (122) at 1.0.0's 0 takes it: an older one at 0 had it turned
+    // off by hand.
+    if(from == 122 && !strcmp(vr_loading_notice.string, "0"))
+    {
+        Con_DPrintf("VR: vr_loading_notice: 1 (1.0.0 had it off while its crash was fixed)\n");
+        Cvar_SetQuick(&vr_loading_notice, "1");
     }
     // 64: bilinear HRTF smoothing crackled (two voices interpolating one HRTF at once on the pool made not-numbers;
     // each pool lane has its own HRTF now): a config that went to nearest to get away from it goes back to bilinear.
@@ -1095,6 +1201,7 @@ void registerCvars()
 
     Cvar_RegisterVariable(&vr_backend);
     Cmd_AddCommand("vr_migrate_config", migrateConfig_f);
+    Cmd_AddCommand("vr_menu_body_clone_info", bodyclone::info_f);
     Cmd_AddCommand("vr_default", default_f);
     Cmd_AddCommand("vr_savedefaults", saveDefaults_f);
 }
@@ -1116,6 +1223,16 @@ constexpr const char* retiredCvars[] = {
     "vr_knockdown_shove_feet_speed",
     "vr_knockdown_shove_feet_hold",
     "vr_hub_map", // 2026-10-09: the hub is vrstart, the only one (the old hub, vrstart_old, removed)
+    // 2026-10-15: the bullet-time throw is the stroke's tempo's alone (ROUND22.md, "Bullet-time throws: the stroke's
+    // tempo only"); its switch and the older rules' settings.
+    "vr_throw_slowmo_stroke",
+    "vr_throw_slowmo_real_time",
+    "vr_throw_slowmo_tempo",
+    "vr_throw_slowmo_aim",
+    "vr_throw_slowmo_flick",
+    "vr_throw_slowmo_flick_arm",
+    "vr_throw_slowmo_short_travel",
+    "vr_throw_slowmo_long_travel",
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

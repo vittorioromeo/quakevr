@@ -17,6 +17,7 @@
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -96,16 +97,16 @@ unsigned seed = 0x2545F491u;
 // The draws' buffers (the main thread).
 struct WeaponFxScratch
 {
-    za::Vector<glm::vec3> rest; // a monster's vertices (monsterMuzzle)
-    za::Vector<glm::vec3> now;
     za::Vector<gfx::Vertex> ribbons; // the tracers (drawTranslucent)
-    auto members() { return mem::list(rest, now, ribbons); }
+    auto members() { return mem::list(ribbons); }
 };
 mem::Scratch<WeaponFxScratch> scratch{"weaponfx"};
 
 // The monsters' guns (Quake VR's models: each gun a separate piece of its model, vr_monstermods.cpp), rigid: the middle
 // of the muzzle's ring or face and of its rear on the barrel's line give its muzzle and which way it points in any frame,
-// its recoil animation's too.
+// its recoil animation's too. Anchors (vr_anchor.hpp) at those vertices, each once, with how many of the vertices it
+// stands for (a UV seam's twins share a point: the middle is the vertices' mean, as when they were picked; none: one
+// each); the model's vertex count says it is the model they were picked on.
 // - soldier.mdl (vertices 463..548): found in its first fire frame, shoot5, where it points along +x; the gun's length
 //   stays 28.4..28.6 model units in shoot1..9.
 // - enforcer.mdl (vertices 22, 23, 100, 400..430, 455..478: the rifle make_enemyguns.py cuts out): its muzzle face (the 7
@@ -115,16 +116,26 @@ struct MonsterGun
 {
     modelmeta::Id model;
     int verts;
-    za::Span<const int> muzzle;
-    za::Span<const int> rear;
+    za::Span<const char* const> muzzle;
+    za::Span<const char* const> rear;
+    za::Span<const float> muzzleTwins; // per muzzle anchor, the vertices it stands for (empty: 1 each)
+    za::Span<const float> rearTwins;
 };
-constexpr int soldierMuzzle[] = {498, 499, 501, 502, 503, 504, 505, 506, 514, 515, 521, 522, 547, 548};
-constexpr int soldierRear[] = {465, 497, 500, 510, 544, 545};
-constexpr int enforcerMuzzle[] = {22, 100, 400, 401, 402, 403, 407};
-constexpr int enforcerRear[] = {404, 405, 423, 424, 425};
+constexpr const char* soldierMuzzle[] = {"13.8246 14.6358 5.0417", "12.9522 14.3738 2.6583", "15.5694 13.8499 5.3065",
+    "14.4062 13.3259 1.8638", "16.7327 12.8019 4.2472", "15.8603 12.5399 1.8638"};
+constexpr float soldierMuzzleTwins[] = {2.f, 2.f, 3.f, 3.f, 2.f, 2.f}; // (14 vertices)
+constexpr const char* soldierRear[] = {"2.1924 -10.5148 12.1918", "3.3556 -11.3008 11.927", "2.4832 -11.3008 9.014",
+    "4.5188 -11.8248 11.3974"};
+constexpr float soldierRearTwins[] = {1.f, 2.f, 2.f, 1.f}; // (6 vertices)
+constexpr const char* enforcerMuzzle[] = {"4.8719 21.5425 14.2786", "4.8719 21.5425 18.402", "7.3325 21.5425 17.5184",
+    "7.0249 21.5425 15.7512", "4.8719 21.5425 16.3403", "2.719 21.868 15.4567", "3.0266 21.868 17.2238"};
+constexpr const char* enforcerRear[] = {"3.6417 -8.3993 16.6348", "2.719 -7.7484 17.5184", "3.3341 -11.9793 11.9224",
+    "4.8719 -7.0975 11.3333", "4.2568 -11.9793 11.9224"};
+static_assert(za::getArraySize(soldierMuzzle) == za::getArraySize(soldierMuzzleTwins) &&
+              za::getArraySize(soldierRear) == za::getArraySize(soldierRearTwins));
 const MonsterGun monsterGuns[] = {
-    {modelmeta::Id::Soldier, 555, soldierMuzzle, soldierRear},
-    {modelmeta::Id::Enforcer, 479, enforcerMuzzle, enforcerRear},
+    {modelmeta::Id::Soldier, 555, soldierMuzzle, soldierRear, soldierMuzzleTwins, soldierRearTwins},
+    {modelmeta::Id::Enforcer, 479, enforcerMuzzle, enforcerRear, {}, {}},
 };
 constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share of its gun
 
@@ -151,17 +162,20 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
 [[nodiscard]] bool monsterMuzzle(const entity_t& e, glm::vec3& muzzle, glm::vec3& dir, float& gunLength)
 {
     const MonsterGun* gun = monsterGun(e);
-    if(!gun || !anchor::posedVertices(e, 0.f, scratch.rest, scratch.now) || static_cast<int>(scratch.now.size()) != gun->verts)
+    if(!gun)
     {
         return false;
     }
-    const auto middle = [](za::Span<const int> indices) {
+    const auto middle = [&](za::Span<const char* const> anchors, za::Span<const float> twins) {
         glm::vec3 sum{0.f};
-        for(const int i : indices)
+        float count = 0.f;
+        for(size_t i = 0; i < anchors.size(); i++)
         {
-            sum += scratch.now[i];
+            const float w = twins.empty() ? 1.f : twins[i];
+            sum += anchor::posedAnchor(e, anchors[i], 0.f) * w;
+            count += w;
         }
-        return sum / static_cast<float>(indices.size());
+        return sum / count;
     };
     float m[16];
     render::entityMatrix(e, false, e.scale ? e.scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
@@ -169,8 +183,8 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
         return glm::vec3{m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12], m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
             m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
     };
-    muzzle = world(middle(gun->muzzle));
-    const glm::vec3 back = muzzle - world(middle(gun->rear));
+    muzzle = world(middle(gun->muzzle, gun->muzzleTwins));
+    const glm::vec3 back = muzzle - world(middle(gun->rear, gun->rearTwins));
     gunLength = glm::length(back);
     if(gunLength < 1e-3f)
     {
@@ -563,7 +577,7 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
             h.flashAt = -1.0;
             continue;
         }
-        const glm::vec3 muzzle = view::anchorPosition(w, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+        const glm::vec3 muzzle = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
         const glm::vec3 o = view::modelPoint(w, glm::vec3{0.f});
         const glm::vec3 ax = view::modelPoint(w, glm::vec3{1.f, 0.f, 0.f}) - o;

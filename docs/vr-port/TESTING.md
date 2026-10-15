@@ -68,10 +68,27 @@ kit's run.sh opens 960 x 540 (`vid_width` and `vid_restart` don't change it); a 
 `run.sh --exclusive`; the mock's frame cap (`host_maxfps` 250) sleeps in 15.6 ms steps in an exclusive run (Windows'
 timer), which the report shows as "frame cap" (idle), not work.
 
-Crash reports (ROUND21.md, "clang-cl"): in a test run (`QVR_NO_ERROR_DIALOG`, which the kit sets) a crash writes
-`qvr_crash.txt` (the exception and the crashing thread's stack, file and line) and `qvr_crash.dmp` in the game folder,
-and run.sh prints it as `ENGINE CRASH`. `vr_debug_crash` (an access violation) or `vr_debug_crash abort` crashes on
-purpose, to check it (Debug > Profiling and Memory > Crash the Game). A crash in a map's own data (a garbage node,
+Crash reports (vr_crash.cpp; ROUND21.md, "Crash reports"): every crash and fatal error, in a player's run and a test
+run alike, writes `quakevr/crash/<date>_<time>.txt` and a minidump `.dmp` beside it: what failed (the exception and its
+address, or the error's message), the thread (main or not, its name), the build, the map, the game folder, the stack
+with function, file and line (functions ThinLTO inlined shown as their own `[inlined]` lines; `[module+offset]` on
+every real frame, to read again offline with the release's kept `.pdb`: `out\release\<version>\symbols`), the command
+line and every module loaded. Kinds: an unhandled exception on any thread (an access violation; a stack overflow, from
+a vectored handler), abort() (std::terminate), a CRT invalid parameter or pure virtual call, `Sys_Error` (its dialog
+names the report; off the main thread it is reported and ended there, without the engine's shutdown), and a failed
+Zancle assert. A dedicated thread made at start writes it (the crashed thread may have no stack left or hold a lock;
+it waits 60 s at most). A player's run shows a dialog naming the files; a test run (`QVR_NO_ERROR_DIALOG`, which the
+kit sets) shows none and also writes `qvr_crash.txt` in the game folder, which run.sh prints as `ENGINE CRASH`; the
+report's head goes to stderr and `qconsole.log` too. A `Host_Error` (not fatal) prints its caller's stack under it.
+`vr_crash_test [av | thread | stack | error | threaderror | assert | zassert | abort | purecall | hosterror]` causes each
+on purpose (Debug > Profiling and Memory > Crashes).
+
+Sound is off in test runs (run.sh passes `-nosound` unless `-Sound`): `S_Update` then returns at once, and everything
+behind it (spatial audio's per-frame listener update and mix, `VR_SndListener` and `VR_SndPaint`, which place sounds in
+the world) never runs. A bug there does not show headless without `-Sound`: the "Loading..." crash of 1.0.0 was one
+(ROUND22.md, "The Loading... crash, root cause"). `Misc/quakevr/loading_switch_test.sh <agent>` (needs the expansions'
+and the rerelease's data, so not in run_test_suite.py) puts the notice (`vr_loading_notice 2`) across every campaign
+switch, by the menus' commands and by the hub's teleporters, with sound on and rockets' effects live. A crash in a map's own data (a garbage node,
 plane or marksurface) is often the hunk, cache or zone touched from a pool thread: `vr_zone_threadcheck 1` first in
 the script crashes at the culprit instead (ROUND21.md, "Map load crash: the cache's LRU list from the pool").
 
@@ -80,13 +97,20 @@ the console is up, so a script's `toggleconsole` closed it and `quit` opened the
 until the kit's timeout (so did `quit` after `menu_vr ...`). A player's `quit` outside the console still asks. A test run
 uses no network: no add-on list download, the map index read from its cache only (`maps_fetch` fetches).
 
+Main menu centring (ROUND22.md, "The main menu centred, the VR banner beside the buttons"): `togglemenu; wait30;
+menu_vr pos` prints `main rows x a..b (middle m; the title's 160)` (m near 160 with room) and, in VR, `banner x .. y ..
+(left of the buttons, from x <buttons' left>)` (`vr_menu_banner_beside 0`: "under"); flat (`vr_enabled 0`) its
+`banner x ..` ends left of the rows' a. `main title and rows y a..b (middle m; the canvas's y c..d, middle n)`: in VR m
+near n (ROUND22.md, "The VR main menu centred up and down"); flat a is Quake's 4.
+
 Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the layout (ROUND21.md, "The menus' corner column moved left": where the menu's text starts, the corner buttons' right edge and bottom, beside or over the menu; on a VR page the rows' top and count), then the menu shown and, on a VR page, its
 selected row (with the header above it), its scroll and the page Back goes to. While a drop-down list is open (ROUND21.md, "Drop-down lists in the VR menus") a second line gives its row, highlighted choice, scroll and box (menu coordinates, for `vr_mock_laser`). `menu_vr rows` (Debug > Tools > Menu Rows) prints the VR page's rows as drawn (MROW: row, top y, label) and MROWS: rows shown, scroll and its most, the section gap (`vr_menu_section_gap`) and whether the mouse finds each row where it is drawn (`rowAt agrees`). `menu_vr pos` also prints where Back goes (`back to <page>, menu <m_state>` for a menu outside the VR pages), the main menu's row spacing and group gap, Single Player's row, the flat banner's place, the corner's version label (ROUND21.md, "Versions and the menus' version label": its text, box, what the menu draws right to under it, or why it was left out), and the selected slider's setting, its value as shown and its step (`(fine)` while the fine modifier is held); `vr_mock_key <key> down|up` holds or lets go of a key (`shift`: fine steps); `vr_mock_key text <letters>` types letters as a keyboard's text input does (the console's line, Search's box); `vr_console_complete_bench <text> [runs]` times the console's completion hint key by key, the old way too, and checks both agree (ROUND21.md, "Typing in the console no longer stalls"). `menu_vr recent [clear]` prints Search's recent list (SRECENT lines, each row's middle in menu coordinates while Search is shown) or clears it (quakevr/search_recent.txt). `menu_vr list`: every page's number
 and place in the tree. `menu_vr dump` prints every page reached from VR Settings and its rows (MDPAGE/MDROW lines);
 `python Misc/quakevr/menu_coverage.py before.log after.log` compares two dumps (every setting and action still on a
 page, the tree, pages over 30 rows; ROUND21.md, "Menus reorganized"). Page numbers: 13 Grappling Hook, 23 Weapon
 Offsets, 41 Held Object Offsets, 42 Weapon Weights, 43 Held Object Weights, 44 and on the pages added then, 65 Recording. `vr_mock_laser back|search|console|settings|advanced|levels|maps|relighting|checklist|spectator|recording|obs`
-(or `<x> <y>` in menu coordinates; `off`) puts the main hand's laser on a corner button or a spot, whatever the hand's
+(or `<x> <y>` in menu coordinates; `frame`: on the panel's frame, where a grip moves the panel, ROUND22.md, "Moving the
+menu panel": `vr_menu_panel` prints MENUPANEL, `Misc/quakevr/menu_grab_test.py <agent>` checks it; `off`) puts the main hand's laser on a corner button or a spot, whatever the hand's
 pose; then `vr_mock_button main trigger 1` / `0` clicks. `vr_mock_laser kofi` (`vr_mock_mouse kofi click` on a flat screen) points at the version box's Ko-fi link (ROUND21.md, "The menus' Ko-fi link and corner boxes"); with `vr_menu_link_dryrun 1` (and in any hidden kit run) a press prints `menu link: opening <url> (<n>)` instead of opening the browser. `vr_mock_laser update` / `vr_mock_mouse update [click]` point at the update notice above it (shown with `vr_update_test_version 9.9.9`, or a newer feed: `vr_update_url <feed>; vr_update_check_now`; `Misc/quakevr/update_notice_test.py` runs the whole check against a local server). The OBS row above the spectator switch (`vr_mock_laser obs`): `Misc/quakevr/obs_test.py` runs it against a mock obs-websocket server (`obs_mock_server.py`; ROUND21.md, "OBS's recording from the menus"). `vr_mock_button off stickclick 1` / `0` gives the corner
 buttons the selection, `vr_mock_stick off 0 -1` (then `0 0`) moves down, `vr_mock_button main primary` presses;
 `vr_mock_stick main 0 -1` scrolls a page. Back to Game: `vr_mock_button main menu 1; wait90; vr_mock_button main menu
@@ -96,6 +120,13 @@ on a flat screen"): `vr_mock_mouse <x> <y> | back | search | console | settings 
 moves the desktop mouse there (M_Mousemove) and clicks; `vr_mock_key <key>` presses a key (`uparrow`, `enter`,
 `rthumb`...) and prints the menu and the corner button selected; `vid_unlock` before `vid_width`/`vid_restart` changes
 the kit's window size.
+Quicksave and Quickload (ROUND22.md, "Menu quicksave and quickload shortcuts") are below Back to Game in the top-left
+shortcuts. `vr_mock_laser quicksave|quickload` points at them; trigger clicks use the same `quick.sav` slot as the key
+bindings. `vr_mock_mouse quicksave|quickload click` tests the desktop row. With `vr_mock_key rthumb` selecting Back to
+Game, one `downarrow` selects Quicksave, two select Quickload; `enter` presses. Unavailable actions are dimmed and a
+press prints why without closing the menu. Set Menu Height and Row Spacing to 1 to check the column stays above
+Recording and the spectator switch; normal panels keep their large targets.
+
 Playtest checklist (ROUND21.md, "In-game checklist"): **to update what the author is asked to test, edit
 `quakevr/checklist.txt`** (`[Section]` lines, one item a line, `#` comments; the format is at its top) and commit it: no
 rebuild, and a running game reads it again within a second. Ticks live in `quakevr/checklist_ticks.txt` (ignored), keyed
@@ -119,6 +150,10 @@ wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) a
 plays (hand over hand to the top, a two-hand hang and a shimmy with a fall, a mantle, and e1m1 from `setpos 250 2350
 40`). With `vr_climb 1; vr_climb_debug 2`, `climb_trace.py qconsole.log` prints the body's move against the hands'
 pull every frame and at every hand-off. `vr_climb_probe [yaw]` lists the holds ahead.
+Climbing props (ROUND22.md, "Climbing props"): `bash Misc/quakevr/climb/prop_climb_test.sh <agent> [case ...]` (8 cases
+on vrclimb's floor with the test crates `vr_test_spawn 120..124`: heavy, stack, side, light, close, knock, hang, off;
+PASS/FAIL each). `vr_climb_debug 2` adds a `climbpull` line a frame per hand on a light prop, `vr_debug_box3d 2` the
+force as Box3D applies it, `vr_climb_debug 4` why a mantle found no room.
 Climbing, a jump to a ledge from against its wall (ROUND21.md, the section of that name): `python
 Misc/quakevr/climb/climb_jump.py script <abs dir> [cvars]` (vrclimb's jump wall, 30 press times after a jump) then
 `climb_jump.py table qconsole.log` (PASS: every press from 0 to 0.50 s takes the ledge; `vr_climb_air_grab_time 0`: about 5 of 30).
@@ -233,6 +268,20 @@ and its velocity and spin change by the grace's end.
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
 prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`
 compares every slot's hotspots, muzzle and hand with round 20's placement.
+
+Anchors (ROUND22.md, "Anchors are points on the models' surfaces"): `vr_anchor_where` (Debug > Reports > Weapon Anchors)
+prints the held weapons' muzzle, ammo button and screen, magazine and well, in the world and in the gun's own frame;
+`vr_anchor_info <model> <anchor>` where an anchor binds, `vr_anchor_nearest <model> x y z` the anchor of the nearest
+surface point. `Misc/quakevr/anchors.py` (py 3.13: numpy): `selftest` every anchor on its model renumbered, `check
+<model> [old]` a model edit, `point <model> <vertex>` a vertex's anchor. ROUND22.md, "Anchors without vertex indices"
+has the probe that dumps every anchor in every pose of its model (base against branch: 0.00000). With
+`vr_fixed_frames 1`, `sv_random_seed`, `vr_particle_seed`, a firing scene's `vr_anchor_where` lines are the same every
+run (A/B between builds). `vr_motion_header_check` (in `selfchecks_test.sh`): the weapon anchors through a motion
+take's header and back, and an old take's vertex index to the default (PASS/FAIL).
+
+Smoother animations (r_lerpmodels 3; ROUND22.md, "Smoother animations"): `bash Misc/quakevr/animsmooth_test.sh <agent>`
+(`vr_anim_smooth_check`'s keys, a grunt drawn smoothed with limbs swung, `vr_anim_smooth_trace`, the pin off after a
+map change). Debug > Reports has the commands (check, info, trace, pin).
 
 Fitted hands, second pass: `vr_grasp_bench [n]` times each hand's grasp solve on what it holds (the first solve, and
 again n times: min, median, max in microseconds; the first is a real one, not a remembered one: afresh solves with the
@@ -373,6 +422,14 @@ shoves: parry, enforcers, knocked off a hold"): vrclimb's start, `climb_plays.py
 hangs from rung 56 with both hands; `impulse 221` blasts 3 s later (`vr_climb_blast_letgo` 30 / 50: let go / held); a
 grunt beside: `vr_mock_look 0 90; impulse 241` (`vr_test_spawn_dist 40`, `vr_enemy_shove 0` until hanging), `vr_mock_look
 0 0`, then the play; `vr_physics_player` prints the body's place and velocity.
+The vore's shove (ROUND22.md, "The vore never shoves"): `bash Misc/quakevr/voreshove_test.sh <agent>` (a vore spawned
+touching you on vrtesthall, god, his shove settings, walking into it ~20 s): at least 4 shoves (8 now; 2 before the fix).
+Bloodless shoves, bashes and slaps (ROUND22.md, "Shoves, slaps and bashes draw no blood"): `bash
+Misc/quakevr/bloodless_test.sh <agent>` (`vr_smallgibs_test 23` on a grunt: gore hits, wound events, blood particles and
+small gibs all 0 for shove, bash and slap, their damage dealt; the punch control bleeds).
+Config version 129 (his bash, shove and parry values compiled in): `bash Misc/quakevr/config129_test.sh <agent>` (PASS).
+Flatscreen play (FLATPLAY.md): `bash Misc/quakevr/flatplay_test.sh <agent>`: the arms' walking lag at yaw 0 and 90 (the
+main hand across the view within 1.5 units of standing), the mode per player (`reload: the player reloads ...`).
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:
@@ -463,6 +520,15 @@ the face and the chest"): `vr_body_elbow_lift 0` gives the old swing for A/B; re
 neutral one (`vr_fixed_frames 1`), as the swing keeps the nearest good elbow. Palm down at the face ("Follow-up: palm down spreads the elbows"): `vr_body_elbow_spread 0` for A/B; `armcost` lines give the swing's cost every 15 degrees from the pole; place the wrist, not the controller (the `armT` W offset from the controller depends on its turn).
 Corpse collision (ROUND21.md, "Corpse collision"): `vr_corpse_list` prints each corpse's body and what touches it; `vr_corpse_drop [height]` puts the loose prop nearest you over the nearest corpse (it rests on it unless Corpses is Pass Through). In a cfg, put a few `wait`s between `impulse 241` and `vr_test_spawn_dead 0` (the impulse runs on the next frame).
 Ragdolls (ROUND21.md, "Ragdolls"; `vr_ragdoll 1`): `vr_ragdoll_list [1]` prints each ragdoll (and each part), `vr_ragdoll_info` the grunt's rig, `vr_ragdoll_blast_test [damage]` throws the nearest one away from you, `vr_debug_ragdoll 1` logs them; `vr_corpse_nogib 1` (2: monsters die whole too) keeps corpses and ragdolls from gibbing (blasts still throw them); `bash Misc/quakevr/ragdoll/ragdoll_test.sh <agent> [flat stairs blast shot gib cap save]` the scenarios (`EYES=1`: eyeshots).
+Active ragdolls' dismemberment (ROUND22.md, "Active ragdolls: dismemberment"; `vr_ragdoll_active_dismember 1`): `vr_test_cut <n>` (Debug, World and Physics: Cut the Nearest Monster's Leg / Arm / Both Legs Off) kills the live monster nearest you with a sword's cut at its left arm (1), right arm (2), left leg (3), right leg (4), both legs (5), left forearm (6), left shin (7) or head (8), or with n + 10 cuts the dead one nearest you so; `vr_ragdoll_active_trace n` adds a `ragdis` line (the hand's distance from the stump, his lean on one leg, the beat, the hold, the writhe, how his torso and legs stir); `vr_debug_ragdoll 2` each balancing and holding frame. `Misc/quakevr/ragdoll/dismember_test.sh <agent> [arm forearm leg shin legs head dying off cost]` (`dismember_trace.py` sums each up and fails on NaN, a crash or a restless body; `EYES=1` a contact sheet).
+Active ragdolls (ROUND22.md, "Active ragdolls: core and deaths"; `vr_ragdoll_active 1`): `vr_test_kill <n>` kills the live monster nearest you with a shot struck on its body (1), head (2), an arm (3) or a leg (4); `vr_ragdoll_active_list` prints each driven ragdoll and the drive's cost, `vr_ragdoll_active_trace <n>` a `ragtrace` line every n frames, `vr_ragdoll_active_debug 1` draws the joints' targets; `bash Misc/quakevr/ragdoll/active_test.sh <agent> [deaths head wound crawl stumble decap off cost]` the scenes (`EYES=1`: contact sheets in the kit's scratch).
+
+Living hit reactions (ROUND22.md, "Active ragdolls: living hit reactions"; `vr_hit_react`): `vr_test_hit <n>` strikes the live monster nearest you (body 1, head 2, arm 3, leg 4; `vr_test_hit_damage`, never a kill; `vr_test_hit_calm 1`: no pain frames and it does not turn on you; `vr_test_hit_all 1`: every live monster; `vr_test_hit_watch <s>`: `hitwatch:` lines, its frame, place and state each server frame); `vr_hit_react_debug 1` prints the blows and the slowed steps, 2 a `hittrace` line a frame per reacting monster; `vr_hit_react_info` the reactions now and the drawing's cost; `bash Misc/quakevr/ragdoll/hitreact_test.sh <agent> [trace eyes ai slow cost]`.
+
+Active ragdolls and what is round them (ROUND22.md, "Active ragdolls: environment"; `vr_ragdoll_active_env 1`): `bash Misc/quakevr/ragdoll/env_test.sh <agent> [wall along ledge thrown hit crate front open off cost]` kills a grunt and a knight on vrtesthall by a wall, at the platform's lip, by a crate (`env_trace.py`: catches, leans, holds, hangs, why each let go; `EYES=1`: one contact sheet, the kit's `scratch/env_sheet.png`); `vr_ragdoll_env_hit` strikes every holding hand; `vr_debug_ragdoll 1..3` the events, probes, ledge candidates.
+`vr_corpse_poses [1]` lists every dead monster and placed corpse (its frame, where that is in its death, a ragdoll or
+why not; mid-death ones "NOT LYING"); `bash Misc/quakevr/ragdoll/placed_corpse_test.sh <agent> [poses scenery grab walk
+gib]` the maps' placed corpses (ROUND22.md, "Dead ogres standing"; owned MG3 data).
 
 Limb gore (ROUND21.md, "Limb gore"; `vr_limbs 1`): `vr_limb_test <n>` (Debug > Gore Tests > Limb Gore Tests; `limbtest:` lines, `developer 1` also `limbs:`) on the nearest monster or corpse: 1 hangs every limb model of its model before you, 2 and 3 cut a corpse apart down to the torso (ends first, whole limbs first: the parts left after each), 4-7 a killing slash, punch, shotgun blast or bolt at a forearm, 9 an explosion beside it, 10 gibbed (its own limbs thrown), 11 twice Most Limbs thrown, 12 a light slash at full health (a zombie dies), 13 where each limb maps, 14 and 15 the grab test; `vr_limb_models [model]` lists a model's limb models (triangles, cap, size). `vr_mock_hand_to <main|off> nearest <classname> [units]` puts a hand on the nearest entity of a class (`vr_limb`). `bash Misc/quakevr/limbs/limbs_test.sh <agent> [models corpse live chance cap grab save zombie blast perf eyes]` the scenarios (`KINDS="0 9"`: the live case's monsters, the firing range's Thing numbers).
 
@@ -773,6 +839,27 @@ fire as a blow, a lava nail or a touch would; `4` prints how it burns; `5` loads
 vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait5; vr_test_spawn_dead 0` (the wait: the impulse runs next
 frame). Touch: e1m2's torch 52 in the main hand (as above), `setpos 1740 -175 290 0 30 0; vr_burn_touch 1;
 vr_mock_hand_to main 1775 -150 320` puts it in the ogre. The kit's `scratch/burn_torch2.sh`, `burn_lava.sh`.
+Incandescent blades (ROUND22.md, "Incandescent blades"): `bash Misc/quakevr/hotblade_test.sh <agent> [case regex]`
+(27 cases and `shots`, ~9 min, each PASS/FAIL; logs in `scratch/hotblade/`). `vr_hotblade_test <n>` (Debug > Tests > Incandescent
+Blades; `developer 1` prints `hotblade: ...`): 1 heats the held blades, 2 quenches, 3 reports each hand's weapon (heat,
+glow, time left) and the holsters' glow, 4 puts them in their fade, 5 holds them half built up (screenshots), 6 lands a
+main-hand blow of base 20 (+ the heat's extra) on the nearest monster or corpse, 7 moves you (use `noclip`) so the main
+hand's blade is in the nearest map flame or wall torch, 8 in lava near you, 11 in slime or water, 9 takes the nearest
+wall torch into the off hand (`+grableft; vr_mock_button off grip 1` first), 10 brings the off hand's torch's flame round
+the blade (in-game only: it queues `vr_mock_hand_to off by ...`, which in a test script runs after the script's end;
+the suite passes the printed move itself). Places: e1m2 (a map flame: test 7 from the start, `setpos 1714 -170 312 0 243
+0` a wall torch), e1m7 `setpos -50 48 40` (lava), e1m1 `setpos 200 2820 0` (slime). Real swings: `motion_synth.py
+chop_overhead --weapon axe` at the firing range's dummy, heated by `vr_hotblade_test 1` repeated through the take (the
+take equips its own axe: a new record): 29.6 cold, 44.4 hot, `burning: monster_army lit (a blow)`.
+His tweaks (ROUND22.md, "Incandescent blades: his tweaks"): `vr_hotblade_report` prints what the client draws (each
+glowing blade: hand, holster or lying; the heated part's length of its grip-to-tip line and its vertices of the model's; its
+light; the hand's grip and muzzle against the blade's ends) and the embers and trail particles of the last second and
+since. `vr_hotblade_test 12` lists the blades lying about (heat, glow, the glow sent), 13 throws the main hand's weapon at
+the nearest monster (1.5x the full-damage speed, from 24 units short of it, rigid as a real throw: use e1m2, whose start
+has no weapons lying near the spawned grunt), 14 drops it at the hand. A swing for the trail: the mock hand swept 10 cm
+and 5 degrees a frame (the suite's `W`). `hotblade_test.sh <agent> shots`: composites in `scratch/hotblade/shots_*.png`
+(each blade from the side with `vr_mock_camera 0.8 1.5 -0.7 10 90`, the hand at `0.1 1.4 -0.4 0 0 0`; the chainsaw pitched
+60; the dropped axe; the trail).
 Crates and nails (part 2): `vr_test_spawn 109` puts a crate with one on it ahead (`107` a small one), `vr_burn_test 1`
 lights the nearest (`vr_burn_crate_time`, `vr_burn_crate_spread` short to see it spread and break; `developer 1`:
 `lit (a burning crate)`, `burnt through: it breaks`). `vr_burn_test 6` shoots a nail through the nearest lit torch's
@@ -1057,6 +1144,13 @@ top`); a gun handed off to the off hand (the main hand lets go while the off han
 pulled out and seated again. The mock's hand arrives in one frame, far faster than a hand: set
 `vr_reload_bump_speed 100` while it comes. `vr_reload_debug 2` prints the hold's pull, snap and apart every frame, 3 each
 empty hand's distance off the magazine's box. The report line ends `, main mag M`.
+The same magazine pulled out, put back (`lport 10`, then `lport`) and pulled out again, three times, the off hand's grip
+never let go: 3 `out of the gun`, 2 `seated`, each seat followed by `hand 0 holds the magazine ... (still gripping it as
+it seated)` (ROUND22.md, "Magazine re-pull and Reinsertion Delay"). Reinsertion Delay (`vr_reload_reinsert_time`,
+default 0.25 s): a pouch magazine that knocked the old one out, kept at the well (`lport`), is out at ~0.14 s and seated
+by ~0.32 s; with 0 it stays out (only the clearance rearms it). `vr_reload_test 28; impulse 125` checks both rules
+directly (`reload reinsertion: 21 passed, 0 failed`). With `vr_reload_debug 2` grep `held round`/`reload: off hand
+weapon`, not `reload: off hand` (it also matches `off hand on/off the magazine`).
 The ammo button (section 9): `vr_mock_hand_to main wbutton <degrees> [units] [azimuth]` (0 its front, 180 behind), 20
 approaches in a straight line at a quarter unit a frame from 0-60 degrees (95% must press) and 20 from 120-180 (none).
 
@@ -1089,10 +1183,13 @@ the pouch and `vr_mock_hand_to main lport` (the breech, turned with the barrels:
 hand down 10 units in four frames (`ssg: pried open`, `broken open by the pry`), up again (`ssg: the barrels lifted
 shut`); `vr_reload_debug 2` prints the pry's angle every frame and `ssg: hand N open A deg, its breech ...` (the drawn
 barrels against the model's turned breech: `turned 0.00 off`). The self-test's section: `reload: PASS ... super shotgun`.
+Two super shotguns (ROUND22.md, "Two super shotguns"): then `impulse 155` (a second in the main hand); `+flickreloadleft`
+logs only `the super shotgun (hand 0) broken open by a flick` / `closed by a flick`, `+flickreloadright` only `(hand 1)`;
+both at once toggle both. A `(hand 1) ... by the pry` after a left flick is the old bug.
 The cell cords (ROUND21.md, "Cell cords"): `bash Misc/quakevr/cellcord_test.sh <agent>` (the laser cannon held: the pouch shows cells, its cord plugged into cell 0 with its ends on the weapon's end and the contact; no cells: loose, hanging; cells again: plugging, then plugged; two cannons: cells 0 and 2; the option off: none; Mjolnir and the Super Axe on). `vr_cellcord_info` (Debug, or Weapons > Reloading > Cell Cords > Cord Points) prints each hand's cord: `cellcord main: lasercannon plugged cell=0 gunend=0.00 plug=0.00 below=-13.8`.
 The super shotgun's ways to open and close (reload_test.sh section 7, the author's notes): each switch in a matrix (one
 off: that way does nothing, the other three still work; `vr_reload_ssg_pry_angle 40`, `_lift_angle 40` there: the mock
-hands' reach), the hits (`vr_mock_hand_to main held 0.85 30`, then `held 0.85 0`: a hit from above; `held 0.85 -40`
+hands' reach), Close by B/Y (`vr_reload_ssg_close_button`, off by default: B/Y again leaves it open; on, it shuts it), the hits (`vr_mock_hand_to main held 0.85 30`, then `held 0.85 0`: a hit from above; `held 0.85 -40`
 then `-15`: from below), B/Y (`vr_mock_button off secondary 1`), the flick's speeds by a real gesture
 (`vr_mock_turn_velocity 1`: the mock hands report the angular velocity of `vr_mock_hand_turn`), the ring
 (`Misc/quakevr/reload/ssg_checks.py ring`) and the sights' colour in screenshots (`ssg_checks.py sights`: pixels of the
@@ -1131,4 +1228,246 @@ fallback through the real loader (each fake runtime loaded, failing and unloaded
 outside `XR_RUNTIME_JSON` winning. Also (49 checks): `FAKEXR_D3D11=fakexr_vd` makes VDXR's fake load and free d3d11.dll as VDXR does,
 and the game keeps it loaded (`graphics DLLs: d3d11.dll kept` in the report; not with `vr_xr_keep_graphics_dlls 0`);
 each VR start's log `quakevr/qvr_openxr.txt`; SteamVR asked again for the headset (`vr_xr_steamvr_wait`); a
-`+vr_xr_runtime` on the command line reported; a relative `library_path` resolved. Part 4: `FAKEXR_HEADSET=fakexr_steam` gives that copy a headset (a session, OpenGL swapchains, frames; `FAKEXR_EYE=WxH`, `FAKEXR_UNFOCUS=a-b` frames the session is VISIBLE, as under SteamVR's dashboard): `qvr_openxr.txt`'s formats, layers, sizes, states and timing lines, `vr_xr_unfocused`'s frames shown again with valid layers, `vr_xr_eye_scale`. Part 5: `vr_xr_unfocused_pause` (a single player game paused while unfocused, its time still, the sounds faded: run with sound; resumed; `0` runs on). Part 6: the status box's eye lines (`vr_status` prints them) for a Quest 3 by its name (`FAKEXR_SYSTEM`) at 150%: the panel, the runtime's share, the warning; Eye Image Size 0.66: none.
+`+vr_xr_runtime` on the command line reported; a relative `library_path` resolved. Part 4: `FAKEXR_HEADSET=fakexr_steam` gives that copy a headset (a session, OpenGL swapchains, frames; `FAKEXR_EYE=WxH`, `FAKEXR_UNFOCUS=a-b` frames the session is VISIBLE, as under SteamVR's dashboard): `qvr_openxr.txt`'s formats, layers, sizes, states and timing lines, `vr_xr_unfocused`'s frames shown again with valid layers, `vr_xr_eye_scale`. Part 5: `vr_xr_unfocused_pause` (a single player game paused while unfocused, its time still, the sounds faded: run with sound; resumed; `0` runs on). Part 6: the status box's eye lines (`vr_status` prints them) for a Quest 3 by its name (`FAKEXR_SYSTEM`) at 150%: the panel, the runtime's share, the warning; Eye Image Size 0.66: none. Part 7 (69 checks in all) tests three things. First, a crash inside the runtime, caught (`vr_xr_guard`): with `FAKEXR_FAULT_SRGB=fakexr_vd`, the fake's sRGB swapchains read a null pointer while enumerating their images, as VDXR 1.1.0's did; the game tries once more in GL_RGBA8 and VR runs. With `FAKEXR_FAULT_IMAGES=fakexr_vd` every swapchain does: that runtime is given up, SteamVR's fake starts, and a later crash report has the `VR:` line. Second, `vr_xr_test_drop_context 1` leaves no GL context current when the swapchain is created: the game makes it current again and logs it. Third, `qvr_openxr.txt` has each request before its call, and `vr_xr_runtime_explain` lists the implicit API layers and the other programs' DLLs. Part 8 (79 checks in all) covers diagnostics mode (`-diagnostics`). Its folder
+`quakevr/diagnostics/<date>_<time>` gets five things:
+- `console.log`;
+- `gl_debug.log`, which starts with a debug message of the game's own;
+- `openxr_debug.log`, with the fake runtime's messenger messages (`FAKEXR_DEBUG_UTILS` makes the fake offer
+  `XR_EXT_debug_utils`) and the loader's;
+- `debug_output.log`;
+- `crash/`, with the copied logs listed in `diagnostics.txt`.
+
+It also checks Khronos' core validation layer (`quakevr/xr_layers`, ROUND22.md "OpenXR core validation layer"): the
+layer is ON in `openxr_debug.log`, `openxr_validation.log` has "Core Validation Layer is initialized", and the crash
+report's module list has `XrApiLayer_core_validation.dll`. A normal run that starts VR and crashes has no such module.
+
+A run without `-diagnostics` makes no folder.
+
+Part 9 (81 checks in all): the vendors' controller profiles (`vr_xr_vendor_profiles`). `FAKEXR_EXTENSIONS` makes every
+fake offer more extensions (Pico's, HTC's, HP's, Samsung's), and the fake logs each `xrSuggestInteractionProfileBindings`
+(its profile and binding count). Each extension enabled, each profile's bindings suggested with its menu button;
+`vr_xr_vendor_profiles 0` asks none; `FAKEXR_REJECT_PATH=left/input/menu/click` turns the Pico's down, and its basic
+bindings (no menu button, no finger sensors) are taken.
+
+Part 10: the runtime ending the session (`vr_xr_exit_quits`, round 22 "Exit from the runtime's menu quits the game").
+`FAKEXR_END=n:kind` ends it at `xrWaitFrame` n: `exit` (STOPPING, then IDLE > EXITING after `xrEndSession`: the game
+quits at once, exit code 0; with `vr_xr_exit_quits 0` it plays flat), `restart` (READY again: VR goes on), `loss`
+(LOSS_PENDING) and `instanceloss` (flat, said why). The states are checked in `qvr_openxr.txt`, not the console: the
+console wraps lines past about 120 columns (the hidden window is 960 wide), so a long line, or one holding the
+worktree's path, can split (part 2c's relative `library_path` check reads `qvr_openxr.txt` for the same reason).
+
+Menu gestures (`vr_menu_button`, round 22 "Menu on any controller"), with `vr_debug_buttons 1` (each prints `VR
+buttons: <hand>'s <gesture>: opens the menu` / `closes the menu`): `vr_mock_button off stickclick 1;wait2;vr_mock_button
+main stickclick 1` (both sticks, the second click taken), `vr_mock_button off secondary 1;wait150` with
+`vr_menu_button 2` (Y held), `main secondary` with 3 (B held), a Y press with 4, and `vr_mock_button off menu 1`.
+
+Prop grip/carry regression (ROUND22.md, vrgrabs): python Misc/quakevr/climb/prop_grab_test.py <agent> tests
+crate ledges in four directions/at four reaches, full-stick carry speeds and torso stops. vr_carry_load_test
+prints the rotated/fast sweep regression, sample load curves, current speed, physical/drawn torso overlap and the
+same prop's speed fraction in both hands. vr_carry_body_collision toggles solid carried props' torso constraint;
+vr_carry_move_mass, vr_carry_move_size and vr_carry_move_min tune the mass/bulk slowdown (minimum 1 disables it).
+
+Melee recording room (ROUND22.md, `meleeroom`): `map vrmelee-recording` has one central dummy, all seven distinct
+melee pickups (both swords), and an otherwise clear floor. `python Misc/quakevr/melee_room_test.py <agent>` checks
+compiled/runtime contents, clear player-width sweeps, recording, automatic replay routing from e1m1, default
+evaluation with new/old-map-header takes, unchanged take bytes/events and hand pose error below 0.01 units. It saves
+logs in `scratch/meleeroom_check/`; generated cfg/takes stay in that worker. Direct replay's `map <name>` option
+supports other fixtures explicitly. The crowbar, empty-melee and melee-phasing checks also use the recording room.
+Under the mock headset a plain `vr_motion_play <take>` on another map loads the room first (dropping what a script set
+up there); `noplace` or `target <classname|#entity>` keeps the running map (and its spawned targets), and
+`map <name>` always loads that map.
+
+## Arcane Dimensions: soldiers' guns, upgrades per weapon, the gadget's AD page (2026-10-12)
+
+With AD's data linked into the agent's base (`qbase/ad`): `vr_ad_test 70` fires each AD soldier's gun from the main hand
+at a target ahead and prints `adgun test: ... PASS` (it sets `vr_weapon_grip_mode 1` for itself; aim the mock hand
+level: `vr_mock_hand main 0.25 1.20 -0.40 70 0 0`; about 2.4 s a gun); `71` drops each from a soldier's place and checks
+its model and clip; `72` prints their settings; `90` (same level hand) fires the grenade soldier's launcher beside our
+grenade launcher (the same grenade: model, box, movement, touch, blast, fuse, speed), the rocket soldier's (our rocket)
+and the plasma rifle, and checks each shot 0.3 s on is flying, its own, 90+ units from the muzzle (`adgun shots:`; a
+fifth, uncounted line: AD's old grenade model for comparison); `73`..`80` put one in the main hand (WID_ADROCKET's order: with
+`vr_weapon_grip_mode 1`); `vr_adgun_models` prints the gun models made from AD's monsters (box, muzzle). Real drops:
+`vr_test_spawn_dead 1; vr_test_spawn 211; impulse 241` (227, 223, 212, 217, 220, 232, 235: the grenade and plasma
+soldiers, defender, eliminator, centurion, pyro, fumigator), `developer 1` prints `adgun: ... drops its ...`.
+Upgrades: `vr_ad_upgrades 2; vr_ad_test 5` (a Widowmaker pickup ahead), take it, `vr_ad_test 6` (each hand's upgrade
+code: 1 Shadow Axe, 2 Widowmaker, 4 Plasma Gun; parm64's packing); `7` an older game's player-wide upgrades moved onto
+the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the current loadout's parms; `66` AD's sky
+(svc_skybox) and sky fog (STAT_QVR_ADSKYFOG; then `vr_ad_skyfog_info` prints the client's: `stat 1.3, sky fog drawn
+0.3`). The gadget's AD page: `vr_gadget_page` (or `vr_gadget_page_press`, the
+outer button's press), `vr_gadget_test_state 6` for made-up readings, `vr_gadget_screen_dump <name>` to look at it.
+Carried through a level change (2026-10-13): `vr_adgun_drops 0; vr_weapon_grip_mode 1; map ad_dm1; wait60; vr_ad_test 87;
+wait10; changelevel start; wait60; vr_ad_test 88` prints `adgun carry: start: ... PASS` (87 arms the main hand and the
+left shoulder holster; before the fix the engine quit with "SV_ModelIndex: model ...#gun4 not precached").
+`vr_ad_test 89`: a gun model the engine cannot make (another AD release, a replacement pack) loads Quake VR's stand-in
+under its name: `adgun standin: progs/soldier.mdl#gun0 index N ...: PASS` (before: Host_Error).
+The AD shooters' effects (2026-10-15): `god; notarget; developer 1`, a pyro, fumigator or plasma soldier (232, 235,
+223/217/220) and a target monster spawned apart, then `vr_ad_test 92` (repeat it, `wait7` apart, for a stream): the
+nearest shooter fires at the monster nearest it (`adfx: ... fires at ...`); `adpoison: X's poison ends (puffs N, ...)`
+and `adgun bolt shock: X alive before A ... shock left S` report the poison and the electrocution
+(`scratch/adfx_enemy.sh`, `adfx_bolt.sh` in the profilemulti worktree).
+
+The Debug menu's AD pickup rows (2026-10-13): `vr_test_spawn_dist 64; vr_test_spawn N; impulse 241; wait100;
+vr_ad_test 86` for N 300..319 (and a monster's number: 0.., 200..) prints `adspawn: N: <classname> (<model>) at D ahead
+xA, height H: PASS` for the pickup, gun or monster nearest the spawn point (within reach ahead: PASS, then removed for the
+next). Runs: `-Games "-game hipnotic -game rogue -game ad -game quakevr"` for an AD map (ad_dm1: a quiet start; in
+ad_crucial and start the player moves or hangs at the start, so its numbers mean nothing).
+
+## Piled-up decals: the mark limit a spot (2026-10-12)
+
+`vr_decal_bucket_max` (32 shipped) caps the marks one 32-unit world cell lists. A pile to test on: in `vrfiringrange`,
+`vr_mock_look 35 0; vr_decal_max 768; vr_decal_life 1200; vr_particles 0`, then `vr_decal_stress 64 32 cluster` twelve
+times (a few frames apart) and `vr_decal_count`: its line gives "N over L marks (M marks left out whole)" (L the limit
+in use). Change the limit and `vr_decal_count` again: the grid is listed again under it (32: 669 left out, 255: 347).
+Timing: the bench scenarios `decals_pile` / `decals_pile_255` (`world+brush` in `gpu_phase_ms`); separate runs are
+noisy with the GPU's clocks, so compare in one process with windows alternating the limit (ROUND22.md, "Piled-up
+blood: a mark limit a spot"). Look for whole marks only, never a cell-shaped hole, at any limit.
+## Judo throws, held throws and lifts with the mock hands (2026-10-13)
+
+`python Misc/quakevr/foegrab/judo_test.py <agent> [dir]` (ROUND22.md, "Judo: the throw's direction, held throws and
+lifts"): each case one game on vrfiringrange, a grunt 36 units ahead (`vr_test_spawn 0`), both mock hands put in it by a
+`vr_mock_play` file it writes to `quakevr/motions/judo_*.mock` (git-ignored; tracking space: x right, y up, -z
+forward; the hands' reach is capped about 1.2 m, so the enemy stands close), gripped with `+grabmain`/`+graboff`, then
+pulled. `dir`: left, right, towards you, away, with the hands at its shoulders, its box's middle, low, and uneven; PASS:
+`foegrab: both hands turn ... to your left` (the way), `throw trace` its head along the throw at 0.2 s, and
+`throw trace done: lies <a> ahead, <l> to your left (its head from its feet); its head <a> ahead, <l> to your left of
+where it stood` (from the first player's side: printed by every throw trace now): its head on the pulled side by 8+
+of where it stood or of its feet, the larger (a throw goes over its head: its legs flop on over or back as they land,
+or its feet slide back, each alone varying). `JUDO_ONLY=<regex>` runs only the matching cases (`judo_<height>_<way>`), `JUDO_EXTRA=<cmds>`
+adds commands; the logs go to `scratch/judo_test_<case>.txt`. The neck snap has one twist detector, the hand line
+(since 2026-10-15; grunt_roll, a tilt, must not snap).
+`hold`: thrown left and held on (`vr_foegrab_throw_hold`), the hands then lowered and drawn 0.5 m back: PASS when both
+hands hold it (`foegrab: ... held on as a ragdoll by 2 hands`), it lies to the left, and `vr_foegrab_status` (which now
+prints the ragdoll held on: its pelvis ahead / to his left / up, each hand's distance to its limb) has its pelvis 4+
+units nearer (how far varies with how it landed); and with it off, let go as thrown.
+`lift`: a grunt and an enforcer pulled up at 1.6 m/s: PASS when lifted (`foegrab: ... lifted, held on as a ragdoll by 2
+hands`), flailing (`flail: ... it flails in the hands`, with `vr_knockdown_debug 1`), held up (its pelvis less than 5
+units below the player's origin at 0.5 s; lying, it is 19 below), broken free after 1.9-2.2 s and you shoved 24+ units (`vr_foegrab_status`'s
+player origin before and after); thrown down (swung down, let go) without a break free; an ogre, Lift Reach 24, Lift off:
+not lifted.
+`neck` (ROUND22.md, "The neck snap"; 14 games): both hands at a grunt's head (tracking `0 1.39 -1.16`, each hand
+0.12 m aside; an ogre's `0 1.71 -1.16`) twisted 75 degrees in 0.2 s about the vertical both ways and about the forward
+axis, an enforcer's, a zombie's; a knocked-down grunt (`vr_knockdown_push 0` so it falls in place, down 12 s, then
+`vr_mock_walk_to nearest monster_army 24`, a settle, then the hands put at its ragdoll's head by `vr_mock_hand_to <hand>
+ragdoll head 0` and moved by the play's new `rel` keys), a staggering one (`vr_knockdown_test 21`, Chance 0.01,
+`vr_ragdoll_active_stagger_travel 0.03` so it stays in reach), a lifted one; PASS when `foegrab: both hands snap ...'s
+neck ...: killed`, `necksnap: ... (standing|knocked down|staggering, ...)`, `vr_foegrab_status` at MARK1 has `(snapped)
+with 2 hand(s)`, `let go of after` once the grips let go and no ragdoll held at MARK2. Not snapped: the ogre (`no neck
+snap, not a humanoid`), the hands at its chest, 75 degrees in 1 s, `vr_foegrab_necksnap 0`. Since "Neck snap: the only
+move at the head" (25 games): push-pulls (`pp_*`: the main hand 20 cm forward and the off hand 20 cm back, or the other
+way, in 0.3 s, straight and eased; wide 0.36 m apart 15 cm each; uneven 25/10 cm) standing at its head and at its neck
+(tracking `0 1.19 -1.16`: its holds 15-16 units over its origin), knocked down at its ragdoll's head both ways and at
+its neck (`vr_mock_hand_to <hand> ragdoll neck 0`: its head's joint) snap; the same in 1.2 s does not; both hands at its
+head pulled left (`head_pull`) or up (`head_lift`): neither `both hands turn` nor lifted. The lifted case lifts by the
+shoulders (`0 1.09 -1.16`: one hold in the head zone) and twists after. The knocked-down cases' ragdoll grab misses with
+one hand now and then (`ragdoll: a limb taken by hand 0` only; seen 2 in about 14 runs, not the snap's code): rerun with
+`JUDO_ONLY`. `vr_foegrab_debug 2` prints each frame's twist (`... 's head: twist <deg/s> (about its neck: the palms, the
+wrists), stroke <deg>, fastest <deg/s>; each palm <m/s> about their middle, together <m/s>`) or which hand is not at
+its head (its spot in its frame: forward, left, up from its origin).
+Mock plays (`vr_mock_play`) take `<t> rel <main|off> <dx> <dy> <dz>` keys: a hand's keyframes from where it is when the
+play reaches its first (after a `vr_mock_hand_to`); before it the hand is left alone.
+
+## Closer to enemies: body inset and step in (2026-10-13)
+
+`bash Misc/quakevr/foegrab/closein_test.sh <agent> [approach wall stepin]` (ROUND22.md, "Closer to enemies"):
+`vr_body_contact_status` lines after walking into a grunt, an ogre and an enforcer at `vr_body_monster_inset` 4 and 0
+(dist 12/20, 20/28, 14/22; set to 0 touching: apart within 60 frames, backs off), the back wall at 0 and 12 (same
+origin), a held grunt walked into with `vr_foegrab_step_in` 1 (dist ~5.6, let go: 12 again) and 0 (stops at 12).
+Uses the mock hand on the grunt (`vr_mock_hand_to main nearest monster_army 6`, `+grabmain`) with Follow, Pull 0 and
+Let Go Beyond 200 so the hold stays while he walks in. `voreshove_test.sh` is marginal with the inset on (3-4 shoves).
+
+## Batched test cases: many cases a game, games in parallel (2026-10-14)
+
+A headless case used to be a game of its own (kit `run.sh`: start-up ~0.8 s, the first map ~2 s, the case's frames at
+the wall clock's pace, quit), one after another. `Misc/quakevr/testbatch/` plays a suite's cases as batches instead, as
+the kit's `eval.sh` does the melee takes (ROUND22.md, "Faster test suites": the numbers):
+
+- **Many cases in one game.** Each case runs from its own cfg between `echo @@TB_BEGIN <n>` / `vr_test_reset` and
+  `disconnect` / `echo @@TB_END <n>`. `vr_test_snapshot` (at the batch's start) and `vr_test_reset` (engine,
+  `vr_testbatch.cpp`): the cvars a case set go back to the batch's start (a cvar made since: its default), every engine
+  `+command` is let go (`-grabmain`, `-forward`), the mock headset's poses, buttons, sticks, glides, plays, aims, walks,
+  turns and camera go back to start-up (`resetMockState`), the client's `rand()` is seeded as at start-up. The case's
+  own `map` does the rest (the server, the entities, `sv_random_seed`, the items). Not reset: aliases, the game folder
+  (`vr_campaign_native`: every case of a batch should switch the same way), what the menus or saves leave behind.
+- **Games in parallel.** The cases are split between up to `TB_JOBS` (8) copies of the game (kit `run.ps1 -Instance
+  <k>`, their own game folders; the agent's other game folders, `ad`, linked in), as many as the kit's free run slots
+  allow (`slots.sh acquire_many`, with the agent's run lock held: its runs still go one at a time).
+- **Unpaced frames.** The batches run `vr_fixed_frames 1; vr_fixed_frames_rate 250`: the real-time test run's frames
+  (the baseline's `host_maxfps` 250 over the server's 72 Hz ticks, `host_fixedtick`), as fast as they come. At rate 72
+  (a tick a frame) the client's per-frame work (the hands' hits) sees 3.5 times fewer frames, and reload_test.sh lost 5
+  of its 110 checks: keep 250 unless a suite is proven at another (`TB_RATE`). `TB_NODRAW=1` (`vr_mock_fast 2`) skips
+  drawing the frames (5-10 times faster again): a suite opts in (`export TB_NODRAW=${TB_NODRAW-1}`) once its verdicts
+  are proven the same, since a check that reads the drawing (a "first drawn" line, the pixels) needs the frames drawn.
+- **Each case's output as run.sh would have printed it alone**: `exit=0` (or the copy's `TIMEOUT` / `ENGINE ERROR` /
+  `ENGINE CRASH` lines for the case that ended it), its console lines through its `-Filter` (Select-String's: a regex,
+  case-insensitive), the same blank lines and CRLFs. A case past its `-Timeout` is stopped (`TIMEOUT after <n> s`, the
+  game killed) and the cases after it in that copy run again in a new one, as do a crashed copy's.
+- **Not batched** (run alone by `run.sh`, as before): `-Out`, `-Clean`, `-RealTime`, `-Visible`, `-Full`,
+  `--exclusive` (timings), and a script that takes a `screenshot`.
+
+A bash suite keeps its shape: its body in a function, its `bash $KIT/run.sh $AGENT ...` calls as `tb_run_sh ...`:
+
+    source "$(dirname "$0")/../testbatch/testbatch.sh"   # (from Misc/quakevr/<dir>/)
+    tb_body() {
+        log=$(tb_run_sh -Script "map e1m1;wait60;...;toggleconsole;quit" -Filter "^reload:" 2>&1)
+        check ...                                          # as before
+    }
+    tb_main "$AGENT" tb_body "$@"
+
+`tb_main` runs the body twice: first collecting its runs (`tb_run_sh` prints nothing; that pass's output is thrown
+away), then the batches, then the body for real, each `tb_run_sh` printing that run's output. A run whose arguments
+differ the second time (a script built from an earlier run's output) runs then, alone (a batch of one). A Python
+suite: `testbatch.run_sh(AGENT, [...run.sh arguments...])` in place of its subprocess call, and
+`sys.exit(testbatch.two_pass(AGENT, "<name>", main))` (main resets its own fail count: it runs twice); or
+`testbatch.Batch` (`case()`, `run()`, `output()`) for a suite that lists its cases first.
+
+- `TB_SLOW=1`: every run by `run.sh`, one after another, at the wall clock's pace: the suite as it was (its reference
+  results). A converted suite is proven by both (same PASS/FAIL, numbers within the run-to-run spread).
+- `TB_FIXED=0` (real-time frames in the batches), `TB_ISOLATE=1` (a game for each case, still unpaced and in parallel:
+  a suite whose cases can't share a game), `TB_JOBS=N`, `TB_RATE`, `TB_NODRAW`, `TB_STATS=1` (games, cases, seconds).
+- The cases, outputs and `stats.json`: `<tree>/scratch/testbatch/<suite>/`.
+
+Waits that end on a condition (engine, `vr_testbatch.cpp`), in place of a fixed `waitN` long enough for the slowest
+run; each counts frames as `wait` does (a server tick each) and goes on at once when its condition holds:
+
+- `vr_waituntil <cvar> <op> <value> <frames>`: until the cvar compares so (`== != < <= > >=`; numbers as numbers,
+  else text, `==`/`!=` only). QC can raise a flag for it with `cvar_set`.
+- `vr_waitprint <frames> <text...>`: until the console prints a line holding the text (after the command).
+- Running out prints `vr_waituntil: timed out ...` / `vr_waitprint: timed out ...` and the script goes on.
+
+A fixed wait that a check measures across (frames, seconds, distances after it) is the check's own: replace only waits
+that end on an event (the ragdoll settled, the line printed), and prove the suite again.
+
+### The batched suites, proven again on next (2026-10-15)
+
+Each suite run alone (`TB_SLOW=1`) and batched, one after the other, the machine shared with other agents' runs
+(the alone times are the busier for it). Verdicts: the suite's PASS/FAIL lines, in order.
+
+| suite | verdicts | alone: PASS/FAIL | batched | alone s | batched s |
+|---|---|---|---|---|---|
+| reload/reload | 112 | 110/2 (2nd: 103/9) | 112/0 (twice) | 1156 | 157 (2nd: 80) |
+| reload/front, eject, contact, pouch, pouchgren, worldparts | 129 | all PASS | the same | 1792 | 151 |
+| reload/gunshape, magcollide | 33 | all PASS | the same | 660 | 313 |
+| ragdoll/stagger, grab, guard | 84 | all PASS | the same | 1801 | 147 |
+| ragdoll/ragtest | 32 | 30/2, 2nd 32/0 | 30/2, 2nd 32/0 | 213 | 17 |
+| ragdoll/climb | 28 | 19/9, 2nd 22/6 | 20/8 (twice) | 663 | 34 |
+| ragdoll/liquid_active | 1 | PASS | PASS | 208 | 10 |
+| climb/prop_climb, weapon_catch, voreshove | 18 | all PASS | the same | 206 | 37 |
+| collectfx | 9 | all PASS | all PASS (after the load fix below) | 43 | 7 |
+| foegrab/judo (dir hold lift neck) | 54 | all PASS | the same | 608 | 14 |
+| ragdoll/active, decap, dismember, env, ragdoll; limbs; gib_2h_throw; ad_monsters | measurements | | | 2011 | 759 |
+| **all 28** | | | | **9361** | **1646** |
+
+- The verdicts that differ are the same cases flipping between two runs of the same kind: ragtest's `crawl` and `catch`
+  (chance; flips batched too), climb's per-monster lines (physics; the suite passes either way), reload_test's under
+  load alone (wall-clock frames: the second alone run, beside other runs, failed 9; batched: 112 both times).
+- The measurement suites print numbers, no verdicts: the same cases and lines, the numbers within two alone runs'
+  spread (gib_2h_throw: 9 and 12 bursts of 28 alone, 12 and 10 batched; ad_monsters: word for word the same).
+  liquid_active's `knight water` line ends "FAIL energy 83 J" batched (both times), its paddle 3.8 s long; alone it
+  paddled 5.0 s both times (each monster's paddle is chance: 3.8 to 5.3 s in both forms); not one of the suite's verdicts.
+- collectfx's "save and load while it goes in" failed batched: `load` right after `save` (2 frames, unpaced) read the
+  save half written (`ED_ParseEntity: EOF without closing brace`). `load` now waits for a save still being written
+  (`Host_WaitForSaveThread`, host_cmd.c): a quick save then quick load could hit it too.
+- ad_monsters needs `ad` in the agent's game folder (`kit/bases/<name>/qbase/ad`, a junction to the Steam AD folder);
+  without it every case prints "no AD monster", alone and batched alike.
+- Outputs, times and the compare scripts: `scratch/parity/` (`parity.sh`, `parity_cmp.py`, `parity_pair.py`,
+  `parity_words.py`) in worktree `fastship`.

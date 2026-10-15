@@ -7,8 +7,7 @@
 #   origin, every old vertex's bytes (position and normal index) and index, every old triangle and every old UV
 #   unchanged. New vertices are appended (quantised on the same grid: they must lie inside the model's old byte
 #   box in every frame, or the write fails), new triangles after the old ones and sharing no vertex with them, so
-#   vr_anchor.cpp's strip order of the old vertices -- every anchor index -- is unchanged (polish_weapons.py checks
-#   it), and so are the hotspots (model space) and the offsets the weapon Scale applies about (the header's origin).
+#   every anchor (a point on the old surface) stays where it is (polish_weapons.py checks it), and so are the hotspots (model space) and the offsets the weapon Scale applies about (the header's origin).
 # - Carriers: a new part rides the old piece it sits on (a connected piece of the old triangles): per frame, the
 #   best rigid fit (Kabsch) of that piece's vertices from frame 0, leaving out the vertices that do not move rigidly
 #   with the rest (muzzle flashes opening out). So parts recoil, pump and spin with what they sit on.
@@ -262,7 +261,7 @@ def fix_inverted_normals(path, min_dot=0.0):
     """Rewrites `path` with every vertex normal that points against all the triangles using that vertex (in any pose)
     turned to the nearest of Quake's table to their area-weighted normal (polishing pass 2026-10-10, check_mdl_art.py
     "normal": a vertex lit from the wrong side shades its triangles dark on a lit face, a blotch on top of the
-    lightning gun). Only those normal bytes change: positions, UVs, triangles and the strip order stay. Returns how many
+    lightning gun). Only those normal bytes change: positions, UVs and triangles stay. Returns how many
     (vertex, pose) normals were turned."""
     m = Model(path)
     table = anorms()
