@@ -8101,3 +8101,7 @@ spawner that makes the weapon (unchanged). The Debug menu's QC spawner keeps the
 In VR: spawn a megahealth, health, ammo and an armour in vrfiringrange: each appears small at once where its ghost was,
 with no big flash; the ghost shows the small box on the floor. Choose AD's Death Knight after another AD monster: its
 ghost should look like the monster. Spawn AD's and MG3's backpacks in an id map and take them.
+
+## VR menu panel: grip also pushes and pulls it
+
+A gripped panel already followed the hand in 3D, but 1:1 (a 30 cm arm move shifted a far panel ~30 cm). Now the hand's move towards/away from the panel (from the head) counts `vr_menu_grab_reach` times (default 3; 1 = as before), the distance clamped to `vr_menu_grab_dist_min` 30 .. `vr_menu_grab_dist_max` 200 cm (a panel taken farther than the max, like the 150-unit default, can be pulled in but not pushed further out; one taken nearer than the min is not pinched). The panel keeps its hand-set turn (as before). The distance is part of the placement (hide/restore, remembered). No thumbstick use: sticks while gripping are the fine modifier and disarm the grab. Test (headless, mock hand): hand 30 cm back: 150 -> 121.7 units from the head; forward again: 150; far forward stays 150; far back clamps at 9.4 units (30 cm). menu_panels_test.py passes.
