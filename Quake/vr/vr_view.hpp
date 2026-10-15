@@ -41,8 +41,10 @@ struct ViewEntity
 [[nodiscard]] bool skinTint(const entity_t* e, float tint[4], float range[4]);
 // Skin-only tone: kind 1 the jointed hand, 2 the body, zero other entities.
 [[nodiscard]] int skinTone(const entity_t* e, float tone[4]);
-// Quad Damage's blue glow on `e` (vr_quad_look 1, 2): 0..1 on your hands and body (and their copies in a mirror), else 0.
-[[nodiscard]] float quadGlow(const entity_t* e);
+// A power-up's glow on `e` (Quad's blue, the pentagram's red, the biosuit's green; vr_view.cpp powerupGlow): on your
+// hands and body (and their copies in a mirror) the alias shader's code, -2 - 2 x its colour (r + 16g + 256b, 16 levels
+// a channel) - its strength (0..1); else 0.
+[[nodiscard]] float powerupGlow(const entity_t* e);
 
 // With bare forearms (vr_body_bracers 0) the jointed hands are drawn in your body's light, so that the skin is lit alike
 // on both sides of the wrist: bareLight (r_alias.c's light colour, R_SetupAliasLighting) and bareShade (the instance's

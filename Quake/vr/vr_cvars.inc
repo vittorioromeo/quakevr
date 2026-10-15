@@ -1205,6 +1205,12 @@ QVR_CVAR(vr_body_powerups, "1", CVAR_ARCHIVE)         // and the powerups: quad 
 QVR_CVAR(vr_quad_look, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_quad_glow, "1", CVAR_ARCHIVE)             // the glow's strength (0 none .. 2)
 QVR_CVAR(vr_quad_glow_light, "1", CVAR_ARCHIVE)       // the blue light the hands and body cast on the world (0 none .. 2)
+// The pentagram's red glow and the biosuit's green one on you (vr_view.cpp powerupGlow), like Quad's (0 none: the old
+// body tint instead .. 2), and the light they cast; with more than one power-up, the glows take turns.
+QVR_CVAR(vr_pent_glow, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_pent_glow_light, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_suit_glow, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_suit_glow_light, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_blood, "1", CVAR_ARCHIVE)            // the wounded arms and hands drip blood (vr_body_state's wounds; above 1, more drops)
 QVR_CVAR(vr_wounds, "1", CVAR_ARCHIVE)                // blood painted on models where they are hit (vr_wounds.cpp); your body and hands take it instead of the wound skins
 QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted on models (explosions, fire, lightning, lava, slime), embers while fresh
