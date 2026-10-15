@@ -73,6 +73,8 @@ void M_Init (void);
 void M_Keydown (int key, qboolean repeat);
 void M_Charinput (int key);
 void M_Mousemove (int x, int y);
+void M_DrawPanel (void);		// QVR: the current menu drawn as M_Draw does, into a menu panel's own canvas (MULTI_MENU.md)
+void M_RefreshBounds (void);	// QVR: the current menu's bounds laid out again (after another panel's menu was drawn)
 enum textmode_t M_TextEntry (void);
 qboolean M_WaitingForKeyBinding (void);
 qboolean M_WantsConsole (float *alpha);
