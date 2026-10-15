@@ -9,13 +9,16 @@
 // does a palm sphere in it. The shape is the prop's Box3D hulls (each face's plane: a sphere's depth in a convex hull
 // is its radius less its deepest face distance, exact inside and never too little outside), or its drawn box without
 // a body. The escape direction: the sunk spheres' nearest faces' outward normals, weighted by how deep each is (the
-// deepest's alone if those cancel). Each step moves the hand along it (the prop the other way) by vr_grip_fit_step at
-// most (no more than takes it to the allowed depth), measured again; the shallowest place found is kept.
+// deepest's alone if those cancel). The hand moves along it (the prop the other way) in whole steps of
+// vr_grip_fit_step, as many as take it to the allowed depth (solved at once: along the direction each face distance grows
+// by its normal's share of the move), at most vr_grip_fit_steps of them and vr_grip_fit_max in all; if it can't fit, the
+// furthest allowed (never left deeper than it was).
 //
-// No allocation (fixed arrays: 160 spheres, 256 faces, 16 hulls; spheres the most move cannot bring into it left out, a face loop left at the first face a sphere is clear of); tens of microseconds at most even at 32 steps (vr_grip_fit_last
-// times it); nothing at all between grabs. Only the local player's hands are known (a listen server; elsewhere it does
-// nothing). Not for weapons (they are held by their own grips), nor a prop whose grip is Fixed or Along the Handle (its
-// place in the hand is authored), nor a hand grenade or round from a pouch.
+// Three passes over the spheres and faces however many steps (the depth, the distance out, the depth there), a face loop
+// left at the first face a sphere is clear of; no allocation (fixed arrays: 160 spheres, 256 faces, 16 hulls); about
+// 20 us at worst (vr_grip_fit_last times it); nothing at all between grabs. Only the local player's hands are known (a
+// listen server; elsewhere it does nothing). Not for weapons (held by their own grips), nor a prop whose grip is Fixed or
+// Along the Handle (its place in the hand is authored); a pouch's grenade or round is placed again by the pouch.
 
 #pragma once
 
