@@ -1266,6 +1266,8 @@ void() W_Precache =
     precache_sound("knight/sword2.wav");
     precache_sound("weapons/holster0.wav");
     precache_sound("weapons/holster1.wav");
+    precache_sound("vr/flashlight_attach.wav"); // (a magnetic holster bound, unbound: vr_magholster.qc)
+    precache_sound("vr/flashlight_detach.wav");
     precache_sound("vr/blade_sizzle.wav"); // incandescent blades (vr_hotblade.qc)
     precache_sound("vr/blade_hot.wav");
     precache_sound("vr/blade_quench.wav");
@@ -7489,6 +7491,8 @@ void(entity ent, float xHand,
     }
 }
 
+void() VR_MagHolster_Frame; // (vr_magholster.qc)
+
 void() W_Frame =
 {
     if(self.impulse)
@@ -7527,6 +7531,8 @@ void() W_Frame =
                self.attack_finished, self.mainhand_hotspot, self.offhand_attack_finished);
 
     W_Frame_Forcegrab();
+
+    VR_MagHolster_Frame(); // magnetic holsters: binds, and the bound weapons' way home (vr_magholster.qc)
 }
 
 /*

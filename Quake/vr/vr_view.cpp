@@ -14,6 +14,7 @@
 #include "vr_autopump.hpp"
 #include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_magholster.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_climb.hpp"
 #include "vr_foegrab.hpp"
@@ -8633,6 +8634,7 @@ extern "C" void VR_SetupViewEntities()
         forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });
     }
     cellcord::setupView(s); // the cell cords, from the laser cannon and the hammers to the pouch (vr_cellcord.cpp)
+    magholster::setupView(s); // the magnetic holsters' chains (vr_magholster.cpp)
     if(!posingNow)
     {
         selfcollide::endView(s, selfCollideDrawn(s));

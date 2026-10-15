@@ -196,6 +196,7 @@ float parm69;
 float parm70;
 float parm71;
 float parm72;
+float parm73; // the magnetic holsters' bindings (vr_magholster.qc VR_MagHolster_EncodeParms)
 
 void() OnSpawnServerBeforeLoad; // Called when a new server
                                 // is spawned, before

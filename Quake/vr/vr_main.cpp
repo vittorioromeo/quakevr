@@ -18,6 +18,7 @@
 #include "vr_anchor.hpp"
 #include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_magholster.hpp"
 #include "vr_decals.hpp"
 #include "vr_permdecals.hpp"
 #include "vr_gore.hpp"
@@ -1959,6 +1960,7 @@ extern "C" void VR_Init()
     gearlights::init();
     chainsaw::init();
     cellcord::init();
+    magholster::init();
     detail::init();
     extmaps::init();
     pbr::init();

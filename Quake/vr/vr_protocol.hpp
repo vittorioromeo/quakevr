@@ -157,7 +157,9 @@ enum Stat : int
     // the off hand's bits 0-7, the main hand's 8-15) and the holsters' (0-15 each: holster i bits 4i..4i+3).
     STAT_QVR_HOTBLADE,
     STAT_QVR_HOTBLADEHOLSTER,
-    STAT_QVR_END
+    // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp): 6, each holster's bound weapon's id (0: none bound).
+    STAT_QVR_MAGBIND0,
+    STAT_QVR_END = STAT_QVR_MAGBIND0 + 6
 };
 
 inline constexpr int numHolsters = 6;

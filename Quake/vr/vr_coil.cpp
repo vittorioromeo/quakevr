@@ -171,7 +171,7 @@ float hash01(unsigned x)
     return static_cast<float>(x & 0xffffffu) / static_cast<float>(0xffffff);
 }
 
-constexpr int maxLinks = 192;
+constexpr int maxLinks = 640; // (the magnetic holsters' tether: 10 m of 1.6 cm links; the flashlight's under 2 m)
 constexpr int bend = 2; // segments a link's half circle (a hexagon)
 
 // A chain's rings along the line (scratch's, `length` units long): each link a loop of rings round its wire's middle

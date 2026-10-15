@@ -631,6 +631,28 @@ void resetHandMoves()
         slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend()
             .help("How fast what you throw flies, times your hand's speed."),
         toggle("Dropped Wpn Particles", "vr_weapondrop_particles").help("Enable particle effects for weapons dropped/thrown on the ground."),
+        header("Magnetic Holsters"),
+        toggle("Magnetic Holsters", vr_magholster)
+            .help("As in RE4VR: with a hand at a holster that has a weapon in it, press the bind button to bind the weapon to that "
+                  "holster (press it again to unbind). Thrown or dropped, it flies back into the holster on its own. Weapon "
+                  "Mode Immersive."),
+        cycle("Bind Button", vr_magholster_button,
+            {{0.f, "Either Stick Click"}, {1.f, "Off-Hand Stick Click"}, {2.f, "Main-Hand Stick Click"}, {3.f, "Lower Face Button"}})
+            .help("Pressed by the hand at the holster. The press is taken only there (its usual action elsewhere). Lower Face "
+                  "Button: A or X."),
+        slider("Return After", vr_magholster_return_time, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("Out of your hands this long, it comes back (0: never by time)."),
+        slider("Return Beyond", vr_magholster_return_distance, 0.f, 20.f, 0.5f, "%.1f m").extend(0.f, 200.f)
+            .help("This far from its holster, it comes back (0: never by distance). Either one brings it back."),
+        slider("Flight Time", vr_magholster_flight_time, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.05f, 5.f)
+            .help("How long it takes to fly back, through walls, before it snaps in with a click. Grab it on the way to keep it."),
+        cycle("Chain", vr_magholster_style, {{0.f, "Lanyard"}, {1.f, "Tether"}, {2.f, "Both"}, {3.f, "None"}})
+            .help("Lanyard: a short chain hangs off a bound weapon, a stub of it at the empty holster. Tether: a chain from the "
+                  "holster to the weapon while it is away from you. Both."),
+        slider("Chain Size", vr_magholster_chain_size, 0.2f, 2.f, 0.05f, "%.2fx").extend(0.2f, 3.f)
+            .help("Its links' size, times the flashlight chain's (1.6 cm links)."),
+        slider("Chain Opacity", vr_magholster_chain_alpha, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Below 1 the chain is see-through (0: not drawn)."),
         header("Shell Casings"),
         toggle("Shell Casings", "vr_shells").help("The shotgun throws out a spent shell each shot, the super shotgun its two as you reload (a flick reload flings them). They bounce, roll and lie on the floor."),
         slider("Shell Casing Life", "vr_shells_life", 5.f, 120.f, 5.f, "%.0f s").extend().help("How long spent shells lie on the floor before fading out."),

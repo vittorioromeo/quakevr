@@ -198,6 +198,11 @@ float(entity player, float hand) weaponanygrip = #0;
 // CreateThrownWeapon takes them (the pitch negated), 2 '1 0 0' if known ('0 0 0' else), 3 its tip (its muzzle's anchor); 4 its handle and 5 its tip in the frame of
 // the hand carrying it as drawn (forward, right, up: makevectors of the hand's angles).
 vector(entity player, float hand, float what) weapondrawnpose = #0;
+// Magnetic holsters (vr_magholster.qc): what the local player asked since the last call, taken (1 the off hand's bind
+// button at a holster, 2 the main hand's, 4 every bound weapon home now: vr_magholster_return); others' 0. And holster
+// `slot`'s place (0..5: the holsterweapon<slot> fields' order) as the local player's body has it ('0 0 0': unknown).
+float(entity player) magholsterpoll = #0;
+vector(entity player, float slot) holsterpos = #0;
 vector(entity e, vector handpos, vector palm) carryfit = #0; // at the grip: how far to move it (the way the palm faces) to sit against the palm, not in the fist (vr_held_surface_fit)
 vector(entity e, entity player, float grab) carry2h = #0; // held in both hands: at the second grip (grab 1) the grips are kept; after, where it goes (its angles are set)
 void(vector at, float damage) physicsblast = #0; // an explosion throws the rigid bodies round it (Box3D's)

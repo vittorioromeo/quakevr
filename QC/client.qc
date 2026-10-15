@@ -19,10 +19,15 @@ void() info_intermission =
     MG3_RuneRemoved(); // Dawn of the Machine: a view only with so many runes (vr_mg3_defs.qc)
 };
 
+// Magnetic holsters (vr_magholster.qc): the bound weapons lying about home before the level ends; the bindings carried.
+void() VR_MagHolster_EncodeParms;
+void() VR_MagHolster_DecodeParms;
+
 void() SetChangeParms =
 {
     if(AD_SetChangeParms()) return; // AD support: AD's level state (parm57..72), an exit's inventory reset (vr_ad_bridge.qc)
     MG3_EncodeParms(); // (Dawn of the Machine's upgrades: kept even by the SetNewParms below, vr_mg3_defs.qc)
+    VR_MagHolster_EncodeParms(); // (parm73: the bound weapons home first, so the holsters' parms below have them)
 
     if(self.health <= 0)
     {
@@ -309,6 +314,7 @@ void() SetNewParms =
     parm64 = 0; // (AD support: no upgrades)
     parm65 = 0; parm66 = 0; parm67 = 0; parm68 = 0; parm69 = 0; parm70 = 0; parm71 = 0; parm72 = 0; // (cold)
     parm50 = 0;
+    parm73 = 0; // (no magnetic holster bindings)
 };
 
 void() DecodeLevelParms =
@@ -424,6 +430,7 @@ void() DecodeLevelParms =
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
     AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
     WeaponInst_UnpackHot(self);
+    VR_MagHolster_DecodeParms(); // (parm73: the bindings, to the carried weapons' records)
     VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
 
     // ------------------------------------------------------------------------
