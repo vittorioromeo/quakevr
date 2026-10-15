@@ -23,6 +23,7 @@ void(float xBits, float xForward, float xUp, float xRadius, float xCorpseH) VR_A
     self.vr_ad_headf = xForward;
     self.vr_ad_headu = xUp;
     self.vr_ad_headr = xRadius;
+    self.vr_ad_headl = 0;
     self.vr_ad_corpseh = xCorpseH;
 };
 
@@ -49,10 +50,12 @@ void() VR_AD_MonsterSetup =
     }
     // Zombie knight (progs/mon_zombiek.mdl): no death of its own (AD's zombies die gibbed; Quake VR's beheading or a cut
     // limb kills it for good, VR_AD_ZombieKilled). Its knockdown gets up as AD's own (paine: down at paine12, up from 13).
-    // Head: its rig's head 4.7 5.3 21.8 (headfit.py mon_zombiek 18 -3: 2.8 3.1 21.1, 7.0).
+    // Head: headfit.py mon_zombiek 18 -3 (2.8 3.1 21.1, 7.0; its rig's head 4.7 5.3 21.8): its head hangs to its
+    // left, the zone's middle 3 units that way (it was on its middle line: the head 3-5 units off it).
     else if(t == ad_CT_MONZOMBIEK)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR | VR_ADM_ZOMBIE, 4, 22, 6.5, cvarh_vr_corpse_health_zombie);
+        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR | VR_ADM_ZOMBIE, 3, 21.5, 7, cvarh_vr_corpse_health_zombie);
+        self.vr_ad_headl = 3;
         VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_zombie, 132, ad_zombiek_paine13);
     }
     // Crossbow knight (progs/mon_dcrossbow.mdl: deaths 225-235, 236-255). Head: headfit.py mon_dcrossbow 19 -2 8 (3.9 -1.4
@@ -282,6 +285,7 @@ float(entity e) VR_AD_PositionalHead =
     xHeadForward = e.vr_ad_headf;
     xHeadUp = e.vr_ad_headu;
     xHeadRadius = e.vr_ad_headr;
+    xHeadLeft = e.vr_ad_headl;
     return TRUE;
 };
 

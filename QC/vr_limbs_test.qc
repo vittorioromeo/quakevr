@@ -322,7 +322,8 @@ void(float xTest) VR_Limb_Test =
             return;
         }
         float hyaw = m.angles_y * (3.14159265 / 180);
-        vector standing = m.origin + '1 0 0' * (cos(hyaw) * xHeadForward) + '0 1 0' * (sin(hyaw) * xHeadForward) + '0 0 1' * xHeadUp;
+        vector standing = m.origin + '1 0 0' * (cos(hyaw) * xHeadForward) + '0 1 0' * (sin(hyaw) * xHeadForward) +
+            VR_HeadSide('1 0 0' * cos(hyaw) + '0 1 0' * sin(hyaw)) + '0 0 1' * xHeadUp;
         bprint(sprintf("limbtest: 23 %s frame %g: its head as animated %v, its standing head zone's middle %v (%.1f apart)\n",
             m.classname, m.frame, animated, standing, vlen(animated - standing)));
         bprint(sprintf("limbtest: 23 melee beheading zone: animated %g, standing %g; head zone: animated %g, standing %g",

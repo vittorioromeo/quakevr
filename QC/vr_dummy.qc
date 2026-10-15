@@ -1432,7 +1432,7 @@ float(entity d, float xUp) VR_Dummy_TestZone =
     vector at = d.origin + '0 0 1' * xUp;
     if(PositionalHead(d) && xUp > d.maxs_z * 0.5)
     {
-        at = d.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp; // (its head sphere's middle)
+        at = d.origin + v_forward * xHeadForward + VR_HeadSide(v_forward) + '0 0 1' * xHeadUp; // (its head sphere's middle)
     }
     vector from = at + v_forward * 64;
     traceline(from, at - v_forward * 64, FALSE, self); // (self: you, between)

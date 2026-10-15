@@ -7596,3 +7596,64 @@ bounce up off it, then it gets up; from two storeys it dies. An ogre takes a hig
 and higher pops its head. Off-centre on the shoulders: the crush strikes the torso or an arm, the knockdown the same.
 Open: a big monster's head crush kills from fairly low (ogre 256, shambler 352 units: the crush's head wear, not the
 stomp); if that feels too easy, `vr_ragimpact_piece_hp` or the crush's mass is the knob.
+
+## Active rigs for AD's humanoids (worktree `dequant`, branch `agent/adrigs`, 2026-10-15)
+
+His go: "Please work on adding active ragdoll rigs for AD humanoids" (BACKLOG, "Active humanoid coverage for AD's
+soldiers"). AD's monsters already had ragdoll rigs (`vr_ad_rigs.inc`), knockdowns and get-up frames
+(`vr_ad_monsters.qc`); what they lacked was the drive: the engine drives a living or dying ragdoll only for the classes
+in `activeClasses` (vr_box3d.cpp), and none of AD's own classnames were there.
+
+- **Rig semantics checked** per model: every one below has pelvis, chest, head and two-bone arms
+  (`upperarm_*`/`forearm_*`, what the reaches and the brace look for) and legs (`thigh_*`/`shin_*`); extra bones are
+  harmless (the crossbow knight's and death guard's `hand_r`, the death knight's `foot_l`, the sergeant's `flail`).
+  Get-ups: each one's deaths played backwards (`VR_Knockdown_SetupReverse`, the rig's `deathFirst/Last`), the zombie
+  knight's and the mummy's their own falls (paine), as id's zombie. Attack origins and locomotion are untouched: the
+  body is handed back to AD's own animated monster.
+- **Added** to `activeClasses`: `monster_army_grenade`, `_plasma`, `_rocket`, `monster_defender`, `monster_eliminator`,
+  `monster_pyro`, `monster_fumigator`, `monster_dcrossbow`, `monster_dfury`, `monster_dguard`, `monster_dknight`,
+  `monster_dsergeant` (may crawl), `monster_zombiek`, `monster_mummy` (no crawl; Rogue's mummy too). AD's own grunt,
+  enforcer, point knight and zombie use Quake VR's classnames and already were. So: a shove's pinned stagger and fall,
+  the get-up through the body, the lift's flail, swimming and drowning, active deaths (stumble, wound hold, crawl),
+  limb-cut reactions.
+- **Not added**: the centurion (on its hover board: never knocked down nor lifted; its right leg has no shin) and the
+  skull wizard (a robe: one leg bone, nothing to stand or stagger on; it teleports). MG3's `monster_ranged_knight` is in
+  the lift list but not AD's: left as it was.
+- **Bug found and fixed**: an AD monster handed back standing by the engine (a stagger recovered, a body risen:
+  `VR_Knockdown_Afoot`) got `self.th_run`, which AD's monsters don't use (theirs is `ad_th_run`): it would have stood
+  frozen. Now `VR_AD_RunNow` as the QC get-up path already did.
+- **Zombie knight's head zone**: its head hangs to its left (headfit 2.8 3.1 21.1, r 7.0), the zone was on its middle
+  line (4, 22, 6.5): 3-5 units off. Head zones can now sit to the side: `xHeadLeft` (weapons.qc; `VR_HeadSide(facing)`
+  in every head-middle sum: headshots, positional melee, decapitation zones, the dummy, the tests), AD's
+  `vr_ad_headl`, and the engine's hands' zone (`VR_FoeGrab_HeadLeft`, vr_foegrab.cpp `headZoneOf`). The zombie knight:
+  3 forward, 3 left, 21.5 up, radius 7.
+- **Test**: `Misc/quakevr/ragdoll/ad_active_test.py <agent> [ids]` (one game each on vrfiringrange through AD): neck
+  snapped standing (loose; its head's swing from its chest past the living 45-degree cone), then a second one shoved
+  (sure) -> staggers as a pinned ragdoll and falls -> rises through its body. 42/42:
+
+  | class | shove -> down | get-up frames | neck swing (deg) | lift flails |
+  |---|---|---|---|---|
+  | army_grenade, _plasma, _rocket | yes | 17-8 | 32-120 | yes |
+  | defender, eliminator | yes | 65-55 | 59-124 | yes |
+  | pyro, fumigator | yes | 65-55 | 43-119 | yes |
+  | dcrossbow | yes | 255-236 | 66-84 | yes |
+  | dfury | yes | 254-241 | 22-120 | yes |
+  | dguard | yes | 226-207 | 78-120 | yes |
+  | dknight | yes | 243-224 | 35-107 | yes |
+  | dsergeant | yes | 254-235 | 22-68 | yes |
+  | zombiek | yes | 132-121 | 24-117 | yes |
+  | mummy | yes | 173-162 | 25-120 | yes |
+
+  The lift: `judo_test.py adneck` (its lift verdict now needs the flail, but for the skull wizard). Its case turned to
+  face the monster with `vr_mock_turn`, which doesn't exist (`vr_mock_turn_to`): the player sometimes faced away and
+  his hands closed on nothing; fixed. Three runs (batched, unbatched, unbatched with frames drawn): every driven class
+  lifted flails (the zombie knight lifted in 1 of 3, its hands closing on nothing in the others); the standing snaps
+  pass for 11-12 of 16 a run, the failing set varying (the player ends 3 units from its origin, inside it, and the
+  hands find no hit sphere within 4 m: the harness, the centurion too, which isn't driven) but for two every time: the
+  zombie knight (one hand read at its shoulder, even with the zone on its head) and the skull wizard (both at its
+  shoulders; not driven, its zone unchanged). No baseline run: restoring the old files for one was refused.
+- Melee eval 168/177 (as before; the same 3 differ from the baseline). e1m1 smoke and AD's `start` (a death sergeant
+  shoved) clean.
+- To try in VR (AD): shove a rocket grunt, a fumigator, a death knight and a zombie knight hard: they stagger, fall,
+  get up with their bodies and fight on (not frozen); lift a defender and a death guard: they flail; snap a dfury's
+  neck: the head flops; behead or headshot a zombie knight: the head zone sits on its leaning head.

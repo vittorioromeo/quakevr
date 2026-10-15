@@ -6,10 +6,10 @@ Items the author approved or asked about, not yet started. Each has a note on wh
 
 ### Active humanoid coverage for AD's soldiers (author, 2026-10-12)
 
-NOT done (checked 2026-10-15: no commit; ROUND22.md only has AD soldiers' guns, the lift classes and the neck-snap
-tests, and the lift test notes "none flails: AD's have no driven rigs"). Left: extend living and dying active
-behaviours to AD grunt/enforcer variants after validating their rig semantics, get-up clips, attack origins and
-locomotion; the author explicitly permits deferring this rig/behaviour work.
+Done 2026-10-15 (branch `agent/adrigs`; ROUND22.md, "Active rigs for AD's humanoids"): AD's soldier, enforcer and
+knight variants, the death knights, guard, sergeant, fury, crossbow knight, zombie knight and mummy are driven alive and
+dying (stagger, get-up, lift flail, swim, active deaths); the zombie knight's head zone moved onto its head. Left out:
+the centurion (hover board) and the skull wizard (a robe, no legs). Awaiting his VR check.
 
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 

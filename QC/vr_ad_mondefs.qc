@@ -18,6 +18,7 @@ float VR_ADM_NOHEAD = 16; // never beheaded (its own death throws its head: the 
 .float vr_ad_headf;      // its head zone (PositionalHead): forward, up, radius (0: none) on its stand frame
 .float vr_ad_headu;
 .float vr_ad_headr;
+.float vr_ad_headl;      // its head zone's middle to its left (0 for most: the zombie knight's head is off its middle)
 .float vr_ad_corpseh;    // its corpse's health cvar (VR_Corpse_Parts' vr_corpse_health_<monster>); 0: no corpse gibbing
 
 // Quake VR's side calls these.

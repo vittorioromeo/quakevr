@@ -3138,8 +3138,17 @@ struct ActiveClass
     const char* classname;
     bool crawls;
 };
+// AD support: AD's humanoids (vr_ad_rigs.inc: each rig a pelvis, chest, head and two-bone arms and legs; their get-ups
+// their deaths backwards, the zombie knight's and the mummy's their own falls; ROUND22.md, "Active rigs for AD's
+// humanoids"); AD's own grunt, enforcer, point knight and zombie share Quake VR's classnames. Not the centurion (on its
+// hover board: never knocked down nor lifted, its right leg no shin) nor the skull wizard (a robe: one leg bone, nothing
+// to stand or stagger on).
 constexpr ActiveClass activeClasses[] = {{"monster_army", true}, {"monster_enforcer", true}, {"monster_knight", true},
-    {"monster_hell_knight", true}, {"monster_ogre", true}, {"monster_ogre_marksman", true}, {"monster_zombie", false}};
+    {"monster_hell_knight", true}, {"monster_ogre", true}, {"monster_ogre_marksman", true}, {"monster_zombie", false},
+    {"monster_army_grenade", true}, {"monster_army_plasma", true}, {"monster_army_rocket", true},
+    {"monster_defender", true}, {"monster_eliminator", true}, {"monster_pyro", true}, {"monster_fumigator", true},
+    {"monster_dcrossbow", true}, {"monster_dfury", true}, {"monster_dguard", true}, {"monster_dknight", true},
+    {"monster_dsergeant", true}, {"monster_zombiek", false}, {"monster_mummy", false}};
 
 [[nodiscard]] const ActiveClass* activeClassOf(const edict_t* ent)
 {

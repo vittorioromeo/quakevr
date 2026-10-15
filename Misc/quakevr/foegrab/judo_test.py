@@ -618,8 +618,8 @@ def case_adneck():
     """adneck: each AD humanoid (AD_HUMANOIDS), walked up to (24 units), standing, both hands at its head zone (its
     sides), twisted 110 deg in 0.2 s (the defaults: 80 within 0.2 s): its neck snapped standing, held by both hands (the
     centurion: killed standing, no ragdoll: it hovers, it is never knocked down); both hands 14 units under its head's
-    middle (its chest's top, under its neck) pulled up at 1.6 m/s: lifted, held by both hands (whether it flails is
-    printed: AD's have no driven rigs; the centurion: not lifted, it can't be knocked down); knocked down (JUDO_AD_KD=1:
+    middle (its chest's top, under its neck) pulled up at 1.6 m/s: lifted, held by both hands, flailing (driven alive:
+    each but the skull wizard; the centurion: not lifted, it can't be knocked down); knocked down (JUDO_AD_KD=1:
     each, else the fumigator, a death knight and a pyro), both hands at its ragdoll's head, twisted about the vertical:
     held at its head and measured (lying, the twist is mostly a tilt of its neck: Hand Line reads the part about it).
     Its numbers in scratch/judo_test_judo_ad_*.txt."""
@@ -639,8 +639,8 @@ def case_adneck():
                       f"vr_mock_walk_to nearest {cls} 24;wait200;vr_mock_walk_to off;wait90;vr_mock_play {path}")
             else:
                 path = head_target_motion(name, cls, -14 if kind == "lift" else 0, 110, 0.2, 1, lift=kind == "lift")
-                go = (f"vr_mock_walk_to nearest {cls} 24;wait200;vr_mock_walk_to off;wait30;vr_mock_turn monster;wait5;"
-                      f"vr_mock_turn off;vr_mock_play {path}")
+                go = (f"vr_mock_walk_to nearest {cls} 24;wait200;vr_mock_walk_to off;wait30;vr_mock_turn_to monster;"
+                      f"wait40;vr_mock_turn_to off;vr_mock_play {path}")  # (was vr_mock_turn: no such command)
             for _ in range(3):
                 out = run(f"{pre};vr_knockdown_debug 1;{go};wait500;-grabmain;-graboff;wait5;toggleconsole;quit",
                           "foegrab|necksnap|flail:|held on by|ragdoll: a limb|vr_mock_hand_to|MARK|rror|CRASH")
@@ -661,7 +661,8 @@ def case_adneck():
                 lifted = re.search(r"lifted, held on as a ragdoll by (\d) hands?", flat)
                 flails = "it flails in the hands" in flat
                 hover = mon == 220 and "it can't be knocked down now" in flat
-                ok = ((lifted and lifted.group(1) == "2") or hover) and not snap and not bad
+                # (Driven alive, vr_box3d.cpp activeClasses: each but the centurion and the skull wizard flails.)
+                ok = ((lifted and lifted.group(1) == "2" and (flails or mon == 206)) or hover) and not snap and not bad
                 verdict(ok, f"{short} lift: {'lifted by ' + lifted.group(1) if lifted else 'not lifted'}, flails {flails}"
                             f"{' (it hovers: never knocked down)' if hover else ''}"
                             f"{', snapped (wrong)' if snap else ''}; the hands at its {'/'.join(where[0]) if where else '?'}")

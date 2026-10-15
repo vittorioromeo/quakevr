@@ -282,6 +282,10 @@ void(string xWhat) VR_Knockdown_Afoot =
         self.movetype = MOVETYPE_NONE;
         self.vr_dummy_painframe = 0;
     }
+    else if(self.vr_ad_mon)
+    {
+        VR_AD_RunNow(); // AD support: AD's monsters run by AD's th_run (its own th_run none: it stood frozen)
+    }
     else if(!self.think)
     {
         self.think = self.th_stand;

@@ -200,6 +200,12 @@ vector(entity m) VR_FoeGrab_HeadZone =
     return r;
 };
 
+// Its head zone's middle to its left (xHeadLeft: 0 for most; AD's zombie knight's), for the engine's hands' head zone.
+float(entity m) VR_FoeGrab_HeadLeft =
+{
+    return VR_Decap_HeadZone(m) ? xHeadLeft : 0;
+};
+
 // The neck snap's crack (xVolume 0-2): in both hands of the player self (his hands' channels: played from each hand,
 // right by the head they hold, a hand's breadth from his ears: it fills his head), and from m (its voice channel, cutting
 // its death cry off; world: none). Two hands and the head: three layers, as loud as the loudest
