@@ -431,6 +431,11 @@ struct Rise
     bool done{false};
     float error{0.f};    // m: its pelvis from the clip's now
     float errorMost{0.f};
+    // Its body's level travel (the debug's "risen" line): its mass centre where it lay as the rise began and last frame,
+    // the level path it went while rolling over, pulled in and rising, and the clip's own (its first frame's pelvis to
+    // its last's, level). World metres.
+    glm::vec3 lay{0.f}, last{0.f};
+    float path[3]{}, most{0.f}, clipOwn{0.f}; // (most: its farthest from where it lay)
 };
 
 // A living one guarding its head from a blow (vr_ragdoll_active_guard; guard()): its arms up before its face, the
