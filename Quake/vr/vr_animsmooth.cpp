@@ -223,10 +223,14 @@ struct Key
     float rigError{-2.f}; // (-1: not swung)
     int mode{-1};         // 0 the spline; 1 the spline, rebuilt; 2 Quake's blend, rebuilt
     float rebuildError{-2.f};
+    // The model whose rig made the rows: an entity drawn with another model on the same poses (the toolgun's ghost, a
+    // temp entity's slot taken by another choice; an edict reused) must not take the last one's bones.
+    const qmodel_t* model{nullptr};
     [[nodiscard]] bool operator==(const Key& o) const
     {
         return !memcmp(poses, o.poses, sizeof(poses)) && !memcmp(span, o.span, sizeof(span)) && blend == o.blend &&
-               tension == o.tension && rigError == o.rigError && mode == o.mode && rebuildError == o.rebuildError;
+               tension == o.tension && rigError == o.rigError && mode == o.mode && rebuildError == o.rebuildError &&
+               model == o.model;
     }
 };
 struct Memo
@@ -919,7 +923,7 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
         // bones' fits turned from the lerp's first pose to its second, each vertex on its bone
         const float b = pose1 == pose2 ? 0.f : za::clamp(blend, 0.f, 1.f);
         const int poses[4] = {pose1, pose1, pose2, pose2};
-        const Key key{{poses[0], poses[1], poses[2], poses[3]}, {0.f, 0.f, 0.f}, b, -1.f, m.rigError, 2, m.rebuildError};
+        const Key key{{poses[0], poses[1], poses[2], poses[3]}, {0.f, 0.f, 0.f}, b, -1.f, m.rigError, 2, m.rebuildError, e->model};
         if(!(memo.key == key))
         {
             memo.key = key;
@@ -1002,7 +1006,7 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
     const float tension = za::clamp(vr_anim_smooth_tension.value, 0.f, 1.f);
     const bool rigged = vr_anim_smooth_rig.value != 0.f && rigData(m, e->model, hdr);
     const Key key{{poses[0], poses[1], poses[2], poses[3]}, {span[0], span[1], span[2]}, blend, tension, rigged ? m.rigError : -1.f,
-        rebuild ? 1 : 0, rebuild ? m.rebuildError : -1.f};
+        rebuild ? 1 : 0, rebuild ? m.rebuildError : -1.f, e->model};
     if(!(memo.key == key))
     {
         // Not drawn so yet (another view, another light: the same)
