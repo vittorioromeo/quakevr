@@ -3,6 +3,7 @@
 #include "vr_magholster.hpp"
 
 #include "vr_body.hpp"
+#include "vr_cellcord.hpp"
 #include "vr_client.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
@@ -77,12 +78,14 @@ struct Slot
     int entity{0};   // where == World: the client entity (kept to find it again at once)
     glm::vec3 gun{0.f};
     glm::vec3 home{0.f};
+    glm::vec3 lastRel{0.f}; // the weapon's point off the player last frame
     coil::Cord cords[ChainCount];
     gfx::TubeBatch batch[ChainCount];
     int sides[ChainCount]{};
 };
 Slot slots[numSlots];
 int builtFrame = -1;
+view::ViewEntity worldGun; // a weapon lying about as a view entity (its client entity's copy), for view::modelPoint
 
 struct MagScratch
 {
@@ -137,7 +140,14 @@ mem::Scratch<MagScratch> scratch{"magholster"};
     return glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
 }
 
-// Where the weapon with id `uid` is this frame, and its point the chains hang from (its origin: the handle).
+// The point of a weapon drawn as `ve` the chains hang from: its model's bottom (vr_cellcord.cpp's: where a cell cord
+// leaves a gun), as drawn.
+[[nodiscard]] glm::vec3 gunPoint(const view::ViewEntity& ve)
+{
+    return view::modelPoint(ve, cellcord::weaponBottom(ve.ent.model));
+}
+
+// Where the weapon with id `uid` is this frame, and its point the chains hang from.
 void locate(Slot& c)
 {
     c.where = Where::None;
@@ -146,11 +156,12 @@ void locate(Slot& c)
         if(cl.stats[protocol::STAT_QVR_HOLSTERWEAPONUID0 + j] == c.uid)
         {
             const entity_t* e = view::holsteredWeapon(j);
-            if(e && e->model)
+            const view::ViewEntity* ve = e && e->model ? view::find(e) : nullptr;
+            if(ve)
             {
                 c.where = Where::Holster;
                 c.holster = j;
-                c.gun = originOf(*e);
+                c.gun = gunPoint(*ve);
             }
             return; // (a holster not drawn: unseen)
         }
@@ -164,7 +175,7 @@ void locate(Slot& c)
             {
                 c.where = Where::Hand;
                 c.hand = h;
-                c.gun = originOf(ve->ent);
+                c.gun = gunPoint(*ve);
             }
             return;
         }
@@ -189,7 +200,9 @@ void locate(Slot& c)
     if(c.entity)
     {
         c.where = Where::World;
-        c.gun = originOf(cl_entities[c.entity]);
+        worldGun.ent = cl_entities[c.entity];
+        worldGun.netEntity = c.entity;
+        c.gun = gunPoint(worldGun);
     }
 }
 
@@ -200,6 +213,8 @@ void locate(Slot& c)
     const float size = za::max(za::clamp(vr_magholster_chain_size.value, 0.2f, 3.f), atLeast);
     coil::Style style;
     style.length = length;
+    style.stiffness = 25.f; // (a chain: it hangs its own length, not stretched by its weight)
+    style.airDamping = 5.f; // (a short heavy chain: it settles from a swing in a second, never whirled out straight)
     style.chain = true;
     style.wireRadius = 0.002f * size;
     style.linkLength = 0.016f * size;
@@ -352,6 +367,15 @@ void setupView(const hands::State& s)
             }
         }
 
+        // A jump of the weapon about the body (a teleported hand, the drawn gun's pose eased in): the lanyard afresh,
+        // not whirled out.
+        const glm::vec3 rel = c.gun - player;
+        if(c.where != Where::World && glm::distance(rel, c.lastRel) > 0.15f * m2u)
+        {
+            c.cords[Lanyard].hide();
+        }
+        c.lastRel = rel;
+
         // The lanyard, off the weapon wherever it is seen: swung as a hand moves it about the body; carried whole by a
         // weapon lying about or flying (its few springs would let a thrown one's stretch out behind it).
         if(lanyards && c.where != Where::None)
@@ -370,7 +394,7 @@ void setupView(const hands::State& s)
             const float metres = glm::distance(c.home, c.gun) / m2u;
             const float length = metres * (1.f + tetherSlack) + tetherExtra;
             // (Its links grow when the most links (vr_coil.cpp) would not reach.)
-            const float reach = 600.f * 0.016f;
+            const float reach = 500.f * 0.016f;
             glm::vec3 toHolster = c.home - c.gun;
             toHolster = glm::length(toHolster) > 1e-3f ? glm::normalize(toHolster) : glm::vec3{0.f, 0.f, 1.f};
             c.cords[Tether].update(c.home, down, c.gun, toHolster, chainStyle(length, length / reach), c.home, false);

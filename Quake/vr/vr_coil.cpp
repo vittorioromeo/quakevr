@@ -24,9 +24,7 @@ namespace
 constexpr int segments = 12;          // the line's springs, the two stubs included (nodes 0 .. segments)
 constexpr float stub = 0.012f;        // metres the cord leaves each end straight along its direction
 constexpr float mass = 0.03f;         // kilograms, the whole cord (a coiled telephone cord's: the chain swings as it did)
-constexpr float stiffness = 1.5f;     // newtons a metre it is stretched by, the whole cord
 constexpr float compression = 3.f;    // times stiffer squeezed below its relaxed length
-constexpr float airDamping = 1.5f;    // per second, against its swing relative to its ends
 constexpr float springDamping = 20.f; // per second, along each spring (the wobble along it dies quickly)
 constexpr float gravity = 9.81f;      // metres per second squared
 constexpr float substep = 1.f / 300.f;
@@ -303,7 +301,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
 
     const float rest = relaxedLength(style) * m2u / springs;
     const float nodeMass = mass / (segments - 3); // the free nodes 2 .. segments - 2
-    const float k = stiffness * springs / nodeMass;
+    const float k = za::clamp(style.stiffness, 0.1f, 25.f) * springs / nodeMass; // (stable at the substep up to ~30)
     const glm::vec3 down{0.f, 0.f, -gravity * m2u};
     const int steps = za::clamp(static_cast<int>(za::ceil(dt / substep)), 1, 60);
     const float h = dt / steps;
@@ -352,7 +350,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
         {
             // Air against its swing, relative to the ends (at the carry's frame, the free end's share along it).
             const float t = static_cast<float>(i) / segments;
-            force[i] -= airDamping * (vel_[i] - vb * t);
+            force[i] -= style.airDamping * (vel_[i] - vb * t);
             vel_[i] += force[i] * h;
             pos_[i] += vel_[i] * h;
         }
