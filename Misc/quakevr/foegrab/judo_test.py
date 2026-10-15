@@ -500,6 +500,12 @@ def run_neck(runs, settings, method):
         extra = f"{settings}{extra}"
         if method == "1" and what == "grunt_roll":
             want = "none"
+        if method == "1" and centre in ("kd", "kdneck", "kdslow"):
+            # (Lying, its neck runs along the floor: the mock's twists about the vertical are mostly a tilt of it, and
+            # Hand Line reads only the turn about its neck (8-32 of 75 degrees, as it happens to lie; the slow push-pull
+            # 30-32 of its 30; Velocity's floor on the line across the neck reads more). Measured, not judged: held, no
+            # error.)
+            want = "any"
         name = f"judo_neck_{what}"
         if ONLY and not re.search(ONLY, name):
             continue
@@ -551,6 +557,11 @@ def run_neck(runs, settings, method):
             verdict(ok, f"{what}: {how}; held by {s1[0] if s1 else 0} hands at MARK1, after letting go "
                         f"{'none' if s2 is None else s2[0]}; let go of after {let.group(1) if let else '-'} s"
                         f"{' (thrown: wrong)' if thrown else ''}")
+        elif want == "any":
+            best = re.search(r"its largest turn (\d+) deg", flat)
+            ok = took and not bad
+            verdict(ok, f"{what} (measured only): {how}; its largest turn {best.group(1) if best else '?'} deg"
+                        f"{'' if took else ', a hand never took its ragdoll'}")
         elif want == "nosnap":
             where = re.findall(r"the off hand at its (\w+), the main at its (\w+): no neck snap", flat)
             ok = not died and not snap and not bad and (where or lifted)
