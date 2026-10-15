@@ -116,9 +116,11 @@ struct Pending
 Pending pending;
 
 // What was baked, for the saves (in its model's space); the newest last. While the layer is off (vr_permdecals 0) the
-// marks the live ring lets go of are kept too, not baked (`unbaked`: baked again, all of them, once it is on: rebake).
+// marks the live ring lets go of are kept too, not baked (from `unbakedFrom` on: baked once it is on, rebake; the atlas
+// keeps what was baked before, untouched while off).
 za::Vector<Stamp> stamps;
-bool unbaked = false;
+constexpr za::SizeT noneUnbaked = ~za::SizeT{0};
+za::SizeT unbakedFrom = noneUnbaked;
 
 // vr_permdecal_info's counts since the map's start.
 struct Counts
@@ -582,6 +584,10 @@ void keep(const Stamp& s)
     if(stamps.size() >= stampsMax)
     {
         stamps.erase(stamps.begin(), stamps.begin() + stampsMax / 8);
+        if(unbakedFrom != noneUnbaked)
+        {
+            unbakedFrom = unbakedFrom > stampsMax / 8 ? unbakedFrom - stampsMax / 8 : 0;
+        }
     }
     stamps.pushBack(s);
     counts.stamps++;
@@ -751,28 +757,28 @@ void record(const Stamp& s)
     {
         Stamp w = s;
         w.model = 0;
+        unbakedFrom = za::min(unbakedFrom, stamps.size());
         keep(w);
-        unbaked = true;
     }
 }
 
 bool rebake()
 {
-    if(!unbaked || !on())
+    if(unbakedFrom == noneUnbaked || !on())
     {
         return false;
     }
     QVR_PROFILE("permanent decals baked again");
-    unbaked = false;
+    const za::SizeT first = za::min(unbakedFrom, stamps.size());
+    unbakedFrom = noneUnbaked;
     if(atlas.layers == 0)
     {
         (void)ensureAtlas(); // (made: bakes them all)
         return true;
     }
-    freeAllSlots(atlas.layers);
-    for(const Stamp& s : stamps)
+    for(za::SizeT i = first; i < stamps.size(); i++)
     {
-        bakeStamp(s);
+        bakeStamp(stamps[i]);
     }
     return true;
 }
@@ -1140,7 +1146,7 @@ void bind()
 void clear()
 {
     stamps.clear();
-    unbaked = false;
+    unbakedFrom = noneUnbaked;
     counts = Counts{};
     freeAllSlots(atlas.layers > 0 ? 1 : 0); // (a new map: the atlas one layer again, at the next flush)
 }
@@ -1170,7 +1176,7 @@ void info_f()
     Con_Printf("permdecals: %lld flushes drew %lld quads (%lld the most in one, %lld slots emptied the most in one), "
                "%.1f KB of page table uploaded%s\n",
         counts.flushes, counts.quads, counts.worstQuads, counts.worstClears, static_cast<double>(counts.tableBytes) / 1024.0,
-        unbaked ? "; some kept while off, to bake again" : "");
+        unbakedFrom != noneUnbaked ? "; some kept while off, to bake once on" : "");
     Con_Printf("permdecals: flush CPU %.3f ms at most, %lld over 0.5 ms\n", counts.worstMs, counts.slowFlushes);
 }
 
@@ -1274,8 +1280,8 @@ int restore()
             const Stamp st = decode(s.pending.data() + static_cast<za::SizeT>(i) * recordBytes);
             if(kept())
             {
+                unbakedFrom = za::min(unbakedFrom, stamps.size());
                 keep(st); // (off: kept, the newest shown live: vr_decals.cpp's showRecord)
-                unbaked = true;
                 result = 2;
             }
             else if(bakeOn(st) > 0)
@@ -1385,7 +1391,7 @@ extern "C" void VR_PermDecalsLayout(void)
         map.table.resize(map.table.size() + static_cast<za::SizeT>(across) * static_cast<za::SizeT>(down), 0u);
     }
     stamps.clear();
-    unbaked = false;
+    unbakedFrom = noneUnbaked;
     counts = Counts{};
     freeAllSlots(atlas.layers > 0 ? 1 : 0);
     // The bake program and the atlas's first layer made now, in the load (with the layer on): not at the first mark (a

@@ -1689,7 +1689,7 @@ QVR_CVAR(vr_decal_max, "768", CVAR_ARCHIVE)            // how many are kept (the
 QVR_CVAR(vr_decal_bucket_max, "32", CVAR_ARCHIVE)     // how many marks one 32-unit spot of the world lists (1-255; past it the oldest of a pile go whole: each pixel walks its spot's list, PERF_DECISIONS 15)
 QVR_CVAR(vr_decal_life, "120", CVAR_ARCHIVE)           // seconds a mark stays (fading over the last five)
 QVR_CVAR(vr_decals_world, "1", CVAR_ARCHIVE)         // the marks drawn in the world's own shader, on its texture under its light and following its parallax relief (0: as meshes over it)
-QVR_CVAR(vr_permdecals, "1", CVAR_ARCHIVE)           // settled marks baked for good into a layer of the world's and its brush models' faces (vr_permdecals.cpp): they never go, and cost the same however many (0: as before, live marks only)
+QVR_CVAR(vr_permdecals, "1", CVAR_ARCHIVE)           // settled marks baked for good into a layer of the world's and its brush models' faces (vr_permdecals.cpp): they never go, and cost the same however many (0: as before, the newest vr_decal_max live; the others kept, shown again when on: PERM_DECALS.md "On and off")
 QVR_CVAR(vr_permdecal_density, "0.5", CVAR_ARCHIVE)  // the baked layer's units a texel (0.25-8; read at a map's load; 1: a little softer than the live marks, 2: blurred)
 QVR_CVAR(vr_permdecal_show, "0", CVAR_NONE)           // debug: the baked layer's pages drawn unlit and green, the marks on them (vr_permdecals.cpp)
 QVR_CVAR(vr_permdecal_atlas, "4096", CVAR_ARCHIVE)   // the baked layer's atlas, texels a side of each of its layers (1024-8192; 4096: 16384 pages of 30 x 30 texels a layer, 85 MB with its mips; made again, what was baked baked again, when changed)

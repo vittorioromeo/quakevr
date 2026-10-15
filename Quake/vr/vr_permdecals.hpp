@@ -4,8 +4,9 @@
 // Each lit face of the map (the world's and its brush models': doors, lifts, plats) has a grid of pages over it, in its
 // own plane, vr_permdecal_density units a texel (read at the map's load), 30 x 30 texels a page. A page takes a slot of
 // an atlas (vr_permdecal_atlas: 32 x 32 texels a slot, its page's and a texel of its neighbours' round it for the
-// filtering; 4 mip levels) the first time a mark lands on it; when the atlas is full, the page baked least recently
-// gives its slot up. A mark that has settled (vr_decals.cpp: shown, spread and darkened) is drawn once into each page
+// filtering; 4 mip levels) the first time a mark lands on it; when the atlas is full it grows a layer or more (a 2D
+// array texture, up to vr_permdecal_atlas_max MB), and only full at that does the page baked least recently give its
+// slot up. A mark that has settled (vr_decals.cpp: shown, spread and darkened) is drawn once into each page
 // under it on the GPU, multiplied in as the live marks multiply what is under them, and leaves the live ring: the live
 // cap (vr_decal_max) no longer limits what stays. The world's shader reads the layer before the texture's light
 // (QVR_PERMDECAL_FUNCTIONS, vr_glsl.h): a page table lookup and one filtered read a pixel, whatever the number of
