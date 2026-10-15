@@ -6114,7 +6114,7 @@ Verified (headless): a grunt knocked down 48 units off a wall and flung at it at
 4-6 head strikes of 3-19, dead after about 3, head popped; 3/3 runs. Dropped 256 units onto a knocked-down grunt
 (20.3 m/s): 57 to its torso, dead; 96 units: nothing. One-hand grab: staggered -> knocked down, held; at a fifth of its
 health -> knocked down, held; healthy -> held standing; staggering ragdoll taken -> goes down, "staggered and fell".
-Regressions: melee eval 168/177 (same take differs FAIL -> FAIL as before), judo lift 6/6, judo neck staggering PASS,
+Regressions: melee eval 168/177 (same take differs FAIL -> FAIL as before), judo lift 6/6, judo neck + hold 31/31,
 limb wear 11/11, e1m1 smoke clean, menu paths 0 missing, build 0 warnings.
 
 Checklist (proposed): "Impacts: lift a grunt and throw it hard into a wall: it is badly hurt or killed; grab a knocked-down
