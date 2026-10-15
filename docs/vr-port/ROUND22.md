@@ -7772,3 +7772,67 @@ rig is first used). Regression: `grip_gap_test.py` cycle 7 checks and forcegrab 
 In VR: grab a crate by its lid or a barrel by its rim with your hand pushed well in: the prop should drop out of the
 hand so the hand lies on the lid or round the rim; a grab with the hand already on the surface should not move it.
 A hand pushed in more than about 18 cm (Most Move 0.75) stays partly in.
+
+
+## Magnetic holsters (worktree `permdecals`, branch `agent/maghol`, 2026-10-16)
+
+His request: RE4VR's magnetic holsters. A hand at a holster with a weapon in it presses the bind button: the weapon
+is bound to that holster; thrown or dropped, it comes back on its own after a while or past a distance; a chain shows
+the binding (the flashlight's). His decisions: the chain's look a setting (lanyard, tether, both), its size and
+opacity too; the return a flight through the air (and walls) over ~0.4 s that snaps in with a click.
+
+- **Binding** (QC `vr_magholster.qc`): the press is taken by the engine before the game gets its key
+  (`vr_magholster.cpp` `button`, in `vr_input.cpp` before bullet time's stick) only while the pressing hand is at a
+  holster that has a weapon in it or a binding, Weapon Mode Immersive; elsewhere the stick click does what it did. The
+  QC reads it with the `magholsterpoll` builtin (the local player's; the hand's hotspot says which holster) and binds
+  the holster's weapon (its record's id, `vr_weaponinst.qc`, in `.vr_magbind0..5`), or unbinds what is bound there:
+  one weapon a holster, one holster a weapon (binding it at another holster moves the binding). Feedback: the
+  flashlight's clip-on sound (bind) or clip-off (unbind), a double tick (bind) or a single one, the chain appearing.
+  An empty unbound holster: the holster's "not empty" buzz, nothing else.
+- **Return**: each frame (`VR_MagHolster_Frame`, end of `W_Frame`) each bound weapon is looked for: held, or in any
+  holster (its own or another): it stays. Lying about (a `thrown_weapon` with its record): its clock starts when first
+  seen out of the hands; when that clock passes `vr_magholster_return_time` (default 3 s) or it lies
+  `vr_magholster_return_distance` (default 4 m) from its holster (either; 0 turns one off), it flies home: no longer a
+  rigid body, `MOVETYPE_NOCLIP`, steered each frame by its velocity along an eased path with a low arc (a quarter of
+  the way up, at most half a metre) to the holster's place as your body has it (the `holsterpos` builtin; QC's estimate
+  for others) over `vr_magholster_flight_time` (0.4 s), its touch off on the way (it hurt the player it flew into
+  in the first run: 27 damage), then into the holster with its record (magazine, id, blood, heat) and the holster
+  click. Stuck in a wall or a monster: pulled out first. A force grab pulling it: it waits.
+- **Grabbed on the way**: it is still a thrown weapon with its handtouch; a hand closing on it takes it as a caught
+  throw (its velocity is real, so the mid-air catch window works) and the flight is over ("caught on its way home").
+- **The holster taken** (another weapon put in it) when it would return: it waits where it lies and comes back the
+  moment the holster is empty again; taken during the flight, it drops where its flight got to and waits likewise.
+- **Saves and levels**: the bindings are player fields (saved). A level change brings the bound weapons lying about
+  home first (holster empty), then carries each binding as its weapon's place among the carried ones (`parm73`, 4 bits
+  a holster: 1..6 a holster, 7, 8 the hands; `lastExtSpawnParm` 73). A weapon gone (used up, destroyed, faded):
+  unbound.
+- **Chains** (`vr_magholster.cpp`, the flashlight's `coil::Cord` chain; drawn after the cell cords): `vr_magholster_style`
+  0 Lanyard (default: an 11 cm chain hanging off the weapon's bottom, `cellcord::weaponBottom`, wherever it is drawn:
+  holstered, held, lying, flying; a 4.5 cm stub of it hanging at the holster while the weapon is away), 1 Tether (a
+  chain from the holster to the weapon while it lies about or flies home, 4% slack, its links grown past 8 m so they
+  reach), 2 Both, 3 None. `vr_magholster_chain_size` (0.6: links times the flashlight's 1.6 cm), `vr_magholster_chain_alpha`
+  (below 1: `gfx::drawTube`'s new `alpha`, blended, no depth write). `coil::Style` gained `stiffness` and `airDamping`
+  (defaults as before: the flashlight and the cell cords unchanged): the chains use 25 and 5, else a loose chain
+  hanging off one end stretched under its own weight (a 0.11 m lanyard drew 0.27 m) and whirled out straight when the
+  hand jumped; `maxLinks` 192 -> 640 for the tether.
+- **Menu**: Immersion > Weapons and Holsters > Magnetic Holsters: Magnetic Holsters (`vr_magholster` 1), Bind Button
+  (`vr_magholster_button`: 0 either stick click, 1 the off hand's, 2 the main hand's, 3 the lower face button A/X),
+  Return After, Return Beyond, Flight Time, Chain, Chain Size, Chain Opacity. Debug > (flashlight's page): Magnetic
+  Holsters Info (`vr_magholster_info`) and Magnetic Holsters: All Home (`vr_magholster_return`).
+
+Tests: `Misc/quakevr/magholster_test.sh <agent> [time walk catch save busy shots]`, all as described: time (home 2.00 s
+after the toss, 0.40 s flight, no hit), walk (flies home at 2.07 m, 0.39 s after the drop; unbound: no flight), catch
+(caught by the main hand 1.2 m from home), save (bound after save, unbind, load; a level change with the weapon away:
+home first, bound in e1m2), busy (waits 2.4 s with the axe in its holster, flies as the axe leaves), shots
+(`scratch/magholster_shots.png`: the lanyard on the holstered and held shotgun, the stub, the tether, the flight). e1m1
+smoke clean.
+
+Decisions: the bind button's choices are named by hand (off, main), not left and right (they follow Handedness); the
+tether shows only while the weapon is away from the body (lying about or flying), not while held; a weapon put in
+another holster stays there; Quick Slots mode: no binding or return (its holsters keep copies). Only the local player
+(single player, a listen server's host) can bind: the press reaches the QC through a local builtin.
+
+In VR: bind the hip shotgun (a hand at the holster, click the stick), throw it: it should fly back after 3 s; walk away
+from a dropped one; grab one on its way back; try the shoulders and the chest holsters, the off hand, the axe and an
+expansion weapon; look at the lanyard on the gun in the hand and at the holster (Chain Size, Opacity), and the tether
+across a room.
