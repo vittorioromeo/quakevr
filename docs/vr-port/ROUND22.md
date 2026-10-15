@@ -7350,3 +7350,50 @@ pass moved as much). e1m1 smoke: no errors.
 For him in VR: blood on a wall with retro textures on (Graphics > Retro Textures) and with nearest texture filtering:
 the baked marks should have the wall's blocks; gibbing a monster against a door: its blood lands on the door when the
 flying blood arrives, not at the hit.
+
+## Smooth's idle knight jolt: the spline's next frame (worktree `tghost`, branch `agent/knightjolt`, 2026-10-15)
+
+His go on "Model vertex wobble 3"'s finding (Smooth: an idle knight jolting up to 2.5 units a frame).
+
+Cause (logged: `vr_anim_smooth_trace <frames> <model> <jolt>` now prints each frame whose worst vertex passes `<jolt>`
+with the spline's four keys, weights and times, and the two frames before): the knight's frames are named by numbers
+alone ("1" .. "97"), so the names chained the whole file as one animation and were trusted as such: stand9 (frame 8)
+went on to run1 (frame 9) by name, over the learnt stand1. Each loop the spline into stand9 aimed at run1, the next
+lerp (stand9 to stand1) set off along the right curve: the tangent jumped at the seam, 1.6-2.5 units on one vertex.
+The ogre had a second cause in the dequantiser: AD's Hunter Ogre's spawn precaches `progs/ogre.mdl`, so its 8-frame
+stand loop (0..7) and another (8..19) were given to the original ogre over its own 9-frame one, and the dequantised
+seam was smoothed in the wrong place (stand8 into stand1).
+
+Fix:
+- `vr_animsmooth.cpp` (modelData): names that are numbers alone are a guess (as unnumbered names were: the shambler's
+  "From ASE"), so a learnt successor wins; the frame expected after now also comes from `vr_mdldequant.cpp`'s runs
+  (`mdldequant::poseSuccessors`): a progs loop's last frame goes back to its first (sure, over the names: knight_stand9
+  to knight_stand1 from the first loop, nothing to learn), and where the names are only a guess the runs' splits at
+  jumps (unknown after: learnt once seen) and their loops that come back to the first pose. A named animation's end
+  stays unknown until seen, as before (an attack's last frame back to its first would be a wrong guess: tried, the
+  death knight's combat p95 went up 3%).
+- `vr_mdldequant.cpp`: progs loops that overlap on a model are no longer dropped when the progs is read; per model the
+  most named loop that fits its frames is chosen (`qcLoopsOf`): a loop doesn't fit where the names run on into its
+  first frame or out of its last (stand8 into stand9). The ogre now gets 0..8 (by its pose closing the loop: its own
+  progs loop is named in `monster_ogre` and set in `monster_ogre_real`, so the finder never links the two).
+
+Numbers (`scratch/mon.sh`: e1m1, 90 Hz fixed frames, Smooth, rebuild off; one vertex's second difference a frame, p95 /
+most, units; idle: notarget, 360 frames; awake: hunting you, god on, the same 360 frames in each build):
+
+| monster | idle before | idle after | awake before | awake after | Quake's Blend idle; awake |
+|---|---|---|---|---|---|
+| knight | 0.308 / 2.506 | 0.037 / 0.072 | 2.765 / 9.161 | 2.688 / 9.161 | 0.050 / 0.119; 3.877 / 14.506 |
+| ogre | 0.150 / 0.410 | 0.135 / 0.280 | 3.202 / 48.226 | 3.184 / 48.226 | 0.253 / 0.514; 4.407 / 48.226 |
+| shambler | 0.272 / 2.012 | 0.199 / 0.355 | 5.632 / 123.21 | 5.632 / 123.21 | 0.277 / 0.501; 7.658 / 123.21 |
+| grunt | 0.020 / 0.034 | 0.020 / 0.034 | 1.686 / 11.288 | 1.684 / 11.288 | 0.024 / 0.059; 2.711 / 11.288 |
+| death knight | 0.034 / 0.104 | same | 2.796 / 7.570 | same | 0.060 / 0.201; 5.339 / 13.993 |
+| dog | 0.051 / 0.075 | same | 2.246 / 11.612 | same | 0.063 / 0.122; 4.160 / 12.068 |
+| enforcer | 0.040 / 0.065 | same | 2.228 / 47.781 | 2.265 / 47.781 | 0.066 / 0.168; 3.639 / 46.788 |
+| fiend | 0.107 / 0.192 | same | 3.718 / 19.085 | 3.758 / 18.840 | 0.157 / 0.450; 5.431 / 18.423 |
+
+Smooth is now smoother than Quake's Blend idle on every monster. The awake maxima (11-123 units) are the game's own pose
+switches (an attack or pain starting at once), the same in Quake's Blend. Rebuild From Skeleton on: knight idle 0.035 /
+0.062, grunt 0.014 / 0.020, ogre 0.136 / 0.276. AD humanoids not measured. e1m1 smoke fine.
+
+VR check: Model Animation Smooth, an idle knight and ogre close up (the breathing loop's seam: no twitch each second), a
+shambler idle; knights and ogres running at you look as smooth as before.
