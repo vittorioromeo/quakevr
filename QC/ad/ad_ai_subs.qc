@@ -413,6 +413,7 @@ void() ad_HuntTarget =
 void() ad_FoundTarget =
 {
 	if (self.health < 1) return ad_FALSE;	// Dead monsters don't hunt!
+	VR_AD_StealthHostile();
 	
 	// Check for Liquid surface block entity key
 	// if the monster has range attack, can NOW see through liquid surface
@@ -483,6 +484,7 @@ void(float ad_wakeupothers) ad_FoundHuntTarget =
 	
 	// Passive mode active and about to switch state?
 	if (ad_check_passivestate_switch(self)) return;
+	VR_AD_StealthHostile();
 	
 	// Check for Liquid surface block entity key
 	// if the monster has range attack, can NOW see through liquid surface
@@ -524,6 +526,7 @@ float() ad_FindTarget =
 	
 	// Reset any combat exit conditions
 	self.ad_enemyexit = ad_FALSE;
+	if (VR_AD_StealthTick()) return ad_TRUE;
 
 	//----------------------------------------------------------------------
 	// SIGHT TARGET CHECK
@@ -614,6 +617,7 @@ float() ad_FindTarget =
 	//----------------------------------------------------------------------
 	// Is the client/player >1000 = FAR do nothing, too far away
 	//----------------------------------------------------------------------
+	if (VR_AD_StealthSight(ad_client)) return VR_AD_StealthSee(ad_client);
 	ad_enemy_range = ad_range (ad_client);
 	if (ad_enemy_range == ad_RANGE_FAR && !self.ad_attack_sniper) return ad_FALSE;
 		

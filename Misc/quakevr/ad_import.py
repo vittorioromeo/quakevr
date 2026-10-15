@@ -208,6 +208,52 @@ MON_PATCHES = [
      1, B + ": the body touchable, not a trigger (its ragdoll and corpse are Quake VR's)"),
 ]
 PATCHES = PATCHES + MON_PATCHES
+# Reviewed edits inside one function (its body, "<type> <name> =\n{" to the next "\n};"): (file, function, exact text,
+# replacement, why). The text must match once in that body (shared lines like AD's "Check for any custom light styles"
+# repeat across functions).
+_FIRE = "\t// Check for any custom light styles\n"
+_FIRE_WHY = B + ": its flame heats blades and lights torches again (vr_walltorch.qc)"
+FUNC_PATCHES = [
+    ("lights.qc", "light_" + n, _FIRE, _FIRE + "\tVR_AD_FireSpot(%d); // QVR: its flame heats blades and lights torches again "
+     "(vr_walltorch.qc)\n" % large, _FIRE_WHY)
+    for n, large in (("torch_small_walltorch", 2), ("flame_large_yellow", 1), ("flame_small_yellow", 0), ("flame_pyre", 1),
+                     ("flame_brazier_short", 0), ("flame_brazier_tall", 0))
+] + [
+    # AD support: Quake VR's stealth AI (STEALTH.md; vr_ad_stealth.qc) on AD's monsters: AD's FindTarget sees a player
+    # through the suspicion meter, AD's stand and walk run the Alert state, AD's FoundTarget is Hostile, AD's run loses him.
+    ("ai_subs.qc", "FindTarget", "\tself.enemyexit = FALSE;\n",
+     "\tself.enemyexit = FALSE;\n\tif (VR_AD_StealthTick()) return TRUE;\n",
+     B + ": stealth: the meter drains, beams, torches and bodies seen (Hostile now: found)"),
+    ("ai_subs.qc", "FindTarget", "\tenemy_range = range (client);\n",
+     "\tif (VR_AD_StealthSight(client)) return VR_AD_StealthSee(client);\n\tenemy_range = range (client);\n",
+     B + ": stealth: a player is seen by the suspicion meter, not at once"),
+    ("ai_subs.qc", "FoundTarget", "\tif (self.health < 1) return FALSE;\t// Dead monsters don't hunt!\n",
+     "\tif (self.health < 1) return FALSE;\t// Dead monsters don't hunt!\n\tVR_AD_StealthHostile();\n",
+     B + ": stealth: Hostile (Alert no more; the monsters near told)"),
+    ("ai_subs.qc", "FoundHuntTarget", "\tif (check_passivestate_switch(self)) return;\n",
+     "\tif (check_passivestate_switch(self)) return;\n\tVR_AD_StealthHostile();\n",
+     B + ": stealth: Hostile (Alert no more; the monsters near told)"),
+    ("ai_states.qc", "ai_stand", "\tif (FindTarget ()) return;\t\t\t// Found a player?\n",
+     "\tif (FindTarget ()) return;\t\t\t// Found a player?\n\tif (VR_AD_StealthStand()) return;\n",
+     B + ": stealth: Alert: turning to look, searching"),
+    ("ai_states.qc", "ai_walk", "\tif (FindTarget ()) return;\t\t\t// Found a player?\n",
+     "\tif (FindTarget ()) return;\t\t\t// Found a player?\n\tif (VR_AD_StealthWalk(dist)) return;\n",
+     B + ": stealth: Alert: walking to what it noticed, or back to its post"),
+    ("ai_states.qc", "ai_run", "\t\tself.enemylastseen = time;\n\t}\n",
+     "\t\tself.enemylastseen = time;\n\t}\n\tif (VR_AD_StealthLose(enemy_vis)) return;\n",
+     B + ": stealth: lost him a while: Alert, to where it saw him last"),
+]
+
+
+def func_patch(text, fn, func, old, new, why):
+    m = re.search(r"(?m)^[^\n]*\b" + re.escape(func) + r" =\s*\{", text)
+    end = text.find("\n};", m.end()) if m else -1
+    if not m or end < 0:
+        sys.exit("ad_import: function %s not found in %s (%s)" % (func, fn, why))
+    body = text[m.end():end]
+    if body.count(old) != 1:
+        sys.exit("ad_import: patch for %s %s (%s) matches %d times, not 1: %r" % (fn, func, why, body.count(old), old))
+    return text[:m.end()] + body.replace(old, new) + text[end:]
 # (Mechanical, not patches: a global array's length named by a constant, `float a[MAX];`, is written as the number,
 # as our fteqcc flags (autoproto) take no named constant there.)
 
@@ -574,6 +620,8 @@ def main():
         if src[fn].count(old) != count:
             sys.exit("ad_import: patch for %s (%s) matches %d times, not %d: %r" % (fn, why, src[fn].count(old), count, old))
         src[fn] = src[fn].replace(old, new)
+    for fn, func, old, new, why in FUNC_PATCHES:
+        src[fn] = func_patch(src[fn], fn, func, old, new, why)
     resist = src["ai_ammoresist.qc"]
     marker = "float(entity targ, float resist_type, float damage) Resist_Damage =\n{"
     if resist.count(marker) != 1:
@@ -799,7 +847,8 @@ def main():
         "Beam temp entities given Quake VR's beam id byte after WriteEntity (mechanical): %d" % beam_ids,
         "Reviewed patches: %d precedence, %d bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):" % (
             sum(1 for p in PATCHES if p[4].startswith(P)), sum(1 for p in PATCHES if p[4].startswith(B))),
-    ] + ["  %s: %s" % (p[0], p[4]) for p in PATCHES if p[4].startswith(B)]
+    ] + ["  %s: %s" % (p[0], p[4]) for p in PATCHES if p[4].startswith(B)] + [
+        "  %s %s: %s" % (p[0], p[1], p[4]) for p in FUNC_PATCHES]
     report.append("  ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, "
                   "Launch_Missile/Launch_Grenade VR ordnance hooks (function-boundary checked)")
     with open(os.path.join(OUT_DIR, "AD_IMPORT.txt"), "w", encoding="latin1", newline="\n") as f:

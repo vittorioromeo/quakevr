@@ -6477,3 +6477,73 @@ Checklist (proposed): "VR menus: press New Panel (corner): a second menu opens t
 hands can point at once, each panel's trigger clicks there); change a setting in one with the same page open in the
 other: it changes there too; Weapon Offsets open in one is refused in the other; Close Panel closes one; Back to Game
 closes all; New Panel again comes back where you left it."
+## AD stealth, AD soldiers' drops, Armagon's torso, SoA relief, the range's laser cannons (worktree `profilemulti`, branch `agent/adbugs`, 2026-10-15)
+
+Backlog "Playtest voice notes, 2026-10-14": "Arcane Dimensions and expansion regressions" and "Firing-range laser
+cannon spawn". All five checked headless by `Misc/quakevr/adbugs_tests.sh <agent> [stealth|guns|armagon|range|all]`.
+
+**AD stealth (22:13:00).** Cause: AD's monsters never met the stealth AI. AD's own AI runs them (`ad_FindTarget`,
+`ad_ai_stand/walk/run`), which never called it, and `VR_Stealth_ClassOf` excluded them anyway (no `th_stand`/`th_walk`:
+AD's are `ad_th_*`). Before: an AD rocket soldier 300 units ahead, the player dark (light forced 10) and still: Hostile
+after 1.8 s, `stl_class` 0. Now the importer patches AD's AI (`ad_import.py` `FUNC_PATCHES`, function-scoped: AD's
+FindTarget ticks the stealth AI and sees a player through the suspicion meter, AD's relay and sight groups staying AD's;
+FoundTarget and FoundHuntTarget are Hostile; stand and walk run Alert; run loses him) and `QC/vr_ad_stealth.qc` answers
+`vr_stealth.qc` for AD's monsters (`.stl_ad`: AD's thinks, `ad_movetarget`/`ad_pausetime`, AD's FoundTarget, AD's idle
+sound for the "huh?"). Excluded as Quake VR's are: AD's bosses (`ad_bossflag`), flyers and swimmers; AD's passive mode
+on (`ad_passive_state`) keeps AD's rule. AD's zombies get the zombies' senses. Shared lines (AD support):
+`vr_stealth.qc` (`VR_Stealth_AD`, `_Path`/`_SetPath`, `_Walks`, `_Found`), `vr_foegrab.qc` (a grabbed AD monster is
+spotted), `vr_stealth_test.qc` (its reset and scene 7 work on AD's monsters). After: dark, Idle after 7.5 s (meter 0);
+lit, Alert 0.4 s then Hostile 1.1 s; `vr_stealth_test 1` on that soldier on e1m1: 14 of 15 scenes pass (7, a map's
+trigger, is AD's `monster_use`, which only wakes for AD's player: passes on AD's start map). The grunt's run unchanged
+(0 failed). `ad_e1m1` fought through as before (46 woken, 31 killed, 14 left as with `vr_ai_enhanced 0`); woken AD
+monsters that can't see him now give up (the stealth lose rule), as Quake VR's do. The importer also generates the AD
+flames' fire spots now (they had been hand-edited into `QC/ad/ad_lights.qc`; `VR_FireSpot_AD` renamed
+`VR_AD_FireSpot` so the renaming keeps it): a re-import gives the committed files back.
+
+**AD soldiers' drops (22:14:26, 22:16:03).** His decision: AD's dropped enemy guns are Quake VR's weapons. New
+`vr_adgun_ours` (1, VR Settings > Combat > Enemy Weapons > Arcane Dimensions' Guns, "Drop Quake VR's Weapons"): the
+rocket soldier drops the rocket launcher, the grenade soldier the grenade launcher (our grenades, size, physics and
+muzzle clearance: the oversized AD grenade sticking in the muzzle was AD's gun's), the defender the super shotgun, the
+plasma soldier, eliminator and centurion the laser cannon (cells, energy bolts; `VR_ADGun_ForClass`), loaded as an
+ogre's or enforcer's drop and refilled from his ammo. The pyro's flamethrower and the fumigator's sprayer have no kind
+of ours and stay AD's (ARCANE_DIMENSIONS.md 17.6). 0: AD's own guns as before. `vr_ad_test 71` now drops by class:
+8/8 pass with either setting (ours: v_rock2 4, v_rock 4, v_laserg, v_shot2 2; AD's: the `#gun` models). Killed grenade
+and rocket soldiers drop a Grenade Launcher (4) and a Rocket Launcher (4).
+
+**Armagon's torso (23:16:08).** Cause: precise hits (`vr_hit_precise`) test a monster's own model, and the Armagon is
+two entities: its legs (the monster, `armalegs.mdl`) and its torso drawn by a second, non-solid entity (`armabody.mdl`),
+which no shot could meet. New QC field `.vr_hit_extra` (a part drawn as an entity of its own that shots meet as the
+monster's; set on the Armagon to its body) and `vr_hitmodel.cpp` `clip` tests that part too, the nearer hit counting.
+Debug > Tests > "Hit Probe: Nearest Monster" (`vr_test_monsters 5`): level precise-hit shots every 8 units through its
+middle. hipend, before: hits at -24 and 32..48 (legs only); after: -24 and 32..96 (the torso up to its top; Quake's box
+ends at 84; with `vr_hit_precise 0`: -24..80, the box, as before).
+
+**SoA relief (23:04:41): not a regression.** `vr_pbr_audit world` on hip1m1, hipend, hip1m2, hip1m4, hip2m1, hip2m3,
+hip3m1, hip3m4, hipdm1: every texture has a normal map; the only flat ones are sky, liquids and `notexture`. hip1m1:
+21 of 98 textures use the Quetoo pack's authored maps (`vrext/`, names shared with id1; authored priority kept), 28
+of the pack's same-named maps are refused by `vr_extmaps_match` 0.5 (the same textures and scores as on e1m1: the
+pack's repaint differs), 49 have none; those get maps made from the texture's shading, which carry no parallax
+heights while Quake's 8-bit textures are drawn sharp (`vr_texture_smooth` 1, his setting; 2 gives 110 of them
+heights). `vr_pbr` 0 and 1 give identical GPU normal maps on hip1m1 (161 textures, 0 differ): AD's companion loader
+changes nothing there. What reads as "no relief" next to AD is that AD's textures now have generated companions with
+heights (his `vr_pbr_strength` 2.5) and SoA's (and id1's, rogue's) have none: running `Misc/quakevr/pbr_generate.py`
+over id1, hipnotic and rogue (PBR_PIPELINE.md) would give them the same; his call (an asset bundle, GPU time).
+
+**The range's laser cannons (22:37:06).** Cause: placement against a random turn. A `func_weapon_grabbable` lies turned
+at random (unless AS_PLACED) at its origin; the laser cannons' are 12 units over their table and the cannon is long, so
+some turns started it sunk into the table and the physics threw it out (one at 236 u/s, 230 units away) or left it
+wedged 37 units up. `VR_WeaponGrabbable_Make` now raises a new one until its turned drawn box clears what is under its
+origin (`VR_WeaponGrabbable_Clear`); it falls and settles as before. Debug > Tests > "Weapons Lying Near"
+(`vr_pickup_test 5`). Six random sequences, 12 cannons, after 5 s: before 3 wedged at z 58, the rest on the table; after
+all 12 at rest on the table (z 19..30, within 42 units of their pads).
+
+Verified: build 0 warnings; e1m1 smoke (23 woken and killed, no errors); eval.sh (archived takes, unchanged).
+
+Checklist (proposed):
+- "AD stealth: in an AD map, sneak up on soldiers and knights in the dark: they don't notice you at once; a '?' and a
+  look, then '!' as Quake's monsters do; a noise or a body draws them; out of sight a while, they give up."
+- "AD soldiers' drops: kill rocket, grenade, plasma soldiers and a defender: they drop your rocket launcher, grenade
+  launcher, laser cannon and super shotgun; the grenades fire clean from the muzzle. Enemy Weapons > Arcane Dimensions'
+  Guns > Drop Quake VR's Weapons off: their own guns again."
+- "hipend: shoot the Armagon's torso (and above its waist): hits land, not only on its legs."
+- "vrfiringrange: both laser cannons lie on their table at the start (load the range a few times)."

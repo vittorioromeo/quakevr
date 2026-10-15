@@ -80,6 +80,8 @@ void() AD_MT_Nearest =
     dprint(sprintf(" corpse %g dying %g solid %g frame %g gibbed %g", m.vr_corpse, m.vr_corpse_dying, m.solid, m.frame,
         m.ad_gibbed));
     dprint(sprintf(" flags %g away %.0f\n", m.flags, vlen(m.origin - p.origin)));
+    dprint(sprintf("admtest: stealth enemy %s state %g meter %.2f class %g time %.1f\n", m.enemy.classname, m.stl_state,
+        m.stl_meter, m.stl_class, time));
 };
 
 void() AD_MonstersTestFrame =

@@ -8,9 +8,16 @@
 {
     return {
         toggle("Soldiers Drop Their Guns", "vr_adgun_drops")
-            .help("Arcane Dimensions' armed soldiers drop their own gun as they die: single use, its rounds (or fuel) its "
-                  "own, never refilled; empty, it is still a club. The plain soldier and enforcer drop the grunt's burst "
-                  "rifle and the enforcer's laser rifle. Off: they drop nothing."),
+            .help("Arcane Dimensions' armed soldiers drop their gun as they die (Quake VR's weapon of its kind, or "
+                  "their own: below). Their own guns are single use, their rounds (or fuel) their own, never refilled; "
+                  "empty, still a club. The plain soldier and enforcer drop the grunt's burst rifle and the enforcer's "
+                  "laser rifle. Off: they drop nothing."),
+        toggle("Drop Quake VR's Weapons", "vr_adgun_ours")
+            .help("What they drop is Quake VR's own weapon of its kind (its model, projectiles, effects and physics, "
+                  "loaded, refilled from your ammo): the rocket and grenade soldiers your launchers, the defender the "
+                  "super shotgun, the plasma soldier, eliminator and centurion the laser cannon. The pyro's "
+                  "flamethrower and the fumigator's sprayer stay theirs (no kind of ours). Off: Arcane Dimensions' "
+                  "own guns (the settings below)."),
         header("Rocket Soldier's Launcher"),
         slider("Direct Hit", "vr_adgun_rocket_damage", 0.f, 150.f, 1.f, "%.0f").extend(0.f, 500.f)
             .help("A rocket's damage to what it strikes (Arcane Dimensions' soldier's: 25)."),

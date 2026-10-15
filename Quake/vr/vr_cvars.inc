@@ -2136,6 +2136,7 @@ QVR_CVAR(vr_enemygun_spent_shake, "0.3", CVAR_ARCHIVE)   // model units the spen
 QVR_CVAR(vr_enemygun_spent_haptics, "0.35", CVAR_ARCHIVE) // and how hard it buzzes in the hand then (0: not at all)
 QVR_CVAR(vr_enemygun_spent_volume, "0.5", CVAR_ARCHIVE) // the volume of the corpses' crackle (misc/power.wav) as it starts (0: silent)
 QVR_CVAR(vr_adgun_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' armed soldiers drop their own guns as they die (QC vr_ad_enemyguns.qc; the plain soldier and enforcer Quake VR's burst rifle and laser rifle); 0: none
+QVR_CVAR(vr_adgun_ours, "1", CVAR_ARCHIVE) // AD support: what they drop is Quake VR's weapon of its kind (rocket and grenade soldiers: your launchers; the defender: the super shotgun; the plasma guns: the laser cannon); 0: AD's own guns (the pyro's and fumigator's always: no kind of ours)
 QVR_CVAR(vr_adgun_rocket_damage, "25", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (your shots only): a rocket's direct hit (AD's soldier's: 25 and up to 5)
 QVR_CVAR(vr_adgun_rocket_splash, "30", CVAR_ARCHIVE) // ... its blast round where it strikes (not on what it hit; 0: none; AD's: 25)
 QVR_CVAR(vr_adgun_rocket_speed, "800", CVAR_ARCHIVE) // ... its rockets' speed, units a second (AD's soldier's: 575 and faster by skill)
@@ -2464,12 +2465,12 @@ QVR_CVAR(vr_limbs_blast_chance, "0.6", CVAR_ARCHIVE) // a limb's chance to pop a
 QVR_CVAR(vr_gib_limbs, "1", CVAR_ARCHIVE) // a body gibbed throws its own limbs: 0 no (Quake's gibs), 1 besides Quake's gibs, 2 instead of the meat gibs
 QVR_CVAR(vr_limbs_prebuild, "1", CVAR_ARCHIVE) // limb gore: the whole limbs of the map's kinds of monster (those waiting for a trigger too) made as it loads (0: at the first cut, a hitch); 2: also the kinds the firing range's dispensers and dummies (and vr_probe_test_spawn's) can make (a longer load: the firing range +0.5 s once a session)
 QVR_CVAR(vr_limbs_max, "24", CVAR_ARCHIVE) // most limbs lying about: past it, the oldest go (not one in a hand)
-QVR_CVAR(vr_pickup_test, "0", CVAR_NONE) // the QC runs weapon pickup test n: 1 every weapon pickup in a row ahead with the same weapon dropped, 2 the nearest taken, 3 the next pair shown, 4 every weapon a monster can drop dropped ahead (its convex pieces cut: Setup's preparation) (vr_pickup_test.qc; Debug > Tests)
+QVR_CVAR(vr_pickup_test, "0", CVAR_NONE) // the QC runs weapon pickup test n: 1 every weapon pickup in a row ahead with the same weapon dropped, 2 the nearest taken, 3 the next pair shown, 4 every weapon a monster can drop dropped ahead (its convex pieces cut: Setup's preparation), 5 the weapons lying near reported (vr_pickup_test.qc; Debug > Tests)
 QVR_CVAR(vr_limbs_mass_scale, "1", CVAR_ARCHIVE) // a limb (or head) cut off weighs its share of its ragdoll's mass by the kind of limb (an arm 6.3%, a leg 15.5%, the head 7%) times this (0: its model's volume of flesh, as before)
 QVR_CVAR(vr_limbs_end_fountain, "1", CVAR_ARCHIVE) // s the cut end of a limb (or head) cut off spurts blood for as it flies (0: none)
 QVR_CVAR(vr_limb_test, "0", CVAR_NONE) // the QC runs limb gore test n on the nearest monster or corpse (vr_limbs.qc; Debug > Gore Tests)
 QVR_CVAR(vr_gore_test_crowd, "0", CVAR_NONE) // units: above 0, vr_limb_test and vr_decap_test act on every monster this near you at once (one line: goretest: crowd; the benchmarks' gore scenarios)
-QVR_CVAR(vr_test_monsters, "0", CVAR_NONE) // the QC acts on every monster of the map at once, once (vr_monsters_test.qc; Debug > Tests > Whole-Map Monsters; the benchmarks' full-count scenarios): 1 report, 2 wake them all, 3 kill them all, 4 bring in the deferred ones
+QVR_CVAR(vr_test_monsters, "0", CVAR_NONE) // the QC acts on every monster of the map at once, once (vr_monsters_test.qc; Debug > Tests > Whole-Map Monsters; the benchmarks' full-count scenarios): 1 report, 2 wake them all, 3 kill them all, 4 bring in the deferred ones, 5 the hit probe of the nearest monster
 QVR_CVAR(vr_dummy_test, "0", CVAR_NONE)               // the QC runs training dummy test n on the nearest training dummy (vr_dummy.qc; Debug > Gore Tests)
 QVR_CVAR(vr_shock_hit_test, "0", CVAR_NONE)          // the QC strikes the nearest monster or corpse ahead with a lightning bolt of this much damage (-1: just enough to kill), once (vr_shock.qc; Debug > Gore Tests)
 QVR_CVAR(vr_decap_poptest_dist, "10", CVAR_NONE)       // vr_decap_test 41..46 (head pop chance): shot from this many player lengths (56 units) off

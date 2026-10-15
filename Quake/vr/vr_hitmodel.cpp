@@ -997,7 +997,23 @@ bool clip(edict_t* ent, const glm::vec3& a, const glm::vec3& b, const glm::vec3&
         moverRadius = za::min(moverRadius, -mins[k], maxs[k]);
     }
     moverRadius = za::max(0.f, moverRadius);
-    return segment(ent, a, b, tol + moverRadius, maxT, c, out);
+    bool hit = segment(ent, a, b, tol + moverRadius, maxT, c, out);
+    // A part drawn as an entity of its own, not solid (QC .vr_hit_extra: the Armagon's torso on its legs): met as this
+    // monster's, the nearer of the two.
+    const int partOfs = qvr::progs::fields().vr_hit_extra;
+    const int partNum = partOfs >= 0 ? qvr::progs::fieldInt(ent, partOfs) : 0;
+    if(partNum != 0)
+    {
+        edict_t* part = PROG_TO_EDICT(partNum);
+        Hit h;
+        if(part != ent && !part->free && part->v.modelindex > 0.f &&
+           segment(part, a, b, tol + moverRadius, hit ? out.t : maxT, c, h) && (!hit || h.t < out.t))
+        {
+            out = h;
+            hit = true;
+        }
+    }
+    return hit;
 }
 
 namespace
