@@ -1211,6 +1211,17 @@ int campaignsBloodyShown = -1;
                   "ragdoll."),
         toggle("Crush Breaks Your Fall", vr_ragimpact_crush_cushion)
             .help("A landing that crushed a monster spares you the fall's damage. Off: Quake's fall damage as ever."),
+        toggle("Stomp Knocks Down", vr_ragimpact_stomp)
+            .help("Landing on a standing monster's top fast enough knocks it down as a shove does (it gets up again), "
+                  "if the crush did not kill it; you bounce off it."),
+        slider("Stomp Least Speed", vr_ragimpact_stomp_speed, 200.f, 1000.f, 10.f, "%.0f u/s").extend(0.f, 3000.f)
+            .help("Landing slower than this knocks nothing down (420: a drop of about 115 units). Monsters heavier than "
+                  "Stomp Heavy Mass need more."),
+        slider("Stomp Heavy Mass", vr_ragimpact_stomp_heavy, 0.f, 600.f, 10.f, "%.0f kg").extend(0.f, 5000.f)
+            .help("A monster heavier than this needs a faster landing: the least speed times the cube root of its mass "
+                  "over this (an ogre: about a 180-unit drop; a shambler: about 315). 0: all alike."),
+        slider("Stomp Bounce", vr_ragimpact_stomp_bounce, 0.f, 400.f, 10.f, "%.0f u/s")
+            .help("How fast you bounce up off the one you knocked down. 0: you drop as it falls."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
