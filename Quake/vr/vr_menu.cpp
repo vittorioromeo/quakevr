@@ -6164,6 +6164,13 @@ za::Vector<Item> pageDebugTools()
         command("Ragdoll and Prop Drawn Motion", "vr_drawn_motion_test 90 nearest")
             .help("vr_drawn_motion_test <frames> [<entity> | nearest | held]: over the next 90 frames, how evenly the nearest ragdoll's parts, the nearest loose prop (held: the one in your hand) and your hands move frame to frame (the console: uneven near 0 is smooth; about 2 with stalls: a step shown twice). Throw or hold one first. vr_debug_ragdoll 2: each frame's blend between the steps."),
         command("Drop the Nearest Prop on the Nearest Corpse", "vr_corpse_drop").help("vr_corpse_drop [height]: the loose prop nearest you put 32 units over the nearest corpse, to fall on it (Gibs and Corpses > Corpse Collision)."),
+        command("Gib Props: Gib the Nearest", "vr_gibprops_test 1")
+            .help("vr_gibprops_test 1: the nearest live monster gibbed; the console (developer 1) says whether its head and gibs are props (grabbable, destroyable). Then the rows below on its head."),
+        command("Gib Props: Kill the Nearest Whole", "vr_gibprops_test 2").help("vr_gibprops_test 2: a corpse to gib with the next row."),
+        command("Gib Props: Gib the Nearest Corpse", "vr_gibprops_test 3"),
+        command("Gib Props: Grab Its Head", "vr_gibprops_test 4").help("vr_gibprops_test 4: whether the head is a rigid body (Box3D), and your main hand takes it."),
+        command("Gib Props: Let Go of It", "vr_gibprops_test 5"),
+        command("Gib Props: Shoot Its Head", "vr_gibprops_test 6").help("vr_gibprops_test 6: shot for 1000: it bursts into small gibs."),
         command("Shotgun Blasts", "vr_smallgibs_test 1").help("vr_smallgibs_test 1: 200 shotgun blasts at it (vr_smallgibs_test_n), the share that tore small gibs out."),
         command("Super Shotgun Blasts", "vr_smallgibs_test 2"),
         command("Nails", "vr_smallgibs_test 3"),

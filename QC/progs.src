@@ -437,6 +437,8 @@ vr_ad_stealth.qc
 vr_ad_enemyguns.qc
 vr_ad_monsters_test.qc
 vr_ad_shots_test.qc
+// Every monster's head and gibs as props (vr_gibprops_test; after AD's files: it counts AD's own gibs).
+vr_gibprops_test.qc
 // A corpse's pieces worn off by each weapon (vr_limb_test 30-37; after the bridge: AD's pellet hit).
 vr_limbs_wear_test.qc
 // The weapon each weapon's damage is credited with (vr_dmgcredit_test; after every weapon it fires).

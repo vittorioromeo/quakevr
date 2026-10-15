@@ -513,10 +513,12 @@ float(entity m) VR_AD_GibsOurs =
     return ((m.flags & FL_MONSTER) || m.vr_ad_mon) && cvar_hget(cvarh_vr_grab_gibs);
 };
 
-// Its gibs are flesh (AD's gibtype: blood or poison, not stone, wood, glass or metal).
+// Its gibs are flesh (AD's gibtype: blood or poison, not stone, wood, glass or metal). Not the robot's (floyd: its metal
+// head thrown before AD makes its gibtype metal) nor the snowman's (AD: "No blood or guts!").
 float(entity m) VR_AD_FleshGibs =
 {
-    return m.ad_gibtype == ad_GIBTYPE_BLOOD || m.ad_gibtype == ad_GIBTYPE_POISON;
+    return (m.ad_gibtype == ad_GIBTYPE_BLOOD || m.ad_gibtype == ad_GIBTYPE_POISON) && m.ad_classtype != ad_CT_MONFLOYD &&
+           m.ad_classtype != ad_CT_MONSNOWMAN;
 };
 
 void() VR_AD_Gibbed =
