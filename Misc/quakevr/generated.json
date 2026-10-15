@@ -1008,6 +1008,10 @@
   "sha256": "0914be4ec715d4ec06e08a0901864c3caffcc9db48101ed4216b898772514a9d",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/vr_tooth.mdl": {
+  "sha256": "0349beeea9771d2f41715ea5b764787dbc98c4c5cf537b5b441d346754413809",
+  "by": "make_teeth.py"
+ },
  "quakevr/progs/vrbody.md5anim": {
   "sha256": "19dd491a8500c297e93ee278c3c1e9a6c3d7948a585ef87747c5349a1e0858db",
   "by": "make_vrbody.py"

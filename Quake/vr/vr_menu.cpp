@@ -2973,6 +2973,44 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("And when a thrown thing, the shotguns, nails or an enforcer's laser gib it."),
         slider("Gib Speed: Explosives", vr_gib_speed_heavy, 0.05f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 3.f)
             .help("And everything else: explosions, rockets, grenades, lightning, plasma, monsters' blows (1: Quake's)."),
+        header("Blood Streams, Back-splatter and Teeth"),
+        toggle("Blood Streams", vr_gore_streams)
+            .help("Shots and nails open bullet holes that pour a thin stream of blood, pulsing and weakening over a few seconds, "
+                  "following the body as it moves and falls, painting a pool where it lands (vr_gore_streams)."),
+        slider("Stream Chance", vr_gore_streams_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance each shot or pellet opens one (vr_gore_streams_chance)."),
+        slider("Streams per Body", vr_gore_streams_per_body, 1.f, 8.f, 1.f, "%.0f")
+            .help("Most on one body: a new one takes the weakest's place (vr_gore_streams_per_body)."),
+        slider("Streams in All", vr_gore_streams_max, 0.f, 64.f, 2.f, "%.0f")
+            .help("Most at once everywhere (vr_gore_streams_max)."),
+        slider("Stream Duration", vr_gore_streams_time, 1.f, 20.f, 0.5f, "%.1f s").extend(1.f, 30.f)
+            .help("About how long one pours, weakening all along (vr_gore_streams_time)."),
+        slider("Stream Force", vr_gore_streams_speed, 0.f, 200.f, 5.f, "%.0f u/s").extend(0.f, 400.f)
+            .help("How fast it leaves the wound at its strongest: how far it arcs out (vr_gore_streams_speed)."),
+        slider("Stream Width", vr_gore_streams_width, 0.1f, 2.f, 0.05f, "%.2f units").extend(0.05f, 4.f)
+            .help("How thick, at its strongest (1 unit: 3.8 cm) (vr_gore_streams_width)."),
+        slider("Stream Pools", vr_gore_streams_pool, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 4.f)
+            .help("The pools a stream spreads where it lands: their size (0: no marks) (vr_gore_streams_pool)."),
+        slider("Back-splatter", vr_gore_backsplatter, 0.f, 3.f, 0.25f, "%.2fx").extend(0.f, 4.f)
+            .help("Thin long streaks thrown along the shot's line onto what is behind a monster hit: how many (0 none) "
+                  "(vr_gore_backsplatter)."),
+        slider("Back-splatter Reach", vr_gore_backsplatter_reach, 0.25f, 3.f, 0.25f, "%.2fx").extend(0.f, 4.f)
+            .help("How far they fly, times the hit's own reach: a shotgun's close, big hits across the room "
+                  "(vr_gore_backsplatter_reach)."),
+        toggle("Knocked-out Teeth", vr_teeth)
+            .help("A hard punch to a humanoid's face (grunts, enforcers, knights, zombies, AD's humanoids) knocks teeth out: "
+                  "tiny gibs that bounce, can be picked up, and fade (vr_teeth)."),
+        slider("Teeth per Punch", vr_teeth_per_hit, 1.f, 10.f, 1.f, "%.0f")
+            .help("Most from one blow, the hardest (fewer for softer ones) (vr_teeth_per_hit)."),
+        slider("Teeth per Enemy", vr_teeth_per_enemy, 1.f, 32.f, 1.f, "%.0f")
+            .help("Most one enemy loses (vr_teeth_per_enemy)."),
+        slider("Punch Hardness for Teeth", vr_teeth_hardness, 0.f, 0.95f, 0.05f, "%.2f")
+            .help("How hard a blow must be to knock any out (0..1: the hand's speed and the damage, as Decapitation's "
+                  "blunt pops) (vr_teeth_hardness)."),
+        toggle("Teeth from Blunt Weapons", vr_teeth_blunt)
+            .help("A gun's butt, a crowbar, a club or a pommel knocks them out too, not only fists (vr_teeth_blunt)."),
+        slider("Tooth Size", vr_teeth_size, 1.f, 8.f, 0.5f, "%.1f cm")
+            .help("How long a tooth is (vr_teeth_size)."),
         open("Small Gibs", pageIndex(pageSmallGibs)).help("Chunks of meat torn out by hits: when, how many, how they fly, how long they last."),
         open("Decapitation", pageIndex(pageDecapitation))
             .help("A killing slash at a monster's head cuts it off: the head flies, the body falls headless, the neck spurts blood."),
@@ -6132,6 +6170,9 @@ za::Vector<Item> pageDebugTools()
         header("Test Effects"),
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
+        command("Back-splatter: Shotgun", "vr_gore_test 30 pellets").help("vr_gore_test 30 pellets: a shotgun blast's blood 64 units ahead, its back-splatter close behind."),
+        command("Blood Streams on Monster Ahead", "vr_gore_stream_test 3").help("vr_gore_stream_test 3: three bullet holes pouring blood on the monster or corpse nearest the middle of the view."),
+        command("Knock Teeth Out", "impulse 198").help("impulse 198: the monster spawned last (impulse 241) punched in the face as hard as can be: its teeth fly (Gore > Knocked-out Teeth)."),
         command("Decal Stress: Splatters", "vr_decal_stress 64 48").help("vr_decal_stress [count] [size] [splatter|pool|wall|run|stack|cluster]: 64 marks laid the same way each time (tests compare two builds' images); here splatters on the floor ahead."),
         toggle("Show Permanent Decal Pages", vr_permdecal_show).help("vr_permdecal_show: the baked marks' pages drawn unlit and green, the marks on them (where the layer has texels; a mark on a door moves with it)."),
         command("Decal Stress: Pools", "vr_decal_stress 64 48 pool").help("vr_decal_stress 64 48 pool: 64 pools spreading on the floor ahead (over 6 seconds, darkening)."),

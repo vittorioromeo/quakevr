@@ -22,6 +22,7 @@
 #include "vr_decals.hpp"
 #include "vr_permdecals.hpp"
 #include "vr_gore.hpp"
+#include "vr_bloodstream.hpp"
 #include "vr_envmap.hpp"
 #include "vr_lighting.hpp"
 #include "vr_angvel.hpp"
@@ -2033,6 +2034,7 @@ extern "C" void VR_Init()
     bench::registerCommands(); // vr_bench_begin, vr_bench_end, vr_bench_seed
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
+    Cmd_AddCommand("vr_gore_stream_test", bloodstream::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
     Cmd_AddCommand("vr_prepare_models", prepare::precacheModels_f); // (Setup's preparation run, vr_prepare.cpp)
     Cmd_AddCommand("vr_vram_report", vram::report_f);

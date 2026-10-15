@@ -72,6 +72,7 @@
 #include "vr_menu.hpp"
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
+#include "vr_bloodstream.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
@@ -8759,6 +8760,7 @@ extern "C" void VR_SetupViewEntities()
     collectfx::frame(s); // things put away, going into their holster or pouch (vr_collectfx.cpp)
     explosiondebris::frame();
     fireparticles::frame();
+    bloodstream::frame(); // blood pouring from bullet holes (vr_bloodstream.cpp), the monsters and ragdolls posed
 
     // Wounds painted on the models (vr_wounds.cpp), the body and the hands posed.
     wounds::frame();

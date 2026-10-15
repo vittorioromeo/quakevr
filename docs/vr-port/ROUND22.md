@@ -8160,3 +8160,86 @@ eyes), the frame's GPU 1.643 vs 1.596; the models' CPU 0.070 vs 0.069 ms (a look
 In VR: shoot a grunt with the nailgun and the shotgun, cut one with a blade, rocket an ogre: each hit should leave a
 small dark crater of raw flesh with a bloody rim that stays as he moves, dies and falls as a ragdoll; never a hole
 through an arm. Too subtle or too much: Dent Depth and Dent Size.
+## More gore: blood streams, back-splatter, teeth (worktree `gorefx`, branch `agent/gorefx`, 2026-10-16)
+
+His words: "I basically want this to look like a continuous thin blood waterfall. Research some techniques to implement
+that. The blood hitting the floor should paint it with blood as well." (BACKLOG.md, "More gore"; the vertex
+deformation of torn flesh is another worker's.)
+
+**Research: a thin continuous stream, cheaply.**
+- *Chained particles drawn as a ribbon* (the classic "trail"/"beam" particle: Unreal's ribbon emitters, Source's rope
+  and spritetrail): each particle emitted at a steady rate and simulated on its own (gravity, the emitter's motion), the
+  quads drawn between neighbours, so the chain reads as one unbroken line however the emitter moves. Cheap (a point a
+  1/45 s, a quad a pair), CPU-side, no new shader.
+- *A velocity-stretched quad per particle* (sparks, rain): reads as a stream only when they overlap; many more particles
+  for the same continuity, gaps when the emitter moves fast.
+- *A GPU particle stream with width taper* (compute or transform feedback): the same chain on the GPU; the win only shows
+  past thousands of points, and Quake VR's particles are CPU-built anyway.
+- *A spline or Verlet ribbon from the wound* (hair/rope solvers): smooth, follows the body, but a stream is ballistic
+  (each drop independent once out); constraints only add cost.
+- *A scrolling-UV tube* (a cylinder from the wound to the floor, its texture scrolling down: many games' waterfalls): one
+  draw, but a rigid shape: it neither arcs from a moving body nor trails behind it; it needs the arc traced anyway.
+- *Painting where it lands*: a decal at each landing (too many), or one growing pool per spot, moved on when the stream
+  moves (Brutal Doom's and F.E.A.R.'s pools under bodies; the existing gore's Pool marks, which spread over seconds and
+  bake into the permanent layer).
+Picked: the chained particles as a soft ribbon (vr_lines' depth-tested scene lines), the landing traced as one arc, a
+growing pool per spot.
+
+**Blood streams** (`vr_bloodstream.cpp`, `vr_gore_streams*`): every wound event (QVR_SVC_WOUND) of a shot or a nail
+(each pellet) opens one at `vr_gore_streams_chance` (0.6), on a monster or a corpse (not you). It binds to the model's
+vertex nearest the hit (the model as drawn then: the animated frame, or a ragdoll's skinned mesh), and each frame takes
+that vertex as drawn (`anchor::posedVertex` through the entity's matrix; a ragdoll's body: `ragdoll::drawnPart`, the
+vertex's bone), so it follows the animation and, once the monster falls, the ragdoll; the way it pours (back toward
+the shot, out from the body, a little up) turns with the body (its yaw, or the ragdoll body's turn). Points leave the
+wound 45 a second at up to `vr_gore_streams_speed` (70 u/s) times the flow (a gush, then weakening to nothing over
+`vr_gore_streams_time`, 7 s, beating at 1.35 Hz), plus 0.7 of the body's own motion, then fall freely; drawn as ribbon
+segments `vr_gore_streams_width` (0.35 units) wide, thinner as the flow weakens and as each point speeds up falling
+(a real stream's continuity: the width times the square root of its starting speed over its speed now). Where it lands:
+one arc (12 steps of 0.1 s) traced through the static world each 0.08 s from the wound at the current speed; the points
+live until then. Painting every 0.15 s while it lands: on a floor a Pool (16-24 units, `vr_gore_streams_pool`) spreading
+over what is left of the stream and darkening, a new one when the landing has moved over a third of the last one's size
+(at most `vr_gore_streams_pools`, 4), drops between; on a wall a run down it (gore's runs; at most 3); specks each time.
+Caps: `vr_gore_streams_per_body` (3) and `vr_gore_streams_max` (24, storage for 64): past one, the weakest (the one with
+least time left) gives its place. Fixed storage (64 streams of 56 points, 32 pending wounds); the vertex binding reuses
+one grown scratch vector: no allocations per frame. `vr_decal_count` prints them (`bloodstreams: n (n pouring), points`).
+
+**Back-splatter** (`vr_gore.cpp`'s hit, `vr_gore_backsplatter`, `vr_gore_backsplatter_reach`): each hit of a shot or a
+blast's pellets (not explosions or blows) also throws 2 + damage / 6 thin streaks (at most 12, 16 lines in all) along
+the shot's line (a cone of 0.12 rad, 0.2 for pellets), reaching 80 + 4 x damage units (to 480) for shots and 60 + 1.5 x
+damage (to 160) for pellets: a shotgun's close behind, a big hit across the room. Each lands as a Splatter 3.5-7 units
+wide and 4-8 times as long, drawn out along its flight and away from the shot's line: head on they radiate from where
+the line meets the wall (real back-spatter's look), glancing they run long along it; they show 1/1400 s a unit after
+the hit. Independent of Blood Sprays now (Blood Sprays 0 leaves only them).
+
+**Teeth** (`QC/vr_teeth.qc`, `Misc/quakevr/make_teeth.py` -> `progs/vr_tooth.mdl`, `vr_teeth*`): a hand's blow
+(T_Damage_VRMelee) with a fist (or, `vr_teeth_blunt`, a gun's butt, a crowbar, a club, a pommel; never a slap) on the
+head zone of a live humanoid (its head gib: grunt, enforcer, knight, hell knight, zombie, AD's soldiers, knights,
+judges and zombies), from the front, at Decapitation's blunt hardness (the hand's speed and the damage) of at least
+`vr_teeth_hardness` (0.3): up to `vr_teeth_per_hit` (4) teeth for the hardest, `vr_teeth_per_enemy` (10) at most from
+one. They are small gibs (VR_SmallGib_SpawnAs's xBrain 2: Most Small Gibs caps them, carried, thrown, fading as the
+others), `vr_teeth_size` (3 cm) long, `vr_teeth_mass` (0.05 kg), out of the mouth (the head zone's front, low) toward
+the face's front and the sides, up, along the blow, at `vr_teeth_speed` (3 m/s); no squish, blood, sticking or blood
+trail (their model has no gib flag); they click on landing (weapons/tink1.wav, quiet) and knock as stone
+(`vr_physsound.cpp`). The model: a lathe of a molar's profile (crown, neck, tapering root), 99 vertices, 140
+triangles, a 16 x 16 skin, ivory with the root bloody.
+
+**Settings and tests.** Gore > "Blood Streams, Back-splatter and Teeth" (every cvar above, archived). Debug > Tests:
+Back-splatter: Shotgun (`vr_gore_test 30 pellets`: `vr_gore_test <damage> pellets` is new), Blood Streams on Monster
+Ahead (`vr_gore_stream_test 3`), Knock Teeth Out (`impulse 198`: the monster spawned last punched as hard as can be).
+
+**Checked** (headless): streams on a standing grunt (`start`, frozen, looking down) pour from its chest in thin arcs
+and spread pools under them over seconds; on a corpse (`vr_test_spawn_dead 1`: a ragdoll) they pour short onto the floor
+round it; a real shotgun blast (the bench's gun set-up) prints `back-splatter 7 streaks, reach 105`; on the calibration
+room's wall the back-splatter alone (Blood Sprays 0) shows thin streaks radiating from the line's point, more and wider
+for 80 damage; impulse 198 on a grunt knocks out 4 teeth that bounce and lie by your feet (8 after a second punch).
+A real shotgun fight in E1M1's computer room (three blasts) keeps 6 streams pouring through the grunts' deaths and
+ragdolls (a first build stopped those on bodies that became ragdolls: the "#rag" model swap; fixed, `ownModel`).
+Cost (kit bench, 90 Hz paced, exclusive, 2 reps, all of it off with `vr_gore_streams 0; vr_gore_backsplatter 0` vs on):
+`play_e1m1_fight` (shotgun) frame p50 11.110 both, CPU busy avg 2.050 -> 1.957 ms (noise), heap allocations a frame
+5.36 -> 4.85; `play_e1m1_lights` (rockets) rep 1 CPU busy 2.742 / 2.728 off -> 2.714 on, its "vr particles" phase
+0.358 -> 0.390 (+0.03 ms); its rep 2 on was slower in every phase alike (3D, physics, swap, xr wait all about 1.8x:
+the machine, not the gore). So: within the runs' noise, under 0.05 ms a frame.
+
+In VR: shoot a grunt with the shotgun up close and watch the streams pour as it stands, falls and lies; check that the
+pools under it grow where the streams land; shoot one standing a little in front of a wall (the streaks behind it);
+punch a grunt's face hard with a fist (teeth; a soft punch none: Punch Hardness for Teeth) and pick a tooth up.

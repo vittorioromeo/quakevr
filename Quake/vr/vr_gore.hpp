@@ -40,6 +40,10 @@ bool event(const glm::vec3& org, const glm::vec3& dir, int preset, int count);
 // big splat, a run down a wall, drips from a ceiling. False with vr_gore 0 (the old splat then).
 bool gibImpact(const glm::vec3& where, const glm::vec3& normal, float strength, const glm::vec3& velocity);
 
+// A run of blood down the wall from `where` (normal `normal`), `width` across, to the floor (vr_bloodstream.cpp: a
+// stream falling on a wall).
+void wallRun(const glm::vec3& where, const glm::vec3& normal, float width);
+
 // A gib came to rest on the floor at `where`: a small pool spreads under it.
 void gibRest(const glm::vec3& where, const glm::vec3& normal);
 
