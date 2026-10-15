@@ -6665,8 +6665,9 @@ leftovers "Neck snap method" / "AD humanoids". Both detectors kept (his defaults
   volume) and one from its head (its voice channel, cutting its death cry). Crack Volume now reaches 2 (the hands'
   layers louder).
 - **AD**: `monster_centurion` and `monster_fumigator` in vr_foegrab_lift_classes (config 134). Mock: `vr_mock_hand_to
-  <hand> nearest <classname> head [units]` (its head zone's middle). judo_test `adneck`: each AD humanoid's head snap
-  standing, lift (flail), and knocked-down snaps (centurion, fumigator, death knight, pyro; JUDO_AD_KD=1 all).
+  <hand> nearest <classname> head [units]` (its head zone's middle). judo_test `adneck` (AD's data, on vrfiringrange,
+  vr_ad_everywhere): each AD humanoid's head snap standing, lift, and knocked-down holds (fumigator, death knight, pyro;
+  JUDO_AD_KD=1 all).
 - **Hand Line vs Velocity** (for his choice): Hand Line compares the palms' line across the neck now with each sample of
   the window, relative to the enemy's yaw (a ragdoll: play space), and the wrists' common roll; it ignores speed, so slow
   shuffles never add up and only the angle within the window tunes it; a tilt is not a turn. Velocity integrates the
@@ -6674,7 +6675,19 @@ leftovers "Neck snap method" / "AD humanoids". Both detectors kept (his defaults
   strokes longer than a window, and tilts count. Both pass the same suite; Hand Line is simpler to tune (one angle, one
   window); Velocity is more forgiving of slow-but-big twists.
 - **Tests** (judo_test.py; `case_neck` now pins its reference thresholds, 100 deg/s, 30 deg, 0.3 s, neck 3; new
-  `neckdefaults` at the shipped defaults with 110-degree twists): RESULTS_TBD.
+  `neckdefaults` at the shipped defaults with 110-degree twists): neck (Velocity) 39/39 (new: shoulders, shoulders_pp,
+  lifted_shoulders no snap; quick, slowmo_quick, slowmo_pp, slowmo_knocked snap; slowmo_slow none); neck (Hand Line)
+  39/39 with its lying-ragdoll cases measured, not judged (the mock twists about the vertical: a lying neck read 7-35
+  of 75 degrees, the hands at its neck joint once 141: a line nearly along the neck swings wildly); neckdefaults 8/8
+  under each method; lift 10/10 (new: quick and slow-motion quick lifted, gentle 0.4 m/s not, slowed or not; it pins
+  Breaks Free After 2, the shipped 3.5); hold 2/2; ragdoll/stagger_test.sh judo 0 FAIL; adneck: every AD humanoid's
+  lift by the chest (2 hands; none flails: AD's have no driven rigs), head snaps standing for 12 of 15 (the centurion:
+  killed standing, it hovers, never knocked down nor lifted); the eliminator's, the fumigator's and the zombie knight's
+  heads were not taken from their head zone's sides (the zombie knight's head sits 3-5 units to its side of the zone:
+  headfit 2.8 3.1 21.1; positional damage's head zones have no sideways offset); knocked-down pyro, fumigator, death
+  knight held at the head and measured. Melee eval 168/177 (3 bash numbers differ from eval_baseline.csv: his
+  vr_bash_damage default, not this). Runs flake now and then under load (a hold's ragdoll grab missed, a frame jump past
+  a twist): rerun.
 
 Checklist (proposed): "Neck snap: hold a grunt's or enforcer's shoulders and twist hard: no snap; hands on its head or
 neck and twist: snaps with a loud crack in your hands. Turn on Neck Snap > Show Diagnostic: the zone, hand dots and the
