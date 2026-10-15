@@ -358,7 +358,7 @@ struct RagdollHold
 [[nodiscard]] bool ragdollHoldPoint(int player, int hand, glm::vec3& out);
 // A limb's point (flames on a ragdoll: vr_burning.qc): the limb nearest `at` (-1: not a ragdoll); a point into a limb's
 // space (units) and back.
-[[nodiscard]] int ragdollBone(int num, const glm::vec3& at);
+[[nodiscard]] int ragdollBone(int num, const glm::vec3& at, float within = -1.f); // (within >= 0: -1 when farther)
 // Tests (vr_mock_hand_to ... ragdoll): the middle of part `part` (-1: the one nearest `from`; -2 its head) of the ragdoll nearest `from`
 // (units); its edict number,
 // 0 if none (or no such part).

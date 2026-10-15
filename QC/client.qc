@@ -2289,9 +2289,11 @@ void() PlayerPostThink =
 // check to see if player landed and play landing sound
     // QVR: landing on a living monster crushes the part under your feet (vr_ragimpact.qc): on the floor (a ragdoll), or
     // stopped short in the air on a standing one's top (Quake never sets FL_ONGROUND on a monster). Cushioned: no fall
-    // damage (vr_ragimpact_crush_cushion).
+    // damage (vr_ragimpact_crush_cushion). Slower landings than Quake's count too (a jump from the same level, about 270
+    // units/s): down to the crush's or the stomp's least speed, the lower (a soft landing's jump_flag zeroed below).
     float crushCushion = FALSE;
-    if((self.jump_flag < -300) && (self.health > 0) &&
+    float crushGate = max(100, min(cvar_hget(cvarh_vr_ragimpact_crush_speed), cvar_hget(cvarh_vr_ragimpact_stomp_speed)));
+    if((self.jump_flag <= -crushGate) && (self.health > 0) &&
        ((self.flags & FL_ONGROUND) || (self.velocity_z > (self.jump_flag * 0.5))))
     {
         float onFloor = (self.flags & FL_ONGROUND) ? TRUE : FALSE;
@@ -2318,6 +2320,8 @@ void() PlayerPostThink =
 
         self.jump_flag = 0;
     }
+    if((self.flags & FL_ONGROUND) && self.jump_flag < 0) // QVR: a soft landing counted once (the crush's gate, above)
+        self.jump_flag = 0;
 
     if(!(self.flags & FL_ONGROUND))
         self.jump_flag = self.velocity_z;
