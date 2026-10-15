@@ -312,6 +312,8 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
   back to the original loop. Behaviour identical: same results, runaway/error messages, profile counts; verify with
   the QC-heavy suites (ragdoll, AD, melee eval) and a seeded e1m1 log compared against the old loop.
 - First measure QC's share of the frame on a busy map (vr_qcprofile, Tracy QC zones).
+- 2026-10-15 (worktree `qcvm`): steps 0-2 done (vr_qcexec; QC_VM.md): the interpreter is ~2% of a 90 Hz frame, so
+  steps 3-4 were left out; fewer statements (native hot functions, the filters above) would pay more.
 
 ## Model vertex wobble (2026-10-14)
 
