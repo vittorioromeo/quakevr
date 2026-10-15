@@ -8,7 +8,8 @@ vrfiringrange through AD's campaign (AD's data linked into the agent's base, qba
   getup    it rises through its get-up with its body ("getup: <n> rises through frames", then "rises through its
            get-up"), handed back standing;
   neck     its neck snapped standing (vr_foegrab_necksnap_test): its head joint loose, its head flops (NECKANGLE every 12
-           frames: the swing of its head from its chest at least 40 degrees and moving 20 or more).
+           frames: the swing of its head from its chest past 50 degrees, beyond a living neck's 45-degree cone). First,
+           then a second one spawned for the shove (risen, one may walk off: the range's grunt would be nearest).
 
 The lift's flail: foegrab/judo_test.py adneck (its lift verdict needs "it flails in the hands" for these classes).
 Prints a PASS/FAIL line per class and check, then FAILS <n>; each class's log in scratch/ad_active_<class>.txt.
@@ -38,9 +39,10 @@ PRE = ("sv_random_seed 7;skill 1;vr_campaign_native ad;wait30;map vrfiringrange;
        "vr_ad_everywhere 1;vr_knockdown_debug 1;vr_ragdoll_active_seed 0;vr_test_spawn {mon};vr_test_spawn_dist 64;"
        "impulse 241;wait60")
 SAMPLES = "".join(";wait12;vr_foegrab_neck_angle" for _ in range(8))
-# (Risen, it may walk off: walked up to again, so the neck snapped is its, not the range's grunt's.)
-BODY = ("vr_knockdown_chance 100;vr_knockdown_test 22;wait90;vr_knockdown_test 1;wait420;vr_knockdown_chance 1;"
-        "vr_mock_walk_to nearest {cls} 40;wait200;vr_mock_walk_to off;wait10;vr_foegrab_necksnap_test" + SAMPLES)
+# (The neck first: risen, one may walk off, and the neck snapped would be the range's grunt's. A second one spawned for
+# the shove: the first lies dead.)
+BODY = ("vr_foegrab_necksnap_test" + SAMPLES + ";wait30;impulse 241;wait60;vr_knockdown_chance 100;vr_knockdown_test 22;"
+        "wait90;vr_knockdown_test 1;wait420;vr_knockdown_chance 1")
 FILTER = "^knockdown|^stagger|^getup|NECKANGLE|necksnap|rror|CRASH"
 FAILS = 0
 
@@ -59,7 +61,7 @@ def main():
     for mon in PICK:
         cls = ACTIVE[mon]
         short = cls.replace("monster_", "")
-        out = testbatch.run_sh(AGENT, ["-Script", f"{PRE.format(mon=mon)};{BODY.format(cls=cls)};toggleconsole;quit", "-Filter", FILTER,
+        out = testbatch.run_sh(AGENT, ["-Script", f"{PRE.format(mon=mon)};{BODY};toggleconsole;quit", "-Filter", FILTER,
                                        "-Timeout", "300"]).replace("\r", "")
         with open(os.path.join(SCRATCH, f"ad_active_{short}.txt"), "w") as f:
             f.write(out)
@@ -71,7 +73,7 @@ def main():
         up = f"{cls} rises through its get-up" in flat
         loose = re.search(rf"necksnap: \d+ {cls}'s head joint loose", flat) is not None
         swings = [float(s) for s in re.findall(r"NECKANGLE \d+ swing ([-\d.]+)", flat)]
-        flops = bool(swings) and max(swings) >= 40.0 and max(swings) - min(swings) >= 20.0
+        flops = bool(swings) and max(swings) > 50.0
         verdict(staggered and fell and not bad, f"{short} shove: {'staggered' if staggered else 'no active stagger'}, "
                                                 f"{'knocked down' if fell else 'not down'}")
         verdict(rose is not None and up and not bad,

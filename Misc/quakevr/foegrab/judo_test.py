@@ -639,8 +639,8 @@ def case_adneck():
                       f"vr_mock_walk_to nearest {cls} 24;wait200;vr_mock_walk_to off;wait90;vr_mock_play {path}")
             else:
                 path = head_target_motion(name, cls, -14 if kind == "lift" else 0, 110, 0.2, 1, lift=kind == "lift")
-                go = (f"vr_mock_walk_to nearest {cls} 24;wait200;vr_mock_walk_to off;wait30;vr_mock_turn monster;wait5;"
-                      f"vr_mock_turn off;vr_mock_play {path}")
+                go = (f"vr_mock_walk_to nearest {cls} 24;wait200;vr_mock_walk_to off;wait30;vr_mock_turn_to monster;"
+                      f"wait40;vr_mock_turn_to off;vr_mock_play {path}")  # (was vr_mock_turn: no such command)
             for _ in range(3):
                 out = run(f"{pre};vr_knockdown_debug 1;{go};wait500;-grabmain;-graboff;wait5;toggleconsole;quit",
                           "foegrab|necksnap|flail:|held on by|ragdoll: a limb|vr_mock_hand_to|MARK|rror|CRASH")
