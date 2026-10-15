@@ -401,7 +401,7 @@ def case_neck():
     nothing (a ragdoll's hand grab missed: run again, up to 3 tries). Both hands at its head pulled left, or up: neither thrown nor
     lifted (the neck snap the only move there); lifted by the shoulders (one hand in its head zone), then twisted: not
     snapped (its holds on its shoulders and chest; the strict zone), nor with both hands out on its shoulders, standing or
-    lifted. Slow motion (0.3): a quick twist, a push-pull, a staggering one's: snapped; a slow twist: not.
+    lifted. Slow motion (0.3): a quick twist, a push-pull, a knocked-down one's: snapped; a slow twist: not.
     The player turning with the stick, the hands still on its head: smooth (about 195 deg/s) or snap (two 45s): nothing;
     a twist while smooth-turning: snapped."""
     runs = [  # (name, monster, centre or 'kd'/'stagger', deg, dur, sign, axis, pull, extra, want)
@@ -448,12 +448,11 @@ def case_neck():
         ("shoulders_pp", 0, GRUNT_SHOULDERS_WIDE, 25, 0.3, 1, "pp", None, "", "nosnap"),
         ("lifted_shoulders", 0, GRUNT_SHOULDERS_WIDE, 75, 0.2, 1, "y", "up", "", "nosnap"),
         # (Slow motion, 0.3 (bullet time's): the twist on the player's clock. Twisted 0.2 s after the grips, a push-pull,
-        # a staggering one's ragdoll's head: snapped; a slow twist (75 deg/s): not, as at full speed.)
+        # a knocked-down one's ragdoll's head: snapped; a slow twist (75 deg/s): not, as at full speed.)
         ("quick", 0, GRUNT_HEAD, 75, 0.2, 1, "y", "quick", "", "snap"),
         ("slowmo_quick", 0, GRUNT_HEAD, 75, 0.2, 1, "y", "quick", "vr_timescale 0.3", "snap"),
         ("slowmo_pp", 0, GRUNT_HEAD, 20, 0.3, 1, "pp", None, "vr_timescale 0.3", "snap"),
-        ("slowmo_stagger", 0, "stagger", 75, 0.2, 1, "y", None,
-         "vr_timescale 0.3;vr_knockdown_chance 0.01;vr_ragdoll_active_stagger_travel 0.03", "snap"),
+        ("slowmo_knocked", 0, "kdslow", 75, 0.2, 1, "y", None, "", "snap"),
         ("slowmo_slow", 0, GRUNT_HEAD, 75, 1.0, 1, "y", None, "vr_timescale 0.3", "none"),
     ]
     # JUDO_NECK_METHOD 1: the hand-line detector (vr_foegrab_necksnap_method 1); a tilt (grunt_roll: one hand up, the
@@ -468,13 +467,17 @@ def case_neck():
         if ONLY and not re.search(ONLY, name):
             continue
         pre = PRE.replace("vr_test_spawn 0;", f"vr_test_spawn {mon};")
-        if centre in ("kd", "kdneck"):
-            # (Knocked down where it stands, down 12 s: you walk up to it, its head in reach.)
-            path = neck_ragdoll_motion(name, deg, dur, sign, axis=axis, part="neck" if centre == "kdneck" else "head")
+        if centre in ("kd", "kdneck", "kdslow"):
+            # (Knocked down where it stands, down 12 s: you walk up to it, its head in reach. kdslow: slow motion (0.3)
+            # from then on, the slowed hands given 0.6 s to reach its head.)
+            slowed = centre == "kdslow"
+            path = neck_ragdoll_motion(name, deg, dur, sign, axis=axis, part="neck" if centre == "kdneck" else "head",
+                                       reach=0.6 if slowed else 0.1)
             go = ("vr_knockdown_push 0;vr_knockdown_time_min 12;vr_knockdown_time_max 12;vr_knockdown_test 0;wait60;"
-                  f"vr_mock_walk_to nearest monster_army 24;wait200;vr_mock_walk_to off;wait90;vr_mock_play {path}")
+                  f"vr_mock_walk_to nearest monster_army 24;wait200;vr_mock_walk_to off;wait90;"
+                  f"{'vr_timescale 0.3;wait30;' if slowed else ''}vr_mock_play {path}")
         elif centre == "stagger":
-            path = neck_ragdoll_motion(name, deg, dur, sign, reach=0.6 if "vr_timescale" in extra else 0.1)
+            path = neck_ragdoll_motion(name, deg, dur, sign)
             go = f"vr_knockdown_test 21;wait3;vr_mock_play {path}"
         else:
             path = neck_standing_motion(name, centre, deg, dur, sign, axis, pull)
@@ -485,7 +488,7 @@ def case_neck():
             out = run(f"{pre};vr_knockdown_debug 1;{extra};{go};wait500;-grabmain;-graboff;wait5;toggleconsole;quit",
                       "foegrab|necksnap:|necksnap diag|held on by|ragdoll: a limb|stagger|MARK|rror|CRASH")
             took = "limb taken by hand 0" in out and "limb taken by hand 1" in out
-            if centre not in ("kd", "kdneck", "stagger") or took:
+            if centre not in ("kd", "kdneck", "kdslow", "stagger") or took:
                 break
             print(f"  ({what}: a hand's ragdoll grab missed, again)")
         with open(os.path.join(SCRATCH, f"judo_test_{name}.txt"), "w") as f:
@@ -503,7 +506,7 @@ def case_neck():
         how = (f"{snap.group(1)} snapped {snap.group(4)} ({died.group(2) if died else '?'}), {snap.group(2)} deg at "
                f"{snap.group(3)} deg/s" if snap else "no snap")
         if want == "snap":
-            state_ok = (died and died.group(2) == {"kd": "knocked down", "kdneck": "knocked down",
+            state_ok = (died and died.group(2) == {"kd": "knocked down", "kdneck": "knocked down", "kdslow": "knocked down",
                                                    "stagger": "staggering"}.get(
                 centre, "knocked down" if pull == "up" else "standing"))
             ok = (killed and state_ok and s1 and s1[0] == 2 and "(snapped)" in flat and s2 is None and let and
@@ -521,7 +524,7 @@ def case_neck():
             verdict(ok, f"ogre: {'snapped (wrong)' if died else 'not snapped'} "
                         f"({'not a humanoid' if 'not a humanoid' in flat else '?'})")
         else:
-            held = took or centre not in ("kd", "kdneck", "stagger")
+            held = took or centre not in ("kd", "kdneck", "kdslow", "stagger")
             ok = not died and not snap and not thrown and not lifted and not bad and held
             verdict(ok, f"{what}: {how}{', thrown (wrong)' if thrown else ''}{', lifted (wrong)' if lifted else ''}"
                         f"{'' if held else ', a hand never took its ragdoll (nothing measured)'}")
