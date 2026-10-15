@@ -6136,3 +6136,78 @@ wobbling/pulsating left. Measured (`vr_mdl_dequant_check`, near-still axes: 3 st
   double the solves); memory 8 bytes per pose and vertex (7.6 MB for those 139).
 - The check prints, per model, the progs loops' seam and inside (stored, without the progs' loops, now) and the
   normals' turn; one model named: each loop's.
+
+## Pentagram and biosuit glows, like Quad's (worktree `adcpuopt`, branch `agent/powerglow`, 2026-10-15)
+
+His words (10:52): "make the protection pentagram give you a similar glow and also the bio suit to give you some sort
+of green glow ... so that they're all recognizable during gameplay."
+
+- The Quad glow (above) is now a power-up glow (vr_view.cpp `powerupGlow`, `view::powerupGlow`): Quad's blue, the
+  pentagram's red `(1, 0.05, 0.08)` (deep, gain 1.5: Quake's own yellow pentagram flash over the view washes a lighter
+  red out), the biosuit's green `(0.25, 1, 0.18)`. Same breath, same rim-over-wash shader, same hand lights
+  (`emissive::powerupLight`, was `quadLight`, now with a colour; keys unchanged).
+- The shader code carries the colour: `-2 - 2 x (r + 16g + 256b, 16 levels a channel) - strength (0..1)`, decoded in
+  `QVR_ALIAS_FS_GLOW` as the hot blade's code is (its old `-2 - strength` was this with colour 0).
+- Several at once take turns: each shows 1.6 s, crossfading into the next over the last third of its turn (colour,
+  strength and light), so each stays recognizable (a blend would be a muddy purple / cyan).
+- New cvars (archived, Body page under the Quad rows): `vr_pent_glow`, `vr_pent_glow_light`, `vr_suit_glow`,
+  `vr_suit_glow_light` (2, 0..2: as his Quad settings). 0 glow: the old body tint (pentagram's red pulse, biosuit's green
+  multiply) comes back instead; with the glow on, the tint is skipped (they doubled up). `vr_body_powerups 0` still
+  turns all of it off. The ring of shadows is unchanged (translucent body, no glow).
+- Debug > Test Effects: Pentagram On You (`impulse 191`), Biosuit On You (`impulse 193`); `vr_quad_info` is now
+  `vr_powerup_info` (which glow, how many take turns, its strength and code on hand and body, the lights).
+
+Verified (mock, e1m1 start, looking down at both hands): `scratch/powerup_glows.png` (none, quad, pent, pent glow 0 =
+old tint, suit, suit glow 0), `scratch/powerup_glows_defaults.png` (none, quad, pent, suit at the new defaults: Quad's
+look 2 draws arcs and glow). `vr_powerup_info`: pent code 287 (r15 g1 b1), suit 1012, quad 3922; with all three: quad,
+quad, pent, pent, (crossfade, code 650), suit over 4 s; lights 0.77/0.23/0.15 (pent), 0.21/0.54/0.16 (suit). Build 0
+warnings; e1m1 smoke clean.
+
+## His blood, quad and combat tweaks are the defaults (worktree `adcpuopt`, 2026-10-15)
+
+"I have tweaked settings for the blood feedback, for the quad effects, and some other damage and combat settings.
+Please make those the new defaults." His config of 2026-10-15 11:06 (version 132) against this build's shipped
+defaults (`resetcfg; writeconfig`): 102 archived settings differ; 33 promoted (compiled defaults, vr_cvars.inc);
+config 133 moves a config still at an old value; one set by hand is kept.
+
+| cvar | was | now |
+|---|---|---|
+| `vr_blood_health_intensity` / `_size` | 0.25 / 0.65 | 0.3 / 0.75 |
+| `vr_blood_hit_bias` / `_duration` / `_intensity` / `_size` | 0.75 / 0.45 / 0.22 / 0.65 | 0.9 / 0.4 / 0.4 / 0.6 |
+| `vr_quad_look` / `vr_quad_glow` / `vr_quad_glow_light` | 1 / 1 / 1 | 2 (glow and arcs) / 2 / 2 |
+| `vr_bash_damage` | 10 | 5 |
+| `vr_melee_phase_time` | 0.35 | 0.2 |
+| `vr_foegrab_lift_time` | 2 | 3.5 |
+| `vr_foegrab_necksnap_method` / `_speed` / `_angle` / `_window` / `_neck` / `_strength` | 0 / 100 / 30 / 0.3 / 3 / 1.2 | 1 / 210 / 80 / 0.2 / 1.5 / 1.25 |
+| `vr_foegrab_throw_feet_speed` / `_push` / `_speed` / `_spin` / `_topple` / `_twist` | 30 / 240 / 2.5 / 0.55 / 200 / 140 | 20 / 220 / 3 / 0.5 / 180 / 130 |
+| `vr_ragdoll_grab_force` / `vr_ragdoll_hand_stick` / `vr_ragdoll_hand_turn` | 3000 / 2 / 60 | 4000 / 4 / 70 |
+| `vr_reload_port_sshot_radius` / `vr_reload_reinsert_clearance` | 3 / 4 | 3.15 / 1.5 |
+| `vr_decal_max` / `vr_decal_bucket_max` | 768 / 32 | 512 / 24 (menu help's "shipped" numbers too) |
+| `vr_body_bracers` | 1 | 0 (bare forearms) |
+| `vr_pbr_strength` | 1 | 2.5 |
+
+With them, the new `vr_pent_glow`, `vr_suit_glow` and their lights ship at 2, as his Quad.
+
+**Not promoted** (look debug/test-only, personal or machine-specific):
+- `vr_dummy_type` 2 (knight), `vr_dummy_gore` 0, `vr_dummy_gib` 0: the training dummy's test setup.
+- `r_lerpmodels` 3: the experimental spline animation smoothing (vr_animsmooth.cpp, under evaluation with dequant).
+- `vr_retrolight_model_steps` 16: the compiled default; the shipped 15 (vr_defaults.cfg, his 10-04 notes) never reached
+  a config that saved 16 earlier, so likely a leftover, not a tweak.
+- `vr_melee_phase_speed` 3.996, `vr_relight_strength` 1.1988: the default x 0.999 artefacts (as before).
+- Personal: `vr_body_elbow_back` 0.35, `_hand` 0.5, `_lift` 8, `vr_bodycal_*`, `vr_height_calibration`.
+- `vr_wofs_hs3_*_04`: the nailgun's third hotspot, type 0 (no effect).
+- Window, recording, hardware, flat screen: `vr_foveated` 2, `vr_spectator_fov` 120, `_scale` 1.5, `vr_window_view` 0,
+  `vr_mirror_hide_hud_text` 1, `vr_motion_*`, `vid_*`, `fov`, `gamma`, `contrast`, `scr_*`, `sensitivity`,
+  `cl_alwaysrun`, `volume`, `ui_live_preview`.
+- Tools and bookkeeping: `vr_toolgun_*` (brush grid 4, joint 4, panel size 9.5, scale uniform 0), `vr_relight_reload`
+  0, `vr_menu_level` 2, `vr_notes` 1, `vr_menu_positions`, `vr_prop_id_*`, `vr_*_version`, `vr_tutorial_started`.
+
+**Test:** `resetcfg; writeconfig`: all 33 at his values (and the four new glows at 2). A version 132 config with the 33
+at the old values and `vr_bash_damage` 7 by hand, then `vr_migrate_config`: 32 at his values, bash damage kept at 7,
+version 133. eval.sh: the same 36/45 and 168/177 as the baseline; only the bash hits' damage differs (6 -> 3, 10 -> 5).
+
+Checklist (proposed): "Pentagram (Debug > Test Effects > Pentagram On You): your hands, arms and body glow a pulsing
+red and the hands throw red light; Biosuit: the same in green; with Quad too, the glows take turns (blue, red, green);
+Body > Pentagram Glow / Biosuit Glow 0 brings back the old tint." "A fresh config has his blood feedback, Quad (glow
+and arcs, 2x), bash, neck snap (method 1), judo throw, lift, limb grab, reload, decal and PBR values, and bare
+forearms."
