@@ -6926,3 +6926,13 @@ convulsing.
 feet, a few units, never flung; your walk does not slow. Feet Nudge Ragdolls off (under Corpse Collision, beside
 Corpses): they stay put.
 In bullet time, take a small gib in both hands and throw it: it flies, it doesn't burst in your face.
+
+## Main menu layout (worktree flatfist, branch agent/mainmenu, 2026-10-15)
+
+The flat (desktop) main menu laid its rows down to the screen's bottom (menu y 260), under the version/notice box and
+the Recording button: bottom-heavy. M_Main_Layout (menu.c) now limits a flat screen's rows to Quake's 200 (the title at 4,
+Quit's row ends 199): the space above the title (64) and below Quit (~60) are even, and the notice box (from y 227) and
+the corner buttons stay clear. The headset is unchanged: it centres in its panel, and with a Continue row (a save
+present) the check shows the block centred (about 115 px above, 110 below at 960x540), its save lines clear of the box.
+Screenshots (scratch/): mm_flat_before.png, mm_flat_after.png (run with -ExtraArgs "-flatscreenmode"),
+mm_vr_nocontinue.png, mm_vr_continue.png. Not tested in a real headset.

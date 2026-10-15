@@ -208,7 +208,7 @@ stats), the jump boots' power level, coop.
 - (Done 2026-10-15, fastship: walk 2500 frames) **Body Inset vs vore shoves:** `voreshove_test.sh` now gets 3-4 shoves (needs 4) at inset 4: vores stand closer and die to their own splash; restore the test's margin.
 - (Done 2026-10-15 except hotblade throw, unreproduced alone) **Flaky tests:** judo_test `hold` "held on" drag (moves 4-12 units by landing; ~1 in 3 under the 4-unit bar); hotblade_test `throw_cold`/`throw_hot` (axe sometimes arrives under 6.3 m/s after a bounce).
 - (Done 2026-10-15 except Quoth long torch flame position) **Incandescent blades leftovers:** weapons start cold after a level change; Quoth's long wall torch is no fire spot (flame position unknown); force-grab/counter/toolgun glows override the heat glow on an aimed dropped blade.
-- **Main menu:** flat menu still bottom-heavy (needs a limit clear of the corner buttons/notice box); VR menu with a Continue row (a save present) untested after vertical centring.
+- (Done 2026-10-15, ROUND22 "Main menu layout") **Main menu:** flat menu limited to Quake's 200 rows, clear of the corner buttons and notice box; VR menu with a Continue row checked after vertical centring (centred, no overlap). Open: the flat rows are tight (13 apart, no group gaps) on a short canvas.
 
 ## Test suite speed-up leftovers (2026-10-14, branch agent/fasttests)
 
