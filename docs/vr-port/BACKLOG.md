@@ -208,7 +208,8 @@ stats), the jump boots' power level, coop.
 - Phase 3: instanced brush models (b_*.bsp item boxes share one model) and props (alias models): per-entity layers
   with a unique UV unwrap, or keep projected decals with a cap.
 - Phase 4: coop: clients bake from the replicated decal events; a mid-game joiner gets a snapshot or a fresh start.
-- Atlas full: evicted marks are lost and small atlases (1024) thrash; downsample or merge instead of evicting.
+- (Done 2026-10-15, `agent/permdecals3`: the atlas grows by layers up to `vr_permdecal_atlas_max`; past that the
+  least recently baked page still gives its slot up. Downsampling old pages there is the remaining idea.)
 - Retro (blocky) textures: baked marks render smooth; match the retro filtering.
 - Gore's delayed marks appear at once on doors and lifts (brush-entity marks bake immediately).
 - Marks on brush-tool boxes stay live (not baked).

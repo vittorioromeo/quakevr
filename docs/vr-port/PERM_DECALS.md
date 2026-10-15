@@ -69,7 +69,7 @@ spot (`bakeEarly`); marks on doors, lifts and plats (brush entities) are baked a
 past `vr_permdecal_bake_max` pages (1024) in a frame the rest wait (live) for the next frames. Never: marks on the
 boxes made in the game (vr_brushes.cpp) and marks with no face of the layer under them stay live (and fade as before).
 So a fresh pool under a corpse stays a live mark for 8 s, then becomes part of the wall; a live mark left out of a full
-bucket (a pile of over 32 in one spot) is unseen until it bakes.
+bucket (a pile of over `vr_decal_bucket_max`, 24, in one spot) is unseen until it bakes.
 
 ## On and off
 
