@@ -5948,3 +5948,25 @@ found, vrtesthall 14 found, 0 missing. e1m1 smoke clean, build 0 warnings.
 
 Checklist (proposed): "VR Settings: each section is its own page (Height Calibration ... Sound); open a few, change a
 value, Back returns to VR Settings; Reset All still there and still resets them; nothing you used to set there missing."
+
+## A faster QuakeC loop (worktree `qcvm`, 2026-10-15)
+
+BACKLOG.md's two QuakeC VM notes, steps 0-2; details and numbers in QC_VM.md.
+
+- **Measured first:** QuakeC with its builtins is 4-9% of the frame on busy scenes (ai_crowd_64, combat_48, a 24-monster
+  e1m1 fight, an AD fight), the interpreter alone ~3-7% of an uncapped frame (1.7-2.3% of a 90 Hz budget): under the
+  ~10% bar, so steps 3-4 (pre-decoded statements, superinstructions) were left out.
+- **New loop** `Quake/vr/vr_qcexec.c` + `vr_qcexec_loop.inc` (included by pr_exec.c; one hook at the top of
+  PR_ExecuteProgramRun): pointers in locals, the statement count implicit (changed only where control jumps, profile
+  totals exact), the runaway checked where it changes and before anything leaving the VM (same statement in the
+  error), tracing as a second dispatch table, computed-goto dispatch. `vr_qcexec` (archived): 1 default, 2 the same
+  loop with a switch, 0 the original. Debug > Profiling: "QuakeC Loop", "QuakeC Loop Bench".
+- **Tools:** `vr_qcexec_bench [function] [calls] [args]` times a function in all three loops and checks they agree;
+  `vr_qcexec_run [trace] <function> [args]` one call in the current loop (result, statements; a trace from its first
+  fabs).
+- **Same behaviour:** seeded 600-frame fights on e1m1, AD and vrfiringrange give equal state hashes and per-function
+  statement counts in all three loops (and twice in the original); traces and runaway errors (mid-loop too) print the
+  same. **Speed:** 1.2-1.7x on QuakeC loops (bench), the `quakec` scope 7-13% lower in game (0.02-0.045 ms a frame).
+
+Checklist (proposed): "Play a few minutes of a busy map (e1m1, an AD map): nothing about the monsters, items or
+triggers behaves differently. Debug > Profiling > QuakeC Loop: Original and back to Fast changes nothing you can see."
