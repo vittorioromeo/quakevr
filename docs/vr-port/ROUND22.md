@@ -6936,6 +6936,10 @@ the corner buttons stay clear. The headset is unchanged: it centres in its panel
 present) the check shows the block centred (about 115 px above, 110 below at 960x540), its save lines clear of the box.
 Screenshots (scratch/): mm_flat_before.png, mm_flat_after.png (run with -ExtraArgs "-flatscreenmode"),
 mm_vr_nocontinue.png, mm_vr_continue.png. Not tested in a real headset.
+Follow-up (branch agent/mainmenu2): on the flat screen the title now starts at menu y -20 (the canvas reaches -60; the
+corner buttons end about -29), so the rows get 24 more units above the unchanged bottom limit 200. With the Continue row
+(14 rows) that is steps 13 and gaps 1 (before: none); fewer rows give wider gaps. The headset path is untouched.
+Screenshots: scratch/mm2_flat_after.png, mm2_vr.png.
 ## The small crates' lips: not a bug (2026-10-15, worktree `fastship`, branch `agent/climblip`)
 
 The note in "Review fixes" (`vr_climb_try` finds no hold at a small crate's lip, spawns 123/124) was a wrong probe: the
