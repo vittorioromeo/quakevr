@@ -482,7 +482,8 @@ void updateGrab(const hands::State& s, bool on)
                 glm::distance(origin, panelGrab.armedAt) > za::fmax(0.f, vr_menu_grab_deadzone.value) * 0.01f * units::metresToUnits())
         {
             panelGrab.armedHand = -1;
-            if(takeHold(s, h, panelGrab.armedMenu, hits[h].valid && hits[h].menu == panelGrab.armedMenu ? hits[h].point : panelGrab.armedSpot))
+            const bool onIt = hits[h].valid && hits[h].menu == panelGrab.armedMenu;
+            if(takeHold(s, h, panelGrab.armedMenu, onIt ? hits[h].point : panelGrab.armedSpot))
             {
                 haptic(h, 0.03f, 0.3f);
             }
@@ -585,6 +586,24 @@ constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "ma
 [[nodiscard]] int toolsShown()
 {
     return menu::developerLevel() ? ToolCount : ToolChecklist;
+}
+
+// New Panel only in the headset (its panels are): on a flat screen's row it is left out, the buttons after it a place
+// nearer (toolSlot).
+[[nodiscard]] bool toolHidden(int tool)
+{
+    return tool == ToolNewPanel && !qvr::menuui::active();
+}
+
+[[nodiscard]] int toolSlot(int tool)
+{
+    return tool > ToolNewPanel && toolHidden(ToolNewPanel) ? tool - 1 : tool;
+}
+
+// The last button shown.
+[[nodiscard]] int lastTool()
+{
+    return toolHidden(toolsShown() - 1) ? toolsShown() - 2 : toolsShown() - 1;
 }
 
 // A button's label: on a menu panel after the first (MULTI_MENU.md), Back to game closes that panel only.
@@ -698,17 +717,17 @@ struct ToolbarLayout
     }
 
     // A button's left and right edges.
-    [[nodiscard]] float bx0(int tool) const { return row ? x0 + tool * (iconButton + rowGap) : x0; }
+    [[nodiscard]] float bx0(int tool) const { return row ? x0 + toolSlot(tool) * (iconButton + rowGap) : x0; }
     [[nodiscard]] float bx1(int tool) const { return row ? bx0(tool) + iconButton : x1; }
 
     // The last button's bottom edge (menu y), and the buttons' right edge.
-    [[nodiscard]] float buttonsBottom() const { return yc(toolsShown() - 1) + bh() / k; }
-    [[nodiscard]] float right() const { return bx1(toolsShown() - 1); }
+    [[nodiscard]] float buttonsBottom() const { return yc(lastTool()) + bh() / k; }
+    [[nodiscard]] float right() const { return bx1(lastTool()); }
 
     // What a click on `tool` takes: as far as the panel's edges, split halfway between buttons.
     [[nodiscard]] bool hit(int tool, float x, float y) const
     {
-        const bool last = tool == toolsShown() - 1;
+        const bool last = tool == lastTool();
         if(row)
         {
             const float rx0 = tool == 0 ? left : bx0(tool) - rowGap * 0.5f;
@@ -841,7 +860,7 @@ FlatMouse flatMouse;
     const ToolbarLayout l = toolbarLayout();
     for(int t = 0; t < toolsShown(); t++)
     {
-        if(l.hit(t, x, y))
+        if(!toolHidden(t) && l.hit(t, x, y))
         {
             return t;
         }
@@ -1733,7 +1752,7 @@ bool toolbarFocused()
 
 void focusToolbar(int dir)
 {
-    focusTool(dir > 0 || toolbarRow() ? ToolBack : toolsShown() - 1); // (the row: its first, from either end of a page)
+    focusTool(dir > 0 || toolbarRow() ? ToolBack : lastTool()); // (the row: its first, from either end of a page)
     S_LocalSound("misc/menu1.wav");
 }
 
@@ -2558,7 +2577,7 @@ extern "C" void VR_MenuDrawOverlay()
         tb().hovered = -1;
         for(int t = 0; fm.moved && ui_mouse.value && t < toolsShown(); t++)
         {
-            if(l.hit(t, m_mousex, m_mousey))
+            if(!toolHidden(t) && l.hit(t, m_mousex, m_mousey))
             {
                 tb().hovered = t;
             }
@@ -2577,6 +2596,10 @@ extern "C" void VR_MenuDrawOverlay()
     }
     for(int t = 0; t < toolsShown(); t++)
     {
+        if(toolHidden(t))
+        {
+            continue;
+        }
         const bool enabled = !toolUnavailable(t);
         const bool selected = tb().hovered == t || (menuui::toolbarFocused() && tb().focused == t);
         const bool hot = enabled && selected;
@@ -2793,12 +2816,17 @@ extern "C" int VR_MenuKey(int key, int repeat)
         {
             case K_LEFTARROW:
             case K_RIGHTARROW:
-                if(const int next = tb().focused + (key == K_RIGHTARROW ? 1 : -1); next >= 0 && next < toolsShown())
+            {
+                const int step = key == K_RIGHTARROW ? 1 : -1;
+                int next = tb().focused + step;
+                next += toolHidden(next) ? step : 0; // (over New Panel, not on this row)
+                if(next >= 0 && next < toolsShown())
                 {
                     tb().focused = next;
                     S_LocalSound("misc/menu1.wav");
                 }
                 return 1;
+            }
             case K_DOWNARROW:
                 tb().focused = -1;
                 if(m_state == m_vr)

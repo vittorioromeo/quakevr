@@ -20,6 +20,22 @@ per-page view state (cursor, scroll, expanded or collapsed, drafts, which rows a
   appeared, its canvas handle: the 2D layer's canvas for now); the grab records the menu it holds. Proven unchanged:
   `menu_vr dump` byte-identical (182 pages, 4719 rows), `menu_coverage.py` PASS, the VR and flat navigation logs
   (keys, laser, mouse, drop-down steps, scroll) identical but the build hash.
+- **Stage 3 done** (branch `agent/multimenu2`; ROUND22.md, "Several menu panels at once"): `instanceCount` 3; the
+  corner's New Panel (headset only) opens another panel beside the first on the current page; Close Panel (the others'
+  top button) or Back out of a panel's first page closes it; Back to game closes all. `selectInstance` swaps `m_state`
+  and `m_mousex/y` with the instance (the current one is the focused panel); the first panel is the 2D layer's canvas
+  (M_Draw draws it whichever is focused), the others draw into their own canvases after the 2D pass (VR_End2D, GPU scope
+  "menu panels"), each through `items()` and `VR_Menu_Draw` (wrappers and presets refreshed per panel). The laser tests
+  every panel; the nearest it is on is focused (keys, sticks, Back). Quake's menus opened from another panel open on the
+  first (`tidyInstances`). One panel at a time (refused elsewhere, title note): Weapon Offsets and parts (Align Sights),
+  Body Calibration, Checklist, Retro All Categories, Review Takes/Take, Search, Console, Map Library. `vr_menu_panels`,
+  Debug rows, `Misc/quakevr/menu_panels_test.py`.
+- **Stage 4 done**: both hands at once (each hand's laser moves the mouse of the panel it is on; one mouse button: a
+  second hand's click lets go of the first's), each panel's place remembered for the session from the first panel
+  (`vr_menu_panel_remember`, on; the first still opens in front of the head), the first kept placed while others are
+  open; flat screen and the runtime's own panel show the focused panel's menu only. Not done: positions saved across
+  sessions (`vr_menu_positions` keeps the first panel's page places only), the runtime's quad layer showing more than the
+  first panel (headset only, as planned), two sliders dragged at once.
 - **Kept single (stage 2 decision)**: the keyboard pages' state (Search's `search`, the Console page's `consolePage`,
   the Map Library's `mapPage`): their text input is one at a time (the console's line is Quake's own `key_lines`), and
   their structs mix view state with shared data (Search's index and recent list, the Map Library's caches and stats).

@@ -14178,7 +14178,23 @@ bool qvr::menu::scroll(int rows)
     return true;
 }
 
+namespace
+{
+void savePositions();
+} // namespace
+
 extern "C" void VR_MenuSavePositions()
+{
+    // The first panel's (the menu as ever: the others' places are this session's).
+    const int was = currentMenu;
+    menu::selectInstance(0);
+    savePositions();
+    menu::selectInstance(was);
+}
+
+namespace
+{
+void savePositions()
 {
     loadPositions();
     za::String text;
@@ -14233,6 +14249,7 @@ extern "C" void VR_MenuSavePositions()
         Cvar_SetQuick(&vr_menu_positions, text.cStr());
     }
 }
+} // namespace
 
 
 extern "C" void VR_Menu_Draw()
