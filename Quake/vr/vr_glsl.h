@@ -1777,6 +1777,73 @@ QVR_PERMDECAL_FUNCTIONS \
 "#endif\n"
 
 // the recoil steadied (ZeroBlend), the poses' occlusion
+// flesh dents (vr/vr_dents.cpp): a body's dents, 3 rows each from its instance's Dent.x: the centre in the model's rest
+// pose (units) and the radius; the struck surface's rest normal and the depth; a blade's long axis and how drawn out
+// along it (1 round). Each pushes in as a smooth bowl (1 - t^2)^2 (t its distance in radii, squashed along the axis),
+// only where the surface faces its own (an arm lying on the chest in the rest pose isn't dented with it); the deepest
+// counts. Read by the alias vertex shader (the vertices pushed in) and fragment shader (the crater, its bowl's light).
+#define QVR_DENT_FUNCTIONS \
+"layout(std430, binding=12) restrict readonly buffer DentBuffer { vec4 Dents[]; };\n" \
+"// How far the dents push in at rest point p (rest normal rn); t the nearest one's distance in its radii (out to\n" \
+"// `reach` of them, shrunk where the surface turns away), g the depth's gradient (rest space).\n" \
+"float DentDepth(vec3 p, vec3 rn, uint first, uint count, float reach, out float t, out vec3 g)\n" \
+"{\n" \
+"	float best = 0.0;\n" \
+"	t = 1e9;\n" \
+"	g = vec3(0.0);\n" \
+"	for (uint k = 0u; k < count; k++)\n" \
+"	{\n" \
+"		uint i = first + 3u * k;\n" \
+"		vec4 c = Dents[i], m = Dents[i + 1u], a = Dents[i + 2u];\n" \
+"		float face = smoothstep(-0.1, 0.45, dot(rn, m.xyz));\n" \
+"		vec3 d = p - c.xyz;\n" \
+"		float squash = 1.0 - 1.0 / max(a.w, 1.0);\n" \
+"		vec3 q = d - a.xyz * (dot(d, a.xyz) * squash);\n" \
+"		float rr = c.w * c.w;\n" \
+"		float off = dot(q, m.xyz); // off its surface (in front of it, behind it): flattened, a gun held before the chest left out\n" \
+"		float t2 = (dot(q, q) + 3.0 * off * off) / rr;\n" \
+"		if (face <= 0.0 || t2 >= reach * reach)\n" \
+"			continue;\n" \
+"		t = min(t, sqrt(t2) / face);\n" \
+"		if (t2 < 1.0)\n" \
+"		{\n" \
+"			float k1 = 1.0 - t2;\n" \
+"			float h = m.w * face * k1 * k1;\n" \
+"			if (h > best)\n" \
+"			{\n" \
+"				best = h;\n" \
+"				g = (-4.0 * m.w * face * k1 / rr) * (q - a.xyz * (dot(q, a.xyz) * squash) + 3.0 * off * m.xyz);\n" \
+"			}\n" \
+"		}\n" \
+"	}\n" \
+"	return best;\n" \
+"}\n"
+
+// flesh dents (vr/vr_dents.cpp): each vertex measured in the rest pose (a .mdl's pose 0 in units; a skeletal model's
+// bind pose: a ragdoll's is that same pose 0) and pushed in along its normal as drawn, after every pose, smoothing,
+// rebuild and kick: the dents go with the body however it moves
+#define QVR_ALIAS_VS_DENTS \
+"	out_restpos = vec3(0.0);\n" \
+"	out_restnor = vec3(0.0);\n" \
+"	if (inst.Dent.y > 0.5)\n" \
+"	{\n" \
+"#if POSEVERTTYPE == 1\n" \
+"		PoseVertex rest = PoseVertex(in_pos, in_nor.xyz);\n" \
+"#else\n" \
+"		PoseVertex rest = GetPoseVertex(0u);\n" \
+"#endif\n" \
+"		out_restpos = rest.pos * inst.DentScale.xyz + vec3(inst.Dent.zw, inst.DentScale.w);\n" \
+"		out_restnor = normalize(rest.nor);\n" \
+"		float dent_t;\n" \
+"		vec3 dent_g;\n" \
+"		float push = DentDepth(out_restpos, out_restnor, uint(inst.Dent.x), uint(inst.Dent.y), 1.0, dent_t, dent_g);\n" \
+"		if (push > 0.0)\n" \
+"		{\n" \
+"			vec3 dn = mix(pose1.nor, pose2.nor, inst.Blend);\n" \
+"			lerpedPos -= dn * (push * inversesqrt(max(dot(dn, dn), 1e-6))) / inst.DentScale.xyz;\n" \
+"		}\n" \
+"	}\n"
+
 #define QVR_ALIAS_VS_FUNCTIONS \
 "#if POSEVERTTYPE == 1 || POSEVERTTYPE == 2\n" \
 "vec3 ZeroBlend(vec3 pos, InstanceData inst) { return pos; }\n" \
@@ -1916,7 +1983,9 @@ QVR_PERMDECAL_FUNCTIONS \
 "layout(location=12) flat out float out_morph; // QVR: and how far (Ambient[2].w; 0 not morphing)\n" \
 "layout(location=13) out float out_vao; // QVR: the model's own occlusion here (vr/vr_ao.cpp), times its strength: 1 none\n" \
 "layout(location=14) flat out float out_woundside; // QVR: 1 on its right side (its wound mask's other layer: vr/vr_wounds.cpp)\n" \
-"layout(location=15) flat out float out_retroset; // QVR: its retro textures' set (vr/vr_retro.h; your body's by part)\n"
+"layout(location=15) flat out float out_retroset; // QVR: its retro textures' set (vr/vr_retro.h; your body's by part)\n" \
+"layout(location=16) out vec3 out_restpos; // QVR: flesh dents (vr/vr_dents.cpp): where in the model's rest pose (units; zero: no dents)\n" \
+"layout(location=17) out vec3 out_restnor; // QVR: ... its normal there\n"
 
 // which side's wound mask a vertex reads (vr/vr_wounds.cpp): your body's arms and legs share their skin's texels,
 // mirrored, so its mask is two layers, the left side's (with the middle's) and the right side's; a vertex's side is its
@@ -2184,7 +2253,9 @@ SPECULAR_AA_FUNCTIONS
 "layout(location=12) flat in float in_morph; // QVR\n" \
 "layout(location=13) in float in_vao; // QVR: the model's own occlusion (vr/vr_ao.cpp)\n" \
 "layout(location=14) flat in float in_woundside; // QVR: 1 on its right side (vr/vr_wounds.cpp: your body's mask, one a side)\n" \
-"layout(location=15) flat in float in_retroset; // QVR: its retro textures' set (vr/vr_retro.h)\n"
+"layout(location=15) flat in float in_retroset; // QVR: its retro textures' set (vr/vr_retro.h)\n" \
+"layout(location=16) in vec3 in_restpos; // QVR: flesh dents (vr/vr_dents.cpp): where in the model's rest pose\n" \
+"layout(location=17) in vec3 in_restnor; // QVR: ... its normal there\n"
 
 // per-pixel lights, normal maps, ambient, wounds, morphs
 #define QVR_ALIAS_FS_FUNCTIONS \
@@ -2525,6 +2596,48 @@ SPECULAR_AA_FUNCTIONS
 "	seam = hot * 0.8 * (1.0 - smoothstep(0.0, 0.03, abs(d)));\n" \
 "	return in_morph > 0.0 ? d < 0.0 : d >= 0.0;\n" \
 "}\n" \
+"\n" \
+QVR_DENT_FUNCTIONS \
+"// QVR: flesh dents at this pixel (vr/vr_dents.cpp), measured in the rest pose: the crater's raw flesh (cover), the\n" \
+"// bloody rim round it, its depth and the depth's gradient (rest space), the nearest crater's distance in its radii.\n" \
+"struct Dented\n" \
+"{\n" \
+"	float cover, rim, depth, t;\n" \
+"	vec3 grad;\n" \
+"};\n" \
+"Dented DentsAt()\n" \
+"{\n" \
+"	Dented o = Dented(0.0, 0.0, 0.0, 1e9, vec3(0.0));\n" \
+"	vec4 di = instances[in_instance].Dent;\n" \
+"	if (di.y < 0.5)\n" \
+"		return o;\n" \
+"	o.depth = DentDepth(in_restpos, normalize(in_restnor), uint(di.x), uint(di.y), 1.5, o.t, o.grad);\n" \
+"	float tear = WoundNoise(in_restpos.xy * 1.3 + in_restpos.z * 0.71) * 0.65 + WoundNoise(in_restpos.yz * 3.7 + in_restpos.x * 0.53) * 0.35;\n" \
+"	float edge = o.t + (tear - 0.5) * 0.45; // torn, not round\n" \
+"	o.cover = 1.0 - smoothstep(0.62, 0.7, edge);\n" \
+"	o.rim = (1.0 - smoothstep(0.75, 1.35, edge)) * (1.0 - o.cover);\n" \
+"	return o;\n" \
+"}\n" \
+"// Raw flesh: muscle in two reds, a little fat and sinew, darker and bloodier towards the crater's core.\n" \
+"vec3 DentFlesh(vec3 p, float t)\n" \
+"{\n" \
+"	float a = WoundNoise(p.xy * 2.3 + p.z * 0.73), b = WoundNoise(p.yz * 4.1 + p.x * 0.41 + 5.1);\n" \
+"	vec3 meat = mix(vec3(0.24, 0.035, 0.03), vec3(0.42, 0.11, 0.09), a);\n" \
+"	meat = mix(meat, vec3(0.55, 0.36, 0.27), smoothstep(0.8, 0.95, b) * 0.5);\n" \
+"	meat = mix(meat, vec3(0.5, 0.24, 0.19), smoothstep(0.5, 0.66, t) * 0.7); // the torn skin's pale lip\n" \
+"	return mix(meat, vec3(0.06, 0.004, 0.004), (1.0 - smoothstep(0.0, 0.55, t)) * 0.85); // the hole's dark, bloody depth\n" \
+"}\n" \
+"// The normal n bent by a dent's bowl: its height (minus the depth) on screen through the rest pose's derivatives, onto\n" \
+"// the surface (Mikkelsen's surface gradient, as WoundBump).\n" \
+"vec3 DentBump(vec3 n, vec3 grad, vec3 drdx, vec3 drdy, vec3 dpdx, vec3 dpdy)\n" \
+"{\n" \
+"	vec3 r1 = cross(dpdy, n), r2 = cross(n, dpdx);\n" \
+"	float det = dot(dpdx, r1);\n" \
+"	if (abs(det) < 1e-12)\n" \
+"		return n;\n" \
+"	float hx = -dot(grad, drdx), hy = -dot(grad, drdy);\n" \
+"	return normalize(abs(det) * n - sign(det) * (r1 * hx + r2 * hy));\n" \
+"}\n" \
 "\n"
 
 // a jointed hand on a bare forearm (vr/vr_view.cpp skinTint: SkinTint.w < 0): its end inside the arm (bind x below
@@ -2586,6 +2699,17 @@ SPECULAR_AA_FUNCTIONS
 "		wounds.look += skinShare * (mix(toned, leather, cover) - result.rgb);\n" \
 "	}\n" \
 "	result.rgb = wounds.look;\n" \
+"	Dented dent = DentsAt(); // QVR: flesh dents (vr/vr_dents.cpp): raw flesh in the crater, a bloody rim round it\n" \
+"	if (dent.cover + dent.rim > 0.0)\n" \
+"	{\n" \
+"		result.rgb = mix(result.rgb, vec3(0.3, 0.02, 0.02) * (0.7 + 0.6 * dot(result.rgb, vec3(0.3, 0.59, 0.11))), dent.rim * 0.85);\n" \
+"		result.rgb = mix(result.rgb, DentFlesh(in_restpos, dent.t), dent.cover);\n" \
+"		wounds.blood = max(wounds.blood, max(dent.cover, dent.rim));\n" \
+"		wounds.gloss = max(wounds.gloss, 0.6 * dent.cover + 0.45 * dent.rim);\n" \
+"#if !ALPHATEST\n" \
+"		result.a = mix(result.a, 1.0, max(dent.cover, dent.rim)); // (not a fullbright texel's: lit)\n" \
+"#endif\n" \
+"	}\n" \
 "#if ALPHATEST\n" \
 "	vec3 emissive = vec3(0.); // QVR\n" \
 "#else\n" \
@@ -2599,6 +2723,8 @@ SPECULAR_AA_FUNCTIONS
 "		bumped = normalize(mix(bumped, n, wounds.flatten));\n" \
 "	if (wounds.slope != vec2(0.)) // QVR: your own wounds' relief (the fine masks): char crusted, blood sunk in\n" \
 "		bumped = WoundBump(bumped, wounds.slope, duvdx, duvdy, dpdx, dpdy);\n" \
+"	if (dent.depth > 0.0) // QVR: a flesh dent's bowl in the light (the mesh's own push is coarse: Quake's meshes are)\n" \
+"		bumped = DentBump(normalize(mix(bumped, n, dent.cover)), dent.grad, drdx, drdy, dpdx, dpdy);\n" \
 "#if ALPHATEST\n" \
 "	SpecularAA(0.0); // QVR: the normal map's spread only (no derivatives after the discard)\n" \
 "#else\n" \
@@ -2613,6 +2739,8 @@ SPECULAR_AA_FUNCTIONS
 "	float vao = clamp(in_vao, 0.0, 1.0);\n" \
 "	float occlusion = vao * DynamicAO(in_pos + EyePos, AONormal(n, in_bumplight.xyz), instances[in_instance].AO.x, in_coord, in_depth);\n" \
 "	vec3 own_light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) * occlusion; // QVR\n" \
+"	if (dent.depth > 0.0) // QVR: a dent's bowl shaded by the model's light whatever the bumps' share of it: its far wall lit, its near one dark\n" \
+"		own_light *= max(1.0 + 1.2 * dot(bumped - n * dot(bumped, n), in_bumplight.xyz * inversesqrt(max(dot(in_bumplight.xyz, in_bumplight.xyz), 1e-6))), 0.3);\n" \
 "	vec3 dyn_light = ModelDynamicLights(n, bumped, spec) * sqrt(vao); // QVR\n" \
 "	if (RetroLight[5].z > 0.) // QVR: retro lighting's levels (vr_retrolight.h; no derivatives after the discard)\n" \
 "	{\n" \

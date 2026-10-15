@@ -309,6 +309,15 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         ZA_MEMSET(out->wound, 0, sizeof(out->wound));
         ZA_MEMSET(out->woundside, 0, sizeof(out->woundside));
     }
+    if(standard) // flesh dents (vr_dents.cpp)
+    {
+        VR_AliasDent(e, hdr, out->dent, out->dentscale);
+    }
+    else
+    {
+        ZA_MEMSET(out->dent, 0, sizeof(out->dent));
+        ZA_MEMSET(out->dentscale, 0, sizeof(out->dentscale));
+    }
     VR_RetroAlias(e, hdr, standard ? 1 : 0, out->retro, out->retropart); // retro textures (vr_retro.cpp): its set, its skin's Quake size
     if(standard) // bare forearms: the hands in your body's light (its direction and the light round it)
     {

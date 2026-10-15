@@ -118,7 +118,11 @@ typedef struct vraliasinstance_s
 	float		hotblade[4]; // an incandescent blade's glow on its blade only: a plane in the pose's space, xyz . pose + w from 0 at its root to 1 (vr_hotblade.cpp; zero: all of it)
 	float		glove[4]; // gloves (vr_view.cpp gloveLook): the leather's rgb, w the skin mask's channel (1 fingerless G, 2 full B; 0 none)
 	float		glovecuff[4]; // ... a bare forearm's cuff in the body's skin: below u x, from v y, its hem to v z, below v w (zero: none)
+	float		dent[4]; // flesh dents (vr_dents.cpp): its rows' first in the dent buffer, their count (0 none), xy of its pose's origin in units
+	float		dentscale[4]; // ... its pose to units: xyz the scale, w z of the origin
 } vraliasinstance_t;
+void VR_AliasDent (const struct entity_s *e, const void *aliashdr, float dent[4], float scale[4]); // instance: its flesh dents (vr_dents.cpp)
+void VR_DentBind (void); // the flesh dents' rows bound for the alias shaders (SSBO 12), the changed ones written first
 struct gltexture_s *VR_AliasSkinMask (const struct entity_s *e);
 void VR_PrecacheSkinMasks (void);
 // r_lerpmodels 3 (vr_animsmooth.cpp): whether `e`, drawn between poses pose1 and pose2 at `blend` (R_SetupAliasFrame's),

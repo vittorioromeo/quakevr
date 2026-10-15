@@ -109,6 +109,7 @@
 #include "vr_weaponfx.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_water.hpp"
+#include "vr_dents.hpp"
 #include "vr_wounds.hpp"
 #include "vr_cleanskins.hpp"
 #include "vr_toolgun.hpp"
@@ -1998,6 +1999,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
     Cmd_AddCommand("vr_wounds_test", wounds::test_f);
     Cmd_AddCommand("vr_wounds_info", wounds::info_f);
+    Cmd_AddCommand("vr_gore_dents_info", dents::info_f);
     Cmd_AddCommand("vr_gore_hands_test", wounds::handsTest_f);
     Cmd_AddCommand("vr_wrist_blood_test", wounds::wristTest_f);
     Cmd_AddCommand("vr_gore_wash_test", wounds::washTest_f);

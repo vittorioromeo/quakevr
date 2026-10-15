@@ -54,8 +54,8 @@ void clear();
 // How many models have a mask now (vr_scene_count).
 [[nodiscard]] int liveCount();
 
-// vr_wounds_test <entity|self> <kind> [amount] [right] [up]: a wound as the server would send it, on entity number n
-// (or the player), from the view (the player: from ahead), kind QVR_WOUND_* (1 shot .. 9 liquid), `right`/`up` units
+// vr_wounds_test <entity|self|ahead|nearest> <kind> [amount] [right] [up]: a wound as the server would send it, on entity
+// number n (or the player; the model nearest the view's line; the monster model nearest the view), from the view (the player: from ahead), kind QVR_WOUND_* (1 shot .. 9 liquid), `right`/`up` units
 // off the model's middle (a liquid: `up` is its surface's height over the model's feet).
 void test_f();
 
