@@ -333,6 +333,26 @@ ankerl::unordered_dense::map<int, TorchState> torches;
 const qmodel_t* torchWorld = nullptr;
 int torchGeneration = -1;
 double torchLastTime = 0.0;
+bool torchListRegistered = false; // vr_torch_lights_list (registered on the first VR_TorchLights: no init hook here)
+
+// vr_torch_lights_list: the torch lights lit now (Debug > Reports > Torch Lights; tests).
+void torchLightsList_f()
+{
+    int lit = 0;
+    for(const auto& [id, st] : torches)
+    {
+        if(st.weight <= 0.f || !st.kind)
+        {
+            continue;
+        }
+        lit++;
+        const bool live = id >= torchDynamicId;
+        Con_Printf("torch light: %s %d at %.0f %.0f %.0f, reach %.0f, weight %.2f%s\n", live ? "entity" : "static",
+            live ? id - torchDynamicId : id, st.pos.x, st.pos.y, st.pos.z, st.kind->radius * st.scale, st.weight,
+            st.taken ? ", taken" : "");
+    }
+    Con_Printf("torch lights: %d lit of %d seen\n", lit, static_cast<int>(torches.size()));
+}
 
 // Smooth value noise in -1..1 (a random value at each whole x, eased between).
 [[nodiscard]] float valueNoise(double x, unsigned seed)
@@ -530,6 +550,11 @@ extern "C" void VR_BeamLights(int index, qmodel_t* model, const float* start, co
 extern "C" void VR_TorchLights(void)
 {
     QVR_PROFILE("torch lights");
+    if(!torchListRegistered)
+    {
+        torchListRegistered = true;
+        Cmd_AddCommand("vr_torch_lights_list", torchLightsList_f);
+    }
     const int cap = za::clamp(static_cast<int>(vr_torch_lights.value), 0, maxTorchLights);
     if(cls.state != ca_connected || !cl.worldmodel)
     {

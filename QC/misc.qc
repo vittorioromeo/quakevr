@@ -160,6 +160,24 @@ void() light_torch_small_walltorch =
     precache_model("progs/flame.mdl");
     setmodel(self, "progs/flame.mdl");
 
+    // QVR: made in a live game (the toolgun): an entity, its crackle on it (vr_walltorch.qc, vr_spawn_live).
+    if(vr_spawn_live)
+    {
+        if(cvar("vr_walltorch"))
+        {
+            VR_WallTorch_Setup();
+        }
+        if(!(self.spawnflags & 1))
+        {
+            precache_sound("ambience/fire1.wav");
+            self.think = VR_WallTorch_LiveCrackle; // (from its first think: vr_walltorch.qc; taken, it goes on)
+            self.nextthink = time + 0.05;
+        }
+        dprint(sprintf("walltorch: made live at %v, facing %g, crackle %g, takeable %g\n", self.origin, self.angles_y,
+            self.think == VR_WallTorch_LiveCrackle, self.handtouch == VR_WallTorch_Handtouch));
+        return;
+    }
+
     if(!(self.spawnflags & 1))
         FireAmbient();
 
@@ -181,6 +199,11 @@ void() light_flame_large_yellow =
     precache_model("progs/flame2.mdl");
     setmodel(self, "progs/flame2.mdl");
     self.frame = 1;
+    if(vr_spawn_live)
+    {
+        VR_FlameProp_Setup(2, TRUE); // QVR: made by the toolgun: a prop (vr_walltorch.qc)
+        return;
+    }
     FireAmbient();
     VR_FireSpot(1); // QVR: it lights taken torches again (vr_walltorch.qc)
     makestatic(self);
@@ -193,6 +216,11 @@ void() light_flame_small_yellow =
 {
     precache_model("progs/flame2.mdl");
     setmodel(self, "progs/flame2.mdl");
+    if(vr_spawn_live)
+    {
+        VR_FlameProp_Setup(1, TRUE); // QVR: made by the toolgun: a prop (vr_walltorch.qc)
+        return;
+    }
     FireAmbient();
     VR_FireSpot(0); // QVR: it lights taken torches again (vr_walltorch.qc)
     makestatic(self);
@@ -205,6 +233,11 @@ void() light_flame_small_white =
 {
     precache_model("progs/flame2.mdl");
     setmodel(self, "progs/flame2.mdl");
+    if(vr_spawn_live)
+    {
+        VR_FlameProp_Setup(1, TRUE); // QVR: made by the toolgun: a prop (vr_walltorch.qc)
+        return;
+    }
     FireAmbient();
     VR_FireSpot(0); // QVR: it lights taken torches again (vr_walltorch.qc)
     makestatic(self);

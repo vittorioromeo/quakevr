@@ -12,6 +12,11 @@ void() light_lantern =
 
     precache_model("progs/lantern.mdl");
     setmodel(self, "progs/lantern.mdl");
+    if(vr_spawn_live)
+    {
+        VR_FlameProp_Setup(0, FALSE); // QVR: made by the toolgun: a prop, its flame behind glass (vr_walltorch.qc)
+        return;
+    }
     makestatic (self);
 };
 
@@ -27,6 +32,11 @@ void() light_candle =
 
     precache_model("progs/candle.mdl");
     setmodel(self, "progs/candle.mdl");
+    if(vr_spawn_live)
+    {
+        VR_FlameProp_Setup(3, FALSE); // QVR: made by the toolgun: a prop (vr_walltorch.qc)
+        return;
+    }
     makestatic (self);
 };
 

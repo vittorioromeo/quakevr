@@ -79,6 +79,8 @@ struct Spawnable
     bool adOnly{false}; // AD support
     bool rulesOnly{false}; // AD support
     int debugChoice{-1}; // AD support
+    bool wall{false};    // hung on the wall it is aimed at, facing out of it (a wall torch: ghostPoint)
+    int needs{0};        // 1: made only while its model is there (an expansion's); 2: and only in an AD map (AD's lights)
 };
 
 constexpr Spawnable spawnables[] = {
@@ -133,6 +135,21 @@ constexpr Spawnable spawnables[] = {
     {"Items", "Pentagram", "item_artifact_invulnerability", "progs/invulner.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Items", "Ring of Shadows", "item_artifact_invisibility", "progs/invisibl.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Items", "Biosuit", "item_artifact_envirosuit", "progs/suit.mdl", 24.f, nullptr, 0.f, 0, false},
+// The Fire tab (ROUND22.md, "Torches and fires from the toolgun"): the map's lights with a flame, made live as entities
+// (QC vr_spawn_live): a wall torch hung on the wall aimed at, the free-standing flames props that hang where placed until
+// taken (QC VR_FlameProp_Setup); each with its light (vr_emissive.cpp's torch lights) and its crackle as on a map.
+#define QVR_FIRE(label, classname, model, lift, wall, needs) {"Fire", label, classname, model, lift, nullptr, 0.f, 0, false, false, false, -1, wall, needs},
+    QVR_FIRE("Wall Torch", "light_torch_small_walltorch", "progs/flame.mdl", 14.f, true, 0)
+    QVR_FIRE("Large Flame", "light_flame_large_yellow", "progs/flame2.mdl", 8.f, false, 0)
+    QVR_FIRE("Small Flame", "light_flame_small_yellow", "progs/flame2.mdl", 8.f, false, 0)
+    QVR_FIRE("White Flame", "light_flame_small_white", "progs/flame2.mdl", 8.f, false, 0)
+    QVR_FIRE("Candle", "light_candle", "progs/candle.mdl", 10.f, false, 1)
+    QVR_FIRE("Lantern", "light_lantern", "progs/lantern.mdl", 20.f, false, 1)
+    QVR_FIRE("AD Short Brazier", "ad_light_flame_brazier_short", "progs/misc_brazshrt.mdl", 16.f, false, 2)
+    QVR_FIRE("AD Tall Brazier", "ad_light_flame_brazier_tall", "progs/misc_braztall.mdl", 64.f, false, 2)
+    QVR_FIRE("AD Flame Pyre", "ad_light_flame_pyre", "progs/misc_flame_big.mdl", 8.f, false, 2)
+    QVR_FIRE("AD Long Wall Torch", "ad_light_torch_long_walltorch", "progs/misc_longtrch.mdl", 48.f, true, 2)
+#undef QVR_FIRE
 #include "vr_ad_spawns.inc" // AD support
 #include "vr_ad_spawnitems.inc" // AD support
 #include "vr_ad_spawnguns.inc" // AD support: AD's soldiers' guns, after its upgrades (the Weapons tab's AD group)
@@ -140,6 +157,15 @@ constexpr Spawnable spawnables[] = {
 #undef QVR_AD_GUN // AD support
 };
 constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spawnables[0]));
+
+// Whether an entry can be made now: AD's while AD's data is in play (ad::spawnAvailable), an expansion's while its
+// model is there, AD's lights only in an AD map (outside its rules AD's ad_ classes are not made: box3d::spawnClass).
+[[nodiscard]] bool entryAvailable(const Spawnable& s)
+{
+    if(s.adOnly && !ad::spawnAvailable(s.model, s.rulesOnly)) { return false; } // AD support
+    if(s.needs == 2 && !VR_AD_RulesOn()) { return false; }
+    return s.needs == 0 || COM_FileExists(s.model, nullptr);
+}
 
 constexpr const char* toolNames[] = {"Spawn", "Remove", "Physgun", "Scale", "Joint", "Brush"};
 constexpr const char* jointNames[] = {"Weld", "Ball", "Hinge", "Slider", "Rope", "Spring", "Unjoin"};
@@ -162,6 +188,7 @@ struct Selection
     int skin{0};
     int frame{0};
     bool setModel{false};
+    bool wall{false}; // hung on the wall aimed at (Spawnable::wall)
 };
 
 // Where the gun points this frame.
@@ -321,7 +348,7 @@ void select(int i)
         return;
     }
     const Spawnable& s = spawnables[i];
-    if(s.adOnly && !ad::spawnAvailable(s.model, s.rulesOnly)) { tg.sel = {}; return; } // AD support
+    if(!entryAvailable(s)) { tg.sel = {}; return; }
     Selection& sel = tg.sel;
     sel = {};
     sel.valid = true;
@@ -334,6 +361,7 @@ void select(int i)
     sel.lift = s.lift;
     sel.skin = s.skin;
     sel.setModel = s.setModel;
+    sel.wall = s.wall;
     tg.picking = false;
 }
 
@@ -535,6 +563,8 @@ void pick(int num)
         sel.lift = za::max(-e->v.mins[2], 0.f);
         // A rock's or a brick's model is its kind; a crate's large one is its spawnflag.
         sel.setModel = !strcmp(cls, "vr_debris_piece");
+        // A wall torch (on its wall or taken): hung on a wall again.
+        sel.wall = !strcmp(cls, "light_torch_small_walltorch") || !strcmp(cls, "light_torch_long_walltorch");
         if(e->v.spawnflags != 0.f)
         {
             copyText(sel.key, sizeof(sel.key), "spawnflags");
@@ -545,6 +575,12 @@ void pick(int num)
     copyText(sel.model, sizeof(sel.model), PR_GetString(e->v.model));
     sel.skin = static_cast<int>(e->v.skin);
     sel.frame = static_cast<int>(e->v.frame);
+    if(!strcmp(cls, "light_torch_small_walltorch"))
+    {
+        copyText(sel.model, sizeof(sel.model), "progs/flame.mdl"); // (its ghost id's torch, upright: not our stick)
+        sel.skin = 0;
+        sel.frame = 0;
+    }
     q_snprintf(sel.label, sizeof(sel.label), "%s (picked)", sel.classname);
     Con_Printf("toolgun: picked %s (%s)\n", sel.classname, sel.model);
 }
@@ -556,10 +592,25 @@ void pick(int num)
     return tg.hand >= 0 && tg.aim.valid && tg.sel.valid && !tg.picking && currentTool() == Tool::Spawn;
 }
 
+// A wall torch's origin (its cup) off its wall: id's maps hang theirs 6-12 units off it (e1m2's), most about 10.
+constexpr float wallStandoff = 10.f;
+
+// The aim meets a wall (the world's or a brush entity's, such as a func_wall: not a thing before it; not a floor or a
+// ceiling) and the choice hangs on one (a wall torch).
+[[nodiscard]] bool wallAim(const Aim& a)
+{
+    const bool thingFirst = a.target && a.target != a.hitEntity && a.targetDistance < a.worldDistance;
+    return tg.sel.wall && !thingFirst && a.normal != glm::vec3{0.f} && za::fabs(a.normal.z) < 0.7f;
+}
+
 // The point the ghost stands on before its offsets: what the gun points at (lifted onto a floor; out from a wall or a
-// ceiling).
+// ceiling; a wall torch hung on the wall).
 [[nodiscard]] glm::vec3 ghostPoint(const Aim& a)
 {
+    if(wallAim(a))
+    {
+        return a.end + glm::normalize(glm::vec3{a.normal.x, a.normal.y, 0.f}) * wallStandoff;
+    }
     const float distance = a.target ? za::min(a.targetDistance, a.worldDistance) : a.worldDistance;
     glm::vec3 point = a.from + a.dir * distance;
     const glm::vec3 normal = a.target && a.targetDistance < a.worldDistance ? -a.dir : a.normal;
@@ -595,6 +646,10 @@ void updateGhost()
     levelAxes(dir, fwd, right);
     tg.ghostOrigin = point + fwd * tg.offset.x + right * tg.offset.y + glm::vec3{0.f, 0.f, tg.offset.z};
     tg.ghostAngles = glm::vec3{tg.turn.x, yawOf(dir) + 180.f + tg.turn.y, tg.turn.z};
+    if(!ghostHold.fixed && wallAim(tg.aim))
+    {
+        tg.ghostAngles.y = yawOf(tg.aim.normal) + tg.turn.y; // a wall torch faces out of its wall
+    }
     tg.ghost = true;
 }
 
@@ -1688,8 +1743,7 @@ int spawnableSkin(int i)
 // AD support: the panel and Debug menus use the same catalog and availability checks.
 bool spawnableAvailable(int i)
 {
-    return i >= 0 && i < spawnableTotal &&
-           (!spawnables[i].adOnly || ad::spawnAvailable(spawnables[i].model, spawnables[i].rulesOnly));
+    return i >= 0 && i < spawnableTotal && entryAvailable(spawnables[i]);
 }
 bool spawnableAD(int i) { return i >= 0 && i < spawnableTotal && spawnables[i].adOnly; }
 int spawnableDebugChoice(int i) { return i >= 0 && i < spawnableTotal ? spawnables[i].debugChoice : -1; }

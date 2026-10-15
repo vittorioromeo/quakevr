@@ -287,6 +287,12 @@ void crackles()
         const auto it = taken.find(ch.entnum);
         if(it == taken.end() || it->second.stamp != frameStamp)
         {
+            // A flame made live (the toolgun's Fire tab: QC VR_FlameProp_Setup): its crackle goes with it, carried.
+            const entity_t* f = ch.entnum > 0 && ch.entnum < cl.num_entities ? &cl_entities[ch.entnum] : nullptr;
+            if(f && f->model && f->msgtime == cl.mtime[0] && !strcmp(f->model->name, "progs/flame2.mdl"))
+            {
+                VectorCopy(f->origin, ch.origin);
+            }
             continue;
         }
         const entity_t& e = cl_entities[ch.entnum];

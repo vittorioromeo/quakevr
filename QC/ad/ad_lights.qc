@@ -122,7 +122,7 @@ void() ad_setup_light_sound =
 {
 	if (!self.volume) self.volume = 0.5;
 	if ( !(self.spawnflags & ad_LIGHT_NOSOUND) && self.noise != "" ) {
-		if (self.targetname) {
+		if (self.targetname || vr_spawn_live) { // QVR: made live (the toolgun): no ambient sound reaches the game
 			self.ad_attachment = spawn();
 			self.ad_attachment.owner = self;
 			setorigin(self.ad_attachment, self.origin);
@@ -142,6 +142,8 @@ void() ad_setup_light_static =
 	if (self.spawnflags & ad_LIGHT_NOSTATIC) return;
 	// Setup any models that are defined
 	if (self.mdl) setmodel (self, self.mdl);
+	// QVR: made live (the toolgun): a static entity would never reach the game (vr_walltorch.qc, vr_spawn_live)
+	if (vr_spawn_live) return;
 	// Cannot have static entities and particle emitters!
 	if (self.ad_part_emitter && self.ad_part_static == ad_FALSE) return;
 	// Goodbye entity, no longer interactive with QC
