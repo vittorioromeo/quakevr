@@ -6583,8 +6583,11 @@ numbers in QC_VM.md, "Native prop think".
   (a native's .flags write followed as a STOREP), `srvrandom::stream/setStream` (the check), fields
   `throwstabilize`/`throwstabilizedim` in vr_fields.inc.
 - **Same behaviour:** the check identical on 81,270 states (e1m1, vrfiringrange, ad_crucial); seeded fights with props
-  spawned and flung give the same state hashes at 4 points with the cvar 0 and 1 on the three maps; the force grab,
-  catch and throw tests give the same output with 0 and 1 (FGTESTS).
+  spawned and flung give the same state hashes at 4 points with the cvar 0 and 1 on the three maps. The force grab,
+  catch and throw tests (forcegrab_block, weapon_catch, throw_spin, throw_trigger, throw_grace, toss_catch,
+  pickup_mag), each run twice with the cvar 0 and twice with 1: the same verdicts and outcomes in all four; their
+  numbers (a few mm, a few ms of a throw's age) vary as much between two runs of one setting as between the
+  settings (the mock's real-time plays). weapon_catch's "in the air" check fails in all four (its seed; not this).
 - **Gain:** QuakeC statements -5% (e1m1), -11% (vrfiringrange), -17% (AD) a frame in those fights; in time a few µs a
   frame, under the noise (no frame-time claim).
 
