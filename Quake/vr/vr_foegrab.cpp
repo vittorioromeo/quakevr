@@ -2132,7 +2132,7 @@ void neckSnapTest_f()
     }
     NeckTwist t;
     t.turned = za::max(vr_foegrab_necksnap_angle.value, 1.f);
-    t.peak = za::max(vr_foegrab_necksnap_speed.value, 1.f);
+    t.line = t.turned;
     const int num = NUM_FOR_EDICT(m);
     const bool ragdoll = box3d::isRagdoll(num);
     neckTestNum = num;
