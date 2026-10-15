@@ -7270,3 +7270,42 @@ still 7.97 after 40 more; slid aside 47 units, backed off to 97, still held. `st
 
 VR check: hold a grunt by the shoulder and walk on into it: you stop with your face at its face, can't come out its
 back; strafe and step back freely; Step In Depth 0 walks through as before; is 8 the right depth (try 4..12)?
+## Impacts: settings, and crushing standing monsters (2026-10-15, worktree `flatfist`, branch `agent/impactdmg`)
+
+His notes: thrown or slammed living enemies take real impact damage (with settings), impact dismemberment (check,
+settings), landing crush. **Already there** ("Impacts and manhandling" above, `agent/ragimpact`): held/thrown living
+ragdolls hurt per part on walls and floors (`VR_RagImpact_Hit`), heads and limbs worn until they pop (the shared
+`vr_limb_corpse_dmg[]` count; corpses through `VR_Limb_WearInto`, the one corpse wear path), and a crush of knocked-down
+ragdolls. Added here (defaults keep the old behaviour; Combat > Knockdowns > Impacts):
+
+- **Damage curve**: `vr_ragimpact_curve` (1: linear; 2 quadratic, 0.5 square root) pivoting at `vr_ragimpact_curve_ref`
+  (3 m/s past the least speed: every curve deals the same there); `vr_ragimpact_max` (0: no cap) per strike or crush,
+  the head's and limbs' multipliers in; `vr_ragimpact_limb` (1) on arms and legs as `vr_ragimpact_head` on heads. Rows:
+  Damage Curve, Curve Pivot, Most per Strike, Limb Strikes (Least Speed, Impact Damage, Head Strikes and Head and Limb
+  Health were already rows). One shared `VR_RagImpact_Amount`/`_Scale` for strikes and crushes.
+- **Dismemberment**: threshold `vr_ragimpact_piece_hp` (as before, head and limbs alike) and new `vr_ragimpact_wear`
+  (1): the share of a strike's damage worn into its piece (0: impacts hurt but never pop pieces), on the living and on
+  corpses (passed to `VR_Limb_WearInto`). Row: Head and Limb Wear.
+- **Landing crush** now also on standing monsters (`vr_ragimpact_crush_standing` 1) and staggering active ragdolls (any
+  living ragdoll, not only knocked down). Quake never sets FL_ONGROUND on a monster's top, so client.qc also calls the
+  crush when a fast fall (`jump_flag` under -300) stops short in the air (`velocity_z` above half of it). A standing
+  one's part: its model met straight down from your feet (`hitmodel_segment`; else halfway to its middle), the head by
+  `VR_Decap_OnHead` (positional damage's zone), a limb by `VR_Limb_At`, else the torso; then the same
+  `VR_RagImpact_Deal` (a head crushed past its health pops). The crush no longer needs Impacts Hurt on (its own 0: off).
+  **Fall damage**: a landing that crushed something deals none (`vr_ragimpact_crush_cushion` 1; 0: Quake's 5 as ever);
+  AD maps keep AD's fall rules. Landing on a standing one's top never dealt fall damage (no FL_ONGROUND). Rows: Crush
+  Least Speed (`vr_ragimpact_crush_speed` 400 u/s), Crush Standing Ones, Crush Breaks Your Fall. Debug > Tests:
+  "Impacts: Drop You onto the Nearest Standing One" (`vr_knockdown_test 59`, `vr_test_drop_height` 256; test 52 now
+  uses it too).
+
+Verified (headless, `python Misc/quakevr/foegrab/ragimpact_test.py <agent> wall slam crush`, 0 FAILS): a knocked-down
+grunt flung at a wall at 5/7/9 m/s: 27.1/51.5/78.3 damage (first strikes 8.0/13.9/19.7 at 5.3/7.4/9.4 m/s, 12.7 kg);
+Impacts off: 0. Curve 2 + Most 12 at 7 m/s: every strike capped at 12.0, a 5.1 m/s excess 11.4 (linear 6.7). Ten head
+slams: dead, head popped (worn 50.2 of 32). Dropped onto a standing grunt's head: 128 units 13.2 at 13.9 m/s (alive),
+256 units 81.7 at 19.9 m/s (its head pops); 64 units nothing; onto a knocked-down one 256 units 56.7 to the torso, 96
+nothing. 400 units onto a down one without god: your health 100 cushioned, 95 not. Melee eval 168/177 (baseline), e1m1
+smoke clean, build 0 warnings.
+
+Checklist (proposed): "Impacts: jump off a ledge onto a standing grunt's head: it is hurt (from 2 storeys its head
+pops) and you take no fall damage; Combat > Knockdowns > Impacts: Damage Curve 2 makes hard throws much worse than soft
+ones, Most per Strike caps one strike, Head and Limb Wear pops heads sooner."

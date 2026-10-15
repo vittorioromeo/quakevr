@@ -2287,16 +2287,25 @@ void() PlayerPostThink =
     VR_ShotImpacts(); // QVR: projectiles fired from inside what they hit meet it (weapons.qc)
 
 // check to see if player landed and play landing sound
-    if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
+    // QVR: landing on a living monster crushes the part under your feet (vr_ragimpact.qc): on the floor (a ragdoll), or
+    // stopped short in the air on a standing one's top (Quake never sets FL_ONGROUND on a monster). Cushioned: no fall
+    // damage (vr_ragimpact_crush_cushion).
+    float crushCushion = FALSE;
+    if((self.jump_flag < -300) && (self.health > 0) &&
+       ((self.flags & FL_ONGROUND) || (self.velocity_z > (self.jump_flag * 0.5))))
     {
-        VR_RagImpact_Crush(self, -self.jump_flag); // QVR: landing on a living ragdoll crushes it (vr_ragimpact.qc)
+        float onFloor = (self.flags & FL_ONGROUND) ? TRUE : FALSE;
+        if(VR_RagImpact_Crush(self, -self.jump_flag, onFloor))
+        {
+            crushCushion = cvar_hget(cvarh_vr_ragimpact_crush_cushion) != 0;
+        }
     }
     if(AD_PlayerLanded()) {} // AD support: AD's fall rules in an AD map (vr_ad_bridge.qc)
     else if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
     {
         if(self.watertype == CONTENT_WATER)
             sound(self, CHAN_BODY, "player/h2ojump.wav", 1, ATTN_NORM);
-        else if(self.jump_flag < -650)
+        else if(self.jump_flag < -650 && !crushCushion)
         {
             T_Damage(self, world, world, 5);
             sound(self, CHAN_VOICE, "player/land2.wav", 1, ATTN_NORM);

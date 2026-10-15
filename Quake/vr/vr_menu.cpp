@@ -1180,17 +1180,37 @@ int campaignsBloodyShown = -1;
                   "a wall."),
         slider("Impact Damage", vr_ragimpact_damage, 0.f, 0.5f, 0.01f, "%.2f").extend(0.f, 5.f)
             .help("Damage per kg m/s past Least Speed (a grunt's torso thrown into a wall at 6 m/s: about 15)."),
+        slider("Damage Curve", vr_ragimpact_curve, 0.5f, 3.f, 0.1f, "%.1f").extend(0.1f, 5.f)
+            .help("How damage grows with speed past Least Speed: 1 in step with it, 2 with its square (hard throws far "
+                  "worse, soft ones milder), 0.5 its square root. Every curve deals the same at Curve Pivot."),
+        slider("Curve Pivot", vr_ragimpact_curve_ref, 0.5f, 10.f, 0.5f, "%.1f m/s").extend(0.1f, 30.f)
+            .help("The speed past Least Speed where every Damage Curve deals the same: slower strikes deal less with a "
+                  "steeper curve, faster ones more."),
+        slider("Most per Strike", vr_ragimpact_max, 0.f, 200.f, 5.f, "%.0f").extend(0.f, 1000.f)
+            .help("No strike (nor a landing's crush) deals more than this, the head's and limbs' multipliers in. 0: no cap."),
         slider("Least Speed", vr_ragimpact_min_speed, 0.5f, 8.f, 0.25f, "%.2f m/s").extend(0.5f, 30.f)
             .help("Slower strikes do nothing (a body dropped from your hands strikes at about 4 m/s)."),
         slider("Held Least Speed", vr_ragimpact_held_speed, 0.25f, 5.f, 0.25f, "%.2f m/s").extend(0.25f, 30.f)
             .help("A part your hand holds (a head slammed) counts from this speed: your hand slows as it drives a body."),
         slider("Head Strikes", vr_ragimpact_head, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
             .help("A strike on the head deals this much more."),
+        slider("Limb Strikes", vr_ragimpact_limb, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A strike on an arm or a leg deals this much more (the torso: 1)."),
         slider("Head and Limb Health", vr_ragimpact_piece_hp, 0.1f, 2.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
             .help("A head's or limb's own health, times its corpse's (a grunt's 80: 32 at 0.4): struck past it, it pops."),
+        slider("Head and Limb Wear", vr_ragimpact_wear, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much of a strike's damage wears the head or limb struck: higher pops them sooner. 0: impacts never "
+                  "pop them (the damage still hurts)."),
         slider("Landing Crush", vr_ragimpact_crush, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
-            .help("Landing on a monster lying as a ragdoll from a height (2 storeys or so) crushes the part under your "
-                  "feet, times this. 0: never."),
+            .help("Landing on a living monster from a height (2 storeys or so) crushes the part under your feet (its "
+                  "head, a limb, its torso), times this; a head or limb crushed past its health pops. 0: never."),
+        slider("Crush Least Speed", vr_ragimpact_crush_speed, 200.f, 1000.f, 25.f, "%.0f u/s").extend(0.f, 3000.f)
+            .help("Landing slower than this crushes nothing (400: a drop of about 100 units; 2 storeys: about 640)."),
+        toggle("Crush Standing Ones", vr_ragimpact_crush_standing)
+            .help("Landing on a standing monster's head or shoulders crushes too. Off: only one down or staggering as a "
+                  "ragdoll."),
+        toggle("Crush Breaks Your Fall", vr_ragimpact_crush_cushion)
+            .help("A landing that crushed a monster spares you the fall's damage. Off: Quake's fall damage as ever."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
@@ -7194,6 +7214,9 @@ za::Vector<Item> pageDebugTests()
         command("Impacts: Drop You onto the Nearest Down One", "developer 1; vr_knockdown_test 52")
             .help("You put 256 units (2 storeys) over the nearest knocked-down monster: landing on it crushes the part under "
                   "your feet (Landing Crush). vr_knockdown_test 53: 96 units, too low to crush."),
+        command("Impacts: Drop You onto the Nearest Standing One", "developer 1; vr_knockdown_test 56; vr_knockdown_test 59")
+            .help("You put Drop Height (vr_test_drop_height, 256) units over the nearest standing monster's head: landing "
+                  "on it crushes its head (Landing Crush, Crush Standing Ones)."),
         command("Manhandle: the Nearest Staggered Now", "developer 1; vr_knockdown_debug 1; vr_knockdown_test 54")
             .help("The nearest standing monster counts as just staggered: grab it with one hand within Grab While "
                   "Staggered (Holding Enemies) and it goes down in your hand. vr_knockdown_test 55: its health to a fifth "

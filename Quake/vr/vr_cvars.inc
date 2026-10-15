@@ -2357,9 +2357,16 @@ QVR_CVAR(vr_ragimpact_held_speed, "1", CVAR_ARCHIVE)      // m/s: a part your ha
 QVR_CVAR(vr_ragimpact_head, "1.5", CVAR_ARCHIVE)          // a strike on the head deals this much more
 QVR_CVAR(vr_ragimpact_piece_hp, "0.4", CVAR_ARCHIVE)       // a head's or limb's own health, times its corpse health (vr_corpse_health_<monster>): worn past it, it pops
 QVR_CVAR(vr_ragimpact_time, "2", CVAR_ARCHIVE)            // s: a body (alive or dead) you hold, or let go of (threw) this long ago, takes impacts (0: only while held)
-QVR_CVAR(vr_ragimpact_crush, "1", CVAR_ARCHIVE)           // landing on a living ragdoll from a height crushes the part under your feet, times this (0: off)
+QVR_CVAR(vr_ragimpact_curve, "1", CVAR_ARCHIVE)           // damage vs speed past the least: 1 linear, 2 quadratic, 0.5 square root (pivots at vr_ragimpact_curve_ref: every curve deals the same there)
+QVR_CVAR(vr_ragimpact_curve_ref, "3", CVAR_ARCHIVE)       // m/s past the least speed where every curve deals the same (slower: a steeper curve less, faster: more)
+QVR_CVAR(vr_ragimpact_max, "0", CVAR_ARCHIVE)             // most damage one strike (or a landing's crush) deals, after the head's and limbs' multipliers (0: no cap)
+QVR_CVAR(vr_ragimpact_limb, "1", CVAR_ARCHIVE)            // a strike on an arm or a leg deals this much more (the torso 1, the head vr_ragimpact_head)
+QVR_CVAR(vr_ragimpact_wear, "1", CVAR_ARCHIVE)            // a head's or limb's wear from a strike: its damage times this (higher: pops sooner; 0: impacts never pop pieces)
+QVR_CVAR(vr_ragimpact_crush, "1", CVAR_ARCHIVE)           // landing on a living monster (standing, staggering or down as a ragdoll) from a height crushes the part under your feet, times this (0: off)
 QVR_CVAR(vr_ragimpact_crush_speed, "400", CVAR_ARCHIVE)   // units/s: landing slower than this crushes nothing (a 100-unit drop; 2 storeys: about 640)
 QVR_CVAR(vr_ragimpact_crush_mass, "50", CVAR_ARCHIVE)     // kg of you counted behind your feet
+QVR_CVAR(vr_ragimpact_crush_standing, "1", CVAR_ARCHIVE)  // standing monsters are crushed too (their head, a limb or the torso under your feet, by positional damage's zones); 0: only ragdolls
+QVR_CVAR(vr_ragimpact_crush_cushion, "1", CVAR_ARCHIVE)   // a landing that crushed a monster spares you its fall damage (it broke your fall); 0: Quake's fall damage as ever
 QVR_CVAR(vr_knockdown_time_min, "2.5", CVAR_ARCHIVE)      // seconds it stays down, at least,
 QVR_CVAR(vr_knockdown_time_max, "4.5", CVAR_ARCHIVE)      // and at most (at random between)
 QVR_CVAR(vr_knockdown_hit_time, "0.5", CVAR_ARCHIVE)      // seconds each hit while down adds (not past Time Max from the hit)
@@ -3072,7 +3079,8 @@ QVR_CVAR(vr_test_grenade_dist, "256", CVAR_NONE)      // impulse 211 (tests): un
 QVR_CVAR(vr_test_grenade_height, "0", CVAR_NONE)      // ... and this many units over the floor (in the air: it falls; at hand height, to punch or swing at)
 QVR_CVAR(vr_test_grenade_yours, "1", CVAR_NONE)       // ... yours (1: your blows pass it, as your own grenades), or nobody's (0: as an enemy's lying about, your blows meet it)
 QVR_CVAR(vr_test_throw_up_body, "0", CVAR_NONE)      // impulse 222 (tests): 1: let go at your chest, inside your box (a gentle release at the body), not over your head
-QVR_CVAR(vr_test_throw_up_speed, "10", CVAR_NONE)     // impulse 222 (tests): the loose prop nearest you thrown straight up as yours from over your head at this many m/s
+QVR_CVAR(vr_test_drop_height, "256", CVAR_NONE)       // vr_knockdown_test 59 (tests): you put this many units over the nearest standing monster's top (Landing Crush)
+QVR_CVAR(vr_test_throw_up_speed, "10", CVAR_NONE)    // impulse 222 (tests): the loose prop nearest you thrown straight up as yours from over your head at this many m/s
 QVR_CVAR(vr_test_projectile_side, "0", CVAR_NONE)     // and from how many degrees to your left of ahead
 QVR_CVAR(vr_hand_collide, "5", CVAR_ARCHIVE)          // cm a free hand and what the other hand holds (its weapon, or the prop it holds alone) are each drawn moved back at most as the hand meets its surface (vr_hand_collide_props_margin off it), by half how deep it would be, as a prop held there and that thing (vr_held_collide_max); pressed further, the hand sinks in by the rest (0: it always passes through)
 QVR_CVAR(vr_hand_collide_fingers, "1", CVAR_ARCHIVE)  // with it: the free hand's fingers react to the other hand's weapon: they rest on it or bend out of it (0: only the hand is pushed, by its fingertips too)

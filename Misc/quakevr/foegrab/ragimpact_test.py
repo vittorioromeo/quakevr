@@ -32,6 +32,9 @@ SLAMS = 10
 UP, DOWN = float(os.environ.get("SLAM_UP", "0.35")), float(os.environ.get("SLAM_DOWN", "-0.5"))  # (m, from where it took the head)
 GAP, NEAR = 0.09, -1.15  # (the judo test's: a hand beside the grunt's middle, on its near side; tracking space, m)
 
+CRUSHED = (r"crushed \([\w ]+\), you landing at ([\d.]+) m/s: ([\d.]+) damage to its (head|torso|limb \d+) "
+           r"\(worn [\d.]+ of [\d.]+\)(, its head pops|, the limb pops)?")
+
 FAILS = 0
 
 
@@ -67,16 +70,22 @@ def state(flat):
 
 
 def case_wall():
-    for what, extra in [("on", ""), ("off", "vr_ragimpact 0;")]:
+    dealt = []
+    for what, extra, speed in [("on5", "", 5), ("on", "", 7), ("on9", "", 9), ("off", "vr_ragimpact 0;", 7)]:
         flat = run(f"wall_{what}", f"{PRE};{extra}vr_knockdown_push 0;vr_knockdown_test 58;wait5;vr_knockdown_test 0;"
-                   "wait3;vr_test_throw_up_speed 7;vr_knockdown_test 51;wait150;vr_knockdown_test 50")
+                   f"wait3;vr_test_throw_up_speed {speed};vr_knockdown_test 51;wait150;vr_knockdown_test 50")
         s = state(flat)
-        bad = "rror" in flat or "CRASH" in flat or not s or "flung at 7.0" not in flat
-        if what == "on":
-            verdict(not bad and s[5] >= 15, f"thrown into a wall: {s[4]:.0f} strikes, {s[5]:.1f} damage, health {s[0]:.0f}"
-                    if s else "no state")
-        else:
+        bad = "rror" in flat or "CRASH" in flat or not s or f"flung at {speed}.0" not in flat
+        if what == "off":
             verdict(not bad and s[4] == 0, f"Impacts off: {s[4]:.0f} strikes, health {s[0]:.0f}" if s else "no state")
+            continue
+        first = re.search(r"struck at ([\d.]+) m/s \(([\d.]+) raw\), ([\d.]+) kg behind it: ([\d.]+) damage", flat)
+        dealt.append(s[5] if s else -1)
+        verdict(not bad and (speed < 7 or s[5] >= 15),
+                f"thrown into a wall at {speed} m/s: {s[4]:.0f} strikes, {s[5]:.1f} damage, health {s[0]:.0f}"
+                + (f" (first strike {first.group(4)} at {first.group(1)} m/s, {first.group(3)} kg)" if first else "")
+                if s else "no state")
+    verdict(dealt == sorted(dealt) and dealt[0] >= 0, f"damage rises with the throw's speed: {dealt}")
 
 
 def case_slam():
@@ -108,7 +117,7 @@ def case_crush():
     for what, mode in [("high", 52), ("low", 53)]:
         flat = run(f"crush_{what}", f"{PRE};vr_knockdown_push 0;vr_knockdown_time_min 12;vr_knockdown_time_max 12;"
                    f"vr_knockdown_test 0;wait90;vr_knockdown_test {mode};wait150;vr_knockdown_test 50")
-        m = re.search(r"crushed, you landing at ([\d.]+) m/s: ([\d.]+) damage to its (\S+ ?\d*)", flat)
+        m = re.search(CRUSHED, flat)
         bad = "rror" in flat or "CRASH" in flat
         if what == "high":
             verdict(not bad and m and float(m.group(2)) >= 20,
@@ -116,6 +125,35 @@ def case_crush():
                     "256-unit drop onto it: no crush")
         else:
             verdict(not bad and not m, "96-unit drop: " + ("crushed (wrong)" if m else "nothing"))
+    # Standing grunts: you dropped onto its head from two heights (vr_knockdown_test 59), then 64 units (too low).
+    got = []
+    for up in (128, 256, 64):
+        flat = run(f"crush_standing{up}", f"{PRE};vr_test_drop_height {up};vr_knockdown_test 59;wait150;vr_knockdown_test 50")
+        m = re.search(CRUSHED, flat)
+        s = state(flat)
+        bad = "rror" in flat or "CRASH" in flat or not s
+        if up == 64:
+            verdict(not bad and not m, "standing, 64-unit drop: " + ("crushed (wrong)" if m else "nothing"))
+            continue
+        pops = m.group(4) or "" if m else ""
+        got.append(float(m.group(2)) if m else -1)
+        verdict(not bad and m and m.group(3).startswith("head"),
+                f"standing, {up}-unit drop onto its head: {m.group(2)} damage to its {m.group(3)} at {m.group(1)} m/s, "
+                f"health {s[0]:.0f}, headless {s[2]:.0f} {pops}" if m and s else f"standing, {up}-unit drop: no crush")
+    verdict(len(got) == 2 and 0 < got[0] < got[1], f"the higher drop crushes harder: {got}")
+    # Cushioned: a 400-unit drop onto a knocked-down grunt (no god mode): no fall damage with vr_ragimpact_crush_cushion 1,
+    # Quake's 5 without it.
+    hp = {}
+    for cushion in (1, 0):
+        flat = run(f"crush_cushion{cushion}", f"{PRE};god;vr_ragimpact_crush_cushion {cushion};vr_knockdown_push 0;"
+                   "vr_knockdown_time_min 12;vr_knockdown_time_max 12;vr_knockdown_test 0;wait90;vr_test_drop_height 400;"
+                   "vr_knockdown_test 52;wait150;vr_knockdown_test 50")
+        you = re.findall(r"ragimpact you: health ([-\d.]+)", flat)
+        hp[cushion] = float(you[-1]) if you else None
+        if cushion == 1:
+            verdict(re.search(CRUSHED, flat) is not None, "400-unit drop onto a down one: crushed")
+    verdict(hp[1] is not None and hp[0] is not None and hp[1] > hp[0],
+            f"a crushing landing breaks your fall: your health {hp[1]} cushioned, {hp[0]} not")
 
 
 def grip_motion(name):
