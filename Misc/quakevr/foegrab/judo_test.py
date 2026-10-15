@@ -456,11 +456,47 @@ def case_neck():
         ("slowmo_slow", 0, GRUNT_HEAD, 75, 1.0, 1, "y", None, "vr_timescale 0.3", "none"),
     ]
     # JUDO_NECK_METHOD 1: the hand-line detector (vr_foegrab_necksnap_method 1); a tilt (grunt_roll: one hand up, the
-    # other down) is no turn about the neck there.
+    # other down) is no turn about the neck there. The twists are sized for NECK_REFERENCE's thresholds, set for them
+    # (the shipped defaults, the author's 80 degrees: case_neckdefaults).
     method = os.environ.get("JUDO_NECK_METHOD", "0")
-    print(f"  (vr_foegrab_necksnap_method {method})")
+    print(f"  (vr_foegrab_necksnap_method {method}; {NECK_REFERENCE})")
+    run_neck(runs, f"vr_foegrab_necksnap_method {method};{NECK_REFERENCE};", method)
+
+
+# The thresholds case_neck's twists are sized for (the defaults before 2026-10-15's: 30 degrees one way, 100 deg/s at its
+# fastest; Hand Line: within 0.3 s; the neck 3 units long).
+NECK_REFERENCE = ("vr_foegrab_necksnap_speed 100;vr_foegrab_necksnap_angle 30;vr_foegrab_necksnap_window 0.3;"
+                  "vr_foegrab_necksnap_neck 3")
+
+
+def case_neckdefaults():
+    """neckdefaults: the neck snap at the shipped defaults (the author's: Hand Line, 80 degrees within 0.2 s; Velocity
+    (JUDO_NECK_METHOD 0): 80 degrees at 210 deg/s at its fastest; the neck 1.5 units). A grunt's head twisted 110 degrees in
+    0.2 s, both ways: snapped; 60 degrees in 0.2 s, 110 in 1 s: not; its shoulders 110 in 0.2 s: not; staggering (upright:
+    its neck up) 110 in 0.2 s: snapped; in slow motion (0.3) twisted 0.2 s after the grips, 110 in 0.2 s: snapped; 110 in
+    1 s: not. (Not knocked down: lying, its neck runs along the floor, and a twist about the vertical, the mock's, is
+    mostly a tilt of it: 110 read 22 within the window; case_neck's 75 read 32, over its 30.)"""
+    runs = [
+        ("cw", 0, GRUNT_HEAD, 110, 0.2, 1, "y", None, "", "snap"),
+        ("ccw", 0, GRUNT_HEAD, 110, 0.2, -1, "y", None, "", "snap"),
+        ("short", 0, GRUNT_HEAD, 60, 0.2, 1, "y", None, "", "none"),
+        ("slow", 0, GRUNT_HEAD, 110, 1.0, 1, "y", None, "", "none"),
+        ("shoulders", 0, GRUNT_SHOULDERS_WIDE, 110, 0.2, 1, "y", None, "", "nosnap"),
+        ("stagger", 0, "stagger", 110, 0.2, 1, "y", None,
+         "vr_knockdown_chance 0.01;vr_ragdoll_active_stagger_travel 0.03", "snap"),
+        ("slowmo_quick", 0, GRUNT_HEAD, 110, 0.2, 1, "y", "quick", "vr_timescale 0.3", "snap"),
+        ("slowmo_slow", 0, GRUNT_HEAD, 110, 1.0, 1, "y", None, "vr_timescale 0.3", "none"),
+    ]
+    method = os.environ.get("JUDO_NECK_METHOD", "")
+    print(f"  (the shipped defaults{', vr_foegrab_necksnap_method ' + method if method else ''})")
+    run_neck([(f"defaults_{r[0]}",) + r[1:] for r in runs], f"vr_foegrab_necksnap_method {method};" if method else "",
+             method or "1")
+
+
+def run_neck(runs, settings, method):
+    """case_neck's runs (and case_neckdefaults'), each with `settings` first."""
     for what, mon, centre, deg, dur, sign, axis, pull, extra, want in runs:
-        extra = f"vr_foegrab_necksnap_method {method};{extra}"
+        extra = f"{settings}{extra}"
         if method == "1" and what == "grunt_roll":
             want = "none"
         name = f"judo_neck_{what}"
@@ -561,7 +597,7 @@ def head_target_motion(name, cls, dz, deg, dur, sign, axis="y", lift=False):
 
 
 def case_adneck():
-    """adneck: each AD humanoid (AD_HUMANOIDS) standing, both hands at its head zone (its sides), twisted 75 deg in 0.2 s:
+    """adneck: each AD humanoid (AD_HUMANOIDS) standing, both hands at its head zone (its sides), twisted 110 deg in 0.2 s (the defaults: 80 within 0.2 s):
     its neck snapped standing, held by both hands; both hands 14 units under its head's middle (its chest's top, under its
     neck) pulled up at 1.6 m/s: lifted, held by both hands, flailing; knocked down (JUDO_AD_KD=1: each, else the
     centurion, the fumigator, a death knight and a pyro), its ragdoll's head twisted: snapped. Its head zone and ragdoll
@@ -577,11 +613,11 @@ def case_adneck():
             if ONLY and not re.search(ONLY, name):
                 continue
             if kind == "kd":
-                path = neck_ragdoll_motion(name, 75, 0.2, 1)
+                path = neck_ragdoll_motion(name, 110, 0.2, 1)  # (the shipped defaults: 80 deg within 0.2 s)
                 go = ("vr_knockdown_push 0;vr_knockdown_time_min 12;vr_knockdown_time_max 12;vr_knockdown_test 0;wait60;"
                       f"vr_mock_walk_to nearest {cls} 24;wait200;vr_mock_walk_to off;wait90;vr_mock_play {path}")
             else:
-                path = head_target_motion(name, cls, -14 if kind == "lift" else 0, 75, 0.2, 1, lift=kind == "lift")
+                path = head_target_motion(name, cls, -14 if kind == "lift" else 0, 110, 0.2, 1, lift=kind == "lift")
                 go = f"vr_mock_play {path}"
             for _ in range(3):
                 out = run(f"{pre};vr_knockdown_debug 1;{go};wait500;-grabmain;-graboff;wait5;toggleconsole;quit",
