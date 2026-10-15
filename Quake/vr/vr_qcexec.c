@@ -183,8 +183,70 @@ static void QCExec_Bench_f (void)
 	PR_SwitchQCVM (NULL);
 }
 
+// vr_qcexec_run's trace: fabs's builtin swapped, once, for one that turns tracing on after it (as traceon would).
+static builtin_t qcexec_fabs;
+static int qcexec_fabs_num;
+
+static void QCExec_FabsThenTrace (void)
+{
+	qcvm->builtins[qcexec_fabs_num] = qcexec_fabs;
+	qcexec_fabs ();
+	qcvm->trace = true;
+}
+
+// vr_qcexec_run [trace] <function> [args...]: one call of a server QuakeC function (float arguments) in vr_qcexec's
+// loop: what it returned and the statements it ran. "trace": tracing (each statement printed) from its first fabs()
+// on. For comparing the loops' results, errors (runaway: ad_mathlib_fast_pow 2 1e39) and traces.
+static void QCExec_Run_f (void)
+{
+	int a = 1, i, nargs;
+	qboolean trace = false;
+	dfunction_t *f;
+	double p0;
+
+	if (Cmd_Argc () > a && !strcmp (Cmd_Argv (a), "trace"))
+		trace = true, a++;
+	if (Cmd_Argc () <= a || !sv.active)
+	{
+		Con_Printf ("vr_qcexec_run [trace] <function> [args...] (in a map)\n");
+		return;
+	}
+	PR_SwitchQCVM (&sv.qcvm);
+	f = VR_ED_FindFunction (Cmd_Argv (a));
+	if (!f || f->first_statement < 0)
+	{
+		Con_Printf ("vr_qcexec_run: no QuakeC function %s\n", Cmd_Argv (a));
+		PR_SwitchQCVM (NULL);
+		return;
+	}
+	nargs = q_min (8, Cmd_Argc () - a - 1);
+	for (i = 0; i < nargs; i++)
+		G_FLOAT(OFS_PARM0 + 3 * i) = Q_atof (Cmd_Argv (a + 1 + i));
+	if (trace)
+		for (i = 0; i < pr_numbuiltindefs; i++)
+			if (!strcmp (pr_builtindefs[i].name, "fabs") && pr_builtindefs[i].number > 0 &&
+				pr_builtindefs[i].number < qcvm->numbuiltins)
+			{
+				qcexec_fabs_num = pr_builtindefs[i].number;
+				qcexec_fabs = qcvm->builtins[qcexec_fabs_num];
+				qcvm->builtins[qcexec_fabs_num] = QCExec_FabsThenTrace;
+				break;
+			}
+	p0 = QCExec_TotalProfile ();
+	PR_ExecuteProgramRun ((func_t)(f - qcvm->functions));
+	if (trace && qcvm->builtins[qcexec_fabs_num] == QCExec_FabsThenTrace)
+		qcvm->builtins[qcexec_fabs_num] = qcexec_fabs; // (it never called fabs)
+	qcvm->trace = false;
+	Con_Printf ("vr_qcexec_run: loop %d: %s returned %g %g %g (%08x %08x %08x), %.0f statements\n", (int)vr_qcexec.value,
+		Cmd_Argv (a), qcvm->globals[OFS_RETURN], qcvm->globals[OFS_RETURN + 1], qcvm->globals[OFS_RETURN + 2],
+		((int *)qcvm->globals)[OFS_RETURN], ((int *)qcvm->globals)[OFS_RETURN + 1],
+		((int *)qcvm->globals)[OFS_RETURN + 2], QCExec_TotalProfile () - p0);
+	PR_SwitchQCVM (NULL);
+}
+
 void VR_QCExec_Init (void)
 {
 	Cvar_RegisterVariable (&vr_qcexec);
 	Cmd_AddCommand ("vr_qcexec_bench", QCExec_Bench_f);
+	Cmd_AddCommand ("vr_qcexec_run", QCExec_Run_f);
 }
