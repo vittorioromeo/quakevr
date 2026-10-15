@@ -6413,3 +6413,67 @@ Checklist (proposed):
   toss: it is caught; a spinning flip too. A weapon lying about grabs as before."
 - "Force grab a weapon or prop with an enemy standing in front of it: nothing comes (it does with the enemy out of the
   way)."
+## Several menu panels at once (worktree `bloodfx`, branch `agent/multimenu2`, 2026-10-15)
+
+Stages 3 and 4 of MULTI_MENU.md. His note: several VR menus open at once, each with its own state; only settings
+must agree between them (they do by construction: every row reads its cvar as it draws).
+
+**What it does.** The corner's new **New Panel** button (above Checklist; headset only, left out of the flat row)
+opens another panel beside the first (the second to its right, the third to its left, turned round the head so their
+edges meet), on the page the current one shows (the VR Settings when that is not a VR page or is a page for one panel
+at a time). Three panels at most. Each has its own page, Back stack, selection, scroll, drop-down, drags and corner
+buttons; on the panels after the first the top button reads **Close Panel** and closes that panel only; Back out of
+such a panel's first page closes it too. Back to game (the first panel's button, the menu button, any way the menu
+closes) closes them all. The laser tests every panel (nearest hit; frames too, so each panel can be gripped and moved
+as in stage 1); the panel a laser is on is focused: its mouse follows that laser, and the keys, the sticks and Back go
+to it. With two or more panels, both hands work at once: each hand's laser moves the mouse of the panel it is on (one
+laser a panel; both are drawn), a trigger clicks where its hand points; one mouse button, so a second hand's click lets
+go of the first hand's (a drag ends). Quake's own menus (Main Menu, Levels, Options, Load...) stay single: opened from
+another panel they open on the first. Pausing is the first panel's menu's, as before.
+
+**One panel at a time**: Weapon Offsets and its parts (the weapon/hotspot edited, Align Sights' pending result), Body
+Calibration, Checklist, Retro Textures > All Categories (Apply to Checked Categories), Review Takes/Take, Search,
+Console, Map Library. A second panel is refused them while one shows them: it stays where it is, its title reads
+"<page>: in panel N" for 2.5 s (console: "<page>: open in panel N (one panel at a time)").
+
+**Places.** When a second panel opens the first is kept where it is (placed), so they stay side by side. Each panel
+after the first remembers where it was (from the first panel, when it closes) for the session:
+`vr_menu_panel_remember 1` (default) opens it there again; 0 always beside. The first panel still opens in front of the
+head each time (stage 1 unchanged; menu_grab_test check 9).
+
+**Flat screen / the runtime's own panel**: the focused panel's menu only (the others are not shown; Back out of it
+closes it and shows the next).
+
+**How.** `menu::instanceCount` 3. `selectInstance` swaps Quake's `m_state` and the menus' mouse (`m_mousex/y`) with
+the instance (`MenuInstance::quakeState`, `mouseX/Y`) and lays the menu's bounds out again; the current instance is the
+focused panel. `M_Draw` draws the first panel's menu into the 2D layer's canvas whichever is focused
+(`VR_MenuDrawSelect/Restore`); `VR_End2D` then draws each other panel's menu into its own canvas (`M_DrawPanel`, the
+first canvas's size and mipmaps; freed when it closes), GPU scope "menu panels". `menu::tidyInstances` (each frame and
+before drawing) closes the others when the menu closed, and moves a Quake menu opened from another panel to the first.
+menuui: `Hit::menu`, per-instance corner-button state (`tb()`), sent mouse and highlight; `pointTo(hand)` per laser.
+`vr_menu_panels [open | close <n> | focus <n>]` (MENUPANELS / MENUPANEL lines: each panel's menu, page, selected row,
+its value as last drawn and how many frames ago); Debug > Tools: "Menu Panels", "Open Another Menu Panel".
+`vr_mock_laser ... [panel <n>] [hand off]` (the off hand's mock laser is new).
+
+Verified: `Misc/quakevr/menu_panels_test.py bloodfx` 17/17 PASS: New Panel opens a second panel on the first's page,
+to its right; two pages at once; the laser focuses the panel it is on and moves only that panel's row; a key moves the
+focused panel's row only; same page and row in both, a click on the first toggles the setting (0 -> 1) and the second
+draws the new value the next frame (drawn 1 frame ago); Weapon Offsets in the first refused in the second; Back out of
+the second's first page closes it only; reopened on the VR Settings (the first shows Weapon Offsets) at the same place
+(remembered); both hands: the off hand's laser on the second and the main hand's on the first, each panel's row
+follows its own laser; the menu button closes all, reopened one panel. `menu_grab_test.py` 13/13 PASS. One panel:
+`menu_vr dump` (Menu Detail Developer) 182 pages, rows 4761 -> 4763 (the two Debug rows; `menu_coverage.py` PASS, none
+lost); the VR navigation log identical but the corner column's bottom (one more button: y 72.1 -> 84.1); the flat log
+identical but the build hash (New Panel left out of the flat row). Flat with two panels open (`vr_enabled 0`): the
+focused one is drawn (1 frame ago; the other not for 150), Back out of it closes it, the first shown. e1m1 smoke
+clean, build 0 warnings.
+
+GPU (`--exclusive`, mock headset, World page, 3 s each): ui/hud/menu 0.129 ms (one panel) -> 0.192 (two) -> 0.273
+(three); the frame's GPU 0.947 -> 1.053 -> 1.173 ms; CPU ui 0.167 -> 0.252 -> 0.331 ms. VRAM: one more canvas per panel,
+the first canvas's size (with mipmaps; at most ~50 MB at the 4096 cap, a few MB at the usual `vr_menu_resolution`).
+Screenshot: scratch/two_panels.png (the worktree's).
+
+Checklist (proposed): "VR menus: press New Panel (corner): a second menu opens to the right; use one page in each (both
+hands can point at once, each panel's trigger clicks there); change a setting in one with the same page open in the
+other: it changes there too; Weapon Offsets open in one is refused in the other; Close Panel closes one; Back to Game
+closes all; New Panel again comes back where you left it."

@@ -28,6 +28,7 @@
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
+#include "vr_panel.hpp"
 #include "vr_obs.hpp"
 #include "vr_menupaint.hpp"
 #include "vr_motion.hpp"
@@ -5908,6 +5909,8 @@ za::Vector<Item> pageDebugReports()
         command("Relighting: Batch's Maps", "vr_relight_batch -list").help("vr_relight_batch -list: the maps Graphics > Relighting's Relight These Maps would take (Maps, Episode, Game), with their files and sizes, without relighting them."),
         command("Menu Panel Place", "vr_menu_panel").help("vr_menu_panel: where the menu panel is (MENUPANEL: moved by a hand or not, held, its middle, from the head, the way it faces, its size). vr_menu_panel reset puts it back in front of you."),
         command("Menu Panel Back in Front", "vr_menu_panel reset").help("vr_menu_panel reset: the menu panel, moved by a grip, back in front of your head, as it opens."),
+        command("Menu Panels", "vr_menu_panels").help("vr_menu_panels: the menu panels open (MENUPANELS: each one's menu, page, selected row and its value as last drawn). vr_menu_panels open, close <n> or focus <n>: another opened (as the corner's New Panel), one closed or given the keys."),
+        command("Open Another Menu Panel", "vr_menu_panels open").help("vr_menu_panels open: another menu panel beside this one, on this page (as the corner's New Panel; three at most, in the headset)."),
         command("Menu Rows", "menu_vr rows").help("menu_vr rows: this page's rows as drawn (MROW: row, top, label), the scroll, the section gap, and whether the laser and mouse find each row where it is drawn."),
         toggle("Menu Links: Print, Do Not Open", vr_menu_link_dryrun)
             .help("vr_menu_link_dryrun: the version box's Support on Ko-fi link (bottom right of the menus) prints its address "
@@ -8640,10 +8643,23 @@ struct MenuInstance
 
     int bodyCloneLatch{-1}; // the page a row tweaking the body was chosen on (bodyClonePage), while it stays shown
     NotedPlace notedPlace;
+
+    // Several panels (MULTI_MENU.md, stage 3). Quake's menu state and the menus' mouse are Quake's globals (m_state,
+    // m_mousex/y), the current instance's: the others keep theirs here (selectInstance swaps them).
+    bool open{false};       // (the first: unused, open while the menu is)
+    int quakeState{m_none}; // m_state while not current (the others: m_vr, or m_confirm over a VR page)
+    float mouseX{-1000.f}, mouseY{-1000.f};
+    int refusedPage{-1};    // a page for one panel at a time refused here (another panel shows it), and when: its title
+    double refusedTime{0.0}; // says so for a moment
+    int refusedBy{-1};
+    float drawnValue{0.f}; // the selected row's value as last drawn, and when (vr_menu_panels: the panels kept in step)
+    int drawnFrame{-1};
 };
 
 MenuInstance menuInstances[menu::instanceCount];
 int currentMenu = 0;
+int instanceDrawDepth = 0; // M_Draw's nesting (a dialog draws the menu under it again): only the outermost picks the panel
+int drawnInstance = -1;    // drawing a panel's own canvas (menu::drawInstance): M_Draw draws that one
 
 [[nodiscard]] MenuInstance& ui()
 {
@@ -11402,9 +11418,64 @@ void closeDropDown(); // (the drop-down lists, below: a page shown closes the on
 
 // The page a Search result opened (vr_menu_search.inc): Back from it returns to the results (VR Settings' Back too);
 // -1 once elsewhere.
+// Pages for one panel at a time (MULTI_MENU.md, stage 3): what they edit or stage is one, not a setting each row reads
+// as it draws (the weapon and hotspot edited and Align Sights' pending result, Body Calibration's, the checklist's notes,
+// the retro textures applied to the checked categories, a take reviewed, the keyboard pages' text input). Another panel
+// is refused them while one shows them. 0: any page; else its group (the Weapon Offsets pages are one).
+[[nodiscard]] int oneViewerGroup(int page)
+{
+    if(page < 0 || page >= pageCount)
+    {
+        return 0;
+    }
+    const PageBuilder b = pages[page].build;
+    return weaponOffsetsPage(b)                                 ? 1
+           : b == pageBodyCalibration                           ? 2
+           : b == pageChecklist                                 ? 3
+           : b == pageRetroAll                                  ? 4
+           : b == pageSearch                                    ? 5
+           : b == pageConsole                                   ? 6
+           : b == pageMaps                                      ? 7
+           : b == pageReviewTakes || b == pageReviewTake        ? 8
+                                                                : 0;
+}
+
+// The page a panel shows (its VR page; -1: another menu, or closed).
+[[nodiscard]] int instancePage(int i)
+{
+    const MenuInstance& m = menuInstances[i];
+    const int state = i == currentMenu ? static_cast<int>(m_state) : m.quakeState;
+    const bool open = i == 0 ? key_dest == key_menu && state != m_none : m.open;
+    return open && (state == m_vr || state == m_confirm) ? m.page : -1;
+}
+
+// The other panel showing a page of `page`'s group for one panel at a time (-1: none, or any page).
+[[nodiscard]] int pageTakenBy(int page)
+{
+    const int group = oneViewerGroup(page);
+    for(int i = 0; group && i < menu::instanceCount; i++)
+    {
+        if(i != currentMenu && oneViewerGroup(instancePage(i)) == group)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void showPage(int target)
 {
     closeDropDown();
+    if(const int by = pageTakenBy(target); by >= 0)
+    {
+        // (Its title says so a moment: VR_Menu_Draw.)
+        ui().refusedPage = target;
+        ui().refusedTime = realtime;
+        ui().refusedBy = by;
+        Con_Printf("%s: open in panel %d (one panel at a time)\n", pages[target].title, by + 1);
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
     ui().page = target;
     weightPageShown(pages[ui().page].build); // a weight page: what is in the hand now
     if(weaponOffsetsPage(pages[ui().page].build))
@@ -11572,6 +11643,11 @@ void openPage(int target)
 // turn (its cursor off the headers), so that Back goes up the tree.
 void openInTree(int target)
 {
+    if(pageTakenBy(target) >= 0)
+    {
+        showPage(target); // (refused: the page shown stays, its title saying so)
+        return;
+    }
     za::Vector<int> chain;
     for(int p = target; p != PageMain && static_cast<int>(chain.size()) < pageCount; p = homeOf(p))
     {
@@ -11636,6 +11712,10 @@ void goBack()
             showPage(dest);
             S_LocalSound("misc/menu2.wav");
         }
+        else if(currentMenu != 0)
+        {
+            menu::closeInstance(currentMenu); // (a panel other than the first shows VR pages only: Back out of them closes it)
+        }
         else
         {
             leaveTo(-1 - dest);
@@ -11645,6 +11725,12 @@ void goBack()
     navReset();
     if(ui().page == PageMain)
     {
+        if(currentMenu != 0)
+        {
+            navPush(PageMain);
+            menu::closeInstance(currentMenu);
+            return;
+        }
         M_Menu_Options_f(); // (its sound as it is drawn)
         return;
     }
@@ -13513,7 +13599,254 @@ int qvr::menu::currentInstance()
 
 void qvr::menu::selectInstance(int instance)
 {
-    currentMenu = CLAMP(0, instance, instanceCount - 1);
+    instance = CLAMP(0, instance, instanceCount - 1);
+    if(instance == currentMenu)
+    {
+        return;
+    }
+    // Quake's menu state and the menus' mouse go with the instance (MenuInstance::quakeState).
+    ui().quakeState = static_cast<int>(m_state);
+    ui().mouseX = m_mousex;
+    ui().mouseY = m_mousey;
+    currentMenu = instance;
+    m_state = static_cast<m_state_e>(ui().quakeState);
+    m_mousex = ui().mouseX;
+    m_mousey = ui().mouseY;
+    M_RefreshBounds(); // (its menu's layout: the lists' mouse)
+}
+
+bool qvr::menu::instanceOpen(int instance)
+{
+    if(instance <= 0)
+    {
+        return key_dest == key_menu && mainState() != m_none;
+    }
+    return instance < instanceCount && menuInstances[instance].open;
+}
+
+int qvr::menu::openInstances()
+{
+    int n = 0;
+    for(int i = 0; i < instanceCount; i++)
+    {
+        n += instanceOpen(i) ? 1 : 0;
+    }
+    return n;
+}
+
+int qvr::menu::mainState()
+{
+    return currentMenu == 0 ? static_cast<int>(m_state) : menuInstances[0].quakeState;
+}
+
+bool qvr::menu::openInstance()
+{
+    if(key_dest != key_menu || m_state == m_none)
+    {
+        return false;
+    }
+    glm::vec3 corner, xAxis, yAxis;
+    if(!panel::menuQuad(hands::current(), 0, corner, xAxis, yAxis))
+    {
+        Con_Printf("New Panel: only with the menu in the headset\n");
+        S_LocalSound("misc/menu1.wav");
+        return false;
+    }
+    int slot = -1;
+    for(int i = 1; i < instanceCount && slot < 0; i++)
+    {
+        slot = menuInstances[i].open ? -1 : i;
+    }
+    if(slot < 0)
+    {
+        Con_Printf("New Panel: %d panels open at most\n", instanceCount);
+        S_LocalSound("misc/menu1.wav");
+        return false;
+    }
+
+    // The page shown here (not one for one panel at a time), else the VR Settings; each page's selection and scroll as
+    // here, nothing under way.
+    const int target = (m_state == m_vr || m_state == m_confirm) && !oneViewerGroup(ui().page) ? ui().page : PageMain;
+    MenuInstance& n = menuInstances[slot];
+    const MenuInstance& from = ui();
+    n = MenuInstance{};
+    for(int p = 0; p < pageCount; p++)
+    {
+        n.cursors[p] = from.cursors[p];
+        n.scrolls[p] = from.scrolls[p];
+        n.leftAnchors[p] = from.leftAnchors[p];
+        n.visits[p] = from.visits[p];
+    }
+    n.visitCount = from.visitCount;
+    n.open = true;
+    n.quakeState = m_vr;
+    n.page = PageMain;
+
+    selectInstance(slot);
+    navReset();
+    if(target == PageMain)
+    {
+        navPush(PageMain);
+        showPage(PageMain);
+    }
+    else
+    {
+        openInTree(target);
+    }
+    panel::openMenuPanel(slot);
+    S_LocalSound("misc/menu2.wav");
+    Con_DPrintf("menu panel %d opened: %s\n", slot + 1, pages[ui().page].title);
+    return true;
+}
+
+namespace
+{
+void closeQuietly(int instance)
+{
+    if(instance <= 0 || instance >= menu::instanceCount || !menuInstances[instance].open)
+    {
+        return;
+    }
+    panel::closeMenuPanel(instance);
+    if(currentMenu == instance)
+    {
+        menu::selectInstance(0);
+    }
+    menuInstances[instance].open = false;
+    menuInstances[instance].quakeState = m_none;
+}
+} // namespace
+
+void qvr::menu::closeInstance(int instance)
+{
+    if(instance > 0 && instance < instanceCount && menuInstances[instance].open)
+    {
+        closeQuietly(instance);
+        S_LocalSound("misc/menu2.wav");
+    }
+}
+
+void qvr::menu::closeExtraInstances()
+{
+    for(int i = 1; i < instanceCount; i++)
+    {
+        closeQuietly(i);
+    }
+}
+
+void qvr::menu::tidyInstances()
+{
+    bool extras = false;
+    for(int i = 1; i < instanceCount; i++)
+    {
+        extras = extras || menuInstances[i].open;
+    }
+    if(!extras)
+    {
+        return;
+    }
+    if(key_dest != key_menu || mainState() == m_none)
+    {
+        // The menu closed (from whichever panel): they all go.
+        const bool none = m_state == m_none;
+        closeExtraInstances();
+        if(none)
+        {
+            m_state = m_none;
+        }
+        return;
+    }
+    if(currentMenu != 0 && m_state != m_vr && m_state != m_confirm)
+    {
+        // Out of the VR pages to one of Quake's menus (single: on the first panel); this panel stays on its page.
+        const m_state_e state = m_state;
+        m_state = m_vr;
+        selectInstance(0);
+        m_state = state;
+    }
+}
+
+void qvr::menu::drawInstance(int instance)
+{
+    const int was = currentMenu;
+    drawnInstance = instance;
+    selectInstance(instance);
+    M_DrawPanel();
+    selectInstance(was);
+    drawnInstance = -1;
+}
+
+void qvr::menu::panels_f()
+{
+    const char* arg = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const int n = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) - 1 : -1;
+    if(!q_strcasecmp(arg, "open"))
+    {
+        openInstance();
+        return;
+    }
+    if(!q_strcasecmp(arg, "close") && n >= 1 && n < instanceCount)
+    {
+        closeInstance(n);
+        return;
+    }
+    if(!q_strcasecmp(arg, "focus") && n >= 0 && n < instanceCount && instanceOpen(n))
+    {
+        selectInstance(n);
+        return;
+    }
+    if(arg[0])
+    {
+        Con_Printf("vr_menu_panels [open | close <2..%d> | focus <1..%d>]: the menu panels open (MENUPANELS), or another opened, "
+                   "one closed or focused (the first closes with Back to game)\n",
+            instanceCount, instanceCount);
+        return;
+    }
+    Con_Printf("MENUPANELS open %d focused %d\n", openInstances(), currentMenu + 1);
+    const int was = currentMenu;
+    for(int i = 0; i < instanceCount; i++)
+    {
+        if(!instanceOpen(i))
+        {
+            continue;
+        }
+        selectInstance(i);
+        const bool vrPage = m_state == m_vr;
+        const auto& list = items(ui().page);
+        const int cursor = ui().cursors[ui().page];
+        const char* row = vrPage && cursor >= 0 && cursor < static_cast<int>(list.size()) ? rowLabel(list[cursor]) : "";
+        Con_Printf("MENUPANEL %d menu %d page %d \"%s\" row \"%s\" value %g drawn %d\n", i + 1, static_cast<int>(m_state),
+            vrPage ? ui().page : -1, vrPage ? pages[ui().page].title : "", row, ui().drawnValue,
+            ui().drawnFrame >= 0 ? host_framecount - ui().drawnFrame : -1);
+    }
+    selectInstance(was);
+}
+
+extern "C" int VR_MenuDrawSelect()
+{
+    if(instanceDrawDepth++ > 0 || drawnInstance >= 0)
+    {
+        return -1;
+    }
+    menu::tidyInstances();
+    if(currentMenu == 0 || !panel::menusInEyes())
+    {
+        return -1; // (on a flat screen, or the runtime's own panel: the focused panel's menu only)
+    }
+    const int was = currentMenu;
+    menu::selectInstance(0);
+    return was;
+}
+
+extern "C" int VR_MenuDrawRestore(int was)
+{
+    instanceDrawDepth--;
+    if(was < 0)
+    {
+        return 0;
+    }
+    menu::selectInstance(was);
+    return 1;
 }
 
 int qvr::menu::toolgunCheatCount()
@@ -13884,7 +14217,23 @@ bool qvr::menu::scroll(int rows)
     return true;
 }
 
+namespace
+{
+void savePositions();
+} // namespace
+
 extern "C" void VR_MenuSavePositions()
+{
+    // The first panel's (the menu as ever: the others' places are this session's).
+    const int was = currentMenu;
+    menu::selectInstance(0);
+    savePositions();
+    menu::selectInstance(was);
+}
+
+namespace
+{
+void savePositions()
 {
     loadPositions();
     za::String text;
@@ -13939,6 +14288,7 @@ extern "C" void VR_MenuSavePositions()
         Cvar_SetQuick(&vr_menu_positions, text.cStr());
     }
 }
+} // namespace
 
 
 extern "C" void VR_Menu_Draw()
@@ -13975,6 +14325,13 @@ extern "C" void VR_Menu_Draw()
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
     M_DrawPic((320 - title->width) / 2, l.top + 4, title);
     const char* name = pages[ui().page].title;
+    char refused[48];
+    if(ui().refusedPage >= 0 && realtime - ui().refusedTime < 2.5)
+    {
+        // A page for one panel at a time refused here (showPage): said a moment in its title's place.
+        q_snprintf(refused, sizeof(refused), "%.22s: in panel %d", pages[ui().refusedPage].title, ui().refusedBy + 1);
+        name = refused;
+    }
     M_PrintWhite((320 - 8 * static_cast<int>(strlen(name))) / 2, l.top + 28, name);
 
     const int n = static_cast<int>(list.size());
@@ -14026,6 +14383,12 @@ extern "C" void VR_Menu_Draw()
     }
 
     drawDropDown(); // over the rows and the help
+
+    if(cursor < n && list[cursor].cvar)
+    {
+        ui().drawnValue = valueOf(list[cursor]);
+        ui().drawnFrame = host_framecount;
+    }
 }
 
 extern "C" void VR_Menu_Key(int key, int repeat)

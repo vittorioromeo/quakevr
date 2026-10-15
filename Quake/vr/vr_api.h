@@ -457,6 +457,11 @@ void VR_StartTutorial (void);							// the main menu's VR Tutorial, confirmed: a
 void VR_StartHub (void);								// the main menu's VR Hub, confirmed: as the Play page's VR Hub (vr_campaign_hub: vr_hub_map)
 void VR_OpenMapLibrary (void);							// Single Player > Map Library: the map browser page (vr_menu_maps.inc)
 void VR_Menu_Draw (void);								// M_Draw, m_vr
+// Several menu panels (vr_menu.cpp; MULTI_MENU.md): M_Draw draws the first panel's menu (the 2D layer's canvas) whichever
+// is focused, the others drawn into their own canvases (vr_panel.cpp, M_DrawPanel). Select: the instance to restore
+// (-1: none, the one drawn is the focused); Restore: nonzero when it switched back (the menu's bounds laid out again).
+int VR_MenuDrawSelect (void);
+int VR_MenuDrawRestore (int was);
 void VR_Menu_Key (int key, int repeat);				// M_Keydown, m_vr (repeat: the key's auto-repeat)
 void VR_Menu_Mousemove (float cx, float cy);			// M_Mousemove, m_vr
 void VR_Menu_Char (int key);							// M_Charinput, m_vr: a typed character (the Search page's box)
