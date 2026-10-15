@@ -1724,6 +1724,29 @@ QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's spl
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
 QVR_CVAR(vr_gore_drips, "1", CVAR_ARCHIVE)             // blood dripping from splats on the ceiling and from hanging gibs: how long and how much (0 none)
 QVR_CVAR(vr_gore_stick, "8", CVAR_ARCHIVE)             // gibs flung into a ceiling or a wall may stick there about this many seconds, then fall (0 never)
+// Blood streaming out of bullet holes (vr_bloodstream.cpp; ROUND22.md, "More gore"): a thin stream pouring from a shot's
+// or a nail's wound on a monster or a corpse, pulsing, weakening, painting where it lands.
+QVR_CVAR(vr_gore_streams, "1", CVAR_ARCHIVE)            // on
+QVR_CVAR(vr_gore_streams_chance, "0.6", CVAR_ARCHIVE)   // the chance a shot or a nail (each pellet) opens one
+QVR_CVAR(vr_gore_streams_per_body, "3", CVAR_ARCHIVE)   // most on one body (a new one takes the weakest's place)
+QVR_CVAR(vr_gore_streams_max, "24", CVAR_ARCHIVE)       // most in all (0-64)
+QVR_CVAR(vr_gore_streams_time, "7", CVAR_ARCHIVE)       // seconds one pours, about (weakening all along)
+QVR_CVAR(vr_gore_streams_speed, "70", CVAR_ARCHIVE)     // units/s it leaves the wound at, at its strongest
+QVR_CVAR(vr_gore_streams_width, "0.35", CVAR_ARCHIVE)   // units across, at its strongest (1 unit: 3.8 cm)
+QVR_CVAR(vr_gore_streams_pool, "1", CVAR_ARCHIVE)       // the pools it spreads where it lands: their size (0: no marks)
+QVR_CVAR(vr_gore_streams_pools, "4", CVAR_ARCHIVE)      // most pools one stream spreads (a new one each time it moves on)
+// Back-splatter (vr_gore.cpp): thin long streaks thrown onto what is behind a monster hit, along the shot's line.
+QVR_CVAR(vr_gore_backsplatter, "1", CVAR_ARCHIVE)       // how many (0 none)
+QVR_CVAR(vr_gore_backsplatter_reach, "1", CVAR_ARCHIVE) // how far they fly (times the hit's own: a shotgun's close, big hits far)
+// Teeth (QC vr_smallgibs.qc): a hard punch or blunt blow to a humanoid's face knocks out tooth gibs (small gibs).
+QVR_CVAR(vr_teeth, "1", CVAR_ARCHIVE)                   // on
+QVR_CVAR(vr_teeth_per_hit, "4", CVAR_ARCHIVE)           // most from one blow (the hardest)
+QVR_CVAR(vr_teeth_per_enemy, "10", CVAR_ARCHIVE)        // most one enemy loses
+QVR_CVAR(vr_teeth_hardness, "0.3", CVAR_ARCHIVE)        // a blow's least hardness to knock any out (0..1: Decapitation's blunt hardness, speed and damage)
+QVR_CVAR(vr_teeth_blunt, "1", CVAR_ARCHIVE)             // blunt things in the hand (a gun's butt, a crowbar, a club, a pommel) too, not only fists
+QVR_CVAR(vr_teeth_size, "2.5", CVAR_ARCHIVE)            // cm long
+QVR_CVAR(vr_teeth_speed, "3", CVAR_ARCHIVE)             // m/s they fly out at (along the blow, scattering)
+QVR_CVAR(vr_teeth_mass, "0.05", CVAR_ARCHIVE)           // kg each
 // Scourge of Armagon's flies round a severed head (player.qc HeadThink: one in ten buzz, looping). Off: the author found
 // them pointless as they are (NOTES.md vrfiringrange_2026-10-02_01-29-37); BACKLOG.md, "Flies on corpses and gibs".
 QVR_CVAR(vr_head_flies, "0", CVAR_ARCHIVE)

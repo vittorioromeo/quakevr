@@ -1,6 +1,7 @@
 // vr_gore.cpp -- see vr_gore.hpp.
 
 #include "vr_gore.hpp"
+#include "vr_bloodstream.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_engine.hpp"
@@ -99,6 +100,8 @@ struct Ray
     float dripChance;   // a mark on the ceiling drips
     float streakChance; // a mark on a wall runs down it
     bool big;           // a burst's (splotches head on)
+    float aspect = 1.f; // > 1: a back-splatter's thin streak (its length over its width), flying fast
+    glm::vec3 axis{0.f}; // (a back-splatter's) the shot's line
 };
 
 constexpr za::SizeT maxRays = 320;
@@ -264,15 +267,25 @@ void cast(const Ray& r)
         return;
     }
     // It shows as the blood would arrive; wider the further it flew.
-    const float delay = flight / 450.f;
+    const float delay = flight / (r.aspect > 1.f ? 1400.f : 450.f);
     const float size = r.size * (0.8f + 0.4f * f);
-    // Head on, a splat all round; glancing, a spray along the way it went.
-    const bool headOn = za::fabs(glm::dot(r.dir, n)) > 0.85f;
+    // Head on, a splat all round; glancing, a spray along the way it went. A back-splatter's streak: a long thin spray
+    // along its line, longer the more glancing (head on, a short one).
+    const float cosine = za::fabs(glm::dot(r.dir, n));
+    const bool headOn = cosine > 0.85f;
     MarkOptions o;
     o.along = r.dir;
     o.delay = delay;
     o.darken = 0.2f;
-    const bool placed = decals::place(headOn || r.big ? Mark::Splotch : Mark::Splatter, where, n, size, o);
+    if(r.aspect > 1.f)
+    {
+        // Drawn out along its way on the surface, and away from the shot's own line (head on: streaks radiating from
+        // where the line meets the wall, as real back-spatter; glancing: long along the way it flew).
+        o.along = r.dir + (r.dir - r.axis) * 8.f;
+        o.aspect = r.aspect * za::clamp(1.3f - 0.5f * cosine, 0.8f, 1.3f);
+    }
+    const bool placed =
+        decals::place(r.aspect > 1.f ? Mark::Splatter : headOn || r.big ? Mark::Splotch : Mark::Splatter, where, n, size, o);
     if(developer.value >= 2)
     {
         Con_Printf("gore: blood %.0f units %s, a %.0f-unit mark on (%.1f %.1f %.1f)%s\n", flight, f < 1.f ? "on" : "then down",
@@ -358,7 +371,7 @@ enum HitKind
 void hit(const glm::vec3& org, const glm::vec3& dir, int damage, int kind, int lvl)
 {
     const float mult = za::clamp(vr_gore_spray.value, 0.f, 4.f);
-    if(mult <= 0.f || damage <= 0)
+    if(damage <= 0)
     {
         return;
     }
@@ -382,6 +395,30 @@ void hit(const glm::vec3& org, const glm::vec3& dir, int damage, int kind, int l
         const glm::vec3 r = d + onSphere() * (spread * rnd(0.3f, 1.f)) + glm::vec3{0.f, 0.f, -0.25f};
         queue({org, glm::normalize(r), reach * rnd(0.6f, 1.f), size * rnd(0.7f, 1.3f), lvl >= 2 ? 0.35f : 0.1f,
             lvl >= 2 ? 0.5f : 0.15f, false});
+    }
+
+    // Back-splatter: thin long streaks thrown on along the shot's line onto what is behind, reaching as far and as many
+    // as the hit is hard (a shotgun's pellets close, a big hit across the room).
+    const float back = za::clamp(vr_gore_backsplatter.value, 0.f, 4.f);
+    if(back > 0.f && kind != HitRadial && kind != HitMelee)
+    {
+        const int streaks = za::min(16, stochastic(back * za::min(12.f, 2.f + damage / 6.f)));
+        const float distance = za::clamp(vr_gore_backsplatter_reach.value, 0.f, 4.f) *
+                          (kind == HitPellets ? za::clamp(60.f + damage * 1.5f, 60.f, 160.f) : za::clamp(80.f + damage * 4.f, 80.f, 480.f));
+        const float cone = kind == HitPellets ? 0.2f : 0.12f;
+        for(int i = 0; i < streaks; i++)
+        {
+            const glm::vec3 r = d + onSphere() * (cone * rnd(0.2f, 1.f)) + glm::vec3{0.f, 0.f, -0.04f};
+            const float width = rnd(3.5f, 7.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.75f) * za::clamp(0.8f + damage / 80.f, 0.8f, 1.5f);
+            Ray ray{org + d * 4.f, glm::normalize(r), distance * rnd(0.6f, 1.f), width, 0.f, lvl >= 2 ? 0.25f : 0.f, false};
+            ray.aspect = rnd(4.f, 8.f);
+            ray.axis = d;
+            queue(ray);
+        }
+        if(developer.value >= 2)
+        {
+            Con_Printf("gore: back-splatter %d streaks, reach %.0f\n", streaks, distance);
+        }
     }
 }
 
@@ -542,6 +579,11 @@ bool event(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
         default: break;
     }
     return true;
+}
+
+void wallRun(const glm::vec3& where, const glm::vec3& normal, float width)
+{
+    streak(where, normal, width, 0.f);
 }
 
 bool gibImpact(const glm::vec3& where, const glm::vec3& normal, float strength, const glm::vec3& velocity)
@@ -718,7 +760,9 @@ void test_f()
     }
     else
     {
-        hit(org, dir, Cmd_Argc() > 1 ? za::max(1, atoi(Cmd_Argv(1))) : 40, HitShot, lvl);
+        // (vr_gore_test <damage> pellets: as a shotgun blast's; its back-splatter close.)
+        const bool pellets = Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "pellets");
+        hit(org, dir, Cmd_Argc() > 1 ? za::max(1, atoi(Cmd_Argv(1))) : 40, pellets ? HitPellets : HitShot, lvl);
     }
 }
 
@@ -731,6 +775,7 @@ void clear()
     playerTime = -1.0;
     playerOwed = 0.f;
     playerBurst = 0.f;
+    bloodstream::clear();
 }
 
 void count()
@@ -738,6 +783,7 @@ void count()
     Con_Printf("gore (vr_gore %d): %d lines of blood queued, %d dripping, %d drops falling, %d pools to come\n", level(),
         static_cast<int>(rays.size()), static_cast<int>(sources.size()), static_cast<int>(landings.size()),
         static_cast<int>(pending.size()));
+    bloodstream::count();
 }
 
 } // namespace qvr::gore

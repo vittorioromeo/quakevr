@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_wounds.hpp"
+#include "vr_bloodstream.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_modelcollide.hpp"
@@ -3042,6 +3043,8 @@ void parseEvent()
     {
         Con_Printf("wounds: received kind %d on %d\n", ev.kind, ev.num);
     }
+    // A bullet hole may pour (vr_bloodstream.cpp; whether the wounds are painted or not).
+    bloodstream::onWound(ev.num, {ev.org[0], ev.org[1], ev.org[2]}, {ev.dir[0], ev.dir[1], ev.dir[2]}, ev.kind, ev.amount);
     if(enabled() && events.size() < 512)
     {
         events.pushBack(ev);
