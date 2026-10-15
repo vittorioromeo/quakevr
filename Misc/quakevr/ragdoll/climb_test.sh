@@ -12,6 +12,9 @@
 # N=n: n trials each (sv_random_seed SEED0, SEED0 + 1, ...).
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 CASES=${*:-pull drop hit off}
 MONS=${MONS:-0 5 1 8 6 2}
 N=${N:-1}
@@ -19,7 +22,7 @@ SEED0=${SEED0:-7}
 name() { case $1 in 0) echo grunt;; 1) echo ogre;; 2) echo zombie;; 5) echo knight;; 6) echo hknight;; 8) echo enforcer;; *) echo m$1;; esac; }
 FILTER="climb:|ragenv: [0-9]+ (left|right) hand (holds|lets)|monster_[a-z_]*: state|rror|CRASH|exit="
 one() { # one <monster> <pullup> <then> <seed>
-    bash $KIT/run.sh $AGENT -Script "sv_random_seed $4;map vrtesthall;wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_knockdown_debug 1;vr_knockdown_push ${PUSH:-0.15};vr_ragdoll_active_pullup $2;${EXTRA:-};setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist ${DIST:-132};vr_test_spawn $1;impulse 241;wait40;vr_knockdown_test 0;$3;wait900;vr_knockdown_test 5;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
+    tb_run_sh -Script "sv_random_seed $4;map vrtesthall;wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_knockdown_debug 1;vr_knockdown_push ${PUSH:-0.15};vr_ragdoll_active_pullup $2;${EXTRA:-};setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist ${DIST:-132};vr_test_spawn $1;impulse 241;wait40;vr_knockdown_test 0;$3;wait900;vr_knockdown_test 5;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
 }
 for c in $CASES; do
     pass=0
@@ -54,3 +57,6 @@ for c in $CASES; do
     done
     echo "climb $c: $pass of $all PASS"
 done
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

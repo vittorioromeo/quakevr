@@ -10,8 +10,10 @@
 #   off     the swing case with vr_ragdoll_active_guard 0 (PASS: no guard)
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 CASES=${*:-swing shot stagger down off}
-run() { bash $KIT/run.sh $AGENT -Script "sv_random_seed ${SEED:-7};$1;toggleconsole;quit" -Filter "guard:|hittrace|recovers|rises through|gets up after|rror|CRASH" -Timeout 300 2>&1 | tr -d '\r'; }
+run() { tb_run_sh -Script "sv_random_seed ${SEED:-7};$1;toggleconsole;quit" -Filter "guard:|hittrace|recovers|rises through|gets up after|rror|CRASH" -Timeout 300 2>&1 | tr -d '\r'; }
 FR="map vrfiringrange;wait30;god;notarget;developer 1;vr_hit_react_debug 2;vr_knockdown_debug 1;vr_ragdoll_active_guard ${GUARD:-1}"
 verdict() { # verdict <name> <condition result 0/1> <what>
     [ "$2" = 0 ] && echo "guard $1: $3: PASS" || echo "guard $1: $3: FAIL"
@@ -48,3 +50,6 @@ for c in $CASES; do
         verdict down $? "$(echo "$out" | grep -o "guards its head ([a-z ]*)" | head -1); $(echo "$out" | grep -o "\(rises through its get-up\|gets up\) after [0-9.]* s" | head -1)" ;;
     esac
 done
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

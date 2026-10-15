@@ -10,13 +10,16 @@
 #   off    the death case with vr_ragdoll_active_grab 0 (PASS: no grab)
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 CASES=${*:-death rag shove off}
 MONS=${MONS:-0 5 1 8 6} # (a zombie isn't killed by a body shot)
 MONSB=${MONSB:-0}
 name() { case $1 in 0) echo grunt;; 1) echo ogre;; 2) echo zombie;; 5) echo knight;; 6) echo hknight;; 8) echo enforcer;; *) echo m$1;; esac; }
 FILTER="grabs at|ragenv: [0-9]+ (left|right) hand (holds|lets go \(grab)|rror|CRASH"
 one() { # one <A> <grab> <before B is passed by> <then>
-    bash $KIT/run.sh $AGENT -Script "sv_random_seed ${SEED:-7};map vrtesthall;wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_knockdown_chance 100;vr_ragdoll_active_grab $2;setpos -150 0 24 0 90 0;wait5;vr_test_spawn $MONSB;vr_test_spawn_dist ${DB:-150};impulse 241;wait5;$3;vr_test_spawn $1;vr_test_spawn_dist 110;impulse 241;wait40;$4;wait300;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
+    tb_run_sh -Script "sv_random_seed ${SEED:-7};map vrtesthall;wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_knockdown_chance 100;vr_ragdoll_active_grab $2;setpos -150 0 24 0 90 0;wait5;vr_test_spawn $MONSB;vr_test_spawn_dist ${DB:-150};impulse 241;wait5;$3;vr_test_spawn $1;vr_test_spawn_dist 110;impulse 241;wait40;$4;wait300;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
 }
 for c in $CASES; do
     pass=0
@@ -43,3 +46,6 @@ for c in $CASES; do
     done
     echo "grab $c: $pass of $all PASS"
 done
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

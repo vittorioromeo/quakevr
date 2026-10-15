@@ -22,6 +22,8 @@
 # EYES=1: a contact sheet (the kit's scratch: dismember_<monster>_<case>.png, EYESCASE: leg) of 0.1 .. 4 s.
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
 CASES=${*:-arm forearm leg shin legs head dying early off cost}
 MONS=${MONS:-0 5 1}
@@ -30,7 +32,7 @@ SUM="$TREE/Misc/quakevr/ragdoll/dismember_trace.py"
 name() { case $1 in 0) echo grunt;; 1) echo ogre;; 5) echo knight;; 6) echo hknight;; 8) echo enforcer;; *) echo m$1;; esac; }
 PRE="wait30;god;vr_debug_ragdoll 1;vr_ragdoll_active_seed ${SEED:-0};vr_ragdoll_active_trace 3${EXTRA:+;$EXTRA}"
 FILTER="^ragtrace|^ragdis|ragdoll: [0-9]+ (lost|loses|killed|beheaded|active)|test cut|test kill|rror|CRASH|exit=|TIMEOUT"
-run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'; }
+run() { tb_run_sh -Script "$1" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'; }
 one() { # one <monster> <what> <extra settings>
     run "sv_random_seed ${SEED:-7};map vrfiringrange;$PRE;notarget;$3;vr_test_spawn $1;vr_test_spawn_dist ${DIST:-110};impulse 241;wait40;$2;wait650;toggleconsole;quit"
 }
@@ -75,8 +77,11 @@ if [ -n "$EYES" ]; then
         S="$S;impulse 241;wait40;vr_mock_camera ${CAM:-5.2 0.9 -3.2 9 90};wait3;vr_test_cut $N;wait7;screenshot"
         for w in 14 14 14 22 29 43 58 72; do S="$S;wait$w;screenshot"; done
         S="$S;toggleconsole;quit"
-        bash $KIT/run.sh $AGENT -Clean -Script "$S" -Filter "exit=" -Timeout 300 >/dev/null 2>&1
+        tb_run_sh -Clean -Script "$S" -Filter "exit=" -Timeout 300 >/dev/null 2>&1
         OUT="$KIT/scratch/dismember_$(name $m)_$EC.png"
         $PY "$TREE/Misc/quakevr/ragdoll/active_sheet.py" "$SHOTS" "$OUT" 9 ${BOX:-} && echo "sheet: $OUT"
     done
 fi
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

@@ -2601,6 +2601,10 @@ static void Host_Loadgame_f (void)
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
 
+	// QVR: a save still being written in the background (a load right after a save) is finished first: read half
+	// written, it fails with "ED_ParseEntity: EOF without closing brace" (collectfx_test.sh's batched case found it)
+	Host_WaitForSaveThread ();
+
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
 
 	// Look for savefile in basedirs instead of gamedir

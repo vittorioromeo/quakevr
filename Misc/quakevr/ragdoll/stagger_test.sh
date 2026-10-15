@@ -22,6 +22,9 @@
 #   cost    6 grunts shoved at once (--exclusive): the drive's ms a frame and the physics step's, stagger 1 and 0
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
 CASES=${*:-rates steady backpedal getup taken lost judo cost}
 MONS=${MONS:-0 8 5 6 1 2}
@@ -30,7 +33,7 @@ PRE="sv_random_seed ${SEED:-7};map vrfiringrange;wait30;god;notarget;developer 1
 OUT="$TREE/scratch/stagger_test_out.txt"
 mkdir -p "$TREE/scratch"
 FAILS=0
-run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "$2" -Timeout 600 2>&1 | tr -d '\r'; }
+run() { tb_run_sh -Script "$1" -Filter "$2" -Timeout 600 2>&1 | tr -d '\r'; }
 verdict() { # verdict <ok 0/1> <what>
     if [ "$1" = 1 ]; then echo "  PASS $2"; else echo "  FAIL $2"; FAILS=$((FAILS + 1)); fi
 }
@@ -135,3 +138,6 @@ for c in $CASES; do
     esac
 done
 echo "stagger_test: $FAILS FAIL"
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

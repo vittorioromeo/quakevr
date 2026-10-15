@@ -117,6 +117,7 @@ int VR_ErrorDialogSuppressed (const char *errorMsg);	// PL_ErrorDialog: nonzero 
 // Start-up and map-load timing (vr_startup.cpp: vr_startup_times, vr_walltime).
 void VR_TimeStart (void);	// main, after Sys_Init: the process's start
 void VR_TimeInit (void);	// VR_Init: the commands
+void VR_TestConsolePrint (const char *text);	// Con_Printf (main thread): vr_waitprint's wait for a line (vr_testbatch.cpp)
 void VR_TimeMark (const char *stage);	// a stage of the start-up or of a map's load just ended
 void VR_TimeLoadBegin (const char *what);	// SV_SpawnServer, CL_ParseServerInfo: a map's load starts
 void VR_TimeLoadCommand (const char *what);	// map, changelevel, restart, load: the load's timing starts at the command (its spawn continues it)

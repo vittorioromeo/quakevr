@@ -290,4 +290,8 @@ public:
 // vr_mock_stick, vr_mock_hand, vr_mock_look.
 void registerMockCommands();
 
+// vr_test_reset (vr_testbatch.cpp): the mock backend's console-set state as at start-up (the poses, buttons, sticks,
+// glides, plays, aims, walks, turns, camera, and the scripted moves' velocities): a batched test's next case.
+void resetMockState();
+
 } // namespace qvr

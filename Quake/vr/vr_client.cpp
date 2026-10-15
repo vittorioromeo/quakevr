@@ -41,6 +41,7 @@
 #include "vr_comfortfade.hpp"
 #include "vr_deathview.hpp"
 #include "vr_teleport.hpp"
+#include "vr_testbatch.hpp"
 #include "vr_tips.hpp"
 #include "vr_throw.hpp"
 #include "vr_trace.hpp"
@@ -699,6 +700,7 @@ void init()
     shells::registerCommands();
     explosiondebris::registerCommands();
     srvrandom::registerCommands();
+    testbatch::registerCommands();
     serverrules::registerCommands();
     fireparticles::registerCommands();
     Cmd_AddCommand("vr_walltorch_tilt_test", walltorch::tiltTest);

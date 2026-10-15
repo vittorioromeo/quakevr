@@ -1346,6 +1346,8 @@ void Con_Printf (const char *fmt, ...)
 	if (!VR_OnMainThread ())
 		return;
 
+	VR_TestConsolePrint (msg); // QVR: vr_waitprint's wait for a line
+
 	if (!con_initialized)
 		return;
 

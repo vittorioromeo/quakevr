@@ -11,12 +11,14 @@
 # CASES picks some (default all). Lines: admtest/limbtest/decap/knockdown, errors.
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 MAP=${MAP:-start}
 CHOICES=${*:-200}
 CASES=${CASES:-spawn down downkill decap limbs corpse}
 PRE="skill 1;vr_campaign_native ad;wait30;map $MAP;wait60;god;notarget;developer 1;vr_decap_pop_roll 0;vr_test_spawn_dist 90;vr_knockdown_test 20;wait2"
 FILTER="${FILTER:-^admtest|^limbtest: .*(on monster|no monster)|^decap|beheaded|^knockdown: (knocked|.*gets up)|rror|CRASH|SV_Error|Host_Error}"
-run() { bash $KIT/run.sh $AGENT -Script "$1;wait5;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | grep -v "^$\|^exit=0"; }
+run() { tb_run_sh -Script "$1;wait5;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | grep -v "^$\|^exit=0"; }
 for c in $CHOICES; do
     SP="vr_test_spawn $c;impulse 241;wait60"
     for k in $CASES; do
@@ -34,3 +36,6 @@ for c in $CHOICES; do
         esac
     done
 done
+}
+source "$(dirname "$0")/testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

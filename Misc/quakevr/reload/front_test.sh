@@ -15,6 +15,9 @@
 # loose rounds' report, 16 tossed the wrong way round, 17/18 the held round at the load point the right/wrong way.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 REP="vr_reload_test 0;impulse 125;wait2"
@@ -46,54 +49,54 @@ for row in "158 grenade_launcher grenade" "159 proximity_launcher proximity" "16
     # 1. The pouch to the muzzle, right way up; then upside down: the hand pitched over (-130: TIP turned 180 degrees, the
     # round's nose to the muzzle; "50 0 180", a roll, left it 40 degrees off the right way with the hand's grip angle,
     # inside vr_reload_front_angle: taken, until 2026-10-09).
-    log=$(bash $KIT/run.sh $AGENT -Script "$S;$REP;$POUCH;$GRIP;$TIP;$REP;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$S;$REP;$POUCH;$GRIP;$TIP;$REP;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     check $(echo "$log" | grep -q "^reload: rockets 33 " && echo "$log" | grep -q "taken from the pouch" && echo 1 || echo 0) "$name: the pouch gives a $round, the reserve one less"
     check $([ "$(clip "$log")" = 1 ] && echo "$log" | grep -q "into hotspot 240" && echo 1 || echo 0) "$name: its butt to the muzzle: in, sliding in ($(last "$log" | cut -c9-40))"
-    log=$(bash $KIT/run.sh $AGENT -Script "$S;$POUCH;$GRIP;vr_mock_hand main 0.25 1.1 -0.3 -130 0 0;wait5;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$S;$POUCH;$GRIP;vr_mock_hand main 0.25 1.1 -0.3 -130 0 0;wait5;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     if [ $round = proximity ]; then
         check $([ "$(clip "$log")" = 1 ] && echo 1 || echo 0) "$name: held upside down it goes in all the same (a ball)"
     else
         check $([ "$(clip "$log")" = 0 ] && echo "$log" | grep -q "the wrong way round" && echo 1 || echo 0) "$name: held upside down (nose first) it is refused, a dull tap"
     fi
     # The held round at the load point by the test steps: the wrong way round, then the right way.
-    log=$(bash $KIT/run.sh $AGENT -Script "$S;$GRIP;vr_reload_test 1;impulse 125;wait3;vr_reload_test 18;impulse 125;wait3;vr_reload_test 17;impulse 125;wait10;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$S;$GRIP;vr_reload_test 1;impulse 125;wait3;vr_reload_test 18;impulse 125;wait3;vr_reload_test 17;impulse 125;wait10;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     want18=$([ $round = proximity ] && echo "loaded" || echo "not loaded")
     check $(echo "$log" | grep -q "held at the load point the wrong way round: $want18" && echo 1 || echo 0) "$name: test step 18 (the wrong way round): $want18"
     # 2. Loose: tossed butt first, nose first, sideways; dropped from above; on the floor, the launcher brought down.
-    log=$(bash $KIT/run.sh $AGENT -Script "$S;vr_reload_test 10;impulse 125;wait40;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$S;vr_reload_test 10;impulse 125;wait40;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     check $([ "$(clip "$log")" = 1 ] && echo 1 || echo 0) "$name: a $round tossed into the muzzle butt first goes in"
-    log=$(bash $KIT/run.sh $AGENT -Script "$S;vr_reload_test 16;impulse 125;wait40;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$S;vr_reload_test 16;impulse 125;wait40;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     want=$([ $round = proximity ] && echo 1 || echo 0)
     check $([ "$(clip "$log")" = $want ] && echo 1 || echo 0) "$name: tossed nose first: $([ $want = 1 ] && echo in || echo out)"
-    log=$(bash $KIT/run.sh $AGENT -Script "$S;vr_reload_test 11;impulse 125;wait40;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$S;vr_reload_test 11;impulse 125;wait40;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     if [ $round != proximity ]; then
         check $([ "$(clip "$log")" = 0 ] && echo 1 || echo 0) "$name: lying across the muzzle it stays out"
     fi
-    log=$(bash $KIT/run.sh $AGENT -Script "$(setup $gun "160 0 0");vr_reload_test 13;impulse 125;wait60;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$(setup $gun "160 0 0");vr_reload_test 13;impulse 125;wait60;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     check $([ "$(clip "$log")" = 1 ] && echo 1 || echo 0) "$name: dropped from above into the muzzle turned up"
     SLAM="45 0 0"
-    log=$(bash $KIT/run.sh $AGENT -Script "$(OFFZ=-0.2 setup $gun "$SLAM");vr_reload_test 12;impulse 125;wait90;vr_reload_test 14;impulse 125;$(push "$SLAM")wait10;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$(OFFZ=-0.2 setup $gun "$SLAM");vr_reload_test 12;impulse 125;wait90;vr_reload_test 14;impulse 125;$(push "$SLAM")wait10;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     check $([ "$(clip "$log")" = 1 ] && echo 1 || echo 0) "$name: lying on the floor, the launcher brought to it ($(echo "$log" | grep -m1 "^reload: loose" | cut -c9-80))"
 done
 
 # A rocket lying about, shot (test step 19): it goes off (the launcher grenade's blast), no round left.
-log=$(bash $KIT/run.sh $AGENT -Script "$(OFFZ=-0.2 setup 160 "45 0 0");vr_reload_test 12;impulse 125;wait60;vr_reload_test 19;impulse 125;wait30;$REP;toggleconsole;quit" -Filter "$F|set off" 2>&1)
+log=$(tb_run_sh -Script "$(OFFZ=-0.2 setup 160 "45 0 0");vr_reload_test 12;impulse 125;wait60;vr_reload_test 19;impulse 125;wait30;$REP;toggleconsole;quit" -Filter "$F|set off" 2>&1)
 check $(echo "$log" | grep -q "a rocket set off" && echo "$log" | grep -q "rockets [0-9]* .*, 0 rounds lying" && echo 1 || echo 0) "a rocket lying about, shot, goes off"
 
 # 3. The other ammo mode: the multi-grenade and the multi-rocket from the multi-rockets; a rocket into the grenade launcher.
 for row in "158 multi-grenade" "160 multi-rocket"; do
     set -- $row
-    log=$(bash $KIT/run.sh $AGENT -Script "$(setup $1 "140 0 0");give r 30;impulse 42;wait5;$REP;$POUCH;$GRIP;$TIP;$REP;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$(setup $1 "140 0 0");give r 30;impulse 42;wait5;$REP;$POUCH;$GRIP;$TIP;$REP;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     m0=$(echo "$log" | grep "^reload: rockets" | head -1 | sed -E 's/.*multi-rockets ([0-9]+).*/\1/')
     m1=$(echo "$log" | grep "^reload: rockets" | tail -1 | sed -E 's/.*multi-rockets ([0-9]+).*/\1/')
     check $(echo "$log" | grep -q "a $2 taken from the pouch" && [ $((m0 - m1)) = 1 ] && [ "$(clip "$log")" = 1 ] && echo 1 || echo 0) "the other ammo mode: a $2 from the pouch (multi-rockets $m0 -> $m1), loaded"
 done
-log=$(bash $KIT/run.sh $AGENT -Script "$(setup 160 "140 0 0");$GRIP;vr_reload_test 1;impulse 125;wait3;impulse 178;wait10;vr_reload_test 5;impulse 125;wait2;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+log=$(tb_run_sh -Script "$(setup 160 "140 0 0");$GRIP;vr_reload_test 1;impulse 125;wait3;impulse 178;wait10;vr_reload_test 5;impulse 125;wait2;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
 check $(echo "$log" | grep -q "a rocket taken" && [ "$(clip "$log")" = 0 ] && echo 1 || echo 0) "a rocket brought to the grenade launcher's muzzle stays out"
 
 # 4. Simple mode: the pouch gives nothing for a launcher; it reloads at the hip holster. vr_reload_front 0 likewise.
 for mode in "vr_reload_mode 2" "vr_reload_front 0"; do
-    log=$(bash $KIT/run.sh $AGENT -Script "$mode;$(setup 160 "140 0 0");$POUCH;$GRIP;$REP;vr_mock_button main grip 0;-grabmain;vr_mock_hand_to off holster 2;wait5;vr_mock_hand_to off holster 2;wait30;$REP;vr_reload_mode 3;vr_reload_front 1;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(tb_run_sh -Script "$mode;$(setup 160 "140 0 0");$POUCH;$GRIP;$REP;vr_mock_button main grip 0;-grabmain;vr_mock_hand_to off holster 2;wait5;vr_mock_hand_to off holster 2;wait30;$REP;vr_reload_mode 3;vr_reload_front 1;toggleconsole;quit" -Filter "$F" 2>&1)
     check $(! echo "$log" | grep -q "a rocket taken from the pouch" && [ "$(clip "$log")" = 4 ] && echo 1 || echo 0) "$mode: the pouch gives no rocket; the launcher reloads at the hip holster (clip $(clip "$log"))"
 done
 # 5. (the author's note vrfiringrange_2026-10-08_22-18-19) Every launcher round from the ammo pouch sits the same way in
@@ -108,7 +111,7 @@ for row in "158 0 grenade" "158 1 multi-grenade" "159 0 proximity" "160 0 rocket
     set -- $row
     multi=""; [ $2 = 1 ] && multi="give r 30;impulse 42;wait5;"
     for turn in "0 0 0" "30 40 -20" "-50 -30 60"; do
-        log=$(bash $KIT/run.sh $AGENT -Script "$(setup $1 "140 0 0");${multi}vr_mock_hand main 0.25 1.1 -0.3 $turn;wait5;$POUCH;$GRIP;$REP;toggleconsole;quit" -Filter "^grip: from the ammo pouch|taken from the pouch" 2>&1)
+        log=$(tb_run_sh -Script "$(setup $1 "140 0 0");${multi}vr_mock_hand main 0.25 1.1 -0.3 $turn;wait5;$POUCH;$GRIP;$REP;toggleconsole;quit" -Filter "^grip: from the ammo pouch|taken from the pouch" 2>&1)
         a=$(hold "$log")
         long=$(echo "$a" | awk -v m=$3 '{ if(m == "multi-grenade") print $4, $5, $6; else print $1, $2, $3 }')
         axes="$axes $3:[$long]"
@@ -118,6 +121,9 @@ for row in "158 0 grenade" "158 1 multi-grenade" "159 0 proximity" "160 0 rocket
     done
 done
 check $ok "every launcher round from the ammo pouch sits nose up in the hand, whatever the hand's turn ($axes)"
-log=$(bash $KIT/run.sh $AGENT -Script "$(HP=0 setup 160 "140 0 0");vr_mock_hand main 0.25 1.1 -0.3 30 40 -20;wait5;$POUCH;$GRIP;$REP;vr_reload_front_hold_pitch 90;toggleconsole;quit" -Filter "^grip: from the ammo pouch" 2>&1)
+log=$(tb_run_sh -Script "$(HP=0 setup 160 "140 0 0");vr_mock_hand main 0.25 1.1 -0.3 30 40 -20;wait5;$POUCH;$GRIP;$REP;vr_reload_front_hold_pitch 90;toggleconsole;quit" -Filter "^grip: from the ammo pouch" 2>&1)
 check $(hold "$log" | awk '{ print (NF == 6 && $1 > 0.99) ? 1 : 0 }') "Round In Hand Pitch 0: the rocket along the hand's forward ($(hold "$log"))"
 exit $fail
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

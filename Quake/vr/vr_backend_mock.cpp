@@ -23,6 +23,7 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -1318,6 +1319,10 @@ bool mockCameraSet = false;
 glm::vec3 mockCameraPos{0.f};
 glm::quat mockCameraRot{1.f, 0.f, 0.f, 0.f};
 
+// resetMockState's calls so far: the backend's own scripted moves (their velocities, the shake) start again when it
+// sees a new count (MockBackend::beginFrame).
+za::U64 mockResetCount = 0;
+
 void mockCamera_f()
 {
     if(Cmd_Argc() == 1)
@@ -1465,6 +1470,16 @@ public:
             endFrame(false); // the previous frame was not rendered (as OpenXR's backend ends it)
         }
         frameBegun = true;
+        if(seenResets != mockResetCount)
+        {
+            // resetMockState (vr_test_reset): the scripted moves as a new backend's
+            seenResets = mockResetCount;
+            za::fill(handMotion, ScriptedMotion{});
+            za::fill(handTurn, ScriptedTurn{});
+            headMotion = ScriptedMotion{};
+            shake.start = -1.0;
+            shake.frame = -10;
+        }
 
         glm::vec3 playVel[HAND_COUNT + 1], playAngVel[HAND_COUNT + 1];
         bool played[HAND_COUNT + 1]{};
@@ -1752,6 +1767,7 @@ private:
         double start{-1.0}; // realtime when the shake started (vr_mock_shake)
         int frame{-10};      // the last frame it moved the head (host_framecount): a gap starts it again
     } shake;
+    za::U64 seenResets = 0; // mockResetCount when the scripted moves last started again
 };
 
 } // namespace
@@ -1789,6 +1805,38 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_camera", mockCamera_f);
     Cmd_AddCommand("vr_mock_fingers", mockFingers_f);
     Cmd_AddCommand("vr_mock_play", mockPlay_f);
+}
+
+void resetMockState()
+{
+    mockInput = InputState{};
+    za::fill(mockHandPos, glm::vec3{0.f});
+    za::fill(mockHandSet, false);
+    za::fill(mockHandRot, glm::quat{1.f, 0.f, 0.f, 0.f});
+    za::fill(mockHandRotSet, false);
+    za::fill(handGlide, HandGlide{});
+    mockHeadOrientation = glm::quat{1.f, 0.f, 0.f, 0.f};
+    za::fill(playAnchor, glm::vec3{0.f});
+    za::fill(playAnchored, false);
+    for(za::Vector<PlayKey>& keys : playKeys)
+    {
+        keys.clear();
+    }
+    playButtons.clear();
+    for(za::Vector<PlayGrip>& grips : playGrips)
+    {
+        grips.clear();
+    }
+    playNextButton = 0;
+    playStart = -1.0;
+    playEnd = 0.0;
+    za::fill(mockAim, MockAim{});
+    mockWalk = MockWalk{};
+    mockTurn = MockTurn{};
+    mockCameraSet = false;
+    mockCameraPos = glm::vec3{0.f};
+    mockCameraRot = glm::quat{1.f, 0.f, 0.f, 0.f};
+    mockResetCount++;
 }
 
 za::UniquePtr<Backend> makeMockBackend()

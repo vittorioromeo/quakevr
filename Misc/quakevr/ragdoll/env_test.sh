@@ -20,6 +20,8 @@
 # EYES=1: a contact sheet per case and monster (the kit's scratch: env_<case>_<monster>.png), the frames 0.15 .. 2 s.
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
 CASES=${*:-wall along ledge thrown hit crate front open off}
 MONS=${MONS:-0 5}
@@ -52,7 +54,7 @@ one() { # one <case> <monster>
     else
         S="$S;vr_test_kill 1;wait${LEN:-500}"
     fi
-    bash $KIT/run.sh $AGENT -Script "$S;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
+    tb_run_sh -Script "$S;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
 }
 for c in $CASES; do
     echo "== $c"
@@ -95,7 +97,7 @@ if [ -n "$EYES" ]; then
             S="sv_random_seed ${SEED:-7};map vrtesthall;wait30;god;notarget;vr_ragdoll_active_seed ${SEED:-0};vr_ragdoll_active_debug ${OVERLAY:-0};${EXTRA:-};$(place $c);vr_test_spawn $m"
             S="$S;impulse 241;wait40;$CAM;wait3;vr_test_kill 1;wait7;screenshot"
             for w in 22 29 43 58 130; do S="$S;wait$w;screenshot"; done
-            bash $KIT/run.sh $AGENT -Clean -Script "$S;toggleconsole;quit" -Filter "exit=" -Timeout 300 >/dev/null 2>&1
+            tb_run_sh -Clean -Script "$S;toggleconsole;quit" -Filter "exit=" -Timeout 300 >/dev/null 2>&1
             D="$TREE/scratch/eyes_${c}_$(name $m)"
             mkdir -p "$D"
             cp "$SHOTS"/*.png "$D"/
@@ -104,3 +106,6 @@ if [ -n "$EYES" ]; then
     done
     $PY "$TREE/Misc/quakevr/ragdoll/env_sheet.py" "$KIT/scratch/env_sheet.png" 6 $ROWS && echo "sheet: $KIT/scratch/env_sheet.png"
 fi
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"
