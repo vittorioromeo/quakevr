@@ -560,6 +560,8 @@ struct RagdollBodies
     // Its middle's speed down (m/s, its parts' by their mass, a loose weapon not counted) before the step's piece
     // (noteFallSpeeds): a landing is no harder than its whole body comes down (touches: a fall's damage).
     float fallDown{0.f};
+    // Its middle's speed (m/s, any way) and its mass (kg) then, the same parts': an impact's measure (touches, Impacts).
+    float bodySpeed{0.f}, bodyMass{0.f};
     bool warnedUnstable{false}; // a part of it went faster than unstableSpeed (noteFallSpeeds said so)
     // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
     za::Array<float, ragdoll::maxBones> lift{};
@@ -698,6 +700,20 @@ struct Shock
     float speed{0.f}; // m/s, the contact points' approach
 };
 
+// A ragdoll's part striking the level hard, the part's hardest in a frame (touches; Impacts: QC VR_RagImpact_Hit).
+struct Impact
+{
+    int num{0};
+    glm::vec3 at{0.f};  // the contact point (units)
+    float speed{0.f};   // m/s: the part's approach, no faster than vr_ragimpact_whip times its whole body's speed
+    float raw{0.f};     // m/s: the part's approach
+    float mass{0.f};    // kg behind it: the part's, vr_ragimpact_body of the rest of the body (and a hand's, held)
+    float partMass{0.f};
+    float bodyMass{0.f};
+    bool held{false};   // a hand holds the part (it drives it)
+    int part{-1};       // which part (its ragdoll's body): each part's hardest strike kept
+};
+
 // A prop near a hand's body before a step, and its motion then (notePushed, limitPushes).
 struct Pushed
 {
@@ -774,6 +790,7 @@ struct World
     za::Vector<za::Pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
     za::Vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
     za::Vector<Shock> falls;  // knocked-down monsters' ragdolls hitting the level this frame (the hardest, vertically)
+    za::Vector<Impact> ragImpacts; // ragdolls' parts striking the level this frame (the hardest each: callRagImpacts)
     za::Vector<Pushed> pushed; // the props near the hands' bodies before this step (kept: no allocation a frame)
     struct PortalCopy
     {
@@ -5579,7 +5596,7 @@ bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
         return false; // (none, or holding already)
     }
     const int num = NUM_FOR_EDICT(corpse);
-    const RagdollBodies* r = ragdollOf(num);
+    RagdollBodies* r = ragdollOf(num);
     if(!r)
     {
         return false;
@@ -5600,6 +5617,17 @@ bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
     g.part = part;
     startHold(g, player, *r, b3Body_GetLocalPoint(r->body[static_cast<za::SizeT>(part)], world->toM(at)));
     world->ragdollGrabs.pushBack(g);
+    // Manhandled (vr_foegrab_manhandle_stagger): a living one staggering, taken by a hand, loses its footing and goes
+    // down (its stagger's fall: the QC's VR_Knockdown_Think sees it fallen, down its knockdown's time).
+    if(vr_foegrab_manhandle_stagger.value > 0.f && corpse->v.health > 0.f && r->active.on && r->active.stagger.on)
+    {
+        ragactive::lapse(r->active, activeParts(*r), qcvm->time);
+        if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
+        {
+            Con_Printf("manhandle: %d %s taken by hand %d staggering: it goes down\n", num, PR_GetString(corpse->v.classname),
+                hand);
+        }
+    }
     if(vr_debug_ragdoll.value)
     {
         Con_Printf("ragdoll: %d part %d (%s) taken by hand %d, %.1f units from its surface\n", num, part, r->rig->bones[part].name,
@@ -8604,12 +8632,13 @@ void noteFallSpeeds(float dt)
     const float gravity = za::max(-b3World_GetGravity(world->id).z, 0.f) * dt;
     for(RagdollBodies& r : world->ragdolls)
     {
-        r.fallDown = 0.f;
+        r.fallDown = r.bodySpeed = r.bodyMass = 0.f;
         if(r.num == 0 || !r.rig)
         {
             continue;
         }
         float mass = 0.f, down = 0.f;
+        b3Vec3 momentum = b3Vec3_zero;
         for(int b = 0; b < r.count; b++)
         {
             const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
@@ -8620,7 +8649,10 @@ void noteFallSpeeds(float dt)
             const float m = b3Body_GetMass(body);
             mass += m;
             down -= b3Body_GetLinearVelocity(body).z * m;
+            momentum = b3MulAdd(momentum, m, b3Body_GetLinearVelocity(body));
         }
+        r.bodyMass = mass;
+        r.bodySpeed = mass > 0.f ? b3Length(momentum) / mass : 0.f;
         // A part far faster than anything throws one (unstableSpeed): the ragdoll shaking itself apart (a judo-thrown
         // mummy's tucked flesh, welded in its chest, whirling: ragdoll::derive's looseSpeck). Said once a ragdoll, nothing
         // changed (its landings still count; the cause is to be found).
@@ -8650,6 +8682,86 @@ void noteFallSpeeds(float dt)
             }
         }
         r.fallDown = mass > 0.f ? za::max(down / mass + gravity, 0.f) : 0.f;
+    }
+}
+
+// Impacts (vr_ragimpact; QC vr_ragimpact.qc): a ragdoll's part striking the level (the world, a door, a fixture) at
+// vr_ragimpact_min_speed or more (vr_ragimpact_held_speed for a part a hand holds), each part's hardest this frame by its
+// speed times the mass behind it. Its speed: the part's approach, no faster than vr_ragimpact_whip times its body's before
+// the step (noteFallSpeeds: a limb or a welded sword whipping into the floor on a throw is no blow), unless a hand holds
+// the part (it drives it: a head held and slammed, the body dragged after it). The mass behind it: the part's, plus
+// vr_ragimpact_body of the rest of its body, plus vr_ragimpact_held_mass for a hand's (your arm's) driving it. Not a
+// loose weapon, nor a body staggering or getting up (its steps). The QC judges which bodies count and deals the damage
+// (callRagImpacts).
+void noteRagImpacts(const b3ContactEvents& events)
+{
+    const float least = za::max(vr_ragimpact_min_speed.value, 0.5f);
+    const float leastHeld = za::max(vr_ragimpact_held_speed.value, 0.25f);
+    if(vr_ragimpact.value == 0.f)
+    {
+        return;
+    }
+    const auto kindAt = [](int n) { return n > 0 && n < static_cast<int>(world->slots.size()) ? world->slots[n].kind : Kind::None; };
+    for(int i = 0; i < events.hitCount; i++)
+    {
+        const b3ContactHitEvent& e = events.hitEvents[i];
+        if(e.approachSpeed < za::min(least, leastHeld) || !b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB))
+        {
+            continue;
+        }
+        for(int side = 0; side < 2; side++)
+        {
+            const b3ShapeId shape = side ? e.shapeIdB : e.shapeIdA;
+            const int a = numOf(shape), b = numOf(side ? e.shapeIdA : e.shapeIdB);
+            const Kind level = kindAt(b);
+            if(kindAt(a) != Kind::Corpse || world->slots[a].ragdoll < 0 || (b != 0 && level != Kind::Mover && level != Kind::Fixture))
+            {
+                continue;
+            }
+            const RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(world->slots[a].ragdoll)];
+            if(!r.rig || (r.active.on && (r.active.rise.on || r.active.stagger.on)))
+            {
+                continue;
+            }
+            const b3BodyId body = b3Shape_GetBody(shape);
+            int part = -1;
+            for(int k = 0; k < r.count && part < 0; k++)
+            {
+                if(B3_ID_EQUALS(r.body[static_cast<za::SizeT>(k)], body))
+                {
+                    part = k;
+                }
+            }
+            if(part < 0 || r.rig->bones[part].joint == ragdoll::Joint::Loose)
+            {
+                continue;
+            }
+            // (A part a hand holds is driven by the hand, not whipped: a head held and slammed into a wall, the body
+            // dragged after it slowly.)
+            const bool held = za::findIf(world->ragdollGrabs.begin(), world->ragdollGrabs.end(),
+                                  [a, part](const World::RagdollGrab& g) { return g.num == a && g.part == part; }) !=
+                              world->ragdollGrabs.end();
+            const float partMass = b3Body_GetMass(body);
+            const float speed =
+                held ? e.approachSpeed : za::min(e.approachSpeed, r.bodySpeed * za::max(vr_ragimpact_whip.value, 1.f));
+            const float mass = partMass + za::clamp(vr_ragimpact_body.value, 0.f, 1.f) * za::max(r.bodyMass - partMass, 0.f) +
+                               (held ? za::clamp(vr_ragimpact_held_mass.value, 0.f, 200.f) : 0.f);
+            if(speed < (held ? leastHeld : least))
+            {
+                continue;
+            }
+            const Impact hit{a, world->toU(e.point), speed, e.approachSpeed, mass, partMass, r.bodyMass, held, part};
+            auto it = za::findIf(world->ragImpacts.begin(), world->ragImpacts.end(),
+                [a, part](const Impact& s) { return s.num == a && s.part == part; });
+            if(it == world->ragImpacts.end())
+            {
+                world->ragImpacts.pushBack(hit);
+            }
+            else if(speed * mass > it->speed * it->mass)
+            {
+                *it = hit;
+            }
+        }
     }
 }
 
@@ -8742,6 +8854,7 @@ void touches(za::Vector<za::Pair<int, int>>& out)
             }
         }
     }
+    noteRagImpacts(events);
     // A prop that wants to know how hard it hits (.vr_impact): its hardest hit on anything (the level too).
     const int impactField = fields().vr_impact;
     if(impactField < 0)
@@ -8817,6 +8930,42 @@ void callFalls()
         }
     }
     world->falls.clear();
+}
+
+// The ragdolls' parts' hardest strikes on the level this frame (noteRagImpacts, a part's each), to QC's
+// VR_RagImpact_Hit(entity m, vector at, float speed, float mass, float raw, float held): it judges and deals them.
+void callRagImpacts()
+{
+    const func_t fn = world->ragImpacts.empty() ? 0 : qvr::progs::findFunction("VR_RagImpact_Hit");
+    for(const Impact& hit : world->ragImpacts)
+    {
+        if(!fn || hit.num >= qcvm->num_edicts)
+        {
+            continue;
+        }
+        edict_t* ent = EDICT_NUM(hit.num);
+        if(ent->free)
+        {
+            continue;
+        }
+        if(vr_knockdown_debug.value >= 2.f)
+        {
+            Con_Printf("ragdoll impact: %d %s at %.1f m/s (%.1f raw), %.1f kg behind it (its part %.1f of %.1f%s)\n", hit.num,
+                PR_GetString(ent->v.classname), hit.speed, hit.raw, hit.mass, hit.partMass, hit.bodyMass, hit.held ? ", held" : "");
+        }
+        QcCallGuard guard;
+        pr_global_struct->time = qcvm->time;
+        G_INT(OFS_PARM0) = EDICT_TO_PROG(ent);
+        G_FLOAT(OFS_PARM1 + 0) = hit.at.x;
+        G_FLOAT(OFS_PARM1 + 1) = hit.at.y;
+        G_FLOAT(OFS_PARM1 + 2) = hit.at.z;
+        G_FLOAT(OFS_PARM2) = hit.speed;
+        G_FLOAT(OFS_PARM3) = hit.mass;
+        G_FLOAT(OFS_PARM4) = hit.raw;
+        G_FLOAT(OFS_PARM5) = hit.held ? 1.f : 0.f;
+        PR_ExecuteProgram(fn);
+    }
+    world->ragImpacts.clear();
 }
 
 // The props' hardest hits this frame, to their .vr_impact (QC: an explosive box hit hard enough takes damage).
@@ -15017,6 +15166,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
         callShocks();
         callFalls();
+        callRagImpacts();
         watchInside();
         physsound::frameEnd(); // the frame's knocks and scrapes
 

@@ -387,7 +387,7 @@ def case_neck():
         ("knocked_cw", 0, "kd", 75, 0.2, 1, "y", None, "", "snap"),
         ("knocked_ccw", 0, "kd", 75, 0.2, -1, "y", None, "", "snap"),
         ("stagger", 0, "stagger", 75, 0.2, 1, "y", None,
-         "vr_knockdown_chance 0.01;vr_ragdoll_active_stagger_travel 0.03", "snap"),
+         "vr_knockdown_chance 0.01;vr_ragdoll_active_stagger_travel 0.03;vr_foegrab_manhandle_stagger 0", "snap"),
         ("lifted", 0, GRUNT_SHOULDERS, 75, 0.2, 1, "y", "up", "", "snap"),
         ("pp_fwd", 0, GRUNT_HEAD, 20, 0.3, 1, "pp", None, "", "snap"),
         ("pp_back", 0, GRUNT_HEAD, 20, 0.3, -1, "pp", None, "", "snap"),
