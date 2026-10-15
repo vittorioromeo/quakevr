@@ -503,6 +503,7 @@ using PageBuilder = za::Vector<Item> (*)();
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageVrsHud();
+[[nodiscard]] za::Vector<Item> pageVrsAppearance();
 [[nodiscard]] za::Vector<Item> pageColours();
 [[nodiscard]] za::Vector<Item> pageBulletTime();
 [[nodiscard]] za::Vector<Item> pageStamina();
@@ -1874,12 +1875,10 @@ int campaignsBloodyShown = -1;
         open("Arms and Pauldrons", pageIndex(pageBodyArms)),
         open("Body Calibration", pageIndex(pageBodyCalibration)),
         header("Body"),
-        open("Body and Build: Body and Display", pageIndex(pageBodyDisplay)).help("The body on or off and its build are on Body and Display."),
-        toggle("Bracers", vr_body_bracers)
-            .help("The leather bracers on your forearms. Off: bare forearms with the wrist gadget strapped round the skin, running "
-                  "on into the hands (with the jointed hand, vr_hand_rig 1: the default)."),
-        slider("Skin Tone", vr_skin_tone, -1.f, 1.f, 0.05f, "%.2f")
-            .help("Darken or lighten the skin on your hands and arms in both bracer modes. Zero keeps your painted skin. Blood, nails, clothes and gadgets keep their own colours."),
+        open("Body: Body and Display", pageIndex(pageBodyDisplay)).help("The body on or off is on Body and Display."),
+        open("Build, Skin, Bracers, Gloves: Player Appearance", pageIndex(pageVrsAppearance))
+            .help("How you look: the body's build, the skin tone, the bracers, gloves and their colour, the pauldrons (VR "
+                  "Settings > Player Appearance)."),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s").extend()
             .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
@@ -2213,10 +2212,8 @@ void armsResetTweaks()
         slider("Tuck Fades By", vr_body_elbow_tuck_far, 0.4f, 1.2f, 0.05f, "%.2f arm")
             .help("Not tucked at all with the wrist this far from the shoulder (times the arm's length)."),
         header("Pauldrons"),
-        toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
-        cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
-            .help("Armour colour: green, yellow or red as the armour you wear (leather without)."),
-        slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx").extend(0.25f, 4.f),
+        open("Pauldrons, Style, Size: Player Appearance", pageIndex(pageVrsAppearance))
+            .help("The pauldrons on or off, their style and size are on VR Settings > Player Appearance; their fit here."),
         slider("Pauldron Follows Arm", vr_body_pauldron_follow, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much the shoulder cap turns with the upper arm (the lower plates follow the arm fully)."),
         slider("Pauldron Forward", vr_body_pauldron_forward, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
@@ -8401,13 +8398,15 @@ const Page pages[] = {
     {"VR Settings - Body and Flashlight", pageVrsBodyFlashlight, pageMain, LevelStandard},
     {"VR Settings - HUD, Haptics and Sound", pageVrsHudHapticsSound, pageMain, LevelStandard},
     {"VR Settings - Display and Graphics", pageVrsDisplayGraphics, pageMain, LevelStandard},
+    {"VR Settings - Player Appearance", pageVrsAppearance, pageMain, LevelStandard}, // (ROUND22.md, "Gloves; Player Appearance")
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
 // pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
 const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsHolsters, pageVrsAmmoPouch, pageVrsLocoControls,
-    pageVrsComfortTurning, pageVrsWeaponsBulletTime, pageVrsBodyFlashlight, pageVrsHudHapticsSound, pageVrsDisplayGraphics};
+    pageVrsComfortTurning, pageVrsWeaponsBulletTime, pageVrsBodyFlashlight, pageVrsAppearance, pageVrsHudHapticsSound,
+    pageVrsDisplayGraphics};
 
 [[nodiscard]] bool vrSettingsPage(int p)
 {
@@ -9031,6 +9030,9 @@ za::Vector<Item> pageMain()
             .help("Holding the grip or sticky, two-handed guns, the reloading mode, and what starts and stops bullet time."),
         open("Body and Flashlight", pageIndex(pageVrsBodyFlashlight))
             .help("How much of your body you see, the wrist gadget's arm, leaning, Reset Position, and the flashlight."),
+        open("Player Appearance", pageIndex(pageVrsAppearance))
+            .help("How you look: the body's build, the skin tone, bracers, gloves (none, fingerless or full, in any "
+                  "colour) and the pauldrons, in any combination."),
         open("HUD, Haptics and Sound", pageIndex(pageVrsHudHapticsSound))
             .help("The HUD's kind, the crosshair and Doom on the wrist gadget; how strongly the controllers vibrate; the "
                   "game's and the music's volume and spatial sound."),
@@ -9438,6 +9440,41 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
     return out;
 }
 
+// How you look: every cosmetic setting of the body and the hands, any combination of them (ROUND22.md, "Gloves;
+// Player Appearance"). Their one home: the Body pages link here.
+[[nodiscard]] za::Vector<Item> pageVrsAppearance()
+{
+    return {
+        header("Body"),
+        cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}})
+            .help("The shape of the body you see."),
+        slider("Skin Tone", vr_skin_tone, -1.f, 1.f, 0.05f, "%.2f")
+            .help("Darken or lighten the skin on your hands and arms (and the fingertips out of fingerless gloves). Zero "
+                  "keeps your painted skin. Blood, nails, clothes, gloves and gadgets keep their own colours."),
+        toggle("Bracers", vr_body_bracers)
+            .help("The leather bracers on your forearms. Off: bare forearms with the wrist gadget strapped round the skin, running "
+                  "on into the hands (with the jointed hand, vr_hand_rig 1: the default)."),
+        header("Gloves"),
+        cycle("Gloves", vr_gloves, {{0.f, "None"}, {1.f, "Fingerless"}, {2.f, "Full"}})
+            .help("Leather gloves on your hands: fingerless ones leave the fingertips bare (in your skin tone); full ones "
+                  "cover every finger. With bare forearms (no bracers) a cuff covers the wrist. On the jointed hands "
+                  "(vr_hand_rig 1: the default)."),
+        slider("Glove Hue", vr_glove_hue, 0.f, 360.f, 5.f, "%.0f deg")
+            .help("The leather's colour round the colour wheel: 0 red, 25 brown, 60 yellow, 120 green, 240 blue, 300 "
+                  "purple."),
+        slider("Glove Saturation", vr_glove_saturation, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How strong the colour is: 0 grey, black or white leather; 1 the purest."),
+        slider("Glove Lightness", vr_glove_lightness, 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 black, 0.5 the colour at its fullest, 1 white. The hand's own creases and knuckles shade it."),
+        header("Pauldrons"),
+        toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
+        cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
+            .help("Armour colour: green, yellow or red as the armour you wear (leather without)."),
+        slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("Their size (scaled with the build too). Their fit: Advanced VR Options > Body > Arms and Pauldrons."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageVrsHudHapticsSound()
 {
     za::Vector<Item> out;
@@ -9481,8 +9518,8 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
                   "belt, one worn at your temple, on from the start: the trigger with an open hand at it switches it."),
         cycle("Body", vr_body_mode, {{0.f, "Only Hands"}, {2.f, "Torso and Arms"}, {3.f, "Full Body"}})
             .help("How much of your body you see: only the hands; the torso and arms; or all of it, legs and all."),
-        cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}})
-            .help("The shape of the body you see."),
+        open("Build: Player Appearance", pageIndex(pageVrsAppearance))
+            .help("The body's build, skin tone, bracers, gloves and pauldrons are on VR Settings > Player Appearance."),
         toggle("Holster Models", vr_leg_holster_model_enabled)
             .help("Draws the holsters on your body, with a gun in each one that holds one."),
         toggle("Hip Holster Weapons", vr_holster_weapons_draw_hip)

@@ -2495,11 +2495,24 @@ SPECULAR_AA_FUNCTIONS
 #define QVR_ALIAS_FS_LIGHT \
 "	Wounds wounds = WoundsAt(uv, result.rgb); // QVR: wounds painted on the model (vr/vr_wounds.cpp)\n" \
 "	vec4 tone = instances[in_instance].SkinTone;\n" \
-"	if (tone.w > 0.0) // QVR: skin only (vr_skin_tone): the skin's share of the look toned, painted blood/char keep their colour,\n" \
-"	{ // their soft edges blending in (no untoned ring)\n" \
+"	vec4 glove = instances[in_instance].Glove;\n" \
+"	if (tone.w > 0.0 || glove.w > 0.0) // QVR: skin only (vr_skin_tone): the skin's share of the look toned, painted blood/char keep their colour,\n" \
+"	{ // their soft edges blending in (no untoned ring); gloves (vr_gloves) over it, the skin toned where they leave it bare\n" \
 "		float skinShare = (1.0 - wounds.burn) * (1.0 - wounds.blood * instances[in_instance].WoundSide.w) * (1.0 - 0.5 * wounds.wet);\n" \
-"		vec3 toneMul = mix(vec3(1.0), tone.rgb, textureGrad(SkinMaskTex, uv, duvdx, duvdy).r);\n" \
-"		wounds.look += skinShare * result.rgb * (toneMul - 1.0);\n" \
+"		vec4 mask = textureGrad(SkinMaskTex, uv, duvdx, duvdy);\n" \
+"		float gm = glove.w > 1.5 ? mask.b : glove.w > 0.5 ? mask.g : 0.0; // make_skin_masks.py: 0.55 at the edge, 1 a hem inside\n" \
+"		float cover = smoothstep(0.3, 0.5, gm), hem = clamp((gm - 0.55) / 0.45, 0.0, 1.0);\n" \
+"		vec4 cuff = instances[in_instance].GloveCuff;\n" \
+"		if (glove.w > 0.0 && cuff.x > 0.0 && uv.x < cuff.x && uv.y < cuff.w) // a bare forearm's cuff, by the skin's rows\n" \
+"		{\n" \
+"			float fw = max(abs(duvdx.y), abs(duvdy.y)) + 1e-6;\n" \
+"			cover = smoothstep(-fw, fw, uv.y - cuff.y);\n" \
+"			hem = clamp((uv.y - cuff.y) / (cuff.z - cuff.y), 0.0, 1.0);\n" \
+"		}\n" \
+"		cover *= step(0.5, glove.w);\n" \
+"		vec3 toned = tone.w > 0.0 ? result.rgb * mix(vec3(1.0), tone.rgb, mask.r * (1.0 - cover)) : result.rgb;\n" \
+"		vec3 leather = glove.rgb * mix(1.0, 2.0 * mask.a, 0.85) * (1.0 - 0.4 * (1.0 - hem)); // the skin's own shading kept; its hem darker\n" \
+"		wounds.look += skinShare * (mix(toned, leather, cover) - result.rgb);\n" \
 "	}\n" \
 "	result.rgb = wounds.look;\n" \
 "#if ALPHATEST\n" \

@@ -116,6 +116,8 @@ typedef struct vraliasinstance_s
 	float		skintintrange[4]; // ... where in the skin: below u x, from v y (none) to z (all), below v w
 	float		skintone[4]; // skin-only tone: rgb multiplier, w enabled
 	float		hotblade[4]; // an incandescent blade's glow on its blade only: a plane in the pose's space, xyz . pose + w from 0 at its root to 1 (vr_hotblade.cpp; zero: all of it)
+	float		glove[4]; // gloves (vr_view.cpp gloveLook): the leather's rgb, w the skin mask's channel (1 fingerless G, 2 full B; 0 none)
+	float		glovecuff[4]; // ... a bare forearm's cuff in the body's skin: below u x, from v y, its hem to v z, below v w (zero: none)
 } vraliasinstance_t;
 struct gltexture_s *VR_AliasSkinMask (const struct entity_s *e);
 void VR_PrecacheSkinMasks (void);

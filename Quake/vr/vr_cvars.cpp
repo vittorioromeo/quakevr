@@ -773,8 +773,9 @@ const DefaultChange defaultChanges[] = {
     {137, &vr_foegrab_necksnap_window, "0.2"},       // 0.15
     {137, &vr_foegrab_necksnap_margin, "2"},         // 0
     {137, &vr_foegrab_necksnap_neck, "1.5"},         // 0
+    // 138: gloves (vr_gloves, vr_glove_*; ROUND22.md, "Gloves; Player Appearance"): new settings only, nothing to change.
 };
-constexpr int configVersion = 137;
+constexpr int configVersion = 138;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

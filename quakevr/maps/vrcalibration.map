@@ -839,7 +839,7 @@
 // entity 6
 {
 "classname" "func_worldtext_banner"
-"worldtext" "Hands: {menu:Hand/Gun Calibration}\nSeated? {menu:Body Calibration>Position}\nSkin: {menu:Body>Skin Tone}"
+"worldtext" "Hands: {menu:Hand/Gun Calibration}\nSeated? {menu:Body Calibration>Position}\nLook: {menu:VR Settings - Player Appearance}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "270"
