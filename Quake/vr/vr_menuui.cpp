@@ -50,7 +50,10 @@
 #include "vr_units.hpp"
 #include "vr_window.hpp"
 
+#include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
@@ -155,7 +158,11 @@ struct Hit
     glm::vec3 point{0.f};
     glm::vec2 uv{0.f};           // on the canvas, v up
     bool onRuntimePanel{false}; // on the runtime's own panel (the menus before a map): no world to draw the laser in
+    bool frame{false};          // not valid: just outside the panel, on its frame (a grip there moves it: PanelGrab)
 };
+
+// The panel's frame: a band this much of its height wide round it, where a grip takes hold of it.
+constexpr float frameBand = 0.08f;
 
 int pointingHand = HAND_MAIN;
 Hit hits[HAND_COUNT];
@@ -176,7 +183,8 @@ Highlight drawnHighlight, seenHighlight;
 // A hand's pointing ray in the world: the controller as tracked, aimed as a gun is (the hand calibration's pitch and
 // yaw: vr_gunangle, vr_offhandpitch), placed from the head. Not the hands' state's pose, which follows a held
 // weapon's weight in game time (frozen while a menu pauses the game).
-[[nodiscard]] bool pointerRay(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& dir)
+// With its whole orientation (`basis`: the pointing direction, left and up as columns), for holding the panel.
+[[nodiscard]] bool pointerFrame(const hands::State& s, int hand, glm::vec3& origin, glm::mat3& basis)
 {
     const TrackingState& t = tracking();
     if(!s.valid || !t.head.valid || !t.hands[hand].valid)
@@ -189,7 +197,20 @@ Highlight drawnHighlight, seenHighlight;
     const glm::quat aim = hands::aimedController(t.hands[hand].orientation, hand); // the calibration's pitch and yaw
 
     origin = s.head + hands::rotateYaw(quakeFromTracking(t.hands[hand].position - t.head.position) * units::metresToUnits(), turn);
-    dir = glm::normalize(hands::rotateYaw(quakeFromTracking(aim * glm::vec3{0.f, 0.f, -1.f}), turn));
+    const glm::vec3 fwd = glm::normalize(hands::rotateYaw(quakeFromTracking(aim * glm::vec3{0.f, 0.f, -1.f}), turn));
+    const glm::vec3 up = glm::normalize(hands::rotateYaw(quakeFromTracking(aim * glm::vec3{0.f, 1.f, 0.f}), turn));
+    basis = glm::mat3{fwd, glm::cross(up, fwd), up};
+    return true;
+}
+
+[[nodiscard]] bool pointerRay(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& dir)
+{
+    glm::mat3 basis;
+    if(!pointerFrame(s, hand, origin, basis))
+    {
+        return false;
+    }
+    dir = basis[0];
     return true;
 }
 
@@ -199,6 +220,7 @@ struct MockLaser
 {
     bool on{false};
     glm::vec2 spot{0.f};
+    bool frame{false}; // (vr_mock_laser frame: on the panel's frame, above its top edge's middle)
 };
 MockLaser mockLaser; // (the main hand's; the toolgun's panel has its own: vr_toolgun_mock_laser)
 
@@ -265,35 +287,150 @@ glm::vec2 runtimePanelUv[HAND_COUNT]{};
     {
         return intersectRuntimePanel(hand); // (the menu is not in the eyes)
     }
+    glm::vec2 uv{0.f};
+    glm::vec3 p{0.f};
     if(mockLaser.on && hand == HAND_MAIN)
     {
-        const glm::vec2 uv = mockLaserUv();
-        return {true, corner + xAxis * uv.x + yAxis * uv.y, uv};
+        uv = mockLaser.frame ? glm::vec2{0.5f, 1.f + frameBand * 0.5f} : mockLaserUv();
+        p = corner + xAxis * uv.x + yAxis * uv.y;
+        if(!mockLaser.frame)
+        {
+            return {true, p, uv}; // (wherever it is, as before)
+        }
     }
-    if(!pointerRay(s, hand, origin, dir))
+    else
     {
-        return hit;
+        if(!pointerRay(s, hand, origin, dir))
+        {
+            return hit;
+        }
+
+        const glm::vec3 normal = glm::cross(xAxis, yAxis);
+        const float along = glm::dot(dir, normal);
+        if(za::fabs(along) < 1e-6f)
+        {
+            return hit;
+        }
+        const float t = glm::dot(corner - origin, normal) / along;
+        if(t <= 0.f)
+        {
+            return hit;
+        }
+
+        p = origin + dir * t;
+        uv = {glm::dot(p - corner, xAxis) / glm::dot(xAxis, xAxis), glm::dot(p - corner, yAxis) / glm::dot(yAxis, yAxis)};
+    }
+    if(uv.x >= 0.f && uv.x <= 1.f && uv.y >= 0.f && uv.y <= 1.f)
+    {
+        return {true, p, uv};
     }
 
-    const glm::vec3 normal = glm::cross(xAxis, yAxis);
-    const float along = glm::dot(dir, normal);
-    if(za::fabs(along) < 1e-6f)
+    // Outside it: on its frame?
+    const float bandX = frameBand * glm::length(yAxis) / za::fmax(1e-3f, glm::length(xAxis));
+    if(uv.x >= -bandX && uv.x <= 1.f + bandX && uv.y >= -frameBand && uv.y <= 1.f + frameBand)
     {
-        return hit;
+        hit.frame = true;
+        hit.point = p;
+        hit.uv = uv;
     }
-    const float t = glm::dot(corner - origin, normal) / along;
-    if(t <= 0.f)
-    {
-        return hit;
-    }
+    return hit;
+}
 
-    const glm::vec3 p = origin + dir * t;
-    const glm::vec2 uv{glm::dot(p - corner, xAxis) / glm::dot(xAxis, xAxis), glm::dot(p - corner, yAxis) / glm::dot(yAxis, yAxis)};
-    if(uv.x < 0.f || uv.x > 1.f || uv.y < 0.f || uv.y > 1.f)
+// ----------------------------------------------------------------------------
+// Moving the panel (MULTI_MENU.md, stage 1): a grip with the laser on the panel's frame takes hold of it at once; on its
+// face (vr_menu_grab 2), once the hand has moved vr_menu_grab_deadzone cm with the grip held, the trigger not held and
+// no stick pushed (else the grip is the sliders' fine modifier, as before). Held, the panel keeps where it is from the
+// hand's laser (moved and turned with it, kept upright); let go, it stays there while the menus are open.
+// ----------------------------------------------------------------------------
+
+struct PanelGrab
+{
+    int hand{-1};                       // the hand holding the panel (-1: none)
+    bool pressTaken[HAND_COUNT]{};      // the grip's press took hold (its key not sent): its release is the grab's too
+    int armedHand{-1};                  // a grip pressed on the panel's face, not yet moved
+    glm::vec3 armedAt{0.f};             // where that hand was then
+    glm::vec3 armedSpot{0.f};           // and its laser on the panel
+    bool sticksMoved{false};            // a stick was pushed while it was armed: the fine modifier, not a grab
+    glm::vec3 centre{0.f}, right{0.f}, up{0.f}, spot{0.f}; // the panel and the laser's spot, in the hand's frame
+};
+PanelGrab panelGrab;
+
+void haptic(int hand, float seconds, float amplitude);
+
+[[nodiscard]] int grabMode()
+{
+    return static_cast<int>(vr_menu_grab.value);
+}
+
+// The panel taken by `hand`, its laser at `spot` (world).
+[[nodiscard]] bool takeHold(const hands::State& s, int hand, const glm::vec3& spot)
+{
+    glm::vec3 origin, corner, xAxis, yAxis;
+    glm::mat3 basis;
+    if(!pointerFrame(s, hand, origin, basis) || !panel::menuQuad(s, corner, xAxis, yAxis))
     {
-        return hit;
+        return false;
     }
-    return {true, p, uv};
+    const glm::mat3 toHand = glm::transpose(basis);
+    panelGrab.hand = hand;
+    panelGrab.centre = toHand * (corner + (xAxis + yAxis) * 0.5f - origin);
+    panelGrab.right = toHand * glm::normalize(xAxis);
+    panelGrab.up = toHand * glm::normalize(yAxis);
+    panelGrab.spot = toHand * (spot - origin);
+    pointingHand = hand;
+    return true;
+}
+
+// The held panel where the hand has it now, upright (its right edge level).
+void followHold(const hands::State& s)
+{
+    glm::vec3 origin;
+    glm::mat3 basis;
+    if(!pointerFrame(s, panelGrab.hand, origin, basis))
+    {
+        return;
+    }
+    glm::vec3 right = basis * panelGrab.right;
+    glm::vec3 up = basis * panelGrab.up;
+    const glm::vec3 facing = glm::normalize(glm::cross(up, right)); // (away from the viewer)
+    if(za::fabs(facing.z) < 0.98f)
+    {
+        right = glm::normalize(glm::cross(facing, glm::vec3{0.f, 0.f, 1.f}));
+        up = glm::cross(right, facing);
+    }
+    panel::placeMenu(s, origin + basis * panelGrab.centre, right, up);
+}
+
+void updateGrab(const hands::State& s, bool on)
+{
+    if(!on)
+    {
+        panelGrab.hand = -1;
+        panelGrab.armedHand = -1;
+        return;
+    }
+    if(const int h = panelGrab.armedHand; h >= 0)
+    {
+        glm::vec3 origin;
+        glm::mat3 basis;
+        if(panelGrab.sticksMoved || mouseHeld[h] || panelGrab.hand >= 0)
+        {
+            panelGrab.armedHand = -1;
+        }
+        else if(pointerFrame(s, h, origin, basis) &&
+                glm::distance(origin, panelGrab.armedAt) > za::fmax(0.f, vr_menu_grab_deadzone.value) * 0.01f * units::metresToUnits())
+        {
+            panelGrab.armedHand = -1;
+            if(takeHold(s, h, hits[h].valid ? hits[h].point : panelGrab.armedSpot))
+            {
+                haptic(h, 0.03f, 0.3f);
+            }
+        }
+    }
+    if(panelGrab.hand >= 0)
+    {
+        followHold(s);
+    }
 }
 
 // The spot as a window position (the canvas covers the 2D layer's viewport) to M_Mousemove: when
@@ -971,9 +1108,10 @@ void toggleSpectator(int hand)
 struct MenuUiScratch
 {
     za::Vector<gfx::Vertex> laser;
+    za::Vector<gfx::Vertex> frame; // (the panel's frame, lit under the laser or held)
     za::Vector<gfx::Vertex> preview;
     za::Vector<za::String> status;
-    auto members() { return qvr::mem::list(laser, preview, status); }
+    auto members() { return qvr::mem::list(laser, frame, preview, status); }
 };
 mem::Scratch<MenuUiScratch> scratch{"menu laser"};
 
@@ -1049,6 +1187,7 @@ void update(const hands::State& s)
     {
         hits[h] = on ? intersect(s, h) : Hit{};
     }
+    updateGrab(s, on);
 
     if(on && hits[pointingHand].valid)
     {
@@ -1116,7 +1255,13 @@ void mockLaser_f()
 {
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "off"))
     {
-        mockLaser.on = false;
+        mockLaser = {};
+        return;
+    }
+    if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "frame"))
+    {
+        mockLaser = {true, {0.f, 0.f}, true};
+        pointingHand = HAND_MAIN;
         return;
     }
     if(float x, y; Cmd_Argc() == 2 && (!q_strcasecmp(Cmd_Argv(1), "yes") || !q_strcasecmp(Cmd_Argv(1), "no")))
@@ -1199,7 +1344,7 @@ void mockLaser_f()
         return;
     }
     Con_Printf("vr_mock_laser <x> <y> | back | quicksave | quickload | main | search | console | settings | advanced | levels | maps | relighting | "
-               "checklist | spectator | recording | obs | kofi | update | yes | no | off: the main hand's laser on that spot of the menu "
+               "checklist | spectator | recording | obs | kofi | update | yes | no | frame | off: the main hand's laser on that spot of the menu "
                "(yes, no: a confirmation dialog's buttons)\n");
 }
 
@@ -1629,7 +1774,116 @@ void drawInEye(const hands::State& s)
         return;
     }
     const Hit hit = intersect(s, h);
-    drawLaser(start, hit.valid ? hit.point : start + dir * 30.f, hit.valid, mouseHeld[h], 1.f);
+
+    // The panel's frame lit while the laser is on it or the panel is held (where a grip takes hold of it).
+    const bool holding = panelGrab.hand == h;
+    if(glm::vec3 corner, xAxis, yAxis; (holding || hit.frame) && panel::menuQuad(s, corner, xAxis, yAxis))
+    {
+        za::Vector<gfx::Vertex>& vertices = scratch.frame;
+        vertices.clear();
+        const float band = frameBand * glm::length(yAxis);
+        const glm::vec3 x = glm::normalize(xAxis) * (band * 0.3f);
+        const glm::vec3 y = glm::normalize(yAxis) * (band * 0.3f);
+        const glm::vec3 c[4]{corner - x - y, corner + xAxis + x - y, corner + xAxis + yAxis + x + y, corner + yAxis - x + y};
+        const glm::vec4 colour = hue::color(vr_menu_laser_hue, 0.5f, 1.f, holding ? 0.9f : 0.6f);
+        for(int i = 0; i < 4; i++)
+        {
+            appendStrip(vertices, c[i], c[(i + 1) % 4], band * (holding ? 0.15f : 0.1f), colour, colour);
+        }
+        gfx::draw(vertices, gfx::sceneViewProjection(),
+            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
+    }
+
+    if(holding)
+    {
+        glm::vec3 origin;
+        glm::mat3 basis;
+        if(pointerFrame(s, h, origin, basis))
+        {
+            drawLaser(start, origin + basis * panelGrab.spot, true, true, 1.f);
+        }
+        return;
+    }
+    drawLaser(start, hit.valid || hit.frame ? hit.point : start + dir * 30.f, hit.valid || hit.frame, mouseHeld[h], 1.f);
+}
+
+bool gripButton(int hand, bool down)
+{
+    if(!down)
+    {
+        if(panelGrab.armedHand == hand)
+        {
+            panelGrab.armedHand = -1;
+        }
+        if(panelGrab.hand == hand)
+        {
+            panelGrab.hand = -1;
+        }
+        return za::exchange(panelGrab.pressTaken[hand], false);
+    }
+
+    const Hit& hit = hits[hand];
+    if(grabMode() <= 0 || !active() || M_WaitingForKeyBinding() || panelGrab.hand >= 0 || hit.onRuntimePanel)
+    {
+        return false;
+    }
+    if(hit.frame)
+    {
+        if(takeHold(hands::current(), hand, hit.point))
+        {
+            panelGrab.pressTaken[hand] = true;
+            haptic(hand, 0.03f, 0.3f);
+            return true;
+        }
+        return false;
+    }
+    glm::vec3 origin;
+    glm::mat3 basis;
+    if(grabMode() >= 2 && hit.valid && !mouseHeld[hand] && pointerFrame(hands::current(), hand, origin, basis))
+    {
+        panelGrab.armedHand = hand; // (the grip goes on to the menu: the fine modifier until the hand moves)
+        panelGrab.armedAt = origin;
+        panelGrab.armedSpot = hit.point;
+        panelGrab.sticksMoved = false;
+    }
+    return false;
+}
+
+void sticksPushed()
+{
+    if(panelGrab.armedHand >= 0)
+    {
+        panelGrab.sticksMoved = true;
+    }
+}
+
+bool panelHeld()
+{
+    return panelGrab.hand >= 0;
+}
+
+void panelPlace_f()
+{
+    if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "reset"))
+    {
+        panel::unplaceMenu();
+        return;
+    }
+    glm::vec3 corner, xAxis, yAxis;
+    const hands::State& s = hands::current();
+    if(!s.valid || !panel::menuQuad(s, corner, xAxis, yAxis))
+    {
+        Con_Printf("MENUPANEL not shown in the eyes\n");
+        return;
+    }
+    const glm::vec3 centre = corner + (xAxis + yAxis) * 0.5f;
+    const glm::vec3 facing = glm::normalize(glm::cross(yAxis, xAxis));
+    const glm::vec3 fromHead = centre - s.head;
+    Con_Printf("MENUPANEL placed %d held %d armed %d centre %.1f %.1f %.1f from head %.1f %.1f %.1f facing yaw %.1f pitch %.1f "
+               "size %.1f x %.1f\n",
+        panel::menuPlaced() ? 1 : 0, panelGrab.hand, panelGrab.armedHand, centre.x, centre.y, centre.z, fromHead.x, fromHead.y,
+        fromHead.z, glm::degrees(za::atan2(facing.y, facing.x)), glm::degrees(za::asin(CLAMP(-1.f, facing.z, 1.f))),
+        glm::length(xAxis), glm::length(yAxis));
 }
 
 void drawLaser(const glm::vec3& start, const glm::vec3& end, bool onPanel, bool held, float size)

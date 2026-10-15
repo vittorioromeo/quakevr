@@ -72,6 +72,18 @@ bool panelWasVisible = false;
 float panelYawOffset = 0.f;
 double panelInEyesTime = -1.0; // when the panel was last shown in the eyes
 
+// The menu panel moved by a hand (menuui's grab: placeMenu), kept while it stays open: its middle from the player's box
+// (playerOrigin) and its axes, in the play space (turned back by its yaw: it turns and walks with the player). Not
+// placed: in front of the head as above.
+struct MenuPlacement
+{
+    bool placed{false};
+    glm::vec3 offset{0.f};
+    glm::vec3 right{0.f, -1.f, 0.f};
+    glm::vec3 up{0.f, 0.f, 1.f};
+};
+MenuPlacement menuPlacement;
+
 // The in-game HUD panel follows the head, smoothly.
 bool hudAnglesValid = false;
 glm::vec2 hudAngles{0.f}; // pitch, yaw
@@ -193,6 +205,25 @@ void drawFacing(const hands::State& s, const glm::vec3& angles, float height, co
 [[nodiscard]] glm::vec3 menuAngles()
 {
     return {0.f, panelYawOffset + hands::playSpaceYaw(), 0.f};
+}
+
+// The menu panel's quad: where a hand put it, else in front of the head.
+void menuPanelQuad(const hands::State& s, glm::vec3& corner, glm::vec3& xAxis, glm::vec3& yAxis)
+{
+    const float height = panelHeight();
+    if(!menuPlacement.placed)
+    {
+        facingQuad(s, menuAngles(), height, corner, xAxis, yAxis);
+        return;
+    }
+    const float turn = hands::playSpaceYaw();
+    const float width = height * static_cast<float>(canvas.width) / static_cast<float>(canvas.height > 0 ? canvas.height : 1);
+    const glm::vec3 right = hands::rotateYaw(menuPlacement.right, turn);
+    const glm::vec3 up = hands::rotateYaw(menuPlacement.up, turn);
+    const glm::vec3 centre = s.playerOrigin + hands::rotateYaw(menuPlacement.offset, turn);
+    corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
+    xAxis = right * width;
+    yAxis = up * height;
 }
 
 // The status bar's rectangle in the canvas (u0, v0, u1, v1; v up), and how many of its 48
@@ -350,6 +381,7 @@ void drawInEye(const hands::State& s, bool headText)
     if(visible && !panelWasVisible)
     {
         panelYawOffset = s.headAngles.y - hands::playSpaceYaw();
+        menuPlacement.placed = false; // (opened again: in front of the head)
     }
     panelWasVisible = visible;
 
@@ -377,7 +409,9 @@ void drawInEye(const hands::State& s, bool headText)
     }
     hudAnglesValid = false;
 
-    drawFacing(s, menuAngles(), panelHeight());
+    glm::vec3 corner, xAxis, yAxis;
+    menuPanelQuad(s, corner, xAxis, yAxis);
+    drawCanvas(gfx::sceneViewProjection() * quad(corner, xAxis, yAxis));
     panelInEyesTime = realtime;
     menuui::drawInEye(s); // the laser pointer, over the panel
 }
@@ -389,8 +423,25 @@ bool menuQuad(const hands::State& s, glm::vec3& corner, glm::vec3& xAxis, glm::v
     {
         return false;
     }
-    facingQuad(s, menuAngles(), panelHeight(), corner, xAxis, yAxis);
+    menuPanelQuad(s, corner, xAxis, yAxis);
     return true;
+}
+
+void placeMenu(const hands::State& s, const glm::vec3& centre, const glm::vec3& right, const glm::vec3& up)
+{
+    const float turn = hands::playSpaceYaw();
+    menuPlacement = {true, hands::rotateYaw(centre - s.playerOrigin, -turn), hands::rotateYaw(right, -turn),
+        hands::rotateYaw(up, -turn)};
+}
+
+void unplaceMenu()
+{
+    menuPlacement.placed = false;
+}
+
+bool menuPlaced()
+{
+    return menuPlacement.placed;
 }
 
 bool statusBarOnHand()
