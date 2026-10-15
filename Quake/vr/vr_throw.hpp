@@ -31,6 +31,11 @@ struct Estimate
     float nudge{0.f};      // slow motion: how far it was a nudge, as strong as at full speed (vr_throw_slowmo_short_travel)
     float travel{0.f};     // ... the stroke's path (metres) and length (real seconds) that told
     float strokeTime{0.f};
+    // vr_throw_slowmo_stroke: the multiple of the controller's real speed thrown (1 to 1/timescale; under strokeGain's
+    // when capped), the stroke's tempo (real seconds: its path over its peak) and peak speed (real m/s); 0: not so.
+    float gain{0.f};
+    float tempo{0.f};
+    float peak{0.f};
 };
 
 // A hand's motion at a sample: its world position, velocity, spin and (unit) aim direction, along which the held

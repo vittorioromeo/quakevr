@@ -367,6 +367,7 @@ struct Stroke
 {
     float path{0.f};
     float duration{0.f};
+    float peak{0.f}; // the controller's fastest speed in the release's window (real m/s)
 };
 
 constexpr float strokeStop = 0.2f;       // of the peak's speed
@@ -410,7 +411,44 @@ constexpr double strokeLookback = 2.0;   // real seconds
     }
     out.path /= units::metresToUnits();
     out.duration = static_cast<float>((own.at(last).time - own.at(first).time) / real);
+    out.peak = peakSpeed * static_cast<float>(real);
     return out;
+}
+
+// vr_throw_slowmo_stroke (ROUND22.md, "Bullet-time throws: the stroke's tempo"): in slow motion the controller's
+// samples are in the game's time, 1/scale times its real speed. A throw made at real speed (a flick, a toss to re-grip,
+// a quick lob) is taken at its real speed: as small as it was made. The full-strength throw made slowly with the
+// slowed world is taken at its game-time speed: as at full speed. Which, its stroke tells without a threshold: its
+// tempo, its path up to the release over its peak speed (real seconds; it grows with the time the stroke took, but
+// unlike that is not moved by where the speed's edges fell), against the tempo a stroke of its path has at real speed:
+// vr_throw_slowmo_stroke_time for a full arm's (strokeFullPath to the release), shorter ones quicker (a toss's
+// strokeShortTempo of it). One that many times longer was made that many times slower, its speed raised as much (the
+// gain), from 1 up to 1/scale: a stroke slowed so ends up at about the speed the same stroke has at real speed, however
+// slowly it was made (a slow 5 cm toss is still a 5 cm toss). Continuous in the motion: no threshold to cross.
+// The synthetic strokes (stroke_sweep_test.sh, flick_slowmo_test.sh) at real speed: flicks, nudges and lobs 0.02 to
+// 0.10 s for 2 to 40 cm, overhands (53 cm) 0.09 and 0.12 s (with the wrist); made 3.3 times slower, 3.2 times that.
+constexpr float strokeFullPath = 0.5f;    // metres
+constexpr float strokeShortTempo = 0.6f;  // of vr_throw_slowmo_stroke_time, a stroke of no path's
+
+struct Gain
+{
+    float gain{1.f};  // the real speed's multiple (1 to 1/scale)
+    float tempo{0.f}; // the stroke's (real seconds)
+};
+
+[[nodiscard]] Gain strokeGain(const Stroke& stroke, double real)
+{
+    Gain g;
+    g.tempo = stroke.peak > 1e-3f ? stroke.path / stroke.peak : 0.f;
+    if(vr_throw_slowmo_real_strength.value != 0.f || real >= 1.0)
+    {
+        return g;
+    }
+    const float most = 1.f / static_cast<float>(real);
+    const float quick = za::max(vr_throw_slowmo_stroke_time.value, 1e-3f) *
+                        (strokeShortTempo + (1.f - strokeShortTempo) * stroke.path / strokeFullPath);
+    g.gain = za::clamp(g.tempo / quick, 1.f, most);
+    return g;
 }
 
 // The windows' clock for a throw released at `releaseTime`, from its controller's own samples `own` (in step with the
@@ -721,6 +759,44 @@ void push(History& h, const Sample& s)
     return out;
 }
 
+// vr_throw_slowmo_stroke: a throw in slow motion (clockRate() `real` under 1) from the slowed hand's samples `hand`
+// (where and when the object leaves it, as drawn) and its controller's own `own` (the way, speed and spin: the slowed
+// hand lags it and is capped at vr_timescale_hand_speed, _spin). The controller's game-time speed times the time scale
+// is its real one; times strokeGain's too, the throw's. The windows are the same multiple of the game's time (real
+// seconds for a stroke at real speed, the game's for one made slowly with the world: the same part of the arc as at
+// full speed). A raised throw is capped at vr_throw_slowmo_max_speed, never under its real speed.
+[[nodiscard]] Estimate strokeEstimate(const History& hand, const History& own, double releaseTime, float leverArm, bool wrist, double real)
+{
+    const Stroke stroke = strokeOf(own, releaseTime, real);
+    const Gain g = strokeGain(stroke, real);
+    float k = static_cast<float>(real) * g.gain; // of the game-time velocity
+    Estimate e = releasePeak(hand, releaseTime, leverArm, wrist, k);
+    const Estimate o = sameSamples(hand, own) ? e : releasePeak(own, releaseTime, leverArm, wrist, k);
+    if(const float speed = glm::length(o.vel) * k, cap = vr_throw_slowmo_max_speed.value; g.gain > 1.f && cap > 0.f && speed > cap)
+    {
+        k = za::max(k * cap / speed, static_cast<float>(real));
+    }
+    if(const float speed = glm::length(e.vel), ownSpeed = glm::length(o.vel); speed > 1e-4f && ownSpeed > 1e-4f)
+    {
+        e.aimTurn = glm::degrees(za::acos(za::clamp(glm::dot(e.vel, o.vel) / (speed * ownSpeed), -1.f, 1.f)));
+    }
+    e.vel = o.vel * k;
+    e.angVel = o.angVel * k;
+    e.flick = o.flick * k;
+    if(hand.count > 0)
+    {
+        e.lag = glm::length(posAt(own, e.time) - posAt(hand, e.time)) / units::metresToUnits();
+    }
+    e.rate = static_cast<float>(real) * g.gain;
+    e.flickRate = k;
+    e.travel = stroke.path;
+    e.strokeTime = stroke.duration;
+    e.gain = k / static_cast<float>(real);
+    e.tempo = g.tempo;
+    e.peak = stroke.peak;
+    return e;
+}
+
 // estimateBothAt: the hands' samples `h0` and `h1` of the same frames, as the held object's (`centre` metres from the
 // middle of the hands), into `both`.
 void bothSamples(const History& h0, const History& h1, const glm::vec3& centre, History& both)
@@ -803,6 +879,10 @@ Estimate estimateAt(int hand, double releaseTime)
     }
 
     const History& own = ownHistories[hand];
+    if(const double real = clockRate(); real < 1.0 && vr_throw_slowmo_stroke.value != 0.f)
+    {
+        return strokeEstimate(h, own, releaseTime, vr_throw_lever_arm.value, true, real);
+    }
     const Tempo tempo = motionRate(own, releaseTime, vr_throw_lever_arm.value, true);
     Estimate e = releasePeak(h, releaseTime, vr_throw_lever_arm.value, true, tempo.rate);
     e.rate = static_cast<float>(tempo.rate);
@@ -820,6 +900,10 @@ Estimate estimateBothAt(double releaseTime, const glm::vec3& centre)
         return {};
     }
     bothSamples(ownHistories[0], ownHistories[1], centre, ownBothHistory);
+    if(const double real = clockRate(); real < 1.0 && vr_throw_slowmo_stroke.value != 0.f)
+    {
+        return strokeEstimate(bothHistory, ownBothHistory, releaseTime, 0.f, false, real);
+    }
     const Tempo tempo = motionRate(ownBothHistory, releaseTime, 0.f, false);
     Estimate e = releasePeak(bothHistory, releaseTime, 0.f, false, tempo.rate);
     e.rate = static_cast<float>(tempo.rate);
