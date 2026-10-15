@@ -8,31 +8,18 @@
 {
     return {
         toggle("Soldiers Drop Their Guns", "vr_adgun_drops")
-            .help("Arcane Dimensions' armed soldiers drop their gun as they die (Quake VR's weapon of its kind, or "
-                  "their own: below). Their own guns are single use, their rounds (or fuel) their own, never refilled; "
-                  "empty, still a club. The plain soldier and enforcer drop the grunt's burst rifle and the enforcer's "
-                  "laser rifle. Off: they drop nothing."),
-        toggle("Drop Quake VR's Weapons", "vr_adgun_ours")
-            .help("What they drop is Quake VR's own weapon of its kind (its model, projectiles, effects and physics, "
-                  "loaded, refilled from your ammo): the rocket and grenade soldiers your launchers, the defender the "
-                  "super shotgun, the plasma soldier, eliminator and centurion the laser cannon. The pyro's "
-                  "flamethrower and the fumigator's sprayer stay theirs (no kind of ours). Off: Arcane Dimensions' "
-                  "own guns (the settings below)."),
+            .help("Arcane Dimensions' armed soldiers drop their own gun as they die: single use, its rounds (or fuel) its "
+                  "own, never refilled; empty, it is still a club. Where Quake VR has a gun of its kind, its shots are "
+                  "ours (the grenade launcher's grenades, the rocket launcher's rockets, our tracers and impacts); its "
+                  "look and rate of fire stay its own. The plain soldier and enforcer drop the grunt's burst rifle and "
+                  "the enforcer's laser rifle. Off: they drop nothing."),
         header("Rocket Soldier's Launcher"),
-        slider("Direct Hit", "vr_adgun_rocket_damage", 0.f, 150.f, 1.f, "%.0f").extend(0.f, 500.f)
-            .help("A rocket's damage to what it strikes (Arcane Dimensions' soldier's: 25)."),
-        slider("Blast", "vr_adgun_rocket_splash", 0.f, 150.f, 1.f, "%.0f").extend(0.f, 500.f)
-            .help("Its blast round where it strikes, falling off with distance (not on what it hit). 0: none."),
-        slider("Rocket Speed", "vr_adgun_rocket_speed", 200.f, 2000.f, 25.f, "%.0f u/s").extend(100.f, 5000.f),
-        slider("Rockets", "vr_adgun_rocket_ammo", 1.f, 20.f, 1.f, "%.0f").extend(1.f, 100.f),
+        slider("Rockets", "vr_adgun_rocket_ammo", 1.f, 20.f, 1.f, "%.0f").extend(1.f, 100.f)
+            .help("The rockets it holds. They are your rocket launcher's rockets (speed, hit, blast: Weapon Damage)."),
         slider("Time Between Shots", "vr_adgun_rocket_refire", 0.1f, 3.f, 0.05f, "%.2f s").extend(0.05f, 10.f),
         header("Grenade Soldier's Launcher"),
-        slider("Blast", "vr_adgun_grenade_damage", 0.f, 150.f, 1.f, "%.0f").extend(0.f, 500.f)
-            .help("A grenade's blast (Arcane Dimensions' monster grenades: 40; your launcher's: 120)."),
-        slider("Grenade Speed", "vr_adgun_grenade_speed", 200.f, 1500.f, 25.f, "%.0f u/s").extend(100.f, 3000.f),
-        slider("Fuse", "vr_adgun_grenade_fuse", 0.5f, 5.f, 0.1f, "%.1f s").extend(0.2f, 10.f)
-            .help("How long a grenade bounces about before it goes off. A monster it strikes sets it off at once."),
-        slider("Grenades", "vr_adgun_grenade_ammo", 1.f, 20.f, 1.f, "%.0f").extend(1.f, 100.f),
+        slider("Grenades", "vr_adgun_grenade_ammo", 1.f, 20.f, 1.f, "%.0f").extend(1.f, 100.f)
+            .help("The grenades it holds. They are your grenade launcher's grenades (size, bounce, fuse, blast)."),
         slider("Time Between Shots", "vr_adgun_grenade_refire", 0.1f, 3.f, 0.05f, "%.2f s").extend(0.05f, 10.f),
         header("Plasma Soldier's Rifle"),
         slider("Bolt Hit", "vr_adgun_plasma_damage", 0.f, 100.f, 1.f, "%.0f").extend(0.f, 500.f),

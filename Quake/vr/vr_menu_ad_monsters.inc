@@ -69,6 +69,10 @@
         command("Fire Each Gun at a Target", "vr_ad_test 70")
             .help("Each gun into your main hand, fired at a target ahead: what it dealt (adgun test: lines)."),
         command("Drop Each Gun", "vr_ad_test 71").help("Each gun dropped from a soldier's place: its model and clip."),
+        command("Their Shots Leaving the Muzzle", "vr_ad_test 90")
+            .help("The grenade soldier's launcher fired beside yours (the same grenade?), the rocket soldier's and a "
+                  "plasma rifle: each shot 0.3 s on, still flying and clear of the muzzle (adgun shots: lines). Aim "
+                  "level."),
         command("Gun Models", "vr_adgun_models").help("The guns made from AD's monster models: triangles, box, muzzle."),
         command("Stand-In Gun Model", "vr_ad_test 89")
             .help("A gun model the engine cannot make (another AD release): Quake VR's stand-in loads under its name."),

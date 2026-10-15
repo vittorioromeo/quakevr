@@ -6618,3 +6618,41 @@ grunt's head with one hand and slam it on the floor or a wall 3-4 times: it dies
 a knocked-down one from a high ledge: the part you land on is crushed. Shove a grunt and grab it with one hand within a
 second or so: it goes down in your hand; same for one badly hurt; a healthy one you just hold. Combat > Knockdowns >
 Impacts and Holding Enemies > Grab While Staggered/When Weak to tune."
+
+## AD soldiers' guns: their own again, our shots inside (worktree `profilemulti`, branch `agent/adguns2`, 2026-10-15)
+
+**Supersedes** "AD soldiers' drops" in "AD stealth, AD soldiers' drops, Armagon's torso..." above (that section is left
+as reviewed). His words: "I want the soldier's drops to be their own single-use weapons. They should look and feel
+different, but also share some properties with our guns (e.g. the grenades shot by the soldier's grenade launcher should
+be the same, not the old and blocky ones)."
+
+- **Reverted:** `vr_adgun_ours` (cvar, the "Drop Quake VR's Weapons" row, adbugs_tests.sh's two variants): every armed AD
+  soldier drops its own single-use gun again (`VR_ADGun_ForClass`). Kept from that round: AD stealth, Armagon's torso,
+  the range's laser cannons. `vr_ad_test 71` still drops by soldier class.
+- **Shared with ours** (each gun keeps its model, sound, rate of fire, rounds and single use; ARCANE_DIMENSIONS.md 17.6
+  has the table): the grenade soldier's launcher fires our grenade and the rocket soldier's our rocket, through the
+  launchers' own code, split out of `W_FireGrenade`/`W_FireRocket` as `VR_FireGrenadeMissile`/`VR_FireRocketMissile`
+  (model, size, bounce, fuse, blast, damage settings, muzzle clearance, catchability); the plasma rifle and the
+  eliminator's and centurion's guns keep AD's bolt (the Plasma Gun's) with our hit (positional damage, prop push,
+  sparks); the defender's shotgun already fired our pellets (`FireBullets`); the pyro's and fumigator's streams stay AD's
+  (no kind of ours; the pyro's already sets our burning). Gone with them: `vr_adgun_rocket_damage/_splash/_speed` and
+  `vr_adgun_grenade_damage/_speed/_fuse` (and their six menu rows: the shots are ours, tuned by Weapon Damage);
+  ammo and time between shots stay per gun.
+- **The muzzle self-touch:** measured by `vr_ad_test 90` (new; Debug > AD's "Soldiers' Guns" > "Their Shots Leaving
+  the Muzzle"; the QC counter `vr_owner_touches` in `VR_OwnerSpared`). A launched grenade (ours as much as AD's old one)
+  is touched by its firer 1-2 times as it leaves the muzzle: the engine's body touch (`VR_TouchLinks`) meets the
+  catchable grenade's box inside the player's; every such touch is spared by `VR_OwnerSpared` and does nothing.
+  Rockets and plasma bolts: 0. So the touch was not the stick, and nothing in it needed changing; AD's old grenade had a
+  drawn box of 19x8x8 units against ours' 6x2x2, and is no longer fired. Headless, at four hand poses (level, low,
+  raised, pointed down), the AD gun's grenade is 99-181 units out and flying 0.3 s on, as ours; no stick reproduced with
+  the old model either (it may have been its look). His headset check decides.
+
+Verified: build 0 warnings; `vr_ad_test 71` 8/8 (each class its own gun, its clip); `vr_ad_test 90` 7/7 (the AD
+grenade: `progs/grenade.mdl`, box 6.3x2.3x2.2, bounce, fuse 2.50, 600 u/s, GrenadeTouch/GrenadeExplode, the same as the
+grenade launcher's; 179 units out 0.3 s on; rocket `progs/missile.mdl` 1000 u/s; plasma bolt with our touch);
+`vr_ad_test 70` 8/8 (grenade 104 dealt, our blast); killed rocket and grenade soldiers drop their own launchers (5, 6
+rounds); e1m1 smoke clean; menu paths 0 missing. Rerun: `Misc/quakevr/adbugs_tests.sh <agent> guns`.
+
+Checklist (proposed): "AD soldiers' guns: kill a grenade soldier and fire his launcher: Quake VR's grenades leave the
+muzzle cleanly, bounce and go off as your launcher's, from his own gun (6 shots, then spent); the rocket soldier's fires
+your rockets; plasma soldiers' rifles fire AD's bolts that spark and push props; each still looks like his gun."

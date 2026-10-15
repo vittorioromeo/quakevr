@@ -54,7 +54,7 @@ void() AD_MenuAmmoReport =
 void(float request, entity p) AD_RulesTest =
 {
     if(request >= 61 && request <= 64) { AD_WorldTest(request, p); return; } // AD support
-    if(request >= 70 && request <= 89) { AD_GunTest(request, p); return; } // the AD soldiers' guns (vr_ad_enemyguns.qc)
+    if(request >= 70 && request <= 90) { AD_GunTest(request, p); return; } // the AD soldiers' guns (vr_ad_enemyguns.qc)
 
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;
