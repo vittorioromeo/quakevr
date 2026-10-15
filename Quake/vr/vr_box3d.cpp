@@ -13311,6 +13311,12 @@ namespace
            world->slots[num].kind == Kind::Corpse && world->slots[num].corpseDynamic && B3_IS_NON_NULL(world->slots[num].body);
 }
 
+// A walked-through ragdoll's nudge (vr_box3d_walk_nudge): the limbs his legs overlap go along his pace at this share of
+// his speed, at most walkNudgeSpeed, pushed at most this much harder than the floor's friction holds them.
+constexpr float walkNudgeShare = 0.3f;
+constexpr float walkNudgeSpeed = 0.6f; // m/s
+constexpr float walkNudgeAccel = 3.f;  // m/s^2
+
 // A nonblocking corpse still feels feet walking through it. Apply a gentle,
 // bounded horizontal nudge to nearby limbs without changing player collision.
 void nudgeWalkedRagdolls(float dt)
@@ -13332,23 +13338,34 @@ void nudgeWalkedRagdolls(float dt)
         if(speed < 0.05f) { continue; }
         pace = glm::normalize(pace);
         const glm::vec3 lo = vec(e->v.absmin), hi = vec(e->v.absmax);
+        const float legs = lo.z + 0.5f * (hi.z - lo.z); // (his legs: the lower half of his box)
+        const float target = za::min(speed * walkNudgeShare, walkNudgeSpeed); // m/s
+        const float g = -b3World_GetGravity(world->id).z;
         for(size_t num = svs.maxclients + 1; num < world->slots.size(); num++)
         {
             const RagdollBodies* r = ragdollOf(static_cast<int>(num));
             if(!r) { continue; } // (its parts are dynamic bodies whatever Corpse Collision is)
+            int nudged = 0;
             for(int part = 0; part < r->count; part++)
             {
                 const b3BodyId b = r->body[static_cast<za::SizeT>(part)];
                 const b3AABB box = b3Body_ComputeAABB(b);
                 const glm::vec3 a = world->toU(box.lowerBound), z = world->toU(box.upperBound);
-                if(a.x > hi.x || z.x < lo.x || a.y > hi.y || z.y < lo.y || a.z > hi.z || z.z < lo.z - 2.f) { continue; }
+                if(a.x > hi.x || z.x < lo.x || a.y > hi.y || z.y < lo.y || a.z > legs || z.z < lo.z - 2.f) { continue; }
                 const float along = glm::dot(glmv(b3Body_GetLinearVelocity(b)), pace);
-                const float target = za::min(speed * 0.3f, 0.6f);
-                if(along < target)
-                {
-                    const float change = za::min(target - along, 3.f * dt);
-                    b3Body_ApplyLinearImpulseToCenter(b, b3v(pace * (b3Body_GetMass(b) * change)), true);
-                }
+                if(along >= target) { continue; }
+                // (Its friction with the floor first, then walkNudgeAccel: at walkNudgeAccel alone (3 m/s^2) a limb lying
+                // on the floor (friction 0.8 with its 0.6, ~7 m/s^2) never slid, and the nudge never showed.)
+                b3ShapeId shape;
+                const float mu = b3Body_GetShapes(b, &shape, 1) == 1 ? b3Shape_GetFriction(shape) : 0.8f;
+                const float change = za::min(target - along, (mu * g + walkNudgeAccel) * dt);
+                b3Body_ApplyLinearImpulseToCenter(b, b3v(pace * (b3Body_GetMass(b) * change)), true);
+                nudged++;
+            }
+            if(nudged && vr_debug_box3d.value >= 2.f)
+            {
+                Con_Printf("box3d: player %d walking at %.1f m/s nudges %d parts of %d towards %.2f m/s\n", player, speed, nudged,
+                    static_cast<int>(num), target);
             }
         }
     }

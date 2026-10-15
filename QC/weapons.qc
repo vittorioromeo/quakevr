@@ -6033,7 +6033,6 @@ void() forcegrabbable_touch =
 {
     if(self.owner != world && other == self.owner)
         return;
-
     if(other.solid == SOLID_TRIGGER)
         return;    // trigger field, do nothing
 

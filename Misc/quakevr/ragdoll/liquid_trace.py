@@ -62,7 +62,10 @@ if swim:
 driven = [r['t'] for r in rows if max(r['str']) > 0.005 or r['pin'] > 0]
 quiet = max(1.5, (max(driven) + 0.5) if driven else 0.0)
 late = [r for r in rows if r['t'] > quiet]
-ke = max((r['ke'] for r in late), default=0.0)
+# (The energy left from the drive: not while the pelvis still sinks (over 0.5 units a traced frame): an armoured knight
+# going limp near the top sinks at ~1.3 m/s, 83 J, and reached the bottom 0.06 s after the quiet began: a FAIL.)
+sinking = set(i for i in range(1, len(rows)) if rows[i - 1]['z'] - rows[i]['z'] > 0.5)
+ke = max((r['ke'] for i, r in enumerate(rows) if r['t'] > quiet and i not in sinking), default=0.0)
 spin = max((r['spin'] for r in late), default=0.0)
 ke_all = max(r['ke'] for r in rows)
 out.append('driven %.2f s' % (max(driven) if driven else 0.0))
