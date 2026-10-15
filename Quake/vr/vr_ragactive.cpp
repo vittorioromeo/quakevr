@@ -150,7 +150,7 @@ void pushPart(const Parts& p, int b, const glm::vec3& f)
     const ragdoll::Bone& bone = p.rig->bones[b];
     const b3JointId j = s.joint[static_cast<za::SizeT>(b)];
     return bone.parent >= 0 && (bone.joint == ragdoll::Joint::Ball || bone.joint == ragdoll::Joint::Hinge) && !cut(p, b) &&
-           !cut(p, bone.parent) && B3_IS_NON_NULL(j) && b3Joint_IsValid(j);
+           !cut(p, bone.parent) && (p.loose & (1u << b)) == 0u && B3_IS_NON_NULL(j) && b3Joint_IsValid(j);
 }
 
 [[nodiscard]] glm::quat bodyRot(const Parts& p, int b)

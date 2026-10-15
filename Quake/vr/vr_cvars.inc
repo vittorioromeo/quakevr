@@ -2361,7 +2361,8 @@ QVR_CVAR(vr_knockdown_time_max, "4.5", CVAR_ARCHIVE)      // and at most (at ran
 QVR_CVAR(vr_knockdown_hit_time, "0.5", CVAR_ARCHIVE)      // seconds each hit while down adds (not past Time Max from the hit)
 QVR_CVAR(vr_knockdown_retry, "0.5", CVAR_ARCHIVE)         // seconds between tries to get up where there is no room
 QVR_CVAR(vr_knockdown_search, "48", CVAR_ARCHIVE)         // how far (units) from the body it looks for room to stand
-QVR_CVAR(vr_knockdown_water_search, "256", CVAR_ARCHIVE) // ... lying in water, slime or lava: how far it looks for a floor where its head is out (shallows, the bank: box3d standSpot)
+QVR_CVAR(vr_knockdown_water_search, "256", CVAR_ARCHIVE) // ... a knockdown swimming in water, slime or lava: how far it looks for a floor where its head is out to paddle to (shallows, the bank: box3d livingSwim); it gets up within vr_knockdown_search of where it floats
+QVR_CVAR(vr_knockdown_water_climb, "48", CVAR_ARCHIVE)   // ... getting up in a liquid: how far (units) over its pelvis the floor it gets up onto may be (higher: carried down there, it swims up first or gets up where it floats)
 QVR_CVAR(vr_knockdown_water_giveup, "3", CVAR_ARCHIVE)   // ... none found for this long (s) after its time to get up: it gets up where it floats, a walking monster again (and sinks); 0: never
 QVR_CVAR(vr_knockdown_blend, "0.35", CVAR_ARCHIVE)        // seconds the body blends from the ragdoll into the get-up
 QVR_CVAR(vr_knockdown_getup_speed, "1", CVAR_ARCHIVE)     // the get-up's frames' speed (1: Quake's 10 a second)
@@ -2933,6 +2934,10 @@ QVR_CVAR(vr_foegrab_necksnap_volume, "1", CVAR_ARCHIVE)    // the crack's volume
 QVR_CVAR(vr_foegrab_necksnap_debug, "0", CVAR_NONE)       // 1: the neck snap's diagnostic over the held (or nearest) humanoid: its head zone, where each hand holds, the hand line's twist against Twist Angle; each hold's largest turn printed (vr_foegrab.cpp neckDebugDraw)
 QVR_CVAR(vr_foegrab_necksnap_strength, "1.25", CVAR_ARCHIVE) // the most each hand holds the limp body with afterwards, a share of its weight (above 0.5 two hands carry it)
 QVR_CVAR(vr_foegrab_necksnap_hertz, "24", CVAR_ARCHIVE)   // Hz: how stiffly its head follows the hands afterwards (the hold's spring: the light head bears the body's weight, it sags less the stiffer)
+QVR_CVAR(vr_foegrab_necksnap_loose, "1", CVAR_ARCHIVE)    // 1: a snapped neck's ragdoll joints (its head's up to its chest) go loose (box3d ragdollNeckSnapped): its head flops
+QVR_CVAR(vr_foegrab_necksnap_cone, "120", CVAR_ARCHIVE)   // degrees: a snapped neck's swing limit (a living neck's: the rig's, 45 for the grunt; past about 120 the head sinks into its chest, which it never meets)
+QVR_CVAR(vr_foegrab_necksnap_twist, "140", CVAR_ARCHIVE)  // degrees: a snapped neck's twist limit either way (a living neck's: 50 for the grunt)
+QVR_CVAR(vr_foegrab_necksnap_friction, "0.1", CVAR_ARCHIVE) // a snapped neck's joint friction, a share of the body's (no spring: nothing holds the head up)
 QVR_CVAR(vr_foegrab_throw_grace, "0.75", CVAR_ARCHIVE)    // s: the thrown enemy's ragdoll passes through your hands (and your body: vr_box3d_throw_grace_body) this long; 0: they knock it as it goes
 QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds taken and let go (and why); 2: and each held frame
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)
