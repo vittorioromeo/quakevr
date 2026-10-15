@@ -150,9 +150,9 @@ board(N.join(["VR TEST HALL", "", "The buttons on the walls change the main",
 board(N.join(["West: turning, moving, body, HUD.", "East: a pool. North-east: climbing.",
               "North-west: things to pick up."]), 0, -144, 62, 270, "0.3")
 board(N.join(["CALIBRATE AGAIN", "START CALIBRATION: all of it.", "", "Body only:", "{menu:Body Calibration}", "",
-              "Height only:", "{menu:VR Settings - Height Calibration>Set Height Now}"]), 88, -288, 104, 180, "0.2")
+              "Height only:", "{menu:VR Settings - Height and Hand Calibration>Set Height Now}"]), 88, -288, 104, 180, "0.2")
 board(N.join(["MOVING AND TURNING", "", "SWAP STICKS: the right stick moves.", "",
-              "More: {menu:VR Settings - Turning>Turning Mode}", "and {menu:Locomotion}"]),
+              "More: {menu:VR Settings - Comfort, Teleport and Turning>Turning Mode}", "and {menu:Locomotion}"]),
       PANEL_X + 1, -224, 136, 0, "0.3")
 board(N.join(["BODY AND DISPLAY", "", "Gadget arm, torch side and more:", "{menu:Body and Display}", "",
               "Hands not where your controllers are?", "{menu:Hand/Gun Calibration}"]),

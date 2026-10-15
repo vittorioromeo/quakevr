@@ -918,7 +918,7 @@
 // entity 21
 {
 "classname" "func_worldtext_banner"
-"worldtext" "CALIBRATE AGAIN\nSTART CALIBRATION: all of it.\n\nBody only:\n{menu:Body Calibration}\n\nHeight only:\n{menu:VR Settings - Height Calibration>Set Height Now}"
+"worldtext" "CALIBRATE AGAIN\nSTART CALIBRATION: all of it.\n\nBody only:\n{menu:Body Calibration}\n\nHeight only:\n{menu:VR Settings - Height and Hand Calibration>Set Height Now}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.2"
 "angle" "180"
@@ -927,7 +927,7 @@
 // entity 22
 {
 "classname" "func_worldtext_banner"
-"worldtext" "MOVING AND TURNING\n\nSWAP STICKS: the right stick moves.\n\nMore: {menu:VR Settings - Turning>Turning Mode}\nand {menu:Locomotion}"
+"worldtext" "MOVING AND TURNING\n\nSWAP STICKS: the right stick moves.\n\nMore: {menu:VR Settings - Comfort, Teleport and Turning>Turning Mode}\nand {menu:Locomotion}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "0"

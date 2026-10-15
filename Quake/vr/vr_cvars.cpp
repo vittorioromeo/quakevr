@@ -766,8 +766,11 @@ const DefaultChange defaultChanges[] = {
         "monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_dcrossbow "
         "monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz "
         "monster_ranged_knight infected"},
+    // 135: the biosuit glow as he tuned it (ROUND22.md, "VR Settings submenus merged").
+    {135, &vr_suit_glow, "1"},                       // 2
+    {135, &vr_suit_glow_light, "1"},                 // 2
 };
-constexpr int configVersion = 134;
+constexpr int configVersion = 135;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
