@@ -3682,7 +3682,7 @@ void hologramTestMessage()
             .help("How deep your hand may sink into what it grips before it is moved out."),
         slider("Fingers Out: Step", vr_grip_fit_step, 0.25f, 5.f, 0.25f, "%.2f cm")
             .help("How far it is moved out at most per step."),
-        slider("Fingers Out: Most Steps", vr_grip_fit_steps, 1.f, 64.f, 1.f, "%.0f")
+        slider("Fingers Out: Most Steps", vr_grip_fit_steps, 1.f, 32.f, 1.f, "%.0f")
             .help("How many steps at most; if it still doesn't fit, the shallowest place found is kept."),
         slider("Fingers Out: Most Move", vr_grip_fit_max, 0.f, 30.f, 1.f, "%.0f cm")
             .help("How far it is moved in all at most (0: no limit)."),

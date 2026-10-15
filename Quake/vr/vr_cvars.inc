@@ -2191,7 +2191,7 @@ QVR_CVAR(vr_held_fit_gap, "0", CVAR_ARCHIVE)          // with it: cm between the
 QVR_CVAR(vr_grip_fit, "1", CVAR_ARCHIVE)              // once per grab: a prop the posed hand (palm, fingers) sinks into past vr_grip_fit_depth is moved out along its escape direction, in steps, and held there (vr_gripfit.cpp; 0: off)
 QVR_CVAR(vr_grip_fit_depth, "2.5", CVAR_ARCHIVE)      // with it: cm the hand may sink into a prop's collision shape before it is moved
 QVR_CVAR(vr_grip_fit_step, "1", CVAR_ARCHIVE)         // with it: cm, the most it is moved per step
-QVR_CVAR(vr_grip_fit_steps, "12", CVAR_ARCHIVE)       // with it: the most steps (1..64); the best place found is kept if none fits
+QVR_CVAR(vr_grip_fit_steps, "12", CVAR_ARCHIVE)       // with it: the most steps (1..32); the best place found is kept if none fits
 QVR_CVAR(vr_grip_fit_max, "10", CVAR_ARCHIVE)         // with it: cm, the most it is moved in all (0: no cap)
 QVR_CVAR(vr_carry_grab_bias, "0", CVAR_ARCHIVE)       // cm: a hand takes a box, gib, backpack or armour if its fist (the palm and the curled fingers) is within this of the thing's drawn surface (negative: pressed that far into it; vr_held.cpp grabTouch)
 QVR_CVAR(vr_carry_grab_drawn, "1", CVAR_ARCHIVE)      // 1: the explosive boxes (carried, not force-grabbable) are taken by the fist against their drawn surface too, as everything else carried (vr_carry_grab_bias; with vr_box3d_hand_push_fist, your own hands); 0: by the hand's 5-unit box against their entity box (the old: taken with the fist up to 12 cm off)

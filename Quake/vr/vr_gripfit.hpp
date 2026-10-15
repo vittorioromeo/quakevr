@@ -12,7 +12,7 @@
 // deepest's alone if those cancel). Each step moves the hand along it (the prop the other way) by vr_grip_fit_step at
 // most (no more than takes it to the allowed depth), measured again; the shallowest place found is kept.
 //
-// No allocation (fixed arrays: 160 spheres, 256 faces, 16 hulls); a few microseconds even at 64 steps (vr_grip_fit_last
+// No allocation (fixed arrays: 160 spheres, 256 faces, 16 hulls; spheres the most move cannot bring into it left out, a face loop left at the first face a sphere is clear of); tens of microseconds at most even at 32 steps (vr_grip_fit_last
 // times it); nothing at all between grabs. Only the local player's hands are known (a listen server; elsewhere it does
 // nothing). Not for weapons (they are held by their own grips), nor a prop whose grip is Fixed or Along the Handle (its
 // place in the hand is authored), nor a hand grenade or round from a pouch.
