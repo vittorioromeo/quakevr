@@ -69,6 +69,15 @@ constexpr float nearReach = 64.f;  // units: monsters this far out of a player's
     return vr_foegrab_step_in.value != 0.f;
 }
 
+constexpr float maxStepInDepth = 32.f; // units: vr_foegrab_step_in_depth's most
+constexpr float minCapHalf = 1.f;      // units: a capped pair hull's least level half width
+
+// vr_foegrab_step_in_depth: how deep a player's own moves go into an enemy his hand holds (0: no cap).
+[[nodiscard]] float stepInDepth()
+{
+    return za::clamp(vr_foegrab_step_in_depth.value, 0.f, maxStepInDepth);
+}
+
 [[nodiscard]] bool anyOn()
 {
     return insetSetting() > 0.f || stepInOn();
@@ -126,6 +135,25 @@ void pairHull(edict_t* mover, edict_t* touch, const float* mins, const float* ma
     {
         hullMins[i] = t[i] - mx[i];
         hullMaxs[i] = tx[i] - m[i];
+    }
+}
+
+// The step in cap (vr_foegrab_step_in_depth): a player's own move against an enemy his hand holds, step in on and the
+// cap set. Its moves (foegrab's follow and pull, a throw) and other pairs pass as step in has them.
+[[nodiscard]] bool capped(edict_t* mover, edict_t* touch)
+{
+    return stepInOn() && stepInDepth() > 0.f && clientOf(mover) && foegrab::holds(mover, touch);
+}
+
+// The pair hull's level sides in by the cap (never narrower than minCapHalf): his origin stops that deep in the hull.
+void capHull(float* hullMins, float* hullMaxs)
+{
+    for(int i = 0; i < 2; ++i)
+    {
+        const float half = (hullMaxs[i] - hullMins[i]) * 0.5f;
+        const float s = za::clamp(stepInDepth(), 0.f, za::max(half - minCapHalf, 0.f));
+        hullMins[i] += s;
+        hullMaxs[i] -= s;
     }
 }
 
@@ -435,10 +463,12 @@ void status_f()
         float hullMins[3], hullMaxs[3];
         pairHull(p, best, p->v.mins, p->v.maxs, hullMins, hullMaxs);
         const float depth = depthIn(hullMins, hullMaxs, vec(p->v.origin) - vec(best->v.origin));
-        Con_Printf("body contact: %s (%d) dist %.2f depth %.2f hull %.1f..%.1f inset %.1f step in %d held %d\n",
+        Con_Printf("body contact: %s (%d) dist %.2f depth %.2f hull %.1f..%.1f inset %.1f step in %d (depth cap %.0f) "
+                   "held %d\n",
             PR_GetString(best->v.classname), NUM_FOR_EDICT(best), static_cast<double>(bestDist),
             static_cast<double>(depth), static_cast<double>(hullMins[0]), static_cast<double>(hullMaxs[0]),
-            static_cast<double>(insetSetting()), stepInOn() ? 1 : 0, foegrab::holds(p, best) ? 1 : 0);
+            static_cast<double>(insetSetting()), stepInOn() ? 1 : 0, static_cast<double>(stepInDepth()),
+            foegrab::holds(p, best) ? 1 : 0);
     }
     PR_PopQCVM(oldvm);
 }
@@ -499,6 +529,10 @@ extern "C" int VR_BodyContactHull(edict_t* mover, edict_t* touch, const float* m
         return 0;
     }
     pairHull(mover, touch, mins, maxs, hullmins, hullmaxs);
+    if(capped(mover, touch))
+    {
+        capHull(hullmins, hullmaxs); // deeper than the cap already (it moved into him): out, or no deeper, as ever
+    }
     return 1;
 }
 
@@ -536,5 +570,6 @@ extern "C" int VR_BodyContactPasses(edict_t* mover, edict_t* touch, const float*
     edict_t* player = nullptr;
     edict_t* monster = nullptr;
     sides(mover, touch, player, monster);
-    return foegrab::holds(player, monster) ? 1 : 0;
+    // his own move with the cap meets it (VR_BodyContactHull's capped hull)
+    return foegrab::holds(player, monster) && !capped(mover, touch) ? 1 : 0;
 }

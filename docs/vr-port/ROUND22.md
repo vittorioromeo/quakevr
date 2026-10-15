@@ -7157,3 +7157,28 @@ already Developer-only (corner button and Debug > Checklist); unchanged. `vr_moc
 Verified: build 0 warnings; dev vs standard corner screenshots (`scratch/tg_dev.png`, `scratch/tg_std.png`: Checklist
 and Toolgun only in dev); laser click gives hand 1 (main) or, after `impulse 152`, hand 0 (off) in `vr_toolgun_status`;
 `vr_menu_path_check`: 6 found, 0 missing; e1m1 runs. In VR: press it with a weapon in the main hand.
+
+## Step In Depth: a cap on walking into a held enemy (worktree `tghost`, branch `agent/stepin`, 2026-10-15)
+
+His go on the BACKLOG item ("Closer to enemies" Notes: with Step In he walked right through a held enemy). New
+`vr_foegrab_step_in_depth` (default 8 units, 0..32, 0 = no cap; Combat > Holding Enemies > Getting Close > Step In
+Depth, under Step In). With Step In on and the cap set, the player's own body moves against the enemy his hand holds
+no longer pass: they meet the pair's hull (as `vr_body_monster_inset` makes it) with its level sides that much further
+in, so his origin stops that deep past where the two would meet and Quake's clipping slides him along it, a solid
+body. Stepping back or aside is free. Unchanged: the held enemy's own moves (Follow the Hand, Pull, a throw: they still
+pass, so nothing fights foegrab), corpses and ragdolls (not pairs), monsters not held, Step In off. Never trapped: if he
+is deeper than the cap already (the enemy moved into him, the cap lowered), `VR_BodyContactLetsOut` passes every move
+that goes no deeper, as for any overlap. The cap never narrows the hull below 1 unit a side. `vr_body_contact_status`
+prints the cap.
+
+Why 8: at inset 4 a grunt's pair hull is 12 deep from its edge to its origin; the step-in walk in the "Closer to
+enemies" numbers stopped 6.4 deep (5.59 apart), the benefit he asked for, so 8 keeps all of it (origins 4 units apart
+face to face, head against head) while the far side stays out of reach. An ogre (hull 20) stops 12 from its origin.
+
+Numbers (`closein_test.sh stepcap`, held grunt on vrfiringrange, 50 frames walking in): cap 0: 10.66 deep after 10
+frames, then through and out (held 0, another grunt nearest at 150); cap 8: 7.97 deep (dist 4.03) after 10 frames and
+still 7.97 after 40 more; slid aside 47 units, backed off to 97, still held. `stepin` case as before (6.29 deep at cap
+8: under it; step in 0 stops at 12.03). `judo_test.py dir`: FAILS 0. e1m1 smoke fine.
+
+VR check: hold a grunt by the shoulder and walk on into it: you stop with your face at its face, can't come out its
+back; strafe and step back freely; Step In Depth 0 walks through as before; is 8 the right depth (try 4..12)?

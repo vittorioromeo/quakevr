@@ -222,9 +222,6 @@ stats), the jump boots' power level, coop.
   zone (headfit 2.8 3.1 21.1; positional damage's zones have no sideways offset); the eliminator's and fumigator's heads
   were not taken from the zone's sides; AD's humanoids have no driven rigs, so a lift does not flail them; the
   centurion hovers (never knocked down nor lifted) and its snap is untested.
-- **Step In:** NOT done (checked 2026-10-15): nothing like a depth cap exists; with Step In the player walks through a held
-  enemy and out its far side, held only within Let Go Beyond (ROUND22.md, "Closer to enemies: body inset and step in",
-  its Notes). Left: an optional depth cap (`vr_foegrab_step_in`); he judges if Step In is a net plus.
 - (Done 2026-10-15, fastship: walk 2500 frames) **Body Inset vs vore shoves:** `voreshove_test.sh` now gets 3-4 shoves (needs 4) at inset 4: vores stand closer and die to their own splash; restore the test's margin.
 - (Done 2026-10-15 except hotblade throw, unreproduced alone) **Flaky tests:** judo_test `hold` "held on" drag (moves 4-12 units by landing; ~1 in 3 under the 4-unit bar); hotblade_test `throw_cold`/`throw_hot` (axe sometimes arrives under 6.3 m/s after a bounce).
 - (Done 2026-10-15 except Quoth long torch flame position) **Incandescent blades leftovers:** weapons start cold after a level change; Quoth's long wall torch is no fire spot (flame position unknown); force-grab/counter/toolgun glows override the heat glow on an aimed dropped blade.

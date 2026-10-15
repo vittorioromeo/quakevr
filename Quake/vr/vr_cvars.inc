@@ -2887,6 +2887,7 @@ QVR_CVAR(vr_foegrab_mass_heavy, "650", CVAR_ARCHIVE)     // kg
 QVR_CVAR(vr_foegrab_shove, "0", CVAR_ARCHIVE)            // a held grunt's or enforcer's shove: 0 resisted (vr_foegrab_shove_resist), 1 pushes you fully and breaks your hold
 QVR_CVAR(vr_foegrab_shove_resist, "0.9", CVAR_ARCHIVE)   // share of the shove's push the hold takes off (times the hold)
 QVR_CVAR(vr_foegrab_step_in, "1", CVAR_ARCHIVE)          // 1: while a hand holds an enemy your body and its body don't meet (step in, bring the other hand to its head); let go, overlapping, they are pushed gently apart (vr_bodycontact.cpp)
+QVR_CVAR(vr_foegrab_step_in_depth, "8", CVAR_ARCHIVE)    // units (0..32): with step in, the player's own moves go at most this deep into the held enemy (past where their bodies would meet), then slide along it as a solid body; 0: no cap (he can walk right through it). Its moves and stepping back are free
 // The two-hand throw (vr_foegrab.cpp throwCheck, QC vr_foegrab_throw.qc): both hands holding one enemy, turned over hard
 // (the hands' turn about it, level axis, and their speed) knock it down that way, for sure, by its kind and health.
 QVR_CVAR(vr_foegrab_throw, "1", CVAR_ARCHIVE)             // 1: the two-hand throw on

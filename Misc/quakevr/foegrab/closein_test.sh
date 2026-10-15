@@ -5,10 +5,11 @@
 #             once, T0b pushed apart), walked into at 0 (A0), backed off (B0), at 4 again (A4b, B4)
 #   wall      backed into the firing range's wall at inset 0 and 12: the same origin
 #   stepin    a held grunt walked into, step in on and off (G held, H walked in, R let go, R2 apart, B backed off)
+#   stepcap   a held grunt walked into for long, step in depth 0 and 8 (H1 a little, H long, S slid aside, B backed off)
 K=C:/OHWorkspace/qvr-kit
 A=${1:-closein}
 shift
-CASES=${*:-approach wall stepin}
+CASES=${*:-approach wall stepin stepcap}
 PRE="sv_random_seed 7;map vrfiringrange;wait30;god;notarget"
 END="toggleconsole;quit"
 F="^(A4|A4b|T0|T0b|A0|B0|B4|W0|W12|G|H|R|R2|B|body contact|crouch:|player is stuck|Unstuck)"
@@ -38,6 +39,21 @@ for c in $CASES; do
       S="$S;wait60;echo R2;vr_body_contact_status;+back;wait20;-back;wait5;echo B;vr_body_contact_status;$END"
       echo "step in $on"
       bash $K/run.sh $A -Script "$S" -Filter "$F"
+    done ;;
+  stepcap)
+    # vr_foegrab_step_in_depth: a held grunt walked into for long (H), slid along sideways (S), backed off still held
+    # (B), at cap 0 (walks through) and 8 (stops 8 deep in)
+    for cap in 0 8; do
+      S="$PRE;developer 1;vr_foegrab_leniency 6;vr_foegrab_step_in 1;vr_foegrab_step_in_depth $cap;vr_foegrab_follow 0"
+      S="$S;vr_foegrab_drag 0;vr_foegrab_break 200;vr_foegrab_slow 1;vr_test_spawn 0;vr_test_spawn_dist 40;impulse 241;wait40"
+      S="$S;vr_mock_hand_to main nearest monster_army 6;wait2;vr_mock_hand_to main nearest monster_army 6;wait1"
+      S="$S;+grabmain;vr_mock_button main grip 1;wait5;echo G;vr_body_contact_status;+forward;wait10;-forward;wait3"
+      S="$S;echo H1;vr_body_contact_status;+forward;wait40;-forward;wait5;echo H;vr_body_contact_status"
+      S="$S;+moveright;wait10;-moveright;wait5;echo S;vr_body_contact_status"
+      S="$S;+back;wait10;-back;wait5;echo B;vr_body_contact_status;-grabmain;vr_mock_button main grip 0;wait60"
+      S="$S;echo R2;vr_body_contact_status;$END"
+      echo "step in depth $cap"
+      bash $K/run.sh $A -Script "$S" -Filter "^(G|H1|H|S|B|R2|body contact|player is stuck|Unstuck)"
     done ;;
   esac
 done
