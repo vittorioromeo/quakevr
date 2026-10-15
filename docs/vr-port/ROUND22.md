@@ -5906,8 +5906,8 @@ with the hands swapped: the main hand's A / X moves it `20.3 10.2 15.2`, the off
 `toolgun_panel_test.sh` and `toolgun_joint_menu_test.sh` pass unchanged (70 picks, 0 wrong, both hands), the melee
 canary is unchanged, e1m1 smoke clean, build 0 warnings.
 
-Note for the author's check: turning *yourself* with the gun's stick while its A / X is held turns the ghost too — the
-hold follows the hand's way in the world, as the physgun's wrist does. Author VR check: choose a grunt, hold X in the
+Note for the author's check: turning *yourself* with the gun's stick while its A / X is held turned the ghost too (the
+hold followed the hand's way in the world; changed by the review below: the play space's). Author VR check: choose a grunt, hold X in the
 left hand and reach forward, aside and up; let go and place it; hold A in the gun hand and turn your wrist; then the
 same with the gun in the left hand.
 
@@ -5917,6 +5917,74 @@ Backlog "Model vertex wobble" (1). `vr_mdl_dequant` (default 1; Graphics > Model
 each .mdl vertex follows the smoothest path through its animation within half a byte step of every stored value; 0 is
 the old look exactly. Debug > Reports > Steady Vertices Check (`vr_mdl_dequant_check`). Design, numbers (near-still
 wobble -46% to -100%, 114 ms load for 139 models), the proof for 0 and what to try in the headset: `MDL_DEQUANT.md`.
+
+## Slow motion by accident, and get-ups that glide (worktree `flatfist`, 2026-10-15)
+
+His notes of 2026-10-15 (BACKLOG.md): "Slow motion still turns on by accident: double-tapping the wrist gadget screen
+during frantic melee/shoves" and "Active-ragdoll get-up moves the body around too much: it visibly glides on the ground
+plane instead of just getting up".
+
+### The screen tap in a melee's thick (vr_bullettime.cpp `calm()`)
+
+His shipped tap is permissive (Double Tap, 0.2 m/s a tap, 80 degrees off straight, a 0.8 s window): two knocks of a
+punching hand on the wrist in a melee are a double tap. Two guards, each checked every frame; while either holds, a tap
+that lands is ignored (no click, no glitch, `bullet time: a tap at N m/s ignored (...)` with `vr_debug_bullettime 1`)
+and a double tap's first waiting is dropped:
+
+- **Quiet after blows** `vr_bullettime_tap_blow_quiet` 0.5 s (real): after a melee blow of his lands, or he shoves or
+  bashes (either hand). The QC stamps the player's `.vr_blow_time` (VR_Melee_Landed, the push code in VR_Bash, and
+  VR_Bash_Hit, which `vr_knockdown_test 21` calls); the engine notes the realtime it changes.
+- **Calm hands** `vr_bullettime_tap_calm_speed` 2.5 m/s (real, the play space's: walking doesn't count): within 0.3 s of
+  the gadget's hand going faster, or the tapping hand moving that fast across the screen against it (its motion into
+  and out of the screen is the tap's own and never counts: a hard deliberate tap is not a swing). Blows, shoves and
+  bashes need 3 m/s or more (`vr_melee_speed` 3.2, `vr_shove_speed` 3.5, `vr_bash_speed` 3); his held poses settle at
+  1.6 at most.
+
+Both 0: as before. Menu: VR Settings > Bullet Time > Quiet After Blows (basic page, under Screen Tap); Advanced >
+Combat > Bullet Time > Screen Tap: Quiet After Blows and Calm Hands Speed.
+
+**Test** `Misc/quakevr/gadget_tap_melee_test.sh <agent>` (vrfiringrange, shipped tap settings, 1.7 m/s taps): a calm
+double tap on, again off; a double tap 0.2 s after a shove (`vr_knockdown_test 21`) ignored, 1 s after on, off; a 4 m/s
+swing across the screen then at once a double tap ignored ("the tapping hand"); the gadget's arm swung 3.8 m/s then a
+double tap ignored ("the gadget's hand"); the guards off, the swing-then-double-tap on as before. 11/11 PASS.
+
+### Get-ups in place (vr_ragactive.cpp `holdLevel`, `riseFrame`)
+
+Measured first: each rise's body (its mass centre) traced level from where it lay (`getup: N level travel: ...`, a new
+line with `vr_knockdown_debug 1`; `vr_debug_ragdoll 2` adds it to the trace). The cause: the roll over (a body lying
+the other way up from its get-up's first frame: grunt, enforcer, knight) turns the whole body about the edge it rolls
+over, on the floor: with the floor's grip it rolls like a wheel, and the edge is its farthest part on that side (an arm
+flung out), so a knight rolled 50 units along the floor; then the pin pulled its pelvis back over 0.6 s, overshooting
+the spot by 13. The out-and-back is the glide.
+
+`vr_ragdoll_active_getup_hold` 1 (default; Gibs and Corpses > Ragdoll Settings > Get Up in Place): while rolling over its
+mass centre's level motion is eased back towards where it lay (`holdLevel`: towards going back there over 0.15 s, at most
+1 m/s, the same change to every part: its turn and pose untouched), so it turns over on the spot. 0: as before.
+
+Headless (vrfiringrange, seeds 7 and 11, `vr_knockdown_test 0` then 1, and a sure one-hand shove `vr_knockdown_test 21`
+with Chance 100 getting up on its own; 4 rises each; farthest the body went from where it lay, units, and its level path
+while rolling):
+
+| Monster | farthest, before | after | path rolling, before | after |
+|---|---|---|---|---|
+| grunt | 10-41 | 4-8 | 9-35 | 3-4 |
+| enforcer | 39-54 | 16-24 | 27-40 | 5-8 |
+| knight | 36-71 | 4-9 | 30-61 | 3-4 |
+| death knight, ogre, zombie (no roll) | 5-12 | 4-12 | 0 | 0 |
+
+What is left is the get-up's own: the body's middle comes over its feet as it stands (the enforcer's 16-24 units with
+its pelvis still on the clip's within 3; the zombie rises up its fall backwards, 10-12). Tried and dropped: moving the
+get-up's spot to where the pelvis lies after the roll (its first frame's pelvis on the body's): its stand ended farther
+from where it lay (grunt 1-3 -> 2-10 units, enforcer 16-24 -> 26-30), no gain while pulled in.
+
+Checks: `stagger_test.sh flatfist backpedal steady getup taken lost judo` (N 4): 42 PASS, 1 FAIL, `taken` once (the grunt rose
+without the player on its spot: it lands differently each run), then 4 of 4 PASS with the hold and 3 of 3 without;
+backpedal, steady, getup (handed back, 1 and 0), lost and judo all PASS. `eval.sh` 111 hits in 111 takes; e1m1 smoke clean;
+build 0 warnings.
+
+**In the headset**: shove grunts and knights over and watch them get up: they should turn over where they lie and rise
+there, not slide off and back. Melee frantically near your wrist (punches, shoves, gun bashes with the off hand's gadget
+in the way): slow motion should never start; then hold the wrist still and double tap: it should start as before.
 
 ## VR Settings' sections as submenus (worktree `bloodfx`, branch `agent/vrsubmenus`, 2026-10-15)
 
@@ -5948,3 +6016,324 @@ found, vrtesthall 14 found, 0 missing. e1m1 smoke clean, build 0 warnings.
 
 Checklist (proposed): "VR Settings: each section is its own page (Height Calibration ... Sound); open a few, change a
 value, Back returns to VR Settings; Reset All still there and still resets them; nothing you used to set there missing."
+
+## Quad Damage on you: a blue glow (worktree `adcpuopt`, branch `agent/quadglow`, 2026-10-15)
+
+His words: "an effect on your body and arms that looks different from the electricity effect ... a 'blue glow' + blue
+dynamic light coming out of the player's hands/arms/body. Make it a new (default) option, keep the current lighting
+arcs as an alternative." Until now Quad drew `shock::armArcs` over the hands and forearms (vr_view.cpp `quadArcs`, body
+shown only), the very arcs lightning leaves on you when it strikes (vr_shock.cpp `drawSelf`, `vr_shock_self_*`), so the
+two looked the same.
+
+- `vr_quad_look` (1; Body > Quad Damage Look, under Show Powerups): 1 Blue Glow, 0 Lightning Arcs (the old look,
+  unchanged), 2 Both. `vr_quad_glow` (1, 0..2, Quad Glow) and `vr_quad_glow_light` (1, 0..2, Quad Glow Light).
+  `vr_body_powerups 0` still turns all of it off. New cvars only: no config migration.
+- The glow (vr_view.cpp `quadGlow`, once a frame after `setupBody`): a strength breathing 0.64..1 (about 0.8 Hz, a
+  slower swell under it), x 0.6 on the hand models (empty hands too) and x 0.3 on the body (seen from inside, its edges
+  are all round the view), copies in a mirror alike (`view::quadGlow`). It reaches the alias shader through
+  `VR_EntityGlow` as a new code, -2 - strength (after the toolgun, force grab, counter and hot blade codes, which keep
+  their ranges): `QVR_ALIAS_FS_GLOW` adds a saturated blue `(0.12, 0.35, 1)` x (rim^2.5 x 1.4 + 0.08), faded out within
+  16 units of the eye (`smoothstep(6, 16)`), so nothing glows right at the eyes and the view is never washed.
+- The light: two unshadowed blue dlights at the hands (`emissive::quadLight`, keys -0x5980/-0x5981, radius 110,
+  strength 0.8 x pulse x `vr_quad_glow_light`; inside the hand, so it lights the world, not the hand). The body's own is
+  Quake's existing blue quad light round you (cl_main.c `EF_QEX_QUADLIGHT`), so no third light. Dead, at the
+  intermission, in the immersive death view or with the quad gone: strength 0, lights killed the same frame.
+- The lightning-strike shock still draws its arcs whatever the look (it never went through `quadArcs`).
+- Debug > Tools > Test Effects: Quad Damage On You (`impulse 190; vr_quad_info`): `vr_quad_info` prints the look, the glow
+  on hand and body and the lights.
+
+Verified (mock, e1m1 start, looking down 50 at both hands out): `scratch/quad_glow_vs_arcs.png` (none, glow, arcs, glow
++ `vr_shock_self_test 10`, quad ended). Arm region mean RGB: no quad 118/87/65, glow 121/108/168, arcs 101/81/112, glow +
+struck 128/123/191 (selfshock arcs=17 drawn over the glow); the floor 3.7/3.0/2.1 without quad, back to exactly that once
+it ends (`vr_quad_info`: glow 0, no lights). Cost (`--exclusive`, `vr_profile_report 5`, 5 s each): arcs GPU 1.140 ms a
+frame (models 0.121, world 0.294, 176 draws), glow 1.081 (models 0.127, world 0.307, 173 draws): +0.006 ms on models,
++0.013 on the world for the two lights, within noise overall. Build 0 warnings, e1m1 smoke clean (`vr_quad_look 2`: both).
+
+Checklist (proposed): "Quad Damage (Debug > Cheats > Quad Damage): your hands, arms and body glow a soft pulsing blue
+and the hands throw blue light round you; nothing glows in your eyes; Body > Quad Damage Look: Lightning Arcs brings
+back the old arcs, Both shows both; struck by lightning you still get arcs; when the quad runs out the glow and light go."
+## Review: the spawn tool's ghost hold (worktree `tghost`, 2026-10-15)
+
+Review of 17baee890 / b41b7fc33 / e50500bcb / c41eb26d3 (merged in 777a064e5, b7ee7d69a). Fixed (`vr_toolgun.cpp`):
+
+- The gun hand's A / X held + stick press from Spawn went to Brush, but the hold was the ghost's (`ghostHold.turn`), not
+  `tg.adjust`, so in Brush A / X no longer had the stick and a second press went *forward* again (Spawn <-> Brush). Now
+  A / X on the gun hand is always `tg.adjust`; the ghost's turn is derived each frame (`ghostHoldFrame`: adjust held,
+  the spawn tool, its ghost showing), and `adjustTakesSticks()` (sticksFrame, sticksTaken) never gives the spawn tool
+  the sticks (before: with nothing chosen, A / X held still froze walking for nothing).
+- The turn counted the hand's world yaw, so turning yourself with the stick while A / X was held turned the ghost by
+  that much on top of the ghost already facing you (its base yaw follows the aim): the 6DOF test's own run showed
+  `turn 52.4 -> -38.6` across the stick turn. Now the hand's yaw in the play space (`handRot.y - turnYaw`): `52.4 ->
+  52.4`; the ghost is carried round with you, turned as it was.
+- `toolgun_spawn_6dof_test.sh`: a second back press with A / X held (Joint, adjust 1) and the stick-turn check; PASS.
+
+Left for the author (not changed): the ghost's world yaw moves by twice the hand's yaw while turning (its base faces
+you along the aim, which swings with the gun hand, and the turn adds the hand's yaw too) — the test asserts the turn
+equals the aim's swing, so this looks intended; and the off hand's move integrates `hands::State::vel` over game time:
+in slow motion on a headset that reports velocity (not the mock, which differences positions on game time) the ghost
+follows the hand at the time scale's fraction. A position delta would be exact.
+
+## The spawn ghost stays put while you turn it (worktree `tghost`, branch `agent/tghost3`, 2026-10-15)
+
+Voice note (10:51): with the gun hand's A / X held to turn the ghost, it followed the gun as the hand swung, so the
+turn was hard to see; and the turn should be about twice as fast.
+
+- `vr_toolgun.cpp`: `GhostHold` gains `fixed`, `point`, `dir`. The frame the gun hand's turn starts (`ghostHoldFrame`)
+  it keeps the aimed point (`ghostPoint`, split out of `updateGhost`) and the aim's way; while it turns `updateGhost`
+  places and faces the ghost from those (`ghostDir()`), plus the offsets and the turn. Let go (or another tool, or
+  the gun put down: `ghostHold = {}`), it follows the aim again with the turn kept. The off hand's move, if held at
+  the same time, goes along the fixed way (`ghostDir()`), so it stays 1:1.
+- The turn is `ghostTurnRate` (2) times the hand's yaw (was 1:1). With the base fixed, 90 degrees of hand yaw turns
+  the ghost 180 in the world, as before (when the aim's swing added the other 90), but now in place.
+- Stick turn with A / X held: the ghost stays put in the world, its turn unchanged (was: carried round with you).
+- `vr_toolgun_status` says `fixed` / `following` after the hold.
+- `toolgun_spawn_6dof_test.sh`: turn = 2x the aim's swing (both hands' guns), the ghost's origin unchanged through
+  yaw / pitch / twist / a 0.3 m move of the gun with A / X held, its world yaw = the press's + the turn, no jump at
+  the press; let go: `following`, turn kept, ghost moved > 8 units to the aim and facing it + the turn. PASS. (The
+  off hand's 1:1 move read 21.6 vs 20 on one run, 20.4 on the next: timing noise in the velocity-integrated follow,
+  untouched here.)
+
+Checklist: "Spawn tool: hold A on the gun hand and turn your wrist: the ghost stays where it was and turns twice as
+fast as your hand; let go and it follows the gun again, still turned."
+
+## Melee space: monsters kept out of your head while they attack (worktree `tghost`, 2026-10-15)
+
+His note: knights "often get too close and go through the player" when they attack. Why: the player's body is narrow
+(`vr_hull_ent_width` = `vr_hull_width` 16: 8 a side) and Body Inset takes 4 more off each side, so a melee monster's
+charge (`ai_charge` -> `movetogoal`) goes on until its box all but touches his head; the knight is the worst because of
+its run attack, `ai_charge_side`: a 20-unit `walkmove` aimed 30 units to the side of his origin, a flyby that brushes
+past his face. Others (ogre, shambler, hell knight, rottweiler) stop with their boxes ~18 units from the head; the fiend
+lands its leap on top of him.
+
+`vr_enemy_melee_space` (default 16 units, archived; Combat > Holding Enemies > Getting Close > Melee Space; 0 off):
+
+- QC (`fight.qc` `VR_MeleeSpace_Step`, called after the step in `ai_charge`, `ai_charge_side`; AD's `ad_ai_charge`,
+  `_chargenoturn`, `_charge_side`, `_charge_front`): a melee step that would bring the monster's box nearer the player's
+  head (`headpos`, level) than the space, and nearer than it was, is cut back along itself (bisected, 6 steps). Not when
+  he is over or under it. Each of those (and `ai_melee`, AD's `ad_ai_melee`, `_meleesmash`) stamps `.vr_melee_time`.
+- Engine (`vr_bodycontact.cpp` `meleeSpace`, every server frame): a monster attacking him (stamped within 0.25 s, its
+  enemy him) that is nearer all the same (he walked or leaned in, a leap landed) is walked back (`SV_movestep`: no
+  ledges, no walls) by 12/s of the shortfall, at least 40 units/s. Held enemies (Step In) are left alone.
+- `vr_enemy_melee_space_status [reset]` (Debug > Tests > Holding Enemies > Closest Melee Approach, and a Clear row):
+  per kind, the closest its box and its origin came to the head, overall and while attacking, and how far it was pushed.
+
+`Misc/quakevr/melee_space_test.sh <agent>`: vrtesthall, god, standing still, each monster spawned 128 ahead and left 900
+frames. Head to box gap (level, units) while attacking, off -> on 16: knight 9.5 -> 16.1 (origin 22.4 -> 32.7), MG3's
+infected knight 7.0 -> 16.0, fiend 1.6 -> 6.0 (its leap; then pushed back 57 units); ogre 18.0, shambler 19.0, hell
+knight 18.5, rottweiler 18.4, MG3 death knight 18.1 unchanged (bodies meet first); zombie and mummy never melee'd; AD's
+monsters do not spawn in the test install (same hooks). Knights stay well inside their blows' reach (ai_melee: 60).
+Walking into an attacking monster (+forward): off, it stays pressed against him (knight 37.9, fiend 16.0, ogre 20.0 apart
+afterwards); on, it gives way while he presses and ends 36.4 / 32.0 / 55.7 away. Melee eval 168/177 (the known
+slash_horizontal_ltr timing row only), voreshove 4/4/3/4 shoves across off/on runs (the known 3-4 flake, unrelated: the
+vore never stamps), e1m1 smoke clean, toolgun 6DOF PASS.
+
+Author VR check: let knights, a fiend and an ogre attack you standing still, then lean in and step in; try Melee Space
+0 / 16 / 24.
+## Hits that unbalance (worktree `voxelopt`, branch `agent/hitstagger`, 2026-10-15)
+
+His note (BACKLOG "His notes, 2026-10-15"): "Strong prop/weapon throws and melee hits make enemies lose balance like a
+shove (chance based, and/or a %hp damage threshold, prop weight, ...); maybe strong fist hits to the head too."
+
+`QC/vr_hitstagger.qc` (new; after vr_knockdown.qc). Hooks: `T_Damage_VRMelee` (combat.qc: every hand's blow, fist or
+weapon, after its push) and `VR_Prop_Flung` (vr_carry.qc: thrown props and thrown weapons, after their damage).
+- **Impact**: a throw's momentum into it (its mass x its approach speed, kg m/s) over `vr_hit_stagger_throw_ref` (60: a
+  6 kg crate at 10 m/s); a blow's damage (its speed, weapon and zone already in) over `vr_hit_stagger_melee_ref` (30),
+  times `vr_hit_stagger_head` (1.5) at the head (the positional zone, else the top fifth of its box; fists too). Plus
+  `vr_hit_stagger_damage` (1) x the damage as a share of its full health (the %hp part).
+- **Chance**: 0 under `vr_hit_stagger_min` (0.5: taps), rising to sure at impact 1; times (30 / full health) ^
+  `vr_hit_stagger_resist` (0.75) above 30 health: ogre 0.24, shambler 0.11 at most; times `vr_hit_stagger_chance` (1).
+  Never: a dummy that stays put (Dummy Stays Put), one down or staggering, in a parry's stagger, a boss (1000+ health).
+- **Cooldown**: `vr_hit_stagger_cooldown` (4 s) from an unbalancing hit; shoves and bashes ignore and don't set it.
+- **Reaction, the shove's**: pushed as a shove (520 u/s and a 140 hop x `vr_bash_push`, x impact clamped 0.5..1.25 x
+  `vr_hit_stagger_push`); with Knockdowns and an active stagger, the ragdoll stagger of `VR_Knockdown_Try` (now
+  `VR_Knockdown_Stagger`, shared), its balance the shove's roll against its knockdown chance x min(1.5, impact): it
+  recovers or goes over. Others (no rig, flying, AD's): a forced pain and 0.75 s x push without attacking, as a bash.
+- Menu: Combat > Knockdowns, "Hits Unbalance" (6 rows: on, Hit Chance, Least Impact, Head Blows, Big Monsters Resist,
+  Hit Cooldown); Debug > Tests: "Hit Stagger: Chances of the Nearest" (40), "... Strong Blow on the Nearest" (42).
+  `vr_knockdown_test 40..46` (VR_HitStagger_Test): 40 chances, 41 heavy throw, 42 strong blow, 43 weak tap, 44 head
+  punch (the stagger alone, no damage), 45 state, 46 the nearest loose prop thrown into it for real.
+
+Verified (headless, fresh monster per trial, 20 each): grunt heavy throw 20/20, strong blow 20/20, head punch 20/20 (all
+ragdoll staggers; balance 0..1, some fell), weak tap 0/20; ogre heavy throw 7/20, strong blow 3/20 (chance 0.24);
+shambler heavy throw 4/20, strong blow 1/20 (chance 0.11; pushed and pained). Cooldown: a second strong blow at once -1,
+1.9 s left still -1, at 0 s staggers again; a staggering/down grunt never re-triggers. Real throws (test 46, a 40 kg crate
+at 5 m/s, 194-215 kg m/s): stagger through VR_Prop_Flung. Shoves unchanged (test 22: a stagger, fell). Melee eval
+168/177 (1 take differs FAIL -> FAIL: a detection timing, 0.375 -> 0.391 s, outside this change). e1m1 smoke clean, build 0 warnings.
+
+Checklist (proposed): "Hits unbalance: throw a heavy crate or a weapon hard at a grunt, or punch/axe it hard (the head
+counts more): it staggers back as from a shove (sometimes falls); light taps never; an ogre seldom, a shambler rarely;
+hitting it again right after doesn't re-stagger it (4 s). Combat > Knockdowns > Hits Unbalance to tune or turn off."
+## Moving the menu panel; one menu's state in a MenuInstance (worktree `bloodfx`, branch `agent/multimenu`, 2026-10-15)
+
+Stages 1 and 2 of MULTI_MENU.md ("Several VR menus open at once"; its Status and the sync list for stage 3 there).
+
+**Stage 1, the panel moved by a grip** (vr_menuui.cpp `PanelGrab`, vr_panel.cpp `MenuPlacement`). Point at the
+panel's frame (a band 8% of its height just outside it; lit in the laser's hue while the laser is on it or the panel is
+held) and hold a grip: the panel is taken at once, the grip's key not sent. On the panel's face (`vr_menu_grab 2`, the
+default) a grip held takes it once the hand has moved `vr_menu_grab_deadzone` cm (4) — not after a stick was pushed
+during that grip or with the trigger held: a grip held still stays the sliders' fine modifier, as before. Held, the
+panel keeps its place in the laser's frame (moved and turned with the hand; a long lever at the menu's distance, so
+small wrist turns swing it far), kept upright (its top edge level); let go, it stays, kept in the play space (relative
+to the player's box and turn: it walks and turns with you) until the menus close; opened again it is in front of the
+head as before. `vr_menu_grab` 0 never, 1 the frame only, 2 frame or face (VR Settings > Menu > "Move the Panel").
+Debug > Tools: "Menu Panel Place" (`vr_menu_panel`: MENUPANEL placed, held, armed, middle, from the head, facing, size)
+and "Menu Panel Back in Front" (`vr_menu_panel reset`). Tests: `vr_mock_laser frame` puts the main laser on the frame.
+
+**Stage 2, MenuInstance** (vr_menu.cpp): the page shown, the Back stack, each page's cursor/scroll/anchor/visits, the
+slider and scrollbar drags, the slider hold, the drop-down, the help box and paging, the rows' left edge, the
+scrollbar's x, the armed resets, the body clone latch and the noted place are one struct; the code reads `ui().<field>`
+(~310 uses rewritten by a scope-aware script: locals, parameters and members of the same names untouched; none inside
+a struct body). `menu::instanceCount` (1), `currentInstance()`, `selectInstance()`. vr_panel.cpp keeps a `MenuPanel`
+per instance (placement, its yaw when it appeared, its canvas handle: the 2D layer's canvas today). Kept shared on
+purpose: built rows and their latches, the settings, Quake's menus, the keyboard pages (MULTI_MENU.md says why).
+
+Verified: `Misc/quakevr/menu_grab_test.py bloodfx` 13/13 PASS (frame grab held at once and the grip key taken; a 30
+degree hand turn turns the panel 30; a 30 cm move moves it 9.4 units; let go it stays; the face armed, not taken within
+2 cm, taken after 10 cm without a jump; a stick push keeps it the fine modifier; `vr_menu_grab 0` inert; reopened in
+front of the head). Stage 2: `menu_vr dump` at Menu Detail Developer byte-identical before/after (182 pages, 4719
+rows; `menu_coverage.py` PASS, `menu_rows_diff.py` 0 lost 0 added); a VR navigation log (keys down/Enter/Escape, the
+laser on corner buttons and a row, right steps, stick scroll; `menu_vr pos`/`rows`) and a flat one (keys, desktop
+mouse click) identical but the build hash. e1m1 smoke clean, build 0 warnings.
+
+Checklist (proposed): "VR menus: point just outside the menu panel's edge (a frame lights up) and hold a grip: the
+panel follows your hand, let go and it stays; a grip held on the panel itself and your hand moved a few cm moves it
+too; holding a grip still while stepping a slider still gives fine steps; Back to Game and reopen: in front of you."
+## Model vertex wobble 2: loop seams and shading flicker (worktree `dequant`, 2026-10-15)
+
+His note: "a noticeable itch at the loop point for certain animations (e.g. grunt and knight idle)", and some
+wobbling/pulsating left. Measured (`vr_mdl_dequant_check`, near-still axes: 3 steps or less over the loop):
+
+- **The itch was ours.** QVR's soldier, knight, dog and player have no frame names (knight: "1".."97"), so the idle loop
+  was merged into the next animation (knight 0..16: stand + run) and smoothed with free ends: the seam (stand9 -> stand1)
+  got up to a step of kink while the inside got smooth. Seam second difference rms: knight idle 0.63 stored, 1.26 before,
+  soldier idle 0.90 stored, 1.85 before.
+- **Fix: the loops come from the progs.** A model's loops are the cycles of the QuakeC frame functions
+  (`[$stand9, knight_stand1]` = OP_STATE) reached from the functions that name the model (monster_knight's
+  `th_stand = knight_stand1`); string immediates only (not variables, locals or the parameter globals, whose live values
+  lie), a loop to the models naming it at least half as often as the most, overlapping loops: the most named. 575 loops,
+  built once per progs in 3-5 ms; e1m1's 139 models: every stock monster's stand/walk/run found. Smoothed cyclically.
+  Knight idle seam 1.26 -> **0.22** (inside 0.44 -> 0.17; max at the seam 3.67 -> 1.00 = the inside's max), soldier idle
+  1.85 -> **0.23** (inside 0.69 -> 0.13; max 4.67 -> 1.00, inside 0.81). Walk loops whose artist's seam is itself a hitch
+  keep part of it (knight walk: stored seam 2.18 vs inside 0.72 -> 1.05 now): the half-step box allows no more.
+- **Pulsating: the shading.** An idle knight's near-still vertices turn their stored normal 7.5 degrees rms a frame (55%
+  of frames change direction: the 162-direction table, 14.5 degrees apart). Now each normal component is smoothed along
+  the same runs within 0.1 of the table direction's (at most 10.2 degrees from it; the table's own error is up to 10.7):
+  knight 7.47 -> 2.16 degrees, soldier 2.09 -> 0.68, zombie 6.09 -> 1.81, player 4.85 -> 1.09, ogre 11.1 -> 4.7.
+- **Not the solver nor the blending.** A third-difference objective (prototype) gave the idle loops the same second
+  differences (knight seam 0.240 vs 0.222, inside 0.172 vs 0.173); linear blending between the smoothed poses departs
+  from a smooth curve by about d2/8 = 0.02 steps (0.007 units): nothing to fix.
+- Off is still the bytes exactly: the seeded ogre scene with 0 gave the base commit's own image (md5 355b30a9...) and,
+  in another run, the known 1/255 noise (429 pixels). Load: 139 models 202 ms (`--exclusive`; was 114: the normals
+  double the solves); memory 8 bytes per pose and vertex (7.6 MB for those 139).
+- The check prints, per model, the progs loops' seam and inside (stored, without the progs' loops, now) and the
+  normals' turn; one model named: each loop's.
+
+## Pentagram and biosuit glows, like Quad's (worktree `adcpuopt`, branch `agent/powerglow`, 2026-10-15)
+
+His words (10:52): "make the protection pentagram give you a similar glow and also the bio suit to give you some sort
+of green glow ... so that they're all recognizable during gameplay."
+
+- The Quad glow (above) is now a power-up glow (vr_view.cpp `powerupGlow`, `view::powerupGlow`): Quad's blue, the
+  pentagram's red `(1, 0.05, 0.08)` (deep, gain 1.5: Quake's own yellow pentagram flash over the view washes a lighter
+  red out), the biosuit's green `(0.25, 1, 0.18)`. Same breath, same rim-over-wash shader, same hand lights
+  (`emissive::powerupLight`, was `quadLight`, now with a colour; keys unchanged).
+- The shader code carries the colour: `-2 - 2 x (r + 16g + 256b, 16 levels a channel) - strength (0..1)`, decoded in
+  `QVR_ALIAS_FS_GLOW` as the hot blade's code is (its old `-2 - strength` was this with colour 0).
+- Several at once take turns: each shows 1.6 s, crossfading into the next over the last third of its turn (colour,
+  strength and light), so each stays recognizable (a blend would be a muddy purple / cyan).
+- New cvars (archived, Body page under the Quad rows): `vr_pent_glow`, `vr_pent_glow_light`, `vr_suit_glow`,
+  `vr_suit_glow_light` (2, 0..2: as his Quad settings). 0 glow: the old body tint (pentagram's red pulse, biosuit's green
+  multiply) comes back instead; with the glow on, the tint is skipped (they doubled up). `vr_body_powerups 0` still
+  turns all of it off. The ring of shadows is unchanged (translucent body, no glow).
+- Debug > Test Effects: Pentagram On You (`impulse 191`), Biosuit On You (`impulse 193`); `vr_quad_info` is now
+  `vr_powerup_info` (which glow, how many take turns, its strength and code on hand and body, the lights).
+
+Verified (mock, e1m1 start, looking down at both hands): `scratch/powerup_glows.png` (none, quad, pent, pent glow 0 =
+old tint, suit, suit glow 0), `scratch/powerup_glows_defaults.png` (none, quad, pent, suit at the new defaults: Quad's
+look 2 draws arcs and glow). `vr_powerup_info`: pent code 287 (r15 g1 b1), suit 1012, quad 3922; with all three: quad,
+quad, pent, pent, (crossfade, code 650), suit over 4 s; lights 0.77/0.23/0.15 (pent), 0.21/0.54/0.16 (suit). Build 0
+warnings; e1m1 smoke clean.
+
+## His blood, quad and combat tweaks are the defaults (worktree `adcpuopt`, 2026-10-15)
+
+"I have tweaked settings for the blood feedback, for the quad effects, and some other damage and combat settings.
+Please make those the new defaults." His config of 2026-10-15 11:06 (version 132) against this build's shipped
+defaults (`resetcfg; writeconfig`): 102 archived settings differ; 33 promoted (compiled defaults, vr_cvars.inc);
+config 133 moves a config still at an old value; one set by hand is kept.
+
+| cvar | was | now |
+|---|---|---|
+| `vr_blood_health_intensity` / `_size` | 0.25 / 0.65 | 0.3 / 0.75 |
+| `vr_blood_hit_bias` / `_duration` / `_intensity` / `_size` | 0.75 / 0.45 / 0.22 / 0.65 | 0.9 / 0.4 / 0.4 / 0.6 |
+| `vr_quad_look` / `vr_quad_glow` / `vr_quad_glow_light` | 1 / 1 / 1 | 2 (glow and arcs) / 2 / 2 |
+| `vr_bash_damage` | 10 | 5 |
+| `vr_melee_phase_time` | 0.35 | 0.2 |
+| `vr_foegrab_lift_time` | 2 | 3.5 |
+| `vr_foegrab_necksnap_method` / `_speed` / `_angle` / `_window` / `_neck` / `_strength` | 0 / 100 / 30 / 0.3 / 3 / 1.2 | 1 / 210 / 80 / 0.2 / 1.5 / 1.25 |
+| `vr_foegrab_throw_feet_speed` / `_push` / `_speed` / `_spin` / `_topple` / `_twist` | 30 / 240 / 2.5 / 0.55 / 200 / 140 | 20 / 220 / 3 / 0.5 / 180 / 130 |
+| `vr_ragdoll_grab_force` / `vr_ragdoll_hand_stick` / `vr_ragdoll_hand_turn` | 3000 / 2 / 60 | 4000 / 4 / 70 |
+| `vr_reload_port_sshot_radius` / `vr_reload_reinsert_clearance` | 3 / 4 | 3.15 / 1.5 |
+| `vr_decal_max` / `vr_decal_bucket_max` | 768 / 32 | 512 / 24 (menu help's "shipped" numbers too) |
+| `vr_body_bracers` | 1 | 0 (bare forearms) |
+| `vr_pbr_strength` | 1 | 2.5 |
+
+With them, the new `vr_pent_glow`, `vr_suit_glow` and their lights ship at 2, as his Quad.
+
+**Not promoted** (look debug/test-only, personal or machine-specific):
+- `vr_dummy_type` 2 (knight), `vr_dummy_gore` 0, `vr_dummy_gib` 0: the training dummy's test setup.
+- `r_lerpmodels` 3: the experimental spline animation smoothing (vr_animsmooth.cpp, under evaluation with dequant).
+- `vr_retrolight_model_steps` 16: the compiled default; the shipped 15 (vr_defaults.cfg, his 10-04 notes) never reached
+  a config that saved 16 earlier, so likely a leftover, not a tweak.
+- `vr_melee_phase_speed` 3.996, `vr_relight_strength` 1.1988: the default x 0.999 artefacts (as before).
+- Personal: `vr_body_elbow_back` 0.35, `_hand` 0.5, `_lift` 8, `vr_bodycal_*`, `vr_height_calibration`.
+- `vr_wofs_hs3_*_04`: the nailgun's third hotspot, type 0 (no effect).
+- Window, recording, hardware, flat screen: `vr_foveated` 2, `vr_spectator_fov` 120, `_scale` 1.5, `vr_window_view` 0,
+  `vr_mirror_hide_hud_text` 1, `vr_motion_*`, `vid_*`, `fov`, `gamma`, `contrast`, `scr_*`, `sensitivity`,
+  `cl_alwaysrun`, `volume`, `ui_live_preview`.
+- Tools and bookkeeping: `vr_toolgun_*` (brush grid 4, joint 4, panel size 9.5, scale uniform 0), `vr_relight_reload`
+  0, `vr_menu_level` 2, `vr_notes` 1, `vr_menu_positions`, `vr_prop_id_*`, `vr_*_version`, `vr_tutorial_started`.
+
+**Test:** `resetcfg; writeconfig`: all 33 at his values (and the four new glows at 2). A version 132 config with the 33
+at the old values and `vr_bash_damage` 7 by hand, then `vr_migrate_config`: 32 at his values, bash damage kept at 7,
+version 133. eval.sh: the same 36/45 and 168/177 as the baseline; only the bash hits' damage differs (6 -> 3, 10 -> 5).
+
+Checklist (proposed): "Pentagram (Debug > Test Effects > Pentagram On You): your hands, arms and body glow a pulsing
+red and the hands throw red light; Biosuit: the same in green; with Quad too, the glows take turns (blue, red, green);
+Body > Pentagram Glow / Biosuit Glow 0 brings back the old tint." "A fresh config has his blood feedback, Quad (glow
+and arcs, 2x), bash, neck snap (method 1), judo throw, lift, limb grab, reload, decal and PBR values, and bare
+forearms."
+
+## Permanent decals: the slowdown, a full atlas, on and off (worktree `permdecals`, branch `agent/permdecals3`, 2026-10-15)
+
+His note (23:07:45): blood/decal slowdowns, exactly when marks bake (and whether only at the bucket limit), and off
+leaving some marks and removing others. Details, tables and the rule: `PERM_DECALS.md` ("When a mark is baked", "On and
+off", "Performance").
+
+- **The slowdown**: the bake (`permdecals::flush`, every frame a mark baked) asked GL for the framebuffer, viewport and
+  scissor; a glGet waits for the GPU. With the GPU busy (98%, as under a compositor) one flush took up to 325 ms of CPU
+  and 230 of 711 flushes over 0.5 ms in a gore-2 crowd fight (vrfiringrange, 32 monsters, 16 blasts); now 0.09 ms at
+  most, none over 0.5 (no glGet: it runs before `R_SetupGL` and leaves framebuffer 0, as the shadow maps do). Also the
+  whole page table went up for each new page (152 MB in 6 s; now 0.43 MB, changed runs only), emptied slots were a
+  scissored clear each (one draw now), the full-atlas eviction scanned every slot per page (an O(1) list now), and the
+  program and texture were made at the first mark (5-10 ms; now in the load). New `vr_permdecal_bake_max` (1024 pages
+  a frame; the rest stay live a frame or more).
+- **When marks bake**: not at the bucket limit (`vr_decal_bucket_max` only lists the live marks): chips, scorches,
+  plain blood 0.1 s after they show; spreading marks when spread; the gore's drying marks (sprays, runs, pools) after
+  8 s; at once when the live ring lets them go early, and on doors and lifts.
+- **Atlas full keeps marks**: a 2D array that grows by layers (`vr_permdecal_atlas_max`, 512 MB: 6 layers of 85 MB at
+  4096); only full at that does a page give its slot up. A 1024 atlas at density 0.25 grew to 4 layers with none given
+  up, its frame the same as one 4096 layer's (peak 1); capped at one layer it lost 2922 pages.
+- **On and off, one rule**: every mark is kept, on or off; on shows them all baked; off (`vr_permdecals 0`) shows the
+  newest `vr_decal_max` live, exactly as the game without the layer (frame-identical to the layer off from the start);
+  marks let go while off are kept and baked once on (only those: 0.46 ms); `vr_decals 0` hides both (the frame with no
+  marks), 1 brings them back. Saves keep the live marks not baked yet too.
+
+Files: `Quake/vr/vr_permdecals.cpp/.hpp`, `vr_decals.cpp/.hpp` (`showRecord`, `pushDecal`, `bakeSettled`'s budget and
+switch, `liveStamps`), `vr_glsl.h` (array sampler), `vr_gfx.hpp/_gl.cpp` (`gfx::update`), `vr_cvars.inc` (two cvars),
+`vr_menu.cpp` (help texts). `Misc/quakevr/permdecal_test.sh` (7 runs: cap/doors/saves, burst budget, atlas growth, the
+on/off frames; `permdecal_shots.py`) PASS under his defaults (512/24); build 0 warnings; e1m1 smoke clean. Off against
+the base build: 33 pixels of 518400 differ by 1.
+
+Checklist (proposed): "Permanent Decals: a big gore fight (e1m1 or a crowd) has no stutter as blood lands; turning
+Permanent Decals off leaves the newest marks (Max Decals) and on again brings every mark back, none darker; marks made
+while off are there once on; save and load keep the freshest marks too."

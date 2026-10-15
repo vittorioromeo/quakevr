@@ -802,10 +802,17 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
     VR_Blunt_HitLayer(self, CHAN_AUTO, other);
     spawn_touchblood(dmg); // (splinters off a crate: spawn_touchblood)
     float pop = VR_Decap_ThrownArm(other, self, attacker, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
+    vector flight = self.velocity;
+    entity struck = other;
     T_Damage(other, self, attacker, dmg);
     if(pop)
     {
         VR_Decap_After(other);
+    }
+    // VR: thrown hard and heavy, it may unbalance a monster as a shove does (vr_hitstagger.qc).
+    if(struck.health > 0 && attacker != world)
+    {
+        VR_HitStagger_Throw(struck, attacker, flight, mass, xSpeed, dmg);
     }
     return TRUE;
 };

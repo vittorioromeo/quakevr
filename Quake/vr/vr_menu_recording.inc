@@ -207,6 +207,13 @@
                   "counts as a new first tap, never as the double tap."),
         slider("Double Tap Force", "vr_bullettime_tap_double_speed", 0.1f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
             .help("Double Tap: how fast each tap must come into the screen (Tap Force is the single tap's)."),
+        slider("Quiet After Blows", "vr_bullettime_tap_blow_quiet", 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("Taps don't count for this long after a melee blow of yours lands, or you shove or bash (a double "
+                  "tap's first is dropped too): no slow motion by accident in a melee's thick. 0: off."),
+        slider("Calm Hands Speed", "vr_bullettime_tap_calm_speed", 1.f, 5.f, 0.25f, "%.2f m/s").extend(0.f, 10.f)
+            .help("Taps don't count for 0.3 s after the gadget's hand moves faster than this, or the tapping hand "
+                  "sweeps across the screen this fast (blows and shoves take 3 m/s or more; a tap's own motion into the "
+                  "screen is never counted). Lower: calmer hands only. 0: off."),
         slider("Tap Force", "vr_bullettime_tap_speed", 0.5f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
             .help("How fast your hand (or the gun's butt, or what it holds) must come into the screen (either arm may "
                   "move). Higher: harder taps only. Single Tap's (Double Tap Force: the double tap's)."),

@@ -640,6 +640,12 @@ void update(const InputState& tracked)
                         continue;
                     }
                 }
+                // A grip on the menu panel's frame takes hold of it (vr_menu_grab).
+                if(b.button == &HandInput::grip && menuui::gripButton(h, now))
+                {
+                    logButton(h, b, now, b.key[h], "the menu panel's grab");
+                    continue;
+                }
                 // A trigger pointing at the menu is its mouse button.
                 const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
                 logButton(h, b, now, key, nullptr);
@@ -687,6 +693,10 @@ void update(const InputState& tracked)
         // The off hand's stick navigates and changes values (the arrow keys). The main hand's only
         // scrolls (on a page with a scrollbar) or moves the selection up and down: its left and
         // right do nothing, so that navigating never changes a setting by accident (round 20).
+        if(glm::length(off.stick) > 0.3f || glm::length(main.stick) > 0.3f)
+        {
+            menuui::sticksPushed(); // (a grip held on the panel is the fine modifier, not its grab)
+        }
         const bool scrolls = menuui::scrollStick(main.stick.y);
         if(scrolls && za::fabs(main.stick.y) > 0.3f)
         {

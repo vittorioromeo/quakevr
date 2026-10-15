@@ -1456,7 +1456,7 @@ LIQUID_SWELL \
 "{\n" \
 "	uint PermDecalTable[];\n" \
 "};\n" \
-"layout(binding=18) uniform sampler2D PermDecalAtlas;\n" \
+"layout(binding=18) uniform sampler2DArray PermDecalAtlas; // (its layers: PermDecals.y squared slots each)\n" \
 "\n" \
 "vec4 PermDecalsAt(vec2 g, vec2 pages, vec2 dgdx, vec2 dgdy) // w 1: a page there\n" \
 "{\n" \
@@ -1465,12 +1465,13 @@ LIQUID_SWELL \
 "	uint e = PermDecalTable[uint(pages.x + 0.5) + uint(page.y * across + page.x + 0.5)];\n" \
 "	if (e == 0u)\n" \
 "		return vec4(1.0, 1.0, 1.0, 0.0);\n" \
-"	uint slot = e - 1u, row = uint(PermDecals.y + 0.5);\n" \
+"	uint row = uint(PermDecals.y + 0.5), perlayer = row * row;\n" \
+"	uint slot = (e - 1u) % perlayer, layer = (e - 1u) / perlayer;\n" \
 "	float lod = clamp(log2(max(max(length(dgdx), length(dgdy)), 1e-6)), 0.0, 3.0);\n" \
 "	float rim = 0.5 * exp2(ceil(lod));\n" \
 "	vec2 local = clamp(g - page * 30.0 + 1.0, vec2(rim), vec2(32.0 - rim));\n" \
 "	vec2 at = (vec2(float(slot % row), float(slot / row)) * 32.0 + local) * PermDecals.z;\n" \
-"	return vec4(textureLod(PermDecalAtlas, at, lod).rgb * (1023.0 / 512.0), 1.0);\n" \
+"	return vec4(textureLod(PermDecalAtlas, vec3(at, float(layer)), lod).rgb * (1023.0 / 512.0), 1.0);\n" \
 "}\n"
 
 // the world vertex shader's permanent decals (QVR_PERMDECAL_FUNCTIONS): their attribute and outputs
@@ -2558,6 +2559,16 @@ SPECULAR_AA_FUNCTIONS
 "		float hrim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n" \
 "		hcolor = mix(hcolor, vec3(1.0, 0.85, 0.55), clamp(hlum * hs - 0.2, 0.0, 0.45));\n" \
 "		result.rgb = result.rgb * (1.0 - 0.3 * min(hs, 1.0)) + hcolor * hs * (0.1 + 0.9 * hlum + 0.45 * hrim * hrim);\n" \
+"	}\n" \
+"	else if (in_glow < -1.5) // QVR: a power-up's glow on your hands and body (vr/vr_view.cpp powerupGlow: Quad's blue, the pentagram's red, the biosuit's green): -2 - 2 x its colour (16 levels a channel: r + 16g + 256b) - its strength (0..1); a soft rim over a faint wash, none right at the eyes\n" \
+"	{\n" \
+"		float qv = -in_glow - 2.0;\n" \
+"		float qcode = floor(qv * 0.5);\n" \
+"		float qs = qv - 2.0 * qcode;\n" \
+"		vec3 qcolor = vec3(mod(qcode, 16.0), mod(floor(qcode / 16.0), 16.0), floor(qcode / 256.0)) / 15.0;\n" \
+"		float qrim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n" \
+"		float qnear = smoothstep(6.0, 16.0, length(in_pos));\n" \
+"		result.rgb += qcolor * (qs * qnear * (pow(qrim, 2.5) * 1.4 + 0.08));\n" \
 "	}\n" \
 "	else if (in_glow != 0.) // QVR: force grab's glow round the edges (vr/vr_fgfx.cpp); negative, the counter's (vr/vr_meleehud.cpp)\n" \
 "	{\n" \

@@ -127,7 +127,7 @@ int VR_AnimSmooth (const struct entity_s *e, const void *aliashdr, int pose1, in
 int VR_AnimSmoothPinned (const struct entity_s *e, const void *aliashdr, short *pose1, short *pose2, float *blend); // R_SetupAliasFrame: the entity vr_anim_smooth_pin holds between two frames: its lerp
 void VR_AnimSmoothBind (const struct entity_s *e, int channel); // the batch's swings and its model's rest pose bound for the alias shader (SSBOs 8, 9), after its pose buffers
 void VR_AliasInstance (const struct entity_s *e, const float matrix[16], const void *aliashdr, int kind, vraliasinstance_t *out); // R_DrawAliasModel_Real: kind 1 standard, 0 showtris/showskel, 2 depth only (all zero)
-void VR_MdlDequantCompute (const void *aliashdr, unsigned *out); // GL_MakeAliasModelDisplayLists: per pose and vertex, its dequantised offset from the stored bytes (vr_mdldequant.cpp)
+void VR_MdlDequantCompute (const char *model, const void *aliashdr, unsigned *out); // GL_MakeAliasModelDisplayLists: per pose and vertex, its dequantised offset from the stored bytes (vr_mdldequant.cpp)
 int VR_MdlDequantOn (void); // GLMesh_LoadVertexBuffer: vr_mdl_dequant (0: the offsets uploaded as zero, the stored bytes drawn)
 void VR_AliasFlameRefs (const void *aliashdr, unsigned short *refs); // GLMesh_LoadVertexBuffer: per VBO vertex, 0 or 1 + the gun vertex a muzzle flash's vertex rides on
 void VR_AliasMorph (const struct entity_s *e, const void *aliashdr, float ambient[24]); // instance: a weapon's morph into its other model (Ambient[2..5].w)
@@ -147,7 +147,7 @@ void VR_PortalFrameData (float plane[8][4], float mins[8][4], float maxs[8][4]);
 float VR_TeleportOpacity (void); // starry surface opacity in the current view
 unsigned VR_PortalTexture (void);							// ... the view through it for this eye's teleport faces (0: none)
 void VR_PortalAddPVS (byte *pvs, const float org[3]);		// ... what is round the gates' destinations, sent (SV_WriteEntitiesToClient)
-float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1)
+float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1; its other codes: vr_fgfx.cpp, -2..-3 Quad Damage's blue)
 void VR_EntityGlowColor (float rgb[3]);						// and its colour (the player's hue; SceneTone.yzw in the frame data)
 float VR_EntityFullbrightBoost (const struct entity_s *e);	// how much brighter its dim fullbright texels shine (0 none): the held weapons' sights (vr_weapon_glow)
 void VR_AliasLightCurve (float lightcolor[3]);				// R_SetupAliasLighting, before the minimum light: the lightmap contrast

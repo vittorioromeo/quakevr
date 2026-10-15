@@ -603,6 +603,33 @@ float(entity e) VR_Knockdown_Ledge =
     return FALSE;
 };
 
+// `e` (its push just landed: VR_Push) staggering as a ragdoll along xForward (vr_ragdoll_active_stagger; the caller asked
+// ragdollcanstagger): xPush the push (two hands 1), xBalance 0 about to fall .. 1 steady. Its ragdoll made (room for it
+// first); one that cannot stagger topples over. FALSE: no room, no ragdoll (it stands as it was).
+// (A shove's, VR_Knockdown_Try; a strong hit's, vr_hitstagger.qc.)
+float(entity e, vector xForward, float xPush, float xBalance) VR_Knockdown_Stagger =
+{
+    if(!VR_Knockdown_MakeRoom(e))
+    {
+        return FALSE;
+    }
+    float slide = VR_Shove_Reach(e); // (before its launch is cut: the shove's own)
+    if(!VR_Knockdown_Start(e))
+    {
+        return FALSE;
+    }
+    if(ragdollstagger(e, xForward, xPush, xBalance, slide))
+    {
+        e.vr_kd_stagger = 1;
+        e.vr_kd_balance = xBalance;
+        e.vr_kd_dir = xForward;
+        e.nextthink = time + 0.05;
+        return TRUE;
+    }
+    ragdollshovetopple(e, xForward, xPush, FALSE, slide);
+    return TRUE;
+};
+
 // A shove (or a bash) by self (a player) that landed on `e` (VR_Bash_Hit): by chance it knocks it down. xKind: the hit's
 // (QVR_HITKIND_SHOVE or _BASH); xHand -1: both hands; xPush: its push (VR_Shove_HandsPush: two hands 1, one 0.7, a counter more,
 // tired less): down, its ragdoll is carried on along xForward and topples over its feet (ragdollshovetopple:
@@ -650,25 +677,7 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
                 e.health, full, stamina));
             dprint(sprintf(": chance %.2f, roll %.2f: a stagger, balance %.2f\n", chance, roll, balance));
         }
-        if(!VR_Knockdown_MakeRoom(e))
-        {
-            return FALSE;
-        }
-        float slide = VR_Shove_Reach(e); // (before its launch is cut: the shove's own)
-        if(!VR_Knockdown_Start(e))
-        {
-            return FALSE;
-        }
-        if(ragdollstagger(e, xForward, xPush, balance, slide))
-        {
-            e.vr_kd_stagger = 1;
-            e.vr_kd_balance = balance;
-            e.vr_kd_dir = xForward;
-            e.nextthink = time + 0.05;
-            return TRUE;
-        }
-        ragdollshovetopple(e, xForward, xPush, FALSE, slide);
-        return TRUE;
+        return VR_Knockdown_Stagger(e, xForward, xPush, balance);
     }
     if(cvar_hget(cvarh_vr_knockdown_debug))
     {
@@ -706,6 +715,11 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
 // vr_knockdown_debug).
 void(float xMode) VR_Knockdown_Test =
 {
+    if(xMode >= 40 && xMode < 50)
+    {
+        VR_HitStagger_Test(xMode); // (vr_hitstagger.qc: hits that unbalance)
+        return;
+    }
     if(xMode == 20)
     {
         float removed = 0;

@@ -106,6 +106,8 @@ struct StorageBuffer
     za::SizeT size{0};     // bytes uploaded
 };
 void upload(StorageBuffer& buffer, const void* data, za::SizeT bytes);
+// `bytes` of it from `offset` changed in place (not orphaned: the rest kept; within what was uploaded, else nothing).
+void update(StorageBuffer& buffer, const void* data, za::SizeT offset, za::SizeT bytes);
 // Bound to `binding` (GL_SHADER_STORAGE_BUFFER), as uploaded; nothing if empty.
 void bindStorage(unsigned binding, const StorageBuffer& buffer);
 // A 2D texture on texture unit `unit`.

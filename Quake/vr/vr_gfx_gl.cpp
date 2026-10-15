@@ -1169,6 +1169,17 @@ void upload(StorageBuffer& b, const void* data, za::SizeT bytes)
     GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
+void update(StorageBuffer& b, const void* data, za::SizeT offset, za::SizeT bytes)
+{
+    if(!b.buffer || bytes == 0 || offset + bytes > b.size)
+    {
+        return;
+    }
+    GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, b.buffer);
+    GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(bytes), data);
+    GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
 void bindStorage(unsigned binding, const StorageBuffer& b)
 {
     if(b.buffer && b.size > 0)
