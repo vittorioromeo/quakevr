@@ -774,6 +774,39 @@ float WEAPON_GRABBABLE_BY_HANDLE = 2;
 
 // The weapon spawner `xSpawner` lays (its origin, its turn), the weapon lying about; world without the weapon's data.
 // vrtrailer's reset lays it again (vr_trailer.qc).
+// Its drawn box turned as it lies (an alias model's pitch the other way): the lowest of its corners, from its origin.
+float(entity w) VR_WeaponGrabbable_Lowest =
+{
+    vector dlo = drawnbounds(w, 0);
+    vector dhi = drawnbounds(w, 1);
+    makevectors('-1 0 0' * w.angles_x + '0 1 0' * w.angles_y + '0 0 1' * w.angles_z);
+    float lo = 100000;
+    for(float c = 0; c < 8; c++)
+    {
+        vector k = '1 0 0' * ((c & 1) ? dhi_x : dlo_x) + '0 1 0' * ((c & 2) ? dhi_y : dlo_y) + '0 0 1' * ((c & 4) ? dhi_z : dlo_z);
+        lo = min(lo, v_forward_z * k_x - v_right_z * k_y + v_up_z * k_z);
+    }
+    return lo;
+};
+
+// Turned at random, a long weapon placed a little over a table (vrfiringrange's laser cannons: 12 units over theirs)
+// could start sunk into it, and the physics threw it out of it across the range: raised until its turned drawn box
+// clears what is under its origin (it falls onto it and settles as before).
+void(entity w) VR_WeaponGrabbable_Clear =
+{
+    float lo = VR_WeaponGrabbable_Lowest(w);
+    traceline(w.origin, w.origin + '0 0 1' * (lo - 8), TRUE, w);
+    if(trace_fraction >= 1 || trace_startsolid)
+    {
+        return;
+    }
+    float lift = trace_endpos_z + 1 - (w.origin_z + lo);
+    if(lift > 0)
+    {
+        setorigin(w, w.origin + '0 0 1' * lift);
+    }
+};
+
 entity(entity xSpawner) VR_WeaponGrabbable_Make =
 {
     // Turned any way, still: it falls and settles on its drawn shape (a rigid body, MakeThrown).
@@ -788,6 +821,10 @@ entity(entity xSpawner) VR_WeaponGrabbable_Make =
         WeaponIdToThrowDamage(xSpawner.weapon)
     );
     w.vr_grab_by_handle = (xSpawner.spawnflags & WEAPON_GRABBABLE_BY_HANDLE) ? 1 : 0;
+    if(w)
+    {
+        VR_WeaponGrabbable_Clear(w);
+    }
     return w;
 };
 

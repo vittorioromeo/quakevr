@@ -248,6 +248,27 @@ void() VR_PickupTest_View =
     vr_pickuptest_view = 0;
 };
 
+// 5: the weapons lying about within 400 units of `p` (a map's func_weapon_grabbable, drops): each one's place, speed,
+// its turned drawn box's lowest point and the floor straight under its origin, to see one sunk into what it lies on or
+// thrown off it.
+void(entity p) VR_PickupTest_Lying =
+{
+    float n = 0;
+    for(entity e = findradius(p.origin, 400); e; e = e.chain)
+    {
+        if(e.classname != "thrown_weapon")
+        {
+            continue;
+        }
+        n = n + 1;
+        float lo = e.origin_z + VR_WeaponGrabbable_Lowest(e); // (its drawn box turned as it lies: buttons.qc)
+        traceline(e.origin, e.origin - '0 0 128', TRUE, e);
+        bprint(sprintf("pickuptest: lying %g at %v vel %v lowest %.1f floor %.1f%s\n", e.weapon, e.origin, e.velocity, lo,
+            trace_endpos_z, trace_startsolid ? " (its origin in the level)" : ""));
+    }
+    bprint(sprintf("pickuptest: %g weapons lying near\n", n));
+};
+
 // Every server frame (StartFrame): a pickup test asked for (vr_pickup_test).
 void() VR_PickupTest_Frame =
 {
@@ -279,6 +300,10 @@ void() VR_PickupTest_Frame =
     else if(ask == 4)
     {
         VR_PickupTest_EnemyGuns();
+    }
+    else if(ask == 5)
+    {
+        VR_PickupTest_Lying(p);
     }
     self = oself;
 };
