@@ -58,6 +58,12 @@ int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity
 // shapenearest, vr_reload.qc's magazine and super shotgun hits).
 [[nodiscard]] bool shapeNearest(int num, const glm::vec3& a, const glm::vec3& b, glm::vec3& out);
 
+// The faces of edict `num`'s convex hulls (a prop's, loose or held), in its own frame (its origin, along its axes): each
+// face's outward normal (xyz) and its distance from the origin along it (w, world units), into `planes` (at most
+// `maxPlanes`); `hullEnds[k]` where hull k's faces end (at most `maxHulls`, `hulls` of them). Its other shapes are
+// left out. 0 faces: no body, or no hull (the grip fit's shape: vr_gripfit.cpp).
+int hullPlanes(int num, glm::vec4* planes, int maxPlanes, int* hullEnds, int maxHulls, int& hulls);
+
 // Whether edict `num` is one of Box3D's props (its shape is what sightRay meets).
 [[nodiscard]] bool isBox3DProp(int num);
 

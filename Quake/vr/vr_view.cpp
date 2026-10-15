@@ -35,6 +35,7 @@
 #include "vr_handrig.hpp"
 #include "vr_grasp.hpp"
 #include "vr_grip.hpp"
+#include "vr_gripfit.hpp"
 #include "vr_held.hpp"
 #include "vr_ledges.hpp"
 #include "vr_lines.hpp"
@@ -957,7 +958,6 @@ struct ViewScratch
     za::Vector<glm::vec3> otherHandVerts;          // its vertices, posed
     za::Vector<glm::vec4> handSpheres;             // a hand's grasp spheres, posed (emptyHandSpheres)
     za::Vector<glm::vec4> fistSpheres;             // the closed empty hand's, in the hand (updateFist)
-    za::Vector<glm::vec4> openSpheres;             // the open hand's (the palm's skin)
     za::Vector<glm::vec4> boneSpheres;             // vr_debug_hand_bones's
     za::Vector<glm::vec4> collideSpheres[2];       // vr_body_collide's hands (selfCollideDrawn: Drawn views them)
     za::Vector<glm::vec4> collideRig;              // and the rig's
@@ -971,7 +971,7 @@ struct ViewScratch
     auto members()
     {
         return qvr::mem::list(restVerts, nowVerts, weight, otherHand, otherHandTris, otherHandVerts, handSpheres, fistSpheres,
-            openSpheres, boneSpheres, collideSpheres, collideRig, limbPoints, limbTris, magRest, magNow, anywhereFist,
+            boneSpheres, collideSpheres, collideRig, limbPoints, limbTris, magRest, magNow, anywhereFist,
             buttMiddle, surfaceVerts);
     }
 };
@@ -3173,6 +3173,10 @@ void updateGripFrame(const hands::State& s, int hand)
         rigShifts(model, hand, pose);
         f.measured = grasp::gripChannel(pose, cp, cd, radius);
     }
+    if(!f.measured)
+    {
+        gripfit::openHand(hand).clear();
+    }
     if(f.measured)
     {
         const bool mirrored = hand == HAND_OFF;
@@ -3188,8 +3192,9 @@ void updateGripFrame(const hands::State& s, int hand)
         f.channelDir = dir(cd);
         f.channelRadius = radius * glm::length(glm::vec3{rig[0]});
         // The palm's middle is inside the hand: out along its normal to its skin, where the open hand's spheres (the
-        // grasp's) the normal passes through end, so that what rests on it rests on the skin, not in the palm.
-        za::Vector<glm::vec4>& open = scratch.openSpheres;
+        // grasp's) the normal passes through end, so that what rests on it rests on the skin, not in the palm. (Kept for
+        // the grip fit at a grab: vr_gripfit.hpp.)
+        za::Vector<glm::vec4>& open = gripfit::openHand(hand);
         if(emptyHandSpheres(s, hand, false, open))
         {
             float skin = 0.f;

@@ -7657,3 +7657,60 @@ in `activeClasses` (vr_box3d.cpp), and none of AD's own classnames were there.
 - To try in VR (AD): shove a rocket grunt, a fumigator, a death knight and a zombie knight hard: they stagger, fall,
   get up with their bodies and fight on (not frozen); lift a defender and a death guard: they flail; snap a dfury's
   neck: the head flops; behead or headshot a zombie knight: the head zone sits on its leaning head.
+## Grip fit: the hand out of what it grips (worktree `flatfist`, branch `agent/gripfit`, 2026-10-15)
+
+His words: "Sometimes when I grab a prop in a weird way the hand IK overlaps the prop geometry too much, making it look
+like my fingers are phasing through the prop. Would it be possible to detect when an overlap is too large and adjust the
+grab position automatically to be a bit more on the edge of the prop? [...] customizable [...] retry steps should be
+bounded. This should not cause any slowdown or hitch."
+
+- **Once per grab** (`vr_gripfit.cpp`, called from `grip::serverTake`: every one-hand grab, a force grab's catch, a
+  wall torch, a pouch's grenade): the hand is its grasp spheres (93: the fingers' segments and the palm), open and in
+  the full fist, in its frame (the open set is the one `vr_view.cpp` already measures every frame for the palm's skin,
+  now written straight into the grip fit's store: no copy, no new per-frame work; the fist is `held::fist`). A sphere
+  counts as sunk by the less of its two poses' depths: a finger in the prop open but clear of it closed is one the
+  grasp solve closes clear of it; in it both ways, it phases through however it curls (as does a palm sphere in it).
+- **The shape:** the prop's Box3D hulls (`box3d::hullPlanes`: each face's plane; a sphere's depth in a convex hull is
+  its radius less its largest face distance, exact inside), or its drawn box without a body (a prop just spawned).
+- **The way out:** the sunk spheres' nearest faces' outward normals, weighted by depth. How far along it each sphere
+  must go to be no deeper than allowed is solved directly (per face: its distance grows by the normal's share of the
+  move), so the fit is three passes however many steps: the depth, the distance out, the depth there. The move is a
+  whole number of steps (`vr_grip_fit_step`), at most `vr_grip_fit_steps`, at most `vr_grip_fit_max`; if it can't
+  fit, the furthest allowed (the best along the way: never deeper than before, else not moved). The prop is moved the
+  other way in the hand, and the move kept with its grip (`Held::fit`, added again when its settings re-place it;
+  cleared at a regrip, which keeps where it is, and for a pouch's grenade or round, whose place is its own).
+- **Two hands:** the hand that just took hold of what the other holds (`carry2h::serverPlace` grab): its grip on the
+  prop moved out of it (the drawn hand sits on its grip), the grips' line with it.
+- **Not moved:** Fixed and Along the Handle grips (authored places; a torch's handle is meant to be in the fist),
+  weapons (their own grips, not this path), another player's or a dedicated server's hands (not known).
+
+Settings (archived; the Carrying settings page, after Fit Gap): `vr_grip_fit 1` (Keep Fingers Out of Props),
+`vr_grip_fit_depth 2.5` cm allowed, `vr_grip_fit_step 1` cm, `vr_grip_fit_steps 12` (1..32), `vr_grip_fit_max 10` cm.
+Debug > Profiling and Memory: Grip Fit: Last (`vr_grip_fit_last`: the last fit, then its inputs at every step, timed 1000 times).
+With `developer 1` or `vr_debug_carry 1` each fit prints a `gripfit:` line.
+
+Tests (headless, e1m1; `scratch/gf_test.sh`, `gf_2h.sh`; depth in units, 0.79 allowed; off = `vr_grip_fit 0`, whose
+held offsets match the measure-only `vr_grip_fit_steps 0` exactly):
+
+| grab | off (depth) | on | steps | moved |
+| --- | --- | --- | --- | --- |
+| small crate, the hand 13 over its middle (by the top) | 3.59 | 0.76 | 9 | 2.83 |
+| small crate, 6 over its middle (deep) | 10.59 | 7.44 (can't fit: the cap) | 12 | 3.15 |
+| barrel, 12 over its middle (the rim) | 4.02 | 0.87 (the cap) | 11 | 3.15 |
+| health box beside the fist (surface fit off) | 1.45 | 0.52 | 4 | 1.26 |
+| health box on the palm (surface fit on) | 0.27 | 0.27 | 0 | 0 |
+| explosive box, 10 over its corner (deep) | 9.63 | 6.48 (the cap) | 12 | 3.15 |
+| second hand into a held health box (4 cm in) | 1.63 | 0.58 | 5 | 1.57 |
+
+Screenshots (`scratch/gf_before.png`, `gf_after.png`, the crate by the top): before, only a fingertip shows over the lid;
+after, the fingers show over it. Timing (`--exclusive`, `vr_grip_fit_last`): the worst case (every sphere sunk, all 32
+steps, the barrel's 66 faces) 19.9 us mean, 18.2 us least (1 percent of runs over 50 us: the thread put off); a live
+barrel grab 29.7 us, the crate 8-28 us, a clear grab about 2 us. No allocation (fixed arrays), nothing between grabs.
+A pass per step (the first version) was 160 us for the barrel at 32 steps: replaced by the solved distance.
+
+Regression: `grip_gap_test.py both` 13 checks, 0 failed (two hands, force grab catches); `twohand_regrip_test.sh` as
+before (the pouch grenade's "not within reach" happens with the fit off too); e1m1 smoke clean.
+
+In VR: grab a crate or barrel with the hand pushed well into it (or by an edge at an odd angle): the prop should jump
+out of the hand a little, so the fingers sit at its surface, not through it; a normal grab should not move it. Try the
+Allowed Depth and Most Move sliders if it moves too much or too little.
