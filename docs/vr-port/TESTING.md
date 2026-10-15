@@ -423,7 +423,8 @@ hangs from rung 56 with both hands; `impulse 221` blasts 3 s later (`vr_climb_bl
 grunt beside: `vr_mock_look 0 90; impulse 241` (`vr_test_spawn_dist 40`, `vr_enemy_shove 0` until hanging), `vr_mock_look
 0 0`, then the play; `vr_physics_player` prints the body's place and velocity.
 The vore's shove (ROUND22.md, "The vore never shoves"): `bash Misc/quakevr/voreshove_test.sh <agent>` (a vore spawned
-touching you on vrtesthall, god, his shove settings, walking into it ~20 s): at least 4 shoves (8 now; 2 before the fix).
+touching you on vrtesthall, god, his shove settings, walking into it ~20 s): at least 4 shoves (8 now; 2 before the fix),
+every blow on its two-handed push's full reach, frame 40 (ROUND22.md, "The vore's two-handed shove").
 Bloodless shoves, bashes and slaps (ROUND22.md, "Shoves, slaps and bashes draw no blood"): `bash
 Misc/quakevr/bloodless_test.sh <agent>` (`vr_smallgibs_test 23` on a grunt: gore hits, wound events, blood particles and
 small gibs all 0 for shove, bash and slap, their damage dealt; the punch control bleeds).

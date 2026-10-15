@@ -1256,7 +1256,15 @@ void info_f()
             {
                 unfit += static_cast<int>((u >> b) & 1u);
             }
-            Con_Printf("animsmooth:   bone %2d %-10s unfit in %d of %d poses\n", b, m.rig->bones[b].name, unfit, m.numPoses);
+            Con_Printf("animsmooth:   bone %2d %-10s unfit in %d of %d poses", b, m.rig->bones[b].name, unfit, m.numPoses);
+            for(int p = 0; Cmd_Argc() >= 3 && p < m.numPoses; p++) // (and which, with the frames)
+            {
+                if((m.unfit[static_cast<za::SizeT>(p)] >> b) & 1u)
+                {
+                    Con_Printf(" %d", p);
+                }
+            }
+            Con_Printf("\n");
         }
     }
 }

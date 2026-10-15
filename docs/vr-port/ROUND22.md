@@ -7309,3 +7309,42 @@ smoke clean, build 0 warnings.
 Checklist (proposed): "Impacts: jump off a ledge onto a standing grunt's head: it is hurt (from 2 storeys its head
 pops) and you take no fall damage; Combat > Knockdowns > Impacts: Damage Curve 2 makes hard throws much worse than soft
 ones, Most per Strike caps one strike, Head and Limb Wear pops heads sooner."
+
+
+## The vore's two-handed shove (worktree `flatfist`, branch `agent/voreshove2`, 2026-10-15)
+
+His go (BACKLOG "Later", 2026-10-13): "A two-handed shove animation for the Vore." Its shove (10 damage, 256 units
+pushed at 64: "The vore shoves you") played the end of its ball throw without the ball, one arm's swing.
+
+- **Seven frames of its own:** `Misc/quakevr/make_voreshove.py` appends `shove1..shove7` to Quake VR's own
+  `quakevr/progs/shalrath.mdl` (frames 36..42; its 36 untouched, byte for byte; genguard'ed, re-runnable: it replaces
+  the shove frames it wrote). The model has no skeleton, so the frames are posed by its ragdoll rig's bones
+  (`vr_ragdoll.cpp` shalrathSeeds' pivots; each vertex's bone as `rig.py shalrath shalrath_bones.json` labels it):
+  the chest leans about its pelvis joint, the head nods on it, each upper arm turns about its shoulder and each forearm
+  about its elbow to the key's directions, blended across a joint near it (22 vertices) so the seams stretch smoothly;
+  pelvis and legs stay in the rest pose. Normals turn with their bone.
+- **The motion** (`orig_mon_shalrath.qc` `shal_shove1..7`, 0.1 s each as before): 1-3 the wind-up (leaning back 11
+  degrees, head pulled back, both arms drawn back, elbows low and behind, hands up by his chest: the tell), 4 the
+  thrust, 5 the full reach (both arms straight out at you, the hands together at your chest's height, leaning in 12
+  degrees), 6-7 back towards its rest; then `shal_run1`.
+- **The blow on the peak:** `VR_EnemyShove_Hit` stays on `shal_shove5` (`$shove5`, the arms' full reach), 0.4 s in;
+  the whole shove 0.7 s: the timing is unchanged. (Drawn with the frame lerp, the arms reach shove5 0.1 s after the
+  blow: shove4 is already 70 percent out when it lands.) The hit's developer line now ends with the monster's frame
+  (`(frame 40)`), and `voreshove_test.sh` fails a blow on any other frame.
+
+Rig and smoothing (`vr_anim_smooth_info shalrath 1`, new: it lists each bone's unfit poses): every bone fits all
+seven new poses. The engine's motion clusters shift with the 7 frames (clusters and bones 1.18 rms, were 1.20/1.28):
+vertices fully rebuilt 299 -> 329, fit median 0.480 -> 0.457; the head is now unfit in 12 more of its old attack and
+pain poses (2-9, 13, 16-22: drawn by the plain lerp there, as before the smoothing), the chest in 2 fewer.
+
+Tests: `voreshove_test.sh` 4 shoves, every blow on frame 40 (2 of 3 runs; the third 3 shoves, the vore hurting itself
+with its own balls' splash after its 3rd: the known 3-4 flake, `smallgib: monster_shalrath hit ... explosions`);
+screenshots from the player's eyes (vrtesthall, the vore 90 ahead, push 0): wind-up, peak and recovery; e1m1 and e1m6
+smoke with a vore spawned: no errors.
+
+Not done: a fallback for a replaced vore model without these frames (as the grunt's and the enforcer's shoves: Quake
+VR's own model only).
+
+In VR: walk into a vore (Debug > Tests spawn, or e1m6 on Hard): it leans back with both arms drawn back, then thrusts
+both hands at your chest and the push comes as they reach you; check that it reads at arm's length and that the push
+doesn't feel early.

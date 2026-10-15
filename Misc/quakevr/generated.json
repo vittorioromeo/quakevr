@@ -172,6 +172,10 @@
   "by": "make_grenade_skins.py",
   "part": "mdl skins after 0"
  },
+ "quakevr/progs/shalrath.mdl": {
+  "sha256": "36208a88477808ad141baff36bc6b7854c9c42bf3766e0616afe861aca92e207",
+  "by": "make_voreshove.py"
+ },
  "quakevr/progs/soldier.mdl": {
   "sha256": "36cc9c8ba2b919d993f1a1206772075b457dda42933895be701cee2e0e6ce92a",
   "by": "make_enemyshove.py"
