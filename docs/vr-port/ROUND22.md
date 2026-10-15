@@ -5906,8 +5906,8 @@ with the hands swapped: the main hand's A / X moves it `20.3 10.2 15.2`, the off
 `toolgun_panel_test.sh` and `toolgun_joint_menu_test.sh` pass unchanged (70 picks, 0 wrong, both hands), the melee
 canary is unchanged, e1m1 smoke clean, build 0 warnings.
 
-Note for the author's check: turning *yourself* with the gun's stick while its A / X is held turns the ghost too — the
-hold follows the hand's way in the world, as the physgun's wrist does. Author VR check: choose a grunt, hold X in the
+Note for the author's check: turning *yourself* with the gun's stick while its A / X is held turned the ghost too (the
+hold followed the hand's way in the world; changed by the review below: the play space's). Author VR check: choose a grunt, hold X in the
 left hand and reach forward, aside and up; let go and place it; hold A in the gun hand and turn your wrist; then the
 same with the gun in the left hand.
 
@@ -5917,3 +5917,58 @@ Backlog "Model vertex wobble" (1). `vr_mdl_dequant` (default 1; Graphics > Model
 each .mdl vertex follows the smoothest path through its animation within half a byte step of every stored value; 0 is
 the old look exactly. Debug > Reports > Steady Vertices Check (`vr_mdl_dequant_check`). Design, numbers (near-still
 wobble -46% to -100%, 114 ms load for 139 models), the proof for 0 and what to try in the headset: `MDL_DEQUANT.md`.
+
+## Review: the spawn tool's ghost hold (worktree `tghost`, 2026-10-15)
+
+Review of 17baee890 / b41b7fc33 / e50500bcb / c41eb26d3 (merged in 777a064e5, b7ee7d69a). Fixed (`vr_toolgun.cpp`):
+
+- The gun hand's A / X held + stick press from Spawn went to Brush, but the hold was the ghost's (`ghostHold.turn`), not
+  `tg.adjust`, so in Brush A / X no longer had the stick and a second press went *forward* again (Spawn <-> Brush). Now
+  A / X on the gun hand is always `tg.adjust`; the ghost's turn is derived each frame (`ghostHoldFrame`: adjust held,
+  the spawn tool, its ghost showing), and `adjustTakesSticks()` (sticksFrame, sticksTaken) never gives the spawn tool
+  the sticks (before: with nothing chosen, A / X held still froze walking for nothing).
+- The turn counted the hand's world yaw, so turning yourself with the stick while A / X was held turned the ghost by
+  that much on top of the ghost already facing you (its base yaw follows the aim): the 6DOF test's own run showed
+  `turn 52.4 -> -38.6` across the stick turn. Now the hand's yaw in the play space (`handRot.y - turnYaw`): `52.4 ->
+  52.4`; the ghost is carried round with you, turned as it was.
+- `toolgun_spawn_6dof_test.sh`: a second back press with A / X held (Joint, adjust 1) and the stick-turn check; PASS.
+
+Left for the author (not changed): the ghost's world yaw moves by twice the hand's yaw while turning (its base faces
+you along the aim, which swings with the gun hand, and the turn adds the hand's yaw too) — the test asserts the turn
+equals the aim's swing, so this looks intended; and the off hand's move integrates `hands::State::vel` over game time:
+in slow motion on a headset that reports velocity (not the mock, which differences positions on game time) the ghost
+follows the hand at the time scale's fraction. A position delta would be exact.
+
+## Melee space: monsters kept out of your head while they attack (worktree `tghost`, 2026-10-15)
+
+His note: knights "often get too close and go through the player" when they attack. Why: the player's body is narrow
+(`vr_hull_ent_width` = `vr_hull_width` 16: 8 a side) and Body Inset takes 4 more off each side, so a melee monster's
+charge (`ai_charge` -> `movetogoal`) goes on until its box all but touches his head; the knight is the worst because of
+its run attack, `ai_charge_side`: a 20-unit `walkmove` aimed 30 units to the side of his origin, a flyby that brushes
+past his face. Others (ogre, shambler, hell knight, rottweiler) stop with their boxes ~18 units from the head; the fiend
+lands its leap on top of him.
+
+`vr_enemy_melee_space` (default 16 units, archived; Combat > Holding Enemies > Getting Close > Melee Space; 0 off):
+
+- QC (`fight.qc` `VR_MeleeSpace_Step`, called after the step in `ai_charge`, `ai_charge_side`; AD's `ad_ai_charge`,
+  `_chargenoturn`, `_charge_side`, `_charge_front`): a melee step that would bring the monster's box nearer the player's
+  head (`headpos`, level) than the space, and nearer than it was, is cut back along itself (bisected, 6 steps). Not when
+  he is over or under it. Each of those (and `ai_melee`, AD's `ad_ai_melee`, `_meleesmash`) stamps `.vr_melee_time`.
+- Engine (`vr_bodycontact.cpp` `meleeSpace`, every server frame): a monster attacking him (stamped within 0.25 s, its
+  enemy him) that is nearer all the same (he walked or leaned in, a leap landed) is walked back (`SV_movestep`: no
+  ledges, no walls) by 12/s of the shortfall, at least 40 units/s. Held enemies (Step In) are left alone.
+- `vr_enemy_melee_space_status [reset]` (Debug > Tests > Holding Enemies > Closest Melee Approach, and a Clear row):
+  per kind, the closest its box and its origin came to the head, overall and while attacking, and how far it was pushed.
+
+`Misc/quakevr/melee_space_test.sh <agent>`: vrtesthall, god, standing still, each monster spawned 128 ahead and left 900
+frames. Head to box gap (level, units) while attacking, off -> on 16: knight 9.5 -> 16.1 (origin 22.4 -> 32.7), MG3's
+infected knight 7.0 -> 16.0, fiend 1.6 -> 6.0 (its leap; then pushed back 57 units); ogre 18.0, shambler 19.0, hell
+knight 18.5, rottweiler 18.4, MG3 death knight 18.1 unchanged (bodies meet first); zombie and mummy never melee'd; AD's
+monsters do not spawn in the test install (same hooks). Knights stay well inside their blows' reach (ai_melee: 60).
+Walking into an attacking monster (+forward): off, it stays pressed against him (knight 37.9, fiend 16.0, ogre 20.0 apart
+afterwards); on, it gives way while he presses and ends 36.4 / 32.0 / 55.7 away. Melee eval 168/177 (the known
+slash_horizontal_ltr timing row only), voreshove 4/4/3/4 shoves across off/on runs (the known 3-4 flake, unrelated: the
+vore never stamps), e1m1 smoke clean, toolgun 6DOF PASS.
+
+Author VR check: let knights, a fiend and an ogre attack you standing still, then lean in and step in; try Melee Space
+0 / 16 / 24.
