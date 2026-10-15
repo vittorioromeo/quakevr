@@ -46,7 +46,7 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
 
 ## In progress, 2026-10-15 (other workers; not open here)
 
-Glove customization, Vore two-handed shove animation, Model vertex wobble (2) (rigged monsters' vertices rebuilt from the fitted skeleton). Their texts were removed from
+Glove customization, Model vertex wobble (2) (rigged monsters' vertices rebuilt from the fitted skeleton). Their texts were removed from
 this file; the workers' ROUND22.md sections carry them.
 
 ## Proposed, waiting on the author

@@ -21,6 +21,11 @@ $frame death1 death2 death3 death4 death5 death6 death7
 $frame    walk1 walk2 walk3 walk4 walk5 walk6 walk7 walk8 walk9 walk10
 $frame    walk11 walk12
 
+// VR: the shove (quakevr/progs: Misc/quakevr/make_voreshove.py appends these after the model's own frames, its 36th
+// base1 unused)
+$frame base1
+$frame shove1 shove2 shove3 shove4 shove5 shove6 shove7
+
 void() shal_stand     =[      $walk1,       shal_stand    ] {ai_stand();};
 
 void() shal_walk1     =[      $walk2,       shal_walk2    ] {
@@ -70,18 +75,19 @@ void() shal_attack9     =[      $attack9,       shal_attack10   ] {ShalMissile()
 void() shal_attack10    =[      $attack10,      shal_attack11   ] {ai_face();};
 void() shal_attack11    =[      $attack11,      shal_run1   ] {};
 
-// VR: the shove (vr_enemyshove.qc; ROUND22.md, "The vore shoves you"): up close, the end of its throw without the ball
-// -- its arms drawn back and up, swung forward and down at you (the blow, its 5th frame), back.
-void() shal_shove1      =[      $attack5,       shal_shove2     ] {
+// VR: the shove (vr_enemyshove.qc; ROUND22.md, "The vore shoves you", "The vore's two-handed shove"): up close, a
+// two-handed push -- both arms drawn back, leaning back (the tell), thrust straight out at you together, leaning in
+// (the blow, its 5th frame: the arms' full reach), back. 0.7 s, the blow 0.4 s in (as its throw's swing was).
+void() shal_shove1      =[      $shove1,        shal_shove2     ] {
 sound(self, CHAN_VOICE, "shalrath/attack.wav", 1, ATTN_NORM);
 ai_face();
 };
-void() shal_shove2      =[      $attack6,       shal_shove3     ] {ai_face();};
-void() shal_shove3      =[      $attack7,       shal_shove4     ] {ai_face();};
-void() shal_shove4      =[      $attack8,       shal_shove5     ] {ai_face();};
-void() shal_shove5      =[      $attack9,       shal_shove6     ] {VR_EnemyShove_Hit();};
-void() shal_shove6      =[      $attack10,      shal_shove7     ] {};
-void() shal_shove7      =[      $attack11,      shal_run1       ] {};
+void() shal_shove2      =[      $shove2,        shal_shove3     ] {ai_face();};
+void() shal_shove3      =[      $shove3,        shal_shove4     ] {ai_face();};
+void() shal_shove4      =[      $shove4,        shal_shove5     ] {ai_face();};
+void() shal_shove5      =[      $shove5,        shal_shove6     ] {VR_EnemyShove_Hit();};
+void() shal_shove6      =[      $shove6,        shal_shove7     ] {};
+void() shal_shove7      =[      $shove7,        shal_run1       ] {};
 
 void() shal_pain1       =[      $pain1, shal_pain2      ] {};
 void() shal_pain2       =[      $pain2, shal_pain3      ] {};
