@@ -1762,7 +1762,9 @@ void backToGame(int hand)
     {
         return;
     }
-    menu::closeExtraInstances(); // (every panel closes; the first's menu opens again)
+    // (The other panels hide with the menu and come back with it, as left: only Close Panel closes one. The menu
+    // reopens on the first panel's page, whichever panel this was pressed on.)
+    menu::selectInstance(0);
 
     remembered = {};
     remembered.state = reopenable(m_state);
@@ -1811,7 +1813,6 @@ void useTool(int tool, int hand)
             Cbuf_InsertText("echo Quicksaving...; wait; save quick\n");
             break;
         case ToolQuickload:
-            menu::closeExtraInstances(); // (the first panel's menu closes, as below)
             remembered = {}; // A loaded game reopens the main menu, as the Load menu does.
             IN_Activate();
             key_dest = key_game;

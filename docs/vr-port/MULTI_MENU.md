@@ -22,7 +22,7 @@ per-page view state (cursor, scroll, expanded or collapsed, drafts, which rows a
   (keys, laser, mouse, drop-down steps, scroll) identical but the build hash.
 - **Stage 3 done** (branch `agent/multimenu2`; ROUND22.md, "Several menu panels at once"): `instanceCount` 3; the
   corner's New Panel (headset only) opens another panel beside the first on the current page; Close Panel (the others'
-  top button) or Back out of a panel's first page closes it; Back to game closes all. `selectInstance` swaps `m_state`
+  top button) or Back out of a panel's first page closes it; Back to game hides all (shown again as left when the menu opens, also after a map change; only Close Panel closes one; ROUND22.md, "Menu panels kept"). `selectInstance` swaps `m_state`
   and `m_mousex/y` with the instance (the current one is the focused panel); the first panel is the 2D layer's canvas
   (M_Draw draws it whichever is focused), the others draw into their own canvases after the 2D pass (VR_End2D, GPU scope
   "menu panels"), each through `items()` and `VR_Menu_Draw` (wrappers and presets refreshed per panel). The laser tests

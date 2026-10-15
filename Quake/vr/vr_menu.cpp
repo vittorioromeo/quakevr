@@ -13756,7 +13756,8 @@ bool qvr::menu::instanceOpen(int instance)
     {
         return key_dest == key_menu && mainState() != m_none;
     }
-    return instance < instanceCount && menuInstances[instance].open;
+    // (Hidden while the menu is closed: the panels stay open in their places, shown again when it opens, MULTI_MENU.md.)
+    return instance < instanceCount && menuInstances[instance].open && key_dest == key_menu && mainState() != m_none;
 }
 
 int qvr::menu::openInstances()
@@ -13882,12 +13883,17 @@ void qvr::menu::tidyInstances()
     }
     if(key_dest != key_menu || mainState() == m_none)
     {
-        // The menu closed (from whichever panel): they all go.
-        const bool none = m_state == m_none;
-        closeExtraInstances();
-        if(none)
+        // The menu closed (from whichever panel): the panels are hidden, not closed (instanceOpen), each keeping its
+        // page and place; the first is the current one again.
+        if(currentMenu != 0)
         {
-            m_state = m_none;
+            const bool none = m_state == m_none;
+            m_state = m_vr;
+            selectInstance(0);
+            if(none)
+            {
+                m_state = m_none;
+            }
         }
         return;
     }
