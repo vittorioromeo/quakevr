@@ -1202,10 +1202,22 @@ int campaignsBloodyShown = -1;
             .help("How much of a strike's damage wears the head or limb struck: higher pops them sooner. 0: impacts never "
                   "pop them (the damage still hurts)."),
         slider("Landing Crush", vr_ragimpact_crush, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
-            .help("Landing on a living monster from a height (2 storeys or so) crushes the part under your feet (its "
-                  "head, a limb, its torso), times this; a head or limb crushed past its health pops. 0: never."),
-        slider("Crush Least Speed", vr_ragimpact_crush_speed, 200.f, 1000.f, 25.f, "%.0f u/s").extend(0.f, 3000.f)
-            .help("Landing slower than this crushes nothing (400: a drop of about 100 units; 2 storeys: about 640)."),
+            .help("Landing on a monster (standing, down or a corpse) crushes the part under your feet (its head, a limb, "
+                  "its torso): its damage times this; a head or limb crushed past its health pops. 0: never."),
+        slider("Crush Least Speed", vr_ragimpact_crush_speed, 100.f, 1000.f, 25.f, "%.0f u/s").extend(0.f, 3000.f)
+            .help("Landing slower than this crushes nothing (a jump from the same level lands at about 270; a "
+                  "100-unit drop: 400)."),
+        slider("Crush Wear", vr_ragimpact_crush_wear, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of a head's or limb's own health a landing at the least speed wears (0.3: a jump from the "
+                  "same level wears about 0.37, the third pops it); faster landings more. 0: landings pop nothing."),
+        slider("Crush Pop Speed", vr_ragimpact_crush_pop, 200.f, 1000.f, 10.f, "%.0f u/s").extend(0.f, 3000.f)
+            .help("A landing this fast pops the head or limb under your feet at once (380: a drop of about two "
+                  "heights onto a body lying down)."),
+        slider("Crush Big Mass", vr_ragimpact_crush_big, 0.f, 600.f, 10.f, "%.0f kg").extend(0.f, 5000.f)
+            .help("A monster heavier than this (an ogre, a fiend, a shambler) is only hurt by landings: its head and "
+                  "limbs never pop. 0: none is big."),
+        slider("Crush Big Most", vr_ragimpact_crush_big_max, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The most of a big one's full health one landing takes (0.25: a quarter). 0: no cap."),
         toggle("Crush Standing Ones", vr_ragimpact_crush_standing)
             .help("Landing on a standing monster's head or shoulders crushes too. Off: only one down or staggering as a "
                   "ragdoll."),
@@ -7249,7 +7261,15 @@ za::Vector<Item> pageDebugTests()
                   "it (knock one down first: Shove the Nearest Down)."),
         command("Impacts: Drop You onto the Nearest Down One", "developer 1; vr_knockdown_test 52")
             .help("You put 256 units (2 storeys) over the nearest knocked-down monster: landing on it crushes the part under "
-                  "your feet (Landing Crush). vr_knockdown_test 53: 96 units, too low to crush."),
+                  "your feet (Landing Crush). vr_knockdown_test 53: 96 units."),
+        command("Impacts: Jump onto the Nearest Ragdoll's Head", "developer 1; vr_knockdown_test 56; vr_test_drop_height 46; "
+                "vr_knockdown_test 60")
+            .help("You put over the nearest ragdoll's head (one down or a corpse), your feet 46 units over the floor: a "
+                  "jump from the same level (Crush Wear; the third pops it). vr_knockdown_test 61: over its shin; 62: "
+                  "the nearest living one killed."),
+        command("Impacts: Drop onto the Nearest Ragdoll's Head", "developer 1; vr_knockdown_test 56; vr_test_drop_height "
+                "112; vr_knockdown_test 60")
+            .help("As above from 112 units (two heights, Crush Pop Speed): its head pops at once."),
         command("Impacts: Drop You onto the Nearest Standing One", "developer 1; vr_knockdown_test 56; vr_knockdown_test 59")
             .help("You put Drop Height (vr_test_drop_height, 256) units over the nearest standing monster's head: landing "
                   "on it crushes its head (Landing Crush, Crush Standing Ones)."),

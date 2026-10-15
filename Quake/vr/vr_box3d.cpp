@@ -16541,9 +16541,16 @@ int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out)
     return best->num;
 }
 
-int ragdollBone(int num, const glm::vec3& at)
+int ragdollBone(int num, const glm::vec3& at, float within)
 {
-    return ragdollBoneNear(num, at);
+    if(within < 0.f)
+    {
+        return ragdollBoneNear(num, at);
+    }
+    const RagdollBodies* r = ragdollOf(num);
+    float distance = 0.f;
+    const int part = r ? nearestPart(*r, at, distance) : -1;
+    return distance <= within ? part : -1;
 }
 
 glm::vec3 ragdollPoint(int num, int bone, const glm::vec3& p, bool toWorld)

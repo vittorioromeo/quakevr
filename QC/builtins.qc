@@ -305,7 +305,7 @@ float(entity e, vector mins, vector maxs) ragdollstaggered = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;
-float(entity e, vector p) ragdollbone = #0;
+float(entity e, vector p, optional float within) ragdollbone = #0; // (within: -1 when its surface is farther)
 vector(entity e, float bone, vector p, float toWorld) ragdollpoint = #0;
 // Decapitation (vr_decap.qc; the engine's vr_box3d.cpp, "Decapitation"): e's ragdoll (made now for a dead monster with a
 // rig) loses its head, launched by `blade` (u/s): 1 if it did; after it, ragdollcut's 0 the head's middle, 1 its angles,

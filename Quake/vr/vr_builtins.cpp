@@ -1683,11 +1683,14 @@ void PF_ragdollreach()
     G_FLOAT(OFS_RETURN) = box3d::ragdollHandReach(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)));
 }
 
-// float ragdollbone(entity e, vector p): the limb of e's ragdoll nearest p; -1 if e isn't one.
+// float ragdollbone(entity e, vector p, [float within]): the limb of e's ragdoll nearest p; -1 if e isn't one (or, with
+// `within`, if its surface is farther from p than that: the landing crush's feet, vr_ragimpact.qc).
 void PF_ragdollbone()
 {
     const float* p = G_VECTOR(OFS_PARM1);
-    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}));
+    const float within = qcvm->argc > 2 ? G_FLOAT(OFS_PARM2) : -1.f;
+    G_FLOAT(OFS_RETURN) =
+        static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}, within));
 }
 
 // vector ragdollpoint(entity e, float bone, vector p, float toWorld): p from the world into limb `bone`'s space (units),

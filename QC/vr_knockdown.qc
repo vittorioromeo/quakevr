@@ -783,7 +783,7 @@ void(float xMode) VR_Knockdown_Test =
         VR_HitStagger_Test(xMode); // (vr_hitstagger.qc: hits that unbalance)
         return;
     }
-    if(xMode >= 50 && xMode < 60)
+    if(xMode >= 50 && xMode < 63)
     {
         VR_RagImpact_Test(xMode); // (vr_ragimpact.qc: impacts, landing crush, manhandling)
         return;

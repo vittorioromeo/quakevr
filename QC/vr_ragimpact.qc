@@ -163,8 +163,9 @@ float(float xDamage, float xPiece) VR_RagImpact_Scale =
 };
 
 // A strike of `xDamage` (the head's multiplier in) at `xAt` on piece `xPiece` of `m` (VR_RagImpact_Piece), by `xBy`
-// (world: none). xWhat: for the prints.
-void(entity m, entity xBy, vector xAt, float xPiece, float xDamage, string xWhat) VR_RagImpact_Deal =
+// (world: none). xShare: the share of the piece's own health it wears (a landing's crush), -1: the damage times
+// vr_ragimpact_wear. xWhat: for the prints.
+void(entity m, entity xBy, vector xAt, float xPiece, float xDamage, float xShare, string xWhat) VR_RagImpact_Deal =
 {
     VR_Corpse_Parts(m);
     float hp = max(1, VR_Corpse_Health() * max(0, cvar_hget(cvarh_vr_ragimpact_piece_hp)));
@@ -172,7 +173,7 @@ void(entity m, entity xBy, vector xAt, float xPiece, float xDamage, string xWhat
     vector vel = normalize(xAt - mid) * 200; // (a pop's burst: its blood and bits go out from the body)
     string piece = xPiece == 0 ? "head" : (xPiece > 0 ? sprintf("limb %g", xPiece) : "torso");
     float loud = vr_rimp_test || cvar_hget(cvarh_vr_knockdown_debug);
-    float wear = xDamage * max(0, cvar_hget(cvarh_vr_ragimpact_wear)); // (what the piece's own health loses)
+    float wear = xShare >= 0 ? xShare * hp : xDamage * max(0, cvar_hget(cvarh_vr_ragimpact_wear)); // (its own health's loss)
     if(m.health <= 0)
     {
         // A corpse: its head or limb worn as any weapon's hit wears it (past its health: popped). Its torso: nothing.
@@ -184,8 +185,8 @@ void(entity m, entity xBy, vector xAt, float xPiece, float xDamage, string xWhat
         vr_rimp_total = vr_rimp_total + xDamage;
         if(loud)
         {
-            dprint(sprintf("ragimpact: %s corpse, %s: %s, %.1f into its %s\n", m.classname, xWhat, xBy.classname, xDamage,
-                piece));
+            dprint(sprintf("ragimpact: %s corpse, %s: %s, %.1f into its %s (worn %.1f of %.1f)\n", m.classname, xWhat,
+                xBy.classname, xDamage, piece, m.vr_limb_corpse_dmg[xPiece] + wear, hp));
         }
         if(wear > 0)
         {
@@ -259,7 +260,7 @@ void(entity m, vector xAt, float xSpeed, float xMass, float xRaw, float xHeld) V
         return;
     }
     m.vr_rimp_next[slot] = time + VR_RIMP_GAP;
-    VR_RagImpact_Deal(m, by, xAt, piece, dmg, sprintf("struck at %.1f m/s (%.1f raw)%s, %.1f kg behind it", xSpeed, xRaw,
+    VR_RagImpact_Deal(m, by, xAt, piece, dmg, -1, sprintf("struck at %.1f m/s (%.1f raw)%s, %.1f kg behind it", xSpeed, xRaw,
         xHeld ? " held" : "", xMass));
 };
 
@@ -296,6 +297,47 @@ vector(entity m, vector xFeet) VR_RagImpact_StandingAt =
         vr_rimp_piece = (bone > 0 && bone < 16) ? bone : -1;
     }
     return at;
+};
+
+// What of ragdoll `m` (down or a corpse) your feet at `xFeet` land on: its parts touched in a column under your foot
+// (VR_RIMP_FOOT units about its middle, VR_RIMP_FOOT_LOW under your feet to VR_RIMP_FOOT_HIGH over them: you may land
+// on it or through it to the floor), the head before a limb before the torso, then the one nearest the middle. Returns
+// its rank (lower: better; 1000000: none), vr_rimp_piece its piece (VR_RagImpact_Piece), vr_rimp_at where.
+float VR_RIMP_FOOT = 6;
+float VR_RIMP_FOOT_LOW = 6;
+float VR_RIMP_FOOT_HIGH = 26;
+vector vr_rimp_at;
+float(entity m, vector xFeet) VR_RagImpact_Underfoot =
+{
+    float rank = 1000000;
+    float loud = vr_rimp_test;
+    for(float i = 0; i < 9; i++)
+    {
+        float row = floor(i / 3);
+        vector off = '1 0 0' * (row - 1) * VR_RIMP_FOOT + '0 1 0' * (i - row * 3 - 1) * VR_RIMP_FOOT;
+        for(float z = -VR_RIMP_FOOT_LOW; z <= VR_RIMP_FOOT_HIGH; z = z + 8)
+        {
+            vector at = xFeet + off + '0 0 1' * z;
+            if(ragdollbone(m, at, 2) < 0)
+            {
+                continue;
+            }
+            float piece = VR_RagImpact_Piece(m, at);
+            float r = ((piece == 0) ? 0 : ((piece > 0) ? 100 : 200)) + vlen(off) + z * 0.1;
+            if(r < rank)
+            {
+                rank = r;
+                vr_rimp_piece = piece;
+                vr_rimp_at = at;
+            }
+        }
+    }
+    if(loud)
+    {
+        dprint(sprintf("ragimpact crush: %s under your feet at %v: %s\n", m.classname, xFeet, (rank < 1000000) ?
+            sprintf("piece %g at %v", vr_rimp_piece, vr_rimp_at) : "nothing touched"));
+    }
+    return rank;
 };
 
 // Stomp (vr_ragimpact_stomp): you (`p`) landed at xSpeed units/s on standing `m`'s top (its crush dealt, it lives):
@@ -370,9 +412,11 @@ float(entity m, entity p, float xSpeed) VR_RagImpact_Stomp =
 };
 
 // You (`p`) landed at xSpeed units/s (client.qc's landing, PlayerPostThink; xOnGround: on the floor, else stopped on a
-// standing monster's top): a living monster's part under your feet is crushed (vr_ragimpact_crush): a ragdoll's
-// (knocked down or staggering) or, with vr_ragimpact_crush_standing, a standing one's; a standing one that lives through
-// it may be knocked down (VR_RagImpact_Stomp). TRUE: one was crushed or knocked down (it broke your fall).
+// standing monster's top): a monster's part under your feet is crushed (vr_ragimpact_crush): a ragdoll's (knocked
+// down, staggering or a corpse) or, with vr_ragimpact_crush_standing, a standing one's; its head or limb worn by a share
+// of its own health (vr_ragimpact_crush_wear, all of it from vr_ragimpact_crush_pop up), a big one only hurt; a standing
+// one that lives through it may be knocked down (VR_RagImpact_Stomp). TRUE: one was crushed or knocked down (it broke
+// your fall).
 float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush =
 {
     float k = max(0, cvar_hget(cvarh_vr_ragimpact_crush));
@@ -384,7 +428,6 @@ float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush =
         return FALSE;
     }
     vector feet = p.origin + '0 0 1' * p.mins_z;
-    float half = max(p.maxs_x, p.maxs_y) + 8; // (its part's middle within your feet's square, a little more)
     float standingCrush = cvar_hget(cvarh_vr_ragimpact_crush_standing);
     float standing = standingCrush || stomp;
     entity best = world;
@@ -393,9 +436,9 @@ float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush =
     float bestPiece = -1;
     for(entity m = findradius(feet, 128); m != world; m = m.chain)
     {
-        if(!(m.flags & FL_MONSTER) || m.health <= 0 || !m.takedamage || m.vr_gib || m == p)
+        if(!(m.flags & FL_MONSTER) || !m.takedamage || m.vr_gib || m == p || (m.health <= 0 && !isragdoll(m)))
         {
-            continue;
+            continue; // (a corpse: as a ragdoll only, its head and limbs worn as a weapon's hits wear them)
         }
         if(!isragdoll(m))
         {
@@ -419,48 +462,62 @@ float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush =
         {
             continue; // (a ragdoll is only crushed)
         }
-        float bone = ragdollbone(m, feet);
-        if(bone < 0)
+        float rank = VR_RagImpact_Underfoot(m, feet);
+        if(rank < bestDist)
         {
-            continue;
-        }
-        vector at = ragdollpoint(m, bone, '0 0 0', 1);
-        vector off = at - feet;
-        if(fabs(off_x) > half || fabs(off_y) > half || off_z < -24 || off_z > 40)
-        {
-            continue;
-        }
-        if(vlen(off) < bestDist)
-        {
-            bestDist = vlen(off);
+            bestDist = rank;
             best = m;
-            bestAt = at;
-            bestPiece = VR_RagImpact_Piece(m, at);
+            bestAt = vr_rimp_at;
+            bestPiece = vr_rimp_piece;
         }
     }
     if(best == world)
     {
         if(vr_rimp_test && xOnGround)
         {
-            dprint(sprintf("ragimpact: landed at %.0f u/s: no living monster under your feet\n", xSpeed));
+            dprint(sprintf("ragimpact: landed at %.0f u/s: no monster under your feet\n", xSpeed));
         }
         return FALSE;
     }
     float m2u = max(1, VRMetersToUnits());
     float speed = xSpeed / m2u;
     float upright = !isragdoll(best);
+    // A big one (heavier than vr_ragimpact_crush_big kg: an ogre, a fiend, a shambler): hurt only, its head and limbs
+    // never worn, at most vr_ragimpact_crush_big_max of its full health a landing (never killed outright).
+    float bigKg = cvar_hget(cvarh_vr_ragimpact_crush_big);
+    float big = bigKg > 0 && VR_Grapple_MonsterMass(best) > bigKg;
+    if(big)
+    {
+        bestPiece = -1;
+    }
     float dmg = 0;
+    float share = 0;
     if(crush && (!upright || standingCrush))
     {
         dmg = VR_RagImpact_Scale(VR_RagImpact_Amount(cvar_hget(cvarh_vr_ragimpact_crush_mass), speed - least / m2u) * k,
                                  bestPiece);
+        float most = cvar_hget(cvarh_vr_ragimpact_crush_big_max);
+        if(big && most > 0 && best.health > 0)
+        {
+            dmg = min(dmg, max(1, (best.max_health > 0 ? best.max_health : best.health) * most));
+        }
+        // Its head's or limb's wear: vr_ragimpact_crush_wear of its own health at the least speed (a jump from the same
+        // level), rising with the square of the way to vr_ragimpact_crush_pop, where it pops at once.
+        float per = max(0, cvar_hget(cvarh_vr_ragimpact_crush_wear));
+        float pop = cvar_hget(cvarh_vr_ragimpact_crush_pop);
+        if(bestPiece >= 0 && per > 0)
+        {
+            float t = pop > least ? min(1, max(0, (xSpeed - least) / (pop - least))) : 1;
+            share = xSpeed >= pop ? 1 : min(1, per + (1 - per) * t * t);
+        }
     }
     float hit = FALSE;
-    if(dmg >= 0.5)
+    if(dmg >= 0.5 || share > 0)
     {
-        sound(best, CHAN_AUTO, "player/udeath.wav", min(1, dmg / 40), ATTN_NORM);
-        VR_RagImpact_Deal(best, p, bestAt, bestPiece, dmg, sprintf("crushed (%s), you landing at %.1f m/s",
-            upright ? "standing" : "a ragdoll", speed));
+        sound(best, CHAN_AUTO, "player/udeath.wav", min(1, max(dmg / 40, share)), ATTN_NORM);
+        VR_RagImpact_Deal(best, p, bestAt, bestPiece, dmg, share, sprintf("crushed (%s%s), you landing at %.1f m/s, "
+            "wearing %.2f", upright ? "standing" : (best.health > 0 ? "a ragdoll" : "a corpse"), big ? ", big" : "", speed,
+            share));
         hit = TRUE;
     }
     // Standing and still alive (and not made a ragdoll by the crush's pain): knocked down by the stomp.
@@ -476,7 +533,9 @@ float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush =
 // at the nearest wall at vr_test_throw_up_speed m/s and 3 m/s up (as your throw), 52 you put vr_test_drop_height (256)
 // units over its middle (a two-storey drop onto it), 53 the same 96 units (a short hop); the nearest standing one: 54
 // made staggered now (.vr_kd_shaken), 55 its health set to a fifth, 58 moved to 48 units off the nearest wall, 59 you put
-// vr_test_drop_height units over its top; 56 strikes printed from now (57: off again).
+// vr_test_drop_height units over its top; 56 strikes printed from now (57: off again); the nearest ragdoll (down or a
+// corpse): 60 you over its head, 61 over its left shin, your feet vr_test_drop_height over the floor; 62 the nearest
+// living one killed whole.
 void(float xMode) VR_RagImpact_Test =
 {
     if(xMode == 56 || xMode == 57)
@@ -494,7 +553,19 @@ void(float xMode) VR_RagImpact_Test =
             continue;
         }
         float down = m.health > 0 && m.vr_knockdown == 1;
-        if((xMode == 54 || xMode == 55 || xMode == 58 || xMode == 59) ?(m.health > 0 && !m.vr_knockdown) : (xMode == 50 ? isragdoll(m) || m.health > 0 : down))
+        if(xMode == 60 || xMode == 61 || xMode == 62)
+        {
+            down = ((xMode == 62) ? (m.health > 0) : (isragdoll(m) && !m.vr_gib));
+        }
+        else if(xMode == 54 || xMode == 55 || xMode == 58 || xMode == 59)
+        {
+            down = ((m.health > 0) && !m.vr_knockdown);
+        }
+        else if(xMode == 50)
+        {
+            down = (isragdoll(m) || (m.health > 0));
+        }
+        if(down)
         {
             best = m;
             bestDist = vlen(m.origin - self.origin);
@@ -564,6 +635,33 @@ void(float xMode) VR_RagImpact_Test =
         self.velocity = '0 0 0';
         self.flags = self.flags - (self.flags & FL_ONGROUND);
         dprint(sprintf("ragimpact test: you %g units over %s\n", up, best.classname));
+        return;
+    }
+    if(xMode == 60 || xMode == 61)
+    {
+        // You over its head (60) or its left shin (61), your feet vr_test_drop_height units over the floor it lies on
+        // (46: a jump from the same level, about 270 units/s; 112: two heights).
+        float part = (xMode == 60) ? ragdolllimbs(best, 3) : ragdolllimbs(best, 6, 6);
+        if(part < 0)
+        {
+            dprint(sprintf("ragimpact test: %s has no such part\n", best.classname));
+            return;
+        }
+        vector on = limbplace(best, part, (xMode == 60) ? 0 : 3); // (the head's middle; a point on the shin)
+        traceline(on, on - '0 0 256', TRUE, best);
+        on_z = trace_endpos_z + cvar("vr_test_drop_height");
+        setorigin(self, on - '0 0 1' * self.mins_z);
+        self.velocity = '0 0 0';
+        self.flags = self.flags - (self.flags & FL_ONGROUND);
+        dprint(sprintf("ragimpact test: you %g units over %s's %s (health %g)\n", cvar("vr_test_drop_height"),
+            best.classname, (xMode == 60) ? "head" : "left shin", best.health));
+        return;
+    }
+    if(xMode == 62)
+    {
+        // Killed, whole (a corpse, as a ragdoll if it may be one).
+        T_Damage(best, world, self, best.health + 1);
+        dprint(sprintf("ragimpact test: %s killed, ragdoll %g\n", best.classname, isragdoll(best)));
         return;
     }
     if(xMode == 59)
