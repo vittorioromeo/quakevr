@@ -7845,7 +7845,13 @@ and spread pools under them over seconds; on a corpse (`vr_test_spawn_dead 1`: a
 round it; a real shotgun blast (the bench's gun set-up) prints `back-splatter 7 streaks, reach 105`; on the calibration
 room's wall the back-splatter alone (Blood Sprays 0) shows thin streaks radiating from the line's point, more and wider
 for 80 damage; impulse 198 on a grunt knocks out 4 teeth that bounce and lie by your feet (8 after a second punch).
-PERF_PLACEHOLDER
+A real shotgun fight in E1M1's computer room (three blasts) keeps 6 streams pouring through the grunts' deaths and
+ragdolls (a first build stopped those on bodies that became ragdolls: the "#rag" model swap; fixed, `ownModel`).
+Cost (kit bench, 90 Hz paced, exclusive, 2 reps, all of it off with `vr_gore_streams 0; vr_gore_backsplatter 0` vs on):
+`play_e1m1_fight` (shotgun) frame p50 11.110 both, CPU busy avg 2.050 -> 1.957 ms (noise), heap allocations a frame
+5.36 -> 4.85; `play_e1m1_lights` (rockets) rep 1 CPU busy 2.742 / 2.728 off -> 2.714 on, its "vr particles" phase
+0.358 -> 0.390 (+0.03 ms); its rep 2 on was slower in every phase alike (3D, physics, swap, xr wait all about 1.8x:
+the machine, not the gore). So: within the runs' noise, under 0.05 ms a frame.
 
 In VR: shoot a grunt with the shotgun up close and watch the streams pour as it stands, falls and lies; check that the
 pools under it grow where the streams land; shoot one standing a little in front of a wall (the streaks behind it);
