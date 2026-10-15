@@ -7393,6 +7393,11 @@ za::Vector<Item> pageDebugTests()
             .help("vr_pickup_test 5: each weapon lying within 400 units (a map's, a drop): where it is, how fast it moves, "
                   "the lowest point of its turned drawn box and the floor under it: one sunk into or thrown off what it "
                   "lies on shows."),
+        header("Damage Credit (dmgcredit: ... in the console)"),
+        command("Damage Credit of Every Weapon", "vr_dmgcredit_test 1")
+            .help("vr_dmgcredit_test 1: every weapon (the mission packs' and AD's when there) fired from your main hand at a "
+                  "target ahead that takes only one weapon's damage (as Honey's weapon-specific buttons): the weapon each "
+                  "shot is credited with printed (dmgcredit: ... PASS when its own); about 6 s a weapon."),
         command("Every Model and Limb Precached", "vr_prepare_models")
             .help("vr_prepare_models: every model of the game's folders (progs/*.mdl) and every monster's limbs loaded now, "
                   "so their skins' normal maps are made and kept on disk (cache/normalmaps) instead of at a map's first "

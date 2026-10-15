@@ -418,6 +418,7 @@ float cvarh_vr_limbs_mass_scale;
 float cvarh_vr_limbs_end_fountain;
 float cvarh_vr_limb_test;
 float cvarh_vr_pickup_test;
+float cvarh_vr_dmgcredit_test;
 float cvarh_vr_decap_pop_roll;
 float cvarh_vr_decap_slash_angle;
 float cvarh_vr_decap_head_size;
@@ -1251,6 +1252,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_limbs_end_fountain);
     VR_CVAR_HMAKE(vr_limb_test);
     VR_CVAR_HMAKE(vr_pickup_test);
+    VR_CVAR_HMAKE(vr_dmgcredit_test);
     VR_CVAR_HMAKE(vr_decap_pop_roll);
     VR_CVAR_HMAKE(vr_decap_slash_angle);
     VR_CVAR_HMAKE(vr_decap_head_size);
