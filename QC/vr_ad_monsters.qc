@@ -545,6 +545,16 @@ string(float choice) VR_AD_DispenserModel =
     if(choice == 242) { return "progs/mon_judge.mdl"; }
     if(choice == 245) { return "progs/mon_wizard.mdl"; }
     if(choice == 250) { return "progs/mon_hknight.mdl"; }
+    if(choice == 251) { return "progs/mon_bossboglord.mdl"; }
+    if(choice == 252) { return "progs/mon_gaunt.mdl"; }
+    if(choice == 253) { return "progs/mon_ogre.mdl"; }
+    if(choice == 254) { return "progs/mon_floyd.mdl"; }
+    if(choice == 255) { return "progs/mon_deflector.mdl"; }
+    if(choice == 256) { return "progs/mon_dprince.mdl"; }
+    if(choice == 257) { return "progs/mon_bossnour.mdl"; }
+    if(choice == 258) { return "progs/mon_dguardq.mdl"; }
+    if(choice == 259) { return "progs/mon_dlord.mdl"; }
+    if(choice == 260) { return "progs/mon_sentinel.mdl"; }
     if(choice == 300) { return "progs/artifact_tome.mdl"; }
     if(choice == 301) { return "progs/artifact_sharp.mdl"; }
     if(choice == 302) { return "progs/artifact_piercer.mdl"; }
@@ -557,6 +567,11 @@ string(float choice) VR_AD_DispenserModel =
     if(choice == 309) { return "progs/g_shadaxe.mdl"; }
     if(choice == 310) { return "progs/g_shot3.mdl"; }
     if(choice == 311) { return "progs/g_plasma.mdl"; }
+    if(choice == 320) { return "progs/w_backpack.mdl"; }
+    if(choice == 321) { return "progs/w_backpack.mdl"; }
+    if(choice == 322) { return "progs/w_backpack.mdl"; }
+    if(choice == 323) { return "progs/w_backpack.mdl"; }
+    if(choice == 324) { return "progs/w_backpack.mdl"; }
     if(choice == 312) { return "progs/mon_soldier.mdl"; }
     if(choice == 313) { return "progs/mon_soldier.mdl"; }
     if(choice == 314) { return "progs/mon_soldier.mdl"; }
@@ -575,6 +590,11 @@ float(float choice) VR_AD_DispenserSpawn =
         return FALSE;
     }
     if(!cvar("vr_ad_mounted") || (!AD_Rules() && !cvar("vr_ad_everywhere")))
+    {
+        remove(self);
+        return TRUE;
+    }
+    if(!AD_Rules() && (choice == 258 || choice == 259 || choice == 260 || choice == 320 || choice == 321 || choice == 322 || choice == 323 || choice == 324)) // (only in an AD map: QVR_AD_SPAWN_MAP)
     {
         remove(self);
         return TRUE;
@@ -624,6 +644,16 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 242) { self.classname = "monster_judicator"; ad_monster_judicator(); }
     else if(choice == 245) { self.classname = "monster_wizard"; ad_monster_wizard(); }
     else if(choice == 250) { self.classname = "monster_hell_knight"; ad_monster_hell_knight(); }
+    else if(choice == 251) { self.classname = "monster_gug"; ad_monster_gug(); }
+    else if(choice == 252) { self.classname = "monster_polyp"; ad_monster_polyp(); }
+    else if(choice == 253) { self.classname = "monster_ogre_flak"; ad_monster_ogre_flak(); }
+    else if(choice == 254) { self.classname = "monster_floyd"; ad_monster_floyd(); }
+    else if(choice == 255) { self.classname = "monster_deflector"; ad_monster_deflector(); }
+    else if(choice == 256) { self.classname = "monster_dprince"; ad_monster_dprince(); }
+    else if(choice == 257) { self.classname = "monster_vermis"; ad_monster_vermis(); }
+    else if(choice == 258) { self.classname = "monster_death_guard"; ad_monster_death_guard(); }
+    else if(choice == 259) { self.classname = "monster_death_lord"; ad_monster_death_lord(); }
+    else if(choice == 260) { self.classname = "monster_sentinel"; ad_monster_sentinel(); }
     else if(choice == 300) { self.classname = "item_artifact_tomeofpower"; ad_item_artifact_tomeofpower(); }
     else if(choice == 301) { self.classname = "item_artifact_sharp_shooter"; ad_item_artifact_sharp_shooter(); }
     else if(choice == 302) { self.classname = "item_artifact_nail_piercer"; ad_item_artifact_nail_piercer(); }
@@ -636,6 +666,11 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 309) { self.classname = "weapon_upgrade_axe"; weapon_upgrade_axe(); }
     else if(choice == 310) { self.classname = "weapon_upgrade_ssg"; weapon_upgrade_ssg(); }
     else if(choice == 311) { self.classname = "weapon_upgrade_lg"; weapon_upgrade_lg(); }
+    else if(choice == 320) { self.classname = "item_backpack"; self.spawnflags = 15; ad_item_backpack(); }
+    else if(choice == 321) { self.classname = "item_backpack_armour"; self.spawnflags = 0; ad_item_backpack_armour(); }
+    else if(choice == 322) { self.classname = "item_backpack_armour"; self.spawnflags = 1; ad_item_backpack_armour(); }
+    else if(choice == 323) { self.classname = "item_backpack_armour"; self.spawnflags = 2; ad_item_backpack_armour(); }
+    else if(choice == 324) { self.classname = "item_backpack_armour"; self.spawnflags = 4; ad_item_backpack_armour(); }
     else if(choice == 312) { self.classname = "func_weapon_grabbable"; self.weapon = 20; func_weapon_grabbable(); }
     else if(choice == 313) { self.classname = "func_weapon_grabbable"; self.weapon = 21; func_weapon_grabbable(); }
     else if(choice == 314) { self.classname = "func_weapon_grabbable"; self.weapon = 22; func_weapon_grabbable(); }

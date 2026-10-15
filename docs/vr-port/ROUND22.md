@@ -7511,3 +7511,39 @@ VR's own model only).
 In VR: walk into a vore (Debug > Tests spawn, or e1m6 on Hard): it leans back with both arms drawn back, then thrusts
 both hands at your chest and the push comes as they reach you; check that it reads at arm's length and that the push
 doesn't feel early.
+
+## The rest of AD's monsters and pickups in the spawn panel (worktree `permdecals`, branch `agent/adspawn`, 2026-10-15)
+
+Follow-up to the section above, now that the kit has AD 1.80p1's data. Every `ad_monster_*` / `ad_item_*` /
+`ad_weapon_*` spawn function in `QC/ad/` was checked against `ad_monsters_gen.py` and AD's paks.
+
+- **Added** (`Misc/quakevr/ad_monsters_gen.py`, which writes `vr_ad_spawns.inc`, `vr_ad_spawnitems.inc`, the Debug
+  menu's rows and the QC spawner; 15 entries, spawner numbers 251-260 and 320-324): monsters Gug (AD's strong Bog
+  Lord), Polyp (the poison gaunt), Nail Ogre (`monster_ogre_flak`), Floyd Automaton, The Deflector, Dark Prince,
+  Vermis (Nour's boss form, no intro: a boss, check in VR); AD's versions of Quoth's Death Guard
+  (`monster_death_guard`, its own `mon_dguardq.mdl`), Death Lord, Sentinel. Items: AD's ammo backpack (spawnflags 15:
+  random shells, nails, rockets, cells) and the armour backpack as shards, green, yellow and red.
+- **AD maps only** (`QVR_AD_SPAWN_MAP`: `needs` 2, not in `vr_ad.cpp`'s `everywhereClasses`, the QC spawner removes
+  them outside AD's rules): the three Quoth classnames (so a Quoth map's own still spawn nothing, as before) and the
+  backpacks (Quake's backpack rules outside AD's maps, ARCANE_DIMENSIONS.md 16.1). The other new monsters follow the
+  older AD entries' rule (AD maps, or any map with Additional Content Everywhere).
+- **Skipped**: aliases of entries already there (`monster_baron` = Justice, `death_knight` = Death Knight, `edie` =
+  Freddie, `juggernaut` = Seeker, `bob` = Jim, `ogre_marksman` = AD's ogre; `item_artifact_cross` = Blast Belt,
+  `trinity` = Nail Piercer, `wetsuit` = Air Tank; `item_plasma` = cells; `weapon_bomb`/`hammer`/`plasmagun` remove or
+  redirect), the `*minion` classes (precache helpers for bosses' summons: `judgeminion`, `minotaurminion`,
+  `nourminion`, `shalrathminion`, `skullwizminion`, `wraithminion`, `wraithminion2`), the ghost props with no pain or
+  death (`dknightghost`, `ogre_fishing_ghost`), `hell_pointknight` and `item_keyx` (need a map's target / model), the
+  bosses that wait for their map's trigger (Chthon, Eidolon, Mammoth, Fire Top, Shub, Santa), and the ones whose
+  models are not in AD 1.80 (`monster_sweeper`, `turretbal`, `sword`, `xmas_elf`, `xmas_raindeer`, `xmas_snowman`:
+  only their `.qc` in `my_progs/`).
+
+Tests: `MAPCMD="vr_campaign_native ad;wait30;map ad_crucial" Misc/quakevr/toolgun_spawnall_test.sh <agent> 0 239`:
+210 entries, 202 spawned, 0 failed, 8 unavailable (Honey's, Dawn of the Machine's campaign-only); every new entry
+spawned and alive except the Yellow Armour Backpack, which with 23 other items (id's, AD's, the packs') was "gone"
+because ad_crucial's ring spots are off ledges or in walls: each of those 24 made alone ahead of the player is alive.
+Default run (vrfiringrange) PASS: 190 spawned, 0 failed, 20 unavailable (the 8 AD-maps-only among them).
+`toolgun_panel_test.sh` PASS; e1m1 smoke clean (`vr_toolgun_spawnlist`: 210 entries, 79 AD, 8 disabled there). The
+packs' entries moved up 15 (the MG3 range above is now 135-209).
+
+To check in VR: the new monsters' ghost heights and their fights (no VR rigging for them: they ragdoll as AD's
+generic ones), Vermis spawned in an open space, the backpacks' pickup.

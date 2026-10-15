@@ -91,6 +91,8 @@ struct Spawnable
 constexpr Spawnable spawnables[] = {
 #define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) \
     {section, label, classname, model, lift, nullptr, 0.f, 0, false, true, rulesOnly, choice}, // AD support
+#define QVR_AD_SPAWN_MAP(section, label, classname, model, lift, choice, key, value, skin) \
+    {section, label, classname, model, lift, key, value, skin, false, true, false, choice, false, 2}, // AD: its maps only
 #define QVR_AD_GUN(label, model, wid, choice) \
     {"Weapons", label, "func_weapon_grabbable", model, 8.f, "weapon", wid, 0, false, true, false, choice}, // AD support
 
@@ -159,6 +161,7 @@ constexpr Spawnable spawnables[] = {
 #include "vr_ad_spawnitems.inc" // AD support
 #include "vr_ad_spawnguns.inc" // AD support: AD's soldiers' guns, after its upgrades (the Weapons tab's AD group)
 #undef QVR_AD_SPAWN // AD support
+#undef QVR_AD_SPAWN_MAP // AD support
 #undef QVR_AD_GUN // AD support
 #include "vr_toolgun_packs.inc" // the expansions' entries and id's others (after these: the entries' numbers stay)
 };

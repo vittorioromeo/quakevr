@@ -4,11 +4,13 @@ one monster table plus standalone pickups: the debug spawner's AD entities (QC/v
 menu's spawns and shared engine catalog (Quake/vr/vr_menu_ad_monsters.inc, between its markers).
     python Misc/quakevr/ad_monsters_gen.py
 A monster: its spawner number (200.., in order of AD's maps' use), its classname, its model (the spawner's "installed"
-check), its menu name, a menu help line ("" none)."""
+check), its menu name, a menu help line ("" none), optionally MAPS_ONLY (made only in an AD map)."""
 import os
 import textwrap
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+
+MAPS_ONLY = True  # a monster made only in an AD map (QVR_AD_SPAWN_MAP: not one of vr_ad.cpp's everywhereClasses)
 
 MONSTERS = [
     (200, "monster_dknight", "progs/mon_dknight.mdl", "A Death Knight",
@@ -57,6 +59,18 @@ MONSTERS = [
     (242, "monster_judicator", "progs/mon_judge.mdl", "The Judicator (a Boss)", ""),
     (245, "monster_wizard", "progs/mon_wizard.mdl", "AD's Scrag", ""),
     (250, "monster_hell_knight", "progs/mon_hknight.mdl", "AD's Hell Knight", ""),
+    # AD's own variants and its last monsters with data (ROUND22, "The rest of AD's monsters and pickups")
+    (251, "monster_gug", "progs/mon_bossboglord.mdl", "A Gug", ""),
+    (252, "monster_polyp", "progs/mon_gaunt.mdl", "A Polyp", ""),
+    (253, "monster_ogre_flak", "progs/mon_ogre.mdl", "A Nail Ogre", ""),
+    (254, "monster_floyd", "progs/mon_floyd.mdl", "A Floyd Automaton", ""),
+    (255, "monster_deflector", "progs/mon_deflector.mdl", "The Deflector", ""),
+    (256, "monster_dprince", "progs/mon_dprince.mdl", "A Dark Prince", ""),
+    (257, "monster_vermis", "progs/mon_bossnour.mdl", "Vermis (a Boss)", ""),
+    # AD's versions of Quoth's monsters: only in AD's maps, so a Quoth map's own still spawn nothing
+    (258, "monster_death_guard", "progs/mon_dguardq.mdl", "A Quoth Death Guard", "", MAPS_ONLY),
+    (259, "monster_death_lord", "progs/mon_dlord.mdl", "A Death Lord", "", MAPS_ONLY),
+    (260, "monster_sentinel", "progs/mon_sentinel.mdl", "A Sentinel", "", MAPS_ONLY),
 ]
 
 
@@ -73,6 +87,16 @@ ITEMS = [
     (309, 'Weapons', 'AD Shadow Axe', 'weapon_upgrade_axe', 'progs/g_shadaxe.mdl', '8.f', 'true'),
     (310, 'Weapons', 'AD Widowmaker', 'weapon_upgrade_ssg', 'progs/g_shot3.mdl', '8.f', 'true'),
     (311, 'Weapons', 'AD Plasma Gun', 'weapon_upgrade_lg', 'progs/g_plasma.mdl', '8.f', 'true'),
+]
+
+# Pickups only in an AD map (Quake's backpack rules outside them: vr_ad.cpp), each with a field set before its spawn
+# function: spawner number, section, menu name, classname, model, lift, field, value, the ghost's skin.
+MAP_ITEMS = [
+    (320, 'Items', 'AD Ammo Backpack', 'item_backpack', 'progs/w_backpack.mdl', '0.f', 'spawnflags', 15, 0),
+    (321, 'Items', 'AD Shards Backpack', 'item_backpack_armour', 'progs/w_backpack.mdl', '0.f', 'spawnflags', 0, 4),
+    (322, 'Items', 'AD Green Armour Backpack', 'item_backpack_armour', 'progs/w_backpack.mdl', '0.f', 'spawnflags', 1, 1),
+    (323, 'Items', 'AD Yellow Armour Backpack', 'item_backpack_armour', 'progs/w_backpack.mdl', '0.f', 'spawnflags', 2, 4),
+    (324, 'Items', 'AD Red Armour Backpack', 'item_backpack_armour', 'progs/w_backpack.mdl', '0.f', 'spawnflags', 4, 3),
 ]
 
 # AD's soldiers' own guns (QC vr_ad_enemyguns.qc, WID 20..27) as func_weapon_grabbable: spawner number, menu name, weapon
@@ -100,22 +124,29 @@ def replace(path, begin, end, body):
 def main():
     qc = []
     qc.append("string(float choice) VR_AD_DispenserModel =\n{")
-    for n, c, m, _, _ in MONSTERS:
+    for n, c, m, *_ in MONSTERS:
         qc.append('    if(choice == %d) { return "%s"; }' % (n, m))
     for n, section, label, c, m, lift, rules in ITEMS:
+        qc.append('    if(choice == %d) { return "%s"; }' % (n, m))
+    for n, section, label, c, m, *_ in MAP_ITEMS:
         qc.append('    if(choice == %d) { return "%s"; }' % (n, m))
     for n, label, wid, m, base in GUNS:
         qc.append('    if(choice == %d) { return "%s"; }' % (n, base))
     qc.append('    return "";\n};\n')
     qc.append("float(float choice) VR_AD_DispenserSpawn =\n{\n    if(choice < 200 || choice >= 400)\n    {\n        return FALSE;\n    }")
     qc.append("    if(!cvar(\"vr_ad_mounted\") || (!AD_Rules() && !cvar(\"vr_ad_everywhere\")))\n    {\n        remove(self);\n        return TRUE;\n    }")
+    maps = [r[0] for r in MONSTERS if len(r) > 5 and r[5]] + [r[0] for r in MAP_ITEMS]
+    qc.append("    if(!AD_Rules() && (%s)) // (only in an AD map: QVR_AD_SPAWN_MAP)\n    {\n        remove(self);\n        return TRUE;\n    }"
+              % " || ".join("choice == %d" % n for n in maps))
     qc.append("    if(!AD_Rules()) { VR_AD_WorldOnDemand(); }")
-    for i, (n, c, m, _, _) in enumerate(MONSTERS):
+    for i, (n, c, m, *_) in enumerate(MONSTERS):
         qc.append('    %sif(choice == %d) { self.classname = "%s"; ad_%s(); }' % ("" if i == 0 else "else ", n, c, c))
     for n, section, label, c, m, lift, rules in ITEMS:
         fn = c if section == "Weapons" else "ad_" + c
         call = '%s();' % fn  # (an upgrade's pickup removes itself outside Weapon Upgrades' scope: AD_UpgradeItem)
         qc.append('    else if(choice == %d) { self.classname = "%s"; %s }' % (n, c, call))
+    for n, section, label, c, m, lift, key, value, skin in MAP_ITEMS:
+        qc.append('    else if(choice == %d) { self.classname = "%s"; self.%s = %d; ad_%s(); }' % (n, c, key, value, c))
     for n, label, wid, m, base in GUNS:
         qc.append('    else if(choice == %d) { self.classname = "func_weapon_grabbable"; self.weapon = %d; func_weapon_grabbable(); }'
                   % (n, wid))
@@ -124,7 +155,7 @@ def main():
     replace(os.path.join(ROOT, "QC", "vr_ad_monsters.qc"), "// ad_monsters_gen.py: begin\n", "// ad_monsters_gen.py: end",
             "\n".join(qc))
     menu = []
-    for n, c, m, name, help in MONSTERS:
+    for n, c, m, name, help, *_ in MONSTERS:
         line = '        adSpawnRow(%d, command("%s Ahead", "vr_test_spawn %d; vr_test_spawn_dist 128; impulse 241"))' % (n, name, n)
         if help:
             parts = textwrap.wrap(help, 96, drop_whitespace=False)
@@ -136,15 +167,23 @@ def main():
             "        // ad_monsters_gen.py: begin (Misc/quakevr/ad_monsters_gen.py writes these)\n",
             "        // ad_monsters_gen.py: end", "\n".join(menu) + "\n")
     rows = ["// Generated by ad_monsters_gen.py: AD support, shared spawn catalog."]
-    for n, c, m, name, _ in MONSTERS:
+    rows.append("// QVR_AD_SPAWN_MAP(section, label, classname, model, lift, choice, key, value, skin): only in an AD map, not one")
+    rows.append("// of vr_ad.cpp's everywhereClasses.")
+    for n, c, m, name, _, *flags in MONSTERS:
         label = name.removeprefix("A ").removeprefix("An ").removeprefix("The ")
         if not label.startswith("AD's"): label = "AD " + label
-        rows.append('QVR_AD_SPAWN("Monsters", "%s", "ad_%s", "%s", 24.f, false, %d)' % (label, c, m, n))
+        if flags and flags[0]:
+            rows.append('QVR_AD_SPAWN_MAP("Monsters", "%s", "ad_%s", "%s", 24.f, %d, nullptr, 0.f, 0)' % (label, c, m, n))
+        else:
+            rows.append('QVR_AD_SPAWN("Monsters", "%s", "ad_%s", "%s", 24.f, false, %d)' % (label, c, m, n))
     with open(os.path.join(ROOT, "Quake", "vr", "vr_ad_spawns.inc"), "w", encoding="utf-8", newline="\n") as out:
         out.write("\n".join(rows) + "\n")
     rows = ["// Generated by ad_monsters_gen.py: AD support, pickups and AD-rules-only upgrades."]
     for n, section, label, c, m, lift, rules in ITEMS:
         rows.append('QVR_AD_SPAWN("%s", "%s", "%s", "%s", %s, %s, %d)' % (section, label, c, m, lift, rules, n))
+    for n, section, label, c, m, lift, key, value, skin in MAP_ITEMS:
+        rows.append('QVR_AD_SPAWN_MAP("%s", "%s", "ad_%s", "%s", %s, %d, "%s", %d.f, %d)'
+                    % (section, label, c, m, lift, n, key, value, skin))
     with open(os.path.join(ROOT, "Quake", "vr", "vr_ad_spawnitems.inc"), "w", encoding="utf-8", newline="\n") as out:
         out.write("\n".join(rows) + "\n")
     rows = ["// Generated by ad_monsters_gen.py: AD support, AD's soldiers' guns (func_weapon_grabbable, weapon 20..27)."]
