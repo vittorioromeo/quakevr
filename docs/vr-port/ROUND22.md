@@ -5011,8 +5011,9 @@ Compiled in (vr_cvars.inc) from his config: `vr_bash_speed` 2 -> 3, `vr_shove_sp
 `vr_knockdown_bash` 0 -> 1, `vr_parry_push_enemy` 1 -> 0.55, `vr_parry_push_player` 1 -> 0.8, `vr_parry_wobble` 1 -> 0.7,
 `vr_parry_drop_chance` 0.5 -> 0, `vr_parry_stamina` 0 -> 1, `vr_parry_stamina_cost_2h` 12 -> 10. All but the two speeds
 were already in `quakevr/vr_defaults.cfg`; those eight lines are gone from it (now equal to the compiled-in values, as
-`vr_savedefaults` would write it). Config version 129 (vr_cvars.cpp) moves a config still at an old compiled-in value
-to the new one; a hand-set value stays. Test: `Misc/quakevr/config129_test.sh` (PASS). Melee eval, full set: 168/177,
+`vr_savedefaults` would write it). Config version 129 (vr_cvars.cpp) moves a config still at the old shipped bash or
+shove speed (2, 2.4) to the new one; the other eight shipped at their new values already (vr_defaults.cfg), so a config
+at an old compiled-in value there was set by hand and keeps it (review fix: 129 first flipped those too). Test: `Misc/quakevr/config129_test.sh` (PASS). Melee eval, full set: 168/177,
 one FAIL -> FAIL take whose one-hand bash push is now seen at 0.391 s, not 0.375 (the firmer 3 m/s bash speed).
 e1m1 smoke clean; the vore (6 shoves) and bloodless tests pass with the new defaults.
 
@@ -5581,7 +5582,7 @@ twist necessary to snap the neck. At the moment I have to snap my wrists and twi
   at Twist Speed (`neckSnapDue`; before, the turn only added up above Twist Speed, so a push-pull's ease in and out
   was lost).
 - Defaults: Twist Speed 200 -> 100 deg/s, Twist Angle 45 -> 30 deg (configs still at the old defaults take the new:
-  `vr_cfg_version` 131). A push-pull of 20 cm each way, the hands 0.24 m apart (the tests'), turns the line 59 degrees;
+  `vr_cfg_version` 132; 131 is the hot blades' glow). A push-pull of 20 cm each way, the hands 0.24 m apart (the tests'), turns the line 59 degrees;
   0.3 m apart, 15 cm each, 45; 0.36 apart, 15 cm, 40. Its fastest (standing, `vr_foegrab_necksnap_angle 100000` to
   measure): in 0.3 s 325, 0.5 s 210, 0.7 s 154, 0.9 s 119, 1.2 s 91 deg/s and no stroke: up to about 0.9 s snaps, 1.2 s
   does nothing.
@@ -5705,3 +5706,245 @@ are QC distances from origins, unchanged, so a grunt you stand closer to still h
 VR check: walk up to a grunt, an enforcer, an ogre: hands reach its head and neck without stepping through; Body Inset
 0 vs 4 vs 8 (live, no restart); hold one by the shoulder and step in to bring the other hand to its head; let go while
 inside: eased apart, never stuck; is Step In a net plus or minus (judo, neck snap, shoves)?
+## Review fixes: foegrab3, hotblade, shovefix, magfix2, flatplay, -preparerelight (worktree `fixgame3`, 2026-10-14)
+
+From the r5/r6 reviews of `next` (one commit each):
+- **Neck snap and the stick's turn.** Each wrist's turn is measured in play space (the hand's angles less the play
+  space's yaw, `move.vrYaw`), so smooth or snap turning with both hands on a head no longer reads as a twist (it
+  snapped: 32 deg at 187 deg/s). `judo_test.py neck`: `smooth_turn`, `snap_turn` (none), `twist_turn` (snapped).
+  The ragdoll cases (`knocked_*`, `pp_knocked_*`) are flaky run to run (a ragdoll grab missing its sphere), and
+  `pp_knocked_slow` snaps at 117-145 deg/s on the base build too: pre-existing.
+- **Foegrab lows.** A failed lift (or judo throw) restores the monster's velocity (no hop); a lifted enemy killed in the
+  hands has its flail ended when let go of (`Holder::flailing`); this round's neck snap note says config 132.
+- **Hot blades.** A hand's swing trail takes its tip's speed from the hand's own play-space velocity and turn, and its
+  last frame is carried with the player's move and stick turn: walking, flying or turning with a still hot blade leaves
+  none (was 109-207 particles a second; the drawn weapon lags the hand a frame, so the tip's world step alone can't tell).
+  The report poses the glowing vertices only when `vr_hotblade_report` runs. Turning the option off clears the lying
+  weapons' glow once. `hotblade_test.sh`: `trail_walk`, `off_lying` (29/29).
+- **Config 129** migrates only the two speeds; the other eight shipped at their new values (vr_defaults.cfg), so an old
+  value there is a player's and stays. `config129_test.sh` updated (PASS).
+- **Release Seated Magazine** (`vr_reload_mag_release`, default 1, Weapons > Reloading; his decision on the magfix2
+  finding): a held magazine leaves the hand as it seats, so moving the hand on to the foregrip before letting go never
+  pulls it back out; a fresh grip pulls it out. 0: magfix2's re-pull without letting go. `reload_test.sh`: 111/111 (the
+  old re-pull case runs with it off; a new case seats, moves apart to the front grip, lets go, re-grips, pulls).
+- **Flatscreen play.** The arms' walking lag is back along his horizontal motion whatever way he faces (at yaw 90 it
+  slid the guns ~11 units sideways), the whole capped by maxTrail. In co-op the mode is each player's: his client sets
+  bit 15 of the move's `vrBits0`, the server takes it out and sets `.vr_flatscreen`; `VR_FlatPlay(player)` gates
+  reloading, `E`, `1`/`2`, the grip-less catch and the body's hand touch. `flatplay_test.sh` (new, 4/4).
+- **-preparerelight** implies -prepare everywhere: `COM_PrepareRun()` (common.c) for the level-start autosave check
+  (host.c), the hidden window (gl_vidsdl.c) and `prepare::active()`.
+
+Smoke (e1m1, e1m2) clean; melee eval 168/177 (the one known FAIL -> FAIL timing difference, as before).
+Open: flying forward in flatscreen play the hands still sit ~33 units behind (the hands' world-space easing,
+`handEase`, adds ~20 to the capped 12-unit lag): easing them in the player's frame would bound the trail by maxTrail,
+but changes the feel (his call).
+
+## Neck snap: the hand-line detector (his idea), selectable
+
+`vr_foegrab_necksnap_method` 0 (default: the velocity strokes, unchanged) / 1 (Hand Line: the line between the tracked palms, laid across the neck, compared with each sample of the last `vr_foegrab_necksnap_window` s, default 0.3; turned Twist Angle within it snaps; the wrists rolling the same way, summed over the same window, also snaps). Standing it is measured in the enemy's yaw frame; a ragdoll's in play space (its chest turns whole with the hands: measured against the chest a 75 deg twist read 27). The stick's turn is taken out (old samples turned by the play yaw now). Window 0.3 not 0.4: a 1.2 s push-pull turns the line 33 deg in its busiest 0.4 s, 26 in 0.3 (30 deg / 0.3 s = 100 deg/s, the velocity method's Twist Speed). Menu: Neck Snap > Twist Detection, Twist Window (always shown, help says Hand Line only). `vr_foegrab_status` prints the method and the windowed angle. Tests: judo_test.py neck under `JUDO_NECK_METHOD=1` 29/29 (largest no-snap 26 deg, the 3 s 60-deg shuffle 6), method 0 29/29, dir+lift 22/22.
+
+
+## Tracy stage 2: QC, jobs, loading, resources and allocation lifetimes (2026-10-14)
+
+- Default coarse capture extends QC VM, worker/claiming-thread jobs and waits, file/model/texture/image preparation,
+  GL uploads, map/save/load, physics, audio and network regions. New scopes retain caller file/line; detailed QC
+  functions/builtins copy transient names/files rather than retaining unloaded program pointers. Existing profiler stays intact.
+- `vr_tracy_qc_detail=0`, `vr_tracy_memory_detail=0`; GPU defaults remain 1/coarse. Debug > Reports controls and normal
+  build information added, calibration paths 5 found/0 missing. Registered system capacities sampled every 60 connected
+  frames, summed for shared scratch/cache labels; frame draw/triangle/particle and VR timing plots have explicit limits.
+- Exact named physical Zone/Hunk/Cache block events account for baseline, realloc, frees, cache relocation, hunk reset,
+  detail transitions and reconnect. Native Box3D/default allocation macros retain requested-byte accounting and a worker-safe
+  live mirror, preserving survivors at late attach/reconnect. Allocator behavior and gameplay are unchanged.
+- A true decoded checkpoint test caught v0.14.1's unknown-MemoryDiscard serial-clock edge. Only announced names in the
+  current session are discarded; fresh sessions begin with allocation baselines. All final decoded checkpoints match the
+  independent engine pool/native Box3D state, not merely pointer lifetime validity. No ignored memory faults.
+- Native reader uses matching official staged server/file-reader source and test-only pinned dependencies, with no game
+  dependencies or downloads. Full captured evidence, controls, build options, coverage/limits and measurements are in TRACY.md.
+- Normal/default profiling builds, normal profiler smoke, stock save/load/error, simple-CSQC error/recovery, representative
+  expansion/integrated native AD and two captures with surviving/growing/freed bodies passed. Callstack capture proves actual
+  zone stacks; optional ETW compile passed without any elevated run. General heap/scheduler data remains explicitly scoped.
+- Exclusive uncapped e1m1, 3×1200 frames/state: CPU busy normal 1.0758 ms, idle 1.0288, coarse 1.1434, details 1.5053; all zero >33 ms hitches/drops. Raw rows versioned in TRACY_STAGE2_OVERHEAD.csv; scene/headset variability explicitly documented.
+- Disabled argument hooks are non-evaluating macros; an -O0 fixture proves dynamic names/resource expressions have no side effects. Resource/metadata walks remain build/connection guarded.
+- Final allocator review defers snapshots during the temporary hunk-header/cache-relocation window and rejects cross-session frees; host recovery clears the guard. Existing lifecycle replay verifies decoded checkpoints after this change.
+
+## 2026-10-14: exact gun hull reuse
+
+Retain winning scored points/initial hulls and reuse unchanged completed-piece gaps. 278 frozen-output comparisons preserve point/piece order and non-timing report bytes, including refinement/failure and parallel cases. Narrow profiling separates decomposition from cache preparation: voxelization remains dominant; no strong whole-hitch speedup established. Normal/profiling builds, smoke and gun port/well checks pass; melee retains 168/177 baseline verdicts. Details and temporary-memory limits: GUN_HULL_REUSE.md. Author VR check: held/mirrored and dropped gun ports/wells.
+
+## 2026-10-14: multi-scenario stacked profiling
+
+Six validated depth-eight captures cover e1m1 AI, cold/warm weapons, wound-driven ragdolls, explicitly drive-disabled sleep, verified native holding and integrated AD. Matching AD depth-zero pair has the same state hash/counts; stacks add roughly 9-11% mean CPU in this pair. Whole 3D GPU scope is now available at coarse detail. New source-backed findings and synthetic/reference limits: MULTI_SCENARIO_PROFILE.md. Artifacts backed up outside worker trees in kit/scratch/profilemulti. No gameplay changes.
+
+## 2026-10-14: shadow caster CPU collection (adcpuopt)
+
+Reserve/write each surface's exact triangle fan in one batch; collect ordered brush candidates locally per shadow-render invocation, including portal cameras, retaining live per-light eligibility/transform checks. No cvar/default/budget changes. Narrow world/brush/alias/candidate CPU scopes expose their shares. Normal/profiling builds and normal smoke pass; 12,264 exact oracle collections (216,614,502 indices) preserve index bytes/caster order/ranges, and all 18 active-light before/after atlas hashes match across moving runtime brushes, aliases, light removal, water, two virtual portal lights, rebuild and map reload. One exclusive matched AD pair: action caster collection 0.09154→0.08265 ms/frame plus new scan 0.00187; full shadow CPU 0.18442→0.17140, GPU 0.05450→0.05448. Counts/settings/endhash match; steady whole-frame busy rises, so no general FPS/tail claim. Short QC-function-detail diagnostic identifies liquids/wounds frame scans as future investigation targets; generic QVR builtin time is unresolved by operation, and QC/physics/melee stay unchanged. Details/limits: AD_CASTER_CPU_OPTIMIZATION.md; private evidence: kit/scratch/adcpuopt. Author VR check: AD combat, moving items/lifts and flashlight shadows through gates at actual resolution.
+
+## Liquid/wound frame scan CPU cost (2026-10-14)
+
+The live findflagsdue iterator moves only the existing float deadline/nonzero-field gates from QC into native
+code. Callbacks, edict order, intervals, cvar gates and spawn/remove/reuse behavior stay the same. No new
+settings, persistent fields or quality changes. Three interleaved AD pairs save 29.46 µs/frame in detailed
+liquid+wound scopes; coarse QC VM saves 13.93 µs steady and 12.01 µs action. Settings/counts match, every
+pair improves, and whole-frame variation is not an FPS claim.
+
+Reference scans, NaN/infinity/signed-zero/boundary cases, liquid/wound/dummy/swimmer/model-zero paths,
+vanilla/AD transitions and save/load pass: 30 full entity-state checkpoints and ordered records match.
+Restored normal/Tracy builds and final normal e1m1 smoke pass. See
+[QC_LIQUID_WOUND_CPU_OPTIMIZATION.md](QC_LIQUID_WOUND_CPU_OPTIMIZATION.md) for methods, absolute times,
+limits and private kit evidence. Author follow-up: ordinary liquid combat/wet corpses/dummies in VR.
+
+## 2026-10-14: exact voxel optimization (voxelopt)
+
+Reuse exact barycentric fractions and ordered chamfer neighbours, with an interior-cell fast path and 4.1 KB bounded stack storage. No geometry/settings changes. Against the current d986 baseline, 288 fixture comparisons preserve sampled points, voxel states/distances, pieces/reports and rebuilt hull mass bytes; allocation balance zero. Eleven frozen inputs, 16 alternating repetitions: voxel medians improve 22.5-37.4%, sequential decomposition 5.8-19.9%. Live captures were excluded because scene/input matching was insufficient; no live FPS gain claim. Normal/profiling builds, smoke, shotgun port/fallback and lying nailgun magazine checks pass. Details: VOXEL_OPTIMIZATION.md; private evidence backed up in kit/scratch/voxelopt. Author VR check: held/mirrored/dropped gun ports and wells.
+
+## Peripheral hit and low-health blood feedback (bloodfx, 2026-10-14)
+
+Two independent cosmetic blood-red vignettes are on by default, with a clear central circle and combined
+opacity bounded at 0.8. VR Settings > Blood Feedback contains archived controls; Debug > Tools has directional,
+neutral, armor-only and real damage-payload previews, plus quantitative reports. Defaults: hit on, duration
+0.45 s, intensity 0.22, directional bias 0.75; health on, threshold 35, intensity 0.25, individual beat width
+0.25 s, base rate 0.75 Hz, low-health rate scale 2, severity exponent 1. Full details: BLOOD_FEEDBACK.md.
+
+svc_damage is unchanged, including legacy colour shifts, view kicks, hand feedback and haptics. Separate hit
+world directions are reprojected per rendered eye/view; front maps to upper edge, rear to lower, vertical
+hits to their corresponding edge. Missing/near/zero sources are neutral. A listen server can also recognize
+world/self/owned-projectile hits by an exact protocol-quantized inflictor-centre match. Remote servers and old
+demos have no ownership metadata, so their available coordinates remain directional. This is the conservative
+compatibility limit. Effect clocks freeze paused; death/intermission/respawn, clear-state/map/save-load/disconnect
+and reverse demo playback clear history. Health is reconstructed from local authoritative STAT_HEALTH.
+
+Existing scene resolve/warp applies blood before colour shifts; no new GL state. Movement comfort, bullet-time,
+palette modes and full-black fades retain their existing composition. Portal cameras are excluded. Legacy damage
+tints remain independently enabled, so stronger combined feedback can be reduced through Screen Tints.
+
+Validation: normal and Release-Tracy builds passed; native Quake/AD and Tracy e1m1 damage+health smoke passed.
+28 production-engine quantitative cases passed. At intensity 0.6/bias 1, actual damage-payload left/right and
+front/rear/vertical edge peaks were 0.5671 against 0 opposite; neutral 0.5671 all round; armor-only 0.5671.
+A 180-degree head turn swaps the preferred side. At 0.5 s of a 1 s hit, opacity 0.15; halving intensity gives
+0.075, then doubling duration gives 0.1687. Pause leaves the clock unchanged across 72 frames. Independent
+toggles, threshold/healing, death/respawn, fresh save/load, map/disconnect all passed. Default health 34/20/10/1
+gives peak 0.0071/0.1071/0.1786/0.2429 and rate 0.7929/1.3929/1.8214/2.2071 Hz; at threshold/death, zero.
+Exponent 2 at health 20 lowers peak to 0.0459; rate scale 0 keeps 0.75 Hz. A recorded demo retained health 20,
+reverse playback cleared hit history/clock to zero, and demo pause retained clock 0.1111 across 20 frames.
+
+Both eye images: inactive max difference 1 byte (mean below 0.000003), hit centre max difference 0–1 byte,
+intended peripheral green attenuation 2.75–3.03 bytes versus 0.09–0.10 opposite, full-black pixels exactly zero.
+Flat scene inactive/centre differences <=1 byte and black scene pixels zero; pause/HUD overlays remain visible.
+Native baseline/left/right/health1 comparison uses test intensity 0.6 to make bias legible. Calibration board
+link rebuilt successfully (qbsp/vis/light all exit 0), menu-path check 6 found, 0 missing.
+Evidence/scripts/results backed up to C:/OHWorkspace/qvr-kit/scratch/bloodfx.
+
+Author VR review: judge mild default strength and comfort, front/rear convention, head turns, low-health beat
+frequency/width, and interaction with movement vignette and black fades. No melee/gameplay changes.
+The test's early artificial health-zero/health-100 sequence made a later save fail to parse; a fresh-map
+save/load passed, so the permanent harness isolates saves from that artificial death state.
+
+
+## Adjustable blood-vignette coverage (22:08:07 note; bloodfx_size)
+
+The requested size adjustment follows the backlog-first triage published in 5f7ed2009. Only blood coverage
+changed: archived vr_blood_hit_size and vr_blood_health_size independently control Hit Coverage and Health
+Coverage on VR Settings > Blood Feedback. Both default to 0.65, range 0-1 in 0.05 menu steps; zero hides only
+that effect, one gives the widest coverage. Existing intensity, direction, damage handling and pulse controls
+are unchanged. Each effect now receives its own radial mask before bounded alpha composition.
+
+Defaults move the clear/full radii from the old fixed 0.6/1.162 to 0.4125/0.8475, making the red reach much
+farther into peripheral vision. The full range runs from a narrow outer rim to broad coverage, while even the
+widest setting retains a clear centre of radius 0.15 (normalized screen coordinates). Values clamp to 0-1;
+NaN becomes zero. New cvars acquire defaults automatically, without changing existing intensity preferences.
+
+Normal and Release-Tracy builds passed; normal VR/flat capture smokes and Tracy smoke passed. Calibration
+board text rebuilt (qbsp/vis/light exit 0); menu path check: 6 found, 0 missing. Focused production-GPU tests
+covered 18 size/toggle states per view, without repeating unrelated original regression suites. At sizes
+0.20/0.65/1.00, left-eye hit pixels affected by more than two bytes were 416757/810474/979310, health
+425454/815569/981620. Right-eye hit counts: 416409/810607/979352; health425469/815517/981672. Flat scene:
+hit121509/253294/309117, health123880/254965/309754. Every view increased monotonically, with no pointwise
+coverage regression over two bytes. Changing an inactive effect's size, zeroing only its size, or disabling
+its toggle changed the independent effect by at most one byte. Clear-centre differences were at most one
+byte in the eyes, zero flat. Negative, above-range and invalid sizes matched their bounded reference images.
+Retained scalars at the captured peak: hit0.2200, health0.2429, rate2.2071 Hz.
+
+Off/default/wide comparisons use original default intensities and actual eye captures; desktop mirror
+updates can lag uncapped mock frames. VR and flat comparisons visibly confirm the wider default and broader
+maximum while preserving the clear centre. Reusable test: Misc/quakevr/test_blood_size.py, run with the bundled
+image Python, optional --tracy-smoke. Evidence and scripts: C:/OHWorkspace/qvr-kit/scratch/bloodfx_size.
+Author VR review: choose preferred independent coverage and confirm the new defaults are comfortably visible.
+
+## The spawn tool's ghost, held by a hand (worktree `tghost`, 2026-10-14)
+
+The spawn tool's ghost was moved and turned with the sticks, which took the player's walking and turning away and put
+the ghost's controls on a thumbstick. It is held by the hands now, and the spawn tool takes no stick at all: the off one
+walks, the gun's turns, as with any other gun. No new cvars, no new panel rows; `vr_toolgun_snap` and
+`vr_toolgun_turn_axis` are the physgun's alone (their panel rows already live on its page).
+
+`Quake/vr/vr_toolgun.cpp`: `GhostHold` (which hand moves the ghost, which turns it, and how far the holding hand has
+gone), `ghostShowing()` (the toolgun held, its aim and the choice valid, not picking, the spawn tool), and
+`ghostHoldFrame()`, run from `toolgun::frame()` before `sticksFrame()`. The other hand's A / X press takes the hold and
+nothing else: from then on only that hand's *translation* counts, applied 1:1 in the gun's level axes (`levelAxes()`:
+its forward flattened, its right, the world up) as offsets, so the ghost never jumps at the press and that hand's
+rotation does nothing. The gun hand's A / X press holds its turn: the ghost's yaw only, from the change in that hand's
+way (`handTurnWeight`, the physgun wrist's damping, so a hand near straight up or down does not spin it); its pitch and
+twist and the offsets are untouched. A release ends the hold and keeps what it did; `reset()` (the panel's Reset,
+`vr_toolgun_reset`) clears both. `toolgun::button()` swallows that hand's A / X while a ghost shows — no jump, and the
+hook never sees it (`primaryHeld` is set from the key actually sent) — and with nothing chosen, picking, or another tool
+in hand the button goes through exactly as before. `sticksTaken()` is unchanged: the spawn tool never takes a stick. The
+gun's stick press still cycles the tools, A / X held still the one before. `vr_toolgun_status` prints the offsets, the
+turn, which hand holds it, and where that hand is and how far it has followed.
+
+`Misc/quakevr/toolgun_spawn_6dof_test.sh <agent>` (new) proves it in vrfiringrange with a grunt chosen, both hand
+orientations. The A / X presses, in order, are taken by the tool, by the tool, *not* taken with no choice, by the tool,
+by the tool, by the tool. A hand moved by -20 +10 +15 (the player faces west: 20 along the gun's forward, 10 to its
+right, 15 up, its aim `-0.87 -0.00 -0.50`) gives offsets `20.0 10.0 15.0`; turning that hand in place changes nothing;
+walking with the off stick while its A / X is held moves the player 83 units and the offsets not at all; the trigger
+places the grunt at `44 -546 57` where that ghost stood (`45 -546 57`); the sticks then walk and turn the player with
+the ghost untouched. The gun hand's yaw +90 turns the ghost `0.0 -> 90.0` with the offsets unchanged, its pitch swings
+the aim 0.2 degrees and the ghost 0.0, its twist swings the aim -37.7 and the ghost -37.6 (the turn follows the way and
+nothing else); its stick still turns the player and its press with A / X held lands on the tool before. Offsets survive
+a tool change; Reset clears offsets and turn to zero; the physgun with A / X held reports `adjust 1` as before. With the
+gun in the off hand (a fresh map: `impulse 189` gives it there only when the main hand does not hold one) the same holds
+with the hands swapped: the main hand's A / X moves it `20.3 10.2 15.2`, the off hand's yaw turns it 90.0.
+`toolgun_panel_test.sh` and `toolgun_joint_menu_test.sh` pass unchanged (70 picks, 0 wrong, both hands), the melee
+canary is unchanged, e1m1 smoke clean, build 0 warnings.
+
+Note for the author's check: turning *yourself* with the gun's stick while its A / X is held turns the ghost too — the
+hold follows the hand's way in the world, as the physgun's wrist does. Author VR check: choose a grunt, hold X in the
+left hand and reach forward, aside and up; let go and place it; hold A in the gun hand and turn your wrist; then the
+same with the gun in the left hand.
+
+## Model vertex wobble: .mdl vertices dequantised at load (worktree `dequant`, 2026-10-15)
+
+Backlog "Model vertex wobble" (1). `vr_mdl_dequant` (default 1; Graphics > Models and Effects > Steady Model Vertices):
+each .mdl vertex follows the smoothest path through its animation within half a byte step of every stored value; 0 is
+the old look exactly. Debug > Reports > Steady Vertices Check (`vr_mdl_dequant_check`). Design, numbers (near-still
+wobble -46% to -100%, 114 ms load for 139 models), the proof for 0 and what to try in the headset: `MDL_DEQUANT.md`.
+
+## VR Settings' sections as submenus (worktree `bloodfx`, branch `agent/vrsubmenus`, 2026-10-15)
+
+Backlog "VR Settings menu organisation": "turn each subsection of the 'VR Settings' menu into a submenu". VR Settings
+(page 0, the Standard-level first-time page) was one 107-row list of 21 sections; it is now 28 rows: one link per
+section, grouped under four headers (Calibration: Height, Hand, Holster Calibration, Ammo Pouch; Moving: Controls,
+Locomotion, Comfort, Teleportation, Turning; Playing: Flashlight, Weapons, Bullet Time, Body, Haptics, HUD; Sight and
+Sound: Lighting, Display, Scaling, Graphics, Sound), each link with a one-line help of what is inside, then Reset All to
+Defaults (kept here, as it covers every section). The sections' rows moved unchanged, in their order, to 20 new pages
+`VR Settings - <section>` (pages 175-194, `menu_vr list`; home VR Settings, level Standard). Advanced VR Options is
+untouched, and so is the basic/advanced split: the new pages are Standard like page 0, and every row is still also on
+its topic's Advanced page. Lighting moved from between Flashlight and Weapons to Sight and Sound; nothing else reordered.
+
+`Quake/vr/vr_menu.cpp`: `pageMain()` (the links), `pageVrs*()` (the sections), `vrSettingsParts`/`vrSettingsPage()`:
+the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on any of these pages, Turning rebuilds
+itself when snap turning changes (Snap Angle or Turn Speed shown), and Reset All gathers its non-`vr_*` rows (volume,
+music, run, antialiasing...) from all of them. Blood Feedback's home is now VR Settings - Comfort. The HUD/crosshair
+links from HUD and Menus > Crosshair, Wrist Gadget and Status Bar now open VR Settings - HUD. Boards:
+`{menu:VR Settings - Height Calibration>Set Height Now}` (vrcalibration, vrtesthall) and
+`{menu:VR Settings - Turning>Turning Mode}` (vrtesthall); both maps rebuilt with `--compile`.
+
+Verified: `menu_vr dump` before and after (`Misc/quakevr/menu_coverage.py`: PASS, no option lost; a row multiset diff,
+headers and the new links left out: 4642 rows before, 4639 after, the 3 missing being the HUD links above, retargeted;
+161 pages reached before, the same 161 plus the 20 new after). Navigation by keys in VR and flat: VR Settings > Enter
+opens VR Settings - Height Calibration (back to 0), Escape returns to VR Settings, Escape again to Options. Turning:
+Turn Speed with `vr_snap_turn 0`, Snap Angle after `vr_snap_turn 45`. Reset All (twenty downs, Enter twice): volume
+0.3 -> 0.7, bgmvolume 0.2 -> 1, vr_snap_turn 90 -> 0, vr_turn_speed 7 -> 3.25. `vr_menu_path_check`: vrcalibration 6
+found, vrtesthall 14 found, 0 missing. e1m1 smoke clean, build 0 warnings.
+
+Checklist (proposed): "VR Settings: each section is its own page (Height Calibration ... Sound); open a few, change a
+value, Back returns to VR Settings; Reset All still there and still resets them; nothing you used to set there missing."

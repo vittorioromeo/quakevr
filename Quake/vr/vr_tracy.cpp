@@ -11,6 +11,26 @@
 #include "SDL.h"
 #include <atomic>
 #include <cstring>
+#include <unordered_map>
+#include <mutex>
+#include <string_view>
+#include "external/box3d/include/box3d/base.h"
+#include "vr_mem.hpp"
+#include "vr_jobs.hpp"
+#include "vr_profile.hpp"
+#include "vr_profile.h"
+#include "vr_backend.hpp"
+#include "vr_main.hpp"
+#include "vr_ragdoll.hpp"
+extern "C" int r_numactiveparticles;
+extern "C" int rs_brushpolys, rs_aliaspolys, rs_skypolys;
+extern "C" void Memory_TracyPlots(void);
+extern "C" double TexMgr_TracyBytes(void);
+extern "C" void Memory_TracySnapshot(void);
+extern "C" void Memory_TracyValidate(void);
+extern "C" int Memory_TracyCacheMove(cache_user_t* cache);
+extern "C" const char* VR_ActiveCampaignFolder();
+extern "C" int VR_IsNativeCampaignLaunch();
 
 namespace
 {
@@ -37,6 +57,8 @@ ___tracy_source_location_data sources[maxNames]{};
 unsigned names{};
 std::atomic_flag sourceLock = ATOMIC_FLAG_INIT;
 std::atomic<unsigned> dropped{0};
+unsigned forceClosed{};
+bool abortedByError{};
 SDL_threadID mainThread{};
 cvar_t gpuEnabled = {"vr_tracy_gpu", "1", CVAR_NONE};
 cvar_t gpuDetail = {"vr_tracy_gpu_detail", "0", CVAR_NONE};
@@ -44,6 +66,82 @@ unsigned queries[queryCount]{};
 unsigned head{}, tail{}, pending{}, openGpu{}, contextSerial{};
 uint64_t connection{};
 bool gpuReady{};
+cvar_t qcDetail = {"vr_tracy_qc_detail", "0", CVAR_NONE};
+cvar_t memoryDetail = {"vr_tracy_memory_detail", "0", CVAR_NONE};
+struct Allocation { unsigned long long bytes; int pool, end; };
+std::unordered_map<const void*, Allocation> allocations;
+constexpr const char* poolNames[] = {"Zone", "Hunk", "Cache"};
+uint64_t memorySession{};
+bool memoryActive{}, snapshotting{};
+bool poolAnnounced[3]{};
+unsigned memoryMismatches{};
+unsigned memoryTransitions{};
+// Native Box3D macros use Tracy's default pool. Keep survivors even while disconnected, so later
+// native frees/reallocations remain meaningful in the next capture. Box3D can allocate on workers.
+std::mutex boxLock;
+std::unordered_map<const void*, unsigned long long> boxLive;
+unsigned long long boxBytes{};
+uint64_t boxSession{};
+void boxSync()
+{
+    const uint64_t session = TracyCIsConnected ? tracy::GetProfiler().ConnectionId() : 0;
+    if(session == boxSession) return;
+    boxSession = session;
+    if(session)
+        for(const auto& [ptr, bytes] : boxLive) ___tracy_emit_memory_alloc(ptr, static_cast<size_t>(bytes));
+}
+void boxCheckpoint()
+{
+    bool pass;
+    size_t live;
+    unsigned long long captured, actual;
+    {
+        std::lock_guard lock{boxLock};
+        boxSync();
+        if(!boxSession) return;
+        actual = static_cast<unsigned long long>(b3GetByteCount());
+        captured = boxBytes;
+        live = boxLive.size();
+        pass = actual == captured;
+        if(!pass) ++memoryMismatches;
+        VR_TracyPlot("Box3D heap bytes", static_cast<double>(actual));
+        VR_TracyPlot("Tracy default captured bytes", static_cast<double>(captured));
+        VR_TracyPlot("Box3D live allocations", static_cast<double>(live));
+        VR_TracyPlot("Tracy pool mismatches", memoryMismatches);
+    }
+    Con_Printf("Tracy Box3D default: %s live %zu bytes %llu/%llu\n", pass ? "PASS" : "FAIL", live, captured, actual);
+}
+unsigned resourceFrame{};
+double displayPeriodMs{};
+int missedDisplayPeriods{-1};
+uint64_t metadataSession{};
+char metadataMap[64]{};
+thread_local bool qcOpen[1024]{};
+thread_local unsigned qcDepth{}, qcOverflow{};
+void memorySync()
+{
+    if(snapshotting || memoryTransitions) return;
+    const uint64_t session = TracyCIsConnected ? tracy::GetProfiler().ConnectionId() : 0;
+    const bool active = session && memoryDetail.value != 0;
+    if(session == memorySession && active == memoryActive) return;
+    // v0.14.1's server returns before advancing its serial clock for an unknown discard pool.
+    // Only discard names already announced in THIS session; new sessions start with allocations.
+    if(session == memorySession && session)
+        for(unsigned pool = 0; pool < 3; ++pool)
+            if(poolAnnounced[pool]) ___tracy_emit_memory_discard(poolNames[pool]);
+    if(session != memorySession) std::memset(poolAnnounced, 0, sizeof(poolAnnounced));
+    allocations.clear();
+    memorySession = session;
+    memoryActive = active;
+    if(active)
+    {
+        snapshotting = true;
+        Memory_TracySnapshot(); // baseline before any mutation, including late connect and mode changes
+        Memory_TracyValidate();
+        snapshotting = false;
+    }
+}
+
 using QueryGen = void (APIENTRY *)(int, unsigned*);
 using QueryDelete = void (APIENTRY *)(int, const unsigned*);
 using QueryCounter = void (APIENTRY *)(unsigned, unsigned);
@@ -140,14 +238,51 @@ void gpuConnect(uint64_t session)
 bool coarse(const char* name)
 {
     return std::strcmp(name, "eye L") == 0 || std::strcmp(name, "eye R") == 0 ||
-        std::strcmp(name, "window view") == 0 || std::strcmp(name, "shadow maps") == 0;
+        std::strcmp(name, "window view") == 0 || std::strcmp(name, "shadow maps") == 0 || std::strcmp(name, "3D") == 0;
 }
 void status()
 {
-    Con_Printf("Tracy 0.14.1: %s, CPU depth %u, dropped %u, GPU %s detail %.0f pending %u context %u\n",
+    Con_Printf("Tracy 0.14.1: %s, CPU depth %u, dropped %u, force-closed at frame start %u, GPU %s detail %.0f pending %u context %u\n",
         TracyCIsConnected ? "connected" : "waiting on localhost:8086", thread.depth,
-        dropped.load(std::memory_order_relaxed), gpuReady ? "ready" : "idle", gpuDetail.value,
+        dropped.load(std::memory_order_relaxed), forceClosed, gpuReady ? "ready" : "idle", gpuDetail.value,
         pending, contextSerial);
+}
+void memoryTest()
+{
+    QVR_TRACY_SCOPE(scope, "Tracy allocation lifecycle test");
+    Con_Printf("Tracy memory test: run from the console/menu, not mid-fight (may evict cache)\n");
+    const float oldDetail = memoryDetail.value;
+    Cvar_SetValueQuick(&memoryDetail, 1);
+    void* ptr = Z_Malloc(37);
+    Memory_TracyValidate();
+    ptr = Z_Realloc(ptr, 131);
+    Memory_TracyValidate();
+    Z_Free(ptr);
+    Memory_TracyValidate();
+    boxCheckpoint();
+    const int mark = Hunk_LowMark();
+    Hunk_AllocName(91, "tracy-test");
+    Memory_TracyValidate();
+    Hunk_FreeToLowMark(mark);
+    Memory_TracyValidate();
+    cache_user_t cache{};
+    Cache_Alloc(&cache, 513, "tracy-test");
+    Memory_TracyValidate();
+    Con_Printf("Tracy cache move test: %s\n", Memory_TracyCacheMove(&cache) ? "MOVED" : "evicted");
+    Memory_TracyValidate();
+    if(cache.data) Cache_Free(&cache, false);
+    Memory_TracyValidate();
+    ptr = Z_Malloc(71);
+    Cvar_SetValueQuick(&memoryDetail, 0);
+    memorySync();
+    Cvar_SetValueQuick(&memoryDetail, 1);
+    memorySync();
+    Z_Free(ptr);
+    Memory_TracyValidate();
+    Cvar_SetValueQuick(&memoryDetail, oldDetail);
+    unsigned long long bytes[3]{};
+    for(const auto& [p, a] : allocations) bytes[a.pool] += a.bytes;
+    Con_Printf("Tracy memory test: allocations %zu Zone %llu Hunk %llu Cache %llu bytes\n", allocations.size(), bytes[0], bytes[1], bytes[2]);
 }
 void abortTest()
 {
@@ -173,7 +308,10 @@ extern "C" void VR_TracyInit()
     thread.named = true;
     Cvar_RegisterVariable(&gpuEnabled);
     Cvar_RegisterVariable(&gpuDetail);
+    Cvar_RegisterVariable(&qcDetail);
+    Cvar_RegisterVariable(&memoryDetail);
     Cmd_AddCommand("vr_tracy_status", status);
+    Cmd_AddCommand("vr_tracy_test_memory", memoryTest);
     Cmd_AddCommand("vr_tracy_test_error", abortTest);
     Cmd_AddCommand("vr_tracy_test_stack", stackTest);
     Cmd_AddCommand("vr_tracy_test_gl_reset", VR_TracyGLShutdown);
@@ -211,7 +349,11 @@ extern "C" void VR_TracyBegin(const char* name, int gpu)
     if(!TracyCIsConnected) return;
     const auto* s = source(name);
     if(!s) return;
+#ifdef TRACY_CALLSTACK
+    o.cpu = ___tracy_emit_zone_begin_callstack(s, TRACY_CALLSTACK, 1);
+#else
     o.cpu = ___tracy_emit_zone_begin(s, 1);
+#endif
     // The upstream inactive context leaves id/connectionId indeterminate: a disconnect can
     // race the check above, so never read those fields unless the returned zone is active.
     if(!o.cpu.active)
@@ -251,13 +393,94 @@ extern "C" void VR_TracyEnd()
 }
 extern "C" void VR_TracyAbort()
 {
+    if(thread.depth || thread.overflow) abortedByError = true;
     while(thread.depth || thread.overflow) VR_TracyEnd();
+    qcDepth = qcOverflow = 0;
+    memoryTransitions = 0;
 }
 extern "C" void VR_TracyFrame()
 {
     // Previous frame may have left explicit C scopes open after a non-local exit.
+    // Count them: a leak outside Host_Error recovery shows up in vr_tracy_status.
+    if(thread.depth || thread.overflow) { if(!abortedByError) ++forceClosed; }
+    abortedByError = false;
     VR_TracyAbort();
     TracyCFrameMark;
+    memorySync();
+    if(TracyCIsConnected)
+    {
+        std::lock_guard lock{boxLock};
+        boxSync();
+    }
+    if(TracyCIsConnected)
+    {
+        VR_TracyPlot("VR display period ms", displayPeriodMs);
+        VR_TracyPlot("VR missed display periods", missedDisplayPeriods);
+        VR_TracyPlot("Draw calls", vr_profcounts.drawcalls);
+        VR_TracyPlot("World polygons", rs_brushpolys);
+        VR_TracyPlot("Alias triangles", rs_aliaspolys);
+        VR_TracyPlot("Sky polygons", rs_skypolys);
+        VR_TracyPlot("Particles", r_numactiveparticles);
+        const auto session = tracy::GetProfiler().ConnectionId();
+        if(metadataSession != session || std::strcmp(metadataMap, cl.mapname) != 0)
+        {
+            metadataSession = session;
+            q_strlcpy(metadataMap, cl.mapname, sizeof(metadataMap));
+            VR_TracyBeginAt("Capture context", __FILE__, __LINE__);
+            VR_TracyText(cl.mapname);
+            VR_TracyText(com_gamedir);
+            VR_TracyText(gl_renderer ? gl_renderer : "unknown GL renderer");
+            char value[512];
+            const char* campaign = VR_ActiveCampaignFolder();
+            q_snprintf(value, sizeof(value), "campaign=%s native_launch=%d", campaign ? campaign : "external/default", VR_IsNativeCampaignLaunch());
+            VR_TracyText(value);
+            for(const char* name : qvr::profile::settingCvars)
+                if(const auto* v = Cvar_FindVar(name))
+                {
+                    q_snprintf(value, sizeof(value), "%s=%s", name, v->string);
+                    VR_TracyText(value);
+                }
+            for(const char* name : {"vr_ragdolls", "vr_jobs_threads", "vr_tracy_qc_detail", "vr_tracy_memory_detail", "vr_tracy_gpu_detail"})
+                if(const auto* v = Cvar_FindVar(name))
+                {
+                    q_snprintf(value, sizeof(value), "%s=%s", name, v->string);
+                    VR_TracyText(value);
+                }
+            for(const cvar_t* v = Cvar_FindVarAfter("", 0); v; v = Cvar_FindVarAfter(v->name, 0))
+                if(std::strncmp(v->name, "vr_pbr", 6) == 0 || std::strncmp(v->name, "vr_parallax", 11) == 0)
+                {
+                    q_snprintf(value, sizeof(value), "%s=%s", v->name, v->string);
+                    VR_TracyText(value);
+                }
+            if(auto* be = qvr::backend())
+            {
+                int w{}, h{}; be->eyeResolution(w, h);
+                q_snprintf(value, sizeof(value), "backend=%s runtime=%s eyes=%dx%d window=%dx%d", be->name(), be->runtimeName(), w, h, vid.width, vid.height);
+                VR_TracyText(value);
+            }
+            VR_TracyEnd();
+        }
+    }
+    if(TracyCIsConnected && ++resourceFrame % 60 == 0)
+    {
+        Memory_TracyPlots();
+        qvr::ragdoll::tracyPlots();
+        VR_TracyPlot("Texture RGBA estimate bytes", TexMgr_TracyBytes());
+        const auto totals = qvr::mem::totals();
+        VR_TracyPlot("VR scratch bytes", static_cast<double>(totals.scratchBytes));
+        VR_TracyPlot("VR cache bytes", static_cast<double>(totals.cacheBytes));
+        // Scratch/cache registrations can share a system label; emit its total, not alternating values.
+        std::unordered_map<std::string_view, double> systemBytes;
+        for(auto* r = qvr::mem::Registration::first(); r; r = r->next())
+            systemBytes[r->system()] += static_cast<double>(r->bytes());
+        for(const auto& [system, bytes] : systemBytes) VR_TracyPlot(system.data(), bytes);
+        const auto jobs = qvr::jobs::stats();
+        VR_TracyPlot("Jobs executed", static_cast<double>(jobs.tasks));
+        VR_TracyPlot("Jobs claimed by waiter", static_cast<double>(jobs.claimedByWaiter));
+        VR_TracyPlot("Jobs parallel loops", static_cast<double>(jobs.loops));
+        VR_TracyPlot("Server edicts", sv.qcvm.num_edicts);
+        VR_TracyPlot("Client visible entities", cl_numvisedicts);
+    }
     if(!TracyCIsConnected)
     {
         gpuReady = false;
@@ -268,6 +491,141 @@ extern "C" void VR_TracyFrame()
     const uint64_t session = tracy::GetProfiler().ConnectionId();
     if(gpuEnabled.value && (!gpuReady || connection != session)) gpuConnect(session);
     if(gpuReady) collect();
+}
+extern "C" void VR_TracyDisplay(double ms, int missed) { displayPeriodMs = ms; missedDisplayPeriods = missed; }
+extern "C" void VR_TracyBoxAlloc(const void* ptr, unsigned long long bytes)
+{
+    if(!ptr) return;
+    std::lock_guard lock{boxLock};
+    boxSync();
+    if(boxLive.emplace(ptr, bytes).second)
+    {
+        boxBytes += bytes;
+        if(boxSession && TracyCIsConnected && boxSession == tracy::GetProfiler().ConnectionId())
+            ___tracy_emit_memory_alloc(ptr, static_cast<size_t>(bytes));
+    }
+}
+extern "C" void VR_TracyBoxFree(const void* ptr)
+{
+    if(!ptr) return;
+    std::lock_guard lock{boxLock};
+    boxSync();
+    const auto it = boxLive.find(ptr);
+    if(it == boxLive.end()) return;
+    if(boxSession && TracyCIsConnected && boxSession == tracy::GetProfiler().ConnectionId()) ___tracy_emit_memory_free(ptr);
+    boxBytes -= it->second;
+    boxLive.erase(it);
+}
+extern "C" int VR_TracyQCEnabled() { return qcDetail.value != 0 && TracyCIsConnected; }
+extern "C" int VR_TracyConnected() { return TracyCIsConnected; }
+extern "C" void VR_TracyPlot(const char* name, double value)
+{
+    if(TracyCIsConnected) ___tracy_emit_plot(name, value);
+}
+extern "C" void VR_TracyBeginAt(const char* name, const char* file, unsigned line)
+{
+    if(thread.depth == maxDepth) { ++thread.overflow; dropped.fetch_add(1, std::memory_order_relaxed); return; }
+    Open& o = thread.stack[thread.depth++];
+    o = {};
+    if(!TracyCIsConnected) return;
+    const auto loc = ___tracy_alloc_srcloc_name(line, file, std::strlen(file), "QVR", 3, name, std::strlen(name), 0);
+#ifdef TRACY_CALLSTACK
+    o.cpu = ___tracy_emit_zone_begin_alloc_callstack(loc, TRACY_CALLSTACK, 1);
+#else
+    o.cpu = ___tracy_emit_zone_begin_alloc(loc, 1);
+#endif
+    if(o.cpu.active) o.connection = o.cpu.connectionId;
+    else o.cpu = {};
+}
+extern "C" void VR_TracyBeginLoc(const struct vr_tracy_loc* loc)
+{
+    if(thread.depth == maxDepth) { ++thread.overflow; dropped.fetch_add(1, std::memory_order_relaxed); return; }
+    Open& o = thread.stack[thread.depth++];
+    o = {};
+    if(!TracyCIsConnected) return;
+    const auto* data = reinterpret_cast<const ___tracy_source_location_data*>(loc);
+#ifdef TRACY_CALLSTACK
+    o.cpu = ___tracy_emit_zone_begin_callstack(data, TRACY_CALLSTACK, 1);
+#else
+    o.cpu = ___tracy_emit_zone_begin(data, 1);
+#endif
+    if(o.cpu.active) o.connection = o.cpu.connectionId;
+    else o.cpu = {};
+}
+extern "C" void VR_TracyQC(const char* name, const char* file, int builtin)
+{
+    if(qcDepth >= 1024) { ++qcOverflow; return; } // include nested VM / builtin reentry
+    const bool enabled = qcDetail.value != 0 && TracyCIsConnected;
+    qcOpen[qcDepth++] = enabled;
+    if(enabled) { VR_TracyBeginAt(name, file, 0); VR_TracyText(builtin ? "QC builtin" : "QC function"); }
+}
+extern "C" void VR_TracyQCEnd()
+{
+    if(qcOverflow) { --qcOverflow; return; }
+    if(qcDepth && qcOpen[--qcDepth]) VR_TracyEnd();
+}
+extern "C" void VR_TracyAlloc(const void* ptr, unsigned long long bytes, int pool, int end)
+{
+    memorySync();
+    if(!memoryActive || !ptr || !TracyCIsConnected || memorySession != tracy::GetProfiler().ConnectionId()) return;
+    const auto [it, inserted] = allocations.emplace(ptr, Allocation{bytes, pool, end});
+    if(inserted)
+    {
+        ___tracy_emit_memory_alloc_named(ptr, static_cast<size_t>(bytes), poolNames[pool]);
+        poolAnnounced[pool] = true;
+    }
+}
+extern "C" void VR_TracyFree(const void* ptr)
+{
+    memorySync();
+    if(!memoryActive || !TracyCIsConnected || memorySession != tracy::GetProfiler().ConnectionId()) return;
+    const auto it = allocations.find(ptr);
+    if(it == allocations.end()) return;
+    ___tracy_emit_memory_free_named(ptr, poolNames[it->second.pool]);
+    allocations.erase(it);
+}
+extern "C" int VR_TracyCheckPool(int pool, unsigned long long count, unsigned long long bytes)
+{
+    if(!memoryActive) return 1;
+    unsigned long long capturedCount{}, capturedBytes{};
+    for(const auto& [ptr, a] : allocations)
+        if(a.pool == pool) { ++capturedCount; capturedBytes += a.bytes; }
+    const bool pass = count == capturedCount && bytes == capturedBytes;
+    if(!pass) ++memoryMismatches;
+    constexpr const char* countNames[] = {"Zone live blocks", "Hunk live blocks", "Cache live blocks"};
+    constexpr const char* bytesNames[] = {"Zone physical bytes", "Hunk physical bytes", "Cache physical bytes"};
+    constexpr const char* capturedNames[] = {"Tracy Zone captured bytes", "Tracy Hunk captured bytes", "Tracy Cache captured bytes"};
+    VR_TracyPlot(countNames[pool], static_cast<double>(count));
+    VR_TracyPlot(bytesNames[pool], static_cast<double>(bytes));
+    VR_TracyPlot(capturedNames[pool], static_cast<double>(capturedBytes));
+    VR_TracyPlot("Tracy pool mismatches", memoryMismatches);
+    Con_Printf("Tracy pool %s: %s live %llu/%llu bytes %llu/%llu\n", poolNames[pool], pass ? "PASS" : "FAIL", capturedCount, count, capturedBytes, bytes);
+    return pass;
+}
+extern "C" void VR_TracyHunkReset(int mark)
+{
+    memorySync();
+    if(!memoryActive || !TracyCIsConnected || memorySession != tracy::GetProfiler().ConnectionId()) return;
+    for(auto it = allocations.begin(); it != allocations.end();)
+        if(it->second.pool == 1 && it->second.end > mark)
+        {
+            ___tracy_emit_memory_free_named(it->first, poolNames[1]);
+            it = allocations.erase(it);
+        }
+        else ++it;
+}
+extern "C" void VR_TracyAllocationWindow(int enter)
+{
+    if(enter)
+    {
+        memorySync(); // old headers are still valid before the transition
+        ++memoryTransitions;
+    }
+    else
+    {
+        if(memoryTransitions) --memoryTransitions;
+        memorySync(); // new header/cache state is now complete, including a late connection
+    }
 }
 extern "C" void VR_TracyGLShutdown()
 {

@@ -292,7 +292,7 @@ void frame()
     {
         fs.announced = true;
         Con_Printf("Quake VR: flatscreen play (-flatscreenmode): the VR gameplay on the desktop screen. E grabs what you "
-                   "look at, 1 and 2 cycle the weapons you collected into the left and right hand, V punches, the mouse "
+                   "look at, 1 and 2 cycle the weapons you collected (and the empty hand) into the left and right hand, V punches, the mouse "
                    "fires the hand it fires in VR. vr_flatplay_status says what the mode is doing.\n");
     }
     if(!on && fs.wasOn)
@@ -362,8 +362,14 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     hands::angleVectors(fs.aim, fwd, right, up);
 
     // How far the arms are left behind by a turn and by a step.
+    // (A step's: back along his own horizontal motion, whatever way he faces: walking forward leaves the guns behind,
+    // under the crosshair, strafing beside it. The whole never more than maxTrail.)
     const float trail = za::clamp(fs.yawRate * turnLag, -maxTrail, maxTrail) * sway;
-    const glm::vec3 lag = right * -trail - (fwd * fs.vel.x + right * fs.vel.y) * (moveLag * sway);
+    glm::vec3 lag = right * -trail - glm::vec3{fs.vel.x, fs.vel.y, 0.f} * (moveLag * sway);
+    if(const float lagLen = glm::length(lag); lagLen > maxTrail)
+    {
+        lag *= maxTrail / lagLen;
+    }
 
     const bool mainHolds = heldIn(HAND_MAIN) >= 0;
     const bool offHolds = heldIn(HAND_OFF) >= 0;
@@ -422,7 +428,7 @@ void status_f()
         vr_flatplay.value, vr_flat_reach.value, vr_flat_sway.value, vr_flat_bob.value);
     Con_Printf("  E pressed %d times (force grab), V %d (punch); E and V are read from the keyboard, not from bindings.\n",
         fs.grabs, fs.punches);
-    Con_Printf("  the game code: reloading off, the flashlight worn and always lit, body interactions on, 1 and 2 cycle "
+    Con_Printf("  the game code: reloading off, the flashlight worn and always lit, body interactions on, 1, 2 and the wheel cycle (empty hand included) "
                "the weapons collected into the left and right hand.\n");
 }
 

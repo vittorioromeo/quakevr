@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 #include "q_ctype.h"
 #include "bgmusic.h"
 #include "steam.h"
@@ -1638,6 +1639,20 @@ qboolean COM_CheckParmImplied (const char *flag, const char *impliedBy, const ch
 
 /*
 ================
+COM_PrepareRun
+
+QVR: whether this is the installer's preparation run (vr_prepare.cpp): -prepare, or -preparerelight alone (the relight
+is a step of the preparation run, so it implies -prepare). Every reader of the flag asks here.
+================
+*/
+qboolean COM_PrepareRun (void)
+{
+	return COM_CheckParmImplied ("-prepare", "-preparerelight",
+		"the relight is a step of the preparation run, so -preparerelight runs the preparation too");
+}
+
+/*
+================
 COM_CheckRegistered
 
 Looks for the pop.txt file and verifies it.
@@ -2266,6 +2281,8 @@ into the file.
 */
 int COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id)
 {
+	VR_TRACY_SCOPE("File open");
+	VR_TracyText(filename);
 	return COM_FindFile (filename, NULL, file, path_id);
 }
 
@@ -2301,6 +2318,8 @@ Allways appends a 0 byte.
 
 byte *COM_LoadFile (const char *path, int usehunk, unsigned int *path_id)
 {
+	VR_TRACY_SCOPE("File load");
+	VR_TracyText(path);
 	int		h;
 	byte	*buf;
 	char	base[32];

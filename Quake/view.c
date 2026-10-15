@@ -581,6 +581,7 @@ void V_PolyBlend (void)
 	GL_UseProgram (glprogs.viewblend);
 	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
 	GL_Uniform4fvFunc (0, 1, v_blend);
+	VR_BloodBind (); // QVR: zero when no peripheral effect is active
 
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 

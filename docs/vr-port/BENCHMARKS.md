@@ -661,3 +661,14 @@ columns (clocks, slowdowns, each program's use of the GPU: `gpu_*`, `gpu3d_*`, `
 thread that runs only while profiling (`vr_profile`, the Profiler Panel or its CSV Capture) or with
 `vr_memstats_log_gpu 1` (Debug > Profiling and Memory > Memory Log: GPU); otherwise they are empty. With `developer 1` the console says when
 that thread starts and stops (`gpustats: sampling thread started`).
+
+
+## Optional Tracy captures
+
+Use `run.sh --exclusive <agent> -Tracy ...` after `Misc/quakevr/build_tracy.ps1`; keep `vr_profile 0` and collect
+the existing benchmark JSON alongside `.tracy`. Normal Release and Release-Tracy have separate binaries and
+intermediates. Compare normal, profiling with no viewer, coarse capture, and requested QC/memory/GPU detail;
+warm up after connection before recording. Optional callstacks/system tracing add separate overhead and are off
+in the default measurements. Do not interpret explicit wait-zone time as OS scheduler/context-switch data.
+See [TRACY.md](TRACY.md) for supported events, allocation baseline/reconnect semantics, precise resource estimates
+and the retained optimized overhead measurements. The shared benchmark setting catalogue also records PBR controls.

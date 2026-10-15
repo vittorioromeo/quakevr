@@ -252,6 +252,7 @@ void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are r
 #define VR_SAVE_FORMAT 1
 int VR_ReadSaveInfo (const char *text, const char *relname);	// Host_Loadgame_f, before the old game ends: the save's build and models read (0: refused)
 const char *VR_SaveBrushLines (void);	// SaveData_Fill: the runtime brushes as the save's "// qvrb" lines (vr_brushes.cpp; "" none)
+const char *VR_SaveDecalLines (void);	// SaveData_Fill: the permanent decals as the save's "// qvrdecals" and "// qvrd" lines (vr_permdecals.cpp; "" none)
 void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
 void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t
@@ -428,6 +429,8 @@ int VR_EntityTrail (int ent, int type);											// CL_RocketTrail: rockets, la
 
 // Client view (view.c): runs on the main thread, before the renderer.
 void VR_SetupViewEntities (void);						// V_RenderView, before R_RenderView
+int VR_BloodActive (void); // peripheral feedback; independent of screen tints
+void VR_BloodBind (void); // uniforms 2..4 in viewblend/warpscale
 void VR_OnDamage (int armor, int blood, const float *from);	// V_ParseDamage: a hit knocks the drawn hands, the controllers buzz (vr_painknock.cpp)
 
 // Console (console.c).

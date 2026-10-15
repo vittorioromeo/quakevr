@@ -95,6 +95,10 @@ void count_f();
 // vr_decal_stress [count 1..64] [size]: deterministic floor splatters ahead, for profiling.
 void stress_f();
 
+// vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size]: a mark where the line from x y z along dx dy dz (512
+// units) meets the world or a brush model, as a hit lays it (tests: the same place each run).
+void at_f();
+
 // vr_decal_atlas: writes the marks' atlas to <gamedir>/decal_atlas.png, as they look on a grey wall.
 void atlas_f();
 

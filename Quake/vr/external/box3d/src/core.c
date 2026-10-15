@@ -22,8 +22,15 @@
 #ifdef BOX3D_PROFILE
 
 #include <tracy/TracyC.h>
+#ifdef QVR_TRACY
+// QVR: replay live default-pool allocations on on-demand reconnect, before later native frees.
+#include "../../../vr_tracy.h"
+#define b3TracyCAlloc( ptr, size ) VR_TracyBoxAlloc( ptr, size )
+#define b3TracyCFree( ptr ) VR_TracyBoxFree( ptr )
+#else
 #define b3TracyCAlloc( ptr, size ) TracyCAlloc( ptr, size )
 #define b3TracyCFree( ptr ) TracyCFree( ptr )
+#endif
 
 #else
 

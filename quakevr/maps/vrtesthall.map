@@ -11,6 +11,7 @@
 "worldtype" "2"
 "light" "46"
 "_vr_debris" "0"
+"_qvr_prelit" "1"
 {
 ( -656 -528 384 ) ( -656 -527 384 ) ( -656 -528 385 ) qvr_ceiling [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 ( -656 -528 384 ) ( -656 -528 385 ) ( -655 -528 384 ) qvr_ceiling [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
@@ -917,7 +918,7 @@
 // entity 21
 {
 "classname" "func_worldtext_banner"
-"worldtext" "CALIBRATE AGAIN\nSTART CALIBRATION: all of it.\n\nBody only:\n{menu:Body Calibration}\n\nHeight only:\n{menu:VR Settings>Set Height Now}"
+"worldtext" "CALIBRATE AGAIN\nSTART CALIBRATION: all of it.\n\nBody only:\n{menu:Body Calibration}\n\nHeight only:\n{menu:VR Settings - Height Calibration>Set Height Now}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.2"
 "angle" "180"
@@ -926,7 +927,7 @@
 // entity 22
 {
 "classname" "func_worldtext_banner"
-"worldtext" "MOVING AND TURNING\n\nSWAP STICKS: the right stick moves.\n\nMore: {menu:VR Settings>Turning Mode}\nand {menu:Locomotion}"
+"worldtext" "MOVING AND TURNING\n\nSWAP STICKS: the right stick moves.\n\nMore: {menu:VR Settings - Turning>Turning Mode}\nand {menu:Locomotion}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "0"

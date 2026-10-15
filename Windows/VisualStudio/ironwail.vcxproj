@@ -9,6 +9,14 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-Tracy|x64">
+      <Configuration>Release-Tracy</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release-TracyFull|x64">
+      <Configuration>Release-TracyFull</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{AE77266F-0A23-4F08-A491-369DE664B273}</ProjectGuid>
@@ -17,7 +25,7 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+  <PropertyGroup Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
@@ -32,7 +40,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+  <ImportGroup Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
@@ -47,7 +55,7 @@
     <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <PropertyGroup Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')">
     <OutDir>$(SolutionDir)Build-$(ProjectName)\bin\$(PlatformShortName)\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
@@ -68,7 +76,7 @@
       <CompileAs>CompileAsC</CompileAs>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PrecompiledHeaderFile>quakedef.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
@@ -86,7 +94,7 @@ copy "$(SolutionDir)\..\curl\lib\$(PlatformShortName)\*.dll" "$(TargetDir)"
 copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <ItemDefinitionGroup Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')">
     <Midl>
       <TargetEnvironment>X64</TargetEnvironment>
     </Midl>
@@ -103,7 +111,7 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
       <CompileAs>CompileAsC</CompileAs>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PrecompiledHeaderFile>quakedef.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
@@ -162,7 +170,7 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\menu.c" />
     <ClCompile Include="..\..\Quake\miniz.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\Quake\net_dgrm.c" />
     <ClCompile Include="..\..\Quake\net_loop.c" />
@@ -172,7 +180,7 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\net_wipx.c" />
     <ClCompile Include="..\..\Quake\pl_linux.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\Quake\pl_win.c" />
     <ClCompile Include="..\..\Quake\pr_cmds.c" />
@@ -181,8 +189,8 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\quakedef.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">quakedef.h</PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">quakedef.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')">Create</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')">quakedef.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="..\..\Quake\r_alias.c" />
     <ClCompile Include="..\..\Quake\r_brush.c" />
@@ -199,7 +207,7 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\snd_modplug.c" />
     <ClCompile Include="..\..\Quake\snd_mp3.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\Quake\snd_mp3tag.c" />
     <ClCompile Include="..\..\Quake\snd_mpg123.c" />
@@ -212,11 +220,11 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\steam.c" />
     <ClCompile Include="..\..\Quake\strlcat.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\Quake\strlcpy.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\Quake\sv_main.c" />
     <ClCompile Include="..\..\Quake\sv_move.c" />
@@ -224,7 +232,7 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\sv_user.c" />
     <ClCompile Include="..\..\Quake\sys_sdl_unix.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="('$(Configuration)|$(Platform)'=='Release|x64' or '$(Configuration)|$(Platform)'=='Release-Tracy|x64' or '$(Configuration)|$(Platform)'=='Release-TracyFull|x64')">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\Quake\sys_sdl_win.c" />
     <ClCompile Include="..\..\Quake\view.c" />

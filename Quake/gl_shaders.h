@@ -153,13 +153,18 @@ static const char viewblend_vertex_shader[] =
 ////////////////////////////////////////////////////////////////
 
 static const char viewblend_fragment_shader[] =
+QVR_BLOOD_UNIFORMS // QVR: damage and low-health peripheral feedback
 "layout(location=0) uniform vec4 Color;\n"
 "\n"
 "layout(location=0) out vec4 out_fragcolor;\n"
 "\n"
 "void main()\n"
 "{\n"
-"	out_fragcolor = Color;\n"
+"	float blood = QvrBloodAlpha();\n"
+"	if (blood == 0.0) { out_fragcolor = Color; return; }\n"
+"	float alpha = 1.0 - (1.0 - blood) * (1.0 - Color.a);\n"
+"	vec3 rgb = vec3(0.42, 0.008, 0.015) * blood * (1.0 - Color.a) + Color.rgb * Color.a;\n"
+"	out_fragcolor = vec4(rgb / max(alpha, 0.00001), alpha);\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -181,6 +186,7 @@ static const char warpscale_vertex_shader[] =
 ////////////////////////////////////////////////////////////////
 
 static const char warpscale_fragment_shader[] =
+QVR_BLOOD_UNIFORMS // QVR
 "layout(binding=0) uniform sampler2D Tex;\n"
 "\n"
 "layout(location=0) uniform vec4 UVScaleWarpTime; // xy=Scale z=Warp w=Time\n"
@@ -205,6 +211,7 @@ static const char warpscale_fragment_shader[] =
 "#endif // WARP\n"
 "\n"
 "	out_fragcolor = texture(Tex, uv * uv_scale);\n"
+"	out_fragcolor.rgb = mix(out_fragcolor.rgb, vec3(0.42, 0.008, 0.015), QvrBloodAlpha());\n"
 "	out_fragcolor.rgb = mix(out_fragcolor.rgb, BlendColor.rgb, BlendColor.a);\n"
 "}\n";
 
@@ -594,6 +601,7 @@ LIQUID_SWELL // QVR
 QVR_ZFIX_FUNCTION // QVR: gl_zfix's push back (vr_glsl.h)
 "layout(location=5) in vec3 in_surfacecentre; // QVR: BSP teleporter visual scaling pivot\n"
 "layout(location=4) in float in_swellpin; // QVR: the geometric waves' mesh (vr/vr_water.cpp); 0 elsewhere (unset)\n"
+QVR_WORLD_VS_PERMDECALS // QVR: the permanent decals' layer (vr/vr_permdecals.cpp)
 "\n"
 "invariant gl_Position; // QVR: the opaque world's depth pre-pass (glprogs.world_depth) gives the very same depths\n"
 "layout(location=0) flat out uint out_flags;\n"
@@ -635,6 +643,8 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "		gl_Position.z = QVR_ZFixDepth(gl_Position.z, gl_Position.w);\n"
 "	out_uv = in_uv.xy;\n"
 "	out_lmuv = in_uv.zw;\n"
+"	out_grime = in_grime.xy; // QVR\n"
+"	out_grimepages = in_grime.zw; // QVR\n"
 "	out_depth = gl_Position.w;\n"
 "	out_coord = (gl_Position.xy / gl_Position.w * 0.5 + 0.5) * vec2(LIGHT_TILES_X, LIGHT_TILES_Y);\n"
 "	out_flags = call.flags;\n"
@@ -734,6 +744,7 @@ LIQUID_FUNCTIONS // QVR
 "	layout(location=9) flat in uvec4 in_samplers;\n"
 QVR_WORLD_FS_INPUTS // QVR: the world fragment shader's Quake VR inputs
 "#endif\n"
+QVR_WORLD_FS_PERMDECAL_INPUTS // QVR: the permanent decals' layer (vr/vr_permdecals.cpp)
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
@@ -1382,6 +1393,17 @@ ALIAS_INSTANCE_BUFFER
 "	{\n"
 "		uvec2 PackedPosNor[];\n"
 "	};\n"
+"#if POSEVERTTYPE == 0 // QVR: each pose's vertex dequantised (vr/vr_mdldequant.cpp): its offset from the stored bytes, in steps (zero: the bytes)\n"
+"	layout(std430, binding=11) restrict readonly buffer PoseFracBuffer\n"
+"	{\n"
+"		uint PoseFrac[];\n"
+"	};\n"
+"	vec3 Dequantised (vec3 pos, uint index) // (none: the bytes exactly, the same instructions after as before)\n"
+"	{\n"
+"		uint frac = PoseFrac[index];\n"
+"		return frac == 0u ? pos : pos + unpackSnorm4x8(frac).xyz * 0.5;\n"
+"	}\n"
+"#endif\n"
 "\n"
 "	PoseVertex GetPoseVertex (uint pose)\n"
 "	{\n"
@@ -1399,7 +1421,7 @@ ALIAS_INSTANCE_BUFFER
 "		ret.nor.z = coslat;\n"
 "		return ret;\n"
 "#else // PV_QUAKE1\n"
-"		return PoseVertex(vec3((data.xxx >> uvec3(0, 8, 16)) & 255), unpackSnorm4x8(data.y).xyz);\n"
+"		return PoseVertex(Dequantised(vec3((data.xxx >> uvec3(0, 8, 16)) & 255), pose + gl_VertexID), unpackSnorm4x8(data.y).xyz); // QVR: dequantised\n"
 "#endif // POSEVERTTYPE\n"
 "	}\n"
 "\n"

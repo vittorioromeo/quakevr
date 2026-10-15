@@ -140,6 +140,7 @@ typedef struct glvert_s {
 	unsigned	styles;
 	float		swellpin; // QVR: zero on ordinary BSP faces
 	vec3_t		centre; // QVR: teleporter visual scaling pivot
+	float		grime[4]; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp): its texel on the face, the face's first page, its pages; zero: none
 } glvert_t;
 
 typedef struct msurface_s
@@ -328,11 +329,14 @@ typedef struct {
 	int			numindexes;
 	intptr_t		indexes;        // offset into extradata: numindexes unsigned shorts
 	intptr_t		vertexes;       // offset into extradata: numposes*vertsperframe trivertx_t
+	intptr_t		dequant;        // QVR: offset into extradata (0 none): numposes*vertsperframe unsigned, each axis' dequantised offset from its byte (snorm8 / 254 steps; vr/vr_mdldequant.cpp)
+	int				dequantready;   // QVR: ... computed (the first upload with vr_mdl_dequant on: none while it is off)
 
 	intptr_t	vbovertofs;
 	intptr_t	vbostofs;
 	intptr_t	vboposeofs;
 	intptr_t	eboofs;
+	intptr_t	vbofracofs;     // QVR: PV_QUAKE1: the dequantised offsets in the VBO (numposes*numverts_vbo unsigned: the shader's PoseFrac)
 	//ericw --
 
 	int					numposes;
@@ -547,6 +551,7 @@ void	Mod_ResetAll (void); // for gamedir changes (Host_Game_f)
 qmodel_t *Mod_ForName (const char *name, qboolean crash);
 void	*Mod_Extradata (qmodel_t *mod);	// handles caching
 void	Mod_ReloadAliasModel (qmodel_t *mod); // QVR: vr_hand_reload
+void	Mod_ReuploadAliasModels (void); // QVR: every loaded alias model's VBO built again (vr_mdl_dequant)
 void	Mod_TouchModel (const char *name);
 
 #define VIS_ALIGN			16						// vis buffer size alignment (in bytes)

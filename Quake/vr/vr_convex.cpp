@@ -12,6 +12,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 #include "vr_jobs.hpp"
+#include "vr_tracy.h"
 
 #include <box3d/collision.h>
 #include <math.h>
@@ -45,6 +46,7 @@ struct Grid
 
 void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
 {
+    QVR_TRACY_SCOPE(tracyScope, "convex voxelise");
     const size_t count = g.state.size();
     for(size_t t = 0; t + 2 < corners.size(); t += 3)
     {
@@ -52,11 +54,18 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
         const float longest = za::max(glm::distance(a, b), za::max(glm::distance(a, c), glm::distance(b, c)));
         // Half a cell apart: the cells marked are 26-connected, which no 6-connected flood passes.
         const int steps = CLAMP(1, static_cast<int>(ceilf(longest / (g.cell * 0.5f))), 1024);
+        const glm::vec3 ba = b - a, ca = c - a;
+        za::Array<float, 1025> fractions;
         for(int i = 0; i <= steps; i++)
         {
+            fractions[static_cast<size_t>(i)] = static_cast<float>(i) / steps;
+        }
+        for(int i = 0; i <= steps; i++)
+        {
+            const glm::vec3 row = a + ba * fractions[static_cast<size_t>(i)];
             for(int j = 0; j <= steps - i; j++)
             {
-                const glm::vec3 p = a + (b - a) * (static_cast<float>(i) / steps) + (c - a) * (static_cast<float>(j) / steps);
+                const glm::vec3 p = row + ca * fractions[static_cast<size_t>(j)];
                 const int k = g.cellOf(p);
                 if(static_cast<size_t>(k) < count)
                 {
@@ -108,7 +117,24 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
     {
         g.dist[k] = g.state[k] == outside ? unreached : 0.f;
     }
+    struct Neighbour
+    {
+        int dx, dy, dz;
+        float weight;
+    };
+    // The same 13 neighbours, in the original dz/dy/dx order. Interior cells need no bounds checks.
+    constexpr Neighbour neighbours[]{
+        {-1, -1, -1, 1.73205f}, {0, -1, -1, 1.41421f}, {1, -1, -1, 1.73205f},
+        {-1, 0, -1, 1.41421f}, {0, 0, -1, 1.f}, {1, 0, -1, 1.41421f},
+        {-1, 1, -1, 1.73205f}, {0, 1, -1, 1.41421f}, {1, 1, -1, 1.73205f},
+        {-1, -1, 0, 1.41421f}, {0, -1, 0, 1.f}, {1, -1, 0, 1.41421f}, {-1, 0, 0, 1.f}};
     const auto pass = [&](int dir) {
+        za::Array<int, 13> offsets;
+        for(size_t i = 0; i < offsets.size(); i++)
+        {
+            const Neighbour& n = neighbours[i];
+            offsets[i] = dir * (n.dx + g.n[0] * n.dy + layer * n.dz);
+        }
         const int x0 = dir > 0 ? 0 : g.n[0] - 1, y0 = dir > 0 ? 0 : g.n[1] - 1, z0 = dir > 0 ? 0 : g.n[2] - 1;
         for(int z = z0; z >= 0 && z < g.n[2]; z += dir)
         {
@@ -122,25 +148,22 @@ void voxelise(const za::Vector<glm::vec3>& corners, Grid& g)
                     {
                         continue;
                     }
-                    // The 13 neighbours before it in this pass's order.
-                    for(int dz = -1; dz <= 0; dz++)
+                    if(x > 0 && x < g.n[0] - 1 && y > 0 && y < g.n[1] - 1 && z > 0 && z < g.n[2] - 1)
                     {
-                        for(int dy = -1; dy <= 1; dy++)
+                        for(size_t i = 0; i < offsets.size(); i++)
                         {
-                            for(int dx = -1; dx <= 1; dx++)
+                            d = za::min(d, g.dist[static_cast<size_t>(k + offsets[i])] + neighbours[i].weight);
+                        }
+                    }
+                    else
+                    {
+                        for(size_t i = 0; i < offsets.size(); i++)
+                        {
+                            const Neighbour& n = neighbours[i];
+                            const int nx = x + n.dx * dir, ny = y + n.dy * dir, nz = z + n.dz * dir;
+                            if(nx >= 0 && ny >= 0 && nz >= 0 && nx < g.n[0] && ny < g.n[1] && nz < g.n[2])
                             {
-                                if(dz == 0 && (dy > 0 || (dy == 0 && dx >= 0)))
-                                {
-                                    continue;
-                                }
-                                const int nx = x + dx * dir, ny = y + dy * dir, nz = z + dz * dir;
-                                if(nx < 0 || ny < 0 || nz < 0 || nx >= g.n[0] || ny >= g.n[1] || nz >= g.n[2])
-                                {
-                                    continue;
-                                }
-                                const int m = (dx != 0) + (dy != 0) + (dz != 0);
-                                const float w = m == 1 ? 1.f : m == 2 ? 1.41421f : 1.73205f;
-                                d = za::min(d, g.dist[static_cast<size_t>(g.index(nx, ny, nz))] + w);
+                                d = za::min(d, g.dist[static_cast<size_t>(k + offsets[i])] + n.weight);
                             }
                         }
                     }
@@ -207,6 +230,7 @@ void clipTriangle(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, co
 // inside cells there (their middles brought onto it), so that the pieces meet across the cut.
 void regionPoints(const za::Vector<glm::vec3>& corners, const Grid& g, const Region& r, za::Vector<b3Vec3>& out)
 {
+    QVR_TRACY_SCOPE(tracyScope, "convex region points");
     out.clear();
     for(size_t t = 0; t + 2 < corners.size(); t += 3)
     {
@@ -318,11 +342,12 @@ constexpr int maxBudget = 44; // (a hull of triangles of more has more than Box3
 [[nodiscard]] b3HullData* hullOf(const za::Vector<b3Vec3>& points, float cell);
 
 // The hull of the points: vertices enough to leave none of them more than a third of a cell out (as Box3D allows).
-[[nodiscard]] b3HullData* hullOf(const za::Vector<b3Vec3>& points, float cell)
+// Keep the scored budget-24 hull as the first attempt; refinement must still use the original points and budgets.
+[[nodiscard]] b3HullData* refineHull(const za::Vector<b3Vec3>& points, float cell, b3HullData* h)
 {
+    QVR_TRACY_SCOPE(tracyScope, "convex hull refine");
     const int count = static_cast<int>(points.size());
     int budget = 24;
-    b3HullData* h = hull(points.data(), count, budget);
     while(h && budget < maxBudget && h->vertexCount >= budget && shortfall(h, points) > cell / 3.f)
     {
         budget = za::min(budget * 3 / 2, maxBudget);
@@ -337,10 +362,16 @@ constexpr int maxBudget = 44; // (a hull of triangles of more has more than Box3
     return h;
 }
 
+[[nodiscard]] b3HullData* hullOf(const za::Vector<b3Vec3>& points, float cell)
+{
+    return refineHull(points, cell, hull(points.data(), static_cast<int>(points.size()), 24));
+}
+
 // The most the hull's surface lies off the solid (units): its faces sampled about a cell apart, each sample's cell's
 // distance from the solid (less half a cell: a face on the surface may lie in the cell beside the one it is drawn in).
 [[nodiscard]] float gapOf(const b3HullData* hull, const Grid& g)
 {
+    QVR_TRACY_SCOPE(tracyScope, "convex gap");
     const b3Vec3* points = b3GetHullPoints(hull);
     const b3HullHalfEdge* edges = b3GetHullEdges(hull);
     const b3HullFace* faces = b3GetHullFaces(hull);
@@ -399,6 +430,7 @@ void cellRange(const Grid& g, const Region& r, int lo[3], int hi[3])
 // (each slice's box of solid across the axis, put together from either end).
 void shortlist(const Grid& g, const Region& r, za::Array<Candidate, 3 * shortlisted>& out, int& count)
 {
+    QVR_TRACY_SCOPE(tracyScope, "convex shortlist");
     count = 0;
     int lo[3], hi[3];
     cellRange(g, r, lo, hi);
@@ -531,12 +563,41 @@ struct Work
     bool done{false};
 };
 
+// At most nine shortlisted cuts. Each slot is written by one scoring task and owns its hulls until reduction.
+struct ScoredCut
+{
+    za::Vector<b3Vec3> points[2];
+    b3HullData* hulls[2]{nullptr, nullptr};
+
+    ScoredCut() = default;
+    ScoredCut(const ScoredCut&) = delete;
+    ScoredCut& operator=(const ScoredCut&) = delete;
+    ~ScoredCut()
+    {
+        for(b3HullData* h : hulls)
+        {
+            if(h)
+            {
+                b3DestroyHull(h);
+            }
+        }
+    }
+
+    [[nodiscard]] b3HullData* takeHull(int half)
+    {
+        b3HullData* h = hulls[half];
+        hulls[half] = nullptr;
+        return h;
+    }
+};
+
 } // namespace
 
 jobs::Site cutsSite{"convex cuts"}; // (decompose's shortlisted cuts weighed at once: vr_jobs_sites)
 
 bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, za::Vector<Piece>& pieces, Report* report)
 {
+    QVR_TRACY_SCOPE(tracyScope, "convex decompose");
     const double start = Sys_DoubleTime();
     pieces.clear();
     Report local;
@@ -583,7 +644,7 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
     rep.solid = static_cast<float>(solidCells) * g.cell * g.cell * g.cell;
 
     za::Vector<Work> work;
-    za::Vector<b3Vec3> points, pointsA, pointsB;
+    za::Vector<b3Vec3> points;
     Work whole;
     whole.region.lo = lo;
     whole.region.hi = hi;
@@ -621,18 +682,22 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
         int foundCount = 0;
         shortlist(g, w.region, found, foundCount);
         float bestScore = w.hull->volume * 0.995f;
+        int bestCut = -1;
         int bestAxis = -1;
         float bestPlane = 0.f;
         // (each cut's halves weighed on the pool, each into its own slot; the best then taken in the cuts' order, as one
         // after another would)
         za::Array<float, 3 * shortlisted> scores{};
         za::Array<bool, 3 * shortlisted> oks{};
+        za::Array<ScoredCut, 3 * shortlisted> geometry;
         jobs::parallelFor(cutsSite, static_cast<za::SizeT>(foundCount), 1,
             [&](za::SizeT begin, za::SizeT end)
             {
-                za::Vector<b3Vec3> halfA, halfB;
                 for(za::SizeT c = begin; c < end; c++)
                 {
+                    ScoredCut& cut = geometry[c];
+                    auto& halfA = cut.points[0];
+                    auto& halfB = cut.points[1];
                     const int axis = found[c].axis;
                     const float plane = found[c].plane;
                     Region ra = w.region, rb = w.region;
@@ -643,19 +708,11 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
                     regionPoints(corners, g, ra, halfA);
                     regionPoints(corners, g, rb, halfB);
                     // (Their volumes only: hulls of a fixed budget, near enough to compare.)
-                    b3HullData* ha = hull(halfA.data(), static_cast<int>(halfA.size()), 24);
-                    b3HullData* hb = hull(halfB.data(), static_cast<int>(halfB.size()), 24);
+                    b3HullData* ha = cut.hulls[0] = hull(halfA.data(), static_cast<int>(halfA.size()), 24);
+                    b3HullData* hb = cut.hulls[1] = hull(halfB.data(), static_cast<int>(halfB.size()), 24);
                     // (A half of no hull: nothing there, or too flat to be one; with points, not a cut to make.)
                     oks[c] = (ha || halfA.size() < 4) && (hb || halfB.size() < 4) && (ha || hb);
                     scores[c] = (ha ? ha->volume : 0.f) + (hb ? hb->volume : 0.f);
-                    if(ha)
-                    {
-                        b3DestroyHull(ha);
-                    }
-                    if(hb)
-                    {
-                        b3DestroyHull(hb);
-                    }
                 }
             });
         for(int c = 0; c < foundCount; c++)
@@ -663,6 +720,7 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
             if(oks[static_cast<size_t>(c)] && scores[static_cast<size_t>(c)] < bestScore)
             {
                 bestScore = scores[static_cast<size_t>(c)];
+                bestCut = c;
                 bestAxis = found[static_cast<size_t>(c)].axis;
                 bestPlane = found[static_cast<size_t>(c)].plane;
             }
@@ -678,10 +736,11 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
         a.region.cut[bestAxis][1] = true;
         b.region.lo[bestAxis] = bestPlane;
         b.region.cut[bestAxis][0] = true;
-        regionPoints(corners, g, a.region, pointsA);
-        regionPoints(corners, g, b.region, pointsB);
-        a.hull = hullOf(pointsA, g.cell);
-        b.hull = hullOf(pointsB, g.cell);
+        ScoredCut& winner = geometry[static_cast<size_t>(bestCut)];
+        const auto& pointsA = winner.points[0];
+        const auto& pointsB = winner.points[1];
+        a.hull = refineHull(pointsA, g.cell, winner.takeHull(0));
+        b.hull = refineHull(pointsB, g.cell, winner.takeHull(1));
         if((!a.hull && pointsA.size() >= 4) || (!b.hull && pointsB.size() >= 4))
         {
             // (A half with no hull would leave a hole: the piece stays whole.)
@@ -711,7 +770,7 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
     rep.volume = 0.f;
     for(Work& w : work)
     {
-        w.gap = w.done ? gapOf(w.hull, g) : w.gap;
+        // Every hull already has its gap; marking it done changes neither the hull nor the grid.
         rep.gap = za::max(rep.gap, w.gap);
         if(settings.verbose)
         {

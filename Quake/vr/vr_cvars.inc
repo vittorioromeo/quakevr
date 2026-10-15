@@ -837,6 +837,21 @@ QVR_CVAR(vr_menu_holster_back_z, "0", CVAR_NONE)
 // Comfort vignette (vr_input.cpp comfortVignette, the eyes' post-process): the view's edges darkened while the sticks move
 // or turn you (not your own steps in the room, nor a teleport): 0 off, 1 moving and turning, 2 moving only, 3 turning only;
 // how dark (0 .. 1: at 1 a narrow tunnel).
+// Independent cosmetic blood feedback; legacy screen tints and view kicks stay intact.
+QVR_CVAR(vr_blood_hit, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_hit_duration, "0.45", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_hit_intensity, "0.22", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_hit_size, "0.65", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_hit_bias, "0.75", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_threshold, "35", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_intensity, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_size, "0.65", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_duration, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_rate, "0.75", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_rate_scale, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_blood_health_curve, "1", CVAR_ARCHIVE)
+
 QVR_CVAR(vr_comfort_vignette, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_comfort_vignette_strength, "0.5", CVAR_ARCHIVE)
 // Comfort fade (vr_comfortfade.cpp): seconds the view takes to come back from black when the game moves you at once (a
@@ -1674,6 +1689,10 @@ QVR_CVAR(vr_decal_max, "768", CVAR_ARCHIVE)            // how many are kept (the
 QVR_CVAR(vr_decal_bucket_max, "32", CVAR_ARCHIVE)     // how many marks one 32-unit spot of the world lists (1-255; past it the oldest of a pile go whole: each pixel walks its spot's list, PERF_DECISIONS 15)
 QVR_CVAR(vr_decal_life, "120", CVAR_ARCHIVE)           // seconds a mark stays (fading over the last five)
 QVR_CVAR(vr_decals_world, "1", CVAR_ARCHIVE)         // the marks drawn in the world's own shader, on its texture under its light and following its parallax relief (0: as meshes over it)
+QVR_CVAR(vr_permdecals, "1", CVAR_ARCHIVE)           // settled marks baked for good into a layer of the world's and its brush models' faces (vr_permdecals.cpp): they never go, and cost the same however many (0: as before, live marks only)
+QVR_CVAR(vr_permdecal_density, "0.5", CVAR_ARCHIVE)  // the baked layer's units a texel (0.25-8; read at a map's load; 1: a little softer than the live marks, 2: blurred)
+QVR_CVAR(vr_permdecal_show, "0", CVAR_NONE)           // debug: the baked layer's pages drawn unlit and green, the marks on them (vr_permdecals.cpp)
+QVR_CVAR(vr_permdecal_atlas, "4096", CVAR_ARCHIVE)   // the baked layer's atlas, texels a side (1024-8192; 4096: 16384 pages of 30 x 30 texels, 85 MB with its mips; made again, empty, when changed)
 QVR_CVAR(vr_gib_blood, "1", CVAR_ARCHIVE)              // gibs and heads bleed: Quake VR's blood trail, drops on the floor, splats where they hit (0: Quake's trail)
 QVR_CVAR(vr_gib_blood_trail, "1", CVAR_ARCHIVE)        // how dense their trail of blood and drops is (0 none)
 QVR_CVAR(vr_gore, "2", CVAR_ARCHIVE)                   // gore (vr_gore.cpp): 0 Quake VR's blood only, 1 more, 2 over the top (sprays on walls, pools under corpses, gibs stuck to ceilings dripping)
@@ -2854,6 +2873,8 @@ QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie 
 QVR_CVAR(vr_foegrab_necksnap, "1", CVAR_ARCHIVE)           // 1: the neck snap on
 QVR_CVAR(vr_foegrab_necksnap_speed, "100", CVAR_ARCHIVE)   // degrees/s: the hands' twist of the head (the line between the palms swept about its neck: one hand forward, the other back; or both wrists turning the same way) at least this fast at its fastest,
 QVR_CVAR(vr_foegrab_necksnap_angle, "30", CVAR_ARCHIVE)    // degrees: and turning it this far one way in one stroke: its neck snaps
+QVR_CVAR(vr_foegrab_necksnap_method, "0", CVAR_ARCHIVE)   // how the twist is measured: 0 the hands' velocity about the neck (and the wrists' roll), stroke by stroke (Twist Speed, Twist Angle); 1 the line between the hands, its direction across the neck now against its direction up to vr_foegrab_necksnap_window ago (relative to the head; and the wrists' roll the same way): turned Twist Angle within the window, it snaps
+QVR_CVAR(vr_foegrab_necksnap_window, "0.3", CVAR_ARCHIVE) // seconds (0.1-1): method 1's window
 QVR_CVAR(vr_foegrab_necksnap_margin, "2", CVAR_ARCHIVE)    // units: the head zone (the headshots') grown by this for the hands' holds
 QVR_CVAR(vr_foegrab_necksnap_neck, "3", CVAR_ARCHIVE)      // units: its neck's length: holds this far below its head (the head sphere's bottom; a ragdoll's: from its head's joint down) are at its head too; lower (its shoulders) they are the judo throw's and the lift's
 QVR_CVAR(vr_foegrab_necksnap_volume, "1", CVAR_ARCHIVE)    // the crack's volume (0 silent)
@@ -3061,6 +3082,7 @@ QVR_CVAR(vr_reload_loose_time, "90", CVAR_ARCHIVE)     // seconds a round lies a
 QVR_CVAR(vr_reload_bump_speed, "3", CVAR_ARCHIVE)      // m/s a hit on a seated magazine must come at to knock it out (a fist, a held prop or magazine, the other gun: the bump reload's first step)
 QVR_CVAR(vr_reload_reinsert_clearance, "4", CVAR_ARCHIVE) // units past the insertion reach a just-ejected or bumping magazine must withdraw before reseating; hysteresis (0: just outside)
 QVR_CVAR(vr_reload_reinsert_time, "0.25", CVAR_ARCHIVE) // or seconds after it came out (or knocked one out) a held magazine may reseat though kept close (0: by the clearance only)
+QVR_CVAR(vr_reload_mag_release, "1", CVAR_ARCHIVE)     // 1: a held magazine leaves the hand as it seats, pulling it out again needs a fresh grip; 0: the hand still gripping holds it on (pulls it out again at once)
 QVR_CVAR(vr_weapon_load_grace, "0.75", CVAR_ARCHIVE)   // seconds after loading a save the restored held weapons ignore an unpressed grip (0: no grace)
 QVR_CVAR(vr_reload_pull_speed, "2", CVAR_ARCHIVE)    // m/s a hand holding a gun's magazine (a two-handed grip) must pull it out of its well at (along it) to take it out; or,
 QVR_CVAR(vr_reload_pull_snap, "225", CVAR_ARCHIVE)     // its wrist turning against the gun's hand at this many degrees/s or more; or the hands this much further apart:
@@ -3461,6 +3483,7 @@ QVR_CVAR(vr_ai_prop_push, "1", CVAR_ARCHIVE)         // and pushes it as it meet
 QVR_CVAR(vr_stealth_gem, "1", CVAR_ARCHIVE)          // a gem on the wrist gadget: how visible (its glow) and how loud (its ring) you are
 QVR_CVAR(vr_stealth_marks, "0", CVAR_ARCHIVE)        // a "?" over a monster turning Alert, "!" turning Hostile
 QVR_CVAR(vr_stealth_debug, "0", CVAR_NONE)           // 1: state changes printed; 2: each sighting's meter and each noise heard
+QVR_CVAR(vr_mdl_dequant, "1", CVAR_ARCHIVE)          // .mdl vertices dequantised at load (vr_mdldequant.cpp): each vertex's smoothest path through its animations within half a byte step of every stored value (no wobble); 0: the stored bytes, exactly as before
 QVR_CVAR(vr_anim_smooth_tension, "0", CVAR_ARCHIVE)  // r_lerpmodels 3 (vr_animsmooth.cpp): the spline's tension: 0 Catmull-Rom (the speed carried through each frame), 1 easing to rest at each frame; between: less overshoot
 QVR_CVAR(vr_anim_smooth_rig, "1", CVAR_ARCHIVE)      // ... and a rigged monster's limbs (vr_ragdoll.cpp's rig) swung round their joints between frames, keeping their length (0: the spline alone)
 QVR_CVAR(vr_anim_smooth_rig_error, "1.5", CVAR_ARCHIVE) // ... a bone whose fit to a frame is off by more than this (rms, units) isn't swung between it and its neighbours; a vertex off its bone by more swings less (none at twice it)

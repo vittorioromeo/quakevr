@@ -239,14 +239,11 @@ void() VR_Liquids_Frame =
         return;
     }
 
-    entity e = findflags(world, flags, FL_MONSTER); // the monsters alone (in the engine: vr_builtins.cpp)
+    entity e = findflagsdue(world, flags, FL_MONSTER, vr_liquid_next, time, takedamage); // live order, interval/eligibility gates in the engine (vr_builtins.cpp)
     while(e)
     {
-        if(e.vr_liquid_next <= time && e.takedamage)
-        {
-            VR_Liquid_Monster(e, hurt);
-        }
-        e = findflags(e, flags, FL_MONSTER);
+        VR_Liquid_Monster(e, hurt);
+        e = findflagsdue(e, flags, FL_MONSTER, vr_liquid_next, time, takedamage);
     }
 };
 

@@ -41,7 +41,7 @@
 [[nodiscard]] za::Vector<Item> pageCrosshairSettings()
 {
     return {
-        open("Crosshair: VR Settings", pageIndex(pageMain)).help("The crosshair's kind is on VR Settings."),
+        open("Crosshair: VR Settings", pageIndex(pageVrsHud)).help("The crosshair's kind is on VR Settings."),
         slider("Crosshair Depth", "vr_crosshair_depth", 0.f, 4096.f, 16.f, "%.0f").extend().help("When zero, the crosshair will be projected to the closest wall. Otherwise, the crosshair will be projected at a fixed depth."),
         slider("Crosshair Size", "vr_crosshair_size", 0.f, 32.f, 0.5f, "%.1f").extend().help("Size of the crosshair."),
         slider("Crosshair Alpha", "vr_crosshair_alpha", 0.f, 1.f, 0.05f, "%.2f").help("Transparency of the crosshair. '1' means fully visible, '0' means fully transparent."),
@@ -1169,6 +1169,11 @@ void resetHandMoves()
                   "even if it never left the well by the clearance: kept close, it seats after a moment, never at "
                   "once. Larger: more time to move it away; 0: by the clearance only. Loose magazines keep the eject "
                   "cooldown and the clearance."),
+        toggle("Release Seated Magazine", "vr_reload_mag_release")
+            .help("On: a magazine you push into its well leaves your hand as it seats, so moving the hand on to the "
+                  "foregrip while still gripping never pulls it back out; to pull it out again, let go and grip it "
+                  "afresh. Off: the hand still gripping holds the seated magazine, so pulling it straight back out "
+                  "works without letting go."),
         slider("Shell Slide In", "vr_reload_insert_time", 0.f, 0.5f, 0.01f, "%.2f s")
             .help("A shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it for this "
                   "long, following the gun (0: gone at once). It is loaded at once all the same."),
@@ -1836,6 +1841,7 @@ void retroAllUncheckCategories()
         slider("Ambient Contrast", "vr_model_ambient_contrast", 0.f, 1.5f, 0.05f, "%.2f").extend().help("How much brighter the lit side is than the shaded one (0: one brightness all round)."),
         cycle("Model Animation", "r_lerpmodels", {{0.f, "Stepped"}, {1.f, "Quake's Blend"}, {3.f, "Smooth"}}).help("How monsters move between the frames of their animations. Stepped: frame to frame, as DOS Quake. Quake's Blend: each point slides straight to its next place (limbs shorten mid-swing, the speed jumps at each frame). Smooth: along curves through the frames before and after, limbs swung round their joints at full length. Every frame is still shown exactly when the game shows it: only what is drawn between frames changes."),
         slider("Animation Ease", "vr_anim_smooth_tension", 0.f, 1.f, 0.05f, "%.2f").help("Smooth: 0 keeps the speed through each frame (the smoothest; a swing may swing a little past a frame between two); 1 eases to rest at each frame."),
+        toggle("Steady Model Vertices", "vr_mdl_dequant").help("Quake's models store each point rounded to a 255th of the model's size, frame by frame, so surfaces ripple as they animate. On: each point follows the smoothest path through its animation that stays within that rounding (no point moves further than the file's own error). Off: the points exactly as stored."),
         toggle("Swing Limbs", "vr_anim_smooth_rig").help("Smooth: a monster with a ragdoll rig (grunts, knights, ogres, the shambler and more) swings its limbs round their joints between frames at full length (off: the curves alone)."),
         slider("Rim Light", "vr_rim_light", 0.f, 1.f, 0.05f, "%.2f").help("A faint light round the edges of monsters and things, in the light around them, so they stand out from dark backgrounds (0 off)."),
         slider("Hands' Least Light", "vr_viewmodel_minlight", 0.f, 32.f, 1.f, "%.0f").extend().help("How lit your hands and weapons stay in the dark (Quake: 24)."),
@@ -1863,7 +1869,7 @@ void retroAllUncheckCategories()
 [[nodiscard]] za::Vector<Item> pageHudConfiguration()
 {
     return {
-        open("HUD and Status Bar Hand: VR Settings, Body and Display", pageIndex(pageMain)).help("The HUD's kind is on VR Settings; the status bar's hand on Body and Display."),
+        open("HUD and Status Bar Hand: VR Settings, Body and Display", pageIndex(pageVrsHud)).help("The HUD's kind is on VR Settings; the status bar's hand on Body and Display."),
         slider("HUD Scale", "vr_hud_scale", 0.01f, 0.1f, 0.005f, "%.3f").extend(0.005f, 0.3f),
         slider("Offset X", "vr_sbar_offset_x", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
         slider("Offset Y", "vr_sbar_offset_y", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),

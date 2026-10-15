@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 #include "q_stdinc.h"
 #include "arch_def.h"
 #include "net_sys.h"
@@ -558,6 +559,7 @@ returns -1 if connection is invalid
 */
 int	NET_GetMessage (qsocket_t *sock)
 {
+	VR_TRACY_SCOPE("Network receive");
 	int ret;
 
 	if (!sock)

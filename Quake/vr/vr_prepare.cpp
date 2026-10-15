@@ -250,9 +250,8 @@ void relightResult()
 bool active()
 {
     // -preparerelight implies -prepare: the relight is a step of the preparation run, so asking for the relight alone
-    // runs the preparation just as -prepare does (its one console line: COM_CheckParmImplied).
-    return COM_CheckParmImplied("-prepare", "-preparerelight",
-        "the relight is a step of the preparation run, so -preparerelight runs the preparation too");
+    // runs the preparation just as -prepare does (COM_PrepareRun: the autosave check and the hidden window ask too).
+    return COM_PrepareRun();
 }
 
 void start()

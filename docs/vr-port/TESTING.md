@@ -427,6 +427,8 @@ Bloodless shoves, bashes and slaps (ROUND22.md, "Shoves, slaps and bashes draw n
 Misc/quakevr/bloodless_test.sh <agent>` (`vr_smallgibs_test 23` on a grunt: gore hits, wound events, blood particles and
 small gibs all 0 for shove, bash and slap, their damage dealt; the punch control bleeds).
 Config version 129 (his bash, shove and parry values compiled in): `bash Misc/quakevr/config129_test.sh <agent>` (PASS).
+Flatscreen play (FLATPLAY.md): `bash Misc/quakevr/flatplay_test.sh <agent>`: the arms' walking lag at yaw 0 and 90 (the
+main hand across the view within 1.5 units of standing), the mode per player (`reload: the player reloads ...`).
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:
@@ -1318,9 +1320,12 @@ lifts"): each case one game on vrfiringrange, a grunt 36 units ahead (`vr_test_s
 forward; the hands' reach is capped about 1.2 m, so the enemy stands close), gripped with `+grabmain`/`+graboff`, then
 pulled. `dir`: left, right, towards you, away, with the hands at its shoulders, its box's middle, low, and uneven; PASS:
 `foegrab: both hands turn ... to your left` (the way), `throw trace` its head along the throw at 0.2 s, and
-`throw trace done: lies <a> ahead, <l> to your left` (its head from its feet, from the first player's side: printed by
-every throw trace now). `JUDO_ONLY=<regex>` runs only the matching cases (`judo_<height>_<way>`), `JUDO_EXTRA=<cmds>`
-adds commands; the logs go to `scratch/judo_test_<case>.txt`.
+`throw trace done: lies <a> ahead, <l> to your left (its head from its feet); its head <a> ahead, <l> to your left of
+where it stood` (from the first player's side: printed by every throw trace now): its head on the pulled side by 8+
+of where it stood or of its feet, the larger (a throw goes over its head: its legs flop on over or back as they land,
+or its feet slide back, each alone varying). `JUDO_ONLY=<regex>` runs only the matching cases (`judo_<height>_<way>`), `JUDO_EXTRA=<cmds>`
+adds commands; the logs go to `scratch/judo_test_<case>.txt`. `JUDO_NECK_METHOD=1` runs the `neck` cases with the
+hand-line twist detector (vr_foegrab_necksnap_method 1; grunt_roll, a tilt, must not snap there); run both 0 and 1.
 `hold`: thrown left and held on (`vr_foegrab_throw_hold`), the hands then lowered and drawn 0.5 m back: PASS when both
 hands hold it (`foegrab: ... held on as a ragdoll by 2 hands`), it lies to the left, and `vr_foegrab_status` (which now
 prints the ragdoll held on: its pelvis ahead / to his left / up, each hand's distance to its limb) has its pelvis 4+

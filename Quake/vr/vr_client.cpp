@@ -3,6 +3,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
+#include "vr_blood.hpp"
 #include "vr_bttrails.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_collectfx.hpp"
@@ -85,6 +86,9 @@ enum VrBits0 : int
     VRBITS0_OFFHAND_PREVRELOADFLICKING = 1 << 11,
     VRBITS0_MAINHAND_RELOADFLICKING = 1 << 12,
     VRBITS0_MAINHAND_PREVRELOADFLICKING = 1 << 13,
+    // (Not a QC bit: this client plays flatscreen, -flatscreenmode; the server takes it out of the bits and sets the
+    // player's .vr_flatscreen: vr_server.cpp, protocol::moveFlatplayBit.)
+    VRBITS0_FLATPLAY = protocol::moveFlatplayBit,
 };
 
 // ----------------------------------------------------------------------------
@@ -378,6 +382,7 @@ VrMove unposed;
         VRBITS0_MAINHAND_RELOADFLICKING);
     set(twohand::aiming(), VRBITS0_2H_AIMING);
     set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
+    set(flatplay::active(), VRBITS0_FLATPLAY);
     move.vrBits0 = static_cast<za::U16>(bits);
 
     if(offhandAttack || offhandAttackImpulse)
@@ -696,6 +701,7 @@ void init()
     shock::registerCommands();
     smoulder::registerCommands();
     comfortfade::registerCommands();
+    blood::registerCommands();
     deathview::registerCommands();
     weaponfx::registerCommands();
     bttrails::registerCommands();
@@ -798,6 +804,7 @@ extern "C" void VR_OnClientClearState()
     shock::clear();
     smoulder::clear();
     comfortfade::clear();
+    blood::clear();
     deathview::clear();
     weaponfx::clear();
     bttrails::clear();

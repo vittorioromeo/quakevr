@@ -204,3 +204,154 @@ TODO: linux support
 
 Audited and the gadget's AD page added (ROUND22.md, same section). Left: the custom keys' names on it (strings, not
 stats), the jump boots' power level, coop.
+
+## Tracy review leftovers (2026-10-14)
+
+- Tracy VR code (`Quake/vr/vr_tracy.cpp` and its hooks) uses `std::` containers, mutexes and atomics: move to Zancle
+  per CODE_STYLE (Tracy build only; not a mechanical swap).
+- The bench JSON / profile CSV settings list gained 7 `vr_pbr`/`vr_parallax` entries with Tracy commit d5ba4af43
+  (harmless), and the capture metadata prefix scan still repeats those names: dedupe.
+- Run VR profiler sessions with Tracy + call stack collection enabled and optimize the game.
+
+## Open from round 22 (2026-10-14; credits ran out)
+
+- **Persistent blood decals (decal option A):** bake marks pushed out by the per-spot limit (`vr_decal_bucket_max`, 32) into per-surface blood layers so piles keep their dense look. Notes from decalcap: the dropped marks are exactly the set to bake; a 768-mark pile touches ~62 grid cells; the layer needs much finer texels than the lightmap's 16 units; sample it after the shader's parallax offset; handle the end-of-life fade. Waiting on his VR check of the 32 limit.
+- **Neck snap method:** he compares Twist Detection Velocity vs Hand Line (`vr_foegrab_necksnap_method`) in VR; keep the winner as default, consider removing the other. Add a wrist-roll-only test for Hand Line; run Hand Line's neck suite 3x, plus `hold` and `ragdoll/stagger_test.sh judo` under it (skipped for budget).
+- **AD humanoids and the neck snap / lift:** add `monster_centurion` and the fumigator to `vr_foegrab_lift_classes`; verify head zones and ragdolls (knocked-down/staggered snaps, lift flail) on each AD humanoid in the list (never tested).
+- **Step In:** optional depth cap so the player can't walk right through a held enemy (`vr_foegrab_step_in`); he judges if Step In is a net plus.
+- **Body Inset vs vore shoves:** `voreshove_test.sh` now gets 3-4 shoves (needs 4) at inset 4: vores stand closer and die to their own splash; restore the test's margin.
+- **Flaky tests:** judo_test `hold` "held on" drag (moves 4-12 units by landing; ~1 in 3 under the 4-unit bar); hotblade_test `throw_cold`/`throw_hot` (axe sometimes arrives under 6.3 m/s after a bounce).
+- **Incandescent blades leftovers:** weapons start cold after a level change; Quoth's long wall torch is no fire spot (flame position unknown); force-grab/counter/toolgun glows override the heat glow on an aimed dropped blade.
+- **Main menu:** flat menu still bottom-heavy (needs a limit clear of the corner buttons/notice box); VR menu with a Continue row (a save present) untested after vertical centring.
+
+## Test suite speed-up leftovers (2026-10-14, branch agent/fasttests)
+
+- Merge agent/fasttests into next (5 commits: testbatch helper + 22 batched suites, 8100 s -> 1200 s) after a check.
+- Prove and commit the uncommitted conversions in worktree qvr-agents/fasttests: 19 more release-suite scripts, 3
+  Python suites, batching of runs built from earlier runs' output, the expanded TESTING.md section, the kit README line.
+- Finish the full release suite's old-way baseline (stopped at 33 of 43) and record before/after.
+- brush_test.py: not batched yet (uses saves and screenshots every run).
+- guard/decap (drawn frames) and voreshove (real-time frames) stay unbatched: find a way if worthwhile.
+- ROUND22.md note for the speed-up.
+
+## Permanent decals leftovers (2026-10-14; design and status: docs/vr-port/PERM_DECALS.md)
+
+- Phase 3: instanced brush models (b_*.bsp item boxes share one model) and props (alias models): per-entity layers
+  with a unique UV unwrap, or keep projected decals with a cap.
+- Phase 4: coop: clients bake from the replicated decal events; a mid-game joiner gets a snapshot or a fresh start.
+- Atlas full: evicted marks are lost and small atlases (1024) thrash; downsample or merge instead of evicting.
+- Retro (blocky) textures: baked marks render smooth; match the retro filtering.
+- Gore's delayed marks appear at once on doors and lifts (brush-entity marks bake immediately).
+- Marks on brush-tool boxes stay live (not baked).
+
+## QuakeC VM overhead, short of a JIT (2026-10-14; profile first with the Tracy build's QC zones)
+
+- Generic native predicates: QC registers a filter once (string or field/op/value triples, e.g. "flags & FL_MONSTER &&
+  vr_liquid_next <= time && takedamage"), the engine compiles it; `findfilter(start, filterId)` walks edicts natively
+  (generalises findflagsdue, d05011ec3).
+- Native loops calling back into QC: `forall(filterId, func)` iterates and filters natively, entering the VM (via its
+  function index, PR_ExecuteProgram) only for matches.
+- Natively maintained entity lists (monsters, burning, ...) kept current as flags change, so loops visit members only.
+- Faster interpreter (pr_exec.c): threaded dispatch (computed goto), fused superinstructions (field load + compare),
+  fewer bounds checks in hot opcodes; typically 1.5-2x for all QC; verify with the QC regression suite.
+- Biggest step, only if QC still dominates after the above: ahead-of-time translation of our own progs.dat to C at
+  build time (VM kept as fallback for mods with their own progs); must match VM semantics, saves, debugging.
+- Check what fteqcc supports beyond plain function pointers before relying on QC "lambdas".
+
+## Playtest voice notes, 2026-10-14 (deferred by the author)
+
+The author explicitly deferred every request below; only the blood-vignette coverage adjustment is current work.
+All 21 recordings were transcribed and reviewed chronologically before triage. Times below identify source recordings.
+
+### Arcane Dimensions and expansion regressions
+
+- **AD stealth integration (22:13:00):** enemies seem to notice the player immediately rather than using the new stealth AI. Investigate native AD enemy integration; do not treat this observation as a confirmed cause.
+- **AD enemy grenade launcher (22:14:26):** dropped soldier launcher produces oversized old-model grenades that sometimes stick in its muzzle. Use the newer projectile model and player-launcher-equivalent size/physics/clearance. Recorded weapon 21, `progs/mon_soldier.mdl#gun6`, in vrfiringrange near (8, -680, 41).
+- **AD enemy weapon polish (22:16:03):** all enemy weapons need proper models, particles and general polish, beyond the launcher-specific issue above.
+- **Expansion relief coverage (23:04:41):** some Scourge of Armagon textures appear to lack relief. Audit whether authored maps are missing or whether AD generation/loading caused a regression; preserve authored relief priority.
+- **Armagon torso collision (23:16:08):** on hipend, shots hit the boss's legs but seem to pass through its torso. Investigate projectile/hit collision, recorded near (923, -676, 152).
+
+### Throwing, grabbing and living ragdolls
+
+- **Bullet-time throws (22:31:57):** small upward nudges can launch objects too far, while full throws feel wrong; available settings did not produce a good feel. Revisit velocity/time-scale handling and consistency.
+- **Mid-air trick catches (22:31:57):** add appropriate main-handle grab leniency for re-catching tossed/spinning weapons, such as an axe; current timing/handle precision is too finicky.
+- **Enemy occlusion of force grab (22:37:38):** bodies should block force-grab line of sight so physical enemy interaction does not accidentally grab an object behind the enemy.
+- **Bullet-time lift/neck-snap responsiveness (22:38:26):** both interactions feel hard and unresponsive in slow motion; investigate gesture/velocity checks versus time scaling.
+- **Thrown living-enemy damage (r2m1, 22:46:26):** increase meaningful impact damage from slamming or throwing a lifted living enemy from height.
+- **Landing crush (r2m1, 22:47:42):** jumping from sufficient height onto a living ragdoll should crush/damage the contacted body part, with appropriate head/limb destruction for a strong impact.
+- **Walking nudges (r2m1, 22:48:15):** legs should gently push nearby/underfoot ragdolls without those bodies blocking the player's walking movement; avoid excessive pushes.
+- **Head/wall slams and live-ragdoll access (dm2, 22:55:25):** allow grabbing a living enemy and smashing its head into a wall to kill it. Keep lifting as one way to activate ragdoll interaction, but investigate additional natural ways to enter that state.
+- **Impact dismemberment (dm2, 22:57:26):** wall/ground impacts should accumulate damage on struck heads/limbs and eventually pop or explode them; includes repeated held head slams and headfirst falls, beyond generic body damage.
+
+### Neck-snap tuning and diagnostics
+
+- **Strict head/neck grab region (dm2, 22:55:25 amended 22:55:58):** unintended snaps occur with hands far from the head or on shoulders. Restrict eligibility to the actual head/neck; shoulder holds must not count.
+- **Crack sound impact (22:39:40):** even maximum volume feels weak/background. Investigate source position, attenuation/occlusion and sound treatment so a successful snap has a powerful crack.
+- **In-world diagnostic toggle (23:01:26):** add to the Neck Snap menu, matching the selected algorithm. Show head/neck bounds, hand/twist vectors, angles, speed/strength and thresholds with arrows/bars on a selected or nearest enemy. Diagnose why twist-speed/angle setting changes seem ineffective and results feel inconsistent/random.
+
+### Maps, presentation and future interactions
+
+- **Firing-range laser cannon spawn (22:37:06):** one cannon starts inside its platform and glitches. Investigate map placement versus physics regression; vrfiringrange player position (138, -757, 41).
+- **Persistent-decal continuation (23:07:45; see PERM_DECALS.md and earlier leftovers):** investigate reported blood/decal slowdowns and explain/test exactly when marks become baked, including whether baking starts only at the bucket limit. Disabling persistent decals leaves some marks and removes others; research and tune that transition/visibility behavior.
+- **Glove customization (23:08:18):** alongside skin tone/bracers, offer fingerless/full-finger glove textures and independent hue, saturation and lightness controls for glove color.
+- **Pillar/pipe climbing feasibility (23:10:39):** research climbing by bracing a hand on each side and moving upward hand-over-hand.
+- **Climbing leg animation (23:10:39):** legs should seek plausible support points on walls, ledges, pillars and ladders so looking down shows believable assistance during climbing.
+
+### Faster QuakeC interpreter: research notes (2026-10-14, Quake/pr_exec.c)
+
+- Today: one switch over 66 opcodes in while(1); per statement ++profile with a runaway check (0x1000000) and an
+  `if (qcvm->trace)` test; OPA/OPB/OPC recompute `&qcvm->globals[st->a]` per access (likely reloaded after stores:
+  clang-cl in MSVC mode has no strict aliasing); QVR hooks: OP_ADDRESS world + fieldwatch checks, Tracy/vr_qcprofile/
+  vr_profile_fine branches on calls (keep them).
+- Steps (cheapest first): (1) cache globals/edicts in locals, separate traced loop, runaway counted on backward jumps
+  and calls with profile totals kept exact (~0.5 day, ~1.2-1.4x); (2) computed-goto dispatch (clang only; ~0.5 day,
+  ~1.2-1.3x); (3) pre-decoded statements per VM ({handler, operand pointers}) built at progs load, original statements
+  kept for errors/PR_PrintStatement/xstatement/profile (~2 days, most of a ~2x); (4) superinstructions for the hot
+  pairs profiling finds (field load + IF/IFNOT or compare, ADDRESS + STORE; ~1 day).
+- Isolation: new loop in a VR file (e.g. vr_qcexec.c) with one `// QVR` hook in PR_ExecuteProgram and a cvar to fall
+  back to the original loop. Behaviour identical: same results, runaway/error messages, profile counts; verify with
+  the QC-heavy suites (ragdoll, AD, melee eval) and a seeded e1m1 log compared against the old loop.
+- First measure QC's share of the frame on a busy map (vr_qcprofile, Tracy QC zones).
+
+## Model vertex wobble (2026-10-14)
+
+- Cause: .mdl stores each frame's vertices as 3 bytes (0-255 per axis) times a per-model scale/offset, so positions
+  snap to 1/255 of the model's extent (~0.25 units on a ~60-unit model), independently per frame: the rippling. Linear
+  blending between frames adds limb shrinking/swimming.
+- (1, first) Dequantise at load, all models: per vertex, the smoothest trajectory through the animation that stays
+  within each stored value's +/- half-step box (iterative smooth-and-clamp or a small least-squares fit). No vertex moves
+  more than the data's own error; zero per-frame cost; a toggle; before/after visual check. ~1-2 agent-days.
+- (2) Rigged monsters: rebuild vertices from the fitted skeleton on every frame (rest pose x bone transform), not only
+  between frames as r_lerpmodels 3 / vr_anim_smooth_rig do; removes quantisation noise, leaving the fit error
+  (vr_anim_smooth_rig_error). Builds on vr_animsmooth.cpp; pairs with (1).
+- (3) Higher-precision formats (MD3 16-bit, IQM/MD5 float; the 2021 rerelease ships float models): check what the
+  engine already loads before relying on it; covers only models that have replacements.
+
+## VR Settings menu organisation (2026-10-15)
+
+- His words: "turn each subsection of the 'VR Settings' menu into a submenu, for better organization".
+
+## Other
+
+- Review b7ee7d69a9c1ff5cd838b03916f3cdfb31457158 and related commits' toolgun changes
+- His words: "I feel that enemies like knights often get too close and go through the player when they perform a melee attack, which can be disorienting and make it difficult for the player to parry or counterattack. Is this something specific to knights? Should we add some sort of minimum radius distance from the player that the enemy will be smoothly pushed back into when performing a melee attack?"
+
+## His notes, 2026-10-15
+
+- MDL dequantisation follow-up (docs/vr-port/MDL_DEQUANT.md; vr_mdl_dequant): "Much better! But I still see some
+  wobbling/pulsating and, most importantly, a noticeable itch at the loop point for certain animations (e.g. grunt and
+  knight idle animation)." Ideas: treat looping animations as cyclic (smooth across last->first frame, so the loop
+  seam is continuous); detect loops for unnamed-frame models (QVR soldier etc.: split only at jumps today); stronger
+  temporal smoothing within the half-step box (e.g. minimise higher derivatives, or a global least-squares over the
+  cycle); remaining pulsation may be linear inter-frame blending, so consider smoothing the interpolation too
+  (r_lerpmodels 3 spline) or rebuilding rigged monsters from the fitted skeleton (backlog item (2) above).
+- Quad damage on the player's body/IK arms: a different effect than electricity, so the two states are distinct.
+- Several VR menus open at once, each with its own state, e.g. two side by side for different tasks in parallel.
+- Strong prop/weapon throws and melee hits make enemies lose balance like a shove (chance based, and/or a %hp damage
+  threshold, prop weight, ...); maybe strong fist hits to the head too.
+- Slow motion still turns on by accident: double-tapping the wrist gadget screen during frantic melee/shoves. Find a
+  good fix (e.g. ignore taps while the hand moves fast or right after a blow, a deliberate gesture, a hold, ...).
+- Active-ragdoll get-up moves the body around too much: it visibly glides on the ground plane instead of just
+  getting up (ragstagger/ragmove get-up pin).
+- More gore: thin blood streams from bullet holes in enemies; teeth flying out when punching faces; real-time vertex
+  deformation showing flesh chunks torn away; thinner, longer-range blood splatters onto surfaces behind a shot enemy.

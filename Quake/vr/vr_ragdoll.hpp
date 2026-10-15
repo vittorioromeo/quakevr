@@ -92,6 +92,9 @@ struct Rig
 
 // The rigs of `count` models made at once, on the game's thread pool (the map's start: rigFor's for each, faster).
 void warmRigs(qmodel_t* const* models, int count);
+#ifdef QVR_TRACY
+void tracyPlots();
+#endif
 
 // Bone `b`'s transform from the rest pose to pose `pose` (the model's space, units): p' = rot * p + pos.
 void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);

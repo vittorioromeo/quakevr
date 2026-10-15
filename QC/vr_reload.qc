@@ -66,7 +66,9 @@
 .float vr_mag_seated1;     // the main hand's gun's
 .float vr_mag_rehold;     // hands that just seated the magazine they held and still grip (1 off, 2 main): they hold it at
                          // once, no fresh grip needed (VR_Reload_MagFrame; the author's note: pulled out, put back in
-                         // without letting go, it wouldn't pull out again)
+                         // without letting go, it wouldn't pull out again). Only with vr_reload_mag_release 0: by
+                         // default the magazine leaves the hand as it seats (a hand moving on to the foregrip still
+                         // gripping would pull it straight back out), a fresh grip pulls it out
 // What a player's pouch gives (VR_Reload_PlayerFrame): its ammo (AID_*; 0 none yet: shells) and, for a magazine, the gun
 // it is for (WID_*; 0 shells): the last gun held whose ammo the pouch has (any shotgun: shells; a nailgun, a super nailgun,
 // a thunderbolt: its magazine), kept while the hands hold nothing of the kind (empty, a melee weapon). And for the
@@ -852,7 +854,11 @@ void(float xGunHand, entity r, float xHeld) VR_Reload_SeatMagInto =
     if(xHeld)
     {
         VR_Reload_Haptic(self, xHand, 0.06, 150, 0.9);
-        self.vr_mag_rehold = self.vr_mag_rehold | (xHand == cVR_MainHand ? 2 : 1);
+        // (Release Seated Magazine off: the hand still gripping holds it on; on, it lets go: a fresh grip pulls it out.)
+        if(!cvar_hget(cvarh_vr_reload_mag_release))
+        {
+            self.vr_mag_rehold = self.vr_mag_rehold | (xHand == cVR_MainHand ? 2 : 1);
+        }
     }
     VR_Reload_Haptic(self, gunHand, 0.1, 60, 0.9);
     VR_Reload_Log(sprintf("%s seated (hand %g%s): the gun holds %g", VR_Reload_Desc(r), gunHand,
