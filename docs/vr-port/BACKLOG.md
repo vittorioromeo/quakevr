@@ -6,9 +6,8 @@ Items the author approved or asked about, not yet started. Each has a note on wh
 
 ### Active humanoid coverage for AD's soldiers (author, 2026-10-12)
 
-Their own guns are done (ROUND22.md, "Arcane Dimensions: soldiers' own guns, upgrades per weapon, ..."). Left: extend
-living and dying active behaviours to AD grunt/enforcer variants after validating their rig semantics, get-up clips,
-attack origins and locomotion; the author explicitly permits deferring this rig/behaviour work.
+Left: extend living and dying active behaviours to AD grunt/enforcer variants after validating their rig semantics,
+get-up clips, attack origins and locomotion; the author explicitly permits deferring this rig/behaviour work.
 
 ### Flies on corpses and gibs (the author, 2026-10-02: "add it to the to-do list")
 
@@ -29,30 +28,24 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
 
 ## Proposed, waiting on the author
 
-- **Temporal AA, then DLSS/DLAA and FSR 3.1** (`docs/vr-port/TEMPORAL.md`; its stage 1, FSR 1/NIS and foveated
-  VRS, shipped in round 20): stage 2a (motion vectors for both eyes) is safe to start any time; the DLSS helper waits
+- **Temporal AA, then DLSS/DLAA and FSR 3.1** (`docs/vr-port/TEMPORAL.md`): stage 2a (motion vectors for both eyes) is
+  safe to start any time; the DLSS helper waits
   on TEMPORAL.md's section 12 questions (private use or public, the helper's licence, FSR 3.1, TAA as default AA, 120
   vs 90 Hz with DLSS).
 - **The graphics on the flat screen** (asked round 20): most features already draw on the desktop; to do: the
   float scene, tone mapping, grades and bloom for the window, and a check of each feature with VR off.
 - **Lower-end graphics settings before a release** (the author, round 20: "maybe later on before release, you can
   prepare some lower-end graphics settings as well"): the shipped defaults (`quakevr/vr_defaults.cfg`) are the
-  author's RTX 4090 settings; the presets need tuning for mid and low-end GPUs.
+  author's RTX 4090 settings; the presets (`vr_graphics_preset`) exist, but their low/mid tuning is unverified.
 - **`.rtlights` support** (round 20 discussion): load DarkPlaces' hand-authored light lists where they exist to
   drive the shadowed map lights (better placed than the map's light entities).
 - **Distance-field AO** (round 20 discussion): only if capsule/box AO leaves obvious gaps.
-- **Vore shove** (the author, 2026-10-02: "I would like the vore to also have a shove attack when the player is
-  close, later on"): done (ROUND22.md, "The vore shoves you"); its own animation is the item below.
-- **Flashlight optional; a brighter option** (the author, 2026-10-02): partly there. VR Settings has Flashlight
-  (`vr_flashlight` 0: no belt torch, its zones and grabs off, `vr_flashlight.cpp` enabled()) and, since 2026-10-04/07,
-  Ambient Light (`vr_ambient_light`, a floor of light) and Light Contrast. Left: check that nothing else assumes the
-  torch with it off (gadget hints, tips, tutorial), and whether one "Visibility" control raising ambient light,
-  exposure and tone mapping together is still wanted over Ambient Light alone.
+- **Flashlight optional; a brighter option** (the author, 2026-10-02): left: check that nothing else assumes the
+  torch with `vr_flashlight` 0 (gadget hints, tips, tutorial), and whether one "Visibility" control raising ambient
+  light, exposure and tone mapping together is still wanted over Ambient Light alone.
 - **Menus and settings for players, not only for tuning** (the author, 2026-10-03; `docs/vr-port/archive/MENU_REVIEW.md`):
-  the rework (Menu Detail levels, VR Settings for every player, one home per setting, changes marked, Search) was
-  merged 2026-10-03 (5830a23d2), and the comfort vignette came with VR Settings' rebuild (2026-10-07,
-  `vr_comfort_vignette`). Left: gameplay-feel presets (or gameplay kept as one tuned design) and the per-slot cvars
-  (`vr_wofs_*`, `vr_prop_*`) to data files.
+  left: gameplay-feel presets (or gameplay kept as one tuned design) and the per-slot cvars (`vr_wofs_*`,
+  `vr_prop_*`) to data files.
 - **Performance leads left open by the 2026-10-03/05 reports** (the reports were removed 2026-10-06; git history has
   them: `PHYSICS_PERFORMANCE_RESULTS_2026-10-03.md`, "Not done", and `PERFORMANCE_BENCHMARK_20261005.md`, items 4-5):
   - *Hit-box traces:* skip `touchNearby` for props too slow to hurt, after checking the monsters' QC touch functions
@@ -89,18 +82,13 @@ enforcer's), the blow frame (now the 5th) and vr_enemy_shove_vore_* kept matchin
   world pass's 2.67 at 2048 per eye, about half (~2.4 ms at his 2782 eyes); each pixel walks its cell's bucket (up to
   64 marks, a whole 80-byte record each before its early-out). Reading a mark's normal and middle first was tried and
   reverted (no gain, 0.6-0.9% of the pixels changed). `vr_decal_max` lowered to 768 meanwhile (config version 118).
-  Leads: fewer marks a bucket, a smaller record or a cheaper early-out, merging overlapping marks.
-  **Done in part (2026-10-10, `decal101`)**: the same image, world+brush 3.02 -> 2.74 ms at 2782 (marks 1.10 -> 0.82);
-  the options left with a visible change are in PERF_DECISIONS.md 15, for him.
+  Left: the options with a visible change (PERF_DECISIONS.md 15), for him.
 
 ### Map and game loading (ROUND22.md, "Load-time speedups without their drawbacks (1.0.1, 2026-10-10, worktree `load101`)")
 
 - **Model loading in parallel** (the calibration room's alias models, now 270 of the 430 ms: texture uploads, skins'
   decoding and copies, md5 replacements): the loaders share the hunk, cache and GL; would need each loader split into
   a decode into its own buffers (on the pool) and a commit in order on the main thread. Two exact pieces done instead.
-- **Shader program binaries** (`GL_ARB_get_program_binary`, 200 ms of every start): tried, no gain on NVIDIA (the
-  driver takes as long to load its binaries as to build from its own shader cache: 191 against 192 ms; asking for them
-  made the first start's link 25.9 s). Worth a try on AMD or Intel only.
 
 ### Art (ROUND21.md, "For the author": Blender)
 
@@ -167,16 +155,6 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
 
 ## Deferred from his release-day notes (2026-10-10)
 
-- Nailgun and Thunderbolt magazine receivers: inset the bottom face with a silvery border where the magazine goes in,
-  like the super nailgun (both look flat now).
-- Thunderbolt: the right side's texture stretched and not symmetrical with the left; make it mirror the left. Many
-  grooves painted on the texture should be inset in the geometry.
-- Tutorial lesson 7: a pillar or wall right after the door so the player faces the fight banner on entering (needs
-  geometry + relight).
-- Tutorial final arena: the right-side railing is detached from the ledge; move it onto the ledge (func_detail: needs a
-  recompile + relight).
-- Option to hide the armbands, with the forearm and the wrist/hand joining seamlessly without them (the author,
-  2026-10-11).
 - bHaptics support (vest, arms, head, hands: hits by direction, recoil, explosions, melee impacts) (the author,
   2026-10-11).
 - Standalone Quest version (Android/Quest native build: OpenXR on Android, GLES/Vulkan renderer path, performance
@@ -186,18 +164,10 @@ TODO: linux support
 
 ## Rendering feasibility from 2026-10-12 voice notes
 
-- **AD relief authoring pilot (audit only):** runtime already generates diffuse-derived normals; embedded indexed
-  heights need smooth texture mode 2. Trial 10–20 representative material textures with reviewed seamless height
-  masks and `_bump`/RGBA `_norm` sidecars, then expand by material family. Convincing depth needs correction of
-  painted shadows/highlights; blindly converting the whole mod is not an authored-quality result. Scope/memory and
-  current assets are measured in ROUND22 "voice-note rendering audit (lightaudit)".
-- **Optional vertex breathing reduction (audit only):** prototype a cached render-only per-bone rigid fit with
-  conservative small-residual filtering on grunt idle. Preserve actual joints, contact/weapon alignment and major
-  deformation; compare against current exact-key Smooth 3. MDL quantization and genuinely changing key poses both
-  contribute. Full clean skeletal reanimation is a separate substantial project; no new default/filter exists yet.
-- **Intentional AD flicker preference:** stationary Crucial brightness variation matches nearby authored style-1
-  flicker and vanishes when styles are flattened. Keep styles unchanged unless a reduced-flicker option is requested;
-  keep >=32 switched/scripted styles separate from the built-in animated styles in any such option.
+- **AD relief authoring pilot:** the pilot of 10-20 textures (reviewed height masks, `_bump`/`_norm` sidecars) is not
+  started.
+- **Optional vertex breathing reduction:** the dequantisation shipped; the per-bone rigid-fit option is the wobble
+  item (2), not started.
 - **Hidden mock blank readback:** some isolated eye/window captures are entirely black even with flat lightstyles;
   investigate capture/target validity separately if needed. This is not evidence of the reported lamp flicker.
 ### Native AD inventory and interface (author, 2026-10-12 11:27:41)
@@ -211,11 +181,10 @@ stats), the jump boots' power level, coop.
   per CODE_STYLE (Tracy build only; not a mechanical swap).
 - The bench JSON / profile CSV settings list gained 7 `vr_pbr`/`vr_parallax` entries with Tracy commit d5ba4af43
   (harmless), and the capture metadata prefix scan still repeats those names: dedupe.
-- Run VR profiler sessions with Tracy + call stack collection enabled and optimize the game.
+- Run VR profiler sessions (the `Release-TracyFull` build, with call stacks) and optimize the game.
 
 ## Open from round 22 (2026-10-14; credits ran out)
 
-- **Persistent blood decals (decal option A):** bake marks pushed out by the per-spot limit (`vr_decal_bucket_max`, 32) into per-surface blood layers so piles keep their dense look. Notes from decalcap: the dropped marks are exactly the set to bake; a 768-mark pile touches ~62 grid cells; the layer needs much finer texels than the lightmap's 16 units; sample it after the shader's parallax offset; handle the end-of-life fade. Waiting on his VR check of the 32 limit.
 - **Neck snap method:** he compares Twist Detection Velocity vs Hand Line (`vr_foegrab_necksnap_method`) in VR; keep the winner as default, consider removing the other. Add a wrist-roll-only test for Hand Line; run Hand Line's neck suite 3x, plus `hold` and `ragdoll/stagger_test.sh judo` under it (skipped for budget).
 - **AD humanoids and the neck snap / lift:** add `monster_centurion` and the fumigator to `vr_foegrab_lift_classes`; verify head zones and ragdolls (knocked-down/staggered snaps, lift flail) on each AD humanoid in the list (never tested).
 - **Step In:** optional depth cap so the player can't walk right through a held enemy (`vr_foegrab_step_in`); he judges if Step In is a net plus.
@@ -318,18 +287,11 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 - Cause: .mdl stores each frame's vertices as 3 bytes (0-255 per axis) times a per-model scale/offset, so positions
   snap to 1/255 of the model's extent (~0.25 units on a ~60-unit model), independently per frame: the rippling. Linear
   blending between frames adds limb shrinking/swimming.
-- (1, first) Dequantise at load, all models: per vertex, the smoothest trajectory through the animation that stays
-  within each stored value's +/- half-step box (iterative smooth-and-clamp or a small least-squares fit). No vertex moves
-  more than the data's own error; zero per-frame cost; a toggle; before/after visual check. ~1-2 agent-days.
 - (2) Rigged monsters: rebuild vertices from the fitted skeleton on every frame (rest pose x bone transform), not only
   between frames as r_lerpmodels 3 / vr_anim_smooth_rig do; removes quantisation noise, leaving the fit error
   (vr_anim_smooth_rig_error). Builds on vr_animsmooth.cpp; pairs with (1).
 - (3) Higher-precision formats (MD3 16-bit, IQM/MD5 float; the 2021 rerelease ships float models): check what the
   engine already loads before relying on it; covers only models that have replacements.
-
-## VR Settings menu organisation (2026-10-15)
-
-- His words: "turn each subsection of the 'VR Settings' menu into a submenu, for better organization".
 
 ## Other
 

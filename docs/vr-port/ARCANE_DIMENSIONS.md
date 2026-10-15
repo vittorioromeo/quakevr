@@ -1342,3 +1342,7 @@ Rigs made with `Misc/quakevr/ragdoll/rig.py` on AD's models (`RIG_PAK` = a pak o
   seeker, Freddie: bones rms 4-5) and the hand-set joints.
 - The eidolon, Chthon/fire-top boss and mammoth (not rigged); the training dummy's AD types; AD's soldiers' enemy shoves
   (their droppable guns are done, 2026-10-12: ROUND22.md); ghost melee-through rules.
+
+## Decision: stationary light flicker is intentional (2026-10-12)
+
+Crucial's stationary brightness variation matches nearby authored style-1 flicker and vanishes when styles are flattened: styles stay unchanged unless a reduced-flicker option is requested (then keep the >=32 switched/scripted styles apart from the built-in animated ones).
