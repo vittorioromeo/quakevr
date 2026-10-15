@@ -98,7 +98,7 @@ const za::Vector<Category> categoryList = {
     {{"slap", "Expected Slap"}, {any, {"forehand", "Forehand"}, {"backhand", "Backhand"}}},
     // Neck snaps (ROUND22.md, "Neck snap takes"): both hands holding the training dummy's head, neck or shoulders and
     // twisting; the take should (should not) snap its neck (vr_foegrab.cpp neckSnap: the "necksnap" event). eval.sh
-    // replays them under both twist detectors (vr_motion_eval ... necksnap <method>).
+    // replays them at the neck snap settings as set (the Hand Line).
     {{"neck_snap", "Neck Snap Expected"},
         {any, {"head", "At the Head"}, {"neck", "At the Neck"}, {"push_pull", "Push-Pull"}, {"turn", "Turn"},
             {"tilt", "Tilt"}}},

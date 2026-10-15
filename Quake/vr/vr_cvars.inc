@@ -2885,6 +2885,7 @@ QVR_CVAR(vr_foegrab_step_in, "1", CVAR_ARCHIVE)          // 1: while a hand hold
 // The two-hand throw (vr_foegrab.cpp throwCheck, QC vr_foegrab_throw.qc): both hands holding one enemy, turned over hard
 // (the hands' turn about it, level axis, and their speed) knock it down that way, for sure, by its kind and health.
 QVR_CVAR(vr_foegrab_throw, "1", CVAR_ARCHIVE)             // 1: the two-hand throw on
+QVR_CVAR(vr_foegrab_throw_debug, "0", CVAR_NONE)          // 1: the judo throw's diagnostic over the held (or nearest) enemy: the hands' turn and speed against their thresholds, the turn's way, what stops it; each try printed (vr_foegrab.cpp grabDebugDraw)
 QVR_CVAR(vr_foegrab_throw_twist, "130", CVAR_ARCHIVE)     // degrees/s: the hands' turn of the enemy (over, about a level axis through its middle) that throws
 QVR_CVAR(vr_foegrab_throw_speed, "3", CVAR_ARCHIVE)       // m/s: and the hands' mean speed then, at least
 QVR_CVAR(vr_foegrab_throw_away, "0", CVAR_ARCHIVE)        // 1: a throw straight away from you (within 45 degrees) counts too (0: that's a shove's)
@@ -2907,6 +2908,7 @@ QVR_CVAR(vr_foegrab_throw_hold_hertz, "4", CVAR_ARCHIVE)   // Hz: how quickly th
 // The lift (vr_foegrab.cpp liftCheck, QC VR_FoeGrab_Lift): walked up close to a humanoid, both hands on it pull it up
 // (instead of to a side: the judo throw): off its feet as a ragdoll, flailing, carried, thrown down; it breaks free.
 QVR_CVAR(vr_foegrab_lift, "1", CVAR_ARCHIVE)               // 1: the lift on
+QVR_CVAR(vr_foegrab_lift_debug, "0", CVAR_NONE)            // 1: the lift's diagnostic over the held (or nearest) humanoid: the hands' pull up and its angle against their thresholds, your reach, what stops it; each try printed (vr_foegrab.cpp grabDebugDraw)
 QVR_CVAR(vr_foegrab_lift_speed, "1.2", CVAR_ARCHIVE)       // m/s: the hands' mean speed up (within 45 degrees of straight up) that lifts
 QVR_CVAR(vr_foegrab_lift_reach, "48", CVAR_ARCHIVE)        // units: and you this near it (your middle to its, level; a grunt held at arm's length is about 36 off)
 QVR_CVAR(vr_foegrab_lift_time, "3.5", CVAR_ARCHIVE)          // s: held up this long it breaks free (you're shoved back, it gets up)
@@ -2923,14 +2925,12 @@ QVR_CVAR(vr_foegrab_manhandle_health, "0.25", CVAR_ARCHIVE) // at or under this 
 // The neck snap (vr_foegrab.cpp neckCheck, ragdollNeckCheck; QC VR_FoeGrab_NeckSnap): both hands holding a humanoid's head
 // (standing, staggering, knocked down, lifted: alive) twist it round: its neck snaps, it dies, its body limp in your hands.
 QVR_CVAR(vr_foegrab_necksnap, "1", CVAR_ARCHIVE)           // 1: the neck snap on
-QVR_CVAR(vr_foegrab_necksnap_speed, "210", CVAR_ARCHIVE)   // degrees/s: the hands' twist of the head (the line between the palms swept about its neck: one hand forward, the other back; or both wrists turning the same way) at least this fast at its fastest,
-QVR_CVAR(vr_foegrab_necksnap_angle, "80", CVAR_ARCHIVE)    // degrees: and turning it this far one way in one stroke: its neck snaps
-QVR_CVAR(vr_foegrab_necksnap_method, "1", CVAR_ARCHIVE)   // how the twist is measured: 0 the hands' velocity about the neck (and the wrists' roll), stroke by stroke (Twist Speed, Twist Angle); 1 the line between the hands, its direction across the neck now against its direction up to vr_foegrab_necksnap_window ago (relative to the head; and the wrists' roll the same way): turned Twist Angle within the window, it snaps
-QVR_CVAR(vr_foegrab_necksnap_window, "0.2", CVAR_ARCHIVE) // seconds (0.1-1): method 1's window
-QVR_CVAR(vr_foegrab_necksnap_margin, "2", CVAR_ARCHIVE)    // units: the head zone (the headshots') grown by this for the hands' holds
-QVR_CVAR(vr_foegrab_necksnap_neck, "1.5", CVAR_ARCHIVE)      // units: its neck's length: holds this far below its head (the head sphere's bottom) are at its head too, within its neck's width (vr_foegrab.cpp HeadZone); lower or out at its shoulders they are the judo throw's and the lift's
+QVR_CVAR(vr_foegrab_necksnap_angle, "75", CVAR_ARCHIVE)    // degrees: the hands' twist of the head (the hand line: the line between the palms, across its neck and relative to its head, against where it pointed up to vr_foegrab_necksnap_window ago; or both wrists rolling the same way) turned this far one way within the window: its neck snaps
+QVR_CVAR(vr_foegrab_necksnap_window, "0.15", CVAR_ARCHIVE) // seconds (0.1-1): the hand line's window
+QVR_CVAR(vr_foegrab_necksnap_margin, "0", CVAR_ARCHIVE)    // units: the head zone (the headshots') grown by this for the hands' holds
+QVR_CVAR(vr_foegrab_necksnap_neck, "0", CVAR_ARCHIVE)      // units: its neck's length: holds this far below its head (the head sphere's bottom) are at its head too, within its neck's width (vr_foegrab.cpp HeadZone); lower or out at its shoulders they are the judo throw's and the lift's
 QVR_CVAR(vr_foegrab_necksnap_volume, "1", CVAR_ARCHIVE)    // the crack's volume (0 silent; up to 2: the layers in your hands louder too)
-QVR_CVAR(vr_foegrab_necksnap_debug, "0", CVAR_NONE)       // 1: the neck snap's diagnostic over the held (or nearest) humanoid: its head zone, where each hand holds, the twist against the selected method's thresholds; each hold's largest turn printed (vr_foegrab.cpp neckDebugDraw)
+QVR_CVAR(vr_foegrab_necksnap_debug, "0", CVAR_NONE)       // 1: the neck snap's diagnostic over the held (or nearest) humanoid: its head zone, where each hand holds, the hand line's twist against Twist Angle; each hold's largest turn printed (vr_foegrab.cpp neckDebugDraw)
 QVR_CVAR(vr_foegrab_necksnap_strength, "1.25", CVAR_ARCHIVE) // the most each hand holds the limp body with afterwards, a share of its weight (above 0.5 two hands carry it)
 QVR_CVAR(vr_foegrab_necksnap_hertz, "24", CVAR_ARCHIVE)   // Hz: how stiffly its head follows the hands afterwards (the hold's spring: the light head bears the body's weight, it sags less the stiffer)
 QVR_CVAR(vr_foegrab_throw_grace, "0.75", CVAR_ARCHIVE)    // s: the thrown enemy's ragdoll passes through your hands (and your body: vr_box3d_throw_grace_body) this long; 0: they knock it as it goes

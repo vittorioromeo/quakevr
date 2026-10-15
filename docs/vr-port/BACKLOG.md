@@ -202,7 +202,7 @@ stats), the jump boots' power level, coop.
 
 ## Open from round 22 (2026-10-14; credits ran out)
 
-- **Neck snap method:** he compares Twist Detection Velocity vs Hand Line (`vr_foegrab_necksnap_method`) in VR; keep the winner as default, consider removing the other. Add a wrist-roll-only test for Hand Line; run Hand Line's neck suite 3x, plus `hold` and `ragdoll/stagger_test.sh judo` under it (skipped for budget).
+- **Neck snap:** Hand Line kept, Velocity removed (2026-10-15, ROUND22.md "Neck snap: the Hand Line only"). Still open: a wrist-roll-only test; `ragdoll/stagger_test.sh judo` under it.
 - **AD humanoids and the neck snap / lift:** add `monster_centurion` and the fumigator to `vr_foegrab_lift_classes`; verify head zones and ragdolls (knocked-down/staggered snaps, lift flail) on each AD humanoid in the list (never tested).
 - **Step In:** optional depth cap so the player can't walk right through a held enemy (`vr_foegrab_step_in`); he judges if Step In is a net plus.
 - (Done 2026-10-15, fastship: walk 2500 frames) **Body Inset vs vore shoves:** `voreshove_test.sh` now gets 3-4 shoves (needs 4) at inset 4: vores stand closer and die to their own splash; restore the test's margin.

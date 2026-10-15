@@ -446,7 +446,7 @@ def case_neck():
         ("smooth_turn", 0, GRUNT_HEAD, 0, 0, 1, "y", "smoothturn", "vr_snap_turn 0", "none"),
         ("snap_turn", 0, GRUNT_HEAD, 0, 0, 1, "y", "snapturn", "vr_snap_turn 45", "none"),
         ("twist_turn", 0, GRUNT_HEAD, 75, 0.2, 1, "y", "twistturn", "vr_snap_turn 0", "snap"),
-        # (A slow shuffle: 60 degrees in 3 s, 20 deg/s: never a snap, either method.)
+        # (A slow shuffle: 60 degrees in 3 s, 20 deg/s: never a snap.)
         ("shuffle", 0, GRUNT_HEAD, 60, 3.0, 1, "y", None, "", "none"),
         # (Both hands on its shoulders, out beside its neck, twisted hard: never a neck snap (a judo throw may be);
         # standing, and lifted by them then twisted: its ragdoll's palms are off its neck too.)
@@ -461,23 +461,22 @@ def case_neck():
         ("slowmo_knocked", 0, "kdslow", 75, 0.2, 1, "y", None, "", "snap"),
         ("slowmo_slow", 0, GRUNT_HEAD, 75, 1.0, 1, "y", None, "vr_timescale 0.3", "none"),
     ]
-    # JUDO_NECK_METHOD 1: the hand-line detector (vr_foegrab_necksnap_method 1); a tilt (grunt_roll: one hand up, the
-    # other down) is no turn about the neck there. The twists are sized for NECK_REFERENCE's thresholds, set for them
-    # (the shipped defaults, the author's 80 degrees: case_neckdefaults).
-    method = os.environ.get("JUDO_NECK_METHOD", "0")
-    print(f"  (vr_foegrab_necksnap_method {method}; {NECK_REFERENCE})")
-    run_neck(runs, f"vr_foegrab_necksnap_method {method};{NECK_REFERENCE};", method)
+    # (The hand line, the only twist detector since 2026-10-15: a tilt (grunt_roll: one hand up, the other down) is no
+    # turn about the neck. The twists are sized for NECK_REFERENCE's thresholds, set for them (the shipped defaults, the
+    # author's 75 degrees within 0.15 s: case_neckdefaults).)
+    print(f"  ({NECK_REFERENCE})")
+    run_neck(runs, f"{NECK_REFERENCE};")
 
 
-# The thresholds case_neck's twists are sized for (the defaults before 2026-10-15's: 30 degrees one way, 100 deg/s at its
-# fastest; Hand Line: within 0.3 s; the neck 3 units long).
-NECK_REFERENCE = ("vr_foegrab_necksnap_speed 100;vr_foegrab_necksnap_angle 30;vr_foegrab_necksnap_window 0.3;"
-                  "vr_foegrab_necksnap_neck 3")
+# The thresholds case_neck's twists are sized for (the defaults before 2026-10-15's: 30 degrees one way within 0.3 s;
+# the neck 3 units long, the head zone's margin 2).
+NECK_REFERENCE = ("vr_foegrab_necksnap_angle 30;vr_foegrab_necksnap_window 0.3;vr_foegrab_necksnap_neck 3;"
+                  "vr_foegrab_necksnap_margin 2")
 
 
 def case_neckdefaults():
-    """neckdefaults: the neck snap at the shipped defaults (the author's: Hand Line, 80 degrees within 0.2 s; Velocity
-    (JUDO_NECK_METHOD 0): 80 degrees at 210 deg/s at its fastest; the neck 1.5 units). A grunt's head twisted 110 degrees in
+    """neckdefaults: the neck snap at the shipped defaults (the author's of 2026-10-15: 75 degrees within 0.15 s; no neck
+    below its head, no margin). A grunt's head twisted 110 degrees in
     0.2 s, both ways: snapped; 60 degrees in 0.2 s, 110 in 1 s: not; its shoulders 110 in 0.2 s: not; staggering (upright:
     its neck up) 110 in 0.2 s: snapped; in slow motion (0.3) twisted 0.2 s after the grips, 110 in 0.2 s: snapped; 110 in
     1 s: not. (Not knocked down: lying, its neck runs along the floor, and a twist about the vertical, the mock's, is
@@ -488,24 +487,24 @@ def case_neckdefaults():
         ("short", 0, GRUNT_HEAD, 60, 0.2, 1, "y", None, "", "none"),
         ("slow", 0, GRUNT_HEAD, 110, 1.0, 1, "y", None, "", "none"),
         ("shoulders", 0, GRUNT_SHOULDERS_WIDE, 110, 0.2, 1, "y", None, "", "nosnap"),
-        ("stagger", 0, "stagger", 110, 0.2, 1, "y", None,
+        # (A staggering one's ragdoll turns with the hands: 110 degrees in 0.2 s read 66 within 0.15 s, under his 75;
+        # 140 in 0.2 s.)
+        ("stagger", 0, "stagger", 140, 0.2, 1, "y", None,
          "vr_knockdown_chance 0.01;vr_ragdoll_active_stagger_travel 0.03;vr_foegrab_manhandle_stagger 0", "snap"),
         ("slowmo_quick", 0, GRUNT_HEAD, 110, 0.2, 1, "y", "quick", "vr_timescale 0.3", "snap"),
         ("slowmo_slow", 0, GRUNT_HEAD, 110, 1.0, 1, "y", None, "vr_timescale 0.3", "none"),
     ]
-    method = os.environ.get("JUDO_NECK_METHOD", "")
-    print(f"  (the shipped defaults{', vr_foegrab_necksnap_method ' + method if method else ''})")
-    run_neck([(f"defaults_{r[0]}",) + r[1:] for r in runs], f"vr_foegrab_necksnap_method {method};" if method else "",
-             method or "1")
+    print("  (the shipped defaults)")
+    run_neck([(f"defaults_{r[0]}",) + r[1:] for r in runs], "")
 
 
-def run_neck(runs, settings, method):
+def run_neck(runs, settings):
     """case_neck's runs (and case_neckdefaults'), each with `settings` first."""
     for what, mon, centre, deg, dur, sign, axis, pull, extra, want in runs:
         extra = f"{settings}{extra}"
-        if method == "1" and what == "grunt_roll":
+        if what == "grunt_roll":
             want = "none"
-        if method == "1" and centre in ("kd", "kdneck", "kdslow"):
+        if centre in ("kd", "kdneck", "kdslow"):
             # (Lying, its neck runs along the floor: the mock's twists about the vertical are mostly a tilt of it, and
             # Hand Line reads only the turn about its neck (8-32 of 75 degrees, as it happens to lie; the slow push-pull
             # 30-32 of its 30; Velocity's floor on the line across the neck reads more). Measured, not judged: held, no
@@ -543,7 +542,7 @@ def run_neck(runs, settings, method):
             f.write(out)
         flat = " ".join(out.split())
         bad = "rror" in flat or "CRASH" in flat
-        snap = re.search(r"both hands snap (\S+) \(\d+\)'s neck, twisted (\d+) deg at (\d+) deg/s \((standing|a ragdoll)\): "
+        snap = re.search(r"both hands snap (\S+) \(\d+\)'s neck, twisted (\d+) deg within ([\d.]+) s \((standing|a ragdoll)\): "
                          r"(killed|[a-z ,()]+)", flat)
         died = re.search(r"necksnap: (\S+)'s neck snapped \(([a-z ]+), ([a-z ]+)\)", flat)
         killed = snap and snap.group(5).startswith("killed") and died
@@ -551,8 +550,8 @@ def run_neck(runs, settings, method):
         let = re.search(r"let go of after ([\d.]+) s held on", flat)
         thrown = "both hands turn" in flat
         lifted = "both hands lift" in flat or "lifted, held on as a ragdoll" in flat
-        how = (f"{snap.group(1)} snapped {snap.group(4)} ({died.group(2) if died else '?'}), {snap.group(2)} deg at "
-               f"{snap.group(3)} deg/s" if snap else "no snap")
+        how = (f"{snap.group(1)} snapped {snap.group(4)} ({died.group(2) if died else '?'}), {snap.group(2)} deg within "
+               f"{snap.group(3)} s" if snap else "no snap")
         if want == "snap":
             state_ok = (died and died.group(2) == {"kd": "knocked down", "kdneck": "knocked down", "kdslow": "knocked down",
                                                    "stagger": "staggering"}.get(
@@ -653,7 +652,7 @@ def case_adneck():
                 f.write(out)
             flat = " ".join(out.split())
             bad = "rror" in flat or "CRASH" in flat
-            snap = re.search(r"both hands snap \S+ \(\d+\)'s neck, twisted (\d+) deg at (\d+) deg/s \((standing|a ragdoll)\): "
+            snap = re.search(r"both hands snap \S+ \(\d+\)'s neck, twisted (\d+) deg within ([\d.]+) s \((standing|a ragdoll)\): "
                              r"(killed[a-z ,]*|[a-z ,()']+)", flat)
             s1 = status(flat, "MARK1")
             held = s1[0] if s1 else 0

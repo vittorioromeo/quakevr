@@ -8523,6 +8523,7 @@ extern "C" void VR_SetupViewEntities()
     hitmodel::zonesDraw(); // vr_debug_hitzones
     rope::debugDraw();     // vr_debug_rope
     foegrab::neckDebugDraw(s.head); // vr_foegrab_necksnap_debug
+    foegrab::grabDebugDraw(s.head); // vr_foegrab_lift_debug, vr_foegrab_throw_debug
     if(vr_debug_hand_bones.value)
     {
         drawHandBones();
