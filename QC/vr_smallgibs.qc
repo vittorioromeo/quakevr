@@ -442,7 +442,12 @@ void() VR_SmallGib_Think =
     if(self.vr_sgib_grace && time >= self.vr_sgib_grace)
     {
         self.vr_sgib_grace = 0;
-        self.owner = world;
+        // (The body it came from no longer its owner; not the player holding it or who threw it: taken and thrown
+        // within its grace (in bullet time, its game time slowed), a throw's owner went at once and it hit him, bursting.)
+        if(self.owner != self.carry_player && self.owner != self.carry_letgo)
+        {
+            self.owner = world;
+        }
         VR_SmallGib_Rigid(self);
     }
     if(self.carry_player != world)
