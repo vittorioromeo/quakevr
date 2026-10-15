@@ -12016,7 +12016,7 @@ void reset()
 // The toolgun's pins and joints (vr_toolgun.cpp).
 
 edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model,
-    const char* key, float value)
+    const char* key, float value, bool probe)
 {
     if(!sv.active)
     {
@@ -12028,7 +12028,7 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     // map (vr_ad.cpp), as ED_LoadFromFile
     if(!strncmp(classname, "ad_", 3)) // AD support: explicit AD variants in every spawn menu
     {
-        if(!VR_AD_RulesOn() && !VR_AD_SpawnsOutside(classname + 3)) { return nullptr; } // AD support
+        if(!VR_AD_RulesOn() && !VR_AD_ToolgunSpawnsOutside(classname + 3)) { return nullptr; } // AD support
         classname += 3; // AD support: retain the canonical entity classname for VR and AD tests
     }
     else if(VR_AD_RulesOn())
@@ -12071,12 +12071,23 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(e);
     // A live spawn: what the map would make static (a torch, a flame) stays an entity (QC vr_spawn_live).
+    // A probe (the toolgun's ghost: probe 1): made only to be looked at and removed (QC vr_spawn_live 2: no side things).
     float* const live = bindings().spawnLive;
     if(live)
     {
-        *live = 1.f;
+        *live = probe ? 2.f : 1.f;
     }
     PR_ExecuteProgram(fn);
+    // What a map's item does over its first second (placed, made an object, shrunk), done now: drawn at its final size
+    // and place from its first frame (QC VR_SpawnLive_Finish).
+    if(!e->free)
+    {
+        if(const func_t finish = qvr::progs::findFunction("VR_SpawnLive_Finish"))
+        {
+            pr_global_struct->self = EDICT_TO_PROG(e);
+            PR_ExecuteProgram(finish);
+        }
+    }
     if(live)
     {
         *live = 0.f;

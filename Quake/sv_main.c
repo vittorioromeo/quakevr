@@ -1264,6 +1264,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 
 	MSG_WriteByte (&msg, svc_time);
 	MSG_WriteFloat (&msg, qcvm->time);
+	VR_WriteRecentPrecaches (&msg); // QVR: a late precache before what uses it (vr/vr_server.cpp)
 
 // add the client specific data to the datagram
 	SV_WriteClientdataToMessage (client->edict, &msg);

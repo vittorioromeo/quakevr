@@ -263,7 +263,10 @@ void() PlaceItem =
         MG3_ItemUnspawn(); // Dawn of the Machine: one a trigger brings (upstream SPAWNED; vr_mg3_items.qc)
     }
 
-    SpawnAmmoBoxWeapons(self);
+    if(vr_spawn_live != 2) // (not the toolgun's ghost's probe: box3d::spawnClass)
+    {
+        SpawnAmmoBoxWeapons(self);
+    }
     VRScalePickup();
     VRFloatPickup();
 

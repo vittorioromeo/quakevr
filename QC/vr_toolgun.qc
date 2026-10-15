@@ -20,6 +20,67 @@ void() VR_Toolgun_Precache =
     precache_sound("vr/torch_light.wav");
     precache_sound("vr/torch_hit.wav");
     precache_sound("misc/null.wav");
+    // Its brush-model items and boxes (health, ammo, explosive boxes): a brush model's lightmaps and vertices are built
+    // with the map, so one first loaded later is never drawn (vr_client.cpp parsePrecacheModel). Small files; the
+    // expansions' only where their pak is. Everything else an entry needs is precached late, when it is chosen (the
+    // ghost's probe: vr_toolgun.cpp) or made, and reaches the client before the thing (VR_WriteRecentPrecaches).
+    precache_model("maps/b_bh10.bsp");
+    precache_model("maps/b_bh25.bsp");
+    precache_model("maps/b_bh100.bsp");
+    precache_model("maps/b_shell0.bsp");
+    precache_model("maps/b_shell1.bsp");
+    precache_model("maps/b_nail0.bsp");
+    precache_model("maps/b_nail1.bsp");
+    precache_model("maps/b_rock0.bsp");
+    precache_model("maps/b_rock1.bsp");
+    precache_model("maps/b_batt0.bsp");
+    precache_model("maps/b_batt1.bsp");
+    precache_model("maps/b_explob.bsp");
+    precache_model("maps/b_exbox2.bsp");
+    if(VR_Has("maps/b_lnail0.bsp")) { precache_model("maps/b_lnail0.bsp"); }
+    if(VR_Has("maps/b_lnail1.bsp")) { precache_model("maps/b_lnail1.bsp"); }
+    if(VR_Has("maps/b_mrock0.bsp")) { precache_model("maps/b_mrock0.bsp"); }
+    if(VR_Has("maps/b_mrock1.bsp")) { precache_model("maps/b_mrock1.bsp"); }
+    if(VR_Has("maps/b_plas0.bsp")) { precache_model("maps/b_plas0.bsp"); }
+    if(VR_Has("maps/b_plas1.bsp")) { precache_model("maps/b_plas1.bsp"); }
+    // (AD's golems' rubble: the only brush models an entry's spawn precaches, ad_mon_bossicegolem.qc)
+    if(VR_Has("maps/ad_brk/rock01.bsp")) { precache_model("maps/ad_brk/rock01.bsp"); }
+    if(VR_Has("maps/ad_brk/rock02.bsp")) { precache_model("maps/ad_brk/rock02.bsp"); }
+};
+
+void() MG3_UpgradeStart;
+void() VR_PickupObj_Place;
+void() AD_SpawnLive_Finish; // (vr_ad_items.qc)
+
+// box3d::spawnClass, right after a live spawn's function (self: what it made; the toolgun, physics spawns): what a map's
+// item does over its first second, done now, so it is drawn and touched at its final size and place from its first
+// frame (no big box shrinking a moment later): Dawn of the Machine's upgrade started (its half second), placed on the
+// floor (StartItem's 0.2 s: PlaceItem; boxes shrunk to objects, pickups scaled and floated), made an object
+// (VR_PickupObj_Mark's 0.3 s).
+void() VR_SpawnLive_Finish =
+{
+    if(self.think == MG3_UpgradeStart)
+    {
+        MG3_UpgradeStart();
+    }
+    AD_SpawnLive_Finish(); // (AD's items: their delayed start)
+    if(!self.classname)
+    {
+        return; // (removed by its start: an empty backpack, one stuck in a wall)
+    }
+    if(!VRPlaceItemNow())
+    {
+        return; // (fell out of the level: removed)
+    }
+    if(self.think2 == VR_PickupObj_Place)
+    {
+        VR_PickupObj_Place();
+        if(self.think2 == VR_PickupObj_Place)
+        {
+            self.think2 = SUB_Null;
+            self.nextthink2 = 0;
+        }
+    }
 };
 
 /*QUAKED weapon_toolgun (0 .5 .8) (-16 -16 0) (16 16 32)

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "vr_client.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_posing.hpp"
@@ -52,6 +53,10 @@ void frame(const hands::State& s);
 
 // The client's temp entities (vr_client.cpp, after Quake's): the spawn tool's ghost.
 void tempEntities();
+
+// The ghost's networked scale and offsets (render::networkData), when `e` is the ghost drawn as an item will be once
+// placed (its probe's: a box shrunk, a pickup scaled); null otherwise.
+[[nodiscard]] const client::EntityVr* ghostVr(const entity_t* e);
 
 // The tracked controller of `hand` in the world (as the menus' laser: vr_menuui.cpp pointerRay): its place and its aim's
 // axes (forward, right, up), not the drawn hand's (which follows the held weapon's weight).

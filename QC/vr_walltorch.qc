@@ -41,7 +41,7 @@
 // engine sets vr_spawn_live round a spawn function it runs after the map has spawned (box3d::spawnClass). What the map
 // would make static (makestatic, ambientsound: only the level's signon, which a client already in the game never reads
 // again) stays an entity instead, its crackle played on it (VR_FlameProp_Setup, light_torch_small_walltorch).
-nosave float vr_spawn_live;
+// (vr_spawn_live itself: vr_util.qc, read by items.qc too.)
 .float vr_flameprop;    // a free-standing flame made live (a prop: hangs where placed until taken): 1 small, 2 large, 3 a candle
 
 float WT_LEVELS = 16;           // the stick's frames 1..16: its fire in sixteenths

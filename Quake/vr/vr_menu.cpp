@@ -6440,6 +6440,10 @@ za::Vector<Item> pageDebugTools()
         command("Check and Clear the Spawn Test", "vr_toolgun_spawn_test check")
             .help("vr_toolgun_spawn_test check: each one the spawn test made, still there or gone since (console); then "
                   "all of them removed."),
+        command("Trace the Chosen Spawn", "vr_toolgun_spawn_trace")
+            .help("vr_toolgun_spawn_trace [entry] [frames]: the spawn panel's choice made ahead of you, its model, scale, "
+                  "box and place on the server and the client printed the frame it is made and the next 4 (a size that "
+                  "changes after it shows, a model the client doesn't draw), then removed (console)."),
         command("Toolgun Status", "vr_toolgun_status")
             .help("vr_toolgun_status: its hand and tool, where it aims and what it meets (its place, pinned or loose, its joints), "
                   "the spawn choice and ghost (its offsets, turn, and which hand holds it), what the physgun holds, the scale "
