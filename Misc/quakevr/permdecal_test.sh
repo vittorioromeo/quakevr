@@ -10,6 +10,8 @@
 #  4. On/off rule: switched off, the newest vr_decal_max marks show live, the frame the same as with the layer off from
 #     the start (the old live ring); on again, the same frame as before; vr_decals 0 hides them all (the frame before
 #     any mark) and 1 brings them back; marks made while off are kept and baked once it is on.
+#  5. A mark shown later on the lift waits and is baked when it shows; a mark on a box made in the game stays live and
+#     goes when the box changes.
 set -eu
 AGENT=${1:?worker name}
 K=C:/OHWorkspace/qvr-kit
@@ -90,6 +92,21 @@ pk() { grep "^$1 peak" "$TREE/scratch/permdecal_test_shots.log" | grep -o '[0-9]
 [ "$(pk 6:3)" -le 2 ] || fail "vr_decals 0 shows marks ($(pk 6:3))"
 [ "$(pk 1:5)" -le 2 ] || fail "off differs from the old live ring ($(pk 1:5))"
 [ "$(pk 7:8)" -le 2 ] || fail "layered atlas differs ($(pk 7:8))"
-if grep -qE 'Host_Error|ENGINE ERROR|CRASH' "$OUT" "$B" "$T" "$A"; then fail "engine error"; fi
+# 5. A mark shown later on a brush entity (the gore's flying blood, 3 s) waits and is baked when it shows, not at once;
+#    a mark on a box made in the game (vr_brushes.cpp) stays live past every bake delay (not baked) and goes when the
+#    box changes, the world's beside it baked.
+E="$TREE/scratch/permdecal_test_late.log"
+S='vr_fixed_frames 1;vr_permdecals 1;map vrclimb;wait20;setpos 20 0 24 0 0 0;noclip;wait5'
+S="$S;vr_decal_at -330 80 20 1 0 0 blood 24 3;wait5;vr_permdecal_info;wait400;vr_permdecal_info"
+S="$S;vr_brush_box 50 -16 0 66 16 48;wait5;vr_decal_at 20 0 30 1 0 0 blood 16;vr_decal_at 20 0 30 0 0 -1 blood 16;wait900"
+S="$S;vr_brush_list;vr_permdecal_info;vr_brush_set 1 50 -16 0 66 16 64;wait5;vr_brush_list;toggleconsole;quit"
+bash "$K/run.sh" "$AGENT" -Script "$S" -Filter '^permdecals: ([0-9]+ stamps|[0-9]+ marks on brush)|^  [0-9]+: entity|Host_Error|ENGINE ERROR|CRASH|exit=' > "$E"
+grep -q '^exit=0' "$E" || fail "late/box run"
+grep -q '^permdecals: 1 marks on brush models waiting' "$E" || fail "the late mark on the lift not waiting"
+[ "$(grep -o '^permdecals: [0-9]* stamps kept ([0-9]* on' "$E" | grep -o '[0-9]* stamps kept ([0-9]*' | tr -d 'a-z (' | tr '\n' ' ')" = "00 11 21 " ] ||
+  fail "late mark / box stamps ($(grep -o '[0-9]* stamps kept ([0-9]* on' "$E" | tr '\n' ' '))"
+[ "$(grep -o '[0-9]* decals$' "$E" | tr '\n' ' ')" = "1 decals 0 decals " ] || fail "the box's mark not live, or not gone with the change"
+if grep -qE 'Host_Error|ENGINE ERROR|CRASH' "$OUT" "$B" "$T" "$A" "$E"; then fail "engine error"; fi
 printf 'permdecal PASS: %s baked past a live cap of 16, 2 on brush entities, the same after loads; budget 64: %s pages the most in a flush, %s flushes; ' "$KEPT" "$WORST" "$FLUSHES"
-printf '1024 atlas grew layers, none given up, same frame; off = the old live ring, on/off/on and vr_decals 0/1 frames exact\n'
+printf '1024 atlas grew layers, none given up, same frame; off = the old live ring, on/off/on and vr_decals 0/1 frames exact; '
+printf 'a late mark on the lift baked when it shows; a box'"'"'s mark live, gone with the box\n'

@@ -7309,3 +7309,44 @@ smoke clean, build 0 warnings.
 Checklist (proposed): "Impacts: jump off a ledge onto a standing grunt's head: it is hurt (from 2 storeys its head
 pops) and you take no fall damage; Combat > Knockdowns > Impacts: Damage Curve 2 makes hard throws much worse than soft
 ones, Most per Strike caps one strike, Head and Limb Wear pops heads sooner."
+
+
+## Permanent decals leftovers: retro filtering, late marks on doors, boxes (2026-10-15, worktree `fastship`, branch `agent/permdecals4`)
+
+His go: the missing permanent decal features (PERM_DECALS.md, BACKLOG "Permanent decals leftovers").
+
+- Retro (blocky) textures: the layer is now read at the middle of the texture's block or texel under the pixel
+  (`PermDecalsLook`, vr_glsl.h), so a baked mark has the surface's blocks: retro textures' (the pixel's set: snapping,
+  Block, soft edges, fade far off) or, with `gl_texturemode GL_NEAREST*`, the texture's own texels (Quake's own textures;
+  every texture with `vr_texture_smooth 0`: `TexMgr_NearestKind`, sent in `PermDecals.x`). The layer's texel at the
+  block's middle comes from the screen derivatives of both coordinates (both affine on the face; parallax's shift kept).
+  Smooth as before with linear textures, where no page is under the pixel (most of the world: one read, as before), and
+  where a pixel spans a block or more. The palette (Retro Palette) is not applied to the layer (it multiplies the
+  texture, which is in the palette already).
+- Gore's late marks on doors and lifts: a mark that shows later (the flying blood's `delay`) on a brush model now waits,
+  laid in the model's space as it is when made, and is baked when it shows (`permdecals::bakeEntities(stamp, due)`,
+  `bakeDue` once a frame). Waiting ones go into the saves (baked at once after the load) and show in
+  `vr_permdecal_info` ("N marks on brush models waiting to show"). Test aid: `vr_decal_at ... [size] [delay]`.
+- Marks on the brush tool's boxes: kept live, by decision (PERM_DECALS.md, Decisions): a box is made again on every
+  edit (each drag step), its faces are not in the map's page table (laid out at the map's load), its id is not stable
+  across saves, and its marks go with each change by design; a per-box layer would need page ranges allocated and
+  given back on every rebuild and a save key for the box. The test checks the behaviour: live past every bake delay,
+  not baked, gone when the box changes.
+- Small leftover fixed: a mark whose pages' slots were all dropped (the atlas full at `vr_permdecal_atlas_max`, every
+  slot used in one frame) now keeps its stamp (for the saves) instead of staying live untracked.
+
+Tested (headless): `permdecal_test.sh` PASS 3 runs of 4 (one failed its off-vs-on frame check: the shot after the
+switch matched the one before it; not seen again in two reruns: a flake of the shot timing, the switch untouched here)
+with its new part 5 (a 3 s late mark on vrclimb's lift: 0 stamps and 1
+waiting after 5 frames, baked after the delay; a box's mark live after 10 s, the world's mark beside it baked, the box's
+gone after `vr_brush_set`). Shots (worktree scratch/): `pd4_door_before/after.png` (vrclimb lift, two 3 s marks and one
+at once: before all three right after the hit; after only the one, the other two after the delay);
+`pd4_retro_before/after.png` (lift up close: retro blocks 2, nearest, linear: before the marks smooth on blocky
+textures, after blocky with them; linear unchanged). Frame time, `bench.sh --scenarios combat_48` (48 monsters
+fighting, exclusive, 600 frames): frame p50 11.110 ms both (paced); GPU 3D 3.84-3.87 before, 3.85-3.92 after (one
+outlier run 4.31 with every pass high); world+brush pass 1.244-1.247 before, 1.254-1.286 after (noise: the alias
+pass moved as much). e1m1 smoke: no errors.
+
+For him in VR: blood on a wall with retro textures on (Graphics > Retro Textures) and with nearest texture filtering:
+the baked marks should have the wall's blocks; gibbing a monster against a door: its blood lands on the door when the
+flying blood arrives, not at the hit.

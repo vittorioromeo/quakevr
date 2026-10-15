@@ -245,10 +245,11 @@ stats), the jump boots' power level, coop.
 - Phase 4: coop: clients bake from the replicated decal events; a mid-game joiner gets a snapshot or a fresh start.
 - (Done 2026-10-15, `agent/permdecals3`: the atlas grows by layers up to `vr_permdecal_atlas_max`; past that the
   least recently baked page still gives its slot up. Downsampling old pages there is the remaining idea.)
-- Retro (blocky) textures: baked marks render smooth; match the retro filtering. Still open (PERM_DECALS.md, "Open").
-- Gore's delayed marks appear at once on doors and lifts (brush-entity marks bake immediately). Still open.
-- Marks on brush-tool boxes stay live (not baked). Still open, by design for now (PERM_DECALS.md, "When a mark is baked":
-  "Never").
+- (Done 2026-10-15, `agent/permdecals4`: baked marks read on the texture's blocks with retro textures and nearest
+  texture mode; gore's late marks on doors and lifts baked when they show; a stamp whose pages were all dropped kept.
+  Marks on brush-tool boxes stay live by decision: PERM_DECALS.md, Decisions.)
+- The layer is not pulled to Quake's palette (Retro Palette); a mark on both the world and a brush-tool box stays live
+  whole (its world part too). Small, only if he asks.
 
 ## QuakeC VM overhead, short of a JIT (2026-10-14; profile first with the Tracy build's QC zones)
 

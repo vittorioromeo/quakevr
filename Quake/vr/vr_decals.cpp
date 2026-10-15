@@ -1144,8 +1144,8 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     d.depth = big ? za::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f;
     za::Vector<Corner>& tris = scratch.tris;
     clipToWorld(d, n, d.depth, tris, d.brush);
-    // With the permanent layer (vr_permdecals), its part on the brush models (doors, lifts) baked at once, in their own
-    // space: the live marks are the static world's.
+    // With the permanent layer (vr_permdecals), its part on the brush models (doors, lifts) baked when it shows (at once,
+    // or after its delay), in their own space: the live marks are the static world's.
     int onModels = 0;
     if(permdecals::on())
     {
@@ -1153,7 +1153,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
         {
             makeAtlas();
         }
-        onModels = permdecals::bakeEntities(stampOf(d));
+        onModels = permdecals::bakeEntities(stampOf(d), d.born); // (shown later: baked then)
     }
     if(tris.empty())
     {
@@ -1700,6 +1700,7 @@ void bakeSettled()
         if(shown)
         {
             (void)permdecals::rebake();
+            (void)permdecals::bakeDue(); // (the brush models' marks shown by now)
         }
         if(shown || kept)
         {
@@ -1999,7 +2000,8 @@ void at_f()
 {
     if(Cmd_Argc() < 7 || !cl.worldmodel)
     {
-        Con_Printf("vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size]: a mark where the line meets a surface\n");
+        Con_Printf("vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size] [delay]: a mark where the line meets a surface "
+                   "(shown `delay` seconds later, as the gore's flying blood)\n");
         return;
     }
     const glm::vec3 from{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
@@ -2021,7 +2023,9 @@ void at_f()
         seed = (seed ^ static_cast<unsigned char>(*c)) * 16777619u;
     }
     srand(seed);
-    const bool made = add(kind, where, normal, size);
+    MarkOptions o;
+    o.delay = Cmd_Argc() > 9 ? za::max(0.f, static_cast<float>(Q_atof(Cmd_Argv(9)))) : 0.f;
+    const bool made = add(kind, where, normal, size, o);
     int entity = 0;
     (void)worldtrace::world(from, from + glm::normalize(dir) * 512.f, true, false, 0, 0, &entity);
     Con_Printf("vr_decal_at: %s at %.1f %.1f %.1f (normal %.2f %.2f %.2f), entity %d\n", made ? "laid" : "none", where.x,

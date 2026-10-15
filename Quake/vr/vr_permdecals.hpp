@@ -55,7 +55,13 @@ void newestWorld(int max, za::Vector<Stamp>& out);
 // Stamp `s` (in the world's space, its model ignored) baked on the static world's faces under it; how many faces.
 int bakeWorld(const Stamp& s);
 // ... on the faces of the brush models in the map that it lies on (doors, lifts, plats: each in its own space).
-int bakeEntities(const Stamp& s);
+// A mark that shows later (`due`, on cl.time: the gore's flying blood) waits, laid in the model's space as it is now,
+// and is baked when it shows (bakeDue), as the world's live marks show then.
+int bakeEntities(const Stamp& s, double due = 0.0);
+// Once a frame (vr_decals.cpp's bakeSettled, the layer on): the brush models' marks due by now baked; how many.
+int bakeDue();
+// The brush models' marks not shown yet appended to `out` (the saves: baked at once after the load).
+void waitingStamps(za::Vector<Stamp>& out);
 
 // Once a frame, before the world draws (R_SetupView's first view): what was baked drawn into the atlas; `decalAtlas`
 // the marks' (vr_decals.cpp).
