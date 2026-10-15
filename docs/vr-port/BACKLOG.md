@@ -87,6 +87,13 @@ this file; the workers' ROUND22.md sections carry them.
 
 ## Later (the author, 2026-10-11, before 1.0.0: "Make sure everything is in the backlog for later")
 
+
+### Enemies' own weapons for the player (the author, 2026-10-15)
+
+- **Phantom Swordsman's sword** (Dissolution of Eternity's `monster_sword`, `rogue` QC): make its corpse, or the sword
+  it leaves behind, usable as a melee sword.
+- **AD enemies with unique weapons:** review AD's monsters that carry their own weapons (beyond the soldiers' guns
+  already usable, and separate from "AD soldiers' guns: refine their VR models") and make each usable by the player.
 ### AD soldiers' guns: refine their VR models (author, 2026-10-15)
 
 His note: "We will eventually refine these models." The eight guns AD's armed soldiers drop are single use and their
