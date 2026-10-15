@@ -343,6 +343,8 @@ int PR_AllocString (int bufferlength, char **ptr);
 void PR_Profile_f (void);
 void PR_ProfileQC_f (void); // QVR: per-function QuakeC time
 extern cvar_t vr_qcprofile;
+void VR_QCExec_Init (void); // QVR: vr_qcexec, the faster QuakeC loop (vr/vr_qcexec.c)
+extern cvar_t vr_qcexec;
 
 edict_t *ED_Alloc (void);
 void ED_Free (edict_t *ed);

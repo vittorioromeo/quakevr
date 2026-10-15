@@ -31,5 +31,7 @@ for l in lines:
     if m and last: last += f'  (windows x{m.group(1)}, flick {m.group(2)}% x{m.group(3)})'
     m = re.search(r'the stroke ([\d.]+) m in ([\d.]+) s, a nudge x([\d.]+)', l)
     if m and last: last += f' (stroke {m.group(1)} m {m.group(2)} s, nudge {m.group(3)})'
+    m = re.search(r'the stroke ([\d.]+) m in ([\d.]+) s, peak ([\d.]+) m/s real, tempo ([\d.]+) s: gain x([\d.]+)', l)
+    if m and last: last += f' (stroke {m.group(1)} m {m.group(2)} s, peak {m.group(3)}, tempo {m.group(4)} s, gain x{m.group(5)})'
 out()
 PY

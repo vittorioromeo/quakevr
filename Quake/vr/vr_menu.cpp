@@ -28,6 +28,7 @@
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
+#include "vr_panel.hpp"
 #include "vr_obs.hpp"
 #include "vr_menupaint.hpp"
 #include "vr_motion.hpp"
@@ -1051,6 +1052,13 @@ int campaignsBloodyShown = -1;
             .help("How fast it leaves the floor as you lift it."),
         slider("Break-Free Shove", vr_foegrab_lift_shove, 0.f, 160.f, 4.f, "%.0f units").extend(0.f, 500.f)
             .help("How far it shoves you back as it breaks free (0: not at all)."),
+        slider("Grab While Staggered", vr_foegrab_manhandle_stagger, 0.f, 5.f, 0.25f, "%.2f s").extend(0.f, 30.f)
+            .help("A humanoid staggered this recently (a shove, a hit or throw that unbalanced it, a stagger it just "
+                  "recovered from) goes down when one hand grabs it: a ragdoll in your hand, as a lifted one (it flails and "
+                  "breaks free). One staggering as a ragdoll goes down when a hand takes it. 0: never."),
+        slider("Grab When Weak", vr_foegrab_manhandle_health, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A humanoid at this share of its full health or less (0.25: a quarter) goes down when one hand grabs it, "
+                  "as above. 0: never."),
         header("Neck Snap"),
         toggle("Neck Snap", vr_foegrab_necksnap)
             .help("Hold a humanoid's head or neck with both hands and twist it round: push one hand forward and pull "
@@ -1147,6 +1155,25 @@ int campaignsBloodyShown = -1;
                   "ogre a quarter. 0: all alike."),
         slider("Hit Cooldown", vr_hit_stagger_cooldown, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
             .help("After a hit unbalances it, no hit does again for this long (no stunlock). Shoves always can."),
+        header("Impacts"),
+        toggle("Impacts Hurt", vr_ragimpact)
+            .help("A monster you hold or threw as a ragdoll, alive or dead, is hurt where it strikes a wall or the floor "
+                  "hard: its speed times the mass behind it. Its head or limb struck wears down too, and pops past its own "
+                  "health (a head worn through kills). Slam a held head into a wall again and again; throw a lifted one into "
+                  "a wall."),
+        slider("Impact Damage", vr_ragimpact_damage, 0.f, 0.5f, 0.01f, "%.2f").extend(0.f, 5.f)
+            .help("Damage per kg m/s past Least Speed (a grunt's torso thrown into a wall at 6 m/s: about 15)."),
+        slider("Least Speed", vr_ragimpact_min_speed, 0.5f, 8.f, 0.25f, "%.2f m/s").extend(0.5f, 30.f)
+            .help("Slower strikes do nothing (a body dropped from your hands strikes at about 4 m/s)."),
+        slider("Held Least Speed", vr_ragimpact_held_speed, 0.25f, 5.f, 0.25f, "%.2f m/s").extend(0.25f, 30.f)
+            .help("A part your hand holds (a head slammed) counts from this speed: your hand slows as it drives a body."),
+        slider("Head Strikes", vr_ragimpact_head, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A strike on the head deals this much more."),
+        slider("Head and Limb Health", vr_ragimpact_piece_hp, 0.1f, 2.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
+            .help("A head's or limb's own health, times its corpse's (a grunt's 80: 32 at 0.4): struck past it, it pops."),
+        slider("Landing Crush", vr_ragimpact_crush, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("Landing on a monster lying as a ragdoll from a height (2 storeys or so) crushes the part under your "
+                  "feet, times this. 0: never."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
@@ -3330,6 +3357,16 @@ void hologramTestMessage()
             .help("In slow motion (bullet time, not Sandevistan), a throw's release is judged over the same stretch of "
                   "your real motion as at full speed, and its wrist flick by your real wrist speed. Off: over the slowed "
                   "clock's, which took in three times the arm's arc at 0.3x (throws went off, the wrist's share too big)."),
+        toggle("Slow Motion: Throw Strength by Stroke", vr_throw_slowmo_stroke)
+            .help("In slow motion (bullet time), a quick toss, flick or nudge goes as far as you made it, and a full "
+                  "throw made slowly with the slowed world goes as far as at full speed: the slower your stroke against "
+                  "a real-speed one of its length, the more it is raised, smoothly, no threshold. Off: the old nudge "
+                  "and flick rules below."),
+        slider("Slow Motion: Full Stroke Tempo", vr_throw_slowmo_stroke_time, 0.04f, 0.2f, 0.005f, "%.3f s").extend()
+            .help("A full arm throw's stroke at real speed: its path over its peak speed. Lower: slowed throws reach full "
+                  "strength sooner, real-speed throws in bullet time are raised a little more."),
+        slider("Slow Motion: Most Raised Speed", vr_throw_slowmo_max_speed, 0.f, 40.f, 1.f, "%.0f m/s").extend()
+            .help("The fastest a slowed throw is raised to (never below how fast you moved). 0: no cap."),
         toggle("Slow Motion: Throw Where You Aim", vr_throw_slowmo_aim)
             .help("In slow motion (bullet time, not Sandevistan), a throw goes the way your controller moved, as the same "
                   "motion at full speed would, even when the slowed hand lags behind it; its speed stays the slowed "
@@ -3573,7 +3610,14 @@ void hologramTestMessage()
             .extend(0.f, 20.f)
             .help("A gun lying on a table or the floor is taken by its handle with your fist this much farther off it than "
                   "the slack above (the hand at its handle; your hand nudging it doesn't stop it). Only a direct grab: a "
-                  "weapon caught in the air still needs your fist on it, and a force grab is unchanged. 0: as anywhere on it."),
+                  "weapon caught in the air has Mid-Air Catch Leniency, and a force grab is unchanged. 0: as anywhere on it."),
+        slider("Mid-Air Catch Leniency", vr_weapon_catch_handle_leniency, 0.f, 15.f, 0.5f, "%.1f cm")
+            .help("A weapon in the air (tossed up to re-grip it, flipped, spinning) is caught by its handle with your fist "
+                  "this much off it. Not a force grab's pull. 0: only by your fist on it."),
+        slider("Mid-Air Catch Window", vr_weapon_catch_window, 0.f, 0.5f, 0.05f, "%.2f s")
+            .help("A weapon in the air is caught by a grip closed up to this long before it reaches your fist, and the "
+                  "hand that tossed it may close again at once: it catches it as it comes back down. 0: as a weapon lying "
+                  "about (0.125 s, and not within 0.125 s of letting go)."),
         toggle("Lenient Weapon Catch", vr_weapon_grab_box)
             .help("The old catch: a weapon is also taken when your hand comes within a hand's width of its handle, the "
                   "fist up to 20 cm off it. Off: only when your closed fist touches it, as a box or a gib."),
@@ -5466,6 +5510,13 @@ za::Vector<Item> pageDebugProfiling()
             .help("profile_qc 30: the 30 QuakeC functions and builtins that took the most time a frame since the last "
                   "report (Time QuakeC Functions on), in the console; then all are zeroed. Press it, do the thing, press "
                   "it again."),
+        cycle("QuakeC Loop", vr_qcexec, {{0.f, "Original"}, {1.f, "Fast (goto)"}, {2.f, "Fast (switch)"}})
+            .help("vr_qcexec: the QuakeC interpreter's loop. Fast (goto), the default: the same results, errors and "
+                  "instruction counts as the original, quicker (docs/vr-port/QC_VM.md). Original: the old loop, to "
+                  "compare or to rule it out."),
+        command("QuakeC Loop Bench", "vr_qcexec_bench")
+            .help("vr_qcexec_bench: times a QuakeC math function in each loop (in a map) and checks they agree; the "
+                  "result in the console."),
         command("Edict Index Stats", "vr_edictindex_stats")
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
@@ -5897,6 +5948,8 @@ za::Vector<Item> pageDebugReports()
         command("Relighting: Batch's Maps", "vr_relight_batch -list").help("vr_relight_batch -list: the maps Graphics > Relighting's Relight These Maps would take (Maps, Episode, Game), with their files and sizes, without relighting them."),
         command("Menu Panel Place", "vr_menu_panel").help("vr_menu_panel: where the menu panel is (MENUPANEL: moved by a hand or not, held, its middle, from the head, the way it faces, its size). vr_menu_panel reset puts it back in front of you."),
         command("Menu Panel Back in Front", "vr_menu_panel reset").help("vr_menu_panel reset: the menu panel, moved by a grip, back in front of your head, as it opens."),
+        command("Menu Panels", "vr_menu_panels").help("vr_menu_panels: the menu panels open (MENUPANELS: each one's menu, page, selected row and its value as last drawn). vr_menu_panels open, close <n> or focus <n>: another opened (as the corner's New Panel), one closed or given the keys."),
+        command("Open Another Menu Panel", "vr_menu_panels open").help("vr_menu_panels open: another menu panel beside this one, on this page (as the corner's New Panel; three at most, in the headset)."),
         command("Menu Rows", "menu_vr rows").help("menu_vr rows: this page's rows as drawn (MROW: row, top, label), the scroll, the section gap, and whether the laser and mouse find each row where it is drawn."),
         toggle("Menu Links: Print, Do Not Open", vr_menu_link_dryrun)
             .help("vr_menu_link_dryrun: the version box's Support on Ko-fi link (bottom right of the menus) prints its address "
@@ -6811,6 +6864,10 @@ za::Vector<Item> pageDebugTests()
         command("Whole-Map Monsters: Kill All", "vr_test_monsters 3")
             .help("Every live monster of the map dies at once (just enough damage: deaths, corpses and as many ragdolls "
                   "as Most Ragdolls allows (vr_ragdoll_max). The benchmarks' mg3_*_kill. Reload afterward."),
+        command("Hit Probe: Nearest Monster", "vr_test_monsters 5")
+            .help("Level shots (precise hits) at the nearest live monster every 8 units from below its box to 160 above "
+                  "it: the heights from its origin that hit it (one hitprobe: line). A tall model's parts out of reach "
+                  "show as gaps."),
         open("Stealth AI", pageIndex(pageStealthTests))
             .help("The stealth AI's scenes on e1m1 (Combat > Stealth AI): seeing, hearing, touch, investigating."),
         open("Ragdoll Behaviours", pageIndex(pageRagdollTests))
@@ -7115,6 +7172,21 @@ za::Vector<Item> pageDebugTests()
         command("Hit Stagger: Strong Blow on the Nearest", "developer 1; vr_knockdown_test 42")
             .help("The nearest monster struck by a strong blow's stagger alone (no damage): 1 a ragdoll's stagger, 2 "
                   "pushed and flinching, 0 kept its balance, -1 still in its Hit Cooldown."),
+        command("Impacts: Print Strikes", "developer 1; vr_knockdown_test 56")
+            .help("Impacts (Combat > Knockdowns): every strike of a held or thrown body on a wall or the floor printed "
+                  "(\"ragimpact:\": its speed, the mass behind it, the damage, the head or limb worn). vr_knockdown_test 57: off."),
+        command("Impacts: State of the Nearest", "developer 1; vr_knockdown_test 50")
+            .help("The nearest monster's health, its head's and limbs' worn damage, and the strikes dealt so far."),
+        command("Impacts: Throw the Nearest Down One at a Wall", "developer 1; vr_test_throw_up_speed 7; vr_knockdown_test 51")
+            .help("The nearest knocked-down monster flung at the nearest wall at 7 m/s and a little up, as if you threw "
+                  "it (knock one down first: Shove the Nearest Down)."),
+        command("Impacts: Drop You onto the Nearest Down One", "developer 1; vr_knockdown_test 52")
+            .help("You put 256 units (2 storeys) over the nearest knocked-down monster: landing on it crushes the part under "
+                  "your feet (Landing Crush). vr_knockdown_test 53: 96 units, too low to crush."),
+        command("Manhandle: the Nearest Staggered Now", "developer 1; vr_knockdown_debug 1; vr_knockdown_test 54")
+            .help("The nearest standing monster counts as just staggered: grab it with one hand within Grab While "
+                  "Staggered (Holding Enemies) and it goes down in your hand. vr_knockdown_test 55: its health to a fifth "
+                  "(Grab When Weak)."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),
@@ -7311,6 +7383,10 @@ za::Vector<Item> pageDebugTests()
                   "swords, the ogre's chainsaw, the random drops') dropped in rows ahead of you as a death drops it; "
                   "their convex pieces' cut times printed (box3d: ..., read from the disk or cut). Setup's preparation "
                   "run does this on the hub."),
+        command("Weapons Lying Near", "vr_pickup_test 5")
+            .help("vr_pickup_test 5: each weapon lying within 400 units (a map's, a drop): where it is, how fast it moves, "
+                  "the lowest point of its turned drawn box and the floor under it: one sunk into or thrown off what it "
+                  "lies on shows."),
         command("Every Model and Limb Precached", "vr_prepare_models")
             .help("vr_prepare_models: every model of the game's folders (progs/*.mdl) and every monster's limbs loaded now, "
                   "so their skins' normal maps are made and kept on disk (cache/normalmaps) instead of at a map's first "
@@ -7679,6 +7755,9 @@ za::Vector<Item> pageDebugTests()
         toggle("Force Grab", vr_forcegrab_mode).help("Pull pickups and weapons to your hand from afar."),
         slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f").extend(100.f, 4000.f),
         slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").extend().help("How far off where the hand points an object may be."),
+        toggle("Bodies Block", vr_forcegrab_bodies_block)
+            .help("An enemy (or a body) between your hand and an object hides it from the force grab, as a wall does. "
+                  "Off: only walls do."),
         slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend()
             .help("How fast the hand moves back or up to pull."),
         slider("Flick Turn", vr_forcegrab_flick_turn, 50.f, 800.f, 25.f, "%.0f deg/s").extend()
@@ -8630,10 +8709,23 @@ struct MenuInstance
 
     int bodyCloneLatch{-1}; // the page a row tweaking the body was chosen on (bodyClonePage), while it stays shown
     NotedPlace notedPlace;
+
+    // Several panels (MULTI_MENU.md, stage 3). Quake's menu state and the menus' mouse are Quake's globals (m_state,
+    // m_mousex/y), the current instance's: the others keep theirs here (selectInstance swaps them).
+    bool open{false};       // (the first: unused, open while the menu is)
+    int quakeState{m_none}; // m_state while not current (the others: m_vr, or m_confirm over a VR page)
+    float mouseX{-1000.f}, mouseY{-1000.f};
+    int refusedPage{-1};    // a page for one panel at a time refused here (another panel shows it), and when: its title
+    double refusedTime{0.0}; // says so for a moment
+    int refusedBy{-1};
+    float drawnValue{0.f}; // the selected row's value as last drawn, and when (vr_menu_panels: the panels kept in step)
+    int drawnFrame{-1};
 };
 
 MenuInstance menuInstances[menu::instanceCount];
 int currentMenu = 0;
+int instanceDrawDepth = 0; // M_Draw's nesting (a dialog draws the menu under it again): only the outermost picks the panel
+int drawnInstance = -1;    // drawing a panel's own canvas (menu::drawInstance): M_Draw draws that one
 
 [[nodiscard]] MenuInstance& ui()
 {
@@ -11392,9 +11484,64 @@ void closeDropDown(); // (the drop-down lists, below: a page shown closes the on
 
 // The page a Search result opened (vr_menu_search.inc): Back from it returns to the results (VR Settings' Back too);
 // -1 once elsewhere.
+// Pages for one panel at a time (MULTI_MENU.md, stage 3): what they edit or stage is one, not a setting each row reads
+// as it draws (the weapon and hotspot edited and Align Sights' pending result, Body Calibration's, the checklist's notes,
+// the retro textures applied to the checked categories, a take reviewed, the keyboard pages' text input). Another panel
+// is refused them while one shows them. 0: any page; else its group (the Weapon Offsets pages are one).
+[[nodiscard]] int oneViewerGroup(int page)
+{
+    if(page < 0 || page >= pageCount)
+    {
+        return 0;
+    }
+    const PageBuilder b = pages[page].build;
+    return weaponOffsetsPage(b)                                 ? 1
+           : b == pageBodyCalibration                           ? 2
+           : b == pageChecklist                                 ? 3
+           : b == pageRetroAll                                  ? 4
+           : b == pageSearch                                    ? 5
+           : b == pageConsole                                   ? 6
+           : b == pageMaps                                      ? 7
+           : b == pageReviewTakes || b == pageReviewTake        ? 8
+                                                                : 0;
+}
+
+// The page a panel shows (its VR page; -1: another menu, or closed).
+[[nodiscard]] int instancePage(int i)
+{
+    const MenuInstance& m = menuInstances[i];
+    const int state = i == currentMenu ? static_cast<int>(m_state) : m.quakeState;
+    const bool open = i == 0 ? key_dest == key_menu && state != m_none : m.open;
+    return open && (state == m_vr || state == m_confirm) ? m.page : -1;
+}
+
+// The other panel showing a page of `page`'s group for one panel at a time (-1: none, or any page).
+[[nodiscard]] int pageTakenBy(int page)
+{
+    const int group = oneViewerGroup(page);
+    for(int i = 0; group && i < menu::instanceCount; i++)
+    {
+        if(i != currentMenu && oneViewerGroup(instancePage(i)) == group)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void showPage(int target)
 {
     closeDropDown();
+    if(const int by = pageTakenBy(target); by >= 0)
+    {
+        // (Its title says so a moment: VR_Menu_Draw.)
+        ui().refusedPage = target;
+        ui().refusedTime = realtime;
+        ui().refusedBy = by;
+        Con_Printf("%s: open in panel %d (one panel at a time)\n", pages[target].title, by + 1);
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
     ui().page = target;
     weightPageShown(pages[ui().page].build); // a weight page: what is in the hand now
     if(weaponOffsetsPage(pages[ui().page].build))
@@ -11562,6 +11709,11 @@ void openPage(int target)
 // turn (its cursor off the headers), so that Back goes up the tree.
 void openInTree(int target)
 {
+    if(pageTakenBy(target) >= 0)
+    {
+        showPage(target); // (refused: the page shown stays, its title saying so)
+        return;
+    }
     za::Vector<int> chain;
     for(int p = target; p != PageMain && static_cast<int>(chain.size()) < pageCount; p = homeOf(p))
     {
@@ -11626,6 +11778,10 @@ void goBack()
             showPage(dest);
             S_LocalSound("misc/menu2.wav");
         }
+        else if(currentMenu != 0)
+        {
+            menu::closeInstance(currentMenu); // (a panel other than the first shows VR pages only: Back out of them closes it)
+        }
         else
         {
             leaveTo(-1 - dest);
@@ -11635,6 +11791,12 @@ void goBack()
     navReset();
     if(ui().page == PageMain)
     {
+        if(currentMenu != 0)
+        {
+            navPush(PageMain);
+            menu::closeInstance(currentMenu);
+            return;
+        }
         M_Menu_Options_f(); // (its sound as it is drawn)
         return;
     }
@@ -13503,7 +13665,254 @@ int qvr::menu::currentInstance()
 
 void qvr::menu::selectInstance(int instance)
 {
-    currentMenu = CLAMP(0, instance, instanceCount - 1);
+    instance = CLAMP(0, instance, instanceCount - 1);
+    if(instance == currentMenu)
+    {
+        return;
+    }
+    // Quake's menu state and the menus' mouse go with the instance (MenuInstance::quakeState).
+    ui().quakeState = static_cast<int>(m_state);
+    ui().mouseX = m_mousex;
+    ui().mouseY = m_mousey;
+    currentMenu = instance;
+    m_state = static_cast<m_state_e>(ui().quakeState);
+    m_mousex = ui().mouseX;
+    m_mousey = ui().mouseY;
+    M_RefreshBounds(); // (its menu's layout: the lists' mouse)
+}
+
+bool qvr::menu::instanceOpen(int instance)
+{
+    if(instance <= 0)
+    {
+        return key_dest == key_menu && mainState() != m_none;
+    }
+    return instance < instanceCount && menuInstances[instance].open;
+}
+
+int qvr::menu::openInstances()
+{
+    int n = 0;
+    for(int i = 0; i < instanceCount; i++)
+    {
+        n += instanceOpen(i) ? 1 : 0;
+    }
+    return n;
+}
+
+int qvr::menu::mainState()
+{
+    return currentMenu == 0 ? static_cast<int>(m_state) : menuInstances[0].quakeState;
+}
+
+bool qvr::menu::openInstance()
+{
+    if(key_dest != key_menu || m_state == m_none)
+    {
+        return false;
+    }
+    glm::vec3 corner, xAxis, yAxis;
+    if(!panel::menuQuad(hands::current(), 0, corner, xAxis, yAxis))
+    {
+        Con_Printf("New Panel: only with the menu in the headset\n");
+        S_LocalSound("misc/menu1.wav");
+        return false;
+    }
+    int slot = -1;
+    for(int i = 1; i < instanceCount && slot < 0; i++)
+    {
+        slot = menuInstances[i].open ? -1 : i;
+    }
+    if(slot < 0)
+    {
+        Con_Printf("New Panel: %d panels open at most\n", instanceCount);
+        S_LocalSound("misc/menu1.wav");
+        return false;
+    }
+
+    // The page shown here (not one for one panel at a time), else the VR Settings; each page's selection and scroll as
+    // here, nothing under way.
+    const int target = (m_state == m_vr || m_state == m_confirm) && !oneViewerGroup(ui().page) ? ui().page : PageMain;
+    MenuInstance& n = menuInstances[slot];
+    const MenuInstance& from = ui();
+    n = MenuInstance{};
+    for(int p = 0; p < pageCount; p++)
+    {
+        n.cursors[p] = from.cursors[p];
+        n.scrolls[p] = from.scrolls[p];
+        n.leftAnchors[p] = from.leftAnchors[p];
+        n.visits[p] = from.visits[p];
+    }
+    n.visitCount = from.visitCount;
+    n.open = true;
+    n.quakeState = m_vr;
+    n.page = PageMain;
+
+    selectInstance(slot);
+    navReset();
+    if(target == PageMain)
+    {
+        navPush(PageMain);
+        showPage(PageMain);
+    }
+    else
+    {
+        openInTree(target);
+    }
+    panel::openMenuPanel(slot);
+    S_LocalSound("misc/menu2.wav");
+    Con_DPrintf("menu panel %d opened: %s\n", slot + 1, pages[ui().page].title);
+    return true;
+}
+
+namespace
+{
+void closeQuietly(int instance)
+{
+    if(instance <= 0 || instance >= menu::instanceCount || !menuInstances[instance].open)
+    {
+        return;
+    }
+    panel::closeMenuPanel(instance);
+    if(currentMenu == instance)
+    {
+        menu::selectInstance(0);
+    }
+    menuInstances[instance].open = false;
+    menuInstances[instance].quakeState = m_none;
+}
+} // namespace
+
+void qvr::menu::closeInstance(int instance)
+{
+    if(instance > 0 && instance < instanceCount && menuInstances[instance].open)
+    {
+        closeQuietly(instance);
+        S_LocalSound("misc/menu2.wav");
+    }
+}
+
+void qvr::menu::closeExtraInstances()
+{
+    for(int i = 1; i < instanceCount; i++)
+    {
+        closeQuietly(i);
+    }
+}
+
+void qvr::menu::tidyInstances()
+{
+    bool extras = false;
+    for(int i = 1; i < instanceCount; i++)
+    {
+        extras = extras || menuInstances[i].open;
+    }
+    if(!extras)
+    {
+        return;
+    }
+    if(key_dest != key_menu || mainState() == m_none)
+    {
+        // The menu closed (from whichever panel): they all go.
+        const bool none = m_state == m_none;
+        closeExtraInstances();
+        if(none)
+        {
+            m_state = m_none;
+        }
+        return;
+    }
+    if(currentMenu != 0 && m_state != m_vr && m_state != m_confirm)
+    {
+        // Out of the VR pages to one of Quake's menus (single: on the first panel); this panel stays on its page.
+        const m_state_e state = m_state;
+        m_state = m_vr;
+        selectInstance(0);
+        m_state = state;
+    }
+}
+
+void qvr::menu::drawInstance(int instance)
+{
+    const int was = currentMenu;
+    drawnInstance = instance;
+    selectInstance(instance);
+    M_DrawPanel();
+    selectInstance(was);
+    drawnInstance = -1;
+}
+
+void qvr::menu::panels_f()
+{
+    const char* arg = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const int n = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) - 1 : -1;
+    if(!q_strcasecmp(arg, "open"))
+    {
+        openInstance();
+        return;
+    }
+    if(!q_strcasecmp(arg, "close") && n >= 1 && n < instanceCount)
+    {
+        closeInstance(n);
+        return;
+    }
+    if(!q_strcasecmp(arg, "focus") && n >= 0 && n < instanceCount && instanceOpen(n))
+    {
+        selectInstance(n);
+        return;
+    }
+    if(arg[0])
+    {
+        Con_Printf("vr_menu_panels [open | close <2..%d> | focus <1..%d>]: the menu panels open (MENUPANELS), or another opened, "
+                   "one closed or focused (the first closes with Back to game)\n",
+            instanceCount, instanceCount);
+        return;
+    }
+    Con_Printf("MENUPANELS open %d focused %d\n", openInstances(), currentMenu + 1);
+    const int was = currentMenu;
+    for(int i = 0; i < instanceCount; i++)
+    {
+        if(!instanceOpen(i))
+        {
+            continue;
+        }
+        selectInstance(i);
+        const bool vrPage = m_state == m_vr;
+        const auto& list = items(ui().page);
+        const int cursor = ui().cursors[ui().page];
+        const char* row = vrPage && cursor >= 0 && cursor < static_cast<int>(list.size()) ? rowLabel(list[cursor]) : "";
+        Con_Printf("MENUPANEL %d menu %d page %d \"%s\" row \"%s\" value %g drawn %d\n", i + 1, static_cast<int>(m_state),
+            vrPage ? ui().page : -1, vrPage ? pages[ui().page].title : "", row, ui().drawnValue,
+            ui().drawnFrame >= 0 ? host_framecount - ui().drawnFrame : -1);
+    }
+    selectInstance(was);
+}
+
+extern "C" int VR_MenuDrawSelect()
+{
+    if(instanceDrawDepth++ > 0 || drawnInstance >= 0)
+    {
+        return -1;
+    }
+    menu::tidyInstances();
+    if(currentMenu == 0 || !panel::menusInEyes())
+    {
+        return -1; // (on a flat screen, or the runtime's own panel: the focused panel's menu only)
+    }
+    const int was = currentMenu;
+    menu::selectInstance(0);
+    return was;
+}
+
+extern "C" int VR_MenuDrawRestore(int was)
+{
+    instanceDrawDepth--;
+    if(was < 0)
+    {
+        return 0;
+    }
+    menu::selectInstance(was);
+    return 1;
 }
 
 int qvr::menu::toolgunCheatCount()
@@ -13874,7 +14283,23 @@ bool qvr::menu::scroll(int rows)
     return true;
 }
 
+namespace
+{
+void savePositions();
+} // namespace
+
 extern "C" void VR_MenuSavePositions()
+{
+    // The first panel's (the menu as ever: the others' places are this session's).
+    const int was = currentMenu;
+    menu::selectInstance(0);
+    savePositions();
+    menu::selectInstance(was);
+}
+
+namespace
+{
+void savePositions()
 {
     loadPositions();
     za::String text;
@@ -13929,6 +14354,7 @@ extern "C" void VR_MenuSavePositions()
         Cvar_SetQuick(&vr_menu_positions, text.cStr());
     }
 }
+} // namespace
 
 
 extern "C" void VR_Menu_Draw()
@@ -13965,6 +14391,13 @@ extern "C" void VR_Menu_Draw()
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
     M_DrawPic((320 - title->width) / 2, l.top + 4, title);
     const char* name = pages[ui().page].title;
+    char refused[48];
+    if(ui().refusedPage >= 0 && realtime - ui().refusedTime < 2.5)
+    {
+        // A page for one panel at a time refused here (showPage): said a moment in its title's place.
+        q_snprintf(refused, sizeof(refused), "%.22s: in panel %d", pages[ui().refusedPage].title, ui().refusedBy + 1);
+        name = refused;
+    }
     M_PrintWhite((320 - 8 * static_cast<int>(strlen(name))) / 2, l.top + 28, name);
 
     const int n = static_cast<int>(list.size());
@@ -14016,6 +14449,12 @@ extern "C" void VR_Menu_Draw()
     }
 
     drawDropDown(); // over the rows and the help
+
+    if(cursor < n && list[cursor].cvar)
+    {
+        ui().drawnValue = valueOf(list[cursor]);
+        ui().drawnFrame = host_framecount;
+    }
 }
 
 extern "C" void VR_Menu_Key(int key, int repeat)

@@ -6337,6 +6337,288 @@ the base build: 33 pixels of 518400 differ by 1.
 Checklist (proposed): "Permanent Decals: a big gore fight (e1m1 or a crowd) has no stutter as blood lands; turning
 Permanent Decals off leaves the newest marks (Max Decals) and on again brings every mark back, none darker; marks made
 while off are there once on; save and load keep the freshest marks too."
+## Bullet-time throws: the stroke's tempo (worktree `fasttests`, branch `agent/btthrow`, 2026-10-15)
+
+His note: small flicks and tosses should feel small in bullet time (gun tricks, tossing a prop a few centimetres up to
+re-grip it), smooth slowed full-arm throws should go full strength; the round-21 nudge/flick rules made an invisible
+threshold past which a throw was suddenly strong again. Before (`flick_slowmo_compare.sh`, metres at 45 degrees, bullet
+time 0.3x made at real speed / made 3.3x slower, over full speed): nudges 1.00 / 0.00-0.06, lob40 1.00 / 0.10, lob50
+1.72 / 0.27, lob60 1.71 / 0.46, overhand0 1.47 / 1.01: the step between lob40 and lob50 and a 10x jump in the made-slowly
+column.
+
+Now (`vr_throw_slowmo_stroke` 1, default; `vr_throw.cpp` `strokeGain`, `strokeEstimate`): in slow motion (not
+Sandevistan) a throw is its controller's velocity and spin in the player's real time times a gain. The stroke (as
+`strokeOf` measured it: the controller's path to the release while its speed is over a fifth of its peak) has a tempo,
+path over peak speed (real seconds: grows with how slowly it was made, and unlike the duration not moved by where the
+speed's edges fall). A real-speed stroke of that path has `vr_throw_slowmo_stroke_time` (0.09 s) for a full arm's
+(0.5 m to the release), down to 0.6 of it for none. The gain is tempo over that, clamped to 1 .. 1/timescale: a stroke
+made k times slower is raised k times, so it comes out at the speed the same stroke has at real speed, however slowly
+it was made (a slow 5 cm toss is still a 5 cm toss; a slowed full throw is a full throw). No threshold: the gain is
+continuous in the motion. The release's windows are taken at the same multiple (real seconds for a real-speed stroke,
+the game's for one made slowly with the world). The speed and way are the controller's (the slowed hand's 8 m/s cap and
+lag no longer limit a throw), raised at most to `vr_throw_slowmo_max_speed` (15 m/s; never under the real speed). The
+object still leaves the hand as drawn. Both-hand throws the same. `vr_throw_slowmo_real_strength` 1 still means gain 1.
+`vr_throw_slowmo_stroke 0`: the old rules (`_flick`, `_flick_arm`, `_short_travel`, `_long_travel`, `_tempo`,
+`_aim`), kept for an A/B. Timescale 1: untouched (the path never runs). Menu, the throwing rows after "Slow Motion: Throws in Real Time": "Slow Motion: Throw
+Strength by Stroke", "Full Stroke Tempo", "Most Raised Speed". `vr_debug_throw 1` prints "the stroke X m in Y s, peak
+Z m/s real, tempo T s: gain xG".
+
+Tests (headless, `Misc/quakevr/throw_slowmo/`): `stroke_sweep_test.sh <agent> lob|toss` (new: 3 .. 70 cm strokes in
+their real-speed time, full speed and bullet time made 1, 1.5, 2, 2.5 and 3.3 times slower), `flick_slowmo_compare.sh`.
+Bullet time, made at real speed, over full speed: every flick, nudge and lob up to 35 cm x1.00; lob50 x1.00-1.23, lob70
+x1.35, overhand0 x1.00, overhand (with its wrist, tempo 0.118 s) x1.49. Made 3.3x slower (slowly with the world): lobs
+from 35 cm and both overhands x0.88-1.01 (overhand0 0.88); shorter strokes x0.1-0.9, rising smoothly with length (they
+go about as far as the same stroke at real speed allows: the gain reaches 1/timescale only for long strokes). Every
+column and row is monotone in the stroke, no step. Tosses at real speed in bullet time rise as at full speed: 3 cm 1.0
+cm, 5 cm 2.4 cm, 8 cm 5.7 cm, 12 cm 11 cm. The parallel runs in `flick_slowmo_compare.sh` shared one worktree's console
+log (a column could come back empty or another's): it now runs them one after another.
+
+Trade-offs: a stroke made a little slower than real speed but faster than the world (1.5 to 2.5x) comes out between, a
+long one up to 1.4x the full-speed distance (it reads as made slowly, its natural tempo quicker than the synthetic
+lob's); a real-speed full throw in bullet time goes up to 1.5x as far (the old rules: 1.2-1.7x). His real strokes may
+have other tempos than the synthetic min-jerk ones: Full Stroke Tempo moves the balance (lower: slowed throws reach full
+strength sooner, real-speed ones raised a little more).
+
+## Mid-air catches (same worktree)
+
+Re-catching a tossed or spinning weapon by its handle. `Misc/quakevr/throw_slowmo/toss_catch_test.sh <agent> [cm]`
+(new): the axe in the main hand tossed straight up 4 or 8 cm, the grip closed 0.05 .. 0.4 game seconds after the
+release, at full speed and in bullet time. Before: caught only with the grip closed 0.15-0.25 s after (8 cm: 3 of 7;
+4 cm: 2 of 7): closing at once was refused (`VR_HandGrabUtil_StartedHandGrabbing` ignores a grab within 0.125 s of a
+release) and in the air the fist had to touch the drawn axe exactly. Now 5 of 7 (8 cm) and 4 of 7 (4 cm), the same in
+bullet time; the late ones (the axe already 7-15 cm below the hand) still miss.
+- `vr_weapon_catch_handle_leniency` (6 cm; engine `vr_physics.cpp` `handOn`): a weapon in the air, the hand's point
+  within `vr_weapon_grab_anywhere_min` of its handle, is caught with the fist that far off its drawn surface (not one a
+  force grab pulls: QC `fg_state` 1, its catch is its own). Lying weapons keep `vr_weapon_grab_handle_leniency`.
+- `vr_weapon_catch_window` (0.25 s, game time; QC `weapons.qc` `wpnthrow_midair_catch`): a weapon in the air is caught by
+  a grip closed up to that long before it reaches the fist, and the hand that tossed it may close again at once: it
+  catches it once it comes back down (falling), from 0.05 s after the release (not the throw's own fist closing as it
+  leaves). 0: as before.
+Menu: after "Handle Grab Leniency", "Mid-Air Catch Leniency" and "Mid-Air Catch Window".
+
+## Force grabs: bodies block the view (same worktree)
+
+`VR_Forcegrab_FindTarget` traced the line to a candidate through level geometry only, so a thing behind an enemy was
+pulled through him. Now (`vr_forcegrab_bodies_block` 1; menu: "Bodies Block" after "Aim Cone") a second trace with monsters
+skips a candidate whose line first meets a monster (alive, or a solid corpse) or a ragdoll (`developer 2`:
+"forcegrab: <thing> behind <monster>, skipped"). `Misc/quakevr/forcegrab_block_test.sh <agent>` (new): a health box 150
+units ahead on the firing range, the mock's force grab at it: nothing between, caught; a grunt 80 units ahead, skipped
+(no catch); the same with the cvar 0, caught; a ragdoll there, skipped while it stands, caught once it lies down.
+
+Checklist (proposed):
+- "Bullet time: toss a gun or a prop a few cm up and re-grab it: it rises a few cm, as at full speed. Flick a weapon:
+  as far as at full speed. A full throw made slowly with the world: as far as at full speed. Try throws of every size
+  and speed between: the distance grows smoothly, no sudden jump. Outside bullet time throws are unchanged."
+- "Toss the axe (or a gun) up and catch it by its handle as it comes down, also closing the hand straight after the
+  toss: it is caught; a spinning flip too. A weapon lying about grabs as before."
+- "Force grab a weapon or prop with an enemy standing in front of it: nothing comes (it does with the enemy out of the
+  way)."
+## Several menu panels at once (worktree `bloodfx`, branch `agent/multimenu2`, 2026-10-15)
+
+Stages 3 and 4 of MULTI_MENU.md. His note: several VR menus open at once, each with its own state; only settings
+must agree between them (they do by construction: every row reads its cvar as it draws).
+
+**What it does.** The corner's new **New Panel** button (above Checklist; headset only, left out of the flat row)
+opens another panel beside the first (the second to its right, the third to its left, turned round the head so their
+edges meet), on the page the current one shows (the VR Settings when that is not a VR page or is a page for one panel
+at a time). Three panels at most. Each has its own page, Back stack, selection, scroll, drop-down, drags and corner
+buttons; on the panels after the first the top button reads **Close Panel** and closes that panel only; Back out of
+such a panel's first page closes it too. Back to game (the first panel's button, the menu button, any way the menu
+closes) closes them all. The laser tests every panel (nearest hit; frames too, so each panel can be gripped and moved
+as in stage 1); the panel a laser is on is focused: its mouse follows that laser, and the keys, the sticks and Back go
+to it. With two or more panels, both hands work at once: each hand's laser moves the mouse of the panel it is on (one
+laser a panel; both are drawn), a trigger clicks where its hand points; one mouse button, so a second hand's click lets
+go of the first hand's (a drag ends). Quake's own menus (Main Menu, Levels, Options, Load...) stay single: opened from
+another panel they open on the first. Pausing is the first panel's menu's, as before.
+
+**One panel at a time**: Weapon Offsets and its parts (the weapon/hotspot edited, Align Sights' pending result), Body
+Calibration, Checklist, Retro Textures > All Categories (Apply to Checked Categories), Review Takes/Take, Search,
+Console, Map Library. A second panel is refused them while one shows them: it stays where it is, its title reads
+"<page>: in panel N" for 2.5 s (console: "<page>: open in panel N (one panel at a time)").
+
+**Places.** When a second panel opens the first is kept where it is (placed), so they stay side by side. Each panel
+after the first remembers where it was (from the first panel, when it closes) for the session:
+`vr_menu_panel_remember 1` (default) opens it there again; 0 always beside. The first panel still opens in front of the
+head each time (stage 1 unchanged; menu_grab_test check 9).
+
+**Flat screen / the runtime's own panel**: the focused panel's menu only (the others are not shown; Back out of it
+closes it and shows the next).
+
+**How.** `menu::instanceCount` 3. `selectInstance` swaps Quake's `m_state` and the menus' mouse (`m_mousex/y`) with
+the instance (`MenuInstance::quakeState`, `mouseX/Y`) and lays the menu's bounds out again; the current instance is the
+focused panel. `M_Draw` draws the first panel's menu into the 2D layer's canvas whichever is focused
+(`VR_MenuDrawSelect/Restore`); `VR_End2D` then draws each other panel's menu into its own canvas (`M_DrawPanel`, the
+first canvas's size and mipmaps; freed when it closes), GPU scope "menu panels". `menu::tidyInstances` (each frame and
+before drawing) closes the others when the menu closed, and moves a Quake menu opened from another panel to the first.
+menuui: `Hit::menu`, per-instance corner-button state (`tb()`), sent mouse and highlight; `pointTo(hand)` per laser.
+`vr_menu_panels [open | close <n> | focus <n>]` (MENUPANELS / MENUPANEL lines: each panel's menu, page, selected row,
+its value as last drawn and how many frames ago); Debug > Tools: "Menu Panels", "Open Another Menu Panel".
+`vr_mock_laser ... [panel <n>] [hand off]` (the off hand's mock laser is new).
+
+Verified: `Misc/quakevr/menu_panels_test.py bloodfx` 17/17 PASS: New Panel opens a second panel on the first's page,
+to its right; two pages at once; the laser focuses the panel it is on and moves only that panel's row; a key moves the
+focused panel's row only; same page and row in both, a click on the first toggles the setting (0 -> 1) and the second
+draws the new value the next frame (drawn 1 frame ago); Weapon Offsets in the first refused in the second; Back out of
+the second's first page closes it only; reopened on the VR Settings (the first shows Weapon Offsets) at the same place
+(remembered); both hands: the off hand's laser on the second and the main hand's on the first, each panel's row
+follows its own laser; the menu button closes all, reopened one panel. `menu_grab_test.py` 13/13 PASS. One panel:
+`menu_vr dump` (Menu Detail Developer) 182 pages, rows 4761 -> 4763 (the two Debug rows; `menu_coverage.py` PASS, none
+lost); the VR navigation log identical but the corner column's bottom (one more button: y 72.1 -> 84.1); the flat log
+identical but the build hash (New Panel left out of the flat row). Flat with two panels open (`vr_enabled 0`): the
+focused one is drawn (1 frame ago; the other not for 150), Back out of it closes it, the first shown. e1m1 smoke
+clean, build 0 warnings.
+
+GPU (`--exclusive`, mock headset, World page, 3 s each): ui/hud/menu 0.129 ms (one panel) -> 0.192 (two) -> 0.273
+(three); the frame's GPU 0.947 -> 1.053 -> 1.173 ms; CPU ui 0.167 -> 0.252 -> 0.331 ms. VRAM: one more canvas per panel,
+the first canvas's size (with mipmaps; at most ~50 MB at the 4096 cap, a few MB at the usual `vr_menu_resolution`).
+Screenshot: scratch/two_panels.png (the worktree's).
+
+Checklist (proposed): "VR menus: press New Panel (corner): a second menu opens to the right; use one page in each (both
+hands can point at once, each panel's trigger clicks there); change a setting in one with the same page open in the
+other: it changes there too; Weapon Offsets open in one is refused in the other; Close Panel closes one; Back to Game
+closes all; New Panel again comes back where you left it."
+## AD stealth, AD soldiers' drops, Armagon's torso, SoA relief, the range's laser cannons (worktree `profilemulti`, branch `agent/adbugs`, 2026-10-15)
+
+Backlog "Playtest voice notes, 2026-10-14": "Arcane Dimensions and expansion regressions" and "Firing-range laser
+cannon spawn". All five checked headless by `Misc/quakevr/adbugs_tests.sh <agent> [stealth|guns|armagon|range|all]`.
+
+**AD stealth (22:13:00).** Cause: AD's monsters never met the stealth AI. AD's own AI runs them (`ad_FindTarget`,
+`ad_ai_stand/walk/run`), which never called it, and `VR_Stealth_ClassOf` excluded them anyway (no `th_stand`/`th_walk`:
+AD's are `ad_th_*`). Before: an AD rocket soldier 300 units ahead, the player dark (light forced 10) and still: Hostile
+after 1.8 s, `stl_class` 0. Now the importer patches AD's AI (`ad_import.py` `FUNC_PATCHES`, function-scoped: AD's
+FindTarget ticks the stealth AI and sees a player through the suspicion meter, AD's relay and sight groups staying AD's;
+FoundTarget and FoundHuntTarget are Hostile; stand and walk run Alert; run loses him) and `QC/vr_ad_stealth.qc` answers
+`vr_stealth.qc` for AD's monsters (`.stl_ad`: AD's thinks, `ad_movetarget`/`ad_pausetime`, AD's FoundTarget, AD's idle
+sound for the "huh?"). Excluded as Quake VR's are: AD's bosses (`ad_bossflag`), flyers and swimmers; AD's passive mode
+on (`ad_passive_state`) keeps AD's rule. AD's zombies get the zombies' senses. Shared lines (AD support):
+`vr_stealth.qc` (`VR_Stealth_AD`, `_Path`/`_SetPath`, `_Walks`, `_Found`), `vr_foegrab.qc` (a grabbed AD monster is
+spotted), `vr_stealth_test.qc` (its reset and scene 7 work on AD's monsters). After: dark, Idle after 7.5 s (meter 0);
+lit, Alert 0.4 s then Hostile 1.1 s; `vr_stealth_test 1` on that soldier on e1m1: 14 of 15 scenes pass (7, a map's
+trigger, is AD's `monster_use`, which only wakes for AD's player: passes on AD's start map). The grunt's run unchanged
+(0 failed). `ad_e1m1` fought through as before (46 woken, 31 killed, 14 left as with `vr_ai_enhanced 0`); woken AD
+monsters that can't see him now give up (the stealth lose rule), as Quake VR's do. The importer also generates the AD
+flames' fire spots now (they had been hand-edited into `QC/ad/ad_lights.qc`; `VR_FireSpot_AD` renamed
+`VR_AD_FireSpot` so the renaming keeps it): a re-import gives the committed files back.
+
+**AD soldiers' drops (22:14:26, 22:16:03).** His decision: AD's dropped enemy guns are Quake VR's weapons. New
+`vr_adgun_ours` (1, VR Settings > Combat > Enemy Weapons > Arcane Dimensions' Guns, "Drop Quake VR's Weapons"): the
+rocket soldier drops the rocket launcher, the grenade soldier the grenade launcher (our grenades, size, physics and
+muzzle clearance: the oversized AD grenade sticking in the muzzle was AD's gun's), the defender the super shotgun, the
+plasma soldier, eliminator and centurion the laser cannon (cells, energy bolts; `VR_ADGun_ForClass`), loaded as an
+ogre's or enforcer's drop and refilled from his ammo. The pyro's flamethrower and the fumigator's sprayer have no kind
+of ours and stay AD's (ARCANE_DIMENSIONS.md 17.6). 0: AD's own guns as before. `vr_ad_test 71` now drops by class:
+8/8 pass with either setting (ours: v_rock2 4, v_rock 4, v_laserg, v_shot2 2; AD's: the `#gun` models). Killed grenade
+and rocket soldiers drop a Grenade Launcher (4) and a Rocket Launcher (4).
+
+**Armagon's torso (23:16:08).** Cause: precise hits (`vr_hit_precise`) test a monster's own model, and the Armagon is
+two entities: its legs (the monster, `armalegs.mdl`) and its torso drawn by a second, non-solid entity (`armabody.mdl`),
+which no shot could meet. New QC field `.vr_hit_extra` (a part drawn as an entity of its own that shots meet as the
+monster's; set on the Armagon to its body) and `vr_hitmodel.cpp` `clip` tests that part too, the nearer hit counting.
+Debug > Tests > "Hit Probe: Nearest Monster" (`vr_test_monsters 5`): level precise-hit shots every 8 units through its
+middle. hipend, before: hits at -24 and 32..48 (legs only); after: -24 and 32..96 (the torso up to its top; Quake's box
+ends at 84; with `vr_hit_precise 0`: -24..80, the box, as before).
+
+**SoA relief (23:04:41): not a regression.** `vr_pbr_audit world` on hip1m1, hipend, hip1m2, hip1m4, hip2m1, hip2m3,
+hip3m1, hip3m4, hipdm1: every texture has a normal map; the only flat ones are sky, liquids and `notexture`. hip1m1:
+21 of 98 textures use the Quetoo pack's authored maps (`vrext/`, names shared with id1; authored priority kept), 28
+of the pack's same-named maps are refused by `vr_extmaps_match` 0.5 (the same textures and scores as on e1m1: the
+pack's repaint differs), 49 have none; those get maps made from the texture's shading, which carry no parallax
+heights while Quake's 8-bit textures are drawn sharp (`vr_texture_smooth` 1, his setting; 2 gives 110 of them
+heights). `vr_pbr` 0 and 1 give identical GPU normal maps on hip1m1 (161 textures, 0 differ): AD's companion loader
+changes nothing there. What reads as "no relief" next to AD is that AD's textures now have generated companions with
+heights (his `vr_pbr_strength` 2.5) and SoA's (and id1's, rogue's) have none: running `Misc/quakevr/pbr_generate.py`
+over id1, hipnotic and rogue (PBR_PIPELINE.md) would give them the same; his call (an asset bundle, GPU time).
+
+**The range's laser cannons (22:37:06).** Cause: placement against a random turn. A `func_weapon_grabbable` lies turned
+at random (unless AS_PLACED) at its origin; the laser cannons' are 12 units over their table and the cannon is long, so
+some turns started it sunk into the table and the physics threw it out (one at 236 u/s, 230 units away) or left it
+wedged 37 units up. `VR_WeaponGrabbable_Make` now raises a new one until its turned drawn box clears what is under its
+origin (`VR_WeaponGrabbable_Clear`); it falls and settles as before. Debug > Tests > "Weapons Lying Near"
+(`vr_pickup_test 5`). Six random sequences, 12 cannons, after 5 s: before 3 wedged at z 58, the rest on the table; after
+all 12 at rest on the table (z 19..30, within 42 units of their pads).
+
+Verified: build 0 warnings; e1m1 smoke (23 woken and killed, no errors); eval.sh (archived takes, unchanged).
+
+Checklist (proposed):
+- "AD stealth: in an AD map, sneak up on soldiers and knights in the dark: they don't notice you at once; a '?' and a
+  look, then '!' as Quake's monsters do; a noise or a body draws them; out of sight a while, they give up."
+- "AD soldiers' drops: kill rocket, grenade, plasma soldiers and a defender: they drop your rocket launcher, grenade
+  launcher, laser cannon and super shotgun; the grenades fire clean from the muzzle. Enemy Weapons > Arcane Dimensions'
+  Guns > Drop Quake VR's Weapons off: their own guns again."
+- "hipend: shoot the Armagon's torso (and above its waist): hits land, not only on its legs."
+- "vrfiringrange: both laser cannons lie on their table at the start (load the range a few times)."
+## A faster QuakeC loop (worktree `qcvm`, 2026-10-15)
+
+BACKLOG.md's two QuakeC VM notes, steps 0-2; details and numbers in QC_VM.md.
+
+- **Measured first:** QuakeC with its builtins is 4-9% of the frame on busy scenes (ai_crowd_64, combat_48, a 24-monster
+  e1m1 fight, an AD fight), the interpreter alone ~3-7% of an uncapped frame (1.7-2.3% of a 90 Hz budget): under the
+  ~10% bar, so steps 3-4 (pre-decoded statements, superinstructions) were left out.
+- **New loop** `Quake/vr/vr_qcexec.c` + `vr_qcexec_loop.inc` (included by pr_exec.c; one hook at the top of
+  PR_ExecuteProgramRun): pointers in locals, the statement count implicit (changed only where control jumps, profile
+  totals exact), the runaway checked where it changes and before anything leaving the VM (same statement in the
+  error), tracing as a second dispatch table, computed-goto dispatch. `vr_qcexec` (archived): 1 default, 2 the same
+  loop with a switch, 0 the original. Debug > Profiling: "QuakeC Loop", "QuakeC Loop Bench".
+- **Tools:** `vr_qcexec_bench [function] [calls] [args]` times a function in all three loops and checks they agree;
+  `vr_qcexec_run [trace] <function> [args]` one call in the current loop (result, statements; a trace from its first
+  fabs).
+- **Same behaviour:** seeded 600-frame fights on e1m1, AD and vrfiringrange give equal state hashes and per-function
+  statement counts in all three loops (and twice in the original); traces and runaway errors (mid-loop too) print the
+  same. **Speed:** 1.2-1.7x on QuakeC loops (bench), the `quakec` scope 7-13% lower in game (0.02-0.045 ms a frame).
+
+Checklist (proposed): "Play a few minutes of a busy map (e1m1, an AD map): nothing about the monsters, items or
+triggers behaves differently. Debug > Profiling > QuakeC Loop: Original and back to Fast changes nothing you can see."
+
+## Impacts and manhandling (worktree `voxelopt`, branch `agent/ragimpact`, 2026-10-15)
+
+BACKLOG "Playtest voice notes, 2026-10-14" > "Throwing, grabbing and living ragdolls": Thrown living-enemy damage,
+Landing crush, Head/wall slams and live-ragdoll access, Impact dismemberment. His decision for more ways into live-ragdoll
+interaction: "Grab while staggered" and "Low health".
+
+`QC/vr_ragimpact.qc` (new, after vr_foegrab_throw.qc); engine `vr_box3d.cpp` (`noteRagImpacts`, `callRagImpacts`,
+`grabRagdoll`) and `vr_foegrab.cpp` (`manhandle`).
+- **Strikes** (engine): each ragdoll part's hardest hit on the level (world, doors, fixtures) per frame, from Box3D's hit
+  events: its approach speed (m/s), capped at `vr_ragimpact_whip` (2) x its body's speed before the step (a limb or welded
+  sword whipping on a throw is no blow) unless a hand holds the part; the mass behind it: the part's + `vr_ragimpact_body`
+  (0.1) of the rest + `vr_ragimpact_held_mass` (20 kg, your arm) when held. Grunt: 80 kg, torso 23 kg, head 5 kg; behind
+  a held head 33 kg, a free torso 29 kg. Not a loose weapon, not while staggering or getting up.
+- **Damage** (QC `VR_RagImpact_Hit`): `vr_ragimpact_damage` (0.15) x mass x (speed - `vr_ragimpact_min_speed` (2.5), or
+  `vr_ragimpact_held_speed` (1) for a held part), x `vr_ragimpact_head` (1.5) on the head; one strike per piece per 0.15 s.
+  Only bodies you drive: held, or let go of/thrown within `vr_ragimpact_time` (2 s; the two-hand throw now marks
+  `vr_rag_letgo`). A shove's knockdown falling over by itself takes only its fall damage, as before.
+- **Pieces** (shared count `vr_limb_corpse_dmg[]`, the corpse wear's): the head (`ragdollhead`) or limb (`VR_Limb_At`)
+  struck accumulates the damage; its own health = corpse health x `vr_ragimpact_piece_hp` (0.4: a grunt's head 32). The
+  living: damage to health (T_Damage); a head worn past it pops and kills (`VR_Decap_Arm`, sure); a limb worn past it
+  pops on the strike that kills (`VR_Limb_Arm`), else on the next strike once dead. The dead: `VR_Limb_WearInto` (the
+  shared wear path; torso strikes do nothing on corpses).
+- **Landing crush** (`client.qc` landing -> `VR_RagImpact_Crush`): landing at `vr_ragimpact_crush_speed` (400 u/s) or
+  more on a living ragdoll: the part under your feet (`ragdollbone` within your feet's square) takes damage x
+  `vr_ragimpact_crush_mass` (50 kg) x (speed - 400 u/s in m/s) x `vr_ragimpact_crush` (1), the same piece path.
+- **Manhandling**: one hand taking hold of a humanoid (the lift's classes, not the dummy) staggered within
+  `vr_foegrab_manhandle_stagger` (1.5 s: a shove landed, an unbalancing hit, a stagger recovered; `.vr_kd_shaken`) or at
+  `vr_foegrab_manhandle_health` (0.25) of its health or less: knocked down in place, held in that hand as a lifted one
+  (lift strength, flailing, breaks free after Lift Time). A staggering ragdoll a hand takes goes down
+  (`ragactive::lapse`). Healthy and steady: held standing as before; lifting unchanged.
+- Menu: Combat > Knockdowns, "Impacts" (7 rows); Combat > Holding Enemies after Lift: "Grab While Staggered", "Grab
+  When Weak". Debug > Tests: Impacts print/state/throw at a wall/drop you onto it, Manhandle staggered now.
+  `vr_knockdown_test 50..58` (`VR_RagImpact_Test`). `vr_knockdown_debug 2`: the engine's every strike.
+- Test: `Misc/quakevr/foegrab/ragimpact_test.py <agent> [wall slam crush grab]`. The judo test's staggering neck snap
+  case now sets `vr_foegrab_manhandle_stagger 0` (else the grab knocks it down first: snapped "knocked down").
+
+Verified (headless): a grunt knocked down 48 units off a wall and flung at it at 7 m/s: 8 strikes, 58.6 damage, dead
+(Impacts off: 0 strikes, 30 health). Ten one-hand head slams on the floor (the hand kept above it, the head 1.7-3.9 m/s):
+4-6 head strikes of 3-19, dead after about 3, head popped; 3/3 runs. Dropped 256 units onto a knocked-down grunt
+(20.3 m/s): 57 to its torso, dead; 96 units: nothing. One-hand grab: staggered -> knocked down, held; at a fifth of its
+health -> knocked down, held; healthy -> held standing; staggering ragdoll taken -> goes down, "staggered and fell".
+Regressions: melee eval 168/177 (same take differs FAIL -> FAIL as before), judo lift 6/6, judo neck + hold 31/31,
+limb wear 11/11, e1m1 smoke clean, menu paths 0 missing, build 0 warnings.
+
+Checklist (proposed): "Impacts: lift a grunt and throw it hard into a wall: it is badly hurt or killed; grab a knocked-down
+grunt's head with one hand and slam it on the floor or a wall 3-4 times: it dies, and its head pops soon after; jump onto
+a knocked-down one from a high ledge: the part you land on is crushed. Shove a grunt and grab it with one hand within a
+second or so: it goes down in your hand; same for one badly hurt; a healthy one you just hold. Combat > Knockdowns >
+Impacts and Holding Enemies > Grab While Staggered/When Weak to tune."
+
 
 ## Neck snap: strict zone, diagnostic, slow motion, crack (worktree `qcscanopt`, branch `agent/necksnap3`, 2026-10-15)
 

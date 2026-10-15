@@ -52,13 +52,13 @@ void(float xAway) VR_STT_Reset =
     self = m;
     droptofloor();
     self.flags = self.flags | FL_ONGROUND;
-    self.pausetime = 99999999;
-    self.th_stand();
+    VR_Stealth_Anim(m, FALSE); // (its stand, paused for good: AD's monsters' too)
     self = os;
     stt_p.velocity = '0 0 0';
     setorigin(stt_p, stt_phome);
     sight_entity = world;
     sight_entity_time = -100;
+    VR_AD_StealthTestReset(m); // AD support: AD's own enemy, path and sight relay
     cvar_set("vr_stealth_light_force", "0");
 };
 
@@ -279,7 +279,14 @@ void() VR_Stealth_TestFrame =
         {
             self = m;
             activator = p;
-            monster_use();
+            if(VR_Stealth_AD(m))
+            {
+                VR_AD_StealthTestUse(); // AD support: AD's monster_use
+            }
+            else
+            {
+                monster_use();
+            }
             self = os;
             VR_STT_Stage(2);
             return;
@@ -438,7 +445,7 @@ void() VR_Stealth_TestFrame =
             VR_STT_Reset(FALSE);
             self = m;
             self.enemy = p;
-            FoundTarget();
+            VR_Stealth_Found(); // (AD's FoundTarget for AD's monsters)
             self = os;
             VR_STT_Stage(1);
             return;

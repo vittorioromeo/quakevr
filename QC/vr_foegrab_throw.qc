@@ -73,6 +73,13 @@ float(entity m, float xYaw, float xTier) VR_FoeGrab_Throw =
         {
             m.velocity = was; // (not knocked down: it stands, no shove)
         }
+        else
+        {
+            // Thrown by you: its impacts count (vr_ragimpact_time; vr_ragimpact.qc), no hand spared by it.
+            m.vr_rag_letgo = self;
+            m.vr_rag_letgo_hand = 0;
+            m.vr_rag_letgo_time = time;
+        }
     }
     if(result < 1)
     {

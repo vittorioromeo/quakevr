@@ -8058,7 +8058,22 @@ int M_TextLeft (void)
 	}
 }
 
+// QVR: the first menu panel's menu, whichever panel is focused (VR_MenuDrawSelect; the others: M_DrawPanel)
 void M_Draw (void)
+{
+	int was = VR_MenuDrawSelect ();
+	M_DrawPanel ();
+	if (VR_MenuDrawRestore (was))
+		M_RefreshBounds ();
+}
+
+void M_RefreshBounds (void)
+{
+	if (m_state != m_none && key_dest == key_menu)
+		M_UpdateBounds ();
+}
+
+void M_DrawPanel (void)
 {
 	qboolean recolor; // QVR
 

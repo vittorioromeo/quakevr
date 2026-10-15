@@ -175,6 +175,18 @@ before it rises, a monster waiting to be spawned in): no noise, touch, beam or a
 Everything else, id1's and the expansions' (hipnotic, rogue, MG1, MG3, Honey, the dopa monsters), shares it: the hooks
 are in the shared ai.qc (`vr_stealth_test 106` puts down every kind the kit has: id1's, hipnotic's and rogue's).
 
+## Arcane Dimensions
+
+AD's monsters run AD's own AI, and the same rules apply to them (2026-10-15; before, they saw him at once). The
+importer patches AD's AI (`Misc/quakevr/ad_import.py` `FUNC_PATCHES`): AD's FindTarget ticks the stealth AI and hands a
+player's sighting to the meter (AD's relay, a monster that saw him, and its sight groups and sight targets stay
+AD's); its FoundTarget and FoundHuntTarget are Hostile; its ai_stand and ai_walk run Alert; its ai_run loses him.
+`QC/vr_ad_stealth.qc` answers for them (`.stl_ad`): their stand and walk thinks, their path (`ad_movetarget`, paused
+by `ad_pausetime`), AD's FoundTarget, their idle sound for the "huh?". Excluded as Quake VR's: AD's bosses, flyers and
+swimmers; one in AD's passive mode keeps AD's rule (it ignores him until a fight). A turret (it never walks) searches
+where it stands. AD's zombies have the zombies' senses. Tests: `Misc/quakevr/adbugs_tests.sh <agent> stealth`
+(`vr_stealth_test 1`'s scenes on an AD rocket soldier).
+
 ## Senses (`vr_stealth_senses 1`)
 
 | class | hearing | sight |

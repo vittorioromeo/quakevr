@@ -2,6 +2,16 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Impacts (Combat > Knockdowns > Impacts): throw a lifted grunt hard into a wall (7 m/s kills); slam a held head into a wall (~3 kill, head pops); jump from a ledge onto a downed grunt (crush); feel and amounts OK?
+Manhandle (Holding Enemies): one-hand grab of a just-shoved/staggered grunt or one at <=25% health takes it down and holds it; a healthy one is held standing as before
+Faster QuakeC loop: play e1m1 and an AD map, nothing behaves differently; Debug > Profiling > QuakeC Loop: Original vs Fast
+AD stealth: sneak up on AD soldiers/knights in the dark: they stay unaware; lit, they notice in ~1 s
+AD soldiers drop our weapons (rocket/grenade launcher, super shotgun, laser cannon for plasma); fire them; Arcane Dimensions > Guns: AD's own guns = old drops
+Hipend: shots hit the Armagon's torso, not only the legs
+vrfiringrange: reload a few times: laser cannons rest on their table, none inside it or thrown off
+VR menus: New Panel (corner) opens a 2nd menu to the right; a page in each, both hands point at once; same settings page in both: a change shows in the other; Weapon Offsets refused in the 2nd; Close Panel closes one, Back to Game all; New Panel again returns where you left it
+Bullet-time throws: re-grip tosses of guns/props stay small; a slowed full throw flies like a real-speed one; no threshold where throws suddenly get strong (Throwing > Slow-Mo Stroke; 0 = old rules for A/B)
+Axe flip-and-catch: a few-cm toss caught by the handle more easily (also in bullet time); force grab no longer grabs things behind an enemy (Bodies Block)
 Permanent Decals: big gore fight, no stutter as blood lands; off mid-room keeps the newest marks, on again brings all back (none darker, marks made while off included); save/load keeps the freshest marks too
 Pentagram / Biosuit (Debug > Test Effects): body and hands glow pulsing red / green with matching hand light; with Quad too the glows take turns; does the red read as red under the yellow flash? biosuit at 2 too strong? Glow 0 = old tint
 Your tweaks are now defaults (config 133): blood feedback, Quad 2/2/2, bash 5, neck snap Hand Line 210/80, throws, lift, limb grab, reload, decals, PBR, bare forearms; values you set by hand are kept

@@ -44,7 +44,9 @@ void(entity m) VR_Stealth_ClassOf =
     m.stl_class = 1;
     m.stl_hear = 1;
     m.stl_sight = 1;
-    if((m.flags & (FL_FLY | FL_SWIM)) || !m.th_stand || !m.th_walk || c == "monster_boss" || c == "monster_boss_final" ||
+    m.stl_ad = VR_AD_StealthKind(m); // AD support: AD's monsters run AD's AI (its thinks and path: vr_ad_stealth.qc)
+    if((m.flags & (FL_FLY | FL_SWIM)) || m.stl_ad < 0 || (!m.stl_ad && (!m.th_stand || !m.th_walk)) ||
+       c == "monster_boss" || c == "monster_boss_final" ||
        c == "monster_oldone" || c == "monster_oldone_new" || substring(c, 0, 13) == "monster_shub_" ||
        c == "monster_dragon" || c == "monster_lava_man" || c == "monster_armagon" || c == "monster_super_shambler")
     {
@@ -55,7 +57,7 @@ void(entity m) VR_Stealth_ClassOf =
     {
         m.stl_hear = 1.6;
     }
-    else if(c == "monster_zombie" || c == "monster_mummy")
+    else if(c == "monster_zombie" || c == "monster_mummy" || (m.vr_ad_mon & VR_ADM_ZOMBIE)) // (AD support: AD's zombies)
     {
         m.stl_hear = 0.4;
         m.stl_sight = 0.6;
@@ -87,7 +89,53 @@ float(entity m) VR_Stealth_Applies =
     {
         VR_Stealth_ClassOf(m);
     }
+    if(m.stl_ad > 0 && VR_AD_StealthPassive(m))
+    {
+        return FALSE; // (AD support: AD's passive mode: it ignores him until a fight starts, as AD's)
+    }
     return m.stl_class > 0;
+};
+
+// AD support: one of AD's monsters under the rules: AD's thinks, path and FoundTarget (vr_ad_stealth.qc).
+float(entity m) VR_Stealth_AD =
+{
+    if(!m.stl_class)
+    {
+        VR_Stealth_ClassOf(m);
+    }
+    return m.stl_ad > 0;
+};
+
+// Its path (movetarget), and whether its kind walks at all.
+entity(entity m) VR_Stealth_Path =
+{
+    return VR_Stealth_AD(m) ? VR_AD_StealthPath(m) : m.movetarget;
+};
+
+void(entity m, entity xPath) VR_Stealth_SetPath =
+{
+    if(VR_Stealth_AD(m))
+    {
+        VR_AD_StealthSetPath(m, xPath);
+        return;
+    }
+    m.movetarget = xPath;
+};
+
+float(entity m) VR_Stealth_Walks =
+{
+    return VR_Stealth_AD(m) ? m.stl_ad == 1 : m.th_walk != m.th_stand;
+};
+
+// Hostile at self.enemy (FoundTarget: sight sound, hunt).
+void() VR_Stealth_Found =
+{
+    if(VR_Stealth_AD(self))
+    {
+        VR_AD_StealthFound();
+        return;
+    }
+    FoundTarget();
 };
 
 // FindTarget (self): its sight of a player is the meter's.
@@ -113,7 +161,11 @@ void(entity m, float xWalking) VR_Stealth_Anim =
     float og = stl_anim_guard;
     self = m;
     stl_anim_guard = TRUE;
-    if(xWalking)
+    if(VR_Stealth_AD(self))
+    {
+        VR_AD_StealthAnim(xWalking);
+    }
+    else if(xWalking)
     {
         self.th_walk();
     }
@@ -313,7 +365,8 @@ void(entity m) VR_Stealth_Reset =
     {
         return;
     }
-    m.goalentity = m.movetarget = m.stl_post_goal;
+    m.goalentity = m.stl_post_goal;
+    VR_Stealth_SetPath(m, m.stl_post_goal);
     VR_Stealth_Anim(m, m.stl_post_walk);
     VR_Stealth_Log(m, "reset (Quake's AI)");
 };
@@ -324,7 +377,8 @@ void(entity m) VR_Stealth_Finish =
     m.stl_state = STL_IDLE;
     m.stl_phase = 0;
     m.stl_wary = time + cvar_hget(cvarh_vr_stealth_sensitive_time);
-    m.goalentity = m.movetarget = m.stl_post_goal;
+    m.goalentity = m.stl_post_goal;
+    VR_Stealth_SetPath(m, m.stl_post_goal);
     if(m.stl_post_walk)
     {
         VR_Stealth_Anim(m, TRUE);
@@ -343,7 +397,7 @@ void(entity m) VR_Stealth_GoBack =
     vector to = m.stl_post - m.origin;
     to_z = 0;
     // (its post beyond a teleporter it went through: back through it first, VR_Stealth_WayTo; even to its path)
-    if((m.stl_post_via <= 0 && (m.stl_post_walk || vlen(to) < 32)) || (m.spawnflags & 1) || m.th_walk == m.th_stand)
+    if((m.stl_post_via <= 0 && (m.stl_post_walk || vlen(to) < 32)) || (m.spawnflags & 1) || !VR_Stealth_Walks(m))
     {
         VR_Stealth_Finish(m);
         return;
@@ -358,6 +412,11 @@ void(entity m) VR_Stealth_GoBack =
 // Its "huh?": its idle sound, a little quieter (the ones its spawn function precached).
 void(entity m) VR_Stealth_Voice =
 {
+    if(VR_Stealth_AD(m))
+    {
+        VR_AD_StealthVoice(m); // (AD support: its own idle sound)
+        return;
+    }
     string c = m.classname;
     string s = "";
     if(c == "monster_army") { s = "soldier/idle.wav"; }
@@ -445,7 +504,7 @@ void(entity m, float xHostile) VR_Stealth_Share =
         if(xHostile)
         {
             e.enemy = m.enemy;
-            e.think = FoundTarget;
+            e.think = VR_Stealth_Found;
             e.nextthink = time + 0.1 + random() * 0.2;
             VR_Stealth_Log(e, "hostile (shared)");
         }
@@ -490,8 +549,16 @@ void(entity m, vector at, float xVia, float xKind, float xPower, float xShare) V
         m.stl_post = m.origin;
         m.stl_post_via = 0;
         m.stl_post_yaw = m.angles_y;
-        m.stl_post_goal = m.movetarget;
-        m.stl_post_walk = ((m.movetarget.classname == "path_corner") && (m.pausetime < 99999999)); // (walking its path, or waiting at a corner)
+        m.stl_post_goal = VR_Stealth_Path(m);
+        if(VR_Stealth_AD(m))
+        {
+            m.stl_post_walk = VR_AD_StealthOnPath(m);
+        }
+        else
+        {
+            // (walking its path, or waiting at a corner)
+            m.stl_post_walk = ((m.movetarget.classname == "path_corner") && (m.pausetime < 99999999));
+        }
         m.stl_settle = 0;
         VR_Stealth_Voice(m);
         if(cvar_hget(cvarh_vr_stealth_marks))
@@ -539,7 +606,7 @@ void(entity m, entity p) VR_Stealth_Spot =
     entity os = self;
     self = m;
     self.enemy = p;
-    FoundTarget();
+    VR_Stealth_Found();
     self = os;
 };
 
@@ -548,7 +615,7 @@ void() VR_Stealth_Hostile =
 {
     if(self.stl_state == STL_ALERT)
     {
-        self.movetarget = self.stl_post_goal;
+        VR_Stealth_SetPath(self, self.stl_post_goal);
     }
     self.stl_state = STL_IDLE;
     self.stl_phase = 0;
@@ -692,7 +759,7 @@ float(entity client) VR_Stealth_SeeNow =
     {
         self.stl_meter = 1;
         self.enemy = client;
-        FoundTarget();
+        VR_Stealth_Found();
         return TRUE;
     }
     if(self.stl_meter >= cvar_hget(cvarh_vr_stealth_glimpse))
@@ -922,7 +989,7 @@ float() VR_Stealth_StandNow =
             vector to = self.stl_point - self.origin;
             to_z = 0;
             if((vlen(to) > 64 || self.stl_via) && cvar_hget(cvarh_vr_stealth_investigate) && !(self.spawnflags & 1) &&
-               self.th_walk != self.th_stand) // (a kind that doesn't walk searches where it stands)
+               VR_Stealth_Walks(self)) // (a kind that doesn't walk searches where it stands)
             {
                 VR_Stealth_Phase(self, STL_WALK);
                 self.goalentity = VR_Stealth_MarkerAt(self, VR_Stealth_WayTo(self.stl_point, self.stl_via));
@@ -1205,6 +1272,7 @@ float(float xVis) VR_Stealth_LoseNow =
     }
     self.stl_trail = 0;
     self.enemy = self.oldenemy = self.goalentity = self.movetarget = world;
+    VR_Stealth_SetPath(self, world); // (AD support: AD's own path field)
     VR_Stealth_AlertVia(self, at, via, STL_A_LOST, 3, FALSE);
     return TRUE;
 };

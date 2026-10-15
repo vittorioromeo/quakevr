@@ -49,4 +49,17 @@ Reviewed patches: 10 precedence, 36 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   ai_combat.qc: bridge: Quake VR's dying around AD's death function (beheading, limbs, knockdown's death, corpse, gore)
   mon_bossicegolem.qc: bridge: the ice golem (a boss: no monster_start) registered as it wakes
   monsters.qc: bridge: the body touchable, not a trigger (its ragdoll and corpse are Quake VR's)
+  lights.qc light_torch_small_walltorch: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  lights.qc light_flame_large_yellow: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  lights.qc light_flame_small_yellow: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  lights.qc light_flame_pyre: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  lights.qc light_flame_brazier_short: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  lights.qc light_flame_brazier_tall: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  ai_subs.qc FindTarget: bridge: stealth: the meter drains, beams, torches and bodies seen (Hostile now: found)
+  ai_subs.qc FindTarget: bridge: stealth: a player is seen by the suspicion meter, not at once
+  ai_subs.qc FoundTarget: bridge: stealth: Hostile (Alert no more; the monsters near told)
+  ai_subs.qc FoundHuntTarget: bridge: stealth: Hostile (Alert no more; the monsters near told)
+  ai_states.qc ai_stand: bridge: stealth: Alert: turning to look, searching
+  ai_states.qc ai_walk: bridge: stealth: Alert: walking to what it noticed, or back to its post
+  ai_states.qc ai_run: bridge: stealth: lost him a while: Alert, to where it saw him last
   ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, Launch_Missile/Launch_Grenade VR ordnance hooks (function-boundary checked)

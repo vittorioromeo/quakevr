@@ -334,6 +334,12 @@ float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_HitStagg
 float(entity e, vector xAt) VR_HitStagger_Head;
 float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamage) VR_HitStagger_Throw;
 void(float xMode) VR_HitStagger_Test;
+// Impacts and manhandling (vr_ragimpact.qc): when it was last staggered (a shove, an unbalancing hit, a stagger
+// recovered from: a hand's hold knocks it down, VR_FoeGrab_Manhandle); your landing's crush; the tests.
+.float vr_kd_shaken;
+void(entity e) VR_Manhandle_Shaken;
+void(entity p, float xSpeed) VR_RagImpact_Crush;
+void(float xMode) VR_RagImpact_Test;
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;
 // Head pops (vr_decap.qc, "Head pops"): the player's shot being fired (W_FireShotgun, W_FireSuperShotgun,

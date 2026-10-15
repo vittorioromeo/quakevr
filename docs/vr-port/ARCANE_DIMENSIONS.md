@@ -1251,6 +1251,7 @@ class's: `tune`, `ownFloat` in `vr_box3d.cpp`). `mon_` models are monsters for t
 | Blood pool, stealth (a body noticed), shock, parry unsway, AI gate | `VR_AD_Dying` / `VR_AD_Died` | (code path) |
 | Highlight log (kills, headshots, melee) | `VR_Highlight_Kill` in `VR_AD_Dying` (the blow's inflictor from `VR_AD_KdSave`), `VR_Highlight_Killed` in `VR_AD_Died` | (code path) |
 | Shoves, grabs, throws, precise melee hits | generic (any monster: box, mass from its size, its model as drawn) | (headset) |
+| Stealth AI (meter, Alert, Hostile, lose; STEALTH.md "Arcane Dimensions") | AD's FindTarget, FoundTarget, FoundHuntTarget, ai_stand/walk/run (`FUNC_PATCHES`); `QC/vr_ad_stealth.qc` | `Misc/quakevr/adbugs_tests.sh stealth` (2026-10-15) |
 
 Not wired (left as AD's): AD's own floor-body gibbing by touch (`monster_flrbody_gib`) is replaced by ours for the
 registered monsters; the training dummy's AD types; hull widths (AD's bounding boxes are kept: `vr_mhull_*` not
@@ -1346,3 +1347,24 @@ Rigs made with `Misc/quakevr/ragdoll/rig.py` on AD's models (`RIG_PAK` = a pak o
 ## Decision: stationary light flicker is intentional (2026-10-12)
 
 Crucial's stationary brightness variation matches nearby authored style-1 flicker and vanishes when styles are flattened: styles stay unchanged unless a reduced-flicker option is requested (then keep the >=32 switched/scripted styles apart from the built-in animated ones).
+### 17.6 AD's effects not yet given Quake VR's treatment (for Vittorio to decide)
+
+His decision of 2026-10-14 (dropped enemy guns are Quake VR's weapons: `vr_adgun_ours`, ROUND22.md "AD stealth, AD
+soldiers' drops...") covers the rocket, grenade and plasma soldiers', the defender's, the eliminator's and the
+centurion's guns. What is still AD's own, as AD draws and runs it, with no design chosen here:
+
+- **The pyro's flamethrower and the fumigator's poison sprayer** (dropped; `vr_ad_enemyguns.qc`): no Quake VR weapon of
+  their kind. Keep AD's guns (as now), make Quake VR versions, or drop nothing.
+- **Poison**: the fumigator's puffs and AD's poison debuff (its damage over time, its green tint). Burning is merged with
+  Quake VR's (16.3); poison has no Quake VR counterpart (no VR effect on the hands or view beyond AD's tint).
+- **Bleeding**: AD's bleed debuff, its tint only.
+- **AD's monster projectiles**: about a hundred AD projectile models (`ad_MODEL_PROJ_*`: plasma, the gargoyles' and
+  gaunts' balls, the bog lord's, Nour's, the swamplings', snowballs, ice shards, spider and scorpion spit, the
+  soldiers' own rockets and big grenades...) with AD's trails and impacts; they meet our hits and the player's VR
+  interaction (`VR_AD_Ordnance`, ROUND22.md "AD projectile impacts and flying ordnance") but keep AD's look.
+- **AD's own guns when they are used** (`vr_adgun_ours 0`, the toolgun's and maps' AD guns): their shots are AD's
+  monster projectiles (the oversized grenade model; its shots touch their own firer at the muzzle in the headless
+  check, which may be the "stuck in the muzzle" feel).
+- **AD's particle emitters** (`ad_PARTICLE_STYLE_*`: flames, smoke, electric, portals, weather, books, keys, sigils,
+  altars, artifacts' auras): AD's sprite particles, not Quake VR's particle presets.
+- **Beams and lightning** of AD's monsters (the lightning-casting ones, the eidolon): AD's temp entities.

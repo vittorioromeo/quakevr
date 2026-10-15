@@ -414,7 +414,7 @@ def case_neck():
         ("knocked_cw", 0, "kd", 75, 0.2, 1, "y", None, "", "snap"),
         ("knocked_ccw", 0, "kd", 75, 0.2, -1, "y", None, "", "snap"),
         ("stagger", 0, "stagger", 75, 0.2, 1, "y", None,
-         "vr_knockdown_chance 0.01;vr_ragdoll_active_stagger_travel 0.03", "snap"),
+         "vr_knockdown_chance 0.01;vr_ragdoll_active_stagger_travel 0.03;vr_foegrab_manhandle_stagger 0", "snap"),
         # (Lifted by its upper chest (one hand in its neck zone standing, the other under it), then twisted: its holds
         # are at its shoulders and chest as it flails, not its head: no neck snap since the strict zone (2026-10-15).)
         ("lifted", 0, GRUNT_SHOULDERS, 75, 0.2, 1, "y", "up", "", "nosnap"),
@@ -484,7 +484,7 @@ def case_neckdefaults():
         ("slow", 0, GRUNT_HEAD, 110, 1.0, 1, "y", None, "", "none"),
         ("shoulders", 0, GRUNT_SHOULDERS_WIDE, 110, 0.2, 1, "y", None, "", "nosnap"),
         ("stagger", 0, "stagger", 110, 0.2, 1, "y", None,
-         "vr_knockdown_chance 0.01;vr_ragdoll_active_stagger_travel 0.03", "snap"),
+         "vr_knockdown_chance 0.01;vr_ragdoll_active_stagger_travel 0.03;vr_foegrab_manhandle_stagger 0", "snap"),
         ("slowmo_quick", 0, GRUNT_HEAD, 110, 0.2, 1, "y", "quick", "vr_timescale 0.3", "snap"),
         ("slowmo_slow", 0, GRUNT_HEAD, 110, 1.0, 1, "y", None, "vr_timescale 0.3", "none"),
     ]

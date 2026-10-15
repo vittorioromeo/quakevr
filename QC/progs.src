@@ -257,6 +257,8 @@ vr_knockdown.qc
 // Hits that unbalance: strong throws and blows stagger monsters as shoves do (after the knockdowns: it uses them).
 vr_hitstagger.qc
 vr_foegrab_throw.qc
+// Impacts (ragdolls struck on the level, landing crush) and manhandling (after the knockdowns and the limbs: it uses them).
+vr_ragimpact.qc
 
 frikbot/bot.qc
 frikbot/bot_way.qc
@@ -427,6 +429,8 @@ vr_ad_player.qc
 vr_ad_world_test.qc
 vr_ad_test.qc
 vr_ad_monsters.qc
+// The stealth AI on AD's monsters (AD's patched FindTarget, stand, walk, run call it; vr_stealth.qc asks it).
+vr_ad_stealth.qc
 // The AD soldiers' guns: dropped, fired (after the monsters' hooks: VR_AD_Dying drops them).
 vr_ad_enemyguns.qc
 vr_ad_monsters_test.qc
