@@ -6757,3 +6757,36 @@ Checklist (proposed): "Neck snap: hold a grunt's or enforcer's shoulders and twi
 neck and twist: snaps with a loud crack in your hands. Turn on Neck Snap > Show Diagnostic: the zone, hand dots and the
 turn arc/panel match what you feel; Twist Speed reads 'not used' under Hand Line. In bullet time grab a head and twist
 right away: snaps as at full speed; a slow twist doesn't. Lift a centurion and a fumigator (AD)."
+
+## Neck snap takes in the motion recorder (worktree `qcscanopt`, 2026-10-15)
+
+His idea: "add the neck snap expected/unexpected to the motion recorder too". Two new categories (MOTIONS.md, "Neck
+snap takes"), so his real twists become a regression set for both twist detectors:
+
+- **Recording**: Motion Recorder > Category **Neck Snap Expected** (`neck_snap`; Detail head, neck, push_pull, turn,
+  tilt) or **Neck Snap Not Expected** (`no_neck_snap`; shoulders, slow, small, pull, lift, adjusting). Empty hands, the
+  training dummy in the melee recording room: start the take, then grip its head or neck (or shoulders) with both hands,
+  twist, let go, end the take. Grip after starting (a grip closed in the replay's setup doesn't take hold). Its neck
+  "snaps" without killing it (`the training dummy (it stands)`); it stays holdable for the next take. The takes are the
+  usual files (both hands' tracking, grips, the dummy's place); the header now also lists the `vr_foegrab_necksnap*`
+  settings, and the game's snap is a `necksnap` event (sub `velocity`/`handline`, detail `83 deg at 863 deg/s standing`;
+  `vr_foegrab.cpp` `neckSnap`).
+- **Verdicts** (`expect.cfg`): `neck_snap` needs a `necksnap`, `no_neck_snap` must have none; blows on the way in allowed.
+- **Replay per detector**: `vr_motion_eval <takes> necksnap 0|1` sets `vr_foegrab_necksnap_method` for the replays (put
+  back after; the other neck snap settings as set; `eval_status.csv` unchanged).
+- **eval.sh** (kit change, staged as `qcscanopt/scratch/eval_ns.sh` for the coordinator to copy over `kit/eval.sh`):
+  the `neck_snap_*`/`no_neck_snap_*` takes are kept out of the melee sets (the melee count and baseline unchanged), then
+  replayed under each detector in two copies: `method 0 (Velocity): expected snaps caught a/b, missed c, false snaps
+  d/e`, the same for method 1 (Hand Line), each miss and false snap by name. Reported only (no baseline yet).
+- **Synthetic takes** (`motion_synth.py necksnap`, `source: synthetic`, written to `scratch/`, never his folder):
+  `neck_snap_turn` (fists at the head, 90 degrees in 0.2 s), `no_neck_snap_shoulders` (the same at the shoulders),
+  `no_neck_snap_small` (20 degrees). Through the new section at the shipped settings: Velocity caught 1/1, 0 false of 2;
+  Hand Line caught 1/1, 0 false of 2. By name only, `neck_snap_push_pull` (25 cm push-pull, the wrists turned 100
+  degrees about the vertical, 0.3 s): Velocity snaps it (its measure adds the wrists' turn), Hand Line misses it (the
+  palms' line turned 61 degrees in the 0.2 s window, under Twist Angle 80; the wrists' turn as the mock makes it didn't
+  add): worth a look with his own push-pull takes.
+- Melee eval 168/177 (unchanged); e1m1 smoke clean; build 0 warnings.
+
+Checklist (proposed): "Motion Recorder: record a few Neck Snap Expected takes (grip the dummy's head after starting the
+take, twist hard) and Neck Snap Not Expected ones (twist at the shoulders, a slow or small turn, a pull): each saves,
+the dummy stays standing and holdable, and Review Takes lists them under their categories."
