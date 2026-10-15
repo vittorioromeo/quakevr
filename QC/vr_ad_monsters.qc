@@ -499,6 +499,90 @@ void() VR_AD_BodySolid =
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Its gibbing by AD's own code (AD's monster_ThrowGib: a live one blown apart; its gibs and head by AD's ThrowGib) gets
+// what id's gibbing (ThrowHead, ThrowGib: player.qc) gets: the gore, small gibs and limbs, and its head and gibs are
+// Quake VR's gibs: carried, thrown, rigid bodies once they land (Box3D), burst by damage into a mist and small gibs (a
+// head with its brain). Only flesh: a stone or metal monster's (AD's gibtype), and the weapons and armour among its
+// gibs (a crossbow, a sword, a grenade launcher: their impact sound, or a w_ model), stay AD's (they would knock and
+// burst as flesh). A gib that hurts on touch (AD's gib1dmg) stays AD's too. (A corpse gibbed is ours already:
+// VR_Corpse_Parts, ThrowHead.)
+
+// What `m` is gibbed by AD's code: one of its monsters (a gib fountain's, a breakable's gibs stay AD's).
+float(entity m) VR_AD_GibsOurs =
+{
+    return ((m.flags & FL_MONSTER) || m.vr_ad_mon) && cvar_hget(cvarh_vr_grab_gibs);
+};
+
+// Its gibs are flesh (AD's gibtype: blood or poison, not stone, wood, glass or metal).
+float(entity m) VR_AD_FleshGibs =
+{
+    return m.ad_gibtype == ad_GIBTYPE_BLOOD || m.ad_gibtype == ad_GIBTYPE_POISON;
+};
+
+void() VR_AD_Gibbed =
+{
+    if(!VR_AD_GibsOurs(self) || !VR_AD_FleshGibs(self))
+    {
+        return;
+    }
+    dprint(sprintf("gibbed: %s (AD's)\n", self.classname));
+    VR_Gore_Gibbed();
+    VR_SmallGib_Gibbed(self.health);
+    VR_Limb_GibAll(self.health);
+};
+
+void(entity g, float xNo) VR_AD_GibThrown =
+{
+    if(!VR_AD_GibsOurs(self) || g.ad_gib1dmg > 0 || !VR_AD_FleshGibs(self))
+    {
+        return;
+    }
+    if(xNo >= 11 && (substring(g.mdl, 0, 8) == "progs/w_" || (xNo <= 13 && (g.weapon >= ad_GIB_IMPACT_STONE ||
+       g.noise != ""))))
+    {
+        return; // (a weapon or armour: its own impact sound, AD's)
+    }
+    if(xNo < 10 && !VR_Limb_GibsWanted())
+    {
+        setmodel(g, ""); // (its limbs instead of the meat gibs: vr_gib_limbs 2, as ThrowGib)
+        g.think = SUB_Remove;
+        g.nextthink = time;
+        return;
+    }
+    float head = xNo == 25;
+    if(head && self.vr_headless)
+    {
+        setmodel(g, ""); // (its head cut off already: vr_decap.qc threw it)
+        g.think = SUB_Remove;
+        g.nextthink = time;
+        return;
+    }
+    g.flags = 0;
+    g.ad_gibpartstyle = 0; // (AD's floor checks and particles: its think, no longer run)
+    g.stl_notice = STL_NOTICE_BODY; // (monsters seeing it are alerted: vr_stealth.qc)
+    if(head)
+    {
+        // As the head id's gibbing throws (ThrowHead: the monster itself) or a beheading's (VR_Decap_ThrowHead).
+        g.classname = self.classname;
+        g.gorging = TRUE;
+        g.view_ofs = '0 0 8';
+        g.think = HeadThink;
+        g.nextthink = time + 1.5;
+        VR_MakeGibGrabbable(g);
+        VR_Gib_MakeDestroyable(g, 1.5);
+        VR_Limb_SetMass(g, self, -1); // (its share of its ragdoll's mass, as a head cut off; no rig: its hull's)
+    }
+    else
+    {
+        g.think = SUB_Remove; // (VR_MakeGibGrabbable: they lie about longer, to be played with)
+        VR_MakeGibGrabbable(g);
+        VR_Gib_MakeDestroyable(g, 1);
+    }
+    VR_SmallGib_CarryMults(self, g); // (it carries this monster's small gib and brain counts: vr_smallgibs.qc)
+    VR_Gore_WatchFling(g); // (it may stick to a ceiling or a wall: vr_gore_stick)
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
 // The debug spawner (Debug > Tests, vr_test_spawn N with impulse 241; func_enemy_dispenser's "weapon"): AD's monsters
 // from 200, in the order of their use in AD's maps. In a map played by AD's rules only (AD's world setup).
 

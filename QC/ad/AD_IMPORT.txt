@@ -62,4 +62,6 @@ Reviewed patches: 10 precedence, 36 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   ai_states.qc ai_stand: bridge: stealth: Alert: turning to look, searching
   ai_states.qc ai_walk: bridge: stealth: Alert: walking to what it noticed, or back to its post
   ai_states.qc ai_run: bridge: stealth: lost him a while: Alert, to where it saw him last
+  ai_gibs.qc monster_ThrowGib: bridge: gibbed: Quake VR's gore, small gibs and limbs
+  ai_gibs.qc ThrowGib: bridge: its gibs and head Quake VR's props (grabbed, rigid bodies, burst by damage)
   ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, Launch_Missile/Launch_Grenade VR ordnance hooks (function-boundary checked)
