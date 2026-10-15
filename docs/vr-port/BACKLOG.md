@@ -87,6 +87,16 @@ this file; the workers' ROUND22.md sections carry them.
 
 ## Later (the author, 2026-10-11, before 1.0.0: "Make sure everything is in the backlog for later")
 
+### Ideas from Quake Combat+ v5.7 (the author, 2026-10-16; ideas only: no source or assets reusable without its authors' permission)
+
+- **Heart gib you can hold:** a beating, squeezable, throwable organ with a haptic pulse, on top of our physics gibs.
+- **Berserk pack:** a level-long melee power state (red tint, bigger gib/decap pops, x2-3 melee damage) rewarding
+  fists/axe/chainsaw play; plugs into the existing `vr_decap_pop_*` scale cvars.
+- **Hit-confirm audio layering:** a meaty thud when most pellets connect, distinct kick/impact sounds, per-monster gib
+  sounds.
+- **Wounded monsters bleed a trail, then crawling half-bodies:** live low-health monsters drip decals; big monsters
+  split in half and drag the torso with a smear (a "finish it" beat).
+
 ### Enemies' own weapons for the player (the author, 2026-10-15)
 
 - **Phantom Swordsman's sword** (Dissolution of Eternity's `monster_sword`, `rogue` QC): make its corpse, or the sword
