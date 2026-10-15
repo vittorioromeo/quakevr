@@ -1225,4 +1225,24 @@ glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex)
     return p;
 }
 
+void poseSuccessors(const void* aliashdr, const char* model, short* next, unsigned char* progs)
+{
+    const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    for(int p = 0; p < hdr->numposes; p++)
+    {
+        next[p] = -1;
+        progs[p] = 0;
+    }
+    buildQcLoops();
+    for(const Run& r : runsOf(hdr, model))
+    {
+        for(int k = 0; k < r.count && r.first + k < hdr->numposes; k++)
+        {
+            const int p = r.first + k;
+            next[p] = static_cast<short>(k + 1 < r.count ? p + 1 : (r.loop && r.count > 1 ? r.first : -1));
+            progs[p] = r.qc ? 1 : 0;
+        }
+    }
+}
+
 } // namespace qvr::mdldequant

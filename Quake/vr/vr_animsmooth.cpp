@@ -167,6 +167,16 @@ struct Trace
     za::Vector<glm::vec3> now, prev, prev2;
     za::Vector<float> accel; // per frame: the vertices' mean
     za::Vector<float> peak;  // ... their most
+    float joltLog{0.f};      // > 0: each frame one vertex's change passes, printed with the keys of it and the two before
+    struct Keys
+    {
+        double time{0.0};
+        int frame{-1};
+        int poses[4]{-1, -1, -1, -1};
+        float blend{0.f};
+        float w[4]{0.f, 0.f, 0.f, 0.f};
+    };
+    Keys keys[3]; // [0] this frame's, [1] the one before, [2] ...
 };
 [[nodiscard]] za::SizeT heldBytes(const Trace& t) // (vr_mem.hpp)
 {
@@ -291,13 +301,51 @@ void splitName(const char* name, char* prefix, int& number)
         int na = -1, nb = -1;
         splitName(d.name, a, na);
         splitName(hdr->frames[f + 1].name, b, nb);
-        m.namedNext[static_cast<za::SizeT>(f)] = na >= 0 && nb >= 0;
+        // (numbers alone, the knight's "1" .. "97", name no animation: the file's order, a guess)
+        m.namedNext[static_cast<za::SizeT>(f)] = na >= 0 && nb >= 0 && a[0] && b[0];
         // The same animation, numbered on (or unnamed, or unnumbered: the shambler's: the file's order)
         const bool on = !strcmp(a, b) && (na < 0 || nb < 0 || nb == na + 1);
         if(on)
         {
             m.next[static_cast<za::SizeT>(f)] = static_cast<int16_t>(f + 1);
-            m.prev[static_cast<za::SizeT>(f + 1)] = static_cast<int16_t>(f);
+        }
+    }
+    // Where the names don't say (a guess by the file's order, or an animation's last frame): the dequantiser's runs, the
+    // progs' loops (knight_stand9 back to knight_stand1: sure, over the names too) and the jumps between unrelated
+    // animations (none expected after: learnt once seen). (Not the poses' first sight's guess at a loop's end: a jolt.)
+    if(hdr->poseverttype == aliashdr_t::PV_QUAKE1 && m.numPoses > 0)
+    {
+        za::Vector<short> after(static_cast<za::SizeT>(m.numPoses), -1);
+        za::Vector<unsigned char> progs(static_cast<za::SizeT>(m.numPoses), 0);
+        mdldequant::poseSuccessors(hdr, model->name, after.data(), progs.data());
+        for(int f = 0; f < m.numFrames; f++)
+        {
+            const za::SizeT fi = static_cast<za::SizeT>(f);
+            const int pose = hdr->frames[f].firstpose;
+            if(m.next[fi] == -2 || pose < 0 || pose >= m.numPoses)
+            {
+                continue;
+            }
+            const int ap = after[static_cast<za::SizeT>(pose)];
+            const int af = ap >= 0 ? m.frameOfPose[static_cast<za::SizeT>(ap)] : -1;
+            if(progs[static_cast<za::SizeT>(pose)])
+            {
+                m.next[fi] = static_cast<int16_t>(af);
+                m.namedNext[fi] = af >= 0;
+            }
+            else if(!m.namedNext[fi] || m.next[fi] == -1)
+            {
+                m.next[fi] = static_cast<int16_t>(af);
+                m.namedNext[fi] = 0;
+            }
+        }
+    }
+    for(int f = 0; f < m.numFrames; f++)
+    {
+        const int n = m.next[static_cast<za::SizeT>(f)];
+        if(n >= 0 && m.prev[static_cast<za::SizeT>(n)] < 0)
+        {
+            m.prev[static_cast<za::SizeT>(n)] = static_cast<int16_t>(f);
         }
     }
     // Seed-table boundaries need no derived rig (Smooth Limbs off stays cheap). Never predict the death's first
@@ -771,6 +819,13 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
     const float b = pose1 == pose2 ? 0.f : blend;
     const int poses[4] = {on ? smooth[0] : pose1, pose1, pose2, on ? smooth[1] : pose2};
     const float lerp[4] = {0.f, 1.f - b, b, 0.f};
+    trace.keys[2] = trace.keys[1];
+    trace.keys[1] = trace.keys[0];
+    trace.keys[0] = Trace::Keys{cl.time, e->frame, {poses[0], poses[1], poses[2], poses[3]}, blend, {0.f, 0.f, 0.f, 0.f}};
+    for(int k = 0; k < 4; k++)
+    {
+        trace.keys[0].w[k] = on ? weights[k] : lerp[k];
+    }
     trace.prev2 = trace.prev;
     trace.prev = trace.now;
     trace.now.resize(static_cast<za::SizeT>(count));
@@ -790,6 +845,16 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
         }
         trace.accel.pushBack(sum / static_cast<float>(za::max<za::SizeT>(trace.now.size(), 1)));
         trace.peak.pushBack(most);
+        if(trace.joltLog > 0.f && most > trace.joltLog)
+        {
+            Con_Printf("animsmooth: jolt %.3f at %.4f\n", most, cl.time);
+            for(int k = 2; k >= 0; k--)
+            {
+                const Trace::Keys& q = trace.keys[k];
+                Con_Printf("animsmooth:   t %.4f frame %d keys %d %d %d %d blend %.3f w %.3f %.3f %.3f %.3f\n", q.time, q.frame,
+                    q.poses[0], q.poses[1], q.poses[2], q.poses[3], q.blend, q.w[0], q.w[1], q.w[2], q.w[3]);
+            }
+        }
     }
     if(--trace.framesLeft > 0)
     {
@@ -1147,19 +1212,21 @@ namespace
     return ent;
 }
 
-// vr_anim_smooth_trace <frames> [<entity> | <model>]
+// vr_anim_smooth_trace <frames> [<entity> | <model> [<jolt>]]
 void trace_f()
 {
     if(Cmd_Argc() < 2)
     {
         Con_Printf("vr_anim_smooth_trace <frames> [<entity> | <model>]: the nearest monster's (or <entity>'s, or the nearest "
                    "whose model's name has <model>) drawn animation over the next <frames> frames: how much its vertices' "
-                   "speed changes frame to frame (r_lerpmodels 1 against 3; vr_fixed_frames 1)\n");
+                   "speed changes frame to frame (r_lerpmodels 1 against 3; vr_fixed_frames 1); <jolt> (after <model>): "
+                   "each frame one vertex's change passes it, printed with its spline's keys and the two frames' before\n");
         return;
     }
     trace = Trace{};
     trace.ent = pickEntity(Cmd_Argc() >= 3 ? Cmd_Argv(2) : "");
     trace.framesLeft = za::max(atoi(Cmd_Argv(1)), 3);
+    trace.joltLog = Cmd_Argc() >= 4 ? static_cast<float>(atof(Cmd_Argv(3))) : 0.f;
     if(trace.ent < 0)
     {
         Con_Printf("animsmooth: no model to trace\n");
