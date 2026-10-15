@@ -39,7 +39,9 @@ trigger still uses the tool. A menu opened meanwhile hides it until it closes.
     from a fresh page, its label tagged (SoA: Scourge of Armagon, DoE: Dissolution of Eternity, MG / MG3: the Machine
     packs, Honey, Corpses; Arcane Dimensions' AD last); `>>` jumps to the next group. An entry whose pack's data (or
     rules: AD's map, Dawn of the Machine's campaign for its upgrades) is not there is dimmed, "(unavailable)"
-    (`Quake/vr/vr_toolgun_packs.inc`; ROUND22.md, "Every expansion's entities in the toolgun's spawn panel").
+    (`Quake/vr/vr_toolgun_packs.inc`; ROUND22.md, "Every expansion's entities in the toolgun's spawn panel"). AD's
+    entries come from `Misc/quakevr/ad_monsters_gen.py`: AD's maps (or Additional Content Everywhere), its Quoth
+    monsters and backpacks AD's maps only (ROUND22.md, "The rest of AD's monsters and pickups in the spawn panel").
   - Remove: how; Clear Props Made Since the Map Loaded.
   - Physgun: Turn With the Wrist, Snap (X/A) Off/15/45/90, Sticks Turn Pitch/Yaw/Roll, Unfreeze Everything.
   - Scale: Proportional, Reset Its Size.
