@@ -135,6 +135,11 @@ def case_crush():
         if up == 64:
             verdict(not bad and not m, "standing, 64-unit drop: " + ("crushed (wrong)" if m else "nothing"))
             continue
+        if up == 128:
+            # It lives through the crush: knocked down by the stomp (vr_ragimpact_stomp), you bouncing off it.
+            st = re.search(r"ragimpact stomp: \S+ \(\d+ kg\) knocked down, health [-\d.]+: landed at (\d+) u/s", flat)
+            verdict(not bad and st and s[1] == 1, f"standing, 128-unit drop: knocked down by the stomp at {st.group(1)} u/s"
+                    if st and s and s[1] == 1 else "standing, 128-unit drop: not knocked down")
         pops = m.group(4) or "" if m else ""
         got.append(float(m.group(2)) if m else -1)
         verdict(not bad and m and m.group(3).startswith("head"),
