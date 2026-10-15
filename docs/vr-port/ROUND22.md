@@ -5917,3 +5917,33 @@ Backlog "Model vertex wobble" (1). `vr_mdl_dequant` (default 1; Graphics > Model
 each .mdl vertex follows the smoothest path through its animation within half a byte step of every stored value; 0 is
 the old look exactly. Debug > Reports > Steady Vertices Check (`vr_mdl_dequant_check`). Design, numbers (near-still
 wobble -46% to -100%, 114 ms load for 139 models), the proof for 0 and what to try in the headset: `MDL_DEQUANT.md`.
+
+## Model vertex wobble 2: loop seams and shading flicker (worktree `dequant`, 2026-10-15)
+
+His note: "a noticeable itch at the loop point for certain animations (e.g. grunt and knight idle)", and some
+wobbling/pulsating left. Measured (`vr_mdl_dequant_check`, near-still axes: 3 steps or less over the loop):
+
+- **The itch was ours.** QVR's soldier, knight, dog and player have no frame names (knight: "1".."97"), so the idle loop
+  was merged into the next animation (knight 0..16: stand + run) and smoothed with free ends: the seam (stand9 -> stand1)
+  got up to a step of kink while the inside got smooth. Seam second difference rms: knight idle 0.63 stored, 1.26 before,
+  soldier idle 0.90 stored, 1.85 before.
+- **Fix: the loops come from the progs.** A model's loops are the cycles of the QuakeC frame functions
+  (`[$stand9, knight_stand1]` = OP_STATE) reached from the functions that name the model (monster_knight's
+  `th_stand = knight_stand1`); string immediates only (not variables, locals or the parameter globals, whose live values
+  lie), a loop to the models naming it at least half as often as the most, overlapping loops: the most named. 575 loops,
+  built once per progs in 3-5 ms; e1m1's 139 models: every stock monster's stand/walk/run found. Smoothed cyclically.
+  Knight idle seam 1.26 -> **0.22** (inside 0.44 -> 0.17; max at the seam 3.67 -> 1.00 = the inside's max), soldier idle
+  1.85 -> **0.23** (inside 0.69 -> 0.13; max 4.67 -> 1.00, inside 0.81). Walk loops whose artist's seam is itself a hitch
+  keep part of it (knight walk: stored seam 2.18 vs inside 0.72 -> 1.05 now): the half-step box allows no more.
+- **Pulsating: the shading.** An idle knight's near-still vertices turn their stored normal 7.5 degrees rms a frame (55%
+  of frames change direction: the 162-direction table, 14.5 degrees apart). Now each normal component is smoothed along
+  the same runs within 0.1 of the table direction's (at most 10.2 degrees from it; the table's own error is up to 10.7):
+  knight 7.47 -> 2.16 degrees, soldier 2.09 -> 0.68, zombie 6.09 -> 1.81, player 4.85 -> 1.09, ogre 11.1 -> 4.7.
+- **Not the solver nor the blending.** A third-difference objective (prototype) gave the idle loops the same second
+  differences (knight seam 0.240 vs 0.222, inside 0.172 vs 0.173); linear blending between the smoothed poses departs
+  from a smooth curve by about d2/8 = 0.02 steps (0.007 units): nothing to fix.
+- Off is still the bytes exactly: the seeded ogre scene with 0 gave the base commit's own image (md5 355b30a9...) and,
+  in another run, the known 1/255 noise (429 pixels). Load: 139 models 202 ms (`--exclusive`; was 114: the normals
+  double the solves); memory 8 bytes per pose and vertex (7.6 MB for those 139).
+- The check prints, per model, the progs loops' seam and inside (stored, without the progs' loops, now) and the
+  normals' turn; one model named: each loop's.
