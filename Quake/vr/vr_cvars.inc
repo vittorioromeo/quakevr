@@ -2331,6 +2331,23 @@ QVR_CVAR(vr_hit_stagger_head, "1.5", CVAR_ARCHIVE)        // a melee blow to the
 QVR_CVAR(vr_hit_stagger_resist, "0.75", CVAR_ARCHIVE)     // big monsters resist: the chance times (30 / its full health) ^ this, above 30 health (0: none; shambler 0.1, ogre 0.24)
 QVR_CVAR(vr_hit_stagger_push, "1", CVAR_ARCHIVE)          // its push, times a shove's (impact 1: a two-hand shove's; 0.5 .. 1.25)
 QVR_CVAR(vr_hit_stagger_cooldown, "4", CVAR_ARCHIVE)      // s after an unbalancing hit before another hit can unbalance it (no stunlock)
+// Impacts (QC vr_ragimpact.qc, the engine's vr_box3d.cpp noteRagImpacts; Combat > Knockdowns, "Impacts"): a knocked-down,
+// thrown or held living ragdoll's part striking a wall or the floor hard takes damage by its speed times the mass behind
+// it, worn into its head or limb too (past the piece's health: popped); landing on one from a height crushes the part
+// under your feet. Corpses held or just thrown wear their pieces the same way.
+QVR_CVAR(vr_ragimpact, "1", CVAR_ARCHIVE)                 // on (0: only the fall damage of its landings)
+QVR_CVAR(vr_ragimpact_damage, "0.15", CVAR_ARCHIVE)       // damage per kg m/s past the least speed (mass behind the part x (its speed - Least Speed))
+QVR_CVAR(vr_ragimpact_min_speed, "2.5", CVAR_ARCHIVE)      // m/s: slower strikes do nothing
+QVR_CVAR(vr_ragimpact_body, "0.1", CVAR_ARCHIVE)          // share of the rest of the body's mass behind the struck part (0: the part alone)
+QVR_CVAR(vr_ragimpact_whip, "2", CVAR_ARCHIVE)            // a part's speed counts up to this times its whole body's (a limb whipping on a throw is no blow), unless a hand holds it
+QVR_CVAR(vr_ragimpact_held_mass, "20", CVAR_ARCHIVE)      // kg of your arm behind a part your hand holds (a head held and slammed: the hand drives it)
+QVR_CVAR(vr_ragimpact_held_speed, "1", CVAR_ARCHIVE)      // m/s: a part your hand holds counts from this speed (the hand slows as it drives a body: 2-4 m/s slams)
+QVR_CVAR(vr_ragimpact_head, "1.5", CVAR_ARCHIVE)          // a strike on the head deals this much more
+QVR_CVAR(vr_ragimpact_piece_hp, "0.5", CVAR_ARCHIVE)       // a head's or limb's own health, times its corpse health (vr_corpse_health_<monster>): worn past it, it pops
+QVR_CVAR(vr_ragimpact_time, "2", CVAR_ARCHIVE)            // s: a body (alive or dead) you hold, or let go of (threw) this long ago, takes impacts (0: only while held)
+QVR_CVAR(vr_ragimpact_crush, "1", CVAR_ARCHIVE)           // landing on a living ragdoll from a height crushes the part under your feet, times this (0: off)
+QVR_CVAR(vr_ragimpact_crush_speed, "400", CVAR_ARCHIVE)   // units/s: landing slower than this crushes nothing (a 100-unit drop; 2 storeys: about 640)
+QVR_CVAR(vr_ragimpact_crush_mass, "50", CVAR_ARCHIVE)     // kg of you counted behind your feet
 QVR_CVAR(vr_knockdown_time_min, "2.5", CVAR_ARCHIVE)      // seconds it stays down, at least,
 QVR_CVAR(vr_knockdown_time_max, "4.5", CVAR_ARCHIVE)      // and at most (at random between)
 QVR_CVAR(vr_knockdown_hit_time, "0.5", CVAR_ARCHIVE)      // seconds each hit while down adds (not past Time Max from the hit)
@@ -2886,6 +2903,12 @@ QVR_CVAR(vr_foegrab_lift_strength, "1.2", CVAR_ARCHIVE)    // the most each hand
 QVR_CVAR(vr_foegrab_lift_up, "160", CVAR_ARCHIVE)          // units/s: it leaves the floor this fast up as it is lifted
 QVR_CVAR(vr_foegrab_lift_shove, "48", CVAR_ARCHIVE)        // units: breaking free it shoves you back this far (0: not at all)
 QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz monster_ranged_knight infected", CVAR_ARCHIVE) // the humanoids that can be lifted (classnames; "infected": Dawn of the Machine's infected); never ogres, fiends, shamblers, vores
+// Manhandling (vr_foegrab.cpp tryTake, QC VR_FoeGrab_Manhandle): a hand taking hold of a humanoid (the lift's classes)
+// that is staggered (a shove, an unbalancing hit or throw, a stagger just recovered from) or weak knocks it down as a
+// ragdoll held in that hand, as a lift's (it flails and breaks free after Lift Time). A staggering ragdoll a hand takes
+// goes down (box3d grabRagdoll).
+QVR_CVAR(vr_foegrab_manhandle_stagger, "1.5", CVAR_ARCHIVE) // s: staggered this recently it can be manhandled (0: never)
+QVR_CVAR(vr_foegrab_manhandle_health, "0.25", CVAR_ARCHIVE) // at or under this share of its full health it can be manhandled (0: never)
 // The neck snap (vr_foegrab.cpp neckCheck, ragdollNeckCheck; QC VR_FoeGrab_NeckSnap): both hands holding a humanoid's head
 // (standing, staggering, knocked down, lifted: alive) twist it round: its neck snaps, it dies, its body limp in your hands.
 QVR_CVAR(vr_foegrab_necksnap, "1", CVAR_ARCHIVE)           // 1: the neck snap on

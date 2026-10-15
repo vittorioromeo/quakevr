@@ -95,6 +95,7 @@ float(entity e, entity xBy, vector xDir, float xImpact, float xDamage, string xW
         xDir = normalize(xDir);
     }
     e.vr_hst_next = time + max(0, cvar_hget(cvarh_vr_hit_stagger_cooldown));
+    VR_Manhandle_Shaken(e); // (a hand's hold may knock it down a moment: vr_foegrab_manhandle_stagger)
     // The shove's push at this strength (VR_Bash_Hit's: 520 u/s and a 140 hop, times vr_bash_push).
     float push = min(1.25, max(0.5, xImpact)) * max(0, cvar_hget(cvarh_vr_hit_stagger_push));
     float bashPush = cvar_hget(cvarh_vr_bash_push) * push;

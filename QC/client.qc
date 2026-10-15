@@ -2284,6 +2284,10 @@ void() PlayerPostThink =
     VR_ShotImpacts(); // QVR: projectiles fired from inside what they hit meet it (weapons.qc)
 
 // check to see if player landed and play landing sound
+    if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
+    {
+        VR_RagImpact_Crush(self, -self.jump_flag); // QVR: landing on a living ragdoll crushes it (vr_ragimpact.qc)
+    }
     if(AD_PlayerLanded()) {} // AD support: AD's fall rules in an AD map (vr_ad_bridge.qc)
     else if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
     {

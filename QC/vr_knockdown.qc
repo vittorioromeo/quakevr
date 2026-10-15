@@ -273,6 +273,7 @@ void(string xWhat) VR_Knockdown_Afoot =
     VR_Knockdown_Upright();
     self.vr_knockdown = 0;
     self.vr_kd_stagger = 0;
+    VR_Manhandle_Shaken(self); // (just back on its feet: a hand's hold may knock it down again a moment)
     // (Its run; the training dummy (a grunt with neither run nor AI) back to standing.)
     self.think = self.th_run;
     if(VR_IsDummy(self))
@@ -642,6 +643,7 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
     {
         return FALSE;
     }
+    VR_Manhandle_Shaken(e); // (a hand's hold may knock it down a moment: vr_foegrab_manhandle_stagger)
     float base = cvar_hget(e.vr_kd_chance_h);
     float chance = base * max(0, cvar_hget(cvarh_vr_knockdown_chance));
     float full = e.max_health > 0 ? e.max_health : e.health;
@@ -718,6 +720,11 @@ void(float xMode) VR_Knockdown_Test =
     if(xMode >= 40 && xMode < 50)
     {
         VR_HitStagger_Test(xMode); // (vr_hitstagger.qc: hits that unbalance)
+        return;
+    }
+    if(xMode >= 50 && xMode < 60)
+    {
+        VR_RagImpact_Test(xMode); // (vr_ragimpact.qc: impacts, landing crush, manhandling)
         return;
     }
     if(xMode == 20)

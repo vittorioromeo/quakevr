@@ -763,6 +763,40 @@ int handOver(edict_t* player, edict_t* m, Holder& hd, float strength, float hert
     return hands;
 }
 
+// Manhandling (vr_foegrab_manhandle_stagger, _health; QC VR_FoeGrab_Manhandle): hand `h` of `player` just took hold of
+// `m`, a humanoid (the lift's classes) staggered a moment ago or weak: knocked down where it stands, its ragdoll held on
+// by that hand as a lifted one's (handOver at vr_foegrab_lift_strength, flailing; it breaks free after
+// vr_foegrab_lift_time, carryStep). Not while the hands carry one already.
+void manhandle(edict_t* player, Holder& hd, int h, edict_t* m)
+{
+    if((vr_foegrab_manhandle_stagger.value <= 0.f && vr_foegrab_manhandle_health.value <= 0.f) || hd.carried > 0 ||
+        isTrainingDummy(m) ||
+        !inList(vr_foegrab_lift_classes.string, PR_GetString(m->v.classname),
+            fieldFloatOr(m, fields().vr_mg3_infected, 0.f) != 0.f))
+    {
+        return;
+    }
+    const float hold = za::clamp(vr_foegrab_lift_time.value, 0.1f, 60.f);
+    const float result = callQc("VR_FoeGrab_Manhandle", player, m, static_cast<float>(h), hold + 1.f, 0.f);
+    if(result < 1.f)
+    {
+        return;
+    }
+    const char* why = result >= 2.f ? "weak" : "staggered";
+    if(handOver(player, m, hd, vr_foegrab_lift_strength.value, liftHertz, Why::Lifted) == 0)
+    {
+        release(player, h, Why::Lifted, "manhandled, nothing to hold on to");
+        return;
+    }
+    hd.breakAt = qcvm->time + hold;
+    hd.flailing = box3d::ragdollFlail(m, true);
+    if(debug() || vr_knockdown_debug.value != 0.f)
+    {
+        Con_Printf("manhandle: %s (%d) taken by the %s hand %s: knocked down, held on as a ragdoll, breaks free in %.1f s\n",
+            PR_GetString(m->v.classname), NUM_FOR_EDICT(m), handName(h), why, hold);
+    }
+}
+
 // The hands of player `c` holding the ragdoll handOver gave them (the QC's held field and the engine's hold), 0: none.
 [[nodiscard]] int carryingHands(int c, edict_t* m)
 {
@@ -1946,6 +1980,7 @@ void qvr::foegrab::preThink(edict_t* ent)
         if(tryTake(ent, hd, h, *move))
         {
             hd.owned[h] = true;
+            manhandle(ent, hd, h, EDICT_NUM(hd.holds[h].ent)); // (handed over: the grip the QC's again)
         }
     }
 
