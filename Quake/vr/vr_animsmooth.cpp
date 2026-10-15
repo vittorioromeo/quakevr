@@ -6,7 +6,8 @@
 // changes at once at every frame. Here, between the same two poses:
 // - A, the timing: each vertex goes along a cubic spline through four poses, the lerp's two, the one before them (the lerp
 //   that ended where this one starts: entity_t's animpose0, R_AnimHistoryPush) and the one expected after (the next frame
-//   of its animation by the frames' names, or the one seen after it last time: a loop's first), its tangents the
+//   of its animation by the frames' names and the progs' loops (vr_mdldequant.cpp's runs: also the jumps and loops of
+//   frames named by numbers alone), or the one seen after it last time: a loop's first), its tangents the
 //   non-uniform Catmull-Rom ones by the frames' times (the speed carried through each frame; vr_anim_smooth_tension 1
 //   eases to rest at each). The four poses' weights are the instance's (InstanceData's Smooth, SmoothW).
 // - B, the limbs (a monster with a ragdoll rig: vr_ragdoll.cpp's): each bone's rigid motion between the poses (its fit to
@@ -310,9 +311,11 @@ void splitName(const char* name, char* prefix, int& number)
             m.next[static_cast<za::SizeT>(f)] = static_cast<int16_t>(f + 1);
         }
     }
-    // Where the names don't say (a guess by the file's order, or an animation's last frame): the dequantiser's runs, the
-    // progs' loops (knight_stand9 back to knight_stand1: sure, over the names too) and the jumps between unrelated
-    // animations (none expected after: learnt once seen). (Not the poses' first sight's guess at a loop's end: a jolt.)
+    // The dequantiser's runs: the progs' loops (knight_stand9 back to knight_stand1: sure, over the names too) and, where
+    // the names are only a guess (the file's order: the knight's numbers, the shambler's "From ASE"), the jumps between
+    // unrelated animations (none expected after: learnt once seen) and the loops that come back to their first pose. A
+    // named animation's end stays unknown until seen (an attack's last frame: its first again would be a guess).
+    // (ROUND22, "Smooth's idle knight jolt": the knight's stand9 went on to run1 by the numbers, a 2.5-unit jolt.)
     if(hdr->poseverttype == aliashdr_t::PV_QUAKE1 && m.numPoses > 0)
     {
         za::Vector<short> after(static_cast<za::SizeT>(m.numPoses), -1);
@@ -333,7 +336,7 @@ void splitName(const char* name, char* prefix, int& number)
                 m.next[fi] = static_cast<int16_t>(af);
                 m.namedNext[fi] = af >= 0;
             }
-            else if(!m.namedNext[fi] || m.next[fi] == -1)
+            else if(!m.namedNext[fi])
             {
                 m.next[fi] = static_cast<int16_t>(af);
                 m.namedNext[fi] = 0;
