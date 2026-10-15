@@ -541,7 +541,7 @@ void(float xLarge) VR_FireSpot =
 
 // AD support: Arcane Dimensions' flames (ad_lights.qc: its torch, flames, pyre, braziers), static and lit for good (not
 // LIGHTOFF, nothing to switch them): their places too, as the map's own flames'.
-void(float xLarge) VR_FireSpot_AD =
+void(float xLarge) VR_AD_FireSpot =
 {
     if(!(self.spawnflags & 1) && self.targetname == "")
     {

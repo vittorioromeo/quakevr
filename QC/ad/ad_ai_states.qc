@@ -16,6 +16,7 @@ void() ad_ai_stand =
 	ad_monster_liquid_check();				// Check for liquid damage
 	ad_check_tethertimer();				// Check for tethering system
 	if (ad_FindTarget ()) return;			// Found a player?
+	if (VR_AD_StealthStand()) return;
 	// Double check there is a goalentity, no pause and no turret
 	if (self.goalentity && time > self.ad_pausetime && self.ad_movespeed >= 0) {
 		// Make sure AI is turning towards new path corner direction
@@ -44,6 +45,7 @@ void(float ad_dist) ad_ai_walk =
 	ad_monster_liquid_check();				// Check for liquid damage
 	ad_movedist = ad_dist;
 	if (ad_FindTarget ()) return;			// Found a player?
+	if (VR_AD_StealthWalk(ad_dist)) return;
 	
 	// Allow for flying units to move up/down between path corners
 	if (self.ad_classmove == ad_MON_MOVEFLY) {
@@ -123,6 +125,7 @@ void(float ad_dist) ad_ai_run =
 		// The last time the enemy was in sight
 		self.ad_enemylastseen = time;
 	}
+	if (VR_AD_StealthLose(ad_enemy_vis)) return;
 
 	//----------------------------------------------------------------------
 	// look for other coop players

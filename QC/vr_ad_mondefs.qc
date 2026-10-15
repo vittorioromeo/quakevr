@@ -40,3 +40,24 @@ float(entity targ) VR_AD_PainDown;       // T_Damage, before the pain: knocked d
 void(entity attacker) VR_AD_Dying;       // Killed, before the death function (self dying): beheading, limbs, shock
 void() VR_AD_Died;                       // Killed, after it: a knockdown's death at once, the corpse, the blood pool
 void() VR_AD_BodySolid;                  // monster_death_postcheck: its body touchable, not a trigger (its ragdoll)
+
+// AD support: Quake VR's stealth AI on AD's monsters (vr_ad_stealth.qc, after AD's files; STEALTH.md, "Arcane
+// Dimensions"). vr_stealth.qc asks these for a monster whose stl_ad says it is AD's:
+float(entity m) VR_AD_StealthKind;       // 0 not AD's; 1 AD's (walks); 2 AD's, never walks (a turret); -1 AD's, excluded
+float(entity m) VR_AD_StealthPassive;    // AD's passive mode on (it ignores him until a fight starts): no stealth rules
+void(float xWalking) VR_AD_StealthAnim;  // self's stand (paused for good) or walk animation: AD's thinks
+entity(entity m) VR_AD_StealthPath;      // its path (AD's movetarget)
+void(entity m, entity xPath) VR_AD_StealthSetPath;
+float(entity m) VR_AD_StealthOnPath;     // walking its path (a path corner, not paused for good)
+void() VR_AD_StealthFound;               // self Hostile at self.enemy: AD's FoundTarget
+void(entity m) VR_AD_StealthVoice;       // its "huh?": its idle sound, a little quieter
+void(entity m) VR_AD_StealthTestReset;   // vr_stealth_test's reset: AD's own enemy, path and sight relay cleared
+void() VR_AD_StealthTestUse;             // vr_stealth_test 7: AD's monster_use on self (activator)
+// AD's patched AI calls these (ad_import.py FUNC_PATCHES).
+float() VR_AD_StealthTick;               // FindTarget's start: Quake VR's tick; TRUE: Hostile now
+float(entity client) VR_AD_StealthSight; // FindTarget: TRUE when the meter sees this client (a player, not AD's relay)
+float(entity client) VR_AD_StealthSee;   // and its sighting: TRUE Hostile (AD's FoundTarget ran)
+void() VR_AD_StealthHostile;             // FoundTarget, FoundHuntTarget: Hostile
+float() VR_AD_StealthStand;              // ai_stand after FindTarget: TRUE the Alert state took the think
+float(float dist) VR_AD_StealthWalk;     // ai_walk after FindTarget: the same
+float(float xVis) VR_AD_StealthLose;     // ai_run: TRUE lost him a while (Alert)

@@ -425,6 +425,8 @@ vr_ad_player.qc
 vr_ad_world_test.qc
 vr_ad_test.qc
 vr_ad_monsters.qc
+// The stealth AI on AD's monsters (AD's patched FindTarget, stand, walk, run call it; vr_stealth.qc asks it).
+vr_ad_stealth.qc
 // The AD soldiers' guns: dropped, fired (after the monsters' hooks: VR_AD_Dying drops them).
 vr_ad_enemyguns.qc
 vr_ad_monsters_test.qc
