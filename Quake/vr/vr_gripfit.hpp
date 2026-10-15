@@ -53,7 +53,7 @@ struct Result
     int directions{0}, measured{0};
     int points{0}, planes{0};
     float grown{0.f};    // cm, the most a face was pushed out to the drawn model
-    double micros{0.0};
+    double micros{0.0}, shapeMicros{0.0}, poseMicros{0.0}; // in all; of which the shape, the hand posed
 };
 
 // Client side, every frame where the hand is measured (vr_view.cpp updateGripFrame): `hand`'s (0 off, 1 main) rig

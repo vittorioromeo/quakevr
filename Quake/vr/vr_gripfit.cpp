@@ -26,14 +26,14 @@ namespace
 constexpr int fingers = handrig::FingerCount;
 constexpr int samples = 3;                                // each finger's curls: open, half, the tightest fist
 constexpr float sampleCurl[samples] = {0.f, 2.f, 4.f};
-constexpr int bodyMost = 48;                              // the palm, the back of the hand, the wrist
-constexpr int fingerMost = 6;                             // a finger's (the thumb's with its ball)
+constexpr int bodyMost = 40;                              // the palm, the back of the hand, the wrist
+constexpr int fingerMost = 4;                             // a finger's (the thumb's with its ball)
 constexpr int maxPoints = bodyMost + fingers * samples * fingerMost;
 constexpr int maxPlanes = 256;
 constexpr int maxHulls = 16;
-constexpr int maxDirections = 6;
-constexpr int mostMeasured = 3;                           // the ways out measured where they lead
-constexpr int drawnMost = 512;                            // the drawn vertices the faces are pushed out to, at most
+constexpr int maxDirections = 5;
+constexpr int mostMeasured = 2;                           // the ways out measured where they lead
+constexpr int drawnMost = 128;                            // the drawn vertices the faces are pushed out to, at most
 constexpr float drawnReachCm = 6.f;                       // a drawn vertex further out of a hull is another part's
 constexpr float none = 1e30f;
 
@@ -478,7 +478,24 @@ bool makeShape(int num, const glm::vec3& lo, const glm::vec3& hi, const za::Vect
     const float margin = drawnReachCm * 0.01f * units::metresToUnits();
     const size_t count = drawn->size();
     const size_t stride = za::max(static_cast<size_t>(1), (count + drawnMost - 1) / drawnMost);
-    float mostOut = -none, leastOut = none;
+    if(in.hulls == 1)
+    {
+        // One hull (most props): each face out to the drawn model's furthest point along it (no further than the margin).
+        for(int j = 0; j < planes; j++)
+        {
+            glm::vec4& pl = in.planes[j];
+            float most = pl.w;
+            for(size_t i = 0; i < count; i += stride)
+            {
+                const glm::vec3& v = (*drawn)[i];
+                most = za::fmax(most, pl.x * v.x + pl.y * v.y + pl.z * v.z);
+            }
+            most = za::fmin(most, pl.w + margin);
+            grown = za::fmax(grown, most - pl.w);
+            pl.w = most;
+        }
+        return true;
+    }
     for(size_t i = 0; i < count; i += stride)
     {
         const glm::vec3& v = (*drawn)[i];
@@ -492,8 +509,6 @@ bool makeShape(int num, const glm::vec3& lo, const glm::vec3& hi, const za::Vect
                 const glm::vec4& pl = in.planes[j];
                 out = za::fmax(out, pl.x * v.x + pl.y * v.y + pl.z * v.z - pl.w);
             }
-            mostOut = za::fmax(mostOut, out);
-            leastOut = za::fmin(leastOut, out);
             if(out > 0.f && out <= margin)
             {
                 for(int j = begin; j < end; j++)
@@ -509,11 +524,6 @@ bool makeShape(int num, const glm::vec3& lo, const glm::vec3& hi, const za::Vect
             }
             begin = end;
         }
-    }
-    if(developer.value >= 2.f)
-    {
-        Con_Printf("gripfit: shape: %d drawn vertices (every %d), %d hulls, out of a hull %.2f .. %.2f units\n",
-            static_cast<int>(count), static_cast<int>(stride), in.hulls, leastOut, mostOut);
     }
     return true;
 }
@@ -531,6 +541,7 @@ void setHandRig(int hand, const glm::mat4* rigToHand, const handrig::Pose& pose)
     if(h.valid)
     {
         h.rigToHand = *rigToHand;
+        (void)rigPointsNow(); // (made with the rig, not at a grab)
         h.pose = pose;
     }
 }
@@ -563,7 +574,9 @@ bool fit(int num, int hand, bool local, bool twoHand, const glm::mat3& handToPro
     }
     bool hull = false;
     float grown = 0.f;
-    if(!makeShape(num, lo, hi, drawn, in, hull, grown))
+    const bool shaped = makeShape(num, lo, hi, drawn, in, hull, grown);
+    const za::I64 tShape = za::Clock::nowNanoseconds();
+    if(!shaped)
     {
         return false;
     }
@@ -609,6 +622,7 @@ bool fit(int num, int hand, bool local, bool twoHand, const glm::mat3& handToPro
             }
         }
     }
+    const za::I64 tPose = za::Clock::nowNanoseconds();
     const float cm = 0.01f * units::metresToUnits();
     in.bodyAllowed = za::fmax(vr_grip_fit_palm_depth.value, 0.f) * cm;
     in.fingerAllowed = za::fmax(vr_grip_fit_finger_depth.value, 0.f) * cm;
@@ -635,14 +649,16 @@ bool fit(int num, int hand, bool local, bool twoHand, const glm::mat3& handToPro
     res.planes = in.hulls > 0 ? in.hullEnds[in.hulls - 1] : 0;
     res.grown = grown / cm;
     res.micros = static_cast<double>(za::Clock::nowNanoseconds() - t0) / 1000.0;
+    res.shapeMicros = static_cast<double>(tShape - t0) / 1000.0;
+    res.poseMicros = static_cast<double>(tPose - tShape) / 1000.0;
     if(developer.value || vr_debug_carry.value)
     {
         Con_Printf("gripfit: %d %s hand%s: overlap %.1f cm (fingers %.1f), deepest %.2f -> %.1f (%.1f), %.2f cm; moved %.2f cm "
                    "(most %.1f), %d ways, %d measured\n",
             num, hand ? "main" : "off", twoHand ? " (second of two)" : "", res.before, res.beforeFingers, res.deepestBefore,
             res.after, res.afterFingers, res.deepestAfter, glm::length(move) / cm, in.cap / cm, res.directions, res.measured);
-        Con_Printf("gripfit: %d points, %d %s faces (pushed out to the model up to %.1f cm), %.1f us\n", res.points, res.planes,
-            hull ? "hull" : "box", res.grown, res.micros);
+        Con_Printf("gripfit: %d points, %d %s faces (pushed out to the model up to %.1f cm), %.1f us (shape %.1f, pose %.1f)\n",
+            res.points, res.planes, hull ? "hull" : "box", res.grown, res.micros, res.shapeMicros, res.poseMicros);
     }
     return glm::length(move) > 0.f;
 }
