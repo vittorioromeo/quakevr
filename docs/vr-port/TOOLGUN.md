@@ -66,7 +66,8 @@ walk with one and turn with the other as ever, and its ghost is held by the hand
     hand's movement from the press counts, and the ghost does not jump when you press. Turning that hand does nothing.
     Let go, the offsets stay.
   - **the gun hand's A / X held, and turn that hand** — the ghost's yaw only, from that hand's way: 90 degrees of the
-    hand's yaw turns it 90 degrees, and turning yourself turns it with you (as the physgun's hold does); its pitch and
+    hand's yaw turns it 90 degrees, and turning yourself (the stick) carries it round with you, turned as it was
+    towards you (the hand's way counts in your play space: the turn itself is unchanged); its pitch and
     twist do nothing, and its offsets stay. Damped as the physgun's wrist is when the hand points near straight up or
     down (`vr_toolgun_physgun_wrist`'s weight).
   While a ghost is held that hand's A / X is the tool's: no jump, and the hook does not unreel. With nothing chosen, or

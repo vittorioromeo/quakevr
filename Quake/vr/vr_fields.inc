@@ -213,3 +213,6 @@ QVR_FIELD(vr_gate_crossed) // a missile carried through a teleporter: when (VR_P
 // Quake's drawing extensions, set by the engine on what it makes (vr_explosiondebris.cpp: a chunk's size and its fade).
 QVR_FIELD(alpha)
 QVR_FIELD(scale)
+
+// A monster in a melee attack: when (QC/fight.qc ai_charge and kin): kept out of the player's head (vr_bodycontact.cpp).
+QVR_FIELD(vr_melee_time)

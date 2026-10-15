@@ -777,8 +777,11 @@ void() ad_ai_resetangles =
 //----------------------------------------------------------------------
 void(float ad_dist) ad_ai_charge =
 {
+	self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
 	ad_ai_face ();
+	local vector ad_before = self.origin; // QVR: (VR_MeleeSpace_Step: fight.qc)
 	ad_movetogoal (ad_dist);
+	VR_MeleeSpace_Step(ad_before);
 };
 
 //----------------------------------------------------------------------
@@ -786,7 +789,10 @@ void(float ad_dist) ad_ai_charge =
 //----------------------------------------------------------------------
 void(float ad_dist) ad_ai_chargenoturn =
 {
+	self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
+	local vector ad_before = self.origin;
 	ad_movetogoal (ad_dist);
+	VR_MeleeSpace_Step(ad_before);
 };
 
 //----------------------------------------------------------------------
@@ -794,6 +800,7 @@ void(float ad_dist) ad_ai_chargenoturn =
 //----------------------------------------------------------------------
 void() ad_ai_charge_side =
 {
+	self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
 	local	vector	ad_dtemp;
 	local	float	ad_heading;
 	
@@ -805,7 +812,9 @@ void() ad_ai_charge_side =
 	ad_dtemp = self.enemy.origin - (30 * v_right);
 	ad_heading = vectoyaw(ad_dtemp - self.origin);
 	
+	ad_dtemp = self.origin; // QVR: (VR_MeleeSpace_Step: fight.qc)
 	ad_walkmove(ad_heading, 20);
+	VR_MeleeSpace_Step(ad_dtemp);
 };
 
 //----------------------------------------------------------------------
@@ -813,6 +822,7 @@ void() ad_ai_charge_side =
 //----------------------------------------------------------------------
 void() ad_ai_charge_front =
 {
+	self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
 	local	float	ad_heading;
 	
 	ad_ai_face();			// Turn towards enemy first
@@ -820,7 +830,9 @@ void() ad_ai_charge_front =
 	makevectors (self.angles);
 	ad_heading = vectoyaw(self.enemy.origin - self.origin);
 	
+	local vector ad_before = self.origin; // QVR: (VR_MeleeSpace_Step: fight.qc)
 	ad_walkmove(ad_heading, 10);
+	VR_MeleeSpace_Step(ad_before);
 };
 
 /*======================================================================
@@ -1135,6 +1147,7 @@ float(float ad_attackdist, float ad_attackzaxis) ad_ai_checkmelee =
 ======================================================================*/
 void() ad_ai_melee =
 {
+	self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
 	local float ad_ldmg;
 
 	if (!self.enemy) return;			// removed before stroke
@@ -1175,6 +1188,7 @@ void() ad_ai_melee =
 ======================================================================*/
 void(float ad_dmg_multiplier) ad_ai_meleesmash =
 {
+	self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
 	local float ad_ldmg;
 
 	if (!self.enemy) return;						// removed before stroke

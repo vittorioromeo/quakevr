@@ -9,7 +9,7 @@
 #      offsets and turn are untouched by either;
 #   3. the gun hand's A/X held: the hand's way turns the ghost (its yaw only: 90 degrees of the hand's yaw, and every
 #      step's turn equal to how far the gun's aim swung), its pitch and twist move nothing; the gun's stick still turns
-#      the player and its press still changes the tool (A/X held: the one before);
+#      the player and its press still changes the tool (A/X held: the one before, and again the one before that);
 #   4. Reset clears the offsets and the turn; with nothing chosen A/X is the game's again, with another tool in hand it
 #      is the sticks' (vr_debug_buttons says who took each press);
 #   5. the gun in the off hand: the same with the hands swapped.
@@ -64,8 +64,11 @@ st('TWIST')
 look('LS0')
 a('vr_mock_stick main 1 0;wait20;vr_mock_stick main 0 0;wait20')
 look('LS1')
+st('LSTURN')
 a('vr_mock_button main stickclick 1;wait2;vr_mock_button main stickclick 0;wait5')
 st('PREVTOOL')
+a('vr_mock_button main stickclick 1;wait2;vr_mock_button main stickclick 0;wait5')
+st('PREVTOOL2')
 a('vr_mock_button main primary 0;wait5')
 # 4. Reset; and A/X back to the game and to the sticks.
 a('vr_toolgun_tool 0;wait5')
@@ -94,14 +97,14 @@ a('wait5;toggleconsole;quit')
 print(';'.join(s))
 EOF
 )
-out=$(bash $KIT/run.sh $AGENT -Script "$S" -Timeout 600 -Filter 'toolgun|Player pos|VR buttons|^S0|^LW[01]|^W[01]|^T[01]|STICKS|^HOLD0|^MOVED|^HANDTURN|^HELD|^KEPT|^PLACED|^TURN0|^YAW90|^PITCH|^TWIST|^LS[01]|PREVTOOL|^BACK|^RESET|^NOSEL|^ADJUST|^OFF0|^OFFMOVED|^OFFYAW|ENGINE|CRASH|exit=|TIMEOUT' 2>&1)
+out=$(bash $KIT/run.sh $AGENT -Script "$S" -Timeout 600 -Filter 'toolgun|Player pos|VR buttons|^S0|^LW[01]|^W[01]|^T[01]|STICKS|^HOLD0|^MOVED|^HANDTURN|^HELD|^KEPT|^PLACED|^TURN0|^YAW90|^PITCH|^TWIST|^LS[01]|^LSTURN|PREVTOOL|^BACK|^RESET|^NOSEL|^ADJUST|^OFF0|^OFFMOVED|^OFFYAW|ENGINE|CRASH|exit=|TIMEOUT' 2>&1)
 [ -n "$VERBOSE" ] && echo "$out" | tail -140
 echo "$out" | python -c "
 import sys, re, math
 t = sys.stdin.read()
 fails = []
 tags = ['S0', 'HOLD0', 'MOVED', 'HANDTURN', 'HELD', 'KEPT', 'PLACED', 'STICKS', 'TURN0', 'YAW90', 'PITCH', 'TWIST',
-        'PREVTOOL', 'BACK', 'RESET', 'ADJUST', 'OFF0', 'OFFMOVED', 'OFFYAW']
+        'LSTURN', 'PREVTOOL', 'PREVTOOL2', 'BACK', 'RESET', 'ADJUST', 'OFF0', 'OFFMOVED', 'OFFYAW']
 nxt = dict(zip(tags, tags[1:] + ['ZZZ']))
 def block(tag):
     m = re.search(r'(?m)^' + tag + r'\b(.*?)(?=(?:^' + nxt[tag] + r'\b)|\Z)', t, re.S)
@@ -198,7 +201,13 @@ else:
     if abs(d(offs(b['PITCH'])[4], offs(b['YAW90'])[4])) > 5.0: fails.append('the hand pitch turned the ghost')
     ls0, ls1 = pos('LS0'), pos('LS1')
     if not ls0 or not ls1 or abs(d(ls1[3], ls0[3])) < 5: fails.append('the gun stick did not turn the player while its A/X was held')
+    lt, tw = offs(b['LSTURN']), offs(b['TWIST'])
+    print('the stick turn with A/X held: ghost turn', tw[4], '->', lt[4])
+    if abs(d(lt[4], tw[4])) > 1.0: fails.append('the player s stick turn turned the ghost')
     if tool(b['PREVTOOL'])[0] != 'Brush': fails.append('the stick press with A/X held: ' + str(tool(b['PREVTOOL'])))
+    # (A/X still held after the change: the next tool's sticks', and a second press goes back again, not forward)
+    if tool(b['PREVTOOL'])[1] != 1: fails.append('A/X held into the next tool is not its adjust: ' + str(tool(b['PREVTOOL'])))
+    if tool(b['PREVTOOL2'])[0] != 'Joint': fails.append('the second stick press with A/X held: ' + str(tool(b['PREVTOOL2'])))
     # 4. Reset, and A/X back to the game and the sticks.
     if tool(b['BACK'])[0] != 'Spawn': fails.append('not back with the spawn tool')
     bo = offs(b['BACK'])

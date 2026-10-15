@@ -970,6 +970,10 @@ int campaignsBloodyShown = -1;
         toggle("Step In", vr_foegrab_step_in)
             .help("While a hand holds an enemy, your body and its body don't meet: step in and bring the other hand to "
                   "its head. Let go while overlapping and the two are pushed gently apart (never stuck)."),
+        slider("Melee Space", vr_enemy_melee_space, 0.f, 48.f, 2.f, "%.0f units")
+            .help("A monster attacking you in melee (a knight's swing and its run past you, an ogre's chainsaw, a "
+                  "fiend's claws) is kept this far from your head, pushed back smoothly, so it never fills your view and "
+                  "you can parry. Its blows still reach you. 0: off (it charges in until your bodies meet)."),
         header("Two-Hand Throw"),
         toggle("Two-Hand Throw", vr_foegrab_throw)
             .help("Hold one enemy with both hands and turn it over hard, a judo throw: one shoulder down and the other up, "
@@ -6998,6 +7002,12 @@ za::Vector<Item> pageDebugTests()
         command("Nearest Body Contact", "vr_body_contact_status")
             .help("vr_body_contact_status: the live monster nearest you, how far (origins, level), how deep your two "
                   "bodies overlap (> 0) by Body Inset, whether a hand holds it (Step In)."),
+        command("Closest Melee Approach", "vr_enemy_melee_space_status")
+            .help("vr_enemy_melee_space_status: per kind of monster after you, the closest its box and its middle came to "
+                  "your head (level; below 0 your head was inside it), the same while it attacked in melee, and how far "
+                  "Melee Space pushed it back."),
+        command("Clear Melee Approach Log", "vr_enemy_melee_space_status reset")
+            .help("Starts the closest-approach log above again."),
         command("Who Is Held?", "vr_foegrab_status")
             .help("vr_foegrab_status: each hand holding an enemy, its hold, how firmly the enemy is held in all, how far "
                   "the hand is from the spot it holds (Combat > Holding Enemies); an enemy held on as a ragdoll after a "
