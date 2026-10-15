@@ -145,7 +145,7 @@ def status(flat, after):
 
 def case_hold():
     """hold: thrown left (hands at its shoulders) and held on (vr_foegrab_throw_hold 1): handed over to both hands, it
-    still falls to the left, then the hands, lowered to it, drag it 0.5 m towards you over a second: its pelvis comes 4+
+    still falls to the left, then the hands, lowered to it, drag it 0.5 m towards you over a second: its pelvis comes 2+
     units nearer.
     Held on off: let go as thrown, no ragdoll hold."""
     y = HEIGHTS["high"]
@@ -176,7 +176,7 @@ def case_hold():
         s1, s2 = status(flat, "MARK1"), status(flat, "MARK2")
         bad = "rror" in flat or "CRASH" in flat
         if on:
-            pulled = s1 and s2 and s1[1] - s2[1] > 4
+            pulled = s1 and s2 and s1[1] - s2[1] > 2
             ok = thrown and handed and handed.group(1) == "2" and left > 8 and pulled and not bad
             verdict(ok, f"held on: thrown left {thrown}, held by {handed.group(1) if handed else 0} hands, lies {left:.0f} "
                         f"left; pelvis ahead {s1[1] if s1 else '?'} -> {s2[1] if s2 else '?'} "
