@@ -3545,7 +3545,14 @@ void hologramTestMessage()
             .extend(0.f, 20.f)
             .help("A gun lying on a table or the floor is taken by its handle with your fist this much farther off it than "
                   "the slack above (the hand at its handle; your hand nudging it doesn't stop it). Only a direct grab: a "
-                  "weapon caught in the air still needs your fist on it, and a force grab is unchanged. 0: as anywhere on it."),
+                  "weapon caught in the air has Mid-Air Catch Leniency, and a force grab is unchanged. 0: as anywhere on it."),
+        slider("Mid-Air Catch Leniency", vr_weapon_catch_handle_leniency, 0.f, 15.f, 0.5f, "%.1f cm")
+            .help("A weapon in the air (tossed up to re-grip it, flipped, spinning) is caught by its handle with your fist "
+                  "this much off it. Not a force grab's pull. 0: only by your fist on it."),
+        slider("Mid-Air Catch Window", vr_weapon_catch_window, 0.f, 0.5f, 0.05f, "%.2f s")
+            .help("A weapon in the air is caught by a grip closed up to this long before it reaches your fist, and the "
+                  "hand that tossed it may close again at once: it catches it as it comes back down. 0: as a weapon lying "
+                  "about (0.125 s, and not within 0.125 s of letting go)."),
         toggle("Lenient Weapon Catch", vr_weapon_grab_box)
             .help("The old catch: a weapon is also taken when your hand comes within a hand's width of its handle, the "
                   "fist up to 20 cm off it. Off: only when your closed fist touches it, as a box or a gib."),
