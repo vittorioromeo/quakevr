@@ -6953,3 +6953,14 @@ TE_LIGHTNING1-3/TE_BEAM when the progs are ours (PRFL_QUAKEVR_PROGS). It was one
 boundary and the QuakeC temp entities right after it had none either: a full broadcast dropped more than it had to
 (never garbled). Lightning gun held 5 s in e1m1 with `vr_debug_net 2` (220-240 broadcast bytes a second, no errors);
 e1m1 smoke clean.
+
+## VR Settings submenus merged, biosuit glow defaults
+
+The 20 VR Settings submenus (rows: Height 4, Hands 8, Holsters 11, Ammo Pouch 5, Controls 1, Locomotion 6, Comfort 5,
+Teleportation 2, Turning 2, Flashlight 2, Lighting 2, Weapons 4, Bullet Time 3, Body 4, Haptics 1, HUD 3, Sound 3,
+Display 2, Scaling 4, Graphics 10) are now 9, each part under a small header, every row kept (vr_menu.cpp, addVrsPart):
+Height and Hand Calibration; Holster Calibration; Ammo Pouch; Locomotion and Controls; Comfort, Teleport and Turning;
+Weapons and Bullet Time; Body and Flashlight; HUD, Haptics and Sound; Display and Graphics (Display, Lighting, Scaling,
+Graphics). The boards' menu paths were renamed (make_vrcalibration_map.py, make_vrtesthall_map.py; both maps rebuilt;
+vr_menu_path_check: 0 missing). Biosuit glow defaults from his config: vr_suit_glow 1 and vr_suit_glow_light 1 (were 2);
+configVersion 135. The pentagram (2, 2) and quad values already match his config.
