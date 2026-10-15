@@ -31,7 +31,7 @@ void init(); // the vr_slowmo command
 // The controller's own pose behind hand `hand` (0 off, 1 main) this frame, with its velocities in the game's time
 // (times 1 over the scale, as filterHands gives the hand's when it isn't limited), while filterHands moves that hand
 // (slow motion, or catching up after it); null when the hand is the controller's. What the player's arm actually did
-// when the slowed hand lags it (a throw's direction: vr_throw_slowmo_aim).
+// when the slowed hand lags it (a throw's direction: vr_throw.cpp strokeEstimate).
 [[nodiscard]] const Pose* controllerPose(int hand);
 
 // Whether the player runs in its own time in the slowed world (Sandevistan: vr_sandevistan, or bullet time's
