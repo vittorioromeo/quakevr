@@ -501,6 +501,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageMaps();
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
+[[nodiscard]] za::Vector<Item> pageVrsHud();
 [[nodiscard]] za::Vector<Item> pageColours();
 [[nodiscard]] za::Vector<Item> pageBulletTime();
 [[nodiscard]] za::Vector<Item> pageStamina();
@@ -2985,7 +2986,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 {
     return {
         open("Doom", pageIndex(pageDoom)).help("Play Doom on the gadget's screen: a touchscreen under your fingertip."),
-        open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageMain)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
+        open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageVrsHud)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
         slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 3.f),
         header("Placement"),
         slider("Along the Arm", vr_gadget_x, -15.f, 15.f, 0.5f, "%.1f cm").extend(-40.f, 40.f),
@@ -8009,6 +8010,26 @@ struct Page
 };
 
 [[nodiscard]] za::Vector<Item> pageMain();
+[[nodiscard]] za::Vector<Item> pageVrsHeight();
+[[nodiscard]] za::Vector<Item> pageVrsHands();
+[[nodiscard]] za::Vector<Item> pageVrsHolsters();
+[[nodiscard]] za::Vector<Item> pageVrsAmmoPouch();
+[[nodiscard]] za::Vector<Item> pageVrsControls();
+[[nodiscard]] za::Vector<Item> pageVrsLocomotion();
+[[nodiscard]] za::Vector<Item> pageVrsComfort();
+[[nodiscard]] za::Vector<Item> pageVrsTeleport();
+[[nodiscard]] za::Vector<Item> pageVrsTurning();
+[[nodiscard]] za::Vector<Item> pageVrsFlashlight();
+[[nodiscard]] za::Vector<Item> pageVrsLighting();
+[[nodiscard]] za::Vector<Item> pageVrsWeapons();
+[[nodiscard]] za::Vector<Item> pageVrsBulletTime();
+[[nodiscard]] za::Vector<Item> pageVrsBody();
+[[nodiscard]] za::Vector<Item> pageVrsHaptics();
+[[nodiscard]] za::Vector<Item> pageVrsHud();
+[[nodiscard]] za::Vector<Item> pageVrsSound();
+[[nodiscard]] za::Vector<Item> pageVrsDisplay();
+[[nodiscard]] za::Vector<Item> pageVrsScaling();
+[[nodiscard]] za::Vector<Item> pageVrsGraphics();
 [[nodiscard]] za::Vector<Item> pageAdvanced();
 [[nodiscard]] za::Vector<Item> pageWeaponOffsets();
 [[nodiscard]] za::Vector<Item> pageWofsHand();
@@ -8209,9 +8230,53 @@ const Page pages[] = {
     {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
     {"Arcane Dimensions' Guns", pageAdGuns, pageEnemyWeapons}, // AD support: the AD soldiers' guns (vr_ad_enemyguns.qc)
     {"Incandescent Blades", pageHotBlades, pageWeaponsHub}, // (QC vr_hotblade.qc)
-    {"Blood Feedback", pageBloodFeedback, pageMain, LevelStandard},
+    {"Blood Feedback", pageBloodFeedback, pageVrsComfort, LevelStandard},
+    // VR Settings' sections as pages (ROUND22.md, "VR Settings' sections as submenus"): vrSettingsParts.
+    {"VR Settings - Height Calibration", pageVrsHeight, pageMain, LevelStandard},
+    {"VR Settings - Hand Calibration", pageVrsHands, pageMain, LevelStandard},
+    {"VR Settings - Holster Calibration", pageVrsHolsters, pageMain, LevelStandard},
+    {"VR Settings - Ammo Pouch", pageVrsAmmoPouch, pageMain, LevelStandard},
+    {"VR Settings - Controls", pageVrsControls, pageMain, LevelStandard},
+    {"VR Settings - Locomotion", pageVrsLocomotion, pageMain, LevelStandard},
+    {"VR Settings - Comfort", pageVrsComfort, pageMain, LevelStandard},
+    {"VR Settings - Teleportation", pageVrsTeleport, pageMain, LevelStandard},
+    {"VR Settings - Turning", pageVrsTurning, pageMain, LevelStandard},
+    {"VR Settings - Flashlight", pageVrsFlashlight, pageMain, LevelStandard},
+    {"VR Settings - Lighting", pageVrsLighting, pageMain, LevelStandard},
+    {"VR Settings - Weapons", pageVrsWeapons, pageMain, LevelStandard},
+    {"VR Settings - Bullet Time", pageVrsBulletTime, pageMain, LevelStandard},
+    {"VR Settings - Body", pageVrsBody, pageMain, LevelStandard},
+    {"VR Settings - Haptics", pageVrsHaptics, pageMain, LevelStandard},
+    {"VR Settings - HUD", pageVrsHud, pageMain, LevelStandard},
+    {"VR Settings - Sound", pageVrsSound, pageMain, LevelStandard},
+    {"VR Settings - Display", pageVrsDisplay, pageMain, LevelStandard},
+    {"VR Settings - Scaling", pageVrsScaling, pageMain, LevelStandard},
+    {"VR Settings - Graphics", pageVrsGraphics, pageMain, LevelStandard},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
+
+// VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
+// pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
+const PageBuilder vrSettingsParts[] = {pageVrsHeight, pageVrsHands, pageVrsHolsters, pageVrsAmmoPouch, pageVrsControls,
+    pageVrsLocomotion, pageVrsComfort, pageVrsTeleport, pageVrsTurning, pageVrsFlashlight, pageVrsLighting,
+    pageVrsWeapons, pageVrsBulletTime, pageVrsBody, pageVrsHaptics, pageVrsHud, pageVrsSound, pageVrsDisplay,
+    pageVrsScaling, pageVrsGraphics};
+
+[[nodiscard]] bool vrSettingsPage(int p)
+{
+    if(p == PageMain)
+    {
+        return true;
+    }
+    for(const PageBuilder b : vrSettingsParts)
+    {
+        if(pages[p].build == b)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 // The roots of the pages' tree as Search and the boards' menu paths walk it (breadth first, in this order): the VR
 // Settings and the Advanced VR Options, each opened on its own (the VR Settings: Options' and the main menu's rows; the
@@ -8642,18 +8707,60 @@ void resetAll(); // (below: after the pages' building)
 // words, in the order they come to it. Every other setting is under Advanced VR Options (ROUND21.md, "VR Settings for
 // first-time players"), and so is each row here, on its topic's page. No link to them here (nor to Search): the main
 // menu's Advanced VR row and the corner's Advanced VR and Search buttons open them, and the trees of Search and of the
-// boards' menu paths start at both pages (menuRoots).
+// boards' menu paths start at both pages (menuRoots). Each of its sections is a page of its own, linked from here
+// (vrSettingsParts; ROUND22.md, "VR Settings' sections as submenus"); Reset All to Defaults stays here.
 za::Vector<Item> pageMain()
 {
-    const bool snap = vr_snap_turn.value > 0.f;
-    mainPageSnap = snap ? 1 : 0;
-    const char* handHelp = "Both hands, mirrored: moves or turns the drawn hands (and what they hold) on your controllers, "
-                           "so they sit where your real hands are. Show Controller helps; 0 is the shipped calibration.";
-    const char* holsterHelp = "Both holsters of the pair, mirrored: moves them forward, inward (towards your middle) or up "
-                              "from their shipped place (0), in Quake's units (about 3 cm). Shown on your body while "
-                              "you choose here.";
-    za::Vector<Item> list{
-        header("Height Calibration"),
+    return {
+        header("Calibration"),
+        open("Height Calibration", pageIndex(pageVrsHeight))
+            .help("Your height (Set Height Now measures it), the world's scale and the floor's height."),
+        open("Hand Calibration", pageIndex(pageVrsHands))
+            .help("Moves and turns the drawn hands on your controllers, so they sit where your real hands are."),
+        open("Holster Calibration", pageIndex(pageVrsHolsters))
+            .help("Where the hip, chest and back holsters are on your body, and the guns drawn over your shoulders."),
+        open("Ammo Pouch", pageIndex(pageVrsAmmoPouch))
+            .help("Where immersive reloading's pouch is on your belt, its size and its ammo counter."),
+
+        header("Moving"),
+        open("Controls", pageIndex(pageVrsControls)).help("What opens the menu besides the menu button."),
+        open("Locomotion", pageIndex(pageVrsLocomotion))
+            .help("Where the stick takes you, running or walking, the sticks' deadzone and swap, swimming."),
+        open("Comfort", pageIndex(pageVrsComfort))
+            .help("Blood Feedback, the vignette, the fade on scripted teleports and the view when you die."),
+        open("Teleportation", pageIndex(pageVrsTeleport)).help("Teleporting to where you point, and how far."),
+        open("Turning", pageIndex(pageVrsTurning)).help("Smooth or snap turning, and how fast or how far."),
+
+        header("Playing"),
+        open("Flashlight", pageIndex(pageVrsFlashlight)).help("The flashlight's kind and the side it hangs on."),
+        open("Weapons", pageIndex(pageVrsWeapons))
+            .help("Holding the grip or sticky, two-handed guns and the reloading mode."),
+        open("Bullet Time", pageIndex(pageVrsBulletTime)).help("What starts and stops bullet time."),
+        open("Body", pageIndex(pageVrsBody))
+            .help("How much of your body you see, the wrist gadget's arm, leaning and Reset Position."),
+        open("Haptics", pageIndex(pageVrsHaptics)).help("How strongly the controllers vibrate."),
+        open("HUD", pageIndex(pageVrsHud)).help("The HUD's kind, the crosshair and Doom on the wrist gadget."),
+
+        header("Sight and Sound"),
+        open("Lighting", pageIndex(pageVrsLighting)).help("The light where no lamp reaches, and the shadows' contrast."),
+        open("Display", pageIndex(pageVrsDisplay)).help("The headset's brightness and contrast."),
+        open("Scaling", pageIndex(pageVrsScaling))
+            .help("The eyes' render resolution, upscaling, sharpening and foveated rendering."),
+        open("Graphics", pageIndex(pageVrsGraphics))
+            .help("Retro looks, antialiasing, texture filtering, bloom, tone mapping and bump and parallax mapping."),
+        open("Sound", pageIndex(pageVrsSound)).help("The game's and the music's volume, and spatial sound."),
+
+        header("Reset"),
+        action(resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
+            .help("Every Quake VR setting back to as it shipped, but not your calibration (height, floor, body and hands: "
+                  "Reset Hand Offsets for those). Press it twice: the second time within 3 seconds."),
+    };
+}
+
+// VR Settings' sections, each a page linked from it (titled "VR Settings - <section>").
+[[nodiscard]] za::Vector<Item> pageVrsHeight()
+{
+    return {
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
             .help("Your real height: it puts your eyes at the right height in the game and fits the body to you. Set "
                   "Height Now measures it."),
@@ -8664,8 +8771,14 @@ za::Vector<Item> pageMain()
                   "see them."),
         slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f)
             .help("Moves the floor up or down: change it if you feel you are floating above it or sunk into it."),
+    };
+}
 
-        header("Hand Calibration"),
+[[nodiscard]] za::Vector<Item> pageVrsHands()
+{
+    const char* handHelp = "Both hands, mirrored: moves or turns the drawn hands (and what they hold) on your controllers, "
+                           "so they sit where your real hands are. Show Controller helps; 0 is the shipped calibration.";
+    return {
         toggle("Show Controller", "vr_show_controller")
             .help("Draws your real controllers, see-through, where the game tracks them: line the hands up with them "
                   "below. Not saved."),
@@ -8682,8 +8795,15 @@ za::Vector<Item> pageMain()
         action("Reset Hand Offsets", resetHandOffsets)
             .help("Both hands' moves and turns back to the shipped calibration. Each hand's own values: Advanced VR "
                   "Options > Weapons > Hand/Gun Calibration."),
+    };
+}
 
-        header("Holster Calibration"),
+[[nodiscard]] za::Vector<Item> pageVrsHolsters()
+{
+    const char* holsterHelp = "Both holsters of the pair, mirrored: moves them forward, inward (towards your middle) or up "
+                              "from their shipped place (0), in Quake's units (about 3 cm). Shown on your body while "
+                              "you choose here.";
+    return {
         slider("Hip Holsters Forward", vr_menu_holster_hip_x, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
             .help(holsterHelp),
         slider("Hip Holsters Inward", vr_menu_holster_hip_y, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
@@ -8709,10 +8829,14 @@ za::Vector<Item> pageMain()
             .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
                   "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "
                   "> Body and Display."),
+    };
+}
 
-        // (The author's note e1m1_2026-10-07_22-40-30: its basics here, after the holsters; the rest of it, its turn, its
-        // reach and the counter's place, on Advanced VR Options > Weapons > Reloading.)
-        header("Ammo Pouch"),
+// (The author's note e1m1_2026-10-07_22-40-30: its basics here, after the holsters; the rest of it, its turn, its reach
+// and the counter's place, on Advanced VR Options > Weapons > Reloading.)
+[[nodiscard]] za::Vector<Item> pageVrsAmmoPouch()
+{
+    return {
         slider("Ammo Pouch Forward", vr_ammo_pouch_x, -10.f, 10.f, 0.25f, "%+.2f").extend(-40.f, 40.f)
             .help("Immersive reloading's pouch on the front of your belt, where you take rounds and magazines: forward "
                   "(negative: back, round the hips), in Quake's units (about 3 cm). With the body drawn, 0 is on the belly."),
@@ -8725,11 +8849,17 @@ za::Vector<Item> pageMain()
                   "Weapons > Reloading > Reach)."),
         toggle("Ammo Counter", vr_ammo_pouch_counter)
             .help("A small screen on the ammo pouch: how many of what it gives (shells, nails, cells) you have left."),
+    };
+}
 
-        header("Controls"),
-        cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp),
+[[nodiscard]] za::Vector<Item> pageVrsControls()
+{
+    return {cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp)};
+}
 
-        header("Locomotion"),
+[[nodiscard]] za::Vector<Item> pageVrsLocomotion()
+{
+    return {
         cycle("Move Towards", vr_menu_move_towards, {{1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}})
             .help("Where pushing the stick forward takes you: where you look (Head), or where that hand points, so you "
                   "can walk one way and look another."),
@@ -8746,8 +8876,12 @@ za::Vector<Item> pageMain()
         toggle("Jump Out of Water", "vr_water_jump") // (the author: here too, as on Movement > Swimming)
             .help("On (Quake's): swimming against an edge with room above it lifts you out. Off: you climb out with your "
                   "hands, grabbing the edge (needs Climbing on; with Climbing off, Quake's jump out stays)."),
+    };
+}
 
-        header("Comfort"),
+[[nodiscard]] za::Vector<Item> pageVrsComfort()
+{
+    return {
         open("Blood Feedback", pageIndex(pageBloodFeedback)).help("Independent peripheral feedback for hits and low health, with timing, strength and directional controls."),
         cycle("Vignette", vr_comfort_vignette, {{0.f, "Off"}, {1.f, "Moving and Turning"}, {2.f, "Moving Only"}, {3.f, "Turning Only"}})
             .help("Darkens the edges of your view while the sticks move or turn you: it eases motion sickness for many. "
@@ -8763,14 +8897,25 @@ za::Vector<Item> pageMain()
                   "Immersive: your view goes into your body's head and follows it as it falls (its place smoothed, its "
                   "turns only sideways, never pitch or roll; the hands hidden; Third Person while a menu is open). Back "
                   "to normal when you respawn. Its fine tuning: Advanced VR Options > Body, Death View."),
+    };
+}
 
-        header("Teleportation"),
+[[nodiscard]] za::Vector<Item> pageVrsTeleport()
+{
+    return {
         toggle("Teleport", vr_teleport_enabled)
             .help("Jump to the spot you point at instead of walking there: the gentlest way to get around."),
         slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f)
             .help("How far a teleport reaches, in Quake's units (one is about 3 cm)."),
+    };
+}
 
-        header("Turning"),
+// Built with snap turning (Snap Angle shown) or smooth (Turn Speed shown): built again when that changes (items()).
+[[nodiscard]] za::Vector<Item> pageVrsTurning()
+{
+    const bool snap = vr_snap_turn.value > 0.f;
+    mainPageSnap = snap ? 1 : 0;
+    za::Vector<Item> list{
         cycle("Turning Mode", vr_menu_turning, {{0.f, "Smooth"}, {1.f, "Snap"}})
             .help("Smooth: the turning stick turns you steadily. Snap: each push turns you at once by Snap Angle, which "
                   "many find more comfortable."),
@@ -8785,23 +8930,35 @@ za::Vector<Item> pageMain()
         list.pushBack(slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend()
                 .help("How fast smooth turning turns you."));
     }
-    list.pushBackMultiple(
-        header("Flashlight"),
+    return list;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsFlashlight()
+{
+    return {
         cycle("Flashlight", vr_flashlight, {{0.f, "Off"}, {1.f, "Immersive"}, {2.f, "Always on Head"}})
             .help("Immersive: a torch on your belt: pull the trigger with an open hand at it to switch it on or off; press "
                   "the grip to take it in your hand. Always on Head: worn at your temple, on from the start: pull the "
                   "trigger with an open hand at it to switch it."),
         cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}})
             .help("The side of your belt the torch hangs on (Always on Head: the temple it is worn at)."),
+    };
+}
 
-        header("Lighting"),
+[[nodiscard]] za::Vector<Item> pageVrsLighting()
+{
+    return {
         slider("Ambient Light", "vr_ambient_light", 0.f, 0.4f, 0.01f, "%.2f").extend()
             .help("Light in the places no lamp reaches: raise it if the levels are too dark to see without the "
                   "flashlight (0: none)."),
         slider("Light Contrast", "vr_light_contrast", 1.f, 2.5f, 0.02f, "%.2f").extend()
             .help("Darker shadows with lamps as bright: higher is moodier (1: Quake's)."),
+    };
+}
 
-        header("Weapons"),
+[[nodiscard]] za::Vector<Item> pageVrsWeapons()
+{
+    return {
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}})
             .help("Hold: keep the grip pressed to hold a weapon. Sticky: a press takes it, another lets it go."),
         slider("Grip Grace After Loading", vr_weapon_load_grace, 0.f, 2.f, 0.05f, "%.2f s")
@@ -8814,8 +8971,12 @@ za::Vector<Item> pageMain()
             .help("Guns have magazines. Immersive: the shotgun is loaded a shell at a time from the ammo pouch on your "
                   "belt, the other guns at the hip holsters. Simple: a gun held at a hip holster reloads. Disabled: no "
                   "reloading. Only with the Immersive weapon mode."),
+    };
+}
 
-        header("Bullet Time"),
+[[nodiscard]] za::Vector<Item> pageVrsBulletTime()
+{
+    return {
         cycle("Activation", vr_menu_bullettime, bulletTimeChoices())
             .help("What starts and stops bullet time (the world slowed while the gadget's TIME meter lasts). Wrist "
                   "Gadget: tap its screen hard with your other hand (or the butt of its gun). A thumbstick press: that "
@@ -8824,8 +8985,12 @@ za::Vector<Item> pageMain()
         cycle("Screen Tap", "vr_bullettime_tap_gesture", {{0.f, "Single Tap"}, {1.f, "Double Tap"}})
             .help("Activation by the Wrist Gadget: Double Tap, two quick taps on its screen (a single one does nothing, "
                   "so a stray knock never starts it); Single Tap, one hard tap."),
+    };
+}
 
-        header("Body"),
+[[nodiscard]] za::Vector<Item> pageVrsBody()
+{
+    return {
         cycle("Body Type", vr_body_mode, {{3.f, "Full Body"}, {2.f, "Torso and Arms"}, {0.f, "Only Hands"}})
             .help("How much of your body you see: all of it, legs and all; the torso and arms; or only the hands."),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}})
@@ -8837,33 +9002,53 @@ za::Vector<Item> pageMain()
         command("Reset Position", "vr_recenter")
             .help("Puts your body back under your head, and facing where you look, if it was left behind (after "
                   "leaning over something, or walking into a wall)."),
+    };
+}
 
-        header("Haptics"),
+[[nodiscard]] za::Vector<Item> pageVrsHaptics()
+{
+    return {
         slider("Vibration Strength", vr_haptics_strength, 0.f, 1.f, 0.1f, "%.1f").extend(0.f, 2.f)
             .help("How strongly the controllers vibrate (0: never)."),
+    };
+}
 
-        header("HUD"),
+[[nodiscard]] za::Vector<Item> pageVrsHud()
+{
+    return {
         cycle("HUD", vr_hud_mode, {{1.f, "Wrist Gadget"}, {0.f, "Status Bar"}})
             .help("Wrist Gadget: health, armour and ammo on your wrist. Status Bar: Quake's, on a hand."),
         cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}})
             .help("A mark where your gun aims: a dot, or a laser beam from the muzzle."),
         open("Doom on the Wrist Gadget", pageIndex(pageDoom))
             .help("Play Doom on the gadget's screen while you play Quake: touch it with your fingertip."),
+    };
+}
 
-        header("Sound"),
+[[nodiscard]] za::Vector<Item> pageVrsSound()
+{
+    return {
         slider("Volume", "volume", 0.f, 1.f, 0.05f, "%.2f").help("The game's sounds."),
         slider("Music Volume", "bgmvolume", 0.f, 1.f, 0.05f, "%.2f").help("The music's volume."),
         toggle("Spatial Sound", vr_snd_spatial)
             .help("Sounds come from where they are around your head, muffled by walls, with the room's echo. Best with "
                   "headphones."),
+    };
+}
 
-        header("Display"),
+[[nodiscard]] za::Vector<Item> pageVrsDisplay()
+{
+    return {
         slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").extend()
             .help("The headset's brightness: lower is brighter (1: neutral)."),
         slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").extend()
             .help("The headset's contrast (1: neutral)."),
+    };
+}
 
-        header("Scaling"),
+[[nodiscard]] za::Vector<Item> pageVrsScaling()
+{
+    return {
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
             .help("Eye rendering resolution, times the headset's. Above 1: smoother edges, slower. Below 1: faster, "
                   "blurrier."),
@@ -8875,8 +9060,12 @@ za::Vector<Item> pageMain()
         cycle("Foveated Rendering", vr_foveated, {{0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"}})
             .help("Draws the edges of the view, which the lenses blur anyway, in less detail: faster. NVIDIA graphics "
                   "cards only."),
+    };
+}
 
-        header("Graphics"),
+[[nodiscard]] za::Vector<Item> pageVrsGraphics()
+{
+    return {
         toggle("Retro Textures", vr_retro)
             .help("Detailed textures drawn in Quake's chunky, pixelated look, crisp as you move your head."),
         toggle("Retro Lighting", "vr_retrolight")
@@ -8900,13 +9089,7 @@ za::Vector<Item> pageMain()
             .help("Makes generated bumps and grooves stronger. 1: the generated shape; 0: flat. Authored normal and height components keep their own strength."),
         toggle("Parallax Mapping", "vr_parallax")
             .help("Walls and floors look carved: their dark parts sink in as you move your head (needs Bump Mapping)."),
-
-        header("Reset"),
-        action(resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
-            .help("Every Quake VR setting back to as it shipped, but not your calibration (height, floor, body and hands: "
-                  "Reset Hand Offsets for those). Press it twice: the second time within 3 seconds.")
-    );
-    return list;
+    };
 }
 
 // Split from VR Settings: its body and display settings (the quick ones; all of them under Advanced VR Options).
@@ -10557,13 +10740,17 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     za::Vector<Item> (&built)[pageCount] = menuPages.built;
     bool (&done)[pageCount] = menuPages.done;
     const bool weaponOffsets = weaponOffsetsPage(pages[page].build);
-    if(page == PageMain)
+    if(vrSettingsPage(page))
     {
         syncWrappers(); // Turning Mode, Move Towards, the hands: as their settings are now
-        if(mainPageSnap >= 0 && mainPageSnap != (vr_snap_turn.value > 0.f ? 1 : 0))
-        {
-            done[page] = false; // Snap Angle shown, or Turn Speed
-        }
+    }
+    if(pages[page].build == pageVrsTurning && mainPageSnap >= 0 &&
+        mainPageSnap != (vr_snap_turn.value > 0.f ? 1 : 0))
+    {
+        done[page] = false; // Snap Angle shown, or Turn Speed
+    }
+    if(page == PageMain)
+    {
         if(resetAllArmed && realtime - resetAllArmedTime > 3.0)
         {
             resetAllArmed = false; // Reset All to Defaults not pressed again in time
@@ -11103,11 +11290,18 @@ void resetAll()
     resetAllArmed = false;
     menuPages.done[PageMain] = false;
     za::Vector<cvar_t*> reset;
-    for(const Item& item : items(PageMain))
+    for(int p = 0; p < pageCount; p++)
     {
-        if(item.cvar && item.kind != Item::Action && !wrapperCvar(*item.cvar))
+        if(!vrSettingsPage(p))
         {
-            reset.pushBack(item.cvar);
+            continue;
+        }
+        for(const Item& item : items(p))
+        {
+            if(item.cvar && item.kind != Item::Action && !wrapperCvar(*item.cvar))
+            {
+                reset.pushBack(item.cvar);
+            }
         }
     }
     for(cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))

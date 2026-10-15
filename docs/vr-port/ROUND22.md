@@ -5917,3 +5917,34 @@ Backlog "Model vertex wobble" (1). `vr_mdl_dequant` (default 1; Graphics > Model
 each .mdl vertex follows the smoothest path through its animation within half a byte step of every stored value; 0 is
 the old look exactly. Debug > Reports > Steady Vertices Check (`vr_mdl_dequant_check`). Design, numbers (near-still
 wobble -46% to -100%, 114 ms load for 139 models), the proof for 0 and what to try in the headset: `MDL_DEQUANT.md`.
+
+## VR Settings' sections as submenus (worktree `bloodfx`, branch `agent/vrsubmenus`, 2026-10-15)
+
+Backlog "VR Settings menu organisation": "turn each subsection of the 'VR Settings' menu into a submenu". VR Settings
+(page 0, the Standard-level first-time page) was one 107-row list of 21 sections; it is now 28 rows: one link per
+section, grouped under four headers (Calibration: Height, Hand, Holster Calibration, Ammo Pouch; Moving: Controls,
+Locomotion, Comfort, Teleportation, Turning; Playing: Flashlight, Weapons, Bullet Time, Body, Haptics, HUD; Sight and
+Sound: Lighting, Display, Scaling, Graphics, Sound), each link with a one-line help of what is inside, then Reset All to
+Defaults (kept here, as it covers every section). The sections' rows moved unchanged, in their order, to 20 new pages
+`VR Settings - <section>` (pages 175-194, `menu_vr list`; home VR Settings, level Standard). Advanced VR Options is
+untouched, and so is the basic/advanced split: the new pages are Standard like page 0, and every row is still also on
+its topic's Advanced page. Lighting moved from between Flashlight and Weapons to Sight and Sound; nothing else reordered.
+
+`Quake/vr/vr_menu.cpp`: `pageMain()` (the links), `pageVrs*()` (the sections), `vrSettingsParts`/`vrSettingsPage()`:
+the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on any of these pages, Turning rebuilds
+itself when snap turning changes (Snap Angle or Turn Speed shown), and Reset All gathers its non-`vr_*` rows (volume,
+music, run, antialiasing...) from all of them. Blood Feedback's home is now VR Settings - Comfort. The HUD/crosshair
+links from HUD and Menus > Crosshair, Wrist Gadget and Status Bar now open VR Settings - HUD. Boards:
+`{menu:VR Settings - Height Calibration>Set Height Now}` (vrcalibration, vrtesthall) and
+`{menu:VR Settings - Turning>Turning Mode}` (vrtesthall); both maps rebuilt with `--compile`.
+
+Verified: `menu_vr dump` before and after (`Misc/quakevr/menu_coverage.py`: PASS, no option lost; a row multiset diff,
+headers and the new links left out: 4642 rows before, 4639 after, the 3 missing being the HUD links above, retargeted;
+161 pages reached before, the same 161 plus the 20 new after). Navigation by keys in VR and flat: VR Settings > Enter
+opens VR Settings - Height Calibration (back to 0), Escape returns to VR Settings, Escape again to Options. Turning:
+Turn Speed with `vr_snap_turn 0`, Snap Angle after `vr_snap_turn 45`. Reset All (twenty downs, Enter twice): volume
+0.3 -> 0.7, bgmvolume 0.2 -> 1, vr_snap_turn 90 -> 0, vr_turn_speed 7 -> 3.25. `vr_menu_path_check`: vrcalibration 6
+found, vrtesthall 14 found, 0 missing. e1m1 smoke clean, build 0 warnings.
+
+Checklist (proposed): "VR Settings: each section is its own page (Height Calibration ... Sound); open a few, change a
+value, Back returns to VR Settings; Reset All still there and still resets them; nothing you used to set there missing."
