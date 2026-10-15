@@ -1481,6 +1481,9 @@ LIQUID_SWELL \
 "// maps), their screen derivatives give one from the other.\n" \
 "vec4 PermDecalsLook(vec2 g, vec2 pages, vec2 dgdx, vec2 dgdy, vec2 tuv, vec2 duvdx, vec2 duvdy, vec2 lq, vec2 tsize)\n" \
 "{\n" \
+"	vec4 here = PermDecalsAt(g, pages, dgdx, dgdy);\n" \
+"	if (here.w < 0.5) // no page here (most of the world): nothing to snap (a page's marks reach a texel into the next)\n" \
+"		return here;\n" \
 "	vec2 grid = vec2(0.0);\n" \
 "	float soft = 0.0, far = 0.0;\n" \
 "	if (Retro > 0)\n" \
@@ -1498,26 +1501,24 @@ LIQUID_SWELL \
 "	float det = determinant(uvm);\n" \
 "	vec2 span = (abs(duvdx) + abs(duvdy)) * grid; // the blocks a pixel spans: a pixel or more, the smooth read (mipmapped) the same\n" \
 "	if (grid.x <= 0.0 || abs(det) < 1e-14 || max(span.x, span.y) >= 1.0)\n" \
-"		return PermDecalsAt(g, pages, dgdx, dgdy);\n" \
+"		return here;\n" \
 "	mat2 tog = mat2(dgdx, dgdy) * inverse(uvm);\n" \
 "	// the blocks as RetroBlocks has them: one read inside a block, two or four over its edges (P0.y pixels wide)\n" \
 "	vec2 p = tuv * grid - 0.5;\n" \
 "	vec2 i = floor(p), f = p - i;\n" \
 "	f = clamp((f - 0.5) / max(span * soft, vec2(1e-4)) + 0.5, 0.0, 1.0);\n" \
 "	bvec2 edge = bvec2(f.x > 0.0 && f.x < 1.0, f.y > 0.0 && f.y < 1.0);\n" \
-"	vec2 c = i + vec2(edge.x ? 0.0 : f.x, edge.y ? 0.0 : f.y);\n" \
-"	vec2 at = g + tog * ((c + 0.5) / grid - tuv), step_s = tog * vec2(1.0 / grid.x, 0.0), step_t = tog * vec2(0.0, 1.0 / grid.y);\n" \
-"	vec4 r = PermDecalsAt(at, pages, dgdx, dgdy);\n" \
-"	if (edge.x)\n" \
-"		r = mix(r, PermDecalsAt(at + step_s, pages, dgdx, dgdy), f.x);\n" \
-"	if (edge.y)\n" \
+"	vec2 c = i + vec2(edge.x ? 0.0 : f.x, edge.y ? 0.0 : f.y), fe = vec2(edge.x ? f.x : 0.0, edge.y ? f.y : 0.0);\n" \
+"	vec4 r = vec4(0.0);\n" \
+"	for (int k = 0; k < 4; k++) // (a loop: one copy of the read in the program)\n" \
 "	{\n" \
-"		vec4 r2 = PermDecalsAt(at + step_t, pages, dgdx, dgdy);\n" \
-"		if (edge.x)\n" \
-"			r2 = mix(r2, PermDecalsAt(at + step_s + step_t, pages, dgdx, dgdy), f.x);\n" \
-"		r = mix(r, r2, f.y);\n" \
+"		vec2 o = vec2(float(k & 1), float(k >> 1));\n" \
+"		vec2 wo = mix(1.0 - fe, fe, o);\n" \
+"		if (wo.x * wo.y <= 0.0)\n" \
+"			continue;\n" \
+"		r += PermDecalsAt(g + tog * ((c + o + 0.5) / grid - tuv), pages, dgdx, dgdy) * (wo.x * wo.y);\n" \
 "	}\n" \
-"	return far > 0.0 ? mix(r, PermDecalsAt(g, pages, dgdx, dgdy), far) : r;\n" \
+"	return far > 0.0 ? mix(r, here, far) : r;\n" \
 "}\n"
 
 // the world vertex shader's permanent decals (QVR_PERMDECAL_FUNCTIONS): their attribute and outputs
