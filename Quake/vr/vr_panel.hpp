@@ -23,8 +23,9 @@ void drawInEye(const hands::State& s, bool headText = true);
 // bottom left) and the axes spanning the canvas's width and height (up). False when it is not.
 [[nodiscard]] bool menuQuad(const hands::State& s, glm::vec3& corner, glm::vec3& xAxis, glm::vec3& yAxis);
 
-// The menu panel moved by a hand (vr_menuui.cpp's grab): its middle and unit axes (right, up) in the world, kept in the
-// play space (it turns and walks with the player) until the panel closes or unplaceMenu puts it back in front of the head.
+// The current menu's panel (menu::currentInstance) moved by a hand (vr_menuui.cpp's grab): its middle and unit axes
+// (right, up) in the world, kept in the play space (it turns and walks with the player) until the panel closes or
+// unplaceMenu puts it back in front of the head. menuQuad is the current menu's too.
 void placeMenu(const hands::State& s, const glm::vec3& centre, const glm::vec3& right, const glm::vec3& up);
 void unplaceMenu();
 [[nodiscard]] bool menuPlaced();

@@ -885,7 +885,7 @@ void mapsMouse(float x, float y)
 void openMapsPage()
 {
     const int target = pageIndex(pageMaps);
-    if(m_state == m_vr && page == target)
+    if(m_state == m_vr && ui().page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;

@@ -346,6 +346,7 @@ glm::vec2 runtimePanelUv[HAND_COUNT]{};
 struct PanelGrab
 {
     int hand{-1};                       // the hand holding the panel (-1: none)
+    int menu{0};                        // which menu's panel (menu::currentInstance when taken)
     bool pressTaken[HAND_COUNT]{};      // the grip's press took hold (its key not sent): its release is the grab's too
     int armedHand{-1};                  // a grip pressed on the panel's face, not yet moved
     glm::vec3 armedAt{0.f};             // where that hand was then
@@ -373,6 +374,7 @@ void haptic(int hand, float seconds, float amplitude);
     }
     const glm::mat3 toHand = glm::transpose(basis);
     panelGrab.hand = hand;
+    panelGrab.menu = menu::currentInstance();
     panelGrab.centre = toHand * (corner + (xAxis + yAxis) * 0.5f - origin);
     panelGrab.right = toHand * glm::normalize(xAxis);
     panelGrab.up = toHand * glm::normalize(yAxis);
@@ -398,7 +400,10 @@ void followHold(const hands::State& s)
         right = glm::normalize(glm::cross(facing, glm::vec3{0.f, 0.f, 1.f}));
         up = glm::cross(right, facing);
     }
+    const int was = menu::currentInstance(); // (the menu held, whichever the menu code works on)
+    menu::selectInstance(panelGrab.menu);
     panel::placeMenu(s, origin + basis * panelGrab.centre, right, up);
+    menu::selectInstance(was);
 }
 
 void updateGrab(const hands::State& s, bool on)
