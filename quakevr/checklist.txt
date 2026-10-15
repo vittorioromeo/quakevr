@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Hot blades: heat a blade red-hot, take a level exit: still glowing in the next level; aim the force grab at a dropped hot blade: it still shows incandescent
 Motion Recorder: Lift Expected (start, grip dummy with both hands, pull up hard) / Judo Throw Expected (turn it down) and their Not Expected (slow pull, slow/small turn): each saves, dummy stays holdable, Review Takes lists them
 Quick save then immediate quick load: loads fine (load now waits for the save to finish writing)
 Motion Recorder (vrmelee-recording): record Neck Snap Expected takes (start the take, then grip the dummy's head, twist hard) and Neck Snap Not Expected ones (shoulders, slow/small turn, pull, lift); dummy stays standing and holdable; Review Takes lists them; include a push-pull with wrist roll
