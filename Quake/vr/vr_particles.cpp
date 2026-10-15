@@ -1672,8 +1672,8 @@ void adStreamFire(const glm::vec3& org, const glm::vec3& dir, int count, bool po
         p.color = glm::vec4{c, poison ? 0.5f : 0.65f};
         p.die = cl.time + life;
         p.fade = -p.color.a / life;
-        p.scale = rnd(2.5f, 4.5f);
-        p.grow = 7.f;
+        p.scale = rnd(6.f, 10.f);
+        p.grow = 16.f;
         p.spin = rnd(-2.5f, 2.5f);
         p.drag = 2.f;
         p.org = org + inBox(3.f);
@@ -1690,13 +1690,15 @@ void poisonPuff(const glm::vec3& org, const glm::vec3& half, int count)
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellSmoke;
         p.type = Custom;
+        // (Faintly glowing, as AD's poison: additive, so that it shows in the dark too.)
+        p.additive = true;
         const float g = rnd(0.8f, 1.1f);
-        p.color = glm::vec4{0.3f * g, 0.62f * g, 0.14f * g, rnd(0.28f, 0.4f)};
+        p.color = glm::vec4{0.32f * g, 0.75f * g, 0.12f * g, rnd(0.3f, 0.45f)};
         const float life = rnd(1.f, 1.6f);
         p.die = cl.time + life;
         p.fade = -p.color.a / life;
-        p.scale = rnd(1.6f, 2.6f);
-        p.grow = 2.2f;
+        p.scale = rnd(2.4f, 3.6f);
+        p.grow = 2.5f;
         p.spin = rnd(-0.6f, 0.6f);
         p.drag = 0.8f;
         p.org = org + glm::vec3{rnd(-box.x, box.x), rnd(-box.y, box.y), rnd(-box.z, box.z)} * 0.8f;

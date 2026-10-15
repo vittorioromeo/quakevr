@@ -203,6 +203,8 @@ void(entity t, float xAlive, vector xAt, vector xDir) VR_ADGun_BoltShock =
     }
     bodyshock(t, 0.75);
     VR_Shock_Hit(t, xAlive, xAt, xDir);
+    dprint(sprintf("adgun bolt shock: %s alive before %g, health %g, corpse %g, shock left %g\n", t.classname, xAlive,
+        t.health, t.vr_corpse, max(0, t.vr_shock_until - time)));
 };
 
 // A plasma bolt (AD's, launched as its soldier's: its model, light and sparks) strikes: its hit and its blast, Quake VR's
@@ -296,6 +298,8 @@ void() VR_ADGun_PoisonThink =
         {
             v.vr_adpoison = world;
         }
+        dprint(sprintf("adpoison: %s's poison ends (puffs %g, health %g, %g s left)\n", v.classname, self.frags, v.health,
+            max(0, self.attack_finished - time)));
         remove(self);
         return;
     }
@@ -304,6 +308,7 @@ void() VR_ADGun_PoisonThink =
     if(cvar("vr_adgun_stream_fire") > 0)
     {
         particle2(v.origin + (v.mins + v.maxs) * 0.5, (v.maxs - v.mins) * (0.5 / 16), QVR_PARTICLE_PRESET_POISONPUFF, 2);
+        self.frags = self.frags + 1; // (puffs sent: the tests)
     }
     else if(!self.cnt)
     {
@@ -384,7 +389,7 @@ void(vector org, vector dir, float poison, float water) VR_ADGun_StreamMuzzle =
         return;
     }
     particle2(org, normalize(dir) * 0.6, poison ? QVR_PARTICLE_PRESET_ADPOISON : QVR_PARTICLE_PRESET_ADFLAME, 1);
-    if(!poison && random() < 0.5)
+    if(!poison && random() < 0.3)
     {
         particle2(org, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
     }
@@ -1019,6 +1024,65 @@ void(float request, entity p) AD_GunTest =
         cvar_set("vr_weapon_grip_mode", "1");
         bprint(sprintf("adweapons: the main hand fires: %s\n", VR_ADWeapons_Fire(p, "held") ? "PASS" : "FAIL"));
         cvar_set("vr_weapon_grip_mode", ftos(grip2));
+        return;
+    }
+    if(request == 92)
+    {
+        // 92: the nearest AD pyro, fumigator or plasma soldier (plasma, eliminator, centurion) to you fires once, as its
+        // own attack does, at the monster or body nearest it (none: 200 units ahead of it); again for a stream.
+        entity sh = world;
+        float shd = 2048;
+        for(entity e92 = findflags(world, flags, FL_MONSTER); e92; e92 = findflags(e92, flags, FL_MONSTER))
+        {
+            float k92 = e92.ad_classtype;
+            if(e92.health > 0 && vlen(e92.origin - p.origin) < shd && (k92 == ad_CT_MONPYRO || k92 == ad_CT_MONFUMIGATOR ||
+                k92 == ad_CT_MONARMYPLASMA || k92 == ad_CT_MONELIMATOR || k92 == ad_CT_MONCENTURION))
+            {
+                sh = e92;
+                shd = vlen(e92.origin - p.origin);
+            }
+        }
+        if(sh == world)
+        {
+            bprint("adfx: no AD pyro, fumigator or plasma soldier near\n");
+            return;
+        }
+        entity tg = world;
+        float tgd = 1024;
+        for(entity t92 = findflags(world, flags, FL_MONSTER); t92; t92 = findflags(t92, flags, FL_MONSTER))
+        {
+            if(t92 != sh && t92.takedamage && vlen(t92.origin - sh.origin) < tgd)
+            {
+                tg = t92;
+                tgd = vlen(t92.origin - sh.origin);
+            }
+        }
+        makevectors(sh.angles);
+        vector from92 = sh.origin + '0 0 12' + v_forward * 16;
+        vector to92 = tg != world ? (tg.absmin + tg.absmax) * 0.5 : from92 + v_forward * 200;
+        vector dir92 = normalize(to92 - from92);
+        sh.angles_y = vectoyaw(dir92);
+        entity os92 = self;
+        self = sh;
+        if(sh.ad_classtype == ad_CT_MONPYRO || sh.ad_classtype == ad_CT_MONFUMIGATOR)
+        {
+            ad_pyroflame_spawn(from92, dir92);
+            if(tg != world && tg.health > 0 && (tg.flags & FL_ONGROUND))
+            {
+                // (A flame is a trigger: it touches what moves into it. A standing target hops, as one walking would.)
+                tg.flags = tg.flags - FL_ONGROUND;
+                tg.velocity_z = 80;
+            }
+        }
+        else
+        {
+            ad_launch_plasma(from92, dir92, sh.ad_classtype, ad_SPEED_PLASMA);
+            ad_newmis.velocity = dir92 * ad_SPEED_PLASMA;
+            ad_newmis.angles = vectoangles(ad_newmis.velocity);
+        }
+        self = os92;
+        dprint(sprintf("adfx: %s fires at %s (health %g, takedamage %g, poisoned %g)\n", sh.classname, tg.classname,
+            tg.health, tg.takedamage, tg.vr_adpoison != world));
         return;
     }
     if(request == 90)

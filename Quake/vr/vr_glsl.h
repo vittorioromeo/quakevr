@@ -2628,6 +2628,7 @@ QVR_BEHIND_SHOWN_GATE \
 "			if (f < 0.004)\n" \
 "				discard; // nor its depth\n" \
 "		}\n" \
+"		f *= Soft.z; // its entity's alpha (r_sprite.c: AD's see-through flames)\n" \
 "		out_fragcolor = vec4(out_fragcolor.rgb * f, f);\n" \
 "	}\n"
 

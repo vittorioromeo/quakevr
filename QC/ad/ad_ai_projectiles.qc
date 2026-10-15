@@ -492,7 +492,11 @@ void(vector ad_org, vector ad_dir, float ad_proj_type, float ad_proj_speed) ad_l
 		ad_newmis.frame = 0;						// Start really small
 	}
 	// Quake VR: an electric bolt's muzzle crackles (vr_ad_enemyguns.qc: the monsters' and the player's with their guns)
-	if (VR_ADGun_IsElectric(ad_newmis)) VR_ADGun_BoltFx(ad_org, ad_dir, ad_FALSE);
+	// and it strikes bodies too (a missile's move: corpses are only touchable by missiles), to electrocute them
+	if (VR_ADGun_IsElectric(ad_newmis)) {
+		VR_ADGun_BoltFx(ad_org, ad_dir, ad_FALSE);
+		ad_newmis.movetype = ad_MOVETYPE_FLYMISSILE;
+	}
 
 	//----------------------------------------------------------------------
 	// Is DP engine active for new particle trail?
