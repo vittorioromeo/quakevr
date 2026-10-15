@@ -329,7 +329,7 @@ typedef struct {
 	int			numindexes;
 	intptr_t		indexes;        // offset into extradata: numindexes unsigned shorts
 	intptr_t		vertexes;       // offset into extradata: numposes*vertsperframe trivertx_t
-	intptr_t		dequant;        // QVR: offset into extradata (0 none): numposes*vertsperframe unsigned, each axis' dequantised offset from its byte (snorm8 / 254 steps; vr/vr_mdldequant.cpp)
+	intptr_t		dequant;        // QVR: offset into extradata (0 none): numposes*vertsperframe unsigned, each axis' dequantised offset from its byte (snorm8 / 254 steps), then as many smoothed normals (snorm8 * 127, as the VBO holds them; vr/vr_mdldequant.cpp)
 	int				dequantready;   // QVR: ... computed (the first upload with vr_mdl_dequant on: none while it is off)
 
 	intptr_t	vbovertofs;
