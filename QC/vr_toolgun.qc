@@ -10,6 +10,16 @@
 void() VR_Toolgun_Precache =
 {
     precache_model("progs/v_toolgun.mdl");
+    // Its Fire tab's torches and flames (vr_walltorch.qc, vr_spawn_live), with the sounds a wall torch taken makes: a
+    // client hears no sound precached after it joined.
+    precache_model("progs/flame.mdl");
+    precache_model("progs/flame2.mdl");
+    precache_model("progs/vrtorch.mdl");
+    precache_sound("vr/torch_pull.wav");
+    precache_sound("vr/torch_out.wav");
+    precache_sound("vr/torch_light.wav");
+    precache_sound("vr/torch_hit.wav");
+    precache_sound("misc/null.wav");
 };
 
 /*QUAKED weapon_toolgun (0 .5 .8) (-16 -16 0) (16 16 32)

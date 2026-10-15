@@ -7012,3 +7012,48 @@ still re-centred in front of the head. Back to game reopens on the FIRST panel's
 on. Not done: a page that becomes invalid after a map change falling back to the panel's top page (the pages are
 static, none is map-dependent today). Test: `Misc/quakevr/menu_panels_test.py` steps 10-12 (hide, reopen, map change,
 Close Panel) pass.
+
+## Torches and fires from the toolgun (worktree `permdecals`, branch `agent/torches`, 2026-10-15)
+
+His note: spawn torches, fires and brazier flames with the tool gun, as a prop or as a wall torch. His decision: one
+group; free-standing ones grabbable props, wall torches snapped to the wall aimed at, facing out; each keeps its glow and
+sound as the map entity has them.
+
+- **The Fire tab** (the toolgun panel's fifth tab; `vr_toolgun.cpp` spawnables, entries 46-55): Wall Torch
+  (`light_torch_small_walltorch`), Large Flame (`light_flame_large_yellow`), Small Flame, White Flame
+  (`light_flame_small_*`), Rogue's Candle and Lantern (only while their models are there), and AD's Short and Tall
+  Brazier, Flame Pyre and Long Wall Torch (only in an AD map: outside AD's rules `box3d::spawnClass` makes no `ad_`
+  light). Unavailable entries show greyed as AD's do. Pick works too: a picked wall torch hangs on a wall again.
+- **Live spawns** (`vr_spawn_live`, a nosave QC global the engine sets round the spawn function in `box3d::spawnClass`):
+  what the map makes static (`makestatic`, `ambientsound`: only the level's signon, which a client in the game never
+  reads again) stays an entity. The id spawn functions (`misc.qc`), Rogue's (`rogue_newmisc.qc`) and AD's
+  (`ad_setup_light_static`, `ad_setup_light_sound`) check it.
+- **Wall torches**: the ghost snaps to a wall (the world's or a brush entity's such as vrfiringrange's prop wall; not a
+  floor, a ceiling or a thing before it) 10 units out (`wallStandoff`: id's maps hang theirs 6.5-12.5 off, e1m2's) and
+  faces out of it (its yaw the wall's normal; the turn still applies). With `vr_walltorch` on it is the takeable torch
+  (`VR_WallTorch_Setup`: grip, force grab, shot off, relit...); off, an entity with id's model.
+- **Flames as props** (`VR_FlameProp_Setup`, `vr_walltorch.qc`): `.vr_flameprop` 1 small, 2 large, 3 candle, 0 a
+  lantern (glass: burns nothing). Each hangs where placed, upright (MOVETYPE_NONE: on a map's brazier, a ledge, the
+  floor) until a hand or a force grab takes it (`VR_Carry`); let go of, it falls and tumbles as a box. Its fire heats
+  blades and relights torches (`VR_WallTorch_FireAt`, by `findflags`); resting, the player meets it as a map flame of
+  its size (`VR_Burn_MapFrame`); carried or thrown it burns what it touches as a torch's head
+  (`VR_Burn_TorchTouch`) and sets on fire what a throw of it hits.
+- **Glow and sound**: the light is the engine's torch light (`vr_emissive.cpp` finds flame.mdl/flame2.mdl/candle/lantern
+  entities wherever they are; there is no baked light for a spawned one, so it is the same small flicker a map torch
+  adds on top of its lightmap). The crackle is fire1.wav on the entity, started from its first think: a sound started
+  in the spawn itself (the toolgun's input, before the server frame) was cleared with that frame's datagram unsent.
+  The engine moves a flame prop's crackle with it (`vr_walltorch.cpp crackles`). The toolgun precaches the torch
+  models and the taken torch's sounds in every map (`VR_Toolgun_Precache`): a sound precached late never reaches the
+  client.
+- **Debug**: `vr_torch_lights_list` (Debug > Reports > Torch Lights): every torch light lit now, static or entity.
+
+Test: `Misc/quakevr/toolgun_fire_test.sh <agent>` (PASS): the wall torch hung at x -590 (the wall -600), yaw 0, its
+crackle and light; the large, small, white flames and the lantern props, each with its torch light and (but the
+lantern) its crackle on its own entity (`snd_show 2`); the large flame taken by the off hand's grip and dropped (it
+falls); the wall torch taken by the grip (`vr_test_walltorch_shot 24`). Screenshots: `scratch/toolgun_fire.png`.
+`toolgun_panel_test.sh` passes with five tabs (its Props click still lands). e1m1 smoke clean.
+
+Not done / to check in VR: AD's entries are untested (no AD data here) and stay fixed where placed (AD's particle
+emitter does not follow a carried prop); a loaded save loses a spawned flame's crackle (sounds are not saved); a flame
+prop let go of tumbles like any prop (its flame drawn tilted); a hand reaching a spawned wall torch is the same reach as
+a map torch's (`walltorch_grab_test.sh` is a pre-existing failure: its "gripped on its wall" message no longer exists).

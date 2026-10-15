@@ -39,7 +39,7 @@ def hand(pitch, yaw, roll, y=1.5, z=-0.3):
 a('map vrfiringrange;wait60;god;notarget;vr_crate_health 0;vr_toolgun_tool 0;vr_toolgun_joint 0;vr_toolgun_panel_size 6')
 a('impulse 169;vr_weapon_grip_mode 1;wait10')
 hand(70, 0, 0)
-# 1. The panel; the Props tab (x 67..126, y 47..60) and the third tile of its first row (x 130..189, y 63..115).
+# 1. The panel; the Props tab (x 54..101, y 47..60: five tabs) and the third tile of its first row (x 130..189, y 63..115).
 a('vr_mock_button main secondary 1;wait2;vr_mock_button main secondary 0;wait10')
 at(96, 53)
 at(160, 89)

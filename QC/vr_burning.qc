@@ -1160,7 +1160,8 @@ void() VR_Burn_MapFrame =
     for(p = find(world, classname, "player"); p; p = find(p, classname, "player"))
     {
         if(p.ishuman && p.health > 0 && (cvar_hget(cvarh_vr_burn_self) || cvar_hget(cvarh_vr_burn_touch)) &&
-           (vr_fire_spots > 0 || find(world, classname, "light_torch_small_walltorch") != world))
+           (vr_fire_spots > 0 || find(world, classname, "light_torch_small_walltorch") != world ||
+            findflags(world, vr_flameprop, 3) != world))
         {
             mapflametouch(p, '0 0 0', '0 0 0', -1, 63); // keep the body's shapes through the 0.1 s polling gap
         }
@@ -1191,6 +1192,15 @@ void() VR_Burn_MapFrame =
             if(t.wt_state == 0 && t.wt_fire > 0 && t.modelindex)
             {
                 VR_Burn_MapContact(p, t, t.origin, 2);
+            }
+        }
+        // The toolgun's flames where they rest (vr_walltorch.qc VR_FlameProp_Setup), as the map's of their size; carried
+        // or thrown, a torch's head instead (VR_FlameProp_Think).
+        for(t = findflags(world, vr_flameprop, 3); t; t = findflags(t, vr_flameprop, 3))
+        {
+            if(t.carry_player == world && VR_Throw_Thrower(t) == world)
+            {
+                VR_Burn_MapContact(p, t, t.origin, t.vr_flameprop == 2 ? 1 : 0);
             }
         }
         p.burn_map_on = vr_map_got ? p.burn_map_on + dt : max(0, p.burn_map_on - 2 * dt);

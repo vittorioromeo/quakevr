@@ -33,7 +33,7 @@ trigger still uses the tool. A menu opened meanwhile hides it until it closes.
 - **The top row:** the tools' tiles (Spawn, Remove, Physgun, Scale, Joint, Brush), each with its icon: a tap switches. More: the
   cheats and the panel's size. Under them a line: the tool and its choice.
 - **Under it, only the chosen tool's choices:**
-  - Spawn: tabs (Monsters, Props, Weapons, Items) and a grid of thumbnails (each model drawn from its file once,
+  - Spawn: tabs (Monsters, Props, Weapons, Items, Fire) and a grid of thumbnails (each model drawn from its file once,
     `vr_toolgun_icons.cpp`), eight a page (`<`, `>`); a tap chooses. Pick (the next shot picks from the world), Reset
     (the ghost's offsets and turn), Clear.
   - Remove: how; Clear Props Made Since the Map Loaded.
@@ -57,9 +57,11 @@ walk with one and turn with the other as ever, and its ghost is held by the hand
 
 ## The tools (the panel's top row, or the gun's stick press)
 
-- **Spawn.** Choose what on the panel's grid (tabs: monsters, props, weapons, items), or Pick (the next shot chooses
-  what it hits). A see-through ghost of it stands where the gun points (on the floor; off a wall), facing you; the
-  trigger makes it there, as a map would. Reset puts the ghost back (its offsets and turn); Clear empties the choice.
+- **Spawn.** Choose what on the panel's grid (tabs: monsters, props, weapons, items, fire), or Pick (the next shot
+  chooses what it hits). A see-through ghost of it stands where the gun points (on the floor; off a wall), facing you;
+  the trigger makes it there, as a map would. The Fire tab's wall torches hang on the wall aimed at (10 units out,
+  facing out of it); its flames are props that hang where placed until taken (ROUND22.md, "Torches and fires from the
+  toolgun"). Reset puts the ghost back (its offsets and turn); Clear empties the choice.
   Move and turn the ghost with your hands, not with a stick (no new settings):
   - **the other hand's A / X held, and move that hand** — the ghost goes with it, 1:1, along the gun's level forward,
     right and up (its own pitch and roll do not tilt the offsets). The ghost stays where the gun points: only the

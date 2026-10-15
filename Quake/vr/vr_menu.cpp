@@ -5810,6 +5810,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_model_check 1: every entity's model index against its model's name, and your models against the "
                   "server's; each mismatch listed (a saved game loaded wrong: buttons drawn as gibs). 0 wrong is right."),
         command("View", "vr_dumpview").help("vr_dumpview: the hands, grips, palms, fingers and every entity drawn in the view (long)."),
+        command("Torch Lights", "vr_torch_lights_list")
+            .help("vr_torch_lights_list: the torches' and flames' lights lit now (Rendering > Torch Lights): each one's "
+                  "entity (a map's static one or a live one, such as the toolgun's Fire tab's), where, how far it reaches."),
         command("Bullet Time Now", "vr_bullettime").help("vr_bullettime: starts or stops bullet time, as the gadget's button."),
         command("Screen Tap Feedback", "vr_bullettime_tap_feedback_test 1")
             .help("vr_bullettime_tap_feedback_test [1]: the gadget's click and screen glitch of a tap (1: the activation's; "

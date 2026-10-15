@@ -11996,7 +11996,17 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     VR_EdictIndex_Touch(e); // (the edict index: a classname set in C)
     pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(e);
+    // A live spawn: what the map would make static (a torch, a flame) stays an entity (QC vr_spawn_live).
+    float* const live = bindings().spawnLive;
+    if(live)
+    {
+        *live = 1.f;
+    }
     PR_ExecuteProgram(fn);
+    if(live)
+    {
+        *live = 0.f;
+    }
     if(e->free)
     {
         return nullptr;

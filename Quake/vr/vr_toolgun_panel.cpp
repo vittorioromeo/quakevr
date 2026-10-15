@@ -55,8 +55,8 @@ constexpr float panelHeight = 192.f;
 constexpr int texelsPerPixel = 3;
 constexpr float pad = 4.f;
 
-constexpr const char* sections[] = {"Monsters", "Props", "Weapons", "Items"};
-constexpr int sectionCount = 4;
+constexpr const char* sections[] = {"Monsters", "Props", "Weapons", "Items", "Fire"}; // (Fire: torches and flames)
+constexpr int sectionCount = 5;
 constexpr int gridColumns = 4;
 constexpr int gridRows = 2;
 constexpr int maxEntries = 128; // AD support: retain every installed spawn entry
