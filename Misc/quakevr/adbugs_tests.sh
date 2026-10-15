@@ -4,7 +4,7 @@
 #   stealth  vr_stealth_test 1's scenes on an AD rocket soldier (the debug spawner's 211) on e1m1 under the AD campaign
 #            (15 scenes; 7, a map's trigger, needs AD's own player: pass on AD's start map, n/a here), and the same
 #            soldier 300 units ahead of him on AD's start, him dark (vr_stealth_light_force 10): Idle after 7 s
-#   guns     vr_ad_test 71: each armed AD soldier's drop (AD's own single-use guns); vr_ad_test 73: the grenade launcher
+#   guns     vr_ad_test 71: each armed AD soldier's drop (AD's own single-use guns); vr_ad_test 90: the grenade launcher
 #            fires our grenade (model, size, physics, fuse), clear of its muzzle
 #   armagon  hipend: vr_test_monsters 5 (the hit probe) on the Armagon: its torso's heights hit (precise hits on and off)
 #   range    vrfiringrange: the two laser cannons after 5 s (vr_pickup_test 5): on their pads, at rest
@@ -21,6 +21,8 @@ fi
 if [ "$WHAT" = guns ] || [ "$WHAT" = all ]; then
     echo "== guns (drops by class)"
     run "skill 1;vr_campaign_native ad;wait30;map start;wait60;god;notarget;developer 1;vr_ad_test 71" "adgun drop|rror"
+    echo "== guns (their shots: ours where we have the kind; clear of the muzzle)"
+    run "skill 1;vr_campaign_native ad;wait30;map start;wait60;god;notarget;developer 1;vr_mock_hand main 0.25 1.20 -0.40 70 0 0;wait5;vr_ad_test 90;wait1100" "adgun shots: .*(PASS|FAIL)|adgun shots: [0-9]+ passed|rror"
 fi
 if [ "$WHAT" = armagon ] || [ "$WHAT" = all ]; then
     echo "== armagon (precise, then boxes)"

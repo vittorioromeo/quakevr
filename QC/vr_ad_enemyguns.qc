@@ -556,6 +556,153 @@ void() VR_ADGun_TestThink =
     self.nextthink = time + 0.3;
 };
 
+// vr_ad_test 90: the shots the launchers and a plasma gun fire, each from the main hand (aim it level: TESTING.md), and
+// how each leaves the muzzle: the grenade soldier's launcher's grenade against the grenade launcher's (phase 1: model,
+// box, movement, touch, blast, fuse and speed the same), the rocket soldier's rocket ours, the plasma soldier's bolt AD's
+// with our hit; each 0.3 s on still in flight, its own, at least 90 units from the muzzle, touches of its firer counted.
+float vr_adgun_t90_phase;    // 0 the AD grenade launcher, 1 ours, 2 the AD rocket launcher, 3 the plasma rifle
+entity vr_adgun_t90_shot;    // the shot followed
+string vr_adgun_t90_model;   // ... its model as fired
+vector vr_adgun_t90_from;    // ... the muzzle it left
+vector vr_adgun_t90_gsize;   // the AD grenade's (phase 0): box, movement, fuse, speed, function checks
+float vr_adgun_t90_gmove;
+float vr_adgun_t90_gsolid;
+float vr_adgun_t90_gfuse;
+float vr_adgun_t90_gspeed;
+float vr_adgun_t90_gfuncs;
+
+void() VR_ADGun_ShotsTestThink =
+{
+    entity p = self.owner;
+    entity oldSelf = self;
+    float ph = vr_adgun_t90_phase;
+    if(vr_adgun_test_step == 0)
+    {
+        self = p;
+        float wid = (ph == 0 || ph == 4) ? WID_ADGRENADE : (ph == 1 ? WID_GRENADE_LAUNCHER : (ph == 2 ? WID_ADROCKET : WID_ADPLASMA));
+        if(VR_IsADGun(wid)) { VR_ADGun_Ensure(wid); }
+        VR_WeaponUtil_EntAddWeapon(self, wid);
+        VRGiveEntWeapon(self, cVR_MainHand, wid, 0, WeaponIdToBaseClipSize(wid));
+        self.ammo_rockets = max(self.ammo_rockets, 10);
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        vr_adgun_t90_from = VRGetMuzzlePos(cVR_MainHand);
+        vr_owner_touches = 0;
+        ad_newmis = world;
+        if(ph == 1) { W_FireGrenade(cVR_MainHand); }
+        else if(ph == 4)
+        {
+            // (Not counted: the gun's grenade before 2026-10-15, AD's monster grenade model, launched as ours.)
+            entity og = spawn();
+            og.owner = self;
+            og.movetype = MOVETYPE_BOUNCE;
+            og.solid = SOLID_BBOX;
+            og.classname = "grenade";
+            og.velocity = VRGetWeaponFireRotFwd(cVR_MainHand) * 600 + vrProjectileVelocity(cVR_MainHand, 0.6);
+            og.avelocity = '300 300 300';
+            og.angles = vectoangles(og.velocity);
+            og.touch = GrenadeTouch;
+            og.nextthink = time + 2.5;
+            og.think = GrenadeExplode;
+            setmodel(og, ad_MODEL_PROJ_GRENADE);
+            setsize(og, '0 0 0', '0 0 0');
+            setorigin(og, VRGetMuzzlePos(cVR_MainHand));
+            VR_ShotPlace(og, cVR_MainHand);
+            VR_Grenade_Make(og, GrenadeExplode, 2.5, TRUE);
+        }
+        else { VR_EnemyGun_Attack(cVR_MainHand, wid, 0, &self.attack_finished); }
+        self = oldSelf;
+        entity s = world;
+        if(ph == 3)
+        {
+            s = ad_newmis;
+        }
+        else
+        {
+            string cn = (ph <= 1 || ph == 4) ? "grenade" : "missile";
+            for(entity g = find(world, classname, cn); g != world; g = find(g, classname, cn))
+            {
+                if(g.owner == p && g.vr_adgun_wid == 0) { s = g; }
+            }
+        }
+        vr_adgun_t90_shot = s;
+        if(s == world)
+        {
+            bprint(sprintf("adgun shots: %g: nothing fired: FAIL\n", ph));
+            vr_adgun_test_fail++;
+            vr_adgun_test_step = 20;
+        }
+        else
+        {
+            s.vr_adgun_wid = -1 - ph; // (marked: this test's)
+            vr_adgun_t90_model = s.model;
+            float fuse = (s.vr_gren_fuse ? s.vr_gren_fuse : s.nextthink) - time;
+            float spd = vlen(s.velocity);
+            float funcs = 0;
+            if(ph <= 1)
+            {
+                funcs = ((s.touch == VR_Grenade_Touch ? s.vr_gren_touch : s.touch) == GrenadeTouch &&
+                         (s.vr_gren_boom ? s.vr_gren_boom : s.think) == GrenadeExplode);
+            }
+            else if(ph == 2) { funcs = s.touch == T_MissileTouch; }
+            else { funcs = s.touch == VR_ADGun_PlasmaTouch; }
+            bprint(sprintf("adgun shots: %g: %s, box %v, move %g, solid %g, ", ph, s.model, s.size, s.movetype, s.solid));
+            bprint(sprintf("fuse %.2f, speed %.0f, ours %g\n", fuse, spd, funcs));
+            if(ph == 0)
+            {
+                vr_adgun_t90_gsize = s.size; vr_adgun_t90_gmove = s.movetype; vr_adgun_t90_gsolid = s.solid;
+                vr_adgun_t90_gfuse = fuse; vr_adgun_t90_gspeed = spd; vr_adgun_t90_gfuncs = funcs;
+            }
+            else if(ph == 1)
+            {
+                float same = vr_adgun_t90_gfuncs && funcs && s.model == "progs/grenade.mdl" && s.size == vr_adgun_t90_gsize &&
+                             s.movetype == vr_adgun_t90_gmove && s.solid == vr_adgun_t90_gsolid &&
+                             fabs(fuse - vr_adgun_t90_gfuse) < 0.06 && fabs(spd - vr_adgun_t90_gspeed) < 0.05 * spd;
+                bprint(sprintf("adgun shots: the grenade soldier's grenade is the grenade launcher's: %s\n",
+                    same ? "PASS" : "FAIL"));
+                if(same) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+            }
+            else if(ph != 4)
+            {
+                float own = funcs && (ph == 3 || s.model == "progs/missile.mdl");
+                bprint(sprintf("adgun shots: %g: its projectile %s: %s\n", ph, ph == 2 ? "our rocket" : "AD's bolt, our hit",
+                    own ? "PASS" : "FAIL"));
+                if(own) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+            }
+        }
+    }
+    vr_adgun_test_step = vr_adgun_test_step + 1;
+    if(vr_adgun_test_step == 7)
+    {
+        // 0.3 s on: still flying (not caught, not gone off), well clear of the muzzle.
+        entity t = vr_adgun_t90_shot;
+        float alive = t.vr_adgun_wid == -1 - ph && t.model == vr_adgun_t90_model;
+        float d = alive ? vlen(t.origin - vr_adgun_t90_from) : 0;
+        float ok = alive && t.carry_player == world && d >= 90;
+        bprint(sprintf("adgun shots: %g: 0.3 s on: %s, %.0f from the muzzle, touches of its firer %g: %s\n", ph,
+            alive ? (t.carry_player != world ? "held" : "flying") : "gone", d, vr_owner_touches,
+            ph == 4 ? "(before, not counted)" : (ok ? "PASS" : "FAIL")));
+        if(ph != 4)
+        {
+            if(ok) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+        }
+    }
+    if(vr_adgun_test_step < 20)
+    {
+        self.nextthink = time + 0.05;
+        return;
+    }
+    vr_adgun_test_step = 0;
+    vr_adgun_t90_phase = ph + 1;
+    if(vr_adgun_t90_phase > 4)
+    {
+        bprint(sprintf("adgun shots: %g passed, %g failed\n", vr_adgun_test_pass, vr_adgun_test_fail));
+        cvar_set("vr_weapon_grip_mode", ftos(vr_adgun_test_grip));
+        remove(self);
+        return;
+    }
+    self.nextthink = time + 0.5;
+};
+
 // ---------------------------------------------------------------------------------------------------------------------
 // AD's weapons in any map (vr_ad_test 81..84; ROUND22.md "AD weapons everywhere"): the debug spawner's 309..319 (the
 // three upgrades' pickups, the eight soldiers' guns as func_weapon_grabbable), as the toolgun and the Debug menu make
@@ -778,6 +925,27 @@ void(float request, entity p) AD_GunTest =
         cvar_set("vr_weapon_grip_mode", "1");
         bprint(sprintf("adweapons: the main hand fires: %s\n", VR_ADWeapons_Fire(p, "held") ? "PASS" : "FAIL"));
         cvar_set("vr_weapon_grip_mode", ftos(grip2));
+        return;
+    }
+    if(request == 90)
+    {
+        if(!cvar("vr_ad_mounted"))
+        {
+            bprint("adgun shots: Arcane Dimensions' data is not loaded\n");
+            return;
+        }
+        AD_WeaponsOnDemand();
+        entity e90 = spawn();
+        e90.classname = "vr_adgun_test";
+        e90.owner = p;
+        vr_adgun_t90_phase = 0;
+        vr_adgun_test_step = 0;
+        vr_adgun_test_pass = vr_adgun_test_fail = 0;
+        vr_adgun_test_grip = cvar("vr_weapon_grip_mode");
+        cvar_set("vr_weapon_grip_mode", "1");
+        e90.think = VR_ADGun_ShotsTestThink;
+        e90.nextthink = time + 0.1;
+        bprint("adgun shots: the launchers' and plasma guns' shots from your main hand\n");
         return;
     }
     if(request == 70)
