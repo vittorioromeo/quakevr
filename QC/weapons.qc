@@ -5383,6 +5383,10 @@ void() ImpulseCommands =
             self = lobPlayer;
         }
     }
+    if(self.impulse == 198 && !deathmatch && !coop) // QVR: the monster spawned last punched in the face: teeth (vr_teeth.qc)
+    {
+        VR_Teeth_Test();
+    }
     if(self.impulse == 242 && !deathmatch && !coop) // QVR: the nearest melee monster strikes you now (parry tests; vr_melee.qc)
     {
         VR_Parry_TestBlow();

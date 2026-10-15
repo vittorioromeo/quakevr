@@ -34,6 +34,7 @@
 .float vr_sgib_sawtime;   // (a monster or corpse) when the chainsaw last tore one out of it
 .float vr_sgib_sit;       // what tore it out (QVR_SGIB_SIT_*: the tests)
 .float vr_sgib_brain;     // a brain chunk (VR_SmallGib_Brains)
+.float vr_sgib_tooth;     // a tooth (vr_teeth.qc: VR_SmallGib_SpawnAs's xBrain 2)
 .float vr_sgib_mult;      // (a head cut off: VR_Decap_ThrowHead) the enemy it came from's small gib count multiplier,
 .float vr_sgib_brains_mult; // and its brain chunk multiplier: bursting the head later still counts them (VR_SmallGib_Mult)
 .float vr_sgib_multset;   // they are stored on it (a head is not the monster: its .th_die is gone)
@@ -112,6 +113,7 @@ void() VR_SmallGib_Precache =
     precache_model("progs/gib_brain1.mdl"); // brain chunks (make_brains.py)
     precache_model("progs/gib_brain2.mdl");
     precache_model("progs/gib_brain3.mdl");
+    precache_model("progs/vr_tooth.mdl"); // teeth (make_teeth.py, vr_teeth.qc)
 };
 
 string(float xSmall) VR_Gib_SquishSound =
@@ -295,6 +297,8 @@ float() VR_SmallGib_MakeRoom =
 // A small gib
 
 void() VR_SmallGib_Think;
+void() VR_Tooth_Touch;       // (vr_teeth.qc)
+float() VRMetersToUnits;     // (weapons.qc)
 
 // Quake's bounce (which passes through monsters) in its grace, a rigid body after it (VR_SmallGib_Rigid): landing in
 // it, not yet (Box3D would push it out of the body it came from).
@@ -350,7 +354,14 @@ entity(vector org, vector vel, entity from, float xBrain) VR_SmallGib_SpawnAs =
     float smin = max(0.05, cvar_hget(cvarh_vr_smallgibs_size_min));
     float smax = max(smin, cvar_hget(cvarh_vr_smallgibs_size_max));
     float s = VR_SmallGib_RockSize() * (smin + random() * (smax - smin));
-    if(xBrain)
+    if(xBrain == 2)
+    {
+        // A tooth (vr_teeth.qc): its own model, its size in cm.
+        setmodel(g, "progs/vr_tooth.mdl");
+        g.vr_sgib_tooth = TRUE;
+        s = max(0.2, cvar_hget(cvarh_vr_teeth_size)) * 0.01 * VRMetersToUnits();
+    }
+    else if(xBrain)
     {
         float k = floor(random() * 3);
         setmodel(g, k < 1 ? "progs/gib_brain1.mdl" : (k < 2 ? "progs/gib_brain2.mdl" : "progs/gib_brain3.mdl"));
@@ -365,7 +376,7 @@ entity(vector org, vector vel, entity from, float xBrain) VR_SmallGib_SpawnAs =
     vector lo = modelbounds(g, 0);
     vector hi = modelbounds(g, 1);
     vector d = hi - lo;
-    s = s / max(1, max(d_x, max(d_y, d_z)));
+    s = s / max(xBrain == 2 ? 0.1 : 1, max(d_x, max(d_y, d_z))); // (a tooth's model is a unit long)
     g.model_scale = '1 1 1' * (s - 1);
     setorigin(g, org);
     g.velocity = vel;
@@ -377,9 +388,17 @@ entity(vector org, vector vel, entity from, float xBrain) VR_SmallGib_SpawnAs =
     g.flags = 0;
     g.vr_sgib = time;
     g.vr_prop_mass = max(0.05, cvar_hget(xBrain ? cvarh_vr_smallgibs_brains_mass : cvarh_vr_smallgibs_mass));
+    if(xBrain == 2)
+    {
+        g.vr_prop_mass = max(0.005, cvar_hget(cvarh_vr_teeth_mass));
+    }
     VR_MakeGibGrabbable(g); // (vr_grab_gibs: else a bouncing thing that only fades)
     setsize(g, lo * s, hi * s);
-    if(g.vr_gib)
+    if(g.vr_gib && xBrain == 2)
+    {
+        g.touch = VR_Tooth_Touch; // (no squish, no blood, never sticks to a wall)
+    }
+    else if(g.vr_gib)
     {
         g.touch = VR_SmallGib_Touch;
         if(cvar_hget(cvarh_vr_smallgibs_destroy))
@@ -401,7 +420,7 @@ entity(vector org, vector vel, entity from, float xBrain) VR_SmallGib_SpawnAs =
 
     vr_sgib_serial++;
     vr_sgib_made++;
-    vr_sgib_brains_made = vr_sgib_brains_made + (xBrain ? 1 : 0);
+    vr_sgib_brains_made = vr_sgib_brains_made + (xBrain == 1 ? 1 : 0);
     vr_sgib_live++;
     g.vr_sgib_id = vr_sgib_serial;
     vr_sgib_ring[slot] = g;

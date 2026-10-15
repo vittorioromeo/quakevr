@@ -332,3 +332,6 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 
 - More gore: thin blood streams from bullet holes in enemies; teeth flying out when punching faces; real-time vertex
   deformation showing flesh chunks torn away; thinner, longer-range blood splatters onto surfaces behind a shot enemy.
+  - Done (ROUND22.md, "More gore: blood streams, back-splatter, teeth"): the streams from bullet holes (Gore > Blood
+    Streams), the back-splatter streaks (Gore > Back-splatter), the teeth (Gore > Knocked-out Teeth). To check in VR:
+    how the streams read up close and on ragdolls, a real punch's teeth (the threshold, Punch Hardness for Teeth).

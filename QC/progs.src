@@ -95,6 +95,8 @@ vr_chainsaw.qc
 // Decapitation after the chainsaw (its bar) and weapons.qc (positional damage's head zone).
 vr_decap.qc
 vr_limbs.qc
+// Teeth knocked out by a punch to the face (after vr_decap.qc: its head zone and blunt hardness).
+vr_teeth.qc
 vr_limbs_test.qc
 vr_enemyguns.qc
 vr_crowbar.qc

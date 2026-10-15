@@ -1744,7 +1744,7 @@ QVR_CVAR(vr_teeth_per_hit, "4", CVAR_ARCHIVE)           // most from one blow (t
 QVR_CVAR(vr_teeth_per_enemy, "10", CVAR_ARCHIVE)        // most one enemy loses
 QVR_CVAR(vr_teeth_hardness, "0.3", CVAR_ARCHIVE)        // a blow's least hardness to knock any out (0..1: Decapitation's blunt hardness, speed and damage)
 QVR_CVAR(vr_teeth_blunt, "1", CVAR_ARCHIVE)             // blunt things in the hand (a gun's butt, a crowbar, a club, a pommel) too, not only fists
-QVR_CVAR(vr_teeth_size, "2.5", CVAR_ARCHIVE)            // cm long
+QVR_CVAR(vr_teeth_size, "3", CVAR_ARCHIVE)              // cm long
 QVR_CVAR(vr_teeth_speed, "3", CVAR_ARCHIVE)             // m/s they fly out at (along the blow, scattering)
 QVR_CVAR(vr_teeth_mass, "0.05", CVAR_ARCHIVE)           // kg each
 // Scourge of Armagon's flies round a severed head (player.qc HeadThink: one in ten buzz, looping). Off: the author found
