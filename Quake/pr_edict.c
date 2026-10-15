@@ -2334,6 +2334,7 @@ void PR_Init (void)
 	Cmd_AddCommand ("profile", PR_Profile_f);
 	Cmd_AddCommand ("profile_qc", PR_ProfileQC_f); // QVR: per-function time (vr_qcprofile)
 	Cvar_RegisterVariable (&vr_qcprofile);
+	VR_QCExec_Init (); // QVR: vr_qcexec, vr_qcexec_bench
 	Cvar_RegisterVariable (&nomonsters);
 	Cvar_SetCallback (&nomonsters, ED_Nomonsters_f);
 	Cvar_RegisterVariable (&gamecfg);

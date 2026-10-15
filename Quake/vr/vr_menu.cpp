@@ -5424,6 +5424,13 @@ za::Vector<Item> pageDebugProfiling()
             .help("profile_qc 30: the 30 QuakeC functions and builtins that took the most time a frame since the last "
                   "report (Time QuakeC Functions on), in the console; then all are zeroed. Press it, do the thing, press "
                   "it again."),
+        cycle("QuakeC Loop", vr_qcexec, {{0.f, "Original"}, {1.f, "Fast (goto)"}, {2.f, "Fast (switch)"}})
+            .help("vr_qcexec: the QuakeC interpreter's loop. Fast (goto), the default: the same results, errors and "
+                  "instruction counts as the original, quicker (docs/vr-port/QC_VM.md). Original: the old loop, to "
+                  "compare or to rule it out."),
+        command("QuakeC Loop Bench", "vr_qcexec_bench")
+            .help("vr_qcexec_bench: times a QuakeC math function in each loop (in a map) and checks they agree; the "
+                  "result in the console."),
         command("Edict Index Stats", "vr_edictindex_stats")
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
