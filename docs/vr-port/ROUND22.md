@@ -7856,3 +7856,73 @@ this branch, a pass on the base). Melee eval 168/177 (baseline). e1m1 smoke clea
 In VR: knock a grunt down and jump on its head from beside it: the third jump pops it. Kill one, jump off a ledge
 about twice your height onto its head, then onto a leg: each pops. Do the same onto a standing grunt, knight or
 enforcer: its head pops. Onto an ogre or a shambler: it is hurt, never killed outright, nothing pops.
+## Melee arc: monster blows only ahead of the monster (worktree `tghost`, branch `agent/meleearc`, 2026-10-16)
+
+His note (AD's start map): a knight's sword hits him while it still faces away (he snuck up behind it) and when he
+steps to the side of its body as it charges. Cause, the same in every monster's melee: Quake's blows check reach only
+(`ai_melee`: origins within 60 units; a bite or claw 100; AD's `ad_ai_checkmelee`: level distance and height), never
+the facing; the generic `CheckAttack` (knight, hell knight, fish; AD's generic and most of AD's own checks) starts the
+attack the frame the player is in melee range, whatever the facing; and while swinging the monster turns after him at
+full speed, twice a frame (`ai_charge` = `ai_face` plus `movetogoal`'s step, each a `ChangeYaw` at `yaw_speed` 20),
+so a step aside is caught within a frame or two.
+
+What changed (`QC/fight.qc`, one helper family used by every path):
+
+- `VR_MeleeArc_Hits(wide)` on each blow's hit frame, after its reach check: against a player the blow lands only if he
+  is within `vr_enemy_melee_arc_angle` (default 65) of the monster's current facing (level, to `VR_AI_Origin`), plus
+  `vr_enemy_melee_arc_wide` (20) for sweeping blows. Monsters fighting each other keep Quake's blows.
+- `VR_MeleeArc_Launch()` where an attack starts at once (`CheckAttack`; AD's `ad_*CheckAttack`, 21 places): facing
+  away (outside the arc) the attack is not started; `attack_state = AS_MELEE` instead, so `ai_run_melee` /
+  `ad_ai_run_melee` turns it first and starts it when facing (`FacingIdeal`, 45 degrees). `ai_run_melee` now picks the
+  knight's run or standing swing (`knight_attack`) as `CheckAttack` did.
+- `VR_MeleeArc_TurnBegin/End` around a swing frame's turns (`ai_charge`, `ai_charge_side`, the fiend's, gremlin's and
+  scourge's `ai_face`; AD's `ad_ai_charge`, `_chargenoturn`, `_charge_side`, `_charge_front`, the fiend's, drole's,
+  minotaur's and seeker's claws): all of a frame's turns together at most `vr_enemy_melee_turn` (4) degrees.
+- Cvars (archived): `vr_enemy_melee_arc` 1, `vr_enemy_melee_arc_angle` 65, `vr_enemy_melee_arc_wide` 20,
+  `vr_enemy_melee_turn` 4; Combat > Holding Enemies > Melee Arc, Melee Arc Angle, Wide Swings, Swing Turn. Debug >
+  Tests > Holding Enemies: Log Melee Arc (`vr_enemy_melee_arc_debug`: each blow's angle and verdict) and three test
+  rows (`vr_test_meleearc` 1 faces you, 2 faces away, 3 you step aside; `QC/vr_meleearc_test.qc`).
+- AD's files edited in place (as melee space's), each line marked `// AD support`.
+
+Audit (how each blow decides a hit; arc = now also the arc, wide = with the wide margin):
+
+| Monster (file) | Hit test before | Now |
+|---|---|---|
+| Knight standing swing, hell knight all swings and charges, the expansions' knights on these frames (`ai_melee`, fight.qc) | origins within 60 | arc; launch gated |
+| Knight run swing (`ai_melee_side`: 5 hit frames while running past him) | 60 + CanDamage | arc (not wide); launch gated |
+| Rottweiler bite (`dog_bite`) | 100 + CanDamage | arc |
+| Rottweiler, fiend, spawn leaps (`*_JumpTouch`) | touch at speed | unchanged: the body must touch him |
+| Fiend claw (`Demon_Melee`) | 100 + CanDamage | arc |
+| Ogre chainsaw (`chainsaw`: swing turns the ogre up to 25 degrees a frame, smash) | 100 + CanDamage | wide |
+| Shambler smash / claws (`sham_smash10`, `ShamClaw`) | 100 | arc / wide |
+| Rotfish bite (`fish_melee`) | 60 | arc; launch gated (generic CheckAttack) |
+| Zombie, vore, grunts, enforcers | no melee (thrown flesh, missiles, our shoves) | - |
+| Gremlin claw (`Gremlin_Melee`), scourge tail (`Attack_With_Tail`) | 100 | arc |
+| Mummy (rogue) | zombie's thrown flesh | - |
+| Dragon tail (rogue) | 150, meant for behind it | unchanged |
+| MG3 super shambler smash / claws | 100 + CanDamage | arc / wide |
+| AD `ad_ai_melee`, `ad_ai_meleesmash`, `ad_ai_melee_side` (knight, death knight, dguard, dsergeant, dlord, dprince, fury, crossbow knight, zombie knight, judicator, ...) | `ad_ai_checkmelee` 70/meleerange/60 + z | arc; launch gated |
+| AD fiend, dog, fish, spider, steelclaw, swampling, voreling, scorpion, seeker, lost soul, dguard quoth, xmas four | `ad_ai_checkmelee` | arc |
+| AD drole, minotaur, freddie, shambler (side blows) | `ad_ai_checkmelee` | wide for side blows |
+| AD ogres (chainsaw) | `ad_ai_checkmelee` | wide |
+
+Tests (`Misc/quakevr/melee_arc_test.sh <agent> id`, vrtesthall, monster 56 units away, 4 s; arc off -> on; hits in
+4 s, first hit (s); step: he is moved to its right, 100 degrees off, as its attack starts, hits in the next second):
+
+| Monster | facing him: hits, first | its back to him: first, angle then | step aside: hits after |
+|---|---|---|---|
+| knight standing | 12, 0.6 -> 12, 0.6 | 0.6 -> 1.3 (17) | 3 -> 0 |
+| knight run swing (100 units) | 14, 0.5 -> 11, 0.5 | - | 5 -> 0 |
+| hell knight | 18, 0.5 -> 12, 0.5 | 0.5 -> 1.2 (21) | 5 -> 0 |
+| ogre | 17, 0.7 -> 16, 0.6 | 1.3 -> 1.2 (21) | 6 -> 1 (the sweep) |
+| fiend | 5, 0.6 -> 5, 0.6 | 1.2 -> 1.2 (17) | 2 -> 0 |
+| rottweiler | 4, 0.5 -> 4, 0.5 | 1.1 -> 1.1 (25) | 1 -> 0 |
+
+With the arc off a step-aside hit lands at 90 degrees (knight run swing). The fiend, ogre and dog already turned first
+(their own checks use `AS_MELEE`), so only their angle at the first hit changes. AD's monsters could not be run here
+(no AD data in the kit's bases): built and reviewed only. Melee eval 168/177 (unchanged); e1m1 smoke (all 23 awake)
+clean.
+
+In VR: let a knight charge and step to its side as it swings (it should miss, then turn and come again); sneak behind
+one and wake it: it should turn to you before the first blow lands. Standing in front, blows land as before. Too easy
+to dodge: raise Swing Turn (the old tracking was up to 40 a frame); too strict: widen Melee Arc Angle.

@@ -980,6 +980,19 @@ int campaignsBloodyShown = -1;
             .help("A monster attacking you in melee (a knight's swing and its run past you, an ogre's chainsaw, a "
                   "fiend's claws) is kept this far from your head, pushed back smoothly, so it never fills your view and "
                   "you can parry. Its blows still reach you. 0: off (it charges in until your bodies meet)."),
+        toggle("Melee Arc", vr_enemy_melee_arc)
+            .help("A monster's melee blow (a sword, a bite, a claw, a chainsaw) lands only if you are inside the arc ahead "
+                  "of it when it strikes. Facing away, it turns to you before it attacks; while swinging it turns after "
+                  "you only slowly (Swing Turn), so stepping aside or behind it dodges the swing. Leaps still hit by "
+                  "touch. Off: Quake's blows, which check only reach (they hit you behind or beside it)."),
+        slider("Melee Arc Angle", vr_enemy_melee_arc_angle, 30.f, 120.f, 5.f, "%.0f deg")
+            .help("Melee Arc: how far to each side of its facing a monster's blow reaches."),
+        slider("Wide Swings", vr_enemy_melee_arc_wide, 0.f, 60.f, 5.f, "+%.0f deg")
+            .help("Melee Arc: this much more to each side for sweeping blows (an ogre's chainsaw, a shambler's or "
+                  "minotaur's claw)."),
+        slider("Swing Turn", vr_enemy_melee_turn, 0.f, 30.f, 1.f, "%.0f deg/frame")
+            .help("Melee Arc: how fast a swinging monster turns after you (degrees each tenth of a second; slower "
+                  "monsters keep their own speed). Lower: easier to sidestep. 0: its own speed."),
         header("Two-Hand Throw"),
         toggle("Two-Hand Throw", vr_foegrab_throw)
             .help("Hold one enemy with both hands and turn it over hard, a judo throw: one shoulder down and the other up, "
@@ -7173,6 +7186,17 @@ za::Vector<Item> pageDebugTests()
                   "Melee Space pushed it back."),
         command("Clear Melee Approach Log", "vr_enemy_melee_space_status reset")
             .help("Starts the closest-approach log above again."),
+        toggle("Log Melee Arc", vr_enemy_melee_arc_debug)
+            .help("Prints each monster blow at you: its angle off the monster's facing, the arc (Combat > Holding "
+                  "Enemies > Melee Arc) and whether it landed."),
+        command("Melee Arc: Nearest Faces You", "vr_test_meleearc 1")
+            .help("Sets the nearest monster 56 units away facing you, after you; 4 seconds later prints its hits on "
+                  "you (your health is held at 1000 meanwhile). From 100 units (a knight's run swing): vr_test_meleearc 1001."),
+        command("Melee Arc: Nearest Faces Away", "vr_test_meleearc 2")
+            .help("As above, its back to you: with Melee Arc it turns to you before its first blow."),
+        command("Melee Arc: You Step Aside", "vr_test_meleearc 3")
+            .help("As Faces You, and as its attack starts you are moved to its side (100 degrees off its facing): "
+                  "with Melee Arc its swing misses."),
         command("Who Is Held?", "vr_foegrab_status")
             .help("vr_foegrab_status: each hand holding an enemy, its hold, how firmly the enemy is held in all, how far "
                   "the hand is from the spot it holds (Combat > Holding Enemies); an enemy held on as a ragdoll after a "

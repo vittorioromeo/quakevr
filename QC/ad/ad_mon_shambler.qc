@@ -102,7 +102,7 @@ void(float ad_melee_attack, float ad_side) ad_sham_meleeattack =
 	if (!self.enemy) return;					// Something to fight?
 	if (self.health < 1) return;				// Shambler alive?
 	ad_ai_damagebreakable(40);						// Damage any breakables
-	if (!ad_ai_checkmelee(ad_MONAI_MELEESHAM, ad_MONAI_MELEEZTALL)) return;// Too far away
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEESHAM, ad_MONAI_MELEEZTALL) && VR_MeleeArc_Hits(ad_side != 0))) return;// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 	ad_dmg_multiplier = 1;
 
 	// Get closer to enemy

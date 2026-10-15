@@ -230,10 +230,10 @@ void(float ad_side) ad_drole_claw =
 	
 	if (!self.enemy) return;
 	if (self.health < 1) return;
-	ad_ai_face ();						// Turn towards enemy target
+	VR_MeleeArc_TurnBegin(); ad_ai_face (); VR_MeleeArc_TurnEnd(); // AD support: melee arc: the swing's turn held (fight.qc)						// Turn towards enemy target
 	ad_ai_damagebreakable(50);			// Damage any breakables
 
-	if (!ad_ai_checkmelee(ad_MONAI_MELEEDROLE1,ad_MONAI_MELEEZTALL) 
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEEDROLE1,ad_MONAI_MELEEZTALL) && VR_MeleeArc_Hits(ad_side != 0)) // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 		|| !self.enemy.takedamage) {
 		// Melee claw miss sound
 		sound (self, ad_CHAN_WEAPON, "drole/swipe.wav", 1, ad_ATTN_NORM);

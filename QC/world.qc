@@ -584,6 +584,7 @@ void() StartFrame =
     AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
+    VR_MeleeArcTest_Frame(); // vr_test_meleearc (vr_meleearc_test.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)

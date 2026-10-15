@@ -214,6 +214,8 @@ float     ldmg;
 
     if(vlen(delta) > 100)
         return;
+    if(!VR_MeleeArc_Hits(TRUE))
+        return; // QVR: (melee arc: fight.qc)
 
     ldmg = (random() + random() + random()) * 4;
 

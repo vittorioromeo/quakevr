@@ -296,9 +296,9 @@ void() ad_seek_punch =
 	
 	if (!self.enemy) return;
 	if (self.health < 1) return;
-	ad_ai_face ();						// Turn towards enemy target
+	VR_MeleeArc_TurnBegin(); ad_ai_face (); VR_MeleeArc_TurnEnd(); // AD support: melee arc: the swing's turn held (fight.qc)						// Turn towards enemy target
 	ad_ai_damagebreakable(50);			// Damage any breakables
-	if (!ad_ai_checkmelee(ad_MONAI_MELEESEEKER, ad_MONAI_MELEEZTALL)) return;// Too far away
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEESEEKER, ad_MONAI_MELEEZTALL) && VR_MeleeArc_Hits(FALSE))) return;// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Melee hit sound
 	sound (self, ad_CHAN_WEAPON, "seeker/punch1.wav", 1, ad_ATTN_NORM);
