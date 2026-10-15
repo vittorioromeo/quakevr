@@ -2,6 +2,22 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Landing on enemies: drop onto a grunt's head from one storey: it goes down, you bounce, it gets up; higher kills (head pops); ogre/shambler need more height; no fall damage when you crush
+Impacts settings (Combat > Knockdowns > Impacts): Damage Curve 2 and Most per Strike change throws into walls; repeated head slams pop the head
+Water: carry a knocked-down grunt into deep water and hold it: stays down; let go: floats, then stands where it is or on the bank (never back on land it came from)
+Neck snap: Hand Line only at your values (75 deg in 0.15 s); a snapped neck flops (carry the body by its head); Lift and Two-Hand Throw > Show Diagnostic panels make sense
+AD humanoids: shove AD grunts, fumigator, death knight, zombie knight: stagger, fall, get up, fight on; lift a defender (flails); zombie knight headshots land
+Step In Depth (Holding Enemies > Getting Close): walk into a held grunt: stop face to face, strafe/back off freely; try 4-12
+Vore: walk into one: two-handed shove reads, both hands at your chest, push not early
+Grip fit: grab a crate/barrel with the hand pushed in or by an edge: fingers sit at its surface; a normal grab doesn't move the prop
+Slow-mo throws: feel as before (old rules removed); a throw right as bullet time ends
+VR Settings: 9 merged pages with part headers; Player Appearance: gloves none/fingerless/full + colour with bracers and skin tones; biosuit glow at your values
+Menu panels: grip-move one, Back to Game, reopen: same place and page (also after a map change, Esc, dashboard); Close Panel removes one
+Toolgun: Fire tab (wall torches snap to walls, grab/throw flames); pack groups with >> (SoA wetsuit, MG3 shards, DoE dragon, AD extras: ghost heights); Developer corner Toolgun button
+Models: Rebuild From Skeleton on/off on idle grunt/knight; Smooth: idle knight, ogre, shambler with no loop twitch
+Decals: retro textures on: baked blood shows the wall's blocks; gib against a door: blood lands on it when it lands
+Flat desktop main menu: balanced, title raised, nothing under the notice box
+If shoves/lifts ever stop working after a load: Debug > Combat > Why Can't I Knock It Down?, send me the console
 Corpses = Walk Through: walk over a dead grunt: limbs slide a few units ahead of your feet, never flung, walk not slowed (Feet Nudge Ragdolls off: they stay put); bullet time: two-hand throw a small gib: it flies, doesn't burst in your face
 AD pyro/fumigator streams (enemy and your dropped gun): see-through with fire (green) tongues, fire/smoke at the muzzle; poisoned monsters puff green until it wears off; plasma bolts: thin crackling trail, muzzle/hit sparks, electrocute monsters and bodies
 Hot blades: heat a blade red-hot, take a level exit: still glowing in the next level; aim the force grab at a dropped hot blade: it still shows incandescent
