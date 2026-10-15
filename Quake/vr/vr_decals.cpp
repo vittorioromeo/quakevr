@@ -1999,7 +1999,8 @@ void at_f()
 {
     if(Cmd_Argc() < 7 || !cl.worldmodel)
     {
-        Con_Printf("vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size]: a mark where the line meets a surface\n");
+        Con_Printf("vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size] [delay]: a mark where the line meets a surface "
+                   "(shown `delay` seconds later, as the gore's flying blood)\n");
         return;
     }
     const glm::vec3 from{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
@@ -2021,7 +2022,9 @@ void at_f()
         seed = (seed ^ static_cast<unsigned char>(*c)) * 16777619u;
     }
     srand(seed);
-    const bool made = add(kind, where, normal, size);
+    MarkOptions o;
+    o.delay = Cmd_Argc() > 9 ? za::max(0.f, static_cast<float>(Q_atof(Cmd_Argv(9)))) : 0.f;
+    const bool made = add(kind, where, normal, size, o);
     int entity = 0;
     (void)worldtrace::world(from, from + glm::normalize(dir) * 512.f, true, false, 0, 0, &entity);
     Con_Printf("vr_decal_at: %s at %.1f %.1f %.1f (normal %.2f %.2f %.2f), entity %d\n", made ? "laid" : "none", where.x,
