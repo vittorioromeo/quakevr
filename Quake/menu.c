@@ -1534,7 +1534,10 @@ void M_Main_Layout (int *step, int *gap)
 	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
 	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
 	if (!centred)
+	{
 		top = 0.f; // (Quake's place: from y 4 down)
+		bottom = q_min (bottom, 200.f); // to Quake's 200, not the screen's: the notice box and corner buttons fill below it
+	}
 	avail = (int)(bottom - 2 - (q_min (top, 0.f) + 4) - 28 - 20);
 	*step = CLAMP (15, (avail - groups * 6) / (rows - 1), 20);
 	if ((rows - 1) * *step > avail) // more rows than fit 15 apart (a flat screen's 200 rows): closer, to 13, their letters
