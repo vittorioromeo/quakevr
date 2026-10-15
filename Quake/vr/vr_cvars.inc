@@ -1693,7 +1693,7 @@ QVR_CVAR(vr_permdecals, "1", CVAR_ARCHIVE)           // settled marks baked for 
 QVR_CVAR(vr_permdecal_density, "0.5", CVAR_ARCHIVE)  // the baked layer's units a texel (0.25-8; read at a map's load; 1: a little softer than the live marks, 2: blurred)
 QVR_CVAR(vr_permdecal_show, "0", CVAR_NONE)           // debug: the baked layer's pages drawn unlit and green, the marks on them (vr_permdecals.cpp)
 QVR_CVAR(vr_permdecal_atlas, "4096", CVAR_ARCHIVE)   // the baked layer's atlas, texels a side of each of its layers (1024-8192; 4096: 16384 pages of 30 x 30 texels a layer, 85 MB with its mips; made again, what was baked baked again, when changed)
-QVR_CVAR(vr_permdecal_atlas_max, "512", CVAR_ARCHIVE) // the baked layer's atlas grows a layer at a time when full, up to this many MB (at 4096: 85 a layer, 6 layers; e1m1's every page fits in 4); full at that, the page baked least recently gives its slot up (its marks lost)
+QVR_CVAR(vr_permdecal_atlas_max, "512", CVAR_ARCHIVE) // the baked layer's atlas grows a layer at a time when full, up to this many MB (at 4096: 85 a layer, 6 layers, 98304 pages: 70% of all of e1m1's faces' at 0.5 units a texel); full at that, the page baked least recently gives its slot up (its marks lost)
 QVR_CVAR(vr_permdecal_bake_max, "1024", CVAR_NONE)   // pages (30 x 30 texels each) the settled marks bake into a frame at most; the rest stay live for the next frames (marks pushed out of the live ring and those on doors bake at once)
 QVR_CVAR(vr_gib_blood, "1", CVAR_ARCHIVE)              // gibs and heads bleed: Quake VR's blood trail, drops on the floor, splats where they hit (0: Quake's trail)
 QVR_CVAR(vr_gib_blood_trail, "1", CVAR_ARCHIVE)        // how dense their trail of blood and drops is (0 none)
