@@ -6967,7 +6967,7 @@ gain 1: exactly `releasePeak` as before). Gone with the old path: `motionRate`, 
 `armSpeed`, the free `valueAt`, and `Estimate`'s `flickRate`, `flickShare`, `nudge` (and `vr_debug_throw`'s old-path
 lines). About 250 lines less.
 
-Removed cvars (listed in `retiredCvars`: an old config's lines are dropped quietly; config version 135, nothing to
+Removed cvars (listed in `retiredCvars`: an old config's lines are dropped quietly; config version 136, nothing to
 migrate) and their Throwing-page rows:
 - `vr_throw_slowmo_stroke` (the A/B switch; row "Slow Motion: Throw Strength by Stroke")
 - `vr_throw_slowmo_real_time` (1 was required for the stroke path; row "Slow Motion: Throws in Real Time"): the
