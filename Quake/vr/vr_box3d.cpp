@@ -3418,6 +3418,30 @@ bool makeRagdollRoom(edict_t* ent)
     return hull;
 }
 
+// Ragdoll `r`'s neck (bits): its head's bone and those between it and its chest (at most 2), each one's joint to its
+// parent; 0 without a head.
+[[nodiscard]] uint32_t neckBones(const RagdollBodies& r)
+{
+    if(!r.rig)
+    {
+        return 0u;
+    }
+    const ragdoll::Rig& rig = *r.rig;
+    uint32_t out = 0u;
+    int b = rig.head;
+    for(int n = 0; n < 2 && b > 0 && b < r.count; n++)
+    {
+        out |= 1u << b;
+        const int up = rig.bones[b].parent;
+        if(up <= 0 || rig.bones[up].role == modelmeta::BoneRole::Chest)
+        {
+            break;
+        }
+        b = up;
+    }
+    return out;
+}
+
 // What the active drive sees of ragdoll `r` (vr_ragactive.hpp).
 [[nodiscard]] ragactive::Parts activeParts(const RagdollBodies& r)
 {
@@ -3426,6 +3450,7 @@ bool makeRagdollRoom(edict_t* ent)
     p.body = r.body.data();
     p.count = r.count;
     p.cut = r.cut;
+    p.loose = r.neckSnapped ? neckBones(r) : 0u;
     p.k = r.scale / world->m2u;
     p.m2u = world->m2u;
     p.turn = r.turn;
@@ -15603,6 +15628,94 @@ bool ragdollDrowning(edict_t* ent)
     if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
     {
         Con_Printf("drown: %d %s out of breath: it struggles as a ragdoll\n", rp->num, PR_GetString(ent->v.classname));
+    }
+    return true;
+}
+
+// (ROUND22.md, "A snapped neck flops")
+bool ragdollNeckSnapped(edict_t* ent)
+{
+    RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp || !rp->rig || vr_foegrab_necksnap_loose.value == 0.f)
+    {
+        return false;
+    }
+    RagdollBodies& r = *rp;
+    const uint32_t neck = neckBones(r);
+    if(neck == 0u)
+    {
+        return false;
+    }
+    const float cone = glm::radians(za::clamp(vr_foegrab_necksnap_cone.value, 0.f, 170.f));
+    const float twist = glm::radians(za::clamp(vr_foegrab_necksnap_twist.value, 0.f, 175.f));
+    const float friction = r.jointFriction * za::clamp(vr_foegrab_necksnap_friction.value, 0.f, 1.f);
+    // (Driven now (a death's collapse, a swim): those joints left as they are set here from now, never driven:
+    // activeParts' `loose`.)
+    for(int b = 0; b < r.count; b++)
+    {
+        const b3JointId j = r.joints[static_cast<za::SizeT>(b)];
+        if((neck & (1u << b)) == 0u || B3_IS_NULL(j) || !b3Joint_IsValid(j))
+        {
+            continue;
+        }
+        r.active.strength[static_cast<za::SizeT>(b)] = 0.f;
+        float was = 0.f, wasTwist = 0.f;
+        if(r.rig->bones[b].joint == ragdoll::Joint::Ball)
+        {
+            was = b3SphericalJoint_GetConeLimit(j);
+            wasTwist = b3SphericalJoint_GetUpperTwistLimit(j);
+            b3SphericalJoint_SetConeLimit(j, za::max(cone, was));
+            b3SphericalJoint_SetTwistLimits(j, za::min(-twist, b3SphericalJoint_GetLowerTwistLimit(j)), za::max(twist, wasTwist));
+            b3SphericalJoint_EnableSpring(j, false);
+            b3SphericalJoint_SetTargetRotation(j, b3Quat_identity);
+            b3SphericalJoint_EnableMotor(j, friction > 0.f);
+            b3SphericalJoint_SetMotorVelocity(j, b3Vec3_zero);
+            b3SphericalJoint_SetMaxMotorTorque(j, friction);
+        }
+        else if(r.rig->bones[b].joint == ragdoll::Joint::Hinge)
+        {
+            was = b3RevoluteJoint_GetUpperLimit(j);
+            wasTwist = 0.f;
+            b3RevoluteJoint_SetLimits(j, za::min(-cone, b3RevoluteJoint_GetLowerLimit(j)), za::max(cone, was));
+            b3RevoluteJoint_EnableSpring(j, false);
+            b3RevoluteJoint_EnableMotor(j, friction > 0.f);
+            b3RevoluteJoint_SetMotorSpeed(j, 0.f);
+            b3RevoluteJoint_SetMaxMotorTorque(j, friction);
+        }
+        b3Joint_WakeBodies(j);
+        if(vr_debug_ragdoll.value || vr_knockdown_debug.value || vr_foegrab_necksnap_debug.value)
+        {
+            Con_Printf("necksnap: %d %s's %s joint loose: swing %.0f -> %.0f deg, twist %.0f -> %.0f deg, friction %.2f "
+                       "(was %.2f), no spring\n",
+                r.num, PR_GetString(ent->v.classname), r.rig->bones[b].name, glm::degrees(was), glm::degrees(za::max(cone, was)),
+                glm::degrees(wasTwist), glm::degrees(za::max(twist, wasTwist)), friction, r.jointFriction);
+        }
+    }
+    r.neckSnapped = true;
+    return true;
+}
+
+bool ragdollNeckAngle(int num, float& swing, float& twist)
+{
+    const RagdollBodies* r = world ? ragdollOf(num) : nullptr;
+    if(!r || !r->rig || r->rig->head <= 0 || r->rig->head >= r->count)
+    {
+        return false;
+    }
+    const b3JointId j = r->joints[static_cast<za::SizeT>(r->rig->head)];
+    if(B3_IS_NULL(j) || !b3Joint_IsValid(j))
+    {
+        return false;
+    }
+    if(r->rig->bones[r->rig->head].joint == ragdoll::Joint::Ball)
+    {
+        swing = glm::degrees(b3SphericalJoint_GetConeAngle(j));
+        twist = glm::degrees(b3SphericalJoint_GetTwistAngle(j));
+    }
+    else
+    {
+        swing = glm::degrees(b3RevoluteJoint_GetAngle(j));
+        twist = 0.f;
     }
     return true;
 }

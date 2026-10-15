@@ -1101,6 +1101,16 @@ int campaignsBloodyShown = -1;
         slider("Snapped Body Spring", vr_foegrab_necksnap_hertz, 4.f, 30.f, 1.f, "%.0f Hz").extend(0.5f, 30.f)
             .help("How stiffly its head follows your hands afterwards: the light head bears the whole body's weight, so "
                   "the softer, the lower it hangs below your hands."),
+        toggle("Broken Neck Flops", vr_foegrab_necksnap_loose)
+            .help("A snapped neck's joint goes loose: its head flops and rolls as if the vertebrae broke. Off: it stays "
+                  "as stiff as any body's."),
+        slider("Broken Neck Swing", vr_foegrab_necksnap_cone, 30.f, 170.f, 5.f, "%.0f deg")
+            .help("How far a snapped neck lets the head swing off its line (a living neck's: about 45; past about 120 "
+                  "the head sinks into the chest)."),
+        slider("Broken Neck Twist", vr_foegrab_necksnap_twist, 30.f, 175.f, 5.f, "%.0f deg")
+            .help("How far a snapped neck lets the head turn either way about it."),
+        slider("Broken Neck Friction", vr_foegrab_necksnap_friction, 0.f, 1.f, 0.05f, "%.2f")
+            .help("What holds a snapped neck from flopping freely, as a share of the body's joint friction (0: none)."),
     };
 }
 
@@ -7142,6 +7152,9 @@ za::Vector<Item> pageDebugTests()
                   "a death knight, an ogre or a fiend can then be thrown (Combat > Holding Enemies, Hurt Below)."),
         command("Heal the Held", "vr_foegrab_hurt 1")
             .help("vr_foegrab_hurt 1: the enemy you hold (else the one nearest you) at its full health again."),
+        command("Snap the Nearest Neck", "vr_foegrab_necksnap_test")
+            .help("vr_foegrab_necksnap_test: the humanoid nearest you has its neck snapped as both hands would (standing, "
+                  "knocked down first), no hands holding it: see its head flop (Broken Neck Flops)."),
         command("Throw the Nearest Left", "vr_foegrab_throw_test 0")
             .help("vr_foegrab_throw_test 0: the monster nearest you thrown to your left as both hands' turn would (its kind "
                   "and health decide; no hands needed). The console traces its fall: its torso's lean, its feet, its head "

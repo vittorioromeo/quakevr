@@ -1450,6 +1450,8 @@ void neckSnap(int c, edict_t* m, const NeckTwist& t, bool ragdoll)
     {
         return;
     }
+    // Its ragdoll's neck loose from now (vr_foegrab_necksnap_loose): its head flops on the broken vertebrae.
+    (void)box3d::ragdollNeckSnapped(m);
     if(ragdoll)
     {
         (void)box3d::ragdollFlail(m, false); // (lifted: limp now)
@@ -2012,6 +2014,48 @@ void walkTestStep(double dt)
     return best;
 }
 
+// vr_foegrab_necksnap_test: the live monster nearest the first player has its neck snapped as both his hands would
+// (neckSnap: a humanoid's; standing, knocked down first; its ragdoll's neck loose, vr_foegrab_necksnap_loose), with no
+// hands holding it. vr_foegrab_neck_angle <edict>: its ragdoll's head against its chest now (NECKANGLE: swing and twist,
+// degrees; no edict: the last one vr_foegrab_necksnap_test snapped). For tests (Debug > Tests > Holding Enemies).
+int neckTestNum = 0; // the edict vr_foegrab_necksnap_test snapped last
+void neckSnapTest_f()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        Con_Printf("vr_foegrab_necksnap_test: in a game\n");
+        return;
+    }
+    const VmScope vm;
+    edict_t* m = nearestMonster();
+    if(!m || m->v.health <= 0.f)
+    {
+        Con_Printf("vr_foegrab_necksnap_test: no live monster\n");
+        return;
+    }
+    NeckTwist t;
+    t.turned = za::max(vr_foegrab_necksnap_angle.value, 1.f);
+    t.peak = za::max(vr_foegrab_necksnap_speed.value, 1.f);
+    const int num = NUM_FOR_EDICT(m);
+    const bool ragdoll = box3d::isRagdoll(num);
+    neckTestNum = num;
+    neckSnap(0, m, t, ragdoll);
+    Con_Printf("vr_foegrab_necksnap_test: %s (%d) %s, health %.0f, ragdoll %d\n", PR_GetString(m->v.classname), num,
+        ragdoll ? "a ragdoll" : "standing", m->v.health, box3d::isRagdoll(num) ? 1 : 0);
+}
+
+void neckAngle_f()
+{
+    float swing = 0.f, twist = 0.f;
+    const int num = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : neckTestNum;
+    if(!sv.active || !box3d::ragdollNeckAngle(num, swing, twist))
+    {
+        Con_Printf("NECKANGLE %d none\n", num);
+        return;
+    }
+    Con_Printf("NECKANGLE %d swing %.1f twist %.1f\n", num, swing, twist);
+}
+
 // vr_foegrab_hurt <share>: the enemy the first player's hands hold (else the live monster nearest him) is left with that
 // share of its full health (its .max_health): for trying the two-hand throw on a hurt one (vr_foegrab_throw_hurt). The
 // training dummy's health is vr_dummy_health's. For tests (Debug > Tests > Holding Enemies).
@@ -2368,6 +2412,8 @@ void qvr::foegrab::init()
     Cmd_AddCommand("vr_foegrab_walk_test", walkTest_f);
     Cmd_AddCommand("vr_foegrab_hurt", hurt_f);
     Cmd_AddCommand("vr_foegrab_throw_test", throwTest_f);
+    Cmd_AddCommand("vr_foegrab_necksnap_test", neckSnapTest_f);
+    Cmd_AddCommand("vr_foegrab_neck_angle", neckAngle_f);
     // vr_foegrab_throw_grunt_test: the throw's grunt as set, heard here (the menu's Hear Throw Grunt).
     Cmd_AddCommand("vr_foegrab_throw_grunt_test", [] { S_LocalSound(climb::gruntSample(vr_foegrab_throw_grunt_sound.value)); });
 }

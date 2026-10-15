@@ -252,6 +252,13 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
 // (false: no ragdoll).
 [[nodiscard]] bool ragdollCanDrown(edict_t* ent);
 bool ragdollDrowning(edict_t* ent);
+// Its neck snapped (vr_foegrab.cpp neckSnap; vr_foegrab_necksnap_loose): `ent`'s ragdoll's neck joints (its head's, up to
+// its chest) set loose (wide cone and twist, no spring, a little friction), never driven again: its head flops. False:
+// no ragdoll, no head, or the option off.
+bool ragdollNeckSnapped(edict_t* ent);
+// Ragdoll `num`'s head against its chest now (degrees): the swing off its joint's rest direction and the twist about
+// it (the outermost neck joint's). False: none.
+bool ragdollNeckAngle(int num, float& swing, float& twist);
 // A living knockdown lifted off its feet by a player's two hands (vr_foegrab.cpp's lift): `on`, its ragdoll flails (as in
 // lava: ragactive::beginFlail; only the kinds driven alive); off, it stops (its strengths fade). False: not begun (no
 // ragdoll, not an active kind, swimming), or (off) it wasn't flailing.

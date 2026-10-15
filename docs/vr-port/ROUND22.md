@@ -6953,3 +6953,56 @@ TE_LIGHTNING1-3/TE_BEAM when the progs are ours (PRFL_QUAKEVR_PROGS). It was one
 boundary and the QuakeC temp entities right after it had none either: a full broadcast dropped more than it had to
 (never garbled). Lightning gun held 5 s in e1m1 with `vr_debug_net 2` (220-240 broadcast bytes a second, no errors);
 e1m1 smoke clean.
+
+## Carried into water: no snap back; a snapped neck flops (2026-10-15, worktree `qcscanopt`, branch `agent/ragneck`)
+
+His notes: a lifted or shoved grunt carried alive into water, when it gets up, "almost snaps back to the ground that it
+was shoved onto"; and a snapped neck should be a much looser joint, "as if the vertebrae snapped".
+
+**Carried into water: no snap back** (`vr_box3d.cpp` `standSpot`, `ragdollGetUp`, `driveActive`). The stale place was
+the get-up's liquid search: lying in a liquid it looked for a floor with its head out up to `vr_knockdown_water_search`
+(256 units) away, at any height up to 96 over the body, and blended the body there. Carried 190 units out into
+vrtesthall's pool and held, it stood up on the pool's steps 188 units off (blended in 0.35 s); a body carried along the
+pool's south side stood on that bank 47 across and 120 up, from 96 under the surface. Now:
+- A get-up's liquid search goes out to its own range (Room Search, `vr_knockdown_search`, 48), and the floor may be at
+  most `vr_knockdown_water_climb` (new, 48 units; Knockdowns > Climb Out of Water) over its pelvis. The swimmer's goal
+  (where it paddles to, `livingSwim`) still searches `vr_knockdown_water_search` (its help reworded). None near: it
+  paddles on, and after Give Up in Water it gets up where it floats (as before).
+- Held in a liquid by a hand, it stays down (`ragdollgetup` -1: asked again; the QC's give-up timer starts when it is
+  let go of). Then it swims as one shoved in (swim > the rest), and gets up near where it floats or at the bank it
+  reached.
+- A get-up rising on land lapses when its pelvis is carried into a liquid, or a hand holds it more than 64 units (level)
+  from its spot: it was pinned back towards that spot while carried away.
+- The "anywhere" get-up (given up in a liquid) lifts its box up to 32 units: a body on the pool's bottom never found room
+  (its box about the pelvis was in the floor) and stayed down for good.
+- `handback` debug lines (vr_knockdown_debug) print the pelvis and where it stands, and the distance.
+
+Measured (`Misc/quakevr/ragdoll/carry_water_test.sh <agent> [release]`: knocked down beside the pool, the main hand at its head, walked 250 units into the
+pool): held throughout, before: up on the steps 188 units off; now: stays down while held, then up where it floats, 5
+units off. Let go of in the water: it paddled from (371 -354 -98) to the surface by the south bank and stood on it 51
+units across (before: the bank or the steps, from the bottom). Its rise begun on land while held: "carried off its
+get-up (into a liquid): it slumps". `liquid_active_test.sh kdswim kddie drownkd`: PASS (kdswim now gets up 40 units from
+where it lay, 80 before).
+
+**A snapped neck flops** (`vr_foegrab.cpp` `neckSnap` -> `box3d::ragdollNeckSnapped`; `ragactive::Parts::loose`). After
+a snap (standing, knocked down, staggering or lifted) its ragdoll's neck joints (its head's, and one more up to its
+chest if the rig has a neck bone) are set loose: swing `vr_foegrab_necksnap_cone` 120 deg (the grunt's living neck 45),
+twist `vr_foegrab_necksnap_twist` 140 (50), no spring, friction `vr_foegrab_necksnap_friction` 0.1 of the body's; the
+active drive never drives them again (a death's collapse, a swim). `vr_foegrab_necksnap_loose` 1 (Holding Enemies >
+Neck Snap > Broken Neck Flops, with Swing, Twist and Friction rows). Other ragdolls unchanged. Past about 120 the head
+sinks into the chest (it never meets its jointed part): 150 reached 149.
+Debug > Tests > Holding Enemies > Snap the Nearest Neck (`vr_foegrab_necksnap_test`: as both hands would, none
+holding); `vr_foegrab_neck_angle [edict]` prints NECKANGLE (head against chest now). `Misc/quakevr/foegrab/neck_loose_test.sh <agent> <loose> [kd]` (summed by `neck_loose_sum.py`), a grunt
+snapped, 40 samples over 3.3 s:
+
+| case | swing range (deg) | twist range (deg) |
+|---|---|---|
+| standing, stiff (before) | 26..50 (24) | -50..14 (64) |
+| standing, loose | 7..119 (112) | -3..141 (144) |
+| knocked flying then snapped, stiff | 0..52 (52) | -50..50 (100) |
+| knocked flying then snapped, loose | 1..118 (117) | -113..28 (141) |
+
+`judo_test.py neck` (grunt_cw, knocked_cw, stagger, lifted): PASS. e1m1 smoke clean. To try in VR: snap a grunt's neck
+standing and lying, and carry its body by the head: the head should loll and roll; carry a knocked-down grunt into deep
+water and hold it, then let go: it swims, then gets up where it floats or at the bank beside it. Not done: a loaded
+game's ragdoll made again has a stiff neck.

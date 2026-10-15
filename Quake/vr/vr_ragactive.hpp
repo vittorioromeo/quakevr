@@ -84,6 +84,7 @@ struct Parts
     const b3BodyId* body{nullptr}; // [count]: each bone's part (a cut one's: the part it was cut from)
     int count{0};
     uint32_t cut{0};                     // the bones cut off (bits)
+    uint32_t loose{0};                   // the bones whose joint is set loose (a snapped neck's): never driven (bits)
     float k{1.f};                        // rest units -> metres (its scale over the world's units a metre)
     float m2u{1.f};                      // the world's units a metre
     glm::quat turn{1.f, 0.f, 0.f, 0.f}; // its model space -> the world (its yaw when it was made)
