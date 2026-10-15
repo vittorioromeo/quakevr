@@ -279,8 +279,8 @@ extern "C" float VR_EntityGlow(const entity_t* e)
 {
     // The toolgun's target (vr_toolgun.cpp: its hue's, or 2..3 red: the remover's), else the force grab's (in the
     // player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp), else an incandescent blade's (4 and over: its
-    // colour and strength coded, vr_hotblade.cpp entityGlow), else Quad Damage's blue on your hands and body (-2 .. -3:
-    // -2 - its strength, vr_view.cpp quadGlow).
+    // colour and strength coded, vr_hotblade.cpp entityGlow), else a power-up's on your hands and body (under -2: its
+    // colour and strength coded, vr_view.cpp powerupGlow).
     const float t = qvr::toolgun::entityGlow(e);
     if(t != 0.f)
     {
@@ -301,8 +301,7 @@ extern "C" float VR_EntityGlow(const entity_t* e)
     {
         return hot;
     }
-    const float quad = qvr::view::quadGlow(e);
-    return quad > 0.f ? -2.f - quad : 0.f;
+    return qvr::view::powerupGlow(e);
 }
 
 extern "C" void VR_EntityGlowColor(float rgb[3])

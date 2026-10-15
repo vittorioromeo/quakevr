@@ -3151,7 +3151,7 @@ void wristInfo_f();
 // Held props' grips (grip::setHandFrame): where the empty hand's palm and grip channel are in its frame (the move's place
 // and angles), every frame; not measured without the jointed hand (the default hand's are used).
 void gripFrame_f();
-void quadInfo_f();
+void powerupInfo_f();
 
 void updateGripFrame(const hands::State& s, int hand)
 {
@@ -3161,7 +3161,7 @@ void updateGripFrame(const hands::State& s, int hand)
         Cmd_AddCommand("vr_grip_frame", gripFrame_f);
         Cmd_AddCommand("vr_gear_status", gearStatus_f);
         Cmd_AddCommand("vr_body_wrist_info", wristInfo_f);
-        Cmd_AddCommand("vr_quad_info", quadInfo_f);
+        Cmd_AddCommand("vr_powerup_info", powerupInfo_f);
     }
     grip::HandFrame f;
     qmodel_t* const model = viewModel(handrig::modelName);
@@ -6692,13 +6692,14 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
         return;
     }
 
+    // The pentagram's and the biosuit's old tints, only where their glows are off (powerupGlow)
     const float pulse = 0.5f + 0.5f * static_cast<float>(za::sin(vr_gametime * 6.0));
-    if(cl.items & IT_INVULNERABILITY)
+    if((cl.items & IT_INVULNERABILITY) && vr_pent_glow.value <= 0.f)
     {
         ve.lightMultiply = true;
         ve.lightMod = glm::vec3{1.6f + 0.6f * pulse, 0.7f, 0.7f};
     }
-    else if(cl.items & IT_SUIT)
+    else if((cl.items & IT_SUIT) && vr_suit_glow.value <= 0.f)
     {
         ve.lightMultiply = true;
         ve.lightMod = glm::vec3{0.8f, 1.25f, 0.8f};
@@ -6707,45 +6708,129 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
     {
         ve.ent.alpha = ENTALPHA_ENCODE(0.3f);
     }
-    if((cl.items & IT_QUAD) && static_cast<int>(vr_quad_look.value) != 1) // 1: the blue glow only (quadGlow)
+    if((cl.items & IT_QUAD) && static_cast<int>(vr_quad_look.value) != 1) // 1: the blue glow only (powerupGlow)
     {
         quadArcs(s);
     }
 }
 
-// Quad Damage's blue glow (vr_quad_look 1, 2): its strength this frame (0 none), gently pulsing, set by quadGlow; the
-// alias shader's blue rim glow on the hands and less on the body (view::quadGlow, VR_EntityGlow), and blue light from
-// the hands and the chest on the world round you.
-float quadGlowLevel = 0.f;
-
-void quadGlow(const hands::State& s)
+// A power-up's glow on you, so that each is known at a glance: Quad Damage's blue (vr_quad_look 1, 2; vr_quad_glow,
+// vr_quad_glow_light), the pentagram's red (vr_pent_glow, vr_pent_glow_light), the biosuit's green (vr_suit_glow,
+// vr_suit_glow_light). The alias shader's rim glow on the hands and less on the body (view::powerupGlow, VR_EntityGlow)
+// and light from the hands on the world round you, gently pulsing. With more than one, they take turns, crossfading.
+struct PowerupGlowLook
 {
-    const bool on = (cl.items & IT_QUAD) && vr_body_powerups.value != 0.f && static_cast<int>(vr_quad_look.value) >= 1 &&
-                    cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid && !deathview::immersive();
-    // A slow breath (about 0.8 Hz) and a slower swell under it: 0.64 .. 1.
-    const double t = cl.time;
-    const float pulse = 0.82f + 0.12f * static_cast<float>(za::sin(t * 5.0)) + 0.06f * static_cast<float>(za::sin(t * 1.9 + 1.3));
-    quadGlowLevel = on ? za::clamp(vr_quad_glow.value, 0.f, 2.f) * pulse : 0.f;
-    const float light = on ? za::clamp(vr_quad_glow_light.value, 0.f, 2.f) * pulse : 0.f;
-    for(int hand = 0; hand < 2; hand++) // (the body's own: Quake's blue quad light round you, cl_main.c)
+    int item;
+    float shade[3]; // on the hands and body
+    float light[3]; // the light they cast
+    float gain;     // the glow's strength at 1x
+    const char* name;
+};
+const PowerupGlowLook powerupGlowLooks[] = {
+    {IT_QUAD, {0.12f, 0.35f, 1.f}, {0.3f, 0.5f, 1.f}, 1.f, "quad"}, // Quake's quad blue, a little towards cyan
+    // The pentagram's red, deep and stronger: Quake's yellow pentagram flash over the view would wash a lighter one out
+    {IT_INVULNERABILITY, {1.f, 0.05f, 0.08f}, {1.f, 0.25f, 0.2f}, 1.5f, "pent"},
+    {IT_SUIT, {0.25f, 1.f, 0.18f}, {0.4f, 1.f, 0.3f}, 1.f, "suit"}, // the biosuit's green (its view blend)
+};
+constexpr int powerupGlowKinds = 3;
+constexpr double powerupGlowTurn = 1.6; // seconds each glow shows when more than one take turns
+
+struct PowerupGlowState
+{
+    float level = 0.f; // the glow's strength this frame (0 none), pulsing
+    float code = 0.f;  // its colour coded for the shader (r + 16g + 256b, 16 levels a channel)
+    int shown = 0;     // how many power-ups glow (taking turns)
+    int kind = -1;     // the one glowing now (or fading out), powerupGlowLooks
+};
+PowerupGlowState powerupGlowState;
+
+float powerupGlowStrength(int kind)
+{
+    switch(kind)
     {
-        emissive::quadLight(hand, s.pos[hand], light * 0.8f, 110.f); // (inside the hand: lights the world, not it)
+        case 0: return static_cast<int>(vr_quad_look.value) >= 1 ? vr_quad_glow.value : 0.f;
+        case 1: return vr_pent_glow.value;
+        default: return vr_suit_glow.value;
     }
 }
 
-// vr_quad_info: Quad Damage on you as drawn last frame: the look, the glow on the hands and the body, and its lights.
-void quadInfo_f()
+float powerupGlowLight(int kind)
 {
-    Con_Printf("quad: on %d look %d glow %.2f hand %.2f body %.2f arcsframe %d\n", (cl.items & IT_QUAD) ? 1 : 0,
-        static_cast<int>(vr_quad_look.value), quadGlowLevel, view::quadGlow(&entities.hand[0][FingerBase].ent),
-        view::quadGlow(&entities.body.ent), oncePerFrame.quadArcs);
-    for(int i = 0; i < emissive::quadLights; i++)
+    switch(kind)
+    {
+        case 0: return vr_quad_glow_light.value;
+        case 1: return vr_pent_glow_light.value;
+        default: return vr_suit_glow_light.value;
+    }
+}
+
+void powerupGlow(const hands::State& s)
+{
+    PowerupGlowState& g = powerupGlowState;
+    g = PowerupGlowState{};
+    const bool can = vr_body_powerups.value != 0.f && cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid && !deathview::immersive();
+    int shown[powerupGlowKinds];
+    for(int k = 0; can && k < powerupGlowKinds; k++)
+    {
+        if((cl.items & powerupGlowLooks[k].item) && (powerupGlowStrength(k) > 0.f || powerupGlowLight(k) > 0.f))
+        {
+            shown[g.shown++] = k;
+        }
+    }
+    if(g.shown == 0)
+    {
+        for(int hand = 0; hand < 2; hand++)
+        {
+            emissive::powerupLight(hand, s.pos[hand], 0.f, 0.f, glm::vec3{0.f});
+        }
+        return;
+    }
+    // Taking turns: each shows for powerupGlowTurn seconds, crossfading into the next over its last third.
+    const double t = cl.time;
+    const double phase = za::fmod(t / powerupGlowTurn, static_cast<double>(g.shown));
+    const int turn = za::min(static_cast<int>(phase), g.shown - 1);
+    const int a = shown[turn];
+    const int b = shown[(turn + 1) % g.shown];
+    const float f = static_cast<float>(phase - turn);
+    const float w = g.shown > 1 ? glm::smoothstep(0.67f, 1.f, f) : 0.f;
+    g.kind = w < 0.5f ? a : b;
+    // A slow breath (about 0.8 Hz) and a slower swell under it: 0.64 .. 1.
+    const float pulse = 0.82f + 0.12f * static_cast<float>(za::sin(t * 5.0)) + 0.06f * static_cast<float>(za::sin(t * 1.9 + 1.3));
+    const auto mixed = [&](const float(&ca)[3], const float(&cb)[3]) {
+        return glm::mix(glm::vec3{ca[0], ca[1], ca[2]}, glm::vec3{cb[0], cb[1], cb[2]}, w);
+    };
+    const glm::vec3 shade = mixed(powerupGlowLooks[a].shade, powerupGlowLooks[b].shade);
+    const glm::vec3 lightColor = mixed(powerupGlowLooks[a].light, powerupGlowLooks[b].light);
+    const float strengthA = za::clamp(powerupGlowStrength(a), 0.f, 2.f) * powerupGlowLooks[a].gain;
+    const float strengthB = za::clamp(powerupGlowStrength(b), 0.f, 2.f) * powerupGlowLooks[b].gain;
+    g.level = glm::mix(strengthA, strengthB, w) * pulse;
+    const auto level16 = [](float c) { return static_cast<float>(za::clamp(static_cast<int>(c * 15.f + 0.5f), 0, 15)); };
+    g.code = level16(shade.r) + 16.f * level16(shade.g) + 256.f * level16(shade.b);
+    const float light = za::clamp(glm::mix(powerupGlowLight(a), powerupGlowLight(b), w), 0.f, 2.f) * pulse;
+    for(int hand = 0; hand < 2; hand++) // (the body's own: Quake's blue quad and red pentagram lights round you, cl_main.c)
+    {
+        emissive::powerupLight(hand, s.pos[hand], light * 0.8f, 110.f, lightColor); // (inside the hand: lights the world, not it)
+    }
+}
+
+// vr_powerup_info: the power-ups' look on you as drawn last frame: the quad's look and arcs, the glow (which, how many
+// take turns), its strength on the hands and the body, and its lights.
+void powerupInfo_f()
+{
+    const PowerupGlowState& g = powerupGlowState;
+    Con_Printf("powerups: quad %d pent %d suit %d look %d arcsframe %d\n", (cl.items & IT_QUAD) ? 1 : 0,
+        (cl.items & IT_INVULNERABILITY) ? 1 : 0, (cl.items & IT_SUIT) ? 1 : 0, static_cast<int>(vr_quad_look.value), oncePerFrame.quadArcs);
+    const float hand = view::powerupGlow(&entities.hand[0][FingerBase].ent);
+    const float body = view::powerupGlow(&entities.body.ent);
+    Con_Printf("glow: %s shown %d level %.2f code %.0f hand %.3f body %.3f\n", g.kind >= 0 ? powerupGlowLooks[g.kind].name : "none",
+        g.shown, g.level, g.code, hand, body);
+    for(int i = 0; i < emissive::powerupLights; i++)
     {
         for(const dlight_t& dl : cl_dlights)
         {
-            if(dl.key == emissive::quadLightKey - i && dl.die > cl.time)
+            if(dl.key == emissive::powerupLightKey - i && dl.die > cl.time)
             {
-                Con_Printf("quad light %d: radius %.0f colour %.2f %.2f %.2f\n", i, dl.radius, dl.color[0], dl.color[1], dl.color[2]);
+                Con_Printf("glow light %d: radius %.0f colour %.2f %.2f %.2f\n", i, dl.radius, dl.color[0], dl.color[1], dl.color[2]);
             }
         }
     }
@@ -7296,9 +7381,10 @@ const entity_t* cloneSource(const entity_t* e)
     return &clones[i].ent == e ? &reinterpret_cast<const ViewEntity*>(&entities)[i].ent : nullptr;
 }
 
-float quadGlow(const entity_t* e)
+float powerupGlow(const entity_t* e)
 {
-    if(quadGlowLevel <= 0.f || !e)
+    const PowerupGlowState& g = powerupGlowState;
+    if(g.level <= 0.f || !e)
     {
         return 0.f;
     }
@@ -7306,16 +7392,17 @@ float quadGlow(const entity_t* e)
     {
         e = source;
     }
+    float strength = 0.f;
+    bool weapon = false;
     if(e == &entities.body.ent)
     {
-        return za::min(quadGlowLevel * 0.3f, 1.f); // less: seen from inside, its edges are all round the view
+        strength = za::min(g.level * 0.3f, 1.f); // less: seen from inside, its edges are all round the view
     }
-    bool weapon = false;
-    if(handOf(e, weapon) >= 0 && (!weapon || isHandModel(e->model)))
+    else if(handOf(e, weapon) >= 0 && (!weapon || isHandModel(e->model)))
     {
-        return za::min(quadGlowLevel * 0.6f, 1.f);
+        strength = za::min(g.level * 0.6f, 1.f);
     }
-    return 0.f;
+    return strength > 0.f ? -2.f - 2.f * g.code - strength : 0.f; // (vr_glsl.h QVR_ALIAS_FS_GLOW decodes it)
 }
 
 void bareLight(const entity_t* e, float lightcolor[3])
@@ -8446,7 +8533,7 @@ extern "C" void VR_SetupViewEntities()
     setupHolsters(s, idleTexts);
     setupWorldWeapons(s, idleTexts);
     setupBody(s);
-    quadGlow(s); // Quad Damage's blue glow and light (vr_quad_look)
+    powerupGlow(s); // the power-ups' glows and lights (Quad, pentagram, biosuit)
     setupPauldrons();
     setupGadget(s);
     VR_PrecacheSkinMasks();
