@@ -7197,6 +7197,11 @@ za::Vector<Item> pageDebugTests()
             .help("The nearest standing monster counts as just staggered: grab it with one hand within Grab While "
                   "Staggered (Holding Enemies) and it goes down in your hand. vr_knockdown_test 55: its health to a fifth "
                   "(Grab When Weak)."),
+        command("Why Can't I Knock It Down?", "developer 1; vr_knockdown_test 10; vr_ragdoll_list")
+            .help("vr_knockdown_test 10: why a shove, a throw or a lift of the nearest living monster makes no ragdoll "
+                  "now: each gate (its knockdown chance, canragdoll, can stagger, stamina) and the ragdoll pool as the "
+                  "game counts it (each ragdoll, whether it can be freed for room), then the engine's ragdolls "
+                  "(vr_ragdoll_list). Use it when shoves and lifts stop working, and send the console."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),

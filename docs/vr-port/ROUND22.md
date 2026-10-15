@@ -6968,3 +6968,22 @@ Weapons and Bullet Time; Body and Flashlight; HUD, Haptics and Sound; Display an
 Graphics). The boards' menu paths were renamed (make_vrcalibration_map.py, make_vrtesthall_map.py; both maps rebuilt;
 vr_menu_path_check: 0 missing). Biosuit glow defaults from his config: vr_suit_glow 1 and vr_suit_glow_light 1 (were 2);
 configVersion 135. The pentagram (2, 2) and quad values already match his config.
+
+## Shoves and lifts after a reload: not reproduced (2026-10-15, worktree `flatfist`, branch `agent/ragreload`)
+
+His e1m2 note: after an autoload or a respawn, shoves and lifts no longer made active ragdolls. Not reproduced headless;
+no fix. `python Misc/quakevr/ragdoll/reload_test.py <agent> [modes]` shoves a grunt with the mock hands (motion_synth's
+palm_shove_2h, Chance 100) and lifts one (both hands at its shoulders, pulled up), reloads, and does both again; PASS
+when each becomes a ragdoll every time. Modes: restart, load, quickload (game time back about a minute), death (kill,
+restart), autoload (kill, restart: sv_autoload loads the save), map, the pool full first (ten corpses and one knocked
+down: crowdload/auto/death), saved with a grunt held up in a lift or mid-stagger (midlift*/midshove*). All pass; also on
+e1m2 with his whole ironwail.cfg (death, load), in real time (`-RealTime`: the loading screen's deferral), and a save
+loaded first thing in a fresh process. Ruled out by reading: foegrab's holders (reset on load and on a time jump),
+box3d's world and its ragdoll pool, slots and roomRefused (all per world: resetServerWorld), the drawn ragdolls (a
+MapChange cache), the cvar handles (made again in the same order on load: a saved `vr_kd_chance_h` stays valid), stamina
+and the shove's QC state (saved with the game time). Still possible, untested: a rig marked failed once
+(`rigCache.failed`, kept until a game dir change: `canragdoll` 0 for that model from then on), or something only the
+real headset does. For the next time: Debug > Combat, "Why Can't I Knock It Down?" (`vr_knockdown_test 10;
+vr_ragdoll_list`) prints each gate for the nearest living monster (its chance, canragdoll, can stagger, stamina), the
+ragdoll pool as VR_Knockdown_MakeRoom counts it (each ragdoll and whether it can be freed; "NO ROOM" when none can), then
+the engine's ragdolls.
