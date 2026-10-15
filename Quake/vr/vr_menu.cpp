@@ -8157,6 +8157,13 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageVrsDisplay();
 [[nodiscard]] za::Vector<Item> pageVrsScaling();
 [[nodiscard]] za::Vector<Item> pageVrsGraphics();
+[[nodiscard]] za::Vector<Item> pageVrsHeightHands();
+[[nodiscard]] za::Vector<Item> pageVrsLocoControls();
+[[nodiscard]] za::Vector<Item> pageVrsComfortTurning();
+[[nodiscard]] za::Vector<Item> pageVrsWeaponsBulletTime();
+[[nodiscard]] za::Vector<Item> pageVrsBodyFlashlight();
+[[nodiscard]] za::Vector<Item> pageVrsHudHapticsSound();
+[[nodiscard]] za::Vector<Item> pageVrsDisplayGraphics();
 [[nodiscard]] za::Vector<Item> pageAdvanced();
 [[nodiscard]] za::Vector<Item> pageWeaponOffsets();
 [[nodiscard]] za::Vector<Item> pageWofsHand();
@@ -8357,37 +8364,24 @@ const Page pages[] = {
     {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
     {"Arcane Dimensions' Guns", pageAdGuns, pageEnemyWeapons}, // AD support: the AD soldiers' guns (vr_ad_enemyguns.qc)
     {"Incandescent Blades", pageHotBlades, pageWeaponsHub}, // (QC vr_hotblade.qc)
-    {"Blood Feedback", pageBloodFeedback, pageVrsComfort, LevelStandard},
+    {"Blood Feedback", pageBloodFeedback, pageVrsComfortTurning, LevelStandard},
     // VR Settings' sections as pages (ROUND22.md, "VR Settings' sections as submenus"): vrSettingsParts.
-    {"VR Settings - Height Calibration", pageVrsHeight, pageMain, LevelStandard},
-    {"VR Settings - Hand Calibration", pageVrsHands, pageMain, LevelStandard},
+    {"VR Settings - Height and Hand Calibration", pageVrsHeightHands, pageMain, LevelStandard},
     {"VR Settings - Holster Calibration", pageVrsHolsters, pageMain, LevelStandard},
     {"VR Settings - Ammo Pouch", pageVrsAmmoPouch, pageMain, LevelStandard},
-    {"VR Settings - Controls", pageVrsControls, pageMain, LevelStandard},
-    {"VR Settings - Locomotion", pageVrsLocomotion, pageMain, LevelStandard},
-    {"VR Settings - Comfort", pageVrsComfort, pageMain, LevelStandard},
-    {"VR Settings - Teleportation", pageVrsTeleport, pageMain, LevelStandard},
-    {"VR Settings - Turning", pageVrsTurning, pageMain, LevelStandard},
-    {"VR Settings - Flashlight", pageVrsFlashlight, pageMain, LevelStandard},
-    {"VR Settings - Lighting", pageVrsLighting, pageMain, LevelStandard},
-    {"VR Settings - Weapons", pageVrsWeapons, pageMain, LevelStandard},
-    {"VR Settings - Bullet Time", pageVrsBulletTime, pageMain, LevelStandard},
-    {"VR Settings - Body", pageVrsBody, pageMain, LevelStandard},
-    {"VR Settings - Haptics", pageVrsHaptics, pageMain, LevelStandard},
-    {"VR Settings - HUD", pageVrsHud, pageMain, LevelStandard},
-    {"VR Settings - Sound", pageVrsSound, pageMain, LevelStandard},
-    {"VR Settings - Display", pageVrsDisplay, pageMain, LevelStandard},
-    {"VR Settings - Scaling", pageVrsScaling, pageMain, LevelStandard},
-    {"VR Settings - Graphics", pageVrsGraphics, pageMain, LevelStandard},
+    {"VR Settings - Locomotion and Controls", pageVrsLocoControls, pageMain, LevelStandard},
+    {"VR Settings - Comfort, Teleport and Turning", pageVrsComfortTurning, pageMain, LevelStandard},
+    {"VR Settings - Weapons and Bullet Time", pageVrsWeaponsBulletTime, pageMain, LevelStandard},
+    {"VR Settings - Body and Flashlight", pageVrsBodyFlashlight, pageMain, LevelStandard},
+    {"VR Settings - HUD, Haptics and Sound", pageVrsHudHapticsSound, pageMain, LevelStandard},
+    {"VR Settings - Display and Graphics", pageVrsDisplayGraphics, pageMain, LevelStandard},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
 // pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
-const PageBuilder vrSettingsParts[] = {pageVrsHeight, pageVrsHands, pageVrsHolsters, pageVrsAmmoPouch, pageVrsControls,
-    pageVrsLocomotion, pageVrsComfort, pageVrsTeleport, pageVrsTurning, pageVrsFlashlight, pageVrsLighting,
-    pageVrsWeapons, pageVrsBulletTime, pageVrsBody, pageVrsHaptics, pageVrsHud, pageVrsSound, pageVrsDisplay,
-    pageVrsScaling, pageVrsGraphics};
+const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsHolsters, pageVrsAmmoPouch, pageVrsLocoControls,
+    pageVrsComfortTurning, pageVrsWeaponsBulletTime, pageVrsBodyFlashlight, pageVrsHudHapticsSound, pageVrsDisplayGraphics};
 
 [[nodiscard]] bool vrSettingsPage(int p)
 {
@@ -8990,42 +8984,35 @@ za::Vector<Item> pageMain()
 {
     return {
         header("Calibration"),
-        open("Height Calibration", pageIndex(pageVrsHeight))
-            .help("Your height (Set Height Now measures it), the world's scale and the floor's height."),
-        open("Hand Calibration", pageIndex(pageVrsHands))
-            .help("Moves and turns the drawn hands on your controllers, so they sit where your real hands are."),
+        open("Height and Hand Calibration", pageIndex(pageVrsHeightHands))
+            .help("Your height (Set Height Now measures it), the world's scale, the floor's height, and the drawn hands "
+                  "moved and turned on your controllers so they sit where your real hands are."),
         open("Holster Calibration", pageIndex(pageVrsHolsters))
             .help("Where the hip, chest and back holsters are on your body, and the guns drawn over your shoulders."),
         open("Ammo Pouch", pageIndex(pageVrsAmmoPouch))
             .help("Where immersive reloading's pouch is on your belt, its size and its ammo counter."),
 
         header("Moving"),
-        open("Controls", pageIndex(pageVrsControls)).help("What opens the menu besides the menu button."),
-        open("Locomotion", pageIndex(pageVrsLocomotion))
-            .help("Where the stick takes you, running or walking, the sticks' deadzone and swap, swimming."),
-        open("Comfort", pageIndex(pageVrsComfort))
-            .help("Blood Feedback, the vignette, the fade on scripted teleports and the view when you die."),
-        open("Teleportation", pageIndex(pageVrsTeleport)).help("Teleporting to where you point, and how far."),
-        open("Turning", pageIndex(pageVrsTurning)).help("Smooth or snap turning, and how fast or how far."),
+        open("Locomotion and Controls", pageIndex(pageVrsLocoControls))
+            .help("What opens the menu besides the menu button, where the stick takes you, running or walking, the "
+                  "sticks' deadzone and swap, swimming."),
+        open("Comfort, Teleport and Turning", pageIndex(pageVrsComfortTurning))
+            .help("Blood Feedback, the vignette, the fade on scripted teleports, the view when you die; teleporting to "
+                  "where you point; smooth or snap turning."),
 
         header("Playing"),
-        open("Flashlight", pageIndex(pageVrsFlashlight)).help("The flashlight's kind and the side it hangs on."),
-        open("Weapons", pageIndex(pageVrsWeapons))
-            .help("Holding the grip or sticky, two-handed guns and the reloading mode."),
-        open("Bullet Time", pageIndex(pageVrsBulletTime)).help("What starts and stops bullet time."),
-        open("Body", pageIndex(pageVrsBody))
-            .help("How much of your body you see, the wrist gadget's arm, leaning and Reset Position."),
-        open("Haptics", pageIndex(pageVrsHaptics)).help("How strongly the controllers vibrate."),
-        open("HUD", pageIndex(pageVrsHud)).help("The HUD's kind, the crosshair and Doom on the wrist gadget."),
+        open("Weapons and Bullet Time", pageIndex(pageVrsWeaponsBulletTime))
+            .help("Holding the grip or sticky, two-handed guns, the reloading mode, and what starts and stops bullet time."),
+        open("Body and Flashlight", pageIndex(pageVrsBodyFlashlight))
+            .help("How much of your body you see, the wrist gadget's arm, leaning, Reset Position, and the flashlight."),
+        open("HUD, Haptics and Sound", pageIndex(pageVrsHudHapticsSound))
+            .help("The HUD's kind, the crosshair and Doom on the wrist gadget; how strongly the controllers vibrate; the "
+                  "game's and the music's volume and spatial sound."),
 
-        header("Sight and Sound"),
-        open("Lighting", pageIndex(pageVrsLighting)).help("The light where no lamp reaches, and the shadows' contrast."),
-        open("Display", pageIndex(pageVrsDisplay)).help("The headset's brightness and contrast."),
-        open("Scaling", pageIndex(pageVrsScaling))
-            .help("The eyes' render resolution, upscaling, sharpening and foveated rendering."),
-        open("Graphics", pageIndex(pageVrsGraphics))
-            .help("Retro looks, antialiasing, texture filtering, bloom, tone mapping and bump and parallax mapping."),
-        open("Sound", pageIndex(pageVrsSound)).help("The game's and the music's volume, and spatial sound."),
+        header("Sight"),
+        open("Display and Graphics", pageIndex(pageVrsDisplayGraphics))
+            .help("The headset's brightness and contrast, the light where no lamp reaches, the eyes' render resolution, "
+                  "upscaling and foveated rendering, retro looks, antialiasing, bloom and bump mapping."),
 
         header("Reset"),
         action(ui().resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
@@ -9034,7 +9021,7 @@ za::Vector<Item> pageMain()
     };
 }
 
-// VR Settings' sections, each a page linked from it (titled "VR Settings - <section>").
+// VR Settings' sections, merged into the pages linked from it (titled "VR Settings - <section>").
 [[nodiscard]] za::Vector<Item> pageVrsHeight()
 {
     return {
@@ -9372,6 +9359,78 @@ za::Vector<Item> pageMain()
             .help("Walls and floors look carved: their dark parts sink in as you move your head (needs Bump Mapping)."),
     };
 }
+
+// Sections joined on one page, each under a small header (ROUND22.md, "VR Settings submenus merged"). The parts keep
+// their own builders (and their own rows); the merged page lists them in turn.
+void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
+{
+    out.pushBack(header(title));
+    for(Item& it : part)
+    {
+        out.pushBack(it);
+    }
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsHeightHands()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Height", pageVrsHeight());
+    addVrsPart(out, "Hands", pageVrsHands());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsLocoControls()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Locomotion", pageVrsLocomotion());
+    addVrsPart(out, "Controls", pageVrsControls());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsComfortTurning()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Comfort", pageVrsComfort());
+    addVrsPart(out, "Teleportation", pageVrsTeleport());
+    addVrsPart(out, "Turning", pageVrsTurning());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsWeaponsBulletTime()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Weapons", pageVrsWeapons());
+    addVrsPart(out, "Bullet Time", pageVrsBulletTime());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsBodyFlashlight()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Body", pageVrsBody());
+    addVrsPart(out, "Flashlight", pageVrsFlashlight());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsHudHapticsSound()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "HUD", pageVrsHud());
+    addVrsPart(out, "Haptics", pageVrsHaptics());
+    addVrsPart(out, "Sound", pageVrsSound());
+    return out;
+}
+
+[[nodiscard]] za::Vector<Item> pageVrsDisplayGraphics()
+{
+    za::Vector<Item> out;
+    addVrsPart(out, "Display", pageVrsDisplay());
+    addVrsPart(out, "Lighting", pageVrsLighting());
+    addVrsPart(out, "Scaling", pageVrsScaling());
+    addVrsPart(out, "Graphics", pageVrsGraphics());
+    return out;
+}
+
 
 // Split from VR Settings: its body and display settings (the quick ones; all of them under Advanced VR Options).
 [[nodiscard]] za::Vector<Item> pageBodyDisplay()
@@ -10989,7 +11048,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         syncWrappers(); // Turning Mode, Move Towards, the hands: as their settings are now
     }
-    if(pages[page].build == pageVrsTurning && mainPageSnap >= 0 &&
+    if(pages[page].build == pageVrsComfortTurning && mainPageSnap >= 0 &&
         mainPageSnap != (vr_snap_turn.value > 0.f ? 1 : 0))
     {
         done[page] = false; // Snap Angle shown, or Turn Speed

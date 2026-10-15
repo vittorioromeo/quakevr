@@ -6936,6 +6936,10 @@ the corner buttons stay clear. The headset is unchanged: it centres in its panel
 present) the check shows the block centred (about 115 px above, 110 below at 960x540), its save lines clear of the box.
 Screenshots (scratch/): mm_flat_before.png, mm_flat_after.png (run with -ExtraArgs "-flatscreenmode"),
 mm_vr_nocontinue.png, mm_vr_continue.png. Not tested in a real headset.
+Follow-up (branch agent/mainmenu2): on the flat screen the title now starts at menu y -20 (the canvas reaches -60; the
+corner buttons end about -29), so the rows get 24 more units above the unchanged bottom limit 200. With the Continue row
+(14 rows) that is steps 13 and gaps 1 (before: none); fewer rows give wider gaps. The headset path is untouched.
+Screenshots: scratch/mm2_flat_after.png, mm2_vr.png.
 ## The small crates' lips: not a bug (2026-10-15, worktree `fastship`, branch `agent/climblip`)
 
 The note in "Review fixes" (`vr_climb_try` finds no hold at a small crate's lip, spawns 123/124) was a wrong probe: the
@@ -6984,3 +6988,13 @@ Tests: `flick_slowmo_compare.sh` identical to before the change (all 17 rows, ev
 overhand x1.49, overhand0 made slowly x0.88); `stroke_sweep_test.sh lob` as in the section above (lob50 x1.23, lob70
 x1.35; made 3.3x slower x1.01, gain x3.33); `throw_slowmo_test.sh` in bullet time runs with its stroke lines; the
 removed cvars set from a script are silent; e1m1 smoke clean.
+## VR Settings submenus merged, biosuit glow defaults
+
+The 20 VR Settings submenus (rows: Height 4, Hands 8, Holsters 11, Ammo Pouch 5, Controls 1, Locomotion 6, Comfort 5,
+Teleportation 2, Turning 2, Flashlight 2, Lighting 2, Weapons 4, Bullet Time 3, Body 4, Haptics 1, HUD 3, Sound 3,
+Display 2, Scaling 4, Graphics 10) are now 9, each part under a small header, every row kept (vr_menu.cpp, addVrsPart):
+Height and Hand Calibration; Holster Calibration; Ammo Pouch; Locomotion and Controls; Comfort, Teleport and Turning;
+Weapons and Bullet Time; Body and Flashlight; HUD, Haptics and Sound; Display and Graphics (Display, Lighting, Scaling,
+Graphics). The boards' menu paths were renamed (make_vrcalibration_map.py, make_vrtesthall_map.py; both maps rebuilt;
+vr_menu_path_check: 0 missing). Biosuit glow defaults from his config: vr_suit_glow 1 and vr_suit_glow_light 1 (were 2);
+configVersion 135. The pentagram (2, 2) and quad values already match his config.
