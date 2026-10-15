@@ -2737,7 +2737,8 @@ QVR_CVAR(vr_ammobox_drops, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammobox_drops_chance_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrab_mode, "1", CVAR_ARCHIVE)             // force grab (QC vr_wpnforcegrab.qc): 0 off, 1 on
 QVR_CVAR(vr_forcegrab_distance, "200", CVAR_ARCHIVE)       // units objects can be pulled from,
-QVR_CVAR(vr_forcegrab_cone, "15", CVAR_ARCHIVE)            // degrees off where the hand points
+QVR_CVAR(vr_forcegrab_bodies_block, "1", CVAR_ARCHIVE)     // 1: a monster (alive, or a solid corpse) or a ragdoll between the hand and a thing hides it from a force grab, as a wall does (QC VR_Forcegrab_FindTarget; ROUND22.md, "Force grabs: bodies block the view"); 0: only walls do
+QVR_CVAR(vr_forcegrab_cone, "15", CVAR_ARCHIVE)            // degreesoff where the hand points
 QVR_CVAR(vr_forcegrab_flick_speed, "1.0", CVAR_ARCHIVE)    // m/s back or up the hand flicks to pull,
 QVR_CVAR(vr_forcegrab_flick_turn, "250", CVAR_ARCHIVE)     // or degrees/s the fingers swing that way
 QVR_CVAR(vr_forcegrab_time, "0.35", CVAR_ARCHIVE)          // seconds of flight, plus

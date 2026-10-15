@@ -208,6 +208,20 @@ entity(float xHand) VR_Forcegrab_FindTarget =
         {
             continue;
         }
+        // Nor behind a body (ROUND22.md, "Force grabs: bodies block the view"): a monster (alive, or a solid corpse) or a
+        // ragdoll the line from the hand meets before it.
+        if(cvar_hget(cvarh_vr_forcegrab_bodies_block))
+        {
+            traceline(handPos, c, MOVE_PORTALS, self);
+            if(trace_ent != world && trace_ent != e && ((trace_ent.flags & FL_MONSTER) || isragdoll(trace_ent)))
+            {
+                if(cvar("developer") >= 2) // (every frame an open hand points at it)
+                {
+                    dprint(sprintf("forcegrab: %s behind %s, skipped\n", e.classname, trace_ent.classname));
+                }
+                continue;
+            }
+        }
 
         // Nearest to the pointing direction first; nearer ones win close calls.
         float score = cosAngle - dist * 0.0002;

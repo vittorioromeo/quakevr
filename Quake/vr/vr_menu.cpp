@@ -7628,6 +7628,9 @@ za::Vector<Item> pageDebugTests()
         toggle("Force Grab", vr_forcegrab_mode).help("Pull pickups and weapons to your hand from afar."),
         slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f").extend(100.f, 4000.f),
         slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").extend().help("How far off where the hand points an object may be."),
+        toggle("Bodies Block", vr_forcegrab_bodies_block)
+            .help("An enemy (or a body) between your hand and an object hides it from the force grab, as a wall does. "
+                  "Off: only walls do."),
         slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend()
             .help("How fast the hand moves back or up to pull."),
         slider("Flick Turn", vr_forcegrab_flick_turn, 50.f, 800.f, 25.f, "%.0f deg/s").extend()
