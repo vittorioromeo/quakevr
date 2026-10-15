@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "vr_engine.hpp"
 #include "vr_hands.hpp"
 
 
@@ -20,6 +21,10 @@ namespace qvr::cellcord
 {
 
 void init(); // vr_cellcord_info
+
+// The bottom of an alias model (its model space: the middle of its frame 0's lowest vertices), where a cord leaves a
+// weapon (the magnetic holsters' lanyard too: vr_magholster.cpp); 0 for another model.
+[[nodiscard]] glm::vec3 weaponBottom(const qmodel_t* model);
 
 // Once a frame, as the view is set up, after the weapons and the ammo pouch are placed: the cords' ends, their lines.
 void setupView(const hands::State& s);

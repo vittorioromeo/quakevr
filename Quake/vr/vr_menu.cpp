@@ -5359,6 +5359,11 @@ za::Vector<Item> pageDebugViews()
         command("Cell Cord Info", "vr_cellcord_info")
             .help("vr_cellcord_info: in the console, the cell cords (Weapons > Reloading > Cell Cords): each one's weapon, "
                   "its ends (the weapon's bottom, the pouch's cell), loose or plugged in, its length and rings."),
+        command("Magnetic Holsters Info", "vr_magholster_info")
+            .help("vr_magholster_info: in the console, each holster's bound weapon (Immersion > Magnetic Holsters): where it "
+                  "is (holstered, held, away and how far), its chains and their links."),
+        command("Magnetic Holsters: All Home", "vr_magholster_return")
+            .help("vr_magholster_return: every bound weapon lying about flies back to its holster now (if it is empty)."),
         command("Probe Flashlight", "vr_flashlight_probe menu")
             .help("vr_flashlight_probe: in the console, where the torch is, whether each hand is at it (lit, as the game "
                   "reads the hand, still), whether B/Y would clip it on the head or a gun, and the player's speed and turn."),

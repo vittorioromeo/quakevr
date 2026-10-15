@@ -102,6 +102,8 @@ vr_toolgun.qc
 vr_mg3_weapons.qc
 vr_pickup_test.qc
 vr_axestick.qc
+// Magnetic holsters (after the holsters, the throws, the stuck axes and the chainsaw's props it uses).
+vr_magholster.qc
 vr_weaponinst_test.qc
 vr_liquids.qc
 vr_wounds.qc

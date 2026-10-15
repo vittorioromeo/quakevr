@@ -3164,7 +3164,19 @@ QVR_CVAR(vr_cellcord_hammer_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_cellcord_superaxe_x, "0", CVAR_ARCHIVE)    // the same on the Super Axe (off the end of its handle)
 QVR_CVAR(vr_cellcord_superaxe_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_cellcord_superaxe_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_reload_haptics, "1", CVAR_ARCHIVE)         // times the reload's vibrations (taking, putting back, loading, the empty pouch); 0 none
+// Magnetic holsters (QC vr_magholster.qc, vr_magholster.cpp; Immersion > Magnetic Holsters; ROUND22.md, "Magnetic
+// holsters"), as RE4VR's: a hand at a holster with a weapon in it presses the bind button, and the weapon is bound to
+// that holster (pressed again: unbound). Thrown or dropped, it flies back into it on its own once it has been out of the
+// hands that long or is that far from the holster, through walls; a hand closing on it on the way takes it.
+QVR_CVAR(vr_magholster, "1", CVAR_ARCHIVE)                  // 0: off (bindings kept, nothing comes back, no chains)
+QVR_CVAR(vr_magholster_button, "0", CVAR_ARCHIVE)           // the bind button: 0 either stick's click, 1 the off hand's stick, 2 the main hand's stick, 3 the lower face button (A, X) of the hand at the holster
+QVR_CVAR(vr_magholster_return_time, "3", CVAR_ARCHIVE)      // seconds out of the hands before it comes back (0: never by time)
+QVR_CVAR(vr_magholster_return_distance, "4", CVAR_ARCHIVE)  // metres from its holster before it comes back (0: never by distance)
+QVR_CVAR(vr_magholster_flight_time, "0.4", CVAR_ARCHIVE)    // seconds its flight back takes
+QVR_CVAR(vr_magholster_style, "0", CVAR_ARCHIVE)            // the chain shown: 0 a lanyard (a short chain hanging off the bound weapon, a stub of it at the empty holster), 1 a tether (from the holster to the weapon while it is away from the body), 2 both, 3 none
+QVR_CVAR(vr_magholster_chain_size, "0.6", CVAR_ARCHIVE)     // its links' size, times the flashlight chain's (1.6 cm links of 4 mm bar)
+QVR_CVAR(vr_magholster_chain_alpha, "1", CVAR_ARCHIVE)      // its opacity (below 1: see-through)
+QVR_CVAR(vr_reload_haptics, "1", CVAR_ARCHIVE)        // times the reload's vibrations (taking, putting back, loading, the empty pouch); 0 none
 QVR_CVAR(vr_reload_volume, "1", CVAR_ARCHIVE)          // times the reload's sounds; 0 none
 QVR_CVAR(vr_reload_loose_max, "24", CVAR_ARCHIVE)      // rounds lying about at most (dropped, thrown): the oldest not in a hand goes for a new one
 QVR_CVAR(vr_reload_grab_slack, "3", CVAR_ARCHIVE)     // cm from a round lying about within which a gripping fist takes it (they are small and lie flat)

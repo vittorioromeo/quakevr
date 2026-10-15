@@ -863,6 +863,13 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
         statsf[STAT_QVR_HOLSTERWEAPONCLIP0 + i] = clip(holsterInst[i]);
         statsi[STAT_QVR_HOLSTERWEAPONUID0 + i] = weaponUid(inst(holsterInst[i])); // (its blood drawn holstered: vr_wounds.cpp)
     }
+
+    // Magnetic holsters: each holster's bound weapon's id (QC vr_magholster.qc; the chains: vr_magholster.cpp).
+    const int magBind[numHolsters] = {f.vr_magbind0, f.vr_magbind1, f.vr_magbind2, f.vr_magbind3, f.vr_magbind4, f.vr_magbind5};
+    for(int i = 0; i < numHolsters; i++)
+    {
+        statsi[STAT_QVR_MAGBIND0 + i] = static_cast<int>(fieldFloatOr(ent, magBind[i], 0.f));
+    }
 }
 
 // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc): a magazine gun with no magazine in (vr_reload.qc).

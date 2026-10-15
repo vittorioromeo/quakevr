@@ -84,7 +84,7 @@ enum class Weapon
 }
 
 // A model's bottom (its model space), read once as it loads: the middle of its frame 0's vertices within bottomBand of
-// the lowest. A few models (both hands' weapons, the one before).
+// the lowest. A few models (both hands' weapons, the one before; the magnetic holsters' bound weapons: weaponBottom).
 struct Bottom
 {
     const qmodel_t* model{nullptr};
@@ -92,7 +92,7 @@ struct Bottom
     glm::vec3 at{0.f};
     float lowest{0.f}, highest{0.f};
 };
-constexpr int bottomSlots = 4;
+constexpr int bottomSlots = 12;
 Bottom bottoms[bottomSlots];
 int nextBottom = 0;
 
@@ -242,6 +242,11 @@ void info_f()
 }
 
 } // namespace
+
+glm::vec3 weaponBottom(const qmodel_t* model)
+{
+    return model && model->type == mod_alias ? bottomOf(model).at : glm::vec3{0.f};
+}
 
 void init()
 {

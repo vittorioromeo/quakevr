@@ -29,6 +29,10 @@ struct Style
     float wireRadius{0.0019f}; // metres, the wire's thickness / 2
     glm::vec3 albedo{0.1f};
     float length{0.f}; // metres, the line's relaxed length (0: the coil's turns touching, at least 64)
+    // Newtons a metre the whole line is stretched by (its weight: 0.3 N): the flashlight's springy cord 1.5; a chain
+    // hanging loose off one end, the magnetic holsters' lanyard, stiff (20: it hangs its own length).
+    float stiffness{1.5f};
+    float airDamping{1.5f}; // per second, against its swing relative to its ends
     // A chain instead (round 21, the flashlight's: NOTES.md start_2026-10-03_02-19-12, Quake's look): links of square
     // bar along the same line, each a hexagon of wireRadius half-thickness, its faces flat-shaded (gfx::drawTube's
     // `flat`), the same at every distance, each turned a quarter round from the last, paid out of the first end (the

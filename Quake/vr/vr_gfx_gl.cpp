@@ -756,6 +756,7 @@ layout(location = 7) uniform vec3 Key;
 layout(location = 8) uniform int Sides;
 layout(location = 9) uniform vec3 Rust;
 layout(location = 10) uniform int Flat; // faceted: the sides turned half a side, each quad lit by its face's normal
+layout(location = 11) uniform float Alpha; // (below 1: blended, drawTube's `alpha`)
 struct Ring
 {
     vec4 mid;
@@ -800,7 +801,7 @@ void main()
     float rust = clamp(g.ambient.w, 0.0, 1.0); // (a chain's links: rusted that much, grimy by lamp.w)
     float sheen = 0.45 * (1.0 - 0.85 * rust) * (1.0 - g.lamp.w) * x * dot(g.ambient.rgb + g.lamp.rgb, vec3(0.3333));
     vec3 albedo = mix(Albedo, Rust, rust) * (1.0 - g.lamp.w);
-    color = vec4(clamp(albedo * light + vec3(sheen), 0.0, 1.0), 1.0);
+    color = vec4(clamp(albedo * light + vec3(sheen), 0.0, 1.0), Alpha);
     uv = vec2(0.0);
     soft = 0.0;
     gl_Position = MVP * vec4(pos, 1.0);
@@ -1683,7 +1684,8 @@ TubeBatch uploadTube(za::Span<const TubeRing> rings)
     return {buf, reinterpret_cast<za::SizeT>(ofs), rings.size(), gl_frameres_serial};
 }
 
-void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key, const glm::vec3& rust, bool flat)
+void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key, const glm::vec3& rust, bool flat,
+    float alpha)
 {
     if(batch.count < 2 || !batch.buffer || sides < 3)
     {
@@ -1702,7 +1704,9 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
         return;
     }
     GL_UseProgram(tubeProgram);
-    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_OPAQUE);
+    const bool blended = alpha < 1.f;
+    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | (blended ? GLS_BLEND_ALPHA | GLS_NO_ZWRITE : GLS_BLEND_OPAQUE));
+    GL_Uniform1fFunc(11, za::clamp(alpha, 0.f, 1.f));
     const glm::mat4 mvp = sceneViewProjection();
     glm::vec3 eye, right, up;
     sceneCamera(eye, right, up);
