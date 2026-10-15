@@ -6946,3 +6946,10 @@ from the ground, turned down as `low`: under `vr_climb_prop_min_height` 36, as t
 the same hand holds (top 32.1). Exact holds always report "0 holds seen" (that count is the lenient search's), which
 read as a miss. No engine change. `prop_climb_test.sh` has a new `lip` case (those three tries) and drops its "Not
 covered" line: 12 PASS. e1m1 smoke clean. Still untested: a real grip and pull on a small crate on a stack.
+## Beams: the broadcast's message boundaries count the beam id (2026-10-15, worktree `backlogclean`, branch `agent/beamfix`)
+
+The non-AD part of AD P1b (6267ce7d2): `tempEntityLength` (vr_server.cpp) counts Quake VR's beam id byte in a
+TE_LIGHTNING1-3/TE_BEAM when the progs are ours (PRFL_QUAKEVR_PROGS). It was one short, so a beam never ended on a
+boundary and the QuakeC temp entities right after it had none either: a full broadcast dropped more than it had to
+(never garbled). Lightning gun held 5 s in e1m1 with `vr_debug_net 2` (220-240 broadcast bytes a second, no errors);
+e1m1 smoke clean.
