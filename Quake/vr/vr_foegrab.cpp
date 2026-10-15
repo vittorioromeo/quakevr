@@ -1614,6 +1614,7 @@ struct GrabDiag
     float throwBestSpeed{0.f};
     bool liftTried{false};   // a lift tried since (its result printed)
     bool throwTried{false};
+    int tryEnt{0};           // the enemy last tried
     double liftAt{-1.0};     // the last try: when, its result (the panel's "last", a while)
     bool lifted{false};
     char liftLast[48]{};
@@ -1702,6 +1703,7 @@ void liftTry(int c, edict_t* m, bool ok, const char* last, float up, float off)
     }
     GrabDiag& g = grabDiag;
     g.liftTried = true;
+    g.tryEnt = NUM_FOR_EDICT(m);
     g.liftAt = qcvm->time;
     g.lifted = ok;
     q_strlcpy(g.liftLast, last, sizeof(g.liftLast));
@@ -1722,6 +1724,7 @@ void throwTry(int c, edict_t* m, bool ok, const char* last, float twist, float s
     }
     GrabDiag& g = grabDiag;
     g.throwTried = true;
+    g.tryEnt = NUM_FOR_EDICT(m);
     g.throwAt = qcvm->time;
     g.thrown = ok;
     q_strlcpy(g.throwLast, last, sizeof(g.throwLast));
@@ -2427,6 +2430,12 @@ void grabDiagFrame()
         }
     }
     g.ent = ent != 0 ? ent : nearest < neckDiagReach ? g.ent : 0;
+    // (None: the one last tried, a while (lifted or thrown, a ragdoll now): its result stays in view.)
+    const bool recent = time - za::max(g.liftAt, g.throwAt) < 4.0;
+    if(g.ent == 0 && recent && g.tryEnt > 0 && g.tryEnt < qcvm->num_edicts && !EDICT_NUM(g.tryEnt)->free)
+    {
+        g.ent = g.tryEnt;
+    }
     if(g.ent == 0)
     {
         return;
@@ -3150,14 +3159,15 @@ void qvr::foegrab::grabDebugDraw(const glm::vec3& eye)
         lines::point(g.palm[h], g.holds[h] ? 1.6f : 1.f, g.holds[h] ? diagColour(true) : grey);
     }
     // (Both panels: the lift's on the viewer's right, the throw's on the left.)
-    constexpr float side = 30.f;
+    constexpr float side = 20.f;
     if(liftOn)
     {
         // The hands' pull from between them (12 units a m/s): green once at Lift Speed (the cone's top) and within 45
         // degrees of straight up (inside the cone).
         const float need = liftSpeedNeed();
         const float lift = t.vm.z, level = glm::length(glm::vec2{t.vm});
-        const float angle = glm::degrees(za::atan2(level, lift));
+        // (Still hands: no way, shown as level.)
+        const float angle = glm::length(t.vm) < 0.05f ? 90.f : glm::degrees(za::atan2(level, lift));
         const bool fast = lift >= need, steep = lift >= level;
         constexpr float perMs = 12.f;
         const glm::vec3 from = 0.5f * (g.palm[0] + g.palm[1]);

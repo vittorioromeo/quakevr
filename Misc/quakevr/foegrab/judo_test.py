@@ -487,7 +487,9 @@ def case_neckdefaults():
         ("short", 0, GRUNT_HEAD, 60, 0.2, 1, "y", None, "", "none"),
         ("slow", 0, GRUNT_HEAD, 110, 1.0, 1, "y", None, "", "none"),
         ("shoulders", 0, GRUNT_SHOULDERS_WIDE, 110, 0.2, 1, "y", None, "", "nosnap"),
-        ("stagger", 0, "stagger", 110, 0.2, 1, "y", None,
+        # (A staggering one's ragdoll turns with the hands: 110 degrees in 0.2 s read 66 within 0.15 s, under his 75;
+        # 140 in 0.2 s.)
+        ("stagger", 0, "stagger", 140, 0.2, 1, "y", None,
          "vr_knockdown_chance 0.01;vr_ragdoll_active_stagger_travel 0.03;vr_foegrab_manhandle_stagger 0", "snap"),
         ("slowmo_quick", 0, GRUNT_HEAD, 110, 0.2, 1, "y", "quick", "vr_timescale 0.3", "snap"),
         ("slowmo_slow", 0, GRUNT_HEAD, 110, 1.0, 1, "y", None, "vr_timescale 0.3", "none"),
