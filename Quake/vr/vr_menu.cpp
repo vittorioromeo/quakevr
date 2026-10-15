@@ -3353,48 +3353,18 @@ void hologramTestMessage()
             .help("Tilts every throw up (or down, below 0). 0: as throws were tuned; the hand calibration doesn't change them."),
         toggle("Analog Release", vr_throw_release)
             .help("A throw lets go as the grip starts to open, not only once it is released."),
-        toggle("Slow Motion: Throws in Real Time", vr_throw_slowmo_real_time)
-            .help("In slow motion (bullet time, not Sandevistan), a throw's release is judged over the same stretch of "
-                  "your real motion as at full speed, and its wrist flick by your real wrist speed. Off: over the slowed "
-                  "clock's, which took in three times the arm's arc at 0.3x (throws went off, the wrist's share too big)."),
-        toggle("Slow Motion: Throw Strength by Stroke", vr_throw_slowmo_stroke)
+        slider("Slow Motion: Full Stroke Tempo", vr_throw_slowmo_stroke_time, 0.04f, 0.2f, 0.005f, "%.3f s").extend()
             .help("In slow motion (bullet time), a quick toss, flick or nudge goes as far as you made it, and a full "
                   "throw made slowly with the slowed world goes as far as at full speed: the slower your stroke against "
-                  "a real-speed one of its length, the more it is raised, smoothly, no threshold. Off: the old nudge "
-                  "and flick rules below."),
-        slider("Slow Motion: Full Stroke Tempo", vr_throw_slowmo_stroke_time, 0.04f, 0.2f, 0.005f, "%.3f s").extend()
-            .help("A full arm throw's stroke at real speed: its path over its peak speed. Lower: slowed throws reach full "
-                  "strength sooner, real-speed throws in bullet time are raised a little more."),
+                  "a real-speed one of its length, the more it is raised. This is a full arm throw's stroke at real "
+                  "speed (its path over its peak speed). Lower: slowed throws reach full strength sooner, real-speed "
+                  "throws in bullet time are raised a little more."),
         slider("Slow Motion: Most Raised Speed", vr_throw_slowmo_max_speed, 0.f, 40.f, 1.f, "%.0f m/s").extend()
             .help("The fastest a slowed throw is raised to (never below how fast you moved). 0: no cap."),
-        toggle("Slow Motion: Throw Where You Aim", vr_throw_slowmo_aim)
-            .help("In slow motion (bullet time, not Sandevistan), a throw goes the way your controller moved, as the same "
-                  "motion at full speed would, even when the slowed hand lags behind it; its speed stays the slowed "
-                  "hand's. Off: the way the lagging hand moved to catch up (fast throws went 20 to 30 degrees high)."),
-        slider("Slow Motion: Real-Time Flicks", vr_throw_slowmo_flick, 0.f, 1.f, 0.05f, "%.2f")
-            .help("In slow motion (bullet time, not Sandevistan), a wrist flick at real speed throws as at full speed: its "
-                  "speed in your real time, not three times it in the slowed world's (a flick that threw 1 m threw 8 m). "
-                  "The arm's part of a throw is unchanged. 0: as before; between: a blend."),
-        slider("Slow Motion: Wrist Flick Below", vr_throw_slowmo_flick_arm, 0.f, 0.9f, 0.05f, "%.2f").extend()
-            .help("In slow motion, a throw your arm moves less than this share of (your wrist's turn doing the "
-                  "rest) is a wrist flick, thrown as far as the same flick at full speed, however fast or gently you "
-                  "flicked. A throw your arm carries keeps the arm's speed. Higher: flicks with more arm count too."),
-        slider("Slow Motion: Nudge Below", vr_throw_slowmo_short_travel, 0.f, 0.5f, 0.01f, "%.2f m").extend()
-            .help("In slow motion, a throw whose hand moved less than this up to the release (from where the motion "
-                  "got going) is a nudge, thrown as hard as the same nudge at full speed (a 10 cm nudge went 14 "
-                  "times as far). Longer throws, from Arm Throw From up, keep the bullet-time scaling. 0: off."),
-        slider("Slow Motion: Arm Throw From", vr_throw_slowmo_long_travel, 0.f, 0.6f, 0.01f, "%.2f m").extend()
-            .help("In slow motion, a throw whose hand moved this far or more up to the release is the arm's, with the "
-                  "bullet-time scaling (a slow throw made with the slowed world goes as at full speed). Between Nudge "
-                  "Below and this: a blend."),
         toggle("Slow Motion: Throws As In Real Time", vr_throw_slowmo_real_strength)
-            .help("In slow motion, every throw is as strong as the same motion at full speed: no bullet-time scaling. "
-                  "A throw you make slowly with the slowed world then goes as slowly as you made it. Off: nudges and "
-                  "flicks as in real time, longer throws scaled."),
-        toggle("Slow Motion: Slow Throws Match", vr_throw_slowmo_tempo)
-            .help("In slow motion, a throw you make slowly, with the slowed world, is judged as the same throw at full "
-                  "speed (its release over the same part of the arc); one faster than the slowed hands can follow, over "
-                  "your real motion. Off: always over your real motion (a slow throw came out a few degrees lower)."),
+            .help("In slow motion, every throw is as strong as the same motion at full speed: never raised. A throw "
+                  "you make slowly with the slowed world then goes as slowly as you made it. Off: raised by the "
+                  "stroke's tempo (Full Stroke Tempo)."),
         toggle("Spin From Controller Turn", vr_throw_spin_from_pose)
             .help("A throw's spin from how the controller turned, not the runtime's angular velocity (Virtual Desktop "
                   "reports it in the controller's frame: a flick facing away from the play space's front spun throws "

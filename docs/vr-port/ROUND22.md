@@ -6953,3 +6953,34 @@ TE_LIGHTNING1-3/TE_BEAM when the progs are ours (PRFL_QUAKEVR_PROGS). It was one
 boundary and the QuakeC temp entities right after it had none either: a full broadcast dropped more than it had to
 (never garbled). Lightning gun held 5 s in e1m1 with `vr_debug_net 2` (220-240 broadcast bytes a second, no errors);
 e1m1 smoke clean.
+
+## Bullet-time throws: the stroke's tempo only (2026-10-15, worktree `fastship`, branch `agent/throwlean`)
+
+His note: the new slow-motion throwing feels mostly good; keep only it and drop the rest, leaner settings. The
+stroke-tempo throw ("Bullet-time throws: the stroke's tempo" above) is now the only one: `vr_throw.cpp` `estimateAt` and
+`estimateBothAt` always go through `strokeEstimate` (at timescale 1 the hand's and controller's samples are the same, the
+gain 1: exactly `releasePeak` as before). Gone with the old path: `motionRate`, `withOwnAim`, `Tempo`, `armVelAt`,
+`armSpeed`, the free `valueAt`, and `Estimate`'s `flickRate`, `flickShare`, `nudge` (and `vr_debug_throw`'s old-path
+lines). About 250 lines less.
+
+Removed cvars (listed in `retiredCvars`: an old config's lines are dropped quietly; config version 135, nothing to
+migrate) and their Throwing-page rows:
+- `vr_throw_slowmo_stroke` (the A/B switch; row "Slow Motion: Throw Strength by Stroke")
+- `vr_throw_slowmo_real_time` (1 was required for the stroke path; row "Slow Motion: Throws in Real Time"): the
+  release's windows and the release speed threshold are always in the player's real time in slow motion
+- `vr_throw_slowmo_tempo` ("Slow Throws Match"), `vr_throw_slowmo_aim` ("Throw Where You Aim"), `vr_throw_slowmo_flick`
+  ("Real-Time Flicks"), `vr_throw_slowmo_flick_arm` ("Wrist Flick Below"), `vr_throw_slowmo_short_travel` ("Nudge
+  Below"), `vr_throw_slowmo_long_travel` ("Arm Throw From"); with them version 111's three default-change rows
+
+Kept (the stroke path reads them): `vr_throw_slowmo_stroke_time` (0.09 s, "Full Stroke Tempo", its help now explains the
+mechanic), `vr_throw_slowmo_max_speed` (15 m/s), `vr_throw_slowmo_real_strength` (0, "Throws As In Real Time"). The
+bullet-time tap and trigger settings are untouched.
+
+One difference: while the slowed hands are still catching up right after bullet time ends (timescale 1, hand behind its
+controller), a throw had the controller's way at the lagging hand's speed (`withOwnAim`); now the controller's way and
+speed (the stroke path at gain 1), as at full speed. `vr_debug_throw 1` prints its stroke line then too.
+
+Tests: `flick_slowmo_compare.sh` identical to before the change (all 17 rows, every column: lob50 bullet x1.23,
+overhand x1.49, overhand0 made slowly x0.88); `stroke_sweep_test.sh lob` as in the section above (lob50 x1.23, lob70
+x1.35; made 3.3x slower x1.01, gain x3.33); `throw_slowmo_test.sh` in bullet time runs with its stroke lines; the
+removed cvars set from a script are silent; e1m1 smoke clean.

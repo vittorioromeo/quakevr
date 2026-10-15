@@ -6,7 +6,7 @@
 # the arm tells the tempo": run it with "" (full speed), with "vr_bullettime;wait10" (bullet time at 0.3x: every flick
 # as far as at full speed; the overhands as before) and with "vr_bullettime;wait10" 3.333 (made slowly with the world:
 # the overhands as at full speed; a flick as gently as it was made). flick_slowmo_compare.sh runs all three, one table.
-# "vr_throw_slowmo_flick 0": as before 10-07 (a flick that went 0.9 m at full speed went 7.9 m in bullet time).
+# (The older flick and nudge rules and their settings were removed: ROUND22.md, "Bullet-time throws: the stroke's tempo only".)
 NAME="$1"; ROOT="C:/OHWorkspace/qvr-agents/$NAME"; S="${3:-1}"; mkdir -p "$ROOT/scratch"
 TAG="${S}_$(echo "$2" | md5sum | cut -c1-6)" # runs in parallel don't share files
 OUT="$ROOT/scratch/flicks_$TAG.txt"; LOG="$ROOT/scratch/flicks_$TAG.log"
