@@ -21,6 +21,7 @@
 #pragma once
 
 #include "vr_particles.hpp"
+#include "vr_permdecals.hpp"
 
 #include <glm/glm.hpp>
 
@@ -104,5 +105,8 @@ void atlas_f();
 
 // Decals on the walls (vr_memstats).
 [[nodiscard]] int liveCount();
+
+// A save: the live marks on the static world not among the permanent layer's stamps (as they settle), into `out`.
+void liveStamps(za::Vector<permdecals::Stamp>& out);
 
 } // namespace qvr::decals

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "Zancle/Container/Vector.hpp"
+
 #include <glm/glm.hpp>
 
 namespace qvr::permdecals
@@ -36,6 +38,18 @@ struct Stamp
 
 // The layer on (vr_permdecals, with vr_decals: off hides what was baked) and the map laid out for it.
 [[nodiscard]] bool on();
+// The layer kept but not shown: vr_permdecals 0 (vr_decals on, the map laid out). The rule (PERM_DECALS.md, "On and
+// off"): every mark goes into the stamps, on or off. On, they are all shown, baked. Off, the newest vr_decal_max of them
+// are shown live, as without the layer (vr_decals.cpp: showRecord at the switch; the marks the ring lets go of kept,
+// not baked: record); on again, those are dropped from the ring and what was kept while off baked (rebake).
+// vr_decals 0 hides both.
+[[nodiscard]] bool kept();
+void record(const Stamp& s);
+bool rebake();
+// The newest `max` stamps on the static world (model 0), the oldest first, into `out`.
+void newestWorld(int max, za::Vector<Stamp>& out);
+// Pages the bakes since the last flush draw into (bakeSettled's budget: vr_permdecal_bake_max).
+[[nodiscard]] int pendingPages();
 
 // Stamp `s` (in the world's space, its model ignored) baked on the static world's faces under it; how many faces.
 int bakeWorld(const Stamp& s);
@@ -55,10 +69,11 @@ void clear();
 // vr_permdecal_info: the layer's pages, atlas and stamps.
 void info_f();
 
-// Saves: the stamps as the save's comment lines (VR_SaveDecalLines; valid until the next call); a save's read before
-// its load (VR_ReadSaveInfo), baked again once its map has loaded (restore, once a frame: true if it baked).
-[[nodiscard]] const char* saveLines();
+// Saves: the stamps, then `live` (the live ring's marks not among them, settled), as the save's comment lines
+// (VR_SaveDecalLines; valid until the next call); a save's read before its load (VR_ReadSaveInfo), baked again once its
+// map has loaded (restore, once a frame: 1 if it baked them, 2 if it kept them, the layer off: kept).
+[[nodiscard]] const char* saveLines(const za::Vector<Stamp>& live);
 void readSaveLines(const char* text);
-bool restore();
+int restore();
 
 } // namespace qvr::permdecals
