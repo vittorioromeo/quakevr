@@ -72,6 +72,8 @@ with them off.
 | Expected Gun Strike | `gun_strike` | a gun used as a club | swing, butt |
 | Decapitation | `decapitation` | a blade's blow at the neck that should cut the head off (a sword, an axe, the chainsaw) | horizontal_ltr, horizontal_rtl, diagonal_down_left, diagonal_down_right, backswing_up_left, backswing_up_right, from_behind |
 | No Decapitation | `no_decapitation` | a blade's blow at the head or neck (or near) that must not cut it off | stab, pommel, hilt, flat (a flat slap), slow, body, shoulder |
+| Neck Snap Expected | `neck_snap` | both hands hold the dummy's head or neck and twist: its neck should snap | head, neck, push_pull, turn, tilt |
+| Neck Snap Not Expected | `no_neck_snap` | both hands on the dummy (head, neck or shoulders) and moving it, but no snap | shoulders, slow, small, pull, lift, adjusting |
 | Other | `other` | anything else (`vr_motion_note`) | |
 
 The "parry state" the evaluation reads, each server frame of the replay's labelled part (phase `rec`): the parry test
@@ -110,6 +112,25 @@ shoulder. Several of each, at different angles and speeds, one- and two-handed. 
 and `vr_motion_eval no_decapitation_*` evaluate them; the table's `events` column has each blow's detail: the data to
 set the rules by (a range of slash or tilt angles, the edge rather than the flat). Against a monster that can lose its
 head (`target <classname>`) the blows are judged the same way (it loses its head only if the blow also kills it).
+
+### Neck snap takes
+
+For tuning the neck snap's twist detectors (ROUND22.md, "Neck snap takes"). Empty hands, the training dummy (it can be
+held, `vr_foegrab`; its neck "snaps" without it dying: the console says `the training dummy (it stands)`). Motion
+Recorder > Category **Neck Snap Expected** (Detail: head, neck, push_pull, turn, tilt): take hold of its head or neck
+with both grips after starting the take, twist as you would to snap it, let go, end the take. **Neck Snap Not Expected**
+(Detail: shoulders, slow, small, pull, lift, adjusting): both hands on it doing something that must not snap it (a twist
+at the shoulders, a slow or small turn of the head, pulling or lifting it by the head, shifting the grip). Grip after the
+take starts: playback holds the dummy only with a grip that closes during the take (one closed during its setup doesn't
+take hold). The game's snap is the take's `necksnap` event (sub `velocity` or `handline`: the detector that fired; its
+detail the stroke, `83 deg at 863 deg/s standing`), from `vr_foegrab.cpp` `neckSnap`. Verdicts (`expect.cfg`): **Neck
+Snap Expected** passes with a `necksnap`, **Not Expected** without one; blows on the way in are allowed. The take's
+header records the `vr_foegrab_necksnap*` settings it was recorded with.
+
+`eval.sh` keeps these takes out of the melee sets (not in the melee count or its baseline) and replays them under each
+detector (`vr_motion_eval <takes> necksnap 0|1`: `vr_foegrab_necksnap_method` for the replays, put back after; the other
+neck snap settings as set; `eval_status.csv` unchanged), printing per detector the expected snaps caught and missed and
+the false snaps, each miss and false snap by name.
 
 A take's label is `<category>` or `<category>_<detail>` (`slash_overhead`, `parry_pose_sword_2h_blade`).
 
@@ -512,6 +533,13 @@ python Misc/quakevr/motion_synth.py decap --out quakevr/motions/decaptest   # th
 The decapitation presets (`decap`): `decapitation_horizontal_rtl`, `_ltr`, `_diagonal_down_left` (the edge across the
 dummy's neck), `no_decapitation_flat` (the same with the flat leading), `_body` (35 cm lower), `_stab` (a thrust into the
 neck); `--neck` (0.62 m) the hand's height below the eye.
+
+The neck snap presets (`necksnap`; keep them out of the author's folder, e.g. `--out scratch/synth_necksnap`):
+`neck_snap_turn` (both fists at the dummy's head, gripped after the setup, turned 90 degrees about the vertical in 0.2
+s), `no_neck_snap_shoulders` (the same turn at its shoulders), `no_neck_snap_small` (20 degrees at its head); by name
+only, `neck_snap_push_pull` (a 25 cm push-pull, the wrists turning 100 degrees: Hand Line misses it at the shipped
+settings, 2026-10-15). `--head` (1.39 m) the head's middle above the floor, `--necksnap-distance` (0.7 m) the dummy's.
+`EVAL_TAKES=<that folder> bash kit/eval.sh <agent>` runs them through eval.sh's neck snap section.
 
 Options: `--out <folder>`, `--duration <s>` (the motion; 0.3, a thrust 0.15), `--distance <m>` (from the head to the
 dummy's middle, straight ahead), `--rate <Hz>` (90), `--world-scale` (1.25), `--eye-height` (1.646),

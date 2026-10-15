@@ -12,6 +12,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
+#include "vr_motion.hpp"
 #include "vr_move.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -1439,6 +1440,11 @@ void neckSnap(int c, edict_t* m, const NeckTwist& t, bool ragdoll)
     if(c == 0 && result >= 1.f)
     {
         neckDiagEnd(true);
+        // The motion recorder's "necksnap" event (a take being recorded or replayed; MOTIONS.md): the twist detector
+        // that snapped it, the stroke.
+        qvr::motion::qcEvent("necksnap", vr_foegrab_necksnap_method.value >= 1.f ? "handline" : "velocity", -1,
+            t.turned, nullptr, m,
+            va("%.0f deg at %.0f deg/s %s", t.turned, t.peak, ragdoll ? "ragdoll" : "standing"));
     }
     if(result < 1.f || result == 2.f)
     {

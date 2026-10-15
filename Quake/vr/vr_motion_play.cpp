@@ -685,6 +685,7 @@ struct Options
     bool quiet{false};
     float rate{0.f};      // resampled to this many frames a second (0: the take's own frames)
     float jitter{0.f};    // with rate: each frame's time off by up to this fraction of a frame (a headset's timing)
+    int necksnapMethod{-1}; // vr_foegrab_necksnap_method for the replay (-1: as set)
 };
 
 // A repeatable jitter: frame k's time off by up to `amount` frames (a hash of k: the same every run), none for frame 0.
@@ -1143,7 +1144,7 @@ struct Match
     {
         const Event& e = events[i];
         if(hitsAndPushes && !isHit(e) && e.kind != "push" && e.kind != "parry" && e.kind != "deflect" && e.kind != "strike" &&
-           e.kind != "decap")
+           e.kind != "decap" && e.kind != "necksnap")
         {
             continue;
         }
@@ -1337,6 +1338,13 @@ void stopPlayback(const char* why)
         savedSettings.emplaceBack(&vr_foegrab, vr_foegrab.string);
         setupFoegrab = vr_foegrab.string;
         Cvar_SetQuick(&vr_foegrab, "0");
+    }
+    // The neck snap's twist detector asked for (vr_motion_eval ... necksnap <method>: eval.sh's neck snap section
+    // replays the neck snap takes under each), put back afterwards.
+    if(o.necksnapMethod >= 0)
+    {
+        savedSettings.emplaceBack(&vr_foegrab_necksnap_method, vr_foegrab_necksnap_method.string);
+        Cvar_SetQuick(&vr_foegrab_necksnap_method, va("%d", o.necksnapMethod));
     }
     retypeDummies();
     // Nothing left from what played before (the last take's head is not a step into this one): a take plays the same
@@ -2331,9 +2339,11 @@ void writeResults()
 
     // Each take's verdict next to it (eval_status.csv: what Review Takes lists), from an evaluation as the takes are
     // judged: the current melee settings, the takes' own rate, the melee recording room.
-    if(evalOpts.rate > 0.f || evalOpts.recorded || q_strcasecmp(evalMap.cStr(), "vrmelee-recording") != 0)
+    if(evalOpts.rate > 0.f || evalOpts.recorded || evalOpts.necksnapMethod >= 0 ||
+       q_strcasecmp(evalMap.cStr(), "vrmelee-recording") != 0)
     {
-        Con_Printf("vr_motion_eval: (not the takes' verdicts: rate, recorded or another map; eval_status.csv unchanged)\n");
+        Con_Printf("vr_motion_eval: (not the takes' verdicts: rate, recorded, necksnap or another map; eval_status.csv "
+                   "unchanged)\n");
     }
     else
     {
@@ -2469,7 +2479,7 @@ void evalFrame()
 }
 
 // vr_motion_eval [<folder, pattern or take>] [list <file>] [map <name>] [out <file>] [rate <hz> [jitter <fraction>]] [save] [recorded] [verbose]
-// [watch] [progress <file>] [quit];
+// [watch] [progress <file>] [necksnap <0|1>: vr_foegrab_necksnap_method for the replays] [quit];
 // vr_motion_eval stop
 void eval_f()
 {
@@ -2526,6 +2536,10 @@ void eval_f()
         else if(!q_strcasecmp(a, "jitter") && i + 1 < Cmd_Argc())
         {
             evalOpts.jitter = Q_atof(Cmd_Argv(++i));
+        }
+        else if(!q_strcasecmp(a, "necksnap") && i + 1 < Cmd_Argc())
+        {
+            evalOpts.necksnapMethod = Q_atoi(Cmd_Argv(++i)) >= 1 ? 1 : 0;
         }
         else if(!q_strcasecmp(a, "save"))
         {
