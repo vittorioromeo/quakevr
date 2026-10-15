@@ -178,14 +178,14 @@ def pops(flat):
     return tuple(int(g) for g in found[-1]) if found else None
 
 
-DOWN = "vr_knockdown_push 0;vr_knockdown_time_min 30;vr_knockdown_time_max 30;vr_knockdown_test 0;wait90"
+KNOCKED = "vr_knockdown_push 0;vr_knockdown_time_min 30;vr_knockdown_time_max 30;vr_knockdown_test 0;wait90"
 
 
 def case_stompwear():
     # Jumps from the same level (your feet 46 units over the floor: ~270 u/s) onto a knocked-down grunt's head, again
     # and again: its head pops within a few (alive, then a corpse: the wear carries over).
     stomps = "".join("vr_knockdown_test 60;wait60;" for _ in range(6))
-    flat = run("stomp_jumps", f"{PRE};{DOWN};vr_test_drop_height 46;{stomps}vr_knockdown_test 50")
+    flat = run("stomp_jumps", f"{PRE};{KNOCKED};vr_test_drop_height 46;{stomps}vr_knockdown_test 50")
     lines = re.findall(r"crushed \((?:a ragdoll|a corpse)\), you landing at ([\d.]+) m/s|(head popped|its head pops)", flat)
     count, popped_at = 0, None
     for speed, pop in lines:
@@ -197,12 +197,12 @@ def case_stompwear():
     verdict("rror" not in flat and popped_at is not None and 2 <= popped_at <= 4,
             f"same-level jumps on a down grunt's head (at {speeds[:1]} m/s): popped at stomp {popped_at} of {count}")
     # Two heights (112 units over the floor) onto a down grunt's head: popped at once.
-    flat = run("stomp_down112", f"{PRE};{DOWN};vr_test_drop_height 112;vr_knockdown_test 60;wait60;vr_knockdown_test 50")
+    flat = run("stomp_down112", f"{PRE};{KNOCKED};vr_test_drop_height 112;vr_knockdown_test 60;wait60;vr_knockdown_test 50")
     p = pops(flat)
     verdict(p is not None and p[0] == 1 and len(re.findall(r"crushed \(", flat)) == 1,
             f"112-unit drop on a down grunt's head: decaps {p[0] if p else '?'} in one landing")
     # A corpse (knocked down, then killed: a ragdoll): 112 units onto its head, then onto its shin: each pops at once.
-    flat = run("stomp_corpse", f"{PRE};{DOWN};vr_knockdown_test 62;wait60;vr_test_drop_height 112;vr_knockdown_test 60;wait60;"
+    flat = run("stomp_corpse", f"{PRE};{KNOCKED};vr_knockdown_test 62;wait60;vr_test_drop_height 112;vr_knockdown_test 60;wait60;"
                "vr_knockdown_test 61;wait60;vr_knockdown_test 50")
     p = pops(flat)
     ragdoll = "ragdoll 1 knockdown 0 health -" in flat
