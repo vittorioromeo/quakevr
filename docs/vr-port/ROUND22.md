@@ -7121,7 +7121,8 @@ tone is, no painted art: the skin masks (`progs/hand_rig_NN_00_skinmask.tga`, `v
 fingerless glove (the palm island; each finger's first segment to 55% of its length; the thumb's long base and half of
 its second segment), **B** the full glove (the whole hand, nails too), both leaving the static blood of the damaged
 skins out and both 0.55 at the glove's edge rising to 1 a 3 mm hem inside it (made from the finger coordinates in 3D,
-so the islands' UV seams get no hem); **A** the skin's own brightness over the clean skin's mean, halved. The alias
+so the islands' UV seams get no hem); **A** the skin's own brightness over the clean skin's mean, halved (since
+replaced by the glove's own seams: "Gloves: leather, not painted skin" below). The alias
 shader (`vr_glsl.h` QVR_ALIAS_FS_LIGHT) puts the leather (the HSL colour, `vr_view.cpp gloveLook`, times the skin's
 own shading from A: creases, knuckles and grain kept; the hem 40% darker at the edge) over the covered texels and
 tones only the skin the glove leaves bare, so every skin tone x glove x colour works, and dynamic wounds, burns and
@@ -7772,3 +7773,33 @@ rig is first used). Regression: `grip_gap_test.py` cycle 7 checks and forcegrab 
 In VR: grab a crate by its lid or a barrel by its rim with your hand pushed well in: the prop should drop out of the
 hand so the hand lies on the lid or round the rim; a grab with the hand already on the surface should not move it.
 A hand pushed in more than about 18 cm (Most Move 0.75) stays partly in.
+
+## Gloves: leather, not painted skin (worktree `flatfist`, branch `agent/glovetex`, 2026-10-16)
+
+His note: the gloves felt like the hand painted in a glove's shape: the full glove showed the nails and every crease
+through it. Now where a glove covers, the skin's colour **and** its painted detail are gone; the leather has its own:
+
+- **The mask's A channel** (`Misc/quakevr/make_skin_masks.py`, the hand's four `hand_rig_NN_00_skinmask.tga`; R, G, B
+  unchanged bit for bit) is no longer the skin's shading but the glove's relief, made from the fingers' 3D coordinates:
+  0.5 flat; seams down each finger's sides (fourchettes, a little towards the palm, ending before the tip), across the
+  fingers' palm-side base and round the thumb's base, each a groove (to 0.15) with a row of raised stitches (0.8, 3 mm
+  apart) either side. The bodies' A is flat 0.5 (the forearm cuff is plain leather).
+- **The shader** (`vr_glsl.h` `GloveLeather`, `GloveSheen`; QVR_ALIAS_FS_LIGHT): the leather = the HSL colour (hue,
+  saturation, lightness as before) x the seams' shade (grooves dark, stitches light) x a procedural pebbled grain (a
+  3x3 cellular pattern in the skin's texel space, ~1.2 mm pebbles, each its own slight tone, crevices darker; faded to
+  its mean where a pebble is under ~2 pixels, so no shimmer) x the hem (still 30% darker at the edge, and now rolled
+  over: a ridge). Its normal: the skin's normal map faded out under the glove (no creases or nails in the light either)
+  and the seams', hem's and grain's slope put on instead (`WoundBump`). A soft broad sheen (exponent 18, a little
+  Fresnel), duller in the crevices and seams. The hand's form (its normals, the lighting, AO) stays. Fingerless gloves'
+  bare finger ends, and bare hands, are skin as before.
+
+GPU cost: only glove-covered fragments of the hand and cuff pay: 2 more taps of the mask, a 9-cell hash loop (~120 ALU)
+and one pow. Measured (`--exclusive -RealTime`, hands 13 cm from the eyes, 1024x1024 eyes, `vr_profile_report`): frame
+GPU 1.117 / 1.113 / 1.137 / 1.250 ms for gloves off / on / off / on: within the run's noise.
+
+Tested (headless, vrfiringrange, `scratch/glove_close.py`: backs of the hands and palms; before/after in
+`scratch/gloves_leather_before_after.png`): full brown, full red, fingerless brown, fingerless blue: no nails, no
+creases, seams and grain on the leather, finger ends still skin; bare hands: the new shader against the old with the
+same masks, 9 pixels differ (max 17, an edge). e1m1 with gloves 2/1, bracers 0, body modes 3/0, `vr_hand_rig` 1/0: no
+errors. For him in VR: the grain's size and depth (`GloveLeather`: 0.55 cells a texel, depth 0.14 texel), the seams'
+places, the sheen's strength.
