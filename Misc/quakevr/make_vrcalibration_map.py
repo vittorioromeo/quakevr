@@ -361,7 +361,7 @@ TEXT_Y = H - 4
 board("VR CALIBRATION", 0, TEXT_Y, 140, 270, "0.7")
 board(N.join(["Stand in the middle of your play space", "and follow the words in front of you:",
               "your height, then your body."]), 0, TEXT_Y, 122, 270, "0.33")
-board(N.join(["Again later, from the menus:", "Height: {menu:VR Settings>Set Height Now}",
+board(N.join(["Again later, from the menus:", "Height: {menu:VR Settings - Height Calibration>Set Height Now}",
               "Body: {menu:Body Calibration}"]), 0, TEXT_Y, 100, 270, "0.28")
 board(N.join(["Hands: {menu:Hand/Gun Calibration}", "Seated? {menu:Body Calibration>Position}", "Skin: {menu:Body>Skin Tone}"]),
       0, TEXT_Y, 78, 270, "0.28")
