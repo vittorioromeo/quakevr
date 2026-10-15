@@ -72,7 +72,9 @@ constexpr const char* notSignalPrefixes[] = {"func_detail", "misc_particle"};
 // maps.
 constexpr const char* everywhereClasses[] = {
 #define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) &classname[3],
+#define QVR_AD_SPAWN_MAP(section, label, classname, model, lift, choice, key, value, skin) // (only in AD's maps)
 #include "vr_ad_spawns.inc"
+#undef QVR_AD_SPAWN_MAP
 #undef QVR_AD_SPAWN
     "item_artifact_airtank", "item_artifact_blastbelt", "item_artifact_cross", "item_artifact_jumpboots",
     "item_artifact_lavashield", "item_artifact_nail_piercer", "item_artifact_sharp_shooter", "item_artifact_tomeofpower",
