@@ -155,6 +155,13 @@ za::Vector<glm::vec3> scratchRest, scratchNow;
     return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
 }
 
+// The model an entity is of: a ragdoll drawn with its skinned model ("#rag") counts as its .mdl.
+[[nodiscard]] const qmodel_t* ownModel(const entity_t& e)
+{
+    const qmodel_t* source = ragdoll::sourceModel(&e);
+    return source ? source : e.model;
+}
+
 [[nodiscard]] const entity_t* entityOf(int ent, const qmodel_t* model)
 {
     if(ent <= 0 || ent >= cl.num_entities || ent == cl.viewentity)
@@ -162,7 +169,7 @@ za::Vector<glm::vec3> scratchRest, scratchNow;
         return nullptr;
     }
     const entity_t& e = cl_entities[ent];
-    if(!e.model || e.model->type != mod_alias || (model && e.model != model))
+    if(!e.model || e.model->type != mod_alias || (model && ownModel(e) != model))
     {
         return nullptr;
     }
@@ -338,7 +345,7 @@ void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float
     s.used = true;
     s.emitting = true;
     s.ent = ent;
-    s.model = e->model;
+    s.model = ownModel(*e);
     s.vertex = v;
     // It pours back toward the shot (the hole faces it) and out from the body's middle, a little up.
     glm::vec3 radial = at - glm::vec3{e->origin[0], e->origin[1], at.z};
