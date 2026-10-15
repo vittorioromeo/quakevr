@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Corpses = Walk Through: walk over a dead grunt: limbs slide a few units ahead of your feet, never flung, walk not slowed (Feet Nudge Ragdolls off: they stay put); bullet time: two-hand throw a small gib: it flies, doesn't burst in your face
 AD pyro/fumigator streams (enemy and your dropped gun): see-through with fire (green) tongues, fire/smoke at the muzzle; poisoned monsters puff green until it wears off; plasma bolts: thin crackling trail, muzzle/hit sparks, electrocute monsters and bodies
 Hot blades: heat a blade red-hot, take a level exit: still glowing in the next level; aim the force grab at a dropped hot blade: it still shows incandescent
 Motion Recorder: Lift Expected (start, grip dummy with both hands, pull up hard) / Judo Throw Expected (turn it down) and their Not Expected (slow pull, slow/small turn): each saves, dummy stays holdable, Review Takes lists them
