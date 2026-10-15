@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Bullet time: frantic melee (punches, shoves, bashes) near the wrist gadget never starts slow motion; a calm double tap still does (Screen Tap > Quiet After Blows / Calm Hands Speed)
+Get-up: shoved-over grunts and knights roll over and rise where they lie, no slide away and back (Ragdoll Settings > Get Up in Place)
 VR menu panel: point just outside its edge (frame lights) and hold grip: it follows your hand, stays where let go; grip on the panel + move a few cm also moves it; grip held still on a slider still fine-steps; reopen: back in front of you
 Steady Model Vertices: idle grunt and knight over several loops: no itch at the loop restart, shading no longer flickers/pulses; toggle off/on to compare
 Melee Space (Holding Enemies > Getting Close): knights, a fiend and an ogre attacking while you stand still, then lean/step in; try 0 / 16 (default) / 24: nobody ends up in your face
