@@ -6072,3 +6072,38 @@ at 5 m/s, 194-215 kg m/s): stagger through VR_Prop_Flung. Shoves unchanged (test
 Checklist (proposed): "Hits unbalance: throw a heavy crate or a weapon hard at a grunt, or punch/axe it hard (the head
 counts more): it staggers back as from a shove (sometimes falls); light taps never; an ogre seldom, a shambler rarely;
 hitting it again right after doesn't re-stagger it (4 s). Combat > Knockdowns > Hits Unbalance to tune or turn off."
+## Moving the menu panel; one menu's state in a MenuInstance (worktree `bloodfx`, branch `agent/multimenu`, 2026-10-15)
+
+Stages 1 and 2 of MULTI_MENU.md ("Several VR menus open at once"; its Status and the sync list for stage 3 there).
+
+**Stage 1, the panel moved by a grip** (vr_menuui.cpp `PanelGrab`, vr_panel.cpp `MenuPlacement`). Point at the
+panel's frame (a band 8% of its height just outside it; lit in the laser's hue while the laser is on it or the panel is
+held) and hold a grip: the panel is taken at once, the grip's key not sent. On the panel's face (`vr_menu_grab 2`, the
+default) a grip held takes it once the hand has moved `vr_menu_grab_deadzone` cm (4) — not after a stick was pushed
+during that grip or with the trigger held: a grip held still stays the sliders' fine modifier, as before. Held, the
+panel keeps its place in the laser's frame (moved and turned with the hand; a long lever at the menu's distance, so
+small wrist turns swing it far), kept upright (its top edge level); let go, it stays, kept in the play space (relative
+to the player's box and turn: it walks and turns with you) until the menus close; opened again it is in front of the
+head as before. `vr_menu_grab` 0 never, 1 the frame only, 2 frame or face (VR Settings > Menu > "Move the Panel").
+Debug > Tools: "Menu Panel Place" (`vr_menu_panel`: MENUPANEL placed, held, armed, middle, from the head, facing, size)
+and "Menu Panel Back in Front" (`vr_menu_panel reset`). Tests: `vr_mock_laser frame` puts the main laser on the frame.
+
+**Stage 2, MenuInstance** (vr_menu.cpp): the page shown, the Back stack, each page's cursor/scroll/anchor/visits, the
+slider and scrollbar drags, the slider hold, the drop-down, the help box and paging, the rows' left edge, the
+scrollbar's x, the armed resets, the body clone latch and the noted place are one struct; the code reads `ui().<field>`
+(~310 uses rewritten by a scope-aware script: locals, parameters and members of the same names untouched; none inside
+a struct body). `menu::instanceCount` (1), `currentInstance()`, `selectInstance()`. vr_panel.cpp keeps a `MenuPanel`
+per instance (placement, its yaw when it appeared, its canvas handle: the 2D layer's canvas today). Kept shared on
+purpose: built rows and their latches, the settings, Quake's menus, the keyboard pages (MULTI_MENU.md says why).
+
+Verified: `Misc/quakevr/menu_grab_test.py bloodfx` 13/13 PASS (frame grab held at once and the grip key taken; a 30
+degree hand turn turns the panel 30; a 30 cm move moves it 9.4 units; let go it stays; the face armed, not taken within
+2 cm, taken after 10 cm without a jump; a stick push keeps it the fine modifier; `vr_menu_grab 0` inert; reopened in
+front of the head). Stage 2: `menu_vr dump` at Menu Detail Developer byte-identical before/after (182 pages, 4719
+rows; `menu_coverage.py` PASS, `menu_rows_diff.py` 0 lost 0 added); a VR navigation log (keys down/Enter/Escape, the
+laser on corner buttons and a row, right steps, stick scroll; `menu_vr pos`/`rows`) and a flat one (keys, desktop
+mouse click) identical but the build hash. e1m1 smoke clean, build 0 warnings.
+
+Checklist (proposed): "VR menus: point just outside the menu panel's edge (a frame lights up) and hold a grip: the
+panel follows your hand, let go and it stays; a grip held on the panel itself and your hand moved a few cm moves it
+too; holding a grip still while stepping a slider still gives fine steps; Back to Game and reopen: in front of you."
