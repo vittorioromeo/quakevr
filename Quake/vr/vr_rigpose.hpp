@@ -53,5 +53,7 @@ struct Spline
 // key's own transform); a root, a loose bone or one whose parent is in `alone` (bits): its pivot along the spline. `out`:
 // numBones of them.
 void along(const ragdoll::Rig& rig, const int poses[4], const Spline& s, uint32_t alone, Rigid* out);
+// ... with the bones' keys from `keys` ([pose * numBones + bone]; nullptr: key()'s).
+void along(const ragdoll::Rig& rig, const Rigid* keys, const int poses[4], const Spline& s, uint32_t alone, Rigid* out);
 
 } // namespace qvr::rigpose

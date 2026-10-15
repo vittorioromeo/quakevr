@@ -14,6 +14,8 @@ Backlog "Model vertex wobble", item (1). Code: `Quake/vr/vr_mdldequant.cpp` (its
   pulsating left.
 - [x] Loops from the progs, smoothed round the loop; normals smoothed within their table's step (below).
 - [ ] In the headset: the idle grunt's and knight's loop point, and the shading's flicker, gone? (see below)
+- [x] Item (2), rigged monsters rebuilt from the skeleton every frame: `vr_anim_smooth_rebuild` (default 1), below.
+- [ ] In the headset: Rebuild From Skeleton on and off on an idle grunt and knight: less wobble, the same shape?
 
 ## How
 
@@ -121,6 +123,32 @@ exact files (byte-identical PNGs) in different runs; the final build's runs land
 to 70/255: sub-pixel shifts all over the ogre). r_lerpmodels 3 with the pin's four poses draws normally both ways.
 With the loops and normals (2026-10-15): 0 gave md5 355b30a9... (the base's image) in one run and 429 pixels of 1/255
 in another; 1 differs in 45778 pixels (up to 88/255: the shifts and the smoothed shading).
+
+## Item (2): rigged monsters rebuilt from the skeleton (vr_anim_smooth_rebuild)
+
+His words after the loops fix: "there still is a bit of wobble. Ideally this should be implemented in an efficient way
+and be toggleable." `vr_anim_smooth_rebuild` (default 1; Graphics > Models and Effects > Rebuild From Skeleton;
+Debug: Rebuild Fit Limit, `vr_anim_smooth_rebuild_error` 0.5 units). Code: `vr_animsmooth.cpp` (its header, "C").
+
+- Every frame, with any Model Animation, at the poses too: a rigged monster's vertex is its bone's motion applied to
+  one fixed place on the bone, so nothing of the per-frame rounding is left; only the fit error.
+- Per model, once (rigData): the stored bone fits follow the rounding (a fit's turn noise times the limb's length), and
+  rebuilding on them was worse than the dequantised poses (grunt: vertex most 0.093 against 0.059). So each bone is
+  refitted to every pose as drawn (dequantised), two rounds of: places (each vertex's mean, over the poses its bone fits,
+  of its place taken back by the fit), then fits (Gauss-Newton on the turn, vertices weighted by their share). A vertex's
+  share is 1 within 0.5 units rms of its places, 0 at twice that (it keeps the frames' place: round the joints); a model
+  with under half its vertices fully rebuilt isn't rebuilt (the shambler). Normals: the mean normal on the bone, turned.
+  Made again when the error cvar or vr_mdl_dequant changes.
+- Per instance: the refitted keys along the spline (r_lerpmodels 3) or turned linearly (Quake's blend; Stepped), 9 rows
+  a bone, memoised as before; a bone fitted badly in a pose fades out towards it across the lerps (no pop).
+- The shader (RigRebuild) mixes the spline's/blend's place (with B's swing) and the bone's by both shares.
+- Loop seams: the poses' own, dequantised and smoothed round the loop (above); the refitted keys come from them.
+
+Numbers (`scratch/rb_metrics.txt` in the worktree; `vr_anim_smooth_trace`, idle grunt and knight, second difference
+of each drawn vertex, units): at the poses' rate (10 Hz) the worst vertex's p95 0.456 -> 0.314 (grunt; 0.272 with
+Smooth), 1.071 -> 0.865 (knight); at 90 Hz the grunt's worst vertex 0.059 -> 0.032 (Quake's blend), 0.034 -> 0.020
+(Smooth). The vertices' mean is the motion itself and doesn't change. CPU, 60 idle grunts: +0.07 ms a frame (about
+1.1 us a monster); GPU: 9 rows a bone uploaded instead of 3.
 
 ## To try in the headset
 
