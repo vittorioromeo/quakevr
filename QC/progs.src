@@ -254,6 +254,8 @@ vr_mg3_chthon_test.qc
 
 // Knockdowns: shoves knock monsters down as ragdolls, alive (after everything it calls).
 vr_knockdown.qc
+// Hits that unbalance: strong throws and blows stagger monsters as shoves do (after the knockdowns: it uses them).
+vr_hitstagger.qc
 vr_foegrab_throw.qc
 
 frikbot/bot.qc
