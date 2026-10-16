@@ -454,6 +454,7 @@ extern "C" void VR_OnSpawnServerSpawned()
     // The kinds that can appear later, made now (removed below): the map's monsters waiting for a trigger, then (after
     // the map's monsters' limbs, unless vr_limbs_prebuild 2) the dispensers', dummies' and debug spawner's kinds.
     za::Vector<int> probes;
+    qvr::limbmodel::newMap(); // (spawnFrame's kinds: those spawned from now on that prebuild didn't make)
     probeKinds(probes, 1);
     const bool allLimbs = qvr::vr_limbs_prebuild.value >= 2.f;
     if(!allLimbs)

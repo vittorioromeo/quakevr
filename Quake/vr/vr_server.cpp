@@ -4,6 +4,7 @@
 #include "vr_axestick.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hitmodel.hpp"
+#include "vr_limbmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_climb.hpp"
 #include "vr_bodycontact.hpp"
@@ -1048,6 +1049,7 @@ extern "C" void VR_ServerFrameEnd()
     qvr::axestick::serverFrame(); // thrown axes stuck in things go with them (after the poses above)
     qvr::foegrab::afterPoses(); // the held spots placed (after the poses above); a hand pulled too far lets go
     qvr::explosiondebris::serverFrame(); // the explosions' chunks: new ones launched, the ended gone, the fades
+    qvr::limbmodel::spawnFrame(); // a kind of monster first spawned now: its limbs made ahead of its first cut
     progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in
 
     if(!vrProtocol())
