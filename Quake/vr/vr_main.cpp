@@ -2235,10 +2235,11 @@ struct UnpacedSwap
     int skipped = 0;          // frames left unpresented (the timing log's mirror count, while unfocused)
 };
 UnpacedSwap unpacedSwap;
-// QVR_TEST_BACKGROUND, read once (windowUnfocused: every frame).
+// QVR_TEST_BACKGROUND and -vr-hide-mirror, read once (windowUnfocused: every frame).
 struct WindowFocusCache
 {
     bool testBackground = getenv("QVR_TEST_BACKGROUND") != nullptr;
+    int hiddenMirror = -1; // -vr-hide-mirror (1 given, 0 not, -1 not read yet: the command line comes after this)
 };
 WindowFocusCache windowFocusCache;
 } // namespace
@@ -2261,8 +2262,13 @@ bool qvr::windowUnfocused()
     {
         return true;
     }
-    // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise.)
-    return !windowFocusCache.testBackground && !VID_HasInputFocus();
+    // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise. So is a
+    // standalone headset's, -vr-hide-mirror: no desktop to focus, every present made, no menu warning.)
+    if(windowFocusCache.hiddenMirror < 0)
+    {
+        windowFocusCache.hiddenMirror = COM_CheckParm("-vr-hide-mirror") != 0 ? 1 : 0;
+    }
+    return !windowFocusCache.testBackground && windowFocusCache.hiddenMirror == 0 && !VID_HasInputFocus();
 }
 
 int qvr::presentsSkipped()

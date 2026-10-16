@@ -559,7 +559,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 			Sys_Error ("Couldn't set fullscreen state mode");
 	}
 
-	if (getenv ("QVR_TEST_HIDDEN") || COM_PrepareRun ()) // QVR: automated test runs can stay hidden (never shown on the desktop); the installer's preparation run too (vr_prepare.cpp)
+	if (getenv ("QVR_TEST_HIDDEN") || COM_PrepareRun () || COM_CheckParm ("-vr-hide-mirror")) // QVR: automated test runs can stay hidden (never shown on the desktop); the installer's preparation run too (vr_prepare.cpp); a standalone headset's (-vr-hide-mirror: the Steam Frame, its GL context without a desktop window; vr_main.cpp, windowUnfocused)
 	{
 	}
 	else if (getenv ("QVR_TEST_BACKGROUND")) // QVR: automated test runs open without taking the focus
