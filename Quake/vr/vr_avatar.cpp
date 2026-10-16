@@ -397,6 +397,27 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         c.pos = sp.pos + half * chestFromSpine;
         c.rot = half * half * c.rot;
     }
+    // And the trunk swung about the top of the neck until the spine (the pelvis to the neck) has the tracked tilt from its
+    // upright direction (what the crouched pose's own turns and moves left), by the torso weight.
+    if(tracked.weight > 0.f)
+    {
+        const glm::vec3 upright = safeNormalize(UP * torsoLen + back);
+        const glm::vec3 tiltAxis = safeNormalize(glm::cross(UP, tracked.dir), b.left);
+        const glm::vec3 want = glm::angleAxis(tracked.tilt, tiltAxis) * upright;
+        const glm::vec3 now = safeNormalize(top - p.pos);
+        const glm::vec3 axis = glm::cross(now, want);
+        const float s = glm::length(axis);
+        if(s > 1e-5f)
+        {
+            const float angle = za::atan2(s, glm::dot(now, want)) * tracked.weight;
+            const glm::mat3 swing = glm::mat3_cast(glm::angleAxis(angle, axis / s));
+            for(Bone* bone : {&p, &sp, &c})
+            {
+                bone->pos = top + swing * (bone->pos - top);
+                bone->rot = swing * bone->rot;
+            }
+        }
+    }
 
     // The neck spans the rest of the way to the top of the neck; the head sits there. Neither is
     // drawn: the eyes are inside them.

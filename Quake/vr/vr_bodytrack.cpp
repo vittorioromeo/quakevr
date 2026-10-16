@@ -390,16 +390,15 @@ float leanSure(float estimated, const glm::vec2& offMetres)
     {
         return estimated;
     }
-    const float offLen = glm::length(offMetres);
-    if(offLen < 1e-3f)
-    {
-        return estimated;
-    }
     // How far the spine's top went the head's way, as a share of the head's offset: a lean about 0.7 (the head is
-    // further up the same tilt), a step or a neck bend about none.
+    // further up the same tilt), a step or a neck bend about none. The head about over the box's middle: whether the
+    // spine is tilted at all (3 to 10 cm off over the hips).
     const glm::vec3 s = spine() / za::max(st.m2u, 1e-3f);
-    const float went = glm::dot(glm::vec2{s.x, s.y}, offMetres / offLen) / offLen;
-    const float tracked = smooth01(0.15f, 0.5f, went);
+    const glm::vec2 sh{s.x, s.y};
+    const float offLen = glm::length(offMetres);
+    const float went = offLen > 1e-3f ? glm::dot(sh, offMetres / offLen) / offLen : 0.f;
+    const float offWeight = smooth01(0.01f, 0.03f, offLen);
+    const float tracked = glm::mix(smooth01(0.03f, 0.1f, glm::length(sh)), smooth01(0.15f, 0.5f, went), offWeight);
     return estimated + (tracked - estimated) * st.torso;
 }
 
@@ -465,12 +464,27 @@ void posed(const Posed& p)
         drawSkeleton(vr_bodytrack_debug.value >= 2.f ? right * (0.6f * st.m2u) : glm::vec3{0.f});
     }
 
+    // The largest jump of a joint against the top of the neck (the head's own motion taken out), the tracking valid or
+    // not (its fallback must not pop).
+    Stats& s = stats;
+    const glm::vec3 joints[9] = {p.pelvis, p.elbow[0], p.elbow[1], p.knee[0], p.knee[1], p.ankle[0], p.ankle[1], p.shoulder[0],
+        p.shoulder[1]};
+    for(int i = 0; i < 9; i++)
+    {
+        const glm::vec3 rel = joints[i] - p.top;
+        if(s.haveLast)
+        {
+            s.jumpMax = za::max(s.jumpMax, static_cast<double>(glm::distance(rel, s.last[i])) * 100.0 / st.m2u);
+        }
+        s.last[i] = rel;
+    }
+    s.haveLast = true;
+
     // The errors: against the tracked body (the synthetic one's is exact).
     if(!valid(Hips) || !valid(Neck))
     {
         return;
     }
-    Stats& s = stats;
     s.frames++;
     s.weightTorso += st.torso;
     s.weightArm += 0.5 * (st.arm[0] + st.arm[1]);
@@ -519,20 +533,6 @@ void posed(const Posed& p)
             }
         }
     }
-
-    // The largest jump of a joint against the top of the neck (the head's own motion taken out).
-    const glm::vec3 joints[10] = {p.pelvis, p.elbow[0], p.elbow[1], p.knee[0], p.knee[1], p.ankle[0], p.ankle[1], p.shoulder[0],
-        p.shoulder[1], p.top};
-    for(int i = 0; i < 9; i++)
-    {
-        const glm::vec3 rel = joints[i] - p.top;
-        if(s.haveLast)
-        {
-            s.jumpMax = za::max(s.jumpMax, static_cast<double>(glm::distance(rel, s.last[i])) * 100.0 / st.m2u);
-        }
-        s.last[i] = rel;
-    }
-    s.haveLast = true;
 }
 
 void synthesize(TrackingState& t)
