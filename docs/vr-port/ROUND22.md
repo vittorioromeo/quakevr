@@ -9815,3 +9815,32 @@ no warning; the palace's ammo boxes come back drawn and `SOLID_NOT_BUT_TOUCHABLE
 
 For him in VR: MG3 map6, press the button that opens the palace barriers, let the fight run; take one of the ammo
 boxes that appear there.
+
+## Body tracking: IK bones in the debug skeleton, the walk over tracked legs (worktree `tghost`, branch `agent/bodytrack2`, 2026-10-16)
+
+His VR test of Quest body tracking: "works quite well". Two tweaks.
+
+**Debug bones**: Debug > Skeleton Bones (`vr_bodytrack_debug_bones`, under Show Tracked Skeleton, which still says
+where: on the body or beside it): 0 Tracked (cyan seen, magenta inferred, as before), 1 Untracked (Our IK), 2 Both
+Overlapped. Our IK's bones are orange, from the avatar as posed (`bodytrack::Posed`: pelvis to the top of the neck,
+shoulders, elbows, wrists, hips, knees, ankles). So that they really are untracked, while they are drawn the regions'
+targets go to 0 (the weights ease out over `vr_bodytrack_fade`) and the tracking is still read and drawn: Both shows
+what our guesses do against the tracked body. Back to Tracked, the tracking eases back in.
+
+**Walk over tracked legs**: Body > Body Tracking > Walk Over Tracked Legs (`vr_bodytrack_legs_walk`, default 1, a new
+cvar: no config migration). With the Legs slider raised the tracked feet replaced the gait's, so walking and running
+lost their animation. Now `solveLeg` scales the legs' tracked weight by 1 less the larger of the walk's amount and the
+air (`gait.amount`, `gait.air`, which already ease in and out at 8/s): moving, the walk/run cycle drives the legs (the
+blend shares out while it eases); standing still, the tracked legs. One multiply per leg.
+`vr_bodytrack_stats` now prints "legs applied": the legs' weight as laid on (less climbing, swimming and the walk).
+
+**Measured** (mock, synthetic body with the knees out 30, legs 1, e1m1): standing, knee error 4.7 deg, applied 1.00;
+walking backwards with the option on, knee error 22 deg (the gait's own knees; untracked is 24.5), applied 0.10 (the
+walk eased in through the window); walking with it off, 4.7 deg and 1.00 (as before); stopped again, 4.7 and 1.00.
+Debug bones: Untracked and Both bring the weights to 0.00/0.00/0.00 (elbow error 16.5, knee 24.5: the guesses);
+Tracked brings them back to 1.00. Screenshot from `vr_mock_camera` with Both: the orange and cyan/magenta skeletons
+overlapped beside the body.
+
+For him in VR: Debug > Show Tracked Skeleton Beside the Body, Skeleton Bones Both: lean, twist, wing the elbows, bend
+the knees and compare. With the Legs slider at 1, walk and run with the stick (the legs should walk), then stand still
+(the tracked legs back within a quarter of a second); jump.

@@ -75,6 +75,9 @@
         slider("Legs", vr_bodytrack_legs, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much of the tracked legs (Quest 3 guesses them from your upper body: generated legs). Climbing "
                   "and swimming feet keep theirs."),
+        toggle("Walk Over Tracked Legs", vr_bodytrack_legs_walk)
+            .help("With tracked legs: while you move (walking, running, in the air) the walk and run animation drives the "
+                  "legs over the tracked ones; standing still, the tracked legs show. Off: the tracked legs always."),
         slider("Min Confidence", vr_bodytrack_confidence, 0.f, 1.f, 0.05f, "%.2f")
             .help("Below this confidence the tracking eases out to the guessed body."),
         slider("Smoothing", vr_bodytrack_smooth, 0.f, 0.2f, 0.01f, "%.2f s").help("How long the tracked joints are smoothed over."),

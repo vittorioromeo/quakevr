@@ -115,6 +115,10 @@ za::Vector<Item> pageDebugViews()
         cycle("Show Tracked Skeleton", vr_bodytrack_debug, {{0.f, "Off"}, {1.f, "On the Body"}, {2.f, "Beside the Body"}})
             .help("Body tracking: the headset's tracked skeleton drawn (cyan: seen, magenta: guessed by the headset, as "
                   "Quest 3's legs), on your body or beside it."),
+        cycle("Skeleton Bones", vr_bodytrack_debug_bones, {{0.f, "Tracked"}, {1.f, "Untracked (Our IK)"}, {2.f, "Both Overlapped"}})
+            .help("Which bones Show Tracked Skeleton draws: the headset's tracked ones (cyan, magenta); our IK's, the body "
+                  "posed without the tracking (orange: while they are drawn, the body ignores the tracking); or both "
+                  "over each other, to compare."),
         command("Print Body Tracking Status", "vr_bodytrack_status"),
         cycle("Show Body Skeleton", vr_body_debug,{{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
             .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
