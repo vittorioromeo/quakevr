@@ -91,6 +91,8 @@ vr_tutorial.qc
 vr_mg3_triggers.qc
 vr_mg3_items.qc
 weapons.qc
+// The single-player test and debug impulses (ImpulseCommands calls VR_TestImpulse first).
+vr_impulse_test.qc
 vr_chainsaw.qc
 // Decapitation after the chainsaw (its bar) and weapons.qc (positional damage's head zone).
 vr_decap.qc
