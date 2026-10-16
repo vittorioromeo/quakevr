@@ -3,23 +3,26 @@
 // What a hand holds is measured once per model from its drawn shape:
 // - a weapon: its model's vertices (the zero pose, as the view draws it: the weapon scaling included) along the line from
 //   its grip (the entity's origin, where a hand holds it) to its melee tip (the muzzle anchor: the QC melee's line). Its
-//   length is the vertices' extent along that line, its cross-section the larger of their extents across it, its
-//   slenderness the one over the other. A weapon with a blade (an axe's head, a sword's blade past the guard, the
-//   chainsaw's bar: the QC melee layout's edge, vr_melee.qc VR_Melee_PartAt) is sharp from that share of the grip-to-tip
-//   way on: a contact there is a cut (the melee's), never a sweep.
+//   length is the vertices' extent along that line; its cross-section the median of its 8 slices' along it (each slice's
+//   larger extent across the line): a gun's barrel, not its grip and trigger guard, which make every gun's thickest about
+//   20 cm and hide the lightning gun's fat body; its slenderness the length over that. A weapon with a blade (an axe's
+//   head, a sword's blade past the guard, the chainsaw's bar: the QC melee layout's edge, vr_melee.qc VR_Melee_PartAt) is
+//   sharp from that share of the grip-to-tip way on: a contact there is a cut (the melee's), never a sweep.
 // - a prop in a hand (mainhand_held / offhand_held): its drawn box in its own axes (held::modelBox: its model's bounds,
 //   its networked scale), its length the largest extent, its cross-section the next. Nothing on a prop is sharp.
 // Staff-like: at least vr_legsweep_min_length long and vr_legsweep_min_slender slender (a crate, a rock, a brick, the
 // lightning gun and the super shotgun fall short of one or the other: vr_legsweep_table prints every weapon's and some
 // props').
 //
-// Each server frame the thing's line (its long axis through the middle of its cross-section, from end to end) is put
-// where it is drawn now (the local player's: a weapon's view entity, a prop's entity) and sampled at sweepPoints points;
-// each point's move since the last frame is swept against each live humanoid's lower legs (vr_foegrab_lift_classes: its
-// drawn model below legShare of its height, vr_hit_precise; else its box there). The first point in decides: not the
-// blade, level enough (its rise or fall at most levelSlope of its level speed), and at least vr_legsweep_speed level
-// (more for a heavy one: times the cube root of its mass over vr_legsweep_heavy). Then foegrab::sweepDown knocks it down
-// with its feet swept along and its body toppling over the other way.
+// Each server frame the thing's line is placed where it is now and sampled at sweepPoints points, end to end: a
+// weapon's from the hand to its muzzle as the server has them (QC VR_Melee_Line's: handpos, muzzlepos; carried off its
+// handle, its drawn handle and tip in the hand: VR_Melee_FreeLine's), stretched over its drawn extent; a prop's along its
+// box's long axis through its middle, at its entity. Each point's move since the last frame is swept against each live
+// humanoid's lower legs (vr_foegrab_lift_classes: its drawn model below legShare of its height, vr_hit_precise; else its
+// box there). Of the points that met them, the lowest decides: not the blade, level enough (its rise or fall at most
+// levelSlope of its level speed), and at least vr_legsweep_speed level (more for a heavy one: times the cube root of its
+// mass over vr_legsweep_heavy). Then foegrab::sweepDown knocks it down with its feet swept along and its body toppling
+// over the other way (forward or backward of its own facing, or to a side: whichever way the sweep goes past it).
 
 #include "vr_legsweep.hpp"
 
@@ -61,6 +64,7 @@ constexpr float legShare = 0.4f;    // its legs: the lowest share of its height 
 constexpr float levelSlope = 0.7f;  // a sweep's point rises or falls at most this times its level speed (about 35 deg)
 constexpr float maxRadius = 4.f;    // units: the points' thickness at most (half the cross-section)
 constexpr float maxSpeed = 25.f;    // m/s: a point faster than this was put there (a teleport), not swung
+constexpr float maxFeet = 100.f;    // units/s: its feet slide no faster (a hard sweep slides them a metre and more)
 constexpr double sweptAgain = 1.0;  // s: one swept is not swept again before this (it is down anyway)
 constexpr double handRest = 0.4;    // s: after a sweep, the hand's next
 constexpr double traceLength = 1.0; // s: the sweep's trace (vr_legsweep_debug) follows the body this long
@@ -371,12 +375,6 @@ struct Held
     const char* name = hand == HAND_MAIN ? PR_GetString(player->v.weaponmodel)
                                          : (f.weaponmodel2 >= 0 ? PR_GetString(progs::fieldInt(player, f.weaponmodel2)) : "");
     qmodel_t* model = name && *name ? Mod_ForName(name, false) : nullptr;
-    if(vr_legsweep_debug.value >= 3.f)
-    {
-        Con_Printf("legsweep: the %s hand's weapon model \"%s\" (%s), weapon %g / %g\n", hand == HAND_MAIN ? "main" : "off",
-            name ? name : "", model ? (measureWeapon(model).ok ? "measured" : "not measured") : "not loaded",
-            player->v.weapon, progs::fieldFloatOr(player, f.weapon2, -1.f));
-    }
     if(!model)
     {
         return false;
@@ -398,11 +396,6 @@ struct Held
         tip = handPos + axes * glm::vec3{lt.x, -lt.y, lt.z};
     }
     const float reach = glm::distance(grip, tip);
-    if(vr_legsweep_debug.value >= 3.f)
-    {
-        Con_Printf("legsweep: the %s hand's %s: grip %.0f %.0f %.0f, tip %.0f %.0f %.0f (%.1f units)\n",
-            hand == HAND_MAIN ? "main" : "off", name, grip.x, grip.y, grip.z, tip.x, tip.y, tip.z, reach);
-    }
     if(reach < 2.f || reach > 160.f)
     {
         return false; // (no muzzle known)
@@ -525,11 +518,17 @@ void traceStep()
         const float fwd = glm::dot(lying, t.facing);
         const float side = glm::dot(lying, glm::cross(glm::vec3{0.f, 0.f, 1.f}, t.facing));
         const float alongSweep = glm::dot(lying, t.along);
-        Con_Printf("legsweep fell: its head %.1f along the sweep from its feet (%s), %.1f ahead of them by its facing, %.1f "
-                   "to its left: fell %s; feet slid %.1f along the sweep\n",
-            alongSweep, alongSweep < 0.f ? "against it: toppled the other way" : "with it", fwd, side,
+        const float acrossSweep = glm::dot(lying, left);
+        // (Which way the sweep went in its own frame as it stood: its feet that way, so it should fall the other.)
+        const float sf = glm::dot(t.along, t.facing);
+        const float ss = glm::dot(t.along, glm::cross(glm::vec3{0.f, 0.f, 1.f}, t.facing));
+        const char* sweptTo = za::fabs(sf) >= za::fabs(ss) ? (sf > 0.f ? "its front" : "its back")
+                                                           : (ss > 0.f ? "its left" : "its right");
+        Con_Printf("legsweep fell: its head %.1f along the sweep from its feet, %.1f across it (%s), %.1f ahead of them "
+                   "by its facing, %.1f to its left: fell %s (swept towards %s); feet slid %.1f along the sweep\n",
+            alongSweep, acrossSweep, alongSweep < 0.f ? "against it: toppled the other way" : "with it", fwd, side,
             za::fabs(fwd) >= za::fabs(side) ? (fwd > 0.f ? "forward" : "backward") : (side > 0.f ? "to its left" : "to its right"),
-            glm::dot(df, t.along));
+            sweptTo, glm::dot(df, t.along));
         t.ent = 0;
     }
 }
@@ -631,7 +630,7 @@ void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, fl
             continue;
         }
         const glm::vec3 along = level / speed;
-        const float feet = za::clamp(speed * za::max(vr_legsweep_feet.value, 0.f), 0.f, 1000.f);
+        const float feet = za::clamp(speed * za::max(vr_legsweep_feet.value, 0.f), 0.f, maxFeet);
         const float topple = glm::radians(za::clamp(vr_legsweep_topple.value, 0.f, 2000.f));
         const float result = foegrab::sweepDown(player, m, along, topple, feet, za::max(vr_legsweep_damage.value, 0.f));
         state.swept[state.sweptNext] = Swept{e, qcvm->time};

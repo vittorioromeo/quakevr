@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """legsweep_test.py <agent> [regex] -- the leg sweep with the mock headset's main hand (ROUND22.md, "Leg sweep").
 
-Each case is one game on vrfiringrange: a grunt spawned ahead (vr_test_spawn 0, 36 units: its origin 1.17 m ahead in
-tracking space), a weapon or a prop put in the main hand, then a vr_mock_play motion sweeps the hand level through its
-lower legs (tracking space: x right, y up, -z forward), the thing pointing forward and down 35 degrees:
-  lr / rl      in front of it, left to right / right to left (6 m/s)
+Each case is one game on vrfiringrange (in real time: the mock plays its motions on the clock): a grunt spawned ahead
+(vr_test_spawn 0, 36 units: its origin 1.2 m ahead in tracking space, GRUNT), a weapon or a prop put in the main hand
+(vr_weapon_grip_mode 1: it stays there without the grip held), then a vr_mock_play motion sweeps the hand level through
+its lower legs (tracking space: x right, y up, -z forward), the thing pointing forward and down about 38 degrees (a gun's
+line is about 48 degrees under the controller's pitch):
+  lr / rl      in front of it, left to right / right to left (1.5 m in 0.25 s; the hand arrives at 2-3 m/s)
   away / toward  beside it (the hand on its right, the thing pointing left across its shins), from its front to its back
-               / back to front (6 m/s): it faces you, so away is along its back, towards along its front
-  slow         lr at 0.8 m/s
-  hilt         a sword held blade up and back, hand low: its pommel sweeps
+               / back to front: it faces you, so away is along its back, towards along its front
+  slow         lr over 1.9 s (under 1 m/s)
+  hilt         a sword held blade up and back past the vertical, the hand low: its pommel sweeps
 PASS: down or not as expected; down, its feet slid along the sweep (legsweep fell: ... feet slid > 0) and its head lies
 against the sweep from its feet (toppled the other way); the side sweeps: away falls forward, toward backward (its own
 facing). The logs go to <agent>/scratch/legsweep_<case>.txt.
@@ -25,20 +27,21 @@ ONLY = sys.argv[2] if len(sys.argv) > 2 else ""
 TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
 MOTIONS = os.path.join(TREE, "quakevr", "motions")
 SCRATCH = os.path.join(TREE, "scratch")
-PRE = ("sv_random_seed 7;vr_weapon_grip_mode 1;map vrfiringrange;wait30;god;notarget;developer 1;vr_test_spawn 0;vr_test_spawn_dist 36;"
-       "impulse 241;wait40")
-PITCH = 10
+PRE = "sv_random_seed 7;vr_weapon_grip_mode 1;map vrfiringrange;wait30;god;notarget;developer 1"
+SPAWN = "vr_test_spawn 0;vr_test_spawn_dist 36;impulse 241;wait5"  # (the grunt last: a grunt left standing wanders)
+GRUNT = (0.0, 0.72, -1.2)  # its origin in tracking space (vr_mock_hand_to main nearest monster_army 0)
 
-# What the main hand holds: the console commands that put it there.
-# (impulse 150 + its weapon id: one lying beside you; vr_test_weaponinst 4: the nearest lying into the main hand)
+# What the main hand holds: the console commands that put it there, and the controller's pitch that points it forward
+# and down about 38 degrees (a gun's line is about 48 degrees under the controller's, a melee weapon's and a prop's along
+# it). (impulse 150 + its weapon id: one lying beside you; vr_test_weaponinst 4: the nearest lying into the main hand.
+# A prop: in the empty main hand, gripped: vr_test_spawn_hold, +grabmain.)
 W = "impulse %d;wait10;vr_test_weaponinst 4;impulse 120"
+P = "+grabmain;vr_test_spawn_hold 1;vr_test_spawn_dist 20;vr_test_spawn %d;impulse 241"
+GUN, MELEE = 10, -40
 HOLD = {
-    "shotgun": W % 154, "supershotgun": W % 155, "grenadel": W % 158, "rocketl": W % 160,
-    "lightning": W % 161, "laser": W % 162, "axe": W % 152, "crowbar": W % 167,
-    "sword": W % 163,
-    "plank": "vr_test_spawn_hold 1;vr_test_spawn_dist 20;vr_test_spawn 114;impulse 241",
-    "crate": "vr_test_spawn_hold 1;vr_test_spawn_dist 20;vr_test_spawn 109;impulse 241",
-    "brick": "vr_test_spawn_hold 1;vr_test_spawn_dist 20;vr_test_spawn 115;impulse 241",
+    "shotgun": (W % 154, GUN), "supershotgun": (W % 155, GUN), "grenadel": (W % 158, GUN), "rocketl": (W % 160, GUN),
+    "lightning": (W % 161, GUN), "laser": (W % 162, GUN), "axe": (W % 152, MELEE), "crowbar": (W % 167, MELEE),
+    "sword": (W % 163, MELEE), "plank": (P % 114, MELEE), "crate": (P % 109, MELEE), "brick": (P % 115, MELEE),
 }
 
 # (case, held, motion, expected down)
@@ -64,23 +67,22 @@ def motion(name, keys):
     return f"quakevr/motions/{name}.mock"
 
 
-def sweep(kind):
-    """The hand's turn (pitch, yaw: the gun's line is about 48 degrees under the controller's) and its (t, line) keys
-    relative to the grunt's origin (rel: the hand is put there first, vr_mock_hand_to): still at its start for 0.8 s,
-    then swept to its end."""
+def sweep(kind, pitch):
+    """The hand's (t, line) keys, placed from the grunt's origin: still at its start for 0.3 s, then swept to its end."""
     if kind in ("lr", "rl", "slow"):
         x0, x1 = (-0.75, 0.75) if kind != "rl" else (0.75, -0.75)
-        a, b, turn = (x0, 0.0, 0.35), (x1, 0.0, 0.35), (PITCH, 0)
+        a, b, turn = (x0, 0.0, 0.35), (x1, 0.0, 0.35), (pitch, 0)
         dur = 0.25 if kind != "slow" else 1.9
     elif kind in ("away", "toward"):
         z0, z1 = (0.75, -0.75) if kind == "away" else (-0.75, 0.75)
-        a, b, turn = (0.45, 0.0, z0), (0.45, 0.0, z1), (PITCH, 90)
+        a, b, turn = (0.45, 0.0, z0), (0.45, 0.0, z1), (pitch, 90)
         dur = 0.25
-    else:  # hilt: the blade up and back past the vertical, the hand low: the pommel forward and down
-        a, b, turn = (-0.75, -0.2, 0.55), (0.75, -0.2, 0.55), (168, 0)
+    else:  # hilt: a melee weapon's blade up and back, 30 degrees past the vertical, the hand low: its pommel forward, down
+        a, b, turn = (-0.75, -0.2, 0.3), (0.75, -0.2, 0.3), (118, 0)
         dur = 0.25
-    line = "rel main %.3f %.3f %.3f"
-    return turn, [(0.0, line % a), (0.8, line % a), (0.8 + dur, line % b), (2.5, line % b)]
+    line = "main %.3f %.3f %.3f %.1f %.1f 0"
+    a, b = [(p[0] + GRUNT[0], p[1] + GRUNT[1], p[2] + GRUNT[2]) + turn for p in (a, b)]
+    return [(0.0, line % a), (0.3, line % a), (0.3 + dur, line % b), (2.0, line % b)]
 
 
 def verdict(ok, what):
@@ -95,32 +97,41 @@ def main():
     for name, held, kind, down in CASES:
         if ONLY and not re.search(ONLY, name):
             continue
-        turn, keys = sweep(kind)
+        hold, pitch = HOLD[held]
+        keys = sweep(kind, pitch)
         path = motion("legsweep_" + name, keys)
-        script = (f"{PRE};{HOLD[held]};wait40;vr_mock_hand main 0 0.8 -0.4 {turn[0]} {turn[1]} 0;wait5;"
-                  f"vr_mock_hand_to main nearest monster_army 0;wait2;vr_legsweep_debug 1;vr_mock_play {path};wait400;"
+        script = (f"{PRE};{hold};wait40;vr_mock_hand {keys[0][1]};wait5;{SPAWN};"
+                  f"vr_legsweep_debug 1;vr_mock_play {path};wait400;"
                   "toggleconsole;quit")
         r = subprocess.run([BASH, f"{KIT}/run.sh", AGENT, "-RealTime", "-Script", script, "-Filter",
                             "legsweep|not put|rror|CRASH", "-Timeout", "300"], capture_output=True, text=True)
-        out = r.stdout.replace("\r", "")
+        # (The game's own log: run.sh's output wraps long lines.)
+        with open(f"{KIT}/bases/{AGENT}/qbase/qconsole.log", errors="replace") as f:
+            out = "\n".join(line for line in f.read().splitlines() if re.search("legsweep|not put|rror|CRASH", line))
+        out += "\n" + r.stdout.replace("\r", "")[-300:]
         with open(os.path.join(SCRATCH, f"legsweep_{name}.txt"), "w") as f:
             f.write(out)
         flat = " ".join(out.split())
         swept = "SWEPT DOWN" in flat
-        fell = re.search(r"its head ([-\d.]+) along the sweep from its feet \([^)]*\), ([-\d.]+) ahead of them by its "
-                         r"facing, ([-\d.]+) to its left: fell (\w+(?: \w+ \w+)?); feet slid ([-\d.]+) along", flat)
+        fell = re.search(r"its head ([-\d.]+) along the sweep from its feet, ([-\d.]+) across it \([^)]*\), ([-\d.]+) "
+                         r"ahead of them by its facing, ([-\d.]+) to its left: fell (\w+(?: \w+ \w+)?) \(swept towards "
+                         r"(its \w+)\); feet slid ([-\d.]+) along", flat)
         notes = re.findall(r"legsweep: the main hand's thing on \S+ \(\d+\)'s legs: ([^:]+: [^;]*?)(?= legsweep|$)", flat)
         last = notes[-1][:150] if notes else "no contact"
         if down:
-            ok = swept and fell is not None and float(fell.group(5)) > 0 and float(fell.group(1)) < 0
-            if ok and kind == "away":
-                ok = fell.group(4) == "forward"
-            if ok and kind == "toward":
-                ok = fell.group(4) == "backward"
-            what = (f"{name}: swept, its head {fell.group(1)} along the sweep from its feet, fell {fell.group(4)}, feet "
-                    f"slid {fell.group(5)}" if fell else f"{name}: {'swept, no trace' if swept else 'not swept'} ({last})")
+            # Its feet slid along the sweep and its head lies against it from them (toppled the other way, more than
+            # aside); from its side (along its facing), it fell the other way of its facing from where the sweep went.
+            along, across, slid = (float(fell.group(1)), float(fell.group(2)), float(fell.group(7))) if fell else (0, 0, 0)
+            ok = swept and fell is not None and slid > 0 and along < 0 and abs(across) < -along
+            opposite = {"its front": "backward", "its back": "forward", "its left": "to its right",
+                        "its right": "to its left"}
+            if ok and kind in ("away", "toward"):
+                ok = fell.group(6) in ("its front", "its back") and fell.group(5) == opposite[fell.group(6)]
+            what = (f"{name}: swept towards {fell.group(6)}, fell {fell.group(5)}; its head {along:.1f} along the sweep "
+                    f"from its feet, {across:.1f} across; feet slid {slid:.1f}" if fell else
+                    f"{name}: {'swept, no trace' if swept else 'not swept'} ({last})")
         else:
-            ok = not swept and "rror" not in flat
+            ok = not swept and bool(notes) and "rror" not in flat  # (it met the legs, and said why not)
             what = f"{name}: {'SWEPT' if swept else 'not swept'} ({last})"
         verdict(ok and "CRASH" not in flat, what)
     print(f"{FAILS} failed")

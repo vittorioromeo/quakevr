@@ -9111,3 +9111,54 @@ both growths 0 (today's behaviour on this tree; ROUND22's first run had 1 and 0)
 
 In VR: Combat > Enemy Melee, Show Melee Arcs on; let a knight, then an ogre come at you and sidestep: does the fan turn
 green as you leave it, and do blows land only while it is red? Tune the two growth sliders and Swing Turn there.
+
+## Leg sweep: a staff through a humanoid's shins, a judo foot sweep (worktree `fastship`, branch `agent/legsweep`, 2026-10-16)
+
+His request: a horizontal sweep at a humanoid's legs with something long and blunt enough to be used as a staff (the
+shotgun, the laser cannon, a sword's hilt held backwards, the crowbar, a long piece of wood, the grenade and rocket
+launchers) throws it down as a judo foot sweep: its feet slide the way the sweep goes, the rest of it topples after.
+Short things never (the lightning gun, the axe, a sword's blade, the super shotgun, rocks, bricks, crates). No list of
+weapons: rules from their shapes. Then: from its side too, toppling forward or backward as the sweep goes.
+
+**The staff rule** (`vr_legsweep.cpp`, `vr_legsweep_table` prints it): every held thing is measured once from its drawn
+shape.
+- A weapon: its model's vertices (zero pose, the weapon scaling in) along the line from its grip (the entity's origin, as
+  the hand holds it) to its melee tip (the muzzle anchor: the QC melee's line). **Length**: their extent along it.
+  **Cross-section**: the median of its 8 slices' (each slice's larger extent across the line). The thickest slice was the
+  first try: every gun's is its grip and trigger guard, about 20 cm, so the shotgun (2.58), the grenade launcher (2.58),
+  the super shotgun (2.61) and the lightning gun (2.22) came out alike; the median is the barrel (shotgun 10 cm, grenade
+  launcher 12, lightning gun 20: its body is fat all along). **Slenderness**: length over that.
+- A prop in a hand (`mainhand_held` / `offhand_held`): its drawn box in its own axes (`held::modelBox`, its networked
+  scale), the length its largest extent, the cross-section its next. Nothing on a prop is sharp.
+- **Blunt where it meets the legs**: a weapon with a blade is sharp from the QC layout's edge on (`vr_melee.qc`
+  `VR_Melee_PartAt`, the hot blades' share): the axe's head from 0.6 of the grip-to-tip way, a sword's blade from 0.2 (past
+  the guard), the chainsaw's bar from 0.45. The crowbar's bar is blunt (no special case: it has none). Of the thing's
+  points that met the legs this frame the lowest decides (what takes the feet: a sword held hilt down sweeps with its
+  pommel, the blade's root above it), and on a blade it is a cut, never a sweep.
+- Thresholds: `vr_legsweep_min_length` 50 cm, `vr_legsweep_min_slender` 4 (both archived; Combat > Knockdowns > Leg
+  Sweep). The super shotgun is 49.1 cm long and the shotgun 51.5 (the smallest margin in his examples: 2.4 cm between
+  them); the lightning gun is long enough (51.6) and too fat (2.6).
+
+LEGSWEEP_TABLE
+
+**The sweep** (each server frame, the local player's hands): the thing's line placed where it is now (a weapon's from the
+hand to its muzzle as the server has them, QC `VR_Melee_Line`'s `handpos` and `muzzlepos`, stretched over its drawn
+extent; carried off its handle, its drawn handle and tip in the hand, `VR_Melee_FreeLine`'s; a prop's along its box's long
+axis at its entity), sampled at 9 points end to end, each point's move since the last frame swept (its thickness: half
+the cross-section, at most 4 units) against each live humanoid's lower legs: the same humanoids as the lift and the neck
+snap (`vr_foegrab_lift_classes`, AD's included; the training dummy shows "swept"), its drawn model (`vr_hit_precise`)
+below 0.4 of its height, else its box there; a point already in them where it starts doesn't count (resting there,
+moved through), nor one faster than 25 m/s (put there). That point must move level (its rise or fall at most 0.7 of its
+level speed, about 35 degrees) at `vr_legsweep_speed` (1.5 m/s) or more, a heavy one more: times the cube root of its mass
+(QC `VR_Grapple_MonsterMass`) over `vr_legsweep_heavy` (100 kg: a grunt is 80, unchanged). From any side.
+
+**The fall** (`foegrab::sweepDown`, beside the throw's `throwDown`; QC `VR_LegSweep_Down` in the new `vr_legsweep.qc`):
+the QC knocks it down as the two-hand throw does (`VR_Knockdown_Start`: its ragdoll and get-up, room, the pool; not
+flying, swimming, or down already), marks it thrown by you (its impacts count: `vr_ragimpact`), deals
+`vr_legsweep_damage` (5). The engine then turns its ragdoll over about its feet against the sweep at
+`vr_legsweep_topple` (200 deg/s, its top's speed) with its feet swept along at `vr_legsweep_feet` (0.5) times the sweep's
+speed (`box3d::ragdollTopple`, the throw's own sweep), its arms bracing (`ragdollThrown`), and the swept thing passing
+through it for 0.4 s (`ragdollGrace`). So the feet always go the sweep's way and its top the other: in front of it, to a
+side; from its side, along its facing, forward or backward (front to back: its feet go back, it falls forward).
+
+LEGSWEEP_RESULTS

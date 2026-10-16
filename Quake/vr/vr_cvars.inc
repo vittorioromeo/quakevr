@@ -2486,12 +2486,12 @@ QVR_CVAR(vr_knockdown_shove_max_spin, "300", CVAR_ARCHIVE) // deg/s: it never tu
 QVR_CVAR(vr_legsweep, "1", CVAR_ARCHIVE)                // Combat > Knockdowns > Leg Sweep: a staff-like thing in a hand (a long gun, a crowbar, a sword's hilt, a plank) swept level and fast through a humanoid's lower legs knocks it down, its feet sliding along the sweep, its body toppling over the other way (vr_legsweep.cpp)
 QVR_CVAR(vr_legsweep_min_length, "50", CVAR_ARCHIVE)     // cm: the least length of a staff-like thing (its drawn shape along its long axis: vr_legsweep_table)
 QVR_CVAR(vr_legsweep_min_slender, "4", CVAR_ARCHIVE)     // the least slenderness of a staff-like thing: its length over its typical cross-section (a weapon: the median of its drawn slices, so a gun is measured by its barrel, not its grip; a prop: its box. A crate about 1, a brick 2, the lightning gun 2.6)
-QVR_CVAR(vr_legsweep_speed, "2", CVAR_ARCHIVE)           // m/s: the least level speed of the part that meets the legs (a heavier humanoid needs more: vr_legsweep_heavy)
+QVR_CVAR(vr_legsweep_speed, "1.5", CVAR_ARCHIVE)         // m/s: the least level speed of the part that meets the legs (a heavier humanoid needs more: vr_legsweep_heavy)
 QVR_CVAR(vr_legsweep_heavy, "100", CVAR_ARCHIVE)         // kg: a humanoid heavier than this needs a faster sweep, the least speed times the cube root of its mass over this; 0: all alike
 QVR_CVAR(vr_legsweep_damage, "5", CVAR_ARCHIVE)          // the damage a sweep deals once it is down
 QVR_CVAR(vr_legsweep_topple, "200", CVAR_ARCHIVE)        // deg/s: how fast its body turns over about its feet, against the sweep (its top's speed)
 QVR_CVAR(vr_legsweep_feet, "0.5", CVAR_ARCHIVE)          // its feet slide along the sweep at this share of the sweep's speed
-QVR_CVAR(vr_legsweep_debug, "0", CVAR_NONE)              // Debug > Tests > Holding Enemies: each leg contact's measure and verdict printed (legsweep:), and a sweep's fall traced for a second (legsweep trace:, legsweep fell:)
+QVR_CVAR(vr_legsweep_debug, "0", CVAR_NONE)              // Debug > Tests > Holding Enemies: each leg contact's measure and verdict printed (legsweep:), and a sweep's fall traced for a second (legsweep trace:, legsweep fell:); 2: also each hand's thing every frame (its ends)
 QVR_CVAR(vr_knockdown_shove_ledge_topple, "100", CVAR_ARCHIVE) // deg/s (times the shove's strength): shoved over a ledge, pushed whole (it goes over) and turned over its feet as it falls this fast, up to vr_knockdown_shove_topple_angle (never faster than vr_knockdown_shove_max_spin); 0: it goes over upright
 QVR_CVAR(vr_knockdown_shove_ledge_push, "0.7", CVAR_ARCHIVE) // shoved over a ledge, its launch along the shove times this (kept up until it is past the edge: it always goes over); 1: the whole shove's
 QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carries it over a ledge always knocks it down (0: the chance as anywhere)
