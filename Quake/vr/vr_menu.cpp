@@ -3715,6 +3715,15 @@ void hologramTestMessage()
             .help("A weapon in the air is caught by a grip closed up to this long before it reaches your fist, and the "
                   "hand that tossed it may close again at once: it catches it as it comes back down. 0: as a weapon lying "
                   "about (0.125 s, and not within 0.125 s of letting go)."),
+        toggle("Floating Pickup Grace", vr_pickup_float_grace)
+            .help("A weapon, key or armour hanging in the air (spinning) isn't knocked down by your empty hand reaching into "
+                  "it slowly for a moment: close your grip and it is taken where it hangs. Off: a touch knocks it loose."),
+        slider("Floating Grace Time", vr_pickup_float_grace_time, 0.f, 1.f, 0.05f, "%.2f s")
+            .extend(0.f, 3.f)
+            .help("How long from your hand reaching it; after that a hand still pushing into it knocks it loose."),
+        slider("Floating Grace Swat Speed", vr_pickup_float_grace_swat, 0.5f, 5.f, 0.25f, "%.2f m/s")
+            .extend(0.f, 10.f)
+            .help("A hand faster than this knocks it at once (a swat)."),
         toggle("Lenient Weapon Catch", vr_weapon_grab_box)
             .help("The old catch: a weapon is also taken when your hand comes within a hand's width of its handle, the "
                   "fist up to 20 cm off it. Off: only when your closed fist touches it, as a box or a gib."),
@@ -7597,6 +7606,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_pickup_test 5: each weapon lying within 400 units (a map's, a drop): where it is, how fast it moves, "
                   "the lowest point of its turned drawn box and the floor under it: one sunk into or thrown off what it "
                   "lies on shows."),
+        command("Floating Pickup Ahead", "vr_pickup_test 6")
+            .help("vr_pickup_test 6: a super shotgun pickup hanging 40 units ahead of you, watched: reach into it slowly and "
+                  "grip (Floating Pickup Grace), or swat it; whether it was taken or knocked loose prints (floatgrab: in the "
+                  "console; developer 1 also prints each hand's reach and knock)."),
         header("Damage Credit (dmgcredit: ... in the console)"),
         command("Damage Credit of Every Weapon", "vr_dmgcredit_test 1")
             .help("vr_dmgcredit_test 1: every weapon (the mission packs' and AD's when there) fired from your main hand at a "

@@ -8471,3 +8471,44 @@ his config of today, 2048 eyes, 90 Hz paced, exclusive. Scenarios: `play_e1m1_fi
   cuts again, B6) and a spawned-in kind's first limb cut (B5).
 
 For him: pick options for B1-B8 in the report; nothing to test in VR (no visible change).
+
+## Floating pickups: a moment's grace for the reaching hand (worktree `flatfist`, branch `agent/floatgrab`, 2026-10-16)
+
+A player's feedback: weapons floating in the world were impossible to grab with his real hands; reaching for one, it
+fell to the ground. His decision: a split second of leniency where the hands don't knock a floating, spinning object
+before it becomes a physics prop.
+
+- **Why it fell.** A map's pickup hanging in the air (`VR_PickupObj_Place`, MOVETYPE_NONE, spinning) is knocked loose by
+  the first touch of a moving hand (`VR_Carry_Nudge` -> `VR_Carry_Loose`): anything over 10 u/s, 0.38 m/s, which every
+  reach is. The grip closes a moment later, on a falling gun. And a spinning shotgun touches a slow hand only in short
+  passes (a hand crossing it: 0.1 s, then nothing for half a turn), so a grip closed between passes was a fist at the
+  next one (`VR_Carry_GripPressed` only counts a press 0.2 s old).
+- **The grace** (`vr_carry.qc`, `VR_Carry_FloatGrace`, before the nudge): an empty tracked hand reaching into a hanging
+  pickup doesn't knock it for **`vr_pickup_float_grace_time`** (0.4 s) from its first touch, unless it moves faster than
+  **`vr_pickup_float_grace_swat`** (2 m/s: a swat knocks it at once, as before). Once the grace is over, a hand still
+  pushing into it knocks it as today. The hand's reach is forgotten when it leaves the pickup's spin sphere and a hand's
+  width (`VR_Carry_FloatGraceFrame`, from the hanging pickup's think), so the window runs from when the hand came near
+  it, not from each spin pass.
+- **The grip in the grace** (`VR_Carry_FloatGraceGrip`): a grip closed from 0.2 s before the hand reached it to the end of
+  the grace takes it at its next touch (weapons: `VR_PickupObj_WeaponTouch`; keys, armour, runes: `VR_Carry_Handtouch`),
+  where it hangs. An older fist still doesn't take it.
+- Only pickups still hanging (`VR_Carry_Hanging`); loose ones, props, a hand holding a weapon, force grab: unchanged.
+  **`vr_pickup_float_grace`** 1 (0: the old knock). Rows on VR Settings > Carrying, after Mid-Air Catch Window:
+  Floating Pickup Grace, Floating Grace Time, Floating Grace Swat Speed.
+- **Debug > Tests > Weapon Pickups, "Floating Pickup Ahead"** (`vr_pickup_test 6`): a super shotgun pickup hanging 40
+  units ahead, watched (`floatgrab:` hanging / knocked loose / taken, with times; `developer 1` adds each hand's reach
+  and knock).
+
+Tested (headless e1m1, `vr_pickup_test 6`, the main hand crossing the hanging shotgun at its middle height through
+`vr_mock_play`; `scratch/fg_*.txt`, `scratch/fg_run.sh`):
+
+| case | grace off (before) | grace on |
+|---|---|---|
+| slow reach 0.45 m/s, grip 0.2 s after the reach | knocked at the first touch (4.63 s) | taken as a weapon at 5.26 s, z 74 (no fall) |
+| the same reach, no grip | knocked at the first touch (4.63 s) | reached 4.61 s, knocked 5.26 s (its next touch after the window) |
+| swat 3 m/s | knocked at once (4.04 s) | knocked at once (4.05 s) |
+
+`vr_pickup_test 1` + `2` (taking the nearest pickup) still takes it; e1m1 smoke clean.
+
+For him in VR: reach slowly for a floating gun and close the hand (also while it spins past the open hand); swat one;
+reach in and hold the hand still, then push on. Tune Floating Grace Time / Swat Speed.
