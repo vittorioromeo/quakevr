@@ -11,6 +11,7 @@
 //   drops' and an ammo box's weapons) dropped in a row ahead of you as a death drops it (CreateThrownWeapon, the same
 //   model and pose): their convex pieces are cut and kept on disk (vr_gun_pieces_cache). Setup's preparation run does
 //   it on the hub (vr_prepare.cpp), so the first session's first deaths cut none.
+// 5 the weapons lying about near you (VR_PickupTest_Lying). 6 a floating pickup to reach into (VR_PickupTest_Float).
 
 float VR_PICKUPTEST_COUNT = 10;
 .float vr_pickuptest; // vr_pickup_test 1's pair (from 1): its pickup and the weapon dropped beside it
@@ -248,6 +249,53 @@ void() VR_PickupTest_View =
     vr_pickuptest_view = 0;
 };
 
+// 6: a super shotgun pickup 40 units ahead of you, as the map's (hanging at vr_item_float_height), watched: each change
+// of its state (hanging, knocked loose, taken) printed with its time and height (floatgrab: in the console; the floating
+// pickups' grace, vr_pickup_float_grace: `vr_mock_hand_to main nearest weapon_supershotgun <units>` reaches it).
+.entity vr_pickuptest_watched;
+.float vr_pickuptest_state;
+void() VR_PickupTest_Watch =
+{
+    entity e = self.vr_pickuptest_watched;
+    float st = 3; // taken
+    if(e.model != string_null && e.classname == "weapon_supershotgun")
+    {
+        st = VR_Carry_Hanging(e) ? 1 : 2;
+    }
+    if(st != self.vr_pickuptest_state)
+    {
+        bprint(sprintf("floatgrab: %.2f s: watched: %s, z %.1f\n", time,
+            st == 1 ? "hanging" : st == 2 ? "knocked loose" : "taken", e.origin_z));
+        self.vr_pickuptest_state = st;
+    }
+    if(st == 3 || time - self.ltime > 30)
+    {
+        remove(self);
+        return;
+    }
+    self.nextthink = time;
+};
+
+void() VR_PickupTest_Float =
+{
+    makevectors(self.v_angle_y * '0 1 0');
+    entity player = self;
+    entity pickup = spawn();
+    setorigin(pickup, player.origin + v_forward * 40);
+    pickup.angles = '0 1 0' * player.v_angle_y;
+    self = pickup;
+    VR_PickupTest_SpawnFunc(WID_SUPER_SHOTGUN);
+    self = player;
+    pickup.vr_pickuptest = 1;
+
+    entity w = spawn();
+    w.vr_pickuptest_watched = pickup;
+    w.ltime = time;
+    w.think = VR_PickupTest_Watch;
+    w.nextthink = time + 1; // (placed and floated 0.3 s after its spawn function)
+    bprint("pickuptest: 6 a super shotgun pickup 40 units ahead\n");
+};
+
 // Every server frame (StartFrame): a pickup test asked for (vr_pickup_test).
 void() VR_PickupTest_Frame =
 {
@@ -279,6 +327,10 @@ void() VR_PickupTest_Frame =
     else if(ask == 4)
     {
         VR_PickupTest_EnemyGuns();
+    }
+    else if(ask == 6)
+    {
+        VR_PickupTest_Float();
     }
     self = oself;
 };

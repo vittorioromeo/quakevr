@@ -3382,6 +3382,15 @@ void hologramTestMessage()
             .help("A gun lying on a table or the floor is taken by its handle with your fist this much farther off it than "
                   "the slack above (the hand at its handle; your hand nudging it doesn't stop it). Only a direct grab: a "
                   "weapon caught in the air still needs your fist on it, and a force grab is unchanged. 0: as anywhere on it."),
+        toggle("Floating Pickup Grace", vr_pickup_float_grace)
+            .help("A weapon, key or armour hanging in the air (spinning) isn't knocked down by your empty hand reaching into "
+                  "it slowly for a moment: close your grip and it is taken where it hangs. Off: a touch knocks it loose."),
+        slider("Floating Grace Time", vr_pickup_float_grace_time, 0.f, 1.f, 0.05f, "%.2f s")
+            .extend(0.f, 3.f)
+            .help("How long from your hand reaching it; after that a hand still pushing into it knocks it loose."),
+        slider("Floating Grace Swat Speed", vr_pickup_float_grace_swat, 0.5f, 5.f, 0.25f, "%.2f m/s")
+            .extend(0.f, 10.f)
+            .help("A hand faster than this knocks it at once (a swat)."),
         toggle("Lenient Weapon Catch", vr_weapon_grab_box)
             .help("The old catch: a weapon is also taken when your hand comes within a hand's width of its handle, the "
                   "fist up to 20 cm off it. Off: only when your closed fist touches it, as a box or a gib."),
@@ -6553,6 +6562,10 @@ za::Vector<Item> pageDebugTests()
                   "swords, the ogre's chainsaw, the random drops') dropped in rows ahead of you as a death drops it; "
                   "their convex pieces' cut times printed (box3d: ..., read from the disk or cut). Setup's preparation "
                   "run does this on the hub."),
+        command("Floating Pickup Ahead", "vr_pickup_test 6")
+            .help("vr_pickup_test 6: a super shotgun pickup hanging 40 units ahead of you, watched: reach into it slowly and "
+                  "grip (Floating Pickup Grace), or swat it; whether it was taken or knocked loose prints (floatgrab: in the "
+                  "console; developer 1 also prints each hand's reach and knock)."),
         command("Every Model and Limb Precached", "vr_prepare_models")
             .help("vr_prepare_models: every model of the game's folders (progs/*.mdl) and every monster's limbs loaded now, "
                   "so their skins' normal maps are made and kept on disk (cache/normalmaps) instead of at a map's first "

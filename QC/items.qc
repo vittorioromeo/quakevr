@@ -562,6 +562,8 @@ float QVR_PICKUPOBJ_HOLSTER = 3; // taken at a holster
 .float vr_wearable;     // armour to be worn by hand
 .float vr_wear_hover;   // carried over the torso last frame (for the hover haptic)
 .float vr_wear_floats;  // hangs in the air until taken or knocked (and again when it comes back in deathmatch)
+void(entity xBox) VR_Carry_FloatGraceFrame; // (vr_carry.qc: the floating pickups' grace, vr_pickup_float_grace)
+float(entity xPlayer, float xHand, entity xBox) VR_Carry_FloatGraceGrip;
 .float vr_pickup_sparkle; // a weapon's next sparkle (weapon_item_think's; not its think2, which forcegrabbable_item_reposition reads)
 
 // Whether pickups of its kind are objects now (their setting may have been turned off since the map
@@ -784,7 +786,8 @@ void(float xHand, entity xArmor) VR_Armor_HeldFrame =
 void() VR_PickupObj_WeaponTouch =
 {
     float hand = VRGetTouchingHand(other);
-    if((forcegrabCatching || (VR_Carry_GripPressed(other, hand) && !VR_Forcegrab_IsHandBusy(other, hand))) &&
+    if((forcegrabCatching || ((VR_Carry_GripPressed(other, hand) || VR_Carry_FloatGraceGrip(other, hand, self)) &&
+                               !VR_Forcegrab_IsHandBusy(other, hand))) &&
        VRIsHandEmpty(other, hand))
     {
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
@@ -1448,6 +1451,7 @@ void() forcegrabbable_item_think =
         if(!self.vr_rigid && self.movetype == MOVETYPE_NONE)
         {
             self.angles_y = anglemod(100 * time);
+            VR_Carry_FloatGraceFrame(self); // (vr_carry.qc: a hand gone from it reaches it anew)
         }
         if(self.vr_pickup_obj == QVR_PICKUPOBJ_WEAPON && time >= self.vr_pickup_sparkle && self.model != string_null)
         {
