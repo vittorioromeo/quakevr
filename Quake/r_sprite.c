@@ -231,6 +231,11 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 	float			softfade = 0.f; // QVR
 	float			alpha; // QVR
 
+	// QVR: the old Quake explosion sprite (QuakeC's BecomeExplosion and the expansions' copies) is not drawn: the
+	// explosion's particles and debris (vr_particles.cpp, vr_explosiondebris.cpp) are the explosion.
+	if (!strcmp (e->model->name, "progs/s_explod.spr"))
+		return;
+
 	frame = R_GetSpriteFrame (e);
 	psprite = (msprite_t *) e->model->cache.data;
 	if (!frame || !frame->gltexture) // QVR: a sprite with no frame to draw: skipped, not a crash

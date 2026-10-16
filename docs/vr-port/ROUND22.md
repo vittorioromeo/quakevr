@@ -9949,3 +9949,9 @@ with the option off) show his face and helmet, the neck going into his head, not
 For him in VR: the mirror (and Debug > body preview) from the front, side and back. Check the head's size and
 height against your own (the eyes about 3.5 cm lower than the placeholder's), the neck seam when looking up and down
 and turning the head, and that nothing of it shows in your own view when you look down, lean or crouch.
+## UI batch (voice notes 2026-10-17)
+
+- Menu panel grip drag: vr_menu_grab_dist_max default 200 -> 600 cm (push it away as well as pull it near).
+- Checklist: a blank row between entries (vr_menu.cpp pageChecklist).
+- Generated Companion Maps and Generated Relief Strength rows removed from Graphics > Surfaces; kept in Advanced VR Settings (cvars unchanged). vr_menu_path_check: 0 missing.
+- Old explosion sprite (progs/s_explod.spr, QuakeC BecomeExplosion and the expansions copies) no longer drawn: skipped in r_sprite.c R_DrawSpriteModel_Real; particles and debris unaffected (vr_explosion_debris_test: 16 pieces). vr_particle_test quake still draws it, for comparison.

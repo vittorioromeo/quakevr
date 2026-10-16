@@ -181,8 +181,10 @@ const DefaultChange defaultChanges[] = {
     {143, &vr_knockdown_hit_time, "0.5"},           // 1
     {143, &vr_ragimpact_crush_speed, "350"},        // 180
     {143, &vr_ragimpact_crush_wear, "0.3"},         // 0.5
+    // 144: the menu panel grip drag reaches farther (2026-10-17: "push the menu away too").
+    {144, &vr_menu_grab_dist_max, "200"},           // 600
 };
-constexpr int configVersion = 143;
+constexpr int configVersion = 144;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
