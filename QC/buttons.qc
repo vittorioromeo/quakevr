@@ -516,7 +516,7 @@ void() func_button =
         self.noise = "buttons/switch04.wav";
     }
 
-    float mgExplicitMove = MG_WorldCampaign() && self.movedir != '0 0 0';
+    float mgExplicitMove = MG_ExplicitMoveDir();
     SetMovedir();
 
     self.movetype = MOVETYPE_PUSH;

@@ -1395,34 +1395,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return FALSE;
     }
 
-    // Dawn of the Machine's Bloody Nightmare: the player's blows 80%, the rest on the player 120% (vr_mg3_defs.qc).
-    if(MG3_Campaign() && (serverflags & MG3_SF_BN_ACTIVE))
-    {
-        damage = MG3_BloodyNightmareDamage(targ, attacker, damage);
-    }
-    // Dawn of the Machine's lava man: 0.8 of anything but the lightning gun and the laser cannon, nothing from Chthon.
-    if(targ.mg3_lavaman)
-    {
-        damage = MG3_LavaManDamage(targ, inflictor, attacker, damage);
-        if(damage <= 0)
-        {
-            return FALSE;
-        }
-    }
-    // Dawn of the Machine's Shub: nothing while she thrashes or dies (vr_mg3_shub.qc; upstream combat.qc's boss_immune).
-    if(targ.mg3_shub_immune)
+    // Dawn of the Machine's damage rules: Bloody Nightmare, lava man, Shub, Chthon (vr_mg3_defs.qc).
+    if(!MG3_DamageFilter(targ, inflictor, attacker, damage))
     {
         return FALSE;
     }
-    // Dawn of the Machine's Chthon (killable): none during his fits or from lava men, 0.8 but lightning and laser.
-    if(targ.mg3_chthon)
-    {
-        damage = MG3_ChthonDamage(targ, inflictor, attacker, damage);
-        if(damage <= 0)
-        {
-            return FALSE;
-        }
-    }
+    damage = mg3_damage;
 
     if(targ.classname == "trigger_explosion")
     {

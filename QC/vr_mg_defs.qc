@@ -29,6 +29,8 @@
 .string endtext;
 float() Dopa_Campaign = { return cvar("vr_campaign") == VR_CAMPAIGN_DOPA; };
 float() MG_WorldCampaign = { return cvar("vr_campaign") >= VR_CAMPAIGN_DOPA && cvar("vr_campaign") <= VR_CAMPAIGN_MG3; };
+// MG maps may set a mover's direction with a "movedir" key: kept as given (SetMovedir, doors, buttons).
+float() MG_ExplicitMoveDir = { return MG_WorldCampaign() && self.movedir != '0 0 0'; };
 float() MG_WorldGuard = { if(MG_WorldCampaign()) return TRUE; remove(self); return FALSE; };
 void(entity ent) MG_RegisterFrameTickEntity = { ent.MG_registered = TRUE; };
 void(entity ent) MG_RemoveFrameTickEntity = { ent.MG_registered = FALSE; };

@@ -148,6 +148,29 @@ float(entity targ, entity attacker, float damage) MG3_BloodyNightmareDamage = {
     return damage;
 };
 
+// Dawn of the Machine's damage rules, at the top of T_DamageDeal (combat.qc): FALSE when targ takes none (T_DamageDeal
+// returns FALSE), else TRUE with the damage to deal in mg3_damage (a Bloody Nightmare may lower it to 0 or less: dealt
+// all the same, as before).
+float mg3_damage;
+float(entity targ, entity inflictor, entity attacker, float damage) MG3_DamageFilter = {
+    // Bloody Nightmare: the player's blows 80%, the rest on the player 120%.
+    if(MG3_BloodyNightmare()) damage = MG3_BloodyNightmareDamage(targ, attacker, damage);
+    // The lava man: 0.8 of anything but the lightning gun and the laser cannon, nothing from Chthon (vr_mg3_lavaman.qc).
+    if(targ.mg3_lavaman) {
+        damage = MG3_LavaManDamage(targ, inflictor, attacker, damage);
+        if(damage <= 0) return FALSE;
+    }
+    // Shub: nothing while she thrashes or dies (vr_mg3_shub.qc; upstream combat.qc's boss_immune).
+    if(targ.mg3_shub_immune) return FALSE;
+    // Chthon (killable): none during his fits or from lava men, 0.8 but lightning and laser (vr_mg3_chthon.qc).
+    if(targ.mg3_chthon) {
+        damage = MG3_ChthonDamage(targ, inflictor, attacker, damage);
+        if(damage <= 0) return FALSE;
+    }
+    mg3_damage = damage;
+    return TRUE;
+};
+
 // Each level of a Bloody Nightmare game starts with the axe and the shotgun only (and the Super Axe, the bloody
 // super shotgun once found, and the best armour worn); ammunition is kept. Upstream rewrites parm1 (its items) and
 // the selected weapon; here the level parms of the hands and holsters (VR's inventory, client.qc SetChangeParms) are

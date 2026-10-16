@@ -38,6 +38,15 @@ void() MG_MonsterBeginWalking = {
     self.pausetime = 0;
     self.th_walk();
 };
+// A monster with a path that starts paused (spawnflags 4096, MG maps): it stands until used, then walks its path.
+// TRUE when it paused (monsters.qc's walk, fly and swim starts walk it otherwise).
+float() MG_MonsterStartPaused = {
+    if(!(MG_WorldCampaign() && (self.spawnflags & 4096))) return FALSE;
+    self.pausetime = 99999999;
+    self.th_stand();
+    self.use = MG_MonsterBeginWalking;
+    return TRUE;
+};
 void() MG_MonsterRunStart = {
     entity oldact = activator;
     activator = self.MG_monster_activator;
@@ -80,6 +89,13 @@ float(void() start) MG_MonsterPrepare = {
     self.flags = self.flags - (self.flags & FL_MONSTER); // Official FL_FUTUREMONSTER collides with VR FL_SPECIFICDAMAGE; MG_deferred owns it.
     setmodel(self, "");
     return TRUE;
+};
+// A killtarget's victim on MG maps (subs.qc SUB_KillTarget): a future monster's kill counted, a live monster killed by
+// the activator, anything else removed.
+void(entity t) MG_KillTarget = {
+    if(t.MG_deferred) MG_MonsterKillDeferred(t, activator);
+    else if(t.flags & FL_MONSTER && t.health > 0) Killed(t, activator);
+    else remove(t);
 };
 void(entity m, entity attacker) MG_MonsterKillDeferred = {
     // Official future-monster killtargets count a kill without activating their attack or ragdoll.
