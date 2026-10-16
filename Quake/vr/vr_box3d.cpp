@@ -5935,37 +5935,66 @@ void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b
     }
 }
 
+// A hand's hold on a ragdoll about to begin (grabRagdoll, holdSoft): the player's number, the ragdoll's entity and bodies,
+// and where the hand is (world units).
+struct GrabStart
+{
+    int pnum{0};
+    int num{0};
+    RagdollBodies* r{nullptr};
+    glm::vec3 at{0.f};
+};
+
+// Whether hand `hand` of `player` may take hold of `ent`'s ragdoll (a player's hand holding nothing yet, `ent` a ragdoll):
+// `gs` filled in.
+[[nodiscard]] bool grabStart(edict_t* ent, edict_t* player, int hand, GrabStart& gs)
+{
+    gs.pnum = NUM_FOR_EDICT(player);
+    if(!world || gs.pnum < 1 || gs.pnum > svs.maxclients || grabIndex(gs.pnum, hand) >= 0)
+    {
+        return false; // (none, or holding already)
+    }
+    gs.num = NUM_FOR_EDICT(ent);
+    gs.r = ragdollOf(gs.num);
+    if(!gs.r)
+    {
+        return false;
+    }
+    glm::quat turn;
+    handPose(player, hand, gs.at, turn);
+    return true;
+}
+
+// Hand `hand` holds `part` of the ragdoll `gs` found, from where the hand is (`g`: its spring's settings, if any).
+void beginGrab(World::RagdollGrab& g, const GrabStart& gs, edict_t* player, int hand, int part)
+{
+    g.player = gs.pnum;
+    g.hand = hand;
+    g.num = gs.num;
+    g.part = part;
+    startHold(g, player, *gs.r, b3Body_GetLocalPoint(gs.r->body[static_cast<za::SizeT>(part)], world->toM(gs.at)));
+    world->ragdollGrabs.pushBack(g);
+}
+
 // ragdollgrab: hand `hand` of `player` takes the limb of `corpse`'s ragdoll it is on (within vr_ragdoll_grab_reach of
 // its surface).
 bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
 {
-    const int pnum = NUM_FOR_EDICT(player);
-    if(!world || vr_ragdoll_grab.value < 1.f || pnum < 1 || pnum > svs.maxclients || grabIndex(pnum, hand) >= 0)
-    {
-        return false; // (none, or holding already)
-    }
-    const int num = NUM_FOR_EDICT(corpse);
-    RagdollBodies* r = ragdollOf(num);
-    if(!r)
+    GrabStart gs;
+    if(vr_ragdoll_grab.value < 1.f || !grabStart(corpse, player, hand, gs))
     {
         return false;
     }
-    glm::vec3 at;
-    glm::quat turn;
-    handPose(player, hand, at, turn);
+    RagdollBodies* r = gs.r;
+    const int num = gs.num;
     float distance = 0.f;
-    const int part = nearestPart(*r, at, distance);
+    const int part = nearestPart(*r, gs.at, distance);
     if(part < 0 || distance > za::max(vr_ragdoll_grab_reach.value, 0.f))
     {
         return false;
     }
     World::RagdollGrab g;
-    g.player = pnum;
-    g.hand = hand;
-    g.num = num;
-    g.part = part;
-    startHold(g, player, *r, b3Body_GetLocalPoint(r->body[static_cast<za::SizeT>(part)], world->toM(at)));
-    world->ragdollGrabs.pushBack(g);
+    beginGrab(g, gs, player, hand, part);
     // Manhandled (vr_foegrab_manhandle_stagger): a living one staggering, taken by a hand, loses its footing and goes
     // down (its stagger's fall: the QC's VR_Knockdown_Think sees it fallen, down its knockdown's time).
     if(vr_foegrab_manhandle_stagger.value > 0.f && corpse->v.health > 0.f && r->active.on && r->active.stagger.on)
@@ -5991,20 +6020,14 @@ bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
 // more (a neck snapped: the hands held its head).
 bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head)
 {
-    const int pnum = NUM_FOR_EDICT(player);
-    if(!world || pnum < 1 || pnum > svs.maxclients || grabIndex(pnum, hand) >= 0)
+    GrabStart gs;
+    if(!grabStart(ent, player, hand, gs))
     {
         return false;
     }
-    const int num = NUM_FOR_EDICT(ent);
-    const RagdollBodies* r = ragdollOf(num);
-    if(!r)
-    {
-        return false;
-    }
-    glm::vec3 at;
-    glm::quat turn;
-    handPose(player, hand, at, turn);
+    const RagdollBodies* r = gs.r;
+    const int num = gs.num;
+    const glm::vec3& at = gs.at;
     float distance = 0.f;
     int part = nearestPart(*r, at, distance);
     const int headPart = r->rig->head;
@@ -6022,15 +6045,10 @@ bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force,
         return false;
     }
     World::RagdollGrab g;
-    g.player = pnum;
-    g.hand = hand;
-    g.num = num;
-    g.part = part;
     g.force = za::max(force, 0.f);
     g.hertz = za::max(hertz, 0.1f);
     g.stuck = za::max(stuck, 1.f);
-    startHold(g, player, *r, b3Body_GetLocalPoint(r->body[static_cast<za::SizeT>(part)], world->toM(at)));
-    world->ragdollGrabs.pushBack(g);
+    beginGrab(g, gs, player, hand, part);
     if(vr_debug_ragdoll.value)
     {
         Con_Printf("ragdoll: %d part %d (%s) held on by hand %d, %.1f units from its surface (soft: %.0f N, %.1f Hz)\n", num,
