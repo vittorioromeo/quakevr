@@ -18,9 +18,12 @@ namespace qvr::stereo
 [[nodiscard]] unsigned spectatorPreview(float& aspect);
 
 // Single-pass stereo (vr_stereo_single.cpp): the eye whose projection and hidden area apply now; the lenses' hidden area
-// of eye `eye` drawn into the bound framebuffer; the eyes' scene colour and depth/stencil formats.
+// of eye `eye` drawn into the bound framebuffer; the eyes' scene colour and depth/stencil formats; the eyes' targets
+// (their OIT textures, attached with each eye's layer) and a count bumped each time they are made again.
 void setCurrentEye(int eye);
 void drawHiddenAreaOf(int eye);
 void eyeSceneFormats(unsigned& color, unsigned& depth);
+[[nodiscard]] const struct glframebufs_s& eyeFramebufs();
+[[nodiscard]] unsigned eyeTargetsGeneration();
 
 } // namespace qvr::stereo

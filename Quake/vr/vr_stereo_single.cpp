@@ -31,9 +31,8 @@ namespace
 
 using MultiviewFn = void(APIENTRY*)(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint baseView,
     GLsizei numViews);
-using CopyImageFn = void(APIENTRY*)(GLuint src, GLenum srcTarget, GLint srcLevel, GLint srcX, GLint srcY, GLint srcZ,
-    GLuint dst, GLenum dstTarget, GLint dstLevel, GLint dstX, GLint dstY, GLint dstZ, GLsizei width, GLsizei height,
-    GLsizei depth);
+using TextureViewFn = void(APIENTRY*)(GLuint texture, GLenum target, GLuint origTexture, GLenum format,
+    GLuint minLevel, GLuint numLevels, GLuint minLayer, GLuint numLayers);
 using StorageMultisampleFn = void(APIENTRY*)(GLenum target, GLsizei samples, GLenum format, GLsizei width,
     GLsizei height, GLsizei depth, GLboolean fixedLocations);
 
@@ -61,12 +60,16 @@ struct State
 {
     int support = -1; // -1 not checked yet, 0 no, 1 yes
     MultiviewFn multiview = nullptr;
-    CopyImageFn copyImage = nullptr;
+    TextureViewFn textureView = nullptr;
 
-    // The arrays (the eyes' scene size and formats) and their framebuffers: both layers (multiview), each layer.
+    // The arrays (the eyes' scene size and formats) and their framebuffers: both layers (multiview); each layer's
+    // texture views (colour, depth/stencil), which each eye renders on into as its own scene target (eyeTargets), with
+    // their framebuffers: the scene, the OIT's (the eyes' accum and revealage textures with the layer's depth).
     GLuint color = 0, depth = 0;
     GLuint fboMulti = 0;
-    GLuint fboLayer[2] = {};
+    GLuint viewColor[2] = {}, viewDepth[2] = {};
+    GLuint fboEye[2] = {}, fboOit[2] = {};
+    unsigned eyeGeneration = 0; // the eyes' targets' (stereo::eyeTargetsGeneration) the OIT framebuffers were made for
     int width = 0, height = 0;
     int samples = 1; // the eyes' MSAA (multisample arrays)
     int frameSamples = 1; // this frame's (wanted)
@@ -82,7 +85,7 @@ struct State
     bool active = false;    // the pass ran: the eyes' views follow it
     bool inPass = false;    // R_RenderStereoSingle runs
     bool viewReady = false; // an eye's own V_RenderView runs (its V_SetupView done before the pass)
-    bool copyPending[2] = {};
+    bool scenePending[2] = {}; // the eye's scene not begun yet (its layer cleared and drawn in the pass: no clear)
 
     // vr_stereo_single_info: since the last call.
     int frames = 0, framesSingle = 0;
@@ -114,8 +117,8 @@ bool supported()
     if(found)
     {
         state.multiview = reinterpret_cast<MultiviewFn>(SDL_GL_GetProcAddress("glFramebufferTextureMultiviewOVR"));
-        state.copyImage = reinterpret_cast<CopyImageFn>(SDL_GL_GetProcAddress("glCopyImageSubData"));
-        state.support = state.multiview && state.copyImage ? 1 : 0;
+        state.textureView = reinterpret_cast<TextureViewFn>(SDL_GL_GetProcAddress("glTextureView"));
+        state.support = state.multiview && state.textureView ? 1 : 0;
     }
     Con_DPrintf("VR: single-pass stereo (GL_OVR_multiview2) %s\n", state.support ? "available" : "not available");
     return state.support == 1;
@@ -126,12 +129,55 @@ void deleteTargets()
     if(state.fboMulti)
     {
         GL_DeleteFramebuffersFunc(1, &state.fboMulti);
-        GL_DeleteFramebuffersFunc(2, state.fboLayer);
+        GL_DeleteFramebuffersFunc(2, state.fboEye);
+        GL_DeleteFramebuffersFunc(2, state.fboOit);
+        for(int eye = 0; eye < 2; eye++)
+        {
+            GL_DeleteNativeTexture(state.viewColor[eye]);
+            GL_DeleteNativeTexture(state.viewDepth[eye]);
+            state.viewColor[eye] = state.viewDepth[eye] = state.fboEye[eye] = state.fboOit[eye] = 0;
+        }
         GL_DeleteNativeTexture(state.color);
         GL_DeleteNativeTexture(state.depth);
     }
-    state.fboMulti = state.fboLayer[0] = state.fboLayer[1] = state.color = state.depth = 0;
+    state.fboMulti = state.color = state.depth = 0;
     state.width = state.height = 0;
+}
+
+// Layer `layer` of `array` as a texture of its own (glTextureView: the same memory, so what the pass drew stays
+// compressed for what each eye draws after it).
+GLuint makeLayerView(GLuint array, unsigned format, int samples, int layer)
+{
+    GLuint tex = 0;
+    glGenTextures(1, &tex);
+    const GLenum target = samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+    state.textureView(tex, target, array, format, 0, 1, static_cast<GLuint>(layer), 1);
+    if(samples <= 1) // (as GL_CreateFBOAttachment's)
+    {
+        GL_BindNative(GL_TEXTURE0, target, tex);
+        glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(target, GL_TEXTURE_MAX_LEVEL, 0);
+        GL_BindNative(GL_TEXTURE0, target, 0);
+    }
+    return tex;
+}
+
+// A framebuffer of `colors` (count) and the depth/stencil `depth`, all `samples`' textures. False: not complete.
+bool makeFbo(GLuint& fbo, const GLuint* colors, int count, GLuint depth, int samples)
+{
+    const GLenum target = samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+    GL_GenFramebuffersFunc(1, &fbo);
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
+    GLenum buffers[2] = {};
+    for(int i = 0; i < count; i++)
+    {
+        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, target, colors[i], 0);
+        buffers[i] = GL_COLOR_ATTACHMENT0 + i;
+    }
+    GL_DrawBuffersFunc(count, buffers);
+    GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, target, depth, 0);
+    return GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
 }
 
 GLuint makeArray(unsigned format, int width, int height, int samples, const char* label)
@@ -162,15 +208,18 @@ bool ensureTargets(int width, int height, int samples)
 {
     unsigned colorFormat = 0, depthFormat = 0;
     stereo::eyeSceneFormats(colorFormat, depthFormat);
+    const unsigned generation = stereo::eyeTargetsGeneration();
     if(state.fboMulti && state.width == width && state.height == height && state.colorFormat == colorFormat &&
-        state.depthFormat == depthFormat && state.samples == samples)
+        state.depthFormat == depthFormat && state.samples == samples && state.eyeGeneration == generation)
     {
         return true;
     }
-    if(state.targetsFailed && state.width == width && state.height == height && state.samples == samples)
+    if(state.targetsFailed && state.width == width && state.height == height && state.samples == samples &&
+        state.eyeGeneration == generation)
     {
         return false;
     }
+    state.eyeGeneration = generation;
     deleteTargets();
     state.width = width;
     state.height = height;
@@ -186,13 +235,13 @@ bool ensureTargets(int width, int height, int samples)
     state.multiview(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, state.color, 0, 0, 2);
     state.multiview(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, state.depth, 0, 0, 2);
     bool complete = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
-    GL_GenFramebuffersFunc(2, state.fboLayer);
+    const glframebufs_t& eyes = stereo::eyeFramebufs();
     for(int eye = 0; eye < 2; eye++)
     {
-        GL_BindFramebufferFunc(GL_FRAMEBUFFER, state.fboLayer[eye]);
-        GL_FramebufferTextureLayerFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, state.color, 0, eye);
-        GL_FramebufferTextureLayerFunc(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, state.depth, 0, eye);
-        complete = complete && GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+        state.viewColor[eye] = makeLayerView(state.color, colorFormat, samples, eye);
+        state.viewDepth[eye] = makeLayerView(state.depth, depthFormat, samples, eye);
+        complete = makeFbo(state.fboEye[eye], &state.viewColor[eye], 1, state.viewDepth[eye], samples) && complete;
+        complete = makeFbo(state.fboOit[eye], eyes.oit.mrt, 2, state.viewDepth[eye], samples) && complete;
     }
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, bound);
     if(!complete)
@@ -383,7 +432,7 @@ bool render(int width, int height)
     R_RenderStereoSingle();
     state.inPass = false;
     state.active = true;
-    state.copyPending[0] = state.copyPending[1] = true;
+    state.scenePending[0] = state.scenePending[1] = true;
     ++state.framesSingle;
     return true;
 }
@@ -412,7 +461,7 @@ void endFrame()
     state.active = false;
     state.captured = false;
     state.viewReady = false;
-    state.copyPending[0] = state.copyPending[1] = false;
+    state.scenePending[0] = state.scenePending[1] = false;
 }
 
 } // namespace qvr::stereosingle
@@ -476,7 +525,7 @@ extern "C" unsigned VR_StereoSingleBeginScene()
     // Each layer cleared and its lens's hidden area drawn, as each eye's R_RenderScene does (R_Clear, VR_DrawHiddenArea).
     for(int eye = 0; eye < 2; eye++)
     {
-        GL_BindFramebufferFunc(GL_FRAMEBUFFER, s.fboLayer[eye]);
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, s.fboEye[eye]);
         glViewport(0, 0, s.width, s.height);
         R_Clear();
         stereo::drawHiddenAreaOf(eye);
@@ -508,19 +557,42 @@ extern "C" void VR_StereoSingleEndScene()
     foveated::endScene();
 }
 
-extern "C" int VR_StereoSingleCopyIn(unsigned color, unsigned depth)
+extern "C" void VR_StereoSingleEyeTargets()
+{
+    const stereosingle::State& s = stereosingle::state;
+    const int eye = stereo::eye() & 1;
+    if(VR_StereoSinglePhase() != 2 || !s.fboEye[eye])
+    {
+        return;
+    }
+    // The eye's targets with its layer's views as the scene's (MSAA, or a scene effect: the scene target; else the
+    // composite, which the scene is then drawn into). Chosen here, as R_SetupGL chooses, from the eyes' own targets.
+    framebufs = stereo::eyeFramebufs();
+    if(GL_NeedsSceneEffects())
+    {
+        framebufs.scene.color_tex = s.viewColor[eye];
+        framebufs.scene.depth_stencil_tex = s.viewDepth[eye];
+        framebufs.scene.fbo = s.fboEye[eye];
+        framebufs.oit.fbo_scene = s.fboOit[eye];
+    }
+    else
+    {
+        framebufs.composite.color_tex = s.viewColor[eye];
+        framebufs.composite.depth_stencil_tex = s.viewDepth[eye];
+        framebufs.composite.fbo = s.fboEye[eye];
+        framebufs.oit.fbo_composite = s.fboOit[eye];
+    }
+}
+
+extern "C" int VR_StereoSingleSceneBegun()
 {
     stereosingle::State& s = stereosingle::state;
     const int eye = stereo::eye() & 1;
-    if(VR_StereoSinglePhase() != 2 || !s.copyPending[eye])
+    if(VR_StereoSinglePhase() != 2 || !s.scenePending[eye])
     {
         return 0;
     }
-    s.copyPending[eye] = false;
-    const GLenum from = s.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE_ARRAY : GL_TEXTURE_2D_ARRAY;
-    const GLenum to = s.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-    s.copyImage(s.color, from, 0, 0, 0, eye, color, to, 0, 0, 0, 0, s.width, s.height, 1);
-    s.copyImage(s.depth, from, 0, 0, 0, eye, depth, to, 0, 0, 0, 0, s.width, s.height, 1);
+    s.scenePending[eye] = false;
     foveated::beginScene(eye, vid.width, vid.height); // vr_foveated, as after VR_DrawHiddenArea
     return 1;
 }
