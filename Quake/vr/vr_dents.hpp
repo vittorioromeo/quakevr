@@ -30,6 +30,8 @@ inline constexpr int kindNail = 2;
 inline constexpr int kindMelee = 3; // a blade (drawn out along the swing) or a blunt blow
 inline constexpr int kindBlast = 4; // the crater nearest an explosion
 inline constexpr int kindBlastBleed = 5; // a blast's lesser wounds round it
+inline constexpr int kindBlunt = 6; // a blunt blow (a melee wound event's extra 1): a pommel, a fist, a gun, a brick in the
+                                    // fist or thrown: a round crater, wider than a cut
 
 // A blow struck entity `e` (a Quake .mdl, or a ragdoll of one) at `at` (the world), the surface's outward normal `n`
 // there, going `way`; `tris` the model's triangles as drawn now (vr_modelcollide.cpp's drawnTriangles: three corners

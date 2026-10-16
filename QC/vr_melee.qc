@@ -752,6 +752,72 @@ string(float xThing, float xFh) VR_Melee_PartAt =
     return xFh < -0.1 ? "the butt" : (xFh < 0.1 ? "the grip" : (xFh < 0.9 ? "the barrel" : "the muzzle"));
 };
 
+// The corpse (or a body still dying) the thing of `xThing` strikes along the line VR_Melee_Line left (vr_mline_*; a test
+// sets them itself), going `xDir` (combat.qc VR_Corpse_StrikeFrame; `p` the player, whom the traces skip): from the hand
+// out to its far end and back to its near end, a little ahead along the swing, all of it as the living's blows have it
+// (a weapon carried off its handle, a sword by its blade, end to end; a pommel behind the hand; a club's head). World for
+// none; where into vr_cstrike_at; vr_cstrike_blunt: a sword's or an axe's blunt part (VR_Melee_PartAt: its pommel, hilt,
+// guard, an axe's handle). (Clubs, guns, the crowbar and fists are blunt all along: VR_Corpse_DamageKind's own.)
+entity(entity p, float xThing, vector xDir) VR_Corpse_StrikeAlong =
+{
+    vr_cstrike_blunt = FALSE;
+    vector lead = xDir * 4;
+    vector grip = vr_mline_grip;
+    entity c = world;
+    traceline(grip, vr_mline_far + lead, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, p);
+    if(trace_ent.vr_corpse == 2 || trace_ent.vr_corpse_dying)
+    {
+        c = trace_ent;
+    }
+    else
+    {
+        traceline(grip, vr_mline_near + lead, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, p);
+        if(trace_ent.vr_corpse == 2 || trace_ent.vr_corpse_dying)
+        {
+            c = trace_ent;
+        }
+    }
+    if(c == world)
+    {
+        return world;
+    }
+    vr_cstrike_at = trace_endpos;
+    if(xThing == VR_MTHING_SWORD || xThing == VR_MTHING_AXE)
+    {
+        // Its handle and its tip: the part struck as a share of the way from one to the other (VR_Melee_PartAt's).
+        vector h = grip;
+        vector t = vr_mline_far;
+        if(vr_mline_free)
+        {
+            vector e1 = vr_mline_tip ? vr_mline_near : vr_mline_far; // its near end (the pommel)
+            t = vr_mline_tip ? vr_mline_far : vr_mline_near;
+            h = (e1 + t * vr_mline_back) * (1 / (1 + vr_mline_back)); // (e1 = h - (t - h) * back)
+        }
+        vector ax = t - h;
+        float fh = ((vr_cstrike_at - h) * ax) / max(0.001, ax * ax);
+        vr_cstrike_fh = fh;
+        string part = VR_Melee_PartAt(xThing, fh);
+        vr_cstrike_blunt = vr_mpart_blunt;
+        if(cvar("developer") >= 2)
+        {
+            dprint(sprintf("corpse strike: %s with %s (%.2f of the way from the handle to the tip)%s\n", c.classname, part, fh,
+                vr_cstrike_blunt ? ", blunt" : ""));
+        }
+    }
+    return c;
+};
+
+entity(entity p, float xHand, vector xDir) VR_Corpse_StrikeLine =
+{
+    float thing = VR_Melee_Thing(p, xHand);
+    if(!VR_Melee_Line(p, xHand, thing))
+    {
+        vr_cstrike_blunt = FALSE;
+        return world;
+    }
+    return VR_Corpse_StrikeAlong(p, thing, xDir);
+};
+
 // The points of a weapon carried off its handle (VR_Melee_FreeLine): all of it, evenly from its near end to its tip (as a
 // prop held anywhere is all of it), each as VR_Melee_PartAt has it; those at the hand strike nothing. Their place on the
 // line (vr_mpt_f) is from the grip (the hand) to the far end, which may be either end: past the hand, away from the far

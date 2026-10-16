@@ -783,6 +783,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     {
         damage = damage * 4;
     }
+    // Painted and dented where it struck as the same blow on the living (vr_wounds.qc; ROUND22.md, "Every hit dents"):
+    // T_DamageImpl hands a corpse's hits here before its own VR_Wound_Hit, so a blade's, a blunt blow's, a nail's or a
+    // thrown brick's hit on a ragdoll left no wound and no dent (a shotgun's pellets paint their own: VR_Wound_Pellet).
+    VR_Wound_Hit(targ, inflictor, attacker, ceil(damage));
     damage = damage / VR_Corpse_PositionalFactor(targ);
 
     // A headshot on a corpse pops its head, leaving the physical body in place.
@@ -907,10 +911,70 @@ float(entity e, entity p, float xHand) VR_Ragdoll_HandSpares; // (vr_carry.qc)
 float(entity e, entity p) VR_Throw_SparedBlows;
 float(entity p, float xHand) VR_Throw_HandMayStrike;
 
-// Every player frame, for each hand (self is the player; VR_Carry_HandFrame): a hand swung at a
-// blow's speed (vr_melee_speed) through a corpse, or what it holds, strikes it.
 void(entity xFrom, float xChan, entity xTarg) VR_Blunt_HitLayer; // (vr_crates.qc)
 
+// The corpse (or a body still dying) what a hand holds strikes along its line (vr_melee.qc VR_Corpse_StrikeAlong: the
+// line VR_Melee_Line left; VR_Corpse_StrikeLine: the hand's now), world for none: where (vr_cstrike_at), and whether
+// with a blunt part (vr_cstrike_blunt: a sword's or an axe's pommel, hilt or handle).
+vector vr_cstrike_at;
+float vr_cstrike_blunt;
+float vr_cstrike_fh; // (a sword's or an axe's: the part struck, VR_Melee_PartAt's share from its handle to its tip)
+entity(entity p, float xThing, vector xDir) VR_Corpse_StrikeAlong;
+entity(entity p, float xHand, vector xDir) VR_Corpse_StrikeLine;
+float vr_melee_blunt; // (vr_melee.qc)
+
+// A hand's blow at `xSpeed` going `xDir` struck corpse `c` at `xAt` (self the player; VR_Corpse_StrikeFrame, the dents'
+// test): its corpse damage, wound and dent (VR_Corpse_Damage), the beheading cut instead, the torch's or the hot blade's
+// fire. `xBlunt`: struck with a pommel, a hilt, a handle's end (a blunt blow).
+void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR_Corpse_Struck =
+{
+    if(c == world || !c.takedamage || time < c.vr_corpse_struck + 0.35)
+    {
+        return;
+    }
+    // Not a ragdoll this hand holds or just let go of, nor one just thrown with both hands (a throw is not a blow:
+    // ROUND21.md, "Two-handed ragdoll throws").
+    if(VR_Ragdoll_HandSpares(c, self, xHand) || VR_Throw_SparedBlows(c, self) || !VR_Throw_HandMayStrike(self, xHand))
+    {
+        return;
+    }
+    c.vr_corpse_struck = time;
+
+    // A blade's slash at its head beheads it instead (vr_decap.qc): no corpse damage.
+    if(!xBlunt && VR_Decap_CorpseBlow(c, xHand, at))
+    {
+        haptic(xHand, 0.0, 0.15, 60, 0.9);
+        return;
+    }
+
+    float dmg = VR_Gib_StrikeDamage(speed);
+    if(!VRIsHandWeaponless(self, xHand))
+    {
+        dmg = dmg * 1.5;
+    }
+    VR_SoundVaried(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
+    VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), c);
+    haptic(xHand, 0.0, 0.1, 60, 0.7);
+    SpawnBlood(at, dir * 40, dmg);
+
+    VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
+    vr_melee_blunt = xBlunt; // a blunt blow: its corpse damage kind (VR_Corpse_DamageKind), its round dent (VR_Wound_Hit)
+    T_Damage(c, self, self, dmg);
+    vr_melee_blunt = FALSE;
+    VR_ClearHitKind();
+
+    // A lit torch sets it on fire (vr_burning.qc).
+    entity t = VR_Carry_Held(self, xHand);
+    if(t != world && VR_WallTorch_IsTorch(t) && t.wt_state == 1 && t.wt_fire > 0)
+    {
+        VR_Burn_Ignite(c, self, at, dir, VR_BURN_BLOW);
+    }
+    // So does an incandescent blade (vr_hotblade.qc).
+    VR_HotBlade_Struck(self, xHand, c, FALSE, at, dir);
+};
+
+// Every player frame, for each hand (self is the player; VR_Carry_HandFrame): a hand swung at a
+// blow's speed (vr_melee_speed) through a corpse, or what it holds, strikes it.
 void(float xHand) VR_Corpse_StrikeFrame =
 {
     if(!cvar_hget(cvarh_vr_corpse_gib) || !self.ishuman || self.health <= 0)
@@ -937,6 +1001,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
     vector hand = VRGetHandPos(xHand);
     entity c = world;
     vector at = hand;
+    float blunt = FALSE;
 
     // The hand, along its swing.
     traceline(hand - dir * 6, hand + dir * 8, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self); // VR: the corpse's model (vr_hit_precise)
@@ -945,58 +1010,18 @@ void(float xHand) VR_Corpse_StrikeFrame =
         c = trace_ent;
         at = trace_endpos;
     }
-    // What it holds, from the hand to its end.
-    else if(!VRIsHandWeaponless(self, xHand))
+    // What it holds, all of it, as the living's blows have it (VR_Melee_Line): from the hand to its tip and back to its
+    // pommel, butt or handle's end; a weapon carried off its handle (a sword by its blade) end to end; a club's head.
+    // It was the hand to the muzzle only: a pommel or a hilt held out (a sword held by its blade, used as a club)
+    // never struck a ragdoll (NOTES.md 2026-10-17).
+    else
     {
-        traceline(hand, VRGetMuzzlePos(xHand) + dir * 4, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self);
-        if(trace_ent.vr_corpse == 2 || trace_ent.vr_corpse_dying)
-        {
-            c = trace_ent;
-            at = trace_endpos;
-        }
+        c = VR_Corpse_StrikeLine(self, xHand, dir);
+        at = vr_cstrike_at;
+        blunt = vr_cstrike_blunt;
     }
 
-    if(c == world || !c.takedamage || time < c.vr_corpse_struck + 0.35)
-    {
-        return;
-    }
-    // Not a ragdoll this hand holds or just let go of, nor one just thrown with both hands (a throw is not a blow:
-    // ROUND21.md, "Two-handed ragdoll throws").
-    if(VR_Ragdoll_HandSpares(c, self, xHand) || VR_Throw_SparedBlows(c, self) || !VR_Throw_HandMayStrike(self, xHand))
-    {
-        return;
-    }
-    c.vr_corpse_struck = time;
-
-    // A blade's slash at its head beheads it instead (vr_decap.qc): no corpse damage.
-    if(VR_Decap_CorpseBlow(c, xHand, at))
-    {
-        haptic(xHand, 0.0, 0.15, 60, 0.9);
-        return;
-    }
-
-    float dmg = VR_Gib_StrikeDamage(speed);
-    if(!VRIsHandWeaponless(self, xHand))
-    {
-        dmg = dmg * 1.5;
-    }
-    VR_SoundVaried(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
-    VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), c);
-    haptic(xHand, 0.0, 0.1, 60, 0.7);
-    SpawnBlood(at, dir * 40, dmg);
-
-    VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
-    T_Damage(c, self, self, dmg);
-    VR_ClearHitKind();
-
-    // A lit torch sets it on fire (vr_burning.qc).
-    entity t = VR_Carry_Held(self, xHand);
-    if(t != world && VR_WallTorch_IsTorch(t) && t.wt_state == 1 && t.wt_fire > 0)
-    {
-        VR_Burn_Ignite(c, self, at, dir, VR_BURN_BLOW);
-    }
-    // So does an incandescent blade (vr_hotblade.qc).
-    VR_HotBlade_Struck(self, xHand, c, FALSE, at, dir);
+    VR_Corpse_Struck(xHand, c, at, dir, speed, blunt);
 };
 
 float() getVRMeleeBloodlust =

@@ -886,7 +886,8 @@ struct WoundSize
     float run{0.f};
 };
 
-[[nodiscard]] WoundSize woundSize(int kind, int amount)
+// `blunt`: a melee blow by a blunt thing (the event's extra 1: a pommel, a fist, a brick): rounder.
+[[nodiscard]] WoundSize woundSize(int kind, int amount, bool blunt = false)
 {
     WoundSize s;
     const float a = static_cast<float>(amount);
@@ -895,7 +896,7 @@ struct WoundSize
         case KindShot: s.r = za::min(1.6f + 0.1f * a, 3.f); break;
         case KindMelee:
             s.r = za::min(2.4f + 0.05f * a, 5.f);
-            s.stretch = rnd(1.8f, 2.6f);
+            s.stretch = blunt ? rnd(1.f, 1.4f) : rnd(1.8f, 2.6f);
             break;
         default: s.r = za::min(2.f + 0.07f * a, 3.8f); break;
     }
@@ -1175,7 +1176,8 @@ void wound(const Target& t, const Event& ev)
     // The player's own are seen close: smaller wounds; the hands' smaller still (a hand is a few units across).
     const float own = !t.view ? 1.f : modelmeta::has(t.ent->model, modelmeta::Trait::Hand) ? 0.65f : 0.75f;
     const auto blow = [&](const glm::vec3& org, const glm::vec3& way, int kind, const glm::vec4& what, float scale) {
-        WoundSize ws = woundSize(kind, ev.amount);
+        const bool blunt = kind == KindMelee && ev.kind == KindMelee && ev.extra == 1; // (QC vr_wounds.qc VR_Wound_Hit)
+        WoundSize ws = woundSize(kind, ev.amount, blunt);
         ws.run *= own;
         const float r = ws.r * scale * own;
         glm::vec3 at, n;
@@ -1188,7 +1190,7 @@ void wound(const Target& t, const Event& ev)
             splats.pushBack(woundSplat(at, r, n, way, ws.stretch, r * 0.9f + 1.f, -0.25f, ws.run, what));
             if(ev.kind == KindShot || ev.kind == KindNail || ev.kind == KindMelee) // the flesh dented (vr_dents.cpp)
             {
-                dents::struck(t.ent, surf.tris, at, n, way, kind,
+                dents::struck(t.ent, surf.tris, at, n, way, blunt ? dents::kindBlunt : kind,
                     static_cast<float>(ev.amount) / static_cast<float>(ev.kind == KindShot ? za::max(1, ev.extra) : 1));
             }
         }
