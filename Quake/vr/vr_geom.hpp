@@ -2,10 +2,19 @@
 
 #pragma once
 
+#include "Zancle/Math/Clamp.hpp"
+
 #include <glm/glm.hpp>
 
 namespace qvr::geom
 {
+
+// Smoothstep of t clamped to [0, 1]: 3t^2 - 2t^3.
+[[nodiscard]] inline float smooth01(float t)
+{
+    t = za::clamp(t, 0.f, 1.f);
+    return t * t * (3.f - 2.f * t);
+}
 
 // The point of triangle abc nearest p (Ericson, Real-Time Collision Detection, 5.1.5), and, when `bary` is given, its
 // barycentric weights for a, b and c. The point is computed per region exactly as the copies it replaced did (a corner

@@ -53,6 +53,8 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_box3d.hpp"
+#include "vr_b3glm.hpp"
+#include "vr_geom.hpp"
 #include "vr_brushes.hpp"
 #include "vr_ad_monsters.hpp" // AD support
 #include "vr_convex.hpp"
@@ -130,6 +132,13 @@ using namespace qvr::progs;
 
 namespace
 {
+
+using qvr::b3glm::b3v;
+using qvr::b3glm::fromB3;
+using qvr::b3glm::glmv;
+using qvr::b3glm::toB3;
+
+using qvr::geom::smooth01;
 
 // The sync's buffers (the server's frame: the main thread; Box3D steps with one worker, the caller's).
 struct Box3dScratch
@@ -1135,26 +1144,6 @@ void applySimdWidth(b3WorldId id)
     }
     const int cap = vr_box3d_workers.value >= 1.f ? static_cast<int>(vr_box3d_workers.value) : B3_MAX_WORKERS;
     return za::clamp(za::min(cap, jobs::workers() + 1), 1, B3_MAX_WORKERS);
-}
-
-[[nodiscard]] b3Quat toB3(const glm::quat& q)
-{
-    return b3Quat{b3Vec3{q.x, q.y, q.z}, q.w};
-}
-
-[[nodiscard]] glm::quat fromB3(const b3Quat& q)
-{
-    return glm::normalize(glm::quat{q.s, q.v.x, q.v.y, q.v.z});
-}
-
-[[nodiscard]] b3Vec3 b3v(const glm::vec3& v)
-{
-    return b3Vec3{v.x, v.y, v.z};
-}
-
-[[nodiscard]] glm::vec3 glmv(const b3Vec3& v)
-{
-    return glm::vec3{v.x, v.y, v.z};
 }
 
 [[nodiscard]] glm::quat turnOf(const float* angles, bool brush)
@@ -5180,12 +5169,6 @@ void writeRagdoll(edict_t* ent, Slot& s)
 // (vr_knockdown_search: never through a wall, a floor or a ceiling), the hands holding it let go, and its parts go. Its
 // last pose is then blended into the animation as it plays (vr_knockdown_blend: a Recovery, published as a ragdoll is
 // until the blend is done).
-
-[[nodiscard]] float smooth01(float t)
-{
-    t = za::clamp(t, 0.f, 1.f);
-    return t * t * (3.f - 2.f * t);
-}
 
 // Bone `b` of `rig` animated in frame pose `pose`, for an entity at `origin` turned by `turn`: p_world = rot * (scale *
 // p_rest) + pos, as the ragdolls' bodies.
