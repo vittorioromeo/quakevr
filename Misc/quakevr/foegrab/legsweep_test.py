@@ -131,7 +131,8 @@ def main():
                     f"from its feet, {across:.1f} across; feet slid {slid:.1f}" if fell else
                     f"{name}: {'swept, no trace' if swept else 'not swept'} ({last})")
         else:
-            ok = not swept and bool(notes) and "rror" not in flat  # (it met the legs, and said why not)
+            # (it met the legs, and said why not; "rror" alone matched the shader log's "vr mirror")
+            ok = not swept and bool(notes) and not re.search(r"\b[Ee]rror", flat)
             what = f"{name}: {'SWEPT' if swept else 'not swept'} ({last})"
         verdict(ok and "CRASH" not in flat, what)
     print(f"{FAILS} failed")

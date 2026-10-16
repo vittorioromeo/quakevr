@@ -3386,7 +3386,8 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
     (void)t;
 }
 
-void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, float slackTime, bool curl, double now)
+void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, float slackTime, bool curl, double now,
+    float legsHold)
 {
     const float t = static_cast<float>(now - s.begun);
     Fall& f = s.fall;
@@ -3409,7 +3410,9 @@ void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, f
     dropPin(s.pin);
     s.support = Fade{fadeAt(s.support, t), 0.f, t, t + 0.15f};
     const float legs = fadeAt(s.fade[static_cast<za::SizeT>(Channel::Legs)], t);
-    s.fade[static_cast<za::SizeT>(Channel::Legs)] = Fade{za::min(legs, 0.6f), 0.05f, t, t + 0.25f};
+    const float keep = za::max(legsHold, 0.f);
+    s.fade[static_cast<za::SizeT>(Channel::Legs)] =
+        Fade{keep > 0.f ? 0.6f : za::min(legs, 0.6f), 0.05f, t + keep, t + keep + 0.25f};
     const float torso = curl ? 0.7f : 0.5f;
     s.fade[static_cast<za::SizeT>(Channel::Torso)] = Fade{torso, torso, t, t};
     s.fade[static_cast<za::SizeT>(Channel::Head)] = Fade{0.6f, 0.6f, t, t};

@@ -564,8 +564,10 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
 
 // A fall (the drive begun or going): towards level `dir`, the arms bracing, the torso and head keeping some tone, the
 // legs giving; parts `slack` (with their limbs) for `slackTime` s (a throw's held ones); `curl`: a throw (more tone in
-// the torso: it curls as it goes over).
-void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, float slackTime, bool curl, double now);
+// the torso: it curls as it goes over). `legsHold` s: its legs keep their tone (straight, as it stood) that long before
+// they give (a leg sweep's: falling backward its knees don't fold under it, its feet stay where they were swept).
+void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, float slackTime, bool curl, double now,
+    float legsHold = 0.f);
 
 // A get-up (the drive begun on a knocked-down monster's ragdoll): its frames `first` to `last` (backwards if first >
 // last) played at `fps` after `prep` s held at `first`, the model standing at `origin` (world, metres) turned `yaw`

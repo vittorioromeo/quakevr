@@ -142,6 +142,7 @@ struct Holder
     // (their tracked palms' middle then, world).
     bool legStroke{false};
     glm::vec3 legFrom{0.f};
+    bool legLogged{false}; // the grip's parts printed (vr_foegrab_debug: once a two-hand hold)
     // The enemy held on as a ragdoll after a throw or a lift (handOver, carryStep): its entity (0: none), since when; a
     // lift's (`lifted`), when it breaks free (breakAt).
     int carried{0};
@@ -1899,6 +1900,7 @@ void twoHandCheck(int c)
         hd.twoHanded = false;
         hd.neckWhere = 0;
         hd.legStroke = false;
+        hd.legLogged = false;
         return;
     }
     if(!hd.twoHanded)
@@ -2063,6 +2065,7 @@ enum class LegPart : int
 
 constexpr float legLowShare = 0.27f;  // no rig (or a rig's one-bone legs): under this share of its height, below the knee
 constexpr float legHighShare = 0.48f; // and under this, its thigh
+constexpr float kneeSlack = 1.f;      // units: a hold on a thigh's vertices this little over its knee's joint is at the knee
 constexpr float legStrokeShare = 0.5f; // the pull's stroke: the hands towards you at this share of Pull Speed or more
 
 // The part of `m`'s legs at `at` (world): its rig's bone nearest (box3d::boneAt: shin_*, foot_*, calf below the knee,
@@ -2070,7 +2073,8 @@ constexpr float legStrokeShare = 0.5f; // the pull's stroke: the hands towards y
 [[nodiscard]] LegPart legPartAt(edict_t* m, const glm::vec3& at, const char** bone)
 {
     const char* name = "";
-    const int b = box3d::boneAt(m, at, &name);
+    glm::vec3 end{0.f};
+    const int b = box3d::boneAt(m, at, &name, &end);
     *bone = b >= 0 ? name : "";
     if(b >= 0)
     {
@@ -2080,7 +2084,8 @@ constexpr float legStrokeShare = 0.5f; // the pull's stroke: the hands towards y
         }
         if(!q_strncasecmp(name, "thigh", 5))
         {
-            return LegPart::Thigh;
+            // (A thigh's vertices wrap its knee: a hand at the knee's bottom, no higher than its joint, is below it.)
+            return at.z <= end.z + kneeSlack ? LegPart::Lower : LegPart::Thigh;
         }
         if(q_strncasecmp(name, "leg", 3))
         {
@@ -2166,6 +2171,17 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
         parts[h] = legPartAt(m, spotOf(hd.holds[h]), &bones[h]);
     }
     const float weight = za::min(legWeight(parts[0]), legWeight(parts[1]));
+    if(debug() && !hd.legLogged)
+    {
+        hd.legLogged = true;
+        const float tall = za::max(m->v.absmax[2] - m->v.absmin[2], 1.f);
+        const glm::vec3 s0 = spotOf(hd.holds[0]), s1 = spotOf(hd.holds[1]);
+        Con_Printf("foegrab: both hands on %s (%d)'s body: the off hand %.1f units over its feet (%.2f of its height) on %s "
+                   "(%s), the main %.1f (%.2f) on %s (%s): grip %.2f\n",
+            PR_GetString(m->v.classname), NUM_FOR_EDICT(m), s0.z - m->v.absmin[2], (s0.z - m->v.absmin[2]) / tall,
+            bones[0][0] ? bones[0] : "-", legPartName(static_cast<int>(parts[0])), s1.z - m->v.absmin[2],
+            (s1.z - m->v.absmin[2]) / tall, bones[1][0] ? bones[1] : "-", legPartName(static_cast<int>(parts[1])), weight);
+    }
     const float mass = qvr::foegrab::monsterMass(player, m);
     const float factor = legMassFactor(mass);
     glm::vec3 you = vec(player->v.origin) - vec(m->v.origin);
@@ -3105,7 +3121,7 @@ float qvr::foegrab::sweepDown(edict_t* player, edict_t* m, const glm::vec3& swee
     const glm::vec3 side = glm::cross(glm::vec3{0.f, 0.f, 1.f}, fall) * (0.3f * (hi.x - lo.x));
     const glm::vec3 chest{(lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f, lo.z + 0.7f * (hi.z - lo.z)};
     const glm::vec3 palms[2]{chest + side, chest - side};
-    (void)box3d::ragdollThrown(m, fall, palms, 2);
+    (void)box3d::ragdollThrown(m, fall, palms, 2, za::clamp(vr_legsweep_legs.value, 0.f, 3.f));
     (void)box3d::ragdollGrace(m, NUM_FOR_EDICT(player), 0.4f);
     return result;
 }
