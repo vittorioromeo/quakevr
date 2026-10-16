@@ -12,9 +12,16 @@ an ARM check, or in `vr.cmake`'s Linux branch, which MSBuild never reads.
   SDL must use X11 (`SDL_VIDEODRIVER=x11`). The Windows-only parts (the structured-exception guard around runtime calls,
   the WGL context checks, the VDXR interop log, `vr_xr_test_drop_context`) are compiled on Windows only; elsewhere a
   crash inside the runtime is not caught.
-- **SSE/AVX kernels on ARM** (`vr_simd.hpp`): the AO bake's rays and the audio mixer keep their x86 intrinsics; on ARM,
-  SIMDe 0.8.2 (`external/simde`, MIT) supplies them. `vr.cmake` turns off FMA contraction for those two files so the
-  arithmetic stays in the SSE order.
+- **Vector kernels on ARM** (`vr_simd.hpp`): the AO bake's rays and the audio mixer are written on the engine's own
+  small vector types (`f32x4`, `f32x8`, `i16x8`, `i32x4`): SSE2/AVX on x86 (the same instructions as before), NEON on
+  ARM64 (`f32x8` as two NEON vectors; the AO bake still picks its four-lane path there, as SDL reports no AVX), plain
+  scalar code elsewhere. Each operation gives the same bits on all three, NaN comparisons included. `vr.cmake` turns
+  off FMA contraction for `vr_ao.cpp`, `vr_audio.cpp` and `vr_simd.cpp` (gcc fuses a multiply and an add by default on
+  ARM64), so the results match x86's.
+- **Checking it on the device**: `vr_simd_selftest` (console, or Debug > Reports > "SIMD Self-Test") runs every
+  operation through NEON and the scalar code on edge values (zeros, denormals, infinities, NaNs, the integer limits)
+  and random bits; each type's line must say "the same". `vr_ao_bench sse reference` on a loaded map bakes the models'
+  occlusion the fast way and by brute force: every model must say "the same".
 - **Build fixes**: Zancle's `__decay` builtin avoided on clang 19+/gcc 15+; mimalloc's own new/delete left out
   (`vr_alloccount.cpp` has them); `vr_qcprofile` counts SDL's performance counter off Windows (no `__rdtsc`).
 - **`-vr-hide-mirror`**: the desktop window is never shown (a standalone headset has no desktop to look at). The window

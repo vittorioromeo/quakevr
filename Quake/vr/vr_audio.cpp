@@ -46,6 +46,7 @@
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/NthElement.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/CpuRelax.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -66,7 +67,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
-#include "vr_simd.hpp" // (SSE2: x64's baseline; ARM: SIMDe's)
+#include "vr_simd.hpp" // (SSE2, x64's baseline; NEON on ARM64)
 #include <stdio.h>
 
 namespace qvr::audio
@@ -779,7 +780,7 @@ void Mixer::reverbDecode(int blocks, const Features& f, float* toL, float* toR, 
     {
         while(reverbConvolved.loadAcquire() <= b)
         {
-            _mm_pause();
+            ZA_CPU_RELAX();
         }
         if(reverbRan[b])
         {
@@ -1110,27 +1111,27 @@ void AntiAlias::applyOne(float* x, za::Vector<float>& history, int& quiet, int n
     // Four outputs at a time, each lane the scalar loop's own sums in its order (the same results, bit for bit).
     for(; i + 4 <= n; i += 4)
     {
+        using simd::f32x4;
         const float* in = work.data() + i;
-        __m128 s[8];
+        f32x4 s[8];
         for(int j = 0; j < 8; j++)
         {
-            s[j] = _mm_setzero_ps();
+            s[j] = f32x4::zero();
         }
         int k = 0;
         for(; k + 8 <= taps; k += 8)
         {
             for(int j = 0; j < 8; j++)
             {
-                s[j] = _mm_add_ps(s[j], _mm_mul_ps(_mm_set1_ps(c[k + j]), _mm_loadu_ps(in + k + j)));
+                s[j] = s[j] + f32x4::splat(c[k + j]) * f32x4::loadu(in + k + j);
             }
         }
-        __m128 y = _mm_add_ps(_mm_add_ps(_mm_add_ps(s[0], s[1]), _mm_add_ps(s[2], s[3])),
-            _mm_add_ps(_mm_add_ps(s[4], s[5]), _mm_add_ps(s[6], s[7])));
+        f32x4 y = ((s[0] + s[1]) + (s[2] + s[3])) + ((s[4] + s[5]) + (s[6] + s[7]));
         for(; k < taps; k++)
         {
-            y = _mm_add_ps(y, _mm_mul_ps(_mm_set1_ps(c[k]), _mm_loadu_ps(in + k)));
+            y = y + f32x4::splat(c[k]) * f32x4::loadu(in + k);
         }
-        _mm_storeu_ps(x + i, y);
+        y.storeu(x + i);
     }
     for(; i < n; i++)
     {
@@ -3033,24 +3034,20 @@ float fullBandAt(const short* x, int length, int loop, double pos)
     float y = 0.f;
     if(first >= 0 && first + interpTaps <= length)
     {
-        // Eight taps at a time (SSE2): two sums of four lanes, added at the end (the same taps as one by one, summed in
-        // another order: within a few units in the last place).
+        // Eight taps at a time (SSE2, NEON): two sums of four lanes, added at the end (the same taps as one by one,
+        // summed in another order: within a few units in the last place).
         static_assert(interpTaps % 8 == 0);
+        using simd::f32x4;
         const short* s = x + first;
-        __m128 acc0 = _mm_setzero_ps();
-        __m128 acc1 = _mm_setzero_ps();
+        f32x4 acc0 = f32x4::zero();
+        f32x4 acc1 = f32x4::zero();
         for(int j = 0; j < interpTaps; j += 8)
         {
-            const __m128i v = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + j));
-            const __m128 lo = _mm_cvtepi32_ps(_mm_srai_epi32(_mm_unpacklo_epi16(v, v), 16));
-            const __m128 hi = _mm_cvtepi32_ps(_mm_srai_epi32(_mm_unpackhi_epi16(v, v), 16));
-            acc0 = _mm_add_ps(acc0, _mm_mul_ps(_mm_loadu_ps(row + j), lo));
-            acc1 = _mm_add_ps(acc1, _mm_mul_ps(_mm_loadu_ps(row + j + 4), hi));
+            const simd::i16x8 v = simd::i16x8::loadu(s + j);
+            acc0 = acc0 + f32x4::loadu(row + j) * toF32(widenLow(v));
+            acc1 = acc1 + f32x4::loadu(row + j + 4) * toF32(widenHigh(v));
         }
-        __m128 sum = _mm_add_ps(acc0, acc1);
-        sum = _mm_add_ps(sum, _mm_movehl_ps(sum, sum));
-        sum = _mm_add_ss(sum, _mm_shuffle_ps(sum, sum, 1));
-        return _mm_cvtss_f32(sum);
+        return sum(acc0 + acc1);
     }
     // Past the end: the loop's start again (or silence); before the start: a loop from 0's end (or silence).
     const int loopLen = loop >= 0 && loop < length ? length - loop : 0;

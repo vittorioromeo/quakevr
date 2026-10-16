@@ -47,7 +47,7 @@
 #include "SDL.h"
 #endif
 
-#include "vr_simd.hpp" // (the bake's rays: SSE2, x64's baseline, four at a time; AVX, when there, eight; ARM: SIMDe's)
+#include "vr_simd.hpp" // (the bake's rays: four at a time, SSE2 or NEON; eight with AVX, when there)
 #include <stdio.h>
 #include <string.h>
 #include "vr_tracy.h"
@@ -1035,82 +1035,75 @@ struct RayInput
 
 void raysSse(const RayInput& in)
 {
+    using qvr::simd::f32x4;
     const PoseScratch& s = *in.s;
-    const __m128 vtmin = _mm_set1_ps(in.tmin), vzero = _mm_setzero_ps(), vone = _mm_set1_ps(1.f);
-    const __m128 vtiny = _mm_set1_ps(1e-9f), absMask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
+    const f32x4 vtmin = f32x4::splat(in.tmin), vzero = f32x4::zero(), vone = f32x4::splat(1.f);
+    const f32x4 vtiny = f32x4::splat(1e-9f), absMask = f32x4::splatBits(0x7fffffff);
     for(int r = 0; r < RAYS; r += 4)
     {
-        const __m128 ddx = _mm_load_ps(in.dx + r), ddy = _mm_load_ps(in.dy + r), ddz = _mm_load_ps(in.dz + r);
-        __m128 vbest = _mm_set1_ps(in.reach);
+        const f32x4 ddx = f32x4::load(in.dx + r), ddy = f32x4::load(in.dy + r), ddz = f32x4::load(in.dz + r);
+        f32x4 vbest = f32x4::splat(in.reach);
         for(int c = 0; c < in.nc; c++)
         {
-            const __m128 e1x = _mm_set1_ps(s.e1x[c]), e1y = _mm_set1_ps(s.e1y[c]), e1z = _mm_set1_ps(s.e1z[c]);
-            const __m128 e2x = _mm_set1_ps(s.e2x[c]), e2y = _mm_set1_ps(s.e2y[c]), e2z = _mm_set1_ps(s.e2z[c]);
+            const f32x4 e1x = f32x4::splat(s.e1x[c]), e1y = f32x4::splat(s.e1y[c]), e1z = f32x4::splat(s.e1z[c]);
+            const f32x4 e2x = f32x4::splat(s.e2x[c]), e2y = f32x4::splat(s.e2y[c]), e2z = f32x4::splat(s.e2z[c]);
             // pv = cross(d, e2); det = dot(e1, pv)
-            const __m128 pvx = _mm_sub_ps(_mm_mul_ps(ddy, e2z), _mm_mul_ps(e2y, ddz));
-            const __m128 pvy = _mm_sub_ps(_mm_mul_ps(ddz, e2x), _mm_mul_ps(e2z, ddx));
-            const __m128 pvz = _mm_sub_ps(_mm_mul_ps(ddx, e2y), _mm_mul_ps(e2x, ddy));
-            const __m128 det = _mm_add_ps(_mm_add_ps(_mm_mul_ps(e1x, pvx), _mm_mul_ps(e1y, pvy)), _mm_mul_ps(e1z, pvz));
-            __m128 ok = _mm_cmpnlt_ps(_mm_and_ps(det, absMask), vtiny);
-            const __m128 inv = _mm_div_ps(vone, det);
+            const f32x4 pvx = ddy * e2z - e2y * ddz;
+            const f32x4 pvy = ddz * e2x - e2z * ddx;
+            const f32x4 pvz = ddx * e2y - e2x * ddy;
+            const f32x4 det = e1x * pvx + e1y * pvy + e1z * pvz;
+            f32x4 ok = cmpNotLess(det & absMask, vtiny);
+            const f32x4 inv = vone / det;
             // u = dot(s, pv) * inv
-            const __m128 sx = _mm_set1_ps(s.sx[c]), sy = _mm_set1_ps(s.sy[c]), sz = _mm_set1_ps(s.sz[c]);
-            const __m128 u = _mm_mul_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(sx, pvx), _mm_mul_ps(sy, pvy)), _mm_mul_ps(sz, pvz)), inv);
-            ok = _mm_and_ps(ok, _mm_and_ps(_mm_cmpnlt_ps(u, vzero), _mm_cmpngt_ps(u, vone)));
+            const f32x4 sx = f32x4::splat(s.sx[c]), sy = f32x4::splat(s.sy[c]), sz = f32x4::splat(s.sz[c]);
+            const f32x4 u = (sx * pvx + sy * pvy + sz * pvz) * inv;
+            ok = ok & (cmpNotLess(u, vzero) & cmpNotGreater(u, vone));
             // v = dot(d, q) * inv
-            const __m128 qx = _mm_set1_ps(s.qx[c]), qy = _mm_set1_ps(s.qy[c]), qz = _mm_set1_ps(s.qz[c]);
-            const __m128 v = _mm_mul_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(ddx, qx), _mm_mul_ps(ddy, qy)), _mm_mul_ps(ddz, qz)), inv);
-            ok = _mm_and_ps(ok, _mm_and_ps(_mm_cmpnlt_ps(v, vzero), _mm_cmpngt_ps(_mm_add_ps(u, v), vone)));
+            const f32x4 qx = f32x4::splat(s.qx[c]), qy = f32x4::splat(s.qy[c]), qz = f32x4::splat(s.qz[c]);
+            const f32x4 v = (ddx * qx + ddy * qy + ddz * qz) * inv;
+            ok = ok & (cmpNotLess(v, vzero) & cmpNotGreater(u + v, vone));
             // dist = dot(e2, q) * inv
-            const __m128 dist = _mm_mul_ps(_mm_set1_ps(s.e2q[c]), inv);
-            ok = _mm_and_ps(ok, _mm_and_ps(_mm_cmpgt_ps(dist, vtmin), _mm_cmplt_ps(dist, vbest)));
-            vbest = _mm_or_ps(_mm_and_ps(ok, dist), _mm_andnot_ps(ok, vbest));
+            const f32x4 dist = f32x4::splat(s.e2q[c]) * inv;
+            ok = ok & (cmpGreater(dist, vtmin) & cmpLess(dist, vbest));
+            vbest = select(ok, dist, vbest);
         }
-        _mm_store_ps(in.best + r, vbest);
+        vbest.store(in.best + r);
     }
 }
-
-#if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__)) // (ARM: SIMDe's AVX, no target)
-#define QVR_TARGET_AVX __attribute__((target("avx")))
-#else
-#define QVR_TARGET_AVX
-#endif
 
 // raysSse's operations, eight lanes wide (no FMA: the build contracts nothing, and neither does this).
 QVR_TARGET_AVX void raysAvx(const RayInput& in)
 {
     static_assert(RAYS % 8 == 0);
+    using qvr::simd::f32x8;
     const PoseScratch& s = *in.s;
-    const __m256 vtmin = _mm256_set1_ps(in.tmin), vzero = _mm256_setzero_ps(), vone = _mm256_set1_ps(1.f);
-    const __m256 vtiny = _mm256_set1_ps(1e-9f), absMask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7fffffff));
+    const f32x8 vtmin = f32x8::splat(in.tmin), vzero = f32x8::zero(), vone = f32x8::splat(1.f);
+    const f32x8 vtiny = f32x8::splat(1e-9f), absMask = f32x8::splatBits(0x7fffffff);
     for(int r = 0; r < RAYS; r += 8)
     {
-        const __m256 ddx = _mm256_load_ps(in.dx + r), ddy = _mm256_load_ps(in.dy + r), ddz = _mm256_load_ps(in.dz + r);
-        __m256 vbest = _mm256_set1_ps(in.reach);
+        const f32x8 ddx = f32x8::load(in.dx + r), ddy = f32x8::load(in.dy + r), ddz = f32x8::load(in.dz + r);
+        f32x8 vbest = f32x8::splat(in.reach);
         for(int c = 0; c < in.nc; c++)
         {
-            const __m256 e1x = _mm256_set1_ps(s.e1x[c]), e1y = _mm256_set1_ps(s.e1y[c]), e1z = _mm256_set1_ps(s.e1z[c]);
-            const __m256 e2x = _mm256_set1_ps(s.e2x[c]), e2y = _mm256_set1_ps(s.e2y[c]), e2z = _mm256_set1_ps(s.e2z[c]);
-            const __m256 pvx = _mm256_sub_ps(_mm256_mul_ps(ddy, e2z), _mm256_mul_ps(e2y, ddz));
-            const __m256 pvy = _mm256_sub_ps(_mm256_mul_ps(ddz, e2x), _mm256_mul_ps(e2z, ddx));
-            const __m256 pvz = _mm256_sub_ps(_mm256_mul_ps(ddx, e2y), _mm256_mul_ps(e2x, ddy));
-            const __m256 det = _mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(e1x, pvx), _mm256_mul_ps(e1y, pvy)), _mm256_mul_ps(e1z, pvz));
-            __m256 ok = _mm256_cmp_ps(_mm256_and_ps(det, absMask), vtiny, _CMP_NLT_UQ);
-            const __m256 inv = _mm256_div_ps(vone, det);
-            const __m256 sx = _mm256_set1_ps(s.sx[c]), sy = _mm256_set1_ps(s.sy[c]), sz = _mm256_set1_ps(s.sz[c]);
-            const __m256 u =
-                _mm256_mul_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(sx, pvx), _mm256_mul_ps(sy, pvy)), _mm256_mul_ps(sz, pvz)), inv);
-            ok = _mm256_and_ps(ok, _mm256_and_ps(_mm256_cmp_ps(u, vzero, _CMP_NLT_UQ), _mm256_cmp_ps(u, vone, _CMP_NGT_UQ)));
-            const __m256 qx = _mm256_set1_ps(s.qx[c]), qy = _mm256_set1_ps(s.qy[c]), qz = _mm256_set1_ps(s.qz[c]);
-            const __m256 v =
-                _mm256_mul_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(ddx, qx), _mm256_mul_ps(ddy, qy)), _mm256_mul_ps(ddz, qz)), inv);
-            ok = _mm256_and_ps(ok, _mm256_and_ps(_mm256_cmp_ps(v, vzero, _CMP_NLT_UQ),
-                                       _mm256_cmp_ps(_mm256_add_ps(u, v), vone, _CMP_NGT_UQ)));
-            const __m256 dist = _mm256_mul_ps(_mm256_set1_ps(s.e2q[c]), inv);
-            ok = _mm256_and_ps(ok, _mm256_and_ps(_mm256_cmp_ps(dist, vtmin, _CMP_GT_OQ), _mm256_cmp_ps(dist, vbest, _CMP_LT_OQ)));
-            vbest = _mm256_blendv_ps(vbest, dist, ok);
+            const f32x8 e1x = f32x8::splat(s.e1x[c]), e1y = f32x8::splat(s.e1y[c]), e1z = f32x8::splat(s.e1z[c]);
+            const f32x8 e2x = f32x8::splat(s.e2x[c]), e2y = f32x8::splat(s.e2y[c]), e2z = f32x8::splat(s.e2z[c]);
+            const f32x8 pvx = ddy * e2z - e2y * ddz;
+            const f32x8 pvy = ddz * e2x - e2z * ddx;
+            const f32x8 pvz = ddx * e2y - e2x * ddy;
+            const f32x8 det = e1x * pvx + e1y * pvy + e1z * pvz;
+            f32x8 ok = cmpNotLess(det & absMask, vtiny);
+            const f32x8 inv = vone / det;
+            const f32x8 sx = f32x8::splat(s.sx[c]), sy = f32x8::splat(s.sy[c]), sz = f32x8::splat(s.sz[c]);
+            const f32x8 u = (sx * pvx + sy * pvy + sz * pvz) * inv;
+            ok = ok & (cmpNotLess(u, vzero) & cmpNotGreater(u, vone));
+            const f32x8 qx = f32x8::splat(s.qx[c]), qy = f32x8::splat(s.qy[c]), qz = f32x8::splat(s.qz[c]);
+            const f32x8 v = (ddx * qx + ddy * qy + ddz * qz) * inv;
+            ok = ok & (cmpNotLess(v, vzero) & cmpNotGreater(u + v, vone));
+            const f32x8 dist = f32x8::splat(s.e2q[c]) * inv;
+            ok = ok & (cmpGreater(dist, vtmin) & cmpLess(dist, vbest));
+            vbest = select(ok, dist, vbest);
         }
-        _mm256_store_ps(in.best + r, vbest);
+        vbest.store(in.best + r);
     }
 }
 
@@ -2132,10 +2125,18 @@ void bench_f()
         Con_Printf("\n");
     }
 }
+
+// vr_simd_selftest: vr_simd.hpp's native operations (the bake's and the mixer's) against its scalar ones (vr_simd.cpp;
+// registered here, where the AVX check is).
+void simdSelftest_f()
+{
+    qvr::simd::selfTest(!qvr::simd::f32x8NeedsAvx || cpuHasAvx, [](const char* line) { Con_Printf("%s\n", line); });
+}
 } // namespace
 
 void ao::init()
 {
+    Cmd_AddCommand("vr_simd_selftest", simdSelftest_f);
     Cmd_AddCommand("vr_ao_bench", bench_f);
     Cmd_AddCommand("vr_ao_show", show_f);
     Cmd_AddCommand("vr_ao_cache_info", cacheInfo_f);

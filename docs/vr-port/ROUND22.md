@@ -8729,3 +8729,21 @@ His request: "make my five knockdown values the defaults". From his `ironwail.cf
 `vr_knockdown_damage` 2 -> 3, `vr_knockdown_getup_speed` 1 -> 0.8, `vr_knockdown_time_min` 2.5 -> 1.75,
 `vr_knockdown_time_max` 4.5 -> 3.5. Migration 140 moves configs still at the old defaults. (His lower shove/bash damage was
 already the default; the melee eval canary's halved parry-bash damage is that tuning, intentional.)
+
+## SIMDe replaced by vr_simd.hpp (worktree `tghost`, branch `feature/frame-portability`, 2026-10-16)
+
+His decision on PR #75's ARM port: our own vector types instead of the vendored SIMDe (238k lines). `vr_simd.hpp`:
+`f32x4`, `f32x8`, `i16x8`, `i32x4` with only the operations the AO bake's rays and the audio mixer use (arithmetic, and,
+the four comparisons, select, a horizontal sum, the 16-bit widen, the int-to-float conversion); SSE2/AVX on x86 (the
+same intrinsics as before), NEON on ARM64 (`f32x8` is two NEON vectors; `cmpNotLess`/`cmpNotGreater` are negated
+ordered compares, true for NaNs as SSE's), scalar elsewhere (`QVR_SIMD_FORCE_SCALAR` forces it). `_mm_pause` became
+Zancle's `ZA_CPU_RELAX`. `-ffp-contract=off` stays for vr_ao/vr_audio/vr_simd on gcc/clang: gcc fuses a multiply and
+an add into an FMA by default on ARM64, which would change the bake's bits against its reference and against x86.
+
+Check: `vr_simd_selftest` (Debug > Reports) runs every operation native and scalar on the edge pairs (zeros,
+denormals, infinities, quiet and signalling NaNs, the largest finite) and 65536 random pairs, every 16-bit value through
+the widen, the integer limits through the conversion. x64: 926k f32x4 and 926k f32x8 results, all the same bits (a
+NaN's payload aside); a copy with `cmpnlt` swapped for `cmpge`, and one summing in another order, each failed it. The
+kernels' x64 machine code is the same instructions as before (clang -O2; only fullBandAt's registers differ), and the
+113 models' AO bytes on e1m1 have the same FNV-1a, AVX and SSE. ARM64: compiled with clang 22 (aarch64 Windows and
+Linux targets), not run (no emulator here): kblood runs `vr_simd_selftest` and `vr_ao_bench sse reference` on the Frame.
