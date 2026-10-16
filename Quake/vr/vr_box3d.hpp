@@ -276,8 +276,9 @@ bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach);
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
-// `count` of them) slack a moment. False: no ragdoll.
-bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, int count);
+// `count` of them) slack a moment; its legs keep their tone `legsHold` s (ragactive::beginFall: a leg sweep's). False: no
+// ragdoll.
+bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, int count, float legsHold = 0.f);
 // `ent`'s ragdoll passes through player `player`'s (entity number) hands' bodies (and his body: vr_box3d_throw_grace_body)
 // for `seconds` from now at least (a throw's grace, as a thrown prop's: vr_box3d_throw_grace; a later call may lengthen
 // it, never shorten it). False: no ragdoll.
@@ -391,6 +392,10 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 // where it stands), then the nearest of that bone's own joint and its children's; its rig's head for the head's bones;
 // -1 the torso (or nothing); -2 no rig.
 [[nodiscard]] int limbAt(edict_t* ent, const glm::vec3& at);
+// The bone of `ent`'s rig whose vertex is nearest `at` (as drawn, as limbAt finds it), `name` its rig's name for it
+// ("shin_l", "thigh_r"; the leg grabs: vr_foegrab.cpp legPartAt), `end` (if given) its far end as drawn (a thigh's: its
+// knee); -1 none (no rig).
+[[nodiscard]] int boneAt(edict_t* ent, const glm::vec3& at, const char** name, glm::vec3* end = nullptr);
 // `ent`'s limbs: 0 its limb joints not cut (bits; not the head's), 1 its head's bones, 2 its bones cut off, 3 its head
 // bone (~0 none), 4 the bones a cut at `bone` would take now, 5 `bone`'s parent.
 [[nodiscard]] uint32_t limbInfo(edict_t* ent, int what, int bone);

@@ -2490,7 +2490,9 @@ QVR_CVAR(vr_legsweep_heavy, "100", CVAR_ARCHIVE)         // kg: a humanoid heavi
 QVR_CVAR(vr_legsweep_damage, "5", CVAR_ARCHIVE)          // the damage a sweep deals once it is down
 QVR_CVAR(vr_legsweep_topple, "200", CVAR_ARCHIVE)        // deg/s: how fast its body turns over about its feet, against the sweep (its top's speed)
 QVR_CVAR(vr_legsweep_feet, "0.5", CVAR_ARCHIVE)          // its feet slide along the sweep at this share of the sweep's speed
-QVR_CVAR(vr_legsweep_debug, "0", CVAR_NONE)              // Debug > Tests > Holding Enemies: each leg contact's measure and verdict printed (legsweep:), and a sweep's fall traced for a second (legsweep trace:, legsweep fell:); 2: also each hand's thing every frame (its ends)
+QVR_CVAR(vr_legsweep_align, "45", CVAR_ARCHIVE)          // degrees: a sweep within this of its own facing's axes (forward, back, its sides) falls straight along that axis (from its side: forward or backward, as the swing goes); 0: as swept
+QVR_CVAR(vr_legsweep_legs, "0.5", CVAR_ARCHIVE)          // s: swept (or its legs pulled) to fall backward, its legs stay straight this long (its knees do not fold under it, its feet stay where they slid); 0: they give at once
+QVR_CVAR(vr_legsweep_debug, "0", CVAR_NONE)            // Debug > Tests > Holding Enemies: each leg contact's measure and verdict printed (legsweep:), and a sweep's fall traced for a second (legsweep trace:, legsweep fell:); 2: also each hand's thing every frame (its ends)
 QVR_CVAR(vr_knockdown_shove_ledge_topple, "100", CVAR_ARCHIVE) // deg/s (times the shove's strength): shoved over a ledge, pushed whole (it goes over) and turned over its feet as it falls this fast, up to vr_knockdown_shove_topple_angle (never faster than vr_knockdown_shove_max_spin); 0: it goes over upright
 QVR_CVAR(vr_knockdown_shove_ledge_push, "0.7", CVAR_ARCHIVE) // shoved over a ledge, its launch along the shove times this (kept up until it is past the edge: it always goes over); 1: the whole shove's
 QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carries it over a ledge always knocks it down (0: the chance as anywhere)
@@ -3034,6 +3036,19 @@ QVR_CVAR(vr_foegrab_lift_strength, "1.2", CVAR_ARCHIVE)    // the most each hand
 QVR_CVAR(vr_foegrab_lift_up, "160", CVAR_ARCHIVE)          // units/s: it leaves the floor this fast up as it is lifted
 QVR_CVAR(vr_foegrab_lift_shove, "48", CVAR_ARCHIVE)        // units: breaking free it shoves you back this far (0: not at all)
 QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_fumigator monster_centurion monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz monster_ranged_knight infected", CVAR_ARCHIVE) // the humanoids that can be lifted (classnames; "infected": Dawn of the Machine's infected); never ogres, fiends, shamblers, vores
+// Leg grabs (vr_foegrab.cpp legCheck; ROUND22.md, "Leg grabs"): both hands holding a humanoid's legs (one leg with both,
+// or one each), below the knees: pulled towards you, it topples (its feet slide to you, its body falls away: the leg
+// sweep's fall); pulled up, it is lifted by the legs, head down (the lift's: carried, thrown, it breaks free).
+QVR_CVAR(vr_foegrab_leggrab, "1", CVAR_ARCHIVE)            // 1: the leg pull and the leg lift on
+QVR_CVAR(vr_foegrab_leggrab_debug, "0", CVAR_NONE)         // 1: the leg grabs' diagnostic over the held (or nearest) humanoid: the part each hand holds, the pull towards you and up against their thresholds, what stops it; each try printed (vr_foegrab.cpp grabDebugDraw)
+QVR_CVAR(vr_foegrab_leggrab_thigh, "0", CVAR_ARCHIVE)      // a hand on a thigh (above the knee) counts this much (0: not a leg grab; 0.5: it counts, the speeds needed doubled)
+QVR_CVAR(vr_foegrab_leggrab_heavy, "100", CVAR_ARCHIVE)    // kg: a humanoid heavier than this needs a faster pull and lift, times the cube root of its mass over this (a grunt 80, an enforcer 100, a death knight 150); 0: all alike
+QVR_CVAR(vr_foegrab_legpull_speed, "1.2", CVAR_ARCHIVE)    // m/s: the hands' mean speed towards you (level) that pulls its legs out
+QVR_CVAR(vr_foegrab_legpull_distance, "8", CVAR_ARCHIVE)   // cm: and how far they have come towards you in that pull
+QVR_CVAR(vr_foegrab_legpull_topple, "200", CVAR_ARCHIVE)   // deg/s: pulled out, its body turns over about its feet away from you this fast (its top's speed)
+QVR_CVAR(vr_foegrab_legpull_feet, "60", CVAR_ARCHIVE)      // units/s: its feet slide towards you this fast as it topples
+QVR_CVAR(vr_foegrab_leglift_speed, "1", CVAR_ARCHIVE)      // m/s: the hands' mean speed up (within 45 degrees of straight up) that lifts it by the legs (you within Lift Reach)
+QVR_CVAR(vr_foegrab_leglift_topple, "220", CVAR_ARCHIVE)   // deg/s: lifted by the legs, its body swings over head down this fast (away from you)
 // Manhandling (vr_foegrab.cpp tryTake, QC VR_FoeGrab_Manhandle): a hand taking hold of a humanoid (the lift's classes)
 // that is staggered (a shove, an unbalancing hit or throw, a stagger just recovered from) or weak knocks it down as a
 // ragdoll held in that hand, as a lift's (it flails and breaks free after Lift Time). A staggering ragdoll a hand takes

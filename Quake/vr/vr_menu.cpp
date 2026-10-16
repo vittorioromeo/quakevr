@@ -1114,6 +1114,36 @@ int campaignsBloodyShown = -1;
         slider("Grab When Weak", vr_foegrab_manhandle_health, 0.f, 1.f, 0.05f, "%.2f")
             .help("A humanoid at this share of its full health or less (0.25: a quarter) goes down when one hand grabs it, "
                   "as above. 0: never."),
+        header("Leg Grabs"),
+        toggle("Leg Grabs", vr_foegrab_leggrab)
+            .help("Grab a humanoid's legs with both hands below the knees (one leg with both hands, or one leg each). Pull "
+                  "them towards you: its feet slide to you and it topples over away from you. Pull them up: it is lifted "
+                  "by the legs, head down, flailing, as a lift (carry it, throw it, it breaks free after Breaks Free "
+                  "After). Heavier humanoids need a harder pull."),
+        toggle("Show Diagnostic", vr_foegrab_leggrab_debug)
+            .help("Over the humanoid you hold (else the nearest): where each hand holds it (green below the knee, orange a "
+                  "thigh, red off its legs), your pull towards you and up against Pull Speed and Leg Lift Speed (arrows "
+                  "and bars), the pull's stroke against Pull Distance, its weight's factor, what stops it now and the "
+                  "last try. Each try is printed to the console."),
+        slider("Thigh Grip", vr_foegrab_leggrab_thigh, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much a hand on a thigh (above the knee) counts: 0 it isn't a leg grab; 0.5 it is, but you must "
+                  "pull twice as fast."),
+        slider("Pull Speed", vr_foegrab_legpull_speed, 0.3f, 4.f, 0.1f, "%.1f m/s").extend(0.1f, 10.f)
+            .help("How fast your hands must pull its legs towards you to pull them out from under it."),
+        slider("Pull Distance", vr_foegrab_legpull_distance, 0.f, 40.f, 1.f, "%.0f cm").extend(0.f, 100.f)
+            .help("And how far they must come towards you in that pull (a twitch doesn't count)."),
+        slider("Pull Topple Speed", vr_foegrab_legpull_topple, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 2000.f)
+            .help("Pulled out, how fast its body turns over away from you about its feet."),
+        slider("Pull Feet Slide", vr_foegrab_legpull_feet, 0.f, 200.f, 5.f, "%.0f units/s").extend(0.f, 500.f)
+            .help("How fast its feet slide towards you as it topples."),
+        slider("Leg Lift Speed", vr_foegrab_leglift_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend(0.1f, 10.f)
+            .help("How fast your hands must pull its legs up together (within 45 degrees of straight up) to lift it by "
+                  "them (standing within Lift Reach)."),
+        slider("Leg Lift Swing", vr_foegrab_leglift_topple, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 2000.f)
+            .help("Lifted by the legs, how fast its body swings over head down, away from you."),
+        slider("Heavy Mass", vr_foegrab_leggrab_heavy, 0.f, 300.f, 10.f, "%.0f kg").extend(0.f, 2000.f)
+            .help("A humanoid heavier than this needs a faster pull and lift: times the cube root of its mass over this "
+                  "(a grunt is 80 kg, an enforcer 100, a death knight 150). 0: all alike."),
         header("Neck Snap"),
         toggle("Neck Snap", vr_foegrab_necksnap)
             .help("Hold a humanoid's head or neck with both hands and twist it round: push one hand forward and pull "
@@ -1302,6 +1332,13 @@ int campaignsBloodyShown = -1;
             .help("How fast its body turns over about its swept feet. 0: it just drops."),
         slider("Feet Slide", vr_legsweep_feet, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("How fast its feet slide along the sweep, times the sweep's speed."),
+        slider("Fall Along Its Facing", vr_legsweep_align, 0.f, 45.f, 5.f, "%.0f deg")
+            .help("A sweep within this angle of the enemy's own facing, back or sides falls straight along that line: "
+                  "swept from its side it falls cleanly forward or backward, not diagonally. 0: it falls exactly against "
+                  "the sweep. Leg pulls (Holding Enemies > Leg Grabs) fall the same way."),
+        slider("Legs Stay Straight", vr_legsweep_legs, 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("Swept (or its legs pulled) so that it falls backward, its legs keep their stance this long before they go limp: "
+                  "its knees don't fold under it and its feet stay where they slid. 0: limp at once."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
@@ -6960,6 +6997,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_foegrab_lift_debug: over the humanoid you hold (else the nearest), your hands' pull up against Lift "
                   "Speed and 45 degrees, your reach, what stops a lift now and the last try (Combat > Holding Enemies > "
                   "Lift, Show Diagnostic)."),
+        toggle("Leg Grab Diagnostic", "vr_foegrab_leggrab_debug")
+            .help("vr_foegrab_leggrab_debug: over the humanoid you hold (else the nearest), the part of its legs each hand "
+                  "holds, your pull towards you and up against Pull Speed and Leg Lift Speed, what stops a leg pull or "
+                  "lift now and the last try (Combat > Holding Enemies > Leg Grabs, Show Diagnostic)."),
         toggle("Judo Throw Diagnostic", "vr_foegrab_throw_debug")
             .help("vr_foegrab_throw_debug: over the enemy you hold (else the nearest), your hands' turn and speed against "
                   "Turn to Throw and Hands' Speed, the turn's way, what stops a throw now and the last try (Combat > "

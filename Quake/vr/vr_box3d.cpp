@@ -15846,7 +15846,8 @@ void beginLiving(RagdollBodies& r, edict_t* ent)
 
 // `ent` going down (its ragdoll made: a stagger gone over, a shove's knockdown, a throw) towards level `dir`: its arms
 // brace (ragactive::beginFall), parts `slack` slack for `slackTime` s (a throw's held ones), `curl` a throw's.
-void startFall(edict_t* ent, RagdollBodies& r, const glm::vec3& dir, uint32_t slack, float slackTime, bool curl)
+void startFall(edict_t* ent, RagdollBodies& r, const glm::vec3& dir, uint32_t slack, float slackTime, bool curl,
+    float legsHold = 0.f)
 {
     if(vr_ragdoll_active_stagger.value == 0.f || !activeLiving(ent))
     {
@@ -15858,7 +15859,7 @@ void startFall(edict_t* ent, RagdollBodies& r, const glm::vec3& dir, uint32_t sl
         const int frame = static_cast<int>(ent->v.frame); // (the pose it went down in: its tone holds it)
         r.active.clip = ragactive::Clip{frame, frame, static_cast<float>(frame), qcvm->time, 10.f, false};
     }
-    ragactive::beginFall(r.active, activeParts(r), dir, slack, slackTime, curl, qcvm->time);
+    ragactive::beginFall(r.active, activeParts(r), dir, slack, slackTime, curl, qcvm->time, legsHold);
     if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
     {
         Con_Printf("fall: %d %s goes down towards %.2f %.2f, its arms bracing%s\n", r.num, PR_GetString(ent->v.classname), dir.x,
@@ -16219,7 +16220,7 @@ int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs)
     return 1;
 }
 
-bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, int count)
+bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, int count, float legsHold)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
     if(!rp)
@@ -16233,7 +16234,7 @@ bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, i
         const int part = nearestPart(*rp, palms[i], distance);
         slack |= part >= 0 && distance < 24.f ? (1u << part) : 0u;
     }
-    startFall(ent, *rp, dir, slack, 0.6f, true);
+    startFall(ent, *rp, dir, slack, 0.6f, true, legsHold);
     return true;
 }
 
@@ -17246,6 +17247,48 @@ int limbAt(edict_t* ent, const glm::vec3& at)
         }
     }
     return joint;
+}
+
+int boneAt(edict_t* ent, const glm::vec3& at, const char** name, glm::vec3* end)
+{
+    const ragdoll::Rig* rig = nullptr;
+    za::Array<glm::quat, ragdoll::maxBones> rot{};
+    za::Array<glm::vec3, ragdoll::maxBones> pos{};
+    float scale = 1.f;
+    uint32_t cut = 0;
+    if(!posedBones(ent, rig, rot, pos, scale, cut))
+    {
+        return -1;
+    }
+    int hit = -1;
+    float best = 1e30f;
+    for(int b = 0; b < rig->numBones; b++)
+    {
+        if(cut & (1u << b))
+        {
+            continue;
+        }
+        const glm::quat& q = rot[static_cast<za::SizeT>(b)];
+        const glm::vec3& o = pos[static_cast<za::SizeT>(b)];
+        for(const glm::vec3& p : rig->bones[b].points)
+        {
+            const float d = glm::distance(q * (p * scale) + o, at);
+            if(d < best)
+            {
+                best = d;
+                hit = b;
+            }
+        }
+    }
+    if(name)
+    {
+        *name = hit >= 0 ? rig->bones[hit].name : "";
+    }
+    if(end && hit >= 0)
+    {
+        *end = rot[static_cast<za::SizeT>(hit)] * (rig->bones[hit].end * scale) + pos[static_cast<za::SizeT>(hit)];
+    }
+    return hit;
 }
 
 uint32_t limbInfo(edict_t* ent, int what, int bone)
