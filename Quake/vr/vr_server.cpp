@@ -9,6 +9,7 @@
 #include "vr_climb.hpp"
 #include "vr_bodycontact.hpp"
 #include "vr_foegrab.hpp"
+#include "vr_legsweep.hpp"
 #include "vr_cvars.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
@@ -1045,6 +1046,7 @@ extern "C" void VR_ServerFrameEnd()
     sweepWeaponInsts(); // the weapons' records nothing has any more: freed, their ids gone
     tips::serverFrame(); // the map tips whose entity is gone (before its slot is reused)
 
+    qvr::legsweep::serverFrame(); // a staff swept through a humanoid's legs knocks it down (its poses not yet kept)
     qvr::foegrab::serverFrame(); // held enemies slowed and dragged (before their poses are kept)
     qvr::bodycontact::serverFrame(); // a player and a monster overlapping (a hold let go of) pushed apart
     qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
@@ -1399,6 +1401,7 @@ void init()
     Cmd_AddCommand("vr_net_stats", netStats_f);
     climb::init();
     foegrab::init();
+    legsweep::init();
     bodycontact::init();
     ledges::init();
 }

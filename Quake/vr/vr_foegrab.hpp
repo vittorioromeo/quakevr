@@ -58,6 +58,16 @@ void reset();
 // fall is printed as the throw's ("shove trace:"). False: no ragdoll.
 bool shoveTopple(edict_t* m, const glm::vec3& dir, float strength, bool ledge = false, float reach = 0.f);
 
+// The leg sweep's (vr_legsweep.cpp). A humanoid: the lift's and the neck snap's (vr_foegrab_lift_classes; the training
+// dummy as one). Its mass (kg: QC VR_Grapple_MonsterMass, as the grapple and the throw weigh it).
+[[nodiscard]] bool humanoid(edict_t* m);
+[[nodiscard]] float monsterMass(edict_t* player, edict_t* m);
+// `player` swept `m`'s legs along level `sweep`: knocked down (QC VR_LegSweep_Down: a knockdown as the throw's, `damage`
+// dealt), its ragdoll turned over about its feet against the sweep at `topple` rad/s (its top's speed), its feet swept
+// along at `feet` units/s (box3d::ragdollTopple, as the throw's), its arms bracing; the sweeping thing passes through it a
+// moment. Returns the QC's: 1 down, 2 the training dummy (it stands), -2 it can't be knocked down now.
+float sweepDown(edict_t* player, edict_t* m, const glm::vec3& sweep, float topple, float feet, float damage);
+
 void preThink(edict_t* ent);
 void serverFrame(); // VR_ServerFrameEnd, before hitmodel::serverFrame
 void afterPoses();  // VR_ServerFrameEnd, after it

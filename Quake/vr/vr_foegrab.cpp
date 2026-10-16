@@ -2667,6 +2667,45 @@ bool qvr::foegrab::shoveTopple(edict_t* m, const glm::vec3& dir, float strength,
     return driven;
 }
 
+bool qvr::foegrab::humanoid(edict_t* m)
+{
+    return m && liftable(m);
+}
+
+float qvr::foegrab::monsterMass(edict_t* player, edict_t* m)
+{
+    return callQc("VR_Grapple_MonsterMass", player, m, 0.f, 0.f, 80.f);
+}
+
+float qvr::foegrab::sweepDown(edict_t* player, edict_t* m, const glm::vec3& sweep, float topple, float feet, float damage)
+{
+    glm::vec3 level{sweep.x, sweep.y, 0.f};
+    if(!m || glm::length(level) < 1e-3f)
+    {
+        return -2.f;
+    }
+    level = glm::normalize(level);
+    const glm::vec3 fall = -level; // (its feet go with the sweep: its top over the other way)
+    const float result = callQc("VR_LegSweep_Down", player, m, glm::degrees(za::atan2(fall.y, fall.x)), damage, -2.f);
+    if(result != 1.f)
+    {
+        return result;
+    }
+    if(topple > 0.f)
+    {
+        (void)box3d::ragdollTopple(m, fall, topple, 0.f, feet);
+    }
+    // Its arms brace as it goes (the throw's fall, no hands on it), and the thing that swept it passes through its legs
+    // a moment (not caught on the gun as they go).
+    const glm::vec3 lo = vec(m->v.absmin), hi = vec(m->v.absmax);
+    const glm::vec3 side = glm::cross(glm::vec3{0.f, 0.f, 1.f}, fall) * (0.3f * (hi.x - lo.x));
+    const glm::vec3 chest{(lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f, lo.z + 0.7f * (hi.z - lo.z)};
+    const glm::vec3 palms[2]{chest + side, chest - side};
+    (void)box3d::ragdollThrown(m, fall, palms, 2);
+    (void)box3d::ragdollGrace(m, NUM_FOR_EDICT(player), 0.4f);
+    return result;
+}
+
 extern "C" void VR_FoeGrabPreThink(edict_t* ent)
 {
     VR_ProfileBegin("foegrab");
