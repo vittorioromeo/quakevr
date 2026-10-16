@@ -1,6 +1,6 @@
 // vr_diskcache.hpp -- work kept on disk between sessions (vr_texcache.cpp): `<gamedir>/cache/<kind>/<build>/<key>.<ext>`,
-// <key> a hash of everything the work reads, <build> the working code's own build (a changed maker never reads an old
-// file). A file is 4 bytes of magic, the version, two numbers of the caller's, then the data; it is written on the pool
+// <key> a hash of everything the work reads, <build> the maker's own version (a constant its owner bumps when the maker
+// changes: a changed maker never reads an old file; a new build of the same maker keeps them). A file is 4 bytes of magic, the version, two numbers of the caller's, then the data; it is written on the pool
 // (beside its place, then renamed: never read half written).
 
 #pragma once

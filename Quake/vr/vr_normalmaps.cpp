@@ -719,18 +719,25 @@ static void TexMgr_EnsureHeightMask (void)
 /*
 ================
 TexMgr_NormalCacheBuild, TexMgr_SkinNormalsKey -- the normal maps made from skins kept on disk (vr_texcache.cpp).
-The build: this file's compile time (the maker's code and constants all compile here: a changed maker never reads an
-old map). The key: a hash (FNV-1a, 64 bits) of all that TexMgr_SkinToNormals reads: the texels, their size, the
-heights or not, the texels per unit, and the islands' mask.
+The build: NORMALCACHE_VERSION, BUMPED whenever a change could make another normal map from the same inputs: the maker
+here (TexMgr_SkinToNormals and its constants) or the islands' mask (vr_modelload.cpp, Mod_SkinIslandsMalloc). Until
+2026-10-16 it was this file's compile time: every new build made every skin's normal map again in its first session
+(PROFILE_20261016 B6). vr_normalmap_cache 2 makes them anyway and compares (a forgotten bump shows as differing).
+The key: a hash (FNV-1a, 64 bits) of all that TexMgr_SkinToNormals reads: the texels, their size, the heights or not,
+the texels per unit, and the islands' mask.
 ================
 */
+#define NORMALCACHE_VERSION 1
+
 static za::String TexMgr_MakeNormalCacheBuild (void)
 {
-	const char *stamp = __DATE__ " " __TIME__;
+	char stamp[32];
+	const char *c;
 	unsigned long long h = 14695981039346656037ULL;
 	char build[24];
-	for (; *stamp; stamp++)
-		h = (h ^ (byte) *stamp) * 1099511628211ULL;
+	q_snprintf (stamp, sizeof (stamp), "skin normals v%d", NORMALCACHE_VERSION);
+	for (c = stamp; *c; c++)
+		h = (h ^ (byte) *c) * 1099511628211ULL;
 	q_snprintf (build, sizeof (build), "%016llx", h);
 	return build;
 }
