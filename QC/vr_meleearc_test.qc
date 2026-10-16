@@ -62,6 +62,10 @@ void(entity p, float request) VR_MeleeArcTest_Start =
     p.health = 1000;
     p.armorvalue = 0;
     p.armortype = 0;
+    if(best.classname == "monster_sword")
+    {
+        best.delay = 0; // (the phantom swordsman waits its delay, 10 s, once woken: sword_pause)
+    }
     entity oself = self;
     self = best;
     if(!AD_TestWake(p)) // AD support: AD's monsters by AD's AI

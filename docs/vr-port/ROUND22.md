@@ -9312,3 +9312,56 @@ Not identical: `aimTurn`, a debug field, is now exactly 0 for the very same samp
 For his VR check:
 - A pre-1.0.0 config is reset: nothing to see with his config, which is at 140.
 - Grab guns and props as usual; the grips should feel the same.
+## Melee arc: Dissolution of Eternity's monsters, the ogre's smash (worktree `dequant`, branch `agent/roguemelee`, 2026-10-16)
+
+His request: audit Rogue's melee too. And a trace: `melee_arc_test.sh <agent> id 1` gave the ogre 6 hits after the
+step-aside and the fiend 1, where "Melee arc" recorded 1 and 0.
+
+The trace: not a regression. The shipped commit itself (`f89dd4365`, built and run here) gives the same 6 and 1: the
+recorded numbers came from the branch before it was merged onto integ. The ogre picks its smash or its swing by
+`random()` (`ogre_melee`), so any change in what draws random numbers first flips which one the test meets; the
+recorded 1 was the swing (its sweep's first blow, 85 degrees off, inside the wide 89; then Quake's spin takes it away
+from him). The smash had two real flaws, both from the first melee arc commit:
+- `chainsaw` calls `ai_charge(10)` itself, so a smash frame charged twice and turned 8 degrees, not
+  `vr_enemy_melee_turn`'s 4: the turn cap was per call. Now per frame (`VR_MeleeArc_TurnBegin` keeps the frame's first
+  facing: `.vr_melee_turn_time`, `.vr_melee_turn_yaw0`), for every monster.
+- The smash was a "wide" (sweeping) blow, so 89 degrees caught a player 101 degrees off after 3 frames of turning.
+  The swing sweeps side to side and stays wide; the smash comes down ahead: now the normal arc, and its hit frames
+  (smash6-11, and chainsaw's own step in them) step straight ahead without turning after a player
+  (`VR_MeleeArc_ChargeAhead`: Quake's `ai_charge` with the arc off or against monsters). With only the first fix the
+  smash still caught him with 2-3 blows at its end (turned 33 degrees back); with both, none.
+The fiend's 1 is its second claw of the same attack (atta11) landing 61 degrees off 0.99 s after the step, just
+inside the test's 1 s window, after it turned 40 degrees back to him: the design's "it comes after him and strikes
+again", left as is.
+
+Rogue audit (how each decides a hit; arc as id's: arc on the hit frame, reach grown by size, turn before striking):
+
+| Monster (file) | Hit test before | Now |
+|---|---|---|
+| Phantom swordsman `monster_sword` (`rogue_invis_sw.qc`: `ai_charge` and `ai_melee`) | id's `ai_melee`, generic CheckAttack | already arc and launch gated (id's helpers); kind 1 |
+| Overlord `monster_super_wrath` (`overlord_smash`, 3 attacks) | 100 + CanDamage | arc (reach grown); launch gated (generic CheckAttack) |
+| Guardian `monster_morph` stab (`morph_stab2`: 90 to the eyes, else 3 lasers) | 90 | arc (reach grown): beside or behind it the stab misses (no point-blank lasers); launch gated |
+| Guardian knockback smack (`morph_smack`) | 100 + CanDamage | arc (reach grown) |
+| Guardian attack frames (37 `ai_face`, full turn speed) | its full yaw speed | `morph_mface`: turn held to Swing Turn, melee time set (melee space) |
+| Electric eel zap (`eel_melee`, `T_EELZap`: a burst all round it in the water) | radius 85 | unchanged: no blow, no facing (launch gated by the generic CheckAttack) |
+| Dragon tail (`dragon_tail`, 250) | meant for behind it | unchanged on purpose; `dragon_tail_touch` (150) is called by nothing (only the parry test) |
+| Lava man (`th_melee` = its fireball), wrath, mummy (thrown flesh), statues (id's knights) | missiles / id's | - |
+
+No kind multipliers added: none of them is a light thrust like the knight's (the swordsman's sword blow is id's
+`ai_melee` at a grunt's size; left 1 to keep the list short). Show Melee Arcs skips the eel and the lava man (a
+`th_melee` that is no blow). The test (`melee_arc_test.sh <agent> rogue`, vrtesthall: swordsman 15, overlord 17,
+Guardian 18; the swordsman's 10 s wake delay zeroed by the test) and the id set, arc 1 (arc 0 -> 1 for Rogue):
+
+| Monster | facing him: hits, first | its back to him: first (angle) | step aside: hits after |
+|---|---|---|---|
+| phantom swordsman | 12, 0.5 -> 12, 0.5 | 0.5 (80) -> 1.2 (25) | 3 -> 0 |
+| overlord | 5, 0.6 -> 4, 0.7 | 0.7 (100) -> 2.1 (13) | 2 -> 1 (1.0 s after, turned 40 back) |
+| Guardian | 4, 0.9 -> 4, 0.9 | 0.9 -> 1.7 (0) | 1 -> 0 or 1 (its knockback at frame 9, 36 degrees back) |
+| ogre (id) | 17, 0.7 | 1.3 (26) | 0 smash (6 before), 1 swing (unchanged) |
+| knight, hell knight, fiend, dog (id) | as before | as before | 0, 0, 1 (above), 0 |
+
+The Guardian's hits counted beyond its blows are its lasers once a smack pushed him off. Melee eval 168/177 (the 3
+rows that differ from the baseline are bash damage 6 -> 3, from earlier: verdicts the same).
+
+In VR (Dissolution of Eternity): sidestep a Guardian's stab and an overlord's smash as they wind up: they should miss
+and turn after you; an ogre's overhead smash should come down where it faced.

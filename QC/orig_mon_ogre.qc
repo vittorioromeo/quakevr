@@ -208,14 +208,18 @@ float     ldmg;
     if(!CanDamage(self.enemy, self))
         return;
 
-    ai_charge(10);
+    float smash = self.frame >= $smash1 && self.frame <= $smash14; // QVR: (melee arc: the smash, not the swing)
+    if(smash)
+        VR_MeleeArc_ChargeAhead(10); // QVR: (melee arc: the smash comes down where it faces)
+    else
+        ai_charge(10);
 
     delta = self.enemy.origin - self.origin;
 
     if(vlen(delta) > VR_MeleeReach(100))
         return;
-    if(!VR_MeleeArc_Hits(TRUE))
-        return; // QVR: (melee arc: fight.qc)
+    if(!VR_MeleeArc_Hits(!smash))
+        return; // QVR: (melee arc: fight.qc; the swing sweeps side to side: wide; the smash comes down ahead: not)
 
     ldmg = (random() + random() + random()) * 4;
 
@@ -316,12 +320,12 @@ void() ogre_smash2    =[    $smash2,        ogre_smash3    ] {ai_charge(0);};
 void() ogre_smash3    =[    $smash3,        ogre_smash4    ] {ai_charge(0);};
 void() ogre_smash4    =[    $smash4,        ogre_smash5    ] {ai_charge(1);};
 void() ogre_smash5    =[    $smash5,        ogre_smash6    ] {ai_charge(4);};
-void() ogre_smash6    =[    $smash6,        ogre_smash7    ] {ai_charge(4); chainsaw(0);};
-void() ogre_smash7    =[    $smash7,        ogre_smash8    ] {ai_charge(4); chainsaw(0);};
-void() ogre_smash8    =[    $smash8,        ogre_smash9    ] {ai_charge(10); chainsaw(0);};
-void() ogre_smash9    =[    $smash9,        ogre_smash10 ] {ai_charge(13); chainsaw(0);};
+void() ogre_smash6    =[    $smash6,        ogre_smash7    ] {VR_MeleeArc_ChargeAhead(4); chainsaw(0);};
+void() ogre_smash7    =[    $smash7,        ogre_smash8    ] {VR_MeleeArc_ChargeAhead(4); chainsaw(0);};
+void() ogre_smash8    =[    $smash8,        ogre_smash9    ] {VR_MeleeArc_ChargeAhead(10); chainsaw(0);};
+void() ogre_smash9    =[    $smash9,        ogre_smash10 ] {VR_MeleeArc_ChargeAhead(13); chainsaw(0);};
 void() ogre_smash10    =[    $smash10,        ogre_smash11 ] {chainsaw(1);};
-void() ogre_smash11    =[    $smash11,        ogre_smash12 ] {ai_charge(2); chainsaw(0);
+void() ogre_smash11    =[    $smash11,        ogre_smash12 ] {VR_MeleeArc_ChargeAhead(2); chainsaw(0);
 self.nextthink = self.nextthink + random()*0.2;};    // slight variation
 void() ogre_smash12    =[    $smash12,        ogre_smash13 ] {ai_charge(0);};
 void() ogre_smash13    =[    $smash13,        ogre_smash14 ] {ai_charge(4);};
