@@ -1,6 +1,7 @@
 #include "vr_cheats.hpp"
 #include "vr_doom.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_warmup.hpp"
 #include "vr_alloccount.h"
 // vr_menu.cpp -- the "VR Settings" pages (Options > VR Settings), drawn like Ironwail's options
 // pages: scrolling lists of labelled settings, changed with left/right (the sticks in VR), with
@@ -5726,6 +5727,15 @@ za::Vector<Item> pageDebugProfiling()
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), and every load's total."),
+        infoLine(warmup::statusLine, 0),
+        toggle("Cache Warm-up", vr_cache_warmup)
+            .help("On: the derived-data cache is filled in the background (every installed game's models' occlusion bakes) on "
+                  "one low-priority worker, paused while a map loads or a frame runs late; it carries on next session where "
+                  "it stopped (vr_cache_warmup)."),
+        command("Cache Info", "vr_cache_info")
+            .help("vr_cache_info: each cached product (normal maps, gun pieces, hulls, occlusion, dequantised poses, rigs): its "
+                  "setting, files and size on disk, and this session's reads, misses (in play: the gaps the loads didn't "
+                  "prepare), writes and checks; then the warm-up's progress."),
         toggle("Ready What Can Appear", vr_probe_kinds)
             .help("On: the kinds of monster that can appear later on a map (the firing range's dispensers and dummies, monsters "
                   "waiting for a trigger) are made ready as it loads: their models, sounds and compiled hull, so their first "

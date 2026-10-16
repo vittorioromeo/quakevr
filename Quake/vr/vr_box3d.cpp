@@ -1999,7 +1999,7 @@ GunPiecesDisk gunPiecesDisk;
     QVR_TRACY_SCOPE(tracyScope, "gun pieces read");
     unsigned count = 0, points = 0;
     za::Vector<char> data;
-    if(!diskcache::read("gunpieces", convex::build(), key, "gpc", gunPiecesMagic, count, points, data) ||
+    if(!diskcache::read(diskcache::Product::GunPieces, convex::build(), key, "gpc", gunPiecesMagic, count, points, data, "(a gun)") ||
        count > gunPiecesMostFile ||
        data.size() != sizeof(convex::Report) + count * sizeof(za::I32) + static_cast<size_t>(points) * sizeof(glm::vec3))
     {
@@ -2054,7 +2054,7 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
         end += static_cast<za::I32>(pieces[i].points.size());
         memcpy(ends + i * sizeof(za::I32), &end, sizeof(end));
     }
-    diskcache::write("gunpieces", convex::build(), key, "gpc", gunPiecesMagic, static_cast<unsigned>(pieces.size()),
+    diskcache::write(diskcache::Product::GunPieces, convex::build(), key, "gpc", gunPiecesMagic, static_cast<unsigned>(pieces.size()),
         static_cast<unsigned>(points), data.data(), data.size());
 }
 
@@ -2110,6 +2110,7 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
     if(fromDisk)
     {
         gunPiecesDisk.checked++;
+        diskcache::noteChecked(diskcache::Product::GunPieces, samePieces(pieces, cut), name);
         if(!samePieces(pieces, cut))
         {
             gunPiecesDisk.differed++;
