@@ -440,6 +440,8 @@ vr_ad_monsters.qc
 vr_ad_stealth.qc
 // The AD soldiers' guns: dropped, fired (after the monsters' hooks: VR_AD_Dying drops them).
 vr_ad_enemyguns.qc
+// The held guns' models the map can give (the engine prepares their convex pieces at load).
+vr_gunprep.qc
 vr_ad_monsters_test.qc
 vr_ad_shots_test.qc
 // Every monster's head and gibs as props (vr_gibprops_test; after AD's files: it counts AD's own gibs).

@@ -8847,3 +8847,33 @@ session on this build makes everything once more (vrstart's hulls: 10 s of pool)
 
 For him: start the game, open Debug > Profiling and Memory: the warm-up line counts up; play meanwhile and watch for
 hitches; `developer 1` shows `cache miss in play` lines for anything the loads didn't prepare.
+
+## Held guns' convex pieces at map load (worktree `dequant`, branch `agent/gunprep`, 2026-10-16)
+
+His decision: prepare the held-weapon pieces at the map's load for every weapon the map can give, so first pickups are
+cache hits (no background process). Done in `vr_box3d.cpp` `prepareHeldGuns` + `QC/vr_gunprep.qc`.
+
+- **Which guns:** QC (`VR_GunPrep_Collect` / `VR_GunPrep_Model`, so the drop rules stay in QC) lists the weapons lying
+  in the map (`weapon_*` classes incl. upgrades and crowbar, `thrown_weapon`, `func_weapon_grabbable`), the guns its
+  monsters drop (grunt, enforcer, knight, hell knight, ogre; AD's armed soldiers through `VR_ADGun_ForClass`), backpacks'
+  weapons and the first player's hands and holsters. Each gun's primary and secondary-ammo model (`WeaponIdToModel`).
+  The engine resolves the names in `sv.models` (a model the map did not precache is skipped).
+- **How:** the triangles (`held::modelTriangles`, the held key -2) on the main thread, then `cutGun` per model in one
+  `parallelFor` (reads the file, cuts and writes only on a miss), the results appended to `gunShapes` as `gunPieces`
+  would. A lying drop's shape has the same triangles, so its file is the same one (a dropped grunt's gun is a hit).
+  Run at the first frame of a world, and again whenever the player's hands/holsters change (they are filled after that
+  first frame), so it is load time; in play only a gun from outside the map's set would still cut.
+  `vr_gun_pieces_ahead 0` turns it off (Debug > Profiling and Memory > Gun Shapes at Load). `vr_debug_box3d 1` prints
+  the list; `cache miss in play: gunpieces (<model>, <key>)` now names the model. `GunPiecesDisk` counters are atomic.
+- **Checks** (headless, empty cache root, `developer 1`): ad_tfuma, `vr_ad_test 71` (drops all 8 AD guns) then
+  `vr_pickup_test 2`: off 7 `cache miss in play` for gun pieces (grunt, enforcer, AD soldier guns), on 0. e1m1: the
+  loadout (axe, shotgun) and the map's SSG, nailgun and grunt gun are hits; guns `vr_pickup_test 4` drops that the map
+  cannot give (enforcer rifle, swords, chainsaw...) still miss, as designed.
+
+| ad_tfuma (empty root, 21 guns) | prepare | map load |
+|---|---:|---:|
+| off, cold | - | 9873 ms |
+| on, cold (21 cut) | 54-82 ms | 9894 ms |
+| on, warm (21 read) | 4.1 ms | 8911 ms (off, warm 8918) |
+
+e1m1 cold: 37.7 ms in all (5 + 1 + 1 guns over three runs).
