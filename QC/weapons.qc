@@ -4545,15 +4545,18 @@ void(float xHolster, float v) setHolsterWeaponFlags =
     bprint("\n");
 }
 
-float(float xHotspot) isReloadHolsterHotspot =
+float(float xHotspot, float xWeapon) isReloadHolsterHotspot =
 {
-    if(cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_ALLHOLSTERS)
+    float mode = VR_Reload_ModeOf(xWeapon); // (the weapon's own override, else the global)
+    if(mode == QVR_RELOADMODE_ALLHOLSTERS)
     {
         return TRUE;
     }
 
-    ASSERT(cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_HIPHOLSTERS ||
-           cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_IMMERSIVE);
+    if(mode == QVR_RELOADMODE_NONE)
+    {
+        return FALSE;
+    }
 
     return xHotspot == QVR_HS_LEFT_HIP_HOLSTER ||
            xHotspot == QVR_HS_RIGHT_HIP_HOLSTER;
@@ -5971,7 +5974,7 @@ void(entity ent, float xHand,
                 VRHolsterHaptic(ent, xHand, xHotspot);
             }
 
-            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot) && !carried)
+            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot, xWeapon) && !carried)
             {
                 VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags);
             }

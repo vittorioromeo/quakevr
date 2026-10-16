@@ -3241,6 +3241,18 @@ QVR_CVAR(vr_hand_rig, "1", CVAR_ARCHIVE)               // round 21: the jointed 
 // other hand and pushed into the gun's loading port; the others reload at the hip holsters, as 2. Needs Weapon Mode
 // Immersive (vr_holster_mode 0); bots never reload.
 QVR_CVAR(vr_reload_mode, "3", CVAR_ARCHIVE)
+// Per-weapon reload overrides (Advanced VR Options > Weapons > Reloading > Per-Weapon Reload Overrides): the reloading mode of
+// one gun, in vr_reload_mode's values (0 off, 1 all holsters, 2 hip holsters, 3 immersive); -1 (the default) follows
+// vr_reload_mode. Per gun: vr_reload_mode_<shot|sshot|nail|snail|gl|prox|rl|light> (QC VR_Reload_ModeOf; the server's
+// STAT_QVR_RELOADMODE is the highest of the global and these, so the clients draw the pouch and magazines if any gun needs them).
+QVR_CVAR(vr_reload_mode_shot, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mode_sshot, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mode_nail, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mode_snail, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mode_gl, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mode_prox, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mode_rl, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mode_light, "-1", CVAR_ARCHIVE)
 // The ammo pouch (vr_reload_mode 3; QC vr_reload.qc, vr_view.cpp setupAmmoPouch): on the front of the belt between the
 // hip holsters. X forward, units: with the body drawn, the default (0) is on the belly and X moves it from there; Y to
 // the right; Z up (times the height calibration, as the holsters'). Reach: units a hand must be within to be at it (the

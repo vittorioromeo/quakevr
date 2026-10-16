@@ -152,7 +152,7 @@
         cycle("Turning", vr_snap_turn, {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}})
             .help("Smooth: the turning stick turns you steadily (Turn Speed). Snap: each push turns you at once by the angle."),
         slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend().help("Smooth turning's speed."),
-        toggle("Enable Joystick Turn", "vr_enable_joystick_turn").help("Allows turning using the controller. Keep enabled unless you want to force yourself to turn in real life."),
+        toggle("Enable Joystick Turn", "vr_enable_joystick_turn").help("Allows turning using the thumbstick. Off: the stick never turns you, in any state (menus, climbing, swimming), so you turn in real life; the stick's other uses stay. The same as VR Settings' Turning Mode: Off."),
         header("Teleport"),
         toggle("Teleport", vr_teleport_enabled).help("Jump to the spot you point at instead of walking there."),
         slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f)
@@ -1152,6 +1152,35 @@ void resetHandMoves()
     };
 }
 
+// Weapons > Reloading > Per-Weapon Reload Overrides: each gun's own reloading mode (vr_reload_mode_<gun>), or the global one.
+[[nodiscard]] za::Vector<Item> pageReloadOverrides()
+{
+    const auto mode = [](const char* label, const char* cvar) {
+        return cycle(label, cvar, {{-1.f, "Use Global"}, {3.f, "Immersive"}, {2.f, "Simple"}, {1.f, "Simple (all holsters)"}, {0.f, "Disabled"}})
+            .help("This gun's reloading mode. Use Global: Reloading's mode. Immersive: loaded by hand (the shotgun a "
+                  "shell at a time, the nailguns and the thunderbolt a magazine, the launchers a round at the muzzle), "
+                  "from the ammo pouch. Simple: reloaded at a hip holster. Simple (all holsters): at any holster. "
+                  "Disabled: it fires from your ammo, no magazine. Needs Weapon Mode Immersive.");
+    };
+    za::Vector<Item> list{
+        header("Per-Weapon Reload Overrides"),
+        mode("Shotgun", "vr_reload_mode_shot"),
+        mode("Super Shotgun", "vr_reload_mode_sshot"),
+        mode("Nailgun", "vr_reload_mode_nail"),
+        mode("Super Nailgun", "vr_reload_mode_snail"),
+        mode("Grenade Launcher", "vr_reload_mode_gl"),
+        mode("Rocket Launcher", "vr_reload_mode_rl"),
+        mode("Thunderbolt", "vr_reload_mode_light"),
+    };
+    // (Hipnotic's proximity gun only where Hipnotic is installed.)
+    const cvar_t* hipnotic = Cvar_FindVar("vr_hipnotic_available");
+    if(hipnotic && hipnotic->value != 0.f)
+    {
+        list.pushBack(mode("Proximity Gun (Hipnotic)", "vr_reload_mode_prox"));
+    }
+    return list;
+}
+
 // Weapons > Reloading (General): the mode, a page per gun, the ammo pouch, what is the same for every gun
 // (docs/vr-port/RELOAD.md; QC vr_reload.qc).
 [[nodiscard]] za::Vector<Item> pageReloading()
@@ -1166,6 +1195,8 @@ void resetHandMoves()
                   "the muzzle; the other guns reload at the hip holsters for now. A gun brought to the pouch by its port "
                   "or well reloads there too (Reloading at the Pouch: two guns, no free hand). Needs Weapon Mode "
                   "Immersive."),
+        open("Per-Weapon Reload Overrides", pageIndex(pageReloadOverrides))
+            .help("A reloading mode of its own for each gun (or Use Global): the shotgun loaded by hand while the nailguns reload at the hips, say."),
         header("Weapons"),
         open("Shotgun", pageIndex(pageReloadShotgun)).help("Its shells (pairs, their pose) and its loading port."),
         open("Super Shotgun", pageIndex(pageReloadSuperShotgun)).help("Broken open: each way to open and close it, their thresholds; its breech."),

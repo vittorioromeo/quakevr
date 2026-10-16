@@ -1143,7 +1143,7 @@ void addChunkShape(edict_t* ent, int num, b3BodyId body)
 // QVR_WPNFLAG_NOMAG), solid with it (vr_reload_mag_collide): its model (view::magazineModelOf), nullptr none.
 [[nodiscard]] const qmodel_t* seatedMagazine(edict_t* ent, const qmodel_t* model)
 {
-    if(!vr_reload_mag_collide.value || vr_holster_mode.value != 0.f || static_cast<int>(vr_reload_mode.value) != 3 ||
+    if(!vr_reload_mag_collide.value || vr_holster_mode.value != 0.f || reloadModeBest() != 3 ||
         !model || model->type != mod_alias || !isGun(ent))
     {
         return nullptr;
