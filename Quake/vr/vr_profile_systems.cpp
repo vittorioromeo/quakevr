@@ -10,6 +10,7 @@
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
@@ -342,10 +343,7 @@ void appendf(za::String& out, const char* fmt, ...)
 
 [[nodiscard]] za::String stamp(const char* fmt)
 {
-    const time_t now = time(nullptr);
-    char buf[64];
-    strftime(buf, sizeof(buf), fmt, localtime(&now));
-    return buf;
+    return files::timestamp(time(nullptr), fmt);
 }
 
 // A system's name as a CSV column: letters and digits, '_' for the rest.
@@ -480,9 +478,7 @@ void csvRow(const Second& s, double time)
 {
     if(csvPath.empty())
     {
-        const za::String dir = za::String{com_gamedir} + "/profile";
-        Sys_mkdir(dir.cStr());
-        csvPath = dir + "/systems_" + stamp("%Y-%m-%d_%H-%M-%S") + ".csv";
+        csvPath = files::profileFile("systems_", ::time(nullptr));
         csvFile = fopen(csvPath.cStr(), "w");
         if(!csvFile)
         {
@@ -595,9 +591,7 @@ void hitch(double periodMs, double hostMs, double budget, const int counts[Count
     const bool created = hitchPath.empty();
     if(created)
     {
-        const za::String dir = za::String{com_gamedir} + "/profile";
-        Sys_mkdir(dir.cStr());
-        hitchPath = dir + "/hitches_" + stamp("%Y-%m-%d_%H-%M-%S") + ".csv";
+        hitchPath = files::profileFile("hitches_", ::time(nullptr));
     }
     if(!hitchFile)
     {

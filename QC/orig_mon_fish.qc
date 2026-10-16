@@ -79,7 +79,7 @@ void() fish_melee =
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 60)
+    if(vlen(delta) > VR_MeleeReach(60))
         return;
     if(!VR_MeleeArc_Hits(FALSE))
         return; // QVR: (melee arc: fight.qc)

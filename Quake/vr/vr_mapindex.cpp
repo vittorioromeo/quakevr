@@ -98,7 +98,7 @@ void note(const char* fmt, ...)
 
 [[nodiscard]] za::String cachePath()
 {
-    return za::String{com_basedirs[com_numbasedirs - 1]} + "/cache/maps_index.txt";
+    return files::baseCacheDir() + "/maps_index.txt";
 }
 
 [[nodiscard]] za::String indexUrl()

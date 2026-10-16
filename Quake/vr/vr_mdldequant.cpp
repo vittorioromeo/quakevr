@@ -1370,6 +1370,28 @@ void registerCommands()
     Cmd_AddCommand("vr_mdl_dequant_check", check_f);
 }
 
+void prepare(const qmodel_s* model)
+{
+    if(!model || model->type != mod_alias || !VR_MdlDequantOn())
+    {
+        return;
+    }
+    auto* mainhdr = static_cast<aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(mainhdr->poseverttype != aliashdr_t::PV_QUAKE1)
+    {
+        return;
+    }
+    // As GLMesh_LoadVertexBuffer does at the model's first upload (which then finds them ready).
+    for(aliashdr_t* hdr = mainhdr; hdr; hdr = Mod_NextSurface(hdr))
+    {
+        if(hdr->dequant && !hdr->dequantready)
+        {
+            VR_MdlDequantCompute(model->name, hdr, reinterpret_cast<unsigned*>(reinterpret_cast<byte*>(hdr) + hdr->dequant));
+            hdr->dequantready = 1;
+        }
+    }
+}
+
 glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex)
 {
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);

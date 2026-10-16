@@ -262,7 +262,7 @@ FUNC_PATCHES = [
 # Quake VR's own features on AD's code (not bridge functions): the names they call are Quake VR's (QVR_NAMES, kept as
 # written; AD's own names in the replacements are renamed as usual, so FALSE reads ad_FALSE).
 Q = "Quake VR"
-QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeArc_Launch", "VR_MeleeArc_TurnBegin", "VR_MeleeArc_TurnEnd",
+QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeReach", "VR_MeleeArc_Launch", "VR_MeleeArc_TurnBegin", "VR_MeleeArc_TurnEnd",
              "VR_MeleeSpace_Step", "vr_melee_time", "vr_spawn_live", "VR_ADGun_IsElectric", "VR_ADGun_BoltFx",
              "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison"}
 _STAMP = "\tself.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)\n"
@@ -292,6 +292,9 @@ FUNC_PATCHES += [
      _SPACE),
     ("ai_subs.qc", "ai_melee", "\n\tlocal float ldmg;\n", "\n" + _STAMP + "\tlocal float ldmg;\n", _SPACE),
     ("ai_subs.qc", "ai_meleesmash", "\n\tlocal float ldmg;\n", "\n" + _STAMP + "\tlocal float ldmg;\n", _SPACE),
+    ("ai_subs.qc", "ai_checkmelee", "\tif (delta <= attackdist && ",
+     "\t// AD support: melee arc: the reach grows with size (fight.qc VR_MeleeReach)\n"
+     "\tif (delta <= VR_MeleeReach(attackdist) && ", Q + ": melee arc (fight.qc VR_MeleeReach): the reach grows with size"),
 ] + [
     (fn, func, "\tai_face ();", "\t" + _FACE % "ai_face ();", _ARC)
     for fn, func in (("mon_demon.qc", "Demon_Claw"), ("mon_drole.qc", "drole_claw"), ("mon_minotaur.qc", "mino_claw"),

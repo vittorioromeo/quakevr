@@ -63,26 +63,6 @@ namespace
 // Helpers
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] za::Vector<za::String> splitOn(const za::String& s, char sep)
-{
-    za::Vector<za::String> out;
-    za::String cur;
-    for(const char c : s)
-    {
-        if(c == sep)
-        {
-            out.pushBack(cur);
-            cur.clear();
-        }
-        else if(c != '\r')
-        {
-            cur += c;
-        }
-    }
-    out.pushBack(cur);
-    return out;
-}
-
 [[nodiscard]] za::String trim(za::StringView s)
 {
     const size_t a = s.findFirstNotOf(" \t\r\n");
@@ -255,7 +235,7 @@ const char* const statusColumns =
         {
             continue;
         }
-        const za::Vector<za::String> cells = splitOn(line, ',');
+        const za::Vector<za::String> cells = motion::split(line, ',');
         if(col.empty())
         {
             for(size_t i = 0; i < cells.size(); i++)
@@ -342,7 +322,7 @@ void readMarks()
         {
             continue;
         }
-        const za::Vector<za::String> c = splitOn(line, ',');
+        const za::Vector<za::String> c = motion::split(line, ',');
         if(c.size() >= 3 && !c[0].empty())
         {
             marks[c[0]] = {c[1], c[2]};
@@ -381,7 +361,7 @@ void readJournal()
         {
             continue;
         }
-        za::Vector<za::String> c = splitOn(line, ',');
+        za::Vector<za::String> c = motion::split(line, ',');
         c.resize(7);
         journal.pushBack({c[0], c[1], c[2], c[3], c[4], c[5], c[6]});
     }
@@ -968,7 +948,7 @@ const za::String noCell; // (loadGhost: a column the table does not have)
             }
             continue;
         }
-        const za::Vector<za::String> cells = splitOn(line, ',');
+        const za::Vector<za::String> cells = motion::split(line, ',');
         if(col.empty())
         {
             for(size_t i = 0; i < cells.size(); i++)
@@ -1037,9 +1017,9 @@ const za::String noCell; // (loadGhost: a column the table does not have)
         }
         if(const za::String& events = str("events"); !events.empty())
         {
-            for(const za::String& e : splitOn(events, ';'))
+            for(const za::String& e : motion::split(events, ';'))
             {
-                const za::Vector<za::String> ef = splitOn(e, ':');
+                const za::Vector<za::String> ef = motion::split(e, ':');
                 if(ef.size() < 9 || ef[0] == "stroke")
                 {
                     continue;

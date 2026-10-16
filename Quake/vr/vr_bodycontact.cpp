@@ -6,12 +6,17 @@
 #include "vr_cvars.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_hull.hpp"
+#include "vr_lines.hpp"
 #include "vr_progs.hpp"
+#include "vr_text3d.hpp"
 
 #include "Zancle/Base/Limits.hpp"
+#include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
 
 using namespace qvr;
@@ -473,7 +478,132 @@ void status_f()
     PR_PopQCVM(oldvm);
 }
 
+// Show Melee Arcs (vr_enemy_melee_arc_show): the melee monsters QC's VR_MeleeArc_ShowFrame set this frame (fight.qc),
+// gathered on the server (meleeArcGather) and drawn with the view (meleeArcDraw).
+constexpr int maxArcShows = 24;
+constexpr float arcShownRecent = 0.25f; // seconds: a monster's arc set this recently is drawn
+struct ArcShow
+{
+    glm::vec3 feet{0.f};  // its origin at its feet (its box's bottom)
+    float top = 0.f;      // its box's top
+    float yaw = 0.f;      // its facing (degrees)
+    float arc = 0.f;      // its blows' arc, degrees each side
+    float wide = 0.f;     // its sweeping blows' (0: none seen)
+    float reach = 0.f;    // units, from its origin
+    float off = 0.f;      // its enemy's angle off its facing (degrees, level)
+    float dist = 0.f;     // ... and how far (level)
+    int state = 0;        // 2: its enemy is inside its arc and reach; 1: only inside its sweeping blows'; 0: outside
+    char name[24] = "";
+};
+struct ArcShows
+{
+    ArcShow rows[maxArcShows];
+    int count = 0;
+};
+ArcShows arcShows;
+
+void meleeArcGather()
+{
+    arcShows.count = 0;
+    const int shownOfs = progs::fields().vr_melee_shown;
+    if(vr_enemy_melee_arc_show.value == 0.f || shownOfs < 0)
+    {
+        return;
+    }
+    const float now = static_cast<float>(qcvm->time);
+    for(int e = svs.maxclients + 1; e < qcvm->num_edicts && arcShows.count < maxArcShows; ++e)
+    {
+        edict_t* m = EDICT_NUM(e);
+        if(m->free || !isMonster(m) || m->v.health <= 0.f)
+        {
+            continue;
+        }
+        const float shown = progs::fieldFloatOr(m, shownOfs, 0.f);
+        edict_t* p = PROG_TO_EDICT(m->v.enemy);
+        if(shown <= 0.f || now - shown > arcShownRecent || p == sv.qcvm.edicts)
+        {
+            continue;
+        }
+        ArcShow& r = arcShows.rows[arcShows.count++];
+        r.feet = glm::vec3{m->v.origin[0], m->v.origin[1], m->v.absmin[2] + 1.f};
+        r.top = m->v.absmax[2];
+        r.yaw = m->v.angles[1];
+        r.arc = progs::fieldFloatOr(m, progs::fields().vr_melee_arc, 0.f);
+        r.wide = progs::fieldFloatOr(m, progs::fields().vr_melee_arc_wide, 0.f);
+        r.reach = progs::fieldFloatOr(m, progs::fields().vr_melee_reach, 0.f);
+        const glm::vec2 to{p->v.origin[0] - m->v.origin[0], p->v.origin[1] - m->v.origin[1]};
+        r.dist = glm::length(to);
+        float off = r.dist > 0.01f ? glm::degrees(za::atan2(to.y, to.x)) - r.yaw : 0.f;
+        off = za::abs(off - 360.f * za::round(off / 360.f));
+        r.off = off;
+        const bool inReach = r.dist <= r.reach;
+        r.state = inReach && off <= r.arc ? 2 : inReach && off <= r.wide ? 1 : 0;
+        q_strlcpy(r.name, PR_GetString(m->v.classname), sizeof(r.name));
+    }
+}
+
+// A fan on the level plane at `c`: from yaw `from` to `to` (degrees), `radius` long; its edges and rim bright, spokes
+// every 10 degrees faint (it reads as a filled wedge).
+void arcFan(const glm::vec3& c, float from, float to, float radius, const glm::vec4& colour, bool edges)
+{
+    const auto at = [&](float deg)
+    {
+        const float a = glm::radians(deg);
+        return c + radius * glm::vec3{za::cos(a), za::sin(a), 0.f};
+    };
+    const int steps = za::max(1, static_cast<int>((to - from) / 5.f) + 1);
+    const glm::vec4 faint{colour.r, colour.g, colour.b, colour.a * 0.35f};
+    for(int i = 0; i < steps; i++)
+    {
+        const float a0 = from + (to - from) * static_cast<float>(i) / static_cast<float>(steps);
+        const float a1 = from + (to - from) * static_cast<float>(i + 1) / static_cast<float>(steps);
+        lines::line(at(a0), at(a1), 0.6f, colour, colour);
+        if(i % 2 == 1)
+        {
+            lines::line(c, at(a0), 0.25f, faint, faint);
+        }
+    }
+    if(edges)
+    {
+        lines::line(c, at(from), 0.6f, colour, colour);
+        lines::line(c, at(to), 0.6f, colour, colour);
+    }
+}
+
 } // namespace
+
+void qvr::bodycontact::meleeArcDraw(const glm::vec3& eye)
+{
+    const glm::vec4 red{1.f, 0.15f, 0.15f, 0.95f};
+    const glm::vec4 orange{1.f, 0.55f, 0.1f, 0.95f};
+    const glm::vec4 green{0.2f, 1.f, 0.3f, 0.9f};
+    const glm::vec4 grey{0.8f, 0.8f, 0.8f, 0.45f};
+    for(int i = 0; i < arcShows.count; ++i)
+    {
+        const ArcShow& r = arcShows.rows[i];
+        if(r.reach <= 0.f)
+        {
+            continue;
+        }
+        // The reach all round (grey), the sweeping blows' fan (orange: past the arc on each side), the arc (red with
+        // its enemy inside it, else green).
+        arcFan(r.feet, 0.f, 360.f, r.reach, grey, false);
+        if(r.wide > r.arc)
+        {
+            const glm::vec4 w = r.state == 1 ? orange : glm::vec4{orange.r, orange.g, orange.b, 0.5f};
+            arcFan(r.feet, r.yaw + r.arc, r.yaw + r.wide, r.reach, w, true);
+            arcFan(r.feet, r.yaw - r.wide, r.yaw - r.arc, r.reach, w, true);
+        }
+        arcFan(r.feet, r.yaw - r.arc, r.yaw + r.arc, r.reach, r.state == 2 ? red : green, true);
+        char text[96];
+        q_snprintf(text, sizeof(text), "%s\narc %.0f%s reach %.0f\nyou %.0f deg %.0f u", r.name,
+            static_cast<double>(r.arc), r.wide > r.arc ? "/wide" : "", static_cast<double>(r.reach),
+            static_cast<double>(r.off), static_cast<double>(r.dist));
+        const glm::vec3 at{r.feet.x, r.feet.y, r.top + 10.f};
+        const glm::vec3 toText = at - eye;
+        text3d::queueOverlay(text, at, glm::vec3{0.f, glm::degrees(za::atan2(toText.y, toText.x)), 0.f}, 0.06f);
+    }
+}
 
 void qvr::bodycontact::init()
 {
@@ -485,8 +615,10 @@ void qvr::bodycontact::serverFrame()
 {
     if(!sv.active || qcvm != &sv.qcvm)
     {
+        arcShows.count = 0;
         return;
     }
+    meleeArcGather();
     const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
     if(dt <= 0.f)
     {

@@ -18,13 +18,17 @@ QVR_CVAR(vr_hull_monsters, "1", CVAR_ARCHIVE)          // the narrow entity widt
 QVR_CVAR(vr_hull_players, "1", CVAR_ARCHIVE)           // ... between players
 QVR_CVAR(vr_hull_boxes, "1", CVAR_ARCHIVE)             // ... between the player and other solid boxes (explosive boxes, solid items)
 QVR_CVAR(vr_body_monster_inset, "4", CVAR_ARCHIVE)     // Combat > Holding Enemies > Body Inset: units (0-12) each level side of the player's box and a monster's comes in where the two bodies meet (both ways; twice as close face to face): the map, monsters against monsters, shots and melee keep their boxes (vr_bodycontact.cpp)
-QVR_CVAR(vr_enemy_melee_arc, "1", CVAR_ARCHIVE)        // Combat > Holding Enemies > Melee Arc: a monster's melee blow lands on you only inside the arc ahead of it on its hit frame, it starts a melee attack only facing you (else it turns first), and while swinging it turns at most vr_enemy_melee_turn a frame; 0: Quake's reach-only blows (fight.qc VR_MeleeArc_Hits; ROUND22.md "Melee arc")
-QVR_CVAR(vr_enemy_melee_arc_angle, "65", CVAR_ARCHIVE)  // Combat > Holding Enemies > Melee Arc Angle: the arc's half-angle (degrees each side of the monster's facing)
-QVR_CVAR(vr_enemy_melee_arc_wide, "20", CVAR_ARCHIVE)   // Combat > Holding Enemies > Wide Swings: degrees more each side for sweeping blows (an ogre's chainsaw sweep, a shambler's or minotaur's claw)
-QVR_CVAR(vr_enemy_melee_turn, "4", CVAR_ARCHIVE)        // Combat > Holding Enemies > Swing Turn: degrees a frame (10 a second) a monster turns after you while swinging (its own speed if lower; 0: its own speed)
-QVR_CVAR(vr_enemy_melee_arc_debug, "0", CVAR_NONE)      // Debug > Tests > Holding Enemies > Log Melee Arc: each monster blow's angle off its facing and whether it landed, printed (meleearc:)
+QVR_CVAR(vr_enemy_melee_arc, "1", CVAR_ARCHIVE)        // Combat > Enemy Melee > Melee Arc: a monster's melee blow lands on you only inside the arc ahead of it on its hit frame, it starts a melee attack only facing you (else it turns first), and while swinging it turns at most vr_enemy_melee_turn a frame; 0: Quake's reach-only blows (and no growth with size) (fight.qc VR_MeleeArc_Hits; ROUND22.md "Melee arc", "Enemy Melee menu")
+QVR_CVAR(vr_enemy_melee_arc_angle, "65", CVAR_ARCHIVE)  // Combat > Enemy Melee > Arc Angle: the arc's half-angle (degrees each side of the monster's facing) for a grunt-sized monster (24 units wide: a knight, a death knight, a rottweiler)
+QVR_CVAR(vr_enemy_melee_arc_wide, "20", CVAR_ARCHIVE)   // Combat > Enemy Melee > Wide Swings: degrees more each side for sweeping blows (an ogre's chainsaw sweep, a shambler's or minotaur's claw)
+QVR_CVAR(vr_enemy_melee_arc_size, "0.1", CVAR_ARCHIVE)  // Combat > Enemy Melee > Arc Growth with Size: share more Arc Angle per grunt width more of the monster's width (an ogre 40 units: 65 x 1.067 = 69 deg; a shambler 64: 76 deg); 0: the same for all (fight.qc VR_MeleeArc_Angle)
+QVR_CVAR(vr_enemy_melee_reach_size, "0.1", CVAR_ARCHIVE) // Combat > Enemy Melee > Reach Growth with Size: share more reach (Quake's own: 60 a knight's sword, 100 an ogre's chainsaw) per grunt width more (an ogre: 107, a shambler 117); 0: Quake's for all (fight.qc VR_MeleeReach)
+QVR_CVAR(vr_enemy_melee_kind, "1", CVAR_ARCHIVE)       // Combat > Enemy Melee > Kind Multipliers: each kind's own arc and reach multipliers (fight.qc VR_MeleeArc_Kind: a knight's arc 0.85, every other 1); 0: size alone
+QVR_CVAR(vr_enemy_melee_turn, "4", CVAR_ARCHIVE)        // Combat > Enemy Melee > Swing Turn: degrees a frame (10 a second) a monster turns after you while swinging (its own speed if lower; 0: its own speed)
+QVR_CVAR(vr_enemy_melee_arc_show, "0", CVAR_NONE)      // Combat > Enemy Melee > Show Melee Arcs (and Debug > Tests > Holding Enemies): each melee monster after you within 600 units draws its arc (its sweeping blows' too once seen) and reach on the floor, red with you inside, green outside, orange inside a sweeping blow's only; 2: also printed once a second (meleearc: show) (fight.qc VR_MeleeArc_ShowFrame, vr_bodycontact.cpp meleeArcDraw)
+QVR_CVAR(vr_enemy_melee_arc_debug, "0", CVAR_NONE)      // Debug > Tests > Holding Enemies > Log Melee Arc: each monster blow's angle off its facing, its arc and reach, and whether it landed, printed (meleearc:)
 QVR_CVAR(vr_test_meleearc, "0", CVAR_NONE)              // the melee arc test (vr_meleearc_test.qc; Debug > Tests > Holding Enemies): the nearest monster set 56 units from you and after you: 1 facing you, 2 facing away, 3 facing you and you step aside when it swings; 4 s, then a "meleearc:" summary
-QVR_CVAR(vr_enemy_melee_space, "16", CVAR_ARCHIVE)      // Combat > Holding Enemies > Melee Space: units (0-48) a monster attacking you in melee (its charge, its blow) is kept from your head (level, to its box), pushed back smoothly; 0: off (vr_bodycontact.cpp; vr_enemy_melee_space_status)
+QVR_CVAR(vr_enemy_melee_space, "16", CVAR_ARCHIVE)      // Combat > Enemy Melee > Melee Space: units (0-48) a monster attacking you in melee (its charge, its blow) is kept from your head (level, to its box), pushed back smoothly; 0: off (vr_bodycontact.cpp; vr_enemy_melee_space_status)
 QVR_CVAR(vr_hull_hit_width, "24", CVAR_ARCHIVE)        // the player's width that shots, missiles and splash traces hit (not bodies moving: vr_hull_ent_width) (8-32; 0: Quake's 32)
 QVR_CVAR(vr_hull_hit_head, "1", CVAR_ARCHIVE)          // ... and their box reaches only to the top of his head (the headset's, 5 units over it): crouched behind cover, shots over it miss; monsters' bullets aim no higher than 70% of it; 0: Quake's height, standing or not
 QVR_CVAR(vr_crouch_hull, "1", CVAR_ARCHIVE)            // Movement > Player Hitbox > Crouching: crouched (your eyes under vr_crouch_height over your feet) your box is that tall: under low ceilings and through small teleporters, behind cover from shots; kept until there's room to stand (vr_hull.cpp; HULLS.md "Crouching"); 0: always standing
@@ -170,10 +174,17 @@ QVR_CVAR(vr_throw_hit_ramp, "0.5", CVAR_ARCHIVE)      // share of the hit speed 
 QVR_CVAR(vr_throw_hit_ramp_floor, "0.6", CVAR_ARCHIVE) // share of the damage at the hit speed
 // Two-handed throws (NOTES.md vrfiringrange_2026-10-02_00-54-03: a gib thrown with both hands burst on one's follow-through
 // punch): neither hand strikes for vr_throw_2h_nomelee s after a two-handed throw (the hand let go first from just before,
-// within vr_carry_two_hands_window), and what was thrown can't be struck by the thrower's hands for
+// within vr_throw_2h_window), and what was thrown can't be struck by the thrower's hands for
 // vr_throw_2h_melee_immune s. 0: off.
 QVR_CVAR(vr_throw_2h_nomelee, "0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_2h_melee_immune, "0.35", CVAR_ARCHIVE)
+// One throw for props and weapons (QC vr_carry.qc, "One throw"; ROUND22.md, "One throw for props and weapons"). Seconds
+// between the two hands letting go (a prop's grips, a weapon's foregrip) that still make a two-handed throw (was
+// vr_carry_two_hands_window 0.1 for props, plus 0.05 on the server; 0.3 hard-coded for weapons).
+QVR_CVAR(vr_throw_2h_window, "0.2", CVAR_ARCHIVE)
+// Share of your own velocity a thing you throw or let go of (a prop, a weapon) takes with it (was vr_carry_throw_inherit 1
+// for props, all of it for weapons; 0: none).
+QVR_CVAR(vr_throw_inherit, "0.9", CVAR_ARCHIVE)
 // A gib let go of by one hand: the other hand's touch doesn't burst it for vr_gib_letgo_spare s (NOTES.md
 // vrfiringrange_2026-10-02_15-38-26: the other hand alongside the throw; the hand that let go: 0.4 s). 0: off.
 QVR_CVAR(vr_gib_letgo_spare, "0.2", CVAR_ARCHIVE)
@@ -349,12 +360,12 @@ QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)
 // its image turned to a steadied head orientation and cropped to the window; 2 the spectator camera: the scene
 // rendered a third time for the window, from the head, steadied, with its own field of view; 3 both eyes as they are,
 // side by side; 4 the right eye as it is; 5 the right eye's smoothed mirror.
-QVR_CVAR(vr_window_view, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_window_view, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_window_smooth, "0.5", CVAR_ARCHIVE)      // seconds: the steadied orientation's lag (0 none .. 0.5); both modes
 QVR_CVAR(vr_window_level, "0.5", CVAR_ARCHIVE)          // 0 .. 1: how much of the head's roll is taken out (1: the horizon level); both modes
 QVR_CVAR(vr_window_zoom, "1.2", CVAR_ARCHIVE)         // smoothed mirror: 1 the widest crop of the eye's image .. 2 (the margin the steadying turns in)
-QVR_CVAR(vr_spectator_fov, "90", CVAR_ARCHIVE)        // spectator camera: horizontal field of view, degrees (40 .. 160; the slider 60 .. 150)
-QVR_CVAR(vr_spectator_scale, "0.75", CVAR_ARCHIVE)    // spectator camera: its resolution, times the window's (0.25 .. 2)
+QVR_CVAR(vr_spectator_fov, "130", CVAR_ARCHIVE)        // spectator camera: horizontal field of view, degrees (40 .. 160; the slider 60 .. 150)
+QVR_CVAR(vr_spectator_scale, "1", CVAR_ARCHIVE)    // spectator camera: its resolution, times the window's (0.25 .. 2)
 QVR_CVAR(vr_spectator_rate, "60", CVAR_ARCHIVE)        // spectator camera: drawn every frame (1), every 2nd or 3rd (2, 3), or at most this many times a second (more than 3); the window shows the last between
 QVR_CVAR(vr_spectator_bullettime_fx, "1", CVAR_ARCHIVE) // 1: bullet time's colour, tint and darkened edges in the spectator camera; 0: its normal look (headset unchanged)
 QVR_CVAR(vr_spectator_preview, "1", CVAR_ARCHIVE)      // spectator camera: a small preview of its image in the headset's menus while it is on (bottom left, above its switch; vr_menuui.cpp)
@@ -607,7 +618,7 @@ QVR_CVAR(vr_upscale, "1", CVAR_ARCHIVE)                // below vr_render_scale 
 QVR_CVAR(vr_upscale_sharpness, "0.5", CVAR_ARCHIVE)    // ... its sharpening, 0 none .. 1 most (FSR: RCAS 2 stops below its most at 0.1, its most at 1; NIS: its slider)
 QVR_CVAR(vr_upscale_radius, "40", CVAR_ARCHIVE)        // ... only within this many degrees of the lens centre, bilinear beyond (0: the whole image)
 QVR_CVAR(vr_upscale_sharpen_native, "0", CVAR_ARCHIVE) // at vr_render_scale 1: FSR's RCAS sharpening alone (with vr_upscale 1 or 2 and some sharpness)
-QVR_CVAR(vr_foveated, "0", CVAR_ARCHIVE)               // fixed foveated rendering (NVIDIA variable-rate shading): 0 off, 1 conservative, 2 balanced, 3 aggressive
+QVR_CVAR(vr_foveated, "3", CVAR_ARCHIVE)               // fixed foveated rendering (NVIDIA variable-rate shading): 0 off, 1 conservative, 2 balanced, 3 aggressive
 QVR_CVAR(vr_foveated_inner, "0", CVAR_ARCHIVE)         // ... full-rate shading within this many degrees of the lens centre (0: the preset's: 45, 35, 25)
 QVR_CVAR(vr_foveated_outer, "0", CVAR_ARCHIVE)         // ... 2x2 up to this many degrees, 4x4 beyond (0: the preset's: 60, 50, 40)
 QVR_CVAR(vr_foveated_debug, "0", CVAR_NONE)            // show the shading rates (yellow 2x2, red 4x4) and vr_upscale_radius (cyan) in the eyes and the mirror
@@ -1980,7 +1991,8 @@ QVR_CVAR(vr_parallax_steps, "16", CVAR_ARCHIVE)        // the steps it takes alo
 QVR_CVAR(vr_parallax_refine, "4", CVAR_ARCHIVE)        // round 21: steps refining where a ray meets the relief, after the walk (0 none: stairs; 1 the old look; more: smooth relief at grazing angles, no swimming)
 QVR_CVAR(vr_parallax_grazing, "90", CVAR_ARCHIVE)      // round 21: the angle off the surface's normal, in degrees, where parallax has faded out at grazing angles (over the 12 before it; 90, the default: no fade; 86 before config 89; the old look 83)
 QVR_CVAR(vr_parallax_depth_write, "1", CVAR_ARCHIVE)  // round 21: the carved surfaces' depth is where the view meets the relief (pixel depth offset): models, hands, particles and liquids meet sunken parts where they really are (on, the default since config 89; 0: the flat surface's; on costs 0.1-0.6 ms a frame: ROUND21.md)
-QVR_CVAR(vr_parallax_debug, "0", CVAR_NONE)            // 1: the world drawn as the depth its parallax writes (vr_parallax_depth_write): red how deep below the surface, dark blue the surface's own (Debug menu)
+QVR_CVAR(vr_parallax_plane, "0", CVAR_ARCHIVE)        // round 22: where the world's surfaces (and brush models', item boxes') sit in their parallax relief, 0..1: 0 at its top (carved down from the surface, as before), 0.5 its middle, 1 its bottom (raised over it), never below a texture's average height (a flat texture or one mostly at the top isn't raised), so props resting on a floor sit in the relief instead of on top of it (raised parts hide a prop's bottom edge only with vr_parallax_depth_write)
+QVR_CVAR(vr_parallax_debug, "0", CVAR_NONE)            // 1: the world drawn as the depth its parallax writes (vr_parallax_depth_write): red how deep below the surface, green how high over it (vr_parallax_plane), dark blue the surface's own (Debug menu)
 QVR_CVAR(vr_parallax_items, "1.5", CVAR_ARCHIVE)      // parallax depth of the ammo and health boxes, in their own units (scaled with the box; 0 off)
 QVR_CVAR(vr_detail, "0", CVAR_ARCHIVE)                 // (off by default: the author, 2026-10-07) detail textures: a fine grain (stone, metal, wood, grime...) over the world's textures close by (vr_detail.cpp)
 QVR_CVAR(vr_detail_strength, "1.5", CVAR_ARCHIVE)        // ... how strongly it shows (times each kind's own, textures/vr/detail.cfg)
@@ -2303,7 +2315,6 @@ QVR_CVAR(vr_carry_two_hands_reach, "2", CVAR_ARCHIVE) // with it: cm past Grab D
 QVR_CVAR(vr_carry_two_hands_drift, "8", CVAR_ARCHIVE) // with it: cm each drawn hand may be off its controller to stay on its grip (hands pulled apart or pushed together)
 QVR_CVAR(vr_carry_two_hands_detach, "3", CVAR_ARCHIVE) // with it: cm past the drift a hand may be off its grip before it lets go (its fist off the prop: pulled away, not sliding on it); both off: it drops (vr_carry2h.cpp detached)
 QVR_CVAR(vr_carry_two_hands_solid, "1", CVAR_ARCHIVE)  // with it: what is held in both hands stops at the level's solids (walls, floors, doors) and slides along them, however hard the hands push (vr_carry2h.cpp clear)
-QVR_CVAR(vr_carry_two_hands_window, "0.1", CVAR_ARCHIVE) // seconds between the two hands letting go that still make a two-handed throw
 QVR_CVAR(vr_held_fit_gaps, "", CVAR_ARCHIVE)          // ... and per model, added: "name=cm ...", a name matching the end of the model's (e.g. "backpack.mdl=0.5 b_bh25.bsp=-0.3")
 QVR_CVAR(vr_forcegrab_outline, "1", CVAR_ARCHIVE)     // the glow round what a hand's force grab points at (strength, 0 off)
 QVR_CVAR(vr_forcegrab_fx, "1", CVAR_ARCHIVE)          // force grab's beam and energy tendril from the hand, and the pulled object's trail
@@ -2323,7 +2334,6 @@ QVR_CVAR(vr_carry_move_mass, "100", CVAR_ARCHIVE) // kg of solid carried props w
 QVR_CVAR(vr_carry_move_size, "1", CVAR_ARCHIVE) // metres of carried props' longest dimensions without bulk load; twice this halves speed; 0 disables bulk load
 QVR_CVAR(vr_carry_move_min, "0.35", CVAR_ARCHIVE) // minimum stick locomotion fraction under carry load; 1 disables carry slowdown
 QVR_CVAR(vr_carry_throw_mult, "1", CVAR_ARCHIVE)      // how fast they leave the hand
-QVR_CVAR(vr_carry_throw_inherit, "1", CVAR_ARCHIVE)   // share of your own velocity a thing you throw or let go of takes with it (as a thrown weapon; 0: none, as before)
 QVR_CVAR(vr_carry_melee_mult, "1.5", CVAR_ARCHIVE)    // punches with a box in hand hurt this much more
 QVR_CVAR(vr_carry_throw_damage, "8", CVAR_ARCHIVE)    // damage of a box thrown hard (at about 6 m/s; more the faster)
 // A heavy prop thrown (QC vr_carry.qc VR_Thrown_HeavyMult; NOTES.md vrfiringrange_2026-10-07_23-00-55: a barrel thrown with

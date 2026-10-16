@@ -176,6 +176,62 @@ struct MuzzleOffset
 };
 za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
 
+// The throw estimate hand `h`'s move carries (buildMove) and `latest`, its newest sample's time. Every move carries one:
+// while grabbing, as if let go now (the helping hand of a two-handed throw); once let go, the one taken at the release,
+// until the next grab (the server throws with the move that carries the release, or a later one).
+[[nodiscard]] throwing::Estimate throwEstimateFor(int h, const hands::State& hs, double& latest)
+{
+    const bool grabbing = gripping(h);
+    latest = throwing::latestTime(h);
+    if(wasGrabbing[h] && !grabbing)
+    {
+        // The grip's own release time, if it is this release (not a key's, nor a stale one).
+        const double released = throwing::releaseTime(h);
+        const double at =
+            released >= 0.0 && latest - released >= -0.05 && latest - released < 0.25 ? released : latest;
+        if(!held::bothHandsThrow(h, at, true, thrown[h])) // a prop held in both hands: its own motion
+        {
+            thrown[h] = throwing::estimateAt(h, at);
+        }
+        thrownValid[h] = true;
+
+        if(vr_debug_throw.value)
+        {
+            const throwing::Estimate& e = thrown[h];
+            Con_Printf("throw %s: %.2f m/s (%.2f %.2f %.2f), spin %.1f rad/s, hand now %.2f m/s\n",
+                h == HAND_MAIN ? "main" : "off", glm::length(e.vel), e.vel.x, e.vel.y, e.vel.z,
+                glm::length(e.angVel), glm::length(hs.vel[h]));
+            if(e.gain > 0.f) // slow motion, or the slowed hands catching up after it
+            {
+                Con_Printf("  slow motion: the stroke %.3f m in %.2f s, peak %.2f m/s real, tempo %.3f s: gain x%.2f "
+                           "(windows x%.2f; the slowed hand %.1f deg off, %.2f m behind)\n",
+                    e.travel, e.strokeTime, e.peak, e.tempo, e.gain, e.rate, e.aimTurn, e.lag);
+            }
+            if(vr_debug_throw.value >= 2.f)
+            {
+                Con_Printf("  released %.0f ms after the peak, sent %.0f ms after the release\n",
+                    (at - e.time) * 1000.0, (latest - at) * 1000.0);
+            }
+        }
+    }
+    if(grabbing)
+    {
+        thrownValid[h] = false;
+    }
+    wasGrabbing[h] = grabbing;
+
+    throwing::Estimate e;
+    if(thrownValid[h])
+    {
+        e = thrown[h];
+    }
+    else if(!held::bothHandsThrow(h, latest, false, e))
+    {
+        e = throwing::estimate(h);
+    }
+    return e;
+}
+
 [[nodiscard]] glm::vec3 handMuzzle(const hands::State& hs, int h)
 {
     const int slot = weapons::heldSlot(h);
@@ -266,57 +322,8 @@ VrMove unposed;
         hand.tracked = hs.pos[h] - handpose::wallPush(h);
         hand.rot = hs.rot[h];
 
-        // Every move carries a throw estimate: while grabbing, as if let go now (the helping
-        // hand of a two-handed throw); once let go, the one taken at the release, until the next
-        // grab (the server throws with the move that carries the release, or a later one).
-        const bool grabbing = gripping(h);
-        const double latest = throwing::latestTime(h);
-        if(wasGrabbing[h] && !grabbing)
-        {
-            // The grip's own release time, if it is this release (not a key's, nor a stale one).
-            const double released = throwing::releaseTime(h);
-            const double at =
-                released >= 0.0 && latest - released >= -0.05 && latest - released < 0.25 ? released : latest;
-            if(!held::bothHandsThrow(h, at, true, thrown[h])) // a prop held in both hands: its own motion
-            {
-                thrown[h] = throwing::estimateAt(h, at);
-            }
-            thrownValid[h] = true;
-
-            if(vr_debug_throw.value)
-            {
-                const throwing::Estimate& e = thrown[h];
-                Con_Printf("throw %s: %.2f m/s (%.2f %.2f %.2f), spin %.1f rad/s, hand now %.2f m/s\n",
-                    h == HAND_MAIN ? "main" : "off", glm::length(e.vel), e.vel.x, e.vel.y, e.vel.z,
-                    glm::length(e.angVel), glm::length(hs.vel[h]));
-                if(e.gain > 0.f) // slow motion, or the slowed hands catching up after it
-                {
-                    Con_Printf("  slow motion: the stroke %.3f m in %.2f s, peak %.2f m/s real, tempo %.3f s: gain x%.2f "
-                               "(windows x%.2f; the slowed hand %.1f deg off, %.2f m behind)\n",
-                        e.travel, e.strokeTime, e.peak, e.tempo, e.gain, e.rate, e.aimTurn, e.lag);
-                }
-                if(vr_debug_throw.value >= 2.f)
-                {
-                    Con_Printf("  released %.0f ms after the peak, sent %.0f ms after the release\n",
-                        (at - e.time) * 1000.0, (latest - at) * 1000.0);
-                }
-            }
-        }
-        if(grabbing)
-        {
-            thrownValid[h] = false;
-        }
-        wasGrabbing[h] = grabbing;
-
-        throwing::Estimate e;
-        if(thrownValid[h])
-        {
-            e = thrown[h];
-        }
-        else if(!held::bothHandsThrow(h, latest, false, e))
-        {
-            e = throwing::estimate(h);
-        }
+        double latest = 0.0;
+        const throwing::Estimate e = throwEstimateFor(h, hs, latest);
         hand.vel = hs.vel[h];
         hand.velMag = glm::length(hs.vel[h]);
         hand.throwVel = e.vel;

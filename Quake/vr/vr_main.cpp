@@ -16,6 +16,7 @@
 #include "vr_hull.hpp"
 #include "vr_unstick.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_imgcache.hpp"
 #include "vr_modelkeep.hpp"
 #include "vr_imgprefetch.hpp"
@@ -1246,11 +1247,7 @@ void writeMemLogRow(const char* reason)
     const bool header = memLog.path.empty();
     if(header)
     {
-        char stamp[64];
-        strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
-        const za::String dir = za::String{com_gamedir} + "/profile";
-        Sys_mkdir(dir.cStr());
-        memLog.path = dir + "/memstats_" + stamp + ".csv";
+        memLog.path = files::profileFile("memstats_", now);
         Con_DPrintf("vr_memstats_log: %s\n", memLog.path.cStr());
     }
     if(memLog.write.valid())

@@ -54,7 +54,6 @@ int stateFrame = -1;
     return anglesFromVectors(f, u);
 }
 
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles); // below
 
 // Quake axes (x forward, y left, z up) to OpenXR tracking space.
 [[nodiscard]] glm::vec3 trackingFromQuake(const glm::vec3& v)
@@ -530,32 +529,29 @@ void updateVelocities(const TrackingState* t)
         // the palm, where the object is held, not the controller point further out; and with the
         // controller alone, whatever the hand calibration (see throwFrame).
         const double time = t && t->time >= 0.0 ? t->time : vr_gametime;
-        glm::vec3 throwVel = state.vel[h];
-        glm::vec3 throwForward = forward(state.rot[h]);
-        glm::vec3 throwSpin = state.angVel[h];
-        float throwSpinLag = 0.f;
+        throwing::Motion drawn{state.pos[h], state.vel[h], state.angVel[h], forward(state.rot[h])};
         // The controller's own motion where the slowed hand lags it (slow motion: timescale::controllerPose), the same
         // otherwise: the way a throw goes (vr_throw.cpp strokeEstimate).
-        throwing::Motion own{state.pos[h], throwVel, throwSpin, throwForward};
+        throwing::Motion own = drawn;
         const Pose* ctrl = t ? timescale::controllerPose(h) : nullptr;
         if(t && t->hands[h].velocityValid)
         {
             const Pose& p = t->hands[h];
-            throwVel = fromTracking(p.gripVelocityValid ? p.gripVelocity : p.linearVelocity);
-            throwForward = forward(anglesFromTracking(throwFrame(p.orientation, h), turnYaw));
+            drawn.vel = fromTracking(p.gripVelocityValid ? p.gripVelocity : p.linearVelocity);
+            drawn.forward = forward(anglesFromTracking(throwFrame(p.orientation, h), turnYaw));
             float spinLag = 0.f, ownSpinLag = 0.f;
             const glm::vec3 spin = poseSpin(h, p.orientation, time, spinLag);
             const glm::vec3 ownSpin = poseSpin(h, ctrl ? ctrl->orientation : p.orientation, time, ownSpinLag, true);
             if(vr_throw_spin_from_pose.value)
             {
-                throwSpin = fromTracking(spin);
+                drawn.angVel = fromTracking(spin);
             }
             else
             {
                 spinLag = ownSpinLag = 0.f; // the runtime's: of the sample's own time
             }
-            throwSpinLag = spinLag;
-            own = {state.pos[h], throwVel, throwSpin, throwForward, spinLag};
+            drawn.spinLag = spinLag;
+            own = drawn;
             if(ctrl && ctrl->velocityValid)
             {
                 own.pos = state.pos[h] + fromTracking(ctrl->position - p.position) * units::metresToUnits();
@@ -565,7 +561,7 @@ void updateVelocities(const TrackingState* t)
                 own.spinLag = ownSpinLag;
             }
         }
-        throwing::sample(h, time, {state.pos[h], throwVel, throwSpin, throwForward, throwSpinLag}, own);
+        throwing::sample(h, time, drawn, own);
     }
 
     previous.head = head;
@@ -1064,16 +1060,16 @@ glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles)
     return fwd * v.x + right * v.y + up * v.z;
 }
 
-namespace
-{
-
-// rot's axes (forward, left, up).
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles)
+// Quake angles' axes (forward, left, up).
+glm::mat3 basisOf(const glm::vec3& angles)
 {
     glm::vec3 f, r, u;
     angleVectors(angles, f, r, u);
     return glm::mat3{f, -r, u};
 }
+
+namespace
+{
 
 // A slot's Hand and Weapon Together offset, as for hand `h` (mirrored for the off hand); false if it has none.
 bool wholeValues(int slot, int h, glm::vec3& p, glm::vec3& a)

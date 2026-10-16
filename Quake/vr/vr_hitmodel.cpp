@@ -1,5 +1,6 @@
 // vr_hitmodel.cpp -- see vr_hitmodel.hpp.
 
+#include "vr_geom.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_ad.hpp" // AD support: small pellets retain precise model/corpse impacts.
 #include "vr_engine.hpp"
@@ -1019,48 +1020,15 @@ bool clip(edict_t* ent, const glm::vec3& a, const glm::vec3& b, const glm::vec3&
 namespace
 {
 
-// The point of triangle (a, b, c) nearest `p` (Ericson, Real-Time Collision Detection, 5.1.5): its squared distance from `p` to its nearest point, a + ab s + ac w.
+// The point of triangle (a, b, c) nearest `p` (geom::closestOnTriangle): its squared distance from `p` to its nearest
+// point, a + ab s + ac w.
 [[nodiscard]] float nearestOnTri(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& p, float& s, float& w)
 {
-    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-    s = 0.f;
-    w = 0.f;
-    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-    const glm::vec3 bp = p - b;
-    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-    const glm::vec3 cp = p - c;
-    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-    const float vc = d1 * d4 - d3 * d2, vb = d5 * d2 - d1 * d6, va = d3 * d6 - d5 * d4;
-    if(d1 <= 0.f && d2 <= 0.f)
-    {
-    }
-    else if(d3 >= 0.f && d4 <= d3)
-    {
-        s = 1.f;
-    }
-    else if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
-    {
-        s = d1 / (d1 - d3);
-    }
-    else if(d6 >= 0.f && d5 <= d6)
-    {
-        w = 1.f;
-    }
-    else if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
-    {
-        w = d2 / (d2 - d6);
-    }
-    else if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
-    {
-        w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-        s = 1.f - w;
-    }
-    else
-    {
-        const float denom = 1.f / (va + vb + vc);
-        s = vb * denom;
-        w = vc * denom;
-    }
+    glm::vec3 bary;
+    (void)geom::closestOnTriangle(p, a, b, c, &bary);
+    s = bary.y;
+    w = bary.z;
+    const glm::vec3 ab = b - a, ac = c - a;
     const glm::vec3 q = a + ab * s + ac * w;
     return glm::dot(q - p, q - p);
 }

@@ -52,9 +52,11 @@ void VR_StereoSingleFrustum (struct mplane_s *frustum);	// R_SetFrustum, the mul
 void VR_StereoSingleEyeOrigin (int eye, float out[3]);	// the multiview pass: an eye's position
 void VR_StereoSingleEyeMatrices (int eye, float proj[16], float view[16]); // ... an eye's projection and view matrices
 unsigned VR_StereoSingleClusterTexture (void);			// R_PushDlights, the multiview pass: the right eye's light clusters (image unit 1)
+unsigned VR_StereoSingleEyeClusters (unsigned usual);	// ... an eye's own view after it: its clusters made there (the right's own image, else `usual`)
 unsigned VR_StereoSingleBeginScene (void);				// R_RenderStereoSingle: the arrays cleared, the hidden areas, the views' block; the multiview framebuffer (bound)
 void VR_StereoSingleEndScene (void);
-int VR_StereoSingleCopyIn (unsigned color, unsigned depth);	// R_RenderScene, an eye's own view after the pass: its layer copied into its target (nonzero: done, no clear)
+void VR_StereoSingleEyeTargets (void);					// R_SetupGL, an eye's own view after the pass: framebufs with its layer's views as its scene target
+int VR_StereoSingleSceneBegun (void);					// R_RenderScene, an eye's own view after the pass: its layer begun there (nonzero: no clear)
 int VR_StereoSingleTakesAlias (const struct entity_s *e);	// drawn in the multiview pass, not per eye
 int VR_StereoSingleTakesBrush (void);					// the opaque world and brush models: drawn in the multiview pass
 int VR_StereoSingleViewReady (void);					// V_RenderView: this eye's V_SetupView already done (before the pass): not again

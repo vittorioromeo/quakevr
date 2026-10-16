@@ -2128,9 +2128,9 @@ void benchFinish()
             Con_Printf("  sim %s: no runs\n", name);
             return;
         }
-        za::quickSort(ms.begin(), ms.end(), [](float a, float b) { return a < b; });
+        za::quickSort(ms.begin(), ms.end());
         const int n = static_cast<int>(ms.size());
-        const auto at = [&](double q) { return ms[za::min(n - 1, static_cast<int>(q * (n - 1) + 0.5))]; };
+        const auto at = [&](double q) { return bench::quantile(ms.data(), n, q); };
         Con_Printf("  sim %s (a worker): %d runs, median %.3f ms, p95 %.3f, max %.3f\n", name, n, at(0.5), at(0.95),
             ms[n - 1]);
         if(csv)

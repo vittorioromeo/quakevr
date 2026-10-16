@@ -1428,7 +1428,7 @@ enum
 	MAIN_CONTINUE, // QVR: the newest save of a campaign's map (vr_continue.cpp), the first row; shown only when there is one
 	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp)
 	MAIN_VRTUTORIAL, // QVR: the tutorial (as the Play page's Tutorial), confirmed
-	MAIN_VRHUB, // QVR: the VR hub (vr_hub_map, as the Play page's VR Hub), confirmed
+	MAIN_VRHUB, // QVR: the VR hub (vrstart, as the Play page's VR Hub), confirmed
 	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), after the VR places; Back from them to this menu
 	MAIN_CAMPAIGNS, // QVR: Select Campaign, the official campaigns' page (was Single Player > Official Campaigns)
 	MAIN_SINGLEPLAYER,

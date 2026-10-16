@@ -9114,3 +9114,201 @@ displacement, 65 a 1-damage hit):
 To test in VR: jump on a shoved-down grunt's head (2 jumps), its legs (more); landings that pop nothing thud; the body
 jolts round your feet; punch or drag a downed one past its usual get-up and stop: it rises a second later, never past
 6.5 s.
+## The last differing defaults (2026-10-16)
+
+His decision: vr_window_view, vr_spectator_fov, vr_spectator_scale and vr_foveated are personal: the shipped values
+(1, 130, 1, 3) are now the compiled defaults; vr_retrolight_model_steps is 16 everywhere. The 21 remaining vr_default
+lines equalled the compiled defaults and were removed: vr_defaults.cfg sets nothing now; vr_cvars.inc is the only source.
+## Enemy Melee menu: arcs and reach by size and kind, Show Melee Arcs (worktree `gorefx`, branch `agent/meleemenu`, 2026-10-16)
+
+His note (18:26): the melee arc works; put its settings in their own place, let him see the arc and the reach, make them
+grow with the monster's size (a knight easier to dodge than an ogre), and a slider for the swing's turn.
+
+- **Combat > Enemy Melee** (new page, `pageEnemyMelee`): Melee Arc, Show Melee Arcs; Arc: Arc Angle, Wide Swings, Arc
+  Growth with Size, Reach Growth with Size, Kind Multipliers; Swinging: Swing Turn, Melee Space. The arc rows and Melee
+  Space left Combat > Holding Enemies. No board or calibration-map path named them (`vr_menu_path_check
+  maps/vrcalibration.map`: 6 found, 0 missing).
+- **Size**: a monster's level width against a grunt's 24 units (this port's model-fitted boxes: knight, grunt, rottweiler
+  24, enforcer 28, fiend 32, ogre 40, shambler 64; clamped 0.5..4 times). Arc = Arc Angle x (1 + `vr_enemy_melee_arc_size`
+  x (size - 1)) x kind, plus Wide Swings for a sweeping blow (at most 180). Reach = Quake's own reach x (1 +
+  `vr_enemy_melee_reach_size` x (size - 1)) x kind: id's `vlen(delta) > 60/100` checks (12, in the files the arc already
+  patched) and AD's `ad_ai_checkmelee` (also its launch distance; the importer patch `ai_checkmelee`, `VR_MeleeReach`)
+  now call `VR_MeleeReach(base)`. All of it only against a player with Melee Arc on; else Quake's.
+- **Kind** (`VR_MeleeArc_Kind`, `vr_enemy_melee_kind` 1): the only entry is the knight, arc 0.85 (a quick thrust); every
+  other kind 1. One `if` per kind, by classname: add one there.
+- **Defaults** (arc growth 0.1, reach growth 0.1): a grunt-sized monster as before (65 deg, Quake's reach). Logged
+  (`vr_enemy_melee_arc_show 2`, vrtesthall): knight arc 55.2 (wide 75.2) reach 60; ogre 69.3 (89.3) reach 106.7; shambler
+  75.8 (95.8) reach 116.7; a grunt (no melee, not shown) would be 65 / 60. A shambler's wide claw reaches 96 deg each side.
+- **Show Melee Arcs** (`vr_enemy_melee_arc_show`, also in Debug > Tests > Holding Enemies): QC's
+  `VR_MeleeArc_ShowFrame` (StartFrame) sets, for each live melee monster (`th_melee`, AD's `ad_th_melee`) within 600
+  units after a player, its arc, its sweeping arc (once it swung one), its reach (its blows' own, or Quake's usual 60/100
+  until the first) on four engine-read fields; `vr_bodycontact.cpp` gathers them on the server and draws them with the
+  view: the reach circle grey, the arc a fan on the floor (red with him inside it and in reach, green outside), the
+  sweeping blows' extra fan orange (bright when he is inside only that), its kind, arc, reach and his angle and distance
+  above it. 2 also prints `meleearc: show` once a second. Log Melee Arc's lines now give the reach too.
+
+Verified: build (0 warnings); screenshots from an overhead mock camera (`vr_mock_camera 0 4.5 2.5 55 0`) of a knight and
+an ogre facing him (red fan) and after he stepped aside (green); `melee_arc_test.sh gorefx id 1`: front, behind and the
+knight's step-aside as before; the ogre's step-aside still lands 6 hits after the step and the fiend's 1, the same with
+both growths 0 (today's behaviour on this tree; ROUND22's first run had 1 and 0), so not from this change; melee eval
+168/177.
+
+In VR: Combat > Enemy Melee, Show Melee Arcs on; let a knight, then an ogre come at you and sidestep: does the fan turn
+green as you leave it, and do blows land only while it is red? Tune the two growth sliders and Swing Turn there.
+
+## Single-pass stereo, second run: no copy, setup reused, twins ahead (worktree `flatfist`, branch `agent/stereo2`, 2026-10-16)
+
+His decision: continue only if single-pass can become competitive. Details and numbers: `docs/vr-port/STEREO.md`, "The
+second run". Done, all behind `vr_stereo_single` (default 0; toggle off unchanged):
+- **No copy:** each eye renders on into its layer of the arrays through texture views (`glTextureView`, MSAA too) put
+  into `framebufs` in its `R_SetupGL` (`VR_StereoSingleEyeTargets`); the mirror reads the eye's own targets. Three
+  caches keyed to the scene's texture (liquids' scene size, haze's scene format, half-size particles' check) keep one
+  per eye (each eye has its own texture now; otherwise 0.1-0.3 ms of CPU a view in GL queries).
+- **Setup reused:** each eye keeps the pass's lights and light clusters (`R_PushDlights`). The marks are not reused
+  (0.002 ms an eye); the eye's whole remaining set-up is 0.02 ms.
+- **Twins ahead:** the 59 ported programs' multiview twins begun when the toggle turns on (or at start), compiled by the
+  driver's threads (GL_KHR_parallel_shader_compile); frames two-pass until done. A cold world twin takes ~1 s to compile
+  (the old first-use compile would have hitched that long), warm 59 in 0.4 s.
+- **Numbers** (combat_48 / play_e1m1_fight, quietest runs, the machine shared with builds): CPU p50 2.60 -> 2.51 / 1.51
+  -> 1.49, p99 4.87 -> 4.86 / 2.76 -> 2.76; GPU 3D p50 4.15-4.38 -> 4.45 / 3.41 -> 3.51-3.60, p99 6.37-6.74 -> 7.13-7.27 /
+  4.90-5.27 -> 4.99-5.06. The copy's +2.2 ms GPU is gone; the GPU is still 0.1-0.3 ms behind: alias models in the pass
+  +0.14, the VR particles after it +0.17 (the layered depth loses the driver's coarse early-Z), the world -0.05.
+- **Gate not met** (GPU): stages 4-5 and TAA under single-pass not started. Estimate: stages 4-5 could save 0.2-0.4 ms of
+  CPU in particle-heavy scenes but the GPU would stay behind on this driver; not worth it on his PC.
+- Pre-existing, found on the way: no MSAA with `vr_foveated` on (his settings) the toggle's images differ by 0.2-0.8% in
+  the foveated rings (the old copy build too); not found why.
+## Parallax surface level: props on carved floors (worktree `gorefx`, branch `agent/parallaxplane`, 2026-10-16)
+
+His note: props lying on parallax-mapped ground can look like they float a bit. Parallax carves down from the polygon
+(the polygon is the relief's top) while props rest on the polygon, so over deep parts the floor seen is below the
+prop's contact. His decision: try shifting the reference plane, with a slider.
+
+- **`vr_parallax_plane`** (archived, default **0** = as before; Graphics > Surfaces > Parallax > Parallax Surface Level,
+  0..1 by 0.05): where the polygon sits in the relief. 0 its top (carved down), 0.5 its middle, 1 its bottom (raised).
+  The world's shader (and brush models', item boxes': everything `ParallaxUV` walks in the world shader; models stay
+  at 0) walks the ray from where it crosses the relief's top, `plane` x depth over the polygon, to its bottom;
+  `ParallaxDist` is then negative for a raised hit. Silhouettes stay the polygon's; item boxes' texture clamp holds both
+  ends of the walk. The frame data has a new `Parallax3` (x: the plane) at its end (`gpuframedata_t.parallax3`).
+- **Capped at the texture's average height** (its smallest mip's alpha): the surface is never put below the average
+  level. Why: many textures carry heights that are all at the top (e1m1's and most id floors: alpha 255 everywhere;
+  `vr_parallax_debug` shows them blue at 0 and wholly green at 1 without the cap), or mostly at the top (the rune
+  panels, brick grout). Literal "polygon at the bottom" raised those whole surfaces by the full depth, and props sank
+  2.5 units into a flat floor, a worse look than floating. So 1 means "at the texture's average level" for every
+  texture, a flat one is never raised, and below the cap the slider is literal. Two textures of different averages
+  meeting on one plane now show a step of at most `plane` x depth x the difference (none at 0).
+- **Depth** (`vr_parallax_depth_write`, on by default) already wrote the hits' depth; a raised hit is nearer than the
+  polygon, so `ParallaxFragDepth` no longer clamps it to the polygon's depth for negative distances, and the PDO programs
+  declare `depth_any` (was `depth_less`/`depth_greater`, which promised never nearer). ROUND21 timed the three layouts
+  alike on this driver. The world depth pre-pass keeps its full-reach bound (it has no texture to know the cap), so a
+  hit is never further than it. Without depth write, raised relief is drawn at the polygon's depth (props' bottom edges
+  stay in front of it).
+- **Debug**: `vr_parallax_debug 1` shows raised hits green (brighter higher), sunk ones red, as before.
+
+Checked (headless; the only id floors with relief are the rune panels: e1m1..e4m4 floors all have none):
+- start's rune panel, a small crate (`vr_test_spawn 107`) and an AD-stand-in gun (`312`) on it, views standing looking
+  down, crouched (head 1.0 m, pitch 10) and from the side, planes 0 / 0.5 / 1, at depth 2.5 and 6. At 2.5 the three look
+  alike; props read as resting at all three. At 6, 0.5 and 1 (the same here: the panel's average caps both) raise the
+  panel a little, its relief hides the gun's lower edge and nicks the crate's bottom edge with small notches where the
+  raised runes stand in front of it (in the crate's shadow they read more like chips than like sitting in relief). The
+  screenshots don't favour another value: the default stays 0. Without the cap (first try) 1 sank the crate visibly.
+- Seams: e1m1 walls and corners at 0 and 1 (polygon edges, texture changes): no seams or gaps; continuous math per
+  pixel, the same shift length as before, so no new swimming.
+- Cost (`--exclusive`, eyes 3406 square, GPU world+brush p50, 3 alternating rounds of 240 frames in one process):
+  e1m1 corridor 1.795 / 1.798 / 1.796 ms at 0 / 0.5 / 1; start's rune panel 2.135 / 2.144 / 2.127 ms: within noise
+  (one extra smallest-mip read per parallax pixel only when the plane is over 0).
+- e1m1 smoke: no errors.
+
+Not done: a per-texture plane (each texture's own average as its level, "auto") would be the same as 1 here. Unrelated:
+the flat-height floors (alpha 255 everywhere) still get `in_pdepth` > 0 and walk the ray for nothing at every plane
+(a cost since round 21, small).
+
+In VR: Graphics > Surfaces > Parallax Surface Level at 0, 0.5 and 1 with a crate and a dropped gun on a carved floor
+(start's rune panels, or a custom map's carved ground): which reads as resting, and do the raised parts' edges against
+the props look right or chipped?
+## One throw for props and weapons (worktree `tghost`, branch `agent/throwunify`, 2026-10-16)
+
+R2 review #13 (weapons.qc `DropWeaponInHandScaled` against vr_carry.qc `VR_Carry_Release`), his decisions: one
+two-handed window for both, 0.2 s; props get the weapons' release-lag back-projection and throw assist (the same
+settings); one share of the thrower's velocity for both, 0.9, no weight scaling. The shared pieces live together in
+vr_carry.qc ("One throw"): `VR_Throw_2hRecent` (the window), `VR_Throw_BackProject` (where it would be by now: the
+weapon's old code, plus the thing's offset from the point the hand's estimate follows (the hand; a prop held in both,
+its centre) and, for a prop, its box traced against the walls: where it can't go it stays), `VR_Throw_Inherit`; with
+`VRThrowAssist`, `VR_Throw_GravityScale`/`DmgSpeed` and `VR_Throw_Spin` as before. Each keeps its own: a weapon's
+velocity (both hands' average times `vr_2h_throw_velocity_mult`, its weight), handle and spin axis; a prop's (the
+engine's estimate from both hands, its Throw from its mass). The thrown-hit paths are untouched.
+
+- `vr_throw_2h_window` (0.2) replaces `vr_carry_two_hands_window` (props 0.1, plus 0.05 on the server: no slack now)
+  and the weapons' hard-coded 0.3. Used by both throws, the holster/pack guard, the ragdoll's two-handed throw, the
+  no-strike rule and the engine's `held::bothHandsThrow`. A weapon's gap runs from the last frame it was aimed with both
+  hands (`last_2h_time`: about 0.08 s after the foregrip's release in the mock), a prop's from the other hand letting go.
+- `vr_throw_inherit` (0.9) replaces `vr_carry_throw_inherit` (1) and the weapons' full inheritance (`MakeThrown`, a
+  player's throw; a monster's drop keeps all of it). Menu row "Throws Keep Your Motion" unchanged.
+- Config 142: the old names are aliases (`cvarAliases`); at their old defaults (0.1, 1) they take 0.2 and 0.9 (his
+  config holds the old defaults).
+- Developer lines: `throw: a weapon|prop held in both hands until N s ago`, `carry: released N s ago: from ...`.
+
+Verified headless (scratch/tu_test.sh: one synthetic main-hand throw, 6 m/s peak; a nailgun and a gib; base progs and
+engine against these): weapon still -265.8 / z 16.1 both; weapon running (320 u/s) -585.6 -> -553.6 (inherit 1 ->
+0.9); prop still z 16.9 -> 9.8 (back-projected 0.023 s, as the weapon); prop running 514 -> 482 u/s; assist (a grunt
+150 ahead, cone 30): the prop z 9.9 -> 19.5 and turned (before: no change), at 300 ahead out of a gib's reach, only
+turned. Two hands: prop gaps 0.153 s two-handed, 0.253 s one (before, 0.15 s was already one); weapon gaps 0.154 and
+0.168 s two-handed, 0.252 s one (before: two-handed to 0.3). `flick_slowmo_compare.sh` as recorded above (overhand
+x1.49, lob50 x1.23: engine estimates, untouched); `throw_trigger_test.sh` as before; `gib_2h_throw_test.sh` push, hard,
+over: 0 bursts of 6, all held in both; melee eval 168/177.
+
+To try in VR: a weapon and a brick thrown running (a little shorter: 0.9); a gib or brick thrown at a monster (bends
+towards it as a weapon does); a crate let go of by one hand and thrown by the other within 0.2 s (two-handed), and a
+weapon thrown just after letting go of its foregrip.
+## C++ cleanup: R1's FIX-NOW batch, configs before 1.0.0 reset, grasp on the drawn mesh (worktree `backlogclean`, branch `agent/cppclean`, 2026-10-16)
+
+The C++ review (R1) found uncontroversial fixes. The author also made decisions 3 and 9 (DECISIONS.md, 2026-10-16).
+
+**FIX-NOW (behaviour-identical), one commit per item:**
+- **F1:** ragtest's overrides are DeathInfo fields; it no longer writes cvars around `ragactive::beginDeath`.
+- **F3:** one `geom::closestOnTriangle` (vr_geom.hpp). vr_anchor keeps its double-precision copy.
+- **F4:** the shrink-corners helper is shared.
+- **F5:** vr_b3glm.hpp.
+- **F6:** `hands::basisOf`.
+- **F7:** vr_crates uses vr_debris' helpers.
+- **F8:** `grabStart`/`beginGrab`.
+- **F9:** diskcache leftovers. AO's FNV seed is kept, so the files are unchanged.
+- **F10:** `modelmeta::isRound()`.
+- **F11:** vr_throw.cpp leftovers.
+- **F12:** the throw Motion is built once; `writeHandFields`; `throwEstimateFor`.
+- **F13:** one `surfaceOnSegment` and one `motion::split`.
+- **F14:** `weaponFingers`, `beginFree`, `bothFrames`, handOn's locals.
+- **F15:** `files::timestamp/profileFile/baseCacheDir`. The base cache dir is now guarded everywhere.
+- **F16:** one copy of the death seed.
+- **F17:** one quantile, `flickOf`; the redundant guards are dropped.
+- **F18:** stale comments.
+
+Checked before and after under `vr_fixed_frames 1`: physics hashes, ragdoll lists, grabs and throws match line for line (339 lines). Cache files are read, not rebuilt. Melee eval 168/177.
+
+Not identical: `aimTurn`, a debug field, is now exactly 0 for the very same samples, where acos noise used to give about 0.02 degrees.
+
+**Configs before 1.0.0 (decision 3).**
+- A config with vr_cfg_version below 122 (1.0.0's version, from the v1.0.0 tag) is no longer migrated. `resetOldConfig` resets every archived `vr_` setting to its default and prints one console line ("this config is older than 1.0.0 ... reset to the defaults"). It also sets vr_tutorial_started to 1.
+  - Kept: the per-player settings (`personal()`: body measurements, runtime, tips seen, bindings version) and the engine's own settings.
+- **vr_cvars.cpp:** removed the 486 defaultChanges rows and the 15 hand-written steps before 122. The 1.0.0 Loading-notice step is now the row `{123, vr_loading_notice, "0"}`.
+- **vr_weapons.cpp:**
+  - Steps 1-40 removed; 41-43 are a `{version, fn}` table.
+  - markCurrent only sets the version (F2: its copies of steps 22 and 23 went with them).
+  - Removed the round-21 hotspot and cup migrations: legacyHotspots, migrateCups and cupAnglesFor in vr_view.cpp.
+- **vr_props.cpp:** its whole `migrate` (461 lines, all before 1.0.0's 68) now only takes the version.
+- **Other files:** removed body::migrateHolsters, retro::migrateShippedLook/migrateAllPanel and bodycal's migrateUndo. bodycal::migrate stays: it also maps the old arm cvar names typed in the console.
+- Check: full config fixtures at 141, 126 (judo, knockdown and hand-stick rows at their old values, weapons at 40 with an anchor index and the toolgun's old muzzle) and 122 (Loading notice off, props at 50). Each goes through `vr_migrate_config` plus a map load, on the old and the new build.
+  - All three dumps are identical: 14,397 settings, 0 differ.
+  - A config at 100 is reset, with the note: its vr_gunangle 55 goes back to 70, while its dominant eye and tutorial flag are kept.
+
+**The agents' test configs were from before 1.0.0.** Every `quakevr/ironwail.cfg.baseline` in qvr-agents is at vr_cfg_version 34 (weapons at 21, props at 26). With this change those configs are reset at startup instead of migrated. The settings the baseline had changed from the defaults would differ in tests.
+- `scratch/mig/ironwail.cfg.baseline.migrated` in this worktree is the same baseline as the old build left it after startup and a map load (141/43/68). Its runs start exactly as before.
+- This worktree uses it already. The kit's source config (new_agent.sh's REPO) and the other agents' baselines should be replaced with it.
+
+**Grasp and held on the drawn mesh (decision 9).**
+- held's `drawnTriangles`, `modelVertices`, `modelTriangles` and `magazinePoints`, and grasp's alias shapes, read `mdldequant::poseVertex` (the vertices as drawn with vr_mdl_dequant) instead of the stored bytes.
+- New `mdldequant::prepare(model)` computes a model's dequantised offsets before its first upload, as GLMesh_LoadVertexBuffer would. The held guns' shapes are prepared at map load, before the client uploads the models.
+- Grabs, prop hulls and gun pieces move by the dequantisation's fraction of a byte step, so physics hashes differ from before. The gun-pieces disk cache cut its pieces again once, because its key is a hash of the triangles.
+
+For his VR check:
+- A pre-1.0.0 config is reset: nothing to see with his config, which is at 140.
+- Grab guns and props as usual; the grips should feel the same.

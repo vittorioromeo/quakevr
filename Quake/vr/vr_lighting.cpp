@@ -2278,6 +2278,9 @@ extern "C" void VR_PushMapLights(void)
     // bounds it in the world's depth pre-pass: glprogs.world_depth_pdo).
     // 2: and drawn as that depth (vr_parallax_debug).
     r_framedata.parallax2[3] = parallax && vr_parallax_depth_write.value != 0.f ? (vr_parallax_debug.value != 0.f ? 2.f : 1.f) : 0.f;
+    // Where the world's polygons sit in the relief (vr_parallax_plane): 0 at its top (carved down), 1 at its bottom
+    // (raised over them), so props resting on a polygon over deep relief sit in it, not over it (round 22).
+    r_framedata.parallax3[0] = parallax ? za::clamp(vr_parallax_plane.value, 0.f, 1.f) : 0.f;
     // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
     r_framedata.parallax[3] = za::clamp(vr_specular_aa.value, 0.f, 4.f);
     r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);

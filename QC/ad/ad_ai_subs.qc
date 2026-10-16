@@ -1144,7 +1144,8 @@ float(float ad_attackdist, float ad_attackzaxis) ad_ai_checkmelee =
 	ad_delta = vlen(ad_spot1 - ad_spot2);		// Calculate vector distance
 
 	// Is the enemy too far away and the zaxis is wrong (too low/high)
-	if (ad_delta <= ad_attackdist && ad_zdiff <= ad_MONAI_MELEEZAXIS) return ad_TRUE;
+	// AD support: melee arc: the reach grows with size (fight.qc VR_MeleeReach)
+	if (ad_delta <= VR_MeleeReach(ad_attackdist) && ad_zdiff <= ad_MONAI_MELEEZAXIS) return ad_TRUE;
 	else return ad_FALSE;
 };
 

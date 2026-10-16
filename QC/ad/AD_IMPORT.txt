@@ -75,6 +75,7 @@ Reviewed patches: 10 precedence, 36 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   ai_subs.qc ai_charge_front: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
   ai_subs.qc ai_melee: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
   ai_subs.qc ai_meleesmash: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
+  ai_subs.qc ai_checkmelee: Quake VR: melee arc (fight.qc VR_MeleeReach): the reach grows with size
   mon_demon.qc Demon_Claw: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
   mon_drole.qc drole_claw: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
   mon_minotaur.qc mino_claw: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front

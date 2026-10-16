@@ -640,6 +640,23 @@ void setMagBox(edict_t* ent, int h, const glm::vec3& origin, const glm::vec3& ha
 
 // The ammo pouch's rounds (VrMove::ammoPouch) into .ammopouchpos, .ammopouchx/y/z (on the body: never through a portal;
 // all zero: none).
+// Hand `h`'s fields of `ent` (1: the main hand) from its move, through the portal it reaches through from `origin` (its
+// place, turn and motion carried through the gate): the move's (VR_ReadMoveExtras), and again after walking (rebaseHands).
+void writeHandFields(edict_t* ent, const glm::vec3& origin, const VrHandMove& hand, int h)
+{
+    const FieldOffsets& f = fields();
+    const portals::Reach gate = portals::reach(origin, hand.pos);
+    glm::vec3 angles = hand.rot;
+    angles.y = anglemod(angles.y + gate.yaw);
+    setFieldVec(ent, h ? f.handpos : f.offhandpos, gate.position);
+    setFieldVec(ent, h ? f.handrot : f.offhandrot, angles);
+    setFieldVec(ent, h ? f.handvel : f.offhandvel, gate.turn * hand.vel);
+    setFieldVec(ent, h ? f.handavel : f.offhandavel, gate.turn * hand.angVel);
+    setFieldVec(ent, h ? f.handthrowvel : f.offhandthrowvel, gate.turn * hand.throwVel);
+    setFieldVec(ent, h ? f.handthrowpos : f.offhandthrowpos, gate.turn * (hand.throwPos - gate.from) + gate.to);
+    setFieldVec(ent, h ? f.handthrowflick : f.offhandthrowflick, gate.turn * hand.throwFlick);
+}
+
 void setAmmoPouch(edict_t* ent, const glm::vec3 (&box)[4])
 {
     const FieldOffsets& f = fields();
@@ -679,27 +696,12 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFieldVec(ent, f.v_viewangle, move.headAngles);
     setFieldFloat(ent, f.vryaw, move.vrYaw);
 
-    const auto setHand = [&](const VrHandMove& hand, int pos, int rot, int vel,
-                             int throwVel, int velMag, int angVel, int throwPos, int throwAge, int throwFlick) {
-        const portals::Reach gate = portals::reach(move.origin, hand.pos);
-        glm::vec3 angles = hand.rot;
-        angles.y = anglemod(angles.y + gate.yaw);
-        const auto carry = [&](const glm::vec3& p) { return gate.turn * (p - gate.from) + gate.to; };
-        setFieldVec(ent, pos, gate.position);
-        setFieldVec(ent, rot, angles);
-        setFieldVec(ent, vel, gate.turn * hand.vel);
-        setFieldVec(ent, throwVel, gate.turn * hand.throwVel);
-        setFieldFloat(ent, velMag, hand.velMag);
-        setFieldVec(ent, angVel, gate.turn * hand.angVel);
-        setFieldVec(ent, throwPos, carry(hand.throwPos));
-        setFieldFloat(ent, throwAge, hand.throwAge);
-        setFieldVec(ent, throwFlick, gate.turn * hand.throwFlick);
-    };
-
-    setHand(move.hands[0], f.offhandpos, f.offhandrot, f.offhandvel,
-        f.offhandthrowvel, f.offhandvelmag, f.offhandavel, f.offhandthrowpos, f.offhandthrowage, f.offhandthrowflick);
-    setHand(move.hands[1], f.handpos, f.handrot, f.handvel, f.handthrowvel,
-        f.handvelmag, f.handavel, f.handthrowpos, f.handthrowage, f.handthrowflick);
+    for(int h = 0; h < 2; h++)
+    {
+        writeHandFields(ent, move.origin, move.hands[h], h);
+        setFieldFloat(ent, h ? f.handvelmag : f.offhandvelmag, move.hands[h].velMag);
+        setFieldFloat(ent, h ? f.handthrowage : f.offhandthrowage, move.hands[h].throwAge);
+    }
 
     setFieldVec(ent, f.headvel, move.headVel);
     setFieldVec(ent, f.headpos, move.headPos);
@@ -1170,18 +1172,9 @@ void rebaseHands(edict_t* player)
     for(int h = 0; h < 2; h++)
     {
         const auto& hand = move.hands[h];
-        const auto gate = portals::reach(origin, hand.pos);
-        glm::vec3 angles = hand.rot;
-        angles.y = anglemod(angles.y + gate.yaw);
-        setFieldVec(player, h ? f.handpos : f.offhandpos, gate.position);
-        setFieldVec(player, h ? f.handrot : f.offhandrot, angles);
-        setFieldVec(player, h ? f.handvel : f.offhandvel, gate.turn * hand.vel);
-        setFieldVec(player, h ? f.handavel : f.offhandavel, gate.turn * hand.angVel);
-        setFieldVec(player, h ? f.handthrowvel : f.offhandthrowvel, gate.turn * hand.throwVel);
-        setFieldVec(player, h ? f.handthrowpos : f.offhandthrowpos, gate.turn * (hand.throwPos - gate.from) + gate.to);
-        setFieldVec(player, h ? f.handthrowflick : f.offhandthrowflick, gate.turn * hand.throwFlick);
+        writeHandFields(player, origin, hand, h);
         const auto muzzle = portals::reachAlong(origin, hand.pos, move.muzzlePos[h]);
-        angles = move.shotRot[h];
+        glm::vec3 angles = move.shotRot[h];
         angles.y = anglemod(angles.y + muzzle.yaw);
         setFieldVec(player, h ? f.muzzlepos : f.offmuzzlepos, muzzle.position);
         setFieldVec(player, h ? f.shotrot : f.offshotrot, angles);

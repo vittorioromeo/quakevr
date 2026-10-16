@@ -2,7 +2,9 @@
 
 #include "vr_ragactive.hpp"
 
+#include "vr_b3glm.hpp"
 #include "vr_cvars.hpp"
+#include "vr_geom.hpp"
 #include "vr_lines.hpp"
 #include "vr_ragpose.hpp"
 
@@ -45,31 +47,12 @@ constexpr float rollTime = 1.6f;     // s: rolling onto his front to crawl, at m
 constexpr float rollRate = 4.f;       // rad/s: its turn
 constexpr float handThick = 2.f;     // units: a hand on a wound, off its surface
 
-[[nodiscard]] b3Quat toB3(const glm::quat& q)
-{
-    return b3Quat{b3Vec3{q.x, q.y, q.z}, q.w};
-}
+using b3glm::b3v;
+using b3glm::fromB3;
+using b3glm::glmv;
+using b3glm::toB3;
 
-[[nodiscard]] glm::quat fromB3(const b3Quat& q)
-{
-    return glm::normalize(glm::quat{q.s, q.v.x, q.v.y, q.v.z});
-}
-
-[[nodiscard]] b3Vec3 b3v(const glm::vec3& v)
-{
-    return b3Vec3{v.x, v.y, v.z};
-}
-
-[[nodiscard]] glm::vec3 glmv(const b3Vec3& v)
-{
-    return glm::vec3{v.x, v.y, v.z};
-}
-
-[[nodiscard]] float smooth(float x)
-{
-    x = za::clamp(x, 0.f, 1.f);
-    return x * x * (3.f - 2.f * x);
-}
+using geom::smooth01;
 
 [[nodiscard]] bool named(const char* name, const char* part)
 {
@@ -437,8 +420,8 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
             }
             const float u = za::clamp(t / stepTime, 0.f, 1.f);
             Reach& r = s.reach[leg];
-            r.goal = glm::mix(d.stepFrom, d.stepTo, smooth(u)) + up * (0.15f * len * za::sin(3.14159265f * u));
-            r.weight = 1.f - smooth((t - stepTime - 0.25f) / 0.35f);
+            r.goal = glm::mix(d.stepFrom, d.stepTo, smooth01(u)) + up * (0.15f * len * za::sin(3.14159265f * u));
+            r.weight = 1.f - smooth01((t - stepTime - 0.25f) / 0.35f);
             r.strength = 0.9f;
             if(r.weight <= 0.f)
             {
@@ -460,7 +443,7 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
             const b3BodyId body = p.body[d.woundPart];
             const glm::vec3 out = fromB3(b3Body_GetRotation(body)) * d.woundOut;
             r.goal = glmv(b3Body_GetWorldPoint(body, b3v(d.woundAt))) + out * (handThick / p.m2u);
-            r.weight = smooth((t - 0.1f) / 0.35f) * (1.f - smooth((t - 1.6f * d.length) / (0.6f * d.length)));
+            r.weight = smooth01((t - 0.1f) / 0.35f) * (1.f - smooth01((t - 1.6f * d.length) / (0.6f * d.length)));
             r.strength = 0.8f;
         }
     }
@@ -835,7 +818,7 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
     {
         w.panicFrom = c.now;
     }
-    const float frantic = w.panic > 0.f ? w.panic * (1.f - smooth(static_cast<float>(c.now - w.panicFrom) / panicTime)) : 0.f;
+    const float frantic = w.panic > 0.f ? w.panic * (1.f - smooth01(static_cast<float>(c.now - w.panicFrom) / panicTime)) : 0.f;
     const float hz = (water ? 0.6f + 0.7f * v : 2.2f + 1.6f * v) * (1.f + panicRate * frantic);
     w.phase += twoPi * hz * c.dt;
     // (Wrapped in water only: a flail's hops count its phase up, and lasts at most ~50 s, a few thousand radians.)
@@ -850,7 +833,7 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
     const float fp = w.phase / 3.8f;
     // (A living one's as at its start: its head tipped back and held up while it lives.)
     const float tl = w.living ? 0.f : ts;
-    const float head = water ? -0.6f * (1.f - smooth((tl - 0.3f * T) / (0.4f * T))) : 0.f;
+    const float head = water ? -0.6f * (1.f - smooth01((tl - 0.3f * T) / (0.4f * T))) : 0.f;
     for(int b = 1; b < p.count; b++)
     {
         if(!drivable(s, p, b))
@@ -909,7 +892,7 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
             const float f = w.phase / (twoPi * 3.8f * hop);
             const auto k = static_cast<uint32_t>(f);
             const glm::vec3 d0 = flailDir(w.seed, limb, k), d1 = flailDir(w.seed, limb, k + 1u);
-            const glm::vec3 d = glm::normalize(glm::mix(d0, d1, smooth(f - static_cast<float>(k))) + glm::vec3{1e-4f});
+            const glm::vec3 d = glm::normalize(glm::mix(d0, d1, smooth01(f - static_cast<float>(k))) + glm::vec3{1e-4f});
             goal = root + (F * d.x + L * d.y + U * d.z) * (0.85f * len);
         }
         r.goal = goal;
@@ -920,7 +903,7 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
     w.headLift = 0.f;
     if(water && headIn && sp.head >= 0)
     {
-        const float keep = 1.f - smooth((tl - 0.4f * T) / (0.3f * T));
+        const float keep = 1.f - smooth01((tl - 0.4f * T) / (0.3f * T));
         w.headLift = headLiftShare * s.totalMass * c.gravity * keep * s.base;
         if(w.headLift > 0.f)
         {
@@ -1257,7 +1240,7 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         const float a = 2.f * 3.14159265f * staggerWheel * t + (arm == 0 ? 0.f : 3.14159265f);
         r.goal = shoulder + ahead * (0.5f * len) + left * ((arm == 0 ? 0.35f : -0.35f) * len) +
                  (ahead * za::cos(a) + up * za::sin(a)) * (0.2f * len);
-        r.weight = smooth(t / 0.12f) * (0.4f + 0.4f * (1.f - g.balance));
+        r.weight = smooth01(t / 0.12f) * (0.4f + 0.4f * (1.f - g.balance));
         r.strength = 0.7f;
     }
     // The feet: planted, or the one stepping lifted along its way.
@@ -1280,7 +1263,7 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         {
             const float len = limbLength(s, p, leg);
             const float u = za::clamp(static_cast<float>(c.now - g.stepFrom) / za::max(g.stepTime, 0.05f), 0.f, 1.f);
-            r.goal = glm::mix(g.stepA, g.stepB, smooth(u)) + up * (0.12f * len * za::sin(3.14159265f * u));
+            r.goal = glm::mix(g.stepA, g.stepB, smooth01(u)) + up * (0.12f * len * za::sin(3.14159265f * u));
             if(u >= 1.f)
             {
                 g.planted[i] = g.stepB;
@@ -1373,8 +1356,8 @@ void fallFrame(State& s, const Parts& p, const Context& c, float t)
                 }
             }
         }
-        const float in = smooth((t - f.since) / fallReach);
-        const float out = f.landed < 0.f ? 1.f : 1.f - smooth((t - f.landed - 0.25f) / 0.4f);
+        const float in = smooth01((t - f.since) / fallReach);
+        const float out = f.landed < 0.f ? 1.f : 1.f - smooth01((t - f.landed - 0.25f) / 0.4f);
         r.goal = goal;
         r.weight = in * out;
         r.strength = 0.8f;
@@ -2027,7 +2010,7 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
     if(!ledge)
     {
         // Sliding down as he weakens: faster as the hold goes on.
-        const float speed = leanSlide * smooth(static_cast<float>(c.now - h.touched) / 1.2f);
+        const float speed = leanSlide * smooth01(static_cast<float>(c.now - h.touched) / 1.2f);
         const float step = speed * c.dt;
         if(step > 0.f)
         {
@@ -2040,7 +2023,7 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
     h.goal = glmv(b3Body_GetWorldPoint(h.on, fa.p));
     // (A climber pulling itself up: its arms give, folding as its pin carries it up (stiff, they would hold it down).)
     const bool pulling = s.climb.on && s.climb.phase != ClimbPhase::Hang;
-    h.strength = ledge ? (pulling ? climbArms : 0.9f) : 0.75f - 0.35f * smooth(static_cast<float>(c.now - h.touched) / 1.5f);
+    h.strength = ledge ? (pulling ? climbArms : 0.9f) : 0.75f - 0.35f * smooth01(static_cast<float>(c.now - h.touched) / 1.5f);
     const float floor = floorAt(c, h.goal, L, h.goal.z - 2.f * L);
     if(h.overSince >= 0.0 && c.now - h.overSince > slipTime)
     {
@@ -2432,7 +2415,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
         {
             // (Its way goes on as fast as it keeps up: a quarter as fast while its pelvis lags past climbLag.)
             k.prog = za::min(1.f, k.prog + c.dt / pullTime * (lag < climbLag * L ? 1.f : 0.25f));
-            const float u = smooth(k.prog);
+            const float u = smooth01(k.prog);
             k.pinAt = glm::mix(k.from, under, u);
             climbChest(s, p, c, chest, glm::mix(chestAt, k.lip + up * (0.3f * L) + k.out * (0.25f * L), u)); // (off the wall)
             k.turnBlend = u;
@@ -2459,7 +2442,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             {
                 k.prog2 = za::min(1.f, k.prog2 + c.dt / overIn * pace);
             }
-            const float u1 = smooth(k.prog), u2 = smooth(k.prog2);
+            const float u1 = smooth01(k.prog), u2 = smooth01(k.prog2);
             k.pinAt = !k.released ? glm::mix(k.from, over, u1) : glm::mix(over, in, u2);
             // (Its chest led in over the top ahead of its pelvis, not left at the lip's corner as its pelvis rises past it:
             // folded there, it tipped back off.)
@@ -2484,7 +2467,7 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
             for(int leg = 2; leg < 4; leg++)
             {
                 Reach& r = s.reach[static_cast<za::SizeT>(leg)];
-                const float w = leg == leadLeg ? smooth((k.prog - 0.4f) / 0.6f) : u2;
+                const float w = leg == leadLeg ? smooth01((k.prog - 0.4f) / 0.6f) : u2;
                 r.goal = k.lip + wall * ((0.15f + 0.5f * u2) * L) + up * (0.1f * L);
                 r.weight = limbWhole(s, p, leg) ? 0.8f * w : 0.f;
                 r.strength = 0.8f;
@@ -2531,8 +2514,8 @@ void guardFrame(State& s, const Parts& p, const Context& c)
         }
         return;
     }
-    const float w = smooth(static_cast<float>(c.now - g.from) / guardIn) *
-                    (1.f - smooth(static_cast<float>(c.now - g.until) / guardOut));
+    const float w = smooth01(static_cast<float>(c.now - g.from) / guardIn) *
+                    (1.f - smooth01(static_cast<float>(c.now - g.until) / guardOut));
     const float L = armLength(s, p);
     const glm::vec3 at = glmv(b3Body_GetWorldCenter(p.body[head]));
     const int chest = chestOf(p);
@@ -2772,7 +2755,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
             {
                 // Landed: the push gives (the arms' strength eased off), then the hand goes back to the death's way.
                 const float k = static_cast<float>(c.now - h.touched) / catchGive;
-                h.strength = 0.8f * (1.f - smooth(k)) + 0.1f;
+                h.strength = 0.8f * (1.f - smooth01(k)) + 0.1f;
                 if(k > 1.6f)
                 {
                     letGo(s, arm, &c, "landed");
@@ -2790,7 +2773,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
             {
                 h.goal = hand - h.normal * above;
             }
-            h.strength = 0.8f - 0.6f * smooth((k - 0.4f) / 0.8f);
+            h.strength = 0.8f - 0.6f * smooth01((k - 0.4f) / 0.8f);
             if(k > 1.4f)
             {
                 letGo(s, arm, &c, "its time");
@@ -2817,7 +2800,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
         const glm::vec3 to = -levelDir(e.wallN);
         if(gap > 0.2f * L && glm::length(to) > 0.f)
         {
-            const float f = 0.25f * s.totalMass * c.gravity * (1.f - smooth(static_cast<float>(c.now - e.leanFrom) / leanPull));
+            const float f = 0.25f * s.totalMass * c.gravity * (1.f - smooth01(static_cast<float>(c.now - e.leanFrom) / leanPull));
             pushPart(p, 0, to * f);
         }
     }
@@ -3104,7 +3087,7 @@ float fadeAt(const Fade& f, float t)
     {
         return f.to;
     }
-    return f.from + (f.to - f.from) * smooth((t - f.t0) / za::max(f.t1 - f.t0, 1e-4f));
+    return f.from + (f.to - f.from) * smooth01((t - f.t0) / za::max(f.t1 - f.t0, 1e-4f));
 }
 
 void begin(State& s, const Parts& p, const qmodel_t* model, const glm::vec3& originMetres, const b3JointId* joints,
@@ -3234,7 +3217,7 @@ void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
     {
         return; // (a headshot, beheaded: no pin, no stumble, no wound, no crawl)
     }
-    const float pin = za::max(vr_ragdoll_active_pin.value, 0.f);
+    const float pin = za::max(di.noPin ? 0.f : vr_ragdoll_active_pin.value, 0.f);
     const float pinTime = za::max(vr_ragdoll_active_pin_time.value, 0.05f);
     s.pin.force = pin;
     s.pin.fade = Fade{1.f, 0.f, 0.f, pinTime};
@@ -3265,7 +3248,7 @@ void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
         }
     }
     // Hit in the body or a limb: the part hit and where (the nearest of its vertices), a free hand to hold it.
-    if(di.wound && roll(di.seed, 1u) < vr_ragdoll_active_wound.value)
+    if(di.wound && roll(di.seed, 1u) < (di.sureWound ? 1.f : vr_ragdoll_active_wound.value))
     {
         float best = 1e30f;
         glm::vec3 bestLocal{0.f};
@@ -3316,7 +3299,8 @@ void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
             d.woundPart = -1;
         }
     }
-    d.crawl = di.crawler && roll(di.seed, 2u) < vr_ragdoll_active_crawl.value && limbWhole(s, p, 0) && limbWhole(s, p, 1);
+    d.crawl = di.crawler && roll(di.seed, 2u) < (di.sureCrawl ? 1.f : vr_ragdoll_active_crawl.value) &&
+              limbWhole(s, p, 0) && limbWhole(s, p, 1);
 }
 
 bool liquidPending(const State& s, double now)
@@ -3393,7 +3377,7 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
         }
         const float up = glmv(b3Body_GetWorldCenter(p.body[b])).z - footZ;
         const float share = za::clamp(up / za::max(2.f * g.height, 0.1f), 0.f, 1.f); // (its pelvis about halfway)
-        const float v = v0 * smooth(share * 2.f) + extra * share * share;
+        const float v = v0 * smooth01(share * 2.f) + extra * share * share;
         b3Body_SetLinearVelocity(p.body[b], b3v(g.dir * v));
         b3Body_SetAngularVelocity(p.body[b], b3Vec3_zero);
         b3Body_SetAwake(p.body[b], true);
@@ -4331,14 +4315,14 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
                     anchor.z, foot.x, foot.y, foot.z, m.plant.x * p.m2u, m.plant.y * p.m2u, m.plant.z * p.m2u);
             }
             // The pin's anchor drifting to the side lost, sagging a little; his torso bending to it.
-            s.origin = m.origin0 + m.lostSide * (0.5f * tipAccel * t * t) - up * (sagDepth * smooth(t / 0.4f));
+            s.origin = m.origin0 + m.lostSide * (0.5f * tipAccel * t * t) - up * (sagDepth * smooth01(t / 0.4f));
             int torso = 0;
             for(int b = 1; b < p.count; b++)
             {
                 torso += drivable(s, p, b) && channelOf(rig.bones[b]) == Channel::Torso ? 1 : 0;
             }
             // (About the rig's forward axis: +y, his left, is up turned towards it the negative way.)
-            const float bend = tipBend * smooth(t / za::max(m.balanceUntil, 0.1f)) / static_cast<float>(za::max(torso, 1)) *
+            const float bend = tipBend * smooth01(t / za::max(m.balanceUntil, 0.1f)) / static_cast<float>(za::max(torso, 1)) *
                                (m.standLeg == 3 ? -1.f : 1.f);
             for(int b = 1; b < p.count; b++)
             {
@@ -4354,10 +4338,10 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
             if(hopping)
             {
                 const float u = za::clamp((t - m.hopFrom) / hopTime, 0.f, 1.f);
-                leg.goal = glm::mix(m.hopA, m.hopB, smooth(u)) +
+                leg.goal = glm::mix(m.hopA, m.hopB, smooth01(u)) +
                            up * (hopLift * limbLength(s, p, m.standLeg) * za::sin(3.14159265f * u));
             }
-            leg.weight = smooth(t / 0.05f);
+            leg.weight = smooth01(t / 0.05f);
             leg.strength = braceStrength;
             // His arms flung out, flailing.
             const glm::quat qc = bodyRot(p, chest);
@@ -4376,7 +4360,7 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
                 const glm::vec3 dir = glm::normalize(out * 0.75f + up * (0.1f + 0.3f * za::sin(ph)) + fwd * (0.25f * glm::cos(ph)));
                 Reach& r = s.reach[static_cast<za::SizeT>(arm)];
                 r.goal = shoulder + dir * (0.9f * limbLength(s, p, arm));
-                r.weight = smooth(t / 0.4f);
+                r.weight = smooth01(t / 0.4f);
                 r.strength = 0.5f;
             }
         }
@@ -4395,7 +4379,7 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
         }
         else
         {
-            hold = smooth((t - m.holdFrom) / holdRamp) * (1.f - smooth((t - m.holdUntil) / holdLetGo));
+            hold = smooth01((t - m.holdFrom) / holdRamp) * (1.f - smooth01((t - m.holdUntil) / holdLetGo));
             r.goal = stumpPoint(m, p, handThick);
             r.weight = hold;
             r.strength = holdStrength;
@@ -4421,7 +4405,7 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
     float env = 0.f;
     if(!balancing && !crawling && m.writheFrom >= 0.f && m.writheUntil > m.writheFrom)
     {
-        env = smooth((t - m.writheFrom) / writheRamp) * (1.f - smooth((t - (m.writheUntil - writheOut)) / writheOut));
+        env = smooth01((t - m.writheFrom) / writheRamp) * (1.f - smooth01((t - (m.writheUntil - writheOut)) / writheOut));
         for(const Channel ch : {Channel::Torso, Channel::Legs})
         {
             const auto i = static_cast<za::SizeT>(ch);

@@ -851,6 +851,7 @@ int campaignsBloodyShown = -1;
 [[nodiscard]] za::Vector<Item> pageEnemyShoves();
 [[nodiscard]] za::Vector<Item> pageKnockdowns();
 [[nodiscard]] za::Vector<Item> pageHoldingEnemies();
+[[nodiscard]] za::Vector<Item> pageEnemyMelee();
 [[nodiscard]] za::Vector<Item> pageSound();
 
 [[nodiscard]] za::Vector<Item> pageGameplay()
@@ -918,6 +919,47 @@ int campaignsBloodyShown = -1;
     };
 }
 
+// Enemy melee (QC fight.qc; ROUND22.md, "Melee arc", "Melee space", "Enemy Melee menu"): the monsters' melee blows at
+// you: where they land (the arc ahead of the monster, its reach, both growing with its size and kind), how fast it turns
+// after you while swinging, how close it comes.
+[[nodiscard]] za::Vector<Item> pageEnemyMelee()
+{
+    return {
+        toggle("Melee Arc", vr_enemy_melee_arc)
+            .help("A monster's melee blow (a sword, a bite, a claw, a chainsaw) lands only if you are inside the arc ahead "
+                  "of it when it strikes. Facing away, it turns to you before it attacks; while swinging it turns after "
+                  "you only slowly (Swing Turn), so stepping aside or behind it dodges the swing. Leaps still hit by "
+                  "touch. Off: Quake's blows, which check only reach (they hit you behind or beside it)."),
+        toggle("Show Melee Arcs", vr_enemy_melee_arc_show)
+            .help("Debug: each melee monster after you (within 600 units) draws on the floor its arc and reach as they "
+                  "are now (a fan; its sweeping blows' wider fan once it has swung one), red with you inside it (its blow "
+                  "would land), orange inside only a sweeping blow's, green outside. Its kind, arc and reach above it."),
+        header("Arc"),
+        slider("Arc Angle", vr_enemy_melee_arc_angle, 30.f, 120.f, 5.f, "%.0f deg")
+            .help("How far to each side of its facing a grunt-sized monster's blow reaches (a knight, a death knight)."),
+        slider("Wide Swings", vr_enemy_melee_arc_wide, 0.f, 60.f, 5.f, "+%.0f deg")
+            .help("This much more to each side for sweeping blows (an ogre's chainsaw, a shambler's or minotaur's "
+                  "claw)."),
+        slider("Arc Growth with Size", vr_enemy_melee_arc_size, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A bigger monster's arc is wider: this share more Arc Angle for each grunt width more (a grunt is 24 "
+                  "units wide, an ogre 40, a shambler 64: 0.1 gives an ogre 69 deg, a shambler 76). 0: the same for all."),
+        slider("Reach Growth with Size", vr_enemy_melee_reach_size, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A bigger monster reaches further: this share more of its own reach (a knight's sword 60 units, an "
+                  "ogre's chainsaw 100) for each grunt width more (0.1: an ogre's 107). 0: Quake's reach for all."),
+        toggle("Kind Multipliers", vr_enemy_melee_kind)
+            .help("Some kinds' own arcs on top of their size: a knight's quick sword thrust is narrower (0.85: 55 deg), so "
+                  "it is easier to sidestep than an ogre's chainsaw. Off: size alone."),
+        header("Swinging"),
+        slider("Swing Turn", vr_enemy_melee_turn, 0.f, 30.f, 1.f, "%.0f deg/frame")
+            .help("How fast a swinging monster turns after you (degrees each tenth of a second; slower monsters keep "
+                  "their own speed). Lower: easier to sidestep. 0: its own speed."),
+        slider("Melee Space", vr_enemy_melee_space, 0.f, 48.f, 2.f, "%.0f units")
+            .help("A monster attacking you in melee (a knight's swing and its run past you, an ogre's chainsaw, a "
+                  "fiend's claws) is kept this far from your head, pushed back smoothly, so it never fills your view and "
+                  "you can parry. Its blows still reach you. 0: off (it charges in until your bodies meet)."),
+    };
+}
+
 // Holding enemies (vr_foegrab.cpp, QC vr_foegrab.qc; ROUND21.md, "Holding enemies"): an empty hand holds on to a living
 // monster, slows it and drags it a little.
 [[nodiscard]] za::Vector<Item> pageHoldingEnemies()
@@ -977,23 +1019,6 @@ int campaignsBloodyShown = -1;
             .help("With Step In, how far your body goes into the held enemy past where you would meet; there it stops "
                   "you as a solid body (you slide along it), so you can't walk through it. Stepping back or aside is "
                   "always free. 0: no limit (you can walk right through it)."),
-        slider("Melee Space", vr_enemy_melee_space, 0.f, 48.f, 2.f, "%.0f units")
-            .help("A monster attacking you in melee (a knight's swing and its run past you, an ogre's chainsaw, a "
-                  "fiend's claws) is kept this far from your head, pushed back smoothly, so it never fills your view and "
-                  "you can parry. Its blows still reach you. 0: off (it charges in until your bodies meet)."),
-        toggle("Melee Arc", vr_enemy_melee_arc)
-            .help("A monster's melee blow (a sword, a bite, a claw, a chainsaw) lands only if you are inside the arc ahead "
-                  "of it when it strikes. Facing away, it turns to you before it attacks; while swinging it turns after "
-                  "you only slowly (Swing Turn), so stepping aside or behind it dodges the swing. Leaps still hit by "
-                  "touch. Off: Quake's blows, which check only reach (they hit you behind or beside it)."),
-        slider("Melee Arc Angle", vr_enemy_melee_arc_angle, 30.f, 120.f, 5.f, "%.0f deg")
-            .help("Melee Arc: how far to each side of its facing a monster's blow reaches."),
-        slider("Wide Swings", vr_enemy_melee_arc_wide, 0.f, 60.f, 5.f, "+%.0f deg")
-            .help("Melee Arc: this much more to each side for sweeping blows (an ogre's chainsaw, a shambler's or "
-                  "minotaur's claw)."),
-        slider("Swing Turn", vr_enemy_melee_turn, 0.f, 30.f, 1.f, "%.0f deg/frame")
-            .help("Melee Arc: how fast a swinging monster turns after you (degrees each tenth of a second; slower "
-                  "monsters keep their own speed). Lower: easier to sidestep. 0: its own speed."),
         header("Two-Hand Throw"),
         toggle("Two-Hand Throw", vr_foegrab_throw)
             .help("Hold one enemy with both hands and turn it over hard, a judo throw: one shoulder down and the other up, "
@@ -3889,9 +3914,9 @@ void hologramTestMessage()
         slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("How hard a touch knocks a thing loose, or pushes what the hands' and weapons' bodies don't (both off)."),
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
-        slider("Throws Keep Your Motion", vr_carry_throw_inherit, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much of your own velocity a thing you throw takes with it, as a thrown weapon does (1: all: a brick "
-                  "thrown running forward flies further, running back shorter). 0: none (as before)."),
+        slider("Throws Keep Your Motion", vr_throw_inherit, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of your own velocity a thing or weapon you throw takes with it (1: all: a brick thrown running "
+                  "forward flies further, running back shorter). 0: none."),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").extend().help("Punching with a box in hand."),
         slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a box thrown at about 6 m/s; more the faster."),
         slider("Heavy Throws From", vr_throw_heavy_from, 0.f, 40.f, 1.f, "%.0f kg").extend(0.f, 200.f)
@@ -5471,7 +5496,8 @@ za::Vector<Item> pageDebugViews()
                   "against not moved (0-255), in the console."),
         toggle("Show Parallax Depth", "vr_parallax_debug")
             .help("vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
-                  "Parallax Depth Write): red, brighter the deeper below the surface; dark blue: the surface's own depth."),
+                  "Parallax Depth Write): red, brighter the deeper below the surface; green, brighter the higher over it "
+                  "(Parallax Surface Level); dark blue: the surface's own depth."),
         toggle("Show Entity Boxes", "r_showbboxes")
             .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
                   "walls. Single player only."),
@@ -7370,8 +7396,11 @@ za::Vector<Item> pageDebugTests()
         command("Clear Melee Approach Log", "vr_enemy_melee_space_status reset")
             .help("Starts the closest-approach log above again."),
         toggle("Log Melee Arc", vr_enemy_melee_arc_debug)
-            .help("Prints each monster blow at you: its angle off the monster's facing, the arc (Combat > Holding "
-                  "Enemies > Melee Arc) and whether it landed."),
+            .help("Prints each monster blow at you: its angle off the monster's facing, its arc and reach (Combat > "
+                  "Enemy Melee) and whether it landed."),
+        toggle("Show Melee Arcs", vr_enemy_melee_arc_show)
+            .help("Each melee monster after you draws its arc and reach on the floor: red with you inside, green outside "
+                  "(Combat > Enemy Melee > Show Melee Arcs)."),
         command("Melee Arc: Nearest Faces You", "vr_test_meleearc 1")
             .help("Sets the nearest monster 56 units away facing you, after you; 4 seconds later prints its hits on "
                   "you (your health is held at 1000 meanwhile). From 100 units (a knight's run swing): vr_test_meleearc 1001."),
@@ -8693,6 +8722,7 @@ const Page pages[] = {
     {"Stealth AI Tests", pageStealthTests, pageDebugTests, LevelDeveloper},
     {"Ragdoll Behaviour Tests", pageRagdollTests, pageDebugTests, LevelDeveloper}, // (vr_menu_ragtests.inc)
     {"Holding Enemies", pageHoldingEnemies, pageCombat},
+    {"Enemy Melee", pageEnemyMelee, pageCombat},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
     {"Doom", pageDoom, pageGadget, LevelStandard},
     {"Arcane Dimensions", pageArcaneDimensions, pageAdvanced}, // AD support: dedicated tweaks page
@@ -9978,6 +10008,9 @@ za::Vector<Item> pageCombat()
             .help("The swords, chainsaws, shotguns and laser rifles monsters drop: their fuel, ammo and handling."),
         open("Enemy Shoves", pageIndex(pageEnemyShoves))
             .help("Grunts and enforcers shove you away when you stand too close: how close, how soon, how hard."),
+        open("Enemy Melee", pageIndex(pageEnemyMelee))
+            .help("Monsters' melee blows: the arc ahead of them where they land and their reach (both growing with "
+                  "size), how fast they turn after you while swinging, how close they come; Show Melee Arcs."),
         open("Knockdowns", pageIndex(pageKnockdowns))
             .help("Your shoves can knock monsters down as ragdolls, alive: the chances, how long they stay down, getting up."),
         open("Holding Enemies", pageIndex(pageHoldingEnemies))
