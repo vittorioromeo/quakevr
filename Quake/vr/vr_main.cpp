@@ -2010,19 +2010,14 @@ extern "C" void VR_Init()
     decals::init();
     client::init();
     server::init();
-    Cmd_AddCommand("vr_dumpview", view::dumpView_f);
+    view::registerDiagCommands(); // vr_dumpview, vr_grasp_*, vr_hotspot_fit... (vr_view_diag.cpp)
     Cmd_AddCommand("vr_carry_check", held::carryCheck_f);
     Cmd_AddCommand("vr_carry_load_test", carry2h::loadTest_f);
-    Cmd_AddCommand("vr_grasp_dump", view::graspDump_f);
-    Cmd_AddCommand("vr_grasp_bench", view::graspBench_f);
-    Cmd_AddCommand("vr_ragdoll_hand_probe", view::ragdollHandProbe_f);
-    Cmd_AddCommand("vr_grasp_sweep", view::graspSweep_f);
     Cmd_AddCommand("vr_grasp_spheres", grasp::spheres_f);
     Cmd_AddCommand("vr_grip_fit_last", gripfit::last_f);
     Cmd_AddCommand("vr_grip_fit_drawn", gripfit::drawn_f);
     Cmd_AddCommand("vr_hand_reload", handrig::reload_f);
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
-    Cmd_AddCommand("vr_model_reload", view::modelReload_f);
     Cmd_AddCommand("vr_prop_query_test", progs::propQueriesTest_f);
     Cmd_AddCommand("vr_gamecode", progs::gameCode_f);
     Cmd_AddCommand("vr_forcegrab_grid_stats", progs::forcegrabGridStats_f);
@@ -2052,10 +2047,6 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_model_check", progs::modelCheck_f);
     Cmd_AddCommand("vr_test_dialog", testDialog_f);
     Cmd_AddCommand("vr_test_confirm", testConfirm_f);
-    Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
-    Cmd_AddCommand("vr_anchor_where", view::anchorWhere_f);
-    Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
-    Cmd_AddCommand("vr_hotspot_fit", view::hotspotFit_f);
     anchor::registerCommands();
     portals::registerCommands(); // vr_portals_info
     ragtest::registerCommands(); // vr_ragdoll_act
