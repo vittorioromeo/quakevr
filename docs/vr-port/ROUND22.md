@@ -8448,3 +8448,26 @@ knockdown: beheaded, dead (`scratch/buzz_fall.png`). e1m1 smoke clean.
 
 For him in VR: whether a strike every 0.1 s at 100 is too quick (a corpse goes in one frame: limbs, then its torso):
 `VR_BUZZ_RAGDOLL_SCALE` and `VR_BUZZ_GAP` in `rogue_buzzsaw.qc`.
+
+## Tracy profiling run (worktree `tghost`, branch `agent/profile1016`, 2026-10-16)
+
+His request: a full Tracy run with call stacks over prepared scenarios, the uncontroversial wins fixed, the rest
+listed for a decision. Full report (per-scenario tables, top zones, the ranked decision list B1-B8):
+`qvr-kit/scratch/PROFILE_20261016.md`; captures and scripts in `qvr-kit/scratch/profile_20261016/`.
+
+Release-Tracy at callstack depth 8 (Release-TracyFull's depth; its ETW sampling needs an elevated session, left off),
+his config of today, 2048 eyes, 90 Hz paced, exclusive. Scenarios: `play_e1m1_fight`, `play_e1m1_lights`,
+`combat_48`, `ragdolls_32_active`, `load_e1m1`, and the new bench group `profile` (BENCHMARKS.md): `play_gore_fight`,
+`play_calibration_turn`, `play_ad_tfuma_fight` (native AD, the map awake), `load_ad_tfuma`.
+
+- Every scenario holds 90 Hz at 2048: Release CPU p50 0.9-3.2 ms, p99 at most 6.5; GPU 3D p50 1.0-3.7. The steady
+  frame has no single hot spot; the biggest shares are the per-eye alias set-up (0.35-0.67 ms in fights), Box3D with
+  32 ragdolls (workers 4 ms, the main thread waiting 0.8), AD's 1792-edict server frame (QC 0.54 + SV_Physics 0.37).
+- **Fixed: pak lookups by hash** (`COM_FindFile` strcmp'd every entry of every pak per lookup; most of a load's are
+  misses): AD warm load 644 -> 562 ms (its failed image probes 83 -> 41, vr_extmaps 86 -> 38).
+- **Fixed: vr_mdl_dequant on the job pool** (2 ms a model on the main thread at its first upload): AD cold load
+  ~1490 -> ~1135 ms, e1m1 cold ~880 -> 816; identical output (hashes of all 322 models' buffers, serial vs split).
+- Hitches seen are known kinds: a gun's first convex cut in a session (the cache is keyed by build: every new build
+  cuts again, B6) and a spawned-in kind's first limb cut (B5).
+
+For him: pick options for B1-B8 in the report; nothing to test in VR (no visible change).

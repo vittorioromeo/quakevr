@@ -390,6 +390,8 @@ typedef struct pack_s
 	int		handle;
 	int		numfiles;
 	packfile_t	*files;
+	int		*hash;		// QVR: files[] by name: index + 1 of each name's first entry, 0 empty (COM_PackFind)
+	unsigned int	hashmask;	// QVR: the table's size - 1 (a power of two, at least twice numfiles)
 } pack_t;
 
 typedef struct searchpath_s

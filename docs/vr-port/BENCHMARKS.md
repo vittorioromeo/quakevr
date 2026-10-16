@@ -672,3 +672,8 @@ warm up after connection before recording. Optional callstacks/system tracing ad
 in the default measurements. Do not interpret explicit wait-zone time as OS scheduler/context-switch data.
 See [TRACY.md](TRACY.md) for supported events, allocation baseline/reconnect semantics, precise resource estimates
 and the retained optimized overhead measurements. The shared benchmark setting catalogue also records PBR controls.
+
+The `profile` group (2026-10-16 profiling run, ROUND22.md "Tracy profiling run"): `play_gore_fight` (the super nailgun
+held on 16+ grunts: wounds, blood, dents, gibs, corpses), `play_calibration_turn` (vrcalibration), `play_ad_tfuma_fight`
+(native AD, the whole map awake) and `load_ad_tfuma` (AD cold and warm loads). Not in `core` or `play`: old baselines
+compare as before.

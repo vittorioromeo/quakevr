@@ -2064,6 +2064,50 @@ can be used for detecting a file's presence.
 */
 static int COM_FindFileRun (const char *filename, int *handle, FILE **file, unsigned int *path_id);
 
+/*
+QVR: a pak's directory by name. Every lookup used to strcmp each entry of every pak in the search path, and most of a
+map load's are misses (the external textures, materials and normal maps probed): Arcane Dimensions' paks hold
+thousands of entries, 170+ ms of a warm ad_tfuma load (profile 2026-10-16). Each name's first entry, as the scan found.
+*/
+static unsigned int COM_PackHash (const char *name)
+{
+	unsigned int h = 2166136261u; // FNV-1a
+	for (; *name; name++)
+		h = (h ^ (unsigned char) *name) * 16777619u;
+	return h;
+}
+
+static void COM_PackIndex (pack_t *pack)
+{
+	unsigned int size = 16, slot;
+	int i, j;
+	while (size < 2u * (unsigned int) pack->numfiles)
+		size <<= 1;
+	pack->hash = (int *) calloc (size, sizeof (int));
+	if (!pack->hash)
+		Sys_Error ("COM_PackIndex: out of memory (%s)", pack->filename);
+	pack->hashmask = size - 1;
+	for (i = 0; i < pack->numfiles; i++)
+	{
+		for (slot = COM_PackHash (pack->files[i].name) & pack->hashmask; (j = pack->hash[slot]) != 0; slot = (slot + 1) & pack->hashmask)
+			if (!strcmp (pack->files[j - 1].name, pack->files[i].name))
+				break; // a later duplicate: the first one stays found
+		if (!j)
+			pack->hash[slot] = i + 1;
+	}
+}
+
+// The index of the pak's first entry named `name` (exactly, as strcmp), -1 if it has none.
+static int COM_PackFind (const pack_t *pack, const char *name)
+{
+	unsigned int slot;
+	int j;
+	for (slot = COM_PackHash (name) & pack->hashmask; (j = pack->hash[slot]) != 0; slot = (slot + 1) & pack->hashmask)
+		if (!strcmp (pack->files[j - 1].name, name))
+			return j - 1;
+	return -1;
+}
+
 static int COM_FindFile (const char *filename, int *handle, FILE **file,
 							unsigned int *path_id)
 {
@@ -2138,10 +2182,9 @@ static int COM_FindFileRun (const char *filename, int *handle, FILE **file,
 		if (search->pack)	/* look through all the pak file elements */
 		{
 			pak = search->pack;
-			for (i = 0; i < pak->numfiles; i++)
+			i = COM_PackFind (pak, filename); // QVR: by its name's hash, not a strcmp of every entry
+			if (i >= 0)
 			{
-				if (strcmp(pak->files[i].name, filename) != 0)
-					continue;
 				// found it!
 				q_strlcpy(com_filesource, pak->filename, sizeof(com_filesource));
 				com_filesize = pak->files[i].filelen;
@@ -2573,6 +2616,7 @@ static pack_t *COM_LoadPackFile (const char *packfile)
 	pack->handle = packhandle;
 	pack->numfiles = numpackfiles;
 	pack->files = newfiles;
+	COM_PackIndex (pack); // QVR
 
 	//Sys_Printf ("Added packfile %s (%i files)\n", packfile, numpackfiles);
 	return pack;
@@ -2741,6 +2785,7 @@ void COM_ResetGameDirectories(const char *newgamedirs)
 		{
 			Sys_FileClose (com_searchpaths->pack->handle);
 			Z_Free (com_searchpaths->pack->files);
+			free (com_searchpaths->pack->hash); // QVR
 			Z_Free (com_searchpaths->pack);
 		}
 		search = com_searchpaths->next;
