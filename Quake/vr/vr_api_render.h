@@ -52,6 +52,7 @@ void VR_StereoSingleFrustum (struct mplane_s *frustum);	// R_SetFrustum, the mul
 void VR_StereoSingleEyeOrigin (int eye, float out[3]);	// the multiview pass: an eye's position
 void VR_StereoSingleEyeMatrices (int eye, float proj[16], float view[16]); // ... an eye's projection and view matrices
 unsigned VR_StereoSingleClusterTexture (void);			// R_PushDlights, the multiview pass: the right eye's light clusters (image unit 1)
+unsigned VR_StereoSingleEyeClusters (unsigned usual);	// ... an eye's own view after it: its clusters made there (the right's own image, else `usual`)
 unsigned VR_StereoSingleBeginScene (void);				// R_RenderStereoSingle: the arrays cleared, the hidden areas, the views' block; the multiview framebuffer (bound)
 void VR_StereoSingleEndScene (void);
 void VR_StereoSingleEyeTargets (void);					// R_SetupGL, an eye's own view after the pass: framebufs with its layer's views as its scene target

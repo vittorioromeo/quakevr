@@ -77,6 +77,9 @@ struct State
     bool targetsFailed = false;
     StorageMultisampleFn storageMultisample = nullptr; // (null: no MSAA arrays: two-pass with MSAA)
     GLuint clusters = 0; // the right eye's light clusters (gl_rlight.c's image's twin)
+    bool parallel = false; // GL_KHR_parallel_shader_compile: the twins compiled in the background
+    int compiling = 0;     // twins still compiling (the frames two-pass meanwhile)
+    double compileStart = 0.0;
 
     // This frame.
     EyeView eyes[2];
@@ -102,12 +105,25 @@ bool supported()
     state.support = 0;
     GLint count = 0;
     glGetIntegerv(GL_NUM_EXTENSIONS, &count);
-    bool found = false, multisample = false;
+    bool found = false, multisample = false, parallelKhr = false, parallelArb = false;
     for(GLint i = 0; i < count; i++)
     {
         const auto* name = reinterpret_cast<const char*>(GL_GetStringiFunc(GL_EXTENSIONS, static_cast<GLuint>(i)));
         found = found || (name && !ZA_STRCMP(name, "GL_OVR_multiview2"));
         multisample = multisample || (name && !ZA_STRCMP(name, "GL_EXT_multiview_texture_multisample"));
+        parallelKhr = parallelKhr || (name && !ZA_STRCMP(name, "GL_KHR_parallel_shader_compile"));
+        parallelArb = parallelArb || (name && !ZA_STRCMP(name, "GL_ARB_parallel_shader_compile"));
+    }
+    if(parallelKhr || parallelArb) // (the driver's choice of threads)
+    {
+        using MaxThreadsFn = void(APIENTRY*)(GLuint count);
+        const auto maxThreads = reinterpret_cast<MaxThreadsFn>(
+            SDL_GL_GetProcAddress(parallelKhr ? "glMaxShaderCompilerThreadsKHR" : "glMaxShaderCompilerThreadsARB"));
+        if(maxThreads)
+        {
+            maxThreads(0xFFFFFFFFu);
+            state.parallel = true;
+        }
     }
     if(multisample)
     {
@@ -382,6 +398,27 @@ bool wanted(int samples)
         return false;
     }
     state.frameSamples = za::max(samples, 1);
+    // The ported passes' twins begun now (turned on, or on at start; again after the programs are made again), not
+    // mid-game the first time each draws: compiled by the driver's threads (about a second each for the world's), the
+    // frames two-pass until they are all done.
+    const double t0 = Sys_DoubleTime();
+    if(const int made = GL_MultiviewPrepare(state.parallel ? 1 : 0))
+    {
+        state.compileStart = t0;
+        Con_DPrintf("vr_stereo_single: %d multiview programs begun (%s, %.0f ms)\n", made,
+            state.parallel ? "in the background" : "waited for", (Sys_DoubleTime() - t0) * 1000.0);
+    }
+    if(const int left = GL_MultiviewPending())
+    {
+        state.reason = "multiview programs compiling";
+        state.compiling = left;
+        return false;
+    }
+    if(state.compiling)
+    {
+        state.compiling = 0;
+        Con_DPrintf("vr_stereo_single: multiview programs ready after %.1f s\n", Sys_DoubleTime() - state.compileStart);
+    }
     return true;
 }
 
@@ -517,6 +554,11 @@ extern "C" unsigned VR_StereoSingleClusterTexture()
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_3D, 0);
     }
     return tex;
+}
+
+extern "C" unsigned VR_StereoSingleEyeClusters(unsigned usual)
+{
+    return (stereo::eye() & 1) && stereosingle::state.clusters ? stereosingle::state.clusters : usual;
 }
 
 extern "C" unsigned VR_StereoSingleBeginScene()

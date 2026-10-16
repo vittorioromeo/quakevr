@@ -632,6 +632,8 @@ extern qboolean gl_multiview_draw; // QVR: the multiview pass draws: GL_UseProgr
 void R_RenderStereoSingle (void); // QVR: gl_rmain.c: single-pass stereo's multiview pass (vr/vr_stereo_single.cpp)
 void R_StereoViewMatrices (float proj[16], float view[16], float viewproj[16]); // QVR: the current eye's, from r_refdef
 void GL_MultiviewStats (int *twins, int *missing); // QVR
+int GL_MultiviewPrepare (int async); // QVR: every ported program's twin begun now (single-pass stereo on)
+int GL_MultiviewPending (void); // QVR: ... how many are still compiling (async)
 void GL_ReloadShaders_f (void); // QVR: tests (vr_shader_reload)
 
 typedef struct glframebufs_s {
