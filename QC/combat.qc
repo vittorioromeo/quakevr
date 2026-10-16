@@ -355,8 +355,8 @@ vector vr_decap_src;    // and where from
 void(entity e, float xDamage, vector xAt, vector xDir) VR_Decap_Pellet;
 float(entity targ) VR_Decap_BlastArm;
 float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm;
-float(entity m, entity xAxe) VR_Decap_Thrown;
-float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm;
+float(entity m, entity xAxe) VR_Dismember_Thrown;
+float(entity targ, entity xThing, entity by, float xDamage) VR_Dismember_ThrownArm;
 float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_QuadArm;
 float(entity e) VR_Decap_Roll;
 void() VR_Decap_TestFrame;

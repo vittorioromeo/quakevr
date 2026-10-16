@@ -735,7 +735,7 @@ float(entity targ, entity by, vector xAt, vector xVel, float xDamage, float xHow
     return piece;
 };
 
-// A thrown axe `xAxe` gone into `m` edge first at a limb (VR_Decap_Thrown's second half): armed if fast enough; a monster
+// A thrown axe `xAxe` gone into `m` edge first at a limb (VR_Dismember_Thrown's second half): armed if fast enough; a monster
 // its hit box killed a moment ago cut at once.
 float(entity m, entity xAxe) VR_Limb_Thrown =
 {
@@ -852,7 +852,7 @@ float(entity targ, vector xAt, vector xDir, float xDamage) VR_Limb_BoltArm =
     return TRUE;
 };
 
-// A thrown or flung thing about to strike `targ` (VR_Decap_ThrownArm's second half): armed if blunt and at a limb, as the
+// A thrown or flung thing about to strike `targ` (VR_Dismember_ThrownArm's second half): armed if blunt and at a limb, as the
 // head's (its mass).
 float(entity targ, entity xThing, entity by, float xDamage) VR_Limb_ThrownArm =
 {
@@ -1086,7 +1086,7 @@ float(entity e, float xHand, vector xAt) VR_Decap_Saw =
     return VR_Limb_Saw(e, xHand, xAt);
 };
 
-float(entity m, entity xAxe) VR_Decap_Thrown =
+float(entity m, entity xAxe) VR_Dismember_Thrown =
 {
     if(VR_Decap_HeadThrown(m, xAxe))
     {
@@ -1159,7 +1159,7 @@ float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage) VR_D
     return TRUE;
 };
 
-float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm =
+float(entity targ, entity xThing, entity by, float xDamage) VR_Dismember_ThrownArm =
 {
     if(VR_Decap_HeadThrownArm(targ, xThing, by, xDamage))
     {

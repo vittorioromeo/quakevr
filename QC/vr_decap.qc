@@ -560,6 +560,18 @@ float(entity targ, float xHand) VR_Decap_Judge =
     return yes;
 };
 
+// T_Damage after a VR_Decap_*Arm: the damage, then VR_Decap_After if `pop` (what VR_Decap_*Arm returned) armed it.
+// T_Damage's result.
+float(entity targ, entity inflictor, entity attacker, float damage, float pop) VR_Decap_Damage =
+{
+    float r = T_Damage(targ, inflictor, attacker, damage);
+    if(pop)
+    {
+        VR_Decap_After(targ);
+    }
+    return r;
+};
+
 // The armed blow's damage dealt: a zombie it didn't kill is beheaded all the same (it dies for good); the blow is done.
 void(entity targ) VR_Decap_After =
 {
@@ -1047,7 +1059,7 @@ float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_HeadBoltArm 
 // (vr_decap_pop_ssg_scale, _sg_scale) times (1 - t)^its falloff (vr_decap_pop_ssg_falloff, _sg_falloff: the shotgun's
 // dies away sooner), t the way from the one range to the other, times (1 - w) + w x the share of the blast's pellets at
 // the head (w: vr_decap_pop_pellet_weight). A lightning bolt's always pops (vr_decap_pop_lightning_always; off: the
-// ranges with the super shotgun's falloff). A thrown or flung blunt weapon or prop (VR_Decap_ThrownArm) pops it when
+// ranges with the super shotgun's falloff). A thrown or flung blunt weapon or prop (VR_Dismember_ThrownArm) pops it when
 // vr_decap_pop_thrown_mass kg or heavier, a lighter one at vr_decap_pop_thrown_light_chance. Melee blows keep theirs
 // (sure). Only the killing blow rolls (VR_Decap_Roll: Killed, a zombie knocked down, a corpse's head shot);
 // vr_decap_pop_chance 0: every headshot kill pops, as before.
@@ -1874,7 +1886,7 @@ void(float xTest) VR_Decap_Test =
         VR_Decap_TestBlow(at, VR_MTHING_SAW, VR_MKIND_SLASH, 0.8, 0, 0.5);
         float saw = VR_Decap_Saw(m, cVR_MainHand, at);
         VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
-        self.damage_weapon = IT_AXE;
+        VR_DamageCredit_SetWeapon(self, WID_CHAINSAW);
         if(saw != 2)
         {
             T_DamageImpl(m, self, self, 8, 1);

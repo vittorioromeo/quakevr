@@ -82,7 +82,7 @@ void(float xHand) W_CrowbarMelee =
     {
         trace_ent.axhitme = 1;
         entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
-        self.damage_weapon = IT_AXE;
+        VR_DamageCredit_SetWeapon(self, WID_CROWBAR);
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
             VR_HitBloodSplash(victim, org, xdmg);

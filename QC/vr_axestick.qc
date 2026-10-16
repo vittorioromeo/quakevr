@@ -48,7 +48,7 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
     // hit box meets a monster before its blade does).
     // Edge first into a monster's head (vr_decap.qc): its blow beheads it if it kills (a zombie: whatever).
     entity decapped = world;
-    if((xKind == AXESTICK_MODEL || xKind == AXESTICK_MONSTERBOX) && VR_Decap_Thrown(other, self))
+    if((xKind == AXESTICK_MODEL || xKind == AXESTICK_MONSTERBOX) && VR_Dismember_Thrown(other, self))
     {
         decapped = other;
     }

@@ -1334,7 +1334,7 @@ void(float xHand) W_FireAxe =
         entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
 
         // HONEY
-        self.damage_weapon = IT_AXE;
+        VR_DamageCredit_SetWeapon(self, WID_AXE);
 
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
@@ -1445,7 +1445,7 @@ void(float xHand) W_SwordMelee =
     {
         trace_ent.axhitme = 1;
         entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
-        self.damage_weapon = IT_AXE;
+        VR_DamageCredit_SetWeapon(self, WID_SWORD);
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
             VR_HitBloodSplash(victim, org, xdmg);
@@ -1485,7 +1485,7 @@ void(float xHand) W_ChainsawMelee =
     {
         trace_ent.axhitme = 1;
         entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
-        self.damage_weapon = IT_AXE;
+        VR_DamageCredit_SetWeapon(self, WID_CHAINSAW);
         // Swung running, its bar sets a grenade off as its chain does (VR_GrenShot_BlowSetsOff); not its rear handle.
         vr_grenshot_saw = ((VRGetWeaponFlags(xHand) & QVR_WPNFLAG_SAW_RUNNING) &&
                            VR_Blow(xHand).mh_kind != VR_MKIND_POMMEL);
@@ -1785,11 +1785,7 @@ void() ApplyMultiDamage =
     vr_hitpellets_leg = multi_pellets_leg;
     entity t = multi_ent;
     float pop = VR_Decap_BlastArm(t); // VR: a headshot blast pops the head if it kills (vr_decap.qc, "Head pops")
-    T_Damage(t, self, self, multi_damage);
-    if(pop)
-    {
-        VR_Decap_After(t);
-    }
+    VR_Decap_Damage(t, self, self, multi_damage, pop);
     vr_hitpellets = 0;
 };
 
@@ -6115,13 +6111,9 @@ void() forcegrabbable_touch =
                 dprint(sprintf("throw: %s fell on its thrower at %.0f u/s, %.2f s after the throw: %.1f damage\n",
                     self.classname, vlen(self.velocity), time - self.carry_letgo_time, adjDmg));
             }
-            float pop = VR_Decap_ThrownArm(other, self, thrower, adjDmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
+            float pop = VR_Dismember_ThrownArm(other, self, thrower, adjDmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
             float wasAlive = other.health > 0 && !other.vr_corpse && !other.vr_corpse_dying;
-            T_Damage(other, self, thrower, adjDmg);
-            if(pop)
-            {
-                VR_Decap_After(other);
-            }
+            VR_Decap_Damage(other, self, thrower, adjDmg, pop);
             // VR: an incandescent blade thrown sets what it struck on fire (vr_hotblade.qc).
             VR_HotBlade_ThrownStruck(self, other, thrower, wasAlive, self.origin, normalize(self.velocity));
             self.vr_fling_hit = time; // (not hit again as a flung prop as it bounces off: VR_FLING_REHIT)
@@ -6929,21 +6921,13 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
     }
 
     entity thrown = world;
-    if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
+    float throwMode = getWeaponThrowMode();
+    if(throwMode == QVR_WEAPONTHROWMODE_IMMERSIVE || throwMode == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
     {
         thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, inst,
             origin, throwRot,
             throwVelUnits, '0 0 0',
-            FALSE /* disappear on hit */,
-            TRUE  /* deal damage */,
-            WeaponIdToThrowDamage(xWeapon));
-    }
-    else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
-    {
-        thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, inst,
-            origin, throwRot,
-            throwVelUnits, '0 0 0',
-            TRUE /* disappear on hit */,
+            throwMode == QVR_WEAPONTHROWMODE_DISAPPEARONHIT /* disappear on hit */,
             TRUE /* deal damage */,
             WeaponIdToThrowDamage(xWeapon));
     }
