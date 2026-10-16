@@ -490,6 +490,33 @@ def scenarios():
         body=blasts_every(4, lambda i, r: [
             f"vr_physics_blast {316 - r.uniform(90, 300):.0f} {-556 + r.uniform(-150, 150):.0f} 40 1",
             f"vr_particle_test {(4, 1, 11)[i % 3]} 80"]))
+    # ---- the profiling run's extra fights (2026-10-16, group `profile`; Tracy captures of each, PROFILE_20261016)
+    def gore_fight(frames):
+        """The super nailgun held on the nearest grunt (30 frames on, 10 off), 4 more grunts every 180 frames."""
+        out, rng, t = [], random.Random(5), 0
+        while t < frames:
+            out += ["+attack"] + waits(30) + ["-attack"] + waits(10)
+            t += 40
+            if t % 160 == 0:
+                out += [f"vr_physics_spawn monster_army {rng.randint(150, 260)} {rng.randint(-120, 120)}" for _ in range(4)]
+        return out
+    add("play_gore_fight", ["profile"], "16 grunts and more under the super nailgun: blood, dents, gibs",
+        RANGE, "16 grunts and enforcers hostile, the super nailgun held on the nearest one (30 frames of 40), 4 grunts "
+        "more every 160 frames: nails' wounds, blood streams, flesh dents, decals, gibs, ragdolls and corpses piling up.",
+        hostile=True, setup=GORE[:1] + spawn_grid(16, ("monster_army", "monster_army", "monster_enforcer"), x0=160, dy=40)
+        + gun(7), warm=30, body=gore_fight)
+    add("play_calibration_turn", ["profile"], "the calibration room: boards, walls, the head turning", "vrcalibration",
+        "vrcalibration at its spawn, the head turned 90 degrees either way twice: its boards' text, wall buttons and props.",
+        body=gate_turn, warm=60)
+    AD = ["vr_campaign_native ad", "skill 2"]
+    add("play_ad_tfuma_fight", ["profile"], "AD's ad_tfuma: every monster of the map awake, the shotgun firing",
+        "ad_tfuma", "Arcane Dimensions (native, skill 2), ad_tfuma at its spawn: the map's monsters brought in and woken "
+        "(vr_test_monsters 4, 2), the player's shotgun on the nearest every 50 frames: AD's QC, AI, effects, big BSP.",
+        header=AD, hostile=True, setup=["vr_test_monsters 4"] + waits(30) + ["vr_test_monsters 2"] + gun(4), warm=90,
+        load_wait=240, body=shoot_every(50))
+    add("load_ad_tfuma", ["profile"], "AD's ad_tfuma (17 MB BSP) loaded cold and warm, native AD", None,
+        "`map ad_tfuma` with `vr_campaign_native ad` (its pak's textures and models), cold then again.", header=AD,
+        setup=LOADS, warm=30, body=loads_body([("cold", "map ad_tfuma"), ("warm", "map ad_tfuma")]), loads=2, frames=0)
     return {x.name: x for x in s}
 
 

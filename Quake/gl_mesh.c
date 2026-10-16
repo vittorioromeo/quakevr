@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_mesh.c: triangle model functions
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 
 /*
@@ -44,6 +45,7 @@ Original code by MH from RMQEngine
 */
 void GL_MakeAliasModelDisplayLists (qmodel_t *aliasmodel, aliashdr_t *paliashdr)
 {
+	VR_TRACY_SCOPE ("alias draw lists"); // QVR: profiling builds only
 	int i, j;
 	int mark;
 	trivertx_t *verts;
@@ -136,6 +138,7 @@ Original code by MH from RMQEngine
 */
 void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 {
+	VR_TRACY_SCOPE ("alias mesh upload"); // QVR: profiling builds only
 	int totalvbosize = 0;
 	byte *ebodata;
 	byte *vbodata;
@@ -238,6 +241,7 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 		{
 			if (hdr->dequant && !hdr->dequantready)
 			{
+				VR_TRACY_SCOPE ("alias dequant"); // QVR: profiling builds only
 				VR_MdlDequantCompute (m->name, hdr, (unsigned *) ((byte *) hdr + hdr->dequant));
 				hdr->dequantready = 1;
 			}
