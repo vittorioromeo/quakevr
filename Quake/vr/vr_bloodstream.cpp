@@ -80,6 +80,11 @@ struct Stream
     float duration = 6.f;
     float power = 1.f;  // how hard it pours (the hit's damage)
     float phase = 0.f;  // its heartbeat's
+    float speedMul = 1.f; // its own force (vr_gore_streams_speed_var)
+    // Its way out's wander (vr_gore_streams_wobble): two sines a side, each at its own rate (times the wobble rate) and
+    // phase.
+    float wobFreq[4] = {1.f, 1.f, 1.f, 1.f};
+    float wobPhase[4] = {0.f, 0.f, 0.f, 0.f};
     float emitAcc = 0.f;
     // The landing, traced every arcInterval.
     double nextArc = 0.0;
@@ -153,6 +158,28 @@ za::Vector<glm::vec3> scratchRest, scratchNow;
     const float a = yawDegrees * 0.0174532925f;
     const float c = za::cos(a), s = za::sin(a);
     return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
+}
+
+// Two unit vectors square to the unit `a` and to each other.
+void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
+{
+    u = glm::normalize(glm::cross(a, za::fabs(a.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}));
+    w = glm::cross(a, u);
+}
+
+// The unit `a` turned a random way up to `degrees` from itself (evenly over the cone's cap).
+[[nodiscard]] glm::vec3 inCone(const glm::vec3& a, float degrees)
+{
+    if(degrees <= 0.f)
+    {
+        return a;
+    }
+    glm::vec3 u, w;
+    across(a, u, w);
+    const float c = 1.f - rnd(0.f, 1.f) * (1.f - za::cos(degrees * 0.0174532925f));
+    const float s = za::sqrt(za::max(0.f, 1.f - c * c));
+    const float phi = rnd(0.f, 6.2831853f);
+    return glm::normalize(a * c + (u * za::cos(phi) + w * za::sin(phi)) * s);
 }
 
 // The model an entity is of: a ragdoll drawn with its skinned model ("#rag") counts as its .mdl.
@@ -353,6 +380,15 @@ void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float
     const glm::vec3 back = glm::length(dir) > 0.01f ? -glm::normalize(dir) : radial;
     glm::vec3 out = back * 0.6f + radial * 0.6f + glm::vec3{rnd(-0.2f, 0.2f), rnd(-0.2f, 0.2f), rnd(0.05f, 0.3f)};
     s.outWorld = glm::length(out) > 0.01f ? glm::normalize(out) : glm::vec3{0.f, 0.f, 1.f};
+    // Each its own way (one blast's pellets all share the hit's direction), force and wander.
+    s.outWorld = inCone(s.outWorld, za::clamp(vr_gore_streams_spread.value, 0.f, 90.f));
+    const float speedVar = za::clamp(vr_gore_streams_speed_var.value, 0.f, 0.9f);
+    s.speedMul = rnd(1.f - speedVar, 1.f + speedVar);
+    for(int i = 0; i < 4; i++)
+    {
+        s.wobFreq[i] = (i % 2 == 0) ? rnd(0.7f, 1.3f) : rnd(1.7f, 2.6f);
+        s.wobPhase[i] = rnd(0.f, 1.f);
+    }
     s.start = cl.time;
     s.duration = za::clamp(vr_gore_streams_time.value, 1.f, 30.f) * rnd(0.75f, 1.25f);
     s.power = za::clamp(0.7f + amount / 40.f, 0.7f, 1.4f);
@@ -450,6 +486,23 @@ void paint(Stream& s, float strength)
     }
 }
 
+// Its way out at age `t`, wandering (vr_gore_streams_wobble): slow smooth noise, two sines a side.
+[[nodiscard]] glm::vec3 wobbled(const Stream& s, float t)
+{
+    const float amount = za::clamp(vr_gore_streams_wobble.value, 0.f, 45.f) * 0.0174532925f;
+    if(amount <= 0.f)
+    {
+        return s.outWorld;
+    }
+    const float rate = za::clamp(vr_gore_streams_wobble_rate.value, 0.f, 10.f);
+    auto wave = [&](int i) { return za::sin((t * rate * s.wobFreq[i] + s.wobPhase[i]) * 6.2831853f); };
+    const float a = amount * (0.65f * wave(0) + 0.35f * wave(1));
+    const float b = amount * (0.65f * wave(2) + 0.35f * wave(3));
+    glm::vec3 u, w;
+    across(s.outWorld, u, w);
+    return glm::normalize(s.outWorld + u * a + w * b);
+}
+
 void update(Stream& s, float dt)
 {
     const bool posed = s.emitting && locate(s);
@@ -476,8 +529,9 @@ void update(Stream& s, float dt)
             const float l = glm::length(bodyVel);
             bodyVel *= l > 400.f ? 400.f / l : 1.f;
         }
-        const float speed = za::clamp(vr_gore_streams_speed.value, 0.f, 400.f) * s.power * (0.35f + 0.9f * strength);
-        const glm::vec3 v0 = s.outWorld * speed + bodyVel * 0.7f;
+        const float speed =
+            za::clamp(vr_gore_streams_speed.value, 0.f, 400.f) * s.power * s.speedMul * (0.35f + 0.9f * strength);
+        const glm::vec3 v0 = wobbled(s, age) * speed + bodyVel * 0.7f;
         if(cl.time >= s.nextArc || cl.time < s.nextArc - 1.0)
         {
             s.nextArc = cl.time + arcInterval;
