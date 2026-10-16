@@ -2339,17 +2339,12 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         self = targ;
 
         vector at = vr_parry_at + to * 4;
-        // Its own ring (vr_bash_sound; round 18), apart from a blow landing; 0: the old clang.
+        // Its own ring (vr_bash_sound, its volume; round 18), apart from a blow landing; 0: silent.
         float parrySound = cvar_hget(cvarh_vr_bash_sound);
         if(parrySound > 0)
         {
             sound(self, VRGetHandChannel(hand), "vr/parry.wav", min(1, parrySound), ATTN_NORM);
             VR_SoundVaried(self, VRGetHandChannel(hand), "player/axhit2.wav", 0.35 * min(1, parrySound), ATTN_NORM);
-        }
-        else
-        {
-            VR_SoundVaried(self, VRGetHandChannel(hand), "player/axhit2.wav", 1, ATTN_NORM);
-            VR_SoundVaried(self, VRGetHandChannel(hand), "weapons/tink1.wav", 0.6, ATTN_NORM);
         }
         particle2(at, (to * -1 + '0 0 0.5') * 80, QVR_PARTICLE_PRESET_SPARKS, 24);
         haptic(hand, 0.0, 0.3, 90, 1.0);

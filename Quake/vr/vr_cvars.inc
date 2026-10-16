@@ -2805,7 +2805,7 @@ QVR_CVAR(vr_bash_damage, "5", CVAR_ARCHIVE)            // a bash's damage (small
 QVR_CVAR(vr_bash_push, "0.9", CVAR_ARCHIVE)            // how far a shove or a bash throws what it hits (its push: 520 u/s and a 140 hop, times Knockback; then the hands below)
 QVR_CVAR(vr_shove_push_onehand, "0.7", CVAR_ARCHIVE)   // ... times this for one hand (a shove or a bash)
 QVR_CVAR(vr_shove_push_twohand, "1", CVAR_ARCHIVE)     // ... and this for two
-QVR_CVAR(vr_bash_sound, "0.7", CVAR_ARCHIVE)             // volume of the shove, bash, counter bash and parry sounds (0: the old ones)
+QVR_CVAR(vr_bash_sound, "0.7", CVAR_ARCHIVE)             // volume of the shove, bash, counter bash and parry sounds (0: silent; the old sounds 0 played retired 2026-10-16)
 QVR_CVAR(vr_parry_cooldown, "0.4", CVAR_ARCHIVE)        // s: a monster's blow parried within this long of its last parried blow is still parried (its damage cut, both pushed apart) but plays no sound or sparks, opens no new counter window and costs no stamina (one parry for a burst of quick hits: the ogre's chainsaw, a knight's swing; 0: every blow a full parry)
 QVR_CVAR(vr_parry_cooldown_attack, "1", CVAR_ARCHIVE)  // 1: also a blow of the same melee attack as the monster's last parried blow (begun up to 2 s ago) is a cooldown blow, however long between them (the demon's two claws, the Overlord's double smash: one parry, one stamina cost); 0: only vr_parry_cooldown's time
 QVR_CVAR(vr_bash_deflect_radius, "24", CVAR_ARCHIVE)   // units around the guard (the weapon, the hands) a bash bats projectiles back within (vr_deflect)

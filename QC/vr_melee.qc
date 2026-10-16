@@ -3164,18 +3164,13 @@ void() VR_Bash =
     vr_bash_exhaust_push = 0;
     self.vr_bash_time = VR_PlayerTime() + VR_BASH_COOLDOWN;
 
-    // Each its own sound (vr_bash_sound; round 18), apart from the blows'; 0: the old ones.
+    // Each its own sound (vr_bash_sound, its volume; round 18), apart from the blows'; 0: silent.
     float bashSound = min(1, cvar_hget(cvarh_vr_bash_sound));
     float bashChan = both ? CHAN_AUTO : VRGetHandChannel(readyHand); // (both hands: in front of the chest)
     if(bashSound > 0)
     {
         sound(self, bashChan, (counter && armed) ? "vr/bash_parry.wav" : (armed ? "vr/bash.wav" : "vr/shove.wav"),
               bashSound * (both ? 1 : 0.7), ATTN_NORM);
-    }
-    else
-    {
-        VR_SoundVaried(self, bashChan, armed ? "player/axhit2.wav" : "fisthit.wav", 1, ATTN_NORM);
-        sound(self, bashChan, "demon/dland2.wav", both ? 0.7 : 0.45, ATTN_NORM);
     }
     if(both)
     {

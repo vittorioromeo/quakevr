@@ -1794,7 +1794,7 @@ int campaignsBloodyShown = -1;
             .help("A two-handed shove's or bash's push (both palms, or a weapon held in two hands), times Shove and "
                   "Bash Push."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
-            .help("Volume of the sounds that tell a shove, a weapon bash, a counter bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
+            .help("Volume of the sounds that tell a shove, a weapon bash, a counter bash (a bash right after a parry) and a parry apart from your blows (0: silent)."),
         header("Counter-Attacks"),
         toggle("Counter-Attacks", vr_counter)
             .help("After a parry (a weapon's or crossed arms), your next melee attack in the window is a counter and hits harder: a blow with either hand, a bash or a shove. One a parry."),
