@@ -8777,3 +8777,45 @@ have made), 3-10 ms warm. Single runs: loads vary by ~5%. Not done: the remainin
 (other first-draw work); a single slow hull still waits for its job (the gore script's slowest wait 3.1 ms).
 
 For him in VR: maps with his texture packs load faster the first time; the first menu open and gib bursts smoother.
+
+## One derived-data cache, its warm-up (worktree `dequant`, branch `agent/warmcache`, 2026-10-16)
+
+His decision: a unified derived-data cache, a background warm-up at game start, cache-only map loads with the lazy path
+as fallback, and a map load's look-ahead. Details and how to bump a product: `docs/vr-port/CACHES.md`.
+
+- **One layer** (`vr_diskcache.cpp`, was `vr_texcache.cpp`): one root for every game folder (`<base>/cache`, or
+  `vr_cache_dir`: tests point it at an empty folder), a product table (folder, verify setting, budget), one prepare
+  (other builds' folders and the oldest files past the budget removed, once a session, any thread), one atomic write,
+  per-product counts. Moved onto it: normal maps, gun pieces, hulls, occlusion bakes (their files' layouts unchanged).
+  `vr_cache_info` (Debug > Profiling and Memory > Cache Info). Misses while a map is in play are counted and printed
+  with developer 1 (`cache miss in play: ...`).
+- **New products:** dequantised poses (`vr_mdl_dequant_cache`, `dequantVersion`) and ragdoll rigs
+  (`vr_ragdoll_rig_cache`, `rigVersion`; read on the pool inside warmRigs).
+- **Warm-up** (`vr_cache_warmup 1`, `vr_warmup.cpp`; Debug status line, `vr_cache_warmup_info`): every installed
+  game's .mdl files (pak entries and loose progs/), their occlusion bakes made one at a time on one idle-priority pool
+  thread; paused during loads and after late frames; resumes from a done list. The other products need a loaded model
+  or map, so they stay with the loads and the installer's preparation run.
+- **Look-ahead at load:** what exists already covers it (QC's probes spawn one of each kind that can appear later:
+  monsters waiting for a trigger, dispensers; their models, sounds, hulls and limbs made in the load). The rigs now come
+  from the disk, so the probes' kinds cost less. Not done: a held weapon's convex pieces for weapons not yet held (cut
+  at first pickup when the disk lacks them; now visible as "in play" misses).
+
+Checks (headless, his base folders): every product at setting 2 over e1m1 then ad_tfuma: normal maps 808 same, AO 395
+same, dequant 396 same, rigs 2 same, 0 differed. After the warm-up into an empty cache, e1m1's AO: 119 read, 21 made
+(the VR-derived models and limb models, which have no file).
+
+| e1m1 / ad_tfuma (empty cache root vs second session) | first-ever | second session |
+|---|---:|---:|
+| e1m1 load (ms) | 1103 | 860-896 (old build, its caches warm: 917) |
+| ad_tfuma load, AD native (ms) | 2130 | 1176 |
+| e1m1 rigs (warmRigs, ms) | 14.0 + 8.4 | 1.0 + 0.8 |
+| e1m1 dequant (ms: computed / read) | 28.9 | 18.4 read |
+
+Warm-up: 902 models in 163 files (listing 32-40 ms), 677 bakes made in 63.7 s of one worker's time (66 s wall); a
+second session lists 0. Cache size after e1m1 + ad_tfuma + the warm-up: about 90 MB (normal maps 74, dequant 11, AO 8,
+hulls 2.5, rigs 0.7). Frame time while it runs: one idle-priority thread; in the paced headless run the frame period
+stayed 4.0 ms; not measured in VR. First use: the old per-game `cache/` folders are no longer read, so his first
+session on this build makes everything once more (vrstart's hulls: 10 s of pool).
+
+For him: start the game, open Debug > Profiling and Memory: the warm-up line counts up; play meanwhile and watch for
+hitches; `developer 1` shows `cache miss in play` lines for anything the loads didn't prepare.
