@@ -8729,3 +8729,51 @@ His request: "make my five knockdown values the defaults". From his `ironwail.cf
 `vr_knockdown_damage` 2 -> 3, `vr_knockdown_getup_speed` 1 -> 0.8, `vr_knockdown_time_min` 2.5 -> 1.75,
 `vr_knockdown_time_max` 4.5 -> 3.5. Migration 140 moves configs still at the old defaults. (His lower shove/bash damage was
 already the default; the melee eval canary's halved parry-bash damage is that tuning, intentional.)
+
+
+## Load hitches from his VR trace: hull cache, textures, menu banner, prop hulls (worktree `dequant`, branch `agent/loadperf2`, 2026-10-16)
+
+His go on VRTRACE_20261016 (B, C, D, finding 4). One commit each.
+
+- **Hull disk cache keyed by the compile's version** (`vr_hull.cpp`, `treeVersion`): the folder under
+  `cache/hulls/` is a hash of `treeVersion`, the file layout's version, the brushes' `buildVersion` and the node and
+  plane sizes, no longer the build's compile time. **Bump `treeVersion`** when the tree compile changes (growing,
+  units, speculate, merging, rebounding); `vr_hull_cache 2` compiles anyway and compares. vrstart after a rebuild
+  (touched `vr_hull.cpp`): 7 trees read in 107 ms, 7 the same under `vr_hull_cache 2`; before, a rebuild meant 7 trees
+  compiled (10.6 s of tree builds on the pool; his trace: 1.8 s wall, 34 s of worker CPU).
+- **Textures decoded ahead at map loads** (`vr_texture_prefetch 1`, `vr_imgprefetch.cpp`; Debug > the image cache's
+  rows, `vr_image_prefetch_info`): `Mod_LoadTextures` first finds each texture's replacement image, its glow and the
+  external pack's maps (picture, normal, specular, glow) the way its loop will, reads the png/tga/jpg files not decoded
+  before, and up to 8 tasks decode them (at most 256 MB of pixels waiting); the loop takes each as it asks
+  (`Image_LoadImage`: the same file by identity, offset and length), uploads in order on the main thread. Files read
+  and never asked for (the pack's maps of a texture its picture doesn't match) aren't read again that session; the
+  pack's `.mat` texts are kept for the session (`SessionResults`). `imagehash` identical on and off (QRP + Quetoo
+  e1m1: 1087 textures; AD ad_tfuma: 2963).
+- **Menu images at start-up** (`VR_MenuBrandPreload`, after `Draw_Init`): the banner and Ko-fi's logo load in the
+  start-up's window (so the next start decodes them on a worker from its list). First menu open frame 34.0 -> 11.9 ms;
+  start-up +23.9 ms the first session, +6.8 ms after.
+- **A frame's new props' hulls side by side** (`vr_box3d_hulls_ahead 1`, `vr_box3d.cpp` `prebuildPropHulls`; Debug >
+  Physics, `vr_physics_hull_stats`): before `syncEntities`' loop, every entity about to become a prop (kindOf's Prop
+  branch) whose hull isn't made has its hull built on the pool (the same points, the same `propHullOf`); `propHull`
+  takes it (waiting if needed), leftovers go into `propHulls` at the loop's end and at the world's end. The runtime
+  hulls are gibs (brains, heads), dropped weapons, a different key per gib size, so they can't be made at precache;
+  the gain is a burst's hulls built in parallel. `vr_box3d_hulls_ahead 2`: built again on the main thread and
+  compared (Box3D's hull hash): 108 of 108 the same.
+
+Numbers (headless, exclusive; QRP base + `vr_extmaps_dir` his Quetoo folder; AD native):
+
+| | before | after |
+|---|---:|---:|
+| QRP e1m1 cold (second load) / warm (ms) | 702 / 318 | 555-570 / 323-336 |
+| QRP `start` first load (ms; in the start-up's window, its list already decodes most) | 1462 | 1452-1469 (world model 533 -> 476) |
+| qbase e1m1 first load + AD switch (ms) | 1341 | 1064 |
+| AD ad_tfuma cold / warm (ms) | 1871 / 509 | 1316 / 485 |
+| vrstart's 7 trees, first session after a rebuild | compiled, 10.6 s of pool | read, 107 ms |
+| first menu open frame (ms) | 34.0 | 11.9 |
+| play_gore_fight script: runtime hulls' main thread time / worst CPU frame (ms) | 17.1 / 9.2 | 7.4 / 6.9 |
+
+Main thread cost of the texture look-ahead: 35-60 ms on a cold load (much of it the pack's file probes the loop would
+have made), 3-10 ms warm. Single runs: loads vary by ~5%. Not done: the remaining 11.9 ms of the first menu frame
+(other first-draw work); a single slow hull still waits for its job (the gore script's slowest wait 3.1 ms).
+
+For him in VR: maps with his texture packs load faster the first time; the first menu open and gib bursts smoother.

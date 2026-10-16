@@ -5740,6 +5740,13 @@ za::Vector<Item> pageDebugProfiling()
         command("Decoded Image Cache Info", "vr_image_cache_info")
             .help("vr_image_cache_info: the images kept, their size, and since the start how many were found there and how many "
                   "decoded (console). vr_image_cache_clear empties it."),
+        toggle("Decode Textures Ahead", vr_texture_prefetch)
+            .help("On: a map load decodes its textures' replacement images (their glows, the external pack's maps) on worker "
+                  "threads while it uploads them in order: the same pixels, QRP's E1M1 about 0.15 s faster the first time. "
+                  "Off: each decoded on the main thread as it is uploaded (vr_texture_prefetch)."),
+        command("Textures Decoded Ahead Info", "vr_image_prefetch_info")
+            .help("vr_image_prefetch_info: the images the last loads read ahead, how many the loads took (and decoded "
+                  "themselves: no worker had come to them), how many they didn't ask for (console)."),
         header("Particles' Fill"),
         toggle("Skip Hidden Particles", vr_particle_saturate)
             .help("vr_particle_saturate: in dense effects the particles are composited in reverse order into a layer of "
@@ -5792,6 +5799,13 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Physics on Threads", vr_box3d_threads)
             .help("Box3D's step (the props' physics) shared between the thread pool and the main thread. Off: the main "
                   "thread steps it alone (the same results: Box3D is deterministic whatever its threads)."),
+        cycle("Prop Hulls Ahead", "vr_box3d_hulls_ahead", {{0.f, "Off"}, {1.f, "On"}, {2.f, "On, Checked"}})
+            .help("vr_box3d_hulls_ahead: the hulls of the props made in a frame (a gib burst's head, gibs, brains) built side "
+                  "by side on the thread pool before their bodies are made, not one after another (the same hulls). "
+                  "Checked: each built again on the main thread and compared (vr_physics_hull_stats)."),
+        command("Prop Hull Stats", "vr_physics_hull_stats")
+            .help("vr_physics_hull_stats: the props' and actors' hulls made this session, their main thread time, the "
+                  "slowest, how many were built ahead and taken (and, Checked, compared) (console)."),
         toggle("Main Thread Solves", vr_box3d_caller_solves)
             .help("vr_box3d_caller_solves: with Physics on Threads, the main thread runs Box3D's solver itself (and its "
                   "share of each stage) and takes the step's unstarted tasks while it waits for one. Off: a worker usually "

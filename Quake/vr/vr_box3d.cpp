@@ -911,6 +911,9 @@ struct World
     };
     za::Vector<Bump> bumps;
     ankerl::unordered_dense::map<PropHullKey, b3HullData*, PropHullKeyHash> propHulls; // nullptr: no hull (a box instead)
+    // The hulls of the props made this frame, posted to the pool before syncEntities' loop (prebuildPropHulls; propHull
+    // takes each; what is left goes into propHulls at the loop's end).
+    ankerl::unordered_dense::map<PropHullKey, jobs::Future<b3HullData*>, PropHullKeyHash> pendingHulls;
     ankerl::unordered_dense::map<const qmodel_t*, za::Vector<b3HullData*>> moverHulls;
     // A runtime brush's model made again in place (vr_brushes.cpp): the revision its hulls were made from, and the hulls
     // let go of (a body made with them may still be about until its slot is made again: freed once no mover body of
@@ -1944,11 +1947,11 @@ void solidLeaves(const hull_t& hull, int num, za::Vector<HalfSpace>& path, float
 // A hull of the drawn corners (metres) with at least `budget` vertices, more as needed to leave none of them further
 // out than hullTolerance units (Box3D's limit is 128).
 constexpr float hullTolerance = 0.2f;
-[[nodiscard]] b3HullData* fittedHull(const za::Vector<b3Vec3>& points, int budget)
+[[nodiscard]] b3HullData* fittedHull(const za::Vector<b3Vec3>& points, int budget, float m2u)
 {
     b3HullData* hull = b3CreateHull(points.data(), static_cast<int>(points.size()), budget);
     while(hull && budget < B3_MAX_HULL_VERTICES && hull->vertexCount >= budget &&
-          hullShortfall(hull, points) * world->m2u > hullTolerance)
+          hullShortfall(hull, points) * m2u > hullTolerance)
     {
         budget = za::min(budget * 3 / 2, B3_MAX_HULL_VERTICES);
         b3HullData* more = b3CreateHull(points.data(), static_cast<int>(points.size()), budget);
@@ -2283,6 +2286,85 @@ template <typename Corners>
     return !strcmp(name, "thrown_weapon") || !strncmp(name, "weapon_", 7);
 }
 
+// The props' and actors' hulls made this session (vr_physics_hull_stats): how many, their time on the calling thread,
+// the slowest ones (VRTRACE_20261016: 13 frames of 6-7.5 ms building them in the sync).
+struct HullBuildStats
+{
+    int built{0};
+    int posted{0}, ahead{0};   // built on the pool ahead (prebuildPropHulls), and taken by propHull
+    int same{0}, differed{0}; // vr_box3d_hulls_ahead 2: built here too, compared
+    double ms{0.0}, mostMs{0.0};
+    struct Slow
+    {
+        char model[48]{};
+        int frame{0};
+        double ms{0.0};
+        double time{0.0}; // the server's
+    };
+    za::Array<Slow, 8> slowest{}; // by ms, the slowest first
+};
+HullBuildStats hullBuilds;
+
+void noteHullBuild(const qmodel_t* model, int frame, double ms)
+{
+    HullBuildStats& s = hullBuilds;
+    s.built++;
+    s.ms += ms;
+    s.mostMs = za::max(s.mostMs, ms);
+    za::SizeT at = s.slowest.size();
+    while(at > 0 && s.slowest[at - 1].ms < ms)
+    {
+        at--;
+    }
+    if(at >= s.slowest.size())
+    {
+        return;
+    }
+    for(za::SizeT i = s.slowest.size() - 1; i > at; i--)
+    {
+        s.slowest[i] = s.slowest[i - 1];
+    }
+    HullBuildStats::Slow& slow = s.slowest[at];
+    q_strlcpy(slow.model, model ? model->name : "?", sizeof(slow.model));
+    slow.frame = frame;
+    slow.ms = ms;
+    slow.time = qcvm ? qcvm->time : 0.0;
+}
+
+// The prop's drawn corners (metres), false if it has too few for a hull.
+[[nodiscard]] bool propHullPoints(edict_t* ent, za::Vector<b3Vec3>& points)
+{
+    za::Vector<glm::vec3>& vertices = scratch.propVerts;
+    if(!held::drawnVertices(ent, vertices) || vertices.size() < 4)
+    {
+        return false;
+    }
+    points.clear();
+    points.reserve(vertices.size());
+    for(const glm::vec3& v : vertices)
+    {
+        points.pushBack(world->toM(v));
+    }
+    return true;
+}
+
+// The prop's hull of its drawn corners (any thread: prebuildPropHulls). A weapon's shape in detail (budget 32: it rests
+// on its side, its grip, its magazine); the rest a little blockier (16: a backpack, a gib: a rounded hull rolls down a
+// slope, a real one's give stops it). But never short of the drawn surface by more than hullTolerance: the hull is a
+// subset of the drawn corners (Box3D's quickhull stops at the budget), and a corner left out is drawn inside what the
+// body rests on (a corpse's 16-corner hull left its drawn back 1.3 units in the floor). The budget grows until every
+// drawn corner is within it. A flat model's hull is thinner than Box3D can collide well: none (its box instead).
+[[nodiscard]] b3HullData* propHullOf(const za::Vector<b3Vec3>& points, int budget, float m2u)
+{
+    b3HullData* hull = fittedHull(points, budget, m2u);
+    if(hull && hull->innerRadius * m2u < 0.25f)
+    {
+        b3DestroyHull(hull);
+        hull = nullptr;
+    }
+    return hull;
+}
+
 // The prop's hull: the convex hull of its drawn surface (an alias model's frame, a brush model's faces: the ammo and
 // health boxes as drawn, not Quake's padded box), or none (nullptr: its box).
 [[nodiscard]] b3HullData* propHull(edict_t* ent, qmodel_t* model, const glm::vec3& lo, const glm::vec3& hi)
@@ -2293,34 +2375,36 @@ template <typename Corners>
     {
         return it->second;
     }
+    const double t0 = Sys_DoubleTime();
     b3HullData* hull = nullptr;
-    za::Vector<glm::vec3>& vertices = scratch.propVerts;
-    if(held::drawnVertices(ent, vertices) && vertices.size() >= 4)
+    za::Vector<b3Vec3> points;
+    if(const auto pending = world->pendingHulls.find(key); pending != world->pendingHulls.end())
     {
-        za::Vector<b3Vec3> points;
-        points.reserve(vertices.size());
-        for(const glm::vec3& v : vertices)
+        hull = pending->second.get(); // (built ahead: done, or waited for, or built here if no worker came to it)
+        world->pendingHulls.erase(pending);
+        hullBuilds.ahead++;
+        if(vr_box3d_hulls_ahead.value >= 2.f) // (built here too and compared: Box3D's hash of the hull's contents)
         {
-            points.pushBack(world->toM(v));
+            b3HullData* here = propHullPoints(ent, points) ? propHullOf(points, isWeaponLike(ent) ? 32 : 16, world->m2u) : nullptr;
+            const bool same = (!here && !hull) || (here && hull && here->hash == hull->hash &&
+                                                    here->vertexCount == hull->vertexCount && here->faceCount == hull->faceCount);
+            (same ? hullBuilds.same : hullBuilds.differed)++;
+            if(here)
+            {
+                b3DestroyHull(here);
+            }
         }
-        // A weapon's shape in detail (it rests on its side, its grip, its magazine); the rest a little blockier
-        // (a backpack, a gib: a rounded hull rolls down a slope, a real one's give stops it). But never short of
-        // the drawn surface by more than hullTolerance: the hull is a subset of the drawn corners (Box3D's quickhull
-        // stops at the budget), and a corner left out is drawn inside what the body rests on (a corpse's 16-corner
-        // hull left its drawn back 1.3 units in the floor). The budget grows until every drawn corner is within it.
-        hull = fittedHull(points, isWeaponLike(ent) ? 32 : 16);
-        // A flat model's hull is thinner than Box3D can collide well: its box instead.
-        if(hull && hull->innerRadius * world->m2u < 0.25f)
-        {
-            b3DestroyHull(hull);
-            hull = nullptr;
-        }
+    }
+    else if(propHullPoints(ent, points))
+    {
+        hull = propHullOf(points, isWeaponLike(ent) ? 32 : 16, world->m2u);
     }
     if(vr_debug_box3d.value)
     {
         Con_Printf("box3d: %s frame %d: %s\n", model->name, key.frame,
             hull ? va("a hull of %d vertices, %.0f cm^3", hull->vertexCount, hull->volume * 1e6f) : "a box");
     }
+    noteHullBuild(model, key.frame, (Sys_DoubleTime() - t0) * 1000.0);
     world->propHulls.emplace(key, hull);
     return hull;
 }
@@ -2338,6 +2422,7 @@ template <typename Corners>
     {
         return it->second;
     }
+    const double t0 = Sys_DoubleTime();
     b3HullData* hull = nullptr;
     za::Vector<glm::vec3>& vertices = scratch.actorVerts;
     const float frame = ent->v.frame;
@@ -2364,6 +2449,7 @@ template <typename Corners>
         Con_Printf("box3d: %s at rest: %s\n", model->name,
             hull ? va("a hull of %d vertices, %.0f litres", hull->vertexCount, hull->volume * 1e3f) : "its box");
     }
+    noteHullBuild(model, -1, (Sys_DoubleTime() - t0) * 1000.0);
     world->propHulls.emplace(key, hull);
     return hull;
 }
@@ -7239,7 +7325,7 @@ void makeReach(
             {
                 points.pushBack(world->toM(v));
             }
-            if(b3HullData* hull = fittedHull(points, 32))
+            if(b3HullData* hull = fittedHull(points, 32, world->m2u))
             {
                 b3CreateHullShape(hb.reach, &shape, hull); // (the world keeps its own copy)
                 if(mag)
@@ -7818,6 +7904,68 @@ void settleCorpses()
     }
 }
 
+// The props about to get their first body this frame (kindOf's Prop: a rigid entity tossed or bouncing, not held, not
+// pinned; not a chunk), whose hull (propHull's key) isn't made yet: each one's built on the pool now, before the loop
+// below makes the bodies, so a gib burst's hulls (a monster's head, gibs, brains: 4-8 at once) are built side by side
+// instead of one after another in the sync (VRTRACE_20261016: 13 frames of 6-7.5 ms). The same points and the same
+// propHullOf: the same hulls. vr_box3d_hulls_ahead 0: each built as its body is made, as before.
+void prebuildPropHulls(const za::Vector<uint8_t>& carried)
+{
+    if(vr_box3d_hulls_ahead.value == 0.f || !jobs::pool() || !jobs::parallel())
+    {
+        return;
+    }
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    {
+        edict_t* ent = EDICT_NUM(num);
+        if(ent->free || (num < static_cast<int>(world->slots.size()) && world->slots[num].kind != Kind::None) ||
+           (num < static_cast<int>(carried.size()) && carried[num]))
+        {
+            continue;
+        }
+        qmodel_t* model = modelOf(ent);
+        const int movetype = static_cast<int>(ent->v.movetype);
+        if(!model || (model->type != mod_alias && model->type != mod_brush) || isChunk(model) || !isRigid(ent) ||
+           (movetype != MOVETYPE_TOSS && movetype != MOVETYPE_BOUNCE) || (!toolRecords.pinned.empty() && toolPinned(num)))
+        {
+            continue;
+        }
+        glm::vec3 lo, hi;
+        localBox(ent, model, lo, hi);
+        const PropHullKey key{model, static_cast<int>(ent->v.frame), {lo.x, lo.y, lo.z, hi.x, hi.y, hi.z}};
+        if(world->propHulls.contains(key) || world->pendingHulls.contains(key))
+        {
+            continue;
+        }
+        za::Vector<b3Vec3> points;
+        if(!propHullPoints(ent, points))
+        {
+            continue;
+        }
+        const int budget = isWeaponLike(ent) ? 32 : 16;
+        const float m2u = world->m2u;
+        world->pendingHulls.emplace(key, jobs::async([points = ZA_MOVE(points), budget, m2u]() mutable {
+            QVR_TRACY_SCOPE(tracyScope, "prop hull ahead");
+            return propHullOf(points, budget, m2u);
+        }));
+        hullBuilds.posted++;
+    }
+}
+
+// The hulls built ahead whose bodies weren't made after all (another kind this frame): kept for their key.
+void keepPendingHulls()
+{
+    for(auto& [key, job] : world->pendingHulls)
+    {
+        b3HullData* hull = job.get();
+        if(!world->propHulls.emplace(key, hull).second && hull)
+        {
+            b3DestroyHull(hull);
+        }
+    }
+    world->pendingHulls.clear();
+}
+
 // The entities, every server frame in edict order: each one's body made, moved, fed or destroyed.
 void syncEntities(float dt)
 {
@@ -7876,6 +8024,7 @@ void syncEntities(float dt)
     za::vectorEraseIf(world->roomRefused, [](int n) {
         return n >= qcvm->num_edicts || EDICT_NUM(n)->free || slotOf(n).kind != Kind::Corpse;
     });
+    prebuildPropHulls(carried);
     world->syncingEntities = true;
     for(int num = 1; num < qcvm->num_edicts; num++)
     {
@@ -7926,6 +8075,7 @@ void syncEntities(float dt)
         }
     }
     world->syncingEntities = false;
+    keepPendingHulls();
     // The corpses that found the ragdoll pool full: QC makes room for each, now that the loop is done (a refusal is not
     // asked again); their ragdolls are made next frame (stale: a corpse that wants one).
     for(za::SizeT i = 0; i < world->roomWanted.size(); i++)
@@ -10044,6 +10194,7 @@ void destroyWorld()
     {
         b3DestroyWorld(world->id);
     }
+    keepPendingHulls(); // (built ahead, not taken: freed below with the rest)
     for(auto& [key, hull] : world->propHulls)
     {
         if(hull)
@@ -10584,6 +10735,23 @@ void blast_f()
     }
     qvr::server::queueBroadcast(msg.data, msg.cursize);
     Con_Printf("vr_physics_blast: %.0f at %.0f %.0f %.0f\n", damage, at[0], at[1], at[2]);
+}
+
+// vr_physics_hull_stats: the props' and actors' hulls made this session on the main thread, and the slowest.
+void hullStats_f()
+{
+    const HullBuildStats& s = hullBuilds;
+    Con_Printf("vr_physics_hull_stats: %d props' and actors' hulls made, %.1f ms of the sync (the slowest %.2f ms); %d "
+               "built ahead on the pool (vr_box3d_hulls_ahead %d), %d of them taken; compared (2): %d the same, %d "
+               "different\n",
+        s.built, s.ms, s.mostMs, s.posted, static_cast<int>(vr_box3d_hulls_ahead.value), s.ahead, s.same, s.differed);
+    for(const HullBuildStats::Slow& slow : s.slowest)
+    {
+        if(slow.ms > 0.0)
+        {
+            Con_Printf("  %6.2f ms  %s frame %d (at %.1f s)\n", slow.ms, slow.model, slow.frame, slow.time);
+        }
+    }
 }
 
 // vr_physics_hash [piles]: a hash of every rigid body's origin, angles, velocity and spin, bit for bit (determinism tests:
@@ -11831,6 +11999,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_bigpile", bigPile_f);
         Cmd_AddCommand("vr_physics_clearpiles", clearPiles_f);
         Cmd_AddCommand("vr_physics_hash", hash_f);
+        Cmd_AddCommand("vr_physics_hull_stats", hullStats_f);
         Cmd_AddCommand("vr_physics_steptime", steptime_f);
         Cmd_AddCommand("vr_physics_frametime", frametime_f);
         Cmd_AddCommand("vr_physics_mtbench", mtbench_f);

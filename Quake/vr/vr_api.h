@@ -155,6 +155,13 @@ const char *VR_RelightIndicator (float *fraction);
 unsigned char *VR_ImagePrefetchTake (const char *name, FILE *f, int length, int *width, int *height);
 void VR_ImagePrefetchNote (const char *name, double seconds);
 void VR_ImagePrefetchEnd (void);	// the first map load's end: the workers joined, the rest freed, the list written
+// Mod_LoadTextures (gl_model.c), before its loop: the textures' replacement images (and their glows, the external pack's
+// maps) found and their files read, decoded on worker threads while the loop uploads them in order (vr_texture_prefetch).
+// names: the miptex names; kinds: 0 none (the sky, no name), 1 a liquid, 2 a regular texture.
+void VR_TexturePrefetchBegin (const char *mapname, const char *const *names, const int *kinds, int count);
+void VR_TexturePrefetchEnd (void);	// ... after it: the workers joined, the images not asked for freed
+int VR_ImageCacheHas (const char *name, FILE *f, int length); // VR_ImageCacheFind would find it (no copy)
+int VR_ImageCacheHasName (const char *name); // ... it holds an image looked up by that name (the file not opened)
 unsigned char *VR_ImageCacheFind (const char *name, FILE *f, int length, int *width, int *height, unsigned char *(*alloc) (int bytes, const char *what), const char *what); // decoded before (vr_imgcache.cpp): a copy from alloc, or NULL
 int VR_ImageCachePut (const char *name, FILE *f, int length, unsigned char *pixels, int width, int height); // ... and kept now (1: the cache frees pixels)
 
@@ -489,6 +496,7 @@ int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' verti
 int VR_MenuDrawBanner (int x, int y);					// M_DrawPlaque: the banner where the plaque's top left would be; nonzero if drawn (0: no image, draw the plaque)
 int VR_MenuBannerExtent (int x, float *left, float *right); // M_Main_Draw: where M_DrawPlaque (x, y) puts the banner (or the plaque) across (menu x); 0 if nothing
 void VR_MenuDrawBannerColumn (void);					// M_Draw, before the page: the VR menu style's banner, in the left column under the corner's buttons
+void VR_MenuBrandPreload (void);					// Host_Init, after Draw_Init: the menus' images (the banner, Ko-fi's logo) loaded, not at the first menu draw
 void VR_MenuDrawVersion (void);						// M_Draw, before the page: "Quake VR: Unleashed - v1.0" / "by Vittorio Romeo" / a "Support on Ko-fi" link, in a box in the bottom right corner (vr_menu_version)
 void VR_MenuRecolor (float *params);					// Draw_SetMenuRecolor: the gui shader's MenuRecolor (vr_menu_recolor; x 0: off)
 int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)
