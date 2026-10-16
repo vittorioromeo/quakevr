@@ -1337,8 +1337,8 @@ int campaignsBloodyShown = -1;
                   "swept from its side it falls cleanly forward or backward, not diagonally. 0: it falls exactly against "
                   "the sweep. Leg pulls (Holding Enemies > Leg Grabs) fall the same way."),
         slider("Legs Stay Straight", vr_legsweep_legs, 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 3.f)
-            .help("Swept (or its legs pulled), its legs keep their stance this long as it topples before they go limp: "
-                  "falling backward its knees don't fold under it and its feet stay where they slid. 0: limp at once."),
+            .help("Swept (or its legs pulled) so that it falls backward, its legs keep their stance this long before they go limp: "
+                  "its knees don't fold under it and its feet stay where they slid. 0: limp at once."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),

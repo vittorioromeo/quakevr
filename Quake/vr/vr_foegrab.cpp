@@ -3121,7 +3121,12 @@ float qvr::foegrab::sweepDown(edict_t* player, edict_t* m, const glm::vec3& swee
     const glm::vec3 side = glm::cross(glm::vec3{0.f, 0.f, 1.f}, fall) * (0.3f * (hi.x - lo.x));
     const glm::vec3 chest{(lo.x + hi.x) * 0.5f, (lo.y + hi.y) * 0.5f, lo.z + 0.7f * (hi.z - lo.z)};
     const glm::vec3 palms[2]{chest + side, chest - side};
-    (void)box3d::ragdollThrown(m, fall, palms, 2, za::clamp(vr_legsweep_legs.value, 0.f, 3.f));
+    // Falling backward its legs keep their stance a moment (vr_legsweep_legs): limp at once, its knees folded under it as
+    // it sat down and its feet slid back to its pelvis. (Forward, its knees can't fold; sideways, stiff legs in its
+    // staggered stance turned it.)
+    const float yaw = glm::radians(m->v.angles[1]);
+    const bool backward = glm::dot(fall, glm::vec3{za::cos(yaw), za::sin(yaw), 0.f}) < -0.5f;
+    (void)box3d::ragdollThrown(m, fall, palms, 2, backward ? za::clamp(vr_legsweep_legs.value, 0.f, 3.f) : 0.f);
     (void)box3d::ragdollGrace(m, NUM_FOR_EDICT(player), 0.4f);
     return result;
 }
