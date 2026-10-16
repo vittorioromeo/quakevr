@@ -157,6 +157,8 @@ struct TakeInfo
     glm::vec3 origin0{0.f};
     double t0{0.0};       // realtime at t = 0
     int take{0};          // its number among the label's takes
+    za::String heldMain; // a prop (not a weapon) in the main / off hand as the take ended: "model (classname)"
+    za::String heldOff;
 };
 
 // Writes a take (header and rows); false (with a console message) if it can't.

@@ -9546,3 +9546,30 @@ captured (the camera moved the test spawn; `scratch/shots.sh` sketches it).
 In VR: hold the shotgun or the crowbar low and sweep it level through a grunt's shins, from in front and from its side;
 does it go down feet first the way you swept? Try the super shotgun and the axe (nothing), a sword by the blade swinging
 the hilt. Log Leg Sweeps prints why one didn't.
+
+## Leg sweep labels in the motion recorder (worktree `tghost`, branch `agent/sweeprec`, 2026-10-16)
+
+His idea: the leg sweep gets recorder labels like the neck snap, so his real sweeps become a regression set.
+
+- **Labels** (`vr_motion.cpp`, the data-driven category table): **Leg Sweep Expected** (`leg_sweep`; Detail shotgun, prop,
+  crowbar, left_right, right_left, away, toward, hilt) and **Leg Sweep Not Expected** (`no_leg_sweep`; axe, slow, blade,
+  not_level, short, super_shotgun, high), in the menu next to the neck snap's. `expect.cfg`: Expected needs a `legsweep`
+  event, Not Expected none (blows on the way in allowed).
+- **The event**: `vr_legsweep.cpp` `sweepHand` emits `legsweep` (sub `knocked_down`, `standing` for the training dummy) when
+  `foegrab::sweepDown` took the sweep (result >= 1); this is the only edit to that file (a read-only hook: one `qcEvent` call
+  and the include). The replay runs the game's own detector with its own thresholds.
+- **The weapon**: in the take already (`m_wid`/`o_wid`); a prop held in a hand is now written in the header (`main held`,
+  `off held`; `vr_legsweep*` settings join the header's melee settings line), but playback does not put a prop back in the
+  hand: `eval.sh` lists such takes apart ("not replayed (prop)"), not counted. Open: replaying props (spawn the prop by model
+  into the hand during the setup) once he records some.
+- **eval.sh** (backup `kit/scratch/eval.sh.bak_sweeprec`): `LEG_KINDS="leg_sweep:legsweep"` is the one table: the melee sets
+  leave those labels out, `legkinds_set` replays each listed kind once (`vr_motion_eval list`), printing expected caught /
+  missed, false sweeps, then per weapon, then each take; verdicts in `eval_status.csv`. The leg pull / lift labels add their
+  `<label>:<event>` to `LEG_KINDS`, their categories to `vr_motion.cpp` and `expect.cfg`, and nothing else. Reported only.
+- **Synthetic takes** (`motion_synth.py legsweep`): `leg_sweep_shotgun`, `no_leg_sweep_axe`, `no_leg_sweep_slow`. Through
+  eval.sh (`EVAL_TAKES=` that folder): `leg sweep: expected caught 1/1, missed 0, false 0/2`; per weapon shotgun 1/1 and 0/1
+  false, axe 0/1 false. The real set: melee eval 168/177 (3 bash-damage differences from the baseline, as before), neck
+  snap 6/6 caught, 0/6 false; build 0 warnings.
+
+Checklist (proposed): "Motion Recorder: record Leg Sweep Expected takes with a shotgun, a plank and a crowbar, and Not Expected
+ones with the axe, a slow swing and the super shotgun; `eval.sh` should catch and clear them."

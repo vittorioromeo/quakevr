@@ -34,6 +34,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_mem.hpp"
 #include "vr_modelmetadata.hpp"
+#include "vr_motion.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_render.hpp"
@@ -633,6 +634,13 @@ void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, fl
         const float feet = za::clamp(speed * za::max(vr_legsweep_feet.value, 0.f), 0.f, maxFeet);
         const float topple = glm::radians(za::clamp(vr_legsweep_topple.value, 0.f, 2000.f));
         const float result = foegrab::sweepDown(player, m, along, topple, feet, za::max(vr_legsweep_damage.value, 0.f));
+        if(result >= 1.f)
+        {
+            // The motion recorder's "legsweep" event (a take being recorded or replayed; MOTIONS.md): knocked down
+            // ("knocked_down") or the training dummy that would be ("standing"); the level speed, what swept it.
+            qvr::motion::qcEvent("legsweep", result >= 2.f ? "standing" : "knocked_down", hand,
+                speed / units::metresToUnits(), nullptr, m, why);
+        }
         state.swept[state.sweptNext] = Swept{e, qcvm->time};
         state.sweptNext = (state.sweptNext + 1) % maxSwept;
         if(debugOn())
