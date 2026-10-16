@@ -8729,3 +8729,32 @@ His request: "make my five knockdown values the defaults". From his `ironwail.cf
 `vr_knockdown_damage` 2 -> 3, `vr_knockdown_getup_speed` 1 -> 0.8, `vr_knockdown_time_min` 2.5 -> 1.75,
 `vr_knockdown_time_max` 4.5 -> 3.5. Migration 140 moves configs still at the old defaults. (His lower shove/bash damage was
 already the default; the melee eval canary's halved parry-bash damage is that tuning, intentional.)
+
+## Single-pass stereo, stages 1-3 (worktree `flatfist`, branch `agent/stereo1`, 2026-10-16)
+
+His decision: single-pass (instanced) stereo, staged, behind `vr_stereo_single` (default 0). Design, stages and what is
+left: `docs/vr-port/STEREO.md`. Done: GL_OVR_multiview2 (the driver has it, and GL_EXT_multiview_texture_multisample for
+MSAA); every ported program gets a multiview twin compiled from the same sources with `QVR_MULTIVIEW` (gl_shaders.c);
+the views' block (binding 5) replaces `ViewProj`/`EyePos` in the twins only; both eyes' light clusters, AO tiles and
+foveation rates; a frustum holding both eyes, both eyes' PVS and backface cull; a 2-layer colour and depth/stencil array
+drawn in one pass (the opaque world and brush models, the alias models but the view entities), then each eye's own
+scene from a copy of its layer. Two-pass while a teleporter's view is in sight. Debug > Profiling and Memory:
+"Single-Pass Stereo", "Single-Pass Stereo Info" (`vr_stereo_single_info`); `vr_stereo_single_passes` (bits) splits it
+per pass.
+- **Images** (`vr_eyeshot 1`, both eyes, e1m1 start, e1m1's computer room with 2 spawned monsters and the shotgun in the
+  hand, vrteleporters, warden; fixed frames, seeds; `scratch/shots.sh`, `cmpshots.py`): two runs of the old build differ
+  by at most 0.004% of pixels over 2 levels (one 13); toggle off against the old build: the same (0.007% at most, in the
+  teleporter view's own noise); toggle on, `vr_foveated` 2 and MSAA 4 (the test config) or both off: e1m1, the room and
+  warden 0.000% over 2 levels (max 1-7). vrteleporters renders two-pass (its gates are in view); single-pass there
+  differed by 2.8% (the floor behind the middle gate drawn: below), which is why.
+- **Timings** (bench.sh, 900 frames, 90 Hz paced, exclusive, 2 reps each; `play_ad_tfuma_fight` cannot run: no AD in
+  the kit's game folder): combat_48 draw calls 385 -> 317, alias models drawn 738 -> 589, but CPU busy 2.68 -> 2.90 ms
+  (p99 5.2 -> 8.6: the twins compile on first use, mid-run), GPU 4.41 -> 6.63 ms (eyes 4.38 -> 3.96, the pass 2.67).
+  play_e1m1_fight: CPU 1.45 -> 1.49 ms, GPU 3.56 -> 5.54 ms. Single-pass is slower as it stands.
+- **Why** (STEREO.md, "What the first measurement says"): the world's draws are GPU-built indirect commands (0.02 ms of
+  CPU an eye) and alias models are instanced (0.41 -> 0.34 ms with the pass), so halving them saves under 0.1 ms; the
+  pass adds a third `R_SetupView` (each eye still sets up its own for its own passes); copying the depth/stencil into each
+  eye's target loses its compression and hierarchical Z for all that follows (the eyes' particles 0.82 -> 1.22 ms GPU).
+- Next run, in order: no copy (the eyes' targets as views of the array layers), each eye's view set-up reusing the
+  pass's, the twins compiled when the toggle turns on; measure again; only then stages 4-5 (particles and the VR
+  effects are where the per-eye CPU is), and both eyes' teleporter views before the pass.
