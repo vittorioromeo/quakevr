@@ -72,6 +72,11 @@ int main()
     const auto relaxed = qvr::xr::frameSynthesisInfo(motion, depth, 432, 432, 0.0381f, 156.f, pose, true);
     require((relaxed.layerFlags & XR_FRAME_SYNTHESIS_INFO_REQUEST_RELAXED_FRAME_INTERVAL_BIT_EXT) != 0 &&
         relaxed.nearZ < relaxed.farZ, "optional interval hint and conventional depth metadata");
+    const auto vectors3d = qvr::xr::frameSynthesisInfo(motion, depth, 432, 432, 156.f, 0.0381f, pose, false, false);
+    require((vectors3d.layerFlags & XR_FRAME_SYNTHESIS_INFO_USE_2D_MOTION_VECTOR_BIT_EXT) == 0 && vectors3d.layerFlags == 0,
+        "3D vectors clear the 2D bit and nothing else");
+    const auto relaxed3d = qvr::xr::frameSynthesisInfo(motion, depth, 432, 432, 156.f, 0.0381f, pose, true, false);
+    require(relaxed3d.layerFlags == XR_FRAME_SYNTHESIS_INFO_REQUEST_RELAXED_FRAME_INTERVAL_BIT_EXT, "relaxed hint is independent of the vector dimension");
     std::printf("PASS: composition builder, initialized metadata and published ABI (SDK %u.%u.%u)\n",
         XR_VERSION_MAJOR(XR_CURRENT_API_VERSION), XR_VERSION_MINOR(XR_CURRENT_API_VERSION), XR_VERSION_PATCH(XR_CURRENT_API_VERSION));
 }

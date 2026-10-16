@@ -52,11 +52,12 @@ namespace qvr::xr
 }
 
 [[nodiscard]] inline XrFrameSynthesisInfoEXT frameSynthesisInfo(XrSwapchain motion, XrSwapchain depth,
-    int width, int height, float nearZ, float farZ, const XrPosef& applicationDelta, bool relaxed)
+    int width, int height, float nearZ, float farZ, const XrPosef& applicationDelta, bool relaxed,
+    bool vectors2d = true)
 {
     XrFrameSynthesisInfoEXT info{};
     info.type = XR_TYPE_FRAME_SYNTHESIS_INFO_EXT;
-    info.layerFlags = XR_FRAME_SYNTHESIS_INFO_USE_2D_MOTION_VECTOR_BIT_EXT;
+    info.layerFlags = vectors2d ? XR_FRAME_SYNTHESIS_INFO_USE_2D_MOTION_VECTOR_BIT_EXT : 0;
     if(relaxed) info.layerFlags |= XR_FRAME_SYNTHESIS_INFO_REQUEST_RELAXED_FRAME_INTERVAL_BIT_EXT;
     info.motionVectorSubImage.swapchain = motion;
     info.motionVectorSubImage.imageRect.extent = {width, height};

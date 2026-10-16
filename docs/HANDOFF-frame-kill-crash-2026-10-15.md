@@ -496,6 +496,58 @@ Offline check on the saved fixture (`vrcalibration_15_L/R`, static scene, camera
   (edges 0.027-0.033 for both, direction differs per eye). **LK neither helps nor hurts measurably on static content**, and the fixture has no dynamic content,
   so it cannot confirm or clear item 2.
 
-Cheap variants that isolate the causes (each is a cvar or an argument; the quality judgement needs one wearer session, because synthesized frames cannot be captured):
+Cheap variants that isolate the causes (each is a cvar; the quality judgement needs one wearer session, because synthesized frames cannot be captured):
 1. `flip_y` (item 1), 2. camera-seed-only mode without LK (item 2), 3. `vr_xr_frame_synthesis_scale 1` (item 4), 4. 3D flag with Z delta (item 3).
-Only variant 3 (the scale) exists today as a cvar; the other three are not implemented.
+All four exist now; see the next section for what they are, how they were checked and what checking them turned up.
+
+## Artifact-isolation variants, and two producer defects found while checking them (2026-10-16)
+
+Cvars (all `CVAR_NONE`: read every frame, not saved, settable from the console or a cfg while the game runs; all listed in the profile settings):
+
+| cvar | default | does |
+|------|---------|------|
+| `vr_xr_frame_synthesis_flip_y` | 0 | 1 negates the exported Y (item 1: Godot/FB_space_warp are Y-up) |
+| `vr_xr_frame_synthesis_flow` | 1 | 0 skips the Lucas-Kanade pass and exports the camera seed alone (item 2) |
+| `vr_xr_frame_synthesis_3d` | 0 | 1 clears the 2D bit and writes Z = window-depth delta of the camera reprojection (item 3; RGBA16F motion only) |
+| `vr_xr_frame_synthesis_scale` | 0.25 | 1 = full-size vector images (item 4; existed before) |
+| `vr_xr_frame_synthesis_mask` | 1 | **new default behaviour**, see defect 1; 0 = as before |
+
+The OpenXR log's `FRAME_LAYERS` line carries `synthesis_variant=flip_y:..,flow:..,3d:..,mask:..`, the diagnostic capture JSON has a `variant` object, and
+`run_frame_synthesis_smoke.sh` takes `QVR_SYNTH_FLIP_Y`, `QVR_SYNTH_FLOW`, `QVR_SYNTH_3D`, `QVR_SYNTH_MASK` (0/1; unset keeps the default).
+
+Checked without a wearer (one one-shot capture per variant on the Frame, `performance_valid` false): every export equals the field its settings imply, to fp16
+storage precision (p99 error <= 0.005 px of the 432x432 grid). `flip_y 1`: export Y is the negated flow Y (correlation -0.99999, default +0.99999). `flow 0`:
+the flow file is bit-identical to the camera seed and the export is `(-2*seed.x, +2*seed.y)`. `3d 1`: Z equals the seed's depth delta (0.004% of pixels differ,
+fp16). This proves the mechanics, **not** how any of it looks.
+
+### Defect 1: the lenses' hidden area was exported as the nearest surface with screen-wide vectors
+
+`vr_visibility_mask` (default 1) draws the lenses' hidden area at the near plane, so 15.65% of every eye's depth is exactly 1.0 (reversed Z; also present in the
+2026-10-14 captures, so it is not new). The depth/seed pass reprojected those pixels like surfaces a few millimetres from the eye: camera-seed magnitude up to
+17 NDC (8.5 UV). Three consequences, measured on the live captures:
+- the export carried those vectors for the mask (|motion| up to 17 NDC) together with depth 1.0, the nearest value in the frame;
+- the flow pyramid blends seeds bilinearly at coarse levels, so the contamination leaked into the **visible** image next to the mask: visible pixels within 3 px
+  of the mask had |motion| median 0.99 NDC (right eye), p99 8.7, max 10.6, against a far-field p99 of 0.017 in the same capture (left eye: p99 5.7, max 9.4);
+- nothing in the repo's checks looked at it, because the fixture has no hidden area.
+
+Fix (`vr_xr_frame_synthesis_mask 1`): the seed shader writes zero for pixels at exactly the nearest depth, and the export writes zero motion, alpha 0 and the far
+depth for them. On the live capture the mask exports exactly 0 / 0 / far, and the band next to it matches the far field (max about the seed's p99). GL fixture
+`hiddenAreaFixture` covers both Z conventions and `mask 0`. **Untested with a wearer**: whether this is the artifact they see. It is plausible (screen-wide
+vectors and a near-plane depth at the lens edge are what a compositor would smear into the visible periphery) but it is a hypothesis, not a result.
+
+### Defect 2: about 20% of the left eye's flow texels were never written
+
+In the smoke captures of the `next` port (7 of 7 left-eye captures with LK flow; the right eye 0% in the 4 checked), about 20% of the flow texels held NaN in scattered 16x4 blocks, including
+the alpha channel that the shader always writes as 1.0, so these are texels the pass did not cover, not shader output. The 2026-10-14 captures (frames 14/15)
+had none, and the pre-merge binary shows the same, so `origin/next` is not the cause. The export already fell back to the camera seed on non-finite flow, so no
+garbage reached the compositor, but those pixels had no LK estimate, and the repo's own validator reported `all_float_images_finite_and_sized: false`, which is why
+the smoke script exited 2 (earlier notes attributed that exit code to the missing tests directory; that was wrong).
+
+Mitigation: each flow pass target is cleared to (0,0,0,0) before it is drawn, and the export trusts a flow texel only where alpha > 0.5 (so finite garbage is rejected
+too, not just NaN). Result: 0.0% uncovered texels in all four eyes of two live runs, validator `valid: true`, smoke exit 0. The mechanism is not established: a
+clear changing coverage suggests Turnip leaves tiles unwritten when a draw targets undefined content, but that is inference. GL fixture `uncoveredFlowFixture`
+covers an unwritten texel and a NaN-alpha texel. The cost of the extra clears was not measured (they are in-pass on a tiled GPU, so it should be small).
+
+### What a wearer session should compare
+Same scene, same minute, toggled live: default (`mask 1`), `vr_xr_frame_synthesis_mask 0`, `flip_y 1`, `flow 0`, `3d 1`, `vr_xr_frame_synthesis_scale 1`. Defect 1 and 2 are
+fixed in the default, so the first comparison is simply old (`mask 0`) against new. Judge artifacts at the image periphery first, then around the hands.

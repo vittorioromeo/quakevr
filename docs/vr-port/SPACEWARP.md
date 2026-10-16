@@ -67,6 +67,11 @@ runtime's recommended synthesis width/height; `vr_xr_frame_synthesis_relaxed 1`
 adds the optional relaxed-interval hint. A running backend created without EXT
 cannot acquire the extension just by changing the cvar.
 
+Four live cvars isolate suspected causes of artifacts (they may be toggled while the game runs): `vr_xr_frame_synthesis_flip_y` (negate exported Y),
+`vr_xr_frame_synthesis_flow 0` (camera seed only, no Lucas-Kanade pass), `vr_xr_frame_synthesis_3d` (no 2D bit, Z = depth delta) and
+`vr_xr_frame_synthesis_mask` (default 1: the lenses' hidden area exports no motion and the far depth instead of near-plane vectors). Details and the
+measurements behind them are in `docs/HANDOFF-frame-kill-crash-2026-10-15.md`.
+
 The backend chains a synthesis config to each view, enumerates the GL session's
 formats, and creates distinct motion/depth swapchains for each eye. It supports
 advertised signed floating-point formats and an experimental `GL_SRGB8_ALPHA8`

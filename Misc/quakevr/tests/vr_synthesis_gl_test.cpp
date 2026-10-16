@@ -463,6 +463,169 @@ void srgbMotionFixture(GLuint fbo, GLuint exportProgram)
     glDeleteTextures(6, textures);
 }
 
+// The lenses' hidden area is drawn at the near plane (depth 1 reversed, 0 conventional): no surface, so no seed, no
+// motion and the far depth in the export, while the visible side keeps what it had (vr_xr_frame_synthesis_mask).
+void hiddenAreaFixture(GLuint fbo, GLuint depthProgram, GLuint exportProgram, bool reversed)
+{
+    const float hiddenDepth = reversed ? 1.f : 0.f, farDepth = reversed ? 0.f : 1.f;
+    GLuint source = texture(GL_DEPTH_COMPONENT32F, 1), seed = texture(GL_RGBA16F, 1), output = texture(GL_DEPTH_COMPONENT32F, 1);
+    float projection[16]{};
+    projection[3] = 1.f;
+    qvr::synthesis::overrideEyeProjection(projection, -1.f, 1.f, 1.f, -1.f, 1.f, 4096.f, reversed);
+    const glm::mat4 previous = glm::make_mat4(projection);
+    const glm::mat4 current = previous * glm::translate(glm::mat4{1.f}, {0.f, -2.f, 0.f});
+    const glm::mat4 inverse = glm::inverse(current);
+    const glm::vec4 clip = current * glm::vec4{16.f, 0.f, 0.f, 1.f};
+    const float value = reversed ? clip.z / clip.w : clip.z / clip.w * 0.5f + 0.5f;
+    std::vector<float> pixels(size * size, value);
+    for(int y = 0; y < size; ++y)
+    for(int x = 0; x < size / 2; ++x) pixels[y * size + x] = hiddenDepth; // left half hidden, right half a surface
+    bind(0, source);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_DEPTH_COMPONENT, GL_FLOAT, pixels.data());
+    target(fbo, seed, output);
+    glViewport(0, 0, size, size);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_ALWAYS);
+    glDepthMask(GL_TRUE);
+    glUseProgram(depthProgram);
+    glUniform2f(0, size, size);
+    glUniform4f(1, 0.f, 0.f, 1.f, 1.f);
+    glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(inverse));
+    glUniformMatrix4fv(6, 1, GL_FALSE, glm::value_ptr(previous));
+    glUniform3f(10, 0.f, 2.f, 0.f);
+    glUniform1i(11, reversed);
+    glUniform1i(12, 1);
+    bind(0, source);
+    float hidden[4]{}, visible[4]{};
+    glUniform1i(13, 1);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glReadPixels(16, 32, 1, 1, GL_RGBA, GL_FLOAT, hidden);
+    glReadPixels(48, 32, 1, 1, GL_RGBA, GL_FLOAT, visible);
+    std::printf("hidden_area_fixture reversed=%d seed hidden=(%.6f,%.6f,%.6f) visible=(%.6f,%.6f)\n", reversed,
+        hidden[0], hidden[1], hidden[2], visible[0], visible[1]);
+    require(std::abs(hidden[0]) < 1e-5f && std::abs(hidden[1]) < 1e-5f && std::abs(hidden[2]) < 1e-5f,
+        "hidden area has a zero camera seed");
+    require(std::abs(visible[0] + 0.0625f) < 8e-5f, "the visible side keeps its camera seed beside a hidden area");
+    glUniform1i(13, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glReadPixels(16, 32, 1, 1, GL_RGBA, GL_FLOAT, hidden);
+    require(std::abs(hidden[0]) > 1e-3f, "mask 0 leaves the near-plane reprojection as it was");
+
+    GLuint flow = texture(GL_RGBA16F, 1), motion = texture(GL_RGBA16F, 1);
+    std::vector<float> flowPixels(size * size * 4);
+    for(int pixel = 0; pixel < size * size; ++pixel)
+    {
+        flowPixels[pixel * 4] = -0.015625f; // one pixel of previousUV-currentUV
+        flowPixels[pixel * 4 + 1] = 0.0078125f;
+        flowPixels[pixel * 4 + 3] = 1.f;
+    }
+    bind(0, flow);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_RGBA, GL_FLOAT, flowPixels.data());
+    target(fbo, motion, output);
+    glViewport(0, 0, size, size);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_ALWAYS);
+    glDepthMask(GL_TRUE);
+    glUseProgram(exportProgram);
+    bind(0, flow);
+    bind(1, source);
+    bind(2, seed);
+    glUniform2f(0, size, size);
+    glUniform1i(5, 0); // the program keeps its uniforms: the sRGB8 fixture left its encoding on
+    glUniform1i(6, 0);
+    glUniform1i(7, 0);
+    glUniform1i(8, reversed);
+    for(int mask = 1; mask >= 0; --mask)
+    {
+        glUniform1i(9, mask);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        float hiddenVector[4]{}, visibleVector[4]{}, hiddenZ = 0.f, visibleZ = 0.f;
+        glReadPixels(16, 32, 1, 1, GL_RGBA, GL_FLOAT, hiddenVector);
+        glReadPixels(16, 32, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &hiddenZ);
+        glReadPixels(48, 32, 1, 1, GL_RGBA, GL_FLOAT, visibleVector);
+        glReadPixels(48, 32, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &visibleZ);
+        std::printf("hidden_area_export reversed=%d mask=%d hidden=(%.5f,%.5f,a=%.2f,z=%.4f) visible=(%.5f,%.5f,a=%.2f,z=%.4f)\n",
+            reversed, mask, hiddenVector[0], hiddenVector[1], hiddenVector[3], hiddenZ, visibleVector[0], visibleVector[1],
+            visibleVector[3], visibleZ);
+        if(mask)
+        {
+            require(std::abs(hiddenVector[0]) < 1e-5f && std::abs(hiddenVector[1]) < 1e-5f && hiddenVector[3] < 0.01f,
+                "hidden area exports no motion (alpha 0: not estimated)");
+            require(std::abs(hiddenZ - farDepth) < 1e-6f, "hidden area exports the far depth, not the near plane");
+        }
+        else
+        {
+            require(std::abs(hiddenVector[0] - 0.03125f) < 0.002f && std::abs(hiddenZ - hiddenDepth) < 1e-6f,
+                "mask 0 exports the hidden area as drawn");
+        }
+        require(std::abs(visibleVector[0] - 0.03125f) < 0.002f && std::abs(visibleVector[1] - 0.015625f) < 0.002f &&
+                visibleVector[3] > 0.99f && std::abs(visibleZ - value) < 1e-6f,
+            "visible side exports its motion and depth unchanged beside a hidden area");
+    }
+    require(glGetError() == GL_NO_ERROR, "hidden area fixture leaves no GL error");
+    GLuint textures[]{source, seed, output, flow, motion};
+    glDeleteTextures(5, textures);
+}
+
+// A flow texel the flow pass never wrote (alpha 0 from the clear, however finite its xy) is no estimate: the export
+// takes the camera seed there and marks it, while its covered neighbour keeps the flow.
+void uncoveredFlowFixture(GLuint fbo, GLuint exportProgram)
+{
+    GLuint flow = texture(GL_RGBA16F, 1), seed = texture(GL_RGBA16F, 1), depth = texture(GL_DEPTH_COMPONENT32F, 1);
+    GLuint motion = texture(GL_RGBA16F, 1), outputDepth = texture(GL_DEPTH_COMPONENT32F, 1);
+    std::vector<float> flowPixels(size * size * 4), seedPixels(size * size * 4), depthPixels(size * size, 0.75f);
+    for(int pixel = 0; pixel < size * size; ++pixel)
+    {
+        flowPixels[pixel * 4] = -0.015625f;
+        flowPixels[pixel * 4 + 1] = 0.0078125f;
+        flowPixels[pixel * 4 + 3] = 1.f;
+        seedPixels[pixel * 4] = -0.0078125f;
+        seedPixels[pixel * 4 + 1] = 0.00390625f;
+        seedPixels[pixel * 4 + 3] = 1.f;
+    }
+    flowPixels[(10 * size + 10) * 4] = -0.25f; // finite, plausible-looking, but never written: alpha 0
+    flowPixels[(10 * size + 10) * 4 + 1] = 0.25f;
+    flowPixels[(10 * size + 10) * 4 + 3] = 0.f;
+    flowPixels[(20 * size + 20) * 4 + 3] = std::numeric_limits<float>::quiet_NaN(); // garbage alpha
+    bind(0, flow);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_RGBA, GL_FLOAT, flowPixels.data());
+    bind(0, seed);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_RGBA, GL_FLOAT, seedPixels.data());
+    bind(0, depth);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_DEPTH_COMPONENT, GL_FLOAT, depthPixels.data());
+    target(fbo, motion, outputDepth);
+    glViewport(0, 0, size, size);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_ALWAYS);
+    glDepthMask(GL_TRUE);
+    glUseProgram(exportProgram);
+    bind(0, flow);
+    bind(1, depth);
+    bind(2, seed);
+    glUniform2f(0, size, size);
+    glUniform1i(5, 0);
+    glUniform1i(6, 0);
+    glUniform1i(7, 0);
+    glUniform1i(8, 0);
+    glUniform1i(9, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    float gap[4]{}, garbage[4]{}, covered[4]{};
+    glReadPixels(10, 10, 1, 1, GL_RGBA, GL_FLOAT, gap);
+    glReadPixels(20, 20, 1, 1, GL_RGBA, GL_FLOAT, garbage);
+    glReadPixels(11, 10, 1, 1, GL_RGBA, GL_FLOAT, covered);
+    std::printf("uncovered_flow gap=(%.5f,%.5f,a=%.2f) garbage_alpha=(%.5f,%.5f,a=%.2f) covered=(%.5f,%.5f,a=%.2f)\n",
+        gap[0], gap[1], gap[3], garbage[0], garbage[1], garbage[3], covered[0], covered[1], covered[3]);
+    require(std::abs(gap[0] - 0.015625f) < 1e-3f && std::abs(gap[1] - 0.0078125f) < 1e-3f && gap[3] < 0.01f,
+        "an unwritten flow texel exports the camera seed, marked with alpha 0");
+    require(std::abs(garbage[0] - 0.015625f) < 1e-3f && garbage[3] < 0.01f,
+        "a flow texel with NaN alpha exports the camera seed, marked with alpha 0");
+    require(std::abs(covered[0] - 0.03125f) < 2e-3f && std::abs(covered[1] - 0.015625f) < 2e-3f && covered[3] > 0.99f,
+        "a covered flow texel exports its flow");
+    require(glGetError() == GL_NO_ERROR, "uncovered flow fixture leaves no GL error");
+    GLuint textures[]{flow, seed, depth, motion, outputDepth};
+    glDeleteTextures(5, textures);
+}
+
 } // namespace
 
 int main()
@@ -492,6 +655,9 @@ int main()
     dynamicFixture(fbo, flowProgram, exportProgram, 1, -3, 0);
     dynamicFixture(fbo, flowProgram, exportProgram, 2, 0, 3);
     srgbMotionFixture(fbo, exportProgram);
+    hiddenAreaFixture(fbo, depthProgram, exportProgram, false);
+    hiddenAreaFixture(fbo, depthProgram, exportProgram, true);
+    uncoveredFlowFixture(fbo, exportProgram);
     glDeleteProgram(depthProgram);
     glDeleteProgram(flowProgram);
     glDeleteProgram(exportProgram);
@@ -500,5 +666,5 @@ int main()
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    std::puts("PASS: actual GLSL compile/link, depth/MSAA/camera reprojection, dynamic stereo flow, sRGB8 round-trip and bounded NaN/Inf/out-of-range fallback to camera or neutral motion; no OpenXR session created");
+    std::puts("PASS: actual GLSL compile/link, depth/MSAA/camera reprojection, dynamic stereo flow, sRGB8 round-trip, bounded NaN/Inf/out-of-range fallback to camera or neutral motion, the lenses' hidden area exported as no motion at the far depth and unwritten flow texels exported as the camera seed; no OpenXR session created");
 }

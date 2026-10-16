@@ -21,6 +21,7 @@ layout(location=6) uniform mat4 Previous;
 layout(location=10) uniform vec3 CurrentOrigin;
 layout(location=11) uniform int Reversed;
 layout(location=12) uniform int Samples;
+layout(location=13) uniform int MaskHidden;
 layout(location=0) out vec4 Seed;
 void main()
 {
@@ -40,6 +41,13 @@ void main()
     }
     else z = textureLod(Depth, source, 0.0).r;
     gl_FragDepth = z;
+    if(MaskHidden != 0 && z == (Reversed != 0 ? 1.0 : 0.0))
+    {
+        // The lenses' hidden area (vr_visibility_mask) is drawn at the near plane. It is no surface: reprojecting it
+        // with the camera's translation gives vectors of many screens, which would also leak into the coarse flow levels.
+        Seed = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
     float clipZ = Reversed != 0 ? z : z * 2.0 - 1.0;
     vec4 world = InverseCurrent * vec4(uv * 2.0 - 1.0, clipZ, 1.0);
     vec4 oldClip;
@@ -47,13 +55,20 @@ void main()
     if(sky) oldClip = Previous * vec4(world.xyz - CurrentOrigin * world.w, 0.0);
     else oldClip = Previous * world;
     vec2 oldUV = uv;
+    float depthDelta = 0.0; // current minus previous window depth of the same static point (3D vectors only)
     if(!isnan(oldClip.w) && !isinf(oldClip.w) && oldClip.w > 0.000001 &&
         !any(isnan(oldClip.xy)) && !any(isinf(oldClip.xy)))
     {
         vec2 candidate = oldClip.xy / oldClip.w * 0.5 + 0.5;
-        if(!any(isnan(candidate)) && !any(isinf(candidate))) oldUV = candidate;
+        if(!any(isnan(candidate)) && !any(isinf(candidate)))
+        {
+            oldUV = candidate;
+            float oldZ = oldClip.z / oldClip.w;
+            float oldDepth = Reversed != 0 ? oldZ : oldZ * 0.5 + 0.5;
+            if(!sky && !isnan(oldDepth) && !isinf(oldDepth)) depthDelta = z - oldDepth;
+        }
     }
-    Seed = vec4(oldUV - uv, 0.0, 1.0);
+    Seed = vec4(oldUV - uv, depthDelta, 1.0);
 }
 )";
 
@@ -125,6 +140,10 @@ layout(location=0) uniform vec2 TargetSize;
 layout(location=3) uniform vec2 MotionScale;
 layout(location=4) uniform vec2 MotionOffset;
 layout(location=5) uniform int EncodeSrgb8;
+layout(location=6) uniform int FlipY;
+layout(location=7) uniform int Use3D;
+layout(location=8) uniform int Reversed;
+layout(location=9) uniform int MaskHidden;
 layout(location=0) out vec4 Motion;
 bool finite2(vec2 v)
 {
@@ -132,7 +151,7 @@ bool finite2(vec2 v)
 }
 vec2 toNdcMotion(vec2 flow)
 {
-    return vec2(-2.0 * flow.x, 2.0 * flow.y);
+    return vec2(-2.0 * flow.x, (FlipY != 0 ? -2.0 : 2.0) * flow.y);
 }
 bool representableMotion(vec2 motion)
 {
@@ -155,11 +174,18 @@ vec2 linearToSrgb(vec2 linearValue)
 void main()
 {
     vec2 uv = gl_FragCoord.xy / TargetSize;
-    vec2 flow = textureLod(Flow, uv, 0.0).xy;
+    float sourceDepth = textureLod(Depth, uv, 0.0).r;
+    // Hidden area (vr_visibility_mask): drawn at the near plane, so it would pose as the nearest surface of the frame.
+    bool hidden = MaskHidden != 0 && sourceDepth == (Reversed != 0 ? 1.0 : 0.0);
+    vec4 flowSample = textureLod(Flow, uv, 0.0);
+    vec2 flow = flowSample.xy;
+    // The flow pass writes alpha 1 and is cleared to 0 first: a texel it never covered (some drivers leave raster gaps)
+    // is no estimate, whatever else it holds. The negated test also rejects NaN.
+    bool covered = flowSample.w > 0.5;
     // Flow is previousUV-currentUV. EXT uses currentNDC-previousNDC in Vulkan
     // NDC (positive Y down), while this OpenGL producer's UV has positive Y up.
     vec2 motion = toNdcMotion(flow);
-    bool fallback = !finite2(flow) || !representableMotion(motion);
+    bool fallback = !covered || !finite2(flow) || !representableMotion(motion);
     if(EncodeSrgb8 != 0 && !fallback) fallback = !inSrgbRange(motion);
     if(fallback)
     {
@@ -172,14 +198,24 @@ void main()
         if(!finite2(seed) || !representableMotion(motion) ||
             (EncodeSrgb8 != 0 && !inSrgbRange(motion))) motion = vec2(0.0);
     }
+    if(hidden)
+    {
+        motion = vec2(0.0);
+        fallback = true; // alpha 0: not estimated
+    }
     if(EncodeSrgb8 != 0)
     {
         vec2 linearSample = (motion - MotionOffset) / MotionScale;
         Motion = vec4(linearToSrgb(linearSample), 0.0, 1.0);
     }
-    else Motion = vec4(motion, 0.0, fallback ? 0.0 : 1.0);
+    else
+    {
+        float depthDelta = Use3D != 0 ? textureLod(CameraSeed, uv, 0.0).z : 0.0;
+        if(isnan(depthDelta) || isinf(depthDelta)) depthDelta = 0.0;
+        Motion = vec4(motion, depthDelta, fallback ? 0.0 : 1.0);
+    }
     if(EncodeSrgb8 != 0) Motion.a = fallback ? 0.0 : 1.0;
-    gl_FragDepth = textureLod(Depth, uv, 0.0).r;
+    gl_FragDepth = hidden ? (Reversed != 0 ? 0.0 : 1.0) : sourceDepth;
 }
 )";
 } // namespace qvr::synthesis::shaders

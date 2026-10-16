@@ -286,7 +286,7 @@ void captureMatrix(std::ostringstream& json, const char* name, const glm::mat4& 
     json << "],\n";
 }
 
-bool captureDiagnostic(int eye, Eye& e, const FrameSynthesisImages& images, int flow)
+bool captureDiagnostic(int eye, Eye& e, const FrameSynthesisImages& images, GLuint flowTexture)
 {
     diagnosticCaptureFrame = images.contentFrameId;
     const char* side = eye == 0 ? "L" : "R";
@@ -301,7 +301,7 @@ bool captureDiagnostic(int eye, Eye& e, const FrameSynthesisImages& images, int 
     ok = capturePng(previousColor, e.color[e.slot ^ 1], e.width, e.height) && ok;
     ok = captureFloat(raw("_depth.r32f"), e.depth, e.width, e.height, GL_DEPTH_COMPONENT, 1) && ok;
     ok = captureFloat(raw("_camera_seed.rgba32f"), e.seed, e.width, e.height, GL_RGBA, 4) && ok;
-    ok = captureFloat(raw("_flow.rgba32f"), e.flow[flow], e.width, e.height, GL_RGBA, 4) && ok;
+    ok = captureFloat(raw("_flow.rgba32f"), flowTexture, e.width, e.height, GL_RGBA, 4) && ok;
     ok = captureFloat(raw("_export_motion.rgba32f"), static_cast<GLuint>(images.motion.image),
         images.motion.width, images.motion.height, GL_RGBA, 4) && ok;
     ok = captureFloat(raw("_export_depth.r32f"), static_cast<GLuint>(images.depth.image),
@@ -325,6 +325,10 @@ bool captureDiagnostic(int eye, Eye& e, const FrameSynthesisImages& images, int 
         << "  \"motion_scale\": [" << images.motionScaleX << ", " << images.motionScaleY << "],\n"
         << "  \"motion_offset\": [" << images.motionOffsetX << ", " << images.motionOffsetY << "],\n"
         << "  \"motion_encoding\": \"" << (images.srgb8Motion ? "sRGB8" : "RGBA16F signed") << "\",\n"
+        << "  \"variant\": {\"flip_y\": " << (vr_xr_frame_synthesis_flip_y.value > 0.f) << ", \"flow\": "
+        << (vr_xr_frame_synthesis_flow.value > 0.f) << ", \"vectors_3d\": "
+        << (!images.srgb8Motion && vr_xr_frame_synthesis_3d.value > 0.f) << ", \"mask\": "
+        << (vr_xr_frame_synthesis_mask.value > 0.f) << "},\n"
         << "  \"app_space_delta_position\": [" << delta.position.x << ", " << delta.position.y << ", "
         << delta.position.z << "],\n  \"app_space_delta_orientation_xyzw\": [" << delta.orientation.x << ", "
         << delta.orientation.y << ", " << delta.orientation.z << ", " << delta.orientation.w << "],\n";
@@ -418,6 +422,7 @@ void captureDepth(int eye, int width, int height, unsigned depthFormat)
     GL_UniformMatrix4fvFunc(6, 1, GL_FALSE, glm::value_ptr(e.history ? e.previous : e.current));
     GL_Uniform3fFunc(10, r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]);
     GL_Uniform1iFunc(11, gl_clipcontrol_able != 0);
+    GL_Uniform1iFunc(13, vr_xr_frame_synthesis_mask.value > 0.f ? 1 : 0);
     GL_Uniform1iFunc(12, samples);
     GL_BindNative(GL_TEXTURE0 + (samples > 1 ? 1 : 0), samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D, source);
     // Immutable storage is undefined until written. A finite zero-motion seed
@@ -464,6 +469,9 @@ void render(int eye, unsigned colorFramebuffer, int width, int height)
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, e.color[e.slot]);
     GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, e.color[e.slot ^ 1]);
     int last = 0;
+    // 0: the camera vectors alone (vr_xr_frame_synthesis_flow). The seed texture has the flow's layout: current-to-previous UV in xy.
+    const bool useFlow = vr_xr_frame_synthesis_flow.value > 0.f;
+    if(useFlow)
     {
         QVR_GPU_PROFILE("synthesis optical flow");
         int output = 0;
@@ -474,6 +482,8 @@ void render(int eye, unsigned colorFramebuffer, int width, int height)
             {
                 output = last ^ 1;
                 if(!target(e, e.flow[output], 0, level)) return;
+                const GLfloat uncovered[4] = {0.f, 0.f, 0.f, 0.f}; // alpha 0: the export's mark of a texel the pass did not write
+                GL_ClearBufferfvFunc(GL_COLOR, 0, uncovered);
                 glViewport(0, 0, w, h);
                 const bool first = level == levels - 1 && iteration == 0;
                 GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, first ? e.seed : e.flow[last]);
@@ -518,12 +528,16 @@ void render(int eye, unsigned colorFramebuffer, int width, int height)
         glViewport(0, 0, imageWidth, imageHeight);
         GL_UseProgram(exportProgram);
         GL_Uniform2fFunc(0, imageWidth, imageHeight);
-        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, e.flow[last]);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, useFlow ? e.flow[last] : e.seed);
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, e.depth);
         GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, e.seed);
         GL_Uniform2fFunc(3, images.motionScaleX, images.motionScaleY);
         GL_Uniform2fFunc(4, images.motionOffsetX, images.motionOffsetY);
         GL_Uniform1iFunc(5, images.srgb8Motion ? 1 : 0);
+        GL_Uniform1iFunc(6, vr_xr_frame_synthesis_flip_y.value > 0.f ? 1 : 0);
+        GL_Uniform1iFunc(7, !images.srgb8Motion && vr_xr_frame_synthesis_3d.value > 0.f ? 1 : 0);
+        GL_Uniform1iFunc(8, gl_clipcontrol_able != 0);
+        GL_Uniform1iFunc(9, vr_xr_frame_synthesis_mask.value > 0.f ? 1 : 0);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         valid = glGetError() == GL_NO_ERROR;
     }
@@ -536,7 +550,7 @@ void render(int eye, unsigned colorFramebuffer, int width, int height)
     if(vr_xr_frame_synthesis_capture.value > 0.f)
     {
         diagnosticCaptureAttempted = true;
-        if(captureDiagnostic(eye, e, images, last))
+        if(captureDiagnostic(eye, e, images, useFlow ? e.flow[last] : e.seed))
         {
             diagnosticCaptureMask |= 1u << eye;
             Con_Printf("VR synthesis diagnostic: saved frame %llu eye %s\n",

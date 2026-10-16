@@ -200,6 +200,19 @@ s = s.replace("vr_bench_end\n", "vr_bench_end\nvr_profile_dump\n", 1)
 p.write_text(s)
 PY
 fi
+# Artifact-isolation switches (0/1), put first in the generated config; unset keeps the cvar default.
+variant_lines=""
+for pair in "vr_xr_frame_synthesis_flip_y:${QVR_SYNTH_FLIP_Y:-}" "vr_xr_frame_synthesis_flow:${QVR_SYNTH_FLOW:-}" \
+            "vr_xr_frame_synthesis_3d:${QVR_SYNTH_3D:-}" "vr_xr_frame_synthesis_mask:${QVR_SYNTH_MASK:-}"; do
+  value=${pair#*:}
+  [[ -z "$value" ]] && continue
+  [[ "$value" =~ ^[01]$ ]] || { echo "${pair%%:*} must be 0 or 1" >&2; exit 2; }
+  variant_lines+="${pair%%:*} $value"$'\n'
+done
+if [[ -n "$variant_lines" ]]; then
+  { printf '%s' "$variant_lines"; cat "$game/quakevr/frame_synthesis_smoke.cfg"; } >"$game/quakevr/frame_synthesis_smoke.cfg.tmp"
+  mv "$game/quakevr/frame_synthesis_smoke.cfg.tmp" "$game/quakevr/frame_synthesis_smoke.cfg"
+fi
 touch "$out/run-started"
 cp -p "$progs_source" "$progs"
 cd "$game"

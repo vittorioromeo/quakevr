@@ -1014,7 +1014,8 @@ public:
                     info = xr::frameSynthesisInfo(synthesisMotion[eye].handle, synthesisDepth[eye].handle,
                         synthesisMotion[eye].width, synthesisMotion[eye].height,
                         synthesisMetadata[eye].nearZ, synthesisMetadata[eye].farZ, delta,
-                        vr_xr_frame_synthesis_relaxed.value > 0.f);
+                        vr_xr_frame_synthesis_relaxed.value > 0.f,
+                        synthesisSrgbMotion || vr_xr_frame_synthesis_3d.value <= 0.f);
                     info.motionVectorScale.x = synthesisMetadata[eye].motionScaleX;
                     info.motionVectorScale.y = synthesisMetadata[eye].motionScaleY;
                     info.motionVectorOffset.x = synthesisMetadata[eye].motionOffsetX;
@@ -1092,10 +1093,12 @@ public:
 #ifdef QVR_OPENXR_INTEROP
             deferredExports = interopMode && vr_xr_vulkan_defer_wait.value > 0.f;
 #endif
-            xrruntime::logLine(va("FRAME_LAYERS projection=%d stereo_views=%u quad=%d total=%u held=%d synthesis=%d synthesis_relaxed=%d defer_wait=%d\n",
+            xrruntime::logLine(va("FRAME_LAYERS projection=%d stereo_views=%u quad=%d total=%u held=%d synthesis=%d synthesis_relaxed=%d defer_wait=%d "
+                "synthesis_variant=flip_y:%d,flow:%d,3d:%d,mask:%d\n",
                 layer.viewCount == 2, layer.viewCount, panelShown, count, held, withSynthesis,
                 withSynthesis && vr_xr_frame_synthesis_relaxed.value > 0.f,
-                deferredExports));
+                deferredExports, vr_xr_frame_synthesis_flip_y.value > 0.f, vr_xr_frame_synthesis_flow.value > 0.f,
+                !synthesisSrgbMotion && vr_xr_frame_synthesis_3d.value > 0.f, vr_xr_frame_synthesis_mask.value > 0.f));
             if(synthesisAvailable)
             {
                 const auto& left = synthesisContent.eye(0);

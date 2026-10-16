@@ -570,6 +570,19 @@ QVR_CVAR(vr_xr_frame_synthesis_relaxed, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_frame_synthesis_srgb_motion, "0", CVAR_ARCHIVE)
 // Signed NDC range for sRGB8 motion encoding; invalid/out-of-range flow falls back to camera motion, then neutral motion (no clamping).
 QVR_CVAR(vr_xr_frame_synthesis_motion_range, "0.125", CVAR_ARCHIVE)
+// Artifact-isolation switches for the exported vectors (docs/HANDOFF-frame-kill-crash-2026-10-15.md, "Godot 4.7.2 source vs. Quake's
+// producer"); read every frame, never saved. Defaults are the behaviour before they existed, except mask (a fix, on).
+// 1: negate the vertical vector (Y-up, as Godot and XR_FB_space_warp expect; 0 is Y-down, the "Vulkan NDC" reading of the spec).
+QVR_CVAR(vr_xr_frame_synthesis_flip_y, "0", CVAR_NONE)
+// 0: camera-only vectors (exact for static geometry, nothing for moving objects; also skips the optical-flow passes);
+// 1: camera vectors refined by optical flow on the final image.
+QVR_CVAR(vr_xr_frame_synthesis_flow, "1", CVAR_NONE)
+// 1: declare 3D vectors (the 2D bit cleared) and write the camera's window-depth delta into Z (as Godot does); 0: 2D, Z = 0.
+// Ignored with the experimental sRGB8 motion format, which has no Z.
+QVR_CVAR(vr_xr_frame_synthesis_3d, "0", CVAR_NONE)
+// 1: the lenses' hidden area (vr_visibility_mask, drawn at the near plane) has a zero camera seed and exports no motion at the far depth;
+// 0: as drawn (screen-wide vectors at the nearest depth, leaking into the visible edge through the flow pyramid).
+QVR_CVAR(vr_xr_frame_synthesis_mask, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Second Eye's Model Set-up: 1 each animated model's eye-independent set-up (its lerp, transform,
 // light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
 // second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
