@@ -526,6 +526,7 @@ void discoverCampaigns()
 // shows the campaign last played as the one chosen, across restarts (3, 4 and 5 too: the hub's lecterns name them all).
 void publishCampaign(bool syncHub = false)
 {
+    VR_FileCacheSearchChanged(); // (another campaign: other folders skipped, VR_SkipSearchPath; the misses known go)
     if(!Cvar_FindVar("vr_campaign")) { return; }
     Cvar_SetROM("vr_honey_context", "0");
     if(syncHub)

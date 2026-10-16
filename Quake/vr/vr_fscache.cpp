@@ -84,6 +84,21 @@ struct Listing
 };
 ankerl::unordered_dense::map<za::String, Listing, NameHash, NameEqual> dirs; // by its name as looked up (folded)
 
+// The names COM_FindFile found in no search path while loading (as asked: a pak's names are case-sensitive), not
+// looked for again until the window ends (PROFILE_20261016 B4: a warm AD load asks 4800 names 28000 times, most of
+// them misses). Forgotten with any listing (a file written anywhere: a cache's too, on any thread), and when the search
+// paths or the folders a lookup skips change (VR_FileCacheSearchChanged).
+Names misses;
+za::Atomic<bool> missesForgetAsked{false}; // VR_FileCacheSearchChanged from another thread
+za::U64 missesEpoch = 0;  // bumped as they are forgotten: a miss looked up before is not noted after (VR_FileCacheMissNote)
+za::U64 lookupEpoch = 0;  // ... the epoch the lookup being made started in (VR_FileCacheMissKnown)
+
+void clearMisses()
+{
+    misses.clear();
+    missesEpoch++;
+}
+
 // The directories other threads wrote in (VR_FileCacheForgetFile), for the main thread's next lookup to forget.
 struct Pending
 {
@@ -190,14 +205,20 @@ void fold(za::String& s)
 void forget(const DirId& id)
 {
     erase_if(dirs, [&](const auto& entry) { return !entry.second.known || entry.second.id == id; });
+    clearMisses();
 }
 
 // What other threads asked (the main thread's, before a lookup).
 void takePending()
 {
+    if(missesForgetAsked.exchangeSeqCst(false))
+    {
+        clearMisses();
+    }
     if(forgetAsked.exchangeSeqCst(false))
     {
         dirs.clear();
+        clearMisses();
     }
     za::Vector<DirId> ids;
     {
@@ -249,6 +270,7 @@ extern "C" void VR_FileCacheEnable(int on)
     dirs.clear();
     takePending(); // (all listed afresh from now on: what was asked before is in the new listings)
     dirs.clear();
+    clearMisses();
 }
 
 extern "C" int VR_FileCacheEnabled()
@@ -264,6 +286,41 @@ extern "C" void VR_FileCacheForget()
         return;             // thread's next lookup forgets the listings
     }
     dirs.clear();
+    clearMisses();
+}
+
+extern "C" void VR_FileCacheSearchChanged()
+{
+    if(za::ThisThread::getId() != owner)
+    {
+        missesForgetAsked.storeSeqCst(true);
+        return;
+    }
+    clearMisses();
+}
+
+extern "C" int VR_FileCacheMissKnown(const char* name)
+{
+    if(!enabled.loadSeqCst() || za::ThisThread::getId() != owner)
+    {
+        return 0;
+    }
+    takePending();
+    lookupEpoch = missesEpoch;
+    return misses.find(za::StringView{name, strlen(name)}) != misses.end() ? 1 : 0;
+}
+
+extern "C" void VR_FileCacheMissNote(const char* name)
+{
+    if(!enabled.loadSeqCst() || za::ThisThread::getId() != owner)
+    {
+        return;
+    }
+    takePending(); // (a write meanwhile, on another thread: this miss may be older than it, not noted)
+    if(lookupEpoch == missesEpoch)
+    {
+        misses.insert(za::String{name});
+    }
 }
 
 extern "C" void VR_FileCacheForgetFile(const char* path)
