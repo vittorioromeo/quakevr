@@ -132,7 +132,9 @@ struct Take
     size_t firstRec{0};
 };
 
-[[nodiscard]] za::Vector<za::String> split(za::StringView s, char sep)
+} // namespace
+
+za::Vector<za::String> split(za::StringView s, char sep)
 {
     za::Vector<za::String> out;
     za::String cur;
@@ -151,6 +153,9 @@ struct Take
     out.pushBack(cur);
     return out;
 }
+
+namespace
+{
 
 [[nodiscard]] za::String trim(za::StringView s)
 {

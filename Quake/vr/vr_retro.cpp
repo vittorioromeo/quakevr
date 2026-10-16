@@ -1,6 +1,7 @@
 // vr_retro.cpp -- see vr_retro.hpp (the settings, the overrides) and vr_retro.h (the shaders' side).
 
 #include "vr_retro.hpp"
+#include "vr_physsound.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_retro.h"
 #include "vr_cvars.hpp"
@@ -619,48 +620,6 @@ void skinSize(const qmodel_t* model, const aliashdr_t* hdr, int skinnum, float& 
 
 // ---- Picking what to override: what a ray from the main hand or the head meets first
 
-// The first surface of brush model `m` the segment from `start` to `end` (the model's space) crosses where its texture's
-// extents hold the crossing (vr_physsound.cpp's surfaceAlong: RecursiveLightPoint's walk, without the lightmaps).
-const msurface_t* surfaceAlong(const qmodel_t* m, const mnode_t* node, const glm::vec3& start, const glm::vec3& end, int depth)
-{
-    while(node && node->contents >= 0 && depth < 256)
-    {
-        const mplane_t* p = node->plane;
-        const glm::vec3 n{p->normal[0], p->normal[1], p->normal[2]};
-        const float front = glm::dot(start, n) - p->dist;
-        const float back = glm::dot(end, n) - p->dist;
-        if((back < 0.f) == (front < 0.f))
-        {
-            node = node->children[front < 0.f];
-            continue;
-        }
-        const glm::vec3 mid = start + (end - start) * (front / (front - back));
-        if(const msurface_t* s = surfaceAlong(m, node->children[front < 0.f], start, mid, depth + 1))
-        {
-            return s;
-        }
-        const msurface_t* surf = m->surfaces + node->firstsurface;
-        for(unsigned int i = 0; i < node->numsurfaces; i++, surf++)
-        {
-            if(!surf->texinfo || surf->texinfo->texnum < 0 || surf->texinfo->texnum >= m->numtextures || !m->textures[surf->texinfo->texnum])
-            {
-                continue;
-            }
-            const float* v0 = surf->texinfo->vecs[0];
-            const float* v1 = surf->texinfo->vecs[1];
-            const int ds = static_cast<int>(mid.x * v0[0] + mid.y * v0[1] + mid.z * v0[2] + v0[3]) - surf->texturemins[0];
-            const int dt = static_cast<int>(mid.x * v1[0] + mid.y * v1[1] + mid.z * v1[2] + v1[3]) - surf->texturemins[1];
-            if(ds >= 0 && dt >= 0 && ds <= surf->extents[0] && dt <= surf->extents[1])
-            {
-                return surf;
-            }
-        }
-        node = node->children[front >= 0.f];
-        return surfaceAlong(m, node, mid, end, depth + 1);
-    }
-    return nullptr;
-}
-
 // Where the ray from `start` along `dir` crosses surface s's plane (in the model's space), its distance.
 [[nodiscard]] float planeDistance(const msurface_t* s, const glm::vec3& start, const glm::vec3& dir)
 {
@@ -690,7 +649,7 @@ struct Hit
     if(cl.worldmodel && cl.worldmodel->nodes)
     {
         const qmodel_t* w = cl.worldmodel;
-        if(const msurface_t* s = surfaceAlong(w, w->nodes + w->hulls[0].firstclipnode, start, start + dir * reach, 0))
+        if(const msurface_t* s = physsound::surfaceOnSegment(w, start, start + dir * reach))
         {
             hit.any = true;
             hit.distance = planeDistance(s, start, dir);
@@ -712,7 +671,7 @@ struct Hit
         {
             const qmodel_t* m = e->model;
             const glm::vec3 local = start - origin; // (turned brush entities: as if not turned)
-            const msurface_t* s = m->nodes ? surfaceAlong(m, m->nodes + m->hulls[0].firstclipnode, local, local + dir * reach, 0) : nullptr;
+            const msurface_t* s = physsound::surfaceOnSegment(m, local, local + dir * reach);
             const float d = s ? planeDistance(s, local, dir) : 0.f;
             if(s && d > 0.f && d < hit.distance)
             {
