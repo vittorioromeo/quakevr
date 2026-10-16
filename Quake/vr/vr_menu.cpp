@@ -1273,6 +1273,31 @@ int campaignsBloodyShown = -1;
                   "over this (an ogre: about a 180-unit drop; a shambler: about 315). 0: all alike."),
         slider("Stomp Bounce", vr_ragimpact_stomp_bounce, 0.f, 400.f, 10.f, "%.0f u/s")
             .help("How fast you bounce up off the one you knocked down. 0: you drop as it falls."),
+        header("Leg Sweep"),
+        toggle("Leg Sweep", vr_legsweep)
+            .help("Sweep a humanoid's lower legs with something long and blunt, level and fast, and it goes down as in a "
+                  "judo foot sweep: its feet slide the way you swept, the rest of it topples over the other way (forward "
+                  "or backward, whichever side you sweep it from). A long gun, the crowbar, a sword's hilt (not its "
+                  "blade), a long plank: yes. The axe, the super shotgun, the lightning gun, a rock, a brick, a crate: "
+                  "no. Only humanoids (no ogres, fiends, shamblers)."),
+        slider("Least Length", vr_legsweep_min_length, 20.f, 150.f, 5.f, "%.0f cm").extend(0.f, 400.f)
+            .help("How long a thing must be to sweep legs (its drawn shape along its long axis; Debug > Tests > Holding "
+                  "Enemies > Leg Sweep Table lists them). The shotgun is 52 cm, the super shotgun 49."),
+        slider("Least Slenderness", vr_legsweep_min_slender, 1.f, 10.f, 0.25f, "%.2f").extend(0.f, 30.f)
+            .help("How slender it must be: its length over its typical thickness (a gun's barrel, not its grip). The "
+                  "grenade launcher is 4.4, the lightning gun 2.6, a crate 1."),
+        slider("Least Speed", vr_legsweep_speed, 0.5f, 6.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)
+            .help("How fast the part that meets the legs must move, level (a sweep rising or falling steeply is a blow, "
+                  "not a sweep)."),
+        slider("Heavy Mass", vr_legsweep_heavy, 0.f, 400.f, 10.f, "%.0f kg").extend(0.f, 2000.f)
+            .help("A humanoid heavier than this needs a faster sweep: the least speed times the cube root of its mass "
+                  "over this. 0: all alike."),
+        slider("Damage", vr_legsweep_damage, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 500.f)
+            .help("What a sweep deals once it is down."),
+        slider("Topple Speed", vr_legsweep_topple, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 2000.f)
+            .help("How fast its body turns over about its swept feet. 0: it just drops."),
+        slider("Feet Slide", vr_legsweep_feet, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("How fast its feet slide along the sweep, times the sweep's speed."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
@@ -7408,6 +7433,13 @@ za::Vector<Item> pageDebugTests()
         command("Walk the Nearest Away", "vr_foegrab_walk_test 110 1")
             .help("vr_foegrab_walk_test 110 1: the live monster nearest you walks straight away from you at 110 units/s "
                   "for a second; how far it got is printed. Held, it should hardly move (A Grunt Ahead first)."),
+        toggle("Log Leg Sweeps", vr_legsweep_debug)
+            .help("vr_legsweep_debug: each time what a hand holds meets a humanoid's lower legs the console prints its "
+                  "measure (length, slenderness, the part that met them, the sweep's speed) and whether it swept them or "
+                  "why not; a sweep's fall is traced for a second (its feet along the sweep, which way it fell)."),
+        command("Leg Sweep Table", "vr_legsweep_table")
+            .help("vr_legsweep_table: every weapon's and some props' length, cross-section, slenderness and blade, and "
+                  "whether it sweeps legs (Combat > Knockdowns > Leg Sweep)."),
         cycle("Log Holds", "vr_foegrab_debug", {{0.f, "Off"}, {1.f, "Taken and Let Go"}, {2.f, "Every Frame"}})
             .help("vr_foegrab_debug: the console logs each hold taken and let go and why (and a grip that found none), "
                   "each two-hand throw and lift tried and how it went (why a lift wasn't: not a humanoid, too far), a "

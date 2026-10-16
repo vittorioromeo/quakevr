@@ -283,6 +283,7 @@ vr_knockdown_test.qc
 vr_hitstagger.qc
 vr_hitstagger_test.qc
 vr_foegrab_throw.qc
+vr_legsweep.qc
 // Impacts (ragdolls struck on the level, landing crush) and manhandling (after the knockdowns and the limbs: it uses them).
 vr_ragimpact.qc
 vr_ragimpact_test.qc

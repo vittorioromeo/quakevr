@@ -254,6 +254,25 @@ float() VR_TestImpulse =
             spawned = self;
             self = spawnPlayer;
         }
+        else if(spawnKind == 114 || spawnKind == 115)
+        {
+            // A long plank (a crate's piece: vr_crates.qc) or a brick (vr_debris.qc) lying ahead (the leg sweep's tests,
+            // vr_legsweep.cpp: with vr_test_spawn_hold 1, in the main hand).
+            self = spawn();
+            setorigin(self, spawnAt + '0 0 8');
+            if(spawnKind == 114)
+            {
+                setmodel(self, "progs/vr_plank1.mdl");
+                VR_CratePiece_Setup(self);
+            }
+            else
+            {
+                self.model = "progs/vr_brick1.mdl";
+                vr_debris_piece();
+            }
+            spawned = self;
+            self = spawnPlayer;
+        }
         else if(spawnKind == 110)
         {
             // The rocks and bricks (vr_debris.qc), a row of each across your view, each model in another skin (rocks
