@@ -589,7 +589,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     const bool touched = box3d::contactPoint(NUM_FOR_EDICT(ent), touch);
     const glm::vec3 dv = vel - lastVel;
     const float fall = sv_gravity.value * dt * 1.5f;
-    const bool changed = f.vr_stick_vel >= 0 && lastVel != glm::vec3{0.f} &&
+    const bool changed = lastVel != glm::vec3{0.f} &&
                          (glm::length(glm::vec2{dv.x, dv.y}) > 25.f || dv.z > 25.f || dv.z < -fall - 25.f);
     if(touched || changed)
     {

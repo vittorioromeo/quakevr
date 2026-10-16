@@ -37,6 +37,8 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 
+#include <glm/gtc/constants.hpp>
+
 using namespace qvr;
 using namespace qvr::progs;
 
@@ -665,7 +667,7 @@ float throwDown(edict_t* player, edict_t* m, const glm::vec3& dir, float twist, 
     {
         return result;
     }
-    constexpr float maxSpin = 4.f * 3.14159265f; // rad/s (720 degrees/s)
+    constexpr float maxSpin = 4.f * glm::pi<float>(); // rad/s (720 degrees/s)
     const float spin = za::clamp(twist * za::max(vr_foegrab_throw_spin.value, 0.f), -maxSpin, maxSpin);
     const float topple = glm::radians(za::clamp(vr_foegrab_throw_topple.value, 0.f, 2000.f));
     const bool toppled = topple > 0.f &&

@@ -6661,8 +6661,8 @@ void follow(edict_t* ent, Slot& s, float dt)
     const FieldOffsets& f = fields();
     const int velOfs = h ? f.handthrowvel : f.offhandthrowvel;
     const int spinOfs = h ? f.handavel : f.offhandavel;
-    const float linear = velOfs >= 0 ? glm::length(fieldVec(player, velOfs)) : 0.f;
-    const float turn = spinOfs >= 0 ? glm::length(fieldVec(player, spinOfs)) * reach : 0.f;
+    const float linear = glm::length(fieldVec(player, velOfs)); // (0 without the field: fieldVec)
+    const float turn = glm::length(fieldVec(player, spinOfs)) * reach;
     return za::max(linear, turn);
 }
 

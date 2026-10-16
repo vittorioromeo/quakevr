@@ -147,9 +147,9 @@ Stats stats(int stage, int rate)
     {
         return st;
     }
-    za::quickSort(sorted.begin(), sorted.end(), [](float a, float b) { return a < b; });
+    za::quickSort(sorted.begin(), sorted.end());
     const int n = static_cast<int>(sorted.size());
-    const auto at = [&](double q) { return static_cast<double>(sorted[za::min(n - 1, static_cast<int>(q * (n - 1) + 0.5))]); };
+    const auto at = [&](double q) { return static_cast<double>(quantile(sorted.data(), n, q)); };
     st.n = n;
     st.median = at(0.5);
     st.p95 = at(0.95);
