@@ -3208,6 +3208,7 @@ QVR_CVAR(vr_magholster_flight_time, "0.4", CVAR_ARCHIVE)    // seconds its fligh
 QVR_CVAR(vr_magholster_style, "0", CVAR_ARCHIVE)            // the chain shown: 0 a lanyard (a short chain hanging off the bound weapon, a stub of it at the empty holster), 1 a tether (from the holster to the weapon while it is away from the body), 2 both, 3 none
 QVR_CVAR(vr_magholster_chain_size, "0.6", CVAR_ARCHIVE)     // its links' size, times the flashlight chain's (1.6 cm links of 4 mm bar)
 QVR_CVAR(vr_magholster_chain_alpha, "1", CVAR_ARCHIVE)      // its opacity (below 1: see-through)
+QVR_CVAR(vr_magholster_chain_log, "0", CVAR_NONE)          // 1: prints each chain's state every frame (magchain: its springs' worst stretch from relaxed, its nodes' most movement and jerk off its anchor, mm; tests)
 QVR_CVAR(vr_reload_haptics, "1", CVAR_ARCHIVE)        // times the reload's vibrations (taking, putting back, loading, the empty pouch); 0 none
 QVR_CVAR(vr_reload_volume, "1", CVAR_ARCHIVE)          // times the reload's sounds; 0 none
 QVR_CVAR(vr_reload_loose_max, "24", CVAR_ARCHIVE)      // rounds lying about at most (dropped, thrown): the oldest not in a hand goes for a new one

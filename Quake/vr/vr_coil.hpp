@@ -42,6 +42,10 @@ struct Style
     float linkLength{0.016f}; // metres, a link's inside length (the chain's pitch)
     float linkWidth{0.008f};  // metres, its inside width
     glm::vec3 rust{0.3f, 0.14f, 0.06f};
+    // A chain of iron that neither stretches nor springs (the magnetic holsters'): its nodes held their relaxed spacing
+    // apart (position-based: unconditionally stable, whatever the frame rate) instead of springs (`stiffness` unused).
+    // Springs stiff enough to hold a short chain's length (weight / stiffness: 1.2 cm at 25) blew up at 90 Hz.
+    bool rigid{false};
 };
 
 // The coiled cord as an old telephone's (the flashlight's Coiled, vr_flashlight_cord 2; the cell cords'): 64 turns of
@@ -96,8 +100,14 @@ public:
     [[nodiscard]] int links() const { return links_; }
     [[nodiscard]] float length() const { return length_; } // the line's, metres
 
+    // The simulated nodes (world), and the springs' worst stretch or squeeze from their relaxed length, a share of it
+    // (vr_magholster_chain_log).
+    [[nodiscard]] const za::Vector<glm::vec3>& nodes() const { return pos_; }
+    [[nodiscard]] float springError() const;
+
 private:
     void reset(const glm::vec3& a, const glm::vec3& b);
+    void stepRigid(float h, float rest, const glm::vec3& gravityUnits, const glm::vec3& vb, bool aLoose);
 
     Style style_;
     bool valid_{false};
