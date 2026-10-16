@@ -47,7 +47,7 @@ static QX_NOINLINE void QCExec_Builtin (dfunction_t *newf)
 	if (i >= qcvm->numbuiltins)
 		PR_RunError("Bad builtin call number %d", i);
 	PR_CheckBuiltinExtension (newf);
-	VR_TracyQC(VR_TracyQCEnabled() ? PR_GetString(newf->s_name) : "", VR_TracyQCEnabled() ? PR_GetString(newf->s_file) : "", 1);
+	VR_TracyQC(newf);
 	if (qcprof.active) // QVR: vr_qcprofile: the builtin's own time (QuakeC it calls out), in its caller's self too
 	{
 		const unsigned long long child0 = qcprof.stack[qcvm->depth].child, t0 = __rdtsc ();

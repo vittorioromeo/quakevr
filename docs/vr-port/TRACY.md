@@ -42,7 +42,7 @@ Existing `vr_profile`, panel, CSV captures and benchmark commands remain functio
 | `vr_tracy_status` | command | Connection, nesting depth, drops, GPU pending queries and context generation |
 | `vr_tracy_gpu` | 1 | Enable GPU zones; 0 keeps CPU tracing and drains pending GPU timestamps |
 | `vr_tracy_gpu_detail` | 0 | 0: whole 3D, eyes, shadow maps and window view; 1: every existing GPU scope |
-| `vr_tracy_qc_detail` | 0 | Copied, individually named QC functions and builtins in server/client VMs |
+| `vr_tracy_qc_detail` | 0 | QC zones in server/client VMs (see "QC zones"): 0 off (coarse `QC VM` only); 1 every QC function; 2 + builtins except the trivial ones; 3 every builtin too |
 | `vr_tracy_memory_detail` | 0 | Live baseline and allocation/free/reset events for Zone, Hunk and Cache |
 | `vr_tracy_test_memory` | command | Realloc, forced cache relocation, hunk reset, detail changes and independent byte/count checks |
 
@@ -51,6 +51,49 @@ per frame. Context/connection initialization synchronizes a timestamp once; excl
 The existing always-on phase timers remain enabled for in-game stats. Default Tracy GPU coverage is coarse to avoid
 duplicating all their queries. Detailed GPU zones and many tiny CPU zones can change performance: measure the
 profiling overhead with the workload and settings you are investigating.
+
+### QC zones (`vr_tracy_qc_detail`)
+
+Every QC function and builtin of a VM gets one persistent source location when its progs load (server and client
+VMs, rebuilt at every load), interned by name: map changes reuse the same rows. The zone's name is the function's;
+its function field says `QC function` or `QC builtin` (the capture checker counts QC zones by it); its file is the
+progs' source file when the compiler kept it. Builtins whose names fteqcc stripped take the engine's table's name
+(else `builtin #N`). A call costs a table lookup and Tracy's plain zone begin/end: no allocation, no string copy, no
+zone text, and no callstack in any build (it would be the interpreter's loop; a QC zone's callers are its parents).
+
+| Level | Zones | Use it for |
+|---|---|---|
+| 0 | coarse `QC VM` entries only | timing anything that is not QuakeC |
+| 1 | + every QC function call | timing with QuakeC named: cheap enough to leave on during captures |
+| 2 | + builtins except the trivial list | which builtins (traces, finds, sounds, movement) cost QuakeC its time |
+| 3 | + the trivial builtins too (the old coverage) | call counts of everything; the trivial zones inflate QuakeC's times |
+
+Trivial builtins (vector and scalar math, conversions, cached lookups: `qcTrivialBuiltins` in `vr_tracy.cpp`) are
+called often and finish in well under a microsecond; a zone costs about what they measure. They were picked from
+level-3 captures of `combat_48`, `play_e1m1_fight` and `play_ad_tfuma_fight` by calls a frame x mean time: `cvar_hget`
+(about 100 calls a frame, 16 ns), `max`/`min`/`vlen`/`fabs`/`normalize` (14-24 ns), `makevectors` (69 ns), `isragdoll`,
+`nextent`, `anglemod`, `random`, `rint`, `vectoyaw`, `sin`/`cos`, `ceil`, `makeforward`, `ChangeYaw`, plus their
+unmeasured siblings. `cvar` (163 ns, a string lookup) stays at level 2. Edit the list there and its comment.
+
+Overhead, 2026-10-16: Release-Tracy at callstack depth 8, his config, 2048 eyes, 90 Hz paced, exclusive, connected
+`tracy-capture`, GPU and memory detail 0, 900-frame window, 2 reps. CPU busy p50 / p95 ms (difference from level 0's
+p50); "old" is the previous implementation (an allocated, copied source location, a zone text and, in callstack builds,
+a stack walk per call). QC VM is the capture's `QC VM` zone time a frame (load, warm-up and window), the QC zones'
+own cost showing directly; whole-frame numbers move by +-0.3 ms between runs of the fights on their own.
+
+| scenario | level 0 | level 1 | level 2 | level 3 | old |
+|---|---|---|---|---|---|
+| `combat_48` CPU | 4.45 / 6.17 | 4.85 / 7.38 (+0.40 *) | 4.30 / 6.05 (-0.15) | 4.25 / 5.78 (-0.20) | 4.91 / 6.84 (+0.47) |
+| `play_e1m1_fight` CPU | 2.45 / 3.11 | 2.46 / 3.17 (+0.01) | 2.60 / 3.31 (+0.15) | 2.53 / 3.29 (+0.08) | 3.25 / 4.21 (+0.80) |
+| `play_ad_tfuma_fight` CPU | 5.57 / 7.73 | 5.84 / 8.35 (+0.27) | 5.86 / 8.55 (+0.29) | 5.68 / 8.29 (+0.11) | 6.41 / 12.46 (+0.84) |
+| `combat_48` QC VM ms, QC zones a frame | 0.540, 0 | 0.641, 1034 | 0.574, 1239 | 0.585, 1684 | 1.215, 1684 |
+| `play_e1m1_fight` QC VM, zones | 0.413, 0 | 0.445, 968 | 0.454, 1147 | 0.461, 1549 | 1.027, 1549 |
+| `play_ad_tfuma_fight` QC VM, zones | 1.064, 0 | 1.144, 1527 | 1.155, 1961 | 1.175, 2515 | 2.083, 2518 |
+
+(*) one rep 4.32, the other 5.37: the fight's spread. A QC zone now costs about 25-45 ns (old: about 400 ns), so the
+levels add 0.03-0.11 ms of QC time a frame against the old 0.6-1.0 ms (and the old AD p95 +4.7 ms). Level 3 records
+exactly the old zones (same counts). Guidance: capture with **1** whenever QuakeC might matter, also for timing; **2**
+to see which builtins cost; **3** only for complete call counts, not for timing QuakeC's leaves.
 
 ## Command-line capture
 
@@ -88,8 +131,8 @@ cleanup attribute handles ordinary returns, and the host recovery boundary handl
 `VR_TracyBegin("load texture", 0); ...; VR_TracyEnd();` still requires balanced scopes and literal/process-lifetime names. Dynamic annotations are copied and can be transient. The legacy in-game
 profiler remains main-thread-only: use the Tracy-only wrapper, not `QVR_PROFILE`, in worker jobs.
 Existing bridged scopes point at the bridge source in Tracy; new C scopes and C++ `Scope` use their caller file/line.
-Native Box3D zones keep their original file/line. QC names/files are copied source-location payloads; optimized QC
-may omit source filenames, and QC line numbers are not statement-level execution data.
+Native Box3D zones keep their original file/line. QC zones use persistent per-function source locations built when
+progs load (see "QC zones" below); optimized QC may omit source filenames, and QC zones carry no line numbers.
 
 CPU stacks are per-thread and bounded at 256, with a bounded process-lifetime source-location cache (1024 names).
 Overflow suppresses entire zones while preserving nesting; `vr_tracy_status` reports drops. Shared source locations
@@ -104,7 +147,7 @@ Stage 2 adds the following targeted coverage, independent of `vr_profile`:
 
 | Area | Captured data and scope |
 |---|---|
-| QuakeC | Coarse `QC VM` with server/client annotation; detail adds per-function and builtin names, including integrated AD and simple CSQC. Nested entry/reentry and Host_Error use the same bounded recovery stack. No automatic instruction/statement tracing. |
+| QuakeC | Coarse `QC VM` with server/client annotation; detail (levels 1-3, see "QC zones") adds per-function and builtin zones, including integrated AD and simple CSQC. Nested entry/reentry and Host_Error use the same bounded recovery stack. No automatic instruction/statement tracing. |
 | Jobs | Enqueue, actual execute (including a claiming main/waiting thread), wait-or-claim, blocking atomic wait, parallel dispatch/join and chunks. Workers retain names; source locations identify new call sites. Queue entries, executed/claimed tasks and parallel-loop counters. |
 | Loading | File open/load, model preparation, texture preparation and GL upload, image decode/decompression, map load and save/load. Resource paths use copied annotations where available; vendor decoder inner loops are not individually instrumented. |
 | Simulation/CPU | Server physics, network receive and audio update, plus all existing gameplay, ragdoll, rendering, OpenXR and native Box3D CPU regions. Wait regions are explicit CPU zones; there is no automatic lock ownership graph. |
@@ -143,6 +186,7 @@ and native headset runtime drop statistics remain outside the trace.
 ```
 
 `-CallstackDepth` accepts 0–32 (default 0); it records stacks at instrumented CPU zones, not every function call.
+QC zones never record one (it would be the interpreter's own loop): a QC zone's callers are its parent zones.
 Use the matching optimized executable/PDB for useful symbols. The engine pool adapters emit allocation addresses/sizes/lifetimes, not allocation callstacks. Baselines cannot
 reconstruct original allocation callsites from before attachment. `-SystemTracing` enables the official Windows ETW scheduler/context
 switch and statistical sampling paths; Tracy requires administrator privileges for its kernel session. It was

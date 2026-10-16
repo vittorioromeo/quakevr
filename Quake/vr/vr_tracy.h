@@ -16,8 +16,8 @@ void VR_TracyText(const char *text); // copied annotation of the innermost zone;
 void VR_TracyBeginAt(const char *name, const char *file, unsigned line);
 struct vr_tracy_loc {const char *name; const char *function; const char *file; unsigned line; unsigned color;}; // layout of ___tracy_source_location_data
 void VR_TracyBeginLoc(const struct vr_tracy_loc *loc); // static location, no per-call allocation
-int VR_TracyQCEnabled(void);
-void VR_TracyQC(const char *name, const char *file, int builtin);
+void VR_TracyQCProgs(void); // the running qcvm loaded progs: build its per-function source locations
+void VR_TracyQC(const void *function); // a dfunction_t of the running qcvm (function or builtin) is entered
 void VR_TracyQCEnd(void);
 void VR_TracyDisplay(double ms, int missed);
 void VR_TracyPlot(const char *name, double value);
@@ -39,8 +39,8 @@ static inline void VR_TracyGLShutdown(void) {}
 static inline void VR_TracyThreadName(const char *name) {(void)name;}
 static inline void VR_TracyText(const char *text) {(void)text;}
 static inline void VR_TracyBeginAt(const char *name, const char *file, unsigned line) {(void)name; (void)file; (void)line;}
-static inline int VR_TracyQCEnabled(void) {return 0;}
-static inline void VR_TracyQC(const char *name, const char *file, int builtin) {(void)name; (void)file; (void)builtin;}
+static inline void VR_TracyQCProgs(void) {}
+static inline void VR_TracyQC(const void *function) {(void)function;}
 static inline void VR_TracyQCEnd(void) {}
 static inline void VR_TracyDisplay(double ms, int missed) {(void)ms; (void)missed;}
 static inline void VR_TracyPlot(const char *name, double value) {(void)name; (void)value;}
@@ -60,7 +60,8 @@ static inline void VR_TracyAllocationWindow(int enter) {(void)enter;}
 #define VR_TracyBeginAt(name, file, line) ((void)0)
 #define VR_TracyThreadName(name) ((void)0)
 #define VR_TracyText(text) ((void)0)
-#define VR_TracyQC(name, file, builtin) ((void)0)
+#define VR_TracyQCProgs() ((void)0)
+#define VR_TracyQC(function) ((void)0)
 #define VR_TracyQCEnd() ((void)0)
 #define VR_TracyDisplay(ms, missed) ((void)0)
 #define VR_TracyPlot(name, value) ((void)0)

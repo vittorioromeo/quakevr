@@ -9,8 +9,12 @@
 #include "external/tracy/tracy/Tracy.hpp"
 #pragma clang diagnostic pop
 #include "SDL.h"
+#include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <deque>
+#include <string>
+#include <vector>
 #include <unordered_map>
 #include <mutex>
 #include <string_view>
@@ -516,7 +520,6 @@ extern "C" void VR_TracyBoxFree(const void* ptr)
     boxBytes -= it->second;
     boxLive.erase(it);
 }
-extern "C" int VR_TracyQCEnabled() { return qcDetail.value != 0 && TracyCIsConnected; }
 extern "C" int VR_TracyConnected() { return TracyCIsConnected; }
 extern "C" void VR_TracyPlot(const char* name, double value)
 {
@@ -537,27 +540,138 @@ extern "C" void VR_TracyBeginAt(const char* name, const char* file, unsigned lin
     if(o.cpu.active) o.connection = o.cpu.connectionId;
     else o.cpu = {};
 }
-extern "C" void VR_TracyBeginLoc(const struct vr_tracy_loc* loc)
+namespace
+{
+// A zone at a persistent source location (no allocation); callstacks only where the build has them and stack is set.
+void beginStatic(const ___tracy_source_location_data* data, [[maybe_unused]] bool stack)
 {
     if(thread.depth == maxDepth) { ++thread.overflow; dropped.fetch_add(1, std::memory_order_relaxed); return; }
     Open& o = thread.stack[thread.depth++];
     o = {};
     if(!TracyCIsConnected) return;
-    const auto* data = reinterpret_cast<const ___tracy_source_location_data*>(loc);
 #ifdef TRACY_CALLSTACK
-    o.cpu = ___tracy_emit_zone_begin_callstack(data, TRACY_CALLSTACK, 1);
+    o.cpu = stack ? ___tracy_emit_zone_begin_callstack(data, TRACY_CALLSTACK, 1) : ___tracy_emit_zone_begin(data, 1);
 #else
     o.cpu = ___tracy_emit_zone_begin(data, 1);
 #endif
     if(o.cpu.active) o.connection = o.cpu.connectionId;
     else o.cpu = {};
 }
-extern "C" void VR_TracyQC(const char* name, const char* file, int builtin)
+
+// QC zones (vr_tracy_qc_detail). Each QC function and builtin of a VM gets one persistent source location when its progs
+// load (VR_TracyQCProgs, server and client VMs, every load), interned by name, kind and file: Tracy reads a location
+// lazily on its own thread, so none is ever freed, and a map change reuses the same ones (one row per function across
+// loads). A call then costs a table lookup and Tracy's plain zone begin/end: no allocation, no string copy, no zone
+// text, and never a callstack (it would be the interpreter's own loop, the same for every call). The kind is the
+// location's function field ("QC function" / "QC builtin"); the progs' source file is its file.
+// Levels: 1 QC functions; 2 + the builtins not listed below; 3 every builtin too (the old coverage).
+// Trivial builtins, zoned only at level 3: called often and done in well under a microsecond, so their zones cost
+// about what they measure and add nothing to a timing. Picked from level-3 captures of combat_48, play_e1m1_fight and
+// play_ad_tfuma_fight by calls a frame x mean time (docs/vr-port/TRACY.md, "QC zones"). Matched by name: the progs'
+// name, else the engine's builtin table's (fteqcc strips most builtin names), else "builtin #N".
+// Measured (2026-10-16, level 3, mean ns including the zone): cvar_hget 16, max 20, vlen 20, min 24, isragdoll 23,
+// makevectors 69, fabs 14, nextent 28, normalize 24, anglemod 29, random 28, rint 30, vectoyaw 55, cos/sin 45,
+// makeforward 80, ceil 68, ChangeYaw 41; together most of the builtin calls. Their unmeasured siblings (same kind
+// of work) are listed too. Not trivial (kept at 2): cvar (163 ns, a string lookup), traces, finds, sounds, movement.
+constexpr std::string_view qcTrivialBuiltins[] = {
+    // vector and scalar math
+    "makevectors", "makeforward", "normalize", "vlen", "vectoyaw", "vectoangles", "anglemod", "ChangeYaw", "random",
+    "fabs", "floor", "ceil", "rint", "bound", "min", "max", "pow", "sqrt", "sin", "cos",
+    // conversions
+    "ftos", "vtos", "etos", "stof",
+    // cached lookups
+    "cvar_hget", "nextent", "isragdoll",
+};
+constexpr const char* qcFunctionKind = "QC function";
+constexpr const char* qcBuiltinKind = "QC builtin";
+struct QCEntry
+{
+    const ___tracy_source_location_data* loc{};
+    float level{}; // the lowest vr_tracy_qc_detail that zones it
+};
+struct QCTable
+{
+    const qcvm_t* vm{};
+    const dfunction_t* functions{};
+    int count{};
+    std::vector<QCEntry> entries;
+};
+QCTable qcTables[3]; // one per VM (server, client); a spare slot
+std::deque<std::string> qcStrings; // backing store of the locations' names and files (stable addresses)
+std::deque<___tracy_source_location_data> qcLocations;
+std::unordered_map<std::string, const ___tracy_source_location_data*> qcInterned;
+std::string qcKey;
+
+const char* qcString(const char* text)
+{
+    return qcStrings.emplace_back(text).c_str();
+}
+const ___tracy_source_location_data* qcLocation(const char* name, const char* kind, const char* file)
+{
+    qcKey.assign(name).append(1, '\x1f').append(kind).append(1, '\x1f').append(file);
+    if(const auto it = qcInterned.find(qcKey); it != qcInterned.end()) return it->second;
+    const auto* loc = &qcLocations.emplace_back(___tracy_source_location_data{qcString(name), kind, qcString(file), 0, 0});
+    qcInterned.emplace(qcKey, loc);
+    return loc;
+}
+const char* qcBuiltinName(const dfunction_t& f, char (&buffer)[32])
+{
+    const char* name = PR_GetString(f.s_name);
+    if(name && *name) return name;
+    for(int j = 0; j < pr_numbuiltindefs; j++)
+        if(pr_builtindefs[j].number == -f.first_statement) return pr_builtindefs[j].name;
+    q_snprintf(buffer, sizeof(buffer), "builtin #%d", -f.first_statement);
+    return buffer;
+}
+} // namespace
+extern "C" void VR_TracyBeginLoc(const struct vr_tracy_loc* loc)
+{
+    beginStatic(reinterpret_cast<const ___tracy_source_location_data*>(loc), true);
+}
+extern "C" void VR_TracyQCProgs()
+{
+    QCTable* table = nullptr;
+    for(QCTable& t : qcTables)
+        if(t.vm == qcvm) table = &t;
+    for(QCTable& t : qcTables)
+        if(!table && !t.vm) table = &t;
+    if(!table) table = &qcTables[std::size(qcTables) - 1];
+    table->vm = qcvm;
+    table->functions = qcvm->functions;
+    table->count = qcvm->progs ? qcvm->progs->numfunctions : 0;
+    table->entries.assign(static_cast<size_t>(table->count), {});
+    for(int i = 0; i < table->count; i++)
+    {
+        const dfunction_t& f = qcvm->functions[i];
+        const char* file = PR_GetString(f.s_file);
+        if(!file) file = "";
+        if(f.first_statement >= 0)
+        {
+            const char* name = PR_GetString(f.s_name);
+            table->entries[i] = {qcLocation(name && *name ? name : "?", qcFunctionKind, file), 1};
+            continue;
+        }
+        char buffer[32];
+        const char* name = qcBuiltinName(f, buffer);
+        const bool trivial = std::find(std::begin(qcTrivialBuiltins), std::end(qcTrivialBuiltins), name) != std::end(qcTrivialBuiltins);
+        table->entries[i] = {qcLocation(name, qcBuiltinKind, file), trivial ? 3.f : 2.f};
+    }
+}
+extern "C" void VR_TracyQC(const void* function)
 {
     if(qcDepth >= 1024) { ++qcOverflow; return; } // include nested VM / builtin reentry
-    const bool enabled = qcDetail.value != 0 && TracyCIsConnected;
-    qcOpen[qcDepth++] = enabled;
-    if(enabled) { VR_TracyBeginAt(name, file, 0); VR_TracyText(builtin ? "QC builtin" : "QC function"); }
+    const ___tracy_source_location_data* loc = nullptr;
+    if(qcDetail.value > 0 && TracyCIsConnected)
+        for(const QCTable& t : qcTables)
+            if(t.vm == qcvm)
+            {
+                const ptrdiff_t i = static_cast<const dfunction_t*>(function) - t.functions;
+                if(t.functions == qcvm->functions && i >= 0 && i < t.count && t.entries[i].level <= qcDetail.value)
+                    loc = t.entries[i].loc;
+                break;
+            }
+    qcOpen[qcDepth++] = loc != nullptr;
+    if(loc) beginStatic(loc, false);
 }
 extern "C" void VR_TracyQCEnd()
 {
