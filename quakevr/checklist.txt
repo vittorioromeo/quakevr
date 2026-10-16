@@ -52,7 +52,8 @@ Bullet time: frantic melee (punches, shoves, bashes) near the wrist gadget never
 Get-up: shoved-over grunts and knights roll over and rise where they lie, no slide away and back (Ragdoll Settings > Get Up in Place)
 VR menu panel: point just outside its edge (frame lights) and hold grip: it follows your hand, stays where let go; grip on the panel + move a few cm also moves it; grip held still on a slider still fine-steps; reopen: back in front of you
 Steady Model Vertices: idle grunt and knight over several loops: no itch at the loop restart, shading no longer flickers/pulses; toggle off/on to compare
-Melee Space (Holding Enemies > Getting Close): knights, a fiend and an ogre attacking while you stand still, then lean/step in; try 0 / 16 (default) / 24: nobody ends up in your face
+Melee Space (Combat > Enemy Melee): knights, a fiend and an ogre attacking while you stand still, then lean/step in; try 0 / 16 (default) / 24: nobody ends up in your face
+Enemy Melee (Combat > Enemy Melee, Show Melee Arcs on): a knight, an ogre, a shambler after you: the floor fans (red: you are in, green: out) match where blows land? sidestep a knight vs an ogre; tune Arc Growth / Reach Growth with Size, Swing Turn
 Toolgun Spawn: hold A on the gun hand and turn your wrist: the ghost stays put and turns 2x your hand (2x right?); let go: follows the gun again, still turned (jump back to the aim OK?); A held + stick press twice goes back twice
 Hits Unbalance (Combat > Knockdowns): hard throw (crate/weapon) or strong punch/axe on a grunt staggers it like a shove (head counts more); light taps never; ogre seldom, shambler rarely; no re-stagger within 4 s; is Least Impact 0.5 too generous for punches?
 Quad Damage (Debug > Cheats): hands/arms/body glow soft pulsing blue, hands throw blue light; nothing glows in your eyes; Body > Quad Damage Look: Lightning Arcs = old look, Both = both; glow/light sliders; lightning strike still arcs; glow goes when quad ends

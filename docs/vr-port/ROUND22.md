@@ -9069,3 +9069,40 @@ Verified: build (engine + QC, 0 warnings) after each item; melee eval 168/177 wi
 tests against the base progs: the same results within run-to-run noise (limbs: base against base differs by as much;
 ragimpact 4 FAILS now, 5 in the base run; judo 0 FAILS; spawnall 115 spawned, 0 failed). AD's own tests not run: no
 AD data in the kit base (the importer's `--check` and the byte-identical progs.dat cover item 1).
+
+## Enemy Melee menu: arcs and reach by size and kind, Show Melee Arcs (worktree `gorefx`, branch `agent/meleemenu`, 2026-10-16)
+
+His note (18:26): the melee arc works; put its settings in their own place, let him see the arc and the reach, make them
+grow with the monster's size (a knight easier to dodge than an ogre), and a slider for the swing's turn.
+
+- **Combat > Enemy Melee** (new page, `pageEnemyMelee`): Melee Arc, Show Melee Arcs; Arc: Arc Angle, Wide Swings, Arc
+  Growth with Size, Reach Growth with Size, Kind Multipliers; Swinging: Swing Turn, Melee Space. The arc rows and Melee
+  Space left Combat > Holding Enemies. No board or calibration-map path named them (`vr_menu_path_check
+  maps/vrcalibration.map`: 6 found, 0 missing).
+- **Size**: a monster's level width against a grunt's 24 units (this port's model-fitted boxes: knight, grunt, rottweiler
+  24, enforcer 28, fiend 32, ogre 40, shambler 64; clamped 0.5..4 times). Arc = Arc Angle x (1 + `vr_enemy_melee_arc_size`
+  x (size - 1)) x kind, plus Wide Swings for a sweeping blow (at most 180). Reach = Quake's own reach x (1 +
+  `vr_enemy_melee_reach_size` x (size - 1)) x kind: id's `vlen(delta) > 60/100` checks (12, in the files the arc already
+  patched) and AD's `ad_ai_checkmelee` (also its launch distance; the importer patch `ai_checkmelee`, `VR_MeleeReach`)
+  now call `VR_MeleeReach(base)`. All of it only against a player with Melee Arc on; else Quake's.
+- **Kind** (`VR_MeleeArc_Kind`, `vr_enemy_melee_kind` 1): the only entry is the knight, arc 0.85 (a quick thrust); every
+  other kind 1. One `if` per kind, by classname: add one there.
+- **Defaults** (arc growth 0.1, reach growth 0.1): a grunt-sized monster as before (65 deg, Quake's reach). Logged
+  (`vr_enemy_melee_arc_show 2`, vrtesthall): knight arc 55.2 (wide 75.2) reach 60; ogre 69.3 (89.3) reach 106.7; shambler
+  75.8 (95.8) reach 116.7; a grunt (no melee, not shown) would be 65 / 60. A shambler's wide claw reaches 96 deg each side.
+- **Show Melee Arcs** (`vr_enemy_melee_arc_show`, also in Debug > Tests > Holding Enemies): QC's
+  `VR_MeleeArc_ShowFrame` (StartFrame) sets, for each live melee monster (`th_melee`, AD's `ad_th_melee`) within 600
+  units after a player, its arc, its sweeping arc (once it swung one), its reach (its blows' own, or Quake's usual 60/100
+  until the first) on four engine-read fields; `vr_bodycontact.cpp` gathers them on the server and draws them with the
+  view: the reach circle grey, the arc a fan on the floor (red with him inside it and in reach, green outside), the
+  sweeping blows' extra fan orange (bright when he is inside only that), its kind, arc, reach and his angle and distance
+  above it. 2 also prints `meleearc: show` once a second. Log Melee Arc's lines now give the reach too.
+
+Verified: build (0 warnings); screenshots from an overhead mock camera (`vr_mock_camera 0 4.5 2.5 55 0`) of a knight and
+an ogre facing him (red fan) and after he stepped aside (green); `melee_arc_test.sh gorefx id 1`: front, behind and the
+knight's step-aside as before; the ogre's step-aside still lands 6 hits after the step and the fiend's 1, the same with
+both growths 0 (today's behaviour on this tree; ROUND22's first run had 1 and 0), so not from this change; melee eval
+168/177.
+
+In VR: Combat > Enemy Melee, Show Melee Arcs on; let a knight, then an ogre come at you and sidestep: does the fan turn
+green as you leave it, and do blows land only while it is red? Tune the two growth sliders and Swing Turn there.

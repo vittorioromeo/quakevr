@@ -314,3 +314,9 @@
 .float vr_shot_ownfrom; // its owner's own shots meet it from then (not as it leaves his launcher or hand)
 .float vr_melee_time; // a monster's melee attack (ai_charge, ai_melee and kin; AD's ad_ai_*): when it last stepped or
                       // struck in one; the engine keeps it out of your head meanwhile (vr_enemy_melee_space)
+.float vr_melee_arc;      // Show Melee Arcs (vr_enemy_melee_arc_show; fight.qc VR_MeleeArc_ShowFrame, set each frame it is
+.float vr_melee_arc_wide; // shown, at vr_melee_shown): its blows' arc (degrees each side of its facing), its sweeping
+.float vr_melee_reach;    // blows' (0: none seen yet), its reach (units, origin to origin); the engine draws them
+.float vr_melee_shown;    // (vr_bodycontact.cpp meleeArcDraw)
+.float vr_melee_reach_base; // QC's: its blows' own reach (Quake's or AD's, before the growth: fight.qc VR_MeleeReach)
+.float vr_melee_wide_seen;  // QC's: it struck a sweeping blow (its wide arc shown from then)

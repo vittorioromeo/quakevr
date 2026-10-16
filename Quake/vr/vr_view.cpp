@@ -16,6 +16,7 @@
 #include "vr_chainsaw.hpp"
 #include "vr_magholster.hpp"
 #include "vr_collectfx.hpp"
+#include "vr_bodycontact.hpp"
 #include "vr_climb.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_avatar.hpp"
@@ -8602,6 +8603,7 @@ extern "C" void VR_SetupViewEntities()
     rope::debugDraw();     // vr_debug_rope
     foegrab::neckDebugDraw(s.head); // vr_foegrab_necksnap_debug
     foegrab::grabDebugDraw(s.head); // vr_foegrab_lift_debug, vr_foegrab_throw_debug
+    bodycontact::meleeArcDraw(s.head); // vr_enemy_melee_arc_show
     if(vr_debug_hand_bones.value)
     {
         drawHandBones();

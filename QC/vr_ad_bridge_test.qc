@@ -114,6 +114,12 @@ float(entity e) AD_TestWaiting =
     return AD_Run(e) && !(e.flags & FL_MONSTER) && (e.use == ad_monster_spawn || e.use == ad_monster_spawndelay);
 };
 
+// One of AD's monsters with a melee attack (Show Melee Arcs: fight.qc VR_MeleeArc_ShowFrame).
+float(entity e) AD_HasMelee =
+{
+    return AD_Run(e) && e.ad_th_melee;
+};
+
 // Wakes one of AD's monsters (self) to hunt `p`, by AD's own AI. TRUE: it was one.
 float(entity p) AD_TestWake =
 {
