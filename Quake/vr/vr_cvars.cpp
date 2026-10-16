@@ -482,6 +482,7 @@ constexpr const char* retiredCvars[] = {
     "vr_throw_mass_model",
     "vr_weight_throw_mass", // (its old path's setting: props over it thrown slower)
     "vr_prop_think_native",
+    "vr_hull_method",
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

@@ -8259,10 +8259,6 @@ za::Vector<Item> pageHitbox()
         cycle("Width Against Walls", vr_hull_width, world)
             .help("How wide you are against walls, floors, ledges, doors, lifts and other brush models. Quake's box is "
                   "32 units (you stop 16 from each wall: 0.6 m); 16 stops you 8 away (0.3 m)."),
-        cycle("Method", vr_hull_method, {{0.f, "Brush Sweep"}, {1.f, "Compiled Hull"}})
-            .help("Brush Sweep: your box swept against the map's brushes (Quake 2's way). Compiled Hull: a clipping "
-                  "hull built for your width when the map loads (qbsp's way), traced like Quake's own. They should "
-                  "feel the same; this is for comparing them."),
         toggle("Ledge Test Fix", vr_hull_edge_probe)
             .help("Quake slows you more when the floor ahead of you drops away (an edge). On: that test looks down from "
                   "your box's front edge (half your width ahead), and a point inside a step counts as floor. Off: "
