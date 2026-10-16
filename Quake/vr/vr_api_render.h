@@ -45,6 +45,18 @@ int VR_DebugGLState (void);							// GL_BindNative, SCR_UpdateScreen: nonzero to
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
 void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asymmetric projection
 void VR_DrawHiddenArea (void);							// R_RenderScene, after R_Clear: the lenses' hidden area at the near plane (vr_visibility_mask)
+// Single-pass stereo (vr_stereo_single.cpp, docs/vr-port/STEREO.md).
+int VR_StereoSinglePhase (void);						// 1 the multiview pass (both eyes), 2 an eye's own view after it, 0 neither
+struct mplane_s;
+void VR_StereoSingleFrustum (struct mplane_s *frustum);	// R_SetFrustum, the multiview pass: frustum[4] made to hold both eyes'
+void VR_StereoSingleEyeOrigin (int eye, float out[3]);	// the multiview pass: an eye's position
+void VR_StereoSingleEyeMatrices (int eye, float proj[16], float view[16]); // ... an eye's projection and view matrices
+unsigned VR_StereoSingleClusterTexture (void);			// R_PushDlights, the multiview pass: the right eye's light clusters (image unit 1)
+unsigned VR_StereoSingleBeginScene (void);				// R_RenderStereoSingle: the arrays cleared, the hidden areas, the views' block; the multiview framebuffer (bound)
+void VR_StereoSingleEndScene (void);
+int VR_StereoSingleCopyIn (unsigned color, unsigned depth);	// R_RenderScene, an eye's own view after the pass: its layer copied into its target (nonzero: done, no clear)
+int VR_StereoSingleTakesAlias (const struct entity_s *e);	// drawn in the multiview pass, not per eye
+int VR_StereoSingleViewReady (void);					// V_RenderView: this eye's V_SetupView already done (before the pass): not again
 void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entities
 void VR_WaterView (int contents, int *waterwarp);			// R_SetupView, after r_waterwarp: the liquids' look this view (the eye in `contents`); may turn the warp off
 void VR_DetailView (void);								// R_SetupView: the detail textures' settings this view (frame data), their array on unit 12 (vr_detail.cpp)

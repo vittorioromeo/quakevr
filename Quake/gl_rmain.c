@@ -839,33 +839,65 @@ void ExtractFrustumPlane (float mvp[16], int axis, float ndcval, qboolean flip, 
 R_SetFrustum
 ===============
 */
-void R_SetFrustum (void)
+/*
+=============
+R_ViewMatrices -- QVR
+
+The projection and view matrices of r_refdef's view at fov fovx x fovy (R_SetFrustum's; R_StereoViewMatrices).
+=============
+*/
+static void R_ViewMatrices (float fovx, float fovy, float proj[16], float view[16], float *outznear)
 {
 	float w, h, d;
 	float znear, zfar;
-	float logznear, logzfar;
 	float translation[16];
 	float rotation[16];
 
 	// reduce near clip distance at high FOV's to avoid seeing through walls
-	w = 1.f / tanf (DEG2RAD (r_fovx) * 0.5f);
-	h = 1.f / tanf (DEG2RAD (r_fovy) * 0.5f);
+	w = 1.f / tanf (DEG2RAD (fovx) * 0.5f);
+	h = 1.f / tanf (DEG2RAD (fovy) * 0.5f);
 	d = 12.f * q_min (w, h);
 	znear = CLAMP (0.5f, d, 4.f);
 	zfar = gl_farclip.value;
 
-	GL_FrustumMatrix(r_matproj, DEG2RAD(r_fovx), DEG2RAD(r_fovy), znear, zfar);
-	VR_OverrideProjection (r_matproj); // QVR
+	GL_FrustumMatrix(proj, DEG2RAD(fovx), DEG2RAD(fovy), znear, zfar);
+	VR_OverrideProjection (proj); // QVR
 
 	// View matrix
-	RotationMatrix(r_matview, DEG2RAD(-r_refdef.viewangles[ROLL]), 0);
+	RotationMatrix(view, DEG2RAD(-r_refdef.viewangles[ROLL]), 0);
 	RotationMatrix(rotation, DEG2RAD(-r_refdef.viewangles[PITCH]), 1);
-	MatrixMultiply(r_matview, rotation);
+	MatrixMultiply(view, rotation);
 	RotationMatrix(rotation, DEG2RAD(-r_refdef.viewangles[YAW]), 2);
-	MatrixMultiply(r_matview, rotation);
+	MatrixMultiply(view, rotation);
 
 	TranslationMatrix(translation, -r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
-	MatrixMultiply(r_matview, translation);
+	MatrixMultiply(view, translation);
+	*outznear = znear;
+}
+
+/*
+=============
+R_StereoViewMatrices -- QVR
+
+Single-pass stereo (vr/vr_stereo_single.cpp): the current eye's projection, view and view-projection, from r_refdef as
+its V_SetupView left it (R_SetFrustum's, before R_SetupView).
+=============
+*/
+void R_StereoViewMatrices (float proj[16], float view[16], float viewproj[16])
+{
+	float znear;
+	R_ViewMatrices (r_refdef.fov_x, r_refdef.fov_y, proj, view, &znear);
+	memcpy (viewproj, proj, 16 * sizeof (float));
+	MatrixMultiply (viewproj, view);
+}
+
+void R_SetFrustum (void)
+{
+	float znear, zfar;
+	float logznear, logzfar;
+
+	R_ViewMatrices (r_fovx, r_fovy, r_matproj, r_matview, &znear); // QVR: (shared with R_StereoViewMatrices)
+	zfar = gl_farclip.value;
 	VR_PortalClip (r_matproj, r_matview); // QVR: through a teleporter, the near plane its plane (vr/vr_portals.cpp)
 
 	// View projection matrix
@@ -876,6 +908,8 @@ void R_SetFrustum (void)
 	ExtractFrustumPlane (r_matviewproj, 0, -1.f, false, &frustum[1]); // left
 	ExtractFrustumPlane (r_matviewproj, 1, -1.f, false, &frustum[2]); // bottom
 	ExtractFrustumPlane (r_matviewproj, 1,  1.f, true,  &frustum[3]); // top
+	if (VR_StereoSinglePhase () == 1) // QVR: single-pass stereo's pass: a frustum holding both eyes' (vr/vr_stereo_single.cpp)
+		VR_StereoSingleFrustum (frustum);
 
 	logznear = log2f (znear);
 	logzfar = log2f (zfar);
@@ -1181,22 +1215,37 @@ static void R_DrawWater (qboolean translucent)
 R_DrawEntitiesOnList
 =============
 */
+static entity_t *r_stereo_alias[MAX_VISEDICTS]; // QVR: the alias models a single-pass stereo pass draws
+
 void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 {
 	int		*ofs;
+	int		stereophase; // QVR
 	entity_t **entlist = cl_sorted_visedicts;
 
 	GL_BeginGroup (alphapass ? "Translucent entities" : "Opaque entities");
 
 	ofs = cl_modtype_ofs + (alphapass ? 1 : 0);
+	stereophase = alphapass ? 0 : VR_StereoSinglePhase (); // QVR: single-pass stereo: the multiview pass (1) draws the opaque
+	// world, brush models and the alias models away from the eyes; an eye's own view after it (2) the rest
 	VR_ProfileBeginGPU (alphapass ? "brush" : "world+brush"); // QVR: profile
-	R_DrawBrushModels  (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
+	if (stereophase != 2) // QVR
+		R_DrawBrushModels  (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
 	VR_ProfileEnd (); // QVR
 	VR_ProfileBeginGPU ("alias"); // QVR: profile
+	if (stereophase) // QVR: the alias models each pass takes
+	{
+		int i, n = 0, count = ofs[2*mod_alias +1] - ofs[2*mod_alias ];
+		for (i = 0; i < count; i++)
+			if (!VR_StereoSingleTakesAlias (entlist[ofs[2*mod_alias ] + i]) == (stereophase == 2))
+				r_stereo_alias[n++] = entlist[ofs[2*mod_alias ] + i];
+		R_DrawAliasModels (r_stereo_alias, n);
+	}
+	else
 	R_DrawAliasModels  (entlist + ofs[2*mod_alias ], ofs[2*mod_alias +1] - ofs[2*mod_alias ]);
 	VR_ProfileEnd (); // QVR
 	VR_ProfileBeginGPU ("sprite models"); // QVR: profile
-	if (!alphapass)
+	if (!alphapass && stereophase != 1) // QVR: (per eye)
 		R_DrawSpriteModels (entlist + cl_modtype_ofs[2*mod_sprite], cl_modtype_ofs[2*mod_sprite+2] - cl_modtype_ofs[2*mod_sprite]);
 	VR_ProfileEnd (); // QVR
 
@@ -2000,11 +2049,17 @@ void R_RenderScene (void)
 	VR_ProfileBeginGPU ("scene setup"); // QVR: profile
 	R_SetupScene (); //johnfitz -- this does everything that should be done once per call to RenderScene
 
+	// QVR: single-pass stereo: an eye's view after the multiview pass starts from its layer (cleared there, its hidden
+	// area and what the pass drew) instead of a clear (vr/vr_stereo_single.cpp)
+	if (!VR_StereoSingleCopyIn (framesetup.scene_fbo == framebufs.scene.fbo ? framebufs.scene.color_tex : framebufs.composite.color_tex,
+		framesetup.scene_fbo == framebufs.scene.fbo ? framebufs.scene.depth_stencil_tex : framebufs.composite.depth_stencil_tex))
+	{
 	VR_ProfileBegin ("clear"); // QVR: profile
 	R_Clear ();
 	VR_ProfileEnd (); // QVR
 	VR_DrawHiddenArea (); // QVR: the lenses' hidden area, skipped by what follows
 	VR_DrawPortalMask (); // QVR: through a teleporter, all but the gate skipped (vr/vr_portals.cpp)
+	}
 
 	Fog_EnableGFog (); //johnfitz
 	VR_ProfileEnd (); // QVR
@@ -2141,6 +2196,38 @@ void R_WarpScaleView (void)
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 
 	GL_EndGroup ();
+}
+
+/*
+================
+R_RenderStereoSingle -- QVR
+
+Single-pass stereo's multiview pass (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): the view set up once for both
+eyes (the first eye's r_refdef, a frustum and PVS holding both, both eyes' light clusters), then the passes ported so
+far drawn once into both layers of the eyes' arrays. Each eye's own R_RenderView follows and draws the rest.
+================
+*/
+void R_RenderStereoSingle (void)
+{
+	int view_numvisedicts = cl_numvisedicts;
+	memcpy (r_view_visedicts, cl_visedicts, view_numvisedicts * sizeof(cl_visedicts[0]));
+
+	VR_ProfileBeginGPU ("setup view"); // QVR: profile
+	R_SetupView ();
+	VR_ProfileEnd ();
+	VR_ProfileBeginGPU ("scene");
+	{
+		framesetup_t saved = framesetup;
+		framesetup.scene_fbo = VR_StereoSingleBeginScene (); // (a pass that binds the scene again binds the arrays)
+		Fog_EnableGFog ();
+		R_DrawEntitiesOnList (false);
+		VR_StereoSingleEndScene ();
+		framesetup = saved;
+	}
+	VR_ProfileEnd ();
+
+	memcpy (cl_visedicts, r_view_visedicts, view_numvisedicts * sizeof(cl_visedicts[0]));
+	cl_numvisedicts = view_numvisedicts;
 }
 
 /*

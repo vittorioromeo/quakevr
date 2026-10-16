@@ -31,6 +31,7 @@
 #include "vr_portals.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
+#include "vr_stereo_single.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tonemap.hpp"
 #include "vr_tracy.h"
@@ -807,6 +808,25 @@ bool isFirstEye()
     return firstEye;
 }
 
+void setCurrentEye(int eye)
+{
+    currentEye = eye;
+}
+
+void drawHiddenAreaOf(int eye)
+{
+    const int saved = currentEye;
+    currentEye = eye;
+    drawHiddenArea();
+    currentEye = saved;
+}
+
+void eyeSceneFormats(unsigned& color, unsigned& depth)
+{
+    color = eyeTargets.format;
+    depth = eyeTargets.depth;
+}
+
 } // namespace qvr::stereo
 
 using namespace qvr;
@@ -904,6 +924,32 @@ extern "C" int VR_RenderView()
     // for the image overlaps the scene's drawing.
     const bool lateAcquire = vr_xr_late_acquire.value != 0.f;
 
+    // Single-pass stereo (vr_stereo_single.cpp, vr_stereo_single): both eyes' views set up first and the passes ported so
+    // far drawn once into both; each eye below draws the rest of its scene from its layer.
+    if(stereosingle::wanted(stereo::eyeTargets.fb.scene.samples))
+    {
+        framebufs = stereo::eyeTargets.fb;
+        vid.width = width;
+        vid.height = height;
+        glx = gly = 0;
+        glwidth = width;
+        glheight = height;
+        r_refdef.vrect.x = r_refdef.vrect.y = 0;
+        r_refdef.vrect.width = width;
+        r_refdef.vrect.height = height;
+        for(int eye = 0; eye < 2; eye++)
+        {
+            stereo::renderingEye = true;
+            stereo::currentEye = eye;
+            stereo::firstEye = eye == 0;
+            V_SetupView();
+            stereosingle::captureEye(eye);
+        }
+        QVR_GPU_PROFILE("eyes: single pass");
+        stereosingle::render(width, height);
+        stereo::renderingEye = false;
+    }
+
     int eyesRendered = 0;
     for(int eye = 0; eye < 2; eye++)
     {
@@ -930,7 +976,9 @@ extern "C" int VR_RenderView()
         // The models' set-up the same for both eyes: the first eye's kept for the second (vr_alias_eye_cache; r_alias.c)
         const int eyeCache = static_cast<int>(vr_alias_eye_cache.value);
         R_AliasEyeCacheBegin(eyeCache <= 0 ? 0 : stereo::firstEye ? 1 : eyeCache >= 2 ? 3 : 2);
+        stereosingle::beginEye(eye);
         V_RenderView();
+        stereosingle::endEye();
         R_AliasEyeCacheBegin(0);
         {
             QVR_TRACY_SCOPE(zoneFoveated, "eye: foveated end"); // (profiling builds only: the eye's own steps)
@@ -1010,6 +1058,7 @@ extern "C" int VR_RenderView()
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
     R_AliasEyeCacheEnd();
+    stereosingle::endFrame();
 
     // Both eyes, or no projection layer at all (an eye's image could not be acquired).
     profile::begin("xr submit", true); // xrEndFrame

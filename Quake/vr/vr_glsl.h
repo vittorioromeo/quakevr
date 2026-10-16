@@ -128,12 +128,35 @@ QVR_TONE_GLSL
 "	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n" \
 "	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n"
 
+// Single-pass stereo (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): a multiview twin (QVR_MULTIVIEW) reads each
+// view's view-projection and eye position from this block; the blocks that declare ViewProj, EyePos, FrameViewProj and
+// FrameEyePos name their own members otherwise there (QVR_MONO), and these macros stand for them. Without
+// QVR_MULTIVIEW, nothing.
+#define QVR_STEREO_VIEWS \
+"#if defined(QVR_MULTIVIEW) && !defined(QVR_STEREO_VIEWS)\n"\
+"#define QVR_STEREO_VIEWS\n"\
+"layout(std140, binding=5) uniform QvrStereoUBO\n"\
+"{\n"\
+"	mat4	QvrViewProj[2];\n"\
+"	vec4	QvrEyePos[2];\n"\
+"};\n"\
+"#define ViewProj QvrViewProj[QVR_VIEW]\n"\
+"#define EyePos QvrEyePos[QVR_VIEW].xyz\n"\
+"#define FrameViewProj QvrViewProj[QVR_VIEW]\n"\
+"#define FrameEyePos QvrEyePos[QVR_VIEW].xyz\n"\
+"#endif\n"
+
 // the frame data the alias shaders read (vr/vr_lighting.cpp); its own names, since the alias
 // instance buffer has a ViewProj, Fog, EyePos and ScreenDither of its own.
 #define ALIAS_FRAMEDATA_BUFFER \
+QVR_STEREO_VIEWS \
 "layout(std140, binding=0) uniform FrameDataUBO\n"\
 "{\n"\
+"#ifdef QVR_MULTIVIEW\n"\
+"	mat4	FrameViewProjMono;\n"\
+"#else\n"\
 "	mat4	FrameViewProj;\n"\
+"#endif\n"\
 "	vec4	FrameFog;\n"\
 "	vec4	FrameSkyFog;\n"\
 "	vec3	FrameWindDir;\n"\
@@ -142,7 +165,11 @@ QVR_TONE_GLSL
 "	float	FrameTextureDither;\n"\
 "	float	ShadowBias;\n"\
 "	float	DlightAngle;\n"\
+"#ifdef QVR_MULTIVIEW\n"\
+"	vec3	FrameEyePosMono;\n"\
+"#else\n"\
 "	vec3	FrameEyePos;\n"\
+"#endif\n"\
 "	float	FrameTime;\n"\
 "	float	ZLogScale;\n"\
 "	float	ZLogBias;\n"\
@@ -2279,7 +2306,7 @@ SPECULAR_AA_FUNCTIONS
 "	cluster_coord.x = int(floor(in_coord.x));\n" \
 "	cluster_coord.y = int(floor(in_coord.y));\n" \
 "	cluster_coord.z = max(int(floor(log2(in_depth) * ZLogScale + ZLogBias)), 0); /* nearer than the first slice (a held gun): in it */\n" \
-"	uvec2 clusterdata = imageLoad(LightClusters, cluster_coord).xy;\n" \
+"	uvec2 clusterdata = QVR_LOAD_CLUSTER(cluster_coord).xy;\n" \
 "	if ((clusterdata.x | clusterdata.y) == 0u)\n" \
 "		return vec3(0.);\n" \
 "	vec3 pos = RetroLightAt(in_pos + EyePos, RetroLight[5].y); /* QVR: or its retro lighting block's (vr_retrolight.h) */\n" \

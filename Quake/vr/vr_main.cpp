@@ -51,6 +51,7 @@
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_stealth.hpp"
+#include "vr_stereo_single.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
 #include "vr_timescale.hpp"
@@ -2072,6 +2073,7 @@ extern "C" void VR_Init()
     allocsites::registerCommands(); // vr_alloc_sites
     Cmd_AddCommand("vr_crash_test", VR_CrashTest_f);
     lighting::init();
+    stereosingle::init(); // vr_stereo_single_info
     timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
     envmap::init(); // vr_envmap_dump

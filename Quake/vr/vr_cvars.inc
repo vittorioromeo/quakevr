@@ -562,6 +562,10 @@ QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
 // light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
 // second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
 QVR_CVAR(vr_alias_eye_cache, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Single-Pass Stereo: 1 the opaque world, brush models and the alias models other than
+// the view entities drawn once for both eyes (GL_OVR_multiview2, vr_stereo_single.cpp, docs/vr-port/STEREO.md), the
+// rest per eye from a copy of its layer; 0 every pass per eye. Off by itself with MSAA or without the extension.
+QVR_CVAR(vr_stereo_single, "0", CVAR_ARCHIVE)
 // 1: a line a second in qvr_openxr.txt while VR runs: the frames (rendered, the last one shown again, without layers),
 // the display periods missed, and each OpenXR call's time (average and worst), the session's state; 0 none.
 QVR_CVAR(vr_xr_log_timing, "1", CVAR_ARCHIVE)

@@ -26,10 +26,27 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "q_ctype.h"
 
 glprogs_t glprogs;
-static GLuint gl_programs[128];
+static GLuint gl_programs[256]; // QVR: 256 (the multiview twins)
 static GLuint gl_current_program;
 static int gl_num_programs;
 static int gl_shader_ab; // QVR: tests: QVR_SHADER_AB in every shader (vr_shader_reload)
+
+// QVR: single-pass stereo (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): each graphics program's sources, for its
+// multiview twin (the same sources compiled with QVR_MULTIVIEW), made the first time the multiview pass uses it.
+typedef struct {
+	GLuint		program;
+	GLuint		twin;		// 0: not made (yet)
+	qboolean	tried;		// made, or failed to
+	qboolean	ported;		// a ported pass's program (its name: GL_MultiviewPorted)
+	const char	*sources[2];
+	char		macros[1024];
+	char		name[128];
+} glprogsource_t;
+static glprogsource_t gl_progsources[160];
+static int gl_num_progsources;
+static int gl_multiview_compile; // GL_CreateShader: the twin's header (1); a failure is reported, not fatal
+static int gl_multiview_missing; // programs used in the multiview pass without a twin (VR_StereoSingleInfo)
+qboolean gl_multiview_draw; // GL_UseProgram: the multiview pass draws (twins)
 
 /*
 =============
@@ -138,6 +155,10 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		gl_shader_ab
 	);
 	strings[numstrings++] = header;
+	if (gl_multiview_compile) // QVR: a multiview twin (single-pass stereo): both eyes from each draw
+		strings[numstrings++] = type == GL_VERTEX_SHADER ?
+			"#extension GL_OVR_multiview2 : require\nlayout(num_views = 2) in;\n#define QVR_MULTIVIEW 1\n#define QVR_VIEW int(gl_ViewID_OVR)\n" :
+			"#extension GL_OVR_multiview2 : require\n#define QVR_MULTIVIEW 1\n#define QVR_VIEW int(gl_ViewID_OVR)\n";
 
 	if (extradefs && *extradefs)
 		strings[numstrings++] = extradefs;
@@ -155,6 +176,12 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		char infolog[1024];
 		memset(infolog, 0, sizeof(infolog));
 		GL_GetShaderInfoLogFunc (shader, sizeof(infolog), NULL, infolog);
+		if (gl_multiview_compile) // QVR: a twin that fails leaves its pass per eye
+		{
+			Con_Printf ("multiview twin of %s: %s shader:\n%s\n", name, typestr, infolog);
+			gl_multiview_compile = 2;
+			return shader;
+		}
 		GL_InitError ("Error compiling %s %s shader:\n\n%s", name, typestr, infolog);
 	}
 
@@ -190,6 +217,12 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 		char infolog[1024];
 		memset(infolog, 0, sizeof(infolog));
 		GL_GetProgramInfoLogFunc (program, sizeof(infolog), NULL, infolog);
+		if (gl_multiview_compile) // QVR: a twin
+		{
+			Con_Printf ("multiview twin of %s: link:\n%s\n", name, infolog);
+			gl_multiview_compile = 2;
+		}
+		else
 		GL_InitError ("Error linking %s program:\n\n%s", name, infolog);
 	}
 
@@ -256,7 +289,86 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 		if (sources[i])
 			shaders[realcount++] = GL_CreateShader (types[i], sources[i], macros, name);
 
-	return GL_CreateProgramFromShaders (shaders, realcount, name);
+	{ // QVR: a graphics program's sources kept for its multiview twin (GL_MultiviewProgram)
+		GLuint program = GL_CreateProgramFromShaders (shaders, realcount, name);
+		if (count == 2 && !gl_multiview_compile && gl_num_progsources < (int) countof (gl_progsources))
+		{
+			glprogsource_t *src = &gl_progsources[gl_num_progsources++];
+			memset (src, 0, sizeof (*src));
+			src->program = program;
+			src->sources[0] = sources[0];
+			src->sources[1] = sources[1];
+			q_strlcpy (src->macros, macros, sizeof (src->macros));
+			q_strlcpy (src->name, name, sizeof (src->name));
+			// the ported passes' (STEREO.md): the world's solid and fence surfaces and its depth pre-pass, the alias models
+			src->ported = !strncmp (name, "world|", 6) || !strncmp (name, "world pdo|", 10) || !strncmp (name, "world depth", 11) ||
+				!strncmp (name, "world decal retro|", 18) || !strncmp (name, "world pdo decal retro|", 22) || !strncmp (name, "alias|", 6);
+		}
+		return program;
+	}
+}
+
+/*
+====================
+GL_MultiviewProgram -- QVR
+
+The multiview twin of `program` (single-pass stereo), made the first time it is asked for; `program` itself when it has
+none (a pass not ported, or a twin that failed to compile: counted in gl_multiview_missing).
+====================
+*/
+static GLuint GL_MultiviewProgram (GLuint program)
+{
+	int i;
+	for (i = 0; i < gl_num_progsources; i++)
+	{
+		glprogsource_t *src = &gl_progsources[i];
+		GLenum types[2] = {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
+		GLuint shaders[2];
+		int j, realcount;
+		if (src->program != program)
+			continue;
+		if (!src->ported)
+			break;
+		if (!src->tried)
+		{
+			src->tried = true;
+			gl_multiview_compile = 1;
+			for (j = 0, realcount = 0; j < 2; j++)
+				if (src->sources[j])
+					shaders[realcount++] = GL_CreateShader (types[j], src->sources[j], src->macros, src->name);
+			if (gl_multiview_compile == 1)
+				src->twin = GL_CreateProgramFromShaders (shaders, realcount, src->name);
+			else
+				for (j = 0; j < realcount; j++)
+					GL_DeleteShaderFunc (shaders[j]);
+			if (gl_multiview_compile != 1)
+				src->twin = 0;
+			gl_multiview_compile = 0;
+		}
+		if (src->twin)
+			return src->twin;
+		gl_multiview_missing++;
+		break;
+	}
+	return program; // (a compute program, or one of Quake VR's own)
+}
+
+/*
+====================
+GL_MultiviewStats -- QVR
+
+The twins made so far, and the programs the multiview pass used without one (since the last call).
+====================
+*/
+void GL_MultiviewStats (int *twins, int *missing)
+{
+	int i;
+	*twins = 0;
+	for (i = 0; i < gl_num_progsources; i++)
+		if (gl_progsources[i].twin)
+			++*twins;
+	*missing = gl_multiview_missing;
+	gl_multiview_missing = 0;
 }
 
 /*
@@ -307,6 +419,8 @@ GL_UseProgram
 */
 void GL_UseProgram (GLuint program)
 {
+	if (gl_multiview_draw && program) // QVR: the multiview pass (single-pass stereo): the program's twin
+		program = GL_MultiviewProgram (program);
 	if (program == gl_current_program)
 		return;
 	gl_current_program = program;
@@ -434,6 +548,7 @@ void GL_DeleteShaders (void)
 		gl_programs[i] = 0;
 	}
 	gl_num_programs = 0;
+	gl_num_progsources = 0; // QVR: (the twins were among gl_programs)
 
 	GL_UseProgramFunc (0);
 	gl_current_program = 0;

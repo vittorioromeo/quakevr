@@ -98,6 +98,7 @@ void R_AliasDepthCacheStats (int *hits, int *misses); // r_alias.c: the set-ups 
 void R_AliasEyeCacheBegin (int mode);
 void R_AliasEyeCacheEnd (void);
 void R_AliasEyeCacheStats (int *out, int count);
+void R_Clear (void); // gl_rmain.c: the bound scene's depth, stencil (and colour with gl_clear) cleared (vr_stereo_single.cpp)
 qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, int side); // r_alias.c: into its wound mask (vr_wounds.cpp); side -1 all, 0 or 1 that side's
 qboolean R_PaintBrushWounds (entity_t *e, int numsplats, const float *splats); // r_world.c: a held brush model's box into its box mask (vr_wounds.cpp)
 void R_BModelCentre (entity_t *e, float out[3]); // r_world.c: where the middle of a brush model's box is drawn
