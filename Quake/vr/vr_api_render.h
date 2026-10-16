@@ -56,6 +56,7 @@ unsigned VR_StereoSingleBeginScene (void);				// R_RenderStereoSingle: the array
 void VR_StereoSingleEndScene (void);
 int VR_StereoSingleCopyIn (unsigned color, unsigned depth);	// R_RenderScene, an eye's own view after the pass: its layer copied into its target (nonzero: done, no clear)
 int VR_StereoSingleTakesAlias (const struct entity_s *e);	// drawn in the multiview pass, not per eye
+int VR_StereoSingleTakesBrush (void);					// the opaque world and brush models: drawn in the multiview pass
 int VR_StereoSingleViewReady (void);					// V_RenderView: this eye's V_SetupView already done (before the pass): not again
 void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entities
 void VR_WaterView (int contents, int *waterwarp);			// R_SetupView, after r_waterwarp: the liquids' look this view (the eye in `contents`); may turn the warp off

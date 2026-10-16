@@ -1229,7 +1229,7 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 	stereophase = alphapass ? 0 : VR_StereoSinglePhase (); // QVR: single-pass stereo: the multiview pass (1) draws the opaque
 	// world, brush models and the alias models away from the eyes; an eye's own view after it (2) the rest
 	VR_ProfileBeginGPU (alphapass ? "brush" : "world+brush"); // QVR: profile
-	if (stereophase != 2) // QVR
+	if (!stereophase || (stereophase == 1) == (VR_StereoSingleTakesBrush () != 0)) // QVR
 		R_DrawBrushModels  (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
 	VR_ProfileEnd (); // QVR
 	VR_ProfileBeginGPU ("alias"); // QVR: profile

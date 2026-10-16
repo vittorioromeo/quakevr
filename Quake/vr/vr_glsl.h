@@ -2972,9 +2972,13 @@ QVR_DENT_FUNCTIONS \
 "#define PortalPlane FramePortalPlane\n" \
 "#define PortalMin FramePortalMin\n" \
 "#define PortalMax FramePortalMax\n" \
+"#ifndef QVR_MULTIVIEW\n" /* (a multiview twin's EyePos is the view's already: QVR_STEREO_VIEWS) */ \
 "#define EyePos FrameEyePos\n" \
+"#endif\n" \
 QVR_BEHIND_SHOWN_GATE \
-"#undef EyePos\n"
+"#ifndef QVR_MULTIVIEW\n" \
+"#undef EyePos\n" \
+"#endif\n"
 
 // soft sprites, fading out close in front of the scene
 #define QVR_SPRITES_FS_SOFT \

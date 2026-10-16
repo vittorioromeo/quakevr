@@ -13,6 +13,7 @@
 #include "vr_engine.hpp"
 #include "vr_foveated.hpp"
 #include "vr_main.hpp"
+#include "vr_portals.hpp"
 #include "vr_stereo.hpp"
 
 #include "Zancle/Base/Strcmp.hpp"
@@ -33,6 +34,8 @@ using MultiviewFn = void(APIENTRY*)(GLenum target, GLenum attachment, GLuint tex
 using CopyImageFn = void(APIENTRY*)(GLuint src, GLenum srcTarget, GLint srcLevel, GLint srcX, GLint srcY, GLint srcZ,
     GLuint dst, GLenum dstTarget, GLint dstLevel, GLint dstX, GLint dstY, GLint dstZ, GLsizei width, GLsizei height,
     GLsizei depth);
+using StorageMultisampleFn = void(APIENTRY*)(GLenum target, GLsizei samples, GLenum format, GLsizei width,
+    GLsizei height, GLsizei depth, GLboolean fixedLocations);
 
 // What an eye's V_SetupView left (captureEye).
 struct EyeView
@@ -65,13 +68,17 @@ struct State
     GLuint fboMulti = 0;
     GLuint fboLayer[2] = {};
     int width = 0, height = 0;
+    int samples = 1; // the eyes' MSAA (multisample arrays)
+    int frameSamples = 1; // this frame's (wanted)
     unsigned colorFormat = 0, depthFormat = 0;
     bool targetsFailed = false;
+    StorageMultisampleFn storageMultisample = nullptr; // (null: no MSAA arrays: two-pass with MSAA)
     GLuint clusters = 0; // the right eye's light clusters (gl_rlight.c's image's twin)
 
     // This frame.
     EyeView eyes[2];
     mplane_t frustum[4] = {}; // holding both eyes' (unionFrustum)
+    bool captured = false;  // both eyes' views set up before the loop (captureEye)
     bool active = false;    // the pass ran: the eyes' views follow it
     bool inPass = false;    // R_RenderStereoSingle runs
     bool viewReady = false; // an eye's own V_RenderView runs (its V_SetupView done before the pass)
@@ -92,11 +99,17 @@ bool supported()
     state.support = 0;
     GLint count = 0;
     glGetIntegerv(GL_NUM_EXTENSIONS, &count);
-    bool found = false;
-    for(GLint i = 0; i < count && !found; i++)
+    bool found = false, multisample = false;
+    for(GLint i = 0; i < count; i++)
     {
         const auto* name = reinterpret_cast<const char*>(GL_GetStringiFunc(GL_EXTENSIONS, static_cast<GLuint>(i)));
-        found = name && !ZA_STRCMP(name, "GL_OVR_multiview2");
+        found = found || (name && !ZA_STRCMP(name, "GL_OVR_multiview2"));
+        multisample = multisample || (name && !ZA_STRCMP(name, "GL_EXT_multiview_texture_multisample"));
+    }
+    if(multisample)
+    {
+        state.storageMultisample =
+            reinterpret_cast<StorageMultisampleFn>(SDL_GL_GetProcAddress("glTexStorage3DMultisample"));
     }
     if(found)
     {
@@ -121,10 +134,18 @@ void deleteTargets()
     state.width = state.height = 0;
 }
 
-GLuint makeArray(unsigned format, int width, int height, const char* label)
+GLuint makeArray(unsigned format, int width, int height, int samples, const char* label)
 {
     GLuint tex = 0;
     glGenTextures(1, &tex);
+    if(samples > 1) // (the eyes' MSAA: GL_EXT_multiview_texture_multisample)
+    {
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_MULTISAMPLE_ARRAY, tex);
+        state.storageMultisample(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, samples, format, width, height, 2, GL_FALSE);
+        GL_ObjectLabelFunc(GL_TEXTURE, tex, -1, label);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_MULTISAMPLE_ARRAY, 0);
+        return tex;
+    }
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, tex);
     GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, format, width, height, 2);
     GL_ObjectLabelFunc(GL_TEXTURE, tex, -1, label); // (vr_vram_report)
@@ -137,26 +158,27 @@ GLuint makeArray(unsigned format, int width, int height, const char* label)
 
 // The arrays for the eyes' scene of `width` x `height` (their formats: the eyes' targets'). False: they could not be
 // made complete (the frame renders two-pass).
-bool ensureTargets(int width, int height)
+bool ensureTargets(int width, int height, int samples)
 {
     unsigned colorFormat = 0, depthFormat = 0;
     stereo::eyeSceneFormats(colorFormat, depthFormat);
     if(state.fboMulti && state.width == width && state.height == height && state.colorFormat == colorFormat &&
-        state.depthFormat == depthFormat)
+        state.depthFormat == depthFormat && state.samples == samples)
     {
         return true;
     }
-    if(state.targetsFailed && state.width == width && state.height == height)
+    if(state.targetsFailed && state.width == width && state.height == height && state.samples == samples)
     {
         return false;
     }
     deleteTargets();
     state.width = width;
     state.height = height;
+    state.samples = samples;
     state.colorFormat = colorFormat;
     state.depthFormat = depthFormat;
-    state.color = makeArray(colorFormat, width, height, "single-pass stereo colors");
-    state.depth = makeArray(depthFormat, width, height, "single-pass stereo depth/stencil");
+    state.color = makeArray(colorFormat, width, height, samples, "single-pass stereo colors");
+    state.depth = makeArray(depthFormat, width, height, samples, "single-pass stereo depth/stencil");
 
     const GLuint bound = GL_BoundDrawFramebuffer();
     GL_GenFramebuffersFunc(1, &state.fboMulti);
@@ -305,11 +327,12 @@ bool wanted(int samples)
         state.reason = "no GL_OVR_multiview2";
         return false;
     }
-    if(samples > 1)
+    if(samples > 1 && !state.storageMultisample)
     {
-        state.reason = "MSAA";
+        state.reason = "MSAA without GL_EXT_multiview_texture_multisample";
         return false;
     }
+    state.frameSamples = za::max(samples, 1);
     return true;
 }
 
@@ -321,6 +344,7 @@ void captureEye(int eye)
     v.fovX = r_refdef.fov_x;
     v.fovY = r_refdef.fov_y;
     R_StereoViewMatrices(v.proj, v.view, v.viewProj);
+    state.captured = true;
 }
 
 bool render(int width, int height)
@@ -330,7 +354,19 @@ bool render(int width, int height)
         state.reason = "the eyes' frusta";
         return false;
     }
-    if(!ensureTargets(width, height))
+    // A teleporter's view in sight (either eye): two-pass. Each eye's views through the gates are drawn before its
+    // scene, which hides what is behind the gates it shows (the frame data's gates: VR_PortalFrameData); the pass would
+    // draw that before any eye's are known. (portals::update again in each eye's renderPortals.)
+    for(int eye = 0; eye < 2; eye++)
+    {
+        portals::update(state.eyes[eye].origin, state.eyes[eye].angles, 0);
+        if(portals::viewCount(0) > 0)
+        {
+            state.reason = "a teleporter's view";
+            return false;
+        }
+    }
+    if(!ensureTargets(width, height, state.frameSamples))
     {
         state.reason = "no arrays";
         return false;
@@ -354,7 +390,7 @@ bool render(int width, int height)
 
 void beginEye(int eye)
 {
-    if(!state.active)
+    if(!state.captured) // (captured, the pass not run: the eyes as before, their views not set up again)
     {
         return;
     }
@@ -374,6 +410,7 @@ void endEye()
 void endFrame()
 {
     state.active = false;
+    state.captured = false;
     state.viewReady = false;
     state.copyPending[0] = state.copyPending[1] = false;
 }
@@ -388,7 +425,8 @@ extern "C" int VR_StereoSinglePhase()
     {
         return 1;
     }
-    return stereosingle::state.viewReady && !VR_PortalDrawing() && !stereo::isSpectator() ? 2 : 0;
+    const stereosingle::State& s = stereosingle::state;
+    return s.active && s.viewReady && !VR_PortalDrawing() && !stereo::isSpectator() ? 2 : 0;
 }
 
 extern "C" int VR_StereoSingleViewReady()
@@ -460,12 +498,14 @@ extern "C" unsigned VR_StereoSingleBeginScene()
     GL_Upload(GL_UNIFORM_BUFFER, &block, sizeof(block), &buf, &ofs);
     GL_BindBufferRange(GL_UNIFORM_BUFFER, stereosingle::viewsBinding, buf, reinterpret_cast<GLintptr>(ofs), sizeof(block));
     gl_multiview_draw = true;
+    foveated::beginSceneLayered(s.fboMulti, s.width, s.height); // vr_foveated: each view its eye's rates
     return s.fboMulti;
 }
 
 extern "C" void VR_StereoSingleEndScene()
 {
     gl_multiview_draw = false;
+    foveated::endScene();
 }
 
 extern "C" int VR_StereoSingleCopyIn(unsigned color, unsigned depth)
@@ -477,8 +517,10 @@ extern "C" int VR_StereoSingleCopyIn(unsigned color, unsigned depth)
         return 0;
     }
     s.copyPending[eye] = false;
-    s.copyImage(s.color, GL_TEXTURE_2D_ARRAY, 0, 0, 0, eye, color, GL_TEXTURE_2D, 0, 0, 0, 0, s.width, s.height, 1);
-    s.copyImage(s.depth, GL_TEXTURE_2D_ARRAY, 0, 0, 0, eye, depth, GL_TEXTURE_2D, 0, 0, 0, 0, s.width, s.height, 1);
+    const GLenum from = s.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE_ARRAY : GL_TEXTURE_2D_ARRAY;
+    const GLenum to = s.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+    s.copyImage(s.color, from, 0, 0, 0, eye, color, to, 0, 0, 0, 0, s.width, s.height, 1);
+    s.copyImage(s.depth, from, 0, 0, 0, eye, depth, to, 0, 0, 0, 0, s.width, s.height, 1);
     foveated::beginScene(eye, vid.width, vid.height); // vr_foveated, as after VR_DrawHiddenArea
     return 1;
 }
@@ -487,5 +529,10 @@ extern "C" int VR_StereoSingleTakesAlias(const entity_t* e)
 {
     // The view entities (hands, weapons, the body) per eye: their near-plane handling is decided per eye
     // (VR_AliasNearEye); cl.viewent too (its gun offsets follow the eye's axes).
-    return e != &cl.viewent && !VR_IsViewEntity(e);
+    return (static_cast<int>(vr_stereo_single_passes.value) & 2) && e != &cl.viewent && !VR_IsViewEntity(e);
+}
+
+extern "C" int VR_StereoSingleTakesBrush()
+{
+    return static_cast<int>(vr_stereo_single_passes.value) & 1;
 }

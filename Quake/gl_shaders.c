@@ -37,7 +37,8 @@ typedef struct {
 	GLuint		program;
 	GLuint		twin;		// 0: not made (yet)
 	qboolean	tried;		// made, or failed to
-	qboolean	ported;		// a ported pass's program (its name: GL_MultiviewPorted)
+	qboolean	ported;		// a ported pass's program (its name)
+	int			missing;	// used in the multiview pass, its twin failed (GL_MultiviewStats)
 	const char	*sources[2];
 	char		macros[1024];
 	char		name[128];
@@ -348,6 +349,7 @@ static GLuint GL_MultiviewProgram (GLuint program)
 		if (src->twin)
 			return src->twin;
 		gl_multiview_missing++;
+		src->missing++;
 		break;
 	}
 	return program; // (a compute program, or one of Quake VR's own)
@@ -365,8 +367,13 @@ void GL_MultiviewStats (int *twins, int *missing)
 	int i;
 	*twins = 0;
 	for (i = 0; i < gl_num_progsources; i++)
+	{
 		if (gl_progsources[i].twin)
 			++*twins;
+		if (gl_progsources[i].missing)
+			Con_Printf ("  %s: its twin failed, %d uses\n", gl_progsources[i].name, gl_progsources[i].missing);
+		gl_progsources[i].missing = 0;
+	}
 	*missing = gl_multiview_missing;
 	gl_multiview_missing = 0;
 }

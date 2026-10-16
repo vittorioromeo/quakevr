@@ -23,6 +23,9 @@ namespace qvr::foveated
 // on for it, if vr_foveated asks. `width` x `height`: the scene's size.
 void beginScene(int eye, int width, int height);
 
+// Single-pass stereo's multiview pass (vr_stereo_single.cpp): both eyes' scenes at once into `fbo` (bound), each view
+// shaded by its eye's rates (a 2-layer rate image); ended by endScene.
+void beginSceneLayered(unsigned fbo, int width, int height);
 // The eye's scene is over: variable-rate shading off.
 void endScene();
 
