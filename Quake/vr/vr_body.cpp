@@ -557,38 +557,6 @@ glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets)
     return avatar::Follower{s}(avatar::Part::Chest, hands::bodyAnchor(avatar::standing(s), offsets));
 }
 
-void migrateHolsters()
-{
-    // Round 21 stopped a hip or upper holster on the body at its front (frontOfTheBody): an X behind
-    // that put it there. Now X goes on from the default's place, round the body: an X that was
-    // stopped becomes the default (where it was), a further forward one keeps its distance ahead of
-    // the front. For the body standing as the settings make it (the head over the box's middle).
-    if(!vr_body_anchors.value || vr_body_mode.value < 1.f)
-    {
-        return; // not on the body: placed as before
-    }
-    hands::State s;
-    s.headHeight = units::eyeHeight();
-    s.standingHeight = s.headHeight;
-    s.head = {0.f, 0.f, vr_floor_offset.value + s.headHeight * units::metresToUnits()};
-    const hands::State standing = avatar::standing(s);
-    glm::vec3 fwd, right, up;
-    hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
-    for(const Holster h : {RightHip, RightUpper})
-    {
-        cvar_t& var = h == RightHip ? vr_hip_offset_x : vr_upper_holster_offset_x;
-        const glm::vec3 pos = legacyHolsterPosition(standing, h);
-        const float now = glm::dot(pos - standing.head, fwd);
-        const float front = frontOfTheBody(standing, h, pos);
-        const float x = var.value + (h == RightHip ? HIP_X_DEFAULT : UPPER_X_DEFAULT) - front + za::max(now, front) - now;
-        if(za::abs(x - var.value) > 1e-3f)
-        {
-            Con_DPrintf("VR: %s %s is now %.2f (the same place on the body)\n", var.name, var.string, x);
-            Cvar_SetValueQuick(&var, za::round(x * 100.f) / 100.f);
-        }
-    }
-}
-
 Hotspot holsterHotspot(Holster holster)
 {
     constexpr Hotspot hotspots[HolsterCount] = {HS_LEFT_SHOULDER_HOLSTER, HS_RIGHT_SHOULDER_HOLSTER,

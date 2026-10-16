@@ -1580,67 +1580,6 @@ int chosenGripSlot[2]{-1, -1}; // the weapon (slot) it is of: another weapon cho
 int magSpot[2]{-1, -1}; // per holding hand: the hotspot index its gun's attached magazine takes (setupWeapon), or -1
 constexpr float magHandMargin = 1.5f; // units the helping hand's grip channel stays in from a held magazine's ends
 
-// Round 21's migration (weapons::takeHotspotMigration): a slot's two-handed grip keys (the
-// foregrip, the sword's blade grip) as hotspots, exactly where they were drawn. The old foregrip was placed as
-// its anchor and offset (TwoHHandAnchor, TwoHFixedOffset) in the weapon's frame mirrored as the
-// helping hand is (not as the weapon is drawn); it is worked out for the weapon drawn in the main hand, at the
-// origin, unturned: the same point for either hand. With `fromDefaults` the keys' defaults are used (the
-// weapon's offset and scale too), else their values. Needs the model and a Quake VR server (its transforms).
-bool legacyHotspots(int slot, bool fromDefaults, weapons::Hotspot out[2], int& count)
-{
-    count = 0;
-    const cvar_t* id = weapons::cvar(slot, Key::ID);
-    qmodel_t* model = id && id->string[0] ? Mod_ForName(id->string, false) : nullptr;
-    if(!model || model->type != mod_alias || !(cl.protocolflags & PRFL_QUAKEVR))
-    {
-        return false;
-    }
-    const auto value = [&](Key key) {
-        const cvar_t* var = weapons::cvar(slot, key);
-        return fromDefaults ? static_cast<float>(Q_atof(var->default_string)) : var->value;
-    };
-
-    // The weapon's offset and scale as the keys have them (the defaults' for a moment, if asked).
-    constexpr Key shape[] = {Key::OffsetX, Key::OffsetY, Key::OffsetZ, Key::Scale};
-    za::String kept[4];
-    if(fromDefaults)
-    {
-        for(int i = 0; i < 4; i++)
-        {
-            cvar_t* var = weapons::cvar(slot, shape[i]);
-            kept[i] = var->string;
-            Cvar_SetQuick(var, var->default_string);
-        }
-    }
-
-    if(value(Key::TwoHDisplayMode) == 1.f)
-    {
-        view::ViewEntity ve;
-        ve.ent.model = model;
-        ve.ent.scale = ENTSCALE_DEFAULT;
-        ve.mirrored = true; // as the helping hand of a gun in the main hand
-        const cvar_t* twoHAnchor = weapons::cvar(slot, Key::TwoHHandAnchor);
-        const glm::vec3 w = view::anchorPosition(ve, fromDefaults ? twoHAnchor->default_string : twoHAnchor->string,
-            glm::vec3{value(Key::TwoHFixedOffsetX), value(Key::TwoHFixedOffsetY), value(Key::TwoHFixedOffsetZ)});
-        // anchorPosition zero-blends by the entity's: frame 0 here (the idle pose).
-        const glm::vec3 h = glm::vec3{glm::inverse(hotspotFrame(ve.ent, false)) * glm::vec4{w, 1.f}};
-        out[count++] = {weapons::HotspotType::Grip, h, 0.f};
-    }
-    if(value(Key::TwoHBladeGrip) > 0.f)
-    {
-        out[count++] = {weapons::HotspotType::Blade, glm::vec3{value(Key::TwoHBladeGrip), 0.f, 0.f}, 0.f};
-    }
-
-    if(fromDefaults)
-    {
-        for(int i = 0; i < 4; i++)
-        {
-            Cvar_SetQuick(weapons::cvar(slot, shape[i]), kept[i].cStr());
-        }
-    }
-    return true;
-}
-
 // vr_show_weapon_hotspots: the held weapons' hotspots marked (grips green, blades' grips orange, the one the Weapon
 // Offsets page edits white), each with a faint ball as big as its bias.
 // The hotspots of the weapon in `hand` marked, `edited` (-1 none) white.
@@ -1862,21 +1801,6 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         Con_Printf("grapple: hand %d's gun drawn with frame %d (was %d)\n", hand, frame, drawnFrame[hand]);
     }
     drawnFrame[hand] = model && modelmeta::is(model, modelmeta::Id::VGrpple) ? frame : -1;
-
-    // A config's own two-handed grips, once, as hotspots (round 21).
-    if(model && slot >= 0 && weapons::takeHotspotMigration(slot))
-    {
-        weapons::Hotspot migrated[2];
-        int count = 0;
-        if(legacyHotspots(slot, false, migrated, count))
-        {
-            for(int i = 0; i < weapons::maxHotspots; i++)
-            {
-                weapons::setHotspot(slot, i, i < count ? migrated[i] : weapons::Hotspot{});
-            }
-            Con_DPrintf("%s: its two-handed grips are now %d hotspots\n", model->name, count);
-        }
-    }
 
     // Steadied in the "fixed" two-handed display mode (a grip hotspot: the helping hand drawn on it): the weapon's
     // own blend towards frame 0 for that grip (old engine's V_SetupHandViewEnts).
@@ -3719,27 +3643,6 @@ void moveDrawnHand(int hand, bool mirrored, const glm::vec3& frameRot, glm::vec3
     return attachedTurn(holderRot, otherSlot, other == HAND_OFF, offsets, holder);
 }
 
-// The hotspot angles (as for the off hand helping) that give a cup's hand the turn `turn` on the weapon in the other
-// hand: helpingTurn undone.
-[[nodiscard]] glm::vec3 cupAnglesFor(const hands::State& s, int hand, int otherSlot, const glm::vec3& turn)
-{
-    const int other = 1 - hand;
-    const bool mirrored = hand == HAND_OFF;
-    const glm::mat3 w = anglesBasis(heldWeaponTurn(s.rot[other], other, otherSlot, other == HAND_OFF));
-    const glm::mat3 w0 = anglesBasis(weaponTurn(glm::vec3{0.f}, otherSlot, other == HAND_OFF));
-    glm::vec3 a = basisAngles(w0 * glm::transpose(w) * anglesBasis(turn)) - weaponAngleOffsets(weapons::fistSlot(), mirrored);
-    for(int k = 0; k < 3; k++)
-    {
-        a[k] = za::remainder(a[k], 360.f);
-    }
-    if(!mirrored)
-    {
-        a.y = -a.y;
-        a.z = -a.z;
-    }
-    return a;
-}
-
 glm::mat4 canonicalOwnGrip(int hand, int slot, qmodel_t* model, bool offset)
 {
     const bool mirrored = hand == HAND_OFF;
@@ -4273,58 +4176,6 @@ bool view::groundHotspotPoint(int entity, int index, glm::vec3& out)
 namespace
 {
 
-// Round 21, third pass: a config's cup hotspots made before (weapons::cupMigrationPending) moved to where their hand was
-// drawn: round 21's second pass put the helping hand's grip channel round the holding hand's, at the hotspot's point
-// along it (often far from the point); a cup is now the palm's place and the hand's turn there. Done once, with the
-// weapon in `other` and both jointed hands drawn, for every cup its slot (or the one it inherits them from) owns.
-void migrateCups(const hands::State& s, int hand)
-{
-    const int other = 1 - hand;
-    const bool mirrored = hand == HAND_OFF;
-    const view::ViewEntity& weapon = entities.weapon[other];
-    const int otherSlot = weapons::slotForModel(weapon.ent.model);
-    if(otherSlot < 0 || otherSlot == weapons::fistSlot() || !rigHands[other].drawn || !rigHands[hand].drawn ||
-        !handrig::usable(viewModel(handrig::modelName)))
-    {
-        return;
-    }
-    const glm::mat4 hsFrame = hotspotFrame(weapon.ent, other == HAND_OFF);
-    const glm::mat4 toHotspot = glm::inverse(hsFrame);
-    int owners[weapons::maxHotspots];
-    for(int i = 0; i < weapons::maxHotspots; i++)
-    {
-        owners[i] = weapons::ownerSlot(otherSlot, weapons::hotspotKey(i, 0));
-        const weapons::Hotspot h = weapons::hotspot(otherSlot, i);
-        if(!weapons::cupMigrationPending(owners[i]) || h.type != weapons::HotspotType::Cup)
-        {
-            continue;
-        }
-        // Where round 21's second pass drew it (at full grip).
-        glm::vec3 at{hsFrame * glm::vec4{h.pos, 1.f}};
-        glm::vec3 turn = helpingTurn(s.rot[other], other, hand, otherSlot, true, h.angles);
-        // As the hand of round 21's second pass drew it: its channels (Hands remodelled changed the fingers).
-        glm::vec3 cp, cd;
-        float radius;
-        grasp::legacyGripChannel(rigHands[other].pose, cp, cd, radius);
-        {
-            const glm::mat4& om = rigHands[other].rigToWorld;
-            alignChannel(hand, mirrored, glm::vec3{om * glm::vec4{cp, 1.f}}, glm::mat3{om} * cd, at, turn, true);
-        }
-        weapons::Hotspot moved = h;
-        moved.pos = glm::vec3{toHotspot * glm::vec4{palmAt(hand, at, turn, mirrored), 1.f}};
-        moved.angles = cupAnglesFor(s, hand, otherSlot, turn);
-        weapons::setHotspot(owners[i], i, moved);
-        Con_Printf("%s: cup hotspot %d moved to where its hand was drawn: (%.2f %.2f %.2f) turned (%.1f %.1f %.1f), was "
-                   "(%.2f %.2f %.2f) (%.1f %.1f %.1f)\n",
-            weapons::cvar(owners[i], Key::ID)->string, i + 1, moved.pos.x, moved.pos.y, moved.pos.z, moved.angles.x,
-            moved.angles.y, moved.angles.z, h.pos.x, h.pos.y, h.pos.z, h.angles.x, h.angles.y, h.angles.z);
-    }
-    for(const int owner : owners)
-    {
-        weapons::cupMigrationDone(owner);
-    }
-}
-
 void drawHand(int hand, glm::vec3 pos, glm::vec3 handRot, bool mirrored, bool hide, const Held& held, const glm::mat4& motion);
 
 entity_t placedTorch[2]; // (setupHand: the torch as it is placed this frame, per hand)
@@ -4515,14 +4366,6 @@ void setupHand(const hands::State& s, int hand)
     const int other = 1 - hand;
     const float gripBlend = s.grip2HValid[other] ? twohand::transition(other) : 0.f;
     const int otherSlot = weapons::slotForModel(entities.weapon[other].ent.model);
-    for(int i = 0; i < weapons::maxHotspots && otherSlot >= 0; i++)
-    {
-        if(weapons::cupMigrationPending(weapons::ownerSlot(otherSlot, weapons::hotspotKey(i, 0))))
-        {
-            migrateCups(s, hand);
-            break;
-        }
-    }
     // The hotspot it holds the other hand's weapon by (the blade's, for the half-sword grip).
     const WorldHotspot* heldSpot = nullptr;
     if(gripBlend > 0.f && twohand::bladeGrip(other))

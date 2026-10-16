@@ -1434,43 +1434,6 @@ void frame()
     text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.04f);
 }
 
-void migrateShippedLook()
-{
-    for(int c = 0; c < categoryCount; c++)
-    {
-        for(int p = 0; p < paramCount; p++)
-        {
-            cvar_t& var = cvars[c * paramCount + p];
-            const float before = static_cast<float>(atof(paramInfo[p].def));
-            if(!ZA_STRCMP(var.string, var.default_string) || fabsf(var.value - before) > 1e-6f)
-            {
-                continue;
-            }
-            Con_DPrintf("VR: %s: new default %s (was %s)\n", var.name, var.default_string, paramInfo[p].def);
-            Cvar_SetQuick(&var, var.default_string);
-        }
-    }
-}
-
-// Config 95: the All Categories panel's values (vr_retro_all_<setting>) start from the shipped look; a config's still
-// at paramInfo's old defaults takes the new ones (written as values only, never applied to the categories).
-void migrateAllPanel()
-{
-    allCopying = true;
-    for(int p = 0; p < paramCount; p++)
-    {
-        cvar_t& var = allValues[p];
-        const float before = static_cast<float>(atof(paramInfo[p].def));
-        if(!ZA_STRCMP(var.string, var.default_string) || fabsf(var.value - before) > 1e-6f)
-        {
-            continue;
-        }
-        Con_DPrintf("VR: %s: new default %s (was %s)\n", var.name, var.default_string, paramInfo[p].def);
-        Cvar_SetQuick(&var, var.default_string);
-    }
-    allCopying = false;
-}
-
 void registerCvars()
 {
     for(int c = 0; c < categoryCount; c++)
