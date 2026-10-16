@@ -132,6 +132,14 @@ void VR_AliasGlovePaint (const struct entity_s *e, struct gltexture_s *out[2]);
 // swings are in the batch's buffer (0: none), weights the four poses'. `zeroblend`: its instance's padding (a steadied
 // gun: not smoothed; nor your weapons). `batchindex` 0 starts a batch (`channel`: 0 the instanced batches, 1 the wound paint).
 int VR_AnimSmooth (const struct entity_s *e, const void *aliashdr, int pose1, int pose2, float blend, int zeroblend, int batchindex, int channel, int smooth[4], float weights[4]);
+// The swing rows kept for the second eye (r_alias.c's R_AliasEyeSlot), channel 0's: the rows so far in the batch being
+// filled; [first, first + count) of them kept (where in the kept ones; -1 not kept: vr_anim_smooth_trace on); kept ones
+// added to the batch (starting it when `newbatch`: where they landed); kept ones equal to the batch's from `first`.
+int VR_AnimSmoothRows (int channel);
+void VR_AnimSmoothKeepClear (void);
+int VR_AnimSmoothKeep (int channel, int first, int count);
+int VR_AnimSmoothReplay (int channel, int kept, int count, int newbatch);
+int VR_AnimSmoothRowsEqual (int channel, int first, int kept, int count);
 int VR_AnimSmoothPinned (const struct entity_s *e, const void *aliashdr, short *pose1, short *pose2, float *blend); // R_SetupAliasFrame: the entity vr_anim_smooth_pin holds between two frames: its lerp
 void VR_AnimSmoothBind (const struct entity_s *e, int channel); // the batch's swings and its model's rest pose bound for the alias shader (SSBOs 8, 9), after its pose buffers
 void VR_AliasInstance (const struct entity_s *e, const float matrix[16], const void *aliashdr, int kind, vraliasinstance_t *out); // R_DrawAliasModel_Real: kind 1 standard, 0 showtris/showskel, 2 depth only (all zero)

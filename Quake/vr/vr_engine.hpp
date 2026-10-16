@@ -91,6 +91,13 @@ void R_DrawAliasModelsDepthLayered (entity_t **ents, const unsigned char *faces,
 void R_AliasDepthCacheBegin (qboolean on); // r_alias.c: a pass over the shadow maps' lights: each caster set up once in it
 void R_AliasDepthCacheEnd (void);
 void R_AliasDepthCacheStats (int *hits, int *misses); // r_alias.c: the set-ups reused and made since the last call
+// r_alias.c (vr_alias_eye_cache): the eyes' scenes: 1 the first (each model's set-up kept), 2 the second (reused), 3 the
+// second (made again and compared), 0 neither (between the eyes); End: the frame's eyes done (what was kept forgotten);
+// the second eyes' counts since the last call (hit, transform only, miss, checked, then the check's mismatches: lerp,
+// matrix, light, counts, instance data, smooth rows)
+void R_AliasEyeCacheBegin (int mode);
+void R_AliasEyeCacheEnd (void);
+void R_AliasEyeCacheStats (int *out, int count);
 qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, int side); // r_alias.c: into its wound mask (vr_wounds.cpp); side -1 all, 0 or 1 that side's
 qboolean R_PaintBrushWounds (entity_t *e, int numsplats, const float *splats); // r_world.c: a held brush model's box into its box mask (vr_wounds.cpp)
 void R_BModelCentre (entity_t *e, float out[3]); // r_world.c: where the middle of a brush model's box is drawn

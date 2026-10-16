@@ -551,6 +551,10 @@ QVR_CVAR(vr_xr_res_warn_mpx, "6", CVAR_ARCHIVE)
 // the scene (the old order, for comparison).
 QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
 // 1: a line a second in qvr_openxr.txt while VR runs: the frames (rendered, the last one shown again, without layers),
+// Debug > Performance > Second Eye's Model Set-up: 1 each animated model's eye-independent set-up (its lerp, transform,
+// light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
+// second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
+QVR_CVAR(vr_alias_eye_cache, "1", CVAR_NONE)
 // the display periods missed, and each OpenXR call's time (average and worst), the session's state; 0 none.
 QVR_CVAR(vr_xr_log_timing, "1", CVAR_ARCHIVE)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads

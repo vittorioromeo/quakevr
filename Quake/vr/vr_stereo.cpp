@@ -33,6 +33,7 @@
 #include "vr_stereo.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tonemap.hpp"
+#include "vr_tracy.h"
 #include "vr_upscale.hpp"
 #include "vr_water.hpp"
 #include "vr_window.hpp"
@@ -924,8 +925,15 @@ extern "C" int VR_RenderView()
         stereo::firstEye = eyesRendered == 0;
         QVR_GPU_PROFILE(eye == 0 ? "eye L" : "eye R");
 
+        // The models' set-up the same for both eyes: the first eye's kept for the second (vr_alias_eye_cache; r_alias.c)
+        const int eyeCache = static_cast<int>(vr_alias_eye_cache.value);
+        R_AliasEyeCacheBegin(eyeCache <= 0 ? 0 : stereo::firstEye ? 1 : eyeCache >= 2 ? 3 : 2);
         V_RenderView();
-        foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
+        R_AliasEyeCacheBegin(0);
+        {
+            QVR_TRACY_SCOPE(zoneFoveated, "eye: foveated end"); // (profiling builds only: the eye's own steps)
+            foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
+        }
         bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
         if(lateAcquire && !acquire(eye, true))
         {
@@ -992,6 +1000,7 @@ extern "C" int VR_RenderView()
     }
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
+    R_AliasEyeCacheEnd();
 
     // Both eyes, or no projection layer at all (an eye's image could not be acquired).
     profile::begin("xr submit", true); // xrEndFrame
