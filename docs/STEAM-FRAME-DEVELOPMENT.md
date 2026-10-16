@@ -576,8 +576,12 @@ build and 4/4 on the release binary, `TU_DEBUG=sysmem` 4/4, `TU_DEBUG=noubwc` 4/
 
 Cost of `prefer_sysmem`, on the mock-stereo `combat_48` benchmark (720 frames, 2 rounds, `run-perf-modes.py`): no switch
 30.3 ms mean frame (world pass 22.4 ms GPU), `prefer_sysmem` 29.0 ms (18.5 ms), `TU_DEBUG=sysmem` 29.2 ms, `noubwc`
-33.5 ms, gmem 35.8 ms, lazy 31.5 ms. The launchers keep `TU_AUTOTUNE_ALGO="${TU_AUTOTUNE_ALGO:-prefer_sysmem}"` for the
-frame time, not as the hang fix.
+33.5 ms, gmem 35.8 ms, lazy 31.5 ms. The launchers (`Misc/frame/run-native*.sh`) keep `TU_AUTOTUNE_ALGO="${TU_AUTOTUNE_ALGO:-prefer_sysmem}"`
+for the frame time, not as the hang fix. Since 2026-10-16 they also set `TU_DEBUG="${TU_DEBUG:-sysmem}"` and pass
+`+vr_decals_world 0` (the hang workarounds that held in every test; the root cause is still open) and
+`MESA_VK_ABORT_ON_DEVICE_LOSS=1`; `TU_DEBUG=sysmem` measured about 3 % faster, `vr_decals_world 0` costs the shader-side
+decals (drawn as meshes). Both can be overridden: set `TU_DEBUG` in the environment, or put `+vr_decals_world 1` after the
+launcher name.
 
 **Replaying a kill on the real runtime.** `vr_motion_play <take> xr [kill]` (docs/vr-port/MOTIONS.md) plays a Motion Recorder take
 through the OpenXR backend: the take's head, hands and buttons drive the game, the runtime renders, paces and composites as for a
