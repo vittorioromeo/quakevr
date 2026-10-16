@@ -1628,8 +1628,7 @@ void meetFrame(const hands::State& s)
         // under the receiver or the well (the box is the whole gun's, down to its grip).
         const auto isRound = [](const Held& hd) {
             const qmodel_t* m = hd.drawn && hd.ent > 0 ? cl_entities[hd.ent].model : nullptr;
-            return m && (modelmeta::has(m, modelmeta::Trait::LiveShell) || modelmeta::has(m, modelmeta::Trait::Magazine) ||
-                         modelmeta::has(m, modelmeta::Trait::LiveRound) || modelmeta::isQuakeGrenade(m)); // (a pouch grenade: the launchers' round)
+            return m && modelmeta::isRound(m);
         };
         if(meet.weapon && (isRound(a) || isRound(b)))
         {
