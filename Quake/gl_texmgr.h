@@ -166,6 +166,8 @@ int TexMgr_PadConditional (int s);
 
 qboolean GL_Bind (GLenum texunit, gltexture_t *texture);
 qboolean GL_BindNative (GLenum texunit, GLenum type, GLuint handle);
+void GL_SelectTexture (GLenum texunit); // keep the engine's active-unit cache coherent during GL state preservation
+void GL_InvalidateTextureBinding (GLenum texunit); // caller restored multiple GL texture targets outside the single-name cache
 void GL_BindTextures (GLuint first, GLsizei count, gltexture_t **textures);
 void GL_DeleteNativeTexture (GLuint texnum);
 void GL_CheckBindCache (void); // QVR: vr_debug_glstate

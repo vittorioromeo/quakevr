@@ -22,8 +22,7 @@ target_compile_definitions(ironwail PRIVATE ZA_STATIC)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../../VERSION" QVR_VERSION LIMIT_COUNT 1)
 string(STRIP "${QVR_VERSION}" QVR_VERSION)
 target_compile_definitions(ironwail PRIVATE "QVR_VERSION=\"${QVR_VERSION}\"")
-# OpenXR: the vendored Windows loader. The backend's graphics binding is OpenGL on Windows (WGL)
-# only, so elsewhere the build has the mock backend alone until it gets a GLX/EGL binding.
+# OpenXR: WGL on Windows, GLX on Linux; both retain the existing OpenGL renderer.
 if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 	set(QVR_OPENXR_DIR "${CMAKE_CURRENT_LIST_DIR}/../../Windows/OpenXR")
 	target_include_directories(ironwail PRIVATE "${QVR_OPENXR_DIR}/include")
@@ -31,6 +30,35 @@ if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 	target_compile_definitions(ironwail PRIVATE QVR_HAVE_OPENXR)
 	add_custom_command(TARGET ironwail POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${QVR_OPENXR_DIR}/lib/x64/openxr_loader.dll" $<TARGET_FILE_DIR:ironwail>)
+elseif (UNIX AND NOT APPLE)
+	find_package(X11 REQUIRED)
+	find_path(QVR_OPENXR_INCLUDE_DIR openxr/openxr.h REQUIRED)
+	find_library(QVR_OPENXR_LIBRARY NAMES openxr_loader HINTS /opt/steamvr/bin/linuxarm64 REQUIRED)
+	target_include_directories(ironwail PRIVATE "${QVR_OPENXR_INCLUDE_DIR}" ${X11_INCLUDE_DIR})
+	target_link_libraries(ironwail PRIVATE "${QVR_OPENXR_LIBRARY}" OpenGL::GLX ${X11_LIBRARIES})
+	target_compile_definitions(ironwail PRIVATE QVR_HAVE_OPENXR)
+endif()
+
+# Experimental OpenGL/Zink -> OpenXR Vulkan2 bridge. Transport and frame
+# synthesis are separate opt-ins; compositor-generated frames remain unverified.
+option(QVR_ENABLE_FRAME_SYNTHESIS_GL_VULKAN_BRIDGE "Build the experimental Linux GL/Vulkan frame-synthesis bridge" OFF)
+if (QVR_ENABLE_FRAME_SYNTHESIS_GL_VULKAN_BRIDGE)
+	if (NOT UNIX OR APPLE)
+		message(FATAL_ERROR "QVR_ENABLE_FRAME_SYNTHESIS_GL_VULKAN_BRIDGE requires Linux OPAQUE_FD interop")
+	endif()
+	find_package(Vulkan REQUIRED)
+	target_link_libraries(ironwail PRIVATE Vulkan::Vulkan)
+	target_compile_definitions(ironwail PRIVATE QVR_HAVE_GL_VULKAN_BRIDGE)
+endif()
+
+# Compile the native Vulkan BSP buffer/draw component into the engine. This is
+# renderer infrastructure only; OpenXR Vulkan session creation and the live
+# Quake stereo dispatch remain separate integration work.
+option(QVR_ENABLE_NATIVE_VULKAN_BSP "Compile Quake VR's experimental native Vulkan BSP renderer component" OFF)
+if (QVR_ENABLE_NATIVE_VULKAN_BSP)
+	find_package(Vulkan REQUIRED)
+	target_link_libraries(ironwail PRIVATE Vulkan::Vulkan)
+	target_compile_definitions(ironwail PRIVATE QVR_HAVE_VULKAN)
 endif()
 
 # No exceptions (docs/vr-port/CODE_STYLE.md): the module and Zancle are built without them (clang-cl /EHs-c-, after
@@ -75,6 +103,13 @@ if (UNIX AND NOT APPLE)
 endif()
 target_link_libraries(ironwail PRIVATE qvr_box3d)
 
+# The AO bake and audio kernels preserve the scalar/SSE operation order.
+# ARM compilers must not fuse their multiply/add pairs into FMA operations.
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
+	set_property(SOURCE "${CMAKE_CURRENT_LIST_DIR}/vr_ao.cpp" "${CMAKE_CURRENT_LIST_DIR}/vr_audio.cpp"
+		APPEND PROPERTY COMPILE_OPTIONS -ffp-contract=off)
+endif()
+
 # Zancle (external/zancle/README.md): the modules the Quake VR code uses, a static library with its own settings: C++23;
 # optimised and without Zancle's asserts (NDEBUG) in Release; in Debug by QVR_ZANCLE_DEBUG: ON, built as the engine's
 # Debug with its asserts on (a failure calls vr_zancle.cpp's handler, installed by za::setAssertHandler, as in the
@@ -109,6 +144,103 @@ if (WIN32)
 endif()
 target_link_libraries(ironwail PRIVATE qvr_zancle)
 
+# Opt-in CPU-only fixtures for backend-independent renderer inputs. Keep these
+# out of player builds unless the developer is running CTest.
+option(QVR_BUILD_CPU_TESTS "Build Quake VR CPU-only tests" OFF)
+if (QVR_BUILD_CPU_TESTS)
+	include(CTest)
+	# Pure metadata tests need only core declarations, including on platforms
+	# without a native OpenXR backend. Prefer the production SDK where present.
+	if (QVR_OPENXR_INCLUDE_DIR)
+		set(QVR_TEST_OPENXR_INCLUDE_DIR "${QVR_OPENXR_INCLUDE_DIR}")
+	else()
+		set(QVR_TEST_OPENXR_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../Windows/OpenXR/include")
+	endif()
+	foreach(fixture synthesis_math synthesis_submission)
+		add_executable(qvr_${fixture}_test "${CMAKE_CURRENT_LIST_DIR}/../../Misc/quakevr/tests/vr_${fixture}_test.cpp")
+		target_include_directories(qvr_${fixture}_test PRIVATE "${CMAKE_CURRENT_LIST_DIR}" "${CMAKE_CURRENT_LIST_DIR}/external")
+		target_include_directories(qvr_${fixture}_test PRIVATE "${QVR_TEST_OPENXR_INCLUDE_DIR}")
+		set_target_properties(qvr_${fixture}_test PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+		add_test(NAME qvr_${fixture} COMMAND qvr_${fixture}_test)
+	endforeach()
+	add_executable(qvr_bsp_mesh_test
+		"${CMAKE_CURRENT_LIST_DIR}/vr_bsp_mesh.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/../../Misc/quakevr/tests/vr_bsp_mesh_test.cpp")
+	target_include_directories(qvr_bsp_mesh_test PRIVATE
+		"${CMAKE_CURRENT_LIST_DIR}/.."
+		"${CMAKE_CURRENT_LIST_DIR}"
+		"${CMAKE_CURRENT_LIST_DIR}/external/zancle/include")
+	target_compile_definitions(qvr_bsp_mesh_test PRIVATE ZA_STATIC USE_SDL2)
+	set_target_properties(qvr_bsp_mesh_test PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+	target_link_libraries(qvr_bsp_mesh_test PRIVATE qvr_zancle SDL2::SDL2)
+	add_test(NAME qvr_bsp_mesh COMMAND qvr_bsp_mesh_test)
+	if (QVR_ENABLE_FRAME_SYNTHESIS_GL_VULKAN_BRIDGE)
+		add_executable(qvr_gl_vulkan_bridge_test
+			"${CMAKE_CURRENT_LIST_DIR}/vr_gl_vulkan_bridge.cpp"
+			"${CMAKE_CURRENT_LIST_DIR}/../../Misc/quakevr/tests/vr_gl_vulkan_bridge_test.cpp")
+		target_include_directories(qvr_gl_vulkan_bridge_test PRIVATE "${CMAKE_CURRENT_LIST_DIR}" "${QVR_OPENXR_INCLUDE_DIR}")
+		target_compile_definitions(qvr_gl_vulkan_bridge_test PRIVATE QVR_HAVE_GL_VULKAN_BRIDGE)
+		target_link_libraries(qvr_gl_vulkan_bridge_test PRIVATE Vulkan::Vulkan SDL2::SDL2 OpenGL::GL)
+		set_target_properties(qvr_gl_vulkan_bridge_test PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+		add_test(NAME qvr_gl_vulkan_bridge COMMAND qvr_gl_vulkan_bridge_test)
+	endif()
+endif()
+
+# Standalone, device-dependent OpenXR/Vulkan frame-synthesis fixture. Keep it
+# explicitly opt-in and out of CTest: it requires a configured OpenXR runtime
+# (and normally a Steam Frame headset) to run meaningfully.
+option(QVR_BUILD_OPENXR_VULKAN_FIXTURE "Build the standalone OpenXR/Vulkan frame-synthesis fixture" OFF)
+if (QVR_BUILD_OPENXR_VULKAN_FIXTURE)
+	find_package(Vulkan REQUIRED)
+	find_program(QVR_GLSLC NAMES glslc HINTS "$ENV{VULKAN_SDK}/Bin" "$ENV{VULKAN_SDK}/bin")
+	if (NOT QVR_GLSLC)
+		message(FATAL_ERROR "QVR_BUILD_OPENXR_VULKAN_FIXTURE requires glslc to compile its Vulkan test shaders")
+	endif()
+	if (WIN32)
+		set(QVR_FIXTURE_OPENXR_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/../../Windows/OpenXR/include")
+		set(QVR_FIXTURE_OPENXR_LOADER "${CMAKE_CURRENT_LIST_DIR}/../../Windows/OpenXR/lib/x64/openxr_loader.lib")
+	else()
+		set(QVR_FIXTURE_OPENXR_INCLUDE_DIR "${QVR_OPENXR_INCLUDE_DIR}")
+		set(QVR_FIXTURE_OPENXR_LOADER "${QVR_OPENXR_LIBRARY}")
+	endif()
+	if (NOT EXISTS "${QVR_FIXTURE_OPENXR_INCLUDE_DIR}/openxr/openxr.h")
+		message(FATAL_ERROR "QVR_BUILD_OPENXR_VULKAN_FIXTURE requires OpenXR headers; expected openxr/openxr.h under ${QVR_FIXTURE_OPENXR_INCLUDE_DIR}")
+	endif()
+	if (NOT EXISTS "${QVR_FIXTURE_OPENXR_LOADER}")
+		message(FATAL_ERROR "QVR_BUILD_OPENXR_VULKAN_FIXTURE requires the OpenXR loader library; got ${QVR_FIXTURE_OPENXR_LOADER}")
+	endif()
+	add_executable(qvr_openxr_vulkan_frame_loop
+		"${CMAKE_CURRENT_LIST_DIR}/../../Misc/quakevr/tests/vr_openxr_vulkan_frame_loop.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/vr_vulkan_bsp.cpp")
+	set(QVR_VULKAN_TEST_SHADER_DIR "${CMAKE_CURRENT_BINARY_DIR}/qvr_vulkan_test_shaders")
+	set(QVR_VULKAN_TEST_VERT "${QVR_VULKAN_TEST_SHADER_DIR}/bsp_test.vert.spv")
+	set(QVR_VULKAN_TEST_FRAG "${QVR_VULKAN_TEST_SHADER_DIR}/bsp_test.frag.spv")
+	add_custom_command(OUTPUT "${QVR_VULKAN_TEST_VERT}"
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${QVR_VULKAN_TEST_SHADER_DIR}"
+		COMMAND "${QVR_GLSLC}" --target-env=vulkan1.0 -o "${QVR_VULKAN_TEST_VERT}"
+			"${CMAKE_CURRENT_LIST_DIR}/../../Misc/quakevr/tests/shaders/bsp_test.vert"
+		DEPENDS "${CMAKE_CURRENT_LIST_DIR}/../../Misc/quakevr/tests/shaders/bsp_test.vert"
+		VERBATIM)
+	add_custom_command(OUTPUT "${QVR_VULKAN_TEST_FRAG}"
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${QVR_VULKAN_TEST_SHADER_DIR}"
+		COMMAND "${QVR_GLSLC}" --target-env=vulkan1.0 -o "${QVR_VULKAN_TEST_FRAG}"
+			"${CMAKE_CURRENT_LIST_DIR}/../../Misc/quakevr/tests/shaders/bsp_test.frag"
+		DEPENDS "${CMAKE_CURRENT_LIST_DIR}/../../Misc/quakevr/tests/shaders/bsp_test.frag"
+		VERBATIM)
+	add_custom_target(qvr_openxr_vulkan_test_shaders DEPENDS "${QVR_VULKAN_TEST_VERT}" "${QVR_VULKAN_TEST_FRAG}")
+	add_dependencies(qvr_openxr_vulkan_frame_loop qvr_openxr_vulkan_test_shaders)
+	target_include_directories(qvr_openxr_vulkan_frame_loop PRIVATE
+		"${QVR_FIXTURE_OPENXR_INCLUDE_DIR}"
+		"${CMAKE_CURRENT_LIST_DIR}"
+		"${CMAKE_CURRENT_LIST_DIR}/external/zancle/include")
+	target_compile_definitions(qvr_openxr_vulkan_frame_loop PRIVATE ZA_STATIC QVR_HAVE_VULKAN
+		"QVR_VULKAN_TEST_SHADER_DIR=\"${QVR_VULKAN_TEST_SHADER_DIR}\"")
+	target_link_libraries(qvr_openxr_vulkan_frame_loop PRIVATE Vulkan::Vulkan SDL2::SDL2 OpenGL::GL
+		"${QVR_FIXTURE_OPENXR_LOADER}" qvr_zancle)
+	set_target_properties(qvr_openxr_vulkan_frame_loop PROPERTIES
+		CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+endif()
+
 # mimalloc (external/mimalloc/README.md): the process's C heap, malloc/free and new/delete (vr_crtheap.c; new/delete
 # call malloc/free, vr_alloccount.cpp). One C file, src/static.c, includes the others; it is compiled into the
 # executable itself (an object, not an archive: its definitions must win over the C library's).
@@ -133,7 +265,7 @@ if (QVR_MIMALLOC)
 	if (CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 		set_source_files_properties("${CMAKE_CURRENT_LIST_DIR}/vr_crtheap.c" PROPERTIES COMPILE_OPTIONS "/clang:-fno-builtin")
 	else()
-		set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES COMPILE_DEFINITIONS MI_MALLOC_OVERRIDE
+		set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES COMPILE_DEFINITIONS "MI_MALLOC_OVERRIDE;QVR_CUSTOM_CPP_OPERATORS"
 			COMPILE_OPTIONS "-fno-builtin-malloc;-fno-builtin-free;-fno-builtin-calloc;-fno-builtin-realloc")
 	endif()
 endif()

@@ -47,7 +47,7 @@
 #include "SDL.h"
 #endif
 
-#include <immintrin.h> // (the bake's rays: SSE2, x64's baseline, four at a time; AVX, when there, eight)
+#include "vr_simd.hpp" // four-lane SSE/NEON, and eight-lane AVX where available
 #include <stdio.h>
 #include <string.h>
 #include "vr_tracy.h"
@@ -1070,7 +1070,7 @@ void raysSse(const RayInput& in)
     }
 }
 
-#if defined(__clang__) || defined(__GNUC__)
+#if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define QVR_TARGET_AVX __attribute__((target("avx")))
 #else
 #define QVR_TARGET_AVX

@@ -4,8 +4,8 @@
 // apart, under "eye L" and "eye R"). A frame adds up each node's CPU time and calls; at the frame's
 // end they are folded into the interval's sums and maxima. GPU scopes also record a timestamp
 // query at each end, into the frame's slot of a ring: a slot is read back once its last query
-// is available (a few frames later), so the CPU never waits for the GPU; only when the ring comes
-// round to a slot still pending is it read waiting (counted as a stall in the report).
+// is available (a few frames later), so the CPU never waits for the GPU. When the ring comes
+// round to a slot still pending, its sample is dropped and counted in the report.
 
 #include "vr_profile.hpp"
 #include "vr_tracy.h"
@@ -52,7 +52,7 @@ namespace
 
 // Frames longer than this (a map loading, a hitch) are counted apart, not in the averages.
 constexpr double hitchMs = 250.0;
-// GPU frames in flight before a slot is read waiting.
+// GPU frames in flight before an unresolved sample is dropped.
 constexpr int gpuSlots = 6;
 
 struct Node
@@ -121,7 +121,7 @@ za::I64 intervalStart = 0;
 int intervalFrames = 0;
 int intervalGpuFrames = 0;
 int intervalHitches = 0;
-int intervalStalls = 0;
+int intervalGpuDropped = 0;
 int intervalNumber = 0;
 
 za::String capturePath; // this capture's file (empty: none written yet)
@@ -142,7 +142,11 @@ constexpr PhaseInfo phaseInfo[PhaseCount] = {{"xr wait", false}, {"xrWaitFrame",
     {"server", false}, {"SV_Physics", false}, {"client read", false}, {"view entities", false}, {"screen", false},
     {"eye L", true}, {"eye R", true}, {"xr acquire", true}, {"xr release", true}, {"xr submit", true}, {"swap", false},
     {"run particles", false}, {"sound", false}, {"rigid bodies", false}, {"shadow maps", true}, {"world+brush", true},
-    {"alias", true}, {"particles", true}, {"vr particles", true}, {"decals", true}, {"3D", true}};
+    {"alias", true}, {"particles", true}, {"vr particles", true}, {"decals", true}, {"3D", true},
+    {"frame synthesis depth", true}, {"frame synthesis motion", false},
+    {"synthesis downsample", true}, {"synthesis optical flow", true}, {"synthesis encode", true},
+    {"synthesis acquire", false}, {"synthesis transport", false},
+    {"synthesis enqueue", false}, {"synthesis release", false}, {"synthesis reuse wait", false}};
 
 ankerl::unordered_dense::map<const void*, int> phaseOfName; // a name literal's address -> its phase, or -1
 
@@ -186,6 +190,7 @@ za::U64 historySerial[frameHistorySize]{};
 za::U64 frameSerial = 0; // the frames recorded so far
 int phaseSlot = 0;
 bool phaseGpuMade = false;
+bool phaseGpuEnabled = false; // vr_profile_gpu >= 1 and query support, latched for the next frame
 
 // In front of the map: the last name seen in each of a few slots (by its address), since every
 // scope's begin asks, vr_profile off too.
@@ -230,7 +235,12 @@ void beginPhase(const char* name, bool gpu)
     {
         o.start = za::Clock::nowNanoseconds();
         PhaseGpuSlot& s = phaseSlots[phaseSlot];
-        if(gpu && phaseInfo[o.phase].gpu && phaseGpuMade && s.used + 2 + phaseGpuOpen <= phaseGpuQueries)
+        // Synthesis breakdown adds up to 16 timestamps per stereo frame. Keep
+        // those extra GPU queries behind explicit detailed profiling; the CPU
+        // breakdown remains available to ordinary benchmark captures.
+        const bool gpuRequested = o.phase < SynthesisDepth || vr_profile.value >= 1.f;
+        if(gpu && gpuRequested && phaseInfo[o.phase].gpu && phaseGpuEnabled && phaseGpuMade &&
+            s.used + 2 + phaseGpuOpen <= phaseGpuQueries)
         {
             GL_QueryCounterFunc(s.queries[s.used], GL_TIMESTAMP);
             ++phaseGpuOpen;
@@ -341,6 +351,9 @@ void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
     s.sample = -1;
     if(start > 0)
     {
+        // Keep this historical metric stable. SynthesisTransport is reported
+        // separately: cpu_busy includes those fence/driver waits and must not
+        // be interpreted as actual CPU execution time.
         const za::I64 waits = phaseFrameNs[XrWait] + phaseFrameNs[XrAcquire] + phaseFrameNs[XrRelease] +
                                    phaseFrameNs[XrSubmit] + phaseFrameNs[Swap];
         const int at = static_cast<int>(frameSerial % frameHistorySize);
@@ -358,8 +371,11 @@ void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
     za::fill(phaseFrameNs, za::I64{0});
     s.pending = keep && s.recCount > 0;
 
-    if(!phaseGpuMade && GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc &&
-        GL_GenQueriesFunc)
+    // Phase GPU timestamps run every frame when enabled; the detailed call tree has its own
+    // one-in-N cadence. Zero disables both, without disabling any CPU phase timings.
+    phaseGpuEnabled = vr_profile_gpu.value >= 1.f && GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc &&
+                      GL_GetQueryObjectivFunc && GL_GenQueriesFunc;
+    if(phaseGpuEnabled && !phaseGpuMade)
     {
         for(PhaseGpuSlot& slot : phaseSlots)
         {
@@ -431,9 +447,10 @@ void resetInterval(za::I64 now)
     {
         n.cpuSum = n.cpuMax = n.gpuSum = n.gpuMax = 0.0;
         n.calls = 0;
+        n.gpu = false;
     }
     intervalStart = now;
-    intervalFrames = intervalGpuFrames = intervalHitches = intervalStalls = 0;
+    intervalFrames = intervalGpuFrames = intervalHitches = intervalGpuDropped = 0;
     periodSum = periodMax = 0.0;
 }
 
@@ -502,21 +519,18 @@ void touchGpu(int node, double ms)
     }
 }
 
-// Reads a slot's queries (waiting for them if `wait`); false if they are not available yet.
-bool resolve(GpuSlot& s, bool wait)
+// Reads a slot's queries only after its final timestamp is available; never waits.
+bool resolve(GpuSlot& s)
 {
     if(!s.pending)
     {
         return true;
     }
-    if(!wait)
+    GLint available = 0;
+    GL_GetQueryObjectivFunc(s.queries[s.used - 1], GL_QUERY_RESULT_AVAILABLE, &available);
+    if(!available)
     {
-        GLint available = 0;
-        GL_GetQueryObjectivFunc(s.queries[s.used - 1], GL_QUERY_RESULT_AVAILABLE, &available);
-        if(!available)
-        {
-            return false;
-        }
+        return false;
     }
     for(const GpuRec& r : s.recs)
     {
@@ -563,6 +577,19 @@ void dropGpu()
         s.used = 0;
         s.recs.clear();
     }
+}
+
+// A ring slot is about to be reused. An unread result belongs to the old frame, so discard
+// its ownership before resetting the records and reissuing timestamps on the same objects.
+void recycleGpuSlot(GpuSlot& s)
+{
+    if(s.pending)
+    {
+        s.pending = false;
+        ++intervalGpuDropped;
+    }
+    s.used = 0;
+    s.recs.clear();
 }
 
 // ---- Reporting ----
@@ -634,10 +661,12 @@ struct Stats
     return gpuNamed("eye L") + gpuNamed("eye R");
 }
 
-// _Host_Frame's CPU time, less the waits in it (the runtime's frame pacing, the window's buffer swap).
-[[nodiscard]] double cpuBusy()
+// Host wall time excluding the measured XR calls and window swap. This is an estimate of
+// work outside those waits, not actual CPU execution time (driver calls can wait too).
+[[nodiscard]] double hostOutsideWaits()
 {
-    return za::max(0.0, stats(0).cpuAvg - sumNamed("xr wait") - sumNamed("swap"));
+    return za::max(0.0, stats(0).cpuAvg - sumNamed("xr wait") - sumNamed("xr acquire") -
+        sumNamed("xr release") - sumNamed("xr submit") - sumNamed("swap"));
 }
 
 struct Top
@@ -755,7 +784,8 @@ void writeFile(double seconds)
         fprintf(f, "# per interval and scope: calls and milliseconds per frame, averaged over its frames; "
                         "max is the worst frame; self excludes the child scopes\n");
         fputs(ctx.cStr(), f);
-        fprintf(f, "interval,seconds,frames,gpu_frames,hitches,gpu_stalls,depth,scope,path,calls,cpu_avg_ms,"
+        fprintf(f, "# GPU fields are blank when no GPU sample was resolved in the interval.\n");
+        fprintf(f, "interval,seconds,frames,gpu_frames,hitches,gpu_dropped_samples,depth,scope,path,calls,cpu_avg_ms,"
                         "cpu_max_ms,cpu_self_ms,gpu_avg_ms,gpu_max_ms,gpu_self_ms\n");
     }
     else if(ctx != lastContext)
@@ -769,7 +799,7 @@ void writeFile(double seconds)
     // the scopes depth first, in the order they were first seen ("frame": _Host_Frame's time; its GPU
     // time is its outermost GPU scopes').
     fprintf(f, "%d,%.2f,%d,%d,%d,%d,0,frame period,frame period,1.00,%.3f,%.3f,,,,\n", intervalNumber, seconds,
-        intervalFrames, intervalGpuFrames, intervalHitches, intervalStalls, periodSum / za::max(intervalFrames, 1),
+        intervalFrames, intervalGpuFrames, intervalHitches, intervalGpuDropped, periodSum / za::max(intervalFrames, 1),
         periodMax);
     za::Vector<int> todo{0};
     while(!todo.empty())
@@ -787,7 +817,7 @@ void writeFile(double seconds)
         }
         const Stats s = stats(i);
         fprintf(f, "%d,%.2f,%d,%d,%d,%d,%d,%s,%s,%.2f,%.3f,%.3f,%.3f,", intervalNumber, seconds, intervalFrames,
-            intervalGpuFrames, intervalHitches, intervalStalls, n.depth, n.name, path(i).cStr(), s.calls, s.cpuAvg,
+            intervalGpuFrames, intervalHitches, intervalGpuDropped, n.depth, n.name, path(i).cStr(), s.calls, s.cpuAvg,
             s.cpuMax, s.cpuSelf);
         if(n.gpu)
         {
@@ -858,20 +888,30 @@ void report(za::I64 now, bool full)
 
     const Stats frame = stats(0);
     const double period = periodSum / intervalFrames;
-    Con_Printf("vr_profile: %s, %d frames in %.1f s, %.2f ms apart (%.0f fps): host frame %.2f ms, CPU busy %.2f, GPU %.2f "
-               "(max %.2f; eyes %.2f, runtime's calls %.2f)\n",
-        captureMap.cStr(), intervalFrames, seconds, period, period > 0.0 ? 1000.0 / period : 0.0, frame.cpuAvg, cpuBusy(),
-        frame.gpuAvg, frame.gpuMax, gpuEyes(), gpuNamed("xr acquire") + gpuNamed("xr submit"));
+    Con_Printf("vr_profile: %s, %d frames in %.1f s, %.2f ms apart (%.0f fps): host frame %.2f ms, "
+               "host excluding XR/swap waits %.2f ms, ",
+        captureMap.cStr(), intervalFrames, seconds, period, period > 0.0 ? 1000.0 / period : 0.0, frame.cpuAvg,
+        hostOutsideWaits());
+    if(intervalGpuFrames > 0)
+    {
+        Con_Printf("GPU %.2f (max %.2f; eyes %.2f, runtime's calls %.2f)\n", frame.gpuAvg, frame.gpuMax,
+            gpuEyes(), gpuNamed("xr acquire") + gpuNamed("xr submit"));
+    }
+    else
+    {
+        Con_Printf("GPU unavailable (no resolved samples)\n");
+    }
     if(full)
     {
         printTree();
-        if(intervalHitches || intervalStalls)
-        {
-            Con_Printf("%d hitches (frames over %.0f ms, left out), %d GPU read stalls\n", intervalHitches, hitchMs,
-                intervalStalls);
-        }
     }
-    Con_Printf("  top GPU: %s\n  top CPU: %s\n  -> %s\n", topLine(true, 6).cStr(), topLine(false, 6).cStr(),
+    if(intervalHitches || intervalGpuDropped)
+    {
+        Con_Printf("%d hitches (frames over %.0f ms, left out), %d dropped GPU query samples\n", intervalHitches,
+            hitchMs, intervalGpuDropped);
+    }
+    Con_Printf("  top GPU: %s\n  top CPU: %s\n  -> %s\n",
+        intervalGpuFrames > 0 ? topLine(true, 6).cStr() : "unavailable", topLine(false, 6).cStr(),
         capturePath.cStr());
     resetInterval(now);
 }
@@ -1091,19 +1131,13 @@ extern "C" void VR_ProfileFrame()
         // Read back what the GPU finished (oldest first; the ring's next slot is the oldest).
         for(int k = 0; k < gpuSlots; k++)
         {
-            if(!resolve(slots[(slotIndex + k) % gpuSlots], false))
+            if(!resolve(slots[(slotIndex + k) % gpuSlots]))
             {
                 break;
             }
         }
         GpuSlot& next = slots[slotIndex];
-        if(next.pending)
-        {
-            resolve(next, true);
-            ++intervalStalls;
-        }
-        next.used = 0;
-        next.recs.clear();
+        recycleGpuSlot(next);
         gpuDepth = 0;
 
         systems::frameEnd(now, now - frameStart, hostNs,

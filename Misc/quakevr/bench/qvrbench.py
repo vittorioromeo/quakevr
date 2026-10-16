@@ -448,6 +448,29 @@ def scenarios():
         + [f"vr_physics_spawn monster_army 190 {l}" for l in (-100, 0, 100)] + ["vr_physics_spawn monster_dog 120 0"]
         + gun(10), warm=30, body=shoot_every(70))
 
+    add("spacewarp_one_mover", ["spacewarp", "play"], "spawn one moving grunt; retain map ambience, no player fire or gore", RANGE,
+        "A single hostile grunt approaches and fires at a god-mode player. Its animated model and missiles give the "
+        "headset texture view visible motion without the particle, decal and ragdoll load of a kill replay.",
+        hostile=True, setup=["vr_physics_spawn monster_army 180 0"], warm=90)
+    def spacewarp_motion_body(frames):
+        """Keep one crate moving through the window and log its position once per interval."""
+        interval = 30
+        out = []
+        for i in range(math.ceil(frames / interval)):
+            # Reverse a modest impulse along one axis so the crate stays in the
+            # calibration room instead of disappearing downrange or settling.
+            yaw = 180 if i % 2 == 0 else 0
+            out += ["vr_physics_list misc_explobox", f"vr_physics_fling misc_explobox 120 {yaw} 0"]
+            out += waits(interval)
+        out += ["vr_physics_list misc_explobox"]
+        return out
+
+    add("spacewarp_motion_fixture", ["spacewarp", "fixture"], "one repeatedly moved crate in the clean calibration room", "vrcalibration",
+        "The calibration room has no map monsters: spawn one explosive crate 80 units ahead and reverse its "
+        "horizontal impulse every 30 frames. Repeated position samples confirm visible motion while it stays on the "
+        "room's floor, without map actors, enemy AI or player fire.", setup=["vr_physics_spawn misc_explobox 80 0"], warm=30,
+        body=spacewarp_motion_body)
+
     def hub_walk(frames):
         """vrstart: from the spawn along the pier and up the stairs to the gate's terrace (the mock autopilot), then the
         head turned round once, looking over the island."""

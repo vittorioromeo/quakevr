@@ -17,6 +17,7 @@
 #include "vr_body.hpp"
 #include "vr_envmap.hpp"
 #include "vr_foveated.hpp"
+#include "vr_frame_synthesis.hpp"
 #include "vr_engine.hpp"
 #include "vr_crosshair.hpp"
 #include "vr_cvars.hpp"
@@ -31,6 +32,7 @@
 #include "vr_portals.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
+#include "vr_synthesis_math.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tonemap.hpp"
 #include "vr_tracy.h"
@@ -827,6 +829,7 @@ extern "C" int VR_RenderView()
     if(!be || !frame.shouldRender || !be->frameActive() || cls.state != ca_connected || cls.signon != SIGNONS ||
         !cl.worldmodel || con_forcedup || !hands::current().valid)
     {
+        frame_synthesis::reset();
         return 0; // the backend ends the frame without layers
     }
 
@@ -834,6 +837,7 @@ extern "C" int VR_RenderView()
     // window keeps its last image.
     if(frame.hold)
     {
+        frame_synthesis::reset();
         profile::begin("xr submit", true); // xrEndFrame
         be->endFrame(true);
         profile::end();
@@ -880,8 +884,13 @@ extern "C" int VR_RenderView()
     const auto acquire = [be](int eye, bool keepBinding)
     {
         profile::begin("xr acquire", true); // xrWaitSwapchainImage
-        const unsigned image = be->acquireEyeImage(eye);
+        const GraphicsImage image = be->acquireEyeImage(eye);
         profile::end();
+        if(image && image.api != GraphicsApi::OpenGL)
+        {
+            (void)be->releaseEyeImage(eye);
+            return false;
+        }
         if(image)
         {
             // The engine's own record of the binding, not glGetIntegerv: a glGet waits for NVIDIA's threaded driver to
@@ -892,17 +901,19 @@ extern "C" int VR_RenderView()
             }
             const GLuint bound = keepBinding ? GL_BoundDrawFramebuffer() : 0;
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, stereo::targetFbo);
-            GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, image, 0);
+            GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                static_cast<GLuint>(image.image), 0);
             if(keepBinding)
             {
                 GL_BindFramebufferFunc(GL_FRAMEBUFFER, bound);
             }
         }
-        return image;
+        return image && image.api == GraphicsApi::OpenGL;
     };
     // vr_xr_late_acquire: only once the scene is drawn (it writes into the eye's own targets), so the runtime's wait
     // for the image overlaps the scene's drawing.
     const bool lateAcquire = vr_xr_late_acquire.value != 0.f;
+    frame_synthesis::beginFrame();
 
     int eyesRendered = 0;
     for(int eye = 0; eye < 2; eye++)
@@ -936,6 +947,7 @@ extern "C" int VR_RenderView()
             QVR_TRACY_SCOPE(zoneFoveated, "eye: foveated end"); // (profiling builds only: the eye's own steps)
             foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
         }
+        frame_synthesis::captureDepth(eye, width, height, stereo::eyeTargets.depth);
         bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
         if(lateAcquire && !acquire(eye, true))
         {
@@ -995,14 +1007,19 @@ extern "C" int VR_RenderView()
         }
 
         stereo::renderingEye = false;
-        profile::begin("xr release", true); // xrReleaseSwapchainImage
-        be->releaseEyeImage(eye);
-        profile::end();
-        ++eyesRendered;
-
-        // Released images belong to the runtime again: do not keep them attached.
+        frame_synthesis::render(eye, stereo::targetFbo, imageWidth, imageHeight);
+        // The GL/Vulkan bridge must transfer the staging image while the XR
+        // image is still acquired, but Zink cannot safely access an image
+        // attached to a live framebuffer. Detach before releaseEyeImage(); the
+        // interop backend batches its actual copies/releases after both eyes.
         GL_BindFramebufferFunc(GL_FRAMEBUFFER, stereo::targetFbo);
         GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+
+        profile::begin("xr release", true); // transfer staging image, then xrReleaseSwapchainImage
+        const bool released = be->releaseEyeImage(eye);
+        profile::end();
+        if(released) ++eyesRendered;
+        else frame_synthesis::reset();
 
         QVR_TRACY_SCOPE(zoneMirror, "eye: mirror to window");
         stereo::mirrorToWindow(eye, windowTarget, windowWidth, windowHeight);
@@ -1012,11 +1029,19 @@ extern "C" int VR_RenderView()
     R_AliasEyeCacheEnd();
 
     // Both eyes, or no projection layer at all (an eye's image could not be acquired).
+    const bool stereoRendered = eyesRendered == 2;
+    const bool exportsReady = be->completeFrameExports(stereoRendered);
+    if(!exportsReady || !stereoRendered)
+    {
+        eyesRendered = 0;
+        frame_synthesis::reset();
+    }
     profile::begin("xr submit", true); // xrEndFrame
     be->endFrame(eyesRendered == 2);
+    frame_synthesis::submitted(eyesRendered == 2 && be->lastFrameSubmitted());
     profile::end();
     bench::submitted();
-    loading::submitted(eyesRendered == 2); // (the level change's notice was in them: vr_loading.cpp)
+    loading::submitted(eyesRendered == 2 && be->lastFrameSubmitted()); // notice was successfully submitted
 
     // The window's spectator camera, once the headset has its images: it does not delay them.
     if(window::view() == window::View::Spectator && eyesRendered == 2)
@@ -1162,11 +1187,6 @@ extern "C" void VR_OverrideProjection(float matrix[16])
         d = za::tan(fov.down);
     }
 
-    matrix[1 * 4 + 0] = -2.f / (r - l);   // clip x from -y (right)
-    matrix[0 * 4 + 0] = -(r + l) / (r - l); // off-axis shift, times depth (x)
-    matrix[2 * 4 + 1] = 2.f / (u - d);    // clip y from z (up)
-    matrix[0 * 4 + 1] = -(u + d) / (u - d);
-
     // Hands, weapons and the body come much closer to the eyes than to a monitor's view: the
     // desktop's near plane (up to 4 units, 12 cm) cut them open, and 1 unit (3 cm) still cut a shouldered gun's
     // stock and receiver. Reversed Z in a float depth buffer keeps the precision far away at any near plane; a
@@ -1174,14 +1194,5 @@ extern "C" void VR_OverrideProjection(float matrix[16])
     const unsigned depth = (stereo::spectatorView ? stereo::spectatorTargets : stereo::eyeTargets).depth;
     const float n = CLAMP(depth == GL_DEPTH32F_STENCIL8 ? 0.02f : 1.f, vr_nearclip.value, 4.f);
     const float f = gl_farclip.value;
-    if(gl_clipcontrol_able)
-    {
-        matrix[0 * 4 + 2] = -n / (f - n);
-        matrix[3 * 4 + 2] = f * n / (f - n);
-    }
-    else
-    {
-        matrix[0 * 4 + 2] = (f + n) / (f - n);
-        matrix[3 * 4 + 2] = -2.f * f * n / (f - n);
-    }
+    synthesis::overrideEyeProjection(matrix, l, r, u, d, n, f, gl_clipcontrol_able != 0);
 }

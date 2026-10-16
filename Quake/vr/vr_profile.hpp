@@ -29,9 +29,13 @@ void overlay(); // the systems' panel (vr_profile_overlay, vr_profile 2), queued
 
 // ---- Always on, whatever vr_profile is (vr_memstats_log, vr_memstats) ----
 // The scopes of these names add up their CPU time every frame (the same name summed, both eyes'
-// scopes too), and those marked GPU in vr_profile.cpp their GPU time too, through one timestamp
-// query at each end, read back a few frames later (never waited for: a frame not ready by then is
-// dropped). About 30 queries and 150 clock reads a frame.
+// scopes too). With vr_profile_gpu >= 1, phases marked GPU in vr_profile.cpp issue timestamp
+// queries every frame, independently of the detailed call tree's one-in-N sampling cadence.
+// vr_profile_gpu 0 disables both sets of GPU queries; CPU phases continue. Readback never waits:
+// Synthesis GPU phase breakdown additionally requires vr_profile >= 1; its
+// extra timestamp overhead is absent from ordinary vr_profile 0 benchmarks.
+// a sample not ready when its ring slot is reused is dropped. About 30 phase queries when
+// enabled, and 150 clock reads a frame.
 enum Phase
 {
     XrWait,       // VR_BeginFrame's backend->beginFrame: xrWaitFrame, xrBeginFrame, the tracking
@@ -58,6 +62,16 @@ enum Phase
     VrParticles,
     Decals,
     View3D,       // SCR_UpdateScreen's 3D refresh ("3D"): both eyes and the mirror in VR, the one view in flat mode
+    SynthesisDepth,
+    SynthesisMotion, // Inclusive CPU duration, including export waits; not CPU execution time.
+    SynthesisDownsample,
+    SynthesisFlow,
+    SynthesisEncode,
+    SynthesisAcquire,
+    SynthesisTransport, // Includes bridge queue/fence and XR release; report separately from producer work.
+    SynthesisEnqueue, // CPU: GL signal/flush, command recording and queue submissions.
+    SynthesisRelease, // CPU: XR image releases after completion or bound-queue submit; nested inside transport.
+    SynthesisReuseWait, // CPU fence wait before staging/command reuse after a deferred export.
     PhaseCount
 };
 
@@ -66,6 +80,12 @@ enum Phase
 
 // The settings a capture's header records (the profile's CSV, vr_bench's JSON): what changes the frame's cost.
 inline constexpr const char* settingCvars[] = {"vr_graphics_preset", "vid_fsaa", "r_scale", "vr_render_scale",
+    "vr_profile", "vr_profile_gpu", "vr_profile_detail", "vr_profile_csv", "vr_xr_eye_scale", "vr_xr_late_acquire",
+    "vr_xr_vulkan_interop", "vr_xr_vulkan_defer_wait", "vr_xr_frame_synthesis", "vr_xr_frame_synthesis_scale", "vr_xr_frame_synthesis_relaxed",
+    "vr_xr_frame_synthesis_srgb_motion", "vr_xr_frame_synthesis_motion_range",
+    "vr_xr_frame_synthesis_flip_y", "vr_xr_frame_synthesis_flow", "vr_xr_frame_synthesis_3d", "vr_xr_frame_synthesis_mask",
+    "vr_xr_unfocused", "vr_xr_unfocused_pause", "vr_bench_kills", "vr_upscale", "vr_upscale_sharpness", "vr_upscale_radius",
+    "vr_upscale_sharpen_native", "gl_finish", "r_speeds",
     "vr_visibility_mask", "r_oit", "vr_mirror", "host_maxfps", "vid_vsync", "vr_shadow_dlights", "vr_shadow_dlight_size",
     "vr_shadow_precision", "vr_shadow_muzzleflash", "vr_shadow_maplights", "vr_shadow_maplight_size", "vr_shadow_self",
     "vr_pbr", "vr_pbr_strength", "vr_parallax", "vr_parallax_models", "vr_parallax_distance", "vr_parallax_grazing", "vr_parallax_depth_write", "vr_shadow_filter", "vr_shadow_atlas", "vr_shadow_distance", "vr_dlight_models", "vr_specular", "vr_normalmaps",
@@ -99,7 +119,7 @@ void noteDisplayPeriod(double ms);
 
 // ---- The last frames, one by one (the wrist gadget's detailed counter, vr_gadget_fps 2) ----
 // A frame from the same phases (always timed): when it began (seconds, the steady clock of nowSeconds), its period (to
-// the next frame's start), our CPU work (the host frame less the runtime's and the swap's waits: the memory log's
+// the next frame's start), host wall time excluding measured XR calls and swap (the memory log's
 // busy_ms) and the eyes' GPU time (gpu_eyes_ms: read back a few frames later; -1 until then, or if it was dropped).
 // Hitches (frames over 250 ms, left out of the sums) are kept here: they are the worst spikes.
 struct FrameSample

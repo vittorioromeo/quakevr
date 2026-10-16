@@ -3,6 +3,9 @@
 // vr_motion_play <take> drives the mock headset from a take: the runtime's tracking and the controllers as
 // they were recorded, frame by frame at the recorded frame times, with the server frames where they ran
 // (host.c asks hostFrameTime and serverFrameOverride), so the melee sees the same poses at the same times.
+// With the option xr it plays on the real runtime instead (OpenXR): the runtime still paces the frames and owns the eye
+// images, the compositor and whatever layers it injects (SteamVR's foveation), only the tracking and the controllers
+// are the take's. For tests that need the headset's own rendering path, with or without a wearer.
 // Before it plays, the player is put where the take has them relative to its monster, in front of the
 // map's training dummy (or another target), turned the same way, with the weapons in hand and the
 // two-handed grip taken again (a settling second, holding the take's first pose). As it plays, the
@@ -683,6 +686,8 @@ struct Options
     bool save{false};     // the replay as a take, into motions/replays/
     bool recorded{false}; // the melee settings as recorded too
     bool quiet{false};
+    bool xr{false};       // on the real runtime's frames (OpenXR) with the take's tracking, not in the mock headset
+    bool kill{false};     // the dummy dies of the take's blows (vr_dummy_gib as it is: its gore, its gibs), not "would kill"
     float rate{0.f};      // resampled to this many frames a second (0: the take's own frames)
     float jitter{0.f};    // with rate: each frame's time off by up to this fraction of a frame (a headset's timing)
 };
@@ -1263,9 +1268,9 @@ void stopPlayback(const char* why)
         return false;
     }
     const Backend* be = backend();
-    if(!be || strcmp(be->name(), "mock") != 0)
+    if(!be || (!o.xr && strcmp(be->name(), "mock") != 0))
     {
-        Con_Printf("vr_motion_play: plays in the mock headset only (vr_backend mock)\n");
+        Con_Printf("vr_motion_play: plays in the mock headset (vr_backend mock), or on the running runtime with the option xr\n");
         return false;
     }
     if(!sv.active || !svs.clients[0].active || !progs::bindings().isVrProgs || !hands::current().valid)
@@ -1324,8 +1329,8 @@ void stopPlayback(const char* why)
         savedSettings.emplaceBack(&vr_dummy_attacks, vr_dummy_attacks.string);
         Cvar_SetQuick(&vr_dummy_attacks, "0");
     }
-    // Nor gibbed by the take's blows (vr_dummy_gib): it stays to take them all.
-    if(vr_dummy_gib.value != 0.f)
+    // Nor gibbed by the take's blows (vr_dummy_gib): it stays to take them all (unless the option kill).
+    if(vr_dummy_gib.value != 0.f && !o.kill)
     {
         savedSettings.emplaceBack(&vr_dummy_gib, vr_dummy_gib.string);
         Cvar_SetQuick(&vr_dummy_gib, "0");
@@ -1363,14 +1368,14 @@ void stopPlayback(const char* why)
     return true;
 }
 
-// vr_motion_play <take> [map <name>] [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] [save] [recorded] [quiet]
+// vr_motion_play <take> [map <name>] [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] [save] [recorded] [quiet] [xr] [kill]
 // vr_motion_play stop
 void play_f()
 {
     if(Cmd_Argc() < 2)
     {
         Con_Printf("usage: vr_motion_play <take> [map <name>] [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] "
-                   "[save] [recorded] [quiet]; vr_motion_play stop\n");
+                   "[save] [recorded] [quiet] [xr] [kill]; vr_motion_play stop\n");
         return;
     }
     if(!q_strcasecmp(Cmd_Argv(1), "stop"))
@@ -1423,6 +1428,14 @@ void play_f()
         else if(!q_strcasecmp(a, "quiet"))
         {
             o.quiet = true;
+        }
+        else if(!q_strcasecmp(a, "xr"))
+        {
+            o.xr = true;
+        }
+        else if(!q_strcasecmp(a, "kill"))
+        {
+            o.kill = true;
         }
         else
         {
@@ -1613,6 +1626,39 @@ int serverFrameOverride(double& frametime)
     return -1;
 }
 
+namespace
+{
+
+// An eye of the take's head on the running runtime: the runtime's field of view (the default one if it gave none), and its
+// offset from the runtime's head (half a default interpupillary distance while the headset isn't worn: no head).
+[[nodiscard]] EyeView takeEye(const Pose& runtimeHead, const EyeView& runtimeEye, const Pose& takeHead, int eye)
+{
+    EyeView e;
+    if(runtimeEye.fov.right - runtimeEye.fov.left > 0.1f && runtimeEye.fov.up - runtimeEye.fov.down > 0.1f)
+    {
+        e.fov = runtimeEye.fov;
+    }
+    glm::vec3 offset{eye == 0 ? -0.032f : 0.032f, 0.f, 0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+    if(runtimeHead.valid && runtimeEye.pose.valid)
+    {
+        const glm::quat inverse = glm::inverse(runtimeHead.orientation);
+        const glm::vec3 o = inverse * (runtimeEye.pose.position - runtimeHead.position);
+        if(glm::length(o) < 0.1f) // (an eye is centimetres from the head)
+        {
+            offset = o;
+            turn = inverse * runtimeEye.pose.orientation;
+        }
+    }
+    e.pose = takeHead;
+    e.pose.position = takeHead.position + takeHead.orientation * offset;
+    e.pose.orientation = takeHead.orientation * turn;
+    e.pose.valid = true;
+    return e;
+}
+
+} // namespace
+
 void playAfterTracking(TrackingState& tracking, FrameState& frame)
 {
     if(state == State::Idle)
@@ -1624,6 +1670,8 @@ void playAfterTracking(TrackingState& tracking, FrameState& frame)
                                             : take.frames[cur];
     GripInRaw grips[HAND_COUNT]; // the controllers' own (not in the take): where the Show Controller preview goes
     za::copy(tracking.gripInHand, tracking.gripInHand + HAND_COUNT, grips);
+    const Pose runtimeHead = tracking.head; // (xr: the runtime's own head and eyes, whose offsets and fields of view stay)
+    const EyeView runtimeEyes[2] = {frame.eyes[0], frame.eyes[1]};
     tracking = f.tracking;
     za::copy(grips, grips + za::getArraySize(grips), tracking.gripInHand);
     tracking.time = realtime;
@@ -1642,6 +1690,17 @@ void playAfterTracking(TrackingState& tracking, FrameState& frame)
     {
         hands::setLean(placeLean);
         angvel::reset(); // the angular velocity's detection, from the take's own samples
+    }
+    if(opts.xr)
+    {
+        // The runtime's frame: it decides whether to render (shouldRender, hold), and the layer it is given carries its
+        // own eye poses and fields of view (the backend's endFrame), so the eyes are drawn with those fields of view, from
+        // where the take's head is, the eyes' offsets from the head as the runtime has them.
+        for(int eye = 0; eye < 2; eye++)
+        {
+            frame.eyes[eye] = takeEye(runtimeHead, runtimeEyes[eye], tracking.head, eye);
+        }
+        return;
     }
     for(int eye = 0; eye < 2; eye++)
     {

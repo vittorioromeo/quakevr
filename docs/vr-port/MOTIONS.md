@@ -351,12 +351,20 @@ training dummy's attacks (`QC/vr_dummy.qc`: strikes), and the
 points and values from `VR_Motion_Sample` (`QC/vr_motion.qc`). Keep them when the melee changes (the evaluation's
 expectations are written in these kinds), or change both.
 
-## Playback (the mock headset)
+## Playback (the mock headset, or the real runtime with `xr`)
 
 `vr_motion_play <take> [options]` plays a take in the mock headset (`vr_backend mock`), loading
 `vrmelee-recording` automatically if needed. `map <name>` overrides the room for another fixture.
 `<take>` is a file name in `quakevr/motions`, a path relative to the game folder, or an
-absolute path (`.csv` optional).
+absolute path (`.csv` optional). With the option `xr` it plays on the running runtime instead (the OpenXR backend): the
+take's head, hands and buttons replace what the runtime tracked, and everything else is the real thing: the runtime's
+frame pacing, its swapchain and compositor, its views' field of view and the eyes' spacing (the eye poses are the take's
+head with the runtime's own eye offsets), the driver, the layers. A wearer sees the take's view head-locked (the camera
+is the take's head, not theirs), so a replay for a worn headset wants a take with a calm head. Without a wearer the
+runtime reports the session unfocused: set `vr_xr_unfocused 0` and `vr_xr_unfocused_pause 0` (the game then runs on).
+`Misc/frame/run-dummy-kill-repro.py --scenario replay --take <file> --map <map> --backend openxr` runs one on the Steam
+Frame (`--exe` a build with the option; `ironwail-replay` was one); a take of a kill that hangs the GPU is then a
+repeatable test that needs no hands (docs/STEAM-FRAME-DEVELOPMENT.md).
 
 1. **Setup** (1.3 s of game time, holding the take's first pose): the settings that place the hands and the body are
    set as the take has them (`vr_world_scale`, `vr_height_calibration`, `vr_floor_offset`, the hand angles, the grip
@@ -396,7 +404,10 @@ frames left to the engine; to check the melee at 72, 90, 120 or 144 Hz),
 `noplace` (where the player is), `watch` (the recorded pace), `save` (the replay as a take:
 `motions/replays/<take>_replay.csv`, the same columns, to compare with the take), `recorded` (the take's melee
 settings too: `vr_melee_*`, `vr_bash*`, `vr_shove*`, `vr_parry*`, `vr_deflect*`, `vr_headbutt*`; without it the
-current ones: what a change of the melee's settings does), `quiet`. `vr_motion_play stop` stops it.
+current ones: what a change of the melee's settings does), `quiet`, `xr` (on the real runtime's frames, above), `kill` (the
+training dummy dies of the take's blows, its gore and gibs as live, instead of "would kill": a replay otherwise turns
+`vr_dummy_gib` off).
+`vr_motion_play stop` stops it. (`vr_motion_eval` is the mock headset only.)
 
 **The training dummy's attacks** (`vr_dummy_attacks`, ROUND21.md "Dummy attacks"): a replay turns them off (and back
 as they were afterwards), so the dummy never strikes on its own timer during a replay or an evaluation (the map loads

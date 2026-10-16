@@ -558,6 +558,38 @@ QVR_CVAR(vr_xr_res_warn_mpx, "6", CVAR_ARCHIVE)
 // the runtime's wait for the image (SteamVR's OpenGL path: its copy out of it) overlaps the scene's drawing; 0 before
 // the scene (the old order, for comparison).
 QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
+// Opt-in app depth + dynamic image-motion synthesis. Extension choice is latched at backend start.
+QVR_CVAR(vr_xr_frame_synthesis, "0", CVAR_ARCHIVE)
+// 1: synchronously save one valid stereo frame's synthesis inputs/outputs for diagnostics; never a performance run.
+QVR_CVAR(vr_xr_frame_synthesis_capture, "0", CVAR_NONE)
+#if defined(QVR_HAVE_GL_VULKAN_BRIDGE) && defined(__linux__)
+// Experimental GL/Zink -> Vulkan2 transport, latched at VR start.
+// Requires the opt-in bridge build; frame synthesis has its own default-off cvar.
+QVR_CVAR(vr_xr_vulkan_interop, "0", CVAR_ARCHIVE)
+// Experimental: release after bound-queue submit; wait fences at staging reuse.
+QVR_CVAR(vr_xr_vulkan_defer_wait, "0", CVAR_ARCHIVE)
+#endif
+// Synthesis buffer size relative to the runtime recommendation, latched at backend start.
+QVR_CVAR(vr_xr_frame_synthesis_scale, "0.25", CVAR_ARCHIVE)
+// Runtime hint only: request additional time between application frames while synthesis is active.
+QVR_CVAR(vr_xr_frame_synthesis_relaxed, "0", CVAR_ARCHIVE)
+// Experimental only: permit the runtime's sRGB8 motion format when signed float is unavailable.
+QVR_CVAR(vr_xr_frame_synthesis_srgb_motion, "0", CVAR_ARCHIVE)
+// Signed NDC range for sRGB8 motion encoding; invalid/out-of-range flow falls back to camera motion, then neutral motion (no clamping).
+QVR_CVAR(vr_xr_frame_synthesis_motion_range, "0.125", CVAR_ARCHIVE)
+// Artifact-isolation switches for the exported vectors (docs/HANDOFF-frame-kill-crash-2026-10-15.md, "Godot 4.7.2 source vs. Quake's
+// producer"); read every frame, never saved. Defaults are the behaviour before they existed, except mask (a fix, on).
+// 1: negate the vertical vector (Y-up, as Godot and XR_FB_space_warp expect; 0 is Y-down, the "Vulkan NDC" reading of the spec).
+QVR_CVAR(vr_xr_frame_synthesis_flip_y, "0", CVAR_NONE)
+// 0: camera-only vectors (exact for static geometry, nothing for moving objects; also skips the optical-flow passes);
+// 1: camera vectors refined by optical flow on the final image.
+QVR_CVAR(vr_xr_frame_synthesis_flow, "1", CVAR_NONE)
+// 1: declare 3D vectors (the 2D bit cleared) and write the camera's window-depth delta into Z (as Godot does); 0: 2D, Z = 0.
+// Ignored with the experimental sRGB8 motion format, which has no Z.
+QVR_CVAR(vr_xr_frame_synthesis_3d, "0", CVAR_NONE)
+// 1: the lenses' hidden area (vr_visibility_mask, drawn at the near plane) has a zero camera seed and exports no motion at the far depth;
+// 0: as drawn (screen-wide vectors at the nearest depth, leaking into the visible edge through the flow pyramid).
+QVR_CVAR(vr_xr_frame_synthesis_mask, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Second Eye's Model Set-up: 1 each animated model's eye-independent set-up (its lerp, transform,
 // light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
 // second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
@@ -1718,7 +1750,7 @@ QVR_CVAR(vr_retrolight_shadow_soft, "0", CVAR_ARCHIVE)      // their levels' edg
 QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
 QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)
 QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (vr_profile_systems.cpp): each system's ms a frame with a bar; 1 over the wrist gadget's hand, 2 floating in front
-QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)
+QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // 0 disables all profiler GPU queries; N >= 1 times phase GPU scopes every frame and detailed call-tree GPU scopes one frame in N (CPU scopes continue)
 QVR_CVAR(vr_profile_detail, "1", CVAR_NONE)            // 2: the profiler also times every trace (SV_Move) and every QuakeC builtin call apart (dearer)
 QVR_CVAR(vr_profile_csv, "0", CVAR_NONE)               // 1: the profiler writes a row a second, a column per system, to <gamedir>/profile/systems_<date>_<time>.csv
 QVR_CVAR(vr_profile_hitch, "1.5", CVAR_NONE)           // while the profiler collects, frames over this many budgets (refresh periods) are logged with their breakdown (console, profile/hitches_*.csv); 0 off

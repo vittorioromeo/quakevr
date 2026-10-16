@@ -30,6 +30,22 @@ happens; the durable parts belong in a guide or topic note.
 | [vr-port/PLAYTEST.md](vr-port/PLAYTEST.md) | The playtest guide: build and install, controls, voice notes, what to try now, troubleshooting |
 | [vr-port/TESTING.md](vr-port/TESTING.md) | The testing tools: the mock headset, scripted motions, test scripts and checks, fixtures |
 | [vr-port/BENCHMARKS.md](vr-port/BENCHMARKS.md) | The benchmark scenario suite (running it, what a run records, the scenarios) and the in-game profiling tools |
+| [vr-port/FRAME_SYNTHESIS_PORTING_INDEX.md](vr-port/FRAME_SYNTHESIS_PORTING_INDEX.md) | A cross-engine guide to OpenXR `XR_EXT_frame_synthesis` (SpaceWarp): API requirements, renderer data contract, Unreal and Godot references, graphics-API interop, Steam Frame findings and validation gates |
+| [vr-port/FRAME_SYNTHESIS_ENGINE_PORTING_PLAYBOOK.md](vr-port/FRAME_SYNTHESIS_ENGINE_PORTING_PLAYBOOK.md) | An engine-neutral integration sequence, renderer ownership checklist, test strategy and performance gates |
+| [vr-port/FRAME_SYNTHESIS_ENGINE_PORTING_CHECKLIST.md](vr-port/FRAME_SYNTHESIS_ENGINE_PORTING_CHECKLIST.md) | An engine-neutral implementation and review checklist for OpenXR frame synthesis, including renderer data, API-specific checks, deterministic tests and runtime evidence |
+| [vr-port/FRAME_SYNTHESIS_ENGINE_GUIDE.md](vr-port/FRAME_SYNTHESIS_ENGINE_GUIDE.md) | OpenXR EXT requirements, motion/depth conventions, format discovery, runtime submission and Steam Frame findings |
+| [vr-port/FRAME_SYNTHESIS_RENDERER_DATA_CONTRACT.md](vr-port/FRAME_SYNTHESIS_RENDERER_DATA_CONTRACT.md) | The per-eye color, motion, depth, projection and temporal-history contract between a renderer and OpenXR adapter |
+| [vr-port/FRAME_SYNTHESIS_RENDERER_ARCHITECTURES.md](vr-port/FRAME_SYNTHESIS_RENDERER_ARCHITECTURES.md) | Renderer/backend options for native OpenXR graphics APIs and cross-API bridges |
+| [vr-port/FRAME_SYNTHESIS_ENGINE_ADAPTER_TEMPLATE.md](vr-port/FRAME_SYNTHESIS_ENGINE_ADAPTER_TEMPLATE.md) | A reusable adapter boundary and capability-report template for another engine |
+| [vr-port/FRAME_SYNTHESIS_CROSS_API_INTEROP.md](vr-port/FRAME_SYNTHESIS_CROSS_API_INTEROP.md) | Cross-API shared-image transport findings, with color/motion pixel checks, the D32 usage-contract correction, and remaining runtime-consumption gates |
+| [vr-port/FRAME_SYNTHESIS_VULKAN_DEPTH_INTEROP.md](vr-port/FRAME_SYNTHESIS_VULKAN_DEPTH_INTEROP.md) | Engine-neutral Vulkan depth-image hazards: sample-location-compatible layout transitions, synchronization2 same-layout barriers, and validating OpenXR destination usage |
+| [vr-port/UNREAL_FRAME_SYNTHESIS_REFERENCE.md](vr-port/UNREAL_FRAME_SYNTHESIS_REFERENCE.md) | Source audit of Unreal 5.7 and 5.8 OpenXR frame synthesis, renderer velocity integration, implementation limits and porting lessons |
+| [vr-port/GODOT_FRAME_SYNTHESIS_REFERENCE.md](vr-port/GODOT_FRAME_SYNTHESIS_REFERENCE.md) | Godot's OpenXR wrapper lifecycle, renderer handoff, target choices and version-sensitive pitfalls |
+| [vr-port/SPACEWARP_ENGINE_SUPPORT_SURVEY.md](vr-port/SPACEWARP_ENGINE_SUPPORT_SURVEY.md) | What runtime and engine support claims mean, with verified scope across Unreal, Godot, Unity and Quake |
+| [vr-port/SPACEWARP_VULKAN_ROADMAP.md](vr-port/SPACEWARP_VULKAN_ROADMAP.md) | Steam Frame's verified Vulkan and GL/Zink interop findings, implementation choices, and the remaining SpaceWarp proof gates |
+| [vr-port/SPACEWARP_GL_FORMAT_INTEROP_PROBE_2026-10-14.md](vr-port/SPACEWARP_GL_FORMAT_INTEROP_PROBE_2026-10-14.md) | Pixel-validated RGBA16F motion and D32 depth transport from GL/Zink into OpenXR Vulkan swapchain images on Steam Frame, with evidence limits |
+| [vr-port/FRAME_SYNTHESIS_EXT_FB_COMPARISON.md](vr-port/FRAME_SYNTHESIS_EXT_FB_COMPARISON.md) | Which renderer outputs EXT Frame Synthesis and deprecated FB Space Warp can share, and which OpenXR contracts must stay separate |
+| [vr-port/FRAME_SYNTHESIS_HEADSET_VALIDATION.md](vr-port/FRAME_SYNTHESIS_HEADSET_VALIDATION.md) | How to distinguish app-side submission, runtime texture receipt and displayed frame synthesis |
 | [vr-port/MOTIONS.md](vr-port/MOTIONS.md) | The motion recorder: melee takes, playing them back, the melee evaluation |
 | [vr-port/IRONWAIL_DIFF.md](vr-port/IRONWAIL_DIFF.md) | What the port changes in Ironwail's own files, and how to merge a new Ironwail |
 | [vr-port/MAPPING.md](vr-port/MAPPING.md) | Making maps for Quake VR in TrenchBroom: the game configuration and the entities |
@@ -85,6 +101,9 @@ happens; the durable parts belong in a guide or topic note.
 - [vr-port/REPO_CLEANUP.md](vr-port/REPO_CLEANUP.md): the tracked files reviewed for unused material (2026-10-06).
 - [vr-port/TECHDEBT_2026-10-09.md](vr-port/TECHDEBT_2026-10-09.md): technical debt removed, and what needs the
   author's decision (2026-10-09).
+- [vr-port/SPACEWARP_GL_OPENXR_SWAPCHAIN_PROBE_2026-10-14.md](vr-port/SPACEWARP_GL_OPENXR_SWAPCHAIN_PROBE_2026-10-14.md): isolated Steam Frame tests tracing shared-image errors to OpenGL depth swapchains, plus the later verified GL-to-OpenXR Vulkan color-pixel copy (2026-10-14).
+- [vr-port/SPACEWARP_VULKAN_ENABLE2_PROBE_2026-10-14.md](vr-port/SPACEWARP_VULKAN_ENABLE2_PROBE_2026-10-14.md): Steam Frame confirmed runtime-selected Vulkan device/session creation via `XR_KHR_vulkan_enable2` and per-eye synthesis swapchain creation (2026-10-14).
+- [vr-port/SPACEWARP_GL_FORMAT_INTEROP_PROBE_2026-10-14.md](vr-port/SPACEWARP_GL_FORMAT_INTEROP_PROBE_2026-10-14.md): RGBA16F motion pixel validation and the D32 transfer-usage caveat, including row-origin mapping (2026-10-14).
 
 ## Round log
 
