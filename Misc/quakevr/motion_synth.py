@@ -315,7 +315,7 @@ class Take:
         columns = list(rows[0].keys())
         category = self.label.split("_")[0]
         for c in ("no_hit", "palm_shove_1h", "palm_shove_2h", "parry_pose", "parry_bash", "hilt_pommel", "gun_strike",
-                  "neck_snap", "no_neck_snap", "lift", "no_lift", "judo_throw", "no_judo_throw"):
+                  "neck_snap", "no_neck_snap", "leg_sweep", "no_leg_sweep", "lift", "no_lift", "judo_throw", "no_judo_throw"):
             if self.label.startswith(c):
                 category = c
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -627,6 +627,9 @@ def preset(name, args):
     take = necksnap_preset(name, args)
     if take:
         return take
+    take = legsweep_preset(name, args)
+    if take:
+        return take
     take = liftjudo_preset(name, args)
     if take:
         return take
@@ -710,6 +713,36 @@ def necksnap_preset(name, args):
     return take
 
 
+def legsweep_preset(name, args):
+    """A weapon held low and swung level across the training dummy's shins (ROUND22.md, "Leg sweep takes"; the weapon
+    in the take's header decides): `leg_sweep_shotgun` (its muzzle end leading 0.8 m across in 0.25 s, about 3 m/s:
+    sweeps), `no_leg_sweep_axe` (the same with the axe: a blade, not a staff), `no_leg_sweep_slow` (the shotgun across
+    in 1.9 s: too slow). `--sweep-height` (0.45 m) the hand's height over the floor; the dummy `--distance` ahead."""
+    shapes = {  # (weapon, seconds across)
+        "leg_sweep_shotgun": ("shotgun", 0.25),
+        "no_leg_sweep_axe": ("axe", 0.25),
+        "no_leg_sweep_slow": ("shotgun", 1.9),
+    }
+    if name not in shapes:
+        return None
+    weapon, T = shapes[name]
+    ws, eye = args.world_scale, args.eye_height
+    d = args.distance
+    take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, main_weapon=weapon, target=(d, 0.0),
+                note="synthetic")
+    axis = norm((1.0, 0.0, -0.8))  # (forward and down about 38 degrees)
+    right = (0.0, -1.0, 0.0)
+    pose = weapon_pose("main", weapon, axis, right)
+    z = args.sweep_height
+    a = (d - 0.45, -0.4, z)
+    b = (d - 0.45, 0.4, z)
+    take.start({"main": (a, pose)})
+    take.hold(0.5, phase="pre")
+    take.move(T, lambda s: {"main": (lerp(a, b, s), pose)}, ease=False, phase="rec")
+    take.hold(0.5, phase="tail")
+    return take
+
+
 def liftjudo_preset(name, args):
     """Both empty hands take hold of the training dummy's shoulders (gripped after the playback's setup) and lift it
     (pull it straight up 0.5 m: `lift_straight` in 0.35 s, `lift_fast` 0.6 m in 0.25 s; not lifts: `no_lift_slow` in
@@ -757,6 +790,7 @@ def liftjudo_preset(name, args):
 
 LIFTJUDO_PRESETS = ["lift_straight", "lift_fast", "no_lift_slow", "no_lift_sideways", "judo_throw_left",
                     "judo_throw_right", "judo_throw_towards", "no_judo_throw_slow", "no_judo_throw_small"]
+LEGSWEEP_PRESETS = ["leg_sweep_shotgun", "no_leg_sweep_axe", "no_leg_sweep_slow"]
 NECKSNAP_PRESETS = ["neck_snap_turn", "no_neck_snap_shoulders", "no_neck_snap_small"]
 DECAP_PRESETS = ["decapitation_horizontal_rtl", "decapitation_horizontal_ltr", "decapitation_diagonal_down_left",
                  "no_decapitation_flat", "no_decapitation_body", "no_decapitation_stab"]
@@ -786,6 +820,7 @@ def main():
                     "the hand (the blade level with the dummy's neck)")
     ap.add_argument("--head", type=float, default=1.39, help="the neck snap presets: the dummy's head's middle, metres "
                     "up from the floor")
+    ap.add_argument("--sweep-height", type=float, default=0.45, help="the leg sweep presets: the hand's height over the floor")
     ap.add_argument("--necksnap-distance", type=float, default=0.7, help="the neck snap presets: metres to the dummy")
     ap.add_argument("--two-handed", action="store_true", help="the sword's with the off hand on the grip")
     ap.add_argument("--weapon", default="axe", choices=sorted(WEAPON_FAR),
@@ -801,7 +836,7 @@ def main():
     ap.add_argument("--dummy-health", type=int, help="its health (vr_dummy_health; -1 its enemy's own)")
     args = ap.parse_args()
     if args.list or not args.preset:
-        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS + NECKSNAP_PRESETS + LIFTJUDO_PRESETS))
+        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS + NECKSNAP_PRESETS + LEGSWEEP_PRESETS + LIFTJUDO_PRESETS))
         return
     if args.settings_from:
         configure(settings_from_cfg(args.settings_from))
@@ -811,6 +846,7 @@ def main():
         DUMMY["vr_dummy_health"] = str(args.dummy_health)
     names = (PRESETS if args.preset == "all" else DECAP_PRESETS if args.preset == "decap" else
              NECKSNAP_PRESETS if args.preset == "necksnap" else
+             LEGSWEEP_PRESETS if args.preset == "legsweep" else
              LIFTJUDO_PRESETS if args.preset == "liftjudo" else [args.preset])
     for name in names:
         a = argparse.Namespace(**vars(args))
