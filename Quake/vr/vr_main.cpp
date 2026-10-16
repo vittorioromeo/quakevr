@@ -2759,11 +2759,12 @@ extern "C" int VR_SkipScreen()
 
 namespace
 {
-// QVR_TEST_BACKGROUND and QVR_TEST_HIDDEN, read once (windowUnfocused, windowNotVisible: every frame).
+// QVR_TEST_BACKGROUND, QVR_TEST_HIDDEN and -vr-hide-mirror, read once (windowUnfocused, windowNotVisible: every frame).
 struct WindowFocusCache
 {
     bool testBackground = getenv("QVR_TEST_BACKGROUND") != nullptr;
     bool testHidden = getenv("QVR_TEST_HIDDEN") != nullptr;
+    int hiddenMirror = -1; // -vr-hide-mirror (1 given, 0 not, -1 not read yet: the command line comes after this)
 };
 WindowFocusCache windowFocusCache;
 } // namespace
@@ -2786,8 +2787,13 @@ bool qvr::windowUnfocused()
     {
         return true;
     }
-    // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise.)
-    return !windowFocusCache.testBackground && !VID_HasInputFocus();
+    // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise. So is a
+    // standalone headset's, -vr-hide-mirror: no desktop to focus, every present made, no menu warning.)
+    if(windowFocusCache.hiddenMirror < 0)
+    {
+        windowFocusCache.hiddenMirror = COM_CheckParm("-vr-hide-mirror") != 0 ? 1 : 0;
+    }
+    return !windowFocusCache.testBackground && windowFocusCache.hiddenMirror == 0 && !VID_HasInputFocus();
 }
 
 bool qvr::windowNotVisible()
@@ -2802,7 +2808,8 @@ bool qvr::windowNotVisible()
         return false;
     }
     const Uint32 flags = SDL_GetWindowFlags(w);
-    // (SDL keeps SHOWN on a minimized window.)
+    // (SDL keeps SHOWN on a minimized window. -vr-hide-mirror's window, never shown, counts as not visible: nobody sees
+    // the mirror, so its spectator camera is skipped, vr_spectator_skip_hidden.)
     return (flags & SDL_WINDOW_MINIMIZED) != 0 || ((flags & SDL_WINDOW_SHOWN) == 0 && !windowFocusCache.testHidden);
 }
 
