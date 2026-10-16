@@ -294,7 +294,9 @@ struct Rng
     float range(float a, float b) { return a + (b - a) * uniform(); }
 };
 
-[[nodiscard]] uint64_t hashString(const char* s, uint64_t h = 1469598103934665603ull)
+} // namespace
+
+uint64_t hashString(const char* s, uint64_t h)
 {
     for(; *s; s++)
     {
@@ -303,6 +305,8 @@ struct Rng
     return h;
 }
 
+namespace
+{
 // ---------------------------------------------------------------------------------------------------------------------
 // The map's faces
 
@@ -373,17 +377,22 @@ za::Vector<Placement> placements;
     return {v[0], v[1], v[2]};
 }
 
-[[nodiscard]] trace_t traceLine(const glm::vec3& a, const glm::vec3& b)
+} // namespace
+
+trace_t traceLine(const glm::vec3& a, const glm::vec3& b)
 {
     vec3_t start{a.x, a.y, a.z}, end{b.x, b.y, b.z};
     return SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, qcvm->edicts);
 }
 
-[[nodiscard]] int contents(const glm::vec3& p)
+int contents(const glm::vec3& p)
 {
     vec3_t v{p.x, p.y, p.z};
     return SV_PointContents(v);
 }
+
+namespace
+{
 
 // The server map's textures' average colours, by texture: pointers into the hunk, so released with it at every map
 // change (the check it replaces, the world model's pointer, kept them across a reload of the same map, whose model

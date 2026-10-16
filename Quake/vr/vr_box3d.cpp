@@ -53,6 +53,8 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_box3d.hpp"
+#include "vr_b3glm.hpp"
+#include "vr_geom.hpp"
 #include "vr_brushes.hpp"
 #include "vr_ad_monsters.hpp" // AD support
 #include "vr_convex.hpp"
@@ -130,6 +132,13 @@ using namespace qvr::progs;
 
 namespace
 {
+
+using qvr::b3glm::b3v;
+using qvr::b3glm::fromB3;
+using qvr::b3glm::glmv;
+using qvr::b3glm::toB3;
+
+using qvr::geom::smooth01;
 
 // The sync's buffers (the server's frame: the main thread; Box3D steps with one worker, the caller's).
 struct Box3dScratch
@@ -1135,26 +1144,6 @@ void applySimdWidth(b3WorldId id)
     }
     const int cap = vr_box3d_workers.value >= 1.f ? static_cast<int>(vr_box3d_workers.value) : B3_MAX_WORKERS;
     return za::clamp(za::min(cap, jobs::workers() + 1), 1, B3_MAX_WORKERS);
-}
-
-[[nodiscard]] b3Quat toB3(const glm::quat& q)
-{
-    return b3Quat{b3Vec3{q.x, q.y, q.z}, q.w};
-}
-
-[[nodiscard]] glm::quat fromB3(const b3Quat& q)
-{
-    return glm::normalize(glm::quat{q.s, q.v.x, q.v.y, q.v.z});
-}
-
-[[nodiscard]] b3Vec3 b3v(const glm::vec3& v)
-{
-    return b3Vec3{v.x, v.y, v.z};
-}
-
-[[nodiscard]] glm::vec3 glmv(const b3Vec3& v)
-{
-    return glm::vec3{v.x, v.y, v.z};
 }
 
 [[nodiscard]] glm::quat turnOf(const float* angles, bool brush)
@@ -3017,6 +3006,44 @@ void corpseBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
     return (mode == 2 || mode == 4) && !hasFlag(ent, FL_SWIM);
 }
 
+// The corners of hull shape `shape`, each moved in by `sink` (m) along each axis (not past its middle), turned by `xf`'s
+// rotation: into `points`, their count.
+int shrunkCorners(b3ShapeId shape, const b3WorldTransform& xf, float sink, za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS>& points)
+{
+    const b3HullData* hull = b3Shape_GetHull(shape);
+    const b3Vec3* p = b3GetHullPoints(hull);
+    const b3Vec3 c = hull->center;
+    const int n = za::min(hull->vertexCount, static_cast<int>(points.size()));
+    for(int v = 0; v < n; v++)
+    {
+        b3Vec3 q = p[v];
+        q.x = q.x > c.x ? za::max(c.x, q.x - sink) : za::min(c.x, q.x + sink);
+        q.y = q.y > c.y ? za::max(c.y, q.y - sink) : za::min(c.y, q.y + sink);
+        q.z = q.z > c.z ? za::max(c.z, q.z - sink) : za::min(c.z, q.z + sink);
+        points[static_cast<size_t>(v)] = b3RotateVector(xf.q, q);
+    }
+    return n;
+}
+
+// What `filter` passes overlapping each hull shape of `body` shrunk by `sink` (shrunkCorners): `fcn` called with
+// `context` for each, as b3World_OverlapShape calls it.
+void overlapShrunk(b3BodyId body, float sink, b3QueryFilter filter, b3OverlapResultFcn* fcn, void* context)
+{
+    za::Array<b3ShapeId, maxBodyShapes> shapes;
+    const int count = b3Body_GetShapes(body, shapes.data(), static_cast<int>(shapes.size()));
+    const b3WorldTransform xf = b3Body_GetTransform(body);
+    za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
+    for(int k = 0; k < count; k++)
+    {
+        if(b3Shape_GetType(shapes[k]) != b3_hullShape)
+        {
+            continue;
+        }
+        const b3ShapeProxy proxy{points.data(), shrunkCorners(shapes[k], xf, sink, points), 0.f};
+        b3World_OverlapShape(world->id, xf.p, &proxy, filter, fcn, context);
+    }
+}
+
 // The props a corpse's body is made in (a monster's drop lying where it fell, gibs under it, a box it fell onto): they pass
 // through it until clear of it (World::inside, shouldCollide), as a small gib made inside a monster does (noteBornInside),
 // rather than Box3D pushing them out of it. Its shapes less a centimetre: what only touches it (a box resting on it, its
@@ -3027,48 +3054,24 @@ void noteCorpseInside(int num, const Slot& s)
     filter.categoryBits = catCorpse;
     filter.maskBits = catProp;
     constexpr float sink = 0.01f; // m
-    za::Array<b3ShapeId, maxBodyShapes> shapes;
-    const int count = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
-    const b3WorldTransform xf = b3Body_GetTransform(s.body);
-    za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
-    for(int k = 0; k < count; k++)
-    {
-        if(b3Shape_GetType(shapes[k]) != b3_hullShape)
-        {
-            continue;
-        }
-        const b3HullData* hull = b3Shape_GetHull(shapes[k]);
-        const b3Vec3* p = b3GetHullPoints(hull);
-        const b3Vec3 c = hull->center;
-        const int n = za::min(hull->vertexCount, static_cast<int>(points.size()));
-        for(int v = 0; v < n; v++)
-        {
-            b3Vec3 q = p[v];
-            q.x = q.x > c.x ? za::max(c.x, q.x - sink) : za::min(c.x, q.x + sink);
-            q.y = q.y > c.y ? za::max(c.y, q.y - sink) : za::min(c.y, q.y + sink);
-            q.z = q.z > c.z ? za::max(c.z, q.z - sink) : za::min(c.z, q.z + sink);
-            points[static_cast<size_t>(v)] = b3RotateVector(xf.q, q);
-        }
-        const b3ShapeProxy proxy{points.data(), n, 0.f};
-        b3World_OverlapShape(world->id, xf.p, &proxy, filter,
-            [](b3ShapeId shape, void* raw) {
-                const int corpse = *static_cast<const int*>(raw);
-                const int prop = numOf(shape);
-                auto& in = world->inside;
-                if(prop > 0 && prop < static_cast<int>(world->slots.size()) && world->slots[prop].kind == Kind::Prop &&
-                    !za::anyOf(in.begin(), in.end(), [&](const World::Inside& i) { return i.prop == prop && i.other == corpse; }))
+    overlapShrunk(s.body, sink, filter,
+        [](b3ShapeId shape, void* raw) {
+            const int corpse = *static_cast<const int*>(raw);
+            const int prop = numOf(shape);
+            auto& in = world->inside;
+            if(prop > 0 && prop < static_cast<int>(world->slots.size()) && world->slots[prop].kind == Kind::Prop &&
+                !za::anyOf(in.begin(), in.end(), [&](const World::Inside& i) { return i.prop == prop && i.other == corpse; }))
+            {
+                in.pushBack({prop, corpse, world->slots[prop].born});
+                if(vr_debug_box3d.value)
                 {
-                    in.pushBack({prop, corpse, world->slots[prop].born});
-                    if(vr_debug_box3d.value)
-                    {
-                        Con_Printf("box3d: %d %s inside corpse %d as it is made: passes through until clear\n", prop,
-                            PR_GetString(EDICT_NUM(prop)->v.classname), corpse);
-                    }
+                    Con_Printf("box3d: %d %s inside corpse %d as it is made: passes through until clear\n", prop,
+                        PR_GetString(EDICT_NUM(prop)->v.classname), corpse);
                 }
-                return true;
-            },
-            const_cast<int*>(&num));
-    }
+            }
+            return true;
+        },
+        const_cast<int*>(&num));
 }
 
 // A corpse's shapes on its body (createBody): its fitted hulls (Shape of Its Pose) or its lying box, of its mass
@@ -3743,6 +3746,14 @@ bool makeRagdollRoom(edict_t* ent)
     return p;
 }
 
+// An active death's roll (its wound's, crawl's and death animation's chances): his entity, the time and
+// vr_ragdoll_active_seed.
+[[nodiscard]] uint32_t deathSeed(int num)
+{
+    return static_cast<uint32_t>(num) * 2654435761u ^ static_cast<uint32_t>(qcvm->time * 72.0) ^
+           static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u;
+}
+
 // An active death's start (createRagdoll; vr_ragactive.cpp beginDeath): his death animation from `frame` (the one the
 // parts were made in), the blow that killed him (QC's .vr_death_hit and .vr_death_hitpos: a headshot or beheading is a
 // collapse; the body or a limb, a wound a hand may hold), his motion as he died (a stumble), a roll of his own (the
@@ -3772,23 +3783,17 @@ void startActiveDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* 
     di.wound = !di.collapse && hitPart >= 0.f && hitAt != glm::vec3{0.f} && glm::length(hitAt) < 96.f;
     di.woundAt = glmv(world->toM(drawnOrigin + hitAt));
     di.walk = glmv(world->toM(deathMotion(num)));
-    di.seed = static_cast<uint32_t>(num) * 2654435761u ^ static_cast<uint32_t>(qcvm->time * 72.0) ^
-              static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u;
+    di.seed = deathSeed(num);
     const ActiveClass* ac = activeClassOf(ent);
     di.crawler = ac && ac->crawls;
+    // A test's (vr_ragdoll_act): the wound's and the crawl's chances sure, or no pin, for this death alone.
+    if(const ragtest::Force* f = ragtest::forced(num))
     {
-        // A test's (vr_ragdoll_act): the wound's and the crawl's chances sure, or no pin, for this death alone.
-        const ragtest::Force* f = ragtest::forced(num);
-        const float woundWas = vr_ragdoll_active_wound.value, crawlWas = vr_ragdoll_active_crawl.value;
-        const float pinWas = vr_ragdoll_active_pin.value;
-        vr_ragdoll_active_wound.value = f && f->wound ? 1.f : woundWas;
-        vr_ragdoll_active_crawl.value = f && f->crawl ? 1.f : crawlWas;
-        vr_ragdoll_active_pin.value = f && f->noPin ? 0.f : pinWas;
-        ragactive::beginDeath(r.active, parts, di, qcvm->time);
-        vr_ragdoll_active_wound.value = woundWas;
-        vr_ragdoll_active_crawl.value = crawlWas;
-        vr_ragdoll_active_pin.value = pinWas;
+        di.sureWound = f->wound;
+        di.sureCrawl = f->crawl;
+        di.noPin = f->noPin;
     }
+    ragactive::beginDeath(r.active, parts, di, qcvm->time);
     if(vr_debug_ragdoll.value)
     {
         const ragactive::Death& d = r.active.death;
@@ -3816,8 +3821,7 @@ void startCutDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* joi
     const ragactive::Parts parts = activeParts(r);
     ragactive::begin(r.active, parts, modelOf(ent), glmv(world->toM(drawnOrigin)), joints, friction, stiffness, qcvm->time);
     ragactive::DeathInfo di;
-    di.seed = static_cast<uint32_t>(num) * 2654435761u ^ static_cast<uint32_t>(qcvm->time * 72.0) ^
-              static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u;
+    di.seed = deathSeed(num);
     di.death = static_cast<int>((di.seed >> 8) % static_cast<uint32_t>(rig.deaths));
     di.frame = static_cast<float>(rig.deathFirst[di.death]);
     di.walk = glmv(world->toM(deathMotion(num)));
@@ -5181,12 +5185,6 @@ void writeRagdoll(edict_t* ent, Slot& s)
 // last pose is then blended into the animation as it plays (vr_knockdown_blend: a Recovery, published as a ragdoll is
 // until the blend is done).
 
-[[nodiscard]] float smooth01(float t)
-{
-    t = za::clamp(t, 0.f, 1.f);
-    return t * t * (3.f - 2.f * t);
-}
-
 // Bone `b` of `rig` animated in frame pose `pose`, for an entity at `origin` turned by `turn`: p_world = rot * (scale *
 // p_rest) + pos, as the ragdolls' bodies.
 void animatedBone(const ragdoll::Rig& rig, int pose, int b, const glm::quat& turn, const glm::vec3& origin, float scale,
@@ -5937,37 +5935,66 @@ void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b
     }
 }
 
+// A hand's hold on a ragdoll about to begin (grabRagdoll, holdSoft): the player's number, the ragdoll's entity and bodies,
+// and where the hand is (world units).
+struct GrabStart
+{
+    int pnum{0};
+    int num{0};
+    RagdollBodies* r{nullptr};
+    glm::vec3 at{0.f};
+};
+
+// Whether hand `hand` of `player` may take hold of `ent`'s ragdoll (a player's hand holding nothing yet, `ent` a ragdoll):
+// `gs` filled in.
+[[nodiscard]] bool grabStart(edict_t* ent, edict_t* player, int hand, GrabStart& gs)
+{
+    gs.pnum = NUM_FOR_EDICT(player);
+    if(!world || gs.pnum < 1 || gs.pnum > svs.maxclients || grabIndex(gs.pnum, hand) >= 0)
+    {
+        return false; // (none, or holding already)
+    }
+    gs.num = NUM_FOR_EDICT(ent);
+    gs.r = ragdollOf(gs.num);
+    if(!gs.r)
+    {
+        return false;
+    }
+    glm::quat turn;
+    handPose(player, hand, gs.at, turn);
+    return true;
+}
+
+// Hand `hand` holds `part` of the ragdoll `gs` found, from where the hand is (`g`: its spring's settings, if any).
+void beginGrab(World::RagdollGrab& g, const GrabStart& gs, edict_t* player, int hand, int part)
+{
+    g.player = gs.pnum;
+    g.hand = hand;
+    g.num = gs.num;
+    g.part = part;
+    startHold(g, player, *gs.r, b3Body_GetLocalPoint(gs.r->body[static_cast<za::SizeT>(part)], world->toM(gs.at)));
+    world->ragdollGrabs.pushBack(g);
+}
+
 // ragdollgrab: hand `hand` of `player` takes the limb of `corpse`'s ragdoll it is on (within vr_ragdoll_grab_reach of
 // its surface).
 bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
 {
-    const int pnum = NUM_FOR_EDICT(player);
-    if(!world || vr_ragdoll_grab.value < 1.f || pnum < 1 || pnum > svs.maxclients || grabIndex(pnum, hand) >= 0)
-    {
-        return false; // (none, or holding already)
-    }
-    const int num = NUM_FOR_EDICT(corpse);
-    RagdollBodies* r = ragdollOf(num);
-    if(!r)
+    GrabStart gs;
+    if(vr_ragdoll_grab.value < 1.f || !grabStart(corpse, player, hand, gs))
     {
         return false;
     }
-    glm::vec3 at;
-    glm::quat turn;
-    handPose(player, hand, at, turn);
+    RagdollBodies* r = gs.r;
+    const int num = gs.num;
     float distance = 0.f;
-    const int part = nearestPart(*r, at, distance);
+    const int part = nearestPart(*r, gs.at, distance);
     if(part < 0 || distance > za::max(vr_ragdoll_grab_reach.value, 0.f))
     {
         return false;
     }
     World::RagdollGrab g;
-    g.player = pnum;
-    g.hand = hand;
-    g.num = num;
-    g.part = part;
-    startHold(g, player, *r, b3Body_GetLocalPoint(r->body[static_cast<za::SizeT>(part)], world->toM(at)));
-    world->ragdollGrabs.pushBack(g);
+    beginGrab(g, gs, player, hand, part);
     // Manhandled (vr_foegrab_manhandle_stagger): a living one staggering, taken by a hand, loses its footing and goes
     // down (its stagger's fall: the QC's VR_Knockdown_Think sees it fallen, down its knockdown's time).
     if(vr_foegrab_manhandle_stagger.value > 0.f && corpse->v.health > 0.f && r->active.on && r->active.stagger.on)
@@ -5993,20 +6020,14 @@ bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
 // more (a neck snapped: the hands held its head).
 bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head)
 {
-    const int pnum = NUM_FOR_EDICT(player);
-    if(!world || pnum < 1 || pnum > svs.maxclients || grabIndex(pnum, hand) >= 0)
+    GrabStart gs;
+    if(!grabStart(ent, player, hand, gs))
     {
         return false;
     }
-    const int num = NUM_FOR_EDICT(ent);
-    const RagdollBodies* r = ragdollOf(num);
-    if(!r)
-    {
-        return false;
-    }
-    glm::vec3 at;
-    glm::quat turn;
-    handPose(player, hand, at, turn);
+    const RagdollBodies* r = gs.r;
+    const int num = gs.num;
+    const glm::vec3& at = gs.at;
     float distance = 0.f;
     int part = nearestPart(*r, at, distance);
     const int headPart = r->rig->head;
@@ -6024,15 +6045,10 @@ bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force,
         return false;
     }
     World::RagdollGrab g;
-    g.player = pnum;
-    g.hand = hand;
-    g.num = num;
-    g.part = part;
     g.force = za::max(force, 0.f);
     g.hertz = za::max(hertz, 0.1f);
     g.stuck = za::max(stuck, 1.f);
-    startHold(g, player, *r, b3Body_GetLocalPoint(r->body[static_cast<za::SizeT>(part)], world->toM(at)));
-    world->ragdollGrabs.pushBack(g);
+    beginGrab(g, gs, player, hand, part);
     if(vr_debug_ragdoll.value)
     {
         Con_Printf("ragdoll: %d part %d (%s) held on by hand %d, %.1f units from its surface (soft: %.0f N, %.1f Hz)\n", num,
@@ -6678,8 +6694,8 @@ void follow(edict_t* ent, Slot& s, float dt)
     const FieldOffsets& f = fields();
     const int velOfs = h ? f.handthrowvel : f.offhandthrowvel;
     const int spinOfs = h ? f.handavel : f.offhandavel;
-    const float linear = velOfs >= 0 ? glm::length(fieldVec(player, velOfs)) : 0.f;
-    const float turn = spinOfs >= 0 ? glm::length(fieldVec(player, spinOfs)) * reach : 0.f;
+    const float linear = glm::length(fieldVec(player, velOfs)); // (0 without the field: fieldVec)
+    const float turn = glm::length(fieldVec(player, spinOfs)) * reach;
     return za::max(linear, turn);
 }
 
@@ -6808,43 +6824,19 @@ void noteBornInside(int num, const Slot& s, bool corpsesOnly = false)
         double born;
     } context{num, s.born};
     constexpr float sink = 0.01f; // m (reachSink's)
-    za::Array<b3ShapeId, maxBodyShapes> shapes;
-    const int count = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
-    const b3WorldTransform xf = b3Body_GetTransform(s.body);
-    za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
-    for(int k = 0; k < count; k++)
-    {
-        if(b3Shape_GetType(shapes[k]) != b3_hullShape)
-        {
-            continue;
-        }
-        const b3HullData* hull = b3Shape_GetHull(shapes[k]);
-        const b3Vec3* p = b3GetHullPoints(hull);
-        const b3Vec3 c = hull->center;
-        const int n = za::min(hull->vertexCount, static_cast<int>(points.size()));
-        for(int v = 0; v < n; v++)
-        {
-            b3Vec3 q = p[v]; // (each corner in by the sink along each axis, not past the middle: as ignoreInside)
-            q.x = q.x > c.x ? za::max(c.x, q.x - sink) : za::min(c.x, q.x + sink);
-            q.y = q.y > c.y ? za::max(c.y, q.y - sink) : za::min(c.y, q.y + sink);
-            q.z = q.z > c.z ? za::max(c.z, q.z - sink) : za::min(c.z, q.z + sink);
-            points[static_cast<size_t>(v)] = b3RotateVector(xf.q, q);
-        }
-        const b3ShapeProxy proxy{points.data(), n, 0.f};
-        b3World_OverlapShape(world->id, xf.p, &proxy, filter,
-            [](b3ShapeId shape, void* raw) {
-                const auto& c = *static_cast<const Context*>(raw);
-                const int other = numOf(shape);
-                auto& in = world->inside;
-                if(other > 0 && other != c.num &&
-                    !za::anyOf(in.begin(), in.end(), [&](const World::Inside& i) { return i.prop == c.num && i.other == other; }))
-                {
-                    in.pushBack({c.num, other, c.born});
-                }
-                return true;
-            },
-            &context);
-    }
+    overlapShrunk(s.body, sink, filter,
+        [](b3ShapeId shape, void* raw) {
+            const auto& c = *static_cast<const Context*>(raw);
+            const int other = numOf(shape);
+            auto& in = world->inside;
+            if(other > 0 && other != c.num &&
+                !za::anyOf(in.begin(), in.end(), [&](const World::Inside& i) { return i.prop == c.num && i.other == other; }))
+            {
+                in.pushBack({c.num, other, c.born});
+            }
+            return true;
+        },
+        &context);
     constexpr float margin = 0.05f; // m
     if(corpsesOnly)
     {
@@ -7338,19 +7330,7 @@ void ignoreInside(World::HandBody& hb, uint64_t category, int letGo)
         float radius = 0.f;
         if(b3Shape_GetType(shapes[i]) == b3_hullShape)
         {
-            const b3HullData* hull = b3Shape_GetHull(shapes[i]);
-            const b3Vec3* p = b3GetHullPoints(hull);
-            const b3Vec3 c = hull->center;
-            n = za::min(hull->vertexCount, static_cast<int>(points.size()));
-            for(int k = 0; k < n; k++)
-            {
-                // Each corner in by the sink along each axis (not past the middle).
-                b3Vec3 q = p[k];
-                q.x = q.x > c.x ? za::max(c.x, q.x - reachSink) : za::min(c.x, q.x + reachSink);
-                q.y = q.y > c.y ? za::max(c.y, q.y - reachSink) : za::min(c.y, q.y + reachSink);
-                q.z = q.z > c.z ? za::max(c.z, q.z - reachSink) : za::min(c.z, q.z + reachSink);
-                points[static_cast<size_t>(k)] = b3RotateVector(xf.q, q);
-            }
+            n = shrunkCorners(shapes[i], xf, reachSink, points);
         }
         else if(b3Shape_GetType(shapes[i]) == b3_capsuleShape)
         {

@@ -2956,59 +2956,6 @@ void split(const float (&old)[7], float (&measured)[7], float (&tweak)[7])
     }
 }
 
-// An Undo saved before the split ("vr_body_upper_arm 0;...;"): the same settings in the new ones.
-void migrateUndo()
-{
-    bool oldNames = false; // (the old names end in a space there: "vr_body_forearm " isn't in "vr_body_forearm_twist")
-    for(const Split& sp : splits())
-    {
-        const char* at = ZA_STRSTR(vr_bodycal_undo.string, sp.old->name);
-        oldNames = oldNames || (at && at[ZA_STRLEN(sp.old->name)] == ' ');
-    }
-    if(!oldNames)
-    {
-        return;
-    }
-    const za::String text = vr_bodycal_undo.string;
-    float old[7], measured[7], tweak[7];
-    for(int i = 0; i < 7; i++)
-    {
-        old[i] = ZA_FLOAT_NAN;
-        measured[i] = 0.f; // what the Undo puts back is complete: nothing measured, no tweak, unless it says
-        tweak[i] = 0.f;
-    }
-    za::String rest;
-    files::forPieces(text, ';', [&](za::StringView item) {
-        files::Words w{item};
-        za::String name, value;
-        if(!(w >> name >> value))
-        {
-            return;
-        }
-        bool known = false;
-        for(int i = 0; i < 7; i++)
-        {
-            if(name == splits()[i].old->name)
-            {
-                old[i] = static_cast<float>(atof(value.cStr()));
-                known = true;
-            }
-        }
-        if(!known)
-        {
-            rest += name + " " + value + ";";
-        }
-    });
-    split(old, measured, tweak);
-    for(int i = 0; i < 7; i++)
-    {
-        rest += za::String(splits()[i].measured->name) + " " + number(measured[i]) + ";";
-        rest += za::String(splits()[i].tweak->name) + " " + number(tweak[i]) + ";";
-    }
-    Con_DPrintf("VR: vr_bodycal_undo in the new settings: %s\n", rest.cStr());
-    Cvar_SetQuick(&vr_bodycal_undo, rest.cStr());
-}
-
 } // namespace
 
 bool calibrated()
@@ -3103,7 +3050,6 @@ const char* measuredLine(int i)
 
 void migrate()
 {
-    migrateUndo();
     bool any = false;
     float old[7], measured[7], tweak[7];
     for(int i = 0; i < 7; i++)

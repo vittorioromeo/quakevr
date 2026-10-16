@@ -53,6 +53,12 @@ struct ModelMetadata
     const ModelMetadata& m = get(model);
     return m.is(Id::Grenade) || m.is(Id::Mervup) || m.is(Id::Proxbomb);
 }
+// A round (QC vr_reload.qc): a live shell, a magazine, a live round, or a grenade (the launchers' round, from a pouch).
+[[nodiscard]] inline bool isRound(const qmodel_s* model)
+{
+    return has(model, Trait::LiveShell) || has(model, Trait::Magazine) || has(model, Trait::LiveRound) ||
+           isQuakeGrenade(model);
+}
 // has(model, Trait::Submodel) from the model's name alone (its rule: a map's brush submodel, "*N"), without the cache's
 // lookup: for loops over every entity many times a frame (worldtrace::world). Any thread.
 [[nodiscard]] bool isSubmodel(const qmodel_s* model);

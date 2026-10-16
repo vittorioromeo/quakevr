@@ -1,5 +1,6 @@
 // vr_held.cpp -- see vr_held.hpp.
 
+#include "vr_geom.hpp"
 #include "vr_held.hpp"
 #include "vr_climb.hpp"
 #include "vr_carry2h.hpp"
@@ -12,6 +13,7 @@
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_physics.hpp"
@@ -171,13 +173,10 @@ bool drawnTriangles(edict_t* ent, const qmodel_t* model, za::Vector<Triangle>& o
     const int frame = static_cast<int>(ent->v.frame);
     const int pose = hdr->frames[frame >= 0 && frame < hdr->numframes ? frame : 0].firstpose;
     const auto* base = reinterpret_cast<const byte*>(hdr);
-    const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + pose * hdr->numverts;
     const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
     const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
-    const auto vertex = [&](int i) {
-        const trivertx_t& v = verts[mesh[indexes[i]].vertindex];
-        return xf.stored(glm::vec3{v.v[0], v.v[1], v.v[2]});
-    };
+    mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
+    const auto vertex = [&](int i) { return xf.stored(mdldequant::poseVertex(hdr, pose, mesh[indexes[i]].vertindex)); };
     for(int i = 0; i + 2 < hdr->numindexes; i += 3)
     {
         out.pushBack({{vertex(i), vertex(i + 1), vertex(i + 2)}});
@@ -361,12 +360,12 @@ bool modelVertices(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& 
         return false;
     }
     const DrawnTransform xf{model, glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}};
-    const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes) +
-                        hdr->frames[0].firstpose * hdr->numverts;
+    const int pose = hdr->frames[0].firstpose;
+    mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
     out.reserve(static_cast<size_t>(hdr->numverts));
     for(int i = 0; i < hdr->numverts; i++)
     {
-        glm::vec3 p = xf.stored(glm::vec3{verts[i].v[0], verts[i].v[1], verts[i].v[2]});
+        glm::vec3 p = xf.stored(mdldequant::poseVertex(hdr, pose, i));
         if(mirrored)
         {
             p.y = -p.y;
@@ -391,14 +390,14 @@ bool modelTriangles(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>&
     }
     const DrawnTransform xf{model, glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}};
     const auto* base = reinterpret_cast<const byte*>(hdr);
-    const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + hdr->frames[0].firstpose * hdr->numverts;
+    const int pose = hdr->frames[0].firstpose;
     const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
     const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+    mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
     out.reserve(static_cast<size_t>(hdr->numindexes));
     for(int i = 0; i < hdr->numindexes; i++)
     {
-        const trivertx_t& v = verts[mesh[indexes[i]].vertindex];
-        glm::vec3 p = xf.stored(glm::vec3{v.v[0], v.v[1], v.v[2]});
+        glm::vec3 p = xf.stored(mdldequant::poseVertex(hdr, pose, mesh[indexes[i]].vertindex));
         if(mirrored)
         {
             p.y = -p.y;
@@ -425,14 +424,14 @@ bool magazinePoints(const DrawnTransform& xf, const qmodel_t* mag, bool mirrored
     {
         return false;
     }
-    const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes) +
-                        hdr->frames[0].firstpose * hdr->numverts;
+    const int pose = hdr->frames[0].firstpose;
     const glm::vec3 so{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
     const glm::vec3 hs{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    mdldequant::prepare(mag); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
     out.reserve(static_cast<size_t>(hdr->numverts));
     for(int i = 0; i < hdr->numverts; i++)
     {
-        glm::vec3 p = xf.modelPoint(so + hs * glm::vec3{verts[i].v[0], verts[i].v[1], verts[i].v[2]});
+        glm::vec3 p = xf.modelPoint(so + hs * mdldequant::poseVertex(hdr, pose, i));
         if(mirrored)
         {
             p.y = -p.y;
@@ -592,47 +591,6 @@ void forgetDrawnCentres()
 namespace
 {
 
-// The point of the triangle nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
-[[nodiscard]] glm::vec3 nearestOn(const Triangle& t, const glm::vec3& p)
-{
-    const glm::vec3 &a = t.p[0], &b = t.p[1], &c = t.p[2];
-    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-    if(d1 <= 0.f && d2 <= 0.f)
-    {
-        return a;
-    }
-    const glm::vec3 bp = p - b;
-    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-    if(d3 >= 0.f && d4 <= d3)
-    {
-        return b;
-    }
-    const float vc = d1 * d4 - d3 * d2;
-    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
-    {
-        return a + ab * (d1 / (d1 - d3));
-    }
-    const glm::vec3 cp = p - c;
-    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-    if(d6 >= 0.f && d5 <= d6)
-    {
-        return c;
-    }
-    const float vb = d5 * d2 - d1 * d6;
-    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
-    {
-        return a + ac * (d2 / (d2 - d6));
-    }
-    const float va = d3 * d6 - d5 * d4;
-    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
-    {
-        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
-    }
-    const float denom = 1.f / (va + vb + vc);
-    return a + ab * (vb * denom) + ac * (vc * denom);
-}
-
 // `ent`'s drawn triangles in its axes relative to its origin, and those axes and origin.
 bool entityTriangles(edict_t* ent, za::Vector<Triangle>& out, glm::mat3& axes, glm::vec3& origin)
 {
@@ -719,7 +677,7 @@ float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
     glm::vec3 at{0.f};
     for(const Triangle& t : triangles)
     {
-        const glm::vec3 q = nearestOn(t, p);
+        const glm::vec3 q = geom::closestOnTriangle(p, t.p[0], t.p[1], t.p[2]);
         const float d = glm::distance(p, q);
         if(d < best)
         {
@@ -819,7 +777,7 @@ bool fistContact(edict_t* ent, const za::Vector<glm::vec4>& spheres, float reach
         for(size_t i = 0; i < local.size(); i++)
         {
             const glm::vec3 c{local[i]};
-            const glm::vec3 q = nearestOn(t, c);
+            const glm::vec3 q = geom::closestOnTriangle(c, t.p[0], t.p[1], t.p[2]);
             const float d = glm::distance(c, q);
             if(d < nearest[i])
             {
@@ -1668,8 +1626,7 @@ void meetFrame(const hands::State& s)
         // under the receiver or the well (the box is the whole gun's, down to its grip).
         const auto isRound = [](const Held& hd) {
             const qmodel_t* m = hd.drawn && hd.ent > 0 ? cl_entities[hd.ent].model : nullptr;
-            return m && (modelmeta::has(m, modelmeta::Trait::LiveShell) || modelmeta::has(m, modelmeta::Trait::Magazine) ||
-                         modelmeta::has(m, modelmeta::Trait::LiveRound) || modelmeta::isQuakeGrenade(m)); // (a pouch grenade: the launchers' round)
+            return m && modelmeta::isRound(m);
         };
         if(meet.weapon && (isRound(a) || isRound(b)))
         {

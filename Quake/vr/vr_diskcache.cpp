@@ -68,7 +68,7 @@ za::String rootDir()
     {
         return za::String{qvr::vr_cache_dir.string};
     }
-    return za::String{com_basedirs[com_numbasedirs > 0 ? com_numbasedirs - 1 : 0]} + "/cache";
+    return qvr::files::baseCacheDir();
 }
 
 // The product's other builds' folders (and stray files) removed, then its oldest files (by their last write) until its
@@ -129,11 +129,17 @@ void prune(Product p, const za::String& kindDir, const char* build)
     }
 }
 
-za::String fileFor(Product p, const char* build, unsigned long long key, const char* ext)
+// A key's file in its build's folder: `/<key 16 hex>.<ext>`.
+za::String nameOf(unsigned long long key, const char* ext)
 {
     char name[40];
     snprintf(name, sizeof(name), "/%016llx.%s", key, ext);
-    return qvr::diskcache::folderOf(p, build) + name;
+    return name;
+}
+
+za::String fileFor(Product p, const char* build, unsigned long long key, const char* ext)
+{
+    return qvr::diskcache::folderOf(p, build) + nameOf(key, ext);
 }
 
 // A framed file: 4 bytes of magic, the version, two numbers of the caller's, then the data.
@@ -326,9 +332,7 @@ void write(Product p, const char* build, unsigned long long key, const char* ext
     unsigned b, const void* data, size_t length)
 {
     QVR_TRACY_SCOPE(tracyScope, "disk cache write prepare");
-    char name[40];
-    snprintf(name, sizeof(name), "/%016llx.%s", key, ext);
-    const za::String path = prepare(p, build) + name;
+    const za::String path = prepare(p, build) + nameOf(key, ext); // (fileFor's, the folder made ready)
     za::Vector<unsigned char> bytes;
     const unsigned header[3] = {version, a, b};
     bytes.resize(4 + sizeof(header) + length);

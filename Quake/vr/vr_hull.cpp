@@ -3659,15 +3659,8 @@ za::String makeDiskBuild()
 {
     const za::U32 parts[] = {treeVersion, diskVersion, static_cast<za::U32>(buildVersion),
         static_cast<za::U32>(sizeof(mclipnode_t)), static_cast<za::U32>(sizeof(mplane_t))};
-    za::U64 h = 14695981039346656037ull;
-    const unsigned char* bytes = reinterpret_cast<const unsigned char*>(parts);
-    for(za::SizeT i = 0; i < sizeof(parts); ++i)
-    {
-        h = (h ^ bytes[i]) * 1099511628211ull;
-    }
-    char build[24];
-    snprintf(build, sizeof(build), "%016llx", static_cast<unsigned long long>(h));
-    return build;
+    static_assert(sizeof(za::U32) == sizeof(unsigned));
+    return diskcache::buildOf(parts, sizeof(parts) / sizeof(parts[0]));
 }
 const za::String diskBuild = makeDiskBuild(); // (made before main, only read)
 

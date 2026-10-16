@@ -9215,3 +9215,56 @@ over: 0 bursts of 6, all held in both; melee eval 168/177.
 To try in VR: a weapon and a brick thrown running (a little shorter: 0.9); a gib or brick thrown at a monster (bends
 towards it as a weapon does); a crate let go of by one hand and thrown by the other within 0.2 s (two-handed), and a
 weapon thrown just after letting go of its foregrip.
+## C++ cleanup: R1's FIX-NOW batch, configs before 1.0.0 reset, grasp on the drawn mesh (worktree `backlogclean`, branch `agent/cppclean`, 2026-10-16)
+
+The C++ review (R1) found uncontroversial fixes. The author also made decisions 3 and 9 (DECISIONS.md, 2026-10-16).
+
+**FIX-NOW (behaviour-identical), one commit per item:**
+- **F1:** ragtest's overrides are DeathInfo fields; it no longer writes cvars around `ragactive::beginDeath`.
+- **F3:** one `geom::closestOnTriangle` (vr_geom.hpp). vr_anchor keeps its double-precision copy.
+- **F4:** the shrink-corners helper is shared.
+- **F5:** vr_b3glm.hpp.
+- **F6:** `hands::basisOf`.
+- **F7:** vr_crates uses vr_debris' helpers.
+- **F8:** `grabStart`/`beginGrab`.
+- **F9:** diskcache leftovers. AO's FNV seed is kept, so the files are unchanged.
+- **F10:** `modelmeta::isRound()`.
+- **F11:** vr_throw.cpp leftovers.
+- **F12:** the throw Motion is built once; `writeHandFields`; `throwEstimateFor`.
+- **F13:** one `surfaceOnSegment` and one `motion::split`.
+- **F14:** `weaponFingers`, `beginFree`, `bothFrames`, handOn's locals.
+- **F15:** `files::timestamp/profileFile/baseCacheDir`. The base cache dir is now guarded everywhere.
+- **F16:** one copy of the death seed.
+- **F17:** one quantile, `flickOf`; the redundant guards are dropped.
+- **F18:** stale comments.
+
+Checked before and after under `vr_fixed_frames 1`: physics hashes, ragdoll lists, grabs and throws match line for line (339 lines). Cache files are read, not rebuilt. Melee eval 168/177.
+
+Not identical: `aimTurn`, a debug field, is now exactly 0 for the very same samples, where acos noise used to give about 0.02 degrees.
+
+**Configs before 1.0.0 (decision 3).**
+- A config with vr_cfg_version below 122 (1.0.0's version, from the v1.0.0 tag) is no longer migrated. `resetOldConfig` resets every archived `vr_` setting to its default and prints one console line ("this config is older than 1.0.0 ... reset to the defaults"). It also sets vr_tutorial_started to 1.
+  - Kept: the per-player settings (`personal()`: body measurements, runtime, tips seen, bindings version) and the engine's own settings.
+- **vr_cvars.cpp:** removed the 486 defaultChanges rows and the 15 hand-written steps before 122. The 1.0.0 Loading-notice step is now the row `{123, vr_loading_notice, "0"}`.
+- **vr_weapons.cpp:**
+  - Steps 1-40 removed; 41-43 are a `{version, fn}` table.
+  - markCurrent only sets the version (F2: its copies of steps 22 and 23 went with them).
+  - Removed the round-21 hotspot and cup migrations: legacyHotspots, migrateCups and cupAnglesFor in vr_view.cpp.
+- **vr_props.cpp:** its whole `migrate` (461 lines, all before 1.0.0's 68) now only takes the version.
+- **Other files:** removed body::migrateHolsters, retro::migrateShippedLook/migrateAllPanel and bodycal's migrateUndo. bodycal::migrate stays: it also maps the old arm cvar names typed in the console.
+- Check: full config fixtures at 141, 126 (judo, knockdown and hand-stick rows at their old values, weapons at 40 with an anchor index and the toolgun's old muzzle) and 122 (Loading notice off, props at 50). Each goes through `vr_migrate_config` plus a map load, on the old and the new build.
+  - All three dumps are identical: 14,397 settings, 0 differ.
+  - A config at 100 is reset, with the note: its vr_gunangle 55 goes back to 70, while its dominant eye and tutorial flag are kept.
+
+**The agents' test configs were from before 1.0.0.** Every `quakevr/ironwail.cfg.baseline` in qvr-agents is at vr_cfg_version 34 (weapons at 21, props at 26). With this change those configs are reset at startup instead of migrated. The settings the baseline had changed from the defaults would differ in tests.
+- `scratch/mig/ironwail.cfg.baseline.migrated` in this worktree is the same baseline as the old build left it after startup and a map load (141/43/68). Its runs start exactly as before.
+- This worktree uses it already. The kit's source config (new_agent.sh's REPO) and the other agents' baselines should be replaced with it.
+
+**Grasp and held on the drawn mesh (decision 9).**
+- held's `drawnTriangles`, `modelVertices`, `modelTriangles` and `magazinePoints`, and grasp's alias shapes, read `mdldequant::poseVertex` (the vertices as drawn with vr_mdl_dequant) instead of the stored bytes.
+- New `mdldequant::prepare(model)` computes a model's dequantised offsets before its first upload, as GLMesh_LoadVertexBuffer would. The held guns' shapes are prepared at map load, before the client uploads the models.
+- Grabs, prop hulls and gun pieces move by the dequantisation's fraction of a byte step, so physics hashes differ from before. The gun-pieces disk cache cut its pieces again once, because its key is a hash of the triangles.
+
+For his VR check:
+- A pre-1.0.0 config is reset: nothing to see with his config, which is at 140.
+- Grab guns and props as usual; the grips should feel the same.

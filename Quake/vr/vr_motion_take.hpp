@@ -194,4 +194,7 @@ void invalidateTakeCounts();
 // A take's file name, <label>_<YYYY-MM-DD_HH-MM-SS[-n]>.csv: its label and stamp (false: not a take's name).
 [[nodiscard]] bool parseTakeName(za::StringView name, za::StringView& label, za::StringView& stamp);
 
+// `s` cut at every `sep` (carriage returns dropped): vr_motion_play.cpp.
+[[nodiscard]] za::Vector<za::String> split(za::StringView s, char sep);
+
 } // namespace qvr::motion

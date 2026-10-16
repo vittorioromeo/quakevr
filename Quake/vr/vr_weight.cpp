@@ -1291,6 +1291,18 @@ namespace
     return hands >= 2 ? mass / za::max(vr_throw_2h_strength.value, 0.1f) : mass;
 }
 
+// The mass a throw's flick moves (throwMass) and the most a wrist flicks freely (vr_throw_flick_mass): a heavier thing
+// keeps free / mass of the flick.
+struct Flick
+{
+    float mass;
+    float free;
+};
+[[nodiscard]] Flick flickOf(float mass, int hands)
+{
+    return {throwMass(za::max(mass, 0.f), hands), za::max(vr_throw_flick_mass.value, 0.01f)};
+}
+
 } // namespace
 
 float throwLimit(float mass, int hands)
@@ -1335,9 +1347,8 @@ float spinLimit(float mass, int hands)
     {
         return 0.f;
     }
-    const float m = throwMass(za::max(mass, 0.f), hands);
-    const float free = za::max(vr_throw_flick_mass.value, 0.01f);
-    return m > free ? za::max(vr_throw_spin_max.value, 0.f) * za::pow(free / m, k) : 0.f;
+    const Flick fl = flickOf(mass, hands);
+    return fl.mass > fl.free ? za::max(vr_throw_spin_max.value, 0.f) * za::pow(fl.free / fl.mass, k) : 0.f;
 }
 
 glm::vec3 throwSpin(const glm::vec3& angVel, float mass, int hands)
@@ -1401,9 +1412,8 @@ ThrowOut throwVelocity(const glm::vec3& vel, const glm::vec3& flick, float mass,
     if(vr_throw_mass_model.value)
     {
         // A wrist too weak to flick it: of a heavy thing, only some of the flick's speed.
-        const float m = throwMass(za::max(mass, 0.f), hands);
-        const float free = za::max(vr_throw_flick_mass.value, 0.01f);
-        out.kept = m > free ? free / m : 1.f;
+        const Flick fl = flickOf(mass, hands);
+        out.kept = fl.mass > fl.free ? fl.free / fl.mass : 1.f;
         // No more of it than the throw has along it (a controller turned about its own point, not the wrist).
         const float f = glm::length(flick);
         if(f > 1e-4f)

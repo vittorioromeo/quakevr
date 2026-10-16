@@ -469,7 +469,7 @@ int VR_NavBack (int state);								// its Back: nonzero if it went back where th
 int VR_MenuMainShowsMods (void);
 int VR_MenuMouseOnButtons (float x, float y);			// M_Mousemove: the spot (menu x, y) on one of the corner's buttons (the menu's rows left alone)						// M_Main_Draw: the main menu's Mods row asked for (vr_menu_main_mods)
 void VR_StartTutorial (void);							// the main menu's VR Tutorial, confirmed: as the Play page's Tutorial (its map's command queued)
-void VR_StartHub (void);								// the main menu's VR Hub, confirmed: as the Play page's VR Hub (vr_campaign_hub: vr_hub_map)
+void VR_StartHub (void);								// the main menu's VR Hub, confirmed: as the Play page's VR Hub (vr_campaign_hub: vrstart)
 void VR_OpenMapLibrary (void);							// Single Player > Map Library: the map browser page (vr_menu_maps.inc)
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 // Several menu panels (vr_menu.cpp; MULTI_MENU.md): M_Draw draws the first panel's menu (the 2D layer's canvas) whichever

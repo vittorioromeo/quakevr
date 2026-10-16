@@ -6,6 +6,7 @@
 // The effects are few at once (the surfaces: one a place, however many bolts go in there; kept a
 // moment past the last).
 
+#include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_shock.hpp"
 #include "vr_smoulder.hpp"
@@ -1094,28 +1095,6 @@ void parse()
     add(kind, {org[0], org[1], org[2]}, radius, duration);
 }
 
-// The point of triangle a b c nearest `p` (Ericson, Real-Time Collision Detection 5.1.5).
-[[nodiscard]] glm::vec3 nearestOnTriangle(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
-{
-    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-    if(d1 <= 0.f && d2 <= 0.f) { return a; }
-    const glm::vec3 bp = p - b;
-    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-    if(d3 >= 0.f && d4 <= d3) { return b; }
-    const float vc = d1 * d4 - d3 * d2;
-    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f) { return a + ab * (d1 / (d1 - d3)); }
-    const glm::vec3 cp = p - c;
-    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-    if(d6 >= 0.f && d5 <= d6) { return c; }
-    const float vb = d5 * d2 - d1 * d6;
-    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f) { return a + ac * (d2 / (d2 - d6)); }
-    const float va = d3 * d6 - d5 * d4;
-    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f) { return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6))); }
-    const float denom = 1.f / (va + vb + vc);
-    return a + ab * (vb * denom) + ac * (vc * denom);
-}
-
 // Whether `p` is inside the closed surface `tris`: the most of three rays out of it cross it an odd number of times.
 [[nodiscard]] bool insideSurface(const glm::vec3& p, const za::Vector<glm::vec3>& tris)
 {
@@ -1157,7 +1136,7 @@ void measureArcs(int num, const za::Vector<glm::vec3>& tris, size_t first, size_
         float best = 1e30f;
         for(size_t t = 0; t + 2 < tris.size(); t += 3)
         {
-            best = za::min(best, glm::distance(p, nearestOnTriangle(p, tris[t], tris[t + 1], tris[t + 2])));
+            best = za::min(best, glm::distance(p, geom::closestOnTriangle(p, tris[t], tris[t + 1], tris[t + 2])));
         }
         const bool in = insideSurface(p, tris);
         inside += in ? 1 : 0;

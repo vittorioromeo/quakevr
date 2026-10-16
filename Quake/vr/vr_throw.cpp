@@ -30,9 +30,7 @@
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
-#include "Zancle/Math/Log.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
 
@@ -175,17 +173,35 @@ struct Track
     }
 };
 
+// Where `t` falls among a track's samples: `k` the first after it (0: before them all, size(): after them all) and, between
+// samples k - 1 and k, how far from the one to the other (`s`).
+struct Bracket
+{
+    int k{0};
+    float s{0.f};
+};
+[[nodiscard]] Bracket bracket(const Track& tr, double t)
+{
+    Bracket b;
+    b.k = tr.after(t);
+    if(b.k > 0 && b.k < tr.size())
+    {
+        const double t0 = tr.time(b.k - 1), t1 = tr.time(b.k);
+        b.s = static_cast<float>(t1 > t0 ? (t - t0) / (t1 - t0) : 1.0);
+    }
+    return b;
+}
+
 // Where a history's samples put the hand at `t` (world units; linear between them).
 [[nodiscard]] glm::vec3 posAt(const History& h, double t)
 {
     const Track tr{h, false};
-    const int k = tr.after(t);
-    if(k == 0 || k >= tr.size())
+    const Bracket b = bracket(tr, t);
+    if(b.k == 0 || b.k >= tr.size())
     {
-        return tr.at(k == 0 ? 0 : tr.size() - 1).pos;
+        return tr.at(b.k == 0 ? 0 : tr.size() - 1).pos;
     }
-    const double t0 = tr.time(k - 1), t1 = tr.time(k);
-    return glm::mix(tr.at(k - 1).pos, tr.at(k).pos, static_cast<float>(t1 > t0 ? (t - t0) / (t1 - t0) : 1.0));
+    return glm::mix(tr.at(b.k - 1).pos, tr.at(b.k).pos, b.s);
 }
 
 [[nodiscard]] double det3(const double m[3][3])
@@ -325,10 +341,11 @@ constexpr double strokeLookback = 2.0;   // real seconds
     float peakSpeed = 0.f;
     for(int i = 0; i < own.count; i++)
     {
-        if(const Sample& s = own.at(i); s.time >= from && s.time <= releaseTime && glm::length(s.vel) > peakSpeed)
+        const Sample& s = own.at(i);
+        if(const float speed = glm::length(s.vel); s.time >= from && s.time <= releaseTime && speed > peakSpeed)
         {
             peak = i;
-            peakSpeed = glm::length(s.vel);
+            peakSpeed = speed;
         }
     }
     if(peak < 0)
@@ -360,8 +377,7 @@ constexpr double strokeLookback = 2.0;   // real seconds
 }
 
 // The bullet-time throw (ROUND22.md, "Bullet-time throws: the stroke's tempo", and "... only": the older rules
-// removed): in slow motion the controller's
-// samples are in the game's time, 1/scale times its real speed. A throw made at real speed (a flick, a toss to re-grip,
+// removed): in slow motion the controller's samples are in the game's time, 1/scale times its real speed. A throw made at real speed (a flick, a toss to re-grip,
 // a quick lob) is taken at its real speed: as small as it was made. The full-strength throw made slowly with the
 // slowed world is taken at its game-time speed: as at full speed. Which, its stroke tells without a threshold: its
 // tempo, its path up to the release over its peak speed (real seconds; it grows with the time the stroke took, but
@@ -498,18 +514,16 @@ struct Gain
     // Where the hand was and pointed at the peak (between the samples: a flick turns it 11 degrees in a frame at 72 fps).
     glm::vec3 forward = vel.at(vel.size() - 1).forward;
     glm::vec3 pos = vel.at(vel.size() - 1).pos;
-    if(const int k = vel.after(peak); k == 0)
+    if(const Bracket b = bracket(vel, peak); b.k == 0)
     {
         forward = vel.at(0).forward;
         pos = vel.at(0).pos;
     }
-    else if(k < vel.size())
+    else if(b.k < vel.size())
     {
-        const double t0 = vel.time(k - 1), t1 = vel.time(k);
-        const float s = static_cast<float>(t1 > t0 ? (peak - t0) / (t1 - t0) : 1.0);
-        const glm::vec3 f = glm::mix(vel.at(k - 1).forward, vel.at(k).forward, s);
-        forward = glm::length(f) > 1e-4f ? glm::normalize(f) : vel.at(k).forward;
-        pos = glm::mix(vel.at(k - 1).pos, vel.at(k).pos, s);
+        const glm::vec3 f = glm::mix(vel.at(b.k - 1).forward, vel.at(b.k).forward, b.s);
+        forward = glm::length(f) > 1e-4f ? glm::normalize(f) : vel.at(b.k).forward;
+        pos = glm::mix(vel.at(b.k - 1).pos, vel.at(b.k).pos, b.s); // (posAt(h, peak))
     }
 
     // The object's centre, and the velocity a clear wrist flick adds there.
@@ -582,7 +596,7 @@ void push(History& h, const Sample& s)
     {
         k = za::max(k * cap / speed, static_cast<float>(real));
     }
-    if(const float speed = glm::length(e.vel), ownSpeed = glm::length(o.vel); speed > 1e-4f && ownSpeed > 1e-4f)
+    if(const float speed = glm::length(e.vel), ownSpeed = glm::length(o.vel); !same && speed > 1e-4f && ownSpeed > 1e-4f)
     {
         e.aimTurn = glm::degrees(za::acos(za::clamp(glm::dot(e.vel, o.vel) / (speed * ownSpeed), -1.f, 1.f)));
     }
@@ -642,9 +656,7 @@ void bothSamples(const History& h0, const History& h1, const glm::vec3& centre, 
         s.angVel = spin;
         s.forward = (a.forward + b.forward) * 0.5f;
         s.spinTime = (a.spinTime + b.spinTime) * 0.5;
-        both.samples[both.next] = s;
-        both.next = (both.next + 1) % capacity;
-        both.count = za::min(both.count + 1, capacity);
+        push(both, s);
     }
 }
 

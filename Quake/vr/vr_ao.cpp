@@ -1332,7 +1332,6 @@ struct BakeJob
     double seconds{0.0};
     // The disk cache (vr_ao_cache, read when it was queued): its folder, and what the bake task did with it.
     int cacheMode{0};
-    za::String cacheRoot; // its version's folder (vr_diskcache.cpp; versionDir)
     bool fromDisk{false}; // read, not baked
     bool rejected{false}; // a file was there, but not a whole one of this model's (baked again, and written over)
     bool written{false};
@@ -1359,26 +1358,23 @@ BakeQueue& bakeQueue()
     return *theBakeQueue;
 }
 
+// The AO's FNV-1a start: FNV's offset basis a digit short (14695981039346656037 without its last 7). Kept: the files'
+// payload hashes (FileHeader::payloadHash) are made with it.
+constexpr za::U64 aoFnvStart = 1469598103934665603ull;
+
 // FNV-1a of a model's poses, triangles and scale: the same name from another game folder is another model.
 za::U64 modelHash(const aliashdr_t* hdr)
 {
-    za::U64 h = 1469598103934665603ull;
-    const auto mix = [&h](const void* data, size_t bytes) {
-        const auto* b = static_cast<const unsigned char*>(data);
-        for(size_t i = 0; i < bytes; i++)
-        {
-            h = (h ^ b[i]) * 1099511628211ull;
-        }
-    };
-    mix(reinterpret_cast<const byte*>(hdr) + hdr->vertexes, static_cast<size_t>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
-    mix(reinterpret_cast<const byte*>(hdr) + hdr->indexes, static_cast<size_t>(hdr->numindexes) * sizeof(unsigned short));
-    mix(hdr->scale, sizeof(hdr->scale));
-    return h;
+    za::U64 h = aoFnvStart;
+    h = diskcache::fnv(h, reinterpret_cast<const byte*>(hdr) + hdr->vertexes,
+        static_cast<size_t>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
+    h = diskcache::fnv(h, reinterpret_cast<const byte*>(hdr) + hdr->indexes, static_cast<size_t>(hdr->numindexes) * sizeof(unsigned short));
+    return diskcache::fnv(h, hdr->scale, sizeof(hdr->scale));
 }
 
 // ----------------------------------------------------------------------------
-// The bakes kept on disk (vr_ao_cache): `<cache root>/ao/v<BAKE_VERSION>/<key>.ao` (vr_diskcache.hpp), as the normal maps' cache
-// (vr_texcache.cpp) keeps its files. <key> is the SHA-256 of everything a bake reads: its numbers (RAYS, the shares,
+// The bakes kept on disk (vr_ao_cache): `<cache root>/ao/v<BAKE_VERSION>/<key>.ao` (vr_diskcache.hpp), beside the normal
+// maps' and the hulls' caches. <key> is the SHA-256 of everything a bake reads: its numbers (RAYS, the shares,
 // the rays' directions), Quake's vertex normals, and the model's poses (with their normal indices), triangles, scale
 // and origin; so a changed model, or changed numbers, never reads an old file. A file is read and checked (magic,
 // version, sizes, the whole key, its bytes' FNV-1a) on the bake task's thread, never the main thread; anything amiss
@@ -1406,12 +1402,7 @@ static_assert(sizeof(FileHeader) == 64);
 
 [[nodiscard]] za::U64 fnv64(const unsigned char* b, size_t n)
 {
-    za::U64 h = 1469598103934665603ull;
-    for(size_t i = 0; i < n; i++)
-    {
-        h = (h ^ b[i]) * 1099511628211ull;
-    }
-    return h;
+    return diskcache::fnv(aoFnvStart, b, n);
 }
 
 [[nodiscard]] sha256::Digest bakeKey(const BakeJob& job)
@@ -1438,7 +1429,7 @@ static_assert(sizeof(FileHeader) == 64);
     return sha256::of(bytes.data(), bytes.size());
 }
 
-// The version's folder (vr_diskcache.cpp's root, shared by every game folder; `root` no longer used).
+// The version's folder (vr_diskcache.cpp's root, shared by every game folder).
 [[nodiscard]] za::String buildName()
 {
     char keep[16];
@@ -1446,17 +1437,17 @@ static_assert(sizeof(FileHeader) == 64);
     return keep;
 }
 
-[[nodiscard]] za::String versionDir(const za::String&)
+[[nodiscard]] za::String versionDir()
 {
     return diskcache::folderOf(diskcache::Product::AO, buildName().cStr());
 }
 
-[[nodiscard]] za::String fileFor(const za::String& root, const sha256::Digest& key)
+[[nodiscard]] za::String fileFor(const sha256::Digest& key)
 {
     char hex[65];
     sha256::toHex(key, hex);
     hex[32] = '\0'; // (128 bits name it; the whole key is checked in the file)
-    return versionDir(root) + "/" + hex + ".ao";
+    return versionDir() + "/" + hex + ".ao";
 }
 
 enum class FileRead
@@ -1510,7 +1501,7 @@ enum class FileRead
 
 // The version's folder made ready (once a session: the other versions' folders removed, then the oldest files past
 // its budget, CACHE_BUDGET; vr_diskcache.cpp).
-void pruneOnce(const za::String&)
+void pruneOnce()
 {
     static_assert(CACHE_BUDGET == 64ull << 20, "vr_diskcache.cpp's products table keeps the AO's budget");
     (void)diskcache::prepare(diskcache::Product::AO, buildName().cStr());
@@ -1561,7 +1552,7 @@ void runBake(BakeJob& job)
     if(job.cacheMode > 0)
     {
         key = bakeKey(job);
-        path = fileFor(job.cacheRoot, key);
+        path = fileFor(key);
         const double r0 = Sys_DoubleTime();
         read = readBake(path, job, key, fromFile);
         job.rejected = read == FileRead::Rejected;
@@ -1601,7 +1592,7 @@ void runBake(BakeJob& job)
             return;
         }
     }
-    pruneOnce(job.cacheRoot);
+    pruneOnce();
     job.written = writeBake(path, job, key);
 }
 
@@ -1861,7 +1852,6 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
         }
         auto job = makeJob(model, hdr, h);
         job->cacheMode = static_cast<int>(za::clamp(vr_ao_cache.value, 0.f, 2.f));
-        job->cacheRoot = versionDir({}); // (vr_diskcache.cpp)
         q.queued[model->name] = h;
         q.pending.pushBack(ZA_MOVE(job));
         if(q.running || q.stop.loadSeqCst())
@@ -1991,7 +1981,7 @@ void cacheInfo_f()
     {
         Con_Printf("vr_ao_cache 2: %d bakes compared with their files, %d differed\n", checkSame + checkDiffered, checkDiffered);
     }
-    const za::String dir = versionDir({});
+    const za::String dir = versionDir();
     int count = 0;
     za::U64 bytes = 0;
     files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory) {
@@ -2176,7 +2166,7 @@ int ao::warmBake(const char* name, int numverts, int numposes, const unsigned ch
     job.scale = {scale[0], scale[1], scale[2]};
     job.origin = {origin[0], origin[1], origin[2]};
     const sha256::Digest key = bakeKey(job);
-    const za::String path = fileFor(versionDir({}), key);
+    const za::String path = fileFor(key);
     if(files::isFile(path.cStr()))
     {
         return 0;
@@ -2186,6 +2176,6 @@ int ao::warmBake(const char* name, int numverts, int numposes, const unsigned ch
     {
         return -1;
     }
-    pruneOnce({});
+    pruneOnce();
     return writeBake(path, job, key) ? 1 : -1;
 }
