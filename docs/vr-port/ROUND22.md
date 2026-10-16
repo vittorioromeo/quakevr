@@ -9181,3 +9181,37 @@ the flat-height floors (alpha 255 everywhere) still get `in_pdepth` > 0 and walk
 In VR: Graphics > Surfaces > Parallax Surface Level at 0, 0.5 and 1 with a crate and a dropped gun on a carved floor
 (start's rune panels, or a custom map's carved ground): which reads as resting, and do the raised parts' edges against
 the props look right or chipped?
+## One throw for props and weapons (worktree `tghost`, branch `agent/throwunify`, 2026-10-16)
+
+R2 review #13 (weapons.qc `DropWeaponInHandScaled` against vr_carry.qc `VR_Carry_Release`), his decisions: one
+two-handed window for both, 0.2 s; props get the weapons' release-lag back-projection and throw assist (the same
+settings); one share of the thrower's velocity for both, 0.9, no weight scaling. The shared pieces live together in
+vr_carry.qc ("One throw"): `VR_Throw_2hRecent` (the window), `VR_Throw_BackProject` (where it would be by now: the
+weapon's old code, plus the thing's offset from the point the hand's estimate follows (the hand; a prop held in both,
+its centre) and, for a prop, its box traced against the walls: where it can't go it stays), `VR_Throw_Inherit`; with
+`VRThrowAssist`, `VR_Throw_GravityScale`/`DmgSpeed` and `VR_Throw_Spin` as before. Each keeps its own: a weapon's
+velocity (both hands' average times `vr_2h_throw_velocity_mult`, its weight), handle and spin axis; a prop's (the
+engine's estimate from both hands, its Throw from its mass). The thrown-hit paths are untouched.
+
+- `vr_throw_2h_window` (0.2) replaces `vr_carry_two_hands_window` (props 0.1, plus 0.05 on the server: no slack now)
+  and the weapons' hard-coded 0.3. Used by both throws, the holster/pack guard, the ragdoll's two-handed throw, the
+  no-strike rule and the engine's `held::bothHandsThrow`. A weapon's gap runs from the last frame it was aimed with both
+  hands (`last_2h_time`: about 0.08 s after the foregrip's release in the mock), a prop's from the other hand letting go.
+- `vr_throw_inherit` (0.9) replaces `vr_carry_throw_inherit` (1) and the weapons' full inheritance (`MakeThrown`, a
+  player's throw; a monster's drop keeps all of it). Menu row "Throws Keep Your Motion" unchanged.
+- Config 142: the old names are aliases (`cvarAliases`); at their old defaults (0.1, 1) they take 0.2 and 0.9 (his
+  config holds the old defaults).
+- Developer lines: `throw: a weapon|prop held in both hands until N s ago`, `carry: released N s ago: from ...`.
+
+Verified headless (scratch/tu_test.sh: one synthetic main-hand throw, 6 m/s peak; a nailgun and a gib; base progs and
+engine against these): weapon still -265.8 / z 16.1 both; weapon running (320 u/s) -585.6 -> -553.6 (inherit 1 ->
+0.9); prop still z 16.9 -> 9.8 (back-projected 0.023 s, as the weapon); prop running 514 -> 482 u/s; assist (a grunt
+150 ahead, cone 30): the prop z 9.9 -> 19.5 and turned (before: no change), at 300 ahead out of a gib's reach, only
+turned. Two hands: prop gaps 0.153 s two-handed, 0.253 s one (before, 0.15 s was already one); weapon gaps 0.154 and
+0.168 s two-handed, 0.252 s one (before: two-handed to 0.3). `flick_slowmo_compare.sh` as recorded above (overhand
+x1.49, lob50 x1.23: engine estimates, untouched); `throw_trigger_test.sh` as before; `gib_2h_throw_test.sh` push, hard,
+over: 0 bursts of 6, all held in both; melee eval 168/177.
+
+To try in VR: a weapon and a brick thrown running (a little shorter: 0.9); a gib or brick thrown at a monster (bends
+towards it as a weapon does); a crate let go of by one hand and thrown by the other within 0.2 s (two-handed), and a
+weapon thrown just after letting go of its foregrip.

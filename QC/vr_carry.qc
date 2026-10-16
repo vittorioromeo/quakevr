@@ -578,7 +578,7 @@ float VR_THROW_MISSILE_SPEED = 250; // u/s (times VR_Thrown_Lenient): a thing le
 // Two-handed throws (NOTES.md vrfiringrange_2026-10-02_00-54-03: a gib thrown with both hands burst at once on one hand's
 // follow-through, taken for a punch). A throw with both hands (a prop let go of by both, VR_Carry_Release; a weapon held
 // in both, DropWeaponInHandScaled): neither hand strikes for vr_throw_2h_nomelee, and the hand that let go first does
-// not from its letting go (the other may still throw it with both, within vr_carry_two_hands_window). What was thrown
+// not from its letting go (the other may still throw it with both, within vr_throw_2h_window). What was thrown
 // can't be struck by the thrower's hands for vr_throw_2h_melee_immune (VR_Blow_Strikable).
 
 // A throw's spin `xAVel` (rad/s) limited by the mass of what `xHands` hands throw (throwweight 3: vr_throw_spin_mass_exp;
@@ -608,6 +608,83 @@ void(entity p, entity xThing) VR_Throw_TwoHanded =
         xThing != world ? max(0, cvar_hget(cvarh_vr_throw_2h_melee_immune)) : 0));
 };
 
+// ----------------------------------------------------------------------------
+// One throw (R2 review #13; ROUND22.md, "One throw for props and weapons"): a prop let go of (VR_Carry_Release) and a
+// weapon thrown (weapons.qc DropWeaponInHandScaled) share these, so the two can't drift apart again: when it is
+// two-handed (VR_Throw_2hRecent), where it starts after the release's lag (VR_Throw_BackProject), the throw assist
+// (weapons.qc VRThrowAssist), the share of the thrower's velocity it keeps (VR_Throw_Inherit), its gravity and damage
+// speed (weapons.qc VR_Throw_GravityScale, VR_Throw_DmgSpeed) and spin (VR_Throw_Spin). Their own stay theirs: a
+// weapon's velocity (both hands' average times vr_2h_throw_velocity_mult, its weight), handle and spin's axis; a prop's
+// (the engine's estimate of it from both hands, its Throw from its mass).
+
+// Whether the other hand let go a moment ago (`xBothEnd`: when both last held it; 0 never): within vr_throw_2h_window,
+// a two-handed throw.
+float(float xBothEnd) VR_Throw_2hRecent =
+{
+    return xBothEnd > 0 && time - xBothEnd <= max(0, cvar_hget(cvarh_vr_throw_2h_window));
+};
+
+// The share of the thrower's own velocity what he throws keeps (vr_throw_inherit); a monster's drop, all of it.
+float(entity xThrower) VR_Throw_Inherit =
+{
+    if(!(xThrower.flags & FL_CLIENT))
+    {
+        return 1;
+    }
+    return max(0, cvar_hget(cvarh_vr_throw_inherit));
+};
+
+// It left the hand a moment ago (the release lags the throw, and the move carrying it is later still, by a frame or
+// two: more at a low frame rate): it starts where it would be by now, not where the hand followed through to. (It used
+// to start at the hand when that was over 0.15 s, which a low frame rate reached: those throws came out of the
+// follow-through, lower and behind.) What it would have flown into on the way, it starts at.
+// `xAt`: where the thing is now; `xRefNow`: where the point the hand's estimate follows is now (the hand; a prop held
+// in both, its centre); `xVel` its velocity as thrown (units/s), `xGravity` its fall (units/s^2); `xMins`, `xMaxs` its
+// box (a weapon: '0 0 0', a point). Returns where it starts; vr_throw_vel its velocity by now, vr_throw_age how long
+// ago (at most 0.3 s) it left the hand.
+vector vr_throw_vel;
+float vr_throw_age;
+vector(entity xThrower, float xHand, vector xAt, vector xRefNow, vector xVel, vector xMins, vector xMaxs,
+       float xGravity) VR_Throw_BackProject =
+{
+    vr_throw_vel = xVel;
+    vr_throw_age = min(0.3, VRGetHandThrowAge(xHand));
+    if(VRGetHandThrowPos(xHand) == '0 0 0' || vr_throw_age < 0)
+    {
+        return xAt;
+    }
+    float age = vr_throw_age;
+    vector from = VRGetHandThrowPos(xHand) + (xAt - xRefNow);
+    vector origin = from + xVel * age;
+    origin_z = origin_z - 0.5 * xGravity * age * age;
+    vr_throw_vel_z = xVel_z - xGravity * age;
+
+    traceline(from, origin, MOVE_HITMODEL_THROWN, xThrower);
+    if(trace_fraction < 1 && trace_ent.takedamage && trace_ent != world)
+    {
+        origin = trace_endpos - normalize(origin - from) * 2; // a monster on the way: hit it next
+    }
+    // Never inside a wall (a prop's box: where it can't go, it stays).
+    if(xMins == '0 0 0' && xMaxs == '0 0 0')
+    {
+        traceline(xAt, origin, TRUE, xThrower);
+    }
+    else
+    {
+        tracebox(xAt, xMins, xMaxs, origin, TRUE, xThrower);
+        if(trace_startsolid)
+        {
+            return xAt;
+        }
+    }
+    origin = trace_endpos;
+    if(trace_fraction < 1)
+    {
+        origin = origin - normalize(origin - xAt) * 2;
+    }
+    return origin;
+};
+
 // Whether `xHand` of `p` may strike now: not just after a two-handed throw, nor (the hand that let go first of a thing
 // held in both) while the other may still throw it with both.
 float(entity p, float xHand) VR_Throw_HandMayStrike =
@@ -617,7 +694,7 @@ float(entity p, float xHand) VR_Throw_HandMayStrike =
         return FALSE;
     }
     return !(p.vr_2h_letgo_hand == xHand + 1 && cvar_hget(cvarh_vr_throw_2h_nomelee) > 0 &&
-             time - p.vr_2h_letgo_time <= cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05);
+             VR_Throw_2hRecent(p.vr_2h_letgo_time));
 };
 
 // Whether `e` can't be struck by `p`'s hands: he threw it with both a moment ago.
@@ -970,11 +1047,17 @@ void(float xHand, entity xBox) VR_Carry_Release =
     // Thrown with both hands: held in both, or by the other until a moment ago (the hand's estimate is then the prop's
     // own, from both: held::bothHandsThrow).
     float hands = 1;
-    if(xBox.carry_2h || time - xBox.carry_2h_end <= cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+    if(!xBox.carry_2h && xBox.carry_2h_end > 0 && time - xBox.carry_2h_end < 1)
+    {
+        dprint(sprintf("throw: a prop held in both hands until %.3f s ago\n", time - xBox.carry_2h_end));
+    }
+    if(xBox.carry_2h || VR_Throw_2hRecent(xBox.carry_2h_end))
     {
         hands = 2;
     }
 
+    // The point the hand's estimate follows, now (before the hand lets go of it: held in both, its centre).
+    vector refNow = hands == 2 ? (xBox.absmin + xBox.absmax) * 0.5 : VRGetHandPos(xHand);
     VR_Carry_SetHeld(self, xHand, world);
 
     float m2u = VRMetersToUnits();
@@ -983,14 +1066,27 @@ void(float xHand, entity xBox) VR_Carry_Release =
                cvar_hget(cvarh_vr_carry_throw_mult);
     v = v * propvalue(xBox, "throw"); // a heavy thing leaves the hand slower (Held Object Offsets: Throw, from its mass)
 
+    // Where it would be by now (VR_Throw_BackProject; still the carrier's: his traces pass through it), and the throw
+    // assist's bend towards a monster, as a thrown weapon's (DropWeaponInHandScaled).
+    float throwGravity = VR_Throw_Gravity();
+    vector startAt = VR_Throw_BackProject(self, xHand, xBox.origin, refNow, v, xBox.mins, xBox.maxs, throwGravity);
+    if(startAt != xBox.origin)
+    {
+        dprint(sprintf("carry: released %.3f s ago: from %v, %v (%.0f u/s) by now\n", vr_throw_age, startAt,
+            vr_throw_vel, vlen(vr_throw_vel)));
+    }
+    v = vr_throw_vel;
+    setorigin(xBox, startAt);
     VR_Carry_Loose(xBox);
+    v = VRThrowAssist(self, xBox.origin, v, throwGravity);
+
     xBox.vr_spin = VR_Throw_Spin(VRThrowSpinCapped(VRGetHandAVel(xHand)), propvalue(xBox, "mass"), hands);
     VR_Carry_Throw(xBox, v);
     xBox.vr_throw_2h = hands == 2; // (its hits hurt vr_throw_2h_damage times more)
-    // It goes on with the player's own motion, as a thrown weapon does (MakeThrown; NOTES.md
-    // vrfiringrange_2026-10-07_23-51-46: a brick thrown running forward fell short), vr_carry_throw_inherit of it. (Its
-    // throw, a missile or not, is judged on the hand's speed alone: VR_Carry_Throw.)
-    xBox.velocity = xBox.velocity + self.velocity * max(0, cvar_hget(cvarh_vr_carry_throw_inherit));
+    // It goes on with the player's own motion, as a thrown weapon does (NOTES.md vrfiringrange_2026-10-07_23-51-46: a
+    // brick thrown running forward fell short), vr_throw_inherit of it. (Its throw, a missile or not, is judged on the
+    // hand's speed alone: VR_Carry_Throw.)
+    xBox.velocity = xBox.velocity + self.velocity * VR_Throw_Inherit(self);
     if(self.velocity != '0 0 0')
     {
         dprint(sprintf("carry: with your motion (%.0f u/s): %v (%.0f u/s)\n", vlen(self.velocity), xBox.velocity,
@@ -1136,7 +1232,7 @@ void(float xHand) VR_Carry_HandFrame =
         // (whatever vr_carry_take says), as a box is.
         if(box.vr_pickup_obj == QVR_PICKUPOBJ_HOLSTER)
         {
-            if(VR_Carry_AtHolster(xHand) && time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+            if(VR_Carry_AtHolster(xHand) && !VR_Throw_2hRecent(box.carry_2h_end))
             {
                 VR_PickupObj_Holster(xHand, box);
                 return;
@@ -1147,10 +1243,10 @@ void(float xHand) VR_Carry_HandFrame =
         }
 
         // Let go at a holster: into the pack (if full up, it drops there). Not let go of by both hands
-        // (together, as a throw: the other hand at most vr_carry_two_hands_window before, and a frame). Never a grenade
+        // (together, as a throw: the other hand at most vr_throw_2h_window before). Never a grenade
         // (nothing to take: it is thrown, as an overarm throw's wind-up passes the shoulder holsters).
         if(takeMode != 1 && VR_Carry_AtHolster(xHand) && !VR_Grenade_Is(box) &&
-           time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+           !VR_Throw_2hRecent(box.carry_2h_end))
         {
             dprint("carry: into the pack\n");
             VR_Carry_Take(xHand, box);
@@ -1619,7 +1715,7 @@ void() VR_Ragdoll_Handtouch =
 // throw hurt it (or gibbed it) and its knock bent the trajectory. Now (VR_Ragdoll_HandSpares, in VR_Melee_Armed) a hand
 // never strikes a ragdoll it holds, nor one it let go of VR_RAGDOLL_LETGO_SPARE ago; the hand that lets go of a ragdoll
 // the other still holds strikes nothing while the other may still throw it with both (vr_2h_letgo_hand,
-// VR_Throw_HandMayStrike), and the other's letting go within vr_carry_two_hands_window is a two-handed throw
+// VR_Throw_HandMayStrike), and the other's letting go within vr_throw_2h_window is a two-handed throw
 // (VR_Throw_TwoHanded: no blows for vr_throw_2h_nomelee, the ragdoll spared for vr_throw_2h_melee_immune). The free hand
 // still punches a ragdoll held in the other.
 float VR_RAGDOLL_LETGO_SPARE = 0.4; // s (as a gib's releasing hand: VR_Gib_Struck)
@@ -1639,7 +1735,7 @@ void(float xHand, entity xBox) VR_Ragdoll_LetGo =
         self.vr_2h_letgo_time = time;
     }
     else if(self.vr_2h_letgo_hand == other + 1 && xBox.vr_rag_letgo == self && xBox.vr_rag_letgo_hand == other + 1 &&
-            time - xBox.vr_rag_letgo_time <= cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+            VR_Throw_2hRecent(xBox.vr_rag_letgo_time))
     {
         twoHanded = TRUE; // the other let go of it a moment ago: thrown with both
     }

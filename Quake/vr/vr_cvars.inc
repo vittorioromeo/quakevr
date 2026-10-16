@@ -174,10 +174,17 @@ QVR_CVAR(vr_throw_hit_ramp, "0.5", CVAR_ARCHIVE)      // share of the hit speed 
 QVR_CVAR(vr_throw_hit_ramp_floor, "0.6", CVAR_ARCHIVE) // share of the damage at the hit speed
 // Two-handed throws (NOTES.md vrfiringrange_2026-10-02_00-54-03: a gib thrown with both hands burst on one's follow-through
 // punch): neither hand strikes for vr_throw_2h_nomelee s after a two-handed throw (the hand let go first from just before,
-// within vr_carry_two_hands_window), and what was thrown can't be struck by the thrower's hands for
+// within vr_throw_2h_window), and what was thrown can't be struck by the thrower's hands for
 // vr_throw_2h_melee_immune s. 0: off.
 QVR_CVAR(vr_throw_2h_nomelee, "0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_2h_melee_immune, "0.35", CVAR_ARCHIVE)
+// One throw for props and weapons (QC vr_carry.qc, "One throw"; ROUND22.md, "One throw for props and weapons"). Seconds
+// between the two hands letting go (a prop's grips, a weapon's foregrip) that still make a two-handed throw (was
+// vr_carry_two_hands_window 0.1 for props, plus 0.05 on the server; 0.3 hard-coded for weapons).
+QVR_CVAR(vr_throw_2h_window, "0.2", CVAR_ARCHIVE)
+// Share of your own velocity a thing you throw or let go of (a prop, a weapon) takes with it (was vr_carry_throw_inherit 1
+// for props, all of it for weapons; 0: none).
+QVR_CVAR(vr_throw_inherit, "0.9", CVAR_ARCHIVE)
 // A gib let go of by one hand: the other hand's touch doesn't burst it for vr_gib_letgo_spare s (NOTES.md
 // vrfiringrange_2026-10-02_15-38-26: the other hand alongside the throw; the hand that let go: 0.4 s). 0: off.
 QVR_CVAR(vr_gib_letgo_spare, "0.2", CVAR_ARCHIVE)
@@ -2308,7 +2315,6 @@ QVR_CVAR(vr_carry_two_hands_reach, "2", CVAR_ARCHIVE) // with it: cm past Grab D
 QVR_CVAR(vr_carry_two_hands_drift, "8", CVAR_ARCHIVE) // with it: cm each drawn hand may be off its controller to stay on its grip (hands pulled apart or pushed together)
 QVR_CVAR(vr_carry_two_hands_detach, "3", CVAR_ARCHIVE) // with it: cm past the drift a hand may be off its grip before it lets go (its fist off the prop: pulled away, not sliding on it); both off: it drops (vr_carry2h.cpp detached)
 QVR_CVAR(vr_carry_two_hands_solid, "1", CVAR_ARCHIVE)  // with it: what is held in both hands stops at the level's solids (walls, floors, doors) and slides along them, however hard the hands push (vr_carry2h.cpp clear)
-QVR_CVAR(vr_carry_two_hands_window, "0.1", CVAR_ARCHIVE) // seconds between the two hands letting go that still make a two-handed throw
 QVR_CVAR(vr_held_fit_gaps, "", CVAR_ARCHIVE)          // ... and per model, added: "name=cm ...", a name matching the end of the model's (e.g. "backpack.mdl=0.5 b_bh25.bsp=-0.3")
 QVR_CVAR(vr_forcegrab_outline, "1", CVAR_ARCHIVE)     // the glow round what a hand's force grab points at (strength, 0 off)
 QVR_CVAR(vr_forcegrab_fx, "1", CVAR_ARCHIVE)          // force grab's beam and energy tendril from the hand, and the pulled object's trail
@@ -2328,7 +2334,6 @@ QVR_CVAR(vr_carry_move_mass, "100", CVAR_ARCHIVE) // kg of solid carried props w
 QVR_CVAR(vr_carry_move_size, "1", CVAR_ARCHIVE) // metres of carried props' longest dimensions without bulk load; twice this halves speed; 0 disables bulk load
 QVR_CVAR(vr_carry_move_min, "0.35", CVAR_ARCHIVE) // minimum stick locomotion fraction under carry load; 1 disables carry slowdown
 QVR_CVAR(vr_carry_throw_mult, "1", CVAR_ARCHIVE)      // how fast they leave the hand
-QVR_CVAR(vr_carry_throw_inherit, "1", CVAR_ARCHIVE)   // share of your own velocity a thing you throw or let go of takes with it (as a thrown weapon; 0: none, as before)
 QVR_CVAR(vr_carry_melee_mult, "1.5", CVAR_ARCHIVE)    // punches with a box in hand hurt this much more
 QVR_CVAR(vr_carry_throw_damage, "8", CVAR_ARCHIVE)    // damage of a box thrown hard (at about 6 m/s; more the faster)
 // A heavy prop thrown (QC vr_carry.qc VR_Thrown_HeavyMult; NOTES.md vrfiringrange_2026-10-07_23-00-55: a barrel thrown with
