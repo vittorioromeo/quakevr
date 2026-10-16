@@ -630,7 +630,6 @@ void resetHandMoves()
         slider("Draw Blend Time", "vr_weapon_draw_blend", 0.f, 1.f, 0.05f, "%.2f s").help("A gun drawn from a holster eases from its holstered pose into your hand over this time, turning the shortest way (0: at once). It fires at once: only its look eases."),
         slider("Holster Blend Time", "vr_weapon_holster_blend", 0.f, 1.f, 0.05f, "%.2f s").help("A gun put in a holster eases from your hand into its holstered pose over this time (0: at once)."),
         toggle("Weapon Cycle Mode", "vr_weapon_cycle_mode").help("Allows or disallows cycling weapons using controller buttons."),
-        cycle("Weapon Throw Mode", "vr_weapon_throw_mode", {{0.f, "Immersive"}, {1.f, "Vanish on Hit"}, {2.f, "Discard"}}).help("Immersive: thrown weapons can be picked back up. Vanish on Hit and Discard avoid piles of weapons with Quick Slots."),
         open("Throw Damage: Weapon Damage", pageIndex(pageWeaponDamage)).help("The damage of thrown weapons is on Combat > Weapon Damage (All Throws)."),
         slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend()
             .help("How fast what you throw flies, times your hand's speed."),

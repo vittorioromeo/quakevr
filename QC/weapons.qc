@@ -5567,11 +5567,6 @@ vector(vector xAVel) VRThrowSpinCapped =
     return xAVel;
 }
 
-float() getWeaponThrowMode =
-{
-    return cvar_hget(cvarh_vr_weapon_throw_mode);
-}
-
 // `xVelScale`: times the throw's velocity and spin (1: thrown; vr_weight_drop_velocity: wrenched out, the grip lost
 // rather than a throw, which the throw assist does not aim either).
 // The hand's weapon (`xWeapon`, `xWeaponFlags`: the hand's) thrown or dropped: a prop, with the hand's record (its
@@ -5660,17 +5655,12 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
         sound(ent, VRGetGunChannel(xHand), "misc/null.wav", 1, ATTN_NORM);
     }
 
-    entity thrown = world;
-    float throwMode = getWeaponThrowMode();
-    if(throwMode == QVR_WEAPONTHROWMODE_IMMERSIVE || throwMode == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
-    {
-        thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, inst,
-            origin, throwRot,
-            throwVelUnits, '0 0 0',
-            throwMode == QVR_WEAPONTHROWMODE_DISAPPEARONHIT /* disappear on hit */,
-            TRUE /* deal damage */,
-            WeaponIdToThrowDamage(xWeapon));
-    }
+    entity thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, inst,
+        origin, throwRot,
+        throwVelUnits, '0 0 0',
+        FALSE /* disappear on hit */,
+        TRUE /* deal damage */,
+        WeaponIdToThrowDamage(xWeapon));
 
     if(thrown != world)
     {
@@ -5715,7 +5705,6 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
         dprint(sprintf("thrown spin: %.2f rad/s, %.1f deg off end over end; hand %v, angles %v\n", spinRate, spinOff,
             VRGetHandRot(xHand), thrown.angles));
     }
-    // (QVR_WEAPONTHROWMODE_DISCARD: nothing is thrown, the weapon is gone.)
 
     VR_SoundVaried(ent, VRGetHandChannel(xHand), "knight/sword2.wav", 0.7, ATTN_NORM);
     VRSetHandEmpty(ent, xHand);

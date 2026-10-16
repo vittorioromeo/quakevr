@@ -2875,7 +2875,6 @@ QVR_CVAR(vr_leg_holster_model_x_offset, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_y_offset, "1.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_z_offset, "2.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_mode, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_weapon_throw_mode, "0", CVAR_ARCHIVE)
 // 0: a weapon is dropped (thrown) as soon as its grip is let go; 1: it stays in the hand, and
 // is thrown (or holstered) when the grip is let go after gripping it again.
 QVR_CVAR(vr_weapon_grip_mode, "0", CVAR_ARCHIVE)

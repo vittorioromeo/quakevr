@@ -162,7 +162,6 @@ float cvarh_vr_melee_positional;
 float cvarh_vr_hit_head_priority;
 float cvarh_vr_weapon_cycle_mode;
 float cvarh_vr_weapon_throw_damage_mult;
-float cvarh_vr_weapon_throw_mode;
 float cvarh_vr_weapon_throw_velocity_mult;
 float cvarh_vr_weapondrop_particles;
 float cvarh_vr_2h_spread_reduction;
@@ -1019,7 +1018,6 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_positional_damage);
     VR_CVAR_HMAKE(vr_weapon_cycle_mode);
     VR_CVAR_HMAKE(vr_weapon_throw_damage_mult);
-    VR_CVAR_HMAKE(vr_weapon_throw_mode);
     VR_CVAR_HMAKE(vr_weapon_throw_velocity_mult);
     VR_CVAR_HMAKE(vr_weapondrop_particles);
     VR_CVAR_HMAKE(vr_2h_spread_reduction);
