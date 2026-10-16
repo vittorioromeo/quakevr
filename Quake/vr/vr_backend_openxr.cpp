@@ -13,6 +13,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_input.hpp"
+#include "vr_main.hpp"
 #include "vr_profile.hpp"
 #include "vr_tracy.h"
 #include "vr_xr_runtime.hpp"
@@ -794,7 +795,14 @@ private:
                 const CallTime& c = timing.calls[i];
                 line += va(" %s %.2f/%.2f", names[i], c.sum / za::max(timing.frames, 1), c.max);
             }
-            line += va("; %s\n", stateName(sessionState));
+            // (The desktop window's focus too: a driver's cap on a background window's presents showed as xrEndFrame's
+            // time, 10 fps, the session FOCUSED.)
+            line += va("; %s", stateName(sessionState));
+            if(windowUnfocused())
+            {
+                line += va("; window unfocused, %d presents skipped", presentsSkipped());
+            }
+            line += "\n";
             xrruntime::logLine(line.cStr());
         }
         const XrTime lastDisplay = timing.lastDisplay;

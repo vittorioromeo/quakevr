@@ -94,6 +94,7 @@ typedef enum
 
 void		*VID_GetWindow (void);
 qboolean	VID_HasMouseOrInputFocus (void);
+qboolean	VID_HasInputFocus (void); // QVR: the keyboard's focus alone
 qboolean	VID_IsMinimized (void);
 void		VID_Lock (void);
 void		VID_SetWindowTitle (const char *title);

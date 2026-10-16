@@ -60,6 +60,7 @@ int VR_Unpaced (void);		// nonzero while the mock headset runs frames unpaced (v
 int VR_SkipScreen (void);	// SCR_UpdateScreen: nonzero to skip this frame's drawing (vr_mock_fast 2: unpaced
 							// frames aren't drawn)
 void VR_HeadlessView (void);	// ... and instead: the eyes' views and view entities set up (what the game reads), no GL
+int VR_DebugWindowUnfocused (void); // main loop: vr_debug_window_unfocused (the flat screen's background sleep, tests)
 int VR_SkipSwap (void);		// GL_EndRendering: nonzero to leave this frame unpresented (unpaced frames present
 							// ten a second: a present waits for the display's refresh, the bulk of such a frame)
 void VR_FrameDrawn (void);	// GL_EndRendering, before the present: vr_screenshot_frames's screenshot of it

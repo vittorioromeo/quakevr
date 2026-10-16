@@ -535,6 +535,13 @@ QVR_CVAR(vr_xr_exit_quits, "1", CVAR_ARCHIVE)
 // Debug: 1 the game acts as if the runtime's menu had the focus (vr_xr_unfocused_pause's pause, on any backend: the
 // mock's too); 0 only the runtime says.
 QVR_CVAR(vr_debug_runtime_menu, "0", CVAR_NONE)
+// Debug: 1 the game acts as if its desktop window had lost the keyboard's focus (another program's window in front):
+// the menus' warning, the flat screen's background sleep, the mirror's presents (vr_mirror_unfocused_hz); 0 the window says.
+QVR_CVAR(vr_debug_window_unfocused, "0", CVAR_NONE)
+// While VR runs and the desktop window lacks the focus: the mirror presented at most this many times a second (0: every
+// frame). The GPU driver may cap an unfocused window's presents (NVIDIA's Background Application Max Frame Rate), and
+// the wait for it held the headset's frames to that rate (10 fps, then Virtual Desktop stopped the session).
+QVR_CVAR(vr_mirror_unfocused_hz, "4", CVAR_ARCHIVE)
 // The eye images' size, times the runtime's recommended (each side; SteamVR's includes its own resolution setting, 150%
 // of the panel's area on Auto), at the next VR start: smaller images cost less to render, copy (SteamVR's OpenGL path
 // copies each into its own textures) and keep in video memory. 0.5 .. 1.

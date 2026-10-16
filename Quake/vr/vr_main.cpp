@@ -1885,6 +1885,34 @@ extern "C" void VR_NewMap()
 namespace
 {
 int framesToShoot = 0;
+
+// vr_debug_clock: the host's frame count and the wall clock (ms), and, from the previous call, the frames' mean period:
+// `vr_debug_clock;wait120;vr_debug_clock` measures a throttle (vr_debug_window_unfocused) in a test run.
+struct DebugClock
+{
+    int frame = -1;
+    double seconds = 0.0;
+};
+DebugClock debugClock;
+void debugClock_f()
+{
+    const double now = Sys_DoubleTime();
+    DebugClock& c = debugClock;
+    const int frames = host_framecount - c.frame;
+    if(c.frame >= 0 && frames > 0)
+    {
+        Con_Printf("vr_debug_clock: frame %d, %.1f ms; %d frames since, period %.2f ms (VR %s, window %s)\n",
+            host_framecount, now * 1000.0, frames, (now - c.seconds) * 1000.0 / frames, vrActive() ? "on" : "off",
+            windowUnfocused() ? "unfocused" : "focused");
+    }
+    else
+    {
+        Con_Printf("vr_debug_clock: frame %d, %.1f ms\n", host_framecount, now * 1000.0);
+    }
+    c.frame = host_framecount;
+    c.seconds = now;
+}
+
 void screenshotFrames_f()
 {
     framesToShoot = Cmd_Argc() > 1 ? CLAMP(0, Q_atoi(Cmd_Argv(1)), 600) : 1;
@@ -1927,6 +1955,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);
     Cmd_AddCommand("vr_screenshot_frames", screenshotFrames_f);
+    Cmd_AddCommand("vr_debug_clock", debugClock_f);
     menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
     toolgun::registerCommands();
@@ -2203,8 +2232,15 @@ struct UnpacedSwap
 {
     double lastPresent = 0.0; // the last frame presented (Sys_DoubleTime)
     bool vsyncOff = false;    // vsync turned off for unpaced frames
+    int skipped = 0;          // frames left unpresented (the timing log's mirror count, while unfocused)
 };
 UnpacedSwap unpacedSwap;
+// QVR_TEST_BACKGROUND, read once (windowUnfocused: every frame).
+struct WindowFocusCache
+{
+    bool testBackground = getenv("QVR_TEST_BACKGROUND") != nullptr;
+};
+WindowFocusCache windowFocusCache;
 } // namespace
 
 extern "C" void VR_FrameDrawn()
@@ -2219,18 +2255,50 @@ extern "C" void VR_FrameDrawn()
     }
 }
 
+bool qvr::windowUnfocused()
+{
+    if(vr_debug_window_unfocused.value != 0.f)
+    {
+        return true;
+    }
+    // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise.)
+    return !windowFocusCache.testBackground && !VID_HasInputFocus();
+}
+
+int qvr::presentsSkipped()
+{
+    return unpacedSwap.skipped;
+}
+
+extern "C" int VR_DebugWindowUnfocused()
+{
+    return vr_debug_window_unfocused.value != 0.f ? 1 : 0;
+}
+
 extern "C" int VR_SkipSwap()
 {
     // vr_mock_fast: a present waits for the display's refresh (vsync off or not: the compositor's pace in a window),
     // most of an unpaced frame. Present ten times a second: the window still shows the run.
+    // In VR with the window unfocused, the mirror's presents are thinned (vr_mirror_unfocused_hz): the driver's cap on
+    // a background window's frame rate must not hold the headset's frames.
     double& lastPresent = unpacedSwap.lastPresent;
-    if(!VR_Unpaced())
+    double interval = 0.0;
+    if(VR_Unpaced())
+    {
+        interval = 0.1;
+    }
+    else if(vrActive() && vr_mirror_unfocused_hz.value > 0.f && windowUnfocused())
+    {
+        interval = 1.0 / vr_mirror_unfocused_hz.value;
+    }
+    else
     {
         return 0;
     }
     const double now = Sys_DoubleTime();
-    if(now - lastPresent < 0.1)
+    if(now - lastPresent < interval)
     {
+        unpacedSwap.skipped++;
         return 1;
     }
     lastPresent = now;

@@ -19,6 +19,12 @@ namespace qvr
 
 [[nodiscard]] bool vrActive();
 
+// The game's desktop window lacks the keyboard's focus (another program's window in front), or vr_debug_window_unfocused
+// says so; a test run's hidden window (QVR_TEST_BACKGROUND) counts as focused. And the frames left unpresented so far
+// (VR_SkipSwap: vr_mock_fast's, the unfocused mirror's).
+[[nodiscard]] bool windowUnfocused();
+[[nodiscard]] int presentsSkipped();
+
 // The running backend (null when VR is off) and its current frame.
 [[nodiscard]] Backend* backend();
 // A backend (re)start asked for (start-up, a vr_backend change) and not yet made: it happens at the next frame's start.

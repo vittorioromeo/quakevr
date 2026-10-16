@@ -1258,7 +1258,8 @@ struct MenuUiScratch
     za::Vector<gfx::Vertex> frame; // (the panel's frame, lit under the laser or held)
     za::Vector<gfx::Vertex> preview;
     za::Vector<za::String> status;
-    auto members() { return qvr::mem::list(laser, frame, preview, status); }
+    za::Vector<za::String> statusOwn; // (statusLines's, after the unfocused window's warning)
+    auto members() { return qvr::mem::list(laser, frame, preview, status, statusOwn); }
 };
 mem::Scratch<MenuUiScratch> scratch{"menu laser"};
 
@@ -1757,7 +1758,7 @@ bool toolbarBeside()
 
 float statusBottom(float contentRight)
 {
-    if(!vr_menu_status.value || statusBox.lines <= 0)
+    if(statusBox.lines <= 0) // (none drawn: vr_menu_status 0 and the window focused)
     {
         return -1e9f;
     }
@@ -2553,15 +2554,35 @@ void drawRecordingIcon(const Painter& p, float x, float yc, const glm::vec4& ink
 // lines (qvr::statusLines) in small letters on a box like the corner's buttons.
 extern "C" void VR_MenuDrawStatus()
 {
-    if(!vr_menu_status.value || M_WaitingForKeyBinding())
+    // The desktop window without the focus: a warning first (white on red), with the box's lines or alone.
+    const bool unfocused = windowUnfocused();
+    if((!vr_menu_status.value && !unfocused) || M_WaitingForKeyBinding())
     {
+        statusBox.lines = M_WaitingForKeyBinding() ? statusBox.lines : 0;
         return;
     }
     GL_SetCanvas(CANVAS_MENU);
     auto& lines = scratch.status;
-    statusLines(lines);
+    auto& own = scratch.statusOwn;
+    lines.clear();
+    if(unfocused)
+    {
+        lines.pushBack(za::String{"! Game window not focused:"});
+        lines.pushBack(za::String{"! input/performance may suffer;"});
+        lines.pushBack(za::String{"! click the game's desktop window"});
+    }
+    const za::SizeT ownFirst = lines.size(); // (the mode's line)
+    if(vr_menu_status.value)
+    {
+        statusLines(own);
+        for(const za::String& line : own)
+        {
+            lines.pushBack(line);
+        }
+    }
     if(lines.empty())
     {
+        statusBox.lines = 0;
         return;
     }
     const Painter p;
@@ -2604,7 +2625,7 @@ extern "C" void VR_MenuDrawStatus()
         for(const char* c = lines[i].cStr(); *c; c++, x += size)
         {
             // The first line (the mode) white, the rest in the menus' tan.
-            Draw_CharacterEx(x, ym - size * 0.5f, size, size, i == 0 || warning ? *c : (*c | 128));
+            Draw_CharacterEx(x, ym - size * 0.5f, size, size, i == ownFirst || warning ? *c : (*c | 128));
         }
     }
 }
