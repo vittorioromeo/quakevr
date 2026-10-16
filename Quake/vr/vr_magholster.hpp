@@ -5,9 +5,10 @@
 //   bound, and handed to the QC (the magholsterpoll builtin): the QC binds that holster's weapon, or unbinds it;
 // - the chains showing a binding (vr_magholster_style): a lanyard, a short chain hanging off the bound weapon wherever it
 //   is (holstered, held, lying about, flying back), a stub of it hanging at its holster while the weapon is away; a
-//   tether, a chain from the holster to the weapon while it lies about or flies back; or both. The flashlight's chain
-//   (vr_coil.cpp), its links sized by vr_magholster_chain_size, lit and depth-tested in each eye's opaque scene,
-//   see-through below vr_magholster_chain_alpha 1.
+//   tether, a chain from the holster to the weapon whenever it is out of it (held too), faded past its reach; or both.
+//   The flashlight's chain (vr_coil.cpp, rigid: iron that keeps its length), its links sized by
+//   vr_magholster_chain_size, lit and depth-tested in each eye's opaque scene, see-through below
+//   vr_magholster_chain_alpha 1.
 
 #pragma once
 

@@ -5419,6 +5419,9 @@ za::Vector<Item> pageDebugViews()
                   "is (holstered, held, away and how far), its chains and their links."),
         command("Magnetic Holsters: All Home", "vr_magholster_return")
             .help("vr_magholster_return: every bound weapon lying about flies back to its holster now (if it is empty)."),
+        toggle("Magnetic Holster Chain Log", vr_magholster_chain_log)
+            .help("vr_magholster_chain_log: each frame, in the console, every magnetic holster chain's worst link stretch (a share), "
+                  "and its most movement and jerk off its anchor (mm); a jump that starts it afresh."),
         command("Probe Flashlight", "vr_flashlight_probe menu")
             .help("vr_flashlight_probe: in the console, where the torch is, whether each hand is at it (lit, as the game "
                   "reads the hand, still), whether B/Y would clip it on the head or a gun, and the player's speed and turn."),
