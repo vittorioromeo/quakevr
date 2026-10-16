@@ -5267,7 +5267,7 @@ void MakeThrown(entity newmis,
     setsize(newmis, -tmp_bounds, tmp_bounds);
     setorigin(newmis, xOrigin);
 
-    newmis.velocity = xThrowVel + thrower.velocity;
+    newmis.velocity = xThrowVel + thrower.velocity * VR_Throw_Inherit(thrower); // (a player's: vr_throw_inherit of it)
 
     // Thrown hard (as fast as a carried thing must be let go of to be a missile: VR_THROW_MISSILE_SPEED, a heavy one's
     // less), it spares its thrower only for vr_throw_self_grace (VR_Throw_SelfStart): thrown up, it can fall back on
@@ -5588,7 +5588,11 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
     float throwHands = 1;
     vector throwVel;
     vector throwFlick;
-    if(time - self.last_2h_time < 0.3)
+    if(self.last_2h_time > 0 && time - self.last_2h_time < 1)
+    {
+        dprint(sprintf("throw: a weapon held in both hands until %.3f s ago\n", time - self.last_2h_time));
+    }
+    if(VR_Throw_2hRecent(self.last_2h_time)) // (its foregrip let go of within vr_throw_2h_window: vr_carry.qc)
     {
         twoHThrowVelMult = cvar_hget(cvarh_vr_2h_throw_velocity_mult);
         throwVel = VRGetHandThrowVel(xHand) + VRGetHandThrowVel(VRGetOtherHand(xHand));
@@ -5616,33 +5620,11 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
 
     float throwGravity = VR_Throw_Gravity();
 
-    // It left the hand a moment ago (the release lags the throw, and the move carrying it is
-    // later still, by a frame or two: more at a low frame rate): start where it would be by now, not
-    // where the hand followed through to. (It used to start at the hand when that was over 0.15 s, which
-    // a low frame rate reached: those throws came out of the follow-through, lower and behind.) What it
-    // would have flown into on the way, it starts at.
+    // It left the hand a moment ago: it starts where it would be by now (vr_carry.qc VR_Throw_BackProject, a prop's too).
     vector handNow = VRGetHandPos(xHand);
-    vector origin = handNow;
-    float age = min(0.3, VRGetHandThrowAge(xHand));
-    if(VRGetHandThrowPos(xHand) != '0 0 0' && age >= 0)
-    {
-        vector from = VRGetHandThrowPos(xHand);
-        origin = from + throwVelUnits * age;
-        origin_z = origin_z - 0.5 * throwGravity * age * age;
-        throwVelUnits_z = throwVelUnits_z - throwGravity * age;
-
-        traceline(from, origin, MOVE_HITMODEL_THROWN, ent);
-        if(trace_fraction < 1 && trace_ent.takedamage && trace_ent != world)
-        {
-            origin = trace_endpos - normalize(origin - from) * 2; // a monster on the way: hit it next
-        }
-        traceline(handNow, origin, TRUE, ent); // never inside a wall
-        origin = trace_endpos;
-        if(trace_fraction < 1)
-        {
-            origin = origin - normalize(origin - handNow) * 2;
-        }
-    }
+    vector origin = VR_Throw_BackProject(ent, xHand, handNow, handNow, throwVelUnits, '0 0 0', '0 0 0', throwGravity);
+    throwVelUnits = vr_throw_vel;
+    float age = vr_throw_age;
 
     // Carried off its handle (the hand-off, a hotspot, anywhere: QVR_WPNFLAG_FOREGRIP_CARRIED): it leaves from where it
     // is drawn, not as if held by its handle (the local player's view knows; else from the hand).

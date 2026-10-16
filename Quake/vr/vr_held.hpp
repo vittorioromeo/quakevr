@@ -89,7 +89,7 @@ void viewPush(int hand, const glm::vec3& push);
 
 // Client side: the throw estimate of `hand` (tracking clock `at`) holding a prop in both hands: the prop's own motion
 // from both hands (throwing::estimateBothAt). `release`: the hand lets go now, of a prop held in both, or held in both
-// until the other let go at most vr_carry_two_hands_window before (a two-handed throw); else the estimate as if let
+// until the other let go at most vr_throw_2h_window before (a two-handed throw); else the estimate as if let
 // go now, while held in both. False: not held in both (the hand's own estimate stands).
 bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 

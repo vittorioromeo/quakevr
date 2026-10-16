@@ -802,8 +802,14 @@ const DefaultChange defaultChanges[] = {
     {140, &vr_knockdown_time_max, "4.5"},           // 3.5
     // 141: his ragdoll hand-follow value (2026-10-16: "I like if the hand follows the ragdoll more accurately").
     {141, &vr_ragdoll_hand_stick, "4"},             // 30
+    // 142: one throw for props and weapons (2026-10-16, R2 review #13; ROUND22.md, "One throw for props and weapons"):
+    // one two-handed window (vr_carry_two_hands_window was the props', 0.1; the weapons' a hard-coded 0.3) and one share
+    // of the thrower's velocity (vr_carry_throw_inherit was the props', 1; the weapons' all of it). The old names set
+    // the new settings (cvarAliases) as an old config is executed; at their old defaults they take the new ones.
+    {142, &vr_throw_2h_window, "0.1"},              // 0.2
+    {142, &vr_throw_inherit, "1"},                  // 0.9
 };
-constexpr int configVersion = 141;
+constexpr int configVersion = 142;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -1280,6 +1286,9 @@ constexpr CvarAlias cvarAliases[] = {
     {"vr_slipgate_surface_size", "vr_teleporter_surface_size"},
     {"vr_slipgate_surface_opacity", "vr_teleporter_surface_opacity"},
     {"vr_slipgate_surface_fade", "vr_teleporter_surface_fade"},
+    // 2026-10-16: one throw for props and weapons (config 142; ROUND22.md, "One throw for props and weapons").
+    {"vr_carry_two_hands_window", "vr_throw_2h_window"},
+    {"vr_carry_throw_inherit", "vr_throw_inherit"},
 };
 
 extern "C" const char* VR_CvarAlias(const char* name)

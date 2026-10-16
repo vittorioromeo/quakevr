@@ -2257,7 +2257,7 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
     const int ent = carried[hand];
     const bool inBoth = ent && carried[1 - hand] == ent;
     const BothRelease& other = bothRelease[1 - hand];
-    const double window = za::fmax(vr_carry_two_hands_window.value, 0.f);
+    const double window = za::fmax(vr_throw_2h_window.value, 0.f);
     const bool afterOther = release && ent && other.ent == ent && at - other.at >= -0.02 && at - other.at <= window;
     if(!inBoth && !afterOther)
     {
