@@ -58,7 +58,7 @@ float(string c, float t) VR_GunPrep_MonsterWid =
     if(c == "monster_enforcer")                             { return WID_ENFRIFLE; }
     if(c == "monster_knight" || c == "monster_hell_knight") { return WID_SWORD; }
     if(c == "monster_ogre" || c == "monster_ogre_marksman") { return WID_CHAINSAW; }
-    if(t)
+    if(t) // AD support: an AD monster's gun by its classtype (vr_ad_enemyguns.qc)
     {
         return max(0, VR_ADGun_ForClass(t));
     }

@@ -98,7 +98,7 @@ void(float ad_side, float ad_dmgmultipler) ad_chainsaw =
 	if (self.health < 1) return;
 
 	ad_ai_damagebreakable(20);							// Damage any breakables
-	if (!(ad_ai_checkmelee(self.ad_meleerange,ad_FALSE) && VR_MeleeArc_Hits(TRUE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(self.ad_meleerange,ad_FALSE) && VR_MeleeArc_Hits(ad_TRUE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed? - generate blood
 	if (!ad_CanDamage (self.enemy, self)) return;

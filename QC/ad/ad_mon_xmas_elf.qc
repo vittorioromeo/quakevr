@@ -153,7 +153,7 @@ void() ad_elf_melee =
 		
 	ad_ai_charge(10);
 	ad_ai_damagebreakable(10);
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEEELF,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return; // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEEELF,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return; // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed?
 	if (!self.enemy.takedamage) return;

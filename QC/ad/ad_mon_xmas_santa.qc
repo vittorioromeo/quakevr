@@ -146,7 +146,7 @@ void() ad_SantaMelee =
 		
 	ad_ai_charge(10);	// + ai_face()
 	ad_ai_damagebreakable(50);
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEESANTA,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return; // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEESANTA,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return; // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed?
 	if (!self.enemy.takedamage) return;
