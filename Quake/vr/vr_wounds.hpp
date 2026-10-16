@@ -54,42 +54,14 @@ void clear();
 // How many models have a mask now (vr_scene_count).
 [[nodiscard]] int liveCount();
 
-// vr_wounds_test <entity|self|ahead|nearest> <kind> [amount] [right] [up]: a wound as the server would send it, on entity
-// number n (or the player; the model nearest the view's line; the monster model nearest the view), from the view (the player: from ahead), kind QVR_WOUND_* (1 shot .. 9 liquid), `right`/`up` units
-// off the model's middle (a liquid: `up` is its surface's height over the model's feet).
-void test_f();
-
-// vr_wounds_dump: every mask in use written to <gamedir>/wounds/mask_<layer>_<model>.png (r blood, g char, b wetness,
-// heat as white), laid out as its skin.
-void dump_f();
-
-// vr_wounds_info: the pool (layers used, what they are on) and the last paint's cost.
-void info_f();
-
 // The gore's bloody hands and washing (vr_gore_hands, vr_gore_wash*, vr_gore_reopen*; vr_wounds.cpp): with the wound
 // skins (vr_wounds 0), the damage skin the player's `part` (0 the off hand, 1 the main hand, 2 the body), drawn at
 // `origin` (null: unknown), shows for the damage skin `level`: none after a wash until the wounds re-open (or a new
 // hit), at least a bloody one while a gib's blood is on a hand.
 [[nodiscard]] int skinLevel(int part, int level, const float* origin);
 
-// vr_gore_hands_test [off|main] [amount]: a gib's blood on a hand, as taking one (the main hand; vr_gore_hands).
-void handsTest_f();
-// vr_wrist_blood_test hand|arm [main|off]: one wound at the shared hand/arm seam.
-void wristTest_f();
-
-// vr_gore_wash_test [amount]: `amount` (0.25) of the blood washed off your hands and body at once, as water over them
-// would (vr_gore_wash_once: each texel once).
-void washTest_f();
-
-// vr_gore_hands_info: the player's wounds kept to re-open, the wash, the blood on the hands and the body (texels), and
-// on your gear (vr_gore_gear: the weapons and props you hold or held).
-void handsInfo_f();
-
-// vr_gore_spatter_test [blow|saw|shot|gib] [distance]: blood thrown onto you as by a blow `distance` units ahead of what
-// the main hand holds (6), a chainsaw's cut there, a shot hitting `distance` ahead of the eyes (40), a gib striking the
-// main hand (vr_gore_spatter*; ROUND21.md, "Blood on you, your weapons and props"). `arm [main|off] [count]`: `count`
-// (3) bleeding marks on that forearm alone, as wounds spread them (one arm's never on the other: ROUND21.md, "Chunky
-// arms on their own texels").
-void spatterTest_f();
+// The test and report commands (vr_wounds_test, _dump, _info; vr_gore_hands_test, vr_wrist_blood_test, vr_gore_wash_test,
+// vr_gore_hands_info, vr_gore_spatter_test; vr_wounds_diag.cpp), where their usage is.
+void registerDiagCommands();
 
 } // namespace qvr::wounds

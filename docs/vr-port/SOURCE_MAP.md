@@ -53,6 +53,30 @@ in files by area. This map lists the parts; each part's first comment says the s
 | vr_view_hands.cpp | fingers and grasps, pushing against walls and props, the rigged hand, ground and free spots, limb holds, setupHand, drawHand |
 | vr_view_diag.cpp | debug and test commands (model reload, grasp dump/bench/sweep, ragdoll hand probe, hotspot fit and checks, anchorWhere, posing checks, dumpView) and view::registerDiagCommands |
 
+## Test and bench commands in `*_diag.cpp` (round 22)
+
+Pure moves, same pattern: the module's test, bench, report and recorder commands (their code and registration) moved
+out of the gameplay file; no command renamed, no behaviour changed. Each has a `vr_<module>_internal.hpp` with what
+the two files share (namespace `<module>::detail`, brought in with a using-directive; variables `inline`; functions
+declared there, defined where they were) and a `registerDiagCommands()` called from the module's own registration
+(vr_main.cpp calls `hitmodel::`, `wounds::` and `qza::registerDiagCommands`).
+
+| file | holds |
+|---|---|
+| vr_hull_diag.cpp | vr_hull_cachetest/_preloadtest/_stats/_keeptest/_bench/_walktest/_probe/_leafdebug/_approach/_hittest, vr_mhull_walktest, the walk drivers (walkTestFrame, monsterWalkFrame); vr_hull.cpp keeps vr_hull_warmcache, vr_mhull_reset, vr_crouch_status |
+| vr_wounds_diag.cpp | vr_wounds_test/_dump/_info, vr_gore_hands_test/_info, vr_wrist_blood_test, vr_gore_wash_test, vr_gore_spatter_test |
+| vr_jobs_diag.cpp | vr_jobs_info/_sites/_bench/_test |
+| vr_weight_diag.cpp | vr_weight_test, vr_weight_table, vr_throw_table |
+| vr_hitmodel_diag.cpp | vr_hitmodel_stats/_check/_bench, vr_hitzones_check |
+| vr_brushes_diag.cpp | vr_brush_selftest, vr_brush_trace |
+| vr_animsmooth_diag.cpp | vr_anim_smooth_pin/_info/_check/_trace |
+| vr_zancle_diag.cpp | vr_zancle_math_test (no internal header: it shares nothing) |
+| vr_ragdoll_diag.cpp | vr_drawn_motion_test (its recorder, recordMotion, and report) and vr_ragdoll_info; still registered in vr_box3d_diag.cpp |
+
+The build systems take the new files by wildcard (vr.cmake and vr.mk glob `vr/*.cpp`; the VS project's quakevr.props
+includes `Quake\vr\*.cpp`), so none lists them. Test and bench registrations still in vr_main.cpp belong to modules not in
+this pass (modelcollide, selfcollide, modelmetadata, gore, decals, ...).
+
 ## vr_menu (the VR menu; pages as builder functions)
 
 vr_menu.cpp keeps the menu's machinery (page table, presets, navigation, rows, drawing, commands). Its page builders

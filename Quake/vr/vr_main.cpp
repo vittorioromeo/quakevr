@@ -2024,25 +2024,15 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
     Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
-    Cmd_AddCommand("vr_hitmodel_bench", hitmodel::bench_f);
-    Cmd_AddCommand("vr_zancle_math_test", qza::mathTest_f);
-    Cmd_AddCommand("vr_hitmodel_stats", hitmodel::stats_f);
-    Cmd_AddCommand("vr_hitmodel_check", hitmodel::check_f);
-    Cmd_AddCommand("vr_hitzones_check", hitmodel::zonesCheck_f);
+    hitmodel::registerDiagCommands(); // vr_hitmodel_bench, _stats, _check, vr_hitzones_check (vr_hitmodel_diag.cpp)
+    qza::registerDiagCommands(); // vr_zancle_math_test (vr_zancle_diag.cpp)
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
-    Cmd_AddCommand("vr_wounds_test", wounds::test_f);
-    Cmd_AddCommand("vr_wounds_info", wounds::info_f);
+    wounds::registerDiagCommands(); // vr_wounds_test, _info, _dump, vr_gore_hands_*, vr_gore_wash_test... (vr_wounds_diag.cpp)
     Cmd_AddCommand("vr_gore_dents_info", dents::info_f);
-    Cmd_AddCommand("vr_gore_hands_test", wounds::handsTest_f);
-    Cmd_AddCommand("vr_wrist_blood_test", wounds::wristTest_f);
-    Cmd_AddCommand("vr_gore_wash_test", wounds::washTest_f);
-    Cmd_AddCommand("vr_gore_hands_info", wounds::handsInfo_f);
-    Cmd_AddCommand("vr_gore_spatter_test", wounds::spatterTest_f);
     Cmd_AddCommand("vr_cleanskins", cleanskins::list_f);
     Cmd_AddCommand("vr_gore_mist_test", particles::mistTest_f);
     Cmd_AddCommand("vr_particle_light_report", particles::lightReport_f);
     Cmd_AddCommand("vr_hotblade_report", hotblade::report_f);
-    Cmd_AddCommand("vr_wounds_dump", wounds::dump_f);
     Cmd_AddCommand("vr_test_remove", progs::testRemove_f);
     Cmd_AddCommand("vr_model_check", progs::modelCheck_f);
     Cmd_AddCommand("vr_test_dialog", testDialog_f);

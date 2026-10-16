@@ -334,9 +334,6 @@ template <typename F>
 void start();            // VR_Init: the game's pool made
 void registerCommands(); // vr_jobs_threads, vr_jobs_parallel; vr_jobs_info, vr_jobs_sites, vr_jobs_bench,
                          // vr_jobs_test
-void info_f();
-void test_f();
-void sites_f();
-void bench_f();
+void registerDiagCommands(); // vr_jobs_info, vr_jobs_sites, vr_jobs_bench, vr_jobs_test (vr_jobs_diag.cpp)
 
 } // namespace qvr::jobs
