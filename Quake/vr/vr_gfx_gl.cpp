@@ -617,7 +617,9 @@ bool halfDepthCompositeFailed = false;
 // Its framebuffer: the scene's colour alone (its depth is read), attached at each use (GL reuses a deleted texture's
 // name: the scene's targets made again at another size can come back under the same one).
 GLuint halfCompositeFbo = 0;
-GLuint halfCompositeColor = 0; // the colour texture last found complete with it (checked once a texture)
+// The colour textures last found complete with it (checked once a texture): two, as single-pass stereo gives each eye
+// its own.
+GLuint halfCompositeColor[2] = {};
 constexpr float halfDepthTolerance = 0.1f; // a texel is at a pixel's distance within this much of it (and 8 units) of the nearest
 
 // drawReverseOrder's (vr_particle_saturate): the particles composited in reverse order ("under": the last drawn,
@@ -1531,7 +1533,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     }
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, halfCompositeFbo);
     GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
-    if(color != halfCompositeColor)
+    if(color != halfCompositeColor[0] && color != halfCompositeColor[1])
     {
         // (A glCheckFramebufferStatus waits for the driver's thread: once a colour texture.)
         if(GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -1540,7 +1542,8 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
             return false;
         }
-        halfCompositeColor = color;
+        halfCompositeColor[1] = halfCompositeColor[0];
+        halfCompositeColor[0] = color;
     }
     foveated::shadeBoundAsScene(true); // its pixels are the scene's: shaded at its rates (vr_foveated), as before
     GL_UseProgram(halfDepthCompositeProgram);
