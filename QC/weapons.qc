@@ -6577,6 +6577,33 @@ float() VRMetersToUnits =
     return cvar_hget(cvarh_vr_world_scale) / (1.5 * 0.0254);
 }
 
+// Shared by the two throws (DropWeaponInHandScaled; vr_carry.qc VR_Carry_Throw). The units/s^2 a thrown weapon or
+// prop falls at: vr_throw_gravity (m/s^2) when set, else the world's.
+float() VR_Throw_Gravity =
+{
+    if(cvar_hget(cvarh_vr_throw_gravity) > 0)
+    {
+        return cvar_hget(cvarh_vr_throw_gravity) * VRMetersToUnits();
+    }
+    return cvar_hget(cvarh_sv_gravity);
+};
+
+// The .gravity that makes a thrown thing fall at VR_Throw_Gravity (0: no world gravity to scale, leave it).
+float() VR_Throw_GravityScale =
+{
+    if(cvar_hget(cvarh_sv_gravity) > 0)
+    {
+        return VR_Throw_Gravity() / cvar_hget(cvarh_sv_gravity);
+    }
+    return 0;
+};
+
+// A thrown thing's .throwdmgspeed: the same damage for the same hand speed as the old x120 scaling.
+float() VR_Throw_DmgSpeed =
+{
+    return 700 * VRMetersToUnits() / 120;
+};
+
 // `xInst`: the weapon's record (vr_weaponinst.qc): a hand's, moved to the prop, or a new weapon's (WeaponInst_New).
 entity(entity thrower, float xWeapon, float xWeaponFlags, entity xInst,
     vector xOrigin, vector xRotation,
@@ -6852,11 +6879,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
                       cvar_hget(cvarh_vr_weapon_throw_velocity_mult);
     vector throwVelUnits = asThrown * xVelScale;
 
-    float throwGravity = cvar_hget(cvarh_sv_gravity);
-    if(cvar_hget(cvarh_vr_throw_gravity) > 0)
-    {
-        throwGravity = cvar_hget(cvarh_vr_throw_gravity) * m2u;
-    }
+    float throwGravity = VR_Throw_Gravity();
 
     // It left the hand a moment ago (the release lags the throw, and the move carrying it is
     // later still, by a frame or two: more at a low frame rate): start where it would be by now, not
@@ -6945,12 +6968,12 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
 
         // (Its blood goes with it: its record, its id, vr_weaponinst.qc.)
 
-        // The same damage for the same hand speed as the old x120 scaling.
-        thrown.throwdmgspeed = 700 * m2u / 120;
+        thrown.throwdmgspeed = VR_Throw_DmgSpeed();
 
-        if(cvar_hget(cvarh_sv_gravity) > 0)
+        float gravityScale = VR_Throw_GravityScale();
+        if(gravityScale)
         {
-            thrown.gravity = throwGravity / cvar_hget(cvarh_sv_gravity);
+            thrown.gravity = gravityScale;
         }
 
         if(throwHands == 2 && xVelScale == 1)
