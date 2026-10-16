@@ -574,6 +574,7 @@ void() StartFrame =
     skill = cvar_hget(cvarh_skill);
     VR_CVars_Frame();
     VR_Stealth_Frame(); // QVR: the stealth AI switched off: the monsters back to Quake's AI (vr_stealth.qc)
+    VR_MeleeArc_ShowFrame(); // QVR: Show Melee Arcs: the arcs and reaches the engine draws (fight.qc)
     VR_Tutorial_Frame(); // QVR: Debug's Go to a Lesson (vrtutorial only: vr_tutorial.qc)
     VR_Trailer_Frame(); // QVR: the trailer scene's reset and log (vrtrailer only: vr_trailer.qc)
     MG_WorldFrame();

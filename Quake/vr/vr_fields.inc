@@ -226,3 +226,8 @@ QVR_FIELD(scale)
 
 // A monster in a melee attack: when (QC/fight.qc ai_charge and kin): kept out of the player's head (vr_bodycontact.cpp).
 QVR_FIELD(vr_melee_time)
+// Show Melee Arcs (vr_enemy_melee_arc_show; QC/fight.qc VR_MeleeArc_ShowFrame): a melee monster's arc and reach, drawn (vr_bodycontact.cpp).
+QVR_FIELD(vr_melee_arc)
+QVR_FIELD(vr_melee_arc_wide)
+QVR_FIELD(vr_melee_reach)
+QVR_FIELD(vr_melee_shown)

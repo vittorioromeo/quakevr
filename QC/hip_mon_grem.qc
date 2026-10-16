@@ -1635,7 +1635,7 @@ void(float side) Gremlin_Melee =
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 100)
+    if(vlen(delta) > VR_MeleeReach(100))
         return;
     if(!VR_MeleeArc_Hits(FALSE))
         return; // QVR: (melee arc: fight.qc)
