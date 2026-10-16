@@ -8631,9 +8631,41 @@ pr_edict.c's PR_LoadProgs; normal builds compile all of it out):
 
 Overhead (TRACY.md "QC zones": 2 reps, Release-Tracy depth 8, paced 90 Hz, connected capture): `QC VM` time a frame
 +0.03-0.11 ms at levels 1-3 against +0.6-1.0 ms with the old code (about 25-45 ns a zone against 400). Whole-frame CPU
-p50: the new levels within the fights' own +-0.3 ms spread; the old +0.47 / +0.80 / +0.84 ms (combat_48 / e1m1 fight /
+p50: the new levels within the fights' own +-0.3 ms spread; the old +0.57 / +0.80 / +0.84 ms (combat_48 / e1m1 fight /
 AD fight; AD p95 +4.7 ms). Checks: every capture 0 errors, 0 truncated; a stage-2 capture (memory and GPU detail,
 level 2) passes `--stage2`; e1m1 -> e1m2 -> hip1m1 -> e1m1 at levels 3 and 1 rebuilds the tables (no `builtin #` or `?`
 names, 0 drops); normal e1m1 smoke. Scripts and captures: `qvr-kit/scratch/qcdetail`.
 
 For him: capture with `vr_tracy_qc_detail 1` by default now; 2 to see the builtins, 3 for complete call counts.
+
+Rerun (worktree `tghost`, 2026-10-16): `combat_48` levels 0 and 1, rep 2, had overlapped his VR session (12:07-12:10);
+rerun on a quiet machine (tags `*_r2b`): level 0 4.26 / 5.71, level 1 4.28 / 6.11 ms (were 4.48 / 6.17 and 5.37 /
+9.01), QC VM 0.544 and 0.584 ms (were 0.540 and 0.641). TRACY.md's table now: level 0 4.34 / 5.93, level 1 4.30 / 5.93
+(-0.04, was +0.40), levels 2 and 3 -0.04 and -0.09 (were -0.15, -0.20), old +0.57 (was +0.47). The guidance stands.
+
+## The game window losing focus in VR (worktree `tghost`, branch `agent/xrfocus`, 2026-10-16)
+
+His decision: while an XR session runs, never throttle on a lost window focus. The incident (qvr_openxr.txt
+12:09:30-12:10:05): another game's window took the focus, the frames fell to exactly 100 ms and Virtual Desktop stopped
+the session. The log shows the session FOCUSED all along and `end` (xrEndFrame alone) 88-90 ms a frame: the time went
+inside the runtime's call, not in the engine's own background sleep (main_sdl.c already skipped it with VR on). The
+likely cause is the GPU driver capping an unfocused window's presents (an RTX 4090: NVIDIA's Background Application Max
+Frame Rate, here 10 fps), the mirror's SwapBuffers queued on the driver's thread and xrEndFrame's sync waiting for it.
+Changes:
+- `vr_mirror_unfocused_hz` (4, archived): in VR with the window unfocused, the desktop mirror is presented at most 4
+  times a second (VR_SkipSwap); 0 presents every frame as before. Presents spaced wider than the driver's cap never wait.
+- Sounds: the lost focus no longer blocks them in VR (in_sdl.c; flat unchanged), nor leaves them blocked as VR starts.
+- The main loop's sleep: unchanged (flat only); `vr_debug_window_unfocused 1` (Debug page, "Act as if the Window Lost
+  Focus") acts out a lost focus for tests, also in a hidden test run.
+- The menus' warning: the top right status box gets three white-on-red lines ("Game window not focused: input/
+  performance may suffer; click the game's desktop window") while the window lacks the keyboard's focus, on a flat
+  screen and in the headset, with `vr_menu_status 0` too (the box then holds the warning alone; the menus keep clear of
+  it as of the box).
+- qvr_openxr.txt's timing line adds "window unfocused, N presents skipped" while unfocused.
+- `vr_debug_clock`: the frame count and wall clock, and the mean frame period since the previous call.
+The input in VR comes from the controllers (OpenXR), untouched by the window's focus; the runtime's menu pause stays.
+Test (`scratch/focus_test.sh`, frame period over 120 frames, before / unfocused / after): flat 4.0 / 17.3 / 4.0 ms (the
+sleep, as before); mock VR 4.0 / 4.0 / 4.0; a fakexr OpenXR session 4.0 / 4.0 / 4.0, its timing line "window unfocused,
+416 presents skipped". Screenshots (scratch/focus/): menu_flat.png and menu_vr.png, the warning and without it.
+Not verifiable here: the driver's cap itself. For him: in VR, click another window and watch the fps (the wrist
+counter) and qvr_openxr.txt's `end` time; if it still drops, set NVIDIA's Background Application Max Frame Rate off.

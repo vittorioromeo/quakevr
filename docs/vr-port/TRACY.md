@@ -83,14 +83,17 @@ own cost showing directly; whole-frame numbers move by +-0.3 ms between runs of 
 
 | scenario | level 0 | level 1 | level 2 | level 3 | old |
 |---|---|---|---|---|---|
-| `combat_48` CPU | 4.45 / 6.17 | 4.85 / 7.38 (+0.40 *) | 4.30 / 6.05 (-0.15) | 4.25 / 5.78 (-0.20) | 4.91 / 6.84 (+0.47) |
+| `combat_48` CPU | 4.34 / 5.93 * | 4.30 / 5.93 (-0.04) * | 4.30 / 6.05 (-0.04) | 4.25 / 5.78 (-0.09) | 4.91 / 6.84 (+0.57) |
 | `play_e1m1_fight` CPU | 2.45 / 3.11 | 2.46 / 3.17 (+0.01) | 2.60 / 3.31 (+0.15) | 2.53 / 3.29 (+0.08) | 3.25 / 4.21 (+0.80) |
 | `play_ad_tfuma_fight` CPU | 5.57 / 7.73 | 5.84 / 8.35 (+0.27) | 5.86 / 8.55 (+0.29) | 5.68 / 8.29 (+0.11) | 6.41 / 12.46 (+0.84) |
-| `combat_48` QC VM ms, QC zones a frame | 0.540, 0 | 0.641, 1034 | 0.574, 1239 | 0.585, 1684 | 1.215, 1684 |
+| `combat_48` QC VM ms, QC zones a frame | 0.544, 0 * | 0.584, 1034 * | 0.574, 1239 | 0.585, 1684 | 1.215, 1684 |
 | `play_e1m1_fight` QC VM, zones | 0.413, 0 | 0.445, 968 | 0.454, 1147 | 0.461, 1549 | 1.027, 1549 |
 | `play_ad_tfuma_fight` QC VM, zones | 1.064, 0 | 1.144, 1527 | 1.155, 1961 | 1.175, 2515 | 2.083, 2518 |
 
-(*) one rep 4.32, the other 5.37: the fight's spread. A QC zone now costs about 25-45 ns (old: about 400 ns), so the
+(*) Rerun on a quiet machine (worktree tghost, 2026-10-16 14:39-14:42): the second reps of `combat_48` levels 0 and 1
+had overlapped a VR session on the same machine (level 1's 5.37 / 9.01 ms, which read as +0.40 and as a QC VM of 0.641);
+the reruns gave 4.26 / 5.71 (level 0) and 4.28 / 6.11 (level 1), QC VM 0.544 and 0.584. Before: level 0 4.45 / 6.17,
+level 1 4.85 / 7.38 (+0.40), QC VM 0.540 and 0.641; the other levels' differences moved with level 0. A QC zone now costs about 25-45 ns (old: about 400 ns), so the
 levels add 0.03-0.11 ms of QC time a frame against the old 0.6-1.0 ms (and the old AD p95 +4.7 ms). Level 3 records
 exactly the old zones (same counts). Guidance: capture with **1** whenever QuakeC might matter, also for timing; **2**
 to see which builtins cost; **3** only for complete call counts, not for timing QuakeC's leaves.
