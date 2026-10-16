@@ -9902,3 +9902,10 @@ sv_random_seed 7, vr_fixed_frames 1, wait60) is the same.
 
 The ~55 test registrations left in vr_main.cpp (modelcollide, selfcollide, modelmetadata, gore, decals, carry, grasp...)
 belong to modules outside this pass.
+
+## UI batch (voice notes 2026-10-17)
+
+- Menu panel grip drag: vr_menu_grab_dist_max default 200 -> 600 cm (push it away as well as pull it near).
+- Checklist: a blank row between entries (vr_menu.cpp pageChecklist).
+- Generated Companion Maps and Generated Relief Strength rows removed from Graphics > Surfaces; kept in Advanced VR Settings (cvars unchanged). vr_menu_path_check: 0 missing.
+- Old explosion sprite (progs/s_explod.spr, QuakeC BecomeExplosion and the expansions copies) no longer drawn: skipped in r_sprite.c R_DrawSpriteModel_Real; particles and debris unaffected (vr_explosion_debris_test: 16 pieces). vr_particle_test quake still draws it, for comparison.
