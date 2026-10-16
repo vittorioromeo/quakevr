@@ -5687,14 +5687,6 @@ za::Vector<Item> pageDebugProfiling()
         command("QuakeC Loop Bench", "vr_qcexec_bench")
             .help("vr_qcexec_bench: times a QuakeC math function in each loop (in a map) and checks they agree; the "
                   "result in the console."),
-        toggle("Native Prop Think", vr_prop_think_native)
-            .help("vr_prop_think_native: thrown and dropped weapons' and pickups' think (water, dust, settling after a "
-                  "throw) in the engine, the same as its QuakeC, which was 5-18% of all QuakeC run in a fight. Off: the "
-                  "QuakeC (forcegrabbable_think_qc), to compare or rule it out."),
-        command("Prop Think Check", "vr_propthink_check")
-            .help("vr_propthink_check: the prop think's QuakeC and native run from the same states on every force-"
-                  "grabbable thing in the map (as it is and 200 made-up states each) and compared; the result in the "
-                  "console, the map left as it was."),
         command("Edict Index Stats", "vr_edictindex_stats")
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
