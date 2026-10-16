@@ -2011,8 +2011,10 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
         const glm::vec3 pole = cf.held ? climbing.in + out * 0.35f + UP * 0.15f : climbing.in * 0.6f + b.fwd * 0.4f + out * 0.1f;
         kneeDir = safeNormalize(glm::mix(kneeDir, safeNormalize(pole, b.fwd), climbW), b.fwd);
     }
-    // Body tracking's generated legs (vr_bodytrack_legs), less what climbing and swimming take.
-    bodytrack::leg(side, t.pos, a + l, footZ, (1.f - climbW) * (1.f - swim), target, kneeDir);
+    // Body tracking's generated legs (vr_bodytrack_legs), less what climbing and swimming take, and (vr_bodytrack_legs_walk)
+    // what the walk, the run and the air take: moving, the gait drives the legs; standing still, the tracked legs show.
+    const float gaitOver = vr_bodytrack_legs_walk.value != 0.f ? za::max(gait.amount, gait.air) : 0.f;
+    bodytrack::leg(side, t.pos, a + l, footZ, (1.f - climbW) * (1.f - swim) * (1.f - gaitOver), target, kneeDir);
 
     glm::vec3 bend;
     const glm::vec3 knee = twoBone(t.pos, target, a, l, kneeDir + outward * 0.1f, kneeDir, bend);

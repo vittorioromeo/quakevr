@@ -52,6 +52,7 @@ struct State
     float torso{0.f};      // the regions' weights now
     float arm[2]{};
     float leg[2]{};
+    float legApplied[2]{};    // the legs' weight leg() last laid on (less climbing, swimming and the walk)
     double placeSeconds{0.0}; // place()'s and the synthetic body's time (vr_bodytrack_stats)
     int placeCalls{0};
 };
@@ -70,7 +71,7 @@ struct Stats
     int kneeFrames[2]{};
     double hold{0.0};                       // the lean detection's hold
     double jumpMax{0.0};                    // cm a joint moved against the top of the neck in one frame, at most
-    double weightTorso{0.0}, weightArm{0.0}, weightLeg{0.0};
+    double weightTorso{0.0}, weightArm{0.0}, weightLeg{0.0}, legApplied{0.0};
     glm::vec3 last[10]{};
     bool haveLast{false};
 };
@@ -189,6 +190,35 @@ constexpr int ankle(int side) { return side == 0 ? AnkleL : AnkleR; }
     return root + dir * (a * cosA) + bend * (a * sinA);
 }
 
+// vr_bodytrack_debug_bones 1 or 2 (with vr_bodytrack_debug on): our IK's bones drawn, the avatar untracked.
+[[nodiscard]] bool debugUntracked()
+{
+    return vr_bodytrack_debug.value != 0.f && vr_bodytrack_debug_bones.value >= 1.f;
+}
+
+// Our IK's bones (the avatar as posed): orange, the spine from the pelvis to the top of the neck.
+void drawOurs(const Posed& p, const glm::vec3& offset)
+{
+    constexpr glm::vec4 ORANGE{1.f, 0.6f, 0.1f, 0.9f};
+    const auto bone = [&](const glm::vec3& a, const glm::vec3& b) { lines::line(a + offset, b + offset, 0.3f, ORANGE, ORANGE); };
+    bone(p.pelvis, p.top);
+    lines::point(p.pelvis + offset, 1.f, ORANGE);
+    lines::point(p.top + offset, 1.f, ORANGE);
+    for(int side = 0; side < 2; side++)
+    {
+        bone(p.top, p.shoulder[side]);
+        bone(p.shoulder[side], p.elbow[side]);
+        bone(p.elbow[side], p.wrist[side]);
+        bone(p.pelvis, p.hip[side]);
+        bone(p.hip[side], p.knee[side]);
+        bone(p.knee[side], p.ankle[side]);
+        for(const glm::vec3& j : {p.elbow[side], p.wrist[side], p.knee[side], p.ankle[side]})
+        {
+            lines::point(j + offset, 1.f, ORANGE);
+        }
+    }
+}
+
 void drawSkeleton(const glm::vec3& offset)
 {
     constexpr int bones[][2] = {{Hips, SpineLower}, {SpineLower, SpineMiddle}, {SpineMiddle, SpineUpper}, {SpineUpper, Chest},
@@ -257,11 +287,11 @@ void stats_f()
                "%.1f max %.1f\n",
         label, s.frames, s.weightTorso / n, s.weightArm / n, s.weightLeg / n, s.lean / n, s.leanMax, s.tiltAvatar / n,
         s.tiltTracked / n, s.twist / n, s.twistMax);
-    Con_Printf("btstats %s: elbow err L %.1f (max %.1f) R %.1f (max %.1f) knee err L %.1f R %.1f hold %.2f jump max %.2f cm; "
-               "%.1f us a frame\n",
+    Con_Printf("btstats %s: elbow err L %.1f (max %.1f) R %.1f (max %.1f) knee err L %.1f R %.1f legs applied %.2f hold %.2f "
+               "jump max %.2f cm; %.1f us a frame\n",
         label, s.elbow[0] / za::max(1, s.elbowFrames[0]), s.elbowMax[0], s.elbow[1] / za::max(1, s.elbowFrames[1]),
-        s.elbowMax[1], s.knee[0] / za::max(1, s.kneeFrames[0]), s.knee[1] / za::max(1, s.kneeFrames[1]), s.hold / n, s.jumpMax,
-        st.placeCalls > 0 ? st.placeSeconds * 1e6 / st.placeCalls : 0.0);
+        s.elbowMax[1], s.knee[0] / za::max(1, s.kneeFrames[0]), s.knee[1] / za::max(1, s.kneeFrames[1]), s.legApplied / n,
+        s.hold / n, s.jumpMax, st.placeCalls > 0 ? st.placeSeconds * 1e6 / st.placeCalls : 0.0);
 }
 
 } // namespace
@@ -311,7 +341,9 @@ void place(const glm::vec3& base, const glm::vec3& floorBelowHead, float turnYaw
     // The regions: in while the tracking is good (on, active, confident, the region's joints valid), eased out otherwise
     // (the last joints held meanwhile).
     const Raw& r = st.raw;
-    const bool good = fresh && vr_bodytrack.value != 0.f && r.active && r.confidence >= vr_bodytrack_confidence.value;
+    // (Debug: drawing our IK's untracked bones, the avatar ignores the tracking, which is still read and drawn.)
+    const bool good = fresh && vr_bodytrack.value != 0.f && r.active && r.confidence >= vr_bodytrack_confidence.value &&
+                      !debugUntracked();
     const auto all = [&](za::InitializerList<int> joints) {
         for(int j : joints)
         {
@@ -431,6 +463,7 @@ void swivelElbow(int side, const glm::vec3& shoulder, const glm::vec3& wristPos,
 void leg(int side, const glm::vec3& hip, float reach, float floorZ, float keep, glm::vec3& target, glm::vec3& kneeDir)
 {
     const float w = st.leg[side & 1] * za::clamp(keep, 0.f, 1.f);
+    st.legApplied[side & 1] = w;
     if(w <= 0.f)
     {
         return;
@@ -461,7 +494,16 @@ void posed(const Posed& p)
     {
         debugFrame = host_framecount;
         const glm::vec3 right{p.fwd.y, -p.fwd.x, 0.f};
-        drawSkeleton(vr_bodytrack_debug.value >= 2.f ? right * (0.6f * st.m2u) : glm::vec3{0.f});
+        const glm::vec3 offset = vr_bodytrack_debug.value >= 2.f ? right * (0.6f * st.m2u) : glm::vec3{0.f};
+        const int bones = static_cast<int>(vr_bodytrack_debug_bones.value);
+        if(bones != 1)
+        {
+            drawSkeleton(offset); // the tracked
+        }
+        if(bones >= 1)
+        {
+            drawOurs(p, offset); // our IK's, untracked
+        }
     }
 
     // The largest jump of a joint against the top of the neck (the head's own motion taken out), the tracking valid or
@@ -489,6 +531,7 @@ void posed(const Posed& p)
     s.weightTorso += st.torso;
     s.weightArm += 0.5 * (st.arm[0] + st.arm[1]);
     s.weightLeg += 0.5 * (st.leg[0] + st.leg[1]);
+    s.legApplied += 0.5 * (st.legApplied[0] + st.legApplied[1]);
     const glm::vec3 avatar = safeNormalize(p.top - p.pelvis, UP);
     const glm::vec3 tracked = safeNormalize(spine(), UP);
     const glm::vec3 expected = tiltFromUp(tracked) * glm::normalize(p.neutral); // the tracked tilt on the avatar's spine
