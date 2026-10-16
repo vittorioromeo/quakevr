@@ -8847,3 +8847,7 @@ session on this build makes everything once more (vrstart's hulls: 10 s of pool)
 
 For him: start the game, open Debug > Profiling and Memory: the warm-up line counts up; play meanwhile and watch for
 hitches; `developer 1` shows `cache miss in play` lines for anything the loads didn't prepare.
+
+### Ammo switch only with an empty other hand (agent/ammoswitch)
+
+A player: no ammo type switch while akimbo. vr_ammo_switch_empty_hand 1 (archived; VR Settings, Ammo Button page, "Ammo Switch Needs Empty Hand"): ToggleSecondaryAmmo (QC/weapons.qc) runs only when the other hand is empty by VRIsHandEmpty (no weapon, nothing carried: prop, torch, grabbed enemy); otherwise a short lock4 click and a haptic on the pressing hand, and developer 1 prints "ammo switch: refused". 0 restores the old behaviour. Checked headless (scratch/ammosw.sh): empty hand toggles; a gun in the other hand refused; option off toggles with the gun there. A carried prop was not set up in the mock (same VRIsHandEmpty test). Backlog: ammo type following the loaded magazine.

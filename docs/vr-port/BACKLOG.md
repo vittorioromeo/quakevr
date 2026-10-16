@@ -347,3 +347,5 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
   - Done (ROUND22.md, "More gore: blood streams, back-splatter, teeth"): the streams from bullet holes (Gore > Blood
     Streams), the back-splatter streaks (Gore > Back-splatter), the teeth (Gore > Knocked-out Teeth). To check in VR:
     how the streams read up close and on ragdolls, a real punch's teeth (the threshold, Punch Hardness for Teeth).
+
+- **Ammo type follows the loaded magazine:** with pouch reloading (v1.1), the magazine/ammo you load picks the gun's ammo type (e.g. a lava-nail magazine fires lava nails), making the ammo switch button unnecessary for magazine-fed weapons (his idea via a player exchange, 2026-10-16).
