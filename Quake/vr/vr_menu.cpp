@@ -2848,9 +2848,6 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Every beheading or head pop's chance times this (a blade's sure cut too: below 1 it may fail); Quad Damage "
                   "always pops. Limbs: Gore > Limb Gore (vr_decap_chance_scale)."),
         header("Head Pop Chance"),
-        toggle("By Chance", vr_decap_pop_chance)
-            .help("A shotgun or super shotgun headshot kill pops the head always up close, never far off, and by chance between "
-                  "(the rows below); off: every headshot kill pops it, as before (vr_decap_pop_chance)."),
         slider("Always Within", vr_decap_pop_always_range, 0.f, 10.f, 0.5f, "%.1f lengths").extend(0.f, 50.f)
             .help("A shotgun's or super shotgun's headshot kill this near (in player lengths, 56 units: about 1.75 m) "
                   "always pops the head (vr_decap_pop_always_range)."),

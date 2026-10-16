@@ -380,7 +380,6 @@ float cvarh_vr_decap_shotgun;
 float cvarh_vr_decap_super_shotgun;
 float cvarh_vr_decap_lightning;
 float cvarh_vr_decap_head_share;
-float cvarh_vr_decap_pop_chance;
 float cvarh_vr_decap_pop_always_range;
 float cvarh_vr_decap_pop_never_range;
 float cvarh_vr_decap_pop_ssg_scale;
@@ -1236,7 +1235,6 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_decap_super_shotgun);
     VR_CVAR_HMAKE(vr_decap_lightning);
     VR_CVAR_HMAKE(vr_decap_head_share);
-    VR_CVAR_HMAKE(vr_decap_pop_chance);
     VR_CVAR_HMAKE(vr_decap_pop_always_range);
     VR_CVAR_HMAKE(vr_decap_pop_never_range);
     VR_CVAR_HMAKE(vr_decap_pop_ssg_scale);

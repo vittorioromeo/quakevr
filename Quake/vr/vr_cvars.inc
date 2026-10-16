@@ -2540,7 +2540,6 @@ QVR_CVAR(vr_decap_head_share, "0.5", CVAR_ARCHIVE)    // share of a blast's dama
 // always within _always_range, never beyond _never_range (player lengths, 56 units), and between by chance:
 // scale x (1 - t)^falloff x ((1 - pellet_weight) + pellet_weight x the share of the blast's pellets at the head), t the
 // way from the one range to the other.
-QVR_CVAR(vr_decap_pop_chance, "1", CVAR_ARCHIVE)          // shots' head pops by chance (0: every headshot kill pops, as before)
 QVR_CVAR(vr_decap_pop_always_range, "2", CVAR_ARCHIVE)    // player lengths (56 units): a shotgun's or super shotgun's headshot kill this near always pops
 QVR_CVAR(vr_decap_pop_never_range, "12", CVAR_ARCHIVE)    // player lengths: this far or farther it never does (the lightning gun's always: aside)
 QVR_CVAR(vr_decap_pop_ssg_scale, "1.25", CVAR_ARCHIVE)    // the super shotgun's chance between the ranges, times this
