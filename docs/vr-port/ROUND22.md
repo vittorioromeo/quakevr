@@ -8946,3 +8946,11 @@ TEMPORAL.md section 1a. Code: `Quake/vr/vr_temporal.cpp`, plus hooks in `gl_rmai
   - Try "TAA Sharpening" 0-0.6.
   - Debug > "Show Motion Vectors" > "Reprojection Test" should hold still as you turn and walk. Red means history thrown
     away.
+
+## One source of defaults: his values move into the code (2026-10-16)
+
+His decision: every vr_defaults.cfg value equal to his current value is the source of truth. 192 cvars got that value
+as their compiled default in vr_cvars.inc and left vr_defaults.cfg (behaviour unchanged: vr_default set the same value
+at startup). Left in vr_defaults.cfg for his review (his value differs from both): vr_window_view (code 0, cfg 1, his 0),
+vr_spectator_fov (90 / 130 / 120), vr_spectator_scale (0.75 / 1 / 1.5), vr_foveated (0 / 3 / 2),
+vr_retrolight_model_steps (16 / 15 / 16). Script: qvr-kit/scratch/review/defaults_apply.py.
