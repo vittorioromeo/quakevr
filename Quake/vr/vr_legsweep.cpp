@@ -10,9 +10,10 @@
 //   sharp from that share of the grip-to-tip way on: a contact there is a cut (the melee's), never a sweep.
 // - a prop in a hand (mainhand_held / offhand_held): its drawn box in its own axes (held::modelBox: its model's bounds,
 //   its networked scale), its length the largest extent, its cross-section the next. Nothing on a prop is sharp.
-// Staff-like: at least vr_legsweep_min_length long and vr_legsweep_min_slender slender (a crate, a rock, a brick, the
-// lightning gun and the super shotgun fall short of one or the other: vr_legsweep_table prints every weapon's and some
-// props').
+// Staff-like: at least vr_legsweep_min_length long and vr_legsweep_min_slender slender (every weapon at the defaults; a
+// crate, a rock, a brick fall short of one or the other: vr_legsweep_table prints every weapon's and some props').
+// The speed is the swing's: the point's move in the player's own frame (BodyPoints), the lesser of this frame's and its
+// stroke's (strokeTime). Through the world, walking into its legs with a gun held still was a 7 m/s "sweep".
 //
 // Each server frame the thing's line is placed where it is now and sampled at sweepPoints points, end to end: a
 // weapon's from the hand to its muzzle as the server has them (QC VR_Melee_Line's: handpos, muzzlepos; carried off its
@@ -71,6 +72,8 @@ constexpr double handRest = 0.4;    // s: after a sweep, the hand's next
 constexpr double traceLength = 1.0; // s: the sweep's trace (vr_legsweep_debug) follows the body this long
 constexpr double traceEvery = 0.1;  // s: a line every this often
 constexpr int maxSwept = 32;
+constexpr double strokeTime = 0.08; // s: a sweep's speed is held over this (its stroke), not one frame's jump
+constexpr int strokeSamples = 24;   // frames kept for it (more than strokeTime's at the fastest frames that matter)
 
 // A thing's measure (its model's: see the top). A prop's line from `a` to `b` (in its own axes) runs end to end through
 // the middle of its box; a weapon's from `along0` to `along1` along the line from its grip to its tip.
@@ -104,7 +107,15 @@ struct MeasureScratch
 };
 mem::Scratch<MeasureScratch> measureScratch{"leg sweep"};
 
-// A hand's thing as last placed.
+// A hand's thing's points in the player's own frame: from his origin, the play space's turn (snap or smooth) taken out.
+// Walking or turning with it held still moves it through the world, not in this frame.
+struct BodyPoints
+{
+    double time{0.0};
+    glm::vec3 pts[sweepPoints]{};
+};
+
+// A hand's thing as last placed: its points in the world, and the last frames' in his frame (the stroke's speed).
 struct Track
 {
     bool valid{false};
@@ -113,6 +124,9 @@ struct Track
     glm::vec3 pts[sweepPoints]{};
     double time{0.0};
     double restUntil{0.0};
+    BodyPoints body[strokeSamples]{}; // a ring, the newest at bodyNext - 1
+    int bodyCount{0};
+    int bodyNext{0};
 };
 
 struct Swept
@@ -546,8 +560,9 @@ void startTrace(edict_t* m, const glm::vec3& along)
         pelvis};
 }
 
-// The hand's thing swept from `was` to `held` this frame (`dt` s) against the humanoids near it.
-void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, float dt)
+// The hand's thing swept from `was` to `held` this frame (`dt` s) against the humanoids near it; `now`: its points in his
+// own frame, the play space turned `yaw` (radians) from the world's.
+void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, const BodyPoints& now, float yaw, float dt)
 {
     glm::vec3 lo{1e9f}, hi{-1e9f};
     for(int i = 0; i < sweepPoints; i++)
@@ -593,18 +608,40 @@ void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, fl
         {
             continue;
         }
-        const glm::vec3 v = (held.pts[best] - was.pts[best]) / dt;
-        const glm::vec3 level{v.x, v.y, 0.f};
-        const float speed = glm::length(level);
-        if(glm::length(v) > maxSpeed * units::metresToUnits())
+        const glm::vec3 world = (held.pts[best] - was.pts[best]) / dt;
+        if(glm::length(world) > maxSpeed * units::metresToUnits())
         {
             continue; // (moved there at once: a hand put somewhere, a teleport)
         }
+        // Its speed is its swing's: its move in his own frame (walking into its legs, or turning, with the thing held
+        // still is no sweep: through the world it went at his walk, 7-8 m/s), the lesser of this frame's and its stroke's
+        // (strokeTime: a one-frame jump is not a sweep), turned back into the world's axes.
+        const glm::vec3 frame = (now.pts[best] - was.body[(was.bodyNext + strokeSamples - 1) % strokeSamples].pts[best]) / dt;
+        glm::vec3 stroke = frame;
+        for(int k = 1; k <= was.bodyCount; k++)
+        {
+            const BodyPoints& s = was.body[(was.bodyNext + strokeSamples - k) % strokeSamples];
+            if(now.time - s.time > strokeTime + 1e-4)
+            {
+                break;
+            }
+            if(now.time - s.time > 1e-4)
+            {
+                stroke = (now.pts[best] - s.pts[best]) / static_cast<float>(now.time - s.time);
+            }
+        }
+        const glm::vec3 bodyV = glm::length(glm::vec2{stroke}) <= glm::length(glm::vec2{frame}) ? stroke : frame;
+        const glm::vec3 v = glm::vec3{za::cos(yaw) * bodyV.x - za::sin(yaw) * bodyV.y,
+            za::sin(yaw) * bodyV.x + za::cos(yaw) * bodyV.y, bodyV.z};
+        const glm::vec3 level{v.x, v.y, 0.f};
+        const float speed = glm::length(level);
         const float share = static_cast<float>(best) / (sweepPoints - 1);
         const Measure& me = held.measure;
-        char why[192];
-        q_snprintf(why, sizeof(why), "%s, %.0f long, %.1f slender, its point %.2f of the way, %.2f m/s level, %.2f up",
-            me.name, me.length, slenderness(me), share, speed / units::metresToUnits(), v.z / units::metresToUnits());
+        char why[224];
+        q_snprintf(why, sizeof(why),
+            "%s, %.0f long, %.1f slender, its point %.2f of the way, %.2f m/s level (swung; %.2f through the world), %.2f up",
+            me.name, me.length, slenderness(me), share, speed / units::metresToUnits(),
+            glm::length(glm::vec2{world}) / units::metresToUnits(), v.z / units::metresToUnits());
         if(!staffLike(me))
         {
             note(hand, m, va("%s: not staff-like (vr_legsweep_min_length %g, _min_slender %g)", why,
@@ -757,11 +794,29 @@ void qvr::legsweep::serverFrame()
         {
             continue; // (not drawn again since: its move counts at the next)
         }
-        const float dt = static_cast<float>(now - tr.time);
-        if(tr.valid && tr.what == held.what && tr.ent == held.ent && dt > 1e-4f && dt < 0.25f && now >= tr.restUntil)
+        // Its points in his own frame (BodyPoints): from his origin, the play space's turn taken out.
+        const float yaw = glm::radians(progs::fieldFloatOr(player, progs::fields().vryaw, 0.f));
+        const glm::vec3 origin = vec(player->v.origin);
+        BodyPoints body;
+        body.time = now;
+        for(int i = 0; i < sweepPoints; i++)
         {
-            sweepHand(player, hand, tr, held, dt);
+            const glm::vec3 d = held.pts[i] - origin;
+            body.pts[i] = glm::vec3{za::cos(yaw) * d.x + za::sin(yaw) * d.y, -za::sin(yaw) * d.x + za::cos(yaw) * d.y, d.z};
         }
+        const float dt = static_cast<float>(now - tr.time);
+        const bool same = tr.valid && tr.what == held.what && tr.ent == held.ent;
+        if(same && tr.bodyCount > 0 && dt > 1e-4f && dt < 0.25f && now >= tr.restUntil)
+        {
+            sweepHand(player, hand, tr, held, body, yaw, dt);
+        }
+        if(!same || dt >= 0.25f)
+        {
+            tr.bodyCount = 0;
+        }
+        tr.body[tr.bodyNext] = body;
+        tr.bodyNext = (tr.bodyNext + 1) % strokeSamples;
+        tr.bodyCount = za::min(tr.bodyCount + 1, strokeSamples);
         tr.valid = true;
         tr.what = held.what;
         tr.ent = held.ent;

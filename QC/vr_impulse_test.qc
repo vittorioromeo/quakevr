@@ -36,7 +36,7 @@ float() VR_TestImpulse =
         self.classname = "monster_army";
         setorigin(self, gruntAt);
         float gruntFacing = cvar("vr_test_spawn_facing");
-        if(gruntFacing == 1 || gruntFacing == 2)
+        if(gruntFacing == 1 || gruntFacing == 2 || gruntFacing == 4 || gruntFacing == 5)
         {
             self.angles_y = VR_TestSpawn_FacingYaw(player);
         }

@@ -1425,9 +1425,11 @@ void spawn_f()
     }
     // vr_test_spawn_facing 1: facing the player, 2: facing away (where the player faces); else the spawn's own (0),
     // as before. Set before its spawn function (a monster's ideal_yaw is taken from it).
-    if(vr_test_spawn_facing.value == 1.f || vr_test_spawn_facing.value == 2.f)
+    // (4: its left side to the player, 5: its right side.)
+    const float facing = vr_test_spawn_facing.value;
+    if(facing == 1.f || facing == 2.f || facing == 4.f || facing == 5.f)
     {
-        angles.y = anglemod(player->v.angles[1] + (vr_test_spawn_facing.value == 1.f ? 180.f : 0.f));
+        angles.y = anglemod(player->v.angles[1] + (facing == 1.f ? 180.f : facing == 2.f ? 0.f : facing == 4.f ? 90.f : -90.f));
     }
     edict_t* e = qvr::box3d::spawnClass(Cmd_Argv(1), origin, angles);
     if(e)

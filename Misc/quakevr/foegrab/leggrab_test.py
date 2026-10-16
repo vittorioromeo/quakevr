@@ -31,12 +31,13 @@ TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
 MOTIONS = os.path.join(TREE, "quakevr", "motions")
 SCRATCH = os.path.join(TREE, "scratch")
 PRE = ("sv_random_seed 7;map vrfiringrange;wait30;god;notarget;developer 1;vr_foegrab_debug 1;vr_foegrab_leniency 12;"
-       "vr_foegrab_leggrab_debug 1;vr_knockdown_debug 1;vr_test_spawn %d;vr_test_spawn_dist 36;impulse 241;wait40")
+       "vr_foegrab_leggrab_debug 1;vr_knockdown_debug 1;vr_test_spawn_facing %d;vr_test_spawn %d;vr_test_spawn_dist 36;impulse 241;wait40")
 FILTER = "foegrab|leg diag|legpull trace|leglift trace|MARK|[Ee]rror|CRASH"
 SHIN, THIGH = -21, -9  # units under its origin (its feet 24 under it; a grunt's knees 10-12 over them, the rig)
 SIDE = 0.17            # m: each leg this far from its middle (its left on your right: it faces you)
 BACK = 0.38            # m: and its left foot this far back (the rig: a grunt stands with it 12 units behind its right)
 FAILS = 0
+EXTRA = os.environ.get("LG_EXTRA", "")  # (more commands for every case: experiments)
 
 
 def motion(name, keys):
@@ -47,11 +48,15 @@ def motion(name, keys):
     return f"quakevr/motions/{name}.mock"
 
 
-def keys_for(cls, kind, dz, way, dist, dur, swing=False):
+def keys_for(cls, kind, dz, way, dist, dur, swing=False, start=0.6):
     """Both hands on `cls`'s legs (`kind`: "one" both on its right leg, "both" one each), dz under its origin, gripped,
     moved `dist` m `way` ("towards" or "up") in `dur` s from 0.6 s; swing: then swung away and let go at 1.42 s."""
     if kind == "one":
         main, off = (-SIDE, 0.06, 0.0), (-SIDE, -0.06, 0.0)  # (x, dy, dz: its right leg, one hand above the other)
+    elif kind == "back":  # (it faces away: its right leg on your right)
+        main, off = (SIDE, 0.06, 0.0), (SIDE, -0.06, 0.0)
+    elif kind == "near":  # (its side to you: the leg nearer you)
+        main, off = (0.0, 0.06, SIDE), (0.0, -0.06, SIDE)
     else:
         back = BACK if dz == SHIN else 0.0  # (its left foot stands back; its thighs side by side)
         main, off = (SIDE, -0.15, -back), (-SIDE, 0.0, 0.0)  # (the main hand's point sits higher)
@@ -63,7 +68,7 @@ def keys_for(cls, kind, dz, way, dist, dur, swing=False):
         return [(t, "rel %s %.3f %.3f %.3f" % (n, h[0], h[1] + dy, h[2] + dzt - back))
                 for n, h in (("main", main), ("off", off))]
     k += at(0.1, 0.0) + [(0.15, "cmd +grabmain"), (0.15, "cmd +graboff")]
-    k += at(0.6, 0.0) + at(0.6 + dur, dist)
+    k += at(start, 0.0) + at(start + dur, dist)
     if swing:
         k += at(1.3, dist) + at(1.42, dist, 0.5) + [(1.42, "cmd -grabmain"), (1.42, "cmd -graboff")]
     k += [(1.2, "cmd echo MARK1"), (1.22, "cmd vr_foegrab_status")]
@@ -81,6 +86,10 @@ def verdict(ok, what):
 CASES = [
     ("pull_one", 0, "monster_army", "one", SHIN, "towards", 0.45, 0.25, "", False),
     ("pull_both", 0, "monster_army", "both", SHIN, "towards", 0.45, 0.25, "", False),
+    ("pull_back", 0, "monster_army", "back", SHIN, "towards", 0.45, 0.25, "", False),
+    ("pull_back_ai", 0, "monster_army", "back", SHIN, "towards", 0.45, 0.25, "notarget", False),
+    ("pull_left", 0, "monster_army", "near", SHIN, "towards", 0.45, 0.25, "", False),
+    ("pull_right", 0, "monster_army", "near", SHIN, "towards", 0.45, 0.25, "", False),
     ("thigh", 0, "monster_army", "both", THIGH, "towards", 0.45, 0.25, "", False),
     ("thigh_half", 0, "monster_army", "both", THIGH, "towards", 0.6, 0.2, "vr_foegrab_leggrab_thigh 0.5", False),
     ("thigh_half_slow", 0, "monster_army", "both", THIGH, "towards", 0.45, 0.25, "vr_foegrab_leggrab_thigh 0.5", False),
@@ -90,6 +99,12 @@ CASES = [
     ("heavy_gentle", 6, "monster_hell_knight", "both", SHIN, "up", 0.55, 0.5, "", False),
     ("heavy", 6, "monster_hell_knight", "both", SHIN, "up", 1.1, 0.6, "", False),
 ]
+# Its facing (vr_test_spawn_facing: 0 towards you, 2 away, 4 its left side to you, 5 its right) and the way a pull
+# should fell it (by its own facing).
+START = {"pull_back_ai": 2.0}  # (s: the pull starts then: held this long first)
+FACING = {"pull_back": 2, "pull_back_ai": 2, "pull_left": 4, "pull_right": 5}
+FELL = {"pull_one": "backward", "pull_both": "backward", "thigh_half": "backward", "pull_back": "forward", "pull_back_ai": "forward",
+        "pull_left": "to its right", "pull_right": "to its left"}
 
 
 def main():
@@ -99,8 +114,8 @@ def main():
     for name, spawn, cls, kind, dz, way, dist, dur, extra, swing in CASES:
         if ONLY and not re.search(ONLY, name):
             continue
-        path = motion("leggrab_" + name, keys_for(cls, kind, dz, way, dist, dur, swing))
-        script = (f"{PRE % spawn};{extra};vr_mock_play {path};wait500;-grabmain;-graboff;wait5;toggleconsole;quit")
+        path = motion("leggrab_" + name, keys_for(cls, kind, dz, way, dist, dur, swing, START.get(name, 0.6)))
+        script = (f"{PRE % (FACING.get(name, 0), spawn)};{extra};{EXTRA};vr_mock_play {path};wait500;-grabmain;-graboff;wait5;toggleconsole;quit")
         handles[name] = b.case(["-Script", script, "-Filter", FILTER, "-Timeout", "200"])
     b.run()
     for name, spawn, cls, kind, dz, way, dist, dur, extra, swing in CASES:
@@ -123,15 +138,22 @@ def main():
         info = tried or (f"untried: {ended.group(1)}/{ended.group(2)} grip {ended.group(3)}, best pull "
                          f"{ended.group(4)}/{ended.group(5)}, up {ended.group(6)}/{ended.group(7)}" if ended else
                          "no leg grip seen")
-        if name in ("pull_one", "pull_both", "thigh_half"):
+        if name in FELL:
             # Its feet towards you (along the pull) and its head away (against it).
             done = re.search(r"legpull trace done: tilt at 0.5 s (\d+) deg, most \d+, turned \d+ in all; feet moved "
                              r"[\d.]+ at most, [\d.]+ at the end \(([-\d.]+) along the legpull\).*?lies \w+ it \(head "
                              r"([-\d.]+) along the legpull\)", flat)
             feet, head = (float(done.group(2)), float(done.group(3))) if done else (0.0, 0.0)
-            ok = pulled and done and feet > 2 and head < -15 and not lifted
+            # (And by its own facing as it stood: pulled from its front it falls backward, from its back forward, from
+            # a side to its other side.)
+            by = re.search(r"legpull trace done: by its facing, its head ([-\d.]+) ahead of its feet, ([-\d.]+) to its "
+                           r"left: fell (\w+(?: \w+ \w+)?)", flat)
+            fell = by.group(3) if by else "-"
+            ok = pulled and done and feet > 2 and head < -15 and not lifted and fell == FELL[name]
             verdict(ok and not bad, f"{name}: {'pulled down' if pulled else 'NOT pulled'}; feet {feet:.1f} towards you, "
-                                    f"its head {head:.1f} along the pull from its feet ({info})")
+                                    f"its head {head:.1f} along the pull from its feet; fell {fell} (should: "
+                                    f"{FELL[name]}){' by ' + by.group(1) + ' ahead, ' + by.group(2) + ' left' if by else ''} "
+                                    f"({info})")
         elif name in ("thigh", "thigh_half_slow", "slow"):
             ok = not pulled and not lifted
             verdict(ok and not bad, f"{name}: {'PULLED (wrong)' if pulled else 'not pulled'} ({info})")

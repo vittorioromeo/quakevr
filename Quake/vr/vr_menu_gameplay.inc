@@ -283,6 +283,9 @@
             .help("Pulled out, how fast its body turns over away from you about its feet."),
         slider("Pull Feet Slide", vr_foegrab_legpull_feet, 0.f, 200.f, 5.f, "%.0f units/s").extend(0.f, 500.f)
             .help("How fast its feet slide towards you as it topples."),
+        slider("Pull Hold Strength", vr_foegrab_legpull_hold_strength, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("Pulled down, how hard your hands still holding its legs pull them: a share of its weight. Softer than a "
+                  "throw's hold, so it topples the way you pulled instead of pivoting on its pinned shins."),
         slider("Leg Lift Speed", vr_foegrab_leglift_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend(0.1f, 10.f)
             .help("How fast your hands must pull its legs up together (within 45 degrees of straight up) to lift it by "
                   "them (standing within Lift Reach)."),
