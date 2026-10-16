@@ -310,6 +310,10 @@ void woundTargets(entity_t* out[3]);
 
 void dumpView_f();
 
+// The view's debug and test commands (vr_view_diag.cpp: vr_dumpview, vr_grasp_*, vr_ragdoll_hand_probe,
+// vr_model_reload, vr_hotspots_check, vr_anchor_where, vr_weapon_hotspot_here, vr_hotspot_fit), registered (VR_Init).
+void registerDiagCommands();
+
 // vr_pose_check (vr_posing.cpp): the hand holding the weapon now (`weaponTarget`: the weapon hand; else the other hand,
 // holding it by a hotspot) against the pose confirmed: its rig and drawn palm, and the weapon's muzzle, where the pose put
 // them relative to each other (`rigInWeapon`, `palmInWeapon`: in the weapon's model frame; no palm if it wasn't seen
