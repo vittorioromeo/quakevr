@@ -10,6 +10,7 @@
 #include "vr_fatigue.hpp"
 #include "vr_painknock.hpp"
 #include "vr_grip.hpp"
+#include "vr_handfit.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
@@ -129,10 +130,7 @@ mem::Cache<ModelBoxCache> modelBoxes{"held model boxes", mem::MapChange | mem::G
         a.t.active == b.t.active && a.t.k == b.t.k && a.t.scale == b.t.scale && a.t.offset == b.t.offset;
 }
 
-struct Triangle
-{
-    glm::vec3 p[3];
-};
+using Triangle = handfit::Triangle;
 
 // The surface of the model `ent` is drawn with, as triangles in its axes relative to its origin: an
 // alias model's current frame (its first pose), a brush model's faces. False if it has none to give.
@@ -257,9 +255,10 @@ struct HeldScratch
     za::Vector<char> inside;             // and whether its middle is inside
     za::Vector<glm::vec4> grabSpheres;   // grabTouch: the fist's spheres in the world
     za::Vector<Triangle> fitTris;        // surfaceFit
+    za::Vector<glm::vec4> fitCells;      // surfaceFit: the fist's cells (the hand's frame)
     auto members()
     {
-        return qvr::mem::list(verticesTris, centreVertices, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris);
+        return qvr::mem::list(verticesTris, centreVertices, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris, fitCells);
     }
 };
 mem::Scratch<HeldScratch> scratch{"held"};
@@ -1046,55 +1045,36 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
         }
     }
 
-    // Over each cell of the fist, where the object's surface nearest the back of the hand is (along
-    // the palm's normal through the cell's middle): it goes just clear of the fingers there, and so
-    // the object is moved along the normal until the tightest cell touches (out of the fist, or in to
-    // it). Moving it that way changes nothing of what is over which cell.
+    // Each cell of the fist a probe at its middle, on the fingers' surface there, kept `gap` clear of the object: the
+    // object (a Surface along the palm's normal: what of it is nearest the back of the hand over each cell) is moved
+    // along the normal until the tightest cell touches, out of the fist or in to it (handfit::slide). Moving it that way
+    // changes nothing of what is over which cell.
     const float m2u = units::metresToUnits();
     const float cm = 0.01f * units::perMetre * 1.25f * weapons::offsetScale(); // the hand's cm (as measured), in units
     const float gap = (vr_held_fit_gap.value + modelGap(model)) * 0.01f * m2u;
-    float move = -ZA_FLOAT_MAX;
+    za::Vector<glm::vec4>& cells = scratch.fitCells;
+    cells.clear();
     for(int row = 0; row < fistRows; row++)
     {
         for(int column = 0; column < fistColumns; column++)
         {
             const float surface = fistSurface[row][column];
-            if(surface == none)
+            if(surface != none)
             {
-                continue;
-            }
-            const float x = (static_cast<float>(fistForward0 + column) + 0.5f) * cm;
-            const float z = (static_cast<float>(fistUp0 - row) + 0.5f) * cm;
-            float nearest = ZA_FLOAT_MAX;
-            for(const Triangle& t : triangles)
-            {
-                // Where the line (x, z) crosses it: barycentric in the forward-up plane.
-                const glm::vec2 a{t.p[0].x, t.p[0].z}, b{t.p[1].x, t.p[1].z}, c{t.p[2].x, t.p[2].z};
-                const float det = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
-                if(za::fabs(det) < 1e-6f)
-                {
-                    continue;
-                }
-                const float u = ((x - a.x) * (c.y - a.y) - (c.x - a.x) * (z - a.y)) / det;
-                const float v = ((b.x - a.x) * (z - a.y) - (x - a.x) * (b.y - a.y)) / det;
-                if(u < 0.f || v < 0.f || u + v > 1.f)
-                {
-                    continue;
-                }
-                nearest = za::min(nearest, t.p[0].y + u * (t.p[1].y - t.p[0].y) + v * (t.p[2].y - t.p[0].y));
-            }
-            if(nearest != ZA_FLOAT_MAX)
-            {
-                move = za::max(move, surface * cm + gap - nearest);
+                cells.pushBack(glm::vec4{(static_cast<float>(fistForward0 + column) + 0.5f) * cm, surface * cm,
+                    (static_cast<float>(fistUp0 - row) + 0.5f) * cm, -gap});
             }
         }
     }
-    if(move == -ZA_FLOAT_MAX)
+    const handfit::Group all{0, static_cast<int>(cells.size()), 1};
+    const handfit::Slide fit = handfit::slide(handfit::Shape::ofSurface(triangles.data(), static_cast<int>(triangles.size())),
+        handfit::Probes{cells.data(), &all, 1}, glm::vec3{0.f, -1.f, 0.f}, 0.f);
+    if(!fit.found)
     {
         return glm::vec3{0.f}; // nothing of it over the fist: beside it
     }
 
-    const float t = CLAMP(-mostPull * m2u, move, mostPush * m2u);
+    const float t = CLAMP(-mostPull * m2u, fit.t, mostPush * m2u);
     if(vr_debug_throw.value)
     {
         Con_Printf("carryfit %s: moved %.1f cm along the palm's normal\n", model->name, t * 100.f / m2u);

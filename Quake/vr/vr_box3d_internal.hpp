@@ -111,9 +111,10 @@ struct Box3dScratch
     za::Vector<glm::vec3> corners;     // a body's shapes' corners (floorDepth)
     za::Vector<uint8_t> carried;       // by edict: carried by a player (syncEntities)
     za::Vector<b3ContactData> pushContacts; // a pushed prop's touching contacts, all of them (limitPushes)
-    za::Vector<glm::vec4> palmPatch;   // a hand's palm, points on its skin (handFit: a limb taken)
+    za::Vector<glm::vec4> palmPatch;   // a hand's palm, points on its skin (handFit: a limb taken; in the world, w: -radius)
+    za::Vector<glm::vec4> fistPatch;   // and its closed hand's spheres (held::fist), the same
     za::Vector<glm::vec3> magVerts;    // a gun's seated magazine's drawn vertices (magazineHull)
-    auto members() { return qvr::mem::list(propVerts, actorVerts, corners, carried, pushContacts, palmPatch, magVerts); }
+    auto members() { return qvr::mem::list(propVerts, actorVerts, corners, carried, pushContacts, palmPatch, fistPatch, magVerts); }
 };
 inline mem::Scratch<Box3dScratch> scratch{"box3d"};
 

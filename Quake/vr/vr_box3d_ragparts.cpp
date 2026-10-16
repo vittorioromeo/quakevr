@@ -5,6 +5,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_handfit.hpp"
 
 namespace box3d::detail
 {
@@ -288,50 +289,12 @@ void handPose(edict_t* player, int hand, glm::vec3& at, glm::quat& turn)
 
 namespace
 {
-// The hand moved along `n` (world) from `at`: the first `t` (units, within `reach`) where `points` (in the hand's frame,
-// turned by `axes`; w their radius) go from clear of `part` to touching it, or, from in it, the first where they are all
-// clear of it (`from`: g(0), how far the nearest is from the limb). False if there is none.
-[[nodiscard]] bool touchAlong(b3BodyId part, const glm::vec3& at, const glm::mat3& axes, const glm::vec3& n,
-    const za::Vector<glm::vec4>& points, float reach, float& t, float& from)
+// A limb's distance (units) from `p` (the world; 0 in it: its closest point to a point in it is the point itself), for
+// handFit's shape (handfit::Shape::ofDistance; `part` its b3BodyId).
+[[nodiscard]] float limbDistance(const void* part, const glm::vec3& p)
 {
-    // The points moved `s` units along the normal: how far the nearest is from the limb (negative: in it, as deep as its
-    // radius at most: the part's closest point to a point in it is the point itself).
-    const auto gap = [&](float s) {
-        float g = 1e30f;
-        for(const glm::vec4& p : points)
-        {
-            b3Vec3 closest;
-            const glm::vec3 c = at + axes * glm::vec3{p} + n * s;
-            g = za::min(g, b3Body_GetClosestPoint(part, &closest, world->toM(c)) * world->m2u - p.w);
-        }
-        return g;
-    };
-    constexpr float step = 0.25f; // units
-    from = gap(0.f);
-    const bool clear = from > 0.f;
-    const float dir = clear ? 1.f : -1.f; // towards the limb from a gap, back out of it from in it
-    float lo = 0.f, hi = 0.f;
-    bool found = false;
-    for(float s = step; s <= reach + step * 0.5f && !found; s += step)
-    {
-        if((gap(dir * s) > 0.f) != clear)
-        {
-            lo = s - step;
-            hi = s;
-            found = true;
-        }
-    }
-    if(!found)
-    {
-        return false;
-    }
-    for(int i = 0; i < 12; i++) // (to a few thousandths of a unit)
-    {
-        const float mid = (lo + hi) * 0.5f;
-        ((gap(dir * mid) > 0.f) == clear ? lo : hi) = mid;
-    }
-    t = dir * (clear ? lo : hi); // (touching: the side of the crossing clear of it)
-    return true;
+    b3Vec3 closest;
+    return b3Body_GetClosestPoint(*static_cast<const b3BodyId*>(part), &closest, world->toM(p)) * world->m2u;
 }
 
 // The hand on the limb (vr_ragdoll_grab_fit; as a carried prop against the fingers: vr_held_surface_fit; ROUND21.md,
@@ -366,6 +329,7 @@ namespace
     const float cm = 0.01f * units::metresToUnits();
     const glm::vec3 across = glm::normalize(f.channelDir - nLocal * glm::dot(f.channelDir, nLocal));
     const glm::vec3 along = glm::cross(nLocal, across);
+    // Both in the world, each point kept its radius clear of the limb (handfit's probes).
     za::Vector<glm::vec4>& palm = scratch.palmPatch;
     palm.clear();
     for(int i = -2; i <= 2; i++)
@@ -373,19 +337,32 @@ namespace
         for(int j = -2; j <= 2; j++)
         {
             const glm::vec3 p = f.palm + across * (2.f * cm * static_cast<float>(i)) + along * (2.25f * cm * static_cast<float>(j));
-            palm.pushBack(glm::vec4{p, 0.05f});
+            palm.pushBack(glm::vec4{at + axes * p, -0.05f});
         }
     }
-    float t = 0.f, from = 0.f;
+    za::Vector<glm::vec4>& closed = scratch.fistPatch;
+    closed.clear();
+    for(const glm::vec4& sphere : fist)
+    {
+        closed.pushBack(glm::vec4{at + axes * glm::vec3{sphere}, -sphere.w});
+    }
+    // Slid along the palm's normal onto the limb (handfit::slide: from a gap towards it, from in it back out): the palm,
+    // else the fist.
+    const handfit::Shape limb = handfit::Shape::ofDistance(limbDistance, &part);
+    const auto onto = [&](const za::Vector<glm::vec4>& points) {
+        const handfit::Group all{0, static_cast<int>(points.size()), 1};
+        return handfit::slide(limb, handfit::Probes{points.data(), &all, 1}, n, reach);
+    };
     const char* by = "the palm";
-    if(!touchAlong(part, at, axes, n, palm, reach, t, from))
+    handfit::Slide s = onto(palm);
+    if(!s.found)
     {
         by = "the fist";
-        if(!touchAlong(part, at, axes, n, fist, reach, t, from))
-        {
-            by = nullptr;
-        }
+        s = onto(closed);
+        by = s.found ? by : nullptr;
     }
+    float t = s.t;
+    const float from = -s.before; // (how far the nearest was from the limb: negative, in it)
     if(vr_debug_ragdoll.value >= 2.f)
     {
         Con_Printf("ragdoll: hand fit: the palm's normal %.2f %.2f %.2f; %s\n", n.x, n.y, n.z,

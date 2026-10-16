@@ -3,6 +3,7 @@
 #include "vr_gripfit.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_handfit.hpp"
 #include "vr_handrig.hpp"
 #include "vr_held.hpp"
 #include "vr_units.hpp"
@@ -35,7 +36,7 @@ constexpr int maxDirections = 5;
 constexpr int mostMeasured = 2;                           // the ways out measured where they lead
 constexpr int drawnMost = 128;                            // the drawn vertices the faces are pushed out to, at most
 constexpr float drawnReachCm = 6.f;                       // a drawn vertex further out of a hull is another part's
-constexpr float none = 1e30f;
+constexpr float none = handfit::none;
 
 // The rig's points (its vertices' indices), chosen once per rig: the palm joint's, and each finger's.
 struct RigPoints
@@ -57,19 +58,21 @@ struct HandRig
 };
 HandRig handRigs[2];
 
-// What a fit works on (filled at each grab; kept for vr_grip_fit_last's bench): the hand's points in the prop's frame
-// (the palm's, then each finger's at each curl: finger f's curl s from fingerStart[f] + s * perFinger[f]) and the
-// shape's faces.
+// What a fit works on (filled at each grab; kept for vr_grip_fit_last's bench): the hand's points in the prop's frame,
+// w how deep each may press in (handfit's probes: group 0 the palm's, group 1 + f finger f's at each curl, from
+// groups[1 + f].first + s * groups[1 + f].count) and the shape's faces.
 struct Inputs
 {
-    za::Array<glm::vec3, maxPoints> points{};
-    int body{0};
-    int perFinger[fingers]{};
-    int fingerStart[fingers]{};
+    za::Array<glm::vec4, maxPoints> points{};
+    int count{0};
+    za::Array<handfit::Group, 1 + fingers> groups{};
     za::Array<glm::vec4, maxPlanes> planes{};
     za::Array<int, maxHulls> hullEnds{};
     int hulls{0};
-    float bodyAllowed{0.f}, fingerAllowed{0.f}, cap{0.f};
+    float cap{0.f};
+
+    [[nodiscard]] handfit::Shape shape() const { return handfit::Shape::ofHulls(planes.data(), hullEnds.data(), hulls); }
+    [[nodiscard]] const handfit::Group& body() const { return groups[0]; }
 };
 
 Inputs inputs;
@@ -176,78 +179,6 @@ const RigPoints& rigPointsNow()
     return v.count == 1 ? posed.joint[v.joint[0]](v.pos) : out;
 }
 
-// How far `p` is in the shape past `allowed` (0: no further): in a convex hull, the least of its face distances inward
-// (left at the first face it is within `allowed` of: not in that hull past it); the most of the hulls'. `face`, if given:
-// the nearest face of the hull it is deepest in.
-float excess(const Inputs& in, const glm::vec3& p, float allowed, int* face = nullptr)
-{
-    float most = 0.f;
-    int begin = 0;
-    for(int k = 0; k < in.hulls; k++)
-    {
-        const int end = in.hullEnds[k];
-        float inner = none;
-        int nearest = begin;
-        int j = begin;
-        for(; j < end; j++)
-        {
-            const glm::vec4& pl = in.planes[j];
-            const float s = pl.w - (pl.x * p.x + pl.y * p.y + pl.z * p.z);
-            if(s <= allowed)
-            {
-                break;
-            }
-            if(s < inner)
-            {
-                inner = s;
-                nearest = j;
-            }
-        }
-        if(j == end && end > begin && inner - allowed > most)
-        {
-            most = inner - allowed;
-            if(face)
-            {
-                *face = nearest;
-            }
-        }
-        begin = end;
-    }
-    return most;
-}
-
-// How far `p` must go along `e` (unit) to be in the shape no further than `allowed`: in each hull it is in past it, from
-// where the first of its faces (each one's distance falling by its normal's share of the move) comes within it; the most
-// of the hulls'. 0 if it already is; `none` if it can't along `e`.
-float reach(const Inputs& in, const glm::vec3& p, const glm::vec3& e, float allowed)
-{
-    float most = 0.f;
-    int begin = 0;
-    for(int k = 0; k < in.hulls; k++)
-    {
-        const int end = in.hullEnds[k];
-        float least = none;
-        for(int j = begin; j < end; j++)
-        {
-            const glm::vec4& pl = in.planes[j];
-            const float s = pl.w - (pl.x * p.x + pl.y * p.y + pl.z * p.z);
-            if(s <= allowed)
-            {
-                least = 0.f;
-                break;
-            }
-            const float along = pl.x * e.x + pl.y * e.y + pl.z * e.z;
-            if(along > 1e-6f)
-            {
-                least = za::fmin(least, (s - allowed) / along);
-            }
-        }
-        most = za::fmax(most, least);
-        begin = end;
-    }
-    return most;
-}
-
 struct Overlap
 {
     float body{0.f}, fingers{0.f}, deepest{0.f}; // units
@@ -255,15 +186,22 @@ struct Overlap
     [[nodiscard]] float total() const { return body + fingers; }
 };
 
+// A point of the hand moved by `d`: how far it is in the shape past its allowance (handfit::sunk).
+[[nodiscard]] float sunk(const handfit::Shape& shape, const glm::vec4& p, const glm::vec3& d, int* face = nullptr)
+{
+    return handfit::sunk(shape, glm::vec3{p} + d, p.w, face);
+}
+
 // The hand moved by `d`: the overlap (each finger at its least sunk curl). `weights`, if given: each face's share of the
 // way out (the sunk points' nearest faces, by how deep).
 Overlap overlap(const Inputs& in, const glm::vec3& d, float* weights)
 {
+    const handfit::Shape shape = in.shape();
     Overlap o;
-    for(int i = 0; i < in.body; i++)
+    for(int i = 0; i < in.body().count; i++)
     {
         int face = -1;
-        const float x = excess(in, in.points[i] + d, in.bodyAllowed, weights ? &face : nullptr);
+        const float x = sunk(shape, in.points[in.body().first + i], d, weights ? &face : nullptr);
         o.body += x;
         o.deepest = za::fmax(o.deepest, x);
         if(weights && face >= 0 && x > 0.f)
@@ -273,15 +211,16 @@ Overlap overlap(const Inputs& in, const glm::vec3& d, float* weights)
     }
     for(int f = 0; f < fingers; f++)
     {
+        const handfit::Group& g = in.groups[1 + f];
         float best = none, bestDeepest = 0.f;
         int bestSample = 0;
         for(int s = 0; s < samples && best > 0.f; s++)
         {
-            const int first = in.fingerStart[f] + s * in.perFinger[f];
+            const int first = g.first + s * g.count;
             float sum = 0.f, deepest = 0.f;
-            for(int k = 0; k < in.perFinger[f] && sum < best; k++)
+            for(int k = 0; k < g.count && sum < best; k++)
             {
-                const float x = excess(in, in.points[first + k] + d, in.fingerAllowed);
+                const float x = sunk(shape, in.points[first + k], d);
                 sum += x;
                 deepest = za::fmax(deepest, x);
             }
@@ -292,7 +231,7 @@ Overlap overlap(const Inputs& in, const glm::vec3& d, float* weights)
                 bestSample = s;
             }
         }
-        if(best >= none || in.perFinger[f] == 0)
+        if(best >= none || g.count == 0)
         {
             continue;
         }
@@ -300,11 +239,11 @@ Overlap overlap(const Inputs& in, const glm::vec3& d, float* weights)
         o.deepest = za::fmax(o.deepest, bestDeepest);
         if(weights && best > 0.f)
         {
-            const int first = in.fingerStart[f] + bestSample * in.perFinger[f];
-            for(int k = 0; k < in.perFinger[f]; k++)
+            const int first = g.first + bestSample * g.count;
+            for(int k = 0; k < g.count; k++)
             {
                 int face = -1;
-                const float x = excess(in, in.points[first + k] + d, in.fingerAllowed, &face);
+                const float x = sunk(shape, in.points[first + k], d, &face);
                 if(face >= 0 && x > 0.f)
                 {
                     weights[face] += x;
@@ -313,33 +252,6 @@ Overlap overlap(const Inputs& in, const glm::vec3& d, float* weights)
         }
     }
     return o;
-}
-
-// How far the hand must go along `e` for nothing to be in past its allowance (each finger at the curl that clears
-// soonest); `none` if it can't.
-float need(const Inputs& in, const glm::vec3& e)
-{
-    float t = 0.f;
-    for(int i = 0; i < in.body && t < none; i++)
-    {
-        t = za::fmax(t, reach(in, in.points[i], e, in.bodyAllowed));
-    }
-    for(int f = 0; f < fingers && t < none; f++)
-    {
-        float best = none;
-        for(int s = 0; s < samples && best > 0.f; s++)
-        {
-            const int first = in.fingerStart[f] + s * in.perFinger[f];
-            float most = 0.f;
-            for(int k = 0; k < in.perFinger[f] && most < best; k++)
-            {
-                most = za::fmax(most, reach(in, in.points[first + k], e, in.fingerAllowed));
-            }
-            best = za::fmin(best, most);
-        }
-        t = za::fmax(t, in.perFinger[f] > 0 ? best : 0.f);
-    }
-    return t;
 }
 
 // The fit itself on `in`: the hand's move (the prop's frame), the overlap before and after, the ways tried and measured.
@@ -418,7 +330,7 @@ glm::vec3 run(const Inputs& in, Overlap& before, Overlap& after, int& directions
     za::Array<int, maxDirections> order{};
     for(int i = 0; i < n; i++)
     {
-        t[i] = need(in, dirs[i]);
+        t[i] = handfit::slide(in.shape(), handfit::Probes{in.points.data(), in.groups.data(), 1 + fingers}, dirs[i], 0.f).t;
         int k = i;
         for(; k > 0 && t[order[k - 1]] > t[i]; k--)
         {
@@ -585,14 +497,17 @@ bool fit(int num, int hand, bool local, bool twoHand, const glm::mat3& handToPro
     const za::Vector<handrig::Vertex>& vs = handrig::rig().vertices;
     const glm::mat4& toHand = h.rigToHand;
     const auto place = [&](const glm::vec3& p) { return handToProp * glm::vec3{toHand * glm::vec4{p, 1.f}} + handInProp; };
-    in.body = static_cast<int>(r.body.size());
-    int next = in.body;
+    const float cm = 0.01f * units::metresToUnits();
+    const float bodyAllowed = za::fmax(vr_grip_fit_palm_depth.value, 0.f) * cm;
+    const float fingerAllowed = za::fmax(vr_grip_fit_finger_depth.value, 0.f) * cm;
+    in.groups[0] = handfit::Group{0, static_cast<int>(r.body.size()), 1};
+    int next = in.groups[0].count;
     for(int f = 0; f < fingers; f++)
     {
-        in.perFinger[f] = static_cast<int>(r.finger[f].size());
-        in.fingerStart[f] = next;
-        next += samples * in.perFinger[f];
+        in.groups[1 + f] = handfit::Group{next, static_cast<int>(r.finger[f].size()), samples};
+        next += samples * in.groups[1 + f].count;
     }
+    in.count = next;
     for(int s = 0; s < samples; s++)
     {
         handrig::Pose p = h.pose;
@@ -608,24 +523,22 @@ bool fit(int num, int hand, bool local, bool twoHand, const glm::mat3& handToPro
         handrig::pose(p, posed);
         if(s == 0)
         {
-            for(int i = 0; i < in.body; i++)
+            for(int i = 0; i < in.groups[0].count; i++)
             {
-                in.points[i] = place(blend(posed, vs[static_cast<size_t>(r.body[static_cast<size_t>(i)])]));
+                in.points[i] = glm::vec4{place(blend(posed, vs[static_cast<size_t>(r.body[static_cast<size_t>(i)])])), bodyAllowed};
             }
         }
         for(int f = 0; f < fingers; f++)
         {
-            for(int k = 0; k < in.perFinger[f]; k++)
+            const handfit::Group& g = in.groups[1 + f];
+            for(int k = 0; k < g.count; k++)
             {
-                in.points[in.fingerStart[f] + s * in.perFinger[f] + k] =
-                    place(blend(posed, vs[static_cast<size_t>(r.finger[f][static_cast<size_t>(k)])]));
+                in.points[g.first + s * g.count + k] =
+                    glm::vec4{place(blend(posed, vs[static_cast<size_t>(r.finger[f][static_cast<size_t>(k)])])), fingerAllowed};
             }
         }
     }
     const za::I64 tPose = za::Clock::nowNanoseconds();
-    const float cm = 0.01f * units::metresToUnits();
-    in.bodyAllowed = za::fmax(vr_grip_fit_palm_depth.value, 0.f) * cm;
-    in.fingerAllowed = za::fmax(vr_grip_fit_finger_depth.value, 0.f) * cm;
     in.cap = za::fmax(vr_grip_fit_reach.value, 0.f) * r.length * glm::length(glm::vec3{toHand[0]});
 
     Result& res = lastResult;
@@ -683,7 +596,10 @@ void last_f()
     // The worst case: the same inputs with every point sunk in every hull (nothing ever clears), 1000 times.
     Inputs& worst = scratch.shape;
     worst = inputs;
-    worst.bodyAllowed = worst.fingerAllowed = -none * 1e-10f;
+    for(int i = 0; i < worst.count; i++)
+    {
+        worst.points[i].w = -none * 1e-10f;
+    }
     constexpr int runs = 1000;
     Overlap before, after;
     int directions = 0, measured = 0;
@@ -731,7 +647,7 @@ bool drawnOverlap(int hand, DrawnOverlap& out)
     out.num = num;
     for(size_t i = 0; i < d.hand.size(); i++)
     {
-        const float depth = excess(d.shape, toProp * (glm::vec3{d.hand[i]} - origin), 0.f) / cm;
+        const float depth = handfit::sunk(d.shape.shape(), toProp * (glm::vec3{d.hand[i]} - origin), 0.f) / cm;
         const view::HandPart part = i < d.parts.size() ? d.parts[i] : view::HandPart::Hand;
         const bool finger = part == view::HandPart::Fingers || part == view::HandPart::Fingertips || part == view::HandPart::Thumb;
         DrawnOverlap::Part& p = finger ? out.fingers : out.body;
@@ -751,11 +667,11 @@ bool drawnOverlap(int hand, DrawnOverlap& out)
             drawnMid += toProp * (glm::vec3{w} - origin);
         }
         drawnMid /= static_cast<float>(za::max(static_cast<int>(d.hand.size()), 1));
-        for(int i = 0; i < inputs.body; i++)
+        for(int i = 0; i < inputs.body().count; i++)
         {
-            fitMid += inputs.points[i] + lastResult.move;
+            fitMid += glm::vec3{inputs.points[i]} + lastResult.move;
         }
-        fitMid /= static_cast<float>(za::max(inputs.body, 1));
+        fitMid /= static_cast<float>(za::max(inputs.body().count, 1));
         Con_Printf("  middles (prop frame): drawn %.1f %.1f %.1f, the fit's palm %.1f %.1f %.1f\n", drawnMid.x, drawnMid.y,
             drawnMid.z, fitMid.x, fitMid.y, fitMid.z);
     }

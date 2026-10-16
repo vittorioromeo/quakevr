@@ -9844,3 +9844,45 @@ overlapped beside the body.
 For him in VR: Debug > Show Tracked Skeleton Beside the Body, Skeleton Bones Both: lean, twist, wing the elbows, bend
 the knees and compare. With the Legs slider at 1, walk and run with the stick (the legs should walk), then stand still
 (the tracked legs back within a quarter of a second); jump.
+## One hand-fit core: surfaceFit, the grip fit and the ragdoll's hand fit (worktree `dequant`, branch `agent/handfitcore`, 2026-10-16)
+
+Review item 9 (R1_cpp D8 / H11): three hand-onto-surface fits, each with its own shape test and its own solver. They
+now share one core, `Quake/vr/vr_handfit.{hpp,cpp}` (`qvr::handfit`), and are thin callers of it. No behaviour change.
+
+- **The shape query**, `handfit::sunk(shape, p, allowed)`: how far a point is in the shape past what it may sink (its
+  probe's w; negative w: how far it keeps out). Three kinds of `handfit::Shape`, each a view: **Hulls** (convex hulls'
+  faces: the grip fit's Box3D hulls or the drawn box, pushed out to the drawn model, as before), **Surface** (triangles
+  seen along the line: surfaceFit's drawn surface or box in the hand's frame), **Distance** (a distance at any point:
+  the ragdoll limb's Box3D body). A shape that can say it exactly also answers `handfit::outAlong(shape, p, e)`: how far
+  the point must move along the line to be no further in (Hulls: through the first face; Surface: the nearest of it
+  over the point).
+- **The solver**, `handfit::slide(shape, probes, e, reach)`: probes (points in groups, a group's sets of points being
+  alternatives: a finger at each of its curls, out at the one that clears soonest) moved along a line until they rest on
+  the shape. Hulls and Surface: at once, from outAlong (the most of the groups'). Distance: marched in quarter-unit
+  steps and halved 12 times where they cross (from clear of it, the first touch; from in it, the first all clear).
+- **The callers.** `held::surfaceFit`: the fist's cells as probes (w = -gap), a Surface, along the palm's normal, capped
+  15 cm out and 8 cm in. `gripfit::fit`: the hand's posed points as probes (the palm one group, each finger one group of
+  its 3 curls; w = the palm's or the fingers' allowed depth), the overlap (sums and the face weights for the ways out)
+  from `sunk`, each way out from `slide`; the choice of ways and the measuring stay its own. The ragdoll's `handFit`
+  (vr_box3d_ragparts.cpp): the palm patch, else the fist, as probes in the world (w = -radius), a Distance shape over
+  the limb's body (`limbDistance`), along the palm's normal.
+- Removed: gripfit's `excess`, `reach`, `need`; ragparts' `touchAlong`; surfaceFit's column loop; held's own
+  `Triangle` (now `handfit::Triangle`). The callers lost 225 lines and gained 101; the core is 358 (most of it the
+  comments and the group aggregation the three now share).
+
+Identical by construction: the per-point arithmetic is the old code moved, in the same order (the build has
+`-ffp-contract=off`, so a sum split over two statements rounds the same); the ragdoll's gap g becomes sunk = -g (exact
+negation; `g > 0` is `sunk < 0`), surfaceFit's `surface*cm + gap` becomes `surface*cm - (-gap)` (the same float), the
+early exits are the old ones.
+
+Verified (headless, the same scripts before and after, `scratch/hf_test.sh`; timings stripped): byte-identical output.
+Five grip cases (gf2_test.sh's crate deep and top, barrel rim, health side, explobox deep: the `gripfit:` lines to
+0.01 cm, `vr_grip_fit_drawn`'s per-point overlap sums, the `carryfit` line from surfaceFit), the ragdoll take
+(ragdoll_test.sh's grab: `ragdoll: hand fit: ... the fist 0.1 units into the limb, moved -0.3 along it`, the held
+point, the throw), and `vr_physics_hash` after every run (sv_random_seed 7, vr_fixed_frames 1), and after a prop pile.
+Melee eval (eval.sh): 168/177, the 3 known bash-damage canary differences (6 -> 3), nothing else.
+
+For him in VR: nothing should feel different. Take a crate by its top and a barrel by its rim (grip fit), carry a
+health box (surfaceFit), take a dead grunt's leg (the ragdoll's hand fit).
+
+---
