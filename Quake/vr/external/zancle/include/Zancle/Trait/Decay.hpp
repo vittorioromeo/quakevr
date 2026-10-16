@@ -12,7 +12,8 @@
 // Clang 19 and GCC 15 report this builtin through __has_builtin, but reject
 // invoking it as a type trait in a function signature. Use the portable
 // implementation there until their builtin form is supported in this context.
-#if ZA_HAS_BUILTIN(__decay) && !((defined(__clang__) && __clang_major__ >= 19) || \
+// (Not clang-cl: Quake VR's Windows build takes the builtin as before.)
+#if ZA_HAS_BUILTIN(__decay) && !((defined(__clang__) && !defined(_MSC_VER) && __clang_major__ >= 19) || \
     (defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 15))
 
     ////////////////////////////////////////////////////////////

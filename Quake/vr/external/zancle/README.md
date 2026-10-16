@@ -52,8 +52,8 @@ Build (every build file compiles the same set):
 - CMake (`Quake/vr/vr.cmake`): on Windows configure with `-T ClangCL` (plain MSVC stops with a message). The Makefiles:
   `-pthread` or `-lsynchronization`; the engine's C++ files are `-std=c++23 -DZA_STATIC` with Zancle's `include`.
 
-Local changes: `Trait/Decay.hpp` takes the portable `ZA_DECAY` instead of the `__decay` builtin on clang 19+ and gcc
-15+, which report the builtin but reject it in a function signature (the Linux ARM64 build's clang 19; Kasper Olesen,
+Local changes: `Trait/Decay.hpp` takes the portable `ZA_DECAY` instead of the `__decay` builtin on clang 19+ (not clang-cl:
+the Windows build is unchanged) and gcc 15+, which report the builtin but reject it in a function signature (the Linux ARM64 build's clang 19; Kasper Olesen,
 PR #75); to go upstream. None other since 534219bf (and none at 304ea6c3 or 2f8a1ca5). The last ones went upstream at `fad225a4`: `MaxAlignT.hpp`'s `__float128` guard
 (`__SIZEOF_FLOAT128__`, for 32-bit clang-cl), `InitializerList.hpp`'s real `<initializer_list>` under `_MSC_VER` (two
 layouts of one type had corrupted memory: ROUND21.md, "Zancle update to 4ed9c3cc"), and the assert hook
