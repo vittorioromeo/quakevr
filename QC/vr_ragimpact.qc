@@ -19,7 +19,11 @@
 //   health, popped). Its torso: nothing (the body stays whole).
 // - Landing crush (vr_ragimpact_crush): you landing at vr_ragimpact_crush_speed or faster (client.qc's landing) on a living
 //   ragdoll: the part under your feet struck as above, vr_ragimpact_crush_mass kg of you behind your feet at the speed you
-//   landed at (its least speed vr_ragimpact_crush_speed's), times vr_ragimpact_crush.
+//   landed at (its least speed vr_ragimpact_crush_speed's), times vr_ragimpact_crush. A jump from the same level (about
+//   270 units/s) crushes: a down grunt's head pops at the second, its torso and limbs take more (2026-10-16). A ragdoll
+//   crushed is pushed (vr_ragimpact_crush_push: it squashes and jolts, VR_RagImpact_CrushPush); the gib's sound only when
+//   something comes off, else a body's punch and thud (VR_RagImpact_CrushSound). A down one's hits keep it down
+//   (vr_knockdown.qc VR_Knockdown_Keep).
 // - Stomp (vr_ragimpact_stomp; the author, 2026-10-15): a standing one that lives through the landing on its top is
 //   knocked down as a shove knocks it down (it gets up again), from vr_ragimpact_stomp_speed (heavy ones more:
 //   vr_ragimpact_stomp_heavy), and you bounce off it (VR_RagImpact_Stomp).
@@ -411,6 +415,70 @@ float(entity m, entity p, float xSpeed) VR_RagImpact_Stomp =
     return TRUE;
 };
 
+// A landing's crush on ragdoll `m` (down or a corpse; the author, 2026-10-16: "it stays completely still"): the part at
+// xAt under your (`p`) feet pushed down and out from its body's middle (along your way when over the middle) at
+// vr_ragimpact_crush_push times your landing speed xSpeed (units/s; at most VR_RIMP_PUSH_MOST), and its body's middle up
+// and out at VR_RIMP_PUSH_BODY of that: it squashes and jolts. Your vr_ragimpact_crush_mass behind both (physicspush).
+float VR_RIMP_PUSH_BODY = 0.4;
+float VR_RIMP_PUSH_MOST = 350;
+void(entity m, entity p, vector xAt, float xSpeed) VR_RagImpact_CrushPush =
+{
+    float v = min(VR_RIMP_PUSH_MOST, xSpeed * max(0, cvar_hget(cvarh_vr_ragimpact_crush_push)));
+    if(v < 1 || !isragdoll(m))
+    {
+        return;
+    }
+    vector mid = (m.absmin + m.absmax) * 0.5;
+    vector out = xAt - mid;
+    out_z = 0;
+    if(vlen(out) < 4)
+    {
+        out = p.velocity;
+        out_z = 0;
+    }
+    if(vlen(out) < 1)
+    {
+        makevectors(p.angles);
+        out = v_forward;
+        out_z = 0;
+    }
+    out = normalize(out);
+    float mass = max(1, cvar_hget(cvarh_vr_ragimpact_crush_mass));
+    physicspush(m, xAt, normalize(out * 0.6 - '0 0 1') * v, mass);
+    physicspush(m, mid, normalize(out + '0 0 1') * v * VR_RIMP_PUSH_BODY, mass);
+    if(vr_rimp_test || cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("ragimpact crush push: %s's part at %v down and out at %.0f u/s, its middle up at %.0f u/s\n",
+            m.classname, xAt, v, v * VR_RIMP_PUSH_BODY));
+    }
+};
+
+// A landing's crush sound on `m`: the gib's (player/udeath) only when something came off it (xPopped); else a body's
+// punch and thud (the arms-crossed parry's: fisthit, demon/dland2), louder the faster you landed (xSpeed units/s, from
+// vr_ragimpact_crush_speed to vr_ragimpact_crush_pop), never as loud as a gib.
+void(entity m, float xPopped, float xSpeed, float xDamage, float xShare) VR_RagImpact_CrushSound =
+{
+    float vol;
+    if(xPopped)
+    {
+        vol = min(1, max(0.7, max(xDamage / 40, xShare)));
+        sound(m, CHAN_AUTO, "player/udeath.wav", vol, ATTN_NORM);
+    }
+    else
+    {
+        float least = cvar_hget(cvarh_vr_ragimpact_crush_speed);
+        float t = min(1, max(0, (xSpeed - least) / max(1, cvar_hget(cvarh_vr_ragimpact_crush_pop) - least)));
+        vol = 0.45 + 0.4 * t;
+        VR_SoundVaried(m, CHAN_AUTO, "fisthit.wav", vol, ATTN_NORM);
+        sound(m, CHAN_AUTO, "demon/dland2.wav", vol * 0.6, ATTN_NORM);
+    }
+    if(vr_rimp_test || cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("ragimpact crush sound: %s, volume %.2f\n", xPopped ? "gib (something popped)" : "thud (nothing popped)",
+            vol));
+    }
+};
+
 // You (`p`) landed at xSpeed units/s (client.qc's landing, PlayerPostThink; xOnGround: on the floor, else stopped on a
 // standing monster's top): a monster's part under your feet is crushed (vr_ragimpact_crush): a ragdoll's (knocked
 // down, staggering or a corpse) or, with vr_ragimpact_crush_standing, a standing one's; its head or limb worn by a share
@@ -514,10 +582,16 @@ float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush =
     float hit = FALSE;
     if(dmg >= 0.5 || share > 0)
     {
-        sound(best, CHAN_AUTO, "player/udeath.wav", min(1, max(dmg / 40, share)), ATTN_NORM);
+        if(!upright)
+        {
+            VR_RagImpact_CrushPush(best, p, bestAt, xSpeed);
+        }
+        float came = vr_decap_count + vr_limb_pops + vr_limb_cuts; // (what comes off: a pop's gib sound)
         VR_RagImpact_Deal(best, p, bestAt, bestPiece, dmg, share, sprintf("crushed (%s%s), you landing at %.1f m/s, "
             "wearing %.2f", upright ? "standing" : (best.health > 0 ? "a ragdoll" : "a corpse"), big ? ", big" : "", speed,
             share));
+        VR_RagImpact_CrushSound(best, best.vr_gib || vr_decap_count + vr_limb_pops + vr_limb_cuts > came, xSpeed, dmg,
+            share);
         hit = TRUE;
     }
     // Standing and still alive (and not made a ragdoll by the crush's pain): knocked down by the stomp.

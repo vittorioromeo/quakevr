@@ -849,6 +849,9 @@ float cvarh_vr_climb_blast_letgo;
 float cvarh_vr_hit_react;
 float cvarh_vr_hit_react_slow;
 float cvarh_vr_hit_react_debug;
+float cvarh_vr_ragimpact_crush_push;
+float cvarh_vr_knockdown_keep_time;
+float cvarh_vr_knockdown_keep_max;
 
 //
 //
@@ -1708,6 +1711,9 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_hit_react);
     VR_CVAR_HMAKE(vr_hit_react_slow);
     VR_CVAR_HMAKE(vr_hit_react_debug);
+    VR_CVAR_HMAKE(vr_ragimpact_crush_push);
+    VR_CVAR_HMAKE(vr_knockdown_keep_time);
+    VR_CVAR_HMAKE(vr_knockdown_keep_max);
 
 #undef VR_CVAR_HMAKE
 }

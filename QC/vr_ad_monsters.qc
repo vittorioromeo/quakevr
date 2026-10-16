@@ -416,8 +416,7 @@ float(entity targ) VR_AD_PainDown =
     targ.nextthink = vr_ad_kd_next;
     if(targ.vr_knockdown == 1)
     {
-        targ.vr_kd_until = min(max(targ.vr_kd_until, time) + cvar_hget(cvarh_vr_knockdown_hit_time),
-            time + cvar_hget(cvarh_vr_knockdown_time_max));
+        VR_Knockdown_Keep(targ, cvar_hget(cvarh_vr_knockdown_hit_time), "hit");
     }
     if(targ.ad_pain_sound != "" && targ.ad_pain_finished < time)
     {

@@ -802,8 +802,13 @@ const DefaultChange defaultChanges[] = {
     {140, &vr_knockdown_time_max, "4.5"},           // 3.5
     // 141: his ragdoll hand-follow value (2026-10-16: "I like if the hand follows the ragdoll more accurately").
     {141, &vr_ragdoll_hand_stick, "4"},             // 30
+    // 142: a jump from the same level crushes (2026-10-16: "jump from no extra height and still damage and pop the
+    // limbs ... one or two jumps to kill a grunt by jumping on his head"); a hit keeps one down at least this after it.
+    {142, &vr_knockdown_hit_time, "0.5"},           // 1
+    {142, &vr_ragimpact_crush_speed, "350"},        // 220
+    {142, &vr_ragimpact_crush_wear, "0.3"},         // 0.5
 };
-constexpr int configVersion = 141;
+constexpr int configVersion = 142;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

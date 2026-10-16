@@ -342,6 +342,7 @@ void(float xMode) VR_HitStagger_Test;
 void(entity e) VR_Manhandle_Shaken;
 float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush;
 void(float xMode) VR_RagImpact_Test;
+void(entity m, float xFor, string xWhat) VR_Knockdown_Keep; // (vr_knockdown.qc: a hit, a stomp, a hand keeps one down)
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;
 // Head pops (vr_decap.qc, "Head pops"): the player's shot being fired (W_FireShotgun, W_FireSuperShotgun,
@@ -1740,8 +1741,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         self.nextthink = kdNext;
         if(kdState == 1)
         {
-            self.vr_kd_until = min(max(self.vr_kd_until, time) + cvar_hget(cvarh_vr_knockdown_hit_time),
-                time + cvar_hget(cvarh_vr_knockdown_time_max));
+            VR_Knockdown_Keep(self, cvar_hget(cvarh_vr_knockdown_hit_time), "hit");
         }
     }
 

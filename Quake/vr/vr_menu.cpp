@@ -1219,14 +1219,17 @@ int campaignsBloodyShown = -1;
             .help("Landing on a monster (standing, down or a corpse) crushes the part under your feet (its head, a limb, "
                   "its torso): its damage times this; a head or limb crushed past its health pops. 0: never."),
         slider("Crush Least Speed", vr_ragimpact_crush_speed, 100.f, 1000.f, 25.f, "%.0f u/s").extend(0.f, 3000.f)
-            .help("Landing slower than this crushes nothing (a jump from the same level lands at about 270; a "
-                  "100-unit drop: 400)."),
+            .help("Landing slower than this crushes nothing (a jump from the same level lands at about 270: 220 crushes "
+                  "it; a stair's step: 160; a 100-unit drop: 400)."),
         slider("Crush Wear", vr_ragimpact_crush_wear, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much of a head's or limb's own health a landing at the least speed wears (0.3: a jump from the "
-                  "same level wears about 0.37, the third pops it); faster landings more. 0: landings pop nothing."),
+            .help("How much of a head's or limb's own health a landing at the least speed wears (0.5: a jump from the "
+                  "same level wears about 0.55, the second pops it); faster landings more. 0: landings pop nothing."),
         slider("Crush Pop Speed", vr_ragimpact_crush_pop, 200.f, 1000.f, 10.f, "%.0f u/s").extend(0.f, 3000.f)
             .help("A landing this fast pops the head or limb under your feet at once (380: a drop of about two "
                   "heights onto a body lying down)."),
+        slider("Crush Push", vr_ragimpact_crush_push, 0.f, 1.5f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("A landing on a body lying down (alive or dead) pushes the part under your feet down and out at this "
+                  "times your landing speed, the body jolting with it. 0: it lies still."),
         slider("Crush Big Mass", vr_ragimpact_crush_big, 0.f, 600.f, 10.f, "%.0f kg").extend(0.f, 5000.f)
             .help("A monster heavier than this (an ogre, a fiend, a shambler) is only hurt by landings: its head and "
                   "limbs never pop. 0: none is big."),
@@ -1265,7 +1268,14 @@ int campaignsBloodyShown = -1;
             .help("How long it stays down, at least (at random up to Time Down, Most)."),
         slider("Time Down, Most", vr_knockdown_time_max, 0.f, 10.f, 0.25f, "%.2f s").extend(0.f, 60.f),
         slider("Hit Keeps It Down", vr_knockdown_hit_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 10.f)
-            .help("Each hit while it lies there keeps it down this much longer (never past Time Down, Most from the hit)."),
+            .help("Each hit while it lies there (a punch, a shot, a stomp) keeps it down at least this long after the hit, "
+                  "past its own time (never past Kept Down, Most in all)."),
+        slider("Handling Keeps It Down", vr_knockdown_keep_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 10.f)
+            .help("Holding, dragging or lifting it keeps it down while you do and this long after you let go, past its "
+                  "own time (never past Kept Down, Most in all)."),
+        slider("Kept Down, Most", vr_knockdown_keep_max, 0.f, 15.f, 0.25f, "%.2f s").extend(0.f, 60.f)
+            .help("The longest it stays down in all while you keep at it (hits, stomps, holding it). Left alone it gets "
+                  "up on its own time, or soon after you stop if that has passed. 0: nothing keeps it down longer."),
         slider("Launch", vr_knockdown_push, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How hard the shove throws the body, times the shove's own push: the fastest its travel starts (Travel "
                   "sets how far). 0: it drops where it stood."),
