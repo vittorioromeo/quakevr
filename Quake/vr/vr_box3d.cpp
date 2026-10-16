@@ -17248,6 +17248,44 @@ int limbAt(edict_t* ent, const glm::vec3& at)
     return joint;
 }
 
+int boneAt(edict_t* ent, const glm::vec3& at, const char** name)
+{
+    const ragdoll::Rig* rig = nullptr;
+    za::Array<glm::quat, ragdoll::maxBones> rot{};
+    za::Array<glm::vec3, ragdoll::maxBones> pos{};
+    float scale = 1.f;
+    uint32_t cut = 0;
+    if(!posedBones(ent, rig, rot, pos, scale, cut))
+    {
+        return -1;
+    }
+    int hit = -1;
+    float best = 1e30f;
+    for(int b = 0; b < rig->numBones; b++)
+    {
+        if(cut & (1u << b))
+        {
+            continue;
+        }
+        const glm::quat& q = rot[static_cast<za::SizeT>(b)];
+        const glm::vec3& o = pos[static_cast<za::SizeT>(b)];
+        for(const glm::vec3& p : rig->bones[b].points)
+        {
+            const float d = glm::distance(q * (p * scale) + o, at);
+            if(d < best)
+            {
+                best = d;
+                hit = b;
+            }
+        }
+    }
+    if(name)
+    {
+        *name = hit >= 0 ? rig->bones[hit].name : "";
+    }
+    return hit;
+}
+
 uint32_t limbInfo(edict_t* ent, int what, int bone)
 {
     const ragdoll::Rig* rig = nullptr;

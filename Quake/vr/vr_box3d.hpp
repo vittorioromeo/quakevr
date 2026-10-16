@@ -391,6 +391,9 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 // where it stands), then the nearest of that bone's own joint and its children's; its rig's head for the head's bones;
 // -1 the torso (or nothing); -2 no rig.
 [[nodiscard]] int limbAt(edict_t* ent, const glm::vec3& at);
+// The bone of `ent`'s rig whose vertex is nearest `at` (as drawn, as limbAt finds it), `name` its rig's name for it
+// ("shin_l", "thigh_r"; the leg grabs: vr_foegrab.cpp legPartOf); -1 none (no rig).
+[[nodiscard]] int boneAt(edict_t* ent, const glm::vec3& at, const char** name);
 // `ent`'s limbs: 0 its limb joints not cut (bits; not the head's), 1 its head's bones, 2 its bones cut off, 3 its head
 // bone (~0 none), 4 the bones a cut at `bone` would take now, 5 `bone`'s parent.
 [[nodiscard]] uint32_t limbInfo(edict_t* ent, int what, int bone);
