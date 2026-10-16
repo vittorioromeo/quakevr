@@ -1754,8 +1754,6 @@ int campaignsBloodyShown = -1;
         slider("Parry Angle", vr_parry_angle, 15.f, 80.f, 5.f, "%.0f deg").extend()
             .help("Hold a weapon (sword, axe or gun, one hand or two) level across in front of you to block a monster's melee blow: how far it may be tilted off level."),
         slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").extend().help("How far in front of you a held weapon still parries."),
-        toggle("Parry Stops Attacks", vr_parry_interrupt)
-            .help("A successful weapon or crossed-arm parry cancels the monster's remaining melee hits and briefly staggers it. Off: the original damage reduction and push."),
         slider("Parry Stagger", vr_parry_stagger, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.1f, 3.f)
             .help("How long the monster pauses after a successful parry before it can move and attack again."),
         slider("Stagger Frames", vr_parry_stagger_frames, 1.f, 4.f, 1.f, "%.0f")

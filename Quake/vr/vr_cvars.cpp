@@ -477,6 +477,7 @@ constexpr const char* retiredCvars[] = {
     "vr_carry_grab_drawn",
     "vr_weapon_grab_box",
     "vr_button_weapon",
+    "vr_parry_interrupt",
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

@@ -2126,7 +2126,7 @@ void() VR_Dragon_ParryInterrupt;
 void(entity m, entity p) VR_Parry_Interrupt =
 {
     // The dummy manages its own practice timing. Knockdown/death already own the monster's think.
-    if(!cvar_hget(cvarh_vr_parry_interrupt) || m.health <= 0 || m.vr_knockdown || m.vr_dummy_striking || !m.th_run)
+    if(m.health <= 0 || m.vr_knockdown || m.vr_dummy_striking || !m.th_run)
     {
         return;
     }
