@@ -1237,9 +1237,9 @@ QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blo
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
 // Flesh dents (vr_dents.cpp; ROUND22.md, "Flesh dents"): hits push monsters' and corpses' surfaces in, raw flesh inside.
 QVR_CVAR(vr_gore_dents, "1", CVAR_ARCHIVE)            // bullets, pellets, nails, blades and blasts dent the bodies they hit
-QVR_CVAR(vr_gore_dents_depth, "1", CVAR_ARCHIVE)      // how deep the dents push in, times their own (0 flat: the raw flesh only)
-QVR_CVAR(vr_gore_dents_size, "1", CVAR_ARCHIVE)       // how wide the dents are, times their own (and as much deeper)
-QVR_CVAR(vr_gore_dents_max, "8", CVAR_ARCHIVE)        // dents a body keeps (1..16): past it, the oldest merges into its neighbour
+QVR_CVAR(vr_gore_dents_depth, "3", CVAR_ARCHIVE)      // how deep the dents push in, times their own (0 flat: the raw flesh only)
+QVR_CVAR(vr_gore_dents_size, "1.25", CVAR_ARCHIVE)       // how wide the dents are, times their own (and as much deeper)
+QVR_CVAR(vr_gore_dents_max, "12", CVAR_ARCHIVE)        // dents a body keeps (1..16): past it, the oldest merges into its neighbour
 // Gore: bloody hands and washing (vr_wounds.cpp; ROUND21.md, "Gore: bloody hands, washing, dying bodies, blood mist").
 QVR_CVAR(vr_gore_hands, "1", CVAR_ARCHIVE)            // grabbing a gib or a head bloodies the hand holding it: how much (0 none; the wound skins: 1 a bloody hand)
 QVR_CVAR(vr_gore_wash, "1", CVAR_ARCHIVE)             // water washes the blood off your body and hands, where they are under it
@@ -1743,20 +1743,24 @@ QVR_CVAR(vr_gore_stick, "8", CVAR_ARCHIVE)             // gibs flung into a ceil
 // or a nail's wound on a monster or a corpse, pulsing, weakening, painting where it lands.
 QVR_CVAR(vr_gore_streams, "1", CVAR_ARCHIVE)            // on
 QVR_CVAR(vr_gore_streams_chance, "0.6", CVAR_ARCHIVE)   // the chance a shot or a nail (each pellet) opens one
-QVR_CVAR(vr_gore_streams_per_body, "3", CVAR_ARCHIVE)   // most on one body (a new one takes the weakest's place)
+QVR_CVAR(vr_gore_streams_per_body, "4", CVAR_ARCHIVE)   // most on one body (a new one takes the weakest's place)
 QVR_CVAR(vr_gore_streams_max, "24", CVAR_ARCHIVE)       // most in all (0-64)
 QVR_CVAR(vr_gore_streams_time, "7", CVAR_ARCHIVE)       // seconds one pours, about (weakening all along)
-QVR_CVAR(vr_gore_streams_speed, "70", CVAR_ARCHIVE)     // units/s it leaves the wound at, at its strongest
-QVR_CVAR(vr_gore_streams_width, "0.35", CVAR_ARCHIVE)   // units across, at its strongest (1 unit: 3.8 cm)
+QVR_CVAR(vr_gore_streams_speed, "50", CVAR_ARCHIVE)     // units/s it leaves the wound at, at its strongest
+QVR_CVAR(vr_gore_streams_width, "0.75", CVAR_ARCHIVE)   // units across, at its strongest (1 unit: 3.8 cm)
 QVR_CVAR(vr_gore_streams_pool, "1", CVAR_ARCHIVE)       // the pools it spreads where it lands: their size (0: no marks)
 QVR_CVAR(vr_gore_streams_pools, "4", CVAR_ARCHIVE)      // most pools one stream spreads (a new one each time it moves on)
+QVR_CVAR(vr_gore_streams_spread, "35", CVAR_ARCHIVE)    // degrees: each stream's way out turned at random up to this far from the wound's (one shotgun blast's streams diverge)
+QVR_CVAR(vr_gore_streams_speed_var, "0.3", CVAR_ARCHIVE) // each stream's force times a random 1 +- this (0: all alike)
+QVR_CVAR(vr_gore_streams_wobble, "10", CVAR_ARCHIVE)    // degrees: each stream's way out wanders this far as it pours (slow noise; 0: steady)
+QVR_CVAR(vr_gore_streams_wobble_rate, "0.7", CVAR_ARCHIVE) // how fast it wanders (about this many swings a second)
 // Back-splatter (vr_gore.cpp): thin long streaks thrown onto what is behind a monster hit, along the shot's line.
 QVR_CVAR(vr_gore_backsplatter, "1", CVAR_ARCHIVE)       // how many (0 none)
 QVR_CVAR(vr_gore_backsplatter_reach, "1", CVAR_ARCHIVE) // how far they fly (times the hit's own: a shotgun's close, big hits far)
 // Teeth (QC vr_smallgibs.qc): a hard punch or blunt blow to a humanoid's face knocks out tooth gibs (small gibs).
 QVR_CVAR(vr_teeth, "1", CVAR_ARCHIVE)                   // on
 QVR_CVAR(vr_teeth_per_hit, "4", CVAR_ARCHIVE)           // most from one blow (the hardest)
-QVR_CVAR(vr_teeth_per_enemy, "10", CVAR_ARCHIVE)        // most one enemy loses
+QVR_CVAR(vr_teeth_per_enemy, "8", CVAR_ARCHIVE)        // most one enemy loses
 QVR_CVAR(vr_teeth_hardness, "0.3", CVAR_ARCHIVE)        // a blow's least hardness to knock any out (0..1: Decapitation's blunt hardness, speed and damage)
 QVR_CVAR(vr_teeth_blunt, "1", CVAR_ARCHIVE)             // blunt things in the hand (a gun's butt, a crowbar, a club, a pommel) too, not only fists
 QVR_CVAR(vr_teeth_size, "3", CVAR_ARCHIVE)              // cm long
@@ -2312,7 +2316,7 @@ QVR_CVAR(vr_gib_health, "12", CVAR_ARCHIVE)           // the damage that destroy
 QVR_CVAR(vr_gib_splat_speed, "250", CVAR_ARCHIVE)     // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_CVAR(vr_gib_splat_throw, "7", CVAR_ARCHIVE)      // m/s of the throwing hand from which a thrown gib or head bursts on a wall instead of sticking, however heavy; 0 off
 QVR_CVAR(vr_corpse_gib, "1", CVAR_ARCHIVE)            // corpses can be gibbed: shot, blown up or struck enough, they burst into gibs
-QVR_CVAR(vr_corpse_health_mult, "1", CVAR_ARCHIVE)    // times every monster's corpse health (vr_corpse_health_<monster>): the damage that gibs a corpse or a ragdoll
+QVR_CVAR(vr_corpse_health_mult, "2", CVAR_ARCHIVE)    // times every monster's corpse health (vr_corpse_health_<monster>): the damage that gibs a corpse or a ragdoll
 QVR_CVAR(vr_corpse_nogib, "0", CVAR_ARCHIVE)          // never gibbed (testing): 0 off, 1 corpses and ragdolls (and dying bodies) take damage but never burst, 2 also monsters die whole (their death code never gibs them)
 QVR_CVAR(vr_corpse_health_grunt, "80", CVAR_ARCHIVE) // the damage that gibs a grunt's corpse or ragdoll (times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_enforcer, "80", CVAR_ARCHIVE) // the damage that gibs a enforcer's corpse or ragdoll (times vr_corpse_health_mult)
@@ -2391,22 +2395,22 @@ QVR_CVAR(vr_hit_stagger_cooldown, "4", CVAR_ARCHIVE)      // s after an unbalanc
 // it, worn into its head or limb too (past the piece's health: popped); landing on one from a height crushes the part
 // under your feet. Corpses held or just thrown wear their pieces the same way.
 QVR_CVAR(vr_ragimpact, "1", CVAR_ARCHIVE)                 // on (0: only the fall damage of its landings)
-QVR_CVAR(vr_ragimpact_damage, "0.15", CVAR_ARCHIVE)       // damage per kg m/s past the least speed (mass behind the part x (its speed - Least Speed))
+QVR_CVAR(vr_ragimpact_damage, "0.08", CVAR_ARCHIVE)       // damage per kg m/s past the least speed (mass behind the part x (its speed - Least Speed))
 QVR_CVAR(vr_ragimpact_min_speed, "2.5", CVAR_ARCHIVE)      // m/s: slower strikes do nothing
 QVR_CVAR(vr_ragimpact_body, "0.1", CVAR_ARCHIVE)          // share of the rest of the body's mass behind the struck part (0: the part alone)
 QVR_CVAR(vr_ragimpact_whip, "2", CVAR_ARCHIVE)            // a part's speed counts up to this times its whole body's (a limb whipping on a throw is no blow), unless a hand holds it
 QVR_CVAR(vr_ragimpact_held_mass, "20", CVAR_ARCHIVE)      // kg of your arm behind a part your hand holds (a head held and slammed: the hand drives it)
 QVR_CVAR(vr_ragimpact_held_speed, "1", CVAR_ARCHIVE)      // m/s: a part your hand holds counts from this speed (the hand slows as it drives a body: 2-4 m/s slams)
 QVR_CVAR(vr_ragimpact_head, "1.5", CVAR_ARCHIVE)          // a strike on the head deals this much more
-QVR_CVAR(vr_ragimpact_piece_hp, "0.4", CVAR_ARCHIVE)       // a head's or limb's own health, times its corpse health (vr_corpse_health_<monster>): worn past it, it pops
+QVR_CVAR(vr_ragimpact_piece_hp, "0.65", CVAR_ARCHIVE)       // a head's or limb's own health, times its corpse health (vr_corpse_health_<monster>): worn past it, it pops
 QVR_CVAR(vr_ragimpact_time, "2", CVAR_ARCHIVE)            // s: a body (alive or dead) you hold, or let go of (threw) this long ago, takes impacts (0: only while held)
-QVR_CVAR(vr_ragimpact_curve, "1", CVAR_ARCHIVE)           // damage vs speed past the least: 1 linear, 2 quadratic, 0.5 square root (pivots at vr_ragimpact_curve_ref: every curve deals the same there)
-QVR_CVAR(vr_ragimpact_curve_ref, "3", CVAR_ARCHIVE)       // m/s past the least speed where every curve deals the same (slower: a steeper curve less, faster: more)
-QVR_CVAR(vr_ragimpact_max, "0", CVAR_ARCHIVE)             // most damage one strike (or a landing's crush) deals, after the head's and limbs' multipliers (0: no cap)
+QVR_CVAR(vr_ragimpact_curve, "1.5", CVAR_ARCHIVE)           // damage vs speed past the least: 1 linear, 2 quadratic, 0.5 square root (pivots at vr_ragimpact_curve_ref: every curve deals the same there)
+QVR_CVAR(vr_ragimpact_curve_ref, "4", CVAR_ARCHIVE)       // m/s past the least speed where every curve deals the same (slower: a steeper curve less, faster: more)
+QVR_CVAR(vr_ragimpact_max, "40", CVAR_ARCHIVE)             // most damage one strike (or a landing's crush) deals, after the head's and limbs' multipliers (0: no cap)
 QVR_CVAR(vr_ragimpact_limb, "1", CVAR_ARCHIVE)            // a strike on an arm or a leg deals this much more (the torso 1, the head vr_ragimpact_head)
 QVR_CVAR(vr_ragimpact_wear, "1", CVAR_ARCHIVE)            // a head's or limb's wear from a strike: its damage times this (higher: pops sooner; 0: impacts never pop pieces)
-QVR_CVAR(vr_ragimpact_crush, "1", CVAR_ARCHIVE)           // landing on a living monster (standing, staggering or down as a ragdoll) from a height crushes the part under your feet, times this (0: off)
-QVR_CVAR(vr_ragimpact_crush_speed, "200", CVAR_ARCHIVE)   // units/s: landing slower than this crushes nothing (a jump from the same level lands at about 270; a 100-unit drop: 400)
+QVR_CVAR(vr_ragimpact_crush, "1.5", CVAR_ARCHIVE)           // landing on a living monster (standing, staggering or down as a ragdoll) from a height crushes the part under your feet, times this (0: off)
+QVR_CVAR(vr_ragimpact_crush_speed, "350", CVAR_ARCHIVE)   // units/s: landing slower than this crushes nothing (a jump from the same level lands at about 270; a 100-unit drop: 400)
 QVR_CVAR(vr_ragimpact_crush_mass, "50", CVAR_ARCHIVE)     // kg of you counted behind your feet
 QVR_CVAR(vr_ragimpact_crush_wear, "0.3", CVAR_ARCHIVE)    // share of a head's or limb's own health a landing at the least speed wears (a jump from the same level: ~0.37, the third pops it), rising to all of it at vr_ragimpact_crush_pop (0: landings wear nothing)
 QVR_CVAR(vr_ragimpact_crush_pop, "380", CVAR_ARCHIVE)     // units/s: a landing this fast pops the head or limb under your feet at once (a drop of about 2 heights onto a body lying down: ~90 units to it)
@@ -2415,8 +2419,8 @@ QVR_CVAR(vr_ragimpact_crush_big_max, "0.25", CVAR_ARCHIVE) // most of a big one'
 QVR_CVAR(vr_ragimpact_crush_standing, "1", CVAR_ARCHIVE)  // standing monsters are crushed too (their head, a limb or the torso under your feet, by positional damage's zones); 0: only ragdolls
 QVR_CVAR(vr_ragimpact_crush_cushion, "1", CVAR_ARCHIVE)   // a landing that crushed a monster spares you its fall damage (it broke your fall); 0: Quake's fall damage as ever
 QVR_CVAR(vr_ragimpact_stomp, "1", CVAR_ARCHIVE)           // landing on a standing monster's top at vr_ragimpact_stomp_speed or faster knocks it down (a shove's knockdown: it gets up), if it lives; 0: never
-QVR_CVAR(vr_ragimpact_stomp_speed, "420", CVAR_ARCHIVE)   // units/s: the least landing speed that knocks a standing one down (about a 115-unit drop)
-QVR_CVAR(vr_ragimpact_stomp_heavy, "130", CVAR_ARCHIVE)   // kg: a monster heavier needs a faster landing, the least speed times the cube root of its mass over this (ogre, fiend, vore 250 kg: ~180-unit drop; shambler 600: ~315); 0: all alike
+QVR_CVAR(vr_ragimpact_stomp_speed, "400", CVAR_ARCHIVE)   // units/s: the least landing speed that knocks a standing one down (about a 115-unit drop)
+QVR_CVAR(vr_ragimpact_stomp_heavy, "120", CVAR_ARCHIVE)   // kg: a monster heavier needs a faster landing, the least speed times the cube root of its mass over this (ogre, fiend, vore 250 kg: ~180-unit drop; shambler 600: ~315); 0: all alike
 QVR_CVAR(vr_ragimpact_stomp_bounce, "200", CVAR_ARCHIVE)  // units/s up: you bounce off the one you knocked down (0: you drop through as it falls)
 QVR_CVAR(vr_knockdown_time_min, "2.5", CVAR_ARCHIVE)      // seconds it stays down, at least,
 QVR_CVAR(vr_knockdown_time_max, "4.5", CVAR_ARCHIVE)      // and at most (at random between)

@@ -2991,6 +2991,15 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("How thick, at its strongest (1 unit: 3.8 cm) (vr_gore_streams_width)."),
         slider("Stream Pools", vr_gore_streams_pool, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 4.f)
             .help("The pools a stream spreads where it lands: their size (0: no marks) (vr_gore_streams_pool)."),
+        slider("Stream Spread", vr_gore_streams_spread, 0.f, 90.f, 5.f, "%.0f deg")
+            .help("Each stream's way out turned at random up to this far from the wound's, so one shotgun blast's "
+                  "streams go their own ways (0: all alike) (vr_gore_streams_spread)."),
+        slider("Stream Force Variation", vr_gore_streams_speed_var, 0.f, 0.9f, 0.05f, "+-%.2f")
+            .help("Each stream's force times a random 1 plus or minus this (vr_gore_streams_speed_var)."),
+        slider("Stream Wobble", vr_gore_streams_wobble, 0.f, 45.f, 1.f, "%.0f deg")
+            .help("How far each stream's way out wanders as it pours: slow noise (0: steady) (vr_gore_streams_wobble)."),
+        slider("Stream Wobble Rate", vr_gore_streams_wobble_rate, 0.f, 3.f, 0.05f, "%.2f Hz").extend(0.f, 10.f)
+            .help("How fast it wanders: about this many swings a second (vr_gore_streams_wobble_rate)."),
         slider("Back-splatter", vr_gore_backsplatter, 0.f, 3.f, 0.25f, "%.2fx").extend(0.f, 4.f)
             .help("Thin long streaks thrown along the shot's line onto what is behind a monster hit: how many (0 none) "
                   "(vr_gore_backsplatter)."),

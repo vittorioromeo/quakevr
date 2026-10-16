@@ -8290,6 +8290,36 @@ In VR: shoot a grunt with the shotgun up close and watch the streams pour as it 
 pools under it grow where the streams land; shoot one standing a little in front of a wall (the streaks behind it);
 punch a grunt's face hard with a fist (teeth; a soft punch none: Punch Hardness for Teeth) and pick a tooth up.
 
+## Blood streams diverge; his gore values (worktree `gorefx`, branch `agent/gorefx2`, 2026-10-16)
+
+His notes: one shotgun blast's streams "all seem to go in the same direction": randomize each as it starts and let it
+wobble as it flows. And "I've tweaked many values for the gore features. Please make those the new defaults."
+
+**Streams** (`vr_bloodstream.cpp`): every pellet of a blast shares the hit's direction, so the way out (back along the
+shot, out from the body's middle) differed only by a small jitter. Now each stream's way out is turned at random within
+a cone of `vr_gore_streams_spread` (35 degrees, evenly over the cone's cap), its force is times a random 1 +-
+`vr_gore_streams_speed_var` (0.3), and as it pours its way out wanders by up to `vr_gore_streams_wobble` (10 degrees):
+two sines a side, each at its own random rate (0.7-1.3x and 1.7-2.6x `vr_gore_streams_wobble_rate`, 0.7 Hz) and
+phase, applied each frame to the emitted points (the falling chain keeps what it left with, so the stream curls). The
+heartbeat phase was random already. Same storage, caps and traces; a few sines a stream a frame. Gore > Blood Streams:
+Stream Spread, Stream Force Variation, Stream Wobble, Stream Wobble Rate.
+
+Checked (headless, `-RealTime`, a grunt at 80 units, `vr_gore_stream_test 6` from one direction, side view
+`vr_mock_camera -2.4 1.1 -2.4 12 -90`): with the three at 0 the six arcs are parallel copies of one; with the defaults
+they leave at different angles and lengths. (In fast mode the chains show stair steps, before and after alike: the
+uncapped fixed frames, not the streams.)
+
+**His gore values are the defaults** (configVersion 139: a config still at the old default takes the new one):
+`vr_corpse_health_mult` 1 -> 2, `vr_gore_dents_depth` 1 -> 3, `vr_gore_dents_max` 8 -> 12, `vr_gore_dents_size`
+1 -> 1.25, `vr_gore_streams_per_body` 3 -> 4, `vr_gore_streams_speed` 70 -> 50, `vr_gore_streams_width` 0.35 -> 0.75,
+`vr_ragimpact_crush` 1 -> 1.5, `vr_ragimpact_crush_speed` 200 -> 350, `vr_ragimpact_curve` 1 -> 1.5,
+`vr_ragimpact_curve_ref` 3 -> 4, `vr_ragimpact_damage` 0.15 -> 0.08, `vr_ragimpact_max` 0 -> 40,
+`vr_ragimpact_piece_hp` 0.4 -> 0.65, `vr_ragimpact_stomp_heavy` 130 -> 120, `vr_ragimpact_stomp_speed` 420 -> 400,
+`vr_teeth_per_enemy` 10 -> 8. Not promoted (look like a test set-up): `vr_dummy_gore` 1 -> 0 and `vr_dummy_gib` 1 -> 0
+(the training dummy clean and unkillable). His Dent Depth is at its slider's top (3).
+
+In VR: shotgun a grunt up close: the streams should fan out and curl a little as they pour, not run as parallel copies.
+
 ## VR menu panel: grip also pushes and pulls it
 
 A gripped panel already followed the hand in 3D, but 1:1 (a 30 cm arm move shifted a far panel ~30 cm). Now the hand's move towards/away from the panel (from the head) counts `vr_menu_grab_reach` times (default 3; 1 = as before), the distance clamped to `vr_menu_grab_dist_min` 30 .. `vr_menu_grab_dist_max` 200 cm (a panel taken farther than the max, like the 150-unit default, can be pulled in but not pushed further out; one taken nearer than the min is not pinched). The panel keeps its hand-set turn (as before). The distance is part of the placement (hide/restore, remembered). No thumbstick use: sticks while gripping are the fine modifier and disarm the grab. Test (headless, mock hand): hand 30 cm back: 150 -> 121.7 units from the head; forward again: 150; far forward stays 150; far back clamps at 9.4 units (30 cm). menu_panels_test.py passes.
