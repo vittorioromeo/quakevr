@@ -23,7 +23,16 @@ hz=${QVR_HZ:-72}
 scenario=${QVR_SCENARIO:-spacewarp_motion_fixture}
 demo=${QVR_DEMO:-}
 demo_map=${QVR_DEMO_MAP:-e1m1}
+# Turnip hangs the GPU (and resets SteamVR) on decal-heavy scenarios on the GMEM path; the known
+# workaround is TU_DEBUG=sysmem (see docs/HANDOFF-frame-kill-crash-2026-10-15.md). Set QVR_TU_DEBUG= (empty)
+# to run without it. Runs before 2026-10-16 00:00 were made without it (the fixture has no decals).
+if [[ -n "${QVR_TU_DEBUG-sysmem}" ]]; then export TU_DEBUG="${QVR_TU_DEBUG-sysmem}"; fi
 precheck=${QVR_PRECHECK:-0}
+# QVR_AUTO=1: unattended run. No wearer is required: an absent/standby HMD pose,
+# missing controllers and an open SteamVR dashboard are recorded in the state
+# files but do not abort the run (scene focus on the game is still required).
+auto=${QVR_AUTO:-0}
+[[ "$auto" =~ ^[01]$ ]] || { echo "QVR_AUTO must be 0 or 1" >&2; exit 2; }
 [[ "$precheck" =~ ^[01]$ ]] || { echo "QVR_PRECHECK must be 0 or 1" >&2; exit 2; }
 if [[ "$precheck" == 1 && -z "${QVR_FRAMES:-}" ]]; then frames=180; fi
 # Keep queue-wait scheduling identical in synthesis OFF/ON runs. The deferred
@@ -53,7 +62,7 @@ has_pose() { python3 -c 'import json,sys; s=json.load(sys.stdin); sys.exit(0 if 
 focus_pid() { python3 -c 'import json,sys; print(int(json.load(sys.stdin).get("compositor_scene_focus_pid",0)))'; }
 scene_ready() {
   local expected_pid=$1
-  python3 -c 'import json,sys; s=json.load(sys.stdin); pid=int(sys.argv[1]); sys.exit(0 if int(s.get("compositor_scene_focus_pid",0)) == pid and not s.get("dashboard_visible",False) else 1)' "$expected_pid"
+  python3 -c 'import json,sys; s=json.load(sys.stdin); pid=int(sys.argv[1]); auto=sys.argv[2]=="1"; sys.exit(0 if int(s.get("compositor_scene_focus_pid",0)) == pid and (auto or not s.get("dashboard_visible",False)) else 1)' "$expected_pid" "$auto"
 }
 get_setting() {
   local kind=$1 key=$2 raw
@@ -77,13 +86,34 @@ set_setting_checked() {
 }
 state=$(read_state)
 printf '%s\n' "$state" >"$out_base/preflight-state.json"
-if ! printf '%s\n' "$state" | has_pose; then echo "HMD pose is not valid; wear the headset and retry. No game files were touched." >&2; exit 5; fi
+if ! printf '%s\n' "$state" | has_pose; then
+  if [[ "$auto" == 1 ]]; then echo "NOTE: HMD pose is not valid (no wearer); continuing because QVR_AUTO=1." >&2
+  else echo "HMD pose is not valid; wear the headset and retry. No game files were touched." >&2; exit 5; fi
+fi
 original_record_stats=$(get_setting bool perfcheck.recordStats)
 original_texture_view=$(get_setting int perfcheck.drawPerfCriteriaGameTextures)
 [[ "$original_record_stats" == true || "$original_record_stats" == false ]] || {
   echo "Could not read SteamVR Record VR Performance setting." >&2; exit 8;
 }
 [[ "$original_texture_view" =~ ^[0-9]+$ ]] || original_texture_view=0
+# QVR_MOTION_SMOOTHING=0|1 forces SteamVR's own motion smoothing off/on for the run and restores
+# the original value on exit; "keep" (default) leaves it alone. Smoothing off isolates what the
+# compositor does with the app's XR_EXT_frame_synthesis inputs from its generic fallback.
+smoothing=${QVR_MOTION_SMOOTHING:-keep}
+[[ "$smoothing" =~ ^(keep|0|1)$ ]] || { echo "QVR_MOTION_SMOOTHING must be keep, 0 or 1" >&2; exit 2; }
+original_smoothing=$(get_setting bool steamvr.motionSmoothing)
+[[ "$original_smoothing" == true || "$original_smoothing" == false ]] || original_smoothing=true
+# QVR_MOTION_OVERRIDE / QVR_THROTTLE write the per-application overrides that SteamVR's
+# "Per-Application Video Settings" page uses (<app key>.motionSmoothingOverride and
+# <app key>.framesToThrottle) for the scene app's key, and restore them on exit. An override that
+# was unset before the run is restored to 0 because vrcmd cannot delete a key.
+app_key=${QVR_APP_KEY:-system.generated.openxr.quake vr.ironwail}
+motion_override=${QVR_MOTION_OVERRIDE:-keep}
+throttle_override=${QVR_THROTTLE:-keep}
+[[ "$motion_override" =~ ^(keep|-?[0-9]+)$ ]] || { echo "QVR_MOTION_OVERRIDE must be keep or an integer" >&2; exit 2; }
+[[ "$throttle_override" =~ ^(keep|[0-9]+)$ ]] || { echo "QVR_THROTTLE must be keep or a non-negative integer" >&2; exit 2; }
+original_motion_override=$(get_setting int "$app_key.motionSmoothingOverride")
+original_throttle=$(get_setting int "$app_key.framesToThrottle")
 if [[ -n "${QVR_TEXTURE_VIEW:-}" ]]; then
   texture_view=$QVR_TEXTURE_VIEW
 elif [[ "$precheck" == 1 ]]; then
@@ -100,8 +130,18 @@ settings_changed=0
 restore_steamvr_settings() {
   if [[ "$settings_changed" == 1 ]]; then
     local restore_failed=0
-    set_setting_checked bool perfcheck.recordStats "$original_record_stats" || restore_failed=1
+    set_setting_checked bool perfcheck.recordStats "$([[ "$original_record_stats" == true ]] && echo 1 || echo 0)" || restore_failed=1
     set_setting_checked int perfcheck.drawPerfCriteriaGameTextures "$original_texture_view" || restore_failed=1
+    if [[ "$smoothing" != keep ]]; then
+      if [[ "$original_smoothing" == true ]]; then set_setting_checked bool steamvr.motionSmoothing 1 || restore_failed=1
+      else set_setting_checked bool steamvr.motionSmoothing 0 || restore_failed=1; fi
+    fi
+    if [[ "$motion_override" != keep ]]; then
+      set_setting_checked int "$app_key.motionSmoothingOverride" "${original_motion_override:-0}" || restore_failed=1
+    fi
+    if [[ "$throttle_override" != keep ]]; then
+      set_setting_checked int "$app_key.framesToThrottle" "${original_throttle:-0}" || restore_failed=1
+    fi
     python3 "$settings_helper" restore "$settings_file" "$settings_snapshot" || restore_failed=1
     settings_changed=0
     if [[ "$restore_failed" == 1 ]]; then echo "WARNING: could not fully restore original SteamVR performance settings." >&2; fi
@@ -111,7 +151,17 @@ trap restore_steamvr_settings EXIT
 settings_changed=1
 set_setting_checked bool perfcheck.recordStats 1
 set_setting_checked int perfcheck.drawPerfCriteriaGameTextures "$texture_view"
-printf 'recordStats=true\ndrawPerfCriteriaGameTextures=%s\n' "$texture_view" >"$out_base/steamvr-settings-during-test.txt"
+if [[ "$smoothing" != keep ]]; then
+  # vrcmd --set-settings-bool reads the value as a number ("true" would set it to 0).
+  set_setting_checked bool steamvr.motionSmoothing "$smoothing"
+fi
+if [[ "$motion_override" != keep ]]; then
+  set_setting_checked int "$app_key.motionSmoothingOverride" "$motion_override"
+fi
+if [[ "$throttle_override" != keep ]]; then
+  set_setting_checked int "$app_key.framesToThrottle" "$throttle_override"
+fi
+printf 'recordStats=true\ndrawPerfCriteriaGameTextures=%s\nmotionSmoothing=%s\nappKey=%s\nmotionSmoothingOverride=%s\nframesToThrottle=%s\n' "$texture_view" "$smoothing" "$app_key" "$motion_override" "$throttle_override" >"$out_base/steamvr-settings-during-test.txt"
 echo "Ready. SteamVR performance recording is on; headset texture view is $texture_view (0=off, 1=depth, 2=motion). Original values will be restored on exit."
 runner_pid=""
 collector_pid=""
@@ -154,7 +204,7 @@ for spec in "${test_specs[@]}"; do
   printf '{"started_unix":%s,"binary":"%s"}\n' "$recording_started" "$binary" >"$out/run-identity-start.json"
   state=$(read_state)
   printf '%s\n' "$state" >"$out/preflight-state.json"
-  if ! printf '%s\n' "$state" | has_pose; then echo "HMD tracking was lost before $tag" >&2; exit 5; fi
+  if ! printf '%s\n' "$state" | has_pose && [[ "$auto" != 1 ]]; then echo "HMD tracking was lost before $tag" >&2; exit 5; fi
   # Isolate each A/B leg into its own SteamVR CSV; turning recording off after
   # the app exits also asks SteamVR to finish writing that run's summary.
   set_setting_checked bool perfcheck.recordStats 1
@@ -194,11 +244,19 @@ for spec in "${test_specs[@]}"; do
   # The smoke script remains alive while it checks and copies its output. Tie
   # the compositor trace to Quake's lifetime rather than that later work, so a
   # dashboard transition after the game closes cannot contaminate attribution.
+  # The benchmark prints BENCH_DONE (live in the -condebug console log; the
+  # launcher.log stdout is block-buffered until exit) before the engine tears the OpenXR session
+  # down. Stop the trace there: the compositor's scene/renderer changes during
+  # that teardown while the process is still alive, which the collector would
+  # (correctly) report as a focus change and invalidate a complete run.
   while kill -0 "$collector_pid" 2>/dev/null && kill -0 "$target_game_pid" 2>/dev/null; do
     if [[ ! -r "/proc/$target_game_pid/comm" ]] || [[ "$(cat "/proc/$target_game_pid/comm" 2>/dev/null)" != ironwail ]]; then
       break
     fi
-    sleep 0.1
+    if grep -Fq BENCH_DONE "$game/qconsole.log" 2>/dev/null; then
+      break
+    fi
+    sleep 0.05
   done
   recording_ended=$(date +%s.%N)
   printf '{"ended_unix":%s}\n' "$recording_ended" >"$out/run-identity-end.json"
@@ -260,8 +318,14 @@ PY
     recordings=("$out"/perfrecording-*.csv)
     python3 "$headset_validator" \
       "$out/qvr_openxr.txt.test" "${recordings[0]}" \
-      --require-focused --require-controllers \
-      --expected-app '(?i)(ironwail|quake|unleashed)' --output "$out/headset-validation.json"
+      --require-focused $([[ "$auto" == 1 ]] || echo --require-controllers) \
+      --expected-app '(?i)(ironwail|quake|unleashed)' --output "$out/headset-validation.json" || {
+        validator_status=$?
+        # Unattended runs have no wearer, so the head-pose check always fails;
+        # the verdict stays in headset-validation.json for the report.
+        if [[ "$auto" == 1 ]]; then echo "NOTE: headset validation reported invalid (exit $validator_status); see $out/headset-validation.json" >&2
+        else exit "$validator_status"; fi
+      }
   fi
   echo "Completed $tag (runner exit $runner_status, collector exit $collector_status)"
 done

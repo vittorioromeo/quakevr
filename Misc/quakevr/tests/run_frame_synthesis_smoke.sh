@@ -144,7 +144,7 @@ if [[ -n "$demo" ]]; then
 else
   python3 "$source/Misc/quakevr/bench/qvrbench.py" script "$scenario" --out "$game/quakevr/frame_synthesis_smoke.cfg" --tag "$tag" --frames "$frames" --hz "$hz" --realtime
 fi
-python3 - "$game/quakevr/frame_synthesis_smoke.cfg" "$unfocused_pause" "$scenario" "$diagnostic_capture" "$record_demo" <<'PY'
+python3 - "$game/quakevr/frame_synthesis_smoke.cfg" "$unfocused_pause" "$scenario" "$diagnostic_capture" "$record_demo" "${QVR_RENDER_SCALE:-}" <<'PY'
 from pathlib import Path
 import sys
 p = Path(sys.argv[1])
@@ -152,12 +152,16 @@ pause = sys.argv[2]
 scenario = sys.argv[3]
 diagnostic_capture = sys.argv[4]
 record_demo = sys.argv[5]
+render_scale = sys.argv[6]
 lines = p.read_text().splitlines()
 # The generated commands execute after the persisted game/user configs. Set
 # this here as well as in the temporary base config so an old user value cannot
 # freeze a headless single-player benchmark. Enable kill telemetry for the one
 # replay whose validation requires recorded deaths.
 lines.insert(0, f"vr_xr_unfocused_pause {pause}")
+# QVR_RENDER_SCALE overrides vr_render_scale for this run only (the persisted cfg is restored on exit).
+if render_scale:
+    lines.insert(0, f"vr_render_scale {render_scale}")
 if diagnostic_capture == "1":
     lines.insert(1, "vr_xr_frame_synthesis_capture 1")
 if scenario == "gore_headpop_24":

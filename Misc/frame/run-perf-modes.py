@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path.home() / "Games/QuakeVR-Unleashed-native"
 GAME = ROOT / "release-kit-check/archive-install-test"
-EXE = ROOT / "performance-results/dummy-kill-repro/game/ironwail-head2"  # the HEAD build the crash was reproduced on
+EXE = ROOT / "performance-results/dummy-kill-repro/game" / os.environ.get("PERF_EXE", "ironwail-head2")  # PERF_EXE: another build (default: the HEAD build the crash was reproduced on)
 OPENXR = os.environ.get("PERF_BACKEND") == "openxr"  # PERF_BACKEND=openxr: the OpenXR backend instead of the mock one
 
 VARIANTS = {
@@ -28,19 +28,24 @@ VARIANTS = {
     "noubwc": {"TU_DEBUG": "noubwc"},
     "atsys": {"TU_AUTOTUNE_ALGO": "prefer_sysmem"},
     "lazy": {"ZINK_DESCRIPTORS": "lazy"},
+    # origin/next's permanent decals (vr_permdecals, default 1): their cost, on and off, with and without the sysmem switch
+    "pd0": {"_args": ["+vr_permdecals", "0"]},
+    "sys_pd0": {"TU_DEBUG": "sysmem", "_args": ["+vr_permdecals", "0"]},
 }
 
 
 def run_once(scenario, env_extra, out):
     env = dict(os.environ, DISPLAY=":1", SDL_VIDEODRIVER="x11", QVR_TEST_HIDDEN="1", QVR_TEST_BACKGROUND="1",
                XDG_RUNTIME_DIR="/run/user/1000", QVR_NO_ERROR_DIALOG="1")
+    env_extra = dict(env_extra)
+    extra_args = env_extra.pop("_args", [])  # command-line arguments of the variant, not environment
     env.update(env_extra)
     if OPENXR:  # the real OpenXR path (the null headset: no wearer), the foveated-density pass included
         env["XR_RUNTIME_JSON"] = "/opt/steamvr/steamxr_linuxarm64.json"
         env["MESA_VK_ABORT_ON_DEVICE_LOSS"] = "1"
     backend = ["+vr_xr_unfocused", "0", "+vr_xr_unfocused_pause", "0"] if OPENXR else ["-vrmock"]
     cmd = [str(EXE), "-window", "-width", "640", "-height", "480", "-basedir", str(GAME), "-game", "quakevr"] + backend + [
-           "-nomapindex", "-nobindless", "-noconfigwrite", "-condebug", "-nosound", "-nosteam", "+exec", scenario + ".cfg"]
+           "-nomapindex", "-nobindless", "-noconfigwrite", "-condebug", "-nosound", "-nosteam"] + extra_args + ["+exec", scenario + ".cfg"]
     data = GAME / "quakevr/profile/bench" / f"frame_{scenario}.json"
     if data.exists():
         data.unlink()
