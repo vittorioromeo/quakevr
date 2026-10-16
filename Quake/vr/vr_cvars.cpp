@@ -471,6 +471,9 @@ constexpr const char* retiredCvars[] = {
     "vr_throw_slowmo_flick_arm",
     "vr_throw_slowmo_short_travel",
     "vr_throw_slowmo_long_travel",
+    // 2026-10-16: the A/B switches settled at their defaults, the other path deleted (ROUND22.md, "A/B switches
+    // removed").
+    "vr_box3d_caller_solves",
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):
