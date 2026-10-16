@@ -511,6 +511,16 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     return frameOf(s.pos[h], rots[h]);
 }
 
+// Both hands' frames (handsFrame), the off hand's first: carry2h's `hands`.
+struct BothFrames
+{
+    carry2h::Frame f[2];
+};
+[[nodiscard]] BothFrames bothFrames(const hands::State& s, const glm::vec3 (&rots)[2])
+{
+    return {{handsFrame(s, rots, HAND_OFF), handsFrame(s, rots, HAND_MAIN)}};
+}
+
 void endFree(int holding, const char* why, float value, float limit)
 {
     FreeGrip& g = freeGrips[holding];
@@ -558,8 +568,8 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     float off = 0.f, limit = freeKeep();
     if(g.mode == FREE_RIGID)
     {
-        const carry2h::Frame both[2]{handsFrame(s, originalRots, HAND_OFF), handsFrame(s, originalRots, HAND_MAIN)};
-        const carry2h::Frame object = carry2h::solve(g.hold, both);
+        const BothFrames both = bothFrames(s, originalRots);
+        const carry2h::Frame object = carry2h::solve(g.hold, both.f);
         aimRot = anglesOfQuat(object.rot);
         off = glm::distance(s.pos[helping], carry2h::onGrip(g.hold, object, helping).pos);
     }
@@ -606,6 +616,28 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     return true;
 }
 
+// A free grip (startFree, startRetake): the other hand on the weapon in `holding` (`slot`) at `point` (from the holding
+// hand), held as `mode` (a foregrip at the handle, with nothing to aim by, supports it), its hold recorded from the hands'
+// frames now.
+FreeGrip& beginFree(const hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int slot, int mode,
+    const glm::vec3& point)
+{
+    FreeGrip& g = freeGrips[holding];
+    g = FreeGrip{};
+    g.on = true;
+    g.slot = slot;
+    g.mode = mode;
+    g.counts = !twoHandsForbidden(slot);
+    g.point = point;
+    if(g.mode == FREE_FOREGRIP && glm::length(g.point) < 3.f)
+    {
+        g.mode = FREE_SUPPORT; // (at the handle: nothing to aim by)
+    }
+    g.hold = carry2h::record(frameOf(s.pos[holding], originalRots[holding]), bothFrames(s, originalRots).f);
+    g.lastOn = vr_gametime;
+    return g;
+}
+
 // The other hand (`helping`) taking hold of the weapon in `holding` (by its handle) anywhere: an empty hand starting to
 // grip on it (the view's candidate: away from its handle and hotspots), not taking a hotspot.
 bool startFree(const hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
@@ -616,20 +648,8 @@ bool startFree(const hands::State& s, const glm::vec3 (&originalRots)[2], int ho
     {
         return false;
     }
-    FreeGrip& g = freeGrips[holding];
-    g = FreeGrip{};
-    g.on = true;
-    g.slot = slot;
-    g.mode = freeModeFor(slot);
-    g.counts = !twoHandsForbidden(slot);
-    g.point = relativeTo(s.pos[holding], originalRots[holding], s.pos[helping], originalRots[helping]).pos;
-    if(g.mode == FREE_FOREGRIP && glm::length(g.point) < 3.f)
-    {
-        g.mode = FREE_SUPPORT; // (at the handle: nothing to aim by)
-    }
-    const carry2h::Frame both[2]{handsFrame(s, originalRots, HAND_OFF), handsFrame(s, originalRots, HAND_MAIN)};
-    g.hold = carry2h::record(frameOf(s.pos[holding], originalRots[holding]), both);
-    g.lastOn = vr_gametime;
+    const FreeGrip& g = beginFree(s, originalRots, holding, slot, freeModeFor(slot),
+        relativeTo(s.pos[holding], originalRots[holding], s.pos[helping], originalRots[helping]).pos);
     if(vr_debug_2h_grip.value)
     {
         Con_Printf("2h grip: %s hand took the weapon anywhere (%s), %.1f units from its handle (%.1f %.1f %.1f)\n",
@@ -683,25 +703,12 @@ bool startRetake(const hands::State& s, const glm::vec3 (&originalRots)[2], int 
         return false;
     }
 
-    FreeGrip& g = freeGrips[holding];
-    g = FreeGrip{};
-    g.on = true;
-    g.slot = slot;
-    g.mode = mode;
-    g.counts = !twoHandsForbidden(slot);
     // As a foregrip, its place on the weapon (the aim turns it onto the hand); otherwise where the hand is now (what lets
     // go of it is how far it then moves).
-    g.point = mode == FREE_FOREGRIP ? place
-                                    : relativeTo(s.pos[holding], originalRots[holding], s.pos[helping], originalRots[helping]).pos;
-    if(g.mode == FREE_FOREGRIP && glm::length(g.point) < 3.f)
-    {
-        g.mode = FREE_SUPPORT;
-    }
+    FreeGrip& g = beginFree(s, originalRots, holding, slot, mode,
+        mode == FREE_FOREGRIP ? place : relativeTo(s.pos[holding], originalRots[holding], s.pos[helping], originalRots[helping]).pos);
     g.handPending = mirrorChange; // (mirrored the other way: drawn where it is)
     g.hand = hand;
-    const carry2h::Frame both[2]{handsFrame(s, originalRots, HAND_OFF), handsFrame(s, originalRots, HAND_MAIN)};
-    g.hold = carry2h::record(frameOf(s.pos[holding], originalRots[holding]), both);
-    g.lastOn = vr_gametime;
     if(vr_debug_2h_grip.value)
     {
         Con_Printf("2h grip: %s hand goes on holding the weapon anywhere (%s) as the other hand took its handle, %.1f units "
@@ -1191,8 +1198,8 @@ namespace
 // The pose a weapon carried by `hand` is drawn from while the other hand holds it too: where both hands hold it.
 [[nodiscard]] carry2h::Frame carriedInBoth(const hands::State& s, int hand)
 {
-    const carry2h::Frame both[2]{frameOf(s.pos[HAND_OFF], s.rot[HAND_OFF]), frameOf(s.pos[HAND_MAIN], s.rot[HAND_MAIN])};
-    return carry2h::solve(freeGrips[hand].hold, both);
+    const BothFrames both = bothFrames(s, s.rot);
+    return carry2h::solve(freeGrips[hand].hold, both.f);
 }
 
 void applyCarried(hands::State& s, int holding, int helping)
@@ -1241,8 +1248,8 @@ void applyCarried(hands::State& s, int holding, int helping)
     g.mode = FREE_RIGID;
     g.slot = -1;
     g.counts = !twoHandsForbidden(weapons::heldSlot(holding));
-    const carry2h::Frame both[2]{frameOf(s.pos[HAND_OFF], s.rot[HAND_OFF]), frameOf(s.pos[HAND_MAIN], s.rot[HAND_MAIN])};
-    g.hold = carry2h::record(frameOf(holderPos, holderRot), both);
+    const BothFrames both = bothFrames(s, s.rot);
+    g.hold = carry2h::record(frameOf(holderPos, holderRot), both.f);
     g.carrier = relativeTo(holderPos, holderRot, drawnPos, drawnRot);
     g.lastOn = vr_gametime;
     helpingHand[helping] = true;
