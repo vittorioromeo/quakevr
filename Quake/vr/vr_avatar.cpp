@@ -241,6 +241,9 @@ struct Body
                           glm::angleAxis(glm::radians(roll), b.fwd));
 }
 
+// Climbing's weight (Climbing::weight, 0 .. 1), for solveTorso: the lean taken out while climbing.
+float climbHang = 0.f;
+
 // World position of `joint` from its posed parent.
 [[nodiscard]] glm::vec3 childPos(const Body& b, int joint)
 {
@@ -281,7 +284,10 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // The lean's tilt: how far out it swings the top of the neck (at most as far as the head has gone down allows, and
     // a fifth of the lean always in the hips), and how much of the drop below the calibrated height that takes; the
     // rest is a crouch.
-    const glm::vec3 leanOff{s.lean.x, s.lean.y, 0.f};
+    // Climbing (updateClimbing, last frame's), the body hangs under the head, by the face, not leant back over the box's
+    // middle: its feet within reach of footholds (not the reference poses).
+    const float leanKeep = crouchPose ? 1.f - climbHang : 1.f;
+    const glm::vec3 leanOff{s.lean.x * leanKeep, s.lean.y * leanKeep, 0.f};
     const float leanLen = glm::length(leanOff);
     float tiltReach = 0.f;
     if(leanLen > 0.01f)
@@ -1391,6 +1397,7 @@ struct ClimbFoot
     int kind{0};                  // its hold: 1 the face, 2 a top (a ledge, a rung, the floor)
     float retry{0.f};             // hanging: seconds before it looks again
     int serial{0};                // counts its holds (the logs: one hold's slip)
+    float flat{0.f};              // 1 flat on a hold .. 0 pointed, hanging (stepping off a hold: easing)
 };
 
 struct Climbing
@@ -1406,6 +1413,7 @@ struct Climbing
     za::Array<ClimbFoot, 2> feet{};
     int lastStep{-1};             // the foot that took the last hold
     int traces{0};                // this frame's (the logs)
+    double updateMs{0.0};         // this frame's updateClimbing (vr_debug_climb_feet 2)
 };
 
 Climbing climbing;
@@ -1519,16 +1527,22 @@ struct FootHit
     const float planeDepth = CLAMP(0.f, glm::dot(c.holdMid - p0, dir), range); // the holds' lip
     const float depth = face.hit ? face.frac * range : planeDepth;
     const float maxReach = 0.97f * leg;
+    // Within reach, and far enough under the hip for how far out it is (a hold almost level with the hips, far out, has
+    // the legs sticking out straight: no support).
+    const auto usable = [&](const glm::vec3& ankleAt) {
+        const glm::vec3 d = ankleAt - hip;
+        return glm::length(d) <= maxReach && -d.z >= 0.45f * glm::length(glm::vec2{d.x, d.y});
+    };
 
     // Tops (the first under the highest a foot goes): just inside what was met, or at the holds' lip if that is nearer (a
     // ladder's or a rung wall's rungs, in front of the wall); then in front of what was met, from the preferred height
-    // down (a ledge sticking out lower). Out of reach: not one.
+    // down (a ledge sticking out lower). Not usable: not one.
     float bestZ = 0.f;
     float bestScore = 1e9f;
     glm::vec3 bestCol{0.f};
     const auto consider = [&](const FootHit& h, const glm::vec3& column) {
         const glm::vec3 ankleAt = glm::vec3{column.x, column.y, h.pos.z + ankle} - dir * (toe * 0.45f);
-        if(h.hit && h.normal.z > 0.7f && h.pos.z >= zBot && h.pos.z <= zTop && glm::distance(ankleAt, hip) <= maxReach)
+        if(h.hit && h.normal.z > 0.7f && h.pos.z >= zBot && h.pos.z <= zTop && usable(ankleAt))
         {
             const float score = za::abs(h.pos.z - zPref) * (h.pos.z > zPref ? 0.7f : 1.f); // climbing up: a higher one
             if(score < bestScore)
@@ -1549,53 +1563,50 @@ struct FootHit
         consider(footTrace({front.x, front.y, zPref}, {front.x, front.y, zBot}), front);
     }
 
-    const bool wall = face.hit && za::abs(face.normal.z) < 0.6f;
+    // The foot out of the face: traced in from behind the heel to past the toes, just over the sole and just over the
+    // ankle (a face at a rung's underside); met, the foot back that much. Starting in something, or then not usable:
+    // false.
+    const auto place = [&](glm::vec3& p) {
+        float pull = 0.f;
+        for(const float z : {p.z - ankle + 1.5f, p.z + 1.5f})
+        {
+            const glm::vec3 a{p.x, p.y, z};
+            const FootHit h = footTrace(a - dir * toe, a + dir * (toe + 1.f));
+            if(h.solid)
+            {
+                return false;
+            }
+            if(h.hit)
+            {
+                pull = za::max(pull, (1.f - h.frac) * (2.f * toe + 1.f));
+            }
+        }
+        p -= dir * pull;
+        return usable(p);
+    };
+
+    fwd = dir;
     if(bestScore < 1e8f)
     {
         // The ball of the foot on the top's edge.
         at = glm::vec3{bestCol.x, bestCol.y, bestZ + ankle} - dir * (toe * 0.45f);
         kind = 2;
+        return place(at);
     }
-    else if(wall)
+    if(face.hit && za::abs(face.normal.z) < 0.6f)
     {
-        // At the spacing's height under the preferred (the knee less high), else the one over it if that is in reach.
+        // At the spacing's height under the preferred (the knee less high), else the one over it.
         const float lo = CLAMP(zBot + ankle, za::floor(zPref / CLIMB_RUNGS) * CLIMB_RUNGS, zTop);
-        const float hi = CLAMP(zBot + ankle, lo + CLIMB_RUNGS, zTop);
-        at = glm::vec3{face.pos.x, face.pos.y, lo} - dir * toe;
-        if(glm::distance(at, hip) > maxReach)
-        {
-            at.z = hi;
-        }
         kind = 1;
-    }
-    else
-    {
-        return false;
-    }
-
-    // The foot out of the face: traced in from behind the heel to past the toes, just over the sole and at the ankle;
-    // met, the foot back that much; starting in something: none. (Just over the ankle: a face at a rung's underside.)
-    float pull = 0.f;
-    for(const float z : {at.z - ankle + 1.5f, at.z + 1.5f})
-    {
-        const glm::vec3 a{at.x, at.y, z};
-        const FootHit h = footTrace(a - dir * toe, a + dir * (toe + 1.f));
-        if(h.solid)
+        at = glm::vec3{face.pos.x, face.pos.y, lo} - dir * toe;
+        if(place(at))
         {
-            return false;
+            return true;
         }
-        if(h.hit)
-        {
-            pull = za::max(pull, (1.f - h.frac) * (2.f * toe + 1.f));
-        }
+        at = glm::vec3{face.pos.x, face.pos.y, CLAMP(zBot + ankle, lo + CLIMB_RUNGS, zTop)} - dir * toe;
+        return place(at);
     }
-    at -= dir * pull;
-    if(glm::distance(at, hip) > maxReach)
-    {
-        return false;
-    }
-    fwd = dir;
-    return true;
+    return false;
 }
 
 // Whether the player climbs (a hand on a hold): the holds' middle and the way into their face.
@@ -1647,6 +1658,7 @@ void updateClimbing(const Body& b, float dt, bool legs)
         steppingOut = steppingOut || (!f.held && f.step >= 0.f && f.step < 0.3f) || (!on && f.held);
     }
     c.weight = on ? za::min(1.f, c.weight + dt * 5.f) : steppingOut ? c.weight : za::max(0.f, c.weight - dt * 3.f);
+    climbHang = c.weight;
     if(!on && c.weight <= 0.f)
     {
         for(ClimbFoot& f : c.feet)
@@ -1835,10 +1847,12 @@ void updateClimbing(const Body& b, float dt, bool legs)
             const float e = smooth01(CLAMP(0.f, (s - 0.15f) / 0.65f, 1.f));
             const float out = (f.held ? 1.f : 1.f - e) * outW * (toeLength(side) + CLIMB_STEP_OUT) * b.m2w;
             f.now = glm::mix(f.from, to, e) - f.fwd * out + UP * (za::sin(glm::pi<float>() * s) * 0.03f * b.m2w);
+            f.flat = f.held ? 1.f : 1.f - e;
         }
         else
         {
             f.now = to;
+            f.flat = f.held ? 1.f : 0.f;
         }
     }
 }
@@ -1852,7 +1866,8 @@ void logClimbing(const Body& b)
         return;
     }
     char line[256];
-    int n = q_snprintf(line, sizeof(line), "climbfeet %.3f w %.2f rise %.2f", cl.time, climbing.weight, climbing.rise);
+    int n = q_snprintf(line, sizeof(line), "climbfeet %.3f w %.2f rise %.2f us %.1f", cl.time, climbing.weight,
+        climbing.rise, climbing.updateMs * 1000.0);
     for(int side = 0; side < 2; side++)
     {
         const ClimbFoot& f = climbing.feet[side];
@@ -1971,7 +1986,7 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
         const glm::vec3 cLeft{-cFwd.y, cFwd.x, 0.f};
         const glm::mat3 held = basis(cFwd * toe.x + cLeft * toe.y + UP * toe.z, UP);
         const glm::mat3 hanging = basis(safeNormalize(climbing.in + shinDir, climbing.in) + bend * 0.2f, bend);
-        const glm::mat3 climbRot = cf.held ? held : hanging;
+        const glm::mat3 climbRot = glm::mat3_cast(glm::slerp(glm::quat_cast(hanging), glm::quat_cast(held), cf.flat));
         f.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(f.rot), glm::quat_cast(climbRot), climbW));
     }
 }
@@ -2135,6 +2150,7 @@ void resetMotion()
     stance = Stance{};
     water = Water{};
     climbing = Climbing{};
+    climbHang = 0.f;
     armEase = ArmEase{};
     for(ForearmTwist& f : forearms)
     {
@@ -2324,7 +2340,11 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     updateGait(b, dt);
     const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
     updateStance(b, stand, dt);
-    updateClimbing(b, dt, legs);
+    {
+        const double t0 = vr_debug_climb_feet.value >= 2.f ? Sys_DoubleTime() : 0.0;
+        updateClimbing(b, dt, legs);
+        climbing.updateMs = vr_debug_climb_feet.value >= 2.f ? (Sys_DoubleTime() - t0) * 1000.0 : 0.0;
+    }
     glm::mat3 still[2];
     solveLeg(b, stand, 0, legs, still[0]);
     solveLeg(b, stand, 1, legs, still[1]);
