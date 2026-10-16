@@ -2,6 +2,15 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Stomps: jump repeatedly on a downed grunt's head: pops on the 3rd; ~2 heights onto a head (alive or dead) pops it; corpse legs pop; ogre/shambler only hurt
+Enemy melee: sidestep a charging knight/death knight: it misses; sneak behind and wake it: it turns before the first blow lands
+Gib heads: rocket an AD crossbow knight or hunter ogre: pick up, throw and shoot its head (bursts into small gibs)
+Magnetic holsters: hand at a holster + click a stick binds it; throw/drop the gun: back after ~3 s or 4 m; grab it mid-flight; lanyard/tether/both, chain size and opacity
+Gore: thin blood streams from wounds pool on the floor (also corpses); back-splatter on walls behind; teeth from hard face punches; raw-flesh dents that stay on corpses, never on guns
+Gloves: Worn Leather painted layer (knuckle scuffs, joint creases, stitched seams) at arm's length in a few colours; no nails showing through full gloves
+Grip fit: grab a crate by the lid or a barrel by the rim with the hand pushed in: the hand rests on the surface
+Toolgun: megahealth/health/ammo in vrfiringrange appear small at once where the ghost was; AD monster ghosts not corrupted; AD/MG3 backpacks in any map
+Menu panels: grip one and pull your hand in / push out: it moves in depth (30 cm to 2 m), kept after reopening
 Landing on enemies: drop onto a grunt's head from one storey: it goes down, you bounce, it gets up; higher kills (head pops); ogre/shambler need more height; no fall damage when you crush
 Impacts settings (Combat > Knockdowns > Impacts): Damage Curve 2 and Most per Strike change throws into walls; repeated head slams pop the head
 Water: carry a knocked-down grunt into deep water and hold it: stays down; let go: floats, then stands where it is or on the bank (never back on land it came from)
