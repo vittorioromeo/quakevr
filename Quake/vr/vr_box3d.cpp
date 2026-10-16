@@ -3732,6 +3732,14 @@ bool makeRagdollRoom(edict_t* ent)
     return p;
 }
 
+// An active death's roll (its wound's, crawl's and death animation's chances): his entity, the time and
+// vr_ragdoll_active_seed.
+[[nodiscard]] uint32_t deathSeed(int num)
+{
+    return static_cast<uint32_t>(num) * 2654435761u ^ static_cast<uint32_t>(qcvm->time * 72.0) ^
+           static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u;
+}
+
 // An active death's start (createRagdoll; vr_ragactive.cpp beginDeath): his death animation from `frame` (the one the
 // parts were made in), the blow that killed him (QC's .vr_death_hit and .vr_death_hitpos: a headshot or beheading is a
 // collapse; the body or a limb, a wound a hand may hold), his motion as he died (a stumble), a roll of his own (the
@@ -3761,8 +3769,7 @@ void startActiveDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* 
     di.wound = !di.collapse && hitPart >= 0.f && hitAt != glm::vec3{0.f} && glm::length(hitAt) < 96.f;
     di.woundAt = glmv(world->toM(drawnOrigin + hitAt));
     di.walk = glmv(world->toM(deathMotion(num)));
-    di.seed = static_cast<uint32_t>(num) * 2654435761u ^ static_cast<uint32_t>(qcvm->time * 72.0) ^
-              static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u;
+    di.seed = deathSeed(num);
     const ActiveClass* ac = activeClassOf(ent);
     di.crawler = ac && ac->crawls;
     // A test's (vr_ragdoll_act): the wound's and the crawl's chances sure, or no pin, for this death alone.
@@ -3800,8 +3807,7 @@ void startCutDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* joi
     const ragactive::Parts parts = activeParts(r);
     ragactive::begin(r.active, parts, modelOf(ent), glmv(world->toM(drawnOrigin)), joints, friction, stiffness, qcvm->time);
     ragactive::DeathInfo di;
-    di.seed = static_cast<uint32_t>(num) * 2654435761u ^ static_cast<uint32_t>(qcvm->time * 72.0) ^
-              static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u;
+    di.seed = deathSeed(num);
     di.death = static_cast<int>((di.seed >> 8) % static_cast<uint32_t>(rig.deaths));
     di.frame = static_cast<float>(rig.deathFirst[di.death]);
     di.walk = glmv(world->toM(deathMotion(num)));
