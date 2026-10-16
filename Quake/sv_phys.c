@@ -1303,6 +1303,9 @@ SV_Physics
 
 ================
 */
+// QVR: `call` in a profiling zone of its own (Release-Tracy; nothing in other builds)
+#define SV_PHYS_ZONE(name, call) do { VR_TRACY_SCOPE (name); call; } while (0)
+
 void SV_Physics (void)
 {
 	VR_TRACY_SCOPE("Server physics");
@@ -1343,27 +1346,28 @@ void SV_Physics (void)
 		if (i > svs.maxclients && VR_MonsterFrozen (ent))
 			continue; // QVR: Debug > Cheats and Recording's Freeze Monsters (vr_freeze_monsters)
 
-		vrworld = VR_PhysicsEntityBegin (ent, i); // QVR: slow motion's Sandevistan: the player and its missiles in its own time
+		// QVR: each edict's part in a zone of its own (profiling builds only: SV_PHYS_ZONE), by its movetype
+		SV_PHYS_ZONE ("SV edict VR begin", vrworld = VR_PhysicsEntityBegin (ent, i)); // QVR: slow motion's Sandevistan: the player and its missiles in its own time
 		if (i > 0 && i <= svs.maxclients)
-			SV_Physics_Client (ent, i);
+			SV_PHYS_ZONE ("SV edict client", SV_Physics_Client (ent, i));
 		else if (ent->v.movetype == MOVETYPE_PUSH)
-			SV_Physics_Pusher (ent);
+			SV_PHYS_ZONE ("SV edict push", SV_Physics_Pusher (ent));
 		else if (ent->v.movetype == MOVETYPE_NONE)
-			SV_Physics_None (ent);
+			SV_PHYS_ZONE ("SV edict none", SV_Physics_None (ent));
 		else if (ent->v.movetype == MOVETYPE_NOCLIP)
-			SV_Physics_Noclip (ent);
+			SV_PHYS_ZONE ("SV edict noclip", SV_Physics_Noclip (ent));
 		else if (ent->v.movetype == MOVETYPE_STEP)
-			SV_Physics_Step (ent);
+			SV_PHYS_ZONE ("SV edict step", SV_Physics_Step (ent));
 		else if (ent->v.movetype == MOVETYPE_TOSS
 		|| ent->v.movetype == MOVETYPE_GIB
 		|| ent->v.movetype == MOVETYPE_BOUNCE
 		|| ent->v.movetype == MOVETYPE_FLY
 		|| ent->v.movetype == MOVETYPE_FLYMISSILE)
-			SV_Physics_Toss (ent);
+			SV_PHYS_ZONE ("SV edict toss", SV_Physics_Toss (ent));
 		else
 			Sys_Error ("SV_Physics: bad movetype %i", (int)ent->v.movetype);
 		if (vrworld > 0.0)
-			VR_PhysicsEntityEnd (ent, i, vrworld); // QVR
+			SV_PHYS_ZONE ("SV edict VR end", VR_PhysicsEntityEnd (ent, i, vrworld)); // QVR
 
 	//johnfitz -- PROTOCOL_FITZQUAKE
 	//capture interval to nextthink here and send it to client for better
