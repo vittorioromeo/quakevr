@@ -8722,3 +8722,10 @@ Test (`Misc/quakevr/foegrab/gripcrowd_test.py <agent> <tag>`: a ring of 10 grunt
 against the old 14.8 (median 14.6, max 22.9), about 100 times less. Two separate runs can't be compared line by line
 (the grunts' idle frames vary), hence the in-run check. judo_test lift and hold (with `vr_foegrab_debug 2`): all PASS, 24
 searches "same". Melee eval 168/177. For him: grip near a crowd and see that the hands take hold as before.
+
+## His knockdown values are the defaults (2026-10-16, config 140)
+
+His request: "make my five knockdown values the defaults". From his `ironwail.cfg`: `vr_knockdown_chance` 1 -> 0.6,
+`vr_knockdown_damage` 2 -> 3, `vr_knockdown_getup_speed` 1 -> 0.8, `vr_knockdown_time_min` 2.5 -> 1.75,
+`vr_knockdown_time_max` 4.5 -> 3.5. Migration 140 moves configs still at the old defaults. (His lower shove/bash damage was
+already the default; the melee eval canary's halved parry-bash damage is that tuning, intentional.)

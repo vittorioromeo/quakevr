@@ -794,8 +794,14 @@ const DefaultChange defaultChanges[] = {
     {139, &vr_ragimpact_stomp_heavy, "130"},         // 120
     {139, &vr_ragimpact_stomp_speed, "420"},         // 400
     {139, &vr_teeth_per_enemy, "10"},                // 8
+    // 140: his knockdown values (2026-10-16: "make my five knockdown values the defaults").
+    {140, &vr_knockdown_chance, "1"},               // 0.6
+    {140, &vr_knockdown_damage, "2"},               // 3
+    {140, &vr_knockdown_getup_speed, "1"},          // 0.8
+    {140, &vr_knockdown_time_min, "2.5"},           // 1.75
+    {140, &vr_knockdown_time_max, "4.5"},           // 3.5
 };
-constexpr int configVersion = 139;
+constexpr int configVersion = 140;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

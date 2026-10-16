@@ -2376,7 +2376,7 @@ QVR_CVAR(vr_corpse_placed, "1", CVAR_ARCHIVE)         // a mapper's corpses (mis
 QVR_CVAR(vr_corpse_placed_wake, "160", CVAR_ARCHIVE)  // units: a placed corpse a player comes this near becomes a ragdoll (vr_corpse_placed); one that got none (no room) sleeps again past 1.5 times this, to try once more// Knockdowns (QC vr_knockdown.qc; vr_box3d.cpp "Knockdowns"; Combat > Knockdowns): a shove can knock a monster with a
 // ragdoll rig down as a ragdoll, alive; after a while it gets up (its own fall-and-rise frames, or its death backwards).
 QVR_CVAR(vr_knockdown, "1", CVAR_ARCHIVE)                 // the feature: 0 off (shoves stagger as before)
-QVR_CVAR(vr_knockdown_chance, "1", CVAR_ARCHIVE)          // every monster's chance times this (testing: 100, every shove)
+QVR_CVAR(vr_knockdown_chance, "0.6", CVAR_ARCHIVE)          // every monster's chance times this (testing: 100, every shove)
 QVR_CVAR(vr_knockdown_chance_army, "0.45", CVAR_ARCHIVE)  // a shove's base chance to knock one down, by monster
 QVR_CVAR(vr_knockdown_chance_enforcer, "0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_knockdown_chance_dog, "0.35", CVAR_ARCHIVE)
@@ -2388,7 +2388,7 @@ QVR_CVAR(vr_knockdown_chance_ogre, "0.15", CVAR_ARCHIVE)
 QVR_CVAR(vr_knockdown_chance_demon, "0.1", CVAR_ARCHIVE)
 QVR_CVAR(vr_knockdown_chance_shambler, "0.03", CVAR_ARCHIVE)
 QVR_CVAR(vr_knockdown_chance_gremlin, "0.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_knockdown_damage, "2", CVAR_ARCHIVE)          // the chance times 1 + this times the share of its health it has lost
+QVR_CVAR(vr_knockdown_damage, "3", CVAR_ARCHIVE)          // the chance times 1 + this times the share of its health it has lost
 QVR_CVAR(vr_knockdown_onehand, "1", CVAR_ARCHIVE)         // the chance times this for a one-handed shove,
 QVR_CVAR(vr_knockdown_twohand, "1.75", CVAR_ARCHIVE)      // and this for a two-handed one
 QVR_CVAR(vr_knockdown_bash, "1", CVAR_ARCHIVE)            // and this for a weapon's bash (0: only open-palm shoves)
@@ -2437,8 +2437,8 @@ QVR_CVAR(vr_ragimpact_stomp, "1", CVAR_ARCHIVE)           // landing on a standi
 QVR_CVAR(vr_ragimpact_stomp_speed, "400", CVAR_ARCHIVE)   // units/s: the least landing speed that knocks a standing one down (about a 115-unit drop)
 QVR_CVAR(vr_ragimpact_stomp_heavy, "120", CVAR_ARCHIVE)   // kg: a monster heavier needs a faster landing, the least speed times the cube root of its mass over this (ogre, fiend, vore 250 kg: ~180-unit drop; shambler 600: ~315); 0: all alike
 QVR_CVAR(vr_ragimpact_stomp_bounce, "200", CVAR_ARCHIVE)  // units/s up: you bounce off the one you knocked down (0: you drop through as it falls)
-QVR_CVAR(vr_knockdown_time_min, "2.5", CVAR_ARCHIVE)      // seconds it stays down, at least,
-QVR_CVAR(vr_knockdown_time_max, "4.5", CVAR_ARCHIVE)      // and at most (at random between)
+QVR_CVAR(vr_knockdown_time_min, "1.75", CVAR_ARCHIVE)      // seconds it stays down, at least,
+QVR_CVAR(vr_knockdown_time_max, "3.5", CVAR_ARCHIVE)      // and at most (at random between)
 QVR_CVAR(vr_knockdown_hit_time, "0.5", CVAR_ARCHIVE)      // seconds each hit while down adds (not past Time Max from the hit)
 QVR_CVAR(vr_knockdown_retry, "0.5", CVAR_ARCHIVE)         // seconds between tries to get up where there is no room
 QVR_CVAR(vr_knockdown_search, "48", CVAR_ARCHIVE)         // how far (units) from the body it looks for room to stand
@@ -2446,7 +2446,7 @@ QVR_CVAR(vr_knockdown_water_search, "256", CVAR_ARCHIVE) // ... a knockdown swim
 QVR_CVAR(vr_knockdown_water_climb, "48", CVAR_ARCHIVE)   // ... getting up in a liquid: how far (units) over its pelvis the floor it gets up onto may be (higher: carried down there, it swims up first or gets up where it floats)
 QVR_CVAR(vr_knockdown_water_giveup, "3", CVAR_ARCHIVE)   // ... none found for this long (s) after its time to get up: it gets up where it floats, a walking monster again (and sinks); 0: never
 QVR_CVAR(vr_knockdown_blend, "0.35", CVAR_ARCHIVE)        // seconds the body blends from the ragdoll into the get-up
-QVR_CVAR(vr_knockdown_getup_speed, "1", CVAR_ARCHIVE)     // the get-up's frames' speed (1: Quake's 10 a second)
+QVR_CVAR(vr_knockdown_getup_speed, "0.8", CVAR_ARCHIVE)     // the get-up's frames' speed (1: Quake's 10 a second)
 QVR_CVAR(vr_knockdown_push, "1.3", CVAR_ARCHIVE)          // (the author's 1.3, 2026-10-11) the knocked body's launch, times the shove's push
 QVR_CVAR(vr_knockdown_shove_travel, "0.8", CVAR_ARCHIVE)  // how far the shoved-down body goes, times how far the same shove carries a standing one (its pelvis, as it lies; box3d ragdollShove); 0: it falls where it stood
 QVR_CVAR(vr_knockdown_shove_topple_angle, "90", CVAR_ARCHIVE) // degrees it turns over about its feet along the shove (90: from standing to flat), head and chest first; 0: no turn (it falls as it will)
