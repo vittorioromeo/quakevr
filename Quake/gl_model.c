@@ -3519,6 +3519,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	// always its .mdl: Quake VR's rigs, hit zones and model edits are made for its frames, not its pack's .md5 companions.
 	if ((int)r_enhancedmodels.value == 1 && q_strncasecmp (mod->name, "owned/", 6))
 	{
+		VR_TRACY_SCOPE("alias replacements (md5, md3)"); // QVR: Tracy builds only (the scopes below too: PROFILE_20261016 B8)
 		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 		ModelLoader loaders[] = {
 			{ "md3", (ModelLoadFunc)loadMd3Replacement},
@@ -3610,7 +3611,10 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 // load the skins
 //
 	pskintype = (daliasskintype_t *)&pinmodel[1];
-	VR_TIMED ("  their skins (textures, normal maps)", pskintype = (daliasskintype_t *) Mod_LoadAllSkins (pheader->numskins, pskintype)); // QVR: load timing
+	{
+		VR_TRACY_SCOPE("alias skins");
+		VR_TIMED ("  their skins (textures, normal maps)", pskintype = (daliasskintype_t *) Mod_LoadAllSkins (pheader->numskins, pskintype)); // QVR: load timing
+	}
 
 //
 // endian-swap base s and t vertices in place
@@ -3641,7 +3645,10 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 					LittleLong (pintriangles[i].vertindex[j]);
 		}
 	}
-	VR_LoadSkinNormalMaps (loadmodel, pheader, pinstverts, pintriangles); // QVR: the skins' normal maps, their islands from these
+	{
+		VR_TRACY_SCOPE("alias skin normal maps");
+		VR_LoadSkinNormalMaps (loadmodel, pheader, pinstverts, pintriangles); // QVR: the skins' normal maps, their islands from these
+	}
 
 //
 // load the frames
@@ -3649,34 +3656,47 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	posenum = 0;
 	pframetype = (daliasframetype_t *)&pintriangles[pheader->numtris];
 
-	for (i=0 ; i<numframes ; i++)
 	{
-		aliasframetype_t	frametype;
-		frametype = (aliasframetype_t) LittleLong (pframetype->type);
-		if (frametype == ALIAS_SINGLE)
-			pframetype = (daliasframetype_t *) Mod_LoadAliasFrame (pframetype + 1, &pheader->frames[i]);
-		else
-			pframetype = (daliasframetype_t *) Mod_LoadAliasGroup (pframetype + 1, &pheader->frames[i]);
+		VR_TRACY_SCOPE("alias frames");
+		for (i=0 ; i<numframes ; i++)
+		{
+			aliasframetype_t	frametype;
+			frametype = (aliasframetype_t) LittleLong (pframetype->type);
+			if (frametype == ALIAS_SINGLE)
+				pframetype = (daliasframetype_t *) Mod_LoadAliasFrame (pframetype + 1, &pheader->frames[i]);
+			else
+				pframetype = (daliasframetype_t *) Mod_LoadAliasGroup (pframetype + 1, &pheader->frames[i]);
+		}
 	}
 
 	pheader->numposes = posenum;
 	pheader->poseverttype = PV_QUAKE1;
-	VR_AliasPosesLoaded (mod->name, pheader, stverts, triangles, poseverts); // QVR: knights' death frames without the sword
+	{
+		VR_TRACY_SCOPE("alias poses loaded (VR)");
+		VR_AliasPosesLoaded (mod->name, pheader, stverts, triangles, poseverts); // QVR: knights' death frames without the sword
+	}
 
 	mod->type = mod_alias;
 
-	Mod_SetExtraFlags (mod); //johnfitz
+	{
+		VR_TRACY_SCOPE("alias flags and bounds");
+		Mod_SetExtraFlags (mod); //johnfitz
 
-	Mod_CalcAliasBounds (pheader); //johnfitz
+		Mod_CalcAliasBounds (pheader); //johnfitz
+	}
 
 	//
 	// build the draw lists
 	//
-	VR_TIMED ("  their draw lists", GL_MakeAliasModelDisplayLists (mod, pheader)); // QVR: load timing
+	{
+		VR_TRACY_SCOPE("alias draw lists");
+		VR_TIMED ("  their draw lists", GL_MakeAliasModelDisplayLists (mod, pheader)); // QVR: load timing
+	}
 
 //
 // move the complete, relocatable alias model to the cache
 //
+	VR_TRACY_SCOPE("alias cache copy");
 	end = Hunk_LowMark ();
 	total = end - start;
 
