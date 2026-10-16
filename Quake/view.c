@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // view.c -- player eye positioning
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 /*
 
@@ -931,10 +932,13 @@ The view's refdef and the view entities, without drawing (V_RenderView; VR_Headl
 */
 void V_SetupView (void) // QVR
 {
-	if (cl.intermission)
-		V_CalcIntermissionRefdef ();
-	else if (!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
-		V_CalcRefdef ();
+	{
+		VR_TRACY_SCOPE ("view: calc refdef"); // QVR: profiling builds only
+		if (cl.intermission)
+			V_CalcIntermissionRefdef ();
+		else if (!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
+			V_CalcRefdef ();
+	}
 
 	//johnfitz -- removed lcd code
 
@@ -947,11 +951,20 @@ void V_RenderView (void)
 		return;
 
 	V_SetupView (); // QVR: split out
-	VR_RenderPortalForView (); // each eye, flat-screen and spectator use their own portal view
+	{
+		VR_TRACY_SCOPE ("view: portals for view"); // QVR: profiling builds only
+		VR_RenderPortalForView (); // each eye, flat-screen and spectator use their own portal view
+	}
 
-	R_RenderView ();
+	{
+		VR_TRACY_SCOPE ("view: R_RenderView"); // QVR: profiling builds only
+		R_RenderView ();
+	}
 
-	V_PolyBlend (); //johnfitz -- moved here from R_Renderview ();
+	{
+		VR_TRACY_SCOPE ("view: poly blend"); // QVR: profiling builds only
+		V_PolyBlend (); //johnfitz -- moved here from R_Renderview ();
+	}
 }
 
 /*
