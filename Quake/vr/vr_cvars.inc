@@ -2499,7 +2499,7 @@ QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 
 QVR_CVAR(vr_ragdoll_grab_force, "4000", CVAR_ARCHIVE) // N: the most a hand pulls a held limb with (3000: a grunt lifted by his chest sags a unit; 1500: about 18)
 QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
 QVR_CVAR(vr_ragdoll_grab_fit, "1", CVAR_ARCHIVE)      // a taken limb's surface brought onto the palm (as a carried prop's: vr_held_surface_fit); 0: held where the hand's middle was
-QVR_CVAR(vr_ragdoll_hand_stick, "4", CVAR_ARCHIVE)    // cm: the most the hand holding a limb is drawn off its controller to stay on the limb (it lags and sags); 0: on the controller
+QVR_CVAR(vr_ragdoll_hand_stick, "30", CVAR_ARCHIVE)    // cm: the most the hand holding a limb is drawn off its controller to stay on the limb (it lags and sags); 0: on the controller
 QVR_CVAR(vr_ragdoll_hand_turn, "70", CVAR_ARCHIVE)    // degrees: and the most it is drawn turned off it, with the limb twisting in the hand (the hand turns about its fingers on the limb)
 QVR_CVAR(vr_ragdoll_throw, "1", CVAR_ARCHIVE)         // times the hand's throw a limb let go of keeps (0: only what the pull gave it)
 QVR_CVAR(vr_ragdoll_blood, "1", CVAR_ARCHIVE)         // a ragdoll's limbs flung fast leave blood trails and drops (as gibs do: vr_gib_blood_trail)

@@ -800,8 +800,10 @@ const DefaultChange defaultChanges[] = {
     {140, &vr_knockdown_getup_speed, "1"},          // 0.8
     {140, &vr_knockdown_time_min, "2.5"},           // 1.75
     {140, &vr_knockdown_time_max, "4.5"},           // 3.5
+    // 141: his ragdoll hand-follow value (2026-10-16: "I like if the hand follows the ragdoll more accurately").
+    {141, &vr_ragdoll_hand_stick, "4"},             // 30
 };
-constexpr int configVersion = 140;
+constexpr int configVersion = 141;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

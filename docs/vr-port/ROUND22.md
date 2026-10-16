@@ -8880,3 +8880,9 @@ cache hits (no background process). Done in `vr_box3d.cpp` `prepareHeldGuns` + `
 | on, warm (21 read) | 4.1 ms | 8911 ms (off, warm 8918) |
 
 e1m1 cold: 37.7 ms in all (5 + 1 + 1 guns over three runs).
+
+## His ragdoll hand-follow value is the default (2026-10-16, config 141)
+
+His note: "I changed some settings regarding the ragdoll and the hand follow limb values. Please make those the new
+defaults. I like if the hand follows the ragdoll more accurately." From his ironwail.cfg: vr_ragdoll_hand_stick 4 -> 30
+(the only ragdoll hand-follow setting he changed). Migration 141.
