@@ -11,6 +11,7 @@
 
 #ifdef QVR_HAVE_OPENXR
 
+#include "vr_bodytrack_xr.hpp"
 #include "vr_engine.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
@@ -211,6 +212,7 @@ public:
         {
             return false;
         }
+        bodytrack::xr::create(instance, systemId, session); // (vr_bodytrack_xr.cpp: when the runtime offers it)
 
         // The runtime paces frames (xrWaitFrame): the desktop mirror must not wait for vsync.
         SDL_GL_SetSwapInterval(0);
@@ -249,6 +251,7 @@ public:
         }
         getVisibilityMask = nullptr;
 
+        bodytrack::xr::destroy();
         for(XrSpace& space : handSpaces)
         {
             destroySpace(space);
@@ -413,6 +416,7 @@ public:
                 }
             }
         }
+        bodytrack::xr::locate(worldSpace, time); // the tracked body, as the hands (vr_bodytrack_xr.cpp)
 
         frame.shouldRender = viewsOk && frameState.shouldRender;
         // The runtime's menu has the focus (SteamVR's dashboard...): its last frame again, nothing rendered.
@@ -1368,6 +1372,7 @@ private:
     {
         // Quest 3 controllers get their own profile with this extension (Touch otherwise).
         za::Vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
+        bodytrack::xr::reset();
         uint32_t available = 0;
         xrEnumerateInstanceExtensionProperties(nullptr, 0, &available, nullptr);
         za::Vector<XrExtensionProperties> extensionList(available, XrExtensionProperties{XR_TYPE_EXTENSION_PROPERTIES});
@@ -1401,6 +1406,11 @@ private:
             {
                 extensions.pushBack(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
                 visibilityMaskExtension = true;
+            }
+            // Body tracking (vr_bodytrack_xr.cpp): the FB tracker, Meta's full body, fidelity and calibration.
+            if(const char* body = bodytrack::xr::wanted(p.extensionName))
+            {
+                extensions.pushBack(body);
             }
             // Diagnostics mode: the loader's and the runtime's own messages (openxr_debug.log).
             if(VR_DiagnosticsOn() && vr_diagnostics_xr.value != 0.f && !strcmp(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))

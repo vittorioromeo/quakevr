@@ -4,6 +4,7 @@
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 #include "vr_body.hpp"
+#include "vr_bodytrack.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
 #include "vr_flatplay.hpp"
@@ -284,8 +285,10 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
         ls.handsRefValid = false;
     }
 
-    // Weighed together (any one can tell), scaled by vr_lean_detect.
-    const float sure = 1.f - (1.f - dropCue) * (1.f - 0.85f * tiltCue) * (1.f - 0.7f * handsCue);
+    // Weighed together (any one can tell), scaled by vr_lean_detect; with body tracking, the tracked spine's tilt blended
+    // in (vr_bodytrack.cpp: a lean tilts it, a step or a neck bend does not).
+    const float sure =
+        bodytrack::leanSure(1.f - (1.f - dropCue) * (1.f - 0.85f * tiltCue) * (1.f - 0.7f * handsCue), off);
     const float target = CLAMP(0.f, sure * vr_lean_detect.value, 1.f);
     ls.hold += (target - ls.hold) * ease(target > ls.hold ? 0.08f : 0.35f);
 
@@ -679,6 +682,7 @@ void update()
             turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
         }
         state.turnYaw = turnYaw;
+        bodytrack::place(base, floorBelowHead, turnYaw, m2u); // the tracked body, as the head and hands
 
         state.head = toWorld(t.head.position);
         state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
@@ -775,9 +779,10 @@ void update()
     updateVelocities(vrActive() ? &t : nullptr);
     flick::update(state);
 
-    // The torso's direction (vr_torso.cpp): the head's, pulled a little by the hands in front of it.
-    state.bodyYaw = vrActive() ? torso::estimate(state, headYawBlended(), turnYaw,
-                                                 t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid)
+    // The torso's direction (vr_torso.cpp): the head's, pulled a little by the hands in front of it; with body tracking,
+    // the tracked hips' (vr_bodytrack.cpp).
+    state.bodyYaw = vrActive() ? bodytrack::bodyYaw(torso::estimate(state, headYawBlended(), turnYaw,
+                                                     t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid))
                                : yaw;
 
     state.crouchRatio = state.headHeight > 0.f
