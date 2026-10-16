@@ -20,7 +20,13 @@ Two ways to have one draw write two layers of a texture array:
 
 Every program a ported pass uses gets a **multiview twin**: the same sources compiled again with
 `#extension GL_OVR_multiview2`, `layout(num_views = 2) in;` and `QVR_MULTIVIEW 1` (gl_shaders.c `GL_CreateShader`).
-A twin is made the first time the pass draws with its program (not at every start). While the multiview pass
+The twins of every ported program (59: the world's variants and the alias models') are begun when the toggle turns on
+(or at the first frame when it is on at start, and again after the programs are made again: `GL_MultiviewPrepare`),
+compiled by the driver's threads in the background (GL_KHR_parallel_shader_compile); the frames stay two-pass until
+they are all linked (`GL_MultiviewPending`; `vr_stereo_single_info` says "multiview programs compiling"). A world twin
+takes about a second to compile cold (the driver's shader cache makes the next start's fast), so on first use they
+would hitch; without the extension they are compiled at once, waited for. Only a program made after that (a variant
+first made mid-game) still gets its twin on first use. While the multiview pass
 draws, `GL_UseProgram` swaps a program for its twin; anything else drawn there (a program without a twin) would be an
 error, so the passes not ported are not drawn there at all (below).
 
@@ -33,17 +39,23 @@ Without the define the shaders are the same text as before: the toggle off compi
 
 The clustered lights are per view (the clusters are screen tiles): the multiview pass clusters the lights twice, eye 0
 into the usual 3D image and eye 1 into a second one (image unit 1), and the shaders load the view's
-(`QVR_LOAD_CLUSTER`). The light list is the same for both (culled by the union frustum).
+(`QVR_LOAD_CLUSTER`). The light list is the same for both (culled by the union frustum). Each eye's own view after
+the pass keeps that list and its clusters (eye 1 reads its own image at unit 0) instead of clustering again, unless
+something clustered in between (a serial in gl_rlight.c).
 
 ## Targets and the per-pass fallback
 
 The multiview pass renders into a 2-layer colour array (the eyes' scene format) and a 2-layer depth/stencil array
-(the eyes' depth format), at the eyes' render size. Each eye then continues as today with its own `V_RenderView`, but
-its scene starts from a copy of its layer (colour and depth/stencil, `glCopyImageSubData`) instead of a clear, and the
-passes the multiview pass drew are skipped. So every pass not ported yet renders per eye as before, after the ported
-ones, and the image is complete whatever is ported. This is the "copy-out" for now; once the later passes (and the
-post-processing) are ported, the eyes' targets become views of the array layers and the copy goes (with OpenXR array
-swapchains where the runtime has them).
+(the eyes' depth format), at the eyes' render size. Each eye then continues as today with its own `V_RenderView`, into
+its own layer: each layer has texture views (`glTextureView`: colour and depth/stencil, multisample with MSAA) with a
+framebuffer each (the scene's, and the OIT's with the eyes' accum and revealage textures), and in the eye's
+`R_SetupGL` they replace the eyes' scene target in `framebufs` (the scene's with MSAA or a scene effect, else the
+composite's: `VR_StereoSingleEyeTargets`). The eye's scene is not cleared (`VR_StereoSingleSceneBegun`: cleared in
+the pass, with its hidden area), and the passes the multiview pass drew are skipped. So every pass not ported yet
+renders per eye as before, after the ported ones, into the same memory (no copy: the depth stays compressed), and the
+image is complete whatever is ported. The window's mirror reads the eye's own targets. Caches keyed to the scene's
+texture (the liquids' scene size, the haze's scene format, the half-size particles' completeness check) keep one per
+eye, as each eye now has its own texture (else each view asks GL again: 0.1-0.3 ms of CPU each).
 
 Order: the ported passes must come before the unported ones in `R_RenderScene`: the clear, the lenses' hidden area,
 the opaque world and brush models, the opaque alias models. Everything after (particles, world text, sky, water,
@@ -68,8 +80,8 @@ Two views in one draw also need, per view: the clustered lights (two cluster ima
 (vr_foveated.cpp `beginSceneLayered`: a 2-layer rate image, one layer per eye; NVIDIA's shading-rate image follows the
 view's layer, checked in the pixel diff with `vr_foveated` on).
 
-With MSAA (`vid_fsaa`) the arrays are multisample arrays (GL_EXT_multiview_texture_multisample) and the copy is
-multisample to multisample.
+With MSAA (`vid_fsaa`) the arrays are multisample arrays (GL_EXT_multiview_texture_multisample) and the layers' views
+multisample textures.
 
 Two-pass for the frame (`vr_stereo_single_info` says why): the driver lacks multiview (or MSAA arrays with MSAA); a
 teleporter's view is in sight of either eye (below); `vr_stereo_single` 0. The spectator camera, the views through
@@ -85,7 +97,8 @@ gate views rendered before the pass (their textures per eye), the pass given the
 
 Each stage keeps the toggle's fallback: what is not ported renders per eye.
 
-1. Infrastructure: arrays (MSAA too), the views' block, the twins, the toggle, the copy, the per-layer hidden area,
+1. Infrastructure: arrays (MSAA too), the views' block, the twins, the toggle, the layers' texture views (was a
+   copy), the per-layer hidden area,
    per-view clusters, AO tiles and foveation. Done.
 2. World surfaces: the opaque world and brush models (solid and fences, the depth pre-pass, decals, permanent decals,
    parallax, lights). Done. Sky and liquids/teleporter surfaces: not yet (they read per-eye scene copies and the
@@ -116,6 +129,40 @@ Stages 1-3 make the images right but the frame slower (ROUND22.md, "Single-pass 
 - Only then are stages 4-5 worth porting: their CPU (particles, VR effects) is where single-pass can save.
 - The twins compile on first use (a hitch the first time each program is drawn in the pass): compile the ported
   programs' twins when the toggle turns on.
+
+## The second run (2026-10-16): no copy, setup reused, twins ahead
+
+Done: the eyes render on into their layers (texture views, no copy), the per-texture caches per eye, the eyes reuse
+the pass's lights and clusters (marks not: 0.002 ms an eye), the twins compiled in the background at toggle-on.
+Images: toggle off as before (0.001% at most against the old build); toggle on identical to off (MSAA 4 with
+`vr_foveated 2`, and no MSAA without foveation: 0.002% at most). Not identical: no MSAA with `vr_foveated` on (his
+settings): 0.2-0.8% of the pixels in the foveated rings differ, in the old copy build too (pre-existing, not found).
+
+Bench (Release, 900 frames paced at 90 Hz, exclusive; the machine was shared with other workers' builds, so the
+quietest runs; ms):
+
+| | CPU p50 / p95 / p99 | GPU 3D p50 / p95 / p99 |
+|---|---|---|
+| combat_48, two-pass | 2.60-2.67 / 4.42-4.45 / 4.87-5.19 | 4.15-4.38 / 5.46-5.85 / 6.37-6.74 |
+| combat_48, first run (copy) | 2.90 avg / - / 8.6 | 6.63 avg |
+| combat_48, single-pass now | 2.51-2.55 / 4.27-4.31 / 4.86-4.91 | 4.45-4.46 / 5.95-6.20 / 7.13-7.27 |
+| play_e1m1_fight, two-pass | 1.51 / 1.96-1.98 / 2.76-2.82 | 3.41-3.42 / 4.48-4.81 / 4.90-5.27 |
+| play_e1m1_fight, first run (copy) | 1.49 avg | 5.54 avg |
+| play_e1m1_fight, single-pass now | 1.49 / 1.97 / 2.76 | 3.51-3.60 / 4.57-4.66 / 4.99-5.06 |
+
+The copy's cost is gone (GPU +2.2 ms -> +0.1-0.3), the CPU is level or 0.1 ms better, the GPU still 0.1-0.3 ms worse.
+Where the GPU goes (profiler, combat_48, both eyes): the world in the pass 1.20 ms against 1.25 two-pass (multiview
+saves little: it is raster-bound); the alias models 0.89 + 0.08 (view entities) against 0.83; the VR particles after
+the pass 0.45 an eye against 0.37 (+0.17 in all), the sky +0.02 an eye. The passes after the pass test against a
+depth buffer the multiview pass wrote layered: by every sign the driver's coarse early-Z (ZCULL) is not kept for it, so
+blended, depth-tested work after it (particles) rejects less. Porting the particles into the pass would not bring
+that back (they would be drawn layered too).
+
+Gate (single-pass >= two-pass on CPU and GPU in both scenes): not met on GPU. Stages 4-5 and TAA under single-pass
+were not started. Estimate: the CPU could gain 0.2-0.4 ms with stages 4-5 (the particles' and VR effects' submission,
+0.3-0.45 ms in combat_48 for both eyes), the GPU would stay 0.1-0.3 ms behind (or worse, with the particles layered)
+on this driver. On a desktop RTX GPU at 90 Hz single-pass does not pay; it would matter on a CPU-bound or tiled
+(standalone) GPU, where multiview is native.
 
 ## Debugging
 

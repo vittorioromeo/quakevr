@@ -4,8 +4,9 @@
 // multiview pass (render: gl_rmain.c R_RenderStereoSingle) with eye 0's r_refdef current: R_SetupView with a frustum
 // holding both eyes' (VR_StereoSingleFrustum), both eyes' PVS (r_world.c) and light clusters (gl_rlight.c), then the
 // ported passes drawn into the 2-layer arrays through the multiview framebuffer, every program swapped for its multiview
-// twin (gl_shaders.c). Then each eye's own V_RenderView as before (its V_SetupView skipped: done), whose R_RenderScene
-// copies its layer into its scene target instead of clearing it (VR_StereoSingleCopyIn) and skips what the pass drew.
+// twin (gl_shaders.c). Then each eye's own V_RenderView as before (its V_SetupView skipped: done), whose scene target
+// is its layer's texture views (R_SetupGL: VR_StereoSingleEyeTargets), not cleared (VR_StereoSingleSceneBegun), with
+// the pass's lights and clusters (R_PushDlights), skipping what the pass drew.
 
 #include "vr_stereo_single.hpp"
 

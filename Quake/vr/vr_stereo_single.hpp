@@ -1,6 +1,6 @@
 // vr_stereo_single.hpp -- single-pass stereo (vr_stereo_single; docs/vr-port/STEREO.md): the passes ported so far drawn
 // once for both eyes into a 2-layer texture array (GL_OVR_multiview2), before each eye renders the rest of its scene
-// as before from a copy of its layer.
+// as before into its layer (texture views of it as the eye's scene targets).
 
 #pragma once
 
