@@ -286,6 +286,12 @@ void VR_MD5SkinNormalMap (void *surf, struct gltexture_s *glt, const char *shade
 	enum srcformat fmt, int w, int h);						// Mod_LoadMD5Skins: an MD5 skin's normal map
 void VR_MD5SkinsReset (void);							// Mod_LoadMD5Skins, before and after a surface's skins
 int VR_MD5SharedSkins (const char *shader);				// Mod_LoadMD5Skins: the skins one copy for every model using them (the body's)
+// The body's head made of the Quake ranger's (vr_rangerhead.cpp; see vr_rangerhead.hpp). Mod_LoadMD5MeshModel: a mesh
+// read, its influences baked (`bones` its boneinfo_t, `verts` its iqmvert_t): new hunk arrays, 1 if it changed them.
+// Image_LoadImage: an image decoded (`format` its enum srcformat): the body's skins painted where that head is drawn.
+int VR_RangerHeadMesh (const char *model, const char *shader, const void *bones, int numbones, void **verts, int *numverts,
+	unsigned short **indexes, int *numindexes);
+void VR_RangerHeadImage (const char *name, unsigned char *data, int width, int height, int format);
 
 
 // Dynamic ambient occlusion (vr_ao.cpp; see vr_ao.hpp).

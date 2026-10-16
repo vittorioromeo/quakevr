@@ -1176,6 +1176,11 @@ int checklistHidden = -1;     // and Hide Ticked's
     return text;
 }
 
+[[nodiscard]] const char* checklistBlank()
+{
+    return " "; // (the gap between two entries)
+}
+
 [[nodiscard]] const char* checklistEmpty()
 {
     return checklist::itemCount() > 0 ? "All ticked." : "Nothing on the list.";
@@ -1295,6 +1300,10 @@ void checklistUndo()
         {
             headerDue = false;
             items.pushBack(header(names[run].cStr()));
+        }
+        if(shown > 0)
+        {
+            items.pushBack(info(checklistBlank)); // vertical padding: long entries no longer run into a wall of text
         }
         shown++;
         const int lines = q_min(checklist::lineCount(i), 256);

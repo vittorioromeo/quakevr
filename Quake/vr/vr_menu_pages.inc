@@ -647,6 +647,9 @@ void resetHandMoves()
             .help("Out of your hands this long, it comes back (0: never by time)."),
         slider("Return Beyond", vr_magholster_return_distance, 0.f, 20.f, 0.5f, "%.1f m").extend(0.f, 200.f)
             .help("This far from its holster, it comes back (0: never by distance). Either one brings it back."),
+        slider("Land First", vr_magholster_land_time, 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)
+            .help("A thrown or dropped weapon must lie still on the ground (or stuck in a wall) this long before either return "
+                  "brings it back, however far it is: a throw is let finish, never called back in the air (0: off)."),
         slider("Flight Time", vr_magholster_flight_time, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.05f, 5.f)
             .help("How long it takes to fly back, through walls, before it snaps in with a click. Grab it on the way to keep it."),
         cycle("Chain", vr_magholster_style, {{0.f, "Lanyard"}, {1.f, "Tether"}, {2.f, "Both"}, {3.f, "None"}})
@@ -1461,9 +1464,6 @@ void resetHandMoves()
         header("Bumps"),
         toggle("Bump Maps", "vr_normalmaps").help("Bumps made from the textures, shown by the map's light and dynamic lights. Next map."),
         slider("Bump Depth", "vr_normalmap_strength", 0.f, 3.f, 0.05f, "%.2f").extend(),
-        toggle("Generated Companion Maps", "vr_pbr").help("Generated normal and height maps for the exact texture image. Next map."),
-        slider("Generated Relief Strength", "vr_pbr_strength", 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 8.f)
-            .help("Multiplies generated bump and parallax relief immediately. 1: as generated; 0: flat. Authored components keep their strength, including mixed maps."),
         slider("Bumps in Map Light", "vr_normalmap_baked", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much the bumps shade the map's own light, lit from where it seems to come from (0: only dynamic lights show them)."),
         toggle("Real Light Directions", "vr_deluxemap").help("Relit maps know where their light comes from at every point (.lux): the bumps are lit from there and the lamps glint off them. Off: guessed from where the light gets brighter (always so on maps without it)."),
         slider("Bumps on Models", "vr_normalmap_models", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much the bumps shade models' own light (monsters, pickups, weapons; held ones half), lit from the map's lights (times Bumps in Map Light; 0: only dynamic lights show them)."),

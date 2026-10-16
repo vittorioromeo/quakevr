@@ -5,6 +5,8 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_hands.hpp"
+#include "vr_units.hpp"
 
 namespace box3d::detail
 {
@@ -1416,12 +1418,45 @@ void spawn_f()
     vec3_t yaw{0.f, player->v.angles[1], 0.f};
     vec3_t forward, right, up;
     AngleVectors(yaw, forward, right, up);
-    const float distance = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 48.f;
+    const bool reach = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "reach");
+    const float distance = Cmd_Argc() > 2 && !reach ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 48.f;
     const float left = Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 0.f;
     glm::vec3 origin{0.f}, angles{0.f};
     for(int i = 0; i < 3; i++)
     {
         origin[i] = player->v.origin[i] + forward[i] * distance - right[i] * left;
+    }
+    // "reach" (the Debug menu's pickups): in front of you at arm's reach, a little below the eyes (where the head is and
+    // faces, not the player's origin and angles: those stray in room scale), lying level, its muzzle away; never through
+    // a wall (pulled back short of it), nor in your own box (a prop there was pushed off it, or hit you). It falls from
+    // there to the floor before you.
+    const hands::State& hs = hands::current();
+    if(reach && hs.valid)
+    {
+        const float m2u = units::metresToUnits();
+        glm::vec3 f, r, u;
+        hands::angleVectors({0.f, hs.headAngles.y, 0.f}, f, r, u);
+        const glm::vec3 from = hs.head;
+        const glm::vec3 lo = vec(player->v.absmin) - glm::vec3{8.f}, hi = vec(player->v.absmax) + glm::vec3{8.f};
+        float ahead = 0.45f * m2u;
+        for(; ahead < 1.f * m2u; ahead += 1.f)
+        {
+            const glm::vec3 p = from + f * ahead - r * left;
+            if(p.x < lo.x || p.x > hi.x || p.y < lo.y || p.y > hi.y)
+            {
+                break;
+            }
+        }
+        const glm::vec3 to = from + f * ahead - glm::vec3{0.f, 0.f, 0.35f * m2u} - r * left;
+        vec3_t a, b;
+        store(from, a);
+        store(to, b);
+        const trace_t tr = SV_Move(a, vec3_origin, vec3_origin, b, MOVE_NOMONSTERS, player);
+        const glm::vec3 end{tr.endpos[0], tr.endpos[1], tr.endpos[2]};
+        origin = tr.fraction < 1.f ? end - glm::normalize(to - from) * (0.1f * m2u) : to;
+        angles = {0.f, hs.headAngles.y, 0.f};
+        Con_Printf("vr_physics_spawn: %s at reach: %.0f %.0f %.0f, %.2f m from your eyes, %.2f m ahead\n", Cmd_Argv(1),
+            origin.x, origin.y, origin.z, glm::distance(from, origin) / m2u, glm::dot(origin - from, f) / m2u);
     }
     // vr_test_spawn_facing 1: facing the player, 2: facing away (where the player faces); else the spawn's own (0),
     // as before. Set before its spawn function (a monster's ideal_yaw is taken from it).

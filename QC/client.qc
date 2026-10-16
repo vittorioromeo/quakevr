@@ -1114,6 +1114,8 @@ PutClientInServer
 called each time a player is spawned
 ============
 */
+void() VR_Toolgun_SpawnInHolster; // (vr_toolgun.qc)
+
 void() PutClientInServer =
 {
     entity spot;
@@ -1274,6 +1276,7 @@ void() PutClientInServer =
     if(MGH_Active()) { MGH_horde_set_keys(self); MGH_ResetHunger(self); }
     AD_PlayerSpawned(); // AD support: what AD's code reads of a player, in an AD map (vr_ad_bridge.qc)
     AD_UpgradesToWeapons(self); // AD support: an older game's upgrades (the player's) onto his weapons (vr_ad_bridge.qc)
+    VR_Toolgun_SpawnInHolster(); // vr_debug_spawn_toolgun (vr_toolgun.qc)
 };
 
 void() SpawnAllAmmoBoxWeapons =

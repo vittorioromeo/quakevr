@@ -72,6 +72,10 @@
                   "a step in the room."),
         slider("Elbows", vr_bodytrack_arms, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much the elbows swing round to where your tracked elbows are."),
+        slider("Elbow Fit", vr_bodytrack_arm_fit, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How far the elbows go onto your tracked elbows themselves, not only round to their side: the shoulders "
+                  "follow your tracked shoulders and the arm's bones lengthen or shorten a little to put the elbow there. "
+                  "0: the swing only (the arm keeps its own shape)."),
         slider("Legs", vr_bodytrack_legs, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much of the tracked legs (Quest 3 guesses them from your upper body: generated legs). Climbing "
                   "and swimming feet keep theirs."),

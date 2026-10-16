@@ -462,6 +462,10 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         header("Body"),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}})
             .help("The shape of the body you see."),
+        toggle("Ranger Head", vr_body_ranger_head)
+            .help("The head your body has in the mirror, the third-person views and shadows (never in your own eyes): "
+                  "the Quake ranger's, taken from your game's player model, or off for the plain placeholder head. "
+                  "Takes effect at the next start."),
         slider("Skin Tone", vr_skin_tone, -1.f, 1.f, 0.05f, "%.2f")
             .help("Darken or lighten the skin on your hands and arms (and the fingertips out of fingerless gloves). Zero "
                   "keeps your painted skin. Blood, nails, clothes, gloves and gadgets keep their own colours."),

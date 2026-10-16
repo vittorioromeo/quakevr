@@ -181,14 +181,18 @@ const DefaultChange defaultChanges[] = {
     {143, &vr_knockdown_hit_time, "0.5"},           // 1
     {143, &vr_ragimpact_crush_speed, "350"},        // 180
     {143, &vr_ragimpact_crush_wear, "0.3"},         // 0.5
-    // 144: the leg sweep (2026-10-17): short weapons and props sweep too ("pretty much all of them should sweep"), and
+    // 144: the menu panel grip drag reaches farther (2026-10-17: "push the menu away too").
+    {144, &vr_menu_grab_dist_max, "200"},           // 600
+    // 145: the magnetic holsters' tether the default chain (2026-10-17: "the nicer one").
+    {145, &vr_magholster_style, "0"},               // 1
+    // 146: the leg sweep (2026-10-17): short weapons and props sweep too ("pretty much all of them should sweep"), and
     // his fall values ("direction and fall basically perfect (I tweaked some fall values)").
-    {144, &vr_legsweep_min_length, "50"},           // 35
-    {144, &vr_legsweep_min_slender, "4"},           // 2
-    {144, &vr_legsweep_topple, "200"},              // 180
-    {144, &vr_legsweep_feet, "0.5"},                // 0.4
+    {146, &vr_legsweep_min_length, "50"},           // 35
+    {146, &vr_legsweep_min_slender, "4"},           // 2
+    {146, &vr_legsweep_topple, "200"},              // 180
+    {146, &vr_legsweep_feet, "0.5"},                // 0.4
 };
-constexpr int configVersion = 144;
+constexpr int configVersion = 146;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

@@ -8095,6 +8095,41 @@ stretching (the weapon flies home past the return distance anyway).
 In VR: Chain Lanyard: the chain at the grip should hang calm and swing with the hand, never bunch; the stub at the
 empty holster still. Chain Tether: a chain from the hip holster to the gun in your hand (slack), then throw the gun a
 few metres (taut-ish, sagging) and walk away from it with Return Beyond 0.
+
+### Magnetic holsters: land first, the tether at the holster; toolgun spawns (worktree `permdecals`, branch `agent/holsters2`, 2026-10-17)
+
+His notes: a throw should finish, the weapon not called back mid-air (on the ground about a second first, however
+far); the tether the default ("feather" in the transcript: the chain styles are Lanyard, Tether, Both), its origin a
+hand's length out from the holster; rebinding a weapon at another holster must leave one binding; the Debug menu's
+toolgun lands weirdly far; a Debug option to spawn with a toolgun in a holster.
+
+- **Land first** (`vr_magholster_land_time` 1 s, 0 off; Immersion > Weapons and Holsters > Magnetic Holsters > Land
+  First): a bound weapon lying about is eligible for either return (time, distance) only once it has been at rest that
+  long: under 0.3 m/s and on the ground (asleep, or solid within 25 cm below) or stuck by its blade; moving again
+  restarts it. `vr_magholster_return` (All Home) still calls it at once. QC `VR_MagHolster_Resting`, `.vr_mag_rest`.
+- **Tether the default**: `vr_magholster_style` 0 -> 1 (config migration 145: a saved 0 becomes 1).
+- **The chains' end at the holster** (`vr_magholster.cpp`): the holster as drawn (its model's origin, the loops a gun
+  hangs in: `view::holsterPoint`, recorded in `holsterSeen` before the gun's own holstered offset) instead of
+  `body::holsterPositions`, the hand's reach point, which stands 19.3 cm out of it on the hips (11.6 cm on the chest).
+  The flight home still aims at the reach point. `vr_magholster_info` prints both offsets.
+- **Rebinding** was already right (`VR_MagHolster_Press` clears the weapon's id from every other holster): tested.
+- **Debug > Spawn Weapons**: the pickups (`vr_physics_spawn <class> reach`, new) are made in front of your eyes (the
+  head's yaw, not the player's origin and angles, 64 units off them before), 35 cm below them, at least 45 cm ahead and
+  clear of your own box (a prop in it hit you: "throw hit: Toolgun into player"), short of a wall; level, muzzle away
+  (the toolgun lay any way before). It falls to the floor there.
+- **Spawn With a Toolgun** (`vr_debug_spawn_toolgun` 0, archived; Debug > Toolgun): each spawn (a new level, a
+  respawn), a toolgun in the first empty holster (hips, chest, shoulders; right first) unless one is carried. Weapon Mode
+  Immersive. QC `VR_Toolgun_SpawnInHolster` (end of `PutClientInServer`).
+
+Test: `Misc/quakevr/holsters2_test.sh <agent> [land noland rebind toolgun shot]`. land (return after 0.5 s, toss): at rest
+1.60 s, rolled, at rest 1.74 s, flies home at 2.75 s; noland (Land First 0): flies at 0.50 s, 4.33 m off, in the air.
+rebind: bound at 3, moved into 5, bound at 5: only holster 5 bound. toolgun: "put in holster 9" in e1m1, none added
+after `changelevel e1m2` (carried); the reach spawn 0.80 m ahead (the player's box + 8 units), no hit. shot: the tether
+from the hip holster's top to the gun in the hand.
+
+In VR: throw a bound gun far: it lands, lies a second, then flies home (never turns in the air); the tether should
+leave the holster itself; Debug > Spawn Weapons > Toolgun lands just before you; Debug > Toolgun > Spawn With a
+Toolgun, then a new map.
 ## The toolgun's spawns: loaded, placed and drawn at once (worktree `fastship`, branch `agent/tgspawnfix`, 2026-10-16)
 
 His notes: a megahealth (or others) spawned in a map without one is invisible; health boxes, the megahealth and ammo
@@ -9903,6 +9938,152 @@ sv_random_seed 7, vr_fixed_frames 1, wait60) is the same.
 The ~55 test registrations left in vr_main.cpp (modelcollide, selfcollide, modelmetadata, gore, decals, carry, grasp...)
 belong to modules outside this pass.
 
+## The ranger's head: the IK body's head from player.mdl (worktree `tghost`, branch `agent/rangerhead`, 2026-10-17)
+
+His ask: the IK body (progs/vrbody*) should wear the original ranger's head, not the placeholder loft. Nothing of id's
+model is shipped or cached: it is read from the player's own files as the body loads (`vr_rangerhead.cpp`, `.hpp`).
+
+**Source**: the first `progs/player.mdl` that looks like Quake's ranger. The game folder is tried first, then id1,
+then the other mounted folders. "Looks like" means 150..400 vertices (his: 212), up to 1000 triangles, a skin up to
+1024, a frame `stand1` 40..70 units tall, and a head of 12..200 triangles, 3..15 units a side. Quake VR's own
+`quakevr/progs/player.mdl` (733 vertices, unnamed frames) fails this, and so does AD's, so in practice id1's
+`pak0.pak` is used. The head is every triangle wholly above a cut at 0.1474 of stand1's height from its top (19.54
+units: his head's lowest vertex is at 19.69, the collar's highest at 19.39). No vertex may lie within 0.05 of the cut.
+That gives 27 triangles; the neck opening (7 edges) is capped with a fan in the chin's colour. Seam vertices are split
+for the back half of the skin.
+
+**Mesh** (`VR_RangerHeadMesh`, called from `Mod_LoadMD5MeshModel` after the influences are baked and before the
+normals): for the shader `vrbody` (all six body models), the placeholder's head-only triangles are dropped (weighted
+>= 250/255 to the `head` joint: 90 of them). The ranger's 34 are added, weighted wholly to `head`. He is 1.2 times the
+placeholder's width (scale 0.635: 5.4 x 5.4 x 4.75 units, about 20 x 20 x 18 cm), centred over it in X/Y, with his
+bottom 1 unit (4 cm) below the placeholder's. His crown is at 45.75 against the placeholder's 45.93. The
+placeholder's jaw ring now belongs only to the neck stub: it is narrowed to the neck's width and its texture
+coordinates clamped to the neck's skin (v <= 0.441), so it no longer flares out under the head. The winding is
+matched to the body's by signed volume.
+
+**Skins** (`VR_RangerHeadImage`, called from `Image_LoadImage`, so every load and reload of the files gets it): in
+`progs/vrbody_NN_00`, the 16 shared skins, the head block's head-only texels (u 0..0.5, v 0.444..0.5; the neck's
+v 0.424..0.441 are kept) are painted with his texels. These use Quake's palette, nearest: his front half on the left,
+his back half on the right. In `_norm` that region is flat; in `_skinmask` R marks skin where his texel is palette
+112..127 (vr_skin_tone tints his face as it tints the arms), with G and B at 0 and A at 0.5.
+
+**Seen**: the eye views still collapse the neck and head, so he is never inside your own view. The body's own draw
+(`VR_AliasBonePoses`) now keeps the head when the view is more than 0.3 m from the eyes and is not a portal (the
+teleporter rule `vr_teleporter_self_head` still governs portals). That covers `vr_mock_camera`, a third-person or
+intermission camera and reflections. The mirror clone, the shadows and the `vr_body_debug 2/3` preview already had it.
+
+**Option**: Settings > Appearance > Body > Ranger Head (`vr_body_ranger_head`, default 1, a new cvar). It is latched
+when the first body loads (the skins are painted once a session), so a change applies at the next start. Off, or with
+no ranger found: the placeholder head, as before (checked with it off).
+
+**Verified** (mock, `map start`): the log reads "the head of .../id1/pak0.pak/progs/player.mdl (34 triangles, 40
+vertices)" after passing over quakevr's and AD's. Screenshots (`scratch/rh_on4.png`: front, 3/4, back, the side
+preview, the front preview, first person; `rh_close.png`: back-left and from below; `rh_off.png`: the placeholder
+with the option off) show his face and helmet, the neck going into his head, nothing in the first-person view.
+
+For him in VR: the mirror (and Debug > body preview) from the front, side and back. Check the head's size and
+height against your own (the eyes about 3.5 cm lower than the placeholder's), the neck seam when looking up and down
+and turning the head, and that nothing of it shows in your own view when you look down, lean or crouch.
+## UI batch (voice notes 2026-10-17)
+
+- Menu panel grip drag: vr_menu_grab_dist_max default 200 -> 600 cm (push it away as well as pull it near).
+- Checklist: a blank row between entries (vr_menu.cpp pageChecklist).
+- Generated Companion Maps and Generated Relief Strength rows removed from Graphics > Surfaces; kept in Advanced VR Settings (cvars unchanged). vr_menu_path_check: 0 missing.
+- Old explosion sprite (progs/s_explod.spr, QuakeC BecomeExplosion and the expansions copies) no longer drawn: skipped in r_sprite.c R_DrawSpriteModel_Real; particles and debris unaffected (vr_explosion_debris_test: 16 pieces). vr_particle_test quake still draws it, for comparison.
+
+## Body tracking: the elbow onto the tracked elbow, not only to its side (worktree `tghost`, branch `agent/elbowtrack`, 2026-10-17)
+
+His report: even with minimum confidence 0 and Elbows at 1, the elbow stays a little below the tracked one (the
+purple line in the debug view). No setting was overriding it, and no joint limit either. The tracking only ever set
+the elbow's **swivel** about the shoulder-to-wrist line (`bodytrack::swivelElbow`; the old `btstats` "elbow err" is
+that angle). Where the elbow sits on that circle came from *our* shoulder (the clavicle heuristic) and *our* arm
+lengths. A tracked shoulder that shrugs, sits forward, or is wider than ours, or a tracked arm of other proportions,
+left the elbow centimetres off even at 0 degrees of swivel error. The torso push (`vr_body_collide_elbows`) also came
+after the tracking.
+
+**Fix** (`solveArm`, by the arm weight times the new `vr_bodytrack_arm_fit`, default 1; `bodytrack::trackedArm`):
+- The clavicle turns about the base of the neck towards the tracked shoulder (up to 35 degrees), then lengthens or
+  shortens along itself to reach it.
+- After the guesses, the swivel and the torso push, the upper arm and forearm take the lengths that put the elbow on
+  the tracked one. Each stays within 0.8 to 1.25 of its own length, and the hand stays on the controller.
+- Tracking off, eased out (confidence, lost) or the fit at 0: as before, bit for bit (weight 0).
+- Menu: Body > Body Tracking > Elbow Fit, under Elbows.
+- `vr_bodytrack_stats` gains a line "elbow off L/R ... cm from the tracked" (the position error).
+- The synthetic body (`vr_bodytrack_synth`) now puts its wrists at the avatar's last posed wrists (a tracked wrist is
+  the real one, about 10 cm behind the controller). With them at the controllers, its elbows lay closer to our wrists
+  than any forearm.
+
+**Measured** (mock, `vr_bodytrack_synth 1`, confidence 0, Elbows 1, e1m1; elbow position error in cm, both arms, fit 0
+then 1):
+
+| Pose | Fit 0 | Fit 1 |
+| --- | --- | --- |
+| Hands at the sides | 4.78 | 0.00 |
+| Elbows winged out, hands before the chest | 9.50 | 0.00 |
+| Hands over the head, elbows out | 7.10 | 0.00 |
+| Arms across the chest | 11.0 / 10.3 | 0.00 |
+
+In the high pose the bones took 1.16 (upper) and 1.09 (fore) of their lengths: the synthetic arms are longer than ours.
+The shoulder ended 6 mm from the tracked one.
+
+For him in VR: Body Tracking on, Elbows 1, Elbow Fit 1. Raise the elbows high and out, wing them, cross the arms over
+the chest, and check the debug view: the orange/drawn elbow should sit on the purple tracked one. Then watch the arms
+for odd stretching. If a bone looks too long or short, lower Elbow Fit, or calibrate the arms (Body Calibration) so
+our lengths match his. `vr_bodytrack_stats` prints the cm error.
+## Every hit dents (worktree `gorefx`, branch `agent/dentsall`, 2026-10-17)
+
+His notes (NOTES.md 2026-10-17): props (a brick or a rock swung or thrown) left no dent; melee on ragdolls left none, any
+weapon; a sword held by its blade and swung pommel first did no damage to a ragdoll on the ground. Every hit should dent
+as the same damage would a living one, and a hilt or pommel should be a blunt hit like any other.
+
+Causes:
+
+- **A corpse's hits never sent a wound.** `T_DamageImpl` hands a corpse's (or a dying body's) damage to
+  `VR_Corpse_Damage` and returns before its own `VR_Wound_Hit`, so only a shotgun's pellets (`VR_Wound_Pellet`, sent as
+  they strike) painted and dented a ragdoll: no blade, blunt blow, nail, thrown thing or blast did.
+- **A thrown or flung prop was a nail.** `VR_Wound_Hit` worked the kind out from the inflictor: a brick (hit kind none,
+  not a monster) fell through to `QVR_WOUND_NAIL`, the smallest dent (r 2.4-3.6). A thrown blade was a nail too.
+- **The ragdoll strike traced the hand to the muzzle only** (`VR_Corpse_StrikeFrame`): a pommel behind the hand, a sword
+  carried by its blade (its hilt the far end), a club's head never met a corpse. The living's blows (`VR_Melee_Line`,
+  round 21) already strike with all of it.
+
+Fixes:
+
+- `VR_Corpse_Damage` (combat.qc) sends the hit's wound first (`VR_Wound_Hit`, its damage after Quad, before the
+  positional factor is taken back out: the same blow's wound as on the living). Fire's are still the flames' own.
+- `VR_Wound_Hit` (vr_wounds.qc) asks `VR_SmallGib_Kind` what struck: thrown or flung props (bricks, rocks, crates, gibs)
+  and thrown weapons are melee wounds (a thrown blade cuts); a blunt melee blow (a punch, a pommel or hilt, a gun, the
+  crowbar, Mjolnir, a prop in the fist, a thrown prop) sends extra 1. A batted-back projectile keeps its own kind.
+- Engine: a blunt melee wound (extra 1) is rounder (stretch 1-1.4, was 1.8-2.6) and its dent is the new
+  `dents::kindBlunt` (vr_dents.hpp): a round crater, r 3.4 + 0.035 x damage (at most 5.5), depth 1.5-2, stretch 1-1.3
+  (a cut stays r 3 + 0.03 x damage, drawn out 2.2-3x along the swing). Scaled by damage as before.
+- `VR_Corpse_StrikeFrame` traces what the hand holds along its melee line (`VR_Corpse_StrikeLine` / `_StrikeAlong`,
+  vr_melee.qc: from the hand out to its far end and back to its near end, 4 units ahead along the swing), and a sword's
+  or an axe's struck part is told by `VR_Melee_PartAt`: its pommel, hilt, guard or handle is a blunt blow
+  (`vr_melee_blunt`: corpse damage kind blunt, a round dent; no beheading cut). Its damage and the rest moved into
+  `VR_Corpse_Struck`, unchanged. `developer 2` prints "corpse strike: ... with the pommel (-0.25 of the way ...), blunt".
+
+Test: `vr_dents_test <n>` (vr_dents_test.qc; Debug > Gore Tests: Throw a Brick at the Nearest, Pommel Strike the Nearest
+Corpse) strikes the nearest monster or corpse: 1 a thrown brick (its touch), 2 a hand's blow with what you hold, 3 a
+pommel strike, 4 a sword by its blade pommel first into a corpse (the ragdoll strike's own path, its line laid out), 5
+by its handle, blade first; it prints the wound sent. `scratch/dentsall.sh <worktree> [monster]` (an ogre, alive then its
+ragdoll; `vr_wounds_debug 1`):
+
+| path | alive | ragdoll |
+|---|---|---|
+| thrown brick | melee, blunt; dent kind 6 r 4.9 | melee, blunt; kind 6 r 4.2 (before: no wound) |
+| fist blow | melee, blunt; kind 6 r 4.4 | melee, blunt; kind 6 r 4.5 (before: none) |
+| pommel strike | melee, blunt; kind 6 r 4.1 | melee, blunt; kind 6 r 4.1 (before: none) |
+| sword slash | melee, a cut; kind 3 r 3.8 stretch 2.5 | (the same function; the test's sword was dropped by then) |
+| sword by its blade, pommel first | (the living's line, round 21) | struck with the pommel (-0.25), blunt; kind 6 r 5.7 (before: no contact) |
+| sword by its handle, blade first | | struck with the blade (0.90), not blunt |
+
+Melee eval (eval.sh): 168/177, the 3 known bash-damage canary differences (6 -> 3), nothing else.
+
+In VR: throw a brick or a rock at a grunt, and hit one with a brick in the fist: a round dent where it struck. Kill one and
+hit the ragdoll with the sword, the axe, a fist, a brick, and a thrown brick: each leaves a wound and a dent. Hold the
+sword by its blade and club a ragdoll on the floor with the hilt: it takes damage (corpse damage, a round dent, a knock).
+
 ## Leg sweep: a real speed gate, short weapons, and leg pulls from any side (worktree `fastship`, branch `agent/legsweep2`, 2026-10-17)
 
 His notes: the sweep's direction and fall are right (he tweaked some fall values), but even with Least Speed very high
@@ -9923,7 +10104,7 @@ staff-like now (the super shotgun, nailguns, lightning gun, Mjolnir, the chainsa
 cut, never sweep), the short planks and the torch too. Still not: the tool gun and the grapple (26.6, 32.3 cm), crates,
 bricks, rocks, the barrel, a head.
 
-**His fall values are the defaults**: Topple Speed 200 to 180 deg/s, Feet Slide 0.5 to 0.4 (his config). Migration 144:
+**His fall values are the defaults**: Topple Speed 200 to 180 deg/s, Feet Slide 0.5 to 0.4 (his config). Migration 146:
 those four at their old defaults take the new ones. Least Speed stays 1.5; **his config has 8**, set against the broken
 gate: with the swing measured, 8 m/s is out of reach (a heavy gun's drawn hand arrives at 2-3.5 m/s): set it back.
 

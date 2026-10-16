@@ -24,6 +24,7 @@ float QVR_WOUND_WATER = 9; // in a liquid (org_z: its surface; extra: 0 water, 1
 
 float vr_wound_liquid; // set by VR_Wound_Level: the liquid (CONTENT_*)
 float vr_wound_sent;   // hits' wound events sent (the small gibs' tests count them)
+float vr_wound_lastkind; // the last hit's kind (QVR_WOUND_*; + 0.5: a blunt blow), for the dents' tests
 
 // How deep `e` is in a liquid: a player's waterlevel (the engine's), a monster's measured the same way (vr_liquids.qc:
 // the engine keeps none for walking monsters).
@@ -101,7 +102,11 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     vector org = mid;
     vector dir = vr_hitdir;
     float kind = QVR_WOUND_NAIL;
+    float extra = 0;
     string m = inflictor.model;
+    // What struck, as the small gibs and the corpses tell it (vr_smallgibs.qc): a blunt thing's blow is a round crater
+    // (extra 1: the engine's blunt dent), a blade's a cut drawn out along the swing.
+    float sk = VR_SmallGib_Kind(inflictor, attacker);
 
     if(vr_hitkind == QVR_HITKIND_SPLASH || IsExplosionDamage)
     {
@@ -113,6 +118,14 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
             vr_hitkind == QVR_HITKIND_SHOVE)
     {
         kind = QVR_WOUND_MELEE;
+        extra = (sk == QVR_SGIB_BLUNT || sk == QVR_SGIB_PROPS); // a punch, a pommel, a gun, a brick in the fist
+    }
+    else if((sk == QVR_SGIB_PROPS && !(inflictor.vr_deflect_time > 0)) || sk == QVR_SGIB_BLADES)
+    {
+        // A thing thrown or flung (a brick, a rock, a crate, a gib, a weapon: ROUND22.md, "Every hit dents"): a blow as
+        // a hand's with it, not a nail's (a thrown blade cuts).
+        kind = QVR_WOUND_MELEE;
+        extra = (sk == QVR_SGIB_PROPS);
     }
     else if(vr_hitkind == QVR_HITKIND_SHOT)
     {
@@ -158,7 +171,8 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
         dir = '0 0 -1';
     }
     vr_wound_sent++;
-    woundevent(targ, org, normalize(dir), kind, min(255, take), 0);
+    vr_wound_lastkind = kind + extra * 0.5; // (the dents' tests: vr_dents_test.qc)
+    woundevent(targ, org, normalize(dir), kind, min(255, take), extra);
 };
 
 // StartFrame: every monster and player in a liquid, four times a second: how high it comes up them (wet under it;

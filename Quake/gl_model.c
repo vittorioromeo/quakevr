@@ -4560,6 +4560,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 
 	md5animctx_t		anim = {NULL};
 	char				*shaders = NULL, *s;
+	char				meshshader[64] = {0}; // QVR: the mesh's (VR_RangerHeadMesh)
 
 	start = Hunk_LowMark ();
 
@@ -4662,6 +4663,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 
 		MD5EXPECT("shader");
 		MultiString_Append (&shaders, com_token);
+		q_strlcpy (meshshader, com_token, sizeof (meshshader)); // QVR: (VR_RangerHeadMesh)
 
 		buffer = COM_Parse(buffer);
 		MD5EXPECT("numverts");
@@ -4725,6 +4727,14 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 		//so make it gpu-friendly.
 		if (!MD5_BakeInfluences(fname, outposes, poutvert, vinfo, weight, surf->numverts, numweights))
 			goto error;
+		// QVR: the body's head made of the Quake ranger's (vr_body_ranger_head; vr_rangerhead.cpp)
+		if (VR_RangerHeadMesh (fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes))
+		{
+			surf->numverts_vbo = surf->numverts;
+			surf->numtris = surf->numindexes / 3;
+			surf->vertexes = (byte*)poutvert-(byte*)surf;
+			surf->indexes = (byte*)poutindexes-(byte*)surf;
+		}
 		//and now make up the normals that the format lacks. we'll still probably have issues from seams, but then so did qme, so at least its faithful... :P
 		MD5_ComputeNormals(poutvert, surf->numverts, poutindexes, surf->numindexes);
 

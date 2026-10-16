@@ -774,6 +774,12 @@ struct ArmEase
 };
 ArmEase armEase;
 
+// Body tracking's fit of the arm (vr_bodytrack_arm_fit): the clavicle turns at most this far (degrees) towards the
+// tracked shoulder, and each arm bone keeps within these shares of its length to reach the tracked elbow.
+constexpr float trackedShoulderTurn = 35.f;
+constexpr float trackedBoneShort = 0.8f;
+constexpr float trackedBoneLong = 1.25f;
+
 void solveArm(Body& b, int side, const HandPose& handPose)
 {
     const Bind& bd = bind();
@@ -819,6 +825,34 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen, bodycal::shoulderRise(),
                 bodycal::shoulderSwing(), lengths.calibrated) *
             rest;
+
+    // Body tracking (vr_bodytrack_arm_fit, by the arm weight): the clavicle turns on, about the base of the neck, to take
+    // the shoulder towards the tracked one (a shrug, the shoulder forward or back), by up to trackedShoulderTurn.
+    glm::vec3 trackedShoulder{0.f};
+    glm::vec3 trackedElbow{0.f};
+    float trackedFit = 0.f;
+    if(easeWrists && bodytrack::trackedArm(side, trackedShoulder, trackedElbow, trackedFit))
+    {
+        const glm::vec3 from = safeNormalize(c.rot * localOffset(upper), lateral);
+        const glm::vec3 to = trackedShoulder - c.pos;
+        const glm::vec3 axis = glm::cross(from, to);
+        if(glm::length(to) > 1e-4f && glm::length(axis) > 1e-6f)
+        {
+            const float angle = glm::acos(CLAMP(-1.f, glm::dot(from, glm::normalize(to)), 1.f));
+            const float turn = za::min(angle, glm::radians(trackedShoulderTurn)) * trackedFit;
+            c.rot = glm::mat3_cast(glm::angleAxis(turn, glm::normalize(axis))) * c.rot;
+        }
+        // ... and lengthens or shortens (within the arm bones' shares) to put it there: the tracked shoulders may
+        // be wider or narrower than ours.
+        const glm::vec3 o = localOffset(upper) * b.m2w;
+        const glm::vec3 along = c.rot * glm::vec3{o.x, 0.f, 0.f};
+        const glm::vec3 fixedPart = c.pos + c.rot * glm::vec3{0.f, o.y, o.z};
+        if(const float l2 = glm::dot(along, along); l2 > 1e-8f)
+        {
+            const float s = CLAMP(trackedBoneShort, glm::dot(trackedShoulder - fixedPart, along) / l2, trackedBoneLong);
+            c.stretch = glm::mix(1.f, s, trackedFit);
+        }
+    }
 
     // The arm: the elbow points down, somewhat out and back, and away from the thumb (turning the palm up brings the
     // elbow in). It may stretch a little to reach.
@@ -964,6 +998,29 @@ void solveArm(Body& b, int side, const HandPose& handPose)
             elbow = centre + q * (elbow - centre);
             bend = q * bend;
         }
+    }
+
+    // Body tracking (vr_bodytrack_arm_fit): the elbow onto the tracked elbow itself (the swivel above took it only to its
+    // side, on our arm's lengths from our shoulder): the upper arm and forearm take the lengths that put it there (each
+    // from trackedBoneShort to trackedBoneLong of its own), the hand still on the controller. Last, over the guesses and
+    // the torso's push: the tracked elbow is where the real one is.
+    if(trackedFit > 0.f)
+    {
+        const glm::vec3 target = glm::mix(elbow, trackedElbow, trackedFit);
+        float fa = CLAMP(a * trackedBoneShort, glm::distance(target, u.pos), a * trackedBoneLong);
+        float fl = CLAMP(l * trackedBoneShort, glm::distance(wrist, target), l * trackedBoneLong);
+        const float reach = za::min(glm::distance(wrist, u.pos), a + l); // (as far as the arm reached before)
+        if(fa + fl < reach)
+        {
+            const float k = reach / (fa + fl);
+            fa *= k;
+            fl *= k;
+        }
+        glm::vec3 fitBend;
+        elbow = twoBone(u.pos, wrist, fa, fl, target - u.pos, bend, fitBend);
+        bend = fitBend;
+        a = fa;
+        l = fl;
     }
 
     if(easeWrists && vr_debug_arm.value != 0.f)
@@ -2727,10 +2784,11 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
     {
         // Seen through a teleporter (the loop's gates show you your own back), the body has its head: the eyes' views
         // collapse it (solveTorso), so as not to see its inside. Not when the view through the gate is drawn from
-        // within a head's length of the eyes (an eye half through a gate looking back through the gate it is in).
-        const bool head = qvr::vr_teleporter_self_head.value != 0.f && VR_PortalDrawing() &&
-            glm::distance(glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}, posed.eyes) >
-                0.3f * posed.m2w;
+        // within a head's length of the eyes (an eye half through a gate looking back through the gate it is in). So
+        // too any other view from outside the head (vr_mock_camera's spectator view, a third-person camera).
+        const bool away = glm::distance(glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]},
+                              posed.eyes) > 0.3f * posed.m2w;
+        const bool head = away && (VR_PortalDrawing() ? qvr::vr_teleporter_self_head.value != 0.f : true);
         *matrices = head ? posed.shadowSkin.data() : posed.skin.data();
     }
     return JointCount;

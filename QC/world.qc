@@ -617,6 +617,7 @@ void() StartFrame =
     VR_Burn_TestFrame(); // VR: the burning tests (vr_burn_test, vr_burning.qc)
     VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)
+    VR_DentsTest_Frame(); // VR: every hit dents, the damage paths' test (vr_dents_test, vr_dents_test.qc)
     VR_Burn_MapFrame(); // VR: visible mapper flames burn tracked hands/body (vr_burning.qc)
     VR_Burn_NailFrame(); // VR: nails through a torch's flame become lava nails (vr_burning.qc)
     VR_Burn_LavaFrame(); // VR: wood in lava catches fire (vr_burning.qc)

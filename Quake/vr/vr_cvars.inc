@@ -812,7 +812,7 @@ QVR_CVAR(vr_menu_fine_step, "0.1", CVAR_ARCHIVE)      // a slider's step while t
 QVR_CVAR(vr_menu_grab, "2", CVAR_ARCHIVE)             // moving the menu panel with a grip (vr_menuui.cpp PanelGrab): 0 never; 1 with the laser on its frame (lit there); 2 also on its face once the hand moves vr_menu_grab_deadzone with the grip held (not after a stick push or with the trigger held: the fine modifier then)
 QVR_CVAR(vr_menu_grab_reach, "3", CVAR_ARCHIVE)       // a held menu panel: the hand's move towards or away from it counts this many times (1: as the hand moves)
 QVR_CVAR(vr_menu_grab_dist_min, "30", CVAR_ARCHIVE)   // cm: nearest a held menu panel can be pulled to the head
-QVR_CVAR(vr_menu_grab_dist_max, "200", CVAR_ARCHIVE)  // cm: farthest it can be pushed (a panel taken farther stays that far at most)
+QVR_CVAR(vr_menu_grab_dist_max, "600", CVAR_ARCHIVE)  // cm: farthest it can be pushed (a panel taken farther stays that far at most)
 QVR_CVAR(vr_menu_grab_deadzone, "4", CVAR_ARCHIVE)    // cm a hand moves with a grip held on the panel's face before it takes hold of the panel (vr_menu_grab 2)
 QVR_CVAR(vr_menu_panel_remember, "1", CVAR_ARCHIVE)   // the menu panels after the first (New Panel; MULTI_MENU.md): 1 each opens again where it was last this session (its place from the first panel's); 0 always beside the first
 QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
@@ -1226,6 +1226,7 @@ QVR_CVAR(vr_grenade_pouch_hold_roll, "0", CVAR_ARCHIVE)
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
 QVR_CVAR(vr_body_mode, "3", CVAR_ARCHIVE)           // 3 shipped (vr_defaults.cfg too): the full body, legs and all
 QVR_CVAR(vr_body_build, "1", CVAR_ARCHIVE)            // 0 lean, 1 athletic, 2 brawny (progs/vrbody_lean, vrbody, vrbody_brawny)
+QVR_CVAR(vr_body_ranger_head, "1", CVAR_ARCHIVE)      // the body's head: 1 the Quake ranger's, from your progs/player.mdl (vr_rangerhead.cpp), 0 the placeholder; at the next start
 QVR_CVAR(vr_skin_tone, "0", CVAR_ARCHIVE) // skin-only shader: -1 dark, 0 authored skin, +1 light
 QVR_CVAR(vr_gloves, "0", CVAR_ARCHIVE)                // gloves on the jointed hands (vr_hand_rig 1): 0 none, 1 fingerless (the fingertips bare), 2 full; with bare forearms a cuff over the wrist (make_skin_masks.py's G, B)
 QVR_CVAR(vr_glove_hue, "25", CVAR_ARCHIVE)            // their leather's colour: hue in degrees (0 red, 25 brown, 120 green, 240 blue),
@@ -1381,6 +1382,7 @@ QVR_CVAR(vr_torso_neck_max, "70", CVAR_ARCHIVE)       // degrees the head turns 
 QVR_CVAR(vr_bodytrack, "1", CVAR_ARCHIVE)             // Body > Body Tracking: the runtime's tracked body blended into the guessed one where the headset offers it (0: off, the guesses alone)
 QVR_CVAR(vr_bodytrack_torso, "1", CVAR_ARCHIVE)       // the torso's share: its lean (the spine's tilt), the chest's twist, the hips' facing, and the lean detection (0 .. 1)
 QVR_CVAR(vr_bodytrack_arms, "1", CVAR_ARCHIVE)        // the arms' share: the elbows swing to the tracked ones' side (the hands stay on the controllers) (0 .. 1)
+QVR_CVAR(vr_bodytrack_arm_fit, "1", CVAR_ARCHIVE)     // with it, how far the elbow goes onto the tracked elbow itself, not only to its side: the shoulder turned towards the tracked one, the arm's bones lengthened or shortened to put the elbow there (0: the swivel only, as before; 0 .. 1)
 QVR_CVAR(vr_bodytrack_legs, "0", CVAR_ARCHIVE)        // the legs' share: the feet and knees towards the generated legs (Quest 3 guesses them) (0 .. 1; climbing and swimming feet keep theirs)
 QVR_CVAR(vr_bodytrack_legs_walk, "1", CVAR_ARCHIVE)   // walking, running or in the air the gait drives the legs over the tracked ones (by the walk's amount); standing still the tracked legs show (0: tracked legs always)
 QVR_CVAR(vr_bodytrack_confidence, "0.5", CVAR_ARCHIVE) // below this confidence (0 .. 1) the tracking eases out to the guesses
@@ -2622,6 +2624,7 @@ QVR_CVAR(vr_gore_test_crowd, "0", CVAR_NONE) // units: above 0, vr_limb_test and
 QVR_CVAR(vr_test_monsters, "0", CVAR_NONE) // the QC acts on every monster of the map at once, once (vr_monsters_test.qc; Debug > Tests > Whole-Map Monsters; the benchmarks' full-count scenarios): 1 report, 2 wake them all, 3 kill them all, 4 bring in the deferred ones, 5 the hit probe of the nearest monster
 QVR_CVAR(vr_dummy_test, "0", CVAR_NONE)               // the QC runs training dummy test n on the nearest training dummy (vr_dummy.qc; Debug > Gore Tests)
 QVR_CVAR(vr_shock_hit_test, "0", CVAR_NONE)          // the QC strikes the nearest monster or corpse ahead with a lightning bolt of this much damage (-1: just enough to kill), once (vr_shock.qc; Debug > Gore Tests)
+QVR_CVAR(vr_dents_test, "0", CVAR_NONE)              // the QC strikes the nearest monster or corpse as one damage path does (1 a thrown brick, 2 a hand's blow, 3 a pommel strike, 4 a sword by its blade pommel first into a corpse, 5 by its handle), once; prints the wound it sent (vr_dents_test.qc; Debug > Gore Tests)
 QVR_CVAR(vr_decap_poptest_dist, "10", CVAR_NONE)       // vr_decap_test 41..46 (head pop chance): shot from this many player lengths (56 units) off
 QVR_CVAR(vr_decap_poptest_n, "200", CVAR_NONE)         // vr_decap_test 45, 46: blasts fired
 QVR_CVAR(vr_decap_poptest_wid, "10", CVAR_NONE)        // vr_decap_test 47: the weapon thrown (QC WID_*: 10 the rocket launcher)
@@ -3307,7 +3310,8 @@ QVR_CVAR(vr_magholster_button, "0", CVAR_ARCHIVE)           // the bind button: 
 QVR_CVAR(vr_magholster_return_time, "3", CVAR_ARCHIVE)      // seconds out of the hands before it comes back (0: never by time)
 QVR_CVAR(vr_magholster_return_distance, "4", CVAR_ARCHIVE)  // metres from its holster before it comes back (0: never by distance)
 QVR_CVAR(vr_magholster_flight_time, "0.4", CVAR_ARCHIVE)    // seconds its flight back takes
-QVR_CVAR(vr_magholster_style, "0", CVAR_ARCHIVE)            // the chain shown: 0 a lanyard (a short chain hanging off the bound weapon, a stub of it at the empty holster), 1 a tether (from the holster to the weapon whenever it is out of it, held too; faded past the return distance or 6 m), 2 both, 3 none
+QVR_CVAR(vr_magholster_land_time, "1", CVAR_ARCHIVE)        // seconds a thrown or dropped weapon must lie still on the ground (or stuck in a wall) before either return may bring it back: a throw is let finish, never called back mid-air (0: off, it may turn back in the air)
+QVR_CVAR(vr_magholster_style, "1", CVAR_ARCHIVE)          // the chain shown: 0 a lanyard (a short chain hanging off the bound weapon, a stub of it at the empty holster), 1 a tether (from the holster to the weapon whenever it is out of it, held too; faded past the return distance or 6 m), 2 both, 3 none
 QVR_CVAR(vr_magholster_chain_size, "0.6", CVAR_ARCHIVE)     // its links' size, times the flashlight chain's (1.6 cm links of 4 mm bar)
 QVR_CVAR(vr_magholster_chain_alpha, "1", CVAR_ARCHIVE)      // its opacity (below 1: see-through)
 QVR_CVAR(vr_magholster_chain_log, "0", CVAR_NONE)          // 1: prints each chain's state every frame (magchain: its springs' worst stretch from relaxed, its nodes' most movement and jerk off its anchor, mm; tests)
@@ -3742,6 +3746,7 @@ QVR_CVAR(vr_stealth_test_kinds, "0", CVAR_NONE)      // tests: the kinds scene's
 QVR_CVAR(vr_stealth_test_quitclient, "0", CVAR_NONE) // tests: the coop scene (vr_stealth_test 102) tells the other player's game to quit at its end (stealth_mp_test.sh)
 
 // The toolgun (vr_toolgun.cpp, QC vr_toolgun.qc; docs/vr-port/TOOLGUN.md): its menu's settings and its tools'.
+QVR_CVAR(vr_debug_spawn_toolgun, "0", CVAR_ARCHIVE)  // 1: each spawn (a new level, a respawn; not a load), a toolgun in the first empty holster (right hip, left hip, right chest, left chest, right shoulder, left shoulder) unless you carry one; Debug > Toolgun
 QVR_CVAR(vr_toolgun_tool, "0", CVAR_ARCHIVE)          // the tool the trigger uses: 0 spawn, 1 remove, 2 physgun, 3 scale, 4 joint, 5 brush
 QVR_CVAR(vr_toolgun_joint, "0", CVAR_ARCHIVE)         // the joint tool's: 0 weld, 1 ball, 2 hinge, 3 slider, 4 rope, 5 spring, 6 unjoin (removes a prop's joints)
 QVR_CVAR(vr_toolgun_scale_uniform, "1", CVAR_ARCHIVE) // the scale tool's face handles scale the whole prop (1) or along their axis alone (0); corners always the whole

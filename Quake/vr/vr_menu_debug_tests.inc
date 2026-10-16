@@ -17,18 +17,18 @@ za::Vector<Item> pageSpawnWeapons()
 {
     return adSpawnItems({
         header("Grabbable Pickups Ahead of You"),
-        command("Shotgun", "vr_physics_spawn weapon_shotgun 64"),
-        command("Super Shotgun", "vr_physics_spawn weapon_supershotgun 64"),
-        command("Nailgun", "vr_physics_spawn weapon_nailgun 64"),
-        command("Super Nailgun", "vr_physics_spawn weapon_supernailgun 64"),
-        command("Grenade Launcher", "vr_physics_spawn weapon_grenadelauncher 64"),
-        command("Rocket Launcher", "vr_physics_spawn weapon_rocketlauncher 64"),
-        command("Lightning Gun", "vr_physics_spawn weapon_lightning 64"),
-        command("Crowbar", "vr_physics_spawn weapon_crowbar 64"),
-        command("Mjolnir", "vr_physics_spawn weapon_mjolnir 64"),
-        command("Laser Gun", "vr_physics_spawn weapon_laser_gun 64"),
-        command("Proximity Gun", "vr_physics_spawn weapon_proximity_gun 64"),
-        command("Toolgun", "vr_physics_spawn weapon_toolgun 64")
+        command("Shotgun", "vr_physics_spawn weapon_shotgun reach"),
+        command("Super Shotgun", "vr_physics_spawn weapon_supershotgun reach"),
+        command("Nailgun", "vr_physics_spawn weapon_nailgun reach"),
+        command("Super Nailgun", "vr_physics_spawn weapon_supernailgun reach"),
+        command("Grenade Launcher", "vr_physics_spawn weapon_grenadelauncher reach"),
+        command("Rocket Launcher", "vr_physics_spawn weapon_rocketlauncher reach"),
+        command("Lightning Gun", "vr_physics_spawn weapon_lightning reach"),
+        command("Crowbar", "vr_physics_spawn weapon_crowbar reach"),
+        command("Mjolnir", "vr_physics_spawn weapon_mjolnir reach"),
+        command("Laser Gun", "vr_physics_spawn weapon_laser_gun reach"),
+        command("Proximity Gun", "vr_physics_spawn weapon_proximity_gun reach"),
+        command("Toolgun", "vr_physics_spawn weapon_toolgun reach")
             .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its panel, its stick press switches the tool."),
     }, true);
 }
@@ -133,7 +133,7 @@ za::Vector<Item> pageMg3WeaponTests()
         command("A Super Axe in Your Hand", "impulse 168")
             .help("The Super Axe in the main hand (impulse 188: the off hand). Strike a monster twice within Super Axe Burst "
                   "Window (Combat > Weapon Damage) for the lightning burst (15 cells; the head glows while it is ready)."),
-        command("A Super Axe Pickup Ahead", "vr_physics_spawn weapon_superaxe 64")
+        command("A Super Axe Pickup Ahead", "vr_physics_spawn weapon_superaxe reach")
             .help("A weapon_superaxe lying 64 units ahead, as a map places one."),
         command("Weapons Report", "vr_mg3_wtest 1")
             .help("The Dawn of the Machine data, your hands, holsters and cells, the Super Axe's burst chain (developer 1)."),

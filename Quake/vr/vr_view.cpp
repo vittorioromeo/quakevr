@@ -1469,6 +1469,7 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         {
             model = nullptr;
         }
+        const glm::vec3 loops = pose.weaponPos; // (the holster itself, before its gun's own offset)
         if(!posedHere)
         {
             poseHolstered(pose, frame, weapons::holsteredPose(weapons::slotForModel(model), kind));
@@ -1481,7 +1482,7 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         drawblend::holster(s, stat, model ? &ve.ent : nullptr, !previewHere && !posedHere);
         holsterLive[h] = model != nullptr && !previewHere && !posedHere;
         holsterSeen[h] = {model != nullptr, posedHere, kind, weapons::slotForModel(model), pivot, frame, pose.weaponPos,
-            aliasBasis(pose.weaponAngles)};
+            aliasBasis(pose.weaponAngles), loops, host_framecount};
 
         if(slotModel && !shoulder)
         {
@@ -3637,6 +3638,19 @@ const ViewEntity* heldWeapon(int hand)
     const bool weapon = ve.visible && ve.ent.model && ve.ent.model->type == mod_alias &&
                         weapons::slotForModel(ve.ent.model) >= 0 && !isHandModel(ve.ent.model);
     return weapon ? &ve : nullptr;
+}
+
+bool holsterPoint(int stat, glm::vec3& at)
+{
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        if(static_cast<int>(bodyHolster[h]) == stat && holsterSeen[h].placed >= host_framecount - 1)
+        {
+            at = holsterSeen[h].loops;
+            return true;
+        }
+    }
+    return false;
 }
 
 entity_t* holsteredWeapon(int stat)

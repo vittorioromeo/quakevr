@@ -845,6 +845,8 @@ struct HolsterSeen
     HolsterFrame frame{};
     glm::vec3 weaponPos{0.f};
     glm::mat3 weaponTurn{1.f};
+    glm::vec3 loops{0.f}; // the holster itself as drawn (its model's origin, the loops a gun hangs in), empty or not
+    int placed{-1};       // host_framecount when placed (-1: never)
 };
 inline HolsterSeen holsterSeen[HolsterCount];
 
