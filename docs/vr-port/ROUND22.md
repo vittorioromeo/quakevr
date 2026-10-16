@@ -9546,3 +9546,70 @@ captured (the camera moved the test spawn; `scratch/shots.sh` sketches it).
 In VR: hold the shotgun or the crowbar low and sweep it level through a grunt's shins, from in front and from its side;
 does it go down feet first the way you swept? Try the super shotgun and the axe (nothing), a sword by the blade swinging
 the hilt. Log Leg Sweeps prints why one didn't.
+
+## Leg grabs: pull a humanoid's legs out, or lift it by them (worktree `fastship`, branch `agent/legpull`, 2026-10-16)
+
+His requests: both hands on a humanoid's legs (one leg with both, or one each), ideally below the knee, pulled towards
+you: it topples, its feet pulled to you. Pulled up instead: lifted by the legs, an active ragdoll, with an upward
+threshold; heavier ones need more. Also the leg sweep's open issue: a side sweep back-to-front landed diagonally and its
+feet slid back as it landed.
+
+**Where a hand holds** (`vr_foegrab.cpp` `legPartAt`): the held spot's nearest vertex of the monster's ragdoll rig as
+drawn (new `box3d::boneAt`, limbAt's search, with the bone's far end): `shin_*`, `foot_*`, `calf*` below the knee,
+`thigh_*` above it unless the spot is no higher than the thigh's far end (its knee joint) plus 1 unit (a thigh's
+vertices wrap the knee); no rig: by height (under 0.27 of it below the knee, under 0.48 a thigh). A grunt's knees are
+only 10-12 units over its feet (it stands crouched; its left foot 12 units behind its right). A hand below the knee
+counts 1, on a thigh `vr_foegrab_leggrab_thigh` (0: not a leg grip, the lift and the judo throw go on as before; 0.5: a
+leg grip whose speeds needed are doubled), elsewhere 0; the grip is the lesser hand's.
+
+**The moves** (`legCheck`, in `twoHandCheck` after the neck snap, before the lift and the throw: a leg grip is theirs
+alone), both hands settled on one humanoid (the lift's classes, AD's included), the needs times the cube root of its
+mass over `vr_foegrab_leggrab_heavy` (100 kg: a grunt and an enforcer unchanged, a death knight x1.14), over the grip:
+- **Leg pull**: the hands' mean velocity towards you (level, from it to you) at `vr_foegrab_legpull_speed` (1.2 m/s) or
+  more, more towards you than up, in a stroke (since they came at half that speed) at least `vr_foegrab_legpull_distance`
+  (8 cm) long. Knocked down by the leg sweep's `foegrab::sweepDown` (QC `VR_LegSweep_Down`, no damage), its feet sliding
+  the hands' way (within 60 degrees of towards you) at `vr_foegrab_legpull_feet` (60 u/s), its body turned over away at
+  `vr_foegrab_legpull_topple` (200 deg/s); held on as a judo throw's (`vr_foegrab_throw_hold`), the throw's grunt.
+- **Leg lift**: their mean velocity up at `vr_foegrab_leglift_speed` (1.0 m/s) or more within 45 degrees of straight
+  up, you within Lift Reach: the lift's QC `VR_FoeGrab_Lift` (no hop), its ragdoll turned over away from you about its
+  feet at `vr_foegrab_leglift_topple` (220 deg/s), held by the hands (`handOver` at Lift Strength: the limbs nearest
+  them, its shins), flailing; carried, thrown by letting go, breaks free after Lift Time, as the lift.
+
+**The side sweep** (`sweepDown`, the leg pull's too): the sweep's way snapped to the nearest of its own four axes when
+within `vr_legsweep_align` (45 degrees: always; 0 as swept): from its side it falls straight forward or backward. The
+feet sliding back: falling backward its legs went limp at once (`ragactive::beginFall`), its knees folded under it as it
+sat down and drew its feet back to its pelvis (forward, the knees can't fold). Now a backward fall keeps its legs' stance
+`vr_legsweep_legs` (0.5 s) before they give (`ragdollThrown`'s new `legsHold`); sideways it doesn't (stiff legs in the
+grunt's staggered stance turned it diagonal).
+
+**Diagnostic**: Leg Grabs > Show Diagnostic, Debug > Tests > Holding Enemies > Leg Grab Diagnostic
+(`vr_foegrab_leggrab_debug`): each palm's circle (green below the knee, orange a thigh, red off its legs), the pull
+towards you and up as arrows against their needs (grey), a panel over its head: each hand's bone and part, the grip
+(one leg, both legs, not a leg grip), pull / stroke / up against their needs with bars, its mass and factor, what stops
+it now, the last try. Each try prints `leg diag:`; a two-hand hold that ended untried prints its best; with
+`vr_foegrab_debug` the grip's parts (`foegrab: both hands on ...'s body:`) and the fall's trace (`legpull trace`,
+`leglift trace`).
+
+**Settings** (archived; Combat > Holding Enemies > Leg Grabs): Leg Grabs, Show Diagnostic, Thigh Grip, Pull Speed, Pull
+Distance, Pull Topple Speed, Pull Feet Slide, Leg Lift Speed, Leg Lift Swing, Heavy Mass. Knockdowns > Leg Sweep: Fall
+Along Its Facing, Legs Stay Straight.
+
+**Verified** (`Misc/quakevr/foegrab/leggrab_test.py fastship`, batched; the hands put on the legs by `vr_mock_hand_to ...
+nearest <class> -21`, then aside: the left leg 0.38 m further back; Grip Leniency 12 cm for the mock's hands): 10/10.
+pull_one (both on its right shin) and pull_both (one per leg) pulled down at 1.8 m/s, its head 20-25 units against the
+pull from its feet, its feet 2-4 units on towards you (the hands, holding on, stop with them); thigh (Thigh Grip 0): no
+leg pull, no judo throw; thigh_half (0.5, 3 m/s: needs 2.4) pulled down; thigh_half_slow (1.8 m/s) nothing; slow (0.45
+m/s) nothing; lift (1.8 m/s up): lifted by 2 hands, flailing, tilted 164-171 degrees, its head 35 units under its feet,
+swung away and let go: its pelvis 28 units on; lift_gentle (1.1 m/s) lifted; a death knight at 1.1 m/s not (needs 1.14),
+at 1.8 lifted. `legsweep_test.py`: the side cases pass (away: forward, feet 32-45; toward: backward, feet 4-19 where
+they were 0), lr/rl/rocket/grenade/crowbar/plank/hilt and the not-swept ones pass; flaky in real time (contact missed
+or slow: laser_lr at 1.2 m/s twice, shotgun_lr and sword_lr once, passing on a rerun); axe/crate/brick never reach the
+legs (as before). Its `rror` check matched the shader log's "vr mirror": now `\b[Ee]rror`. Melee eval 168/177.
+Screenshots (`scratch/leglift_shots.png`): hands on its shins, swinging over, hanging head down under the hands.
+
+**Open**: the drawn hands don't sit on its boots once it hangs (the ragdoll hold's anchor lags the hands); a leg pull's
+feet stop where the hands stop (held on), not further.
+
+In VR: crouch, take a grunt's shins (or one shin with both hands) and yank them towards you: does it go down on its
+back, feet to you? Then lift one by its legs and swing it. Try the thighs (nothing with Thigh Grip 0) and a death
+knight (harder). Watch Leg Grab Diagnostic for where your hands are and why it doesn't go.
