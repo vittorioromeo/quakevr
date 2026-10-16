@@ -206,12 +206,6 @@ void fromRelative(const glm::vec3& basePos, const glm::vec3& baseRot, const RelP
 float frameDt = 0.f; // advances once per client frame, however often the hands are recomputed
 
 // A turn as the hands' angles (hands::angleVectors: the columns forward, left, up), and back; as carry2h's frames.
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& a)
-{
-    glm::vec3 f, r, u;
-    hands::angleVectors(a, f, r, u);
-    return glm::mat3{f, -r, u};
-}
 [[nodiscard]] glm::vec3 anglesOfQuat(const glm::quat& q)
 {
     const glm::mat3 b = glm::mat3_cast(q);
@@ -219,7 +213,7 @@ float frameDt = 0.f; // advances once per client frame, however often the hands 
 }
 [[nodiscard]] carry2h::Frame frameOf(const glm::vec3& pos, const glm::vec3& rot)
 {
-    return {pos, glm::normalize(glm::quat_cast(basisOf(rot)))};
+    return {pos, glm::normalize(glm::quat_cast(hands::basisOf(rot)))};
 }
 
 [[nodiscard]] int weaponId(int hand)
@@ -605,7 +599,7 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     transition(g.t, true, 5.f);
     if(g.mode != FREE_SUPPORT && g.t > 0.f)
     {
-        const glm::quat from = glm::quat_cast(basisOf(rot0)), to = glm::quat_cast(basisOf(aimRot));
+        const glm::quat from = glm::quat_cast(hands::basisOf(rot0)), to = glm::quat_cast(hands::basisOf(aimRot));
         g.turn = glm::normalize(glm::inverse(from) * to);
         s.rot[holding] = anglesOfQuat(glm::slerp(from, to, g.t));
     }
@@ -912,7 +906,7 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
         transition(g.t, false, 5.f);
         if(holdingWeapon && g.slot == slot && g.mode != FREE_SUPPORT && aimTransition[holding] <= 0.f)
         {
-            const glm::quat from = glm::quat_cast(basisOf(originalRots[holding]));
+            const glm::quat from = glm::quat_cast(hands::basisOf(originalRots[holding]));
             s.rot[holding] = anglesOfQuat(from * glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, g.turn, g.t));
         }
     }

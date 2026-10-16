@@ -54,7 +54,6 @@ int stateFrame = -1;
     return anglesFromVectors(f, u);
 }
 
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles); // below
 
 // Quake axes (x forward, y left, z up) to OpenXR tracking space.
 [[nodiscard]] glm::vec3 trackingFromQuake(const glm::vec3& v)
@@ -1064,16 +1063,16 @@ glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles)
     return fwd * v.x + right * v.y + up * v.z;
 }
 
-namespace
-{
-
-// rot's axes (forward, left, up).
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles)
+// Quake angles' axes (forward, left, up).
+glm::mat3 basisOf(const glm::vec3& angles)
 {
     glm::vec3 f, r, u;
     angleVectors(angles, f, r, u);
     return glm::mat3{f, -r, u};
 }
+
+namespace
+{
 
 // A slot's Hand and Weapon Together offset, as for hand `h` (mirrored for the off hand); false if it has none.
 bool wholeValues(int slot, int h, glm::vec3& p, glm::vec3& a)

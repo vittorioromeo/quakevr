@@ -205,5 +205,6 @@ void angleVectors(
 [[nodiscard]] glm::vec3 rotateYaw(const glm::vec3& v, float degrees); // about the vertical axis
 [[nodiscard]] glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles); // f*x + r*y + u*z
 [[nodiscard]] glm::vec3 anglesFromVectors(const glm::vec3& fwd, const glm::vec3& up); // Quake angles
+[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles); // Quake angles' axes (forward, left, up)
 
 } // namespace qvr::hands
