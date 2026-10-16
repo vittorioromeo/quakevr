@@ -18,7 +18,10 @@ Research climbing by bracing a hand on each side of a pillar or pipe and moving 
 ### Climbing leg animation (legs seek footholds) (23:10:39, 2026-10-14)
 
 Legs should seek plausible support points on walls, ledges, pillars and ladders, so looking down shows believable
-assistance during climbing. Open.
+assistance during climbing. Done 2026-10-16 (branch `agent/climblegs`; ROUND22.md, "Climbing footholds"): while a hand
+holds on, each foot finds a ledge's, a rung's or the floor's top, else a spot on the face, steps between them in turn
+and hangs when there is none (VR Settings > Body: Climbing Footholds, Foothold Reach, Foothold Step Speed). Awaiting his
+VR check.
 
 ### Repository chores
 

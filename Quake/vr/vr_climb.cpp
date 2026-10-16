@@ -3270,3 +3270,20 @@ bool qvr::climb::holding(int hand)
 {
     return hand >= 0 && hand <= 1 && (cl.stats[protocol::STAT_QVR_CLIMB] & (1 << hand)) != 0;
 }
+
+bool qvr::climb::heldAt(int hand, glm::vec3& at, glm::vec3& out)
+{
+    using namespace protocol;
+    if(!holding(hand))
+    {
+        return false;
+    }
+    const int bits = cl.stats[STAT_QVR_CLIMB];
+    const int first = hand ? STAT_QVR_CLIMBMAINX : STAT_QVR_CLIMBOFFX;
+    const float yaw = static_cast<float>((bits >> (14 + 8 * hand)) & 255) / yawSteps * glm::two_pi<float>();
+    out = glm::vec3{za::cos(yaw), za::sin(yaw), 0.f};
+    at = glm::vec3{static_cast<float>(cl.stats[first]), static_cast<float>(cl.stats[first + 1]),
+             static_cast<float>(cl.stats[first + 2])} /
+         statScale;
+    return true;
+}
