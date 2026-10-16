@@ -117,6 +117,7 @@ private:
     mutable int rings_{0};
     mutable int links_{0};
     mutable float length_{0.f};
+    float lastRest_{0.f}; // a rigid chain's spacing last frame (units; 0: afresh)
 };
 
 } // namespace qvr::coil

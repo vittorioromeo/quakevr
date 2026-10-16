@@ -261,6 +261,7 @@ void Cord::reset(const glm::vec3& a, const glm::vec3& b)
     lastB_ = b;
     time_ = vr_gametime;
     valid_ = true;
+    lastRest_ = 0.f;
 }
 
 void Cord::stepRigid(float h, float rest, const glm::vec3& gravityUnits, const glm::vec3& vb, bool aLoose)
@@ -277,7 +278,7 @@ void Cord::stepRigid(float h, float rest, const glm::vec3& gravityUnits, const g
         before[i] = pos_[i];
         pos_[i] += vel_[i] * h;
     }
-    constexpr int sweeps = 6;
+    constexpr int sweeps = 7; // (odd: the last from the second end, a hanging chain held exactly its length from its top)
     for(int sweep = 0; sweep < sweeps; sweep++)
     {
         for(int n = 1; n < segments - 1; n++)
@@ -353,7 +354,8 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
     const float nodeMass = mass / (segments - 3); // the free nodes 2 .. segments - 2
     const float k = za::clamp(style.stiffness, 0.1f, 25.f) * springs / nodeMass; // (stable at the substep up to ~30)
     const glm::vec3 down{0.f, 0.f, -gravity * m2u};
-    const int steps = za::clamp(static_cast<int>(za::ceil(dt / substep)), 1, 60);
+    const float rigidSubstep = substep * 0.5f; // (a chain whipped by a fast hand: its few links followed closely)
+    const int steps = za::clamp(static_cast<int>(za::ceil(dt / (style.rigid ? rigidSubstep : substep))), 1, style.rigid ? 150 : 60);
     const float h = dt / steps;
     for(int step = 1; step <= steps; step++)
     {
@@ -379,7 +381,9 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
 
         if(style.rigid)
         {
-            stepRigid(h, rest, down, vb, aLoose);
+            // (Its length eased from the last frame's over the substeps: a tether paid out or reeled in with its end.)
+            const float r = lastRest_ > 0.f ? glm::mix(lastRest_, rest, static_cast<float>(step) / steps) : rest;
+            stepRigid(h, r, down, vb, aLoose);
             continue;
         }
 
@@ -411,6 +415,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
             pos_[i] += vel_[i] * h;
         }
     }
+    lastRest_ = rest;
 }
 
 float Cord::springError() const

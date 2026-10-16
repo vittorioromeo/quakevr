@@ -81,7 +81,7 @@ struct Slot
     int entity{0};   // where == World: the client entity (kept to find it again at once)
     glm::vec3 gun{0.f};
     glm::vec3 home{0.f};
-    glm::vec3 lastRel{0.f}; // the weapon's point off the player last frame
+    glm::vec3 lastRel{0.f}; // the weapon's point off its holster last frame
     coil::Cord cords[ChainCount];
     gfx::TubeBatch batch[ChainCount];
     int sides[ChainCount]{};
@@ -137,11 +137,6 @@ mem::Scratch<MagScratch> scratch{"magholster"};
     const int slot = s.valid ? slotOfHotspot(s.hotspot[hand]) : -1;
     return slot >= 0 &&
            (cl.stats[protocol::STAT_QVR_HOLSTERWEAPONUID0 + slot] != 0 || cl.stats[protocol::STAT_QVR_MAGBIND0 + slot] != 0);
-}
-
-[[nodiscard]] glm::vec3 originOf(const entity_t& e)
-{
-    return glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
 }
 
 // The point of a weapon drawn as `ve` the chains hang from: its model's bottom (vr_cellcord.cpp's: where a cell cord
@@ -228,8 +223,9 @@ void locate(Slot& c)
     return style;
 }
 
-// A chain hanging `length` metres off `at`, carried along by `body`'s movement (the player's; fixed for a weapon lying
-// about: its own movement swings it).
+// A chain hanging `length` metres off `at`, carried along by `body`'s movement (its holster's: the body's
+// as drawn this frame, as the cell cords' pouch; the player's origin stepped against it, jittering the chain; fixed for a
+// weapon lying about: its own movement swings it).
 void hang(coil::Cord& cord, const glm::vec3& at, float length, const glm::vec3& body)
 {
     const float m2u = units::metresToUnits();
@@ -384,8 +380,6 @@ void setupView(const hands::State& s)
     const bool lanyards = style == 0 || style == 2;
     const bool tethers = style == 1 || style == 2;
     const float m2u = units::metresToUnits();
-    const glm::vec3 player = cl.viewentity > 0 && cl.viewentity < cl.num_entities ? originOf(cl_entities[cl.viewentity])
-                                                                                    : glm::vec3{0.f};
     body::HolsterPositions homes{};
     bool homesKnown = false;
     for(int i = 0; i < numSlots; i++)
@@ -414,14 +408,23 @@ void setupView(const hands::State& s)
         if(c.where != was || c.holster != wasHolster || c.hand != wasHand || c.entity != wasEntity)
         {
             c.cords[Lanyard].hide(); // (moved somewhere else: the lanyard starts afresh; the tether follows it there)
+            if(vr_magholster_chain_log.value != 0.f)
+            {
+                Con_Printf("magchain %d now %s: the lanyard afresh\n", i, whereName(c.where));
+            }
         }
 
-        // A jump of the weapon about the body (a teleported hand, the drawn gun's pose eased in): the lanyard afresh,
-        // not whirled out.
-        const glm::vec3 rel = c.gun - player;
+        // A jump of the weapon about the body (a teleported hand, the drawn gun's pose eased in): the lanyard and the
+        // tether afresh, not whirled out.
+        const glm::vec3 rel = c.gun - c.home;
         if(c.where != Where::World && glm::distance(rel, c.lastRel) > 0.15f * m2u)
         {
             c.cords[Lanyard].hide();
+            c.cords[Tether].hide();
+            if(vr_magholster_chain_log.value != 0.f)
+            {
+                Con_Printf("magchain %d jump %.2f m: the chains afresh\n", i, glm::distance(rel, c.lastRel) / m2u);
+            }
         }
         c.lastRel = rel;
 
@@ -429,7 +432,7 @@ void setupView(const hands::State& s)
         // weapon lying about or flying (its few springs would let a thrown one's stretch out behind it).
         if(lanyards && c.where != Where::None)
         {
-            hang(c.cords[Lanyard], c.gun, lanyardLength, c.where == Where::World ? c.gun : player);
+            hang(c.cords[Lanyard], c.gun, lanyardLength, c.where == Where::World ? c.gun : c.home);
         }
         else
         {
@@ -462,7 +465,7 @@ void setupView(const hands::State& s)
         // The stub at the holster while the weapon is away from it (but where the tether leaves it).
         if(lanyards && away && !tether)
         {
-            hang(c.cords[Stub], c.home, stubLength, player);
+            hang(c.cords[Stub], c.home, stubLength, c.home);
         }
         else
         {

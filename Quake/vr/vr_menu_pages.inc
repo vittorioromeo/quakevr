@@ -648,7 +648,7 @@ void resetHandMoves()
             .help("How long it takes to fly back, through walls, before it snaps in with a click. Grab it on the way to keep it."),
         cycle("Chain", vr_magholster_style, {{0.f, "Lanyard"}, {1.f, "Tether"}, {2.f, "Both"}, {3.f, "None"}})
             .help("Lanyard: a short chain hangs off a bound weapon, a stub of it at the empty holster. Tether: a chain from the "
-                  "holster to the weapon while it is away from you. Both."),
+                  "holster to the weapon whenever it is out of it (in your hand too), slack close by, taut far off. Both."),
         slider("Chain Size", vr_magholster_chain_size, 0.2f, 2.f, 0.05f, "%.2fx").extend(0.2f, 3.f)
             .help("Its links' size, times the flashlight chain's (1.6 cm links)."),
         slider("Chain Opacity", vr_magholster_chain_alpha, 0.f, 1.f, 0.05f, "%.2f")

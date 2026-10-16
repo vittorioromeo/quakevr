@@ -8043,6 +8043,58 @@ In VR: bind the hip shotgun (a hand at the holster, click the stick), throw it: 
 from a dropped one; grab one on its way back; try the shoulders and the chest holsters, the off hand, the axe and an
 expansion weapon; look at the lanyard on the gun in the hand and at the holster (Chain Size, Opacity), and the tether
 across a room.
+
+### Magnetic holster chains fixed (worktree `permdecals`, branch `agent/magchain`, 2026-10-16)
+
+His notes (vrfiringrange): the lanyard a small chain spazzing out at the grip, bunching up as if colliding with
+itself; the tether not drawn at all (nothing from the holster to the gun), only a bit of chain spazzing at the holster.
+
+- **Why**: the chains were the flashlight's mass-spring cord with `stiffness` 25 (to hold a short chain's length:
+  its stretch is its weight over the stiffness, 1.2 cm at 25, whatever its length). At the 1/300 s substep that is
+  past the springs' stable step (the stiffest mode, squeezed: about 950 rad/s, x h = 3.2): at 90 Hz (4 substeps of
+  2.8 ms) every link blew up each frame; the headless runs at 250 fps (2 ms substeps) only just held, so the earlier
+  tests looked fine. The chains were also carried along by the player's origin, which steps against the body as drawn
+  (a holstered gun's chain jittered 10-25 mm a frame while walking). The tether was drawn only while the weapon lay
+  about or flew home (the round's decision), never in the hand.
+- **Fix** (`vr_coil.cpp`): `coil::Style::rigid` (the magnetic holsters' chains; the flashlight's and the cell cords
+  unchanged): the nodes kept their relaxed spacing by position-based constraints (7 sweeps a substep, alternating, the
+  last from the held end, at 1/600 s substeps) instead of springs: unconditionally stable at any frame rate, never
+  stretched; its spacing eased across the substeps as a tether pays out or reels in. Air damping 3 a second.
+- **Magnetic holsters** (`vr_magholster.cpp`): the lanyard, stub and tether carried by the holster's point (the body
+  as drawn, as the cell cords' pouch) instead of the player's origin. The tether shows whenever the weapon is seen
+  out of its own holster (in a hand too, another holster, lying, flying): its length the distance + 1% + 12 cm close
+  by (that slack gone by 2 m: nearly taut far off); faded out over 0.5 m past its reach (the return distance, at
+  most 6 m) and not drawn beyond. A jump of the weapon about the holster (over 15 cm a frame) restarts the lanyard
+  and the tether; a change of where the weapon is restarts only the lanyard.
+- **Debug**: `vr_magholster_chain_log 1` (Debug > Magnetic Holster Chain Log): every frame each chain's worst link
+  stretch (%), most movement and jerk (second difference) of its nodes off its anchor (mm; the tether's off the line
+  between its ends), and the jumps that restart one.
+
+Test: `Misc/quakevr/magchain_test.sh <agent> [label]` (90 Hz frames: `vr_fixed_frames_rate`, `host_maxfps`;
+vrfiringrange, the shotgun bound to the right hip, style Both): the main hand draws it and glides round a loop slowly
+(1 s a leg), then fast (0.12 s a leg: about 5 m/s, started and stopped at once), holds still, holsters it and the
+player walks; `magchain_summary.py` per phase and chain. Before (the old springs) and after, at 90 Hz:
+
+| phase, chain | link error max / mean % | jerk p95 / max mm | frames jerk > 20 mm |
+|---|---|---|---|
+| slow, lanyard | 380 / 148 -> 0.7 / 0.3 | 102 / 130 -> 8.0 / 23 | 498 of 500 -> 1 |
+| slow, tether (held) | 375 / 108 -> 0.1 / 0.1 | 311 / 504 -> 2.0 / 5.0 | 498 -> 0 |
+| still, lanyard | 404 / 175 -> 7.4 / 0.8 | 108 / 140 -> 25 / 75 | 75 of 75 -> 7 (the swing after the fast stop) |
+| walk, lanyard (holstered) | 557 / 177 -> 0.5 / 0.3 | 128 / 288 -> 1.2 / 2.7 | 218 of 221 -> 0 |
+
+(The tether before was shown in the hand only for this measurement.) The fast legs swing the chains hard (an instant
+5 m/s start and stop; jerk p95 70 mm, a whip, not a jitter: smooth rise and fall frame to frame) and twice the mock's
+hand jumps 0.6 m in a frame (the chains restart: the 16.7% error rows are those restarts' first frames). Screenshots
+(`scratch/magchain_shots.png`): the lanyard on the holstered and the held gun hanging straight down 11 cm; the tether
+in the hand sagging from the grip to the hip holster; the tether from the hip down to the gun dropped 1.06 m away; a
+gun thrown 18.6 m: no tether (past 6 m). e1m1 smoke clean.
+
+Decisions: the tether now shows in the hand too (he expected it); beyond its reach it fades and is gone rather than
+stretching (the weapon flies home past the return distance anyway).
+
+In VR: Chain Lanyard: the chain at the grip should hang calm and swing with the hand, never bunch; the stub at the
+empty holster still. Chain Tether: a chain from the hip holster to the gun in your hand (slack), then throw the gun a
+few metres (taut-ish, sagging) and walk away from it with Return Beyond 0.
 ## The toolgun's spawns: loaded, placed and drawn at once (worktree `fastship`, branch `agent/tgspawnfix`, 2026-10-16)
 
 His notes: a megahealth (or others) spawned in a map without one is invisible; health boxes, the megahealth and ammo
