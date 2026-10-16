@@ -5,6 +5,10 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
+#include "vr_mem.hpp"
+
+#include "Zancle/Concurrency/Thread.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -50,6 +54,70 @@ struct Pending
     bool normalOnly{false};   // only that normal map (the pack has no picture of this frame: butn+a)
 };
 Pending pending;
+
+// What prepare found for a texture (its picture's match, the pack's files), kept for the session (PROFILE_20261016 B4:
+// each load matched and probed the same textures again, 38 ms of a warm AD load).
+struct Prepared
+{
+    Pending p;
+    bool missing{false}; // the pack has no picture of it (Record::missing), else...
+    float match{-2.f};   // ... Record::match and
+    bool skipped{false}; // ... Record::skipped
+    int ok{0};           // prepare's result
+};
+struct FrameMatch
+{
+    float c{-1.f}, moved{-1.f};
+};
+
+// Pure results by what they were made from, kept until the game directory changes (or the settings they read: the
+// context). Stale only if the pack's files change while the game runs.
+struct SessionResults
+{
+    ankerl::unordered_dense::map<za::U64, Prepared> prepared; // by the texture's name and pixels (pixelsKey)
+    ankerl::unordered_dense::set<za::U64> missingFiles;      // the pack's files not there ("vrext/..."), by their names' hash
+    ankerl::unordered_dense::map<za::U64, FrameMatch> frames; // frameMatch's, by both pictures' pixels
+    za::U64 context{0}; // the settings and palette they were made with (contextKey)
+    auto members() { return mem::list(prepared, missingFiles, frames, context); }
+};
+mem::Cache<SessionResults> results{"extmaps session results", mem::GameDirChange};
+za::ThreadId resultsOwner; // the main thread (the first VR_ExtMapsPrepare's): VR_ExtMapsOpen's others ask the disk
+
+[[nodiscard]] za::U64 bytesHash(const void* data, size_t size, za::U64 seed)
+{
+    return ankerl::unordered_dense::detail::wyhash::hash(data, size) ^ (seed * 0x9E3779B97F4A7C15ull + 0x632BE59BD9B4E019ull);
+}
+
+// The pack's folder, the settings prepare reads, the palette (an 8-bit texture's colours): another one, the results go.
+[[nodiscard]] za::U64 contextKey()
+{
+    za::U64 h = bytesHash(vr_extmaps_dir.string, strlen(vr_extmaps_dir.string), 1);
+    const float need = za::clamp(vr_extmaps_match.value, 0.f, 1.f);
+    h = bytesHash(&need, sizeof(need), h);
+    const int normals = VR_NormalMaps();
+    h = bytesHash(&normals, sizeof(normals), h);
+    return bytesHash(d_8to24table, sizeof(d_8to24table), h);
+}
+
+void checkContext()
+{
+    const za::U64 context = contextKey();
+    if(context != results.context)
+    {
+        results.prepared.clear();
+        results.missingFiles.clear();
+        results.frames.clear();
+        results.context = context;
+    }
+}
+
+[[nodiscard]] za::U64 pixelsKey(const char* name, const byte* data, enum srcformat fmt, int w, int h)
+{
+    const int dims[3] = {static_cast<int>(fmt), w, h};
+    za::U64 k = bytesHash(name, strlen(name), 2);
+    k = bytesHash(dims, sizeof(dims), k);
+    return bytesHash(data, static_cast<size_t>(w) * h * (fmt == SRC_RGBA ? 4 : 1), k);
+}
 
 // What each texture of the last map got (vr_extmaps_stats).
 struct Record
@@ -325,7 +393,7 @@ texture_t* leadOf(texture_t* const frames[animFrames])
 // How alike two frames' Quake pictures (their 8-bit pixels, after the texture_t) are where they lie: the correlation
 // of their detail; into `moved`, the best of it with one shifted along s or t (a scrolling picture's frames match
 // better shifted; searched only while it could decide: past animMatch, until it beats where they lie). -1: other sizes.
-float frameMatch(const texture_t* a, const texture_t* b, float* moved = nullptr)
+float frameMatchRun(const texture_t* a, const texture_t* b, float* moved)
 {
     if(moved)
     {
@@ -382,6 +450,34 @@ float frameMatch(const texture_t* a, const texture_t* b, float* moved = nullptr)
     }
     Hunk_FreeToLowMark(mark);
     return c;
+}
+
+// (the same pictures' answer kept for the session: SessionResults)
+float frameMatch(const texture_t* a, const texture_t* b, float* moved = nullptr)
+{
+    if(a->width != b->width || a->height != b->height || a->width == 0 || a->height == 0)
+    {
+        return frameMatchRun(a, b, moved);
+    }
+    checkContext();
+    const size_t size = static_cast<size_t>(a->width) * a->height;
+    const int asked = moved ? 1 : 0;
+    za::U64 key = bytesHash(&asked, sizeof(asked), size);
+    key = bytesHash(a + 1, size, key);
+    key = bytesHash(b + 1, size, key);
+    if(const auto it = results.frames.find(key); it != results.frames.end())
+    {
+        if(moved)
+        {
+            *moved = it->second.moved;
+        }
+        return it->second.c;
+    }
+    FrameMatch m;
+    m.c = frameMatchRun(a, b, moved);
+    m.moved = moved ? *moved : -1.f;
+    results.frames[key] = m;
+    return m.c;
 }
 
 Record& record(const qmodel_t* mod, const char* texname)
@@ -605,18 +701,35 @@ extern "C" FILE* VR_ExtMapsOpen(const char* path)
     }
     char full[MAX_OSPATH];
     q_snprintf(full, sizeof(full), "%s/%s", dir, path + extmaps::prefixLen);
+    // The pack's files not there, kept for the session (main thread: SessionResults; most of a load's probes)
+    const bool remember = za::ThisThread::getId() == extmaps::resultsOwner;
+    const za::U64 key = remember ? extmaps::bytesHash(full, strlen(full), 3) : 0;
+    if(remember)
+    {
+        extmaps::checkContext();
+        if(extmaps::results.missingFiles.contains(key))
+        {
+            return nullptr;
+        }
+    }
     FILE* f = nullptr;
     if(!extmaps::isAbsolute(dir))
     {
         COM_FOpenFile(full, &f, nullptr);
-        return f;
     }
-    f = Sys_fopen(full, "rb");
-    if(f)
+    else
     {
-        fseek(f, 0, SEEK_END);
-        com_filesize = ftell(f);
-        fseek(f, 0, SEEK_SET);
+        f = Sys_fopen(full, "rb");
+        if(f)
+        {
+            fseek(f, 0, SEEK_END);
+            com_filesize = ftell(f);
+            fseek(f, 0, SEEK_SET);
+        }
+    }
+    if(!f && remember)
+    {
+        extmaps::results.missingFiles.insert(key);
     }
     return f;
 }
@@ -712,9 +825,14 @@ bool siblingNormal(extmaps::Pending& p, const char* anim, Signatures& sigs, floa
     return false;
 }
 
-int prepare(const qmodel_t* mod, const char* texname, const byte* data, enum srcformat fmt, int width, int height)
+int prepare(const qmodel_t* mod, const char* texname, const byte* data, enum srcformat fmt, int width, int height,
+    bool* noPicture = nullptr)
 {
     extmaps::pending = extmaps::Pending{};
+    if(noPicture)
+    {
+        *noPicture = false;
+    }
     if(vr_extmaps.value == 0.f || isDedicated || !data || width <= 0 || height <= 0 || (fmt != SRC_RGBA && fmt != SRC_INDEXED))
     {
         return 0;
@@ -748,6 +866,10 @@ int prepare(const qmodel_t* mod, const char* texname, const byte* data, enum src
     if(!img)
     {
         r.missing = true;
+        if(noPicture)
+        {
+            *noPicture = true;
+        }
         // a frame it has no picture of (butn+a): only another frame's normal map, if one fits
         p.normalOnly = VR_NormalMaps() && siblingNormal(p, anim, sigs, need);
         Hunk_FreeToLowMark(mark);
@@ -783,7 +905,45 @@ extern "C" int VR_ExtMapsPrepare(const qmodel_t* mod, const char* texname, const
         return 0;
     }
     const double t0 = Sys_DoubleTime();
-    const int ok = prepare(mod, texname, data, fmt, width, height);
+    int ok = 0;
+    if(isDedicated || !data || width <= 0 || height <= 0 || (fmt != SRC_RGBA && fmt != SRC_INDEXED))
+    {
+        ok = prepare(mod, texname, data, fmt, width, height);
+    }
+    else
+    {
+        // (the same texture's answer kept for the session: SessionResults)
+        using namespace extmaps;
+        resultsOwner = za::ThisThread::getId();
+        checkContext();
+        const za::U64 key = pixelsKey(texname, data, fmt, width, height);
+        if(const auto it = results.prepared.find(key); it != results.prepared.end())
+        {
+            const Prepared& known = it->second;
+            extmaps::pending = known.p;
+            extmaps::Record& r = extmaps::record(mod, texname);
+            if(known.missing)
+            {
+                r.missing = true;
+            }
+            else
+            {
+                r.match = known.match;
+                r.skipped = known.skipped;
+            }
+            ok = known.ok;
+        }
+        else
+        {
+            Prepared made;
+            ok = prepare(mod, texname, data, fmt, width, height, &made.missing);
+            made.p = extmaps::pending;
+            made.match = made.p.match;
+            made.skipped = !made.p.ok;
+            made.ok = ok;
+            results.prepared[key] = made;
+        }
+    }
     VR_TimeAdd("external material maps (vr_extmaps)", Sys_DoubleTime() - t0);
     return ok;
 }

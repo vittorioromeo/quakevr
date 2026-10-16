@@ -56,14 +56,21 @@ struct Companion
 
 // The bundle's indexes and what its companions were verified as: content-addressed, so kept until the game
 // folders change (not re-read and re-hashed at every map).
+struct SourceHex
+{
+    char hex[65]{};
+};
 struct Session
 {
     za::Vector<Provenance> provenance;
     za::Vector<StockSource> stockSources;
     za::Vector<Companion> companions;
+    // A texture's SHA-256 (hashSource) by a quick hash of its pixels (sourceKey): each load hashed every texture again
+    // (most of vr_pbr's 80 ms of a warm AD load, PROFILE_20261016 B4).
+    ankerl::unordered_dense::map<za::U64, SourceHex> sourceHashes;
     bool provenanceLoaded{};
     bool stockLoaded{};
-    auto members() { return mem::list(provenance, stockSources, companions, provenanceLoaded, stockLoaded); }
+    auto members() { return mem::list(provenance, stockSources, companions, sourceHashes, provenanceLoaded, stockLoaded); }
 };
 mem::Cache<Session> session{"pbr companions", mem::GameDirChange};
 
@@ -214,6 +221,27 @@ void hashSource(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[
         }
     }
     sha256::toHex(hash.finish(), hex);
+}
+
+// hashSource's, kept for the session by a quick hash of what it reads (the pixels, their size and format; an 8-bit
+// texture's palette).
+void sourceHash(const byte* data, enum srcformat fmt, int w, int h, char (&hex)[65])
+{
+    const size_t size = static_cast<size_t>(w) * h * (fmt == SRC_RGBA ? 4 : 1);
+    const int dims[3] = {static_cast<int>(fmt), w, h};
+    za::U64 key = ankerl::unordered_dense::detail::wyhash::hash(data, size);
+    key ^= ankerl::unordered_dense::detail::wyhash::hash(dims, sizeof(dims)) * 0x9E3779B97F4A7C15ull;
+    if(fmt != SRC_RGBA)
+    {
+        key ^= ankerl::unordered_dense::detail::wyhash::hash(d_8to24table, sizeof(d_8to24table)) * 0xC2B2AE3D27D4EB4Full;
+    }
+    if(const auto it = session.sourceHashes.find(key); it != session.sourceHashes.end())
+    {
+        memcpy(hex, it->second.hex, sizeof(hex));
+        return;
+    }
+    hashSource(data, fmt, w, h, hex);
+    memcpy(session.sourceHashes[key].hex, hex, sizeof(hex));
 }
 
 unsigned verifiedFlags(const char* source, const byte* rgba, int w, int h)
@@ -690,7 +718,7 @@ extern "C" int VR_PBRNormal(gltexture_t* base, const char* image, const char* sh
     const double t0 = Sys_DoubleTime();
     pbr::Use use{};
     use.base = base;
-    pbr::hashSource(data, fmt, base->source_width, base->source_height, use.hash);
+    pbr::sourceHash(data, fmt, base->source_width, base->source_height, use.hash);
     pbr::Recipe r{};
     q_snprintf(r.generated, sizeof(r.generated), "textures/pbr/%.32s_norm", use.hash);
     // AD reuses many stock/mission-pack pixels, including installed diffuse replacements. They already
