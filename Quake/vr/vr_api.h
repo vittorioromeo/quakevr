@@ -496,6 +496,7 @@ int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' verti
 int VR_MenuDrawBanner (int x, int y);					// M_DrawPlaque: the banner where the plaque's top left would be; nonzero if drawn (0: no image, draw the plaque)
 int VR_MenuBannerExtent (int x, float *left, float *right); // M_Main_Draw: where M_DrawPlaque (x, y) puts the banner (or the plaque) across (menu x); 0 if nothing
 void VR_MenuDrawBannerColumn (void);					// M_Draw, before the page: the VR menu style's banner, in the left column under the corner's buttons
+void VR_MenuBrandPreload (void);					// Host_Init, after Draw_Init: the menus' images (the banner, Ko-fi's logo) loaded, not at the first menu draw
 void VR_MenuDrawVersion (void);						// M_Draw, before the page: "Quake VR: Unleashed - v1.0" / "by Vittorio Romeo" / a "Support on Ko-fi" link, in a box in the bottom right corner (vr_menu_version)
 void VR_MenuRecolor (float *params);					// Draw_SetMenuRecolor: the gui shader's MenuRecolor (vr_menu_recolor; x 0: off)
 int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)

@@ -250,6 +250,15 @@ bool qvr::menuui::bannerColumnShown()
     return columnPlace.x1 >= columnPlace.x0 && host_framecount - columnPlace.frame <= 2;
 }
 
+// Host_Init, after Draw_Init: the menus' images loaded now, not at the first menu's draw (VRTRACE_20261016: a 40 ms
+// frame at the first menu open, the banner's decode). In the start-up's window, so the next start decodes them ahead
+// on a worker (vr_imgprefetch.cpp's list).
+extern "C" void VR_MenuBrandPreload()
+{
+    (void)bannerPic();
+    (void)imagePic(kofiLogo);
+}
+
 // The VR menu style: the banner left of the corner's buttons (the author's note: under them, the menu looked cluttered),
 // in the panel's margin from its left edge, its top level with the first button's, columnHeight tall (less where the
 // margin is narrower or the bottom left corner's rows come sooner), as near the buttons as columnGap. Where the margin

@@ -1739,6 +1739,8 @@ void Host_Init (void)
 		VR_TimeMark ("texture manager"); // QVR
 		Draw_Init ();
 		VR_TimeMark ("draw init (conchars, pics)"); // QVR
+		VR_MenuBrandPreload (); // QVR: the menus' images (a 40 ms first menu frame otherwise)
+		VR_TimeMark ("menu images (banner)"); // QVR
 		SCR_Init ();
 		R_Init ();
 		VR_TimeMark ("screen, renderer init"); // QVR
