@@ -74,6 +74,12 @@ if (UNIX AND NOT APPLE)
 	target_link_libraries(qvr_box3d PUBLIC m)
 endif()
 target_link_libraries(ironwail PRIVATE qvr_box3d)
+# The AO bake's rays and the audio mixer (vr_simd.hpp) keep their SSE operation order: no fused multiply-adds, which ARM
+# compilers make of a multiply and an add by default (x86's SSE has none to make).
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
+	set_property(SOURCE "${CMAKE_CURRENT_LIST_DIR}/vr_ao.cpp" "${CMAKE_CURRENT_LIST_DIR}/vr_audio.cpp"
+		APPEND PROPERTY COMPILE_OPTIONS -ffp-contract=off)
+endif()
 
 # Zancle (external/zancle/README.md): the modules the Quake VR code uses, a static library with its own settings: C++23;
 # optimised and without Zancle's asserts (NDEBUG) in Release; in Debug by QVR_ZANCLE_DEBUG: ON, built as the engine's
