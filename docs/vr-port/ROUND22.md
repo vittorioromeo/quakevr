@@ -9365,3 +9365,39 @@ rows that differ from the baseline are bash damage 6 -> 3, from earlier: verdict
 
 In VR (Dissolution of Eternity): sidestep a Guardian's stab and an overlord's smash as they wind up: they should miss
 and turn after you; an ogre's overhead smash should come down where it faced.
+
+## A/B switches removed (worktree `backlogclean`, branch `agent/abremove`, 2026-10-16)
+
+His decision on the review: remove the dead code paths and the cvars the A/B switches leave obsolete. Each switch is
+kept at its default (his value), the other side deleted, the cvar listed in `retiredCvars` (an old config's line is
+dropped quietly), its menu row, QC handle and test cases gone. One commit each. No default changed: config version
+unchanged.
+
+| Retired | Kept | Deleted |
+|---|---|---|
+| `vr_hull_method` | 1, the compiled clipping hull | the brush sweep as the moves' path (clipBSP, the crouch fit test), its menu row (Movement > Player Hitbox > Method) and the world tree's "method 1 only" build gate. `boxTrace` (the sweep) stays: the portals' clipping and `vr_hull_bench`'s reference use it |
+| `vr_prop_think_native` | the engine's think (vr_propthink.cpp) | QC `forcegrabbable_think_qc`, `wpnthrow_stabilize`, `wpnthrow_impl_stabilize` (weapons.qc, 180 lines); `vr_propthink_check` and its Debug row; `srvrandom::stream`/`setStream` (only the check used them). A settling angle past 65536 (or infinite), which the native left to the QuakeC's loop, is brought into a turn with `fmodf` (infinite: NaN, set straight as a NaN was) |
+| `vr_throw_mass_model` (+ `vr_weight_throw_mass`, read only with it 0) | 1, throws by weight | the pre-2026-10-02 path (weight.cpp's 3 gates, props.cpp's mass-scaled throw), the menu toggle, `vr_throw_table`'s "off" column |
+| `vr_carry_grab_drawn` | 1, explosive boxes by the fist on their drawn surface | its gate (the box touch stays for hands without the fist push and other players' hands) |
+| `vr_weapon_grab_box` | 0, the fist only | the 5-unit-box catch; `weapon_catch_test.sh` check 2 |
+| `vr_box3d_caller_solves` | off | the main-thread-solves experiment (enqueue/finish hooks), its Debug row |
+| `vr_weapon_throw_mode` | 0, a thrown weapon is a prop to pick up | Vanish on Hit and Discard, their enum, the menu row. The disappear-on-hit prop flag (`.lip`, `CreateThrownWeapon`'s `xDisappearOnHit`, ~20 callers all passing FALSE) is left: its removal touches 15 files |
+| `vr_button_weapon` | 1, the whole held weapon presses buttons | the switch (the engine's muzzle line never read it) |
+| `vr_parry_interrupt` | 1, a parry cancels and staggers | the switch; `parryinterrupt/test.py` keeps the enabled cases |
+| `vr_decap_pop_chance` | on: pops by chance | a toggle whose off made every headshot kill pop (an early return in each chance): nothing of it is left, so retired. `ad_shots_test.ps1` set it 0 for sure pops: now `vr_decap_pop_always_range 1000` |
+
+Kept as settings:
+- `vr_bash_sound`: 0 is now silent (a volume, as the slider reads), not the old axhit/tink/thud sounds (their own
+  branch, removed). The default 0.7 is unchanged.
+- `vr_limbs_mass_scale`: unchanged. Its 0 is not a separate path: it joins the fallback for a piece with no rig (its
+  model's volume of flesh), which stays.
+
+Tests (at the defaults): build and the statics checks clean; `vr_menu_path_check` 6 and 14 found, 0 missing;
+`hullhit/walk_test.sh` e1m1 and e2m2 30 s: stuck 0, embedded 0, outside 0; `weapon_catch_test.sh` 4/4 PASS;
+`parryinterrupt/test.py` (forced, animations, timing, dragon) all PASS; `flick_slowmo_compare.sh` as recorded (lob50
+x1.23, overhand x1.49, overhand0 slowly 0.88); two crowbars dropped into vrtesthall's pool float and settle, no error;
+a held sword's button line printed each frame (`vr_debug_wallbuttons 2`); melee eval 168/177, only the known bash
+damage diffs (6 -> 3, 10 -> 5).
+
+For his VR check: nothing should feel different. Walk along walls (hitbox), throw a heavy prop and a gun, drop a gun
+in water, catch a tossed weapon, press a wall button with a sword, parry a knight.

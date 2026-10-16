@@ -1764,8 +1764,6 @@ int campaignsBloodyShown = -1;
         slider("Parry Angle", vr_parry_angle, 15.f, 80.f, 5.f, "%.0f deg").extend()
             .help("Hold a weapon (sword, axe or gun, one hand or two) level across in front of you to block a monster's melee blow: how far it may be tilted off level."),
         slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").extend().help("How far in front of you a held weapon still parries."),
-        toggle("Parry Stops Attacks", vr_parry_interrupt)
-            .help("A successful weapon or crossed-arm parry cancels the monster's remaining melee hits and briefly staggers it. Off: the original damage reduction and push."),
         slider("Parry Stagger", vr_parry_stagger, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.1f, 3.f)
             .help("How long the monster pauses after a successful parry before it can move and attack again."),
         slider("Stagger Frames", vr_parry_stagger_frames, 1.f, 4.f, 1.f, "%.0f")
@@ -1806,7 +1804,7 @@ int campaignsBloodyShown = -1;
             .help("A two-handed shove's or bash's push (both palms, or a weapon held in two hands), times Shove and "
                   "Bash Push."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
-            .help("Volume of the sounds that tell a shove, a weapon bash, a counter bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
+            .help("Volume of the sounds that tell a shove, a weapon bash, a counter bash (a bash right after a parry) and a parry apart from your blows (0: silent)."),
         header("Counter-Attacks"),
         toggle("Counter-Attacks", vr_counter)
             .help("After a parry (a weapon's or crossed arms), your next melee attack in the window is a counter and hits harder: a blow with either hand, a bash or a shove. One a parry."),
@@ -2860,9 +2858,6 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Every beheading or head pop's chance times this (a blade's sure cut too: below 1 it may fail); Quad Damage "
                   "always pops. Limbs: Gore > Limb Gore (vr_decap_chance_scale)."),
         header("Head Pop Chance"),
-        toggle("By Chance", vr_decap_pop_chance)
-            .help("A shotgun or super shotgun headshot kill pops the head always up close, never far off, and by chance between "
-                  "(the rows below); off: every headshot kill pops it, as before (vr_decap_pop_chance)."),
         slider("Always Within", vr_decap_pop_always_range, 0.f, 10.f, 0.5f, "%.1f lengths").extend(0.f, 50.f)
             .help("A shotgun's or super shotgun's headshot kill this near (in player lengths, 56 units: about 1.75 m) "
                   "always pops the head (vr_decap_pop_always_range)."),
@@ -3547,10 +3542,6 @@ void hologramTestMessage()
         slider("Max Speed Gain", vr_throw_gain_max, 1.f, 3.f, 0.05f, "%.2fx").extend()
             .help("Extra speed for fast throws, which feel weak at true speed."),
         header("Throws by Weight"),
-        toggle("Throws by Weight", vr_throw_mass_model)
-            .help("Heavy things can't be thrown as fast or as far as light ones, a wrist flick does little to them, and "
-                  "two hands throw them farther than one. Off: every weapon and prop as fast as your hand (Max Speed "
-                  "Gain), heavy weapons a little slower, props over 12 kg slower. Debug: Throws by Weight prints the table."),
         slider("Light Things' Top Speed", vr_throw_max_speed, 10.f, 40.f, 1.f, "%.0f m/s").extend(5.f, 100.f)
             .help("The fastest anything leaves your hand: a grenade, the axe (28: about 80 m at 45 degrees)."),
         slider("Light Up To", vr_throw_mass_light, 0.5f, 5.f, 0.1f, "%.1f kg").extend(0.1f, 50.f)
@@ -3698,9 +3689,6 @@ void hologramTestMessage()
             .help("The fastest a shot makes what it hits go: light things (a gib, a small gun) fly off at most this fast, "
                   "heavy ones take the push."),
         header("Wall Buttons"),
-        toggle("Weapons Press Buttons", vr_button_weapon)
-            .help("A weapon in your hand presses a wall button it touches: all of it, as its blows strike (a sword's "
-                  "blade, pommel and hilt; a gun's barrel and butt). Off: only the line from the hand to a gun's muzzle."),
         slider("Weapon Press Reach", vr_button_weapon_reach, 0.f, 15.f, 0.5f, "%.1f cm")
             .help("How far round the weapon's middle line a button is touched: its thickness, and some slack."),
         toggle("Held Props Press Buttons", vr_button_prop)
@@ -3737,9 +3725,6 @@ void hologramTestMessage()
             .extend(-10.f, 20.f)
             .help("A hand takes a box, gib, backpack or armour when its fist (the palm and the curled fingers) touches it. "
                   "Positive: from this far off it too. Negative: only pressed this far into it."),
-        toggle("Explosive Boxes by the Fist", vr_carry_grab_drawn)
-            .help("An explosive box is taken as everything else is: when the fist touches it. Off: when the hand is within "
-                  "a hand's width of its box (up to 12 cm off)."),
         toggle("Weapons by the Fist", vr_weapon_grab_drawn)
             .help("A weapon lying on the floor is taken where the fist touches it: a crowbar by its bar, a sword by its "
                   "blade. Off: only with the hand at its handle."),
@@ -3767,9 +3752,6 @@ void hologramTestMessage()
         slider("Floating Grace Swat Speed", vr_pickup_float_grace_swat, 0.5f, 5.f, 0.25f, "%.2f m/s")
             .extend(0.f, 10.f)
             .help("A hand faster than this knocks it at once (a swat)."),
-        toggle("Lenient Weapon Catch", vr_weapon_grab_box)
-            .help("The old catch: a weapon is also taken when your hand comes within a hand's width of its handle, the "
-                  "fist up to 20 cm off it. Off: only when your closed fist touches it, as a box or a gib."),
         toggle("Weapons by Their Hotspots", vr_weapon_grab_hotspots)
             .help("Grip a weapon on the floor nearer one of its other grips than its handle (a chainsaw's front handle, "
                   "a crowbar's bar, a sword's blade, a gun's pump) and you carry it by that grip, as when your other hand "
@@ -5712,14 +5694,6 @@ za::Vector<Item> pageDebugProfiling()
         command("QuakeC Loop Bench", "vr_qcexec_bench")
             .help("vr_qcexec_bench: times a QuakeC math function in each loop (in a map) and checks they agree; the "
                   "result in the console."),
-        toggle("Native Prop Think", vr_prop_think_native)
-            .help("vr_prop_think_native: thrown and dropped weapons' and pickups' think (water, dust, settling after a "
-                  "throw) in the engine, the same as its QuakeC, which was 5-18% of all QuakeC run in a fight. Off: the "
-                  "QuakeC (forcegrabbable_think_qc), to compare or rule it out."),
-        command("Prop Think Check", "vr_propthink_check")
-            .help("vr_propthink_check: the prop think's QuakeC and native run from the same states on every force-"
-                  "grabbable thing in the map (as it is and 200 made-up states each) and compared; the result in the "
-                  "console, the map left as it was."),
         command("Edict Index Stats", "vr_edictindex_stats")
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
@@ -5881,10 +5855,6 @@ za::Vector<Item> pageDebugProfiling()
         command("Prop Hull Stats", "vr_physics_hull_stats")
             .help("vr_physics_hull_stats: the props' and actors' hulls made this session, their main thread time, the "
                   "slowest, how many were built ahead and taken (and, Checked, compared) (console)."),
-        toggle("Main Thread Solves", vr_box3d_caller_solves)
-            .help("vr_box3d_caller_solves: with Physics on Threads, the main thread runs Box3D's solver itself (and its "
-                  "share of each stage) and takes the step's unstarted tasks while it waits for one. Off: a worker usually "
-                  "took the solver and the main thread waited for it (the same results either way)."),
         cycle("Physics Threads", vr_box3d_workers, {{0.f, "All"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {6.f, "6"}, {8.f, "8"}})
             .help("With Physics on Threads: at most this many threads step Box3D, the main thread one of them (All: every "
                   "worker of the pool). Measured on a 24-core CPU: 4 is as fast as 6 or 8 up to ~500 awake bodies (and "
@@ -8296,10 +8266,6 @@ za::Vector<Item> pageHitbox()
         cycle("Width Against Walls", vr_hull_width, world)
             .help("How wide you are against walls, floors, ledges, doors, lifts and other brush models. Quake's box is "
                   "32 units (you stop 16 from each wall: 0.6 m); 16 stops you 8 away (0.3 m)."),
-        cycle("Method", vr_hull_method, {{0.f, "Brush Sweep"}, {1.f, "Compiled Hull"}})
-            .help("Brush Sweep: your box swept against the map's brushes (Quake 2's way). Compiled Hull: a clipping "
-                  "hull built for your width when the map loads (qbsp's way), traced like Quake's own. They should "
-                  "feel the same; this is for comparing them."),
         toggle("Ledge Test Fix", vr_hull_edge_probe)
             .help("Quake slows you more when the floor ahead of you drops away (an edge). On: that test looks down from "
                   "your box's front edge (half your width ahead), and a point inside a step counts as floor. Off: "

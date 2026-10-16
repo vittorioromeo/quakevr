@@ -267,17 +267,6 @@ float QVR_RELOADMODE_IMMERSIVE   = 3;
 //
 //
 // ----------------------------------------------------------------------------
-// Enum values for `VrWeaponThrowMode'
-// ----------------------------------------------------------------------------
-
-float QVR_WEAPONTHROWMODE_IMMERSIVE      = 0;
-float QVR_WEAPONTHROWMODE_DISAPPEARONHIT = 1;
-float QVR_WEAPONTHROWMODE_DISCARD        = 2;
-
-//
-//
-//
-// ----------------------------------------------------------------------------
 // Enum values for `VrWeaponCycleMode'
 // ----------------------------------------------------------------------------
 

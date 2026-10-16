@@ -877,7 +877,7 @@ void table_f()
         vr_weight_damage_heavy.value, vr_weight_damage_exp.value, vr_weight_damage_light.value, vr_weight_damage_exp.value,
         vr_weight_damage_min.value, vr_weight_damage_max.value, vr_weight_lenient_from.value, vr_weight_lenient.value,
         vr_weight_lenient_min.value);
-    // (throw1: one hand's top throw by its mass, m/s: throwLimit; 0 with vr_throw_mass_model off.)
+    // (throw1: one hand's top throw by its mass, m/s: throwLimit.)
     Con_Printf("%-4s %-26s %6s | %6s %6s %6s | %7s %6s\n", "slot", "model", "kg", "weight", "melee", "thrown", "speeds",
         "throw1");
     const auto row = [](const char* slot, const char* model, float mass, float melee, float thrown) {
@@ -1057,37 +1057,32 @@ float dropLimit(float mass, float twoHanded)
 // vr_throw_table [hand speed m/s] [flick m/s]: throws by weight (throwVelocity), for the weapons and props that have a mass:
 // a throw whose hand's estimate is that fast (8 m/s: a hard overarm throw), that much of it the wrist's flick (2), the
 // flick along it. Each: the speed it leaves at and its reach (level ground, at 45 degrees, at vr_throw_gravity) with the
-// model off (the gain only), one hand and two.
+// one hand and two.
 void throwTable_f()
 {
     const float hand = Cmd_Argc() > 1 ? Q_atof(Cmd_Argv(1)) : 8.f;
     const float flick = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 2.f;
     const float g = vr_throw_gravity.value > 0.f ? vr_throw_gravity.value : 9.81f;
     const glm::vec3 vel{hand, 0.f, 0.f}, fl{za::min(flick, hand), 0.f, 0.f};
-    Con_Printf("vr_throw_table: hand %.1f m/s (flick %.1f), model %s; max %.0f m/s up to %.1f kg, ^%.2f, knee %.2f\n", hand,
-        flick, vr_throw_mass_model.value ? "on" : "off", vr_throw_max_speed.value, vr_throw_mass_light.value,
-        vr_throw_mass_exp.value, vr_throw_mass_knee.value);
+    Con_Printf("vr_throw_table: hand %.1f m/s (flick %.1f); max %.0f m/s up to %.1f kg, ^%.2f, knee %.2f\n", hand, flick,
+        vr_throw_max_speed.value, vr_throw_mass_light.value, vr_throw_mass_exp.value, vr_throw_mass_knee.value);
     Con_Printf("  whole flick up to %.1f kg; two hands as %.1fx lighter; reach at 45 degrees, %.2f m/s^2\n",
         vr_throw_flick_mass.value, vr_throw_2h_strength.value, g);
     Con_Printf("  hits from (m/s): %.0f u/s times its scale (top %.0f m/s); spin limits (rad/s): %.0f, ^%.2f\n",
         vr_throw_hit_min_speed.value, vr_throw_hit_top.value, vr_throw_spin_max.value, vr_throw_spin_mass_exp.value);
-    Con_Printf("%-4s %-24s %5s | %11s | %11s %5s | %11s %5s | %4s %5s | %5s %5s\n", "slot", "model", "kg", "off m/s m",
-        "1h m/s m", "lim", "2h m/s m", "lim", "hit", "scale", "spin1", "spin2");
+    Con_Printf("%-4s %-24s %5s | %11s %5s | %11s %5s | %4s %5s | %5s %5s\n", "slot", "model", "kg", "1h m/s m", "lim",
+        "2h m/s m", "lim", "hit", "scale", "spin1", "spin2");
     const auto row = [&](const char* slot, const char* model, float mass) {
-        const float was = vr_throw_mass_model.value, debug = vr_debug_throw.value;
+        const float debug = vr_debug_throw.value;
         vr_debug_throw.value = 0.f;
-        vr_throw_mass_model.value = 0.f; // (the value only: not the cvar's string, nor archived)
-        const float off = glm::length(throwVelocity(vel, fl, mass, 1).vel);
-        vr_throw_mass_model.value = 1.f;
         const float one = glm::length(throwVelocity(vel, fl, mass, 1).vel);
         const float two = glm::length(throwVelocity(vel, fl, mass, 2).vel);
         const float lim1 = throwLimit(mass, 1), lim2 = throwLimit(mass, 2);
-        vr_throw_mass_model.value = was;
         const float spin1 = glm::length(throwSpin(glm::vec3{vr_throw_spin_max.value, 0.f, 0.f}, mass, 1));
         const float spin2 = glm::length(throwSpin(glm::vec3{vr_throw_spin_max.value, 0.f, 0.f}, mass, 2));
         vr_debug_throw.value = debug;
-        Con_Printf("%-4s %-24s %5.1f | %5.1f %5.1f | %5.1f %5.1f %5.1f | %5.1f %5.1f %5.1f | %4.1f %5.2f | %5.1f %5.1f\n",
-            slot, model, mass, off, off * off / g, one, one * one / g, lim1, two, two * two / g, lim2,
+        Con_Printf("%-4s %-24s %5.1f | %5.1f %5.1f %5.1f | %5.1f %5.1f %5.1f | %4.1f %5.2f | %5.1f %5.1f\n",
+            slot, model, mass, one, one * one / g, lim1, two, two * two / g, lim2,
             throwHitSpeed(mass, 1.f) / units::metresToUnits(), throwScale(mass), spin1, spin2);
     };
     for(int slot = 0; slot < weapons::numSlots; slot++)
@@ -1307,10 +1302,6 @@ struct Flick
 
 float throwLimit(float mass, int hands)
 {
-    if(!vr_throw_mass_model.value)
-    {
-        return 0.f;
-    }
     const float m = throwMass(za::max(mass, 0.f), hands);
     const float light = za::max(vr_throw_mass_light.value, 0.01f);
     const float most = za::max(vr_throw_max_speed.value, 0.1f);
@@ -1343,7 +1334,7 @@ namespace
 float spinLimit(float mass, int hands)
 {
     const float k = vr_throw_spin_mass_exp.value;
-    if(!vr_throw_mass_model.value || !(k > 0.f))
+    if(!(k > 0.f))
     {
         return 0.f;
     }
@@ -1409,18 +1400,14 @@ ThrowOut throwVelocity(const glm::vec3& vel, const glm::vec3& flick, float mass,
 {
     ThrowOut out;
     glm::vec3 v = vel;
-    if(vr_throw_mass_model.value)
+    // A wrist too weak to flick it: of a heavy thing, only some of the flick's speed.
+    const Flick fl = flickOf(mass, hands);
+    out.kept = fl.mass > fl.free ? fl.free / fl.mass : 1.f;
+    // No more of it than the throw has along it (a controller turned about its own point, not the wrist).
+    if(const float f = glm::length(flick); f > 1e-4f)
     {
-        // A wrist too weak to flick it: of a heavy thing, only some of the flick's speed.
-        const Flick fl = flickOf(mass, hands);
-        out.kept = fl.mass > fl.free ? fl.free / fl.mass : 1.f;
-        // No more of it than the throw has along it (a controller turned about its own point, not the wrist).
-        const float f = glm::length(flick);
-        if(f > 1e-4f)
-        {
-            const glm::vec3 along = flick / f;
-            v -= along * (za::clamp(glm::dot(v, along), 0.f, f) * (1.f - out.kept));
-        }
+        const glm::vec3 along = flick / f;
+        v -= along * (za::clamp(glm::dot(v, along), 0.f, f) * (1.f - out.kept));
     }
     out.gain = throwGain(glm::length(v));
     v *= out.gain;

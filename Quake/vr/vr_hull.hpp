@@ -5,8 +5,9 @@
 // a box of any size is then swept against them as Quake 2 does (the tree walked with the box's extent, each solid
 // leaf's brush clipped), with Quake's trace results (startsolid, allsolid, the 1/32 unit back-off).
 //
-// Two ways of meeting the map with the narrow box (vr_hull_method): 0 that sweep; 1 a clipping hull compiled at load
-// for the width from the same brushes grown by the box (qbsp's way), traced by Quake's own SV_RecursiveHullCheck.
+// The moves meet the map with a clipping hull compiled at load for the width from the same brushes grown by the box
+// (qbsp's way), traced by Quake's own SV_RecursiveHullCheck (the sweep, as vr_hull_method 0, retired 2026-10-16: it
+// stays for the portals' clipping and vr_hull_bench).
 //
 // Only the player's own box (a client's move with a 32-wide box, the height kept at hull 1's 56) is narrowed: against
 // the world and every brush model (its submodels, external .bsp models) with vr_hull_width, and against other entities'
@@ -62,7 +63,7 @@ void afterLoad();
 // up to the top of his head (vr_hull_hit_head). True if changed.
 [[nodiscard]] bool hitBox(const edict_t* touch, float* boxMins, float* boxMaxs, bool projectile);
 
-// SV_ClipMoveToEntity for a SOLID_BSP entity with moveBox's box (vr_hull_method's way): false if not a brush model, or
+// SV_ClipMoveToEntity for a SOLID_BSP entity with moveBox's box (the compiled hull): false if not a brush model, or
 // a brush model other than the world with vr_hull_brushmodels off: Quake's hull is used.
 [[nodiscard]] bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const float* boxMaxs,
     const float* end, trace_t& trace);

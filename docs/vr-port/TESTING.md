@@ -1085,10 +1085,10 @@ recurse, and additional passes increase rendering/shadow cost.
 
 ### Parry interrupts (2026-10-05)
 
-Combat > Parry and Bash: **Parry Stops Attacks** (`vr_parry_interrupt`, default 1) cancels a successful
-weapon or crossed-arm parry's remaining melee hits. **Parry Stagger** (`vr_parry_stagger`, default 0.35 s,
+Combat > Parry and Bash: a successful weapon or crossed-arm parry always cancels the monster's remaining melee
+hits (its switch `vr_parry_interrupt` retired 2026-10-16). **Parry Stagger** (`vr_parry_stagger`, default 0.35 s,
 clamped 0.1�3 s) holds the first pain pose before normal AI resumes. The first hit still uses the existing
-damage reduction, push, stamina and counter rules. Off preserves the previous behavior; failed guards do not
+damage reduction, push, stamina and counter rules. Failed guards do not
 interrupt. Dog/fiend/spawn leap touches stop too. The dragon closes its attack through its own
 scheduler, keeps its flight route and normal attack cooldown, and resumes flying after the stagger. Its tail
 launch and same-frame follow-ups are cancelled too. The training dummy retains its custom practice timing;
@@ -1096,14 +1096,13 @@ dead/knocked-down monsters and entities without `th_run` retain their own thinks
 and Guardian skip forced pain callbacks (mitosis/teleport side effects) but their attack thinks still stop.
 
 `python Misc/quakevr/parryinterrupt/test.py <worktree>` runs real guard tests, lowered-guard follow-up hits,
-option-off and failed-guard controls, actual knight animations, a 0.8 s stagger, e1m1 smoke and calibration
+failed-guard controls, actual knight animations, a 0.8 s stagger, e1m1 smoke and calibration
 menu paths, a real dragon tail sequence with route recovery, and knight same-callback damage/global checks.
 Optional trailing sections: `forced animations timing smoke dragon callback`. Logs go to the worktree's scratch;
 the script overwrites `quakevr/test_parryinterrupt.cfg`. Debug > Tests also exposes **Dragon Parry Sequence** (hold a guard: a melee weapon level across, not upright; **Dragon Parry (Mock Crowbar)** sets the mock hands so: `vr_mock_hand main 0.15 1.25 -0.4 0 90 0` with the grip held; the guns' `GUARD` pose `70 90 0` holds a crowbar upright, no guard), **Dragon Tail Swing (Pose Check)** (the dragon's own slash drawn, then parried, under `vr_debug_pose_check 1`; `parry_pose_test.sh <agent> 2400 dragon`)
 and **Same-Frame Parry Hits** (both grant 500 health; the dragon requires Rogue assets), plus **Check the Parry Pose**
 (impulse 249) and **A Melee Blow Now** (impulse 242). With `notarget`, the latter is a controlled blow through
-the actual parry path. In VR, check a knight/ogre's multi-hit attack, crossed arms, counter timing, and turn
-Parry Stops Attacks off to compare. Do not tune or replay archived melee takes for this check.
+the actual parry path. In VR, check a knight/ogre's multi-hit attack, crossed arms, and counter timing. Do not tune or replay archived melee takes for this check.
 
 ## Immersive reloading (2026-10-07)
 

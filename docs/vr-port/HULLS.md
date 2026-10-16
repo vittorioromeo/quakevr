@@ -185,7 +185,8 @@ into the space of a monster standing behind it. With the same width against both
 the walk now closes the level's exits while it runs: in round 2's first runs it walked into e1m3's and e4m7's exits,
 and the intermission put the player at its camera spot, in a ceiling (433 "stuck" frames that were not collision).
 
-**Method A, the compiled hull** (`vr_hull_method 1`, the default now): the same brushes as B (hull 0's, with Quake 2's
+**Method A, the compiled hull** (the only one since 2026-10-16: `vr_hull_method` and B's move path retired, B's sweep
+kept for the portals' clipping and `vr_hull_bench`; ROUND22.md, "A/B switches removed"): the same brushes as B (hull 0's, with Quake 2's
 bevels, and the recovered clip brushes), each grown by the box (its planes moved out by the box's reach: with the
 bevels, exactly the brush's Minkowski sum with the box), then compiled into a BSP tree of Quake's own clipnodes and
 planes, as qbsp compiles hull 1: the grown brushes' faces are the splitting planes (qbsp3's choice: the plane most

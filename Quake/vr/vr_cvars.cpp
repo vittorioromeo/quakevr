@@ -476,6 +476,19 @@ constexpr const char* retiredCvars[] = {
     "vr_throw_slowmo_flick_arm",
     "vr_throw_slowmo_short_travel",
     "vr_throw_slowmo_long_travel",
+    // 2026-10-16: the A/B switches settled at their defaults, the other path deleted (ROUND22.md, "A/B switches
+    // removed").
+    "vr_box3d_caller_solves",
+    "vr_carry_grab_drawn",
+    "vr_weapon_grab_box",
+    "vr_button_weapon",
+    "vr_parry_interrupt",
+    "vr_weapon_throw_mode",
+    "vr_throw_mass_model",
+    "vr_weight_throw_mass", // (its old path's setting: props over it thrown slower)
+    "vr_prop_think_native",
+    "vr_hull_method",
+    "vr_decap_pop_chance", // (a switch: off, every headshot kill popped)
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

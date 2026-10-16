@@ -1439,7 +1439,9 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Method A (vr_hull_method 1): a clipping hull compiled for the box at load, as qbsp compiles hull 1. Each of a model's
+// Method A (the moves' only since 2026-10-16, the brush sweep's switch vr_hull_method retired; boxTrace, the sweep,
+// stays for the portals' clipping and as vr_hull_bench's reference): a clipping hull compiled for the box at load, as
+// qbsp compiles hull 1. Each of a model's
 // brushes (hull 0's, with their bevels, and the world's recovered clip brushes) is grown by the box: its planes moved
 // out by the box's reach, which with Quake 2's bevels is exactly the brush's Minkowski sum with the box. A BSP tree is
 // compiled from the grown brushes, their faces the splitting planes: a leaf is solid where one grown brush holds all of
@@ -4281,9 +4283,9 @@ void stats_f()
         external += b->subs[i].clipnodes != b->clipnodes;
     }
     const Tree& t = tree;
-    Con_Printf("hull: %d brush models (%d external .bsp); method %s; compiled hull: %s%d nodes, %d planes, %d solid "
+    Con_Printf("hull: %d brush models (%d external .bsp); compiled hull: %s%d nodes, %d planes, %d solid "
                "and %d empty leaves, %.0f KB, %s in %.1f ms\n",
-        static_cast<int>(b->subs.size()), external, vr_hull_method.value != 0.f ? "compiled hull" : "brush sweep",
+        static_cast<int>(b->subs.size()), external,
         t.forClipnodes == b->clipnodes ? "" : "(none yet) ", static_cast<int>(t.nodes.size()),
         static_cast<int>(t.planes.size()), t.solidLeaves, t.emptyLeaves, tree.bytes() / 1024.0,
         t.fromDisk ? "read from the disk cache" : "built", t.ms);
@@ -5367,12 +5369,11 @@ void walkTest_f()
     }
 }
 
-// The world's brushes, and with method A its hull for the player's box: built with the map or the setting (not at the
-// first move: a hitch in play).
+// The world's brushes and its hull for the player's box: built with the map or the setting (not at the first move: a
+// hitch in play).
 bool wanted()
 {
-    return sv.worldmodel && vr_hull_method.value != 0.f &&
-           (vr_hull_width.value > 0.f || vr_mhull.value != 0.f || crouchOn());
+    return sv.worldmodel && (vr_hull_width.value > 0.f || vr_mhull.value != 0.f || crouchOn());
 }
 
 glm::vec3 playerExt(const qmodel_t* world)
@@ -5581,7 +5582,6 @@ void init()
     Cmd_AddCommand("vr_mhull_walktest", monsterWalk_f);
     Cmd_AddCommand("vr_mhull_reset", reset_f);
     Cvar_SetCallback(&vr_hull_width, onWidthChanged);
-    Cvar_SetCallback(&vr_hull_method, onWidthChanged);
     Cvar_SetCallback(&vr_hull_brushmodels, onWidthChanged);
     Cvar_SetCallback(&vr_mhull, onWidthChanged);
     Cvar_SetCallback(&vr_crouch_hull, onWidthChanged);
@@ -5892,22 +5892,12 @@ bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const
     const glm::vec3 e = glm::vec3{end[0], end[1], end[2]} - origin;
     const glm::vec3 lo{boxMins[0], boxMins[1], boxMins[2]}, hi{boxMaxs[0], boxMaxs[1], boxMaxs[2]};
     ++vr_profcounts.hullchecks;
-    if(vr_hull_method.value != 0.f)
-    {
-        const glm::vec3 centre = (lo + hi) * 0.5f;
-        const Tree& t = treeFor(built, static_cast<za::SizeT>(sub), (hi - lo) * 0.5f, model->name);
-        trace = treeTrace(t, t.heads[static_cast<za::SizeT>(sub)], s + centre, e + centre);
-        for(int i = 0; i < 3; ++i)
-        {
-            trace.endpos[i] += origin[i] - centre[i];
-        }
-        return true;
-    }
-    const SubModel& sm = built.subs[static_cast<za::SizeT>(sub)];
-    trace = boxTrace(built, model->hulls[0], sm.head, s, lo, hi, e, sm.base).trace;
+    const glm::vec3 centre = (lo + hi) * 0.5f;
+    const Tree& t = treeFor(built, static_cast<za::SizeT>(sub), (hi - lo) * 0.5f, model->name);
+    trace = treeTrace(t, t.heads[static_cast<za::SizeT>(sub)], s + centre, e + centre);
     for(int i = 0; i < 3; ++i)
     {
-        trace.endpos[i] += origin[i];
+        trace.endpos[i] += origin[i] - centre[i];
     }
     return true;
 }
@@ -6014,24 +6004,15 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
     {
         return -1;
     }
-    const Brushes* b = worldBrushes(world);
-    if(!b)
+    if(!worldBrushes(world))
     {
         return -1;
     }
     const float half = (vr_hull_width.value > 0.f ? widthSetting() : 32.f) * 0.5f;
     const glm::vec3 lo{-half, -half, -24.f}, hi{half, half, -24.f + (crouch > 0.f ? crouch : hull1Height(world))};
-    trace_t tr;
-    if(vr_hull_method.value != 0.f)
-    {
-        const glm::vec3 centre = (lo + hi) * 0.5f;
-        const Tree& t = treeFor(built, 0, (hi - lo) * 0.5f);
-        tr = treeTrace(t, t.heads[0], start + centre, end + centre);
-    }
-    else
-    {
-        tr = boxTrace(*b, world->hulls[0], 0, start, lo, hi, end).trace;
-    }
+    const glm::vec3 centre = (lo + hi) * 0.5f;
+    const Tree& t = treeFor(built, 0, (hi - lo) * 0.5f);
+    const trace_t tr = treeTrace(t, t.heads[0], start + centre, end + centre);
     return !tr.startsolid && !tr.allsolid && tr.fraction >= 1.f;
 }
 
@@ -6099,7 +6080,7 @@ void walkTestFrame(edict_t* ent)
         Con_Printf("hullwalk %s: width %g (%s), entities %g, %d frames, %.0f units walked, %d hops (%d near pushers, %d failed), stuck %d "
                    "(%d right after a hop), in monsters or items %d, embedded %d, outside %d\n",
             sv.worldmodel->name, vr_hull_width.value > 0.f ? widthSetting() : 32.f,
-            vr_hull_width.value <= 0.f ? "Quake's hull 1" : (vr_hull_method.value != 0.f ? "compiled hull" : "brush sweep"), entWidthSetting() > 0.f ? entWidthSetting() : 32.f,
+            vr_hull_width.value <= 0.f ? "Quake's hull 1" : "compiled hull", entWidthSetting() > 0.f ? entWidthSetting() : 32.f,
             w.frames, w.travelled, w.hops,
             w.moverHops, w.hopFails, w.stuck, w.stuckAfterHop, w.stuckOther, w.embedded, w.outside);
         w.until = 0.0;

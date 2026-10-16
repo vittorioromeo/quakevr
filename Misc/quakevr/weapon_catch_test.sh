@@ -6,7 +6,7 @@
 # vr_debug_carry 2 printing the server's fist gap, developer 1 the take (vr_box3d_hand_props 0: the hand doesn't push it):
 #   1. in the air (sv_gravity 0, so it floats; not resting on anything): not taken while the fist is off it (no slack),
 #      taken once the fist touches it (gap <= 0).
-#   2. the same with vr_weapon_grab_box 1 (the old catch): taken from 12 cm over it (by the boxes, the fist far off).
+#   2. (retired 2026-10-16 with vr_weapon_grab_box: the old box catch, taken from 12 cm over it, is gone.)
 #   3. lying on the floor (vrfiringrange): taken with the fist within vr_weapon_grab_slack (set to 5 cm here: the shipped
 #      0 since 2026-10-08, the author's, leaves only the handle's leniency) of it
 #      (vr_weapon_grab_handle_leniency 0: the crowbar is gripped at its middle, its handle).
@@ -36,9 +36,6 @@ AIR="map e1m1;wait60;sv_gravity 0;impulse 217;wait30"
 log=$(run "vr_weapon_catch_handle_leniency 0;$AIR" "12 9 6 4 2 1 0 -1 -2 -3")
 t=$(echo "$log" | grep "^taken")
 check $(echo "$t" | awk '{print ($2 <= 0 && $3 == 0) ? 1 : 0}') "in the air: taken only with the fist on it, no slack ($t)"
-log=$(run "vr_weapon_grab_box 1;$AIR" "12")
-t=$(echo "$log" | grep "^taken")
-check $([ -n "$t" ] && echo 1 || echo 0) "in the air, vr_weapon_grab_box 1: the old catch takes it from 12 cm over it ($t)"
 FLOOR="vr_weapon_grab_slack 5;vr_weapon_grab_handle_leniency 0;map vrfiringrange;wait60;setpos 221.2 -656.7 41 0 0 0;wait10;impulse 217;wait90;setpos 250 -656.7 41 0 0 0;wait10"
 log=$(run "$FLOOR" "12 9 6 4 2 0 -1 -2")
 t=$(echo "$log" | grep "^taken")

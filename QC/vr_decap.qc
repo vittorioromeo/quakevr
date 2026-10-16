@@ -322,7 +322,7 @@ float(float xSpeed) VR_Gib_StrikeDamage;
 // vr_decap_pop_melee_soft_speed to _hard_speed, and the blow's damage (the headshot multiplier in, before Quad's x4) on
 // its way from vr_decap_pop_melee_soft_damage to _hard_damage, mixed by vr_decap_pop_melee_damage_weight. A corpse's
 // head struck the same (its speed the hand's, its damage the corpse strike's). Blades' slashes and the chainsaw still
-// cut heads off, sure. vr_decap_pop_chance 0: every blunt headshot kill pops, as before. With Quad Damage
+// cut heads off, sure. With Quad Damage
 // (vr_decap_pop_quad): always (VR_Decap_QuadPops).
 
 float VR_DECAP_BCLASS_FIST = 0;
@@ -370,10 +370,6 @@ float(float xSpeed, float xDamage) VR_Decap_BluntHardness =
 // The chance a blunt blow of class `xClass` at `xSpeed` m/s for `xDamage` that kills with a headshot pops the head.
 float(float xClass, float xSpeed, float xDamage) VR_Decap_BluntChance =
 {
-    if(!cvar_hget(cvarh_vr_decap_pop_chance))
-    {
-        return 1;
-    }
     float h = VR_Decap_BluntHardness(xSpeed, xDamage);
     float scale = cvar_hget(cvarh_vr_decap_pop_pommel_scale);
     if(xClass == VR_DECAP_BCLASS_FIST) { scale = cvar_hget(cvarh_vr_decap_pop_fist_scale); }
@@ -1061,8 +1057,7 @@ float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_HeadBoltArm 
 // the head (w: vr_decap_pop_pellet_weight). A lightning bolt's always pops (vr_decap_pop_lightning_always; off: the
 // ranges with the super shotgun's falloff). A thrown or flung blunt weapon or prop (VR_Dismember_ThrownArm) pops it when
 // vr_decap_pop_thrown_mass kg or heavier, a lighter one at vr_decap_pop_thrown_light_chance. Melee blows keep theirs
-// (sure). Only the killing blow rolls (VR_Decap_Roll: Killed, a zombie knocked down, a corpse's head shot);
-// vr_decap_pop_chance 0: every headshot kill pops, as before.
+// (sure). Only the killing blow rolls (VR_Decap_Roll: Killed, a zombie knocked down, a corpse's head shot).
 
 float VR_DECAP_PLAYER_LENGTH = 56; // units: the player's height (the ranges' unit)
 float vr_decap_rolls;   // rolls made (the tests)
@@ -1071,8 +1066,7 @@ float vr_decap_rollpops; // and won
 // The chance a headshot kill of `xHow` from `xDist` units with `xShare` of its pellets at the head pops the head.
 float(float xHow, float xDist, float xShare) VR_Decap_PopChance =
 {
-    if(!cvar_hget(cvarh_vr_decap_pop_chance) || (xHow != QVR_DECAP_SHOTGUN && xHow != QVR_DECAP_SSG &&
-       xHow != QVR_DECAP_LIGHTNING))
+    if(xHow != QVR_DECAP_SHOTGUN && xHow != QVR_DECAP_SSG && xHow != QVR_DECAP_LIGHTNING)
     {
         return 1;
     }
