@@ -24,6 +24,7 @@ vr_spawnflags.qc
 vr_ad_mondefs.qc
 ai.qc
 combat.qc
+combat_test.qc
 fight.qc
 items.qc
 subs.qc
@@ -44,10 +45,13 @@ vr_reload.qc
 vr_reload_test.qc
 vr_debris.qc
 vr_crates.qc
+vr_crates_test.qc
 vr_smallgibs.qc
 vr_walltorch.qc
+vr_walltorch_test.qc
 vr_mg_defs.qc
 vr_mg_activation.qc
+vr_mg_activation_test.qc
 vr_mg_fog.qc
 vr_mg_func_bob.qc
 vr_mg_func_toss.qc
@@ -65,8 +69,10 @@ vr_mg3_defs.qc
 vr_mg3_upgrades.qc
 // The grapple after vr_carry.qc and vr_walltorch.qc: it reads their fields.
 vr_grapple.qc
+vr_grapple_test.qc
 // Grunts' and enforcers' shoves (ai.qc calls it; the monsters' files use it).
 vr_enemyshove.qc
+vr_enemyshove_test.qc
 // The stealth AI (ai.qc, combat.qc, weapons.qc call it; vr_stealth_defs.qc before ai.qc has its fields).
 vr_stealth.qc
 vr_ai_props.qc
@@ -78,6 +84,7 @@ vr_stealth_test.qc
 vr_foegrab.qc
 
 buttons.qc
+buttons_test.qc
 vr_tips.qc
 vr_deathdoll.qc
 client.qc
@@ -93,9 +100,11 @@ vr_mg3_items.qc
 weapons.qc
 // The single-player test and debug impulses (ImpulseCommands calls VR_TestImpulse first).
 vr_impulse_test.qc
+weapons_test.qc
 vr_chainsaw.qc
 // Decapitation after the chainsaw (its bar) and weapons.qc (positional damage's head zone).
 vr_decap.qc
+vr_decap_test.qc
 vr_limbs.qc
 // Teeth knocked out by a punch to the face (after vr_decap.qc: its head zone and blunt hardness).
 vr_teeth.qc
@@ -106,6 +115,7 @@ vr_toolgun.qc
 vr_mg3_weapons.qc
 vr_pickup_test.qc
 vr_axestick.qc
+vr_axestick_test.qc
 // Magnetic holsters (after the holsters, the throws, the stuck axes and the chainsaw's props it uses).
 vr_magholster.qc
 vr_weaponinst_test.qc
@@ -113,10 +123,14 @@ vr_liquids.qc
 vr_wounds.qc
 // Living hit reactions (combat.qc, ai.qc and weapons.qc call it).
 vr_hitreact.qc
+vr_hitreact_test.qc
 vr_burning.qc
+vr_burning_test.qc
 // Incandescent blades (after vr_burning.qc and vr_walltorch.qc: it sets on fire, it finds their flames).
 vr_hotblade.qc
+vr_hotblade_test.qc
 vr_shock.qc
+vr_shock_test.qc
 // Debug > Cheats and Recording: the powerups, infinite ammunition, the scene's cleanups (after what they remove).
 vr_cheats.qc
 vr_smallgibs_test.qc
@@ -124,6 +138,7 @@ vr_dropcap_test.qc
 vr_crouch_test.qc
 world.qc
 vr_dummy.qc
+vr_dummy_test.qc
 vr_motion.qc
 vr_highlights.qc
 vr_mg_world_test.qc
@@ -263,11 +278,14 @@ vr_mg3_chthon_test.qc
 
 // Knockdowns: shoves knock monsters down as ragdolls, alive (after everything it calls).
 vr_knockdown.qc
+vr_knockdown_test.qc
 // Hits that unbalance: strong throws and blows stagger monsters as shoves do (after the knockdowns: it uses them).
 vr_hitstagger.qc
+vr_hitstagger_test.qc
 vr_foegrab_throw.qc
 // Impacts (ragdolls struck on the level, landing crush) and manhandling (after the knockdowns and the limbs: it uses them).
 vr_ragimpact.qc
+vr_ragimpact_test.qc
 
 frikbot/bot.qc
 frikbot/bot_way.qc
@@ -433,6 +451,7 @@ ad/ad_mon_bossjudicator.qc
 ad/ad_mon_bossnour.qc
 // ad_import.py: end
 vr_ad_bridge.qc
+vr_ad_bridge_test.qc
 vr_ad_items.qc
 vr_ad_player.qc
 vr_ad_world_test.qc
@@ -442,6 +461,7 @@ vr_ad_monsters.qc
 vr_ad_stealth.qc
 // The AD soldiers' guns: dropped, fired (after the monsters' hooks: VR_AD_Dying drops them).
 vr_ad_enemyguns.qc
+vr_ad_enemyguns_test.qc
 // The held guns' models the map can give (the engine prepares their convex pieces at load).
 vr_gunprep.qc
 vr_ad_monsters_test.qc
