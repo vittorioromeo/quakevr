@@ -116,6 +116,11 @@ struct Trunk
 // solveArm: the elbow swung about the shoulder-to-wrist line towards the tracked elbow's side (arm weight).
 void swivelElbow(int side, const glm::vec3& shoulder, const glm::vec3& wrist, glm::vec3& elbow, glm::vec3& bend);
 
+// solveArm: the tracked shoulder (the upper arm's joint) and elbow (world) and the weight the arm takes them by beyond
+// the swivel (the arm weight times vr_bodytrack_arm_fit): the clavicle turns the shoulder towards the tracked one, the
+// upper arm and forearm take the lengths that put the elbow on the tracked one. False (weight 0) when not.
+bool trackedArm(int side, glm::vec3& shoulder, glm::vec3& elbow, float& weight);
+
 // solveLeg: the foot's target and the knee's direction towards the tracked leg's, scaled to the avatar's leg (`hip`, its
 // `reach`), by the leg weight times `keep` (1 less what climbing and swimming take).
 void leg(int side, const glm::vec3& hip, float reach, float floorZ, float keep, glm::vec3& target, glm::vec3& kneeDir);

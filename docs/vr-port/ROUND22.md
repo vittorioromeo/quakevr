@@ -9949,3 +9949,43 @@ with the option off) show his face and helmet, the neck going into his head, not
 For him in VR: the mirror (and Debug > body preview) from the front, side and back. Check the head's size and
 height against your own (the eyes about 3.5 cm lower than the placeholder's), the neck seam when looking up and down
 and turning the head, and that nothing of it shows in your own view when you look down, lean or crouch.
+
+## Body tracking: the elbow onto the tracked elbow, not only to its side (worktree `tghost`, branch `agent/elbowtrack`, 2026-10-17)
+
+His report: even with minimum confidence 0 and Elbows at 1, the elbow stays a little below the tracked one (the
+purple line in the debug view). No setting was overriding it, and no joint limit either. The tracking only ever set
+the elbow's **swivel** about the shoulder-to-wrist line (`bodytrack::swivelElbow`; the old `btstats` "elbow err" is
+that angle). Where the elbow sits on that circle came from *our* shoulder (the clavicle heuristic) and *our* arm
+lengths. A tracked shoulder that shrugs, sits forward, or is wider than ours, or a tracked arm of other proportions,
+left the elbow centimetres off even at 0 degrees of swivel error. The torso push (`vr_body_collide_elbows`) also came
+after the tracking.
+
+**Fix** (`solveArm`, by the arm weight times the new `vr_bodytrack_arm_fit`, default 1; `bodytrack::trackedArm`):
+- The clavicle turns about the base of the neck towards the tracked shoulder (up to 35 degrees), then lengthens or
+  shortens along itself to reach it.
+- After the guesses, the swivel and the torso push, the upper arm and forearm take the lengths that put the elbow on
+  the tracked one. Each stays within 0.8 to 1.25 of its own length, and the hand stays on the controller.
+- Tracking off, eased out (confidence, lost) or the fit at 0: as before, bit for bit (weight 0).
+- Menu: Body > Body Tracking > Elbow Fit, under Elbows.
+- `vr_bodytrack_stats` gains a line "elbow off L/R ... cm from the tracked" (the position error).
+- The synthetic body (`vr_bodytrack_synth`) now puts its wrists at the avatar's last posed wrists (a tracked wrist is
+  the real one, about 10 cm behind the controller). With them at the controllers, its elbows lay closer to our wrists
+  than any forearm.
+
+**Measured** (mock, `vr_bodytrack_synth 1`, confidence 0, Elbows 1, e1m1; elbow position error in cm, both arms, fit 0
+then 1):
+
+| Pose | Fit 0 | Fit 1 |
+| --- | --- | --- |
+| Hands at the sides | 4.78 | 0.00 |
+| Elbows winged out, hands before the chest | 9.50 | 0.00 |
+| Hands over the head, elbows out | 7.10 | 0.00 |
+| Arms across the chest | 11.0 / 10.3 | 0.00 |
+
+In the high pose the bones took 1.16 (upper) and 1.09 (fore) of their lengths: the synthetic arms are longer than ours.
+The shoulder ended 6 mm from the tracked one.
+
+For him in VR: Body Tracking on, Elbows 1, Elbow Fit 1. Raise the elbows high and out, wing them, cross the arms over
+the chest, and check the debug view: the orange/drawn elbow should sit on the purple tracked one. Then watch the arms
+for odd stretching. If a bone looks too long or short, lower Elbow Fit, or calibrate the arms (Body Calibration) so
+our lengths match his. `vr_bodytrack_stats` prints the cm error.

@@ -55,6 +55,10 @@ struct State
     float legApplied[2]{};    // the legs' weight leg() last laid on (less climbing, swimming and the walk)
     double placeSeconds{0.0}; // place()'s and the synthetic body's time (vr_bodytrack_stats)
     int placeCalls{0};
+    glm::vec3 placeBase{0.f}, placeFloor{0.f}; // place()'s mapping, the last (the synthetic body's way back)
+    float placeYaw{0.f};
+    glm::vec3 posedWrist[2]{}; // the avatar's wrists last posed (world; the synthetic body's wrists)
+    bool havePosedWrist{false};
 };
 State st;
 
@@ -67,6 +71,8 @@ struct Stats
     double twist{0.0}, twistMax{0.0};       // degrees: the avatar's shoulder line against the tracked one
     double elbow[2]{}, elbowMax[2]{};       // degrees: the elbows' swivel about the shoulder-to-wrist line
     int elbowFrames[2]{};
+    double elbowCm[2]{}, elbowCmMax[2]{};   // cm: the elbows from the tracked ones
+    int elbowCmFrames[2]{};
     double knee[2]{};
     int kneeFrames[2]{};
     double hold{0.0};                       // the lean detection's hold
@@ -292,6 +298,9 @@ void stats_f()
         label, s.elbow[0] / za::max(1, s.elbowFrames[0]), s.elbowMax[0], s.elbow[1] / za::max(1, s.elbowFrames[1]),
         s.elbowMax[1], s.knee[0] / za::max(1, s.kneeFrames[0]), s.knee[1] / za::max(1, s.kneeFrames[1]), s.legApplied / n,
         s.hold / n, s.jumpMax, st.placeCalls > 0 ? st.placeSeconds * 1e6 / st.placeCalls : 0.0);
+    Con_Printf("btstats %s: elbow off L %.2f (max %.2f) R %.2f (max %.2f) cm from the tracked\n", label,
+        s.elbowCm[0] / za::max(1, s.elbowCmFrames[0]), s.elbowCmMax[0], s.elbowCm[1] / za::max(1, s.elbowCmFrames[1]),
+        s.elbowCmMax[1]);
 }
 
 } // namespace
@@ -320,6 +329,9 @@ void place(const glm::vec3& base, const glm::vec3& floorBelowHead, float turnYaw
     const float dt = static_cast<float>(za::clamp(dtRaw, 0.0, 0.1));
     st.lastTime = vr_gametime;
     st.m2u = m2u;
+    st.placeBase = base;
+    st.placeFloor = floorBelowHead;
+    st.placeYaw = turnYaw;
 
     // Smoothed in the room (the play space's turns and the locomotion move it all at once, unsmoothed).
     const float tau = vr_bodytrack_smooth.value;
@@ -460,6 +472,19 @@ void swivelElbow(int side, const glm::vec3& shoulder, const glm::vec3& wristPos,
     bend = q * bend;
 }
 
+bool trackedArm(int side, glm::vec3& shoulder, glm::vec3& elbow, float& weight)
+{
+    weight = st.arm[side & 1] * za::clamp(vr_bodytrack_arm_fit.value, 0.f, 1.f);
+    if(weight <= 0.f)
+    {
+        weight = 0.f;
+        return false;
+    }
+    shoulder = st.world[armUpper(side)];
+    elbow = st.world[armLower(side)];
+    return true;
+}
+
 void leg(int side, const glm::vec3& hip, float reach, float floorZ, float keep, glm::vec3& target, glm::vec3& kneeDir)
 {
     const float w = st.leg[side & 1] * za::clamp(keep, 0.f, 1.f);
@@ -490,6 +515,9 @@ void posed(const Posed& p)
     {
         return;
     }
+    st.posedWrist[0] = p.wrist[0];
+    st.posedWrist[1] = p.wrist[1];
+    st.havePosedWrist = true;
     if(vr_bodytrack_debug.value != 0.f && debugFrame != host_framecount)
     {
         debugFrame = host_framecount;
@@ -562,6 +590,10 @@ void posed(const Posed& p)
                 s.elbowMax[side] = za::max(s.elbowMax[side], e);
                 s.elbowFrames[side]++;
             }
+            const double cm = glm::distance(p.elbow[side], st.world[armLower(side)]) / za::max(st.m2u, 1e-3f) * 100.0;
+            s.elbowCm[side] += cm;
+            s.elbowCmMax[side] = za::max(s.elbowCmMax[side], cm);
+            s.elbowCmFrames[side]++;
         }
         if(valid(upperLeg(side)) && valid(lowerLeg(side)) && valid(ankle(side)))
         {
@@ -624,7 +656,9 @@ void synthesize(TrackingState& t)
     t.head.position = eyes;
     t.head.orientation = head * t.head.orientation;
 
-    // The arms: the shoulders on the chest, the wrists on the controllers, the elbows bent towards the pole.
+    // The arms: the shoulders on the chest, the wrists where the avatar's were last posed (a tracked wrist is the real
+    // one, behind the controller; before the first pose, or without one, the controllers), the elbows bent towards the
+    // pole.
     const float out = za::clamp(vr_bodytrack_synth_elbows.value, 0.f, 1.f);
     for(int side = 0; side < 2; side++)
     {
@@ -632,7 +666,12 @@ void synthesize(TrackingState& t)
         const glm::vec3 shoulder = hips + up * (0.8f * spineLen) + chest * (r * (sgn * 0.11f * eye) + u * (0.03f * eye));
         set(armUpper(side), shoulder, true);
         const Pose& hand = t.hands[side == 0 ? HAND_OFF : HAND_MAIN];
-        const glm::vec3 w = hand.valid ? hand.position : shoulder - u * (0.3f * eye);
+        glm::vec3 w = hand.valid ? hand.position : shoulder - u * (0.3f * eye);
+        if(hand.valid && st.havePosedWrist && st.m2u > 0.f)
+        {
+            const glm::vec3 q = hands::rotateYaw((st.posedWrist[side] - st.placeBase) / st.m2u, -st.placeYaw);
+            w = glm::vec3{-q.y, q.z, -q.x} + st.placeFloor; // (quakeFromTracking undone)
+        }
         set(wrist(side), w, true);
         const glm::vec3 pole = glm::mix(-u - f * 0.3f, chest * (r * sgn) - u * 0.2f, out);
         set(armLower(side), twoBone(shoulder, w, 0.175f * eye, 0.16f * eye, pole), true);
