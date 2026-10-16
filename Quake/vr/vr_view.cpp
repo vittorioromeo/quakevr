@@ -939,6 +939,9 @@ void view::prepareModels()
     }
     names.pushBack(pumpModelName); // (setupPumps)
     names.pushBack(pumpBodyModelName);
+    // (setupSsgParts: else the super shotgun's first draw loads them, a 15 ms hitch with their normal maps.)
+    names.pushBack(ssgFrameModel);
+    names.pushBack(ssgBarrelsModel);
     for(const char* name : names)
     {
         (void)Mod_ForName(name, false);
