@@ -123,7 +123,7 @@ float() VR_BaseHealth =
     if(deathmatch) { return 100; }
     if(AD_Evil()) { return 50; } // AD support: AD's Evil skill (vr_ad_player.qc)
     if(MG3_Campaign()) { return MG3_BASE_HEALTH; }
-    return ((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && skill == 3) ? 50 : 100;
+    return ((Dopa_Campaign() || MG1_Campaign()) && skill == 3) ? 50 : 100;
 }
 
 // The most health ordinary healing gives (.max_health), and what a level change carries at most.

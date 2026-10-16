@@ -825,7 +825,7 @@ void() VR_PickupObj_WeaponTouch =
 // The hand touch of an object pickup (VR_Carry_Handtouch's, but for these).
 void() VR_PickupObj_Handtouch =
 {
-    if(cvar("vr_campaign") == 4 && self.MG1_rune_locked) return;
+    if(MG1_Campaign() && self.MG1_rune_locked) return;
     if(!VR_PickupObj_Enabled(self))
     {
         self.carry_use(); // touching takes it
@@ -1829,8 +1829,8 @@ End of level sigil, pick up to end episode and return to jrstart.
 
 void() item_sigil =
 {
-    if(cvar("vr_campaign") == 4) { MG1_item_sigil(); return; }
-    if(cvar("vr_campaign") == 5) { MG3_item_sigil(); return; } // vr_mg3_items.qc
+    if(MG1_Campaign()) { MG1_item_sigil(); return; }
+    if(MG3_Campaign()) { MG3_item_sigil(); return; } // vr_mg3_items.qc
     if(!self.spawnflags)
         objerror ("no spawnflags");
 

@@ -20,7 +20,7 @@
 // and classnames keep their authored names. Plan and task list: docs/vr-port/MG3.md. Source snapshot and
 // license: docs/vr-port/OFFICIAL_QC_SOURCE.md, QC/COPYING-rerelease.txt (quakec_mg3).
 // Gated: vr_gamedir.cpp keeps MG3 nativeReady false (developer path: `vr_campaign_native mg3`).
-float() MG3_Campaign = { return cvar("vr_campaign") == 5; };
+float() MG3_Campaign = { return cvar("vr_campaign") == VR_CAMPAIGN_MG3; };
 
 // ----------------------------------------------------------------------------
 // Persistent state (MG3.md 2.1). Upstream keeps its capacity upgrades (one bit per map) in parm10..14 and its

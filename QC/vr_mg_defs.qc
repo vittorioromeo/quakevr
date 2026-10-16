@@ -27,7 +27,8 @@
 .entity fog_active_fog_trigger;
 .string fog_info_entity;
 .string endtext;
-float() MG_WorldCampaign = { return cvar("vr_campaign") >= 3 && cvar("vr_campaign") <= 5; };
+float() Dopa_Campaign = { return cvar("vr_campaign") == VR_CAMPAIGN_DOPA; };
+float() MG_WorldCampaign = { return cvar("vr_campaign") >= VR_CAMPAIGN_DOPA && cvar("vr_campaign") <= VR_CAMPAIGN_MG3; };
 float() MG_WorldGuard = { if(MG_WorldCampaign()) return TRUE; remove(self); return FALSE; };
 void(entity ent) MG_RegisterFrameTickEntity = { ent.MG_registered = TRUE; };
 void(entity ent) MG_RemoveFrameTickEntity = { ent.MG_registered = FALSE; };
