@@ -349,12 +349,12 @@ QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)
 // its image turned to a steadied head orientation and cropped to the window; 2 the spectator camera: the scene
 // rendered a third time for the window, from the head, steadied, with its own field of view; 3 both eyes as they are,
 // side by side; 4 the right eye as it is; 5 the right eye's smoothed mirror.
-QVR_CVAR(vr_window_view, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_window_view, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_window_smooth, "0.5", CVAR_ARCHIVE)      // seconds: the steadied orientation's lag (0 none .. 0.5); both modes
 QVR_CVAR(vr_window_level, "0.5", CVAR_ARCHIVE)          // 0 .. 1: how much of the head's roll is taken out (1: the horizon level); both modes
 QVR_CVAR(vr_window_zoom, "1.2", CVAR_ARCHIVE)         // smoothed mirror: 1 the widest crop of the eye's image .. 2 (the margin the steadying turns in)
-QVR_CVAR(vr_spectator_fov, "90", CVAR_ARCHIVE)        // spectator camera: horizontal field of view, degrees (40 .. 160; the slider 60 .. 150)
-QVR_CVAR(vr_spectator_scale, "0.75", CVAR_ARCHIVE)    // spectator camera: its resolution, times the window's (0.25 .. 2)
+QVR_CVAR(vr_spectator_fov, "130", CVAR_ARCHIVE)        // spectator camera: horizontal field of view, degrees (40 .. 160; the slider 60 .. 150)
+QVR_CVAR(vr_spectator_scale, "1", CVAR_ARCHIVE)    // spectator camera: its resolution, times the window's (0.25 .. 2)
 QVR_CVAR(vr_spectator_rate, "60", CVAR_ARCHIVE)        // spectator camera: drawn every frame (1), every 2nd or 3rd (2, 3), or at most this many times a second (more than 3); the window shows the last between
 QVR_CVAR(vr_spectator_bullettime_fx, "1", CVAR_ARCHIVE) // 1: bullet time's colour, tint and darkened edges in the spectator camera; 0: its normal look (headset unchanged)
 QVR_CVAR(vr_spectator_preview, "1", CVAR_ARCHIVE)      // spectator camera: a small preview of its image in the headset's menus while it is on (bottom left, above its switch; vr_menuui.cpp)
@@ -607,7 +607,7 @@ QVR_CVAR(vr_upscale, "1", CVAR_ARCHIVE)                // below vr_render_scale 
 QVR_CVAR(vr_upscale_sharpness, "0.5", CVAR_ARCHIVE)    // ... its sharpening, 0 none .. 1 most (FSR: RCAS 2 stops below its most at 0.1, its most at 1; NIS: its slider)
 QVR_CVAR(vr_upscale_radius, "40", CVAR_ARCHIVE)        // ... only within this many degrees of the lens centre, bilinear beyond (0: the whole image)
 QVR_CVAR(vr_upscale_sharpen_native, "0", CVAR_ARCHIVE) // at vr_render_scale 1: FSR's RCAS sharpening alone (with vr_upscale 1 or 2 and some sharpness)
-QVR_CVAR(vr_foveated, "0", CVAR_ARCHIVE)               // fixed foveated rendering (NVIDIA variable-rate shading): 0 off, 1 conservative, 2 balanced, 3 aggressive
+QVR_CVAR(vr_foveated, "3", CVAR_ARCHIVE)               // fixed foveated rendering (NVIDIA variable-rate shading): 0 off, 1 conservative, 2 balanced, 3 aggressive
 QVR_CVAR(vr_foveated_inner, "0", CVAR_ARCHIVE)         // ... full-rate shading within this many degrees of the lens centre (0: the preset's: 45, 35, 25)
 QVR_CVAR(vr_foveated_outer, "0", CVAR_ARCHIVE)         // ... 2x2 up to this many degrees, 4x4 beyond (0: the preset's: 60, 50, 40)
 QVR_CVAR(vr_foveated_debug, "0", CVAR_NONE)            // show the shading rates (yellow 2x2, red 4x4) and vr_upscale_radius (cyan) in the eyes and the mirror

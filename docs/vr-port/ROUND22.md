@@ -9069,3 +9069,9 @@ Verified: build (engine + QC, 0 warnings) after each item; melee eval 168/177 wi
 tests against the base progs: the same results within run-to-run noise (limbs: base against base differs by as much;
 ragimpact 4 FAILS now, 5 in the base run; judo 0 FAILS; spawnall 115 spawned, 0 failed). AD's own tests not run: no
 AD data in the kit base (the importer's `--check` and the byte-identical progs.dat cover item 1).
+
+## The last differing defaults (2026-10-16)
+
+His decision: vr_window_view, vr_spectator_fov, vr_spectator_scale and vr_foveated are personal: the shipped values
+(1, 130, 1, 3) are now the compiled defaults; vr_retrolight_model_steps is 16 everywhere. The 21 remaining vr_default
+lines equalled the compiled defaults and were removed: vr_defaults.cfg sets nothing now; vr_cvars.inc is the only source.
