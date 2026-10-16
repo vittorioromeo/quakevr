@@ -800,11 +800,16 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
     return true;
 }
 
-// (Its compile time and Box3D's version: the hulls' maker, b3CreateHull, is Box3D's.)
+// The cut's version: BUMP IT whenever a change here (decompose, the voxelising, the splitting, their constants) or in
+// what the pieces are made from could change the pieces cut for the same triangles and settings. The disk cache's
+// folder is this and Box3D's version (the hulls' maker, b3CreateHull, is Box3D's), no longer the build's compile time
+// (2026-10-16, PROFILE_20261016 B6): a new build keeps the pieces cut by the last one unless the cut changed.
+// vr_gun_pieces_cache 2 cuts anyway and compares (a forgotten bump shows as "differed").
+constexpr unsigned cutVersion = 1;
+
 za::String makeBuild()
 {
-    const char* stamp = __DATE__ " " __TIME__;
-    unsigned long long h = diskcache::fnv(diskcache::fnvStart, stamp, strlen(stamp));
+    unsigned long long h = diskcache::fnv(diskcache::fnvStart, &cutVersion, sizeof(cutVersion));
     const b3Version v = b3GetVersion();
     h = diskcache::fnv(h, &v, sizeof(v));
     char text[24];

@@ -1,7 +1,8 @@
 // vr_texcache.cpp -- work the start-up and the map loads would redo every time, kept on disk under
-// `<gamedir>/cache/<kind>/<build>/<key>.<ext>`: <key> a hash of everything the work reads, <build> the working code's own
-// build (its source file's compile time: changed code never reads an old file). Other builds' folders of a kind are
-// removed at its first write in a session. Files are written beside their place and renamed: another copy of the game
+// `<gamedir>/cache/<kind>/<build>/<key>.<ext>`: <key> a hash of everything the work reads, <build> the maker's version
+// (a constant bumped when the maker changes: changed code never reads an old file, a new build of the same code keeps
+// them; until 2026-10-16 its source file's compile time). Other versions' folders of a kind are removed at its first
+// write in a session. Files are written beside their place and renamed: another copy of the game
 // never reads half a file.
 // - normalmaps: the normal maps made from skins' colours (vr_normalmaps.cpp: TexMgr_SkinToNormals, 3-4 ms a skin; 0.2 s of
 //   the first map load). vr_normalmap_cache: 1 on, 0 off, 2 check (made anyway and compared with the file).
@@ -36,18 +37,21 @@ za::String fileFor(const char* kind, const char* build, unsigned long long key, 
     return dirFor(kind, build) + "/" + name;
 }
 
-// The folders pruned this session (a kind's in a game directory, at a build): each game's own, by its path.
+// The folders pruned and made this session (a kind's in a game directory, at a build): each game's own, by its path.
+// A folder is made once a session, at its kind's first write (each write made sure of it before: 20-40 ms of a cold
+// AD load's, PROFILE_20261016 B8). One removed while the game runs is not made again: its files are not written
+// (each write fails, as it would on a full disk) and are made again in the next session.
 za::Vector<za::String> pruned;
 
 // A kind's first write in a session (in each game directory): its other builds' folders removed (they are never read
-// again).
-void prune(const char* kind, const char* build)
+// again), its own made. False if it was done before.
+bool prune(const char* kind, const char* build)
 {
     QVR_TRACY_SCOPE(tracyScope, "disk cache prune");
     const za::String id = dirFor(kind, build);
     if(za::find(pruned.begin(), pruned.end(), id) != pruned.end())
     {
-        return;
+        return false;
     }
     pruned.pushBack(id);
     const za::String root = za::String{com_gamedir} + "/cache/" + kind;
@@ -62,6 +66,7 @@ void prune(const char* kind, const char* build)
     {
         qvr::files::removeAll(other.cStr());
     }
+    return true;
 }
 
 // A file: 4 bytes of magic, the version, two numbers of the caller's, then the data.
@@ -105,7 +110,7 @@ void writeFile(const char* kind, const char* build, const za::String& path, cons
     const void* data, size_t length)
 {
     QVR_TRACY_SCOPE(tracyScope, "disk cache write prepare");
-    prune(kind, build);
+    if(prune(kind, build))
     {
         QVR_TRACY_SCOPE(tracyScope, "disk cache directories");
         qvr::files::createDirectories(dirFor(kind, build).cStr());

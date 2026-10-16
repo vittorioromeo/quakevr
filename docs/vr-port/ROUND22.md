@@ -8512,3 +8512,49 @@ Tested (headless e1m1, `vr_pickup_test 6`, the main hand crossing the hanging sh
 
 For him in VR: reach slowly for a floating gun and close the hand (also while it spins past the open hand); swat one;
 reach in and hold the hand still, then push on. Tune Floating Grace Time / Swat Speed.
+## Loading and caches: B4, B5, B6, B8 of the profiling run (worktree `dequant`, branch `agent/loadperf`, 2026-10-16)
+
+His picks on `PROFILE_20261016.md`: B4 (a) then (b), B5 (a), B6 (b), B8 (a) and (b). One commit each.
+
+- **B6, disk caches keyed by the maker's version, not the build.** The gun pieces' folder (`cache/gunpieces/<v>`) is a
+  hash of `vr_convex.cpp`'s `cutVersion` and Box3D's version; the skin normal maps' (`cache/normalmaps/<v>`) of
+  `NORMALCACHE_VERSION` (`vr_normalmaps.cpp`). The keys already hashed every input (triangles and settings; texels,
+  size, heights, texels per unit, islands). **Bump the constant** when the cut, the normal-map maker or the skin
+  islands (`Mod_SkinIslands`) change; `vr_gun_pieces_cache 2` / `vr_normalmap_cache 2` make them anyway and compare.
+  The first session on this build cuts and makes once more (new folder names); after that a new build keeps them.
+- **B8.** A cache folder is made once a session (at its kind's first write, with the prune), not checked at every
+  write. Tracy-only scopes split `Mod_LoadAliasModel` (replacements, skins, skin normal maps, frames, VR poses, flags
+  and bounds, draw lists, cache copy); compiled out of normal builds.
+- **B4a, session results per texture** (`mem::Cache`, dropped at a game directory change, or when the context
+  changes: `vr_extmaps_dir`, `vr_extmaps_match`, normal maps on, the palette): vr_extmaps' picture match and pack
+  lookups by the texture's name and a wyhash of its pixels; the pack's missing files; vr_anim_surface's frame
+  matches by both pictures' pixels; vr_pbr's SHA-256 of a texture by a quick hash of its pixels (its companions'
+  found/missing was already kept). Stale only if the pack's files change while the game runs.
+- **B4b, COM_FindFile's misses while loading** (`vr_fscache.cpp`, its window, main thread): a name found in no search
+  path is not looked for again. Forgotten with any directory listing (any file written, on any thread: an epoch keeps a
+  miss looked up before a write from being noted after it) and on `VR_FileCacheSearchChanged`: the search paths
+  (common.c), the campaign (`publishCampaign`), the map installer's stock-only lookup.
+- **B5, a kind first spawned after the load** (`limbmodel::spawnFrame`, `VR_ServerFrameEnd`): a monster kind prebuild
+  didn't make (dispensers, `vr_physics_spawn`, AD's monsters that become monsters after the load: 9 kinds on
+  ad_tfuma) has its limbs' .mdl files built on the pool (the job owns copies of the rig and the file), then precached
+  one a frame (skins and normal maps: ~1-3 ms; more in a session that makes the normal maps); a cut before that takes
+  the built file. `vr_limbs_prebuild 0` keeps the old behaviour.
+
+Checks: imagelists (sorted) of e1m1 and ad_tfuma, cold and warm, identical to the base build's (AD's only extra lines
+are B5's limb models); the cold and warm loads' identical to each other; 39 limbs built on the pool byte-identical to
+`buildNamed`'s; e1m1 (restart, changelevel) and ad_tfuma (restart) smoke clean.
+
+Release, his config, 2048 eyes, exclusive, 2 runs each (`benchresults/dequant_before`, `dequant_after`):
+
+| | before | after |
+|---|---:|---:|
+| `load_e1m1` cold / warm / restart (ms) | 886, 834 / 216, 199 / 205, 191 | 792, 789 / 149, 154 / 144, 146 |
+| `load_ad_tfuma` cold / warm (ms) | 1363, 1144 / 597, 563 | 1224, 1220 / 454, 457 |
+| AD warm: vr_extmaps / vr_anim_surface / vr_pbr / misses (ms) | 39 / 40 / 85 / 43 | <2.4 / <2.4 / 53 / 35 |
+| `combat_48` worst frame (knight's first cut) | 36.7, 21.9 | 11.2, 11.4 |
+| first gun cut, first session after a rebuild (`play_gore_fight` r1 worst) | 34.3 | 11.4 |
+
+The cold AD load is within its run-to-run spread (1144-1363). Steady fights unchanged (CPU p50 the same or a little
+lower). Not done: the hulls' disk cache (`vr_hull.cpp`) is still keyed by the build's compile time (outside B6).
+
+For him in VR: nothing visible. A knight (or another kind) spawned on the firing range and cut at once: no hitch.

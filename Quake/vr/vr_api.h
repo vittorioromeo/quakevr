@@ -141,6 +141,9 @@ void VR_FileCacheEnable (int on);	// VR_TimeStart, VR_TimeLoadBegin on; the firs
 void VR_FileCacheForget (void);	// every listing (a directory made, moved or removed; bulk work)
 void VR_FileCacheForgetFile (const char *path);	// a file made, written or removed (after it): its directory's listing
 void VR_FileCacheRegisterCommands (void);	// vr_fscache_test
+int VR_FileCacheMissKnown (const char *name);	// COM_FindFile: `name` found nowhere earlier in this load (main thread, while loading)
+void VR_FileCacheMissNote (const char *name);	// ... found nowhere now
+void VR_FileCacheSearchChanged (void);	// the search paths, or which of them a lookup skips, changed: the misses known forgotten
 void VR_FileCacheForgetMoved (const char *from, const char *to);	// a file moved (after it): both directories' listings (a directory moved: every one)
 
 // The in-game relighting's line outside the menu on a flat screen (vr_relight.cpp; gl_screen.c SCR_DrawRelight): its text

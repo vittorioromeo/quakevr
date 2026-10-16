@@ -2062,7 +2062,7 @@ If neither of file or handle is set, this
 can be used for detecting a file's presence.
 ===========
 */
-static int COM_FindFileRun (const char *filename, int *handle, FILE **file, unsigned int *path_id);
+static int COM_FindFileRun (const char *filename, int *handle, FILE **file, unsigned int *path_id, qboolean *nowhere);
 
 /*
 QVR: a pak's directory by name. Every lookup used to strcmp each entry of every pak in the search path, and most of a
@@ -2111,14 +2111,35 @@ static int COM_PackFind (const pack_t *pack, const char *name)
 static int COM_FindFile (const char *filename, int *handle, FILE **file,
 							unsigned int *path_id)
 {
-	int ret = COM_FindFileRun (filename, handle, file, path_id);
+	int ret;
+	// QVR: while loading, a name found nowhere is not looked for again (vr_fscache.cpp, VR_FileCacheMissKnown: most of a
+	// load's lookups are such misses, the same names asked again and again: PROFILE_20261016 B4)
+	if (!(file && handle) && VR_FileCacheMissKnown (filename))
+	{
+		file_from_pak = 0;
+		com_filesource[0] = 0;
+		com_fileoffset = 0;
+		if (handle)
+			*handle = -1;
+		if (file)
+			*file = NULL;
+		com_filesize = -1;
+		ret = -1;
+	}
+	else
+	{
+		qboolean nowhere = false; // (looked in every search path, found in none: not a file that failed to open)
+		ret = COM_FindFileRun (filename, handle, file, path_id, &nowhere);
+		if (nowhere)
+			VR_FileCacheMissNote (filename);
+	}
 	if (com_lookups_noted) // QVR: a model's load records the files it looked for (vr_modelkeep.cpp: a campaign switch keeps it)
 		VR_FileLookupNoted (filename, ret != -1);
 	return ret;
 }
 
 static int COM_FindFileRun (const char *filename, int *handle, FILE **file,
-							unsigned int *path_id)
+							unsigned int *path_id, qboolean *nowhere)
 {
 	searchpath_t	*search;
 	char		netpath[MAX_OSPATH];
@@ -2283,6 +2304,7 @@ static int COM_FindFileRun (const char *filename, int *handle, FILE **file,
 	if (file)
 		*file = NULL;
 	com_filesize = -1;
+	*nowhere = true; // QVR
 	return com_filesize;
 }
 
@@ -2677,6 +2699,7 @@ static void COM_AddEnginePak (void)
 		search->pack = pak;
 		search->next = com_searchpaths;
 		com_searchpaths = search;
+		VR_FileCacheSearchChanged (); // QVR: the misses known (vr_fscache.cpp) may be found now
 	}
 
 	com_modified = modified;
@@ -2737,6 +2760,7 @@ void COM_AddGameDirectory (const char *dir)
 		q_strlcpy (search->filename, com_gamedir, sizeof(search->filename));
 		search->next = com_searchpaths;
 		com_searchpaths = search;
+		VR_FileCacheSearchChanged (); // QVR
 
 		// add any pak files in the format pak0.pak pak1.pak, ...
 		for (i = 0; ; i++)
@@ -2751,6 +2775,7 @@ void COM_AddGameDirectory (const char *dir)
 			search->pack = pak;
 			search->next = com_searchpaths;
 			com_searchpaths = search;
+			VR_FileCacheSearchChanged (); // QVR
 
 			// add engine pak after pak0.pak
 			if (i == 0 && j == 0 && path_id == 1u)
@@ -2771,12 +2796,14 @@ void COM_AddAddonPath (const char *path)
 	q_strlcpy (search->filename, path, sizeof(search->filename));
 	search->next = com_searchpaths;
 	com_searchpaths = search;
+	VR_FileCacheSearchChanged (); // QVR
 }
 
 void COM_ResetGameDirectories(const char *newgamedirs)
 {
 	const char *newpath, *path;
 	searchpath_t *search;
+	VR_FileCacheSearchChanged (); // QVR: the misses known (vr_fscache.cpp) may be found in the new folders
 	VR_PrepareCampaignDirectories(newgamedirs ? newgamedirs : "");
 	//Kill the extra game if it is loaded
 	while (com_searchpaths != com_base_searchpaths)

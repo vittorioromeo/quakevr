@@ -220,6 +220,7 @@ extern "C" void VR_ItemTextureClamp (qmodel_t *loadmodel)
 Mod_SkinIslands -- a skin's islands (the texels its triangles cover) for its normal map's heights and bumps
 (VR_SetHeightMask), on the hunk: per texel of a w x h skin, how many texels it lies inside (0 outside). `corners`:
 each triangle's three corners in texels (x, y), `numtris` of them. A texel within 0.7 of a texel of a triangle is in.
+A change here changes the skins' normal maps: bump NORMALCACHE_VERSION (vr_normalmaps.cpp; their disk cache).
 ===============
 */
 static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h);
