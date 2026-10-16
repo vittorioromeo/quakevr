@@ -256,6 +256,11 @@ extern	const char	*gl_version;
 QGL_ALL_FUNCTIONS(QGL_DECLARE_FUNC)
 #undef QGL_DECLARE_FUNC
 
+// QVR: the framebuffer bindings as the engine set them (GL_BindFramebufferFunc, wrapped at GL_Init): read back with a
+// glGet, NVIDIA's threaded driver waits for its thread (0.2-0.3 ms an eye, VR_RenderView's late acquire).
+GLuint GL_BoundDrawFramebuffer (void);
+void GL_CheckBoundFramebuffers (const char *where); // vr_debug_glstate: the shadow against GL, a mismatch printed
+
 void GL_BeginGroup (const char *name);
 void GL_EndGroup (void);
 

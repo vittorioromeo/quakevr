@@ -101,6 +101,43 @@ static GLuint globalvao;
 QGL_ALL_FUNCTIONS(QGL_DEFINE_FUNC)
 #undef QGL_DEFINE_FUNC
 
+// QVR: the framebuffer bindings' shadow (glquake.h, GL_BoundDrawFramebuffer). The driver's own function behind the
+// engine's pointer, which every bind goes through (vr_foveated.cpp wraps it again for a scene, and puts this back).
+static void (APIENTRYP gl_driverbindframebuffer) (GLenum target, GLuint framebuffer);
+static GLuint gl_drawframebuffer, gl_readframebuffer;
+
+static void APIENTRY GL_ShadowBindFramebuffer (GLenum target, GLuint framebuffer)
+{
+	if (target != GL_READ_FRAMEBUFFER)
+		gl_drawframebuffer = framebuffer;
+	if (target != GL_DRAW_FRAMEBUFFER)
+		gl_readframebuffer = framebuffer;
+	gl_driverbindframebuffer (target, framebuffer);
+}
+
+static void GL_InstallFramebufferShadow (void)
+{
+	if (GL_BindFramebufferFunc != GL_ShadowBindFramebuffer) // (loaded anew by a vid_restart's GL_CheckExtensions)
+		gl_driverbindframebuffer = GL_BindFramebufferFunc;
+	GL_BindFramebufferFunc = GL_ShadowBindFramebuffer;
+	GL_BindFramebufferFunc (GL_FRAMEBUFFER, 0); // a known start
+}
+
+GLuint GL_BoundDrawFramebuffer (void)
+{
+	return gl_drawframebuffer;
+}
+
+void GL_CheckBoundFramebuffers (const char *where)
+{
+	GLint draw = 0, read = 0;
+	glGetIntegerv (GL_DRAW_FRAMEBUFFER_BINDING, &draw);
+	glGetIntegerv (GL_READ_FRAMEBUFFER_BINDING, &read);
+	if ((GLuint) draw != gl_drawframebuffer || (GLuint) read != gl_readframebuffer)
+		Con_Printf ("glstate: %s: framebuffers draw %d read %d bound, the engine believes %u, %u\n", where, draw, read,
+			gl_drawframebuffer, gl_readframebuffer);
+}
+
 typedef struct glfunc_t {
 	void**			ptr;
 	const char*		name;
@@ -1355,6 +1392,7 @@ static void GL_Init (void)
 
 	VR_GLStep ("GL functions and extensions (GL_CheckExtensions)"); // QVR
 	GL_CheckExtensions ();
+	GL_InstallFramebufferShadow (); // QVR
 
 	VR_GLStep ("vertex array, buffer alignments"); // QVR
 	GL_GenVertexArraysFunc (1, &globalvao);

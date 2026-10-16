@@ -884,16 +884,18 @@ extern "C" int VR_RenderView()
         profile::end();
         if(image)
         {
-            GLint bound = 0;
-            if(keepBinding)
+            // The engine's own record of the binding, not glGetIntegerv: a glGet waits for NVIDIA's threaded driver to
+            // run all queued so far, 0.2-0.3 ms of the CPU an eye (VRTRACE 2026-10-16, B7).
+            if(keepBinding && VR_DebugGLState())
             {
-                glGetIntegerv(GL_FRAMEBUFFER_BINDING, &bound);
+                GL_CheckBoundFramebuffers("late acquire");
             }
+            const GLuint bound = keepBinding ? GL_BoundDrawFramebuffer() : 0;
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, stereo::targetFbo);
             GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, image, 0);
             if(keepBinding)
             {
-                GL_BindFramebufferFunc(GL_FRAMEBUFFER, static_cast<GLuint>(bound));
+                GL_BindFramebufferFunc(GL_FRAMEBUFFER, bound);
             }
         }
         return image;
