@@ -24,6 +24,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 #include "vr_zancle.hpp"
 
@@ -1117,16 +1118,15 @@ bool buildShape(const entity_t& e, int frame, Shape& out)
         }
         const int pose = hdr->frames[frame >= 0 && frame < hdr->numframes ? frame : 0].firstpose;
         const auto* base = reinterpret_cast<const byte*>(hdr);
-        const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + pose * hdr->numverts;
         const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
         const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+        mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
         for(int i = 0; i + 2 < hdr->numindexes; i += 3)
         {
             Triangle t;
             for(int k = 0; k < 3; k++)
             {
-                const trivertx_t& v = verts[mesh[indexes[i + k]].vertindex];
-                t.p[k] = glm::vec3{v.v[0], v.v[1], v.v[2]};
+                t.p[k] = mdldequant::poseVertex(hdr, pose, mesh[indexes[i + k]].vertindex);
             }
             out.tris.pushBack(t);
         }
