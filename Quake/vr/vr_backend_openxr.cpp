@@ -1,4 +1,4 @@
-// vr_backend_openxr.cpp -- OpenXR runtime backend (OpenGL, Windows).
+// vr_backend_openxr.cpp -- OpenXR runtime backend (OpenGL: WGL on Windows, GLX on Linux).
 //
 // Session lifecycle, stage reference space, the controllers' actions (poses, buttons, sticks,
 // haptics), one swapchain per eye and one for the 2D panel, and the wait/begin/locate/end frame
@@ -25,10 +25,18 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
+// The graphics binding: the game's OpenGL context, WGL's on Windows, GLX's on Linux (X11: SDL_VIDEODRIVER=x11).
+#ifdef _WIN32
 #include <windows.h>
 #include <unknwn.h> // IUnknown, which openxr_platform.h needs and lean Windows headers omit
-
 #define XR_USE_PLATFORM_WIN32
+#else
+#include <X11/Xlib.h>
+#include <GL/glx.h>
+#include <sys/time.h>
+#include <time.h>
+#define XR_USE_PLATFORM_XLIB
+#endif
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
@@ -50,6 +58,8 @@ namespace
 // GL images as made once its D3D11 images are, and reads the first of none. The D3D11 images are fetched before the
 // image structs' type is checked, so an earlier call that failed that check (an API layer's, enumerating the game's
 // swapchain as D3D11 or Vulkan ones) leaves the swapchain in that state (ROUND22.md, "VDXR swapchain crash").
+// Windows only (structured exceptions); elsewhere guardedCall just calls.
+#ifdef _WIN32
 struct Fault
 {
     DWORD code{0};
@@ -76,6 +86,13 @@ int faultFilter(const EXCEPTION_POINTERS* ep, Fault& fault)
     }
     return EXCEPTION_EXECUTE_HANDLER;
 }
+#else
+struct Fault
+{
+    unsigned long code{0};
+    void* address{nullptr};
+};
+#endif
 
 // call() under a structured exception handler (no object to unwind in here); fault.code nonzero when it crashed.
 template <typename Call>
@@ -97,6 +114,12 @@ XrResult guardedCall(Call& call, Fault& fault)
 }
 
 // "an access violation reading 0x0 in virtualdesktop-openxr.dll+0x9a668"
+#ifndef _WIN32
+void describeFault(const Fault&, char* out, size_t size) // (never called: nothing is caught here)
+{
+    q_strlcpy(out, "a crash (not caught on this platform)", size);
+}
+#else
 void describeFault(const Fault& fault, char* out, size_t size)
 {
     char module[MAX_PATH] = "an unknown module";
@@ -126,6 +149,7 @@ void describeFault(const Fault& fault, char* out, size_t size)
             static_cast<unsigned long long>(offset));
     }
 }
+#endif
 
 // Diagnostics mode's messenger (any thread): the message to openxr_debug.log (vr_diagnostics.cpp).
 XRAPI_ATTR XrBool32 XRAPI_CALL debugMessage(XrDebugUtilsMessageSeverityFlagsEXT severity, XrDebugUtilsMessageTypeFlagsEXT,
@@ -694,8 +718,10 @@ private:
     za::Vector<int64_t> offeredFormats;           // xrEnumerateSwapchainFormats' (createSwapchain checks against it)
     uint32_t maxImageWidth{0};                    // the system's largest swapchain image (0: not known)
     uint32_t maxImageHeight{0};
+#ifdef _WIN32
     HDC glDC{nullptr};                            // the game's GL context, as bound to the session
     HGLRC glRC{nullptr};
+#endif
     xrruntime::Attempt currentAttempt;            // the runtime being started (start())
     float debugButtonsWas{0.f};                   // vr_debug_buttons last frame
     PFN_xrGetVisibilityMaskKHR getVisibilityMask{nullptr};
@@ -814,9 +840,17 @@ private:
     // The local time, for the log (hh:mm:ss.mmm).
     [[nodiscard]] static const char* wallClock()
     {
+#ifdef _WIN32
         SYSTEMTIME t;
         GetLocalTime(&t);
         return va("%02d:%02d:%02d.%03d", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
+#else
+        timeval now{};
+        gettimeofday(&now, nullptr);
+        tm local{};
+        localtime_r(&now.tv_sec, &local);
+        return va("%02d:%02d:%02d.%03ld", local.tm_hour, local.tm_min, local.tm_sec, static_cast<long>(now.tv_usec / 1000));
+#endif
     }
 
     [[nodiscard]] static const char* stateName(XrSessionState state)
@@ -967,12 +1001,14 @@ private:
         xrruntime::warn("OpenXR: %s crashed inside %s: %s; caught (vr_xr_guard 1), this VR start fails\n",
             runtime[0] ? runtime : "the runtime", what, text);
         VR_GLStep("OpenXR: %s crashed: %s (caught)", what, text);
+#ifdef _WIN32
         // The runtime may have left its own GL context current (VDXR switches to the game's around its GL calls).
         if(glRC && wglGetCurrentContext() != glRC)
         {
             const BOOL made = wglMakeCurrent(glDC, glRC);
             xrruntime::warn("OpenXR: the game's GL context made current again after the crash: %s\n", made ? "done" : "FAILED");
         }
+#endif
         return XR_ERROR_RUNTIME_FAILURE;
     }
 
@@ -1007,11 +1043,13 @@ private:
         step("%s: requesting %dx%d %s (0x%llx), usage 0x%llx, %u sample, %u face, array %u, %u mip", what, width, height,
             glFormatName(colorFormat), static_cast<unsigned long long>(colorFormat), static_cast<unsigned long long>(usage),
             info.sampleCount, info.faceCount, info.arraySize, info.mipCount);
+#ifdef _WIN32
         if(vr_xr_test_drop_context.value != 0.f) // (the test of contextReady: no context current, once)
         {
             Cvar_SetValueQuick(&vr_xr_test_drop_context, 0.f);
             wglMakeCurrent(nullptr, nullptr);
         }
+#endif
         if(!contextReady(what))
         {
             return false;
@@ -1552,7 +1590,7 @@ private:
             int tries = 1;
             while(result == XR_ERROR_FORM_FACTOR_UNAVAILABLE && Sys_DoubleTime() - begin < vr_xr_steamvr_wait.value)
             {
-                Sleep(250);
+                SDL_Delay(250);
                 result = xrGetSystem(instance, &info, &systemId);
                 tries++;
             }
@@ -1596,6 +1634,13 @@ private:
     // its DC still its window's. Logged with both handles; made current again when it isn't; false (the call not made,
     // the start fails) when that fails or the window is gone. (1.0.1: two runtimes, VDXR and SteamVR, died in the first
     // swapchain on one player's PC: a runtime's GL calls without the game's context read null function pointers.)
+    // Windows only: on Linux the GLX context stays current on this thread for the session's life (no DC to lose).
+#ifndef _WIN32
+    bool contextReady(const char*)
+    {
+        return true;
+    }
+#else
     bool contextReady(const char* what)
     {
         const HGLRC rc = wglGetCurrentContext();
@@ -1645,9 +1690,11 @@ private:
             xrruntime::warn("OpenXR: the GL driver lacks GL_EXT_memory_object_win32, which VDXR's OpenGL path needs\n");
         }
     }
+#endif
 
     bool createSession()
     {
+#ifdef _WIN32
         XrGraphicsBindingOpenGLWin32KHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR};
         binding.hDC = wglGetCurrentDC();
         binding.hGLRC = wglGetCurrentContext();
@@ -1665,6 +1712,47 @@ private:
         {
             return false;
         }
+#else
+        // SDL's GLX context (current on this thread), its drawable, and the framebuffer configuration and visual it
+        // was made with, which the binding names too.
+        XrGraphicsBindingOpenGLXlibKHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR};
+        binding.xDisplay = glXGetCurrentDisplay();
+        binding.glxContext = glXGetCurrentContext();
+        binding.glxDrawable = glXGetCurrentDrawable();
+        if(!binding.xDisplay || !binding.glxContext || !binding.glxDrawable)
+        {
+            xrruntime::warn("OpenXR: no current GLX context (SDL_VIDEODRIVER=x11?)\n");
+            return false;
+        }
+        int configId = 0;
+        int screen = 0;
+        int count = 0;
+        glXQueryContext(binding.xDisplay, binding.glxContext, GLX_FBCONFIG_ID, &configId);
+        glXQueryContext(binding.xDisplay, binding.glxContext, GLX_SCREEN, &screen);
+        const int attributes[] = {GLX_FBCONFIG_ID, configId, None};
+        GLXFBConfig* configs = glXChooseFBConfig(binding.xDisplay, screen, attributes, &count);
+        if(!configs || count == 0)
+        {
+            if(configs)
+            {
+                XFree(configs);
+            }
+            xrruntime::warn("OpenXR: the GLX context's framebuffer configuration not found\n");
+            return false;
+        }
+        binding.glxFBConfig = configs[0];
+        XVisualInfo* visual = glXGetVisualFromFBConfig(binding.xDisplay, configs[0]);
+        XFree(configs);
+        if(!visual)
+        {
+            xrruntime::warn("OpenXR: the GLX context's visual not found\n");
+            return false;
+        }
+        binding.visualid = static_cast<uint32_t>(visual->visualid);
+        XFree(visual);
+        step("xrCreateSession (OpenGL: GLX context %p, drawable 0x%lx)", static_cast<void*>(binding.glxContext),
+            static_cast<unsigned long>(binding.glxDrawable));
+#endif
 
         XrSessionCreateInfo info{XR_TYPE_SESSION_CREATE_INFO};
         info.next = &binding;

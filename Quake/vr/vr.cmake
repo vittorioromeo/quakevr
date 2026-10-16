@@ -22,8 +22,10 @@ target_compile_definitions(ironwail PRIVATE ZA_STATIC)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../../VERSION" QVR_VERSION LIMIT_COUNT 1)
 string(STRIP "${QVR_VERSION}" QVR_VERSION)
 target_compile_definitions(ironwail PRIVATE "QVR_VERSION=\"${QVR_VERSION}\"")
-# OpenXR: the vendored Windows loader. The backend's graphics binding is OpenGL on Windows (WGL)
-# only, so elsewhere the build has the mock backend alone until it gets a GLX/EGL binding.
+# OpenXR: the backend's graphics binding is the game's OpenGL context, WGL's on Windows (the vendored loader), GLX's on
+# Linux (the system's OpenXR headers and loader, X11 and GLX; docs/vr-port/LINUX_ARM64.md). A Linux build without the
+# OpenXR headers or loader has the mock backend alone, as macOS. QVR_OPENXR_LIBRARY picks the loader by hand (on the
+# Steam Frame, SteamVR's: /opt/steamvr/bin/linuxarm64/libopenxr_loader.so).
 if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 	set(QVR_OPENXR_DIR "${CMAKE_CURRENT_LIST_DIR}/../../Windows/OpenXR")
 	target_include_directories(ironwail PRIVATE "${QVR_OPENXR_DIR}/include")
@@ -31,6 +33,21 @@ if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 	target_compile_definitions(ironwail PRIVATE QVR_HAVE_OPENXR)
 	add_custom_command(TARGET ironwail POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${QVR_OPENXR_DIR}/lib/x64/openxr_loader.dll" $<TARGET_FILE_DIR:ironwail>)
+elseif (UNIX AND NOT APPLE)
+	find_path(QVR_OPENXR_INCLUDE_DIR openxr/openxr.h)
+	find_library(QVR_OPENXR_LIBRARY NAMES openxr_loader HINTS /opt/steamvr/bin/linuxarm64)
+	find_package(X11)
+	if (QVR_OPENXR_INCLUDE_DIR AND QVR_OPENXR_LIBRARY AND X11_FOUND)
+		target_include_directories(ironwail PRIVATE "${QVR_OPENXR_INCLUDE_DIR}" ${X11_INCLUDE_DIR})
+		target_link_libraries(ironwail PRIVATE "${QVR_OPENXR_LIBRARY}" ${X11_LIBRARIES})
+		if (TARGET OpenGL::GLX)
+			target_link_libraries(ironwail PRIVATE OpenGL::GLX) # (GLVND's; a legacy libGL has GLX in it)
+		endif()
+		target_compile_definitions(ironwail PRIVATE QVR_HAVE_OPENXR)
+		message(STATUS "Quake VR: OpenXR (GLX) with ${QVR_OPENXR_LIBRARY}")
+	else()
+		message(STATUS "Quake VR: no OpenXR headers, loader or X11 found: the mock backend only")
+	endif()
 endif()
 
 # No exceptions (docs/vr-port/CODE_STYLE.md): the module and Zancle are built without them (clang-cl /EHs-c-, after
