@@ -101,6 +101,7 @@
 #include "vr_propthink.hpp"
 #include "vr_retro.hpp"
 #include "vr_fatigue.hpp"
+#include "vr_frame_synthesis.hpp"
 #include "vr_xr_runtime.hpp"
 #include "vr_weight.hpp"
 #include "vr_weapons.hpp"
@@ -193,6 +194,7 @@ void stopBackend()
     }
 
     Con_Printf("VR: stopping %s backend\n", state->backend->name());
+    frame_synthesis::shutdown();
     state->backend->stop();
     state->backend.reset();
 }
@@ -293,7 +295,7 @@ void startGameCommands()
         if(vr_setup_pending.value != 0.f)
         {
             // A first start (no saved config: vr_setup_pending, vr_cvars.cpp): the calibration room, not the hub.
-            Cvar_SetValueQuick(&vr_setup_pending, 0.f);
+            // Keep an unfinished first calibration pending across shutdown.
             Con_Printf("VR: a first start: VR Calibration (the main menu's first row runs it again)\n");
             Cbuf_InsertText("vr_setup\n");
             return;
@@ -1417,12 +1419,12 @@ void runtimeMenuFrame()
 {
     RuntimeMenuState& m = runtimeMenu;
     const Backend* b = backend();
-    const bool open = (b && b->runtimeMenuOpen()) || vr_debug_runtime_menu.value != 0.f;
+    const bool open = (b && (b->runtimeMenuOpen() || !b->userPresent())) || vr_debug_runtime_menu.value != 0.f;
     const bool single = sv.active && svs.maxclients == 1 && !cls.demoplayback;
     const bool pause = open && single && vr_xr_unfocused_pause.value != 0.f;
     if(open != m.open)
     {
-        Con_Printf("VR: the runtime's menu %s%s\n", open ? "has the focus" : "gave the focus back",
+        Con_Printf("VR: runtime menu or absent headset %s%s\n", open ? "paused input" : "restored input",
             !open || pause ? "" : !single ? " (not a single player game: it runs on)" : " (vr_xr_unfocused_pause 0: the game runs on)");
     }
     if(pause && !m.paused)
@@ -1784,7 +1786,7 @@ void statusLines(za::Vector<za::String>& out)
 
 int scaledEyeSize(int image, int max)
 {
-    const float scale = CLAMP(0.25f, vr_render_scale.value, 2.f);
+    const float scale = CLAMP(0.18f, vr_render_scale.value, 2.f);
     int size = static_cast<int>(za::lround(static_cast<double>(image) * scale));
     if(max > 0)
     {

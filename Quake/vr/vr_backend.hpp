@@ -13,6 +13,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <cstdint>
+
 
 namespace qvr
 {
@@ -135,6 +137,47 @@ struct EyeView
     Fov fov;
 };
 
+// A runtime-owned image is a graphics API resource, not a GL name that can be
+// safely reused as a VkImage (or vice versa). Keep native handles and image
+// metadata explicit at the backend/renderer boundary.
+enum class GraphicsApi : za::U8
+{
+    OpenGL,
+    Vulkan
+};
+
+struct GraphicsImage
+{
+    GraphicsApi api{GraphicsApi::OpenGL};
+    std::uint64_t image{0}; // Opaque 64-bit handle payload; encode/decode with the native API's handle type.
+    std::uint64_t view{0};  // Optional API-native view, e.g. VkImageView.
+    std::int64_t format{0}; // API-native format enum (GL internal format or VkFormat).
+    int width{0};
+    int height{0};
+
+    [[nodiscard]] explicit operator bool() const { return image != 0; }
+};
+
+struct FrameSynthesisImages
+{
+    std::uint64_t contentFrameId{0}; // Acquire token; configuration queries return zero.
+    GraphicsImage motion;
+    GraphicsImage depth;
+    bool srgb8Motion{false};
+    float motionScaleX{1.f}, motionScaleY{1.f};
+    float motionOffsetX{0.f}, motionOffsetY{0.f};
+};
+
+struct FrameSynthesisMetadata
+{
+    std::uint64_t contentFrameId{0}; // Echo the token only after this frame's export succeeds.
+    float nearZ{0.f}; // meters at depth 0, far clip when reversed
+    float farZ{0.f};  // meters at depth 1, near clip when reversed
+    Pose appSpaceDelta;
+    float motionScaleX{1.f}, motionScaleY{1.f};
+    float motionOffsetX{0.f}, motionOffsetY{0.f};
+};
+
 struct FrameState
 {
     bool shouldRender{false}; // the runtime wants this frame's eyes rendered
@@ -234,20 +277,34 @@ public:
         return nullptr;
     }
 
-    // GL texture to render an eye into, between acquire and release.
-    [[nodiscard]] virtual unsigned acquireEyeImage(int eye) = 0;
-    virtual void releaseEyeImage(int eye) = 0;
+    // Runtime-owned graphics image to render an eye into, between acquire and release.
+    [[nodiscard]] virtual GraphicsImage acquireEyeImage(int eye) = 0;
+    // Completes the producer write, possibly deferring interop transfer/release
+    // until completeFrameExports. False rejects the stereo projection; true
+    // still requires completeFrameExports before submission.
+    [[nodiscard]] virtual bool releaseEyeImage(int eye) = 0;
+
+    [[nodiscard]] virtual bool frameSynthesisAvailable() const { return false; }
+    [[nodiscard]] virtual FrameSynthesisImages frameSynthesisConfiguration(int /* eye */) const { return {}; }
+    [[nodiscard]] virtual FrameSynthesisImages acquireFrameSynthesisImages(int /* eye */) { return {}; }
+    virtual void releaseFrameSynthesisImages(int /* eye */, bool /* valid */, const FrameSynthesisMetadata&) {}
+    // Finish any deferred API-interop writes after both eye renders. `stereoRendered`
+    // is false when the frame must be discarded; backends still drain acquired images.
+    [[nodiscard]] virtual bool completeFrameExports(bool /* stereoRendered */) { return true; }
+    virtual void rejectFrameSynthesis() {}
+    [[nodiscard]] virtual bool lastFrameSubmitted() const { return true; }
+    [[nodiscard]] virtual double previousProjectionTime() const { return -1.0; }
 
     // Finishes the frame begun by beginFrame; `rendered` if the eye images were rendered (or, FrameState::hold, the last
     // rendered ones are to be shown again).
     virtual void endFrame(bool rendered) = 0;
 
     // A flat panel the runtime shows in front of the player while the world is not rendered
-    // (menus before a map, the console, loading): the GL texture to copy the 2D layer into, or
-    // 0 without one. At most once per frame; shown with the frame endFrame finishes.
-    [[nodiscard]] virtual unsigned acquirePanelImage(int /* width */, int /* height */)
+    // (menus before a map, the console, loading): a runtime-owned target image to copy the 2D
+    // layer into, or an empty image when unavailable. At most once per frame.
+    [[nodiscard]] virtual GraphicsImage acquirePanelImage(int /* width */, int /* height */)
     {
-        return 0;
+        return {};
     }
     virtual void releasePanelImage()
     {
@@ -270,6 +327,13 @@ public:
     [[nodiscard]] virtual bool runtimeMenuOpen() const
     {
         return false;
+    }
+
+    // Sensor-reported presence is independent of input focus. Backends/runtimes
+    // without a presence sensor retain the existing always-present behavior.
+    [[nodiscard]] virtual bool userPresent() const
+    {
+        return true;
     }
 
     // The headset's name as the runtime gives it (OpenXR's systemName; "" if none): its panel looked up by it for the

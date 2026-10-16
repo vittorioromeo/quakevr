@@ -2280,13 +2280,20 @@ static GLenum	currenttexunit = GL_TEXTURE0_ARB;
 GL_SelectTexture
 ================
 */
-static void GL_SelectTexture (GLenum texunit)
+void GL_SelectTexture (GLenum texunit)
 {
 	if (texunit == currenttexunit)
 		return;
 
 	GL_ActiveTextureFunc(texunit);
 	currenttexunit = texunit;
+}
+
+void GL_InvalidateTextureBinding (GLenum texunit)
+{
+	GLuint index = texunit - GL_TEXTURE0;
+	if (index < countof (currenttexture))
+		currenttexture[index] = ~0u;
 }
 
 /*

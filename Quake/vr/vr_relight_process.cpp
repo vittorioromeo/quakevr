@@ -8,6 +8,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/ToString.hpp"
+#include <stdlib.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN

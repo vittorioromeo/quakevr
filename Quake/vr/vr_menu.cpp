@@ -5683,8 +5683,9 @@ za::Vector<Item> pageDebugProfiling()
                   "never move them."),
         command("Benchmark Capture (10 s)", "vr_bench_begin manual 10s")
             .help("vr_bench_begin manual 10s: the next 10 seconds' frame times (median, 95th and 99th percentiles, worst), "
-                  "each GPU pass, the heap events and what there is, into quakevr/profile/bench/manual.json and a line in "
-                  "the console (docs/vr-port/BENCHMARKS.md). Stand still and press it."),
+                  "each GPU pass, the heap events, scene counts and a sparse player map-position trail, into "
+                  "quakevr/profile/bench/manual.json and a line in the console (docs/vr-port/BENCHMARKS.md). "
+                  "Stand still and press it."),
         cycle("External Profiler Collects", vr_bench_profiler, {{0.f, "As Started"}, {1.f, "Benchmark Windows"}, {2.f, "Map Loads"}})
             .help("For a CPU profiler run on the game (VTune started paused: -start-paused): Benchmark Windows resumes its "
                   "collection for each Benchmark Capture (vr_bench_begin) alone, Map Loads for each load alone (the map "
@@ -9587,7 +9588,7 @@ za::Vector<Item> pageMain()
 [[nodiscard]] za::Vector<Item> pageVrsScaling()
 {
     return {
-        slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
+        slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.18f, 2.f)
             .help("Eye rendering resolution, times the headset's. Above 1: smoother edges, slower. Below 1: faster, "
                   "blurrier."),
         cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})
@@ -9828,7 +9829,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
                   "1.0.0 way, if your hands' angle changed). From the next VR start."),
         toggle("OpenXR Timing Log", vr_xr_log_timing).advanced()
             .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state."),
-        slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
+        slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.18f, 2.f)
             .help("Eye rendering resolution, times the headset's (SteamVR's resolution included); resampled to it."), // + the size (renderScaleHelp)
         cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})
             .help("Below Render Scale 1: how the eyes are enlarged to the headset's size. FSR (AMD) and NIS (NVIDIA) keep edges and text sharper than bilinear, near the lens centre."),

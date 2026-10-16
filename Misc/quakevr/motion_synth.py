@@ -226,6 +226,8 @@ class Take:
         self.target = target
         self.note = note
         self.frames = []  # (t, phase, {hand: (pos, quat)}, {hand: grip})
+        self.triggers = []  # per frame: {hand: trigger pulled} (a gun's trigger; buttons bit 1)
+        self.trig = {"main": False, "off": False}
         self.pose = {"main": ((0.35, -0.2, eye_height - 0.45), hand_pose("main", (1, 0, 0), (0, 0, 1))),
                      "off": ((0.35, 0.2, eye_height - 0.45), hand_pose("off", (1, 0, 0), (0, 0, 1)))}
         self.grips = {"main": main_weapon != "fist", "off": off_weapon != "fist"}
@@ -239,8 +241,12 @@ class Take:
     def grip(self, hand, on):
         self.grips[hand] = on
 
+    def trigger(self, hand, on):
+        self.trig[hand] = on
+
     def _emit(self):
         self.frames.append((self.t, self.phase, dict(self.pose), dict(self.grips)))
+        self.triggers.append(dict(self.trig))
 
     def hold(self, seconds, phase=None):
         if phase:
@@ -303,7 +309,9 @@ class Take:
                 row.update({"raw_%s_w%s" % (p, a): "%.5f" % x for a, x in zip("xyz", w)})
                 row.update({"raw_%s_valid" % p: "1", "raw_%s_vvalid" % p: "1", "raw_%s_gvalid" % p: "0"})
                 g = grips[hand]
-                row.update({"%s_buttons" % p: str(2 if g else 0), "%s_grip" % p: "1" if g else "0", "%s_trigger" % p: "0",
+                tr = self.triggers[i][hand]
+                row.update({"%s_buttons" % p: str((2 if g else 0) | (1 if tr else 0)), "%s_grip" % p: "1" if g else "0",
+                            "%s_trigger" % p: "1" if tr else "0",
                             "%s_thumb" % p: "1", "%s_stick_x" % p: "0", "%s_stick_y" % p: "0",
                             "%s_wid" % p: str(self.weapons[hand]), "%s_wflags" % p: "0",
                             "%s_helping" % p: "1" if (hand == "off" and g and self.weapons["off"] == 0 and hand not in self.fists) else "0"})
@@ -536,6 +544,31 @@ def fix_preset(name, args):
     return None
 
 
+def gun_preset(name, args):
+    """`gun_kill`: the main hand holds a shotgun (--gun) aimed at the dummy's chest and pulls the trigger once, then
+    waits (the dummy's death, its decals and the frames after): a take to replay on the headset
+    (run-dummy-kill-repro.py --scenario replay --repeat N), one kill per play."""
+    if name != "gun_kill":
+        return None
+    ws, eye = args.world_scale, args.eye_height
+    gun = args.gun
+    take = Take("gun_kill_" + gun, rate=args.rate, world_scale=ws, eye_height=eye, main_weapon=gun, target=(args.distance, 0.0),
+                note="synthetic: one trigger pull at the dummy")
+    hand = (0.4, -0.15, eye - 0.35)
+    chest = (args.distance, 0.0, eye - 0.35)
+    axis = norm(sub(chest, hand))
+    q = weapon_pose("main", "shotgun", axis, (0.0, 0.0, -1.0))
+    take.start({"main": (hand, q)})
+    take.hold(0.6)
+    take.hold(0.3, phase="rec")
+    take.trigger("main", True)
+    take.hold(0.15)
+    take.trigger("main", False)
+    take.hold(args.after)
+    take.hold(0.3, phase="tail")
+    return take
+
+
 def preset(name, args):
     two = args.two_handed
     ws, eye = args.world_scale, args.eye_height
@@ -628,6 +661,9 @@ def preset(name, args):
     if take:
         return take
     take = liftjudo_preset(name, args)
+    if take:
+        return take
+    take = gun_preset(name, args)
     if take:
         return take
     take = fix_preset(name, args)
@@ -760,6 +796,7 @@ LIFTJUDO_PRESETS = ["lift_straight", "lift_fast", "no_lift_slow", "no_lift_sidew
 NECKSNAP_PRESETS = ["neck_snap_turn", "no_neck_snap_shoulders", "no_neck_snap_small"]
 DECAP_PRESETS = ["decapitation_horizontal_rtl", "decapitation_horizontal_ltr", "decapitation_diagonal_down_left",
                  "no_decapitation_flat", "no_decapitation_body", "no_decapitation_stab"]
+GUN_PRESETS = ["gun_kill"]
 FIX_PRESETS = ["chop_horizontal", "chop_diagonal", "chop_overhead", "punch_down_gib", "chop_down_gib",
                "punch_straight_off", "palm_shove_2h_torch", "palm_shove_torch_only"]
 PRESETS = ["slash_overhead", "slash_horizontal_rtl", "slash_horizontal_ltr", "slash_diagonal_down_left", "stab",
@@ -798,10 +835,13 @@ def main():
                     "1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 fiend, 6 shambler, 7 zombie, 8 vore, 9 scrag, "
                     "10 rottweiler, 11 spawn, 12 rotfish, 13 gremlin, 14 centroid, 15 mummy, 16 wrath, 17 overlord, "
                     "18 electric eel)")
+    ap.add_argument("--gun", default="super_shotgun", choices=("shotgun", "super_shotgun", "nailgun"),
+                    help="the gun_kill preset's weapon (aimed along the shotgun's barrel line)")
+    ap.add_argument("--after", type=float, default=2.5, help="the gun_kill preset: seconds held after the shot")
     ap.add_argument("--dummy-health", type=int, help="its health (vr_dummy_health; -1 its enemy's own)")
     args = ap.parse_args()
     if args.list or not args.preset:
-        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS + NECKSNAP_PRESETS + LIFTJUDO_PRESETS))
+        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS + NECKSNAP_PRESETS + LIFTJUDO_PRESETS + GUN_PRESETS))
         return
     if args.settings_from:
         configure(settings_from_cfg(args.settings_from))

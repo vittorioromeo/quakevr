@@ -5,7 +5,8 @@
 // phase's CPU time (vr_profile.hpp's Phase), each GPU phase's time as it is read back (the eyes, the shadow maps, the
 // world, the models, the particles, the decals...), the frame's traces, draw calls and alias models, and the main
 // thread's heap events; and every 16th frame what there is (edicts, monsters alive, Box3D bodies awake, particles,
-// decals, lights). vr_bench_end (or the frame count, or the seconds, reached) writes it all to
+// decals, lights), plus a sparse trail of the single-player body's map-space position and angles. vr_bench_end (or the
+// frame count, or the seconds, reached) writes it all to
 // <gamedir>/profile/bench/<name>.json: means, medians, 95th and 99th percentiles, worst frames, hitch counts, the
 // graphics settings and the counts at the start and end (scripts check the set-up was the same from run to run), and
 // prints one "vr_bench: ..." line. vr_bench_seed <n> restarts the C library's random numbers (QuakeC's random())
@@ -34,6 +35,10 @@ void poseSampled();
 void submitted();
 // vr_profile.cpp: a frame's GPU phases read back (ms; 0 for a phase it did not time).
 void gpuFrame(const double (&phaseMs)[profile::PhaseCount]);
+
+// Opt-in exact monster death markers (QC combat.qc); queued in fixed storage, written only at capture end.
+[[nodiscard]] bool killMarkersEnabled();
+void noteKill(int victim, const char* victimClass, const char* weapon, int hitKind);
 
 // vr_startup.cpp: a map's load ended (its first frame drawn) while recording: what it was ("map e1m2: e1m2"), the map,
 // its total, its frames before the signon, its stages in order (count 1) and its kinds of work (ms summed, count).

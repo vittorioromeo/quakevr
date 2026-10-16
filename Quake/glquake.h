@@ -562,6 +562,7 @@ void GL_BuildLightmaps (void);
 
 void GL_DeleteBModelBuffers (void);
 void GL_BuildBModelVertexBuffer (void);
+glvert_t *R_BuildBModelVertexData (size_t *out_bytes); // renderer-independent CPU mesh build; caller VR_HeapFree()s
 void GL_BuildBModelMarkBuffers (void);
 void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *hdr);
 void GLMesh_LoadVertexBuffers (void);

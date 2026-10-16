@@ -458,6 +458,9 @@ void(entity player, string text, float seconds) viewmessage = #0;
 void(float to, vector v) WriteVec3 = #0; // three WriteCoords
 
 float() highlighting = #0; // a highlight log is running (vr_highlights; vr_highlights.qc)
+// Diagnostic only: fixed-storage exact monster death event during an opt-in benchmark capture.
+float() benchkillactive = #0;
+void(entity victim, string weapon, float hitkind) benchkill = #0;
 // A moment for the highlight log: its kind, score (0: the kind's own), what it was done to, with what, and the game time
 // it began (0: now).
 void(string kind, float score, entity subject, string detail, float since) highlight = #0;

@@ -72,10 +72,12 @@ Debug > Profiling and Memory > **Benchmark Capture (10 s)** does the same in the
 | `cpu_phase_ms` | each always-on phase's CPU time a frame (server, SV_Physics, client read, view entities, screen, eyes, sound, rigid bodies, shadow maps, world+brush, alias, particles, vr particles, decals, 3D) |
 | `gpu_phase_ms` | each GPU phase a frame: the eyes, the runtime's calls, shadow maps, world+brush, alias, particles, vr particles, decals, 3D |
 | `counts` | at the start, every 16th frame (avg, max) and the end: edicts, monsters alive, Box3D bodies / awake / contacts, Ironwail's and Quake VR's particles, decals, dynamic lights, shadowed lights |
+| `player_samples` | the single-player body's world position and angles at the first frame, about once a second, and the last frame; align a hitch or counter spike with a place in the map |
 | `marks` | the window's parts (`vr_bench_mark <label>`: from the next recorded frame to the next mark or the end): each one's frames, first, worst and mean frame, worst CPU work, frames over 33 ms |
 | `loads` | each map load that ended (its first frame drawn) inside the window: what (`map e1m1: e1m1`, `changelevel e1m2: e1m2`, `restart e1m1: e1m1`), the map, `total_ms` from the command to the first frame drawn, `frames_to_signon`, its `first_frame` and the worst of the second `after` it (90 frames, as `marks`), its `stages` in order (`vr_startup_times`' marks: `[name, ms]`) and its `work` across them (`[name, ms, count]`: textures, image files, alias models, normal maps, external material maps, ragdoll rigs, hulls...) |
 | `settings`, `eye_resolution`, `gl_renderer`, `map`, `date` | the context |
 
+Player samples are the Quake player entity's map-space origin and body angles; they do not represent the headset pose.
 Percentiles are nearest-rank over all the window's frames (hitches included). The recorder stores a few numbers a
 frame into vectors reserved at `vr_bench_begin` (no allocation while recording, so the heap counts are the game's).
 
@@ -181,6 +183,8 @@ settings) compare with new runs under the new names (`qvrbench.py`'s `renamed`).
 | `tour_mg3_<map>` | mg3/maps | map1, map2, secret2 (MG3) | Dawn of the Machine's map at skill 2: the spawn and five pickups' places, four ways each, monsters asleep. Needs the owned rerelease MG3 data (`vr_campaign_native mg3` in the script). |
 | `mg3_<map>_awake` | mg3/combat | map1, map2, secret2 (MG3) | The map's whole count (`vr_test_monsters 4`: the deferred ones brought in) woken at once (`vr_test_monsters 2`), hunting the god-mode player at the spawn. |
 | `mg3_<map>_kill`, `mg3_map2_kill_r32` | mg3/gore | map1, map2, secret2 (MG3) | As `_awake`, then every monster killed in one frame (`vr_test_monsters 3`), `vr_ragdoll_max` 8 (shipped) or 32: the deaths' frame (`blow`) and the bodies falling (`after`). |
+| `spacewarp_one_mover` | spacewarp/play | vrfiringrange | Adds one hostile grunt approaching a god-mode player, without player fire or gore. Existing map actors and ambient VR particles remain, so this is a light gameplay probe rather than an isolated one-object fixture. |
+| `spacewarp_motion_fixture` | spacewarp/fixture | vrcalibration | Spawns one crate in the monster-free calibration room, flings it during the measured window, and logs its final position to verify motion; no map monsters or player fire. |
 | `play_e1m1_fight` | play/combat | e1m1 (skill 2) | Realistic play: E1M1's computer room (`setpos 1312 1150 -240`, its 4 grunts ahead), 3 dogs and 2 grunts more, hostile; the shotgun in the main hand aimed at the nearest live monster (`vr_mock_hand_aim main monster`), a shot every 50 frames. |
 | `play_e1m1_lights` | play/lights | e1m1 (skill 2) | The same room with 3 grunts and a dog more (E1M1's own kinds: their ragdoll rigs made at the map's start), the flashlight on, the rocket launcher fired every 70 frames: a fight's dynamic lights, explosions, gibs, blood. |
 | `play_vrstart_walk` | play/maps | vrstart | The hub as first seen: the mock autopilot walks the pier and the stairs to the gate's terrace (`vr_mock_walk_to`), then the head turns round once over the island. |
@@ -213,7 +217,7 @@ sock, 29 MB, needs Arcane Dimensions), **Arcane Dimensions 1.81** (306 MB, a mod
 
 ### Gore
 
-`gore_*`: limb gore and head pops at a crowd's scale, on the firing range. `vr_gore_test_crowd <units>` (Debug > Gore
+`gore_*`: limb gore and head pops at a crowd's scale. `gore_headpop_24` uses the original firing-range scene. `vr_gore_test_crowd <units>` (Debug > Gore
 Tests > Crowd Gore Tests) makes `vr_limb_test` and `vr_decap_test` act on every monster that near you at once, in one
 server frame, each as if it were the nearest (shots fired from just before it, not through the others), quietly: one
 `goretest: crowd` line (cuts, pops, heads, limbs lying). The blow scenarios mark the window `before` (10 frames),
@@ -601,23 +605,27 @@ prints the searches, rebuilds, edicts read again and differences since the last.
 `vr_edictindex_verify 1` that prints no ERROR line found the index exact for everything it did.
 
 In the console: `vr_profile_overlay 1` / `2`, `vr_profile_csv 1` / `0` (or `vr_profile_csv_toggle`, to bind to a key),
-`vr_profile_hitch 1.5`, `vr_profile_detail 2`, `vr_profile_gpu 4` (the GPU's times on one frame in 4: each timer query
-stalls the GPU a little; 1 every frame, 0 none). All are off again after a restart.
+`vr_profile_hitch 1.5`, `vr_profile_detail 2`, `vr_profile_gpu 4` (detailed GPU scopes on one frame in 4;
+phase GPU scopes every frame for any positive integer value; 0 disables both sets of GPU queries while CPU
+timing continues). Profiling is off again after a restart; `vr_profile_gpu` defaults to 4.
 
 **The call tree:** `vr_profile 1` (in the console) times each part of every frame, on the CPU and on the GPU (OpenGL
 timer queries, read a few frames later, on one frame in `vr_profile_gpu`), per eye. Every
 `vr_profile_interval` seconds (5; 0: only on demand) and on `vr_profile_dump` it writes the averages and the
 worst frame of each part to `quakevr/profile/profile_<map>_<date>_<time>.csv` (one file per map, one block of rows
 per interval; the header lines give the map, the eye resolution, the graphics preset and the graphics settings)
-and prints a one-line summary with the costliest parts. `vr_profile_dump` also prints the whole tree.
+and prints a one-line summary with the costliest parts. Unresolved GPU samples are dropped when their ring slot
+is reused, never read with a blocking wait; `gpu_dropped_samples` counts these separately from CPU hitches.
+GPU CSV fields are blank when no sample was resolved. `vr_profile_dump` also prints the whole tree.
 `vr_profile 2` also shows the profiler's panel over the wrist gadget. `vr_profile 0` (the default) stops it.
 
 To send me a profile: play a while with `vr_profile 1` in the same spot and settings (the start of E1M1, a big
 fight, ...), then `vr_profile_dump`, and send the `.csv` (and `qconsole.log` with `-condebug`). Comparing the
 presets (`vr_graphics_preset 1` .. `4`, a profile each) shows what each effect costs.
 
-Reading it: `frame` is the engine's frame on the CPU (`xr wait`, the headset's pacing, and `swap` are waiting, not
-work: "CPU busy" leaves them out). Its GPU time spans the frame on the GPU's clock, including time the GPU sits idle
+Reading it: `frame` is the engine's host wall time. The summary's "host excluding XR/swap waits" subtracts
+measured `xr wait`, `xr acquire`, `xr release`, `xr submit`, and `swap` calls; it estimates time outside those waits,
+not actual CPU execution. Its GPU time spans the frame on the GPU's clock, including time the GPU sits idle
 while the CPU waits in the runtime (`xr submit`: xrEndFrame paces the frame), so the eyes' own GPU time (the
 summary's "eyes") is the real load; `frame period` is the time
 between frames. Under `screen/3D`, `eye L` and `eye R` hold each eye's `scene` (`world+brush`, `alias` models,

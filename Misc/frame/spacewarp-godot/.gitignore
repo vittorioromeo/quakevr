@@ -1,0 +1,3 @@
+# Godot XR project (spacewarp-godot): editor cache and export output
+.godot/
+build/

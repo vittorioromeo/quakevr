@@ -4,6 +4,9 @@
 
 #include "vr_vram.hpp"
 #include "vr_engine.hpp"
+#if defined(__linux__)
+#include <GL/glext.h> // SDL's bundled extension headers may omit GL_TEXTURE_TARGET.
+#endif
 #include "vr_gpustats.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"

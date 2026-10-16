@@ -7,6 +7,36 @@ fixtures. Playtesting in the headset (build, controls, voice notes, what to try)
 `Misc/release/run_test_suite.py`, runs the scripts that give a verdict ([RELEASING.md](RELEASING.md), "Tests
 before publishing").
 
+## CPU-only renderer fixtures
+
+Configure with `-DQVR_BUILD_CPU_TESTS=ON`, then build `qvr_bsp_mesh_test` and run
+`ctest --test-dir <build-dir> -R qvr_bsp_mesh --output-on-failure`. The BSP mesh
+fixture checks opaque-surface filtering, convex fan indices, material ranges,
+loaded `qmodel_t` adaptation, owned position/UV copies, compact local indices,
+and rejection of invalid vertex spans. It needs no OpenXR runtime or headset.
+Passing it validates packet construction only; it does not prove that a Vulkan
+renderer consumes the packet.
+
+To compile the Vulkan upload/draw component into `ironwail`, configure with
+`-DQVR_ENABLE_NATIVE_VULKAN_BSP=ON`; this requires a Vulkan SDK and does not
+enable Vulkan OpenXR sessions or change the running renderer. The standalone
+fixture below separately exercises that component on the runtime-selected GPU.
+
+## OpenXR/Vulkan frame-synthesis fixture
+
+The device-dependent Vulkan fixture is separate from the ordinary test suite.
+Configure with `-DQVR_BUILD_OPENXR_VULKAN_FIXTURE=ON`, then build
+`qvr_openxr_vulkan_frame_loop`. CMake requires Vulkan headers/loader, `glslc`,
+and the repository's OpenXR headers/loader for this opt-in target; when a
+dependency is missing, configuration fails with an explicit message. The target
+is not added to CTest because it needs a running OpenXR runtime and supported
+graphics device. Run it manually on the headset host while SteamVR is active. It tests
+runtime-selected Vulkan device/session creation, synthesis swapchain creation,
+and a deterministic indexed-geometry submission/readback through a device-local
+vertex/index buffer. A successful run proves geometry upload, GPU writes and
+API submission only; use SteamVR's texture diagnostics and display/compositor
+evidence to determine whether synthesized frames were consumed and shown.
+
 ## The mock headset
 
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,

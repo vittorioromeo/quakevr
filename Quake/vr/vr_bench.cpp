@@ -2,6 +2,7 @@
 
 #include "vr_bench.hpp"
 #include "vr_tracy.h"
+#include "vr_bench_kills.hpp"
 #include "vr_cvars.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_box3d.hpp"
@@ -24,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <chrono>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -44,6 +46,14 @@ bool recording = false;
 
 namespace
 {
+
+cvar_t vr_bench_kills = {"vr_bench_kills", "0", CVAR_NONE};
+
+[[nodiscard]] long long unixMilliseconds()
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+}
 
 // An external CPU profiler's collection (VTune started with -start-paused): resumed and paused through the ITT
 // collector the profiler loads into the game (its path in INTEL_LIBITTNOTIFY64; it exports __itt_resume and
@@ -141,6 +151,7 @@ enum Count
 constexpr const char* countNames[CountCount] = {"edicts", "monsters_alive", "box3d_bodies", "box3d_awake",
     "box3d_contacts", "particles", "vr_particles", "decals", "dlights", "shadow_dlights", "shadow_maplights"};
 constexpr int countEvery = 16;
+constexpr int playerSampleEvery = 90;
 // GPU read-backs dropped at the start: the slots in flight then are the frames before it (vr_profile.cpp's ring).
 constexpr int gpuSkip = 6;
 // vr_bench_mark: the window's parts (fixed storage: a mark costs no allocation while recording).
@@ -173,6 +184,16 @@ struct LoadRecord
     za::Vector<LoadItem> work;
 };
 
+// Sparse world-space player samples: enough to line performance events up with a place in the map without adding
+// per-frame logging or noticeable capture overhead.
+struct PlayerSample
+{
+    int frame{0};
+    double seconds{0.0};
+    float origin[3]{};
+    float angles[3]{};
+};
+
 struct Capture
 {
     za::String name;
@@ -180,10 +201,13 @@ struct Capture
     int targetFrames{0};    // 0: until vr_bench_end (or the seconds)
     double targetSeconds{0.0};
     za::I64 startNs{0};
+    long long startUnixMs{0};
     int frames{0};
     int skip{0}; // the frame vr_bench_begin ran in (its rest only): not recorded
     int gpuSkipLeft{0};
     za::Vector<float> series[SeriesCount];
+    // Per-frame always-on phase timings locate CPU hitch sources without enabling the heavier call-tree profiler.
+    za::Vector<float> cpuPhase[PhaseCount];
     za::Vector<float> gpuEyes;
     za::Vector<float> gpu3d; // the whole 3D refresh (flat mode's view too)
     // The latency's proxy: a frame's pose (the tracking sampled, xrWaitFrame and xrLocateViews returned) to its submit
@@ -198,12 +222,14 @@ struct Capture
     int countMax[CountCount]{};
     int countSamples{0};
     int startCounts[CountCount]{};
+    za::Vector<PlayerSample> playerSamples;
     za::U64 heapBefore{0};
     za::U64 heapRequestedStart{0};
     za::U64 heapRequestedBefore{0};
     Mark marks[maxMarks];
     int markCount{0};
     za::Vector<LoadRecord> loads;
+    KillEvents kills;
 };
 Capture capture;
 
@@ -249,6 +275,34 @@ void takeCounts(int (&n)[CountCount])
         n[Dlights] += l.die >= cl.time && l.radius > 0.f ? 1 : 0;
     }
     lighting::shadowCounts(n[ShadowDlights], n[ShadowMapLights]);
+}
+
+void takePlayerSample(int frame)
+{
+    if(!recording || !sv.active || !sv.qcvm.progs || sv.qcvm.num_edicts <= 1)
+    {
+        return;
+    }
+    if(!capture.playerSamples.empty() && capture.playerSamples.back().frame == frame)
+    {
+        return;
+    }
+    qcvm_t* old = nullptr;
+    PR_PushQCVM(&sv.qcvm, &old);
+    edict_t* player = EDICT_NUM(1);
+    if(!player->free)
+    {
+        PlayerSample sample;
+        sample.frame = frame;
+        sample.seconds = static_cast<double>(za::Clock::nowNanoseconds() - capture.startNs) / 1e9;
+        for(int axis = 0; axis < 3; axis++)
+        {
+            sample.origin[axis] = player->v.origin[axis];
+            sample.angles[axis] = player->v.angles[axis];
+        }
+        capture.playerSamples.pushBack(sample);
+    }
+    PR_PopQCVM(old);
 }
 
 void printCounts(const char* when, const int (&n)[CountCount])
@@ -390,12 +444,16 @@ void writeLoads(FILE* f, const Capture& c)
 
 void finish()
 {
+    Capture& c = capture;
+    if(c.frames > 0)
+    {
+        takePlayerSample(c.frames - 1);
+    }
     recording = false;
     if(vr_bench_profiler.value == 1.f)
     {
         collect(false, "the window's end");
     }
-    Capture& c = capture;
     int endCounts[CountCount]{};
     takeCounts(endCounts);
     const double seconds = static_cast<double>(za::Clock::nowNanoseconds() - c.startNs) / 1e9;
@@ -472,7 +530,16 @@ void finish()
         fprintf(f, "%s\"%s\": %.4f", i ? ", " : "", profile::phaseName(static_cast<profile::Phase>(i)),
             c.cpuPhaseSum[i] / frames);
     }
-    fprintf(f, "},\n  \"gpu_frames\": %d,\n  \"gpu_phase_ms\": {", c.gpuFrames);
+    fprintf(f, "},\n  \"cpu_phase_stats_ms\": {\n");
+    for(int i = 0; i < PhaseCount; i++)
+    {
+        const Stats phase = stats(c.cpuPhase[i]);
+        fprintf(f,
+            "    \"%s\": {\"n\": %d, \"avg\": %.4f, \"p50\": %.4f, \"p95\": %.4f, \"p99\": %.4f, \"max\": %.4f}%s\n",
+            profile::phaseName(static_cast<profile::Phase>(i)), phase.n, phase.avg, phase.p50, phase.p95, phase.p99,
+            phase.max, i + 1 == PhaseCount ? "" : ",");
+    }
+    fprintf(f, "  },\n  \"gpu_frames\": %d,\n  \"gpu_phase_ms\": {", c.gpuFrames);
     first = true;
     for(int i = 0; i < PhaseCount; i++)
     {
@@ -492,6 +559,27 @@ void finish()
             c.startCounts[k], c.countSum[k] / za::max(c.countSamples, 1), c.countMax[k], endCounts[k]);
     }
     fprintf(f, "},\n");
+    fprintf(f, "  \"player_samples\": [");
+    for(za::SizeT i = 0; i < c.playerSamples.size(); i++)
+    {
+        const PlayerSample& p = c.playerSamples[i];
+        fprintf(f, "%s\n    {\"frame\": %d, \"seconds\": %.3f, \"origin\": [%.2f, %.2f, %.2f], "
+                   "\"angles\": [%.2f, %.2f, %.2f]}",
+            i ? "," : "", p.frame, p.seconds, p.origin[0], p.origin[1], p.origin[2], p.angles[0], p.angles[1],
+            p.angles[2]);
+    }
+    fprintf(f, "%s],\n", c.playerSamples.empty() ? "" : "\n  ");
+    fprintf(f, "  \"capture_started_unix_ms\": %lld,\n  \"kill_events_dropped\": %d,\n  \"kill_events\": [",
+        c.startUnixMs, c.kills.dropped);
+    for(int i = 0; i < c.kills.count; ++i)
+    {
+        const KillEvent& e = c.kills.events[i];
+        fprintf(f, "%s\n    {\"frame\": %d, \"host_frame\": %d, \"seconds\": %.6f, \"victim\": %d, "
+                   "\"victim_class\": \"%s\", \"weapon\": \"%s\", \"hit_kind\": %d}",
+            i ? "," : "", e.frame, e.hostFrame, e.seconds, e.victim, jsonEscaped(e.victimClass).cStr(),
+            jsonEscaped(e.weapon).cStr(), e.hitKind);
+    }
+    fprintf(f, "%s],\n", c.kills.count ? "\n  " : "");
     writeMarks(f, c);
     writeLoads(f, c);
     fprintf(f, "}\n");
@@ -566,6 +654,8 @@ void begin_f()
     {
         c.cpuPhaseSum[i] = 0.0;
         c.gpuPhaseSum[i] = 0.0;
+        c.cpuPhase[i].clear();
+        c.cpuPhase[i].reserve(reserve);
     }
     for(int k = 0; k < CountCount; k++)
     {
@@ -573,7 +663,10 @@ void begin_f()
         c.countMax[k] = 0;
     }
     c.countSamples = 0;
+    c.playerSamples.clear();
+    c.playerSamples.reserve(reserve / playerSampleEvery + 2);
     c.markCount = 0;
+    c.kills.clear();
     c.loads.clear();
     c.gpuFrames = 0;
     c.frames = 0;
@@ -585,6 +678,7 @@ void begin_f()
     c.heapBefore = heapEvents(heap);
     c.heapRequestedStart = c.heapRequestedBefore = heap.requestedBytes;
     c.startNs = za::Clock::nowNanoseconds();
+    c.startUnixMs = unixMilliseconds();
     recording = true;
 }
 
@@ -727,6 +821,7 @@ void frame(double periodMs, double hostMs, double busyMs, const za::I64 (&phaseN
         c.heapBefore = events;
         c.heapRequestedStart = c.heapRequestedBefore = heap.requestedBytes;
         c.startNs = za::Clock::nowNanoseconds();
+        c.startUnixMs = unixMilliseconds();
         c.cyclesBefore = mainCycles();
         if(c.skip == 0 && vr_bench_profiler.value == 1.f)
         {
@@ -748,7 +843,9 @@ void frame(double periodMs, double hostMs, double busyMs, const za::I64 (&phaseN
     }
     for(int i = 0; i < PhaseCount; i++)
     {
-        c.cpuPhaseSum[i] += static_cast<double>(phaseNs[i]) / 1e6;
+        const double ms = static_cast<double>(phaseNs[i]) / 1e6;
+        c.cpuPhaseSum[i] += ms;
+        c.cpuPhase[i].pushBack(static_cast<float>(ms));
     }
     if(c.frames % countEvery == 0)
     {
@@ -760,6 +857,10 @@ void frame(double periodMs, double hostMs, double busyMs, const za::I64 (&phaseN
             c.countMax[k] = za::max(c.countMax[k], n[k]);
         }
         c.countSamples++;
+    }
+    if(c.frames % playerSampleEvery == 0)
+    {
+        takePlayerSample(c.frames);
     }
     c.frames++;
     const bool framesDone = c.targetFrames > 0 && c.frames >= c.targetFrames;
@@ -786,6 +887,22 @@ void gpuFrame(const double (&phaseMs)[profile::PhaseCount])
     c.gpuEyes.pushBack(static_cast<float>(phaseMs[profile::EyeL] + phaseMs[profile::EyeR]));
     c.gpu3d.pushBack(static_cast<float>(phaseMs[profile::View3D]));
     c.gpuFrames++;
+}
+
+bool killMarkersEnabled()
+{
+    return recording && capture.skip == 0 && vr_bench_kills.value != 0.f;
+}
+
+void noteKill(int victim, const char* victimClass, const char* weapon, int hitKind)
+{
+    if(!killMarkersEnabled())
+    {
+        return;
+    }
+    Capture& c = capture;
+    c.kills.add(c.frames, host_framecount, static_cast<double>(za::Clock::nowNanoseconds() - c.startNs) / 1e9,
+        victim, victimClass, weapon, hitKind);
 }
 
 void loadDone(const char* what, const char* map, double totalMs, int frames, const LoadStage* stages, int stageCount,
@@ -853,6 +970,7 @@ void profilerCollect_f()
 
 void registerCommands()
 {
+    Cvar_RegisterVariable(&vr_bench_kills);
     Cmd_AddCommand("vr_profiler_collect", profilerCollect_f);
     Cmd_AddCommand("vr_bench_begin", begin_f);
     Cmd_AddCommand("vr_bench_end", end_f);
