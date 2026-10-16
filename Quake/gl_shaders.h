@@ -360,9 +360,14 @@ QVR_POSTPROCESS_GRADE_DITHER // QVR: graded (vr_grade) and dithered into the 8-b
 ////////////////////////////////////////////////////////////////
 
 #define FRAMEDATA_BUFFER \
+QVR_STEREO_VIEWS /* QVR: single-pass stereo: each view's ViewProj and EyePos (multiview twins only) */ \
 "layout(std140, binding=0) uniform FrameDataUBO\n"\
 "{\n"\
+"#ifdef QVR_MULTIVIEW\n"\
+"	mat4	ViewProjMono;\n"\
+"#else\n"\
 "	mat4	ViewProj;\n"\
+"#endif\n"\
 "	vec4	Fog;\n"\
 "	vec4	SkyFog;\n"\
 "	vec3	WindDir;\n"\
@@ -371,7 +376,11 @@ QVR_POSTPROCESS_GRADE_DITHER // QVR: graded (vr_grade) and dithered into the 8-b
 "	float	TextureDither;\n"\
 "	float	ShadowBias; // QVR: vr/vr_lighting.cpp\n"\
 "	float	DlightAngle; // QVR\n"\
+"#ifdef QVR_MULTIVIEW\n"\
+"	vec3	EyePosMono;\n"\
+"#else\n"\
 "	vec3	EyePos;\n"\
+"#endif\n"\
 "	float	Time;\n"\
 "	float	ZLogScale;\n"\
 "	float	ZLogBias;\n"\
@@ -428,6 +437,12 @@ QVR_FRAMEDATA_FIELDS /* QVR: the frame data's Quake VR fields (lights, liquids, 
 
 #define LIGHT_CLUSTER_IMAGE(mode) \
 "layout(rg32ui, binding=0) uniform " mode " uimage3D LightClusters;\n"\
+"#ifdef QVR_MULTIVIEW\n" /* QVR: single-pass stereo: the right eye's clusters (vr/vr_stereo_single.cpp) */ \
+"layout(rg32ui, binding=1) uniform " mode " uimage3D LightClustersRight;\n"\
+"#define QVR_LOAD_CLUSTER(c) (QVR_VIEW == 0 ? imageLoad(LightClusters, c) : imageLoad(LightClustersRight, c))\n"\
+"#else\n"\
+"#define QVR_LOAD_CLUSTER(c) imageLoad(LightClusters, c)\n"\
+"#endif\n"\
 
 ////////////////////////////////////////////////////////////////
 
@@ -878,7 +893,7 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "		cluster_coord.x = int(floor(in_coord.x));\n"
 "		cluster_coord.y = int(floor(in_coord.y));\n"
 "		cluster_coord.z = max(int(floor(log2(in_depth) * ZLogScale + ZLogBias)), 0);\n" // QVR: nearer than the first slice (the VR near plane is nearer): in it
-"		uvec2 clusterdata = imageLoad(LightClusters, cluster_coord).xy;\n"
+"		uvec2 clusterdata = QVR_LOAD_CLUSTER(cluster_coord).xy;\n" // QVR: the view's (single-pass stereo)
 "		if ((clusterdata.x | clusterdata.y) != 0u)\n"
 "		{\n"
 "#if " QS_STRINGIFY (SHOW_ACTIVE_LIGHT_CLUSTERS) "\n"
@@ -1325,10 +1340,16 @@ NOISE_FUNCTIONS
 "	vec4	DentScale; // QVR: ... its pose to units: xyz the scale, w z of the origin\n"\
 "};\n"\
 "\n"\
+QVR_STEREO_VIEWS /* QVR: single-pass stereo (multiview twins only) */ \
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
 "{\n"\
+"#ifdef QVR_MULTIVIEW\n"\
+"	mat4	ViewProjMono;\n"\
+"	vec3	EyePosMono;\n"\
+"#else\n"\
 "	mat4	ViewProj;\n"\
 "	vec3	EyePos;\n"\
+"#endif\n"\
 "	vec4	Fog;\n"\
 "	float	ScreenDither;\n"\
 "	InstanceData instances[];\n"\
@@ -2017,6 +2038,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "	vec3	vieworg;\n"
 "	uint	oldskyleaf;\n"
 "	uint	framecount;\n"
+"	vec3	vieworg2; // QVR: single-pass stereo: the other eye's (else vieworg)\n"
 "};\n"
 "\n"
 "void main()\n"
@@ -2040,7 +2062,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "\n"
 "	// backface culling\n"
 "	vec4 surfplane = SURF_PLANE(surfbase);\n"
-"	if (dot(surfplane.xyz, vieworg) < surfplane.w)\n"
+"	if (dot(surfplane.xyz, vieworg) < surfplane.w && dot(surfplane.xyz, vieworg2) < surfplane.w)\n" // QVR: either eye
 "		return;\n"
 "\n"
 "	// frustum culling\n"

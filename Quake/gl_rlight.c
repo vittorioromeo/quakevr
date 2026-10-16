@@ -198,6 +198,19 @@ void R_PushDlights (void)
 	GL_BindBufferRange (GL_UNIFORM_BUFFER, 1, buf, (GLintptr) ofs, sizeof (cluster_inputs));
 	GL_BindImageTextureFunc (0, gl_lightclustertexture, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RG32UI);
 	GL_DispatchComputeFunc ((LIGHT_TILES_X+7)/8, (LIGHT_TILES_Y+7)/8, LIGHT_TILES_Z);
+	if (VR_StereoSinglePhase () == 1) // QVR: single-pass stereo's pass: the right eye's clusters too, its own image (unit 1)
+	{
+		float proj[16];
+		GLuint right = VR_StereoSingleClusterTexture ();
+		VR_StereoSingleEyeMatrices (1, proj, cluster_inputs.view_matrix);
+		for (i = 0; i < 16; i++)
+			cluster_inputs.transposed_proj[i] = proj[((i & 3) << 2) | (i >> 2)];
+		GL_Upload (GL_UNIFORM_BUFFER, &cluster_inputs, sizeof (cluster_inputs), &buf, &ofs);
+		GL_BindBufferRange (GL_UNIFORM_BUFFER, 1, buf, (GLintptr) ofs, sizeof (cluster_inputs));
+		GL_BindImageTextureFunc (0, right, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RG32UI);
+		GL_DispatchComputeFunc ((LIGHT_TILES_X+7)/8, (LIGHT_TILES_Y+7)/8, LIGHT_TILES_Z);
+		GL_BindImageTextureFunc (1, right, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RG32UI);
+	}
 	GL_MemoryBarrierFunc (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	GL_BindImageTextureFunc (0, gl_lightclustertexture, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RG32UI);

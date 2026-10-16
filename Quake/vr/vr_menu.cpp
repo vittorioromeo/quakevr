@@ -5716,6 +5716,13 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_alias_eye_cache_stats: since the last time, the second eyes' models found set up by the first eye (in "
                   "full, the transform only, not at all) and, while Checked, the parts that came out different (none "
                   "expected)."),
+        toggle("Single-Pass Stereo (Experimental)", vr_stereo_single)
+            .help("vr_stereo_single: the opaque world, brush models and the models away from the eyes drawn once for both "
+                  "eyes (GL_OVR_multiview2) instead of once per eye; the rest is still drawn per eye. Less CPU per frame, "
+                  "the same images (docs/vr-port/STEREO.md). Off with MSAA, or when the driver lacks multiview."),
+        command("Single-Pass Stereo Info", "vr_stereo_single_info")
+            .help("vr_stereo_single_info: whether the driver can, the frames drawn in a single pass since the last time "
+                  "(and why not), the shaders made for it, in the console."),
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), and every load's total."),

@@ -17,4 +17,10 @@ namespace qvr::stereo
 // menuui::spectatorPreviewWanted), 0 when there is none current; `aspect` its height over its width.
 [[nodiscard]] unsigned spectatorPreview(float& aspect);
 
+// Single-pass stereo (vr_stereo_single.cpp): the eye whose projection and hidden area apply now; the lenses' hidden area
+// of eye `eye` drawn into the bound framebuffer; the eyes' scene colour and depth/stencil formats.
+void setCurrentEye(int eye);
+void drawHiddenAreaOf(int eye);
+void eyeSceneFormats(unsigned& color, unsigned& depth);
+
 } // namespace qvr::stereo

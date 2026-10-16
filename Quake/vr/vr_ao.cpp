@@ -635,12 +635,27 @@ void build()
 
 // This eye's tiles: each occluder's reach projected with the eye's view-projection (a box round it; the whole view
 // when it reaches behind the eye).
+// Single-pass stereo's multiview pass (vr_stereo_single.cpp): both eyes' tiles OR'd (each view reads them at its own
+// pixels: an occluder is in a tile if either eye sees it there).
+void binTiles(const float* m);
 void binTiles()
 {
     ZA_MEMSET(block.tiles, 0, sizeof(block.tiles));
     ZA_MEMSET(block.slices, 0, sizeof(block.slices));
-    const float depthScale = za::sqrt(m_sq(r_matviewproj[3], r_matviewproj[7], r_matviewproj[11])); // w per unit along the view
-    const float* m = r_matviewproj;
+    binTiles(r_matviewproj);
+    if(VR_StereoSinglePhase() == 1)
+    {
+        float proj[16], view[16], viewProj[16];
+        VR_StereoSingleEyeMatrices(1, proj, view);
+        memcpy(viewProj, proj, sizeof(viewProj));
+        MatrixMultiply(viewProj, view);
+        binTiles(viewProj);
+    }
+}
+
+void binTiles(const float* m)
+{
+    const float depthScale = za::sqrt(m_sq(m[3], m[7], m[11])); // w per unit along the view
     for(size_t i = 0; i < chosen.size(); i++)
     {
         const Occluder& o = chosen[i];

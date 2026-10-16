@@ -47,9 +47,14 @@ typedef struct gpumark_frame_s {
 	GLuint		oldskyleaf;
 	GLuint		framecount;
 	GLuint		padding[3];
+	vec3_t		vieworg2;	// QVR: single-pass stereo: the other eye's (a surface either eye faces is kept); else vieworg
+	GLuint		padding2;
 } gpumark_frame_t;
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
+
+static byte *r_stereovis; // QVR: single-pass stereo: both eyes' PVS (R_MarkSurfaces)
+static size_t r_stereovissize;
 
 /*
 ===============
@@ -77,6 +82,10 @@ static void R_MarkVisSurfaces (byte* vis)
 	frame.vieworg[0] = r_refdef.vieworg[0];
 	frame.vieworg[1] = r_refdef.vieworg[1];
 	frame.vieworg[2] = r_refdef.vieworg[2];
+	VectorCopy (frame.vieworg, frame.vieworg2); // QVR
+	if (VR_StereoSinglePhase () == 1)
+		VR_StereoSingleEyeOrigin (1, frame.vieworg2);
+	frame.padding2 = 0;
 	frame.oldskyleaf = r_oldskyleaf.value != 0.f;
 	frame.framecount = r_framecount;
 
@@ -109,31 +118,60 @@ static void R_MarkVisSurfaces (byte* vis)
 R_MarkSurfaces
 ===============
 */
-void R_MarkSurfaces (void)
+static byte *R_ChooseVis (mleaf_t *viewleaf, const vec3_t origin) // QVR: (split out: single-pass stereo's other eye)
 {
-	byte		*vis;
 	int			i;
 	qboolean	nearwaterportal;
 
 	// check this leaf for water portals
 	// TODO: loop through all water surfs and use distance to leaf cullbox
 	nearwaterportal = false;
-	for (i=0; i < r_viewleaf->nummarksurfaces; i++)
-		if (cl.worldmodel->surfaces[r_viewleaf->firstmarksurface[i]].flags & SURF_DRAWTURB)
+	for (i=0; i < viewleaf->nummarksurfaces; i++)
+		if (cl.worldmodel->surfaces[viewleaf->firstmarksurface[i]].flags & SURF_DRAWTURB)
 			nearwaterportal = true;
 
 	// choose vis data
-	if (r_novis.value || r_viewleaf->contents == CONTENTS_SOLID || r_viewleaf->contents == CONTENTS_SKY)
-		vis = Mod_NoVisPVS (cl.worldmodel);
+	if (r_novis.value || viewleaf->contents == CONTENTS_SOLID || viewleaf->contents == CONTENTS_SKY)
+		return Mod_NoVisPVS (cl.worldmodel);
 	else if (nearwaterportal)
 	{
 		vec3_t pvsorigin;
-		VectorCopy (r_origin, pvsorigin);
+		VectorCopy (origin, pvsorigin);
 		VR_PortalPVSOrigin (pvsorigin); // QVR: through a teleporter, round the destination, not the camera behind it
-		vis = SV_FatPVS (pvsorigin, cl.worldmodel);
+		return SV_FatPVS (pvsorigin, cl.worldmodel);
 	}
 	else
-		vis = Mod_LeafPVS (r_viewleaf, cl.worldmodel);
+		return Mod_LeafPVS (viewleaf, cl.worldmodel);
+}
+
+void R_MarkSurfaces (void)
+{
+	byte		*vis;
+
+	vis = R_ChooseVis (r_viewleaf, r_origin);
+	if (VR_StereoSinglePhase () == 1) // QVR: single-pass stereo: what either eye's leaf sees
+	{
+		vec3_t		other;
+		mleaf_t		*otherleaf;
+		VR_StereoSingleEyeOrigin (1, other);
+		otherleaf = Mod_PointInLeaf (other, cl.worldmodel);
+		if (otherleaf != r_viewleaf)
+		{
+			size_t i, size = (((cl.worldmodel->numleafs + 7) >> 3) + VIS_ALIGN_MASK) & ~VIS_ALIGN_MASK; // (as the vis buffers)
+			byte *othervis;
+			if (r_stereovissize < size)
+			{
+				free (r_stereovis);
+				r_stereovis = (byte *) malloc (size);
+				r_stereovissize = size;
+			}
+			memcpy (r_stereovis, vis, size);
+			othervis = R_ChooseVis (otherleaf, other);
+			for (i = 0; i < size; i++)
+				r_stereovis[i] |= othervis[i];
+			vis = r_stereovis;
+		}
+	}
 
 	r_visframecount++;
 
