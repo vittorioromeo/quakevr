@@ -9133,3 +9133,51 @@ second run". Done, all behind `vr_stereo_single` (default 0; toggle off unchange
   CPU in particle-heavy scenes but the GPU would stay behind on this driver; not worth it on his PC.
 - Pre-existing, found on the way: no MSAA with `vr_foveated` on (his settings) the toggle's images differ by 0.2-0.8% in
   the foveated rings (the old copy build too); not found why.
+## Parallax surface level: props on carved floors (worktree `gorefx`, branch `agent/parallaxplane`, 2026-10-16)
+
+His note: props lying on parallax-mapped ground can look like they float a bit. Parallax carves down from the polygon
+(the polygon is the relief's top) while props rest on the polygon, so over deep parts the floor seen is below the
+prop's contact. His decision: try shifting the reference plane, with a slider.
+
+- **`vr_parallax_plane`** (archived, default **0** = as before; Graphics > Surfaces > Parallax > Parallax Surface Level,
+  0..1 by 0.05): where the polygon sits in the relief. 0 its top (carved down), 0.5 its middle, 1 its bottom (raised).
+  The world's shader (and brush models', item boxes': everything `ParallaxUV` walks in the world shader; models stay
+  at 0) walks the ray from where it crosses the relief's top, `plane` x depth over the polygon, to its bottom;
+  `ParallaxDist` is then negative for a raised hit. Silhouettes stay the polygon's; item boxes' texture clamp holds both
+  ends of the walk. The frame data has a new `Parallax3` (x: the plane) at its end (`gpuframedata_t.parallax3`).
+- **Capped at the texture's average height** (its smallest mip's alpha): the surface is never put below the average
+  level. Why: many textures carry heights that are all at the top (e1m1's and most id floors: alpha 255 everywhere;
+  `vr_parallax_debug` shows them blue at 0 and wholly green at 1 without the cap), or mostly at the top (the rune
+  panels, brick grout). Literal "polygon at the bottom" raised those whole surfaces by the full depth, and props sank
+  2.5 units into a flat floor, a worse look than floating. So 1 means "at the texture's average level" for every
+  texture, a flat one is never raised, and below the cap the slider is literal. Two textures of different averages
+  meeting on one plane now show a step of at most `plane` x depth x the difference (none at 0).
+- **Depth** (`vr_parallax_depth_write`, on by default) already wrote the hits' depth; a raised hit is nearer than the
+  polygon, so `ParallaxFragDepth` no longer clamps it to the polygon's depth for negative distances, and the PDO programs
+  declare `depth_any` (was `depth_less`/`depth_greater`, which promised never nearer). ROUND21 timed the three layouts
+  alike on this driver. The world depth pre-pass keeps its full-reach bound (it has no texture to know the cap), so a
+  hit is never further than it. Without depth write, raised relief is drawn at the polygon's depth (props' bottom edges
+  stay in front of it).
+- **Debug**: `vr_parallax_debug 1` shows raised hits green (brighter higher), sunk ones red, as before.
+
+Checked (headless; the only id floors with relief are the rune panels: e1m1..e4m4 floors all have none):
+- start's rune panel, a small crate (`vr_test_spawn 107`) and an AD-stand-in gun (`312`) on it, views standing looking
+  down, crouched (head 1.0 m, pitch 10) and from the side, planes 0 / 0.5 / 1, at depth 2.5 and 6. At 2.5 the three look
+  alike; props read as resting at all three. At 6, 0.5 and 1 (the same here: the panel's average caps both) raise the
+  panel a little, its relief hides the gun's lower edge and nicks the crate's bottom edge with small notches where the
+  raised runes stand in front of it (in the crate's shadow they read more like chips than like sitting in relief). The
+  screenshots don't favour another value: the default stays 0. Without the cap (first try) 1 sank the crate visibly.
+- Seams: e1m1 walls and corners at 0 and 1 (polygon edges, texture changes): no seams or gaps; continuous math per
+  pixel, the same shift length as before, so no new swimming.
+- Cost (`--exclusive`, eyes 3406 square, GPU world+brush p50, 3 alternating rounds of 240 frames in one process):
+  e1m1 corridor 1.795 / 1.798 / 1.796 ms at 0 / 0.5 / 1; start's rune panel 2.135 / 2.144 / 2.127 ms: within noise
+  (one extra smallest-mip read per parallax pixel only when the plane is over 0).
+- e1m1 smoke: no errors.
+
+Not done: a per-texture plane (each texture's own average as its level, "auto") would be the same as 1 here. Unrelated:
+the flat-height floors (alpha 255 everywhere) still get `in_pdepth` > 0 and walk the ray for nothing at every plane
+(a cost since round 21, small).
+
+In VR: Graphics > Surfaces > Parallax Surface Level at 0, 0.5 and 1 with a crate and a dropped gun on a carved floor
+(start's rune panels, or a custom map's carved ground): which reads as resting, and do the raised parts' edges against
+the props look right or chipped?
