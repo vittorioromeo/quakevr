@@ -4063,6 +4063,17 @@ void(float xHand) ToggleSecondaryAmmo =
         return;
     }
 
+    // vr_ammo_switch_empty_hand: pressable only with the other hand empty (nothing held at all): not akimbo.
+    if(cvar("vr_ammo_switch_empty_hand") && !VRIsHandEmpty(self, VRGetOtherHand(xHand)))
+    {
+        dprint("ammo switch: refused, the other hand is full\n");
+        VRGunHaptic(VRGetOtherHand(xHand), 0.15, 40, 0.6);
+        sound(self, VRGetGunChannel(xHand), "weapons/lock4.wav", 0.4, ATTN_NORM);
+        return;
+    }
+    dprint(sprintf("ammo switch: toggled (other hand: weapon %d, %s)\n", VRGetWeapon(VRGetOtherHand(xHand)),
+        VRIsHandEmpty(self, VRGetOtherHand(xHand)) ? "empty" : "full"));
+
     if(VR_Reload_MagIn(self, xHand))
     {
         // Immersive reloading: the magazine of the old ammo drops out (its rounds in it); one of the new goes in by hand.

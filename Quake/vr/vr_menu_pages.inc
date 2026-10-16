@@ -406,7 +406,11 @@ void resetHandMoves()
                   "this many degrees of the way it faces; never from behind (180: from anywhere)."),
         slider("Ammo Button Depth", "vr_weapon_button_depth", 0.f, 3.f, 0.1f, "%.1f units").extend(0.f, 10.f)
             .help("How far behind the button's middle the cone above starts: a fingertip coming in flat, just over the "
-                  "button's face, still presses it (0: the cone from its middle).")
+                  "button's face, still presses it (0: the cone from its middle)."),
+        toggle("Ammo Switch Needs Empty Hand", "vr_ammo_switch_empty_hand")
+            .help("The ammo type switch button on a gun works only while your other hand holds nothing at all: not another "
+                  "gun (akimbo), a prop, a torch or a grabbed enemy. A refused press gives a short click and a buzz (off: "
+                  "always works).")
     );
     return list;
 }
