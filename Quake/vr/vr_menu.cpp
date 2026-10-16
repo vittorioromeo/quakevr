@@ -3754,9 +3754,6 @@ void hologramTestMessage()
         slider("Floating Grace Swat Speed", vr_pickup_float_grace_swat, 0.5f, 5.f, 0.25f, "%.2f m/s")
             .extend(0.f, 10.f)
             .help("A hand faster than this knocks it at once (a swat)."),
-        toggle("Lenient Weapon Catch", vr_weapon_grab_box)
-            .help("The old catch: a weapon is also taken when your hand comes within a hand's width of its handle, the "
-                  "fist up to 20 cm off it. Off: only when your closed fist touches it, as a box or a gib."),
         toggle("Weapons by Their Hotspots", vr_weapon_grab_hotspots)
             .help("Grip a weapon on the floor nearer one of its other grips than its handle (a chainsaw's front handle, "
                   "a crowbar's bar, a sword's blade, a gun's pump) and you carry it by that grip, as when your other hand "

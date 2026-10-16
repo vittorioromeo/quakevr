@@ -240,8 +240,8 @@ constexpr float weaponDrawnReach = 48.f;
         }
         // Not touching it: not taken (the author's notes hip1m1_2026-10-07_22-33-15, vrfiringrange_2026-10-07_22-49-20:
         // the hand's 5-unit box at its point against the box round the handle caught it with the fist ~20 cm off).
-        // Without a fist (no jointed hand model) or with vr_weapon_grab_box 1: by its box, as before.
-        if(!held::fist(h).empty() && !vr_weapon_grab_box.value)
+        // Without a fist (no jointed hand model): by its box, as before.
+        if(!held::fist(h).empty())
         {
             return false;
         }
