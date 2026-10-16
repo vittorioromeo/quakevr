@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
-// vr_box3d_knockdown.cpp -- knockdowns: recoveries and getting up (the pose fit, the stand spot) and the stagger, topple, shove and get-up API.
+// vr_box3d_knockdown.cpp -- knockdowns: recoveries and getting up (the pose fit, the stand spot) and the stagger,
+// topple, shove and get-up API.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
 // vr_box3d_internal.hpp.
 

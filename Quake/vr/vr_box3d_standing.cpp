@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
-// vr_box3d_standing.cpp -- players on props (standing, riding, pressing, nudges, unsticking), a prop's shape for moves and shots, the SV_ hooks.
+// vr_box3d_standing.cpp -- players on props (standing, riding, pressing, nudges, unsticking), a prop's shape for moves
+// and shots, the SV_ hooks.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
 // vr_box3d_internal.hpp.
 

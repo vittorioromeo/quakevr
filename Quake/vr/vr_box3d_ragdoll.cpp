@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
-// vr_box3d_ragdoll.cpp -- ragdolls: made (deaths, active deaths, cuts), driven (shoves, swimming, climbing, active), shocked and written back.
+// vr_box3d_ragdoll.cpp -- ragdolls: made (deaths, active deaths, cuts), driven (shoves, swimming, climbing, active),
+// shocked and written back.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
 // vr_box3d_internal.hpp.
 

@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
-// vr_box3d_hands.cpp -- throws, gib contacts, what was born inside what, the hands' spheres and the reach bodies (hands and weapons).
+// vr_box3d_hands.cpp -- throws, gib contacts, what was born inside what, the hands' spheres and the reach bodies (hands
+// and weapons).
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
 // vr_box3d_internal.hpp.
 

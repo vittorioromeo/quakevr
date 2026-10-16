@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
-// vr_box3d_step.cpp -- the step: before it (spin align, lifts, liquids, slides), after it (sounds, falls, impacts, touches) and VR_PhysicsFrameEnd.
+// vr_box3d_step.cpp -- the step: before it (spin align, lifts, liquids, slides), after it (sounds, falls, impacts,
+// touches) and VR_PhysicsFrameEnd.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
 // vr_box3d_internal.hpp.
 

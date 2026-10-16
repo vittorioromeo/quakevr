@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
-// vr_box3d_contacts.cpp -- contact filters (self collision, shouldCollide, preSolve), portal copies, carried ragdolls and corpses, pushes and their limits.
+// vr_box3d_contacts.cpp -- contact filters (self collision, shouldCollide, preSolve), portal copies, carried ragdolls
+// and corpses, pushes and their limits.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
 // vr_box3d_internal.hpp.
 

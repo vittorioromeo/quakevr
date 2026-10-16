@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
-// vr_box3d_api.cpp -- the API: loads, pins, tool joints, blasts, pushes, shots and rays, held boxes, ropes and level checks, counts and queries.
+// vr_box3d_api.cpp -- the API: loads, pins, tool joints, blasts, pushes, shots and rays, held boxes, ropes and level
+// checks, counts and queries.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
 // vr_box3d_internal.hpp.
 

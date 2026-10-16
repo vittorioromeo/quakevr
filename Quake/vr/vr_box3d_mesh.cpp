@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
-// vr_box3d_mesh.cpp -- the world mesh (its build and cache), the convex hulls of brush models, guns' pieces (and their disk cache), magazines and props, the shape definitions.
+// vr_box3d_mesh.cpp -- the world mesh (its build and cache), the convex hulls of brush models, guns' pieces (and their
+// disk cache), magazines and props, the shape definitions.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
 // vr_box3d_internal.hpp.
 

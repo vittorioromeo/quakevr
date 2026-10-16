@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
-// vr_box3d_ragparts.cpp -- a ragdoll's parts: blasts, cuts, the players' grabs and holds, points, parts in a box, limbs and heads.
+// vr_box3d_ragparts.cpp -- a ragdoll's parts: blasts, cuts, the players' grabs and holds, points, parts in a box, limbs
+// and heads.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
 // vr_box3d_internal.hpp.
 

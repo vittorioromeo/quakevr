@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
-// vr_box3d_diag.cpp -- the physics commands: spawning, piles, blasts, lists, hashes, benches and tests (and their registration).
+// vr_box3d_diag.cpp -- the physics commands: spawning, piles, blasts, lists, hashes, benches and tests (and their
+// registration).
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
 // vr_box3d_internal.hpp.
 
