@@ -1050,9 +1050,18 @@ void runStepTask(void* p)
 
 // Box3D's b3EnqueueTaskCallback (`user`: the world's StepTasks): on the pool; with one worker, no pool or past the bound, here and now
 // (nullptr: nothing to finish).
-void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char*)
+void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char* name)
 {
     StepTasks& w = *static_cast<StepTasks*>(user);
+    // The solver's worker 0 (vr_box3d_caller_solves): not posted. b3Solve's caller enters the solver as worker 0 right
+    // after enqueuing the others and races this task for the orchestrator's place (solver.c b3SolverTask); posted, a
+    // worker usually won it and the stepping thread waited out the whole solve (0.6-0.8 ms a frame with 32 ragdolls
+    // awake). Not posted, the stepping thread orchestrates and does its share of every stage; nullptr: Box3D finishes
+    // nothing. The same results: the blocks' work does not depend on the thread that does it.
+    if(vr_box3d_caller_solves.value != 0.f && name && !strcmp(name, "solve[0]"))
+    {
+        return nullptr;
+    }
     jobs::Pool* const pool = jobs::pool();
     const int n = static_cast<int>(w.tasks.size());
     const int i = w.workers > 1 && pool ? w.next.fetchAddRelaxed(1) : n;
@@ -1070,10 +1079,24 @@ void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char*
     return &t;
 }
 
-// Box3D's b3FinishTaskCallback: returns once the task ran (on this thread if no worker has started it).
-void finishStepTask(void* task, void*)
+// Box3D's b3FinishTaskCallback: returns once the task ran (on this thread if no worker has started it). Before waiting
+// for a task a worker is running, the stepping thread runs the step's other tasks no worker has started yet (another
+// share of a parallel-for, a solver worker that only sees the solve is over, the tree rebuild, the island split): Box3D
+// lets its tasks run in any order on any thread once enqueued (vr_box3d_caller_solves; the solver's spinning workers are
+// only finished here once its orchestrator, this thread, is done).
+void finishStepTask(void* task, void* user)
 {
-    static_cast<StepTask*>(task)->task.wait();
+    StepTask& t = *static_cast<StepTask*>(task);
+    if(vr_box3d_caller_solves.value != 0.f && !t.task.tryRun())
+    {
+        StepTasks& w = *static_cast<StepTasks*>(user);
+        const int n = za::min(w.next.loadRelaxed(), static_cast<int>(w.tasks.size()));
+        for(int i = 0; i < n; ++i)
+        {
+            (void)w.tasks[static_cast<za::SizeT>(i)].task.tryRun();
+        }
+    }
+    t.task.wait();
 }
 
 // Box3D's wide kernels (the contact solver, hull-hull manifolds; external/box3d/README.md): AVX2's 8 lanes where the

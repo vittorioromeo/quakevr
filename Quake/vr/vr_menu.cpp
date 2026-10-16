@@ -5771,6 +5771,10 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Physics on Threads", vr_box3d_threads)
             .help("Box3D's step (the props' physics) shared between the thread pool and the main thread. Off: the main "
                   "thread steps it alone (the same results: Box3D is deterministic whatever its threads)."),
+        toggle("Main Thread Solves", vr_box3d_caller_solves)
+            .help("vr_box3d_caller_solves: with Physics on Threads, the main thread runs Box3D's solver itself (and its "
+                  "share of each stage) and takes the step's unstarted tasks while it waits for one. Off: a worker usually "
+                  "took the solver and the main thread waited for it (the same results either way)."),
         cycle("Physics Threads", vr_box3d_workers, {{0.f, "All"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {6.f, "6"}, {8.f, "8"}})
             .help("With Physics on Threads: at most this many threads step Box3D, the main thread one of them (All: every "
                   "worker of the pool). Measured on a 24-core CPU: 4 is as fast as 6 or 8 up to ~500 awake bodies (and "
