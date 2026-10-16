@@ -235,6 +235,7 @@ typedef void* mi_nothrow_t;
 // This is not really necessary as they usually call
 // malloc/free anyway, but it improves performance.
 // ------------------------------------------------------
+#if !defined(QVR_CUSTOM_CPP_OPERATORS)
 #ifdef __cplusplus
   // ------------------------------------------------------
   // With a C++ compiler we override the new/delete operators.
@@ -316,6 +317,8 @@ typedef void* mi_nothrow_t;
     #error "define overloads for new/delete for this platform (just for performance, can be skipped)"
   #endif
 #endif // __cplusplus
+
+#endif // !QVR_CUSTOM_CPP_OPERATORS: vr_alloccount.cpp owns new/delete
 
 // ------------------------------------------------------
 // Further Posix & Unix functions definitions

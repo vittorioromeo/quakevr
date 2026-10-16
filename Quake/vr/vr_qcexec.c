@@ -50,10 +50,10 @@ static QX_NOINLINE void QCExec_Builtin (dfunction_t *newf)
 	VR_TracyQC(newf);
 	if (qcprof.active) // QVR: vr_qcprofile: the builtin's own time (QuakeC it calls out), in its caller's self too
 	{
-		const unsigned long long child0 = qcprof.stack[qcvm->depth].child, t0 = __rdtsc ();
+		const unsigned long long child0 = qcprof.stack[qcvm->depth].child, t0 = QCProf_Ticks ();
 		qcvm->builtins[i]();
 		{
-			const unsigned long long dt = __rdtsc () - t0;
+			const unsigned long long dt = QCProf_Ticks () - t0;
 			const int fn = (int)(newf - qcvm->functions);
 			const unsigned long long self = dt - (qcprof.stack[qcvm->depth].child - child0);
 			qcprof.self[fn] += self;

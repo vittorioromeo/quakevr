@@ -8,9 +8,12 @@ Microsoft's general-purpose allocator (Daan Leijen, Microsoft Research). MIT lic
   and improves sharing of memory between threads"); v2 is "stable, legacy". The engine's loads free on one thread
   what another allocated (the pool's workers), which v3's design is for.
 
-Only the library is vendored: `src/` (all of it: `src/static.c` includes the other files) and `include/`, unchanged.
-Upstream's tests, docs, IDE and CMake files and `bin/` (the prebuilt `mimalloc-redirect.dll` and `minject`) are left
-out.
+Only the library is vendored: `src/` (all of it: `src/static.c` includes the other files) and `include/`, unchanged but
+for one guard: `src/alloc-override.c`'s C++ operators (new/delete, which under gcc/clang it defines by their mangled
+names in C) are left out under `QVR_CUSTOM_CPP_OPERATORS`, which `vr.cmake` defines with `MI_MALLOC_OVERRIDE`:
+`vr_alloccount.cpp` defines them already (a duplicate symbol at the Linux link; Kasper Olesen, PR #75). Reapply it on an
+update. Upstream's tests, docs, IDE and CMake files and `bin/` (the prebuilt `mimalloc-redirect.dll` and `minject`) are
+left out.
 
 Quake VR uses it as the process's C heap: malloc/free, calloc/realloc, `_aligned_malloc` and the rest, strdup, and
 through them operator new/delete (`Quake/vr/vr_alloccount.cpp`'s call malloc/free and `_aligned_malloc`/`_aligned_free`).

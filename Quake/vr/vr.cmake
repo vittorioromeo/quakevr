@@ -139,7 +139,8 @@ if (QVR_MIMALLOC)
 	if (CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 		set_source_files_properties("${CMAKE_CURRENT_LIST_DIR}/vr_crtheap.c" PROPERTIES COMPILE_OPTIONS "/clang:-fno-builtin")
 	else()
-		set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES COMPILE_DEFINITIONS MI_MALLOC_OVERRIDE
+		# (QVR_CUSTOM_CPP_OPERATORS: not mimalloc's new/delete, a second definition of vr_alloccount.cpp's; its README)
+		set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES COMPILE_DEFINITIONS "MI_MALLOC_OVERRIDE;QVR_CUSTOM_CPP_OPERATORS"
 			COMPILE_OPTIONS "-fno-builtin-malloc;-fno-builtin-free;-fno-builtin-calloc;-fno-builtin-realloc")
 	endif()
 endif()

@@ -925,7 +925,14 @@ enum class Rec
 
 Rec rec = Rec::Off;
 void finishTake();
-za::Vector<za::Pair<TakeInfo, za::Vector<Row>>> unsaved; // takes that could not be written
+// A take that could not be written: its header and rows (a struct: the za::Pair it was did not build with the Linux
+// ARM64 toolchain, clang 19).
+struct UnsavedTake
+{
+    TakeInfo info;
+    za::Vector<Row> rows;
+};
+za::Vector<UnsavedTake> unsaved; // takes that could not be written
 // The buttons the recorder can take (vr_motion_button's), an index into taken's.
 constexpr bool HandInput::*recButtons[] = {
     &HandInput::trigger, &HandInput::grip, &HandInput::primary, &HandInput::secondary, &HandInput::stickClick};
@@ -1335,12 +1342,12 @@ void saveUnsaved_f()
     }
     for(auto it = unsaved.begin(); it != unsaved.end();)
     {
-        takeLabel = it->first.label;
-        takeStamp = it->first.date; // YYYY-MM-DD HH:MM:SS, as a file name's
+        takeLabel = it->info.label;
+        takeStamp = it->info.date; // YYYY-MM-DD HH:MM:SS, as a file name's
         za::replace(takeStamp.begin(), takeStamp.end(), ' ', '_');
         za::replace(takeStamp.begin(), takeStamp.end(), ':', '-');
         const za::String path = takePath(motionsDir());
-        if(writeTake(path, it->first, it->second))
+        if(writeTake(path, it->info, it->rows))
         {
             Con_Printf("Motion recorder: saved %s\n", path.cStr());
             it = unsaved.erase(it);
