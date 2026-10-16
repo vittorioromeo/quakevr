@@ -346,7 +346,9 @@ void() VR_MeleeArc_ShowFrame =
         entity m = findradius(p.origin, 600);
         while(m)
         {
-            if((m.flags & FL_MONSTER) && m.health > 0 && m.enemy == p && (m.th_melee || AD_HasMelee(m)))
+            // (Not the eel's zap, a burst all round it, nor the lava man's fireball: no blow, no arc.)
+            if((m.flags & FL_MONSTER) && m.health > 0 && m.enemy == p && (m.th_melee || AD_HasMelee(m)) &&
+                m.classname != "monster_eel" && m.classname != "monster_lava_man")
             {
                 self = m;
                 float base = self.vr_melee_reach_base ? self.vr_melee_reach_base : (self.size_x > 24 ? 100 : 60);
@@ -370,8 +372,17 @@ void() VR_MeleeArc_ShowFrame =
 };
 
 // Around a swing frame's turns after its enemy (ai_face's, and movetogoal's step's: a second ChangeYaw): all of them
-// together held to vr_enemy_melee_turn degrees.
-void() VR_MeleeArc_TurnBegin = { vr_meleearc_yaw0 = self.angles_y; };
+// together held to vr_enemy_melee_turn degrees. Per frame, not per call: a frame that charges twice (the ogre's
+// smash: the frame's ai_charge and chainsaw's own) turns no more than one that charges once.
+void() VR_MeleeArc_TurnBegin =
+{
+    if(self.vr_melee_turn_time != time)
+    {
+        self.vr_melee_turn_time = time;
+        self.vr_melee_turn_yaw0 = self.angles_y;
+    }
+    vr_meleearc_yaw0 = self.vr_melee_turn_yaw0;
+};
 void() VR_MeleeArc_TurnEnd =
 {
     float cap = cvar("vr_enemy_melee_turn");
@@ -401,6 +412,22 @@ void(float d) ai_charge =
     before = self.origin;
     movetogoal (d);        // done in C code...
     VR_MeleeArc_TurnEnd();
+    VR_MeleeSpace_Step(before);
+};
+
+// QVR: a committed blow's frame (the ogre's overhead smash coming down): against a player with the melee arc on, its
+// step goes straight ahead and it does not turn after him, so stepping aside as it comes down dodges it; else
+// ai_charge as ever.
+void(float d) VR_MeleeArc_ChargeAhead =
+{
+    if(!VR_MeleeArc_On())
+    {
+        ai_charge(d);
+        return;
+    }
+    self.vr_melee_time = time;
+    vector before = self.origin;
+    walkmove(self.angles_y, d);
     VR_MeleeSpace_Step(before);
 };
 

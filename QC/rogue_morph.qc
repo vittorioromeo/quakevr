@@ -102,6 +102,14 @@ void() morph_run11 =[ $mfrun11, morph_run1 ] { ai_run(11);};
 // ========================
 // new attack code
 // ========================
+// QVR: a melee attack frame's turn after its enemy (melee arc: fight.qc; at most vr_enemy_melee_turn a frame against a
+// player), and its melee time (melee space), as ai_charge's.
+void() morph_mface =
+{
+    self.vr_melee_time = time;
+    VR_MeleeArc_Face();
+};
+
 void() morph_stab2 =
 {
     float        dist;
@@ -113,15 +121,17 @@ void() morph_stab2 =
     if(!CanDamage(self.enemy, self))
         return;
 
-    ai_face();
+    morph_mface(); // QVR: (melee arc)
 
     dir = self.enemy.origin - self.origin + self.enemy.view_ofs;
     dist = vlen(dir);
     dir = normalize(dir);
     makevectors(self.angles);
 
-    if(dist <= 90)
+    if(dist <= VR_MeleeReach(90))
     {
+        if(!VR_MeleeArc_Hits(FALSE))
+            return; // QVR: (melee arc: the stab misses beside or behind it; no lasers point-blank either)
         sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
         attackDamage = (random() * 10) + 20;
         T_Damage(self.enemy, self, self, attackDamage);
@@ -149,36 +159,36 @@ void() morph_stab2 =
 // hand to hand attack
 // ========================
 
-void() morph_attack01 = [ $mfatb01, morph_attack02 ] {ai_face();};
-void() morph_attack02 = [ $mfatb02, morph_attack03 ] {ai_face();};
-void() morph_attack03 = [ $mfatb03, morph_attack04 ] {ai_face();};
-void() morph_attack04 = [ $mfatb04, morph_attack05 ] {ai_face();};
-void() morph_attack05 = [ $mfatb05, morph_attack06 ] {ai_face();};
-void() morph_attack06 = [ $mfatb06, morph_attack07 ] {ai_face();};
+void() morph_attack01 = [ $mfatb01, morph_attack02 ] {morph_mface();};
+void() morph_attack02 = [ $mfatb02, morph_attack03 ] {morph_mface();};
+void() morph_attack03 = [ $mfatb03, morph_attack04 ] {morph_mface();};
+void() morph_attack04 = [ $mfatb04, morph_attack05 ] {morph_mface();};
+void() morph_attack05 = [ $mfatb05, morph_attack06 ] {morph_mface();};
+void() morph_attack06 = [ $mfatb06, morph_attack07 ] {morph_mface();};
 void() morph_attack07 = [ $mfatb07, morph_attack08 ] {morph_stab2();};
-void() morph_attack08 = [ $mfatb08, morph_attack09 ] {ai_face();};
-void() morph_attack09 = [ $mfatb09, morph_attack10 ] {ai_face();};
-void() morph_attack10 = [ $mfatb10, morph_attack11 ] {ai_face();};
-void() morph_attack11 = [ $mfatb11, morph_attack12 ] {ai_face();};
-void() morph_attack12 = [ $mfatb01, morph_run1     ] {ai_face();};
+void() morph_attack08 = [ $mfatb08, morph_attack09 ] {morph_mface();};
+void() morph_attack09 = [ $mfatb09, morph_attack10 ] {morph_mface();};
+void() morph_attack10 = [ $mfatb10, morph_attack11 ] {morph_mface();};
+void() morph_attack11 = [ $mfatb11, morph_attack12 ] {morph_mface();};
+void() morph_attack12 = [ $mfatb01, morph_run1     ] {morph_mface();};
 
-void() morph_bigattack01 = [ $mfatc01, morph_bigattack02 ] { ai_face(); };
-void() morph_bigattack02 = [ $mfatc02, morph_bigattack03 ] { ai_face(); };
-void() morph_bigattack03 = [ $mfatc03, morph_bigattack04 ] { ai_face(); };
-void() morph_bigattack04 = [ $mfatc04, morph_bigattack05 ] { ai_face(); };
-void() morph_bigattack05 = [ $mfatc05, morph_bigattack06 ] { ai_face(); };
-void() morph_bigattack06 = [ $mfatc06, morph_bigattack07 ] { ai_face(); };
-void() morph_bigattack07 = [ $mfatc07, morph_bigattack08 ] { ai_face(); };
-void() morph_bigattack08 = [ $mfatc08, morph_bigattack09 ] { ai_face(); };
-void() morph_bigattack09 = [ $mfatc09, morph_bigattack10 ] { ai_face(); };
+void() morph_bigattack01 = [ $mfatc01, morph_bigattack02 ] { morph_mface(); };
+void() morph_bigattack02 = [ $mfatc02, morph_bigattack03 ] { morph_mface(); };
+void() morph_bigattack03 = [ $mfatc03, morph_bigattack04 ] { morph_mface(); };
+void() morph_bigattack04 = [ $mfatc04, morph_bigattack05 ] { morph_mface(); };
+void() morph_bigattack05 = [ $mfatc05, morph_bigattack06 ] { morph_mface(); };
+void() morph_bigattack06 = [ $mfatc06, morph_bigattack07 ] { morph_mface(); };
+void() morph_bigattack07 = [ $mfatc07, morph_bigattack08 ] { morph_mface(); };
+void() morph_bigattack08 = [ $mfatc08, morph_bigattack09 ] { morph_mface(); };
+void() morph_bigattack09 = [ $mfatc09, morph_bigattack10 ] { morph_mface(); };
 void() morph_bigattack10 = [ $mfatc10, morph_bigattack11 ] { morph_stab2();};
-void() morph_bigattack11 = [ $mfatc11, morph_bigattack12 ] { ai_face(); };
-void() morph_bigattack12 = [ $mfatc12, morph_bigattack13 ] { ai_face(); };
-void() morph_bigattack13 = [ $mfatc13, morph_bigattack14 ] { ai_face(); };
-void() morph_bigattack14 = [ $mfatc14, morph_bigattack15 ] { ai_face(); };
-void() morph_bigattack15 = [ $mfatc15, morph_bigattack16 ] { ai_face(); };
-void() morph_bigattack16 = [ $mfatc16, morph_bigattack17 ] { ai_face(); };
-void() morph_bigattack17 = [ $mfatc01, morph_run1        ] { ai_face(); };
+void() morph_bigattack11 = [ $mfatc11, morph_bigattack12 ] { morph_mface(); };
+void() morph_bigattack12 = [ $mfatc12, morph_bigattack13 ] { morph_mface(); };
+void() morph_bigattack13 = [ $mfatc13, morph_bigattack14 ] { morph_mface(); };
+void() morph_bigattack14 = [ $mfatc14, morph_bigattack15 ] { morph_mface(); };
+void() morph_bigattack15 = [ $mfatc15, morph_bigattack16 ] { morph_mface(); };
+void() morph_bigattack16 = [ $mfatc16, morph_bigattack17 ] { morph_mface(); };
+void() morph_bigattack17 = [ $mfatc01, morph_run1        ] { morph_mface(); };
 
 void() morph_smack =
 {
@@ -190,12 +200,14 @@ void() morph_smack =
     if(!CanDamage(self.enemy, self))
         return;
 
-    ai_face();
+    morph_mface(); // QVR: (melee arc)
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 100)
+    if(vlen(delta) > VR_MeleeReach(100))
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
 
     ldmg = (random() * 10) + 10;
     T_Damage(self.enemy, self, self, ldmg);
@@ -204,18 +216,18 @@ void() morph_smack =
     self.enemy.velocity = v_forward * 100 + '0 0 100';
 };
 
-void() morph_knockback01 = [ $mfknck01, morph_knockback02 ] { ai_face(); };
-void() morph_knockback02 = [ $mfknck02, morph_knockback03 ] { ai_face(); };
-void() morph_knockback03 = [ $mfknck03, morph_knockback04 ] { ai_face(); };
-void() morph_knockback04 = [ $mfknck04, morph_knockback05 ] { ai_face(); };
-void() morph_knockback05 = [ $mfknck05, morph_knockback06 ] { ai_face(); };
-void() morph_knockback06 = [ $mfknck06, morph_knockback07 ] { ai_face(); };
-void() morph_knockback07 = [ $mfknck07, morph_knockback08 ] { ai_face(); };
-void() morph_knockback08 = [ $mfknck08, morph_knockback09 ] { ai_face(); };
+void() morph_knockback01 = [ $mfknck01, morph_knockback02 ] { morph_mface(); };
+void() morph_knockback02 = [ $mfknck02, morph_knockback03 ] { morph_mface(); };
+void() morph_knockback03 = [ $mfknck03, morph_knockback04 ] { morph_mface(); };
+void() morph_knockback04 = [ $mfknck04, morph_knockback05 ] { morph_mface(); };
+void() morph_knockback05 = [ $mfknck05, morph_knockback06 ] { morph_mface(); };
+void() morph_knockback06 = [ $mfknck06, morph_knockback07 ] { morph_mface(); };
+void() morph_knockback07 = [ $mfknck07, morph_knockback08 ] { morph_mface(); };
+void() morph_knockback08 = [ $mfknck08, morph_knockback09 ] { morph_mface(); };
 void() morph_knockback09 = [ $mfknck09, morph_knockback10 ] { morph_smack(); };
-void() morph_knockback10 = [ $mfknck10, morph_knockback11 ] { ai_face(); };
-void() morph_knockback11 = [ $mfknck11, morph_knockback12 ] { ai_face(); };
-void() morph_knockback12 = [ $mfknck12, morph_run1        ] { ai_face(); };
+void() morph_knockback10 = [ $mfknck10, morph_knockback11 ] { morph_mface(); };
+void() morph_knockback11 = [ $mfknck11, morph_knockback12 ] { morph_mface(); };
+void() morph_knockback12 = [ $mfknck12, morph_run1        ] { morph_mface(); };
 
 void() morph_attack =
 {

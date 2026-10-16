@@ -320,3 +320,5 @@
 .float vr_melee_shown;    // (vr_bodycontact.cpp meleeArcDraw)
 .float vr_melee_reach_base; // QC's: its blows' own reach (Quake's or AD's, before the growth: fight.qc VR_MeleeReach)
 .float vr_melee_wide_seen;  // QC's: it struck a sweeping blow (its wide arc shown from then)
+.float vr_melee_turn_time;  // QC's: the frame (time) of its last swing turn (fight.qc VR_MeleeArc_TurnBegin), and its
+.float vr_melee_turn_yaw0;  // facing before that frame's first turn: a frame's turns held together, however many calls

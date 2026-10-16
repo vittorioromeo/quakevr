@@ -5,7 +5,8 @@
 # attack starts; the knight also from 100 units (1001, 1003: its run swing). One "meleearc: result" line each: hits on
 # him in 4 s, the first one's time and the monster's angle off its facing then, and the hits after the step.
 # id: vrtesthall (knight, hell knight, ogre, fiend, rottweiler); ad: AD's start (the same through AD's rules, AD's death
-# knight 200). Run with arc 0 (Quake's blows) and 1 (default: both). PASS (arc 1): front hits > 0; behind: the first
+# knight 200); rogue: Dissolution of Eternity's melee monsters in vrtesthall (phantom swordsman, overlord, Guardian;
+# the eel's zap is a burst all round it and the dragon's tail meant for behind it: not tested). Run with arc 0 (Quake's blows) and 1 (default: both). PASS (arc 1): front hits > 0; behind: the first
 # hit's angle within the arc; step aside: no hit after the step.
 AGENT=${1:?worktree name}
 SET=${2:-id}
@@ -17,6 +18,9 @@ mkdir -p "$TREE/scratch"
 if [ "$SET" = ad ]; then
     PRE="skill 1;vr_campaign_native ad;wait30;map start;wait60"
     MONSTERS="5 200 1 9 7"
+elif [ "$SET" = rogue ]; then
+    PRE="skill 1;map vrtesthall;wait30"
+    MONSTERS="15 17 18"
 else
     PRE="skill 1;map vrtesthall;wait30"
     MONSTERS="5 6 1 9 7"
