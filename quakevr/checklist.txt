@@ -2,6 +2,10 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Quest body tracking (VD, Meta body tracking on; Body page > Body Tracking group): lean/twist your chest, bend elbows: the body follows you; legs off by default; drop to 0 confidence fades back to IK
+Per-weapon reload (Weapons > Reloading > Per-Weapon Reload Overrides): global Simple, shotgun Immersive: pouch appears, shotgun loads by hand, nailgun reloads at the hip
+Turning Mode Off (Comfort): the right stick never turns you, also in menus, climbing, swimming
+MG3 Dawn of the Machine map6 (Matriarch of Decay): press the palace button, fight, take an ammo box that appears: no crash
 Leg grabs: both hands on a grunt's shins, yank toward you: falls on its back; pull up: hangs head-down, swing/throw it; thighs do nothing by default (Combat > Holding Enemies > Leg Grabs)
 Leg sweep: sweep a grunt's shins with shotgun/crowbar/plank/rocket launcher, front and side: it falls; axe, super shotgun, lightning gun, sword blade: nothing; sword hilt-down works
 Crush: jump on a downed grunt: parts jolt, thud unless something pops, head pops on the 2nd jump; punching/dragging keeps it down up to 6.5 s, rises ~1 s after you stop
