@@ -9,7 +9,8 @@
 // hands it over, magholsterpoll): that weapon is bound to that holster (its record's id, vr_weaponinst.qc, in
 // .vr_magbind<slot>); pressed again, unbound. One weapon a holster, one holster a weapon (binding it elsewhere moves the
 // binding). Thrown or dropped (a prop: thrown_weapon), once it has been out of the hands vr_magholster_return_time
-// seconds or lies vr_magholster_return_distance metres from its holster (either; 0 turns one off), it flies back into
+// seconds or lies vr_magholster_return_distance metres from its holster (either; 0 turns one off), and has lain still
+// on the ground vr_magholster_land_time seconds (its throw let finish: never called back in the air), it flies back into
 // it through the air, through walls, over vr_magholster_flight_time seconds and snaps in with a click. A hand closing on
 // it on the way takes it (the flight ends: it is caught as a thrown weapon is). The holster taken meanwhile (another
 // weapon put in it): it waits where it lies (or drops where its flight got to) and comes back the moment the holster is
@@ -31,6 +32,7 @@
 .float vr_mag_since;  // a bound weapon's prop: when it was first seen out of the hands (the return's clock)
 .float vr_mag_fly;    // when its flight home began (0: not flying)
 .vector vr_mag_from;  // where from
+.float vr_mag_rest;   // when it came to rest on the ground (0: moving; vr_magholster_land_time)
 
 float(entity p, float s) VR_MagHolster_Bound =
 {
@@ -108,10 +110,31 @@ void() VR_MagHolster_FlyThink =
     self.nextthink = time + 0.02; // (the player's frame flies it: VR_MagHolster_Fly)
 };
 
+// Whether `e` (a bound weapon lying about) is at rest: still (under 0.3 m/s) on the ground (asleep, or something solid
+// within 25 cm below it), or stuck in something by its blade.
+float(entity e) VR_MagHolster_Resting =
+{
+    if(VR_AxeStick_IsStuck(e))
+    {
+        return TRUE;
+    }
+    if(vlen(e.velocity) > 0.3 * VRMetersToUnits())
+    {
+        return FALSE;
+    }
+    if(e.flags & FL_ONGROUND)
+    {
+        return TRUE;
+    }
+    traceline(e.origin, e.origin - '0 0 1' * (0.25 * VRMetersToUnits()), TRUE, e); // (nomonsters)
+    return trace_fraction < 1;
+};
+
 // Its flight over: back to lying about where it got to (the holster taken meanwhile).
 void(entity e) VR_MagHolster_Drop =
 {
     e.vr_mag_fly = 0;
+    e.vr_mag_rest = 0;
     e.movetype = MOVETYPE_TOSS;
     e.vr_rigid = 1;
     e.velocity = '0 0 0';
@@ -283,6 +306,23 @@ void(float s, float xNow) VR_MagHolster_Watch =
     {
         e.vr_mag_since = time;
     }
+    // Its throw let finish: neither return until it has lain still on the ground a while (vr_magholster_land_time).
+    float land = cvar_hget(cvarh_vr_magholster_land_time);
+    float landed = TRUE;
+    if(land > 0)
+    {
+        if(!VR_MagHolster_Resting(e))
+        {
+            e.vr_mag_rest = 0;
+        }
+        else if(!e.vr_mag_rest)
+        {
+            e.vr_mag_rest = time;
+            dprint(sprintf("magholster: weapon %g at rest %.2f s out of the hands, %.2f m from its holster\n", uid,
+                time - e.vr_mag_since, vlen(e.origin - VR_MagHolster_Home(self, s)) / VRMetersToUnits()));
+        }
+        landed = (e.vr_mag_rest && time - e.vr_mag_rest >= land);
+    }
     if(e.fg_state || getHolsterWeapon(VR_MagHolster_Hotspot(s)) != WID_FIST)
     {
         return; // (a force grab pulls it; the holster is taken: it waits)
@@ -292,6 +332,10 @@ void(float s, float xNow) VR_MagHolster_Watch =
     if(xNow)
     {
         VR_MagHolster_Launch(e, s, "called");
+    }
+    else if(!landed)
+    {
+        return; // (still in the air, rolling, or only just come to rest)
     }
     else if(after > 0 && time - e.vr_mag_since >= after)
     {

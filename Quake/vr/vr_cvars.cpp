@@ -183,8 +183,10 @@ const DefaultChange defaultChanges[] = {
     {143, &vr_ragimpact_crush_wear, "0.3"},         // 0.5
     // 144: the menu panel grip drag reaches farther (2026-10-17: "push the menu away too").
     {144, &vr_menu_grab_dist_max, "200"},           // 600
+    // 145: the magnetic holsters' tether the default chain (2026-10-17: "the nicer one").
+    {145, &vr_magholster_style, "0"},               // 1
 };
-constexpr int configVersion = 144;
+constexpr int configVersion = 145;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

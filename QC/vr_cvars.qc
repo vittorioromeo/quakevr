@@ -142,6 +142,8 @@ float cvarh_vr_magholster;                 // magnetic holsters (vr_magholster.q
 float cvarh_vr_magholster_return_time;
 float cvarh_vr_magholster_return_distance;
 float cvarh_vr_magholster_flight_time;
+float cvarh_vr_magholster_land_time;
+float cvarh_vr_debug_spawn_toolgun;     // a toolgun in an empty holster at each spawn (vr_toolgun.qc)
 float cvarh_vr_melee_bloodlust;
 float cvarh_vr_melee_bloodlust_mult;
 float cvarh_vr_melee_dmg_multiplier;
@@ -1008,6 +1010,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_magholster_return_time);
     VR_CVAR_HMAKE(vr_magholster_return_distance);
     VR_CVAR_HMAKE(vr_magholster_flight_time);
+    VR_CVAR_HMAKE(vr_magholster_land_time);
+    VR_CVAR_HMAKE(vr_debug_spawn_toolgun);
     VR_CVAR_HMAKE(vr_melee_bloodlust);
     VR_CVAR_HMAKE(vr_melee_bloodlust_mult);
     VR_CVAR_HMAKE(vr_melee_dmg_multiplier);

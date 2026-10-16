@@ -647,6 +647,9 @@ void resetHandMoves()
             .help("Out of your hands this long, it comes back (0: never by time)."),
         slider("Return Beyond", vr_magholster_return_distance, 0.f, 20.f, 0.5f, "%.1f m").extend(0.f, 200.f)
             .help("This far from its holster, it comes back (0: never by distance). Either one brings it back."),
+        slider("Land First", vr_magholster_land_time, 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)
+            .help("A thrown or dropped weapon must lie still on the ground (or stuck in a wall) this long before either return "
+                  "brings it back, however far it is: a throw is let finish, never called back in the air (0: off)."),
         slider("Flight Time", vr_magholster_flight_time, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.05f, 5.f)
             .help("How long it takes to fly back, through walls, before it snaps in with a click. Grab it on the way to keep it."),
         cycle("Chain", vr_magholster_style, {{0.f, "Lanyard"}, {1.f, "Tether"}, {2.f, "Both"}, {3.f, "None"}})

@@ -80,7 +80,8 @@ struct Slot
     int hand{-1};    // where == Hand: which
     int entity{0};   // where == World: the client entity (kept to find it again at once)
     glm::vec3 gun{0.f};
-    glm::vec3 home{0.f};
+    glm::vec3 home{0.f};  // the chains' end at the holster (view::holsterPoint)
+    glm::vec3 reach{0.f}; // the holster's reach point (body::holsterPositions: where the hand goes, where it flies to)
     glm::vec3 lastRel{0.f}; // the weapon's point off its holster last frame
     coil::Cord cords[ChainCount];
     gfx::TubeBatch batch[ChainCount];
@@ -305,7 +306,12 @@ void info_f()
         {
             continue;
         }
-        Con_Printf("magholster %d: weapon %d %s", i, uid, whereName(c.where));
+        Con_Printf("magholster %d: weapon %d %s, chain end %.1f cm off the reach point", i, uid, whereName(c.where),
+            glm::distance(c.home, c.reach) / m2u * 100.f);
+        if(c.where == Where::Holster && c.holster == i)
+        {
+            Con_Printf(", the gun's point %.1f cm off the chain end", glm::distance(c.gun, c.home) / m2u * 100.f);
+        }
         if(c.where == Where::Holster)
         {
             Con_Printf(" (holster %d)", c.holster);
@@ -401,7 +407,13 @@ void setupView(const hands::State& s)
             homes = body::holsterPositions(s);
             homesKnown = true;
         }
-        c.home = homes[static_cast<za::SizeT>(i)];
+        // The chains' end at the holster: the holster as drawn (its loops, on the body), not the hand's reach point,
+        // which stands out of it (a hand's length out on the hips: the tether seemed to start in the air).
+        c.reach = homes[static_cast<za::SizeT>(i)];
+        if(!view::holsterPoint(i, c.home))
+        {
+            c.home = c.reach;
+        }
         const Where was = c.where;
         const int wasHolster = c.holster, wasHand = c.hand, wasEntity = c.entity;
         locate(c);

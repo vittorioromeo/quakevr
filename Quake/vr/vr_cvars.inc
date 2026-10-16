@@ -3307,7 +3307,8 @@ QVR_CVAR(vr_magholster_button, "0", CVAR_ARCHIVE)           // the bind button: 
 QVR_CVAR(vr_magholster_return_time, "3", CVAR_ARCHIVE)      // seconds out of the hands before it comes back (0: never by time)
 QVR_CVAR(vr_magholster_return_distance, "4", CVAR_ARCHIVE)  // metres from its holster before it comes back (0: never by distance)
 QVR_CVAR(vr_magholster_flight_time, "0.4", CVAR_ARCHIVE)    // seconds its flight back takes
-QVR_CVAR(vr_magholster_style, "0", CVAR_ARCHIVE)            // the chain shown: 0 a lanyard (a short chain hanging off the bound weapon, a stub of it at the empty holster), 1 a tether (from the holster to the weapon whenever it is out of it, held too; faded past the return distance or 6 m), 2 both, 3 none
+QVR_CVAR(vr_magholster_land_time, "1", CVAR_ARCHIVE)        // seconds a thrown or dropped weapon must lie still on the ground (or stuck in a wall) before either return may bring it back: a throw is let finish, never called back mid-air (0: off, it may turn back in the air)
+QVR_CVAR(vr_magholster_style, "1", CVAR_ARCHIVE)          // the chain shown: 0 a lanyard (a short chain hanging off the bound weapon, a stub of it at the empty holster), 1 a tether (from the holster to the weapon whenever it is out of it, held too; faded past the return distance or 6 m), 2 both, 3 none
 QVR_CVAR(vr_magholster_chain_size, "0.6", CVAR_ARCHIVE)     // its links' size, times the flashlight chain's (1.6 cm links of 4 mm bar)
 QVR_CVAR(vr_magholster_chain_alpha, "1", CVAR_ARCHIVE)      // its opacity (below 1: see-through)
 QVR_CVAR(vr_magholster_chain_log, "0", CVAR_NONE)          // 1: prints each chain's state every frame (magchain: its springs' worst stretch from relaxed, its nodes' most movement and jerk off its anchor, mm; tests)
@@ -3742,6 +3743,7 @@ QVR_CVAR(vr_stealth_test_kinds, "0", CVAR_NONE)      // tests: the kinds scene's
 QVR_CVAR(vr_stealth_test_quitclient, "0", CVAR_NONE) // tests: the coop scene (vr_stealth_test 102) tells the other player's game to quit at its end (stealth_mp_test.sh)
 
 // The toolgun (vr_toolgun.cpp, QC vr_toolgun.qc; docs/vr-port/TOOLGUN.md): its menu's settings and its tools'.
+QVR_CVAR(vr_debug_spawn_toolgun, "0", CVAR_ARCHIVE)  // 1: each spawn (a new level, a respawn; not a load), a toolgun in the first empty holster (right hip, left hip, right chest, left chest, right shoulder, left shoulder) unless you carry one; Debug > Toolgun
 QVR_CVAR(vr_toolgun_tool, "0", CVAR_ARCHIVE)          // the tool the trigger uses: 0 spawn, 1 remove, 2 physgun, 3 scale, 4 joint, 5 brush
 QVR_CVAR(vr_toolgun_joint, "0", CVAR_ARCHIVE)         // the joint tool's: 0 weld, 1 ball, 2 hinge, 3 slider, 4 rope, 5 spring, 6 unjoin (removes a prop's joints)
 QVR_CVAR(vr_toolgun_scale_uniform, "1", CVAR_ARCHIVE) // the scale tool's face handles scale the whole prop (1) or along their axis alone (0); corners always the whole
