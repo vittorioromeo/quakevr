@@ -984,6 +984,13 @@ za::Vector<Item> pageDebugTools()
             .help("vr_shock_hit_test <damage>: a lightning gun's bolt from your eyes into the nearest monster or corpse: its arcs and a burn "
                   "where it strikes; it keeps Quad's arcs crawling over it (Lightning Shock), alive or dead, a ragdoll convulsing, a kill charred."),
         command("Lightning Kill the Nearest", "vr_shock_hit_test -1").help("vr_shock_hit_test -1: the same, just enough to kill it (not to gib it)."),
+        command("Throw a Brick at the Nearest", "vr_dents_test 1; vr_gore_dents_info")
+            .help("vr_dents_test 1: a brick thrown into the nearest monster or corpse (a thrown prop's touch): its wound and its blunt "
+                  "dent; vr_gore_dents_info the dents (console). 2: a hand's blow with what you hold, 3: a pommel strike, 4: a sword "
+                  "held by its blade struck pommel first into a corpse (the ragdoll strike's path), 5: the same by its handle."),
+        command("Pommel Strike the Nearest Corpse", "vr_dents_test 4; vr_gore_dents_info")
+            .help("vr_dents_test 4: a sword held by its blade swung pommel first into the nearest corpse or ragdoll, as the ragdoll "
+                  "strike's path has it: its damage, a wound and a round blunt dent; vr_gore_dents_info the dents (console)."),
         command("Shocked Bodies", "vr_shock_info; vr_shock_ragdoll_check")
             .help("vr_shock_info: the bodies with arcs on them (kind 3 a hit's, 4 lasting; the arcs drawn; next frame: how far off the "
                   "skin they lie, bodyshock-arcs); vr_shock_ragdoll_check: each "

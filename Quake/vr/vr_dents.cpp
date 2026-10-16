@@ -416,6 +416,7 @@ struct Size
         case kindShot: return {rnd(2.f, 2.6f), rnd(0.9f, 1.2f), 1.f};
         case kindNail: return {za::min(2.4f + 0.05f * amount, 3.6f) * rnd(0.9f, 1.1f), rnd(1.2f, 1.6f), 1.f};
         case kindMelee: return {za::min(3.f + 0.03f * amount, 5.f) * rnd(0.9f, 1.1f), rnd(1.4f, 1.9f), rnd(2.2f, 3.f)};
+        case kindBlunt: return {za::min(3.4f + 0.035f * amount, 5.5f) * rnd(0.9f, 1.1f), rnd(1.5f, 2.f), rnd(1.f, 1.3f)};
         case kindBlast: return {za::min(3.8f + 0.015f * amount, 5.5f) * rnd(0.9f, 1.1f), za::min(2.f + 0.01f * amount, 3.f), 1.f};
         default: return {rnd(2.6f, 3.4f), rnd(1.1f, 1.5f), 1.f};
     }

@@ -9902,3 +9902,57 @@ sv_random_seed 7, vr_fixed_frames 1, wait60) is the same.
 
 The ~55 test registrations left in vr_main.cpp (modelcollide, selfcollide, modelmetadata, gore, decals, carry, grasp...)
 belong to modules outside this pass.
+
+## Every hit dents (worktree `gorefx`, branch `agent/dentsall`, 2026-10-17)
+
+His notes (NOTES.md 2026-10-17): props (a brick or a rock swung or thrown) left no dent; melee on ragdolls left none, any
+weapon; a sword held by its blade and swung pommel first did no damage to a ragdoll on the ground. Every hit should dent
+as the same damage would a living one, and a hilt or pommel should be a blunt hit like any other.
+
+Causes:
+
+- **A corpse's hits never sent a wound.** `T_DamageImpl` hands a corpse's (or a dying body's) damage to
+  `VR_Corpse_Damage` and returns before its own `VR_Wound_Hit`, so only a shotgun's pellets (`VR_Wound_Pellet`, sent as
+  they strike) painted and dented a ragdoll: no blade, blunt blow, nail, thrown thing or blast did.
+- **A thrown or flung prop was a nail.** `VR_Wound_Hit` worked the kind out from the inflictor: a brick (hit kind none,
+  not a monster) fell through to `QVR_WOUND_NAIL`, the smallest dent (r 2.4-3.6). A thrown blade was a nail too.
+- **The ragdoll strike traced the hand to the muzzle only** (`VR_Corpse_StrikeFrame`): a pommel behind the hand, a sword
+  carried by its blade (its hilt the far end), a club's head never met a corpse. The living's blows (`VR_Melee_Line`,
+  round 21) already strike with all of it.
+
+Fixes:
+
+- `VR_Corpse_Damage` (combat.qc) sends the hit's wound first (`VR_Wound_Hit`, its damage after Quad, before the
+  positional factor is taken back out: the same blow's wound as on the living). Fire's are still the flames' own.
+- `VR_Wound_Hit` (vr_wounds.qc) asks `VR_SmallGib_Kind` what struck: thrown or flung props (bricks, rocks, crates, gibs)
+  and thrown weapons are melee wounds (a thrown blade cuts); a blunt melee blow (a punch, a pommel or hilt, a gun, the
+  crowbar, Mjolnir, a prop in the fist, a thrown prop) sends extra 1. A batted-back projectile keeps its own kind.
+- Engine: a blunt melee wound (extra 1) is rounder (stretch 1-1.4, was 1.8-2.6) and its dent is the new
+  `dents::kindBlunt` (vr_dents.hpp): a round crater, r 3.4 + 0.035 x damage (at most 5.5), depth 1.5-2, stretch 1-1.3
+  (a cut stays r 3 + 0.03 x damage, drawn out 2.2-3x along the swing). Scaled by damage as before.
+- `VR_Corpse_StrikeFrame` traces what the hand holds along its melee line (`VR_Corpse_StrikeLine` / `_StrikeAlong`,
+  vr_melee.qc: from the hand out to its far end and back to its near end, 4 units ahead along the swing), and a sword's
+  or an axe's struck part is told by `VR_Melee_PartAt`: its pommel, hilt, guard or handle is a blunt blow
+  (`vr_melee_blunt`: corpse damage kind blunt, a round dent; no beheading cut). Its damage and the rest moved into
+  `VR_Corpse_Struck`, unchanged. `developer 2` prints "corpse strike: ... with the pommel (-0.25 of the way ...), blunt".
+
+Test: `vr_dents_test <n>` (vr_dents_test.qc; Debug > Gore Tests: Throw a Brick at the Nearest, Pommel Strike the Nearest
+Corpse) strikes the nearest monster or corpse: 1 a thrown brick (its touch), 2 a hand's blow with what you hold, 3 a
+pommel strike, 4 a sword by its blade pommel first into a corpse (the ragdoll strike's own path, its line laid out), 5
+by its handle, blade first; it prints the wound sent. `scratch/dentsall.sh <worktree> [monster]` (an ogre, alive then its
+ragdoll; `vr_wounds_debug 1`):
+
+| path | alive | ragdoll |
+|---|---|---|
+| thrown brick | melee, blunt; dent kind 6 r 4.9 | melee, blunt; kind 6 r 4.2 (before: no wound) |
+| fist blow | melee, blunt; kind 6 r 4.4 | melee, blunt; kind 6 r 4.5 (before: none) |
+| pommel strike | melee, blunt; kind 6 r 4.1 | melee, blunt; kind 6 r 4.1 (before: none) |
+| sword slash | melee, a cut; kind 3 r 3.8 stretch 2.5 | (the same function; the test's sword was dropped by then) |
+| sword by its blade, pommel first | (the living's line, round 21) | struck with the pommel (-0.25), blunt; kind 6 r 5.7 (before: no contact) |
+| sword by its handle, blade first | | struck with the blade (0.90), not blunt |
+
+Melee eval (eval.sh): 168/177, the 3 known bash-damage canary differences (6 -> 3), nothing else.
+
+In VR: throw a brick or a rock at a grunt, and hit one with a brick in the fist: a round dent where it struck. Kill one and
+hit the ragdoll with the sword, the axe, a fist, a brick, and a thrown brick: each leaves a wound and a dent. Hold the
+sword by its blade and club a ragdoll on the floor with the hilt: it takes damage (corpse damage, a round dent, a knock).
