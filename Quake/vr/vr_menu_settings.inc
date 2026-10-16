@@ -208,13 +208,19 @@ za::Vector<Item> pageMain()
 // Built with snap turning (Snap Angle shown) or smooth (Turn Speed shown): built again when that changes (items()).
 [[nodiscard]] za::Vector<Item> pageVrsTurning()
 {
-    const bool snap = vr_snap_turn.value > 0.f;
-    mainPageSnap = snap ? 1 : 0;
+    const bool off = vr_enable_joystick_turn.value == 0.f;
+    const bool snap = !off && vr_snap_turn.value > 0.f;
+    mainPageSnap = off ? 2 : snap ? 1 : 0;
     za::Vector<Item> list{
-        cycle("Turning Mode", vr_menu_turning, {{0.f, "Smooth"}, {1.f, "Snap"}})
+        cycle("Turning Mode", vr_menu_turning, {{0.f, "Smooth"}, {1.f, "Snap"}, {2.f, "Off"}})
             .help("Smooth: the turning stick turns you steadily. Snap: each push turns you at once by Snap Angle, which "
-                  "many find more comfortable."),
+                  "many find more comfortable. Off: the stick never turns you, in any state (its other uses stay): "
+                  "you turn in real life."),
     };
+    if(off)
+    {
+        return list;
+    }
     if(snap)
     {
         list.pushBack(cycle("Snap Angle", vr_snap_turn, {{30.f, "30"}, {45.f, "45"}, {90.f, "90"}})

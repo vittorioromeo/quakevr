@@ -9684,3 +9684,26 @@ Not done (left for a next round): the other modules' test and bench commands to 
 vr_wounds 380, vr_jobs_engine 341, vr_weight 317, vr_hitmodel 225, vr_brushes 164, vr_animsmooth 148, vr_zancle 122,
 vr_ragdoll's recorders ~250, and smaller ones), and the other ~65 commands vr_main.cpp registers for other modules
 (each module registering its own). msplit.py does a two-part split from a config entry (msplit_cfg.py).
+
+## Per-weapon reload overrides, Turning Mode Off (worktree `goreflesh`, branch `agent/menuopts`, 2026-10-16)
+
+The author's request: a reload mode of its own for each weapon, and a way to switch stick turning off entirely.
+
+- **Storage: eight archived cvars**, `vr_reload_mode_<shot|sshot|nail|snail|gl|prox|rl|light>`, default -1 (follow `vr_reload_mode`),
+  else 0..3 as the global. Chosen over the `vr_wofs_*` weapon slots because the reload logic is QC and reads cvar handles each frame
+  (a `weaponvalue` lookup is a string search over the slots and keys); it also follows the existing per-gun `vr_reload_pouch_*`.
+  Only the eight guns that reload (WeaponIdToSupportsReload); the lava and plasma variants follow their base gun's id.
+- **Logic (QC)**: `VR_Reload_ModeOf(wid)` (vr_weaponutil.qc) resolves a weapon's effective mode. `VR_Reload_ManualForInst`,
+  `VR_Reload_MagIn`, `VRIsWeaponReloadingEnabledForWeapon`/`...For`, `isReloadHolsterHotspot(hotspot, weapon)` and the pickup's
+  magazine fill use it. The pouch and its furniture (`VR_Reload_Immersive()`, `VRIsWeaponReloadingEnabled`) are on when any gun
+  is Immersive (`VR_Reload_BestMode`).
+- **Engine**: `STAT_QVR_RELOADMODE` and the seated-magazine collision use the highest mode of the global and the overrides
+  (`qvr::reloadModeBest`, vr_cvars.hpp), so the clients draw the pouch, magazines and ports if any gun needs them.
+- **Menu**: Advanced VR Options > Weapons > Reloading > Per-Weapon Reload Overrides (one row per gun: Use Global, Immersive,
+  Simple, Simple (all holsters), Disabled; the proximity gun only with Hipnotic installed).
+- **Turning Mode Off**: the existing archived `vr_enable_joystick_turn` toggle (it gates `input::turn`, the only path from the stick
+  to yaw: menus, climbing, swimming and the toolgun/posing sticks never turned you) is now the third choice of VR Settings >
+  Comfort > Turning Mode (Smooth, Snap, Off; the menu's wrapper `vr_menu_turning` 2). No new cvar, no migration.
+- **Tests**: `vr_reload_test 9; impulse 125`: 72 passed (five new "override:" checks: the shotgun by hand over a global of 2 while
+  the nailgun reloads at the hip, and the reverse with the super shotgun off). Mock stick `vr_mock_stick main 1 0` for 30 frames:
+  hand yaw 90 -> -46.53; with `vr_enable_joystick_turn 0` it stays -46.53. `vr_menu_path_check`: 0 missing.

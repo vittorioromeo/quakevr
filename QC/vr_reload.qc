@@ -136,9 +136,16 @@ void() VR_Reload_Precache =
 // The mode
 
 // Whether immersive reloading is on (and reloading at all: Weapon Mode Immersive).
+// Of any gun: the global mode, or a gun's own override (Per-Weapon Reload Overrides): the pouch, its furniture.
 float() VR_Reload_Immersive =
 {
-    return cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_IMMERSIVE && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
+    return VR_Reload_BestMode() == QVR_RELOADMODE_IMMERSIVE && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
+};
+
+// The same of the gun `xWeapon` alone (its own mode, else the global).
+float(float xWeapon) VR_Reload_ImmersiveFor =
+{
+    return VR_Reload_ModeOf(xWeapon) == QVR_RELOADMODE_IMMERSIVE && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
 };
 
 // Whether `xWeapon` takes magazines (immersive reloading's phase 2).
@@ -158,7 +165,7 @@ float(float xWeapon) VR_Reload_IsFront =
 // flick reload for it.
 float(float xWeapon, entity xInst) VR_Reload_ManualForInst =
 {
-    return VR_Reload_Immersive() && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon) || VR_Reload_IsFront(xWeapon) ||
+    return VR_Reload_ImmersiveFor(xWeapon) && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon) || VR_Reload_IsFront(xWeapon) ||
         (xWeapon == WID_SUPER_SHOTGUN && cvar_hget(cvarh_vr_reload_ssg_break) && !AD_Widowmaker(xInst))); // (AD support: the Widowmaker reloads at the hip)
 };
 
@@ -221,7 +228,7 @@ float(entity p, float xHand) VR_Reload_MagIn =
 {
     float w = VRGetEntWeapon(p, xHand);
     float f = VRGetEntWeaponFlags(p, xHand);
-    return p.ishuman && VR_Reload_Immersive() && VR_Reload_UsesMag(w) && !(f & QVR_WPNFLAG_NOMAG);
+    return p.ishuman && VR_Reload_ImmersiveFor(w) && VR_Reload_UsesMag(w) && !(f & QVR_WPNFLAG_NOMAG);
 };
 
 // The ammo whose rounds the pouch gives for the gun `p` holds in `xHand` (by its handle or carried), if it loads by hand;

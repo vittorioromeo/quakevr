@@ -1112,7 +1112,7 @@ void() weapon_touch =
     // A fresh pickup is ready to fire: move rounds from the bounded reserve into its own magazine.
     // Pool-only firing modes keep their ammo in the reserve. Existing weapon instances never pass here.
     float clip = 0;
-    if(other.ishuman && VRIsWeaponReloadingEnabled(other) && WeaponIdToSupportsReload(weaponId))
+    if(other.ishuman && VRIsWeaponReloadingEnabledForWeapon(other, weaponId))
     {
         clip = max(0, min(WeaponIdToBaseClipSize(weaponId), VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId)));
         VR_AmmoUtil_DelAmmoCountByAmmoId(other, ammoId, clip);

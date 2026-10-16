@@ -1938,6 +1938,7 @@ const Page pages[] = {
     {"Reloading - Thunderbolt", pageReloadThunderbolt, pageReloading},
     {"Reloading - Launchers", pageReloadLaunchers, pageReloading},
     {"Reloading - Cell Cords", pageReloadCellCords, pageReloading},
+    {"Per-Weapon Reload Overrides", pageReloadOverrides, pageReloading},
     {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)
     {"Stealth AI Tests", pageStealthTests, pageDebugAutomation, LevelDeveloper},
     {"Ragdoll Behaviour Tests", pageRagdollTests, pageDebugTests, LevelDeveloper}, // (vr_menu_ragtests.inc)
@@ -2416,7 +2417,8 @@ void syncWrappers()
     {
         lastSnapAngle = vr_snap_turn.value;
     }
-    showWrapper(vr_menu_turning, vr_snap_turn.value > 0.f ? 1.f : 0.f);
+    // Turning Mode: Smooth, Snap, Off (vr_enable_joystick_turn 0: the stick never turns you).
+    showWrapper(vr_menu_turning, vr_enable_joystick_turn.value == 0.f ? 2.f : vr_snap_turn.value > 0.f ? 1.f : 0.f);
     const int mode = static_cast<int>(vr_movement_mode.value);
     showWrapper(vr_menu_move_towards, mode >= 1 && mode <= 3 ? static_cast<float>(mode)
                                       : hands::moveHand() == HAND_OFF ? 2.f : 3.f);
@@ -2441,7 +2443,11 @@ void onWrapperSet(cvar_t* var)
     wrapperBusy = true;
     if(var == &vr_menu_turning)
     {
-        Cvar_SetValueQuick(&vr_snap_turn, var->value != 0.f ? lastSnapAngle : 0.f);
+        Cvar_SetValueQuick(&vr_enable_joystick_turn, var->value == 2.f ? 0.f : 1.f);
+        if(var->value != 2.f) // (Off leaves the snap angle as it is: back to Smooth or Snap, it is as it was)
+        {
+            Cvar_SetValueQuick(&vr_snap_turn, var->value != 0.f ? lastSnapAngle : 0.f);
+        }
     }
     else if(var == &vr_menu_move_towards)
     {
@@ -2866,7 +2872,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         syncWrappers(); // Turning Mode, Move Towards, the hands: as their settings are now
     }
     if(pages[page].build == pageVrsComfortTurning && mainPageSnap >= 0 &&
-        mainPageSnap != (vr_snap_turn.value > 0.f ? 1 : 0))
+        mainPageSnap != (vr_enable_joystick_turn.value == 0.f ? 2 : vr_snap_turn.value > 0.f ? 1 : 0))
     {
         done[page] = false; // Snap Angle shown, or Turn Speed
     }

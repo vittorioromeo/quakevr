@@ -823,7 +823,9 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_MELEE, f.vr_melee_hud);
     stat(STAT_QVR_HOTBLADE, f.vr_hot_hud); // incandescent blades' glow (vr_meleehud.cpp)
     stat(STAT_QVR_HOTBLADEHOLSTER, f.vr_hot_hud2);
-    statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value == 0.f ? static_cast<int>(vr_reload_mode.value) : 0;
+    // The highest of the global mode and the guns' own (vr_reload_mode_<gun>; -1 follows the global): the clients draw the
+    // pouch and the magazines if any gun reloads by hand.
+    statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value == 0.f ? reloadModeBest() : 0;
     stat(STAT_QVR_POUCHKIND, f.vr_pouch_kind);
     stat(STAT_QVR_POUCHCOUNT, f.vr_pouch_count);
     statsf[STAT_QVR_STEALTH] = fieldFloatOr(ent, f.stl_hud, -1.f);

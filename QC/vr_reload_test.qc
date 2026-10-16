@@ -456,6 +456,39 @@ void() VR_Reload_SelfTest =
     cvar_set("vr_reload_mode", "0");
     VR_Reload_Check(!VRIsWeaponReloadingEnabledFor(self, cVR_OffHand) && !VR_Reload_Immersive(), "off: no magazines");
 
+    // Per-weapon overrides (vr_reload_mode_<gun>): the shotgun by hand over a global of hip holsters, the nailgun at the hip.
+    cvar_set("vr_reload_mode", "2");
+    cvar_set("vr_reload_mode_shot", "3");
+    VR_Reload_Check(VR_Reload_ManualFor(WID_SHOTGUN) && !VR_Reload_ManualFor(WID_NAILGUN) && VR_Reload_Immersive(),
+        "override: the shotgun (3) loads by hand, the nailgun follows the global (2)");
+    VRGiveEntWeapon(self, cVR_OffHand, WID_NAILGUN, 0, 0);
+    VRSetEntWeaponClip(self, cVR_OffHand, 0);
+    self.ammo_nails = 50;
+    VRTryReloadWeapon(self, cVR_OffHand, WID_NAILGUN, 0);
+    VR_Reload_Check(VRGetEntWeaponClip(self, cVR_OffHand) == 24, sprintf("override: the nailgun reloads at the hip "
+        "(magazine %g, want 24)", VRGetEntWeaponClip(self, cVR_OffHand)));
+    VRGiveEntWeapon(self, cVR_OffHand, WID_SHOTGUN, 0, 0);
+    VRSetEntWeaponClip(self, cVR_OffHand, 0);
+    self.ammo_shells = 10;
+    VRTryReloadWeapon(self, cVR_OffHand, WID_SHOTGUN, 0);
+    VR_Reload_Check(VRGetEntWeaponClip(self, cVR_OffHand) == 0 && self.ammo_shells == 10,
+        "override: no holster reload for the shotgun (by hand)");
+    // The other way: a global of Immersive, the nailgun at the hip, the super shotgun off.
+    cvar_set("vr_reload_mode", "3");
+    cvar_set("vr_reload_mode_shot", "-1");
+    cvar_set("vr_reload_mode_nail", "2");
+    cvar_set("vr_reload_mode_sshot", "0");
+    VR_Reload_Check(VR_Reload_ManualFor(WID_SHOTGUN) && !VR_Reload_ManualFor(WID_NAILGUN) && !VRIsWeaponReloadingEnabledForWeapon(self, WID_SUPER_SHOTGUN),
+        "override: global 3, the shotgun follows it, the nailgun (2) at the hip, the super shotgun (0) off");
+    VRGiveEntWeapon(self, cVR_OffHand, WID_NAILGUN, 0, 0);
+    VRSetEntWeaponClip(self, cVR_OffHand, 0);
+    VRTryReloadWeapon(self, cVR_OffHand, WID_NAILGUN, 0);
+    VR_Reload_Check(VRGetEntWeaponClip(self, cVR_OffHand) == 24 && !VR_Reload_MagIn(self, cVR_OffHand),
+        sprintf("override: the nailgun (2) reloads at the hip, no magazine (magazine %g)", VRGetEntWeaponClip(self, cVR_OffHand)));
+    cvar_set("vr_reload_mode_nail", "-1");
+    cvar_set("vr_reload_mode_sshot", "-1");
+    cvar_set("vr_reload_mode", "0");
+
     VRGiveEntWeapon(self, cVR_OffHand, WID_SHOTGUN, 0, 0);
     VRSetEntWeaponClip(self, cVR_OffHand, 0);
     self.ammo_shells = 20;

@@ -489,6 +489,38 @@ float(float wid) WeaponIdToSupportsReload =
     return -1;
 }
 
+// The reloading mode of the weapon `wid` (QVR_RELOADMODE_*): its own vr_reload_mode_<gun> (the Per-Weapon Reload
+// Overrides; -1 follows), else vr_reload_mode. A weapon that doesn't reload takes the global mode.
+float(float wid) VR_Reload_ModeOf =
+{
+    float own = -1;
+    if(wid == WID_SHOTGUN)               { own = cvar_hget(cvarh_vr_reload_mode_shot); }
+    else if(wid == WID_SUPER_SHOTGUN)    { own = cvar_hget(cvarh_vr_reload_mode_sshot); }
+    else if(wid == WID_NAILGUN)          { own = cvar_hget(cvarh_vr_reload_mode_nail); }
+    else if(wid == WID_SUPER_NAILGUN)    { own = cvar_hget(cvarh_vr_reload_mode_snail); }
+    else if(wid == WID_GRENADE_LAUNCHER) { own = cvar_hget(cvarh_vr_reload_mode_gl); }
+    else if(wid == WID_PROXIMITY_GUN)    { own = cvar_hget(cvarh_vr_reload_mode_prox); }
+    else if(wid == WID_ROCKET_LAUNCHER)  { own = cvar_hget(cvarh_vr_reload_mode_rl); }
+    else if(wid == WID_LIGHTNING)        { own = cvar_hget(cvarh_vr_reload_mode_light); }
+    return own >= 0 ? own : cvar_hget(cvarh_vr_reload_mode);
+}
+
+// The highest reloading mode of any gun (the global mode and every override): whether the pouch, the magazines and the
+// rest of the immersive reloading's furniture are wanted at all.
+float() VR_Reload_BestMode =
+{
+    float best = cvar_hget(cvarh_vr_reload_mode);
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_shot));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_sshot));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_nail));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_snail));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_gl));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_prox));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_rl));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_light));
+    return best;
+}
+
 float(float wid) WeaponIdToSupportsReloadFlicking =
 {
     if(wid == WID_FIST)             { return FALSE; }
