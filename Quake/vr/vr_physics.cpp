@@ -188,10 +188,13 @@ constexpr float weaponDrawnReach = 48.f;
     // (An explosive box by the fist only where the fist also pushes it, vr_box3d_hand_push_fist: the listen server's own
     // player. Another player's hand still pushes with the sphere at its point, which keeps the box off its fist.)
     const bool byFist = vr_carry_grab_drawn.value && vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
-    if(box3d::isRagdoll(NUM_FOR_EDICT(target)))
+    const int h = which == HAND_OFF ? 0 : 1;
+    const int handPos = which == HAND_OFF ? f().offhandpos : f().handpos; // (the hand's field)
+    const float m2u = units::metresToUnits();
+    if(const int num = NUM_FOR_EDICT(target); box3d::isRagdoll(num))
     {
         // A ragdoll: a hand on one of its limbs (its box is round all of them).
-        return box3d::ragdollReach(NUM_FOR_EDICT(target), fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos));
+        return box3d::ragdollReach(num, fieldVec(player, handPos));
     }
     if(hasFlag(target, physics::FL_FORCEGRABBABLE) || (byFist && carried(target)))
     {
@@ -200,9 +203,9 @@ constexpr float weaponDrawnReach = 48.f;
         const int mi = static_cast<int>(target->v.modelindex);
         const qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
         const float slack = model && modelmeta::isRound(model)
-                                ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * units::metresToUnits()
+                                ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * m2u
                                 : 0.f;
-        return held::grabTouch(target, player, which == HAND_OFF ? 0 : 1, slack);
+        return held::grabTouch(target, player, h, slack);
     }
     if(weaponByFist(target))
     {
@@ -215,9 +218,7 @@ constexpr float weaponDrawnReach = 48.f;
         // In the air (tossed up to re-grip it, flipped, spinning): vr_weapon_catch_handle_leniency at its handle, a trick
         // catch's (ROUND22.md, "Mid-air catches": the closing fist missed a falling axe's handle by a few centimetres).
         // Not one a force grab pulls (QC fg_state 1): its catch is its own (vr_forcegrab_catch_radius).
-        const int h = which == HAND_OFF ? 0 : 1;
-        const float m2u = units::metresToUnits();
-        const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
+        const glm::vec3 hand = fieldVec(player, handPos);
         const bool atHandle =
             glm::distance(hand, vec(target->v.origin)) <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u;
         float slack = 0.f;
@@ -245,7 +246,7 @@ constexpr float weaponDrawnReach = 48.f;
             return false;
         }
     }
-    const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
+    const glm::vec3 hand = fieldVec(player, handPos);
     const glm::vec3 extent{handHalfSize};
     const glm::vec3 bonus{handTouchBonus(target)};
     const glm::vec3 origin = vec(target->v.origin);
