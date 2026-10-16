@@ -23,6 +23,7 @@ void(float xBits, float xForward, float xUp, float xRadius, float xCorpseH) VR_A
     self.vr_ad_headf = xForward;
     self.vr_ad_headu = xUp;
     self.vr_ad_headr = xRadius;
+    self.vr_ad_headl = 0;
     self.vr_ad_corpseh = xCorpseH;
 };
 
@@ -49,10 +50,12 @@ void() VR_AD_MonsterSetup =
     }
     // Zombie knight (progs/mon_zombiek.mdl): no death of its own (AD's zombies die gibbed; Quake VR's beheading or a cut
     // limb kills it for good, VR_AD_ZombieKilled). Its knockdown gets up as AD's own (paine: down at paine12, up from 13).
-    // Head: its rig's head 4.7 5.3 21.8 (headfit.py mon_zombiek 18 -3: 2.8 3.1 21.1, 7.0).
+    // Head: headfit.py mon_zombiek 18 -3 (2.8 3.1 21.1, 7.0; its rig's head 4.7 5.3 21.8): its head hangs to its
+    // left, the zone's middle 3 units that way (it was on its middle line: the head 3-5 units off it).
     else if(t == ad_CT_MONZOMBIEK)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR | VR_ADM_ZOMBIE, 4, 22, 6.5, cvarh_vr_corpse_health_zombie);
+        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR | VR_ADM_ZOMBIE, 3, 21.5, 7, cvarh_vr_corpse_health_zombie);
+        self.vr_ad_headl = 3;
         VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_zombie, 132, ad_zombiek_paine13);
     }
     // Crossbow knight (progs/mon_dcrossbow.mdl: deaths 225-235, 236-255). Head: headfit.py mon_dcrossbow 19 -2 8 (3.9 -1.4
@@ -282,6 +285,7 @@ float(entity e) VR_AD_PositionalHead =
     xHeadForward = e.vr_ad_headf;
     xHeadUp = e.vr_ad_headu;
     xHeadRadius = e.vr_ad_headr;
+    xHeadLeft = e.vr_ad_headl;
     return TRUE;
 };
 
@@ -495,6 +499,92 @@ void() VR_AD_BodySolid =
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Its gibbing by AD's own code (AD's monster_ThrowGib: a live one blown apart; its gibs and head by AD's ThrowGib) gets
+// what id's gibbing (ThrowHead, ThrowGib: player.qc) gets: the gore, small gibs and limbs, and its head and gibs are
+// Quake VR's gibs: carried, thrown, rigid bodies once they land (Box3D), burst by damage into a mist and small gibs (a
+// head with its brain). Only flesh: a stone or metal monster's (AD's gibtype), and the weapons and armour among its
+// gibs (a crossbow, a sword, a grenade launcher: their impact sound, or a w_ model), stay AD's (they would knock and
+// burst as flesh). A gib that hurts on touch (AD's gib1dmg) stays AD's too. (A corpse gibbed is ours already:
+// VR_Corpse_Parts, ThrowHead.)
+
+// What `m` is gibbed by AD's code: one of its monsters (a gib fountain's, a breakable's gibs stay AD's).
+float(entity m) VR_AD_GibsOurs =
+{
+    return ((m.flags & FL_MONSTER) || m.vr_ad_mon) && cvar_hget(cvarh_vr_grab_gibs);
+};
+
+// Its gibs are flesh (AD's gibtype: blood or poison, not stone, wood, glass or metal). Not the robot's (floyd: its metal
+// head thrown before AD makes its gibtype metal) nor the snowman's (AD: "No blood or guts!").
+float(entity m) VR_AD_FleshGibs =
+{
+    return (m.ad_gibtype == ad_GIBTYPE_BLOOD || m.ad_gibtype == ad_GIBTYPE_POISON) && m.ad_classtype != ad_CT_MONFLOYD &&
+           m.ad_classtype != ad_CT_MONSNOWMAN;
+};
+
+void() VR_AD_Gibbed =
+{
+    if(!VR_AD_GibsOurs(self) || !VR_AD_FleshGibs(self))
+    {
+        return;
+    }
+    dprint(sprintf("gibbed: %s (AD's)\n", self.classname));
+    VR_Gore_Gibbed();
+    VR_SmallGib_Gibbed(self.health);
+    VR_Limb_GibAll(self.health);
+};
+
+void(entity g, float xNo) VR_AD_GibThrown =
+{
+    if(!VR_AD_GibsOurs(self) || g.ad_gib1dmg > 0 || !VR_AD_FleshGibs(self))
+    {
+        return;
+    }
+    if(xNo >= 11 && (substring(g.mdl, 0, 8) == "progs/w_" || (xNo <= 13 && (g.weapon >= ad_GIB_IMPACT_STONE ||
+       g.noise != ""))))
+    {
+        return; // (a weapon or armour: its own impact sound, AD's)
+    }
+    if(xNo < 10 && !VR_Limb_GibsWanted())
+    {
+        setmodel(g, ""); // (its limbs instead of the meat gibs: vr_gib_limbs 2, as ThrowGib)
+        g.think = SUB_Remove;
+        g.nextthink = time;
+        return;
+    }
+    float head = xNo == 25;
+    if(head && self.vr_headless)
+    {
+        setmodel(g, ""); // (its head cut off already: vr_decap.qc threw it)
+        g.think = SUB_Remove;
+        g.nextthink = time;
+        return;
+    }
+    g.flags = 0;
+    g.ad_gibpartstyle = 0; // (AD's floor checks and particles: its think, no longer run)
+    g.stl_notice = STL_NOTICE_BODY; // (monsters seeing it are alerted: vr_stealth.qc)
+    if(head)
+    {
+        // As the head id's gibbing throws (ThrowHead: the monster itself) or a beheading's (VR_Decap_ThrowHead).
+        g.classname = self.classname;
+        g.gorging = TRUE;
+        g.view_ofs = '0 0 8';
+        g.think = HeadThink;
+        g.nextthink = time + 1.5;
+        VR_MakeGibGrabbable(g);
+        VR_Gib_MakeDestroyable(g, 1.5);
+        VR_Limb_SetMass(g, self, -1); // (its share of its ragdoll's mass, as a head cut off; no rig: its hull's)
+    }
+    else
+    {
+        g.think = SUB_Remove; // (VR_MakeGibGrabbable: they lie about longer, to be played with)
+        VR_MakeGibGrabbable(g);
+        VR_Gib_MakeDestroyable(g, 1);
+    }
+    VR_SmallGib_CarryMults(self, g); // (it carries this monster's small gib and brain counts: vr_smallgibs.qc)
+    VR_Gore_WatchFling(g); // (it may stick to a ceiling or a wall: vr_gore_stick)
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
 // The debug spawner (Debug > Tests, vr_test_spawn N with impulse 241; func_enemy_dispenser's "weapon"): AD's monsters
 // from 200, in the order of their use in AD's maps. In a map played by AD's rules only (AD's world setup).
 
@@ -545,6 +635,16 @@ string(float choice) VR_AD_DispenserModel =
     if(choice == 242) { return "progs/mon_judge.mdl"; }
     if(choice == 245) { return "progs/mon_wizard.mdl"; }
     if(choice == 250) { return "progs/mon_hknight.mdl"; }
+    if(choice == 251) { return "progs/mon_bossboglord.mdl"; }
+    if(choice == 252) { return "progs/mon_gaunt.mdl"; }
+    if(choice == 253) { return "progs/mon_ogre.mdl"; }
+    if(choice == 254) { return "progs/mon_floyd.mdl"; }
+    if(choice == 255) { return "progs/mon_deflector.mdl"; }
+    if(choice == 256) { return "progs/mon_dprince.mdl"; }
+    if(choice == 257) { return "progs/mon_bossnour.mdl"; }
+    if(choice == 258) { return "progs/mon_dguardq.mdl"; }
+    if(choice == 259) { return "progs/mon_dlord.mdl"; }
+    if(choice == 260) { return "progs/mon_sentinel.mdl"; }
     if(choice == 300) { return "progs/artifact_tome.mdl"; }
     if(choice == 301) { return "progs/artifact_sharp.mdl"; }
     if(choice == 302) { return "progs/artifact_piercer.mdl"; }
@@ -557,6 +657,11 @@ string(float choice) VR_AD_DispenserModel =
     if(choice == 309) { return "progs/g_shadaxe.mdl"; }
     if(choice == 310) { return "progs/g_shot3.mdl"; }
     if(choice == 311) { return "progs/g_plasma.mdl"; }
+    if(choice == 320) { return "progs/w_backpack.mdl"; }
+    if(choice == 321) { return "progs/w_backpack.mdl"; }
+    if(choice == 322) { return "progs/w_backpack.mdl"; }
+    if(choice == 323) { return "progs/w_backpack.mdl"; }
+    if(choice == 324) { return "progs/w_backpack.mdl"; }
     if(choice == 312) { return "progs/mon_soldier.mdl"; }
     if(choice == 313) { return "progs/mon_soldier.mdl"; }
     if(choice == 314) { return "progs/mon_soldier.mdl"; }
@@ -575,6 +680,11 @@ float(float choice) VR_AD_DispenserSpawn =
         return FALSE;
     }
     if(!cvar("vr_ad_mounted") || (!AD_Rules() && !cvar("vr_ad_everywhere")))
+    {
+        remove(self);
+        return TRUE;
+    }
+    if(!AD_Rules() && (choice == 258 || choice == 259 || choice == 260 || choice == 320 || choice == 321 || choice == 322 || choice == 323 || choice == 324)) // (only in an AD map: QVR_AD_SPAWN_MAP)
     {
         remove(self);
         return TRUE;
@@ -624,6 +734,16 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 242) { self.classname = "monster_judicator"; ad_monster_judicator(); }
     else if(choice == 245) { self.classname = "monster_wizard"; ad_monster_wizard(); }
     else if(choice == 250) { self.classname = "monster_hell_knight"; ad_monster_hell_knight(); }
+    else if(choice == 251) { self.classname = "monster_gug"; ad_monster_gug(); }
+    else if(choice == 252) { self.classname = "monster_polyp"; ad_monster_polyp(); }
+    else if(choice == 253) { self.classname = "monster_ogre_flak"; ad_monster_ogre_flak(); }
+    else if(choice == 254) { self.classname = "monster_floyd"; ad_monster_floyd(); }
+    else if(choice == 255) { self.classname = "monster_deflector"; ad_monster_deflector(); }
+    else if(choice == 256) { self.classname = "monster_dprince"; ad_monster_dprince(); }
+    else if(choice == 257) { self.classname = "monster_vermis"; ad_monster_vermis(); }
+    else if(choice == 258) { self.classname = "monster_death_guard"; ad_monster_death_guard(); }
+    else if(choice == 259) { self.classname = "monster_death_lord"; ad_monster_death_lord(); }
+    else if(choice == 260) { self.classname = "monster_sentinel"; ad_monster_sentinel(); }
     else if(choice == 300) { self.classname = "item_artifact_tomeofpower"; ad_item_artifact_tomeofpower(); }
     else if(choice == 301) { self.classname = "item_artifact_sharp_shooter"; ad_item_artifact_sharp_shooter(); }
     else if(choice == 302) { self.classname = "item_artifact_nail_piercer"; ad_item_artifact_nail_piercer(); }
@@ -636,6 +756,11 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 309) { self.classname = "weapon_upgrade_axe"; weapon_upgrade_axe(); }
     else if(choice == 310) { self.classname = "weapon_upgrade_ssg"; weapon_upgrade_ssg(); }
     else if(choice == 311) { self.classname = "weapon_upgrade_lg"; weapon_upgrade_lg(); }
+    else if(choice == 320) { self.classname = "item_backpack"; self.spawnflags = 15; ad_item_backpack(); }
+    else if(choice == 321) { self.classname = "item_backpack_armour"; self.spawnflags = 0; ad_item_backpack_armour(); }
+    else if(choice == 322) { self.classname = "item_backpack_armour"; self.spawnflags = 1; ad_item_backpack_armour(); }
+    else if(choice == 323) { self.classname = "item_backpack_armour"; self.spawnflags = 2; ad_item_backpack_armour(); }
+    else if(choice == 324) { self.classname = "item_backpack_armour"; self.spawnflags = 4; ad_item_backpack_armour(); }
     else if(choice == 312) { self.classname = "func_weapon_grabbable"; self.weapon = 20; func_weapon_grabbable(); }
     else if(choice == 313) { self.classname = "func_weapon_grabbable"; self.weapon = 21; func_weapon_grabbable(); }
     else if(choice == 314) { self.classname = "func_weapon_grabbable"; self.weapon = 22; func_weapon_grabbable(); }

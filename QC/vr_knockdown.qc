@@ -282,6 +282,10 @@ void(string xWhat) VR_Knockdown_Afoot =
         self.movetype = MOVETYPE_NONE;
         self.vr_dummy_painframe = 0;
     }
+    else if(self.vr_ad_mon)
+    {
+        VR_AD_RunNow(); // AD support: AD's monsters run by AD's th_run (its own th_run none: it stood frozen)
+    }
     else if(!self.think)
     {
         self.think = self.th_stand;
@@ -718,14 +722,75 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
 // monster, standing, knocked down or dead (the ledge tests' clean slate between trials), 21 and 22 shove the nearest with
 // one hand and with two (its chance as a real shove's: vr_knockdown_chance 100 for sure; its topple traced with
 // vr_knockdown_debug).
+// vr_knockdown_test 10 (Debug > Combat, "Why Can't I Knock It Down?"): why a shove, a throw or a lift of the nearest
+// living monster `m` makes no ragdoll now: each gate VR_Knockdown_Try and VR_FoeGrab_Lift test, and the ragdoll pool as
+// VR_Knockdown_MakeRoom counts it (the ragdolls it can free and those it cannot), side-effect free.
+void(entity m) VR_Knockdown_WhyNot =
+{
+    float most = cvar("vr_ragdoll_max");
+    dprint(sprintf("whynot: %s health %g, vr_knockdown %g, chance handle %g (%g x vr_knockdown_chance %g), flags fly/swim %g\n",
+        m.classname, m.health, m.vr_knockdown, m.vr_kd_chance_h, m.vr_kd_chance_h ? cvar_hget(m.vr_kd_chance_h) : 0,
+        cvar_hget(cvarh_vr_knockdown_chance), m.flags & (FL_FLY | FL_SWIM))); // (sprintf: 8 arguments at most)
+    dprint(sprintf("whynot: vr_knockdown %g, canragdoll %g, ragdollcanstagger %g, isragdoll %g, dummy anchored %g, stamina %g of %g\n",
+        cvar_hget(cvarh_vr_knockdown), canragdoll(m), ragdollcanstagger(m), isragdoll(m),
+        VR_IsDummy(m) && cvar_hget(cvarh_vr_dummy_anchored), VR_Stamina_On() ? VR_Stamina_Left(self) : -1, VR_Stamina_Max()));
+    float count = 0;
+    float freeable = 0;
+    for(entity x = nextent(world); x; x = nextent(x))
+    {
+        if(x == m || !isragdoll(x) || x.vr_corpse_placed == 1)
+        {
+            continue;
+        }
+        count = count + 1;
+        string why;
+        if(x.health <= 0)
+        {
+            if(VR_DeathDoll_InUse(x))
+            {
+                why = "kept: a dead player's body";
+            }
+            else if(x.vr_corpse_placed && VR_PlacedCorpse_Near(x))
+            {
+                why = "kept: a placed corpse near you";
+            }
+            else
+            {
+                why = "dead: can go";
+                freeable = freeable + 1;
+            }
+        }
+        else if(x.vr_knockdown == 1)
+        {
+            why = "knocked down: can be killed for room";
+            freeable = freeable + 1;
+        }
+        else
+        {
+            why = "ALIVE, not knocked down: never freed";
+        }
+        dprint(sprintf("whynot:   ragdoll %s at %v health %g, vr_knockdown %g: %s\n", x.classname, x.origin, x.health,
+            x.vr_knockdown, why));
+    }
+    dprint(sprintf("whynot: ragdolls %g of vr_ragdoll_max %g, %g can be freed: %s\n", count, most, freeable,
+        (most >= 1 && (count < most || freeable > 0)) ? "room" : "NO ROOM (no shove, throw or lift makes a ragdoll)"));
+};
+
+void() VR_Buzzsaw_Test; // (rogue_buzzsaw.qc)
+
 void(float xMode) VR_Knockdown_Test =
 {
+    if(xMode == 70)
+    {
+        VR_Buzzsaw_Test(); // a buzzsaw on the nearest ragdoll (its blade cuts ragdolls)
+        return;
+    }
     if(xMode >= 40 && xMode < 50)
     {
         VR_HitStagger_Test(xMode); // (vr_hitstagger.qc: hits that unbalance)
         return;
     }
-    if(xMode >= 50 && xMode < 60)
+    if(xMode >= 50 && xMode < 63)
     {
         VR_RagImpact_Test(xMode); // (vr_ragimpact.qc: impacts, landing crush, manhandling)
         return;
@@ -826,6 +891,26 @@ void(float xMode) VR_Knockdown_Test =
     }
     if(xMode == 1 || xMode == 5)
     {
+        return;
+    }
+    if(xMode == 10)
+    {
+        entity near = world;
+        float nearest = 999999;
+        for(entity y = nextent(world); y; y = nextent(y))
+        {
+            if((y.flags & FL_MONSTER) && y.health > 0 && !VR_TestSkips(y) && vlen(y.origin - self.origin) < nearest)
+            {
+                near = y;
+                nearest = vlen(y.origin - self.origin);
+            }
+        }
+        if(near == world)
+        {
+            dprint("whynot: no living monster\n");
+            return;
+        }
+        VR_Knockdown_WhyNot(near);
         return;
     }
     if(best == world)

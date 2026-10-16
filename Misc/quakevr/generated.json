@@ -138,6 +138,14 @@
   "sha256": "9a75a25c252d2f060e7bb35e3831dda4d03d95f2ee294efe4b1a000090fe6dfa",
   "by": "make_hand_rig.py"
  },
+ "quakevr/progs/hand_rig_00_00_glove.png": {
+  "sha256": "5ebefeaf2f33c7283355c08ed62b63efd1e0a79cbd373f2ac5ceebaf6d2b65ed",
+  "by": "make_glove_paint.py"
+ },
+ "quakevr/progs/hand_rig_00_00_glove_height.png": {
+  "sha256": "89d05c5b32b1d71b552ed03c1cd0e0165273646380b8a0e7b1fb8b3774dcd163",
+  "by": "make_glove_paint.py"
+ },
  "quakevr/progs/hand_rig_00_00_norm.png": {
   "sha256": "acb9f9db7b1e4ab98623068b351cf3a4dd5f12315fd125356e0777efc6aadfbb",
   "by": "bake_normals.py"
@@ -171,6 +179,10 @@
   "sha256": "2c2355e9e9c66df95b326c720b61e1ca277b194afe73c78ae7f2bcb4271a2333",
   "by": "make_grenade_skins.py",
   "part": "mdl skins after 0"
+ },
+ "quakevr/progs/shalrath.mdl": {
+  "sha256": "36208a88477808ad141baff36bc6b7854c9c42bf3766e0616afe861aca92e207",
+  "by": "make_voreshove.py"
  },
  "quakevr/progs/soldier.mdl": {
   "sha256": "36cc9c8ba2b919d993f1a1206772075b457dda42933895be701cee2e0e6ce92a",
@@ -1003,6 +1015,10 @@
  "quakevr/progs/vr_ssg_frame_on_v_shot2.mdl_0_norm.png": {
   "sha256": "0914be4ec715d4ec06e08a0901864c3caffcc9db48101ed4216b898772514a9d",
   "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_tooth.mdl": {
+  "sha256": "0349beeea9771d2f41715ea5b764787dbc98c4c5cf537b5b441d346754413809",
+  "by": "make_teeth.py"
  },
  "quakevr/progs/vrbody.md5anim": {
   "sha256": "19dd491a8500c297e93ee278c3c1e9a6c3d7948a585ef87747c5349a1e0858db",

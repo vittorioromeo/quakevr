@@ -28,6 +28,8 @@
 #include "vr_propthink.hpp"
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
+#include "vr_body.hpp"
+#include "vr_magholster.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_server.hpp"
 #include "vr_shock.hpp"
@@ -1700,11 +1702,44 @@ void PF_ragdollreach()
     G_FLOAT(OFS_RETURN) = box3d::ragdollHandReach(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)));
 }
 
-// float ragdollbone(entity e, vector p): the limb of e's ragdoll nearest p; -1 if e isn't one.
+// float ragdollbone(entity e, vector p, [float within]): the limb of e's ragdoll nearest p; -1 if e isn't one (or, with
+// `within`, if its surface is farther from p than that: the landing crush's feet, vr_ragimpact.qc).
 void PF_ragdollbone()
 {
     const float* p = G_VECTOR(OFS_PARM1);
-    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}));
+    const float within = qcvm->argc > 2 ? G_FLOAT(OFS_PARM2) : -1.f;
+    G_FLOAT(OFS_RETURN) =
+        static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}, within));
+}
+
+// entity ragdollinbox(vector mins, vector maxs, entity after): the next ragdoll (edict order, after `after`; world: from
+// the first) with a part in the world box mins..maxs; world if none. The buzzsaw's blade (rogue_buzzsaw.qc).
+void PF_ragdollinbox()
+{
+    const float* lo = G_VECTOR(OFS_PARM0);
+    const float* hi = G_VECTOR(OFS_PARM1);
+    const int num = box3d::ragdollInBox(glm::vec3{lo[0], lo[1], lo[2]}, glm::vec3{hi[0], hi[1], hi[2]},
+        NUM_FOR_EDICT(G_EDICT(OFS_PARM2)));
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num)); // (0: world)
+}
+
+// float ragdollboxpart(entity e, vector mins, vector maxs, float after): the next part of e's ragdoll (index above
+// `after`; -1: from the first) in the world box mins..maxs, -1 none; trace_endpos its point nearest the box's middle.
+void PF_ragdollboxpart()
+{
+    const float* lo = G_VECTOR(OFS_PARM1);
+    const float* hi = G_VECTOR(OFS_PARM2);
+    glm::vec3 at{0.f};
+    const int part = box3d::ragdollPartInBox(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{lo[0], lo[1], lo[2]},
+        glm::vec3{hi[0], hi[1], hi[2]}, static_cast<int>(G_FLOAT(OFS_PARM3)), at);
+    if(part >= 0)
+    {
+        for(int i = 0; i < 3; i++)
+        {
+            pr_global_struct->trace_endpos[i] = at[i];
+        }
+    }
+    G_FLOAT(OFS_RETURN) = static_cast<float>(part);
 }
 
 // vector ragdollpoint(entity e, float bone, vector p, float toWorld): p from the world into limb `bone`'s space (units),
@@ -2150,6 +2185,34 @@ void PF_weapondrawnpose()
     }
 }
 
+// Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the local
+// player asked since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound
+// weapon home at once: vr_magholster_return); others' 0. vector(entity player, float slot) holsterpos: holster `slot`'s
+// place (body::Holster, the holsterweapon<slot> fields' order) as the local player's body has it ('0 0 0': unknown, or
+// another player: QC's own estimate then).
+void PF_magholsterpoll()
+{
+    edict_t* player = G_EDICT(OFS_PARM0);
+    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
+    G_FLOAT(OFS_RETURN) = local ? static_cast<float>(magholster::poll()) : 0.f;
+}
+
+void PF_holsterpos()
+{
+    edict_t* player = G_EDICT(OFS_PARM0);
+    const int slot = static_cast<int>(G_FLOAT(OFS_PARM1));
+    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
+    glm::vec3 out{0.f};
+    if(local && slot >= 0 && slot < body::HolsterCount && hands::current().valid)
+    {
+        out = body::holsterPosition(hands::current(), static_cast<body::Holster>(slot));
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        G_VECTOR(OFS_RETURN)[i] = out[i];
+    }
+}
+
 // Rocks and bricks lying about (vr_debris.cpp, QC vr_debris.qc). float() debrisplan: places them (after the map's
 // entities), how many; string(float i) debrismodel: piece i's model (to set); float(entity e, float i) debrisput: puts
 // piece i on e (its model set): its skin, size, turn, place resting on the floor and box; its kind (1 a rock, 2 a
@@ -2356,6 +2419,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weapongrabspot", PF_weapongrabspot},
     {"weaponanygrip", PF_weaponanygrip},
     {"weapondrawnpose", PF_weapondrawnpose},
+    {"magholsterpoll", PF_magholsterpoll},
+    {"holsterpos", PF_holsterpos},
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
     {"shapenearest", PF_shapenearest},
@@ -2406,6 +2471,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollheld", PF_ragdollheld},
     {"ragdollreach", PF_ragdollreach},
     {"ragdollbone", PF_ragdollbone},
+    {"ragdollinbox", PF_ragdollinbox},
+    {"ragdollboxpart", PF_ragdollboxpart},
     {"ragdollpoint", PF_ragdollpoint},
     {"ragdolldecap", PF_ragdolldecap},
     {"ragdollcut", PF_ragdollcut},

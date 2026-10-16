@@ -73,7 +73,7 @@ void() AD_MT_Nearest =
     }
     float head = VR_AD_PositionalHead(m);
     dprint(sprintf("admtest: near %s model %s mon %g head %g", m.classname, m.model, m.vr_ad_mon, head));
-    dprint(sprintf(" (%g %g %g) headmdl %s", m.vr_ad_headf, m.vr_ad_headu, m.vr_ad_headr, VR_Decap_HeadModel(m)));
+    dprint(sprintf(" (%g %g %g left %g) headmdl %s", m.vr_ad_headf, m.vr_ad_headu, m.vr_ad_headr, m.vr_ad_headl, VR_Decap_HeadModel(m)));
     dprint(sprintf(" corpse %g kd %g rig %g\n", m.vr_ad_corpseh != 0, m.vr_kd_chance_h != 0, canragdoll(m)));
     dprint(sprintf("admtest: state health %g ragdoll %g knockdown %g headless %g limbcut %g", m.health, isragdoll(m),
         m.vr_knockdown, m.vr_headless, m.vr_limbcut));

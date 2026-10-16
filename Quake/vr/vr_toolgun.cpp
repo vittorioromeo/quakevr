@@ -31,6 +31,7 @@
 #include "vr_box3d.hpp"
 #include "vr_brushes.hpp"
 #include "vr_bullettime.hpp"
+#include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
@@ -40,6 +41,7 @@
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -79,11 +81,34 @@ struct Spawnable
     bool adOnly{false}; // AD support
     bool rulesOnly{false}; // AD support
     int debugChoice{-1}; // AD support
+    bool wall{false};    // hung on the wall it is aimed at, facing out of it (a wall torch: ghostPoint)
+    int needs{0};        // 1: made only while its model is there (an expansion's); 2: and only in an AD map (AD's lights);
+                         // 3: only in Dawn of the Machine's campaign (its upgrades: vr_toolgun_packs.inc)
+    const char* probe{nullptr}; // the file `needs` 1 looks for (nullptr: the model)
+    const char* pack{nullptr};  // the pack's group on the panel, from a fresh page (nullptr: id's and Quake VR's own)
+    int frame{0};               // the ghost's frame (a placed corpse's)
 };
+
+// AD's backpacks: the toolgun makes them in any map (his decision; vr_ad.cpp VR_AD_ToolgunSpawnsOutside), a map's own
+// only in AD's maps.
+[[nodiscard]] constexpr bool adBackpack(const char* classname)
+{
+    const char* const prefix = "ad_item_backpack";
+    for(int i = 0; prefix[i]; i++)
+    {
+        if(classname[i] != prefix[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
 
 constexpr Spawnable spawnables[] = {
 #define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) \
     {section, label, classname, model, lift, nullptr, 0.f, 0, false, true, rulesOnly, choice}, // AD support
+#define QVR_AD_SPAWN_MAP(section, label, classname, model, lift, choice, key, value, skin) \
+    {section, label, classname, model, lift, key, value, skin, false, true, false, choice, false, adBackpack(classname) ? 0 : 2}, // AD: its maps only
 #define QVR_AD_GUN(label, model, wid, choice) \
     {"Weapons", label, "func_weapon_grabbable", model, 8.f, "weapon", wid, 0, false, true, false, choice}, // AD support
 
@@ -133,13 +158,44 @@ constexpr Spawnable spawnables[] = {
     {"Items", "Pentagram", "item_artifact_invulnerability", "progs/invulner.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Items", "Ring of Shadows", "item_artifact_invisibility", "progs/invisibl.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Items", "Biosuit", "item_artifact_envirosuit", "progs/suit.mdl", 24.f, nullptr, 0.f, 0, false},
+// The Fire tab (ROUND22.md, "Torches and fires from the toolgun"): the map's lights with a flame, made live as entities
+// (QC vr_spawn_live): a wall torch hung on the wall aimed at, the free-standing flames props that hang where placed until
+// taken (QC VR_FlameProp_Setup); each with its light (vr_emissive.cpp's torch lights) and its crackle as on a map.
+#define QVR_FIRE(label, classname, model, lift, wall, needs) {"Fire", label, classname, model, lift, nullptr, 0.f, 0, false, false, false, -1, wall, needs},
+    QVR_FIRE("Wall Torch", "light_torch_small_walltorch", "progs/flame.mdl", 14.f, true, 0)
+    QVR_FIRE("Large Flame", "light_flame_large_yellow", "progs/flame2.mdl", 8.f, false, 0)
+    QVR_FIRE("Small Flame", "light_flame_small_yellow", "progs/flame2.mdl", 8.f, false, 0)
+    QVR_FIRE("White Flame", "light_flame_small_white", "progs/flame2.mdl", 8.f, false, 0)
+    QVR_FIRE("Candle", "light_candle", "progs/candle.mdl", 10.f, false, 1)
+    QVR_FIRE("Lantern", "light_lantern", "progs/lantern.mdl", 20.f, false, 1)
+    QVR_FIRE("AD Short Brazier", "ad_light_flame_brazier_short", "progs/misc_brazshrt.mdl", 16.f, false, 2)
+    QVR_FIRE("AD Tall Brazier", "ad_light_flame_brazier_tall", "progs/misc_braztall.mdl", 64.f, false, 2)
+    QVR_FIRE("AD Flame Pyre", "ad_light_flame_pyre", "progs/misc_flame_big.mdl", 8.f, false, 2)
+    QVR_FIRE("AD Long Wall Torch", "ad_light_torch_long_walltorch", "progs/misc_longtrch.mdl", 48.f, true, 2)
+#undef QVR_FIRE
 #include "vr_ad_spawns.inc" // AD support
 #include "vr_ad_spawnitems.inc" // AD support
 #include "vr_ad_spawnguns.inc" // AD support: AD's soldiers' guns, after its upgrades (the Weapons tab's AD group)
 #undef QVR_AD_SPAWN // AD support
+#undef QVR_AD_SPAWN_MAP // AD support
 #undef QVR_AD_GUN // AD support
+#include "vr_toolgun_packs.inc" // the expansions' entries and id's others (after these: the entries' numbers stay)
 };
 constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spawnables[0]));
+
+// Whether an entry can be made now: AD's while AD's data is in play (ad::spawnAvailable), an expansion's while its
+// model is there, AD's lights only in an AD map (outside its rules AD's ad_ classes are not made: box3d::spawnClass).
+[[nodiscard]] bool entryAvailable(const Spawnable& s)
+{
+    if(s.adOnly && adBackpack(s.classname)) // (any map, AD's data permitting)
+    {
+        return Cvar_VariableValue("vr_ad_mounted") != 0.f && COM_FileExists(s.model, nullptr);
+    }
+    if(s.adOnly && !ad::spawnAvailable(s.model, s.rulesOnly)) { return false; } // AD support
+    if(s.needs == 2 && !VR_AD_RulesOn()) { return false; }
+    if(s.needs == 3) { return Cvar_VariableValue("vr_campaign") == 5.f; } // (QC MG3_Campaign)
+    return s.needs == 0 || (COM_FileExists(s.model, nullptr) && (!s.probe || COM_FileExists(s.probe, nullptr)));
+}
 
 constexpr const char* toolNames[] = {"Spawn", "Remove", "Physgun", "Scale", "Joint", "Brush"};
 constexpr const char* jointNames[] = {"Weld", "Ball", "Hinge", "Slider", "Rope", "Spring", "Unjoin"};
@@ -162,6 +218,7 @@ struct Selection
     int skin{0};
     int frame{0};
     bool setModel{false};
+    bool wall{false}; // hung on the wall aimed at (Spawnable::wall)
 };
 
 // Where the gun points this frame.
@@ -272,9 +329,41 @@ struct ToolgunState
     float glow{0.f};
     int glow2{0};
     const entity_t* ghostEnt{nullptr}; // the ghost's temp entity this frame (glowing as a hologram)
+    bool ghostLooked{false};           // and it is drawn as its probe saw it (ghostVr: its scale and offsets)
     Tool lastTool{Tool::Spawn};        // last frame's (the Brush tool's holds let go when it changes)
 };
 ToolgunState tg;
+
+// The ghost of an item as it will be once made (QC VR_SpawnLive_Finish: placed at once, a box shrunk to an object, a
+// pickup scaled and floated; its model, its scale and offsets, where its origin ends up), from a probe: the choice made
+// once where the ghost stands on a floor and removed at once (box3d::spawnClass's probe, probeLook). The probe precaches
+// what its spawn function needs, so by the time it is placed the client has it all.
+struct GhostLook
+{
+    int entry{-2};          // the choice it is for (its entry and class)
+    char classname[64]{};
+    int tries{0};           // probes made for it (a few: one that fell out of the level is tried again elsewhere)
+    bool valid{false};
+    char model[64]{};
+    int skin{0};
+    int frame{0};
+    glm::vec3 delta{0.f};   // its origin's move from where it was made (world axes: a box's middle is)
+    glm::vec3 turn{0.f};    // its angles' change
+    client::EntityVr vr;    // its networked scale and offsets, as its client entity has them (render::networkData)
+};
+GhostLook ghostLook;
+
+// vr_toolgun_spawn_trace [entry] [frames]: an entry (the panel's choice) made ahead of the player, its state printed the
+// frame it is made and the next frames (the server's model, scale, box, origin, offset; the client's model and scale),
+// then removed.
+struct SpawnTrace
+{
+    int entry{-1};
+    int num{0};
+    int frame{0};
+    int frames{0};
+};
+SpawnTrace spawnTrace;
 
 // Texts handed out by pointer (stateLine, the gun's screen): valid until the same function's next call.
 struct Readouts
@@ -321,7 +410,7 @@ void select(int i)
         return;
     }
     const Spawnable& s = spawnables[i];
-    if(s.adOnly && !ad::spawnAvailable(s.model, s.rulesOnly)) { tg.sel = {}; return; } // AD support
+    if(!entryAvailable(s)) { tg.sel = {}; return; }
     Selection& sel = tg.sel;
     sel = {};
     sel.valid = true;
@@ -333,7 +422,9 @@ void select(int i)
     sel.value = s.value;
     sel.lift = s.lift;
     sel.skin = s.skin;
+    sel.frame = s.frame;
     sel.setModel = s.setModel;
+    sel.wall = s.wall;
     tg.picking = false;
 }
 
@@ -535,6 +626,8 @@ void pick(int num)
         sel.lift = za::max(-e->v.mins[2], 0.f);
         // A rock's or a brick's model is its kind; a crate's large one is its spawnflag.
         sel.setModel = !strcmp(cls, "vr_debris_piece");
+        // A wall torch (on its wall or taken): hung on a wall again.
+        sel.wall = !strcmp(cls, "light_torch_small_walltorch") || !strcmp(cls, "light_torch_long_walltorch");
         if(e->v.spawnflags != 0.f)
         {
             copyText(sel.key, sizeof(sel.key), "spawnflags");
@@ -545,6 +638,12 @@ void pick(int num)
     copyText(sel.model, sizeof(sel.model), PR_GetString(e->v.model));
     sel.skin = static_cast<int>(e->v.skin);
     sel.frame = static_cast<int>(e->v.frame);
+    if(!strcmp(cls, "light_torch_small_walltorch"))
+    {
+        copyText(sel.model, sizeof(sel.model), "progs/flame.mdl"); // (its ghost id's torch, upright: not our stick)
+        sel.skin = 0;
+        sel.frame = 0;
+    }
     q_snprintf(sel.label, sizeof(sel.label), "%s (picked)", sel.classname);
     Con_Printf("toolgun: picked %s (%s)\n", sel.classname, sel.model);
 }
@@ -556,10 +655,25 @@ void pick(int num)
     return tg.hand >= 0 && tg.aim.valid && tg.sel.valid && !tg.picking && currentTool() == Tool::Spawn;
 }
 
+// A wall torch's origin (its cup) off its wall: id's maps hang theirs 6-12 units off it (e1m2's), most about 10.
+constexpr float wallStandoff = 10.f;
+
+// The aim meets a wall (the world's or a brush entity's, such as a func_wall: not a thing before it; not a floor or a
+// ceiling) and the choice hangs on one (a wall torch).
+[[nodiscard]] bool wallAim(const Aim& a)
+{
+    const bool thingFirst = a.target && a.target != a.hitEntity && a.targetDistance < a.worldDistance;
+    return tg.sel.wall && !thingFirst && a.normal != glm::vec3{0.f} && za::fabs(a.normal.z) < 0.7f;
+}
+
 // The point the ghost stands on before its offsets: what the gun points at (lifted onto a floor; out from a wall or a
-// ceiling).
+// ceiling; a wall torch hung on the wall).
 [[nodiscard]] glm::vec3 ghostPoint(const Aim& a)
 {
+    if(wallAim(a))
+    {
+        return a.end + glm::normalize(glm::vec3{a.normal.x, a.normal.y, 0.f}) * wallStandoff;
+    }
     const float distance = a.target ? za::min(a.targetDistance, a.worldDistance) : a.worldDistance;
     glm::vec3 point = a.from + a.dir * distance;
     const glm::vec3 normal = a.target && a.targetDistance < a.worldDistance ? -a.dir : a.normal;
@@ -580,6 +694,10 @@ void pick(int num)
     return ghostHold.fixed ? ghostHold.dir : tg.aim.dir;
 }
 
+void probeLook();
+void removeTarget(int num, bool quiet = false);
+void traceFrame(); // (vr_toolgun_spawn_trace)
+
 // Where the ghost stands: on ghostPoint (or where it was fixed), moved by the offsets along the gun's level way, facing
 // you, turned by the turn.
 void updateGhost()
@@ -595,7 +713,64 @@ void updateGhost()
     levelAxes(dir, fwd, right);
     tg.ghostOrigin = point + fwd * tg.offset.x + right * tg.offset.y + glm::vec3{0.f, 0.f, tg.offset.z};
     tg.ghostAngles = glm::vec3{tg.turn.x, yawOf(dir) + 180.f + tg.turn.y, tg.turn.z};
+    if(!ghostHold.fixed && wallAim(tg.aim))
+    {
+        tg.ghostAngles.y = yawOf(tg.aim.normal) + tg.turn.y; // a wall torch faces out of its wall
+    }
     tg.ghost = true;
+    probeLook();
+}
+
+// Whether the choice is an item (the Items tab's, or a picked item_): its ghost is drawn from a probe (GhostLook).
+[[nodiscard]] bool probedChoice(const Selection& sel)
+{
+    return sel.valid && (sel.entry >= 0 ? !strcmp(spawnables[sel.entry].section, "Items") : !strncmp(sel.classname, "item_", 5));
+}
+
+// The ghost's look for the choice (GhostLook), probed once: the choice made where the ghost stands on a floor, aimed at
+// directly (not held, no offsets: its drop is then the placed one's), read and removed at once.
+void probeLook()
+{
+    const Selection& sel = tg.sel;
+    GhostLook& look = ghostLook;
+    if(!probedChoice(sel) || !sv.active)
+    {
+        return;
+    }
+    if(look.entry != sel.entry || strcmp(look.classname, sel.classname) != 0)
+    {
+        look = {};
+        look.entry = sel.entry;
+        copyText(look.classname, sizeof(look.classname), sel.classname);
+    }
+    const bool onFloor = !ghostHold.fixed && tg.offset == glm::vec3{0.f} && tg.aim.normal.z > 0.7f &&
+                         !(tg.aim.target && tg.aim.targetDistance < tg.aim.worldDistance);
+    if(look.valid || look.tries >= 3 || !onFloor || (sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)))
+    {
+        return;
+    }
+    look.tries++;
+    edict_t* e = box3d::spawnClass(sel.classname, tg.ghostOrigin, tg.ghostAngles, sel.setModel ? sel.model : nullptr,
+        sel.key[0] ? sel.key : nullptr, sel.value, true);
+    if(!e)
+    {
+        return;
+    }
+    const ServerVm vm;
+    const char* model = PR_GetString(e->v.model);
+    if(model[0])
+    {
+        look.valid = true;
+        copyText(look.model, sizeof(look.model), model);
+        look.skin = static_cast<int>(e->v.skin);
+        look.frame = static_cast<int>(e->v.frame);
+        look.delta = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]} - tg.ghostOrigin;
+        look.turn = glm::vec3{e->v.angles[0], e->v.angles[1], e->v.angles[2]} - tg.ghostAngles;
+        look.vr.scale = fieldVec(e, fields().model_scale);
+        look.vr.scaleOrigin = fieldVec(e, fields().model_scale_origin);
+        look.vr.offset = fieldVec(e, fields().model_offset);
+    }
+    removeTarget(NUM_FOR_EDICT(e), true);
 }
 
 void spawnHere()
@@ -611,15 +786,18 @@ void spawnHere()
         sel.key[0] ? sel.key : nullptr, sel.value);
     if(e)
     {
+        const glm::vec3 off = fieldVec(e, fields().model_offset);
         Con_Printf("toolgun: spawned %d %s at %.0f %.0f %.0f\n", NUM_FOR_EDICT(e), sel.classname, e->v.origin[0],
             e->v.origin[1], e->v.origin[2]);
+        Con_DPrintf("toolgun: placed %s at %.1f %.1f %.1f, scale %.3f, offset %.1f %.1f %.1f\n", PR_GetString(e->v.model),
+            e->v.origin[0], e->v.origin[1], e->v.origin[2], 1.f + fieldVec(e, fields().model_scale).x, off.x, off.y, off.z);
     }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Remove.
 
-void removeTarget(int num)
+void removeTarget(int num, bool quiet)
 {
     const func_t fn = qvr::progs::findFunction("VR_Toolgun_Remove");
     if(!fn || num <= svs.maxclients)
@@ -634,7 +812,10 @@ void removeTarget(int num)
     pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
     G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
     PR_ExecuteProgram(fn);
-    Con_Printf("toolgun: removed %d %s\n", num, name);
+    if(!quiet)
+    {
+        Con_Printf("toolgun: removed %d %s\n", num, name);
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1230,6 +1411,8 @@ void reset()
     tg.ghost = false;
     tg.aim = {};
     ghostHold = {};
+    ghostLook = {};
+    spawnTrace = {};
     toolgun::brushtool::reset();
 }
 
@@ -1404,6 +1587,7 @@ void sticks(const glm::vec2& off, const glm::vec2& main)
 
 void frame(const hands::State& s)
 {
+    traceFrame();
     tg.hand = heldHand();
     panel::frame(s);
     if(tg.hand >= 0)
@@ -1593,24 +1777,29 @@ void tempEntities()
     {
         return;
     }
-    // The ghost: its model see-through where it would be made. A map's own models (loaded with it), or an alias model
-    // loaded now; a brush model not loaded with the map (its lightmaps are made at the map's load) only as a point.
+    // The ghost: its model see-through where it would be made; an item's as it will be once placed (ghostLook: its
+    // model, its scale and offsets, its origin moved). A map's own models (loaded with it; the toolgun's brush-model items
+    // are precached with every map: QC VR_Toolgun_Precache), or an alias model loaded now; a brush model not loaded with
+    // the map (its lightmaps are made at the map's load) only as a point.
+    const GhostLook& look = ghostLook;
+    const bool looked = look.valid && probedChoice(tg.sel) && look.entry == tg.sel.entry && !strcmp(look.classname, tg.sel.classname);
+    const char* const name = looked ? look.model : tg.sel.model;
     qmodel_t* model = nullptr;
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
-        if(!strcmp(cl.model_precache[i]->name, tg.sel.model))
+        if(!strcmp(cl.model_precache[i]->name, name))
         {
             model = cl.model_precache[i];
             break;
         }
     }
-    const size_t n = strlen(tg.sel.model);
-    const bool derivedGun = strstr(tg.sel.model, ".mdl#") != nullptr; // AD support: an AD soldier's gun (vr_adguns.cpp)
-    if(!model && ((n > 4 && !q_strcasecmp(tg.sel.model + n - 4, ".mdl")) || derivedGun))
+    const size_t n = strlen(name);
+    const bool derivedGun = strstr(name, ".mdl#") != nullptr; // AD support: an AD soldier's gun (vr_adguns.cpp)
+    if(!model && ((n > 4 && !q_strcasecmp(name + n - 4, ".mdl")) || derivedGun))
     {
-        model = Mod_ForName(tg.sel.model, false);
+        model = Mod_ForName(name, false);
     }
-    if(!model)
+    if(!model || client::lateBrushModel(model))
     {
         return;
     }
@@ -1619,16 +1808,24 @@ void tempEntities()
     {
         return;
     }
+    const glm::vec3 origin = tg.ghostOrigin + (looked ? look.delta : glm::vec3{0.f});
+    const glm::vec3 angles = tg.ghostAngles + (looked ? look.turn : glm::vec3{0.f});
     for(int k = 0; k < 3; k++)
     {
-        ent->origin[k] = tg.ghostOrigin[k];
-        ent->angles[k] = tg.ghostAngles[k];
+        ent->origin[k] = origin[k];
+        ent->angles[k] = angles[k];
     }
     ent->model = model;
-    ent->skinnum = tg.sel.skin;
-    ent->frame = model->numframes > 0 ? za::clamp(tg.sel.frame, 0, model->numframes - 1) : 0;
+    ent->skinnum = looked ? look.skin : tg.sel.skin;
+    ent->frame = model->numframes > 0 ? za::clamp(looked ? look.frame : tg.sel.frame, 0, model->numframes - 1) : 0;
     ent->alpha = static_cast<byte>(ENTALPHA_ENCODE(0.45f));
     tg.ghostEnt = ent;
+    tg.ghostLooked = looked;
+}
+
+const client::EntityVr* ghostVr(const entity_t* e)
+{
+    return e && e == tg.ghostEnt && tg.ghostLooked ? &ghostLook.vr : nullptr;
 }
 
 float entityGlow(const entity_t* e)
@@ -1688,10 +1885,14 @@ int spawnableSkin(int i)
 // AD support: the panel and Debug menus use the same catalog and availability checks.
 bool spawnableAvailable(int i)
 {
-    return i >= 0 && i < spawnableTotal &&
-           (!spawnables[i].adOnly || ad::spawnAvailable(spawnables[i].model, spawnables[i].rulesOnly));
+    return i >= 0 && i < spawnableTotal && entryAvailable(spawnables[i]);
 }
 bool spawnableAD(int i) { return i >= 0 && i < spawnableTotal && spawnables[i].adOnly; }
+const char* spawnablePack(int i)
+{
+    if(i < 0 || i >= spawnableTotal) { return ""; }
+    return spawnables[i].adOnly ? "AD" : spawnables[i].pack ? spawnables[i].pack : "";
+}
 int spawnableDebugChoice(int i) { return i >= 0 && i < spawnableTotal ? spawnables[i].debugChoice : -1; }
 const char* spawnableClass(int i) { return i >= 0 && i < spawnableTotal ? spawnables[i].classname : ""; }
 
@@ -1779,6 +1980,242 @@ const char* stateLine()
 
 namespace
 {
+
+// vr_toolgun_spawn_test [<first> [<last>]]: the spawn list's entries first..last (all by default) each made once as the
+// spawn tool makes it (box3d::spawnClass and its field), on a ring around the player at its feet's height, each printed
+// "spawned <edict>", "failed" (its spawn function made nothing, or removed it at once) or "unavailable" (not here:
+// toolgun::spawnableAvailable); `vr_toolgun_spawn_test check` a moment later: each one made still there ("alive") or
+// gone since (its own think removed it), then every one removed. For tests and Debug > Toolgun's "Spawn Every Entry".
+struct SpawnTestMade
+{
+    int entry;
+    int num;
+};
+struct SpawnTest
+{
+    za::InPlaceVector<SpawnTestMade, 512> made;
+};
+SpawnTest spawnTest;
+
+struct SvVmScope
+{
+    qcvm_t* old{nullptr};
+    SvVmScope() { PR_PushQCVM(&sv.qcvm, &old); }
+    ~SvVmScope() { PR_PopQCVM(old); }
+};
+
+// How the client draws edict `num` (the server's VM pushed): "drawn", "modelless" (the server gave it none: a spawner,
+// a hidden thing), or "invisible (...)": the server has a model the client doesn't draw (it never got it, or a brush
+// model loaded after the map: client::lateBrushModel).
+[[nodiscard]] const char* clientLook(int num)
+{
+    const edict_t* e = EDICT_NUM(num);
+    if(!PR_GetString(e->v.model)[0] || e->v.modelindex <= 0.f)
+    {
+        return "modelless";
+    }
+    const entity_t* ce = num < cl_max_edicts ? &cl_entities[num] : nullptr;
+    if(!ce || !ce->model)
+    {
+        return "invisible (no model on the client)";
+    }
+    if(client::lateBrushModel(ce->model))
+    {
+        return "invisible (a brush model loaded after the map)";
+    }
+    return "drawn";
+}
+
+void spawnTestCheck()
+{
+    int alive = 0, gone = 0, invisible = 0;
+    {
+        const SvVmScope vm;
+        for(const SpawnTestMade& m : spawnTest.made)
+        {
+            // (its class as it is now: a spawn function may rename it, weapon_bloody_sg a weapon_shotgun)
+            const edict_t* e = EDICT_NUM(m.num);
+            const bool kept = !e->free;
+            const char* look = kept ? clientLook(m.num) : "";
+            Con_Printf("spawntest: %d \"%s\" %s %s %s\n", m.entry, spawnables[m.entry].label, kept ? "alive" : "gone",
+                e->free ? "(freed)" : PR_GetString(e->v.classname), look);
+            (kept ? alive : gone)++;
+            invisible += !strncmp(look, "invisible", 9) ? 1 : 0;
+        }
+    }
+    for(const SpawnTestMade& m : spawnTest.made)
+    {
+        const SvVmScope vm;
+        if(!EDICT_NUM(m.num)->free)
+        {
+            removeTarget(m.num);
+        }
+    }
+    Con_Printf("spawntest: check %d alive, %d gone, %d invisible\n", alive, gone, invisible);
+    // Every late precache on the client too (VR_WriteRecentPrecaches and the reliable copy): the names the server has
+    // that the client lacks.
+    int models = 0, sounds = 0, missing = 0;
+    for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++, models++)
+    {
+        if(!cl.model_precache[i] || strcmp(cl.model_precache[i]->name, sv.model_precache[i]) != 0)
+        {
+            Con_Printf("spawntest: the client lacks model %d %s\n", i, sv.model_precache[i]);
+            missing++;
+        }
+    }
+    for(int i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++, sounds++)
+    {
+        if(cl.sound_precache[i] && strcmp(cl.sound_precache[i]->name, sv.sound_precache[i]) != 0)
+        {
+            Con_Printf("spawntest: the client has sound %d %s as %s\n", i, sv.sound_precache[i], cl.sound_precache[i]->name);
+            missing++;
+        }
+    }
+    Con_Printf("spawntest: precaches %d models, %d sounds, %d not on the client\n", models, sounds, missing);
+    spawnTest.made.clear();
+}
+
+// vr_toolgun_spawn_trace (SpawnTrace): one line of the traced thing's state, `frame` frames after it was made.
+void traceLine()
+{
+    SpawnTrace& t = spawnTrace;
+    edict_t* e = EDICT_NUM(t.num);
+    if(e->free)
+    {
+        Con_Printf("spawntrace: %d f%d gone\n", t.entry, t.frame);
+        t = {};
+        return;
+    }
+    const glm::vec3 k = glm::vec3{1.f} + fieldVec(e, fields().model_scale);
+    const glm::vec3 off = fieldVec(e, fields().model_offset);
+    const entity_t* ce = t.num < cl_max_edicts ? &cl_entities[t.num] : nullptr;
+    const client::EntityVr* cv = client::entityVr(t.num);
+    const float ck = cv ? 1.f + cv->scale.x : 1.f;
+    // (three short lines: the console wraps long ones)
+    Con_Printf("spawntrace: %d f%d sv %s#%d skin %d frame %d scale %.3f %.3f %.3f\n", t.entry, t.frame,
+        PR_GetString(e->v.model), static_cast<int>(e->v.modelindex), static_cast<int>(e->v.skin), static_cast<int>(e->v.frame),
+        k.x, k.y, k.z);
+    Con_Printf("spawntrace: %d f%d box %.1f %.1f %.1f %.1f %.1f %.1f o %.1f %.1f %.1f off %.1f %.1f %.1f\n", t.entry,
+        t.frame, e->v.mins[0], e->v.mins[1], e->v.mins[2], e->v.maxs[0], e->v.maxs[1], e->v.maxs[2], e->v.origin[0],
+        e->v.origin[1], e->v.origin[2], off.x, off.y, off.z);
+    Con_Printf("spawntrace: %d f%d cl %s scale %.3f | %s\n", t.entry, t.frame, ce && ce->model ? ce->model->name : "none",
+        ck, clientLook(t.num));
+}
+
+void traceFrame()
+{
+    SpawnTrace& t = spawnTrace;
+    if(!t.num || !sv.active)
+    {
+        return;
+    }
+    const SvVmScope vm;
+    t.frame++;
+    traceLine();
+    if(t.num && t.frame >= t.frames)
+    {
+        if(!EDICT_NUM(t.num)->free)
+        {
+            removeTarget(t.num, true);
+        }
+        Con_Printf("spawntrace: %d end\n", t.entry);
+        t = {};
+    }
+}
+
+// vr_toolgun_spawn_trace [entry] [frames]: the entry (the panel's choice) made 128 units ahead of the player (as the
+// spawn tool makes it), its state printed then and for `frames` frames after (default 4), then removed.
+void spawnTrace_f()
+{
+    if(!sv.active || svs.maxclients < 1 || (Cmd_Argc() < 2 && tg.sel.entry < 0))
+    {
+        Con_Printf("usage: vr_toolgun_spawn_trace [entry (default: the spawn panel's choice)] [frames] (in a game)\n");
+        return;
+    }
+    const int i = za::clamp(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : tg.sel.entry, 0, spawnableTotal - 1);
+    const Spawnable& s = spawnables[i];
+    if(!entryAvailable(s))
+    {
+        Con_Printf("spawntrace: %d %s unavailable\n", i, s.label);
+        return;
+    }
+    const SvVmScope vm;
+    if(spawnTrace.num && !EDICT_NUM(spawnTrace.num)->free)
+    {
+        removeTarget(spawnTrace.num, true);
+    }
+    const edict_t* player = EDICT_NUM(1);
+    const float yaw = glm::radians(player->v.angles[1]);
+    const glm::vec3 at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 128.f, player->v.origin[1] + za::sin(yaw) * 128.f,
+        player->v.origin[2] + player->v.mins[2] + s.lift + 1.f};
+    edict_t* e = box3d::spawnClass(s.classname, at, glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f},
+        s.setModel ? s.model : nullptr, s.key, s.value);
+    if(!e)
+    {
+        Con_Printf("spawntrace: %d %s failed\n", i, s.label);
+        return;
+    }
+    spawnTrace = SpawnTrace{i, NUM_FOR_EDICT(e), 0, Cmd_Argc() > 2 ? za::max(Q_atoi(Cmd_Argv(2)), 1) : 4};
+    Con_Printf("spawntrace: %d \"%s\" %s made %d\n", i, s.label, s.classname, spawnTrace.num);
+    traceLine();
+}
+
+void spawnTest_f()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        Con_Printf("vr_toolgun_spawn_test: no game running\n");
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "check"))
+    {
+        spawnTestCheck();
+        return;
+    }
+    const int first = za::clamp(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0, 0, spawnableTotal - 1);
+    const int last = za::clamp(Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : spawnableTotal - 1, first, spawnableTotal - 1);
+    glm::vec3 feet{0.f};
+    float yaw = 0.f;
+    {
+        const SvVmScope vm;
+        const edict_t* player = EDICT_NUM(1);
+        feet = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2] + player->v.mins[2]};
+        yaw = player->v.angles[1];
+    }
+    const int count = last - first + 1;
+    int spawned = 0, failed = 0, unavailable = 0;
+    for(int i = first; i <= last; i++)
+    {
+        const Spawnable& s = spawnables[i];
+        if(!entryAvailable(s))
+        {
+            Con_Printf("spawntest: %d %s \"%s\" %s: unavailable\n", i, s.section, s.label, s.classname);
+            unavailable++;
+            continue;
+        }
+        // A ring 160 units out (the entries a ring's step apart), facing the player.
+        const float a = glm::radians(yaw + 360.f * static_cast<float>(i - first) / static_cast<float>(count));
+        const glm::vec3 at = feet + glm::vec3{za::cos(a) * 160.f, za::sin(a) * 160.f, s.lift + 1.f};
+        const glm::vec3 angles{0.f, glm::degrees(a) + 180.f, 0.f};
+        edict_t* e = box3d::spawnClass(s.classname, at, angles, s.setModel ? s.model : nullptr, s.key, s.value);
+        if(e)
+        {
+            const SvVmScope vm;
+            Con_Printf("spawntest: %d %s \"%s\" %s: spawned %d\n", i, s.section, s.label, s.classname, NUM_FOR_EDICT(e));
+            if(spawnTest.made.size() < spawnTest.made.capacity())
+            {
+                spawnTest.made.pushBack(SpawnTestMade{i, NUM_FOR_EDICT(e)});
+            }
+            spawned++;
+        }
+        else
+        {
+            Con_Printf("spawntest: %d %s \"%s\" %s: failed\n", i, s.section, s.label, s.classname);
+            failed++;
+        }
+    }
+    Con_Printf("spawntest: %d spawned, %d failed, %d unavailable\n", spawned, failed, unavailable);
+}
 
 // vr_toolgun_select <n | clear>: the spawn list's entry n (the spawnables' order: 0 the Grunt), or nothing.
 // AD support: catalog evidence for the shared Debug and toolgun spawn menus.
@@ -1891,6 +2328,19 @@ void status_f()
             ghostHold.move >= 0 ? (ghostHold.move == HAND_MAIN ? "move:main" : "move:off") : "move:none",
             ghostHold.turn >= 0 ? (ghostHold.turn == HAND_MAIN ? "turn:main" : "turn:off") : "turn:none",
             ghostHold.fixed ? "fixed" : "following");
+        if(tg.ghostEnt && tg.ghostLooked)
+        {
+            // (as the item will be once placed: its probe's, GhostLook)
+            const GhostLook& l = ghostLook;
+            Con_Printf("toolgun: ghost drawn %s at %.1f %.1f %.1f, scale %.3f, offset %.1f %.1f %.1f (probed)\n", l.model,
+                tg.ghostEnt->origin[0], tg.ghostEnt->origin[1], tg.ghostEnt->origin[2], 1.f + l.vr.scale.x, l.vr.offset.x,
+                l.vr.offset.y, l.vr.offset.z);
+        }
+        else if(tg.ghostEnt)
+        {
+            Con_Printf("toolgun: ghost drawn %s at %.1f %.1f %.1f\n", tg.ghostEnt->model ? tg.ghostEnt->model->name : "?",
+                tg.ghostEnt->origin[0], tg.ghostEnt->origin[1], tg.ghostEnt->origin[2]);
+        }
         if(ghostHold.move >= 0)
         {
             const glm::vec3& p = hands::current().pos[ghostHold.move];
@@ -1920,6 +2370,8 @@ void status_f()
 void qvr::toolgun::registerCommands()
 {
     Cmd_AddCommand("vr_toolgun_spawnlist", spawnlist_f); // AD support
+    Cmd_AddCommand("vr_toolgun_spawn_test", spawnTest_f);
+    Cmd_AddCommand("vr_toolgun_spawn_trace", spawnTrace_f);
     Cmd_AddCommand("vr_toolgun_select", select_f);
     Cmd_AddCommand("vr_toolgun_pick", pick_f);
     Cmd_AddCommand("vr_toolgun_reset", reset_f);

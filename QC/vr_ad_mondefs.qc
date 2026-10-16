@@ -18,6 +18,7 @@ float VR_ADM_NOHEAD = 16; // never beheaded (its own death throws its head: the 
 .float vr_ad_headf;      // its head zone (PositionalHead): forward, up, radius (0: none) on its stand frame
 .float vr_ad_headu;
 .float vr_ad_headr;
+.float vr_ad_headl;      // its head zone's middle to its left (0 for most: the zombie knight's head is off its middle)
 .float vr_ad_corpseh;    // its corpse's health cvar (VR_Corpse_Parts' vr_corpse_health_<monster>); 0: no corpse gibbing
 
 // Quake VR's side calls these.
@@ -40,6 +41,8 @@ float(entity targ) VR_AD_PainDown;       // T_Damage, before the pain: knocked d
 void(entity attacker) VR_AD_Dying;       // Killed, before the death function (self dying): beheading, limbs, shock
 void() VR_AD_Died;                       // Killed, after it: a knockdown's death at once, the corpse, the blood pool
 void() VR_AD_BodySolid;                  // monster_death_postcheck: its body touchable, not a trigger (its ragdoll)
+void() VR_AD_Gibbed;                     // monster_ThrowGib (self gibbed by AD's code): our gore, small gibs, limbs
+void(entity g, float xNo) VR_AD_GibThrown; // ThrowGib: AD's gib or head `g` (kind xNo) made a prop of ours, as id's
 
 // AD support: Quake VR's stealth AI on AD's monsters (vr_ad_stealth.qc, after AD's files; STEALTH.md, "Arcane
 // Dimensions"). vr_stealth.qc asks these for a monster whose stl_ad says it is AD's:

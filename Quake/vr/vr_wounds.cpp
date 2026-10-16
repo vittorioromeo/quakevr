@@ -2,6 +2,8 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_wounds.hpp"
+#include "vr_dents.hpp"
+#include "vr_bloodstream.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_modelcollide.hpp"
@@ -1171,6 +1173,11 @@ void wound(const Target& t, const Event& ev)
                 return;
             }
             splats.pushBack(woundSplat(at, r, n, way, ws.stretch, r * 0.9f + 1.f, -0.25f, ws.run, what));
+            if(ev.kind == KindShot || ev.kind == KindNail || ev.kind == KindMelee) // the flesh dented (vr_dents.cpp)
+            {
+                dents::struck(t.ent, surf.tris, at, n, way, kind,
+                    static_cast<float>(ev.amount) / static_cast<float>(ev.kind == KindShot ? za::max(1, ev.extra) : 1));
+            }
         }
         else if(t.view && t.capsules)
         {
@@ -1269,10 +1276,16 @@ void wound(const Target& t, const Event& ev)
             {
                 za::Vector<SurfacePoint> pts;
                 facingPoints(surf, centre, bleeds, pts);
+                dents::struck(t.ent, surf.tris, centre, glm::vec3{0.f}, dir, dents::kindBlast, static_cast<float>(ev.amount)); // its crater
+                int bleedDents = 0;
                 for(const auto& [p, n] : pts)
                 {
                     const WoundSize ws = woundSize(KindNail, ev.amount / 3);
                     splats.pushBack(woundSplat(p, ws.r, n, glm::normalize(p - centre), 1.f, ws.r + 1.f, -0.25f, ws.run, paintBlood));
+                    if(bleedDents++ < 2) // and a couple of lesser ones round it
+                    {
+                        dents::struck(t.ent, surf.tris, p, n, glm::normalize(p - centre), dents::kindBlastBleed, static_cast<float>(ev.amount) / 3.f);
+                    }
                 }
             }
             else
@@ -1333,6 +1346,7 @@ void apply(const Event& ev)
         // Removed on the server: its mask freed (a new entity in the slot, with the same model, starts clean).
         if(ev.num > 0 && ev.num < cl_max_edicts)
         {
+            dents::forget(&cl_entities[ev.num]); // its flesh dents too (vr_dents.cpp)
             if(const auto it = maskOf.find(&cl_entities[ev.num]); it != maskOf.end() && !masks[static_cast<za::SizeT>(it->second)].view)
             {
                 const bool weapon = masks[static_cast<za::SizeT>(it->second)].weapon != 0;
@@ -3042,6 +3056,8 @@ void parseEvent()
     {
         Con_Printf("wounds: received kind %d on %d\n", ev.kind, ev.num);
     }
+    // A bullet hole may pour (vr_bloodstream.cpp; whether the wounds are painted or not).
+    bloodstream::onWound(ev.num, {ev.org[0], ev.org[1], ev.org[2]}, {ev.dir[0], ev.dir[1], ev.dir[2]}, ev.kind, ev.amount);
     if(enabled() && events.size() < 512)
     {
         events.pushBack(ev);
@@ -3159,6 +3175,7 @@ bool replacesSkins()
 
 void clear()
 {
+    dents::clear(); // the flesh dents too (vr_dents.cpp)
     for(int i = 0; i < maskCount(); i++)
     {
         masks[static_cast<za::SizeT>(i)] = Mask{};
@@ -3529,7 +3546,7 @@ void test_f()
 {
     if(Cmd_Argc() < 3)
     {
-        Con_Printf("vr_wounds_test <entity number | self | ahead> <kind 1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap, 7 lava, 8 slime, "
+        Con_Printf("vr_wounds_test <entity number | self | ahead | nearest> <kind 1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap, 7 lava, 8 slime, "
                    "9 liquid> [amount] [right] [up] [extra]\n");
         return;
     }
@@ -3584,6 +3601,28 @@ void test_f()
         {
             const entity_t& c = cl_entities[ev.num];
             Con_Printf("vr_wounds_test: entity %d (%s) at %.0f %.0f %.0f\n", ev.num, c.model->name, c.origin[0], c.origin[1], c.origin[2]);
+        }
+    }
+    if(ZA_STRCMP(Cmd_Argv(1), "nearest") == 0) // the monster model nearest the view (its .mdl: progs/, not an item, a weapon, a gib)
+    {
+        const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+        float best = 1000.f;
+        for(int i = 1; i < cl.num_entities; i++)
+        {
+            const entity_t& c = cl_entities[i];
+            if(i == cl.viewentity || !c.model || c.model->type != mod_alias || c.msgtime < cl.mtime[1] - 0.2 ||
+                !modelmeta::has(c.model, modelmeta::Trait::Progs) || modelmeta::has(c.model, modelmeta::Trait::ViewWeapon) ||
+                modelmeta::has(c.model, modelmeta::Trait::Gib) || modelmeta::has(c.model, modelmeta::Trait::Hand) ||
+                modelmeta::has(c.model, modelmeta::Trait::Body) || ZA_STRNCMP(c.model->name, "progs/vr_", 9) == 0)
+            {
+                continue;
+            }
+            const float d = glm::distance(glm::vec3{c.origin[0], c.origin[1], c.origin[2]}, eye);
+            if(d < best)
+            {
+                best = d;
+                ev.num = i;
+            }
         }
     }
     ev.kind = atoi(Cmd_Argv(2));

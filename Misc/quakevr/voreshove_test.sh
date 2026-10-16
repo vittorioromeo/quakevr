@@ -19,7 +19,11 @@ tb_run_sh -Script "developer 1;sv_random_seed 7;map vrtesthall;wait30;god;vr_ste
 SHOVES=$(grep -c "shoves the player" "$OUT" || true)
 grep -v "can't shove" "$OUT" | head -12
 echo "vore shoves: $SHOVES$([ "$TB_SLOW" = "1" ] || echo " (batched: the walk ends at the 4th)")"
-if [ "$SHOVES" -lt 4 ]; then
+# The blow lands on the push's full reach: shove5, the model's frame 40 (make_voreshove.py; ROUND22.md, "The vore's
+# two-handed shove").
+OFFPEAK=$(grep "shoves the player" "$OUT" | grep -vc "(frame 40)" || true)
+echo "blows off the peak frame (40): $OFFPEAK"
+if [ "$SHOVES" -lt 4 ] || [ "$OFFPEAK" -gt 0 ]; then
     echo "VORE SHOVE FAILED"
     exit 1
 fi

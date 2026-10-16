@@ -58,6 +58,12 @@ int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity
 // shapenearest, vr_reload.qc's magazine and super shotgun hits).
 [[nodiscard]] bool shapeNearest(int num, const glm::vec3& a, const glm::vec3& b, glm::vec3& out);
 
+// The faces of edict `num`'s convex hulls (a prop's, loose or held), in its own frame (its origin, along its axes): each
+// face's outward normal (xyz) and its distance from the origin along it (w, world units), into `planes` (at most
+// `maxPlanes`); `hullEnds[k]` where hull k's faces end (at most `maxHulls`, `hulls` of them). Its other shapes are
+// left out. 0 faces: no body, or no hull (the grip fit's shape: vr_gripfit.cpp).
+int hullPlanes(int num, glm::vec4* planes, int maxPlanes, int* hullEnds, int maxHulls, int& hulls);
+
 // Whether edict `num` is one of Box3D's props (its shape is what sightRay meets).
 [[nodiscard]] bool isBox3DProp(int num);
 
@@ -83,9 +89,10 @@ void reset();
 // A map entity made by its spawn function (`classname`) at `origin`, turned `angles` (set before it: a monster's
 // ideal_yaw is taken from them), its "model" `model` and the float field `key` set to `value` first when given (a rock's
 // model, func_weapon_grabbable's weapon). Null if there is no such spawn function, or it removed itself. vr_physics_spawn's
-// and the toolgun's.
+// and the toolgun's. An item is placed at once (QC VR_SpawnLive_Finish): its final size and place from its first frame.
+// `probe`: made only to be looked at and removed at once (the toolgun's ghost: QC vr_spawn_live 2).
 edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model = nullptr,
-    const char* key = nullptr, float value = 0.f);
+    const char* key = nullptr, float value = 0.f, bool probe = false);
 
 // The toolgun's (vr_toolgun.cpp). A prop pinned is a kinematic body where its entity is (as a pickup hanging), until
 // unpinned: frozen, or moved by the physgun's beam (its entity moved, its body follows and pushes the others). Edict
@@ -352,7 +359,12 @@ struct RagdollHold
 [[nodiscard]] bool ragdollHoldPoint(int player, int hand, glm::vec3& out);
 // A limb's point (flames on a ragdoll: vr_burning.qc): the limb nearest `at` (-1: not a ragdoll); a point into a limb's
 // space (units) and back.
-[[nodiscard]] int ragdollBone(int num, const glm::vec3& at);
+[[nodiscard]] int ragdollBone(int num, const glm::vec3& at, float within = -1.f); // (within >= 0: -1 when farther)
+// Ragdolls in a world box (the buzzsaw's blade: QC rogue_buzzsaw.qc): the lowest edict number above `after` whose
+// ragdoll has a part in lo..hi (0 none); the first part of edict `num`'s after `after` in it (-1 none), `at` its point
+// nearest the box's middle.
+[[nodiscard]] int ragdollInBox(const glm::vec3& lo, const glm::vec3& hi, int after);
+[[nodiscard]] int ragdollPartInBox(int num, const glm::vec3& lo, const glm::vec3& hi, int after, glm::vec3& at);
 // Tests (vr_mock_hand_to ... ragdoll): the middle of part `part` (-1: the one nearest `from`; -2 its head) of the ragdoll nearest `from`
 // (units); its edict number,
 // 0 if none (or no such part).

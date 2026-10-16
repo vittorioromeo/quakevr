@@ -47,6 +47,8 @@
 #include "vr_obs.hpp"
 #include "vr_panel.hpp"
 #include "vr_stereo.hpp"
+#include "vr_protocol.hpp"
+#include "vr_toolgun.hpp"
 #include "vr_units.hpp"
 #include "vr_window.hpp"
 
@@ -409,6 +411,9 @@ struct PanelGrab
     glm::vec3 armedSpot{0.f};           // and its laser on the panel
     bool sticksMoved{false};            // a stick was pushed while it was armed: the fine modifier, not a grab
     glm::vec3 centre{0.f}, right{0.f}, up{0.f}, spot{0.f}; // the panel and the laser's spot, in the hand's frame
+    glm::vec3 dirAtTake{1.f, 0.f, 0.f}; // from the head to the panel's middle when taken
+    glm::vec3 handFromHead{0.f};        // the hand's place from the head then
+    float distAtTake{0.f};              // the panel's middle's distance from the head then (units)
 };
 PanelGrab panelGrab;
 
@@ -435,6 +440,10 @@ void haptic(int hand, float seconds, float amplitude);
     panelGrab.right = toHand * glm::normalize(xAxis);
     panelGrab.up = toHand * glm::normalize(yAxis);
     panelGrab.spot = toHand * (spot - origin);
+    const glm::vec3 toPanel = corner + (xAxis + yAxis) * 0.5f - s.head;
+    panelGrab.distAtTake = glm::length(toPanel);
+    panelGrab.dirAtTake = panelGrab.distAtTake > 1.f ? toPanel / panelGrab.distAtTake : glm::vec3{1.f, 0.f, 0.f};
+    panelGrab.handFromHead = origin - s.head;
     pointingHand = hand;
     return true;
 }
@@ -456,9 +465,27 @@ void followHold(const hands::State& s)
         right = glm::normalize(glm::cross(facing, glm::vec3{0.f, 0.f, 1.f}));
         up = glm::cross(right, facing);
     }
+    // Pushed and pulled: the hand's move towards or away from where the panel was (from the head) counts
+    // vr_menu_grab_reach times, so that an arm's length is the room's worth; the distance kept within
+    // vr_menu_grab_dist_min..max cm (never pinched in from where it was taken).
+    glm::vec3 centre = origin + basis * panelGrab.centre;
+    const float reach = za::fmax(1.f, vr_menu_grab_reach.value);
+    if(reach > 1.f)
+    {
+        const glm::vec3 toPanel = centre - s.head;
+        const float dist = glm::length(toPanel);
+        if(dist > 1.f)
+        {
+            const float radial = glm::dot((origin - s.head) - panelGrab.handFromHead, panelGrab.dirAtTake);
+            const float lo = za::fmin(panelGrab.distAtTake, vr_menu_grab_dist_min.value * 0.01f * units::metresToUnits());
+            const float hi = za::fmax(panelGrab.distAtTake, vr_menu_grab_dist_max.value * 0.01f * units::metresToUnits());
+            const float want = za::fmax(lo, za::fmin(hi, dist + (reach - 1.f) * radial));
+            centre = s.head + toPanel * (want / dist);
+        }
+    }
     const int was = menu::currentInstance(); // (the menu held, whichever the menu code works on)
     menu::selectInstance(panelGrab.menu);
-    panel::placeMenu(s, origin + basis * panelGrab.centre, right, up);
+    panel::placeMenu(s, centre, right, up);
     menu::selectInstance(was);
 }
 
@@ -570,22 +597,23 @@ enum Tool
     ToolMaps, // the map browser: the external map index, installed and played from here (vr_menu_maps.inc)
     ToolRelighting, // Graphics > Relighting (the map's lights baked again: vr_relight)
     ToolNewPanel, // another menu panel (MULTI_MENU.md): in the headset only
+    ToolToolgun, // a toolgun in the main hand, the off hand when the main hand holds something (Developer only)
     ToolChecklist, // (the last: shown at Menu Detail: Developer only)
     ToolCount
 };
 
 // (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game".)
 constexpr const char* toolLabels[ToolCount]{"Back to game", "Quicksave", "Quickload", "Main Menu", "Search", "Console",
-    "VR Settings", "Advanced VR", "Levels", "Map Library", "Relighting", "New Panel", "Checklist 99"};
+    "VR Settings", "Advanced VR", "Levels", "Map Library", "Relighting", "New Panel", "Toolgun", "Checklist 99"};
 
 // Their names for the tests' commands (vr_mock_laser, vr_mock_mouse).
 constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "main", "search", "console", "settings",
-    "advanced", "levels", "maps", "relighting", "newpanel", "checklist"};
+    "advanced", "levels", "maps", "relighting", "newpanel", "toolgun", "checklist"};
 
 // The buttons shown: the Checklist (the last) only at Menu Detail: Developer (the playtest checklist is the author's).
 [[nodiscard]] int toolsShown()
 {
-    return menu::developerLevel() ? ToolCount : ToolChecklist;
+    return menu::developerLevel() ? ToolCount : ToolToolgun;
 }
 
 // New Panel only in the headset (its panels are): on a flat screen's row it is left out, the buttons after it a place
@@ -627,6 +655,18 @@ constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "ma
         {
             return "Three panels open at most";
         }
+    }
+    if(tool == ToolToolgun)
+    {
+        if(!sv.active || svs.maxclients != 1 || deathmatch.value)
+        {
+            return "Only in a local single-player game";
+        }
+        if(cl.stats[STAT_HEALTH] <= 0)
+        {
+            return "Not while dead";
+        }
+        return nullptr;
     }
     if(tool == ToolQuicksave)
     {
@@ -1835,6 +1875,20 @@ void useTool(int tool, int hand)
             Cmd_TokenizeString("menu_maps"); // (it looks at its command's arguments)
             M_Menu_Maps_f();
             break;
+        case ToolToolgun:
+        {
+            // (impulse 150 + 19 / 170 + 19: the weapon in that hand; the off hand when the main one holds a weapon)
+            const int mainWpn = cl.stats[protocol::STAT_QVR_WEAPON], offWpn = cl.stats[protocol::STAT_QVR_WEAPON2];
+            backToGame(hand);
+            if(mainWpn == qvr::toolgun::weaponId || offWpn == qvr::toolgun::weaponId)
+            {
+                Con_Printf("Toolgun: already in a hand.\n");
+                break;
+            }
+            Cbuf_InsertText(mainWpn != 0 ? "wait; impulse 189\n" : "wait; impulse 169\n");
+            Con_Printf("Toolgun: in the %s hand.\n", mainWpn != 0 ? "off" : "main");
+            break;
+        }
         case ToolChecklist: menu::jumpToChecklist(); break;
         case ToolMaps: menu::openMaps(); break;
         case ToolRelighting: menu::jumpToRelighting(); break;
@@ -2464,6 +2518,12 @@ void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4
             p.band(x + w - 1.2f, x + w, yc, -4.7f, 4.7f, ink);
             p.band(x + 4.4f, x + 5.6f, yc, -4.7f, 4.7f, ink);
             p.disc(x + 2.6f, yc - 1.2f / p.k, 1.3f, ink);
+            break;
+        case ToolToolgun:
+            // A pistol: a barrel, a grip down from it.
+            p.band(x, x + w, yc, -3.f, 0.f, ink);
+            p.band(x + 1.f, x + 4.f, yc, 0.f, 4.5f, ink);
+            p.band(x + w - 1.2f, x + w, yc, -4.f, -3.f, ink);
             break;
         case ToolChecklist:
             // Three lines, each after a box.

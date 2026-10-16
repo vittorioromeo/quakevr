@@ -37,5 +37,11 @@ void info_f();
 // SV_SpawnServer, the map's entities spawned (VR_OnSpawnServerSpawned): the whole limbs of every kind of monster the
 // map has, made and precached now (vr_limbs_prebuild), not at the first cut (its frame: ~5 ms).
 void prebuild();
+// VR_ServerFrameEnd: a kind of monster first spawned after the map's load (vr_physics_spawn, the firing range's
+// dispensers, AD's and MG3's spawners, monsters that appear later): its limbs built on the pool, then precached one a
+// frame, not all at its first cut (vr_limbs_prebuild on).
+void spawnFrame();
+// VR_OnSpawnServerSpawned, before prebuild: spawnFrame's kinds and limbs of the last map forgotten.
+void newMap();
 
 } // namespace qvr::limbmodel

@@ -38,7 +38,10 @@
 #define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) \
     if(!weaponsOnly || !strcmp(section, "Weapons")) \
     { items.pushBack(adSpawnRow(choice, command(label, "vr_test_spawn " #choice "; vr_test_spawn_dist 64; impulse 241"))); }
+#define QVR_AD_SPAWN_MAP(section, label, classname, model, lift, choice, key, value, skin) \
+    QVR_AD_SPAWN(section, label, classname, model, lift, false, choice)
 #include "vr_ad_spawnitems.inc"
+#undef QVR_AD_SPAWN_MAP
 #undef QVR_AD_SPAWN
 #define QVR_AD_GUN(label, model, wid, choice) \
     items.pushBack(adSpawnRow(choice, command(label, "vr_test_spawn " #choice "; vr_test_spawn_dist 64; impulse 241")));
@@ -133,6 +136,16 @@
         adSpawnRow(242, command("The Judicator (a Boss) Ahead", "vr_test_spawn 242; vr_test_spawn_dist 128; impulse 241")),
         adSpawnRow(245, command("AD's Scrag Ahead", "vr_test_spawn 245; vr_test_spawn_dist 128; impulse 241")),
         adSpawnRow(250, command("AD's Hell Knight Ahead", "vr_test_spawn 250; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(251, command("A Gug Ahead", "vr_test_spawn 251; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(252, command("A Polyp Ahead", "vr_test_spawn 252; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(253, command("A Nail Ogre Ahead", "vr_test_spawn 253; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(254, command("A Floyd Automaton Ahead", "vr_test_spawn 254; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(255, command("The Deflector Ahead", "vr_test_spawn 255; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(256, command("A Dark Prince Ahead", "vr_test_spawn 256; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(257, command("Vermis (a Boss) Ahead", "vr_test_spawn 257; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(258, command("A Quoth Death Guard Ahead", "vr_test_spawn 258; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(259, command("A Death Lord Ahead", "vr_test_spawn 259; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(260, command("A Sentinel Ahead", "vr_test_spawn 260; vr_test_spawn_dist 128; impulse 241")),
         // ad_monsters_gen.py: end
     });
 }

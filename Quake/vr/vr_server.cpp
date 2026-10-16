@@ -4,6 +4,7 @@
 #include "vr_axestick.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hitmodel.hpp"
+#include "vr_limbmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_climb.hpp"
 #include "vr_bodycontact.hpp"
@@ -24,6 +25,7 @@
 #include "vr_worldtext.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
@@ -100,6 +102,20 @@ template <int N>
     return count;
 }
 
+// A late precache is also repeated at the head of each client's datagrams for a moment (VR_WriteRecentPrecaches): the
+// datagram is sent before the reliable message (and a reliable one waits for the last one's ack), so the entity made in
+// the same frame, with the new model, or the sound started on it would reach the client before the name and be lost (a
+// model drawn as nothing until its next update; the sound never heard). The repeats are harmless (the client knows it).
+struct RecentPrecache
+{
+    int subcmd{0};
+    int index{0};
+    const char* name{nullptr};
+    double until{0.0}; // (the server's time)
+};
+constexpr double recentPrecacheTime = 0.5;
+za::InPlaceVector<RecentPrecache, 64> recentPrecaches;
+
 template <int N>
 void broadcastNewPrecaches(const char* const (&list)[N], int& known, int subcmd)
 {
@@ -110,6 +126,11 @@ void broadcastNewPrecaches(const char* const (&list)[N], int& known, int subcmd)
         MSG_WriteByte(&sv.reliable_datagram, subcmd);
         MSG_WriteShort(&sv.reliable_datagram, known);
         MSG_WriteString(&sv.reliable_datagram, list[known]);
+        if(recentPrecaches.size() == recentPrecaches.capacity())
+        {
+            recentPrecaches.erase(recentPrecaches.begin()); // (the oldest: its reliable copy is on its way)
+        }
+        recentPrecaches.pushBack(RecentPrecache{subcmd, known, list[known], qcvm->time + recentPrecacheTime});
     }
 }
 
@@ -863,6 +884,13 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
         statsf[STAT_QVR_HOLSTERWEAPONCLIP0 + i] = clip(holsterInst[i]);
         statsi[STAT_QVR_HOLSTERWEAPONUID0 + i] = weaponUid(inst(holsterInst[i])); // (its blood drawn holstered: vr_wounds.cpp)
     }
+
+    // Magnetic holsters: each holster's bound weapon's id (QC vr_magholster.qc; the chains: vr_magholster.cpp).
+    const int magBind[numHolsters] = {f.vr_magbind0, f.vr_magbind1, f.vr_magbind2, f.vr_magbind3, f.vr_magbind4, f.vr_magbind5};
+    for(int i = 0; i < numHolsters; i++)
+    {
+        statsi[STAT_QVR_MAGBIND0 + i] = static_cast<int>(fieldFloatOr(ent, magBind[i], 0.f));
+    }
 }
 
 // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc): a magazine gun with no magazine in (vr_reload.qc).
@@ -989,6 +1017,27 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
     }
 }
 
+// SV_SendClientDatagram, after svc_time, before the entities and the frame's sounds: the precaches made in the last
+// half second (recentPrecaches), so what uses them in the same datagram finds them.
+extern "C" void VR_WriteRecentPrecaches(sizebuf_t* msg)
+{
+    while(!recentPrecaches.empty() && recentPrecaches[0].until < qcvm->time)
+    {
+        recentPrecaches.erase(recentPrecaches.begin());
+    }
+    for(const RecentPrecache& p : recentPrecaches)
+    {
+        if(msg->cursize + 4 + static_cast<int>(strlen(p.name)) + 1 > msg->maxsize / 2)
+        {
+            break; // (the entities first: the reliable copy follows anyway)
+        }
+        MSG_WriteByte(msg, svc_quakevr);
+        MSG_WriteByte(msg, p.subcmd);
+        MSG_WriteShort(msg, p.index);
+        MSG_WriteString(msg, p.name);
+    }
+}
+
 extern "C" void VR_ServerFrameEnd()
 {
     sweepWeaponInsts(); // the weapons' records nothing has any more: freed, their ids gone
@@ -1000,6 +1049,7 @@ extern "C" void VR_ServerFrameEnd()
     qvr::axestick::serverFrame(); // thrown axes stuck in things go with them (after the poses above)
     qvr::foegrab::afterPoses(); // the held spots placed (after the poses above); a hand pulled too far lets go
     qvr::explosiondebris::serverFrame(); // the explosions' chunks: new ones launched, the ended gone, the fades
+    qvr::limbmodel::spawnFrame(); // a kind of monster first spawned now: its limbs made ahead of its first cut
     progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in
 
     if(!vrProtocol())
@@ -1365,6 +1415,7 @@ void onSpawnServerAfterLoad()
 {
     broadcastModelCount = precacheCount(sv.model_precache);
     broadcastSoundCount = precacheCount(sv.sound_precache);
+    recentPrecaches.clear();
     serverrules::serverReset(); // (the clients get every rule with their spawn state)
 }
 

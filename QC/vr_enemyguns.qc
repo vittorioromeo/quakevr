@@ -229,7 +229,6 @@ void(float xHand) VR_FireBurstRound =
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.08, 110, 0.6);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
-    self.damage_weapon = IT_SHOTGUN; // HONEY
 };
 
 // id's shotgun (vr_grunt_burst 0): as W_FireShotgun, from its own shells.
@@ -243,7 +242,6 @@ void(float xHand) VR_FireGruntGun =
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.25, 70, 0.75);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
-    self.damage_weapon = IT_SHOTGUN; // HONEY
 };
 
 // A rifle's laser strikes: as your nails (spike_touch), what takes damage takes vr_enfrifle_damage (positional: a head
@@ -321,7 +319,7 @@ void(float xHand) VR_FireEnforcerRifle =
     laser.angles = vectoangles(laser.velocity);
     laser.touch = VR_RifleLaser_Touch;
     laser.classname = "rifle_laser";
-    VR_ShotPlace(laser, xHand);
+    VR_ShotLaunched(laser, xHand);
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.2, 90, 0.6);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1); // its smoke, as your other guns'

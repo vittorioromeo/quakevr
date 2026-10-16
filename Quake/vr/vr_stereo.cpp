@@ -35,6 +35,7 @@
 #include "vr_synthesis_math.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tonemap.hpp"
+#include "vr_tracy.h"
 #include "vr_upscale.hpp"
 #include "vr_water.hpp"
 #include "vr_window.hpp"
@@ -935,8 +936,15 @@ extern "C" int VR_RenderView()
         stereo::firstEye = eyesRendered == 0;
         QVR_GPU_PROFILE(eye == 0 ? "eye L" : "eye R");
 
+        // The models' set-up the same for both eyes: the first eye's kept for the second (vr_alias_eye_cache; r_alias.c)
+        const int eyeCache = static_cast<int>(vr_alias_eye_cache.value);
+        R_AliasEyeCacheBegin(eyeCache <= 0 ? 0 : stereo::firstEye ? 1 : eyeCache >= 2 ? 3 : 2);
         V_RenderView();
-        foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
+        R_AliasEyeCacheBegin(0);
+        {
+            QVR_TRACY_SCOPE(zoneFoveated, "eye: foveated end"); // (profiling builds only: the eye's own steps)
+            foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
+        }
         frame_synthesis::captureDepth(eye, width, height, stereo::eyeTargets.depth);
         bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
         if(lateAcquire && !acquire(eye, true))
@@ -964,10 +972,13 @@ extern "C" int VR_RenderView()
             upscale::resample(eye, stereo::resampleTex, stereo::resampleFbo, width, height, stereo::targetFbo,
                 imageWidth, imageHeight);
         }
-        foveated::drawDebug(eye, stereo::targetFbo, imageWidth, imageHeight, width, height); // vr_foveated_debug
-        if(stereo::mirrored(eye))
         {
-            foveated::drawDebug(eye, framebufs.composite.fbo, width, height, width, height);
+            QVR_TRACY_SCOPE(zoneFoveatedDebug, "eye: foveated debug");
+            foveated::drawDebug(eye, stereo::targetFbo, imageWidth, imageHeight, width, height); // vr_foveated_debug
+            if(stereo::mirrored(eye))
+            {
+                foveated::drawDebug(eye, framebufs.composite.fbo, width, height, width, height);
+            }
         }
         if(shotFinal)
         {
@@ -979,7 +990,10 @@ extern "C" int VR_RenderView()
         // else in the world are in the scene. Over the scene's colours too, for the mirror.
         const Fov& eyeFov = frame.eyes[eye].fov; // (the canvas's size: vr_menu_resolution)
         panel::noteEyeImage(static_cast<float>(imageHeight) / za::max(1e-3f, za::tan(eyeFov.up) - za::tan(eyeFov.down)));
-        stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, imageWidth, imageHeight, !recordingClean()); // (recording mode: no head text)
+        {
+            QVR_TRACY_SCOPE(zoneUi, "eye: UI");
+            stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, imageWidth, imageHeight, !recordingClean()); // (recording mode: no head text)
+        }
         if(shotUi)
         {
             tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, imageWidth, imageHeight);
@@ -1005,10 +1019,12 @@ extern "C" int VR_RenderView()
         if(released) ++eyesRendered;
         else frame_synthesis::reset();
 
+        QVR_TRACY_SCOPE(zoneMirror, "eye: mirror to window");
         stereo::mirrorToWindow(eye, windowTarget, windowWidth, windowHeight);
     }
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
+    R_AliasEyeCacheEnd();
 
     // Both eyes, or no projection layer at all (an eye's image could not be acquired).
     const bool stereoRendered = eyesRendered == 2;

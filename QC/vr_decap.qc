@@ -168,7 +168,7 @@ float(entity e, vector xAt, vector xDir) VR_Decap_OnHead =
     facing_x = cos(yaw);
     facing_y = sin(yaw);
     facing_z = 0;
-    vector head = e.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    vector head = e.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
     if(hitmodel_target(e))
     {
         return vlen(hitmodel_rest(e, xAt) - head) < xHeadRadius + VR_HEAD_MARGIN;
@@ -199,7 +199,7 @@ float(entity e) VR_Decap_MeleeZone =
     facing_x = cos(yaw);
     facing_y = sin(yaw);
     facing_z = 0;
-    vr_decap_zone_top = e.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    vr_decap_zone_top = e.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
     vr_decap_zone_bottom = vr_decap_zone_top - '0 0 1' * max(0, cvar_hget(cvarh_vr_decap_neck));
     xHeadRadius = (xHeadRadius + (hitmodel_target(e) ? VR_HEAD_MARGIN : 0)) * max(0.1, cvar_hget(cvarh_vr_decap_head_size));
     return TRUE;
@@ -1403,6 +1403,7 @@ void(entity m) VR_Decap_Sweep =
     vector axis = m.origin;
     axis_x = axis_x + cos(yaw) * xHeadForward;
     axis_y = axis_y + sin(yaw) * xHeadForward;
+    axis = axis + VR_HeadSide('1 0 0' * cos(yaw) + '0 1 0' * sin(yaw));
     float contacts = 0;
     float on = 0;
     string row = "";
@@ -1479,7 +1480,7 @@ void(float xTest) VR_Decap_PopTest =
     }
     VR_Decap_HeadZone(m);
     makevectors('0 1 0' * m.angles_y);
-    vector at = m.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp;
+    vector at = m.origin + v_forward * xHeadForward + VR_HeadSide(v_forward) + '0 0 1' * xHeadUp;
     vector aim = at;
     if(xTest == 44)
     {
@@ -1677,7 +1678,7 @@ void(float xTest) VR_Decap_BluntTest =
     }
     VR_Decap_HeadZone(m);
     makevectors('0 1 0' * m.angles_y);
-    vector at = m.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp;
+    vector at = m.origin + v_forward * xHeadForward + VR_HeadSide(v_forward) + '0 0 1' * xHeadUp;
     vector dir = normalize(at - (self.origin + self.view_ofs));
     float quad = VR_Decap_QuadPops(self);
     m.frame = 0; // (standing: the head zone's middle is its head's, not where a pain or run frame put it)
@@ -1832,7 +1833,7 @@ void(float xTest) VR_Decap_Test =
     {
         VR_Decap_HeadZone(m);
         makevectors('0 1 0' * m.angles_y);
-        at = m.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp;
+        at = m.origin + v_forward * xHeadForward + VR_HeadSide(v_forward) + '0 0 1' * xHeadUp;
     }
     if(xTest == 19)
     {
@@ -2037,12 +2038,12 @@ void() VR_Decap_DebugFrame =
             debughitzone(e, 2, lo, hi, 0);
             lo_y = -out; hi_y = -side;
             debughitzone(e, 2, lo, hi, 0);
-            vector c = '1 0 0' * xHeadForward + '0 0 1' * xHeadUp;
+            vector c = '1 0 0' * xHeadForward + '0 1 0' * xHeadLeft + '0 0 1' * xHeadUp;
             debughitzone(e, 1, c, c, xHeadRadius + (precise ? VR_HEAD_MARGIN : 0));
         }
         if(mode >= 2 && e.health > 0 && VR_Decap_Judged(e) && VR_Decap_HeadZone(e))
         {
-            vector top = '1 0 0' * xHeadForward + '0 0 1' * xHeadUp;
+            vector top = '1 0 0' * xHeadForward + '0 1 0' * xHeadLeft + '0 0 1' * xHeadUp;
             if(mode == 2)
             {
                 debughitzone(e, 1, top, top, xHeadRadius + (precise ? VR_HEAD_MARGIN : 0));

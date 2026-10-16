@@ -1629,7 +1629,7 @@ void(float side) Gremlin_Melee =
     float ldmg;
     vector delta;
 
-    ai_face();
+    VR_MeleeArc_Face(); // QVR: (melee arc: fight.qc)
 
     // walkmove(self.ideal_yaw, 12);   // allow a little closing
 
@@ -1637,6 +1637,8 @@ void(float side) Gremlin_Melee =
 
     if(vlen(delta) > 100)
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
 
     if(!CanDamage(self.enemy, self))
         return;

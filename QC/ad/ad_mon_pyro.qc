@@ -117,7 +117,7 @@ void() ad_pyroflame_touch =
 		else {
 			ad_T_Damage (other, self, self, ad_DAMAGE_MONFLAME, ad_DAMARMOR);
 			// Quake VR: poisoned for a while too, its green puffs (vr_ad_enemyguns.qc: the poison sprayer's, as the player's)
-			if (other.flags & ad_FL_MONSTER) VR_ADGun_Poison(other, self.owner, cvar("vr_adgun_fumigator_poison"), cvar("vr_adgun_fumigator_poisontime"));
+			if (other.flags & ad_FL_MONSTER) VR_ADGun_Poison(other, self, self.owner, cvar("vr_adgun_fumigator_poison"), cvar("vr_adgun_fumigator_poisontime"));
 		}
 	}
 };

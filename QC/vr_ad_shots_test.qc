@@ -21,7 +21,7 @@ void() AD_ShotsFire =
     {
         VR_Decap_HeadZone(g);
         makevectors(g.angles);
-        at = g.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp;
+        at = g.origin + v_forward * xHeadForward + VR_HeadSide(v_forward) + '0 0 1' * xHeadUp;
         if(isragdoll(g)) at = ragdollcut(g, 6);
     }
     if(report.count == 1) at = limbplace(g, 5, 3);

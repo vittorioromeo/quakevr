@@ -54,6 +54,9 @@ void(entity xBox, float xHands) VR_Crate_SlamReleased;
 .entity vr_2h_thrower;   // the player who threw it with both hands, and when: his hands can't strike it for a moment
 .float vr_2h_thrown;     // (VR_Throw_SparedBlows)
 .float vr_throw_2h;      // on a thing thrown: 1 its last throw was with both hands (vr_throw_2h_damage: VR_Thrown_Damage)
+.float carry_grace_from_off;   // a pickup hanging in the air: when each hand reached it (0: not near it), and whose hands
+.float carry_grace_from_main;  // (VR_Carry_FloatGrace)
+.entity carry_grace_player;
 
 entity(entity xPlayer, float xHand) VR_Carry_Held =
 {
@@ -154,9 +157,111 @@ float(entity xPlayer, float xHand, entity xBox) VR_Carry_BodyPushes =
     return cvar("vr_box3d_weapon_push") != 0;
 };
 
+// A map's pickup still hanging in the air where it spins (items.qc, VR_PickupObj_Place): not yet knocked loose or taken.
+float(entity xBox) VR_Carry_Hanging =
+{
+    return xBox.vr_pickup_obj && xBox.vr_wear_floats && xBox.movetype == MOVETYPE_NONE && !xBox.vr_rigid &&
+           xBox.carry_player == world;
+};
+
+// Floating pickups' grace (vr_pickup_float_grace; a player's "they would just fall to the ground" as he reached for one):
+// an empty tracked hand reaching into a pickup hanging in the air doesn't knock it loose for vr_pickup_float_grace_time
+// from when its touch began, so a grip closing meanwhile takes it where it hangs (the touch's grip comes before its
+// nudge). A hand faster than vr_pickup_float_grace_swat (a swat) knocks it at once, and so does one still pushing into
+// it once the grace is over. TRUE: not knocked this frame.
+float(entity xPlayer, float xHand, entity xBox) VR_Carry_FloatGrace =
+{
+    if(!cvar_hget(cvarh_vr_pickup_float_grace) || !VR_Carry_Hanging(xBox) || !xPlayer.ishuman ||
+       !VRHandsTracked(xPlayer) || !VRIsHandEmpty(xPlayer, xHand))
+    {
+        return FALSE;
+    }
+
+    // Its first touch since the hand came near it (VR_Carry_FloatGraceFrame forgets a hand gone from its sweep: a weapon
+    // spinning past a hand held in it touches it only once a half turn).
+    if(xBox.carry_grace_player != xPlayer)
+    {
+        xBox.carry_grace_player = xPlayer;
+        xBox.carry_grace_from_off = 0;
+        xBox.carry_grace_from_main = 0;
+    }
+    float from = xHand == cVR_OffHand ? xBox.carry_grace_from_off : xBox.carry_grace_from_main;
+    float speed = vlen(VRGetEntHandVel(xPlayer, xHand));
+    if(!from)
+    {
+        from = time;
+        if(xHand == cVR_OffHand)
+        {
+            xBox.carry_grace_from_off = from;
+        }
+        else
+        {
+            xBox.carry_grace_from_main = from;
+        }
+        dprint(sprintf("floatgrab: %.2f s: %s reached by the %s hand at %.2f m/s\n", time, xBox.classname,
+            xHand == cVR_OffHand ? "off" : "main", speed));
+    }
+
+    if(speed > cvar_hget(cvarh_vr_pickup_float_grace_swat))
+    {
+        return FALSE; // a swat
+    }
+    return time - from < cvar_hget(cvarh_vr_pickup_float_grace_time);
+};
+
+float VR_CARRY_GRIP_WINDOW = 0.2; // (VR_Carry_GripPressed)
+
+// The grip of `xHand`, held, closed in its grace on the hanging `xBox` (from VR_CARRY_GRIP_WINDOW before the hand reached it
+// to vr_pickup_float_grace_time after): it takes it when it is next touched. A weapon spinning by a hand touches it in
+// short passes (a slow hand crossing a shotgun: 0.1 s, then none for half a turn), and the grip closed between them
+// would only knock it at the next (a fist).
+float(entity xPlayer, float xHand, entity xBox) VR_Carry_FloatGraceGrip =
+{
+    if(!cvar_hget(cvarh_vr_pickup_float_grace) || !VR_Carry_Hanging(xBox) || xBox.carry_grace_player != xPlayer ||
+       !VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand))
+    {
+        return FALSE;
+    }
+    float from = xHand == cVR_OffHand ? xBox.carry_grace_from_off : xBox.carry_grace_from_main;
+    if(!from)
+    {
+        return FALSE;
+    }
+    float pressed = VR_HandGrabUtil_Impl_GetLastGrabTime(xPlayer, xHand);
+    if(!VR_HandGrabUtil_IsHandPrevGrabbing(xPlayer, xHand))
+    {
+        pressed = time; // pressed this frame (its time is recorded after the touches)
+    }
+    return pressed >= from - VR_CARRY_GRIP_WINDOW && pressed <= from + cvar_hget(cvarh_vr_pickup_float_grace_time);
+};
+
+// From the hanging pickup's think (forcegrabbable_item_think, self = xBox): a hand that reached it and has left its sweep
+// (the sphere it spins in, and a hand's width) reaches it anew next time: its grace starts again.
+void(entity xBox) VR_Carry_FloatGraceFrame =
+{
+    entity p = xBox.carry_grace_player;
+    if(p == world || (!xBox.carry_grace_from_off && !xBox.carry_grace_from_main))
+    {
+        return;
+    }
+    float r = max(vlen(xBox.mins), vlen(xBox.maxs)) + 8;
+    if(xBox.carry_grace_from_off && vlen(VRGetEntHandPos(p, cVR_OffHand) - xBox.origin) > r)
+    {
+        xBox.carry_grace_from_off = 0;
+    }
+    if(xBox.carry_grace_from_main && vlen(VRGetEntHandPos(p, cVR_MainHand) - xBox.origin) > r)
+    {
+        xBox.carry_grace_from_main = 0;
+    }
+};
+
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 {
     if(time < xBox.carry_nudgetime || xBox.carry_player != world)
+    {
+        return;
+    }
+    if(VR_Carry_FloatGrace(xPlayer, xHand, xBox))
     {
         return;
     }
@@ -255,6 +360,11 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         bprint(sprintf("sgibtrace: #%g %.3f s: nudged by the %s hand (VR_Carry_Nudge, rigid %g): %.0f u/s to %.0f\n",
             xBox.vr_sgib_id, time - xBox.vr_sgib, xHand == cVR_MainHand ? "main" : "off", xBox.vr_rigid, vlen(xBox.velocity),
             vlen(xBox.velocity + d * (speed - along))));
+    }
+    if(VR_Carry_Hanging(xBox))
+    {
+        dprint(sprintf("floatgrab: %.2f s: %s knocked loose by the %s hand at %.2f m/s\n", time, xBox.classname,
+            xHand == cVR_OffHand ? "off" : "main", vlen(VRGetEntHandVel(xPlayer, xHand))));
     }
     xBox.velocity = xBox.velocity + d * (speed - along);
     VR_Carry_Loose(xBox);
@@ -1468,8 +1578,8 @@ void() VR_Carry_TwoHandFrame =
 
 // QVR r20: a grip pressed on the box, now or at most VR_CARRY_GRIP_WINDOW before (the press may come a
 // frame or two before the hand's touch), as a weapon is taken. A grip already held (a fist) never
-// takes it: it punches or nudges it instead (a punch through a gib was a grab).
-float VR_CARRY_GRIP_WINDOW = 0.2;
+// takes it: it punches or nudges it instead (a punch through a gib was a grab). (VR_CARRY_GRIP_WINDOW: above, by
+// VR_Carry_FloatGraceGrip.)
 float(entity xPlayer, float xHand) VR_Carry_GripPressed =
 {
     if(!VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand))
@@ -1609,8 +1719,8 @@ void() VR_Carry_Handtouch =
     }
     // A force grab's catch (VR_Forcegrab_Catch) has checked the grip already: its window
     // (vr_forcegrab_catch_early) is longer than a touch's.
-    if((forcegrabCatching || VR_Carry_GripPressed(other, hand)) && VRIsHandEmpty(other, hand) &&
-       !VR_Forcegrab_IsHandBusy(other, hand))
+    if((forcegrabCatching || VR_Carry_GripPressed(other, hand) || VR_Carry_FloatGraceGrip(other, hand, self)) &&
+       VRIsHandEmpty(other, hand) && !VR_Forcegrab_IsHandBusy(other, hand))
     {
         VR_Carry_Start(other, hand, self);
         return;

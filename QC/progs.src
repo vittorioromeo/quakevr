@@ -8,6 +8,8 @@ vr_weaponinst.qc
 // has already compiled).
 vr_util.qc
 vr_handgrabutil.qc
+// The weapon a blow is credited with (Honey's FL_SPECIFICDAMAGE): stamped where the damage dealer is made, read by T_Damage.
+vr_dmgcredit.qc
 
 vr_portal_ai.qc
 vr_portal_ai_test.qc
@@ -93,6 +95,8 @@ vr_chainsaw.qc
 // Decapitation after the chainsaw (its bar) and weapons.qc (positional damage's head zone).
 vr_decap.qc
 vr_limbs.qc
+// Teeth knocked out by a punch to the face (after vr_decap.qc: its head zone and blunt hardness).
+vr_teeth.qc
 vr_limbs_test.qc
 vr_enemyguns.qc
 vr_crowbar.qc
@@ -100,6 +104,8 @@ vr_toolgun.qc
 vr_mg3_weapons.qc
 vr_pickup_test.qc
 vr_axestick.qc
+// Magnetic holsters (after the holsters, the throws, the stuck axes and the chainsaw's props it uses).
+vr_magholster.qc
 vr_weaponinst_test.qc
 vr_liquids.qc
 vr_wounds.qc
@@ -124,6 +130,7 @@ vr_mg_hub_test.qc
 vr_mg_horde_test.qc
 vr_mg3_test.qc
 vr_monsters_test.qc
+vr_meleearc_test.qc
 vr_mg3_weapons_test.qc
 
 orig_mon_boss.qc
@@ -435,5 +442,9 @@ vr_ad_stealth.qc
 vr_ad_enemyguns.qc
 vr_ad_monsters_test.qc
 vr_ad_shots_test.qc
+// Every monster's head and gibs as props (vr_gibprops_test; after AD's files: it counts AD's own gibs).
+vr_gibprops_test.qc
 // A corpse's pieces worn off by each weapon (vr_limb_test 30-37; after the bridge: AD's pellet hit).
 vr_limbs_wear_test.qc
+// The weapon each weapon's damage is credited with (vr_dmgcredit_test; after every weapon it fires).
+vr_dmgcredit_test.qc

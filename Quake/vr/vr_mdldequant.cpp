@@ -33,6 +33,7 @@
 //   half a step is far below their tolerances.
 
 #include "vr_mdldequant.hpp"
+#include "vr_jobs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
@@ -148,6 +149,7 @@ struct QcLoop
     char model[MAX_QPATH]{};
     int firstFrame{0};
     int count{0};
+    int named{0}; // the functions naming the model and a function of the loop (overlaps: the most named that fits, qcLoopsOf)
 };
 
 // The server progs' loops: made on the first model dequantised with that progs loaded (a few ms), kept for its key.
@@ -432,7 +434,9 @@ void buildQcLoops()
     }
     flush();
 
-    // each loop to the models naming it more than half as often as the most; a model's overlapping loops: the most named
+    // each loop to the models naming it more than half as often as the most (a model's overlapping loops: chosen by its
+    // frames, qcLoopsOf: a function naming two models, AD's Hunter Ogre's spawn precaching progs/ogre.mdl for its upgrade,
+    // gives the original's model its own loops too)
     for(size_t i = 0; i < support.size(); i++)
     {
         const Support& s = support[i];
@@ -440,18 +444,7 @@ void buildQcLoops()
         for(size_t j = 0; j < support.size() && keep; j++)
         {
             const Support& o = support[j];
-            if(i == j)
-            {
-                continue;
-            }
-            const bool better = o.count > s.count || (o.count == s.count && j < i);
-            if(o.cycle.key == s.cycle.key && o.count >= 2 * s.count)
-            {
-                keep = false;
-            }
-            const bool overlap = o.model == s.model && o.cycle.firstFrame < s.cycle.firstFrame + s.cycle.count &&
-                                 s.cycle.firstFrame < o.cycle.firstFrame + o.cycle.count && o.cycle.key != s.cycle.key;
-            if(overlap && better)
+            if(i != j && o.cycle.key == s.cycle.key && o.count >= 2 * s.count)
             {
                 keep = false;
             }
@@ -462,6 +455,7 @@ void buildQcLoops()
             q_strlcpy(loop.model, names[static_cast<size_t>(s.model)], sizeof(loop.model));
             loop.firstFrame = s.cycle.firstFrame;
             loop.count = s.cycle.count;
+            loop.named = s.count;
             qcLoops.loops.pushBack(loop);
         }
     }
@@ -517,26 +511,101 @@ void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, 
     }
 }
 
-// The progs' loop of `model` that starts at `frame` (its frames, all single poses one after another), or 0 frames.
-[[nodiscard]] int qcLoopAt(const aliashdr_t* hdr, const char* model, int frame)
+// A frame's name's trailing number (stand8: 8; none: -1).
+[[nodiscard]] int numberOf(const char* name)
 {
+    const int n = static_cast<int>(strnlen(name, 16));
+    int digits = n;
+    while(digits > 0 && name[digits - 1] >= '0' && name[digits - 1] <= '9')
+    {
+        digits--;
+    }
+    if(digits == n || n - digits > 6)
+    {
+        return -1;
+    }
+    int v = 0;
+    for(int i = digits; i < n; i++)
+    {
+        v = v * 10 + (name[i] - '0');
+    }
+    return v;
+}
+
+// Whether frame `a`'s name runs on into the next's: the same stem (not none: the knight's frames are numbers alone),
+// numbered on (stand8, stand9).
+[[nodiscard]] bool namedOn(const aliashdr_t* hdr, int a)
+{
+    if(a < 0 || a + 1 >= hdr->numframes)
+    {
+        return false;
+    }
+    char sa[17], sb[17];
+    stemOf(hdr->frames[a].name, sa);
+    stemOf(hdr->frames[a + 1].name, sb);
+    const int na = numberOf(hdr->frames[a].name);
+    return sa[0] && !strcmp(sa, sb) && na >= 0 && numberOf(hdr->frames[a + 1].name) == na + 1;
+}
+
+// The progs' loops of `model` that fit its frames (single poses one after another, the names not running on into the
+// loop's first frame or out of its last: AD's Hunter Ogre's stand1..stand8 isn't the original ogre's, whose stand9 follows),
+// overlapping ones: the most named.
+[[nodiscard]] za::Vector<QcLoop> qcLoopsOf(const aliashdr_t* hdr, const char* model)
+{
+    za::Vector<QcLoop> fit, chosen;
     if(!model)
     {
-        return 0;
+        return chosen;
     }
     for(const QcLoop& loop : qcLoops.loops)
     {
-        if(loop.firstFrame != frame || loop.firstFrame + loop.count > hdr->numframes || q_strcasecmp(loop.model, model))
+        if(loop.firstFrame < 0 || loop.count < 1 || loop.firstFrame + loop.count > hdr->numframes || q_strcasecmp(loop.model, model))
         {
             continue;
         }
-        bool fits = true;
+        bool fits = !namedOn(hdr, loop.firstFrame - 1) && !namedOn(hdr, loop.firstFrame + loop.count - 1);
         for(int k = 0; k < loop.count && fits; k++)
         {
-            const maliasframedesc_t& f = hdr->frames[frame + k];
-            fits = f.numposes == 1 && f.firstpose == hdr->frames[frame].firstpose + k;
+            const maliasframedesc_t& f = hdr->frames[loop.firstFrame + k];
+            fits = f.numposes == 1 && f.firstpose == hdr->frames[loop.firstFrame].firstpose + k;
         }
         if(fits)
+        {
+            fit.pushBack(loop);
+        }
+    }
+    za::Vector<char> taken(fit.size(), 0);
+    for(size_t round = 0; round < fit.size(); round++)
+    {
+        size_t best = fit.size();
+        for(size_t i = 0; i < fit.size(); i++)
+        {
+            if(!taken[i] && (best == fit.size() || fit[i].named > fit[best].named))
+            {
+                best = i;
+            }
+        }
+        taken[best] = 1;
+        const QcLoop& b = fit[best];
+        bool overlaps = false;
+        for(const QcLoop& c : chosen)
+        {
+            overlaps = overlaps || (c.firstFrame < b.firstFrame + b.count && b.firstFrame < c.firstFrame + c.count);
+        }
+        if(!overlaps)
+        {
+            chosen.pushBack(b);
+        }
+    }
+    return chosen;
+}
+
+// The loop of `loops` that starts at `frame`: its frames, or 0.
+[[nodiscard]] int qcLoopAt(const za::Vector<QcLoop>& loops, int frame)
+{
+    for(const QcLoop& loop : loops)
+    {
+        if(loop.firstFrame == frame)
         {
             return loop.count;
         }
@@ -548,13 +617,14 @@ void pushNamedRun(za::Vector<Run>& runs, const trivertx_t* verts, int numverts, 
 [[nodiscard]] za::Vector<Run> runsOf(const aliashdr_t* hdr, const char* model, int* qcUsed = nullptr)
 {
     const trivertx_t* verts = posesOf(hdr);
+    const za::Vector<QcLoop> loops = qcLoopsOf(hdr, model);
     za::Vector<Run> runs;
     Run cur;
     char curStem[17] = {0};
     for(int f = 0; f < hdr->numframes; f++)
     {
         const maliasframedesc_t& frame = hdr->frames[f];
-        if(const int loop = qcLoopAt(hdr, model, f); loop > 0)
+        if(const int loop = qcLoopAt(loops, f); loop > 0)
         {
             if(cur.count > 0)
             {
@@ -701,6 +771,11 @@ int solve(Solve& s, int n, bool loop, float box = halfStep, float tol = toleranc
 // Every pose's offsets (numposes x numverts packed; zero where a run is too short to smooth), then every pose's normals
 // (numposes x numverts packed as the buffer holds them: the stored one where nothing is smoothed), along `model`'s runs
 // (null: without the progs' loops).
+void solveVertex(const aliashdr_t* hdr, const trivertx_t* verts, const za::Vector<Run>& runs, int vert, Solve& s,
+    unsigned* out, unsigned* normals, long* sweeps, long* solves);
+
+jobs::Site computeSite{"mdl dequant"}; // (its parallelFor: vr_jobs_sites)
+
 void compute(const aliashdr_t* hdr, const char* model, unsigned* out, long* sweeps = nullptr, long* solves = nullptr)
 // (sweeps, solves: positions' [0] and normals' [1] counted)
 {
@@ -715,24 +790,37 @@ void compute(const aliashdr_t* hdr, const char* model, unsigned* out, long* swee
     }
     buildQcLoops();
     const za::Vector<Run> runs = runsOf(hdr, model);
-    Solve s;
     int longest = 0;
     for(const Run& r : runs)
     {
         longest = za::max(longest, r.count);
     }
-    for(za::Vector<float>* b : {&s.v, &s.x, &s.y, &s.g, &s.d, &s.next})
-    {
-        b->resize(static_cast<size_t>(longest));
-    }
-    s.n.resize(static_cast<size_t>(longest) * 3);
+    // Each vertex is solved on its own (its runs in order, as before): the vertices split between the pool's threads,
+    // each chunk with its own scratch. The same results; the counts (vr_mdl_dequant_check) on the caller alone.
+    jobs::parallelFor(computeSite, static_cast<za::SizeT>(hdr->numverts), 32, [&](za::SizeT begin, za::SizeT end) {
+        Solve s;
+        for(za::Vector<float>* b : {&s.v, &s.x, &s.y, &s.g, &s.d, &s.next})
+        {
+            b->resize(static_cast<size_t>(longest));
+        }
+        s.n.resize(static_cast<size_t>(longest) * 3);
+        for(int vert = static_cast<int>(begin); vert < static_cast<int>(end); vert++)
+        {
+            solveVertex(hdr, verts, runs, vert, s, out, normals, sweeps, solves);
+        }
+    }, sweeps == nullptr);
+}
+
+// compute's work for one vertex: its positions' and normals' paths along each run, in the runs' order.
+void solveVertex(const aliashdr_t* hdr, const trivertx_t* verts, const za::Vector<Run>& runs, int vert, Solve& s,
+    unsigned* out, unsigned* normals, long* sweeps, long* solves)
+{
     for(const Run& r : runs)
     {
         if(r.count < 3)
         {
             continue;
         }
-        for(int vert = 0; vert < hdr->numverts; vert++)
         {
             for(int axis = 0; axis < 3; axis++)
             {
@@ -1223,6 +1311,26 @@ glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex)
         p += glm::vec3{decode(packed, 0), decode(packed, 1), decode(packed, 2)};
     }
     return p;
+}
+
+void poseSuccessors(const void* aliashdr, const char* model, short* next, unsigned char* progs)
+{
+    const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    for(int p = 0; p < hdr->numposes; p++)
+    {
+        next[p] = -1;
+        progs[p] = 0;
+    }
+    buildQcLoops();
+    for(const Run& r : runsOf(hdr, model))
+    {
+        for(int k = 0; k < r.count && r.first + k < hdr->numposes; k++)
+        {
+            const int p = r.first + k;
+            next[p] = static_cast<short>(k + 1 < r.count ? p + 1 : (r.loop && r.count > 1 ? r.first : -1));
+            progs[p] = r.qc ? 1 : 0;
+        }
+    }
 }
 
 } // namespace qvr::mdldequant

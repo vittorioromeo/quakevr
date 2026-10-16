@@ -1313,12 +1313,16 @@ NOISE_FUNCTIONS
 "	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own); w retro lighting's (vr_retrolight.h): a Quake texel's share of the texture's (0: 1)\n"\
 "	vec4	PortalClip; // QVR: this instance's teleporter half\n"\
 "	vec4	RetroPart; // QVR: your body's parts by bone (vr/vr_retro.cpp bodyParts): xy the low bits of bones 0..23, 24..47, zw the high bits\n"\
-"	ivec4	Smooth; // QVR: r_lerpmodels 3 (vr/vr_animsmooth.cpp): x, y the first and fourth poses, z 1 + its bones' first row in SmoothSwing (0 none), w 1 on (2 + its hit reaction's kicked bones' first row: vr/vr_hitreact.cpp)\n"\
+"	ivec4	Smooth; // QVR: r_lerpmodels 3 (vr/vr_animsmooth.cpp): x, y the first and fourth poses, z 1 + its bones' first row in SmoothSwing (0 none; -1 - it: rebuilt, vr_anim_smooth_rebuild), w 1 on (2 + its hit reaction's kicked bones' first row: vr/vr_hitreact.cpp)\n"\
 "	vec4	SmoothW; // QVR: ... the four poses' weights\n"\
 "	vec4	SkinTint; // QVR: bare forearms' ends tinted to the hand's skin (vr/vr_view.cpp skinTint): rgb times the skin, w how much (0 none)\n"\
 "	vec4	SkinTintRange; // QVR: ... where in the skin: x below this u, y from this v (none) to z (all), w below this v\n"\
 "	vec4	SkinTone; // QVR: skin-only tone, excludes painted wounds\n"\
 "	vec4	HotBlade; // QVR: an incandescent blade's glow only on its blade: xyz . pose + w, 0 at the blade's root to 1 (vr/vr_hotblade.cpp; zero: all of it)\n"\
+"	vec4	Glove; // QVR: gloves (vr/vr_view.cpp gloveLook): the leather's rgb, w the skin mask's channel (1 fingerless G, 2 full B; 0 none)\n"\
+"	vec4	GloveCuff; // QVR: ... a bare forearm's cuff: x below this u, from v y, its hem to v z, below v w (zero: none)\n"\
+"	vec4	Dent; // QVR: flesh dents (vr/vr_dents.cpp): x its rows' first in Dents, y their count (0 none), zw xy of its pose's origin in units\n"\
+"	vec4	DentScale; // QVR: ... its pose to units: xyz the scale, w z of the origin\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1428,6 +1432,7 @@ ALIAS_INSTANCE_BUFFER
 "#endif // POSEVERTTYPE check\n"
 "\n"
 QVR_ALIAS_VS_FUNCTIONS // QVR: the recoil steadied (ZeroBlend), the poses' occlusion
+QVR_DENT_FUNCTIONS // QVR: flesh dents (vr/vr_dents.cpp)
 "float r_avertexnormal_dot(vec3 vertexnormal, vec3 dir) // from MH \n"
 "{\n"
 "	float d = dot(vertexnormal, dir);\n"
@@ -1460,6 +1465,7 @@ QVR_ALIAS_VS_HANDFOLD // QVR: a bare forearm's hand's end inside the arm folded 
 "	mat4x3 worldmatrix = transpose(mat3x4(inst.WorldMatrix[0], inst.WorldMatrix[1], inst.WorldMatrix[2]));\n"
 "	vec3 lerpedPos = mix(pose1.pos, pose2.pos, inst.Blend);\n"
 QVR_ALIAS_VS_SMOOTH // QVR: r_lerpmodels 3: along a spline through four poses, the limbs swung round their joints
+QVR_ALIAS_VS_DENTS // QVR: flesh dents (vr/vr_dents.cpp): pushed in round where the blows struck
 "	lerpedPos = ZeroBlend(lerpedPos, inst); // QVR: blend towards frame 0 (vr/vr_render.cpp)\n"
 "	vec3 lerpedVert = (worldmatrix * vec4(lerpedPos, 1.0)).xyz;\n"
 "	gl_ClipDistance[0] = dot(vec4(lerpedVert, 1.0), ShadowClip); // QVR: virtual light exit plane\n"
@@ -1512,6 +1518,8 @@ NOISE_FUNCTIONS
 "layout(binding=1) uniform sampler2D FullbrightTex;\n"
 "layout(binding=2) uniform sampler2D NormalTex; // QVR\n"
 "layout(binding=6) uniform sampler2D SkinMaskTex; // QVR: authored skin only\n"
+"layout(binding=7) uniform sampler2D GloveTex; // QVR: a glove's painted leather (vr_glove_paint): RGB its detail, A its wear\n"
+"layout(binding=8) uniform sampler2D GloveHeightTex; // QVR: ... its relief (0.5 flat)\n"
 "\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	layout(location=0) noperspective in vec2 in_texcoord;\n"
@@ -1530,6 +1538,7 @@ QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown
 "{\n"
 "	vec2 uv = in_texcoord;\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: for the normal map (before any discard)\n"
+"	vec3 drdx = dFdx(in_restpos), drdy = dFdy(in_restpos); // QVR: the rest pose's, for the flesh dents' bowls (DentBump)\n"
 "	vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);\n"
 "	if (RetroLight[5].z > 0.) // QVR: retro lighting (vr_retrolight.h): the skin's grid, in its Quake texels (Retro.w: their share of the texture's)\n"
 "	{\n"
@@ -1565,6 +1574,7 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "#endif\n"
 "	result.rgb += spec; // QVR\n"
 "	result.rgb += WoundSheen(wounds, bumped); // QVR: wet blood and water shine\n"
+"	result.rgb += GloveSheen(bumped, leatherGloss * leatherCover); // QVR: a glove's leather's soft sheen\n"
 "	result.rgb += ModelRimReflect(n, bumped, skin, result.a); // QVR: rim light and reflections (vr/vr_envmap.cpp)\n"
 "#if POSEVERTTYPE == 2 \n"
 "	result.a *= in_color.a;\n"

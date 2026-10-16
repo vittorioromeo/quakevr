@@ -561,6 +561,10 @@ void() worldspawn =
     AD_WorldSpawn(); // AD support: AD's world setup in an AD map (vr_ad_bridge.qc)
 };
 
+void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
+void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
+void() VR_Buzzsaw_Frame; // (rogue_buzzsaw.qc: its blade cuts ragdolls)
+
 void() StartFrame =
 {
     // FRIKBOT
@@ -582,6 +586,7 @@ void() StartFrame =
     AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
+    VR_MeleeArcTest_Frame(); // vr_test_meleearc (vr_meleearc_test.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
@@ -590,11 +595,13 @@ void() StartFrame =
     MG3_ShubTestFrame(); // vr_mg3_shubtest (vr_mg3_shub_test.qc)
     MG3_ChthonTestFrame(); // vr_mg3_ctest (vr_mg3_chthon_test.qc)
     VR_Liquids_Frame(); // VR: monsters in slime and lava burn (vr_liquids.qc)
+    VR_Buzzsaw_Frame(); // QVR: Rogue's buzzsaws cut the ragdolls in their blades (rogue_buzzsaw.qc)
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
     VR_Crates_Frame(); // VR: at a new map's first frame, its crates (vr_crates.qc; before the rocks and bricks: they keep clear)
     VR_Debris_Frame(); // VR: at a new map's first frame, its rocks and bricks (vr_debris.qc)
     VR_Reload_PropsFrame(); // VR: guns lying about load as held ones do (vr_reload.qc)
     VR_SmallGib_TestFrame(); // VR: the small gibs' tests (vr_smallgibs_test, vr_smallgibs_test.qc)
+    VR_GibProps_TestFrame(); // VR: every monster's head and gibs as props (vr_gibprops_test, vr_gibprops_test.qc)
     VR_TestDispenser_Frame(); // VR: a map's monster dispenser used from the console (vr_test_dispenser <n>, buttons.qc)
     VR_TestKill_Frame(); // VR: the nearest live monster killed by a shot struck where asked (vr_test_kill <n>, combat.qc)
     VR_TestHit_Frame(); // VR: the nearest live monster struck where asked, never killed (vr_test_hit <n>, vr_hitreact.qc)
@@ -604,6 +611,7 @@ void() StartFrame =
     VR_Decap_TestFrame(); // VR: decapitation's tests (vr_decap_test, vr_decap.qc)
     VR_Limb_TestFrame(); // VR: limb gore's tests (vr_limb_test, vr_limbs_test.qc)
     VR_PickupTest_Frame(); // VR: the weapon pickups' tests (vr_pickup_test, vr_pickup_test.qc)
+    VR_DCTest_Frame(); // VR: the weapons' damage credit test (vr_dmgcredit_test, vr_dmgcredit_test.qc)
     VR_Dummy_TestFrame(); // VR: the training dummy's tests (vr_dummy_test, vr_dummy.qc)
     VR_Burn_TestFrame(); // VR: the burning tests (vr_burn_test, vr_burning.qc)
     VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)

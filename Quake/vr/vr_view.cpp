@@ -14,6 +14,7 @@
 #include "vr_autopump.hpp"
 #include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_magholster.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_climb.hpp"
 #include "vr_foegrab.hpp"
@@ -35,6 +36,7 @@
 #include "vr_handrig.hpp"
 #include "vr_grasp.hpp"
 #include "vr_grip.hpp"
+#include "vr_gripfit.hpp"
 #include "vr_held.hpp"
 #include "vr_ledges.hpp"
 #include "vr_lines.hpp"
@@ -70,6 +72,7 @@
 #include "vr_menu.hpp"
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
+#include "vr_bloodstream.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
@@ -957,7 +960,6 @@ struct ViewScratch
     za::Vector<glm::vec3> otherHandVerts;          // its vertices, posed
     za::Vector<glm::vec4> handSpheres;             // a hand's grasp spheres, posed (emptyHandSpheres)
     za::Vector<glm::vec4> fistSpheres;             // the closed empty hand's, in the hand (updateFist)
-    za::Vector<glm::vec4> openSpheres;             // the open hand's (the palm's skin)
     za::Vector<glm::vec4> boneSpheres;             // vr_debug_hand_bones's
     za::Vector<glm::vec4> collideSpheres[2];       // vr_body_collide's hands (selfCollideDrawn: Drawn views them)
     za::Vector<glm::vec4> collideRig;              // and the rig's
@@ -968,11 +970,12 @@ struct ViewScratch
     za::Vector<glm::vec4> anywhereFist;            // an empty hand's fist in the world (fistSurfaceGap)
     za::Vector<glm::vec3> buttMiddle;              // a held gun's butt's points (heldWeaponButt)
     za::Vector<glm::vec3> surfaceVerts;            // a drawn hand's vertices, posed (drawnHandSurface)
+    za::Vector<glm::vec4> openSpheres;             // the open empty hand's spheres, in the hand (updateGripFrame: the palm's skin)
     auto members()
     {
         return qvr::mem::list(restVerts, nowVerts, weight, otherHand, otherHandTris, otherHandVerts, handSpheres, fistSpheres,
-            openSpheres, boneSpheres, collideSpheres, collideRig, limbPoints, limbTris, magRest, magNow, anywhereFist,
-            buttMiddle, surfaceVerts);
+            boneSpheres, collideSpheres, collideRig, limbPoints, limbTris, magRest, magNow, anywhereFist,
+            buttMiddle, surfaceVerts, openSpheres);
     }
 };
 mem::Scratch<ViewScratch> scratch{"view hands"};
@@ -3173,6 +3176,10 @@ void updateGripFrame(const hands::State& s, int hand)
         rigShifts(model, hand, pose);
         f.measured = grasp::gripChannel(pose, cp, cd, radius);
     }
+    if(!f.measured)
+    {
+        gripfit::setHandRig(hand, nullptr, pose);
+    }
     if(f.measured)
     {
         const bool mirrored = hand == HAND_OFF;
@@ -3187,6 +3194,11 @@ void updateGripFrame(const hands::State& s, int hand)
         f.channelPoint = point(cp);
         f.channelDir = dir(cd);
         f.channelRadius = radius * glm::length(glm::vec3{rig[0]});
+        // The rig to the hand's frame, kept for the grip fit at a grab (vr_gripfit.hpp: the drawn hand posed there).
+        glm::mat4 fromPos{1.f};
+        fromPos[3] = glm::vec4{-s.pos[hand], 1.f};
+        const glm::mat4 rigToHand = glm::mat4{toHand} * fromPos * rig;
+        gripfit::setHandRig(hand, &rigToHand, pose);
         // The palm's middle is inside the hand: out along its normal to its skin, where the open hand's spheres (the
         // grasp's) the normal passes through end, so that what rests on it rests on the skin, not in the palm.
         za::Vector<glm::vec4>& open = scratch.openSpheres;
@@ -7534,6 +7546,69 @@ int skinTone(const entity_t* e, float tone[4])
     return kind;
 }
 
+namespace
+{
+
+// HSL (hue in degrees, saturation and lightness 0..1) to RGB.
+[[nodiscard]] glm::vec3 hslToRgb(float hue, float sat, float light)
+{
+    const float h = (hue - 360.f * std::floor(hue / 360.f)) / 60.f;
+    const float c = (1.f - std::fabs(2.f * light - 1.f)) * sat;
+    const float x = c * (1.f - std::fabs(std::fmod(h, 2.f) - 1.f));
+    const float m = light - 0.5f * c;
+    const glm::vec3 rgb = h < 1.f ? glm::vec3{c, x, 0.f} : h < 2.f ? glm::vec3{x, c, 0.f} : h < 3.f ? glm::vec3{0.f, c, x} :
+        h < 4.f ? glm::vec3{0.f, x, c} : h < 5.f ? glm::vec3{x, 0.f, c} : glm::vec3{c, 0.f, x};
+    return rgb + glm::vec3{m};
+}
+
+} // namespace
+
+int gloveLook(const entity_t* e, float glove[4], float cuff[4])
+{
+    float tone[4];
+    const int kind = skinTone(e, tone);
+    const int mode = static_cast<int>(CLAMP(0.f, vr_gloves.value, 2.f));
+    glove[0] = glove[1] = glove[2] = glove[3] = 0.f;
+    cuff[0] = cuff[1] = cuff[2] = cuff[3] = 0.f;
+    if(!kind || !mode)
+    {
+        return 0;
+    }
+    const glm::vec3 colour = hslToRgb(vr_glove_hue.value, CLAMP(0.f, vr_glove_saturation.value, 1.f),
+        CLAMP(0.f, vr_glove_lightness.value, 1.f));
+    glove[0] = colour.x;
+    glove[1] = colour.y;
+    glove[2] = colour.z;
+    glove[3] = static_cast<float>(mode); // the skin mask's channel: G fingerless, B full (make_skin_masks.py)
+    if(kind == 2)
+    {
+        if(!drawnBare)
+        {
+            glove[3] = 0.f; // the bracers cover the wrist: nothing of the glove on the body
+            return 0;
+        }
+        // The cuff over a bare forearm's end: the arms' skin block (make_vrbody.py: its rings 1/9 of the block's height
+        // apart, the forearm's last 0.14 m over 2 of them, the wrist at lipVpos and the lip over the hand at 1) from
+        // cuffBack metres behind the wrist to the lip, a hem cuffHem wide along its edge.
+        constexpr float cuffBack = 0.045f, cuffHem = 0.006f;
+        constexpr float pad = bodybare::skinPad, blockV = bodybare::skinBlockV - 2.f * pad;
+        constexpr float perMetre = 2.f / 0.14f / 9.f; // the block's v (0..1) a metre along the forearm's end
+        const float start = bodybare::lipVpos - cuffBack * perMetre;
+        cuff[0] = bodybare::skinBlockU;
+        cuff[1] = pad + blockV * start;
+        cuff[2] = pad + blockV * (start + cuffHem * perMetre);
+        cuff[3] = bodybare::skinBlockV;
+    }
+    return kind;
+}
+
+int skinMaskWanted(const entity_t* e)
+{
+    float tone[4], glove[4], cuff[4];
+    const int kind = skinTone(e, tone);
+    return kind && (tone[3] != 0.f || gloveLook(e, glove, cuff)) ? kind : 0;
+}
+
 bool heldRoundRef(int hand, glm::vec3& out, float* radius)
 {
     const int num = hand == 0 || hand == 1 ? held::heldEntity(hand) : 0;
@@ -8560,6 +8635,7 @@ extern "C" void VR_SetupViewEntities()
         forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });
     }
     cellcord::setupView(s); // the cell cords, from the laser cannon and the hammers to the pouch (vr_cellcord.cpp)
+    magholster::setupView(s); // the magnetic holsters' chains (vr_magholster.cpp)
     if(!posingNow)
     {
         selfcollide::endView(s, selfCollideDrawn(s));
@@ -8684,6 +8760,7 @@ extern "C" void VR_SetupViewEntities()
     collectfx::frame(s); // things put away, going into their holster or pouch (vr_collectfx.cpp)
     explosiondebris::frame();
     fireparticles::frame();
+    bloodstream::frame(); // blood pouring from bullet holes (vr_bloodstream.cpp), the monsters and ragdolls posed
 
     // Wounds painted on the models (vr_wounds.cpp), the body and the hands posed.
     wounds::frame();

@@ -38,10 +38,12 @@ float(entity client, float density, vector colour) VR_AD_Fog =
 
 // AD's code owns `e`'s damage, pain and death: AD's monsters, breakables, its other damageable entities (not a player).
 // An AD monster's corpse or dying body that Quake VR's corpses took (vr_ad_monsters.qc) is Quake VR's: gibbed as one.
+// So is a gib or head of ours: an AD monster's head made of the monster itself by our gibbing (ThrowHead) and AD's own
+// gibs made ours (VR_AD_GibThrown) keep AD's class, and our T_Damage bursts them (VR_Gib_Damage).
 float(entity e) AD_Run =
 {
     return !(e.flags & FL_CLIENT) && (e.ad_classtype || e.ad_th_die || e.ad_th_pain) && e.vr_corpse != 2 &&
-           !e.vr_corpse_dying && !e.vr_shootnade;
+           !e.vr_corpse_dying && !e.vr_shootnade && !e.vr_gib && e.th_die != VR_Gib_Die;
 };
 
 // AD's T_Damage on one of Quake VR's own (the player, our monsters, our gibs and props): our T_Damage takes it, with
@@ -1021,6 +1023,7 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
     {
         vector d = dir + crandom() * pattern_x * v_right + crandom() * pattern_y * v_up;
         ad_Launch_Bullet(muzzle, d, ssg ? ad_CT_PROJ_SSG : ad_CT_PROJ_SG, speed + crandom() * 10);
+        VR_DamageCredit_FromHand(ad_newmis, self, xHand);
         if(wid == WID_SUPER_SHOTGUN && AD_HandUpgraded(xHand, ad_IT_UPGRADE_SSG))
         {
             ad_newmis.weapon = TRUE; // (AD's: the Widowmaker's pellets kill zombies; it asked the player's upgrade)
@@ -1228,6 +1231,7 @@ void(float xHand) AD_FirePlasma =
     self.punchangle_x = -2;
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 1);
     ad_launch_plasma(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand), ad_CT_PLAYER, ad_SPEED_PLAYPLASMA);
+    VR_DamageCredit_FromHand(ad_newmis, self, xHand);
     weaponfired(self, xHand);
     VRGunHaptic(xHand, 0.3, 60, 0.7);
 };

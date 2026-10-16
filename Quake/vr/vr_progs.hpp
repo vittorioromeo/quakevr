@@ -12,7 +12,7 @@ namespace qvr::progs
 {
 
 inline constexpr int firstExtSpawnParm = 17;
-inline constexpr int lastExtSpawnParm = 72; // (51..56: Dawn of the Machine's upgrades and bloody weapons, QC/vr_mg3_defs.qc; 57..72: Arcane Dimensions' level state, QC/vr_ad_bridge.qc)
+inline constexpr int lastExtSpawnParm = 73; // (51..56: Dawn of the Machine's upgrades and bloody weapons, QC/vr_mg3_defs.qc; 57..72: Arcane Dimensions' level state, QC/vr_ad_bridge.qc; 73: the magnetic holsters' bindings, QC/vr_magholster.qc)
 inline constexpr int numExtSpawnParms = lastExtSpawnParm - firstExtSpawnParm + 1;
 
 // Offsets (in floats, from edict_t::v) of the VR entity fields; -1 when absent.
@@ -64,6 +64,7 @@ struct Bindings
     float* spawnServerFromSaveFile{nullptr};
     // vr_music_track: the CD track target_vr_music switched to (0: the map's own); sent at a connect (a loaded game)
     float* musicTrack{nullptr};
+    float* spawnLive{nullptr}; // vr_spawn_live: 1 round a spawn function run in a live game (box3d::spawnClass)
     float* playerTimeOffset{nullptr}; // vr_player_time_offset: the player's clock ahead of time (vr_timescale.cpp)
     float* extSpawnParms[numExtSpawnParms]{};
 };

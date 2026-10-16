@@ -18,7 +18,9 @@
 #include "vr_props.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_hitreact.hpp"
+#include "vr_toolgun.hpp"
 #include "vr_hotblade.hpp"
+#include "vr_main.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_weapons.hpp"
 
@@ -45,6 +47,10 @@ namespace
         if(const view::ViewEntity* ve = view::find(e); ve && ve->netEntity > 0)
         {
             return client::entityVr(ve->netEntity); // (a part of a world entity: a lying gun's magazine)
+        }
+        if(const client::EntityVr* ghost = toolgun::ghostVr(e))
+        {
+            return ghost; // (the toolgun's ghost of an item: as it will be once placed)
         }
         return collectfx::entityVr(e); // (a thing put away, drawn going in: the item's own)
     }
@@ -309,6 +315,15 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         ZA_MEMSET(out->wound, 0, sizeof(out->wound));
         ZA_MEMSET(out->woundside, 0, sizeof(out->woundside));
     }
+    if(standard) // flesh dents (vr_dents.cpp)
+    {
+        VR_AliasDent(e, hdr, out->dent, out->dentscale);
+    }
+    else
+    {
+        ZA_MEMSET(out->dent, 0, sizeof(out->dent));
+        ZA_MEMSET(out->dentscale, 0, sizeof(out->dentscale));
+    }
     VR_RetroAlias(e, hdr, standard ? 1 : 0, out->retro, out->retropart); // retro textures (vr_retro.cpp): its set, its skin's Quake size
     if(standard) // bare forearms: the hands in your body's light (its direction and the light round it)
     {
@@ -320,9 +335,16 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         ZA_MEMSET(out->skintintrange, 0, sizeof(out->skintintrange));
     }
     ZA_MEMSET(out->skintone, 0, sizeof(out->skintone));
+    ZA_MEMSET(out->glove, 0, sizeof(out->glove));
+    ZA_MEMSET(out->glovecuff, 0, sizeof(out->glovecuff));
     if(standard)
     {
         (void)view::skinTone(e, out->skintone);
+        (void)view::gloveLook(e, out->glove, out->glovecuff);
+        if(out->glove[3] > 0.f) // its painted leather (vr_glove_paint): Glove.w's 4s
+        {
+            out->glove[3] += 4.f * static_cast<float>(render::glovePaintFlags(e));
+        }
     }
     if(out->glow[0] > 3.5f) // an incandescent blade glows on its blade only (vr_hotblade.cpp)
     {
@@ -525,6 +547,8 @@ void skinMasksValidate()
     return CLAMP(0, e->skinnum, kind == 1 ? 3 : 15);
 }
 
+void gloveLayersUpdate(const entity_t* const* own, int count); // (below)
+
 } // namespace
 
 // The masks are loaded before any alias batches hold pointers into the movable model cache. Drawing only
@@ -541,9 +565,8 @@ void VR_PrecacheSkinMasks()
         {
             continue;
         }
-        float tone[4]{};
-        const int kind = view::skinTone(e, tone);
-        if(!kind || tone[3] == 0.f)
+        const int kind = view::skinMaskWanted(e);
+        if(!kind)
         {
             continue;
         }
@@ -564,22 +587,163 @@ void VR_PrecacheSkinMasks()
             if(pixels)
             {
                 texture = TexMgr_LoadImage(nullptr, path, width, height, format, pixels, path, 0,
-                    TEXPREF_MIPMAP | TEXPREF_NOPICMIP);
+                    TEXPREF_MIPMAP | TEXPREF_NOPICMIP | TEXPREF_ALPHA); // (A: the skin's shading, the gloves')
             }
             Hunk_FreeToLowMark(mark);
         }
         skinMasks.entries[skinMasks.count++] = SkinMaskEntry{e->model, kind, skin, texture};
     }
+    gloveLayersUpdate(own, 3);
 }
 
 gltexture_t* VR_AliasSkinMask(const entity_t* e)
 {
-    float tone[4]{};
-    const int kind = view::skinTone(e, tone);
-    if(!kind || tone[3] == 0.f || !e->model || skinMasks.frees != TexMgr_FreeCount())
+    const int kind = view::skinMaskWanted(e);
+    if(!kind || !e->model || skinMasks.frees != TexMgr_FreeCount())
     {
         return blacktexture;
     }
     const SkinMaskEntry* c = skinMaskFind(e->model, kind, skinMaskSkin(e, kind));
     return c && c->texture ? c->texture : blacktexture;
 }
+
+namespace
+{
+
+// The gloves' painted leather (vr_glove_paint; make_glove_paint.py, docs/vr-port/GLOVES.md) per hand skin
+// (hand_rig_0N_00): progs/hand_rig_0N_00_glove (RGB the leather's detail, A its wear) and _glove_height (its relief),
+// else skin 0's. Looked up once (a missing file too) until a texture is freed; freed and read again from their files at
+// every map (worldGeneration) and on vr_gloves_reload, so edits show then. Unowned: one copy for every hand model.
+struct GloveLayer
+{
+    bool looked{false};
+    gltexture_t* paint{nullptr}; // (null: no painted layer: the shader's leather alone)
+    gltexture_t* height{nullptr}; // (null: none: flat)
+};
+struct GloveLayers
+{
+    unsigned int frees{0};
+    int world{-1}; // the map they were read for
+    bool reload{false}; // vr_gloves_reload
+    GloveLayer skins[4]{};
+};
+GloveLayers gloveLayers;
+
+// The texture of the first of these files found (loaded now unless it is already), or null.
+[[nodiscard]] gltexture_t* gloveTexture(int skin, const char* suffix)
+{
+    for(const int s : {skin, 0})
+    {
+        char path[MAX_QPATH];
+        q_snprintf(path, sizeof(path), "progs/hand_rig_%02d_00_%s", s, suffix);
+        if(gltexture_t* found = TexMgr_FindTexture(nullptr, path))
+        {
+            return found;
+        }
+        const int mark = Hunk_LowMark();
+        int width, height;
+        enum srcformat format;
+        byte* pixels = Image_LoadImage(path, &width, &height, &format);
+        gltexture_t* texture = pixels ? TexMgr_LoadImage(nullptr, path, width, height, format, pixels, path, 0,
+                                            TEXPREF_MIPMAP | TEXPREF_NOPICMIP | TEXPREF_ALPHA)
+                                      : nullptr;
+        Hunk_FreeToLowMark(mark);
+        if(texture)
+        {
+            Con_DPrintf("glove paint: %s read (%d x %d)\n", path, width, height);
+        }
+        if(texture || s == 0)
+        {
+            return texture;
+        }
+    }
+    return nullptr;
+}
+
+// Outside the draw loops (VR_PrecacheSkinMasks): the layers freed for a new map or a reload, looked up again when used.
+void gloveLayersUpdate(const entity_t* const* own, int count)
+{
+    if(gloveLayers.world != worldGeneration() || gloveLayers.reload)
+    {
+        gloveLayers.world = worldGeneration();
+        gloveLayers.reload = false;
+        for(int skin = 0; skin < 4; skin++) // (by name: a kept pointer may be stale by now)
+        {
+            for(const char* suffix : {"glove", "glove_height"})
+            {
+                char path[MAX_QPATH];
+                q_snprintf(path, sizeof(path), "progs/hand_rig_%02d_00_%s", skin, suffix);
+                if(gltexture_t* t = TexMgr_FindTexture(nullptr, path))
+                {
+                    TexMgr_FreeTexture(t); // (read again from its file when next used: edits show)
+                }
+            }
+        }
+        for(GloveLayer& l : gloveLayers.skins)
+        {
+            l = GloveLayer{};
+        }
+    }
+    if(gloveLayers.frees != TexMgr_FreeCount())
+    {
+        gloveLayers.frees = TexMgr_FreeCount();
+        for(GloveLayer& l : gloveLayers.skins)
+        {
+            l = GloveLayer{};
+        }
+    }
+    for(int i = 0; i < count; i++)
+    {
+        const entity_t* e = own[i];
+        if(!e || !e->model || view::skinMaskWanted(e) != 1)
+        {
+            continue;
+        }
+        GloveLayer& l = gloveLayers.skins[skinMaskSkin(e, 1)];
+        if(!l.looked)
+        {
+            l.looked = true;
+            l.paint = gloveTexture(skinMaskSkin(e, 1), "glove");
+            l.height = l.paint ? gloveTexture(skinMaskSkin(e, 1), "glove_height") : nullptr;
+        }
+    }
+    gloveLayers.frees = TexMgr_FreeCount(); // (what was loaded above freed nothing)
+}
+
+// The painted layer for `e` (a hand's, vr_glove_paint on, looked up), or null.
+[[nodiscard]] const GloveLayer* gloveLayerOf(const entity_t* e)
+{
+    if(vr_glove_paint.value <= 0.f || !e->model || gloveLayers.frees != TexMgr_FreeCount() ||
+        view::skinMaskWanted(e) != 1)
+    {
+        return nullptr;
+    }
+    const GloveLayer& l = gloveLayers.skins[skinMaskSkin(e, 1)];
+    return l.looked && l.paint ? &l : nullptr;
+}
+
+} // namespace
+
+void VR_AliasGlovePaint(const entity_t* e, gltexture_t* out[2])
+{
+    const GloveLayer* l = gloveLayerOf(e);
+    out[0] = l ? l->paint : greytexture;
+    out[1] = l && l->height ? l->height : greytexture;
+}
+
+namespace qvr::render
+{
+
+void glovesReload_f()
+{
+    gloveLayers.reload = true;
+    Con_Printf("vr_gloves_reload: the gloves' painted leather (progs/hand_rig_0N_00_glove*) read again at the next frame\n");
+}
+
+int glovePaintFlags(const entity_t* e)
+{
+    const GloveLayer* l = gloveLayerOf(e);
+    return l ? (l->height ? 2 : 1) : 0;
+}
+
+} // namespace qvr::render

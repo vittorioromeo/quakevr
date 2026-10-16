@@ -2175,6 +2175,7 @@ namespace
     baseOnly = true;
     const bool stock = COM_FileExists(va("maps/%s.bsp", map), nullptr);
     baseOnly = false;
+    VR_FileCacheSearchChanged(); // (a miss of the stock game alone is no miss of all the folders)
     if(stock)
     {
         return za::String{};

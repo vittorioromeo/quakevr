@@ -1050,9 +1050,18 @@ void runStepTask(void* p)
 
 // Box3D's b3EnqueueTaskCallback (`user`: the world's StepTasks): on the pool; with one worker, no pool or past the bound, here and now
 // (nullptr: nothing to finish).
-void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char*)
+void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char* name)
 {
     StepTasks& w = *static_cast<StepTasks*>(user);
+    // The solver's worker 0 (vr_box3d_caller_solves): not posted. b3Solve's caller enters the solver as worker 0 right
+    // after enqueuing the others and races this task for the orchestrator's place (solver.c b3SolverTask); posted, a
+    // worker usually won it and the stepping thread waited out the whole solve (0.6-0.8 ms a frame with 32 ragdolls
+    // awake). Not posted, the stepping thread orchestrates and does its share of every stage; nullptr: Box3D finishes
+    // nothing. The same results: the blocks' work does not depend on the thread that does it.
+    if(vr_box3d_caller_solves.value != 0.f && name && !strcmp(name, "solve[0]"))
+    {
+        return nullptr;
+    }
     jobs::Pool* const pool = jobs::pool();
     const int n = static_cast<int>(w.tasks.size());
     const int i = w.workers > 1 && pool ? w.next.fetchAddRelaxed(1) : n;
@@ -1070,10 +1079,24 @@ void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char*
     return &t;
 }
 
-// Box3D's b3FinishTaskCallback: returns once the task ran (on this thread if no worker has started it).
-void finishStepTask(void* task, void*)
+// Box3D's b3FinishTaskCallback: returns once the task ran (on this thread if no worker has started it). Before waiting
+// for a task a worker is running, the stepping thread runs the step's other tasks no worker has started yet (another
+// share of a parallel-for, a solver worker that only sees the solve is over, the tree rebuild, the island split): Box3D
+// lets its tasks run in any order on any thread once enqueued (vr_box3d_caller_solves; the solver's spinning workers are
+// only finished here once its orchestrator, this thread, is done).
+void finishStepTask(void* task, void* user)
 {
-    static_cast<StepTask*>(task)->task.wait();
+    StepTask& t = *static_cast<StepTask*>(task);
+    if(vr_box3d_caller_solves.value != 0.f && !t.task.tryRun())
+    {
+        StepTasks& w = *static_cast<StepTasks*>(user);
+        const int n = za::min(w.next.loadRelaxed(), static_cast<int>(w.tasks.size()));
+        for(int i = 0; i < n; ++i)
+        {
+            (void)w.tasks[static_cast<za::SizeT>(i)].task.tryRun();
+        }
+    }
+    t.task.wait();
 }
 
 // Box3D's wide kernels (the contact solver, hull-hull manifolds; external/box3d/README.md): AVX2's 8 lanes where the
@@ -3138,8 +3161,17 @@ struct ActiveClass
     const char* classname;
     bool crawls;
 };
+// AD support: AD's humanoids (vr_ad_rigs.inc: each rig a pelvis, chest, head and two-bone arms and legs; their get-ups
+// their deaths backwards, the zombie knight's and the mummy's their own falls; ROUND22.md, "Active rigs for AD's
+// humanoids"); AD's own grunt, enforcer, point knight and zombie share Quake VR's classnames. Not the centurion (on its
+// hover board: never knocked down nor lifted, its right leg no shin) nor the skull wizard (a robe: one leg bone, nothing
+// to stand or stagger on).
 constexpr ActiveClass activeClasses[] = {{"monster_army", true}, {"monster_enforcer", true}, {"monster_knight", true},
-    {"monster_hell_knight", true}, {"monster_ogre", true}, {"monster_ogre_marksman", true}, {"monster_zombie", false}};
+    {"monster_hell_knight", true}, {"monster_ogre", true}, {"monster_ogre_marksman", true}, {"monster_zombie", false},
+    {"monster_army_grenade", true}, {"monster_army_plasma", true}, {"monster_army_rocket", true},
+    {"monster_defender", true}, {"monster_eliminator", true}, {"monster_pyro", true}, {"monster_fumigator", true},
+    {"monster_dcrossbow", true}, {"monster_dfury", true}, {"monster_dguard", true}, {"monster_dknight", true},
+    {"monster_dsergeant", true}, {"monster_zombiek", false}, {"monster_mummy", false}};
 
 [[nodiscard]] const ActiveClass* activeClassOf(const edict_t* ent)
 {
@@ -12007,7 +12039,7 @@ void reset()
 // The toolgun's pins and joints (vr_toolgun.cpp).
 
 edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model,
-    const char* key, float value)
+    const char* key, float value, bool probe)
 {
     if(!sv.active)
     {
@@ -12019,7 +12051,7 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     // map (vr_ad.cpp), as ED_LoadFromFile
     if(!strncmp(classname, "ad_", 3)) // AD support: explicit AD variants in every spawn menu
     {
-        if(!VR_AD_RulesOn() && !VR_AD_SpawnsOutside(classname + 3)) { return nullptr; } // AD support
+        if(!VR_AD_RulesOn() && !VR_AD_ToolgunSpawnsOutside(classname + 3)) { return nullptr; } // AD support
         classname += 3; // AD support: retain the canonical entity classname for VR and AD tests
     }
     else if(VR_AD_RulesOn())
@@ -12061,7 +12093,28 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     VR_EdictIndex_Touch(e); // (the edict index: a classname set in C)
     pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(e);
+    // A live spawn: what the map would make static (a torch, a flame) stays an entity (QC vr_spawn_live).
+    // A probe (the toolgun's ghost: probe 1): made only to be looked at and removed (QC vr_spawn_live 2: no side things).
+    float* const live = bindings().spawnLive;
+    if(live)
+    {
+        *live = probe ? 2.f : 1.f;
+    }
     PR_ExecuteProgram(fn);
+    // What a map's item does over its first second (placed, made an object, shrunk), done now: drawn at its final size
+    // and place from its first frame (QC VR_SpawnLive_Finish).
+    if(!e->free)
+    {
+        if(const func_t finish = qvr::progs::findFunction("VR_SpawnLive_Finish"))
+        {
+            pr_global_struct->self = EDICT_TO_PROG(e);
+            PR_ExecuteProgram(finish);
+        }
+    }
+    if(live)
+    {
+        *live = 0.f;
+    }
     if(e->free)
     {
         return nullptr;
@@ -12751,6 +12804,42 @@ bool shapeNearest(int num, const glm::vec3& a, const glm::vec3& b, glm::vec3& ou
     }
     out = at + world->toU(b3RotateVector(xf.q, nearest));
     return true;
+}
+
+int hullPlanes(int num, glm::vec4* planes, int maxPlanes, int* hullEnds, int maxHulls, int& hulls)
+{
+    hulls = 0;
+    if(!world || num <= 0 || num >= static_cast<int>(world->slots.size()))
+    {
+        return 0;
+    }
+    const Slot& s = world->slots[num];
+    if((s.kind != Kind::Held && s.kind != Kind::Prop) || B3_IS_NULL(s.body) || !b3Body_IsValid(s.body))
+    {
+        return 0;
+    }
+    za::Array<b3ShapeId, maxBodyShapes> shapes;
+    const int n = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
+    int count = 0;
+    for(int i = 0; i < n && hulls < maxHulls; i++)
+    {
+        if(b3Shape_GetType(shapes[i]) != b3_hullShape)
+        {
+            continue;
+        }
+        const b3HullData* hull = b3Shape_GetHull(shapes[i]);
+        const b3Plane* p = hull ? b3GetHullPlanes(hull) : nullptr;
+        if(!p || hull->faceCount <= 0 || count + hull->faceCount > maxPlanes)
+        {
+            continue;
+        }
+        for(int k = 0; k < hull->faceCount; k++)
+        {
+            planes[count++] = glm::vec4{p[k].normal.x, p[k].normal.y, p[k].normal.z, p[k].offset * world->m2u};
+        }
+        hullEnds[hulls++] = count;
+    }
+    return count;
 }
 
 bool isBox3DProp(int num)
@@ -16486,9 +16575,108 @@ int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out)
     return best->num;
 }
 
-int ragdollBone(int num, const glm::vec3& at)
+int ragdollBone(int num, const glm::vec3& at, float within)
 {
-    return ragdollBoneNear(num, at);
+    if(within < 0.f)
+    {
+        return ragdollBoneNear(num, at);
+    }
+    const RagdollBodies* r = ragdollOf(num);
+    float distance = 0.f;
+    const int part = r ? nearestPart(*r, at, distance) : -1;
+    return distance <= within ? part : -1;
+}
+
+// ---- Ragdolls in a box (QC rogue_buzzsaw.qc: the buzzsaw's blade cutting corpses and knocked-down monsters) ----
+
+namespace
+{
+
+// Whether part `body` of a ragdoll is in the world box lo..hi (its shapes, exactly: GJK against the box's corners).
+[[nodiscard]] bool partInBox(b3BodyId body, const glm::vec3& lo, const glm::vec3& hi)
+{
+    const glm::vec3 half = (hi - lo) * 0.5f;
+    b3Vec3 corners[8];
+    for(int i = 0; i < 8; i++)
+    {
+        corners[i] = world->toM(glm::vec3{(i & 1) ? half.x : -half.x, (i & 2) ? half.y : -half.y, (i & 4) ? half.z : -half.z});
+    }
+    const b3ShapeProxy proxy{corners, 8, 0.f};
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.categoryBits = ~uint64_t{0};
+    filter.maskBits = ~uint64_t{0};
+    return b3Body_OverlapShape(body, world->toM((lo + hi) * 0.5f), &proxy, filter, b3Body_GetTransform(body));
+}
+
+// The first part of ragdoll `r` after `after` in the box lo..hi; -1 none.
+[[nodiscard]] int partInBoxAfter(const RagdollBodies& r, const glm::vec3& lo, const glm::vec3& hi, int after)
+{
+    for(int b = za::max(after + 1, 0); b < r.count; b++)
+    {
+        if(!partCut(r, b) && partInBox(r.body[static_cast<za::SizeT>(b)], lo, hi))
+        {
+            return b;
+        }
+    }
+    return -1;
+}
+
+// The lowest edict number above `after` of a ragdoll with a part whose box meets lo..hi (the broad phase: only what
+// lies at the box is looked at); 0 none.
+[[nodiscard]] int ragdollNearBox(const glm::vec3& lo, const glm::vec3& hi, int after)
+{
+    struct Query
+    {
+        int after;
+        int best;
+    } q{after, 0};
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.categoryBits = ~uint64_t{0};
+    filter.maskBits = catCorpse;
+    b3World_OverlapAABB(world->id, b3AABB{world->toM(lo), world->toM(hi)}, filter,
+        [](b3ShapeId shape, void* raw) {
+            Query& query = *static_cast<Query*>(raw);
+            const int num = numOf(shape);
+            if(num > query.after && (query.best == 0 || num < query.best) && isRagdollSlot(num))
+            {
+                query.best = num;
+            }
+            return true;
+        },
+        &q);
+    return q.best;
+}
+
+} // namespace
+
+int ragdollInBox(const glm::vec3& lo, const glm::vec3& hi, int after)
+{
+    if(!world || vr_ragdoll.value < 1.f || world->generation != worldGeneration())
+    {
+        return 0;
+    }
+    for(int num = ragdollNearBox(lo, hi, after); num > 0; num = ragdollNearBox(lo, hi, num))
+    {
+        const RagdollBodies* r = ragdollOf(num);
+        if(r && partInBoxAfter(*r, lo, hi, -1) >= 0)
+        {
+            return num;
+        }
+    }
+    return 0;
+}
+
+int ragdollPartInBox(int num, const glm::vec3& lo, const glm::vec3& hi, int after, glm::vec3& at)
+{
+    const RagdollBodies* r = ragdollOf(num);
+    const int part = r ? partInBoxAfter(*r, lo, hi, after) : -1;
+    if(part >= 0)
+    {
+        b3Vec3 closest;
+        (void)b3Body_GetClosestPoint(r->body[static_cast<za::SizeT>(part)], &closest, world->toM((lo + hi) * 0.5f));
+        at = world->toU(closest);
+    }
+    return part;
 }
 
 glm::vec3 ragdollPoint(int num, int bone, const glm::vec3& p, bool toWorld)

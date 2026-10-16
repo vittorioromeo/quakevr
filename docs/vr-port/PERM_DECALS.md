@@ -18,9 +18,13 @@ Branch `agent/permdecals`, pushed to `feature/permdecals`; the follow-up (slowdo
   the live decals or the wound masks.
 - Phase 4 (coop): not started. The stamps are the events: a server message per stamp (or the clients bake from the
   replicated decal effects as they do now, each its own layer).
-- Open: retro textures read the layer smoothly (the live marks' retro path quantises them); fresh marks with a delay
-  (gore's flying blood) show at once on doors (baked at once there); a stamp whose pages were all dropped (the atlas
-  full at vr_permdecal_atlas_max) is not kept for the saves.
+- Leftovers (2026-10-15, `agent/permdecals4`): **done and tested**: the layer read on the texture's blocks (retro
+  textures, nearest texture mode: "Retro and nearest textures"); gore's late marks on doors and lifts baked when they
+  show; a stamp whose pages were all dropped kept for the saves. Marks on the brush tool's boxes stay live by decision
+  (Decisions).
+- Open: the layer is not pulled to Quake's palette (Retro Palette): it multiplies a texture that is already; marks on
+  instanced b_*.bsp models and props (phase 3); a mark lying on both the world and a brush tool box stays live whole
+  (its world part too).
 
 ## How it works
 
@@ -46,7 +50,14 @@ Branch `agent/permdecals`, pushed to `feature/permdecals`; the follow-up (slowdo
 - Shader: `QVR_PERMDECAL_FUNCTIONS` / `QVR_WORLD_FS_DECALS` (vr_glsl.h): page lookup (SSBO 10), the slot's layer and
   place (`PermDecals.y` slots a row, its square a layer), one `textureLod` (unit 18, a `sampler2DArray`, the footprint's
   mip clamped inside the slot), multiplied into the texture, fullbrights and sheen before the light, following the
-  parallax shift. `PermDecals` (frame data, after `AmbientLight`): on, slots a row, 1/size, show.
+  parallax shift. `PermDecals` (frame data, after `AmbientLight`): on (2, 3: textures drawn nearest), slots a row,
+  1/size, show.
+- Retro and nearest textures (`PermDecalsLook`): where a page is under the pixel, the layer is read at the middle of
+  the texture's block (the pixel's retro set with snapping on: its grid, soft edges as `RetroBlocks` has them (up to 4
+  reads, in a loop), its fade far off) or texel (no retro set and `gl_texturemode GL_NEAREST*`: `TexMgr_NearestKind`,
+  1 for Quake's own textures (the texture's size its Quake size), 2 every texture with `vr_texture_smooth 0`). The
+  layer's coordinate at that point: both coordinates are affine on the face, so their screen derivatives map one to the
+  other. Smooth (one read, as before) with no page there, with linear textures, or where a pixel spans a block.
 - Saves: `// qvrdecals 1 map <model> n <count>` then `// qvrd <base64>` lines of 35-byte records (`saveLines`: the
   stamps, then the live ring's world marks not among them, `decals::liveStamps`), read by `VR_ReadSaveInfo`
   (`readSaveLines`), baked again on the next map load of that map (`restore`, from `bakeSettled`; kept, not baked, with
@@ -65,7 +76,9 @@ has settled:
   longer), so the layer gets the dried colour.
 
 Sooner: a mark the ring lets go of before then (more than `vr_decal_max` at once, the drops' quarter) is baked on the
-spot (`bakeEarly`); marks on doors, lifts and plats (brush entities) are baked at once in the entity's space. Later:
+spot (`bakeEarly`); marks on doors, lifts and plats (brush entities) are baked in the entity's space as they show:
+at once, or, for the gore's flying blood (`delay`), when it lands (`bakeEntities` with its time: laid in the model's
+space when made, waiting, `bakeDue` once a frame; the saves keep the waiting ones). Later:
 past `vr_permdecal_bake_max` pages (1024) in a frame the rest wait (live) for the next frames. Never: marks on the
 boxes made in the game (vr_brushes.cpp) and marks with no face of the layer under them stay live (and fade as before).
 So a fresh pool under a corpse stays a live mark for 8 s, then becomes part of the wall; a live mark left out of a full
@@ -118,7 +131,8 @@ shader built with the array sampler), mean 0.00.
   its most), slots used, growths, stamps kept, baked, given up, dropped; the flushes' quads, the most in one, the table
   sent, their CPU time at most and how many over 0.5 ms; "kept while off" when some wait to bake.
 - `vr_permdecal_show 1` (Debug > Tools "Show Permanent Decal Pages"): the pages drawn unlit and green, the marks on them.
-- `vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size]`: a mark where the line meets a surface (deterministic:
+- `vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size] [delay]`: a mark where the line meets a surface (shown
+  `delay` seconds later, as the gore's flying blood) (deterministic:
   rand seeded from its arguments); prints the entity it met.
 - Settings > Gore > Marks: "Permanent Decals" (`vr_permdecals`, default 1; its help says what off shows).
 - `vr_permdecal_atlas` (4096, a layer's side), `vr_permdecal_atlas_max` (512 MB), `vr_permdecal_bake_max` (1024 pages a
@@ -126,12 +140,21 @@ shader built with the array sampler), mean 0.00.
 
 ## Tests (headless)
 
-`Misc/quakevr/permdecal_test.sh <agent>` is the regression (7 runs, ~3 min): (1) marks past a live cap of 16 all baked,
+`Misc/quakevr/permdecal_test.sh <agent>` is the regression (8 runs, ~3 min; (5) below): (1) marks past a live cap of 16 all baked,
 two on brush entities, the same stamps after a load in the same game and in a new one; (2) the burst budget (above);
 (3) at density 0.25 a 1024 atlas grows to 4 layers with none given up, its frame the same as one 4096 layer's (peak 1);
 (4) the on/off rule in exact frames (`permdecal_shots.py`, peaks): on -> off -> on the same frame (1), off the same as
 the layer off from the start (1), vr_decals 0 the same as no marks at all (1) and 1 the same as before (1), marks made
-while off kept and baked once on. One-off scripts in the worktree's scratch/ (git-ignored):
+while off kept and baked once on; (5) a 3 s late mark on vrclimb's lift (`vr_decal_at ... blood 24 3`) waiting, then
+baked; a brush tool box's mark live after 10 s, gone with `vr_brush_set`. One-off scripts in the worktree's scratch/
+(git-ignored):
+
+- Retro and nearest (`pd4_retro.sh`, 2026-10-15): the lift up close with retro blocks of 2 texels, nearest, linear:
+  the baked marks blocky with the texture in the first two, smooth in the third (before: smooth in all three).
+- Late door marks (`pd4_door.sh`): two 3 s marks and one at once on the lift: right after the hit only the one shows
+  (before: all three), after the delay all three.
+- Frame time (`bench.sh --scenarios combat_48`): world+brush pass GPU 1.244-1.247 ms before, 1.254-1.286 after (the
+  run-to-run noise: the alias pass moved as much); frame p50 11.110 both.
 
 - Live vs baked (`ab.sh`, vrclimb wall, 8 marks): same shapes and colours; baked a little softer (0.5 units a texel; at
   1 visibly blurrier, at 2 a smudge).
@@ -159,6 +182,8 @@ while off kept and baked once on. One-off scripts in the worktree's scratch/ (gi
 - Shoot or bleed on a door or lift, then ride or open it: the marks move with it (hidden while the layer is off).
 - Save, load (also after quitting): the marks come back, the freshest ones too.
 - Debug > Tools > Show Permanent Decal Pages: where the layer has texels.
+- Retro textures on (and nearest texture filtering): baked blood and holes have the wall's blocks up close.
+- Gib a monster against a door: its blood lands on the door when the flying blood gets there, not at the hit.
 
 ## Decisions
 
@@ -166,7 +191,15 @@ while off kept and baked once on. One-off scripts in the worktree's scratch/ (gi
   (not 62) so that scattered small marks take less of the atlas.
 - Saves keep the stamps (each mark's record), not the texels: 35 bytes a mark, deterministic re-bake, and the same
   records will serve coop.
-- Marks on the boxes made in the game (vr_brushes.cpp) stay live (they go when the box changes).
+- Marks on the boxes made in the game (vr_brushes.cpp) stay live (they go when the box changes). Looked at again
+  (2026-10-15): a box is made again on every edit (each drag step), its faces are not in the map's page table (laid out
+  at the map's load), and its id is not kept by the saves; a per-box layer needs page ranges taken and given back on
+  every rebuild, the box's vertices given the layer's attribute, and a save key per box, for marks that go with the
+  next edit anyway. Kept live (tested: past every bake delay, not baked, gone with the box's change).
+- Retro: the layer takes the surface's blocks, not the Decals category's (the live marks'): a baked mark is part of
+  the wall. Not pulled to the palette: it multiplies the texture, which is already.
+- Late marks on doors are laid in the door's space when made (where the trace met it), so a door that moved in the
+  meantime carries them where it was hit.
 - Atlas full: grow (layers of an array texture) rather than downsample or merge old pages: the same look, a shader
   change of three lines, memory only when used; a map's pages bound it (vrfiringrange's four rounds of blasts: 7350
   pages, under half a layer). Downsampling would lose detail on the oldest marks and need mixed slot sizes in the page

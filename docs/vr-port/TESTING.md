@@ -453,7 +453,8 @@ hangs from rung 56 with both hands; `impulse 221` blasts 3 s later (`vr_climb_bl
 grunt beside: `vr_mock_look 0 90; impulse 241` (`vr_test_spawn_dist 40`, `vr_enemy_shove 0` until hanging), `vr_mock_look
 0 0`, then the play; `vr_physics_player` prints the body's place and velocity.
 The vore's shove (ROUND22.md, "The vore never shoves"): `bash Misc/quakevr/voreshove_test.sh <agent>` (a vore spawned
-touching you on vrtesthall, god, his shove settings, walking into it ~20 s): at least 4 shoves (8 now; 2 before the fix).
+touching you on vrtesthall, god, his shove settings, walking into it ~20 s): at least 4 shoves (8 now; 2 before the fix),
+every blow on its two-handed push's full reach, frame 40 (ROUND22.md, "The vore's two-handed shove").
 Bloodless shoves, bashes and slaps (ROUND22.md, "Shoves, slaps and bashes draw no blood"): `bash
 Misc/quakevr/bloodless_test.sh <agent>` (`vr_smallgibs_test 23` on a grunt: gore hits, wound events, blood particles and
 small gibs all 0 for shove, bash and slap, their damage dealt; the punch control bleeds).
@@ -1398,12 +1399,14 @@ play reaches its first (after a `vr_mock_hand_to`); before it the hand is left a
 
 ## Closer to enemies: body inset and step in (2026-10-13)
 
-`bash Misc/quakevr/foegrab/closein_test.sh <agent> [approach wall stepin]` (ROUND22.md, "Closer to enemies"):
+`bash Misc/quakevr/foegrab/closein_test.sh <agent> [approach wall stepin stepcap]` (ROUND22.md, "Closer to enemies"):
 `vr_body_contact_status` lines after walking into a grunt, an ogre and an enforcer at `vr_body_monster_inset` 4 and 0
 (dist 12/20, 20/28, 14/22; set to 0 touching: apart within 60 frames, backs off), the back wall at 0 and 12 (same
 origin), a held grunt walked into with `vr_foegrab_step_in` 1 (dist ~5.6, let go: 12 again) and 0 (stops at 12).
 Uses the mock hand on the grunt (`vr_mock_hand_to main nearest monster_army 6`, `+grabmain`) with Follow, Pull 0 and
-Let Go Beyond 200 so the hold stays while he walks in. `voreshove_test.sh` is marginal with the inset on (3-4 shoves).
+Let Go Beyond 200 so the hold stays while he walks in. `stepcap`: the held grunt walked into
+for 50 frames at `vr_foegrab_step_in_depth` 0 (H1 ~10.7 deep, then through: held 0, another grunt nearest) and 8 (stops
+at depth 7.97, dist 4.03; slides aside 47 units and backs off 97, still held). `voreshove_test.sh` is marginal with the inset on (3-4 shoves).
 
 ## Batched test cases: many cases a game, games in parallel (2026-10-14)
 

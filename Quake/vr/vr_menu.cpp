@@ -503,6 +503,7 @@ using PageBuilder = za::Vector<Item> (*)();
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageVrsHud();
+[[nodiscard]] za::Vector<Item> pageVrsAppearance();
 [[nodiscard]] za::Vector<Item> pageColours();
 [[nodiscard]] za::Vector<Item> pageBulletTime();
 [[nodiscard]] za::Vector<Item> pageStamina();
@@ -971,10 +972,27 @@ int campaignsBloodyShown = -1;
         toggle("Step In", vr_foegrab_step_in)
             .help("While a hand holds an enemy, your body and its body don't meet: step in and bring the other hand to "
                   "its head. Let go while overlapping and the two are pushed gently apart (never stuck)."),
+        slider("Step In Depth", vr_foegrab_step_in_depth, 0.f, 32.f, 1.f, "%.0f units")
+            .help("With Step In, how far your body goes into the held enemy past where you would meet; there it stops "
+                  "you as a solid body (you slide along it), so you can't walk through it. Stepping back or aside is "
+                  "always free. 0: no limit (you can walk right through it)."),
         slider("Melee Space", vr_enemy_melee_space, 0.f, 48.f, 2.f, "%.0f units")
             .help("A monster attacking you in melee (a knight's swing and its run past you, an ogre's chainsaw, a "
                   "fiend's claws) is kept this far from your head, pushed back smoothly, so it never fills your view and "
                   "you can parry. Its blows still reach you. 0: off (it charges in until your bodies meet)."),
+        toggle("Melee Arc", vr_enemy_melee_arc)
+            .help("A monster's melee blow (a sword, a bite, a claw, a chainsaw) lands only if you are inside the arc ahead "
+                  "of it when it strikes. Facing away, it turns to you before it attacks; while swinging it turns after "
+                  "you only slowly (Swing Turn), so stepping aside or behind it dodges the swing. Leaps still hit by "
+                  "touch. Off: Quake's blows, which check only reach (they hit you behind or beside it)."),
+        slider("Melee Arc Angle", vr_enemy_melee_arc_angle, 30.f, 120.f, 5.f, "%.0f deg")
+            .help("Melee Arc: how far to each side of its facing a monster's blow reaches."),
+        slider("Wide Swings", vr_enemy_melee_arc_wide, 0.f, 60.f, 5.f, "+%.0f deg")
+            .help("Melee Arc: this much more to each side for sweeping blows (an ogre's chainsaw, a shambler's or "
+                  "minotaur's claw)."),
+        slider("Swing Turn", vr_enemy_melee_turn, 0.f, 30.f, 1.f, "%.0f deg/frame")
+            .help("Melee Arc: how fast a swinging monster turns after you (degrees each tenth of a second; slower "
+                  "monsters keep their own speed). Lower: easier to sidestep. 0: its own speed."),
         header("Two-Hand Throw"),
         toggle("Two-Hand Throw", vr_foegrab_throw)
             .help("Hold one enemy with both hands and turn it over hard, a judo throw: one shoulder down and the other up, "
@@ -1175,17 +1193,60 @@ int campaignsBloodyShown = -1;
                   "a wall."),
         slider("Impact Damage", vr_ragimpact_damage, 0.f, 0.5f, 0.01f, "%.2f").extend(0.f, 5.f)
             .help("Damage per kg m/s past Least Speed (a grunt's torso thrown into a wall at 6 m/s: about 15)."),
+        slider("Damage Curve", vr_ragimpact_curve, 0.5f, 3.f, 0.1f, "%.1f").extend(0.1f, 5.f)
+            .help("How damage grows with speed past Least Speed: 1 in step with it, 2 with its square (hard throws far "
+                  "worse, soft ones milder), 0.5 its square root. Every curve deals the same at Curve Pivot."),
+        slider("Curve Pivot", vr_ragimpact_curve_ref, 0.5f, 10.f, 0.5f, "%.1f m/s").extend(0.1f, 30.f)
+            .help("The speed past Least Speed where every Damage Curve deals the same: slower strikes deal less with a "
+                  "steeper curve, faster ones more."),
+        slider("Most per Strike", vr_ragimpact_max, 0.f, 200.f, 5.f, "%.0f").extend(0.f, 1000.f)
+            .help("No strike (nor a landing's crush) deals more than this, the head's and limbs' multipliers in. 0: no cap."),
         slider("Least Speed", vr_ragimpact_min_speed, 0.5f, 8.f, 0.25f, "%.2f m/s").extend(0.5f, 30.f)
             .help("Slower strikes do nothing (a body dropped from your hands strikes at about 4 m/s)."),
         slider("Held Least Speed", vr_ragimpact_held_speed, 0.25f, 5.f, 0.25f, "%.2f m/s").extend(0.25f, 30.f)
             .help("A part your hand holds (a head slammed) counts from this speed: your hand slows as it drives a body."),
         slider("Head Strikes", vr_ragimpact_head, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
             .help("A strike on the head deals this much more."),
+        slider("Limb Strikes", vr_ragimpact_limb, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A strike on an arm or a leg deals this much more (the torso: 1)."),
         slider("Head and Limb Health", vr_ragimpact_piece_hp, 0.1f, 2.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
             .help("A head's or limb's own health, times its corpse's (a grunt's 80: 32 at 0.4): struck past it, it pops."),
+        slider("Head and Limb Wear", vr_ragimpact_wear, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much of a strike's damage wears the head or limb struck: higher pops them sooner. 0: impacts never "
+                  "pop them (the damage still hurts)."),
         slider("Landing Crush", vr_ragimpact_crush, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
-            .help("Landing on a monster lying as a ragdoll from a height (2 storeys or so) crushes the part under your "
-                  "feet, times this. 0: never."),
+            .help("Landing on a monster (standing, down or a corpse) crushes the part under your feet (its head, a limb, "
+                  "its torso): its damage times this; a head or limb crushed past its health pops. 0: never."),
+        slider("Crush Least Speed", vr_ragimpact_crush_speed, 100.f, 1000.f, 25.f, "%.0f u/s").extend(0.f, 3000.f)
+            .help("Landing slower than this crushes nothing (a jump from the same level lands at about 270; a "
+                  "100-unit drop: 400)."),
+        slider("Crush Wear", vr_ragimpact_crush_wear, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of a head's or limb's own health a landing at the least speed wears (0.3: a jump from the "
+                  "same level wears about 0.37, the third pops it); faster landings more. 0: landings pop nothing."),
+        slider("Crush Pop Speed", vr_ragimpact_crush_pop, 200.f, 1000.f, 10.f, "%.0f u/s").extend(0.f, 3000.f)
+            .help("A landing this fast pops the head or limb under your feet at once (380: a drop of about two "
+                  "heights onto a body lying down)."),
+        slider("Crush Big Mass", vr_ragimpact_crush_big, 0.f, 600.f, 10.f, "%.0f kg").extend(0.f, 5000.f)
+            .help("A monster heavier than this (an ogre, a fiend, a shambler) is only hurt by landings: its head and "
+                  "limbs never pop. 0: none is big."),
+        slider("Crush Big Most", vr_ragimpact_crush_big_max, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The most of a big one's full health one landing takes (0.25: a quarter). 0: no cap."),
+        toggle("Crush Standing Ones", vr_ragimpact_crush_standing)
+            .help("Landing on a standing monster's head or shoulders crushes too. Off: only one down or staggering as a "
+                  "ragdoll."),
+        toggle("Crush Breaks Your Fall", vr_ragimpact_crush_cushion)
+            .help("A landing that crushed a monster spares you the fall's damage. Off: Quake's fall damage as ever."),
+        toggle("Stomp Knocks Down", vr_ragimpact_stomp)
+            .help("Landing on a standing monster's top fast enough knocks it down as a shove does (it gets up again), "
+                  "if the crush did not kill it; you bounce off it."),
+        slider("Stomp Least Speed", vr_ragimpact_stomp_speed, 200.f, 1000.f, 10.f, "%.0f u/s").extend(0.f, 3000.f)
+            .help("Landing slower than this knocks nothing down (420: a drop of about 115 units). Monsters heavier than "
+                  "Stomp Heavy Mass need more."),
+        slider("Stomp Heavy Mass", vr_ragimpact_stomp_heavy, 0.f, 600.f, 10.f, "%.0f kg").extend(0.f, 5000.f)
+            .help("A monster heavier than this needs a faster landing: the least speed times the cube root of its mass "
+                  "over this (an ogre: about a 180-unit drop; a shambler: about 315). 0: all alike."),
+        slider("Stomp Bounce", vr_ragimpact_stomp_bounce, 0.f, 400.f, 10.f, "%.0f u/s")
+            .help("How fast you bounce up off the one you knocked down. 0: you drop as it falls."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
@@ -1874,12 +1935,10 @@ int campaignsBloodyShown = -1;
         open("Arms and Pauldrons", pageIndex(pageBodyArms)),
         open("Body Calibration", pageIndex(pageBodyCalibration)),
         header("Body"),
-        open("Body and Build: Body and Display", pageIndex(pageBodyDisplay)).help("The body on or off and its build are on Body and Display."),
-        toggle("Bracers", vr_body_bracers)
-            .help("The leather bracers on your forearms. Off: bare forearms with the wrist gadget strapped round the skin, running "
-                  "on into the hands (with the jointed hand, vr_hand_rig 1: the default)."),
-        slider("Skin Tone", vr_skin_tone, -1.f, 1.f, 0.05f, "%.2f")
-            .help("Darken or lighten the skin on your hands and arms in both bracer modes. Zero keeps your painted skin. Blood, nails, clothes and gadgets keep their own colours."),
+        open("Body: Body and Display", pageIndex(pageBodyDisplay)).help("The body on or off is on Body and Display."),
+        open("Build, Skin, Bracers, Gloves: Player Appearance", pageIndex(pageVrsAppearance))
+            .help("How you look: the body's build, the skin tone, the bracers, gloves and their colour, the pauldrons (VR "
+                  "Settings > Player Appearance)."),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s").extend()
             .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
@@ -2213,10 +2272,8 @@ void armsResetTweaks()
         slider("Tuck Fades By", vr_body_elbow_tuck_far, 0.4f, 1.2f, 0.05f, "%.2f arm")
             .help("Not tucked at all with the wrist this far from the shoulder (times the arm's length)."),
         header("Pauldrons"),
-        toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
-        cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
-            .help("Armour colour: green, yellow or red as the armour you wear (leather without)."),
-        slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx").extend(0.25f, 4.f),
+        open("Pauldrons, Style, Size: Player Appearance", pageIndex(pageVrsAppearance))
+            .help("The pauldrons on or off, their style and size are on VR Settings > Player Appearance; their fit here."),
         slider("Pauldron Follows Arm", vr_body_pauldron_follow, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much the shoulder cap turns with the upper arm (the lower plates follow the arm fully)."),
         slider("Pauldron Forward", vr_body_pauldron_forward, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
@@ -2916,6 +2973,53 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("And when a thrown thing, the shotguns, nails or an enforcer's laser gib it."),
         slider("Gib Speed: Explosives", vr_gib_speed_heavy, 0.05f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 3.f)
             .help("And everything else: explosions, rockets, grenades, lightning, plasma, monsters' blows (1: Quake's)."),
+        header("Blood Streams, Back-splatter and Teeth"),
+        toggle("Blood Streams", vr_gore_streams)
+            .help("Shots and nails open bullet holes that pour a thin stream of blood, pulsing and weakening over a few seconds, "
+                  "following the body as it moves and falls, painting a pool where it lands (vr_gore_streams)."),
+        slider("Stream Chance", vr_gore_streams_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance each shot or pellet opens one (vr_gore_streams_chance)."),
+        slider("Streams per Body", vr_gore_streams_per_body, 1.f, 8.f, 1.f, "%.0f")
+            .help("Most on one body: a new one takes the weakest's place (vr_gore_streams_per_body)."),
+        slider("Streams in All", vr_gore_streams_max, 0.f, 64.f, 2.f, "%.0f")
+            .help("Most at once everywhere (vr_gore_streams_max)."),
+        slider("Stream Duration", vr_gore_streams_time, 1.f, 20.f, 0.5f, "%.1f s").extend(1.f, 30.f)
+            .help("About how long one pours, weakening all along (vr_gore_streams_time)."),
+        slider("Stream Force", vr_gore_streams_speed, 0.f, 200.f, 5.f, "%.0f u/s").extend(0.f, 400.f)
+            .help("How fast it leaves the wound at its strongest: how far it arcs out (vr_gore_streams_speed)."),
+        slider("Stream Width", vr_gore_streams_width, 0.1f, 2.f, 0.05f, "%.2f units").extend(0.05f, 4.f)
+            .help("How thick, at its strongest (1 unit: 3.8 cm) (vr_gore_streams_width)."),
+        slider("Stream Pools", vr_gore_streams_pool, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 4.f)
+            .help("The pools a stream spreads where it lands: their size (0: no marks) (vr_gore_streams_pool)."),
+        slider("Stream Spread", vr_gore_streams_spread, 0.f, 90.f, 5.f, "%.0f deg")
+            .help("Each stream's way out turned at random up to this far from the wound's, so one shotgun blast's "
+                  "streams go their own ways (0: all alike) (vr_gore_streams_spread)."),
+        slider("Stream Force Variation", vr_gore_streams_speed_var, 0.f, 0.9f, 0.05f, "+-%.2f")
+            .help("Each stream's force times a random 1 plus or minus this (vr_gore_streams_speed_var)."),
+        slider("Stream Wobble", vr_gore_streams_wobble, 0.f, 45.f, 1.f, "%.0f deg")
+            .help("How far each stream's way out wanders as it pours: slow noise (0: steady) (vr_gore_streams_wobble)."),
+        slider("Stream Wobble Rate", vr_gore_streams_wobble_rate, 0.f, 3.f, 0.05f, "%.2f Hz").extend(0.f, 10.f)
+            .help("How fast it wanders: about this many swings a second (vr_gore_streams_wobble_rate)."),
+        slider("Back-splatter", vr_gore_backsplatter, 0.f, 3.f, 0.25f, "%.2fx").extend(0.f, 4.f)
+            .help("Thin long streaks thrown along the shot's line onto what is behind a monster hit: how many (0 none) "
+                  "(vr_gore_backsplatter)."),
+        slider("Back-splatter Reach", vr_gore_backsplatter_reach, 0.25f, 3.f, 0.25f, "%.2fx").extend(0.f, 4.f)
+            .help("How far they fly, times the hit's own reach: a shotgun's close, big hits across the room "
+                  "(vr_gore_backsplatter_reach)."),
+        toggle("Knocked-out Teeth", vr_teeth)
+            .help("A hard punch to a humanoid's face (grunts, enforcers, knights, zombies, AD's humanoids) knocks teeth out: "
+                  "tiny gibs that bounce, can be picked up, and fade (vr_teeth)."),
+        slider("Teeth per Punch", vr_teeth_per_hit, 1.f, 10.f, 1.f, "%.0f")
+            .help("Most from one blow, the hardest (fewer for softer ones) (vr_teeth_per_hit)."),
+        slider("Teeth per Enemy", vr_teeth_per_enemy, 1.f, 32.f, 1.f, "%.0f")
+            .help("Most one enemy loses (vr_teeth_per_enemy)."),
+        slider("Punch Hardness for Teeth", vr_teeth_hardness, 0.f, 0.95f, 0.05f, "%.2f")
+            .help("How hard a blow must be to knock any out (0..1: the hand's speed and the damage, as Decapitation's "
+                  "blunt pops) (vr_teeth_hardness)."),
+        toggle("Teeth from Blunt Weapons", vr_teeth_blunt)
+            .help("A gun's butt, a crowbar, a club or a pommel knocks them out too, not only fists (vr_teeth_blunt)."),
+        slider("Tooth Size", vr_teeth_size, 1.f, 8.f, 0.5f, "%.1f cm")
+            .help("How long a tooth is (vr_teeth_size)."),
         open("Small Gibs", pageIndex(pageSmallGibs)).help("Chunks of meat torn out by hits: when, how many, how they fly, how long they last."),
         open("Decapitation", pageIndex(pageDecapitation))
             .help("A killing slash at a monster's head cuts it off: the head flies, the body falls headless, the neck spurts blood."),
@@ -2943,6 +3047,14 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("How deep your bleeding wounds look sunk into the skin (Finer detail only; 0 flat)."),
         slider("Blood Opacity", vr_wounds_blood_alpha, 0.2f, 1.f, 0.05f, "%.2f")
             .help("How opaque the painted blood is over the skins: a little of the skin shows through below 1."),
+        toggle("Flesh Dents", vr_gore_dents)
+            .help("Bullets, pellets, nails, blades and blasts push monsters' and corpses' surfaces in where they strike: a crater "
+                  "of raw flesh with a bloody rim, kept through every animation and on ragdolls (with Dynamic Wounds or Burns on)."),
+        slider("Dent Depth", vr_gore_dents_depth, 0.f, 3.f, 0.25f, "%.2fx")
+            .help("How deep the dents push in (0: flat, the raw flesh only). Never through a thin part: an arm, a tail."),
+        slider("Dent Size", vr_gore_dents_size, 0.25f, 3.f, 0.25f, "%.2fx").help("How wide the dents are (and as much deeper)."),
+        slider("Dents per Body", vr_gore_dents_max, 1.f, 16.f, 1.f, "%.0f")
+            .help("How many dents a body keeps: past it, the oldest merges into the one nearest it."),
         header("Lightning Shock"),
         toggle("Lightning Shock", vr_shock_death)
             .help("A monster the lightning strikes, alive or dead, keeps Quad Damage's arcs crawling over it a while, on through its "
@@ -3603,6 +3715,15 @@ void hologramTestMessage()
             .help("A weapon in the air is caught by a grip closed up to this long before it reaches your fist, and the "
                   "hand that tossed it may close again at once: it catches it as it comes back down. 0: as a weapon lying "
                   "about (0.125 s, and not within 0.125 s of letting go)."),
+        toggle("Floating Pickup Grace", vr_pickup_float_grace)
+            .help("A weapon, key or armour hanging in the air (spinning) isn't knocked down by your empty hand reaching into "
+                  "it slowly for a moment: close your grip and it is taken where it hangs. Off: a touch knocks it loose."),
+        slider("Floating Grace Time", vr_pickup_float_grace_time, 0.f, 1.f, 0.05f, "%.2f s")
+            .extend(0.f, 3.f)
+            .help("How long from your hand reaching it; after that a hand still pushing into it knocks it loose."),
+        slider("Floating Grace Swat Speed", vr_pickup_float_grace_swat, 0.5f, 5.f, 0.25f, "%.2f m/s")
+            .extend(0.f, 10.f)
+            .help("A hand faster than this knocks it at once (a swat)."),
         toggle("Lenient Weapon Catch", vr_weapon_grab_box)
             .help("The old catch: a weapon is also taken when your hand comes within a hand's width of its handle, the "
                   "fist up to 20 cm off it. Off: only when your closed fist touches it, as a box or a gib."),
@@ -3653,6 +3774,18 @@ void hologramTestMessage()
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
         slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()
             .help("Space left between your fingers and what they hold (negative: sunk in). Per model: vr_held_fit_gaps in the console."),
+        toggle("Keep Fingers Out of Props", vr_grip_fit)
+            .help("Once, as you grip a prop (or take it with your other hand too): if your drawn hand (palm, back, wrist, "
+                  "fingers as they will grip) would sink into it, it is moved out of your hand the least way that leaves the "
+                  "hand resting on its surface, and kept there while you hold it. Not for weapons, nor props with a Fixed or "
+                  "Along the Handle grip."),
+        slider("Fingers Out: Finger Contact", vr_grip_fit_finger_depth, 0.f, 3.f, 0.1f, "%.1f cm")
+            .help("How deep your fingers may press into what they grip (a snug contact) before it is moved."),
+        slider("Fingers Out: Palm Contact", vr_grip_fit_palm_depth, 0.f, 3.f, 0.1f, "%.1f cm")
+            .help("How deep your palm, the back of your hand and your wrist may press into it before it is moved."),
+        slider("Fingers Out: Most Move", vr_grip_fit_reach, 0.1f, 2.f, 0.05f, "%.2f hands")
+            .help("How far it is moved at most, in hand lengths; if your hand still can't rest on it, the place where it "
+                  "sinks in least within that is kept."),
         toggle("Held Things Collide", vr_held_collide)
             .help("Things you hold one in each hand, or a thing in one hand and a weapon in the other, bump into each other "
                   "instead of passing through: each hand is drawn moved back with what it holds, a short buzz as they meet. "
@@ -4327,7 +4460,7 @@ void hologramTestMessage()
             .help("Debug > Tests > Ragdoll Behaviours: each behaviour below set going on the nearest grunt, enforcer, "
                   "knight, death knight, ogre or zombie."),
         toggle("Active Deaths", vr_ragdoll_active)
-            .help("A dying grunt, enforcer, knight, death knight, ogre or zombie goes limp as soon as he stops being solid, "
+            .help("A dying grunt, enforcer, knight, death knight, ogre or zombie (AD's soldiers, knights and zombies too) goes limp as soon as he stops being solid, "
                   "his body playing his death animation as his strength fades (legs first): he stumbles if he dies on the "
                   "move, may hold his wound and may crawl before going limp; a headshot or beheading collapses him. Off: "
                   "limp at Go Limp At (vr_ragdoll_active)."),
@@ -5290,6 +5423,14 @@ za::Vector<Item> pageDebugViews()
         command("Cell Cord Info", "vr_cellcord_info")
             .help("vr_cellcord_info: in the console, the cell cords (Weapons > Reloading > Cell Cords): each one's weapon, "
                   "its ends (the weapon's bottom, the pouch's cell), loose or plugged in, its length and rings."),
+        command("Magnetic Holsters Info", "vr_magholster_info")
+            .help("vr_magholster_info: in the console, each holster's bound weapon (Immersion > Magnetic Holsters): where it "
+                  "is (holstered, held, away and how far), its chains and their links."),
+        command("Magnetic Holsters: All Home", "vr_magholster_return")
+            .help("vr_magholster_return: every bound weapon lying about flies back to its holster now (if it is empty)."),
+        toggle("Magnetic Holster Chain Log", vr_magholster_chain_log)
+            .help("vr_magholster_chain_log: each frame, in the console, every magnetic holster chain's worst link stretch (a share), "
+                  "and its most movement and jerk off its anchor (mm); a jump that starts it afresh."),
         command("Probe Flashlight", "vr_flashlight_probe menu")
             .help("vr_flashlight_probe: in the console, where the torch is, whether each hand is at it (lit, as the game "
                   "reads the hand, still), whether B/Y would clip it on the head or a gun, and the player's speed and turn."),
@@ -5556,6 +5697,14 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_shadow_layered_check 20 cache: this frame's shadow maps drawn with each caster set up again for every "
                   "light, then once a pass over the lights (as the game draws them), 20 times each, timed, then read back "
                   "and compared texel by texel, in the console. Stand where shadows are."),
+        cycle("Second Eye's Model Set-up", vr_alias_eye_cache, {{0.f, "Made Again"}, {1.f, "First Eye's"}, {2.f, "Checked"}})
+            .help("vr_alias_eye_cache: each animated model's set-up that is the same for both eyes (its pose, place, light "
+                  "at its origin, instance data) made in the first eye and reused by the second (First Eye's), made again "
+                  "(Made Again), or made again and compared with the first eye's (Checked: see Model Set-up Stats)."),
+        command("Model Set-up Stats", "vr_alias_eye_cache_stats")
+            .help("vr_alias_eye_cache_stats: since the last time, the second eyes' models found set up by the first eye (in "
+                  "full, the transform only, not at all) and, while Checked, the parts that came out different (none "
+                  "expected)."),
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), and every load's total."),
@@ -5632,6 +5781,10 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Physics on Threads", vr_box3d_threads)
             .help("Box3D's step (the props' physics) shared between the thread pool and the main thread. Off: the main "
                   "thread steps it alone (the same results: Box3D is deterministic whatever its threads)."),
+        toggle("Main Thread Solves", vr_box3d_caller_solves)
+            .help("vr_box3d_caller_solves: with Physics on Threads, the main thread runs Box3D's solver itself (and its "
+                  "share of each stage) and takes the step's unstarted tasks while it waits for one. Off: a worker usually "
+                  "took the solver and the main thread waited for it (the same results either way)."),
         cycle("Physics Threads", vr_box3d_workers, {{0.f, "All"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {6.f, "6"}, {8.f, "8"}})
             .help("With Physics on Threads: at most this many threads step Box3D, the main thread one of them (All: every "
                   "worker of the pool). Measured on a 24-core CPU: 4 is as fast as 6 or 8 up to ~500 awake bodies (and "
@@ -5682,6 +5835,12 @@ za::Vector<Item> pageDebugProfiling()
         command("Ragdoll Hand Probe", "vr_ragdoll_hand_probe")
             .help("vr_ragdoll_hand_probe: each hand holding a ragdoll's limb: the limb's lag, the hand drawn off its "
                   "controller onto it, its palm and fingertips from the limb's mesh (cm), the fingers that met it."),
+        command("Grip Fit: Last", "vr_grip_fit_last")
+            .help("vr_grip_fit_last: the last grip fit (Keep Fingers Out of Props): the drawn hand's overlap with the prop "
+                  "before and after (the fingers apart), the move, its time; then the worst case timed 1000 times."),
+        command("Grip Fit: Drawn Hand", "vr_grip_fit_drawn")
+            .help("vr_grip_fit_drawn: each hand holding a prop, as drawn now: how many of its mesh's points are in the "
+                  "prop's shape and how deep (cm), the hand and the fingers apart."),
         command("Grasp Bench", "vr_grasp_bench")
             .help("vr_grasp_bench: each hand's grasp solve on what it holds, timed (afresh, and again 1000 times)."),
         command("Grasp Sweep", "vr_grasp_sweep 5")
@@ -5826,6 +5985,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_model_check 1: every entity's model index against its model's name, and your models against the "
                   "server's; each mismatch listed (a saved game loaded wrong: buttons drawn as gibs). 0 wrong is right."),
         command("View", "vr_dumpview").help("vr_dumpview: the hands, grips, palms, fingers and every entity drawn in the view (long)."),
+        command("Torch Lights", "vr_torch_lights_list")
+            .help("vr_torch_lights_list: the torches' and flames' lights lit now (Rendering > Torch Lights): each one's "
+                  "entity (a map's static one or a live one, such as the toolgun's Fire tab's), where, how far it reaches."),
         command("Bullet Time Now", "vr_bullettime").help("vr_bullettime: starts or stops bullet time, as the gadget's button."),
         command("Screen Tap Feedback", "vr_bullettime_tap_feedback_test 1")
             .help("vr_bullettime_tap_feedback_test [1]: the gadget's click and screen glitch of a tap (1: the activation's; "
@@ -5862,6 +6024,7 @@ za::Vector<Item> pageDebugReports()
         command("Pin Nearest Monster Mid-Swing", "vr_anim_smooth_pin 41 42 0.5 -1 -1 ogre").help("vr_anim_smooth_pin <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]: a monster (here the nearest ogre: its chainsaw swing) drawn held between two frames, to compare Model Animation's settings on it; vr_anim_smooth_pin off lets it go."),
         command("Unpin Monster", "vr_anim_smooth_pin off").help("vr_anim_smooth_pin off: the pinned monster animates again."),
         slider("Limb Fit Limit", "vr_anim_smooth_rig_error", 0.25f, 5.f, 0.25f, "%.2f units").help("vr_anim_smooth_rig_error: a bone fitted to a frame worse than this (rms) isn't swung between it and its neighbours; a vertex further off its bone swings less (none at twice it)."),
+        slider("Rebuild Fit Limit", "vr_anim_smooth_rebuild_error", 0.1f, 2.f, 0.1f, "%.1f units").help("vr_anim_smooth_rebuild_error: with Rebuild From Skeleton, a point further than this (rms over the frames) off its bone's fits is rebuilt less (not at twice it); a model with under half its points rebuilt is drawn as before (Smooth Animation Models: each model's counts)."),
         command("Corpse Poses", "vr_corpse_poses").help("vr_corpse_poses [1]: every dead monster and placed corpse: its model, "
                                                          "frame and where that is in its death, a ragdoll or why not; those "
                                                          "drawn mid-death (upright) are counted as not lying. 1: the counts only."),
@@ -5882,6 +6045,13 @@ za::Vector<Item> pageDebugReports()
         command("Gear (Hidden When Dead)", "vr_gear_status").help("vr_gear_status: what of the gear is drawn (holstered guns and their parts, holster sleeves, ammo pouch, grenade pouch, flashlight and cord, wrist gadget, body) and whether the HUD is the status bar on a hand: dead, with Hide Gear When Dead, only the status bar."),
         command("Hit Detection", "vr_hitmodel_stats").help("vr_hitmodel_stats: precise hit detection's tests so far (hits, shots through a box beside the model) and their cost."),
         command("Wounds", "vr_wounds_info").help("vr_wounds_info: the wound masks in use."),
+        command("Flesh Dents", "vr_gore_dents_info").help("vr_gore_dents_info: the bodies with flesh dents, their dents, the cost of placing them."),
+        command("Dent the Nearest Monster: Nail", "vr_wounds_test nearest 2 20 0 6")
+            .help("vr_wounds_test nearest 2 20 0 6: a nail's wound and flesh dent on the monster nearest you, from your view (Gore > Flesh Dents)."),
+        command("Dent the Nearest Monster: Blade", "vr_wounds_test nearest 3 40 0 10")
+            .help("vr_wounds_test nearest 3 40 0 10: a blade's long dent on it."),
+        command("Dent the Nearest Monster: Blast", "vr_wounds_test nearest 4 80")
+            .help("vr_wounds_test nearest 4 80: a blast's crater on its side facing you, a couple of lesser dents round it."),
         command("Bloody Hands and Washing", "vr_gore_hands_info")
             .help("vr_gore_hands_info: the blood on your hands and body (texels), the wounds kept to re-open, the wash and its re-opening, and the blood on your weapons and props."),
         command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),
@@ -5996,6 +6166,9 @@ za::Vector<Item> pageDebugTools()
         command("Reload Models", "vr_model_reload")
             .help("vr_model_reload: every model read again from its file (edited in Blender), with the hands' and collisions' caches."),
         command("Reload Hand Model", "vr_hand_reload").help("vr_hand_reload: the jointed hand (progs/hand_rig.md5mesh) read again."),
+        command("Reload Glove Paint", "vr_gloves_reload")
+            .help("vr_gloves_reload: the gloves' painted leather (progs/hand_rig_00_00_glove.png, _glove_height.png) read "
+                  "again, as edited in an image editor (docs/vr-port/GLOVES.md). A map change reads it again too."),
         command("Reload Detail Textures", "vr_detail_reload").help("vr_detail_reload: the detail textures' settings read again, the textures rebuilt."),
         command("Reload Shaders", "vr_shader_reload")
             .help("vr_shader_reload [n]: the engine's shaders compiled again (n: QVR_SHADER_AB, 0 by default; a shader change's A/B in one run, paused, for images and timings)."),
@@ -6034,6 +6207,9 @@ za::Vector<Item> pageDebugTools()
         header("Test Effects"),
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
+        command("Back-splatter: Shotgun", "vr_gore_test 30 pellets").help("vr_gore_test 30 pellets: a shotgun blast's blood 64 units ahead, its back-splatter close behind."),
+        command("Blood Streams on Monster Ahead", "vr_gore_stream_test 3").help("vr_gore_stream_test 3: three bullet holes pouring blood on the monster or corpse nearest the middle of the view."),
+        command("Knock Teeth Out", "impulse 198").help("impulse 198: the monster spawned last (impulse 241) punched in the face as hard as can be: its teeth fly (Gore > Knocked-out Teeth)."),
         command("Decal Stress: Splatters", "vr_decal_stress 64 48").help("vr_decal_stress [count] [size] [splatter|pool|wall|run|stack|cluster]: 64 marks laid the same way each time (tests compare two builds' images); here splatters on the floor ahead."),
         toggle("Show Permanent Decal Pages", vr_permdecal_show).help("vr_permdecal_show: the baked marks' pages drawn unlit and green, the marks on them (where the layer has texels; a mark on a door moves with it)."),
         command("Decal Stress: Pools", "vr_decal_stress 64 48 pool").help("vr_decal_stress 64 48 pool: 64 pools spreading on the floor ahead (over 6 seconds, darkening)."),
@@ -6111,6 +6287,13 @@ za::Vector<Item> pageDebugTools()
         command("Ragdoll and Prop Drawn Motion", "vr_drawn_motion_test 90 nearest")
             .help("vr_drawn_motion_test <frames> [<entity> | nearest | held]: over the next 90 frames, how evenly the nearest ragdoll's parts, the nearest loose prop (held: the one in your hand) and your hands move frame to frame (the console: uneven near 0 is smooth; about 2 with stalls: a step shown twice). Throw or hold one first. vr_debug_ragdoll 2: each frame's blend between the steps."),
         command("Drop the Nearest Prop on the Nearest Corpse", "vr_corpse_drop").help("vr_corpse_drop [height]: the loose prop nearest you put 32 units over the nearest corpse, to fall on it (Gibs and Corpses > Corpse Collision)."),
+        command("Gib Props: Gib the Nearest", "vr_gibprops_test 1")
+            .help("vr_gibprops_test 1: the nearest live monster gibbed; the console (developer 1) says whether its head and gibs are props (grabbable, destroyable). Then the rows below on its head."),
+        command("Gib Props: Kill the Nearest Whole", "vr_gibprops_test 2").help("vr_gibprops_test 2: a corpse to gib with the next row."),
+        command("Gib Props: Gib the Nearest Corpse", "vr_gibprops_test 3"),
+        command("Gib Props: Grab Its Head", "vr_gibprops_test 4").help("vr_gibprops_test 4: whether the head is a rigid body (Box3D), and your main hand takes it."),
+        command("Gib Props: Let Go of It", "vr_gibprops_test 5"),
+        command("Gib Props: Shoot Its Head", "vr_gibprops_test 6").help("vr_gibprops_test 6: shot for 1000: it bursts into small gibs."),
         command("Shotgun Blasts", "vr_smallgibs_test 1").help("vr_smallgibs_test 1: 200 shotgun blasts at it (vr_smallgibs_test_n), the share that tore small gibs out."),
         command("Super Shotgun Blasts", "vr_smallgibs_test 2"),
         command("Nails", "vr_smallgibs_test 3"),
@@ -6380,6 +6563,17 @@ za::Vector<Item> pageDebugTools()
         header("Toolgun"),
         command("A Toolgun in Your Hand", "impulse 169").help("impulse 169: the toolgun in the main hand (189: the off hand)."),
         command("Toolgun Spawn Catalog", "vr_toolgun_spawnlist").help("Lists every AD spawn entry and whether it is available in this map."), // AD support
+        command("Spawn Every Toolgun Entry", "vr_toolgun_spawn_test")
+            .help("vr_toolgun_spawn_test: every entry of the spawn panel made once on a ring around you (God Mode first: "
+                  "the monsters come too), each printed spawned, failed or unavailable (console). Then Check and Clear "
+                  "the Spawn Test."),
+        command("Check and Clear the Spawn Test", "vr_toolgun_spawn_test check")
+            .help("vr_toolgun_spawn_test check: each one the spawn test made, still there or gone since (console); then "
+                  "all of them removed."),
+        command("Trace the Chosen Spawn", "vr_toolgun_spawn_trace")
+            .help("vr_toolgun_spawn_trace [entry] [frames]: the spawn panel's choice made ahead of you, its model, scale, "
+                  "box and place on the server and the client printed the frame it is made and the next 4 (a size that "
+                  "changes after it shows, a model the client doesn't draw), then removed (console)."),
         command("Toolgun Status", "vr_toolgun_status")
             .help("vr_toolgun_status: its hand and tool, where it aims and what it meets (its place, pinned or loose, its joints), "
                   "the spawn choice and ghost (its offsets, turn, and which hand holds it), what the physgun holds, the scale "
@@ -7101,6 +7295,17 @@ za::Vector<Item> pageDebugTests()
                   "Melee Space pushed it back."),
         command("Clear Melee Approach Log", "vr_enemy_melee_space_status reset")
             .help("Starts the closest-approach log above again."),
+        toggle("Log Melee Arc", vr_enemy_melee_arc_debug)
+            .help("Prints each monster blow at you: its angle off the monster's facing, the arc (Combat > Holding "
+                  "Enemies > Melee Arc) and whether it landed."),
+        command("Melee Arc: Nearest Faces You", "vr_test_meleearc 1")
+            .help("Sets the nearest monster 56 units away facing you, after you; 4 seconds later prints its hits on "
+                  "you (your health is held at 1000 meanwhile). From 100 units (a knight's run swing): vr_test_meleearc 1001."),
+        command("Melee Arc: Nearest Faces Away", "vr_test_meleearc 2")
+            .help("As above, its back to you: with Melee Arc it turns to you before its first blow."),
+        command("Melee Arc: You Step Aside", "vr_test_meleearc 3")
+            .help("As Faces You, and as its attack starts you are moved to its side (100 degrees off its facing): "
+                  "with Melee Arc its swing misses."),
         command("Who Is Held?", "vr_foegrab_status")
             .help("vr_foegrab_status: each hand holding an enemy, its hold, how firmly the enemy is held in all, how far "
                   "the hand is from the spot it holds (Combat > Holding Enemies); an enemy held on as a ragdoll after a "
@@ -7189,14 +7394,34 @@ za::Vector<Item> pageDebugTests()
                   "it (knock one down first: Shove the Nearest Down)."),
         command("Impacts: Drop You onto the Nearest Down One", "developer 1; vr_knockdown_test 52")
             .help("You put 256 units (2 storeys) over the nearest knocked-down monster: landing on it crushes the part under "
-                  "your feet (Landing Crush). vr_knockdown_test 53: 96 units, too low to crush."),
+                  "your feet (Landing Crush). vr_knockdown_test 53: 96 units."),
+        command("Impacts: Jump onto the Nearest Ragdoll's Head", "developer 1; vr_knockdown_test 56; vr_test_drop_height 46; "
+                "vr_knockdown_test 60")
+            .help("You put over the nearest ragdoll's head (one down or a corpse), your feet 46 units over the floor: a "
+                  "jump from the same level (Crush Wear; the third pops it). vr_knockdown_test 61: over its shin; 62: "
+                  "the nearest living one killed."),
+        command("Impacts: Drop onto the Nearest Ragdoll's Head", "developer 1; vr_knockdown_test 56; vr_test_drop_height "
+                "112; vr_knockdown_test 60")
+            .help("As above from 112 units (two heights, Crush Pop Speed): its head pops at once."),
+        command("Impacts: Drop You onto the Nearest Standing One", "developer 1; vr_knockdown_test 56; vr_knockdown_test 59")
+            .help("You put Drop Height (vr_test_drop_height, 256) units over the nearest standing monster's head: landing "
+                  "on it crushes its head (Landing Crush, Crush Standing Ones)."),
         command("Manhandle: the Nearest Staggered Now", "developer 1; vr_knockdown_debug 1; vr_knockdown_test 54")
             .help("The nearest standing monster counts as just staggered: grab it with one hand within Grab While "
                   "Staggered (Holding Enemies) and it goes down in your hand. vr_knockdown_test 55: its health to a fifth "
                   "(Grab When Weak)."),
+        command("Why Can't I Knock It Down?", "developer 1; vr_knockdown_test 10; vr_ragdoll_list")
+            .help("vr_knockdown_test 10: why a shove, a throw or a lift of the nearest living monster makes no ragdoll "
+                  "now: each gate (its knockdown chance, canragdoll, can stagger, stamina) and the ragdoll pool as the "
+                  "game counts it (each ragdoll, whether it can be freed for room), then the engine's ragdolls "
+                  "(vr_ragdoll_list). Use it when shoves and lifts stop working, and send the console."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),
+        command("Buzzsaw on the Nearest Body", "developer 1; vr_knockdown_test 70")
+            .help("vr_knockdown_test 70: a running buzzsaw (Rogue's trap) at the middle of the nearest ragdoll, a corpse "
+                  "or a knocked-down monster: its blade cuts the limbs and head in it off and gibs its torso (the "
+                  "console prints each strike). Needs Rogue's buzzsaw model."),
         command("Remove Every Monster", "vr_knockdown_test 20")
             .help("Every monster removed, standing, knocked down or dead: a clean slate between shove tests (with a grunt "
                   "ahead: impulse 244). Shove one off vrclimb's long ledge or into its trench to see Over a Ledge, Always."),
@@ -7394,6 +7619,15 @@ za::Vector<Item> pageDebugTests()
             .help("vr_pickup_test 5: each weapon lying within 400 units (a map's, a drop): where it is, how fast it moves, "
                   "the lowest point of its turned drawn box and the floor under it: one sunk into or thrown off what it "
                   "lies on shows."),
+        command("Floating Pickup Ahead", "vr_pickup_test 6")
+            .help("vr_pickup_test 6: a super shotgun pickup hanging 40 units ahead of you, watched: reach into it slowly and "
+                  "grip (Floating Pickup Grace), or swat it; whether it was taken or knocked loose prints (floatgrab: in the "
+                  "console; developer 1 also prints each hand's reach and knock)."),
+        header("Damage Credit (dmgcredit: ... in the console)"),
+        command("Damage Credit of Every Weapon", "vr_dmgcredit_test 1")
+            .help("vr_dmgcredit_test 1: every weapon (the mission packs' and AD's when there) fired from your main hand at a "
+                  "target ahead that takes only one weapon's damage (as Honey's weapon-specific buttons): the weapon each "
+                  "shot is credited with printed (dmgcredit: ... PASS when its own); about 6 s a weapon."),
         command("Every Model and Limb Precached", "vr_prepare_models")
             .help("vr_prepare_models: every model of the game's folders (progs/*.mdl) and every monster's limbs loaded now, "
                   "so their skins' normal maps are made and kept on disk (cache/normalmaps) instead of at a map's first "
@@ -8402,13 +8636,15 @@ const Page pages[] = {
     {"VR Settings - Body and Flashlight", pageVrsBodyFlashlight, pageMain, LevelStandard},
     {"VR Settings - HUD, Haptics and Sound", pageVrsHudHapticsSound, pageMain, LevelStandard},
     {"VR Settings - Display and Graphics", pageVrsDisplayGraphics, pageMain, LevelStandard},
+    {"VR Settings - Player Appearance", pageVrsAppearance, pageMain, LevelStandard}, // (ROUND22.md, "Gloves; Player Appearance")
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
 // pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
 const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsHolsters, pageVrsAmmoPouch, pageVrsLocoControls,
-    pageVrsComfortTurning, pageVrsWeaponsBulletTime, pageVrsBodyFlashlight, pageVrsHudHapticsSound, pageVrsDisplayGraphics};
+    pageVrsComfortTurning, pageVrsWeaponsBulletTime, pageVrsBodyFlashlight, pageVrsAppearance, pageVrsHudHapticsSound,
+    pageVrsDisplayGraphics};
 
 [[nodiscard]] bool vrSettingsPage(int p)
 {
@@ -9032,6 +9268,9 @@ za::Vector<Item> pageMain()
             .help("Holding the grip or sticky, two-handed guns, the reloading mode, and what starts and stops bullet time."),
         open("Body and Flashlight", pageIndex(pageVrsBodyFlashlight))
             .help("How much of your body you see, the wrist gadget's arm, leaning, Reset Position, and the flashlight."),
+        open("Player Appearance", pageIndex(pageVrsAppearance))
+            .help("How you look: the body's build, the skin tone, bracers, gloves (none, fingerless or full, in any "
+                  "colour) and the pauldrons, in any combination."),
         open("HUD, Haptics and Sound", pageIndex(pageVrsHudHapticsSound))
             .help("The HUD's kind, the crosshair and Doom on the wrist gadget; how strongly the controllers vibrate; the "
                   "game's and the music's volume and spatial sound."),
@@ -9439,6 +9678,44 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
     return out;
 }
 
+// How you look: every cosmetic setting of the body and the hands, any combination of them (ROUND22.md, "Gloves;
+// Player Appearance"). Their one home: the Body pages link here.
+[[nodiscard]] za::Vector<Item> pageVrsAppearance()
+{
+    return {
+        header("Body"),
+        cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}})
+            .help("The shape of the body you see."),
+        slider("Skin Tone", vr_skin_tone, -1.f, 1.f, 0.05f, "%.2f")
+            .help("Darken or lighten the skin on your hands and arms (and the fingertips out of fingerless gloves). Zero "
+                  "keeps your painted skin. Blood, nails, clothes, gloves and gadgets keep their own colours."),
+        toggle("Bracers", vr_body_bracers)
+            .help("The leather bracers on your forearms. Off: bare forearms with the wrist gadget strapped round the skin, running "
+                  "on into the hands (with the jointed hand, vr_hand_rig 1: the default)."),
+        header("Gloves"),
+        cycle("Gloves", vr_gloves, {{0.f, "None"}, {1.f, "Fingerless"}, {2.f, "Full"}})
+            .help("Leather gloves on your hands: fingerless ones leave the fingertips bare (in your skin tone); full ones "
+                  "cover every finger. With bare forearms (no bracers) a cuff covers the wrist. On the jointed hands "
+                  "(vr_hand_rig 1: the default)."),
+        slider("Glove Hue", vr_glove_hue, 0.f, 360.f, 5.f, "%.0f deg")
+            .help("The leather's colour round the colour wheel: 0 red, 25 brown, 60 yellow, 120 green, 240 blue, 300 "
+                  "purple."),
+        slider("Glove Saturation", vr_glove_saturation, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How strong the colour is: 0 grey, black or white leather; 1 the purest."),
+        slider("Glove Lightness", vr_glove_lightness, 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 black, 0.5 the colour at its fullest, 1 white. The hand's own creases and knuckles shade it."),
+        toggle("Worn Leather", vr_glove_paint)
+            .help("The gloves' leather painted worn: scuffed knuckles, creases over the finger joints, stitched seams, "
+                  "scratches (progs/hand_rig_00_00_glove.png: editable, docs/vr-port/GLOVES.md). Off: plain new leather."),
+        header("Pauldrons"),
+        toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
+        cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
+            .help("Armour colour: green, yellow or red as the armour you wear (leather without)."),
+        slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("Their size (scaled with the build too). Their fit: Advanced VR Options > Body > Arms and Pauldrons."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageVrsHudHapticsSound()
 {
     za::Vector<Item> out;
@@ -9482,8 +9759,8 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
                   "belt, one worn at your temple, on from the start: the trigger with an open hand at it switches it."),
         cycle("Body", vr_body_mode, {{0.f, "Only Hands"}, {2.f, "Torso and Arms"}, {3.f, "Full Body"}})
             .help("How much of your body you see: only the hands; the torso and arms; or all of it, legs and all."),
-        cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}})
-            .help("The shape of the body you see."),
+        open("Build: Player Appearance", pageIndex(pageVrsAppearance))
+            .help("The body's build, skin tone, bracers, gloves and pauldrons are on VR Settings > Player Appearance."),
         toggle("Holster Models", vr_leg_holster_model_enabled)
             .help("Draws the holsters on your body, with a gun in each one that holds one."),
         toggle("Hip Holster Weapons", vr_holster_weapons_draw_hip)

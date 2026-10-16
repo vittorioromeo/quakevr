@@ -141,6 +141,9 @@ void VR_FileCacheEnable (int on);	// VR_TimeStart, VR_TimeLoadBegin on; the firs
 void VR_FileCacheForget (void);	// every listing (a directory made, moved or removed; bulk work)
 void VR_FileCacheForgetFile (const char *path);	// a file made, written or removed (after it): its directory's listing
 void VR_FileCacheRegisterCommands (void);	// vr_fscache_test
+int VR_FileCacheMissKnown (const char *name);	// COM_FindFile: `name` found nowhere earlier in this load (main thread, while loading)
+void VR_FileCacheMissNote (const char *name);	// ... found nowhere now
+void VR_FileCacheSearchChanged (void);	// the search paths, or which of them a lookup skips, changed: the misses known forgotten
 void VR_FileCacheForgetMoved (const char *from, const char *to);	// a file moved (after it): both directories' listings (a directory moved: every one)
 
 // The in-game relighting's line outside the menu on a flat screen (vr_relight.cpp; gl_screen.c SCR_DrawRelight): its text
@@ -223,6 +226,8 @@ int VR_AD_PelletsPass (const struct edict_s *mover, const struct edict_s *target
 int VR_AD_RulesOn (void);				// AD support (vr_ad.cpp): the map spawning plays by Arcane Dimensions' rules
 int VR_AD_OwnsClassname (const char *classname, int ours);	// AD support: AD's ad_<classname> spawns it, not Quake VR's
 int VR_AD_SpawnsOutside (const char *classname);	// AD support: outside AD's rules, AD's ad_<classname> spawns it (an artifact, a pickup, a ladder)
+int VR_AD_ToolgunSpawnsOutside (const char *classname); // AD support: and the toolgun's (AD's backpacks too)
+int VR_AD_SpawnOutsideNow (void);				// AD support: AD's world setup once a map, before the first such
 void VR_AD_TintBlend (float *r, float *g, float *b, float *a, float percent);	// AD support: V_CalcBlend, AD's screen tint over Quake's colour shifts (0-255 colour, 0-1 alpha)
 float VR_AD_SkyFog (float mapOwn);	// AD support: Fog_SetupFrame, the sky fog AD set (STAT_QVR_ADSKYFOG), else mapOwn
 void VR_OnSpawnServerSpawned (void);		// SV_SpawnServer, after ED_LoadFromFile (before the settling frames)
@@ -346,6 +351,7 @@ void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearSta
 void VR_OnSetAngle (float yaw);							// svc_setangle: the server turned the view
 void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data
 void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending
+void VR_WriteRecentPrecaches (struct sizebuf_s *msg);	// SV_SendClientDatagram: late precaches before their use
 // The unreliable broadcast's room (vr_server.cpp): a full sv.datagram drops whole messages, never part of one.
 void VR_BroadcastClear (void);							// SV_ClearDatagram: clears sv.datagram
 void VR_BroadcastQCRun (void);							// PR_ExecuteProgram, a server QuakeC run from the engine (not nested)

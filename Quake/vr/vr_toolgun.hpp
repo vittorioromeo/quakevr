@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "vr_client.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_posing.hpp"
@@ -53,6 +54,10 @@ void frame(const hands::State& s);
 // The client's temp entities (vr_client.cpp, after Quake's): the spawn tool's ghost.
 void tempEntities();
 
+// The ghost's networked scale and offsets (render::networkData), when `e` is the ghost drawn as an item will be once
+// placed (its probe's: a box shrunk, a pickup scaled); null otherwise.
+[[nodiscard]] const client::EntityVr* ghostVr(const entity_t* e);
+
 // The tracked controller of `hand` in the world (as the menus' laser: vr_menuui.cpp pointerRay): its place and its aim's
 // axes (forward, right, up), not the drawn hand's (which follows the held weapon's weight).
 [[nodiscard]] bool controllerFrame(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& fwd, glm::vec3& right,
@@ -73,6 +78,8 @@ void tempEntities();
 [[nodiscard]] int spawnableSkin(int i);
 [[nodiscard]] bool spawnableAvailable(int i); // AD support
 [[nodiscard]] bool spawnableAD(int i); // AD support
+// The pack an entry comes from: its group on the panel ("" id's and Quake VR's own, "AD", "SoA", "DoE", "MG3", ...).
+[[nodiscard]] const char* spawnablePack(int i);
 [[nodiscard]] int spawnableDebugChoice(int i); // AD support
 [[nodiscard]] const char* spawnableClass(int i); // AD support
 [[nodiscard]] int selectedSpawnable();

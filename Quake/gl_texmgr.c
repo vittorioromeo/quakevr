@@ -364,6 +364,20 @@ qboolean TexMgr_UsesFilterOverride (void)
 
 /*
 ===============
+TexMgr_NearestKind -- QVR: the mipmapped textures drawn nearest (gl_texturemode GL_NEAREST*, as TexMgr_FilterMode
+picks): 0 none, 1 Quake's own (the image files and normal maps smooth: vr_texture_smooth 1), 2 every one
+(vr/vr_permdecals.cpp: the permanent decals read on their texels)
+===============
+*/
+int TexMgr_NearestKind (void)
+{
+	if (glmodes[gl_texfilter.mode].magfilter != GL_NEAREST || gl_texfilter_smooth >= 2)
+		return 0;
+	return gl_texfilter_smooth <= 0 ? 2 : 1;
+}
+
+/*
+===============
 TexMgr_ApplySettings -- called at the beginning of each frame
 ===============
 */

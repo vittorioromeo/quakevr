@@ -357,7 +357,9 @@ constexpr Seed mummySeeds[] = {
     {"shin_r", 9, Joint::Hinge, {-5.1f, -7.1f, -22.7f}, {-8.5f, -5.2f, -20.2f}, {-6.8f, -6.2f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
-// The vore (Quake VR's progs/shalrath.mdl, its own: 371 vertices, 36 frames). The rest pose ($attack1, the model's stand1):
+// The vore (Quake VR's progs/shalrath.mdl, its own: 371 vertices, 36 frames; 43 with its shove's, posed by these bones:
+// Misc/quakevr/make_voreshove.py, every bone fitting them; clusters and bones then 1.18 units rms, the head's cluster
+// changed: unfit in its attack poses, vr_anim_smooth_info shalrath 1). The rest pose ($attack1, the model's stand1):
 // x forward, y left, z up; upright on three legs (two forward and out, one back), his arms out wide. Pelvis (the round
 // belly the legs meet), chest, head, jaw (his two hanging tendrils, meshes of their own: on the head, they go with it when
 // it's cut off), upper arms and forearms (elbow hinges folding forward), and each leg a thigh (ball) and a shin (knee

@@ -242,6 +242,15 @@ FUNC_PATCHES = [
     ("ai_states.qc", "ai_run", "\t\tself.enemylastseen = time;\n\t}\n",
      "\t\tself.enemylastseen = time;\n\t}\n\tif (VR_AD_StealthLose(enemy_vis)) return;\n",
      B + ": stealth: lost him a while: Alert, to where it saw him last"),
+] + [
+    # AD support: a monster gibbed by AD's code gets id's gibbing's gore, small gibs and limbs, and its head and gibs are
+    # Quake VR's props (carried, rigid bodies, burst by damage; vr_ad_monsters.qc VR_AD_Gibbed, VR_AD_GibThrown).
+    ("ai_gibs.qc", "monster_ThrowGib", "\tself.gibbed = TRUE;\t\t// Monster has offical gone to pieces ;)\n",
+     "\tself.gibbed = TRUE;\t\t// Monster has offical gone to pieces ;)\n\tVR_AD_Gibbed();\n",
+     B + ": gibbed: Quake VR's gore, small gibs and limbs"),
+    ("ai_gibs.qc", "ThrowGib", "\t\tgibitem.think = RemoveGib;\n",
+     "\t\tgibitem.think = RemoveGib;\n\t\tVR_AD_GibThrown(gibitem, gib_no);\n",
+     B + ": its gibs and head Quake VR's props (grabbed, rigid bodies, burst by damage)"),
 ]
 
 

@@ -276,7 +276,8 @@ private:
 
 // A task made once and posted again and again without an allocation (Box3D's step tasks: vr_box3d.cpp, "Box3D on the
 // pool"): post(pool, fn, context) queues fn(context); wait() returns once it ran, running it on the waiting thread if no
-// worker has started it yet (as Future::get). Posted again only after wait(); destroyed, it waits.
+// worker has started it yet (as Future::get). Posted again only after wait(); destroyed, it waits. tryRun(): runs it here
+// if posted and nobody has started it (true), else returns at once (false: running elsewhere, done, or never posted).
 class Task
 {
 public:
@@ -287,6 +288,7 @@ public:
 
     void post(Pool& pool, void (*fn)(void*), void* context);
     void wait() noexcept;
+    bool tryRun() noexcept;
 
     struct Job;
 

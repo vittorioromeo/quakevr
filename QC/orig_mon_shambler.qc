@@ -102,6 +102,8 @@ float     ldmg;
 
     if(vlen(delta) > 100)
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
     if(!CanDamage(self.enemy, self))
         return;
 
@@ -130,6 +132,8 @@ float     ldmg;
 
     if(vlen(delta) > 100)
         return;
+    if(!VR_MeleeArc_Hits(TRUE))
+        return; // QVR: (melee arc: fight.qc)
 
     ldmg = (random() + random() + random()) * 20;
     T_Damage(self.enemy, self, self, ldmg);

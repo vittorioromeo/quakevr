@@ -484,3 +484,18 @@ float() VR_AD_BackpackRestore =
     VR_AD_BackpackSetup(self);
     return TRUE;
 };
+
+// The toolgun's live spawn of one of AD's items (QC VR_SpawnLive_Finish, vr_toolgun.qc): AD's own delayed start run now
+// (a backpack's setup, then the start AD spreads over 0.1-0.6 s so that a map's items do not all drop at once), so
+// it is drawn where it lands from its first frame, not half a second later.
+void() AD_SpawnLive_Finish =
+{
+    float n = 0;
+    while(n < 3) // (a removed one: its think is cleared)
+    {
+        if(self.think == ad_item_backpack_setup) { ad_item_backpack_setup(); }
+        else if((self.flags & ad_FL_ITEM) && self.ad_estate_use && self.think == self.ad_estate_use) { self.think(); }
+        else { return; }
+        n = n + 1;
+    }
+};

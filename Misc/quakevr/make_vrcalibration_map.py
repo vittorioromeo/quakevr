@@ -363,7 +363,7 @@ board(N.join(["Stand in the middle of your play space", "and follow the words in
               "your height, then your body."]), 0, TEXT_Y, 122, 270, "0.33")
 board(N.join(["Again later, from the menus:", "Height: {menu:VR Settings - Height and Hand Calibration>Set Height Now}",
               "Body: {menu:Body Calibration}"]), 0, TEXT_Y, 100, 270, "0.28")
-board(N.join(["Hands: {menu:Hand/Gun Calibration}", "Seated? {menu:Body Calibration>Position}", "Skin: {menu:Body>Skin Tone}"]),
+board(N.join(["Hands: {menu:Hand/Gun Calibration}", "Seated? {menu:Body Calibration>Position}", "Look: {menu:VR Settings - Player Appearance}"]),
       0, TEXT_Y, 78, 270, "0.28")
 board("Blood edge sizes: {menu:Blood Feedback}", 0, TEXT_Y, 60, 270, "0.23")
 # over the doorway, where it leads: "{calibration exit}" is VR TUTORIAL at a first start (QC changelevel_touch sends it

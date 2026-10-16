@@ -7,6 +7,9 @@
 //   corpses, monsters against monsters, shots, missiles, precise hits and melee keep their boxes.
 // - vr_foegrab_step_in (Combat > Holding Enemies > Step In): while a hand of a player holds an enemy (vr_foegrab.cpp),
 //   his body and that enemy's don't meet at all, both ways: he steps in and brings the other hand to its head.
+//   vr_foegrab_step_in_depth (... > Step In Depth; 0: no cap) caps his own moves: they meet the pair's hull with its
+//   level sides that much further in, a solid body there (he slides along it, never walks through); the held enemy's
+//   moves (follow, pull, a throw) still pass, and deeper than the cap already he gets out as below.
 // - Either on, a player and a monster already overlapping (a hold let go of, the inset made smaller, a monster stepped
 //   into) never stick: a move of either that doesn't take them deeper in (from where it starts, along all of it) passes
 //   (Quake's start-solid would have stopped every move, SV_CheckStuck lifted him), and serverFrame pushes them apart,

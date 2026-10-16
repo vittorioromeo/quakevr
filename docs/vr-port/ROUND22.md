@@ -7107,3 +7107,1508 @@ snapped, 40 samples over 3.3 s:
 standing and lying, and carry its body by the head: the head should loll and roll; carry a knocked-down grunt into deep
 water and hold it, then let go: it swims, then gets up where it floats or at the bank beside it. Not done: a loaded
 game's ragdoll made again has a stiff neck.
+
+## Gloves; Player Appearance (2026-10-15, worktree `fastship`, branch `agent/playerlook`)
+
+His words: "Glove options: fingerless or full gloves, with hue, saturation and lightness controls ... Collect all the
+player customization options into a new submenu under 'VR Settings' ... Ideally, all of these things should be
+arbitrarily combinable."
+
+**Gloves** (`vr_gloves` 0 none / 1 fingerless / 2 full; `vr_glove_hue` 25, `vr_glove_saturation` 0.45,
+`vr_glove_lightness` 0.2: a dark brown leather; all archived, config 138, new settings only). Drawn the way the skin
+tone is, no painted art: the skin masks (`progs/hand_rig_NN_00_skinmask.tga`, `vrbody_NN_00_skinmask.tga`,
+`Misc/quakevr/make_skin_masks.py`) gained three channels beside R (the skin, unchanged bit for bit): **G** the
+fingerless glove (the palm island; each finger's first segment to 55% of its length; the thumb's long base and half of
+its second segment), **B** the full glove (the whole hand, nails too), both leaving the static blood of the damaged
+skins out and both 0.55 at the glove's edge rising to 1 a 3 mm hem inside it (made from the finger coordinates in 3D,
+so the islands' UV seams get no hem); **A** the skin's own brightness over the clean skin's mean, halved (since
+replaced by the glove's own seams: "Gloves: leather, not painted skin" below). The alias
+shader (`vr_glsl.h` QVR_ALIAS_FS_LIGHT) puts the leather (the HSL colour, `vr_view.cpp gloveLook`, times the skin's
+own shading from A: creases, knuckles and grain kept; the hem 40% darker at the edge) over the covered texels and
+tones only the skin the glove leaves bare, so every skin tone x glove x colour works, and dynamic wounds, burns and
+water still show on the glove (the same skin share as the tone's). The mask is now loaded with alpha
+(`TEXPREF_ALPHA`) and bound whenever a tone or a glove is on (`view::skinMaskWanted`). **Bare forearms**
+(`vr_body_bracers 0`): the body's forearm gets a cuff from 4.5 cm behind the wrist to the lip over the hand, with
+its hem, drawn from the arms' skin block rows (`GloveCuff`, from vr_bodybare.inc's numbers: crisp at any texture
+size, no mask needed); with the bracers the bracer's lip covers the join and nothing of the glove is on the body. Only
+the jointed hand (`vr_hand_rig 1`) gets gloves, as only it gets the skin tone. New instance fields: `Glove`,
+`GloveCuff` (gl_shaders.h, vr_api_render.h).
+
+**Player Appearance** (VR Settings, after Body and Flashlight; page 184 "VR Settings - Player Appearance"): Body
+(Build, Skin Tone, Bracers), Gloves (Gloves, Hue, Saturation, Lightness), Pauldrons (on, Style, Size). Their one home:
+Build left Body and Display, Bracers and Skin Tone left Body, the pauldrons' on/style/size left Body - Arms and
+Pauldrons (their fit stays there); each old page links here. The calibration room's board line "Skin: Body > Skin
+Tone" is now "Look: VR Settings > Player Appearance" (`make_vrcalibration_map.py`, map rebuilt;
+`vr_menu_path_check` 0 missing on vrcalibration and vrtesthall).
+
+Tested (headless, vrfiringrange, eye captures): bare; fingerless dark leather; full bright blue; bracers + full red +
+skin tone -0.8; fingerless green + skin tone 0.7; bracers + fingerless white + tone -0.4: each as set, fingertips
+toned, cuffs and bracers right; e1m1 through body modes 0/2/3 and `vr_hand_rig 0/1` with gloves on: no errors. For
+him in VR: the leather's look up close (its shading strength: the shader's 0.85 of A), the fingerless edge's place,
+the cuff's length (4.5 cm), and the default colour.
+## Menu corner: Toolgun shortcut (worktree `tghost`, 2026-10-15)
+
+A "Toolgun" button joins the top-left corner shortcuts (laser, stick focus, flat-screen icon row), between New Panel
+and Checklist, shown only at Menu Detail: Developer (`vr_menu_level 2`, as the Checklist). Pressing it closes the menu
+like Quicksave and runs the Debug menu's own path: `impulse 169` (toolgun in the main hand), `impulse 189` (off hand)
+when the main hand holds a weapon; if a hand already holds a toolgun it only says so. It prints
+`Toolgun: in the main|off hand.`; unavailable (dim, reason printed) outside a local single-player game or while dead.
+The column's fit-above-Recording scaling counts the shown buttons, so the smallest panel adapts. The Checklist was
+already Developer-only (corner button and Debug > Checklist); unchanged. `vr_mock_laser toolgun`.
+Verified: build 0 warnings; dev vs standard corner screenshots (`scratch/tg_dev.png`, `scratch/tg_std.png`: Checklist
+and Toolgun only in dev); laser click gives hand 1 (main) or, after `impulse 152`, hand 0 (off) in `vr_toolgun_status`;
+`vr_menu_path_check`: 6 found, 0 missing; e1m1 runs. In VR: press it with a weapon in the main hand.
+
+## Torches and fires from the toolgun (worktree `permdecals`, branch `agent/torches`, 2026-10-15)
+
+His note: spawn torches, fires and brazier flames with the tool gun, as a prop or as a wall torch. His decision: one
+group; free-standing ones grabbable props, wall torches snapped to the wall aimed at, facing out; each keeps its glow and
+sound as the map entity has them.
+
+- **The Fire tab** (the toolgun panel's fifth tab; `vr_toolgun.cpp` spawnables, entries 46-55): Wall Torch
+  (`light_torch_small_walltorch`), Large Flame (`light_flame_large_yellow`), Small Flame, White Flame
+  (`light_flame_small_*`), Rogue's Candle and Lantern (only while their models are there), and AD's Short and Tall
+  Brazier, Flame Pyre and Long Wall Torch (only in an AD map: outside AD's rules `box3d::spawnClass` makes no `ad_`
+  light). Unavailable entries show greyed as AD's do. Pick works too: a picked wall torch hangs on a wall again.
+- **Live spawns** (`vr_spawn_live`, a nosave QC global the engine sets round the spawn function in `box3d::spawnClass`):
+  what the map makes static (`makestatic`, `ambientsound`: only the level's signon, which a client in the game never
+  reads again) stays an entity. The id spawn functions (`misc.qc`), Rogue's (`rogue_newmisc.qc`) and AD's
+  (`ad_setup_light_static`, `ad_setup_light_sound`) check it.
+- **Wall torches**: the ghost snaps to a wall (the world's or a brush entity's such as vrfiringrange's prop wall; not a
+  floor, a ceiling or a thing before it) 10 units out (`wallStandoff`: id's maps hang theirs 6.5-12.5 off, e1m2's) and
+  faces out of it (its yaw the wall's normal; the turn still applies). With `vr_walltorch` on it is the takeable torch
+  (`VR_WallTorch_Setup`: grip, force grab, shot off, relit...); off, an entity with id's model.
+- **Flames as props** (`VR_FlameProp_Setup`, `vr_walltorch.qc`): `.vr_flameprop` 1 small, 2 large, 3 candle, 0 a
+  lantern (glass: burns nothing). Each hangs where placed, upright (MOVETYPE_NONE: on a map's brazier, a ledge, the
+  floor) until a hand or a force grab takes it (`VR_Carry`); let go of, it falls and tumbles as a box. Its fire heats
+  blades and relights torches (`VR_WallTorch_FireAt`, by `findflags`); resting, the player meets it as a map flame of
+  its size (`VR_Burn_MapFrame`); carried or thrown it burns what it touches as a torch's head
+  (`VR_Burn_TorchTouch`) and sets on fire what a throw of it hits.
+- **Glow and sound**: the light is the engine's torch light (`vr_emissive.cpp` finds flame.mdl/flame2.mdl/candle/lantern
+  entities wherever they are; there is no baked light for a spawned one, so it is the same small flicker a map torch
+  adds on top of its lightmap). The crackle is fire1.wav on the entity, started from its first think: a sound started
+  in the spawn itself (the toolgun's input, before the server frame) was cleared with that frame's datagram unsent.
+  The engine moves a flame prop's crackle with it (`vr_walltorch.cpp crackles`). The toolgun precaches the torch
+  models and the taken torch's sounds in every map (`VR_Toolgun_Precache`): a sound precached late never reaches the
+  client.
+- **Debug**: `vr_torch_lights_list` (Debug > Reports > Torch Lights): every torch light lit now, static or entity.
+
+Test: `Misc/quakevr/toolgun_fire_test.sh <agent>` (PASS): the wall torch hung at x -590 (the wall -600), yaw 0, its
+crackle and light; the large, small, white flames and the lantern props, each with its torch light and (but the
+lantern) its crackle on its own entity (`snd_show 2`); the large flame taken by the off hand's grip and dropped (it
+falls); the wall torch taken by the grip (`vr_test_walltorch_shot 24`). Screenshots: `scratch/toolgun_fire.png`.
+`toolgun_panel_test.sh` passes with five tabs (its Props click still lands). e1m1 smoke clean.
+
+Not done / to check in VR: AD's entries are untested (no AD data here) and stay fixed where placed (AD's particle
+emitter does not follow a carried prop); a loaded save loses a spawned flame's crackle (sounds are not saved); a flame
+prop let go of tumbles like any prop (its flame drawn tilted); a hand reaching a spawned wall torch is the same reach as
+a map torch's (`walltorch_grab_test.sh` is a pre-existing failure: its "gripped on its wall" message no longer exists).
+## Shoves and lifts after a reload: not reproduced (2026-10-15, worktree `flatfist`, branch `agent/ragreload`)
+
+His e1m2 note: after an autoload or a respawn, shoves and lifts no longer made active ragdolls. Not reproduced headless;
+no fix. `python Misc/quakevr/ragdoll/reload_test.py <agent> [modes]` shoves a grunt with the mock hands (motion_synth's
+palm_shove_2h, Chance 100) and lifts one (both hands at its shoulders, pulled up), reloads, and does both again; PASS
+when each becomes a ragdoll every time. Modes: restart, load, quickload (game time back about a minute), death (kill,
+restart), autoload (kill, restart: sv_autoload loads the save), map, the pool full first (ten corpses and one knocked
+down: crowdload/auto/death), saved with a grunt held up in a lift or mid-stagger (midlift*/midshove*). All pass; also on
+e1m2 with his whole ironwail.cfg (death, load), in real time (`-RealTime`: the loading screen's deferral), and a save
+loaded first thing in a fresh process. Ruled out by reading: foegrab's holders (reset on load and on a time jump),
+box3d's world and its ragdoll pool, slots and roomRefused (all per world: resetServerWorld), the drawn ragdolls (a
+MapChange cache), the cvar handles (made again in the same order on load: a saved `vr_kd_chance_h` stays valid), stamina
+and the shove's QC state (saved with the game time). Still possible, untested: a rig marked failed once
+(`rigCache.failed`, kept until a game dir change: `canragdoll` 0 for that model from then on), or something only the
+real headset does. For the next time: Debug > Combat, "Why Can't I Knock It Down?" (`vr_knockdown_test 10;
+vr_ragdoll_list`) prints each gate for the nearest living monster (its chance, canragdoll, can stagger, stamina), the
+ragdoll pool as VR_Knockdown_MakeRoom counts it (each ragdoll and whether it can be freed; "NO ROOM" when none can), then
+the engine's ragdolls.
+
+## Model vertex wobble 3: rigged monsters rebuilt from the skeleton (worktree `dequant`, branch `agent/rigrebuild`, 2026-10-15)
+
+His words: "there still is a bit of wobble. Ideally this should be implemented in an efficient way and be toggleable."
+Backlog "Model vertex wobble" (2). `vr_anim_smooth_rebuild` (archived, **default 1**: the numbers are clean),
+Graphics > Models and Effects > Rebuild From Skeleton (after Swing Limbs); Debug > Reports: Rebuild Fit Limit
+(`vr_anim_smooth_rebuild_error`, 0.5 units). Design and numbers: MDL_DEQUANT.md, "Item (2)"; vr_animsmooth.cpp, "C".
+
+- A rigged monster (soldier, knight, hell knight, dog, enforcer, fiend, ogre; not the shambler: under half its vertices
+  fit) is drawn every frame, with any Model Animation and at the poses too, as each vertex's fixed place on its bone moved
+  by the bone; a vertex the skeleton fits worse (round the joints) keeps the frames' place (faded between 0.5 and 1 unit
+  rms). Normals turn with the bone.
+- The stored bone fits carry the rounding; rebuilding on them was worse than off. The bones are refitted at load to the
+  dequantised poses (two rounds of places and Gauss-Newton fits), so the loop seams and the motion are the dequantised
+  ones, the per-vertex jitter gone.
+- Cost: precomputed per model (with the rig's data); per instance 9 rows a bone (memoised per view as before), no
+  per-frame allocations; +0.07 ms a frame for 60 idle grunts (about 1.1 us each), on the GPU 2 more reads a vertex.
+- Numbers (idle grunt, knight; worst vertex's second difference, p95, units): 10 Hz grunt 0.456 -> 0.314 (0.272 with
+  Smooth), knight 1.071 -> 0.865; 90 Hz grunt worst 0.059 -> 0.032. Off draws as before (Smooth keeps its rows and
+  shader path; the trace now samples the dequantised poses as drawn).
+- `vr_anim_smooth_info`: each model's rebuild counts and fit rms, instances rebuilt and VR_AnimSmooth's time.
+- Found, not fixed: with Model Animation Smooth an idle knight jolts (`vr_anim_smooth_trace` at 90 Hz: one vertex up to
+  2.5 units a frame, p95 0.46; Quake's blend 0.10), rebuild or not: the spline itself (a mispredicted next frame or
+  span on the unnamed knight frames?).
+- To try: an idle grunt and knight, Rebuild From Skeleton on and off, Quake's Blend and Smooth: the breathing frames
+  without the surface's wobble, the same shape (elbows, knees, the gun).
+## Step In Depth: a cap on walking into a held enemy (worktree `tghost`, branch `agent/stepin`, 2026-10-15)
+
+His go on the BACKLOG item ("Closer to enemies" Notes: with Step In he walked right through a held enemy). New
+`vr_foegrab_step_in_depth` (default 8 units, 0..32, 0 = no cap; Combat > Holding Enemies > Getting Close > Step In
+Depth, under Step In). With Step In on and the cap set, the player's own body moves against the enemy his hand holds
+no longer pass: they meet the pair's hull (as `vr_body_monster_inset` makes it) with its level sides that much further
+in, so his origin stops that deep past where the two would meet and Quake's clipping slides him along it, a solid
+body. Stepping back or aside is free. Unchanged: the held enemy's own moves (Follow the Hand, Pull, a throw: they still
+pass, so nothing fights foegrab), corpses and ragdolls (not pairs), monsters not held, Step In off. Never trapped: if he
+is deeper than the cap already (the enemy moved into him, the cap lowered), `VR_BodyContactLetsOut` passes every move
+that goes no deeper, as for any overlap. The cap never narrows the hull below 1 unit a side. `vr_body_contact_status`
+prints the cap.
+
+Why 8: at inset 4 a grunt's pair hull is 12 deep from its edge to its origin; the step-in walk in the "Closer to
+enemies" numbers stopped 6.4 deep (5.59 apart), the benefit he asked for, so 8 keeps all of it (origins 4 units apart
+face to face, head against head) while the far side stays out of reach. An ogre (hull 20) stops 12 from its origin.
+
+Numbers (`closein_test.sh stepcap`, held grunt on vrfiringrange, 50 frames walking in): cap 0: 10.66 deep after 10
+frames, then through and out (held 0, another grunt nearest at 150); cap 8: 7.97 deep (dist 4.03) after 10 frames and
+still 7.97 after 40 more; slid aside 47 units, backed off to 97, still held. `stepin` case as before (6.29 deep at cap
+8: under it; step in 0 stops at 12.03). `judo_test.py dir`: FAILS 0. e1m1 smoke fine.
+
+VR check: hold a grunt by the shoulder and walk on into it: you stop with your face at its face, can't come out its
+back; strafe and step back freely; Step In Depth 0 walks through as before; is 8 the right depth (try 4..12)?
+## Impacts: settings, and crushing standing monsters (2026-10-15, worktree `flatfist`, branch `agent/impactdmg`)
+
+His notes: thrown or slammed living enemies take real impact damage (with settings), impact dismemberment (check,
+settings), landing crush. **Already there** ("Impacts and manhandling" above, `agent/ragimpact`): held/thrown living
+ragdolls hurt per part on walls and floors (`VR_RagImpact_Hit`), heads and limbs worn until they pop (the shared
+`vr_limb_corpse_dmg[]` count; corpses through `VR_Limb_WearInto`, the one corpse wear path), and a crush of knocked-down
+ragdolls. Added here (defaults keep the old behaviour; Combat > Knockdowns > Impacts):
+
+- **Damage curve**: `vr_ragimpact_curve` (1: linear; 2 quadratic, 0.5 square root) pivoting at `vr_ragimpact_curve_ref`
+  (3 m/s past the least speed: every curve deals the same there); `vr_ragimpact_max` (0: no cap) per strike or crush,
+  the head's and limbs' multipliers in; `vr_ragimpact_limb` (1) on arms and legs as `vr_ragimpact_head` on heads. Rows:
+  Damage Curve, Curve Pivot, Most per Strike, Limb Strikes (Least Speed, Impact Damage, Head Strikes and Head and Limb
+  Health were already rows). One shared `VR_RagImpact_Amount`/`_Scale` for strikes and crushes.
+- **Dismemberment**: threshold `vr_ragimpact_piece_hp` (as before, head and limbs alike) and new `vr_ragimpact_wear`
+  (1): the share of a strike's damage worn into its piece (0: impacts hurt but never pop pieces), on the living and on
+  corpses (passed to `VR_Limb_WearInto`). Row: Head and Limb Wear.
+- **Landing crush** now also on standing monsters (`vr_ragimpact_crush_standing` 1) and staggering active ragdolls (any
+  living ragdoll, not only knocked down). Quake never sets FL_ONGROUND on a monster's top, so client.qc also calls the
+  crush when a fast fall (`jump_flag` under -300) stops short in the air (`velocity_z` above half of it). A standing
+  one's part: its model met straight down from your feet (`hitmodel_segment`; else halfway to its middle), the head by
+  `VR_Decap_OnHead` (positional damage's zone), a limb by `VR_Limb_At`, else the torso; then the same
+  `VR_RagImpact_Deal` (a head crushed past its health pops). The crush no longer needs Impacts Hurt on (its own 0: off).
+  **Fall damage**: a landing that crushed something deals none (`vr_ragimpact_crush_cushion` 1; 0: Quake's 5 as ever);
+  AD maps keep AD's fall rules. Landing on a standing one's top never dealt fall damage (no FL_ONGROUND). Rows: Crush
+  Least Speed (`vr_ragimpact_crush_speed` 400 u/s), Crush Standing Ones, Crush Breaks Your Fall. Debug > Tests:
+  "Impacts: Drop You onto the Nearest Standing One" (`vr_knockdown_test 59`, `vr_test_drop_height` 256; test 52 now
+  uses it too).
+
+Verified (headless, `python Misc/quakevr/foegrab/ragimpact_test.py <agent> wall slam crush`, 0 FAILS): a knocked-down
+grunt flung at a wall at 5/7/9 m/s: 27.1/51.5/78.3 damage (first strikes 8.0/13.9/19.7 at 5.3/7.4/9.4 m/s, 12.7 kg);
+Impacts off: 0. Curve 2 + Most 12 at 7 m/s: every strike capped at 12.0, a 5.1 m/s excess 11.4 (linear 6.7). Ten head
+slams: dead, head popped (worn 50.2 of 32). Dropped onto a standing grunt's head: 128 units 13.2 at 13.9 m/s (alive),
+256 units 81.7 at 19.9 m/s (its head pops); 64 units nothing; onto a knocked-down one 256 units 56.7 to the torso, 96
+nothing. 400 units onto a down one without god: your health 100 cushioned, 95 not. Melee eval 168/177 (baseline), e1m1
+smoke clean, build 0 warnings.
+
+Checklist (proposed): "Impacts: jump off a ledge onto a standing grunt's head: it is hurt (from 2 storeys its head
+pops) and you take no fall damage; Combat > Knockdowns > Impacts: Damage Curve 2 makes hard throws much worse than soft
+ones, Most per Strike caps one strike, Head and Limb Wear pops heads sooner."
+
+
+## Permanent decals leftovers: retro filtering, late marks on doors, boxes (2026-10-15, worktree `fastship`, branch `agent/permdecals4`)
+
+His go: the missing permanent decal features (PERM_DECALS.md, BACKLOG "Permanent decals leftovers").
+
+- Retro (blocky) textures: the layer is now read at the middle of the texture's block or texel under the pixel
+  (`PermDecalsLook`, vr_glsl.h), so a baked mark has the surface's blocks: retro textures' (the pixel's set: snapping,
+  Block, soft edges, fade far off) or, with `gl_texturemode GL_NEAREST*`, the texture's own texels (Quake's own textures;
+  every texture with `vr_texture_smooth 0`: `TexMgr_NearestKind`, sent in `PermDecals.x`). The layer's texel at the
+  block's middle comes from the screen derivatives of both coordinates (both affine on the face; parallax's shift kept).
+  Smooth as before with linear textures, where no page is under the pixel (most of the world: one read, as before), and
+  where a pixel spans a block or more. The palette (Retro Palette) is not applied to the layer (it multiplies the
+  texture, which is in the palette already).
+- Gore's late marks on doors and lifts: a mark that shows later (the flying blood's `delay`) on a brush model now waits,
+  laid in the model's space as it is when made, and is baked when it shows (`permdecals::bakeEntities(stamp, due)`,
+  `bakeDue` once a frame). Waiting ones go into the saves (baked at once after the load) and show in
+  `vr_permdecal_info` ("N marks on brush models waiting to show"). Test aid: `vr_decal_at ... [size] [delay]`.
+- Marks on the brush tool's boxes: kept live, by decision (PERM_DECALS.md, Decisions): a box is made again on every
+  edit (each drag step), its faces are not in the map's page table (laid out at the map's load), its id is not stable
+  across saves, and its marks go with each change by design; a per-box layer would need page ranges allocated and
+  given back on every rebuild and a save key for the box. The test checks the behaviour: live past every bake delay,
+  not baked, gone when the box changes.
+- Small leftover fixed: a mark whose pages' slots were all dropped (the atlas full at `vr_permdecal_atlas_max`, every
+  slot used in one frame) now keeps its stamp (for the saves) instead of staying live untracked.
+
+Tested (headless): `permdecal_test.sh` PASS 3 runs of 4 (one failed its off-vs-on frame check: the shot after the
+switch matched the one before it; not seen again in two reruns: a flake of the shot timing, the switch untouched here)
+with its new part 5 (a 3 s late mark on vrclimb's lift: 0 stamps and 1
+waiting after 5 frames, baked after the delay; a box's mark live after 10 s, the world's mark beside it baked, the box's
+gone after `vr_brush_set`). Shots (worktree scratch/): `pd4_door_before/after.png` (vrclimb lift, two 3 s marks and one
+at once: before all three right after the hit; after only the one, the other two after the delay);
+`pd4_retro_before/after.png` (lift up close: retro blocks 2, nearest, linear: before the marks smooth on blocky
+textures, after blocky with them; linear unchanged). Frame time, `bench.sh --scenarios combat_48` (48 monsters
+fighting, exclusive, 600 frames): frame p50 11.110 ms both (paced); GPU 3D 3.84-3.87 before, 3.85-3.92 after (one
+outlier run 4.31 with every pass high); world+brush pass 1.244-1.247 before, 1.254-1.286 after (noise: the alias
+pass moved as much). e1m1 smoke: no errors.
+
+For him in VR: blood on a wall with retro textures on (Graphics > Retro Textures) and with nearest texture filtering:
+the baked marks should have the wall's blocks; gibbing a monster against a door: its blood lands on the door when the
+flying blood arrives, not at the hit.
+
+## Smooth's idle knight jolt: the spline's next frame (worktree `tghost`, branch `agent/knightjolt`, 2026-10-15)
+
+His go on "Model vertex wobble 3"'s finding (Smooth: an idle knight jolting up to 2.5 units a frame).
+
+Cause (logged: `vr_anim_smooth_trace <frames> <model> <jolt>` now prints each frame whose worst vertex passes `<jolt>`
+with the spline's four keys, weights and times, and the two frames before): the knight's frames are named by numbers
+alone ("1" .. "97"), so the names chained the whole file as one animation and were trusted as such: stand9 (frame 8)
+went on to run1 (frame 9) by name, over the learnt stand1. Each loop the spline into stand9 aimed at run1, the next
+lerp (stand9 to stand1) set off along the right curve: the tangent jumped at the seam, 1.6-2.5 units on one vertex.
+The ogre had a second cause in the dequantiser: AD's Hunter Ogre's spawn precaches `progs/ogre.mdl`, so its 8-frame
+stand loop (0..7) and another (8..19) were given to the original ogre over its own 9-frame one, and the dequantised
+seam was smoothed in the wrong place (stand8 into stand1).
+
+Fix:
+- `vr_animsmooth.cpp` (modelData): names that are numbers alone are a guess (as unnumbered names were: the shambler's
+  "From ASE"), so a learnt successor wins; the frame expected after now also comes from `vr_mdldequant.cpp`'s runs
+  (`mdldequant::poseSuccessors`): a progs loop's last frame goes back to its first (sure, over the names: knight_stand9
+  to knight_stand1 from the first loop, nothing to learn), and where the names are only a guess the runs' splits at
+  jumps (unknown after: learnt once seen) and their loops that come back to the first pose. A named animation's end
+  stays unknown until seen, as before (an attack's last frame back to its first would be a wrong guess: tried, the
+  death knight's combat p95 went up 3%).
+- `vr_mdldequant.cpp`: progs loops that overlap on a model are no longer dropped when the progs is read; per model the
+  most named loop that fits its frames is chosen (`qcLoopsOf`): a loop doesn't fit where the names run on into its
+  first frame or out of its last (stand8 into stand9). The ogre now gets 0..8 (by its pose closing the loop: its own
+  progs loop is named in `monster_ogre` and set in `monster_ogre_real`, so the finder never links the two).
+
+Numbers (`scratch/mon.sh`: e1m1, 90 Hz fixed frames, Smooth, rebuild off; one vertex's second difference a frame, p95 /
+most, units; idle: notarget, 360 frames; awake: hunting you, god on, the same 360 frames in each build):
+
+| monster | idle before | idle after | awake before | awake after | Quake's Blend idle; awake |
+|---|---|---|---|---|---|
+| knight | 0.308 / 2.506 | 0.037 / 0.072 | 2.765 / 9.161 | 2.688 / 9.161 | 0.050 / 0.119; 3.877 / 14.506 |
+| ogre | 0.150 / 0.410 | 0.135 / 0.280 | 3.202 / 48.226 | 3.184 / 48.226 | 0.253 / 0.514; 4.407 / 48.226 |
+| shambler | 0.272 / 2.012 | 0.199 / 0.355 | 5.632 / 123.21 | 5.632 / 123.21 | 0.277 / 0.501; 7.658 / 123.21 |
+| grunt | 0.020 / 0.034 | 0.020 / 0.034 | 1.686 / 11.288 | 1.684 / 11.288 | 0.024 / 0.059; 2.711 / 11.288 |
+| death knight | 0.034 / 0.104 | same | 2.796 / 7.570 | same | 0.060 / 0.201; 5.339 / 13.993 |
+| dog | 0.051 / 0.075 | same | 2.246 / 11.612 | same | 0.063 / 0.122; 4.160 / 12.068 |
+| enforcer | 0.040 / 0.065 | same | 2.228 / 47.781 | 2.265 / 47.781 | 0.066 / 0.168; 3.639 / 46.788 |
+| fiend | 0.107 / 0.192 | same | 3.718 / 19.085 | 3.758 / 18.840 | 0.157 / 0.450; 5.431 / 18.423 |
+
+Smooth is now smoother than Quake's Blend idle on every monster. The awake maxima (11-123 units) are the game's own pose
+switches (an attack or pain starting at once), the same in Quake's Blend. Rebuild From Skeleton on: knight idle 0.035 /
+0.062, grunt 0.014 / 0.020, ogre 0.136 / 0.276. AD humanoids not measured. e1m1 smoke fine.
+
+VR check: Model Animation Smooth, an idle knight and ogre close up (the breathing loop's seam: no twitch each second), a
+shambler idle; knights and ogres running at you look as smooth as before.
+## Weapon damage credit from the damage dealer (2026-10-15, worktree `backlogclean`, branch `agent/dmgcredit`)
+
+His words: "Please fix the missile weapon credit in a robust non-hacky way." Honey's `FL_SPECIFICDAMAGE` targets (a
+button given `.items`: "shoot it with the rocket launcher") take damage only from those weapons. T_Damage read the
+*attacker's* `.damage_weapon`, which only some fire functions set on the player, some after the shot: a nail, laser,
+plasma bolt, lava nail, bomblet or thrown weapon was credited with whatever the player had fired or swung last, and even
+the shotguns' own pellets with the weapon before them.
+
+Now (`QC/vr_dmgcredit.qc`): whatever deals the damage carries the credit, stamped once where it is made, and T_Damage
+reads its *inflictor's* (`VR_DamageCredit_Accepts`; the shotguns' hit test and a grenade's bounce-or-blow too).
+- `WeaponIdToDamageCredit`: one table from weapon id to Honey's IT_* bit; variants as the weapon they stand for (lava
+  nails, multi grenades/rockets, the plasma guns, AD's soldiers' guns, the proximity gun as the grenade launcher, the
+  grunt's gun as the shotgun, the enforcer's rifle as the laser cannon, the melee weapons as the axe); fist, grapple,
+  toolgun and AD's flamethrowers credit nothing.
+- A player's projectile: `VR_ShotLaunched(missile, hand)` (the launch hook every player projectile already went
+  through as `VR_ShotPlace`, renamed at the call sites: base, Hipnotic, Rogue, enemy and AD guns) credits it with the
+  hand's weapon. AD's player plasma and projectile pellets and the flamethrowers' flames, which don't go through it,
+  call `VR_DamageCredit_FromHand`.
+- Hitscan (the player is the inflictor): `FireBullets` (every player shotgun, the grunt's gun, AD's defender) and
+  `W_FireLightning` credit the player from the hand before the shot; the underwater discharges and the lightning-in-water
+  shock too. The old after-the-shot stamps are gone, and so is `LightningDamage`'s (a bolt's credit is its `from`'s).
+- Thrown weapons: `MakeThrown` credits the weapon thrown. Props credit nothing.
+- What a dealer makes inherits its credit (`VR_DamageCredit_Inherit`): explosions are their missile (the same entity),
+  the multi grenade's bomblets theirs, Mjolnir's (and the Super Axe burst's) lightning chain its base, which takes the
+  hand's weapon (`HIP_SpawnMjolnirBase(xHand)`), AD's poison its spray (`VR_ADGun_Poison` takes it).
+- Monsters' shots stay unstamped (their own credit: the grunt's Honey `IT_SHOTGUN`); traps' and monsters' lightning
+  bolts no longer borrow `IT_LIGHTNING` from `LightningDamage`.
+
+Test: `vr_dmgcredit_test 1` (Debug > Tests > Damage Credit; `100+i` one weapon): each weapon fired from the main hand
+at a target taking only its own bit, then only another weapon's bit (the player's last credit set to that one first).
+e1m1, hand aimed level (`vr_mock_hand main 0.2 1.0 -0.3 65 0 0`): before 3 passed, 15 failed (only grenade, rocket and
+lightning right; the shotguns, nails, laser cannon, proximity grenade, lava nails, multi grenades/rockets, plasma, the
+enemy guns and both thrown weapons credited with the previous weapon); after 18 passed, 0 failed. AD's guns are not in
+the test base (skipped). To try in VR: a Honey weapon-specific button with the right weapon and a wrong one, after
+firing the right one first.
+
+## Every expansion's entities in the toolgun's spawn panel (worktree `permdecals`, branch `agent/spawnall`, 2026-10-15)
+
+His note: the spawn panel should have every expansion's entities too (the Machine packs' armour shards, Armagon's
+wetsuit...); be thorough. The list was built from every QC spawn function and `quakevr.fgd` (367 classes) against the
+panel; the diff, with what was skipped and why: `qvr-kit/scratch/spawnall_diff.txt`.
+
+- **75 new entries** (`Quake/vr/vr_toolgun_packs.inc`, appended after the old ones: `vr_toolgun_select` numbers stay;
+  195 entries in all). Monsters: id's rotfish and ogre marksman, Quake VR's training dummy; Armagon's gremlin,
+  centroid, spike mine, Armagon; Eternity's mummy, wrath, overlord, phantom swordsman, eel, the three guardians (its
+  spawnflag picks the look: without one `monster_morph` is an objerror), Hephaestus, the dragon; Dawn of the Machine's
+  four infected, demo dog, rocket ogre, ranged knight, slime, shub zombie, lava man, blood shambler, orb, ghost; Honey's
+  spectral knight. Weapons (grabbable): Mjolnir, the proximity gun, the laser cannon, the Super Axe; the bloody
+  shotguns. Items: small health, the large ammo boxes, both keys, the four runes; wetsuit, empathy shields, horn of
+  conjuring; lava nails, multi rockets, plasma, power shield, anti-grav belt; armour shard, lava suit, the five
+  upgrades. Props: eight placed corpses (`misc_corpse` styles), the buzzsaw, Honey's tree. Fire: the fireball spout,
+  the Machine packs' gas flare.
+- **Availability** (`entryAvailable`): `needs` 1 the model (or `probe`: the file the spawn function checks, e.g.
+  Honey's spear: precaching it missing is a Host_Error) on the search path, owned packs' read in place
+  (`owned/mg3/...`); 3 Dawn of the Machine's campaign (its once-a-map upgrades, QC `MG3_UpgradeSpawn`). Unavailable
+  entries are dimmed as AD's are.
+- **The panel**: each tab lists id's and Quake VR's first, then each pack as a group from a fresh page in the list's
+  order (`toolgun::spawnablePack`; Arcane Dimensions' last, as before), labels tagged SoA / DoE / MG3 / MG / Honey;
+  `>>` (beside `<` `>`) jumps to the next group. Monsters now has 14 pages, Items 8.
+- **QC**: `item_armor_shard` reads MG3's model in place in any map when the pack is owned (MG3.md, "Decisions" 5: as
+  the Super Axe), `item_artifact_lavasuit` MG3's model before the biosuit stand-in; a live spawn (`vr_spawn_live`) of
+  `misc_corpse` works outside the Machine world, of a `buzzsaw` snaps its yaw to 90 degrees (else an objerror), of a
+  bloody shotgun in Dawn of the Machine stays outside Bloody Nightmare.
+- **Debug > Toolgun**: Spawn Every Toolgun Entry (`vr_toolgun_spawn_test [<first> [<last>]]`: each entry made once on
+  a ring around the player, spawned / failed / unavailable) and Check and Clear the Spawn Test (`... check`: each
+  still there or gone, then all removed).
+
+Tests: `Misc/quakevr/toolgun_spawnall_test.sh <agent>` (vrfiringrange) PASS: 119 spawned and alive, 0 failed, 76
+unavailable (AD's 64 with no AD here; Honey's 2; the upgrades and the gas flare outside Dawn of the Machine).
+`MAPCMD="vr_campaign_native mg3;map map1" ... 120 194`: the upgrades, the gas flare, shard, lava suit all alive (some
+others "gone" there only because map1's ring spots are in walls: each alone is alive). `toolgun_panel_test.sh` PASS;
+e1m1 smoke clean. Screenshots of the new groups: `scratch/toolgun_spawnall.png` (`scratch/spawnall_shots.sh`).
+
+Not done / to check in VR: AD's other monsters and items (`ad_monsters_gen.py`'s list is the supported set; no AD data
+here to test them), Quoth (no support in the QC), the scripted bosses and map logic (the diff's SKIPPED). Check the new
+ghosts' heights (each a fixed lift: the dragon, Armagon and the guardians are big), Honey's entries with Honey
+installed, and that 14 pages of monsters with `>>` read well on the panel.
+## The vore's two-handed shove (worktree `flatfist`, branch `agent/voreshove2`, 2026-10-15)
+
+His go (BACKLOG "Later", 2026-10-13): "A two-handed shove animation for the Vore." Its shove (10 damage, 256 units
+pushed at 64: "The vore shoves you") played the end of its ball throw without the ball, one arm's swing.
+
+- **Seven frames of its own:** `Misc/quakevr/make_voreshove.py` appends `shove1..shove7` to Quake VR's own
+  `quakevr/progs/shalrath.mdl` (frames 36..42; its 36 untouched, byte for byte; genguard'ed, re-runnable: it replaces
+  the shove frames it wrote). The model has no skeleton, so the frames are posed by its ragdoll rig's bones
+  (`vr_ragdoll.cpp` shalrathSeeds' pivots; each vertex's bone as `rig.py shalrath shalrath_bones.json` labels it):
+  the chest leans about its pelvis joint, the head nods on it, each upper arm turns about its shoulder and each forearm
+  about its elbow to the key's directions, blended across a joint near it (22 vertices) so the seams stretch smoothly;
+  pelvis and legs stay in the rest pose. Normals turn with their bone.
+- **The motion** (`orig_mon_shalrath.qc` `shal_shove1..7`, 0.1 s each as before): 1-3 the wind-up (leaning back 11
+  degrees, head pulled back, both arms drawn back, elbows low and behind, hands up by his chest: the tell), 4 the
+  thrust, 5 the full reach (both arms straight out at you, the hands together at your chest's height, leaning in 12
+  degrees), 6-7 back towards its rest; then `shal_run1`.
+- **The blow on the peak:** `VR_EnemyShove_Hit` stays on `shal_shove5` (`$shove5`, the arms' full reach), 0.4 s in;
+  the whole shove 0.7 s: the timing is unchanged. (Drawn with the frame lerp, the arms reach shove5 0.1 s after the
+  blow: shove4 is already 70 percent out when it lands.) The hit's developer line now ends with the monster's frame
+  (`(frame 40)`), and `voreshove_test.sh` fails a blow on any other frame.
+
+Rig and smoothing (`vr_anim_smooth_info shalrath 1`, new: it lists each bone's unfit poses): every bone fits all
+seven new poses. The engine's motion clusters shift with the 7 frames (clusters and bones 1.18 rms, were 1.20/1.28):
+vertices fully rebuilt 299 -> 329, fit median 0.480 -> 0.457; the head is now unfit in 12 more of its old attack and
+pain poses (2-9, 13, 16-22: drawn by the plain lerp there, as before the smoothing), the chest in 2 fewer.
+
+Tests: `voreshove_test.sh` 4 shoves, every blow on frame 40 (2 of 3 runs; the third 3 shoves, the vore hurting itself
+with its own balls' splash after its 3rd: the known 3-4 flake, `smallgib: monster_shalrath hit ... explosions`);
+screenshots from the player's eyes (vrtesthall, the vore 90 ahead, push 0): wind-up, peak and recovery; e1m1 and e1m6
+smoke with a vore spawned: no errors.
+
+Not done: a fallback for a replaced vore model without these frames (as the grunt's and the enforcer's shoves: Quake
+VR's own model only).
+
+In VR: walk into a vore (Debug > Tests spawn, or e1m6 on Hard): it leans back with both arms drawn back, then thrusts
+both hands at your chest and the push comes as they reach you; check that it reads at arm's length and that the push
+doesn't feel early.
+
+## The rest of AD's monsters and pickups in the spawn panel (worktree `permdecals`, branch `agent/adspawn`, 2026-10-15)
+
+Follow-up to the section above, now that the kit has AD 1.80p1's data. Every `ad_monster_*` / `ad_item_*` /
+`ad_weapon_*` spawn function in `QC/ad/` was checked against `ad_monsters_gen.py` and AD's paks.
+
+- **Added** (`Misc/quakevr/ad_monsters_gen.py`, which writes `vr_ad_spawns.inc`, `vr_ad_spawnitems.inc`, the Debug
+  menu's rows and the QC spawner; 15 entries, spawner numbers 251-260 and 320-324): monsters Gug (AD's strong Bog
+  Lord), Polyp (the poison gaunt), Nail Ogre (`monster_ogre_flak`), Floyd Automaton, The Deflector, Dark Prince,
+  Vermis (Nour's boss form, no intro: a boss, check in VR); AD's versions of Quoth's Death Guard
+  (`monster_death_guard`, its own `mon_dguardq.mdl`), Death Lord, Sentinel. Items: AD's ammo backpack (spawnflags 15:
+  random shells, nails, rockets, cells) and the armour backpack as shards, green, yellow and red.
+- **AD maps only** (`QVR_AD_SPAWN_MAP`: `needs` 2, not in `vr_ad.cpp`'s `everywhereClasses`, the QC spawner removes
+  them outside AD's rules): the three Quoth classnames (so a Quoth map's own still spawn nothing, as before) and the
+  backpacks (Quake's backpack rules outside AD's maps, ARCANE_DIMENSIONS.md 16.1). The other new monsters follow the
+  older AD entries' rule (AD maps, or any map with Additional Content Everywhere).
+- **Skipped**: aliases of entries already there (`monster_baron` = Justice, `death_knight` = Death Knight, `edie` =
+  Freddie, `juggernaut` = Seeker, `bob` = Jim, `ogre_marksman` = AD's ogre; `item_artifact_cross` = Blast Belt,
+  `trinity` = Nail Piercer, `wetsuit` = Air Tank; `item_plasma` = cells; `weapon_bomb`/`hammer`/`plasmagun` remove or
+  redirect), the `*minion` classes (precache helpers for bosses' summons: `judgeminion`, `minotaurminion`,
+  `nourminion`, `shalrathminion`, `skullwizminion`, `wraithminion`, `wraithminion2`), the ghost props with no pain or
+  death (`dknightghost`, `ogre_fishing_ghost`), `hell_pointknight` and `item_keyx` (need a map's target / model), the
+  bosses that wait for their map's trigger (Chthon, Eidolon, Mammoth, Fire Top, Shub, Santa), and the ones whose
+  models are not in AD 1.80 (`monster_sweeper`, `turretbal`, `sword`, `xmas_elf`, `xmas_raindeer`, `xmas_snowman`:
+  only their `.qc` in `my_progs/`).
+
+Tests: `MAPCMD="vr_campaign_native ad;wait30;map ad_crucial" Misc/quakevr/toolgun_spawnall_test.sh <agent> 0 239`:
+210 entries, 202 spawned, 0 failed, 8 unavailable (Honey's, Dawn of the Machine's campaign-only); every new entry
+spawned and alive except the Yellow Armour Backpack, which with 23 other items (id's, AD's, the packs') was "gone"
+because ad_crucial's ring spots are off ledges or in walls: each of those 24 made alone ahead of the player is alive.
+Default run (vrfiringrange) PASS: 190 spawned, 0 failed, 20 unavailable (the 8 AD-maps-only among them).
+`toolgun_panel_test.sh` PASS; e1m1 smoke clean (`vr_toolgun_spawnlist`: 210 entries, 79 AD, 8 disabled there). The
+packs' entries moved up 15 (the MG3 range above is now 135-209).
+
+To check in VR: the new monsters' ghost heights and their fights (no VR rigging for them: they ragdoll as AD's
+generic ones), Vermis spawned in an open space, the backpacks' pickup.
+## Stomp: landing on a standing monster knocks it down (2026-10-15, worktree `fastship`, branch `agent/stompkd`)
+
+The author: jumping on top of a fully alive enemy should damage it and knock it down, or kill it from high enough.
+
+- **What**: `VR_RagImpact_Crush` (the landing crush, unchanged) now hands a standing monster that lives through the crush
+  to `VR_RagImpact_Stomp` (vr_ragimpact.qc): landing fast enough, it is knocked down as a shove's knockdown
+  (`VR_Knockdown_Start` + `ragdollshovetopple`, the shove's gates: `vr_knockdown`, a knockdown chance handle, no fliers or
+  swimmers, `canragdoll`, an anchored dummy never, and the ragdoll pool's room via `VR_Knockdown_MakeRoom`), toppled
+  along your way (standing still: away from you; straight on top: backwards), and gets up after the usual
+  `vr_knockdown_time_*`. You bounce up off it (`vr_ragimpact_stomp_bounce` 200 u/s) instead of sinking through as it
+  falls; the crush cushion (no fall damage) applies to a stomp too. A lethal landing still kills through the crush
+  (Quake's death, a ragdoll corpse).
+- **Settings** (Combat > Knockdowns, after the crush rows; all archived): `vr_ragimpact_stomp` 1 (Stomp Knocks Down),
+  `vr_ragimpact_stomp_speed` 420 u/s (Stomp Least Speed: about a 115-unit drop; a 128-unit drop lands at 437),
+  `vr_ragimpact_stomp_heavy` 130 kg (Stomp Heavy Mass: heavier monsters need the least speed times the cube root of
+  mass/130, masses from `VR_Grapple_MonsterMass`: ogre, fiend, vore 250 kg 522 u/s, about a 180-unit drop; shambler 600
+  kg 699 u/s, about 315 units; super shambler 800 kg about 375 units; 0: all alike), `vr_ragimpact_stomp_bounce` 200
+  (Stomp Bounce). The stomp works with the crush off (`vr_ragimpact_crush 0`) or with Crush Standing Ones off.
+- **Why a cube root**: a square root put the shambler at ~430 units, past the 352-unit drop that already pops its head
+  (the crush), so it could never be stomped down; the cube root leaves it a window (~315-345 units).
+- **Prints**: `vr_knockdown_debug 1` (or the tests' `vr_knockdown_test 56`) prints `ragimpact stomp:` lines (knocked
+  down, stands under the least speed, or cannot be knocked down and why); `vr_knockdown_test 50` adds a
+  `ragimpact doll:` line (ragdoll, knockdown, health).
+
+Measured (headless, vrfiringrange, `vr_knockdown_test 59` drops onto the head, knockdown time 3 s, state 150 frames and
+1200 frames later; scratch/stomp_test.py):
+
+| monster | drop | landing | crush | knocked down | dead | later |
+|---|---|---|---|---|---|---|
+| grunt | 64 | under 400 | none | no | no | standing, 30 hp |
+| grunt | 128 | 437 u/s | 13 to the head | yes, bounced 200 | no | up again, 13 hp |
+| grunt | 192 | 17.4 m/s | 53 | - | yes, ragdoll | - |
+| grunt | 256 | 19.9 m/s | 81, head pops | - | yes, ragdoll | - |
+| grunt | 384 | 24.5 m/s | 133, head pops | - | yes, ragdoll | - |
+| ogre | 128 | 436 | 13 | no (under 522) | no | standing |
+| ogre | 192 | 538 | 49 | yes | no | up again, 138 hp |
+| ogre | 256 | 20 m/s | head pops | - | yes, ragdoll | - |
+| shambler | 256 | 628 | 81 | no (under 699) | no | standing |
+| shambler | 320 | 706 | 109 | yes | no | up again, 463 hp |
+| shambler | 352 | 23.5 m/s | head pops | - | yes, ragdoll | - |
+
+`ragimpact_test.py crush`: all pass, with a new check (the 128-unit drop onto a standing grunt knocks it down). Melee
+eval 168/177 (as before). e1m1 smoke: no errors.
+
+For him in VR: jump off a ledge or a crate onto a grunt's head (about a storey): it should go down under you and you
+bounce up off it, then it gets up; from two storeys it dies. An ogre takes a higher jump; a shambler about two storeys,
+and higher pops its head. Off-centre on the shoulders: the crush strikes the torso or an arm, the knockdown the same.
+Open: a big monster's head crush kills from fairly low (ogre 256, shambler 352 units: the crush's head wear, not the
+stomp); if that feels too easy, `vr_ragimpact_piece_hp` or the crush's mass is the knob.
+
+## Active rigs for AD's humanoids (worktree `dequant`, branch `agent/adrigs`, 2026-10-15)
+
+His go: "Please work on adding active ragdoll rigs for AD humanoids" (BACKLOG, "Active humanoid coverage for AD's
+soldiers"). AD's monsters already had ragdoll rigs (`vr_ad_rigs.inc`), knockdowns and get-up frames
+(`vr_ad_monsters.qc`); what they lacked was the drive: the engine drives a living or dying ragdoll only for the classes
+in `activeClasses` (vr_box3d.cpp), and none of AD's own classnames were there.
+
+- **Rig semantics checked** per model: every one below has pelvis, chest, head and two-bone arms
+  (`upperarm_*`/`forearm_*`, what the reaches and the brace look for) and legs (`thigh_*`/`shin_*`); extra bones are
+  harmless (the crossbow knight's and death guard's `hand_r`, the death knight's `foot_l`, the sergeant's `flail`).
+  Get-ups: each one's deaths played backwards (`VR_Knockdown_SetupReverse`, the rig's `deathFirst/Last`), the zombie
+  knight's and the mummy's their own falls (paine), as id's zombie. Attack origins and locomotion are untouched: the
+  body is handed back to AD's own animated monster.
+- **Added** to `activeClasses`: `monster_army_grenade`, `_plasma`, `_rocket`, `monster_defender`, `monster_eliminator`,
+  `monster_pyro`, `monster_fumigator`, `monster_dcrossbow`, `monster_dfury`, `monster_dguard`, `monster_dknight`,
+  `monster_dsergeant` (may crawl), `monster_zombiek`, `monster_mummy` (no crawl; Rogue's mummy too). AD's own grunt,
+  enforcer, point knight and zombie use Quake VR's classnames and already were. So: a shove's pinned stagger and fall,
+  the get-up through the body, the lift's flail, swimming and drowning, active deaths (stumble, wound hold, crawl),
+  limb-cut reactions.
+- **Not added**: the centurion (on its hover board: never knocked down nor lifted; its right leg has no shin) and the
+  skull wizard (a robe: one leg bone, nothing to stand or stagger on; it teleports). MG3's `monster_ranged_knight` is in
+  the lift list but not AD's: left as it was.
+- **Bug found and fixed**: an AD monster handed back standing by the engine (a stagger recovered, a body risen:
+  `VR_Knockdown_Afoot`) got `self.th_run`, which AD's monsters don't use (theirs is `ad_th_run`): it would have stood
+  frozen. Now `VR_AD_RunNow` as the QC get-up path already did.
+- **Zombie knight's head zone**: its head hangs to its left (headfit 2.8 3.1 21.1, r 7.0), the zone was on its middle
+  line (4, 22, 6.5): 3-5 units off. Head zones can now sit to the side: `xHeadLeft` (weapons.qc; `VR_HeadSide(facing)`
+  in every head-middle sum: headshots, positional melee, decapitation zones, the dummy, the tests), AD's
+  `vr_ad_headl`, and the engine's hands' zone (`VR_FoeGrab_HeadLeft`, vr_foegrab.cpp `headZoneOf`). The zombie knight:
+  3 forward, 3 left, 21.5 up, radius 7.
+- **Test**: `Misc/quakevr/ragdoll/ad_active_test.py <agent> [ids]` (one game each on vrfiringrange through AD): neck
+  snapped standing (loose; its head's swing from its chest past the living 45-degree cone), then a second one shoved
+  (sure) -> staggers as a pinned ragdoll and falls -> rises through its body. 42/42:
+
+  | class | shove -> down | get-up frames | neck swing (deg) | lift flails |
+  |---|---|---|---|---|
+  | army_grenade, _plasma, _rocket | yes | 17-8 | 32-120 | yes |
+  | defender, eliminator | yes | 65-55 | 59-124 | yes |
+  | pyro, fumigator | yes | 65-55 | 43-119 | yes |
+  | dcrossbow | yes | 255-236 | 66-84 | yes |
+  | dfury | yes | 254-241 | 22-120 | yes |
+  | dguard | yes | 226-207 | 78-120 | yes |
+  | dknight | yes | 243-224 | 35-107 | yes |
+  | dsergeant | yes | 254-235 | 22-68 | yes |
+  | zombiek | yes | 132-121 | 24-117 | yes |
+  | mummy | yes | 173-162 | 25-120 | yes |
+
+  The lift: `judo_test.py adneck` (its lift verdict now needs the flail, but for the skull wizard). Its case turned to
+  face the monster with `vr_mock_turn`, which doesn't exist (`vr_mock_turn_to`): the player sometimes faced away and
+  his hands closed on nothing; fixed. Three runs (batched, unbatched, unbatched with frames drawn): every driven class
+  lifted flails (the zombie knight lifted in 1 of 3, its hands closing on nothing in the others); the standing snaps
+  pass for 11-12 of 16 a run, the failing set varying (the player ends 3 units from its origin, inside it, and the
+  hands find no hit sphere within 4 m: the harness, the centurion too, which isn't driven) but for two every time: the
+  zombie knight (one hand read at its shoulder, even with the zone on its head) and the skull wizard (both at its
+  shoulders; not driven, its zone unchanged). No baseline run: restoring the old files for one was refused.
+- Melee eval 168/177 (as before; the same 3 differ from the baseline). e1m1 smoke and AD's `start` (a death sergeant
+  shoved) clean.
+- To try in VR (AD): shove a rocket grunt, a fumigator, a death knight and a zombie knight hard: they stagger, fall,
+  get up with their bodies and fight on (not frozen); lift a defender and a death guard: they flail; snap a dfury's
+  neck: the head flops; behead or headshot a zombie knight: the head zone sits on its leaning head.
+## Grip fit: the hand out of what it grips (worktree `flatfist`, branch `agent/gripfit`, 2026-10-15)
+
+His words: "Sometimes when I grab a prop in a weird way the hand IK overlaps the prop geometry too much, making it look
+like my fingers are phasing through the prop. Would it be possible to detect when an overlap is too large and adjust the
+grab position automatically to be a bit more on the edge of the prop? [...] customizable [...] retry steps should be
+bounded. This should not cause any slowdown or hitch."
+
+- **Once per grab** (`vr_gripfit.cpp`, called from `grip::serverTake`: every one-hand grab, a force grab's catch, a
+  wall torch, a pouch's grenade): the hand is its grasp spheres (93: the fingers' segments and the palm), open and in
+  the full fist, in its frame (the open set is the one `vr_view.cpp` already measures every frame for the palm's skin,
+  now written straight into the grip fit's store: no copy, no new per-frame work; the fist is `held::fist`). A sphere
+  counts as sunk by the less of its two poses' depths: a finger in the prop open but clear of it closed is one the
+  grasp solve closes clear of it; in it both ways, it phases through however it curls (as does a palm sphere in it).
+- **The shape:** the prop's Box3D hulls (`box3d::hullPlanes`: each face's plane; a sphere's depth in a convex hull is
+  its radius less its largest face distance, exact inside), or its drawn box without a body (a prop just spawned).
+- **The way out:** the sunk spheres' nearest faces' outward normals, weighted by depth. How far along it each sphere
+  must go to be no deeper than allowed is solved directly (per face: its distance grows by the normal's share of the
+  move), so the fit is three passes however many steps: the depth, the distance out, the depth there. The move is a
+  whole number of steps (`vr_grip_fit_step`), at most `vr_grip_fit_steps`, at most `vr_grip_fit_max`; if it can't
+  fit, the furthest allowed (the best along the way: never deeper than before, else not moved). The prop is moved the
+  other way in the hand, and the move kept with its grip (`Held::fit`, added again when its settings re-place it;
+  cleared at a regrip, which keeps where it is, and for a pouch's grenade or round, whose place is its own).
+- **Two hands:** the hand that just took hold of what the other holds (`carry2h::serverPlace` grab): its grip on the
+  prop moved out of it (the drawn hand sits on its grip), the grips' line with it.
+- **Not moved:** Fixed and Along the Handle grips (authored places; a torch's handle is meant to be in the fist),
+  weapons (their own grips, not this path), another player's or a dedicated server's hands (not known).
+
+Settings (archived; the Carrying settings page, after Fit Gap): `vr_grip_fit 1` (Keep Fingers Out of Props),
+`vr_grip_fit_depth 2.5` cm allowed, `vr_grip_fit_step 1` cm, `vr_grip_fit_steps 12` (1..32), `vr_grip_fit_max 10` cm.
+Debug > Profiling and Memory: Grip Fit: Last (`vr_grip_fit_last`: the last fit, then its inputs at every step, timed 1000 times).
+With `developer 1` or `vr_debug_carry 1` each fit prints a `gripfit:` line.
+
+Tests (headless, e1m1; `scratch/gf_test.sh`, `gf_2h.sh`; depth in units, 0.79 allowed; off = `vr_grip_fit 0`, whose
+held offsets match the measure-only `vr_grip_fit_steps 0` exactly):
+
+| grab | off (depth) | on | steps | moved |
+| --- | --- | --- | --- | --- |
+| small crate, the hand 13 over its middle (by the top) | 3.59 | 0.76 | 9 | 2.83 |
+| small crate, 6 over its middle (deep) | 10.59 | 7.44 (can't fit: the cap) | 12 | 3.15 |
+| barrel, 12 over its middle (the rim) | 4.02 | 0.87 (the cap) | 11 | 3.15 |
+| health box beside the fist (surface fit off) | 1.45 | 0.52 | 4 | 1.26 |
+| health box on the palm (surface fit on) | 0.27 | 0.27 | 0 | 0 |
+| explosive box, 10 over its corner (deep) | 9.63 | 6.48 (the cap) | 12 | 3.15 |
+| second hand into a held health box (4 cm in) | 1.63 | 0.58 | 5 | 1.57 |
+
+Screenshots (`scratch/gf_before.png`, `gf_after.png`, the crate by the top): before, only a fingertip shows over the lid;
+after, the fingers show over it. Timing (`--exclusive`, `vr_grip_fit_last`): the worst case (every sphere sunk, all 32
+steps, the barrel's 66 faces) 19.9 us mean, 18.2 us least (1 percent of runs over 50 us: the thread put off); a live
+barrel grab 29.7 us, the crate 8-28 us, a clear grab about 2 us. No allocation (fixed arrays), nothing between grabs.
+A pass per step (the first version) was 160 us for the barrel at 32 steps: replaced by the solved distance.
+
+Regression: `grip_gap_test.py both` 13 checks, 0 failed (two hands, force grab catches); `twohand_regrip_test.sh` as
+before (the pouch grenade's "not within reach" happens with the fit off too); e1m1 smoke clean.
+
+In VR: grab a crate or barrel with the hand pushed well into it (or by an edge at an odd angle): the prop should jump
+out of the hand a little, so the fingers sit at its surface, not through it; a normal grab should not move it. Try the
+Allowed Depth and Most Move sliders if it moves too much or too little.
+
+### Second pass: the drawn hand on the surface (worktree `flatfist`, branch `agent/gripfit2`, 2026-10-15)
+
+His verdict on the first pass's pictures: "In both your screenshot the hand is almost completely embedded inside the
+crate. Both the hand and finger overlap should be minimized." (The first pass's settings above are replaced.)
+
+What was wrong: the hand was 93 grasp spheres: the fingers and one thin sheet at the palm's skin (radius 0.5 cm), so
+the back of the hand, the wrist and the ball of the thumb were never measured; a sphere counted as sunk only if it
+was in both open and in the fist (a finger could pass with its base clear closed and its tip clear open, in no one
+pose); the escape was one fixed direction, the move capped at 10 cm with 2.5 cm allowed. New measuring tool,
+`vr_grip_fit_drawn` (Debug > Profiling and Memory > Grip Fit: Drawn Hand): every vertex of the hand as drawn now
+(455) in the held prop's shape, the hand and the fingers apart (cm).
+
+- **The hand is the drawn mesh** (`vr_gripfit.cpp`): its vertices posed as the hand draws them, through the rig
+  frame `vr_view.cpp` keeps every frame (a matrix and the fingers' shifts; the open-sphere store is gone). The palm
+  joint's vertices (palm, back of the hand, wrist: 40 points) and each finger's and the thumb's with its ball (4
+  points each) at three curls of the closing path (0, 2, 4), each part thinned once per rig by farthest-point
+  sampling: 100 points.
+- **A finger as the grasp draws it:** closed from open until it touches, or sunk open, from the tightest curl it is
+  clear at; so a finger counts as in only if it is in at every curl, by its least sunk curl (all its points in one
+  pose). Fingers may press `vr_grip_fit_finger_depth` (0.4 cm) in, the palm, back and wrist `vr_grip_fit_palm_depth`
+  (0.2 cm). The overlap is every point's depth past its allowance, summed.
+- **The shape:** the Box3D hulls, each face pushed out to the drawn model's furthest vertex along it (at most 6 cm:
+  the barrel's hoops stand 4 cm out of its hull; the crates' hulls are their drawn boxes exactly).
+- **The move:** the ways out are the faces nearest the sunk points (the 3 most weighted by depth, the pair of the
+  first two, the depth-weighted sum); along each, the distance that clears every point is solved at once from the
+  face distances; tried in order of that distance (the least move first), capped at `vr_grip_fit_reach` hand lengths
+  (0.75, 18 cm), the first 2 measured there: the first that clears is kept, else the one in least (never deeper than
+  before). Menu (Carrying): Finger Contact, Palm Contact, Most Move (hands); the step rows are gone (no steps).
+
+Tests (headless, e1m1; `scratch/gf2_test.sh`, `gf2_2h.sh`, `gf2_place.sh`): the drawn hand 40 frames after the grab,
+`vr_grip_fit_drawn` (points in of 172 hand / 283 fingers, deepest cm), off = `vr_grip_fit 0`:
+
+| grab | off: hand | off: fingers | on: hand | on: fingers | moved |
+| --- | --- | --- | --- | --- | --- |
+| small crate, hand 13 over its middle (by the top) | 106, 6.2 | 247, 7.2 | 0 | 0 | 10.1 cm |
+| small crate, 6 over its middle (whole hand in) | 172, 28.2 | 283, 29.2 | 130, 11.9 | 272, 11.5 | 18 (the cap) |
+| barrel, 12 over its middle | 112, 7.7 | 256, 8.9 | 0 | 0 | 13.5 |
+| health box beside the fist | 0 | 48, 0.67 | 0 | 48, 0.67 | 0 (clear) |
+| explosive box, 10 over its corner (whole hand in) | 172, 29.5 | 283, 27.5 | 172, 11.2 | 283, 9.2 | 18 (the cap) |
+| health box on the palm (surface fit off) | 37, 3.8 | 117, 4.7 | 0 | 27, 1.7 | 4.5 |
+| second hand into a held health box (4 cm in) | 60, 4.1 | 175, 5.1 | 0 | 9, 1.2 | 5.1 |
+
+The fingers left in (0.5-1.7 cm) are the grasp solve's own snug contact as it wraps (the health box held clear shows
+the same 0.67 cm with the fit off). Pictures (`scratch/gf2_pair.png`, side views; the hand placed in reach so the arm
+is drawn: `gf2_place.sh`, the crate taken by its lid's near edge with the hand 6 units under the lid, the barrel at its
+rim): off, the hand is inside the crate (only the forearm shows) and inside the barrel's wall; on, it lies on the lid
+and holds the barrel's outside at the rim (drawn: 7 and 0 hand points in, under 0.5 cm). Note: in the first pass's
+`nearest` cases the hand is beyond arm's reach, so no arm is drawn and the fist on the lid reads as a fingertip.
+
+Timing (`--exclusive`, `vr_grip_fit_last`, the barrel's 66 faces): the solver's worst case (every point in every
+hull, all ways, 2 measured) 31.4 us mean; a live barrel grab 70-76 us with cold caches (the shape 14, posing the hand
+7), a crate 25-39 us, a clear grab 13 us. No allocation at a grab (fixed arrays; the rig's points are chosen when the
+rig is first used). Regression: `grip_gap_test.py` cycle 7 checks and forcegrab 6, 0 failed; e1m1 smoke clean.
+
+In VR: grab a crate by its lid or a barrel by its rim with your hand pushed well in: the prop should drop out of the
+hand so the hand lies on the lid or round the rim; a grab with the hand already on the surface should not move it.
+A hand pushed in more than about 18 cm (Most Move 0.75) stays partly in.
+
+## Gloves: leather, not painted skin (worktree `flatfist`, branch `agent/glovetex`, 2026-10-16)
+
+His note: the gloves felt like the hand painted in a glove's shape: the full glove showed the nails and every crease
+through it. Now where a glove covers, the skin's colour **and** its painted detail are gone; the leather has its own:
+
+- **The mask's A channel** (`Misc/quakevr/make_skin_masks.py`, the hand's four `hand_rig_NN_00_skinmask.tga`; R, G, B
+  unchanged bit for bit) is no longer the skin's shading but the glove's relief, made from the fingers' 3D coordinates:
+  0.5 flat; seams down each finger's sides (fourchettes, a little towards the palm, ending before the tip), across the
+  fingers' palm-side base and round the thumb's base, each a groove (to 0.15) with a row of raised stitches (0.8, 3 mm
+  apart) either side. The bodies' A is flat 0.5 (the forearm cuff is plain leather).
+- **The shader** (`vr_glsl.h` `GloveLeather`, `GloveSheen`; QVR_ALIAS_FS_LIGHT): the leather = the HSL colour (hue,
+  saturation, lightness as before) x the seams' shade (grooves dark, stitches light) x a procedural pebbled grain (a
+  3x3 cellular pattern in the skin's texel space, ~1.2 mm pebbles, each its own slight tone, crevices darker; faded to
+  its mean where a pebble is under ~2 pixels, so no shimmer) x the hem (still 30% darker at the edge, and now rolled
+  over: a ridge). Its normal: the skin's normal map faded out under the glove (no creases or nails in the light either)
+  and the seams', hem's and grain's slope put on instead (`WoundBump`). A soft broad sheen (exponent 18, a little
+  Fresnel), duller in the crevices and seams. The hand's form (its normals, the lighting, AO) stays. Fingerless gloves'
+  bare finger ends, and bare hands, are skin as before.
+
+GPU cost: only glove-covered fragments of the hand and cuff pay: 2 more taps of the mask, a 9-cell hash loop (~120 ALU)
+and one pow. Measured (`--exclusive -RealTime`, hands 13 cm from the eyes, 1024x1024 eyes, `vr_profile_report`): frame
+GPU 1.117 / 1.113 / 1.137 / 1.250 ms for gloves off / on / off / on: within the run's noise.
+
+Tested (headless, vrfiringrange, `scratch/glove_close.py`: backs of the hands and palms; before/after in
+`scratch/gloves_leather_before_after.png`): full brown, full red, fingerless brown, fingerless blue: no nails, no
+creases, seams and grain on the leather, finger ends still skin; bare hands: the new shader against the old with the
+same masks, 9 pixels differ (max 17, an edge). e1m1 with gloves 2/1, bracers 0, body modes 3/0, `vr_hand_rig` 1/0: no
+errors. For him in VR: the grain's size and depth (`GloveLeather`: 0.55 cells a texel, depth 0.14 texel), the seams'
+places, the sheen's strength.
+## Crushing pops heads and limbs: down ones, corpses, same-level jumps (worktree `dequant`, branch `agent/crushpop`, 2026-10-16)
+
+His note (dm1): landing on a ragdoll, alive or dead, never popped its head or limbs, from any height; repeated jumps
+onto a lying head should pop it after a few, two or three heights at once; ogres and shamblers hurt only.
+
+Why it never popped in play (the headless tests landed on the torso, so they passed):
+- **The part under your feet was never the head.** `ragdollbone(m, feet)` is the part whose surface is nearest the
+  feet, and your feet go through a lying body to the floor: under the head that is the chest or a shoulder. The test
+  dropped you over the box's middle, the torso anyway.
+- **Corpses were skipped** (`health <= 0`), so a dead ragdoll never went through `VR_Limb_WearInto`.
+- **Same-level jumps never counted**: a jump lands at ~270 u/s, under Quake's landing gate (-300) and the crush's
+  least speed (400).
+- Wear from a crush was its damage, small at a jump's speed; a living one's limb only pops on the killing blow.
+
+Now (QC `vr_ragimpact.qc` `VR_RagImpact_Crush`, `VR_RagImpact_Underfoot`; `client.qc`):
+- **What your foot touches** (`VR_RagImpact_Underfoot`): a 3x3 column of points 6 units apart round your feet's middle,
+  from 6 under your feet to 26 over them, each asking `ragdollbone(m, p, 2)` (new optional `within`: -1 unless a part's
+  surface is within 2 units; engine `box3d::ragdollBone`); the head before a limb before the torso, then nearest the
+  middle. Living ones down or staggering and **corpses** (ragdolls, not gibbed) alike.
+- **Same-level jumps count**: the crush's landing gate is the lower of Crush Least Speed and Stomp Least Speed (100 at
+  least), not Quake's 300; a soft landing's `jump_flag` is zeroed once you are down so it counts once. Crush Least Speed
+  `vr_ragimpact_crush_speed` 400 -> **200** u/s (a same-level jump: ~260 here).
+- **Per-landing wear** (`vr_ragimpact_crush_wear` 0.3, row Crush Wear): a landing wears that share of the head's or
+  limb's own health (`vr_ragimpact_piece_hp` x corpse health: a grunt's 32) at the least speed, rising with the square of
+  the way to **Crush Pop Speed** (`vr_ragimpact_crush_pop` 380 u/s, about a 90-unit fall to the floor: two heights onto a
+  body lying down), where it is all of it: popped at once. A same-level jump wears ~0.35: the third pops the head. The
+  wear is the shared `vr_limb_corpse_dmg`, so a living one's wear carries over to its corpse. Health damage is the
+  crush's as before (`vr_ragimpact_damage` x 50 kg x the excess speed; head 1.5x): a jump ~11 to the torso, ~17 to the
+  head.
+- **Big ones hurt only** (`vr_ragimpact_crush_big` 200 kg, row Crush Big Mass: ogre, fiend, vore, shambler, AD's
+  bigger ones): no head or limb is worn, and one landing takes at most `vr_ragimpact_crush_big_max` 0.25 of its full
+  health (row Crush Big Most); the stomp's knockdown is unchanged.
+- A living one's limb still pops only on the killing blow (as every limb pop; worn through, the next blow that kills it,
+  or a crush on its corpse, pops it).
+- The stomp knockdown is unchanged, but a humanoid landed on from the stomp's height (420 u/s) now dies of the crush
+  (head popped, or ~75 damage), so the knockdown is mostly for big and tough ones (an ogre from 256 units: 50 damage,
+  knocked down).
+- Debug > Tests: "Impacts: Jump onto the Nearest Ragdoll's Head" (`vr_test_drop_height 46; vr_knockdown_test 60`) and
+  "Drop onto the Nearest Ragdoll's Head" (112). Tests 60/61 put you over the nearest ragdoll's head / left shin, your
+  feet `vr_test_drop_height` over the floor; 62 kills the nearest living one.
+
+Verified (headless, `python Misc/quakevr/foegrab/ragimpact_test.py dequant crush stompwear`, 0 FAILS; new case
+`stompwear`): same-level jumps (46 units, 8.2 m/s) on a down grunt's head: 0.35 a landing, dead at the second, head
+popped at the third (as its corpse). 112 units on a down grunt's head: popped in one landing. A corpse: 112 units on its
+head, then its shin: both pop. Standing grunt, knight, enforcer, 112 units over their top: head popped (76-81 damage).
+Ogre, shambler: 50/51 damage, alive, nothing popped. Crush case: 256 onto a down one 104 to the torso; 16 units over the
+floor nothing; standing grunt 64/128 units 40.6/84.6 to the head (128 pops it); 16 nothing; ogre 256 knocked down by the
+stomp (alive); cushion 100 vs 95. wall, grab pass; slam is flaky (head slams' speeds vary run to run: 1 fail, 1 pass on
+this branch, a pass on the base). Melee eval 168/177 (baseline). e1m1 smoke clean.
+
+In VR: knock a grunt down and jump on its head from beside it: the third jump pops it. Kill one, jump off a ledge
+about twice your height onto its head, then onto a leg: each pops. Do the same onto a standing grunt, knight or
+enforcer: its head pops. Onto an ogre or a shambler: it is hurt, never killed outright, nothing pops.
+## Melee arc: monster blows only ahead of the monster (worktree `tghost`, branch `agent/meleearc`, 2026-10-16)
+
+His note (AD's start map): a knight's sword hits him while it still faces away (he snuck up behind it) and when he
+steps to the side of its body as it charges. Cause, the same in every monster's melee: Quake's blows check reach only
+(`ai_melee`: origins within 60 units; a bite or claw 100; AD's `ad_ai_checkmelee`: level distance and height), never
+the facing; the generic `CheckAttack` (knight, hell knight, fish; AD's generic and most of AD's own checks) starts the
+attack the frame the player is in melee range, whatever the facing; and while swinging the monster turns after him at
+full speed, twice a frame (`ai_charge` = `ai_face` plus `movetogoal`'s step, each a `ChangeYaw` at `yaw_speed` 20),
+so a step aside is caught within a frame or two.
+
+What changed (`QC/fight.qc`, one helper family used by every path):
+
+- `VR_MeleeArc_Hits(wide)` on each blow's hit frame, after its reach check: against a player the blow lands only if he
+  is within `vr_enemy_melee_arc_angle` (default 65) of the monster's current facing (level, to `VR_AI_Origin`), plus
+  `vr_enemy_melee_arc_wide` (20) for sweeping blows. Monsters fighting each other keep Quake's blows.
+- `VR_MeleeArc_Launch()` where an attack starts at once (`CheckAttack`; AD's `ad_*CheckAttack`, 21 places): facing
+  away (outside the arc) the attack is not started; `attack_state = AS_MELEE` instead, so `ai_run_melee` /
+  `ad_ai_run_melee` turns it first and starts it when facing (`FacingIdeal`, 45 degrees). `ai_run_melee` now picks the
+  knight's run or standing swing (`knight_attack`) as `CheckAttack` did.
+- `VR_MeleeArc_TurnBegin/End` around a swing frame's turns (`ai_charge`, `ai_charge_side`, the fiend's, gremlin's and
+  scourge's `ai_face`; AD's `ad_ai_charge`, `_chargenoturn`, `_charge_side`, `_charge_front`, the fiend's, drole's,
+  minotaur's and seeker's claws): all of a frame's turns together at most `vr_enemy_melee_turn` (4) degrees.
+- Cvars (archived): `vr_enemy_melee_arc` 1, `vr_enemy_melee_arc_angle` 65, `vr_enemy_melee_arc_wide` 20,
+  `vr_enemy_melee_turn` 4; Combat > Holding Enemies > Melee Arc, Melee Arc Angle, Wide Swings, Swing Turn. Debug >
+  Tests > Holding Enemies: Log Melee Arc (`vr_enemy_melee_arc_debug`: each blow's angle and verdict) and three test
+  rows (`vr_test_meleearc` 1 faces you, 2 faces away, 3 you step aside; `QC/vr_meleearc_test.qc`).
+- AD's files edited in place (as melee space's), each line marked `// AD support`.
+
+Audit (how each blow decides a hit; arc = now also the arc, wide = with the wide margin):
+
+| Monster (file) | Hit test before | Now |
+|---|---|---|
+| Knight standing swing, hell knight all swings and charges, the expansions' knights on these frames (`ai_melee`, fight.qc) | origins within 60 | arc; launch gated |
+| Knight run swing (`ai_melee_side`: 5 hit frames while running past him) | 60 + CanDamage | arc (not wide); launch gated |
+| Rottweiler bite (`dog_bite`) | 100 + CanDamage | arc |
+| Rottweiler, fiend, spawn leaps (`*_JumpTouch`) | touch at speed | unchanged: the body must touch him |
+| Fiend claw (`Demon_Melee`) | 100 + CanDamage | arc |
+| Ogre chainsaw (`chainsaw`: swing turns the ogre up to 25 degrees a frame, smash) | 100 + CanDamage | wide |
+| Shambler smash / claws (`sham_smash10`, `ShamClaw`) | 100 | arc / wide |
+| Rotfish bite (`fish_melee`) | 60 | arc; launch gated (generic CheckAttack) |
+| Zombie, vore, grunts, enforcers | no melee (thrown flesh, missiles, our shoves) | - |
+| Gremlin claw (`Gremlin_Melee`), scourge tail (`Attack_With_Tail`) | 100 | arc |
+| Mummy (rogue) | zombie's thrown flesh | - |
+| Dragon tail (rogue) | 150, meant for behind it | unchanged |
+| MG3 super shambler smash / claws | 100 + CanDamage | arc / wide |
+| AD `ad_ai_melee`, `ad_ai_meleesmash`, `ad_ai_melee_side` (knight, death knight, dguard, dsergeant, dlord, dprince, fury, crossbow knight, zombie knight, judicator, ...) | `ad_ai_checkmelee` 70/meleerange/60 + z | arc; launch gated |
+| AD fiend, dog, fish, spider, steelclaw, swampling, voreling, scorpion, seeker, lost soul, dguard quoth, xmas four | `ad_ai_checkmelee` | arc |
+| AD drole, minotaur, freddie, shambler (side blows) | `ad_ai_checkmelee` | wide for side blows |
+| AD ogres (chainsaw) | `ad_ai_checkmelee` | wide |
+
+Tests (`Misc/quakevr/melee_arc_test.sh <agent> id`, vrtesthall, monster 56 units away, 4 s; arc off -> on; hits in
+4 s, first hit (s); step: he is moved to its right, 100 degrees off, as its attack starts, hits in the next second):
+
+| Monster | facing him: hits, first | its back to him: first, angle then | step aside: hits after |
+|---|---|---|---|
+| knight standing | 12, 0.6 -> 12, 0.6 | 0.6 -> 1.3 (17) | 3 -> 0 |
+| knight run swing (100 units) | 14, 0.5 -> 11, 0.5 | - | 5 -> 0 |
+| hell knight | 18, 0.5 -> 12, 0.5 | 0.5 -> 1.2 (21) | 5 -> 0 |
+| ogre | 17, 0.7 -> 16, 0.6 | 1.3 -> 1.2 (21) | 6 -> 1 (the sweep) |
+| fiend | 5, 0.6 -> 5, 0.6 | 1.2 -> 1.2 (17) | 2 -> 0 |
+| rottweiler | 4, 0.5 -> 4, 0.5 | 1.1 -> 1.1 (25) | 1 -> 0 |
+
+With the arc off a step-aside hit lands at 90 degrees (knight run swing). The fiend, ogre and dog already turned first
+(their own checks use `AS_MELEE`), so only their angle at the first hit changes. AD's monsters could not be run here
+(no AD data in the kit's bases): built and reviewed only. Melee eval 168/177 (unchanged); e1m1 smoke (all 23 awake)
+clean.
+
+In VR: let a knight charge and step to its side as it swings (it should miss, then turn and come again); sneak behind
+one and wake it: it should turn to you before the first blow lands. Standing in front, blows land as before. Too easy
+to dodge: raise Swing Turn (the old tracking was up to 40 a frame); too strict: widen Melee Arc Angle.
+## Gib props: every monster's head and gibs (worktree `backlogclean`, branch `agent/gibprops`, 2026-10-16)
+
+His notes: an AD crossbow knight's head could not be picked up and ignored physics; the hammer hunter ogre's head was a
+physics object but never burst; every enemy's gibs should be proper props.
+
+How id's do it: `ThrowHead` (player.qc) makes the monster itself its head and `ThrowGib` spawns each gib; both call
+`VR_MakeGibGrabbable` (the model's box, touchable, force-grabbable, carried; a Box3D rigid body from its first landing,
+VR_Gib_Touch, or when taken) and `VR_Gib_MakeDestroyable` (vr_gib_health times 1, a head 1.5; armed after 0.2 s; damage
+goes to `VR_Gib_Damage`, which bursts it: blood mist, small gibs, a head's brain). The props table (vr_props.inc) only
+tunes masses: a model with no slot (every AD head) is a prop all the same, its mass estimated (an AD head: its share of
+its ragdoll's, `VR_Limb_SetMass`, as a beheading's). Every id1, Scourge of Armagon, Dissolution of Eternity, Honey
+and Dimension/Dawn of the Machine monster goes through these two (the gremlin's `Gremlin_ThrowHead` and MG3's own deaths
+too): nothing to fix there.
+
+Why AD's were not: two ways.
+- AD's own gibbing (a live one blown apart: AD's `monster_ThrowGib`, `ThrowGib`) spawns AD's `item_gib` entities, head
+  (kind 25) and gibs alike: bouncing, fading after 10-20 s, never ours. Now two `ad_import.py` hooks (FUNC_PATCHES:
+  `ai_gibs.qc`) call `VR_AD_Gibbed` (our gore, small gibs and limbs, as ThrowHead's) and `VR_AD_GibThrown` for each
+  gib (vr_ad_monsters.qc): the head made as `VR_Decap_ThrowHead` makes one (the monster's class, HeadThink, grabbable,
+  destroyable 1.5, its ragdoll's head mass), each flesh gib as ThrowGib's. Kept AD's: stone/metal/wood monsters'
+  gibs (AD's gibtype; AD switches it to metal before a machine's parts), weapons and armour among the custom gibs (an
+  impact sound of wood/metal/chain, or a `progs/w_` model: crossbows, swords, grenade launchers), contact-damage gibs
+  (gib1dmg), the robot floyd's and the snowman's heads (no flesh). With vr_gib_limbs 2 AD's meat gibs give way to the
+  limbs as id's do; a head already cut off is not thrown again.
+- A corpse gibbed is Quake VR's (`VR_Corpse_Parts`: ThrowHead on the AD monster, AD's head model): a prop, but it kept AD's
+  class, so `AD_Run` sent every hit on it to AD's T_Damage, which knows nothing of VR_Gib_Die: the hammer ogre's
+  unbreakable head. `AD_Run` now skips our gibs and heads (`.vr_gib`, `th_die == VR_Gib_Die`), AD's gibs made ours too.
+
+Test: `vr_gibprops_test` (vr_gibprops_test.qc; Debug > Gore Tests > Gib Props rows), run by
+`Misc/quakevr/gibprops_test.sh <agent> <map> <alive|corpse> <spawner choices...>` (AD: `PRE="vr_campaign_native ad"`,
+map start), which prints the table (`gibprops_table.py`): per monster the debug spawner makes, gibbed alive (or killed
+whole and its corpse gibbed), its head grabbable and destroyable, a Box3D body once landed (physicsdamp), taken by the
+main hand's touch with the mock's grip held, carried with a held body (heldbox), loose again when let go, then shot
+(armed, burst, the small gibs made); its gibs grabbable and destroyable. Every head below: grabbable 1, Box3D 1 (a few
+still in the air at 150 frames: enforcer, boglord, hell knight, polyp, flak ogre, deflector, prince; all Box3D once let
+go), taken/held/loose 1/1/1, destroyable 1, burst with 22 small gibs; every gib of ours grabbable and destroyable.
+
+| Game | Monster (head model) | Head: prop / destroyable / bursts before | after |
+|---|---|---|---|
+| id1 | grunt h_guard, ogre h_ogre, zombie h_zombie, shambler h_shams, scrag h_wizard, knight h_knight, death knight h_hellkn, rottweiler h_dog, enforcer h_mega, fiend h_demon, vore h_shal; corpses gibbed too | yes / yes / yes | same |
+| id1 | spawn, rotfish, Chthon, Shub (no head) | - | - |
+| hipnotic | gremlin h_grem, centroid h_scourg | yes / yes / yes | same |
+| rogue | mummy h_zombie, eel eelgib (ThrowHead); wrath, dragon: gibs at the death's end, all props (3/3); swordsman, overlord, Guardian, lava man: no gibs | yes / yes / yes | same |
+| Honey | marksman ogre h_ogre, sknight h_hellkn | yes / yes / yes | same |
+| MG3 | rocket ogre h_ogre, demo dog h_dog, ranged knight h_hellkn, super shambler h_shams; infected: its grunt head thrown as a gib (by design), its zombie h_zombie | yes / yes / yes | same |
+| AD, gibbed alive | death knight h_dknight, zombie knight h_zombiek, crossbow knight h_dcrossbow, hunter ogres h_hogre / h_hogreham (mace h_hogre), death guard h_dguard, gaunt h_gaunt, soldiers h_soldier, defender/eliminator h_enforcer, gargoyle h_gargoyle, minotaur h_minotaur, death fury h_dfury, centurion h_centurion, death sergeant h_dknight, drole h_drole, boglord h_boglord, gug h_boglordb, scorpion h_scorpion, justice h_justice, pyro/fumigator h_pyro, eel h_eel, freddie h_ogre, AD's zombies h_zombie, scrag h_wizard, hell knight h_hellkn, polyp h_gaunt, flak ogre h_ogre, deflector h_deflector, prince h_dprince, Quoth death guard h_dguardq | no / no / no (AD's item_gib) | yes / yes / yes |
+| AD, corpse gibbed | the same heads (crossbow knight, hammer ogre, hunter ogre, soldier, fury, drole, scorpion, death guard tested) | yes / no / no (AD's T_Damage) | yes / yes / yes |
+| AD | spiders and vorelings (AD throws more gibs instead), skull wizard, lost soul, boil, jim, swampling, wraith, death lord, steel claw, sentinel, fishing ogre (no head); golem, seeker, floyd, snowman (stone/metal: AD's); Nour, ice golem, judge (never gibbed by damage) | - | gibs: flesh ones props (spiders 6/6, boil 12/12, wraith 6/6...) |
+
+Regression: e1m1 fight (vr_test_monsters 3) and ad_tfuma fight (163 woken, 77 killed; pyros gibbed by AD's code) clean.
+
+In VR: blow apart an AD crossbow knight or a hunter ogre (rocket, quad shotgun): its head should land, be picked up and
+thrown like a grunt's, and burst into small gibs and a brain when shot or thrown hard; the same for the hammer ogre's
+head off its gibbed corpse. Its crossbow, sword or grenade launcher lying there stays AD's (not grabbable).
+
+## Magnetic holsters (worktree `permdecals`, branch `agent/maghol`, 2026-10-16)
+
+His request: RE4VR's magnetic holsters. A hand at a holster with a weapon in it presses the bind button: the weapon
+is bound to that holster; thrown or dropped, it comes back on its own after a while or past a distance; a chain shows
+the binding (the flashlight's). His decisions: the chain's look a setting (lanyard, tether, both), its size and
+opacity too; the return a flight through the air (and walls) over ~0.4 s that snaps in with a click.
+
+- **Binding** (QC `vr_magholster.qc`): the press is taken by the engine before the game gets its key
+  (`vr_magholster.cpp` `button`, in `vr_input.cpp` before bullet time's stick) only while the pressing hand is at a
+  holster that has a weapon in it or a binding, Weapon Mode Immersive; elsewhere the stick click does what it did. The
+  QC reads it with the `magholsterpoll` builtin (the local player's; the hand's hotspot says which holster) and binds
+  the holster's weapon (its record's id, `vr_weaponinst.qc`, in `.vr_magbind0..5`), or unbinds what is bound there:
+  one weapon a holster, one holster a weapon (binding it at another holster moves the binding). Feedback: the
+  flashlight's clip-on sound (bind) or clip-off (unbind), a double tick (bind) or a single one, the chain appearing.
+  An empty unbound holster: the holster's "not empty" buzz, nothing else.
+- **Return**: each frame (`VR_MagHolster_Frame`, end of `W_Frame`) each bound weapon is looked for: held, or in any
+  holster (its own or another): it stays. Lying about (a `thrown_weapon` with its record): its clock starts when first
+  seen out of the hands; when that clock passes `vr_magholster_return_time` (default 3 s) or it lies
+  `vr_magholster_return_distance` (default 4 m) from its holster (either; 0 turns one off), it flies home: no longer a
+  rigid body, `MOVETYPE_NOCLIP`, steered each frame by its velocity along an eased path with a low arc (a quarter of
+  the way up, at most half a metre) to the holster's place as your body has it (the `holsterpos` builtin; QC's estimate
+  for others) over `vr_magholster_flight_time` (0.4 s), its touch off on the way (it hurt the player it flew into
+  in the first run: 27 damage), then into the holster with its record (magazine, id, blood, heat) and the holster
+  click. Stuck in a wall or a monster: pulled out first. A force grab pulling it: it waits.
+- **Grabbed on the way**: it is still a thrown weapon with its handtouch; a hand closing on it takes it as a caught
+  throw (its velocity is real, so the mid-air catch window works) and the flight is over ("caught on its way home").
+- **The holster taken** (another weapon put in it) when it would return: it waits where it lies and comes back the
+  moment the holster is empty again; taken during the flight, it drops where its flight got to and waits likewise.
+- **Saves and levels**: the bindings are player fields (saved). A level change brings the bound weapons lying about
+  home first (holster empty), then carries each binding as its weapon's place among the carried ones (`parm73`, 4 bits
+  a holster: 1..6 a holster, 7, 8 the hands; `lastExtSpawnParm` 73). A weapon gone (used up, destroyed, faded):
+  unbound.
+- **Chains** (`vr_magholster.cpp`, the flashlight's `coil::Cord` chain; drawn after the cell cords): `vr_magholster_style`
+  0 Lanyard (default: an 11 cm chain hanging off the weapon's bottom, `cellcord::weaponBottom`, wherever it is drawn:
+  holstered, held, lying, flying; a 4.5 cm stub of it hanging at the holster while the weapon is away), 1 Tether (a
+  chain from the holster to the weapon while it lies about or flies home, 4% slack, its links grown past 8 m so they
+  reach), 2 Both, 3 None. `vr_magholster_chain_size` (0.6: links times the flashlight's 1.6 cm), `vr_magholster_chain_alpha`
+  (below 1: `gfx::drawTube`'s new `alpha`, blended, no depth write). `coil::Style` gained `stiffness` and `airDamping`
+  (defaults as before: the flashlight and the cell cords unchanged): the chains use 25 and 5, else a loose chain
+  hanging off one end stretched under its own weight (a 0.11 m lanyard drew 0.27 m) and whirled out straight when the
+  hand jumped; `maxLinks` 192 -> 640 for the tether.
+- **Menu**: Immersion > Weapons and Holsters > Magnetic Holsters: Magnetic Holsters (`vr_magholster` 1), Bind Button
+  (`vr_magholster_button`: 0 either stick click, 1 the off hand's, 2 the main hand's, 3 the lower face button A/X),
+  Return After, Return Beyond, Flight Time, Chain, Chain Size, Chain Opacity. Debug > (flashlight's page): Magnetic
+  Holsters Info (`vr_magholster_info`) and Magnetic Holsters: All Home (`vr_magholster_return`).
+
+Tests: `Misc/quakevr/magholster_test.sh <agent> [time walk catch save busy shots]`, all as described: time (home 2.00 s
+after the toss, 0.40 s flight, no hit), walk (flies home at 2.07 m, 0.39 s after the drop; unbound: no flight), catch
+(caught by the main hand 1.2 m from home), save (bound after save, unbind, load; a level change with the weapon away:
+home first, bound in e1m2), busy (waits 2.4 s with the axe in its holster, flies as the axe leaves), shots
+(`scratch/magholster_shots.png`: the lanyard on the holstered and held shotgun, the stub, the tether, the flight). e1m1
+smoke clean.
+
+Decisions: the bind button's choices are named by hand (off, main), not left and right (they follow Handedness); the
+tether shows only while the weapon is away from the body (lying about or flying), not while held; a weapon put in
+another holster stays there; Quick Slots mode: no binding or return (its holsters keep copies). Only the local player
+(single player, a listen server's host) can bind: the press reaches the QC through a local builtin.
+
+In VR: bind the hip shotgun (a hand at the holster, click the stick), throw it: it should fly back after 3 s; walk away
+from a dropped one; grab one on its way back; try the shoulders and the chest holsters, the off hand, the axe and an
+expansion weapon; look at the lanyard on the gun in the hand and at the holster (Chain Size, Opacity), and the tether
+across a room.
+
+### Magnetic holster chains fixed (worktree `permdecals`, branch `agent/magchain`, 2026-10-16)
+
+His notes (vrfiringrange): the lanyard a small chain spazzing out at the grip, bunching up as if colliding with
+itself; the tether not drawn at all (nothing from the holster to the gun), only a bit of chain spazzing at the holster.
+
+- **Why**: the chains were the flashlight's mass-spring cord with `stiffness` 25 (to hold a short chain's length:
+  its stretch is its weight over the stiffness, 1.2 cm at 25, whatever its length). At the 1/300 s substep that is
+  past the springs' stable step (the stiffest mode, squeezed: about 950 rad/s, x h = 3.2): at 90 Hz (4 substeps of
+  2.8 ms) every link blew up each frame; the headless runs at 250 fps (2 ms substeps) only just held, so the earlier
+  tests looked fine. The chains were also carried along by the player's origin, which steps against the body as drawn
+  (a holstered gun's chain jittered 10-25 mm a frame while walking). The tether was drawn only while the weapon lay
+  about or flew home (the round's decision), never in the hand.
+- **Fix** (`vr_coil.cpp`): `coil::Style::rigid` (the magnetic holsters' chains; the flashlight's and the cell cords
+  unchanged): the nodes kept their relaxed spacing by position-based constraints (7 sweeps a substep, alternating, the
+  last from the held end, at 1/600 s substeps) instead of springs: unconditionally stable at any frame rate, never
+  stretched; its spacing eased across the substeps as a tether pays out or reels in. Air damping 3 a second.
+- **Magnetic holsters** (`vr_magholster.cpp`): the lanyard, stub and tether carried by the holster's point (the body
+  as drawn, as the cell cords' pouch) instead of the player's origin. The tether shows whenever the weapon is seen
+  out of its own holster (in a hand too, another holster, lying, flying): its length the distance + 1% + 12 cm close
+  by (that slack gone by 2 m: nearly taut far off); faded out over 0.5 m past its reach (the return distance, at
+  most 6 m) and not drawn beyond. A jump of the weapon about the holster (over 15 cm a frame) restarts the lanyard
+  and the tether; a change of where the weapon is restarts only the lanyard.
+- **Debug**: `vr_magholster_chain_log 1` (Debug > Magnetic Holster Chain Log): every frame each chain's worst link
+  stretch (%), most movement and jerk (second difference) of its nodes off its anchor (mm; the tether's off the line
+  between its ends), and the jumps that restart one.
+
+Test: `Misc/quakevr/magchain_test.sh <agent> [label]` (90 Hz frames: `vr_fixed_frames_rate`, `host_maxfps`;
+vrfiringrange, the shotgun bound to the right hip, style Both): the main hand draws it and glides round a loop slowly
+(1 s a leg), then fast (0.12 s a leg: about 5 m/s, started and stopped at once), holds still, holsters it and the
+player walks; `magchain_summary.py` per phase and chain. Before (the old springs) and after, at 90 Hz:
+
+| phase, chain | link error max / mean % | jerk p95 / max mm | frames jerk > 20 mm |
+|---|---|---|---|
+| slow, lanyard | 380 / 148 -> 0.7 / 0.3 | 102 / 130 -> 8.0 / 23 | 498 of 500 -> 1 |
+| slow, tether (held) | 375 / 108 -> 0.1 / 0.1 | 311 / 504 -> 2.0 / 5.0 | 498 -> 0 |
+| still, lanyard | 404 / 175 -> 7.4 / 0.8 | 108 / 140 -> 25 / 75 | 75 of 75 -> 7 (the swing after the fast stop) |
+| walk, lanyard (holstered) | 557 / 177 -> 0.5 / 0.3 | 128 / 288 -> 1.2 / 2.7 | 218 of 221 -> 0 |
+
+(The tether before was shown in the hand only for this measurement.) The fast legs swing the chains hard (an instant
+5 m/s start and stop; jerk p95 70 mm, a whip, not a jitter: smooth rise and fall frame to frame) and twice the mock's
+hand jumps 0.6 m in a frame (the chains restart: the 16.7% error rows are those restarts' first frames). Screenshots
+(`scratch/magchain_shots.png`): the lanyard on the holstered and the held gun hanging straight down 11 cm; the tether
+in the hand sagging from the grip to the hip holster; the tether from the hip down to the gun dropped 1.06 m away; a
+gun thrown 18.6 m: no tether (past 6 m). e1m1 smoke clean.
+
+Decisions: the tether now shows in the hand too (he expected it); beyond its reach it fades and is gone rather than
+stretching (the weapon flies home past the return distance anyway).
+
+In VR: Chain Lanyard: the chain at the grip should hang calm and swing with the hand, never bunch; the stub at the
+empty holster still. Chain Tether: a chain from the hip holster to the gun in your hand (slack), then throw the gun a
+few metres (taut-ish, sagging) and walk away from it with Return Beyond 0.
+## The toolgun's spawns: loaded, placed and drawn at once (worktree `fastship`, branch `agent/tgspawnfix`, 2026-10-16)
+
+His notes: a megahealth (or others) spawned in a map without one is invisible; health boxes, the megahealth and ammo
+spawn big for a moment and then shrink, and their ghost shows the big one in the wrong place; AD's and MG3's ammo and
+armour backpacks spawnable in any map (his decision; maps keep AD's rule, ARCANE_DIMENSIONS.md 16.1); the ghosts of
+some AD monsters (the Death Knight...) look corrupted, "their bones all messed up".
+
+- **Invisible spawns**: the megahealth is a brush model (`maps/b_bh100.bsp`); a brush model's lightmaps and vertices are
+  built with the map (R_NewMap), so one loaded later reached the client but was never drawn. QC `VR_Toolgun_Precache`
+  now precaches every brush-model entry with each map (id's health and ammo boxes small and big, the explosive boxes,
+  Rogue's lava nails, multi rockets and plasma boxes where its pak is, AD's golems' rubble `maps/ad_brk/rock01/02.bsp`):
+  13-21 small files. The client prints `late brush model ... not drawn` (developer 1) for any other
+  (`client::lateBrushModel`).
+- **Late precaches reach the client before their use**: a late model or sound precache was sent only in the reliable
+  message, which goes after the frame's datagram (and waits for the last one's ack), so the entity made with it or a
+  sound started on it came first: the model drawn as nothing until a later update, the sound lost. Each late precache is
+  now also written at the head of every client's datagram for half a second (`VR_WriteRecentPrecaches`, sv_main.c
+  SV_SendClientDatagram after svc_time); the client skips one it knows. Everything else an entry needs (models, sounds)
+  is precached late, when it is chosen (the ghost's probe, below) or made.
+- **Final size from the spawn itself**: `box3d::spawnClass` (the toolgun, `vr_physics_spawn`, the brush tool) runs QC
+  `VR_SpawnLive_Finish` right after the spawn function: Dawn of the Machine's upgrade started (its 0.5 s), AD's item
+  start (`AD_SpawnLive_Finish`: a backpack's setup and AD's 0.1-0.6 s spread), the item placed (`VRPlaceItemNow`:
+  dropped, a box shrunk to its object, a pickup scaled and floated: StartItem's 0.2 s) and made an object
+  (`VR_PickupObj_Place`: the 0.3 s after). The first frame the client sees is the final one.
+- **The ghost as the placed item**: an Items entry (or a picked `item_`) is probed once when chosen and aimed at a floor:
+  made where the ghost stands (`spawnClass` probe: QC `vr_spawn_live` 2, no ammo box's weapon drop) and removed at once;
+  its model, skin, frame, scale and offsets and its origin's move are kept (`GhostLook`) and the ghost drawn with them
+  (`toolgun::ghostVr`, render::networkData). The probe also precaches what the item needs before it is placed.
+- **Backpacks anywhere**: AD's ammo and armour backpacks (`ad_item_backpack`, `_armour`) through the toolgun in any map
+  while AD's data is mounted (`VR_AD_ToolgunSpawnsOutside`; the entries no longer AD-maps-only); MG3's four ammo
+  upgrades (shells, nails, rockets, cells) in any map as ammo backpacks: outside the campaign the model is read from the
+  owned pack and the map has no upgrade bit, so each fills that ammo to the usual most, every time ("Ammo backpack:
+  filled to N"). The health upgrade stays campaign-only.
+- **AD ghosts**: Rebuild From Skeleton keyed each entity's cached bone rows by its poses and settings, not its model; the
+  ghost is a temp entity whose slot draws whatever is chosen, so a new choice on the same poses (frame 0) took the last
+  one's bones. The key now includes the model (`vr_animsmooth.cpp` Key; the same would have hit an edict reused by
+  another model). Screenshots, before/after (Death Knight, Crossbow Knight, Hunter Ogre, Centurion):
+  `scratch/ghost_before.png`, `scratch/ghost_after.png` (`scratch/ghost_shots.sh`).
+- **Debug > Toolgun**: Trace the Chosen Spawn (`vr_toolgun_spawn_trace [entry] [frames]`: its server model, scale, box,
+  place and its client model and scale each frame); `vr_toolgun_spawn_test check` prints "invisible" for an alive one
+  the client doesn't draw and the precaches the client lacks; `vr_toolgun_status` the ghost as drawn; with developer 1
+  each spawn prints where it was placed, scale and offset.
+
+Tests: `toolgun_spawnall_test.sh fastship 0 239` (vrfiringrange) PASS: 199 spawned and alive, 0 failed, 0 invisible,
+11 unavailable; precaches 457 models / 834 sounds, 0 not on the client; the five AD backpacks and four MG3 ammo
+backpacks alive there. `vr_toolgun_spawn_trace` on every entry (`scratch/trace_all.sh`): every item's server scale and
+box the same from the frame it is made, its client scale final from the first frame it is drawn (id's boxes 0.2,
+armour 0.5, powerups 0.6, backpacks 0.75); the megahealth drawn (was "no model"); AD's items drawn from frame 1-3 (were
+frame 37-95). Ghost vs placed (`scratch/ghost_numbers.sh`: health, megahealth, green armour, shells, quad, AD health
+vial, AD ammo backpack, MG3 shells backpack): model, origin, scale and offset identical. `toolgun_panel_test.sh` PASS;
+e1m1 smoke (a megahealth and an AD backpack spawned) clean.
+
+Not done: AD's monsters still appear after AD's own spawn delay (0.3-1.2 s, as in AD's maps). Weapons' entries are a
+spawner that makes the weapon (unchanged). The Debug menu's QC spawner keeps the backpacks AD-maps-only.
+
+In VR: spawn a megahealth, health, ammo and an armour in vrfiringrange: each appears small at once where its ghost was,
+with no big flash; the ghost shows the small box on the floor. Choose AD's Death Knight after another AD monster: its
+ghost should look like the monster. Spawn AD's and MG3's backpacks in an id map and take them.
+## Flesh dents (worktree `goreflesh`, branch `agent/goreflesh`, 2026-10-16)
+
+BACKLOG "More gore" (his notes, 2026-10-15): "real-time vertex deformation showing flesh chunks torn away". His
+decision: dent + wound, persisting on the living, corpses and ragdolls, no see-through holes.
+
+- **Where a dent lives** (`vr_dents.cpp`): each body (the entity; its `.mdl`, a ragdoll's source) keeps up to
+  `vr_gore_dents_max` (8, at most 16) dents in its model's **rest pose** (pose 0, model units): centre, radius, the
+  struck surface's rest normal, depth, and a blade's long axis with its stretch. The wound system already finds where
+  a blow meets the drawn triangles (`vr_wounds.cpp` `strike`); the dent takes the nearest facing drawn triangle to that
+  point and carries the point to the same triangle in pose 0 by its barycentrics (a blade's swing too, through the
+  triangle's frame). A shot, pellet or nail makes a small dent (r 2-3.6 units, 1-1.6 deep), a blade or blunt blow a
+  longer one (r 3-5, drawn out 2.2-3x along the swing), a blast one crater on its nearest facing point (r 3.8-5.5,
+  2-3 deep) and two lesser ones where its bleeds land. Burns, lightning and liquids make none.
+- **Drawn** (`vr_glsl.h` `QVR_DENT_FUNCTIONS`, `QVR_ALIAS_VS_DENTS`, `DentsAt`): the alias vertex shader reads the
+  vertex's rest place (a `.mdl`'s pose 0; a ragdoll's skinned model's bind pose, which is that same pose 0) and pushes
+  it in along its normal as drawn, after the poses, the smoothing, its rebuild from the skeleton and a hit reaction's
+  kick, so a dent goes with every animation and the ragdoll. The bowl is (1 - t^2)^2 (t the distance in radii, squashed
+  along a blade's axis and flattened 2x along the dent's normal so a gun held before the chest is left out), only where
+  the surface faces the dent's (an arm resting on the chest in pose 0 isn't dented with it); the deepest counts. Quake's
+  meshes are coarse (a small dent may move no vertex), so the fragment shader measures each pixel in the rest pose too:
+  raw flesh inside a torn (noise) edge, a pale lip, a dark bloody core, a dark blood rim out to 1.35 radii, wet sheen,
+  and the bowl's slope bent into the normal (the rest pose's screen derivatives; Mikkelsen's surface gradient) and
+  shading the model's own light (its far wall lit, its near one dark) whatever the bumps' setting.
+- **No holes:** the depth is held to 0.6 of the radius and to 0.4 of the body's thickness under the point (a ray
+  through the drawn triangles: an arm, a tail, a head's side), whatever the depth and size scales.
+- **Not flesh:** a triangle on a rig's loose piece (`vr_ragdoll.cpp`: the grunt's gun) gets no dent, and a blast's
+  crater skips it.
+- **Many:** a dent landing mostly on another merges into it (wider by 0.3 of the smaller, up to 1.25x and 7 units,
+  a little deeper); a full body merges its oldest into the dent nearest it (or lets it go: its painted wound stays).
+- **Rows:** one GL buffer (SSBO 12) of 128 bodies x 16 dents x 3 vec4s (96 KB), a block per body, written only when a
+  body's dents change (or the scales do); the instance's `Dent`/`DentScale` say which rows and the drawn model's
+  pose-to-units scale. Past 128 bodies the one hit longest ago gives its dents up. Map changes and `wounds::clear` forget
+  them, a removed entity (`QVR_SVC_WOUNDCLEAR`) forgets its own.
+- **The flesh chunk** is the existing small gibs' (`vr_smallgibs.qc`): already torn out where a hit lands, by its damage
+  (not added again here).
+
+Settings (Gore > Wounds on Models, archived): Flesh Dents `vr_gore_dents` (1), Dent Depth `vr_gore_dents_depth` (1),
+Dent Size `vr_gore_dents_size` (1), Dents per Body `vr_gore_dents_max` (8). They ride on the wound events: with Dynamic
+Wounds, Burns and Wet from Liquids all off, no dents. Debug: `vr_gore_dents_info` (Debug > the info commands: Flesh
+Dents), `vr_wounds_test nearest <kind> [amount] [right] [up] [pellets]` (new `nearest`: the monster model nearest the
+view) and Debug rows Dent the Nearest Monster: Nail / Blade / Blast; `vr_wounds_debug 1` prints each dent (radius,
+depth, thickness under it).
+
+Tests (headless, vrtesthall, `scratch/dentshots.sh <monster> <distance> <eye height> <prefix> "<cvars>"`: nails, six
+pellets, a blade, then a blast; each with dents on and off; then `vr_test_kill 1` and the ragdoll from above; the
+painted blood off, `vr_wounds 0`, to see the dents alone): the grunt's shoulder, chest and forehead (the blade's,
+upright) show dark torn craters with a pale lip that are not there with the dents off; the blast's crater sits on the
+nearest facing flesh (the gun skipped); the ogre's chest crater from the pellets reads as a bloody hole; both ragdolls
+keep their dents (gone with `vr_gore_dents 0`). Pictures: `scratch/g_alive.png`, `g_rag.png`, `o_alive.png`,
+`o_rag.png`.
+
+Cost (`scratch/dentperf.sh`, `--exclusive`, 1440 mock eyes, 20 grunts in a fan in view, 32 bodies dented by
+`vr_wounds_test all` (222 dents)): the models' GPU time 0.533 ms a frame with the dents, 0.485 without (+0.05 ms, both
+eyes), the frame's GPU 1.643 vs 1.596; the models' CPU 0.070 vs 0.069 ms (a lookup per instance); placing a dent 9 us
+(its triangle search, the thickness ray); no allocation per frame (the profiler's count 0).
+
+In VR: shoot a grunt with the nailgun and the shotgun, cut one with a blade, rocket an ogre: each hit should leave a
+small dark crater of raw flesh with a bloody rim that stays as he moves, dies and falls as a ragdoll; never a hole
+through an arm. Too subtle or too much: Dent Depth and Dent Size.
+
+### Weapons aren't flesh; small craters on heads (worktree `goreflesh`, branch `agent/dentfix`, 2026-10-16)
+
+His question: "since the grunt's weapon is part of its model, does it also get dented and looks like flesh?" It could:
+placement skipped the gun's triangles, but the shader dented and painted every vertex by its rest-pose distance, so a
+dent on the hand or chest beside the gun reached into the gun. And a rocket's crater on a grunt's face covered all of it.
+
+- **A flesh table per model** (`vr_dents.cpp` `fleshOf`, made with its first dent): each vertex's flesh, 1 or 0, fading
+  from 0 to 1 over 1.5 units (rest pose) from a non-flesh piece. Not flesh: (1) the rig's loose pieces; (2) any piece
+  of the mesh (its triangles joined by their corners; a triangle with a repeated corner joins nothing) shrunk to a
+  speck (under 0.5 units) in some frame: a weapon dropped in a death, a muzzle flash, on any model, rig or none (AD's);
+  (3) a short list of rig bones that are weapons held to the end (`notFleshBones`). A piece tucked away at rest (the
+  zombie's and mummy's thrown flesh) is marked but nothing fades near it. (1) and (2) agree vertex for vertex on id's
+  monsters, so (2) is what covers rigless models.
+- **Drawn:** the table (4 vertices a row) after the bodies' rows in the dents' buffer (16384 rows: 65536 vertices;
+  past it a model is all flesh); a header row before each body's dents gives its model's table, read by `gl_VertexID`
+  (a `.mdl`'s drawn vertex, and the same index in a ragdoll's skinned model). The vertex shader multiplies the push by
+  it (and skips the dents on a weapon's vertices) and hands it on in `out_restnor.w`; `DentsAt` scales the crater,
+  rim, depth and slope by it (smoothstep 0.15-0.85). A triangle with a corner of no flesh still gets no dent.
+- **Per model** (`vr_gore_dents_info` lists each model's counts): grunt 86 of 555 vertices (the shotgun), enforcer 59
+  of 479 (the rifle and its flash), ogre 119 of 497 (the chainsaw's four pieces, and his left hand: the grenade
+  launcher, by bone), knight 61 of 655 (the sword), hell knight 59 of 538 (blade and guard), Rogue's gremlin 38 of 123
+  (the gun he holds); zombie 20 and mummy 12 (the thrown flesh, inside them). By bone label, AD's weapon hands (each
+  bone the weapon with the hand round its grip): the crossbow knight, the three hunter ogres, the death guard, the
+  justice and the judicator knights, the death sergeant's hand and flail; AD's enforcer, pyro and centurion guns (hidden
+  on death) are found as dropped pieces. AD isn't installed here: its rows are untested. Not covered (left as flesh):
+  armour (the knights are armour all over: none would be dented), the death knight's and the fury's swords (their bones
+  carry the forearm too).
+- **Blast craters** (and a blast's lesser wounds round it): held to the part they land on, at most 0.8 of the part's
+  half width (half its rest points' middle extent: the grunt's chest's cap 5.8, a forearm's 2), 0.4 on the head and
+  its jaw (the grunt's cap 1.9: an eye, not the face); no rig, 0.6 of the thickness under it; never under 1.5. Where the crater
+  lands, the head counts 10 units further than it is: a rocket at his face craters his chest or shoulder unless the head
+  is clearly nearest. Merges keep the smaller cap.
+
+Tests (vrtesthall, `vr_wounds 0`, `scratch/fleshshots.sh <monster> <distance> <eye m> <prefix> <cvars> "<rights>"
+"<ups>"`: a grid of nails at the weapon): the grunt (40 nails over the gun and the hands on it, `fl_grunt_gun.png`), the
+enforcer (28 at the rifle, `fl_enf.png`) and the ogre (20 at the launcher and arm, `fl_ogre_box.png`): flesh dented
+right up to each weapon, the weapon as before. `scratch/fleshblast.sh 0 50 1.15 fl_blast 26`: a blast at the grunt's
+face height cratered his chest (r 5.4); a 120 one a little aside left a crater the size of an eye on his brow
+(`fl_blast_face.png`). `scratch/fleshrag.sh`: a dented ragdoll still shows its craters on the body. e1m1 smoke clean.
+Cost: placing a dent 9.1-9.7 us (8.8-8.9 before; the table made once per model); the shader adds one read per vertex
+of a dented body. The GPU A/B (`dentperf.sh`) was swamped by other load on the machine (both builds swung 0.5 ms
+either way): to be measured again on a quiet machine.
+
+In VR: shoot a grunt's hands and chest round his gun, an enforcer's round his rifle, an ogre's left forearm: craters
+on the flesh, none on the weapons. Rocket a grunt at his face: a crater on his chest or a small one on his face.
+## More gore: blood streams, back-splatter, teeth (worktree `gorefx`, branch `agent/gorefx`, 2026-10-16)
+
+His words: "I basically want this to look like a continuous thin blood waterfall. Research some techniques to implement
+that. The blood hitting the floor should paint it with blood as well." (BACKLOG.md, "More gore"; the vertex
+deformation of torn flesh is another worker's.)
+
+**Research: a thin continuous stream, cheaply.**
+- *Chained particles drawn as a ribbon* (the classic "trail"/"beam" particle: Unreal's ribbon emitters, Source's rope
+  and spritetrail): each particle emitted at a steady rate and simulated on its own (gravity, the emitter's motion), the
+  quads drawn between neighbours, so the chain reads as one unbroken line however the emitter moves. Cheap (a point a
+  1/45 s, a quad a pair), CPU-side, no new shader.
+- *A velocity-stretched quad per particle* (sparks, rain): reads as a stream only when they overlap; many more particles
+  for the same continuity, gaps when the emitter moves fast.
+- *A GPU particle stream with width taper* (compute or transform feedback): the same chain on the GPU; the win only shows
+  past thousands of points, and Quake VR's particles are CPU-built anyway.
+- *A spline or Verlet ribbon from the wound* (hair/rope solvers): smooth, follows the body, but a stream is ballistic
+  (each drop independent once out); constraints only add cost.
+- *A scrolling-UV tube* (a cylinder from the wound to the floor, its texture scrolling down: many games' waterfalls): one
+  draw, but a rigid shape: it neither arcs from a moving body nor trails behind it; it needs the arc traced anyway.
+- *Painting where it lands*: a decal at each landing (too many), or one growing pool per spot, moved on when the stream
+  moves (Brutal Doom's and F.E.A.R.'s pools under bodies; the existing gore's Pool marks, which spread over seconds and
+  bake into the permanent layer).
+Picked: the chained particles as a soft ribbon (vr_lines' depth-tested scene lines), the landing traced as one arc, a
+growing pool per spot.
+
+**Blood streams** (`vr_bloodstream.cpp`, `vr_gore_streams*`): every wound event (QVR_SVC_WOUND) of a shot or a nail
+(each pellet) opens one at `vr_gore_streams_chance` (0.6), on a monster or a corpse (not you). It binds to the model's
+vertex nearest the hit (the model as drawn then: the animated frame, or a ragdoll's skinned mesh), and each frame takes
+that vertex as drawn (`anchor::posedVertex` through the entity's matrix; a ragdoll's body: `ragdoll::drawnPart`, the
+vertex's bone), so it follows the animation and, once the monster falls, the ragdoll; the way it pours (back toward
+the shot, out from the body, a little up) turns with the body (its yaw, or the ragdoll body's turn). Points leave the
+wound 45 a second at up to `vr_gore_streams_speed` (70 u/s) times the flow (a gush, then weakening to nothing over
+`vr_gore_streams_time`, 7 s, beating at 1.35 Hz), plus 0.7 of the body's own motion, then fall freely; drawn as ribbon
+segments `vr_gore_streams_width` (0.35 units) wide, thinner as the flow weakens and as each point speeds up falling
+(a real stream's continuity: the width times the square root of its starting speed over its speed now). Where it lands:
+one arc (12 steps of 0.1 s) traced through the static world each 0.08 s from the wound at the current speed; the points
+live until then. Painting every 0.15 s while it lands: on a floor a Pool (16-24 units, `vr_gore_streams_pool`) spreading
+over what is left of the stream and darkening, a new one when the landing has moved over a third of the last one's size
+(at most `vr_gore_streams_pools`, 4), drops between; on a wall a run down it (gore's runs; at most 3); specks each time.
+Caps: `vr_gore_streams_per_body` (3) and `vr_gore_streams_max` (24, storage for 64): past one, the weakest (the one with
+least time left) gives its place. Fixed storage (64 streams of 56 points, 32 pending wounds); the vertex binding reuses
+one grown scratch vector: no allocations per frame. `vr_decal_count` prints them (`bloodstreams: n (n pouring), points`).
+
+**Back-splatter** (`vr_gore.cpp`'s hit, `vr_gore_backsplatter`, `vr_gore_backsplatter_reach`): each hit of a shot or a
+blast's pellets (not explosions or blows) also throws 2 + damage / 6 thin streaks (at most 12, 16 lines in all) along
+the shot's line (a cone of 0.12 rad, 0.2 for pellets), reaching 80 + 4 x damage units (to 480) for shots and 60 + 1.5 x
+damage (to 160) for pellets: a shotgun's close behind, a big hit across the room. Each lands as a Splatter 3.5-7 units
+wide and 4-8 times as long, drawn out along its flight and away from the shot's line: head on they radiate from where
+the line meets the wall (real back-spatter's look), glancing they run long along it; they show 1/1400 s a unit after
+the hit. Independent of Blood Sprays now (Blood Sprays 0 leaves only them).
+
+**Teeth** (`QC/vr_teeth.qc`, `Misc/quakevr/make_teeth.py` -> `progs/vr_tooth.mdl`, `vr_teeth*`): a hand's blow
+(T_Damage_VRMelee) with a fist (or, `vr_teeth_blunt`, a gun's butt, a crowbar, a club, a pommel; never a slap) on the
+head zone of a live humanoid (its head gib: grunt, enforcer, knight, hell knight, zombie, AD's soldiers, knights,
+judges and zombies), from the front, at Decapitation's blunt hardness (the hand's speed and the damage) of at least
+`vr_teeth_hardness` (0.3): up to `vr_teeth_per_hit` (4) teeth for the hardest, `vr_teeth_per_enemy` (10) at most from
+one. They are small gibs (VR_SmallGib_SpawnAs's xBrain 2: Most Small Gibs caps them, carried, thrown, fading as the
+others), `vr_teeth_size` (3 cm) long, `vr_teeth_mass` (0.05 kg), out of the mouth (the head zone's front, low) toward
+the face's front and the sides, up, along the blow, at `vr_teeth_speed` (3 m/s); no squish, blood, sticking or blood
+trail (their model has no gib flag); they click on landing (weapons/tink1.wav, quiet) and knock as stone
+(`vr_physsound.cpp`). The model: a lathe of a molar's profile (crown, neck, tapering root), 99 vertices, 140
+triangles, a 16 x 16 skin, ivory with the root bloody.
+
+**Settings and tests.** Gore > "Blood Streams, Back-splatter and Teeth" (every cvar above, archived). Debug > Tests:
+Back-splatter: Shotgun (`vr_gore_test 30 pellets`: `vr_gore_test <damage> pellets` is new), Blood Streams on Monster
+Ahead (`vr_gore_stream_test 3`), Knock Teeth Out (`impulse 198`: the monster spawned last punched as hard as can be).
+
+**Checked** (headless): streams on a standing grunt (`start`, frozen, looking down) pour from its chest in thin arcs
+and spread pools under them over seconds; on a corpse (`vr_test_spawn_dead 1`: a ragdoll) they pour short onto the floor
+round it; a real shotgun blast (the bench's gun set-up) prints `back-splatter 7 streaks, reach 105`; on the calibration
+room's wall the back-splatter alone (Blood Sprays 0) shows thin streaks radiating from the line's point, more and wider
+for 80 damage; impulse 198 on a grunt knocks out 4 teeth that bounce and lie by your feet (8 after a second punch).
+A real shotgun fight in E1M1's computer room (three blasts) keeps 6 streams pouring through the grunts' deaths and
+ragdolls (a first build stopped those on bodies that became ragdolls: the "#rag" model swap; fixed, `ownModel`).
+Cost (kit bench, 90 Hz paced, exclusive, 2 reps, all of it off with `vr_gore_streams 0; vr_gore_backsplatter 0` vs on):
+`play_e1m1_fight` (shotgun) frame p50 11.110 both, CPU busy avg 2.050 -> 1.957 ms (noise), heap allocations a frame
+5.36 -> 4.85; `play_e1m1_lights` (rockets) rep 1 CPU busy 2.742 / 2.728 off -> 2.714 on, its "vr particles" phase
+0.358 -> 0.390 (+0.03 ms); its rep 2 on was slower in every phase alike (3D, physics, swap, xr wait all about 1.8x:
+the machine, not the gore). So: within the runs' noise, under 0.05 ms a frame.
+
+In VR: shoot a grunt with the shotgun up close and watch the streams pour as it stands, falls and lies; check that the
+pools under it grow where the streams land; shoot one standing a little in front of a wall (the streaks behind it);
+punch a grunt's face hard with a fist (teeth; a soft punch none: Punch Hardness for Teeth) and pick a tooth up.
+
+## Blood streams diverge; his gore values (worktree `gorefx`, branch `agent/gorefx2`, 2026-10-16)
+
+His notes: one shotgun blast's streams "all seem to go in the same direction": randomize each as it starts and let it
+wobble as it flows. And "I've tweaked many values for the gore features. Please make those the new defaults."
+
+**Streams** (`vr_bloodstream.cpp`): every pellet of a blast shares the hit's direction, so the way out (back along the
+shot, out from the body's middle) differed only by a small jitter. Now each stream's way out is turned at random within
+a cone of `vr_gore_streams_spread` (35 degrees, evenly over the cone's cap), its force is times a random 1 +-
+`vr_gore_streams_speed_var` (0.3), and as it pours its way out wanders by up to `vr_gore_streams_wobble` (10 degrees):
+two sines a side, each at its own random rate (0.7-1.3x and 1.7-2.6x `vr_gore_streams_wobble_rate`, 0.7 Hz) and
+phase, applied each frame to the emitted points (the falling chain keeps what it left with, so the stream curls). The
+heartbeat phase was random already. Same storage, caps and traces; a few sines a stream a frame. Gore > Blood Streams:
+Stream Spread, Stream Force Variation, Stream Wobble, Stream Wobble Rate.
+
+Checked (headless, `-RealTime`, a grunt at 80 units, `vr_gore_stream_test 6` from one direction, side view
+`vr_mock_camera -2.4 1.1 -2.4 12 -90`): with the three at 0 the six arcs are parallel copies of one; with the defaults
+they leave at different angles and lengths. (In fast mode the chains show stair steps, before and after alike: the
+uncapped fixed frames, not the streams.)
+
+**His gore values are the defaults** (configVersion 139: a config still at the old default takes the new one):
+`vr_corpse_health_mult` 1 -> 2, `vr_gore_dents_depth` 1 -> 3, `vr_gore_dents_max` 8 -> 12, `vr_gore_dents_size`
+1 -> 1.25, `vr_gore_streams_per_body` 3 -> 4, `vr_gore_streams_speed` 70 -> 50, `vr_gore_streams_width` 0.35 -> 0.75,
+`vr_ragimpact_crush` 1 -> 1.5, `vr_ragimpact_crush_speed` 200 -> 350, `vr_ragimpact_curve` 1 -> 1.5,
+`vr_ragimpact_curve_ref` 3 -> 4, `vr_ragimpact_damage` 0.15 -> 0.08, `vr_ragimpact_max` 0 -> 40,
+`vr_ragimpact_piece_hp` 0.4 -> 0.65, `vr_ragimpact_stomp_heavy` 130 -> 120, `vr_ragimpact_stomp_speed` 420 -> 400,
+`vr_teeth_per_enemy` 10 -> 8. Not promoted (look like a test set-up): `vr_dummy_gore` 1 -> 0 and `vr_dummy_gib` 1 -> 0
+(the training dummy clean and unkillable). His Dent Depth is at its slider's top (3).
+
+In VR: shotgun a grunt up close: the streams should fan out and curl a little as they pour, not run as parallel copies.
+
+## VR menu panel: grip also pushes and pulls it
+
+A gripped panel already followed the hand in 3D, but 1:1 (a 30 cm arm move shifted a far panel ~30 cm). Now the hand's move towards/away from the panel (from the head) counts `vr_menu_grab_reach` times (default 3; 1 = as before), the distance clamped to `vr_menu_grab_dist_min` 30 .. `vr_menu_grab_dist_max` 200 cm (a panel taken farther than the max, like the 150-unit default, can be pulled in but not pushed further out; one taken nearer than the min is not pinched). The panel keeps its hand-set turn (as before). The distance is part of the placement (hide/restore, remembered). No thumbstick use: sticks while gripping are the fine modifier and disarm the grab. Test (headless, mock hand): hand 30 cm back: 150 -> 121.7 units from the head; forward again: 150; far forward stays 150; far back clamps at 9.4 units (30 cm). menu_panels_test.py passes.
+
+## Gloves: worn leather, a painted layer he can edit (worktree `flatfist`, branch `agent/glovepaint`, 2026-10-16)
+
+His request: a painted texture on top of the gloves, worn and used (knuckles, wear over the finger joints, stitching
+along the seams), editable by hand in an image editor. The procedural leather alone read smooth, more rubber than
+leather, at arm's length.
+
+- **Engine.** `vr_glove_paint` (default 1; VR Settings > Player Appearance > Gloves > "Worn Leather"; 0 the plain
+  leather as before). Per hand skin `progs/hand_rig_0N_00_glove` (else skin 0's): **RGB** detail multiplied with the
+  HSL colour (128 grey = the colour as it is), **A** wear (the leather paler, greyer and matte there: a black glove's
+  scuffs grey, a brown one's tan; the sheen down to 30%); `_glove_height` its relief (128 flat; its slope bends the
+  normal as the mask's seams did). With the painted layer the mask's A seams step aside (the paint has them), the
+  shader's own grain goes finer and to 35% (close-up texture under the paint), and the hem's band counts as worn (0.4).
+  Units 7 and 8 of the model shader (`GloveTex`, `GloveHeightTex`); the instance's `Glove.w` carries the flags (+4
+  the layer, +8 the layer with its relief). Loaded unowned outside the draw loops (`VR_PrecacheSkinMasks`), freed and read again at
+  every map load (`worldGeneration`) and by `vr_gloves_reload` (Debug > Rebuild and Reload > "Reload Glove Paint"),
+  so his edits show without a restart; `developer 1` prints each read. Missing files: today's procedural look.
+- **Content.** `Misc/quakevr/make_glove_paint.py` (genguarded; deterministic; ~15 s) paints at 1024 x 1024 (twice
+  the skin: ~3 texels a mm) from the rig's 3D positions: a 3D cellular pebble grain (~1.7 mm) with a coarser crease
+  network in places and a mottled tone; the knuckles scuffed through in abraded patches with grime round them; the
+  PIP/DIP joints' backs scuffed less, the leather wrinkled across them, folded deep on the palm's side; the palm's
+  folds (heart, head and life lines); three stitched "points" down the back; `make_skin_masks.py`'s seam lines (now a
+  function, `seam_lines`; its masks bit for bit the same) sewn: a groove, a lip either side, slanted thread stitches
+  with needle holes, the thread paler; the fingertips worn; 50 scratches. One file pair serves all four hand skins
+  (they differ only by static blood, which the glove masks leave out); a skin can have its own by name.
+- **Docs.** `docs/vr-port/GLOVES.md`: the files, the channels, the reload, the generator and its guard.
+
+Tested (headless, vrfiringrange, 2048 x 2048 eyes, about a headset's pixels a degree; `scratch/glove_paint_shots.py`,
+before/after sheets `scratch/gp_final_close.png`, `scratch/gp_final_far.png`; 1:1 crops `scratch/glove_paint_close.png`,
+`scratch/glove_paint_far.png`): full brown, black, red, fingerless brown, black, blue; backs and palms, 25-30 cm and
+~55 cm away. At arm's length the knuckles' grey/tan scuffs, the joints' wear, the stitched points and the palm's folds
+read as worn leather on all six; close up the wrinkles, thread and scratches hold. Bare hands: `vr_glove_paint` 0 vs
+1 in separate runs differ by 11019 px, two runs with 0 by 11552 (the scene's own run-to-run noise). GPU (`--exclusive
+-RealTime`, hands 13 cm from the eyes, gloves 2): frame GPU 1.094 / 1.080 / 1.092 / 1.066 ms for paint off / on / off
+/ on: no measurable cost (4 taps more, on gloved pixels only). e1m1 then e1m2 with gloves, the reload, paint toggled:
+no errors; the files read at each map and on the reload.
+
+For him in VR: whether the wear is too pale or too much (paint the PNG's alpha, or `make_glove_paint.py`'s
+`scuffed()` levels), the stitched points down the back (three rows; delete them in the PNG if unwanted), the relief's
+strength (`vr_glsl.h`: `paintSlope = 2.0 * ...`). Note: `developer 1` warns that QuakeSpasm can't read the PNGs (a
+compatibility note for mods; Quake VR reads them).
+
+## The buzzsaw cuts ragdolls (worktree `dequant`, branch `agent/buzzrag`, 2026-10-16)
+
+His note: ragdolls and active ragdolls went through Rogue's buzzsaw untouched; they should be obviously destroyed and
+dismembered like anything else.
+
+- **Why they were skipped.** The buzzsaw (`rogue_buzzsaw.qc`) hurts by its touch, a SOLID_TRIGGER's; a ragdoll is
+  Box3D's bodies (a corpse's entity SOLID_NOT, a knocked-down one's SOLID_NOT_BUT_TOUCHABLE, its box not where its parts
+  are), which no trigger touches.
+- **The blade's query.** Two engine builtins (`vr_box3d.cpp`, "Ragdolls in a box"): `ragdollinbox(mins, maxs, after)`
+  the next ragdoll (edict order) with a part in a world box (the broad phase: Box3D's tree at the box, ragdoll parts
+  only; then GJK on each part's shapes), `ragdollboxpart(e, mins, maxs, after)` the next part of one in it, trace_endpos
+  its point nearest the box's middle. Nothing is looked at unless a buzzsaw was spawned in the map (`vr_buzzsaws`).
+- **Each frame** (StartFrame, `VR_Buzzsaw_Frame`) every running buzzsaw looks into its blade (its box grown 2 units). A
+  ragdoll in it is struck at most every 0.1 s (`.vr_buzz_next`): each part in it takes the blade's damage x10
+  (currentammo 10: 100) through one shared path, `VR_Limb_RagdollHit` (`vr_limbs.qc`): a corpse's head or limb wears
+  down that piece (`VR_Limb_CorpseWear` / `VR_Limb_WearInto`, its piece health: a grunt's 80, so one strike) and comes
+  off as the chainsaw's cut; a living one's (knocked down, staggering) is armed (`VR_Decap_Arm` / `VR_Limb_Arm`) and the
+  strike kills it, Killed cutting it off; a torso strike is the whole body's (a corpse gibs). A corpse's limbs and head
+  are struck before its torso; a living one once a strike. Blood (meat spray, SpawnBlood) and the blade's buzz. The
+  buzzsaw counts as a saw for corpse damage and small gibs (`VR_SmallGib_Kind`: the chainsaw's kind, x1). Its old touch
+  skips ragdolls.
+- **Debug > Combat, "Buzzsaw on the Nearest Body"** (`vr_knockdown_test 70`): a running buzzsaw at the middle of the
+  nearest ragdoll.
+
+Tested (headless e1m1, `developer 1`): a grunt corpse (`vr_test_spawn_dead 1`), the blade on it: limbs 7 and 10 cut
+off, then its torso gibbed in the same strike (`scratch/buzz_corpse.png`). A knocked-down living grunt: limb 10 cut, it
+died; limb 9 cut, then gibbed (`scratch/buzz_living.png`). A grunt falling through a running blade one frame after its
+knockdown: beheaded, dead (`scratch/buzz_fall.png`). e1m1 smoke clean.
+
+For him in VR: whether a strike every 0.1 s at 100 is too quick (a corpse goes in one frame: limbs, then its torso):
+`VR_BUZZ_RAGDOLL_SCALE` and `VR_BUZZ_GAP` in `rogue_buzzsaw.qc`.
+
+## Tracy profiling run (worktree `tghost`, branch `agent/profile1016`, 2026-10-16)
+
+His request: a full Tracy run with call stacks over prepared scenarios, the uncontroversial wins fixed, the rest
+listed for a decision. Full report (per-scenario tables, top zones, the ranked decision list B1-B8):
+`qvr-kit/scratch/PROFILE_20261016.md`; captures and scripts in `qvr-kit/scratch/profile_20261016/`.
+
+Release-Tracy at callstack depth 8 (Release-TracyFull's depth; its ETW sampling needs an elevated session, left off),
+his config of today, 2048 eyes, 90 Hz paced, exclusive. Scenarios: `play_e1m1_fight`, `play_e1m1_lights`,
+`combat_48`, `ragdolls_32_active`, `load_e1m1`, and the new bench group `profile` (BENCHMARKS.md): `play_gore_fight`,
+`play_calibration_turn`, `play_ad_tfuma_fight` (native AD, the map awake), `load_ad_tfuma`.
+
+- Every scenario holds 90 Hz at 2048: Release CPU p50 0.9-3.2 ms, p99 at most 6.5; GPU 3D p50 1.0-3.7. The steady
+  frame has no single hot spot; the biggest shares are the per-eye alias set-up (0.35-0.67 ms in fights), Box3D with
+  32 ragdolls (workers 4 ms, the main thread waiting 0.8), AD's 1792-edict server frame (QC 0.54 + SV_Physics 0.37).
+- **Fixed: pak lookups by hash** (`COM_FindFile` strcmp'd every entry of every pak per lookup; most of a load's are
+  misses): AD warm load 644 -> 562 ms (its failed image probes 83 -> 41, vr_extmaps 86 -> 38).
+- **Fixed: vr_mdl_dequant on the job pool** (2 ms a model on the main thread at its first upload): AD cold load
+  ~1490 -> ~1135 ms, e1m1 cold ~880 -> 816; identical output (hashes of all 322 models' buffers, serial vs split).
+- Hitches seen are known kinds: a gun's first convex cut in a session (the cache is keyed by build: every new build
+  cuts again, B6) and a spawned-in kind's first limb cut (B5).
+
+For him: pick options for B1-B8 in the report; nothing to test in VR (no visible change).
+
+## Floating pickups: a moment's grace for the reaching hand (worktree `flatfist`, branch `agent/floatgrab`, 2026-10-16)
+
+A player's feedback: weapons floating in the world were impossible to grab with his real hands; reaching for one, it
+fell to the ground. His decision: a split second of leniency where the hands don't knock a floating, spinning object
+before it becomes a physics prop.
+
+- **Why it fell.** A map's pickup hanging in the air (`VR_PickupObj_Place`, MOVETYPE_NONE, spinning) is knocked loose by
+  the first touch of a moving hand (`VR_Carry_Nudge` -> `VR_Carry_Loose`): anything over 10 u/s, 0.38 m/s, which every
+  reach is. The grip closes a moment later, on a falling gun. And a spinning shotgun touches a slow hand only in short
+  passes (a hand crossing it: 0.1 s, then nothing for half a turn), so a grip closed between passes was a fist at the
+  next one (`VR_Carry_GripPressed` only counts a press 0.2 s old).
+- **The grace** (`vr_carry.qc`, `VR_Carry_FloatGrace`, before the nudge): an empty tracked hand reaching into a hanging
+  pickup doesn't knock it for **`vr_pickup_float_grace_time`** (0.4 s) from its first touch, unless it moves faster than
+  **`vr_pickup_float_grace_swat`** (2 m/s: a swat knocks it at once, as before). Once the grace is over, a hand still
+  pushing into it knocks it as today. The hand's reach is forgotten when it leaves the pickup's spin sphere and a hand's
+  width (`VR_Carry_FloatGraceFrame`, from the hanging pickup's think), so the window runs from when the hand came near
+  it, not from each spin pass.
+- **The grip in the grace** (`VR_Carry_FloatGraceGrip`): a grip closed from 0.2 s before the hand reached it to the end of
+  the grace takes it at its next touch (weapons: `VR_PickupObj_WeaponTouch`; keys, armour, runes: `VR_Carry_Handtouch`),
+  where it hangs. An older fist still doesn't take it.
+- Only pickups still hanging (`VR_Carry_Hanging`); loose ones, props, a hand holding a weapon, force grab: unchanged.
+  **`vr_pickup_float_grace`** 1 (0: the old knock). Rows on VR Settings > Carrying, after Mid-Air Catch Window:
+  Floating Pickup Grace, Floating Grace Time, Floating Grace Swat Speed.
+- **Debug > Tests > Weapon Pickups, "Floating Pickup Ahead"** (`vr_pickup_test 6`): a super shotgun pickup hanging 40
+  units ahead, watched (`floatgrab:` hanging / knocked loose / taken, with times; `developer 1` adds each hand's reach
+  and knock).
+
+Tested (headless e1m1, `vr_pickup_test 6`, the main hand crossing the hanging shotgun at its middle height through
+`vr_mock_play`; `scratch/fg_*.txt`, `scratch/fg_run.sh`):
+
+| case | grace off (before) | grace on |
+|---|---|---|
+| slow reach 0.45 m/s, grip 0.2 s after the reach | knocked at the first touch (4.63 s) | taken as a weapon at 5.26 s, z 74 (no fall) |
+| the same reach, no grip | knocked at the first touch (4.63 s) | reached 4.61 s, knocked 5.26 s (its next touch after the window) |
+| swat 3 m/s | knocked at once (4.04 s) | knocked at once (4.05 s) |
+
+`vr_pickup_test 1` + `2` (taking the nearest pickup) still takes it; e1m1 smoke clean.
+
+For him in VR: reach slowly for a floating gun and close the hand (also while it spins past the open hand); swat one;
+reach in and hold the hand still, then push on. Tune Floating Grace Time / Swat Speed.
+## Loading and caches: B4, B5, B6, B8 of the profiling run (worktree `dequant`, branch `agent/loadperf`, 2026-10-16)
+
+His picks on `PROFILE_20261016.md`: B4 (a) then (b), B5 (a), B6 (b), B8 (a) and (b). One commit each.
+
+- **B6, disk caches keyed by the maker's version, not the build.** The gun pieces' folder (`cache/gunpieces/<v>`) is a
+  hash of `vr_convex.cpp`'s `cutVersion` and Box3D's version; the skin normal maps' (`cache/normalmaps/<v>`) of
+  `NORMALCACHE_VERSION` (`vr_normalmaps.cpp`). The keys already hashed every input (triangles and settings; texels,
+  size, heights, texels per unit, islands). **Bump the constant** when the cut, the normal-map maker or the skin
+  islands (`Mod_SkinIslands`) change; `vr_gun_pieces_cache 2` / `vr_normalmap_cache 2` make them anyway and compare.
+  The first session on this build cuts and makes once more (new folder names); after that a new build keeps them.
+- **B8.** A cache folder is made once a session (at its kind's first write, with the prune), not checked at every
+  write. Tracy-only scopes split `Mod_LoadAliasModel` (replacements, skins, skin normal maps, frames, VR poses, flags
+  and bounds, draw lists, cache copy); compiled out of normal builds.
+- **B4a, session results per texture** (`mem::Cache`, dropped at a game directory change, or when the context
+  changes: `vr_extmaps_dir`, `vr_extmaps_match`, normal maps on, the palette): vr_extmaps' picture match and pack
+  lookups by the texture's name and a wyhash of its pixels; the pack's missing files; vr_anim_surface's frame
+  matches by both pictures' pixels; vr_pbr's SHA-256 of a texture by a quick hash of its pixels (its companions'
+  found/missing was already kept). Stale only if the pack's files change while the game runs.
+- **B4b, COM_FindFile's misses while loading** (`vr_fscache.cpp`, its window, main thread): a name found in no search
+  path is not looked for again. Forgotten with any directory listing (any file written, on any thread: an epoch keeps a
+  miss looked up before a write from being noted after it) and on `VR_FileCacheSearchChanged`: the search paths
+  (common.c), the campaign (`publishCampaign`), the map installer's stock-only lookup.
+- **B5, a kind first spawned after the load** (`limbmodel::spawnFrame`, `VR_ServerFrameEnd`): a monster kind prebuild
+  didn't make (dispensers, `vr_physics_spawn`, AD's monsters that become monsters after the load: 9 kinds on
+  ad_tfuma) has its limbs' .mdl files built on the pool (the job owns copies of the rig and the file), then precached
+  one a frame (skins and normal maps: ~1-3 ms; more in a session that makes the normal maps); a cut before that takes
+  the built file. `vr_limbs_prebuild 0` keeps the old behaviour.
+
+Checks: imagelists (sorted) of e1m1 and ad_tfuma, cold and warm, identical to the base build's (AD's only extra lines
+are B5's limb models); the cold and warm loads' identical to each other; 39 limbs built on the pool byte-identical to
+`buildNamed`'s; e1m1 (restart, changelevel) and ad_tfuma (restart) smoke clean.
+
+Release, his config, 2048 eyes, exclusive, 2 runs each (`benchresults/dequant_before`, `dequant_after`):
+
+| | before | after |
+|---|---:|---:|
+| `load_e1m1` cold / warm / restart (ms) | 886, 834 / 216, 199 / 205, 191 | 792, 789 / 149, 154 / 144, 146 |
+| `load_ad_tfuma` cold / warm (ms) | 1363, 1144 / 597, 563 | 1224, 1220 / 454, 457 |
+| AD warm: vr_extmaps / vr_anim_surface / vr_pbr / misses (ms) | 39 / 40 / 85 / 43 | <2.4 / <2.4 / 53 / 35 |
+| `combat_48` worst frame (knight's first cut) | 36.7, 21.9 | 11.2, 11.4 |
+| first gun cut, first session after a rebuild (`play_gore_fight` r1 worst) | 34.3 | 11.4 |
+
+The cold AD load is within its run-to-run spread (1144-1363). Steady fights unchanged (CPU p50 the same or a little
+lower). Not done: the hulls' disk cache (`vr_hull.cpp`) is still keyed by the build's compile time (outside B6).
+
+For him in VR: nothing visible. A knight (or another kind) spawned on the firing range and cut at once: no hitch.
+## Frame time: B1, B2, B3, B7 (worktree `tghost`, branch `agent/frameperf`, 2026-10-16)
+
+His picks from the profiling run's list (`qvr-kit/scratch/PROFILE_20261016.md`): B1 (a), B2 (c), B3 (a), B7 (b).
+Release numbers: his config, 2048 eyes, 90 Hz paced, exclusive, 3 reps (CPU = `cpu_busy_ms` p50 / p95 / p99, ms).
+Two sessions an hour apart move by ±0.2 ms on their own (the calibration room, untouched by any of this, 1.17 -> 0.92),
+so each item is also measured on and off in the same session.
+
+| scenario | before (old build) | after (new build) | item off, same session |
+|---|---|---|---|
+| `combat_48` | 3.42 / 5.09 / 5.96 | 2.88 / 4.56 / 5.63 | B1 off 2.94 / 4.60 / 5.52 |
+| `play_ad_tfuma_fight` | 3.82 / 6.04 / 7.08 | 3.22 / 5.39 / 6.37 | B1 off 3.41 / 5.60 / 6.65 |
+| `play_gore_fight` | 2.70 / 3.53 / 4.18 | 2.27 / 3.82 / 5.23 | B1 off 2.44 / 3.58 / 4.51 |
+| `play_calibration_turn` | 1.17 / 1.39 / 1.66 | 0.92 / 1.25 / 2.04 | - |
+| `ragdolls_32_active` | 2.96 / 5.45 / 6.16 | 2.43 / 5.02 / 6.26 (B2 on) | B2 off 2.58 / 4.75 / 5.66 |
+| `ragdolls_32_active`, 5 reps | | B2 on 2.80 / 5.57 / 7.31 | B2 off 2.69 / 5.01 / 6.46 |
+| `load_ad_tfuma` | 5.91 / 7.55 / 47.6 | 4.95 / 6.14 / 48.9 | - |
+
+- **B1: the second eye reuses each alias model's eye-independent set-up** (`vr_alias_eye_cache`, default 1; Debug >
+  Profiling and Memory > Second Eye's Model Set-up; r_alias.c `R_AliasEyeSlot`). The first eye's scene keeps per entity
+  its lerp and transform, the light at its origin (`R_LightPoint`'s), vertex count, zero blend, Quake VR instance data
+  and smooth-animation swing rows; the second eye's reuses them. Per eye still: the portal split, the cull, the alpha,
+  the dynamic lights (culled by each eye's frustum) and the light's minimums, the near-eye flags, the batching, and the
+  view entities' instance data (a bare forearm reads the body's ambient as last drawn: the first eye draws the hands
+  before the body, the second after; the check found that 1e-5 difference). Never cached: `cl.viewent` (its offsets
+  follow the eye's axes), teleporter views, shadow maps, showtris/showbboxes, the spectator, the drawn-moves log.
+  `vr_alias_eye_cache 2` sets everything up again in the second eye and compares it bit for bit with the first eye's
+  (`vr_alias_eye_cache_stats`): 0 differences in 5 scenarios (combat_48, the AD fight, the grunts through a teleporter,
+  the teleporter loop, e1m1's fight with the gun held: about 200 000 set-ups, paused and live) and in e1m1. Every input
+  the GPU gets is the same, so the image is. Eye images could not show it directly: two shots of the same paused moment
+  with the same setting already differ (realtime-driven effects), and on/off pairs differ by as much as on/on pairs.
+  Gain: 0.06-0.19 ms p50 in the fights, under the report's estimate: in the Tracy capture of the AD fight `alias` self
+  is 0.66 ms against 0.67 before, so most of `alias` is the culling, batching and submission, not the set-up.
+- **B2: the stepping thread orchestrates Box3D's solver** (`vr_box3d_caller_solves`, Debug > Profiling and Memory >
+  Main Thread Solves): the solver's worker-0 task is no longer posted (b3Solve's caller raced it for the orchestrator's
+  place and usually lost, then waited out the solve: the 0.8 ms "Job blocking wait"), and a finish runs the step's
+  unstarted tasks before blocking (`jobs::Task::tryRun`). The same results: the ragdoll scenario's `vr_physics_hash` at
+  11 points over 1000 frames equals the old build's with `vr_jobs_parallel` 0 and 1 and with the switch off;
+  `vr_physics_mtbench 400 300` gives one hash for every worker count either way. **No win:** the main thread now does
+  the solve it used to wait for, so its busy time is the same (3 reps: on better; 5 reps: on worse at every percentile;
+  both within the scenario's noise). **Shipped off** (default 0); the switch stays for his test.
+- **B3: Tracy-only zones per edict** (sv_phys.c `SV_PHYS_ZONE`, nothing in Release). The AD fight (1792 edicts, 244
+  monsters awake), ms a frame self (calls a frame): `SV edict toss` 0.22 (265: gibs, items, missiles, resting or
+  falling), `SV edict step` 0.09 (124 monsters; 0.34 with their QC), `SV edict push` 0.04 (228 doors and plats),
+  `SV edict none` 0.03 (840; 0.15 with QC thinks), `SV edict VR begin` 0.02 (1478). The zones' own cost lands in
+  `Server physics` self (0.37 -> 1.21 in this capture): read the split, not the total. Toss is the one worth a look
+  (0.8 us an edict, mostly ones lying still).
+- **B7: Tracy-only zones round V_RenderView's steps and the eye loop's** (view.c, vr_stereo.cpp): calc refdef, the
+  portal views, R_RenderView's own part, poly blend, foveated end and debug, the UI, the mirror: each under 0.004 ms.
+  The eye's self (calibration room: eye L 0.26, eye R 0.18) is not in them: it is in the eye loop between the profiled
+  scopes (target binding, the late acquire's `glGetIntegerv(GL_FRAMEBUFFER_BINDING)`, the eye's GPU timer queries) and
+  the zones' own callstack captures. Next step if wanted: an elevated TracyFull sampling capture (B7 a).
+
+For him in VR: nothing visible should change (B1 on, B2 off). Debug > Profiling and Memory: Second Eye's Model Set-up
+(Checked, then Model Set-up Stats: 0 differences expected) and Main Thread Solves to try.

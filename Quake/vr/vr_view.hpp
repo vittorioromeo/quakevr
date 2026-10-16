@@ -41,6 +41,13 @@ struct ViewEntity
 [[nodiscard]] bool skinTint(const entity_t* e, float tint[4], float range[4]);
 // Skin-only tone: kind 1 the jointed hand, 2 the body, zero other entities.
 [[nodiscard]] int skinTone(const entity_t* e, float tone[4]);
+// Gloves (vr_gloves, vr_glove_hue/saturation/lightness) on the same entities: `glove` the leather's colour (rgb) and the
+// skin mask's channel it covers (w: 1 fingerless, 2 full, 0 none); on a bare-forearmed body, `cuff` the glove's cuff
+// over the forearm's end in its skin (x below this u, from v y, its hem to v z, below v w; zero: none). The kind as
+// skinTone's, zero when nothing of a glove is drawn on `e`.
+[[nodiscard]] int gloveLook(const entity_t* e, float glove[4], float cuff[4]);
+// The kind (as skinTone's) when `e` reads its skin mask (a skin tone or a glove on it), else zero.
+[[nodiscard]] int skinMaskWanted(const entity_t* e);
 // A power-up's glow on `e` (Quad's blue, the pentagram's red, the biosuit's green; vr_view.cpp powerupGlow): on your
 // hands and body (and their copies in a mirror) the alias shader's code, -2 - 2 x its colour (r + 16g + 256b, 16 levels
 // a channel) - its strength (0..1); else 0.

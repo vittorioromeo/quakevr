@@ -104,7 +104,7 @@ float(float xHand, entity xVictim, vector xAt, float xDmg) MG3_SuperAxe_Strike =
         MG3_SuperAxe_EndChain(self);
         delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, MG3_SUPERAXE_BURST_CELLS);
         trace_endpos = xAt;
-        HIP_SpawnMjolnirBase();
+        HIP_SpawnMjolnirBase(xHand);
         vr_superaxe_bursts++;
         if(cvar("developer"))
         {
@@ -435,7 +435,7 @@ void(float xWid, float xBit, string xName) MG3_Bloody_Spawn =
     {
         self.handtouch = MG3_Bloody_Touch;
     }
-    if(MG3_Campaign())
+    if(MG3_Campaign() && !vr_spawn_live) // (one the toolgun makes stays: vr_spawn_live, vr_walltorch.qc)
     {
         entity check = spawn();
         check.owner = self;

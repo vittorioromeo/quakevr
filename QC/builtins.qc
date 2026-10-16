@@ -198,6 +198,11 @@ float(entity player, float hand) weaponanygrip = #0;
 // CreateThrownWeapon takes them (the pitch negated), 2 '1 0 0' if known ('0 0 0' else), 3 its tip (its muzzle's anchor); 4 its handle and 5 its tip in the frame of
 // the hand carrying it as drawn (forward, right, up: makevectors of the hand's angles).
 vector(entity player, float hand, float what) weapondrawnpose = #0;
+// Magnetic holsters (vr_magholster.qc): what the local player asked since the last call, taken (1 the off hand's bind
+// button at a holster, 2 the main hand's, 4 every bound weapon home now: vr_magholster_return); others' 0. And holster
+// `slot`'s place (0..5: the holsterweapon<slot> fields' order) as the local player's body has it ('0 0 0': unknown).
+float(entity player) magholsterpoll = #0;
+vector(entity player, float slot) holsterpos = #0;
 vector(entity e, vector handpos, vector palm) carryfit = #0; // at the grip: how far to move it (the way the palm faces) to sit against the palm, not in the fist (vr_held_surface_fit)
 vector(entity e, entity player, float grab) carry2h = #0; // held in both hands: at the second grip (grab 1) the grips are kept; after, where it goes (its angles are set)
 void(vector at, float damage) physicsblast = #0; // an explosion throws the rigid bodies round it (Box3D's)
@@ -305,7 +310,12 @@ float(entity e, vector mins, vector maxs) ragdollstaggered = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;
-float(entity e, vector p) ragdollbone = #0;
+float(entity e, vector p, optional float within) ragdollbone = #0; // (within: -1 when its surface is farther)
+// Ragdolls in a world box (the buzzsaw's blade, rogue_buzzsaw.qc): the next ragdoll after `after` (edict order; world:
+// from the first) with a part in mins..maxs, world if none; the next part of e's ragdoll after `after` (-1: from the
+// first) in it, -1 none, trace_endpos its point nearest the box's middle.
+entity(vector mins, vector maxs, entity after) ragdollinbox = #0;
+float(entity e, vector mins, vector maxs, float after) ragdollboxpart = #0;
 vector(entity e, float bone, vector p, float toWorld) ragdollpoint = #0;
 // Decapitation (vr_decap.qc; the engine's vr_box3d.cpp, "Decapitation"): e's ragdoll (made now for a dead monster with a
 // rig) loses its head, launched by `blade` (u/s): 1 if it did; after it, ragdollcut's 0 the head's middle, 1 its angles,

@@ -105,12 +105,14 @@ void(float ox) SCOURGE_FireSpikes =
 //
 void() Attack_With_Tail =
 {
-    ai_face();
+    VR_MeleeArc_Face(); // QVR: (melee arc: fight.qc)
 
     vector delta = self.enemy.origin - self.origin;
 
     if(vlen(delta) > 100)
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
 
     if(!CanDamage(self.enemy, self))
         return;

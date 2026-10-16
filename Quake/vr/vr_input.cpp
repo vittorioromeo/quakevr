@@ -15,6 +15,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_magholster.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
@@ -606,6 +607,13 @@ void update(const InputState& tracked)
                 if(motion::button(h, b.button, now))
                 {
                     logButton(h, b, now, b.key[h], "the motion recorder");
+                    continue;
+                }
+                // At a holster with a weapon in it (or one bound), the magnetic holsters' bind button binds it to the
+                // holster or unbinds it (vr_magholster_button; vr_magholster.cpp): its key is never sent.
+                if(magholster::button(h, b.button, now))
+                {
+                    logButton(h, b, now, b.key[h], "the magnetic holsters");
                     continue;
                 }
                 // A stick press chosen to start bullet time (vr_bullettime_trigger) does only that in the game; its

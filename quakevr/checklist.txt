@@ -2,6 +2,31 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Stomps: jump repeatedly on a downed grunt's head: pops on the 3rd; ~2 heights onto a head (alive or dead) pops it; corpse legs pop; ogre/shambler only hurt
+Enemy melee: sidestep a charging knight/death knight: it misses; sneak behind and wake it: it turns before the first blow lands
+Gib heads: rocket an AD crossbow knight or hunter ogre: pick up, throw and shoot its head (bursts into small gibs)
+Magnetic holsters: hand at a holster + click a stick binds it; throw/drop the gun: back after ~3 s or 4 m; grab it mid-flight; lanyard/tether/both, chain size and opacity
+Gore: thin blood streams from wounds pool on the floor (also corpses); back-splatter on walls behind; teeth from hard face punches; raw-flesh dents that stay on corpses, never on guns
+Gloves: Worn Leather painted layer (knuckle scuffs, joint creases, stitched seams) at arm's length in a few colours; no nails showing through full gloves
+Grip fit: grab a crate by the lid or a barrel by the rim with the hand pushed in: the hand rests on the surface
+Toolgun: megahealth/health/ammo in vrfiringrange appear small at once where the ghost was; AD monster ghosts not corrupted; AD/MG3 backpacks in any map
+Menu panels: grip one and pull your hand in / push out: it moves in depth (30 cm to 2 m), kept after reopening
+Landing on enemies: drop onto a grunt's head from one storey: it goes down, you bounce, it gets up; higher kills (head pops); ogre/shambler need more height; no fall damage when you crush
+Impacts settings (Combat > Knockdowns > Impacts): Damage Curve 2 and Most per Strike change throws into walls; repeated head slams pop the head
+Water: carry a knocked-down grunt into deep water and hold it: stays down; let go: floats, then stands where it is or on the bank (never back on land it came from)
+Neck snap: Hand Line only at your values (75 deg in 0.15 s); a snapped neck flops (carry the body by its head); Lift and Two-Hand Throw > Show Diagnostic panels make sense
+AD humanoids: shove AD grunts, fumigator, death knight, zombie knight: stagger, fall, get up, fight on; lift a defender (flails); zombie knight headshots land
+Step In Depth (Holding Enemies > Getting Close): walk into a held grunt: stop face to face, strafe/back off freely; try 4-12
+Vore: walk into one: two-handed shove reads, both hands at your chest, push not early
+Grip fit: grab a crate/barrel with the hand pushed in or by an edge: fingers sit at its surface; a normal grab doesn't move the prop
+Slow-mo throws: feel as before (old rules removed); a throw right as bullet time ends
+VR Settings: 9 merged pages with part headers; Player Appearance: gloves none/fingerless/full + colour with bracers and skin tones; biosuit glow at your values
+Menu panels: grip-move one, Back to Game, reopen: same place and page (also after a map change, Esc, dashboard); Close Panel removes one
+Toolgun: Fire tab (wall torches snap to walls, grab/throw flames); pack groups with >> (SoA wetsuit, MG3 shards, DoE dragon, AD extras: ghost heights); Developer corner Toolgun button
+Models: Rebuild From Skeleton on/off on idle grunt/knight; Smooth: idle knight, ogre, shambler with no loop twitch
+Decals: retro textures on: baked blood shows the wall's blocks; gib against a door: blood lands on it when it lands
+Flat desktop main menu: balanced, title raised, nothing under the notice box
+If shoves/lifts ever stop working after a load: Debug > Combat > Why Can't I Knock It Down?, send me the console
 Corpses = Walk Through: walk over a dead grunt: limbs slide a few units ahead of your feet, never flung, walk not slowed (Feet Nudge Ragdolls off: they stay put); bullet time: two-hand throw a small gib: it flies, doesn't burst in your face
 AD pyro/fumigator streams (enemy and your dropped gun): see-through with fire (green) tongues, fire/smoke at the muzzle; poisoned monsters puff green until it wears off; plasma bolts: thin crackling trail, muzzle/hit sparks, electrocute monsters and bodies
 Hot blades: heat a blade red-hot, take a level exit: still glowing in the next level; aim the force grab at a dropped hot blade: it still shows incandescent
@@ -35,7 +60,7 @@ VR Settings: each section is its own page (Height Calibration ... Sound); open a
 Blood Feedback: hits from left/right/above feel directional as you turn your head; duration/intensity/bias/coverage controls and hit toggle work; wider coverage is visible in the headset
 Blood Feedback: below Health Threshold pulses grow stronger/faster as health drops; healing stops them; pulse/intensity/curve/coverage controls and low-health toggle work independently
 Lift / judo throw diagnostics (Holding Enemies > Lift / Two-Hand Throw > Show Diagnostic, or Debug): hold a grunt with both hands; pull up: the arrow and panel show the pull vs Lift Speed and 45 deg, the reach circle, why not (one hand, at its head, too far); turn it over: turn vs Turn to Throw, hands vs Hands' Speed, the way arrow, the last try's result; do they match what you feel?
-Getting close (Holding Enemies > Getting Close): hands reach grunt/enforcer/ogre heads at Body Inset 0/4/8; grab a shoulder, step in (Step In on/off: net plus or minus?), let go inside: eases apart, never stuck
+Getting close (Holding Enemies > Getting Close): hands reach grunt/enforcer/ogre heads at Body Inset 0/4/8; grab a shoulder, step in (Step In on/off: net plus or minus?; Step In Depth 8: can't walk through it, slides aside, steps back freely; 0: walks through), let go inside: eases apart, never stuck
 Hot blades 2: glow and light only on the blade; light fades with it; dropped blade glows and cools; more embers (settings); swing trail; reheat buzz; thrown hot axe burns
 Neck snap 2: both hands on head/neck never judo/lift; push one hand forward, other back (quick) snaps; shoulder grab still judos
 Two super shotguns: a left flick opens/closes only the left one, right only the right; both together toggle both; two-handed pry/lift still work

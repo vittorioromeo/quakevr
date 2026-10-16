@@ -149,6 +149,16 @@ void Task::wait() noexcept
     job->wait();
 }
 
+bool Task::tryRun() noexcept
+{
+    if(!job->claimAndRun())
+    {
+        return false;
+    }
+    counters.claimedByWaiter.fetchAddRelaxed(1u);
+    return true;
+}
+
 // ----------------------------------------------------------------------------
 
 namespace

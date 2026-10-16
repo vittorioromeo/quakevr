@@ -3,8 +3,8 @@
 // - within reach (VR_EnemyShove_Reach: vr_enemy_shove_range between the middles, flat, plus how much wider than a grunt
 //   it is) for vr_enemy_shove_delay seconds, a grunt, an enforcer or a vore (vr_enemy_shove_vore) able to
 //   (VR_EnemyShove_Ready: alive, on its feet, not staggered, not sliding from a push) starts its shove (a grunt's and an
-//   enforcer's model's shove1..shove6 frames: Misc/quakevr/make_enemyshove.py; a vore's swing of its arms, the end of
-//   its throw: orig_mon_shalrath.qc shal_shove1) instead of what it was about to do;
+//   enforcer's model's shove1..shove6 frames: Misc/quakevr/make_enemyshove.py; a vore's two-handed push, its model's
+//   shove1..shove7: Misc/quakevr/make_voreshove.py, orig_mon_shalrath.qc shal_shove1) instead of what it was about to do;
 // - its blow (a grunt's and an enforcer's 4th frame, a vore's 5th) deals vr_enemy_shove_damage and pushes you
 //   vr_enemy_shove_distance units away, if you are still in reach and ahead of it (an enforcer's:
 //   vr_enemy_shove_enforcer_damage and _distance times as much; a vore's: vr_enemy_shove_vore_damage and _distance);
@@ -280,9 +280,9 @@ void() VR_EnemyShove_Hit =
         haptic(cVR_OffHand, 0.0, 0.2, 50, 0.8);
         self = oldSelf;
     }
-    dprint(sprintf("enemy shove: %s shoves the player%s: %g damage (health %g -> %g), pushed %.1f units\n",
+    dprint(sprintf("enemy shove: %s shoves the player%s: %g damage (health %g -> %g), pushed %.1f units (frame %g)\n",
         self.classname, parried == 1 ? " (parried)" : (parried == 2 ? " (parried, crossed arms)" : ""), dmg,
-        healthBefore, p.health, dist));
+        healthBefore, p.health, dist, self.frame));
 };
 
 // QVR: impulse 219 (weapons.qc; Debug > Tests > Enemy Shoves): the nearest live monster within 200 units, shoved as your

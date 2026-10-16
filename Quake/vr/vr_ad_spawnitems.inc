@@ -11,3 +11,8 @@ QVR_AD_SPAWN("Items", "AD Health Gem", "item_healthgem", "progs/health_5.mdl", 0
 QVR_AD_SPAWN("Weapons", "AD Shadow Axe", "weapon_upgrade_axe", "progs/g_shadaxe.mdl", 8.f, true, 309)
 QVR_AD_SPAWN("Weapons", "AD Widowmaker", "weapon_upgrade_ssg", "progs/g_shot3.mdl", 8.f, true, 310)
 QVR_AD_SPAWN("Weapons", "AD Plasma Gun", "weapon_upgrade_lg", "progs/g_plasma.mdl", 8.f, true, 311)
+QVR_AD_SPAWN_MAP("Items", "AD Ammo Backpack", "ad_item_backpack", "progs/w_backpack.mdl", 0.f, 320, "spawnflags", 15.f, 0)
+QVR_AD_SPAWN_MAP("Items", "AD Shards Backpack", "ad_item_backpack_armour", "progs/w_backpack.mdl", 0.f, 321, "spawnflags", 0.f, 4)
+QVR_AD_SPAWN_MAP("Items", "AD Green Armour Backpack", "ad_item_backpack_armour", "progs/w_backpack.mdl", 0.f, 322, "spawnflags", 1.f, 1)
+QVR_AD_SPAWN_MAP("Items", "AD Yellow Armour Backpack", "ad_item_backpack_armour", "progs/w_backpack.mdl", 0.f, 323, "spawnflags", 2.f, 4)
+QVR_AD_SPAWN_MAP("Items", "AD Red Armour Backpack", "ad_item_backpack_armour", "progs/w_backpack.mdl", 0.f, 324, "spawnflags", 4.f, 3)

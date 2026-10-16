@@ -6,10 +6,10 @@ Items the author approved or asked about, not yet started. Each has a note on wh
 
 ### Active humanoid coverage for AD's soldiers (author, 2026-10-12)
 
-NOT done (checked 2026-10-15: no commit; ROUND22.md only has AD soldiers' guns, the lift classes and the neck-snap
-tests, and the lift test notes "none flails: AD's have no driven rigs"). Left: extend living and dying active
-behaviours to AD grunt/enforcer variants after validating their rig semantics, get-up clips, attack origins and
-locomotion; the author explicitly permits deferring this rig/behaviour work.
+Done 2026-10-15 (branch `agent/adrigs`; ROUND22.md, "Active rigs for AD's humanoids"): AD's soldier, enforcer and
+knight variants, the death knights, guard, sergeant, fury, crossbow knight, zombie knight and mummy are driven alive and
+dying (stagger, get-up, lift flail, swim, active deaths); the zombie knight's head zone moved onto its head. Left out:
+the centurion (hover board) and the skull wizard (a robe, no legs). Awaiting his VR check.
 
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 
@@ -46,8 +46,7 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
 
 ## In progress, 2026-10-15 (other workers; not open here)
 
-Thrown living-enemy damage, Landing crush, Impact dismemberment, Glove customization, Vore two-handed shove animation,
-Model vertex wobble (2) (rigged monsters' vertices rebuilt from the fitted skeleton). Their texts were removed from
+Glove customization, Model vertex wobble (2) (rigged monsters' vertices rebuilt from the fitted skeleton). Their texts were removed from
 this file; the workers' ROUND22.md sections carry them.
 
 ## Proposed, waiting on the author
@@ -87,6 +86,23 @@ this file; the workers' ROUND22.md sections carry them.
   engine wakes the pickup). Small absolute gain (QuakeC is ~0.07 ms a frame): review, then decide.
 
 ## Later (the author, 2026-10-11, before 1.0.0: "Make sure everything is in the backlog for later")
+
+### Ideas from Quake Combat+ v5.7 (the author, 2026-10-16; ideas only: no source or assets reusable without its authors' permission)
+
+- **Heart gib you can hold:** a beating, squeezable, throwable organ with a haptic pulse, on top of our physics gibs.
+- **Berserk pack:** a level-long melee power state (red tint, bigger gib/decap pops, x2-3 melee damage) rewarding
+  fists/axe/chainsaw play; plugs into the existing `vr_decap_pop_*` scale cvars.
+- **Hit-confirm audio layering:** a meaty thud when most pellets connect, distinct kick/impact sounds, per-monster gib
+  sounds.
+- **Wounded monsters bleed a trail, then crawling half-bodies:** live low-health monsters drip decals; big monsters
+  split in half and drag the torso with a smear (a "finish it" beat).
+
+### Enemies' own weapons for the player (the author, 2026-10-15)
+
+- **Phantom Swordsman's sword** (Dissolution of Eternity's `monster_sword`, `rogue` QC): make its corpse, or the sword
+  it leaves behind, usable as a melee sword.
+- **AD enemies with unique weapons:** review AD's monsters that carry their own weapons (beyond the soldiers' guns
+  already usable, and separate from "AD soldiers' guns: refine their VR models") and make each usable by the player.
 
 ### AD soldiers' guns: refine their VR models (author, 2026-10-15)
 
@@ -173,14 +189,8 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
 - **Rogue's teamplay variants** (`rogue_teamplay.qc`): their item and weapon management is commented out (never
   rewritten for hands and holsters), so `teamplay 3`-style Rogue modes don't work in VR; their impulses
   (`weapons.qc`) are off too.
-- **Rogue's lava nails against players** (`rogue_lava_wpn.qc`): Rogue's ignored armor; here armor counts (the save
-  and restore of the armor around `T_Damage` is commented out). Deathmatch only.
 - **`readytime`** (`vr_defs.qc`): one for every client (no shooting or taking weapons just after a load or a
   spawn); in co-op one player's spawn holds the others for that moment.
-- **`.damage_weapon` of missiles** (`orig_mon_soldier.qc`, Honey's `FL_SPECIFICDAMAGE`): set for the grunt's shot;
-  the plasma and other missile functions may credit the wrong weapon against targets that take only some.
-- **A thrown laser cannon's Quake box** (`weapons.qc`, `WeaponIdToThrowBounds`): the old note said its bounds were
-  wrong; unchecked since Box3D took thrown weapons' collision.
 
 ## Deferred from his release-day notes (2026-10-10)
 
@@ -222,9 +232,6 @@ stats), the jump boots' power level, coop.
   zone (headfit 2.8 3.1 21.1; positional damage's zones have no sideways offset); the eliminator's and fumigator's heads
   were not taken from the zone's sides; AD's humanoids have no driven rigs, so a lift does not flail them; the
   centurion hovers (never knocked down nor lifted) and its snap is untested.
-- **Step In:** NOT done (checked 2026-10-15): nothing like a depth cap exists; with Step In the player walks through a held
-  enemy and out its far side, held only within Let Go Beyond (ROUND22.md, "Closer to enemies: body inset and step in",
-  its Notes). Left: an optional depth cap (`vr_foegrab_step_in`); he judges if Step In is a net plus.
 - (Done 2026-10-15, fastship: walk 2500 frames) **Body Inset vs vore shoves:** `voreshove_test.sh` now gets 3-4 shoves (needs 4) at inset 4: vores stand closer and die to their own splash; restore the test's margin.
 - (Done 2026-10-15 except hotblade throw, unreproduced alone) **Flaky tests:** judo_test `hold` "held on" drag (moves 4-12 units by landing; ~1 in 3 under the 4-unit bar); hotblade_test `throw_cold`/`throw_hot` (axe sometimes arrives under 6.3 m/s after a bounce).
 - (Done 2026-10-15 except Quoth long torch flame position) **Incandescent blades leftovers:** weapons start cold after a level change; Quoth's long wall torch is no fire spot (flame position unknown); force-grab/counter/toolgun glows override the heat glow on an aimed dropped blade.
@@ -249,10 +256,11 @@ stats), the jump boots' power level, coop.
 - Phase 4: coop: clients bake from the replicated decal events; a mid-game joiner gets a snapshot or a fresh start.
 - (Done 2026-10-15, `agent/permdecals3`: the atlas grows by layers up to `vr_permdecal_atlas_max`; past that the
   least recently baked page still gives its slot up. Downsampling old pages there is the remaining idea.)
-- Retro (blocky) textures: baked marks render smooth; match the retro filtering. Still open (PERM_DECALS.md, "Open").
-- Gore's delayed marks appear at once on doors and lifts (brush-entity marks bake immediately). Still open.
-- Marks on brush-tool boxes stay live (not baked). Still open, by design for now (PERM_DECALS.md, "When a mark is baked":
-  "Never").
+- (Done 2026-10-15, `agent/permdecals4`: baked marks read on the texture's blocks with retro textures and nearest
+  texture mode; gore's late marks on doors and lifts baked when they show; a stamp whose pages were all dropped kept.
+  Marks on brush-tool boxes stay live by decision: PERM_DECALS.md, Decisions.)
+- The layer is not pulled to Quake's palette (Retro Palette); a mark on both the world and a brush-tool box stays live
+  whole (its world part too). Small, only if he asks.
 
 ## QuakeC VM overhead, short of a JIT (2026-10-14; profile first with the Tracy build's QC zones)
 
@@ -334,3 +342,8 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 
 - More gore: thin blood streams from bullet holes in enemies; teeth flying out when punching faces; real-time vertex
   deformation showing flesh chunks torn away; thinner, longer-range blood splatters onto surfaces behind a shot enemy.
+  - Vertex deformation: done as flesh dents (ROUND22.md, "Flesh dents": hits push the surface in, a crater of raw
+    flesh with a bloody rim, kept on corpses and ragdolls; `vr_gore_dents*`, Gore > Wounds on Models). To check in VR.
+  - Done (ROUND22.md, "More gore: blood streams, back-splatter, teeth"): the streams from bullet holes (Gore > Blood
+    Streams), the back-splatter streaks (Gore > Back-splatter), the teeth (Gore > Knocked-out Teeth). To check in VR:
+    how the streams read up close and on ragdolls, a real punch's teeth (the threshold, Punch Hardness for Teeth).

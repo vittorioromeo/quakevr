@@ -2062,19 +2062,84 @@ If neither of file or handle is set, this
 can be used for detecting a file's presence.
 ===========
 */
-static int COM_FindFileRun (const char *filename, int *handle, FILE **file, unsigned int *path_id);
+static int COM_FindFileRun (const char *filename, int *handle, FILE **file, unsigned int *path_id, qboolean *nowhere);
+
+/*
+QVR: a pak's directory by name. Every lookup used to strcmp each entry of every pak in the search path, and most of a
+map load's are misses (the external textures, materials and normal maps probed): Arcane Dimensions' paks hold
+thousands of entries, 170+ ms of a warm ad_tfuma load (profile 2026-10-16). Each name's first entry, as the scan found.
+*/
+static unsigned int COM_PackHash (const char *name)
+{
+	unsigned int h = 2166136261u; // FNV-1a
+	for (; *name; name++)
+		h = (h ^ (unsigned char) *name) * 16777619u;
+	return h;
+}
+
+static void COM_PackIndex (pack_t *pack)
+{
+	unsigned int size = 16, slot;
+	int i, j;
+	while (size < 2u * (unsigned int) pack->numfiles)
+		size <<= 1;
+	pack->hash = (int *) calloc (size, sizeof (int));
+	if (!pack->hash)
+		Sys_Error ("COM_PackIndex: out of memory (%s)", pack->filename);
+	pack->hashmask = size - 1;
+	for (i = 0; i < pack->numfiles; i++)
+	{
+		for (slot = COM_PackHash (pack->files[i].name) & pack->hashmask; (j = pack->hash[slot]) != 0; slot = (slot + 1) & pack->hashmask)
+			if (!strcmp (pack->files[j - 1].name, pack->files[i].name))
+				break; // a later duplicate: the first one stays found
+		if (!j)
+			pack->hash[slot] = i + 1;
+	}
+}
+
+// The index of the pak's first entry named `name` (exactly, as strcmp), -1 if it has none.
+static int COM_PackFind (const pack_t *pack, const char *name)
+{
+	unsigned int slot;
+	int j;
+	for (slot = COM_PackHash (name) & pack->hashmask; (j = pack->hash[slot]) != 0; slot = (slot + 1) & pack->hashmask)
+		if (!strcmp (pack->files[j - 1].name, name))
+			return j - 1;
+	return -1;
+}
 
 static int COM_FindFile (const char *filename, int *handle, FILE **file,
 							unsigned int *path_id)
 {
-	int ret = COM_FindFileRun (filename, handle, file, path_id);
+	int ret;
+	// QVR: while loading, a name found nowhere is not looked for again (vr_fscache.cpp, VR_FileCacheMissKnown: most of a
+	// load's lookups are such misses, the same names asked again and again: PROFILE_20261016 B4)
+	if (!(file && handle) && VR_FileCacheMissKnown (filename))
+	{
+		file_from_pak = 0;
+		com_filesource[0] = 0;
+		com_fileoffset = 0;
+		if (handle)
+			*handle = -1;
+		if (file)
+			*file = NULL;
+		com_filesize = -1;
+		ret = -1;
+	}
+	else
+	{
+		qboolean nowhere = false; // (looked in every search path, found in none: not a file that failed to open)
+		ret = COM_FindFileRun (filename, handle, file, path_id, &nowhere);
+		if (nowhere)
+			VR_FileCacheMissNote (filename);
+	}
 	if (com_lookups_noted) // QVR: a model's load records the files it looked for (vr_modelkeep.cpp: a campaign switch keeps it)
 		VR_FileLookupNoted (filename, ret != -1);
 	return ret;
 }
 
 static int COM_FindFileRun (const char *filename, int *handle, FILE **file,
-							unsigned int *path_id)
+							unsigned int *path_id, qboolean *nowhere)
 {
 	searchpath_t	*search;
 	char		netpath[MAX_OSPATH];
@@ -2138,10 +2203,9 @@ static int COM_FindFileRun (const char *filename, int *handle, FILE **file,
 		if (search->pack)	/* look through all the pak file elements */
 		{
 			pak = search->pack;
-			for (i = 0; i < pak->numfiles; i++)
+			i = COM_PackFind (pak, filename); // QVR: by its name's hash, not a strcmp of every entry
+			if (i >= 0)
 			{
-				if (strcmp(pak->files[i].name, filename) != 0)
-					continue;
 				// found it!
 				q_strlcpy(com_filesource, pak->filename, sizeof(com_filesource));
 				com_filesize = pak->files[i].filelen;
@@ -2240,6 +2304,7 @@ static int COM_FindFileRun (const char *filename, int *handle, FILE **file,
 	if (file)
 		*file = NULL;
 	com_filesize = -1;
+	*nowhere = true; // QVR
 	return com_filesize;
 }
 
@@ -2573,6 +2638,7 @@ static pack_t *COM_LoadPackFile (const char *packfile)
 	pack->handle = packhandle;
 	pack->numfiles = numpackfiles;
 	pack->files = newfiles;
+	COM_PackIndex (pack); // QVR
 
 	//Sys_Printf ("Added packfile %s (%i files)\n", packfile, numpackfiles);
 	return pack;
@@ -2633,6 +2699,7 @@ static void COM_AddEnginePak (void)
 		search->pack = pak;
 		search->next = com_searchpaths;
 		com_searchpaths = search;
+		VR_FileCacheSearchChanged (); // QVR: the misses known (vr_fscache.cpp) may be found now
 	}
 
 	com_modified = modified;
@@ -2693,6 +2760,7 @@ void COM_AddGameDirectory (const char *dir)
 		q_strlcpy (search->filename, com_gamedir, sizeof(search->filename));
 		search->next = com_searchpaths;
 		com_searchpaths = search;
+		VR_FileCacheSearchChanged (); // QVR
 
 		// add any pak files in the format pak0.pak pak1.pak, ...
 		for (i = 0; ; i++)
@@ -2707,6 +2775,7 @@ void COM_AddGameDirectory (const char *dir)
 			search->pack = pak;
 			search->next = com_searchpaths;
 			com_searchpaths = search;
+			VR_FileCacheSearchChanged (); // QVR
 
 			// add engine pak after pak0.pak
 			if (i == 0 && j == 0 && path_id == 1u)
@@ -2727,12 +2796,14 @@ void COM_AddAddonPath (const char *path)
 	q_strlcpy (search->filename, path, sizeof(search->filename));
 	search->next = com_searchpaths;
 	com_searchpaths = search;
+	VR_FileCacheSearchChanged (); // QVR
 }
 
 void COM_ResetGameDirectories(const char *newgamedirs)
 {
 	const char *newpath, *path;
 	searchpath_t *search;
+	VR_FileCacheSearchChanged (); // QVR: the misses known (vr_fscache.cpp) may be found in the new folders
 	VR_PrepareCampaignDirectories(newgamedirs ? newgamedirs : "");
 	//Kill the extra game if it is loaded
 	while (com_searchpaths != com_base_searchpaths)
@@ -2741,6 +2812,7 @@ void COM_ResetGameDirectories(const char *newgamedirs)
 		{
 			Sys_FileClose (com_searchpaths->pack->handle);
 			Z_Free (com_searchpaths->pack->files);
+			free (com_searchpaths->pack->hash); // QVR
 			Z_Free (com_searchpaths->pack);
 		}
 		search = com_searchpaths->next;

@@ -19,10 +19,15 @@ void() info_intermission =
     MG3_RuneRemoved(); // Dawn of the Machine: a view only with so many runes (vr_mg3_defs.qc)
 };
 
+// Magnetic holsters (vr_magholster.qc): the bound weapons lying about home before the level ends; the bindings carried.
+void() VR_MagHolster_EncodeParms;
+void() VR_MagHolster_DecodeParms;
+
 void() SetChangeParms =
 {
     if(AD_SetChangeParms()) return; // AD support: AD's level state (parm57..72), an exit's inventory reset (vr_ad_bridge.qc)
     MG3_EncodeParms(); // (Dawn of the Machine's upgrades: kept even by the SetNewParms below, vr_mg3_defs.qc)
+    VR_MagHolster_EncodeParms(); // (parm73: the bound weapons home first, so the holsters' parms below have them)
 
     if(self.health <= 0)
     {
@@ -309,6 +314,7 @@ void() SetNewParms =
     parm64 = 0; // (AD support: no upgrades)
     parm65 = 0; parm66 = 0; parm67 = 0; parm68 = 0; parm69 = 0; parm70 = 0; parm71 = 0; parm72 = 0; // (cold)
     parm50 = 0;
+    parm73 = 0; // (no magnetic holster bindings)
 };
 
 void() DecodeLevelParms =
@@ -424,6 +430,7 @@ void() DecodeLevelParms =
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
     AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
     WeaponInst_UnpackHot(self);
+    VR_MagHolster_DecodeParms(); // (parm73: the bindings, to the carried weapons' records)
     VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
 
     // ------------------------------------------------------------------------
@@ -2287,16 +2294,27 @@ void() PlayerPostThink =
     VR_ShotImpacts(); // QVR: projectiles fired from inside what they hit meet it (weapons.qc)
 
 // check to see if player landed and play landing sound
-    if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
+    // QVR: landing on a living monster crushes the part under your feet (vr_ragimpact.qc): on the floor (a ragdoll), or
+    // stopped short in the air on a standing one's top (Quake never sets FL_ONGROUND on a monster). Cushioned: no fall
+    // damage (vr_ragimpact_crush_cushion). Slower landings than Quake's count too (a jump from the same level, about 270
+    // units/s): down to the crush's or the stomp's least speed, the lower (a soft landing's jump_flag zeroed below).
+    float crushCushion = FALSE;
+    float crushGate = max(100, min(cvar_hget(cvarh_vr_ragimpact_crush_speed), cvar_hget(cvarh_vr_ragimpact_stomp_speed)));
+    if((self.jump_flag <= -crushGate) && (self.health > 0) &&
+       ((self.flags & FL_ONGROUND) || (self.velocity_z > (self.jump_flag * 0.5))))
     {
-        VR_RagImpact_Crush(self, -self.jump_flag); // QVR: landing on a living ragdoll crushes it (vr_ragimpact.qc)
+        float onFloor = (self.flags & FL_ONGROUND) ? TRUE : FALSE;
+        if(VR_RagImpact_Crush(self, -self.jump_flag, onFloor))
+        {
+            crushCushion = cvar_hget(cvarh_vr_ragimpact_crush_cushion) != 0;
+        }
     }
     if(AD_PlayerLanded()) {} // AD support: AD's fall rules in an AD map (vr_ad_bridge.qc)
     else if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
     {
         if(self.watertype == CONTENT_WATER)
             sound(self, CHAN_BODY, "player/h2ojump.wav", 1, ATTN_NORM);
-        else if(self.jump_flag < -650)
+        else if(self.jump_flag < -650 && !crushCushion)
         {
             T_Damage(self, world, world, 5);
             sound(self, CHAN_VOICE, "player/land2.wav", 1, ATTN_NORM);
@@ -2309,6 +2327,8 @@ void() PlayerPostThink =
 
         self.jump_flag = 0;
     }
+    if((self.flags & FL_ONGROUND) && self.jump_flag < 0) // QVR: a soft landing counted once (the crush's gate, above)
+        self.jump_flag = 0;
 
     if(!(self.flags & FL_ONGROUND))
         self.jump_flag = self.velocity_z;

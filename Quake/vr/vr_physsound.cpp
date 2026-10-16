@@ -462,6 +462,10 @@ Material materialOf(edict_t* ent, const qmodel_t* model)
     {
         return Material::Metal; // a magazine: a steel box (a cell: a steel can)
     }
+    if(info.is(modelmeta::Id::VrTooth))
+    {
+        return Material::Stone; // a knocked-out tooth (QC vr_smallgibs.qc): a small hard click
+    }
     if(info.has(modelmeta::Trait::Rock))
     {
         return Material::Stone;

@@ -29,6 +29,10 @@ struct Style
     float wireRadius{0.0019f}; // metres, the wire's thickness / 2
     glm::vec3 albedo{0.1f};
     float length{0.f}; // metres, the line's relaxed length (0: the coil's turns touching, at least 64)
+    // Newtons a metre the whole line is stretched by (its weight: 0.3 N): the flashlight's springy cord 1.5; a chain
+    // hanging loose off one end, the magnetic holsters' lanyard, stiff (20: it hangs its own length).
+    float stiffness{1.5f};
+    float airDamping{1.5f}; // per second, against its swing relative to its ends
     // A chain instead (round 21, the flashlight's: NOTES.md start_2026-10-03_02-19-12, Quake's look): links of square
     // bar along the same line, each a hexagon of wireRadius half-thickness, its faces flat-shaded (gfx::drawTube's
     // `flat`), the same at every distance, each turned a quarter round from the last, paid out of the first end (the
@@ -38,6 +42,10 @@ struct Style
     float linkLength{0.016f}; // metres, a link's inside length (the chain's pitch)
     float linkWidth{0.008f};  // metres, its inside width
     glm::vec3 rust{0.3f, 0.14f, 0.06f};
+    // A chain of iron that neither stretches nor springs (the magnetic holsters'): its nodes held their relaxed spacing
+    // apart (position-based: unconditionally stable, whatever the frame rate) instead of springs (`stiffness` unused).
+    // Springs stiff enough to hold a short chain's length (weight / stiffness: 1.2 cm at 25) blew up at 90 Hz.
+    bool rigid{false};
 };
 
 // The coiled cord as an old telephone's (the flashlight's Coiled, vr_flashlight_cord 2; the cell cords'): 64 turns of
@@ -92,8 +100,14 @@ public:
     [[nodiscard]] int links() const { return links_; }
     [[nodiscard]] float length() const { return length_; } // the line's, metres
 
+    // The simulated nodes (world), and the springs' worst stretch or squeeze from their relaxed length, a share of it
+    // (vr_magholster_chain_log).
+    [[nodiscard]] const za::Vector<glm::vec3>& nodes() const { return pos_; }
+    [[nodiscard]] float springError() const;
+
 private:
     void reset(const glm::vec3& a, const glm::vec3& b);
+    void stepRigid(float h, float rest, const glm::vec3& gravityUnits, const glm::vec3& vb, bool aLoose);
 
     Style style_;
     bool valid_{false};
@@ -103,6 +117,7 @@ private:
     mutable int rings_{0};
     mutable int links_{0};
     mutable float length_{0.f};
+    float lastRest_{0.f}; // a rigid chain's spacing last frame (units; 0: afresh)
 };
 
 } // namespace qvr::coil

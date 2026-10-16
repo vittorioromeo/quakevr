@@ -773,8 +773,29 @@ const DefaultChange defaultChanges[] = {
     {137, &vr_foegrab_necksnap_window, "0.2"},       // 0.15
     {137, &vr_foegrab_necksnap_margin, "2"},         // 0
     {137, &vr_foegrab_necksnap_neck, "1.5"},         // 0
+    // 138: gloves (vr_gloves, vr_glove_*; ROUND22.md, "Gloves; Player Appearance"): new settings only, nothing to change.
+    // 139: the author's gore values (2026-10-16: "I've tweaked many values for the gore features. Please make those the
+    // new defaults"; ROUND22.md, "Blood streams diverge; his gore values"): sturdier corpses, deeper dents, more and
+    // wider but slower streams, fewer teeth, ragdoll impacts softer per hit but capped and crushing harder.
+    {139, &vr_corpse_health_mult, "1"},              // 2
+    {139, &vr_gore_dents_depth, "1"},                // 3
+    {139, &vr_gore_dents_max, "8"},                  // 12
+    {139, &vr_gore_dents_size, "1"},                 // 1.25
+    {139, &vr_gore_streams_per_body, "3"},           // 4
+    {139, &vr_gore_streams_speed, "70"},             // 50
+    {139, &vr_gore_streams_width, "0.35"},           // 0.75
+    {139, &vr_ragimpact_crush, "1"},                 // 1.5
+    {139, &vr_ragimpact_crush_speed, "200"},         // 350
+    {139, &vr_ragimpact_curve, "1"},                 // 1.5
+    {139, &vr_ragimpact_curve_ref, "3"},             // 4
+    {139, &vr_ragimpact_damage, "0.15"},             // 0.08
+    {139, &vr_ragimpact_max, "0"},                   // 40
+    {139, &vr_ragimpact_piece_hp, "0.4"},            // 0.65
+    {139, &vr_ragimpact_stomp_heavy, "130"},         // 120
+    {139, &vr_ragimpact_stomp_speed, "420"},         // 400
+    {139, &vr_teeth_per_enemy, "10"},                // 8
 };
-constexpr int configVersion = 137;
+constexpr int configVersion = 139;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

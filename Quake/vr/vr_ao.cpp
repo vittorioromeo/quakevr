@@ -50,6 +50,7 @@
 #include "vr_simd.hpp" // four-lane SSE/NEON, and eight-lane AVX where available
 #include <stdio.h>
 #include <string.h>
+#include "vr_tracy.h"
 
 extern "C" {
 extern cvar_t r_lerpmove; // gl_rmain.c
@@ -1868,6 +1869,7 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
         za::I64 start;
         ~Timer() { queueSeconds += za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - start); }
     } timer{t0};
+    QVR_TRACY_SCOPE(tracyScope, "alias vertex AO");
     const size_t count = static_cast<size_t>(hdr->numposes) * hdr->numverts;
     const za::U64 h = modelHash(hdr);
     const auto it = baked.find(za::StringView{model->name});

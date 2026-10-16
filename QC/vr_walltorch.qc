@@ -37,6 +37,13 @@
 .entity mainhand_wtgrip; // on a player: the torch each hand grips on its wall
 .entity offhand_wtgrip;
 
+// Torches and flames made in a live game (the toolgun's Fire tab; ROUND22.md, "Torches and fires from the toolgun"): the
+// engine sets vr_spawn_live round a spawn function it runs after the map has spawned (box3d::spawnClass). What the map
+// would make static (makestatic, ambientsound: only the level's signon, which a client already in the game never reads
+// again) stays an entity instead, its crackle played on it (VR_FlameProp_Setup, light_torch_small_walltorch).
+// (vr_spawn_live itself: vr_util.qc, read by items.qc too.)
+.float vr_flameprop;    // a free-standing flame made live (a prop: hangs where placed until taken): 1 small, 2 large, 3 a candle
+
 float WT_LEVELS = 16;           // the stick's frames 1..16: its fire in sixteenths
 float WT_WALL_FRAME = 17;       // the stick's frame on its wall (the engine draws id's flame on it, and its light)
 vector WT_HEAD = '1.2 0 0';     // the stick's head (its pit: make_walltorch.py), in its model's axes
@@ -549,6 +556,22 @@ void(float xLarge) VR_AD_FireSpot =
     }
 };
 
+// Whether point `p` is in the toolgun's flame `f` (VR_FlameProp_Setup): the map's flame of its size (VR_WallTorch_FireAt's
+// fire spots), a candle's small one over its wick.
+float(entity f, vector p) VR_FlameProp_Hot =
+{
+    vector o = f.origin;
+    if(f.vr_flameprop == 3)
+    {
+        return VR_WallTorch_SegmentDist(p, o + '0 0 6', o + '0 0 13') < 3;
+    }
+    if(f.vr_flameprop == 2)
+    {
+        return VR_WallTorch_SegmentDist(p, o + '0 0 -6', o + '0 0 32') < 12;
+    }
+    return VR_WallTorch_SegmentDist(p, o + '0 0 -6', o + '0 0 12') < 9;
+};
+
 // A fire the head `xHead` of torch `t` is in: another torch's flame (on its wall, or taken and lit), one of the map's
 // flames, a lava ball, or lava. "" none.
 string(entity t, vector xHead) VR_WallTorch_FireAt =
@@ -588,6 +611,14 @@ string(entity t, vector xHead) VR_WallTorch_FireAt =
         if(f.model != "" && vlen(f.origin - xHead) < 16) // (misc_fireball's spawner, in the lava, has no model)
         {
             return "a lava ball";
+        }
+    }
+    // The toolgun's flames (VR_FlameProp_Setup): where they hang or are carried, the map's flames' sizes.
+    for(f = findflags(world, vr_flameprop, 3); f; f = findflags(f, vr_flameprop, 3))
+    {
+        if(f != t && VR_FlameProp_Hot(f, xHead))
+        {
+            return f.vr_flameprop == 2 ? "a large flame" : "a flame";
         }
     }
     // Every torch by its class, not findradius: that skips SOLID_NOT entities, and a torch in a hand is one
@@ -760,6 +791,101 @@ void() VR_WallTorch_Touch =
         VR_Burn_Ignite(other, VR_Throw_Thrower(self), self.origin, self.velocity, VR_BURN_BLOW); // (yours, past the grace too)
     }
     forcegrabbable_touch();
+};
+
+// ----------------------------------------------------------------------------
+// The toolgun's free-standing flames (vr_spawn_live: light_flame_large_yellow, light_flame_small_*, Rogue's candle and
+// lantern; ROUND22.md, "Torches and fires from the toolgun")
+//
+// The map's own are static. Made live, one is a prop that hangs where it was placed (upright, MOVETYPE_NONE: on a map's
+// brazier, a ledge, the floor) until a hand or a force grab takes it (VR_Carry: carried and thrown as a box; let go of,
+// it falls and tumbles as one). Its light is the engine's torch light (vr_emissive.cpp finds it by its model wherever it
+// is), its crackle the map's ambient one played on it (the engine moves it with it: vr_walltorch.cpp crackles). Resting,
+// the player meets it as one of the map's flames (vr_burning.qc VR_Burn_MapFrame); carried or thrown, its fire burns what
+// it touches as a lit torch's head does (vr_burn_touch: VR_Burn_TorchTouch) and what a throw of it hits; anywhere, it
+// heats blades and lights torches again (VR_WallTorch_FireAt).
+
+// Its fire's middle (VR_FlameProp_Hot's), as it is turned now.
+vector(entity f) VR_FlameProp_Centre =
+{
+    vector c = '0 0 4';
+    if(f.vr_flameprop == 3)
+    {
+        c = '0 0 10';
+    }
+    else if(f.vr_flameprop == 2)
+    {
+        c = '0 0 14';
+    }
+    return f.origin + modelpoint(f, f.angles, c);
+};
+
+// Its crackle (wt_crackle -1: due), from its first think: a sound started as it is made, in the toolgun's input before
+// the server's frame, is cleared with that frame's datagram unsent.
+void() VR_FlameProp_Think =
+{
+    self.nextthink = time + 0.1;
+    if(self.wt_crackle == -1)
+    {
+        VR_WallTorch_Crackle(self, TRUE);
+    }
+    if(pointcontents(VR_FlameProp_Centre(self)) == CONTENT_WATER)
+    {
+        return; // (under water it burns nothing; out again, it does)
+    }
+    // Carried or thrown, its fire burns what it touches as a torch's head; resting, the player meets it as one of the
+    // map's flames (vr_burning.qc VR_Burn_MapFrame).
+    entity by = self.carry_player != world ? self.carry_player : VR_Throw_Thrower(self);
+    if(by != world)
+    {
+        VR_Burn_TorchTouch(self, VR_FlameProp_Centre(self), by);
+    }
+};
+
+void() VR_FlameProp_Touch =
+{
+    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage && other != self.owner)
+    {
+        VR_Burn_Ignite(other, VR_Throw_Thrower(self), self.origin, self.velocity, VR_BURN_BLOW);
+    }
+    forcegrabbable_touch();
+};
+
+// A wall torch made live: its crackle from its first think (VR_FlameProp_Think's why); its think is free until taken.
+void() VR_WallTorch_LiveCrackle =
+{
+    VR_WallTorch_Crackle(self, TRUE);
+    self.think = SUB_Null;
+};
+
+// self, a flame's spawn function's entity (its model set): the prop. xKind: 1 small, 2 large, 3 a candle, 0 a flame
+// behind glass that burns nothing (Rogue's lantern); xCrackle: the map's flame plays fire1.wav (FireAmbient), here on
+// the prop.
+void(float xKind, float xCrackle) VR_FlameProp_Setup =
+{
+    self.vr_flameprop = xKind;
+    self.angles_x = 0;
+    self.angles_z = 0;
+    VR_WallTorch_Box(self); // (its Quake box round its model: the hand and a force grab find it by its drawn shape)
+    self.solid = SOLID_NOT_BUT_TOUCHABLE;
+    self.movetype = MOVETYPE_NONE; // (hangs where placed: VR_Carry_Loose makes it a falling prop once let go of)
+    self.velocity = '0 0 0';
+    self.flags = self.flags | FL_FORCEGRABBABLE | FL_EASYHANDTOUCH;
+    self.touch = VR_FlameProp_Touch;
+    self.handtouch = SUB_Null; // nothing to take (VR_Carry_Setup keeps it as carry_use)
+    self.throwhit = QVR_THROWHIT_HIT;
+    self.owner = world;
+    SetThrownWeaponDealDamage(self, FALSE);
+    SetThrownWeaponDisappearOnHit(self, FALSE);
+    VR_Carry_Setup(self);
+    if(xKind)
+    {
+        self.think = VR_FlameProp_Think;
+        self.nextthink = time + 0.1;
+    }
+    setorigin(self, self.origin);
+    self.wt_crackle = xCrackle ? -1 : 0; // (VR_FlameProp_Think plays it)
+    dprint(sprintf("flameprop: %s (%g) at %v\n", self.classname, xKind, self.origin));
 };
 
 // ----------------------------------------------------------------------------

@@ -25,7 +25,7 @@ void() ad_CheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_MELEEKNIGHT,ad_FALSE) && self.ad_th_melee) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 	//----------------------------------------------------------------------
@@ -107,7 +107,7 @@ void() ad_SoldierCheckAttack =
 			if (ad_walkmove(self.angles_y+180, 16)) {
 				setorigin(self, self.oldorigin);
 				self.ad_attack_state = ad_AS_MELEE;
-				self.ad_th_melee ();
+				if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 				return;
 			}
 			else setorigin(self, self.oldorigin);
@@ -142,7 +142,7 @@ void() ad_PyroCheckAttack =
 
 	if (ad_ai_checkmelee(ad_MONAI_RANGEPYRO,ad_FALSE)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 };
@@ -159,7 +159,7 @@ void() ad_ShamCheckAttack =
 		self.ad_attack_state = ad_AS_MELEE;
 		// Don't wait for next frame, melee attack straight away 
 		// (different id behaviour)
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 
@@ -188,7 +188,7 @@ void() ad_GugCheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_MELEEGUG,ad_MONAI_MELEEZTALL)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 	
@@ -212,7 +212,7 @@ void() ad_BogLordCheckAttack =
 		// There is no intelligent sight check, its just rage!
 		if (time > self.ad_attack_finished && ad_enemy_vis) {
 			if (self.ad_attack_rage > random()) {
-				self.ad_attack_state = ad_AS_MELEE; self.ad_th_melee ();
+				self.ad_attack_state = ad_AS_MELEE; if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 			}
 			else self.ad_attack_state = ad_AS_MISSILE;
 			return;
@@ -231,7 +231,7 @@ void() ad_BogLordCheckAttack =
 			self.ad_attack_chance = 0.1 + (ad_skill * 0.1);
 		}
 		if (random() < self.ad_attack_chance) self.ad_attack_state = ad_AS_MISSILE;
-		else { self.ad_attack_state = ad_AS_MELEE; self.ad_th_melee (); }
+		else { self.ad_attack_state = ad_AS_MELEE; if (VR_MeleeArc_Launch()) self.ad_th_melee (); } // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 	
@@ -257,7 +257,7 @@ void() ad_BogLordCheckAttack =
 	// Check for random chance to keep doing overhead smash
 	if (random() > self.ad_attack_chance) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 	}
 	// Range attack harder to dodge at higher projectile speed
 	else self.ad_attack_state = ad_AS_MISSILE;
@@ -275,7 +275,7 @@ void() ad_SeekerCheckAttack =
 		// Need both arms for melee animation
 		if (self.state == 0) {
 			self.ad_attack_state = ad_AS_MELEE;
-			self.ad_th_melee ();
+			if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		}
 		// Instantly go to rocket range attack
 		// If the player is too close
@@ -552,7 +552,7 @@ void() ad_DeflectorCheckAttack =
 			// Rapid firing plasma projectiles
 			if (self.spawnflags & ad_MON_DEFLECTOR_PLASMA) {
 				self.ad_attack_state = ad_AS_MELEE;
-				self.ad_th_melee ();
+				if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 				return;
 			}
 			else {
@@ -561,7 +561,7 @@ void() ad_DeflectorCheckAttack =
 				// Any sprite space left for hazard projectiles?
 				if (ad_HazardProjectile_CheckLimit(self, self.ad_attack_count)) {
 					self.ad_attack_state = ad_AS_MELEE;
-					self.ad_th_melee ();
+					if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 					return;
 				}
 			}
@@ -593,7 +593,7 @@ void() ad_DefenderCheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_RANGEDEFSSG,ad_FALSE)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 	//----------------------------------------------------------------------
@@ -612,7 +612,7 @@ void() ad_DefenderCheckAttack =
 	// Check enemy for grenade resistance?
 	if (self.enemy.ad_bouncegrenade) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 	}
 	else {
 		// Aggressive range attack, no % chances
@@ -1322,7 +1322,7 @@ void() ad_FishCheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_MELEEKNIGHT,ad_FALSE)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 };
@@ -1636,7 +1636,7 @@ void() ad_DGuardQCheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_MELEEDGUARDQ,ad_FALSE)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 
@@ -1693,7 +1693,7 @@ void() ad_DSergeantCheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_MELEEFRONT,ad_FALSE)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 	//----------------------------------------------------------------------
@@ -1749,7 +1749,7 @@ void() ad_DLordCheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_MELEEFRONT,ad_FALSE)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee (); 
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 	
@@ -1802,7 +1802,7 @@ void() ad_DPrinceCheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_MELEEFRONT,ad_FALSE)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee (); 
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 	
@@ -1858,7 +1858,7 @@ void() ad_DFuryCheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_MELEEFRONT,ad_FALSE)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee (); 
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 	//----------------------------------------------------------------------
@@ -2181,7 +2181,7 @@ void() ad_SpawnCheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_MELEESPAWN,ad_FALSE)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 	//----------------------------------------------------------------------
@@ -2286,7 +2286,7 @@ void() ad_ScorpionCheckAttack =
 	//----------------------------------------------------------------------
 	if (ad_ai_checkmelee(ad_MONAI_MELEESCORPION,ad_FALSE)) {
 		self.ad_attack_state = ad_AS_MELEE;
-		self.ad_th_melee ();
+		if (VR_MeleeArc_Launch()) self.ad_th_melee (); // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)
 		return;
 	}
 	//----------------------------------------------------------------------

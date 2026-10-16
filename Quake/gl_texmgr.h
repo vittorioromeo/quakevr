@@ -147,6 +147,7 @@ void TexMgr_Init (void);
 void TexMgr_DeleteTextureObjects (void);
 void TexMgr_ApplySettings (void);
 qboolean TexMgr_UsesFilterOverride (void);
+int TexMgr_NearestKind (void); // QVR
 
 // IMAGE LOADING
 gltexture_t *TexMgr_LoadImage (qmodel_t *owner, const char *name, int width, int height, enum srcformat format,

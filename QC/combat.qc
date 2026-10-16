@@ -323,6 +323,8 @@ float(entity e, float xLive) VR_Limb_BlastPops;
 void(float dm) VR_Limb_GibAll;
 float() VR_Limb_GibsWanted;
 float(entity targ, entity attacker, float xDamage) VR_Decap_Blow;
+void(entity targ, entity attacker, float xDamage) VR_Teeth_Blow; // (vr_teeth.qc)
+void() VR_Teeth_Test;
 void(entity targ) VR_Decap_After;
 
 // Knockdowns (vr_knockdown.qc): a shove knocked it down, a ragdoll while alive (the engine's vr_box3d.cpp, "Knockdowns").
@@ -354,7 +356,7 @@ void(float xMode) VR_HitStagger_Test;
 // recovered from: a hand's hold knocks it down, VR_FoeGrab_Manhandle); your landing's crush; the tests.
 .float vr_kd_shaken;
 void(entity e) VR_Manhandle_Shaken;
-void(entity p, float xSpeed) VR_RagImpact_Crush;
+float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush;
 void(float xMode) VR_RagImpact_Test;
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;
@@ -1492,9 +1494,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     //MED
     // moved damage_attacker down a bit
 
-    // HONEY
-    // cg: check if this needs a specific damage type
-    if((targ.flags & FL_SPECIFICDAMAGE) && !(attacker.damage_weapon & targ.items)) {
+    // HONEY: a target only some weapons hurt, by the credit of what struck it (vr_dmgcredit.qc).
+    if(!VR_DamageCredit_Accepts(targ, inflictor))
+    {
         return FALSE;
     }
 
@@ -2518,6 +2520,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     // use. Off: 1, and nothing is recorded - exactly the flat melee damage of before.
     float mult = VR_Melee_Positional(targ, vr_hitpos, vr_hitdir);
     damage = VR_Melee_CapDamage(damage * mult, mult);
+    VR_Teeth_Blow(targ, attacker, damage); // VR: a punch to the face knocks teeth out (vr_teeth.qc)
     float decap = VR_Decap_Blow(targ, attacker, damage); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
     float alive = targ.health > 0 && !targ.vr_corpse && !targ.vr_corpse_dying; // (a corpse keeps its own health to gib)
     float hotHand = vr_hitkind == QVR_HITKIND_MELEE ? vr_hithand : -1;

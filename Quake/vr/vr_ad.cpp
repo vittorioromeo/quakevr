@@ -72,7 +72,9 @@ constexpr const char* notSignalPrefixes[] = {"func_detail", "misc_particle"};
 // maps.
 constexpr const char* everywhereClasses[] = {
 #define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) &classname[3],
+#define QVR_AD_SPAWN_MAP(section, label, classname, model, lift, choice, key, value, skin) // (only in AD's maps)
 #include "vr_ad_spawns.inc"
+#undef QVR_AD_SPAWN_MAP
 #undef QVR_AD_SPAWN
     "item_artifact_airtank", "item_artifact_blastbelt", "item_artifact_cross", "item_artifact_jumpboots",
     "item_artifact_lavashield", "item_artifact_nail_piercer", "item_artifact_sharp_shooter", "item_artifact_tomeofpower",
@@ -321,6 +323,31 @@ extern "C" int VR_AD_SpawnsOutside(const char* classname)
     {
         return 0;
     }
+    return VR_AD_SpawnOutsideNow();
+}
+
+// The toolgun's (box3d::spawnClass): everywhereClasses as VR_AD_SpawnsOutside, and AD's ammo and armour backpacks in any
+// map while AD's data is mounted (his decision, ROUND22.md "The toolgun's spawns: loaded, placed and drawn at once"); a
+// map's own backpacks keep AD's rule (AD's maps only: ARCANE_DIMENSIONS.md 16.1).
+constexpr const char* toolgunAnywhereClasses[] = {"item_backpack", "item_backpack_armour"};
+
+extern "C" int VR_AD_ToolgunSpawnsOutside(const char* classname)
+{
+    if(VR_AD_SpawnsOutside(classname))
+    {
+        return 1;
+    }
+    if(mapState.rules || !listed(toolgunAnywhereClasses, classname) || Cvar_VariableValue("vr_ad_mounted") == 0.f ||
+        !VR_ED_FindFunction(va("ad_%s", classname)))
+    {
+        return 0;
+    }
+    return VR_AD_SpawnOutsideNow();
+}
+
+// AD's reduced world setup before the map's first AD entity outside AD's rules (once a map), and the count.
+extern "C" int VR_AD_SpawnOutsideNow()
+{
     if(!mapState.outsideReady)
     {
         mapState.outsideReady = true;

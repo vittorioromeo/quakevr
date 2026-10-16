@@ -91,6 +91,12 @@ glm::quat rotation(const glm::quat q[4], const Spline& s)
 
 void along(const ragdoll::Rig& rig, const int poses[4], const Spline& s, uint32_t alone, Rigid* out)
 {
+    along(rig, nullptr, poses, s, alone, out);
+}
+
+void along(const ragdoll::Rig& rig, const Rigid* keys, const int poses[4], const Spline& s, uint32_t alone, Rigid* out)
+{
+    const auto keyOf = [&](int pose, int b) { return keys ? keys[pose * rig.numBones + b] : key(rig, pose, b); };
     for(int b = 0; b < rig.numBones; b++)
     {
         const ragdoll::Bone& bone = rig.bones[b];
@@ -98,7 +104,7 @@ void along(const ragdoll::Rig& rig, const int poses[4], const Spline& s, uint32_
         glm::quat q[4];
         for(int i = 0; i < 4; i++)
         {
-            k[i] = key(rig, poses[i], b);
+            k[i] = keyOf(poses[i], b);
             q[i] = k[i].rot;
         }
         const glm::quat rot = rotation(q, s);
@@ -109,7 +115,7 @@ void along(const ragdoll::Rig& rig, const int poses[4], const Spline& s, uint32_
         for(int i = 0; i < 4; i++)
         {
             // (the joint's gap: where this bone's fit puts it less where its parent's does)
-            at += s.w[i] * (rooted ? apply(k[i], c) - apply(key(rig, poses[i], p), c) : apply(k[i], c));
+            at += s.w[i] * (rooted ? apply(k[i], c) - apply(keyOf(poses[i], p), c) : apply(k[i], c));
         }
         out[b].rot = rot;
         out[b].pos = at - rot * c;

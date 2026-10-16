@@ -4,6 +4,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
 #include "vr_adguns.hpp"
+#include "vr_render.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_bench.hpp"
 #include "vr_edictindex.hpp"
@@ -18,9 +19,11 @@
 #include "vr_anchor.hpp"
 #include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_magholster.hpp"
 #include "vr_decals.hpp"
 #include "vr_permdecals.hpp"
 #include "vr_gore.hpp"
+#include "vr_bloodstream.hpp"
 #include "vr_envmap.hpp"
 #include "vr_lighting.hpp"
 #include "vr_angvel.hpp"
@@ -87,6 +90,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_grasp.hpp"
+#include "vr_gripfit.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_gpustats.hpp"
@@ -109,6 +113,7 @@
 #include "vr_weaponfx.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_water.hpp"
+#include "vr_dents.hpp"
 #include "vr_wounds.hpp"
 #include "vr_cleanskins.hpp"
 #include "vr_toolgun.hpp"
@@ -1902,6 +1907,7 @@ extern "C" void VR_Init()
     VR_RegisterPackStatus();
     VR_RegisterContinue();
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
+    Cmd_AddCommand("vr_gloves_reload", render::glovesReload_f); // the gloves' painted leather read again (vr_render.cpp)
     VR_FileCacheRegisterCommands();
     jobs::registerCommands();
     animsmooth::registerCommands();
@@ -1960,6 +1966,7 @@ extern "C" void VR_Init()
     gearlights::init();
     chainsaw::init();
     cellcord::init();
+    magholster::init();
     detail::init();
     extmaps::init();
     pbr::init();
@@ -1979,6 +1986,8 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_ragdoll_hand_probe", view::ragdollHandProbe_f);
     Cmd_AddCommand("vr_grasp_sweep", view::graspSweep_f);
     Cmd_AddCommand("vr_grasp_spheres", grasp::spheres_f);
+    Cmd_AddCommand("vr_grip_fit_last", gripfit::last_f);
+    Cmd_AddCommand("vr_grip_fit_drawn", gripfit::drawn_f);
     Cmd_AddCommand("vr_hand_reload", handrig::reload_f);
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
     Cmd_AddCommand("vr_model_reload", view::modelReload_f);
@@ -1997,6 +2006,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
     Cmd_AddCommand("vr_wounds_test", wounds::test_f);
     Cmd_AddCommand("vr_wounds_info", wounds::info_f);
+    Cmd_AddCommand("vr_gore_dents_info", dents::info_f);
     Cmd_AddCommand("vr_gore_hands_test", wounds::handsTest_f);
     Cmd_AddCommand("vr_wrist_blood_test", wounds::wristTest_f);
     Cmd_AddCommand("vr_gore_wash_test", wounds::washTest_f);
@@ -2028,6 +2038,7 @@ extern "C" void VR_Init()
     bench::registerCommands(); // vr_bench_begin, vr_bench_end, vr_bench_seed
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
+    Cmd_AddCommand("vr_gore_stream_test", bloodstream::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
     Cmd_AddCommand("vr_prepare_models", prepare::precacheModels_f); // (Setup's preparation run, vr_prepare.cpp)
     Cmd_AddCommand("vr_vram_report", vram::report_f);
