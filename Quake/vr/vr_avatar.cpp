@@ -1498,7 +1498,7 @@ struct FootHit
     const float leg = legLength(side) * u;
     const float reach = CLAMP(0.5f, vr_body_climb_feet_reach.value, 1.2f);
     const bool up = c.rise > 0.08f;
-    const float zTop = hip.z - 0.12f * leg;
+    const float zTop = hip.z - 0.25f * leg;
     const float zPref = hip.z - (up ? 0.5f : 0.6f) * leg * za::min(1.f, reach);
     const float zBot = hip.z - 0.92f * leg * reach;
     const float toe = toeLength(side) * u;
@@ -1595,16 +1595,19 @@ struct FootHit
     }
     if(face.hit && za::abs(face.normal.z) < 0.6f)
     {
-        // At the spacing's height under the preferred (the knee less high), else the one over it.
+        // At the spacing's height under the preferred (the knee less high), else the preferred, else the spacing's over
+        // it.
         const float lo = CLAMP(zBot + ankle, za::floor(zPref / CLIMB_RUNGS) * CLIMB_RUNGS, zTop);
         kind = 1;
-        at = glm::vec3{face.pos.x, face.pos.y, lo} - dir * toe;
-        if(place(at))
+        for(const float z : {lo, CLAMP(zBot + ankle, zPref, zTop), CLAMP(zBot + ankle, lo + CLIMB_RUNGS, zTop)})
         {
-            return true;
+            at = glm::vec3{face.pos.x, face.pos.y, z} - dir * toe;
+            if(place(at))
+            {
+                return true;
+            }
         }
-        at = glm::vec3{face.pos.x, face.pos.y, CLAMP(zBot + ankle, lo + CLIMB_RUNGS, zTop)} - dir * toe;
-        return place(at);
+        return false;
     }
     return false;
 }
@@ -1750,7 +1753,7 @@ void updateClimbing(const Body& b, float dt, bool legs)
                 f.retry = 0.f;
                 continue;
             }
-            want[side] = over || (f.retry <= 0.f && (d.z > -0.08f * leg ||
+            want[side] = over || (f.retry <= 0.f && (d.z > -0.15f * leg ||
                          za::abs(glm::dot(f.at - hips, climbOutward(0))) > 0.45f * b.m2w ||
                          (c.rise > 0.08f && d.z < -0.8f * leg * reach && other.held && other.step < 0.f)));
         }

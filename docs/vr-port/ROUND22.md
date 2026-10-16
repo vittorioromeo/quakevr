@@ -8851,3 +8851,47 @@ hitches; `developer 1` shows `cache miss in play` lines for anything the loads d
 ### Ammo switch only with an empty other hand (agent/ammoswitch)
 
 A player: no ammo type switch while akimbo. vr_ammo_switch_empty_hand 1 (archived; VR Settings, Ammo Button page, "Ammo Switch Needs Empty Hand"): ToggleSecondaryAmmo (QC/weapons.qc) runs only when the other hand is empty by VRIsHandEmpty (no weapon, nothing carried: prop, torch, grabbed enemy); otherwise a short lock4 click and a haptic on the pressing hand, and developer 1 prints "ammo switch: refused". 0 restores the old behaviour. Checked headless (scratch/ammosw.sh): empty hand toggles; a gun in the other hand refused; option off toggles with the gun there. A carried prop was not set up in the mock (same VRIsHandEmpty test). Backlog: ammo type following the loaded magazine.
+
+## Climbing footholds: the legs find support while climbing (worktree `backlogclean`, branch `agent/climblegs`, 2026-10-16)
+
+His voice note (BACKLOG, 2026-10-14 23:10:39): legs should seek plausible support on walls, ledges, pillars and ladders.
+vr_avatar.cpp `updateClimbing` / `findFoothold`, purely drawn (no collision or movement change).
+
+- While a hand holds on (`climb::heldAt`, the server's holds from STAT_QVR_CLIMB*), each foot looks for a hold below its
+  hip: straight in towards the holds' face at the preferred height (half the leg under the hip climbing up, 0.6
+  hanging), and towards the holds when that misses (a pillar's or a pipe's side); then down for a top (a ledge, a rung,
+  the floor) just inside what it met or at the holds' lip (a ladder's rungs in front of its wall), and in front of what
+  it met (a ledge sticking out lower). The top nearest the preferred height wins (higher ones favoured climbing up); else
+  a spot on the face: at a 16-unit spacing (a flat ladder's "rungs"), the preferred height, or the spacing above. Two
+  clearance traces keep the toes out of the face (just over the sole and just over the ankle: a rung's underside). A
+  hold must be within 0.97 of the leg and under the hip by at least 0.45 of how far out it is (else straight legs
+  sticking out). 4-9 point traces a search (SV_Move on the listen server, its VM pushed), only when a foot looks.
+- A foot on a hold stays put in the world until it is overstretched (0.98 leg), too high (less than 0.15 leg under the
+  hip), 0.45 m to the side, or, climbing up, left low; it then steps on an out-first arc (out from the face by its own
+  length plus 12 cm, across, then in) to the next hold, one foot at a time, the other waiting. None found: it hangs,
+  slightly bent, swinging a little and trailing the body's motion, and looks again 0.25 s later. Letting go (a fall, a
+  mantle) steps the feet out first, then eases back to the legs' own pose. Knees point at the face and a little out.
+- While climbing the body hangs under the head (the lean over the box's middle eased out: `climbHang` in solveTorso, so
+  the holsters, flashlight and self-collision torso follow it): the hips came 0.2-0.3 m nearer the face, which put the
+  holds within a leg's reach (before, the hips were 0.8-1.0 m from the rungs and the feet mostly hung).
+- Settings (archived; VR Settings > Body, after Swimming Kick Rate): `vr_body_climb_feet` 1 (Climbing Footholds),
+  `vr_body_climb_feet_reach` 1 (Foothold Reach, 0.5-1.2x), `vr_body_climb_feet_speed` 1 (Foothold Step Speed, 0.3-3x,
+  1 = a 0.35 s step). Debug: `vr_debug_climb_feet` (Climbing Footholds Debug): 1 `climbfoot` per search (what, where,
+  traces, ms), 2 `climbfeet` per frame (state, hold number, drawn ankle, ankle or toes inside something, the update's
+  us), 3 also drawn.
+
+Tests (headless, `climb_plays.py ladderlean` on vrclimb's rung wall `setpos 71 0 24`, 24 s, three climbs): feet on holds
+2098/2477 frames (L/R), stepping 1495/1671, hanging 1605/1050; 17/19 holds (0.7-0.8 a second a foot); planted feet slid
+0.0 cm; ankle or toes inside geometry 0 frames (earlier builds 200-300: toes through rungs while stepping and letting go,
+fixed by the out-first arc, the clearance trace over the ankle and the weight waiting for the feet to step out).
+Searches: 16 tops, 20 face spots, 8 none, 2-5 us each; the update 0.5 us median a frame, 1.4 us p99. Screenshots (look
+down and side view, footholds on and off): the ledge hang (`setpos 78 176 24`) has the feet against the face 0.7 m under
+the hips; the rung hang one foot on the face, the other higher, knees bent at the wall. AD's ad_crucial ladder (`setpos
+-417 -2404 -107 0 90 0`), before the hang-under-the-head change: the rungs were 1.0 m from the hips and the feet hung (7
+face spots, 79 none, nothing inside geometry); not re-run after it (that setpos didn't take in two runs of four).
+Scripts: the worktree's scratch/cf_run.sh, cf_stats.py, cf_shots.sh, cf_plays.py (`leanledgehang`, `leanrunghang`: the
+hangs with the head leant in, held 30 s).
+
+For his VR check: climb a wall, a ladder (AD's too) and a ledge and look down; the body now hangs under the head while
+climbing (say if he prefers the old lean); Foothold Reach and Step Speed. Open: rungs further out than a leg (a ladder
+standing off a wall) leave the feet hanging.
