@@ -38,6 +38,9 @@ namespace
 {
 
 using progs::fields;
+using debris::contents;
+using debris::hashString;
+using debris::traceLine;
 
 // The crates' models and their half sizes (units, unscaled: make_crates.py's CRATES; the explosive boxes' size), and
 // the barrel (make_crates.py's BARRELS: 22 across its belly's facets, 23 across their edges, 32 high; QC vr_barrel: a
@@ -74,25 +77,9 @@ struct Rng
     float range(float a, float b) { return a + (b - a) * uniform(); }
 };
 
-[[nodiscard]] uint64_t hashString(const char* s)
-{
-    uint64_t h = 1469598103934665603ull;
-    for(; *s; s++)
-    {
-        h = (h ^ static_cast<unsigned char>(*s)) * 1099511628211ull;
-    }
-    return h;
-}
-
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
     return {v[0], v[1], v[2]};
-}
-
-[[nodiscard]] trace_t traceLine(const glm::vec3& a, const glm::vec3& b)
-{
-    vec3_t start{a.x, a.y, a.z}, end{b.x, b.y, b.z};
-    return SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, qcvm->edicts);
 }
 
 // The player's box (Quake's hull 1) from `a` to `b`, the level only.
@@ -101,12 +88,6 @@ struct Rng
     vec3_t start{a.x, a.y, a.z}, end{b.x, b.y, b.z};
     vec3_t mins{-16.f, -16.f, -24.f}, maxs{16.f, 16.f, 32.f};
     return SV_Move(start, mins, maxs, end, MOVE_NOMONSTERS, qcvm->edicts);
-}
-
-[[nodiscard]] int contents(const glm::vec3& p)
-{
-    vec3_t v{p.x, p.y, p.z};
-    return SV_PointContents(v);
 }
 
 [[nodiscard]] const qmodel_t* serverModel(const char* name)
