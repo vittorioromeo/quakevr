@@ -112,6 +112,10 @@ za::Vector<Item> pageDebugViews()
         cycle("Climbing Footholds Debug", vr_debug_climb_feet, {{0.f, "Off"}, {1.f, "Log Holds"}, {2.f, "Log Each Frame"}, {3.f, "Logged and Drawn"}})
             .help("Climbing, prints each foothold a foot finds (climbfoot: where, what, how many traces); each frame's feet "
                   "(climbfeet: planted or stepping, their slip, any in a wall); drawn: each foot's hold and the search."),
+        cycle("Show Tracked Skeleton", vr_bodytrack_debug, {{0.f, "Off"}, {1.f, "On the Body"}, {2.f, "Beside the Body"}})
+            .help("Body tracking: the headset's tracked skeleton drawn (cyan: seen, magenta: guessed by the headset, as "
+                  "Quest 3's legs), on your body or beside it."),
+        command("Print Body Tracking Status", "vr_bodytrack_status"),
         cycle("Show Body Skeleton", vr_body_debug,{{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
             .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
                   "its pose and calibration without a mirror)."),

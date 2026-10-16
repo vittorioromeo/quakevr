@@ -61,6 +61,23 @@
         toggle("Elbows Out of the Torso", vr_body_collide_elbows)
             .help("With Body Collisions: an elbow that would go into your torso (a hand across your chest) swings out "
                   "round the line from the shoulder to the wrist."),
+        // Body tracking (vr_bodytrack.cpp): Quest 3 through Virtual Desktop (XR_FB_body_tracking).
+        header("Body Tracking"),
+        toggle("Body Tracking", vr_bodytrack)
+            .help("Where the headset tracks your body (Quest 3 through Virtual Desktop: allow Movement Tracking), your "
+                  "tracked torso, elbows and (if you like) legs are blended into the body; where it is lost or unsure, "
+                  "the guessed body comes back smoothly. Your hands always stay on the controllers."),
+        slider("Torso", vr_bodytrack_torso, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of your tracked torso: its lean, the chest's twist, the hips' facing, and telling a lean from "
+                  "a step in the room."),
+        slider("Elbows", vr_bodytrack_arms, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much the elbows swing round to where your tracked elbows are."),
+        slider("Legs", vr_bodytrack_legs, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of the tracked legs (Quest 3 guesses them from your upper body: generated legs). Climbing "
+                  "and swimming feet keep theirs."),
+        slider("Min Confidence", vr_bodytrack_confidence, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Below this confidence the tracking eases out to the guessed body."),
+        slider("Smoothing", vr_bodytrack_smooth, 0.f, 0.2f, 0.01f, "%.2f s").help("How long the tracked joints are smoothed over."),
         header("Torso Direction"),
         cycle("Torso Follows", vr_torso_mode, {{1.f, "Mostly the head"}, {0.f, "The hands (old)"}})
             .help("Nothing tracks your torso: it is guessed. Mostly the head: it faces where your head has been facing, "

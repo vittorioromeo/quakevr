@@ -9640,6 +9640,86 @@ In VR: crouch, take a grunt's shins (or one shin with both hands) and yank them 
 back, feet to you? Then lift one by its legs and swing it. Try the thighs (nothing with Thigh Grip 0) and a death
 knight (harder). Watch Leg Grab Diagnostic for where your hands are and why it doesn't go.
 
+## Body tracking: Quest 3 through Virtual Desktop (worktree `tghost`, branch `agent/bodytrack`, 2026-10-16)
+
+VDXR offers `XR_FB_body_tracking`, `XR_META_body_tracking_full_body`, `_fidelity` and `_calibration`. The game now
+enables them when offered and blends the tracked body into the guessed one.
+
+**Plumbing** (`vr_bodytrack_xr.cpp`, five one-line hooks in `vr_backend_openxr.cpp`): the extensions are enabled in
+`createInstance`. After the session starts, `XrSystemBodyTrackingPropertiesFB` is checked and an `XrBodyTrackerFB` is
+created with `XR_BODY_JOINT_SET_FULL_BODY_META` (84 joints; falls back to the 70-joint default set), and
+`xrRequestBodyTrackingFidelityMETA(HIGH)` is called. Each frame `xrLocateBodyJointsFB` runs in the hands' space at
+the views' time, with the fidelity and calibration status structs chained. It reads per-joint valid/tracked flags,
+`isActive` and `confidence`. The tracker is destroyed before the session. Calibration is read and shown in the status,
+but no body height is suggested to the runtime: the avatar takes only directions and angles, so it keeps its own
+calibrated proportions.
+
+**Blending** (`vr_bodytrack.cpp`): joints are smoothed in the room (`vr_bodytrack_smooth` 0.04 s) and placed in the
+world exactly as the hands are. Each region has a weight that eases in or out over `vr_bodytrack_fade` (0.25 s) as
+tracking turns good or bad. Good means `vr_bodytrack` on, `isActive`, confidence >= `vr_bodytrack_confidence` (0.5),
+and the region's joints valid. While a region fades out, its last joints are held.
+- Torso (`vr_bodytrack_torso` 1). The spine's tilt (hips to neck) feeds `solveTorso`'s lean in place of the guess. With
+  it, the drop the tilt explains is a lean and the rest is a crouch, and the crouch's own forward tilt is replaced. After
+  the crouched pose, the trunk is swung about the neck top to the tracked tilt. The chest gets the tracked twist from the
+  hips (half in the spine). `bodyYaw` gets the tracked hips' facing. The lean detection (`senseLean`'s hold) gets the
+  spine's tilt: a lean tilts the spine, a step or a neck bend does not.
+- Arms (`vr_bodytrack_arms` 1). The elbow swings about the shoulder-to-wrist line to the tracked elbow's side. The
+  hands stay on the controllers. The elbow self-collision (Elbows Out of the Torso) still wins.
+- Legs (`vr_bodytrack_legs` 0, since Quest 3's legs are generated). The foot target and knee direction blend towards
+  the tracked leg, scaled to the avatar's leg, times (1 - climbing) (1 - swimming).
+- Holsters, flashlight, anchors and body contact read `avatar::torso()`/`skeleton()`, so they follow the blended pose.
+  The reference poses (`standing()`, `uprightChest`) take none of it.
+- With no source (no extension, plain mock), `place()` returns at once and every hook returns before touching anything
+  (weights 0). The changed `solveTorso` lines are exact identities at weight 0.
+
+**Debug**: Debug > Show Tracked Skeleton (`vr_bodytrack_debug` 1 on the body, 2 beside it; cyan = tracked, magenta =
+inferred) and Print Body Tracking Status (`vr_bodytrack_status`: extensions, system support, tracker, fidelity,
+calibration, confidence, joints valid/tracked, region weights, µs per frame). `vr_bodytrack_stats [label|reset]` logs,
+per posed frame against the tracked body: lean error, tilt, twist error, elbow and knee swivel error, lean hold, and the
+largest per-frame joint jump (relative to the neck top).
+Mock: `vr_bodytrack_synth 1` adds a synthetic body (`_pitch _roll _twist _crouch _neck _elbows _knees _confidence
+_active`). It moves the mock head as that body would carry it, so the head-only guess sees a real lean.
+
+**Measured** (synthetic body, e1m1, 150 frames settle and 150 measured per case; lean error = angle between the
+avatar's spine and the tracked tilt applied to its upright spine):
+
+| case | lean err before | after | twist err before / after | elbow err before / after | lean hold before / after |
+|---|---|---|---|---|---|
+| stand | 0.0 | 0.0 | 0 / 0 | 16.5 / 0 | 0 / 0 |
+| forward 25 | 5.1 | 0.0 | 0 / 0 | 58 / 24 (*) | 1 / 1 |
+| sideways 20 | 6.1 | 0.0 | 17.7 / 0 | 65, 2 / 0 | 1 / 1 |
+| twist 30 | 0.0 | 0.0 | 22.3 / 2.6 | 11, 23 / 0 | 0 / 0 |
+| crouch 0.35 m | 6.6 | 0.0 | 7.7 / 0 | 98 / 0 | 1 / 0 |
+| crouch 0.3 + forward 20 | 4.5 | 0.0 | 8.6 / 0 | 180 / 0 | 1 / 1 |
+| neck bend 35 (false lean) | 5.5 | 0.0 | 8.7 / 0 | 14, 27 / 0 | 1 / 0 |
+| elbows winged | 0.0 | 0.0 | 7.7 / 0 | 69, 56 / 0 | 0 / 0 |
+
+(*) The elbow self-collision pushing the elbow out of the tilted torso: 0 with `vr_body_collide_elbows 0`.
+Legs (knees out 30): knee swivel error 25.1 deg with legs 0, 4.7 deg with legs 1.
+Fallback, holding forward 20 with elbows out: confidence 0.2 eases back to the guess (elbow error 53 deg, as the IK);
+regained, back to 7 deg within the window; `isActive` 0 and switching off also ease out. The largest per-frame joint
+jump in all of these is 0.42-0.49 cm, against 0.00 for a held pose. A hard switch would move an elbow about 20 cm in
+one frame.
+CPU: `place()` plus the synthetic body cost 1.2-2.9 µs per frame. The avatar hooks are a few vector operations.
+
+**On the Quest / Virtual Desktop side** (names vary by version):
+- Quest: Settings > Movement Tracking (or Privacy > Body tracking): body tracking on. Then allow the Movement
+  Tracking / body tracking permission for Virtual Desktop (Settings > Privacy & Safety > App permissions > Movement
+  tracking).
+- Virtual Desktop (Quest app, Streaming tab): set the OpenXR runtime to VDXR, and turn on forwarding of tracking data
+  for body tracking ("Forward tracking data" / "Body tracking"). Upper body is inside-out tracked; legs are generated.
+- In game: Print Body Tracking Status should show `fb 1 fullbody 1 fidelity 1`, `tracker 1 (full body)`, `high
+  fidelity asked`, `source live`, confidence near 1 and the joints tracked.
+
+**Test in VR**: turn on Show Tracked Skeleton (Beside the Body) and check that its lean, twist and elbows match yours.
+Lean round a corner, then step sideways: the body should stay upright on the step. Bend your neck to look down at your
+belt: the torso should stay upright. Crouch with a straight back, then crouch leaning forward. Wing your elbows out
+with the guns held. Check that holsters and the flashlight follow a lean. Try Legs at 1 if the generated legs look
+right. Put a hand behind your back or turn away to lose tracking: the body should ease back without popping.
+
+**Open**: the tracked spine's upright is taken as vertical. If his real hips-to-neck line leans a few degrees standing,
+a learnt neutral would fix that. Shoulders (clavicles) take nothing from tracking yet; elbows only.
+
 ## Source splits: vr_box3d, vr_foegrab, vr_view, vr_menu (worktree `dequant`, branch `agent/splits`, 2026-10-16)
 
 His decision 5 (R1_cpp D1/D5/D6/D7: "yes to all, as suggested"): pure moves. docs/vr-port/SOURCE_MAP.md has the map.

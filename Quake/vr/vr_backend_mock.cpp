@@ -9,6 +9,7 @@
 #include "vr_tracy.h"
 #include "vr_touch.hpp"
 #include "vr_body.hpp"
+#include "vr_bodytrack.hpp"
 #include "vr_box3d.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_gearlights.hpp"
@@ -1610,6 +1611,9 @@ public:
                 }
             }
         }
+
+        // vr_bodytrack_synth: a synthetic tracked body, the head moved as it carries it (vr_bodytrack.cpp).
+        bodytrack::synthesize(tracking);
 
         // The head likewise (a lunge scripted with vr_mock_hand head).
         tracking.head.linearVelocity = headMotion.update(tracking.head.position, realtime);

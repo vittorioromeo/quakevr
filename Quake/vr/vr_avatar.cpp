@@ -7,6 +7,7 @@
 #include "vr_units.hpp"
 #include "vr_backend.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_bodytrack.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
@@ -301,6 +302,16 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         const float sure = vr_lean_detect.value > 0.f ? s.leanHold : 1.f;
         tiltReach = sure * za::min(leanLen * 0.8f, allowed, 0.7f * torsoLen);
     }
+    // Body tracking (vr_bodytrack.cpp; not the reference poses): the tracked spine's tilt blended in, which then also
+    // tells the crouch from the lean (the drop it does not explain is a crouch) and replaces the crouch's own tilt.
+    const bodytrack::Trunk tracked = crouchPose ? bodytrack::trunk() : bodytrack::Trunk{};
+    glm::vec3 leanDir = leanLen > 0.01f ? leanOff / leanLen : b.fwd;
+    if(tracked.weight > 0.f)
+    {
+        const glm::vec3 v = glm::mix(leanDir * tiltReach, tracked.dir * (torsoLen * za::sin(tracked.tilt)), tracked.weight);
+        tiltReach = za::min(glm::length(v), 0.95f * torsoLen);
+        leanDir = tiltReach > 1e-4f ? glm::normalize(v) : leanDir;
+    }
     const float tiltDrop = torsoLen - za::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
 
     // How deep the crouch is: 0 standing, 1 with the pelvis at squatting height.
@@ -319,7 +330,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     const glm::vec3 top = standingTop - (hf * vr_body_crouch_eye_forward.value + hu * vr_body_crouch_eye_up.value) * (w * b.m2w);
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
     const float crouch = depthUnder(top);
-    const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch;
+    const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch * (1.f - tracked.weight);
     float pelvisZ = za::max(top0.z - torsoLen * za::cos(tilt), squatZ);
     pelvisZ = za::min(pelvisZ, top0.z - 0.3f * torsoLen); // lying down: keep the back from folding over
     const float dz = top0.z - pelvisZ;
@@ -338,7 +349,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     {
         const glm::vec3 spine = top0 - pelvis0;
         const float angle = za::asin(za::min(1.f, tiltReach / za::max(glm::length(spine), 1e-3f)));
-        turn = glm::mat3_cast(glm::angleAxis(angle, safeNormalize(glm::cross(UP, leanOff / leanLen), b.left)));
+        turn = glm::mat3_cast(glm::angleAxis(angle, safeNormalize(glm::cross(UP, leanDir), b.left)));
     }
     const glm::vec3 pelvis = top - turn * (top0 - pelvis0);
 
@@ -375,6 +386,37 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         sp.rot = torsoTurn * sp.rot;
         c.pos = sp.pos + torsoTurn * chestFromSpine;
         c.rot = torsoTurn * c.rot;
+    }
+    // The tracked chest's twist from the hips (the hips face bodyYaw: bodytrack::bodyYaw), half in the spine.
+    if(tracked.weight > 0.f && tracked.twist != 0.f)
+    {
+        const glm::vec3 axis = safeNormalize(c.pos - p.pos, UP);
+        const glm::mat3 half = glm::mat3_cast(glm::angleAxis(glm::radians(0.5f * tracked.twist * tracked.weight), axis));
+        const glm::vec3 chestFromSpine = c.pos - sp.pos;
+        sp.rot = half * sp.rot;
+        c.pos = sp.pos + half * chestFromSpine;
+        c.rot = half * half * c.rot;
+    }
+    // And the trunk swung about the top of the neck until the spine (the pelvis to the neck) has the tracked tilt from its
+    // upright direction (what the crouched pose's own turns and moves left), by the torso weight.
+    if(tracked.weight > 0.f)
+    {
+        const glm::vec3 upright = safeNormalize(UP * torsoLen + back);
+        const glm::vec3 tiltAxis = safeNormalize(glm::cross(UP, tracked.dir), b.left);
+        const glm::vec3 want = glm::angleAxis(tracked.tilt, tiltAxis) * upright;
+        const glm::vec3 now = safeNormalize(top - p.pos);
+        const glm::vec3 axis = glm::cross(now, want);
+        const float s = glm::length(axis);
+        if(s > 1e-5f)
+        {
+            const float angle = za::atan2(s, glm::dot(now, want)) * tracked.weight;
+            const glm::mat3 swing = glm::mat3_cast(glm::angleAxis(angle, axis / s));
+            for(Bone* bone : {&p, &sp, &c})
+            {
+                bone->pos = top + swing * (bone->pos - top);
+                bone->rot = swing * bone->rot;
+            }
+        }
     }
 
     // The neck spans the rest of the way to the top of the neck; the head sits there. Neither is
@@ -893,6 +935,12 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         lastSwivelTime[side] = now;
     }
     lastSwivel[side] = swivel;
+
+    // Body tracking (vr_bodytrack.cpp): the elbow swung round to the tracked elbow's side (the hand stays).
+    if(easeWrists)
+    {
+        bodytrack::swivelElbow(side, u.pos, wrist, elbow, bend);
+    }
 
     // An elbow in the torso (the hand across the chest, the pole down and back) swings out of it about the same line,
     // as little as takes it out (vr_body_collide_elbows: the torso's capsules, vr_selfcollide.cpp), eased as above.
@@ -1963,6 +2011,8 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
         const glm::vec3 pole = cf.held ? climbing.in + out * 0.35f + UP * 0.15f : climbing.in * 0.6f + b.fwd * 0.4f + out * 0.1f;
         kneeDir = safeNormalize(glm::mix(kneeDir, safeNormalize(pole, b.fwd), climbW), b.fwd);
     }
+    // Body tracking's generated legs (vr_bodytrack_legs), less what climbing and swimming take.
+    bodytrack::leg(side, t.pos, a + l, footZ, (1.f - climbW) * (1.f - swim), target, kneeDir);
 
     glm::vec3 bend;
     const glm::vec3 knee = twoBone(t.pos, target, a, l, kneeDir + outward * 0.1f, kneeDir, bend);
@@ -2384,6 +2434,25 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
             k.knee[side] = b.bones[side == 0 ? CalfL : CalfR].pos;
             k.ankle[side] = b.bones[side == 0 ? FootL : FootR].pos;
         }
+        // Body tracking's debug skeleton and error log (vr_bodytrack.cpp).
+        bodytrack::Posed bt;
+        bt.pelvis = b.bones[Pelvis].pos;
+        bt.top = b.bones[Head].pos;
+        bt.neutral = safeNormalize(UP * (glm::distance(bind().pos[Pelvis], bind().pos[Head]) * b.m2w) +
+                                   b.fwd * (vr_body_torso_back.value * b.m2w));
+        bt.fwd = b.fwd;
+        for(int side = 0; side < 2; side++)
+        {
+            const int hand = side == 0 ? HAND_OFF : HAND_MAIN;
+            bt.shoulder[side] = k.shoulder[hand];
+            bt.elbow[side] = k.elbow[hand];
+            bt.wrist[side] = k.wrist[hand];
+            bt.hip[side] = k.hip[side];
+            bt.knee[side] = k.knee[side];
+            bt.ankle[side] = k.ankle[side];
+        }
+        bt.leanHold = s.leanHold;
+        bodytrack::posed(bt);
     }
 
     // Preview: the body in front of the player, with its head, facing them (2) or turned to show

@@ -1377,6 +1377,25 @@ QVR_CVAR(vr_torso_side_angle, "45", CVAR_ARCHIVE)     // a hand further off to t
 QVR_CVAR(vr_torso_deadzone, "8", CVAR_ARCHIVE)        // degrees the estimate must be off before the torso turns (then it turns all the way)
 QVR_CVAR(vr_torso_speed, "12", CVAR_ARCHIVE)          // how quickly it turns then (1/s; 0: at once)
 QVR_CVAR(vr_torso_neck_max, "70", CVAR_ARCHIVE)       // degrees the head turns from the torso at most: past it the torso turns with the head at once
+// Body tracking (vr_bodytrack.cpp: XR_FB_body_tracking + XR_META_body_tracking_full_body, Quest 3 through Virtual Desktop)
+QVR_CVAR(vr_bodytrack, "1", CVAR_ARCHIVE)             // Body > Body Tracking: the runtime's tracked body blended into the guessed one where the headset offers it (0: off, the guesses alone)
+QVR_CVAR(vr_bodytrack_torso, "1", CVAR_ARCHIVE)       // the torso's share: its lean (the spine's tilt), the chest's twist, the hips' facing, and the lean detection (0 .. 1)
+QVR_CVAR(vr_bodytrack_arms, "1", CVAR_ARCHIVE)        // the arms' share: the elbows swing to the tracked ones' side (the hands stay on the controllers) (0 .. 1)
+QVR_CVAR(vr_bodytrack_legs, "0", CVAR_ARCHIVE)        // the legs' share: the feet and knees towards the generated legs (Quest 3 guesses them) (0 .. 1; climbing and swimming feet keep theirs)
+QVR_CVAR(vr_bodytrack_confidence, "0.5", CVAR_ARCHIVE) // below this confidence (0 .. 1) the tracking eases out to the guesses
+QVR_CVAR(vr_bodytrack_smooth, "0.04", CVAR_ARCHIVE)   // seconds the tracked joints are smoothed over (0: raw)
+QVR_CVAR(vr_bodytrack_fade, "0.25", CVAR_ARCHIVE)     // seconds a region's tracking eases in or out (lost, low confidence, switched)
+QVR_CVAR(vr_bodytrack_debug, "0", CVAR_NONE)          // Debug: the tracked skeleton drawn (1 on the body, 2 beside it: 60 cm to the right)
+QVR_CVAR(vr_bodytrack_synth, "0", CVAR_NONE)          // the mock headset's synthetic tracked body (vr_bodytrack_synth_*): it moves the head as it leans; 0 none (as today)
+QVR_CVAR(vr_bodytrack_synth_pitch, "0", CVAR_NONE)    // degrees the synthetic spine tilts forward about the hips
+QVR_CVAR(vr_bodytrack_synth_roll, "0", CVAR_NONE)     // degrees it tilts to the right
+QVR_CVAR(vr_bodytrack_synth_twist, "0", CVAR_NONE)    // degrees the chest turns left of the hips (the head with it)
+QVR_CVAR(vr_bodytrack_synth_crouch, "0", CVAR_NONE)   // metres the hips go down (knees bent)
+QVR_CVAR(vr_bodytrack_synth_neck, "0", CVAR_NONE)     // degrees the neck bends forward (the head forward and down, the spine upright)
+QVR_CVAR(vr_bodytrack_synth_elbows, "0", CVAR_NONE)   // how far the elbows wing out (0 hanging under the arm, 1 out to the sides)
+QVR_CVAR(vr_bodytrack_synth_knees, "0", CVAR_NONE)    // degrees the knees turn out (the generated legs)
+QVR_CVAR(vr_bodytrack_synth_confidence, "1", CVAR_NONE) // the confidence it reports
+QVR_CVAR(vr_bodytrack_synth_active, "1", CVAR_NONE)   // isActive (0: tracking lost)
 QVR_CVAR(vr_body_legs_back, "0.3", CVAR_ARCHIVE)        // metres the feet stand behind the head (negative: in front)
 QVR_CVAR(vr_body_pauldrons, "1", CVAR_ARCHIVE)        // pauldrons on the body's shoulders, after the Quake ranger's (make_pauldron.py)
 QVR_CVAR(vr_body_pauldron_style, "1", CVAR_ARCHIVE)   // 0 the ranger's brown leather, 1 the colour of the armour worn (leather without), 2 steel

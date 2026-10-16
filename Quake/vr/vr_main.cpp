@@ -38,6 +38,7 @@
 #include "vr_throw.hpp"
 #include "vr_client.hpp"
 #include "vr_body.hpp"
+#include "vr_bodytrack.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
 #include "vr_hotblade.hpp"
@@ -2050,6 +2051,7 @@ extern "C" void VR_Init()
     portals::registerCommands(); // vr_portals_info
     ragtest::registerCommands(); // vr_ragdoll_act
     Cmd_AddCommand("vr_torso_report", torso::report_f);
+    bodytrack::registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_stress", decals::stress_f);
