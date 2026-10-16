@@ -1243,7 +1243,7 @@ void registerCvars()
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
     "vr_throw_lookahead", // 2026-10-06: unused since the throw's window ends at the release (ROUND21.md, "Throws at any frame rate")
-    "vr_throw_slowmo_flick_spin", // 2026-10-08: vr_throw_slowmo_flick_arm (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo")
+    "vr_throw_slowmo_flick_spin", // 2026-10-08: replaced by vr_throw_slowmo_flick_arm (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo"), itself retired below
     "vr_foegrab_throw_topple_hold", // 2026-10-09: vr_foegrab_throw_feet_speed (ROUND21.md, "Holding enemies")
     // 2026-10-09: vr_knockdown_shove_travel, _topple_angle, _topple_time, _feet_lag, _max_spin (ROUND21.md, "A shove's
     // knockdown: travel and a quarter turn").
