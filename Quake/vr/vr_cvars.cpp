@@ -176,8 +176,13 @@ const DefaultChange defaultChanges[] = {
     // the new settings (cvarAliases) as an old config is executed; at their old defaults they take the new ones.
     {142, &vr_throw_2h_window, "0.1"},              // 0.2
     {142, &vr_throw_inherit, "1"},                  // 0.9
+    // 143: a jump from the same level crushes (2026-10-16: "jump from no extra height and still damage and pop the
+    // limbs ... one or two jumps to kill a grunt by jumping on his head"); a hit keeps one down at least this after it.
+    {143, &vr_knockdown_hit_time, "0.5"},           // 1
+    {143, &vr_ragimpact_crush_speed, "350"},        // 180
+    {143, &vr_ragimpact_crush_wear, "0.3"},         // 0.5
 };
-constexpr int configVersion = 142;
+constexpr int configVersion = 143;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

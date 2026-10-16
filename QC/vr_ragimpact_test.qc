@@ -9,6 +9,10 @@
 // vr_test_drop_height units over its top; 56 strikes printed from now (57: off again); the nearest ragdoll (down or a
 // corpse): 60 you over its head, 61 over its left shin, your feet vr_test_drop_height over the floor; 62 the nearest
 // living one killed whole.
+// 63 you over its middle as 60; 64 its parts' places kept, then how far they moved (a crush's push); 65 the nearest one
+// down, alive, hit for 1 (a punch's stand-in: kept down).
+vector vr_rimp_test_parts[16];
+float vr_rimp_test_kept;
 void(float xMode) VR_RagImpact_Test =
 {
     if(xMode == 56 || xMode == 57)
@@ -26,7 +30,7 @@ void(float xMode) VR_RagImpact_Test =
             continue;
         }
         float down = m.health > 0 && m.vr_knockdown == 1;
-        if(xMode == 60 || xMode == 61 || xMode == 62)
+        if(xMode == 60 || xMode == 61 || xMode == 62 || xMode == 63 || xMode == 64)
         {
             down = ((xMode == 62) ? (m.health > 0) : (isragdoll(m) && !m.vr_gib));
         }
@@ -128,6 +132,65 @@ void(float xMode) VR_RagImpact_Test =
         self.flags = self.flags - (self.flags & FL_ONGROUND);
         dprint(sprintf("ragimpact test: you %g units over %s's %s (health %g)\n", cvar("vr_test_drop_height"),
             best.classname, (xMode == 60) ? "head" : "left shin", best.health));
+        return;
+    }
+    if(xMode == 63)
+    {
+        // You over its middle (its torso), your feet vr_test_drop_height units over the floor it lies on.
+        vector over = (best.absmin + best.absmax) * 0.5;
+        traceline(over, over - '0 0 256', TRUE, best);
+        over_z = trace_endpos_z + cvar("vr_test_drop_height");
+        setorigin(self, over - '0 0 1' * self.mins_z);
+        self.velocity = '0 0 0';
+        self.flags = self.flags - (self.flags & FL_ONGROUND);
+        dprint(sprintf("ragimpact test: you %g units over %s's middle (health %g)\n", cvar("vr_test_drop_height"),
+            best.classname, best.health));
+        return;
+    }
+    if(xMode == 64)
+    {
+        // Its parts' places (the bones 0..15): the first call keeps them, each later one prints how far they are from there.
+        float most = 0;
+        float sum = 0;
+        float n = 0;
+        for(float b = 0; b < 16; b++)
+        {
+            vector at2 = ragdollpoint(best, b, '0 0 0', 1);
+            if(at2 == '0 0 0')
+            {
+                continue;
+            }
+            if(vr_rimp_test_kept)
+            {
+                float moved = vlen(at2 - vr_rimp_test_parts[b]);
+                most = max(most, moved);
+                sum = sum + moved;
+                n = n + 1;
+            }
+            else
+            {
+                vr_rimp_test_parts[b] = at2;
+            }
+        }
+        if(vr_rimp_test_kept)
+        {
+            dprint(sprintf("ragimpact parts: %s, %g parts moved %.1f units at most, %.1f on average\n", best.classname, n,
+                most, n > 0 ? sum / n : 0));
+        }
+        else
+        {
+            dprint(sprintf("ragimpact parts: %s, its parts' places kept (head at %v)\n", best.classname,
+                ragdollpoint(best, ragdolllimbs(best, 3), '0 0 0', 1)));
+        }
+        vr_rimp_test_kept = 1;
+        return;
+    }
+    if(xMode == 65)
+    {
+        // A punch's stand-in: 1 damage to the nearest one down, alive (T_Damage: a hit keeps it down).
+        T_Damage(best, self, self, 1);
+        dprint(sprintf("ragimpact test: %s hit for 1 (health %g), %.2f s down, up at %.2f s\n", best.classname,
+            best.health, time - best.vr_kd_since, best.vr_kd_until - best.vr_kd_since));
         return;
     }
     if(xMode == 62)
