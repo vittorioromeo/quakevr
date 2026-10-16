@@ -2271,6 +2271,16 @@ void setManualFingers(Held& held, bool manual, const float curl[handrig::FingerC
     held.manualThumbAcross = CLAMP(0.f, thumbAcross, 1.f);
 }
 
+// Weapon slot `slot`'s grip overlap and fingers (Key::GripOverlap, FingerManual, FingerCurl*, FingerThumbAcross), into
+// `held` (the gun in the hand, set or drawn).
+void weaponFingers(Held& held, int slot)
+{
+    held.overlap = CLAMP(0.f, weapons::value(slot, Key::GripOverlap), 1.f) * weapons::maxOverlapCm;
+    const float curl[handrig::FingerCount] = {weapons::value(slot, Key::FingerCurlThumb), weapons::value(slot, Key::FingerCurlIndex),
+        weapons::value(slot, Key::FingerCurlMiddle), weapons::value(slot, Key::FingerCurlRing), weapons::value(slot, Key::FingerCurlPinky)};
+    setManualFingers(held, weapons::value(slot, Key::FingerManual) >= 0.5f, curl, weapons::value(slot, Key::FingerThumbAcross));
+}
+
 // A hand's grasp: what it was solved against (the held thing's model, pose and place in the hand's rig space, the
 // fingers' places), and the fingers' stops.
 struct Grasp
@@ -4668,10 +4678,7 @@ void setupHand(const hands::State& s, int hand)
     else if(slot >= 0 && slot != fist)
     {
         held = {&weapon.ent, mirrored, 0, true, true};
-        held.overlap = CLAMP(0.f, weapons::value(slot, Key::GripOverlap), 1.f) * weapons::maxOverlapCm;
-        const float curl[handrig::FingerCount] = {weapons::value(slot, Key::FingerCurlThumb), weapons::value(slot, Key::FingerCurlIndex),
-            weapons::value(slot, Key::FingerCurlMiddle), weapons::value(slot, Key::FingerCurlRing), weapons::value(slot, Key::FingerCurlPinky)};
-        setManualFingers(held, weapons::value(slot, Key::FingerManual) >= 0.5f, curl, weapons::value(slot, Key::FingerThumbAcross));
+        weaponFingers(held, slot);
         if(!weaponCarried[hand] && handrig::usable(viewModel(handrig::modelName)))
         {
             held.canonical = true;
@@ -4895,10 +4902,7 @@ void setupPosingHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
         moveDrawnHand(hand, mirrored, basisAngles(frame), p, a, mirrored, drawPos, drawRot);
 
         held.trigger = true;
-        held.overlap = CLAMP(0.f, weapons::value(slot, Key::GripOverlap), 1.f) * weapons::maxOverlapCm;
-        const float curl[handrig::FingerCount] = {weapons::value(slot, Key::FingerCurlThumb), weapons::value(slot, Key::FingerCurlIndex),
-            weapons::value(slot, Key::FingerCurlMiddle), weapons::value(slot, Key::FingerCurlRing), weapons::value(slot, Key::FingerCurlPinky)};
-        setManualFingers(held, weapons::value(slot, Key::FingerManual) >= 0.5f, curl, weapons::value(slot, Key::FingerThumbAcross));
+        weaponFingers(held, slot);
     }
     else
     {
