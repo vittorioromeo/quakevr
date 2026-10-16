@@ -8471,3 +8471,58 @@ his config of today, 2048 eyes, 90 Hz paced, exclusive. Scenarios: `play_e1m1_fi
   cuts again, B6) and a spawned-in kind's first limb cut (B5).
 
 For him: pick options for B1-B8 in the report; nothing to test in VR (no visible change).
+
+## Frame time: B1, B2, B3, B7 (worktree `tghost`, branch `agent/frameperf`, 2026-10-16)
+
+His picks from the profiling run's list (`qvr-kit/scratch/PROFILE_20261016.md`): B1 (a), B2 (c), B3 (a), B7 (b).
+Release numbers: his config, 2048 eyes, 90 Hz paced, exclusive, 3 reps (CPU = `cpu_busy_ms` p50 / p95 / p99, ms).
+Two sessions an hour apart move by ±0.2 ms on their own (the calibration room, untouched by any of this, 1.17 -> 0.92),
+so each item is also measured on and off in the same session.
+
+| scenario | before (old build) | after (new build) | item off, same session |
+|---|---|---|---|
+| `combat_48` | 3.42 / 5.09 / 5.96 | 2.88 / 4.56 / 5.63 | B1 off 2.94 / 4.60 / 5.52 |
+| `play_ad_tfuma_fight` | 3.82 / 6.04 / 7.08 | 3.22 / 5.39 / 6.37 | B1 off 3.41 / 5.60 / 6.65 |
+| `play_gore_fight` | 2.70 / 3.53 / 4.18 | 2.27 / 3.82 / 5.23 | B1 off 2.44 / 3.58 / 4.51 |
+| `play_calibration_turn` | 1.17 / 1.39 / 1.66 | 0.92 / 1.25 / 2.04 | - |
+| `ragdolls_32_active` | 2.96 / 5.45 / 6.16 | 2.43 / 5.02 / 6.26 (B2 on) | B2 off 2.58 / 4.75 / 5.66 |
+| `ragdolls_32_active`, 5 reps | | B2 on 2.80 / 5.57 / 7.31 | B2 off 2.69 / 5.01 / 6.46 |
+| `load_ad_tfuma` | 5.91 / 7.55 / 47.6 | 4.95 / 6.14 / 48.9 | - |
+
+- **B1: the second eye reuses each alias model's eye-independent set-up** (`vr_alias_eye_cache`, default 1; Debug >
+  Profiling and Memory > Second Eye's Model Set-up; r_alias.c `R_AliasEyeSlot`). The first eye's scene keeps per entity
+  its lerp and transform, the light at its origin (`R_LightPoint`'s), vertex count, zero blend, Quake VR instance data
+  and smooth-animation swing rows; the second eye's reuses them. Per eye still: the portal split, the cull, the alpha,
+  the dynamic lights (culled by each eye's frustum) and the light's minimums, the near-eye flags, the batching, and the
+  view entities' instance data (a bare forearm reads the body's ambient as last drawn: the first eye draws the hands
+  before the body, the second after; the check found that 1e-5 difference). Never cached: `cl.viewent` (its offsets
+  follow the eye's axes), teleporter views, shadow maps, showtris/showbboxes, the spectator, the drawn-moves log.
+  `vr_alias_eye_cache 2` sets everything up again in the second eye and compares it bit for bit with the first eye's
+  (`vr_alias_eye_cache_stats`): 0 differences in 5 scenarios (combat_48, the AD fight, the grunts through a teleporter,
+  the teleporter loop, e1m1's fight with the gun held: about 200 000 set-ups, paused and live) and in e1m1. Every input
+  the GPU gets is the same, so the image is. Eye images could not show it directly: two shots of the same paused moment
+  with the same setting already differ (realtime-driven effects), and on/off pairs differ by as much as on/on pairs.
+  Gain: 0.06-0.19 ms p50 in the fights, under the report's estimate: in the Tracy capture of the AD fight `alias` self
+  is 0.66 ms against 0.67 before, so most of `alias` is the culling, batching and submission, not the set-up.
+- **B2: the stepping thread orchestrates Box3D's solver** (`vr_box3d_caller_solves`, Debug > Profiling and Memory >
+  Main Thread Solves): the solver's worker-0 task is no longer posted (b3Solve's caller raced it for the orchestrator's
+  place and usually lost, then waited out the solve: the 0.8 ms "Job blocking wait"), and a finish runs the step's
+  unstarted tasks before blocking (`jobs::Task::tryRun`). The same results: the ragdoll scenario's `vr_physics_hash` at
+  11 points over 1000 frames equals the old build's with `vr_jobs_parallel` 0 and 1 and with the switch off;
+  `vr_physics_mtbench 400 300` gives one hash for every worker count either way. **No win:** the main thread now does
+  the solve it used to wait for, so its busy time is the same (3 reps: on better; 5 reps: on worse at every percentile;
+  both within the scenario's noise). **Shipped off** (default 0); the switch stays for his test.
+- **B3: Tracy-only zones per edict** (sv_phys.c `SV_PHYS_ZONE`, nothing in Release). The AD fight (1792 edicts, 244
+  monsters awake), ms a frame self (calls a frame): `SV edict toss` 0.22 (265: gibs, items, missiles, resting or
+  falling), `SV edict step` 0.09 (124 monsters; 0.34 with their QC), `SV edict push` 0.04 (228 doors and plats),
+  `SV edict none` 0.03 (840; 0.15 with QC thinks), `SV edict VR begin` 0.02 (1478). The zones' own cost lands in
+  `Server physics` self (0.37 -> 1.21 in this capture): read the split, not the total. Toss is the one worth a look
+  (0.8 us an edict, mostly ones lying still).
+- **B7: Tracy-only zones round V_RenderView's steps and the eye loop's** (view.c, vr_stereo.cpp): calc refdef, the
+  portal views, R_RenderView's own part, poly blend, foveated end and debug, the UI, the mirror: each under 0.004 ms.
+  The eye's self (calibration room: eye L 0.26, eye R 0.18) is not in them: it is in the eye loop between the profiled
+  scopes (target binding, the late acquire's `glGetIntegerv(GL_FRAMEBUFFER_BINDING)`, the eye's GPU timer queries) and
+  the zones' own callstack captures. Next step if wanted: an elevated TracyFull sampling capture (B7 a).
+
+For him in VR: nothing visible should change (B1 on, B2 off). Debug > Profiling and Memory: Second Eye's Model Set-up
+(Checked, then Model Set-up Stats: 0 differences expected) and Main Thread Solves to try.
