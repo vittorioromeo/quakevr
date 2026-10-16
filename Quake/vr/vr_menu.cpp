@@ -5615,7 +5615,12 @@ za::Vector<Item> pageDebugProfiling()
 #ifdef QVR_TRACY
         command("Tracy Pool Self-Test", "vr_tracy_test_memory").help("Exercise realloc, cache frees, hunk reset and memory detail changes."),
         command("Tracy Status", "vr_tracy_status").help("Connection, nesting, dropped zones and GPU query state."),
-        command("Tracy QC Detail On", "vr_tracy_qc_detail 1").help("Named QuakeC functions and builtins; costs more during capture."),
+        command("Tracy QC Detail Functions", "vr_tracy_qc_detail 1")
+            .help("A zone per QuakeC function call (no builtins): cheap enough to leave on while timing."),
+        command("Tracy QC Detail + Builtins", "vr_tracy_qc_detail 2")
+            .help("QuakeC functions and the costlier builtins (not the trivial math/string ones)."),
+        command("Tracy QC Detail All", "vr_tracy_qc_detail 3")
+            .help("Every QuakeC function and builtin call: for names and call counts; inflates QuakeC's times."),
         command("Tracy QC Detail Off", "vr_tracy_qc_detail 0"),
         command("Tracy Memory Detail On", "vr_tracy_memory_detail 1").help("Snapshot and allocation events for Zone, Hunk and Cache."),
         command("Tracy Memory Detail Off", "vr_tracy_memory_detail 0"),

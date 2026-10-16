@@ -28,6 +28,12 @@ int main(int argc, char** argv)
             const auto& source = worker.GetSourceLocation(z.SrcLoc());
             ++names[worker.GetString(source.name.active ? source.name : source.function)];
             const char* name = worker.GetString(source.name.active ? source.name : source.function);
+            // QC zones: the kind is the static location's function field (older captures: the zone text, below)
+            if(source.name.active)
+            {
+                const std::string kind = worker.GetString(source.function);
+                if(kind == "QC function" || kind == "QC builtin") { ++qcEvents; qcNames.insert(name); }
+            }
             if(worker.HasZoneExtra(z))
             {
                 const auto& extra = worker.GetZoneExtra(z);
