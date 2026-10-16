@@ -701,11 +701,12 @@ private:
         VendorFocus3,  // HTC Vive Focus 3 (and XR Elite)
         VendorHp,      // HP Reverb G2
         VendorOdyssey, // Samsung Odyssey (a WMR controller)
+        VendorFrame,   // Valve Steam Frame
         VendorCount
     };
     static constexpr const char* vendorExtensions[VendorCount] = {"XR_BD_controller_interaction",
         "XR_HTC_vive_cosmos_controller_interaction", "XR_HTC_vive_focus3_controller_interaction",
-        "XR_EXT_hp_mixed_reality_controller", "XR_EXT_samsung_odyssey_controller"};
+        "XR_EXT_hp_mixed_reality_controller", "XR_EXT_samsung_odyssey_controller", "XR_VALVE_frame_controller_interaction"};
     bool vendorProfile[VendorCount]{};
     char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
     char system[XR_MAX_SYSTEM_NAME_SIZE]{};        // the headset's name (systemName)
@@ -2050,6 +2051,23 @@ private:
                     QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
                     QVR_BOTH(gripValueAction, "input/squeeze/click"),
                     QVR_BOTH(thumbTouchAction, "input/trackpad/touch")});
+        }
+        // The Steam Frame's: the left d-pad's down and up as the primary and secondary buttons, A and B on the right;
+        // the menu the left view button or the right menu button (as tested on the headset, PR #75).
+        if(vendorProfile[VendorFrame])
+        {
+            suggest("/interaction_profiles/valve/frame_controller_valve",
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    {&primaryAction, QVR_L("input/dpad_down/click")}, {&primaryAction, QVR_R("input/a/click")},
+                    {&secondaryAction, QVR_L("input/dpad_up/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                    {&menuAction, QVR_L("input/view/click")}, {&menuAction, QVR_R("input/menu/click")},
+                    QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
+                    QVR_BOTH(gripValueAction, "input/squeeze/value"), QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"),
+                    {&thumbTouchAction, QVR_L("input/dpad_down/touch")}, {&thumbTouchAction, QVR_L("input/dpad_up/touch")},
+                    {&thumbTouchAction, QVR_R("input/a/touch")}, {&thumbTouchAction, QVR_R("input/b/touch")},
+                    QVR_BOTH(triggerTouchAction, "input/trigger/touch")});
         }
 
 #undef QVR_BOTH
