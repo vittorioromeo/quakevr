@@ -8612,3 +8612,28 @@ so each item is also measured on and off in the same session.
 
 For him in VR: nothing visible should change (B1 on, B2 off). Debug > Profiling and Memory: Second Eye's Model Set-up
 (Checked, then Model Set-up Stats: 0 differences expected) and Main Thread Solves to try.
+
+## Tracy QC zones cheap enough to leave on (worktree `tghost`, branch `agent/qcdetail`, 2026-10-16)
+
+His four decisions, all done (vr_tracy.cpp; the hooks in pr_exec.c / vr_qcexec.c; the tables built at the end of
+pr_edict.c's PR_LoadProgs; normal builds compile all of it out):
+
+- QC zones never take a callstack, in any Tracy build (depth-8 captures: the stacked zones are exactly the non-QC ones).
+- One persistent source location per QC function and builtin, built at every progs load for the loading VM (server,
+  client), interned by name so map changes reuse them; zones use the plain non-alloc begin. No per-call allocation,
+  string copy or zone text: the kind (`QC function` / `QC builtin`) is the location's function field, and
+  `qvr_tracy_capture_check` counts QC zones by it (older captures still by their text). Stripped builtin names now come
+  from the engine's table (they were all `QVR`).
+- Trivial builtins (`qcTrivialBuiltins`: vector/scalar math, conversions, `cvar_hget`, `nextent`, `isragdoll`), picked
+  from level-3 captures of the three fights by calls a frame x mean time (TRACY.md, "QC zones").
+- `vr_tracy_qc_detail` 0 off, 1 functions, 2 + non-trivial builtins, 3 everything (the old zones, same counts).
+  Debug > Reports: Tracy QC Detail Functions / + Builtins / All / Off. No depth cap: not needed at these costs.
+
+Overhead (TRACY.md "QC zones": 2 reps, Release-Tracy depth 8, paced 90 Hz, connected capture): `QC VM` time a frame
++0.03-0.11 ms at levels 1-3 against +0.6-1.0 ms with the old code (about 25-45 ns a zone against 400). Whole-frame CPU
+p50: the new levels within the fights' own +-0.3 ms spread; the old +0.47 / +0.80 / +0.84 ms (combat_48 / e1m1 fight /
+AD fight; AD p95 +4.7 ms). Checks: every capture 0 errors, 0 truncated; a stage-2 capture (memory and GPU detail,
+level 2) passes `--stage2`; e1m1 -> e1m2 -> hip1m1 -> e1m1 at levels 3 and 1 rebuilds the tables (no `builtin #` or `?`
+names, 0 drops); normal e1m1 smoke. Scripts and captures: `qvr-kit/scratch/qcdetail`.
+
+For him: capture with `vr_tracy_qc_detail 1` by default now; 2 to see the builtins, 3 for complete call counts.
