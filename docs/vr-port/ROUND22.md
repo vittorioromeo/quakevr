@@ -9069,3 +9069,48 @@ Verified: build (engine + QC, 0 warnings) after each item; melee eval 168/177 wi
 tests against the base progs: the same results within run-to-run noise (limbs: base against base differs by as much;
 ragimpact 4 FAILS now, 5 in the base run; judo 0 FAILS; spawnall 115 spawned, 0 failed). AD's own tests not run: no
 AD data in the kit base (the importer's `--check` and the byte-identical progs.dat cover item 1).
+
+## Crush feel: the body jolts, a thud unless something pops, same-level jumps, kept down while you work it (worktree `goreflesh`, branch `agent/crushfx`, 2026-10-16)
+
+His voice note (vrfiringrange, 2026-10-16 18:23): crushing a ragdoll by jumping on it left it completely still; the
+sound was always the gib's; a plain jump from the same level should damage and pop (a downed grunt's head in one or
+two jumps, other parts more); and working a downed one (stomping, punching, dragging, lifting it) should keep it down
+longer, up to a cap, getting up on its own time (or as soon as you stop, past it) otherwise.
+
+- **Push** (`vr_ragimpact_crush_push`, 1, menu Combat > Knockdowns > Impacts "Crush Push"): a landing that crushes a
+  ragdoll (down or a corpse) pushes the part under your feet down and out from its body's middle at that times your
+  landing speed (at most 350 u/s), and flings the parts round it (6-56 units from your feet) up and away at up to 0.6
+  of that, less the farther (QC `VR_RagImpact_CrushPush`, the engine's `physicspush` with your
+  `vr_ragimpact_crush_mass` behind each). Your feet stand on the body and pin the part under them, so the jolt shows in
+  the parts round it. No engine change.
+- **Sound** (`VR_RagImpact_CrushSound`): the gib's (`player/udeath`) only when something came off (a decap, a limb
+  popped or cut, the body gibbed: the counters before and after the strike); otherwise the arms-crossed parry's body
+  hit, `fisthit` (pitch-jittered) with `demon/dland2` at 0.6 of it, 0.45..0.85 by the landing's speed (crush speed to
+  pop speed).
+- **Same-level jumps**: `vr_ragimpact_crush_speed` 350 -> **180** (a jump lands at ~270 on the floor but ~200 when your
+  feet stop on the body: the shin's case; a stair step is 160), `vr_ragimpact_crush_wear` 0.3 -> **0.5** (a same-level
+  jump wears ~0.55 of a head's own health: the second pops it). Config **142** moves configs still at 350 / 0.3.
+- **Kept down** (QC `VR_Knockdown_Keep`, vr_knockdown.qc): each hit on a downed living one (a punch, a shot, a stomp:
+  T_DamageImpl's knockdown branch, AD's too) keeps it down at least `vr_knockdown_hit_time` after the hit (0.5 -> **1**,
+  config 142; it used to add 0.5 s a hit, capped at Time Max from the hit, so a flurry kept it down long after you
+  stopped); a hand holding it (dragging, lifting: `VR_Carry_Held`, checked each think) keeps it down while held and
+  `vr_knockdown_keep_time` (**1** s) after; never past `vr_knockdown_keep_max` (**6.5** s) down in all; its own timer
+  is never cut short, and nothing extends it once its get-up began (`.vr_kd_rise`: a hit mid-rise no longer stalls the
+  rise). Corpses and staggering ones are untouched. Menu rows next to "Hit Keeps It Down": "Handling Keeps It Down",
+  "Kept Down, Most". Debug (`vr_knockdown_debug 1`): "kept down (hit|held): up in .. s at the soonest" and "get-up due
+  after X s down (its own timer Y s)"; the per-think "held" lines only at 2.
+
+Tests (`Misc/quakevr/foegrab/ragimpact_test.py`; new test hooks `vr_knockdown_test` 63 over its middle, 64 its parts'
+displacement, 65 a 1-damage hit):
+- crush: a same-level jump onto a settled corpse's head moves its parts up to 17.9 units (2.8 mean), onto its torso
+  7.0 (3.3); 0.0 with the push off. A living one's active ragdoll moves on its own (not measured against).
+- stompwear: a downed grunt's head pops at the 2nd same-level jump; sounds thud, gib; its torso dies at jump 3, its
+  shin at jump 8 (health 26, 22, 19, ... -1).
+- keep (own timer 3 s, keep_max 6.5): alone up at 3.1; hit every 0.5 s: 6.6 (capped); hits until 4.3 s: 5.3 (a second
+  after the last); hits until 1.8 s: 3.1 (own timer); dragged by the head and let go at 4 s: 5.0; held 9 s: 6.6, out of
+  the hand.
+- melee eval 168/177 (the three known differences).
+
+To test in VR: jump on a shoved-down grunt's head (2 jumps), its legs (more); landings that pop nothing thud; the body
+jolts round your feet; punch or drag a downed one past its usual get-up and stop: it rises a second later, never past
+6.5 s.
