@@ -360,8 +360,7 @@ constexpr double strokeLookback = 2.0;   // real seconds
 }
 
 // The bullet-time throw (ROUND22.md, "Bullet-time throws: the stroke's tempo", and "... only": the older rules
-// removed): in slow motion the controller's
-// samples are in the game's time, 1/scale times its real speed. A throw made at real speed (a flick, a toss to re-grip,
+// removed): in slow motion the controller's samples are in the game's time, 1/scale times its real speed. A throw made at real speed (a flick, a toss to re-grip,
 // a quick lob) is taken at its real speed: as small as it was made. The full-strength throw made slowly with the
 // slowed world is taken at its game-time speed: as at full speed. Which, its stroke tells without a threshold: its
 // tempo, its path up to the release over its peak speed (real seconds; it grows with the time the stroke took, but

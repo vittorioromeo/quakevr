@@ -90,7 +90,7 @@ enum class Why : int
     Snapped = 6,  // both hands snapped its neck (neckCheck)
 };
 
-// A sample of the hands on a head (neckWindowStep): when, the line between the palms (play space, metres), the head's
+// A sample of the hands on a head (neckStep): when, the line between the palms (play space, metres), the head's
 // reference frame then (world from its body: a standing one's yaw, a ragdoll's chest), the wrists' roll so far (rad).
 struct NeckSample
 {
