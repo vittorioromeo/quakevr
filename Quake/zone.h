@@ -93,6 +93,8 @@ char *Hunk_Strdup (const char *s, const char *name);
 
 int	Hunk_LowMark (void);
 void Hunk_FreeToLowMark (int mark);
+void Hunk_KeepLoaded (void); // QVR: a model just loaded on the hunk: no free goes under it (zone.c)
+void Hunk_ClearKeep (void); // QVR: Host_ClearMemory's
 
 void Hunk_Check (void);
 

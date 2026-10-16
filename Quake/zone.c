@@ -357,6 +357,7 @@ typedef struct hunkseg_s
 #define LASTSEG			(hunk_segments[hunk_numsegments-1])
 
 static int				hunk_low_used;
+static int				hunk_keep_mark; // QVR: Hunk_KeepLoaded: frees stop here
 static int				hunk_numsegments;
 static hunkseg_t		*hunk_segments[MAX_SEGMENTS];
 
@@ -735,10 +736,45 @@ void Hunk_FreeToLowMark (int mark)
 	if (mark < 0 || mark > hunk_low_used)
 		Sys_Error ("Hunk_FreeToLowMark: bad mark %i", mark);
 
+	// QVR: never under a model kept on the hunk (Hunk_KeepLoaded): one loaded inside this temporary allocation (a late
+	// precache from QuakeC run in a touch or a push, which hold their lists here) stays, and the list under it until the
+	// map's end (Hunk_ClearKeep)
+	if (mark < hunk_keep_mark && hunk_keep_mark <= hunk_low_used)
+	{
+		Con_DPrintf ("Hunk_FreeToLowMark: %i bytes held under a model loaded inside them, until the map's end\n",
+			hunk_keep_mark - mark);
+		mark = hunk_keep_mark;
+	}
+
 	VR_TracyHunkReset(mark);
 	hunk_low_used = mark;
 	for (i = Hunk_SegForOfs (hunk_low_used); i < hunk_numsegments; i++)
 		hunk_segments[i]->used = q_max (0, hunk_low_used - hunk_segments[i]->base);
+}
+
+/*
+===================
+Hunk_KeepLoaded -- QVR
+
+A model whose data stays on the hunk (a sprite, a brush model) was just loaded: nothing frees under it until
+Hunk_ClearKeep. Quake loads them only with the map, with no temporary allocation open; Quake VR also loads them during
+play (a late precache: VR_LatePrecacheModel), maybe from QuakeC called while one is open (SV_TouchLinks, VR_TouchLinks,
+SV_PushMove keep their lists on the hunk), whose free would otherwise hand the model's memory to the cache.
+===================
+*/
+void Hunk_KeepLoaded (void)
+{
+	hunk_keep_mark = hunk_low_used;
+}
+
+/*
+===================
+Hunk_ClearKeep -- QVR: the memory is cleared (Host_ClearMemory), the models with it
+===================
+*/
+void Hunk_ClearKeep (void)
+{
+	hunk_keep_mark = 0;
 }
 
 char *Hunk_Strdup (const char *s, const char *name)

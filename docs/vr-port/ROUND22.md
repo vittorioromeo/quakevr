@@ -8880,3 +8880,27 @@ cache hits (no background process). Done in `vr_box3d.cpp` `prepareHeldGuns` + `
 | on, warm (21 read) | 4.1 ms | 8911 ms (off, warm 8918) |
 
 e1m1 cold: 37.7 ms in all (5 + 1 + 1 guns over three runs).
+
+## A late sprite freed under a touch (worktree `gorefx`, branch `agent/spritecrash`, 2026-10-16)
+
+His crash (vrfiringrange, hit by an AD gargoyle spawned with the toolgun, 083612d7): an access violation in
+R_GetSpriteFrame, drawing the soft sprites. The dump: the sprite's `cache.data` pointed into an alias model's frame
+descriptors (`fr_233`, `fr_234`...), so its "frame group" pointer was a name's zero padding.
+
+- **Cause.** Sprites and brush models live on the hunk; Quake loads them only with the map. Quake VR also loads them in
+  play (late precaches, VR_LatePrecacheModel), from QuakeC that can run inside a temporary hunk allocation: the touch
+  lists of VR_TouchLinks (vr_physics.cpp) and SV_TouchLinks, SV_PushMove's moved lists. The gargoyle's fireball touches
+  the player, its explosion precaches AD's `progs/s_exp_small.spr` (not the firing range's), and the touch's
+  Hunk_FreeToLowMark then freed the sprite with its list; the next alias model loaded into the cache there.
+  Found with a temporary check in Hunk_FreeToLowMark (a loaded sprite above the mark): VR_TouchLinks, freeing under
+  `progs/s_exp_small.spr`.
+- **Fix** (zone.c, gl_model.c, host.c): a model whose data stays on the hunk (not an alias model) sets a keep mark
+  when it loads (Hunk_KeepLoaded); no Hunk_FreeToLowMark goes under it until Host_ClearMemory (Hunk_ClearKeep). The
+  temporary list under such a model stays until the map's end (7 and 17 KB in the test; `developer 1` says so). This
+  covers every such window, present and future, not only the touches.
+- **Guard** (r_sprite.c): a sprite with no frames, a group with none or a null frame pointer, or a frame without a
+  picture is skipped, said once with `developer 1`, instead of crashing.
+- **Test** `Misc/quakevr/late_sprite_touch_test.sh <agent>` (needs `qbase/ad`): gargoyle fires at the god player, then
+  entries 0-160 of the spawn list while it keeps firing. Before: R_DrawSpriteModel_Real crashed 11 s in (`no such
+  frame 5 for 'progs/s_exp_small.spr'`, then an access violation). After: PASS twice.
+  `toolgun_spawnall_test.sh` (vrfiringrange, AD data): 191 spawned, 0 failed, 9 unavailable, PASS.
