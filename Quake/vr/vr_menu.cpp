@@ -5486,7 +5486,8 @@ za::Vector<Item> pageDebugViews()
                   "against not moved (0-255), in the console."),
         toggle("Show Parallax Depth", "vr_parallax_debug")
             .help("vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
-                  "Parallax Depth Write): red, brighter the deeper below the surface; dark blue: the surface's own depth."),
+                  "Parallax Depth Write): red, brighter the deeper below the surface; green, brighter the higher over it "
+                  "(Parallax Surface Level); dark blue: the surface's own depth."),
         toggle("Show Entity Boxes", "r_showbboxes")
             .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
                   "walls. Single player only."),
