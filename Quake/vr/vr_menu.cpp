@@ -3688,9 +3688,6 @@ void hologramTestMessage()
             .help("The fastest a shot makes what it hits go: light things (a gib, a small gun) fly off at most this fast, "
                   "heavy ones take the push."),
         header("Wall Buttons"),
-        toggle("Weapons Press Buttons", vr_button_weapon)
-            .help("A weapon in your hand presses a wall button it touches: all of it, as its blows strike (a sword's "
-                  "blade, pommel and hilt; a gun's barrel and butt). Off: only the line from the hand to a gun's muzzle."),
         slider("Weapon Press Reach", vr_button_weapon_reach, 0.f, 15.f, 0.5f, "%.1f cm")
             .help("How far round the weapon's middle line a button is touched: its thickness, and some slack."),
         toggle("Held Props Press Buttons", vr_button_prop)

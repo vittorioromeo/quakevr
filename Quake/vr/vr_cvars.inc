@@ -155,7 +155,6 @@ QVR_CVAR(vr_throw_spin_mass_exp, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_hitbox, "6", CVAR_ARCHIVE)       // half-size (units) of a thrown weapon's box against monsters
 QVR_CVAR(vr_throw_hit_min_speed, "200", CVAR_ARCHIVE) // units/s a thrown thing must go at to hurt what it touches (slower: the throw is over)
 // Wall buttons (QC buttons.qc; ROUND21.md, "Wall buttons: weapons and thrown things press them"): a hand presses one, and
-QVR_CVAR(vr_button_weapon, "1", CVAR_ARCHIVE)          // 1: so does a held weapon touching it, all of it as its blows strike (pommel or butt to tip or muzzle); 0: only the line from the hand to a gun's muzzle (as before)
 QVR_CVAR(vr_button_weapon_reach, "6", CVAR_ARCHIVE)    // cm round the weapon's line (its thickness and some slack) within which it touches a button
 QVR_CVAR(vr_button_prop, "1", CVAR_ARCHIVE)            // 1: so does a held prop touching it (a health or ammo box, a crate, a rock, a gib): its shape as the hand holds it
 QVR_CVAR(vr_button_prop_reach, "6", CVAR_ARCHIVE)      // cm round the held prop's shape within which it touches a button (a held body stops 4 cm short of a wall's)

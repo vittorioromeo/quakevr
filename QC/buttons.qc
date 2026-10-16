@@ -351,7 +351,6 @@ void() VR_Buttons_WeaponFrame =
     {
         return;
     }
-    float weapons = cvar_hget(cvarh_vr_button_weapon);
     float props = cvar_hget(cvarh_vr_button_prop);
     float reach = max(0, cvar_hget(cvarh_vr_button_weapon_reach)) * 0.01 * VRMetersToUnits();
     entity p = self;
@@ -361,10 +360,6 @@ void() VR_Buttons_WeaponFrame =
         if(props)
         {
             VR_Buttons_PropFrame(p, h);
-        }
-        if(!weapons)
-        {
-            continue;
         }
         float thing = VR_Melee_Thing(p, h);
         if(!VR_Melee_HoldsWeapon(thing) || !VR_Melee_Line(p, h, thing))
