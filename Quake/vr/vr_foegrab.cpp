@@ -22,6 +22,7 @@
 #include "vr_timescale.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -412,6 +413,84 @@ void release(edict_t* player, int h, Why why, const char* text)
     }
 }
 
+// What a grip's search found (search()).
+struct Search
+{
+    edict_t* best{nullptr}; // the living monster the fist touches with the least gap (null: none)
+    hitmodel::Hit hit;      // where (its point nearest the sphere with that gap)
+    float bestGap{1e30f};
+    // (The debug's: the nearest model's gap, taken or not, among the spheres searched, and the least the spheres passed
+    // over could have: nearestGap is the nearest of all when no more than nearestOver.)
+    float nearestGap{1e30f};
+    float nearestOver{1e30f};
+    int searched{0}; // (the debug's: the models searched)
+};
+
+// The living monster the fist's spheres (`fist`, their bounds lo, hi) touch with the least gap (no more than `lenient`)
+// and where. Each model near is posed once for all the spheres (hitmodel::pose), and a sphere too far from its bounds to
+// touch it is passed over: the same result as `old`, the old way (each sphere against the model posed anew,
+// hitmodel::nearest: vr_foegrab_debug 2's check), at a fraction of its cost (ROUND22.md, "The grip's search").
+[[nodiscard]] Search search(const za::Vector<glm::vec4>& fist, const glm::vec3& lo, const glm::vec3& hi, float lenient, bool old)
+{
+    const float maxInside = maxInsideCm * cm();
+    Search r;
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    {
+        edict_t* m = EDICT_NUM(num);
+        if(!canHold(m))
+        {
+            continue;
+        }
+        bool close = true;
+        for(int k = 0; k < 3; k++)
+        {
+            close = close && lo[k] <= m->v.absmax[k] + searchReach && hi[k] >= m->v.absmin[k] - searchReach;
+        }
+        if(!close)
+        {
+            continue;
+        }
+        r.searched++;
+        if(!old && !hitmodel::pose(m))
+        {
+            continue;
+        }
+        for(const glm::vec4& s : fist)
+        {
+            const glm::vec3 c{s};
+            hitmodel::Hit hit;
+            float dist = 0.f;
+            if(old)
+            {
+                if(!hitmodel::nearest(m, c, hit, dist))
+                {
+                    break;
+                }
+            }
+            // A sphere farther than this can neither be inside (no deeper than maxInside) nor within `lenient`.
+            else if(!hitmodel::nearestPosed(c, za::max(maxInside, lenient + s.w), hit, dist))
+            {
+                r.nearestOver = za::min(r.nearestOver, dist - s.w);
+                continue;
+            }
+            const bool inside = glm::dot(c - hit.surface, hit.normal) < 0.f;
+            if(inside && dist > maxInside)
+            {
+                continue;
+            }
+            const float gap = (inside ? -dist : dist) - s.w;
+            r.nearestGap = za::min(r.nearestGap, gap);
+            if(gap <= lenient && gap < r.bestGap)
+            {
+                r.bestGap = gap;
+                r.best = m;
+                r.hit = hit;
+            }
+        }
+    }
+    return r;
+}
+
 // The hand `h` grips: the living monster its fist touches (the least gap), its spot and hold taken. False: none.
 bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
 {
@@ -430,58 +509,37 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
         hi = glm::max(hi, glm::vec3{s} + s.w);
     }
     const float lenient = za::max(0.f, vr_foegrab_leniency.value) * cm();
-    const float maxInside = maxInsideCm * cm();
-
-    edict_t* best = nullptr;
-    hitmodel::Hit bestHit;
-    float bestGap = 1e30f;
-    float nearestGap = 1e30f; // (the debug's: the nearest model's gap, taken or not)
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    const auto searchStart = za::Clock::nowNanoseconds();
+    const Search found = search(fist, lo, hi, lenient, false);
+    if(debug(2))
     {
-        edict_t* m = EDICT_NUM(num);
-        if(!canHold(m))
-        {
-            continue;
-        }
-        bool close = true;
-        for(int k = 0; k < 3; k++)
-        {
-            close = close && lo[k] <= m->v.absmax[k] + searchReach && hi[k] >= m->v.absmin[k] - searchReach;
-        }
-        if(!close)
-        {
-            continue;
-        }
-        for(const glm::vec4& s : fist)
-        {
-            const glm::vec3 c{s};
-            hitmodel::Hit hit;
-            float dist = 0.f;
-            if(!hitmodel::nearest(m, c, hit, dist))
-            {
-                break;
-            }
-            const bool inside = glm::dot(c - hit.surface, hit.normal) < 0.f;
-            if(inside && dist > maxInside)
-            {
-                continue;
-            }
-            const float gap = (inside ? -dist : dist) - s.w;
-            nearestGap = za::min(nearestGap, gap);
-            if(gap <= lenient && gap < bestGap)
-            {
-                bestGap = gap;
-                best = m;
-                bestHit = hit;
-            }
-        }
+        // The search's cost and its result to the bit, and the old search's (each sphere against each model posed anew,
+        // hitmodel::nearest(), no bounds): the same, or "DIFFERS" (the tests' check; the old one's time for comparison).
+        const double ms = static_cast<double>(za::Clock::nowNanoseconds() - searchStart) * 1e-6;
+        const auto oldStart = za::Clock::nowNanoseconds();
+        const Search old = search(fist, lo, hi, lenient, true);
+        const double oldMs = static_cast<double>(za::Clock::nowNanoseconds() - oldStart) * 1e-6;
+        const bool same = old.best == found.best && old.bestGap == found.bestGap &&
+                          (!found.best || (old.hit.tri == found.hit.tri && old.hit.u == found.hit.u && old.hit.v == found.hit.v &&
+                                              old.hit.surface == found.hit.surface && old.hit.normal == found.hit.normal)) &&
+                          old.searched == found.searched &&
+                          (found.nearestGap <= found.nearestOver ? old.nearestGap == found.nearestGap : old.nearestGap >= found.nearestOver);
+        Con_Printf("foegrab: search %s, %s: %d models, %d spheres, %.3f ms (the old %.3f): %d tri %d u %.6f v %.6f gap %.4f\n",
+            handName(h), same ? "same" : "DIFFERS", found.searched, static_cast<int>(fist.size()), ms, oldMs,
+            found.best ? NUM_FOR_EDICT(found.best) : 0,
+            found.best ? found.hit.tri : -1, found.best ? found.hit.u : 0.f, found.best ? found.hit.v : 0.f,
+            found.best ? found.bestGap : 0.f);
     }
+    edict_t* const best = found.best;
+    const hitmodel::Hit& bestHit = found.hit;
+    const float bestGap = found.bestGap;
     if(!best)
     {
         if(debug(fabs(qcvm->time - hd.pressedAt[h]) < 1e-6 ? 1 : 3))
         {
-            Con_Printf("foegrab: %s hand grips at (%.1f %.1f %.1f): no living enemy within %.1f cm of its fist (%d spheres; the nearest %.1f cm)\n",
-                handName(h), palm.x, palm.y, palm.z, lenient / cm(), static_cast<int>(fist.size()), nearestGap / cm());
+            Con_Printf("foegrab: %s hand grips at (%.1f %.1f %.1f): no living enemy within %.1f cm of its fist (%d spheres; the nearest %s%.1f cm)\n",
+                handName(h), palm.x, palm.y, palm.z, lenient / cm(), static_cast<int>(fist.size()),
+                found.nearestGap <= found.nearestOver ? "" : "over ", za::min(found.nearestGap, found.nearestOver) / cm());
         }
         return false;
     }

@@ -1019,7 +1019,53 @@ bool clip(edict_t* ent, const glm::vec3& a, const glm::vec3& b, const glm::vec3&
 namespace
 {
 
-// The drawn triangle nearest `p` (Ericson, Real-Time Collision Detection, 5.1.5), and where on it: its squared distance.
+// The point of triangle (a, b, c) nearest `p` (Ericson, Real-Time Collision Detection, 5.1.5): its squared distance from `p` to its nearest point, a + ab s + ac w.
+[[nodiscard]] float nearestOnTri(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& p, float& s, float& w)
+{
+    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
+    s = 0.f;
+    w = 0.f;
+    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
+    const glm::vec3 bp = p - b;
+    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
+    const glm::vec3 cp = p - c;
+    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
+    const float vc = d1 * d4 - d3 * d2, vb = d5 * d2 - d1 * d6, va = d3 * d6 - d5 * d4;
+    if(d1 <= 0.f && d2 <= 0.f)
+    {
+    }
+    else if(d3 >= 0.f && d4 <= d3)
+    {
+        s = 1.f;
+    }
+    else if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
+    {
+        s = d1 / (d1 - d3);
+    }
+    else if(d6 >= 0.f && d5 <= d6)
+    {
+        w = 1.f;
+    }
+    else if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
+    {
+        w = d2 / (d2 - d6);
+    }
+    else if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
+    {
+        w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+        s = 1.f - w;
+    }
+    else
+    {
+        const float denom = 1.f / (va + vb + vc);
+        s = vb * denom;
+        w = vc * denom;
+    }
+    const glm::vec3 q = a + ab * s + ac * w;
+    return glm::dot(q - p, q - p);
+}
+
+// The drawn triangle nearest `p` (nearestOnTri), and where on it: its squared distance.
 float nearestDrawn(const Drawn& d, const glm::vec3& p, za::U32& tri, float& u, float& v)
 {
     const Mesh& m = *d.mesh;
@@ -1028,47 +1074,8 @@ float nearestDrawn(const Drawn& d, const glm::vec3& p, za::U32& tri, float& u, f
     for(za::U32 k = 0; k < m.tris.size(); k++)
     {
         const auto& t = m.tris[k];
-        const glm::vec3 a = vs.at(d, t[0], 0.f), b = vs.at(d, t[1], 0.f), c = vs.at(d, t[2], 0.f);
-        const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-        float s = 0.f, w = 0.f; // p's nearest point: a + ab * s + ac * w
-        const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-        const glm::vec3 bp = p - b;
-        const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-        const glm::vec3 cp = p - c;
-        const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-        const float vc = d1 * d4 - d3 * d2, vb = d5 * d2 - d1 * d6, va = d3 * d6 - d5 * d4;
-        if(d1 <= 0.f && d2 <= 0.f)
-        {
-        }
-        else if(d3 >= 0.f && d4 <= d3)
-        {
-            s = 1.f;
-        }
-        else if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
-        {
-            s = d1 / (d1 - d3);
-        }
-        else if(d6 >= 0.f && d5 <= d6)
-        {
-            w = 1.f;
-        }
-        else if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
-        {
-            w = d2 / (d2 - d6);
-        }
-        else if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
-        {
-            w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-            s = 1.f - w;
-        }
-        else
-        {
-            const float denom = 1.f / (va + vb + vc);
-            s = vb * denom;
-            w = vc * denom;
-        }
-        const glm::vec3 q = a + ab * s + ac * w;
-        const float dist = glm::dot(q - p, q - p);
+        float s = 0.f, w = 0.f;
+        const float dist = nearestOnTri(vs.at(d, t[0], 0.f), vs.at(d, t[1], 0.f), vs.at(d, t[2], 0.f), p, s, w);
         if(dist < best)
         {
             best = dist;
@@ -1134,6 +1141,137 @@ bool nearest(edict_t* ent, const glm::vec3& p, Hit& out, float& dist)
     out = Hit{};
     out.surface = out.point = p0 + (p1 - p0) * u + (p2 - p0) * v;
     const glm::vec3 n = glm::cross(p1 - p0, p2 - p0) * d.mesh->winding;
+    out.normal = glm::length(n) > 1e-9f ? glm::normalize(n) : glm::vec3{0.f, 0.f, 1.f};
+    out.tri = static_cast<int>(tri);
+    out.u = u;
+    out.v = v;
+    return true;
+}
+
+namespace
+{
+
+// The model posed by pose() (nearestPosed's): its vertices as drawn, in the world, and each triangle's bounds (grown by
+// posedSlack); the main thread's (the server's frame).
+struct PosedScratch
+{
+    za::Vector<glm::vec3> verts;
+    za::Vector<glm::vec3> triLo, triHi;
+    auto members() { return mem::list(verts, triLo, triHi); }
+};
+mem::Scratch<PosedScratch> posedScratch{"hit model posed"};
+
+struct Posed
+{
+    const Mesh* mesh{nullptr};
+    glm::vec3 lo{0.f}, hi{0.f}; // all its vertices' bounds (grown by posedSlack)
+    za::U32 seed{0};            // the triangle the last point found nearest (the next point's first bound)
+    bool seeded{false};
+};
+Posed posed;
+
+// Units the posed bounds are grown by: more than the rounding of a nearest point (a few ulps of the world's coordinates)
+// can take it out of its triangle's bounds, so a bound's distance is never more than a found distance.
+constexpr float posedSlack = 0.03f;
+
+// The squared distance from `p` to the box (lo, hi): 0 inside.
+[[nodiscard]] float boxDist2(const glm::vec3& p, const glm::vec3& lo, const glm::vec3& hi)
+{
+    const glm::vec3 d = glm::max(glm::max(lo - p, p - hi), glm::vec3{0.f});
+    return glm::dot(d, d);
+}
+
+
+} // namespace
+
+bool pose(edict_t* ent)
+{
+    posed = Posed{};
+    Drawn d;
+    if(!target(ent) || !drawnOf(ent, d) || d.mesh->tris.empty())
+    {
+        return false;
+    }
+    const Mesh& m = *d.mesh;
+    const Verts vs = vertsOf(d);
+    za::Vector<glm::vec3>& verts = posedScratch.verts;
+    verts.clear();
+    glm::vec3 lo{1e30f}, hi{-1e30f};
+    for(int vi = 0; vi < m.numverts; vi++)
+    {
+        verts.pushBack(vs.at(d, vi, 0.f));
+        lo = glm::min(lo, verts.back());
+        hi = glm::max(hi, verts.back());
+    }
+    za::Vector<glm::vec3>& triLo = posedScratch.triLo;
+    za::Vector<glm::vec3>& triHi = posedScratch.triHi;
+    triLo.clear();
+    triHi.clear();
+    for(const auto& t : m.tris)
+    {
+        const glm::vec3 &a = verts[t[0]], &b = verts[t[1]], &c = verts[t[2]];
+        triLo.pushBack(glm::min(glm::min(a, b), c) - posedSlack);
+        triHi.pushBack(glm::max(glm::max(a, b), c) + posedSlack);
+    }
+    posed.mesh = &m;
+    posed.lo = lo - posedSlack;
+    posed.hi = hi + posedSlack;
+    return true;
+}
+
+bool nearestPosed(const glm::vec3& p, float beyond, Hit& out, float& dist)
+{
+    const Mesh& m = *posed.mesh;
+    const glm::vec3* verts = posedScratch.verts.data();
+    const float far2 = boxDist2(p, posed.lo, posed.hi);
+    if(far2 > beyond * beyond)
+    {
+        dist = za::sqrt(far2);
+        return false;
+    }
+    // nearestDrawn's search over the posed vertices (its ties too: the first triangle at the least distance), a triangle
+    // passed over when its bounds are no nearer than the nearest so far, or farther than the seed (the last point's
+    // triangle: the least is no farther than it).
+    const glm::vec3* triLo = posedScratch.triLo.data();
+    const glm::vec3* triHi = posedScratch.triHi.data();
+    float bound = 1e30f;
+    if(posed.seeded)
+    {
+        const auto& t = m.tris[posed.seed];
+        float s = 0.f, w = 0.f;
+        bound = nearestOnTri(verts[t[0]], verts[t[1]], verts[t[2]], p, s, w);
+    }
+    float best = 1e30f;
+    za::U32 tri = 0;
+    float u = 0.f, v = 0.f;
+    const za::U32 count = static_cast<za::U32>(m.tris.size());
+    for(za::U32 k = 0; k < count; k++)
+    {
+        const float lb = boxDist2(p, triLo[k], triHi[k]);
+        if(lb >= best || lb > bound)
+        {
+            continue;
+        }
+        const auto& t = m.tris[k];
+        float s = 0.f, w = 0.f;
+        const float d2 = nearestOnTri(verts[t[0]], verts[t[1]], verts[t[2]], p, s, w);
+        if(d2 < best)
+        {
+            best = d2;
+            tri = k;
+            u = s;
+            v = w;
+        }
+    }
+    posed.seed = tri;
+    posed.seeded = true;
+    // nearest()'s hit.
+    dist = za::sqrt(best);
+    const auto& t = m.tris[tri];
+    const glm::vec3 p0 = verts[t[0]], p1 = verts[t[1]], p2 = verts[t[2]];
+    out = Hit{};
+    out.surface = out.point = p0 + (p1 - p0) * u + (p2 - p0) * v;
+    const glm::vec3 n = glm::cross(p1 - p0, p2 - p0) * m.winding;
     out.normal = glm::length(n) > 1e-9f ? glm::normalize(n) : glm::vec3{0.f, 0.f, 1.f};
     out.tri = static_cast<int>(tri);
     out.u = u;

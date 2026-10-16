@@ -82,6 +82,14 @@ bool restPoint(edict_s* ent, const glm::vec3& p, glm::vec3& out);
 // `ent` is no target. (Holding enemies, vr_foegrab.cpp: where a hand takes hold.)
 bool nearest(edict_s* ent, const glm::vec3& p, Hit& out, float& dist);
 
+// nearest() for many points against one pose: pose() takes `ent`'s model as drawn now (its vertices posed once, each
+// triangle's bounds), then nearestPosed() finds a point's nearest on it, its result nearest()'s to the bit (the
+// triangles whose bounds can't be nearer passed over). A point farther than `beyond` from the posed model's bounds is not
+// searched: false, `dist` that bound's distance (no more than nearest()'s). pose()'s false: `ent` is no target (call
+// nearestPosed() only after a true; the next pose() replaces it). (A hand's fist's spheres, vr_foegrab.cpp.)
+bool pose(edict_s* ent);
+bool nearestPosed(const glm::vec3& p, float beyond, Hit& out, float& dist);
+
 // Where the place (u, v) on triangle `tri` of `ent`'s model (a Hit's) is as drawn now, and a frame there: x along the
 // triangle's first edge, z its normal (outwards), y their cross. What stays on the model where it was hit follows it (a
 // thrown axe stuck in a monster, vr_axestick.cpp). False: no target, or no such triangle.

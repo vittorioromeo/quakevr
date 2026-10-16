@@ -8702,3 +8702,23 @@ inside the portal, as it does between two runs of one build (10-50 thousand byte
 no difference over both maps, so the GL calls are the same ones as before.
 For him: in his next capture, eye L/R self time should be near 0 (was 0.27/0.24 ms); the driver's syncs left are the
 runtime's (`xrBeginFrame` / `xr submit`, VDXR's `wglMakeCurrent`).
+## The grip's search (worktree `dequant`, branch `agent/gripcache`, 2026-10-16)
+
+His VR trace (vrtrace_20261016, finding 3): foegrab's grip search cost 2-8.4 ms a frame with a grip pressed near
+monsters. `tryTake` asked `hitmodel::nearest` for each of the fist's ~94 spheres against each monster near, and each call
+posed the model anew (every vertex of every triangle through `Verts::at`, a ragdoll's skinned again) and tested every
+triangle.
+- `hitmodel::pose(ent)` poses the model once (its vertices as drawn, each triangle's bounds), `hitmodel::nearestPosed(p,
+  beyond, ...)` searches it for one point: nearest()'s result to the bit (the same triangle test, now `nearestOnTri`,
+  shared with nearestDrawn; the same order and ties), a triangle passed over when its bounds (grown 0.03 units, more than
+  a nearest point's rounding) are no nearer than the nearest so far or farther than the previous sphere's triangle.
+- `search()` in vr_foegrab.cpp: a sphere farther from the posed model's bounds than both the deepest inside it counts
+  (maxInsideCm) and the leniency plus its radius is passed over (it could not be taken). The "no living enemy" debug line's
+  nearest says "over N cm" when only such a sphere could have been nearer.
+- `vr_foegrab_debug 2`: each search prints its time, the old search's (run after it, for the check) and its result
+  ("foegrab: search main, same: ..." or "DIFFERS").
+Test (`Misc/quakevr/foegrab/gripcrowd_test.py <agent> <tag>`: a ring of 10 grunts 56 units round you, both hands grip at
+30 places): 583 searches (8.3 models, 94 spheres each), all "same", 15 takes; 0.15 ms a search (median 0.10, max 0.45)
+against the old 14.8 (median 14.6, max 22.9), about 100 times less. Two separate runs can't be compared line by line
+(the grunts' idle frames vary), hence the in-run check. judo_test lift and hold (with `vr_foegrab_debug 2`): all PASS, 24
+searches "same". Melee eval 168/177. For him: grip near a crowd and see that the hands take hold as before.
