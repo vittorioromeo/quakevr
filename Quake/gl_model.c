@@ -532,6 +532,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		Mod_LoadBrushModel (mod, buf);
 		break;
 	}
+	if (mod->type != mod_alias) // QVR: its data on the hunk: kept there, if loaded inside a temporary allocation (zone.c)
+		Hunk_KeepLoaded ();
 	if (recorded)
 		VR_ModelSourcesEnd (mod); // QVR
 
