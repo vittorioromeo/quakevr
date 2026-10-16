@@ -138,7 +138,8 @@ struct SmoothBatches
 {
     za::Vector<glm::vec4> swing0;
     za::Vector<glm::vec4> swing1;
-    auto members() { return mem::list(swing0, swing1); }
+    za::Vector<glm::vec4> kept; // channel 0's rows of the first eye's instances, for the second eye's (VR_AnimSmoothKeep)
+    auto members() { return mem::list(swing0, swing1, kept); }
 };
 mem::Scratch<SmoothBatches> batches{"anim smooth"};
 
@@ -1120,6 +1121,59 @@ bool animsmooth::rigged(const entity_s* e)
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
     return hdr && hdr->poseverttype == aliashdr_t::PV_QUAKE1 && rigData(modelData(e->model, hdr), e->model, hdr);
+}
+
+extern "C" int VR_AnimSmoothRows(int channel)
+{
+    return static_cast<int>(swingsOf(channel).size());
+}
+
+extern "C" void VR_AnimSmoothKeepClear(void)
+{
+    batches.kept.clear();
+}
+
+extern "C" int VR_AnimSmoothKeep(int channel, int first, int count)
+{
+    const za::Vector<glm::vec4>& swing = swingsOf(channel);
+    if(trace.ent >= 0 || first < 0 || count < 0 || static_cast<za::SizeT>(first + count) > swing.size())
+    {
+        return -1; // (vr_anim_smooth_trace follows each draw: none skipped)
+    }
+    za::Vector<glm::vec4>& kept = batches.kept;
+    const za::SizeT at = kept.size();
+    kept.resize(at + static_cast<za::SizeT>(count));
+    if(count)
+    {
+        memcpy(static_cast<void*>(kept.data() + at), swing.data() + first, sizeof(glm::vec4) * static_cast<size_t>(count));
+    }
+    return static_cast<int>(at);
+}
+
+extern "C" int VR_AnimSmoothReplay(int channel, int kept, int count, int newbatch)
+{
+    za::Vector<glm::vec4>& swing = swingsOf(channel);
+    if(newbatch)
+    {
+        swing.clear();
+    }
+    const za::SizeT at = swing.size();
+    if(count > 0)
+    {
+        swing.resize(at + static_cast<za::SizeT>(count));
+        memcpy(static_cast<void*>(swing.data() + at), batches.kept.data() + kept, sizeof(glm::vec4) * static_cast<size_t>(count));
+    }
+    return static_cast<int>(at);
+}
+
+extern "C" int VR_AnimSmoothRowsEqual(int channel, int first, int kept, int count)
+{
+    const za::Vector<glm::vec4>& swing = swingsOf(channel);
+    if(count <= 0)
+    {
+        return 1;
+    }
+    return memcmp(swing.data() + first, batches.kept.data() + kept, sizeof(glm::vec4) * static_cast<size_t>(count)) == 0;
 }
 
 extern "C" int VR_AnimSmooth(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,

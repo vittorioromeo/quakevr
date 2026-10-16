@@ -5696,6 +5696,14 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_shadow_layered_check 20 cache: this frame's shadow maps drawn with each caster set up again for every "
                   "light, then once a pass over the lights (as the game draws them), 20 times each, timed, then read back "
                   "and compared texel by texel, in the console. Stand where shadows are."),
+        cycle("Second Eye's Model Set-up", vr_alias_eye_cache, {{0.f, "Made Again"}, {1.f, "First Eye's"}, {2.f, "Checked"}})
+            .help("vr_alias_eye_cache: each animated model's set-up that is the same for both eyes (its pose, place, light "
+                  "at its origin, instance data) made in the first eye and reused by the second (First Eye's), made again "
+                  "(Made Again), or made again and compared with the first eye's (Checked: see Model Set-up Stats)."),
+        command("Model Set-up Stats", "vr_alias_eye_cache_stats")
+            .help("vr_alias_eye_cache_stats: since the last time, the second eyes' models found set up by the first eye (in "
+                  "full, the transform only, not at all) and, while Checked, the parts that came out different (none "
+                  "expected)."),
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), and every load's total."),
@@ -5772,6 +5780,10 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Physics on Threads", vr_box3d_threads)
             .help("Box3D's step (the props' physics) shared between the thread pool and the main thread. Off: the main "
                   "thread steps it alone (the same results: Box3D is deterministic whatever its threads)."),
+        toggle("Main Thread Solves", vr_box3d_caller_solves)
+            .help("vr_box3d_caller_solves: with Physics on Threads, the main thread runs Box3D's solver itself (and its "
+                  "share of each stage) and takes the step's unstarted tasks while it waits for one. Off: a worker usually "
+                  "took the solver and the main thread waited for it (the same results either way)."),
         cycle("Physics Threads", vr_box3d_workers, {{0.f, "All"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {6.f, "6"}, {8.f, "8"}})
             .help("With Physics on Threads: at most this many threads step Box3D, the main thread one of them (All: every "
                   "worker of the pool). Measured on a 24-core CPU: 4 is as fast as 6 or 8 up to ~500 awake bodies (and "

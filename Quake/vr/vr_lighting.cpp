@@ -1513,6 +1513,19 @@ void layeredCheck_f()
     }
 }
 
+// vr_alias_eye_cache_stats: the second eyes' models since the last call (r_alias.c R_AliasEyeSlot): set up by the first
+// eye in full, the transform only (culled there), not at all; while vr_alias_eye_cache 2, the parts set up again that
+// differ from the first eye's (none expected).
+void eyeCacheStats_f()
+{
+    int s[10] = {};
+    R_AliasEyeCacheStats(s, 10);
+    Con_Printf("vr_alias_eye_cache_stats (vr_alias_eye_cache %g): second eye %d found, %d transform only, %d not found\n",
+        static_cast<double>(vr_alias_eye_cache.value), s[0], s[1], s[2]);
+    Con_Printf("  checked %d: differ lerp %d, matrix %d, light %d, counts %d, instance %d, smooth rows %d\n", s[3], s[4],
+        s[5], s[6], s[7], s[8], s[9]);
+}
+
 // An atlas' depth, read back.
 void readDepth(const DepthTarget& t, za::Vector<float>& out)
 {
@@ -2622,6 +2635,7 @@ void lighting::init()
     Cmd_AddCommand("vr_light_test", lightTest_f);
     Cmd_AddCommand("vr_light_probe", lightProbe_f);
     Cmd_AddCommand("vr_shadow_layered_check", layeredCheck_f);
+    Cmd_AddCommand("vr_alias_eye_cache_stats", eyeCacheStats_f);
     Cvar_SetCallback(&vr_alpha_coverage, onAlphaCoverage);
     ao::init();
 }
