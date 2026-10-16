@@ -3535,10 +3535,6 @@ void hologramTestMessage()
         slider("Max Speed Gain", vr_throw_gain_max, 1.f, 3.f, 0.05f, "%.2fx").extend()
             .help("Extra speed for fast throws, which feel weak at true speed."),
         header("Throws by Weight"),
-        toggle("Throws by Weight", vr_throw_mass_model)
-            .help("Heavy things can't be thrown as fast or as far as light ones, a wrist flick does little to them, and "
-                  "two hands throw them farther than one. Off: every weapon and prop as fast as your hand (Max Speed "
-                  "Gain), heavy weapons a little slower, props over 12 kg slower. Debug: Throws by Weight prints the table."),
         slider("Light Things' Top Speed", vr_throw_max_speed, 10.f, 40.f, 1.f, "%.0f m/s").extend(5.f, 100.f)
             .help("The fastest anything leaves your hand: a grenade, the axe (28: about 80 m at 45 degrees)."),
         slider("Light Up To", vr_throw_mass_light, 0.5f, 5.f, 0.1f, "%.1f kg").extend(0.1f, 50.f)

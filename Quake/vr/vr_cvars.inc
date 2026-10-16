@@ -136,9 +136,8 @@ QVR_CVAR(vr_throw_weight_influence, "0.25", CVAR_ARCHIVE)
 // hand's up to vr_throw_mass_knee of it, then eases towards it. A wrist flick (the part of the throw the hand's turn
 // about the wrist gives, vr_throw_wrist_dist metres behind the controller's point) keeps all of its speed up to
 // vr_throw_flick_mass kg, (flick mass / mass) of it beyond. Two hands throw as if the thing weighed
-// 1 / vr_throw_2h_strength as much (a heavy thing farther, the light ones no faster). 0: off (only the gain and
-// vr_throw_weight_influence, as before 2026-10-02).
-QVR_CVAR(vr_throw_mass_model, "1", CVAR_ARCHIVE)
+// 1 / vr_throw_2h_strength as much (a heavy thing farther, the light ones no faster). Always on (its switch,
+// vr_throw_mass_model, retired 2026-10-16).
 QVR_CVAR(vr_throw_max_speed, "28", CVAR_ARCHIVE)      // m/s: the most any throw leaves the hand at (a light thing's)
 QVR_CVAR(vr_throw_mass_light, "1.5", CVAR_ARCHIVE)      // kg: up to this heavy, the whole vr_throw_max_speed (the author's 1.5 since 2026-10-02: the axe, 2 kg, a little less)
 QVR_CVAR(vr_throw_mass_exp, "0.9", CVAR_ARCHIVE)     // how fast the limit falls with mass beyond it (the author's 0.9, 2026-10-02)
@@ -164,7 +163,7 @@ QVR_CVAR(vr_debug_wallbuttons, "0", CVAR_NONE)         // print each wall button
 // Throws' hits by weight (weight::throwHitSpeed, throwDamage; ROUND21.md, "Heavy throws' hits, spin and two-handed
 // throws"): the hit speed above and the damage's speed scale (a thrown weapon's base at 700/120 m/s, in proportion) are
 // times its heavy leniency (vr_weight_lenient*) and, for a thing too heavy to be thrown vr_throw_hit_top m/s one-handed
-// (vr_throw_mass_model), its top speed over that (at least vr_weight_lenient_min): a hard throw of a heavy thing hurts
+// (throws by weight), its top speed over that (at least vr_weight_lenient_min): a hard throw of a heavy thing hurts
 // as a hard throw of a light one. Just over the hit speed, the damage eases in: vr_throw_hit_ramp_floor of it at the hit
 // speed, all of it vr_throw_hit_ramp (a share of the hit speed) above. 0 and 0: as before 2026-10-02 (heavy leniency
 // only, the whole damage at once).
@@ -997,7 +996,6 @@ QVR_CVAR(vr_weight_stamina_add, "15", CVAR_ARCHIVE)      // kg added to what a h
 QVR_CVAR(vr_weight_stamina_empty, "15", CVAR_ARCHIVE)    // kg an empty hand weighs with none left (on the same curve): it follows its controller as if it held that (0: an empty hand never lags; not a hand on a hold or steadying a weapon)
 QVR_CVAR(vr_stamina_speed, "1", CVAR_ARCHIVE)           // tired, you run slower: the most walking speed (sv_maxspeed) drops on the weight's curve (vr_weight_stamina_from, _curve)
 QVR_CVAR(vr_stamina_speed_min, "0.5", CVAR_ARCHIVE)     // times the most speed with no stamina left (1: no slower)
-QVR_CVAR(vr_weight_throw_mass, "12", CVAR_ARCHIVE)       // vr_throw_mass_model 0 only: kg: props up to this heavy are thrown with the hand's whole speed, heavier ones slower (Throw: Held Object Offsets)
 // Weight and damage (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage"): a melee blow's
 // and a throw's damage times (mass / vr_weight_damage_heavy)^vr_weight_damage_exp for things heavier than it,
 // (mass / vr_weight_damage_light)^exp for lighter ones, 1 between (every weapon), within vr_weight_damage_min..max; the

@@ -90,8 +90,8 @@ void printSlot(int slot, Part part = Part::All); // the settings that differ fro
 // Mass setting's.
 [[nodiscard]] float massScale(const qmodel_t* model);
 
-// How much of the hand's throw a prop of `mass` kg keeps: its Throw setting, else all of it up to
-// vr_weight_throw_mass kg, less beyond (by the square root: a thing twice as heavy leaves at 71% the speed).
+// How much of the hand's throw a prop keeps: its Throw setting, else all of it (throws by weight then limit it by its
+// mass: weight::throwVelocity). (`mass`: unused since vr_weight_throw_mass was retired.)
 [[nodiscard]] float throwScale(int slot, float mass);
 
 } // namespace qvr::props
