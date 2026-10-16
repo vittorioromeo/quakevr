@@ -5678,6 +5678,10 @@ za::Vector<Item> pageDebugProfiling()
                   "picked up or holstered in a session, instead of cut again (10-85 ms each: a hitch as the first "
                   "grunt's gun drops). Check: read, then cut anyway and compared (Gun Shapes Stats counts them). Off: "
                   "cut once every session (vr_gun_pieces_cache)."),
+        cycle("Gun Shapes at Load", vr_gun_pieces_ahead, {{0.f, "Off"}, {1.f, "On"}})
+            .help("A map's load makes the convex pieces of every weapon it can give (lying about, its monsters' drops, "
+                  "backpacks, your hands and holsters) from their files, or cuts them (on the job pool), so the first "
+                  "pickup mid-game is not a hitch. Off: cut at the first pickup (vr_gun_pieces_ahead)."),
         command("Gun Shapes Stats", "vr_gun_pieces_cache_stats")
             .help("vr_gun_pieces_cache_stats: the guns' pieces this session read from the disk or cut, the files "
                   "written, and with Check on, how many were compared and differed."),

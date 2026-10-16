@@ -122,6 +122,7 @@
 
 #include <box3d/box3d.h>
 
+#include <atomic>
 #include <string.h>
 
 using namespace qvr;
@@ -1001,6 +1002,8 @@ struct World
     };
     za::Array<RecentBlast, 8> recentBlasts{};
     int nextBlast{0};
+    bool gunsPrepared{false};   // the map's held guns' pieces made (prepareHeldGuns, at its first frame)
+    int gunsLoadout{-1};        // the first player's hands and holsters when they were (made again when they change)
     bool ragdollsWarmed{false}; // the map's ragdoll models rigged (syncEntities: at its first frame with vr_ragdoll on)
     int steps{0};
 
@@ -1974,11 +1977,11 @@ constexpr unsigned gunPiecesMostFile = 64; // (a file claiming more pieces is no
 
 struct GunPiecesDisk
 {
-    int read{0};     // pieces read from a file
-    int cut{0};      // cut (no file, or checked)
-    int written{0};  // files written
-    int checked{0};  // vr_gun_pieces_cache 2: read and cut, compared
-    int differed{0}; // of those, not the same
+    std::atomic<int> read{0};     // pieces read from a file (atomics: prepareHeldGuns cuts on the pool)
+    std::atomic<int> cut{0};      // cut (no file, or checked)
+    std::atomic<int> written{0};  // files written
+    std::atomic<int> checked{0};  // vr_gun_pieces_cache 2: read and cut, compared
+    std::atomic<int> differed{0}; // of those, not the same
 };
 GunPiecesDisk gunPiecesDisk;
 
@@ -1994,12 +1997,15 @@ GunPiecesDisk gunPiecesDisk;
     return diskcache::fnv(h, triangles.data(), triangles.size() * sizeof(glm::vec3));
 }
 
-[[nodiscard]] bool readGunPieces(unsigned long long key, za::Vector<convex::Piece>& pieces, convex::Report& report)
+[[nodiscard]] bool readGunPieces(
+    unsigned long long key, za::Vector<convex::Piece>& pieces, convex::Report& report, const char* name)
 {
     QVR_TRACY_SCOPE(tracyScope, "gun pieces read");
     unsigned count = 0, points = 0;
     za::Vector<char> data;
-    if(!diskcache::read(diskcache::Product::GunPieces, convex::build(), key, "gpc", gunPiecesMagic, count, points, data, "(a gun)") ||
+    char what[96];
+    snprintf(what, sizeof(what), "(%s, %016llx)", name ? name : "a gun", key);
+    if(!diskcache::read(diskcache::Product::GunPieces, convex::build(), key, "gpc", gunPiecesMagic, count, points, data, what) ||
        count > gunPiecesMostFile ||
        data.size() != sizeof(convex::Report) + count * sizeof(za::I32) + static_cast<size_t>(points) * sizeof(glm::vec3))
     {
@@ -2084,7 +2090,7 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
     const int mode = static_cast<int>(za::clamp(vr_gun_pieces_cache.value, 0.f, 2.f));
     const unsigned long long key = mode ? gunPiecesKey(triangles, settings) : 0;
     const double t0 = Sys_DoubleTime();
-    const bool fromDisk = mode && readGunPieces(key, pieces, report);
+    const bool fromDisk = mode && readGunPieces(key, pieces, report, name);
 #ifdef QVR_TRACY
     char detail[192];
     snprintf(detail, sizeof(detail), "%s mode=%d hit=%d key=%016llx corners=%zu most=%d", name, mode, fromDisk, key,
@@ -2115,7 +2121,7 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
         {
             gunPiecesDisk.differed++;
             Con_Warning("vr_gun_pieces_cache 2: %s's convex pieces differ from their file (%d of %d so far)\n", name,
-                gunPiecesDisk.differed, gunPiecesDisk.checked);
+                gunPiecesDisk.differed.load(), gunPiecesDisk.checked.load());
         }
     }
     else if(mode)
@@ -3466,6 +3472,167 @@ struct QcCallGuard
 [[nodiscard]] bool roomRefused(int num)
 {
     return za::anyOf(world->roomRefused.begin(), world->roomRefused.end(), [&](int n) { return n == num; });
+}
+
+// The first player's weapons in its hands and holsters, as one number (a change: prepareHeldGuns again).
+[[nodiscard]] int heldLoadout()
+{
+    if(svs.maxclients < 1)
+    {
+        return 0;
+    }
+    const FieldOffsets& f = fields();
+    edict_t* player = EDICT_NUM(1);
+    const int ids[] ={static_cast<int>(player->v.weapon), static_cast<int>(fieldFloatOr(player, f.weapon2, 0.f)),
+        static_cast<int>(fieldFloatOr(player, f.holsterweapon0, 0.f)), static_cast<int>(fieldFloatOr(player, f.holsterweapon1, 0.f)),
+        static_cast<int>(fieldFloatOr(player, f.holsterweapon2, 0.f)), static_cast<int>(fieldFloatOr(player, f.holsterweapon3, 0.f)),
+        static_cast<int>(fieldFloatOr(player, f.holsterweapon4, 0.f)), static_cast<int>(fieldFloatOr(player, f.holsterweapon5, 0.f))};
+    int key = 0;
+    for(const int id : ids)
+    {
+        key = key * 31 + id + 1;
+    }
+    return key;
+}
+
+jobs::Site gunPrepSite{"box3d gun pieces ahead"}; // (prepareHeldGuns' parallelFor: vr_jobs_sites)
+
+struct GunPrepWork
+{
+    const qmodel_t* model{nullptr};
+    za::Vector<glm::vec3> triangles; // the model's own (held::modelTriangles: a held gun's key, -2)
+    za::Vector<convex::Piece> pieces;
+    convex::Report report;
+    bool fromDisk{false};
+};
+
+// The held guns of every weapon the map can give made at its load (QC's VR_GunPrep_Models lists their models: the
+// weapons lying about, its monsters' drops, backpacks, the players' hands and holsters): each one's convex pieces read
+// from the disk or cut (cutGun) on the pool, kept in gunShapes under the key a hand holding it asks for (makeReach), so
+// a first pickup in play finds them made (the cut was 35-60 ms, at the pickup, when the disk lacked it). Models the
+// server has not precached are skipped (their weapons cannot be held here). Once a world.
+void prepareHeldGuns()
+{
+    const int most = za::min(static_cast<int>(vr_box3d_gun_pieces.value), maxBodyShapes);
+    const func_t collect = qvr::progs::findFunction("VR_GunPrep_Collect");
+    const func_t modelOf = qvr::progs::findFunction("VR_GunPrep_Model");
+    if(!vr_gun_pieces_ahead.value || most < 2 || !collect || !modelOf)
+    {
+        return;
+    }
+    const double t0 = Sys_DoubleTime();
+    char list[2048]{}; // " name name ..." (QC returns a string per call: a tempstring does not outlive the next)
+    {
+        QcCallGuard guard;
+        PR_ExecuteProgram(collect);
+        const int count = static_cast<int>(G_FLOAT(OFS_RETURN));
+        size_t used = 0;
+        for(int k = 0; k < count * 2 && k < 64; k++)
+        {
+            G_FLOAT(OFS_PARM0) = static_cast<float>(k);
+            PR_ExecuteProgram(modelOf);
+            const char* name = PR_GetString(G_INT(OFS_RETURN));
+            const size_t length = strlen(name);
+            if(length && used + length + 2 < sizeof(list))
+            {
+                list[used++] = ' ';
+                memcpy(list + used, name, length + 1);
+                used += length;
+            }
+        }
+    }
+    if(vr_debug_box3d.value)
+    {
+        Con_Printf("box3d: held guns the map can give:%s\n", list);
+    }
+    za::Vector<GunPrepWork> work;
+    for(const char* p = list; *p;)
+    {
+        while(*p == ' ')
+        {
+            p++;
+        }
+        const char* end = p;
+        while(*end && *end != ' ')
+        {
+            end++;
+        }
+        char name[MAX_QPATH];
+        const size_t n = za::min(static_cast<size_t>(end - p), sizeof(name) - 1);
+        memcpy(name, p, n);
+        name[n] = 0;
+        p = end;
+        qmodel_t* model = nullptr;
+        for(int i = 1; n && i < MAX_MODELS && sv.models[i]; i++)
+        {
+            if(!strcmp(sv.models[i]->name, name))
+            {
+                model = sv.models[i];
+                break;
+            }
+        }
+        if(!model || model->type != mod_alias)
+        {
+            continue;
+        }
+        const PropHullKey key{model, -2, {}};
+        const bool made = za::anyOf(gunShapes.entries.begin(), gunShapes.entries.end(),
+            [&](const GunShapeCache::Entry& e) { return e.key == key && e.most == most; });
+        const bool queued = za::anyOf(work.begin(), work.end(), [&](const GunPrepWork& w) { return w.model == model; });
+        if(made || queued)
+        {
+            continue;
+        }
+        GunPrepWork one;
+        one.model = model;
+        if(held::modelTriangles(model, false, one.triangles)) // (the main thread: it reads the model's cache)
+        {
+            work.pushBack(ZA_MOVE(one));
+        }
+    }
+    if(work.empty())
+    {
+        return;
+    }
+    convex::Settings settings;
+    settings.maxPieces = most;
+    const auto cutOne = [&](za::SizeT i) {
+        work[i].fromDisk = cutGun(work[i].triangles, settings, work[i].pieces, work[i].report, work[i].model->name);
+    };
+    if(vr_gun_pieces_cache.value >= 2.f) // (Check: it prints on a difference)
+    {
+        for(za::SizeT i = 0; i < work.size(); i++)
+        {
+            cutOne(i);
+        }
+    }
+    else
+    {
+        jobs::parallelFor(gunPrepSite, work.size(), 1, [&](za::SizeT begin, za::SizeT end) {
+            for(za::SizeT i = begin; i < end; i++)
+            {
+                cutOne(i);
+            }
+        });
+    }
+    int read = 0;
+    for(GunPrepWork& w : work)
+    {
+        GunShapeCache::Entry entry{PropHullKey{w.model, -2, {}}, most, static_cast<int>(gunShapes.pieceEnds.size()), 0, {}};
+        for(const convex::Piece& piece : w.pieces)
+        {
+            gunShapes.points.emplaceBackRange(piece.points.data(), piece.points.size());
+            gunShapes.pieceEnds.pushBack(static_cast<int>(gunShapes.points.size()));
+        }
+        entry.pieces = static_cast<int>(w.pieces.size());
+        entry.report = w.report;
+        gunShapes.entries.pushBack(entry);
+        read += w.fromDisk ? 1 : 0;
+    }
+    const double ms = (Sys_DoubleTime() - t0) * 1000.0;
+    VR_TimeAdd("box3d: the map's held guns' pieces (prepareHeldGuns)", ms / 1000.0); // load timing (vr_startup_times)
+    Con_DPrintf("box3d: %d held guns' pieces ready in %.1f ms (%d read from the disk, %d cut):%s\n",
+        static_cast<int>(work.size()), ms, read, static_cast<int>(work.size()) - read, list);
 }
 
 // QC's VR_Knockdown_MakeRoom for `ent` (a ragdoll retired, a knockdown ended): whether a ragdoll may be made now. Its
@@ -8003,6 +8170,13 @@ void syncEntities(float dt)
     }
     watchCorpses();
     settleCorpses();
+    if(const int loadout = heldLoadout(); !world->gunsPrepared || loadout != world->gunsLoadout)
+    {
+        // (The player's hands and holsters are filled as it enters the map, after this first frame: made again then.)
+        world->gunsPrepared = true;
+        world->gunsLoadout = loadout;
+        prepareHeldGuns();
+    }
     if(vr_ragdoll.value >= 1.f && !world->ragdollsWarmed)
     {
         // The rigs made now (tens of milliseconds each, as the map starts), not as the first grunt dies.
@@ -11974,7 +12148,7 @@ void gunPiecesCacheStats_f()
     const GunPiecesDisk& d = gunPiecesDisk;
     Con_Printf("vr_gun_pieces_cache %g: %d guns' pieces read from the disk, %d cut, %d files written; checked %d, %d "
                "differed\n",
-        vr_gun_pieces_cache.value, d.read, d.cut, d.written, d.checked, d.differed);
+        vr_gun_pieces_cache.value, d.read.load(), d.cut.load(), d.written.load(), d.checked.load(), d.differed.load());
 }
 
 void registerCommands()
@@ -12138,7 +12312,7 @@ namespace qvr::box3d
 
 GunPiecesCount gunPiecesCount()
 {
-    return {gunPiecesDisk.read, gunPiecesDisk.cut, gunPiecesDisk.written};
+    return {gunPiecesDisk.read.load(), gunPiecesDisk.cut.load(), gunPiecesDisk.written.load()};
 }
 
 void beforeLoad()

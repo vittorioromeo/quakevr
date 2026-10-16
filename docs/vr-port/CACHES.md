@@ -38,6 +38,10 @@ and occlusion go through the products above), decoded textures (raw RGBA is giga
 look-ahead decodes them on the pool instead, `vr_texture_prefetch`), runtime prop hulls (one per gib size and frame:
 built ahead on the pool, `vr_box3d_hulls_ahead`).
 
+Gun pieces are prepared at a map's load for every weapon the map can give (lying, its monsters' drops, backpacks, the
+player's hands and holsters; `prepareHeldGuns`, QC `vr_gunprep.qc`, `vr_gun_pieces_ahead`), read from the file or cut on
+the pool on a miss, so a first pickup in play is a hit (ROUND22.md, "Held guns' convex pieces at map load").
+
 ## Counts and gaps
 
 `vr_cache_info` (Debug > Profiling and Memory > Cache Info): per product its build's files and size on disk, and this
