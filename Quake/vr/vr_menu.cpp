@@ -1951,6 +1951,13 @@ int campaignsBloodyShown = -1;
             .help("Swimming, the legs trail behind and kick where the stick moves you: how wide (0: no kicks)."),
         slider("Swimming Kick Rate", vr_body_swim_kick_rate, 0.f, 4.f, 0.1f, "+%.1f /s").extend()
             .help("How many more kicks a second at full stick (treading water, about 0.7)."),
+        toggle("Climbing Footholds", vr_body_climb_feet)
+            .help("Climbing, the feet find footholds below you (ledges, rungs, the wall) and step from one to the next as "
+                  "you climb; with none, they hang. Off: they hang as in the air."),
+        slider("Foothold Reach", vr_body_climb_feet_reach, 0.5f, 1.2f, 0.05f, "%.2fx").extend()
+            .help("How far below the hips the feet look for a foothold (1: down to nearly a straight leg)."),
+        slider("Foothold Step Speed", vr_body_climb_feet_speed, 0.3f, 3.f, 0.1f, "%.1fx").extend()
+            .help("How fast a foot steps to a new foothold (1: about a third of a second)."),
         toggle("Show Armour and Wounds", vr_body_state)
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt (with Dynamic Wounds, on the Gore page: where you are hit)."),
         open("Wounds Drip Blood: Gore", pageIndex(pageGore)).help("The wounds' dripping blood is on Gore (Arm Drip Rate)."),
@@ -5377,7 +5384,10 @@ za::Vector<Item> pageDebugViews()
             .help("For each hand near something to carry: the box it is drawn in and the fist tested (its spheres; the nearest "
                   "bright). Logged: each grab and held prop's placing printed, carry_trace.txt written, and held props meeting each "
                   "other, a weapon or a wall; also far fists: hands not near anything too."),
-        cycle("Show Body Skeleton", vr_body_debug, {{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
+        cycle("Climbing Footholds Debug", vr_debug_climb_feet, {{0.f, "Off"}, {1.f, "Log Holds"}, {2.f, "Log Each Frame"}, {3.f, "Logged and Drawn"}})
+            .help("Climbing, prints each foothold a foot finds (climbfoot: where, what, how many traces); each frame's feet "
+                  "(climbfeet: planted or stepping, their slip, any in a wall); drawn: each foot's hold and the search."),
+        cycle("Show Body Skeleton", vr_body_debug,{{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
             .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
                   "its pose and calibration without a mirror)."),
         cycle("Preview Crouch", vr_body_crouch_preview,

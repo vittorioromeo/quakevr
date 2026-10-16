@@ -1232,6 +1232,9 @@ QVR_CVAR(vr_body_wade, "1", CVAR_ARCHIVE)             // wading, the legs walk h
 QVR_CVAR(vr_body_swim_kick, "1", CVAR_ARCHIVE)        // swimming, how wide the legs kick (0: they only trail behind; up to 2)
 QVR_CVAR(vr_body_swim_kick_rate, "1.5", CVAR_ARCHIVE) // and how many more kicks a second at full stick (0.7 treading water)
 QVR_CVAR(vr_body_turn_step, "40", CVAR_ARCHIVE)       // degrees the body turns over its planted feet before they step round
+QVR_CVAR(vr_body_climb_feet, "1", CVAR_ARCHIVE)       // climbing (a hand on a hold), the feet find footholds (ledges, rungs, the wall) and step between them; 0: they hang
+QVR_CVAR(vr_body_climb_feet_reach, "1", CVAR_ARCHIVE) // how far below the hips they look for one, times the default (0.5 .. 1.2)
+QVR_CVAR(vr_body_climb_feet_speed, "1", CVAR_ARCHIVE) // how fast a foot steps to a new hold, times the default (a 0.35 s step; 0.3 .. 3)
 QVR_CVAR(vr_body_state, "1", CVAR_ARCHIVE)            // the body shows the armour worn and, bloodier, the damage taken
 QVR_CVAR(vr_body_powerups, "1", CVAR_ARCHIVE)         // and the powerups: quad damage's glow or arcs, pentagram glow, ring translucency, biosuit tint
 // Quad Damage on you (vr_view.cpp quadGlow): 0 Quake's electric arcs over the hands and forearms (the look of being
@@ -1294,7 +1297,8 @@ QVR_CVAR(vr_gore_mist_dark, "0.4", CVAR_ARCHIVE)      // how dark their red is (
 QVR_CVAR(vr_gore_mist_near, "40", CVAR_ARCHIVE)       // none closer to the eyes than this many units (your own bleeding not in your face)
 QVR_CVAR(vr_corpse_dying, "1", CVAR_ARCHIVE)          // a monster dying takes a corpse's damage during its death animation (QC combat.qc: gibbed by it, never killed again)
 QVR_CVAR(vr_body_anchors, "1", CVAR_ARCHIVE)          // holsters, virtual stock and hand collisions follow the body's lean and crouch
-QVR_CVAR(vr_body_debug, "0", CVAR_NONE)               // 1 draw the skeleton; 2, 3 also show the body in front of you, facing you or from its left
+QVR_CVAR(vr_debug_climb_feet, "0", CVAR_NONE)         // 1 print each foothold the climbing feet find (climbfoot), 2 also each frame's feet (climbfeet), 3 draw them
+QVR_CVAR(vr_body_debug, "0", CVAR_NONE)              // 1 draw the skeleton; 2, 3 also show the body in front of you, facing you or from its left
 QVR_CVAR(vr_body_eye_forward, "0.08", CVAR_ARCHIVE)   // metres from the top of the neck to the eyes, forward and up
 QVR_CVAR(vr_body_eye_up, "0.08", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_crouch_tilt, "25", CVAR_ARCHIVE)    // degrees the back tilts forward in a full crouch

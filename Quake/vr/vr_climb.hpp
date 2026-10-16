@@ -33,6 +33,10 @@ bool grunt(edict_t* ent, float choice, float volume);
 // (a weapon's second grip, a hotspot).
 [[nodiscard]] bool holding(int hand);
 
+// Client: where `hand` holds now (the server's hold on the lip, STAT_QVR_CLIMB*, without the drawn hand's offsets) and
+// the way out from its face (horizontal). False: it holds nothing. (vr_avatar.cpp: the feet's holds while climbing.)
+bool heldAt(int hand, glm::vec3& at, glm::vec3& out);
+
 // Server: whether `ent`'s hand `hand` (0 off, 1 main) is empty (no weapon, carried thing, force grab, flashlight) and its
 // grip there is not for a holster or a pouch (one that would draw or take something): free to hold on to something else
 // (an enemy: vr_foegrab.cpp).
