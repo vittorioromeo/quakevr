@@ -33,6 +33,7 @@
 //   half a step is far below their tolerances.
 
 #include "vr_mdldequant.hpp"
+#include "vr_jobs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
@@ -770,6 +771,11 @@ int solve(Solve& s, int n, bool loop, float box = halfStep, float tol = toleranc
 // Every pose's offsets (numposes x numverts packed; zero where a run is too short to smooth), then every pose's normals
 // (numposes x numverts packed as the buffer holds them: the stored one where nothing is smoothed), along `model`'s runs
 // (null: without the progs' loops).
+void solveVertex(const aliashdr_t* hdr, const trivertx_t* verts, const za::Vector<Run>& runs, int vert, Solve& s,
+    unsigned* out, unsigned* normals, long* sweeps, long* solves);
+
+jobs::Site computeSite{"mdl dequant"}; // (its parallelFor: vr_jobs_sites)
+
 void compute(const aliashdr_t* hdr, const char* model, unsigned* out, long* sweeps = nullptr, long* solves = nullptr)
 // (sweeps, solves: positions' [0] and normals' [1] counted)
 {
@@ -784,24 +790,37 @@ void compute(const aliashdr_t* hdr, const char* model, unsigned* out, long* swee
     }
     buildQcLoops();
     const za::Vector<Run> runs = runsOf(hdr, model);
-    Solve s;
     int longest = 0;
     for(const Run& r : runs)
     {
         longest = za::max(longest, r.count);
     }
-    for(za::Vector<float>* b : {&s.v, &s.x, &s.y, &s.g, &s.d, &s.next})
-    {
-        b->resize(static_cast<size_t>(longest));
-    }
-    s.n.resize(static_cast<size_t>(longest) * 3);
+    // Each vertex is solved on its own (its runs in order, as before): the vertices split between the pool's threads,
+    // each chunk with its own scratch. The same results; the counts (vr_mdl_dequant_check) on the caller alone.
+    jobs::parallelFor(computeSite, static_cast<za::SizeT>(hdr->numverts), 32, [&](za::SizeT begin, za::SizeT end) {
+        Solve s;
+        for(za::Vector<float>* b : {&s.v, &s.x, &s.y, &s.g, &s.d, &s.next})
+        {
+            b->resize(static_cast<size_t>(longest));
+        }
+        s.n.resize(static_cast<size_t>(longest) * 3);
+        for(int vert = static_cast<int>(begin); vert < static_cast<int>(end); vert++)
+        {
+            solveVertex(hdr, verts, runs, vert, s, out, normals, sweeps, solves);
+        }
+    }, sweeps == nullptr);
+}
+
+// compute's work for one vertex: its positions' and normals' paths along each run, in the runs' order.
+void solveVertex(const aliashdr_t* hdr, const trivertx_t* verts, const za::Vector<Run>& runs, int vert, Solve& s,
+    unsigned* out, unsigned* normals, long* sweeps, long* solves)
+{
     for(const Run& r : runs)
     {
         if(r.count < 3)
         {
             continue;
         }
-        for(int vert = 0; vert < hdr->numverts; vert++)
         {
             for(int axis = 0; axis < 3; axis++)
             {
