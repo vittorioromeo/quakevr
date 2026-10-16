@@ -9021,3 +9021,51 @@ hangs with the head leant in, held 30 s).
 For his VR check: climb a wall, a ladder (AD's too) and a ledge and look down; the body now hangs under the head while
 climbing (say if he prefers the old lean); Foothold Reach and Step Speed. Open: rungs further out than a leg (a ladder
 standing off a wall) leave the feet hanging.
+
+## QC cleanup: the R2 review's FIX-NOW items (worktree `goreflesh`, branch `agent/qcclean`, 2026-10-16)
+
+No behaviour change intended anywhere; one commit per item. QC still compiles with 0 warnings.
+
+- **QC/ad matches its importer again.** `Misc/quakevr/ad_import.py` now makes every hand edit QC/ad had collected:
+  the melee arc (`ARC_HITS`: 22 `ai_checkmelee` tests behind `VR_MeleeArc_Hits`; the 21 `th_melee` launches in
+  ai_checkattack.qc behind `VR_MeleeArc_Launch`; the turns held in ai_charge*, Demon_Claw, drole_claw, mino_claw,
+  seek_punch), the melee space (`vr_melee_time`, `VR_MeleeSpace_Step` in ai_charge*/ai_melee*), the AD guns' effects
+  (electric bolts' crackle, shock and FLYMISSILE; the pyro's flames, its poison with the attacker credited) and the
+  toolgun's live torches (`vr_spawn_live`), as `FUNC_PATCHES`/`PATCHES`; the Quake VR names they call are listed in
+  `QVR_NAMES` (never renamed). New `--check [DIR]` writes to `scratch/ad_check` and diffs against QC/ad and progs.src
+  (ARCANE_DIMENSIONS.md 14 says to run it before committing a QC/ad change). The Steam AD 1.80p1 folder holds the
+  pinned paks: QC/ad regenerated from it, `--check` says 0 of 142 files differ, progs.dat byte-identical (the only
+  text change: `VR_MeleeArc_Hits(FALSE)` reads AD's `ad_FALSE`, both 0). `// AD support` marker added at
+  vr_gunprep.qc's AD gun row.
+- **Test impulses** (weapons.qc `ImpulseCommands`): the 42 single-player test impulses moved into
+  `float() VR_TestImpulse` (new `QC/vr_impulse_test.qc`), called first under one `!deathmatch && !coop`; TRUE where a
+  block returned before. The debug prints that worked in coop and deathmatch (208, 213, 218, 228, 239, 253) and the
+  150..189 weapon impulses (off in deathmatch only) stay where they were.
+- **Test harness out of feature files** (pure moves, 4.2k lines, each new file in progs.src right after its feature
+  file; the tests' globals stay with the feature): `vr_decap_test.qc` (708 lines), `weapons_test.qc` (635),
+  `vr_ad_enemyguns_test.qc` (534), `vr_axestick_test.qc` (358), `vr_hotblade_test.qc` (307), `vr_burning_test.qc`
+  (226), `vr_ragimpact_test.qc` (186), `vr_knockdown_test.qc` (171), `vr_walltorch_test.qc` (129),
+  `vr_mg_activation_test.qc` (128), `vr_ad_bridge_test.qc` (122), `vr_hitreact_test.qc`, `vr_hitstagger_test.qc`,
+  `vr_grapple_test.qc`, `combat_test.qc`, `vr_dummy_test.qc`, `vr_shock_test.qc`, `vr_crates_test.qc`,
+  `vr_enemyshove_test.qc`, `buttons_test.qc`. Left in place (under 35 lines each): rogue_buzzsaw, vr_wpnforcegrab,
+  vr_melee, vr_teeth, vr_ad_stealth's test hooks.
+- **Campaign numbers named**: `VR_CAMPAIGN_DOPA/MG1/MG3` (3/4/5, vr_packutil.qc), `Dopa_Campaign()`; the 11 raw
+  `cvar("vr_campaign")` reads in client, items, honey_items, vr_ammoutil, vr_mg_hub, vr_mg_triggers use the predicates.
+- **MG branches out of id code**: `SUB_KillTarget` (Honey_KillTarget / `MG_KillTarget` in vr_mg_activation.qc),
+  `MG_MonsterStartPaused()` (monsters.qc's three starts), `MG_ExplicitMoveDir()` (doors, buttons, SetMovedir),
+  `MG3_DamageFilter` (vr_mg3_defs.qc; FALSE: no damage, else `mg3_damage`, so a Bloody Nightmare's 0 is still dealt).
+- **Small ones**: `VR_Decap_Damage(targ, inflictor, attacker, damage, pop)` at the 5 sites where T_Damage and
+  VR_Decap_After were adjacent (enforcer laser, carry, crates, multi-damage, thrown weapon; the bolt, enemy gun and
+  Quad sites keep work between the two, left as they were); `VR_Decap_Thrown(Arm)` renamed
+  `VR_Dismember_Thrown(Arm)`; `VR_Limb_IsZombie` at the two zombie-or-mummy sites (vr_decap.qc's own head-only
+  zombie-or-mummy rule left: it excludes AD zombies); the 7 `damage_weapon = IT_AXE` through
+  `VR_DamageCredit_SetWeapon` (axe, sword, chainsaw x2, crowbar, Super Axe, the decap test's saw); one
+  `CreateThrownWeapon` call for both throw modes; 5 dead cvar handles and 5 dead vr_util getters removed.
+- **Throw helpers** (no merge): `VR_Throw_Gravity()`, `VR_Throw_GravityScale()`, `VR_Throw_DmgSpeed()` (weapons.qc),
+  used by the weapon throw and `VR_Carry_Throw`; same values.
+
+Verified: build (engine + QC, 0 warnings) after each item; melee eval 168/177 with the same three known differences
+(parry bash damage halved), its output identical to the base progs' run; limbs, ragimpact, judo and toolgun spawnall
+tests against the base progs: the same results within run-to-run noise (limbs: base against base differs by as much;
+ragimpact 4 FAILS now, 5 in the base run; judo 0 FAILS; spawnall 115 spawned, 0 failed). AD's own tests not run: no
+AD data in the kit base (the importer's `--check` and the byte-identical progs.dat cover item 1).

@@ -356,7 +356,7 @@ float(entity e, entity by) VR_AD_NeckSnapKilled =
     {
         return FALSE;
     }
-    if(VR_Decap_IsZombie(e) || e.classname == "monster_mummy")
+    if(VR_Limb_IsZombie(e))
     {
         VR_AD_ZombieKilled(e, by);
     }

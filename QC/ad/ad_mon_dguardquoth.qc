@@ -139,7 +139,7 @@ void() ad_dguardq_meleesmash =
 	ad_ai_damagebreakable(ad_melee_dmg * 3);
 	
 	// Check range and can damage? (bleed)
-	if ((ad_ai_checkmelee(ad_MONAI_MELEEDGUARDQ,ad_FALSE) && VR_MeleeArc_Hits(FALSE)) && ad_CanDamage (self.enemy, self)) { // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if ((ad_ai_checkmelee(ad_MONAI_MELEEDGUARDQ,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE)) && ad_CanDamage (self.enemy, self)) { // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 		// If the enemy health is less than the melee damage, gib them
 		if (self.enemy.health < ad_melee_dmg) ad_melee_dmg = ad_melee_dmg * 3;
 		ad_T_Damage (self.enemy, self, self, ad_melee_dmg, ad_DAMARMOR);

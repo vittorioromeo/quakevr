@@ -9,6 +9,11 @@ SHA-256 below, so the output is reproducible. AD's QC is GPL-2.0-or-later (its r
 AD's headers and credits; AD's assets are never copied.
 
     python Misc/quakevr/ad_import.py --verify-frames   (after a build: AD's frame numbers vs AD's own progs.dat)
+    python Misc/quakevr/ad_import.py --check [DIR]     (writes to DIR, default scratch/ad_check, not QC/ad; diffs
+                                                        it against QC/ad and progs.src; exit 1 on any difference)
+
+Before committing any change under QC/ad: make it here (PATCHES, FUNC_PATCHES or a hook in main), regenerate, and
+run --check (it must say 0 files differ). A hand edit in QC/ad is lost on the next import.
 
 What it writes (QC/ad/, regenerated whole; never edit by hand, change this script):
   ad_builtins.qc   the extension builtins AD declares that Quake VR's QC does not: "#0", bound by name by the
@@ -41,6 +46,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 QC_DIR = os.path.join(ROOT, "QC")
 OUT_DIR = os.path.join(QC_DIR, "ad")
+WRITE_DIR = OUT_DIR  # where the files go: QC/ad, or --check's folder
 
 # ad_v1_80p1final.zip (SHA-256 7ad993da6c760c446ca31fad71e9f5b6c9eee99b6354f161aa746b572fe70a7d), unpacked.
 PINNED = {
@@ -252,6 +258,126 @@ FUNC_PATCHES = [
      "\t\tgibitem.think = RemoveGib;\n\t\tVR_AD_GibThrown(gibitem, gib_no);\n",
      B + ": its gibs and head Quake VR's props (grabbed, rigid bodies, burst by damage)"),
 ]
+
+# Quake VR's own features on AD's code (not bridge functions): the names they call are Quake VR's (QVR_NAMES, kept as
+# written; AD's own names in the replacements are renamed as usual, so FALSE reads ad_FALSE).
+Q = "Quake VR"
+QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeArc_Launch", "VR_MeleeArc_TurnBegin", "VR_MeleeArc_TurnEnd",
+             "VR_MeleeSpace_Step", "vr_melee_time", "vr_spawn_live", "VR_ADGun_IsElectric", "VR_ADGun_BoltFx",
+             "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison"}
+_STAMP = "\tself.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)\n"
+_STEP = " // QVR: (VR_MeleeSpace_Step: fight.qc)"
+_FACE = "VR_MeleeArc_TurnBegin(); %s VR_MeleeArc_TurnEnd(); // AD support: melee arc: the swing's turn held (fight.qc)"
+_ARC = Q + ": melee arc (fight.qc): the swing's turn held, its hits only in front"
+_SPACE = Q + ": melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head"
+FUNC_PATCHES += [
+    # Melee arc and melee space (fight.qc): AD's charges and swings as id's monsters'.
+    # (A function body ends before the "\n};": a patch at its end has no trailing newline.)
+    ("ai_subs.qc", "ai_charge", "\tai_face ();\n\tmovetogoal (dist);",
+     _STAMP + "\tVR_MeleeArc_TurnBegin(); // AD support: melee arc: the swing's turn held, ai_face's and movetogoal's "
+     "step's (fight.qc)\n\tai_face ();\n\tlocal vector before = self.origin;" + _STEP + "\n\tmovetogoal (dist);\n"
+     "\tVR_MeleeArc_TurnEnd(); // AD support: (melee arc)\n\tVR_MeleeSpace_Step(before);", _ARC),
+    ("ai_subs.qc", "ai_chargenoturn", "\tmovetogoal (dist);",
+     _STAMP + "\tlocal vector before = self.origin;\n\tVR_MeleeArc_TurnBegin(); // AD support: melee arc: movetogoal's "
+     "step turns it too (fight.qc)\n\tmovetogoal (dist);\n\tVR_MeleeArc_TurnEnd(); // AD support: (melee arc)\n"
+     "\tVR_MeleeSpace_Step(before);", _ARC),
+    ("ai_subs.qc", "ai_charge_side", "\n\tlocal\tvector\tdtemp;\n", "\n" + _STAMP + "\tlocal\tvector\tdtemp;\n", _SPACE),
+    ("ai_subs.qc", "ai_charge_side", "\tChangeYaw ();\n", "\t" + _FACE % "ChangeYaw ();" + "\n", _ARC),
+    ("ai_subs.qc", "ai_charge_side", "\twalkmove(heading, 20);",
+     "\tdtemp = self.origin;" + _STEP + "\n\twalkmove(heading, 20);\n\tVR_MeleeSpace_Step(dtemp);", _SPACE),
+    ("ai_subs.qc", "ai_charge_front", "\n\tlocal\tfloat\theading;\n", "\n" + _STAMP + "\tlocal\tfloat\theading;\n", _SPACE),
+    ("ai_subs.qc", "ai_charge_front", "\tai_face();", "\t" + _FACE % "ai_face();", _ARC),
+    ("ai_subs.qc", "ai_charge_front", "\twalkmove(heading, 10);",
+     "\tlocal vector before = self.origin;" + _STEP + "\n\twalkmove(heading, 10);\n\tVR_MeleeSpace_Step(before);",
+     _SPACE),
+    ("ai_subs.qc", "ai_melee", "\n\tlocal float ldmg;\n", "\n" + _STAMP + "\tlocal float ldmg;\n", _SPACE),
+    ("ai_subs.qc", "ai_meleesmash", "\n\tlocal float ldmg;\n", "\n" + _STAMP + "\tlocal float ldmg;\n", _SPACE),
+] + [
+    (fn, func, "\tai_face ();", "\t" + _FACE % "ai_face ();", _ARC)
+    for fn, func in (("mon_demon.qc", "Demon_Claw"), ("mon_drole.qc", "drole_claw"), ("mon_minotaur.qc", "mino_claw"),
+                     ("mon_seeker.qc", "seek_punch"))
+] + [
+    # The AD guns' effects (vr_ad_enemyguns.qc): the monsters' electric bolts and the pyro's flames as the player's.
+    ("ai_projectiles.qc", "Touch_PlasmaProjectile", "\t\n\t// Default damage for plasma",
+     "\t// Quake VR: an electric bolt's hit crackles (vr_ad_enemyguns.qc, as the player's with the dropped gun)\n"
+     "\tif (VR_ADGun_IsElectric(self)) VR_ADGun_BoltFx(self.origin, self.velocity, TRUE);\n\n"
+     "\t// Default damage for plasma", Q + ": an electric bolt's hit crackles"),
+    ("ai_projectiles.qc", "Touch_PlasmaProjectile",
+     "\t\tif (self.dmg > 0) T_Damage (other, self, self.owner, self.dmg, DAMARMOR);\n",
+     "\t\ttself = other; org = self.origin; dir = normalize(self.velocity); vec_x = other.health > 0;\n"
+     "\t\tif (self.dmg > 0) T_Damage (other, self, self.owner, self.dmg, DAMARMOR);\n"
+     "\t\t// Quake VR: the soldiers', eliminators' and centurions' electric bolts electrocute (as the player's: "
+     "vr_ad_enemyguns.qc)\n"
+     "\t\tif (VR_ADGun_IsElectric(self)) VR_ADGun_BoltShock(tself, vec_x, org, dir);\n",
+     Q + ": an electric bolt electrocutes"),
+    ("ai_projectiles.qc", "launch_plasma", "\t\tnewmis.frame = 0;\t\t\t\t\t\t// Start really small\n\t}\n",
+     "\t\tnewmis.frame = 0;\t\t\t\t\t\t// Start really small\n\t}\n"
+     "\t// Quake VR: an electric bolt's muzzle crackles (vr_ad_enemyguns.qc: the monsters' and the player's with their "
+     "guns)\n\t// and it strikes bodies too (a missile's move: corpses are only touchable by missiles), to electrocute "
+     "them\n\tif (VR_ADGun_IsElectric(newmis)) {\n\t\tVR_ADGun_BoltFx(org, dir, FALSE);\n"
+     "\t\tnewmis.movetype = MOVETYPE_FLYMISSILE;\n\t}\n", Q + ": an electric bolt's muzzle crackles, it strikes bodies"),
+    ("mon_pyro.qc", "pyroflame_touch", "\t\telse T_Damage (other, self, self, DAMAGE_MONFLAME, DAMARMOR);\n",
+     "\t\telse {\n\t\t\tT_Damage (other, self, self, DAMAGE_MONFLAME, DAMARMOR);\n"
+     "\t\t\t// Quake VR: poisoned for a while too, its green puffs (vr_ad_enemyguns.qc: the poison sprayer's, as the "
+     "player's)\n\t\t\tif (other.flags & FL_MONSTER) VR_ADGun_Poison(other, self, self.owner, "
+     "cvar(\"vr_adgun_fumigator_poison\"), cvar(\"vr_adgun_fumigator_poisontime\"));\n\t\t}\n",
+     Q + ": the pyro's flames poison monsters too (the attacker credited: vr_dmgcredit.qc)"),
+    ("mon_pyro.qc", "pyroflame_spawn", "\tnewmis.touch = pyroflame_touch;",
+     "\tnewmis.touch = pyroflame_touch;\n"
+     "\t// Quake VR: see-through, our fire with it, its muzzle's fire and smoke (vr_ad_enemyguns.qc: as the player's)\n"
+     "\tVR_ADGun_StreamFx(newmis, self.classtype != CT_MONPYRO);\n"
+     "\tVR_ADGun_StreamMuzzle(org, dir, self.classtype != CT_MONPYRO, pointcontents(org) <= CONTENT_WATER);",
+     Q + ": the pyro's flames look like the player's"),
+    # The toolgun's live wall torches (vr_walltorch.qc, vr_spawn_live).
+    ("lights.qc", "setup_light_sound", "\t\tif (self.targetname) {",
+     "\t\tif (self.targetname || vr_spawn_live) { // QVR: made live (the toolgun): no ambient sound reaches the game",
+     Q + ": a torch made live by the toolgun keeps its sound"),
+    ("lights.qc", "setup_light_static", "\tif (self.mdl) setmodel (self, self.mdl);\n",
+     "\tif (self.mdl) setmodel (self, self.mdl);\n\t// QVR: made live (the toolgun): a static entity would never reach "
+     "the game (vr_walltorch.qc, vr_spawn_live)\n\tif (vr_spawn_live) return;\n",
+     Q + ": a torch made live by the toolgun is not made static"),
+]
+# pyroflame_think ends "}" (no ";"), so its body is not one func_patch can find: a file patch, count-checked.
+PATCHES += [
+    ("mon_pyro.qc", "\t\tself.velocity = self.velocity - (self.movedir * 0.125);\n\t\tself.nextthink = time + 0.1;\n",
+     "\t\tself.velocity = self.velocity - (self.movedir * 0.125);\n\t\tself.nextthink = time + 0.1;\n"
+     "\t\tVR_ADGun_StreamFx(self, self.owner.classtype != CT_MONPYRO); // Quake VR: our fire with it "
+     "(vr_ad_enemyguns.qc)\n", 1, Q + ": the pyro's flames look like the player's"),
+]
+# Melee arc (fight.qc VR_MeleeArc_Hits): a swing hits only what is in front (side swings: either side). (file, the exact
+# text of the line's test, the side argument): ai_checkmelee(...) there becomes (ai_checkmelee(...) &&
+# VR_MeleeArc_Hits(side)) and the line gets the marker. Each must be on exactly one line of its file.
+ARC_HITS = [
+    ("ai_subs.qc", "if (!ai_checkmelee(MONAI_MELEEFRONT,FALSE))", "FALSE"),
+    ("ai_subs.qc", "if (!ai_checkmelee(self.meleerange, MONAI_MELEEZTALL))", "FALSE"),
+    ("ai_subs.qc", "if (!ai_checkmelee(MONAI_MELEESIDE,FALSE))", "FALSE"),
+    ("mon_demon.qc", "if (!ai_checkmelee(MONAI_MELEEDEMON,FALSE) ||", "FALSE"),
+    ("mon_dguardquoth.qc", "if (ai_checkmelee(MONAI_MELEEDGUARDQ,FALSE) && CanDamage", "FALSE"),
+    ("mon_drole.qc", "if (!ai_checkmelee(MONAI_MELEEDROLE1,MONAI_MELEEZTALL)", "side != 0"),
+    ("mon_freddie.qc", "if (!ai_checkmelee(self.meleerange, MONAI_MELEEZTALL))", "side != 0"),
+    ("mon_minotaur.qc", "if (!ai_checkmelee(MONAI_MELEEMINOTAUR, MONAI_MELEEZTALL) ||", "side != 0"),
+    ("mon_ogre.qc", "if (!ai_checkmelee(self.meleerange,FALSE))", "TRUE"),
+    ("mon_seeker.qc", "if (!ai_checkmelee(MONAI_MELEESEEKER, MONAI_MELEEZTALL))", "FALSE"),
+    ("mon_shambler.qc", "if (!ai_checkmelee(MONAI_MELEESHAM, MONAI_MELEEZTALL))", "side != 0"),
+] + [
+    ("mon_%s.qc" % fn, "if (!ai_checkmelee(MONAI_MELEE%s,FALSE))" % const, "FALSE")
+    for fn, const in (("dog", "DOG"), ("fish", "FISH"), ("lostsoul", "LOSTSOUL"), ("scorpion", "SCORPION"),
+                      ("spider", "SPIDER"), ("steelclaw", "STEELCLAW"), ("swampling", "SWAMPLING"),
+                      ("voreling", "VORELING"), ("xmas_elf", "ELF"), ("xmas_raindeer", "RAINDEER"),
+                      ("xmas_santa", "SANTA"), ("xmas_snowman", "SNOWMAN"))
+]
+ARC_LAUNCHES = 21  # ai_checkattack.qc's `self.th_melee ();` calls, each behind VR_MeleeArc_Launch (it turns first)
+
+
+def line_patch(text, fn, needle, edit, mark, count=1):
+    """Every line of text holding needle: edit(line), right-stripped, plus mark. Exactly count lines."""
+    lines = text.split("\n")
+    hits = [i for i, l in enumerate(lines) if needle in l]
+    if len(hits) != count:
+        sys.exit("ad_import: %s: %r is on %d lines, not %d" % (fn, needle, len(hits), count))
+    for i in hits:
+        lines[i] = edit(lines[i]).rstrip() + mark
+    return "\n".join(lines)
 
 
 def func_patch(text, fn, func, old, new, why):
@@ -610,8 +736,16 @@ def main():
                     help="write Quake/vr/vr_ad_data.inc (the engine's release pin and shadowed-file list) and stop")
     ap.add_argument("--official", default="C:/OHWorkspace/qvr-kit/qbase",
                     help="a Quake folder with id1 (and hipnotic, rogue) paks, for --engine-lists")
+    ap.add_argument("--check", metavar="DIR", nargs="?", const=os.path.join(ROOT, "scratch", "ad_check"),
+                    help="write to DIR (default scratch/ad_check) instead of QC/ad, then diff against QC/ad and "
+                         "progs.src; exit 1 on any difference (run before committing a QC/ad change)")
     args = ap.parse_args()
     rel = args.release
+    if args.check:
+        global WRITE_DIR
+        WRITE_DIR = os.path.abspath(args.check)
+        if os.path.normpath(WRITE_DIR).startswith(os.path.normpath(OUT_DIR)):
+            sys.exit("ad_import: --check's folder must be outside QC/ad")
     for fn, want in PINNED.items():
         got = sha256(os.path.join(rel, fn))
         if got != want:
@@ -631,6 +765,15 @@ def main():
         src[fn] = src[fn].replace(old, new)
     for fn, func, old, new, why in FUNC_PATCHES:
         src[fn] = func_patch(src[fn], fn, func, old, new, why)
+    for fn, needle, side in ARC_HITS:
+        call = re.search(r"ai_checkmelee\([^()]*\)", needle)[0]
+        src[fn] = line_patch(src[fn], fn, needle, lambda l: l.replace(
+            needle, needle.replace(call, "(%s && VR_MeleeArc_Hits(%s))" % (call, side))),
+            " // AD support: melee arc (fight.qc VR_MeleeArc_Hits)")
+    src["ai_checkattack.qc"] = line_patch(
+        src["ai_checkattack.qc"], "ai_checkattack.qc", "self.th_melee ();",
+        lambda l: l.replace("self.th_melee ();", "if (VR_MeleeArc_Launch()) self.th_melee ();"),
+        " // AD support: melee arc: facing away, it turns first (ad_ai_run_melee; fight.qc)", ARC_LAUNCHES)
     resist = src["ai_ammoresist.qc"]
     marker = "float(entity targ, float resist_type, float damage) Resist_Damage =\n{"
     if resist.count(marker) != 1:
@@ -682,6 +825,8 @@ def main():
             order.append(line)
 
     system, our_fields, our_names, our_builtins, our_macros, our_funcs = ours()
+    if QVR_NAMES - our_names:
+        sys.exit("ad_import: the patches call names Quake VR's QC does not define: " + ", ".join(sorted(QVR_NAMES - our_names)))
     our_numbers = {num: n for n, num in our_builtins.items() if num}
     keys = map_keys(rel)
 
@@ -747,7 +892,7 @@ def main():
     keep |= set(shared_fields)
 
     def rename(name):
-        if name in keep or name.startswith("__") or name.startswith(BRIDGE):
+        if name in keep or name.startswith("__") or name.startswith(BRIDGE) or name in QVR_NAMES:
             return name
         m = re.match(r"(\w+)_[xyz]$", name)
         if m and m.group(1) in keep:
@@ -803,7 +948,8 @@ def main():
         text = emit(toks[fn], st, rename, builtin_name=(PREFIX + n if clash else n))
         bi_out.append(text)
 
-    os.makedirs(OUT_DIR, exist_ok=True)
+    OUT = WRITE_DIR
+    os.makedirs(OUT, exist_ok=True)
     banner = ("// Arcane Dimensions 1.80 patch 1 (Simon \"sock\" O'Callaghan and team; GPL-2.0-or-later, see\n"
               "// AD's readme and docs/vr-port/CREDITS.md), %s, generated by Misc/quakevr/ad_import.py: every name\n"
               "// AD defines is prefixed \"ad_\" (ARCANE_DIMENSIONS.md 5.2). Do not edit; change the importer.\n\n")
@@ -818,10 +964,10 @@ def main():
                 drop.update(range(stmts[fn][k][0], stmts[fn][k][-1] + 1))
             body = "".join(render(t, j, rename) for j in range(len(t)) if j not in drop)
         out = "ad_" + fn
-        with open(os.path.join(OUT_DIR, out), "w", encoding="latin1", newline="\n") as f:
+        with open(os.path.join(OUT, out), "w", encoding="latin1", newline="\n") as f:
             f.write(banner % ("my_progs/" + fn) + body)
         written.append(out)
-    with open(os.path.join(OUT_DIR, "ad_builtins.qc"), "w", encoding="latin1", newline="\n") as f:
+    with open(os.path.join(OUT, "ad_builtins.qc"), "w", encoding="latin1", newline="\n") as f:
         # AD as shipped: `if (string)` tests null (F322; the same in AD's own compile) and locals fteqcc can't prove
         # set on every path (F302, reported after the last file is read). Quiet from here on: AD's files are the
         # last in progs.src.
@@ -856,12 +1002,16 @@ def main():
         "Beam temp entities given Quake VR's beam id byte after WriteEntity (mechanical): %d" % beam_ids,
         "Reviewed patches: %d precedence, %d bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):" % (
             sum(1 for p in PATCHES if p[4].startswith(P)), sum(1 for p in PATCHES if p[4].startswith(B))),
-    ] + ["  %s: %s" % (p[0], p[4]) for p in PATCHES if p[4].startswith(B)] + [
-        "  %s %s: %s" % (p[0], p[1], p[4]) for p in FUNC_PATCHES]
+    ] + ["  %s: %s" % (p[0], p[4]) for p in PATCHES if p[4].startswith(B) or p[4].startswith(Q)] + [
+        "  %s %s: %s" % (p[0], p[1], p[4]) for p in FUNC_PATCHES] + [
+        "  %s: %s: melee arc hit test (VR_MeleeArc_Hits(%s))" % (fn, needle, side) for fn, needle, side in ARC_HITS] + [
+        "  ai_checkattack.qc: %d melee launches behind VR_MeleeArc_Launch" % ARC_LAUNCHES]
     report.append("  ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, "
                   "Launch_Missile/Launch_Grenade VR ordnance hooks (function-boundary checked)")
-    with open(os.path.join(OUT_DIR, "AD_IMPORT.txt"), "w", encoding="latin1", newline="\n") as f:
+    with open(os.path.join(OUT, "AD_IMPORT.txt"), "w", encoding="latin1", newline="\n") as f:
         f.write("\n".join(report) + "\n")
+    if WRITE_DIR != OUT_DIR:
+        sys.exit(check())
     print("\n".join(report[:12]))
 
 
@@ -882,8 +1032,29 @@ def update_progs_src(files):
         text = text[:a] + block + text[b:]
     else:
         text = text.rstrip("\r\n") + nl + block + nl
+    if WRITE_DIR != OUT_DIR:  # --check: the list next to the files, compared by check()
+        path = os.path.join(WRITE_DIR, "progs.src")
     with open(path, "w", encoding="latin1", newline="") as f:
         f.write(text)
+
+
+def check():
+    """--check: the files just written to WRITE_DIR against QC/ad (and progs.src); prints a unified diff of each
+    difference, returns the exit code (0 when the tree is exactly what the importer makes)."""
+    import difflib
+    names = sorted(set(os.listdir(WRITE_DIR)) | set(fn for fn in os.listdir(OUT_DIR)))
+    bad = 0
+    for fn in names:
+        ours_path = os.path.join(QC_DIR, fn) if fn == "progs.src" else os.path.join(OUT_DIR, fn)
+        gen_path = os.path.join(WRITE_DIR, fn)
+        a = open(ours_path, encoding="latin1").read().splitlines() if os.path.exists(ours_path) else []
+        b = open(gen_path, encoding="latin1").read().splitlines() if os.path.exists(gen_path) else []
+        if a != b:
+            bad += 1
+            sys.stdout.writelines(l + "\n" for l in difflib.unified_diff(
+                a, b, "tree/" + fn, "importer/" + fn, lineterm="", n=1))
+    print("ad_import --check: %d of %d files differ from the importer's output (%s)" % (bad, len(names), WRITE_DIR))
+    return 1 if bad else 0
 
 
 def render(tokens, j, rename):

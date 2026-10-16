@@ -86,10 +86,6 @@ VR_IMPL_MAKE_VECTOR_GETTER(VRGetMuzzlePos,
                            self.offmuzzlepos,
                            self.muzzlepos);
 
-VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandVelMag,
-                          self.offhandvelmag,
-                          self.handvelmag);
-
 // Where a hand's shots, projectiles and beams go: its aim turned by the weapon's Shot Pitch and Yaw (the client's
 // weapons::shotAngles). The hand's aim for a player the engine gives none (a bot: its shotrot stays 0 0 0).
 vector(float xHand) VRGetWeaponFireRot =
@@ -438,26 +434,6 @@ inline float(entity ent) VRGetMainHandPrevGrabbingBit =
 inline float(entity ent) VRGet2HAiming =
 {
     return !!(ent.vrbits0 & QVR_VRBITS0_2H_AIMING);
-}
-
-inline float(entity ent) VRGetOffHandReloadingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_OFFHAND_RELOADING);
-}
-
-inline float(entity ent) VRGetMainHandReloadingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_MAINHAND_RELOADING);
-}
-
-inline float(entity ent) VRGetOffHandReloadFlickingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_OFFHAND_RELOADFLICKING);
-}
-
-inline float(entity ent) VRGetMainHandReloadFlickingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_MAINHAND_RELOADFLICKING);
 }
 
 

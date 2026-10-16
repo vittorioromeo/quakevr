@@ -487,7 +487,7 @@ Key doors are allways wait -1.
 void() func_door =
 {
     if(MG_MonsterInhibited()) return;
-    float mgExplicitMove = MG_WorldCampaign() && self.movedir != '0 0 0';
+    float mgExplicitMove = MG_ExplicitMoveDir();
     if((world.worldtype == 0 || world.worldtype == 3))
     {
         precache_sound("doors/medtry.wav");

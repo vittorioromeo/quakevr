@@ -355,8 +355,8 @@ vector vr_decap_src;    // and where from
 void(entity e, float xDamage, vector xAt, vector xDir) VR_Decap_Pellet;
 float(entity targ) VR_Decap_BlastArm;
 float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm;
-float(entity m, entity xAxe) VR_Decap_Thrown;
-float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm;
+float(entity m, entity xAxe) VR_Dismember_Thrown;
+float(entity targ, entity xThing, entity by, float xDamage) VR_Dismember_ThrownArm;
 float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_QuadArm;
 float(entity e) VR_Decap_Roll;
 void() VR_Decap_TestFrame;
@@ -1395,34 +1395,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return FALSE;
     }
 
-    // Dawn of the Machine's Bloody Nightmare: the player's blows 80%, the rest on the player 120% (vr_mg3_defs.qc).
-    if(MG3_Campaign() && (serverflags & MG3_SF_BN_ACTIVE))
-    {
-        damage = MG3_BloodyNightmareDamage(targ, attacker, damage);
-    }
-    // Dawn of the Machine's lava man: 0.8 of anything but the lightning gun and the laser cannon, nothing from Chthon.
-    if(targ.mg3_lavaman)
-    {
-        damage = MG3_LavaManDamage(targ, inflictor, attacker, damage);
-        if(damage <= 0)
-        {
-            return FALSE;
-        }
-    }
-    // Dawn of the Machine's Shub: nothing while she thrashes or dies (vr_mg3_shub.qc; upstream combat.qc's boss_immune).
-    if(targ.mg3_shub_immune)
+    // Dawn of the Machine's damage rules: Bloody Nightmare, lava man, Shub, Chthon (vr_mg3_defs.qc).
+    if(!MG3_DamageFilter(targ, inflictor, attacker, damage))
     {
         return FALSE;
     }
-    // Dawn of the Machine's Chthon (killable): none during his fits or from lava men, 0.8 but lightning and laser.
-    if(targ.mg3_chthon)
-    {
-        damage = MG3_ChthonDamage(targ, inflictor, attacker, damage);
-        if(damage <= 0)
-        {
-            return FALSE;
-        }
-    }
+    damage = mg3_damage;
 
     if(targ.classname == "trigger_explosion")
     {
@@ -2673,85 +2651,3 @@ void(entity attacker, float damage) T_BeamDamage =
 // VR_TestOnly for the length of one test call): world, the nearest as each test finds it. VR_TestKill_Frame,
 // VR_TestHit_Frame, VR_Limb_TestTarget (vr_test_cut) and VR_Knockdown_Test take it instead of their nearest.
 entity vr_test_only;
-void(entity xTarget) VR_TestOnly =
-{
-    vr_test_only = xTarget;
-};
-
-// Whether a test looking for its nearest monster skips `e` (vr_test_only set, and not it).
-float(entity e) VR_TestSkips =
-{
-    return (vr_test_only != world && e != vr_test_only);
-};
-
-// Test aid `vr_test_kill <n>` (console; the active ragdolls' tests, Misc/quakevr/ragdoll/active_test.sh): the live
-// monster nearest the player killed by a shot of his (20 damage on its last point of health), struck (n - 1) on: 0 the body, 1 the head, 2 an arm (its right
-// side as he sees it), 3 a leg, on its side facing him; 5: nowhere known. Prints `test kill:`.
-void() VR_TestKill_Frame =
-{
-    float want = cvar("vr_test_kill");
-    if(want < 1)
-    {
-        return;
-    }
-    cvar_set("vr_test_kill", "0");
-    entity pl = find(world, classname, "player");
-    entity best = world;
-    float bestD = 100000;
-    entity e = nextent(world);
-    while(e)
-    {
-        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e) && !VR_TestSkips(e) &&
-           vlen(e.origin - pl.origin) < bestD)
-        {
-            bestD = vlen(e.origin - pl.origin);
-            best = e;
-        }
-        e = nextent(e);
-    }
-    if(best == world)
-    {
-        dprint("test kill: no live monster\n");
-        return;
-    }
-    float part = want - 1;
-    vector dir = best.origin - pl.origin;
-    dir_z = 0;
-    dir = normalize(dir);
-    vector right = '0 0 0';
-    right_x = dir_y;
-    right_y = 0 - dir_x;
-    float lo = best.absmin_z;
-    float hi = best.absmax_z;
-    vector at = (best.absmin + best.absmax) * 0.5 - dir * ((best.maxs_x - best.mins_x) * 0.35);
-    at_z = lo + (hi - lo) * 0.6;
-    if(part == 1)
-    {
-        at_z = hi - (hi - lo) * 0.08;
-    }
-    else if(part == 2)
-    {
-        at_z = lo + (hi - lo) * 0.62;
-        at = at + right * ((best.maxs_y - best.mins_y) * 0.4);
-    }
-    else if(part == 3)
-    {
-        at_z = lo + (hi - lo) * 0.22;
-    }
-    VR_ClearHitKind();
-    vr_hitpart_target = world;
-    if(part < 4)
-    {
-        VR_SetHitKind(QVR_HITKIND_SHOT, -1, at, dir);
-        vr_hitpart = part;
-        vr_hitpart_target = best;
-        vr_hitpart_time = time;
-        vr_hitpart_pos = at;
-    }
-    dprint(sprintf("test kill: %s at %v struck %g at %v\n", best.classname, best.origin, part, at));
-    // (A shotgun blast's worth on its last point of health: its kill push a real shot's, vr_kill_push.)
-    best.health = 1;
-    T_Damage(best, pl, pl, 20);
-    VR_ClearHitKind();
-    vr_hitpart_target = world;
-};

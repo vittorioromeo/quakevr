@@ -83,7 +83,7 @@ void(float ad_side) ad_Demon_Claw =
 	// Moved the check for melee distance to here with takedamage
 	// If the demon is outside of melee range then need miss swipe sound
 	// same goes for enemies that cannot be damaged (world geo mostly)
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEEDEMON,ad_FALSE) && VR_MeleeArc_Hits(FALSE)) || !self.enemy.takedamage) { // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEEDEMON,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE)) || !self.enemy.takedamage) { // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 		// Melee claw miss sound
 		if (random() < 0.5) sound (self, ad_CHAN_WEAPON, "weapons/sword1a.wav", 1, ad_ATTN_NORM);
 		else sound (self, ad_CHAN_WEAPON, "weapons/sword1b.wav", 1, ad_ATTN_NORM);

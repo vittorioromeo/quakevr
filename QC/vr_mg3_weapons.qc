@@ -129,7 +129,7 @@ float(float xHand, entity xVictim, vector xAt, float xDmg) MG3_SuperAxe_Strike =
     }
 
     xVictim.axhitme = 1;
-    self.damage_weapon = IT_AXE;
+    VR_DamageCredit_SetWeapon(self, WID_SUPERAXE);
     VR_HitBlood(xVictim, xAt, v_forward, xDmg);
     T_Damage_VRMelee(xVictim, self, self, xDmg);
     if(cvar("developer"))

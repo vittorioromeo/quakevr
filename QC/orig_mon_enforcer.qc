@@ -70,11 +70,7 @@ void() Laser_Touch =
         vector dir = normalize(self.velocity);
         VR_TouchTrace(self.origin - dir * 16, self.origin + dir * 16);
         float pop = VR_Decap_LaserArm(other, self.owner, trace_ent == other ? trace_endpos : self.origin, dir, dmg);
-        T_Damage(other, self, self.owner, dmg);
-        if(pop)
-        {
-            VR_Decap_After(other);
-        }
+        VR_Decap_Damage(other, self, self.owner, dmg, pop);
     }
     else
     {

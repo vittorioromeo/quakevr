@@ -183,7 +183,7 @@ void() ad_voreling_melee =
 		
 	ad_ai_charge(10);										// Get closer for extra bite
 	ad_ai_damagebreakable(10);								// Damage any breakables
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEEVORELING,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEEVORELING,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed?
 	if (!self.enemy.takedamage) return;

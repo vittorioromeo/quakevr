@@ -911,14 +911,10 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
     VR_SoundVaried(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
     VR_Blunt_HitLayer(self, CHAN_AUTO, other);
     spawn_touchblood(dmg); // (splinters off a crate: spawn_touchblood)
-    float pop = VR_Decap_ThrownArm(other, self, attacker, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
+    float pop = VR_Dismember_ThrownArm(other, self, attacker, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
     vector flight = self.velocity;
     entity struck = other;
-    T_Damage(other, self, attacker, dmg);
-    if(pop)
-    {
-        VR_Decap_After(other);
-    }
+    VR_Decap_Damage(other, self, attacker, dmg, pop);
     // VR: thrown hard and heavy, it may unbalance a monster as a shove does (vr_hitstagger.qc).
     if(struck.health > 0 && attacker != world)
     {
@@ -935,10 +931,9 @@ void(entity xBox, vector v) VR_Carry_Throw =
     xBox.vr_throw_2h = 0; // (VR_Carry_Release: 1 thrown with both hands)
     dprint("carry: thrown at "); dprint(vtos(v)); dprint(" ("); dprint(ftos(vlen(v))); dprint(" u/s), spin ");
     dprint(vtos(xBox.vr_spin)); dprint("\n");
-    float m2u = VRMetersToUnits();
     if(cvar_hget(cvarh_vr_throw_gravity) > 0 && cvar_hget(cvarh_sv_gravity) > 0)
     {
-        xBox.gravity = cvar_hget(cvarh_vr_throw_gravity) * m2u / cvar_hget(cvarh_sv_gravity);
+        xBox.gravity = VR_Throw_GravityScale();
     }
 
     // Thrown hard it is a missile: it hurts what bleeds (forcegrabbable_touch; an explosive box: VR_Explobox_Impact), not
@@ -946,7 +941,7 @@ void(entity xBox, vector v) VR_Carry_Throw =
     if(vlen(v) > VR_THROW_MISSILE_SPEED * VR_Thrown_Lenient(xBox))
     {
         xBox.throwhit = QVR_THROWHIT_NEVER_HIT;
-        xBox.throwdmgspeed = 700 * m2u / 120;
+        xBox.throwdmgspeed = VR_Throw_DmgSpeed();
         xBox.carry_thrown = time;
         if(xBox.takedamage == DAMAGE_NO)
         {
