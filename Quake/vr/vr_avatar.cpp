@@ -24,6 +24,7 @@
 #include "Zancle/Math/Copysign.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Remainder.hpp"
@@ -1517,7 +1518,7 @@ struct FootHit
     }
     const float planeDepth = CLAMP(0.f, glm::dot(c.holdMid - p0, dir), range); // the holds' lip
     const float depth = face.hit ? face.frac * range : planeDepth;
-    const float maxReach = 0.95f * leg;
+    const float maxReach = 0.97f * leg;
 
     // Tops (the first under the highest a foot goes): just inside what was met, or at the holds' lip if that is nearer (a
     // ladder's or a rung wall's rungs, in front of the wall); then in front of what was met, from the preferred height
@@ -1557,12 +1558,13 @@ struct FootHit
     }
     else if(wall)
     {
-        // At the spacing's nearest height a little lower (the knee less high); out of reach there, at the preferred.
-        const float z = CLAMP(zBot + ankle, za::round((zPref - 4.f) / CLIMB_RUNGS) * CLIMB_RUNGS, zTop);
-        at = glm::vec3{face.pos.x, face.pos.y, z} - dir * toe;
+        // At the spacing's height under the preferred (the knee less high), else the one over it if that is in reach.
+        const float lo = CLAMP(zBot + ankle, za::floor(zPref / CLIMB_RUNGS) * CLIMB_RUNGS, zTop);
+        const float hi = CLAMP(zBot + ankle, lo + CLIMB_RUNGS, zTop);
+        at = glm::vec3{face.pos.x, face.pos.y, lo} - dir * toe;
         if(glm::distance(at, hip) > maxReach)
         {
-            at.z = zPref;
+            at.z = hi;
         }
         kind = 1;
     }
@@ -1572,9 +1574,9 @@ struct FootHit
     }
 
     // The foot out of the face: traced in from behind the heel to past the toes, just over the sole and at the ankle;
-    // met, the foot back that much; starting in something: none.
+    // met, the foot back that much; starting in something: none. (Just over the ankle: a face at a rung's underside.)
     float pull = 0.f;
-    for(const float z : {at.z - ankle + 1.5f, at.z})
+    for(const float z : {at.z - ankle + 1.5f, at.z + 1.5f})
     {
         const glm::vec3 a{at.x, at.y, z};
         const FootHit h = footTrace(a - dir * toe, a + dir * (toe + 1.f));
@@ -1638,7 +1640,13 @@ void updateClimbing(const Body& b, float dt, bool legs)
     c.traces = 0;
     glm::vec3 mid, in;
     const bool on = legs && vr_body_climb_feet.value != 0.f && climbHolds(b, mid, in);
-    c.weight = on ? za::min(1.f, c.weight + dt * 5.f) : za::max(0.f, c.weight - dt * 3.f);
+    // Off: the weight waits while a foot steps out from the face off its hold (the toes clear of the lip first).
+    bool steppingOut = false;
+    for(const ClimbFoot& f : c.feet)
+    {
+        steppingOut = steppingOut || (!f.held && f.step >= 0.f && f.step < 0.3f) || (!on && f.held);
+    }
+    c.weight = on ? za::min(1.f, c.weight + dt * 5.f) : steppingOut ? c.weight : za::max(0.f, c.weight - dt * 3.f);
     if(!on && c.weight <= 0.f)
     {
         for(ClimbFoot& f : c.feet)
