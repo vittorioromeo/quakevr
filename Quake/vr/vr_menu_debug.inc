@@ -1011,6 +1011,9 @@ za::Vector<Item> pageDebugTools()
                   "was hidden since it first showed (a hidden frame printed as it happens). Every Frame: one line a frame."),
         header("Toolgun"),
         command("A Toolgun in Your Hand", "impulse 169").help("impulse 169: the toolgun in the main hand (189: the off hand)."),
+        toggle("Spawn With a Toolgun", vr_debug_spawn_toolgun)
+            .help("vr_debug_spawn_toolgun: each time you spawn (a new level, a respawn), a toolgun in the first empty holster "
+                  "(the hips, the chest, the shoulders; right first) unless you carry one. Weapon Mode Immersive."),
         command("Toolgun Spawn Catalog", "vr_toolgun_spawnlist").help("Lists every AD spawn entry and whether it is available in this map."), // AD support
         command("Trace the Chosen Spawn", "vr_toolgun_spawn_trace")
             .help("vr_toolgun_spawn_trace [entry] [frames]: the spawn panel's choice made ahead of you, its model, scale, "

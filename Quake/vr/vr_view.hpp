@@ -177,6 +177,9 @@ struct WeaponFrame
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).
 [[nodiscard]] entity_t* holsteredWeapon(int stat);
+// Where holster `stat` (body::Holster) itself was drawn last frame, empty or not: its model's origin, the loops a gun
+// hangs in (on the body, not the hand's reach point body::holsterPosition, which stands out of it). False: not placed.
+[[nodiscard]] bool holsterPoint(int stat, glm::vec3& at);
 // A gun drawn as parts in its place: the super shotgun broken open (its frame and barrels, their skin the gun's with rows
 // added under it for the breech plates), the shotgun while its auto pump strokes (the gun without its fore-end and the
 // fore-end, the gun's very skin). The parts drawn this frame in place of the gun entity `gun` (a hand's, a holster's, a

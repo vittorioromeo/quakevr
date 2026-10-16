@@ -8095,6 +8095,41 @@ stretching (the weapon flies home past the return distance anyway).
 In VR: Chain Lanyard: the chain at the grip should hang calm and swing with the hand, never bunch; the stub at the
 empty holster still. Chain Tether: a chain from the hip holster to the gun in your hand (slack), then throw the gun a
 few metres (taut-ish, sagging) and walk away from it with Return Beyond 0.
+
+### Magnetic holsters: land first, the tether at the holster; toolgun spawns (worktree `permdecals`, branch `agent/holsters2`, 2026-10-17)
+
+His notes: a throw should finish, the weapon not called back mid-air (on the ground about a second first, however
+far); the tether the default ("feather" in the transcript: the chain styles are Lanyard, Tether, Both), its origin a
+hand's length out from the holster; rebinding a weapon at another holster must leave one binding; the Debug menu's
+toolgun lands weirdly far; a Debug option to spawn with a toolgun in a holster.
+
+- **Land first** (`vr_magholster_land_time` 1 s, 0 off; Immersion > Weapons and Holsters > Magnetic Holsters > Land
+  First): a bound weapon lying about is eligible for either return (time, distance) only once it has been at rest that
+  long: under 0.3 m/s and on the ground (asleep, or solid within 25 cm below) or stuck by its blade; moving again
+  restarts it. `vr_magholster_return` (All Home) still calls it at once. QC `VR_MagHolster_Resting`, `.vr_mag_rest`.
+- **Tether the default**: `vr_magholster_style` 0 -> 1 (config migration 145: a saved 0 becomes 1).
+- **The chains' end at the holster** (`vr_magholster.cpp`): the holster as drawn (its model's origin, the loops a gun
+  hangs in: `view::holsterPoint`, recorded in `holsterSeen` before the gun's own holstered offset) instead of
+  `body::holsterPositions`, the hand's reach point, which stands 19.3 cm out of it on the hips (11.6 cm on the chest).
+  The flight home still aims at the reach point. `vr_magholster_info` prints both offsets.
+- **Rebinding** was already right (`VR_MagHolster_Press` clears the weapon's id from every other holster): tested.
+- **Debug > Spawn Weapons**: the pickups (`vr_physics_spawn <class> reach`, new) are made in front of your eyes (the
+  head's yaw, not the player's origin and angles, 64 units off them before), 35 cm below them, at least 45 cm ahead and
+  clear of your own box (a prop in it hit you: "throw hit: Toolgun into player"), short of a wall; level, muzzle away
+  (the toolgun lay any way before). It falls to the floor there.
+- **Spawn With a Toolgun** (`vr_debug_spawn_toolgun` 0, archived; Debug > Toolgun): each spawn (a new level, a
+  respawn), a toolgun in the first empty holster (hips, chest, shoulders; right first) unless one is carried. Weapon Mode
+  Immersive. QC `VR_Toolgun_SpawnInHolster` (end of `PutClientInServer`).
+
+Test: `Misc/quakevr/holsters2_test.sh <agent> [land noland rebind toolgun shot]`. land (return after 0.5 s, toss): at rest
+1.60 s, rolled, at rest 1.74 s, flies home at 2.75 s; noland (Land First 0): flies at 0.50 s, 4.33 m off, in the air.
+rebind: bound at 3, moved into 5, bound at 5: only holster 5 bound. toolgun: "put in holster 9" in e1m1, none added
+after `changelevel e1m2` (carried); the reach spawn 0.80 m ahead (the player's box + 8 units), no hit. shot: the tether
+from the hip holster's top to the gun in the hand.
+
+In VR: throw a bound gun far: it lands, lies a second, then flies home (never turns in the air); the tether should
+leave the holster itself; Debug > Spawn Weapons > Toolgun lands just before you; Debug > Toolgun > Spawn With a
+Toolgun, then a new map.
 ## The toolgun's spawns: loaded, placed and drawn at once (worktree `fastship`, branch `agent/tgspawnfix`, 2026-10-16)
 
 His notes: a megahealth (or others) spawned in a map without one is invisible; health boxes, the megahealth and ammo
