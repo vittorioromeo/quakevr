@@ -2,14 +2,16 @@
 //
 // The body ships with a placeholder head (make_vrbody.py: a loft weighted wholly to the head joint). With the option on,
 // the ranger's own head is taken from the player's progs/player.mdl as the body loads, nothing of it shipped or cached
-// on disk: the first player.mdl in the search path that is Quake's ranger (its vertex and triangle counts, its standing
-// height, a frame "stand1": a mod's own player model, or Quake VR's quakevr/progs/player.mdl, is passed over for the
-// next one, id1's pak), its triangles wholly above the neck in that frame (the neck's opening capped). Then:
+// on disk: the first progs/player.mdl that is Quake's ranger (its vertex and triangle counts, its standing height, a
+// frame "stand1", the head's size), the game folder's first, then id1's, then the other folders' (a mod's own player
+// model, or Quake VR's quakevr/progs/player.mdl, is passed over: id1's pak's then), its triangles wholly above the
+// neck in stand1 (the neck's opening capped). Then:
 //   - the mesh (VR_RangerHeadMesh, Mod_LoadMD5MeshModel): the placeholder's head-only triangles dropped, the ranger's
 //     added, weighted wholly to the head joint: hidden from your eyes as the placeholder was (the eye views collapse the
-//     neck and head, vr_avatar.cpp solveTorso), seen in the mirror, the third-person and body-tracking views and the
-//     shadows. As wide as the placeholder, centred over it, its bottom just below the placeholder's (the neck's top
-//     ring inside it).
+//     neck and head, vr_avatar.cpp solveTorso), seen in the mirror, the views from outside the head (vr_mock_camera,
+//     a third-person camera, the body preview) and the shadows. 1.2 times as wide as the placeholder, centred over
+//     it, its bottom 4 cm below the placeholder's; the neck's top ring narrowed to the neck's width and given the
+//     neck's skin, inside it.
 //   - the skins (VR_RangerHeadImage, Image_LoadImage: every load and reload of the files): the placeholder's head
 //     block of the body's 16 shared skins (progs/vrbody_NN_00, above the neck's texels) painted with the ranger's
 //     texels (Quake's palette, nearest: his front half left, his back half right); their normal maps flat there,

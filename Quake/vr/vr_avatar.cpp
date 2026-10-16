@@ -2727,10 +2727,11 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
     {
         // Seen through a teleporter (the loop's gates show you your own back), the body has its head: the eyes' views
         // collapse it (solveTorso), so as not to see its inside. Not when the view through the gate is drawn from
-        // within a head's length of the eyes (an eye half through a gate looking back through the gate it is in).
-        const bool head = qvr::vr_teleporter_self_head.value != 0.f && VR_PortalDrawing() &&
-            glm::distance(glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}, posed.eyes) >
-                0.3f * posed.m2w;
+        // within a head's length of the eyes (an eye half through a gate looking back through the gate it is in). So
+        // too any other view from outside the head (vr_mock_camera's spectator view, a third-person camera).
+        const bool away = glm::distance(glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]},
+                              posed.eyes) > 0.3f * posed.m2w;
+        const bool head = away && (VR_PortalDrawing() ? qvr::vr_teleporter_self_head.value != 0.f : true);
         *matrices = head ? posed.shadowSkin.data() : posed.skin.data();
     }
     return JointCount;

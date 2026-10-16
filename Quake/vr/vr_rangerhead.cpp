@@ -41,9 +41,13 @@ constexpr float minHeadSide = 3.f;
 constexpr float maxHeadSide = 15.f;
 constexpr int maxBoundary = 64; // the neck's opening (Quake's: 7 edges), capped with a fan
 
-// On the body (progs/vrbody*: metres, X forward, Z up): as wide as the placeholder's head-only vertices, centred over
-// them, its bottom `sink` below theirs (the neck's top ring, which flares to the placeholder's jaw, inside it).
-constexpr float sink = 0.015f;
+// On the body (progs/vrbody*: Quake units, 26.25 a metre, X forward, Z up): `grow` times as wide as the placeholder's
+// head-only vertices (his: 20 x 20 x 18 cm), centred over them, its bottom `sink` below theirs (the neck's top ring,
+// which flares to the placeholder's jaw, inside it: 4 cm); the crown about where the placeholder's was.
+constexpr float grow = 1.2f;
+constexpr float sink = 1.f;
+// The neck's top ring keeps the neck's skin: its texture coordinates no higher than this (the head's texels above).
+constexpr float neckTopV = 0.441f;
 
 // The body's skins (make_vrbody.py BLOCKS["head"]: u 0 .. 0.5, v 0.4 .. 0.5, a 2/128 pad): the placeholder's head-only
 // texels (v 0.450 .. 0.484) are where the ranger's go; the neck's (v 0.424 .. 0.441) keep the body's skin. His front
@@ -290,7 +294,7 @@ struct Tri
     }
 
     // The neck's opening: the edges one head triangle has (by the model's own vertices: a seam's two copies are one),
-    // closed with a fan to their middle, wound against them, one colour (his front half's lowest middle texel: the chin).
+    // closed with a fan to their middle, wound against them, one colour (the texel of its foremost vertex: the chin's).
     za::Vector<int> edges; // a, b (output vertices) per boundary edge, as its triangle winds it
     const size_t headIndexes = out.tris.size();
     for(size_t t = 0; t < headIndexes; t += 3)
@@ -328,8 +332,12 @@ struct Tri
             middle += out.pos[e];
         }
         middle /= static_cast<float>(edges.size());
-        const Rect& f = out.half[0];
-        const glm::vec2 chin{(f.x0 + f.x1) * 0.5f, f.y1 - 0.5f};
+        int front = edges[0];
+        for(const int e : edges)
+        {
+            front = out.pos[e].x > out.pos[front].x ? e : front;
+        }
+        const glm::vec2 chin = out.src[front];
         const int centre = static_cast<int>(out.pos.size());
         out.pos.pushBack(middle);
         out.src.pushBack(chin);
@@ -472,25 +480,63 @@ struct Tri
     return true;
 }
 
-// The first progs/player.mdl in the search path that is Quake's ranger: his head.
+[[nodiscard]] char* lastSeparator(char* path)
+{
+    char* last = nullptr;
+    for(char* p = path; *p; p++)
+    {
+        if(*p == '/' || *p == '\\')
+        {
+            last = p;
+        }
+    }
+    return last;
+}
+
+// Which pass of load() a search path is looked at in: 0 the game's own folder, 1 id1 (Quake's), 2 the rest (the
+// mission packs and campaigns Quake VR mounts besides).
+[[nodiscard]] int passOf(const searchpath_t* s)
+{
+    char folder[MAX_OSPATH];
+    q_strlcpy(folder, s->pack ? s->pack->filename : s->filename, sizeof(folder));
+    if(s->pack)
+    {
+        if(char* cut = lastSeparator(folder))
+        {
+            *cut = 0;
+        }
+    }
+    if(COM_SamePath(folder, com_gamedir))
+    {
+        return 0;
+    }
+    const char* last = lastSeparator(folder);
+    return !q_strcasecmp(last ? last + 1 : folder, "id1") ? 1 : 2;
+}
+
+// The first progs/player.mdl that is Quake's ranger, the game's own folder's first, then id1's, then the rest's: his
+// head.
 [[nodiscard]] bool load()
 {
     za::Vector<unsigned char> file;
     char where[MAX_OSPATH];
-    for(const searchpath_t* s = com_searchpaths; s; s = s->next)
+    for(int pass = 0; pass < 3; pass++)
     {
-        if(!readFrom(s, file, where, sizeof(where)))
+        for(const searchpath_t* s = com_searchpaths; s; s = s->next)
         {
-            continue;
+            if(passOf(s) != pass || !readFrom(s, file, where, sizeof(where)))
+            {
+                continue;
+            }
+            if(parse(file, ranger))
+            {
+                q_strlcpy(ranger.path, where, sizeof(ranger.path));
+                Con_DPrintf("vr_body_ranger_head: the head of %s (%d triangles, %d vertices)\n", where,
+                    static_cast<int>(ranger.tris.size() / 3), static_cast<int>(ranger.pos.size()));
+                return true;
+            }
+            Con_DPrintf("vr_body_ranger_head: %s is not Quake's ranger, passed over\n", where);
         }
-        if(parse(file, ranger))
-        {
-            q_strlcpy(ranger.path, where, sizeof(ranger.path));
-            Con_DPrintf("vr_body_ranger_head: the head of %s (%d triangles, %d vertices)\n", where,
-                static_cast<int>(ranger.tris.size() / 3), static_cast<int>(ranger.pos.size()));
-            return true;
-        }
-        Con_DPrintf("vr_body_ranger_head: %s is not Quake's ranger, passed over\n", where);
     }
     Con_DPrintf("vr_body_ranger_head: no ranger found (progs/player.mdl): the placeholder head\n");
     return false;
@@ -620,6 +666,11 @@ extern "C" int VR_RangerHeadMesh(const char* model, const char* shader, const vo
     glm::vec3 mins{0.f};
     glm::vec3 maxs{0.f};
     int count = 0;
+    glm::vec3 neckMins{0.f};
+    glm::vec3 neckMaxs{0.f};
+    int neckCount = 0;
+    za::Vector<unsigned char> moved;
+    moved.resize(static_cast<size_t>(nv), static_cast<unsigned char>(0));
     for(int i = 0; i < nv; i++)
     {
         int w = 0;
@@ -630,6 +681,13 @@ extern "C" int VR_RangerHeadMesh(const char* model, const char* shader, const vo
         headOnly[i] = w >= 250;
         if(!headOnly[i])
         {
+            if(w > 0) // the neck (weighted to the neck and the head)
+            {
+                const glm::vec3 p{in[i].xyz[0], in[i].xyz[1], in[i].xyz[2]};
+                neckMins = neckCount ? glm::min(neckMins, p) : p;
+                neckMaxs = neckCount ? glm::max(neckMaxs, p) : p;
+                neckCount++;
+            }
             continue;
         }
         const iqmvert_t& v = in[i];
@@ -649,8 +707,8 @@ extern "C" int VR_RangerHeadMesh(const char* model, const char* shader, const vo
         return 0;
     }
 
-    // Placed: as wide (Y) as the placeholder, centred over it, its bottom `sink` below the placeholder's.
-    const float scale = (maxs.y - mins.y) / (ranger.maxs.y - ranger.mins.y);
+    // Placed: `grow` times as wide (Y) as the placeholder, centred over it, its bottom `sink` below the placeholder's.
+    const float scale = grow * (maxs.y - mins.y) / (ranger.maxs.y - ranger.mins.y);
     const glm::vec3 rangerCentre = (ranger.mins + ranger.maxs) * 0.5f;
     const glm::vec3 centre = (mins + maxs) * 0.5f;
     const glm::vec3 offset{centre.x - rangerCentre.x * scale, centre.y - rangerCentre.y * scale, mins.z - sink - ranger.mins.z * scale};
@@ -706,9 +764,22 @@ extern "C" int VR_RangerHeadMesh(const char* model, const char* shader, const vo
     {
         if(!(headOnly[inIdx[t]] && headOnly[inIdx[t + 1]] && headOnly[inIdx[t + 2]]))
         {
-            outIdx[o++] = inIdx[t];
-            outIdx[o++] = inIdx[t + 1];
-            outIdx[o++] = inIdx[t + 2];
+            for(int k = 0; k < 3; k++)
+            {
+                const unsigned short i = inIdx[t + k];
+                outIdx[o++] = i;
+                if(headOnly[i] && !moved[i]) // the neck's top ring (the placeholder's jaw): the neck's skin, its width
+                {
+                    moved[i] = 1;
+                    out[i].st[1] = za::min(out[i].st[1], neckTopV);
+                    for(int a = 0; a < 2 && neckCount; a++)
+                    {
+                        const float half = (maxs[a] - mins[a]) * 0.5f;
+                        const float neckHalf = (neckMaxs[a] - neckMins[a]) * 0.5f;
+                        out[i].xyz[a] = (neckMins[a] + neckMaxs[a]) * 0.5f + (out[i].xyz[a] - centre[a]) * (half > 0.f ? neckHalf / half : 1.f);
+                    }
+                }
+            }
         }
     }
     for(size_t t = 0; t + 2 < ranger.tris.size(); t += 3)
@@ -717,8 +788,11 @@ extern "C" int VR_RangerHeadMesh(const char* model, const char* shader, const vo
         outIdx[o++] = static_cast<unsigned short>(nv + ranger.tris[t + (flip ? 2 : 1)]);
         outIdx[o++] = static_cast<unsigned short>(nv + ranger.tris[t + (flip ? 1 : 2)]);
     }
-    Con_DPrintf("%s: the ranger's head (%d triangles for the placeholder's %d; %.4f m a unit%s)\n", model,
-        static_cast<int>(ranger.tris.size() / 3), (ni - kept) / 3, scale, flip ? ", turned over" : "");
+    Con_DPrintf("%s: the ranger's head (%d triangles for the placeholder's %d; scaled %.3f, %.2f x %.2f x %.2f units, "
+                "crown %.2f for %.2f%s)\n",
+        model, static_cast<int>(ranger.tris.size() / 3), (ni - kept) / 3, scale, (ranger.maxs.x - ranger.mins.x) * scale,
+        (ranger.maxs.y - ranger.mins.y) * scale, (ranger.maxs.z - ranger.mins.z) * scale, ranger.maxs.z * scale + offset.z,
+        maxs.z, flip ? ", turned over" : "");
     *verts = out;
     *numVerts = static_cast<int>(total);
     *indexes = outIdx;
