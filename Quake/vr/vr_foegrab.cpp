@@ -1,51 +1,11 @@
 // vr_foegrab.cpp -- holding enemies: see vr_foegrab.hpp.
 
-#include "vr_foegrab.hpp"
+#include "vr_foegrab_internal.hpp"
 
-#include "vr_api.h"
-#include "vr_box3d.hpp"
-#include "vr_climb.hpp"
-#include "vr_cvars.hpp"
-#include "vr_grip.hpp"
-#include "vr_hands.hpp"
-#include "vr_held.hpp"
-#include "vr_hitmodel.hpp"
-#include "vr_lines.hpp"
-#include "vr_mem.hpp"
-#include "vr_motion.hpp"
-#include "vr_move.hpp"
-#include "vr_profile.hpp"
-#include "vr_progs.hpp"
-#include "vr_protocol.hpp"
-#include "vr_server.hpp"
-#include "vr_text3d.hpp"
-#include "vr_timescale.hpp"
-#include "vr_units.hpp"
-
-#include "Zancle/Chrono/Clock.hpp"
-#include "Zancle/Container/Vector.hpp"
-#include "Zancle/Math/Abs.hpp"
-#include "Zancle/Math/Acos.hpp"
-#include "Zancle/Math/Atan2.hpp"
-#include "Zancle/Math/Clamp.hpp"
-#include "Zancle/Math/Cos.hpp"
-#include "Zancle/Math/Exp.hpp"
-#include "Zancle/Math/Lround.hpp"
-#include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Round.hpp"
-#include "Zancle/Math/Pow.hpp"
-#include "Zancle/Math/Sin.hpp"
-#include "Zancle/Math/Sqrt.hpp"
-#include "vr_zancle.hpp"
-
-#include <glm/gtc/constants.hpp>
-
-using namespace qvr;
-using namespace qvr::progs;
-
+namespace foegrab::detail
+{
 namespace
 {
-
 constexpr int grabBit[2] = {1 << 1, 1 << 3};     // QVR_VRBITS0_*HAND_GRABBING
 constexpr int prevGrabBit[2] = {1 << 2, 1 << 4}; // QVR_VRBITS0_*HAND_PREVGRABBING
 constexpr int climbingBit[2] = {1 << 15, 1 << 16}; // QVR_VRBITS0_*HAND_CLIMBING (vr_climb.cpp, this frame)
@@ -72,11 +32,6 @@ constexpr float softStuck = 72.f;     // units: and lets go of it when the limb 
 constexpr float carryGrace = 0.3f;    // s: a ragdoll held on passes through the hands (box3d::ragdollGrace, kept up)
 constexpr float liftHertz = 8.f;      // Hz: a lifted one's hold's spring (a ragdoll limb's usual: carried, it sags little)
 constexpr float neckMinArm = 0.04f;   // m: hands nearer together count as this far apart (the twist's measure)
-constexpr float headSurface = 3.5f;   // units: a head's surface lies up to this beyond its sphere (QC VR_HEAD_MARGIN)
-constexpr float headJaw = 0.35f;      // the head zone's sphere counts down to this share of its radius under its middle (HeadZone)
-constexpr float headWide = 0.9f;      // and no further across its axis than this share of its radius (shoulder pads beside it)
-constexpr float neckWide = 0.75f;     // under it, its neck: no further across than this share of the head's radius
-constexpr float palmSlack = 2.f;      // units: a ragdoll's zone grown for the palm (its middle, off the skin; ragdollNeckCheck)
 constexpr float strokeSlack = 6.f;    // units: and more while a twist is under way (it sweeps the palms round)
 
 // Why a hand let go (QC VR_FoeGrab_Released's xWhy).
@@ -90,88 +45,7 @@ enum class Why : int
     Lifted = 5,   // both hands lifted it off its feet (liftCheck)
     Snapped = 6,  // both hands snapped its neck (neckCheck)
 };
-
-// A sample of the hands on a head (neckStep): when, the line between the palms (play space, metres), the head's
-// reference frame then (world from its body: a standing one's yaw, a ragdoll's chest), the wrists' roll so far (rad).
-struct NeckSample
-{
-    double t{0.0};
-    glm::vec3 line{0.f};
-    glm::mat3 frame{1.f};
-    float roll{0.f};
-};
-constexpr int neckSamples = 128;        // a second at neckSampleStep
 constexpr double neckSampleStep = 0.008; // s: samples at most this often
-
-struct Hold
-{
-    bool active{false};
-    int ent{0};            // the monster's entity number
-    int modelindex{0};     // and its model (another: let go)
-    int tri{-1};           // the spot: the triangle of its model and where on it (hitmodel::anchorFrame)
-    float u{0.f}, v{0.f};
-    glm::vec3 local{0.f};   // the spot when it took hold, in the body's frame (its drawn origin, turned with its yaw)
-    glm::vec3 palmOff{0.f}; // the palm from the spot then, in the body's frame
-    glm::vec3 anim{0.f};    // the model's animation's move of the spot since (world), eased (animTime) and capped (animMax)
-    glm::vec3 palmAt{0.f}; // where the palm is held now (world)
-    float strength{0.f};   // this hand's hold on it (QC VR_FoeGrab_Strength)
-    float stretch{0.f};    // units from the tracked palm to palmAt (last frame)
-    double since{0.0};
-    double overSince{-1.0}; // the stretch past vr_foegrab_break since (-1: not)
-    glm::vec3 lastPalm{0.f}; // the tracked palm at the end of the last server frame (world): its move since is followed
-};
-
-struct Holder
-{
-    Hold holds[2];
-    bool pressedLast[2]{false, false};
-    double pressedAt[2]{-1.0, -1.0}; // the grip's press (-1: not pressed)
-    bool owned[2]{false, false};     // the grip is the hold's (hidden from the QC) until it is released
-    bool ownedLast[2]{false, false};
-    double lastTime{-1.0};
-    glm::vec3 lastOrigin{0.f}; // the player's at the end of the last frame (serverFrame: a shove's slide carries the held)
-    bool originKnown{false};
-    // The two-hand throw (throwCheck): no try before throwAgain; both hands' hold's hardest turn so far (and the hands'
-    // speed then), for tuning (vr_foegrab_debug, vr_foegrab_status).
-    double throwAgain{0.0};
-    bool twoHanded{false};
-    float peakTwist{0.f};
-    float peakSpeed{0.f};
-    glm::vec3 way{0.f}; // the turn's way (level: where it tips its top, rad/s), smoothed (throwWayTime)
-    // The leg pull's stroke (legCheck): the hands coming towards you at half the pull's speed or more since `legFrom`
-    // (their tracked palms' middle then, world).
-    bool legStroke{false};
-    glm::vec3 legFrom{0.f};
-    bool legLogged{false}; // the grip's parts printed (vr_foegrab_debug: once a two-hand hold)
-    // The enemy held on as a ragdoll after a throw or a lift (handOver, carryStep): its entity (0: none), since when; a
-    // lift's (`lifted`), when it breaks free (breakAt).
-    int carried{0};
-    double carriedSince{0.0};
-    bool lifted{false};
-    bool flailing{false}; // its lift's flail begun (box3d::ragdollFlail): ended when let go of, even killed in the hands
-    bool snapped{false};
-    double breakAt{-1.0};
-    // The neck snap (neckStep, neckCheck): the enemy both hands hold by the head (0: none), how far it has turned within
-    // the window (rad: a third of Twist Angle or more, else 0: a turn under way), the hands' turns at the last frame
-    // (play space: their wrists' roll), no snap before neckAgain.
-    int neckEnt{0};
-    float neckTurned{0.f};
-    glm::mat3 neckRot[2]{glm::mat3{1.f}, glm::mat3{1.f}};
-    double neckAgain{0.0};
-    double neckLast{-1.0};
-    // The hand line (neckStep): the last second's samples (a ring, the newest at neckHead - 1), the wrists' common roll
-    // about the neck so far (rad), the largest turn within the window this hold (deg: the status's) and the last one.
-    NeckSample neckRing[neckSamples];
-    int neckHead{0};
-    int neckCount{0};
-    float neckRoll{0.f};
-    float neckWinPeak{0.f};
-    float neckWinLast{0.f};
-    int neckWhere{0};    // where both standing holds were last (neckCheck's log: printed as it changes)
-    int neckRagWhere{0}; // and both palms on a ragdoll (ragdollNeckCheck's)
-};
-
-Holder holders[MAX_SCOREBOARD];
 
 // The held monsters: where each was at the end of the last frame (its own movement since is what is slowed).
 struct Foe
@@ -184,18 +58,6 @@ struct Foe
 constexpr int maxFoes = 2 * MAX_SCOREBOARD;
 Foe foes[maxFoes];
 int numFoes = 0;
-
-// vr_foegrab_walk_test: the monster walked away from the player each frame.
-struct WalkTest
-{
-    int ent{0};
-    float speed{0.f};
-    float seconds{0.f};
-    double until{-1.0};
-    glm::vec3 from{0.f};
-    bool reported{true};
-};
-WalkTest walkTest;
 
 // The thrown ragdoll's fall (vr_foegrab_throw_test, vr_foegrab_debug): every 0.1 s for a second, how far its torso (pelvis
 // to head) leans from upright, how far its feet moved, where its head went along the throw.
@@ -227,23 +89,7 @@ struct FoeGrabScratch
     auto members() { return qvr::mem::list(fist); }
 };
 mem::Scratch<FoeGrabScratch> scratch{"foegrab"};
-
-// The server's QuakeC VM for a console command's while (its edicts).
-struct VmScope
-{
-    qcvm_t* old{nullptr};
-    VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~VmScope() { PR_PopQCVM(old); }
-};
-
-// Client: the drawn hands' pins.
-struct Pin
-{
-    float weight{0.f};
-    glm::vec3 at{0.f};
-    double last{-1.0};
-};
-Pin pins[2];
+} // namespace
 
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
@@ -257,23 +103,27 @@ Pin pins[2];
     return glm::vec3{za::cos(yaw), za::sin(yaw), 0.f};
 }
 
+namespace
+{
 void setVec(float* out, const glm::vec3& v)
 {
     out[0] = v.x;
     out[1] = v.y;
     out[2] = v.z;
 }
+} // namespace
 
 [[nodiscard]] const char* handName(int h)
 {
     return h == 1 ? "main" : "off";
 }
-
 [[nodiscard]] float cm()
 {
     return 0.01f * units::metresToUnits();
 }
 
+namespace
+{
 [[nodiscard]] Holder* holderOf(edict_t* ent)
 {
     const int client = NUM_FOR_EDICT(ent) - 1;
@@ -283,12 +133,15 @@ void setVec(float* out, const glm::vec3& v)
     }
     return &holders[client];
 }
+} // namespace
 
-[[nodiscard]] bool debug(int level = 1)
+[[nodiscard]] bool debug(int level)
 {
     return vr_foegrab_debug.value >= static_cast<float>(level);
 }
 
+namespace
+{
 // The hands' gestures (the two-hand lift and throw, the neck snap) are the player's, measured on his own clock, the same
 // in slow motion as not (vr_timescale, bullet time): their times (the settle, the retry, the window, the break's grace)
 // real seconds (times gameSeconds() in the game's time), their speeds real (the hands' velocities times
@@ -328,6 +181,7 @@ bool bodyFrame(edict_t* m, glm::vec3& origin, glm::mat3& axes)
     const grip::HandFrame f = grip::handFrame(h, h == 0, NUM_FOR_EDICT(ent) == 1);
     return move.hands[h].pos + held::axesFromAngles(&move.hands[h].rot[0], true) * f.palm;
 }
+} // namespace
 
 // The same from the controller's own point (VrHandMove::tracked: before the level held the drawn hand out of it).
 [[nodiscard]] glm::vec3 trackedPalmOf(edict_t* ent, const VrMove& move, int h)
@@ -336,6 +190,8 @@ bool bodyFrame(edict_t* m, glm::vec3& origin, glm::mat3& axes)
     return move.hands[h].tracked + held::axesFromAngles(&move.hands[h].rot[0], true) * f.palm;
 }
 
+namespace
+{
 // Whether `m` can be held: a living monster, standing in the world (not knocked down: its ragdoll), its model the one
 // the hold was taken on (modelindex > 0), the precise hits' target.
 [[nodiscard]] bool canHold(edict_t* m, int modelindex = 0)
@@ -581,6 +437,7 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     (void)callQc("VR_FoeGrab_Taken", player, best, static_cast<float>(h), 0.f, 0.f);
     return true;
 }
+} // namespace
 
 // Whether `name` is one of the words of `list` (spaces or commas between them); "infected" stands for Dawn of the
 // Machine's infected monsters (`infected`: this one is).
@@ -612,6 +469,8 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     return false;
 }
 
+namespace
+{
 // The throw's kind of `m` (QC VR_FoeGrab_Throw's xTier): 0 always thrown, 1 only when hurt, 2 never (by the class lists:
 // vr_foegrab_throw_always, _when_hurt); -1 by its mass (vr_foegrab_throw_by_mass: the QC's).
 [[nodiscard]] float throwTier(edict_t* m)
@@ -628,6 +487,7 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     }
     return inList(vr_foegrab_throw_when_hurt.string, c, infected) ? 1.f : 2.f;
 }
+} // namespace
 
 [[nodiscard]] const char* throwResult(float r)
 {
@@ -637,6 +497,8 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
            r >= -1.f ? "not hurt enough" : "can't be knocked down now (no ragdoll or get-up, no room, down already)";
 }
 
+namespace
+{
 // The fall of `m`'s ragdoll, thrown or shoved down towards level `dir`, traced from now (ThrowTrace, `kind` "throw" or
 // "shove"). False: no ragdoll.
 bool startTrace(edict_t* m, const glm::vec3& dir, const char* kind)
@@ -653,6 +515,7 @@ bool startTrace(edict_t* m, const glm::vec3& dir, const char* kind)
     throwTrace.viewer = svs.maxclients >= 1 ? vec(EDICT_NUM(1)->v.origin) : feet;
     return true;
 }
+} // namespace
 
 // `player`'s two-hand throw of `m` towards level `dir` (the QC's VR_FoeGrab_Throw: its result), the hands turning it about
 // the vertical at `twist` rad/s. Knocked down (1), its ragdoll is turned over about its feet towards `dir`, a sweep
@@ -712,6 +575,8 @@ float throwDown(edict_t* player, edict_t* m, const glm::vec3& dir, float twist, 
     return result;
 }
 
+namespace
+{
 // The throw trace's step (after a throw it follows: ThrowTrace).
 void throwTraceStep()
 {
@@ -887,6 +752,7 @@ void manhandle(edict_t* player, Holder& hd, int h, edict_t* m)
             PR_GetString(m->v.classname), NUM_FOR_EDICT(m), handName(h), why, hold);
     }
 }
+} // namespace
 
 // The hands of player `c` holding the ragdoll handOver gave them (the QC's held field and the engine's hold), 0: none.
 [[nodiscard]] int carryingHands(int c, edict_t* m)
@@ -901,6 +767,8 @@ void manhandle(edict_t* player, Holder& hd, int h, edict_t* m)
     return hands;
 }
 
+namespace
+{
 // A lifted enemy of player `c` breaking free (vr_foegrab_lift_time): the hands holding it lose it (the engine's holds;
 // the QC's held fields), its flail ends, it shoves him back vr_foegrab_lift_shove units and gets up as soon as it lies
 // (QC VR_FoeGrab_BreakFree).
@@ -964,17 +832,7 @@ void carryStep(int c)
         breakFree(c, m);
     }
 }
-
-// A QC function of the monster taking a point (with the player as self): float f(entity m, vector at, float extra).
-// Where a point is in a head zone (HeadZone::where).
-enum class Zone : int
-{
-    Out = 0,      // nowhere near
-    Shoulder = 1, // beside its neck, too far out (its shoulders, its shoulder pads)
-    Low = 2,      // under its neck (its chest)
-    Neck = 3,
-    Head = 4,
-};
+} // namespace
 
 [[nodiscard]] const char* zoneName(Zone z)
 {
@@ -987,65 +845,13 @@ enum class Zone : int
     default: return "out";
     }
 }
-
-// The hands' head zone (neckCheck, ragdollNeckCheck, the diagnostic): positional damage's head sphere (QC
-// VR_FoeGrab_HeadZone: the headshots'), then a column as narrow as its neck under it, in its head's frame: `centre` the
-// sphere's middle, `axis` its up (standing: the vertical, on its model standing; a ragdoll's: from its neck's joint to its
-// head). A point at its head: no lower than headJaw of the radius under the middle, within the sphere grown by its surface
-// (headSurface) and vr_foegrab_necksnap_margin, no further across the axis than headWide of the radius and the margin (an
-// enforcer's or a hell knight's shoulder pads rise beside its head); lower, at its neck: down to vr_foegrab_necksnap_neck
-// under the sphere, within neckWide of the radius and the margin across (a grunt's neck is 5 units across its axis, its
-// shoulders 9-11: the sphere alone took them, the old zone).
-struct HeadZone
-{
-    bool valid{false};
-    glm::vec3 centre{0.f};
-    glm::vec3 axis{0.f, 0.f, 1.f};
-    float radius{0.f}; // the head sphere's
-    float margin{0.f}; // vr_foegrab_necksnap_margin
-    float neck{0.f};   // vr_foegrab_necksnap_neck
-
-    [[nodiscard]] float sphere() const { return radius + headSurface + margin; }
-    [[nodiscard]] float headAcross() const { return radius * headWide + margin; }
-    [[nodiscard]] float jaw() const { return -radius * headJaw; } // (along the axis from the middle)
-    [[nodiscard]] float neckAcross() const { return za::max(radius * neckWide + margin, 0.5f); }
-    [[nodiscard]] float bottom() const { return -(radius + neck); }
-
-    // Where `p` is, the zone grown by `slack` units every way.
-    [[nodiscard]] Zone where(const glm::vec3& p, float slack = 0.f) const
-    {
-        if(!valid)
-        {
-            return Zone::Out;
-        }
-        const glm::vec3 d = p - centre;
-        const float along = glm::dot(d, axis);
-        const float across = glm::length(d - axis * along);
-        if(along >= jaw())
-        {
-            if(glm::length(d) > sphere() + slack)
-            {
-                return Zone::Out;
-            }
-            return across <= headAcross() + slack ? Zone::Head : Zone::Shoulder;
-        }
-        if(along < bottom() - slack)
-        {
-            return across <= sphere() + slack ? Zone::Low : Zone::Out;
-        }
-        if(across <= neckAcross() + slack)
-        {
-            return Zone::Neck;
-        }
-        return across <= 2.f * sphere() + slack ? Zone::Shoulder : Zone::Out;
-    }
-};
-
 [[nodiscard]] bool atHead(Zone z)
 {
     return z == Zone::Head || z == Zone::Neck;
 }
 
+namespace
+{
 // `m`'s head zone's size (QC VR_FoeGrab_HeadZone: its head sphere, '<forward> <up> <radius>' from its origin standing);
 // false: none. `left`: its middle's offset to its left (QC VR_FoeGrab_HeadLeft: AD's zombie knight's; 0 for most).
 bool headSphereOf(edict_t* m, glm::vec3& out, float* left = nullptr)
@@ -1075,6 +881,7 @@ bool headSphereOf(edict_t* m, glm::vec3& out, float* left = nullptr)
     pr_global_struct->self = oldSelf;
     return out.z > 0.f;
 }
+} // namespace
 
 // A standing `m`'s head zone: on its model standing (hitmodel's rest pose), at its origin, turned with its yaw.
 [[nodiscard]] HeadZone headZoneOf(edict_t* m)
@@ -1133,108 +940,13 @@ bool headSphereOf(edict_t* m, glm::vec3& out, float* left = nullptr)
     (void)bodyFrame(EDICT_NUM(g.ent), origin, body);
     return origin + body * g.local + g.anim;
 }
-
-/// The neck snap (vr_foegrab_necksnap; QC VR_FoeGrab_NeckSnap): both hands of a player holding a humanoid by the head
-// (neckCheck: the holds' spots in its head zone, standing; ragdollNeckCheck: its ragdoll's head, knocked down, staggering,
-// lifted, thrown and held on) twist it round: its neck snaps, it dies on the spot, its body limp in the hands.
-struct NeckTwist
-{
-    float turned{0.f}; // how far the hands have turned it one way within the window, degrees (the larger of the two)
-    // Its two measures (the diagnostic's): the line between the palms' turn and the wrists' within the window (degrees).
-    float line{0.f};
-    float wrist{0.f};
-};
-
-// The neck snap's diagnostic (vr_foegrab_necksnap_debug; Neck Snap > Show Diagnostic): the first player's, each server
-// frame (neckDiagFrame; drawn by neckDebugDraw on the listen server's client). Its enemy: the one both hands hold by the
-// head (neckCheck, ragdollNeckCheck: `measured`), else the one a hand holds, else the humanoid nearest the hands.
-struct NeckDiag
-{
-    int ent{0}; // 0: none
-    bool ragdoll{false};
-    bool measured{false};    // both hands at its head this frame: the twist measured (`twist`)
-    double measuredAt{-1.0}; // the server's time of the last frame measured
-    double since{-1.0};      // both hands at its head since (-1: not)
-    HeadZone zone;
-    glm::vec3 point[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's place as judged (a hold's spot on its model
-                                                        // standing; a ragdoll's: the palm), world
-    glm::vec3 palm[2]{glm::vec3{0.f}, glm::vec3{0.f}};  // the tracked palms (world)
-    Zone where[2]{Zone::Out, Zone::Out};
-    bool holds[2]{false, false}; // each hand holds it
-    NeckTwist twist;
-    float best{0.f}; // the largest turn since both hands took its head, degrees
-    // The last hold's outcome, shown a while after (the panel; printed: neckDiagEnd): snapped, or its largest turn.
-    double outcomeAt{-1.0};
-    bool snapped{false};
-    float outcomeTurned{0.f};
-};
-NeckDiag neckDiag;
-
-[[nodiscard]] bool neckDiagOn()
-{
-    return vr_foegrab_necksnap_debug.value != 0.f;
-}
-
 [[nodiscard]] float neckWindow()
 {
     return za::clamp(vr_foegrab_necksnap_window.value, 0.1f, 1.f);
 }
 
-// Both hands of the first player at `m`'s head this frame, measured (`t`): the diagnostic's (with it on, or the log's).
-void neckDiagMeasured(int c, edict_t* m, bool ragdoll, const HeadZone& z, const glm::vec3* point, const Zone* where,
-    const NeckTwist& t)
+namespace
 {
-    if(c != 0)
-    {
-        return;
-    }
-    NeckDiag& d = neckDiag;
-    const double time = qcvm->time;
-    const int num = NUM_FOR_EDICT(m);
-    if(d.ent != num || d.since < 0.0 || time - d.measuredAt > 0.1)
-    {
-        d.since = time;
-        d.best = 0.f;
-    }
-    d.ent = num;
-    d.ragdoll = ragdoll;
-    d.measured = true;
-    d.measuredAt = time;
-    d.zone = z;
-    for(int h = 0; h < 2; h++)
-    {
-        d.point[h] = point[h];
-        d.where[h] = where[h];
-        d.holds[h] = true;
-    }
-    d.twist = t;
-    d.best = za::max(d.best, t.turned);
-}
-
-// The first player's hands left `m`'s head (or snapped it): its largest turn printed (the diagnostic on, or
-// vr_foegrab_debug), kept for the panel.
-void neckDiagEnd(bool snapped)
-{
-    NeckDiag& d = neckDiag;
-    if(d.since < 0.0)
-    {
-        return;
-    }
-    if(neckDiagOn() || debug())
-    {
-        edict_t* m = EDICT_NUM(d.ent);
-        Con_Printf("necksnap diag: %s (%d) %s, Hand Line: both hands at its head %.2f s, its largest turn %.0f deg within "
-                   "%.2f s (snaps at %.0f): %s\n",
-            m->free ? "?" : PR_GetString(m->v.classname), d.ent, d.ragdoll ? "a ragdoll" : "standing",
-            qcvm->time - d.since, d.best, neckWindow(), za::max(vr_foegrab_necksnap_angle.value, 1.f),
-            snapped ? "snapped" : "no snap");
-    }
-    d.outcomeAt = qcvm->time;
-    d.snapped = snapped;
-    d.outcomeTurned = d.best;
-    d.since = -1.0;
-}
-
 // Each frame both hands of player `c` hold `m` by the head, `neck` its neck's line (unit, world: up standing; a ragdoll's
 // from its neck's joint to its head, as it lies), `frame` its head's reference frame (world from its body: a standing
 // one's yaw, its own turn not counted; a ragdoll's none: it turns whole with the hands): the hands' twist of it, the hand
@@ -1339,6 +1051,7 @@ NeckTwist neckStep(int c, edict_t* m, const VrMove& move, const glm::vec3& neck,
     }
     return t;
 }
+} // namespace
 
 // Both hands of player `c` twisted `m`'s head far enough (neckStep): a humanoid's (vr_foegrab_lift_classes: never an
 // ogre, a fiend, a shambler, a vore) neck snaps (QC VR_FoeGrab_NeckSnap: it dies on the spot, killed by him, whole, the
@@ -1412,6 +1125,8 @@ void neckSnap(int c, edict_t* m, const NeckTwist& t, bool ragdoll)
     }
 }
 
+namespace
+{
 // Whether the hands' twist (neckStep) snaps the neck: turned vr_foegrab_necksnap_angle one way within the window, not
 // just after a snap.
 [[nodiscard]] bool neckSnapDue(const Holder& hd, const NeckTwist& t)
@@ -1592,19 +1307,7 @@ void ragdollNeckCheck(int c)
         neckSnap(c, m, t, true);
     }
 }
-
-/// Both hands of one player on one enemy, as twoHandCheck measures them each frame (the throw's, the lift's): metres, m/s.
-struct TwoHands
-{
-    edict_t* player{nullptr};
-    edict_t* m{nullptr};
-    glm::vec3 middle{0.f}; // its box's middle (units)
-    glm::vec3 vm{0.f};     // the hands' mean velocity
-    float speed{0.f};      // their mean speed
-    glm::vec3 way{0.f};    // the turn's way now (level, rad/s: where it tips its top)
-    float twist{0.f};      // its size, degrees/s
-    float spin{0.f};       // the hands' turn of it about the vertical, rad/s
-};
+} // namespace
 
 // The hands of `player` on `m` measured (twoHandCheck; the diagnostics' grabDiagFrame, held or not): each palm from its
 // box's middle (metres) and its velocity (m/s, the player's clock); the hands' turn of it (the wheel: one hand up, the
@@ -1656,225 +1359,17 @@ TwoHands twoHandsOf(edict_t* player, const VrMove& move, edict_t* m, bool log)
     const bool infected = fieldFloatOr(m, fields().vr_mg3_infected, 0.f) != 0.f;
     return isTrainingDummy(m) || inList(vr_foegrab_lift_classes.string, PR_GetString(m->v.classname), infected);
 }
-
 [[nodiscard]] float liftSpeedNeed()
 {
     return za::max(vr_foegrab_lift_speed.value, 0.1f);
 }
-
 [[nodiscard]] float liftReach()
 {
     return za::max(vr_foegrab_lift_reach.value, 0.f);
 }
 
-// The lift's and the judo throw's diagnostics (vr_foegrab_lift_debug, vr_foegrab_throw_debug; Lift / Two-Hand Throw >
-// Show Diagnostic): the first player's, each server frame. twoHandCheck, liftCheck and throwCheck note what they measured
-// and what stops each move now (`liftNow`, `throwNow`: short) and each try's result (liftTry, throwTry: printed);
-// grabDiagFrame fills in the frames they didn't measure (one hand or none on it, the grip settling: the enemy a hand
-// holds, else the monster nearest the palms, as it would read) and prints a two-hand hold's best when it ends untried;
-// grabDebugDraw draws them on the listen server's client.
-struct GrabDiag
+namespace
 {
-    int ent{0}; // 0: none
-    bool measured{false};    // both hands on it this frame, measured (twoHandCheck)
-    double measuredAt{-1.0}; // the server's time of the last frame measured
-    double since{-1.0};      // both hands measured on it since (-1: not)
-    bool holds[2]{false, false};
-    glm::vec3 palm[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the tracked palms (world)
-    TwoHands two;            // the hands' measures (way: the throw's smoothed one while measured)
-    glm::vec3 origin{0.f};   // its origin, its box's bottom and top (world)
-    float bottom{0.f};
-    float top{0.f};
-    glm::vec3 you{0.f};      // the player's origin
-    float off{0.f};          // units from you to it, level
-    bool humanoid{false};
-    const char* liftNow{""}; // what stops the lift now
-    const char* throwNow{""};
-    float liftBest{0.f};     // the fastest pull up since both hands took it (m/s)
-    float throwBest{0.f};    // the hardest turn since (deg/s), the hands' speed then (m/s)
-    float throwBestSpeed{0.f};
-    bool liftTried{false};   // a lift tried since (its result printed)
-    bool throwTried{false};
-    int tryEnt{0};           // the enemy last tried
-    double liftAt{-1.0};     // the last try: when, its result (the panel's "last", a while)
-    bool lifted{false};
-    char liftLast[48]{};
-    double throwAt{-1.0};
-    bool thrown{false};
-    char throwLast[48]{};
-    // The leg grabs' (legCheck; vr_foegrab_leggrab_debug): the part each hand holds (or the palm is at), the grip's
-    // weight (0: not a leg grip), its mass's factor, the pull towards you, how far the stroke came (cm), the needs.
-    const char* legBone[2]{"", ""};
-    int legPart[2]{0, 0};
-    float legWeight{0.f};
-    float legMass{0.f};
-    float legFactor{1.f};
-    float legToward{0.f};
-    float legDrawn{0.f};
-    float legPullNeed{0.f};
-    float legLiftNeed{0.f};
-    glm::vec3 legYou{0.f}; // level, from it to you
-    const char* legNow{""};
-    float legPullBest{0.f};
-    float legUpBest{0.f};
-    bool legTried{false};
-    double legAt{-1.0};
-    char legLast[48]{};
-};
-GrabDiag grabDiag;
-
-[[nodiscard]] bool liftDiagOn()
-{
-    return vr_foegrab_lift_debug.value != 0.f;
-}
-
-[[nodiscard]] bool throwDiagOn()
-{
-    return vr_foegrab_throw_debug.value != 0.f;
-}
-
-[[nodiscard]] bool legDiagOn()
-{
-    return vr_foegrab_leggrab_debug.value != 0.f;
-}
-
-// `m`'s place and yours, as the diagnostics show them.
-void grabDiagPlace(GrabDiag& g, edict_t* player, edict_t* m)
-{
-    g.origin = vec(m->v.origin);
-    g.bottom = m->v.absmin[2];
-    g.top = m->v.absmax[2];
-    g.you = vec(player->v.origin);
-    g.off = glm::length(glm::vec2{g.origin - g.you});
-    g.humanoid = liftable(m);
-}
-
-// Player `c`'s lift (throw) stopped now by `why` (the first player's: the diagnostic's).
-void liftNote(int c, const char* why)
-{
-    if(c == 0)
-    {
-        grabDiag.liftNow = why;
-    }
-}
-
-void throwNote(int c, const char* why)
-{
-    if(c == 0)
-    {
-        grabDiag.throwNow = why;
-    }
-}
-
-// Both hands of the first player measured on `t.m` this frame (twoHandCheck), `way` the turn's smoothed way.
-void grabDiagMeasured(int c, const TwoHands& t, const glm::vec3& way)
-{
-    if(c != 0)
-    {
-        return;
-    }
-    GrabDiag& g = grabDiag;
-    const double time = qcvm->time;
-    const int num = NUM_FOR_EDICT(t.m);
-    if(g.ent != num || g.since < 0.0 || time - g.measuredAt > 0.1)
-    {
-        g.since = time;
-        g.liftBest = g.throwBest = g.throwBestSpeed = 0.f;
-        g.liftTried = g.throwTried = false;
-        g.legPullBest = g.legUpBest = 0.f;
-        g.legTried = false;
-    }
-    g.ent = num;
-    g.measured = true;
-    g.measuredAt = time;
-    g.holds[0] = g.holds[1] = true;
-    g.two = t;
-    g.two.way = way;
-    grabDiagPlace(g, t.player, t.m);
-    g.liftBest = za::max(g.liftBest, t.vm.z);
-    if(t.twist > g.throwBest)
-    {
-        g.throwBest = t.twist;
-        g.throwBestSpeed = t.speed;
-    }
-    g.liftNow = g.throwNow = g.legNow = "";
-}
-
-// The first player's lift tried on `m`: `ok` lifted, `last` the panel's result; printed with the diagnostic on.
-void liftTry(int c, edict_t* m, bool ok, const char* last, float up, float off)
-{
-    if(c != 0)
-    {
-        return;
-    }
-    GrabDiag& g = grabDiag;
-    g.liftTried = true;
-    g.tryEnt = NUM_FOR_EDICT(m);
-    g.liftAt = qcvm->time;
-    g.lifted = ok;
-    q_strlcpy(g.liftLast, last, sizeof(g.liftLast));
-    if(liftDiagOn())
-    {
-        Con_Printf("lift diag: %s (%d): pulled up %.2f m/s (lifts at %.2f, within 45 deg), %.0f units from you (reach "
-                   "%.0f): %s\n",
-            PR_GetString(m->v.classname), NUM_FOR_EDICT(m), up, liftSpeedNeed(), off, liftReach(), last);
-    }
-}
-
-// The first player's judo throw tried on `m`: `ok` thrown, `last` the panel's result; printed with the diagnostic on.
-void throwTry(int c, edict_t* m, bool ok, const char* last, float twist, float speed, const char* wayName)
-{
-    if(c != 0)
-    {
-        return;
-    }
-    GrabDiag& g = grabDiag;
-    g.throwTried = true;
-    g.tryEnt = NUM_FOR_EDICT(m);
-    g.throwAt = qcvm->time;
-    g.thrown = ok;
-    q_strlcpy(g.throwLast, last, sizeof(g.throwLast));
-    if(throwDiagOn())
-    {
-        Con_Printf("throw diag: %s (%d): turned %.0f deg/s (throws at %.0f) at %.2f m/s (at %.2f), %s: %s\n",
-            PR_GetString(m->v.classname), NUM_FOR_EDICT(m), twist, vr_foegrab_throw_twist.value, speed,
-            vr_foegrab_throw_speed.value, wayName, last);
-    }
-}
-
-// The first player's two-hand hold measured until the last frame ended: each move not tried, its best printed.
-void grabDiagEnd()
-{
-    GrabDiag& g = grabDiag;
-    if(g.since < 0.0)
-    {
-        return;
-    }
-    edict_t* m = EDICT_NUM(g.ent);
-    const char* name = m->free ? "?" : PR_GetString(m->v.classname);
-    const double held = qcvm->time - g.since;
-    if(liftDiagOn() && !g.liftTried)
-    {
-        Con_Printf("lift diag: %s (%d): both hands on it %.2f s, its fastest pull up %.2f m/s (lifts at %.2f, within 45 "
-                   "deg): no lift\n",
-            name, g.ent, held, g.liftBest, liftSpeedNeed());
-    }
-    if(throwDiagOn() && !g.throwTried)
-    {
-        Con_Printf("throw diag: %s (%d): both hands on it %.2f s, its hardest turn %.0f deg/s at %.2f m/s (throws at %.0f "
-                   "deg/s, %.2f m/s): no throw\n",
-            name, g.ent, held, g.throwBest, g.throwBestSpeed, vr_foegrab_throw_twist.value, vr_foegrab_throw_speed.value);
-    }
-    if(legDiagOn() && !g.legTried)
-    {
-        Con_Printf("leg diag: %s (%d): both hands on it %.2f s (%s, %s; grip %.2f), its fastest pull towards you %.2f m/s "
-                   "(pulls at %.2f), up %.2f m/s (lifts at %.2f): no leg pull or lift\n",
-            name, g.ent, held, g.legBone[0][0] ? g.legBone[0] : "-", g.legBone[1][0] ? g.legBone[1] : "-", g.legWeight,
-            g.legPullBest, g.legPullNeed, g.legUpBest, g.legLiftNeed);
-    }
-    g.since = -1.0;
-}
-
 bool liftCheck(int c, const TwoHands& t);
 void throwCheck(int c, const TwoHands& t);
 bool legCheck(int c, const TwoHands& t, const VrMove& move);
@@ -2048,14 +1543,7 @@ bool liftCheck(int c, const TwoHands& t)
     const glm::vec3 axis = za::fabs(f) >= za::fabs(s) ? fwd * (f >= 0.f ? 1.f : -1.f) : left * (s >= 0.f ? 1.f : -1.f);
     return glm::dot(level, axis) >= za::cos(glm::radians(align)) - 1e-4f ? axis : level;
 }
-
-// The leg grabs (vr_foegrab_leggrab; ROUND22.md, "Leg grabs"): where on a humanoid's legs a hand holds.
-enum class LegPart : int
-{
-    None = 0,  // not its legs
-    Thigh = 1, // above its knee
-    Lower = 2, // below it: its shin, its foot
-};
+} // namespace
 
 [[nodiscard]] const char* legPartName(int p)
 {
@@ -2063,10 +1551,13 @@ enum class LegPart : int
                                                                                                              "not a leg";
 }
 
+namespace
+{
 constexpr float legLowShare = 0.27f;  // no rig (or a rig's one-bone legs): under this share of its height, below the knee
 constexpr float legHighShare = 0.48f; // and under this, its thigh
 constexpr float kneeSlack = 1.f;      // units: a hold on a thigh's vertices this little over its knee's joint is at the knee
 constexpr float legStrokeShare = 0.5f; // the pull's stroke: the hands towards you at this share of Pull Speed or more
+} // namespace
 
 // The part of `m`'s legs at `at` (world): its rig's bone nearest (box3d::boneAt: shin_*, foot_*, calf below the knee,
 // thigh_* above), else by height; `bone` the rig's name ("" none: by height).
@@ -2109,6 +1600,8 @@ constexpr float legStrokeShare = 0.5f; // the pull's stroke: the hands towards y
     return heavy > 0.f && mass > heavy ? za::pow(mass / heavy, 1.f / 3.f) : 1.f;
 }
 
+namespace
+{
 void legNote(int c, const char* why)
 {
     if(c == 0)
@@ -2320,6 +1813,7 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
     }
     return true;
 }
+} // namespace
 
 // Where a level way `dir` points, seen from `player` facing the enemy at `middle` (the judo throw's; its log's, the
 // motion recorder's): away from you, towards you, to your left or right; `sub` the short word.
@@ -2338,6 +1832,8 @@ const char* throwWayName(const glm::vec3& dir, const glm::vec3& middle, const gl
            left                 ? "to your left" : "to your right";
 }
 
+namespace
+{
 // The two-hand throw (see above twoHandCheck): `t` measured.
 void throwCheck(int c, const TwoHands& t)
 {
@@ -2433,6 +1929,7 @@ bool spotNow(Hold& g, float dt, glm::vec3& palmAt)
     palmAt = rigid + g.anim + body * g.palmOff;
     return true;
 }
+} // namespace
 
 // `m` moved flat towards `to` as a monster steps (the engine's SV_movestep: up a step, down onto the floor, not off a
 // ledge), linked; blocked, half the way. False: it couldn't move at all.
@@ -2457,600 +1954,17 @@ bool moveFlat(edict_t* m, const glm::vec3& to)
     return false;
 }
 
+namespace
+{
 [[nodiscard]] bool enabledFor(edict_t* ent, const VrMove* move)
 {
     return vr_foegrab.value != 0.f && bindings().isVrProgs && hitmodel::enabled() && move &&
            (move->buttons & protocol::QVR_BUTTON_HANDSTRACKED) && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK &&
            ent->v.health > 0.f;
 }
-
-// The walk test's step (before the holds slow it): the monster walked straight away from the first player.
-void walkTestStep(double dt)
-{
-    WalkTest& w = walkTest;
-    if(w.ent <= 0 || w.ent >= qcvm->num_edicts)
-    {
-        return;
-    }
-    edict_t* m = EDICT_NUM(w.ent);
-    if(m->free || qcvm->time >= w.until)
-    {
-        if(!w.reported)
-        {
-            w.reported = true;
-            const glm::vec3 d = m->free ? glm::vec3{0.f} : vec(m->v.origin) - w.from;
-            Con_Printf("foegrab walk test: %s (%d) moved %.1f units flat (asked %.1f), hold %.2f\n",
-                m->free ? "?" : PR_GetString(m->v.classname), w.ent, glm::length(glm::vec2{d}), w.speed * w.seconds,
-                m->free ? 0.f : fieldFloatOr(m, fields().vr_foegrab_hold, 0.f));
-            w.ent = 0;
-        }
-        return;
-    }
-    edict_t* player = EDICT_NUM(1);
-    glm::vec3 away = vec(m->v.origin) - vec(player->v.origin);
-    away.z = 0.f;
-    if(glm::length(away) < 1e-3f)
-    {
-        return;
-    }
-    const glm::vec3 from = vec(m->v.origin);
-    const glm::vec3 to = from + glm::normalize(away) * (w.speed * static_cast<float>(dt));
-    (void)moveFlat(m, to);
-}
-
-// The live monster nearest the first player (null: none).
-[[nodiscard]] edict_t* nearestMonster()
-{
-    edict_t* player = EDICT_NUM(1);
-    edict_t* best = nullptr;
-    float bestDist = 1e30f;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
-    {
-        edict_t* m = EDICT_NUM(num);
-        if(m->free || !(static_cast<int>(m->v.flags) & FL_MONSTER) || m->v.health <= 0.f)
-        {
-            continue;
-        }
-        const float d = glm::distance(vec(m->v.origin), vec(player->v.origin));
-        if(d < bestDist)
-        {
-            bestDist = d;
-            best = m;
-        }
-    }
-    return best;
-}
-
-// vr_foegrab_necksnap_test: the live monster nearest the first player has its neck snapped as both his hands would
-// (neckSnap: a humanoid's; standing, knocked down first; its ragdoll's neck loose, vr_foegrab_necksnap_loose), with no
-// hands holding it. vr_foegrab_neck_angle <edict>: its ragdoll's head against its chest now (NECKANGLE: swing and twist,
-// degrees; no edict: the last one vr_foegrab_necksnap_test snapped). For tests (Debug > Tests > Holding Enemies).
-int neckTestNum = 0; // the edict vr_foegrab_necksnap_test snapped last
-void neckSnapTest_f()
-{
-    if(!sv.active || svs.maxclients < 1)
-    {
-        Con_Printf("vr_foegrab_necksnap_test: in a game\n");
-        return;
-    }
-    const VmScope vm;
-    edict_t* m = nearestMonster();
-    if(!m || m->v.health <= 0.f)
-    {
-        Con_Printf("vr_foegrab_necksnap_test: no live monster\n");
-        return;
-    }
-    NeckTwist t;
-    t.turned = za::max(vr_foegrab_necksnap_angle.value, 1.f);
-    t.line = t.turned;
-    const int num = NUM_FOR_EDICT(m);
-    const bool ragdoll = box3d::isRagdoll(num);
-    neckTestNum = num;
-    neckSnap(0, m, t, ragdoll);
-    Con_Printf("vr_foegrab_necksnap_test: %s (%d) %s, health %.0f, ragdoll %d\n", PR_GetString(m->v.classname), num,
-        ragdoll ? "a ragdoll" : "standing", m->v.health, box3d::isRagdoll(num) ? 1 : 0);
-}
-
-void neckAngle_f()
-{
-    float swing = 0.f, twist = 0.f;
-    const int num = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : neckTestNum;
-    if(!sv.active || !box3d::ragdollNeckAngle(num, swing, twist))
-    {
-        Con_Printf("NECKANGLE %d none\n", num);
-        return;
-    }
-    Con_Printf("NECKANGLE %d swing %.1f twist %.1f\n", num, swing, twist);
-}
-
-// vr_foegrab_hurt <share>: the enemy the first player's hands hold (else the live monster nearest him) is left with that
-// share of its full health (its .max_health): for trying the two-hand throw on a hurt one (vr_foegrab_throw_hurt). The
-// training dummy's health is vr_dummy_health's. For tests (Debug > Tests > Holding Enemies).
-void hurt_f()
-{
-    if(!sv.active || svs.maxclients < 1 || Cmd_Argc() < 2)
-    {
-        Con_Printf("usage: vr_foegrab_hurt <share of its full health, 0.01..1>\n");
-        return;
-    }
-    const VmScope vm;
-    edict_t* m = nullptr;
-    for(int h = 0; h < 2 && !m; h++)
-    {
-        const Hold& g = holders[0].holds[h];
-        m = g.active && g.ent < qcvm->num_edicts && !EDICT_NUM(g.ent)->free ? EDICT_NUM(g.ent) : nullptr;
-    }
-    m = m ? m : nearestMonster();
-    if(!m || isTrainingDummy(m))
-    {
-        Con_Printf("vr_foegrab_hurt: %s\n", m ? "the training dummy's health is vr_dummy_health's" : "no live monster");
-        return;
-    }
-    const float share = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(1))), 0.01f, 1.f);
-    const float full = m->v.max_health > 0.f ? m->v.max_health : m->v.health;
-    m->v.health = za::max(1.f, za::round(full * share));
-    Con_Printf("vr_foegrab_hurt: %s (%d) at %.0f of %.0f health\n", PR_GetString(m->v.classname), NUM_FOR_EDICT(m),
-        m->v.health, full);
-}
-
-// vr_foegrab_walk_test <speed> <seconds>: the live monster nearest the first player walks straight away from him at
-// `speed` units/s for `seconds` (moved each server frame, before the holds slow it): how far it got is printed (held or
-// not). For tests (Debug > Tests > Holding Enemies).
-void walkTest_f()
-{
-    if(!sv.active || svs.maxclients < 1 || Cmd_Argc() < 3)
-    {
-        Con_Printf("usage: vr_foegrab_walk_test <speed units/s> <seconds>\n");
-        return;
-    }
-    const VmScope vm;
-    edict_t* best = nearestMonster();
-    if(!best)
-    {
-        Con_Printf("vr_foegrab_walk_test: no live monster\n");
-        return;
-    }
-    const float seconds = static_cast<float>(Q_atof(Cmd_Argv(2)));
-    walkTest = WalkTest{NUM_FOR_EDICT(best), static_cast<float>(Q_atof(Cmd_Argv(1))), seconds, qcvm->time + seconds,
-        vec(best->v.origin), false};
-    Con_Printf("foegrab walk test: %s (%d) walks away at %.0f units/s for %.2f s\n", PR_GetString(best->v.classname),
-        walkTest.ent, walkTest.speed, seconds);
-}
-
-// vr_foegrab_throw_test [way] [twist] [edict]: the live monster nearest the first player thrown as both his hands' turn would
-// (its kind and health decide; no hands needed): way 0 to his left, 1 to his right, 2 towards him, 3 away; `twist` the
-// hands' turn of it about the vertical (degrees/s, + to the left). Its fall is traced (ThrowTrace). For tests (Debug >
-// Tests > Holding Enemies).
-void throwTest_f()
-{
-    if(!sv.active || svs.maxclients < 1)
-    {
-        Con_Printf("usage: vr_foegrab_throw_test [way: 0 left, 1 right, 2 towards you, 3 away] [twist deg/s] (in a game)\n");
-        return;
-    }
-    const VmScope vm;
-    edict_t* player = EDICT_NUM(1);
-    // (A third argument: that edict instead of the nearest, if it is a live monster: vr_ragdoll_act's.)
-    const int only = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : 0;
-    edict_t* m = only > svs.maxclients && only < qcvm->num_edicts ? EDICT_NUM(only) : nearestMonster();
-    if(m && (m->free || !(static_cast<int>(m->v.flags) & FL_MONSTER) || m->v.health <= 0.f))
-    {
-        m = nullptr;
-    }
-    if(!m)
-    {
-        Con_Printf("vr_foegrab_throw_test: no live monster\n");
-        return;
-    }
-    glm::vec3 away = vec(m->v.origin) - vec(player->v.origin);
-    away.z = 0.f;
-    away = glm::length(away) > 1e-3f ? glm::normalize(away) : glm::vec3{1.f, 0.f, 0.f};
-    const glm::vec3 left = glm::cross(glm::vec3{0.f, 0.f, 1.f}, away);
-    const int way = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0;
-    const glm::vec3 dir = way == 1 ? -left : way == 2 ? -away : way == 3 ? away : left;
-    const float twist = glm::radians(Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 0.f);
-    const float result = throwDown(player, m, dir, twist, true);
-    Con_Printf("vr_foegrab_throw_test: %s (%d): %s\n", PR_GetString(m->v.classname), NUM_FOR_EDICT(m), throwResult(result));
-}
-
-// vr_foegrab_status: each player's holds.
-void status_f()
-{
-    if(!sv.active)
-    {
-        Con_Printf("vr_foegrab_status: no server\n");
-        return;
-    }
-    const VmScope vm;
-    int count = 0;
-    for(int c = 0; c < za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)); c++)
-    {
-        for(int h = 0; h < 2; h++)
-        {
-            const Hold& g = holders[c].holds[h];
-            if(!g.active)
-            {
-                continue;
-            }
-            edict_t* m = EDICT_NUM(g.ent);
-            Con_Printf("foegrab status: player %d %s hand holds %s (%d): hand %.2f, held %.2f, stretch %.1f cm, %.2f s\n",
-                c + 1, handName(h), PR_GetString(m->v.classname), g.ent, g.strength,
-                fieldFloatOr(m, fields().vr_foegrab_hold, 0.f), g.stretch / cm(), qcvm->time - g.since);
-            count++;
-        }
-    }
-    if(count == 0)
-    {
-        Con_Printf("foegrab status: no hand holds an enemy\n");
-    }
-    for(int c = 0; c < za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)); c++)
-    {
-        if(holders[c].twoHanded)
-        {
-            Con_Printf("foegrab status: player %d holds it with both hands: its hardest turn %.0f deg/s, the hands at %.2f "
-                       "m/s (throws at %.0f deg/s, %.2f m/s)\n",
-                c + 1, holders[c].peakTwist, holders[c].peakSpeed, vr_foegrab_throw_twist.value,
-                vr_foegrab_throw_speed.value);
-        }
-        if(holders[c].neckEnt != 0)
-        {
-            Con_Printf("foegrab status: player %d neck snap (hand line): the line's last turn %.0f deg, the largest "
-                       "within %.2f s %.0f deg (snaps at %.0f)\n",
-                c + 1, holders[c].neckWinLast, neckWindow(), holders[c].neckWinPeak, vr_foegrab_necksnap_angle.value);
-        }
-    }
-    // An enemy held on as a ragdoll (handOver): its pelvis from the player (ahead, to his left, up).
-    for(int c = 0; c < za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)); c++)
-    {
-        const Holder& hd = holders[c];
-        Con_Printf("foegrab status: player %d at %.1f %.1f %.1f\n", c + 1, EDICT_NUM(c + 1)->v.origin[0],
-            EDICT_NUM(c + 1)->v.origin[1], EDICT_NUM(c + 1)->v.origin[2]);
-        edict_t* m = hd.carried > 0 && hd.carried < qcvm->num_edicts ? EDICT_NUM(hd.carried) : nullptr;
-        glm::vec3 pelvis, head, feet;
-        if(!m || m->free || !box3d::ragdollStance(hd.carried, pelvis, head, feet))
-        {
-            continue;
-        }
-        edict_t* player = EDICT_NUM(c + 1);
-        const glm::vec3 ahead = forwardFlat(player);
-        const glm::vec3 d = pelvis - vec(player->v.origin);
-        Con_Printf("foegrab status: player %d holds %s (%d) on as a ragdoll (%s) with %d hand(s), %.2f s: its pelvis %.1f "
-                   "ahead, %.1f to his left, %.1f up; the held limbs %.1f and %.1f units from the off and main hands\n",
-            c + 1, PR_GetString(m->v.classname), hd.carried, hd.lifted ? "lifted" : hd.snapped ? "snapped" : "thrown", carryingHands(c, m),
-            qcvm->time - hd.carriedSince, glm::dot(d, ahead), glm::dot(d, glm::cross(glm::vec3{0.f, 0.f, 1.f}, ahead)), d.z,
-            box3d::ragdollHandReach(player, 0), box3d::ragdollHandReach(player, 1));
-    }
-    // The client's drawn hands (the stats as the view last put them on their spots).
-    for(int h = 0; h < 2; h++)
-    {
-        if(pins[h].weight > 0.f)
-        {
-            Con_Printf("foegrab status: drawn %s hand %.2f on its spot (%.1f %.1f %.1f)\n", handName(h), pins[h].weight,
-                pins[h].at.x, pins[h].at.y, pins[h].at.z);
-        }
-    }
-}
-
-// Each server frame, after the checks: a measured hold's end (neckDiagEnd); with the diagnostic on and no hands measuring,
-// its enemy (a hand's hold, the foegrab's or a ragdoll's; else the humanoid nearest the palms within neckDiagReach) and
-// where each palm would hold it.
-constexpr float neckDiagReach = 64.f; // units
-
-void neckDiagFrame()
-{
-    NeckDiag& d = neckDiag;
-    const double time = qcvm->time;
-    d.measured = d.measuredAt == time;
-    if(d.since >= 0.0 && !d.measured)
-    {
-        neckDiagEnd(false);
-    }
-    if(!neckDiagOn() || svs.maxclients < 1)
-    {
-        return;
-    }
-    edict_t* player = EDICT_NUM(1);
-    const VrMove* move = server::clientMove(player);
-    if(!move)
-    {
-        d.ent = 0;
-        return;
-    }
-    for(int h = 0; h < 2; h++)
-    {
-        d.palm[h] = trackedPalmOf(player, *move, h);
-    }
-    if(d.measured)
-    {
-        return;
-    }
-    d.ent = 0;
-    const Holder& hd = holders[0];
-    int ent = 0;
-    for(int h = 0; h < 2; h++)
-    {
-        d.holds[h] = false;
-        ent = ent == 0 && hd.holds[h].active ? hd.holds[h].ent : ent;
-    }
-    const int ofs[2]{fields().offhand_held, fields().mainhand_held};
-    for(int h = 0; h < 2 && ent == 0; h++)
-    {
-        const int held = ofs[h] >= 0 ? fieldInt(player, ofs[h]) : 0;
-        edict_t* e = held != 0 ? PROG_TO_EDICT(held) : nullptr;
-        ent = e && !e->free && (static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f ? NUM_FOR_EDICT(e) : 0;
-    }
-    const glm::vec3 middle = 0.5f * (d.palm[0] + d.palm[1]);
-    float nearest = neckDiagReach;
-    for(int num = 1; num < qcvm->num_edicts && ent == 0; num++)
-    {
-        edict_t* e = EDICT_NUM(num);
-        if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f)
-        {
-            continue;
-        }
-        const bool infected = fieldFloatOr(e, fields().vr_mg3_infected, 0.f) != 0.f;
-        if(!isTrainingDummy(e) && !inList(vr_foegrab_lift_classes.string, PR_GetString(e->v.classname), infected))
-        {
-            continue;
-        }
-        const glm::vec3 box = glm::clamp(middle, vec(e->v.absmin), vec(e->v.absmax));
-        if(glm::distance(box, middle) < nearest)
-        {
-            nearest = glm::distance(box, middle);
-            d.ent = num;
-        }
-    }
-    ent = ent != 0 ? ent : d.ent;
-    if(ent == 0)
-    {
-        return;
-    }
-    edict_t* m = EDICT_NUM(ent);
-    glm::vec3 joint{0.f};
-    d.ent = ent;
-    d.ragdoll = box3d::isRagdoll(ent);
-    d.zone = d.ragdoll ? ragdollZoneOf(m, joint) : headZoneOf(m);
-    d.twist = NeckTwist{};
-    for(int h = 0; h < 2; h++)
-    {
-        const Hold& g = hd.holds[h];
-        d.holds[h] = (g.active && g.ent == ent) || (ofs[h] >= 0 && fieldInt(player, ofs[h]) == EDICT_TO_PROG(m));
-        box3d::RagdollHold rh;
-        const bool ragHeld = d.ragdoll && box3d::ragdollHold(1, h, rh) && rh.num == ent;
-        d.point[h] = d.palm[h];
-        if(ragHeld)
-        {
-            (void)box3d::ragdollHoldPoint(1, h, d.point[h]);
-        }
-        else if(!d.ragdoll)
-        {
-            d.point[h] = restOf(m, g.active && g.ent == ent ? spotOf(g) : d.palm[h]);
-        }
-        d.where[h] = d.zone.where(d.point[h], d.ragdoll && !ragHeld ? palmSlack : 0.f);
-    }
-}
-
-// Each server frame, after the checks: a measured two-hand hold's end (grabDiagEnd); with the lift's or the throw's
-// diagnostic on and both hands not measuring, its enemy (a hand's hold; else the live monster nearest the palms within
-// neckDiagReach, standing) as the hands would read on it now, and what stops each move.
-void grabDiagFrame()
-{
-    GrabDiag& g = grabDiag;
-    const double time = qcvm->time;
-    g.measured = g.measuredAt == time;
-    if(g.since >= 0.0 && !g.measured)
-    {
-        grabDiagEnd();
-    }
-    if((!liftDiagOn() && !throwDiagOn() && !legDiagOn()) || svs.maxclients < 1)
-    {
-        return;
-    }
-    edict_t* player = EDICT_NUM(1);
-    const VrMove* move = server::clientMove(player);
-    if(!move)
-    {
-        g.ent = 0;
-        return;
-    }
-    for(int h = 0; h < 2; h++)
-    {
-        g.palm[h] = trackedPalmOf(player, *move, h);
-    }
-    if(g.measured)
-    {
-        return;
-    }
-    const Holder& hd = holders[0];
-    int ent = 0;
-    for(int h = 0; h < 2 && ent == 0; h++)
-    {
-        ent = hd.holds[h].active ? hd.holds[h].ent : 0;
-    }
-    const glm::vec3 middle = 0.5f * (g.palm[0] + g.palm[1]);
-    float nearest = neckDiagReach;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts && ent == 0; num++)
-    {
-        edict_t* e = EDICT_NUM(num);
-        if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f || box3d::isRagdoll(num))
-        {
-            continue;
-        }
-        const glm::vec3 box = glm::clamp(middle, vec(e->v.absmin), vec(e->v.absmax));
-        if(glm::distance(box, middle) < nearest)
-        {
-            nearest = glm::distance(box, middle);
-            g.ent = num;
-        }
-    }
-    g.ent = ent != 0 ? ent : nearest < neckDiagReach ? g.ent : 0;
-    // (None: the one last tried, a while (lifted or thrown, a ragdoll now): its result stays in view.)
-    const bool recent = time - za::max(za::max(g.liftAt, g.throwAt), g.legAt) < 4.0;
-    if(g.ent == 0 && recent && g.tryEnt > 0 && g.tryEnt < qcvm->num_edicts && !EDICT_NUM(g.tryEnt)->free)
-    {
-        g.ent = g.tryEnt;
-    }
-    if(g.ent == 0)
-    {
-        return;
-    }
-    edict_t* m = EDICT_NUM(g.ent);
-    int hands = 0;
-    for(int h = 0; h < 2; h++)
-    {
-        g.holds[h] = hd.holds[h].active && hd.holds[h].ent == g.ent;
-        hands += g.holds[h] ? 1 : 0;
-    }
-    g.two = twoHandsOf(player, *move, m, false);
-    grabDiagPlace(g, player, m);
-    const char* why = hands == 2 ? "settling the grip" : hands == 1 ? "one hand: use both" : "not held: grab it";
-    g.liftNow = vr_foegrab_lift.value == 0.f ? "Lift off" : why;
-    g.throwNow = vr_foegrab_throw.value == 0.f ? "Two-Hand Throw off" : why;
-    g.legNow = vr_foegrab_leggrab.value == 0.f ? "Leg Grabs off" : !g.humanoid ? "not a humanoid" : why;
-    if(legDiagOn())
-    {
-        // Where each hand holds it, or its palm is (where it would).
-        float weight = 1.f;
-        for(int h = 0; h < 2; h++)
-        {
-            const LegPart p = legPartAt(m, g.holds[h] ? spotOf(hd.holds[h]) : g.palm[h], &g.legBone[h]);
-            g.legPart[h] = static_cast<int>(p);
-            weight = za::min(weight, legWeight(p));
-        }
-        g.legWeight = weight;
-        g.legMass = qvr::foegrab::monsterMass(player, m);
-        g.legFactor = legMassFactor(g.legMass);
-        g.legPullNeed = za::max(vr_foegrab_legpull_speed.value, 0.1f) * g.legFactor / za::max(weight, 0.05f);
-        g.legLiftNeed = za::max(vr_foegrab_leglift_speed.value, 0.1f) * g.legFactor / za::max(weight, 0.05f);
-        glm::vec3 you = g.you - g.origin;
-        you.z = 0.f;
-        g.legYou = glm::length(you) > 1e-3f ? glm::normalize(you) : glm::vec3{1.f, 0.f, 0.f};
-        g.legToward = glm::dot(glm::vec3{g.two.vm.x, g.two.vm.y, 0.f}, g.legYou);
-        g.legDrawn = 0.f;
-    }
-}
-
-// A circle round `axis` (unit) at `centre`.
-void diagCircle(const glm::vec3& centre, const glm::vec3& axis, float radius, const glm::vec4& colour, float width)
-{
-    const glm::vec3 u = glm::normalize(glm::abs(axis.z) < 0.9f ? glm::cross(axis, glm::vec3{0.f, 0.f, 1.f}) :
-                                                                 glm::cross(axis, glm::vec3{1.f, 0.f, 0.f}));
-    const glm::vec3 v = glm::cross(axis, u);
-    constexpr int sides = 24;
-    for(int i = 0; i < sides; i++)
-    {
-        const float a0 = glm::two_pi<float>() * static_cast<float>(i) / sides;
-        const float a1 = glm::two_pi<float>() * static_cast<float>(i + 1) / sides;
-        lines::line(centre + radius * (u * za::cos(a0) + v * za::sin(a0)),
-            centre + radius * (u * za::cos(a1) + v * za::sin(a1)), width, colour, colour);
-    }
-}
-
-// An arc round `axis` from `from` (unit, across the axis), `degrees` long.
-void diagArc(const glm::vec3& centre, const glm::vec3& axis, const glm::vec3& from, float radius, float degrees,
-    const glm::vec4& colour, float width)
-{
-    const glm::vec3 v = glm::cross(axis, from);
-    const int steps = za::max(1, static_cast<int>(za::abs(degrees) / 10.f) + 1);
-    for(int i = 0; i < steps; i++)
-    {
-        const float a0 = glm::radians(degrees) * static_cast<float>(i) / static_cast<float>(steps);
-        const float a1 = glm::radians(degrees) * static_cast<float>(i + 1) / static_cast<float>(steps);
-        lines::line(centre + radius * (from * za::cos(a0) + v * za::sin(a0)),
-            centre + radius * (from * za::cos(a1) + v * za::sin(a1)), width, colour, colour);
-    }
-}
-
-[[nodiscard]] glm::vec4 whereColour(Zone z)
-{
-    return atHead(z) ? glm::vec4{0.2f, 1.f, 0.3f, 1.f} : z == Zone::Shoulder ? glm::vec4{1.f, 0.6f, 0.1f, 1.f} :
-                                                                            glm::vec4{1.f, 0.15f, 0.15f, 1.f};
-}
-
-// The diagnostics' panels (neckDebugDraw, grabDebugDraw): a value met (green) or not yet (orange); a bar's tick (its
-// threshold, at the middle of its track).
-[[nodiscard]] glm::vec4 diagColour(bool met)
-{
-    return met ? glm::vec4{0.2f, 1.f, 0.3f, 0.9f} : glm::vec4{1.f, 0.55f, 0.1f, 0.9f};
-}
-const glm::vec4 diagTick{1.f, 1.f, 1.f, 1.f};
-
-// A diagnostic's panel: `text` beside `centre`, `side` units on the viewer's right, `up` higher (the hands and the enemy
-// stay clear), turned to face the eye.
-void diagPanel(const char* text, const glm::vec3& centre, float side, float up, const glm::vec3& eye,
-    za::Span<const text3d::OverlayBar> bars)
-{
-    const glm::vec3 look = centre - eye;
-    const glm::vec3 right = glm::length(glm::vec2{look}) > 0.1f ?
-                                glm::normalize(glm::vec3{look.y, -look.x, 0.f}) : glm::vec3{0.f, -1.f, 0.f};
-    const glm::vec3 at = centre + right * side + glm::vec3{0.f, 0.f, up};
-    const glm::vec3 toPanel = at - eye;
-    const float yaw = glm::degrees(za::atan2(toPanel.y, toPanel.x));
-    text3d::queueOverlay(text, at, glm::vec3{0.f, yaw, 0.f}, 0.06f, bars);
-}
-
-// The leg grabs' diagnostic (vr_foegrab_leggrab_debug; Leg Grabs > Show Diagnostic): each palm (green below the knee,
-// orange a thigh, red off its legs), the hands' pull towards you (a level arrow, 12 units a m/s: green at Pull Speed)
-// and up (a vertical one: green at Leg Lift Speed), a panel over it: the parts, the grip's weight, its mass's factor,
-// the pull and the lift against their needs, the stroke's length, what stops it now, the last try.
-void legDebugDraw(const GrabDiag& g, const glm::vec3& eye)
-{
-    constexpr float width = 0.15f;
-    constexpr float track = 24.f;
-    constexpr float perMs = 12.f;
-    const TwoHands& t = g.two;
-    const double time = sv.qcvm.time;
-    const glm::vec4 partColour[3]{glm::vec4{1.f, 0.15f, 0.15f, 1.f}, glm::vec4{1.f, 0.6f, 0.1f, 1.f},
-        glm::vec4{0.2f, 1.f, 0.3f, 1.f}};
-    for(int h = 0; h < 2; h++)
-    {
-        diagCircle(g.palm[h], glm::vec3{0.f, 0.f, 1.f}, g.holds[h] ? 2.5f : 1.5f, partColour[za::clamp(g.legPart[h], 0, 2)],
-            width);
-    }
-    const glm::vec3 from = 0.5f * (g.palm[0] + g.palm[1]);
-    const float up = t.vm.z, toward = g.legToward;
-    const bool pullFast = toward >= g.legPullNeed, liftFast = up >= g.legLiftNeed;
-    const glm::vec4 grey{0.7f, 0.7f, 0.7f, 0.6f};
-    lines::line(from, from + g.legYou * (g.legPullNeed * perMs), width, grey, grey);
-    lines::line(from, from + g.legYou * (za::max(toward, 0.f) * perMs), 0.3f, diagColour(pullFast), diagColour(pullFast));
-    const glm::vec3 vert{0.f, 0.f, 1.f};
-    lines::line(from, from + vert * (g.legLiftNeed * perMs), width, grey, grey);
-    lines::line(from, from + vert * (za::max(up, 0.f) * perMs), 0.3f, diagColour(liftFast), diagColour(liftFast));
-    char text[720], title[40], hand0[40], hand1[40], grip[48], pull[40], drawn[40], lift[40], mass[40], now[48], best[48],
-        last[56] = "";
-    q_snprintf(title, sizeof(title), "LEG GRAB");
-    q_snprintf(hand0, sizeof(hand0), "off: %s%s%s", g.legBone[0], g.legBone[0][0] ? " " : "", legPartName(g.legPart[0]));
-    q_snprintf(hand1, sizeof(hand1), "main: %s%s%s", g.legBone[1], g.legBone[1][0] ? " " : "", legPartName(g.legPart[1]));
-    const bool same = g.legBone[0][0] && !q_strcasecmp(g.legBone[0], g.legBone[1]);
-    q_snprintf(grip, sizeof(grip), "grip %.2f, %s", g.legWeight,
-        g.legWeight <= 0.f ? "not a leg grip" : same ? "one leg" : "both legs");
-    q_snprintf(pull, sizeof(pull), "pull %5.2f / %.2f m/s", toward, g.legPullNeed);
-    q_snprintf(drawn, sizeof(drawn), "stroke %4.1f / %.0f cm", g.legDrawn, vr_foegrab_legpull_distance.value);
-    q_snprintf(lift, sizeof(lift), "up %5.2f / %.2f m/s", up, g.legLiftNeed);
-    q_snprintf(mass, sizeof(mass), "%.0f kg: x%.2f", g.legMass, g.legFactor);
-    q_snprintf(now, sizeof(now), "now: %s", g.legNow[0] ? g.legNow : "-");
-    q_snprintf(best, sizeof(best), "best pull %.2f, up %.2f m/s", g.legPullBest, g.legUpBest);
-    if(g.legAt >= 0.0 && time - g.legAt < 4.0)
-    {
-        q_snprintf(last, sizeof(last), "last: %s", g.legLast);
-    }
-    q_snprintf(text, sizeof(text), "%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s",
-        title, hand0, hand1, grip, pull, "", drawn, "", lift, "", mass, now, last[0] ? last : best);
-    const float pullNeed = za::max(g.legPullNeed, 0.01f), liftNeed = za::max(g.legLiftNeed, 0.01f);
-    const float distNeed = za::max(vr_foegrab_legpull_distance.value, 0.1f);
-    const text3d::OverlayBar bars[6]{
-        {5, 3.f, track * za::clamp(toward / (2.f * pullNeed), 0.f, 1.f), track, diagColour(pullFast)},
-        {5, 3.f + track * 0.5f, 0.15f, 0.15f, diagTick},
-        {7, 3.f, track * za::clamp(g.legDrawn / (2.f * distNeed), 0.f, 1.f), track, diagColour(g.legDrawn >= distNeed)},
-        {7, 3.f + track * 0.5f, 0.15f, 0.15f, diagTick},
-        {9, 3.f, track * za::clamp(up / (2.f * liftNeed), 0.f, 1.f), track, diagColour(liftFast)},
-        {9, 3.f + track * 0.5f, 0.15f, 0.15f, diagTick},
-    };
-    const glm::vec3 top{t.middle.x, t.middle.y, g.top};
-    diagPanel(text, top, 0.f, 26.f, eye, za::Span<const text3d::OverlayBar>{bars, 6});
-}
-
 } // namespace
+
+} // namespace foegrab::detail
 
 bool qvr::foegrab::shoveTopple(edict_t* m, const glm::vec3& dir, float strength, bool ledge, float reach)
 {
@@ -3134,20 +2048,8 @@ float qvr::foegrab::sweepDown(edict_t* player, edict_t* m, const glm::vec3& swee
 extern "C" void VR_FoeGrabPreThink(edict_t* ent)
 {
     VR_ProfileBegin("foegrab");
-    foegrab::preThink(ent);
+    qvr::foegrab::preThink(ent);
     VR_ProfileEnd();
-}
-
-void qvr::foegrab::init()
-{
-    Cmd_AddCommand("vr_foegrab_status", status_f);
-    Cmd_AddCommand("vr_foegrab_walk_test", walkTest_f);
-    Cmd_AddCommand("vr_foegrab_hurt", hurt_f);
-    Cmd_AddCommand("vr_foegrab_throw_test", throwTest_f);
-    Cmd_AddCommand("vr_foegrab_necksnap_test", neckSnapTest_f);
-    Cmd_AddCommand("vr_foegrab_neck_angle", neckAngle_f);
-    // vr_foegrab_throw_grunt_test: the throw's grunt as set, heard here (the menu's Hear Throw Grunt).
-    Cmd_AddCommand("vr_foegrab_throw_grunt_test", [] { S_LocalSound(climb::gruntSample(vr_foegrab_throw_grunt_sound.value)); });
 }
 
 void qvr::foegrab::reset()
@@ -3637,197 +2539,4 @@ bool qvr::foegrab::headZoneCentre(edict_t* m, glm::vec3& centre)
     const HeadZone z = box3d::isRagdoll(NUM_FOR_EDICT(m)) ? ragdollZoneOf(m, joint) : headZoneOf(m);
     centre = z.centre;
     return z.valid;
-}
-
-void qvr::foegrab::neckDebugDraw(const glm::vec3& eye)
-{
-    const NeckDiag& d = neckDiag;
-    if(!sv.active || !neckDiagOn() || d.ent <= 0 || d.ent >= sv.qcvm.num_edicts || !d.zone.valid)
-    {
-        return;
-    }
-    const HeadZone& z = d.zone;
-    const bool both = atHead(d.where[0]) && atHead(d.where[1]);
-    constexpr float width = 0.15f;
-    const glm::vec4 zoneColour{both ? glm::vec4{0.2f, 1.f, 0.3f, 0.8f} : glm::vec4{0.3f, 0.8f, 1.f, 0.7f}};
-    // The zone: the head (circles where it is cut: the jaw, its middle, its widest across), the neck's column under it.
-    const glm::vec3 n = z.axis;
-    const float headAt = za::min(za::sqrt(za::max(z.sphere() * z.sphere() - z.jaw() * z.jaw(), 0.f)), z.headAcross());
-    diagCircle(z.centre + n * z.jaw(), n, headAt, zoneColour, width);
-    diagCircle(z.centre, n, za::min(z.sphere(), z.headAcross()), zoneColour, width);
-    const float topAlong = za::sqrt(za::max(z.sphere() * z.sphere() - z.headAcross() * z.headAcross(), 0.f));
-    diagCircle(z.centre + n * topAlong, n, z.headAcross(), zoneColour, width);
-    diagCircle(z.centre + n * z.jaw(), n, z.neckAcross(), zoneColour, width);
-    diagCircle(z.centre + n * z.bottom(), n, z.neckAcross(), zoneColour, width);
-    const glm::vec3 u = glm::normalize(glm::abs(n.z) < 0.9f ? glm::cross(n, glm::vec3{0.f, 0.f, 1.f}) :
-                                                             glm::cross(n, glm::vec3{1.f, 0.f, 0.f}));
-    const glm::vec3 v = glm::cross(n, u);
-    for(const glm::vec3& side : {u, v, -u, -v})
-    {
-        lines::line(z.centre + n * z.bottom() + side * z.neckAcross(), z.centre + n * z.jaw() + side * z.neckAcross(),
-            width, zoneColour, zoneColour);
-        lines::line(z.centre + n * z.jaw() + side * headAt, z.centre + n * topAlong + side * z.headAcross(), width,
-            zoneColour, zoneColour);
-    }
-    // Its neck's axis (magenta), through the top.
-    const glm::vec4 axisColour{1.f, 0.3f, 1.f, 0.9f};
-    lines::line(z.centre + n * z.bottom(), z.centre + n * (z.sphere() + 4.f), width, axisColour, axisColour);
-    // The hands: where each holds (or would), from its palm.
-    for(int h = 0; h < 2; h++)
-    {
-        const glm::vec4 c = whereColour(d.where[h]);
-        lines::point(d.point[h], d.holds[h] ? 1.6f : 1.f, c);
-        lines::line(d.palm[h], d.point[h], 0.08f, glm::vec4{1.f, 1.f, 1.f, 0.5f}, c);
-    }
-    // The line between the palms (yellow), and the twist's arc round the neck: Twist Angle (grey), the turn now (orange,
-    // green once it is enough), from the line's way across the neck.
-    const glm::vec4 lineColour{1.f, 0.95f, 0.2f, 0.9f};
-    lines::line(d.palm[0], d.palm[1], width, lineColour, lineColour);
-    const float need = za::max(vr_foegrab_necksnap_angle.value, 1.f);
-    glm::vec3 from = d.palm[1] - d.palm[0];
-    from -= n * glm::dot(from, n);
-    from = glm::length(from) > 0.01f ? glm::normalize(from) : u;
-    const float arcR = z.sphere() + 3.f;
-    diagArc(z.centre, n, from, arcR, za::min(need, 360.f), glm::vec4{0.7f, 0.7f, 0.7f, 0.6f}, width);
-    if(d.measured && d.twist.turned > 0.f)
-    {
-        diagArc(z.centre, n, from, arcR + 0.6f, -za::min(d.twist.turned, 360.f),
-            d.twist.turned >= need ? glm::vec4{0.2f, 1.f, 0.3f, 1.f} : glm::vec4{1.f, 0.55f, 0.1f, 1.f}, 0.3f);
-    }
-
-    // The panel: the hand line's numbers against Twist Angle.
-    const NeckTwist& t = d.twist;
-    const double time = sv.qcvm.time;
-    char text[512];
-    char last[40] = "";
-    if(d.outcomeAt >= 0.0 && time - d.outcomeAt < 4.0)
-    {
-        q_snprintf(last, sizeof(last), d.snapped ? "last: SNAPPED %.0f deg" : "last: no snap, %.0f of %.0f",
-            d.outcomeTurned, need);
-    }
-    char title[40], turn[40], parts[40], hands[40], best[40];
-    q_snprintf(title, sizeof(title), "NECK SNAP: Hand Line %.2f s", neckWindow());
-    q_snprintf(turn, sizeof(turn), "turn %4.0f / %.0f deg", t.turned, need);
-    q_snprintf(parts, sizeof(parts), "line %4.0f wrists %4.0f", t.line, t.wrist);
-    q_snprintf(hands, sizeof(hands), "off %-8s main %-8s", zoneName(d.where[0]), zoneName(d.where[1]));
-    q_snprintf(best, sizeof(best), "best %3.0f deg", d.best);
-    q_snprintf(text, sizeof(text), "%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s", title, turn, "", parts, hands, best,
-        last);
-    constexpr float track = 24.f;
-    const text3d::OverlayBar bars[2]{
-        {2, 3.f, track * za::min(t.turned / (2.f * need), 1.f), track, diagColour(t.turned >= need)},
-        {2, 3.f + track * 0.5f, 0.15f, 0.15f, diagTick},
-    };
-    diagPanel(text, z.centre, z.sphere() + 9.f, 6.f, eye, za::Span<const text3d::OverlayBar>{bars, 2});
-}
-
-void qvr::foegrab::grabDebugDraw(const glm::vec3& eye)
-{
-    const GrabDiag& g = grabDiag;
-    const bool liftOn = liftDiagOn(), throwOn = throwDiagOn(), legOn = legDiagOn();
-    if(!sv.active || (!liftOn && !throwOn && !legOn) || g.ent <= 0 || g.ent >= sv.qcvm.num_edicts)
-    {
-        return;
-    }
-    if(legOn)
-    {
-        legDebugDraw(g, eye);
-    }
-    constexpr float width = 0.15f;
-    constexpr float track = 24.f;
-    const glm::vec3 up{0.f, 0.f, 1.f};
-    const glm::vec4 grey{0.7f, 0.7f, 0.7f, 0.6f};
-    const TwoHands& t = g.two;
-    const double time = sv.qcvm.time;
-    const glm::vec3 top{t.middle.x, t.middle.y, g.top};
-    // The palms: green on it, grey not.
-    for(int h = 0; h < 2; h++)
-    {
-        lines::point(g.palm[h], g.holds[h] ? 1.6f : 1.f, g.holds[h] ? diagColour(true) : grey);
-    }
-    // (Both panels: the lift's on the viewer's right, the throw's on the left.)
-    constexpr float side = 20.f;
-    if(liftOn)
-    {
-        // The hands' pull from between them (12 units a m/s): green once at Lift Speed (the cone's top) and within 45
-        // degrees of straight up (inside the cone).
-        const float need = liftSpeedNeed();
-        const float lift = t.vm.z, level = glm::length(glm::vec2{t.vm});
-        // (Still hands: no way, shown as level.)
-        const float angle = glm::length(t.vm) < 0.05f ? 90.f : glm::degrees(za::atan2(level, lift));
-        const bool fast = lift >= need, steep = lift >= level;
-        constexpr float perMs = 12.f;
-        const glm::vec3 from = 0.5f * (g.palm[0] + g.palm[1]);
-        const glm::vec3 coneTop = from + up * (need * perMs);
-        diagCircle(coneTop, up, need * perMs, grey, width);
-        for(const glm::vec3& s : {glm::vec3{1.f, 0.f, 0.f}, glm::vec3{-1.f, 0.f, 0.f}, glm::vec3{0.f, 1.f, 0.f},
-                glm::vec3{0.f, -1.f, 0.f}})
-        {
-            lines::line(from, coneTop + s * (need * perMs), width, grey, grey);
-        }
-        const glm::vec4 pull = diagColour(fast && steep);
-        lines::line(from, from + t.vm * perMs, 0.3f, pull, pull);
-        // Lift Reach round its feet: green with you inside.
-        const float reach = liftReach();
-        diagCircle(glm::vec3{g.origin.x, g.origin.y, g.bottom + 1.f}, up, za::max(reach, 1.f), diagColour(g.off <= reach),
-            width);
-        char text[640], title[40], speed[40], ang[40], dist[40], who[40], now[48], best[40], last[56] = "";
-        q_snprintf(title, sizeof(title), "LIFT");
-        q_snprintf(speed, sizeof(speed), "up %5.2f / %.2f m/s", lift, need);
-        q_snprintf(ang, sizeof(ang), "angle %3.0f / 45 deg", angle);
-        q_snprintf(dist, sizeof(dist), "reach %3.0f / %.0f units", g.off, reach);
-        q_snprintf(who, sizeof(who), "hands %d, %s", (g.holds[0] ? 1 : 0) + (g.holds[1] ? 1 : 0),
-            g.humanoid ? "a humanoid" : "not a humanoid");
-        q_snprintf(now, sizeof(now), "now: %s", g.liftNow[0] ? g.liftNow : "-");
-        q_snprintf(best, sizeof(best), "best up %.2f m/s", g.liftBest);
-        if(g.liftAt >= 0.0 && time - g.liftAt < 4.0)
-        {
-            q_snprintf(last, sizeof(last), "last: %s", g.liftLast);
-        }
-        q_snprintf(text, sizeof(text), "%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s", title,
-            speed, "", ang, "", dist, "", who, now, best, last);
-        const text3d::OverlayBar bars[6]{
-            {2, 3.f, track * za::clamp(lift / (2.f * need), 0.f, 1.f), track, diagColour(fast)},
-            {2, 3.f + track * 0.5f, 0.15f, 0.15f, diagTick},
-            {4, 3.f, track * za::clamp(angle / 90.f, 0.f, 1.f), track, diagColour(steep)},
-            {4, 3.f + track * 0.5f, 0.15f, 0.15f, diagTick},
-            {6, 3.f, track * za::clamp(g.off / (2.f * za::max(reach, 1.f)), 0.f, 1.f), track, diagColour(g.off <= reach)},
-            {6, 3.f + track * 0.5f, 0.15f, 0.15f, diagTick},
-        };
-        diagPanel(text, top, side, 0.f, eye, za::Span<const text3d::OverlayBar>{bars, 6});
-    }
-    if(throwOn)
-    {
-        // The turn's way from its top (0.08 units a deg/s: where its top would go), the circle Turn to Throw: green
-        // once past it with the hands fast enough.
-        const float need = vr_foegrab_throw_twist.value, speedNeed = vr_foegrab_throw_speed.value;
-        constexpr float perDeg = 0.08f;
-        const bool turned = t.twist >= need, fast = t.speed >= speedNeed;
-        diagCircle(top, up, za::max(need, 1.f) * perDeg, grey, width);
-        const glm::vec3 dir = glm::length(t.way) > 1e-4f ? glm::normalize(t.way) : glm::vec3{0.f};
-        const glm::vec4 turn = diagColour(turned && fast);
-        lines::line(top, top + dir * (t.twist * perDeg), 0.3f, turn, turn);
-        const char* wayName = t.twist >= 10.f ? throwWayName(dir, t.middle, g.you, nullptr) : "-";
-        char text[640], title[40], twist[40], speed[40], way[40], who[40], now[48], best[48], last[56] = "";
-        q_snprintf(title, sizeof(title), "JUDO THROW");
-        q_snprintf(twist, sizeof(twist), "turn %4.0f / %.0f deg/s", t.twist, need);
-        q_snprintf(speed, sizeof(speed), "hands %4.2f / %.2f m/s", t.speed, speedNeed);
-        q_snprintf(way, sizeof(way), "way: %s", wayName);
-        q_snprintf(who, sizeof(who), "hands %d on it", (g.holds[0] ? 1 : 0) + (g.holds[1] ? 1 : 0));
-        q_snprintf(now, sizeof(now), "now: %s", g.throwNow[0] ? g.throwNow : "-");
-        q_snprintf(best, sizeof(best), "best %.0f deg/s at %.2f m/s", g.throwBest, g.throwBestSpeed);
-        if(g.throwAt >= 0.0 && time - g.throwAt < 4.0)
-        {
-            q_snprintf(last, sizeof(last), "last: %s", g.throwLast);
-        }
-        q_snprintf(text, sizeof(text), "%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s\n%-30s", title, twist,
-            "", speed, "", way, who, now, best, last);
-        const text3d::OverlayBar bars[4]{
-            {2, 3.f, track * za::clamp(t.twist / (2.f * za::max(need, 1.f)), 0.f, 1.f), track, diagColour(turned)},
-            {2, 3.f + track * 0.5f, 0.15f, 0.15f, diagTick},
-            {4, 3.f, track * za::clamp(t.speed / (2.f * za::max(speedNeed, 0.01f)), 0.f, 1.f), track, diagColour(fast)},
-            {4, 3.f + track * 0.5f, 0.15f, 0.15f, diagTick},
-        };
-        diagPanel(text, top, liftOn ? -side : side, 0.f, eye, za::Span<const text3d::OverlayBar>{bars, 4});
-    }
 }
