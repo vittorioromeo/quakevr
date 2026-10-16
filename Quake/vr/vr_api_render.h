@@ -109,6 +109,13 @@ void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// afte
 void VR_BrushTransform (const struct entity_s *e, float matrix[16]);		// brush entities: the networked scale and offset
 float VR_EntityScale (const struct entity_s *e);	// ENTSCALE_DECODE(e->scale) times a prop's Size (Held Object Offsets): its bounds as drawn
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
+// Temporal anti-aliasing (vr_temporal.cpp, docs/vr-port/TEMPORAL.md)
+void VR_TemporalProjection (float proj[16], const float view[16]); // R_SetFrustum: the eye's jitter and motion block
+void VR_TemporalAliasMotion (const struct entity_s *e, int totalverts, int standard, int out[4]); // its vertex slots
+void VR_TemporalBrushPrev (const struct entity_s *e, const float world[12], float prev[12]); // its previous matrix
+void VR_TemporalMotionWrites (int on); // the following draws write the motion target (the eye's scene bound)
+void VR_TemporalReactive (int on); // the following draws mark their pixels reactive (stencil bit 4)
+void VR_TemporalResolve (unsigned fbo, unsigned color, unsigned depth); // R_RenderView: after the scene
 void VR_DebugAliasPose (const struct entity_s *e, const void *aliashdr, int pose1, int pose2, float blend, const float matrix[16]); // vr_debug_pose_check (vr_posecheck.cpp)
 // The alias instance's Quake VR data, after Ironwail's (r_alias.c's aliasinstance_t; the shaders' InstanceData).
 typedef struct vraliasinstance_s

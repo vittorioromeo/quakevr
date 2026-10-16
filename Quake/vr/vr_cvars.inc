@@ -2009,7 +2009,14 @@ QVR_CVAR(vr_exposure, "1", CVAR_ARCHIVE)              // brightness before the t
 QVR_CVAR(vr_dither, "1", CVAR_ARCHIVE)                // the eyes' last dither into 8 bits, against banding: 0 off, 1 fixed on the screen (each eye its own), 2 changing each frame, 3 the same in both eyes
 QVR_CVAR(vr_grade, "1", CVAR_ARCHIVE)                 // colour grade (quakevr/gfx/vr/grade_*.png): 0 off, 1 Quake VR (film), 2 cold, 3 warm, 4 by episode
 QVR_CVAR(vr_grade_strength, "1", CVAR_ARCHIVE)        // how much of the grade (0..1)
-QVR_CVAR(vr_eyeshot, "0", CVAR_NONE)                  // 1: save the next frame's eye images to <gamedir>/eyeshots (2: also the float scene, .pfm; 3: with the UI, as the headset shows it)
+// Temporal anti-aliasing in the eyes (vr_temporal.cpp, docs/vr-port/TEMPORAL.md): motion vectors, jitter, a per-eye history
+QVR_CVAR(vr_taa, "0", CVAR_ARCHIVE)                    // 1: temporal anti-aliasing (replaces MSAA in the eyes)
+QVR_CVAR(vr_taa_blend, "0.1", CVAR_ARCHIVE)            // the current frame's weight in the history (lower: smoother, more ghosting)
+QVR_CVAR(vr_taa_clip, "1", CVAR_ARCHIVE)               // the history's variance clip, in standard deviations of the 3x3 (lower: less ghosting, more flicker)
+QVR_CVAR(vr_taa_reactive, "0.6", CVAR_ARCHIVE)         // the current frame's weight on translucency, particles and liquids (no motion vectors)
+QVR_CVAR(vr_taa_sharpen, "0.3", CVAR_ARCHIVE)          // sharpening after the resolve (0 off; 1 strong)
+QVR_CVAR(vr_temporal_debug, "0", CVAR_NONE)            // 1: the motion vectors in the eyes; 2: the reactive mask and rejected history; 3: the reprojection test (vr_temporal_error)
+QVR_CVAR(vr_eyeshot, "0", CVAR_NONE)                // 1: save the next frame's eye images to <gamedir>/eyeshots (2: also the float scene, .pfm; 3: with the UI, as the headset shows it)
 // Liquids (vr_water.cpp): 0 everywhere is Quake's look.
 QVR_CVAR(vr_map_liquid_alpha, "0", CVAR_ARCHIVE)      // a map's own wateralpha, lavaalpha, slimealpha, telealpha (its worldspawn keys) win over r_wateralpha and the others (Ironwail's rule); 0: your settings always
 QVR_CVAR(vr_water_waves, "1", CVAR_ARCHIVE)           // waves on water, slime and lava (normal-mapped, in the shader: the faces stay flat): strength

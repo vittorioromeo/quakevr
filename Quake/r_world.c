@@ -207,6 +207,7 @@ typedef struct bmodel_gpu_instance_s {
 	float		woundbox[4];	// QVR: its box's centre, 1 / its largest side
 	float		retro[4];	// QVR: retro textures (vr/vr_retro.h): its set (VR_RetroInstance)
 	float		portalclip[4];
+	float		prevworld[12];	// QVR: its matrix one frame ago (temporal AA's motion vectors: vr/vr_temporal.cpp)
 } bmodel_gpu_instance_t;
 
 typedef struct bmodel_bindless_gpu_call_s {
@@ -297,8 +298,9 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	R_BModelMatrix (ent, mat); // QVR: (shared with R_PaintBrushWounds)
 
 	MatrixTranspose4x3 (mat, inst->world);
+	VR_TemporalBrushPrev (ent, inst->world, inst->prevworld); // QVR
 
-	inst->alpha = ent->alpha == ENTALPHA_DEFAULT ? -1.f : ENTALPHA_DECODE (ent->alpha);
+	inst->alpha =ent->alpha == ENTALPHA_DEFAULT ? -1.f : ENTALPHA_DECODE (ent->alpha);
 	memset (&inst->padding, 0, sizeof(inst->padding));
 	inst->padding[0] = ent == &cl_entities[0] ? 0.f : VR_EntityGlow (ent); // QVR: the shader's glow
 	inst->padding[1] = VR_ParallaxDepth (ent, mat, NULL, 1); // QVR: its parallax depth in units (vr_parallax)
@@ -656,6 +658,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 				bmodel_gpu_instance_t* copy = &bmodel_instances[totalinst++];
 				*copy = *inst;
 				MatrixTranspose4x3 (mapped, copy->world);
+				memcpy (copy->prevworld, copy->world, sizeof (copy->world)); // QVR: (the gate's other side: no motion of its own)
 				memcpy(inst->portalclip, source, sizeof(source));
 				memcpy(copy->portalclip, dest, sizeof(dest));
 				bmodel_portal_counts[i] = 2;
@@ -712,7 +715,9 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 
 	R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
 
+	VR_TemporalMotionWrites (pass <= BP_ALPHATEST && !translucent); // QVR: moving brush models' motion vectors (vr/vr_temporal.cpp)
 	R_FlushBModelCalls ();
+	VR_TemporalMotionWrites (0); // QVR
 	glDisable (GL_CLIP_DISTANCE1);
 	if (a2c) // QVR
 	{
@@ -967,10 +972,12 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		baseinst += numinst;
 	}
 
+	VR_TemporalMotionWrites (!translucent); // QVR: opaque liquids flagged in the motion target (vr/vr_temporal.cpp)
 	R_FlushBModelCalls ();
 
 	if (meshinst >= 0) // QVR
 		R_DrawLiquidMesh (meshinst, translucent, state);
+	VR_TemporalMotionWrites (0); // QVR
 
 	GL_EndGroup ();
 }
