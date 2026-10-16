@@ -689,6 +689,52 @@ float(entity e, float xHand, vector xAt) VR_Limb_Saw =
     return VR_Limb_Arm(e, self, xAt, vel, QVR_DECAP_SAW, bone) ? 1 : 0;
 };
 
+// The piece of ragdoll `targ` (a corpse's, or a living monster's: knocked down, staggering) a hit at `xAt` strikes: 0 its
+// head, a limb's joint, -1 the torso (a corpse's as VR_Limb_WearPiece; a living one's head as a killing blow's).
+float(entity targ, vector xAt) VR_Limb_RagdollPiece =
+{
+    if(targ.health <= 0)
+    {
+        return VR_Limb_WearPiece(targ, xAt);
+    }
+    if(!targ.vr_headless && VR_Decap_Allowed(targ) && ragdollhead(targ, xAt, 0) > 0)
+    {
+        return 0;
+    }
+    float bone = VR_Limb_At(targ, xAt);
+    return (bone > 0 && bone < 16) ? bone : -1;
+};
+
+// A hit of `xDamage` by a blade or a trap `by` (inflictor and attacker: the buzzsaw's, rogue_buzzsaw.qc) at point `xAt` of
+// ragdoll `targ`'s part (ragdollboxpart's), cutting as `xHow` (QVR_DECAP_*) and flinging what it cuts off at `xVel`: one
+// shared path. A corpse's head or limb struck wears down that piece until it comes off (VR_Limb_CorpseWear; its kind from
+// `by`: VR_Corpse_DamageKind), a living one's is armed (Killed cuts it off, VR_Decap_Arm, VR_Limb_Arm); a torso hit is the
+// whole body's (a corpse gibs, a living one dies or gibs). Its piece returned (VR_Limb_RagdollPiece's).
+float(entity targ, entity by, vector xAt, vector xVel, float xDamage, float xHow) VR_Limb_RagdollHit =
+{
+    float piece = VR_Limb_RagdollPiece(targ, xAt);
+    if(targ.health > 0)
+    {
+        if(piece == 0)
+        {
+            VR_Decap_Arm(targ, by, xAt, xVel, xHow);
+        }
+        else if(piece > 0)
+        {
+            VR_Limb_Arm(targ, by, xAt, xVel, xHow, piece);
+        }
+    }
+    else
+    {
+        vr_limb_wear_at = xAt; // (the piece it wears: VR_Limb_CorpseWear)
+        vr_limb_wear_ent = targ;
+        vr_limb_wear_time = time;
+    }
+    T_Damage(targ, by, by, xDamage);
+    vr_limb_wear_ent = world;
+    return piece;
+};
+
 // A thrown axe `xAxe` gone into `m` edge first at a limb (VR_Decap_Thrown's second half): armed if fast enough; a monster
 // its hit box killed a moment ago cut at once.
 float(entity m, entity xAxe) VR_Limb_Thrown =

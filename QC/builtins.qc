@@ -311,6 +311,11 @@ void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;
 float(entity e, vector p, optional float within) ragdollbone = #0; // (within: -1 when its surface is farther)
+// Ragdolls in a world box (the buzzsaw's blade, rogue_buzzsaw.qc): the next ragdoll after `after` (edict order; world:
+// from the first) with a part in mins..maxs, world if none; the next part of e's ragdoll after `after` (-1: from the
+// first) in it, -1 none, trace_endpos its point nearest the box's middle.
+entity(vector mins, vector maxs, entity after) ragdollinbox = #0;
+float(entity e, vector mins, vector maxs, float after) ragdollboxpart = #0;
 vector(entity e, float bone, vector p, float toWorld) ragdollpoint = #0;
 // Decapitation (vr_decap.qc; the engine's vr_box3d.cpp, "Decapitation"): e's ragdoll (made now for a dead monster with a
 // rig) loses its head, launched by `blade` (u/s): 1 if it did; after it, ragdollcut's 0 the head's middle, 1 its angles,

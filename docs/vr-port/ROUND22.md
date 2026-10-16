@@ -8334,3 +8334,35 @@ For him in VR: whether the wear is too pale or too much (paint the PNG's alpha, 
 `scuffed()` levels), the stitched points down the back (three rows; delete them in the PNG if unwanted), the relief's
 strength (`vr_glsl.h`: `paintSlope = 2.0 * ...`). Note: `developer 1` warns that QuakeSpasm can't read the PNGs (a
 compatibility note for mods; Quake VR reads them).
+
+## The buzzsaw cuts ragdolls (worktree `dequant`, branch `agent/buzzrag`, 2026-10-16)
+
+His note: ragdolls and active ragdolls went through Rogue's buzzsaw untouched; they should be obviously destroyed and
+dismembered like anything else.
+
+- **Why they were skipped.** The buzzsaw (`rogue_buzzsaw.qc`) hurts by its touch, a SOLID_TRIGGER's; a ragdoll is
+  Box3D's bodies (a corpse's entity SOLID_NOT, a knocked-down one's SOLID_NOT_BUT_TOUCHABLE, its box not where its parts
+  are), which no trigger touches.
+- **The blade's query.** Two engine builtins (`vr_box3d.cpp`, "Ragdolls in a box"): `ragdollinbox(mins, maxs, after)`
+  the next ragdoll (edict order) with a part in a world box (the broad phase: Box3D's tree at the box, ragdoll parts
+  only; then GJK on each part's shapes), `ragdollboxpart(e, mins, maxs, after)` the next part of one in it, trace_endpos
+  its point nearest the box's middle. Nothing is looked at unless a buzzsaw was spawned in the map (`vr_buzzsaws`).
+- **Each frame** (StartFrame, `VR_Buzzsaw_Frame`) every running buzzsaw looks into its blade (its box grown 2 units). A
+  ragdoll in it is struck at most every 0.1 s (`.vr_buzz_next`): each part in it takes the blade's damage x10
+  (currentammo 10: 100) through one shared path, `VR_Limb_RagdollHit` (`vr_limbs.qc`): a corpse's head or limb wears
+  down that piece (`VR_Limb_CorpseWear` / `VR_Limb_WearInto`, its piece health: a grunt's 80, so one strike) and comes
+  off as the chainsaw's cut; a living one's (knocked down, staggering) is armed (`VR_Decap_Arm` / `VR_Limb_Arm`) and the
+  strike kills it, Killed cutting it off; a torso strike is the whole body's (a corpse gibs). A corpse's limbs and head
+  are struck before its torso; a living one once a strike. Blood (meat spray, SpawnBlood) and the blade's buzz. The
+  buzzsaw counts as a saw for corpse damage and small gibs (`VR_SmallGib_Kind`: the chainsaw's kind, x1). Its old touch
+  skips ragdolls.
+- **Debug > Combat, "Buzzsaw on the Nearest Body"** (`vr_knockdown_test 70`): a running buzzsaw at the middle of the
+  nearest ragdoll.
+
+Tested (headless e1m1, `developer 1`): a grunt corpse (`vr_test_spawn_dead 1`), the blade on it: limbs 7 and 10 cut
+off, then its torso gibbed in the same strike (`scratch/buzz_corpse.png`). A knocked-down living grunt: limb 10 cut, it
+died; limb 9 cut, then gibbed (`scratch/buzz_living.png`). A grunt falling through a running blade one frame after its
+knockdown: beheaded, dead (`scratch/buzz_fall.png`). e1m1 smoke clean.
+
+For him in VR: whether a strike every 0.1 s at 100 is too quick (a corpse goes in one frame: limbs, then its torso):
+`VR_BUZZ_RAGDOLL_SCALE` and `VR_BUZZ_GAP` in `rogue_buzzsaw.qc`.

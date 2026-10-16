@@ -563,6 +563,7 @@ void() worldspawn =
 
 void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
 void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
+void() VR_Buzzsaw_Frame; // (rogue_buzzsaw.qc: its blade cuts ragdolls)
 
 void() StartFrame =
 {
@@ -594,6 +595,7 @@ void() StartFrame =
     MG3_ShubTestFrame(); // vr_mg3_shubtest (vr_mg3_shub_test.qc)
     MG3_ChthonTestFrame(); // vr_mg3_ctest (vr_mg3_chthon_test.qc)
     VR_Liquids_Frame(); // VR: monsters in slime and lava burn (vr_liquids.qc)
+    VR_Buzzsaw_Frame(); // QVR: Rogue's buzzsaws cut the ragdolls in their blades (rogue_buzzsaw.qc)
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
     VR_Crates_Frame(); // VR: at a new map's first frame, its crates (vr_crates.qc; before the rocks and bricks: they keep clear)
     VR_Debris_Frame(); // VR: at a new map's first frame, its rocks and bricks (vr_debris.qc)
