@@ -5,6 +5,7 @@
 // for alpha-tested textures (vr_alpha_coverage). Engine-style code, kept out of gl_texmgr.c (docs/vr-port/IRONWAIL_DIFF.md);
 // the texture manager calls VR_NormalMapMipSize, VR_MakeNormalMap, VR_AlphaCoverage and VR_AlphaCoverageMip.
 
+#include "vr_diskcache.hpp"
 #include "vr_engine.hpp"
 #include "vr_jobs.hpp"
 
@@ -732,13 +733,9 @@ the texels per unit, and the islands' mask.
 static za::String TexMgr_MakeNormalCacheBuild (void)
 {
 	char stamp[32];
-	const char *c;
-	unsigned long long h = 14695981039346656037ULL;
 	char build[24];
 	q_snprintf (stamp, sizeof (stamp), "skin normals v%d", NORMALCACHE_VERSION);
-	for (c = stamp; *c; c++)
-		h = (h ^ (byte) *c) * 1099511628211ULL;
-	q_snprintf (build, sizeof (build), "%016llx", h);
+	q_snprintf (build, sizeof (build), "%016llx", qvr::diskcache::fnv (qvr::diskcache::fnvStart, stamp, strlen (stamp)));
 	return build;
 }
 static const za::String normalcache_build = TexMgr_MakeNormalCacheBuild (); // (made before main, read-only)
@@ -748,28 +745,19 @@ static const char *TexMgr_NormalCacheBuild (void)
 	return normalcache_build.cStr ();
 }
 
-static unsigned long long TexMgr_Fnv (unsigned long long h, const void *p, size_t n)
-{
-	const byte *b = (const byte *) p;
-	size_t i;
-	for (i = 0; i < n; i++)
-		h = (h ^ b[i]) * 1099511628211ULL;
-	return h;
-}
-
 static unsigned long long TexMgr_SkinNormalsKey (const byte *data, int width, int height, qboolean heights, float texelsperunit)
 {
-	unsigned long long h = 14695981039346656037ULL;
+	unsigned long long h = qvr::diskcache::fnvStart;
 	const qboolean masked = heightmask || heightmask_corners;
 	int params[6] = {width, height, heights ? 1 : 0, masked ? heightmask_width : 0, masked ? heightmask_height : 0,
 		heightmask_corners ? heightmask_numtris : -1};
-	h = TexMgr_Fnv (h, params, sizeof (params));
-	h = TexMgr_Fnv (h, &texelsperunit, sizeof (texelsperunit));
-	h = TexMgr_Fnv (h, data, (size_t) width * height * 4);
+	h = qvr::diskcache::fnv (h, params, sizeof (params));
+	h = qvr::diskcache::fnv (h, &texelsperunit, sizeof (texelsperunit));
+	h = qvr::diskcache::fnv (h, data, (size_t) width * height * 4);
 	if (heightmask_corners) // the islands are made from these (VR_SetHeightMaskLazy)
-		h = TexMgr_Fnv (h, heightmask_corners, (size_t) heightmask_numtris * 6 * sizeof (float));
+		h = qvr::diskcache::fnv (h, heightmask_corners, (size_t) heightmask_numtris * 6 * sizeof (float));
 	else if (heightmask)
-		h = TexMgr_Fnv (h, heightmask, (size_t) heightmask_width * heightmask_height);
+		h = qvr::diskcache::fnv (h, heightmask, (size_t) heightmask_width * heightmask_height);
 	return h;
 }
 
