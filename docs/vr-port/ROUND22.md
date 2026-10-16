@@ -9639,3 +9639,48 @@ feet stop where the hands stop (held on), not further.
 In VR: crouch, take a grunt's shins (or one shin with both hands) and yank them towards you: does it go down on its
 back, feet to you? Then lift one by its legs and swing it. Try the thighs (nothing with Thigh Grip 0) and a death
 knight (harder). Watch Leg Grab Diagnostic for where your hands are and why it doesn't go.
+
+## Source splits: vr_box3d, vr_foegrab, vr_view, vr_menu (worktree `dequant`, branch `agent/splits`, 2026-10-16)
+
+His decision 5 (R1_cpp D1/D5/D6/D7: "yes to all, as suggested"): pure moves. docs/vr-port/SOURCE_MAP.md has the map.
+
+- **vr_box3d.cpp** (17,634 lines) is 15 parts (vr_box3d.cpp, _mesh, _props, _corpses, _ragdoll, _knockdown, _ragparts,
+  _hands, _step, _contacts, _api, _debugdraw, _standing, _climb, _diag; 194 to 2,141 lines) around
+  vr_box3d_internal.hpp (1,396). 15 rather than R1's 12: the ragdoll and step areas would each have been 2,700+ lines.
+  What more than one part uses of the old anonymous namespace (256 of 475 names) is `box3d::detail`: types and
+  constants in the header, variables `inline` there (one object, as before), functions declared there and defined in
+  their part. What one part uses stays in an anonymous namespace nested in `box3d::detail` (so its lookups still find
+  the shared names before qvr's, as in one file). Two functions of the API part's anonymous namespace that other parts
+  call (ownBox, boxInLevel) are `qvr::box3d::detail`, used from qvr::box3d as before.
+- **vr_foegrab.cpp**: its diagnostics and tests (NeckDiag, GrabDiag and their notes and frames, the test commands,
+  status, the debug draws, init(): it only registers the test commands) are vr_foegrab_diag.cpp; shared:
+  `foegrab::detail` in vr_foegrab_internal.hpp.
+- **vr_view.cpp** (9,782): vr_view_weapon.cpp (setupWeapon and its helpers), vr_view_hands.cpp (fingers, grasps,
+  pushes, the rigged hand, setupHand, drawHand), vr_view_diag.cpp (the debug and test commands); shared: `view_detail`
+  in vr_view_internal.hpp (not `view::detail`: `view::` is written 242 times in the file, and a second `view` namespace
+  would make each ambiguous). vr_view_diag.cpp registers its commands (`view::registerDiagCommands`, called where
+  vr_main.cpp's ten lines were). magMounts stays in vr_view.cpp: anchors.py, polish_weapons.py and mdl.py read it
+  there. No migration code was left in it.
+- **vr_menu.cpp** (14,559 -> 6,539): the page builders are 8 area `.inc` files included where they were (gameplay,
+  body, gore, physics, debug, debug_tests, settings, wofs), as the existing vr_menu_*.inc.
+- The only edits that are not moves, all forced: `box3d::`/`foegrab::` written `qvr::box3d::`/`qvr::foegrab::` in the
+  moved global-scope code (the new namespace made the short name ambiguous: 20 and 2 places), default arguments of
+  shared functions on their declaration only, `inline` on shared variables (and on a constexpr reference),
+  `#define`/`#undef` pairs copied with what they enclose.
+- How: scratch tools in the worktree (cppchunks.py, b3split.py, msplit.py, incsplit.py) cut the file into its
+  namespace-level entities, find which part uses each name, write the header and the parts; linecheck.py compares the
+  lines before and after (only the forced edits differ).
+
+Checks: Release, Debug and Release-Tracy build; check_statics passes. The exported symbols of every Quake/vr object
+(llvm-nm, defined external) are the same before and after, plus the new detail ones (box3d 320, foegrab 46,
+view_detail 142), view::registerDiagCommands and an inline constexpr from vr_handrig_data.inc now emitted by one more
+object. `vr_physics_hash piles` at 10 points over 1000 frames (30 explosive boxes spawned, piled, flung twice:
+scratch/hash_test.sh; deterministic, unlike a scene with monsters or crates) and the `vr_physics_mtbench 200 200` hash
+are identical before and after. Melee eval 168/177 (the same 3 damage-number differences from the baseline as before:
+bash 6 -> 3). vr_menu_path_check: vrcalibration 0 missing, vrtesthall 0 missing. menu_panels_test.py: all PASS.
+e1m1 smoke (a blast, the gun out) clean; the moved commands are registered (cmdlist).
+
+Not done (left for a next round): the other modules' test and bench commands to *_diag.cpp (vr_hull 485 lines,
+vr_wounds 380, vr_jobs_engine 341, vr_weight 317, vr_hitmodel 225, vr_brushes 164, vr_animsmooth 148, vr_zancle 122,
+vr_ragdoll's recorders ~250, and smaller ones), and the other ~65 commands vr_main.cpp registers for other modules
+(each module registering its own). msplit.py does a two-part split from a config entry (msplit_cfg.py).
