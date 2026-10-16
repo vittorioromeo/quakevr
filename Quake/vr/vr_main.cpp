@@ -2,6 +2,7 @@
 
 #include "vr_diskcache.hpp"
 #include "vr_warmup.hpp"
+#include "vr_temporal.hpp"
 #include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
@@ -1944,6 +1945,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_cache_info", diskcache::info_f); // the derived-data cache (vr_diskcache.cpp)
     warmup::registerCommands();
     hitreact::registerCommands();
+    temporal::registerCommands(); // vr_temporal_error (vr_temporal.cpp)
     edictindex::registerCommands();
     weapons::registerCvars();
     props::registerCvars();

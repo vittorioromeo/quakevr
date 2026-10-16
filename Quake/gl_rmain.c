@@ -899,6 +899,7 @@ void R_SetFrustum (void)
 	R_ViewMatrices (r_fovx, r_fovy, r_matproj, r_matview, &znear); // QVR: (shared with R_StereoViewMatrices)
 	zfar = gl_farclip.value;
 	VR_PortalClip (r_matproj, r_matview); // QVR: through a teleporter, the near plane its plane (vr/vr_portals.cpp)
+	VR_TemporalProjection (r_matproj, r_matview); // QVR: the eye's sub-pixel jitter (vr_taa), its motion vectors' block
 
 	// View projection matrix
 	memcpy(r_matviewproj, r_matproj, 16 * sizeof(float));
@@ -2100,11 +2101,13 @@ void R_RenderScene (void)
 	R_EndTranslucency ();
 	VR_ProfileEnd (); // QVR
 
+	VR_TemporalReactive (1); // QVR: the haze and the particles have no motion vectors (vr/vr_temporal.cpp)
 	VR_ProfileBeginGPU ("heat haze"); // QVR: profile
 	VR_DrawHeatHaze (); // QVR: the air shimmering over lava, round explosions and flames (vr/vr_haze.cpp)
 	VR_ProfileEnd (); // QVR
 
 	VR_DrawSceneTranslucent (); // QVR: particles
+	VR_TemporalReactive (0); // QVR
 
 	VR_ProfileBeginGPU ("view model"); // QVR: profile
 	R_DrawViewModel (); //johnfitz -- moved here from R_RenderView -- il8r -- moved for oit reasons
@@ -2269,6 +2272,10 @@ void R_RenderView (void)
 	VR_ProfileBeginGPU ("scene"); // QVR: profile
 	R_RenderScene ();
 	VR_ProfileEnd (); // QVR
+	if (framesetup.scene_fbo == framebufs.scene.fbo) // QVR: temporal anti-aliasing (vr/vr_temporal.cpp), before the warp and post-processing
+		VR_TemporalResolve (framebufs.scene.fbo, framebufs.scene.color_tex, framebufs.scene.depth_stencil_tex);
+	else
+		VR_TemporalResolve (framebufs.composite.fbo, framebufs.composite.color_tex, framebufs.composite.depth_stencil_tex);
 	VR_ProfileBeginGPU ("resolve/warp"); // QVR: profile
 	R_WarpScaleView ();
 	VR_ProfileEnd (); // QVR

@@ -33,6 +33,7 @@
 #include "vr_stereo.hpp"
 #include "vr_stereo_single.hpp"
 #include "vr_text3d.hpp"
+#include "vr_temporal.hpp"
 #include "vr_tonemap.hpp"
 #include "vr_tracy.h"
 #include "vr_upscale.hpp"
@@ -873,11 +874,14 @@ extern "C" int VR_RenderView()
     const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
     stereo::resampling = width != imageWidth || height != imageHeight || upscale::sharpenAtNative();
 
-    stereo::ensureSceneTargets(stereo::eyeTargets, width, height, vid_fsaa.value);
+    stereo::ensureSceneTargets(stereo::eyeTargets, width, height, temporal::eyeFsaa(vid_fsaa.value)); // (no MSAA under TAA)
     if(stereo::resampling)
     {
         stereo::ensureResampleTarget(width, height);
     }
+    // Temporal AA (vr_temporal.cpp): this frame's slots for the models' positions, the motion target on the eye targets
+    temporal::beginFrame(stereo::eyeTargets.fb.scene.fbo, stereo::eyeTargets.fb.composite.fbo, width, height,
+        stereo::eyeTargets.fb.scene.samples);
 
     const glframebufs_t windowFramebufs = framebufs;
     const int windowWidth = vid.width, windowHeight = vid.height;
@@ -977,7 +981,9 @@ extern "C" int VR_RenderView()
         const int eyeCache = static_cast<int>(vr_alias_eye_cache.value);
         R_AliasEyeCacheBegin(eyeCache <= 0 ? 0 : stereo::firstEye ? 1 : eyeCache >= 2 ? 3 : 2);
         stereosingle::beginEye(eye);
+        temporal::beginEye(eye);
         V_RenderView();
+        temporal::endEye();
         stereosingle::endEye();
         R_AliasEyeCacheBegin(0);
         {

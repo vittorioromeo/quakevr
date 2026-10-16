@@ -71,6 +71,7 @@ typedef struct aliasinstance_s {
 	float		blend;
 	int32_t		padding;
 	vraliasinstance_t	vr; // QVR: Quake VR's (vr_api_render.h: VR_AliasInstance)
+	int32_t		motion[4]; // QVR: temporal AA's vertex slots (VR_TemporalAliasMotion; the shader's Motion)
 } aliasinstance_t;
 
 struct ibuf_s {
@@ -793,6 +794,7 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	if (!translucent)
 		GL_SetState (opaque_state);
+	VR_TemporalMotionWrites (!translucent && !aliasdepth); // QVR: the opaque ones write their motion vectors (vr/vr_temporal.cpp)
 	VR_RetroBind (QVR_RETRO_LUT_UNIT_ALIAS); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
 	a2c = alphatest && !translucent && VR_AlphaToCoverage (); // QVR: holey skins' edges by alpha to coverage (vr_alpha_coverage, MSAA)
 	if (a2c)
@@ -848,9 +850,10 @@ void R_FlushAliasInstances (qboolean showtris)
 			if (!textures[0]) continue;
 
 			if (!(textures[0]->flags & TEXPREF_ALPHAPIXELS))
-			{ 
+			{
 				continue;
 			}
+			VR_TemporalMotionWrites (0); // QVR: (not blended into the motion target)
 
 			textures[1] = hdr->fbtextures[skinnum][anim];
 			if (hdr == mainhdr && ibuf.ent->colormap != vid.colormap && !gl_nocolors.value)
@@ -1279,12 +1282,14 @@ cull:
 		}
 	}
 instanced:
+	VR_TemporalAliasMotion (e, totalverts, mode == ALIAS_STANDARD, instance->motion); // QVR: its previous frame's positions
 	if (mode == ALIAS_STANDARD)
 		VR_DebugAliasPose (e, paliashdr, lerpdata.pose1, lerpdata.pose2, lerpdata.blend, model_matrix); // QVR: vr_debug_pose_check
 	if (portal_split)
 	{
 		aliasinstance_t* copy = &ibuf.inst[ibuf.count++];
 		*copy = *instance; // exact current pose, bone buffer, skin and wounds
+		copy->motion[0] = copy->motion[1] = -1; // QVR: (the gate's other side: no slots of its own)
 		memcpy (instance->vr.portalclip, source_clip, sizeof(source_clip));
 		memcpy (copy->vr.portalclip, destination_clip, sizeof(destination_clip));
 		MatrixTranspose4x3 (mapped_matrix, copy->worldmatrix);
@@ -1364,6 +1369,7 @@ qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, in
 		data.inst.pose2 *= totalverts;
 	}
 	data.inst.padding = VR_AliasZeroBlend (e, hdr, totalverts);
+	data.inst.motion[0] = data.inst.motion[1] = -1; // QVR: (no temporal AA slots)
 	VR_AliasWoundPaintSide (e, side, data.inst.vr.woundside);
 	R_AliasSmoothInstance (e, hdr, &lerpdata, totalverts, &data.inst, 0, 1); // QVR: r_lerpmodels 3, as it is drawn
 
@@ -1434,6 +1440,7 @@ void R_DrawAliasModels (entity_t **ents, int count)
 	for (i = 0; i < count; i++)
 		R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD);
 	R_FlushAliasInstances (false);
+	VR_TemporalMotionWrites (0); // QVR: on through the models' batches (switching the draw buffers a batch cost GPU time)
 }
 
 /*

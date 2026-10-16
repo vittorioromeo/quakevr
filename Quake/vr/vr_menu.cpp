@@ -5441,6 +5441,14 @@ za::Vector<Item> pageDebugViews()
         toggle("Show Foveation", vr_foveated_debug)
             .help("The shading rates of Foveated Rendering in the eyes and the mirror (yellow 2x2, red 4x4) and the upscaler's "
                   "sharp circle (cyan)."),
+        cycle("Show Motion Vectors", vr_temporal_debug,
+            {{0.f, "Off"}, {1.f, "Vectors"}, {2.f, "Reactive Mask"}, {3.f, "Reprojection Test"}})
+            .help("vr_temporal_debug (TAA's inputs, vr_temporal.cpp): Vectors: red/green the motion across/up the eye, blue "
+                  "a model's own; Reactive Mask: red translucency and particles, green history thrown away, blue liquids; "
+                  "Reprojection Test: the last frame moved by the vectors (it should hold still as you move; red: thrown away)."),
+        command("Print Reprojection Error", "vr_temporal_error")
+            .help("vr_temporal_error: with Reprojection Test on, each eye's mean error of the last frame moved by the vectors, "
+                  "against not moved (0-255), in the console."),
         toggle("Show Parallax Depth", "vr_parallax_debug")
             .help("vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
                   "Parallax Depth Write): red, brighter the deeper below the surface; dark blue: the surface's own depth."),
@@ -9653,6 +9661,11 @@ za::Vector<Item> pageMain()
         cycle("Antialiasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}})
             .help("Smoother edges: thin lines such as the gaps between planks stop crawling and breaking into dashes "
                   "as your head moves. 4x (as shipped) does most of it; 8x takes nearly twice 4x's GPU time for little more."),
+        toggle("Temporal Antialiasing (TAA)", "vr_taa")
+            .help("vr_taa (experimental): smooths edges and shimmer by blending each frame with the last ones, following "
+                  "how everything moved. Replaces Antialiasing (MSAA) while on. Can leave faint trails behind fast hands."),
+        slider("TAA Sharpening", "vr_taa_sharpen", 0.f, 1.f, 0.05f, "%.2f")
+            .help("vr_taa_sharpen: sharpens the image after TAA, which softens textures a little (0: off)."),
         cycle("Anisotropic Filtering", "gl_texture_anisotropy", {{1.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}, {16.f, "16x"}})
             .help("Keeps floors and walls seen at a glancing angle sharp instead of blurry (smooth-filtered textures). "
                   "Little GPU time; 16x is the sharpest. Capped at what the graphics card supports."),

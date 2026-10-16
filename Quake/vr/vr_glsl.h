@@ -3011,3 +3011,28 @@ QVR_BEHIND_SHOWN_GATE \
 "				center += dir * along;\n" \
 "				radius = min(radius * 1.01 + 1.0, l.radius);\n" \
 "			}\n"
+
+// Temporal anti-aliasing's motion vectors (vr_temporal.cpp, docs/vr-port/TEMPORAL.md 5): the eye's view-projection a
+// frame ago (unjittered) and this frame's jitter; all zero outside the eyes' scenes (TemporalJitter.w 0: none written).
+#define QVR_TEMPORAL_BLOCK \
+"layout(std140, binding=7) uniform TemporalBlock\n" \
+"{\n" \
+"	mat4	PrevViewProj;\n" \
+"	vec4	TemporalJitter; // xy the jitter in uv, z the eye's stamp, w 1 while the eye collects motion vectors\n" \
+"	vec4	TemporalSize; // xy 1 / the eye's size\n" \
+"};\n"
+
+// The vertex's clip position a frame ago (0: it does not move by itself; the camera's motion comes from the depth).
+#define QVR_TEMPORAL_VS_OUTPUT "layout(location=29) out vec4 out_prevclip;\n"
+
+// The motion target (colour attachment 1, written while VR_TemporalMotionWrites has it on): xy uv a frame ago minus uv
+// now (unjittered), z the depth, w the eye's stamp (-1: the camera's motion; + 0.5: a liquid, its warp animated).
+// Written first in main (before any early return: an output left unwritten is undefined).
+#define QVR_TEMPORAL_FS_OUTPUT \
+"#if !OIT && !defined(QVR_MULTIVIEW)\n" \
+"layout(location=1) out vec4 out_motion;\n" \
+"layout(location=29) in vec4 in_prevclip;\n" \
+"#define QVR_TEMPORAL_WRITE(liquid) out_motion = in_prevclip.w == 0.0 ? vec4(0.0, 0.0, 0.0, -1.0) : vec4(in_prevclip.xy / in_prevclip.w * 0.5 + 0.5 - (gl_FragCoord.xy * TemporalSize.xy - TemporalJitter.xy), gl_FragCoord.z, TemporalJitter.z + (liquid))\n" \
+"#else\n" \
+"#define QVR_TEMPORAL_WRITE(liquid)\n" \
+"#endif\n"
