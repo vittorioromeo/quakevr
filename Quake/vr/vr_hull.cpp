@@ -3981,6 +3981,7 @@ void diskOrCompile(Tree& t, const Brushes& b, GateWork w)
                               ZA_MEMCMP(fresh.nodes.data(), t.nodes.data(), t.nodes.size() * sizeof(mclipnode_t)) == 0 &&
                               ZA_MEMCMP(fresh.planes.data(), t.planes.data(), t.planes.size() * sizeof(mplane_t)) == 0;
             ++(same ? diskCounts.same : diskCounts.differed);
+            diskcache::noteChecked(diskcache::Product::Hulls, same, "(the world's tree)");
         }
         t.cutBack = rebounded;
         return;

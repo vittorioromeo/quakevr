@@ -9,6 +9,7 @@
 #include "vr_cvars.hpp"
 #include "vr_box3d.hpp"
 #include "vr_decals.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
@@ -1352,6 +1353,214 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
 }
 
 // ----------------------------------------------------------------------------
+// The rigs kept on disk (vr_ragdoll_rig_cache; vr_diskcache.hpp, cache/rigs): a map's monsters' rigs read back
+// instead of derived (tens of ms each, at every map load of every session). BUMP rigVersion whenever derive, loadMesh,
+// their constants or a seed table (vr_ad_rigs.inc's too) change. vr_ragdoll_rig_cache 2 derives anyway and compares.
+// The key: all derive reads of the model (its vertices in every pose, scale and origin, its triangles' vertices) and
+// which seed table it is.
+
+constexpr unsigned rigVersion = 1;
+const za::String rigBuild = [] {
+    const unsigned parts[] = {rigVersion, static_cast<unsigned>(maxBones), static_cast<unsigned>(sizeof(seedTables) / sizeof(seedTables[0]))};
+    return qvr::diskcache::buildOf(parts, sizeof(parts) / sizeof(parts[0]));
+}();
+constexpr char rigMagic[5] = "QVRR";
+
+// A rig derived to be written (by the main thread: writeRig).
+struct RigFile
+{
+    unsigned long long key{0};
+    za::Vector<char> bytes;
+};
+
+[[nodiscard]] unsigned long long rigKey(const aliashdr_t* hdr, const SeedTable& table)
+{
+    using qvr::diskcache::fnv;
+    const int ints[6] = {static_cast<int>(&table - seedTables), table.numVerts, table.count, hdr->numverts, hdr->numposes,
+        hdr->numindexes};
+    unsigned long long h = fnv(qvr::diskcache::fnvStart, ints, sizeof(ints));
+    h = fnv(h, hdr->scale, sizeof(hdr->scale));
+    h = fnv(h, hdr->scale_origin, sizeof(hdr->scale_origin));
+    h = fnv(h, reinterpret_cast<const byte*>(hdr) + hdr->vertexes,
+        static_cast<size_t>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+    for(int i = 0; i < hdr->numindexes; i++)
+    {
+        const unsigned short v = idx[i] < hdr->numverts_vbo ? desc[idx[i]].vertindex : 0xffffu;
+        h = fnv(h, &v, sizeof(v));
+    }
+    return h;
+}
+
+// A rig's bytes (RigOut) or read back (RigIn): every field but model and deriveMs, in one order.
+struct RigOut
+{
+    za::Vector<char>& b;
+    template <typename T>
+    void pod(const T& v)
+    {
+        const za::SizeT at = b.size();
+        b.resize(at + sizeof(T));
+        memcpy(b.data() + at, &v, sizeof(T));
+    }
+    template <typename T>
+    void vec(const za::Vector<T>& v)
+    {
+        const za::U32 n = static_cast<za::U32>(v.size());
+        pod(n);
+        const za::SizeT at = b.size();
+        b.resize(at + n * sizeof(T));
+        if(n)
+        {
+            memcpy(b.data() + at, v.data(), n * sizeof(T));
+        }
+    }
+};
+
+struct RigIn
+{
+    const char* p;
+    const char* end;
+    bool ok{true};
+    template <typename T>
+    void pod(T& v)
+    {
+        if(!ok || static_cast<size_t>(end - p) < sizeof(T))
+        {
+            ok = false;
+            return;
+        }
+        memcpy(&v, p, sizeof(T));
+        p += sizeof(T);
+    }
+    template <typename T>
+    void vec(za::Vector<T>& v)
+    {
+        za::U32 n = 0;
+        pod(n);
+        if(!ok || n > static_cast<size_t>(end - p) / sizeof(T))
+        {
+            ok = false;
+            return;
+        }
+        v.resize(n);
+        if(n)
+        {
+            memcpy(v.data(), p, n * sizeof(T));
+        }
+        p += n * sizeof(T);
+    }
+};
+
+template <typename S>
+bool rigFields(S& s, Rig& r)
+{
+    s.pod(r.numBones);
+    if(r.numBones < 0 || r.numBones > maxBones)
+    {
+        return false;
+    }
+    for(int i = 0; i < r.numBones; i++)
+    {
+        Bone& b = r.bones[i];
+        s.pod(b.name);
+        s.pod(b.role);
+        s.pod(b.parent);
+        s.pod(b.joint);
+        s.pod(b.pivot);
+        s.pod(b.end);
+        s.pod(b.hinge);
+        s.pod(b.cone);
+        s.pod(b.twist);
+        s.pod(b.lower);
+        s.pod(b.upper);
+        s.pod(b.capsule);
+        s.vec(b.points);
+    }
+    s.pod(r.numVerts);
+    s.vec(r.vertBone);
+    s.vec(r.triBones);
+    s.pod(r.numPoses);
+    s.vec(r.poseRot);
+    s.vec(r.posePos);
+    s.vec(r.poseHidden);
+    s.pod(r.head);
+    s.pod(r.deaths);
+    s.pod(r.deathFirst);
+    s.pod(r.deathLast);
+    s.pod(r.hideLoose);
+    s.pod(r.clusterRms);
+    s.pod(r.boneRms);
+    return true;
+}
+
+// derive, or its rig read from the disk (vr_ragdoll_rig_cache; any thread). One derived to be kept goes into `file`.
+bool deriveCached(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig& rig, DeriveLog& log, RigFile& file)
+{
+    using qvr::diskcache::Product;
+    const int mode = qvr::diskcache::modeOf(Product::Rigs);
+    if(!mode || !hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || hdr->numverts != table.numVerts)
+    {
+        return derive(model, hdr, table, rig, log); // (its own checks, its own message)
+    }
+    const double t0 = Sys_DoubleTime();
+    const unsigned long long key = rigKey(hdr, table);
+    unsigned a = 0, b = 0;
+    za::Vector<char> data;
+    Rig fromFile;
+    bool read = qvr::diskcache::read(Product::Rigs, rigBuild.cStr(), key, "rig", rigMagic, a, b, data, model->name);
+    if(read)
+    {
+        RigIn in{data.data(), data.data() + data.size()};
+        read = rigFields(in, fromFile) && in.ok && in.p == in.end && fromFile.numVerts == hdr->numverts;
+        if(!read)
+        {
+            qvr::diskcache::noteRejected(Product::Rigs);
+        }
+    }
+    if(read && mode == 1)
+    {
+        rig = ZA_MOVE(fromFile);
+        rig.model = model;
+        rig.deriveMs = (Sys_DoubleTime() - t0) * 1000.0;
+        q_snprintf(log.text, sizeof(log.text), "ragdoll: %s rigged: %d bones, read from the cache, %.1f ms\n", model->name,
+            rig.numBones, rig.deriveMs);
+        return true;
+    }
+    if(!derive(model, hdr, table, rig, log))
+    {
+        return false;
+    }
+    za::Vector<char> bytes;
+    RigOut out{bytes};
+    (void)rigFields(out, rig);
+    if(read)
+    {
+        za::Vector<char> before;
+        RigOut old{before};
+        (void)rigFields(old, fromFile);
+        qvr::diskcache::noteChecked(Product::Rigs, before.size() == bytes.size() && !memcmp(before.data(), bytes.data(), bytes.size()),
+            model->name);
+        return true;
+    }
+    file.key = key;
+    file.bytes = ZA_MOVE(bytes);
+    return true;
+}
+
+// The main thread: a rig deriveCached left to keep, written on the pool.
+void writeRig(RigFile& file)
+{
+    if(!file.bytes.empty())
+    {
+        qvr::diskcache::write(qvr::diskcache::Product::Rigs, rigBuild.cStr(), file.key, "rig", rigMagic, 0, 0,
+            file.bytes.data(), file.bytes.size());
+        file.bytes.clear();
+    }
+}
+
+// ----------------------------------------------------------------------------
 // The rigs (models' slots: a game dir change, a model reload), and the skinned models made from them.
 
 struct RigCache
@@ -1748,7 +1957,9 @@ const Rig* rigFor(qmodel_t* model)
     }
     za::UniquePtr<Rig> r = za::makeUnique<Rig>();
     DeriveLog log;
-    const bool ok = derive(model, static_cast<const aliashdr_t*>(Mod_Extradata(model)), *table, *r, log);
+    RigFile file;
+    const bool ok = deriveCached(model, static_cast<const aliashdr_t*>(Mod_Extradata(model)), *table, *r, log, file);
+    writeRig(file);
     sayLog(log);
     if(!ok)
     {
@@ -1770,6 +1981,7 @@ void warmRigs(qmodel_t* const* models, int count)
         const SeedTable* table{nullptr};
         za::UniquePtr<Rig> rig;
         DeriveLog log;
+        RigFile file; // (written by the main thread below)
         bool ok{false};
     };
     za::Vector<Job> work;
@@ -1813,12 +2025,13 @@ void warmRigs(qmodel_t* const* models, int count)
         for(za::SizeT k = begin; k < end; k++)
         {
             Job& j = work[k];
-            j.ok = derive(j.model, j.hdr, *j.table, *j.rig, j.log);
+            j.ok = deriveCached(j.model, j.hdr, *j.table, *j.rig, j.log, j.file);
         }
     });
     // Kept in the order asked (as rigFor one by one would have).
     for(Job& j : work)
     {
+        writeRig(j.file);
         sayLog(j.log);
         if(j.ok)
         {

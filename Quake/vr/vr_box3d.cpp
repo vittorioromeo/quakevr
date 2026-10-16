@@ -2110,6 +2110,7 @@ void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pie
     if(fromDisk)
     {
         gunPiecesDisk.checked++;
+        diskcache::noteChecked(diskcache::Product::GunPieces, samePieces(pieces, cut), name);
         if(!samePieces(pieces, cut))
         {
             gunPiecesDisk.differed++;
