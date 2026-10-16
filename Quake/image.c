@@ -178,7 +178,7 @@ static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum
 				return data;
 			}
 			long start = ftell (f); // (where the image starts: the cache's key again after the decoding)
-			data = extmap ? NULL : VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp)
+			data = VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp: the start-up's list, a map load's textures)
 			if (!data)
 				data = stbi_load_from_file (f, width, height, NULL, 4);
 			if (data && !extmap)

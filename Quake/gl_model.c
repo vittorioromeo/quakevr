@@ -669,6 +669,37 @@ static void Mod_LoadTextures (lump_t *l)
 	loadmodel->numtextures = nummiptex + 2; //johnfitz -- need 2 dummy texture chains for missing textures
 	loadmodel->textures = (texture_t **) Hunk_AllocName (loadmodel->numtextures * sizeof(*loadmodel->textures) , loadname);
 
+	if (!isDedicated && nummiptex > 0) // QVR: the replacement images decoded ahead on worker threads (vr/vr_imgprefetch.cpp)
+	{
+		char (*names)[17] = (char (*)[17]) VR_HeapMalloc (nummiptex * sizeof (*names));
+		const char **namelist = (const char **) VR_HeapMalloc (nummiptex * sizeof (*namelist));
+		int *kinds = (int *) VR_HeapMalloc (nummiptex * sizeof (*kinds));
+		for (i=0 ; i<nummiptex ; i++)
+		{
+			int ofs = LittleLong (m->dataofs[i]);
+			names[i][0] = 0;
+			namelist[i] = names[i];
+			kinds[i] = 0;
+			if (ofs == -1)
+				continue;
+			mt = (miptex_t *)((byte *)m + ofs);
+			if (!LittleLong (mt->width) || !LittleLong (mt->height))
+				continue;
+			memcpy (names[i], mt->name, 16);
+			names[i][16] = 0;
+			if (names[i][0])
+			{
+				int type = Mod_TextureTypeFromName (names[i]);
+				kinds[i] = type == TEXTYPE_SKY ? 0 : TEXTYPE_ISLIQUID (type) ? 1 : 2;
+			}
+		}
+		COM_StripExtension (loadmodel->name + 5, mapname, sizeof(mapname));
+		VR_TexturePrefetchBegin (mapname, namelist, kinds, nummiptex);
+		VR_HeapFree (kinds);
+		VR_HeapFree (namelist);
+		VR_HeapFree (names);
+	}
+
 	for (i=0 ; i<nummiptex ; i++)
 	{
 		m->dataofs[i] = LittleLong(m->dataofs[i]);
@@ -858,6 +889,7 @@ static void Mod_LoadTextures (lump_t *l)
 		}
 		//johnfitz
 	}
+	VR_TexturePrefetchEnd (); // QVR
 
 	//johnfitz -- last 2 slots in array should be filled with dummy textures
 	loadmodel->textures[loadmodel->numtextures-2] = r_notexture_mip; //for lightmapped surfs

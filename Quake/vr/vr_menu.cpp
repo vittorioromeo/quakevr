@@ -5740,6 +5740,13 @@ za::Vector<Item> pageDebugProfiling()
         command("Decoded Image Cache Info", "vr_image_cache_info")
             .help("vr_image_cache_info: the images kept, their size, and since the start how many were found there and how many "
                   "decoded (console). vr_image_cache_clear empties it."),
+        toggle("Decode Textures Ahead", vr_texture_prefetch)
+            .help("On: a map load decodes its textures' replacement images (their glows, the external pack's maps) on worker "
+                  "threads while it uploads them in order: the same pixels, QRP's E1M1 about 0.15 s faster the first time. "
+                  "Off: each decoded on the main thread as it is uploaded (vr_texture_prefetch)."),
+        command("Textures Decoded Ahead Info", "vr_image_prefetch_info")
+            .help("vr_image_prefetch_info: the images the last loads read ahead, how many the loads took (and decoded "
+                  "themselves: no worker had come to them), how many they didn't ask for (console)."),
         header("Particles' Fill"),
         toggle("Skip Hidden Particles", vr_particle_saturate)
             .help("vr_particle_saturate: in dense effects the particles are composited in reverse order into a layer of "
