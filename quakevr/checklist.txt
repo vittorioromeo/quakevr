@@ -2,6 +2,15 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Leg grabs: both hands on a grunt's shins, yank toward you: falls on its back; pull up: hangs head-down, swing/throw it; thighs do nothing by default (Combat > Holding Enemies > Leg Grabs)
+Leg sweep: sweep a grunt's shins with shotgun/crowbar/plank/rocket launcher, front and side: it falls; axe, super shotgun, lightning gun, sword blade: nothing; sword hilt-down works
+Crush: jump on a downed grunt: parts jolt, thud unless something pops, head pops on the 2nd jump; punching/dragging keeps it down up to 6.5 s, rises ~1 s after you stop
+Enemy Melee menu (Combat): Show Melee Arcs; sidestep a knight (narrow) and an ogre (wide, its overhead smash doesn't track); DoE Guardian stab and Overlord smash respect the arc
+Throws: weapon and brick thrown while running go a bit shorter; a gib thrown near a monster bends toward it; two-handed window 0.2 s for props and guns
+Graphics: Parallax Surface Level 0 / 0.5 / 1 with a crate on carved floors; TAA (off by default) on: railings while moving the head, fast axe swing trails, sharpen 0-0.6
+Motion recorder: record Leg Sweep Expected (shotgun, crowbar, super shotgun) and Not Expected (axe, slow swing) takes, then eval.sh
+Defaults: your tuned values are now built in (knockdown times, ragdoll hand stick, 192 others): a fresh config should feel like yours; Debug > Tests only has human tests now (agent ones under Automation & Self-Tests)
+Nothing should feel different after the cleanup (A/B switches removed): walk along walls, throw props and guns, drop a gun in water, catch a tossed weapon, press a wall button with a sword, parry a knight
 Stomps: jump repeatedly on a downed grunt's head: pops on the 3rd; ~2 heights onto a head (alive or dead) pops it; corpse legs pop; ogre/shambler only hurt
 Enemy melee: sidestep a charging knight/death knight: it misses; sneak behind and wake it: it turns before the first blow lands
 Gib heads: rocket an AD crossbow knight or hunter ogre: pick up, throw and shoot its head (bursts into small gibs)
