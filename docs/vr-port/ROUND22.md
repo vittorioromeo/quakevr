@@ -10083,3 +10083,56 @@ Melee eval (eval.sh): 168/177, the 3 known bash-damage canary differences (6 -> 
 In VR: throw a brick or a rock at a grunt, and hit one with a brick in the fist: a round dent where it struck. Kill one and
 hit the ragdoll with the sword, the axe, a fist, a brick, and a thrown brick: each leaves a wound and a dent. Hold the
 sword by its blade and club a ragdoll on the floor with the hilt: it takes damage (corpse damage, a round dent, a knock).
+
+## Leg sweep: a real speed gate, short weapons, and leg pulls from any side (worktree `fastship`, branch `agent/legsweep2`, 2026-10-17)
+
+His notes: the sweep's direction and fall are right (he tweaked some fall values), but even with Least Speed very high
+the slightest brush with the shotgun swept; shorter weapons and props should sweep too ("pretty much all of them"); the
+leg pull is only convincing from the front: from a side or the back it falls as if pulled from the front.
+
+**Why the speed didn't gate** (`vr_legsweep.cpp`): the contact point's speed was its move through the world over one
+frame, so it carried his own locomotion. Walking into a grunt's legs with the shotgun held still read 7.3 m/s (his walk:
+`cl_forwardspeed` 200 = 7.6 m/s; he had Least Speed at 8). Reproduced by the new `shotgun_walk` case: SWEPT at 7.33 m/s
+before. Turning moved it too (his smooth turn). Now the speed is the swing's: the point's move in his own frame (from his
+origin, the play space's turn, `vryaw`, taken out), the lesser of this frame's and its stroke's (the last 0.08 s: a
+one-frame jump is no sweep), turned back into the world for the direction. The walk now reads 0.00 m/s swung (7.32
+through the world): not swept. The contact itself is still found along the world path. Log Leg Sweeps prints both speeds
+("swung; ... through the world").
+
+**Short things sweep**: Least Length 50 to 35 cm, Least Slenderness 4 to 2 (`vr_legsweep_table`): every weapon is
+staff-like now (the super shotgun, nailguns, lightning gun, Mjolnir, the chainsaw's and the axe's handles; blades still
+cut, never sweep), the short planks and the torch too. Still not: the tool gun and the grapple (26.6, 32.3 cm), crates,
+bricks, rocks, the barrel, a head.
+
+**His fall values are the defaults**: Topple Speed 200 to 180 deg/s, Feet Slide 0.5 to 0.4 (his config). Migration 146:
+those four at their old defaults take the new ones. Least Speed stays 1.5; **his config has 8**, set against the broken
+gate: with the swing measured, 8 m/s is out of reach (a heavy gun's drawn hand arrives at 2-3.5 m/s): set it back.
+
+**The leg pull from a side or the back** (`vr_foegrab.cpp` `legCheck`): two causes.
+- The grab wakes its AI (`VR_FoeGrab_Taken` spots you), and it turned on its held feet to face you (65 degrees in 1.85 s
+  held from behind). Pulled from its back, it then faced you and fell backward: as if pulled from its front. Its feet in
+  your hands, its yaw now stays as it was when the leg grip began.
+- Held on after the pull at the throw's strength (0.3 of its weight a hand), its pinned shin was a pivot: it fell
+  diagonally (the side pulls forward or backward). New **Pull Hold Strength** (`vr_foegrab_legpull_hold_strength`, 0.1;
+  Leg Grabs page): it topples the way the leg sweep's fall sends it, the hands still on its legs. (No hold at all fell
+  right too, but its feet came back.)
+
+**Tests**: `vr_test_spawn_facing` 4 / 5 (its left / right side to you; Debug > Tests > Ahead of You: Facing).
+`leggrab_test.py`: pull_back, pull_back_ai (AI awake, held 2 s first), pull_left, pull_right; each pull checks its fall
+by its own facing (the trace's new "by its facing" line). `legsweep_test.py`: shotgun_walk, shotgun_brush (0.75 m/s
+push), nailgun_lr; supershotgun_lr and lightning_lr expected swept. Recorder labels: Leg Sweep Expected gains Super
+Shotgun and Short Gun; Not Expected loses Super Shotgun, gains Barely Touched and Walked Into It (`LEG_KINDS` unchanged).
+
+**Verified**: leggrab 13/14: front pulls fell backward, back pulls forward (with the AI awake too: before, it turned 65
+degrees), its left side to you fell to its right, its right side to its left; pull_left's feet slid only 1.4 units (the
+check wants 2; it fell right). Lifts unchanged (lift, lift_gentle, heavy pass, heavy_gentle not). legsweep: walk, brush,
+slow not swept; super shotgun, lightning gun, nailgun, plank swept; away/toward fell forward/backward. With his fall
+values the lr sweeps (shotgun, rocket, grenade, super shotgun, lightning, hilt) fall diagonally backward at the mock's
+2-3 m/s (head 13-19 along the sweep, 22-30 across: the test wants along > across); with 200 / 0.5 the shotgun's fell
+cleanly to its side (25 along, 5 across). laser_lr not swept (its drawn hand arrives at 0.4-0.9 m/s; flaky before at
+1.2), crowbar_lr and rocketl_lr missed contact in real time (as noted before). Melee eval 168/177, the 3 known bash
+diffs; neck snap 6/6, 0/6 false.
+
+In VR: walk into a grunt's legs with the shotgun low (no sweep), brush them (none), then sweep hard (down). Try the super
+shotgun, the nailgun and the lightning gun. Set Least Speed back from 8 (1.5, or higher for a harder sweep). Grab a
+grunt's shins from behind and pull: on its face; from its side: over its other side.

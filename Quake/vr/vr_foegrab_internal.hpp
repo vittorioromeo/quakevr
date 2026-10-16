@@ -107,6 +107,9 @@ struct Holder
     bool legStroke{false};
     glm::vec3 legFrom{0.f};
     bool legLogged{false}; // the grip's parts printed (vr_foegrab_debug: once a two-hand hold)
+    // Its feet held, it can't turn (legCheck): its yaw as the leg grip began (legYawEnt: whose; 0: none).
+    int legYawEnt{0};
+    float legYaw{0.f};
     // The enemy held on as a ragdoll after a throw or a lift (handOver, carryStep): its entity (0: none), since when; a
     // lift's (`lifted`), when it breaks free (breakAt).
     int carried{0};

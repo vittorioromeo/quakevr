@@ -40,7 +40,7 @@ P = "+grabmain;vr_test_spawn_hold 1;vr_test_spawn_dist 20;vr_test_spawn %d;impul
 GUN, MELEE = 10, -40
 HOLD = {
     "shotgun": (W % 154, GUN), "supershotgun": (W % 155, GUN), "grenadel": (W % 158, GUN), "rocketl": (W % 160, GUN),
-    "lightning": (W % 161, GUN), "laser": (W % 162, GUN), "axe": (W % 152, MELEE), "crowbar": (W % 167, MELEE),
+    "lightning": (W % 161, GUN), "nailgun": (W % 156, GUN), "laser": (W % 162, GUN), "axe": (W % 152, MELEE), "crowbar": (W % 167, MELEE),
     "sword": (W % 163, MELEE), "plank": (P % 114, MELEE), "crate": (P % 109, MELEE), "brick": (P % 115, MELEE),
 }
 
@@ -51,12 +51,17 @@ CASES = [
     ("shotgun_slow", "shotgun", "slow", False),
     ("laser_lr", "laser", "lr", True), ("rocketl_lr", "rocketl", "lr", True), ("grenadel_lr", "grenadel", "lr", True),
     ("crowbar_lr", "crowbar", "lr", True), ("plank_lr", "plank", "lr", True),
-    ("axe_lr", "axe", "lr", False), ("supershotgun_lr", "supershotgun", "lr", False),
-    ("lightning_lr", "lightning", "lr", False), ("sword_lr", "sword", "lr", False), ("sword_hilt", "sword", "hilt", True),
+    ("axe_lr", "axe", "lr", False), ("supershotgun_lr", "supershotgun", "lr", True),
+    ("lightning_lr", "lightning", "lr", True), ("nailgun_lr", "nailgun", "lr", True),
+    ("sword_lr", "sword", "lr", False), ("sword_hilt", "sword", "hilt", True),
     ("crate_lr", "crate", "lr", False), ("brick_lr", "brick", "lr", False),
+    # (a gun held still, walked into its legs; pushed slowly into them: no sweep)
+    ("shotgun_walk", "shotgun", "walk", False), ("shotgun_brush", "shotgun", "brush", False),
 ]
+SPAWN_DIST = {"walk": 48}  # units (36: GRUNT's place); walk: 12 further, walked up to
 
 FAILS = 0
+EXTRA = os.environ.get("LS_EXTRA", "") or "echo"  # (more commands for every case: experiments)
 
 
 def motion(name, keys):
@@ -73,6 +78,12 @@ def sweep(kind, pitch):
         x0, x1 = (-0.75, 0.75) if kind != "rl" else (0.75, -0.75)
         a, b, turn = (x0, 0.0, 0.35), (x1, 0.0, 0.35), (pitch, 0)
         dur = 0.25 if kind != "slow" else 1.9
+    elif kind in ("walk", "brush"):
+        # walk: the hand held still where lr's sweep crosses its shins, the player walked into its legs (the stick
+        # pushed from 0.3 s to 1.3 s; the grunt spawned further: SPAWN_DIST); brush: the hand pushed slowly forward
+        # into them (0.45 m in 0.6 s: 0.75 m/s)
+        a, b, turn = (-0.17, 0.0, 0.75 if kind == "brush" else 0.35), (-0.17, 0.0, 0.3 if kind == "brush" else 0.35), (pitch, 0)
+        dur = 0.6
     elif kind in ("away", "toward"):
         z0, z1 = (0.75, -0.75) if kind == "away" else (-0.75, 0.75)
         a, b, turn = (0.45, 0.0, z0), (0.45, 0.0, z1), (pitch, 90)
@@ -82,7 +93,10 @@ def sweep(kind, pitch):
         dur = 0.25
     line = "main %.3f %.3f %.3f %.1f %.1f 0"
     a, b = [(p[0] + GRUNT[0], p[1] + GRUNT[1], p[2] + GRUNT[2]) + turn for p in (a, b)]
-    return [(0.0, line % a), (0.3, line % a), (0.3 + dur, line % b), (2.0, line % b)]
+    keys = [(0.0, line % a), (0.3, line % a), (0.3 + dur, line % b), (2.0, line % b)]
+    if kind == "walk":
+        keys += [(0.3, "cmd vr_mock_stick off 0 1"), (1.3, "cmd vr_mock_stick off 0 0")]
+    return keys
 
 
 def verdict(ok, what):
@@ -100,8 +114,9 @@ def main():
         hold, pitch = HOLD[held]
         keys = sweep(kind, pitch)
         path = motion("legsweep_" + name, keys)
-        script = (f"{PRE};{hold};wait40;vr_mock_hand {keys[0][1]};wait5;{SPAWN};"
-                  f"vr_legsweep_debug 1;vr_mock_play {path};wait400;"
+        spawn = SPAWN.replace("vr_test_spawn_dist 36", f"vr_test_spawn_dist {SPAWN_DIST.get(kind, 36)}")
+        script = (f"{PRE};{hold};wait40;vr_mock_hand {keys[0][1]};wait5;{spawn};"
+                  f"vr_legsweep_debug 1;{EXTRA};vr_mock_play {path};wait400;"
                   "toggleconsole;quit")
         r = subprocess.run([BASH, f"{KIT}/run.sh", AGENT, "-RealTime", "-Script", script, "-Filter",
                             "legsweep|not put|rror|CRASH", "-Timeout", "300"], capture_output=True, text=True)

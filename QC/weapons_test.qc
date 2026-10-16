@@ -476,7 +476,7 @@ void() VR_Test_CrateCoverReport =
 
 // The yaw a test spawner's monster is given ahead of player `p` (vr_test_spawn_facing; Debug > Tests > Ahead of You:
 // Facing): 1 facing `p`, 2 facing away (trailer shots: it looks where you look), else -1 (0: the spawner's own way, as
-// before; 3: the spawn's own angle).
+// before; 3: the spawn's own angle), 4 its left side to `p` (facing `p`'s left), 5 its right side to `p`.
 float(entity p) VR_TestSpawn_FacingYaw =
 {
     float f = cvar("vr_test_spawn_facing");
@@ -487,6 +487,10 @@ float(entity p) VR_TestSpawn_FacingYaw =
     if(f == 2)
     {
         return anglemod(p.v_viewangle_y);
+    }
+    if(f == 4 || f == 5)
+    {
+        return anglemod(p.v_viewangle_y + (f == 4 ? 90 : -90));
     }
     return -1;
 };

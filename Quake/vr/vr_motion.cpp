@@ -110,10 +110,12 @@ const za::Vector<Category> categoryList = {
     // (vr_legsweep.cpp sweepHand: the "legsweep" event). eval.sh replays them at the leg sweep settings as set.
     {{"leg_sweep", "Leg Sweep Expected"},
         {any, {"shotgun", "Shotgun"}, {"prop", "Prop (plank...)"}, {"crowbar", "Crowbar"}, {"left_right", "Left to Right"},
-            {"right_left", "Right to Left"}, {"away", "Along Its Back"}, {"toward", "Along Its Front"}, {"hilt", "Pommel"}}},
+            {"right_left", "Right to Left"}, {"away", "Along Its Back"}, {"toward", "Along Its Front"}, {"hilt", "Pommel"},
+            {"super_shotgun", "Super Shotgun"}, {"short_gun", "Short Gun (nailgun, lightning gun)"}}},
     {{"no_leg_sweep", "Leg Sweep Not Expected"},
-        {any, {"axe", "Axe"}, {"slow", "Too Slow"}, {"blade", "Blade (a cut)"}, {"not_level", "Not Level"},
-            {"short", "Too Short (crate, brick)"}, {"super_shotgun", "Super Shotgun"}, {"high", "Too High"}}},
+        {any, {"axe", "Axe"}, {"slow", "Too Slow"}, {"brush", "Barely Touched"}, {"walk", "Walked Into It"},
+            {"blade", "Blade (a cut)"}, {"not_level", "Not Level"}, {"short", "Too Short (crate, brick)"},
+            {"high", "Too High"}}},
     // Lifts and judo throws (ROUND22.md, "Lift and judo throw takes"): both hands on the training dummy pulling it up
     // (vr_foegrab_lift: the "lift" event) or turning it down (the two-hand throw: the "judothrow" event).
     {{"lift", "Lift Expected"},

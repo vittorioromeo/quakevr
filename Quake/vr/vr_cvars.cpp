@@ -185,8 +185,14 @@ const DefaultChange defaultChanges[] = {
     {144, &vr_menu_grab_dist_max, "200"},           // 600
     // 145: the magnetic holsters' tether the default chain (2026-10-17: "the nicer one").
     {145, &vr_magholster_style, "0"},               // 1
+    // 146: the leg sweep (2026-10-17): short weapons and props sweep too ("pretty much all of them should sweep"), and
+    // his fall values ("direction and fall basically perfect (I tweaked some fall values)").
+    {146, &vr_legsweep_min_length, "50"},           // 35
+    {146, &vr_legsweep_min_slender, "4"},           // 2
+    {146, &vr_legsweep_topple, "200"},              // 180
+    {146, &vr_legsweep_feet, "0.5"},                // 0.4
 };
-constexpr int configVersion = 145;
+constexpr int configVersion = 146;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

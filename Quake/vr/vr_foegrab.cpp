@@ -80,6 +80,7 @@ struct ThrowTrace
     float headDown{-1.f};
     float feetGo{-1.f};
     glm::vec3 viewer{0.f}; // the first player's origin at the start: where it lies is told from his side (the tests)
+    glm::vec3 facing{1.f, 0.f, 0.f}; // its own facing at the start: where it lies is told by it too
 };
 ThrowTrace throwTrace;
 
@@ -513,6 +514,8 @@ bool startTrace(edict_t* m, const glm::vec3& dir, const char* kind)
     throwTrace.lastTorso = head - pelvis;
     throwTrace.kind = kind;
     throwTrace.viewer = svs.maxclients >= 1 ? vec(EDICT_NUM(1)->v.origin) : feet;
+    const float yaw = glm::radians(m->v.angles[1]);
+    throwTrace.facing = glm::vec3{za::cos(yaw), za::sin(yaw), 0.f};
     return true;
 }
 } // namespace
@@ -642,6 +645,11 @@ void throwTraceStep()
         Con_Printf("%s trace done: lies %.1f ahead, %.1f to your left (its head from its feet); its head %.1f ahead, "
                    "%.1f to your left of where it stood\n",
             t.kind, glm::dot(lies, ahead), glm::dot(lies, left), glm::dot(went, ahead), glm::dot(went, left));
+        // And by its own facing as it stood: which way it fell (forward: on its face).
+        const glm::vec3 itsLeft = glm::cross(glm::vec3{0.f, 0.f, 1.f}, t.facing);
+        const float fwd = glm::dot(lies, t.facing), side = glm::dot(lies, itsLeft);
+        Con_Printf("%s trace done: by its facing, its head %.1f ahead of its feet, %.1f to its left: fell %s\n", t.kind, fwd,
+            side, za::fabs(fwd) >= za::fabs(side) ? (fwd > 0.f ? "forward" : "backward") : (side > 0.f ? "to its left" : "to its right"));
         t.ent = 0;
     }
 }
@@ -1396,6 +1404,7 @@ void twoHandCheck(int c)
         hd.neckWhere = 0;
         hd.legStroke = false;
         hd.legLogged = false;
+        hd.legYawEnt = 0;
         return;
     }
     if(!hd.twoHanded)
@@ -1664,6 +1673,21 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
         parts[h] = legPartAt(m, spotOf(hd.holds[h]), &bones[h]);
     }
     const float weight = za::min(legWeight(parts[0]), legWeight(parts[1]));
+    // Its feet in your hands, it can't turn on them: its yaw stays as it was when the leg grip began (the grab wakes its
+    // AI, which would turn it to face you: pulled from its back, it then fell as if pulled from its front).
+    if(weight <= 0.f)
+    {
+        hd.legYawEnt = 0;
+    }
+    else if(hd.legYawEnt != NUM_FOR_EDICT(m))
+    {
+        hd.legYawEnt = NUM_FOR_EDICT(m);
+        hd.legYaw = m->v.angles[1];
+    }
+    else
+    {
+        m->v.angles[1] = hd.legYaw;
+    }
     if(debug() && !hd.legLogged)
     {
         hd.legLogged = true;
@@ -1747,6 +1771,7 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
     {
         // Its feet come the hands' way (towards you, within 60 degrees of it), its body falls the other.
         const glm::vec3 way = level > 1e-3f && glm::dot(vmLevel / level, you) >= 0.5f ? vmLevel / level : you;
+        const float yaw0 = glm::radians(m->v.angles[1]); // (its facing as it stood: the trace's)
         const float result = qvr::foegrab::sweepDown(player, m, way, glm::radians(za::clamp(vr_foegrab_legpull_topple.value, 0.f, 2000.f)),
             za::clamp(vr_foegrab_legpull_feet.value, 0.f, 500.f), 0.f);
         legNote(c, result >= 1.f ? "pulled down" : "can't knock it down now");
@@ -1759,11 +1784,14 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
         (void)climb::grunt(player, vr_foegrab_throw_grunt_sound.value, vr_foegrab_throw_grunt.value);
         if((debug() || legDiagOn()) && startTrace(m, alignToFacing(m, way), "legpull"))
         {
+            throwTrace.facing = glm::vec3{za::cos(yaw0), za::sin(yaw0), 0.f};
+            Con_Printf("legpull trace: its yaw %.0f as it stood, %.0f now\n", glm::degrees(yaw0), m->v.angles[1]);
             Con_Printf("legpull trace: %s (%d) pulled down by the legs towards yaw %.0f (its feet to you)\n", name,
                 throwTrace.ent, glm::degrees(za::atan2(way.y, way.x)));
         }
+        // (Held on softer than a throw's: its shins pinned in the hands, it pivoted on them and fell the wrong way.)
         if(vr_foegrab_throw_hold.value == 0.f ||
-            handOver(player, m, hd, vr_foegrab_throw_hold_strength.value, vr_foegrab_throw_hold_hertz.value, Why::Thrown) == 0)
+            handOver(player, m, hd, vr_foegrab_legpull_hold_strength.value, vr_foegrab_throw_hold_hertz.value, Why::Thrown) == 0)
         {
             for(int h = 0; h < 2; h++)
             {
