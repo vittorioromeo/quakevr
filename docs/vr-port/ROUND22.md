@@ -8880,3 +8880,55 @@ cache hits (no background process). Done in `vr_box3d.cpp` `prepareHeldGuns` + `
 | on, warm (21 read) | 4.1 ms | 8911 ms (off, warm 8918) |
 
 e1m1 cold: 37.7 ms in all (5 + 1 + 1 guns over three runs).
+
+## Temporal AA: motion vectors and a first TAA (worktree `flatfist`, branch `agent/taa1`, 2026-10-16)
+
+His decision: "start a worker on motion vectors + initial TAA implementation". This covers TEMPORAL.md stages 2a and
+2b, first cut. The design as built, the departures from the plan and the section-12 answers taken are in
+TEMPORAL.md section 1a. Code: `Quake/vr/vr_temporal.cpp`, plus hooks in `gl_rmain.c`, `r_alias.c`, `r_world.c`,
+`gl_shaders.h`, `vr_glsl.h` and `vr_stereo.cpp`.
+
+- **`vr_taa 0` is today's picture.** Eyeshots of the AA review's two frozen e1m1 views (same script, same cfg):
+  - the world and brush models are bit-identical;
+  - only the models' pixels differ, by as much as two runs of the same build differ from each other (their animation
+    timing).
+- **Vectors** (`vr_temporal_debug 1`): a smooth field under a head turn; the grunts, the hands and the held gun show
+  their own vectors. The reprojection test (`vr_temporal_debug 3`, `vr_temporal_error`) in the computer room, with a
+  slow head turn plus shake:
+  - error 1.13 with the vectors against 2.56 without (0-255 luma);
+  - with a gentler motion, 0.94 against 1.11;
+  - with a hand swinging, 0.85 against 1.02 (L eye);
+  - 99.4-99.7% of pixels compared;
+  - the floor of about 0.9 is the bilinear resampling of the previous frame;
+  - disocclusions show red at the swinging hand's trailing edge and the view's edges, as they should.
+- **Cost** (RTX 4090, mock eyes 2048², his cfg with MSAA off, 2 x 600 frames paced 90 Hz,
+  `benchresults/taa1_taa0` vs `taa1_taa1c`):
+  - e1m1_fight: 2.88 to 3.39 ms (+0.51);
+  - combat_48: 3.90 to 4.50 ms (+0.60);
+  - about 0.25-0.30 ms an eye, of which about 0.05-0.09 is the models' motion output;
+  - 4x MSAA costs +1.2 / +0.8 ms on the same scenes;
+  - the first version cost +2.7 ms in combat_48, because it switched `glDrawBuffers` per alias batch; fixed.
+  - Memory at 2048²: motion 64 MB, histories 4 x 32 MB, depths 4 x 16 MB, mask and debug 36 MB, positions 32 MB:
+    about 320 MB.
+- **Stills** (centre 1024², against the review's 32-sample reference):
+  - E1M1 start, geometry edges: off 30.9, 4x MSAA 13.5, TAA 14.4, TAA with sharpening 0.3 18.1.
+  - Interiors: 0.63 / 0.61 / 0.58 / 0.59.
+  - Sharpness (mean Laplacian): reference 2.68, off 3.60, TAA 2.55, sharpening 0.3 2.86.
+  - TAA alone is a touch softer than the reference, and 0.3 sharpening brings it back to about the reference, so 0.3
+    is the default. Retro textures keep their blocks.
+  - The computer room's numbers are muddied by the grunts' poses differing from the reference run (edges: off 28.2,
+    MSAA 9.6, TAA 15.9).
+- **Motion** (main hand swinging, `vr_mock_swing 0.8`, three consecutive TAA frames vs off): no visible trail where the
+  hand had been in the frame after, and the floor and grunts there match the frame without TAA (mean difference 3.1,
+  mostly the grunts' animation).
+  - Not tested: melee-speed swings at the headset's real 90-120 Hz pacing. Mock fast mode's frames are irregular.
+  - The weak spots to look at in the headset: thin silhouettes of fast hands and guns against bright backgrounds;
+    particles and liquids, which are reactive, so they are aliased rather than ghosted; and the sky while strafing,
+    which has no direction-only reprojection.
+- **For the author in the headset**:
+  - Graphics > "Temporal Antialiasing (TAA)" on.
+  - Look at e1m1's railings and the planks' gaps while moving your head.
+  - Swing the axe and a gun fast in front of a bright wall, looking for trails.
+  - Try "TAA Sharpening" 0-0.6.
+  - Debug > "Show Motion Vectors" > "Reprojection Test" should hold still as you turn and walk. Red means history thrown
+    away.

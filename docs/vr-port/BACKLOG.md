@@ -39,15 +39,15 @@ models with an arm, made for the flat view. To do: bloody skins for `progs/v_sho
 picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and laid as the Super Axe's are
 (`vr_monstermods.cpp superAxePoses`), with their own weapon settings slots.
 
-- **Temporal AA, then DLSS/DLAA and FSR 3.1** (`docs/vr-port/TEMPORAL.md`): stage 2a (motion vectors for both eyes) is
-  safe to start any time; the DLSS helper waits
-  on TEMPORAL.md's section 12 questions (private use or public, the helper's licence, FSR 3.1, TAA as default AA, 120
-  vs 90 Hz with DLSS).
-
 ## In progress, 2026-10-15 (other workers; not open here)
 
 Glove customization, Model vertex wobble (2) (rigged monsters' vertices rebuilt from the fitted skeleton). Their texts were removed from
 this file; the workers' ROUND22.md sections carry them.
+
+- **Temporal AA, then DLSS/DLAA and FSR 3.1** (`docs/vr-port/TEMPORAL.md`, the author 2026-10-16: "start a worker on
+  motion vectors + initial TAA implementation"): stages 2a (motion vectors) and 2b (TAA behind `vr_taa`, off by
+  default) landed in a first cut (ROUND22.md, "Temporal AA: motion vectors and a first TAA"); HMD tuning next. The DLSS
+  helper still waits on TEMPORAL.md's section 12 questions 1-3 and 5.
 
 ## Proposed, waiting on the author
 
