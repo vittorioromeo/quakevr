@@ -9902,3 +9902,50 @@ sv_random_seed 7, vr_fixed_frames 1, wait60) is the same.
 
 The ~55 test registrations left in vr_main.cpp (modelcollide, selfcollide, modelmetadata, gore, decals, carry, grasp...)
 belong to modules outside this pass.
+
+## The ranger's head: the IK body's head from player.mdl (worktree `tghost`, branch `agent/rangerhead`, 2026-10-17)
+
+His ask: the IK body (progs/vrbody*) should wear the original ranger's head, not the placeholder loft. Nothing of id's
+model is shipped or cached: it is read from the player's own files as the body loads (`vr_rangerhead.cpp`, `.hpp`).
+
+**Source**: the first `progs/player.mdl` that looks like Quake's ranger. The game folder is tried first, then id1,
+then the other mounted folders. "Looks like" means 150..400 vertices (his: 212), up to 1000 triangles, a skin up to
+1024, a frame `stand1` 40..70 units tall, and a head of 12..200 triangles, 3..15 units a side. Quake VR's own
+`quakevr/progs/player.mdl` (733 vertices, unnamed frames) fails this, and so does AD's, so in practice id1's
+`pak0.pak` is used. The head is every triangle wholly above a cut at 0.1474 of stand1's height from its top (19.54
+units: his head's lowest vertex is at 19.69, the collar's highest at 19.39). No vertex may lie within 0.05 of the cut.
+That gives 27 triangles; the neck opening (7 edges) is capped with a fan in the chin's colour. Seam vertices are split
+for the back half of the skin.
+
+**Mesh** (`VR_RangerHeadMesh`, called from `Mod_LoadMD5MeshModel` after the influences are baked and before the
+normals): for the shader `vrbody` (all six body models), the placeholder's head-only triangles are dropped (weighted
+>= 250/255 to the `head` joint: 90 of them). The ranger's 34 are added, weighted wholly to `head`. He is 1.2 times the
+placeholder's width (scale 0.635: 5.4 x 5.4 x 4.75 units, about 20 x 20 x 18 cm), centred over it in X/Y, with his
+bottom 1 unit (4 cm) below the placeholder's. His crown is at 45.75 against the placeholder's 45.93. The
+placeholder's jaw ring now belongs only to the neck stub: it is narrowed to the neck's width and its texture
+coordinates clamped to the neck's skin (v <= 0.441), so it no longer flares out under the head. The winding is
+matched to the body's by signed volume.
+
+**Skins** (`VR_RangerHeadImage`, called from `Image_LoadImage`, so every load and reload of the files gets it): in
+`progs/vrbody_NN_00`, the 16 shared skins, the head block's head-only texels (u 0..0.5, v 0.444..0.5; the neck's
+v 0.424..0.441 are kept) are painted with his texels. These use Quake's palette, nearest: his front half on the left,
+his back half on the right. In `_norm` that region is flat; in `_skinmask` R marks skin where his texel is palette
+112..127 (vr_skin_tone tints his face as it tints the arms), with G and B at 0 and A at 0.5.
+
+**Seen**: the eye views still collapse the neck and head, so he is never inside your own view. The body's own draw
+(`VR_AliasBonePoses`) now keeps the head when the view is more than 0.3 m from the eyes and is not a portal (the
+teleporter rule `vr_teleporter_self_head` still governs portals). That covers `vr_mock_camera`, a third-person or
+intermission camera and reflections. The mirror clone, the shadows and the `vr_body_debug 2/3` preview already had it.
+
+**Option**: Settings > Appearance > Body > Ranger Head (`vr_body_ranger_head`, default 1, a new cvar). It is latched
+when the first body loads (the skins are painted once a session), so a change applies at the next start. Off, or with
+no ranger found: the placeholder head, as before (checked with it off).
+
+**Verified** (mock, `map start`): the log reads "the head of .../id1/pak0.pak/progs/player.mdl (34 triangles, 40
+vertices)" after passing over quakevr's and AD's. Screenshots (`scratch/rh_on4.png`: front, 3/4, back, the side
+preview, the front preview, first person; `rh_close.png`: back-left and from below; `rh_off.png`: the placeholder
+with the option off) show his face and helmet, the neck going into his head, nothing in the first-person view.
+
+For him in VR: the mirror (and Debug > body preview) from the front, side and back. Check the head's size and
+height against your own (the eyes about 3.5 cm lower than the placeholder's), the neck seam when looking up and down
+and turning the head, and that nothing of it shows in your own view when you look down, lean or crouch.

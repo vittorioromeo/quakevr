@@ -139,6 +139,8 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 	VR_TRACY_SCOPE("Image decode");
 	double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 	byte *data = Image_LoadImageRun (name, width, height, fmt);
+	if (data)
+		VR_RangerHeadImage (name, data, *width, *height, *fmt); // QVR: the body's skins with the ranger's head (vr_rangerhead.cpp)
 	VR_TimeAdd (data ? "image files found and decoded (png, tga, pcx, lmp)" : "image files looked for, none found", Sys_DoubleTime () - t0);
 	return data;
 }
