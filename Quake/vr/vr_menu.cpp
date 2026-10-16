@@ -14217,9 +14217,10 @@ void qvr::menu::tidyInstances()
         }
         return;
     }
-    if(currentMenu != 0 && m_state != m_vr && m_state != m_confirm)
+    if(currentMenu != 0 && m_state != m_vr && m_state != m_confirm && m_state != m_maps)
     {
-        // Out of the VR pages to one of Quake's menus (single: on the first panel); this panel stays on its page.
+        // Out of the VR pages to one of Quake's menus (single: on the first panel; the Levels, from the corner's button,
+        // stay on the panel pressed on); this panel stays on its page.
         const m_state_e state = m_state;
         m_state = m_vr;
         selectInstance(0);

@@ -8886,3 +8886,12 @@ e1m1 cold: 37.7 ms in all (5 + 1 + 1 guns over three runs).
 His note: "I changed some settings regarding the ragdoll and the hand follow limb values. Please make those the new
 defaults. I like if the hand follows the ragdoll more accurately." From his ironwail.cfg: vr_ragdoll_hand_stick 4 -> 30
 (the only ragdoll hand-follow setting he changed). Migration 141.
+
+## Corner shortcuts act on the panel pressed (worktree `tghost`, branch `agent/panelshortcut`, 2026-10-16)
+
+His note: the Levels shortcut opened only on the main panel. Cause: `tidyInstances` pushed any Quake (non-VR) menu back to
+the first panel. Now Ironwail's Levels (m_maps) stay on the panel pressed on; Back returns that panel to its page.
+Checked on a second panel (mock laser + trigger): Levels (before: first panel; now: second), VR Settings, Advanced VR,
+Relighting, Checklist (Developer level), Map Library, Search, Console, Recording (already the pressed panel, unchanged).
+Back to game, Quicksave/Quickload, Toolgun have no page (unchanged); New Panel opens a panel. Main Menu (Quake's own menu
+with sub-menus) still opens on the first panel. `menu_panels_test.py` step 13 covers them; `vr_menu_path_check`: 0 missing.
