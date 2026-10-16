@@ -2451,7 +2451,7 @@ QVR_CVAR(vr_ragimpact_max, "40", CVAR_ARCHIVE)             // most damage one st
 QVR_CVAR(vr_ragimpact_limb, "1", CVAR_ARCHIVE)            // a strike on an arm or a leg deals this much more (the torso 1, the head vr_ragimpact_head)
 QVR_CVAR(vr_ragimpact_wear, "1", CVAR_ARCHIVE)            // a head's or limb's wear from a strike: its damage times this (higher: pops sooner; 0: impacts never pop pieces)
 QVR_CVAR(vr_ragimpact_crush, "1.5", CVAR_ARCHIVE)           // landing on a living monster (standing, staggering or down as a ragdoll) from a height crushes the part under your feet, times this (0: off)
-QVR_CVAR(vr_ragimpact_crush_speed, "220", CVAR_ARCHIVE)   // units/s: landing slower than this crushes nothing (a jump from the same level lands at about 270: it crushes; a stair's step: 160; a 100-unit drop: 400)
+QVR_CVAR(vr_ragimpact_crush_speed, "180", CVAR_ARCHIVE)   // units/s: landing slower than this crushes nothing (a jump from the same level lands at about 270 on the floor, 200 on top of a body lying there: both crush; a stair step: 160; a 100-unit drop: 400)
 QVR_CVAR(vr_ragimpact_crush_mass, "50", CVAR_ARCHIVE)     // kg of you counted behind your feet
 QVR_CVAR(vr_ragimpact_crush_wear, "0.5", CVAR_ARCHIVE)    // share of a head's or limb's own health a landing at the least speed wears (a jump from the same level: ~0.55, the second pops it), rising to all of it at vr_ragimpact_crush_pop (0: landings wear nothing)
 QVR_CVAR(vr_ragimpact_crush_pop, "380", CVAR_ARCHIVE)     // units/s: a landing this fast pops the head or limb under your feet at once (a drop of about 2 heights onto a body lying down: ~90 units to it)
@@ -3727,6 +3727,6 @@ QVR_CVAR(vr_flatplay_debug, "0", CVAR_NONE)             // each frame's flatscre
 QVR_CVAR(vr_flat_reach, "1", CVAR_NONE)                 // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
 QVR_CVAR(vr_flat_sway, "1", CVAR_NONE)                  // how far the arms trail a turn and a step (0..2): 0 the hands locked to the view
 QVR_CVAR(vr_flat_bob, "1", CVAR_NONE)                   // the walk's bob and the breathing (0..2): the hands' own idle motion
-QVR_CVAR(vr_ragimpact_crush_push, "0.5", CVAR_ARCHIVE)   // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts at 0.4 of that); 0: it lies still
+QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still
 QVR_CVAR(vr_knockdown_keep_time, "1", CVAR_ARCHIVE)      // seconds holding, dragging or lifting one knocked down keeps it down after you let go, past its own timer (never past vr_knockdown_keep_max in all)
 QVR_CVAR(vr_knockdown_keep_max, "6.5", CVAR_ARCHIVE)     // seconds: the most one stays down in all while you keep at it (hits, stomps, holding it); its own timer is never cut short; 0: nothing keeps it down past its own timer

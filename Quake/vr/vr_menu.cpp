@@ -1219,8 +1219,8 @@ int campaignsBloodyShown = -1;
             .help("Landing on a monster (standing, down or a corpse) crushes the part under your feet (its head, a limb, "
                   "its torso): its damage times this; a head or limb crushed past its health pops. 0: never."),
         slider("Crush Least Speed", vr_ragimpact_crush_speed, 100.f, 1000.f, 25.f, "%.0f u/s").extend(0.f, 3000.f)
-            .help("Landing slower than this crushes nothing (a jump from the same level lands at about 270: 220 crushes "
-                  "it; a stair's step: 160; a 100-unit drop: 400)."),
+            .help("Landing slower than this crushes nothing (a jump from the same level lands at about 270 on the floor, "
+                  "200 on top of a body: 180 crushes both; a stair step: 160; a 100-unit drop: 400)."),
         slider("Crush Wear", vr_ragimpact_crush_wear, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much of a head's or limb's own health a landing at the least speed wears (0.5: a jump from the "
                   "same level wears about 0.55, the second pops it); faster landings more. 0: landings pop nothing."),

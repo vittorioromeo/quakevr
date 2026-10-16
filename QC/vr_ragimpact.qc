@@ -417,10 +417,14 @@ float(entity m, entity p, float xSpeed) VR_RagImpact_Stomp =
 
 // A landing's crush on ragdoll `m` (down or a corpse; the author, 2026-10-16: "it stays completely still"): the part at
 // xAt under your (`p`) feet pushed down and out from its body's middle (along your way when over the middle) at
-// vr_ragimpact_crush_push times your landing speed xSpeed (units/s; at most VR_RIMP_PUSH_MOST), and its body's middle up
-// and out at VR_RIMP_PUSH_BODY of that: it squashes and jolts. Your vr_ragimpact_crush_mass behind both (physicspush).
-float VR_RIMP_PUSH_BODY = 0.4;
+// vr_ragimpact_crush_push times your landing speed xSpeed (units/s; at most VR_RIMP_PUSH_MOST), and its other parts
+// near it (VR_RIMP_PUSH_NEAR..VR_RIMP_PUSH_FAR units) flung up and away from it at up to VR_RIMP_PUSH_BODY of that, less
+// the farther: it squashes and the body jolts round your feet (which stand on it and pin the part under them). Your
+// vr_ragimpact_crush_mass behind each push (physicspush).
+float VR_RIMP_PUSH_BODY = 0.6;
 float VR_RIMP_PUSH_MOST = 350;
+float VR_RIMP_PUSH_NEAR = 6;
+float VR_RIMP_PUSH_FAR = 56;
 void(entity m, entity p, vector xAt, float xSpeed) VR_RagImpact_CrushPush =
 {
     float v = min(VR_RIMP_PUSH_MOST, xSpeed * max(0, cvar_hget(cvarh_vr_ragimpact_crush_push)));
@@ -444,12 +448,26 @@ void(entity m, entity p, vector xAt, float xSpeed) VR_RagImpact_CrushPush =
     }
     out = normalize(out);
     float mass = max(1, cvar_hget(cvarh_vr_ragimpact_crush_mass));
-    physicspush(m, xAt, normalize(out * 0.6 - '0 0 1') * v, mass);
-    physicspush(m, mid, normalize(out + '0 0 1') * v * VR_RIMP_PUSH_BODY, mass);
+    physicspush(m, xAt, normalize(out - '0 0 0.5') * v, mass);
+    float flung = 0;
+    for(float b = 0; b < 16; b++)
+    {
+        vector at = ragdollpoint(m, b, '0 0 0', 1);
+        vector away = at - xAt;
+        away_z = 0;
+        float d = vlen(away);
+        if(at == '0 0 0' || d < VR_RIMP_PUSH_NEAR || d > VR_RIMP_PUSH_FAR)
+        {
+            continue;
+        }
+        float f = 1 - (d - VR_RIMP_PUSH_NEAR) / (VR_RIMP_PUSH_FAR - VR_RIMP_PUSH_NEAR);
+        physicspush(m, at, normalize(normalize(away) * 0.6 + '0 0 1') * v * VR_RIMP_PUSH_BODY * f, mass);
+        flung = flung + 1;
+    }
     if(vr_rimp_test || cvar_hget(cvarh_vr_knockdown_debug))
     {
-        dprint(sprintf("ragimpact crush push: %s's part at %v down and out at %.0f u/s, its middle up at %.0f u/s\n",
-            m.classname, xAt, v, v * VR_RIMP_PUSH_BODY));
+        dprint(sprintf("ragimpact crush push: %s's part at %v down and out at %.0f u/s, %g parts round it flung up at "
+            "up to %.0f u/s\n", m.classname, xAt, v, flung, v * VR_RIMP_PUSH_BODY));
     }
 };
 

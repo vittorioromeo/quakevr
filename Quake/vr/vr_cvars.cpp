@@ -805,7 +805,7 @@ const DefaultChange defaultChanges[] = {
     // 142: a jump from the same level crushes (2026-10-16: "jump from no extra height and still damage and pop the
     // limbs ... one or two jumps to kill a grunt by jumping on his head"); a hit keeps one down at least this after it.
     {142, &vr_knockdown_hit_time, "0.5"},           // 1
-    {142, &vr_ragimpact_crush_speed, "350"},        // 220
+    {142, &vr_ragimpact_crush_speed, "350"},        // 180
     {142, &vr_ragimpact_crush_wear, "0.3"},         // 0.5
 };
 constexpr int configVersion = 142;

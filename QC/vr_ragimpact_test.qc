@@ -149,7 +149,7 @@ void(float xMode) VR_RagImpact_Test =
     }
     if(xMode == 64)
     {
-        // Its parts' places (the bones 0..15): the first call keeps them, each later one prints how far each moved since.
+        // Its parts' places (the bones 0..15): the first call keeps them, each later one prints how far they are from there.
         float most = 0;
         float sum = 0;
         float n = 0;
@@ -167,7 +167,10 @@ void(float xMode) VR_RagImpact_Test =
                 sum = sum + moved;
                 n = n + 1;
             }
-            vr_rimp_test_parts[b] = at2;
+            else
+            {
+                vr_rimp_test_parts[b] = at2;
+            }
         }
         if(vr_rimp_test_kept)
         {
