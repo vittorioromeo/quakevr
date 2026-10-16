@@ -539,6 +539,11 @@ struct DeathInfo
     glm::vec3 woundAt{0.f}; // world, metres: where the blow that killed him struck
     uint32_t seed{0};
     bool crawler{false};    // his kind crawls (a humanoid)
+    // A test's (vr_ragdoll_act, vr_ragtest.cpp), for this death alone: the wound's and the crawl's chances sure
+    // (vr_ragdoll_active_wound, _crawl as 1), no pin (vr_ragdoll_active_pin as 0).
+    bool sureWound{false};
+    bool sureCrawl{false};
+    bool noPin{false};
 };
 void beginDeath(State& s, const Parts& p, const DeathInfo& d, double now);
 

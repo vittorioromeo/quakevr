@@ -3217,7 +3217,7 @@ void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
     {
         return; // (a headshot, beheaded: no pin, no stumble, no wound, no crawl)
     }
-    const float pin = za::max(vr_ragdoll_active_pin.value, 0.f);
+    const float pin = za::max(di.noPin ? 0.f : vr_ragdoll_active_pin.value, 0.f);
     const float pinTime = za::max(vr_ragdoll_active_pin_time.value, 0.05f);
     s.pin.force = pin;
     s.pin.fade = Fade{1.f, 0.f, 0.f, pinTime};
@@ -3248,7 +3248,7 @@ void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
         }
     }
     // Hit in the body or a limb: the part hit and where (the nearest of its vertices), a free hand to hold it.
-    if(di.wound && roll(di.seed, 1u) < vr_ragdoll_active_wound.value)
+    if(di.wound && roll(di.seed, 1u) < (di.sureWound ? 1.f : vr_ragdoll_active_wound.value))
     {
         float best = 1e30f;
         glm::vec3 bestLocal{0.f};
@@ -3299,7 +3299,8 @@ void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
             d.woundPart = -1;
         }
     }
-    d.crawl = di.crawler && roll(di.seed, 2u) < vr_ragdoll_active_crawl.value && limbWhole(s, p, 0) && limbWhole(s, p, 1);
+    d.crawl = di.crawler && roll(di.seed, 2u) < (di.sureCrawl ? 1.f : vr_ragdoll_active_crawl.value) &&
+              limbWhole(s, p, 0) && limbWhole(s, p, 1);
 }
 
 bool liquidPending(const State& s, double now)

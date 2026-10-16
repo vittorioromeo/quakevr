@@ -3765,19 +3765,14 @@ void startActiveDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* 
               static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 40503u;
     const ActiveClass* ac = activeClassOf(ent);
     di.crawler = ac && ac->crawls;
+    // A test's (vr_ragdoll_act): the wound's and the crawl's chances sure, or no pin, for this death alone.
+    if(const ragtest::Force* f = ragtest::forced(num))
     {
-        // A test's (vr_ragdoll_act): the wound's and the crawl's chances sure, or no pin, for this death alone.
-        const ragtest::Force* f = ragtest::forced(num);
-        const float woundWas = vr_ragdoll_active_wound.value, crawlWas = vr_ragdoll_active_crawl.value;
-        const float pinWas = vr_ragdoll_active_pin.value;
-        vr_ragdoll_active_wound.value = f && f->wound ? 1.f : woundWas;
-        vr_ragdoll_active_crawl.value = f && f->crawl ? 1.f : crawlWas;
-        vr_ragdoll_active_pin.value = f && f->noPin ? 0.f : pinWas;
-        ragactive::beginDeath(r.active, parts, di, qcvm->time);
-        vr_ragdoll_active_wound.value = woundWas;
-        vr_ragdoll_active_crawl.value = crawlWas;
-        vr_ragdoll_active_pin.value = pinWas;
+        di.sureWound = f->wound;
+        di.sureCrawl = f->crawl;
+        di.noPin = f->noPin;
     }
+    ragactive::beginDeath(r.active, parts, di, qcvm->time);
     if(vr_debug_ragdoll.value)
     {
         const ragactive::Death& d = r.active.death;
