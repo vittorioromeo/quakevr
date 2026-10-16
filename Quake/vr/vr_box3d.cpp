@@ -3006,6 +3006,44 @@ void corpseBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
     return (mode == 2 || mode == 4) && !hasFlag(ent, FL_SWIM);
 }
 
+// The corners of hull shape `shape`, each moved in by `sink` (m) along each axis (not past its middle), turned by `xf`'s
+// rotation: into `points`, their count.
+int shrunkCorners(b3ShapeId shape, const b3WorldTransform& xf, float sink, za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS>& points)
+{
+    const b3HullData* hull = b3Shape_GetHull(shape);
+    const b3Vec3* p = b3GetHullPoints(hull);
+    const b3Vec3 c = hull->center;
+    const int n = za::min(hull->vertexCount, static_cast<int>(points.size()));
+    for(int v = 0; v < n; v++)
+    {
+        b3Vec3 q = p[v];
+        q.x = q.x > c.x ? za::max(c.x, q.x - sink) : za::min(c.x, q.x + sink);
+        q.y = q.y > c.y ? za::max(c.y, q.y - sink) : za::min(c.y, q.y + sink);
+        q.z = q.z > c.z ? za::max(c.z, q.z - sink) : za::min(c.z, q.z + sink);
+        points[static_cast<size_t>(v)] = b3RotateVector(xf.q, q);
+    }
+    return n;
+}
+
+// What `filter` passes overlapping each hull shape of `body` shrunk by `sink` (shrunkCorners): `fcn` called with
+// `context` for each, as b3World_OverlapShape calls it.
+void overlapShrunk(b3BodyId body, float sink, b3QueryFilter filter, b3OverlapResultFcn* fcn, void* context)
+{
+    za::Array<b3ShapeId, maxBodyShapes> shapes;
+    const int count = b3Body_GetShapes(body, shapes.data(), static_cast<int>(shapes.size()));
+    const b3WorldTransform xf = b3Body_GetTransform(body);
+    za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
+    for(int k = 0; k < count; k++)
+    {
+        if(b3Shape_GetType(shapes[k]) != b3_hullShape)
+        {
+            continue;
+        }
+        const b3ShapeProxy proxy{points.data(), shrunkCorners(shapes[k], xf, sink, points), 0.f};
+        b3World_OverlapShape(world->id, xf.p, &proxy, filter, fcn, context);
+    }
+}
+
 // The props a corpse's body is made in (a monster's drop lying where it fell, gibs under it, a box it fell onto): they pass
 // through it until clear of it (World::inside, shouldCollide), as a small gib made inside a monster does (noteBornInside),
 // rather than Box3D pushing them out of it. Its shapes less a centimetre: what only touches it (a box resting on it, its
@@ -3016,48 +3054,24 @@ void noteCorpseInside(int num, const Slot& s)
     filter.categoryBits = catCorpse;
     filter.maskBits = catProp;
     constexpr float sink = 0.01f; // m
-    za::Array<b3ShapeId, maxBodyShapes> shapes;
-    const int count = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
-    const b3WorldTransform xf = b3Body_GetTransform(s.body);
-    za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
-    for(int k = 0; k < count; k++)
-    {
-        if(b3Shape_GetType(shapes[k]) != b3_hullShape)
-        {
-            continue;
-        }
-        const b3HullData* hull = b3Shape_GetHull(shapes[k]);
-        const b3Vec3* p = b3GetHullPoints(hull);
-        const b3Vec3 c = hull->center;
-        const int n = za::min(hull->vertexCount, static_cast<int>(points.size()));
-        for(int v = 0; v < n; v++)
-        {
-            b3Vec3 q = p[v];
-            q.x = q.x > c.x ? za::max(c.x, q.x - sink) : za::min(c.x, q.x + sink);
-            q.y = q.y > c.y ? za::max(c.y, q.y - sink) : za::min(c.y, q.y + sink);
-            q.z = q.z > c.z ? za::max(c.z, q.z - sink) : za::min(c.z, q.z + sink);
-            points[static_cast<size_t>(v)] = b3RotateVector(xf.q, q);
-        }
-        const b3ShapeProxy proxy{points.data(), n, 0.f};
-        b3World_OverlapShape(world->id, xf.p, &proxy, filter,
-            [](b3ShapeId shape, void* raw) {
-                const int corpse = *static_cast<const int*>(raw);
-                const int prop = numOf(shape);
-                auto& in = world->inside;
-                if(prop > 0 && prop < static_cast<int>(world->slots.size()) && world->slots[prop].kind == Kind::Prop &&
-                    !za::anyOf(in.begin(), in.end(), [&](const World::Inside& i) { return i.prop == prop && i.other == corpse; }))
+    overlapShrunk(s.body, sink, filter,
+        [](b3ShapeId shape, void* raw) {
+            const int corpse = *static_cast<const int*>(raw);
+            const int prop = numOf(shape);
+            auto& in = world->inside;
+            if(prop > 0 && prop < static_cast<int>(world->slots.size()) && world->slots[prop].kind == Kind::Prop &&
+                !za::anyOf(in.begin(), in.end(), [&](const World::Inside& i) { return i.prop == prop && i.other == corpse; }))
+            {
+                in.pushBack({prop, corpse, world->slots[prop].born});
+                if(vr_debug_box3d.value)
                 {
-                    in.pushBack({prop, corpse, world->slots[prop].born});
-                    if(vr_debug_box3d.value)
-                    {
-                        Con_Printf("box3d: %d %s inside corpse %d as it is made: passes through until clear\n", prop,
-                            PR_GetString(EDICT_NUM(prop)->v.classname), corpse);
-                    }
+                    Con_Printf("box3d: %d %s inside corpse %d as it is made: passes through until clear\n", prop,
+                        PR_GetString(EDICT_NUM(prop)->v.classname), corpse);
                 }
-                return true;
-            },
-            const_cast<int*>(&num));
-    }
+            }
+            return true;
+        },
+        const_cast<int*>(&num));
 }
 
 // A corpse's shapes on its body (createBody): its fitted hulls (Shape of Its Pose) or its lying box, of its mass
@@ -6792,43 +6806,19 @@ void noteBornInside(int num, const Slot& s, bool corpsesOnly = false)
         double born;
     } context{num, s.born};
     constexpr float sink = 0.01f; // m (reachSink's)
-    za::Array<b3ShapeId, maxBodyShapes> shapes;
-    const int count = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
-    const b3WorldTransform xf = b3Body_GetTransform(s.body);
-    za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
-    for(int k = 0; k < count; k++)
-    {
-        if(b3Shape_GetType(shapes[k]) != b3_hullShape)
-        {
-            continue;
-        }
-        const b3HullData* hull = b3Shape_GetHull(shapes[k]);
-        const b3Vec3* p = b3GetHullPoints(hull);
-        const b3Vec3 c = hull->center;
-        const int n = za::min(hull->vertexCount, static_cast<int>(points.size()));
-        for(int v = 0; v < n; v++)
-        {
-            b3Vec3 q = p[v]; // (each corner in by the sink along each axis, not past the middle: as ignoreInside)
-            q.x = q.x > c.x ? za::max(c.x, q.x - sink) : za::min(c.x, q.x + sink);
-            q.y = q.y > c.y ? za::max(c.y, q.y - sink) : za::min(c.y, q.y + sink);
-            q.z = q.z > c.z ? za::max(c.z, q.z - sink) : za::min(c.z, q.z + sink);
-            points[static_cast<size_t>(v)] = b3RotateVector(xf.q, q);
-        }
-        const b3ShapeProxy proxy{points.data(), n, 0.f};
-        b3World_OverlapShape(world->id, xf.p, &proxy, filter,
-            [](b3ShapeId shape, void* raw) {
-                const auto& c = *static_cast<const Context*>(raw);
-                const int other = numOf(shape);
-                auto& in = world->inside;
-                if(other > 0 && other != c.num &&
-                    !za::anyOf(in.begin(), in.end(), [&](const World::Inside& i) { return i.prop == c.num && i.other == other; }))
-                {
-                    in.pushBack({c.num, other, c.born});
-                }
-                return true;
-            },
-            &context);
-    }
+    overlapShrunk(s.body, sink, filter,
+        [](b3ShapeId shape, void* raw) {
+            const auto& c = *static_cast<const Context*>(raw);
+            const int other = numOf(shape);
+            auto& in = world->inside;
+            if(other > 0 && other != c.num &&
+                !za::anyOf(in.begin(), in.end(), [&](const World::Inside& i) { return i.prop == c.num && i.other == other; }))
+            {
+                in.pushBack({c.num, other, c.born});
+            }
+            return true;
+        },
+        &context);
     constexpr float margin = 0.05f; // m
     if(corpsesOnly)
     {
@@ -7322,19 +7312,7 @@ void ignoreInside(World::HandBody& hb, uint64_t category, int letGo)
         float radius = 0.f;
         if(b3Shape_GetType(shapes[i]) == b3_hullShape)
         {
-            const b3HullData* hull = b3Shape_GetHull(shapes[i]);
-            const b3Vec3* p = b3GetHullPoints(hull);
-            const b3Vec3 c = hull->center;
-            n = za::min(hull->vertexCount, static_cast<int>(points.size()));
-            for(int k = 0; k < n; k++)
-            {
-                // Each corner in by the sink along each axis (not past the middle).
-                b3Vec3 q = p[k];
-                q.x = q.x > c.x ? za::max(c.x, q.x - reachSink) : za::min(c.x, q.x + reachSink);
-                q.y = q.y > c.y ? za::max(c.y, q.y - reachSink) : za::min(c.y, q.y + reachSink);
-                q.z = q.z > c.z ? za::max(c.z, q.z - reachSink) : za::min(c.z, q.z + reachSink);
-                points[static_cast<size_t>(k)] = b3RotateVector(xf.q, q);
-            }
+            n = shrunkCorners(shapes[i], xf, reachSink, points);
         }
         else if(b3Shape_GetType(shapes[i]) == b3_capsuleShape)
         {
