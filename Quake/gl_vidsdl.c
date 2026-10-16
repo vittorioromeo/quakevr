@@ -363,6 +363,12 @@ qboolean VID_HasMouseOrInputFocus (void)
 	return (SDL_GetWindowFlags(draw_context) & (SDL_WINDOW_MOUSE_FOCUS | SDL_WINDOW_INPUT_FOCUS)) != 0;
 }
 
+// QVR: the keyboard's focus alone (the menus' "not focused" warning: the mouse over the window is not the focus)
+qboolean VID_HasInputFocus (void)
+{
+	return draw_context && (SDL_GetWindowFlags(draw_context) & SDL_WINDOW_INPUT_FOCUS) != 0;
+}
+
 /*
 ====================
 VID_IsMinimized

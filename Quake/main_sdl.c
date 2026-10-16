@@ -199,7 +199,11 @@ int main(int argc, char *argv[])
 	while (1)
 	{
 		/* If we have no input focus at all, sleep a bit */
-		if ((!VID_HasMouseOrInputFocus() || cl.paused) && !VR_IsActive () && !getenv ("QVR_TEST_BACKGROUND")) // QVR: the headset (and a test run in the background) needs every frame
+		// QVR: never while VR runs (the runtime's xrWaitFrame paces the frames; the headset needs every one), nor for a
+		// test run in the background (its hidden window), unless vr_debug_window_unfocused acts out a lost focus
+		const qboolean testbg = getenv ("QVR_TEST_BACKGROUND") != NULL;
+		const qboolean unfocused = VR_DebugWindowUnfocused () || (!testbg && !VID_HasMouseOrInputFocus ());
+		if ((unfocused || (cl.paused && !testbg)) && !VR_IsActive ())
 		{
 			SDL_Delay(16);
 		}

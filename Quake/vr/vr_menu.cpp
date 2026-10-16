@@ -5605,6 +5605,11 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_debug_runtime_menu 1: the game acts as if SteamVR's dashboard (or Virtual Desktop's, Meta's menu) had "
                   "the focus, on any backend, the mock's too: a single player game pauses and its sounds fade "
                   "(Runtime Menu Pauses); the console says when it paused and resumed, and the game's time."),
+        toggle("Act as if the Window Lost Focus", vr_debug_window_unfocused)
+            .help("vr_debug_window_unfocused 1: the game acts as if its desktop window had lost the focus to another "
+                  "program's: the menus' warning in the top right corner; in VR the mirror presented only "
+                  "vr_mirror_unfocused_hz times a second (the headset's frames never slowed); on a flat screen the "
+                  "background sleep."),
         cycle("Detail", vr_profile_detail, {{1.f, "Systems"}, {2.f, "Every Trace and Builtin"}})
             .help("Every Trace and Builtin also times each collision trace and each QuakeC builtin call apart: dearer, to "
                   "split QuakeC's time."),
