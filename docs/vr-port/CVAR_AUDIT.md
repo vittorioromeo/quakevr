@@ -43,6 +43,7 @@ has been tuned in the headset, so most per-class and A/B knobs have never been m
 | `vr_throw_slowmo_flick_spin` (archived, 40) | 2026-10-08: replaced by `vr_throw_slowmo_flick_arm` (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo") | vr_cvars.inc, vr_throw.cpp, vr_menu.cpp |
 | `vr_foegrab_throw_topple_hold` (archived, 0.3) | 2026-10-09: replaced by `vr_foegrab_throw_feet_speed` (ROUND21.md, "Holding enemies"); 0 there holds them 0.5 s | vr_cvars.inc, vr_foegrab.cpp, vr_box3d.cpp, vr_menu.cpp |
 | `vr_throw_slowmo_stroke`, `_real_time`, `_tempo`, `_aim`, `_flick`, `_flick_arm`, `_short_travel`, `_long_travel` (archived) | 2026-10-15: the bullet-time throw is the stroke's tempo's alone: its A/B switch, the real-time switch and the older rules' settings (ROUND22.md, "Bullet-time throws: the stroke's tempo only") | vr_cvars.inc, vr_cvars.cpp (migration rows), vr_throw.cpp, vr_menu.cpp, vr_client.cpp |
+| `vr_hull_method`, `vr_prop_think_native`, `vr_throw_mass_model` (+ its old path's `vr_weight_throw_mass`), `vr_carry_grab_drawn`, `vr_weapon_grab_box`, `vr_box3d_caller_solves`, `vr_weapon_throw_mode`, `vr_button_weapon`, `vr_parry_interrupt`, `vr_decap_pop_chance` (archived but caller_solves) | 2026-10-16: the A/B switches (B below) settled at their defaults, the author's values; the other side's code deleted (ROUND22.md, "A/B switches removed"). `vr_bash_sound` 0 is now silent (its old-sounds branch removed); `vr_limbs_mass_scale` kept as is (its 0 shares the no-rig fallback) | vr_cvars.inc, the menus, QC handles and code, tests, retiredCvars |
 | QC handle `cvarh_vr_throw_hit_min_speed` | made (`VR_CVAR_HMAKE`) and never read: the C++ side reads the cvar (vr_weight.cpp) | QC/vr_cvars.qc (the cvar stays) |
 
 Old configs stay quiet: `vr_cvars.cpp retiredCvars[]` lists removed names and cmd.c's unknown-command branch asks
@@ -92,19 +93,19 @@ Removing the switch deletes the old branch.
 | `vr_retrolight_ab`, `vr_ambient_light_ab`, `vr_extmaps_ab`, `vr_retro_ab` | Debug A/B hides | 4 debug toggles; keep only if A/B shots are still taken |
 | `vr_particle_freeze` | "freeze for same-state render comparisons" | 1 read (vr_particles.cpp, retropart's file) |
 | `vr_normalmap_cache` 2 | "made and compared with the file" | the compare mode in vr_texcache.cpp (0/1 stay) |
-| `vr_hull_method` 0 | Quake 2's brush sweep | the whole brush-sweep path in vr_hull.cpp (5 reads). Large win (each trace's `else` branch and the sweep itself), **hullsmall's file** |
+| `vr_hull_method` 0 (**removed 2026-10-16**) | Quake 2's brush sweep | the whole brush-sweep path in vr_hull.cpp (5 reads). Large win (each trace's `else` branch and the sweep itself), **hullsmall's file** |
 | `vr_hand_rig` 0 | the palm and five finger models | the palm-and-fingers path after `setupRigHand` returns false (vr_view.cpp ~3640). The 27 `vr_finger_*`/`vr_fingers_*` offsets stay (the rig fits to them) but become constants (C) |
 | `vr_gore_wash_once` | edges washed 2-3 times | vr_wounds.cpp, 2 reads |
 | `vr_torso_mode` | the old engine's 0.8 towards the hands | vr_torso.cpp, 1 |
 | `vr_body_elbow_spread` 0 | elbow as before | 1 (it is also a strength 0..1: keep as a slider or fix at 1) |
 | `vr_2h_sticky` | 1 = as before (a multiplier) | 1 |
 | `vr_gun_wall_slide` | the old push-back along the aim | vr_handpose.cpp, 1 |
-| `vr_button_weapon` | only the hand-to-muzzle line | QC buttons.qc, 1 |
-| `vr_carry_grab_drawn`, `vr_weapon_grab_drawn`, `vr_box3d_hand_push_fist` | the 4.5 cm sphere / box grabs | vr_physics.cpp, vr_box3d.cpp: 5 |
+| `vr_button_weapon` (**removed 2026-10-16**) | only the hand-to-muzzle line | QC buttons.qc, 1 |
+| `vr_carry_grab_drawn` (**removed 2026-10-16**, with `vr_weapon_grab_box`), `vr_weapon_grab_drawn`, `vr_box3d_hand_push_fist` | the 4.5 cm sphere / box grabs | vr_physics.cpp, vr_box3d.cpp: 5 |
 | `vr_climb_mantle_lenient` | no sloped mantle | vr_climb.cpp, 1 |
 | `vr_grapple_rope_depth` -1 | the old rope anchor places | vr_client.cpp, 3 |
-| `vr_decap_own_motion`, `vr_decap_pop_chance` 0, `vr_limbs_mass_scale` 0 | the old pop/walk/mass rules | box3d 2, QC 4 |
-| `vr_parry_interrupt`, `vr_bash_sound` 0 | the old parry push / old sounds | QC combat.qc, 3 |
+| `vr_decap_own_motion`, `vr_decap_pop_chance` 0 (**removed 2026-10-16**), `vr_limbs_mass_scale` 0 (kept) | the old pop/walk/mass rules | box3d 2, QC 4 |
+| `vr_parry_interrupt`, `vr_bash_sound` 0 (**removed 2026-10-16**) | the old parry push / old sounds | QC combat.qc, 3 |
 | `vr_ragdoll_grab` 2 | "legacy 2" (= 1) | fold 2 into 1 (keep 0/1) |
 | `vr_snd_antialias` | Quake's folding lowpass | vr_audio.cpp, 2 (only with vr_snd_fullband 0) |
 
