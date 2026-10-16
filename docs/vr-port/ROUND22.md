@@ -8669,3 +8669,36 @@ sleep, as before); mock VR 4.0 / 4.0 / 4.0; a fakexr OpenXR session 4.0 / 4.0 / 
 416 presents skipped". Screenshots (scratch/focus/): menu_flat.png and menu_vr.png, the warning and without it.
 Not verifiable here: the driver's cap itself. For him: in VR, click another window and watch the fps (the wrist
 counter) and qvr_openxr.txt's `end` time; if it still drops, set NVIDIA's Background Application Max Frame Rate off.
+
+## The eyes' driver sync: no glGet at the late acquire (worktree `tghost`, branch `agent/lateacq`, 2026-10-16)
+
+His real VR trace (`qvr-kit/scratch/vrtrace_20261016/VRTRACE.md`, B7) put eye L/R self time (0.27/0.24 ms) in NVIDIA's
+threaded driver waiting for its thread, called from `VR_RenderView`'s `acquire` lambda with `vr_xr_late_acquire 1`: its
+`glGetIntegerv(GL_FRAMEBUFFER_BINDING)` (any glGet makes the threaded driver run everything queued first).
+- The engine keeps its own record of the framebuffer bindings: `GL_BindFramebufferFunc`, through which every bind goes,
+  is wrapped at `GL_Init` (gl_vidsdl.c; `GL_BoundDrawFramebuffer`), and the late acquire puts back the recorded binding
+  instead of reading GL's. vr_foveated.cpp's own wrapper of the pointer sits over it and puts it back as before.
+- `vr_debug_glstate 1` (Debug, "Graphics State") checks the record against GL at each late acquire and at each frame's
+  end, printing "glstate: ... framebuffers draw N read N bound, the engine believes ..." on a difference.
+- Audit of the per-frame path, nothing else to remove in Release: `glFinish` only with `r_speeds`/`gl_finish`;
+  `glIsEnabled` and the texture cache's glGets only with `vr_debug_glstate`; GPU timer reads check availability first;
+  the other framebuffer glGets are at creation or map load (vr_gfx_gl.cpp, vr_permdecals.cpp) or in debug commands
+  (vr_wounds.cpp, vr_gadget.cpp); the OpenXR backend's `glGetError` drains are at swapchain creation (SteamVR needs
+  them). `GL_AcquireFrameResources`'s `glClientWaitSync` (with the flush bit) waits on the fence of three frames ago before
+  their buffers are reused: needed, normally already signalled.
+A/B, Release-Tracy, headless mock, `idle_e1m1` bench (900 frames, 90 Hz paced, 2048 eyes, his settings), self time a
+frame (p50 / p95 ms) and CPU busy (p50 / p95 ms), `scratch/la_cap.sh`:
+| run | eye L self | eye R self | CPU busy |
+|---|---|---|---|
+| before, late acquire 1 | 0.277 / 0.383 | 0.200 / 0.249 | 1.191 / 1.427 |
+| before, late acquire 0 | 0.001 / 0.002 | 0.001 / 0.001 | 0.661 / 0.926 |
+| after, late acquire 1 (two runs) | 0.002 / 0.002 | 0.001 / 0.001 | 0.767 / 0.950; 0.624 / 0.800 |
+| after, late acquire 0 | 0.001 / 0.001 | 0.001 / 0.001 | 0.622 / 0.785 |
+The headless run reproduces his headset's numbers, so NVIDIA's threaded optimization is on in the hidden-window run too
+(the driver's per-application setting, not tied to a display). The glGet cost about 0.5 ms of CPU a frame; late
+acquire now costs the same as early. Images (`vr_eyeshot 3`, late acquire on, before / after builds): e1m1 differs by 11
+and 15 bytes (max 1-2), as two runs of the old build do (23 / 22 bytes, max 5); start's teleporter view differs only
+inside the portal, as it does between two runs of one build (10-50 thousand bytes there). `vr_debug_glstate 1` printed
+no difference over both maps, so the GL calls are the same ones as before.
+For him: in his next capture, eye L/R self time should be near 0 (was 0.27/0.24 ms); the driver's syncs left are the
+runtime's (`xrBeginFrame` / `xr submit`, VDXR's `wglMakeCurrent`).
