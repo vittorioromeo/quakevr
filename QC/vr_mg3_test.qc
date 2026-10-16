@@ -664,6 +664,31 @@ void(float k) MG3_T_PressButton = {
     if(b.health > 0) T_Damage(b, p, p, b.health + 1);
     else MG3_T_Touch(b);
 };
+// 300 + k: this map's k-th monster (entity order, "monster_" classnames, live or dead) is killed by a rocket's blast at
+// its middle (the player's; T_RadiusDamage: the blast's throw, the death's gore and limb cuts, its ragdoll), then a trace
+// crosses to it in the same frame (any trace meets an entity whose solid changed after its link). Prints what it
+// targets. A player's report: The Sacrifice (map8) ended with "Trigger in clipping list" when its two vores were killed
+// (ROUND22.md, "The Sacrifice"); Misc/quakevr/mg3_kill_test.sh.
+void(float k) MG3_T_KillMonster = {
+    entity p = find(world, classname, "player");
+    entity m = nextent(world);
+    float n = 0;
+    while(m) {
+        if(substring(m.classname, 0, 8) == "monster_") { if(n == k) break; n = n + 1; }
+        m = nextent(m);
+    }
+    if(!m || !p) { dprint(sprintf("mg3kill: no monster %g (%g monsters)\n", k, n)); return; }
+    dprint(sprintf("mg3kill: kill %g %s target %s health %g\n", k, m.classname, m.target, m.health));
+    if(m.health <= 0) return;
+    vector kmid = (m.absmin + m.absmax) * 0.5;
+    entity bomb = spawn();
+    setorigin(bomb, kmid);
+    bomb.owner = p;
+    T_RadiusDamage(bomb, p, 160 + m.health * 2, world);
+    remove(bomb);
+    traceline(p.origin, kmid, TRUE, p);
+    dprint(sprintf("mg3kill: killed %g health %g trace %g\n", k, m.health, trace_fraction));
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
     if(((request >= 31 && request <= 38) || (request >= 40 && request <= 43) || (request >= 100 && request < 140)) && MG3_Campaign()) {
@@ -720,6 +745,7 @@ void() MG3_TestFrame = {
     else if(request == 21) { dprint(sprintf("mg3test: Chthon beaten, serverflags %g\n", serverflags)); MG3_BossEnding(); }
     else if(request == 22) { dprint("mg3test: Shub beaten\n"); MG3_ShubEnding(); }
     else if(request >= 200 && request < 300) MG3_T_PressButton(request - 200);
+    else if(request >= 300 && request < 1300) MG3_T_KillMonster(request - 300);
     else if(request == 14) { // leave the intermission (a button press)
         entity ip = find(world, classname, "player");
         dprint(sprintf("mg3test: intermission %g, next map %s\n", intermission_running, nextmap));
