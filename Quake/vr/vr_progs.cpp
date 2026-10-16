@@ -15,6 +15,7 @@
 #include "vr_ropesim.hpp"
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
 #include "vr_limbmodel.hpp"
@@ -355,6 +356,7 @@ extern "C" void VR_OnClearMemory()
     // world goes first, so that nothing keeps a pointer into the freed hunk (the client's again at the new serverinfo,
     // VR_OnClientClearState; the server's at VR_OnSpawnServerBeforeLoad).
     resetServerWorld();
+    qvr::diskcache::setInPlay(false); // a load from here (the cache's misses aren't "in play" until it ends)
     if(cls.state != ca_dedicated)
     {
         VR_OnClientClearState();

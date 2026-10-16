@@ -1,5 +1,7 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
+#include "vr_diskcache.hpp"
+#include "vr_warmup.hpp"
 #include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
@@ -1938,6 +1940,8 @@ extern "C" void VR_Init()
     jobs::registerCommands();
     animsmooth::registerCommands();
     mdldequant::registerCommands();
+    Cmd_AddCommand("vr_cache_info", diskcache::info_f); // the derived-data cache (vr_diskcache.cpp)
+    warmup::registerCommands();
     hitreact::registerCommands();
     edictindex::registerCommands();
     weapons::registerCvars();
@@ -2127,7 +2131,8 @@ extern "C" void VR_Shutdown()
         state = nullptr;
     }
     voicenotes::finishWrites(); // the screenshots and notes still being saved (VR or not)
-    VR_TexCacheFinishWrites(); // the normal maps' cache files still being written (vr_texcache.cpp)
+    qvr::warmup::stop(); // the background warm-up stopped (its item under way finished)
+    VR_TexCacheFinishWrites(); // the cache files still being written (vr_diskcache.cpp)
     audio::shutdown(); // (its simulations finished, Steam Audio's objects released, phonon.dll unloaded)
     jobs::shutdown(); // last: whatever the systems above left queued run, the workers joined
 }
@@ -2420,6 +2425,9 @@ extern "C" void VR_HostFrameEnd()
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
     qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)
     qvr::prepare::frame(); // the installer's preparation run's steps (-prepare: vr_prepare.cpp)
+    // The derived-data cache: a miss from now on is "in play" (vr_diskcache.cpp); the warm-up started, paused, resumed.
+    qvr::diskcache::setInPlay(cls.state == ca_connected && cls.signon == SIGNONS && !scr_disabled_for_loading);
+    qvr::warmup::frame();
     qvr::motion::hostFrameEnd();
     qvr::allocsites::frameEnd();
     qvr::inputlag::frameEnd(); // vr_inputlag_test

@@ -3,6 +3,7 @@
 #include "vr_hull.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_brushes.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
@@ -3640,13 +3641,12 @@ void reportTree(const Tree& t, int rebounded)
 // as its file). A file is read and checked (magic, version, sizes, the world and the box, every node's numbers, a sum of
 // its bytes) on the tree's own job; anything amiss is compiled again and written over. Written beside its place and
 // renamed (another copy of the game never reads half a file). The first use in a session under a game directory
-// removes the other builds' folders and the oldest files past diskBudget. vr_hull_cache 2: read, then compiled anyway
+// removes the other builds' folders and the oldest files past its budget (vr_diskcache.cpp: 1 GB). vr_hull_cache 2: read, then compiled anyway
 // and compared (vr_hull_stats counts them).
 
 constexpr char diskMagic[4] = {'Q', 'V', 'R', 'H'};
 constexpr za::U32 diskVersion = 1;
 constexpr double diskMinMs = 250.0;
-constexpr za::U64 diskBudget = 1024ull << 20; // bytes in the build's folder (vrstart's four trees: 105 MB)
 
 // The trees' compile version: BUMP IT whenever a change to the compile (growing, the units, speculate, merging, the
 // rebounding, their constants) could change the tree compiled for the same brushes and box. The disk folder is this,
@@ -3724,71 +3724,6 @@ struct DiskCounts
     std::atomic<long long> readUs{0};
 };
 DiskCounts diskCounts;
-za::Vector<za::String> diskPruned; // the cache roots pruned this session (the main thread)
-
-za::String diskRoot()
-{
-    return za::String{com_gamedir} + "/cache/hulls";
-}
-
-// The first use in a session under a game directory (the main thread, before the trees' jobs are posted): the other
-// builds' folders removed, then the oldest files (by their last write) until the build's folder is within diskBudget.
-void diskPrune()
-{
-    const za::String root = diskRoot();
-    if(za::find(diskPruned.begin(), diskPruned.end(), root) != diskPruned.end())
-    {
-        return;
-    }
-    diskPruned.pushBack(root);
-    za::Vector<za::String> others;
-    files::forEachEntry(root.cStr(), [&](const char* name, bool) {
-        if(strcmp(name, diskBuild.cStr()) != 0)
-        {
-            others.pushBack(root + "/" + name);
-        }
-    });
-    for(const za::String& other : others)
-    {
-        files::removeAll(other.cStr());
-    }
-    struct Entry
-    {
-        za::String path;
-        za::I64 time;
-        za::U64 bytes;
-    };
-    za::Vector<Entry> entries;
-    za::U64 total = 0;
-    const za::String dir = root + "/" + diskBuild;
-    files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory) {
-        if(!isDirectory)
-        {
-            Entry e{dir + "/" + name, 0, 0};
-            e.time = files::lastWriteTime(e.path.cStr());
-            e.bytes = files::fileSize(e.path.cStr());
-            total += e.bytes;
-            entries.pushBack(ZA_MOVE(e));
-        }
-    });
-    if(total > diskBudget)
-    {
-        za::quickSort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) { return a.time < b.time; });
-        for(const Entry& e : entries)
-        {
-            if(total <= diskBudget * 3 / 4)
-            {
-                break;
-            }
-            if(files::remove(e.path.cStr()))
-            {
-                total -= e.bytes;
-            }
-        }
-    }
-    files::createDirectories(dir.cStr());
-}
-
 // The tree's job's disk (the main thread): off with the setting.
 DiskJob diskJob(const Tree& t, qmodel_t* world)
 {
@@ -3799,21 +3734,23 @@ DiskJob diskJob(const Tree& t, qmodel_t* world)
         d.mode = 0;
         return d;
     }
-    diskPrune();
     d.world = keyOf(world);
     char name[96];
     snprintf(name, sizeof(name), "/%016llx_%g_%g_%g.hul", static_cast<unsigned long long>(d.world),
         static_cast<double>(t.ext.x), static_cast<double>(t.ext.y), static_cast<double>(t.ext.z));
-    d.path = diskRoot() + "/" + diskBuild + name;
+    // (the folder made, the other builds' and the oldest files past the budget removed: once a session, vr_diskcache.cpp)
+    d.path = diskcache::prepare(diskcache::Product::Hulls, diskBuild.cStr()) + name;
     return d;
 }
 
 // The world's tree read into t (a fresh tree, its heads sized) and checked; false: no file, or one amiss (t untouched).
 bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
 {
+    const double t0 = Sys_DoubleTime();
     FILE* in = Sys_fopen(d.path.cStr(), "rb");
     if(!in)
     {
+        diskcache::noteMiss(diskcache::Product::Hulls, "(the world's tree)");
         return false;
     }
     Sys_fseek(in, 0, SEEK_END);
@@ -3853,8 +3790,11 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
     if(!ok)
     {
         ++diskCounts.rejected;
+        diskcache::noteRejected(diskcache::Product::Hulls);
+        diskcache::noteMiss(diskcache::Product::Hulls, "(the world's tree, rejected)");
         return false;
     }
+    diskcache::noteHit(diskcache::Product::Hulls, static_cast<size_t>(size), Sys_DoubleTime() - t0);
     t.nodes = ZA_MOVE(nodes);
     t.planes = ZA_MOVE(planes);
     t.index.clear(); // (made again by the next build that needs it: TreeBuilder)
@@ -3884,25 +3824,12 @@ void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
     h.empty = t.emptyLeaves;
     h.rebounded = rebounded;
     h.sum = diskSumOf(t.nodes, t.planes);
-    char suffix[32];
-    snprintf(suffix, sizeof(suffix), ".%llx.tmp", static_cast<unsigned long long>(za::Clock::nowNanoseconds()));
-    const za::String tmp = d.path + suffix;
-    FILE* out = Sys_fopen(tmp.cStr(), "wb");
-    if(!out)
-    {
-        return;
-    }
-    bool ok = fwrite(&h, 1, sizeof(h), out) == sizeof(h) &&
-              fwrite(t.nodes.data(), sizeof(mclipnode_t), t.nodes.size(), out) == t.nodes.size() &&
-              fwrite(t.planes.data(), sizeof(mplane_t), t.planes.size(), out) == t.planes.size();
-    ok = fclose(out) == 0 && ok;
-    if(ok && files::rename(tmp.cStr(), d.path.cStr()))
+    const diskcache::Part parts[] = {{&h, sizeof(h)}, {t.nodes.data(), t.nodes.size() * sizeof(mclipnode_t)},
+        {t.planes.data(), t.planes.size() * sizeof(mplane_t)}};
+    if(diskcache::writeAtomic(d.path, parts, 3))
     {
         ++diskCounts.written;
-    }
-    else
-    {
-        files::remove(tmp.cStr());
+        diskcache::noteWrite(diskcache::Product::Hulls, parts[0].size + parts[1].size + parts[2].size);
     }
 }
 

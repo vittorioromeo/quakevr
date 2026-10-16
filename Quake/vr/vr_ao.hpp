@@ -39,5 +39,15 @@ void shutdown();
 // bound as the shaders' uniform block (binding 2). Always binds one (empty when off).
 void upload();
 
+// The background warm-up's (vr_warmup.cpp, a pool thread): a .mdl's bake made and written to the disk cache unless its
+// file is there, exactly as a load's would be: its poses in order (`verts`: numposes x numverts trivertx_t, 4 bytes
+// each), its triangles' vertices (`tris`: 3 a triangle, in the file's order), its scale and origin.
+// 1 baked and written, 0 already there, -1 not made (vr_ao_cache 0, not bakeable, stopped).
+// The bakes' version (their disk folder's: the warm-up's done list is kept per version).
+[[nodiscard]] int bakeVersion();
+
+[[nodiscard]] int warmBake(const char* name, int numverts, int numposes, const unsigned char* verts, const int* tris,
+    int numtris, const float* scale, const float* origin);
+
 } // namespace qvr::ao
 

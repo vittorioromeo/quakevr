@@ -1949,7 +1949,12 @@ QVR_CVAR(vr_contrast, "1", CVAR_ARCHIVE)               // the headset's contrast
 QVR_CVAR(vr_dlight_falloff, "1", CVAR_ARCHIVE)         // dynamic lights: 1 DarkPlaces' (smooth falloff, strong coloured lights), 0 Quake's (linear)
 QVR_CVAR(vr_specular, "0.125", CVAR_ARCHIVE)           // sheen of dynamic lights on the world and models (Blinn, exponent 32; 0 off)
 QVR_CVAR(vr_specular_aa, "1", CVAR_ARCHIVE)            // specular anti-aliasing: the sheen (and the water's glints) widened where bumps are smaller than a pixel, so it doesn't sparkle as the head moves (0 off; 2 stronger)
-QVR_CVAR(vr_normalmap_cache, "1", CVAR_NONE)       // the normal maps made from skins kept on disk (cache/normalmaps: the same texels, 0.2 s less in the first load); 0 made every time; 2 made and compared with the file (vr_texcache.cpp)
+QVR_CVAR(vr_normalmap_cache, "1", CVAR_NONE)       // the normal maps made from skins kept on disk (cache/normalmaps: the same texels, 0.2 s less in the first load); 0 made every time; 2 made and compared with the file (vr_diskcache.cpp)
+QVR_CVAR(vr_cache_dir, "", CVAR_NONE)              // the derived-data cache's root (vr_diskcache.hpp, docs/vr-port/CACHES.md): empty <base>/cache (shared by every game folder); a folder: that one (tests: an empty folder is a first-ever session)
+QVR_CVAR(vr_mdl_dequant_cache, "1", CVAR_NONE)     // .mdl dequantisations kept on disk (cache/dequant, vr_mdldequant.cpp: the same offsets and normals read back); 0 computed at every load; 2 computed and compared with the file
+QVR_CVAR(vr_ragdoll_rig_cache, "1", CVAR_NONE)     // the monsters' ragdoll rigs kept on disk (cache/rigs, vr_ragdoll.cpp: tens of ms a kind, at every map load); 0 derived every session; 2 derived and compared with the file
+QVR_CVAR(vr_cache_warmup, "1", CVAR_ARCHIVE)       // the derived-data cache filled in the background (vr_warmup.cpp): every installed game's models' occlusion bakes and rigs made on one low-priority worker, paused while a map loads or a frame runs late; 0 off (made at their first load instead)
+QVR_CVAR(vr_cache_warmup_debug, "0", CVAR_NONE)    // the warm-up: 1 a line per item made (developer); 2 also run it in test runs (QVR_TEST_HIDDEN), which skip it
 QVR_CVAR(vr_normalmaps, "1", CVAR_ARCHIVE)             // bumps from normal maps made from the textures, lit by the map's light and dynamic lights (next map)
 QVR_CVAR(vr_normalmap_strength, "1", CVAR_ARCHIVE)     // how deep those bumps are
 QVR_CVAR(vr_normalmap_baked, "1", CVAR_ARCHIVE)        // how much the bumps shade the map's (baked) light, lit from where the light seems to come from (0: only dynamic lights)
