@@ -653,6 +653,10 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
         }
         return QVR_SGIB_SHOTS;
     }
+    if(inflictor.classname == "buzzsaw")
+    {
+        return QVR_SGIB_SAW; // Rogue's buzzsaw trap (its own inflictor and attacker): a saw (rogue_buzzsaw.qc)
+    }
     if(inflictor == world || inflictor == attacker)
     {
         return QVR_SGIB_OTHER; // a monster's own blow, a kick, a stuck axe's bleeding

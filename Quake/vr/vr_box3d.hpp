@@ -360,6 +360,11 @@ struct RagdollHold
 // A limb's point (flames on a ragdoll: vr_burning.qc): the limb nearest `at` (-1: not a ragdoll); a point into a limb's
 // space (units) and back.
 [[nodiscard]] int ragdollBone(int num, const glm::vec3& at, float within = -1.f); // (within >= 0: -1 when farther)
+// Ragdolls in a world box (the buzzsaw's blade: QC rogue_buzzsaw.qc): the lowest edict number above `after` whose
+// ragdoll has a part in lo..hi (0 none); the first part of edict `num`'s after `after` in it (-1 none), `at` its point
+// nearest the box's middle.
+[[nodiscard]] int ragdollInBox(const glm::vec3& lo, const glm::vec3& hi, int after);
+[[nodiscard]] int ragdollPartInBox(int num, const glm::vec3& lo, const glm::vec3& hi, int after, glm::vec3& at);
 // Tests (vr_mock_hand_to ... ragdoll): the middle of part `part` (-1: the one nearest `from`; -2 its head) of the ragdoll nearest `from`
 // (units); its edict number,
 // 0 if none (or no such part).

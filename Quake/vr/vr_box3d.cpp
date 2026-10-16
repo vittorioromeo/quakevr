@@ -16564,6 +16564,98 @@ int ragdollBone(int num, const glm::vec3& at, float within)
     return distance <= within ? part : -1;
 }
 
+// ---- Ragdolls in a box (QC rogue_buzzsaw.qc: the buzzsaw's blade cutting corpses and knocked-down monsters) ----
+
+namespace
+{
+
+// Whether part `body` of a ragdoll is in the world box lo..hi (its shapes, exactly: GJK against the box's corners).
+[[nodiscard]] bool partInBox(b3BodyId body, const glm::vec3& lo, const glm::vec3& hi)
+{
+    const glm::vec3 half = (hi - lo) * 0.5f;
+    b3Vec3 corners[8];
+    for(int i = 0; i < 8; i++)
+    {
+        corners[i] = world->toM(glm::vec3{(i & 1) ? half.x : -half.x, (i & 2) ? half.y : -half.y, (i & 4) ? half.z : -half.z});
+    }
+    const b3ShapeProxy proxy{corners, 8, 0.f};
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.categoryBits = ~uint64_t{0};
+    filter.maskBits = ~uint64_t{0};
+    return b3Body_OverlapShape(body, world->toM((lo + hi) * 0.5f), &proxy, filter, b3Body_GetTransform(body));
+}
+
+// The first part of ragdoll `r` after `after` in the box lo..hi; -1 none.
+[[nodiscard]] int partInBoxAfter(const RagdollBodies& r, const glm::vec3& lo, const glm::vec3& hi, int after)
+{
+    for(int b = za::max(after + 1, 0); b < r.count; b++)
+    {
+        if(!partCut(r, b) && partInBox(r.body[static_cast<za::SizeT>(b)], lo, hi))
+        {
+            return b;
+        }
+    }
+    return -1;
+}
+
+// The lowest edict number above `after` of a ragdoll with a part whose box meets lo..hi (the broad phase: only what
+// lies at the box is looked at); 0 none.
+[[nodiscard]] int ragdollNearBox(const glm::vec3& lo, const glm::vec3& hi, int after)
+{
+    struct Query
+    {
+        int after;
+        int best;
+    } q{after, 0};
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.categoryBits = ~uint64_t{0};
+    filter.maskBits = catCorpse;
+    b3World_OverlapAABB(world->id, b3AABB{world->toM(lo), world->toM(hi)}, filter,
+        [](b3ShapeId shape, void* raw) {
+            Query& query = *static_cast<Query*>(raw);
+            const int num = numOf(shape);
+            if(num > query.after && (query.best == 0 || num < query.best) && isRagdollSlot(num))
+            {
+                query.best = num;
+            }
+            return true;
+        },
+        &q);
+    return q.best;
+}
+
+} // namespace
+
+int ragdollInBox(const glm::vec3& lo, const glm::vec3& hi, int after)
+{
+    if(!world || vr_ragdoll.value < 1.f || world->generation != worldGeneration())
+    {
+        return 0;
+    }
+    for(int num = ragdollNearBox(lo, hi, after); num > 0; num = ragdollNearBox(lo, hi, num))
+    {
+        const RagdollBodies* r = ragdollOf(num);
+        if(r && partInBoxAfter(*r, lo, hi, -1) >= 0)
+        {
+            return num;
+        }
+    }
+    return 0;
+}
+
+int ragdollPartInBox(int num, const glm::vec3& lo, const glm::vec3& hi, int after, glm::vec3& at)
+{
+    const RagdollBodies* r = ragdollOf(num);
+    const int part = r ? partInBoxAfter(*r, lo, hi, after) : -1;
+    if(part >= 0)
+    {
+        b3Vec3 closest;
+        (void)b3Body_GetClosestPoint(r->body[static_cast<za::SizeT>(part)], &closest, world->toM((lo + hi) * 0.5f));
+        at = world->toU(closest);
+    }
+    return part;
+}
+
 glm::vec3 ragdollPoint(int num, int bone, const glm::vec3& p, bool toWorld)
 {
     return box3dRagdollPoint(num, bone, p, toWorld);

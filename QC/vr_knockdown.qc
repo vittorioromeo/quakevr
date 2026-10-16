@@ -776,8 +776,15 @@ void(entity m) VR_Knockdown_WhyNot =
         (most >= 1 && (count < most || freeable > 0)) ? "room" : "NO ROOM (no shove, throw or lift makes a ragdoll)"));
 };
 
+void() VR_Buzzsaw_Test; // (rogue_buzzsaw.qc)
+
 void(float xMode) VR_Knockdown_Test =
 {
+    if(xMode == 70)
+    {
+        VR_Buzzsaw_Test(); // a buzzsaw on the nearest ragdoll (its blade cuts ragdolls)
+        return;
+    }
     if(xMode >= 40 && xMode < 50)
     {
         VR_HitStagger_Test(xMode); // (vr_hitstagger.qc: hits that unbalance)

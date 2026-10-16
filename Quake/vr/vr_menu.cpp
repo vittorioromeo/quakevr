@@ -7393,6 +7393,10 @@ za::Vector<Item> pageDebugTests()
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),
+        command("Buzzsaw on the Nearest Body", "developer 1; vr_knockdown_test 70")
+            .help("vr_knockdown_test 70: a running buzzsaw (Rogue's trap) at the middle of the nearest ragdoll, a corpse "
+                  "or a knocked-down monster: its blade cuts the limbs and head in it off and gibs its torso (the "
+                  "console prints each strike). Needs Rogue's buzzsaw model."),
         command("Remove Every Monster", "vr_knockdown_test 20")
             .help("Every monster removed, standing, knocked down or dead: a clean slate between shove tests (with a grunt "
                   "ahead: impulse 244). Shove one off vrclimb's long ledge or into its trench to see Over a Ledge, Always."),
