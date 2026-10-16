@@ -204,6 +204,7 @@ bool traceLine(const glm::vec3& start, const glm::vec3& end, glm::vec3& where, g
 // Hooks.
 
 void registerCommands();
+void registerDiagCommands(); // vr_brush_selftest, vr_brush_trace (vr_brushes_diag.cpp)
 // A new world (vr_progs.cpp resetServerWorld): the brushes gone with the map.
 void reset();
 // An entity removed (vr_builtins.cpp onEdictFree): its brush goes with it.

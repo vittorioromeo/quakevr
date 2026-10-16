@@ -130,7 +130,8 @@ struct ThrowOut
 // The limit of a weapon of `mass` kg held `twoHanded` (0..1): degrees a second (0: it never falls). The menu's readout.
 [[nodiscard]] float dropLimit(float mass, float twoHanded);
 
-// vr_weight_test: the spring offline (vr_weight.cpp).
+// vr_throw_table, vr_weight_test, vr_weight_table (vr_weight_diag.cpp).
+void registerDiagCommands();
 void registerCommands();
 
 } // namespace qvr::weight

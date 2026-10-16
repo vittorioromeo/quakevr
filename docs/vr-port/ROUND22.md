@@ -9886,3 +9886,19 @@ For him in VR: nothing should feel different. Take a crate by its top and a barr
 health box (surfaceFit), take a dead grunt's leg (the ragdoll's hand fit).
 
 ---
+
+## Test and bench commands moved into *_diag.cpp (worktree `dequant`, branch `agent/diagmoves`, 2026-10-17)
+
+Pure moves, the `splits` pattern (SOURCE_MAP.md, "Test and bench commands"): the test, bench, report and recorder commands of
+vr_hull, vr_wounds, vr_jobs_engine, vr_weight, vr_hitmodel, vr_brushes, vr_animsmooth, vr_zancle and vr_ragdoll are in
+`vr_<module>_diag.cpp`, each with a `registerDiagCommands()` (vr_main.cpp lost 10 registrations and calls the hitmodel,
+wounds and zancle ones; the others are called from the module's own registration). What the two files of a module share
+is in `vr_<module>_internal.hpp` (types, `inline` variables, function declarations; zancle shares nothing). About 4,900
+lines left the gameplay files, a thousand of them the shared declarations now in the headers. No command renamed, no
+behaviour changed.
+
+Verified: the Release build has 0 warnings; `cmdlist` before and after is the same 696 commands; `vr_physics_hash` (e1m1,
+sv_random_seed 7, vr_fixed_frames 1, wait60) is the same.
+
+The ~55 test registrations left in vr_main.cpp (modelcollide, selfcollide, modelmetadata, gore, decals, carry, grasp...)
+belong to modules outside this pass.
