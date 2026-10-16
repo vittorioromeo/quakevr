@@ -1140,8 +1140,15 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		}
 		if (touch == clip->passedict && !clip->hitpass)
 			continue;
+		// QVR: a trigger linked as a solid (its solid changed after its link: game code's mistake, as the items a
+		// trigger brings were, ROUND22.md "The Matriarch of Decay") is passed through, not a fatal error; it is in
+		// the right list at its next link.
 		if (touch->v.solid == SOLID_TRIGGER)
-			Sys_Error ("Trigger in clipping list");
+		{
+			Con_DWarning ("Trigger in clipping list: edict %d %s %s (passed through)\n", NUM_FOR_EDICT (touch),
+				PR_GetString (touch->v.classname), PR_GetString (touch->v.model));
+			continue;
+		}
 
 		if (clip->type == MOVE_NOMONSTERS && touch->v.solid != SOLID_BSP)
 			continue;

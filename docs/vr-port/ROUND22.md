@@ -1825,3 +1825,31 @@ Tested (headless e1m1, `vr_pickup_test 6`, the main hand crossing the hanging sh
 
 For him in VR: reach slowly for a floating gun and close the hand (also while it spins past the open hand); swat one;
 reach in and hold the hand still, then push on. Tune Floating Grace Time / Swat Speed.
+
+## The Matriarch of Decay: the palace button crashed the game (1.0.1 report, 2026-10-16, worktree `gorefx`, branch `agent/matriarch`)
+
+Report: "Repeatedly crashed after pressing the button in The Matriarch of Decay (MAP6) level." The map is Dawn of the
+Machine's (MG3) `map6`. Its palace button (`func_button` `*57`, target `palace_door`: two barrier doors, 22 monsters
+and five ammo boxes the button brings) ended the game with `Sys_Error: Trigger in clipping list` (`SV_ClipToLinks`:
+a monster's step move meeting an `item_spikes` of `palace_door`).
+
+Cause: an item a trigger brings (MG3's SPAWNED flag 4, Honey's trigger spawn) was hidden in `PlaceItem` *before* it
+was made an ammo or health box object (`VRBoxObjectNow` → `MakeItemGrabbable`: `SOLID_NOT_BUT_TOUCHABLE`, linked as a
+solid). When the button brought it, `item_spawn` linked it (`setmodel`) and only then set `SOLID_TRIGGER`: a trigger
+in the solid list, fatal at the next trace across it. Any MG3 or Honey map with trigger-brought ammo or health boxes
+could do it; map6's palace is where a player meets it.
+
+Fix (`QC/items.qc` `PlaceItem`, `QC/honey_items.qc`): the item is hidden after it is made what it will be;
+`item_unspawn` keeps its solid (`.vr_unspawned_solid`), clears `modelindex` (no Box3D body for an item not there yet)
+and relinks it; `item_spawn` sets the kept solid before the link and keeps its box (`setmodel` would give a brush box
+its model's size). Safety net (`Quake/world.c`): a trigger met in the clipping list is passed with a developer warning
+instead of `Sys_Error`.
+
+Test: `vr_mg3_test 200+k` presses the map's k-th wall button as a hand would (shoots a shot button);
+`bash Misc/quakevr/mg3_buttons_test.sh <agent> [map] [n]` presses all 32 of map6's, about two seconds each, and fails
+on a crash, an error or the trigger warning. Before: `Sys_Error` at button 6 (the palace's). After: PASS, 32 pressed,
+no warning; the palace's ammo boxes come back drawn and `SOLID_NOT_BUT_TOUCHABLE`, as the map's others.
+`origin/next` has the same code (the same order in `PlaceItem`, the same `item_spawn`, the same `Sys_Error`).
+
+For him in VR: MG3 map6, press the button that opens the palace barriers, let the fight run; take one of the ammo
+boxes that appear there.

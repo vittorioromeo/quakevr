@@ -252,7 +252,18 @@ void() PlaceItem =
     self.th_die = self.handtouch; // Overriding self.touch and saving it to support items flagged as secret
     self.handtouch = itemTouch;
 
-    // HONEY
+    SpawnAmmoBoxWeapons(self);
+    VRScalePickup();
+    VRFloatPickup();
+
+    self.nextthink = time + 0.2;
+    self.think = PlacedItem;
+
+    VRBoxObjectNow();
+
+    // HONEY. VR: hidden once it is what it will be (an ammo or health box an object, MakeItemGrabbable's
+    // SOLID_NOT_BUT_TOUCHABLE, sized by its model): hidden before, the box was made an object with no model, and its
+    // coming a crash (item_spawn).
     if(!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
     {
         item_unspawn();
@@ -262,15 +273,6 @@ void() PlaceItem =
     {
         MG3_ItemUnspawn(); // Dawn of the Machine: one a trigger brings (upstream SPAWNED; vr_mg3_items.qc)
     }
-
-    SpawnAmmoBoxWeapons(self);
-    VRScalePickup();
-    VRFloatPickup();
-
-    self.nextthink = time + 0.2;
-    self.think = PlacedItem;
-
-    VRBoxObjectNow();
 };
 
 // Ammo and health boxes become objects (AfterPlacementAmmoBox, AfterPlacementHealthBox: MakeItemGrabbable) the frame
