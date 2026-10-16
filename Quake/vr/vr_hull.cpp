@@ -3633,7 +3633,7 @@ void reportTree(const Tree& t, int rebounded)
 // ---------------------------------------------------------------------------------------------------------------
 // The world's compiled trees kept on disk (vr_hull_cache): `<gamedir>/cache/hulls/<build>/<world>_<box>.hul`, <world>
 // the world's content (keyOf: hull 0's and hull 1's nodes, the planes, the models' heads), <box> the tree's box, <build>
-// this file's compile time (changed code never reads an old tree). A tree is the same bytes whenever the same brushes are
+// the compile's version (treeVersion: bumped when the compile changes). A tree is the same bytes whenever the same brushes are
 // compiled for the same box (the build on the pool is the build on one thread's, node for node), so a file is that
 // build's result: a cold start of a big map reads it instead of compiling it (vrstart: four trees of 1.2-1.4 million
 // nodes, 9 s of 32 threads). Only trees that took diskMinMs or more are written (a small map's build is about as quick
@@ -3648,13 +3648,22 @@ constexpr za::U32 diskVersion = 1;
 constexpr double diskMinMs = 250.0;
 constexpr za::U64 diskBudget = 1024ull << 20; // bytes in the build's folder (vrstart's four trees: 105 MB)
 
+// The trees' compile version: BUMP IT whenever a change to the compile (growing, the units, speculate, merging, the
+// rebounding, their constants) could change the tree compiled for the same brushes and box. The disk folder is this,
+// the file layout's version and the brushes' buildVersion (also in keyOf), no longer the build's compile time
+// (2026-10-16, VRTRACE_20261016 D): a new build reads the trees the last one wrote unless the compile changed.
+// vr_hull_cache 2 compiles anyway and compares (a forgotten bump shows as "differed" in vr_hull_stats).
+constexpr za::U32 treeVersion = 1;
+
 za::String makeDiskBuild()
 {
-    const char* stamp = __DATE__ " " __TIME__;
+    const za::U32 parts[] = {treeVersion, diskVersion, static_cast<za::U32>(buildVersion),
+        static_cast<za::U32>(sizeof(mclipnode_t)), static_cast<za::U32>(sizeof(mplane_t))};
     za::U64 h = 14695981039346656037ull;
-    for(; *stamp; ++stamp)
+    const unsigned char* bytes = reinterpret_cast<const unsigned char*>(parts);
+    for(za::SizeT i = 0; i < sizeof(parts); ++i)
     {
-        h = (h ^ static_cast<unsigned char>(*stamp)) * 1099511628211ull;
+        h = (h ^ bytes[i]) * 1099511628211ull;
     }
     char build[24];
     snprintf(build, sizeof(build), "%016llx", static_cast<unsigned long long>(h));
