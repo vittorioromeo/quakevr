@@ -1,5 +1,6 @@
 // vr_grasp.cpp -- see vr_grasp.hpp.
 
+#include "vr_geom.hpp"
 #include "vr_grasp.hpp"
 #include "vr_jobs.hpp"
 #include "vr_render.hpp"
@@ -118,46 +119,6 @@ const Kinematics& kinematics()
         built = handrig::generation();
     }
     return k;
-}
-
-// The point of triangle abc nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
-[[nodiscard]] glm::vec3 closestOnTriangle(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
-{
-    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-    if(d1 <= 0.f && d2 <= 0.f)
-    {
-        return a;
-    }
-    const glm::vec3 bp = p - b;
-    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-    if(d3 >= 0.f && d4 <= d3)
-    {
-        return b;
-    }
-    const float vc = d1 * d4 - d3 * d2;
-    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
-    {
-        return a + ab * (d1 / (d1 - d3));
-    }
-    const glm::vec3 cp = p - c;
-    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-    if(d6 >= 0.f && d5 <= d6)
-    {
-        return c;
-    }
-    const float vb = d5 * d2 - d1 * d6;
-    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
-    {
-        return a + ac * (d2 / (d2 - d6));
-    }
-    const float va = d3 * d6 - d5 * d4;
-    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
-    {
-        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
-    }
-    const float denom = 1.f / (va + vb + vc);
-    return a + ab * (vb * denom) + ac * (vc * denom);
 }
 
 } // namespace
@@ -310,7 +271,7 @@ struct Shape::Space
                         {
                             continue;
                         }
-                        const glm::vec3 q = closestOnTriangle(p, t.a, t.b, t.c);
+                        const glm::vec3 q = geom::closestOnTriangle(p, t.a, t.b, t.c);
                         const float d = glm::distance(p, q);
                         if(d < best)
                         {

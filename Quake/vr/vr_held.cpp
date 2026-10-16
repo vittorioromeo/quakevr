@@ -1,5 +1,6 @@
 // vr_held.cpp -- see vr_held.hpp.
 
+#include "vr_geom.hpp"
 #include "vr_held.hpp"
 #include "vr_climb.hpp"
 #include "vr_carry2h.hpp"
@@ -592,47 +593,6 @@ void forgetDrawnCentres()
 namespace
 {
 
-// The point of the triangle nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
-[[nodiscard]] glm::vec3 nearestOn(const Triangle& t, const glm::vec3& p)
-{
-    const glm::vec3 &a = t.p[0], &b = t.p[1], &c = t.p[2];
-    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-    if(d1 <= 0.f && d2 <= 0.f)
-    {
-        return a;
-    }
-    const glm::vec3 bp = p - b;
-    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-    if(d3 >= 0.f && d4 <= d3)
-    {
-        return b;
-    }
-    const float vc = d1 * d4 - d3 * d2;
-    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
-    {
-        return a + ab * (d1 / (d1 - d3));
-    }
-    const glm::vec3 cp = p - c;
-    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-    if(d6 >= 0.f && d5 <= d6)
-    {
-        return c;
-    }
-    const float vb = d5 * d2 - d1 * d6;
-    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
-    {
-        return a + ac * (d2 / (d2 - d6));
-    }
-    const float va = d3 * d6 - d5 * d4;
-    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
-    {
-        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
-    }
-    const float denom = 1.f / (va + vb + vc);
-    return a + ab * (vb * denom) + ac * (vc * denom);
-}
-
 // `ent`'s drawn triangles in its axes relative to its origin, and those axes and origin.
 bool entityTriangles(edict_t* ent, za::Vector<Triangle>& out, glm::mat3& axes, glm::vec3& origin)
 {
@@ -719,7 +679,7 @@ float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
     glm::vec3 at{0.f};
     for(const Triangle& t : triangles)
     {
-        const glm::vec3 q = nearestOn(t, p);
+        const glm::vec3 q = geom::closestOnTriangle(p, t.p[0], t.p[1], t.p[2]);
         const float d = glm::distance(p, q);
         if(d < best)
         {
@@ -819,7 +779,7 @@ bool fistContact(edict_t* ent, const za::Vector<glm::vec4>& spheres, float reach
         for(size_t i = 0; i < local.size(); i++)
         {
             const glm::vec3 c{local[i]};
-            const glm::vec3 q = nearestOn(t, c);
+            const glm::vec3 q = geom::closestOnTriangle(c, t.p[0], t.p[1], t.p[2]);
             const float d = glm::distance(c, q);
             if(d < nearest[i])
             {
