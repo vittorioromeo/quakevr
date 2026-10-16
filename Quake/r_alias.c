@@ -838,7 +838,6 @@ void R_FlushAliasInstances (qboolean showtris)
 		glDisable (GL_SAMPLE_ALPHA_TO_ONE);
 	}
 
-	VR_TemporalMotionWrites (0); // QVR: (not blended into)
 	if (!translucent)
 	{
 		GL_SetState (transparent_state);
@@ -851,9 +850,10 @@ void R_FlushAliasInstances (qboolean showtris)
 			if (!textures[0]) continue;
 
 			if (!(textures[0]->flags & TEXPREF_ALPHAPIXELS))
-			{ 
+			{
 				continue;
 			}
+			VR_TemporalMotionWrites (0); // QVR: (not blended into the motion target)
 
 			textures[1] = hdr->fbtextures[skinnum][anim];
 			if (hdr == mainhdr && ibuf.ent->colormap != vid.colormap && !gl_nocolors.value)
@@ -1440,6 +1440,7 @@ void R_DrawAliasModels (entity_t **ents, int count)
 	for (i = 0; i < count; i++)
 		R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD);
 	R_FlushAliasInstances (false);
+	VR_TemporalMotionWrites (0); // QVR: on through the models' batches (switching the draw buffers a batch cost GPU time)
 }
 
 /*
