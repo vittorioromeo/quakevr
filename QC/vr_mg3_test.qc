@@ -647,6 +647,23 @@ void() MG3_T_RouteFrame = {
     else if(request == 37) MG1_H_Presser();
     else if(request == 38) { MG1_H_Presser(); entity pr = find(world, classname, "mghub_presser"); if(pr) pr.cnt = 1; }
 };
+// 200 + k: the player presses this map's k-th wall button (func_button / func_axe_button, entity order) as a hand
+// would, or shoots it when it is a shot button (health); prints what it targets. Misc/quakevr/mg3_buttons_test.sh.
+void(float k) MG3_T_PressButton = {
+    entity p = find(world, classname, "player");
+    entity b = nextent(world);
+    float n = 0;
+    while(b) {
+        if(b.classname == "func_button" || b.classname == "func_axe_button") { if(n == k) break; n = n + 1; }
+        b = nextent(b);
+    }
+    if(!b || !p) { dprint(sprintf("mg3btn: no button %g (%g buttons)\n", k, n)); return; }
+    dprint(sprintf("mg3btn: press %g %s %s target %s killtarget %s health %g\n", k, b.classname, b.model,
+        b.target, b.killtarget, b.health));
+    MG3_T_player = p;
+    if(b.health > 0) T_Damage(b, p, p, b.health + 1);
+    else MG3_T_Touch(b);
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
     if(((request >= 31 && request <= 38) || (request >= 40 && request <= 43) || (request >= 100 && request < 140)) && MG3_Campaign()) {
@@ -702,6 +719,7 @@ void() MG3_TestFrame = {
     }
     else if(request == 21) { dprint(sprintf("mg3test: Chthon beaten, serverflags %g\n", serverflags)); MG3_BossEnding(); }
     else if(request == 22) { dprint("mg3test: Shub beaten\n"); MG3_ShubEnding(); }
+    else if(request >= 200 && request < 300) MG3_T_PressButton(request - 200);
     else if(request == 14) { // leave the intermission (a button press)
         entity ip = find(world, classname, "player");
         dprint(sprintf("mg3test: intermission %g, next map %s\n", intermission_running, nextmap));
