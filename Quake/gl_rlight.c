@@ -126,6 +126,10 @@ void GLLight_DeleteResources (void)
 	gl_lightclustertexture = 0;
 }
 
+// QVR: single-pass stereo: each clustering's serial, the multiview pass's and its light count (R_PushDlights)
+static unsigned clusters_serial, stereo_clusters_serial;
+static int stereo_numlights;
+
 /*
 =============
 R_PushDlights
@@ -137,6 +141,17 @@ void R_PushDlights (void)
 	GLuint			buf;
 	GLbyte			*ofs;
 	gpu_cluster_inputs_t cluster_inputs;
+
+	// QVR: single-pass stereo: an eye's own view after the multiview pass keeps the pass's lights (culled by the frustum
+	// holding both eyes') and its clusters (both eyes' made there: the left's in the usual image, the right's in its own),
+	// unless something clustered since (vr/vr_stereo_single.cpp)
+	if (VR_StereoSinglePhase () == 2 && stereo_clusters_serial == clusters_serial && clusters_serial)
+	{
+		r_framedata.numlights = stereo_numlights;
+		R_UploadFrameData ();
+		GL_BindImageTextureFunc (0, VR_StereoSingleEyeClusters (gl_lightclustertexture), 0, GL_TRUE, 0, GL_READ_ONLY, GL_RG32UI);
+		return;
+	}
 
 	r_framedata.numlights = 0;
 
@@ -210,6 +225,13 @@ void R_PushDlights (void)
 		GL_BindImageTextureFunc (0, right, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RG32UI);
 		GL_DispatchComputeFunc ((LIGHT_TILES_X+7)/8, (LIGHT_TILES_Y+7)/8, LIGHT_TILES_Z);
 		GL_BindImageTextureFunc (1, right, 0, GL_TRUE, 0, GL_READ_ONLY, GL_RG32UI);
+	}
+	if (++clusters_serial == 0) // QVR: (the eyes' views after the pass reuse these)
+		clusters_serial = 1;
+	if (VR_StereoSinglePhase () == 1)
+	{
+		stereo_clusters_serial = clusters_serial;
+		stereo_numlights = r_framedata.numlights;
 	}
 	GL_MemoryBarrierFunc (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 

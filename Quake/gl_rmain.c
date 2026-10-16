@@ -973,6 +973,7 @@ void R_SceneViewport (int viewport[4])
 void R_SetupGL (void)
 {
 	int viewport[4];
+	VR_StereoSingleEyeTargets (); // QVR: single-pass stereo: an eye's view after the pass renders on in its layer (vr/vr_stereo_single.cpp)
 	if (!GL_NeedsSceneEffects ())
 	{
 		GL_BindFramebufferFunc (GL_FRAMEBUFFER, GL_NeedsPostprocess () ? framebufs.composite.fbo : 0u);
@@ -2050,10 +2051,9 @@ void R_RenderScene (void)
 	VR_ProfileBeginGPU ("scene setup"); // QVR: profile
 	R_SetupScene (); //johnfitz -- this does everything that should be done once per call to RenderScene
 
-	// QVR: single-pass stereo: an eye's view after the multiview pass starts from its layer (cleared there, its hidden
+	// QVR: single-pass stereo: an eye's view after the multiview pass goes on in its layer (cleared there, its hidden
 	// area and what the pass drew) instead of a clear (vr/vr_stereo_single.cpp)
-	if (!VR_StereoSingleCopyIn (framesetup.scene_fbo == framebufs.scene.fbo ? framebufs.scene.color_tex : framebufs.composite.color_tex,
-		framesetup.scene_fbo == framebufs.scene.fbo ? framebufs.scene.depth_stencil_tex : framebufs.composite.depth_stencil_tex))
+	if (!VR_StereoSingleSceneBegun ())
 	{
 	VR_ProfileBegin ("clear"); // QVR: profile
 	R_Clear ();

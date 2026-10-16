@@ -9111,3 +9111,25 @@ both growths 0 (today's behaviour on this tree; ROUND22's first run had 1 and 0)
 
 In VR: Combat > Enemy Melee, Show Melee Arcs on; let a knight, then an ogre come at you and sidestep: does the fan turn
 green as you leave it, and do blows land only while it is red? Tune the two growth sliders and Swing Turn there.
+
+## Single-pass stereo, second run: no copy, setup reused, twins ahead (worktree `flatfist`, branch `agent/stereo2`, 2026-10-16)
+
+His decision: continue only if single-pass can become competitive. Details and numbers: `docs/vr-port/STEREO.md`, "The
+second run". Done, all behind `vr_stereo_single` (default 0; toggle off unchanged):
+- **No copy:** each eye renders on into its layer of the arrays through texture views (`glTextureView`, MSAA too) put
+  into `framebufs` in its `R_SetupGL` (`VR_StereoSingleEyeTargets`); the mirror reads the eye's own targets. Three
+  caches keyed to the scene's texture (liquids' scene size, haze's scene format, half-size particles' check) keep one
+  per eye (each eye has its own texture now; otherwise 0.1-0.3 ms of CPU a view in GL queries).
+- **Setup reused:** each eye keeps the pass's lights and light clusters (`R_PushDlights`). The marks are not reused
+  (0.002 ms an eye); the eye's whole remaining set-up is 0.02 ms.
+- **Twins ahead:** the 59 ported programs' multiview twins begun when the toggle turns on (or at start), compiled by the
+  driver's threads (GL_KHR_parallel_shader_compile); frames two-pass until done. A cold world twin takes ~1 s to compile
+  (the old first-use compile would have hitched that long), warm 59 in 0.4 s.
+- **Numbers** (combat_48 / play_e1m1_fight, quietest runs, the machine shared with builds): CPU p50 2.60 -> 2.51 / 1.51
+  -> 1.49, p99 4.87 -> 4.86 / 2.76 -> 2.76; GPU 3D p50 4.15-4.38 -> 4.45 / 3.41 -> 3.51-3.60, p99 6.37-6.74 -> 7.13-7.27 /
+  4.90-5.27 -> 4.99-5.06. The copy's +2.2 ms GPU is gone; the GPU is still 0.1-0.3 ms behind: alias models in the pass
+  +0.14, the VR particles after it +0.17 (the layered depth loses the driver's coarse early-Z), the world -0.05.
+- **Gate not met** (GPU): stages 4-5 and TAA under single-pass not started. Estimate: stages 4-5 could save 0.2-0.4 ms of
+  CPU in particle-heavy scenes but the GPU would stay behind on this driver; not worth it on his PC.
+- Pre-existing, found on the way: no MSAA with `vr_foveated` on (his settings) the toggle's images differ by 0.2-0.8% in
+  the foveated rings (the old copy build too); not found why.

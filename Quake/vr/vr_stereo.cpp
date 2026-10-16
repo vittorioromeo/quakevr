@@ -62,6 +62,7 @@ struct SceneTargets
     float fsaa = 0.f;    // the MSAA they were made with (vid_fsaa; the spectator camera's: vr_spectator_aa)
     unsigned format = 0; // their scene colour format (vr_tonemap: float)
     unsigned depth = 0;  // their depth/stencil format (vr_depth_float)
+    unsigned generation = 0; // bumped each time they are made (single-pass stereo's framebuffers follow)
 };
 SceneTargets eyeTargets;
 SceneTargets spectatorTargets;
@@ -179,6 +180,7 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
 
     t.width = width;
     t.height = height;
+    ++t.generation;
 
     if(!targetFbo)
     {
@@ -428,6 +430,9 @@ void drawToWindow(const SceneTargets& source, const SceneLook& look, const glm::
 // window's aspect ratio, or the smoothed mirror of the shown eye.
 void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHeight)
 {
+    // The eye's own targets (framebufs: with single-pass stereo, its layer's views; else the eyes' targets).
+    SceneTargets source = eyeTargets;
+    source.fb = framebufs;
     const window::View view = window::view();
     const int shown = window::eye();
     if(view == window::View::Smoothed)
@@ -445,7 +450,7 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
         }
         const glm::mat3 map = window::mirrorMap(frameState().eyes[eye].fov,
             static_cast<float>(windowWidth) / static_cast<float>(windowHeight), hidden);
-        drawToWindow(eyeTargets, sceneLook(), map, Sampling::CatmullRom, windowTarget, 0, windowWidth, windowHeight);
+        drawToWindow(source, sceneLook(), map, Sampling::CatmullRom, windowTarget, 0, windowWidth, windowHeight);
         return;
     }
 
@@ -480,7 +485,7 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
     }
     const float ew = static_cast<float>(eyeTargets.width);
     const float eh = static_cast<float>(eyeTargets.height);
-    drawToWindow(eyeTargets, sceneLook(), cropMap(x0 / ew, y0 / eh, (x1 - x0) / ew, (y1 - y0) / eh), Sampling::Nearest, windowTarget,
+    drawToWindow(source, sceneLook(), cropMap(x0 / ew, y0 / eh, (x1 - x0) / ew, (y1 - y0) / eh), Sampling::Nearest, windowTarget,
         dx0, dx1, windowHeight);
 }
 
@@ -826,6 +831,16 @@ void eyeSceneFormats(unsigned& color, unsigned& depth)
 {
     color = eyeTargets.format;
     depth = eyeTargets.depth;
+}
+
+const glframebufs_t& eyeFramebufs()
+{
+    return eyeTargets.fb;
+}
+
+unsigned eyeTargetsGeneration()
+{
+    return eyeTargets.generation;
 }
 
 } // namespace qvr::stereo
