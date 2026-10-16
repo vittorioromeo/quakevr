@@ -528,4 +528,28 @@ bool globMatch(za::StringView glob, za::StringView name)
     return g == glob.size();
 }
 
+za::String timestamp(time_t when, const char* fmt)
+{
+    char stamp[64];
+    strftime(stamp, sizeof(stamp), fmt, localtime(&when));
+    return stamp;
+}
+
+za::String profileDir()
+{
+    const za::String dir = za::String{com_gamedir} + "/profile";
+    Sys_mkdir(dir.cStr());
+    return dir;
+}
+
+za::String profileFile(const char* name, time_t when)
+{
+    return profileDir() + "/" + name + timestamp(when) + ".csv";
+}
+
+za::String baseCacheDir()
+{
+    return za::String{com_basedirs[com_numbasedirs > 0 ? com_numbasedirs - 1 : 0]} + "/cache";
+}
+
 } // namespace qvr::files

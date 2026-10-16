@@ -12,6 +12,7 @@
 #include "vr_profile_systems.hpp"
 #include "vr_bench.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 
@@ -730,12 +731,7 @@ void writeFile(double seconds)
     const bool created = capturePath.empty();
     if(created)
     {
-        const time_t now = time(nullptr);
-        char stamp[64];
-        strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
-        const za::String dir = za::String{com_gamedir} + "/profile";
-        Sys_mkdir(dir.cStr());
-        capturePath = dir + "/profile_" + captureMap + "_" + stamp + ".csv";
+        capturePath = files::profileFile((za::String{"profile_"} + captureMap + "_").cStr(), time(nullptr));
     }
 
     FILE* f = fopen(capturePath.cStr(), "a");

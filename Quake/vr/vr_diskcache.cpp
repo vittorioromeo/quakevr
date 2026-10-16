@@ -68,7 +68,7 @@ za::String rootDir()
     {
         return za::String{qvr::vr_cache_dir.string};
     }
-    return za::String{com_basedirs[com_numbasedirs > 0 ? com_numbasedirs - 1 : 0]} + "/cache";
+    return qvr::files::baseCacheDir();
 }
 
 // The product's other builds' folders (and stray files) removed, then its oldest files (by their last write) until its
