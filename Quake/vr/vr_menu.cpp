@@ -3727,9 +3727,6 @@ void hologramTestMessage()
             .extend(-10.f, 20.f)
             .help("A hand takes a box, gib, backpack or armour when its fist (the palm and the curled fingers) touches it. "
                   "Positive: from this far off it too. Negative: only pressed this far into it."),
-        toggle("Explosive Boxes by the Fist", vr_carry_grab_drawn)
-            .help("An explosive box is taken as everything else is: when the fist touches it. Off: when the hand is within "
-                  "a hand's width of its box (up to 12 cm off)."),
         toggle("Weapons by the Fist", vr_weapon_grab_drawn)
             .help("A weapon lying on the floor is taken where the fist touches it: a crowbar by its bar, a sword by its "
                   "blade. Off: only with the hand at its handle."),

@@ -127,7 +127,7 @@ constexpr float easyHandTouchBonus = 4.5f;
     return carry && fieldFunc(target, f().handtouch) == carry;
 }
 
-// vr_debug_carry 2: a hand's box touching a carried thing (the old test, vr_carry_grab_drawn 0): how far its fist is
+// vr_debug_carry 2: a hand's box touching a carried thing (no fist push, another player's hand): how far its fist is
 // from the thing's drawn surface.
 void debugBoxTouch(edict_t* target, edict_t* player, int which)
 {
@@ -187,7 +187,7 @@ constexpr float weaponDrawnReach = 48.f;
 {
     // (An explosive box by the fist only where the fist also pushes it, vr_box3d_hand_push_fist: the listen server's own
     // player. Another player's hand still pushes with the sphere at its point, which keeps the box off its fist.)
-    const bool byFist = vr_carry_grab_drawn.value && vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
+    const bool byFist = vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
     const int h = which == HAND_OFF ? 0 : 1;
     const int handPos = which == HAND_OFF ? f().offhandpos : f().handpos; // (the hand's field)
     const float m2u = units::metresToUnits();

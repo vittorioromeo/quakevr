@@ -474,6 +474,7 @@ constexpr const char* retiredCvars[] = {
     // 2026-10-16: the A/B switches settled at their defaults, the other path deleted (ROUND22.md, "A/B switches
     // removed").
     "vr_box3d_caller_solves",
+    "vr_carry_grab_drawn",
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):
