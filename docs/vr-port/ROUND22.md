@@ -12185,3 +12185,37 @@ Mock run after the game closed (e1m1, vr_lootbeam_test 12, debug on, all categor
 
 - Auto-collect (vr_carry_autocollect) shrank towards the hand's origin (`s.pos[hand]`), a little above the palm. `targetOf` in vr_collectfx.cpp now uses `hands::palmPoint(s, hand)`, the palm centre that grips and holsters use. holsteritems_test.sh auto and collectfx_test.sh pass; no mid-shrink screenshot taken.
 - configVersion 154, his values from quakevr/ironwail.cfg promoted (old default -> new; only configs still at the old default move): vr_body_head_side 0 -> 1.75, vr_body_head_sink 4.5 -> 9, vr_lootbeam_opacity 0.5 -> 0.15, vr_lootbeam_length 1.2 -> 1.5, vr_lootbeam_thickness 0.06 -> 0.03, vr_lootbeam_far 0 -> 12. The rest of vr_body_head_* and vr_lootbeam* already equalled the defaults.
+
+## Magnetic holster chain: the stick's moves carry it (worktree `permdecals`, branch `agent/chaincalm`, 2026-10-17)
+
+His voice note: the tether "should have a very slight wobble, but right now it goes all over the place" as he moves with
+the thumbstick. The cause: the stick's walk and turn moved both pinned ends (the holster, the hand) every frame while the
+free points stayed behind in the world (the old `_carry` carried them by the holster's move only, less and less towards
+the weapon), and a snap turn's jump check started the chain afresh (straight) at every snap.
+
+- `hands::State::spaceOrigin` (new): the play space's origin in the world, so that the artificial movement since the
+  last step is a rigid move: from (lastOrigin, lastYaw) to (spaceOrigin, turnYaw). Real moves in the room don't change it.
+- `stepTether` applies that move to the free points (and their last positions, so their speed turns with it) but
+  `vr_magholster_chain_sway` (new, 0.1; Immersion > Magnetic Holsters > Chain Physics: Locomotion Sway) of it. The whole
+  chain with a weapon on the body (hand, holster), less and less towards one lying about. `_carry` now carries only the
+  rest of the holster's move (the real body's, plus the sway share). Sway 1 is the old behaviour exactly. Damping is
+  the existing `_drag` (2 /s): the carried points' speed is their speed relative to you.
+- A point lying on or stopped by the world (`verlet::collide`'s new optional `touching` output; the rope passes none)
+  is not carried by the stick's moves. It is dragged as before by the holster's whole move: left where it lay and only
+  pulled, the corner case had a piece cut the corner (1 vs 0).
+- The jump check (`magchain <n> jump`) compares the weapon's offset from the holster turned with the play space, so a
+  snap turn no longer restarts the tether (the lanyard still restarts, as before). With sway 1 or the old chain, as before.
+- `vr_magholster_chain_log` also prints `magsway` lines: the tether's points in the play space, their most movement and
+  jerk a step, and the middle point off the holster.
+
+Tests: `Misc/quakevr/magchain_sway_test.sh <agent> [label] [sway]` (new; `magchain_sway_summary.py`). vrfiringrange,
+shotgun held out, 0.75 s of each move then a stop. Sway 1 (before) vs 0.1 (now), the points seen from you: walk move p95
+31.9 vs 3.3 mm, jerk p95 11.6 vs 0.9, the middle point's excursion 118 vs 30 mm. Strafe 23.9 vs 4.2, 147 vs 53 mm.
+Smooth turn 14.2 vs 3.5, 118 vs 14 mm. Stops: excursion 80-124 vs 11-18 mm. Snap: restarted 3 times vs 0. The 36 mm per
+snap left is the holster's own place on the body shifting after the turn (its end, not the chain). The 27 mm on the snap
+frame is the 10 % sway of the 45 degrees. `magchain_sim_test.sh floor toss corner` PASS (0 pieces through the world;
+new `PRE=` env for extra commands). `magchain_test.sh` held calm as before: slow jerk max 3.4 mm, fast p95 27.6, still 14.4.
+
+Decisions: points on the world are dragged as magchain2 had them, not left still (that cut a corner). The snap's 10 %
+residual is kept, as an offset rather than a kick. To try in VR: hold a bound gun and stick-walk, strafe, turn and stop:
+only a slight sway. Locomotion Sway 1 for the old swing to compare, 0 for none.

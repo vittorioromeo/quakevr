@@ -682,6 +682,7 @@ void update()
             turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
         }
         state.turnYaw = turnYaw;
+        state.spaceOrigin = toWorld(glm::vec3{0.f});
         bodytrack::place(base, floorBelowHead, turnYaw, m2u); // the tracked body, as the head and hands
 
         state.head = toWorld(t.head.position);
@@ -742,6 +743,7 @@ void update()
 
         state.lean = glm::vec3{0.f};
         state.turnYaw = yaw;
+        state.spaceOrigin = state.playerOrigin;
         state.leanHold = 0.f;
         state.standingHeight = units::eyeHeight();
         state.head = state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};

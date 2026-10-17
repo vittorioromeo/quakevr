@@ -695,6 +695,10 @@ void resetHandMoves()
         slider("Chain Carry", vr_magholster_chain_carry, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much your own movement carries the chain along near the holster (none of it at the weapon; 0: it is "
                   "only pulled)."),
+        slider("Locomotion Sway", vr_magholster_chain_sway, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much the chain swings as you walk and turn with the sticks: the share of that movement it lags "
+                  "behind (0: carried along whole; 1: all of it, as before). Your real body's moves swing it as ever; "
+                  "what lies on the floor is dragged as before."),
         header("Chain Origin"),
         slider("All Forward", vr_magholster_chain_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
             .help("Where the chain leaves every holster: units forward (the body's frame). Added to each kind's below."),
