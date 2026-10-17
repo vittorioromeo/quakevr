@@ -3026,6 +3026,21 @@ void lightReport_f()
     lightTraceSum = lightLitSum = 0;
 }
 
+// vr_debug_particle_waste's counts since the last report, drained from the GPU's 32-bit counters once a frame (a near
+// burst at 2784 pixels an eye overflows them in a few frames).
+za::U64 wasteTotals[gfx::particleWasteSlots * 3]{};
+bool wasteCounted = false;
+
+void drainWaste()
+{
+    za::U32 counts[gfx::particleWasteSlots * 3]{};
+    if(gfx::readParticleWaste({counts, gfx::particleWasteSlots * 3}))
+    {
+        for(int i = 0; i < gfx::particleWasteSlots * 3; i++) wasteTotals[i] += counts[i];
+        wasteCounted = true;
+    }
+}
+
 constexpr const char* cellNames[CellCount] = {"circle", "explosion", "smoke", "blood", "blood mist", "lightning",
     "spark", "rock", "gun smoke", "glow", "ring", "drop", "spray", "foam", "fire"};
 
@@ -3034,12 +3049,14 @@ constexpr const char* cellNames[CellCount] = {"circle", "explosion", "smoke", "b
 // atlas cell, for all of them and for the big ones (covering vr_debug_particle_waste_big of the view or more).
 void wasteReport_f()
 {
-    za::U32 counts[gfx::particleWasteSlots * 3]{};
-    if(!gfx::readParticleWaste({counts, gfx::particleWasteSlots * 3}))
+    drainWaste();
+    if(!wasteCounted)
     {
         Con_Printf("vr_particle_waste_report: nothing counted (set vr_debug_particle_waste 1, with particles in view)\n");
         return;
     }
+    const za::U64* counts = wasteTotals;
+    wasteCounted = false;
     const auto line = [](const char* name, double shaded, double visible, double strong) {
         if(shaded <= 0.0)
         {
@@ -3070,6 +3087,7 @@ void wasteReport_f()
         }
         line("total", total[0], total[1], total[2]);
     }
+    for(za::U64& c : wasteTotals) c = 0;
 }
 
 // The frame's particles for the GPU (gfx::ParticleInstance, one record each, made and uploaded once a frame and drawn
@@ -3369,6 +3387,10 @@ extern "C" void VR_DrawSceneTranslucent()
         if(builtFrame != host_framecount)
         {
             builtFrame = host_framecount;
+            if(vr_debug_particle_waste.value != 0.f)
+            {
+                drainWaste(); // the last frame's (vr_particle_waste_report)
+            }
             {
                 QVR_PROFILE("particle sim");
                 run();
